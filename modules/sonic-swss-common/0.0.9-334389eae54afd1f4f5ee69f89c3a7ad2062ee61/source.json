@@ -1,0 +1,9 @@
+{
+  "url": "https://github.com/blorente/sonic-swss-common/archive/0bbc08794128e4e1d7df043c3e3f3c4cd3ec9750.tar.gz",
+  "strip_prefix": "sonic-swss-common-0bbc08794128e4e1d7df043c3e3f3c4cd3ec9750",
+  "integrity": "sha256-62cFLQzVvluYSXR6+/+WhBxyGWkgRwAZzdRvDNG93h0=",
+  "patches": {
+    "bump-version.patch": "sha256-ZXZ4pWN04wiYZoRGR+8dQDmalH82U40FNzsnUFWjgvk="
+  },
+  "patch_strip": 1
+}
