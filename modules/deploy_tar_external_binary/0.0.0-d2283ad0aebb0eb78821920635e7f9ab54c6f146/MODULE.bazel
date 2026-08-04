@@ -2,7 +2,7 @@
 # and package binaries that come from a different module
 module(
     name = "deploy_tar_external_binary",
-    version = "0.0.0-8192ea3f8bbecd9982a529e547252b67dcb60804",
+    version = "0.0.0-d2283ad0aebb0eb78821920635e7f9ab54c6f146",
 )
 
 bazel_dep(name = "rules_cc", version = "0.2.14")
