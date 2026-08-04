@@ -1,0 +1,9 @@
+{
+  "url": "https://github.com/blorente/sonic-build-infra/archive/d2283ad0aebb0eb78821920635e7f9ab54c6f146.tar.gz",
+  "strip_prefix": "sonic-build-infra-d2283ad0aebb0eb78821920635e7f9ab54c6f146",
+  "integrity": "sha256-iNnpg7gbMe5EMBcnWPbTPcO7KMRWnIIxL6+jne6G7fc=",
+  "patches": {
+    "bump-version.patch": "sha256-e82V7/nhA5EvBvePy7ASaG9KHNEjodWgdotHw+64G78="
+  },
+  "patch_strip": 1
+}
