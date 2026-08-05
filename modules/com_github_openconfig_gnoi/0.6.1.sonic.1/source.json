@@ -1,0 +1,8 @@
+{
+  "url": "https://github.com/openconfig/gnoi/archive/2b6ff72de5769839fc68bd019f345a184e3b0bf1.tar.gz",
+  "strip_prefix": "gnoi-2b6ff72de5769839fc68bd019f345a184e3b0bf1",
+  "integrity": "sha256-D3HpRS7IxQ9ah/VNWfcJUBostHcKRjPXc8RDN5yk1OA=",
+  "overlay": {
+    "MODULE.bazel": "sha256-rwCrK90A45rHM4yM4MmbgwkmUtsa2mP6f3fQ/d1nGzo="
+  }
+}
