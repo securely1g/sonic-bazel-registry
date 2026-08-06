@@ -1,0 +1,8 @@
+# A separate bazel module, used to prove that sonic_deploy_tar can strip
+# and package binaries that come from a different module
+module(
+    name = "deploy_tar_external_binary",
+    version = "0.0.0-5b8535804cae4eade881b378016a6f297039ee82",
+)
+
+bazel_dep(name = "rules_cc", version = "0.2.14")
