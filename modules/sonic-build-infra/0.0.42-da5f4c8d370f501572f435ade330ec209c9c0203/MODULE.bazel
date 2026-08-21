@@ -1,7 +1,7 @@
 # Keep bazel_compatibility in sync with sonic-buildimage's .bazelversion.
 module(
     name = "sonic-build-infra",
-    version = "0.0.2-8192ea3f8bbecd9982a529e547252b67dcb60804",
+    version = "0.0.4-83b4e9d963f7f268d06983a8c954fc5d6d93ce2b",
     bazel_compatibility = [
         ">=8.5.1",
         "<=8.5.1",
@@ -9,7 +9,7 @@ module(
 )
 
 bazel_dep(name = "swig", version = "4.3.0.bcr.2")
-bazel_dep(name = "rules_cc", version = "0.2.14")
+bazel_dep(name = "rules_cc", version = "0.2.16")
 bazel_dep(name = "rules_python", version = "1.7.0")
 bazel_dep(name = "platforms", version = "1.0.0")
 bazel_dep(name = "tar.bzl", version = "0.10.5")
@@ -29,35 +29,42 @@ bazel_dep(name = "buildifier_prebuilt", version = "8.5.1.3", dev_dependency = Tr
 
 bazel_dep(name = "rules_distroless", version = "0.0.0.commit-01bb79d7eef4eb3ce9511d3dfaf0ab386bd8d12d")
 
-fetch_gcc = use_repo_rule("//toolchains/gcc:gcc.bzl", "fetch_gcc")
+GCC_TOOLCHAINS = {
+    "14.2.0": {
+        "release": "20-08-2026",
+        "suite": "trixie",
+        "integrity": {
+            "x86_64": "sha256-QcX9m+ftDHwwDe4YQ0lxtnq0VkO52B8xlgkk3HOulDc=",
+            "aarch64": "sha256-mF+uzgBydl6AfMYmQTzpbQWh53gaqrluJaGtfznxRZ0=",
+        },
+    },
+}
 
-fetch_gcc(
-    name = "gcc-linux-target-x86_64-host-x86_64",
-    integrity = "sha256-OMlAdKIcGumB+5E4tGU9uMPlsObmJ7nv8YVg5ZjgGbQ=",
-    target_arch = "x86_64",
-    urls = ["https://github.com/blorente/gcc-builds/releases/download/13-07-2026/gcc-toolchain-12.5.0-x86_64.tar.xz"],
-    version = "12.5.0",
-)
+gcc = use_extension("//toolchains/gcc:extensions.bzl", "gcc")
 
-fetch_gcc(
-    name = "gcc-linux-target-aarch64-host-aarch64",
-    integrity = "sha256-uDAQn8vGob0lhpFI8MNHZi6hHY1HvDxs+4+ZKLSu67s=",
-    target_arch = "aarch64",
-    urls = ["https://github.com/blorente/gcc-builds/releases/download/13-07-2026/gcc-toolchain-12.5.0-aarch64-host-aarch64.tar.xz"],
-    version = "12.5.0",
-)
+[
+    gcc.debian_toolchain(
+        arch = arch,
+        integrity = integrity,
+        release = toolchain["release"],
+        suite = toolchain["suite"],
+        target_platform = "//platforms:trixie",
+        version = version,
+    )
+    for version, toolchain in GCC_TOOLCHAINS.items()
+    for arch, integrity in toolchain["integrity"].items()
+]
 
-register_toolchains(
-    "//toolchains/gcc:host_x86_64_gcc_toolchain",
-    "//toolchains/gcc:host_aarch64_gcc_toolchain",
-    "//toolchains/binutils:host_x86_64_binutils_toolchain",
-    "//toolchains/binutils:host_aarch64_binutils_toolchain",
-)
+use_repo(gcc, "gcc_toolchains")
 
 ARCHITECTURES = [
     "amd64",
     "arm64",
 ]
+
+# Every toolchain the gcc.debian_toolchain() tags above declare,
+# one cc and one binutils toolchain per tag.
+register_toolchains("@gcc_toolchains//:all")
 
 apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
 apt.sources_list(
@@ -83,8 +90,8 @@ apt.install(
     dependency_set = "sysroot",
     packages = [
         "libc6-dev",
-        "libgcc-12-dev",
-        "libstdc++-12-dev",
+        "libgcc-14-dev",
+        "libstdc++-14-dev",
         "linux-libc-dev",
     ],
     suites = [
@@ -146,26 +153,28 @@ use_repo(
     "sysroot",
 )
 
-# Raw apt package repos the cc toolchains reach into (see use_repo below).
+# Raw apt package repos the cc toolchains reach into.
+#
+# We need to bring these packages into scope so that the gcc toolchains
+# can refer to them to create their sysroots.
+#
+# Will fail loudly if the versions get out of sync.
 SYSROOT_PACKAGE_REPO_TEMPLATES = [
     "trixie-security_linux-libc-dev-{arch}_6.12.96-1",
     "trixie_libc6-{arch}_2.41-12-deb13u3",
     "trixie_libc6-dev-{arch}_2.41-12-deb13u3",
-    "trixie_libgcc-12-dev-{arch}_12.4.0-5",
+    "trixie_libgcc-14-dev-{arch}_14.2.0-19",
     "trixie_libgcc-s1-{arch}_14.2.0-19",
-    "trixie_libstdc---12-dev-{arch}_12.4.0-5",
+    "trixie_libstdc---14-dev-{arch}_14.2.0-19",
     "trixie_libstdc--6-{arch}_14.2.0-19",
 ]
 
-SYSROOT_PACKAGE_REPOS = [
-    template.format(arch = arch)
-    for template in SYSROOT_PACKAGE_REPO_TEMPLATES
-    for arch in ARCHITECTURES
-]
-
 [
-    use_repo(apt, repo)
-    for repo in SYSROOT_PACKAGE_REPOS
+    [
+        use_repo(apt, repo_template.format(arch = arch))
+        for repo_template in SYSROOT_PACKAGE_REPO_TEMPLATES
+    ]
+    for arch in ARCHITECTURES
 ]
 
 uv = use_extension("@aspect_rules_py//uv/unstable:extension.bzl", "uv")
