@@ -1,9 +1,9 @@
 {
-  "url": "https://github.com/blorente/sonic-build-infra/archive/83b4e9d963f7f268d06983a8c954fc5d6d93ce2b.tar.gz",
-  "strip_prefix": "sonic-build-infra-83b4e9d963f7f268d06983a8c954fc5d6d93ce2b",
-  "integrity": "sha256-cXkxz35QCvimgWizjIgvDXbKDToHtNFwSVV4ffYlTmc=",
+  "url": "https://github.com/blorente/sonic-build-infra/archive/8783000eaaa56b3551bdc371ddb4038b103c49ad.tar.gz",
+  "strip_prefix": "sonic-build-infra-8783000eaaa56b3551bdc371ddb4038b103c49ad",
+  "integrity": "sha256-O+I0VeH2qb/LeArhDBBeuqN0lqJpfUew5n+ttGThPD0=",
   "patches": {
-    "bump-version.patch": "sha256-GvV6uU6kDQvZg9cdDt5dwKyo1yfleqs9NW2OoWwFWVI="
+    "bump-version.patch": "sha256-P8J4hLmYh4+dipvf9XjbzxCG65tgY6TslbeWzmRWSdA="
   },
   "patch_strip": 1
 }
