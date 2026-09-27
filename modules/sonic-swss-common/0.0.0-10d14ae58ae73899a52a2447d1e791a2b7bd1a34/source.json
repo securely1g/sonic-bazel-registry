@@ -1,5 +1,5 @@
 {
-  "url": "https://github.com/sonic-net/sonic-swss-common/archive/10d14ae58ae73899a52a2447d1e791a2b7bd1a34.tar.gz",
+  "url": "https://github.com/securely1g/sonic-swss-common/archive/10d14ae58ae73899a52a2447d1e791a2b7bd1a34.tar.gz",
   "strip_prefix": "sonic-swss-common-10d14ae58ae73899a52a2447d1e791a2b7bd1a34",
   "integrity": "sha256-pRYNhd2EePozjKeqh1TPMdpIY9HEGF0Iijcd0Hog4M8=",
   "patches": {
