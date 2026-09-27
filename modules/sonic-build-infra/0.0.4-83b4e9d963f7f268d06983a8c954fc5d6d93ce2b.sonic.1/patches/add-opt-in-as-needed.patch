@@ -1,0 +1,68 @@
+diff --git a/toolchains/gcc/BUILD.bazel b/toolchains/gcc/BUILD.bazel
+index d4098f4..a96a607 100644
+--- a/toolchains/gcc/BUILD.bazel
++++ b/toolchains/gcc/BUILD.bazel
+@@ -2,6 +2,14 @@ load("@rules_cc//cc/toolchains:feature.bzl", "cc_feature")
+ 
+ licenses(["notice"])
+ 
++# A target can request unused-library filtering without changing the toolchain
++# default. The matching conditional cc_args runs before dependency libraries.
++cc_feature(
++    name = "as_needed",
++    feature_name = "as_needed",
++    visibility = ["//visibility:public"],
++)
++
+ # Shared by every generated cc toolchain.
+ # https://github.com/bazelbuild/rules_cc/commit/283d572e0e1f4fe864f1f94db2c2cd27cb1dcc6e
+ cc_feature(
+diff --git a/toolchains/gcc/args/BUILD.bazel b/toolchains/gcc/args/BUILD.bazel
+index e54f041..857e651 100644
+--- a/toolchains/gcc/args/BUILD.bazel
++++ b/toolchains/gcc/args/BUILD.bazel
+@@ -14,6 +14,14 @@
+ 
+ load("@rules_cc//cc/toolchains:args.bzl", "cc_args")
+ 
++cc_args(
++    name = "as_needed",
++    actions = ["@rules_cc//cc/toolchains/actions:link_executable_actions"],
++    args = ["-Wl,--as-needed"],
++    requires_any_of = ["//toolchains/gcc:as_needed"],
++    visibility = ["//visibility:public"],
++)
++
+ cc_args(
+     name = "nostdinc",
+     actions = ["@rules_cc//cc/toolchains/actions:c_compile"],
+diff --git a/toolchains/gcc/defs.bzl b/toolchains/gcc/defs.bzl
+index 061ace3..30895f2 100644
+--- a/toolchains/gcc/defs.bzl
++++ b/toolchains/gcc/defs.bzl
+@@ -18,6 +18,7 @@ load(
+ 
+ _PLATFORM_DEPENDENT_ARGS = PLATFORM_DEPENDENT_ARGS
+ _PLATFORM_INDEPENDENT_ARGS = [
++    Label("//toolchains/gcc/args:as_needed"),
+     Label("//toolchains/gcc/args:nostdlib"),
+     Label("//toolchains/gcc/args:nostdinc"),
+     Label("//toolchains/gcc/args:nostdinc++"),
+@@ -31,6 +32,8 @@ _FEATURES = [
+     Label("@rules_cc//cc/toolchains/args:experimental_replace_legacy_action_config_features"),
+ ]
+ 
++_KNOWN_FEATURES = _FEATURES + [Label("//toolchains/gcc:as_needed")]
++
+ _GCC_CAPABILITIES = [Label("@rules_cc//cc/toolchains/capabilities:supports_pic")]
+ 
+ def bin(cpu, version, tool):
+@@ -185,7 +188,7 @@ def sonic_host_toolchain(
+         args = _PLATFORM_INDEPENDENT_ARGS + platform_dependent_args,
+         compiler = "gcc",
+         enabled_features = _FEATURES,
+-        known_features = _FEATURES,
++        known_features = _KNOWN_FEATURES,
+         tags = ["manual"],
+         tool_map = name + "_tools",
+     )
