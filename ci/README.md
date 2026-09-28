@@ -47,6 +47,23 @@ The configuration declares:
   the module under test and include its value. Native Bazel options, duplicate
   settings, and options that redirect registries or override test execution are
   rejected. The selected flags are retained in `validation.json`.
+- `version_overrides` (optional): a map from module names to exact versions for
+  the tested module or explicit `consumer_deps`. The consumer emits version-only
+  `single_version_override` declarations; source, patch, and registry overrides
+  are not supported. This handles commit-suffixed versions whose lexical order
+  differs from the required source revision. An override for the tested module
+  must retain its tested version. The runner verifies fetched module identities
+  and retains the requested versions and fetched declarations as artifacts.
+
+For example, a consumer depending on `sonic-build-infra` can select a specific
+registered source revision even when another dependency requests a lexically
+higher historical version:
+
+```json
+"version_overrides": {
+  "sonic-build-infra": "0.0.4-7ce718859ccf79fdafbf5cb5abd32bcca164f126"
+}
+```
 
 Use explicit labels for required outputs and tests. Wildcard builds can silently
 skip targets incompatible with the selected platform. Add tests to the module's

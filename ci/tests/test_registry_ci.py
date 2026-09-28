@@ -207,6 +207,24 @@ class SelectionTests(FixtureTestCase):
 
 
 class EntryValidationTests(FixtureTestCase):
+    def test_version_overrides_accept_only_declared_module_versions(self) -> None:
+        entry = self.entry("alpha", "1.0.0")
+        path = entry / "presubmit.json"
+        config = json.loads(path.read_text())
+        for overrides in ({}, {"platforms": "0.0.4-abc123"}, {"alpha": "1.0.0"}):
+            with self.subTest(overrides=overrides):
+                config["version_overrides"] = overrides
+                write_json(path, config)
+                self.assertEqual(registry_ci.validate_entry(self.root, "alpha", "1.0.0")["version_overrides"], overrides)
+        for overrides in ([], {"unknown": "1.0.0"}, {"alpha": "2.0.0"},
+                          {"platforms": {"version": "1.0.0", "patches": []}},
+                          {"platforms": ""}, {"platforms": "1.0.0\")\nfail(\"oops"}):
+            with self.subTest(overrides=overrides):
+                config["version_overrides"] = overrides
+                write_json(path, config)
+                with self.assertRaises(registry_ci.RegistryError):
+                    registry_ci.validate_entry(self.root, "alpha", "1.0.0")
+
     def test_valid_entry_is_accepted(self) -> None:
         self.entry("alpha", "1.0.0")
         config = registry_ci.validate_entry(self.root, "alpha", "1.0.0")
@@ -355,10 +373,14 @@ class FetchedModuleTests(FixtureTestCase):
         config_path = entry / "presubmit.json"
         config = json.loads(config_path.read_text())
         config["build_flags"] = ["--@alpha//bazel:yang_modules=False"]
+        config["version_overrides"] = {"platforms": "0.9.0"}
         write_json(config_path, config)
         output_base = self.root / "fake-output-base"
         fetched = output_base / "external" / "alpha+" / "MODULE.bazel"
         fetched.parent.mkdir(parents=True)
+        overridden = output_base / "external" / "platforms+" / "MODULE.bazel"
+        overridden.parent.mkdir(parents=True)
+        overridden.write_text('module(name = "platforms", version = "0.9.0")\n')
         fake_bazel = self.root / "fake-bazel"
         fake_bazel.write_text(
             "#!/usr/bin/env python3\n"
@@ -366,6 +388,7 @@ class FetchedModuleTests(FixtureTestCase):
             "from pathlib import Path\n"
             "import sys\n"
             "args = sys.argv[1:]\n"
+            "assert 'single_version_override(module_name = \"platforms\", version = \"0.9.0\")' in Path('MODULE.bazel').read_text()\n"
             "assert '--@alpha//bazel:yang_modules=False' in args\n"
             "if 'info' in args:\n"
             f"    print({str(output_base)!r})\n"
@@ -389,6 +412,16 @@ class FetchedModuleTests(FixtureTestCase):
         )
         validation = json.loads((self.root / "artifacts-control" / "validation.json").read_text())
         self.assertEqual(validation["build_flags"], config["build_flags"])
+        self.assertEqual(validation["version_overrides"], config["version_overrides"])
+        self.assertEqual((self.root / "artifacts-control" / "override-platforms.MODULE.bazel").read_bytes(),
+                         overridden.read_bytes())
+        overridden.write_text('module(name = "platforms", version = "1.0.0")\n')
+        with self.assertRaisesRegex(registry_ci.RegistryError, "Fetched override platforms differs"):
+            registry_ci.run(
+                self.root, "alpha", "1.0.0", "amd64",
+                self.root / "work-wrong-override", self.root / "artifacts-wrong-override", str(fake_bazel),
+            )
+        overridden.write_text('module(name = "platforms", version = "0.9.0")\n')
         mismatches = (
             'module(name = "beta", version = "1.0.0")\n',
             'module(name = "alpha", version = "1.0.0")\nbazel_dep(name = "extra", version = "1.0.0")\n',

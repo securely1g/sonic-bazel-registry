@@ -152,8 +152,8 @@ def validate_entry(root: Path, module: str, version: str) -> dict:
 
     config = read_json(entry / "presubmit.json")
     required = {"architectures", "consumer_deps", "platforms", "build_targets", "test_targets"}
-    require(required <= set(config) <= required | {"build_flags"},
-            f"presubmit.json requires {sorted(required)} and optionally build_flags")
+    require(required <= set(config) <= required | {"build_flags", "version_overrides"},
+            f"presubmit.json requires {sorted(required)} and optionally build_flags/version_overrides")
     architectures = config["architectures"]
     require(isinstance(architectures, list) and bool(architectures)
             and all(isinstance(a, str) and a in RUNNERS for a in architectures)
@@ -179,6 +179,14 @@ def validate_entry(root: Path, module: str, version: str) -> dict:
                 "Invalid or duplicate consumer repository name")
         names.add(name)
         aliases.add(alias)
+    overrides = config.get("version_overrides", {})
+    require(isinstance(overrides, dict), "version_overrides must map module names to versions")
+    for name, selected_version in overrides.items():
+        require(name in names, "version_overrides must name the tested module or a consumer dependency")
+        require(isinstance(selected_version, str) and VERSION.fullmatch(selected_version) is not None,
+                "Invalid version_overrides version")
+        require(name != module or selected_version == version,
+                "version_overrides cannot change the module version under test")
     for field in ("build_targets", "test_targets"):
         labels = config[field]
         require(isinstance(labels, list) and bool(labels) and all(isinstance(label, str) for label in labels),
@@ -328,6 +336,9 @@ def run(root: Path, module: str, version: str, architecture: str,
     for dependency in [{"name": module, "version": version}, *config["consumer_deps"]]:
         declarations.append("bazel_dep(" + ", ".join(f"{key} = {json.dumps(value)}"
                                                    for key, value in dependency.items()) + ")")
+    for name, selected_version in sorted(config.get("version_overrides", {}).items()):
+        declarations.append(f"single_version_override(module_name = {json.dumps(name)}, "
+                            f"version = {json.dumps(selected_version)})")
     (consumer / "MODULE.bazel").write_text("\n\n".join(declarations) + "\n")
     (consumer / "BUILD.bazel").write_text("# Explicit external targets are built from this consumer.\n")
     (consumer / ".bazelversion").write_text("8.5.1\n")
@@ -353,10 +364,17 @@ def run(root: Path, module: str, version: str, architecture: str,
         require(fetched[0].read_bytes() == registry_module.read_bytes(),
                 "Fetched MODULE.bazel differs from registry MODULE.bazel")
         shutil.copy2(fetched[0], artifacts / "fetched.MODULE.bazel")
+        for name, selected_version in sorted(config.get("version_overrides", {}).items()):
+            selected = list((output_base / "external").glob(f"{name}+*/MODULE.bazel"))
+            require(len(selected) == 1, f"Expected one fetched repository for override {name}")
+            require(parse_module_identity(selected[0].read_text()) == (name, selected_version),
+                    f"Fetched override {name} differs from the selected version {selected_version}")
+            shutil.copy2(selected[0], artifacts / f"override-{name}.MODULE.bazel")
         (artifacts / "validation.json").write_text(json.dumps({
             "module": module, "version": version, "architecture": architecture,
             "build_targets": config["build_targets"], "passed_tests": config["test_targets"],
             "build_flags": config.get("build_flags", []),
+            "version_overrides": config.get("version_overrides", {}),
             "fetched_module_matches_registry": True,
         }, indent=2) + "\n")
     finally:
