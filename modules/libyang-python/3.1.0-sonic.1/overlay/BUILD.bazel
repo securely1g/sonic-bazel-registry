@@ -2,7 +2,6 @@ load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("@rules_python//python:py_binary.bzl", "py_binary")
 load("@rules_python//python:py_library.bzl", "py_library")
 load("@rules_python//python:py_test.bzl", "py_test")
-load("@sonic_build_infra//toolchains/gcc:defs.bzl", "SONIC_INSTALLED_RUNTIME_PATHS_FEATURE")
 
 package(default_visibility = ["//visibility:private"])
 
@@ -32,7 +31,6 @@ cc_binary(
     name = "_libyang.so",
     srcs = [":cffi_c"],
     copts = ["-std=c99"],
-    features = ["-" + SONIC_INSTALLED_RUNTIME_PATHS_FEATURE],
     linkopts = [
         "-Wl,-z,now",
     ],

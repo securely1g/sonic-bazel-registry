@@ -43,23 +43,13 @@ bazel_dep(
 )
 ```
 
-This release requires the runtime path feature interface from
-`sonic-build-infra` `0.0.4-7ce718859ccf79fdafbf5cb5abd32bcca164f126`.
-Bzlmod orders commit version suffixes independently of commit chronology,
-so another `0.0.4-<commit>` dependency can select a source revision without that
-interface. When combining the current SONiC dependency graph, select the required
-source version in the root module with a version-only override:
-
-```starlark
-single_version_override(
-    module_name = "sonic-build-infra",
-    version = "0.0.4-7ce718859ccf79fdafbf5cb5abd32bcca164f126",
-)
-```
-
-The override selects a registered version; it does not replace or patch its
-source. This module contains no override. Loading the feature constant makes a
-selected infrastructure source without the interface fail during analysis.
+This release uses the registered `sonic-build-infra`
+`0.0.7-91fe8246519f99838da936eee54e85208c704a4d`, which includes the upstream
+removal of installed runtime paths and selects control-flow hardening for the
+target CPU. Its version is higher than the historical 0.0.4 requested by native
+libyang, so this dependency graph needs no root version override. The binding has no dependency on the discarded runtime-path feature
+or its exported constant. Inspect `bazel mod graph` when combining dependencies
+to confirm the selected infrastructure version.
 
 Public targets:
 
@@ -78,11 +68,9 @@ build sets `py_limited_api=False`, so this target is not an ABI3 extension.
 The CFFI source emitter runs as a declared execution tool. Bazel compiles the
 emitted C in the binding's configuration with `current_py_cc_headers` from the
 selected interpreter and links it to the native `libyang` target. It does not
-link another `libpython`. The selected SONiC toolchain's
-`SONIC_INSTALLED_RUNTIME_PATHS_FEATURE` constant names the installed path
-feature disabled for this private extension, so its loader uses Bazel's declared
-runtime paths. The feature comes from the `sonic-build-infra` source version
-declared in `MODULE.bazel`.
+link another `libpython`. The selected SONiC toolchain does not embed the
+installed `/lib/<multiarch>` or `/usr/lib/<multiarch>/gconv` runtime paths.
+The extension uses Bazel's declared runtime paths without a feature override.
 
 When a generator consumes this library through an execution transition, the
 binding, interpreter, CFFI backend, and native libyang use the execution
@@ -101,19 +89,19 @@ regular files in the test temporary directory so native resolved filenames match
 the upstream filepath assertions. The runner preserves their bytes and does not
 skip tests. It requires no external services.
 
-Without the version override above, the current graph selects
-`sonic-build-infra` `0.0.4-83b4e9d963f7f268d06983a8c954fc5d6d93ce2b` requested
-by native libyang. The version's `presubmit.json` selects the required registered
-infra version with the runner's `version_overrides` configuration. The generated
-external consumer uses the same version-only override shown above, and the
-runner verifies the fetched module identities and required uncached tests.
+The version's `presubmit.json` declares the registered 0.0.7 infrastructure
+version as a normal consumer dependency. The generated external consumer uses
+standard module resolution without source, patch, or version overrides. The
+runner verifies the fetched binding module identity and requires both tests to
+execute uncached; validation also inspects the resolved infrastructure version.
 
 Registry CI builds the public library through its Python 3.13 runtime and
 upstream test binaries, then executes both tests on native AMD64 and ARM64
 Debian Trixie with Bazel 8.5.1. Building those binaries selects the interpreter
 required by the library, just as an ordinary consuming Python binary does. The
-manifest changes only the validation consumer; the published source, patches,
-overlay, Python toolchain, and dependency lockfile retain their original bytes.
+manifest selects the validation consumer's platform and required targets.
+The production source, four patches, Python toolchain, and CFFI dependency
+lockfile are unchanged by the infrastructure update.
 
 Local validation covers native AMD64 Linux with Debian Trixie userspace, Bazel
 8.5.1, and CPython 3.13. The hosted matrix in
