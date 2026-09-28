@@ -6,7 +6,15 @@
   "patches": {
     "0001-module-version.patch": "sha256-FyHp87QhWEels9i9eqHQ8VSIw0JMgzbUY+tGw3zcve0=",
     "0002-include-fragments.patch": "sha256-iNpoe/p+zvHebAowncGruHEtEPSMrsIunHTfMNZOY5o=",
-    "0003-armhf-cpu.patch": "sha256-NRoaCDLfI39w0N8hiKG+gfqvDNf1PV95MFKp+VduId0="
+    "0003-armhf-cpu.patch": "sha256-NRoaCDLfI39w0N8hiKG+gfqvDNf1PV95MFKp+VduId0=",
+    "0004-registry-ci.patch": "sha256-ZkRgmpFEfjYrB0eS1sW60YMjad88YbdWtxBQCD2bMG0="
   },
-  "patch_strip": 1
+  "patch_strip": 1,
+  "overlay": {
+    "registry_ci/BUILD.bazel": "sha256-twBvWFwRSkWwykWOH6W89vtsGv29tH1HHaYmSRVvN6U=",
+    "registry_ci/architecture_test.bzl": "sha256-np7Gr1ChQDcgzEui9BvgkY8oZKoRQBVg9frpOyFdtWE=",
+    "registry_ci/extensions.bzl": "sha256-Av740KFHEo+NsuJ9vmJNOUvuW/Gcs5WxKLIuvL6LKeE=",
+    "registry_ci/headers_only.bzl": "sha256-mRDk0eBj/pfecU4C6cG88LRi29LmjaSdKe6iymnS6O4=",
+    "registry_ci/protobuf_headers_test.cc": "sha256-Olh22GMJyNSUyijD9763cyAvy+H7jPUoFk3qd7cDflI="
+  }
 }
