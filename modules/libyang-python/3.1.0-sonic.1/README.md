@@ -103,12 +103,17 @@ skip tests. It requires no external services.
 
 Without the version override above, the current graph selects
 `sonic-build-infra` `0.0.4-83b4e9d963f7f268d06983a8c954fc5d6d93ce2b` requested
-by native libyang. The current registry presubmit runner cannot express the root
-version-only override, so this entry has no `presubmit.json`. The standalone
-consumer and Common integration use the exact registered version selected by
-the override above for validation. Registry CI requires a presubmit file for
-new entries, so this version cannot pass its planning check until the runner
-supports that version selection.
+by native libyang. The version's `presubmit.json` selects the required registered
+infra version with the runner's `version_overrides` configuration. The generated
+external consumer uses the same version-only override shown above, and the
+runner verifies the fetched module identities and required uncached tests.
+
+Registry CI builds the public library through its Python 3.13 runtime and
+upstream test binaries, then executes both tests on native AMD64 and ARM64
+Debian Trixie with Bazel 8.5.1. Building those binaries selects the interpreter
+required by the library, just as an ordinary consuming Python binary does. The
+manifest changes only the validation consumer; the published source, patches,
+overlay, Python toolchain, and dependency lockfile retain their original bytes.
 
 Local validation covers native AMD64 Linux with Debian Trixie userspace, Bazel
 8.5.1, and CPython 3.13. The hosted matrix in
