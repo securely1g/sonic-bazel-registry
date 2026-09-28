@@ -7,5 +7,11 @@
     "remove-host-rpath-link.patch": "sha256-5YO0tteW+naUyDnJMR3t0s4AWFa1/af31lCHYRO5pSk=",
     "add-opt-in-as-needed.patch": "sha256-QHV8u7xD8S2coXDPGOaTt9edgBmFp55rFlkEh6D4XQA="
   },
-  "patch_strip": 1
+  "patch_strip": 1,
+  "overlay": {
+    "registry_ci/BUILD.bazel": "sha256-FfY4d+93T168dpfqaxvogS54d4lqjffavKmdvokFFNo=",
+    "registry_ci/consumer.cc": "sha256-2vk2lPEobR652IQsUl85A5fAf9hjiC6fYpZOCfNuQ/k=",
+    "registry_ci/dependency.cc": "sha256-Qcj9LwlrYd+qRRweK3Qc1CZaURjd0fsLVZhaa2V2V80=",
+    "registry_ci/link_contract.bzl": "sha256-PrVG7BY270ukzyfmy36UrWXbrUJ9H6zM9V3alyI9gy4="
+  }
 }
