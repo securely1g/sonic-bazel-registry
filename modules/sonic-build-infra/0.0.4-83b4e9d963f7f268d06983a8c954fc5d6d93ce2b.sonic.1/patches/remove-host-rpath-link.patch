@@ -1,0 +1,10 @@
+--- a/toolchains/gcc/args/platform_dependent_args.bzl
++++ b/toolchains/gcc/args/platform_dependent_args.bzl
+@@ -161,7 +161,6 @@ _LINK_ARGS = [
+     "-B",
+     "{{libc6}}/lib/{multiarch}",
+     "-Wl,-rpath=/lib/{multiarch}",
+-    "-Wl,-rpath-link=/lib/{multiarch}",
+     "-B",
+     "{{libc6-dev}}/usr/lib/{multiarch}",
+     "-L",
