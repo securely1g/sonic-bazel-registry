@@ -118,13 +118,12 @@ cc_library(
 )
 
 # Private headers used only during compilation of libnl3 libraries.
-# linux-private/ shadows system kernel headers (e.g. linux/snmp.h).
-# Must use strip_include_prefix (generates -I _virtual_includes/) so it has
-# higher priority than the toolchain's -isystem flags for linux-libc-dev.
+# This target declares the header inputs. The local -I flags in LIBNL_COPTS
+# and the Bison rules select linux-private/ ahead of the system kernel headers.
+# Keep their original paths so they do not shadow consumers' kernel headers.
 cc_library(
     name = "linux_private_headers",
     hdrs = glob(["include/linux-private/**/*.h"]),
-    strip_include_prefix = "include/linux-private",
 )
 
 # Includes netlink-private/ and the generated defs.h.
