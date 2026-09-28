@@ -1,0 +1,150 @@
+load("@bazel_lib//lib:copy_file.bzl", "copy_file")
+load("@rules_cc//cc:defs.bzl", "cc_test")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+alias(
+    name = "libnl_3",
+    actual = "@libnl3_src//:libnl_3",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "libnl_genl_3",
+    actual = "@libnl3_src//:libnl_genl_3",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "libnl_route_3",
+    actual = "@libnl3_src//:libnl_route_3",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "libnl_nf_3",
+    actual = "@libnl3_src//:libnl_nf_3",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "headers",
+    actual = "@libnl3_src//:public_headers",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "libnl-3_pkg",
+    actual = "@libnl3_src//:libnl-3_pkg",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "libnl-3-dev_pkg",
+    actual = "@libnl3_src//:libnl-3-dev_pkg",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "libnl-genl-3-dev_pkg",
+    actual = "@libnl3_src//:libnl-genl-3-dev_pkg",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "libnl-route-3-dev_pkg",
+    actual = "@libnl3_src//:libnl-route-3-dev_pkg",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "libnl-nf-3-dev_pkg",
+    actual = "@libnl3_src//:libnl-nf-3-dev_pkg",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "libnl-genl-3_pkg",
+    actual = "@libnl3_src//:libnl-genl-3_pkg",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "libnl-route-3_pkg",
+    actual = "@libnl3_src//:libnl-route-3_pkg",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "libnl-nf-3_pkg",
+    actual = "@libnl3_src//:libnl-nf-3_pkg",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "libnl_cli_3",
+    actual = "@libnl3_src//:libnl_cli_3",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "libnl-cli-3_pkg",
+    actual = "@libnl3_src//:libnl-cli-3_pkg",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "libnl-cli-3-dev_pkg",
+    actual = "@libnl3_src//:libnl-cli-3-dev_pkg",
+    visibility = ["//visibility:public"],
+)
+
+cc_test(
+    name = "libnl3_consumer_test",
+    srcs = ["libnl3_consumer_test.c"],
+    linkopts = ["-ldl"],
+    linkstatic = False,
+    visibility = ["//visibility:public"],
+    deps = [
+        ":libnl_3",
+        ":libnl_route_3",
+    ],
+)
+
+copy_file(
+    name = "package_test_script",
+    src = "libnl3_package_test.sh",
+    out = "libnl3_package_test_runner.sh",
+    is_executable = True,
+)
+
+sh_test(
+    name = "libnl3_package_test",
+    srcs = [":package_test_script"],
+    args = [
+        "$(location libnl3_consumer_test.c)",
+        "$(location :libnl-3_pkg)",
+        "$(location :libnl-genl-3_pkg)",
+        "$(location :libnl-route-3_pkg)",
+        "$(location :libnl-nf-3_pkg)",
+        "$(location :libnl-cli-3_pkg)",
+        "$(location :libnl-3-dev_pkg)",
+        "$(location :libnl-genl-3-dev_pkg)",
+        "$(location :libnl-route-3-dev_pkg)",
+        "$(location :libnl-nf-3-dev_pkg)",
+        "$(location :libnl-cli-3-dev_pkg)",
+    ],
+    data = [
+        "libnl3_consumer_test.c",
+        ":libnl-3_pkg",
+        ":libnl-genl-3_pkg",
+        ":libnl-route-3_pkg",
+        ":libnl-nf-3_pkg",
+        ":libnl-cli-3_pkg",
+        ":libnl-3-dev_pkg",
+        ":libnl-genl-3-dev_pkg",
+        ":libnl-route-3-dev_pkg",
+        ":libnl-nf-3-dev_pkg",
+        ":libnl-cli-3-dev_pkg",
+    ],
+    visibility = ["//visibility:public"],
+)

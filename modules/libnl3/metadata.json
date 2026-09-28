@@ -1,5 +1,6 @@
 {
   "versions": [
-    "3.7.0.sonic-buildimage"
+    "3.7.0.sonic-buildimage",
+    "3.7.0-sonic.2"
   ]
 }
