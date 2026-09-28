@@ -1,0 +1,258 @@
+load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
+load("@bazel_skylib//rules:expand_template.bzl", "expand_template")
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_import", "cc_library", "cc_test")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
+load(":headers.bzl", "headers_only")
+load(":libyang_srcs.bzl", "LIBYANG_HDRS", "LIBYANG_SRCS")
+
+package(default_visibility = ["//visibility:public"])
+
+# This overlay models the glibc, little-endian SONiC platforms. It does not run
+# host feature probes while configuring a library for another target CPU.
+config_setting(
+    name = "amd64",
+    constraint_values = ["@platforms//cpu:x86_64"],
+)
+
+config_setting(
+    name = "arm64",
+    constraint_values = ["@platforms//cpu:aarch64"],
+)
+
+config_setting(
+    name = "armhf",
+    constraint_values = ["@platforms//cpu:armv7"],
+)
+
+expand_template(
+    name = "compat_h",
+    out = "generated/compat.h",
+    substitutions = {
+        "#cmakedefine HAVE_VDPRINTF": "#define HAVE_VDPRINTF",
+        "#cmakedefine HAVE_ASPRINTF": "#define HAVE_ASPRINTF",
+        "#cmakedefine HAVE_VASPRINTF": "#define HAVE_VASPRINTF",
+        "#cmakedefine HAVE_GETLINE": "#define HAVE_GETLINE",
+        "#cmakedefine HAVE_STRNDUP": "#define HAVE_STRNDUP",
+        "#cmakedefine HAVE_STRNSTR": "/* HAVE_STRNSTR is unavailable on glibc. */",
+        "#cmakedefine HAVE_STRDUPA": "#define HAVE_STRDUPA",
+        "#cmakedefine HAVE_STRCHRNUL": "#define HAVE_STRCHRNUL",
+        "#cmakedefine HAVE_GET_CURRENT_DIR_NAME": "#define HAVE_GET_CURRENT_DIR_NAME",
+        "#cmakedefine HAVE_PTHREAD_MUTEX_TIMEDLOCK": "#define HAVE_PTHREAD_MUTEX_TIMEDLOCK",
+        "#cmakedefine HAVE_REALPATH": "#define HAVE_REALPATH",
+        "#cmakedefine HAVE_LOCALTIME_R": "#define HAVE_LOCALTIME_R",
+        "#cmakedefine HAVE_GMTIME_R": "#define HAVE_GMTIME_R",
+        "#cmakedefine HAVE_TIMEGM": "#define HAVE_TIMEGM",
+        "#cmakedefine HAVE_STRPTIME": "#define HAVE_STRPTIME",
+        "#cmakedefine HAVE_MMAP": "#define HAVE_MMAP",
+        "#cmakedefine HAVE_STRCASECMP": "#define HAVE_STRCASECMP",
+        "#cmakedefine HAVE_SETENV": "#define HAVE_SETENV",
+        "#cmakedefine HAVE_STDATOMIC": "#define HAVE_STDATOMIC",
+        "#cmakedefine IS_BIG_ENDIAN": "/* Supported SONiC platforms are little-endian. */",
+    },
+    template = "compat/compat.h.in",
+)
+
+expand_template(
+    name = "config_h",
+    out = "libyang/ly_config.h",
+    substitutions = select({
+        ":amd64": {
+            "@LYD_VALUE_SIZE@": "24",
+            "@CMAKE_SHARED_MODULE_SUFFIX@": ".so",
+            "@PLUGINS_DIR_TYPES@": "/usr/lib/x86_64-linux-gnu/libyang/types",
+            "@PLUGINS_DIR_EXTENSIONS@": "/usr/lib/x86_64-linux-gnu/libyang/extensions",
+        },
+        ":arm64": {
+            "@LYD_VALUE_SIZE@": "24",
+            "@CMAKE_SHARED_MODULE_SUFFIX@": ".so",
+            "@PLUGINS_DIR_TYPES@": "/usr/lib/aarch64-linux-gnu/libyang/types",
+            "@PLUGINS_DIR_EXTENSIONS@": "/usr/lib/aarch64-linux-gnu/libyang/extensions",
+        },
+        ":armhf": {
+            "@LYD_VALUE_SIZE@": "24",
+            "@CMAKE_SHARED_MODULE_SUFFIX@": ".so",
+            "@PLUGINS_DIR_TYPES@": "/usr/lib/arm-linux-gnueabihf/libyang/types",
+            "@PLUGINS_DIR_EXTENSIONS@": "/usr/lib/arm-linux-gnueabihf/libyang/extensions",
+        },
+    }),
+    template = "src/ly_config.h.in",
+)
+
+expand_template(
+    name = "version_h",
+    out = "libyang/version.h",
+    substitutions = {
+        "@LIBYANG_MAJOR_VERSION@": "3",
+        "@LIBYANG_MINOR_VERSION@": "12",
+        "@LIBYANG_MICRO_VERSION@": "2",
+        "@LIBYANG_VERSION@": "3.12.2",
+        "@LIBYANG_MAJOR_SOVERSION@": "3",
+        "@LIBYANG_MINOR_SOVERSION@": "9",
+        "@LIBYANG_MICRO_SOVERSION@": "1",
+        "@LIBYANG_SOVERSION_FULL@": "3.9.1",
+    },
+    template = "src/version.h.in",
+)
+
+[
+    copy_file(
+        name = "public_header_" + header.split("/")[-1],
+        src = header,
+        out = "libyang/" + header.split("/")[-1],
+    )
+    for header in LIBYANG_HDRS
+]
+
+cc_library(
+    name = "public_headers",
+    hdrs = ["libyang/" + header.split("/")[-1] for header in LIBYANG_HDRS] + [
+        ":config_h",
+        ":version_h",
+    ],
+    include_prefix = "libyang",
+    includes = ["libyang"],
+    strip_include_prefix = "libyang",
+    deps = [":pcre2_headers"],
+)
+
+cc_library(
+    name = "generated_headers",
+    hdrs = [
+        ":config_h",
+        ":version_h",
+    ],
+    includes = ["libyang"],
+)
+
+cc_library(
+    name = "yang_objects",
+    srcs = LIBYANG_SRCS,
+    hdrs = glob([
+        "src/**/*.h",
+        "models/*.h",
+    ]) + [":compat_h"],
+    copts = [
+        "-std=c11",
+        "-fvisibility=hidden",
+    ],
+    includes = [
+        "generated",
+        "src",
+        "src/plugins_exts",
+    ],
+    local_defines = [
+        "LIBYANG_BUILD",
+        "LY_XXHASH_SUPPORT",
+        "_FILE_OFFSET_BITS=64",
+        "NDEBUG",
+    ],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":generated_headers",
+        "@pcre2",
+        "@xxhash",
+    ],
+    alwayslink = True,
+)
+
+cc_binary(
+    name = "libyang.so.3",
+    features = ["-sonic_installed_runtime_paths"],
+    linkopts = [
+        "-Wl,-soname,libyang.so.3",
+        "-Wl,--as-needed",
+        "-Wl,--exclude-libs,libpcre2.a:libpcre2.pic.a:libxxhash.a:libxxhash.pic.a",
+        "-lm",
+        "-ldl",
+        "-pthread",
+    ],
+    linkshared = True,
+    linkstatic = True,
+    deps = [":yang_objects"],
+)
+
+cc_import(
+    name = "yang_shared",
+    shared_library = ":libyang.so.3",
+)
+
+cc_library(
+    name = "libyang",
+    deps = [
+        ":public_headers",
+        ":yang_shared",
+    ],
+)
+
+[
+    sonic_deploy_tar(
+        name = "libyang_pkg_" + cpu,
+        srcs = ["LICENSES"],
+        binaries = {"usr/lib/{}/libyang.so.3.9.1 type=file mode=0555".format(multiarch): ":libyang.so.3"},
+        force_debug_build = True,
+        mtree = [
+            "usr/share/doc/libyang/copyright type=file mode=0444 content=$(location LICENSES)",
+            "usr/lib/{}/libyang.so.3 type=link link=libyang.so.3.9.1".format(multiarch),
+            "usr/lib/{}/libyang.so type=link link=libyang.so.3".format(multiarch),
+        ],
+        target_compatible_with = ["@platforms//cpu:" + cpu],
+    )
+    for cpu, multiarch in [
+        ("x86_64", "x86_64-linux-gnu"),
+        ("aarch64", "aarch64-linux-gnu"),
+        ("armv7", "arm-linux-gnueabihf"),
+    ]
+]
+
+alias(
+    name = "libyang_pkg",
+    actual = select({
+        ":amd64": ":libyang_pkg_x86_64",
+        ":arm64": ":libyang_pkg_aarch64",
+        ":armhf": ":libyang_pkg_armv7",
+    }),
+)
+
+alias(
+    name = "libyang_pkg.debug_symbols",
+    actual = select({
+        ":amd64": ":libyang_pkg_x86_64.debug_symbols",
+        ":arm64": ":libyang_pkg_aarch64.debug_symbols",
+        ":armhf": ":libyang_pkg_armv7.debug_symbols",
+    }),
+)
+
+sh_test(
+    name = "libyang_package_test",
+    srcs = [":package_test_script"],
+    args = [
+        "$(location :libyang_pkg)",
+        "$(location :libyang_pkg.debug_symbols)",
+        "$(location :libyang_test)",
+    ],
+    data = [
+        ":libyang_pkg",
+        ":libyang_pkg.debug_symbols",
+        ":libyang_test",
+    ],
+)
+
+cc_test(
+    name = "libyang_test",
+    srcs = ["libyang_test.c"],
+    deps = [":libyang"],
+)
+
+headers_only(
+    name = "pcre2_headers",
+    dep = "@pcre2",
+)
+
+# Registry overlays do not preserve executable bits.
+copy_file(
+    name = "package_test_script",
+    src = "libyang_package_test.sh",
+    out = "libyang_package_test_runner.sh",
+    is_executable = True,
+)
