@@ -1,0 +1,29 @@
+{
+  "architectures": ["amd64"],
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.4-83b4e9d963f7f268d06983a8c954fc5d6d93ce2b",
+      "repo_name": "sonic_build_infra"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
+  },
+  "build_targets": [
+    "@libnl3//:libnl-3_pkg",
+    "@libnl3//:libnl-genl-3_pkg",
+    "@libnl3//:libnl-route-3_pkg",
+    "@libnl3//:libnl-nf-3_pkg",
+    "@libnl3//:libnl-cli-3_pkg",
+    "@libnl3//:libnl-3-dev_pkg",
+    "@libnl3//:libnl-genl-3-dev_pkg",
+    "@libnl3//:libnl-route-3-dev_pkg",
+    "@libnl3//:libnl-nf-3-dev_pkg",
+    "@libnl3//:libnl-cli-3-dev_pkg"
+  ],
+  "test_targets": [
+    "@libnl3//:libnl3_consumer_test",
+    "@libnl3//:libnl3_package_test"
+  ]
+}

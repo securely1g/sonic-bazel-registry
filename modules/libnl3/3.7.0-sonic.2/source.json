@@ -1,11 +1,13 @@
 {
-  "url": "http://debian-archive.trafficmanager.net/debian/pool/main/libn/libnl3/libnl3_3.7.0.orig.tar.gz",
+  "url": "https://deb.debian.org/debian/pool/main/libn/libnl3/libnl3_3.7.0.orig.tar.gz",
   "strip_prefix": "libnl-3.7.0",
   "integrity": "sha256-n+Q8y+7qcsZTvc+MkzMlgxNc2kanlQe/0KSDu1f2WTk=",
   "overlay": {
-    "BUILD.bazel": "sha256-x/QHioOgEDfll8n4yH+FtVd0WMh3IMS/04QU4aqaR1w=",
-    "MODULE.bazel": "sha256-y8b78Ru1ADsuckkxN1t+kXHimrynWSHogGQkc92oZ2k=",
+    "BUILD.bazel": "sha256-W2ZirIR9GSc190z6iKo8+VjK+WRGwluQ5tq2er/qFaA=",
+    "MODULE.bazel": "sha256-m9gcB/dcXas//zxPG44YZIiZGRX1D6TbgG0n+8fH8n8=",
     "libnl3.BUILD": "sha256-LwsliI/ZgfTO6NldXopzMYPDxsgwUDs0FW3g912URUA=",
+    "libnl3_consumer_test.c": "sha256-l0dvXDhZLCjjQJpxQuJdTHpHLVFmpE+L9HJarF0P5T0=",
+    "libnl3_package_test.sh": "sha256-uo0nFc2l4+hkrGWv1XLUx/s5RkPN+hPzXIOeBd8uoHI=",
     "libnl3_src.bzl": "sha256-TArNK9diF611FiElpFyM06uPU/wk4QVgZcdHfZjgU94=",
     "patch/0003-Adding-support-for-RTA_NH_ID-attribute.patch": "sha256-EskgH89uNt6jHYCrOrzMDF6myai8wa9f5shFWFiT7+c="
   }
