@@ -1,0 +1,25 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.6-7ffcef1849fb7c96ef99f5d64339b87eac0beefd",
+      "repo_name": "sonic_build_infra"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
+  },
+  "build_targets": [
+    "@libyang-python//:libyang_runtime_test",
+    "@libyang-python//:libyang_upstream_test"
+  ],
+  "test_targets": [
+    "@libyang-python//:libyang_runtime_test",
+    "@libyang-python//:libyang_upstream_test"
+  ]
+}
