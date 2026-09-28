@@ -1,0 +1,21 @@
+{
+  "url": "https://github.com/CESNET/libyang-python/archive/refs/tags/v3.1.0.tar.gz",
+  "strip_prefix": "libyang-python-3.1.0",
+  "integrity": "sha256-TFjtAT5T3aKWni/Thtu2JR9KX6WZ+qjIXg4BAKnZfvk=",
+  "patches": {
+    "0001-debian.patch": "sha256-HRHEFFDf5x0jAruDo8EQjPwjrAJzpfrau1ABkKA9Mpo=",
+    "0002-pr134-json-string-datatypes.patch": "sha256-ry1uF73PSm5PbRAWkFzTCjp9l8y4k40SjIqNm/thels=",
+    "0003-pr132-backlinks.patch": "sha256-A0J5iZcI99TsRVqFdC5OIGzs/B9tqjYo5iy97W/Xwb0=",
+    "0004-pr141-test-crash.patch": "sha256-z4Xf5sKfTWZlJCliXS+oGV8NbqXrS8J46ozbqBbpsq8="
+  },
+  "patch_strip": 1,
+  "overlay": {
+    "BUILD.bazel": "sha256-YUCHoB80MO+bPda+eZHw8WUjAI1sxCVyX713MMmIXPs=",
+    "MODULE.bazel": "sha256-8tA+XrV9WvGcFibhz7JzLkXi+GREXqKeZP/2rqDI0+0=",
+    "emit_cffi.py": "sha256-YjYPPXhOAhh9H+8jlDfemJopHM7Vca0LN5uSrCJU9Vk=",
+    "libyang_runtime_test.py": "sha256-vpfZRWHLAarosUE3yGf2lCmkxEE4Q6eQhUzcdJ9MIRg=",
+    "requirements.in": "sha256-4migHmSj/BK3SvTWuXdk4MKZ8PktIBv4pdaESB+j//4=",
+    "requirements_lock.txt": "sha256-kys1F7I91Enm45Eorte8JYafzoWau9Y15L7EISdjNAE=",
+    "run_upstream_tests.py": "sha256-THWsSSu8iYVU4qVgCA41czvvWxJsHD+UDmBRRaQdR+o="
+  }
+}
