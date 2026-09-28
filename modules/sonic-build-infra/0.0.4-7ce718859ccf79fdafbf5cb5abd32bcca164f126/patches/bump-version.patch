@@ -1,0 +1,12 @@
+diff --git a/MODULE.bazel b/MODULE.bazel
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,7 +1,7 @@
+ # Keep bazel_compatibility in sync with sonic-buildimage's .bazelversion.
+ module(
+     name = "sonic-build-infra",
+-    version = "0.0.4",
++    version = "0.0.4-7ce718859ccf79fdafbf5cb5abd32bcca164f126",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",

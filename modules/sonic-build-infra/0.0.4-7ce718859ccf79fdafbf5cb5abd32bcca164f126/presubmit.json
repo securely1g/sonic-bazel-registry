@@ -1,0 +1,23 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [],
+  "platforms": {
+    "amd64": "@sonic-build-infra//platforms:x86_64_trixie",
+    "arm64": "@sonic-build-infra//platforms:aarch64_trixie"
+  },
+  "build_targets": [
+    "@sonic-build-infra//tests:hello",
+    "@sonic-build-infra//tests:hello_without_installed_runtime_paths",
+    "@sonic-build-infra//tests:libgreet.so",
+    "@sonic-build-infra//tests:libgreet_without_installed_runtime_paths.so"
+  ],
+  "test_targets": [
+    "@sonic-build-infra//tests:hello_installed_runtime_paths_test",
+    "@sonic-build-infra//tests:hello_without_installed_runtime_paths_test",
+    "@sonic-build-infra//tests:libgreet_installed_runtime_paths_test",
+    "@sonic-build-infra//tests:libgreet_without_installed_runtime_paths_test"
+  ]
+}
