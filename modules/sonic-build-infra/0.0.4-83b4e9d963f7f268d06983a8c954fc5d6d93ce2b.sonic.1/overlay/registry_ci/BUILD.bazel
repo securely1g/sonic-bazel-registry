@@ -1,0 +1,36 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
+load(":link_contract.bzl", "link_contract_test")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_library(
+    name = "managed_dependency",
+    testonly = True,
+    srcs = ["dependency.cc"],
+)
+
+cc_test(
+    name = "default_link_test",
+    srcs = ["consumer.cc"],
+    deps = [":managed_dependency"],
+)
+
+cc_test(
+    name = "feature_link_test",
+    srcs = ["consumer.cc"],
+    features = ["as_needed"],
+    deps = [":managed_dependency"],
+)
+
+link_contract_test(
+    name = "default_link_contract_test",
+    target_under_test = ":default_link_test",
+    as_needed_count = 0,
+)
+
+link_contract_test(
+    name = "feature_link_contract_test",
+    target_under_test = ":feature_link_test",
+    as_needed_count = 1,
+)
