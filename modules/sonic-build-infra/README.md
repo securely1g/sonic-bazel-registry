@@ -1,8 +1,13 @@
 # Native CPU hardening registration
 
-`0.0.6-7ffcef1849fb7c96ef99f5d64339b87eac0beefd` registers the fix that lets native
+`0.0.6-553b2f70f9ba77b74befdf77674894166139ddcc` registers the merged fix that lets native
 AArch64 compile Common's libyang-Python dependency with a supported CPU hardening
-option. It contains current source master plus that fix only.
+option. Its source is commit `553b2f70f9ba77b74befdf77674894166139ddcc` on master after
+[build-infra #6](https://github.com/securely1g/sonic-build-infra/pull/6) merged.
+
+The previous `0.0.6-7ffcef1849fb7c96ef99f5d64339b87eac0beefd` entry remains byte-for-byte
+unchanged. Both source commits have the same Git tree; the new version aligns
+source provenance with the merged commit and introduces no behavior change.
 
 The external Debian Trixie consumer builds C and C++ executables, a runtime tar,
 and its detached-symbol tar on native AMD64 and ARM64. Eight explicit tests cover
