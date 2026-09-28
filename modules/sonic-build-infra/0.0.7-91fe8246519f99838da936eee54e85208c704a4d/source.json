@@ -5,5 +5,17 @@
   "patches": {
     "bump-version.patch": "sha256-a+FPVYhHRd0hEFuFmLx/pkXCM0xl1qsjK9QsS3sRmkE="
   },
-  "patch_strip": 1
+  "patch_strip": 1,
+  "overlay": {
+    "registry_ci/BUILD.bazel": "sha256-1xYAVfBJpT8y5kcTq3ivD1ufdg4bBFVFNWDTPPq3Xmw=",
+    "registry_ci/consumer.cc": "sha256-2vk2lPEobR652IQsUl85A5fAf9hjiC6fYpZOCfNuQ/k=",
+    "registry_ci/dependency.cc": "sha256-Qcj9LwlrYd+qRRweK3Qc1CZaURjd0fsLVZhaa2V2V80=",
+    "registry_ci/link_contract.bzl": "sha256-PrVG7BY270ukzyfmy36UrWXbrUJ9H6zM9V3alyI9gy4=",
+    "registry_ci/swig/BUILD.bazel": "sha256-fyM1mXIZTup70EKQmbKGHndM0chKMTPuZ8sSNax1YK0=",
+    "registry_ci/swig/binding.i": "sha256-0ej0tSz/iaez2MPphkoSbNu5y0v+1t+C7Xisww5MqF4=",
+    "registry_ci/swig/direct.h": "sha256-IF1yOt/ZwXuzxciIurBS/yePPxX7RUqNd/9xCUgHqF0=",
+    "registry_ci/swig/include/transitive.h": "sha256-6Yfy06E71z5zMvDd8H86S6r/vwQ9+kiJuF+CZp0YEIw=",
+    "registry_ci/swig/swig.swg": "sha256-+3P70CLhd1YRD2werQV1Ev3QuT54jlD7EO5HUJ2oENQ=",
+    "registry_ci/swig/swig_analysis.bzl": "sha256-TIQ6P1AIazRLNEuDGKQmgD1UhGhXSaMwfMDtcjF8WJs="
+  }
 }
