@@ -6,7 +6,7 @@ module(
 bazel_dep(name = "libyang", version = "3.12.2.sonic.1")
 bazel_dep(name = "rules_cc", version = "0.2.16")
 bazel_dep(name = "rules_python", version = "1.7.0")
-bazel_dep(name = "sonic-build-infra", version = "0.0.4-7ce718859ccf79fdafbf5cb5abd32bcca164f126", repo_name = "sonic_build_infra")
+bazel_dep(name = "sonic-build-infra", version = "0.0.7-91fe8246519f99838da936eee54e85208c704a4d", repo_name = "sonic_build_infra")
 
 # The CFFI extension uses the selected interpreter's headers. The module
 # supplies Python 3.13 without changing a consumer's default Python version.

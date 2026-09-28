@@ -1,15 +1,15 @@
 {
-  "architectures": ["amd64", "arm64"],
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
   "consumer_deps": [
     {
       "name": "sonic-build-infra",
-      "version": "0.0.4-7ce718859ccf79fdafbf5cb5abd32bcca164f126",
+      "version": "0.0.7-91fe8246519f99838da936eee54e85208c704a4d",
       "repo_name": "sonic_build_infra"
     }
   ],
-  "version_overrides": {
-    "sonic-build-infra": "0.0.4-7ce718859ccf79fdafbf5cb5abd32bcca164f126"
-  },
   "platforms": {
     "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
     "arm64": "@sonic_build_infra//platforms:aarch64_trixie"

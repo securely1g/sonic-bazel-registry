@@ -10,8 +10,8 @@
   },
   "patch_strip": 1,
   "overlay": {
-    "BUILD.bazel": "sha256-xWPUPdetBrRZDLfKa94Y6YGGeVl/SbFFEdwyqPFi6Bo=",
-    "MODULE.bazel": "sha256-34b8aWt0DRjDnYqNFPBfgC2klskuhk14HYXu9QS8YG8=",
+    "BUILD.bazel": "sha256-YUCHoB80MO+bPda+eZHw8WUjAI1sxCVyX713MMmIXPs=",
+    "MODULE.bazel": "sha256-0V7OsELlbvmz5vidskMUDW/VZiPIBfG0SLg43oCDP9o=",
     "emit_cffi.py": "sha256-YjYPPXhOAhh9H+8jlDfemJopHM7Vca0LN5uSrCJU9Vk=",
     "libyang_runtime_test.py": "sha256-vpfZRWHLAarosUE3yGf2lCmkxEE4Q6eQhUzcdJ9MIRg=",
     "requirements.in": "sha256-4migHmSj/BK3SvTWuXdk4MKZ8PktIBv4pdaESB+j//4=",
