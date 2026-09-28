@@ -1,0 +1,31 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [],
+  "platforms": {
+    "amd64": "@sonic-build-infra//platforms:x86_64_trixie",
+    "arm64": "@sonic-build-infra//platforms:aarch64_trixie"
+  },
+  "build_targets": [
+    "@sonic-build-infra//registry_ci:default_link_test",
+    "@sonic-build-infra//registry_ci:feature_link_test",
+    "@sonic-build-infra//tests:hello_deploy_tar",
+    "@sonic-build-infra//tests:hello_deploy_tar.debug_symbols"
+  ],
+  "test_targets": [
+    "@sonic-build-infra//registry_ci:default_link_test",
+    "@sonic-build-infra//registry_ci:feature_link_test",
+    "@sonic-build-infra//registry_ci:default_link_contract_test",
+    "@sonic-build-infra//registry_ci:feature_link_contract_test",
+    "@sonic-build-infra//tests:cc_toolchain_supports_pic_test",
+    "@sonic-build-infra//tests:hello_deploy_tar_content_test",
+    "@sonic-build-infra//tests:hello_deploy_tar_provides_debug_symbols_test",
+    "@sonic-build-infra//tests:as_needed_feature_compatibility_test",
+    "@sonic-build-infra//tests:hello_as_needed_build_test",
+    "@sonic-build-infra//tests:hello_rpath_preservation_test",
+    "@sonic-build-infra//tests:hello_runpath_preservation_test",
+    "@sonic-build-infra//tests:hello_static_preservation_test"
+  ]
+}
