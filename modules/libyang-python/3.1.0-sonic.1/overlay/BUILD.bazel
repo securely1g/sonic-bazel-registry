@@ -1,0 +1,82 @@
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_python//python:py_binary.bzl", "py_binary")
+load("@rules_python//python:py_library.bzl", "py_library")
+load("@rules_python//python:py_test.bzl", "py_test")
+load("@sonic_build_infra//toolchains/gcc:defs.bzl", "SONIC_INSTALLED_RUNTIME_PATHS_FEATURE")
+
+package(default_visibility = ["//visibility:private"])
+
+exports_files(["requirements_lock.txt"])
+
+py_binary(
+    name = "emit_cffi",
+    srcs = ["emit_cffi.py"],
+    python_version = "3.13",
+    deps = ["@libyang_python_pip//cffi"],
+)
+
+genrule(
+    name = "cffi_c",
+    srcs = [
+        "cffi/build.py",
+        "cffi/cdefs.h",
+        "cffi/source.c",
+    ],
+    outs = ["_libyang.c"],
+    cmd = "$(execpath :emit_cffi) --build $(execpath cffi/build.py) --output $@",
+    tags = ["block-network"],
+    tools = [":emit_cffi"],
+)
+
+cc_binary(
+    name = "_libyang.so",
+    srcs = [":cffi_c"],
+    copts = ["-std=c99"],
+    features = ["-" + SONIC_INSTALLED_RUNTIME_PATHS_FEATURE],
+    linkopts = [
+        "-Wl,-z,now",
+    ],
+    linkshared = True,
+    deps = [
+        "@libyang",
+        "@rules_python//python/cc:current_py_cc_headers",
+    ],
+)
+
+py_library(
+    name = "libyang",
+    srcs = glob(["libyang/*.py"]),
+    data = [":_libyang.so"],
+    imports = ["."],
+    visibility = ["//visibility:public"],
+    deps = ["@libyang_python_pip//cffi"],
+)
+
+py_test(
+    name = "libyang_runtime_test",
+    srcs = ["libyang_runtime_test.py"],
+    python_version = "3.13",
+    visibility = ["//visibility:public"],
+    deps = [":libyang"],
+)
+
+filegroup(
+    name = "upstream_test_inputs",
+    srcs = glob([
+        "tests/*.py",
+        "tests/data/**",
+        "tests/yang/**",
+        "tests/yang-old/**",
+    ]),
+)
+
+py_test(
+    name = "libyang_upstream_test",
+    srcs = ["run_upstream_tests.py"],
+    args = ["$(locations :upstream_test_inputs)"],
+    data = [":upstream_test_inputs"],
+    main = "run_upstream_tests.py",
+    python_version = "3.13",
+    visibility = ["//visibility:public"],
+    deps = [":libyang"],
+)
