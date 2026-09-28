@@ -1,0 +1,12 @@
+{
+  "integrity": "sha256-XUP09E8PD7YUGUoHptz3spM4z8irf2EprR5EA8GtHHM=",
+  "strip_prefix": "rules_distroless-0.9.4",
+  "docs_url": "https://github.com/bazel-contrib/rules_distroless/releases/download/v0.9.4/rules_distroless-v0.9.4.docs.tar.gz",
+  "url": "https://github.com/bazel-contrib/rules_distroless/releases/download/v0.9.4/rules_distroless-v0.9.4.tar.gz",
+  "patches": {
+    "0001-module-version.patch": "sha256-FyHp87QhWEels9i9eqHQ8VSIw0JMgzbUY+tGw3zcve0=",
+    "0002-include-fragments.patch": "sha256-iNpoe/p+zvHebAowncGruHEtEPSMrsIunHTfMNZOY5o=",
+    "0003-armhf-cpu.patch": "sha256-NRoaCDLfI39w0N8hiKG+gfqvDNf1PV95MFKp+VduId0="
+  },
+  "patch_strip": 1
+}
