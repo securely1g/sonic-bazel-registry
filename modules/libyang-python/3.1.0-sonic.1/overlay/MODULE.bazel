@@ -1,0 +1,23 @@
+module(
+    name = "libyang-python",
+    version = "3.1.0-sonic.1",
+)
+
+bazel_dep(name = "libyang", version = "3.12.2.sonic.1")
+bazel_dep(name = "rules_cc", version = "0.2.16")
+bazel_dep(name = "rules_python", version = "1.7.0")
+bazel_dep(name = "sonic-build-infra", version = "0.0.6-553b2f70f9ba77b74befdf77674894166139ddcc", repo_name = "sonic_build_infra")
+
+# The CFFI extension uses the selected interpreter's headers. The module
+# supplies Python 3.13 without changing a consumer's default Python version.
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(python_version = "3.13")
+use_repo(python, "python_3_13")
+
+pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+pip.parse(
+    hub_name = "libyang_python_pip",
+    python_version = "3.13",
+    requirements_lock = "//:requirements_lock.txt",
+)
+use_repo(pip, "libyang_python_pip")
