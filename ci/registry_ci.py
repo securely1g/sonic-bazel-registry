@@ -406,6 +406,10 @@ def run(root: Path, module: str, version: str, architecture: str,
     for dependency in [{"name": module, "version": version}, *config["consumer_deps"]]:
         declarations.append("bazel_dep(" + ", ".join(f"{key} = {json.dumps(value)}"
                                                    for key, value in dependency.items()) + ")")
+    for dependency in config["consumer_deps"]:
+        name, selected_version = dependency["name"], dependency["version"]
+        declarations.append(f"single_version_override(module_name = {json.dumps(name)}, "
+                            f"version = {json.dumps(selected_version)})")
     (consumer / "MODULE.bazel").write_text("\n\n".join(declarations) + "\n")
     (consumer / "BUILD.bazel").write_text("# Explicit external targets are built from this consumer.\n")
     (consumer / ".bazelversion").write_text("8.5.1\n")
@@ -432,10 +436,18 @@ def run(root: Path, module: str, version: str, architecture: str,
         require(fetched[0].read_bytes() == registry_module.read_bytes(),
                 "Fetched MODULE.bazel differs from registry MODULE.bazel")
         shutil.copy2(fetched[0], artifacts / "fetched.MODULE.bazel")
+        for dependency in config["consumer_deps"]:
+            name, selected_version = dependency["name"], dependency["version"]
+            selected = list((output_base / "external").glob(f"{name}+*/MODULE.bazel"))
+            require(len(selected) == 1, f"Expected one fetched repository for consumer dependency {name}")
+            require(parse_module_identity(selected[0].read_text()) == (name, selected_version),
+                    f"Fetched consumer dependency {name} differs from the declared version {selected_version}")
+            shutil.copy2(selected[0], artifacts / f"consumer-dep-{name}.MODULE.bazel")
         (artifacts / "validation.json").write_text(json.dumps({
             "module": module, "version": version, "architecture": architecture,
             "build_targets": config["build_targets"], "passed_tests": config["test_targets"],
             "build_flags": config.get("build_flags", []),
+            "consumer_deps": config["consumer_deps"],
             "fetched_module_matches_registry": True,
         }, indent=2) + "\n")
     finally:

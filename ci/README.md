@@ -36,7 +36,10 @@ The configuration declares:
 - `architectures`: native execution and target architectures to validate,
   currently `amd64` and/or `arm64`.
 - `consumer_deps`: additional direct dependencies required by the test consumer,
-  each with `name`, `version`, and optional `repo_name`.
+  each with `name`, an exact `version` to test, and optional `repo_name`. CI pins
+  every entry to its declared version using `single_version_override`; no
+  separate pin flag or override map is needed. Use the module's `name` for
+  selection; `repo_name` only controls its apparent repository name in targets.
 - `platforms`: an explicit Bazel target platform label for each architecture.
 - `build_targets`: required output labels, including runtime and matching debug
   packages where the module provides them.
@@ -47,6 +50,33 @@ The configuration declares:
   the module under test and include its value. Native Bazel options, duplicate
   settings, and options that redirect registries or override test execution are
   rejected. The selected flags are retained in `validation.json`.
+
+For example, libyang-Python's test environment selects its shared infrastructure
+version once in `presubmit.json`:
+
+```json
+"consumer_deps": [
+  {
+    "name": "sonic-build-infra",
+    "version": "0.0.6-553b2f70f9ba77b74befdf77674894166139ddcc",
+    "repo_name": "sonic_build_infra"
+  }
+]
+```
+
+The runner generates both `bazel_dep` and a version-only `single_version_override`
+from that entry. This prevents another dependency from silently selecting a
+higher version, including a commit suffix that sorts higher despite belonging
+to an older source revision. Source, patch, and registry replacements are not
+supported. Dependencies used by the test environment must actually be fetched;
+the runner fails if a declared dependency is missing or its fetched module name
+or version differs. An empty `consumer_deps` list adds no pins.
+
+Artifacts retain the generated `consumer.MODULE.bazel`, each fetched dependency's
+`consumer-dep-<name>.MODULE.bazel`, and the declared `consumer_deps` in
+`validation.json`. These pins apply only to this CI test project. Downstream
+repositories such as `sonic-swss-common` remain responsible for validating their
+own dependency selection and integration builds.
 
 Use explicit labels for required outputs and tests. Wildcard builds can silently
 skip targets incompatible with the selected platform. Add tests to the module's
