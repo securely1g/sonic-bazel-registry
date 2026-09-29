@@ -16,7 +16,7 @@ import shutil
 import subprocess
 import sys
 import tokenize
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -303,6 +303,84 @@ def verify_tests(bep_path: Path, labels: list[str]) -> None:
                 f"{label}: required test did not run uncached")
 
 
+def collect_outputs(bep_path: Path, labels: list[str], work_dir: Path, artifacts: Path) -> None:
+    """Retain declared default outputs, including tree artifacts, from a build BEP."""
+    sets, completed = {}, {}
+    for line in bep_path.read_text().splitlines():
+        event = json.loads(line)
+        identifier = event.get("id", {})
+        if "namedSet" in identifier:
+            sets[identifier["namedSet"]["id"]] = event.get("namedSetOfFiles", {})
+        if "targetCompleted" in identifier:
+            label = normalized_label(identifier["targetCompleted"]["label"])
+            if label in labels:
+                require(label not in completed, f"Multiple build configurations for {label}")
+                completed[label] = event.get("completed", {})
+
+    work_dir = work_dir.resolve()
+    outputs = artifacts / "outputs"
+    require(not outputs.exists(), f"Output destination already exists: {outputs}")
+    outputs.mkdir(parents=True)
+    retained = {}
+
+    def copy_output(source: Path, relative: PurePosixPath, ancestors: frozenset = frozenset()) -> list[dict]:
+        source = source.resolve()
+        require(source.is_relative_to(work_dir), f"Build output escapes work-dir: {source}")
+        destination = outputs / relative
+        if source.is_dir():
+            require(source not in ancestors, f"Build output directory cycle: {source}")
+            destination.mkdir(parents=True, exist_ok=True)
+            entries = []
+            for child in sorted(source.iterdir()):
+                entries.extend(copy_output(child, relative / child.name, ancestors | {source}))
+            return entries
+        require(source.is_file(), f"Missing regular build output: {source}")
+        with source.open("rb") as stream:
+            checksum = hashlib.file_digest(stream, "sha256").hexdigest()
+        name = (PurePosixPath("outputs") / relative).as_posix()
+        record = {"path": name, "sha256": checksum, "size": source.stat().st_size}
+        require(name not in retained or retained[name] == record, f"Conflicting build outputs: {name}")
+        if name not in retained:
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, destination)
+            retained[name] = record
+        return [record]
+
+    def files(set_id: str, ancestors: frozenset = frozenset()) -> list[dict]:
+        require(set_id in sets and set_id not in ancestors, f"Missing or cyclic output file set: {set_id}")
+        group = sets[set_id]
+        result = list(group.get("files", []))
+        for child in group.get("fileSets", []):
+            result.extend(files(child["id"], ancestors | {set_id}))
+        return result
+
+    index = {}
+    for label in labels:
+        target = completed.get(label, {})
+        require(target.get("success") is True, f"Required build target did not complete: {label}")
+        declared = []
+        for group in target.get("outputGroup", []):
+            if group["name"] == "default":
+                require(not group.get("incomplete", False), f"Incomplete outputs for {label}")
+                for file_set in group.get("fileSets", []):
+                    declared.extend(files(file_set["id"]))
+        require(bool(declared), f"Required build target has no default outputs: {label}")
+        records = {}
+        for output in declared:
+            uri = urlparse(output.get("uri", ""))
+            require(uri.scheme == "file" and uri.netloc in ("", "localhost")
+                    and not uri.query and not uri.fragment,
+                    f"Build output must be a local file: {output.get('uri')}")
+            name = "/".join([*output.get("pathPrefix", []), output["name"]])
+            relative = PurePosixPath(name)
+            require(bool(relative.parts) and not relative.is_absolute() and ".." not in relative.parts
+                    and "\\" not in name, f"Unsafe build output path: {name}")
+            for record in copy_output(Path(unquote(uri.path)), relative):
+                records[record["path"]] = record
+        index[label] = [records[path] for path in sorted(records)]
+    (artifacts / "outputs.json").write_text(json.dumps(index, indent=2) + "\n")
+
+
 def run_logged(command: list[str], cwd: Path, log: Path) -> None:
     print(f"Running Bazel validation; log: {log}", flush=True)
     with log.open("w") as output:
@@ -339,6 +417,7 @@ def run(root: Path, module: str, version: str, architecture: str,
     try:
         run_logged([*prefix, "build", *flags, f"--build_event_json_file={artifacts / 'build-events.jsonl'}",
                     *config["build_targets"]], consumer, artifacts / "build.log")
+        collect_outputs(artifacts / "build-events.jsonl", config["build_targets"], work_dir, artifacts)
         run_logged([*prefix, "test", *flags, "--nocache_test_results", "--test_output=errors",
                     f"--build_event_json_file={artifacts / 'test-events.jsonl'}", *config["test_targets"]],
                    consumer, artifacts / "test.log")
