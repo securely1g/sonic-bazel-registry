@@ -1,0 +1,23 @@
+module(
+    name = "sonic-yang-mgmt",
+    version = "1.0.0-9ab452d22773c41783092ae3bd6c206d6c257c8d",
+)
+
+bazel_dep(name = "libyang-python", version = "3.1.0-sonic.1", repo_name = "libyang_python")
+bazel_dep(name = "rules_python", version = "1.7.0")
+
+# The public runtime test consumes the production model payload from the same
+# source revision. Keep this a normal dependency so external consumers can run it.
+bazel_dep(name = "sonic-yang-models", version = "1.0.0-9ab452d22773c41783092ae3bd6c206d6c257c8d", repo_name = "sonic_yang_models")
+
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(python_version = "3.13")
+use_repo(python, "python_3_13")
+
+pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+pip.parse(
+    hub_name = "sonic_yang_mgmt_pip",
+    python_version = "3.13",
+    requirements_lock = "//:requirements_lock.txt",
+)
+use_repo(pip, "sonic_yang_mgmt_pip")
