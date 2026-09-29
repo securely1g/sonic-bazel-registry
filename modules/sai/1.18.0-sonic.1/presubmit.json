@@ -1,0 +1,35 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.8-e8b05b109187345586a18628ad01626e69c02fbe",
+      "repo_name": "sonic_build_infra"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
+  },
+  "build_targets": [
+    "@sai//:metadata",
+    "@sai//:metadata_consumer_test"
+  ],
+  "test_targets": [
+    "@sai//:metadata_consumer_test",
+    "@sai//:generated_outputs_test"
+  ],
+  "execution_images": {
+    "amd64": {
+      "image": "ghcr.io/securely1g/sonic-build-tools@sha256:46fe4567b1565e71a8a6db0321469ef056636d7e7e5a8bb8fe51177e48ba3c86",
+      "recipe": "24883edfb6ff483c4b21ad7a0ff39485efe6837c15283caf5779f096f6773dd2"
+    },
+    "arm64": {
+      "image": "ghcr.io/securely1g/sonic-build-tools@sha256:46fe4567b1565e71a8a6db0321469ef056636d7e7e5a8bb8fe51177e48ba3c86",
+      "recipe": "24883edfb6ff483c4b21ad7a0ff39485efe6837c15283caf5779f096f6773dd2"
+    }
+  }
+}

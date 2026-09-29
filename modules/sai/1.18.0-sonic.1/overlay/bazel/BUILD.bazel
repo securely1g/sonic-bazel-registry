@@ -1,0 +1,32 @@
+load(":tools.bzl", "container_tools", "python_runtime")
+
+package(default_visibility = ["//visibility:public"])
+
+python_runtime(name = "python_runtime")
+
+toolchain_type(name = "container_tools_type")
+
+container_tools(name = "container_tools")
+
+[
+    toolchain(
+        name = "container_tools_" + architecture,
+        exec_compatible_with = [
+            "@platforms//os:linux",
+            "@platforms//cpu:" + cpu,
+        ],
+        toolchain = ":container_tools",
+        toolchain_type = ":container_tools_type",
+    )
+    for architecture, cpu in [
+        ("amd64", "x86_64"),
+        ("arm64", "aarch64"),
+    ]
+]
+
+exports_files([
+    "generate_metadata.py",
+    "metadata_consumer_test.c",
+    "generated_outputs_test.py",
+    "generated_output_sha256.json",
+])
