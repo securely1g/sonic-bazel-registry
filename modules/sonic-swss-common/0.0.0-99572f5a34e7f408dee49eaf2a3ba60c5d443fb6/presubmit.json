@@ -15,8 +15,7 @@
     "--@sonic-swss-common//tools/bazel:yang_modules=False"
   ],
   "build_targets": [
-    "@sonic-swss-common//:libswsscommon",
-    "@sonic-swss-common//:libswsscommon_shared",
+    "@sonic-swss-common//:common",
     "@sonic-swss-common//:libswsscommon_consolidated.so",
     "@sonic-swss-common//:swssloglevel",
     "@sonic-swss-common//dist:libswsscommon_pkg",
