@@ -17,7 +17,6 @@
   "build_targets": [
     "@sonic-swss-common//common:cfg_schema_generated",
     "@sonic-swss-common//:common",
-    "@sonic-swss-common//:libswsscommon_shared",
     "@sonic-swss-common//:libswsscommon_consolidated.so",
     "@sonic-swss-common//:swssloglevel",
     "@sonic-swss-common//dist:libswsscommon_pkg",
