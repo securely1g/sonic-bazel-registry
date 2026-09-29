@@ -1,0 +1,19 @@
+module(
+    name = "sonic-yang-models",
+    version = "1.0.0-9ab452d22773c41783092ae3bd6c206d6c257c8d",
+)
+
+bazel_dep(name = "rules_python", version = "1.7.0")
+bazel_dep(name = "tar.bzl", version = "0.10.5")
+
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(python_version = "3.13")
+use_repo(python, "python_3_13")
+
+pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+pip.parse(
+    hub_name = "sonic_yang_models_pip",
+    python_version = "3.13",
+    requirements_lock = "//:requirements_lock.txt",
+)
+use_repo(pip, "sonic_yang_models_pip")
