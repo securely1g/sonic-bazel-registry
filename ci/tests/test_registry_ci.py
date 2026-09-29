@@ -349,6 +349,92 @@ class RequiredTestResultTests(FixtureTestCase):
             self.verify(events)
 
 
+class BuildOutputTests(FixtureTestCase):
+    labels = ["@alpha//:runtime", "@alpha//:debug"]
+
+    def events(self) -> list[dict]:
+        self.work = self.root / "work"
+        self.work.mkdir(exist_ok=True)
+        events = []
+        for name in ("runtime", "debug"):
+            output = self.work / f"{name}.tar"
+            output.write_bytes(name.encode())
+            events.extend([
+                {"id": {"namedSet": {"id": name}}, "namedSetOfFiles": {"files": [
+                    {"name": output.name, "pathPrefix": ["bazel-out", "bin"], "uri": output.as_uri()},
+                ]}},
+                {"id": {"targetCompleted": {"label": f"@@alpha+//:{name}"}},
+                 "completed": {"success": True, "outputGroup": [
+                     {"name": "default", "fileSets": [{"id": name}]},
+                     {"name": "unused_group", "fileSets": [{"id": "not-needed"}]},
+                 ]}},
+            ])
+        return events
+
+    def collect(self, events: list[dict]) -> dict:
+        bep = self.root / "build-events.jsonl"
+        bep.write_text("".join(json.dumps(event) + "\n" for event in events))
+        artifacts = self.root / "artifacts"
+        registry_ci.collect_outputs(bep, self.labels, self.work, artifacts)
+        return json.loads((artifacts / "outputs.json").read_text())
+
+    def test_runtime_debug_pair_and_hashes_are_retained(self) -> None:
+        index = self.collect(self.events())
+        self.assertEqual(set(index), set(self.labels))
+        for label, files in index.items():
+            self.assertEqual(len(files), 1)
+            data = (self.root / "artifacts" / files[0]["path"]).read_bytes()
+            self.assertEqual(data, label.rsplit(":", 1)[1].encode())
+            self.assertEqual(files[0]["sha256"], hashlib.sha256(data).hexdigest())
+            self.assertEqual(files[0]["size"], len(data))
+
+    def test_nested_sets_tree_outputs_and_repeated_files(self) -> None:
+        events = self.events()
+        tree = self.work / "models"
+        tree.mkdir()
+        (tree / "model.yang").write_text("module fixture {}")
+        events[0]["namedSetOfFiles"] = {"fileSets": [{"id": "nested"}, {"id": "nested"}]}
+        events.append({"id": {"namedSet": {"id": "nested"}}, "namedSetOfFiles": {"files": [
+            {"name": "models", "uri": tree.as_uri()},
+        ]}})
+        index = self.collect(events)
+        self.assertEqual(len(index[self.labels[0]]), 1)
+        self.assertEqual(index[self.labels[0]][0]["path"], "outputs/models/model.yang")
+
+    def test_missing_required_target_or_output_is_rejected(self) -> None:
+        events = self.events()
+        with self.assertRaisesRegex(registry_ci.RegistryError, "did not complete"):
+            self.collect(events[:2])
+        shutil.rmtree(self.root / "artifacts")
+        (self.work / "debug.tar").unlink()
+        with self.assertRaisesRegex(registry_ci.RegistryError, "Missing regular"):
+            self.collect(events)
+
+    def test_unsafe_paths_and_outside_symlink_are_rejected(self) -> None:
+        for kind in ("parent", "absolute", "outside", "cycle"):
+            with self.subTest(kind=kind):
+                events = self.events()
+                output = events[0]["namedSetOfFiles"]["files"][0]
+                if kind in ("parent", "absolute"):
+                    output["name"] = "../outside" if kind == "parent" else "/outside"
+                    output["pathPrefix"] = []
+                elif kind == "outside":
+                    (self.root / "secret").write_text("not a build output")
+                    (self.work / "link").symlink_to(self.root / "secret")
+                    output["uri"] = (self.work / "link").as_uri()
+                else:
+                    events[0]["namedSetOfFiles"] = {"fileSets": [{"id": "runtime"}]}
+                with self.assertRaises(registry_ci.RegistryError):
+                    self.collect(events)
+                shutil.rmtree(self.root / "artifacts")
+
+    def test_conflicting_output_destinations_are_rejected(self) -> None:
+        events = self.events()
+        events[2]["namedSetOfFiles"]["files"][0]["name"] = "runtime.tar"
+        with self.assertRaisesRegex(registry_ci.RegistryError, "Conflicting"):
+            self.collect(events)
+
+
 class FetchedModuleTests(FixtureTestCase):
     def test_successful_bazel_commands_cannot_hide_a_different_fetched_module(self) -> None:
         entry = self.entry("alpha", "1.0.0")
@@ -369,6 +455,17 @@ class FetchedModuleTests(FixtureTestCase):
             "assert '--@alpha//bazel:yang_modules=False' in args\n"
             "if 'info' in args:\n"
             f"    print({str(output_base)!r})\n"
+            "elif 'build' in args:\n"
+            "    path = next(arg.split('=', 1)[1] for arg in args if arg.startswith('--build_event_json_file='))\n"
+            "    output = Path.cwd() / 'library.tar'\n"
+            "    output.write_bytes(b'package')\n"
+            "    events = [\n"
+            "        {'id': {'namedSet': {'id': '0'}}, 'namedSetOfFiles': {'files': [\n"
+            "            {'name': 'library.tar', 'uri': output.as_uri()}]}},\n"
+            "        {'id': {'targetCompleted': {'label': '@@alpha+//:library'}},\n"
+            "         'completed': {'success': True, 'outputGroup': [{'name': 'default', 'fileSets': [{'id': '0'}]}]}},\n"
+            "    ]\n"
+            "    Path(path).write_text(''.join(json.dumps(event) + '\\n' for event in events))\n"
             "elif 'test' in args:\n"
             "    path = next(arg.split('=', 1)[1] for arg in args if arg.startswith('--build_event_json_file='))\n"
             "    events = [\n"

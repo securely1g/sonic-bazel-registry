@@ -62,6 +62,27 @@ symbols with GDB source-line lookup. This is focused module validation; the
 downstream `sonic-swss-common` pipeline remains responsible for its integration
 tests.
 
+## Download build outputs
+
+Open **Actions → Registry CI → a successful run → Artifacts** and download
+`registry-ci-<module>-<version>-<architecture>` (`amd64` or `arm64`). Each artifact
+contains `outputs.json`, mapping the manifest's required build targets to files
+under `outputs/`, with their SHA256 hashes and sizes. Bazel's output paths are
+preserved; use the index instead of relying on a configuration directory name.
+Directory outputs, such as prepared YANG models, are indexed file by file.
+
+For native libraries, download the runtime and detached-debug packages from the
+same module/version/architecture job. These packages come from the same build;
+symbols from another run are not guaranteed to match. Extract package archives
+to preserve their installed layout and modes. Standalone test launchers in the
+artifact are build outputs, not portable installations with all runfiles.
+
+The runner reads the successful build's default output groups, copies the
+declared files, and fails if a required target or output is missing. It retains
+outputs before running tests, so artifacts from failed jobs may contain packages
+that have **not** passed validation. Check the job result and `validation.json`
+before using them. Logs and other failure diagnostics remain available.
+
 ## Environment and coverage
 
 The build matrix uses native GitHub-hosted `ubuntu-24.04` and `ubuntu-24.04-arm`
