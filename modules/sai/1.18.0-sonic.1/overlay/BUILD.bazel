@@ -152,7 +152,10 @@ py_test(
     ],
     data = [
         "meta/saiattrversion.h",
-        ":metadata",
+        ":saimetadata.c",
+        ":saimetadata.h",
+        ":saimetadatatest.c",
+        ":saiswig.i",
         "//bazel:generated_output_sha256.json",
     ],
     main = "//bazel:generated_outputs_test.py",
