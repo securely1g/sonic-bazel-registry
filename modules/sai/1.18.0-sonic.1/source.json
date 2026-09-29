@@ -1,0 +1,26 @@
+{
+  "url": "https://github.com/opencomputeproject/SAI/archive/6dd738196ebb267be458eed0a00b687568455914.tar.gz",
+  "strip_prefix": "SAI-6dd738196ebb267be458eed0a00b687568455914",
+  "integrity": "sha256-wyRbJ77uDT1zUxqcX/ywRz/1/qmzISSVTCWlDLXlZ1A=",
+  "patches": {
+    "declared_aspell.patch": "sha256-N4Riku2sj9oodBPUYHcWcCv7JMcnjSezvJPonHYQuUI="
+  },
+  "patch_strip": 1,
+  "overlay": {
+    "BUILD.bazel": "sha256-WD5gZCpfq4zR9a9mMr/GLvd5+qBDdf4e7ulNen7MG2k=",
+    "MODULE.bazel": "sha256-oupvasq0F91/yFm9PKn0AXQ2sMuq1Aly2MhHNIl2bzo=",
+    "SOURCE_PROVENANCE.json": "sha256-e7jnbBMt9I7JHx3WkJBVgrAw4bC+NRJhaZH+2LmuOEw=",
+    "attribute_versions.json": "sha256-oX2zei2CxIB564Lj3ALfLsTIiu4PgKr0x+4kitbuE6w=",
+    "bazel/BUILD.bazel": "sha256-jEi+RxE+AwJPCnfE6IaDYTzTbDeXAVGO9mUW+4eVYF0=",
+    "bazel/debian_tools.lock.json": "sha256-VROKL93TGnKYJYpM1FW5LXCyPukPEElCjsHA/cX0O6c=",
+    "bazel/generate_metadata.py": "sha256-uhK2JHHbp1TJ1SGIHcmjG+jLYFtsHpTJc62DM+4NnxM=",
+    "bazel/generated_output_sha256.json": "sha256-s/C5fuwZhrvYFnyKV92NII9ltN0lyEsR674Qi3nu4Oo=",
+    "bazel/generated_outputs_test.py": "sha256-ysr2FNwM8VTscgcZv4no+pvmcGb94dN4ILWe9cFD3X4=",
+    "bazel/metadata.bzl": "sha256-LDztiTNlMhKWK041/UvbbkGN/21Qn+y8EWQhs7IGIcw=",
+    "bazel/metadata_consumer_test.c": "sha256-1EtfEmaq8duhUnr5sodM9EvJT0XVmT9peMcRUYRQ2qA=",
+    "bazel/prepare_deb_tools.py": "sha256-wO4R4l50/+VQmK/uThdMnKOzXWxHZH/QX9tRxT29+rM=",
+    "bazel/repository.bzl": "sha256-8Lm3l/1/KZj2wvnO/ne7ddho7TB+E5dStxliRE6X814=",
+    "bazel/tools.bzl": "sha256-BnP6DscS0+/oKAZRo8k1E9I/Te0bOnQRujxAdrGbrWs=",
+    "meta/saiattrversion.h": "sha256-SpJ1GsJGJsp6FB/IUwVou6dMZ/VWHphjTA8tbv9q0Xs="
+  }
+}

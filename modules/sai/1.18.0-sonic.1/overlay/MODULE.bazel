@@ -1,0 +1,29 @@
+module(
+    name = "sai",
+    version = "1.18.0-sonic.1",
+    bazel_compatibility = [
+        ">=8.5.1",
+        "<=8.5.1",
+    ],
+)
+
+bazel_dep(name = "platforms", version = "1.1.0")
+bazel_dep(name = "rules_cc", version = "0.2.16")
+bazel_dep(name = "rules_perl", version = "1.1.2")
+bazel_dep(name = "rules_python", version = "1.7.0")
+
+# Original Debian packages for SAI's Doxygen/Aspell generator, independently
+# locked for the execution CPU. This does not use tools from the host PATH.
+generator_tools_repository = use_repo_rule("//bazel:repository.bzl", "generator_tools_repository")
+
+generator_tools_repository(
+    name = "sai_generator_tools_amd64",
+    architecture = "amd64",
+    manifest = "//bazel:debian_tools.lock.json",
+)
+
+generator_tools_repository(
+    name = "sai_generator_tools_arm64",
+    architecture = "arm64",
+    manifest = "//bazel:debian_tools.lock.json",
+)
