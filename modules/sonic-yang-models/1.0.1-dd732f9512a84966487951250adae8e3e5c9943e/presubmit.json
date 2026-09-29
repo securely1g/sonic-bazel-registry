@@ -1,0 +1,24 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.6-553b2f70f9ba77b74befdf77674894166139ddcc",
+      "repo_name": "sonic_build_infra"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
+  },
+  "build_targets": [
+    "@sonic-yang-models//:yang_models",
+    "@sonic-yang-models//:yang_models_pkg"
+  ],
+  "test_targets": [
+    "@sonic-yang-models//:yang_models_package_test"
+  ]
+}

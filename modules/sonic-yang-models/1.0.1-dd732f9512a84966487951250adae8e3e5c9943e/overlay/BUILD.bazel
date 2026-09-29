@@ -1,0 +1,67 @@
+load("@rules_python//python:py_binary.bzl", "py_binary")
+load("@rules_python//python:py_test.bzl", "py_test")
+load("@tar.bzl", "mtree_mutate", "mtree_spec", "tar")
+load(":prepared_yang_models.bzl", "prepared_yang_models")
+
+package(default_visibility = ["//visibility:private"])
+
+exports_files(["requirements_lock.txt"])
+
+py_binary(
+    name = "prepare_yang_models",
+    srcs = ["prepare_yang_models.py"],
+    python_version = "3.13",
+    deps = [
+        "@sonic_yang_models_pip//jinja2",
+        "@sonic_yang_models_pip//pytest_runner",
+        "@sonic_yang_models_pip//setuptools",
+        "@sonic_yang_models_pip//wheel",
+    ],
+)
+
+prepared_yang_models(
+    name = "yang_models",
+    readme = "README.rst",
+    setup = "setup.py",
+    sources = glob([
+        "yang-models/*.yang",
+        "yang-templates/*.yang.j2",
+    ]),
+    visibility = ["//visibility:public"],
+)
+
+mtree_spec(
+    name = "yang_models_mtree_base",
+    srcs = [":yang_models"],
+)
+
+# mtree_spec uses paths relative to this repository, including when consumed
+# externally. Strip the prepared tree name before adding the installed path.
+mtree_mutate(
+    name = "yang_models_mtree",
+    mtree = ":yang_models_mtree_base",
+    package_dir = "usr/local/yang-models",
+    strip_prefix = "yang_models",
+)
+
+tar(
+    name = "yang_models_pkg",
+    srcs = [":yang_models"],
+    mtree = ":yang_models_mtree",
+    visibility = ["//visibility:public"],
+)
+
+py_test(
+    name = "yang_models_package_test",
+    srcs = ["yang_models_package_test.py"],
+    args = [
+        "$(location :yang_models_pkg)",
+        "$(location :yang_models)",
+    ],
+    data = [
+        ":yang_models",
+        ":yang_models_pkg",
+    ],
+    python_version = "3.13",
+    visibility = ["//visibility:public"],
+)
