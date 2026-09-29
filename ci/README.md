@@ -15,6 +15,25 @@ validated. Documentation-only changes can produce an empty module matrix.
 In particular, `modules/<name>/README.md` does not select a version. A README
 change alongside a new version still validates that new version.
 
+Module metadata may mark an unusable historical version in `yanked_versions`,
+mapping its existing version string to a nonempty reason. Preserve that version's
+directory, original files, and `versions` entry, and register its replacement as
+a new version. For example:
+
+```json
+"yanked_versions": {
+  "0.0.0-old-source-commit": "External test launcher fails before execution; use the fixed source version."
+}
+```
+
+Planning still checks each selected yanked entry's metadata, module identity,
+source definition, patch/overlay integrity and validation manifest. It then logs
+the reason and omits that version's execution jobs. This applies to PR selection,
+CI infrastructure changes, and `--all`; active replacements retain normal native
+build/test coverage. A yanked version is not reported as runtime validated, and
+direct `run` requests for it fail before creating a consumer or invoking Bazel.
+Unknown version keys, invalid reason values, and malformed entries fail planning.
+
 `Registry CI` is the stable aggregate check intended for branch protection. It
 passes only when planning and the runner's unit tests pass, and every selected
 module job passes. A skipped module matrix is accepted only after successful

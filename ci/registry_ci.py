@@ -114,15 +114,26 @@ def local_input(directory: Path, name: str) -> Path:
     return result
 
 
+def module_metadata(root: Path, module: str) -> dict:
+    metadata = read_json(root / "modules" / module / "metadata.json")
+    versions = metadata.get("versions")
+    require(isinstance(versions, list) and all(isinstance(v, str) for v in versions), "metadata needs versions")
+    require(len(versions) == len(set(versions)), "Metadata contains duplicate versions")
+    yanked = metadata.get("yanked_versions", {})
+    require(isinstance(yanked, dict), "yanked_versions must map listed versions to reasons")
+    require(set(yanked) <= set(versions), "yanked_versions contains an unlisted version")
+    require(all(isinstance(reason, str) and bool(reason.strip()) for reason in yanked.values()),
+            "yanked_versions requires nonempty reason strings")
+    return metadata
+
+
 def validate_entry(root: Path, module: str, version: str) -> dict:
     require(NAME.fullmatch(module) is not None, f"Invalid module name: {module}")
     require(VERSION.fullmatch(version) is not None, f"Invalid module version: {version}")
     entry = root / "modules" / module / version
     require(entry.is_dir() and not entry.is_symlink(), f"Missing version directory: {entry}")
-    metadata = read_json(entry.parent / "metadata.json")
-    versions = metadata.get("versions")
-    require(isinstance(versions, list) and all(isinstance(v, str) for v in versions), "metadata needs versions")
-    require(len(versions) == len(set(versions)) and version in versions, "metadata version list is inconsistent")
+    metadata = module_metadata(root, module)
+    require(version in metadata["versions"], "metadata version list is inconsistent")
     try:
         identity = parse_module_identity((entry / "MODULE.bazel").read_text())
     except OSError as error:
@@ -231,12 +242,9 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
                     # manifest for every unchanged historical release.
                     continue
                 if parts[2] == "metadata.json":
-                    metadata = read_json(root / "modules" / module / "metadata.json")
-                    versions = metadata.get("versions")
-                    require(isinstance(versions, list) and bool(versions)
-                            and all(isinstance(v, str) for v in versions),
-                            "Changed module metadata needs versions")
-                    require(len(versions) == len(set(versions)), "Metadata contains duplicate versions")
+                    metadata = module_metadata(root, module)
+                    versions = metadata["versions"]
+                    require(bool(versions), "Changed module metadata needs versions")
                     directories = {p.name for p in (root / "modules" / module).iterdir() if p.is_dir()}
                     require(set(versions) == directories, f"{module}: metadata and version directories differ")
                     previous = subprocess.run(
@@ -261,6 +269,10 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
     include = []
     for module, version in sorted(selected):
         config = validate_entry(root, module, version)
+        reason = module_metadata(root, module).get("yanked_versions", {}).get(version)
+        if reason is not None:
+            print(f"Skipping execution of yanked {module}@{version}: {json.dumps(reason)}", file=sys.stderr)
+            continue
         for architecture in config["architectures"]:
             include.append({"module": module, "version": version, "architecture": architecture,
                             "runner": RUNNERS[architecture]})
@@ -393,6 +405,8 @@ def run_logged(command: list[str], cwd: Path, log: Path) -> None:
 def run(root: Path, module: str, version: str, architecture: str,
         work_dir: Path, artifacts: Path, bazel: str = "bazel") -> None:
     config = validate_entry(root, module, version)
+    reason = module_metadata(root, module).get("yanked_versions", {}).get(version)
+    require(reason is None, f"Cannot execute validation for yanked {module}@{version}: {reason}")
     require(architecture in config["architectures"], "Architecture is not configured for this version")
     require(platform.system() == "Linux" and platform.machine() == {"amd64": "x86_64", "arm64": "aarch64"}[architecture],
             "Validation must run on a native Linux host of the requested architecture")
