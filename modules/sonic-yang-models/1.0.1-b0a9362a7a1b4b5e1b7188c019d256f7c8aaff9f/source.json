@@ -1,0 +1,14 @@
+{
+  "url": "https://github.com/securely1g/sonic-buildimage/archive/9ab452d22773c41783092ae3bd6c206d6c257c8d.tar.gz",
+  "strip_prefix": "sonic-buildimage-9ab452d22773c41783092ae3bd6c206d6c257c8d/src/sonic-yang-models",
+  "integrity": "sha256-AG9z7k4Du/sc8DkQ66vcLAeY9kCYsTeXd8n3DV5ThVU=",
+  "overlay": {
+    "BUILD.bazel": "sha256-Rvhl8XqNVF10DBgIYgxVBQ5ASB+mKq2vZKLgQM5XqvY=",
+    "MODULE.bazel": "sha256-RVzQlI7DtWV2Fmd1LQm72jccDrg34DntguE8kAZOpjA=",
+    "prepare_yang_models.py": "sha256-Q92+n0W7Xd6qFySYR8dZCkx+g4w63T/vkHv6P4Toz/U=",
+    "prepared_yang_models.bzl": "sha256-3xldvwj0Pr9u3MAbSpm8uJq18TjUPgjCZN5/st0i5Hk=",
+    "requirements.in": "sha256-XxNs34y/I2uySDWK+dH/JbJOB4oae85YcYNECcJ8hTg=",
+    "requirements_lock.txt": "sha256-oZy156eP3yR/UqDbHcGDiBvIEEjuEwIF893GhbiERTw=",
+    "yang_models_package_test.py": "sha256-AJFbQ0MOblNivlZUQDklUfyCwVJZsAg80MWhp5bzj2M="
+  }
+}
