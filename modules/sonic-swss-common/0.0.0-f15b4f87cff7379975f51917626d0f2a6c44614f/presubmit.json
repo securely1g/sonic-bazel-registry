@@ -1,0 +1,41 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.6-553b2f70f9ba77b74befdf77674894166139ddcc",
+      "repo_name": "sonic_build_infra"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
+  },
+  "build_targets": [
+    "@sonic-swss-common//common:cfg_schema_generated",
+    "@sonic-swss-common//:common",
+    "@sonic-swss-common//:libswsscommon_shared",
+    "@sonic-swss-common//:libswsscommon_consolidated.so",
+    "@sonic-swss-common//:swssloglevel",
+    "@sonic-swss-common//dist:libswsscommon_pkg",
+    "@sonic-swss-common//dist:libswsscommon_pkg.debug_symbols",
+    "@sonic-swss-common//dist:sonic-db-cli_pkg",
+    "@sonic-swss-common//pyext:swsscommon_pkg",
+    "@sonic-swss-common//goext:swsscommon"
+  ],
+  "test_targets": [
+    "@sonic-swss-common//tests:status_code_util_test",
+    "@sonic-swss-common//tests:saiaclschema_ut",
+    "@sonic-swss-common//tests:notification_queue_ut",
+    "@sonic-swss-common//tests:interface_ut",
+    "@sonic-swss-common//tests:vrf_ut",
+    "@sonic-swss-common//tests:shared_library_runtime_test",
+    "@sonic-swss-common//tests:defaultvalueprovider_ut",
+    "@sonic-swss-common//dist:libswsscommon_package_test",
+    "@sonic-swss-common//pyext:swsscommon_package_test",
+    "@sonic-swss-common//goext:swsscommon_runtime_test"
+  ]
+}
