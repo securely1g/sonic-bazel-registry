@@ -1,5 +1,23 @@
 # sonic-swss-common
 
+## Common-owned Rust binding interface
+
+`0.0.0-36048b92907c21a5ef762eaa60a86e073e743dd0` packages the
+[Common source](https://github.com/securely1g/sonic-swss-common/commit/36048b92907c21a5ef762eaa60a86e073e743dd0)
+from [Common PR #11](https://github.com/securely1g/sonic-swss-common/pull/11).
+It retains the external YANG fixture fix from the prior registration and adds
+`//crates/swss-common:bindings_dir`, which generates the Rust FFI bindings from
+the C API headers in the same Common source revision. The source repository
+owns this interface; this registry entry changes only the module version.
+
+The native AMD64 and ARM64 registry matrix remains the existing C++/YANG,
+Python, Go, and package validation described below. It does not select the Rust
+binding target or require Rust toolchains for those independent checks. A
+consumer that selects `bindings_dir` supplies its Rust and bindgen toolchains
+and validates that target separately, including its Rust/native source pairing.
+The SWSS draft consumer retains its selected infrastructure 0.0.7; this
+standalone registry matrix retains Common's existing 0.0.6 test environment.
+
 ## YANG-enabled release
 
 `0.0.0-5ee19a9375e667c0d507239927745de8fa29be07` packages the
