@@ -1,11 +1,15 @@
-# sonic-sairedis 0.0.0-02c6e87e8738acb6c3d3dbf958135a8b10c20104
+# sonic-sairedis 0.0.0-df4319696743f4804053ab68c5af1a2b8254dcb4
 
 This entry registers the existing Bazel implementation from
 [sonic-sairedis PR #1](https://github.com/securely1g/sonic-sairedis/pull/1) at
-source commit `02c6e87e8738acb6c3d3dbf958135a8b10c20104`. It provides the
+source commit `df4319696743f4804053ab68c5af1a2b8254dcb4`. It provides the
 shared C++ interfaces owned by sairedis and needed by SONiC SWSS. The registry patch
 sets the module version; all implementation files come from the pinned source
 archive.
+
+This source revision permits the optional top-level header source pattern to be
+empty in a clean archive. It preserves the selected source patterns and keeps
+the existing Autoconf, Automake, Perl, and shell patterns strict.
 
 ## Public C++ interfaces
 
