@@ -1,0 +1,29 @@
+load(":tools.bzl", "generator_tool_bundle", "python_runtime")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "prepare_deb_tools.py",
+    "generate_metadata.py",
+])
+
+python_runtime(name = "python_runtime")
+
+generator_tool_bundle(
+    name = "sai_generator_tools",
+    architecture = select({
+        "@platforms//cpu:x86_64": "amd64",
+        "@platforms//cpu:aarch64": "arm64",
+    }),
+    package_tars = [
+        "@build_tools//aspell",
+        "@build_tools//aspell-en",
+        "@build_tools//doxygen",
+    ],
+)
+
+exports_files([
+    "metadata_consumer_test.c",
+    "generated_outputs_test.py",
+    "generated_output_sha256.json",
+])
