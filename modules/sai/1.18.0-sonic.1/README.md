@@ -1,0 +1,145 @@
+# SAI 1.18.0-sonic.1
+
+This first registry revision moves the reusable SAI dependency support from
+[sonic-sairedis PR #1](https://github.com/securely1g/sonic-sairedis/pull/1)
+into one dependency module. The consumer no longer needs its own source archive,
+header overlay, metadata generator, Aspell patch, or generator tool lock.
+
+This registration lets Bazel download SAI source and build its public headers,
+generated metadata, and optional static metadata library. It does **not**
+provide an installable SAI `.deb` package. The generator's execution tools are
+downloaded as Debian packages through the shared `build_tools` set; those are
+build inputs. Sairedis consumes the SAI targets and owns its
+runtime/development/debug packages, shared-library ABI, and Redis/VS backends.
+For example, `@sai_source//:metadata` generates the metadata files and
+`@sai_source//:metadata_library` builds a linkable static library when the
+consumer uses `repo_name = "sai_source"`.
+
+## Source and version
+
+The upstream `inc/saiversion.h` defines SAI **1.18.0**. This entry deliberately
+keeps sonic-sairedis's source snapshot
+`6dd738196ebb267be458eed0a00b687568455914`: it is **32 commits after** release tag
+`v1.18.0` (`4b4347b59397c462b804da2ccd7784214406477a`), not the release archive.
+[`upstream-changes.json`](upstream-changes.json) lists the exact intervening
+commits, including the final ACL entry label change. The `-sonic.1` revision
+represents this snapshot and its downstream Bazel overlay/patch set.
+
+The source archive SHA256 is
+`c3245b27beee0d3d73531a9c5ffcb0473ff5fea9b32124954c25a50cb5e56750`.
+`SOURCE_PROVENANCE.json`, `attribute_versions.json`, and `MODULE.bazel` are
+public inputs for consumer provenance checks. The attribute-version header
+and its ordered tag history are carried forward unchanged from the existing
+sairedis build; regeneration instructions are in `attribute_versions.json`.
+
+### Why the attribute-version header is checked in
+
+[`overlay/meta/saiattrversion.h`](overlay/meta/saiattrversion.h) records the SAI
+release that first introduced each attribute (or `HEAD` for a future release).
+Upstream `meta/parse.pl` reads it in `ExtractAttrApiVersion` and uses
+`ProcessApiVersion` to populate generated attribute metadata. Missing version
+information falls back to `SAI_VERSION(0,0,0)`, changing that metadata contract.
+Sairedis also installs the header as `usr/include/sai/saiattrversion.h` in its
+development payload.
+
+The upstream `meta/attrversion.sh` generator walks Git tags from `v1.10.0`
+onward. The source archive used by Bazel has no `.git` directory or tags;
+running that script there produces an empty header. Carrying the generated
+header with an explicit ordered-tag manifest makes this build independent of
+live Git history and preserves Sairedis's existing output. The header is
+byte-identical to
+[`third_party/sai/saiattrversion.h` in Sairedis `6a6dd51`](https://github.com/securely1g/sonic-sairedis/blob/6a6dd51e9c9c09adf5c19086082940ff0fca2fb4/third_party/sai/saiattrversion.h).
+
+The header is therefore a required input to the current metadata/package
+contract, rather than a second SAI implementation. A future build-time
+replacement would need the same complete, pinned tag history and output-parity
+validation. The existing generated-output test checks its recorded SHA256
+together with the four metadata outputs.
+
+### Aspell patch provenance
+
+[`declared_aspell.patch`](patches/declared_aspell.patch) is a downstream SONiC
+Bazel adaptation, carried forward byte-for-byte from
+[`third_party/sai/declared_aspell.patch` in sonic-sairedis `6a6dd51`](https://github.com/securely1g/sonic-sairedis/blob/6a6dd51e9c9c09adf5c19086082940ff0fca2fb4/third_party/sai/declared_aspell.patch).
+It applies to `meta/style.pm` in the pinned SAI source
+`6dd738196ebb267be458eed0a00b687568455914`. It is not an upstream SAI release
+patch. Its SHA256 is
+`37846292edac8fda287413d4607716702bfb24c7278d27b3bc93e89c7610b942`.
+
+SAI's metadata generator spell-checks documentation through Aspell. The
+unpatched code requires `/usr/bin/aspell` and invokes it through a shell,
+which bypasses Bazel's declared execution tools. This patch:
+
+- Reads `SAI_ASPELL`, `SAI_ASPELL_LOADER`, `SAI_ASPELL_LIBRARY_PATH`, and the
+  declared data/dictionary/filter directories supplied by
+  [`generate_metadata.py`](overlay/bazel/generate_metadata.py).
+- Uses Perl's `IPC::Open2` to launch the declared loader and Aspell executable
+  directly, sends the words over stdin, and reads the existing spell-check
+  response format.
+- Waits for the process and reports a nonzero Aspell exit status to the
+  metadata generator.
+
+The patch retains spell checking. Tool preparation, package versions, runtime
+libraries, filters, and dictionaries are supplied by the module's declared
+execution bundle and build-infra's shared `build_tools` package set. The
+registry's native AMD64/ARM64 tests compare all generated bytes against the
+retained Sairedis baseline. This description stays outside `patches/` so the
+patch manifest remains exact and published patch bytes/integrity stay unchanged.
+
+## Public targets
+
+| Target | Contract |
+| --- | --- |
+| `:headers` | Public/custom/experimental and metadata headers, including generated `saimetadata.h` |
+| `:upstream_headers` | Original API and metadata support headers without running generation |
+| `:metadata` | Four declared generated outputs: C source/header, metadata test C source, SWIG interface |
+| `:saimetadata_c`, `:saimetadata_h`, `:saimetadatatest_c`, `:saiswig_i` | Individual generated outputs |
+| `:saiattrversion_h` | Attribute-version history header |
+| `:api_header_files`, `:metadata_header_files` | Files for consumer development packages |
+| `:metadata_support_sources` | Upstream metadata utilities and serializer C source |
+| `:metadata_library` | Static metadata library for consumers choosing this boundary |
+| `:stub_inputs` | Original API headers for consumer-specific entry-stub generation |
+| `:generator_inputs` | Complete source inputs to upstream metadata generation |
+| `:inc/sai.h`, `:meta/parse.pl`, `:meta/saiattrversion.h`, `:LICENSE.txt` | Stable exported upstream paths |
+
+The metadata rule and Python launcher live with this third-party dependency.
+The generator uses declared Perl/Python runtimes and Doxygen, Aspell, and
+English dictionaries resolved by `sonic-build-infra`'s separate `build_tools`
+APT package set. It consumes the three package targets and their transitive
+runtime payloads. The compiler `sysroot` set stays separate, and the shared
+Debian snapshots preserve the previously validated generator versions.
+
+Tool preparation reproduces Aspell's dictionary setup and rejects undeclared
+library resolution. The metadata action selects this bundle in the execution
+configuration; its CPU follows the machine running the generator. No host
+`PATH`, `/usr/bin/aspell`, or network access is required by generation.
+Package resolution and downloads belong to build-infra/rules_distroless;
+SAI keeps only its generator-specific preparation and metadata rules.
+
+Sairedis's Redis/VS/proxy stub implementation, runtime SONAMEs, deployment/debug
+packages and integration tests remain in sairedis. No service runtime, vendor
+SAI backend, Debian binary package, ARMHF support or container image is claimed
+by this dependency module.
+
+## Validation
+
+`presubmit.json` runs the existing registry consumer workflow on native AMD64
+and ARM64 Debian Trixie workers with Bazel 8.5.1. It pins shared infrastructure
+`0.0.8-e8b05b109187345586a18628ad01626e69c02fbe` for the test environment.
+
+- Build the required metadata outputs and a C consumer linked to the metadata
+  support library; query real PORT metadata through the exported SAI API.
+- Verify all four generated outputs plus the attribute-version header against
+  SHA256 hashes from the retained sonic-sairedis PR #1 baseline. This protects
+  the existing generated-byte contract while ownership moves to the registry.
+- Run both tests uncached and retain generated outputs, native test binary,
+  fetched module identity, logs and test reports as workflow artifacts.
+
+The registry tests verify this module independently. Sairedis's native build,
+package, detached-symbol and service-free regression checks validate its use
+of the module separately.
+
+The shared package source is [build-infra #8](https://github.com/securely1g/sonic-build-infra/pull/8),
+published by [registry #22](https://github.com/securely1g/sonic-bazel-registry/pull/22).
+Registry #22 must be available in the consumer's registry snapshot before this
+SAI version can resolve its shared infrastructure dependency.
