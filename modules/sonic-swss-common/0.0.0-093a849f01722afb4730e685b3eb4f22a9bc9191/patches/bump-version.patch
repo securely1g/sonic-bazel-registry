@@ -5,7 +5,7 @@
  module(
      name = "sonic-swss-common",
 -    version = "0.0.0",
-+    version = "0.0.0-f15b4f87cff7379975f51917626d0f2a6c44614f",
++    version = "0.0.0-093a849f01722afb4730e685b3eb4f22a9bc9191",
      bazel_compatibility = [
          ">=8.5.1",
          "<=8.5.1",

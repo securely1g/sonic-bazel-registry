@@ -2,9 +2,12 @@
 
 ## YANG-enabled release
 
-`0.0.0-f15b4f87cff7379975f51917626d0f2a6c44614f` packages the merged
-[Common source](https://github.com/securely1g/sonic-swss-common/commit/f15b4f87cff7379975f51917626d0f2a6c44614f)
-from [Common PR #6](https://github.com/securely1g/sonic-swss-common/pull/6).
+`0.0.0-093a849f01722afb4730e685b3eb4f22a9bc9191` packages the
+[Common source](https://github.com/securely1g/sonic-swss-common/commit/093a849f01722afb4730e685b3eb4f22a9bc9191)
+from [Common PR #9](https://github.com/securely1g/sonic-swss-common/pull/9),
+based on merged [Common PR #6](https://github.com/securely1g/sonic-swss-common/pull/6).
+The source revision fixes the YANG test fixture paths when Common is an external
+dependency; the source repository owns that fix.
 Common owns its Bazel targets and tests. This registry entry changes only its
 module version to identify the exact source commit. Historical published
 versions retain their original contents.
