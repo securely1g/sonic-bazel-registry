@@ -1,5 +1,9 @@
 {
   "versions": [
-    "0.0.0-df4319696743f4804053ab68c5af1a2b8254dcb4"
-  ]
+    "0.0.0-df4319696743f4804053ab68c5af1a2b8254dcb4",
+    "0.0.0-d81b2a91ab8ab89b4391ad5c9a93d033cd061942"
+  ],
+  "yanked_versions": {
+    "0.0.0-df4319696743f4804053ab68c5af1a2b8254dcb4": "External tests_test launcher uses the main repository working directory and fails before executing the consumer. Use 0.0.0-d81b2a91ab8ab89b4391ad5c9a93d033cd061942 for the corrected repository-relative launcher."
+  }
 }
