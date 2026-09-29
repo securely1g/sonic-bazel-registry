@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import base64
 import copy
 import hashlib
@@ -207,6 +208,23 @@ class SelectionTests(FixtureTestCase):
 
 
 class EntryValidationTests(FixtureTestCase):
+    def test_version_overrides_and_dependency_pin_fields_are_rejected(self) -> None:
+        entry = self.entry("alpha", "1.0.0")
+        path = entry / "presubmit.json"
+        config = json.loads(path.read_text())
+        for overrides in ({}, {"platforms": "0.9.0"}, {"alpha": "1.0.0"}):
+            with self.subTest(overrides=overrides):
+                write_json(path, {**config, "version_overrides": overrides})
+                with self.assertRaises(registry_ci.RegistryError):
+                    registry_ci.validate_entry(self.root, "alpha", "1.0.0")
+        for extra in ({"pin": True}, {"pin": False}, {"patches": []}):
+            with self.subTest(extra=extra):
+                invalid = copy.deepcopy(config)
+                invalid["consumer_deps"][0].update(extra)
+                write_json(path, invalid)
+                with self.assertRaises(registry_ci.RegistryError):
+                    registry_ci.validate_entry(self.root, "alpha", "1.0.0")
+
     def test_valid_entry_is_accepted(self) -> None:
         self.entry("alpha", "1.0.0")
         config = registry_ci.validate_entry(self.root, "alpha", "1.0.0")
@@ -436,17 +454,29 @@ class BuildOutputTests(FixtureTestCase):
 
 
 class FetchedModuleTests(FixtureTestCase):
-    def test_successful_bazel_commands_cannot_hide_a_different_fetched_module(self) -> None:
-        entry = self.entry("alpha", "1.0.0")
-        config_path = entry / "presubmit.json"
-        config = json.loads(config_path.read_text())
-        config["build_flags"] = ["--@alpha//bazel:yang_modules=False"]
-        write_json(config_path, config)
-        output_base = self.root / "fake-output-base"
-        fetched = output_base / "external" / "alpha+" / "MODULE.bazel"
-        fetched.parent.mkdir(parents=True)
-        fake_bazel = self.root / "fake-bazel"
-        fake_bazel.write_text(
+    def setUp(self) -> None:
+        super().setUp()
+        self.registry_entry = self.entry("alpha", "1.0.0")
+        self.config_path = self.registry_entry / "presubmit.json"
+        self.config = json.loads(self.config_path.read_text())
+        self.config["build_flags"] = ["--@alpha//bazel:yang_modules=False"]
+        self.config["consumer_deps"] = [
+            {"name": "platforms", "version": "1.0.0"},
+            {"name": "sonic-build-infra", "version": "0.0.7-abc123", "repo_name": "sonic_build_infra"},
+        ]
+        write_json(self.config_path, self.config)
+        self.output_base = self.root / "fake-output-base"
+        self.fetched = self.fetched_module("alpha")
+        self.fetched.parent.mkdir(parents=True)
+        self.fetched.write_bytes((self.registry_entry / "MODULE.bazel").read_bytes())
+        for dependency in self.config["consumer_deps"]:
+            path = self.fetched_module(dependency["name"])
+            path.parent.mkdir(parents=True)
+            path.write_text(
+                f'module(name = "{dependency["name"]}", version = "{dependency["version"]}")\n'
+            )
+        self.fake_bazel = self.root / "fake-bazel"
+        self.fake_bazel.write_text(
             "#!/usr/bin/env python3\n"
             "import json\n"
             "from pathlib import Path\n"
@@ -454,7 +484,7 @@ class FetchedModuleTests(FixtureTestCase):
             "args = sys.argv[1:]\n"
             "assert '--@alpha//bazel:yang_modules=False' in args\n"
             "if 'info' in args:\n"
-            f"    print({str(output_base)!r})\n"
+            f"    print({str(self.output_base)!r})\n"
             "elif 'build' in args:\n"
             "    path = next(arg.split('=', 1)[1] for arg in args if arg.startswith('--build_event_json_file='))\n"
             "    output = Path.cwd() / 'library.tar'\n"
@@ -476,28 +506,93 @@ class FetchedModuleTests(FixtureTestCase):
             "    ]\n"
             "    Path(path).write_text(''.join(json.dumps(event) + '\\n' for event in events))\n"
         )
-        fake_bazel.chmod(0o755)
-        # A successful control proves build/test/info receive the feature
-        # setting and that later failures really come from module identity.
-        fetched.write_bytes((entry / "MODULE.bazel").read_bytes())
+        self.fake_bazel.chmod(0o755)
+
+    def fetched_module(self, name: str) -> Path:
+        return self.output_base / "external" / f"{name}+" / "MODULE.bazel"
+
+    def run_fixture(self, suffix: str) -> Path:
+        artifacts = self.root / f"artifacts-{suffix}"
         registry_ci.run(
             self.root, "alpha", "1.0.0", "amd64",
-            self.root / "work-control", self.root / "artifacts-control", str(fake_bazel),
+            self.root / f"work-{suffix}", artifacts, str(self.fake_bazel),
         )
-        validation = json.loads((self.root / "artifacts-control" / "validation.json").read_text())
-        self.assertEqual(validation["build_flags"], config["build_flags"])
+        return artifacts
+
+    def declarations(self, artifacts: Path, function: str) -> list[dict]:
+        # The runner generates a literal-only, Python-compatible Starlark subset.
+        tree = ast.parse((artifacts / "consumer.MODULE.bazel").read_text())
+        return [
+            {keyword.arg: ast.literal_eval(keyword.value) for keyword in node.value.keywords}
+            for node in tree.body
+            if isinstance(node, ast.Expr) and isinstance(node.value, ast.Call)
+            and isinstance(node.value.func, ast.Name) and node.value.func.id == function
+        ]
+
+    def test_every_consumer_dependency_is_pinned_by_module_name_and_recorded(self) -> None:
+        artifacts = self.run_fixture("control")
+        self.assertEqual(self.declarations(artifacts, "bazel_dep"), [
+            {"name": "alpha", "version": "1.0.0"}, *self.config["consumer_deps"],
+        ])
+        self.assertEqual(self.declarations(artifacts, "single_version_override"), [
+            {"module_name": dependency["name"], "version": dependency["version"]}
+            for dependency in self.config["consumer_deps"]
+        ])
+        validation = json.loads((artifacts / "validation.json").read_text())
+        self.assertEqual(validation["build_flags"], self.config["build_flags"])
+        self.assertEqual(validation["consumer_deps"], self.config["consumer_deps"])
+        self.assertNotIn("version_overrides", validation)
+        self.assertTrue(validation["fetched_module_matches_registry"])
+        self.assertEqual((artifacts / "fetched.MODULE.bazel").read_bytes(), self.fetched.read_bytes())
+        for dependency in self.config["consumer_deps"]:
+            name = dependency["name"]
+            self.assertEqual((artifacts / f"consumer-dep-{name}.MODULE.bazel").read_bytes(),
+                             self.fetched_module(name).read_bytes())
+        self.assertFalse((artifacts / "consumer-dep-sonic_build_infra.MODULE.bazel").exists())
+        outputs = json.loads((artifacts / "outputs.json").read_text())
+        self.assertEqual(set(outputs), {"@alpha//:library"})
+        self.assertEqual((artifacts / outputs["@alpha//:library"][0]["path"]).read_bytes(), b"package")
+
+    def test_empty_consumer_dependencies_need_no_overrides_or_dependency_artifacts(self) -> None:
+        self.config["consumer_deps"] = []
+        self.config["platforms"] = {"amd64": "@alpha//:platform"}
+        write_json(self.config_path, self.config)
+        artifacts = self.run_fixture("empty-dependencies")
+        self.assertEqual(self.declarations(artifacts, "single_version_override"), [])
+        self.assertEqual(self.declarations(artifacts, "bazel_dep"), [{"name": "alpha", "version": "1.0.0"}])
+        self.assertEqual(json.loads((artifacts / "validation.json").read_text())["consumer_deps"], [])
+        self.assertEqual(list(artifacts.glob("consumer-dep-*.MODULE.bazel")), [])
+
+    def test_mismatched_or_missing_fetched_consumer_dependencies_are_rejected(self) -> None:
+        for dependency in self.config["consumer_deps"]:
+            name, version = dependency["name"], dependency["version"]
+            path = self.fetched_module(name)
+            original = path.read_text()
+            for case, contents in (
+                ("wrong-name", f'module(name = "wrong-name", version = "{version}")\n'),
+                ("wrong-version", f'module(name = "{name}", version = "9.9.9")\n'),
+                ("missing", None),
+            ):
+                with self.subTest(dependency=name, case=case):
+                    if contents is None:
+                        path.unlink()
+                    else:
+                        path.write_text(contents)
+                    with self.assertRaisesRegex(registry_ci.RegistryError, f"consumer dependency {name}"):
+                        self.run_fixture(f"{name}-{case}")
+                    path.write_text(original)
+
+    def test_successful_bazel_commands_cannot_hide_a_different_fetched_module(self) -> None:
         mismatches = (
             'module(name = "beta", version = "1.0.0")\n',
+            'module(name = "alpha", version = "2.0.0")\n',
             'module(name = "alpha", version = "1.0.0")\nbazel_dep(name = "extra", version = "1.0.0")\n',
         )
         for index, contents in enumerate(mismatches):
             with self.subTest(contents=contents):
-                fetched.write_text(contents)
+                self.fetched.write_text(contents)
                 with self.assertRaises(registry_ci.RegistryError):
-                    registry_ci.run(
-                        self.root, "alpha", "1.0.0", "amd64",
-                        self.root / f"work-{index}", self.root / f"artifacts-{index}", str(fake_bazel),
-                    )
+                    self.run_fixture(f"wrong-module-{index}")
 
 
 if __name__ == "__main__":
