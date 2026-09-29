@@ -1,0 +1,12 @@
+{
+  "url": "https://github.com/securely1g/sonic-bazel-registry/releases/download/source-sonic-buildimage-9ab452d22773c41783092ae3bd6c206d6c257c8d/sonic-buildimage-9ab452d22773c41783092ae3bd6c206d6c257c8d.tar.gz",
+  "strip_prefix": "sonic-buildimage-9ab452d22773c41783092ae3bd6c206d6c257c8d/src/sonic-yang-mgmt",
+  "integrity": "sha256-AG9z7k4Du/sc8DkQ66vcLAeY9kCYsTeXd8n3DV5ThVU=",
+  "overlay": {
+    "BUILD.bazel": "sha256-AHsDi0wqRYMu55yzsc/acJ7qtB1/0KUqSPMCOW2qUOA=",
+    "MODULE.bazel": "sha256-efiapp7ailkNP76sgjwpfAARt1FJVqRXhawYIM1fwR0=",
+    "requirements.in": "sha256-74qn9upN36qCcavxlQ5vAApzME/VDE+uAxpMYPOKu30=",
+    "requirements_lock.txt": "sha256-tQ7VmBWCkr7IVmii0+YypD/r8zOgSJdWJdOFUHeDHRU=",
+    "sonic_yang_mgmt_runtime_test.py": "sha256-3rHDr2wXRXVrgYuc+DIqwvZ9Rv6aAxP8l1p+xw/UVQ0="
+  }
+}
