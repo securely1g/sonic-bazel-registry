@@ -1,6 +1,6 @@
 module(
     name = "sonic-dash-api",
-    version = "0.0.0-0ed44d95d92b968c4cb39ad72555d20dc1ed970a",
+    version = "0.0.0-7af4056f7393b2ccbca9fc2d9aa668251e55b0a7",
     bazel_compatibility = [
         ">=8.5.1",
         "<=8.5.1",
@@ -24,4 +24,13 @@ use_repo(gcc, "gcc_toolchains")
 register_toolchains("@gcc_toolchains//:all")
 
 apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
-use_repo(apt, "trixie")
+apt.install(
+    dependency_set = "dash_validation_debian",
+    packages = ["libprotobuf-dev"],
+    suites = [
+        "trixie",
+        "trixie-updates",
+        "trixie-security",
+    ],
+)
+use_repo(apt, "dash_validation_debian")

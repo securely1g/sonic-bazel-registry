@@ -1,8 +1,8 @@
 # SONiC DASH API
 
-`0.0.0-0ed44d95d92b968c4cb39ad72555d20dc1ed970a` publishes the
+`0.0.0-7af4056f7393b2ccbca9fc2d9aa668251e55b0a7` publishes the
 source-owned Bazel import from
-[`securely1g/sonic-dash-api` commit `0ed44d9`](https://github.com/securely1g/sonic-dash-api/commit/0ed44d95d92b968c4cb39ad72555d20dc1ed970a).
+[`securely1g/sonic-dash-api` commit `7af4056`](https://github.com/securely1g/sonic-dash-api/commit/7af4056f7393b2ccbca9fc2d9aa668251e55b0a7).
 The source snapshot is based on the existing package producer commit
 `2ce7ce648ee77a76fcf567191eb4b9ed6cfeed38`. The only registry patch sets
 the module version.
@@ -12,7 +12,7 @@ Consumers declare the module with a local repository name:
 ```starlark
 bazel_dep(
     name = "sonic-dash-api",
-    version = "0.0.0-0ed44d95d92b968c4cb39ad72555d20dc1ed970a",
+    version = "0.0.0-7af4056f7393b2ccbca9fc2d9aa668251e55b0a7",
     repo_name = "sonic_dash_api",
 )
 ```
@@ -48,7 +48,8 @@ C++ consumer, and runs both source-owned tests uncached:
   file bytes, ELF machine, and protobuf runtime dependency against the manifest.
 - `//bazel:runtime_consumer_test` calls the imported C and C++ interfaces,
   performs a protobuf round trip, and confirms the loaded library is the
-  selected import. Its protobuf runtime dependency is private to the test.
+  selected import. Its test-only Debian dependency set uses the existing
+  `libprotobuf-dev:libprotobuf` C++ target.
 
 The source import supplies `//:prebuilt_files` for consumers that need the
 original DEB, exported files, and import record. This stack uses registry
