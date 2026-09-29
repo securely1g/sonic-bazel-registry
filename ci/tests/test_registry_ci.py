@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import ast
 import base64
+import contextlib
 import copy
 import hashlib
 import importlib.util
+import io
 import json
 import os
 from pathlib import Path
@@ -90,6 +92,87 @@ class FixtureTestCase(unittest.TestCase):
 
 
 class SelectionTests(FixtureTestCase):
+    def test_new_module_validates_replacement_and_logs_yanked_version(self) -> None:
+        (self.root / "README.md").write_text("Registry\n")
+        base = self.commit("before module registration")
+        old = self.entry("alpha", "1.0.0")
+        self.entry("alpha", "2.0.0")
+        path = old.parent / "metadata.json"
+        metadata = json.loads(path.read_text())
+        metadata["yanked_versions"] = {"1.0.0": "Broken external launcher; use 2.0.0."}
+        write_json(path, metadata)
+        head = self.commit("register fixed version and retain withdrawn source")
+        output = io.StringIO()
+        with contextlib.redirect_stderr(output):
+            self.assertEqual(self.selected(base, head), {("alpha", "2.0.0")})
+        self.assertIn("Skipping execution of yanked alpha@1.0.0", output.getvalue())
+        self.assertIn("Broken external launcher; use 2.0.0.", output.getvalue())
+
+    def test_metadata_yank_and_infrastructure_changes_keep_active_versions(self) -> None:
+        old = self.entry("alpha", "1.0.0")
+        self.entry("alpha", "2.0.0")
+        base = self.commit("two active versions")
+        path = old.parent / "metadata.json"
+        metadata = json.loads(path.read_text())
+        metadata["yanked_versions"] = {"1.0.0": "Broken launcher."}
+        write_json(path, metadata)
+        head = self.commit("withdraw old version")
+        self.assertEqual(self.selected(base, head), {("alpha", "2.0.0")})
+        jobs = registry_ci.plan(self.root, None, None, all_versions=True)["include"]
+        self.assertEqual({(job["module"], job["version"]) for job in jobs}, {("alpha", "2.0.0")})
+        (self.root / "ci").mkdir()
+        (self.root / "ci" / "registry_ci.py").write_text("changed runner\n")
+        changed = self.commit("change infrastructure")
+        self.assertEqual(self.selected(head, changed), {("alpha", "2.0.0")})
+
+    def test_yanked_version_still_requires_valid_source_integrity_and_manifest(self) -> None:
+        entry = self.entry("alpha", "1.0.0")
+        write_json(entry.parent / "metadata.json", {
+            "versions": ["1.0.0"], "yanked_versions": {"1.0.0": "Broken launcher."},
+        })
+        source_path = entry / "source.json"
+        source = json.loads(source_path.read_text())
+        for field, value in (("integrity", "sha256-invalid"), ("url", "file:///local/archive")):
+            with self.subTest(field=field):
+                write_json(source_path, {**source, field: value})
+                with self.assertRaises(registry_ci.RegistryError):
+                    registry_ci.plan(self.root, None, None, all_versions=True)
+        write_json(source_path, source)
+        write_json(entry / "presubmit.json", {})
+        with self.assertRaises(registry_ci.RegistryError):
+            registry_ci.plan(self.root, None, None, all_versions=True)
+
+    def test_yanked_version_still_rejects_corrupted_or_escaping_registry_inputs(self) -> None:
+        entry = self.entry("alpha", "1.0.0")
+        write_json(entry.parent / "metadata.json", {
+            "versions": ["1.0.0"], "yanked_versions": {"1.0.0": "Broken launcher."},
+        })
+        source_path = entry / "source.json"
+        source = json.loads(source_path.read_text())
+        for field in ("patches", "overlay"):
+            with self.subTest(field=field):
+                folder = entry / field
+                folder.mkdir()
+                (folder / "input").write_bytes(b"changed bytes")
+                write_json(source_path, {**source, field: {"input": digest(b"original bytes")}})
+                with self.assertRaisesRegex(registry_ci.RegistryError, "Integrity checksum mismatch"):
+                    registry_ci.plan(self.root, None, None, all_versions=True)
+                write_json(source_path, {**source, field: {"../outside": digest(b"original bytes")}})
+                with self.assertRaisesRegex(registry_ci.RegistryError, "Unsafe registry input path"):
+                    registry_ci.plan(self.root, None, None, all_versions=True)
+                shutil.rmtree(folder)
+
+    def test_yanked_version_cannot_hide_a_missing_directory(self) -> None:
+        entry = self.entry("alpha", "1.0.0")
+        base = self.commit("published version")
+        shutil.rmtree(entry)
+        write_json(entry.parent / "metadata.json", {
+            "versions": ["1.0.0"], "yanked_versions": {"1.0.0": "Broken launcher."},
+        })
+        head = self.commit("invalid deletion")
+        with self.assertRaises(registry_ci.RegistryError):
+            registry_ci.plan(self.root, base, head)
+
     def test_changed_version_is_selected_without_unrelated_versions(self) -> None:
         changed = self.entry("alpha", "1.0.0")
         self.entry("alpha", "2.0.0")
@@ -208,6 +291,28 @@ class SelectionTests(FixtureTestCase):
 
 
 class EntryValidationTests(FixtureTestCase):
+    def test_yanked_metadata_requires_known_versions_and_nonempty_reasons(self) -> None:
+        entry = self.entry("alpha", "1.0.0")
+        cases = (None, [], ["1.0.0"], {"2.0.0": "Unknown version."},
+                 {"1.0.0": None}, {"1.0.0": False}, {"1.0.0": ""}, {"1.0.0": " \n"})
+        for yanked in cases:
+            with self.subTest(yanked=yanked):
+                write_json(entry.parent / "metadata.json", {"versions": ["1.0.0"], "yanked_versions": yanked})
+                with self.assertRaisesRegex(registry_ci.RegistryError, "yanked_versions"):
+                    registry_ci.validate_entry(self.root, "alpha", "1.0.0")
+
+    def test_yanked_version_cannot_be_run_directly(self) -> None:
+        entry = self.entry("alpha", "1.0.0")
+        write_json(entry.parent / "metadata.json", {
+            "versions": ["1.0.0"], "yanked_versions": {"1.0.0": "Broken launcher."},
+        })
+        work = self.root / "work"
+        artifacts = self.root / "artifacts"
+        with self.assertRaisesRegex(registry_ci.RegistryError, "Cannot execute validation for yanked alpha@1.0.0"):
+            registry_ci.run(self.root, "alpha", "1.0.0", "amd64", work, artifacts, "must-not-execute")
+        self.assertFalse(work.exists())
+        self.assertFalse(artifacts.exists())
+
     def test_version_overrides_and_dependency_pin_fields_are_rejected(self) -> None:
         entry = self.entry("alpha", "1.0.0")
         path = entry / "presubmit.json"
