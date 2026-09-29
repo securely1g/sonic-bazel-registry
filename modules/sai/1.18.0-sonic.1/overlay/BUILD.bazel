@@ -1,0 +1,165 @@
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
+load("@rules_python//python:defs.bzl", "py_test")
+load("//bazel:metadata.bzl", "sai_metadata")
+
+package(default_visibility = ["//visibility:public"])
+
+API_HEADERS = glob(
+    [
+        "inc/*.h",
+        "experimental/*.h",
+        "custom/*.h",
+    ],
+    allow_empty = True,
+)
+
+META_HEADERS = glob(["meta/*.h"])
+
+cc_library(
+    name = "upstream_headers",
+    hdrs = API_HEADERS + META_HEADERS,
+    includes = [
+        "custom",
+        "experimental",
+        "inc",
+        "meta",
+    ],
+)
+
+filegroup(
+    name = "api_header_files",
+    srcs = API_HEADERS,
+)
+
+filegroup(
+    name = "upstream_metadata_header_files",
+    srcs = META_HEADERS,
+)
+
+filegroup(
+    name = "generator_inputs",
+    srcs = API_HEADERS + META_HEADERS + glob([
+        "meta/*.pm",
+        "meta/*.pl",
+        "meta/*.cap",
+        "meta/Doxyfile*",
+    ]) + [
+        "meta/acronyms.txt",
+        "meta/aspell.en.pws",
+    ],
+)
+
+filegroup(
+    name = "stub_inputs",
+    srcs = API_HEADERS,
+)
+
+filegroup(
+    name = "metadata_support_sources",
+    srcs = [
+        "meta/saimetadatautils.c",
+        "meta/saiserialize.c",
+    ],
+)
+
+exports_files([
+    "inc/sai.h",
+    "meta/parse.pl",
+    "meta/saiattrversion.h",
+    "LICENSE.txt",
+])
+
+sai_metadata(
+    name = "metadata",
+    srcs = [":generator_inputs"],
+    header = "saimetadata.h",
+    marker = ":meta/parse.pl",
+    source = "saimetadata.c",
+    swig = "saiswig.i",
+    test_source = "saimetadatatest.c",
+    tool_bundle = "//bazel:sai_generator_tools",
+)
+
+filegroup(
+    name = "saimetadata_c",
+    srcs = [":saimetadata.c"],
+)
+
+filegroup(
+    name = "saimetadata_h",
+    srcs = [":saimetadata.h"],
+)
+
+filegroup(
+    name = "saimetadatatest_c",
+    srcs = [":saimetadatatest.c"],
+)
+
+filegroup(
+    name = "saiswig_i",
+    srcs = [":saiswig.i"],
+)
+
+alias(
+    name = "saiattrversion_h",
+    actual = ":meta/saiattrversion.h",
+)
+
+filegroup(
+    name = "metadata_header_files",
+    srcs = [
+        ":saimetadata_h",
+        ":upstream_metadata_header_files",
+    ],
+)
+
+cc_library(
+    name = "headers",
+    hdrs = [":saimetadata_h"],
+    includes = ["."],
+    deps = [":upstream_headers"],
+)
+
+# Reusable static metadata code. Consumers choose their own SONAME, shared
+# library boundaries and deployment layout, as sairedis does today.
+cc_library(
+    name = "metadata_library",
+    srcs = [
+        ":metadata_support_sources",
+        ":saimetadata_c",
+    ],
+    copts = ["-ansi"],
+    linkopts = ["-ldl"],
+    deps = [":headers"],
+)
+
+cc_test(
+    name = "metadata_consumer_test",
+    srcs = ["//bazel:metadata_consumer_test.c"],
+    deps = [":metadata_library"],
+)
+
+py_test(
+    name = "generated_outputs_test",
+    srcs = ["//bazel:generated_outputs_test.py"],
+    args = [
+        "$(location //bazel:generated_output_sha256.json)",
+        "$(location :saimetadata.c)",
+        "$(location :saimetadata.h)",
+        "$(location :saimetadatatest.c)",
+        "$(location :saiswig.i)",
+        "$(location meta/saiattrversion.h)",
+    ],
+    data = [
+        "meta/saiattrversion.h",
+        ":metadata",
+        "//bazel:generated_output_sha256.json",
+    ],
+    main = "//bazel:generated_outputs_test.py",
+)
+
+exports_files([
+    "MODULE.bazel",
+    "attribute_versions.json",
+    "SOURCE_PROVENANCE.json",
+])
