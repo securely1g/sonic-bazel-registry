@@ -1,0 +1,21 @@
+module(
+    name = "sai",
+    version = "1.18.0-sonic.1",
+    bazel_compatibility = [
+        ">=8.5.1",
+        "<=8.5.1",
+    ],
+)
+
+bazel_dep(name = "platforms", version = "1.1.0")
+bazel_dep(name = "rules_cc", version = "0.2.16")
+bazel_dep(name = "rules_perl", version = "1.1.2")
+bazel_dep(name = "rules_python", version = "1.7.0")
+
+# Resolve generator packages through build-infra's shared sysroot APT set.
+# The executable bundle is selected in the execution configuration by metadata.
+bazel_dep(name = "sonic-build-infra", version = "0.0.8-fe98da37f3c9ca525d58f60c4736347142be0c98", repo_name = "sonic_build_infra")
+bazel_dep(name = "rules_distroless", version = "0.0.0.commit-01bb79d7eef4eb3ce9511d3dfaf0ab386bd8d12d")
+
+apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
+use_repo(apt, "sysroot")

@@ -1,0 +1,78 @@
+name: SAI sysroot integration validation
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  modules:
+    name: ${{ matrix.module }} ${{ matrix.version }} (${{ matrix.architecture }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - module: sai
+            version: 1.18.0-sonic.1
+            architecture: amd64
+            runner: ubuntu-24.04
+          - module: sai
+            version: 1.18.0-sonic.1
+            architecture: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    container: debian:trixie-20260918@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c
+    defaults:
+      run:
+        shell: bash
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      CI_MODULE: ${{ matrix.module }}
+      CI_VERSION: ${{ matrix.version }}
+      CI_ARCHITECTURE: ${{ matrix.architecture }}
+    steps:
+      - name: Install build and package test tools
+        run: |
+          set -euo pipefail
+          apt-get update
+          apt-get install -y --no-install-recommends binutils build-essential ca-certificates gdb git python3 tar curl xz-utils
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Install Bazel 8.5.1
+        run: |
+          set -euo pipefail
+          case "$(uname -m)" in
+            x86_64)
+              [[ "$CI_ARCHITECTURE" == amd64 ]]
+              bazel_arch=x86_64
+              bazel_sha=61d89402f0368e64b6c827be5de79d8e65382e8124c3cbb97325611a1851392e
+              ;;
+            aarch64)
+              [[ "$CI_ARCHITECTURE" == arm64 ]]
+              bazel_arch=arm64
+              bazel_sha=b7f2a85595e8a87d54843bc656c1e379fd9b8c1b5f783dc41717c1d7eb7cc49f
+              ;;
+            *) echo "Unsupported native architecture" >&2; exit 1 ;;
+          esac
+          curl --fail --location --retry 3 --output /tmp/bazel "https://releases.bazel.build/8.5.1/release/bazel-8.5.1-linux-${bazel_arch}"
+          printf '%s  %s\n' "$bazel_sha" /tmp/bazel | sha256sum --check --strict
+          install -m 0755 /tmp/bazel /usr/local/bin/bazel
+      - name: Build and test through the registry
+        run: |
+          set -euo pipefail
+          python3 ci/registry_ci.py run \
+            --module "$CI_MODULE" \
+            --version "$CI_VERSION" \
+            --architecture "$CI_ARCHITECTURE" \
+            --work-dir "$RUNNER_TEMP/registry-ci" \
+            --artifacts "$GITHUB_WORKSPACE/ci-artifacts"
+      - name: Retain module validation results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: registry-ci-${{ matrix.module }}-${{ matrix.version }}-${{ matrix.architecture }}
+          path: ci-artifacts/
+          if-no-files-found: warn
+          retention-days: 14
+
