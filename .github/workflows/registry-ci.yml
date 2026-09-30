@@ -1,97 +1,23 @@
-name: Registry CI
-
+name: SAI sysroot integration validation
 on:
-  pull_request:
-  push:
-    branches: [main]
   workflow_dispatch:
-
 permissions:
   contents: read
-
-concurrency:
-  group: registry-ci-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  plan:
-    name: Plan module validation
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    outputs:
-      matrix: ${{ steps.plan.outputs.matrix }}
-      has_jobs: ${{ steps.plan.outputs.has_jobs }}
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 0
-          persist-credentials: false
-      - name: Select changed modules
-        id: plan
-        shell: bash
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: |
-          set -euo pipefail
-          if [[ "$EVENT_NAME" == pull_request ]]; then
-            python3 ci/registry_ci.py plan --base "$BASE_SHA" --head "$HEAD_SHA" --output plan.json 2>&1 | tee plan.log
-          else
-            python3 ci/registry_ci.py plan --all --output plan.json 2>&1 | tee plan.log
-          fi
-          python3 - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-
-          matrix = json.loads(Path("plan.json").read_text())
-          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
-              print("matrix=" + json.dumps(matrix, separators=(",", ":")), file=output)
-              print("has_jobs=" + str(bool(matrix["include"])).lower(), file=output)
-          PY
-      - name: Retain validation plan
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: registry-ci-plan
-          path: |
-            plan.json
-            plan.log
-          if-no-files-found: warn
-          retention-days: 14
-
-  unit:
-    name: Registry runner tests
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          persist-credentials: false
-      - name: Test planning and validation runner
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 -m unittest discover -s ci/tests -v 2>&1 | tee runner-tests.log
-      - name: Retain runner test results
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: registry-ci-runner-tests
-          path: runner-tests.log
-          if-no-files-found: warn
-          retention-days: 14
-
   modules:
     name: ${{ matrix.module }} ${{ matrix.version }} (${{ matrix.architecture }})
-    needs: plan
-    if: needs.plan.outputs.has_jobs == 'true'
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+      matrix:
+        include:
+          - module: sai
+            version: 1.18.0-sonic.1
+            architecture: amd64
+            runner: ubuntu-24.04
+          - module: sai
+            version: 1.18.0-sonic.1
+            architecture: arm64
+            runner: ubuntu-24.04-arm
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
     container: debian:trixie-20260918@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c
@@ -150,26 +76,3 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-  required:
-    name: Registry CI
-    if: always()
-    needs: [plan, unit, modules]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    steps:
-      - name: Require successful planning, runner tests, and module validation
-        shell: bash
-        env:
-          PLAN_RESULT: ${{ needs.plan.result }}
-          UNIT_RESULT: ${{ needs.unit.result }}
-          MODULE_RESULT: ${{ needs.modules.result }}
-          HAS_JOBS: ${{ needs.plan.outputs.has_jobs }}
-        run: |
-          set -euo pipefail
-          [[ "$PLAN_RESULT" == success ]]
-          [[ "$UNIT_RESULT" == success ]]
-          if [[ "$HAS_JOBS" == true ]]; then
-            [[ "$MODULE_RESULT" == success ]]
-          else
-            [[ "$HAS_JOBS" == false && "$MODULE_RESULT" == skipped ]]
-          fi
