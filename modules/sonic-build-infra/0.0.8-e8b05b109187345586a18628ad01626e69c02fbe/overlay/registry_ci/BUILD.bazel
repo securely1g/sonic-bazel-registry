@@ -1,0 +1,51 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
+load(":link_contract.bzl", "compile_hardening_test", "link_contract_test")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_library(
+    name = "managed_dependency",
+    testonly = True,
+    srcs = ["dependency.cc"],
+)
+
+cc_test(
+    name = "default_link_test",
+    srcs = ["consumer.cc"],
+    deps = [":managed_dependency"],
+)
+
+cc_test(
+    name = "c_link_test",
+    srcs = ["consumer.c"],
+)
+
+link_contract_test(
+    name = "default_link_contract_test",
+    target_under_test = ":default_link_test",
+)
+
+config_setting(
+    name = "aarch64",
+    constraint_values = ["@platforms//cpu:aarch64"],
+)
+
+[
+    compile_hardening_test(
+        name = language + "_hardening_test",
+        expected = select({
+            ":aarch64": "-mbranch-protection=standard",
+            "//conditions:default": "-fcf-protection",
+        }),
+        forbidden = select({
+            ":aarch64": "-fcf-protection",
+            "//conditions:default": "-mbranch-protection",
+        }),
+        target_under_test = target,
+    )
+    for language, target in [
+        ("c", ":c_link_test"),
+        ("cpp", ":default_link_test"),
+    ]
+]
