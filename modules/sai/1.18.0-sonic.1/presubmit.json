@@ -1,0 +1,26 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.13-f0bbc22fbce321d25aecafab4590fbfdbba59f85",
+      "repo_name": "sonic_build_infra"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
+  },
+  "build_targets": [
+    "@sai//:metadata",
+    "@sai//:metadata_consumer_test"
+  ],
+  "test_targets": [
+    "@sai//:metadata_consumer_test",
+    "@sai//:generated_outputs_test",
+    "@sai//:configurable_aspell_test"
+  ]
+}
