@@ -15,6 +15,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 
 SPEC = importlib.util.spec_from_file_location(
@@ -90,6 +91,29 @@ class FixtureTestCase(unittest.TestCase):
 
 
 class SelectionTests(FixtureTestCase):
+    def test_plan_selects_pinned_native_images_without_changing_legacy_setup(self) -> None:
+        entry = self.entry("alpha", "1.0.0")
+        self.entry("beta", "1.0.0")
+        config = json.loads((entry / "presubmit.json").read_text())
+        config["architectures"].append("arm64")
+        config["platforms"]["arm64"] = "@platforms//host:host"
+        config["execution_images"] = {
+            arch: {"image": f"ghcr.io/securely1g/sonic-build-tools@sha256:{digit * 64}",
+                   "recipe": "a" * 64}
+            for arch, digit in (("amd64", "1"), ("arm64", "2"))
+        }
+        write_json(entry / "presubmit.json", config)
+        jobs = registry_ci.plan(self.root, None, None, all_versions=True)["include"]
+        self.assertEqual(len(jobs), 3)
+        for job in jobs[:2]:
+            self.assertEqual(job["container_image"], config["execution_images"][job["architecture"]]["image"])
+            self.assertEqual(job["execution_image"], job["container_image"])
+            self.assertEqual(job["runner"], registry_ci.RUNNERS[job["architecture"]])
+            self.assertTrue(job["prebuilt_image"])
+        self.assertEqual(jobs[2]["container_image"], registry_ci.DEFAULT_CONTAINER)
+        self.assertEqual(jobs[2]["execution_image"], "")
+        self.assertFalse(jobs[2]["prebuilt_image"])
+
     def test_changed_version_is_selected_without_unrelated_versions(self) -> None:
         changed = self.entry("alpha", "1.0.0")
         self.entry("alpha", "2.0.0")
@@ -208,6 +232,29 @@ class SelectionTests(FixtureTestCase):
 
 
 class EntryValidationTests(FixtureTestCase):
+    def test_execution_images_require_complete_digest_pinned_configuration(self) -> None:
+        entry = self.entry("alpha", "1.0.0")
+        path = entry / "presubmit.json"
+        config = json.loads(path.read_text())
+        valid = {"image": "ghcr.io/securely1g/sonic-build-tools@sha256:" + "1" * 64,
+                 "recipe": "a" * 64}
+        config["execution_images"] = {"amd64": valid}
+        write_json(path, config)
+        self.assertEqual(registry_ci.validate_entry(self.root, "alpha", "1.0.0"), config)
+        for images in (
+            {}, {"arm64": valid}, {"amd64": valid, "arm64": valid}, [],
+            {"amd64": {**valid, "image": "ghcr.io/securely1g/sonic-build-tools:latest"}},
+            {"amd64": {**valid, "image": "debian@sha256:" + "1" * 64}},
+            {"amd64": {**valid, "image": valid["image"] + " --privileged"}},
+            {"amd64": {**valid, "recipe": "latest"}},
+            {"amd64": {**valid, "options": "--privileged"}},
+        ):
+            with self.subTest(images=images):
+                config["execution_images"] = images
+                write_json(path, config)
+                with self.assertRaises(registry_ci.RegistryError):
+                    registry_ci.validate_entry(self.root, "alpha", "1.0.0")
+
     def test_version_overrides_and_dependency_pin_fields_are_rejected(self) -> None:
         entry = self.entry("alpha", "1.0.0")
         path = entry / "presubmit.json"
@@ -482,10 +529,17 @@ class FetchedModuleTests(FixtureTestCase):
             "from pathlib import Path\n"
             "import sys\n"
             "args = sys.argv[1:]\n"
+            "if args == ['--version']:\n"
+            "    print('bazel 8.5.1')\n"
+            "    sys.exit(0)\n"
+            f"with open({str(self.root / 'bazel-commands.jsonl')!r}, 'a') as log:\n"
+            "    print(json.dumps(args), file=log)\n"
             "assert '--@alpha//bazel:yang_modules=False' in args\n"
             "if 'info' in args:\n"
             f"    print({str(self.output_base)!r})\n"
             "elif 'build' in args:\n"
+            "    assert '--lockfile_mode=update' in args\n"
+            "    Path('MODULE.bazel.lock').write_text('{\"lockFileVersion\": 13}\\n')\n"
             "    path = next(arg.split('=', 1)[1] for arg in args if arg.startswith('--build_event_json_file='))\n"
             "    output = Path.cwd() / 'library.tar'\n"
             "    output.write_bytes(b'package')\n"
@@ -511,13 +565,88 @@ class FetchedModuleTests(FixtureTestCase):
     def fetched_module(self, name: str) -> Path:
         return self.output_base / "external" / f"{name}+" / "MODULE.bazel"
 
-    def run_fixture(self, suffix: str) -> Path:
+    def run_fixture(self, suffix: str, execution_image: str | None = None) -> Path:
         artifacts = self.root / f"artifacts-{suffix}"
         registry_ci.run(
             self.root, "alpha", "1.0.0", "amd64",
-            self.root / f"work-{suffix}", artifacts, str(self.fake_bazel),
+            self.root / f"work-{suffix}", artifacts, str(self.fake_bazel), execution_image,
         )
         return artifacts
+
+    def execution_image(self) -> tuple[str, Path]:
+        image = "ghcr.io/securely1g/sonic-build-tools@sha256:" + "1" * 64
+        self.config["execution_images"] = {"amd64": {"image": image, "recipe": "a" * 64}}
+        write_json(self.config_path, self.config)
+        marker = self.root / "sonic-build-tools.json"
+        write_json(marker, {"schema_version": 1, "architecture": "amd64", "recipe_sha256": "a" * 64})
+        return image, marker
+
+    def test_verified_execution_image_is_recorded_and_passed_to_actions_and_tests(self) -> None:
+        image, marker = self.execution_image()
+        with patch.object(registry_ci, "BUILD_TOOLS_MARKER", marker):
+            artifacts = self.run_fixture("pinned-image", image)
+        environment = json.loads((artifacts / "execution-environment.json").read_text())
+        self.assertEqual(environment["image"], image)
+        self.assertEqual(environment["recipe"], "a" * 64)
+        self.assertEqual(environment["marker"], json.loads(marker.read_text()))
+        self.assertEqual(json.loads((artifacts / "validation.json").read_text())["execution_environment"], environment)
+        commands = [json.loads(line) for line in (self.root / "bazel-commands.jsonl").read_text().splitlines()]
+        self.assertEqual(len(commands), 3)
+        for command in commands:
+            for flag in ("action_env", "host_action_env", "test_env"):
+                self.assertIn(f"--{flag}=SONIC_BUILD_TOOLS_IMAGE={image}", command)
+                self.assertIn(f"--{flag}=SONIC_BUILD_TOOLS_RECIPE={'a' * 64}", command)
+
+    def test_missing_or_wrong_image_identity_fails_before_any_build(self) -> None:
+        image, marker = self.execution_image()
+        with patch.object(registry_ci, "BUILD_TOOLS_MARKER", marker):
+            for supplied in (None, image.replace("1" * 64, "2" * 64)):
+                with self.subTest(image=supplied), self.assertRaises(registry_ci.RegistryError):
+                    self.run_fixture("bad-image", supplied)
+        self.assertFalse((self.root / "bazel-commands.jsonl").exists())
+        self.assertFalse((self.root / "work-bad-image").exists())
+
+    def test_missing_or_wrong_marker_fails_before_any_build(self) -> None:
+        image, marker = self.execution_image()
+        original = json.loads(marker.read_text())
+        with patch.object(registry_ci, "BUILD_TOOLS_MARKER", marker):
+            for changed in ({"schema_version": True}, {"schema_version": 2},
+                            {"architecture": "arm64"}, {"recipe_sha256": "b" * 64}):
+                write_json(marker, {**original, **changed})
+                with self.subTest(changed=changed), self.assertRaises(registry_ci.RegistryError):
+                    self.run_fixture("bad-marker", image)
+            marker.unlink()
+            with self.assertRaises(registry_ci.RegistryError):
+                self.run_fixture("missing-marker", image)
+        self.assertFalse((self.root / "bazel-commands.jsonl").exists())
+
+    def test_unconfigured_image_and_wrong_bazel_version_are_rejected(self) -> None:
+        with self.assertRaises(registry_ci.RegistryError):
+            self.run_fixture("unconfigured-image", "ghcr.io/example/tools@sha256:" + "1" * 64)
+        image, marker = self.execution_image()
+        self.fake_bazel.write_text(self.fake_bazel.read_text().replace("bazel 8.5.1", "bazel 8.4.0"))
+        with patch.object(registry_ci, "BUILD_TOOLS_MARKER", marker), self.assertRaises(registry_ci.RegistryError):
+            self.run_fixture("wrong-bazel", image)
+        self.assertFalse((self.root / "bazel-commands.jsonl").exists())
+
+    def test_missing_generated_lockfile_cannot_pass_validation(self) -> None:
+        self.fake_bazel.write_text("\n".join(
+            line for line in self.fake_bazel.read_text().splitlines()
+            if "Path('MODULE.bazel.lock').write_text" not in line
+        ) + "\n")
+        with self.assertRaisesRegex(registry_ci.RegistryError, "did not generate MODULE.bazel.lock"):
+            self.run_fixture("missing-lockfile")
+        self.assertFalse((self.root / "artifacts-missing-lockfile" / "validation.json").exists())
+
+    def test_generated_lockfile_is_retained_after_bazel_failure(self) -> None:
+        self.fake_bazel.write_text(self.fake_bazel.read_text().replace(
+            "elif 'test' in args:", "elif 'test' in args:\n    sys.exit(42)"
+        ))
+        with self.assertRaisesRegex(registry_ci.RegistryError, "status 42"):
+            self.run_fixture("failed-bazel")
+        artifacts = self.root / "artifacts-failed-bazel"
+        self.assertEqual(json.loads((artifacts / "MODULE.bazel.lock").read_text()), {"lockFileVersion": 13})
+        self.assertFalse((artifacts / "validation.json").exists())
 
     def declarations(self, artifacts: Path, function: str) -> list[dict]:
         # The runner generates a literal-only, Python-compatible Starlark subset.
@@ -543,6 +672,7 @@ class FetchedModuleTests(FixtureTestCase):
         self.assertEqual(validation["consumer_deps"], self.config["consumer_deps"])
         self.assertNotIn("version_overrides", validation)
         self.assertTrue(validation["fetched_module_matches_registry"])
+        self.assertEqual(json.loads((artifacts / "MODULE.bazel.lock").read_text()), {"lockFileVersion": 13})
         self.assertEqual((artifacts / "fetched.MODULE.bazel").read_bytes(), self.fetched.read_bytes())
         for dependency in self.config["consumer_deps"]:
             name = dependency["name"]

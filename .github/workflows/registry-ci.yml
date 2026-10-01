@@ -94,7 +94,7 @@ jobs:
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
-    container: debian:trixie-20260918@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c
+    container: ${{ matrix.container_image }}
     defaults:
       run:
         shell: bash
@@ -103,8 +103,10 @@ jobs:
       CI_MODULE: ${{ matrix.module }}
       CI_VERSION: ${{ matrix.version }}
       CI_ARCHITECTURE: ${{ matrix.architecture }}
+      CI_EXECUTION_IMAGE: ${{ matrix.execution_image }}
     steps:
       - name: Install build and package test tools
+        if: ${{ !matrix.prebuilt_image }}
         run: |
           set -euo pipefail
           apt-get update
@@ -114,6 +116,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - name: Install Bazel 8.5.1
+        if: ${{ !matrix.prebuilt_image }}
         run: |
           set -euo pipefail
           case "$(uname -m)" in
@@ -135,12 +138,17 @@ jobs:
       - name: Build and test through the registry
         run: |
           set -euo pipefail
+          execution_args=()
+          if [[ -n "$CI_EXECUTION_IMAGE" ]]; then
+            execution_args=(--execution-image "$CI_EXECUTION_IMAGE")
+          fi
           python3 ci/registry_ci.py run \
             --module "$CI_MODULE" \
             --version "$CI_VERSION" \
             --architecture "$CI_ARCHITECTURE" \
             --work-dir "$RUNNER_TEMP/registry-ci" \
-            --artifacts "$GITHUB_WORKSPACE/ci-artifacts"
+            --artifacts "$GITHUB_WORKSPACE/ci-artifacts" \
+            "${execution_args[@]}"
       - name: Retain module validation results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

@@ -24,6 +24,10 @@ RUNNERS = {"amd64": "ubuntu-24.04", "arm64": "ubuntu-24.04-arm"}
 NAME = re.compile(r"[a-z][a-z0-9._-]*\Z")
 VERSION = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+-]*\Z")
 LABEL = re.compile(r"@[a-z][a-z0-9._-]*//[A-Za-z0-9_./+-]*:[A-Za-z0-9_./+-]+\Z")
+DEFAULT_CONTAINER = "debian:trixie-20260918@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c"
+IMAGE = re.compile(r"[a-z0-9]+(?:[.-][a-z0-9]+)+(?:/[a-z0-9]+(?:[._-][a-z0-9]+)*)+@sha256:[0-9a-f]{64}\Z")
+SHA256 = re.compile(r"[0-9a-f]{64}\Z")
+BUILD_TOOLS_MARKER = Path("/etc/sonic-build-tools.json")
 
 
 class RegistryError(ValueError):
@@ -152,8 +156,8 @@ def validate_entry(root: Path, module: str, version: str) -> dict:
 
     config = read_json(entry / "presubmit.json")
     required = {"architectures", "consumer_deps", "platforms", "build_targets", "test_targets"}
-    require(required <= set(config) <= required | {"build_flags"},
-            f"presubmit.json requires {sorted(required)} and optionally build_flags")
+    require(required <= set(config) <= required | {"build_flags", "execution_images"},
+            f"presubmit.json requires {sorted(required)} and optionally build_flags/execution_images")
     architectures = config["architectures"]
     require(isinstance(architectures, list) and bool(architectures)
             and all(isinstance(a, str) and a in RUNNERS for a in architectures)
@@ -163,6 +167,17 @@ def validate_entry(root: Path, module: str, version: str) -> dict:
     require(isinstance(platforms, dict) and set(platforms) == set(architectures)
             and all(isinstance(label, str) and LABEL.fullmatch(label) for label in platforms.values()),
             "platforms must map each architecture to an explicit external target")
+    if "execution_images" in config:
+        images = config["execution_images"]
+        require(isinstance(images, dict) and set(images) == set(architectures),
+                "execution_images must configure every selected architecture")
+        for image in images.values():
+            require(isinstance(image, dict) and set(image) == {"image", "recipe"},
+                    "execution_images entries require only image and recipe")
+            require(isinstance(image["image"], str) and IMAGE.fullmatch(image["image"]) is not None,
+                    "execution image must be a fully qualified image pinned by sha256 without a tag")
+            require(isinstance(image["recipe"], str) and SHA256.fullmatch(image["recipe"]) is not None,
+                    "execution image recipe must be a SHA256 digest")
     aliases = {module}
     names = {module}
     require(isinstance(config["consumer_deps"], list), "consumer_deps must be a list")
@@ -262,8 +277,12 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
     for module, version in sorted(selected):
         config = validate_entry(root, module, version)
         for architecture in config["architectures"]:
+            image = config.get("execution_images", {}).get(architecture)
             include.append({"module": module, "version": version, "architecture": architecture,
-                            "runner": RUNNERS[architecture]})
+                            "runner": RUNNERS[architecture],
+                            "container_image": image["image"] if image else DEFAULT_CONTAINER,
+                            "execution_image": image["image"] if image else "",
+                            "prebuilt_image": image is not None})
     return {"include": include}
 
 
@@ -390,18 +409,46 @@ def run_logged(command: list[str], cwd: Path, log: Path) -> None:
         raise RegistryError(f"Command failed with status {result.returncode}; see {log}")
 
 
+def execution_environment(config: dict, architecture: str, image: str | None, bazel: str) -> dict | None:
+    selected = config.get("execution_images", {}).get(architecture)
+    if selected is None:
+        require(image is None, "--execution-image requires an execution_images manifest entry")
+        return None
+    require(image == selected["image"], "Run inside the configured digest-pinned image and pass --execution-image with its exact reference")
+    marker = read_json(BUILD_TOOLS_MARKER)
+    require(type(marker.get("schema_version")) is int and marker["schema_version"] == 1,
+            "Unsupported build-tools image marker schema")
+    require(marker.get("architecture") == architecture, "Build-tools image marker architecture differs from requested architecture")
+    require(marker.get("recipe_sha256") == selected["recipe"], "Build-tools image recipe differs from presubmit.json")
+    bazel_version = subprocess.check_output([bazel, "--version"], text=True).strip()
+    require(bazel_version == "bazel 8.5.1", "Build-tools image must provide Bazel 8.5.1")
+    return {"image": image, "recipe": selected["recipe"], "marker": marker, "bazel_version": bazel_version}
+
+
+def execution_flags(environment: dict | None) -> list[str]:
+    if environment is None:
+        return []
+    return [f"--{flag}={name}={value}"
+            for flag in ("action_env", "host_action_env", "test_env")
+            for name, value in (("SONIC_BUILD_TOOLS_IMAGE", environment["image"]),
+                                ("SONIC_BUILD_TOOLS_RECIPE", environment["recipe"]))]
+
+
 def run(root: Path, module: str, version: str, architecture: str,
-        work_dir: Path, artifacts: Path, bazel: str = "bazel") -> None:
+        work_dir: Path, artifacts: Path, bazel: str = "bazel", execution_image: str | None = None) -> None:
     config = validate_entry(root, module, version)
     require(architecture in config["architectures"], "Architecture is not configured for this version")
     require(platform.system() == "Linux" and platform.machine() == {"amd64": "x86_64", "arm64": "aarch64"}[architecture],
             "Validation must run on a native Linux host of the requested architecture")
+    environment = execution_environment(config, architecture, execution_image, bazel)
     work_dir, artifacts = work_dir.resolve(), artifacts.resolve()
     require(not work_dir.exists() or not any(work_dir.iterdir()), "work-dir must be fresh and empty")
     require(not artifacts.is_relative_to(work_dir), "artifacts must be outside work-dir")
     consumer = work_dir / "consumer"
     consumer.mkdir(parents=True)
     artifacts.mkdir(parents=True, exist_ok=True)
+    if environment is not None:
+        (artifacts / "execution-environment.json").write_text(json.dumps(environment, indent=2) + "\n")
     declarations = ['module(name = "registry_ci_consumer")']
     for dependency in [{"name": module, "version": version}, *config["consumer_deps"]]:
         declarations.append("bazel_dep(" + ", ".join(f"{key} = {json.dumps(value)}"
@@ -413,11 +460,12 @@ def run(root: Path, module: str, version: str, architecture: str,
     (consumer / "MODULE.bazel").write_text("\n\n".join(declarations) + "\n")
     (consumer / "BUILD.bazel").write_text("# Explicit external targets are built from this consumer.\n")
     (consumer / ".bazelversion").write_text("8.5.1\n")
+    (consumer / ".gitignore").write_text("MODULE.bazel.lock\n")
     shutil.copy2(consumer / "MODULE.bazel", artifacts / "consumer.MODULE.bazel")
     prefix = [bazel, "--ignore_all_rc_files", f"--output_user_root={work_dir / 'bazel'}"]
     flags = [f"--registry={root.resolve().as_uri()}", "--registry=https://bcr.bazel.build/",
-             f"--platforms={config['platforms'][architecture]}", "--lockfile_mode=off",
-             *config.get("build_flags", [])]
+             f"--platforms={config['platforms'][architecture]}", "--lockfile_mode=update",
+             *config.get("build_flags", []), *execution_flags(environment)]
     try:
         run_logged([*prefix, "build", *flags, f"--build_event_json_file={artifacts / 'build-events.jsonl'}",
                     *config["build_targets"]], consumer, artifacts / "build.log")
@@ -443,14 +491,19 @@ def run(root: Path, module: str, version: str, architecture: str,
             require(parse_module_identity(selected[0].read_text()) == (name, selected_version),
                     f"Fetched consumer dependency {name} differs from the declared version {selected_version}")
             shutil.copy2(selected[0], artifacts / f"consumer-dep-{name}.MODULE.bazel")
+        require((consumer / "MODULE.bazel.lock").is_file(), "Bazel did not generate MODULE.bazel.lock resolution evidence")
         (artifacts / "validation.json").write_text(json.dumps({
             "module": module, "version": version, "architecture": architecture,
             "build_targets": config["build_targets"], "passed_tests": config["test_targets"],
             "build_flags": config.get("build_flags", []),
             "consumer_deps": config["consumer_deps"],
+            "execution_environment": environment,
             "fetched_module_matches_registry": True,
         }, indent=2) + "\n")
     finally:
+        lockfile = consumer / "MODULE.bazel.lock"
+        if lockfile.is_file():
+            shutil.copy2(lockfile, artifacts / "MODULE.bazel.lock")
         testlogs = consumer / "bazel-testlogs"
         if testlogs.exists():
             shutil.copytree(testlogs, artifacts / "testlogs", dirs_exist_ok=True)
@@ -471,6 +524,7 @@ def main() -> None:
     runner.add_argument("--work-dir", required=True, type=Path)
     runner.add_argument("--artifacts", required=True, type=Path)
     runner.add_argument("--bazel", default="bazel")
+    runner.add_argument("--execution-image", help="Exact configured digest reference of the container running this command")
     args = parser.parse_args()
     try:
         if args.command == "plan":
@@ -480,7 +534,8 @@ def main() -> None:
             print(json.dumps(result, separators=(",", ":")))
             print(f"Selected {len(result['include'])} native validation jobs", file=sys.stderr)
         else:
-            run(ROOT, args.module, args.version, args.architecture, args.work_dir, args.artifacts, args.bazel)
+            run(ROOT, args.module, args.version, args.architecture, args.work_dir, args.artifacts, args.bazel,
+                args.execution_image)
     except (RegistryError, OSError, subprocess.CalledProcessError) as error:
         parser.exit(1, f"Registry CI failed: {error}\n")
 

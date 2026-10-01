@@ -50,6 +50,9 @@ The configuration declares:
   the module under test and include its value. Native Bazel options, duplicate
   settings, and options that redirect registries or override test execution are
   rejected. The selected flags are retained in `validation.json`.
+- `execution_images` (optional): a digest-pinned build-tools container and its
+  recipe SHA256 for every declared architecture; see below. Omission retains the
+  default Debian setup.
 
 For example, libyang-Python's test environment selects its shared infrastructure
 version once in `presubmit.json`:
@@ -72,11 +75,16 @@ supported. Dependencies used by the test environment must actually be fetched;
 the runner fails if a declared dependency is missing or its fetched module name
 or version differs. An empty `consumer_deps` list adds no pins.
 
-Artifacts retain the generated `consumer.MODULE.bazel`, each fetched dependency's
+Artifacts retain the generated `consumer.MODULE.bazel`, `MODULE.bazel.lock`, each fetched dependency's
 `consumer-dep-<name>.MODULE.bazel`, and the declared `consumer_deps` in
 `validation.json`. These pins apply only to this CI test project. Downstream
 repositories such as `sonic-swss-common` remain responsible for validating their
 own dependency selection and integration builds.
+
+The fresh consumer ignores `MODULE.bazel.lock` and uses `--lockfile_mode=update`.
+The generated resolution state is copied to artifacts, including after a failed
+build when the file exists; it is never committed to the registry. Successful
+validation requires that Bazel generated this evidence.
 
 Use explicit labels for required outputs and tests. Wildcard builds can silently
 skip targets incompatible with the selected platform. Add tests to the module's
@@ -116,8 +124,8 @@ before using them. Logs and other failure diagnostics remain available.
 ## Environment and coverage
 
 The build matrix uses native GitHub-hosted `ubuntu-24.04` and `ubuntu-24.04-arm`
-servers with a `debian:trixie-20260918` container pinned to its multiarch image
-digest. It installs the compiler and
+servers. By default, jobs use a `debian:trixie-20260918` container pinned to its
+multiarch image digest. They install the compiler and
 package-test tools in the container and downloads Bazel 8.5.1 with a pinned SHA256
 for the native CPU. GitHub actions are pinned to commit SHAs, checkout does not
 persist credentials, and the workflow uses read-only repository permissions.
@@ -131,6 +139,62 @@ files exist and remain visible in the Actions job log.
 ARMHF, cross execution, other operating systems, all historical registry entries,
 and the complete SONiC image are outside this matrix. Declaring an ARMHF layout
 in a module does not establish ARMHF build or execution coverage.
+
+### Pinned build-tools containers
+
+A module whose generators need installed tools can select an immutable execution
+image in `presubmit.json`. Each architecture needs an entry with exactly `image`
+and `recipe`; both entries may use the same multiarch index digest. This example
+shows the shape only; replace both digest placeholders with verified SHA256s:
+
+```json
+"execution_images": {
+  "amd64": {
+    "image": "ghcr.io/securely1g/sonic-build-tools@sha256:<image-digest>",
+    "recipe": "<recipe-sha256>"
+  },
+  "arm64": {
+    "image": "ghcr.io/securely1g/sonic-build-tools@sha256:<image-digest>",
+    "recipe": "<recipe-sha256>"
+  }
+}
+```
+
+The image reference must include its registry hostname and a lowercase SHA256
+digest, without a tag, credentials, or container options. It must be publicly
+pullable. The workflow runs that exact reference and skips APT installation and
+the Bazel download. The image must already supply the tools listed under local
+reproduction, Bash, and Bazel 8.5.1. Adding an image does not grant the workflow
+package-write permissions or registry credentials.
+
+Before creating a consumer or running a build, the runner checks native CPU
+architecture, Bazel's version, the exact configured `--execution-image` argument,
+and `/etc/sonic-build-tools.json`. That marker must contain `schema_version: 1`,
+the selected `architecture`, and `recipe_sha256` matching the manifest. Additional
+marker fields, such as installed package versions, are retained. The recipe is
+the image producer's hash of its build inputs; it is distinct from the OCI image
+digest. Changing installed tools requires rebuilding and selecting a new image
+digest, even if rebuilding the same recipe.
+
+The container runtime enforces the image digest. The marker verifies the expected
+recipe and architecture; it is not an independent cryptographic attestation of
+the running filesystem. Supplying an image argument outside its container does
+not reproduce the environment. Review the image's source and provenance before
+selecting it, and do not modify its tools during validation.
+
+The runner passes `SONIC_BUILD_TOOLS_IMAGE` and `SONIC_BUILD_TOOLS_RECIPE` as
+explicit `--action_env`, `--host_action_env`, and `--test_env` values, so actions
+using Bazel's default action environment (including execution-configuration
+tools) and tests include this identity in their cache inputs.
+Custom actions that use their own environment must also include the image
+identity in their declared arguments, environment, or execution properties;
+`--action_env` alone cannot make such an action container-aware. Selecting a CI
+container does not configure a remote executor or change a compiler's target
+sysroot.
+
+`execution-environment.json` retains the verified image, recipe, full marker,
+and Bazel version before the build starts. Successful `validation.json` also
+includes that record. Setup rejection remains visible in the Actions job log.
 
 ## Local reproduction
 
@@ -155,6 +219,25 @@ selects a specific Bazel executable. To inspect a PR's selection, replace
 `--all` with `--base <base-commit> --head <head-commit>`. Keep the work and artifact
 directories outside the registry checkout and use a fresh work directory for a
 clean reproduction.
+
+For an entry with `execution_images`, run the same command inside the selected
+container on the matching native host and pass its exact reference. For example,
+after replacing the values below with the entry's module, version, and image:
+
+```sh
+image='ghcr.io/securely1g/sonic-build-tools@sha256:<image-digest>'
+mkdir -p /tmp/registry-ci-container-artifacts
+docker run --rm --platform linux/amd64 \
+  -v "$PWD:/registry:ro" \
+  -v /tmp/registry-ci-container-artifacts:/artifacts \
+  "$image" python3 /registry/ci/registry_ci.py run \
+  --module MODULE --version VERSION --architecture amd64 \
+  --execution-image "$image" \
+  --work-dir /tmp/registry-ci --artifacts /artifacts
+```
+
+Use a native ARM64 host with `linux/arm64` and `--architecture arm64` for the
+other matrix entry. Emulation is not evidence of native ARM64 coverage.
 
 See the [Bazel registry format](https://bazel.build/external/registry) for module
 source, patch, and overlay metadata.
