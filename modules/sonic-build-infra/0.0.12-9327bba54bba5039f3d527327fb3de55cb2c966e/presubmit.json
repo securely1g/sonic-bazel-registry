@@ -1,0 +1,49 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [],
+  "platforms": {
+    "amd64": "@sonic-build-infra//platforms:x86_64_trixie",
+    "arm64": "@sonic-build-infra//platforms:aarch64_trixie"
+  },
+  "build_targets": [
+    "@sonic-build-infra//registry_ci:default_link_test",
+    "@sonic-build-infra//registry_ci:c_link_test",
+    "@sonic-build-infra//tests:hello_deploy_tar",
+    "@sonic-build-infra//tests:hello_deploy_tar.debug_symbols",
+    "@sonic-build-infra//proto:protoc",
+    "@sonic-build-infra//tests:hello_deb",
+    "@sonic-build-infra//tests:hello_dbg_deb"
+  ],
+  "test_targets": [
+    "@sonic-build-infra//registry_ci:default_link_test",
+    "@sonic-build-infra//registry_ci:c_link_test",
+    "@sonic-build-infra//registry_ci:default_link_contract_test",
+    "@sonic-build-infra//registry_ci:c_hardening_test",
+    "@sonic-build-infra//registry_ci:cpp_hardening_test",
+    "@sonic-build-infra//tests:cc_toolchain_supports_pic_test",
+    "@sonic-build-infra//tests:hello_deploy_tar_content_test",
+    "@sonic-build-infra//tests:hello_deploy_tar_provides_debug_symbols_test",
+    "@sonic-build-infra//python:wheel_layer_test",
+    "@sonic-build-infra//tar:root_owned_tar_test",
+    "@sonic-build-infra//tar:debug_symbols_ownership_test",
+    "@sonic-build-infra//tests:hello_build_test",
+    "@sonic-build-infra//tests:hello_cpp_build_test",
+    "@sonic-build-infra//tests:hello_strip_test",
+    "@sonic-build-infra//tests:libgreet_build_test",
+    "@sonic-build-infra//tests:libgreet_pic_test",
+    "@sonic-build-infra//tests:libgreet_strip_test",
+    "@sonic-build-infra//tests:greet_shared_build_test",
+    "@sonic-build-infra//tests:greet_shared_pic_test",
+    "@sonic-build-infra//tests:greet_shared_strip_test",
+    "@sonic-build-infra//proto:protoc_version_test",
+    "@sonic-build-infra//deb:normalize_data_tar_test",
+    "@sonic-build-infra//tests:hello_deb_build_test",
+    "@sonic-build-infra//tests:hello_deb_members_assert",
+    "@sonic-build-infra//tests:hello_deb_control_assert",
+    "@sonic-build-infra//tests:hello_deb_md5sums_assert",
+    "@sonic-build-infra//tests:hello_dbg_deb_build_test"
+  ]
+}
