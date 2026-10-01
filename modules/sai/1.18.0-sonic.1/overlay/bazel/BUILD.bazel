@@ -1,0 +1,15 @@
+load(":tools.bzl", "perl_test_runtime", "python_runtime")
+
+package(default_visibility = ["//visibility:public"])
+
+python_runtime(name = "python_runtime")
+
+perl_test_runtime(name = "perl_test_runtime")
+
+exports_files([
+    "generate_metadata.py",
+    "configurable_aspell_test.py",
+    "metadata_consumer_test.c",
+    "generated_outputs_test.py",
+    "generated_output_sha256.json",
+])
