@@ -1,0 +1,11 @@
+diff --git a/MODULE.bazel b/MODULE.bazel
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-dash-api",
+-    version = "0.0.4",
++    version = "0.0.4-4f0f3e89a3318f5b7cec0629af35894591c43f61",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
