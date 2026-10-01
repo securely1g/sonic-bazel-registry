@@ -1,5 +1,29 @@
 # sonic-swss-common
 
+## Common-owned Rust binding interface
+
+`0.0.0-120a955096bb18413d170d42b30668dc7a9b7f68` packages the
+[merged Common source](https://github.com/securely1g/sonic-swss-common/commit/120a955096bb18413d170d42b30668dc7a9b7f68)
+from [Common PR #11](https://github.com/securely1g/sonic-swss-common/pull/11).
+It retains the external YANG fixture fix from the prior registration and adds
+`//crates/swss-common:bindings_dir`, which generates the Rust FFI bindings from
+the C API headers in the same Common source revision. The source repository
+owns this interface; this registry entry changes only the module version.
+
+The native AMD64 and ARM64 registry matrix retains the existing C++/YANG,
+Python, Go, and package validation described below, with Common's infrastructure
+`0.0.6-553b2f70f9ba77b74befdf77674894166139ddcc` test pin. It does not
+select the Rust binding target. Common's source CI separately generates bindings
+on native AMD64 and ARM64 with YANG enabled and disabled. A downstream root that
+selects `bindings_dir` supplies its own Rust and bindgen toolchains and must
+validate the generated API and matching Rust/native source revisions; the
+registry matrix does not establish that consumer integration.
+
+This replaces the unmerged draft entry based on `36048b92907c21a5ef762eaa60a86e073e743dd0`.
+The prior immutable registry snapshot
+[`43576c0`](https://github.com/securely1g/sonic-bazel-registry/commit/43576c0208dc3dade1406f51f0a34e84bac67943)
+retains that entry unchanged. Already published versions on `main` are preserved.
+
 ## YANG-enabled release
 
 `0.0.0-5ee19a9375e667c0d507239927745de8fa29be07` packages the
