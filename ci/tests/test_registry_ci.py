@@ -486,6 +486,8 @@ class FetchedModuleTests(FixtureTestCase):
             "if 'info' in args:\n"
             f"    print({str(self.output_base)!r})\n"
             "elif 'build' in args:\n"
+            "    assert '--lockfile_mode=update' in args\n"
+            "    Path('MODULE.bazel.lock').write_text('{\"lockFileVersion\": 13}\\n')\n"
             "    path = next(arg.split('=', 1)[1] for arg in args if arg.startswith('--build_event_json_file='))\n"
             "    output = Path.cwd() / 'library.tar'\n"
             "    output.write_bytes(b'package')\n"
@@ -543,6 +545,8 @@ class FetchedModuleTests(FixtureTestCase):
         self.assertEqual(validation["consumer_deps"], self.config["consumer_deps"])
         self.assertNotIn("version_overrides", validation)
         self.assertTrue(validation["fetched_module_matches_registry"])
+        self.assertEqual(json.loads((artifacts / "MODULE.bazel.lock").read_text()), {"lockFileVersion": 13})
+        self.assertEqual((self.root / "work-control" / "consumer" / ".gitignore").read_text(), "MODULE.bazel.lock\n")
         self.assertEqual((artifacts / "fetched.MODULE.bazel").read_bytes(), self.fetched.read_bytes())
         for dependency in self.config["consumer_deps"]:
             name = dependency["name"]
@@ -562,6 +566,25 @@ class FetchedModuleTests(FixtureTestCase):
         self.assertEqual(self.declarations(artifacts, "bazel_dep"), [{"name": "alpha", "version": "1.0.0"}])
         self.assertEqual(json.loads((artifacts / "validation.json").read_text())["consumer_deps"], [])
         self.assertEqual(list(artifacts.glob("consumer-dep-*.MODULE.bazel")), [])
+
+    def test_missing_generated_lockfile_cannot_pass_validation(self) -> None:
+        self.fake_bazel.write_text("\n".join(
+            line for line in self.fake_bazel.read_text().splitlines()
+            if "Path('MODULE.bazel.lock').write_text" not in line
+        ) + "\n")
+        with self.assertRaisesRegex(registry_ci.RegistryError, "did not generate MODULE.bazel.lock"):
+            self.run_fixture("missing-lockfile")
+        self.assertFalse((self.root / "artifacts-missing-lockfile" / "validation.json").exists())
+
+    def test_generated_lockfile_is_retained_after_bazel_failure(self) -> None:
+        self.fake_bazel.write_text(self.fake_bazel.read_text().replace(
+            "elif 'test' in args:", "elif 'test' in args:\n    sys.exit(42)"
+        ))
+        with self.assertRaisesRegex(registry_ci.RegistryError, "status 42"):
+            self.run_fixture("failed-bazel")
+        artifacts = self.root / "artifacts-failed-bazel"
+        self.assertEqual(json.loads((artifacts / "MODULE.bazel.lock").read_text()), {"lockFileVersion": 13})
+        self.assertFalse((artifacts / "validation.json").exists())
 
     def test_mismatched_or_missing_fetched_consumer_dependencies_are_rejected(self) -> None:
         for dependency in self.config["consumer_deps"]:

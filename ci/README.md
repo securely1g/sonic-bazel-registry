@@ -72,11 +72,16 @@ supported. Dependencies used by the test environment must actually be fetched;
 the runner fails if a declared dependency is missing or its fetched module name
 or version differs. An empty `consumer_deps` list adds no pins.
 
-Artifacts retain the generated `consumer.MODULE.bazel`, each fetched dependency's
-`consumer-dep-<name>.MODULE.bazel`, and the declared `consumer_deps` in
+Artifacts retain the generated `consumer.MODULE.bazel`, `MODULE.bazel.lock`,
+each fetched dependency's `consumer-dep-<name>.MODULE.bazel`, and `consumer_deps` in
 `validation.json`. These pins apply only to this CI test project. Downstream
 repositories such as `sonic-swss-common` remain responsible for validating their
 own dependency selection and integration builds.
+
+The fresh consumer ignores `MODULE.bazel.lock` and uses `--lockfile_mode=update`.
+The generated resolution state is copied to artifacts, including after a failed
+build when the file exists; it is never committed to the registry. Successful
+validation requires that Bazel generated this evidence.
 
 Use explicit labels for required outputs and tests. Wildcard builds can silently
 skip targets incompatible with the selected platform. Add tests to the module's
