@@ -413,10 +413,11 @@ def run(root: Path, module: str, version: str, architecture: str,
     (consumer / "MODULE.bazel").write_text("\n\n".join(declarations) + "\n")
     (consumer / "BUILD.bazel").write_text("# Explicit external targets are built from this consumer.\n")
     (consumer / ".bazelversion").write_text("8.5.1\n")
+    (consumer / ".gitignore").write_text("MODULE.bazel.lock\n")
     shutil.copy2(consumer / "MODULE.bazel", artifacts / "consumer.MODULE.bazel")
     prefix = [bazel, "--ignore_all_rc_files", f"--output_user_root={work_dir / 'bazel'}"]
     flags = [f"--registry={root.resolve().as_uri()}", "--registry=https://bcr.bazel.build/",
-             f"--platforms={config['platforms'][architecture]}", "--lockfile_mode=off",
+             f"--platforms={config['platforms'][architecture]}", "--lockfile_mode=update",
              *config.get("build_flags", [])]
     try:
         run_logged([*prefix, "build", *flags, f"--build_event_json_file={artifacts / 'build-events.jsonl'}",
@@ -443,6 +444,7 @@ def run(root: Path, module: str, version: str, architecture: str,
             require(parse_module_identity(selected[0].read_text()) == (name, selected_version),
                     f"Fetched consumer dependency {name} differs from the declared version {selected_version}")
             shutil.copy2(selected[0], artifacts / f"consumer-dep-{name}.MODULE.bazel")
+        require((consumer / "MODULE.bazel.lock").is_file(), "Bazel did not generate MODULE.bazel.lock resolution evidence")
         (artifacts / "validation.json").write_text(json.dumps({
             "module": module, "version": version, "architecture": architecture,
             "build_targets": config["build_targets"], "passed_tests": config["test_targets"],
@@ -451,6 +453,9 @@ def run(root: Path, module: str, version: str, architecture: str,
             "fetched_module_matches_registry": True,
         }, indent=2) + "\n")
     finally:
+        lockfile = consumer / "MODULE.bazel.lock"
+        if lockfile.is_file():
+            shutil.copy2(lockfile, artifacts / "MODULE.bazel.lock")
         testlogs = consumer / "bazel-testlogs"
         if testlogs.exists():
             shutil.copytree(testlogs, artifacts / "testlogs", dirs_exist_ok=True)
