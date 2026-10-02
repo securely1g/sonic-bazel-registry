@@ -1,0 +1,8 @@
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -3 +3 @@
+-    version = "0.0.4",
++    version = "0.0.4-d465b786157fd9021b1600062155752e0601e31d",
+@@ -18 +18 @@
+-bazel_dep(name = "sonic-build-infra", version = "0.0.14-7caf89cd7f0f347358aca3837627336ada15dcd3", repo_name = "sonic_build_infra")
++bazel_dep(name = "sonic-build-infra", version = "0.0.14-5859f7e63b6bff0f601a9b8d00853fa3ae7f216e", repo_name = "sonic_build_infra")
