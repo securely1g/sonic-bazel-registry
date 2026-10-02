@@ -1,9 +1,6 @@
-name: Registry CI
+name: Landed infrastructure validation
 
 on:
-  pull_request:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -36,17 +33,24 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
-          if [[ "$EVENT_NAME" == pull_request ]]; then
-            python3 ci/registry_ci.py plan --base "$BASE_SHA" --head "$HEAD_SHA" --output plan.json 2>&1 | tee plan.log
-          else
-            python3 ci/registry_ci.py plan --all --output plan.json 2>&1 | tee plan.log
-          fi
           python3 - <<'PY'
           import json
           import os
           from pathlib import Path
+          import sys
+          sys.path.insert(0, str(Path.cwd() / "ci"))
+          from registry_ci import RUNNERS, validate_entry
 
-          matrix = json.loads(Path("plan.json").read_text())
+          module = "sonic-build-infra"
+          version = "0.0.14-f9876051703da05af745ffc781706e29fed7dd4b"
+          config = validate_entry(Path.cwd(), module, version)
+          assert config["architectures"] == ["amd64", "arm64"]
+          matrix = {"include": [
+              {"module": module, "version": version, "architecture": arch,
+               "runner": RUNNERS[arch]}
+              for arch in config["architectures"]
+          ]}
+          Path("plan.json").write_text(json.dumps(matrix, indent=2) + "\n")
           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
               print("matrix=" + json.dumps(matrix, separators=(",", ":")), file=output)
               print("has_jobs=" + str(bool(matrix["include"])).lower(), file=output)
