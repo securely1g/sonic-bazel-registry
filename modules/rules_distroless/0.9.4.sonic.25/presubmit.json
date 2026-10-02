@@ -1,0 +1,16 @@
+{
+  "architectures": ["amd64", "arm64"],
+  "consumer_deps": [],
+  "platforms": {
+    "amd64": "@rules_distroless//registry_ci:amd64",
+    "arm64": "@rules_distroless//registry_ci:arm64"
+  },
+  "build_targets": [
+    "@rules_distroless//registry_ci:protobuf_headers_test"
+  ],
+  "test_targets": [
+    "@rules_distroless//registry_ci:protobuf_headers_test",
+    "@rules_distroless//registry_ci:architecture_amd64_test",
+    "@rules_distroless//registry_ci:architecture_arm64_test"
+  ]
+}
