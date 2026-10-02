@@ -1,0 +1,12 @@
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -36,3 +36,9 @@
+ bazel_dep(name = "gazelle", version = "0.34.0", dev_dependency = True, repo_name = "bazel_gazelle")
+ bazel_dep(name = "bazel_skylib_gazelle_plugin", version = "1.5.0", dev_dependency = True)
+ bazel_dep(name = "buildifier_prebuilt", version = "8.0.1", dev_dependency = True)
++
++# Lazy repositories used only by the registry consumer tests.
++registry_ci = use_extension("//registry_ci:extensions.bzl", "registry_ci")
++use_repo(registry_ci, "registry_ci_architectures")
++use_repo(registry_ci, "registry_ci_protobuf_amd64")
++use_repo(registry_ci, "registry_ci_protobuf_arm64")

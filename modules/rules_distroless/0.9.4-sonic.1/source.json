@@ -1,0 +1,19 @@
+{
+  "integrity": "sha256-XUP09E8PD7YUGUoHptz3spM4z8irf2EprR5EA8GtHHM=",
+  "strip_prefix": "rules_distroless-0.9.4",
+  "docs_url": "https://github.com/bazel-contrib/rules_distroless/releases/download/v0.9.4/rules_distroless-v0.9.4.docs.tar.gz",
+  "url": "https://github.com/bazel-contrib/rules_distroless/releases/download/v0.9.4/rules_distroless-v0.9.4.tar.gz",
+  "patches": {
+    "0001-module-version.patch": "sha256-jCmR/1O+s0bqrrjtcqQqdiINwU5faABDfccNeZZZ7/c=",
+    "0002-include-fragments.patch": "sha256-iNpoe/p+zvHebAowncGruHEtEPSMrsIunHTfMNZOY5o=",
+    "0003-registry-ci.patch": "sha256-ZkRgmpFEfjYrB0eS1sW60YMjad88YbdWtxBQCD2bMG0="
+  },
+  "patch_strip": 1,
+  "overlay": {
+    "registry_ci/BUILD.bazel": "sha256-9iNMcwi0k/QzbYM7JJ5Ufosu73r27fSmRt+B8dJcl/o=",
+    "registry_ci/architecture_test.bzl": "sha256-HIC5ABS7Y/EIggtAdmwQbcbpvAgcaq8POR1bTq48c7s=",
+    "registry_ci/extensions.bzl": "sha256-FKERd46k077zmWCZucCFOU51PXSFU6lpgbDe5NYL+i8=",
+    "registry_ci/headers_only.bzl": "sha256-mRDk0eBj/pfecU4C6cG88LRi29LmjaSdKe6iymnS6O4=",
+    "registry_ci/protobuf_headers_test.cc": "sha256-Olh22GMJyNSUyijD9763cyAvy+H7jPUoFk3qd7cDflI="
+  }
+}
