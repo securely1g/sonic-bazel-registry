@@ -66,7 +66,7 @@ def main():
         assert "google::protobuf::ShutdownProtobufLibrary()" in symbols
         assert "google::protobuf::DescriptorPool::generated_pool()" in symbols
         gdb = output("gdb", "-nx", "-batch", "-ex", "set debug-file-directory " + str(root / "usr/lib/debug"), "-ex", "file " + str(library), "-ex", "info line google::protobuf::ShutdownProtobufLibrary")
-        assert re.search(r'Line [0-9]+ of .*common.cc', gdb), gdb
+        assert re.search(r'Line [0-9]+ of .*src/google/protobuf/message_lite\.cc', gdb), gdb
         print("Source protoc 3.21.12 and installed protobuf runtime/debug contract passed")
 
 
