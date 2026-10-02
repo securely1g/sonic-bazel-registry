@@ -1,0 +1,23 @@
+module(
+    name = "protobuf-debian",
+    version = "3.21.12-sonic.1",
+    compatibility_level = 1,
+)
+
+bazel_dep(name = "platforms", version = "1.1.0")
+bazel_dep(name = "rules_cc", version = "0.2.16")
+bazel_dep(name = "rules_distroless", version = "0.9.4-sonic.1")
+bazel_dep(name = "rules_python", version = "1.7.0")
+bazel_dep(name = "sonic-build-infra", version = "0.0.14-5859f7e63b6bff0f601a9b8d00853fa3ae7f216e", repo_name = "sonic_build_infra")
+
+apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
+apt.install(
+    dependency_set = "protobuf_debian",
+    packages = ["libprotobuf-dev"],
+    suites = [
+        "trixie",
+        "trixie-updates",
+        "trixie-security",
+    ],
+)
+use_repo(apt, "protobuf_debian")
