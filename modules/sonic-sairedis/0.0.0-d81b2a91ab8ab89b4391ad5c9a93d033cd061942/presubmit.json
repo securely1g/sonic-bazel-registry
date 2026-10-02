@@ -1,0 +1,43 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.7-91fe8246519f99838da936eee54e85208c704a4d",
+      "repo_name": "sonic_build_infra"
+    },
+    {
+      "name": "sonic-swss-common",
+      "version": "0.0.0-093a849f01722afb4730e685b3eb4f22a9bc9191",
+      "repo_name": "sonic_swss_common"
+    },
+    {
+      "name": "sai",
+      "version": "1.18.0-sonic.1"
+    },
+    {
+      "name": "libnl3",
+      "version": "3.7.0-sonic.2"
+    },
+    {
+      "name": "rules_distroless",
+      "version": "0.9.4-sonic.1"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
+  },
+  "build_targets": [
+    "@sonic-sairedis//meta:saimetadata",
+    "@sonic-sairedis//meta:saimeta",
+    "@sonic-sairedis//lib:sairedis",
+    "@sonic-sairedis//lib:tests"
+  ],
+  "test_targets": [
+    "@sonic-sairedis//lib:tests_test"
+  ]
+}
