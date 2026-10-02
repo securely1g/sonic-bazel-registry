@@ -1,0 +1,10 @@
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-dash-api",
+-    version = "0.0.4",
++    version = "0.0.4-0e71fe943fc96449d25b488791d8289b46fb05bd",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
