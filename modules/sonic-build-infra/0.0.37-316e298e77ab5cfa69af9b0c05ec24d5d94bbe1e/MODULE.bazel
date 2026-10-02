@@ -1,7 +1,7 @@
 # Keep bazel_compatibility in sync with sonic-buildimage's .bazelversion.
 module(
     name = "sonic-build-infra",
-    version = "0.0.13-ff408bafc35ce0e3d7a0bd27803debdc2a921de6",
+    version = "0.0.14-5859f7e63b6bff0f601a9b8d00853fa3ae7f216e",
     bazel_compatibility = [
         ">=8.5.1",
         "<=8.5.1",
@@ -104,7 +104,7 @@ apt.install(
     ],
 )
 
-# Build tools used by SAI metadata generation. Consumers select these package
+# Build tools used by source generation. Consumers select these package
 # payloads in the execution configuration so the tools and their runtime files
 # match the machine running the generator.
 apt.install(
@@ -113,6 +113,8 @@ apt.install(
         "aspell",
         "aspell-en",
         "doxygen",
+        "libprotobuf-dev",
+        "protobuf-compiler",
     ],
     suites = [
         "trixie",
