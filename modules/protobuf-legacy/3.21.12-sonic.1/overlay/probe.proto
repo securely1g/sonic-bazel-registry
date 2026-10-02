@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package protobuf_legacy_test;
+
+import "google/protobuf/timestamp.proto";
+
+message Probe {
+  optional int32 value = 1;
+  google.protobuf.Timestamp timestamp = 2;
+}

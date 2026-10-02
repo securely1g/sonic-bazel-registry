@@ -1,0 +1,11 @@
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,7 +1,7 @@
+ # Keep bazel_compatibility in sync with sonic-buildimage's .bazelversion.
+ module(
+     name = "sonic-sairedis",
+-    version = "0.0.0",
++    version = "0.0.0-df4319696743f4804053ab68c5af1a2b8254dcb4",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",

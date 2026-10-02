@@ -1,0 +1,21 @@
+{
+  "integrity": "sha256-Iv2vZBsxZV1LIpf5mB+lIDsoZvgzLTxjM/awEHuzIN4=",
+  "strip_prefix": "protobuf-21.12",
+  "url": "https://github.com/protocolbuffers/protobuf/archive/refs/tags/v21.12.tar.gz",
+  "patch_strip": 1,
+  "patches": {
+    "0001-bazel8-shared-runtime.patch": "sha256-PGeLgmerYUc0j/EG/rnqMy3XYy+4UGNLBcFYe7668fM="
+  },
+  "overlay": {
+    "MODULE.bazel": "sha256-iByituG8PWIeZ830ARLi1m2rjl1vLLXxySHRWjkr+DA=",
+    "bazel/BUILD.bazel": "sha256-VZb+1xZJca8vhLUJiLlphNDUDrueWVDeZez91OlGCsg=",
+    "bazel/generated_python_test.py": "sha256-7zTWxwBCX4ewuw5G+hVeTPi00wgwj/GoP62HqoyOEf0=",
+    "bazel/generated_runtime_consumer.cc": "sha256-U6YARMZYUrPKSq6Sa5dKDELauL+MrRxGr6e3s+orUvQ=",
+    "bazel/generated_runtime_test.py": "sha256-L23CIgrEFc/8PUYS/bn450cJIaDIxeu4+PxlapN4Ge0=",
+    "bazel/source_package_test.py": "sha256-xz1JP9vk6ee95B+HATPegYQ1oEd5P/KEzqT0M3kfAUs=",
+    "defs.bzl": "sha256-20eV/nX2G52FUHocXLZi0MQRQfE0SqtlzafoRD/mBJY=",
+    "probe.proto": "sha256-W/nMRcaoFa2rCPJzD61a57k/EBge9RMRBxFZpq4i7Zw=",
+    "sonic/BUILD.bazel": "sha256-Q+e70jTCZMe6Z1wnv9LpSMZxhwxFxw+fAwKbDahDX1M=",
+    "sonic/targets.bzl": "sha256-t6vmS1nxQeCkx+AetEImfj0spusvr5ZsXq1m16q766k="
+  }
+}
