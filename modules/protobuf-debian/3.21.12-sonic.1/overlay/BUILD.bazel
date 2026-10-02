@@ -1,0 +1,136 @@
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_import.bzl", "cc_import")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_python//python:defs.bzl", "py_test")
+load("//bazel:headers_only.bzl", "headers_only")
+load("//bazel:runtime_file.bzl", "runtime_file")
+load(":defs.bzl", "cpp_proto_sources", "python_proto_sources")
+
+package(default_visibility = ["//visibility:public"])
+
+config_setting(
+    name = "linux_amd64",
+    constraint_values = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+)
+
+config_setting(
+    name = "linux_arm64",
+    constraint_values = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+    ],
+)
+
+alias(
+    name = "debian_protobuf_dev",
+    actual = "@protobuf_debian//libprotobuf-dev:libprotobuf",
+    visibility = ["//visibility:private"],
+)
+
+headers_only(
+    name = "protobuf_headers",
+    library = ":debian_protobuf_dev",
+    visibility = ["//visibility:private"],
+)
+
+cc_import(
+    name = "protobuf_dynamic",
+    shared_library = ":libprotobuf_runtime_file",
+    visibility = ["//visibility:private"],
+)
+
+cc_library(
+    name = "libprotobuf",
+    deps = [
+        ":protobuf_dynamic",
+        ":protobuf_headers",
+    ],
+)
+
+alias(
+    name = "protoc",
+    actual = "@sonic_build_infra//proto:protoc",
+)
+
+cpp_proto_sources(
+    name = "probe_generated",
+    srcs = ["//bazel:probe.proto"],
+    output_prefix = "generated",
+    strip_import_prefix = "bazel",
+)
+
+filegroup(
+    name = "probe_sources",
+    srcs = [":probe_generated"],
+    output_group = "sources",
+)
+
+filegroup(
+    name = "probe_headers",
+    srcs = [":probe_generated"],
+    output_group = "headers",
+)
+
+cc_library(
+    name = "probe",
+    srcs = [":probe_sources"],
+    hdrs = [":probe_headers"],
+    includes = ["generated"],
+    deps = [":libprotobuf"],
+)
+
+cc_binary(
+    name = "generated_runtime_consumer",
+    srcs = ["//bazel:generated_runtime_consumer.cc"],
+    linkopts = ["-ldl"],
+    deps = [":probe"],
+)
+
+runtime_file(
+    name = "libprotobuf_runtime_file",
+    basename = "libprotobuf.so.32",
+    library = ":debian_protobuf_dev",
+)
+
+py_test(
+    name = "generated_runtime_test",
+    srcs = ["//bazel:generated_runtime_test.py"],
+    args = [
+        "--consumer=$(rlocationpath :generated_runtime_consumer)",
+        "--library=$(rlocationpath :libprotobuf_runtime_file)",
+    ] + select({
+        ":linux_amd64": ["--architecture=amd64"],
+        ":linux_arm64": ["--architecture=arm64"],
+    }),
+    data = [
+        ":generated_runtime_consumer",
+        ":libprotobuf_runtime_file",
+    ],
+    main = "//bazel:generated_runtime_test.py",
+    deps = ["@rules_python//python/runfiles"],
+)
+
+python_proto_sources(
+    name = "probe_python",
+    srcs = ["//bazel:probe.proto"],
+    output_prefix = "generated",
+    strip_import_prefix = "bazel",
+)
+
+py_test(
+    name = "generated_python_test",
+    srcs = ["//bazel:generated_python_test.py"],
+    args = [
+        "$(rlocationpath :generated/probe_pb2.py)",
+        "$(rlocationpath :generated/probe_pb2.pyi)",
+    ],
+    data = [
+        ":generated/probe_pb2.py",
+        ":generated/probe_pb2.pyi",
+    ],
+    main = "//bazel:generated_python_test.py",
+    deps = ["@rules_python//python/runfiles"],
+)
