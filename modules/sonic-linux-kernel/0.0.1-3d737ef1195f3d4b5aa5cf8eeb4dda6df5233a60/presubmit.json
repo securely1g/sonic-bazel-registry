@@ -1,0 +1,23 @@
+{
+  "architectures": [
+    "amd64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.15-3a3d42932877e303385fd0b6503d1c413fc86bab",
+      "repo_name": "sonic_build_infra"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
+  },
+  "build_targets": [
+    "@sonic-linux-kernel//tools/bazel:kernel_action_test",
+    "@sonic-linux-kernel//tools/bazel:verify_cache_test"
+  ],
+  "test_targets": [
+    "@sonic-linux-kernel//tools/bazel:kernel_action_test",
+    "@sonic-linux-kernel//tools/bazel:verify_cache_test"
+  ]
+}
