@@ -1,14 +1,14 @@
 # SONiC DASH API
 
-`0.0.4-0e71fe943fc96449d25b488791d8289b46fb05bd` builds DASH from
-[source commit `0e71fe9`](https://github.com/securely1g/sonic-dash-api/commit/0e71fe943fc96449d25b488791d8289b46fb05bd).
+`0.0.4-c28c2c28b2db56163d5b9c48497c0eee2379f7fd` builds DASH from
+[source commit `c28c2c2`](https://github.com/securely1g/sonic-dash-api/commit/c28c2c28b2db56163d5b9c48497c0eee2379f7fd).
 The registry patch only sets its module version. Build definitions and tests
 remain in [DASH PR #1](https://github.com/securely1g/sonic-dash-api/pull/1).
 
 ```starlark
 bazel_dep(
     name = "sonic-dash-api",
-    version = "0.0.4-0e71fe943fc96449d25b488791d8289b46fb05bd",
+    version = "0.0.4-c28c2c28b2db56163d5b9c48497c0eee2379f7fd",
     repo_name = "sonic_dash_api",
 )
 ```
