@@ -12,7 +12,10 @@
     "@sonic-build-infra//registry_ci:default_link_test",
     "@sonic-build-infra//registry_ci:c_link_test",
     "@sonic-build-infra//tests:hello_deploy_tar",
-    "@sonic-build-infra//tests:hello_deploy_tar.debug_symbols"
+    "@sonic-build-infra//tests:hello_deploy_tar.debug_symbols",
+    "@sonic-build-infra//tools/build_tools:aspell",
+    "@sonic-build-infra//tools/build_tools:doxygen",
+    "@sonic-build-infra//tools/build_tools:launcher_action_check"
   ],
   "test_targets": [
     "@sonic-build-infra//registry_ci:default_link_test",
@@ -22,6 +25,7 @@
     "@sonic-build-infra//registry_ci:cpp_hardening_test",
     "@sonic-build-infra//tests:cc_toolchain_supports_pic_test",
     "@sonic-build-infra//tests:hello_deploy_tar_content_test",
-    "@sonic-build-infra//tests:hello_deploy_tar_provides_debug_symbols_test"
+    "@sonic-build-infra//tests:hello_deploy_tar_provides_debug_symbols_test",
+    "@sonic-build-infra//tools/build_tools:runtime_test"
   ]
 }
