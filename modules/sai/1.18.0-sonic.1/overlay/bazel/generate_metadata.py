@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 import re
 import shutil
@@ -13,14 +14,20 @@ import tempfile
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    for name in ("manifest", "doxygen", "aspell", "perl", "source-out", "header-out", "test-out", "swig-out"):
+    for name in ("manifest", "tool-bundle", "perl", "source-out", "header-out", "test-out", "swig-out"):
         parser.add_argument("--" + name, required=True)
     parser.add_argument("--perl-option", action="append", default=[])
     args = parser.parse_args()
     inputs = json.loads(Path(args.manifest).read_text())
     sources = [(Path(entry["source"]).resolve(), entry["destination"]) for entry in inputs]
-    doxygen = [str(Path(args.doxygen).absolute())]
-    aspell = str(Path(args.aspell).absolute())
+    bundle = Path(args.tool_bundle).resolve()
+    toolchain = json.loads((bundle / "toolchain.json").read_text())
+    if toolchain.get("format_version") != 1:
+        raise RuntimeError("unsupported SAI generator tool bundle")
+    loader = str(bundle / toolchain["loader"])
+    libraries = os.pathsep.join(str(bundle / path) for path in toolchain["library_directories"])
+    loader_command = [loader, "--library-path", libraries]
+    doxygen = loader_command + [str(bundle / toolchain["tools"]["doxygen"])]
     perl = str(Path(args.perl).resolve())
     outputs = {
         "saimetadata.c": Path(args.source_out).resolve(),
@@ -44,7 +51,12 @@ def main() -> None:
             "LANG": "C",
             "LC_ALL": "C",
             "PATH": "",
-            "SAI_ASPELL": aspell,
+            "SAI_ASPELL": str(bundle / toolchain["tools"]["aspell"]),
+            "SAI_ASPELL_LOADER": loader,
+            "SAI_ASPELL_LIBRARY_PATH": libraries,
+            "SAI_ASPELL_DATA_DIR": str(bundle / toolchain["aspell_data_directory"]),
+            "SAI_ASPELL_DICT_DIR": str(bundle / toolchain["aspell_dictionary_directory"]),
+            "SAI_ASPELL_FILTER_DIR": str(bundle / toolchain["aspell_filter_directory"]),
             "TMPDIR": temporary,
         }
         version_result = subprocess.run(doxygen + ["-v"], check=True, capture_output=True, text=True, env=environment)

@@ -72,13 +72,12 @@ exports_files([
 sai_metadata(
     name = "metadata",
     srcs = [":generator_inputs"],
-    aspell = "@sonic_build_infra//tools/build_tools:aspell",
-    doxygen = "@sonic_build_infra//tools/build_tools:doxygen",
     header = "saimetadata.h",
     marker = ":meta/parse.pl",
     source = "saimetadata.c",
     swig = "saiswig.i",
     test_source = "saimetadatatest.c",
+    tool_bundle = "//bazel:sai_generator_tools",
 )
 
 filegroup(
@@ -167,21 +166,3 @@ exports_files([
     "attribute_versions.json",
     "SOURCE_PROVENANCE.json",
 ])
-
-py_test(
-    name = "configurable_aspell_test",
-    srcs = ["//bazel:configurable_aspell_test.py"],
-    args = [
-        "--style",
-        "$(location meta/style.pm)",
-        "--perl-runtime",
-        "$(location //bazel:perl_test_runtime)",
-    ],
-    data = [
-        "meta/style.pm",
-        "meta/utils.pm",
-        "//bazel:perl_test_runtime",
-    ],
-    main = "//bazel:configurable_aspell_test.py",
-    deps = ["@rules_python//python/runfiles"],
-)

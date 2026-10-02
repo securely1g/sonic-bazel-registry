@@ -1,0 +1,17 @@
+{
+    "homepage": "https://github.com/protocolbuffers/protobuf",
+    "maintainers": [
+        {
+            "email": "securely1g@gmail.com",
+            "github": "securely1g",
+            "name": "Guohan Lu"
+        }
+    ],
+    "repository": [
+        "github:protocolbuffers/protobuf"
+    ],
+    "versions": [
+        "3.21.12-sonic.1"
+    ],
+    "yanked_versions": {}
+}

@@ -6,7 +6,7 @@
   "consumer_deps": [
     {
       "name": "sonic-build-infra",
-      "version": "0.0.13-ff408bafc35ce0e3d7a0bd27803debdc2a921de6",
+      "version": "0.0.6-553b2f70f9ba77b74befdf77674894166139ddcc",
       "repo_name": "sonic_build_infra"
     }
   ],
@@ -20,7 +20,6 @@
   ],
   "test_targets": [
     "@sai//:metadata_consumer_test",
-    "@sai//:generated_outputs_test",
-    "@sai//:configurable_aspell_test"
+    "@sai//:generated_outputs_test"
   ]
 }

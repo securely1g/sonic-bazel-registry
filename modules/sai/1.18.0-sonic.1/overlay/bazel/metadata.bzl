@@ -24,8 +24,7 @@ def _sai_metadata_impl(ctx):
     args = ctx.actions.args()
     args.add(ctx.file._generator)
     args.add("--manifest", manifest)
-    args.add("--doxygen", ctx.executable.doxygen)
-    args.add("--aspell", ctx.executable.aspell)
+    args.add("--tool-bundle", ctx.file.tool_bundle.path)
     args.add("--perl", perl.interpreter)
     args.add_all(perl.perlopt, before_each = "--perl-option")
     args.add("--source-out", ctx.outputs.source)
@@ -36,13 +35,10 @@ def _sai_metadata_impl(ctx):
         executable = python.interpreter,
         arguments = [args],
         inputs = ctx.files.srcs + [manifest],
-        tools = [
-            ctx.attr.doxygen[DefaultInfo].files_to_run,
-            ctx.attr.aspell[DefaultInfo].files_to_run,
-        ] + depset(
-            [python.interpreter, perl.interpreter, ctx.file._generator],
+        tools = depset(
+            [python.interpreter, perl.interpreter, ctx.file._generator, ctx.file.tool_bundle],
             transitive = [python.files, perl.runtime],
-        ).to_list(),
+        ),
         outputs = [ctx.outputs.source, ctx.outputs.header, ctx.outputs.test_source, ctx.outputs.swig],
         env = {"LANG": "C", "LC_ALL": "C", "PYTHONHASHSEED": "0"},
         mnemonic = "GenerateSaiMetadata",
@@ -55,8 +51,7 @@ sai_metadata = rule(
     attrs = {
         "srcs": attr.label_list(allow_files = True),
         "marker": attr.label(allow_single_file = True, mandatory = True),
-        "doxygen": attr.label(executable = True, cfg = "exec", mandatory = True),
-        "aspell": attr.label(executable = True, cfg = "exec", mandatory = True),
+        "tool_bundle": attr.label(allow_single_file = True, cfg = "exec", mandatory = True),
         "source": attr.output(mandatory = True),
         "header": attr.output(mandatory = True),
         "test_source": attr.output(mandatory = True),
