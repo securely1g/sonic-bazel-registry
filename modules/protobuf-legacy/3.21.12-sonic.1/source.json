@@ -7,7 +7,7 @@
     "0001-bazel8-shared-runtime.patch": "sha256-PGeLgmerYUc0j/EG/rnqMy3XYy+4UGNLBcFYe7668fM="
   },
   "overlay": {
-    "MODULE.bazel": "sha256-iByituG8PWIeZ830ARLi1m2rjl1vLLXxySHRWjkr+DA=",
+    "MODULE.bazel": "sha256-cpc4IMnqUJlVkx8/TDyE9/wtjgW2V1iEjsL8YPqVfgw=",
     "bazel/BUILD.bazel": "sha256-VZb+1xZJca8vhLUJiLlphNDUDrueWVDeZez91OlGCsg=",
     "bazel/generated_python_test.py": "sha256-7zTWxwBCX4ewuw5G+hVeTPi00wgwj/GoP62HqoyOEf0=",
     "bazel/generated_runtime_consumer.cc": "sha256-U6YARMZYUrPKSq6Sa5dKDELauL+MrRxGr6e3s+orUvQ=",
