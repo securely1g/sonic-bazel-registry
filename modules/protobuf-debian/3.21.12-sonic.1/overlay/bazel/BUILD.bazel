@@ -1,0 +1,6 @@
+exports_files([
+    "generated_runtime_consumer.cc",
+    "generated_runtime_test.py",
+    "generated_python_test.py",
+    "probe.proto",
+])

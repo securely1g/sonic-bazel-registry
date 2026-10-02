@@ -1,0 +1,32 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.10-7bc84c13cb812d0cf576485009352bbc96dde00a",
+      "repo_name": "sonic_build_infra"
+    },
+    {
+      "name": "rules_distroless",
+      "version": "0.9.4-sonic.1"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
+  },
+  "build_targets": [
+    "@protobuf-debian//:libprotobuf_runtime_file",
+    "@protobuf-debian//:protoc",
+    "@protobuf-debian//:probe_generated",
+    "@protobuf-debian//:generated_runtime_consumer",
+    "@protobuf-debian//:probe_python"
+  ],
+  "test_targets": [
+    "@protobuf-debian//:generated_runtime_test",
+    "@protobuf-debian//:generated_python_test"
+  ]
+}
