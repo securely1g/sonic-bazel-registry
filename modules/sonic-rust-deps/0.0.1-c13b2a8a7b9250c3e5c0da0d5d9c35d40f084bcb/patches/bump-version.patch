@@ -1,0 +1,14 @@
+Register the shared SONiC Rust dependency source revision.
+
+Keep the fetched module version equal to its registry version.
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-rust-deps",
+-    version = "0.0.1",
++    version = "0.0.1-c13b2a8a7b9250c3e5c0da0d5d9c35d40f084bcb",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
