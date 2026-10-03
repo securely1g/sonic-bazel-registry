@@ -1,0 +1,15 @@
+Register the Common source revision for its public Rust library.
+
+Keep the fetched module version equal to the registry version.
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,7 +1,7 @@
+ # Keep bazel_compatibility in sync with sonic-buildimage's .bazelversion.
+ module(
+     name = "sonic-swss-common",
+-    version = "0.0.1",
++    version = "0.0.1-a23afe60bbcbb05fe3cf8d6db9b7c9aaad28652d",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",

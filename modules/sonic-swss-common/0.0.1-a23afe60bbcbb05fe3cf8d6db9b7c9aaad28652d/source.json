@@ -1,0 +1,9 @@
+{
+  "url": "https://github.com/securely1g/sonic-swss-common/archive/a23afe60bbcbb05fe3cf8d6db9b7c9aaad28652d.tar.gz",
+  "strip_prefix": "sonic-swss-common-a23afe60bbcbb05fe3cf8d6db9b7c9aaad28652d",
+  "integrity": "sha256-s+t47vlHQz6/giRuJsdxKGgtKu3vuc9nmJHi5akWiyQ=",
+  "patch_strip": 1,
+  "patches": {
+    "bump-version.patch": "sha256-s8rxHzDbA65WKdliWfetGufQW+dhXdawmtQpXEJHqCY="
+  }
+}
