@@ -1,5 +1,37 @@
 # sonic-swss-common
 
+## Common-owned Rust library
+
+`0.0.1-9327531db3f95490301c95957f7dd132fa8563a3` registers
+[Common PR #17](https://github.com/securely1g/sonic-swss-common/pull/17) for
+[SWSS PR #2](https://github.com/securely1g/sonic-swss/pull/2). The public
+`//crates/swss-common:swss_common` target builds the Rust library, generated FFI
+bindings and native Common library from one source revision. Public `serde` and
+`serde_core` aliases let consumers share the crate identities used by Common's
+Rust API. The source repository owns the build definitions and committed
+`Cargo.lock`; `Cargo.Bazel.lock` is generated during build preparation and is
+absent from the source archive. This entry carries only a module-version patch. Common declares base version
+`0.0.1`, so this release sorts above the older `0.0.0` dependencies requested
+transitively by SWSS.
+
+The registry matrix retains nine C++/YANG, Python, Go and tar build targets and
+ten runtime/package tests on native AMD64 and ARM64 with YANG enabled. It does
+not build the Rust library: the registry's test root does not configure Rust
+and bindgen toolchains. Common's source CI selects the Rust library and four
+service-free unit tests with YANG enabled and disabled; SWSS's native CI checks
+the downstream countersyncd build and its runtime/debug archives. These source
+and consumer checks establish the Rust integration separately from registry CI.
+
+Before loading Rust targets, downstream roots prepare a private writable copy
+of the selected Common source with its pinned preparation helper and provide
+compatible Rust and bindgen toolchains. SWSS's preparation command stages its
+declared Common version automatically; buildimage prepares its recorded Common
+checkout first. The C++/YANG registry matrix does not evaluate the crates
+extension or require generated Rust metadata. Each consumer verifies its
+resolved Common version. Existing published versions remain unchanged. This
+candidate depends on the unlanded source commit in Common PR #17 and remains
+Draft until that source provenance is updated and verified after landing.
+
 ## Common-owned Rust binding interface
 
 `0.0.0-120a955096bb18413d170d42b30668dc7a9b7f68` packages the
