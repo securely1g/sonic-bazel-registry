@@ -50,6 +50,14 @@ The configuration declares:
   the module under test and include its value. Native Bazel options, duplicate
   settings, and options that redirect registries or override test execution are
   rejected. The selected flags are retained in `validation.json`.
+- `rust_preparation` (optional): prepare one shared Rust dependency module before
+  building its targets. Set `module` and its apparent `repo_name` to either the
+  tested module or a declared `consumer_deps` entry. Pin `helper_revision` to a
+  full `sonic-build-infra` source commit and `helper_sha256` to that revision's
+  `tools/rust/prepare.py` file. CI verifies the helper, fetches the declared module
+  through this registry, and prepares a private copy. For example, this lets the
+  Serde round-trip test use generated Rust dependency metadata without committing
+  that metadata in the source archive.
 
 For example, libyang-Python's test environment selects its shared infrastructure
 version once in `presubmit.json`:
@@ -67,8 +75,11 @@ version once in `presubmit.json`:
 The runner generates both `bazel_dep` and a version-only `single_version_override`
 from that entry. This prevents another dependency from silently selecting a
 higher version, including a commit suffix that sorts higher despite belonging
-to an older source revision. Source, patch, and registry replacements are not
-supported. Dependencies used by the test environment must actually be fetched;
+to an older source revision. Arbitrary source, patch, and registry replacements
+are not supported. The optional Rust preparation substitutes only a private copy
+of the registry-fetched module, with generated dependency metadata. Its module
+declaration must still exactly match the registry entry. Dependencies used by
+the test environment must actually be fetched;
 the runner fails if a declared dependency is missing or its fetched module name
 or version differs. An empty `consumer_deps` list adds no pins.
 
@@ -77,6 +88,11 @@ each fetched dependency's `consumer-dep-<name>.MODULE.bazel`, and `consumer_deps
 `validation.json`. These pins apply only to this CI test project. Downstream
 repositories such as `sonic-swss-common` remain responsible for validating their
 own dependency selection and integration builds.
+
+Rust validation also retains the pinned helper, generated override, preparation
+log and receipt, and the shared module's Cargo lock, generated Bazel metadata and
+source-resolution record. The test consumer has no Cargo workspace of its own;
+component-level Cargo compatibility remains covered by source CI.
 
 The fresh consumer ignores `MODULE.bazel.lock` and uses `--lockfile_mode=update`.
 The generated resolution state is copied to artifacts, including after a failed
