@@ -1,0 +1,25 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [],
+  "platforms": {
+    "amd64": "@sonic-build-infra//platforms:x86_64_trixie",
+    "arm64": "@sonic-build-infra//platforms:aarch64_trixie"
+  },
+  "build_targets": [
+    "@sonic-build-infra//tar:timestamp_default_tar",
+    "@sonic-build-infra//tests:timestamp_deploy_tar",
+    "@sonic-build-infra//tests:timestamp_deploy_tar.debug_symbols"
+  ],
+  "test_targets": [
+    "@sonic-build-infra//tar:timestamp_defaults_test",
+    "@sonic-build-infra//tar:reproducible_tar_test",
+    "@sonic-build-infra//tests:deploy_tar_timestamps_test",
+    "@sonic-build-infra//tar:timestamp_set_test",
+    "@sonic-build-infra//tar:timestamp_unset_test",
+    "@sonic-build-infra//tar:timestamp_parent_test",
+    "@sonic-build-infra//tar:timestamp_continued_test"
+  ]
+}
