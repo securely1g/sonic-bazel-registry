@@ -17,6 +17,7 @@ import subprocess
 import sys
 import tokenize
 from urllib.parse import unquote, urlparse
+from urllib.request import urlopen
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -152,8 +153,8 @@ def validate_entry(root: Path, module: str, version: str) -> dict:
 
     config = read_json(entry / "presubmit.json")
     required = {"architectures", "consumer_deps", "platforms", "build_targets", "test_targets"}
-    require(required <= set(config) <= required | {"build_flags"},
-            f"presubmit.json requires {sorted(required)} and optionally build_flags")
+    require(required <= set(config) <= required | {"build_flags", "rust_preparation"},
+            f"presubmit.json requires {sorted(required)} and optionally build_flags/rust_preparation")
     architectures = config["architectures"]
     require(isinstance(architectures, list) and bool(architectures)
             and all(isinstance(a, str) and a in RUNNERS for a in architectures)
@@ -199,6 +200,24 @@ def validate_entry(root: Path, module: str, version: str) -> dict:
                 and bool(value) and setting not in settings,
                 "build_flags must set unique Starlark settings in the module under test")
         settings.add(setting)
+    if "rust_preparation" in config:
+        preparation = config["rust_preparation"]
+        require(isinstance(preparation, dict) and set(preparation) == {
+            "module", "repo_name", "helper_revision", "helper_sha256",
+        }, "rust_preparation requires module, repo_name, helper_revision and helper_sha256")
+        dependencies = {module: module, **{
+            dependency["name"]: dependency.get("repo_name", dependency["name"])
+            for dependency in config["consumer_deps"]
+        }}
+        require(isinstance(preparation["module"], str)
+                and dependencies.get(preparation["module"]) == preparation["repo_name"],
+                "Rust preparation must select the tested module or a declared consumer dependency")
+        require(isinstance(preparation["helper_revision"], str)
+                and re.fullmatch(r"[0-9a-f]{40}", preparation["helper_revision"]) is not None,
+                "Rust preparation helper_revision must be a full commit SHA")
+        require(isinstance(preparation["helper_sha256"], str)
+                and re.fullmatch(r"[0-9a-f]{64}", preparation["helper_sha256"]) is not None,
+                "Rust preparation helper_sha256 must be a SHA256 digest")
     return config
 
 
@@ -390,6 +409,52 @@ def run_logged(command: list[str], cwd: Path, log: Path) -> None:
         raise RegistryError(f"Command failed with status {result.returncode}; see {log}")
 
 
+def prepare_rust(config: dict, consumer: Path, work_dir: Path, artifacts: Path,
+                 bazel: str, flags: list[str]) -> list[str]:
+    """Prepare the registry-fetched Rust graph before its extension is evaluated."""
+    preparation = config.get("rust_preparation")
+    if preparation is None:
+        return []
+    revision = preparation["helper_revision"]
+    url = ("https://raw.githubusercontent.com/securely1g/sonic-build-infra/"
+           f"{revision}/tools/rust/prepare.py")
+    with urlopen(url, timeout=60) as response:
+        source = response.read()
+    require(hashlib.sha256(source).hexdigest() == preparation["helper_sha256"],
+            "Rust preparation helper checksum mismatch")
+    helper = artifacts / "rust-prepare.py"
+    helper.write_bytes(source)
+    overrides = work_dir / "rust-overrides.bazelrc"
+    # The shared module has its own native toolchains. Consumer platform labels
+    # and Starlark settings may name repositories that do not exist there.
+    preparation_flags = [flag for flag in flags
+                         if flag.startswith(("--registry=", "--lockfile_mode="))]
+    command = [sys.executable, str(helper), "--workspace", str(consumer),
+               "--shared-only", "--shared-dependency",
+               f"{preparation['module']}={preparation['repo_name']}",
+               "--staging-dir", str(work_dir / "rust-deps"),
+               "--overrides-rc", str(overrides),
+               "--receipt", str(artifacts / "rust-preparation.json"),
+               "--bazel", bazel, "--bazel-startup-arg=--ignore_all_rc_files",
+               f"--bazel-startup-arg=--output_user_root={work_dir / 'bazel'}",
+               *["--bazel-arg=" + flag for flag in preparation_flags]]
+    run_logged(command, consumer, artifacts / "rust-preparation.log")
+    # Keep all other runner settings fixed. Only the verified private copy of
+    # the selected Rust module may replace a fetched repository.
+    lines = [line for line in overrides.read_text().splitlines()
+             if line and not line.startswith("#")]
+    prefix = f"common --override_module={preparation['module']}="
+    require(len(lines) == 1 and lines[0].startswith(prefix),
+            "Rust preparation must produce exactly its declared module override")
+    staged = Path(lines[0][len(prefix):]).resolve()
+    require(staged.is_relative_to((work_dir / "rust-deps").resolve()),
+            "Prepared Rust module must stay in its private staging directory")
+    for name in ("Cargo.toml", "Cargo.lock", "Cargo.Bazel.lock", "preparation.json", "source-resolution.json"):
+        shutil.copy2(staged / name, artifacts / ("shared-rust-" + name))
+    shutil.copy2(overrides, artifacts / "rust-overrides.bazelrc")
+    return [lines[0].removeprefix("common ")]
+
+
 def run(root: Path, module: str, version: str, architecture: str,
         work_dir: Path, artifacts: Path, bazel: str = "bazel") -> None:
     config = validate_entry(root, module, version)
@@ -420,6 +485,7 @@ def run(root: Path, module: str, version: str, architecture: str,
              f"--platforms={config['platforms'][architecture]}", "--lockfile_mode=update",
              *config.get("build_flags", [])]
     try:
+        flags.extend(prepare_rust(config, consumer, work_dir, artifacts, bazel, flags))
         run_logged([*prefix, "build", *flags, f"--build_event_json_file={artifacts / 'build-events.jsonl'}",
                     *config["build_targets"]], consumer, artifacts / "build.log")
         collect_outputs(artifacts / "build-events.jsonl", config["build_targets"], work_dir, artifacts)
@@ -450,6 +516,7 @@ def run(root: Path, module: str, version: str, architecture: str,
             "build_targets": config["build_targets"], "passed_tests": config["test_targets"],
             "build_flags": config.get("build_flags", []),
             "consumer_deps": config["consumer_deps"],
+            "rust_preparation": config.get("rust_preparation"),
             "fetched_module_matches_registry": True,
         }, indent=2) + "\n")
     finally:
