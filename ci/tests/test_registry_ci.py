@@ -15,6 +15,8 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
+import io
 
 
 SPEC = importlib.util.spec_from_file_location(
@@ -305,6 +307,83 @@ class EntryValidationTests(FixtureTestCase):
         self.assertEqual(registry_ci.parse_module_identity(text), ("alpha", "1.0.0"))
         with self.assertRaises(registry_ci.RegistryError):
             registry_ci.parse_module_identity('NAME = "alpha"\nmodule(name = NAME, version = "1.0.0")\n')
+
+
+class RustPreparationTests(FixtureTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.source = b"# pinned preparation helper\n"
+        self.preparation = {
+            "module": "alpha", "repo_name": "alpha",
+            "helper_revision": "a" * 40,
+            "helper_sha256": hashlib.sha256(self.source).hexdigest(),
+        }
+        self.entry_path = self.entry("alpha", "1.0.0")
+        self.config_path = self.entry_path / "presubmit.json"
+        self.config = json.loads(self.config_path.read_text())
+        self.config["rust_preparation"] = self.preparation
+        write_json(self.config_path, self.config)
+
+    def test_preparation_cannot_select_an_undeclared_module_or_mutable_helper(self) -> None:
+        self.assertEqual(registry_ci.validate_entry(self.root, "alpha", "1.0.0"), self.config)
+        for field, value in (("module", "unrequested"), ("repo_name", "other_alias"),
+                             ("helper_revision", "main"), ("helper_sha256", "bad")):
+            with self.subTest(field=field):
+                config = copy.deepcopy(self.config)
+                config["rust_preparation"][field] = value
+                write_json(self.config_path, config)
+                with self.assertRaises(registry_ci.RegistryError):
+                    registry_ci.validate_entry(self.root, "alpha", "1.0.0")
+
+    def prepare(self, contents: str | None = None, expected_error: str | None = None):
+        work = self.root / "work"
+        consumer = work / "consumer"
+        artifacts = self.root / "artifacts"
+        consumer.mkdir(parents=True, exist_ok=True)
+        artifacts.mkdir(exist_ok=True)
+
+        def run(command, cwd, log):
+            self.assertIn("--shared-only", command)
+            self.assertIn("--bazel-arg=--registry=file:///registry", command)
+            self.assertNotIn("--bazel-arg=--platforms=@alpha//:platform", command)
+            self.assertNotIn("--bazel-arg=--@alpha//:feature=True", command)
+            staged = work / "rust-deps" / "alpha-private"
+            staged.mkdir(parents=True)
+            for name in ("Cargo.toml", "Cargo.lock", "Cargo.Bazel.lock", "preparation.json", "source-resolution.json"):
+                (staged / name).write_text(name)
+            (work / "rust-overrides.bazelrc").write_text(
+                contents if contents is not None else f"common --override_module=alpha={staged}\n")
+
+        with mock.patch.object(registry_ci, "urlopen", return_value=io.BytesIO(self.source)), \
+                mock.patch.object(registry_ci, "run_logged", side_effect=run) as execute:
+            if expected_error is not None:
+                with self.assertRaisesRegex(registry_ci.RegistryError, expected_error):
+                    registry_ci.prepare_rust(self.config, consumer, work, artifacts, "bazel", [])
+                execute.assert_not_called()
+                return
+            flags = registry_ci.prepare_rust(self.config, consumer, work, artifacts, "bazel", [
+                "--registry=file:///registry", "--platforms=@alpha//:platform", "--@alpha//:feature=True",
+            ])
+        return flags, execute, artifacts
+
+    def test_helper_checksum_is_verified_before_execution(self) -> None:
+        self.preparation["helper_sha256"] = "0" * 64
+        self.prepare(expected_error="checksum mismatch")
+
+    def test_shared_lock_and_resolution_evidence_are_retained(self) -> None:
+        flags, execute, artifacts = self.prepare()
+        self.assertEqual(flags, [f"--override_module=alpha={self.root / 'work/rust-deps/alpha-private'}"])
+        execute.assert_called_once()
+        self.assertEqual((artifacts / "shared-rust-Cargo.lock").read_text(), "Cargo.lock")
+        self.assertEqual((artifacts / "shared-rust-source-resolution.json").read_text(), "source-resolution.json")
+
+    def test_helper_cannot_change_other_modules_or_runner_options(self) -> None:
+        with self.assertRaisesRegex(registry_ci.RegistryError, "exactly its declared module"):
+            self.prepare("common --override_module=other=/tmp/other\ncommon --remote_cache=https://invalid\n")
+
+    def test_helper_cannot_redirect_outside_private_staging(self) -> None:
+        with self.assertRaisesRegex(registry_ci.RegistryError, "private staging"):
+            self.prepare("common --override_module=alpha=/tmp/other\n")
 
 
 class RequiredTestResultTests(FixtureTestCase):
