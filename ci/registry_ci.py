@@ -54,7 +54,10 @@ def parse_module_identity(text: str) -> tuple[str, str]:
     calls = []
     depth = 0
     for index, token in enumerate(tokens):
-        if token.string == "module" and token.type == tokenize.NAME and depth == 0:
+        # Module extensions may also expose a method named module(). Only the
+        # bare module() declaration identifies this registry entry.
+        attribute = index > 0 and tokens[index - 1].string == "."
+        if token.string == "module" and token.type == tokenize.NAME and depth == 0 and not attribute:
             following = tokens[index + 1]
             if following.string == "(":
                 nesting = 0
