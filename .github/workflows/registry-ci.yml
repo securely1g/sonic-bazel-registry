@@ -1,9 +1,6 @@
-name: Registry CI
+name: Rules Go combined prerequisite validation
 
 on:
-  pull_request:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -39,7 +36,8 @@ jobs:
           if [[ "$EVENT_NAME" == pull_request ]]; then
             python3 ci/registry_ci.py plan --base "$BASE_SHA" --head "$HEAD_SHA" --output plan.json 2>&1 | tee plan.log
           else
-            python3 ci/registry_ci.py plan --all --output plan.json 2>&1 | tee plan.log
+            python3 ci/registry_ci.py plan --all --output all-plan.json 2>&1 | tee plan.log
+            python3 -c 'import json; p=json.load(open("all-plan.json")); p["include"]=[j for j in p["include"] if j["module"] == "rules_go" and j["version"] == "0.64.1-sonic.1"]; assert len(p["include"]) == 2; json.dump(p, open("plan.json", "w"))'
           fi
           python3 - <<'PY'
           import json
@@ -58,6 +56,7 @@ jobs:
           name: registry-ci-plan
           path: |
             plan.json
+            all-plan.json
             plan.log
           if-no-files-found: warn
           retention-days: 14
@@ -141,6 +140,25 @@ jobs:
             --architecture "$CI_ARCHITECTURE" \
             --work-dir "$RUNNER_TEMP/registry-ci" \
             --artifacts "$GITHUB_WORKSPACE/ci-artifacts"
+      - name: Record combined source and SDK evidence
+        if: always()
+        run: |
+          mkdir -p ci-artifacts
+          git -c safe.directory="$GITHUB_WORKSPACE" rev-parse HEAD > ci-artifacts/combined-revision.txt
+          uname -m > ci-artifacts/runner-architecture.txt
+          bazel version > ci-artifacts/bazel-version.txt
+          python3 - <<'PYRECEIPT'
+          import hashlib, json, os
+          from pathlib import Path
+          root = Path(os.environ["RUNNER_TEMP"]) / "registry-ci/bazel"
+          cgo = list(root.glob("*/external/rules_go+/go/private/rules/cgo.bzl"))
+          sdks = list(root.glob("*/external/rules_go++go_sdk+*/VERSION"))
+          receipt = {"cgo": {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in cgo},
+                     "sdks": {str(p): p.read_text() for p in sdks}}
+          Path("ci-artifacts/source-sdk-receipt.json").write_text(json.dumps(receipt, indent=2) + "\n")
+          assert len(cgo) == 1 and receipt["cgo"][str(cgo[0])] == "5f7e9f6788a1ba8d57aa4752212d0fad390657b3cb3d40c2962886ae8fe28bd9"
+          assert sdks and all(p.read_text().splitlines()[0] == "go1.26.7" for p in sdks)
+          PYRECEIPT
       - name: Retain module validation results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
