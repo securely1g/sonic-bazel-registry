@@ -1,11 +1,14 @@
 {
-    "integrity": "sha256-+VWfsVoSaVFgOI7TezTzT1X4NzrqPOrJXogjRt8yTJ8=",
-    "strip_prefix": "rules_go-0.60.0",
-    "url": "https://github.com/bazel-contrib/rules_go/archive/refs/tags/v0.60.0.tar.gz",
+    "integrity": "sha256-QwbYnpVBtc4xEIwr00wxnb/WWJonLcvcBNzN2J/wCdk=",
+    "strip_prefix": "",
+    "url": "https://github.com/bazel-contrib/rules_go/releases/download/v0.64.1/rules_go-v0.64.1.zip",
     "patches": {
-        "0001_patch_forward_to_base_of_4574.patch": "sha256-pJve40GBS/+lLMIFqsZuqFIH3ooFT8vzwxfjWdDJrow=",
-        "0002_import_pr_4574.patch": "sha256-SJqo7KZ807++Pke0OC+yLmEAg4V1mOyHEyXz6CMpx4E=",
-        "0003_add_execroot_relative_includes_to_cgo_actions_pr_4583.patch": "sha256-5jsy6Dgwf9zAzP9G/BNMD+zA9ATXqWw8haCJh9cXqbg="
+        "0001_resolve_relative_cgo_header_paths_pr_4583.patch": "sha256-BgKoiBB484u4wZyuzk+QGgSLF87wPTef/JuqqD+cB6w=",
+        "module_dot_bazel_version.patch": "sha256-ZKmIRE2yN1CESGQ+4PBCItv0yXky278+icHqhm1ZQls="
     },
-    "patch_strip": 1
+    "patch_strip": 1,
+    "overlay": {
+        "tests/sonic_4583/BUILD.bazel": "sha256-GuKOBkJ7HYru1CiM4vU3yF36g/JC4AzJu/yWwOqsadg=",
+        "tests/sonic_4583/cc_header_inputs_test.go": "sha256-EE80WVRgnK10Rg6Fjl7bQDBNdZp2yacTIXg5/ad35fM="
+    }
 }

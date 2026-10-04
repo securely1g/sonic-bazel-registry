@@ -1,0 +1,17 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [],
+  "platforms": {
+    "amd64": "@rules_go//tests/sonic_4583:linux_amd64",
+    "arm64": "@rules_go//tests/sonic_4583:linux_arm64"
+  },
+  "build_targets": [
+    "@rules_go//tests/sonic_4583:cc_header_inputs_test"
+  ],
+  "test_targets": [
+    "@rules_go//tests/sonic_4583:cc_header_inputs_test"
+  ]
+}
