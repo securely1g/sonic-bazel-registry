@@ -1,9 +1,9 @@
 {
-  "url": "https://github.com/blorente/sonic-swss-common/archive/e11c139e59e990bd4cd406ff93b64270fd36e7c1.tar.gz",
-  "strip_prefix": "sonic-swss-common-e11c139e59e990bd4cd406ff93b64270fd36e7c1",
-  "integrity": "sha256-JaBaQVxNJsQXYQJYWN28KQHiLlgDPdLeBR5s9S/Hqqk=",
+  "url": "https://github.com/securely1g/sonic-swss-common/archive/6e0204634f2f78605abdd94ea2b013a46e0660ac.tar.gz",
+  "strip_prefix": "sonic-swss-common-6e0204634f2f78605abdd94ea2b013a46e0660ac",
+  "integrity": "sha256-S52RBIFTOGPiVcPMUggXVkdWfuZj8R6YpMKseeDQzrw=",
+  "patch_strip": 1,
   "patches": {
-    "bump-version.patch": "sha256-et5BW1BEBsrOzOUYBcOX1f61+g3rG05q5O7SGGRFjJA="
-  },
-  "patch_strip": 1
+    "bump-version.patch": "sha256-OPXjFcvB6PeRmfTyNov4Y9AdPP0Nvy/kYhhQ81S3hKg="
+  }
 }
