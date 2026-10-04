@@ -242,6 +242,36 @@ class EntryValidationTests(FixtureTestCase):
                 write_json(path, config)
                 self.assertEqual(registry_ci.validate_entry(self.root, "alpha", "1.0.0")["build_flags"], flags)
 
+    def test_go_sdk_requires_an_explicit_rules_go_dependency(self) -> None:
+        entry = self.entry("alpha", "1.0.0")
+        path = entry / "presubmit.json"
+        config = json.loads(path.read_text())
+        config["go_sdk"] = {"version": "1.25.0"}
+        write_json(path, config)
+        with self.assertRaisesRegex(registry_ci.RegistryError, "requires rules_go"):
+            registry_ci.validate_entry(self.root, "alpha", "1.0.0")
+        config["consumer_deps"].append({"name": "rules_go", "version": "0.64.1-sonic.1"})
+        write_json(path, config)
+        self.assertEqual(registry_ci.validate_entry(self.root, "alpha", "1.0.0")["go_sdk"],
+                         {"version": "1.25.0"})
+
+    def test_go_sdk_rejects_unpinned_versions_and_arbitrary_configuration(self) -> None:
+        entry = self.entry("rules_go", "0.64.1-sonic.1")
+        path = entry / "presubmit.json"
+        config = json.loads(path.read_text())
+        cases = [None, "1.25.0", {}, {"version": 1250}, {"version": "latest"},
+                 {"version": "1.25"}, {"version": "1.25.0rc1"},
+                 {"version": "1.25.0\n"}, {"version": '1.25.0")'},
+                 {"version": "1.25.0", "url": "https://example.invalid"}]
+        for sdk in cases:
+            with self.subTest(sdk=sdk):
+                write_json(path, {**config, "go_sdk": sdk})
+                with self.assertRaises(registry_ci.RegistryError):
+                    registry_ci.validate_entry(self.root, "rules_go", "0.64.1-sonic.1")
+        write_json(path, {**config, "go_sdk": {"version": "1.25.0"}})
+        self.assertEqual(registry_ci.validate_entry(self.root, "rules_go", "0.64.1-sonic.1")["go_sdk"],
+                         {"version": "1.25.0"})
+
     def test_build_flags_cannot_redirect_or_disable_validation(self) -> None:
         entry = self.entry("alpha", "1.0.0")
         path = entry / "presubmit.json"
@@ -658,6 +688,37 @@ class FetchedModuleTests(FixtureTestCase):
         outputs = json.loads((artifacts / "outputs.json").read_text())
         self.assertEqual(set(outputs), {"@alpha//:library"})
         self.assertEqual((artifacts / outputs["@alpha//:library"][0]["path"]).read_bytes(), b"package")
+
+    def test_go_sdk_uses_the_declared_apparent_repository_and_retains_selection(self) -> None:
+        for alias in (None, "io_bazel_rules_go"):
+            with self.subTest(alias=alias):
+                dependency = {"name": "rules_go", "version": "0.64.1-sonic.1"}
+                if alias:
+                    dependency["repo_name"] = alias
+                self.config["consumer_deps"] = [dependency]
+                self.config["go_sdk"] = {"version": "1.25.0"}
+                write_json(self.config_path, self.config)
+                fetched = self.fetched_module("rules_go")
+                fetched.parent.mkdir(exist_ok=True)
+                fetched.write_text('module(name = "rules_go", version = "0.64.1-sonic.1")\n')
+                artifacts = self.run_fixture(alias or "default-go-alias")
+                tree = ast.parse((artifacts / "consumer.MODULE.bazel").read_text())
+                assignment = next(node for node in tree.body if isinstance(node, ast.Assign))
+                self.assertEqual(assignment.targets[0].id, "go_sdk")
+                self.assertEqual(assignment.value.func.id, "use_extension")
+                self.assertEqual([ast.literal_eval(arg) for arg in assignment.value.args],
+                                 [f"@{alias or 'rules_go'}//go:extensions.bzl", "go_sdk"])
+                download = tree.body[-1].value
+                self.assertEqual((download.func.value.id, download.func.attr), ("go_sdk", "download"))
+                self.assertEqual({kw.arg: ast.literal_eval(kw.value) for kw in download.keywords},
+                                 {"version": "1.25.0"})
+                self.assertEqual(json.loads((artifacts / "validation.json").read_text())["go_sdk"],
+                                 {"version": "1.25.0"})
+
+    def test_absent_go_sdk_preserves_default_consumer_declarations(self) -> None:
+        artifacts = self.run_fixture("default-sdk")
+        self.assertNotIn("go_sdk", (artifacts / "consumer.MODULE.bazel").read_text())
+        self.assertIsNone(json.loads((artifacts / "validation.json").read_text())["go_sdk"])
 
     def test_empty_consumer_dependencies_need_no_overrides_or_dependency_artifacts(self) -> None:
         self.config["consumer_deps"] = []
