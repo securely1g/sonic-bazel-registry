@@ -308,6 +308,29 @@ class EntryValidationTests(FixtureTestCase):
         with self.assertRaises(registry_ci.RegistryError):
             registry_ci.parse_module_identity('NAME = "alpha"\nmodule(name = NAME, version = "1.0.0")\n')
 
+    def test_module_identity_ignores_extension_module_methods(self) -> None:
+        # rules_go 0.64.1 uses go_deps.module() for its tool dependencies.
+        text = '''module(
+    name = "rules_go",
+    version = "0.64.1",
+)
+dev_go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps", dev_dependency = True)
+dev_go_deps.module(
+    path = "github.com/bazelbuild/buildtools",
+    version = "v0.0.0-20231103205921-433ea8554e82",
+)
+other_extension.module(name = "unrelated", version = "2.0.0")
+'''
+        self.assertEqual(registry_ci.parse_module_identity(text), ("rules_go", "0.64.1"))
+
+    def test_module_methods_do_not_replace_or_hide_duplicate_declarations(self) -> None:
+        method = 'extension.module(name = "alpha", version = "1.0.0")\n'
+        declaration = 'module(name = "alpha", version = "1.0.0")\n'
+        for declarations in ("", declaration * 2):
+            with self.subTest(declarations=declarations):
+                with self.assertRaisesRegex(registry_ci.RegistryError, "exactly one module\\(\\) declaration"):
+                    registry_ci.parse_module_identity(method + declarations + method)
+
 
 class RustPreparationTests(FixtureTestCase):
     def setUp(self) -> None:
