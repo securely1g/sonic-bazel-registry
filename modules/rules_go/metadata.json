@@ -1,5 +1,6 @@
 {
   "versions": [
-    "0.60.0.sonic-patched"
+    "0.60.0.sonic-patched",
+    "0.64.1-sonic.1"
   ]
 }
