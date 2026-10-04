@@ -44,6 +44,14 @@ The configuration declares:
 - `build_targets`: required output labels, including runtime and matching debug
   packages where the module provides them.
 - `test_targets`: explicit consumer and package test labels.
+- `go_sdk` (optional): select the consuming root's Go SDK with an exact stable
+  version, for example `{"version": "1.25.0"}`. Declare `rules_go` in
+  `consumer_deps` unless it is the tested module. The runner uses that
+  dependency's apparent `repo_name` to call its `go_sdk` extension and download
+  the selected version. This supplies the ordinary root SDK declaration that a
+  dependency's `dev_dependency` extension cannot provide. Omitting this field
+  preserves rules_go's default SDK selection. The generated declaration and
+  `validation.json` record the choice; build and test coverage is unchanged.
 - `build_flags` (optional): module-qualified Starlark settings applied to both
   builds and tests, for example
   `--@sonic-swss-common//tools/bazel:yang_modules=False`. Each setting must belong to

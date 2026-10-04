@@ -156,8 +156,8 @@ def validate_entry(root: Path, module: str, version: str) -> dict:
 
     config = read_json(entry / "presubmit.json")
     required = {"architectures", "consumer_deps", "platforms", "build_targets", "test_targets"}
-    require(required <= set(config) <= required | {"build_flags", "rust_preparation"},
-            f"presubmit.json requires {sorted(required)} and optionally build_flags/rust_preparation")
+    require(required <= set(config) <= required | {"build_flags", "rust_preparation", "go_sdk"},
+            f"presubmit.json requires {sorted(required)} and optionally build_flags/rust_preparation/go_sdk")
     architectures = config["architectures"]
     require(isinstance(architectures, list) and bool(architectures)
             and all(isinstance(a, str) and a in RUNNERS for a in architectures)
@@ -183,6 +183,15 @@ def validate_entry(root: Path, module: str, version: str) -> dict:
                 "Invalid or duplicate consumer repository name")
         names.add(name)
         aliases.add(alias)
+    if "go_sdk" in config:
+        sdk = config["go_sdk"]
+        require(isinstance(sdk, dict) and set(sdk) == {"version"},
+                "go_sdk requires only an exact version")
+        require(isinstance(sdk["version"], str)
+                and re.fullmatch(r"1\.[0-9]+\.[0-9]+", sdk["version"]) is not None,
+                "go_sdk version must be an exact stable Go release such as 1.25.0")
+        require("rules_go" in names,
+                "go_sdk requires rules_go as the tested module or a declared consumer dependency")
     for field in ("build_targets", "test_targets"):
         labels = config[field]
         require(isinstance(labels, list) and bool(labels) and all(isinstance(label, str) for label in labels),
@@ -478,6 +487,16 @@ def run(root: Path, module: str, version: str, architecture: str,
         name, selected_version = dependency["name"], dependency["version"]
         declarations.append(f"single_version_override(module_name = {json.dumps(name)}, "
                             f"version = {json.dumps(selected_version)})")
+    if "go_sdk" in config:
+        dependencies = {module: module, **{
+            dependency["name"]: dependency.get("repo_name", dependency["name"])
+            for dependency in config["consumer_deps"]
+        }}
+        extension = f"@{dependencies['rules_go']}//go:extensions.bzl"
+        declarations.extend([
+            f"go_sdk = use_extension({json.dumps(extension)}, \"go_sdk\")",
+            f"go_sdk.download(version = {json.dumps(config['go_sdk']['version'])})",
+        ])
     (consumer / "MODULE.bazel").write_text("\n\n".join(declarations) + "\n")
     (consumer / "BUILD.bazel").write_text("# Explicit external targets are built from this consumer.\n")
     (consumer / ".bazelversion").write_text("8.5.1\n")
@@ -519,6 +538,7 @@ def run(root: Path, module: str, version: str, architecture: str,
             "build_targets": config["build_targets"], "passed_tests": config["test_targets"],
             "build_flags": config.get("build_flags", []),
             "consumer_deps": config["consumer_deps"],
+            "go_sdk": config.get("go_sdk"),
             "rust_preparation": config.get("rust_preparation"),
             "fetched_module_matches_registry": True,
         }, indent=2) + "\n")
