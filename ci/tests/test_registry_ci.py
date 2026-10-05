@@ -255,6 +255,35 @@ class EntryValidationTests(FixtureTestCase):
         self.assertEqual(registry_ci.validate_entry(self.root, "alpha", "1.0.0")["go_sdk"],
                          {"version": "1.25.0"})
 
+    def test_rust_toolchain_requires_an_explicit_rules_rs_dependency(self) -> None:
+        entry = self.entry("alpha", "1.0.0")
+        path = entry / "presubmit.json"
+        config = json.loads(path.read_text())
+        config["rust_toolchain"] = {"version": "1.90.0"}
+        write_json(path, config)
+        with self.assertRaisesRegex(registry_ci.RegistryError, "requires rules_rs"):
+            registry_ci.validate_entry(self.root, "alpha", "1.0.0")
+        config["consumer_deps"].append({"name": "rules_rs", "version": "0.1.0"})
+        write_json(path, config)
+        self.assertEqual(registry_ci.validate_entry(self.root, "alpha", "1.0.0")["rust_toolchain"],
+                         {"version": "1.90.0"})
+
+    def test_rust_toolchain_rejects_unpinned_versions_and_arbitrary_configuration(self) -> None:
+        entry = self.entry("rules_rs", "0.1.0")
+        path = entry / "presubmit.json"
+        config = json.loads(path.read_text())
+        cases = [None, "1.90.0", {}, {"version": 1900}, {"version": "latest"},
+                 {"version": "nightly"}, {"version": "1.90"}, {"version": "1.90.0-beta"},
+                 {"version": "1.90.0\n"}, {"version": '1.90.0")'},
+                 {"version": "1.90.0", "url": "https://example.invalid"},
+                 {"version": "1.90.0", "bindgen": "true"},
+                 {"version": "1.90.0", "mangled_allocator_libraries": 1}]
+        for toolchain in cases:
+            with self.subTest(toolchain=toolchain):
+                write_json(path, {**config, "rust_toolchain": toolchain})
+                with self.assertRaises(registry_ci.RegistryError):
+                    registry_ci.validate_entry(self.root, "rules_rs", "0.1.0")
+
     def test_go_sdk_rejects_unpinned_versions_and_arbitrary_configuration(self) -> None:
         entry = self.entry("rules_go", "0.64.1-sonic.1")
         path = entry / "presubmit.json"
@@ -720,6 +749,68 @@ class FetchedModuleTests(FixtureTestCase):
         self.assertNotIn("go_sdk", (artifacts / "consumer.MODULE.bazel").read_text())
         self.assertIsNone(json.loads((artifacts / "validation.json").read_text())["go_sdk"])
 
+    def test_rust_toolchain_uses_declared_repository_and_retains_selection(self) -> None:
+        for alias in (None, "rs_rules"):
+            with self.subTest(alias=alias):
+                dependency = {"name": "rules_rs", "version": "0.1.0"}
+                if alias:
+                    dependency["repo_name"] = alias
+                self.config["consumer_deps"] = [dependency]
+                self.config["rust_toolchain"] = {"version": "1.90.0"}
+                write_json(self.config_path, self.config)
+                fetched = self.fetched_module("rules_rs")
+                fetched.parent.mkdir(exist_ok=True)
+                fetched.write_text('module(name = "rules_rs", version = "0.1.0")\n')
+                artifacts = self.run_fixture(alias or "default-rust-alias")
+                tree = ast.parse((artifacts / "consumer.MODULE.bazel").read_text())
+                assignment = next(node for node in tree.body if isinstance(node, ast.Assign))
+                self.assertEqual(assignment.targets[0].id, "rust")
+                self.assertEqual(assignment.value.func.id, "use_extension")
+                self.assertEqual([ast.literal_eval(arg) for arg in assignment.value.args],
+                                 [f"@{alias or 'rules_rs'}//rs:rules_rust_reexported_extensions.bzl", "rust"])
+                toolchain = next(node.value for node in tree.body if isinstance(node, ast.Expr)
+                                 and isinstance(node.value.func, ast.Attribute))
+                self.assertEqual((toolchain.func.value.id, toolchain.func.attr), ("rust", "toolchain"))
+                self.assertEqual({kw.arg: ast.literal_eval(kw.value) for kw in toolchain.keywords}, {
+                    "edition": "2021", "versions": ["1.90.0"],
+                    "extra_target_triples": ["aarch64-unknown-linux-gnu", "x86_64-unknown-linux-gnu"],
+                })
+                self.assertEqual(json.loads((artifacts / "validation.json").read_text())["rust_toolchain"],
+                                 {"version": "1.90.0"})
+                self.assertIn('register_toolchains("@rust_toolchains//:all")',
+                              (artifacts / "consumer.MODULE.bazel").read_text())
+
+    def test_rust_native_link_and_bindgen_support_are_explicit(self) -> None:
+        self.config["consumer_deps"] = [{"name": "rules_rs", "version": "0.1.0", "repo_name": "rs_rules"}]
+        self.config["rust_toolchain"] = {
+            "version": "1.90.0", "mangled_allocator_libraries": True, "bindgen": True,
+        }
+        write_json(self.config_path, self.config)
+        fetched = self.fetched_module("rules_rs")
+        fetched.parent.mkdir()
+        fetched.write_text('module(name = "rules_rs", version = "0.1.0")\n')
+        with mock.patch.object(registry_ci, "run_logged", wraps=registry_ci.run_logged) as execute:
+            artifacts = self.run_fixture("rust-native-support")
+        declarations = (artifacts / "consumer.MODULE.bazel").read_text()
+        self.assertIn('@rs_rules//rs:rules_rust.bzl', declarations)
+        self.assertIn('use_repo(rules_rust, "rules_rust")', declarations)
+        self.assertIn('@rs_rules//rs:rules_rust_bindgen.bzl', declarations)
+        self.assertIn('register_toolchains("@rules_rust_bindgen//:all")', declarations)
+        for call in execute.call_args_list:
+            self.assertIn("--@rules_rust//rust/settings:experimental_use_allocator_libraries_with_mangled_symbols=True",
+                          call.args[0])
+        self.assertEqual(json.loads((artifacts / "validation.json").read_text())["rust_toolchain"],
+                         self.config["rust_toolchain"])
+
+    def test_absent_rust_toolchain_preserves_default_consumer_declarations(self) -> None:
+        with mock.patch.object(registry_ci, "run_logged", wraps=registry_ci.run_logged) as execute:
+            artifacts = self.run_fixture("no-rust-toolchain")
+        declarations = (artifacts / "consumer.MODULE.bazel").read_text()
+        self.assertNotIn("rust", declarations)
+        self.assertIsNone(json.loads((artifacts / "validation.json").read_text())["rust_toolchain"])
+        for call in execute.call_args_list:
+            self.assertFalse(any("mangled_symbols" in argument for argument in call.args[0]))
+
     def test_empty_consumer_dependencies_need_no_overrides_or_dependency_artifacts(self) -> None:
         self.config["consumer_deps"] = []
         self.config["platforms"] = {"amd64": "@alpha//:platform"}
@@ -738,6 +829,21 @@ class FetchedModuleTests(FixtureTestCase):
         with self.assertRaisesRegex(registry_ci.RegistryError, "did not generate MODULE.bazel.lock"):
             self.run_fixture("missing-lockfile")
         self.assertFalse((self.root / "artifacts-missing-lockfile" / "validation.json").exists())
+
+    def test_extension_repositories_do_not_count_as_fetched_modules(self) -> None:
+        for name in ("alpha", "sonic-build-infra"):
+            path = self.output_base / "external" / (name + "++extension+generated") / "MODULE.bazel"
+            path.parent.mkdir()
+            path.write_text('module(name = "generated", version = "9.0.0")\n')
+        artifacts = self.run_fixture("extension-repositories")
+        self.assertTrue(json.loads((artifacts / "validation.json").read_text())["fetched_module_matches_registry"])
+
+    def test_duplicate_real_module_repositories_are_rejected(self) -> None:
+        path = self.output_base / "external/alpha+1.0.0/MODULE.bazel"
+        path.parent.mkdir()
+        path.write_bytes(self.fetched.read_bytes())
+        with self.assertRaisesRegex(registry_ci.RegistryError, "Expected one fetched repository for alpha"):
+            self.run_fixture("duplicate-module")
 
     def test_generated_lockfile_is_retained_after_bazel_failure(self) -> None:
         self.fake_bazel.write_text(self.fake_bazel.read_text().replace(

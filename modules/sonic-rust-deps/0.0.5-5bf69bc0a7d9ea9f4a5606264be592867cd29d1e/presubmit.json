@@ -3,12 +3,19 @@
     "amd64",
     "arm64"
   ],
-  "consumer_deps": [],
+  "consumer_deps": [
+    {
+      "name": "rules_rs",
+      "version": "0.1.0"
+    }
+  ],
   "platforms": {
     "amd64": "@local_config_platform//:host",
     "arm64": "@local_config_platform//:host"
   },
   "build_targets": [
+    "@sonic-rust-deps//:serde",
+    "@sonic-rust-deps//:serde_core",
     "@sonic-rust-deps//tests:serde_roundtrip_test",
     "@sonic-rust-deps//tests:tracing_test"
   ],
@@ -16,10 +23,7 @@
     "@sonic-rust-deps//tests:serde_roundtrip_test",
     "@sonic-rust-deps//tests:tracing_test"
   ],
-  "rust_preparation": {
-    "module": "sonic-rust-deps",
-    "repo_name": "sonic-rust-deps",
-    "helper_revision": "7707c0f4ab0a624941924fb02e5d908d86962277",
-    "helper_sha256": "5847dcbc6a4098a8671c6802a490160097cf22f2bc306da329c7ae1d73334777"
+  "rust_toolchain": {
+    "version": "1.90.0"
   }
 }
