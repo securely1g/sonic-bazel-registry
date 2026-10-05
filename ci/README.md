@@ -58,6 +58,19 @@ The configuration declares:
   the module under test and include its value. Native Bazel options, duplicate
   settings, and options that redirect registries or override test execution are
   rejected. The selected flags are retained in `validation.json`.
+- `rust_toolchain` (optional): declare the consuming root's Rust toolchain with
+  an exact stable version, for example `{"version": "1.90.0"}`. Declare `rules_rs`
+  in `consumer_deps` unless it is the tested module. The runner calls its
+  reexported `rust` extension using the declared apparent repository name and
+  registers the pinned toolchain for native AMD64 and ARM64. This supplies the
+  root declaration required by `rules_rs` 0.1.0 when testing a Rust module as a
+  dependency, matching Common and SWSS. Omitting it preserves other consumers.
+  The generated declaration and `validation.json` retain the selection.
+  Set optional boolean `mangled_allocator_libraries` to `true` for Rust targets
+  linked by the C++ toolchain with the allocator shim used by Common and SWSS.
+  Set optional boolean `bindgen` to `true` when the consumer needs the
+  `rules_rs` binding-generator toolchain. Both default to `false`; the runner
+  imports and registers only explicitly requested support.
 - `rust_preparation` (optional): prepare one shared Rust dependency module before
   building its targets. Set `module` and its apparent `repo_name` to either the
   tested module or a declared `consumer_deps` entry. Pin `helper_revision` to a

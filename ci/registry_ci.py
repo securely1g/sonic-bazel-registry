@@ -156,8 +156,8 @@ def validate_entry(root: Path, module: str, version: str) -> dict:
 
     config = read_json(entry / "presubmit.json")
     required = {"architectures", "consumer_deps", "platforms", "build_targets", "test_targets"}
-    require(required <= set(config) <= required | {"build_flags", "rust_preparation", "go_sdk"},
-            f"presubmit.json requires {sorted(required)} and optionally build_flags/rust_preparation/go_sdk")
+    require(required <= set(config) <= required | {"build_flags", "rust_preparation", "go_sdk", "rust_toolchain"},
+            f"presubmit.json requires {sorted(required)} and optionally build_flags/rust_preparation/go_sdk/rust_toolchain")
     architectures = config["architectures"]
     require(isinstance(architectures, list) and bool(architectures)
             and all(isinstance(a, str) and a in RUNNERS for a in architectures)
@@ -192,6 +192,18 @@ def validate_entry(root: Path, module: str, version: str) -> dict:
                 "go_sdk version must be an exact stable Go release such as 1.25.0")
         require("rules_go" in names,
                 "go_sdk requires rules_go as the tested module or a declared consumer dependency")
+    if "rust_toolchain" in config:
+        toolchain = config["rust_toolchain"]
+        require(isinstance(toolchain, dict)
+                and {"version"} <= set(toolchain) <= {"version", "mangled_allocator_libraries", "bindgen"},
+                "rust_toolchain requires version and optionally mangled_allocator_libraries/bindgen")
+        require(isinstance(toolchain["version"], str)
+                and re.fullmatch(r"1\.[0-9]+\.[0-9]+", toolchain["version"]) is not None,
+                "rust_toolchain version must be an exact stable Rust release such as 1.90.0")
+        require("rules_rs" in names,
+                "rust_toolchain requires rules_rs as the tested module or a declared consumer dependency")
+        for option in ("mangled_allocator_libraries", "bindgen"):
+            require(type(toolchain.get(option, False)) is bool, f"rust_toolchain {option} must be a boolean")
     for field in ("build_targets", "test_targets"):
         labels = config[field]
         require(isinstance(labels, list) and bool(labels) and all(isinstance(label, str) for label in labels),
@@ -497,6 +509,33 @@ def run(root: Path, module: str, version: str, architecture: str,
             f"go_sdk = use_extension({json.dumps(extension)}, \"go_sdk\")",
             f"go_sdk.download(version = {json.dumps(config['go_sdk']['version'])})",
         ])
+    if "rust_toolchain" in config:
+        dependencies = {module: module, **{
+            dependency["name"]: dependency.get("repo_name", dependency["name"])
+            for dependency in config["consumer_deps"]
+        }}
+        extension = f"@{dependencies['rules_rs']}//rs:rules_rust_reexported_extensions.bzl"
+        # rules_rs' legacy Rust extension needs a root declaration even when a
+        # dependency registers the same toolchain. Match real component roots.
+        declarations.extend([
+            f"rust = use_extension({json.dumps(extension)}, \"rust\")",
+            'rust.toolchain(edition = "2021", '
+            'extra_target_triples = ["aarch64-unknown-linux-gnu", "x86_64-unknown-linux-gnu"], '
+            f"versions = [{json.dumps(config['rust_toolchain']['version'])}])",
+            'use_repo(rust, "rust_toolchains")',
+            'register_toolchains("@rust_toolchains//:all")',
+        ])
+        if config["rust_toolchain"].get("mangled_allocator_libraries", False):
+            declarations.extend([
+                f'rules_rust = use_extension("@{dependencies["rules_rs"]}//rs:rules_rust.bzl", "rules_rust")',
+                'use_repo(rules_rust, "rules_rust")',
+            ])
+        if config["rust_toolchain"].get("bindgen", False):
+            declarations.extend([
+                f'bindgen = use_extension("@{dependencies["rules_rs"]}//rs:rules_rust_bindgen.bzl", "rules_rust_bindgen")',
+                'use_repo(bindgen, "rules_rust_bindgen")',
+                'register_toolchains("@rules_rust_bindgen//:all")',
+            ])
     (consumer / "MODULE.bazel").write_text("\n\n".join(declarations) + "\n")
     (consumer / "BUILD.bazel").write_text("# Explicit external targets are built from this consumer.\n")
     (consumer / ".bazelversion").write_text("8.5.1\n")
@@ -506,6 +545,8 @@ def run(root: Path, module: str, version: str, architecture: str,
     flags = [f"--registry={root.resolve().as_uri()}", "--registry=https://bcr.bazel.build/",
              f"--platforms={config['platforms'][architecture]}", "--lockfile_mode=update",
              *config.get("build_flags", [])]
+    if config.get("rust_toolchain", {}).get("mangled_allocator_libraries", False):
+        flags.append("--@rules_rust//rust/settings:experimental_use_allocator_libraries_with_mangled_symbols=True")
     try:
         flags.extend(prepare_rust(config, consumer, work_dir, artifacts, bazel, flags))
         run_logged([*prefix, "build", *flags, f"--build_event_json_file={artifacts / 'build-events.jsonl'}",
@@ -539,6 +580,7 @@ def run(root: Path, module: str, version: str, architecture: str,
             "build_flags": config.get("build_flags", []),
             "consumer_deps": config["consumer_deps"],
             "go_sdk": config.get("go_sdk"),
+            "rust_toolchain": config.get("rust_toolchain"),
             "rust_preparation": config.get("rust_preparation"),
             "fetched_module_matches_registry": True,
         }, indent=2) + "\n")
