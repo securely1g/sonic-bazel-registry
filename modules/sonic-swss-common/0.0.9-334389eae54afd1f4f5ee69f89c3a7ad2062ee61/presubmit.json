@@ -29,6 +29,15 @@
     {
       "name": "libnl3",
       "version": "3.7.0-sonic.2"
+    },
+    {
+      "name": "sonic-rust-deps",
+      "version": "0.0.2-127e89b9396824166caa6a300872398c6896bfec",
+      "repo_name": "sonic_rust_deps"
+    },
+    {
+      "name": "rules_rs",
+      "version": "0.1.0"
     }
   ],
   "platforms": {
@@ -44,7 +53,8 @@
     "@sonic-swss-common//dist:libswsscommon_pkg.debug_symbols",
     "@sonic-swss-common//dist:sonic-db-cli_pkg",
     "@sonic-swss-common//pyext:swsscommon_pkg",
-    "@sonic-swss-common//goext:swsscommon"
+    "@sonic-swss-common//goext:swsscommon",
+    "@sonic-swss-common//crates/swss-common:swss_common"
   ],
   "test_targets": [
     "@sonic-swss-common//tests:status_code_util_test",
@@ -57,12 +67,19 @@
     "@sonic-swss-common//dist:libswsscommon_package_test",
     "@sonic-swss-common//pyext:swsscommon_package_test",
     "@sonic-swss-common//goext:swsscommon_runtime_test",
-    "@sonic-swss-common//dist:package_timestamps_test"
+    "@sonic-swss-common//dist:package_timestamps_test",
+    "@sonic-swss-common//crates/swss-common:swss_common_test",
+    "@sonic-swss-common//tools/bazel/rust:shared_serde_test"
   ],
   "build_flags": [
     "--@sonic-swss-common//tools/bazel:yang_modules=True"
   ],
   "go_sdk": {
     "version": "1.25.0"
+  },
+  "rust_toolchain": {
+    "version": "1.90.0",
+    "mangled_allocator_libraries": true,
+    "bindgen": true
   }
 }
