@@ -1,0 +1,85 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.15-6653ac1a0b15488a4b54f69ca78440b52be3ccf8",
+      "repo_name": "sonic_build_infra"
+    },
+    {
+      "name": "tar.bzl",
+      "version": "0.10.5-sonic.1"
+    },
+    {
+      "name": "rules_distroless",
+      "version": "0.9.4-sonic.1"
+    },
+    {
+      "name": "rules_cc",
+      "version": "0.2.20"
+    },
+    {
+      "name": "rules_go",
+      "version": "0.64.1-sonic.1",
+      "repo_name": "io_bazel_rules_go"
+    },
+    {
+      "name": "libnl3",
+      "version": "3.7.0-sonic.2"
+    },
+    {
+      "name": "sonic-rust-deps",
+      "version": "0.0.2-127e89b9396824166caa6a300872398c6896bfec",
+      "repo_name": "sonic_rust_deps"
+    },
+    {
+      "name": "rules_rs",
+      "version": "0.1.0"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
+  },
+  "build_targets": [
+    "@sonic-swss-common//common:cfg_schema_generated",
+    "@sonic-swss-common//:common",
+    "@sonic-swss-common//:libswsscommon_consolidated.so",
+    "@sonic-swss-common//:swssloglevel",
+    "@sonic-swss-common//dist:libswsscommon_pkg",
+    "@sonic-swss-common//dist:libswsscommon_pkg.debug_symbols",
+    "@sonic-swss-common//dist:sonic-db-cli_pkg",
+    "@sonic-swss-common//pyext:swsscommon_pkg",
+    "@sonic-swss-common//goext:swsscommon",
+    "@sonic-swss-common//crates/swss-common:swss_common"
+  ],
+  "test_targets": [
+    "@sonic-swss-common//tests:status_code_util_test",
+    "@sonic-swss-common//tests:saiaclschema_ut",
+    "@sonic-swss-common//tests:notification_queue_ut",
+    "@sonic-swss-common//tests:interface_ut",
+    "@sonic-swss-common//tests:vrf_ut",
+    "@sonic-swss-common//tests:shared_library_runtime_test",
+    "@sonic-swss-common//tests:defaultvalueprovider_ut",
+    "@sonic-swss-common//dist:libswsscommon_package_test",
+    "@sonic-swss-common//pyext:swsscommon_package_test",
+    "@sonic-swss-common//goext:swsscommon_runtime_test",
+    "@sonic-swss-common//dist:package_timestamps_test",
+    "@sonic-swss-common//crates/swss-common:swss_common_test",
+    "@sonic-swss-common//tools/bazel/rust:shared_serde_test"
+  ],
+  "build_flags": [
+    "--@sonic-swss-common//tools/bazel:yang_modules=True"
+  ],
+  "go_sdk": {
+    "version": "1.25.0"
+  },
+  "rust_toolchain": {
+    "version": "1.90.0",
+    "mangled_allocator_libraries": true,
+    "bindgen": true
+  }
+}
