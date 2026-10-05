@@ -4,8 +4,8 @@
  # Keep bazel_compatibility in sync with sonic-buildimage's .bazelversion.
  module(
      name = "sonic-swss-common",
--    version = "0.0.1",
-+    version = "0.0.1-6e0204634f2f78605abdd94ea2b013a46e0660ac",
+-    version = "0.0.2",
++    version = "0.0.2-cec18aae143f8b0338703ca0ab2683a60ef2465d",
      bazel_compatibility = [
          ">=8.5.1",
          "<=8.5.1",
