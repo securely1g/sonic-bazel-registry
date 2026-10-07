@@ -1,0 +1,33 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [],
+  "platforms": {
+    "amd64": "@rules_distroless//registry_ci:amd64",
+    "arm64": "@rules_distroless//registry_ci:arm64"
+  },
+  "build_targets": [
+    "@rules_distroless//registry_ci:protobuf_headers_test"
+  ],
+  "test_targets": [
+    "@rules_distroless//registry_ci:protobuf_headers_test",
+    "@rules_distroless//registry_ci:architecture_amd64_test",
+    "@rules_distroless//registry_ci:architecture_arm64_test",
+    "@rules_distroless//apt/tests:locked_closure_test",
+    "@rules_distroless//apt/tests:foreign_dependency_test",
+    "@rules_distroless//apt/tests:foreign_all_key_test",
+    "@rules_distroless//apt/tests:native_package_all_key_test",
+    "@rules_distroless//apt/tests:missing_dependency_test",
+    "@rules_distroless//apt/tests:conflicting_version_test",
+    "@rules_distroless//apt/tests:missing_source_hash_test",
+    "@rules_distroless//apt/tests:partial_content_hash_test",
+    "@rules_distroless//apt/tests:metadata_mismatch_test",
+    "@rules_distroless//apt/tests:locked_import_test",
+    "@rules_distroless//distroless/tests:flatten/merge_simple",
+    "@rules_distroless//distroless/tests:flatten/deduplicate",
+    "@rules_distroless//distroless/tests:flatten/gzip_compression",
+    "@rules_distroless//distroless/tests:flatten_manifest_test"
+  ]
+}
