@@ -45,7 +45,7 @@ def read_json(path: Path) -> dict:
     return value
 
 
-def parse_module_identity(text: str) -> tuple[str, str]:
+def parse_module_identity(text: str, *, allow_missing_version: bool = False) -> tuple[str, str]:
     """Read a literal, top-level module() call without executing Starlark."""
     try:
         tokens = list(tokenize.generate_tokens(io.StringIO(text).readline))
@@ -88,8 +88,10 @@ def parse_module_identity(text: str) -> tuple[str, str]:
             require(isinstance(keyword.value, ast.Constant) and isinstance(keyword.value.value, str),
                     f"module {keyword.arg} must be a literal string")
             values[keyword.arg] = keyword.value.value
-    require(set(values) == {"name", "version"}, "module() needs literal name and version")
-    return values["name"], values["version"]
+    require(set(values) == {"name", "version"}
+            or (allow_missing_version and set(values) == {"name"}),
+            "module() needs literal name and version")
+    return values["name"], values.get("version", "")
 
 
 def sri(integrity: str, data: bytes | None = None) -> None:
@@ -116,6 +118,44 @@ def local_input(directory: Path, name: str) -> Path:
     require(result.is_file() and not result.is_symlink(), f"Missing regular input: {result}")
     require(result.resolve().is_relative_to(directory.resolve()), f"Input escapes its directory: {result}")
     return result
+
+
+def validate_archive_override(override: dict) -> None:
+    """Allow pinned upstream archives and patches, without repository commands."""
+    required = {"urls", "integrity"}
+    allowed = required | {"strip_prefix", "remote_patches", "remote_patch_strip"}
+    require(isinstance(override, dict) and required <= set(override) <= allowed,
+            "archive_override requires urls/integrity and only supported http_archive attributes")
+
+    def https_url(value: str) -> None:
+        require(isinstance(value, str) and not any(char.isspace() for char in value),
+                "archive_override URLs must be HTTPS URLs without credentials or fragments")
+        try:
+            parsed = urlparse(value)
+        except ValueError as error:
+            raise RegistryError("archive_override URL is malformed") from error
+        require(parsed.scheme == "https" and bool(parsed.hostname)
+                and parsed.username is None and parsed.password is None and not parsed.fragment,
+                "archive_override URLs must be HTTPS URLs without credentials or fragments")
+
+    urls = override["urls"]
+    require(isinstance(urls, list) and bool(urls) and all(isinstance(url, str) for url in urls)
+            and len(set(urls)) == len(urls), "archive_override urls must be a nonempty unique list")
+    for url in urls:
+        https_url(url)
+    sri(override["integrity"])
+    prefix = override.get("strip_prefix", "")
+    require(isinstance(prefix, str) and not PurePosixPath(prefix).is_absolute()
+            and ".." not in PurePosixPath(prefix).parts and "\\" not in prefix,
+            "archive_override strip_prefix must stay inside the archive")
+    patches = override.get("remote_patches", {})
+    require(isinstance(patches, dict), "archive_override remote_patches must map HTTPS URLs to integrity hashes")
+    for url, integrity in patches.items():
+        https_url(url)
+        sri(integrity)
+    strip = override.get("remote_patch_strip", 0)
+    require(type(strip) is int and strip >= 0,
+            "archive_override remote_patch_strip must be a nonnegative integer")
 
 
 def validate_entry(root: Path, module: str, version: str) -> dict:
@@ -171,8 +211,9 @@ def validate_entry(root: Path, module: str, version: str) -> dict:
     names = {module}
     require(isinstance(config["consumer_deps"], list), "consumer_deps must be a list")
     for dependency in config["consumer_deps"]:
-        require(isinstance(dependency, dict) and set(dependency) in ({"name", "version"}, {"name", "version", "repo_name"}),
-                "consumer_deps require name/version and optional repo_name")
+        require(isinstance(dependency, dict) and {"name", "version"} <= set(dependency)
+                <= {"name", "version", "repo_name", "archive_override", "module_sha256"},
+                "consumer_deps require name/version and optional repo_name/archive_override/module_sha256")
         name, dep_version = dependency["name"], dependency["version"]
         alias = dependency.get("repo_name", name)
         require(isinstance(name, str) and NAME.fullmatch(name) is not None and name not in names,
@@ -181,6 +222,13 @@ def validate_entry(root: Path, module: str, version: str) -> dict:
                 "Invalid consumer dependency version")
         require(isinstance(alias, str) and NAME.fullmatch(alias) is not None and alias not in aliases,
                 "Invalid or duplicate consumer repository name")
+        require(("archive_override" in dependency) == ("module_sha256" in dependency),
+                "consumer archive_override and module_sha256 must be supplied together")
+        if "archive_override" in dependency:
+            validate_archive_override(dependency["archive_override"])
+            require(isinstance(dependency["module_sha256"], str)
+                    and re.fullmatch(r"[0-9a-f]{64}", dependency["module_sha256"]) is not None,
+                    "consumer module_sha256 must be the patched MODULE.bazel SHA256 digest")
         names.add(name)
         aliases.add(alias)
     if "go_sdk" in config:
@@ -249,9 +297,15 @@ def git(root: Path, *args: str) -> str:
     return subprocess.check_output(["git", "-C", str(root), *args], text=True)
 
 
-def plan(root: Path, base: str | None, head: str | None, all_versions: bool = False) -> dict:
+def plan(root: Path, base: str | None, head: str | None, all_versions: bool = False,
+         *, module: str | None = None, version: str | None = None) -> dict:
     selected = set()
-    if all_versions:
+    require(bool(module) == bool(version), "plan --module and --version must be supplied together")
+    if module:
+        require(not all_versions and not base and not head,
+                "plan --module/--version cannot be combined with --all or --base/--head")
+        selected.add((module, version))
+    elif all_versions:
         selected.update((path.parent.parent.name, path.parent.name)
                         for path in (root / "modules").glob("*/*/presubmit.json"))
     else:
@@ -502,11 +556,17 @@ def run(root: Path, module: str, version: str, architecture: str,
     declarations = ['module(name = "registry_ci_consumer")']
     for dependency in [{"name": module, "version": version}, *config["consumer_deps"]]:
         declarations.append("bazel_dep(" + ", ".join(f"{key} = {json.dumps(value)}"
-                                                   for key, value in dependency.items()) + ")")
+                                                   for key, value in dependency.items()
+                                                   if key in ("name", "version", "repo_name")) + ")")
     for dependency in config["consumer_deps"]:
         name, selected_version = dependency["name"], dependency["version"]
-        declarations.append(f"single_version_override(module_name = {json.dumps(name)}, "
-                            f"version = {json.dumps(selected_version)})")
+        if "archive_override" in dependency:
+            arguments = {"module_name": name, **dependency["archive_override"]}
+            declarations.append("archive_override(" + ", ".join(
+                f"{key} = {json.dumps(value)}" for key, value in arguments.items()) + ")")
+        else:
+            declarations.append(f"single_version_override(module_name = {json.dumps(name)}, "
+                                f"version = {json.dumps(selected_version)})")
     if "go_sdk" in config:
         dependencies = {module: module, **{
             dependency["name"]: dependency.get("repo_name", dependency["name"])
@@ -578,8 +638,14 @@ def run(root: Path, module: str, version: str, architecture: str,
             name, selected_version = dependency["name"], dependency["version"]
             selected = fetched_modules(output_base, name)
             require(len(selected) == 1, f"Expected one fetched repository for consumer dependency {name}")
-            require(parse_module_identity(selected[0].read_text()) == (name, selected_version),
-                    f"Fetched consumer dependency {name} differs from the declared version {selected_version}")
+            if "archive_override" in dependency:
+                require(parse_module_identity(selected[0].read_text(), allow_missing_version=True)[0] == name,
+                        f"Fetched consumer dependency {name} has a different module name")
+                require(hashlib.sha256(selected[0].read_bytes()).hexdigest() == dependency["module_sha256"],
+                        f"Fetched consumer dependency {name} differs from the patched MODULE.bazel SHA256")
+            else:
+                require(parse_module_identity(selected[0].read_text()) == (name, selected_version),
+                        f"Fetched consumer dependency {name} differs from the declared version {selected_version}")
             shutil.copy2(selected[0], artifacts / f"consumer-dep-{name}.MODULE.bazel")
         require((consumer / "MODULE.bazel.lock").is_file(), "Bazel did not generate MODULE.bazel.lock resolution evidence")
         (artifacts / "validation.json").write_text(json.dumps({
@@ -608,6 +674,8 @@ def main() -> None:
     planner.add_argument("--base")
     planner.add_argument("--head")
     planner.add_argument("--all", action="store_true", dest="all_versions")
+    planner.add_argument("--module")
+    planner.add_argument("--version")
     planner.add_argument("--output", required=True, type=Path)
     runner = subparsers.add_parser("run")
     runner.add_argument("--module", required=True)
@@ -619,7 +687,8 @@ def main() -> None:
     args = parser.parse_args()
     try:
         if args.command == "plan":
-            result = plan(ROOT, args.base, args.head, args.all_versions)
+            result = plan(ROOT, args.base, args.head, args.all_versions,
+                          module=args.module, version=args.version)
             args.output.parent.mkdir(parents=True, exist_ok=True)
             args.output.write_text(json.dumps(result, indent=2) + "\n")
             print(json.dumps(result, separators=(",", ":")))

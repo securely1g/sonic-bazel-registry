@@ -5,6 +5,17 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      module:
+        description: Optional module to validate; also provide its version
+        required: false
+        type: string
+        default: ''
+      version:
+        description: Exact version of the optional selected module
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -34,10 +45,14 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          SELECTED_MODULE: ${{ inputs.module }}
+          SELECTED_VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
           if [[ "$EVENT_NAME" == pull_request ]]; then
             python3 ci/registry_ci.py plan --base "$BASE_SHA" --head "$HEAD_SHA" --output plan.json 2>&1 | tee plan.log
+          elif [[ -n "$SELECTED_MODULE" || -n "$SELECTED_VERSION" ]]; then
+            python3 ci/registry_ci.py plan --module "$SELECTED_MODULE" --version "$SELECTED_VERSION" --output plan.json 2>&1 | tee plan.log
           else
             python3 ci/registry_ci.py plan --all --output plan.json 2>&1 | tee plan.log
           fi

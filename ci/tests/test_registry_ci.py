@@ -37,6 +37,23 @@ def digest(data: bytes) -> str:
     return "sha256-" + base64.b64encode(hashlib.sha256(data).digest()).decode()
 
 
+def patched_dependency(name: str, module: bytes) -> dict:
+    return {
+        "name": name,
+        "version": "1.0.0",
+        "archive_override": {
+            "urls": ["https://example.invalid/releases/source-1.0.0.tar.gz"],
+            "integrity": digest(b"source archive"),
+            "strip_prefix": "source-1.0.0",
+            "remote_patches": {
+                "https://example.invalid/source/0123456789abcdef/fix.patch": digest(b"reviewed patch"),
+            },
+            "remote_patch_strip": 1,
+        },
+        "module_sha256": hashlib.sha256(module).hexdigest(),
+    }
+
+
 class FixtureTestCase(unittest.TestCase):
     def setUp(self) -> None:
         temporary = tempfile.TemporaryDirectory()
@@ -92,6 +109,37 @@ class FixtureTestCase(unittest.TestCase):
 
 
 class SelectionTests(FixtureTestCase):
+    def test_manual_selection_runs_only_the_requested_entry_on_its_configured_architectures(self) -> None:
+        self.entry("alpha", "1.0.0")
+        requested = self.entry("alpha", "2.0.0")
+        self.entry("beta", "1.0.0")
+        config = json.loads((requested / "presubmit.json").read_text())
+        config["architectures"] = ["amd64", "arm64"]
+        config["platforms"]["arm64"] = "@platforms//host:host"
+        write_json(requested / "presubmit.json", config)
+        self.assertEqual(registry_ci.plan(self.root, None, None, module="alpha", version="2.0.0"), {
+            "include": [
+                {"module": "alpha", "version": "2.0.0", "architecture": "amd64", "runner": "ubuntu-24.04"},
+                {"module": "alpha", "version": "2.0.0", "architecture": "arm64", "runner": "ubuntu-24.04-arm"},
+            ],
+        })
+
+    def test_manual_selection_requires_a_pair_and_cannot_replace_another_plan_mode(self) -> None:
+        for kwargs in ({"module": "alpha"}, {"version": "1.0.0"},
+                       {"module": "alpha", "version": "1.0.0", "all_versions": True},
+                       {"module": "alpha", "version": "1.0.0", "base": "a" * 40, "head": "b" * 40}):
+            with self.subTest(kwargs=kwargs), self.assertRaises(registry_ci.RegistryError):
+                registry_ci.plan(self.root, **{"base": None, "head": None, **kwargs})
+
+    def test_manual_selection_rejects_missing_or_invalid_entries(self) -> None:
+        entry = self.entry("alpha", "1.0.0")
+        for module, version in (("missing", "1.0.0"), ("alpha", "9.9.9"), ("../alpha", "1.0.0")):
+            with self.subTest(module=module, version=version), self.assertRaises(registry_ci.RegistryError):
+                registry_ci.plan(self.root, None, None, module=module, version=version)
+        (entry / "presubmit.json").unlink()
+        with self.assertRaises(registry_ci.RegistryError):
+            registry_ci.plan(self.root, None, None, module="alpha", version="1.0.0")
+
     def test_changed_version_is_selected_without_unrelated_versions(self) -> None:
         changed = self.entry("alpha", "1.0.0")
         self.entry("alpha", "2.0.0")
@@ -210,6 +258,66 @@ class SelectionTests(FixtureTestCase):
 
 
 class EntryValidationTests(FixtureTestCase):
+    def test_archive_override_requires_checksums_and_only_supported_attributes(self) -> None:
+        entry = self.entry("alpha", "1.0.0")
+        path = entry / "presubmit.json"
+        config = json.loads(path.read_text())
+        dependency = patched_dependency("platforms", b'module(name = "platforms")\n')
+        config["consumer_deps"] = [dependency]
+        write_json(path, config)
+        self.assertEqual(registry_ci.validate_entry(self.root, "alpha", "1.0.0"), config)
+        invalid_overrides = (
+            {"urls": []},
+            {"urls": ["http://example.invalid/source.tar.gz"]},
+            {"urls": ["file:///tmp/source.tar.gz"]},
+            {"urls": ["https://user:password@example.invalid/source.tar.gz"]},
+            {"urls": ["https://example.invalid/source.tar.gz#fragment"]},
+            {"urls": ["https://["]},
+            {"urls": ["https://example.invalid/source.tar.gz"] * 2},
+            {"urls": [None]},
+            {"integrity": "sha256-not-a-digest"},
+            {"strip_prefix": "../outside"},
+            {"strip_prefix": "/absolute"},
+            {"remote_patches": ["https://example.invalid/fix.patch"]},
+            {"remote_patches": {"http://example.invalid/fix.patch": digest(b"patch")}},
+            {"remote_patches": {"https://example.invalid/fix.patch": "unchecked"}},
+            {"remote_patch_strip": -1},
+            {"remote_patch_strip": True},
+            {"patches": ["//:unchecked.patch"]},
+            {"patch_cmds": ["echo unchecked"]},
+        )
+        for changes in invalid_overrides:
+            with self.subTest(changes=changes):
+                invalid = copy.deepcopy(config)
+                invalid["consumer_deps"][0]["archive_override"].update(changes)
+                write_json(path, invalid)
+                with self.assertRaises(registry_ci.RegistryError):
+                    registry_ci.validate_entry(self.root, "alpha", "1.0.0")
+        for removed in ("urls", "integrity"):
+            invalid = copy.deepcopy(config)
+            del invalid["consumer_deps"][0]["archive_override"][removed]
+            write_json(path, invalid)
+            with self.assertRaises(registry_ci.RegistryError):
+                registry_ci.validate_entry(self.root, "alpha", "1.0.0")
+
+    def test_archive_override_and_patched_module_hash_are_required_together(self) -> None:
+        entry = self.entry("alpha", "1.0.0")
+        path = entry / "presubmit.json"
+        config = json.loads(path.read_text())
+        dependency = patched_dependency("platforms", b'module(name = "platforms")\n')
+        for removed in ("archive_override", "module_sha256"):
+            invalid = copy.deepcopy(dependency)
+            del invalid[removed]
+            config["consumer_deps"] = [invalid]
+            write_json(path, config)
+            with self.assertRaisesRegex(registry_ci.RegistryError, "supplied together"):
+                registry_ci.validate_entry(self.root, "alpha", "1.0.0")
+        for value in (None, "", "f" * 63, "G" * 64, "F" * 64):
+            config["consumer_deps"] = [{**dependency, "module_sha256": value}]
+            write_json(path, config)
+            with self.assertRaisesRegex(registry_ci.RegistryError, "module_sha256"):
+                registry_ci.validate_entry(self.root, "alpha", "1.0.0")
+
     def test_version_overrides_and_dependency_pin_fields_are_rejected(self) -> None:
         entry = self.entry("alpha", "1.0.0")
         path = entry / "presubmit.json"
@@ -717,6 +825,48 @@ class FetchedModuleTests(FixtureTestCase):
         outputs = json.loads((artifacts / "outputs.json").read_text())
         self.assertEqual(set(outputs), {"@alpha//:library"})
         self.assertEqual((artifacts / outputs["@alpha//:library"][0]["path"]).read_bytes(), b"package")
+
+    def test_archive_override_uses_patched_source_instead_of_a_registry_version(self) -> None:
+        module = b'module(name = "sonic-build-infra")\n# Patched source can omit its version.\n'
+        dependency = patched_dependency("sonic-build-infra", module)
+        dependency["repo_name"] = "sonic_build_infra"
+        self.config["consumer_deps"][1] = dependency
+        write_json(self.config_path, self.config)
+        self.fetched_module(dependency["name"]).write_bytes(module)
+        artifacts = self.run_fixture("patched-source")
+        self.assertEqual(self.declarations(artifacts, "archive_override"), [
+            {"module_name": dependency["name"], **dependency["archive_override"]},
+        ])
+        self.assertEqual(self.declarations(artifacts, "single_version_override"), [
+            {"module_name": "platforms", "version": "1.0.0"},
+        ])
+        self.assertEqual(self.declarations(artifacts, "bazel_dep")[-1], {
+            "name": "sonic-build-infra", "version": "1.0.0", "repo_name": "sonic_build_infra",
+        })
+        self.assertEqual(json.loads((artifacts / "validation.json").read_text())["consumer_deps"],
+                         self.config["consumer_deps"])
+        self.assertEqual((artifacts / "consumer-dep-sonic-build-infra.MODULE.bazel").read_bytes(), module)
+
+    def test_archive_override_rejects_unpatched_source_even_after_successful_bazel_commands(self) -> None:
+        module = self.fetched_module("sonic-build-infra").read_bytes()
+        self.config["consumer_deps"][1] = patched_dependency("sonic-build-infra", module + b"# Patched\n")
+        write_json(self.config_path, self.config)
+        with self.assertRaisesRegex(registry_ci.RegistryError, "patched MODULE.bazel SHA256"):
+            self.run_fixture("unpatched-source")
+        self.assertFalse((self.root / "artifacts-unpatched-source" / "validation.json").exists())
+
+    def test_archive_override_still_checks_the_module_name(self) -> None:
+        wrong_module = b'module(name = "wrong-name")\n'
+        self.config["consumer_deps"][1] = patched_dependency("sonic-build-infra", wrong_module)
+        write_json(self.config_path, self.config)
+        self.fetched_module("sonic-build-infra").write_bytes(wrong_module)
+        with self.assertRaisesRegex(registry_ci.RegistryError, "different module name"):
+            self.run_fixture("patched-wrong-name")
+
+    def test_registry_dependency_still_requires_a_declared_version(self) -> None:
+        self.fetched_module("sonic-build-infra").write_text('module(name = "sonic-build-infra")\n')
+        with self.assertRaisesRegex(registry_ci.RegistryError, "needs literal name and version"):
+            self.run_fixture("missing-registry-version")
 
     def test_go_sdk_uses_the_declared_apparent_repository_and_retains_selection(self) -> None:
         for alias in (None, "io_bazel_rules_go"):

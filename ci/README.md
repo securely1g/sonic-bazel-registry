@@ -8,7 +8,12 @@ the behavior covered by each module's tests.
 
 The workflow runs on every pull request, pushes to `main`, and manual dispatches.
 Pull requests select affected module versions. Changes to the CI implementation
-or workflow run every configured version; pushes and manual runs do the same.
+or workflow run every configured version; pushes and default manual runs do the same.
+For a bounded manual check, supply both the `module` and exact `version`
+workflow inputs. That run still executes the runner's unit tests and every
+configured architecture for the selected entry. Its retained plan records the
+limited scope; it does not validate the other historical versions. Pull request
+selection is unchanged.
 Changes to existing historical versions require a validation configuration too.
 Unchanged historical entries without a configuration are not represented as
 validated. Documentation-only changes can produce an empty module matrix.
@@ -37,9 +42,11 @@ The configuration declares:
   currently `amd64` and/or `arm64`.
 - `consumer_deps`: additional direct dependencies required by the test consumer,
   each with `name`, an exact `version` to test, and optional `repo_name`. CI pins
-  every entry to its declared version using `single_version_override`; no
-  separate pin flag or override map is needed. Use the module's `name` for
-  selection; `repo_name` only controls its apparent repository name in targets.
+  each ordinary entry to its declared version using `single_version_override`.
+  An upstream archive with externally owned patches can instead specify
+  `archive_override` and `module_sha256`, as described below. Use the module's
+  `name` for selection; `repo_name` only controls its apparent repository name
+  in targets.
 - `platforms`: an explicit Bazel target platform label for each architecture.
 - `build_targets`: required output labels, including runtime and matching debug
   packages where the module provides them.
@@ -96,13 +103,38 @@ version once in `presubmit.json`:
 The runner generates both `bazel_dep` and a version-only `single_version_override`
 from that entry. This prevents another dependency from silently selecting a
 higher version, including a commit suffix that sorts higher despite belonging
-to an older source revision. Arbitrary source, patch, and registry replacements
-are not supported. The optional Rust preparation substitutes only a private copy
+to an older source revision. The optional Rust preparation substitutes only a private copy
 of the registry-fetched module, with generated dependency metadata. Its module
 declaration must still exactly match the registry entry. Dependencies used by
 the test environment must actually be fetched;
 the runner fails if a declared dependency is missing or its fetched module name
 or version differs. An empty `consumer_deps` list adds no pins.
+
+### Test patches maintained by a source repository
+
+For example, sonic-build-infra carries patches to upstream `rules_distroless`.
+Bazel ignores dependency modules' own overrides, so an independent CI consumer
+must apply those same patches in its root `MODULE.bazel`. Add these paired
+fields to that dependency's `consumer_deps` entry:
+
+- `archive_override`: standard `http_archive` attributes `urls` and `integrity`,
+  plus optional `strip_prefix`, `remote_patches`, and `remote_patch_strip`.
+  `urls` must contain HTTPS archive URLs; `remote_patches` maps HTTPS patch URLs
+  to integrity hashes. Pin patch URLs to the owning repository's full commit
+  ID and preserve their application order. Set `remote_patch_strip` to `1` for
+  ordinary Git patches. Repository commands and local patch paths are rejected.
+- `module_sha256`: the SHA256 of the exact patched `MODULE.bazel`, computed
+  after applying the patches to the verified upstream archive. This is a
+  separate field on the dependency, not an `http_archive` attribute.
+
+The runner emits `archive_override` instead of `single_version_override` for
+that dependency. Bazel verifies the archive and patch integrity hashes; the
+runner verifies the fetched module's name and exact `MODULE.bazel` hash.
+Upstream source archives may omit a module version. Ordinary registry
+dependencies and the module under test still require their declared versions.
+The generated consumer and validation artifacts retain the complete override.
+Use this only when the real consumer needs the same patched upstream source;
+keep the patches in their owning repository rather than copying them into CI.
 
 Artifacts retain the generated `consumer.MODULE.bazel`, `MODULE.bazel.lock`,
 each fetched dependency's `consumer-dep-<name>.MODULE.bazel`, and `consumer_deps` in
@@ -183,6 +215,8 @@ selected module:
 
 ```sh
 python3 ci/registry_ci.py plan --all --output /tmp/registry-ci-plan.json
+python3 ci/registry_ci.py plan --module rules_distroless --version 0.9.4-sonic.1 \
+  --output /tmp/registry-ci-distroless-plan.json
 python3 -m unittest discover -s ci/tests -v
 python3 ci/registry_ci.py run \
   --module libyang \

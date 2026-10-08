@@ -4,6 +4,9 @@ This registry publishes versioned Bazel dependencies for SONiC. Scope each
 module registration or update PR to one module, including its metadata,
 sources, patches, overlays, and validation.
 
+See [registry CI](ci/README.md) for consumer tests, including
+[upstream archives with source-owned patches](ci/README.md#test-patches-maintained-by-a-source-repository).
+
 ## Module version convention
 
 Use these formats for new module versions:
