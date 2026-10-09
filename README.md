@@ -10,7 +10,7 @@ Use these formats for new module versions:
 
 | Source kind | Format | Example |
 | --- | --- | --- |
-| Third-party (foreign) package | `x.x.x-sonic.y` | `3.12.2-sonic.1` for libyang based on upstream 3.12.2 |
+| Third-party (foreign) package | `x.x.x.sonic.y` | `3.12.2.sonic.1` for libyang based on upstream 3.12.2 |
 | SONiC source repository | `x.x.x-<commitid>` | `0.0.4-83b4e9d963f7f268d06983a8c954fc5d6d93ce2b` for sonic-build-infra |
 
 Classify a module by its source project, not its name or the owner of a fork.
@@ -26,8 +26,8 @@ format even if their names do not start with `sonic-`.
   the first SONiC registry revision and increment it when the downstream
   patch set, Bazel overlays, build configuration, or packaging changes. A
   new upstream version starts a new revision sequence at `1`.
-- Use the hyphenated form exactly: `3.12.2-sonic.1`, then
-  `3.12.2-sonic.2`. Do not use `.sonic.1`, `.sonic-patched`, or
+- Use the dotted form exactly: `3.12.2.sonic.1`, then
+  `3.12.2.sonic.2`. Do not use `-sonic.y`, `.sonic-patched`, or
   `sonic-buildimage` in a new version name.
 - Keep the upstream version tied to the actual source. For a snapshot
   beyond an upstream release, identify that release and represent the
@@ -56,23 +56,26 @@ The version directory, the entry's `MODULE.bazel`, the module's
 must agree. Validate the entry through an external Bazel consumer and
 verify its required build, runtime, and package targets.
 
-Keep already published versions available with their original contents.
-Existing names such as `3.12.2.sonic.1` are historical compatibility
-entries, not examples for new releases. Adopt the convention by publishing
-a new compliant entry and updating consumers' dependency versions and
-registry pins. Do not rename or delete an old directory to migrate it.
-Keep each module's migration in its own PR.
+Keep already published versions available with their original contents,
+including hyphenated names such as `0.9.4-sonic.1`. Migrate by publishing
+a dotted entry and updating consumers' dependency versions and registry
+pins. If the dotted name already exists, reuse it only when it has the
+required contents; otherwise increment the patch revision. Do not rename,
+rewrite, or delete an existing version directory. Keep each module's
+migration in its own PR.
 
 ### Check Bazel's selected version
 
-Bazel treats the text after `-` as a prerelease suffix. In particular:
+Bazel treats the text after `-` as a prerelease suffix. Using `.sonic.y`
+in the release part instead puts the patched version above the matching
+unpatched upstream release:
 
 ```text
-3.12.2-sonic.1 < 3.12.2-sonic.2 < 3.12.2 < 3.12.2.sonic.1
+0.9.4-sonic.1 < 0.9.4 < 0.9.4.sonic.1 < 0.9.4.sonic.2 < 0.9.5
 ```
 
-Consequently, changing a direct dependency to the new spelling does not
-ensure it wins over a higher version requested elsewhere in the graph.
+A dotted patch version outranks its matching upstream release, but higher
+upstream releases or patch revisions can still win elsewhere in the graph.
 Inspect `bazel mod graph`, align dependent version requests, and use a root
 `single_version_override` when the consumer needs to enforce a specific
 patched version. Re-run the consumer tests after changing resolution.
