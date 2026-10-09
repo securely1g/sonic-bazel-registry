@@ -1,35 +1,25 @@
-# Preserve Python native command results
+# Validate dependencies while retaining base packages
 
-This candidate registers the maintained `master` commit
-`199a3d5aa97a6c5260cb7ca4bb5eb36cafb1a57a` landed by
-[sonic-build-infra #26](https://github.com/securely1g/sonic-build-infra/pull/26).
-The native Python wrapper keeps failures, buffered output and normal shutdown
-handlers when it must preload its shared-library dependencies. It excludes
-HWASan alongside the other sanitizer runtimes, so an ordinary Python command
-does not initialize an unused sanitizer or exit during library discovery.
+This source keeps packages already supplied by an image base or its declared
+Make manifest, then validates Depends and Pre-Depends against the final package
+inventory. Compatible FIPS OpenSSL can satisfy tcpdump without replacement;
+a retained version that does not satisfy a requirement fails the build.
 
-[sonic-buildimage #9](https://github.com/securely1g/sonic-buildimage/pull/9)
-needs this through Common's Python binding for its source-built `sonic-cfggen`
-tool. That command renders `docker-init.sh`; a failed render must fail the
-action, and successful redirected output must be complete. This source also
-includes the wheel installer and host-library search fix already adopted by
-that consumer from maintained infrastructure commit `b2b9e981`.
+The pinned python-debian library provides Debian parsing and version ordering.
+The checker supports alternatives, virtual providers and the declared native
+architecture. Invalid or missing metadata fails explicitly. It checks package
+presence and versions, not installation order, maintainer scripts, Conflicts,
+Breaks or runtime ABI compatibility.
 
-The only registry patch changes the module version. The source archive and patch
-are integrity-pinned. Published versions remain unchanged. The landed commit has the same source tree as the reviewed PR head.
+Reviewed locks feed ordinary apt.install declarations and an automatically
+generated public data/control label mapping. Standard Distroless flatten
+assembles selected archives. Parent selection receipts carry complete control
+metadata into child layers, so runtime APT additions remain visible to debug
+validation without modifying the inherited dpkg database.
 
-Buildimage #9 selects this landed version and uses a root
-`single_version_override` so older transitive requests cannot win through
-lexical ordering of Git suffixes. This is the only candidate introduced by
-this registry proposal.
-
-The external registry consumer runs on native AMD64 and ARM64 with Debian
-Trixie. It tests the native Python wrapper using a compiled extension, the
-wheel installer, and the existing runtime/debug tar content, ownership and
-timestamp contracts. Its explicit target set creates no Debian packages.
-The buildimage consumer separately validates the real Common/config-engine
-integration.
-
-The candidate retains the source module base version `0.0.15`. Consumers must
-inspect their resolved graph to verify the selected source; commit suffixes do
-not sort by commit date.
+This entry selects rules_distroless 0.9.4.sonic.1 without a Distroless override;
+the dotted version sorts above upstream 0.9.4. The existing tar.bzl
+0.10.5-sonic.1 override remains. Registry CI validates the shared dependency
+checker, selection, declared inputs, real package assembly and Protobuf headers
+on native AMD64 and ARM64. Tests import existing packages
+and produce tar files, never DEBs. Orchagent PR #15 consumes this source.
