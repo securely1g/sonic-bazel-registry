@@ -4,7 +4,7 @@
   "docs_url": "https://github.com/bazel-contrib/rules_distroless/releases/download/v0.9.4/rules_distroless-v0.9.4.docs.tar.gz",
   "url": "https://github.com/bazel-contrib/rules_distroless/releases/download/v0.9.4/rules_distroless-v0.9.4.tar.gz",
   "patches": {
-    "0001-module-version.patch": "sha256-jCmR/1O+s0bqrrjtcqQqdiINwU5faABDfccNeZZZ7/c=",
+    "0001-module-version.patch": "sha256-bcvWe1DPMkAwUFv2FSI7cqdq8pxqftMOZI2IXJSB7b0=",
     "0002-include-fragments.patch": "sha256-iNpoe/p+zvHebAowncGruHEtEPSMrsIunHTfMNZOY5o=",
     "0003-registry-ci.patch": "sha256-ZkRgmpFEfjYrB0eS1sW60YMjad88YbdWtxBQCD2bMG0="
   },
