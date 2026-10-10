@@ -1,0 +1,30 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "tar.bzl",
+      "version": "0.10.5-sonic.1"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic-build-infra//platforms:x86_64_trixie",
+    "arm64": "@sonic-build-infra//platforms:aarch64_trixie"
+  },
+  "build_targets": [
+    "@sonic-build-infra//apt/tests/integration:added",
+    "@sonic-build-infra//apt/tests/integration:retained",
+    "@sonic-build-infra//apt/tests/integration:policy_only",
+    "@sonic-build-infra//apt/tests/integration:policy_and_manifest",
+    "@sonic-build-infra//third_party/rules_distroless/tests:protobuf_headers_test"
+  ],
+  "test_targets": [
+    "@sonic-build-infra//apt:dependencies_test",
+    "@sonic-build-infra//apt:selection_test",
+    "@sonic-build-infra//apt:inputs_test",
+    "@sonic-build-infra//apt/tests/integration:adapter_test",
+    "@sonic-build-infra//third_party/rules_distroless/tests:protobuf_headers_test"
+  ]
+}
