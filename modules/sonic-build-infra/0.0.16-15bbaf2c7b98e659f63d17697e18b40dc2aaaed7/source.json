@@ -1,0 +1,9 @@
+{
+    "url": "https://github.com/securely1g/sonic-build-infra/archive/15bbaf2c7b98e659f63d17697e18b40dc2aaaed7.tar.gz",
+    "strip_prefix": "sonic-build-infra-15bbaf2c7b98e659f63d17697e18b40dc2aaaed7",
+    "integrity": "sha256-/VwKzNq6/kk5fD6mSsHPS9BXntQdzHQVuIl5RT41md0=",
+    "patches": {
+        "bump-version.patch": "sha256-5ik/Dak1OymZUml3cws2RdCSsnRa0SDR/4LWJwudqPw="
+    },
+    "patch_strip": 1
+}

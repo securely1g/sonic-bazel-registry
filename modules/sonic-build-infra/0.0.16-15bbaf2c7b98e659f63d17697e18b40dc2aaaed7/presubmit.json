@@ -1,0 +1,39 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "tar.bzl",
+      "version": "0.10.5-sonic.1"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic-build-infra//platforms:x86_64_trixie",
+    "arm64": "@sonic-build-infra//platforms:aarch64_trixie"
+  },
+  "build_targets": [
+    "@sonic-build-infra//apt/tests/integration:added",
+    "@sonic-build-infra//apt/tests/integration:retained",
+    "@sonic-build-infra//apt/tests/integration:policy_only",
+    "@sonic-build-infra//apt/tests/integration:policy_and_manifest",
+    "@sonic-build-infra//third_party/rules_distroless/tests:protobuf_headers_test",
+    "@sonic-build-infra//deb/tests:example_import",
+    "@sonic-build-infra//oci:native_matched_symbols",
+    "@sonic-build-infra//oci:normalized_fixture"
+  ],
+  "test_targets": [
+    "@sonic-build-infra//apt:dependencies_test",
+    "@sonic-build-infra//apt:selection_test",
+    "@sonic-build-infra//apt:inputs_test",
+    "@sonic-build-infra//apt/tests/integration:adapter_test",
+    "@sonic-build-infra//third_party/rules_distroless/tests:protobuf_headers_test",
+    "@sonic-build-infra//deb/tests:import_debs_test",
+    "@sonic-build-infra//deb/tests:import_rule_test",
+    "@sonic-build-infra//oci:imported_symbols_test",
+    "@sonic-build-infra//oci:native_symbols_test",
+    "@sonic-build-infra//oci:normalize_layer_test",
+    "@sonic-build-infra//oci:normalize_layer_rule_test"
+  ]
+}
