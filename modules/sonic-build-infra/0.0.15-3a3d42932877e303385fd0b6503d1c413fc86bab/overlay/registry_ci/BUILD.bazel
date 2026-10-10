@@ -1,0 +1,8 @@
+# Build the complete runtime, retaining only its provenance as a CI artifact.
+genrule(
+    name = "kernel_runtime_manifest",
+    srcs = ["//tools/build_tools:kernel_runtime"],
+    outs = ["kernel-runtime.json"],
+    cmd = "cp $(location //tools/build_tools:kernel_runtime)/kernel-runtime.json $@",
+    visibility = ["//visibility:public"],
+)
