@@ -16,6 +16,8 @@
   "build_targets": [
     "@sonic-build-infra//apt/tests/integration:added",
     "@sonic-build-infra//apt/tests/integration:retained",
+    "@sonic-build-infra//apt/tests/integration:policy_only",
+    "@sonic-build-infra//apt/tests/integration:policy_and_manifest",
     "@sonic-build-infra//third_party/rules_distroless/tests:protobuf_headers_test"
   ],
   "test_targets": [
