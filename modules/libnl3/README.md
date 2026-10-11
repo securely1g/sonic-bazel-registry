@@ -1,5 +1,29 @@
 ## SWSS dependency releases
 
+### libnl3 3.7.0.sonic.3
+
+This revision packages the existing SONiC-patched libnl sources for native AMD64
+and ARM64. Runtime libraries and pkg-config files use the target's Debian
+multiarch directory. Libraries retain the upstream `libnl-*.so.200` SONAMEs and
+the installed `.so.200.26.0` files and relative links. CLI plugin lookup uses the
+same `libnl-3/cli` directory as their installed payloads.
+
+Each existing `:libnl-*_pkg` target now has a matching
+`:libnl-*_pkg.debug_symbols` archive. The shared `sonic_deploy_tar` rule builds
+with debug information, then derives the stripped runtime and detached symbols
+from the same linked binaries, including the ten CLI plugins. No DEB is built.
+
+The direct consumer and installed-package tests remain in the native AMD64 and
+ARM64 presubmit matrix. They check the SONiC nexthop API, public headers,
+pkg-config paths, installed shared-library/plugin loading, and each packaged
+ELF's build ID, debug-link checksum, DWARF and GDB lookup. These source packages
+are prerequisites for replacing the imported libnl libraries in
+[Syncd image PR #13](https://github.com/securely1g/sonic-buildimage/pull/13) and
+the source-built base-image chain.
+
+The upstream source archive and RTA_NH_ID patch are unchanged. Previously
+published entries remain available with their original contents.
+
 ### libnl3 3.7.0-sonic.2
 
 The version follows the [registry policy](https://github.com/securely1g/sonic-bazel-registry/blob/main/README.md#module-version-convention): `3.7.0` is the upstream libnl
