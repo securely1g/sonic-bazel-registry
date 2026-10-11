@@ -1,0 +1,9 @@
+{
+  "url": "https://github.com/securely1g/sonic-build-infra/archive/6d9c70f708d7420e9e2b2cdc906b80cee6b140f1.tar.gz",
+  "strip_prefix": "sonic-build-infra-6d9c70f708d7420e9e2b2cdc906b80cee6b140f1/rust/deps",
+  "integrity": "sha256-KyIvlWUL+QvC/3zLlRYWRsFwdoRUiVLk5yyMmQdobAQ=",
+  "patch_strip": 1,
+  "patches": {
+    "bump-version.patch": "sha256-N/9BsSxsgyqPpVtR/5Lyeb9u1jZH8TAfIwkQyzPrpe8="
+  }
+}
