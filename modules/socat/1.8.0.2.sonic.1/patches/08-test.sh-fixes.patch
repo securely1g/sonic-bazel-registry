@@ -1,0 +1,736 @@
+Subject: Preserve Debian test exclusions for cases that fail on its build daemons.
+Origin: https://sources.debian.org/src/socat/1.8.0.2-1/debian/patches/08-test.sh-fixes.patch/
+Source-package: socat_1.8.0.2-1.debian.tar.xz (SHA256 04b361cd91884eda6ca9fe2890ca83a6abe73dd8ce75fe9927b2d8443af36123)
+
+--- a/test.sh
++++ b/test.sh
+@@ -59,7 +59,8 @@ usage() {
+ }
+ 
+ val_t=
+-NUMCOND=true
++#NUMCOND=true
++NUMCOND="test \$N -ne 13 -a \$N -ne 28 -a \$N -ne 29 -a \$N -ne 31 -a \$N -ne 53 -a \$N -ne 104 -a \$N -ne 105 -a \$N -ne 144 -a \$N -ne 162 -a \$N -ne 202 -a \$N -ne 217 -a \$N -ne 226 -a \$N -ne 227 -a \$N -ne 327 -a \$N -ne 329 -a \$N -ne 370 -a \$N -ne 386 -a \$N -ne 388 -a \$N -ne 410 -a \$N -ne 466 -a \$N -ne 467 -a \$N -ne 468 -a \$N -ne 478 -a \$N -ne 493 -a \$N -ne 496 -a \$N -ne 503 -a \$N -ne 513 -a \$N -ne 517 -a \$N -ne 518 -a \$N -ne 519"
+ #NUMCOND="test \$N -gt 70"
+ VERBOSE=
+ DEBUG=
+@@ -190,6 +191,13 @@ PATH=.:$PATH 	# for usleep,relsleep
+ #SOCAT_EGD="egd=/dev/egd-pool"
+ MISCDELAY=1
+ 
++# Export SHELL for SHELL: cmds
++[ ! -z "$SHELL" ] && export SHELL || export SHELL=/bin/sh
++# Export USER on linux
++if [ "$UNAME" = "Linux" ]; then
++   [ ! -z "$USER" ] && export USER || export USER=$(id -un)
++fi
++
+ OPTS="$opt_t $OPTS"
+ opts="$OPTS"
+ [ "$DEFS" ] && echo "opts=\"$opts\"" >&2
+@@ -1193,14 +1201,15 @@ routesip6 () {
+ # platform is supported, features compiled in, addresses and options
+ # available; needs root; is allowed to access the internet
+ checkconds() {
+-    local unames="$(echo "$1")" 	# must be one of... exa: "Linux,FreeBSD"
+-    local root="$2" 				# "root" or ""
++    local unames="$(echo "$1")" 			# must be one of... exa: "Linux,FreeBSD"
++    local root="$2" 					# "root" or "hostroot" or ""
+     local progs="$(echo "$3" |tr 'A-Z,' 'a-z ')"	# exa: "nslookup"
+     local feats="$(echo "$4" |tr 'a-z,' 'A-Z ')" 	# list of req.features (socat -V)
+     local addrs="$(echo "$5" |tr 'a-z,' 'A-Z ')" 	# list of req.addresses (socat -h)
+     local opts="$(echo "$6" |tr 'A-Z,' 'a-z ')" 	# list of req.options (socat -hhh)
+     local runs="$(echo "$7" |tr , ' ')" 		# list of req.protocols, exa: "sctp6"
+     local inet="$8" 					# when "internet": needs allowance
++    local caps="$9"					# Linux capabilities to test against
+     local i
+ 
+     if [ "$unames" ]; then
+@@ -1215,11 +1224,26 @@ checkconds() {
+ 	[ "$i" ] && { echo "Only on (one of) $unames"; return 255; }
+     fi
+ 
+-    if [ "$root" = "root" ]; then
++    if [ "$root" = "root" -o "$root" = "hostroot" ]; then
+ 	if [ $(id -u) -ne 0 -a "$withroot" -eq 0 ]; then
+ 	    echo "Must be root"
+ 	    return 255
+ 	fi
++
++	if [ "$UNAME" = "Linux" ]; then
++            if touch /root.test && chattr +i /root.test 2>/dev/null && chattr -i /root.test 2>/dev/null; then
++		echo "The root is real"
++            else
++		# There is root in namespace or container
++		# If hostroot is requested, bail out
++
++		if [ "$root" = "hostroot" ]; then
++		    echo "host root is needed for this test"
++		    return 255
++		fi
++	    fi
++	    rm -f /root.test
++	fi
+     fi
+ 
+     if [ "$progs" ]; then
+@@ -1262,11 +1286,25 @@ checkconds() {
+     fi
+ 
+     if [ "$inet" ]; then
+-	if [ -z "$NTERNET" ]; then
++	if [ -z "$INTERNET" ]; then
+ 	    echo "Use test.sh option --internet"
+ 	    return 255
+ 	fi
+     fi
++
++    if [ "$caps" ]; then
++	allcaps="$(getpcaps $$)"
++	if [ $? -ne 0 ]; then
++	    echo "getpcaps program missing but caps requested"
++	    return 255
++	fi
++	for i in $caps; do
++	    if ! echo "$allcaps" | grep -q "$i"; then
++		echo "capability $i not available on host"
++		return 255;
++	    fi
++	done
++    fi
+     return 0
+ }
+ 
+@@ -2204,8 +2242,16 @@ elif ! feat=$(testfeats rawip) >/dev/nul
+     $PRINTF "test $F_n $TEST... ${YELLOW}RAWIP not available${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+-elif [ $(id -u) -ne 0 -a "$withroot" -eq 0 ]; then
+-    $PRINTF "test $F_n $TEST... ${YELLOW}must be root${NORMAL}\n" $N
++elif ! cond=$(checkconds "" \
++			 "root" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "cap_net_raw" ); then
++    $PRINTF "test $F_n $TEST... ${YELLOW}$cond${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+ else
+@@ -2227,8 +2273,16 @@ elif ! feat=$(testfeats rawip) >/dev/nul
+     $PRINTF "test $F_n $TEST... ${YELLOW}RAWIP not available${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+-elif [ $(id -u) -ne 0 -a "$withroot" -eq 0 ]; then
+-    $PRINTF "test $F_n $TEST... ${YELLOW}must be root${NORMAL}\n" $N
++elif ! cond=$(checkconds "" \
++			 "root" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "cap_net_raw" ); then
++    $PRINTF "test $F_n $TEST... ${YELLOW}$cond${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+ else
+@@ -2250,8 +2304,16 @@ elif ! feat=$(testfeats rawip) || ! runs
+     $PRINTF "test $F_n $TEST... ${YELLOW}RAWIP not available${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+-elif [ $(id -u) -ne 0 -a "$withroot" -eq 0 ]; then
+-    $PRINTF "test $F_n $TEST... ${YELLOW}must be root${NORMAL}\n" $N
++elif ! cond=$(checkconds "" \
++			 "root" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "cap_net_raw" ); then
++    $PRINTF "test $F_n $TEST... ${YELLOW}$cond${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+ else
+@@ -2273,8 +2335,16 @@ elif ! feat=$(testfeats rawip) || ! runs
+     $PRINTF "test $F_n $TEST... ${YELLOW}RAWIP not available${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+-elif [ $(id -u) -ne 0 -a "$withroot" -eq 0 ]; then
+-    $PRINTF "test $F_n $TEST... ${YELLOW}must be root${NORMAL}\n" $N
++elif ! cond=$(checkconds "" \
++			 "root" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "cap_net_raw" ); then
++    $PRINTF "test $F_n $TEST... ${YELLOW}$cond${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+ else
+@@ -7032,8 +7102,16 @@ case "$TESTS" in
+ *%$N%*|*%functions%*|*%ip%*|*%ip4%*|*%rawip%*|*%rawip4%*|*%dgram%*|*%root%*|*%$NAME%*)
+ TEST="$NAME: raw IPv4 datagram"
+ if ! eval $NUMCOND; then :;
+-elif [ $(id -u) -ne 0 -a "$withroot" -eq 0 ]; then
+-    $PRINTF "test $F_n $TEST... ${YELLOW}must be root${NORMAL}\n" $N
++elif ! cond=$(checkconds "" \
++			 "root" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "cap_net_raw" ); then
++    $PRINTF "test $F_n $TEST... ${YELLOW}$cond${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+ else
+@@ -7089,8 +7167,16 @@ elif ! feat=$(testfeats ip6 rawip && run
+     $PRINTF "test $F_n $TEST... ${YELLOW}$feat not available${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+-elif [ $(id -u) -ne 0 -a "$withroot" -eq 0 ]; then
+-    $PRINTF "test $F_n $TEST... ${YELLOW}must be root${NORMAL}\n" $N
++elif ! cond=$(checkconds "" \
++			 "root" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "cap_net_raw" ); then
++    $PRINTF "test $F_n $TEST... ${YELLOW}$cond${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+ else
+@@ -7295,8 +7381,16 @@ case "$TESTS" in
+ *%$N%*|*%functions%*|*%ip4%*|*%dgram%*|*%rawip%*|*%rawip4%*|*%recv%*|*%root%*|*%$NAME%*)
+ TEST="$NAME: raw IPv4 receive"
+ if ! eval $NUMCOND; then :;
+-elif [ $(id -u) -ne 0 -a "$withroot" -eq 0 ]; then
+-    $PRINTF "test $F_n $TEST... ${YELLOW}must be root${NORMAL}\n" $N
++elif ! cond=$(checkconds "" \
++			 "root" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "cap_net_raw" ); then
++    $PRINTF "test $F_n $TEST... ${YELLOW}$cond${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+ else
+@@ -7351,8 +7445,16 @@ elif ! feat=$(testfeats ip6 rawip && run
+     $PRINTF "test $F_n $TEST... ${YELLOW}$feat not available${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+-elif [ $(id -u) -ne 0 -a "$withroot" -eq 0 ]; then
+-    $PRINTF "test $F_n $TEST... ${YELLOW}must be root${NORMAL}\n" $N
++elif ! cond=$(checkconds "" \
++			 "root" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "cap_net_raw" ); then
++    $PRINTF "test $F_n $TEST... ${YELLOW}$cond${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+ else
+@@ -7752,8 +7854,16 @@ elif ! feat=$(testfeats ip4 rawip) || !
+     $PRINTF "test $F_n $TEST... ${YELLOW}$feat not available${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+-elif [ $(id -u) -ne 0 -a "$withroot" -eq 0 ]; then
+-    $PRINTF "test $F_n $TEST... ${YELLOW}must be root${NORMAL}\n" $N
++elif ! cond=$(checkconds "" \
++			 "root" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "cap_net_raw" ); then
++    $PRINTF "test $F_n $TEST... ${YELLOW}$cond${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+ else
+@@ -7774,8 +7884,16 @@ elif ! feat=$(testfeats ip4 rawip libwra
+     $PRINTF "test $F_n $TEST... ${YELLOW}$feat not available${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+-elif [ $(id -u) -ne 0 -a "$withroot" -eq 0 ]; then
+-    $PRINTF "test $F_n $TEST... ${YELLOW}must be root${NORMAL}\n" $N
++elif ! cond=$(checkconds "" \
++			 "root" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "cap_net_raw" ); then
++    $PRINTF "test $F_n $TEST... ${YELLOW}$cond${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+ else
+@@ -7802,8 +7920,16 @@ elif ! feat=$(testfeats ip4 rawip) || !
+     $PRINTF "test $F_n $TEST... ${YELLOW}IP4 not available${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+-elif [ $(id -u) -ne 0 -a "$withroot" -eq 0 ]; then
+-    $PRINTF "test $F_n $TEST... ${YELLOW}must be root${NORMAL}\n" $N
++elif ! cond=$(checkconds "" \
++			 "root" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "cap_net_raw" ); then
++    $PRINTF "test $F_n $TEST... ${YELLOW}$cond${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+ else
+@@ -7828,8 +7954,16 @@ elif ! feat=$(testfeats ip4 rawip libwra
+     $PRINTF "test $F_n $TEST... ${YELLOW}$feat not available${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+-elif [ $(id -u) -ne 0 -a "$withroot" -eq 0 ]; then
+-    $PRINTF "test $F_n $TEST... ${YELLOW}must be root${NORMAL}\n" $N
++elif ! cond=$(checkconds "" \
++			 "root" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "cap_net_raw" ); then
++    $PRINTF "test $F_n $TEST... ${YELLOW}$cond${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+ else
+@@ -7857,8 +7991,16 @@ elif ! feat=$(testfeats ip6 rawip && run
+     $PRINTF "test $F_n $TEST... ${YELLOW}$feat not available${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+-elif [ $(id -u) -ne 0 -a "$withroot" -eq 0 ]; then
+-    $PRINTF "test $F_n $TEST... ${YELLOW}must be root${NORMAL}\n" $N
++elif ! cond=$(checkconds "" \
++			 "root" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "cap_net_raw" ); then
++    $PRINTF "test $F_n $TEST... ${YELLOW}$cond${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+ else
+@@ -7879,8 +8021,16 @@ elif ! feat=$(testfeats ip6 rawip libwra
+     $PRINTF "test $F_n $TEST... ${YELLOW}$feat not available${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+-elif [ $(id -u) -ne 0 -a "$withroot" -eq 0 ]; then
+-    $PRINTF "test $F_n $TEST... ${YELLOW}must be root${NORMAL}\n" $N
++elif ! cond=$(checkconds "" \
++			 "root" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "cap_net_raw" ); then
++    $PRINTF "test $F_n $TEST... ${YELLOW}$cond${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+ else
+@@ -7906,8 +8056,16 @@ elif ! feat=$(testfeats ip6 rawip) || !
+     $PRINTF "test $F_n $TEST... ${YELLOW}raw IP6 not available${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+-elif [ $(id -u) -ne 0 -a "$withroot" -eq 0 ]; then
+-    $PRINTF "test $F_n $TEST... ${YELLOW}must be root${NORMAL}\n" $N
++elif ! cond=$(checkconds "" \
++			 "root" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "cap_net_raw" ); then
++    $PRINTF "test $F_n $TEST... ${YELLOW}$cond${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+ else
+@@ -7930,8 +8088,16 @@ elif ! feat=$(testfeats ip6 rawip libwra
+     $PRINTF "test $F_n $TEST... ${YELLOW}$feat not available${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+-elif [ $(id -u) -ne 0 -a "$withroot" -eq 0 ]; then
+-    $PRINTF "test $F_n $TEST... ${YELLOW}must be root${NORMAL}\n" $N
++elif ! cond=$(checkconds "" \
++			 "root" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "cap_net_raw" ); then
++    $PRINTF "test $F_n $TEST... ${YELLOW}$cond${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+ else
+@@ -8678,8 +8844,16 @@ elif ! feat=$(testfeats ip4 rawip) || !
+     $PRINTF "test $F_n $TEST... ${YELLOW}raw IP4 not available${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+-elif [ $(id -u) -ne 0 -a "$withroot" -eq 0 ]; then
+-    $PRINTF "test $F_n $TEST... ${YELLOW}must be root${NORMAL}\n" $N
++elif ! cond=$(checkconds "" \
++			 "root" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "cap_net_raw" ); then
++    $PRINTF "test $F_n $TEST... ${YELLOW}$cond${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+ elif [ -z "$BCADDR" ]; then
+@@ -8830,8 +9004,16 @@ elif ! feat=$(testfeats ip4 rawip) || !
+     $PRINTF "test $F_n $TEST... ${YELLOW}$feat not available${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+-elif [ $(id -u) -ne 0 -a "$withroot" -eq 0 ]; then
+-    $PRINTF "test $F_n $TEST... ${YELLOW}must be root${NORMAL}\n" $N
++elif ! cond=$(checkconds "" \
++			 "root" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "cap_net_raw" ); then
++    $PRINTF "test $F_n $TEST... ${YELLOW}$cond${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+ else
+@@ -9027,8 +9209,16 @@ elif ! feat=$(testfeats ip4 rawip) || !
+     $PRINTF "test $F_n $TEST... ${YELLOW}$feat not available${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+-elif [ $(id -u) -ne 0 -a "$withroot" -eq 0 ]; then
+-    $PRINTF "test $F_n $TEST... ${YELLOW}must be root${NORMAL}\n" $N
++elif ! cond=$(checkconds "" \
++			 "root" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "cap_net_raw" ); then
++    $PRINTF "test $F_n $TEST... ${YELLOW}$cond${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+ else
+@@ -9091,8 +9281,16 @@ elif ! feat=$(testfeats ip4 tun) || ! ru
+     $PRINTF "test $F_n $TEST... ${YELLOW}$feat not available${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+-elif [ $(id -u) -ne 0 -a "$withroot" -eq 0 ]; then
+-    $PRINTF "test $F_n $TEST... ${YELLOW}must be root${NORMAL}\n" $N
++elif ! cond=$(checkconds "" \
++			 "root" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "cap_net_raw" ); then
++    $PRINTF "test $F_n $TEST... ${YELLOW}$cond${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+ else
+@@ -9153,8 +9351,16 @@ elif ! feat=$(testfeats ip4 tun interfac
+     $PRINTF "test $F_n $TEST... ${YELLOW}$feat not available${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+-elif [ $(id -u) -ne 0 -a "$withroot" -eq 0 ]; then
+-    $PRINTF "test $F_n $TEST... ${YELLOW}must be root${NORMAL}\n" $N
++elif ! cond=$(checkconds "" \
++			 "root" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "cap_net_raw" ); then
++    $PRINTF "test $F_n $TEST... ${YELLOW}$cond${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+ else
+@@ -9836,8 +10042,16 @@ TEST="$NAME: raw IPv4 receive with bind"
+ # idea: start a socat process with ip4-recv:...,bind=... and send it a packet
+ # if the packet passes the test succeeded
+ if ! eval $NUMCOND; then :;
+-elif [ $(id -u) -ne 0 -a "$withroot" -eq 0 ]; then
+-    $PRINTF "test $F_n $TEST... ${YELLOW}must be root${NORMAL}\n" $N
++elif ! cond=$(checkconds "" \
++			 "root" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "cap_net_raw" ); then
++    $PRINTF "test $F_n $TEST... ${YELLOW}$cond${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+ else
+@@ -10167,8 +10381,16 @@ TEST="$NAME: $KEYW log ancillary message
+ # for the appropriate output.
+ if ! eval $NUMCOND; then :;
+ #elif [[ "$PF" == "#*" ]]; then :
+-elif [ "$ROOT" = root -a $(id -u) -ne 0 -a "$withroot" -eq 0 ]; then
+-    $PRINTF "test $F_n $TEST... ${YELLOW}must be root${NORMAL}\n" $N
++elif ! cond=$(checkconds "" \
++			 "root" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "cap_net_raw" ); then
++    $PRINTF "test $F_n $TEST... ${YELLOW}$cond${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+ elif ! feat=$(testfeats ${KEYW%[46]} IP${KEYW##*[A-Z]}); then
+@@ -10435,8 +10657,16 @@ TEST="$NAME: $KEYW ancillary message set
+ # the resulting environment to a file and check its contents for the
+ # appropriate variable.
+ if ! eval $NUMCOND; then :;
+-elif [ "$ROOT" = root -a $(id -u) -ne 0 -a "$withroot" -eq 0 ]; then
+-    $PRINTF "test $F_n $TEST... ${YELLOW}must be root${NORMAL}\n" $N
++elif ! cond=$(checkconds "" \
++			 "root" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "cap_net_raw" ); then
++    $PRINTF "test $F_n $TEST... ${YELLOW}$cond${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+ elif [ "$PF" = "IP6" ] && ( ! feat=$(testfeats ip6) || ! runsip6 ) >/dev/null; then
+@@ -12677,8 +12907,16 @@ TEST="$NAME: $ADDR applies option user"
+ # Check the owner of the FS entry, then terminate the process.
+ # Test succeeds when FS entry exists and has expected owner.
+ if ! eval $NUMCOND; then :;
+-elif [ $(id -u) -ne 0 -a "$withroot" -eq 0 ]; then
+-    $PRINTF "test $F_n $TEST... ${YELLOW}must be root${NORMAL}\n" $N
++elif ! cond=$(checkconds "" \
++			 "root" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "cap_net_raw" ); then
++    $PRINTF "test $F_n $TEST... ${YELLOW}$cond${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+ else
+@@ -15235,6 +15473,23 @@ N=$((N+1))
+ # Up to version 1.7.4.2 this desired behaviour was found for most combinations,
+ # however some fix in 1.7.4.3 degraded the overall result.
+ # This group of tests checks all known compinations.
++
++# On Linux root can happily write to "denied" file protected by "chmod 000"
++# Real root should set immutable flag via "chattr +i" but namespace root
++# needs capabilities Docker or Podman usually do not provide
++hostroot=1
++if ! cond=$(checkconds "" \
++		 "hostroot" \
++		 "" \
++		 "" \
++		 "" \
++		 "" \
++		 "" \
++		 "" \
++		 "" ); then
++    hostroot=0
++fi
++
+ while read entry method; do
+ if [ -z "$entry" ] || [[ "$entry" == \#* ]]; then continue; fi
+ NAME=$(toupper $method)_TO_$(toupper $entry)
+@@ -15255,7 +15510,20 @@ printf "test $F_n $TEST... " $N
+ # create an invalid or non-matching UNIX socket
+ case "$entry" in
+     missing)     pid0=; rm -f $ts ;;
+-    denied)      pid0=; rm -f $ts; touch $ts; chmod 000 $ts ;;
++    denied)      pid0=; rm -f $ts; touch $ts;
++		 if [ "$UNAME" != "Linux" ]; then
++		     chmod 000 $ts
++		 else
++		     if [ "$hostroot" -eq 0 -a "$method" = "gopen" ]; then
++			 $PRINTF "${YELLOW}need host root${NORMAL}\n" $N
++			 numCANT=$((numCANT+1))
++			 listCANT="$listCANT $N"
++			 N=$(( N + 1 ))
++			 continue
++		     fi
++		     chattr +i $ts 2>/dev/null
++		 fi
++		 ;;
+     directory)   pid0=; mkdir -p $ts ;;
+     orphaned)    pid0= 	# the remainder of a UNIX socket in FS
+ 		 SOCAT_MAIN_WAIT= $SOCAT $opts UNIX-LISTEN:$ts,unlink-close=0 /dev/null >${tf}0 2>${te}0 &
+@@ -15315,12 +15583,15 @@ else
+     numOK=$((numOK+1))
+     listOK="$listOK $N"
+ fi
++if [ "$UNAME" = "Linux" ]; then
++    chattr -i $ts 2>/dev/null
++fi
+ set +vx
+ fi # NUMCOND
+  ;;
+ esac
+ N=$((N+1))
+-done <<<"
++done <<< "
+ missing     connect
+ denied      connect
+ directory   connect
+@@ -15359,7 +15630,6 @@ directory   gopen
+ orphaned    gopen
+ "
+ 
+-
+ # Test TCP with options connect-timeout and retry.
+ # Up to 1.7.4.3 this terminated immediately on connection refused
+ NAME=TCP_TIMEOUT_RETRY
+@@ -16498,9 +16768,15 @@ printf "test $F_n $TEST... " $N
+ pid0=$!
+ relsleep 2
+ TTY=$(tty |sed 's|/dev/||')
+-pkill -USR1 -t $TTY socat || { echo "pkill -t $TTY -USR1 socat"; }
+-relsleep 2
+-pkill -t $TTY socat
++if echo "$TTY" | grep -q /; then
++    pkill -USR1 -t $TTY socat || { echo "pkill -t $TTY -USR1 socat"; }
++    relsleep 1
++    pkill -t $TTY socat
++else
++    pkill -USR1 socat || { echo "pkill -USR1 socat"; }
++    relsleep 1
++    pkill socat
++fi
+ wait
+ if [ "$(grep STATISTICS "${te}0" |wc -l)" -eq 2 ]; then
+     $PRINTF "$OK\n"
+@@ -16594,8 +16870,16 @@ TEST="$NAME: INTERFACE ignores outgoing
+ #idea: create a TUN interface and hook with INTERFACE.
+ # Send a packet out the interface, should not be seen by INTERFACE
+ if ! eval $NUMCOND; then :;
+-elif [ $(id -u) -ne 0 -a "$withroot" -eq 0 ]; then
+-    $PRINTF "test $F_n $TEST... ${YELLOW}must be root${NORMAL}\n" $N
++elif ! cond=$(checkconds "" \
++			 "root" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "cap_net_raw" ); then
++    $PRINTF "test $F_n $TEST... ${YELLOW}$cond${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+ elif ! $(type ping >/dev/null 2>&1); then
+@@ -17111,8 +17395,16 @@ elif [ "$UNAME" != Linux ]; then
+     $PRINTF "test $F_n $TEST... ${YELLOW}Only on Linux${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+-elif [ $(id -u) -ne 0 -a "$withroot" -eq 0 ]; then
+-    $PRINTF "test $F_n $TEST... ${YELLOW}Must be root${NORMAL}\n" $N
++elif ! cond=$(checkconds "" \
++			 "root" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "cap_net_raw" ); then
++    $PRINTF "test $F_n $TEST... ${YELLOW}$cond${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+ elif ! $(type ip >/dev/null 2>&1); then
+@@ -17218,8 +17510,16 @@ elif [ "$UNAME" != Linux ]; then
+     $PRINTF "test $F_n $TEST... ${YELLOW}Only on Linux${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+-elif [ $(id -u) -ne 0 -a "$withroot" -eq 0 ]; then
+-    $PRINTF "test $F_n $TEST... ${YELLOW}Must be root${NORMAL}\n" $N
++elif ! cond=$(checkconds "" \
++			 "root" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "" \
++			 "cap_net_raw" ); then
++    $PRINTF "test $F_n $TEST... ${YELLOW}$cond${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
+ elif ! $(type ip >/dev/null 2>&1); then
+@@ -19299,6 +19599,10 @@ elif ! cond=$(checkconds \
+     $PRINTF "test $F_n $TEST... ${YELLOW}$cond${NORMAL}\n" $N
+     numCANT=$((numCANT+1))
+     listCANT="$listCANT $N"
++elif ! tty | grep -q /dev/; then
++    $PRINTF "test $F_n $TEST... ${YELLOW}not a tty${NORMAL}\n" $N
++    numCANT=$((numCANT+1))
++    listCANT="$listCANT $N"
+ else
+     tf="$td/test$N.stdout"
+     te="$td/test$N.stderr"
