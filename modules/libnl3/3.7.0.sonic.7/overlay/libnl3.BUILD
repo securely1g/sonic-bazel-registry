@@ -1,17 +1,25 @@
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("@rules_bison//bison:bison.bzl", "bison_cc_library")
 load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
+load("@rules_cc//cc:cc_static_library.bzl", "cc_static_library")
 load("@rules_cc//cc:defs.bzl", "cc_library")
 load("@rules_distroless//distroless:defs.bzl", "flatten")
 load("@rules_flex//flex:flex.bzl", "flex")
+load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
 load("@tar.bzl", "mutate", "tar")
+load(":archive_inputs.bzl", "archive_inputs")
+
+MULTIARCH = {
+    "x86_64": "x86_64-linux-gnu",
+    "arm64": "aarch64-linux-gnu",
+}
 
 # =============================================================================
 # Generated headers
 # =============================================================================
 
 # Generate lib/defs.h from autoconf template.
-# On Linux/glibc x86_64 all standard headers exist.
+# On the supported Debian Linux/glibc platforms these standard headers exist.
 genrule(
     name = "defs_h",
     srcs = ["lib/defs.h.in"],
@@ -45,7 +53,7 @@ genrule(
             -e 's|#undef STDC_HEADERS|#define STDC_HEADERS 1|' \
             -e 's|#undef VERSION|#define VERSION "3.7.0"|' \
             $(SRCS) > $@
-        echo '#define SYSCONFDIR "/etc/libnl"' >> $@
+        echo '#define SYSCONFDIR "/etc/libnl-3"' >> $@
     """,
 )
 
@@ -313,9 +321,10 @@ cc_library(
     name = "libnl_cli_3",
     srcs = glob(["src/lib/*.c"]),
     copts = LIBNL_COPTS,
-    defines = [
-        'PKGLIBDIR=\\"/usr/lib/x86_64-linux-gnu/libnl\\"',
-    ],
+    defines = select({
+        "@platforms//cpu:" + cpu: ['PKGLIBDIR=\\"/usr/lib/{}/libnl-3\\"'.format(multiarch)]
+        for cpu, multiarch in MULTIARCH.items()
+    }),
     visibility = ["//visibility:public"],
     deps = [
         ":libnl_3",
@@ -343,7 +352,7 @@ cc_shared_library(
     deps = [":libnl_cli_3"],
 )
 
-# CLI plugin shared objects installed to /usr/lib/x86_64-linux-gnu/libnl-3/cli/
+# CLI plugin shared objects installed under the target multiarch libnl-3/cli directory.
 # These are loadable modules (not linked libraries), built as individual .so files.
 
 cc_library(
@@ -566,80 +575,79 @@ cc_shared_library(
     deps = [":libnl_cli_qdisc_plug"],
 )
 
-# TODO(bazel-ready): Parameterize tar files by target architecture.
-# TODO(bazel-ready): Generate `.200` packages if needed.
+# Runtime paths match the upstream libtool ABI version and Debian layout.
+RUNTIME_LIBRARIES = {
+    "libnl-3": ":libnl_3_shared",
+    "libnl-genl-3": ":libnl_genl_3_shared",
+    "libnl-route-3": ":libnl_route_3_shared",
+    "libnl-nf-3": ":libnl_nf_3_shared",
+    "libnl-cli-3": ":libnl_cli_3_shared",
+}
 
-tar(
-    name = "libnl-3_pkg",
-    srcs = [":libnl_3_shared"],
-    mtree = [
-        "./usr/lib/x86_64-linux-gnu/libnl-3.so.200 uid=0 gid=0 mode=0755 type=file content=$(location :libnl_3_shared)",
-        "./usr/lib/x86_64-linux-gnu/libnl-3.so uid=0 gid=0 mode=0755 type=link link=libnl-3.so.200",
-    ],
-    visibility = ["//visibility:public"],
-)
+CLI_PLUGINS = {
+    "cls/basic.so": ":libnl_cli_cls_basic_shared",
+    "cls/cgroup.so": ":libnl_cli_cls_cgroup_shared",
+    "qdisc/bfifo.so": ":libnl_cli_qdisc_bfifo_shared",
+    "qdisc/blackhole.so": ":libnl_cli_qdisc_blackhole_shared",
+    "qdisc/fq_codel.so": ":libnl_cli_qdisc_fq_codel_shared",
+    "qdisc/hfsc.so": ":libnl_cli_qdisc_hfsc_shared",
+    "qdisc/htb.so": ":libnl_cli_qdisc_htb_shared",
+    "qdisc/ingress.so": ":libnl_cli_qdisc_ingress_shared",
+    "qdisc/pfifo.so": ":libnl_cli_qdisc_pfifo_shared",
+    "qdisc/plug.so": ":libnl_cli_qdisc_plug_shared",
+}
 
-tar(
-    name = "libnl-genl-3_pkg",
-    srcs = [":libnl_genl_3_shared"],
-    mtree = [
-        "./usr/lib/x86_64-linux-gnu/libnl-genl-3.so.200 uid=0 gid=0 mode=0755 type=file content=$(location :libnl_genl_3_shared)",
-        "./usr/lib/x86_64-linux-gnu/libnl-genl-3.so uid=0 gid=0 mode=0755 type=link link=libnl-genl-3.so.200",
-    ],
-    visibility = ["//visibility:public"],
-)
+[
+    sonic_deploy_tar(
+        name = stem + kind + "_" + cpu,
+        srcs = [
+            "etc/classid",
+            "etc/pktloc",
+        ] if stem == "libnl-3" else [],
+        binaries = {
+            "usr/lib/{}/{}.so.200.26.0 uid=0 gid=0 mode=0644 type=file".format(multiarch, stem): binary,
+        } | ({
+            "usr/lib/{}/libnl-3/cli/{} uid=0 gid=0 mode=0644 type=file".format(multiarch, path): plugin
+            for path, plugin in CLI_PLUGINS.items()
+        } if stem == "libnl-cli-3" else {}),
+        force_debug_build = True,
+        mtree = [
+            "usr/lib/{}/{}.so.200 uid=0 gid=0 type=link time=0 link={}.so.200.26.0".format(multiarch, stem, stem),
+        ] + ([
+            "usr/lib/{}/{}.so uid=0 gid=0 type=link time=0 link={}.so.200".format(multiarch, stem, stem),
+        ] if kind == "_pkg" else []) + ([
+            "etc/libnl-3/{} uid=0 gid=0 mode=0644 type=file content=$(location etc/{})".format(name, name)
+            for name in [
+                "classid",
+                "pktloc",
+            ]
+        ] if stem == "libnl-3" else []),
+        target_compatible_with = ["@platforms//cpu:" + cpu],
+        visibility = ["//visibility:public"],
+    )
+    for stem, binary in RUNTIME_LIBRARIES.items()
+    for kind in [
+        "_pkg",
+        "-runtime_files",
+    ]
+    for cpu, multiarch in MULTIARCH.items()
+]
 
-tar(
-    name = "libnl-route-3_pkg",
-    srcs = [":libnl_route_3_shared"],
-    mtree = [
-        "./usr/lib/x86_64-linux-gnu/libnl-route-3.so.200 uid=0 gid=0 mode=0755 type=file content=$(location :libnl_route_3_shared)",
-        "./usr/lib/x86_64-linux-gnu/libnl-route-3.so uid=0 gid=0 mode=0755 type=link link=libnl-route-3.so.200",
-    ],
-    visibility = ["//visibility:public"],
-)
-
-tar(
-    name = "libnl-nf-3_pkg",
-    srcs = [":libnl_nf_3_shared"],
-    mtree = [
-        "./usr/lib/x86_64-linux-gnu/libnl-nf-3.so.200 uid=0 gid=0 mode=0755 type=file content=$(location :libnl_nf_3_shared)",
-        "./usr/lib/x86_64-linux-gnu/libnl-nf-3.so uid=0 gid=0 mode=0755 type=link link=libnl-nf-3.so.200",
-    ],
-    visibility = ["//visibility:public"],
-)
-
-tar(
-    name = "libnl-cli-3_pkg",
-    srcs = [
-        ":libnl_cli_3_shared",
-        ":libnl_cli_cls_basic_shared",
-        ":libnl_cli_cls_cgroup_shared",
-        ":libnl_cli_qdisc_bfifo_shared",
-        ":libnl_cli_qdisc_blackhole_shared",
-        ":libnl_cli_qdisc_fq_codel_shared",
-        ":libnl_cli_qdisc_hfsc_shared",
-        ":libnl_cli_qdisc_htb_shared",
-        ":libnl_cli_qdisc_ingress_shared",
-        ":libnl_cli_qdisc_pfifo_shared",
-        ":libnl_cli_qdisc_plug_shared",
-    ],
-    mtree = [
-        "./usr/lib/x86_64-linux-gnu/libnl-cli-3.so.200 uid=0 gid=0 mode=0755 type=file content=$(location :libnl_cli_3_shared)",
-        "./usr/lib/x86_64-linux-gnu/libnl-cli-3.so uid=0 gid=0 mode=0755 type=link link=libnl-cli-3.so.200",
-        "./usr/lib/x86_64-linux-gnu/libnl-3/cli/cls/basic.so uid=0 gid=0 mode=0755 type=file content=$(location :libnl_cli_cls_basic_shared)",
-        "./usr/lib/x86_64-linux-gnu/libnl-3/cli/cls/cgroup.so uid=0 gid=0 mode=0755 type=file content=$(location :libnl_cli_cls_cgroup_shared)",
-        "./usr/lib/x86_64-linux-gnu/libnl-3/cli/qdisc/bfifo.so uid=0 gid=0 mode=0755 type=file content=$(location :libnl_cli_qdisc_bfifo_shared)",
-        "./usr/lib/x86_64-linux-gnu/libnl-3/cli/qdisc/blackhole.so uid=0 gid=0 mode=0755 type=file content=$(location :libnl_cli_qdisc_blackhole_shared)",
-        "./usr/lib/x86_64-linux-gnu/libnl-3/cli/qdisc/fq_codel.so uid=0 gid=0 mode=0755 type=file content=$(location :libnl_cli_qdisc_fq_codel_shared)",
-        "./usr/lib/x86_64-linux-gnu/libnl-3/cli/qdisc/hfsc.so uid=0 gid=0 mode=0755 type=file content=$(location :libnl_cli_qdisc_hfsc_shared)",
-        "./usr/lib/x86_64-linux-gnu/libnl-3/cli/qdisc/htb.so uid=0 gid=0 mode=0755 type=file content=$(location :libnl_cli_qdisc_htb_shared)",
-        "./usr/lib/x86_64-linux-gnu/libnl-3/cli/qdisc/ingress.so uid=0 gid=0 mode=0755 type=file content=$(location :libnl_cli_qdisc_ingress_shared)",
-        "./usr/lib/x86_64-linux-gnu/libnl-3/cli/qdisc/pfifo.so uid=0 gid=0 mode=0755 type=file content=$(location :libnl_cli_qdisc_pfifo_shared)",
-        "./usr/lib/x86_64-linux-gnu/libnl-3/cli/qdisc/plug.so uid=0 gid=0 mode=0755 type=file content=$(location :libnl_cli_qdisc_plug_shared)",
-    ],
-    visibility = ["//visibility:public"],
-)
+[
+    alias(
+        name = stem + "_pkg" + suffix,
+        actual = select({
+            "@platforms//cpu:" + cpu: ":" + stem + "_pkg_" + cpu + suffix
+            for cpu in MULTIARCH
+        }),
+        visibility = ["//visibility:public"],
+    )
+    for stem in RUNTIME_LIBRARIES
+    for suffix in [
+        "",
+        ".debug_symbols",
+    ]
+]
 
 # =============================================================================
 # Packaging: headers tarball
@@ -647,11 +655,14 @@ tar(
 
 tar(
     name = "libnl3-dev_headers",
-    srcs = [":public_header_files"],
-    mutate = mutate(
-        package_dir = "./usr/include/libnl3",
-        strip_prefix = "include",
-    ),
+    srcs = glob(["include/netlink/**/*.h"]),
+    mtree = [
+        "usr/include/libnl3/{} uid=0 gid=0 mode=0644 type=file content=$(location {})".format(
+            path.removeprefix("include/"),
+            path,
+        )
+        for path in glob(["include/netlink/**/*.h"])
+    ],
 )
 
 # =============================================================================
@@ -664,9 +675,13 @@ write_file(
     name = "libnl3_pc_generated",
     out = "libnl-3.0.pc",
     content = [
+        "# AUTO-GENERATED by libnl3.BUILD. DO NOT EDIT MANUALLY.",
         "prefix=/usr",
         "exec_prefix=${prefix}",
-        "libdir=${prefix}/lib/x86_64-linux-gnu",
+    ] + select({
+        "@platforms//cpu:" + cpu: ["libdir=${prefix}/lib/" + multiarch]
+        for cpu, multiarch in MULTIARCH.items()
+    }) + [
         "includedir=${prefix}/include/libnl3",
         "",
         "Name: libnl-3.0",
@@ -683,9 +698,13 @@ write_file(
     name = "libnl3_genl_pc_generated",
     out = "libnl-genl-3.0.pc",
     content = [
+        "# AUTO-GENERATED by libnl3.BUILD. DO NOT EDIT MANUALLY.",
         "prefix=/usr",
         "exec_prefix=${prefix}",
-        "libdir=${prefix}/lib/x86_64-linux-gnu",
+    ] + select({
+        "@platforms//cpu:" + cpu: ["libdir=${prefix}/lib/" + multiarch]
+        for cpu, multiarch in MULTIARCH.items()
+    }) + [
         "includedir=${prefix}/include/libnl3",
         "",
         "Name: libnl-genl-3.0",
@@ -702,9 +721,13 @@ write_file(
     name = "libnl3_route_pc_generated",
     out = "libnl-route-3.0.pc",
     content = [
+        "# AUTO-GENERATED by libnl3.BUILD. DO NOT EDIT MANUALLY.",
         "prefix=/usr",
         "exec_prefix=${prefix}",
-        "libdir=${prefix}/lib/x86_64-linux-gnu",
+    ] + select({
+        "@platforms//cpu:" + cpu: ["libdir=${prefix}/lib/" + multiarch]
+        for cpu, multiarch in MULTIARCH.items()
+    }) + [
         "includedir=${prefix}/include/libnl3",
         "",
         "Name: libnl-route-3.0",
@@ -721,9 +744,13 @@ write_file(
     name = "libnl3_nf_pc_generated",
     out = "libnl-nf-3.0.pc",
     content = [
+        "# AUTO-GENERATED by libnl3.BUILD. DO NOT EDIT MANUALLY.",
         "prefix=/usr",
         "exec_prefix=${prefix}",
-        "libdir=${prefix}/lib/x86_64-linux-gnu",
+    ] + select({
+        "@platforms//cpu:" + cpu: ["libdir=${prefix}/lib/" + multiarch]
+        for cpu, multiarch in MULTIARCH.items()
+    }) + [
         "includedir=${prefix}/include/libnl3",
         "",
         "Name: libnl-nf-3.0",
@@ -737,14 +764,18 @@ write_file(
 )
 
 # Generated from the upstream libnl-cli-3.0.pc.in template with default
-# Debian bookworm amd64 install paths (prefix=/usr, libdir=x86_64-linux-gnu).
+# Debian target install paths (prefix=/usr, architecture-specific libdir).
 write_file(
     name = "libnl3_cli_pc_generated",
     out = "libnl-cli-3.0.pc",
     content = [
+        "# AUTO-GENERATED by libnl3.BUILD. DO NOT EDIT MANUALLY.",
         "prefix=/usr",
         "exec_prefix=${prefix}",
-        "libdir=${prefix}/lib/x86_64-linux-gnu",
+    ] + select({
+        "@platforms//cpu:" + cpu: ["libdir=${prefix}/lib/" + multiarch]
+        for cpu, multiarch in MULTIARCH.items()
+    }) + [
         "includedir=${prefix}/include/libnl3",
         "",
         "Name: libnl-cli-3.0",
@@ -757,19 +788,31 @@ write_file(
     ],
 )
 
-tar(
+[
+    tar(
+        name = "libnl3_pkgconfig_" + cpu,
+        srcs = [
+            ":libnl3_cli_pc_generated",
+            ":libnl3_genl_pc_generated",
+            ":libnl3_nf_pc_generated",
+            ":libnl3_pc_generated",
+            ":libnl3_route_pc_generated",
+        ],
+        mutate = mutate(
+            package_dir = "./usr/lib/" + multiarch + "/pkgconfig",
+            strip_prefix = package_name(),
+        ),
+        target_compatible_with = ["@platforms//cpu:" + cpu],
+    )
+    for cpu, multiarch in MULTIARCH.items()
+]
+
+alias(
     name = "libnl3_pkgconfig",
-    srcs = [
-        ":libnl3_cli_pc_generated",
-        ":libnl3_genl_pc_generated",
-        ":libnl3_nf_pc_generated",
-        ":libnl3_pc_generated",
-        ":libnl3_route_pc_generated",
-    ],
-    mutate = mutate(
-        package_dir = "./usr/lib/x86_64-linux-gnu/pkgconfig",
-        strip_prefix = package_name(),
-    ),
+    actual = select({
+        "@platforms//cpu:" + cpu: ":libnl3_pkgconfig_" + cpu
+        for cpu in MULTIARCH
+    }),
 )
 
 # =============================================================================
@@ -828,3 +871,90 @@ flatten(
     ],
     visibility = ["//visibility:public"],
 )
+
+# Exact development-file splits from Debian 3.7.0-0.2's *.install manifests.
+# The older *_dev_pkg targets above remain aggregate SDKs for compatibility.
+archive_inputs(
+    name = "route_archive_inputs",
+    deps = [
+        ":ematch_syntax",
+        ":libnl_route_3",
+        ":pktloc_syntax",
+    ],
+)
+
+cc_static_library(
+    name = "core_archive",
+    deps = [":libnl_3"],
+)
+
+cc_static_library(
+    name = "route_archive",
+    deps = [":route_archive_inputs"],
+)
+
+[
+    tar(
+        name = stem + "-dev_library_files_" + cpu,
+        srcs = [
+            archive,
+            pc,
+        ],
+        mtree = [
+            "usr/lib/{}/{}.a uid=0 gid=0 mode=0644 type=file content=$(location {})".format(multiarch, stem, archive),
+            "usr/lib/{}/{}.so uid=0 gid=0 type=link time=0 link={}.so.200".format(multiarch, stem, stem),
+            "usr/lib/{}/pkgconfig/{}.0.pc uid=0 gid=0 mode=0644 type=file content=$(location {})".format(multiarch, stem, pc),
+        ],
+        target_compatible_with = ["@platforms//cpu:" + cpu],
+    )
+    for stem, archive, pc in [
+        ("libnl-3", ":core_archive", ":libnl3_pc_generated"),
+        ("libnl-route-3", ":route_archive", ":libnl3_route_pc_generated"),
+    ]
+    for cpu, multiarch in MULTIARCH.items()
+]
+
+[
+    alias(
+        name = stem + "-dev_library_files",
+        actual = select({
+            "@platforms//cpu:" + cpu: ":" + stem + "-dev_library_files_" + cpu
+            for cpu in MULTIARCH
+        }),
+    )
+    for stem in [
+        "libnl-3",
+        "libnl-route-3",
+    ]
+]
+
+flatten(
+    name = "libnl-3-dev_files",
+    tars = [
+        ":libnl-3-dev_library_files",
+        ":libnl3-dev_headers",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "libnl-route-3-dev_files",
+    actual = ":libnl-route-3-dev_library_files",
+    visibility = ["//visibility:public"],
+)
+
+[
+    alias(
+        name = stem + "-runtime_files" + suffix,
+        actual = select({
+            "@platforms//cpu:" + cpu: ":" + stem + "-runtime_files_" + cpu + suffix
+            for cpu in MULTIARCH
+        }),
+        visibility = ["//visibility:public"],
+    )
+    for stem in RUNTIME_LIBRARIES
+    for suffix in [
+        "",
+        ".debug_symbols",
+    ]
+]
