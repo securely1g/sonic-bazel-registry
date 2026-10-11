@@ -1,0 +1,76 @@
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
+load(":architecture_test.bzl", "architecture_tests")
+load(":headers_only.bzl", "headers_only")
+load(":pkgconfig_test.bzl", "pkgconfig_test")
+load(":multiarch_test.bzl", "multiarch_test")
+
+package(default_visibility = ["//visibility:public"])
+
+platform(
+    name = "amd64",
+    constraint_values = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+)
+
+platform(
+    name = "arm64",
+    constraint_values = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+    ],
+)
+
+config_setting(
+    name = "linux_amd64",
+    constraint_values = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+)
+
+config_setting(
+    name = "linux_arm64",
+    constraint_values = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+    ],
+)
+
+# The contract under test is the compilation context exported by deb_import.
+# Discard linker inputs so this header check does not link the runtime libraries.
+headers_only(
+    name = "protobuf_headers",
+    dep = select({
+        ":linux_amd64": "@registry_ci_protobuf_amd64//:libprotobuf",
+        ":linux_arm64": "@registry_ci_protobuf_arm64//:libprotobuf",
+    }),
+)
+
+cc_test(
+    name = "protobuf_headers_test",
+    srcs = ["protobuf_headers_test.cc"],
+    deps = [":protobuf_headers"],
+)
+
+architecture_tests()
+
+pkgconfig_test(name = "pkgconfig_test")
+
+# Compile the actual Lua public headers, including Debian's CPU-specific file.
+headers_only(
+    name = "lua_headers",
+    dep = select({
+        ":linux_amd64": "@registry_ci_lua_amd64//:liblua5.1-0",
+        ":linux_arm64": "@registry_ci_lua_arm64//:liblua5.1-0",
+    }),
+)
+
+cc_test(
+    name = "lua_headers_test",
+    srcs = ["lua_headers_test.cc"],
+    deps = [":lua_headers"],
+)
+
+multiarch_test(name = "multiarch_test")

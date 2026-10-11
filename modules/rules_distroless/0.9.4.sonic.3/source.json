@@ -1,0 +1,24 @@
+{
+  "integrity": "sha256-XUP09E8PD7YUGUoHptz3spM4z8irf2EprR5EA8GtHHM=",
+  "strip_prefix": "rules_distroless-0.9.4",
+  "docs_url": "https://github.com/bazel-contrib/rules_distroless/releases/download/v0.9.4/rules_distroless-v0.9.4.docs.tar.gz",
+  "url": "https://github.com/bazel-contrib/rules_distroless/releases/download/v0.9.4/rules_distroless-v0.9.4.tar.gz",
+  "patches": {
+    "0001-module-version.patch": "sha256-IKEXQLcOaczhBld9kXNhnXRkZEOCYNzxvziLIRBn4kM=",
+    "0002-include-fragments.patch": "sha256-iNpoe/p+zvHebAowncGruHEtEPSMrsIunHTfMNZOY5o=",
+    "0003-registry-ci.patch": "sha256-qk9wKETOBRZOASF1t1aQ9IFd1aFGVAt/c9tg0ONT7Fo=",
+    "0004-pkgconfig-whitespace.patch": "sha256-BbwuLasmQqHdHM/hkR4szFussadKrhZR9mZg9qP6gu4=",
+    "0005-multiarch-headers.patch": "sha256-WphbplQ5XKiQGJsKQB3Aq9c5b1DJdLe8iwkt0r93Xts="
+  },
+  "patch_strip": 1,
+  "overlay": {
+    "registry_ci/BUILD.bazel": "sha256-8f9ufeXpqi2fqJnvhLU4hO5jUthIQb3cvGuhGNTXO2w=",
+    "registry_ci/architecture_test.bzl": "sha256-HIC5ABS7Y/EIggtAdmwQbcbpvAgcaq8POR1bTq48c7s=",
+    "registry_ci/extensions.bzl": "sha256-2paPY9260qRpmudwcYDNBcvpbOOyu6hLMzqKfmHQDyw=",
+    "registry_ci/headers_only.bzl": "sha256-mRDk0eBj/pfecU4C6cG88LRi29LmjaSdKe6iymnS6O4=",
+    "registry_ci/lua_headers_test.cc": "sha256-aGaQlovTN7heWec2TbtXSb8Q3zC4yJ0FI9BTiXvD068=",
+    "registry_ci/multiarch_test.bzl": "sha256-b+92AeEZOYKR7wnQk8fAD1sxA/mnk5IW3m8lYu823vY=",
+    "registry_ci/pkgconfig_test.bzl": "sha256-uoZqhjeEig7Ctql6cit/lD8JmUN5ezS4R9D+CvKkrec=",
+    "registry_ci/protobuf_headers_test.cc": "sha256-Olh22GMJyNSUyijD9763cyAvy+H7jPUoFk3qd7cDflI="
+  }
+}
