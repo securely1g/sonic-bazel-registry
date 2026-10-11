@@ -1,5 +1,19 @@
 # sonic-swss-common
 
+## CLI and Python runtime/debug packages: `0.0.4-475c85aeacd9ac829e00e29edd0a655027bc2c32`
+
+This candidate selects Common's source-owned CLI library and Python binding
+packaging. `//dist:libswsscommon_pkg` also includes `libsonicdbcli.so.0`;
+`//dist:sonic-db-cli_pkg.debug_symbols` and
+`//pyext:swsscommon_pkg.debug_symbols` provide detached symbols for the CLI
+executable and native Python extension. The existing runtime TAR labels and
+installed paths are preserved. Syncd image PR #13 consumes these outputs.
+
+The registry patch changes only the module version. Native AMD64/ARM64
+presubmit retains C++, YANG, Python, Go, Rust and package coverage and adds the
+CLI shared-library consumer and new symbol archives. Source CI covers both
+YANG modes. Final container integration is validated separately.
+
 ## Common-owned Rust binding interface
 
 `0.0.0-120a955096bb18413d170d42b30668dc7a9b7f68` packages the

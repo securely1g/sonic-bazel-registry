@@ -1,0 +1,17 @@
+From: Guohan Lu <securely1g@gmail.com>
+Subject: [PATCH] Record the exact Common source revision in its module version
+
+The source repository owns the build and packaging implementation. Change
+only the registry identity so consumers select this immutable source commit.
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,7 +1,7 @@
+ # Keep bazel_compatibility in sync with sonic-buildimage's .bazelversion.
+ module(
+     name = "sonic-swss-common",
+-    version = "0.0.4",
++    version = "0.0.4-475c85aeacd9ac829e00e29edd0a655027bc2c32",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
