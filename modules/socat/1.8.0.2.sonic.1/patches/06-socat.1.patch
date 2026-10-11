@@ -1,0 +1,104 @@
+Subject: Preserve Debian documentation changes for the disabled readline packaging option.
+Origin: https://sources.debian.org/src/socat/1.8.0.2-1/debian/patches/06-socat.1.patch/
+Source-package: socat_1.8.0.2-1.debian.tar.xz (SHA256 04b361cd91884eda6ca9fe2890ca83a6abe73dd8ce75fe9927b2d8443af36123)
+
+diff --git a/doc/socat.1 b/doc/socat.1
+index 7137fd0..d2b3cad 100644
+--- a/doc/socat.1
++++ b/doc/socat.1
+@@ -976,19 +976,9 @@ UNIX\-LISTEN,
+ PIPE,
+ EXEC, SYSTEM, SHELL
+ .IP "\fB\f(CWREADLINE\fP\fP"
+-Uses GNU readline and history on stdio to allow editing and reusing input
+-lines (example)\&. This requires the GNU readline and 
+-history libraries\&. Note that stdio should be a (pseudo) terminal device,
+-otherwise readline does not seem to work\&.
+-.br 
+-Option groups: FD,READLINE,TERMIOS 
+-.br 
+-Useful options:
+-history,
+-noecho
+-.br 
+-See also:
+-STDIO
++lines (example)\&.
++.br
++You can use STDIO instead\&.
+ .IP "\fB\f(CWSCTP\-CONNECT:<host>:<port>\fP\fP"
+ Establishes an SCTP stream connection to the specified <host> [IP
+ address] and <port> [TCP service]
+@@ -2531,6 +2521,8 @@ Only on Linux; requires root; use option \f(CW\-\-experimental\fP\&.
+ .PP 
+ \fI\fBREADLINE option group\fP\fP
+ .PP 
++Due to licensing restrictions the readline feature is disabled in Debian (see BUGS)\&.
++.br
+ These options apply to the readline address type\&.
+ .IP "\fB\f(CWhistory=<filename>\fP\fP"
+ Reads and writes history from/to <filename> (example)\&.
+@@ -4065,22 +4057,6 @@ close the relay with ^D or abort it with ^C\&.
+ .IP 
+ \.LP
+ \.nf
+-\fBsocat \-d \-d \\
+-\.RS
+-\fBREADLINE,history=$HOME/.http_history \\ 
+-TCP4:www.domain.org:www,crnl\fP
+-\.RE
+-\.fi
+-.IP 
+-this is similar to the previous example, but you can edit the current line in a
+-bash like manner (READLINE) and use the
+-history file \&.http_history; \fBsocat\fP prints messages about
+-progress (\-d \-d)\&. The  port is specified by service name
+-(www), and correct network line termination characters
+-(crnl) instead of NL are used\&.
+-.IP 
+-\.LP
+-\.nf
+ \fBsocat \\
+ \.RS
+ \fBTCP4-LISTEN:www \\ 
+@@ -4177,7 +4153,6 @@ modem\&. rawer sets the console\(cq\&s and
+ ttyS0\(cq\&s terminal parameters to practicable values, crnl 
+ converts to correct newline characters\&. escape allows
+ terminating the socat process with character control\-O\&. 
+-Consider using READLINE instead of the first address\&.
+ .IP 
+ \.LP
+ \.nf
+@@ -4255,22 +4230,6 @@ process\&.
+ \.nf
+ \fBsocat \\
+ \.RS
+-\fBREADLINE,noecho='[Pp]assword:' \\ 
+-EXEC:'ftp ftp.server.com',pty,setsid,ctty\fP
+-\.RE
+-\.fi
+-.IP 
+-wraps a command line history (READLINE) around the EXEC\(cq\&uted ftp client utility\&.
+-This allows editing and reuse of FTP commands for relatively comfortable
+-browsing through the ftp directory hierarchy\&. The password is echoed!
+-pty is required to have ftp issue a prompt\&.
+-Nevertheless, there may occur some confusion with the password and FTP
+-prompts\&.
+-.IP 
+-\.LP
+-\.nf
+-\fBsocat \\
+-\.RS
+ \fBPTY,link=$HOME/dev/vmodem0,rawer,wait-slave \\ 
+ EXEC:'"ssh modemserver.us.org socat \- /dev/ttyS0,nonblock,rawer"'\fP
+ \.RE
+@@ -4953,7 +4912,8 @@ Verbose modes (\-x and/or \-v) display line termination characters inconsistentl
+ when address options cr or crnl are used: They show the data \fIafter\fP
+ conversion in either direction\&.
+ .PP 
+-The data transfer blocksize setting (\-b) is ignored with address readline\&.
++The licenses of OpenSSL and GNU Readline are incompatible\&. Therefore readline
++support is disabled in Debian\&.
+ .PP 
+ Send bug reports to <socat@dest\-unreach\&.org>
+ .PP 
