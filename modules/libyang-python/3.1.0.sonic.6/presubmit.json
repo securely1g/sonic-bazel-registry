@@ -6,7 +6,7 @@
   "consumer_deps": [
     {
       "name": "sonic-build-infra",
-      "version": "0.0.6-553b2f70f9ba77b74befdf77674894166139ddcc",
+      "version": "0.0.15-8043a299756436464a8b58662921dfd50172a3ff",
       "repo_name": "sonic_build_infra"
     }
   ],
@@ -16,10 +16,13 @@
   },
   "build_targets": [
     "@libyang-python//:libyang_runtime_test",
-    "@libyang-python//:libyang_upstream_test"
+    "@libyang-python//:libyang_upstream_test",
+    "@libyang-python//:libyang_pkg",
+    "@libyang-python//:libyang_pkg.debug_symbols"
   ],
   "test_targets": [
     "@libyang-python//:libyang_runtime_test",
-    "@libyang-python//:libyang_upstream_test"
+    "@libyang-python//:libyang_upstream_test",
+    "@libyang-python//:libyang_package_test"
   ]
 }
