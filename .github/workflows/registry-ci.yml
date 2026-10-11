@@ -108,7 +108,8 @@ jobs:
         run: |
           set -euo pipefail
           apt-get update
-          apt-get install -y --no-install-recommends binutils build-essential ca-certificates gdb git python3 tar curl xz-utils
+          # The upstream ARM64 LLVM executables load libxml2.so.2 on the executor.
+          apt-get install -y --no-install-recommends binutils build-essential ca-certificates gdb git libxml2 python3 tar curl xz-utils
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
