@@ -118,11 +118,68 @@ def local_input(directory: Path, name: str) -> Path:
     return result
 
 
-def validate_entry(root: Path, module: str, version: str) -> dict:
+def entry_directory(root: Path, module: str, version: str) -> Path:
     require(NAME.fullmatch(module) is not None, f"Invalid module name: {module}")
     require(VERSION.fullmatch(version) is not None, f"Invalid module version: {version}")
     entry = root / "modules" / module / version
     require(entry.is_dir() and not entry.is_symlink(), f"Missing version directory: {entry}")
+    require(entry.resolve().is_relative_to(root.resolve()), f"Version directory escapes registry: {entry}")
+    return entry
+
+
+def module_overlay_bytes(entry: Path, module: str, version: str) -> bytes:
+    canonical = local_input(entry, "MODULE.bazel").read_bytes()
+    require(parse_module_identity(canonical.decode("utf-8")) == (module, version),
+            "Registry module identity disagrees with directory")
+    header = ("# AUTO-GENERATED. DO NOT EDIT MANUALLY.\n"
+              "# Source: ../MODULE.bazel\n"
+              f"# Generator: python3 ci/registry_ci.py sync-module --module {module} --version {version}\n\n")
+    return header.encode("utf-8") + canonical
+
+
+def sync_module(root: Path, module: str, version: str, check: bool = False) -> None:
+    """Generate only the opted-in MODULE overlay and its source.json checksum."""
+    entry = entry_directory(root, module, version)
+    config = read_json(local_input(entry, "presubmit.json"))
+    require(config.get("generated_module_overlay") is True,
+            "sync-module requires generated_module_overlay: true in presubmit.json")
+    expected = module_overlay_bytes(entry, module, version)
+    source_path = local_input(entry, "source.json")
+    source = read_json(source_path)
+    overlays = source.get("overlay", {})
+    require(isinstance(overlays, dict), "source.overlay must be an object")
+    directory = entry / "overlay"
+    require(not directory.is_symlink() and (not directory.exists() or directory.is_dir()),
+            f"Overlay directory must be a real directory: {directory}")
+    output = directory / "MODULE.bazel"
+    require(not output.is_symlink(), f"Generated overlay must not be a symlink: {output}")
+    if output.exists():
+        local_input(directory, "MODULE.bazel")
+    integrity = "sha256-" + base64.b64encode(hashlib.sha256(expected).digest()).decode("ascii")
+    if check:
+        command = f"python3 ci/registry_ci.py sync-module --module {module} --version {version}"
+        try:
+            require(local_input(directory, "MODULE.bazel").read_bytes() == expected,
+                    "Generated MODULE overlay differs from canonical MODULE.bazel")
+            sri(overlays.get("MODULE.bazel"), expected)
+            require(overlays["MODULE.bazel"] == integrity, "Generated MODULE overlay checksum is stale")
+        except RegistryError as error:
+            raise RegistryError(f"{error}; run: {command}") from error
+        return
+    # Refuse shared inodes as well as symlinks before either write. The canonical
+    # MODULE and unrelated files must never change through an output alias.
+    require(source_path.stat().st_nlink == 1 and (not output.exists() or output.stat().st_nlink == 1),
+            "Generated overlay and source.json must not be hard-linked")
+    if not output.exists() or output.read_bytes() != expected:
+        directory.mkdir(exist_ok=True)
+        output.write_bytes(expected)
+    if overlays.get("MODULE.bazel") != integrity:
+        source.setdefault("overlay", {})["MODULE.bazel"] = integrity
+        source_path.write_text(json.dumps(source, indent=2) + "\n")
+
+
+def validate_entry(root: Path, module: str, version: str) -> dict:
+    entry = entry_directory(root, module, version)
     metadata = read_json(entry.parent / "metadata.json")
     versions = metadata.get("versions")
     require(isinstance(versions, list) and all(isinstance(v, str) for v in versions), "metadata needs versions")
@@ -156,8 +213,13 @@ def validate_entry(root: Path, module: str, version: str) -> dict:
 
     config = read_json(entry / "presubmit.json")
     required = {"architectures", "consumer_deps", "platforms", "build_targets", "test_targets"}
-    require(required <= set(config) <= required | {"build_flags", "rust_preparation", "go_sdk", "rust_toolchain"},
-            f"presubmit.json requires {sorted(required)} and optionally build_flags/rust_preparation/go_sdk/rust_toolchain")
+    require(required <= set(config) <= required | {
+        "build_flags", "rust_preparation", "go_sdk", "rust_toolchain", "generated_module_overlay",
+    }, f"presubmit.json requires {sorted(required)} and optionally "
+       "build_flags/rust_preparation/go_sdk/rust_toolchain/generated_module_overlay")
+    if "generated_module_overlay" in config:
+        require(config["generated_module_overlay"] is True, "generated_module_overlay must be true when present")
+        sync_module(root, module, version, check=True)
     architectures = config["architectures"]
     require(isinstance(architectures, list) and bool(architectures)
             and all(isinstance(a, str) and a in RUNNERS for a in architectures)
@@ -571,7 +633,12 @@ def run(root: Path, module: str, version: str, architecture: str,
         registry_module = root / "modules" / module / version / "MODULE.bazel"
         require(parse_module_identity(fetched[0].read_text()) == (module, version),
                 "Fetched source module name/version differs from requested registry entry")
-        require(fetched[0].read_bytes() == registry_module.read_bytes(),
+        canonical_bytes = registry_module.read_bytes()
+        fetched_bytes = fetched[0].read_bytes()
+        # Bazel materializes the registry's MODULE after applying source
+        # overlays/patches. The generated overlay is checked independently at
+        # entry validation; its banner is not part of the fetched MODULE.
+        require(fetched_bytes == canonical_bytes,
                 "Fetched MODULE.bazel differs from registry MODULE.bazel")
         shutil.copy2(fetched[0], artifacts / "fetched.MODULE.bazel")
         for dependency in config["consumer_deps"]:
@@ -590,7 +657,13 @@ def run(root: Path, module: str, version: str, architecture: str,
             "go_sdk": config.get("go_sdk"),
             "rust_toolchain": config.get("rust_toolchain"),
             "rust_preparation": config.get("rust_preparation"),
-            "fetched_module_matches_registry": True,
+            "generated_module_overlay": config.get("generated_module_overlay", False),
+            "fetched_module_matches_registry": fetched_bytes == canonical_bytes,
+            "registry_module_sha256": hashlib.sha256(canonical_bytes).hexdigest(),
+            "fetched_module_sha256": hashlib.sha256(fetched_bytes).hexdigest(),
+            "generated_module_overlay_sha256": (hashlib.sha256(module_overlay_bytes(
+                registry_module.parent, module, version)).hexdigest()
+                if config.get("generated_module_overlay") else None),
         }, indent=2) + "\n")
     finally:
         lockfile = consumer / "MODULE.bazel.lock"
@@ -609,6 +682,10 @@ def main() -> None:
     planner.add_argument("--head")
     planner.add_argument("--all", action="store_true", dest="all_versions")
     planner.add_argument("--output", required=True, type=Path)
+    synchronizer = subparsers.add_parser("sync-module", help="generate or check an opted-in MODULE overlay")
+    synchronizer.add_argument("--module", required=True)
+    synchronizer.add_argument("--version", required=True)
+    synchronizer.add_argument("--check", action="store_true", help="check generated bytes and checksum without writing")
     runner = subparsers.add_parser("run")
     runner.add_argument("--module", required=True)
     runner.add_argument("--version", required=True)
@@ -624,6 +701,8 @@ def main() -> None:
             args.output.write_text(json.dumps(result, indent=2) + "\n")
             print(json.dumps(result, separators=(",", ":")))
             print(f"Selected {len(result['include'])} native validation jobs", file=sys.stderr)
+        elif args.command == "sync-module":
+            sync_module(ROOT, args.module, args.version, args.check)
         else:
             run(ROOT, args.module, args.version, args.architecture, args.work_dir, args.artifacts, args.bazel)
     except (RegistryError, OSError, subprocess.CalledProcessError) as error:
