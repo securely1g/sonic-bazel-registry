@@ -1,0 +1,21 @@
+Bind the registry module identity and select the consolidated Distroless fixes.
+Source: securely1g/sonic-fips 6ef4c4f2e81efa4ac456f7274398c0fb16a62c24.
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-fips",
+-    version = "0.0.2",
++    version = "0.0.2-6ef4c4f2e81efa4ac456f7274398c0fb16a62c24",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
+@@ -10,7 +10,7 @@
+ bazel_dep(name = "platforms", version = "1.1.0")
+ bazel_dep(name = "bazel_skylib", version = "1.9.2")
+ bazel_dep(name = "rules_cc", version = "0.2.20")
+-bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.4")
++bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.5")
+ bazel_dep(name = "rules_foreign_cc", version = "0.16.0")
+ bazel_dep(name = "rules_python", version = "1.9.0")
+ bazel_dep(name = "sonic-build-infra", version = "0.0.17-1f3e526a29e5fc391b42b11925a41889a44aa7a0", repo_name = "sonic_build_infra")
