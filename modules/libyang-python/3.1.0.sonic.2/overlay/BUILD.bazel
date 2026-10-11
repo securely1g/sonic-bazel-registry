@@ -1,0 +1,123 @@
+load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_python//python:py_binary.bzl", "py_binary")
+load("@rules_python//python:py_library.bzl", "py_library")
+load("@rules_python//python:py_test.bzl", "py_test")
+
+package(default_visibility = ["//visibility:private"])
+
+exports_files(["requirements_lock.txt"])
+
+py_binary(
+    name = "emit_cffi",
+    srcs = ["emit_cffi.py"],
+    python_version = "3.13",
+    deps = ["@libyang_python_pip//cffi"],
+)
+
+genrule(
+    name = "cffi_c",
+    srcs = [
+        "cffi/build.py",
+        "cffi/cdefs.h",
+        "cffi/source.c",
+    ],
+    outs = ["_libyang.c"],
+    cmd = "$(execpath :emit_cffi) --build $(execpath cffi/build.py) --output $@",
+    tags = ["block-network"],
+    tools = [":emit_cffi"],
+)
+
+cc_binary(
+    name = "_libyang.so",
+    srcs = [":cffi_c"],
+    copts = ["-std=c99"],
+    linkopts = [
+        "-Wl,-z,now",
+    ],
+    linkshared = True,
+    deps = [
+        "@libyang",
+        "@python_3_13//:python_headers",
+    ],
+)
+
+py_library(
+    name = "libyang",
+    srcs = glob(["libyang/*.py"]),
+    data = [":_libyang.so"],
+    imports = ["."],
+    visibility = ["//visibility:public"],
+    deps = ["@libyang_python_pip//cffi"],
+)
+
+py_test(
+    name = "libyang_runtime_test",
+    srcs = ["libyang_runtime_test.py"],
+    python_version = "3.13",
+    visibility = ["//visibility:public"],
+    deps = [":libyang"],
+)
+
+filegroup(
+    name = "upstream_test_inputs",
+    srcs = glob([
+        "tests/*.py",
+        "tests/data/**",
+        "tests/yang/**",
+        "tests/yang-old/**",
+    ]),
+)
+
+py_test(
+    name = "libyang_upstream_test",
+    srcs = ["run_upstream_tests.py"],
+    args = ["$(locations :upstream_test_inputs)"],
+    data = [":upstream_test_inputs"],
+    main = "run_upstream_tests.py",
+    python_version = "3.13",
+    visibility = ["//visibility:public"],
+    deps = [":libyang"],
+)
+
+# This module supports CPython 3.13. Use its versioned, target-platform headers
+# above so a direct TAR build cannot accidentally compile against another
+# consumer's default Python interpreter.
+_RUNTIME_PYTHON = glob(["libyang/*.py"]) + ["libyang/py.typed"]
+
+sonic_deploy_tar(
+    name = "libyang_pkg",
+    srcs = _RUNTIME_PYTHON + ["LICENSE"],
+    binaries = {
+        "usr/lib/python3/dist-packages/_libyang.so type=file mode=0555": ":_libyang.so",
+    },
+    force_debug_build = True,
+    mtree = [
+        "usr/lib/python3/dist-packages/{} type=file mode=0644 content=$(location {})".format(source, source)
+        for source in _RUNTIME_PYTHON
+    ] + [
+        "usr/share/doc/python3-libyang/copyright type=file mode=0444 content=$(location LICENSE)",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+py_test(
+    name = "libyang_package_test",
+    srcs = ["libyang_package_test.py"],
+    args = [
+        "$(rootpath :libyang_pkg)",
+        "$(rootpath :libyang_pkg.debug_symbols)",
+        "$(rootpath @libyang//:libyang_pkg)",
+        "$(rootpath libyang_runtime_test.py)",
+    ],
+    data = _RUNTIME_PYTHON + [
+        "LICENSE",
+        "libyang_runtime_test.py",
+        ":libyang_pkg",
+        ":libyang_pkg.debug_symbols",
+        "@libyang//:libyang_pkg",
+    ],
+    python_version = "3.13",
+    visibility = ["//visibility:public"],
+    deps = ["@libyang_python_pip//cffi"],
+)
