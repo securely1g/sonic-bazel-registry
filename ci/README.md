@@ -44,6 +44,10 @@ The configuration declares:
 - `build_targets`: required output labels, including runtime and matching debug
   packages where the module provides them.
 - `test_targets`: explicit consumer and package test labels.
+- `generated_module_overlay` (optional): set to `true` to derive
+  `overlay/MODULE.bazel` from the maintained registry `MODULE.bazel`, as described
+  below. Any other value is rejected. Omit the field for existing entries that
+  maintain their source module through other overlays or patches.
 - `go_sdk` (optional): select the consuming root's Go SDK with an exact stable
   version, for example `{"version": "1.25.0"}`. Declare `rules_go` in
   `consumer_deps` unless it is the tested module. The runner uses that
@@ -114,6 +118,38 @@ Rust validation also retains the pinned helper, generated override, preparation
 log and receipt, and the shared module's Cargo lock, generated Bazel metadata and
 source-resolution record. The test consumer has no Cargo workspace of its own;
 component-level Cargo compatibility remains covered by source CI.
+
+## Maintain one MODULE declaration
+
+For an entry whose source archive needs a MODULE overlay, opt in with
+`"generated_module_overlay": true` in its `presubmit.json`. Maintain the complete
+module declaration and dependencies in `modules/<name>/<version>/MODULE.bazel`.
+Generate the source overlay and its checksum with:
+
+```sh
+python3 ci/registry_ci.py sync-module --module NAME --version VERSION
+python3 ci/registry_ci.py sync-module --module NAME --version VERSION --check
+```
+
+The first command writes `overlay/MODULE.bazel` as a generated-file notice naming
+`../MODULE.bazel` and the command, followed by the canonical bytes unchanged. It
+also updates only that overlay's integrity field in `source.json`; the rest of
+the source manifest remains maintained by hand. A missing overlay is created
+after explicit opt-in. Do not edit the generated file or checksum separately.
+
+`--check` writes nothing. Entry validation performs the same check before any
+build, so a changed dependency or direct overlay edit fails even if someone
+refreshes the overlay checksum manually. Repeated generation leaves matching
+files untouched. Entries without this field keep their existing validation.
+
+Bazel writes the canonical registry MODULE after applying source overlays and
+patches. The fetched source MODULE must therefore match the canonical registry
+MODULE exactly for every entry. The generated overlay is checked separately
+before the build. `validation.json` records the canonical, fetched and optional
+generated-overlay SHA256 hashes separately, plus `generated_module_overlay`.
+`fetched_module_matches_registry` retains its literal byte-equality meaning.
+
+## Resolution and package evidence
 
 The fresh consumer ignores `MODULE.bazel.lock` and uses `--lockfile_mode=update`.
 The generated resolution state is copied to artifacts, including after a failed
