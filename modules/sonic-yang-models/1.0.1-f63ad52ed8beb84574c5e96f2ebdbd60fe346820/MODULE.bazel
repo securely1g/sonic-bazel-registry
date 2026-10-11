@@ -1,0 +1,29 @@
+module(
+    name = "sonic-yang-models",
+    version = "1.0.1-f63ad52ed8beb84574c5e96f2ebdbd60fe346820",
+)
+
+bazel_dep(name = "rules_python", version = "1.8.0")
+bazel_dep(
+    name = "sonic-build-infra",
+    version = "0.0.16-72d9705e37d0e83a072cad3eb73b75cd6cc1e4c6",
+    repo_name = "sonic_build_infra",
+)
+
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(python_version = "3.13")
+use_repo(python, "python_3_13")
+
+pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+pip.parse(
+    hub_name = "sonic_yang_models_pip",
+    python_version = "3.13",
+    requirements_lock = "//:requirements_lock.txt",
+)
+use_repo(pip, "sonic_yang_models_pip")
+
+# Commit suffixes do not sort by source date; keep the selected compiler revision.
+single_version_override(
+    module_name = "sonic-build-infra",
+    version = "0.0.16-72d9705e37d0e83a072cad3eb73b75cd6cc1e4c6",
+)

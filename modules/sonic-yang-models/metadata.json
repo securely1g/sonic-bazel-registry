@@ -1,5 +1,6 @@
 {
-  "versions": [
-    "1.0.0-9ab452d22773c41783092ae3bd6c206d6c257c8d"
-  ]
+    "versions": [
+        "1.0.0-9ab452d22773c41783092ae3bd6c206d6c257c8d",
+        "1.0.1-f63ad52ed8beb84574c5e96f2ebdbd60fe346820"
+    ]
 }
