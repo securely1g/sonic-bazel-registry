@@ -391,6 +391,148 @@ other_extension.module(name = "unrelated", version = "2.0.0")
                     registry_ci.parse_module_identity(method + declarations + method)
 
 
+class GeneratedModuleOverlayTests(FixtureTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.directory = self.entry("alpha", "1.0.0")
+        self.canonical = self.directory / "MODULE.bazel"
+        self.overlay = self.directory / "overlay/MODULE.bazel"
+        self.source = self.directory / "source.json"
+        self.presubmit = self.directory / "presubmit.json"
+        self.config = json.loads(self.presubmit.read_text())
+        write_json(self.presubmit, {**self.config, "generated_module_overlay": True})
+
+    def sync(self, check: bool = False) -> None:
+        registry_ci.sync_module(self.root, "alpha", "1.0.0", check)
+
+    def files(self) -> dict:
+        return {path.relative_to(self.root): (path.read_bytes(), path.stat().st_mtime_ns)
+                for path in self.root.rglob("*") if path.is_file()}
+
+    def test_generates_missing_overlay_preserving_canonical_and_other_source_fields(self) -> None:
+        before = self.canonical.read_bytes()
+        source = json.loads(self.source.read_text())
+        source["strip_prefix"] = "upstream-1.0.0"
+        other = self.directory / "overlay/BUILD.bazel"
+        other.parent.mkdir()
+        other.write_bytes(b"# separately maintained BUILD\n")
+        source["overlay"] = {"BUILD.bazel": digest(other.read_bytes())}
+        write_json(self.source, source)
+        self.sync()
+        self.assertEqual(self.canonical.read_bytes(), before)
+        generated = self.overlay.read_bytes()
+        self.assertTrue(generated.startswith(b"# AUTO-GENERATED. DO NOT EDIT MANUALLY.\n"))
+        self.assertIn(b"# Source: ../MODULE.bazel\n", generated)
+        self.assertIn(b"sync-module --module alpha --version 1.0.0", generated)
+        self.assertEqual(generated.split(b"\n\n", 1)[1], before)
+        source["overlay"]["MODULE.bazel"] = digest(generated)
+        self.assertEqual(json.loads(self.source.read_text()), source)
+        registry_ci.validate_entry(self.root, "alpha", "1.0.0")
+
+    def test_check_mode_and_repeated_generation_do_not_write(self) -> None:
+        before = self.files()
+        with self.assertRaisesRegex(registry_ci.RegistryError, "run: .*sync-module"):
+            self.sync(check=True)
+        self.assertEqual(self.files(), before)
+        self.assertFalse(self.overlay.parent.exists())
+        self.sync()
+        before = self.files()
+        self.sync(check=True)
+        self.sync()
+        self.assertEqual(self.files(), before)
+
+    def test_canonical_dependency_change_requires_generation_before_validation(self) -> None:
+        self.sync()
+        self.canonical.write_bytes(self.canonical.read_bytes() + b'bazel_dep(name = "beta", version = "2.0.0")\n')
+        before = self.files()
+        with self.assertRaisesRegex(registry_ci.RegistryError, "differs from canonical"):
+            self.sync(check=True)
+        with self.assertRaisesRegex(registry_ci.RegistryError, "differs from canonical"):
+            registry_ci.validate_entry(self.root, "alpha", "1.0.0")
+        self.assertEqual(self.files(), before)
+        self.sync()
+        self.sync(check=True)
+        self.assertTrue(self.overlay.read_bytes().endswith(self.canonical.read_bytes()))
+
+    def test_direct_overlay_edit_is_rejected_even_with_refreshed_checksum(self) -> None:
+        self.sync()
+        self.overlay.write_bytes(self.overlay.read_bytes() + b'bazel_dep(name = "unreviewed", version = "9.0.0")\n')
+        source = json.loads(self.source.read_text())
+        source["overlay"]["MODULE.bazel"] = digest(self.overlay.read_bytes())
+        write_json(self.source, source)
+        with self.assertRaisesRegex(registry_ci.RegistryError, "differs from canonical"):
+            registry_ci.validate_entry(self.root, "alpha", "1.0.0")
+        self.sync()
+        self.sync(check=True)
+
+    def test_corrupted_checksum_is_detected_and_repaired_without_rewriting_overlay(self) -> None:
+        self.sync()
+        source = json.loads(self.source.read_text())
+        source["overlay"]["MODULE.bazel"] = digest(b"wrong")
+        write_json(self.source, source)
+        before = self.files()
+        with self.assertRaisesRegex(registry_ci.RegistryError, "Integrity checksum mismatch; run:"):
+            self.sync(check=True)
+        self.assertEqual(self.files(), before)
+        self.sync()
+        self.assertEqual(self.files()[self.overlay.relative_to(self.root)], before[self.overlay.relative_to(self.root)])
+        self.sync(check=True)
+
+    def test_opt_in_is_literal_true_and_legacy_entries_keep_independent_overlays(self) -> None:
+        for value in (False, None, 1, "true"):
+            with self.subTest(value=value):
+                write_json(self.presubmit, {**self.config, "generated_module_overlay": value})
+                with self.assertRaisesRegex(registry_ci.RegistryError, "must be true"):
+                    registry_ci.validate_entry(self.root, "alpha", "1.0.0")
+                with self.assertRaisesRegex(registry_ci.RegistryError, "requires generated_module_overlay"):
+                    self.sync()
+        write_json(self.presubmit, self.config)
+        self.overlay.parent.mkdir()
+        self.overlay.write_bytes(self.canonical.read_bytes() + b"# independently maintained legacy overlay\n")
+        source = json.loads(self.source.read_text())
+        source["overlay"] = {"MODULE.bazel": digest(self.overlay.read_bytes())}
+        write_json(self.source, source)
+        before = self.files()
+        self.assertEqual(registry_ci.validate_entry(self.root, "alpha", "1.0.0"), self.config)
+        with self.assertRaises(registry_ci.RegistryError):
+            self.sync()
+        self.assertEqual(self.files(), before)
+
+    def test_generation_rejects_output_aliases_and_wrong_canonical_identity(self) -> None:
+        self.canonical.write_text('module(name = "other", version = "1.0.0")\n')
+        before = self.files()
+        with self.assertRaisesRegex(registry_ci.RegistryError, "identity"):
+            self.sync()
+        self.assertEqual(self.files(), before)
+        self.canonical.write_text('module(name = "alpha", version = "1.0.0")\n')
+        outside = self.root / "outside"
+        outside.mkdir()
+        self.overlay.parent.symlink_to(outside, target_is_directory=True)
+        with self.assertRaisesRegex(registry_ci.RegistryError, "real directory"):
+            self.sync()
+        self.assertEqual(list(outside.iterdir()), [])
+        self.overlay.parent.unlink()
+        self.overlay.parent.mkdir()
+        self.overlay.symlink_to(self.canonical)
+        with self.assertRaisesRegex(registry_ci.RegistryError, "symlink"):
+            self.sync()
+        self.overlay.unlink()
+        self.overlay.hardlink_to(self.canonical)
+        before = self.files()
+        with self.assertRaisesRegex(registry_ci.RegistryError, "hard-linked"):
+            self.sync()
+        self.assertEqual(self.files(), before)
+
+    def test_cli_supports_generation_and_read_only_check(self) -> None:
+        command = ["registry_ci.py", "sync-module", "--module", "alpha", "--version", "1.0.0"]
+        with mock.patch.object(registry_ci, "ROOT", self.root), mock.patch.object(sys, "argv", command):
+            registry_ci.main()
+        before = self.files()
+        with mock.patch.object(registry_ci, "ROOT", self.root), mock.patch.object(sys, "argv", command + ["--check"]):
+            registry_ci.main()
+        self.assertEqual(self.files(), before)
+
+
 class RustPreparationTests(FixtureTestCase):
     def setUp(self) -> None:
         super().setUp()
@@ -717,6 +859,31 @@ class FetchedModuleTests(FixtureTestCase):
         outputs = json.loads((artifacts / "outputs.json").read_text())
         self.assertEqual(set(outputs), {"@alpha//:library"})
         self.assertEqual((artifacts / outputs["@alpha//:library"][0]["path"]).read_bytes(), b"package")
+
+    def test_generated_overlay_and_bazel_materialized_canonical_module_are_checked_separately(self) -> None:
+        self.config["generated_module_overlay"] = True
+        write_json(self.config_path, self.config)
+        registry_ci.sync_module(self.root, "alpha", "1.0.0")
+        entry = self.config_path.parent
+        canonical = (entry / "MODULE.bazel").read_bytes()
+        generated = (entry / "overlay/MODULE.bazel").read_bytes()
+        # Bazel writes the canonical registry MODULE after overlays/patches.
+        self.fetched.write_bytes(canonical)
+        artifacts = self.run_fixture("generated-overlay")
+        validation = json.loads((artifacts / "validation.json").read_text())
+        self.assertTrue(validation["generated_module_overlay"])
+        self.assertTrue(validation["fetched_module_matches_registry"])
+        self.assertEqual(validation["registry_module_sha256"], hashlib.sha256(canonical).hexdigest())
+        self.assertEqual(validation["fetched_module_sha256"], hashlib.sha256(canonical).hexdigest())
+        self.assertEqual(validation["generated_module_overlay_sha256"], hashlib.sha256(generated).hexdigest())
+        self.fetched.write_bytes(generated)  # Do not weaken the canonical comparison to accept either form.
+        with self.assertRaisesRegex(registry_ci.RegistryError, "Fetched MODULE.bazel differs"):
+            self.run_fixture("noncanonical-fetched-module")
+        (entry / "MODULE.bazel").write_bytes(canonical + b'bazel_dep(name = "new", version = "1.0.0")\n')
+        with mock.patch.object(registry_ci, "run_logged") as execute:
+            with self.assertRaisesRegex(registry_ci.RegistryError, "differs from canonical"):
+                self.run_fixture("stale-generated-overlay")
+            execute.assert_not_called()
 
     def test_go_sdk_uses_the_declared_apparent_repository_and_retains_selection(self) -> None:
         for alias in (None, "io_bazel_rules_go"):
