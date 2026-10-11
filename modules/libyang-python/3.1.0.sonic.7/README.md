@@ -1,4 +1,4 @@
-# libyang-python 3.1.0-sonic.1
+# libyang-python 3.1.0.sonic.2
 
 This module builds the libyang-Python binding used by SONiC schema generation.
 Its public Python import remains `libyang`; the Bazel module is named
@@ -38,22 +38,24 @@ Consumers can use a repository alias while retaining the module name:
 ```starlark
 bazel_dep(
     name = "libyang-python",
-    version = "3.1.0-sonic.1",
+    version = "3.1.0.sonic.2",
     repo_name = "libyang_python",
 )
 ```
 
-This first registry revision uses the registered `sonic-build-infra`
-`0.0.6-553b2f70f9ba77b74befdf77674894166139ddcc`, which includes the upstream
-removal of installed runtime paths and selects control-flow hardening for the
-target CPU. This dependency pins the merged source commit. Its version is higher than the
-historical 0.0.4 requested by native libyang, so this dependency graph needs no
-root version override. Inspect `bazel mod graph` when combining dependencies to
-confirm the selected infrastructure version.
+This revision uses the registered `sonic-build-infra`
+`0.0.15-8043a299756436464a8b58662921dfd50172a3ff` for runtime TARs and
+matching debug symbols. Earlier versions remain unchanged.
 
 Public targets:
 
 - `@libyang_python//:libyang`: Python library and its CFFI extension.
+- `@libyang_python//:libyang_pkg`: Python sources, type marker and stripped
+  `_libyang.so` installed in `/usr/lib/python3/dist-packages`, plus the license.
+- `@libyang_python//:libyang_pkg.debug_symbols`: matching native debug symbols
+  installed by build ID below `/usr/lib/debug`.
+- `@libyang_python//:libyang_package_test`: installed import/schema test and
+  debugger lookup using the runtime and debug TARs.
 - `@libyang_python//:libyang_runtime_test`: Python consumer and declared-runfiles
   test.
 - `@libyang_python//:libyang_upstream_test`: the upstream `unittest` suite from
@@ -66,8 +68,8 @@ the library inherits its consumer's Python configuration. The upstream CFFI
 build sets `py_limited_api=False`, so this target is not an ABI3 extension.
 
 The CFFI source emitter runs as a declared execution tool. Bazel compiles the
-emitted C in the binding's configuration with `current_py_cc_headers` from the
-selected interpreter and links it to the native `libyang` target. It does not
+emitted C in the binding's configuration with the versioned `@python_3_13//:python_headers` alias for the
+target platform and links it to the native `libyang` target. It does not
 link another `libpython`. The selected SONiC toolchain does not embed the
 installed `/lib/<multiarch>` or `/usr/lib/<multiarch>/gconv` runtime paths.
 The extension uses Bazel's declared runtime paths without a feature override.
@@ -89,29 +91,25 @@ regular files in the test temporary directory so native resolved filenames match
 the upstream filepath assertions. The runner preserves their bytes and does not
 skip tests. It requires no external services.
 
-The version's `presubmit.json` declares the registered native-only 0.0.6 infrastructure
-version as a normal consumer dependency. The generated external consumer uses
-standard module resolution without source, patch, or version overrides. The
-runner verifies the fetched binding module identity and requires both tests to
-execute uncached; validation also inspects the resolved infrastructure version.
+The version's `presubmit.json` uses an independent consumer and native AMD64
+and ARM64 Debian Trixie jobs with Bazel 8.5.1. CI runs the runtime and upstream
+tests, then extracts the packages to check installed imports, a schema/data
+roundtrip and the patched leafref API. It verifies that the extension loads the
+extracted native libyang library, not a copy from the Bazel output tree.
 
-Registry CI builds the public library through its Python 3.13 runtime and
-upstream test binaries, then executes both tests on native AMD64 and ARM64
-Debian Trixie with Bazel 8.5.1. Building those binaries selects the interpreter
-required by the library, just as an ordinary consuming Python binary does. The
-manifest selects the validation consumer's platform and required targets.
-The module retains the production source and four-patch series described above,
-with explicit Python toolchain and CFFI dependency inputs.
+Packaging uses `sonic_deploy_tar` with debug compilation enabled. The installed
+extension is stripped; the companion archive retains DWARF debug information.
+The package test compares build IDs, checks the `.gnu_debuglink` checksum and
+asks GDB to find a generated CFFI function's source line. A check before adding
+the debug archive proves that the debugger is not finding symbols elsewhere.
 
-Local validation covers native AMD64 Linux with Debian Trixie userspace, Bazel
-8.5.1, and CPython 3.13. The hosted matrix in
-[sonic-swss-common#6](https://github.com/securely1g/sonic-swss-common/pull/6)
-exercises this module in native AMD64 and ARM64 YANG builds; its checks report
-the current results. The locked CFFI setup resolves a wheel for the native host
-CPU. Cross-target binding use, other Python versions, other operating systems,
-and ARMHF are not validated.
+This artifact is for CPython 3.13 on native AMD64 and ARM64 Linux. Cross-target
+binding use, other Python versions, other operating systems and ARMHF are not
+validated. Consumers must also install the CFFI runtime and native
+`@libyang//:libyang_pkg`; the native library's debug archive remains owned by
+that module. The TAR does not run pip or resolve dependencies at image-build
+time. This registration does not produce a wheel or Debian package.
 
-This module supplies a Bazel Python library for build and runtime consumers. It
-does not add a wheel, Debian package, or runtime tar. Native libyang runtime and
-debug packages remain owned by the native `libyang` module. Common owns model
-preparation, schema generation, and its deployment packages.
+The first downstream consumer is the source-built config-engine base image in
+`securely1g/sonic-buildimage`, which needs the Python binding beside libyang.
+Its image integration is separate from this producer change.
