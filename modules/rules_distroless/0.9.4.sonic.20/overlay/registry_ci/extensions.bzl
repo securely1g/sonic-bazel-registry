@@ -24,6 +24,19 @@ _PROTOBUF = {
     },
 }
 
+_LUA = {
+    "amd64": {
+        "multiarch": "x86_64-linux-gnu",
+        "dev": "363759cbaccd47f06b972e578ea6112e50c833d728b7a11e15609764665dabbc",
+        "runtime": "e98fb0eaa8d07fd24bbaefd3b2bd356b8c6df241865780c42adb08f7ebcf8563"
+    },
+    "arm64": {
+        "multiarch": "aarch64-linux-gnu",
+        "dev": "f0bbb58d879faa5d3f4ce40f404ac266f4ad54d20915bcaabeb8a6bd118ef2b1",
+        "runtime": "d70ec396d05c96d73098a16802bea1d2066497bc32eb2e83244d3b1777e84590"
+    }
+}
+
 def _registry_ci_impl(module_ctx):
     for architecture, packages in _PROTOBUF.items():
         depends_on = []
@@ -57,6 +70,71 @@ def _registry_ci_impl(module_ctx):
             target_name = "libprotobuf-dev",
             urls = ["https://deb.debian.org/debian/pool/main/p/protobuf/libprotobuf-dev_3.21.12-11+deb13u1_{}.deb".format(architecture)],
         )
+
+    metadata_packages = {}
+    metadata_sets = {}
+
+    for architecture, package in _LUA.items():
+        key = "/registry_ci/liblua5.1-0:{}=5.1.5-11".format(architecture)
+        repository = util.sanitize(key)
+        deb_import(
+            name = repository,
+            package_name = "liblua5.1-0",
+            sha256 = package["runtime"],
+            target_name = repository,
+            urls = ["https://deb.debian.org/debian/pool/main/l/lua5.1/liblua5.1-0_5.1.5-11_{}.deb".format(architecture)],
+        )
+        deb_filemap(
+            name = repository + "_filemap",
+            files = json.encode([
+                "usr/lib/{}/{}.{}".format(package["multiarch"], library, suffix)
+                for library in ["liblua5.1.so", "liblua5.1-c++.so"]
+                for suffix in ["0", "0.0.0"]
+            ]),
+        )
+        deb_import(
+            name = "registry_ci_lua_" + architecture,
+            depends_on = [key],
+            dep_filemaps = ["@" + repository + "_filemap//:filemap.json"],
+            package_name = "liblua5.1-0-dev",
+            sha256 = package["dev"],
+            target_name = "liblua5.1-0-dev",
+            urls = ["https://deb.debian.org/debian/pool/main/l/lua5.1/liblua5.1-0-dev_5.1.5-11_{}.deb".format(architecture)],
+        )
+
+        dev_key = "/registry_ci/liblua5.1-0-dev:{}=5.1.5-11".format(architecture)
+        # Exercise the same generated aliases an apt.install consumer receives.
+        deb_import(
+            name = util.sanitize(dev_key),
+            depends_on = [key],
+            dep_filemaps = ["@" + repository + "_filemap//:filemap.json"],
+            package_name = "liblua5.1-0-dev",
+            sha256 = package["dev"],
+            target_name = "liblua5.1-0-dev",
+            urls = ["https://deb.debian.org/debian/pool/main/l/lua5.1/liblua5.1-0-dev_5.1.5-11_{}.deb".format(architecture)],
+        )
+        metadata_packages[key] = {"name": "liblua5.1-0", "architecture": architecture}
+        metadata_packages[dev_key] = {
+            "name": "liblua5.1-0-dev",
+            "version": "5.1.5-11",
+            "architecture": architecture,
+            "suite": "registry_ci",
+            "filename": "pool/main/l/lua5.1/liblua5.1-0-dev_5.1.5-11_{}.deb".format(architecture),
+            "sha256": package["dev"],
+            "depends_on": [key],
+        }
+        metadata_sets[architecture] = {dev_key.split("=")[0]: "5.1.5-11"}
+
+    translate_dependency_set(
+        name = "registry_ci_pkgconfig",
+        depset_name = "registry_ci",
+        lock_content = json.encode({
+            "version": 2,
+            "sources": {"registry_ci": {"uris": ["https://deb.debian.org/debian"]}},
+            "packages": metadata_packages,
+            "dependency_sets": {"registry_ci": {"sets": metadata_sets}},
+        }),
+    )
 
     translate_dependency_set(
         name = "registry_ci_architectures",
