@@ -1,6 +1,6 @@
 module(
     name = "rules_distroless",
-    version = "0.9.4.sonic.1",
+    version = "0.9.4.sonic.5",
     compatibility_level = 1,
 )
 
@@ -42,3 +42,6 @@ registry_ci = use_extension("//registry_ci:extensions.bzl", "registry_ci")
 use_repo(registry_ci, "registry_ci_architectures")
 use_repo(registry_ci, "registry_ci_protobuf_amd64")
 use_repo(registry_ci, "registry_ci_protobuf_arm64")
+use_repo(registry_ci, "registry_ci_lua_amd64")
+use_repo(registry_ci, "registry_ci_lua_arm64")
+use_repo(registry_ci, "registry_ci_pkgconfig")
