@@ -1,4 +1,21 @@
-# Distroless protobuf header imports
+# Distroless patches and consumer tests
+
+## Consolidated version
+
+`0.9.4.sonic.5` contains the existing Protobuf header fix plus pkg-config
+whitespace handling, multiarch include roots, public `.pc` metadata and
+concrete-package preference. Use this version for the combined fixes.
+
+The registry owns the patches, regression tests and consumer integration tests.
+[Patch provenance and the test matrix](0.9.4.sonic.5/PATCHES.md) describe all
+nine tests, run on native AMD64 and ARM64 through a fresh Bazel consumer. Tests
+compile real Protobuf and Lua headers and verify original pkg-config metadata.
+They import pinned Debian packages without producing DEBs.
+
+The `.sonic.2`, `.sonic.3` and `.sonic.4` review proposals are consolidated into
+this version. Published entries below retain their original contents.
+
+## Published Protobuf header fix
 
 `0.9.4.sonic.1` registers upstream `rules_distroless` 0.9.4 with a fix for
 protobuf headers imported from Debian packages. The importer must include
@@ -15,7 +32,9 @@ packaging. Test repositories are fetched only when their targets are used.
 The dotted release suffix makes `0.9.4.sonic.1` sort above upstream `0.9.4`,
 so a dependency requesting that upstream release does not displace the SONiC
 patch. It also sorts above the previous `0.9.4-sonic.1` prerelease spelling.
-Consumers should select `0.9.4.sonic.1` and verify the resolved module graph.
+Consumers needing only this historical fix can continue using `0.9.4.sonic.1`;
+new consumers needing the complete fixes should select `0.9.4.sonic.5`. Verify
+the resolved module graph.
 A root version override is unnecessary solely to win against those two versions;
 it remains appropriate when the root deliberately needs an exact version pin.
 
