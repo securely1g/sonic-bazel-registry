@@ -1,5 +1,19 @@
 # sonic-swss-common
 
+## CLI and Python runtime/debug packages: `0.0.4-3326d6acbee9ad20260856f00dbcad1732d413b7`
+
+This candidate selects Common's source-owned CLI library and Python binding
+packaging. `//dist:libswsscommon_pkg` also includes `libsonicdbcli.so.0`;
+`//dist:sonic-db-cli_pkg.debug_symbols` and
+`//pyext:swsscommon_pkg.debug_symbols` provide detached symbols for the CLI
+executable and native Python extension. The existing runtime TAR labels and
+installed paths are preserved. Syncd image PR #13 consumes these outputs.
+
+The registry patch changes only the module version. Native AMD64/ARM64
+presubmit retains C++, YANG, Python, Go, Rust and package coverage and adds the
+CLI shared-library consumer and new symbol archives. Source CI covers both
+YANG modes. Final container integration is validated separately.
+
 ## Common-owned Rust binding interface
 
 `0.0.0-120a955096bb18413d170d42b30668dc7a9b7f68` packages the
@@ -93,3 +107,8 @@ uses a separate `registry_ci_consumer` root and pins the infrastructure version
 in `consumer_deps` exactly. It verifies the fetched dependency's module name and
 version and retains that declaration with the validation artifacts. Standalone
 and downstream builds use their own root-module configuration.
+
+The current candidate uses the shared SWIG definitions API from
+[Infrastructure #44](https://github.com/securely1g/sonic-build-infra/pull/44),
+registered by [Registry #71](https://github.com/securely1g/sonic-bazel-registry/pull/71).
+Common selects its YANG interface directly without its former local adapter.
