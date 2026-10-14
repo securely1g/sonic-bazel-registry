@@ -1,0 +1,20 @@
+{
+  "url": "https://deb.debian.org/debian/pool/main/i/iproute2/iproute2_6.15.0.orig.tar.xz",
+  "strip_prefix": "iproute2-6.15.0",
+  "integrity": "sha256-gEGFSoglg61SY0ZnNsnIxox0saNXVKt3DSM0P5R1KPs=",
+  "patch_strip": 1,
+  "patches": {
+    "0001-Add-moo-feature.patch": "sha256-wlizQJ92lo4zAL1Jv53W4N3XMnJGOrxfuo058gqCMUM=",
+    "0002-bridge-fdb-protocol.patch": "sha256-qdyXQnLw6BEAVws6m0r56Of6ShvXgavipuWe8i+ONUw="
+  },
+  "overlay": {
+    "BUILD.bazel": "sha256-tiigBENpKBGiw2ud9OIVpP58hs+XI/ZvCWwtqid3Huo=",
+    "MODULE.bazel": "sha256-O5C8dUygp7xbz4PP+fUYHq5rBC5H0UiMAWOETEnC6Lo=",
+    "README.bazel.md": "sha256-8c4NSc5jab2mydDYMEdojfcyhVS3MKcaMbcYEXRMqOQ=",
+    "bazel/configure.sh": "sha256-QyyBqhZxzbOzyPdNyOoaB6iJV1U6IieV2CUjjDcP1eM=",
+    "bazel/debian-iproute2.install": "sha256-jbHcCeiw2WerY7NSxVJvz2boV+TsFV9XbvXakw60ioM=",
+    "bazel/package_test.py": "sha256-kIccdRqAPGBxTCdwjBGeW0z6/xJSo6uS0VvN9jTXw2M=",
+    "bazel/runtime.bzl": "sha256-0BxfkfrcD6g3O4oYRaCoQWp/FkCn82InbLFvfGwj/UY=",
+    "copyright": "sha256-NE3c9N/mW4ZBbgWDCSGLSsHue8HmJMxArYciLMl5/aw="
+  }
+}
