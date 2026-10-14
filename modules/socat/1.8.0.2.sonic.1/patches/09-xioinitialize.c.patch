@@ -1,0 +1,23 @@
+Subject: Use the GNU Hurd values of O_RDONLY, O_WRONLY and O_RDWR in initialization assertions.
+Origin: https://sources.debian.org/src/socat/1.8.0.2-1/debian/patches/09-xioinitialize.c.patch/
+Source-package: socat_1.8.0.2-1.debian.tar.xz (SHA256 04b361cd91884eda6ca9fe2890ca83a6abe73dd8ce75fe9927b2d8443af36123)
+
+--- a/xioinitialize.c	2019-04-04 10:59:55.000000000 +0200
++++ b/xioinitialize.c	2022-09-02 19:20:22.000000000 +0200
+@@ -27,10 +27,15 @@
+    assert(sizeof(uint32_t)==4);
+ 
+    /* assertions regarding O_ flags - important for XIO_READABLE() etc. */
++#ifdef __GNU__
++   assert(O_RDONLY==1);
++   assert(O_WRONLY==2);
++   assert(O_RDWR==3);
++#else
+    assert(O_RDONLY==0);
+    assert(O_WRONLY==1);
+    assert(O_RDWR==2);
+-
++#endif
+    assert(SHUT_RD==0);
+    assert(SHUT_WR==1);
+    assert(SHUT_RDWR==2);
