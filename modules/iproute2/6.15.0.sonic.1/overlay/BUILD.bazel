@@ -1,0 +1,114 @@
+load("@rules_python//python:py_test.bzl", "py_test")
+load("@rules_foreign_cc//foreign_cc:defs.bzl", "configure_make")
+load("@bazel_skylib//rules:select_file.bzl", "select_file")
+load(":bazel/runtime.bzl", "runtime_for_arch")
+package(default_visibility = ["//visibility:public"])
+filegroup(
+    name = "sources",
+    srcs = ["Makefile", "configure", "bazel/configure.sh"] + glob([
+        "include/**", "lib/**", "ip/**", "tc/**", "bridge/**", "misc/**", "netem/**",
+        "genl/**", "man/**", "dcb/**", "devlink/**", "rdma/**", "tipc/**", "vdpa/**",
+        "etc/**", "bash-completion/**", "examples/**",
+    ]),
+)
+configure_make(
+    name = "iproute2_build",
+    lib_source = ":sources",
+    configure_command = "bazel/configure.sh",
+    configure_prefix = "/bin/sh",
+    configure_in_place = True,
+    features = ["-sanitize_pwd"],
+    configure_options = ["--prefix=/usr", "--color=auto"] + select({
+        "@platforms//cpu:x86_64": ["--libdir=/usr/lib/x86_64-linux-gnu"],
+        "@platforms//cpu:arm64": ["--libdir=/usr/lib/aarch64-linux-gnu"],
+    }),
+    targets = ["", "install DESTDIR=$$BUILD_TMPDIR$$/$$INSTALL_PREFIX$$"],
+    args = ["-j4"],
+    env = {
+        "BAZEL_PKGCONF": "$(execpath @sonic_build_infra//tools/build_tools:pkgconf)",
+        "BAZEL_PKGCONFIG_FILES": "$(locations @iproute2_deps//:pkgconfig)",
+        "YACC": "$(execpath @sonic_build_infra//tools/build_tools:bison)",
+        "LEX": "$(execpath @sonic_build_infra//tools/build_tools:flex)",
+        "NETNS_RUN_DIR": "/run/netns",
+        "KERNEL_INCLUDE": "./include",
+        "LDFLAGS": "-Wl,-rpath-link=$$EXT_BUILD_DEPS/lib",
+    },
+    build_data = ["@iproute2_deps//:pkgconfig", "@sonic_build_infra//tools/build_tools:pkgconf", "@sonic_build_infra//tools/build_tools:bison", "@sonic_build_infra//tools/build_tools:flex"],
+    out_bin_dir = "sbin",
+    out_binaries = ["arpd", "bridge", "dcb", "devlink", "genl", "ip", "lnstat", "nstat", "rdma", "rtacct", "rtmon", "ss", "tc", "tipc", "vdpa"],
+    out_data_files = ["config.mk"] + select({
+        "@platforms//cpu:x86_64": ["usr/lib/x86_64-linux-gnu/tc/" + name + ".dist" for name in ["normal", "pareto", "paretonormal", "experimental"]],
+        "@platforms//cpu:arm64": ["usr/lib/aarch64-linux-gnu/tc/" + name + ".dist" for name in ["normal", "pareto", "paretonormal", "experimental"]],
+    }),
+    postfix_script = "cp config.mk $$INSTALLDIR/",
+    deps = [
+        "@iproute2_deps//libxtables-dev:libxtables",
+        "@iproute2_deps//libatm1-dev:libatm1",
+        "@iproute2_deps//libbsd-dev:libbsd",
+        "@iproute2_deps//libbpf-dev:libbpf",
+        "@iproute2_deps//libcap-dev:libcap",
+        "@iproute2_deps//libdb-dev:libdb",
+        "@iproute2_deps//libelf-dev:libelf",
+        "@iproute2_deps//libmnl-dev:libmnl",
+        "@iproute2_deps//libnsl-dev:libnsl",
+        "@iproute2_deps//libselinux1-dev:libselinux1",
+        "@iproute2_deps//zlib1g-dev:zlib1g",
+    ],
+)
+
+# Debian's installed program locations after the base image's merged-/usr layout.
+_PROGRAMS = {
+    "arpd": "usr/sbin/arpd", "bridge": "usr/sbin/bridge", "dcb": "usr/sbin/dcb",
+    "devlink": "usr/sbin/devlink", "genl": "usr/sbin/genl", "ip": "usr/bin/ip",
+    "lnstat": "usr/bin/lnstat", "nstat": "usr/bin/nstat", "rdma": "usr/bin/rdma",
+    "rtacct": "usr/sbin/rtacct", "rtmon": "usr/sbin/rtmon", "ss": "usr/bin/ss",
+    "tc": "usr/sbin/tc", "tipc": "usr/sbin/tipc", "vdpa": "usr/sbin/vdpa",
+}
+[
+    filegroup(name = "built_" + name, srcs = [":iproute2_build"], output_group = name)
+    for name in _PROGRAMS
+]
+_NETEM = ["normal", "pareto", "paretonormal", "experimental"]
+[
+    select_file(name = name + "_distribution", srcs = ":iproute2_build", subpath = "/tc/" + name + ".dist")
+    for name in _NETEM
+]
+select_file(name = "iproute2_config", srcs = ":iproute2_build", subpath = "iproute2_build/config.mk")
+
+# Keep the vendor configuration and documentation directly traceable to source.
+_DATA_PATHS = {source: "usr/share/iproute2/" + source.removeprefix("etc/iproute2/") for source in glob(["etc/iproute2/*"])}
+_DATA_PATHS.update({source: "usr/share/man/" + source.removeprefix("man/") for source in glob(["man/man3/*", "man/man7/*", "man/man8/*"], exclude = ["man/man8/ifstat.8"])})
+_DATA_PATHS.update({source: "usr/share/doc/iproute2/" + source for source in glob(["examples/**"])})
+_DATA_PATHS.update({
+    "include/bpf_elf.h": "usr/include/iproute2/bpf_elf.h",
+    "bash-completion/tc": "usr/share/bash-completion/completions/tc",
+    "bash-completion/devlink": "usr/share/bash-completion/completions/devlink",
+    "COPYING": "usr/share/doc/iproute2/COPYING",
+    "copyright": "usr/share/doc/iproute2/copyright",
+})
+
+runtime_for_arch("amd64", "x86_64-linux-gnu", _PROGRAMS, _DATA_PATHS, _NETEM)
+runtime_for_arch("arm64", "aarch64-linux-gnu", _PROGRAMS, _DATA_PATHS, _NETEM)
+
+alias(
+    name = "iproute2_pkg",
+    actual = select({"@platforms//cpu:x86_64": ":iproute2_pkg_amd64", "@platforms//cpu:arm64": ":iproute2_pkg_arm64"}),
+)
+alias(
+    name = "iproute2_pkg.debug_symbols",
+    actual = select({"@platforms//cpu:x86_64": ":iproute2_pkg_amd64.debug_symbols", "@platforms//cpu:arm64": ":iproute2_pkg_arm64.debug_symbols"}),
+)
+
+py_test(
+    name = "iproute2_package_test",
+    srcs = ["bazel/package_test.py"],
+    main = "bazel/package_test.py",
+    args = [
+        "$(rootpath :iproute2_pkg)", "$(rootpath :iproute2_pkg.debug_symbols)",
+        "$(rootpath :iproute2_config)", "$(rootpath bazel/debian-iproute2.install)",
+        "$(locations @iproute2_deps//:packages)",
+    ],
+    data = [":iproute2_pkg", ":iproute2_pkg.debug_symbols", ":iproute2_config", "@iproute2_deps//:packages",
+            "bazel/debian-iproute2.install", "etc/iproute2/rt_protos", "ip/routel", "include/bpf_elf.h", "copyright"],
+    python_version = "3.13",
+)
