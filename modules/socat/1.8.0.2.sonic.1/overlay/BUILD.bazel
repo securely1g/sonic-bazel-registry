@@ -1,0 +1,78 @@
+load("@rules_foreign_cc//foreign_cc:defs.bzl", "configure_make")
+load("@bazel_skylib//rules:select_file.bzl", "select_file")
+load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
+load("@rules_python//python:py_test.bzl", "py_test")
+
+package(default_visibility = ["//visibility:public"])
+filegroup(
+    name = "sources",
+    srcs = glob(["*.c", "*.h", "*.h.in", "*.in", "*.sh", "configure", "config.*", "install-sh", "doc/socat.1", "doc/socat.yo", "VERSION"]),
+)
+
+configure_make(
+    name = "socat_build",
+    lib_source = ":sources",
+    configure_in_place = True,
+    # Configure changes directories and requires a stable absolute PWD.
+    features = ["-sanitize_pwd"],
+    configure_options = ["--prefix=/usr", "--enable-readline", "--enable-openssl", "--enable-libwrap"],
+    # Compile installed paths for /usr and stage installation inside the action.
+    targets = ["", "install DESTDIR=$$BUILD_TMPDIR$$/$$INSTALL_PREFIX$$"],
+    out_bin_dir = "usr/bin",
+    # Match Debian's reproducible date from the 1.8.0.2-1 changelog.
+    env = {
+        "BUILD_DATE": "Dec 22 2024 15:21:12",
+        "LDFLAGS": "-Wl,-rpath-link=$$EXT_BUILD_DEPS/lib",
+    },
+    out_binaries = ["socat1", "filan", "procan"],
+    out_data_files = ["config.log", "config.h"],
+    postfix_script = "cp config.log config.h $$INSTALLDIR/",
+    deps = [
+        "@socat_deps//libssl-dev:libssl",
+        "@socat_deps//zlib1g-dev:zlib1g",
+        "@socat_deps//libzstd-dev:libzstd",
+        "@socat_deps//libwrap0-dev:libwrap0",
+        "@socat_deps//libreadline-dev:libreadline",
+    ],
+)
+
+[
+    filegroup(name = "built_" + name, srcs = [":socat_build"], output_group = name)
+    for name in ["socat1", "filan", "procan"]
+]
+select_file(name = "socat_config_log", srcs = ":socat_build", subpath = "socat_build/config.log")
+
+sonic_deploy_tar(
+    name = "socat_pkg",
+    binaries = {"usr/bin/{} uid=0 gid=0 type=file mode=0755".format(name): ":built_" + name for name in ["socat1", "filan", "procan"]},
+    force_debug_build = True,
+    srcs = ["socat-chain.sh", "socat-mux.sh", "socat-broker.sh", "COPYING", "copyright", "doc/socat.1"],
+    mtree = [
+        "usr/bin/socat uid=0 gid=0 type=link link=socat1",
+        "usr/share/man/man1/socat1.1 uid=0 gid=0 type=file mode=0644 content=$(location doc/socat.1)",
+        "usr/share/man/man1/socat.1 uid=0 gid=0 type=link link=socat1.1",
+        "usr/share/man/man1/filan.1 uid=0 gid=0 type=link link=socat.1",
+        "usr/share/man/man1/procan.1 uid=0 gid=0 type=link link=socat.1",
+        "usr/share/doc/socat/COPYING uid=0 gid=0 type=file mode=0644 content=$(location COPYING)",
+        "usr/share/doc/socat/copyright uid=0 gid=0 type=file mode=0644 content=$(location copyright)",
+    ] + ["usr/bin/{} uid=0 gid=0 type=file mode=0755 content=$(location {})".format(name, name) for name in ["socat-chain.sh", "socat-mux.sh", "socat-broker.sh"]],
+)
+
+# Load only the installed TAR and its explicitly declared Debian libraries.
+py_test(
+    name = "socat_package_test",
+    srcs = ["socat_package_test.py"],
+    args = [
+        "$(rootpath :socat_pkg)",
+        "$(rootpath :socat_pkg.debug_symbols)",
+        "$(rootpath doc/socat.1)",
+        "$(rootpath :socat_config_log)",
+        "$(locations @socat_deps//:packages)",
+    ],
+    data = [
+        ":socat_pkg", ":socat_pkg.debug_symbols", ":socat_config_log", "@socat_deps//:packages",
+        "doc/socat.1", "COPYING", "copyright",
+        "socat-chain.sh", "socat-mux.sh", "socat-broker.sh",
+    ],
+    python_version = "3.13",
+)
