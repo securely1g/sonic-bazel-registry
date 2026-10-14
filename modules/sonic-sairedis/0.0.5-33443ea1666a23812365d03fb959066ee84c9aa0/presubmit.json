@@ -32,12 +32,31 @@
     "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
   },
   "build_targets": [
-    "@sonic-sairedis//meta:saimetadata",
-    "@sonic-sairedis//meta:saimeta",
-    "@sonic-sairedis//lib:sairedis",
-    "@sonic-sairedis//lib:tests"
+    "@sonic-sairedis//:canonical_outputs",
+    "@sonic-sairedis//lib:libsairedis_pkg",
+    "@sonic-sairedis//lib:libsairedis_pkg.debug_symbols",
+    "@sonic-sairedis//lib:libsairedis_dev_pkg",
+    "@sonic-sairedis//lib:libsairedis_dev_pkg.debug_symbols",
+    "@sonic-sairedis//meta:libsaimetadata_pkg",
+    "@sonic-sairedis//meta:libsaimetadata_pkg.debug_symbols",
+    "@sonic-sairedis//meta:libsaimetadata_dev_pkg",
+    "@sonic-sairedis//meta:libsaimetadata_dev_pkg.debug_symbols",
+    "@sonic-sairedis//vslib:libsaivs_pkg",
+    "@sonic-sairedis//vslib:libsaivs_pkg.debug_symbols",
+    "@sonic-sairedis//vslib:libsaivs_dev_pkg",
+    "@sonic-sairedis//vslib:libsaivs_dev_pkg.debug_symbols",
+    "@sonic-sairedis//syncd:syncd_pkg",
+    "@sonic-sairedis//syncd:syncd_pkg.debug_symbols",
+    "@sonic-sairedis//pyext:pysairedis_pkg",
+    "@sonic-sairedis//pyext:pysairedis_pkg.debug_symbols"
   ],
   "test_targets": [
-    "@sonic-sairedis//lib:tests_test"
+    "@sonic-sairedis//lib:tests_test",
+    "@sonic-sairedis//tests:tests_test",
+    "@sonic-sairedis//saiasiccmp:tests",
+    "@sonic-sairedis//unittest/meta:tests",
+    "@sonic-sairedis//unittest/proxylib:tests",
+    "@sonic-sairedis//unittest/saidump:tests",
+    "@sonic-sairedis//unittest/saisdkdump:tests"
   ]
 }
