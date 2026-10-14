@@ -14,17 +14,12 @@
     "arm64": "@sonic-build-infra//platforms:aarch64_trixie"
   },
   "build_targets": [
-    "@sonic-build-infra//apt/tests/integration:added",
-    "@sonic-build-infra//apt/tests/integration:retained",
-    "@sonic-build-infra//apt/tests/integration:policy_only",
-    "@sonic-build-infra//apt/tests/integration:policy_and_manifest",
-    "@sonic-build-infra//third_party/rules_distroless/tests:protobuf_headers_test"
+    "@sonic-build-infra//tests:hello_deploy_tar",
+    "@sonic-build-infra//tests:hello_deploy_tar.debug_symbols"
   ],
   "test_targets": [
-    "@sonic-build-infra//apt:dependencies_test",
-    "@sonic-build-infra//apt:selection_test",
-    "@sonic-build-infra//apt:inputs_test",
-    "@sonic-build-infra//apt/tests/integration:adapter_test",
-    "@sonic-build-infra//third_party/rules_distroless/tests:protobuf_headers_test"
+    "@sonic-build-infra//swig/tests:defines_test",
+    "@sonic-build-infra//python:py_native_library_test",
+    "@sonic-build-infra//tests:hello_deploy_tar_content_test"
   ]
 }
