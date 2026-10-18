@@ -17,11 +17,15 @@
     "@sonic-rust-deps//:serde",
     "@sonic-rust-deps//:serde_core",
     "@sonic-rust-deps//tests:serde_roundtrip_test",
-    "@sonic-rust-deps//tests:tracing_test"
+    "@sonic-rust-deps//tests:tracing_test",
+    "@sonic-rust-deps//tests:supervisor_io_test",
+    "@sonic-rust-deps//tests:panic_runtime_test"
   ],
   "test_targets": [
     "@sonic-rust-deps//tests:serde_roundtrip_test",
-    "@sonic-rust-deps//tests:tracing_test"
+    "@sonic-rust-deps//tests:tracing_test",
+    "@sonic-rust-deps//tests:supervisor_io_test",
+    "@sonic-rust-deps//tests:panic_runtime_test"
   ],
   "rust_toolchain": {
     "version": "1.90.0"
