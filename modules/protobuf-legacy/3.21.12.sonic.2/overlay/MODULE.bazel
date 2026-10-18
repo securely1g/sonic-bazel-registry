@@ -1,0 +1,52 @@
+# AUTO-GENERATED. DO NOT EDIT MANUALLY.
+# Source: ../MODULE.bazel
+# Generator: python3 ci/registry_ci.py sync-module --module protobuf-legacy --version 3.21.12.sonic.2
+
+module(
+    name = "protobuf-legacy",
+    version = "3.21.12.sonic.2",
+    compatibility_level = 1,
+    repo_name = "com_google_protobuf",
+)
+
+bazel_dep(name = "bazel_skylib", version = "1.9.0")
+bazel_dep(name = "protobuf", version = "29.0")
+bazel_dep(name = "platforms", version = "1.1.0")
+bazel_dep(name = "rules_cc", version = "0.2.16")
+bazel_dep(name = "rules_java", version = "8.14.0")
+bazel_dep(name = "rules_pkg", version = "1.1.0")
+bazel_dep(name = "rules_proto", version = "7.0.2")
+bazel_dep(name = "rules_python", version = "1.7.0")
+bazel_dep(name = "sonic-build-infra", version = "0.0.16-2b4e9d49b0fe7e8152461d03aae90caf61629907", repo_name = "sonic_build_infra")
+bazel_dep(name = "zlib", version = "1.3.1.bcr.5")
+bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.5")
+bazel_dep(name = "tar.bzl", version = "0.10.5-sonic.1")
+
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+http_archive(
+    name = "protobuf_debian",
+    build_file_content = "exports_files(glob([\"**\"]))\nfilegroup(name=\"source_files\", srcs=glob([\"**\"]), visibility=[\"//visibility:public\"])",
+    sha256 = "52c7c9377a2cb93649fb778baf4fe76d4489893ef04bad675acfa9b16e6313d5",
+    strip_prefix = "debian",
+    urls = ["https://deb.debian.org/debian/pool/main/p/protobuf/protobuf_3.21.12-11+deb13u1.debian.tar.xz"],
+)
+
+apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
+apt.install(
+    dependency_set = "protobuf_package_deps",
+    packages = [
+        "libc6",
+        "libgcc-s1",
+        "libstdc++6",
+    ],
+    suites = [
+        "trixie",
+        "trixie-updates",
+        "trixie-security",
+    ],
+)
+use_repo(apt, "protobuf_package_deps")
+
+bsdtar = use_extension("@tar.bzl//tar:extensions.bzl", "toolchains")
+use_repo(bsdtar, "bsd_tar_toolchains")
