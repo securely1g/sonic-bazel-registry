@@ -1,0 +1,2 @@
+# Map the upstream setup.py CFFI requirement without consulting host dpkg.
+cffi python3-cffi
