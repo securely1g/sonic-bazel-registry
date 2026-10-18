@@ -1,0 +1,82 @@
+module(
+    name = "iproute2",
+    version = "6.15.0.sonic.2",
+)
+
+bazel_dep(name = "bazel_skylib", version = "1.8.2")
+bazel_dep(name = "platforms", version = "1.0.0")
+bazel_dep(name = "rules_foreign_cc", version = "0.15.1")
+bazel_dep(name = "rules_cc", version = "0.2.16")
+bazel_dep(name = "rules_python", version = "1.7.0")
+bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.5")
+bazel_dep(name = "sonic-build-infra", version = "0.0.16-b6ab14f2c71022244488e1f48e1c8366771fd640", repo_name = "sonic_build_infra")
+
+gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
+use_repo(gcc, "gcc_toolchains")
+
+register_toolchains("@gcc_toolchains//:all")
+
+apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
+apt.install(
+    dependency_set = "iproute2_deps",
+    packages = [
+        "libatm1-dev",
+        "libatm1t64",
+        "libbpf-dev",
+        "libbpf1",
+        "libbsd-dev",
+        "libbsd0",
+        "libc6",
+        "libcap-dev",
+        "libcap2",
+        "libdb-dev",
+        "libdb5.3t64",
+        "libelf-dev",
+        "libelf1t64",
+        "libmd0",
+        "libmnl-dev",
+        "libmnl0",
+        "libnsl-dev",
+        "libnsl2",
+        "libpcre2-8-0",
+        "libselinux1",
+        "libselinux1-dev",
+        "libtirpc3t64",
+        "libxtables-dev",
+        "libxtables12",
+        "libzstd1",
+        "zlib1g",
+        "zlib1g-dev",
+    ],
+    suites = [
+        "trixie",
+        "trixie-updates",
+        "trixie-security",
+    ],
+)
+use_repo(apt, "iproute2_deps")
+
+register_toolchains(
+    "@sonic_build_infra//tools/build_tools:make_toolchain",
+    "@sonic_build_infra//tools/build_tools:m4_toolchain",
+    "@sonic_build_infra//tools/build_tools:pkgconfig_toolchain",
+)
+
+# Original Debian source packaging used by SONiC's pinned Make source build.
+# The payload is compiled by this module; this archive supplies metadata only.
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+http_archive(
+    name = "iproute2_debian",
+    build_file_content = "exports_files(glob([\"**\"]))\nfilegroup(name=\"source_files\", srcs=glob([\"**\"]), visibility=[\"//visibility:public\"])",
+    sha256 = "780375193dffeb85f310a918b806f2f4e480f76b815a1f0f1eac5d0488ea1a8f",
+    strip_prefix = "debian",
+    urls = ["https://deb.debian.org/debian/pool/main/i/iproute2/iproute2_6.15.0-1.debian.tar.xz"],
+)
+
+bazel_dep(name = "tar.bzl", version = "0.10.5-sonic.1")
+
+bsdtar = use_extension("@tar.bzl//tar:extensions.bzl", "toolchains")
+use_repo(bsdtar, "bsd_tar_toolchains")
+
+bazel_dep(name = "rules_pkg", version = "1.1.0")

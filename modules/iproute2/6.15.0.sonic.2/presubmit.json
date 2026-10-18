@@ -1,0 +1,31 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.16-b6ab14f2c71022244488e1f48e1c8366771fd640"
+    },
+    {
+      "name": "tar.bzl",
+      "version": "0.10.5-sonic.1"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic-build-infra//platforms:x86_64_trixie",
+    "arm64": "@sonic-build-infra//platforms:aarch64_trixie"
+  },
+  "build_targets": [
+    "@iproute2//:iproute2_pkg",
+    "@iproute2//:iproute2_pkg.debug_symbols",
+    "@iproute2//:iproute2_config",
+    "@iproute2//:iproute2_deb"
+  ],
+  "test_targets": [
+    "@iproute2//:iproute2_package_test",
+    "@iproute2//:iproute2_debian_package_test"
+  ],
+  "generated_module_overlay": true
+}
