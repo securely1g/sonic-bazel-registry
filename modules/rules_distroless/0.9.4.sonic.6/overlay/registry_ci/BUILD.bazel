@@ -1,0 +1,164 @@
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
+load("@rules_python//python:py_test.bzl", "py_test")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load(":architecture_test.bzl", "architecture_tests")
+load(":concrete_packages_test.bzl", "concrete_packages_test")
+load(":headers_only.bzl", "headers_only")
+load(":multiarch_test.bzl", "multiarch_test")
+load(":pkgconfig_selection_test.bzl", "pkgconfig_selection_test")
+load(":pkgconfig_test.bzl", "pkgconfig_test")
+
+package(default_visibility = ["//visibility:public"])
+
+platform(
+    name = "amd64",
+    constraint_values = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+)
+
+platform(
+    name = "arm64",
+    constraint_values = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+    ],
+)
+
+config_setting(
+    name = "linux_amd64",
+    constraint_values = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+)
+
+config_setting(
+    name = "linux_arm64",
+    constraint_values = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+    ],
+)
+
+# The contract under test is the compilation context exported by deb_import.
+# Discard linker inputs so this header check does not link the runtime libraries.
+headers_only(
+    name = "protobuf_headers",
+    dep = select({
+        ":linux_amd64": "@registry_ci_protobuf_amd64//:libprotobuf",
+        ":linux_arm64": "@registry_ci_protobuf_arm64//:libprotobuf",
+    }),
+)
+
+cc_test(
+    name = "protobuf_headers_test",
+    srcs = ["protobuf_headers_test.cc"],
+    deps = [":protobuf_headers"],
+)
+
+architecture_tests()
+
+pkgconfig_test(name = "pkgconfig_test")
+
+pkgconfig_selection_test(name = "pkgconfig_selection_test")
+
+concrete_packages_test(name = "concrete_packages_test")
+
+# Compile the actual Lua public headers, including Debian's CPU-specific file.
+headers_only(
+    name = "lua_headers",
+    dep = select({
+        ":linux_amd64": "@registry_ci_lua_amd64//:liblua5.1-0",
+        ":linux_arm64": "@registry_ci_lua_arm64//:liblua5.1-0",
+    }),
+)
+
+cc_test(
+    name = "lua_headers_test",
+    srcs = ["lua_headers_test.cc"],
+    deps = [":lua_headers"],
+)
+
+multiarch_test(name = "multiarch_test")
+
+alias(
+    name = "lua_pkgconfig_direct",
+    actual = select({
+        ":linux_amd64": "@registry_ci_lua_amd64//:pkgconfig",
+        ":linux_arm64": "@registry_ci_lua_arm64//:pkgconfig",
+    }),
+)
+
+alias(
+    name = "lua_package_archive",
+    actual = select({
+        ":linux_amd64": "@registry_ci_lua_amd64//:data",
+        ":linux_arm64": "@registry_ci_lua_arm64//:data",
+    }),
+)
+
+write_file(
+    name = "pkgconfig_test_runner",
+    out = "pkgconfig_files_test.sh",
+    content = [
+        "#!/bin/sh",
+        "set -eu",
+        'exec python3 "$@"',
+    ],
+    is_executable = True,
+)
+
+sh_test(
+    name = "pkgconfig_files_test",
+    srcs = [":pkgconfig_test_runner"],
+    args = [
+        "$(rootpath pkgconfig_files_test.py)",
+        "--archive",
+        "$(rootpath :lua_package_archive)",
+        "--triplet",
+    ] + select({
+        ":linux_amd64": ["x86_64-linux-gnu"],
+        ":linux_arm64": ["aarch64-linux-gnu"],
+    }) + [
+        "--direct",
+        "$(locations :lua_pkgconfig_direct)",
+        "--package",
+        "$(locations @registry_ci_pkgconfig//liblua5.1-0-dev:pkgconfig)",
+        "--root",
+        "$(locations @registry_ci_pkgconfig//:pkgconfig)",
+    ],
+    data = [
+        "pkgconfig_files_test.py",
+        ":lua_package_archive",
+        ":lua_pkgconfig_direct",
+        "@registry_ci_pkgconfig//:pkgconfig",
+        "@registry_ci_pkgconfig//liblua5.1-0-dev:pkgconfig",
+    ],
+)
+
+alias(
+    name = "lua_original_deb",
+    actual = select({
+        ":linux_amd64": "@registry_ci_lua_amd64//:deb",
+        ":linux_arm64": "@registry_ci_lua_arm64//:deb",
+    }),
+)
+
+py_test(
+    name = "original_deb_test",
+    srcs = ["original_deb_test.py"],
+    args = [
+        "$(rootpath :lua_original_deb)",
+        "$(rootpath @registry_ci_pkgconfig//liblua5.1-0-dev:deb)",
+    ] + select({
+        ":linux_amd64": ["363759cbaccd47f06b972e578ea6112e50c833d728b7a11e15609764665dabbc"],
+        ":linux_arm64": ["f0bbb58d879faa5d3f4ce40f404ac266f4ad54d20915bcaabeb8a6bd118ef2b1"],
+    }),
+    data = [
+        ":lua_original_deb",
+        "@registry_ci_pkgconfig//liblua5.1-0-dev:deb",
+    ],
+)
