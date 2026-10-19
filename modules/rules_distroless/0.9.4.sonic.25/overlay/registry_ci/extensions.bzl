@@ -4,6 +4,7 @@ load("//apt/private:deb_filemap.bzl", "deb_filemap")
 load("//apt/private:deb_import.bzl", "deb_import")
 load("//apt/private:translate_dependency_set.bzl", "translate_dependency_set")
 load("//apt/private:util.bzl", "util")
+load("//registry_ci/native_shared:fixture.bzl", "native_shared_fixture")
 
 _PROTOBUF = {
     "amd64": {
@@ -38,6 +39,8 @@ _LUA = {
 }
 
 def _registry_ci_impl(module_ctx):
+    native_shared_fixture(name = "registry_ci_native_shared")
+
     for architecture, packages in _PROTOBUF.items():
         depends_on = []
         dep_filemaps = []
