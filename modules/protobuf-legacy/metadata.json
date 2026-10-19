@@ -7,7 +7,12 @@
       "name": "Guohan Lu"
     }
   ],
-  "repository": ["github:protocolbuffers/protobuf"],
-  "versions": ["3.21.12-sonic.1"],
+  "repository": [
+    "github:protocolbuffers/protobuf"
+  ],
+  "versions": [
+    "3.21.12-sonic.1",
+    "3.21.12.sonic.2"
+  ],
   "yanked_versions": {}
 }

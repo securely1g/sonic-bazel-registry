@@ -1,0 +1,120 @@
+load("@sonic_build_infra//deb:metadata.bzl", "debian_library", "debian_metadata")
+load("@sonic_build_infra//deb:sonic_deb.bzl", "sonic_deb")
+load("@sonic_build_infra//deb:validation.bzl", "validate_debian_package")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["targets.bzl"])
+
+# Keep the source-built SONiC runtime. Debian owns the package descriptions,
+# time64 transition declarations and standard ldconfig installation trigger.
+genrule(
+    name = "libprotobuf32t64_stage",
+    srcs = [
+        "//:libprotobuf_pkg",
+        "@protobuf_debian//:control",
+        "@protobuf_debian//:source_files",
+    ],
+    outs = [
+        "libprotobuf32t64/data.tar",
+        "libprotobuf32t64/shlibs",
+        "libprotobuf32t64/triggers",
+        "libprotobuf32t64/substvars",
+    ],
+    cmd = select({
+        "@platforms//cpu:x86_64": "export DEB_HOST_ARCH=amd64\n",
+        "@platforms//cpu:aarch64": "export DEB_HOST_ARCH=arm64\n",
+    }) + """
+set -eu
+execroot=$$PWD
+out=$$execroot/$(RULEDIR)/libprotobuf32t64
+work=$$(mktemp -d)
+trap 'rm -rf "$$work"' EXIT
+mkdir -p "$$work/debian/tmp" "$$out"
+cp -R "$$(dirname $(location @protobuf_debian//:control))/". "$$work/debian/"
+chmod -R u+w "$$work/debian"
+"$(BSDTAR_BIN)" -xf $(location //:libprotobuf_pkg) -C "$$work/debian/tmp"
+cd "$$work"
+"$$execroot/$(execpath @sonic_build_infra//tools/build_tools:dh_install)" -plibprotobuf32t64
+mkdir -p debian/libprotobuf32t64/usr/share/doc/libprotobuf32t64
+cp debian/copyright debian/libprotobuf32t64/usr/share/doc/libprotobuf32t64/copyright
+cp debian/changelog debian/libprotobuf32t64/usr/share/doc/libprotobuf32t64/changelog.Debian
+# Keep the custom source-built package version selected by SONiC; no upstream
+# binary is substituted for the Bazel-compiled shared library.
+"$$execroot/$(execpath @sonic_build_infra//tools/build_tools:dh_makeshlibs)" -plibprotobuf32t64 -V'libprotobuf32t64 (>= 3.21.12+sonic.1)'
+"$$execroot/$(execpath @sonic_build_infra//tools/build_tools:dh_installdeb)" -plibprotobuf32t64
+cp debian/libprotobuf32t64.substvars "$$out/substvars"
+cp debian/libprotobuf32t64/DEBIAN/shlibs "$$out/shlibs"
+cp debian/libprotobuf32t64/DEBIAN/triggers "$$out/triggers"
+rm -rf debian/libprotobuf32t64/DEBIAN
+find debian/libprotobuf32t64 -exec touch -h -d @0 {} +
+"$$execroot/$(BSDTAR_BIN)" --uid 0 --gid 0 --format gnutar -cf "$$out/data.tar" -C debian/libprotobuf32t64 .
+""",
+    toolchains = ["@bsd_tar_toolchains//:resolved_toolchain"],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:dh_install",
+        "@sonic_build_infra//tools/build_tools:dh_installdeb",
+        "@sonic_build_infra//tools/build_tools:dh_makeshlibs",
+    ],
+)
+
+[
+    debian_library(
+        name = name + "_metadata",
+        control_tar = "@protobuf_package_deps//" + name + ":control",
+        data = "@protobuf_package_deps//" + name + ":data",
+    )
+    for name in [
+        "libc6",
+        "libgcc-s1",
+        "libstdc++6",
+    ]
+]
+
+debian_metadata(
+    name = "libprotobuf32t64_control",
+    changelog = "@protobuf_debian//:changelog",
+    control = "@protobuf_debian//:control",
+    data = ":libprotobuf32t64/data.tar",
+    dependencies = [":" + name + "_metadata" for name in [
+        "libc6",
+        "libgcc-s1",
+        "libstdc++6",
+    ]],
+    package = "libprotobuf32t64",
+    substitutions = {"misc:Depends": ""},
+    substvars = ":libprotobuf32t64/substvars",
+    version = "3.21.12+sonic.1",
+)
+
+debian_library(
+    name = "libprotobuf32t64_metadata",
+    data = ":libprotobuf32t64/data.tar",
+    shlibs = ":libprotobuf32t64/shlibs",
+)
+
+sonic_deb(
+    name = "libprotobuf32t64_deb",
+    control_file = ":libprotobuf32t64_control",
+    control_files = {
+        ":libprotobuf32t64/shlibs": "shlibs",
+        ":libprotobuf32t64/triggers": "triggers",
+    },
+    data = ":libprotobuf32t64/data.tar",
+    package = "libprotobuf32t64",
+    tags = ["manual"],
+    version = "3.21.12+sonic.1",
+)
+
+validate_debian_package(
+    name = "libprotobuf32t64_check",
+    control = ":libprotobuf32t64_control",
+    control_files = {
+        ":libprotobuf32t64/shlibs": "shlibs",
+        ":libprotobuf32t64/triggers": "triggers",
+    },
+    data = ":libprotobuf32t64/data.tar",
+    deb = ":libprotobuf32t64_deb",
+    package = "libprotobuf32t64",
+    version = "3.21.12+sonic.1",
+)
