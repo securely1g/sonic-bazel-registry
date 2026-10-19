@@ -1,0 +1,19 @@
+# Origin: SONiC kernel registry integration.
+# Reason: retain this source snapshot while selecting the declared kernel tools
+# on merged Debian GCC and shared sysroot from sonic-build-infra PR #49, plus the transitive RPATH fix in PR #50.
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,11 +1,11 @@
+ module(
+     name = "sonic-linux-kernel",
+-    version = "0.0.1",
++    version = "0.0.1-3d737ef1195f3d4b5aa5cf8eeb4dda6df5233a60",
+ )
+ 
+ bazel_dep(name = "platforms", version = "1.1.0")
+ bazel_dep(name = "rules_python", version = "1.7.0")
+-bazel_dep(name = "sonic-build-infra", version = "0.0.15-3a3d42932877e303385fd0b6503d1c413fc86bab", repo_name = "sonic_build_infra")
++bazel_dep(name = "sonic-build-infra", version = "0.0.16-717519d972fe8405e4e7dec424de3058e8952b14", repo_name = "sonic_build_infra")
+ 
+ python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+ python.toolchain(python_version = "3.13")
