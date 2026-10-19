@@ -1,0 +1,68 @@
+{
+  "generated_module_overlay": true,
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.16-fc35dc113f85e614be38dd48acea4c207827dddc",
+      "repo_name": "sonic_build_infra"
+    },
+    {
+      "name": "tar.bzl",
+      "version": "0.10.5-sonic.1"
+    },
+    {
+      "name": "rules_cc",
+      "version": "0.2.20"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
+  },
+  "build_targets": [
+    "@libnl3//:libnl-3_pkg",
+    "@libnl3//:libnl-genl-3_pkg",
+    "@libnl3//:libnl-route-3_pkg",
+    "@libnl3//:libnl-nf-3_pkg",
+    "@libnl3//:libnl-cli-3_pkg",
+    "@libnl3//:libnl-3-dev_pkg",
+    "@libnl3//:libnl-genl-3-dev_pkg",
+    "@libnl3//:libnl-route-3-dev_pkg",
+    "@libnl3//:libnl-nf-3-dev_pkg",
+    "@libnl3//:libnl-cli-3-dev_pkg",
+    "@libnl3//:libnl-3_pkg.debug_symbols",
+    "@libnl3//:libnl-genl-3_pkg.debug_symbols",
+    "@libnl3//:libnl-route-3_pkg.debug_symbols",
+    "@libnl3//:libnl-nf-3_pkg.debug_symbols",
+    "@libnl3//:libnl-cli-3_pkg.debug_symbols",
+    "@libnl3//:libnl-3-dev_files",
+    "@libnl3//:libnl-route-3-dev_files",
+    "@libnl3//:libnl-3-runtime_files",
+    "@libnl3//:libnl-3-runtime_files.debug_symbols",
+    "@libnl3//:libnl-route-3-runtime_files",
+    "@libnl3//:libnl-route-3-runtime_files.debug_symbols",
+    "@libnl3//:libnl-genl-3-runtime_files",
+    "@libnl3//:libnl-genl-3-runtime_files.debug_symbols",
+    "@libnl3//:libnl-nf-3-runtime_files",
+    "@libnl3//:libnl-nf-3-runtime_files.debug_symbols",
+    "@libnl3//:libnl-cli-3-runtime_files",
+    "@libnl3//:libnl-cli-3-runtime_files.debug_symbols",
+    "@libnl3//:libnl_3_deb",
+    "@libnl3//:libnl_route_3_deb",
+    "@libnl3//:libnl_genl_3_deb",
+    "@libnl3//:libnl_nf_3_deb",
+    "@libnl3//:libnl_cli_3_deb",
+    "@libnl3//:libnl_3_dev_deb",
+    "@libnl3//:libnl_route_3_dev_deb"
+  ],
+  "test_targets": [
+    "@libnl3//:libnl3_consumer_test",
+    "@libnl3//:libnl3_package_test",
+    "@libnl3//:libnl3_dev_files_test",
+    "@libnl3//:libnl3_debian_package_test"
+  ]
+}
