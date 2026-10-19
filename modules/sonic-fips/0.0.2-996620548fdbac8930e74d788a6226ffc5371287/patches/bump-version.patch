@@ -1,0 +1,11 @@
+Bind the registry module identity to its exact source revision.
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-fips",
+-    version = "0.0.2",
++    version = "0.0.2-996620548fdbac8930e74d788a6226ffc5371287",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",

@@ -1,0 +1,51 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.16-1d6990a2ba2980315f086a461a08312bbc3f217c",
+      "repo_name": "sonic_build_infra"
+    },
+    {
+      "name": "rules_distroless",
+      "version": "0.9.4.sonic.5"
+    },
+    {
+      "name": "tar.bzl",
+      "version": "0.10.5-sonic.1"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
+  },
+  "build_targets": [
+    "@sonic-fips//openssl:libssl3t64_pkg",
+    "@sonic-fips//openssl:openssl_pkg",
+    "@sonic-fips//openssl:libssl3t64_pkg.debug_symbols",
+    "@sonic-fips//openssl:openssl_pkg.debug_symbols",
+    "@sonic-fips//openssl:libssl_dev_pkg",
+    "@sonic-fips//openssh:openssh_client_pkg",
+    "@sonic-fips//openssh:openssh_client_pkg.debug_symbols",
+    "@sonic-fips//krb5:libk5crypto3_pkg",
+    "@sonic-fips//krb5:libk5crypto3_pkg.debug_symbols",
+    "@sonic-fips//krb5:libkrb5support0_pkg",
+    "@sonic-fips//krb5:libkrb5support0_pkg.debug_symbols",
+    "@sonic-fips//krb5:libkrb5_3_pkg",
+    "@sonic-fips//krb5:libkrb5_3_pkg.debug_symbols",
+    "@sonic-fips//krb5:libgssapi_krb5_2_pkg",
+    "@sonic-fips//krb5:libgssapi_krb5_2_pkg.debug_symbols",
+    "@sonic-fips//symcrypt:runtime",
+    "@sonic-fips//symcrypt:runtime.debug_symbols"
+  ],
+  "test_targets": [
+    "@sonic-fips//openssl:package_test",
+    "@sonic-fips//openssh:package_test",
+    "@sonic-fips//krb5:package_test",
+    "@sonic-fips//symcrypt:package_test",
+    "@sonic-fips//openssl/integration:openssl_symcrypt_test"
+  ]
+}
