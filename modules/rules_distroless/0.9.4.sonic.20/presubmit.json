@@ -22,6 +22,7 @@
     "@rules_distroless//registry_ci:multiarch_test",
     "@rules_distroless//registry_ci:pkgconfig_files_test",
     "@rules_distroless//registry_ci:concrete_packages_test",
-    "@rules_distroless//registry_ci:pkgconfig_selection_test"
+    "@rules_distroless//registry_ci:pkgconfig_selection_test",
+    "@rules_distroless//registry_ci/native_shared:runpath_test"
   ]
 }
