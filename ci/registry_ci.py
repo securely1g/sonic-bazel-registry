@@ -376,7 +376,10 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
                 and re.fullmatch(r"[0-9a-fA-F]{40,64}", head) is not None,
                 "base and head must be full commit SHAs")
         require(git(root, "rev-parse", "HEAD").strip() == head, "Checkout HEAD differs from planned head")
-        changed = git(root, "diff", "--name-only", "--no-renames", "-z", base, head).split("\0")
+        # A PR compares its own changes with the common ancestor. Releases
+        # added only to its target branch are not deletions from this checkout.
+        comparison_base = git(root, "merge-base", base, head).strip()
+        changed = git(root, "diff", "--name-only", "--no-renames", "-z", comparison_base, head).split("\0")
         ci_changed = False
         for name in filter(None, changed):
             parts = PurePosixPath(name).parts
@@ -399,7 +402,7 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
                     directories = {p.name for p in (root / "modules" / module).iterdir() if p.is_dir()}
                     require(set(versions) == directories, f"{module}: metadata and version directories differ")
                     previous = subprocess.run(
-                        ["git", "-C", str(root), "show", f"{base}:modules/{module}/metadata.json"],
+                        ["git", "-C", str(root), "show", f"{comparison_base}:modules/{module}/metadata.json"],
                         text=True, capture_output=True,
                     )
                     relevant = versions
