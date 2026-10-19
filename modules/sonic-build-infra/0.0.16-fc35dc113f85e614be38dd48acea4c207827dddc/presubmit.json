@@ -1,0 +1,28 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "tar.bzl",
+      "version": "0.10.5-sonic.1"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic-build-infra//platforms:x86_64_trixie",
+    "arm64": "@sonic-build-infra//platforms:aarch64_trixie"
+  },
+  "build_targets": [
+    "@sonic-build-infra//tests:hello_deploy_tar",
+    "@sonic-build-infra//tests:hello_deploy_tar.debug_symbols"
+  ],
+  "test_targets": [
+    "@sonic-build-infra//deb/tests:metadata_test",
+    "@sonic-build-infra//tools/build_tools:metadata_runtime_test",
+    "@sonic-build-infra//tools/build_tools:debian_runtime_test",
+    "@sonic-build-infra//tools/build_tools:kerberos_runtime_test",
+    "@sonic-build-infra//tests:hello_deploy_tar_content_test",
+    "@sonic-build-infra//toolchains/gcc/tests/runtime:transitive_runtime_test"
+  ]
+}
