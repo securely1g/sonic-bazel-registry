@@ -6,7 +6,7 @@ module(
 bazel_dep(name = "bazel_skylib", version = "1.9.0")
 bazel_dep(name = "rules_cc", version = "0.2.14")
 bazel_dep(name = "rules_shell", version = "0.6.1")
-bazel_dep(name = "sonic-build-infra", version = "0.0.16-2b4e9d49b0fe7e8152461d03aae90caf61629907", repo_name = "sonic_build_infra")
+bazel_dep(name = "sonic-build-infra", version = "0.0.16-fc35dc113f85e614be38dd48acea4c207827dddc", repo_name = "sonic_build_infra")
 bazel_dep(name = "platforms", version = "1.0.0")
 bazel_dep(name = "pcre2", version = "10.45")
 bazel_dep(name = "xxhash", version = "0.8.3")

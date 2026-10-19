@@ -4,7 +4,7 @@
   "integrity": "sha256-n+Q8y+7qcsZTvc+MkzMlgxNc2kanlQe/0KSDu1f2WTk=",
   "overlay": {
     "BUILD.bazel": "sha256-NuIXPSKH5p/lCd7BuKAyoHuhkvqoezSYhDCp2LAcGMA=",
-    "MODULE.bazel": "sha256-JHBLxzxnUBKekuIxoAnv0zqzulgS7XYZaCuXRkZefmI=",
+    "MODULE.bazel": "sha256-fULO1r5B282JBuhdsUhEKgQj+OPTDA8RQAhEu6DgZns=",
     "README.bazel.md": "sha256-ft3Fndc49Zmi11hR5gGA/i6Y1ywLigiaZYGgpbboMWk=",
     "archive_inputs.bzl": "sha256-4grPddhEeq7L/Ba8WhixeRiRm8gBNwkOajjr8CpYyTU=",
     "debian.bzl": "sha256-W9YIqnlUomCtyiI2SuMVI5vLKMTCiu95XICTUNvQ1RY=",

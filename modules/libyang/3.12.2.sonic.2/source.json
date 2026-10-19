@@ -9,7 +9,7 @@
   "overlay": {
     "BUILD.bazel": "sha256-fYmVYfEH7y7/aNYHG90IkHiDj9XmIjarYlBHzJ5YQVY=",
     "LICENSES": "sha256-BvHAhiSyYIsBmAnh7jP8fANo0sRsmHxlsCFqMtVdseA=",
-    "MODULE.bazel": "sha256-AjIYWaxY5lBFOr/v7KQaiZFj/UH6lPBssoyaBv5tjfE=",
+    "MODULE.bazel": "sha256-nSnxIr+LQjP394ZrR1GwWir7drq4YFmaett7zEw4B+U=",
     "README.bazel.md": "sha256-Pic4f/4e0au3PzfdUc7jlI/N06fhfF+MXPWqWP1oL4s=",
     "headers.bzl": "sha256-cQ+D1+NwSRWxqN1ZiqB+wLzt7PdtDqJ4A3pHwt04UUw=",
     "libyang_debian_package_test.py": "sha256-T/q6hGeSw6CUTWYh19UBF6YAB9k0r7YdATcufyw+UCA=",
