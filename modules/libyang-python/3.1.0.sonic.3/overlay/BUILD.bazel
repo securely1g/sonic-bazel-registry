@@ -1,0 +1,287 @@
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_distroless//distroless:defs.bzl", "flatten")
+load("@rules_python//python:py_binary.bzl", "py_binary")
+load("@rules_python//python:py_library.bzl", "py_library")
+load("@rules_python//python:py_test.bzl", "py_test")
+load("@sonic_build_infra//deb:metadata.bzl", "debian_library", "debian_metadata")
+load("@sonic_build_infra//deb:sonic_deb.bzl", "sonic_deb")
+load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
+load("@tar.bzl", "tar")
+
+package(default_visibility = ["//visibility:private"])
+
+exports_files(["requirements_lock.txt"])
+
+py_binary(
+    name = "emit_cffi",
+    srcs = ["emit_cffi.py"],
+    python_version = "3.13",
+    deps = ["@libyang_python_pip//cffi"],
+)
+
+genrule(
+    name = "cffi_c",
+    srcs = [
+        "cffi/build.py",
+        "cffi/cdefs.h",
+        "cffi/source.c",
+    ],
+    outs = ["_libyang.c"],
+    cmd = "$(execpath :emit_cffi) --build $(execpath cffi/build.py) --output $@",
+    tags = ["block-network"],
+    tools = [":emit_cffi"],
+)
+
+cc_binary(
+    name = "_libyang.so",
+    srcs = [":cffi_c"],
+    copts = ["-std=c99"],
+    linkopts = [
+        "-Wl,-z,now",
+    ],
+    linkshared = True,
+    deps = [
+        "@libyang",
+        "@python_3_13//:python_headers",
+    ],
+)
+
+py_library(
+    name = "libyang",
+    srcs = glob(["libyang/*.py"]),
+    data = [":_libyang.so"],
+    imports = ["."],
+    visibility = ["//visibility:public"],
+    deps = ["@libyang_python_pip//cffi"],
+)
+
+py_test(
+    name = "libyang_runtime_test",
+    srcs = ["libyang_runtime_test.py"],
+    python_version = "3.13",
+    visibility = ["//visibility:public"],
+    deps = [":libyang"],
+)
+
+filegroup(
+    name = "upstream_test_inputs",
+    srcs = glob([
+        "tests/*.py",
+        "tests/data/**",
+        "tests/yang/**",
+        "tests/yang-old/**",
+    ]),
+)
+
+py_test(
+    name = "libyang_upstream_test",
+    srcs = ["run_upstream_tests.py"],
+    args = ["$(locations :upstream_test_inputs)"],
+    data = [":upstream_test_inputs"],
+    main = "run_upstream_tests.py",
+    python_version = "3.13",
+    visibility = ["//visibility:public"],
+    deps = [":libyang"],
+)
+
+# This module supports CPython 3.13. Use its versioned, target-platform headers
+# above so a direct TAR build cannot accidentally compile against another
+# consumer's default Python interpreter.
+_RUNTIME_PYTHON = glob(["libyang/*.py"]) + ["libyang/py.typed"]
+
+sonic_deploy_tar(
+    name = "libyang_pkg",
+    srcs = _RUNTIME_PYTHON + ["LICENSE"],
+    binaries = {
+        "usr/lib/python3/dist-packages/_libyang.so type=file mode=0555": ":_libyang.so",
+    },
+    force_debug_build = True,
+    mtree = [
+        "usr/lib/python3/dist-packages/{} type=file mode=0644 content=$(location {})".format(source, source)
+        for source in _RUNTIME_PYTHON
+    ] + [
+        "usr/share/doc/python3-libyang/copyright type=file mode=0444 content=$(location LICENSE)",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+py_test(
+    name = "libyang_package_test",
+    srcs = ["libyang_package_test.py"],
+    args = [
+        "$(rootpath :libyang_pkg)",
+        "$(rootpath :libyang_pkg.debug_symbols)",
+        "$(rootpath @libyang//:libyang_pkg)",
+        "$(rootpath libyang_runtime_test.py)",
+    ],
+    data = _RUNTIME_PYTHON + [
+        "LICENSE",
+        "libyang_runtime_test.py",
+        ":libyang_pkg",
+        ":libyang_pkg.debug_symbols",
+        "@libyang//:libyang_pkg",
+    ],
+    python_version = "3.13",
+    visibility = ["//visibility:public"],
+    deps = ["@libyang_python_pip//cffi"],
+)
+
+py_binary(
+    name = "generate_debian_python_metadata",
+    srcs = ["debian_metadata.py"],
+    main = "debian_metadata.py",
+    python_version = "3.13",
+    deps = [
+        "@libyang_python_pip//cffi",
+        "@libyang_python_pip//setuptools",
+    ],
+)
+
+filegroup(
+    name = "metadata_inputs",
+    srcs = glob([
+        "libyang/**",
+        "cffi/**",
+        "setup.py",
+        "README.rst",
+        "MANIFEST.in",
+    ]),
+)
+
+genrule(
+    name = "python_egg_metadata",
+    srcs = [
+        ":metadata_inputs",
+        "setup.py",
+    ],
+    outs = ["python_egg_metadata.tar"],
+    cmd = """
+set -eu
+work=$$(mktemp -d)
+trap 'rm -rf "$$work"' EXIT
+$(execpath :generate_debian_python_metadata) "$$(dirname $(location setup.py))" "$$work"
+$(BSDTAR_BIN) --uid 0 --gid 0 -cf $@ -C "$$work" .
+""",
+    toolchains = ["@bsd_tar_toolchains//:resolved_toolchain"],
+    tools = [":generate_debian_python_metadata"],
+)
+
+tar(
+    name = "debian_documentation",
+    srcs = ["debian/changelog"],
+    mtree = ["usr/share/doc/python3-libyang/changelog.Debian uid=0 gid=0 mode=0644 type=file content=$(location debian/changelog)"],
+)
+
+flatten(
+    name = "python3_libyang_staged_data",
+    tars = [
+        ":libyang_pkg",
+        ":python_egg_metadata",
+        ":debian_documentation",
+    ],
+)
+
+filegroup(
+    name = "debian_source_files",
+    srcs = glob(["debian/**"]),
+)
+
+genrule(
+    name = "python3_libyang_debhelper",
+    srcs = [
+        ":python3_libyang_staged_data",
+        ":debian_source_files",
+        "debian/control",
+    ],
+    outs = ["python3_libyang/" + name for name in [
+        "data.tar",
+        "postinst",
+        "prerm",
+        "substvars",
+    ]],
+    cmd = """
+set -eu
+execroot=$$PWD
+out=$$execroot/$(RULEDIR)/python3_libyang
+bsdtar=$$execroot/$(BSDTAR_BIN)
+work=$$(mktemp -d)
+trap 'rm -rf "$$work"' EXIT
+mkdir -p "$$work/debian" "$$out"
+cp -R "$$(dirname $(location debian/control))/". "$$work/debian/"
+chmod -R u+w "$$work/debian"
+mkdir -p "$$work/debian/python3-libyang"
+"$$bsdtar" -xf $(location :python3_libyang_staged_data) -C "$$work/debian/python3-libyang"
+cd "$$work"
+# This package builds only CPython 3.13. Upstream setup.py requires CFFI on
+# CPython, while dh-python's generic marker evaluator also includes PyPy.
+# Let the original helper map that requirement using py3dist-overrides.
+"$$execroot/$(execpath @sonic_build_infra//tools/build_tools:dh_python3)" -ppython3-libyang --depends=cffi
+"$$execroot/$(execpath @sonic_build_infra//tools/build_tools:dh_installdeb)" -ppython3-libyang
+cp debian/python3-libyang.substvars "$$out/substvars"
+cp debian/python3-libyang/DEBIAN/postinst "$$out/postinst"
+cp debian/python3-libyang/DEBIAN/prerm "$$out/prerm"
+rm -rf debian/python3-libyang/DEBIAN
+"$$bsdtar" --uid 0 --gid 0 -cf "$$out/data.tar" -C debian/python3-libyang .
+""",
+    toolchains = ["@bsd_tar_toolchains//:resolved_toolchain"],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:dh_installdeb",
+        "@sonic_build_infra//tools/build_tools:dh_python3",
+    ],
+)
+
+# ARM64 libyang uses GCC's runtime helper library. dpkg-shlibdeps records
+# it only when the actual target ELF needs it.
+debian_library(
+    name = "debian_libgcc_s1",
+    control_tar = "@libyang_python_package_deps//libgcc-s1:control",
+    data = "@libyang_python_package_deps//libgcc-s1:data",
+)
+
+debian_library(
+    name = "debian_libc6",
+    control_tar = "@libyang_python_package_deps//libc6:control",
+    data = "@libyang_python_package_deps//libc6:data",
+)
+
+debian_metadata(
+    name = "python3_libyang_debian_metadata",
+    changelog = "debian/changelog",
+    control = "debian/control",
+    data = ":python3_libyang/data.tar",
+    dependencies = [
+        ":debian_libc6",
+        ":debian_libgcc_s1",
+        "@libyang//:libyang3_debian_metadata",
+    ],
+    package = "python3-libyang",
+    substvars = ":python3_libyang/substvars",
+)
+
+sonic_deb(
+    name = "python3_libyang_deb",
+    control_file = ":python3_libyang_debian_metadata",
+    control_files = {
+        ":python3_libyang/postinst": "postinst",
+        ":python3_libyang/prerm": "prerm",
+    },
+    data = ":python3_libyang/data.tar",
+    package = "python3-libyang",
+    version = "3.1.0-1",
+    visibility = ["//visibility:public"],
+)
+
+py_test(
+    name = "libyang_debian_package_test",
+    srcs = ["libyang_debian_package_test.py"],
+    args = [
+        "$(rootpath :python3_libyang_deb)",
+        "$(rootpath :libyang_pkg)",
+    ],
+    data = [
+        ":libyang_pkg",
+        ":python3_libyang_deb",
+    ],
+    python_version = "3.13",
+    visibility = ["//visibility:public"],
+)
