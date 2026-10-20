@@ -1,6 +1,6 @@
 module(
     name = "rules_distroless",
-    version = "0.9.4.sonic.6",
+    version = "0.9.4.sonic.7",
     compatibility_level = 1,
 )
 
@@ -46,3 +46,5 @@ use_repo(registry_ci, "registry_ci_lua_amd64")
 use_repo(registry_ci, "registry_ci_lua_arm64")
 use_repo(registry_ci, "registry_ci_pkgconfig")
 use_repo(registry_ci, "registry_ci_native_shared")
+use_repo(registry_ci, "registry_ci_xtables_amd64")
+use_repo(registry_ci, "registry_ci_xtables_arm64")
