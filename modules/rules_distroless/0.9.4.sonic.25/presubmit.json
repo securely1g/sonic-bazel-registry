@@ -11,7 +11,8 @@
   "build_targets": [
     "@rules_distroless//registry_ci:protobuf_headers_test",
     "@rules_distroless//registry_ci:lua_headers_test",
-    "@rules_distroless//registry_ci:lua_pkgconfig_direct"
+    "@rules_distroless//registry_ci:lua_pkgconfig_direct",
+    "@rules_distroless//registry_ci:xtables_headers_test"
   ],
   "test_targets": [
     "@rules_distroless//registry_ci:protobuf_headers_test",
@@ -23,6 +24,8 @@
     "@rules_distroless//registry_ci:pkgconfig_files_test",
     "@rules_distroless//registry_ci:concrete_packages_test",
     "@rules_distroless//registry_ci:pkgconfig_selection_test",
-    "@rules_distroless//registry_ci/native_shared:runpath_test"
+    "@rules_distroless//registry_ci/native_shared:runpath_test",
+    "@rules_distroless//registry_ci:pkgconfig_fields_test",
+    "@rules_distroless//registry_ci:xtables_headers_test"
   ]
 }

@@ -1,11 +1,11 @@
 # Distroless patch provenance and validation
 
-`0.9.4.sonic.6` applies the complete SONiC patch set to the checksum-pinned
+`0.9.4.sonic.7` applies the complete SONiC patch set to the checksum-pinned
 upstream `rules_distroless` 0.9.4 archive. The registry owns these patches and
 their tests. The intermediate `.sonic.2`, `.sonic.3` and `.sonic.4` proposals
 are not published by this change; existing published versions are unchanged.
-This entry retains `.sonic.5` and adds only the provider advertisement repair
-and its native shared-library regression.
+This entry retains `.sonic.6` and adds pkg-config field separator parsing
+with parser regressions and a real xtables header consumer.
 
 `Introduced in` identifies the first published registry version containing the
 patch's behavior; new patches show their proposed version. Later revisions
@@ -23,6 +23,7 @@ proposals and are not counted as releases.
 | `0006-pkgconfig-files.patch` | `0.9.4.sonic.5` | Export unchanged metadata, including local `.pc` aliases, through direct package, selected package and dependency-set targets. Origin: [infra 5071fef](https://github.com/securely1g/sonic-build-infra/commit/5071fef717deac95ccceff851ce7d808667c41e6). |
 | `0007-concrete-packages.patch` | `0.9.4.sonic.5` | Prefer matching concrete packages while preserving virtual-provider fallback and version, suite and CPU filtering. Origin: [infra 12a67fd](https://github.com/securely1g/sonic-build-infra/commit/12a67fd2bc292af156f40372274c9cb3011e5c23). |
 | `0008-ccinfo-providers.patch` | `0.9.4.sonic.6` | Advertise the existing `CcInfo` provider so native `cc_shared_library` visits imported runtime-library metadata. |
+| `0009-pkgconfig-field-separators.patch` | `0.9.4.sonic.7` | Parse colon-tabs and colon-without-space fields; distinguish variable assignments from separators inside values. |
 
 These are SONiC-maintained adaptations, not imported upstream commits.
 [Upstream #220](https://github.com/bazel-contrib/rules_distroless/pull/220)
@@ -43,6 +44,8 @@ with the full patch set applied; there is no separately patched test archive.
 | --- | --- |
 | `protobuf_headers_test` | Compile real pinned Debian Protobuf headers, including `.inc` fragments. |
 | `lua_headers_test`, `multiarch_test` | Compile real Lua headers and check include-root discovery, deduplication and unrelated-path exclusion. |
+| `pkgconfig_fields_test` | Fields with spaces, tabs or no separator whitespace; variable URLs and colon-separated values; fields containing equals signs; boundary whitespace. |
+| `xtables_headers_test` | Compile actual pinned Debian xtables headers using the include directory exported from colon-tab fields. |
 | `pkgconfig_test` | Repeated spaces, tabs, empty substitutions and empty Libs/Cflags produce no empty arguments. |
 | `pkgconfig_selection_test` | Metadata includes the selected CPU and `Architecture: all`, excludes the other CPU, maps metadata/data labels consistently and handles empty dependencies. |
 | `pkgconfig_files_test` | Direct, package and dependency-set exports preserve every original Lua `.pc` file and alias byte-for-byte. |
@@ -52,10 +55,10 @@ with the full patch set applied; there is no separately patched test archive.
 
 The four unit regressions preserve the assertions previously maintained in
 `sonic-build-infra/third_party/rules_distroless`. Registry CI also builds the
-real Protobuf/Lua consumers and metadata exports. It downloads and extracts
+real Protobuf/Lua/xtables consumers and metadata exports. It downloads and extracts
 existing checksum-pinned Debian packages; it does not generate DEB packages.
 The header consumers intentionally omit runtime linker inputs and do not claim
-coverage of Protobuf or Lua runtime packaging.
+coverage of Protobuf, Lua or xtables runtime packaging.
 
 ## Native shared-library regression
 
@@ -83,3 +86,20 @@ the shared library's search path. Upstream
 and
 [`cc_deb_library.bzl`](https://github.com/bazel-contrib/rules_distroless/blob/403a8b5dc7fe80d31156d92f9c14789f9f547a50/apt/private/cc_deb_library.bzl)
 still omit the provider advertisement at that checked revision.
+
+## pkg-config separator regression
+
+The native iproute2 build in [registry PR #64](https://github.com/securely1g/sonic-bazel-registry/pull/64)
+failed to compile `tc/em_ipset.c`: the Debian `libxtables-dev` import declared
+its headers but had no include root. Its `xtables.pc` uses `Cflags:` followed
+by a tab. Upstream 0.9.4 only recognized a literal colon-space. The existing
+`0004` patch normalizes whitespace within already parsed flags and cannot fix
+this earlier field parsing step.
+
+The new patch uses the first `:` or `=` to identify the line's syntax and trims
+boundary whitespace from keys and values. This preserves colons inside variable
+values and equals signs inside field values. Parser tests cover both forms,
+including URLs and compiler definitions. The native fixture imports the real
+AMD64/ARM64 `libxtables-dev` and `libxtables12` 1.8.11-2 packages with reviewed
+SHA-256 hashes. Its header-only compilation context excludes runtime linker
+inputs; it validates the metadata and headers, not runtime installation.

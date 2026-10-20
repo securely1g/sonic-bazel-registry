@@ -1,4 +1,4 @@
-"""Pinned Protobuf headers and an empty dependency set for registry CI only."""
+"""Pinned Debian header consumers and metadata regressions for registry CI."""
 
 load("//apt/private:deb_filemap.bzl", "deb_filemap")
 load("//apt/private:deb_import.bzl", "deb_import")
@@ -38,6 +38,19 @@ _LUA = {
     }
 }
 
+_XTABLES = {
+    "amd64": {
+        "multiarch": "x86_64-linux-gnu",
+        "dev": "c9e8c33542fd8408288a86c5a3a6a86466c729ef4e2faac6a0cea69f1f372e04",
+        "runtime": "4de5aa59faef5e98d6ba9f5f521a915be5641f224f597862f8d29e8319e8db16",
+    },
+    "arm64": {
+        "multiarch": "aarch64-linux-gnu",
+        "dev": "ae4de6b8ffb303848b14546987e678e0e5e4aca1ccc82d489fb124e8872fda1f",
+        "runtime": "b200a559a4ae1b4ebcee4fb0fcaef6a16ef01abbe3da8887de15e800b1a6440d",
+    },
+}
+
 def _registry_ci_impl(module_ctx):
     native_shared_fixture(name = "registry_ci_native_shared")
 
@@ -72,6 +85,33 @@ def _registry_ci_impl(module_ctx):
             sha256 = packages["dev"],
             target_name = "libprotobuf-dev",
             urls = ["https://deb.debian.org/debian/pool/main/p/protobuf/libprotobuf-dev_3.21.12-11+deb13u1_{}.deb".format(architecture)],
+        )
+
+    for architecture, package in _XTABLES.items():
+        key = "/registry_ci/libxtables12:{}=1.8.11-2".format(architecture)
+        repository = util.sanitize(key)
+        deb_import(
+            name = repository,
+            package_name = "libxtables12",
+            sha256 = package["runtime"],
+            target_name = repository,
+            urls = ["https://deb.debian.org/debian/pool/main/i/iptables/libxtables12_1.8.11-2_{}.deb".format(architecture)],
+        )
+        deb_filemap(
+            name = repository + "_filemap",
+            files = json.encode([
+                "usr/lib/{}/libxtables.so.{}".format(package["multiarch"], suffix)
+                for suffix in ["12", "12.7.0"]
+            ]),
+        )
+        deb_import(
+            name = "registry_ci_xtables_" + architecture,
+            depends_on = [key],
+            dep_filemaps = ["@" + repository + "_filemap//:filemap.json"],
+            package_name = "libxtables-dev",
+            sha256 = package["dev"],
+            target_name = "libxtables-dev",
+            urls = ["https://deb.debian.org/debian/pool/main/i/iptables/libxtables-dev_1.8.11-2_{}.deb".format(architecture)],
         )
 
     metadata_packages = {}
