@@ -3,6 +3,39 @@ set -euo pipefail
 runtime=$(realpath "$1")
 debug=$(realpath "$2")
 consumer=$(realpath "$3")
+# Check the actual TAR against the source notices and complete model inventory.
+python3 - "$runtime" "$4" "$5" "${@:6}" <<'PAYLOAD'
+from pathlib import Path
+import sys
+import tarfile
+
+runtime, copyright, changelog, *models = sys.argv[1:]
+expected = {
+    "usr/share/doc/libyang3/copyright": Path(copyright),
+    "usr/share/doc/libyang3/changelog.Debian": Path(changelog),
+}
+assert len(models) == 8, models
+expected.update({
+    "usr/share/yang/modules/libyang/" + Path(model).name: Path(model)
+    for model in models
+})
+assert len(expected) == 10, expected
+assert Path(changelog).read_text().startswith("libyang (3.12.2-1) "), changelog
+with tarfile.open(runtime) as archive:
+    members = {member.name.removeprefix("./"): member for member in archive}
+    assert all(member.uid == member.gid == 0 for member in members.values())
+    installed_models = {
+        name for name, member in members.items()
+        if name.startswith("usr/share/yang/modules/libyang/") and member.isfile()
+    }
+    assert installed_models == {name for name in expected if name.endswith(".yang")}
+    for name, source in expected.items():
+        member = members[name]
+        assert member.isfile() and member.mode == 0o644, (name, member.mode)
+        assert archive.extractfile(member).read() == source.read_bytes(), name
+    assert not any(name.startswith(("DEBIAN/", "var/lib/dpkg/")) for name in members)
+print("Eight upstream models and Debian source notices match the runtime TAR")
+PAYLOAD
 root="$TEST_TMPDIR/package"
 mkdir -p "$root"
 tar -xf "$runtime" -C "$root"
