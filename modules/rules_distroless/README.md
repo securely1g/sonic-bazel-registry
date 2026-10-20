@@ -1,5 +1,15 @@
 # Distroless patches and consumer tests
 
+## Debian installation candidate
+
+`0.9.4.sonic.8` retains every published `.sonic.7` fix and adds the optional
+original-DEB installation rule from [rules_distroless #2](https://github.com/securely1g/rules_distroless/pull/2).
+Its [patch and test inventory](0.9.4.sonic.8/PATCHES.md) includes both the
+installer contracts and the existing pkg-config and xtables regressions.
+[Buildimage #33](https://github.com/securely1g/sonic-buildimage/pull/33) still
+selects the retained earlier installer snapshot; adopting this candidate
+requires a separate version/manifest refresh and consumer validation.
+
 ## pkg-config field separator fix
 
 `0.9.4.sonic.7` retains the consolidated fixes and `.sonic.6` native
