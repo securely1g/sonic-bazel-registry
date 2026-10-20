@@ -1,0 +1,17 @@
+{
+  "homepage": "https://www.dest-unreach.org/socat/",
+  "maintainers": [
+    {
+      "name": "Guohan Lu",
+      "email": "securely1g@gmail.com",
+      "github": "securely1g"
+    }
+  ],
+  "repository": [
+    "https://www.dest-unreach.org/socat/"
+  ],
+  "versions": [
+    "1.8.0.2.sonic.1"
+  ],
+  "yanked_versions": {}
+}
