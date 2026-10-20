@@ -1,0 +1,41 @@
+module(name = "iproute2", version = "6.15.0.sonic.1")
+bazel_dep(name = "bazel_skylib", version = "1.8.2")
+bazel_dep(name = "platforms", version = "1.0.0")
+bazel_dep(name = "rules_foreign_cc", version = "0.15.1")
+bazel_dep(name = "rules_cc", version = "0.2.16")
+bazel_dep(name = "rules_python", version = "1.7.0")
+bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.7")
+bazel_dep(name = "sonic-build-infra", version = "0.0.17-8baf1ad829c5095297d85148b042145b87d623a3", repo_name = "sonic_build_infra")
+gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
+use_repo(gcc, "gcc_toolchains")
+register_toolchains("@gcc_toolchains//:all")
+apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
+apt.install(
+    dependency_set = "iproute2_deps",
+    packages = ["libxtables-dev", "libatm1-dev", "libbsd-dev", "libbpf-dev", "libcap-dev", "libdb-dev", "libelf-dev", "libmnl-dev", "libnsl-dev", "libselinux1-dev", "zlib1g-dev"],
+    suites = ["trixie", "trixie-updates", "trixie-security"],
+)
+use_repo(apt, "iproute2_deps")
+
+# Reconstruct Debian 6.15.0-1, then apply SONiC's bridge protocol patch.
+# Both archive hashes match iproute2_6.15.0-1.dsc.
+iproute2_source = use_repo_rule("//:bazel/source.bzl", "iproute2_source")
+iproute2_source(
+    name = "iproute2_source",
+    upstream_url = "https://deb.debian.org/debian/pool/main/i/iproute2/iproute2_6.15.0.orig.tar.xz",
+    upstream_sha256 = "8041854a882583ad5263466736c9c8c68c74b1a35754ab770d23343f947528fb",
+    debian_url = "https://deb.debian.org/debian/pool/main/i/iproute2/iproute2_6.15.0-1.debian.tar.xz",
+    debian_sha256 = "780375193dffeb85f310a918b806f2f4e480f76b815a1f0f1eac5d0488ea1a8f",
+    sonic_patch = "//:bazel/0001-bridge-fdb-protocol.patch",
+    overlays = {
+        "//:bazel/iproute2.BUILD.bazel": "BUILD.bazel",
+        "//:bazel/configure.sh": "bazel/configure.sh",
+        "//:bazel/runtime.bzl": "bazel/runtime.bzl",
+    },
+)
+
+register_toolchains(
+    "@sonic_build_infra//tools/build_tools:make_toolchain",
+    "@sonic_build_infra//tools/build_tools:m4_toolchain",
+    "@sonic_build_infra//tools/build_tools:pkgconfig_toolchain",
+)

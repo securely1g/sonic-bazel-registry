@@ -1,0 +1,17 @@
+{
+  "homepage": "https://wiki.linuxfoundation.org/networking/iproute2",
+  "maintainers": [
+    {
+      "name": "Guohan Lu",
+      "email": "securely1g@gmail.com",
+      "github": "securely1g"
+    }
+  ],
+  "repository": [
+    "https://git.kernel.org/pub/scm/network/iproute2/iproute2.git"
+  ],
+  "versions": [
+    "6.15.0.sonic.1"
+  ],
+  "yanked_versions": {}
+}
