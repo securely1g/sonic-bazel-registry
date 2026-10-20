@@ -1,0 +1,33 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary")
+load("@rules_python//python:py_test.bzl", "py_test")
+
+package(default_visibility = ["//visibility:public"])
+
+# Keep the consumer interface stable while assembling Debian's source package.
+[
+    alias(name = name, actual = "@iproute2_source//:" + name)
+    for name in ["iproute2_pkg", "iproute2_pkg.debug_symbols", "iproute2_config"]
+]
+
+cc_binary(
+    name = "ematch_config_redirect.so",
+    testonly = True,
+    srcs = ["bazel/ematch_config_redirect.c"],
+    linkshared = True,
+    linkopts = ["-ldl"],
+)
+
+py_test(
+    name = "iproute2_package_test",
+    srcs = ["bazel/package_test.py"],
+    main = "bazel/package_test.py",
+    args = [
+        "$(rootpath :iproute2_pkg)", "$(rootpath :iproute2_pkg.debug_symbols)",
+        "$(rootpath :iproute2_config)", "$(rootpath @iproute2_source//:debian/iproute2.install)",
+        "$(rootpath :ematch_config_redirect.so)",
+        "$(locations @iproute2_deps//:packages)",
+    ],
+    data = [":iproute2_pkg", ":iproute2_pkg.debug_symbols", ":iproute2_config", "@iproute2_deps//:packages",
+            "@iproute2_source//:debian/iproute2.install", "@iproute2_source//:etc/iproute2/rt_protos", "@iproute2_source//:ip/routel",
+            "@iproute2_source//:include/bpf_elf.h", "@iproute2_source//:debian/copyright", ":ematch_config_redirect.so"],
+)
