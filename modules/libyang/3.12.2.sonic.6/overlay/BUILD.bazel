@@ -185,16 +185,29 @@ cc_library(
     ],
 )
 
+# CMake installs these eight source models with the runtime library.
+_MODELS = glob(["models/*.yang"])
+_DOCUMENTATION = {
+    "usr/share/doc/libyang3/copyright": "@libyang_debian//:copyright",
+    "usr/share/doc/libyang3/changelog.Debian": "@libyang_debian//:changelog",
+}
+
 [
     sonic_deploy_tar(
         name = "libyang_pkg_" + cpu,
-        srcs = ["LICENSES"],
-        binaries = {"usr/lib/{}/libyang.so.3.9.1 type=file mode=0555".format(multiarch): ":libyang.so.3"},
+        srcs = ["LICENSES"] + _MODELS + _DOCUMENTATION.values(),
+        binaries = {"usr/lib/{}/libyang.so.3.9.1 type=file uid=0 gid=0 mode=0555".format(multiarch): ":libyang.so.3"},
         force_debug_build = True,
         mtree = [
-            "usr/share/doc/libyang/copyright type=file mode=0444 content=$(location LICENSES)",
-            "usr/lib/{}/libyang.so.3 type=link link=libyang.so.3.9.1".format(multiarch),
-            "usr/lib/{}/libyang.so type=link link=libyang.so.3".format(multiarch),
+            "usr/share/doc/libyang/copyright type=file uid=0 gid=0 mode=0444 content=$(location LICENSES)",
+            "usr/lib/{}/libyang.so.3 type=link uid=0 gid=0 mode=0777 link=libyang.so.3.9.1".format(multiarch),
+            "usr/lib/{}/libyang.so type=link uid=0 gid=0 mode=0777 link=libyang.so.3".format(multiarch),
+        ] + [
+            path + " type=file uid=0 gid=0 mode=0644 content=$(location " + source + ")"
+            for path, source in _DOCUMENTATION.items()
+        ] + [
+            "usr/share/yang/modules/libyang/" + source[len("models/"):] + " type=file uid=0 gid=0 mode=0644 content=$(location " + source + ")"
+            for source in _MODELS
         ],
         target_compatible_with = ["@platforms//cpu:" + cpu],
     )
@@ -230,12 +243,16 @@ sh_test(
         "$(location :libyang_pkg)",
         "$(location :libyang_pkg.debug_symbols)",
         "$(location :libyang_test)",
-    ],
+        "$(location @libyang_debian//:copyright)",
+        "$(location @libyang_debian//:changelog)",
+    ] + ["$(location " + source + ")" for source in _MODELS],
     data = [
         ":libyang_pkg",
         ":libyang_pkg.debug_symbols",
         ":libyang_test",
-    ],
+        "@libyang_debian//:copyright",
+        "@libyang_debian//:changelog",
+    ] + _MODELS,
 )
 
 cc_test(
