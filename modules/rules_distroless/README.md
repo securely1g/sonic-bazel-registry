@@ -1,5 +1,14 @@
 # Distroless patches and consumer tests
 
+## pkg-config field separator fix
+
+`0.9.4.sonic.7` retains the consolidated fixes and `.sonic.6` native
+shared-library provider repair. It also parses colon-tab and colon-without-space
+pkg-config fields, preserving separators inside values. This fixes the missing
+include directory exported by Debian's xtables development package.
+[Patch provenance and the test matrix](0.9.4.sonic.7/PATCHES.md) document the
+parser regressions and real xtables header consumer on native AMD64 and ARM64.
+
 ## Consolidated version
 
 `0.9.4.sonic.5` contains the existing Protobuf header fix plus pkg-config
