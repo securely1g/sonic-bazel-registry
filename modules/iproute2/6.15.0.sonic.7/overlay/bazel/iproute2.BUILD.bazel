@@ -1,0 +1,133 @@
+load("@bazel_skylib//rules:select_file.bzl", "select_file")
+load("@rules_foreign_cc//foreign_cc:defs.bzl", "configure_make")
+load(":bazel/runtime.bzl", "installed_file", "runtime_for_arch")
+
+package(default_visibility = ["//visibility:public"])
+
+# Debian's installed program locations after the base image's merged-/usr layout.
+_PROGRAMS = {
+    "arpd": "usr/sbin/arpd", "bridge": "usr/sbin/bridge", "dcb": "usr/sbin/dcb",
+    "devlink": "usr/sbin/devlink", "genl": "usr/sbin/genl", "ip": "usr/bin/ip",
+    "lnstat": "usr/bin/lnstat", "nstat": "usr/bin/nstat", "rdma": "usr/bin/rdma",
+    "rtacct": "usr/sbin/rtacct", "rtmon": "usr/sbin/rtmon", "ss": "usr/bin/ss",
+    "tc": "usr/sbin/tc", "tipc": "usr/sbin/tipc", "vdpa": "usr/sbin/vdpa",
+}
+_NETEM = ["normal", "pareto", "paretonormal", "experimental"]
+
+# Package upstream's staged installation; Debian's manifest omits ifstat.
+_INSTALLED_PATHS = {source: "usr/share/iproute2/" + source.removeprefix("etc/iproute2/") for source in glob(["etc/iproute2/*"])}
+_INSTALLED_PATHS.update({source: "usr/share/man/" + source.removeprefix("man/").removesuffix(".in") for source in glob(["man/man3/*.3", "man/man7/*.7", "man/man8/*.8", "man/man8/*.8.in"], exclude = ["man/man8/ifstat.8"])})
+_INSTALLED_PATHS.update({
+    "include/bpf_elf.h": "usr/include/iproute2/bpf_elf.h",
+    "bash-completion/tc": "usr/share/bash-completion/completions/tc",
+    "bash-completion/devlink": "usr/share/bash-completion/completions/devlink",
+})
+
+filegroup(
+    name = "sources",
+    srcs = ["bazel/configure.sh"] + glob(["**"], exclude = ["BUILD.bazel", "bazel/**"]),
+)
+
+configure_make(
+    name = "iproute2_build",
+    lib_source = ":sources",
+    configure_command = "bazel/configure.sh",
+    configure_prefix = "/bin/sh",
+    configure_in_place = True,
+    features = ["-sanitize_pwd"],
+    configure_options = ["--prefix=/usr", "--color=auto"] + select({
+        "@platforms//cpu:x86_64": ["--libdir=/usr/lib/x86_64-linux-gnu"],
+        "@platforms//cpu:arm64": ["--libdir=/usr/lib/aarch64-linux-gnu"],
+    }),
+    # Keep Debian's optimization/hardening and symbols for the paired TARs.
+    copts = [
+        "-O2", "-g", "-fstack-protector-strong", "-fstack-clash-protection",
+        "-Werror=implicit-function-declaration", "-Wformat", "-Werror=format-security",
+        "-Wdate-time", "-D_FORTIFY_SOURCE=2",
+    ] + select({
+        "@platforms//cpu:x86_64": ["-fcf-protection"],
+        "@platforms//cpu:arm64": ["-mbranch-protection=standard"],
+    }),
+    targets = ["", "install DESTDIR=$$BUILD_TMPDIR$$/$$INSTALL_PREFIX$$"],
+    args = ["-j4"],
+    env = {
+        "BAZEL_PKGCONF": "$(execpath @sonic_build_infra//tools/build_tools:pkgconf)",
+        "BAZEL_PKGCONFIG_FILES": "$(locations @iproute2_deps//:pkgconfig)",
+        "YACC": "$(execpath @sonic_build_infra//tools/build_tools:bison)",
+        "LEX": "$(execpath @sonic_build_infra//tools/build_tools:flex)",
+        "NETNS_RUN_DIR": "/run/netns",
+        "VERBOSE": "1",
+        "KERNEL_INCLUDE": "./include",
+        "LDFLAGS": "-Wl,-z,relro,-z,now -Wl,-rpath-link=$$EXT_BUILD_DEPS/lib",
+    },
+    # pkgconf runs on the execution platform; its metadata describes the target.
+    data = ["@iproute2_deps//:pkgconfig"],
+    build_data = [
+        "@sonic_build_infra//tools/build_tools:pkgconf",
+        "@sonic_build_infra//tools/build_tools:bison",
+        "@sonic_build_infra//tools/build_tools:flex",
+    ],
+    out_bin_dir = "sbin",
+    out_binaries = _PROGRAMS.keys(),
+    out_data_files = ["config.mk", "sbin/routel"] + _INSTALLED_PATHS.values() + select({
+        "@platforms//cpu:x86_64": ["usr/lib/x86_64-linux-gnu/tc/" + name + ".dist" for name in _NETEM],
+        "@platforms//cpu:arm64": ["usr/lib/aarch64-linux-gnu/tc/" + name + ".dist" for name in _NETEM],
+    }),
+    postfix_script = "cp config.mk $$INSTALLDIR/",
+    deps = [
+        "@iproute2_deps//libxtables-dev:libxtables",
+        "@iproute2_deps//libatm1-dev:libatm1",
+        "@iproute2_deps//libbsd-dev:libbsd",
+        "@iproute2_deps//libbpf-dev:libbpf",
+        "@iproute2_deps//libcap-dev:libcap",
+        "@iproute2_deps//libdb-dev:libdb",
+        "@iproute2_deps//libelf-dev:libelf",
+        "@iproute2_deps//libmnl-dev:libmnl",
+        "@iproute2_deps//libnsl-dev:libnsl",
+        "@iproute2_deps//libselinux1-dev:libselinux1",
+        "@iproute2_deps//zlib1g-dev:zlib1g",
+    ],
+)
+
+[
+    select_file(name = "built_" + name, srcs = ":iproute2_build", subpath = "iproute2_build/sbin/" + name)
+    for name in _PROGRAMS
+]
+[
+    installed_file(name = name + "_distribution", subpath = "/tc/" + name + ".dist")
+    for name in _NETEM
+]
+[
+    installed_file(name = "installed_" + source.replace("/", "_"), subpath = "iproute2_build/" + path)
+    for source, path in _INSTALLED_PATHS.items()
+]
+installed_file(name = "installed_routel", subpath = "iproute2_build/sbin/routel")
+installed_file(name = "iproute2_config", subpath = "iproute2_build/config.mk")
+
+# Debian copies examples and notices directly from the maintained source tree.
+_DATA_PATHS = {source: "usr/share/doc/iproute2/" + source for source in glob(["examples/**"])}
+_DATA_PATHS.update({
+    "COPYING": "usr/share/doc/iproute2/COPYING",
+    "debian/copyright": "usr/share/doc/iproute2/copyright",
+})
+_INSTALLED_TARGETS = {":installed_" + source.replace("/", "_"): path for source, path in _INSTALLED_PATHS.items()}
+
+runtime_for_arch("amd64", "x86_64-linux-gnu", _PROGRAMS, _DATA_PATHS, _INSTALLED_TARGETS, _NETEM)
+runtime_for_arch("arm64", "aarch64-linux-gnu", _PROGRAMS, _DATA_PATHS, _INSTALLED_TARGETS, _NETEM)
+
+alias(
+    name = "iproute2_pkg",
+    actual = select({"@platforms//cpu:x86_64": ":iproute2_pkg_amd64", "@platforms//cpu:arm64": ":iproute2_pkg_arm64"}),
+)
+alias(
+    name = "iproute2_pkg.debug_symbols",
+    actual = select({"@platforms//cpu:x86_64": ":iproute2_pkg_amd64.debug_symbols", "@platforms//cpu:arm64": ":iproute2_pkg_arm64.debug_symbols"}),
+)
+
+exports_files([
+    "debian/iproute2.install",
+    "debian/copyright",
+    "etc/iproute2/rt_protos",
+    "ip/routel",
+    "include/bpf_elf.h",
+])
