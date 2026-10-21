@@ -4,13 +4,13 @@
   "archive_type": "tar.gz",
   "overlay": {
     "BUILD.bazel": "sha256-oRs/5q8FIlan1/WNpsgjkkn5CdTQ5f/wA96ONJfOUJc=",
-    "MODULE.bazel": "sha256-9zFp8WWN7nanfZ02VMuZQnWQecbBktw1RBThXkL5bhc=",
-    "bazel/runtime_test.py": "sha256-Be8W8VMLhrSftwjJGtUxEBR9fG4Y146SRoa//ETs/LM=",
-    "bazel/sdk_test.cc": "sha256-TiEXkjmzRVFTjM+v+EuVjhm5EBQullXAwTt9QD+IvLk=",
-    "bazel/runtime.bzl": "sha256-C3BRt0ze8z0ewWnHqY9WEzJCm+IDx3zz6Cqeau1cydk=",
+    "MODULE.bazel": "sha256-bRFVNyS7QQsq1AXzWO3pKexmE8C1JdjBm3FvA8C+XYM=",
+    "bazel/runtime_test.py": "sha256-i6nuEJTmdv9SuIvlz0tQw64tD/JIDuK/upS+7oNIG7I=",
+    "bazel/sdk_test.cc": "sha256-8Xhj1/JvO/BymtyugoLpzUd1mg7iCcL5FQMia9xvqhY=",
+    "bazel/runtime.bzl": "sha256-Rfr8KCHuK/zvtE1tfMiWL6uExw/0PfpMRCw0sY3gbiw=",
     "bazel/BUILD.bazel": "sha256-moopcS0WlSXmeF6hnyryjCzWdmaCGSn/nzcl+xt4veM=",
-    "bazel/configure.sh": "sha256-lUgybtFCKGMARmSzwHH26UsgZuzG4w15Cs1JKLoTiDw=",
+    "bazel/configure.sh": "sha256-zfv3+8MiSdNcvsoOqDz0QJODPB8SN4Hv3Yyr1Wj/uEQ=",
     "bazel/source.bzl": "sha256-cqDc9YvFRZU0Akqu8ZaUBUVarHcSg7Bq5YStWg2qenk=",
-    "bazel/pi.BUILD.bazel": "sha256-u3AoWknzf8F8ShPMZTBWtIPKHnDE8J8+d4t5CBoSiXY="
+    "bazel/pi.BUILD.bazel": "sha256-AhzFrBd01qY5Ms1/QTCiQEXx6Rybv6LAPJTcmTpALaE="
   }
 }

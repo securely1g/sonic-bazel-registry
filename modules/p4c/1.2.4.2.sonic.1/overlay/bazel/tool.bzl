@@ -1,4 +1,5 @@
 """Run P4C with its declared libraries, preprocessor and P4 include files."""
+
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 
 def _key(ctx, file):
@@ -19,7 +20,7 @@ def _impl(ctx):
     if not loaders:
         fail("The declared GCC runtime does not expose the dynamic loader")
     include = [f for f in ctx.files.data if f.basename == "core.p4"][0]
-    directories = { _key(ctx, f).rpartition("/")[0]: True for f in files if ".so" in f.basename }
+    directories = {_key(ctx, f).rpartition("/")[0]: True for f in files if ".so" in f.basename}
     header = """#!/bin/bash
 set -euo pipefail
 rf="${RUNFILES_DIR:-$0.runfiles}"
@@ -30,10 +31,10 @@ export RUNFILES_DIR="$rf"
     cpp = ctx.actions.declare_file(ctx.label.name + ".tools/cpp")
     ctx.actions.write(cpp, header + 'exec "$rf/' + _key(ctx, ctx.file.cpp) + '" -E "$@"\n', is_executable = True)
     script = ctx.actions.declare_file(ctx.label.name)
-    ctx.actions.write(script, header + '\n'.join([
+    ctx.actions.write(script, header + "\n".join([
         'export PATH="$rf/' + _key(ctx, cpp).rpartition("/")[0] + ':$PATH"',
         'export P4C_16_INCLUDE_PATH="$rf/' + _key(ctx, include).rpartition("/")[0] + '"',
-        'exec "$rf/' + _key(ctx, loaders[0]) + '" --inhibit-cache --library-path "' + ':'.join(['$rf/' + path for path in directories]) + '" "$rf/' + _key(ctx, ctx.file.binary) + '" "$@"',
+        'exec "$rf/' + _key(ctx, loaders[0]) + '" --inhibit-cache --library-path "' + ":".join(["$rf/" + path for path in directories]) + '" "$rf/' + _key(ctx, ctx.file.binary) + '" "$@"',
         "",
     ]), is_executable = True)
     runfiles = ctx.runfiles(files = files + [cpp])

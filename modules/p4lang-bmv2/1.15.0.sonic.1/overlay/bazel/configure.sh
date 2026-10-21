@@ -24,4 +24,4 @@ export CPPFLAGS
 
 # autoreconf follows AC_CONFIG_SUBDIRS to prepare simple_switch_grpc as well.
 "$BAZEL_P4_TOOLS/bin/autoreconf" -fi
-exec ./configure "$@"
+exec /bin/sh "$BAZEL_CONFIGURE_ENV" ./configure "$@"

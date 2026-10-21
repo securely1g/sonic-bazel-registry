@@ -19,6 +19,7 @@ def _bmv2_source_impl(ctx):
     if revision != "68f4a978f465fd76e98fcdecb762981843fb7310":
         fail("Unexpected BMv2 source archive revision: " + revision)
     ctx.file("VERSION-build", revision[:8] + "\n", executable = False)
+    ctx.delete(".git")
     for source, destination in ctx.attr.overlays.items():
         ctx.symlink(source, destination)
 

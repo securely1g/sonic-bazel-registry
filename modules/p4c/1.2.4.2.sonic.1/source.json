@@ -1,21 +1,23 @@
 {
-  "url": "https://github.com/securely1g/sonic-bazel-registry/releases/download/p4-source-inputs-20261021/p4lang-p4c_1.2.4.2.orig.tar.gz",
-  "integrity": "sha256-pB1hat1jkkoJjtqrRGgJ9UP/rfwuQDVvm3OYbzJMZoo=",
+  "url": "https://codeload.github.com/p4lang/p4c/tar.gz/624c6be8076881e9af1e2f7d7691bc6c4416f4b1",
+  "integrity": "sha256-hnGpC27CUr3n9SL0tp+FLmsehx5w3444FfgtrPtuk5Q=",
   "overlay": {
-    "BUILD.bazel": "sha256-e6kt1MDKSrINqaYQWKyru1eRdSL2/9aDxBfGjN/WUOQ=",
-    "MODULE.bazel": "sha256-CRmHrFFvr5JBD1mugzI0KJo3HW8kc48m+JMdkbo8Sgc=",
-    "bazel/package_test.py": "sha256-OKiF2iCzrv4brO06ThDWQ/9MKUlGrilj6eJboYIW3Z4=",
+    "BUILD.bazel": "sha256-0n75et3Wrh9jwXSFySPrTPkSDJZTnOo9eYDb/6wNY4s=",
+    "MODULE.bazel": "sha256-2eftSkE3YS+u5ZYREbrFV4haeXkcag8jEHcV5xXt/ag=",
     "bazel/fix-build-for-boost-1.83.patch": "sha256-lIir3S1os2V47iAljZNqEOp0TSG18yiDsBmDDQu9obM=",
-    "bazel/p4c.BUILD.bazel": "sha256-yAXA+2kG0CVVwq/s2UC6/Ow+jxJPjqsFVJjhfasTseg=",
-    "bazel/remove-protobuf-from-debian-dependency.patch": "sha256-YTZk6iagtgMuLRzm4fQvzCW9rzViB6YFbzetpBTHUoA=",
-    "bazel/python.py": "sha256-Q9tldxy5/kZLxbaivZ5I+Tc5hpkE1UtRD4SCwJZvWvw=",
-    "bazel/runtime.bzl": "sha256-RU0oGnu5mBqi2CAl9wPp4UkNE+zYW7cjTCL2PvYJxLA=",
-    "bazel/remove-scapy-from-debian-dependency.patch": "sha256-Wl0MCiaXaXZv5P/tlT5wGyPG40aUYfGIVE+iLo9FZU0=",
-    "bazel/tool.bzl": "sha256-/Wz8IAk+0DiIlath/ThpKGeQqAxK7ZeODlFfog+2GV0=",
-    "bazel/source.bzl": "sha256-FPgMdm3C79O0blPVeL/ZhBb4VNrmBryFX0iMH++Zmc8=",
-    "bazel/use-boost-1.83.patch": "sha256-S7mHEysJW4XvI+uW2xzQ7A/hz1iN1H+4+zvILwyOG3s=",
     "bazel/foreign.cmake": "sha256-xRcJLN6K0hANzb5pZRFQajlaURKrbPc0BdaG9b7XMdc=",
-    "bazel/update-thrift-dependency.patch": "sha256-o1tKrVH4aQhq42whdit69M4IZNUpCRiEAlToyqsMmAQ="
+    "bazel/native-protoc.patch": "sha256-qlJafmRxKJxhJVnFMfRgE2gxeMzuRi1g5k/4vYCVFts=",
+    "bazel/p4c.BUILD.bazel": "sha256-si1DbYzEWWiVDFUbdueWI3SINqZXiQ1ReK5OpxjMC1c=",
+    "bazel/package_test.py": "sha256-OKiF2iCzrv4brO06ThDWQ/9MKUlGrilj6eJboYIW3Z4=",
+    "bazel/python.py": "sha256-Q9tldxy5/kZLxbaivZ5I+Tc5hpkE1UtRD4SCwJZvWvw=",
+    "bazel/remove-protobuf-from-debian-dependency.patch": "sha256-YTZk6iagtgMuLRzm4fQvzCW9rzViB6YFbzetpBTHUoA=",
+    "bazel/remove-scapy-from-debian-dependency.patch": "sha256-Wl0MCiaXaXZv5P/tlT5wGyPG40aUYfGIVE+iLo9FZU0=",
+    "bazel/runtime.bzl": "sha256-I3E0JcwjIVvafvGzZ0gu3Ps6bqonqWeHMlfVPVBEuYQ=",
+    "bazel/source.bzl": "sha256-A1itwaCAU/O74W8mXyEDzQSFKKdoj4+bSvVjXDvFN5g=",
+    "bazel/tool.bzl": "sha256-L0GnkKDDMbtjgQXjA/ljZNYOr3SxcTigbT8nnarWxWA=",
+    "bazel/update-thrift-dependency.patch": "sha256-o1tKrVH4aQhq42whdit69M4IZNUpCRiEAlToyqsMmAQ=",
+    "bazel/use-boost-1.83.patch": "sha256-S7mHEysJW4XvI+uW2xzQ7A/hz1iN1H+4+zvILwyOG3s="
   },
-  "archive_type": "tar.gz"
+  "archive_type": "tar.gz",
+  "strip_prefix": "p4c-624c6be8076881e9af1e2f7d7691bc6c4416f4b1"
 }

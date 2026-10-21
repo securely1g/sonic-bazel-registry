@@ -3,14 +3,14 @@
   "integrity": "sha256-CDu5B+RVl6+OKe87CpLTPSgrojhA3dXPuDctLwMKtBU=",
   "overlay": {
     "BUILD.bazel": "sha256-9hRu5FRRCGPTgYQui/KSXj4DKj/eRQC5kSTHde+nTSA=",
-    "MODULE.bazel": "sha256-rpeLSd3xRuPPkwcsK2yV6psN5q3w5bQLR18dQO52uhM=",
-    "bazel/bmv2.BUILD.bazel": "sha256-MP34q84eJDvPeqUCyHRCHeO8TPzOUxnoU6irbqyS5Yk=",
-    "bazel/configure.sh": "sha256-27TFv5w0egmMd/uqQasO8UQjU7TQTrweBJyuxDlFiSY=",
-    "bazel/package_test.py": "sha256-V2c2MwGgfLskM2i+UBGuPDkyxD4QOfNGYcs6g/GLFAo=",
+    "MODULE.bazel": "sha256-8fO1CWw3YNJX2S+7OQEjF6O3WBAu5OvQPRmn5Imm85Q=",
+    "bazel/bmv2.BUILD.bazel": "sha256-2MKStjqUA/N7aEs9NcNx1y/bV0HZUoFU3qNgR4cmHjU=",
+    "bazel/configure.sh": "sha256-aTunq30kdL7uWFATkUENSWmHhVqLFccP6GgU1q3QCto=",
+    "bazel/package_test.py": "sha256-HHiCHTEilNde92qapPdWa0E6mp/fZRk4iJFg/zKt2U4=",
     "bazel/remove-unnecessary-dependencies.patch": "sha256-ptIQahFQYXUDzr1mDt8jZi/zUxYpFqTMCunacnNfWjY=",
     "bazel/runtime.bzl": "sha256-wc0BVPAcJxHHigJU9Cbw3/xOPa0S5wEhRzmC1RLOkxQ=",
     "bazel/sdk_consumer.cpp": "sha256-Spe7KIpaZ6z4DKK7NvyCkRlESdXR10ZEkXXepZaiUpo=",
-    "bazel/source.bzl": "sha256-p/sAwjgKHyR/kKER6ITn+haxuGKEV/8gyTOGH6ijdh0=",
+    "bazel/source.bzl": "sha256-G8Z0i9CAg9rAXeGjOakIE46eIH7h0IQMKT+QJ5A/kt0=",
     "bazel/use-boost-1.83.patch": "sha256-RuXpjeTrP7ec/sPAvmGhQszRdDGQLkZFgEHYXfMkzto="
   }
 }

@@ -1,6 +1,5 @@
 """Check PI's installed ABI, Python inventory and matching debug-only TAR."""
 import json
-import os
 from pathlib import Path
 import platform
 import re
@@ -37,6 +36,8 @@ def main():
             binaries = [root / p for p, member in members.items() if member.isfile() and handle.extractfile(member).read(4) == b"\x7fELF"]
             assert len(binaries) == 15, [p.name for p in binaries]
             assert all((p.uid, p.gid) == (0, 0) for p in members.values())
+        with tarfile.open(debug) as handle:
+            assert all(p.isdir() or p.name.removeprefix("./").startswith("usr/lib/debug/") for p in handle)
         loaders = {p.resolve() for p in root.rglob("ld-linux-*.so.*") if p.is_file()}
         assert len(loaders) == 1, loaders
         prefix = [str(loaders.pop()), "--inhibit-cache", "--library-path", ":".join(sorted({str(p.parent) for p in root.rglob("*.so*") if p.is_file()}))]
@@ -56,12 +57,13 @@ def main():
             assert "not found" not in listing, listing
             assert all(Path(p).resolve().is_relative_to(root) for p in re.findall(r"=> (/\S+)", listing)), listing
         source = root / "input.p4info.txt"
-        source.write_text('pkg_info { name: "source-runtime" }\n')
-        target = root / "output.p4info.json"
+        source.write_text('actions { preamble { id: 16777217 name: "source-runtime" alias: "source_runtime" } params { id: 1 name: "port" bitwidth: 9 } }\n')
+        target = root / "output.p4info.bin"
         output(*prefix, str(root / "usr/bin/pi_convert_p4info"), "-i", str(source), "-o", str(target), "-f", "prototext", "-t", "proto")
         roundtrip = root / "roundtrip.p4info.txt"
         output(*prefix, str(root / "usr/bin/pi_convert_p4info"), "-i", str(target), "-o", str(roundtrip), "-f", "proto", "-t", "prototext")
         assert 'name: "source-runtime"' in roundtrip.read_text()
+        assert "bitwidth: 9" in roundtrip.read_text()
         gdb = output("gdb", "-nx", "-batch", "-ex", "set debuginfod enabled off", "-ex", "set debug-file-directory " + str(root / "usr/lib/debug"), "-ex", "file " + str(root / "usr/bin/pi_convert_p4info"), "-ex", "info line main")
         assert re.search(r"Line \d+ of .*convert_p4info", gdb), gdb
         log = configure.read_text()

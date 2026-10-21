@@ -102,6 +102,7 @@ configure_make(
         "pyexecdir=/usr/lib/python3/dist-packages",
     ],
     build_data = [
+        "@sonic_build_infra//tools/build_tools:configure_environment.sh",
         "@sonic_build_infra//tools/build_tools:foreign_runtime",
         "@sonic_build_infra//tools/build_tools:pkgconf",
     ],
@@ -132,12 +133,16 @@ configure_make(
     data = ["@bmv2_deps//:pkgconfig"],
     env = {
         "PATH": "$(execpath @sonic_build_infra//tools/build_tools:foreign_runtime)/bin:$$PATH",
+        "BAZEL_CONFIGURE_ENV": "$(execpath @sonic_build_infra//tools/build_tools:configure_environment.sh)",
         "BAZEL_P4_TOOLS": "$(execpath @sonic_build_infra//tools/build_tools:foreign_runtime)",
         "BAZEL_PKGCONF": "$(execpath @sonic_build_infra//tools/build_tools:pkgconf)",
         "BAZEL_PKGCONFIG_FILES": "$(locations @bmv2_deps//:pkgconfig)",
         "LDFLAGS": "-Wl,-z,relro,-z,now -Wl,-rpath-link=$$EXT_BUILD_DEPS/lib",
     },
-    features = ["-sanitize_pwd"],
+    features = [
+        "-sanitize_pwd",
+        "-strip_debug_symbols",
+    ],
     lib_source = ":sources",
     out_bin_dir = "usr/bin",
     out_binaries = _PROGRAMS,
@@ -151,7 +156,7 @@ configure_make(
     }),
     out_include_dir = "usr/include",
     out_lib_dir = select({platform: "usr/lib/" + triplet for platform, triplet in _TRIPLETS.items()}),
-    out_shared_libs = [name + ".so" for name in _LIBRARIES],
+    out_shared_libs = [name + ".so.0" for name in _LIBRARIES],
     postfix_script = "cp config.log config.h $$INSTALLDIR/; cp targets/simple_switch_grpc/config.log $$INSTALLDIR/grpc-config.log",
     targets = [
         "",

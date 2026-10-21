@@ -29,3 +29,9 @@ Native AMD64 and ARM64 registry CI build both TARs and the SDK, compile/run a C+
 SDK consumer, check runtime ELF architecture/SONAME links and debug build IDs,
 load the installed tools with declared target libraries, round-trip P4Info text through its binary protobuf form, and resolve a source line with GDB. The native runs must pass before merge.
 This producer must land before consumers replace their temporary candidate pin.
+
+The upstream Make build always receives `-g` and the shared linker build-ID
+flags, disables the `strip_debug_symbols` linker feature, and uses `install`
+without stripping. Runtime/debug splitting consumes
+that same SDK build; it does not compile a second copy under another Bazel
+configuration. The package test verifies retained DWARF and matching build IDs.

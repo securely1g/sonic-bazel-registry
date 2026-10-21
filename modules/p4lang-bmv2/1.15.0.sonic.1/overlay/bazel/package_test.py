@@ -22,7 +22,7 @@ def build_id(path):
 
 def main():
     runtime, debug, pi_runtime, consumer, config, grpc_config, copyright_file, *dependencies = [Path(x).resolve() for x in sys.argv[1:]]
-    config_text = config.read_text()
+    config_text = re.sub(r"/\*.*?\*/", "", config.read_text(), flags=re.S)
     for feature in ("THRIFT_ON", "NANOMSG_ON", "HAVE_PI_PI_H", "HAVE_PI_TARGET_PI_IMP_H", "HAVE_PI_P4INFO_H"):
         assert re.search(r"^#define " + feature + r"(?: 1)?\s*$", config_text, re.M), feature
     assert "--with-thrift" in grpc_config.read_text()

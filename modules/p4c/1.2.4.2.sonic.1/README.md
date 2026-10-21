@@ -34,26 +34,39 @@ another generic foreign-build framework.
 
 ## Source provenance
 
-The unchanged inputs and their digest receipt are published in the
-[P4 source release](https://github.com/securely1g/sonic-bazel-registry/releases/tag/p4-source-inputs-20261021).
+The compiler comes directly from upstream P4C commit
+[`624c6be8076881e9af1e2f7d7691bc6c4416f4b1`](https://github.com/p4lang/p4c/commit/624c6be8076881e9af1e2f7d7691bc6c4416f4b1),
+with checksum-pinned upstream libbpf submodule
+`051a4009f94d5633a8f734ca4235f0a78ee90469` restored separately.
+The reviewable `overlay/bazel/native-protoc.patch` builds native `protoc` from
+Protobuf sources and adds its include path to P4Runtime generation. These two
+changes were recovered from the retained source bundle; they are explicit
+patches against primary source here.
 
-The input is the reviewed regional `p4lang-p4c_1.2.4.2.orig.tar.gz` archive:
-173758549 bytes, SHA-256
+An audit compared every compiler file and symlink outside Git metadata,
+`build` and `debian`, including executable permissions. All 13,118 files match
+the retained compiler tree after that patch and the libbpf checkout. The receipt
+is [source-provenance.json](source-provenance.json). The seven older upstream
+Debian files are replaced by the selected 1.2.4.2-3 metadata before applying the
+five retained SONiC patches, including the upstream Boost ADL fix with its credit.
+No Debian build or installation commands execute.
+
+The [P4 source release](https://github.com/securely1g/sonic-bazel-registry/releases/tag/p4-source-inputs-20261021)
+preserves the retained bundle and Debian metadata with their digest receipt.
+The retained `p4lang-p4c_1.2.4.2.orig.tar.gz` is 173758549 bytes, SHA-256
 `a41d616add63924a098edaab446809f543ffadfc2e40356f9b73986f324c668a`.
-It is **not byte-identical** to the archive identified by the original retained
-Debian descriptor. The module declares the reviewed archive's actual digest;
-it does not rewrite the descriptor or claim the original digest matches.
+It is a recovered bundle with the native-protoc adaptations, **not a pristine
+upstream archive** and **not byte-identical** to the original retained Debian
+descriptor's archive. This producer extracts only its Protobuf, P4Runtime and
+Inja source trees and its AMD64 Z3 input. Its compiler tree is not extracted.
 
 The unchanged Debian metadata archive is 2796 bytes, SHA-256
 `2a39bf04c8d084724014b71cdeb3b91dbe7a32bf1bd6cd499e5e132aa3e4cb40`.
-The five SONiC patches are retained under `overlay/bazel/`, including the
-upstream-authored Boost ADL fix with its original credit. The archive includes
-its Protobuf/P4Runtime/Inja source inputs; FetchContent network access is disabled
-and CMake consumes only those declared source trees. All other `build/**`
-content is excluded; dependency source inputs also exclude CMake caches,
-objects and compiled libraries. An archive audit found no compiled Protobuf
-or P4C artifacts. It also contains the prebuilt AMD64
-Z3 dependency used by the retained `p4testgen` recipe.
+FetchContent network access is disabled. CMake consumes only the declared source
+trees, excluding Git metadata, CMake caches, objects and compiled libraries.
+An archive audit found no compiled Protobuf or P4C artifacts. The retained
+`p4testgen` recipe's prebuilt AMD64 Z3 static library is declared explicitly;
+ARM64 keeps that optional test tool disabled.
 
 ## Validation
 
