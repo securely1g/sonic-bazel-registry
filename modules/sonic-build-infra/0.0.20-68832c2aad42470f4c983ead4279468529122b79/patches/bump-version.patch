@@ -1,0 +1,20 @@
+From: Guohan Lu <securely1g@gmail.com>
+Subject: [PATCH] Bind the module version to its registered source commit
+
+The source keeps its base module version at 0.0.20. Registry consumers use
+0.0.20-<full source commit> so the module declaration identifies the exact
+archive reviewed in sonic-build-infra PRs #56, #57 and #58. This local
+registration patch changes only that declaration; it is not an upstream
+source fix.
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,7 +1,7 @@
+ # Keep bazel_compatibility in sync with sonic-buildimage's .bazelversion.
+ module(
+     name = "sonic-build-infra",
+-    version = "0.0.20",
++    version = "0.0.20-68832c2aad42470f4c983ead4279468529122b79",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
