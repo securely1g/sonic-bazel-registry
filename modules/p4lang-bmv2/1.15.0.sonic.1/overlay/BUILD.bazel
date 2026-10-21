@@ -46,6 +46,7 @@ py_test(
         "$(rootpath :grpc_config_log)",
         "$(rootpath @bmv2_source//:debian/copyright)",
         "$(locations @bmv2_deps//:packages)",
+        "$(locations @p4lang_pi//:runtime_libraries)",
     ],
     data = [
         ":config_header",
@@ -56,6 +57,7 @@ py_test(
         "@bmv2_deps//:packages",
         "@bmv2_source//:debian/copyright",
         "@p4lang_pi//:runtime",
+        "@p4lang_pi//:runtime_libraries",
     ],
     main = "bazel/package_test.py",
 )

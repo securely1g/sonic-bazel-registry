@@ -13,7 +13,7 @@ bazel_dep(name = "rules_foreign_cc", version = "0.15.1")
 bazel_dep(name = "rules_cc", version = "0.2.16")
 bazel_dep(name = "rules_python", version = "1.7.0")
 bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.7")
-bazel_dep(name = "sonic-build-infra", version = "0.0.17-8baf1ad829c5095297d85148b042145b87d623a3", repo_name = "sonic_build_infra")
+bazel_dep(name = "sonic-build-infra", version = "0.0.18-396974f6432d784162b1fd11dcfb8e0386926dbe", repo_name = "sonic_build_infra")
 bazel_dep(name = "p4lang-pi", version = "0.1.3.sonic.1", repo_name = "p4lang_pi")
 
 gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
