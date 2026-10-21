@@ -1,0 +1,29 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.17-8baf1ad829c5095297d85148b042145b87d623a3"
+    },
+    {
+      "name": "tar.bzl",
+      "version": "0.10.5-sonic.1"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic-build-infra//platforms:x86_64_trixie",
+    "arm64": "@sonic-build-infra//platforms:aarch64_trixie"
+  },
+  "build_targets": [
+    "@p4c//:p4c_pkg",
+    "@p4c//:p4c_pkg.debug_symbols",
+    "@p4c//:p4c_bm2_ss"
+  ],
+  "test_targets": [
+    "@p4c//:package_test"
+  ],
+  "generated_module_overlay": true
+}

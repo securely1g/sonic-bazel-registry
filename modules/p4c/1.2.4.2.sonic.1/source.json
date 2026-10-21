@@ -1,0 +1,21 @@
+{
+  "url": "https://github.com/securely1g/sonic-bazel-registry/releases/download/p4-source-inputs-20261021/p4lang-p4c_1.2.4.2.orig.tar.gz",
+  "integrity": "sha256-pB1hat1jkkoJjtqrRGgJ9UP/rfwuQDVvm3OYbzJMZoo=",
+  "overlay": {
+    "BUILD.bazel": "sha256-e6kt1MDKSrINqaYQWKyru1eRdSL2/9aDxBfGjN/WUOQ=",
+    "MODULE.bazel": "sha256-14D2wyBwWTTZzmSK5LdWIZRtNtnt9EcM9IVp1QzO9aw=",
+    "bazel/package_test.py": "sha256-sHTLnJnY1ETNKuX6z90dqSIFlFEmIbgdu8lggiLKt+E=",
+    "bazel/fix-build-for-boost-1.83.patch": "sha256-lIir3S1os2V47iAljZNqEOp0TSG18yiDsBmDDQu9obM=",
+    "bazel/p4c.BUILD.bazel": "sha256-fGS04v+P1jTnHrKkUsM59Xk4NB/AIBX9ndiPkIGuLNU=",
+    "bazel/remove-protobuf-from-debian-dependency.patch": "sha256-YTZk6iagtgMuLRzm4fQvzCW9rzViB6YFbzetpBTHUoA=",
+    "bazel/python.py": "sha256-Q9tldxy5/kZLxbaivZ5I+Tc5hpkE1UtRD4SCwJZvWvw=",
+    "bazel/runtime.bzl": "sha256-I1I9iJfTLnFDeQZzuQC8uJW49bF0lOgXEBvYy+mtC7U=",
+    "bazel/remove-scapy-from-debian-dependency.patch": "sha256-Wl0MCiaXaXZv5P/tlT5wGyPG40aUYfGIVE+iLo9FZU0=",
+    "bazel/tool.bzl": "sha256-/Wz8IAk+0DiIlath/ThpKGeQqAxK7ZeODlFfog+2GV0=",
+    "bazel/source.bzl": "sha256-FPgMdm3C79O0blPVeL/ZhBb4VNrmBryFX0iMH++Zmc8=",
+    "bazel/use-boost-1.83.patch": "sha256-S7mHEysJW4XvI+uW2xzQ7A/hz1iN1H+4+zvILwyOG3s=",
+    "bazel/foreign.cmake": "sha256-xRcJLN6K0hANzb5pZRFQajlaURKrbPc0BdaG9b7XMdc=",
+    "bazel/update-thrift-dependency.patch": "sha256-o1tKrVH4aQhq42whdit69M4IZNUpCRiEAlToyqsMmAQ="
+  },
+  "archive_type": "tar.gz"
+}
