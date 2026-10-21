@@ -376,7 +376,10 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
                 and re.fullmatch(r"[0-9a-fA-F]{40,64}", head) is not None,
                 "base and head must be full commit SHAs")
         require(git(root, "rev-parse", "HEAD").strip() == head, "Checkout HEAD differs from planned head")
-        changed = git(root, "diff", "--name-only", "--no-renames", "-z", base, head).split("\0")
+        # A PR compares its own changes with the common ancestor. Releases
+        # added only to its target branch are not deletions from this checkout.
+        comparison_base = git(root, "merge-base", base, head).strip()
+        changed = git(root, "diff", "--name-only", "--no-renames", "-z", comparison_base, head).split("\0")
         ci_changed = False
         for name in filter(None, changed):
             parts = PurePosixPath(name).parts
@@ -399,7 +402,7 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
                     directories = {p.name for p in (root / "modules" / module).iterdir() if p.is_dir()}
                     require(set(versions) == directories, f"{module}: metadata and version directories differ")
                     previous = subprocess.run(
-                        ["git", "-C", str(root), "show", f"{base}:modules/{module}/metadata.json"],
+                        ["git", "-C", str(root), "show", f"{comparison_base}:modules/{module}/metadata.json"],
                         text=True, capture_output=True,
                     )
                     relevant = versions
@@ -540,6 +543,56 @@ def collect_outputs(bep_path: Path, labels: list[str], work_dir: Path, artifacts
                 records[record["path"]] = record
         index[label] = [records[path] for path in sorted(records)]
     (artifacts / "outputs.json").write_text(json.dumps(index, indent=2) + "\n")
+
+
+def collect_failed_action_logs(bep_path: Path, work_dir: Path, artifacts: Path) -> None:
+    """Keep diagnostics omitted by Bazel's UI size limit without masking failure."""
+    if not bep_path.is_file():
+        return
+    work_dir = work_dir.resolve()
+    destination = artifacts / "failed-actions" / bep_path.stem
+    records = []
+    for number, line in enumerate(bep_path.read_text().splitlines(), start=1):
+        try:
+            event = json.loads(line)
+        except ValueError as error:
+            records.append({"event": number, "error": f"Invalid BEP event: {error}"})
+            continue
+        action = event.get("action", {})
+        if not (action.get("exitCode", 0) or action.get("failureDetail")
+                or action.get("success") is False):
+            continue
+        for stream in ("stdout", "stderr"):
+            output = action.get(stream)
+            if not output:
+                continue
+            record = {"event": number, "label": action.get("label"), "exit_code": action.get("exitCode"),
+                      "type": action.get("type"), "stream": stream}
+            try:
+                uri = urlparse(output.get("uri", ""))
+                require(uri.scheme == "file" and uri.netloc in ("", "localhost")
+                        and not uri.query and not uri.fragment,
+                        "Action log must be a local file URI")
+                source = Path(unquote(uri.path))
+                require(source.is_absolute(), "Action log path must be absolute")
+                source = source.resolve(strict=True)
+                require(source.is_relative_to(work_dir), "Action log escapes work-dir")
+                require(source.is_file(), "Action log is not a regular file")
+                destination.mkdir(parents=True, exist_ok=True)
+                target = destination / f"{number:06d}.{stream}.log"
+                shutil.copyfile(source, target)
+                with target.open("rb") as saved:
+                    checksum = hashlib.file_digest(saved, "sha256").hexdigest()
+                record.update(path=target.relative_to(artifacts).as_posix(),
+                              size=target.stat().st_size, sha256=checksum)
+            except (OSError, RuntimeError, ValueError) as error:
+                # Missing, remote or unsafe logs must not replace the original
+                # build/test failure with a secondary collection exception.
+                record["error"] = str(error)
+            records.append(record)
+    if records:
+        destination.mkdir(parents=True, exist_ok=True)
+        (destination / "index.json").write_text(json.dumps(records, indent=2) + "\n")
 
 
 def run_logged(command: list[str], cwd: Path, log: Path) -> None:
@@ -722,6 +775,11 @@ def run(root: Path, module: str, version: str, architecture: str,
                 if config.get("generated_module_overlay") else None),
         }, indent=2) + "\n")
     finally:
+        for phase in ("build", "test"):
+            try:
+                collect_failed_action_logs(artifacts / f"{phase}-events.jsonl", work_dir, artifacts)
+            except (OSError, ValueError) as error:
+                print(f"Could not retain {phase} action logs: {error}", file=sys.stderr)
         lockfile = consumer / "MODULE.bazel.lock"
         if lockfile.is_file():
             shutil.copy2(lockfile, artifacts / "MODULE.bazel.lock")
