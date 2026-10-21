@@ -1,0 +1,17 @@
+{
+  "url": "https://github.com/securely1g/sonic-bazel-registry/releases/download/p4-source-inputs-20261021/p4lang-bmv2_1.15.0.orig.tar.gz",
+  "archive_type": "tar.gz",
+  "integrity": "sha256-CDu5B+RVl6+OKe87CpLTPSgrojhA3dXPuDctLwMKtBU=",
+  "overlay": {
+    "BUILD.bazel": "sha256-0rkrifboobdsjkzX0GpguogFrBo1/ehKjHuN7YXv5zk=",
+    "MODULE.bazel": "sha256-s8hAbZRJKaYp0WHIN5rFhiSvYNHnlp95JHWgQw1wTEs=",
+    "bazel/bmv2.BUILD.bazel": "sha256-toLPoJ+wAcyeBnllhNy9wa/3cDrmk0gYoDCZzPKLIX8=",
+    "bazel/configure.sh": "sha256-27TFv5w0egmMd/uqQasO8UQjU7TQTrweBJyuxDlFiSY=",
+    "bazel/package_test.py": "sha256-V2c2MwGgfLskM2i+UBGuPDkyxD4QOfNGYcs6g/GLFAo=",
+    "bazel/remove-unnecessary-dependencies.patch": "sha256-ptIQahFQYXUDzr1mDt8jZi/zUxYpFqTMCunacnNfWjY=",
+    "bazel/runtime.bzl": "sha256-wc0BVPAcJxHHigJU9Cbw3/xOPa0S5wEhRzmC1RLOkxQ=",
+    "bazel/sdk_consumer.cpp": "sha256-Spe7KIpaZ6z4DKK7NvyCkRlESdXR10ZEkXXepZaiUpo=",
+    "bazel/source.bzl": "sha256-p/sAwjgKHyR/kKER6ITn+haxuGKEV/8gyTOGH6ijdh0=",
+    "bazel/use-boost-1.83.patch": "sha256-RuXpjeTrP7ec/sPAvmGhQszRdDGQLkZFgEHYXfMkzto="
+  }
+}
