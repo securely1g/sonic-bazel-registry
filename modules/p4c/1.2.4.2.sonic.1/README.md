@@ -30,7 +30,9 @@ provide SONiC's 1.2.4.2 baseline or the retained CMake installation contract.
 This implementation follows the user's selected P4 configure/Make-through-Bazel
 approach. It reuses `rules_foreign_cc`, the shared SONiC GCC/build-tools rules,
 APT C++ dependencies, and shared runtime/debug TAR packaging. It does not add
-another generic foreign-build framework.
+another generic foreign-build framework. Host `ccache` discovery is explicitly
+disabled; Bazel owns the build cache. `rules_distroless` 0.9.4.sonic.9 supplies
+the complete Boost template-header inputs required by the graph backend.
 
 ## Source provenance
 

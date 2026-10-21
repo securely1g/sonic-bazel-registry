@@ -100,6 +100,8 @@ cmake(
     ],
     cache_entries = {
         "CMAKE_BUILD_TYPE": "Release",
+        # Bazel owns caching; never discover an undeclared host ccache binary.
+        "CCACHE_PROGRAM": "OFF",
         "CMAKE_INSTALL_PREFIX": "/usr",
         "CMAKE_PROJECT_P4C_INCLUDE": "$(execpath :bazel/foreign.cmake)",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",

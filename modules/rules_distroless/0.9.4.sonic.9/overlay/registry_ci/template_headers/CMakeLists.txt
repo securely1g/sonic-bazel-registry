@@ -1,0 +1,5 @@
+cmake_minimum_required(VERSION 3.20)
+project(template_headers LANGUAGES CXX)
+add_executable(template_headers probe.cc)
+target_compile_features(template_headers PRIVATE cxx_std_11)
+install(TARGETS template_headers RUNTIME DESTINATION bin)

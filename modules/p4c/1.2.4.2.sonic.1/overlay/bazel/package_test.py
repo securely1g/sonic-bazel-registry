@@ -26,7 +26,10 @@ with tempfile.TemporaryDirectory() as directory:
     assert any("/build/_deps/protobuf-src/" in item["file"] for item in compilation)
     assert any("/frontends/" in item["file"] for item in compilation)
     assert all("gcc-14.2.0-linux" in item["command"] for item in compilation)
-    assert "ENABLE_BMV2:BOOL=ON" in cache.read_text()
+    configuration = cache.read_text()
+    assert "ENABLE_BMV2:BOOL=ON" in configuration
+    assert re.search(r"^CCACHE_PROGRAM:[^=]+=OFF$", configuration, re.MULTILINE)
+    assert all(not re.search(r"(?:^|\s)(?:\S*/)?ccache(?:\s|$)", item["command"]) for item in compilation)
     for archive, destination in [(runtime, root / 'runtime'), (debug, root / 'debug')]:
         with tarfile.open(archive) as tar:
             tar.extractall(destination, filter='data')

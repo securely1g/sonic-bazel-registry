@@ -1,11 +1,11 @@
 # Distroless patch provenance and validation
 
-`0.9.4.sonic.8` applies the complete SONiC patch set to the checksum-pinned
+`0.9.4.sonic.9` applies the complete SONiC patch set to the checksum-pinned
 upstream `rules_distroless` 0.9.4 archive. The registry owns these patches and
 their tests. The intermediate `.sonic.2`, `.sonic.3` and `.sonic.4` proposals
 are not published by this change; existing published versions are unchanged.
-This entry retains `.sonic.7` and adds quote-aware pkg-config argument parsing
-with parser regressions and a real libpcap header consumer.
+This entry retains `.sonic.8` and adds complete C/C++ template-header imports
+with a real Boost foreign-build consumer.
 
 `Introduced in` identifies the first published registry version containing the
 patch's behavior; new patches show their proposed version. Later revisions
@@ -25,6 +25,7 @@ proposals and are not counted as releases.
 | `0008-ccinfo-providers.patch` | `0.9.4.sonic.6` | Advertise the existing `CcInfo` provider so native `cc_shared_library` visits imported runtime-library metadata. |
 | `0009-pkgconfig-field-separators.patch` | `0.9.4.sonic.7` | Parse colon-tabs and colon-without-space fields; distinguish variable assignments from separators inside values. |
 | `0010-pkgconfig-quoting.patch` | `0.9.4.sonic.8` | Decode quotes and backslash escapes in expanded flags and path variables; preserve spaces within arguments. |
+| `0011-template-headers.patch` | `0.9.4.sonic.9` | Include the remaining rules_cc-supported header fragments under `usr/include`, including Boost `.ipp` files. |
 
 These are SONiC-maintained adaptations, not imported upstream commits.
 [Upstream #220](https://github.com/bazel-contrib/rules_distroless/pull/220)
@@ -130,3 +131,26 @@ header and runtime-provider tests remain enabled.
 This is a SONiC-maintained repair. The upstream parser at
 [`3999d9ca`](https://github.com/bazel-contrib/rules_distroless/blob/3999d9ca8e7eb83224fcb947dbda31e5f0e55382/apt/private/pkgconfig.bzl)
 still splits flag fields by spaces and does not decode shell quoting.
+
+## Template-header regression
+
+The retained P4C 1.2.4.2 graph backend failed at native compilation because
+`boost/xpressive/detail/utility/chset/basic_chset.ipp` was missing from the
+`rules_foreign_cc` dependency directory. The actual pinned Debian
+`libboost1.83-dev` 1.83.0-4.2 archive contains that file and 309 other `.ipp`
+files; the generated `CcInfo` omitted all of them.
+
+The importer now recognizes the additional header suffixes supported by
+[`rules_cc` 0.2.16](https://github.com/bazelbuild/rules_cc/blob/0.2.16/cc/common/cc_helper_internal.bzl)
+inside installed include trees. This is a SONiC-maintained importer repair;
+no Boost or P4C source workaround is applied.
+
+`template_headers:declared_headers_test` requires the real Xpressive and
+Spirit `.ipp` headers in the imported compilation context and checks `.tcc`
+and `.hxx` handling, path boundaries and unrelated extensions.
+`template_headers:foreign_headers_test` builds and runs graph-output and
+regex operations using the imported Boost headers through CMake/Make and
+`rules_foreign_cc`. It also exercises standard-library vector templates.
+The explicit analysis assertions ensure host Boost installations cannot mask
+missing declarations. Both tests run on native AMD64 and ARM64 alongside all
+fourteen retained regressions.

@@ -154,6 +154,18 @@ def _registry_ci_impl(module_ctx):
             urls = ["https://deb.debian.org/debian/pool/main/libp/libpcap/libpcap0.8-dev_1.10.5-2_{}.deb".format(architecture)],
         )
 
+    for architecture, sha256 in {
+        "amd64": "1f11fc6fb2ffe9378a0f0ebc8f2fd9223fb958b4a40bb9381c67a8857d947ca3",
+        "arm64": "0f82bfbd6d1afae0d03da64e4e2ac531effcf66e89e962a4fb6bebf0ec35db6e",
+    }.items():
+        deb_import(
+            name = "registry_ci_boost_" + architecture,
+            package_name = "libboost1.83-dev",
+            sha256 = sha256,
+            target_name = "libboost1.83-dev",
+            urls = ["https://deb.debian.org/debian/pool/main/b/boost1.83/libboost1.83-dev_1.83.0-4.2_{}.deb".format(architecture)],
+        )
+
     metadata_packages = {}
     metadata_sets = {}
 
