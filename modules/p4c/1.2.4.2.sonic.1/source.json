@@ -2,7 +2,7 @@
   "url": "https://codeload.github.com/p4lang/p4c/tar.gz/624c6be8076881e9af1e2f7d7691bc6c4416f4b1",
   "integrity": "sha256-hnGpC27CUr3n9SL0tp+FLmsehx5w3444FfgtrPtuk5Q=",
   "overlay": {
-    "BUILD.bazel": "sha256-D6aQVLHJD3zjI4Ah6wlAfplELXKEuFGtFFYZlBezB0M=",
+    "BUILD.bazel": "sha256-+ZkDF5/eB8XWo9Wc4hPmlQh0fNy+CQjtiBLrR2eRmmI=",
     "MODULE.bazel": "sha256-8XIcJwU0fTF+7Ke4ReSptDWcX4INSDgarJTIVmwZzN4=",
     "bazel/fix-build-for-boost-1.83.patch": "sha256-lIir3S1os2V47iAljZNqEOp0TSG18yiDsBmDDQu9obM=",
     "bazel/foreign.cmake": "sha256-SKGIy2YCZqUoe+57OnScWX4VDzrazlvT7xiFdy2rcS8=",
@@ -16,7 +16,9 @@
     "bazel/source.bzl": "sha256-A1itwaCAU/O74W8mXyEDzQSFKKdoj4+bSvVjXDvFN5g=",
     "bazel/tool.bzl": "sha256-L0GnkKDDMbtjgQXjA/ljZNYOr3SxcTigbT8nnarWxWA=",
     "bazel/update-thrift-dependency.patch": "sha256-o1tKrVH4aQhq42whdit69M4IZNUpCRiEAlToyqsMmAQ=",
-    "bazel/use-boost-1.83.patch": "sha256-S7mHEysJW4XvI+uW2xzQ7A/hz1iN1H+4+zvILwyOG3s="
+    "bazel/use-boost-1.83.patch": "sha256-S7mHEysJW4XvI+uW2xzQ7A/hz1iN1H+4+zvILwyOG3s=",
+    "runtime_packages.json": "sha256-4PCFLlUEFximAMSOgVMwbEqdcojNCa7ygBP+2Meyb+k=",
+    "runtime_packages.md": "sha256-p5SO5j2mHxNZKaepSV+gbxSeWUN+RVbgIcIDg8mXx1Y="
   },
   "archive_type": "tar.gz",
   "strip_prefix": "p4c-624c6be8076881e9af1e2f7d7691bc6c4416f4b1"
