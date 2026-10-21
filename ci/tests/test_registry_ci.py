@@ -644,6 +644,21 @@ class VersionPolicyTests(FixtureTestCase):
 
 
 class EntryValidationTests(FixtureTestCase):
+    def test_runtime_preparation_requires_one_source_script_and_checksum(self) -> None:
+        entry = self.entry("alpha", "1.0.0")
+        path = entry / "presubmit.json"
+        config = json.loads(path.read_text())
+        valid = {"script": "tools/runtime/prepare.py", "sha256": "a" * 64}
+        write_json(path, {**config, "test_runtime_preparation": valid})
+        self.assertEqual(registry_ci.validate_entry(self.root, "alpha", "1.0.0")["test_runtime_preparation"], valid)
+        for invalid in (None, {}, {**valid, "args": ["--skip-tests"]},
+                        {**valid, "sha256": "bad"}, {**valid, "script": "/tmp/prepare.py"},
+                        {**valid, "script": "../prepare.py"}, {**valid, "script": "https://example.org/prepare.py"}):
+            with self.subTest(invalid=invalid):
+                write_json(path, {**config, "test_runtime_preparation": invalid})
+                with self.assertRaises(registry_ci.RegistryError):
+                    registry_ci.validate_entry(self.root, "alpha", "1.0.0")
+
     def test_version_overrides_and_dependency_pin_fields_are_rejected(self) -> None:
         entry = self.entry("alpha", "1.0.0")
         path = entry / "presubmit.json"
@@ -1621,6 +1636,32 @@ class FailedActionLogTests(FixtureTestCase):
         self.assertFalse((artifacts / "failed-actions").exists())
 
 
+class TestContainerTests(unittest.TestCase):
+    def test_runtime_setup_requires_root_container_trixie_and_pinned_image(self):
+        image = "debian:trixie@sha256:" + "b" * 64
+        for uid, container, release, selected, succeeds in (
+                (0, True, "VERSION_CODENAME=trixie\n", image, True),
+                (1000, True, "VERSION_CODENAME=trixie\n", image, False),
+                (0, False, "VERSION_CODENAME=trixie\n", image, False),
+                (0, True, "VERSION_CODENAME=bookworm\n", image, False),
+                (0, True, "VERSION_CODENAME=trixie\n", "debian:trixie", False)):
+            with self.subTest(uid=uid, container=container, release=release, selected=selected), \
+                    mock.patch.object(registry_ci.os, "geteuid", return_value=uid), \
+                    mock.patch.object(Path, "exists", return_value=container), \
+                    mock.patch.object(Path, "read_text", return_value=release):
+                if succeeds:
+                    registry_ci.require_test_container(selected)
+                else:
+                    with self.assertRaises(registry_ci.RegistryError):
+                        registry_ci.require_test_container(selected)
+
+    def test_workflow_passes_the_actual_pinned_container_to_runtime_preparation(self):
+        workflow = (registry_ci.ROOT / ".github/workflows/registry-ci.yml").read_text()
+        image = next(line.split("container: ", 1)[1] for line in workflow.splitlines()
+                     if line.strip().startswith("container: "))
+        self.assertIn("--test-container-image " + image, workflow)
+
+
 class FetchedModuleTests(FixtureTestCase):
     def setUp(self) -> None:
         super().setUp()
@@ -1687,11 +1728,11 @@ class FetchedModuleTests(FixtureTestCase):
     def fetched_module(self, name: str) -> Path:
         return self.output_base / "external" / f"{name}+" / "MODULE.bazel"
 
-    def run_fixture(self, suffix: str) -> Path:
+    def run_fixture(self, suffix: str, image: str | None = None) -> Path:
         artifacts = self.root / f"artifacts-{suffix}"
         registry_ci.run(
             self.root, "alpha", "1.0.0", self.architecture,
-            self.root / f"work-{suffix}", artifacts, str(self.fake_bazel),
+            self.root / f"work-{suffix}", artifacts, str(self.fake_bazel), image,
         )
         return artifacts
 
@@ -1739,6 +1780,116 @@ class FetchedModuleTests(FixtureTestCase):
             if isinstance(node, ast.Expr) and isinstance(node.value, ast.Call)
             and isinstance(node.value.func, ast.Name) and node.value.func.id == function
         ]
+
+    def runtime_fixture(self) -> Path:
+        """A source-owned helper, executed from a separate consumer without APT."""
+        helper = self.fetched.parent / "tools/runtime/prepare.py"
+        helper.parent.mkdir(parents=True)
+        helper.write_text(f"TEST_ARCHITECTURE = {self.architecture!r}\n" + '''import argparse, hashlib, json
+from pathlib import Path
+p = argparse.ArgumentParser()
+p.add_argument('--lock', type=Path)
+p.add_argument('--image-reference')
+p.add_argument('--output', type=Path)
+a = p.parse_args()
+assert a.lock == Path.cwd() / 'MODULE.bazel.lock'
+assert 'registry_ci_consumer' in Path('MODULE.bazel').read_text()
+assert json.loads(a.lock.read_text()) == {'lockFileVersion': 13}
+r = {'architecture': TEST_ARCHITECTURE, 'image_reference': a.image_reference,
+     'lock_sha256': hashlib.sha256(a.lock.read_bytes()).hexdigest(),
+     'runtime_libraries': {'/usr/lib/example.so': {'sha256': 'a' * 64}},
+     'preserved_base_packages': {}}
+r['SONIC_TEST_RUNTIME_ID'] = hashlib.sha256(json.dumps(
+    {k: v for k, v in r.items() if k not in ('lock_sha256', 'preserved_base_packages')},
+    sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+a.output.write_text(json.dumps(r))
+''')
+        self.config["test_runtime_preparation"] = {
+            "script": "tools/runtime/prepare.py", "sha256": hashlib.sha256(helper.read_bytes()).hexdigest(),
+        }
+        write_json(self.config_path, self.config)
+        return helper
+
+    def test_owner_runtime_preparation_uses_consumer_lock_and_only_affects_test_flags(self) -> None:
+        helper = self.runtime_fixture()
+        image = "debian:trixie@sha256:" + "b" * 64
+        artifacts = self.root / "artifacts-runtime"
+        with mock.patch.object(registry_ci, "require_test_container") as guard, \
+                mock.patch.object(registry_ci, "run_logged", wraps=registry_ci.run_logged) as execute:
+            registry_ci.run(self.root, "alpha", "1.0.0", self.architecture, self.root / "work-runtime",
+                            artifacts, str(self.fake_bazel), image)
+        self.assertEqual(guard.call_args_list, [mock.call(image), mock.call(image)])
+        commands = [call.args[0] for call in execute.call_args_list]
+        self.assertIn("build", commands[0])
+        self.assertIn(str(helper.resolve()), commands[1])
+        self.assertIn("test", commands[2])
+        receipt = json.loads((artifacts / "test-runtime.json").read_text())
+        flag = "--test_env=SONIC_TEST_RUNTIME_ID=" + receipt["SONIC_TEST_RUNTIME_ID"]
+        self.assertIn(flag, commands[2])
+        self.assertNotIn(flag, commands[0])
+        self.assertIn("--nocache_test_results", commands[2])
+        self.assertTrue(set(self.config["test_targets"]).issubset(commands[2]))
+        self.assertEqual((artifacts / "test-runtime-prepare.py").read_bytes(), helper.read_bytes())
+        self.assertEqual((artifacts / "test-runtime.MODULE.bazel.lock").read_bytes(),
+                         (artifacts / "MODULE.bazel.lock").read_bytes())
+        validation = json.loads((artifacts / "validation.json").read_text())
+        self.assertEqual(validation["test_runtime_flags"], [flag])
+        self.assertEqual(validation["test_runtime_preparation"], self.config["test_runtime_preparation"])
+
+    def test_runtime_setup_refuses_changed_helpers_and_fetched_module_before_execution(self) -> None:
+        helper = self.runtime_fixture()
+        original = helper.read_bytes()
+        cases = ["checksum", "source-module", "escaped-helper"]
+        for case in cases:
+            with self.subTest(case=case):
+                if helper.is_symlink():
+                    helper.unlink()
+                helper.write_bytes(original)
+                self.fetched.write_bytes((self.registry_entry / "MODULE.bazel").read_bytes())
+                if case == "checksum":
+                    helper.write_bytes(original + b"# changed\n")
+                elif case == "source-module":
+                    self.fetched.write_text('module(name="alpha", version="9.0.0")\n')
+                else:
+                    outside = self.root / "outside.py"
+                    outside.write_bytes(original)
+                    helper.unlink()
+                    helper.symlink_to(outside)
+                with mock.patch.object(registry_ci, "require_test_container"), \
+                        mock.patch.object(registry_ci, "run_logged", wraps=registry_ci.run_logged) as execute:
+                    with self.assertRaises(registry_ci.RegistryError):
+                        self.run_fixture(case)
+                self.assertEqual(len(execute.call_args_list), 1)  # Build only, never the helper or tests.
+
+    def test_bad_runtime_receipt_blocks_tests_and_preserves_diagnostics(self) -> None:
+        self.runtime_fixture()
+        real_run = registry_ci.run_logged
+        other_architecture = "arm64" if self.architecture == "amd64" else "amd64"
+        for field, value in (("architecture", other_architecture), ("lock_sha256", "wrong"),
+                             ("image_reference", "wrong"), ("SONIC_TEST_RUNTIME_ID", "a" * 64)):
+            def corrupt_receipt(command, cwd, log):
+                real_run(command, cwd, log)
+                if log.name == "test-runtime-preparation.log":
+                    path = log.parent / "test-runtime.json"
+                    receipt = json.loads(path.read_text())
+                    receipt[field] = value
+                    write_json(path, receipt)
+            with self.subTest(field=field), mock.patch.object(registry_ci, "require_test_container"), \
+                    mock.patch.object(registry_ci, "run_logged", side_effect=corrupt_receipt) as execute:
+                with self.assertRaises(registry_ci.RegistryError):
+                    self.run_fixture("bad-" + field, "debian:trixie@sha256:" + "b" * 64)
+                self.assertEqual(len(execute.call_args_list), 2)
+                artifacts = self.root / ("artifacts-bad-" + field)
+                self.assertTrue((artifacts / "test-runtime.json").is_file())
+                self.assertTrue((artifacts / "test-runtime.MODULE.bazel.lock").is_file())
+                self.assertFalse((artifacts / "validation.json").exists())
+
+    def test_runtime_setup_requires_explicit_container_opt_in_before_build(self) -> None:
+        self.runtime_fixture()
+        with mock.patch.object(registry_ci, "run_logged") as execute:
+            with self.assertRaisesRegex(registry_ci.RegistryError, "test-container-image"):
+                self.run_fixture("no-container")
+            execute.assert_not_called()
 
     def test_every_consumer_dependency_is_pinned_by_module_name_and_recorded(self) -> None:
         artifacts = self.run_fixture("control")
