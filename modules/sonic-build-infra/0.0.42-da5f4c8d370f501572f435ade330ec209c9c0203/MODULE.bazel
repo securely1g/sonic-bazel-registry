@@ -1,7 +1,7 @@
 # Keep bazel_compatibility in sync with sonic-buildimage's .bazelversion.
 module(
     name = "sonic-build-infra",
-    version = "0.0.17-8baf1ad829c5095297d85148b042145b87d623a3",
+    version = "0.0.17-306286c253b22b6bf2a75732c82bbf3d00e77cb7",
     bazel_compatibility = [
         ">=8.5.1",
         "<=8.5.1",
@@ -101,27 +101,63 @@ apt.install(
 # Build tools used by source generation. Consumers select these package
 # payloads in the execution configuration so the tools and their runtime files
 # match the machine running the generator.
+# Kernel roots also retain source Build-Depends and runtime-library control
+# metadata needed by dpkg-checkbuilddeps and dpkg-shlibdeps.
 apt.install(
     dependency_set = "build_tools",
     packages = [
         "aspell",
         "aspell-en",
         "autoconf",
+        "bash",
+        "bc",
         "bison",
+        "build-essential",
         "comerr-dev",
         "coreutils",
+        "cpio",
+        "dash",
+        "debhelper",
+        "dh-python",
         "diffutils",
         "doxygen",
+        "findutils",
         "flex",
+        "gcc-14",
+        # The ARM64 kernel builds a 32-bit compatibility vDSO with this compiler.
+        "gcc-arm-linux-gnueabihf:arm64",
         "grep",
+        "gzip",
+        "kernel-wedge",
+        "kmod",
+        "libc-bin",
+        "libc6",
+        "libelf-dev",
+        "libelf1t64",
+        "libgcc-s1",
         "libprotobuf-dev",
+        "libssl-dev",
+        "libssl3t64",
+        "libzstd1",
+        "lz4",
         "m4",
         "mawk",
+        "openssl",
+        "pahole",
         "perl",
         "pkgconf",
         "protobuf-compiler",
+        "python3",
+        "python3-dacite",
+        "python3-jinja2",
+        "quilt",
+        "rsync",
         "sed",
         "ss-dev",
+        "util-linux",
+        "xz-utils",
+        "zlib1g",
+        "zstd",
     ],
     suites = [
         "trixie",
