@@ -21,13 +21,17 @@ def _impl(ctx):
         fail("The declared GCC runtime does not expose the dynamic loader")
     include = [f for f in ctx.files.data if f.basename == "core.p4"][0]
     directories = {_key(ctx, f).rpartition("/")[0]: True for f in files if ".so" in f.basename}
+    # A Python action launcher may export its own unrelated RUNFILES_DIR.
+    # FilesToRun provides this executable's adjacent tree; prefer that tree.
+    loader_key = _key(ctx, loaders[0])
     header = """#!/bin/bash
 set -euo pipefail
-rf="${RUNFILES_DIR:-$0.runfiles}"
-if [[ ! -d "$rf" ]]; then echo "P4C runfiles are missing: $rf" >&2; exit 1; fi
+rf="$0.runfiles"
+if [[ ! -f "$rf/{loader}" ]]; then rf="${{RUNFILES_DIR:-}}"; fi
+if [[ -z "$rf" || ! -f "$rf/{loader}" ]]; then echo "P4C runfiles are missing: $rf" >&2; exit 1; fi
 rf="$(cd "$rf" && pwd)"
 export RUNFILES_DIR="$rf"
-"""
+""".format(loader = loader_key)
     cpp = ctx.actions.declare_file(ctx.label.name + ".tools/cpp")
     ctx.actions.write(cpp, header + 'exec "$rf/' + _key(ctx, ctx.file.cpp) + '" -E "$@"\n', is_executable = True)
     script = ctx.actions.declare_file(ctx.label.name)

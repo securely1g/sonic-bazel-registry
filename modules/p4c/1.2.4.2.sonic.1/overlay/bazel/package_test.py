@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import re
 import shlex
+import shutil
 import subprocess
 import sys
 import struct
@@ -62,6 +63,16 @@ with tempfile.TemporaryDirectory() as directory:
     assert re.search(r'Line [0-9]+ of .*main.cpp', line), line
     version = run(str(compiler.resolve()), '--version')
     assert '1.2.4.2' in version, version
+    # Reproduce a nested Python caller whose RUNFILES_DIR belongs to itself,
+    # while FilesToRun supplies the compiler's own complete adjacent tree.
+    nested = root / 'nested-compiler'
+    shutil.copy2(compiler.resolve(), nested)
+    Path(str(nested) + '.runfiles').symlink_to(Path(os.environ['RUNFILES_DIR']).resolve(), target_is_directory=True)
+    unrelated = root / 'caller.runfiles'
+    unrelated.mkdir()
+    nested_version = subprocess.check_output([str(nested), '--version'], text=True, stderr=subprocess.STDOUT,
+                                             env=dict(os.environ, RUNFILES_DIR=str(unrelated)))
+    assert '1.2.4.2' in nested_version, nested_version
     source = root / 'smoke.p4'
     source.write_text('''#include <core.p4>
 #include <v1model.p4>
