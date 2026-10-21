@@ -270,9 +270,9 @@ def validate_entry(root: Path, module: str, version: str) -> dict:
     required = {"architectures", "consumer_deps", "platforms", "build_targets", "test_targets"}
     require(required <= set(config) <= required | {
         "build_flags", "rust_preparation", "go_sdk", "rust_toolchain", "generated_module_overlay",
-        "integration_test_module",
+        "integration_test_module", "host_platforms",
     }, f"presubmit.json requires {sorted(required)} and optionally "
-       "build_flags/rust_preparation/go_sdk/rust_toolchain/generated_module_overlay/integration_test_module")
+       "build_flags/rust_preparation/go_sdk/rust_toolchain/generated_module_overlay/integration_test_module/host_platforms")
     if "generated_module_overlay" in config:
         require(config["generated_module_overlay"] is True, "generated_module_overlay must be true when present")
         sync_module(root, module, version, check=True)
@@ -285,6 +285,11 @@ def validate_entry(root: Path, module: str, version: str) -> dict:
     require(isinstance(platforms, dict) and set(platforms) == set(architectures)
             and all(isinstance(label, str) and LABEL.fullmatch(label) for label in platforms.values()),
             "platforms must map each architecture to an explicit external target")
+    if "host_platforms" in config:
+        host_platforms = config["host_platforms"]
+        require(isinstance(host_platforms, dict) and set(host_platforms) == set(architectures)
+                and all(isinstance(label, str) and LABEL.fullmatch(label) for label in host_platforms.values()),
+                "host_platforms must map each architecture to an explicit external target")
     aliases = {module}
     names = {module}
     require(isinstance(config["consumer_deps"], list), "consumer_deps must be a list")
@@ -845,6 +850,8 @@ def run(root: Path, module: str, version: str, architecture: str,
         flags = [f"--registry={root.resolve().as_uri()}", "--registry=https://bcr.bazel.build/",
                  f"--platforms={config['platforms'][architecture]}", "--lockfile_mode=update",
                  *config.get("build_flags", [])]
+        if "host_platforms" in config:
+            flags.append(f"--host_platform={config['host_platforms'][architecture]}")
         if config.get("rust_toolchain", {}).get("mangled_allocator_libraries", False):
             flags.append("--@rules_rust//rust/settings:experimental_use_allocator_libraries_with_mangled_symbols=True")
         try:
@@ -883,6 +890,8 @@ def run(root: Path, module: str, version: str, architecture: str,
                 "module": module, "version": version, "architecture": architecture,
                 "build_targets": config["build_targets"], "passed_tests": config["test_targets"],
                 "build_flags": config.get("build_flags", []),
+                "platform": config["platforms"][architecture],
+                "host_platform": config.get("host_platforms", {}).get(architecture),
                 "consumer_deps": config["consumer_deps"],
                 "integration_test_module": config.get("integration_test_module"),
                 "go_sdk": config.get("go_sdk"),
