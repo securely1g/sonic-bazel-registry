@@ -15,6 +15,8 @@ import re
 import shutil
 import subprocess
 import sys
+import tarfile
+import tempfile
 import tokenize
 from urllib.parse import unquote, urlparse
 from urllib.request import urlopen
@@ -464,7 +466,46 @@ def verify_tests(bep_path: Path, labels: list[str]) -> None:
                 f"{label}: required test did not run uncached")
 
 
-def collect_outputs(bep_path: Path, labels: list[str], work_dir: Path, artifacts: Path) -> None:
+def query_output_trees(prefix: list[str], flags: list[str], labels: list[str],
+                       consumer: Path, artifacts: Path) -> dict[str, list[str]]:
+    """Recover declared directory boundaries that the BEP expands into files."""
+    manifest = artifacts / "declared-output-trees.jsonl"
+    log = artifacts / "declared-output-trees.log"
+    with manifest.open("w") as output, log.open("w") as errors:
+        for label in labels:
+            # cquery resolves target.label through aliases, while BEP completion
+            # records retain the requested alias. Query separately so every
+            # directory remains associated with its exact requested target.
+            expression = ('json.encode({"label": ' + json.dumps(label) + ', '
+                          '"resolved_label": str(target.label), '
+                          '"trees": [f.path for f in target.files.to_list() if f.is_directory]})')
+            result = subprocess.run(
+                [*prefix, "cquery", *flags, "--output=starlark", f"--starlark:expr={expression}",
+                 label], cwd=consumer, stdout=output, stderr=errors)
+            require(result.returncode == 0, f"Declared output query failed for {label}; see {log}")
+    trees = {}
+    for line in manifest.read_text().splitlines():
+        value = json.loads(line)
+        require(isinstance(value, dict) and isinstance(value.get("label"), str)
+                and isinstance(value.get("trees"), list), "Invalid declared output query record")
+        label = normalized_label(value["label"])
+        require(label in labels and label not in trees, f"Unexpected or repeated output query target: {label}")
+        paths = value["trees"]
+        for path in paths:
+            require(isinstance(path, str), "Declared tree path must be a string")
+            relative = PurePosixPath(path)
+            require(bool(relative.parts) and relative.parts[0] == "bazel-out"
+                    and ".." not in relative.parts and "\\" not in path,
+                    f"Unsafe declared tree path: {path}")
+        require(len(paths) == len(set(paths)), f"Repeated declared directory for {label}")
+        trees[label] = paths
+    require(set(trees) == set(labels), "Declared output query omitted required targets")
+    return trees
+
+
+def collect_outputs(bep_path: Path, labels: list[str], work_dir: Path, artifacts: Path,
+                    declared_trees: dict[str, list[str]] | None = None,
+                    execution_root: Path | None = None) -> None:
     """Retain declared default outputs, including tree artifacts, from a build BEP."""
     sets, completed = {}, {}
     for line in bep_path.read_text().splitlines():
@@ -479,22 +520,89 @@ def collect_outputs(bep_path: Path, labels: list[str], work_dir: Path, artifacts
                 completed[label] = event.get("completed", {})
 
     work_dir = work_dir.resolve()
+    declared_trees = declared_trees or {}
+    require(not declared_trees or set(declared_trees) == set(labels),
+            "Declared directory manifest must cover exactly the requested targets")
+    if execution_root is not None:
+        execution_root = execution_root.resolve()
+        require(execution_root.is_relative_to(work_dir), "Execution root escapes work-dir")
     outputs = artifacts / "outputs"
     require(not outputs.exists(), f"Output destination already exists: {outputs}")
     outputs.mkdir(parents=True)
     retained = {}
 
-    def copy_output(source: Path, relative: PurePosixPath, ancestors: frozenset = frozenset()) -> list[dict]:
+    def archive_tree(source: Path, relative: PurePosixPath) -> dict:
+        # GitHub artifacts reject ':' and fold case. Put POSIX tree contents in
+        # a TAR whose upload name depends only on the declared output path.
+        key = hashlib.sha256(relative.as_posix().encode()).hexdigest()
+        destination = outputs / "trees" / (key + ".tar")
+        destination.parent.mkdir(parents=True, exist_ok=True)
+
+        def normalize(member: tarfile.TarInfo) -> tarfile.TarInfo:
+            member.uid = member.gid = member.mtime = 0
+            member.uname = member.gname = ""
+            return member
+
+        def add(tree: tarfile.TarFile, path: Path, name: PurePosixPath,
+                ancestors: frozenset = frozenset()) -> None:
+            resolved = path.resolve()
+            require(resolved.is_relative_to(work_dir), f"Build output escapes work-dir: {resolved}")
+            require(resolved.is_file() or resolved.is_dir(), f"Missing regular build output: {resolved}")
+            if resolved.is_dir():
+                require(resolved not in ancestors, f"Build output directory cycle: {resolved}")
+            # Preserve portable links inside this tree. Links into other build
+            # outputs are materialized, as before, so they remain usable alone.
+            if path.is_symlink() and path.is_relative_to(source):
+                link = path.readlink()
+                # A link copied through a materialized directory may have a
+                # different parent in the archive. Preserve it only when both
+                # its location and its relative target retain their meaning.
+                # Never retain a link that leaves the tree and then re-enters
+                # it: the parent directories are absent in a standalone TAR.
+                lexical_target = path.parent
+                stays_inside = not link.is_absolute()
+                for part in link.parts:
+                    lexical_target = lexical_target.parent if part == ".." else lexical_target / part
+                    if not lexical_target.is_relative_to(source):
+                        stays_inside = False
+                        break
+                if (stays_inside and name == relative / path.relative_to(source)
+                        and resolved.is_relative_to(source) and lexical_target.resolve() == resolved):
+                    tree.add(path, arcname=name.as_posix(), recursive=False, filter=normalize)
+                    return
+            tree.add(resolved, arcname=name.as_posix(), recursive=False, filter=normalize)
+            if resolved.is_dir():
+                for child in sorted(resolved.iterdir()):
+                    add(tree, child, name / child.name, ancestors | {resolved})
+
+        temporary = None
+        try:
+            with tempfile.NamedTemporaryFile(dir=destination.parent, suffix=".tmp", delete=False) as stream:
+                temporary = Path(stream.name)
+                with tarfile.open(fileobj=stream, mode="w", format=tarfile.PAX_FORMAT, dereference=False) as tree:
+                    add(tree, source, relative)
+                stream.flush()
+                stream.seek(0)
+                checksum = hashlib.file_digest(stream, "sha256").hexdigest()
+                size = stream.seek(0, 2)
+            name = destination.relative_to(artifacts).as_posix()
+            record = {"path": name, "sha256": checksum, "size": size,
+                      "type": "tree_archive", "root": relative.as_posix()}
+            require(name not in retained or retained[name] == record, f"Conflicting build outputs: {name}")
+            if name not in retained:
+                temporary.replace(destination)
+                retained[name] = record
+            return record
+        finally:
+            if temporary is not None:
+                temporary.unlink(missing_ok=True)
+
+    def copy_output(source: Path, relative: PurePosixPath) -> list[dict]:
         source = source.resolve()
         require(source.is_relative_to(work_dir), f"Build output escapes work-dir: {source}")
         destination = outputs / relative
         if source.is_dir():
-            require(source not in ancestors, f"Build output directory cycle: {source}")
-            destination.mkdir(parents=True, exist_ok=True)
-            entries = []
-            for child in sorted(source.iterdir()):
-                entries.extend(copy_output(child, relative / child.name, ancestors | {source}))
-            return entries
+            return [archive_tree(source, relative)]
         require(source.is_file(), f"Missing regular build output: {source}")
         with source.open("rb") as stream:
             checksum = hashlib.file_digest(stream, "sha256").hexdigest()
@@ -525,8 +633,18 @@ def collect_outputs(bep_path: Path, labels: list[str], work_dir: Path, artifacts
                 require(not group.get("incomplete", False), f"Incomplete outputs for {label}")
                 for file_set in group.get("fileSets", []):
                     declared.extend(files(file_set["id"]))
-        require(bool(declared), f"Required build target has no default outputs: {label}")
+        tree_paths = [PurePosixPath(path) for path in declared_trees.get(label, [])]
+        require(bool(declared or tree_paths), f"Required build target has no default outputs: {label}")
         records = {}
+        for tree_path in tree_paths:
+            require(execution_root is not None, "Declared directories require an execution root")
+            require(bool(tree_path.parts) and tree_path.parts[0] == "bazel-out"
+                    and ".." not in tree_path.parts and "\\" not in str(tree_path),
+                    f"Unsafe declared tree path: {tree_path}")
+            source = execution_root / tree_path
+            require(source.is_dir(), f"Declared output tree is not a directory: {source}")
+            for record in copy_output(source, tree_path):
+                records[record["path"]] = record
         for output in declared:
             uri = urlparse(output.get("uri", ""))
             require(uri.scheme == "file" and uri.netloc in ("", "localhost")
@@ -536,6 +654,13 @@ def collect_outputs(bep_path: Path, labels: list[str], work_dir: Path, artifacts
             relative = PurePosixPath(name)
             require(bool(relative.parts) and not relative.is_absolute() and ".." not in relative.parts
                     and "\\" not in name, f"Unsafe build output path: {name}")
+            if any(relative.is_relative_to(tree_path) for tree_path in tree_paths):
+                # These are expanded members of an already archived declared
+                # tree, not independent file outputs. Match physical identity
+                # as well as the exact logical boundary before skipping them.
+                require(Path(unquote(uri.path)).resolve() == (execution_root / relative).resolve(),
+                        f"Expanded tree member does not match its execution-root path: {name}")
+                continue
             for record in copy_output(Path(unquote(uri.path)), relative):
                 records[record["path"]] = record
         index[label] = [records[path] for path in sorted(records)]
@@ -677,12 +802,20 @@ def run(root: Path, module: str, version: str, architecture: str,
         flags.extend(prepare_rust(config, consumer, work_dir, artifacts, bazel, flags))
         run_logged([*prefix, "build", *flags, f"--build_event_json_file={artifacts / 'build-events.jsonl'}",
                     *config["build_targets"]], consumer, artifacts / "build.log")
-        collect_outputs(artifacts / "build-events.jsonl", config["build_targets"], work_dir, artifacts)
+        declared_trees = query_output_trees(prefix, flags, config["build_targets"], consumer, artifacts)
+        # Path queries need dependency resolution, but not target/host platform
+        # flags whose apparent labels may be unresolved in a fresh info command.
+        info_flags = [flag for flag in flags if flag.startswith(
+            ("--registry=", "--lockfile_mode=", "--override_module=", "--override_repository="))]
+        execution_root = Path(subprocess.check_output([*prefix, "info", *info_flags, "execution_root"],
+                                                     cwd=consumer, text=True).strip())
+        collect_outputs(artifacts / "build-events.jsonl", config["build_targets"], work_dir, artifacts,
+                        declared_trees, execution_root)
         run_logged([*prefix, "test", *flags, "--nocache_test_results", "--test_output=errors",
                     f"--build_event_json_file={artifacts / 'test-events.jsonl'}", *config["test_targets"]],
                    consumer, artifacts / "test.log")
         verify_tests(artifacts / "test-events.jsonl", config["test_targets"])
-        output_base = Path(subprocess.check_output([*prefix, "info", *flags, "output_base"],
+        output_base = Path(subprocess.check_output([*prefix, "info", *info_flags, "output_base"],
                                                   cwd=consumer, text=True).strip())
         fetched = fetched_modules(output_base, module)
         require(len(fetched) == 1, f"Expected one fetched repository for {module}, found {len(fetched)}")
