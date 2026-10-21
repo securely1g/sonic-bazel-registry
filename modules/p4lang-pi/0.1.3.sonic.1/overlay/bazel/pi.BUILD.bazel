@@ -1,0 +1,50 @@
+load("@rules_foreign_cc//foreign_cc:defs.bzl", "configure_make")
+load("@bazel_skylib//rules:select_file.bzl", "select_file")
+load(":bazel/runtime.bzl", "installed_file", "runtime_for_arch")
+package(default_visibility = ["//visibility:public"])
+_LIBRARIES = ['pi', 'pip4info', 'pifegeneric', 'piall', 'picli', 'pi_dummy', 'pifecpp', 'piprotobuf', 'piprotogrpc', 'piconvertproto', 'pifeproto', 'pigrpcserver']
+_PROGRAMS = ['pi_CLI_dummy', 'pi_gen_native_json', 'pi_convert_p4info']
+_PYTHON_FILES = ['p4/v1/p4data_pb2.py', 'p4/v1/p4data_pb2_grpc.py', 'p4/v1/p4runtime_pb2.py', 'p4/v1/p4runtime_pb2_grpc.py', 'p4/config/v1/p4info_pb2.py', 'p4/config/v1/p4info_pb2_grpc.py', 'p4/config/v1/p4types_pb2.py', 'p4/config/v1/p4types_pb2_grpc.py', 'p4/tmp/p4config_pb2.py', 'p4/tmp/p4config_pb2_grpc.py', 'p4/server/v1/config_pb2.py', 'p4/server/v1/config_pb2_grpc.py', 'google/rpc/code_pb2.py', 'google/rpc/code_pb2_grpc.py', 'google/rpc/status_pb2.py', 'google/rpc/status_pb2_grpc.py', 'gnmi/gnmi_pb2.py', 'gnmi/gnmi_pb2_grpc.py', 'p4/__init__.py', 'p4/v1/__init__.py', 'p4/config/__init__.py', 'p4/config/v1/__init__.py', 'p4/tmp/__init__.py', 'p4/server/__init__.py', 'p4/server/v1/__init__.py', 'google/rpc/__init__.py', 'gnmi/__init__.py']
+filegroup(name = "sources", srcs = ["bazel/configure.sh"] + glob(["**"], exclude = ["BUILD.bazel", "bazel/**"]))
+configure_make(
+    name = "sdk",
+    lib_source = ":sources",
+    configure_command = "bazel/configure.sh",
+    configure_prefix = "/bin/sh",
+    configure_in_place = True,
+    features = ["-sanitize_pwd"],
+    configure_options = ["--with-proto", "--with-cli"],
+    copts = ["-O2", "-g", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-D_FORTIFY_SOURCE=2"],
+    args = ["-j4", "pythondir=$$INSTALLDIR/python"],
+    env = {
+        "BAZEL_FOREIGN_TOOLS": "$(execpath @sonic_build_infra//tools/build_tools:foreign_runtime)",
+        "BAZEL_PKGCONFIG_FILES": "$(locations @pi_deps//:pkgconfig)",
+        "LDFLAGS": "-Wl,-z,relro,-z,now -Wl,-rpath-link=$$EXT_BUILD_DEPS/lib",
+    },
+    build_data = ["@sonic_build_infra//tools/build_tools:foreign_runtime"],
+    data = ["@pi_deps//:pkgconfig"],
+    out_binaries = _PROGRAMS,
+    out_shared_libs = ["lib" + name + ".so.0.0.0" for name in _LIBRARIES],
+    out_data_files = ["python/" + name for name in _PYTHON_FILES] + ["config.log", "proto.config.log"],
+    postfix_script = "cp config.log $$INSTALLDIR/config.log; cp proto/config.log $$INSTALLDIR/proto.config.log",
+    deps = [
+        "@pi_deps//libreadline-dev:libreadline",
+        "@pi_deps//libboost-system-dev:libboost_system",
+        "@pi_deps//libboost-thread-dev:libboost_thread",
+        "@pi_deps//libprotobuf-dev:libprotobuf",
+        "@pi_deps//libgrpc++-dev:libgrpc++",
+        "@pi_deps//libgrpc-dev:libgrpc",
+        "@pi_deps//libssl-dev:libssl",
+        "@pi_deps//zlib1g-dev:zlib1g",
+    ],
+)
+[select_file(name = "built_" + name, srcs = ":sdk", subpath = "sdk/bin/" + name) for name in _PROGRAMS]
+[select_file(name = "built_lib" + name, srcs = ":sdk", subpath = "sdk/lib/lib" + name + ".so.0.0.0") for name in _LIBRARIES]
+[installed_file(name = "python_" + name.replace("/", "_"), subpath = "sdk/python/" + name) for name in _PYTHON_FILES]
+installed_file(name = "configure_log", subpath = "sdk/config.log")
+installed_file(name = "proto_configure_log", subpath = "sdk/proto.config.log")
+runtime_for_arch("amd64", "x86_64-linux-gnu", _LIBRARIES, _PROGRAMS, _PYTHON_FILES)
+runtime_for_arch("arm64", "aarch64-linux-gnu", _LIBRARIES, _PROGRAMS, _PYTHON_FILES)
+alias(name = "runtime", actual = select({"@platforms//cpu:x86_64": ":runtime_amd64", "@platforms//cpu:aarch64": ":runtime_arm64"}))
+alias(name = "runtime.debug_symbols", actual = select({"@platforms//cpu:x86_64": ":runtime_amd64.debug_symbols", "@platforms//cpu:aarch64": ":runtime_arm64.debug_symbols"}))
+exports_files(["LICENSE", "debian/copyright"])

@@ -1,0 +1,15 @@
+{
+  "url": "https://github.com/securely1g/sonic-bazel-registry/releases/download/p4-source-inputs-20261021/p4lang-pi_0.1.3.orig.tar.gz",
+  "integrity": "sha256-m7K5fyyqdUi5zHmMNkO5cxXz2Pg3LTaJ3qXioi4YoJc=",
+  "archive_type": "tar.gz",
+  "overlay": {
+    "BUILD.bazel": "sha256-Jxh5Ii1hSbJxmzXQaGkCYpN2TKLa6s0nqetf+j5/wUo=",
+    "MODULE.bazel": "sha256-rfAAZA3TPBoYqrSVPWomKmEhZoocXNT3Dh72zTDyk9s=",
+    "bazel/runtime_test.py": "sha256-Be8W8VMLhrSftwjJGtUxEBR9fG4Y146SRoa//ETs/LM=",
+    "bazel/sdk_test.cc": "sha256-TiEXkjmzRVFTjM+v+EuVjhm5EBQullXAwTt9QD+IvLk=",
+    "bazel/runtime.bzl": "sha256-C3BRt0ze8z0ewWnHqY9WEzJCm+IDx3zz6Cqeau1cydk=",
+    "bazel/configure.sh": "sha256-lUgybtFCKGMARmSzwHH26UsgZuzG4w15Cs1JKLoTiDw=",
+    "bazel/source.bzl": "sha256-cqDc9YvFRZU0Akqu8ZaUBUVarHcSg7Bq5YStWg2qenk=",
+    "bazel/pi.BUILD.bazel": "sha256-VNn4ariqHVugYbXcsO3nH5yBuMvpDypwQu3RplrrIxk="
+  }
+}

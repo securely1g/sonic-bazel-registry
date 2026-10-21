@@ -1,0 +1,17 @@
+{
+  "homepage": "https://github.com/p4lang/PI",
+  "maintainers": [
+    {
+      "name": "Guohan Lu",
+      "email": "securely1g@gmail.com",
+      "github": "securely1g"
+    }
+  ],
+  "repository": [
+    "github:p4lang/PI"
+  ],
+  "versions": [
+    "0.1.3.sonic.1"
+  ],
+  "yanked_versions": {}
+}

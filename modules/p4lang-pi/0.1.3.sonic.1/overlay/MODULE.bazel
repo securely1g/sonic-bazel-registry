@@ -1,0 +1,33 @@
+# AUTO-GENERATED. DO NOT EDIT MANUALLY.
+# Source: ../MODULE.bazel
+# Generator: python3 ci/registry_ci.py sync-module --module p4lang-pi --version 0.1.3.sonic.1
+
+module(name = "p4lang-pi", version = "0.1.3.sonic.1")
+bazel_dep(name = "bazel_skylib", version = "1.8.2")
+bazel_dep(name = "rules_foreign_cc", version = "0.15.1")
+bazel_dep(name = "rules_cc", version = "0.2.16")
+bazel_dep(name = "rules_python", version = "1.7.0")
+bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.5")
+bazel_dep(name = "sonic-build-infra", version = "0.0.18-396974f6432d784162b1fd11dcfb8e0386926dbe", repo_name = "sonic_build_infra")
+gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
+use_repo(gcc, "gcc_toolchains")
+register_toolchains("@gcc_toolchains//:all")
+apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
+apt.install(
+    dependency_set = "pi_deps",
+    packages = ["libreadline-dev", "libboost-system-dev", "libboost-thread-dev", "libprotobuf-dev", "libgrpc++-dev", "libgrpc-dev", "zlib1g-dev", "libssl-dev", "libabsl-dev", "libc-ares-dev", "libre2-dev"],
+    suites = ["trixie", "trixie-updates", "trixie-security"],
+)
+use_repo(apt, "pi_deps")
+source = use_repo_rule("//:bazel/source.bzl", "pi_source")
+source(
+    name = "pi_source",
+    upstream_url = "https://github.com/securely1g/sonic-bazel-registry/releases/download/p4-source-inputs-20261021/p4lang-pi_0.1.3.orig.tar.gz",
+    upstream_sha256 = "9bb2b97f2caa7548b9cc798c3643b97315f3d8f8372d3689dea5e2a22e18a097",
+    debian_url = "https://github.com/securely1g/sonic-bazel-registry/releases/download/p4-source-inputs-20261021/p4lang-pi_0.1.3-2.debian.tar.xz",
+    debian_sha256 = "ba9af65a28fd1bbad2b928b681d8b5ea10076611c0e2e0dee1ba855f1216723c",
+    build_file = "//:bazel/pi.BUILD.bazel",
+    configure_file = "//:bazel/configure.sh",
+    runtime_file = "//:bazel/runtime.bzl",
+)
+register_toolchains("@sonic_build_infra//tools/build_tools:make_toolchain", "@sonic_build_infra//tools/build_tools:m4_toolchain", "@sonic_build_infra//tools/build_tools:pkgconfig_toolchain")
