@@ -7,7 +7,7 @@
     "bazel/fix-build-for-boost-1.83.patch": "sha256-lIir3S1os2V47iAljZNqEOp0TSG18yiDsBmDDQu9obM=",
     "bazel/foreign.cmake": "sha256-SKGIy2YCZqUoe+57OnScWX4VDzrazlvT7xiFdy2rcS8=",
     "bazel/native-protoc.patch": "sha256-qlJafmRxKJxhJVnFMfRgE2gxeMzuRi1g5k/4vYCVFts=",
-    "bazel/p4c.BUILD.bazel": "sha256-RF1EpGXH3mWG1u4ri9bLs3UnJG7cSUDZUXl0yD6eZOk=",
+    "bazel/p4c.BUILD.bazel": "sha256-qpvUPzlrkbh7RZ0p4mrwgZ8pjXjHfapTmTWitj6x0Gs=",
     "bazel/package_test.py": "sha256-fRo1jQ7bedqmR59fp5X80jUhfHCyek3wjmcHWYGnEIU=",
     "bazel/python.py": "sha256-Q9tldxy5/kZLxbaivZ5I+Tc5hpkE1UtRD4SCwJZvWvw=",
     "bazel/remove-protobuf-from-debian-dependency.patch": "sha256-YTZk6iagtgMuLRzm4fQvzCW9rzViB6YFbzetpBTHUoA=",

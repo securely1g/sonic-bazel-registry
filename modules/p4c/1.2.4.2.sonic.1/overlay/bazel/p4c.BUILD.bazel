@@ -135,7 +135,9 @@ cmake(
     generate_args = ["-GUnix Makefiles"],
     install_args = [
         "--prefix",
-        "$$INSTALLDIR$$/usr",
+        # Make-variable expansion consumes one '$'; retain shell braces so the
+        # staging prefix cannot acquire a trailing literal dollar sign.
+        "$${INSTALLDIR}/usr",
     ],
     lib_name = "p4c",
     lib_source = ":sources",
