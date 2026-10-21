@@ -1,0 +1,17 @@
+--- a/apt/private/cc_deb_library.bzl
++++ b/apt/private/cc_deb_library.bzl
+@@ -5,9 +5,12 @@
+ def _cc_deb_library_impl(ctx):
+     system_include_path = ctx.bin_dir.path + "/" + ctx.label.workspace_root + "/usr/include"
+ 
++    # Runtime-only packages do not own an include tree. Advertising one adds
++    # nonexistent search paths to every consumer of their transitive CcInfo.
++    compiler_inputs = ctx.files.hdrs + ctx.files.additional_compiler_inputs
+     compilation_context = cc_common.create_compilation_context(
+-        headers = depset(ctx.files.hdrs + ctx.files.additional_compiler_inputs),
+-        system_includes = depset([system_include_path]),
++        headers = depset(compiler_inputs),
++        system_includes = depset([system_include_path] if compiler_inputs else []),
+     )
+ 
+     expanded_linkopts = [ctx.expand_make_variables("linkopts", opt, {}) for opt in ctx.attr.linkopts]
