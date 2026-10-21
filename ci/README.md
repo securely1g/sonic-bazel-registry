@@ -174,7 +174,13 @@ tests.
 
 Open **Actions → Registry CI → a successful run → Artifacts** and download
 `registry-ci-<module>-<version>-<architecture>` (`amd64` or `arm64`). Each artifact
-contains `outputs.json`, mapping the manifest's required build targets to files
+contains `registry-ci-evidence.tar`. Extract that transport archive into an empty
+directory with `tar -xpf registry-ci-evidence.tar`. It preserves Linux filenames,
+case-distinct paths, executable modes and symbolic links that a direct artifact
+upload can reject or alter. All logs, generated resolution evidence and validation
+metadata travel in the same archive, including evidence from failed jobs.
+
+Inside it, `outputs.json` maps the manifest's required build targets to files
 under `outputs/`, with their SHA256 hashes and sizes. Bazel's output paths are
 preserved; use the index instead of relying on a configuration directory name.
 Directory outputs, such as prepared YANG models, are indexed file by file.
