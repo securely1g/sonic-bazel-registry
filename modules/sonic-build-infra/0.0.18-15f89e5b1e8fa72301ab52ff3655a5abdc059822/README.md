@@ -2,7 +2,7 @@
 
 Register the combined reviewed source from [build-infra #53](https://github.com/securely1g/sonic-build-infra/pull/53) and [#54](https://github.com/securely1g/sonic-build-infra/pull/54).
 
-`foreign_runtime` supplies relocatable Autotools/Libtool, protobuf/gRPC and Thrift generators, Python, Perl XML modules and Graphviz. `metadata_runtime` provides the pinned Doxygen/Aspell tools. `configure_environment.sh` selects the declared linker and sysroot-aware preprocessors, while the shared GCC toolchain preserves search flags through Libtool. These reuse the shared dependency/tool resolver. The kernel tool root retains its previous package selection and matching dpkg metadata in a separate dependency set.
+`foreign_runtime` supplies relocatable Autotools/Libtool, protobuf/gRPC and Thrift generators, Python, Perl XML modules and Graphviz. `metadata_runtime` provides the pinned Doxygen/Aspell tools. `configure_environment.sh` selects the declared linker and sysroot-aware preprocessors, while the shared GCC toolchain preserves search flags through Libtool. The protoc wrapper carries its matching standard schemas, preserving caller include precedence and implicit current-directory lookup. These reuse the shared dependency/tool resolver. The kernel tool root retains its previous package selection and matching dpkg metadata in a separate dependency set.
 
 PI, BMv2 and DASH use the tools with their upstream configure/Make recipes to emit installed runtime and matching debug TARs. No Debian package producer or legacy Make recipe is added or changed.
 

@@ -8,3 +8,6 @@ foreach(dependency protobuf p4runtime inja z3)
 endforeach()
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE BOOL "" FORCE)
 set(CCACHE_PROGRAM "OFF" CACHE FILEPATH "" FORCE)
+# Compile installed default paths for the SONiC filesystem. The foreign rule's
+# install command separately stages files with --prefix $INSTALLDIR/usr.
+set(CMAKE_INSTALL_PREFIX "/usr" CACHE PATH "" FORCE)

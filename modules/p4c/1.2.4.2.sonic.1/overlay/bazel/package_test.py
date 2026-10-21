@@ -3,6 +3,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shlex
 import subprocess
 import sys
 import struct
@@ -28,6 +29,13 @@ with tempfile.TemporaryDirectory() as directory:
     assert all("gcc-14.2.0-linux" in item["command"] for item in compilation)
     configuration = cache.read_text()
     assert "ENABLE_BMV2:BOOL=ON" in configuration
+    assert "CMAKE_INSTALL_PREFIX:PATH=/usr" in configuration
+    frontend_commands = [shlex.split(item["command"]) for item in compilation if "/frontends/" in item["file"]]
+    assert all('-DCONFIG_PREFIX="/usr"' in command for command in frontend_commands)
+    assert all('-DCONFIG_PKGDATADIR="/usr/share/p4c"' in command for command in frontend_commands)
+    for line in configuration.splitlines():
+        if re.match(r"Boost_.*(?:LIBRARY|INCLUDE_DIR|LIBRARY_DIR).*:(?:PATH|FILEPATH)=", line):
+            assert "/p4c.ext_build_deps/" in line, line
     assert re.search(r"^CCACHE_PROGRAM:[^=]+=OFF$", configuration, re.MULTILINE)
     assert all(not re.search(r"(?:^|\s)(?:\S*/)?ccache(?:\s|$)", item["command"]) for item in compilation)
     for archive, destination in [(runtime, root / 'runtime'), (debug, root / 'debug')]:
