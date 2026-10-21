@@ -38,6 +38,11 @@ with tempfile.TemporaryDirectory() as directory:
         if re.match(r"Boost_.*(?:LIBRARY|INCLUDE_DIR|LIBRARY_DIR).*:(?:PATH|FILEPATH)=", line):
             assert "/p4c.ext_build_deps/" in line, line
     assert re.search(r"^CCACHE_PROGRAM:[^=]+=OFF$", configuration, re.MULTILINE)
+    for option in ("BUILD_LINK_WITH_GOLD", "BUILD_LINK_WITH_LLD"):
+        assert re.search(r"^" + option + r":[^=]+=OFF$", configuration, re.MULTILINE), option
+    linker_flags = next(line for line in configuration.splitlines()
+                        if line.startswith("CMAKE_EXE_LINKER_FLAGS:"))
+    assert not re.search(r"-fuse-ld=(?:gold|lld)(?:\s|$)", linker_flags), linker_flags
     assert "CMAKE_DISABLE_FIND_PACKAGE_nlohmann_json:BOOL=ON" in configuration
     testgen_commands = [item["command"] for item in compilation if "/backends/p4tools/modules/testgen/" in item["file"]]
     if "ENABLE_TEST_TOOLS:BOOL=ON" in configuration:
