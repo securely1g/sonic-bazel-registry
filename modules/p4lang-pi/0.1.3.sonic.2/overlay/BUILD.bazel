@@ -8,3 +8,12 @@ test_suite(name = "sdk_test", tests = [":runtime_test"])
 py_test(name = "runtime_test", srcs = ["//bazel:runtime_test.py"], args = ["$(rootpath :runtime)", "$(rootpath :runtime.debug_symbols)", "$(rootpath :proto_configure_log)", "$(rootpath :sdk_consumer)"] + ["$(locations @pi_deps//:packages)"], data = [":runtime", ":runtime.debug_symbols", ":proto_configure_log", ":sdk_consumer", "@pi_deps//:packages"])
 
 alias(name = "runtime_libraries", actual = "@pi_deps//:packages")
+
+# Keep package identities beside the runtime TAR producers.
+exports_files(
+    [
+        "runtime_packages.json",
+        "runtime_packages.md",
+    ],
+    visibility = ["//visibility:public"],
+)

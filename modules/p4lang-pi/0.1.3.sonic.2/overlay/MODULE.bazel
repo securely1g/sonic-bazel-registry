@@ -1,8 +1,8 @@
 # AUTO-GENERATED. DO NOT EDIT MANUALLY.
 # Source: ../MODULE.bazel
-# Generator: python3 ci/registry_ci.py sync-module --module p4lang-pi --version 0.1.3.sonic.1
+# Generator: python3 ci/registry_ci.py sync-module --module p4lang-pi --version 0.1.3.sonic.2
 
-module(name = "p4lang-pi", version = "0.1.3.sonic.1")
+module(name = "p4lang-pi", version = "0.1.3.sonic.2")
 bazel_dep(name = "platforms", version = "1.0.0")
 bazel_dep(name = "bazel_skylib", version = "1.8.2")
 bazel_dep(name = "rules_foreign_cc", version = "0.15.1")
