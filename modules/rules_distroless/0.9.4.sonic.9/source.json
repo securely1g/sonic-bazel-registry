@@ -38,10 +38,10 @@
     "registry_ci/pkgconfig_selection_test.bzl": "sha256-Cj9JUyjekK/jV9hyr1YJCwv7RmK4egCOBDppLt9qJ1k=",
     "registry_ci/pkgconfig_test.bzl": "sha256-uoZqhjeEig7Ctql6cit/lD8JmUN5ezS4R9D+CvKkrec=",
     "registry_ci/protobuf_headers_test.cc": "sha256-Olh22GMJyNSUyijD9763cyAvy+H7jPUoFk3qd7cDflI=",
-    "registry_ci/template_headers/BUILD.bazel": "sha256-iDSHw3J9a4YD6hHVYyDPyjyxmaF0poNJ+nOFjGZW3RA=",
-    "registry_ci/template_headers/CMakeLists.txt": "sha256-0nhcsW1DMq9mQrVuuKFqznvyZuNlyCSwixc/4Gc3Rm4=",
+    "registry_ci/template_headers/BUILD.bazel": "sha256-0jSZfHp1eba2fR/z1oW089yFOeBixq1fmRz+GVvTi70=",
+    "registry_ci/template_headers/CMakeLists.txt": "sha256-INrVqnMtUolWns7RUP7bxmPIFzqsgtrRGWtO5Z8gr7w=",
     "registry_ci/template_headers/declared_headers_test.bzl": "sha256-CWI/xW6DwpcIsTc+bMzwaojHR+wmGBnRDMvME/fuf4E=",
-    "registry_ci/template_headers/probe.cc": "sha256-TRqe90ECuTnQO05zFdrETKI6T39aY0ZANhftO2eQ4a0=",
+    "registry_ci/template_headers/probe.cc": "sha256-mRUs40IeG5Vh+VNYJr1t5otdWZVwQZ5qSgSrw4r0//8=",
     "registry_ci/xtables_headers_test.c": "sha256-Ff3IJ87nRUWBGXyWEo74poQLv1iqbDKVy5jAuymCZpM="
   }
 }

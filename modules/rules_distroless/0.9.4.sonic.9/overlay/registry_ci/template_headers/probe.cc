@@ -1,9 +1,12 @@
+#include <boost/version.hpp>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/graphviz.hpp>
 #include <boost/xpressive/xpressive.hpp>
 #include <sstream>
 #include <string>
 #include <vector>
+
+static_assert(BOOST_VERSION == 108300, "The test must use the declared Boost 1.83 SDK");
 
 int main() {
     boost::adjacency_list<> graph(2);

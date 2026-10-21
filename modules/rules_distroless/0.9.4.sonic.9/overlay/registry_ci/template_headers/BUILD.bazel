@@ -24,7 +24,10 @@ filegroup(
 
 cmake(
     name = "probe",
-    cache_entries = {"CMAKE_BUILD_TYPE": "Release"},
+    cache_entries = {
+        "CMAKE_BUILD_TYPE": "Release",
+        "DECLARED_BOOST_ROOT": "$$EXT_BUILD_DEPS$$",
+    },
     lib_source = ":sources",
     out_binaries = ["template_headers"],
     out_include_dir = "",
