@@ -144,7 +144,13 @@ jobs:
       - name: Build and test through the registry
         run: |
           set -euo pipefail
-          python3 ci/registry_ci.py run \
+          driver=ci/registry_ci.py
+          if [[ "$CI_MODULE" == rules_distroless && "$CI_VERSION" == 0.9.4.sonic.11 ]]; then
+            # Preserve the locked-import source validation assertions with its owner.
+            driver=modules/rules_distroless/0.9.4.sonic.11/validate_native.py
+            python3 -m unittest discover -s modules/rules_distroless/0.9.4.sonic.11/tests -v
+          fi
+          python3 "$driver" run \
             --module "$CI_MODULE" \
             --version "$CI_VERSION" \
             --architecture "$CI_ARCHITECTURE" \

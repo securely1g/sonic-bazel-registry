@@ -80,6 +80,15 @@ The configuration declares:
 - `build_targets`: required output labels, including runtime and matching debug
   packages where the module provides them.
 - `test_targets`: explicit consumer and package test labels.
+- `integration_test_module` (optional): an entry-relative directory containing a
+  separate test module, for example `tests/integration`. CI copies its ordinary
+  `MODULE.bazel`, `BUILD.bazel`, tests and fixtures into the fresh consumer. The
+  test module must directly select the tested module's exact name and version;
+  it cannot use source overrides or include other MODULE files. Keep
+  `consumer_deps` empty and omit the generated Go/Rust options in this mode:
+  the checked-in test module owns its dependencies and toolchains. Explicit
+  root targets such as `//:archive_contract_test` are then allowed alongside
+  `@<module>//...` targets. Omitting this field keeps the generated consumer.
 - `generated_module_overlay` (optional): set to `true` to derive
   `overlay/MODULE.bazel` from the maintained registry `MODULE.bazel`, as described
   below. Any other value is rejected. Omit the field for existing entries that
@@ -194,9 +203,24 @@ validation requires that Bazel generated this evidence.
 
 Use explicit labels for required outputs and tests. Wildcard builds can silently
 skip targets incompatible with the selected platform. Add tests to the module's
-source or registry overlay, and update the corresponding overlay integrity hashes
-when changing overlay files. A successful library build alone does not establish
+source, registry overlay, or a separate `integration_test_module`. Update the
+corresponding overlay integrity hashes when changing overlay files. A successful library build alone does not establish
 that downstream consumers can link it or that its runtime package works.
+
+For example, the Distroless locked-import test has its own
+`tests/integration/MODULE.bazel` declaring the APT extension, reviewed lock and
+two imported package repositories. Its BUILD and Python test verify the archive
+contents through that public interface. These are ordinary registry test files;
+they need no test-only patch to the dependency's MODULE or source overlay. The
+same CI invocation retains the dependency's existing external tests and runs
+the root archive test on each configured native architecture.
+
+Integration modules use the same registry, source checksum, fetched-module and
+uncached-test checks as generated consumers. They cannot contain symlinks,
+hidden configuration, cached lockfiles or Bazel output directories. CI copies
+the files before execution, so generated lockfiles and test outputs stay outside
+the maintained test directory. The chosen directory is recorded in
+`validation.json`, and the staged MODULE and resolution lock remain artifacts.
 
 For libyang, CI builds the runtime and detached-symbol packages, then runs
 `libyang_test` and `libyang_package_test`. These cover a dynamic consumer, YANG and
