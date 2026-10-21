@@ -9,12 +9,14 @@ import base64
 import hashlib
 import io
 import json
+import os
 from pathlib import Path, PurePosixPath
 import platform
 import re
 import shutil
 import subprocess
 import sys
+import tarfile
 import tokenize
 from urllib.parse import unquote, urlparse
 from urllib.request import urlopen
@@ -465,7 +467,7 @@ def verify_tests(bep_path: Path, labels: list[str]) -> None:
 
 
 def collect_outputs(bep_path: Path, labels: list[str], work_dir: Path, artifacts: Path) -> None:
-    """Retain declared default outputs, including tree artifacts, from a build BEP."""
+    """Archive declared outputs without losing Linux names, modes or symlinks."""
     sets, completed = {}, {}
     for line in bep_path.read_text().splitlines():
         event = json.loads(line)
@@ -480,20 +482,63 @@ def collect_outputs(bep_path: Path, labels: list[str], work_dir: Path, artifacts
 
     work_dir = work_dir.resolve()
     outputs = artifacts / "outputs"
-    require(not outputs.exists(), f"Output destination already exists: {outputs}")
+    archive = artifacts / "outputs.tar"
+    require(not outputs.exists() and not archive.exists(), f"Output destination already exists: {outputs}")
     outputs.mkdir(parents=True)
     retained = {}
 
-    def copy_output(source: Path, relative: PurePosixPath, ancestors: frozenset = frozenset()) -> list[dict]:
-        source = source.resolve()
-        require(source.is_relative_to(work_dir), f"Build output escapes work-dir: {source}")
+    def portable_link(source: Path, tree_root: Path, ancestors: frozenset = frozenset()) -> bool:
+        target = Path(os.readlink(source))
+        if target.is_absolute() or source in ancestors:
+            return False
+        cursor = source.parent
+        for part in target.parts:
+            cursor = cursor.parent if part == ".." else cursor / part
+            if not cursor.is_relative_to(tree_root):
+                return False
+            if cursor.is_symlink():
+                # A link through a materialized directory can change what a
+                # later '..' means. Preserve only entirely portable chains.
+                if not portable_link(cursor, tree_root, ancestors | {source}):
+                    return False
+                cursor = cursor.resolve()
+        return True
+
+    def copy_output(source: Path, relative: PurePosixPath, ancestors: frozenset = frozenset(),
+                    tree_root: Path | None = None) -> list[dict]:
+        try:
+            resolved = source.resolve()
+        except (OSError, RuntimeError) as error:
+            raise RegistryError(f"Invalid build output link: {source}: {error}") from error
+        require(resolved.is_relative_to(work_dir), f"Build output escapes work-dir: {resolved}")
         destination = outputs / relative
+        if source.is_symlink() and tree_root is not None:
+            require(resolved.is_file() or resolved.is_dir(), f"Missing build output link target: {source}")
+            target = os.readlink(source)
+            # Preserve only links that still work after moving the retained tree.
+            # Standalone Bazel symlink outputs and outside-tree links instead
+            # retain their payload, as before this archive packaging change.
+            if not portable_link(source, tree_root):
+                return copy_output(resolved, relative, ancestors)
+            data = os.fsencode(target)
+            name = (PurePosixPath("outputs") / relative).as_posix()
+            record = {"path": name, "sha256": hashlib.sha256(data).hexdigest(), "size": len(data),
+                      "type": "symlink", "target": target}
+            require(name not in retained or retained[name] == record, f"Conflicting build outputs: {name}")
+            if name not in retained:
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.symlink_to(target)
+                retained[name] = record
+            return [record]
+        source = resolved
         if source.is_dir():
             require(source not in ancestors, f"Build output directory cycle: {source}")
             destination.mkdir(parents=True, exist_ok=True)
             entries = []
             for child in sorted(source.iterdir()):
-                entries.extend(copy_output(child, relative / child.name, ancestors | {source}))
+                entries.extend(copy_output(child, relative / child.name, ancestors | {source},
+                                           tree_root or source))
+            shutil.copystat(source, destination)
             return entries
         require(source.is_file(), f"Missing regular build output: {source}")
         with source.open("rb") as stream:
@@ -540,6 +585,20 @@ def collect_outputs(bep_path: Path, labels: list[str], work_dir: Path, artifacts
                 records[record["path"]] = record
         index[label] = [records[path] for path in sorted(records)]
     (artifacts / "outputs.json").write_text(json.dumps(index, indent=2) + "\n")
+    # GitHub's artifact service rejects colons and folds case-only names. A TAR
+    # also retains executable permissions and links that a raw upload loses.
+    with tarfile.open(archive, "w", dereference=False) as bundle:
+        bundle.add(outputs, arcname="outputs")
+
+    def remove_readonly(function, path, error):
+        if not isinstance(error[1], PermissionError):
+            raise error[1]
+        # Only the staging copy changes; the TAR already retained its mode.
+        parent = Path(path).parent
+        parent.chmod(parent.stat().st_mode | 0o700)
+        function(path)
+
+    shutil.rmtree(outputs, onerror=remove_readonly)
 
 
 def run_logged(command: list[str], cwd: Path, log: Path) -> None:
