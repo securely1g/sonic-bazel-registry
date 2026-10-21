@@ -1,0 +1,32 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.19-c7b335b04b5234c5de6b108b46294de0a962db8d"
+    },
+    {
+      "name": "tar.bzl",
+      "version": "0.10.5-sonic.1"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic-build-infra//platforms:x86_64_trixie",
+    "arm64": "@sonic-build-infra//platforms:aarch64_trixie"
+  },
+  "build_targets": [
+    "@p4lang-bmv2//:runtime",
+    "@p4lang-bmv2//:runtime.debug_symbols",
+    "@p4lang-bmv2//:sdk_consumer",
+    "@p4lang-bmv2//:config_log",
+    "@p4lang-bmv2//:grpc_config_log",
+    "@p4lang-bmv2//:runtime_packages.json"
+  ],
+  "test_targets": [
+    "@p4lang-bmv2//:package_test"
+  ],
+  "generated_module_overlay": true
+}
