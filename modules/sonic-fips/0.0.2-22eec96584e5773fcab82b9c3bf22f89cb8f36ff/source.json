@@ -1,0 +1,9 @@
+{
+  "url": "https://github.com/securely1g/sonic-fips/archive/22eec96584e5773fcab82b9c3bf22f89cb8f36ff.tar.gz",
+  "strip_prefix": "sonic-fips-22eec96584e5773fcab82b9c3bf22f89cb8f36ff",
+  "integrity": "sha256-LAiCn9OGYVijAoXlldlygG2frL7n19QaSwEZwRH6tyM=",
+  "patch_strip": 1,
+  "patches": {
+    "module-version.patch": "sha256-tErlT5rsX6bQdNBxqlH1gZi5qvJBMOe5EcOR+yQq5WM="
+  }
+}
