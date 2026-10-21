@@ -1,7 +1,7 @@
 # Keep bazel_compatibility in sync with sonic-buildimage's .bazelversion.
 module(
     name = "sonic-build-infra",
-    version = "0.0.18-15f89e5b1e8fa72301ab52ff3655a5abdc059822",
+    version = "0.0.18-c5d4139a9ec621858f0ffd65c11dab05a87f5e6c",
     bazel_compatibility = [
         ">=8.5.1",
         "<=8.5.1",
@@ -124,6 +124,8 @@ _KERNEL_BUILD_PACKAGES = [
     "findutils",
     "flex",
     "gcc-14",
+    # The ARM64 kernel builds a 32-bit compatibility vDSO with this compiler.
+    "gcc-arm-linux-gnueabihf:arm64",
     "grep",
     "gzip",
     "kernel-wedge",

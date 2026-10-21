@@ -64,8 +64,10 @@ configure_make(
     configure_in_place = True,
     features = ["-sanitize_pwd", "-strip_debug_symbols"],
     configure_options = ["--with-proto", "--with-cli"],
-    copts = ["-O2", "-g", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-D_FORTIFY_SOURCE=2"],
-    args = ["-j4", "pythondir=$$INSTALLDIR$$/python"],
+    # The server uses -Werror; keep the toolchain's extra unused-RPC-parameter
+    # diagnostics as warnings, as in the legacy build without -Wextra.
+    copts = ["-O2", "-g", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-D_FORTIFY_SOURCE=2", "-Wno-error=unused-parameter"],
+    args = ["-j4", "V=0", "pythondir=$$INSTALLDIR$$/python"],
     env = {
         "PATH": "$(execpath @sonic_build_infra//tools/build_tools:foreign_runtime)/bin:$$PATH",
         "BAZEL_CONFIGURE_ENV": "$(execpath @sonic_build_infra//tools/build_tools:configure_environment.sh)",
