@@ -13,6 +13,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
 import unittest
 from unittest import mock
@@ -704,7 +705,8 @@ class BuildOutputTests(FixtureTestCase):
         self.assertEqual(set(index), set(self.labels))
         for label, files in index.items():
             self.assertEqual(len(files), 1)
-            data = (self.root / "artifacts" / files[0]["path"]).read_bytes()
+            with tarfile.open(self.root / "artifacts" / "outputs.tar") as bundle:
+                data = bundle.extractfile(files[0]["path"]).read()
             self.assertEqual(data, label.rsplit(":", 1)[1].encode())
             self.assertEqual(files[0]["sha256"], hashlib.sha256(data).hexdigest())
             self.assertEqual(files[0]["size"], len(data))
@@ -721,6 +723,77 @@ class BuildOutputTests(FixtureTestCase):
         index = self.collect(events)
         self.assertEqual(len(index[self.labels[0]]), 1)
         self.assertEqual(index[self.labels[0]][0]["path"], "outputs/models/model.yang")
+
+    def test_linux_names_modes_and_symlinks_survive_upload_packaging(self) -> None:
+        events = self.events()
+        tree = self.work / "runtime"
+        tree.mkdir(mode=0o750)
+        for name in ("Text::CharWidth.3pm.gz", "xt_TCPMSS.h", "xt_tcpmss.h", "tool"):
+            (tree / name).write_bytes(name.encode())
+        (tree / "tool").chmod(0o751)
+        (tree / "private").mkdir(mode=0o700)
+        (tree / "read-only").mkdir()
+        (tree / "read-only" / "file").write_bytes(b"read-only payload")
+        (tree / "read-only").chmod(0o500)
+        (tree / "tool-link").symlink_to("tool")
+        (tree / "directory-link").symlink_to("private")
+        events[0]["namedSetOfFiles"]["files"] = [{"name": "runtime", "uri": tree.as_uri()}]
+        index = self.collect(events)
+        self.assertFalse((self.root / "artifacts" / "outputs").exists())
+        with tarfile.open(self.root / "artifacts" / "outputs.tar") as bundle:
+            self.assertEqual(bundle.getmember("outputs/runtime").mode, 0o750)
+            self.assertEqual(bundle.getmember("outputs/runtime/private").mode, 0o700)
+            self.assertEqual(bundle.getmember("outputs/runtime/read-only").mode, 0o500)
+            self.assertEqual(bundle.getmember("outputs/runtime/tool").mode, 0o751)
+            for name in ("Text::CharWidth.3pm.gz", "xt_TCPMSS.h", "xt_tcpmss.h"):
+                self.assertEqual(bundle.extractfile("outputs/runtime/" + name).read(), name.encode())
+            for name, target in (("tool-link", "tool"), ("directory-link", "private")):
+                member = bundle.getmember("outputs/runtime/" + name)
+                self.assertTrue(member.issym())
+                self.assertEqual(member.linkname, target)
+        for record in index[self.labels[0]]:
+            source = tree / Path(record["path"]).relative_to("outputs/runtime")
+            data = os.fsencode(os.readlink(source)) if source.is_symlink() else source.read_bytes()
+            self.assertEqual(record["sha256"], hashlib.sha256(data).hexdigest())
+            self.assertEqual(record["size"], len(data))
+            if source.is_symlink():
+                self.assertEqual(record["type"], "symlink")
+                self.assertEqual(record["target"], os.readlink(source))
+
+    def test_standalone_and_outside_tree_links_retain_usable_payloads(self) -> None:
+        events = self.events()
+        standalone = self.work / "generated" / "linked.tar"
+        standalone.parent.mkdir()
+        standalone.symlink_to("../runtime.tar")
+        events[0]["namedSetOfFiles"]["files"][0]["uri"] = standalone.as_uri()
+        tree = self.work / "tree"
+        (tree / "bin").mkdir(parents=True)
+        (tree / "bin" / "tool").write_bytes(b"tool")
+        (tree / "relative").symlink_to("bin/tool")
+        (tree / "absolute").symlink_to(tree / "bin" / "tool")
+        (tree / "outside").symlink_to("../debug.tar")
+        (tree / "sub" / "inner").mkdir(parents=True)
+        (tree / "sub" / "value").write_bytes(b"original target")
+        (tree / "value").write_bytes(b"wrong target after relocation")
+        (tree / "absolute-directory").symlink_to(tree / "sub" / "inner")
+        (tree / "through-absolute").symlink_to("absolute-directory/../value")
+        events[2]["namedSetOfFiles"]["files"] = [{"name": "renamed-tree", "uri": tree.as_uri()}]
+        index = self.collect(events)
+        restored = self.root / "restored"
+        with tarfile.open(self.root / "artifacts" / "outputs.tar") as bundle:
+            bundle.extractall(restored, filter="data")
+        standalone = restored / index[self.labels[0]][0]["path"]
+        self.assertFalse(standalone.is_symlink())
+        self.assertEqual(standalone.read_bytes(), b"runtime")
+        tree = restored / "outputs" / "renamed-tree"
+        self.assertTrue((tree / "relative").is_symlink())
+        self.assertEqual((tree / "relative").read_bytes(), b"tool")
+        self.assertFalse((tree / "absolute").is_symlink())
+        self.assertEqual((tree / "absolute").read_bytes(), b"tool")
+        self.assertFalse((tree / "outside").is_symlink())
+        self.assertEqual((tree / "outside").read_bytes(), b"debug")
+        self.assertFalse((tree / "through-absolute").is_symlink())
+        self.assertEqual((tree / "through-absolute").read_bytes(), b"original target")
 
     def test_missing_required_target_or_output_is_rejected(self) -> None:
         events = self.events()
@@ -858,7 +931,8 @@ class FetchedModuleTests(FixtureTestCase):
         self.assertFalse((artifacts / "consumer-dep-sonic_build_infra.MODULE.bazel").exists())
         outputs = json.loads((artifacts / "outputs.json").read_text())
         self.assertEqual(set(outputs), {"@alpha//:library"})
-        self.assertEqual((artifacts / outputs["@alpha//:library"][0]["path"]).read_bytes(), b"package")
+        with tarfile.open(artifacts / "outputs.tar") as bundle:
+            self.assertEqual(bundle.extractfile(outputs["@alpha//:library"][0]["path"]).read(), b"package")
 
     def test_generated_overlay_and_bazel_materialized_canonical_module_are_checked_separately(self) -> None:
         self.config["generated_module_overlay"] = True

@@ -174,10 +174,21 @@ tests.
 
 Open **Actions → Registry CI → a successful run → Artifacts** and download
 `registry-ci-<module>-<version>-<architecture>` (`amd64` or `arm64`). Each artifact
-contains `outputs.json`, mapping the manifest's required build targets to files
-under `outputs/`, with their SHA256 hashes and sizes. Bazel's output paths are
-preserved; use the index instead of relying on a configuration directory name.
-Directory outputs, such as prepared YANG models, are indexed file by file.
+contains `outputs.tar` and `outputs.json`. After downloading and unzipping the
+artifact, run `tar -xf outputs.tar` to restore the `outputs/` directory. The TAR
+preserves Linux filenames (including colons and case-only differences), executable
+permissions, directory modes and symbolic links that GitHub's raw artifact upload
+cannot retain.
+
+`outputs.json` maps the manifest's required build targets to paths inside that TAR,
+with their SHA256 hashes and sizes. Bazel's output paths are preserved; use the
+index instead of relying on a configuration directory name. Directory outputs,
+such as prepared YANG models, are indexed file by file. Symbolic-link records have
+`type: "symlink"` and a `target`; their hash and size describe the link text, while
+regular-file hashes continue to describe the file contents.
+Relative links within a retained directory stay as links. Standalone Bazel output
+links, absolute links and links outside that retained directory keep their target
+contents instead, so they remain usable after the artifact is moved.
 
 For native libraries, download the runtime and detached-debug packages from the
 same module/version/architecture job. These packages come from the same build;
