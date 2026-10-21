@@ -935,6 +935,61 @@ class BuildOutputTests(FixtureTestCase):
             self.collect(events)
 
 
+class FailedActionLogTests(FixtureTestCase):
+    def collect(self, outputs: list[dict]) -> tuple[Path, list[dict]]:
+        self.work = self.root / "work"
+        self.work.mkdir(exist_ok=True)
+        artifacts = self.root / "artifacts"
+        artifacts.mkdir(exist_ok=True)
+        bep = artifacts / "build-events.jsonl"
+        events = [{"action": {"label": "@@alpha+//:library", "type": "CcCmakeMakeRule",
+                              "exitCode": 1, **output}} for output in outputs]
+        bep.write_text("".join(json.dumps(event) + "\n" for event in events))
+        registry_ci.collect_failed_action_logs(bep, self.work, artifacts)
+        index = artifacts / "failed-actions/build-events/index.json"
+        return artifacts, json.loads(index.read_text()) if index.exists() else []
+
+    def test_retains_complete_stdout_and_stderr_above_bazel_ui_limit(self) -> None:
+        work = self.root / "work"
+        work.mkdir()
+        stdout, stderr = work / "stdout with spaces", work / "stderr"
+        stdout.write_bytes(b"x" * (1024 * 1024 + 100) + b"\ncompiler failure\n")
+        stderr.write_bytes(b"error\n")
+        artifacts, records = self.collect([{
+            "stdout": {"uri": stdout.as_uri(), "name": "../../untrusted-name"},
+            "stderr": {"uri": stderr.as_uri()},
+        }])
+        self.assertEqual(len(records), 2)
+        for record, source in zip(records, (stdout, stderr)):
+            self.assertEqual((artifacts / record["path"]).read_bytes(), source.read_bytes())
+            self.assertEqual(record["size"], source.stat().st_size)
+            self.assertEqual(record["sha256"], hashlib.sha256(source.read_bytes()).hexdigest())
+            self.assertEqual(record["label"], "@@alpha+//:library")
+
+    def test_unsafe_missing_and_nonregular_logs_are_reported_without_copying(self) -> None:
+        work = self.root / "work"
+        work.mkdir()
+        outside = self.root / "outside"
+        outside.write_text("must not copy")
+        (work / "escape").symlink_to(outside)
+        uris = [outside.as_uri(), (work / "escape").as_uri(),
+                (work / "missing").as_uri(), work.as_uri(),
+                "https://example.invalid/log", "file://remote.example/log",
+                "file:relative", (work / "valid").as_uri() + "?query=1",
+                (work / "valid").as_uri() + "#fragment"]
+        artifacts, records = self.collect([{"stdout": {"uri": uri}} for uri in uris])
+        self.assertEqual(len(records), len(uris))
+        self.assertTrue(all("error" in record and "path" not in record for record in records))
+        self.assertEqual(list((artifacts / "failed-actions").rglob("*.log")), [])
+
+    def test_successful_actions_and_absent_bep_need_no_failed_logs(self) -> None:
+        artifacts, records = self.collect([{"exitCode": 0, "success": True,
+                                            "stdout": {"uri": "file:///not-copied"}}])
+        self.assertEqual(records, [])
+        registry_ci.collect_failed_action_logs(artifacts / "absent.jsonl", self.work, artifacts)
+        self.assertFalse((artifacts / "failed-actions").exists())
+
+
 class FetchedModuleTests(FixtureTestCase):
     def setUp(self) -> None:
         super().setUp()
@@ -1200,6 +1255,27 @@ class FetchedModuleTests(FixtureTestCase):
         artifacts = self.root / "artifacts-failed-bazel"
         self.assertEqual(json.loads((artifacts / "MODULE.bazel.lock").read_text()), {"lockFileVersion": 13})
         self.assertFalse((artifacts / "validation.json").exists())
+
+    def test_action_logs_are_retained_when_build_or_test_fails(self) -> None:
+        original = self.fake_bazel.read_text()
+        for phase in ("build", "test"):
+            with self.subTest(phase=phase):
+                failure = "\n".join([
+                    "    output = Path.cwd() / 'failed-stdout'",
+                    "    output.write_text('actual compiler error\\n')",
+                    "    bep = next(arg.split('=', 1)[1] for arg in args if arg.startswith('--build_event_json_file='))",
+                    "    Path(bep).write_text(json.dumps({'action': {'exitCode': 42, 'stdout': {'uri': output.as_uri()}}}) + '\\n')",
+                    "    sys.exit(42)",
+                ])
+                self.fake_bazel.write_text(original.replace(
+                    f"elif '{phase}' in args:", f"elif '{phase}' in args:\n{failure}"
+                ))
+                with self.assertRaisesRegex(registry_ci.RegistryError, "status 42"):
+                    self.run_fixture(f"action-failure-{phase}")
+                artifacts = self.root / f"artifacts-action-failure-{phase}"
+                records = json.loads((artifacts / f"failed-actions/{phase}-events/index.json").read_text())
+                self.assertEqual((artifacts / records[0]["path"]).read_text(), "actual compiler error\n")
+                self.assertFalse((artifacts / "validation.json").exists())
 
     def test_mismatched_or_missing_fetched_consumer_dependencies_are_rejected(self) -> None:
         for dependency in self.config["consumer_deps"]:
