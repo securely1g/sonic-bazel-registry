@@ -10,7 +10,7 @@ def runtime_for_arch(arch, triplet, libraries, programs, python_files):
         name = "runtime_" + arch,
         binaries = binaries,
         # configure_make always uses -g, disables linker stripping, and runs install.
-        # Split the same SDK files so consumers do not rebuild PI a second time.
+        # The SDK already retains the DWARF needed by runtime/debug splitting.
         force_debug_build = False,
         srcs = python.keys() + ["LICENSE", "debian/copyright"],
         mtree = ["usr/lib/" + triplet + "/lib" + name + suffix + " uid=0 gid=0 type=link link=lib" + name + ".so.0.0.0" for name in libraries for suffix in [".so", ".so.0"]] +

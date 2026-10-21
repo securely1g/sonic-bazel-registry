@@ -7,7 +7,7 @@
     "MODULE.bazel": "sha256-CtcnsjS9L2GUlWZzsMxR3zvDtzSsfkl4Xpw4ENAgiK8=",
     "bazel/runtime_test.py": "sha256-i6nuEJTmdv9SuIvlz0tQw64tD/JIDuK/upS+7oNIG7I=",
     "bazel/sdk_test.cc": "sha256-8Xhj1/JvO/BymtyugoLpzUd1mg7iCcL5FQMia9xvqhY=",
-    "bazel/runtime.bzl": "sha256-Rfr8KCHuK/zvtE1tfMiWL6uExw/0PfpMRCw0sY3gbiw=",
+    "bazel/runtime.bzl": "sha256-lYcQjDWBbT9m1LilP3YGTXbml633irlcTPPBhDBXFw4=",
     "bazel/BUILD.bazel": "sha256-moopcS0WlSXmeF6hnyryjCzWdmaCGSn/nzcl+xt4veM=",
     "bazel/configure.sh": "sha256-zfv3+8MiSdNcvsoOqDz0QJODPB8SN4Hv3Yyr1Wj/uEQ=",
     "bazel/source.bzl": "sha256-cqDc9YvFRZU0Akqu8ZaUBUVarHcSg7Bq5YStWg2qenk=",

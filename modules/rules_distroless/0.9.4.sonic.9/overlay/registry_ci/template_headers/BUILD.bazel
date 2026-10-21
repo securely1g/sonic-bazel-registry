@@ -1,6 +1,5 @@
-load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
 load("@rules_foreign_cc//foreign_cc:defs.bzl", "cmake")
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//registry_ci:headers_only.bzl", "headers_only")
 load(":declared_headers_test.bzl", "declared_headers_test")
 
@@ -29,7 +28,7 @@ cmake(
         "DECLARED_BOOST_ROOT": "$$EXT_BUILD_DEPS$$",
     },
     lib_source = ":sources",
-    out_binaries = ["template_headers"],
+    out_static_libs = ["libtemplate_headers.a"],
     out_include_dir = "",
     deps = [":boost_headers"],
 )
@@ -39,20 +38,9 @@ declared_headers_test(
     target_under_test = ":boost_headers",
 )
 
-write_file(
-    name = "test_runner",
-    out = "run.sh",
-    content = [
-        "#!/bin/sh",
-        "set -eu",
-        'exec "$1"',
-    ],
-    is_executable = True,
-)
-
-sh_test(
+# Link the foreign archive through Bazel's configured C++ toolchain/runtime.
+cc_test(
     name = "foreign_headers_test",
-    srcs = [":test_runner"],
-    args = ["$(rootpath :probe)"],
-    data = [":probe"],
+    srcs = ["test.cc"],
+    deps = [":probe"],
 )

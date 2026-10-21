@@ -32,6 +32,20 @@ This producer must land before consumers replace their temporary candidate pin.
 
 The upstream Make build always receives `-g` and the shared linker build-ID
 flags, disables the `strip_debug_symbols` linker feature, and uses `install`
-without stripping. Runtime/debug splitting consumes
-that same SDK build; it does not compile a second copy under another Bazel
-configuration. The package test verifies retained DWARF and matching build IDs.
+without stripping. Runtime/debug splitting consumes installed SDK ELFs directly.
+The package test verifies retained DWARF and matching build IDs.
+
+## Dependencies and merge gates
+
+Direct prerequisites are registry [#87](https://github.com/securely1g/sonic-bazel-registry/pull/87)
+for shared build tools/compiler support and
+[#91](https://github.com/securely1g/sonic-bazel-registry/pull/91) for complete target
+headers. Their implementation comes from build-infra
+[#53](https://github.com/securely1g/sonic-build-infra/pull/53) and
+[#54](https://github.com/securely1g/sonic-build-infra/pull/54), and registry #91
+includes the parser predecessor [#90](https://github.com/securely1g/sonic-bazel-registry/pull/90).
+
+The temporary `codex/p4-pi-prerequisites` base combines those candidates in one
+registry snapshot for native validation. Land the prerequisites, retarget this
+producer to `main`, use merged source pins and rerun AMD64/ARM64 checks before
+marking it ready to merge. BMv2 and DASH consumers must wait for this producer.

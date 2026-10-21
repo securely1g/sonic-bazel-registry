@@ -8,7 +8,7 @@
 
 static_assert(BOOST_VERSION == 108300, "The test must use the declared Boost 1.83 SDK");
 
-int main() {
+int verify_template_headers() {
     boost::adjacency_list<> graph(2);
     boost::add_edge(0, 1, graph);
     std::ostringstream dot;
