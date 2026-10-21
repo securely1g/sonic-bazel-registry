@@ -131,6 +131,7 @@ configure_make(
     ],
     data = ["@bmv2_deps//:pkgconfig"],
     env = {
+        "PATH": "$(execpath @sonic_build_infra//tools/build_tools:foreign_runtime)/bin:$$PATH",
         "BAZEL_P4_TOOLS": "$(execpath @sonic_build_infra//tools/build_tools:foreign_runtime)",
         "BAZEL_PKGCONF": "$(execpath @sonic_build_infra//tools/build_tools:pkgconf)",
         "BAZEL_PKGCONFIG_FILES": "$(locations @bmv2_deps//:pkgconfig)",

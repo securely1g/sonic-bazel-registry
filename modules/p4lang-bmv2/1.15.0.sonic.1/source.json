@@ -4,7 +4,7 @@
   "overlay": {
     "BUILD.bazel": "sha256-9hRu5FRRCGPTgYQui/KSXj4DKj/eRQC5kSTHde+nTSA=",
     "MODULE.bazel": "sha256-rpeLSd3xRuPPkwcsK2yV6psN5q3w5bQLR18dQO52uhM=",
-    "bazel/bmv2.BUILD.bazel": "sha256-toLPoJ+wAcyeBnllhNy9wa/3cDrmk0gYoDCZzPKLIX8=",
+    "bazel/bmv2.BUILD.bazel": "sha256-MP34q84eJDvPeqUCyHRCHeO8TPzOUxnoU6irbqyS5Yk=",
     "bazel/configure.sh": "sha256-27TFv5w0egmMd/uqQasO8UQjU7TQTrweBJyuxDlFiSY=",
     "bazel/package_test.py": "sha256-V2c2MwGgfLskM2i+UBGuPDkyxD4QOfNGYcs6g/GLFAo=",
     "bazel/remove-unnecessary-dependencies.patch": "sha256-ptIQahFQYXUDzr1mDt8jZi/zUxYpFqTMCunacnNfWjY=",

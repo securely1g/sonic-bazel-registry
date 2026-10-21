@@ -15,7 +15,7 @@ configure_make(
     features = ["-sanitize_pwd"],
     configure_options = ["--with-proto", "--with-cli"],
     copts = ["-O2", "-g", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-D_FORTIFY_SOURCE=2"],
-    args = ["-j4", "pythondir=$$INSTALLDIR/python"],
+    args = ["-j4", "pythondir=$$INSTALLDIR$$/python"],
     env = {
         "PATH": "$(execpath @sonic_build_infra//tools/build_tools:foreign_runtime)/bin:$$PATH",
         "BAZEL_FOREIGN_TOOLS": "$(execpath @sonic_build_infra//tools/build_tools:foreign_runtime)",

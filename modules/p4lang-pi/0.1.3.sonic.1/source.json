@@ -11,6 +11,6 @@
     "bazel/BUILD.bazel": "sha256-moopcS0WlSXmeF6hnyryjCzWdmaCGSn/nzcl+xt4veM=",
     "bazel/configure.sh": "sha256-lUgybtFCKGMARmSzwHH26UsgZuzG4w15Cs1JKLoTiDw=",
     "bazel/source.bzl": "sha256-cqDc9YvFRZU0Akqu8ZaUBUVarHcSg7Bq5YStWg2qenk=",
-    "bazel/pi.BUILD.bazel": "sha256-r6RYwqJ4QhbI5idMKofROUk5H1e8mNxff7kUtiymRXo="
+    "bazel/pi.BUILD.bazel": "sha256-u3AoWknzf8F8ShPMZTBWtIPKHnDE8J8+d4t5CBoSiXY="
   }
 }
