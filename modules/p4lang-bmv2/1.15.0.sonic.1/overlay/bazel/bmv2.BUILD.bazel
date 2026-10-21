@@ -98,6 +98,7 @@ configure_make(
     name = "bmv2_build",
     args = [
         "-j4",
+        "V=0",
         "pythondir=/usr/lib/python3/dist-packages",
         "pyexecdir=/usr/lib/python3/dist-packages",
     ],

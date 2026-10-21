@@ -6,7 +6,7 @@
   "consumer_deps": [
     {
       "name": "sonic-build-infra",
-      "version": "0.0.18-c5d4139a9ec621858f0ffd65c11dab05a87f5e6c"
+      "version": "0.0.19-c7b335b04b5234c5de6b108b46294de0a962db8d"
     },
     {
       "name": "tar.bzl",
