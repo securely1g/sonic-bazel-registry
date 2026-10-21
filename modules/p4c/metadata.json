@@ -1,0 +1,17 @@
+{
+  "homepage": "https://github.com/p4lang/p4c",
+  "maintainers": [
+    {
+      "name": "Guohan Lu",
+      "github": "securely1g",
+      "email": "securely1g@gmail.com"
+    }
+  ],
+  "repository": [
+    "github:p4lang/p4c"
+  ],
+  "versions": [
+    "1.2.4.2.sonic.1"
+  ],
+  "yanked_versions": {}
+}
