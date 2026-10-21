@@ -480,7 +480,14 @@ def collect_outputs(bep_path: Path, labels: list[str], work_dir: Path, artifacts
             relative = PurePosixPath(name)
             require(bool(relative.parts) and not relative.is_absolute() and ".." not in relative.parts
                     and "\\" not in name, f"Unsafe build output path: {name}")
-            for record in copy_output(Path(unquote(uri.path)), relative):
+            source = Path(unquote(uri.path)).resolve()
+            require(source.is_relative_to(work_dir), f"Build output escapes work-dir: {source}")
+            # Repository files have only a basename in BEP, without pathPrefix.
+            # Preserve their private workspace identity: separate locked packages
+            # can each export a different control.tar.xz (or package.deb).
+            if not output.get("pathPrefix"):
+                relative = PurePosixPath("source") / source.relative_to(work_dir).as_posix()
+            for record in copy_output(source, relative):
                 records[record["path"]] = record
         index[label] = [records[path] for path in sorted(records)]
     (artifacts / "outputs.json").write_text(json.dumps(index, indent=2) + "\n")

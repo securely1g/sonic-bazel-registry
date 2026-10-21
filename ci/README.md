@@ -6,6 +6,13 @@ outputs and runs explicit consumer and package tests. This exercises registry
 resolution, archive integrity, patch and overlay application, compilation, and
 the behavior covered by each module's tests.
 
+Retained build outputs with a BEP `pathPrefix` keep that declared path. Repository
+outputs without one use `outputs/source/` plus their resolved path within the
+private validation workspace. This preserves distinct same-name files from
+different packages, such as locked APT `control.tar.xz` archives. `outputs.json`
+records each retained path and digest; paths outside the private workspace remain
+rejected.
+
 The workflow runs on every pull request, pushes to `main`, and manual dispatches.
 Pull requests select affected module versions. Changes to the CI implementation
 or workflow run every configured version; pushes and manual runs do the same.
