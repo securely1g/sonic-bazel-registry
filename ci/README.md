@@ -80,6 +80,14 @@ The configuration declares:
 - `build_targets`: required output labels, including runtime and matching debug
   packages where the module provides them.
 - `test_targets`: explicit consumer and package test labels.
+- `test_runtime_preparation` (optional): reuse the tested source's Python helper
+  to prepare runtime libraries in the disposable native test container. Set
+  `script` to its path relative to the fetched source and `sha256` to the exact
+  file digest. For example, Common's C++ and Rust tests need `libhiredis.so.1.1.0`
+  at execution time; its existing helper installs missing runtime packages from
+  the resolved Debian snapshot without changing the compiler or built library.
+  No module opts in implicitly, and the registration must review the helper's
+  package selection and installation behavior together with its checksum.
 - `generated_module_overlay` (optional): set to `true` to derive
   `overlay/MODULE.bazel` from the maintained registry `MODULE.bazel`, as described
   below. Any other value is rejected. Omit the field for existing entries that
@@ -154,6 +162,49 @@ Rust validation also retains the pinned helper, generated override, preparation
 log and receipt, and the shared module's Cargo lock, generated Bazel metadata and
 source-resolution record. The test consumer has no Cargo workspace of its own;
 component-level Cargo compatibility remains covered by source CI.
+
+### Prepare source-owned test runtimes
+
+For a module whose source CI already prepares a locked test runtime, use:
+
+```json
+"test_runtime_preparation": {
+  "script": "tools/bazel/runtime/prepare.py",
+  "sha256": "<SHA256 of that file in the selected source archive>"
+}
+```
+
+The runner verifies the fetched module and helper before executing it, after
+building the selected outputs and before running **all** declared tests. It runs
+the original helper from the independent consumer directory with `--lock` set to
+that consumer's generated `MODULE.bazel.lock`, `--image-reference` set to the
+job's pinned container image, and `--output` set to `test-runtime.json` in the
+artifacts directory. The helper must support these arguments; the runner does
+not invent package lists or use a lockfile shipped in the source archive.
+
+The helper must use the lock's exact runtime package versions and checksums,
+preserve existing container packages and keep project libraries under test out
+of the system library directories. It must produce a JSON receipt containing
+`architecture`, `image_reference`, `lock_sha256`, and `SONIC_TEST_RUNTIME_ID`,
+alongside its selected packages and installed-library hashes. The identity is
+the SHA256 of compact, key-sorted JSON for the receipt excluding
+`SONIC_TEST_RUNTIME_ID`, `preserved_base_packages` and `lock_sha256`, matching
+Common's existing preparation contract. The runner checks that identity and the
+receipt's architecture, image and unchanged consumer lock. It passes the identity
+as `--test_env=SONIC_TEST_RUNTIME_ID=...` so Bazel's test inputs include the
+prepared runtime, without changing production build flags or dropping tests.
+
+Runtime preparation requires root inside a disposable native Debian Trixie
+container and an explicit `--test-container-image IMAGE@sha256:DIGEST` argument.
+The workflow supplies its actual pinned image; local reproduction must start an
+equivalent disposable container and pass that image reference. The runner refuses
+host execution and missing container opt-in before starting a build. Merely
+passing an image name does not start a container.
+
+Artifacts retain `test-runtime-prepare.py`, `test-runtime.MODULE.bazel.lock`,
+`test-runtime-preparation.log`, the helper's `test-runtime.json` receipt and any
+adjacent logs, including on failure. `validation.json` records the opt-in and
+test environment flag after every declared test passes.
 
 ## Maintain one MODULE declaration
 
