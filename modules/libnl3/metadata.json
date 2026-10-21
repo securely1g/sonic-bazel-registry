@@ -2,6 +2,7 @@
   "versions": [
     "3.7.0.sonic-buildimage",
     "3.7.0-sonic.2",
-    "3.7.0.sonic.3"
+    "3.7.0.sonic.3",
+    "3.7.0.sonic.4"
   ]
 }
