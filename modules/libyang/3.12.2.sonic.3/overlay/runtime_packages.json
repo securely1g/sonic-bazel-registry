@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "module": "libyang",
+  "packages": {
+    "libyang3": {
+      "runtime_target": "//:libyang_pkg",
+      "control_fields": {
+        "Breaks": "libyang2, libyang2t64",
+        "Depends": "libc6 (>= 2.38), libpcre2-8-0 (>= 10.22), libxxhash0 (>= 0.7.0)",
+        "Description": "parser toolkit for IETF YANG data modeling language (library)\n YANG is a data modeling language for the definition of data sent over network\n management protocols (RFC 6020/7950). It can be used to model both configuration\n data as well as state data of network elements and is primarily used by larger\n network equipment like routers and switches.\n .\n This package contains the shared library.",
+        "Homepage": "https://github.com/CESNET/libyang",
+        "Maintainer": "Daniel Baumann <daniel@debian.org>",
+        "Multi-Arch": "same",
+        "Package": "libyang3",
+        "Priority": "optional",
+        "Replaces": "libyang2, libyang2t64",
+        "Section": "libs",
+        "Source": "libyang",
+        "Version": "3.12.2-1"
+      }
+    }
+  }
+}
