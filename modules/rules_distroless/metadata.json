@@ -1,13 +1,14 @@
 {
-  "versions": [
-    "0.0.0.commit-01bb79d7eef4eb3ce9511d3dfaf0ab386bd8d12d",
-    "0.9.4-sonic.1",
-    "0.9.4.sonic.1",
-    "0.9.4.sonic.5",
-    "0.9.4.sonic.6",
-    "0.9.4.sonic.7",
-    "0.9.4.sonic.8",
-    "0.9.4.sonic.9",
-    "0.9.4.sonic.10"
-  ]
+    "versions": [
+        "0.0.0.commit-01bb79d7eef4eb3ce9511d3dfaf0ab386bd8d12d",
+        "0.9.4-sonic.1",
+        "0.9.4.sonic.1",
+        "0.9.4.sonic.5",
+        "0.9.4.sonic.6",
+        "0.9.4.sonic.7",
+        "0.9.4.sonic.8",
+        "0.9.4.sonic.9",
+        "0.9.4.sonic.10",
+        "0.9.4.sonic.12"
+    ]
 }
