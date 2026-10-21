@@ -40,6 +40,8 @@
     "@rules_distroless//apt/tests:locked_import/closure",
     "@rules_distroless//apt/tests:locked_import/invalid_lock",
     "@rules_distroless//apt/tests:locked_import/selection",
-    "@rules_distroless//registry_ci/locked_import:archive_contract_test"
+    "@rules_distroless//registry_ci/locked_import:archive_contract_test",
+    "@rules_distroless//apt/private:install_test",
+    "@rules_distroless//registry_ci:original_deb_test"
   ]
 }

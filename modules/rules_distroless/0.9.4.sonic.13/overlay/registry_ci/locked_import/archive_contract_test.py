@@ -21,11 +21,19 @@ def control(path):
 
 
 parser = argparse.ArgumentParser()
-for field in ['lock', 'arch', 'data', 'copy', 'libc-data', 'libc-control', 'lua-control', 'all-control', 'lua-closure']:
+for field in ['lock', 'arch', 'data', 'copy', 'libc-data', 'libc-control', 'lua-control', 'all-control', 'lua-closure', 'libc-deb', 'copy-libc-deb']:
     parser.add_argument('--' + field, required=True, **({} if field in ['lock', 'arch'] else {'nargs': '+'}))
 args = parser.parse_args()
 lock = json.load(open(args.lock))
 expected = {p['name']: p for key, p in lock['packages'].items() if ':' + args.arch + '=' in key}
+# Each isolated import must expose the exact reviewed original DEB. These
+# immutable bytes feed apt_install; runtime/control TARs are separate outputs.
+for paths in [args.libc_deb, args.copy_libc_deb]:
+    assert len(paths) == 1
+    with open(paths[0], "rb") as archive:
+        original = archive.read()
+    assert original.startswith(b"!<arch>\n")
+    assert hashlib.sha256(original).hexdigest() == expected["libc6"]["sha256"]
 data = args.data
 copy = args.copy
 assert len(data) == len(copy) == len(expected), (len(data), len(expected))

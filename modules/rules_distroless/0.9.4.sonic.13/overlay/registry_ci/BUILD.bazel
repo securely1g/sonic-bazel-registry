@@ -1,3 +1,4 @@
+load("@rules_python//python:defs.bzl", "py_test")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
@@ -173,4 +174,28 @@ cc_test(
     name = "libpcap_headers_test",
     srcs = ["libpcap_headers_test.c"],
     deps = [":libpcap_headers"],
+)
+
+alias(
+    name = "lua_original_deb",
+    actual = select({
+        ":linux_amd64": "@registry_ci_lua_amd64//:deb",
+        ":linux_arm64": "@registry_ci_lua_arm64//:deb",
+    }),
+)
+
+py_test(
+    name = "original_deb_test",
+    srcs = ["original_deb_test.py"],
+    args = [
+        "$(rootpath :lua_original_deb)",
+        "$(rootpath @registry_ci_pkgconfig//liblua5.1-0-dev:deb)",
+    ] + select({
+        ":linux_amd64": ["363759cbaccd47f06b972e578ea6112e50c833d728b7a11e15609764665dabbc"],
+        ":linux_arm64": ["f0bbb58d879faa5d3f4ce40f404ac266f4ad54d20915bcaabeb8a6bd118ef2b1"],
+    }),
+    data = [
+        ":lua_original_deb",
+        "@registry_ci_pkgconfig//liblua5.1-0-dev:deb",
+    ],
 )

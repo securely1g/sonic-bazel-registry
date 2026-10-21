@@ -191,3 +191,11 @@ locked versions, independent data/control labels, architecture-independent
 packages, full closures and identical contents from separate imports.
 All twenty prior tests and six build targets remain selected; the four new
 tests and archive output run on native AMD64 and ARM64. No test creates a DEB.
+
+## 0015: real APT installation for locked imports
+
+Compose registry #110's installer with #111's isolated lock imports. The
+installer Python, shell and Starlark implementation is byte-identical to #110.
+Retain original package.deb in payload-only imports and preserve repo_prefix
+in original-DEB aliases. The locked-import fixture verifies the original
+archive hash through two independent imports on AMD64 and ARM64.

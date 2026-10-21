@@ -1,6 +1,6 @@
 module(
     name = "rules_distroless",
-    version = "0.9.4.sonic.11",
+    version = "0.9.4.sonic.13",
     compatibility_level = 1,
 )
 
@@ -13,8 +13,9 @@ bazel_dep(name = "rules_cc", version = "0.2.8")
 bazel_dep(name = "rules_foreign_cc", version = "0.16.0")
 bazel_dep(name = "rules_java", version = "8.8.0")
 bazel_dep(name = "rules_shell", version = "0.4.1")
+bazel_dep(name = "rules_python", version = "1.5.1")
 bazel_dep(name = "gawk", version = "5.3.2.bcr.3")
-bazel_dep(name = "tar.bzl", version = "0.6.0")
+bazel_dep(name = "tar.bzl", version = "0.10.4")
 bazel_dep(name = "yq.bzl", version = "0.3.1")
 
 yq_toolchains = use_extension("@yq.bzl//yq:extensions.bzl", "yq")
