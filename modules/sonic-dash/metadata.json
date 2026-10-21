@@ -1,0 +1,17 @@
+{
+  "homepage": "https://github.com/securely1g/DASH",
+  "maintainers": [
+    {
+      "name": "Guohan Lu",
+      "email": "securely1g@gmail.com",
+      "github": "securely1g"
+    }
+  ],
+  "repository": [
+    "github:securely1g/DASH"
+  ],
+  "versions": [
+    "0.0.1-d753e7a9965428bb499975296bac437d86554978"
+  ],
+  "yanked_versions": {}
+}
