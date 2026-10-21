@@ -1,0 +1,23 @@
+From: Guohan Lu <securely1g@gmail.com>
+Subject: [PATCH] Register lazy APT lock-import regression repositories
+
+Expose the reviewed Debian archive fixture to external registry consumers.
+The test compares independent runtime/control targets, complete dependency
+closures and two isolated imports on native AMD64 and ARM64. Existing archive
+inputs are fetched and extracted; no DEB is built.
+
+Origin: tests maintained with the import_lock extension in
+securely1g/sonic-build-infra/third_party/rules_distroless.
+Signed-off-by: Guohan Lu <securely1g@gmail.com>
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -53,3 +53,8 @@
+ use_repo(registry_ci, "registry_ci_libpcap_arm64")
+ use_repo(registry_ci, "registry_ci_boost_amd64")
+ use_repo(registry_ci, "registry_ci_boost_arm64")
++
++# Import existing Debian archives only; these tests never build a DEB.
++locked_apt_ci = use_extension("//apt:extensions.bzl", "apt")
++locked_apt_ci.import_lock(lock = "//registry_ci/locked_import:apt.lock.json")
++use_repo(locked_apt_ci, "locked_import_ci", "locked_import_ci_copy")
