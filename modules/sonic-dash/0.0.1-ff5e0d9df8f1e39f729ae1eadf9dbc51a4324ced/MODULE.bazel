@@ -1,6 +1,6 @@
 module(
     name = "sonic-dash",
-    version = "0.0.1-c0144c970efcb086fa5d76c14f25357fa4e58e98",
+    version = "0.0.1-ff5e0d9df8f1e39f729ae1eadf9dbc51a4324ced",
     bazel_compatibility = [
         ">=8.5.1",
         "<=8.5.1",
