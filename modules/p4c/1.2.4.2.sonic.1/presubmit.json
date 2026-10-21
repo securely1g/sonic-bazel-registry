@@ -26,5 +26,9 @@
   "test_targets": [
     "@p4c//:package_test"
   ],
-  "generated_module_overlay": true
+  "generated_module_overlay": true,
+  "host_platforms": {
+    "amd64": "@sonic-build-infra//platforms:x86_64_trixie",
+    "arm64": "@sonic-build-infra//platforms:aarch64_trixie"
+  }
 }

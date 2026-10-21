@@ -37,6 +37,11 @@ with tempfile.TemporaryDirectory() as directory:
         if re.match(r"Boost_.*(?:LIBRARY|INCLUDE_DIR|LIBRARY_DIR).*:(?:PATH|FILEPATH)=", line):
             assert "/p4c.ext_build_deps/" in line, line
     assert re.search(r"^CCACHE_PROGRAM:[^=]+=OFF$", configuration, re.MULTILINE)
+    assert "CMAKE_DISABLE_FIND_PACKAGE_nlohmann_json:BOOL=ON" in configuration
+    testgen_commands = [item["command"] for item in compilation if "/backends/p4tools/modules/testgen/" in item["file"]]
+    if "ENABLE_TEST_TOOLS:BOOL=ON" in configuration:
+        assert testgen_commands
+        assert all("/build/_deps/inja-src/third_party/include" in command for command in testgen_commands)
     assert all(not re.search(r"(?:^|\s)(?:\S*/)?ccache(?:\s|$)", item["command"]) for item in compilation)
     for archive, destination in [(runtime, root / 'runtime'), (debug, root / 'debug')]:
         with tarfile.open(archive) as tar:

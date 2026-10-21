@@ -23,7 +23,6 @@
     "@p4lang-pi//:sdk"
   ],
   "test_targets": [
-    "@p4lang-pi//:sdk_test",
     "@p4lang-pi//:runtime_test"
   ],
   "generated_module_overlay": true

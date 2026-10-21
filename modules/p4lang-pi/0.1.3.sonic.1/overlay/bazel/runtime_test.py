@@ -10,7 +10,9 @@ import tempfile
 
 
 def output(*args):
-    return subprocess.check_output(args, text=True, stderr=subprocess.STDOUT)
+    completed = subprocess.run(args, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    assert completed.returncode == 0, f"{args[0]} exited {completed.returncode}:\n{completed.stdout}"
+    return completed.stdout
 
 
 def identity(path):
@@ -20,7 +22,7 @@ def identity(path):
 
 
 def main():
-    runtime, debug, configure, *deps = map(lambda x: Path(x).resolve(), sys.argv[1:])
+    runtime, debug, configure, sdk_consumer, *deps = map(lambda x: Path(x).resolve(), sys.argv[1:])
     expected_arch = {"x86_64": "Advanced Micro Devices X86-64", "aarch64": "AArch64"}[platform.machine()]
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
@@ -50,12 +52,22 @@ def main():
             symbols = root / "usr/lib/debug/.build-id" / digest[:2] / (digest[2:] + ".debug")
             assert symbols.is_file(), binary
             assert identity(symbols) == digest
-            assert ".debug_info" in output("readelf", "-SW", str(symbols))
+            if binary.name == "pi_CLI_dummy":
+                # Upstream links this launcher with no source objects. Its main
+                # and source-level debug information belong to libpicli.so.
+                assert re.search(r"\bUND\s+main\b", output("readelf", "-Ws", str(binary)))
+                assert "libpicli.so.0" in output("readelf", "-d", str(binary))
+            else:
+                assert ".debug_info" in output("readelf", "-SW", str(symbols)), binary
             ids[binary.name] = digest
         for name in ("pi_gen_native_json", "pi_convert_p4info", "pi_CLI_dummy"):
             listing = output(*prefix, "--list", str(root / "usr/bin" / name))
             assert "not found" not in listing, listing
             assert all(Path(p).resolve().is_relative_to(root) for p in re.findall(r"=> (/\S+)", listing)), listing
+        listing = output(*prefix, "--list", str(sdk_consumer))
+        assert "not found" not in listing, listing
+        assert all(Path(p).resolve().is_relative_to(root) for p in re.findall(r"=> (/\S+)", listing)), listing
+        output(*prefix, str(sdk_consumer))
         source = root / "input.p4info.txt"
         source.write_text('actions { preamble { id: 16777217 name: "source-runtime" alias: "source_runtime" } params { id: 1 name: "port" bitwidth: 9 } }\n')
         target = root / "output.p4info.bin"
@@ -66,9 +78,12 @@ def main():
         assert "bitwidth: 9" in roundtrip.read_text()
         gdb = output("gdb", "-nx", "-batch", "-ex", "set debuginfod enabled off", "-ex", "set debug-file-directory " + str(root / "usr/lib/debug"), "-ex", "file " + str(root / "usr/bin/pi_convert_p4info"), "-ex", "info line main")
         assert re.search(r"Line \d+ of .*convert_p4info", gdb), gdb
+        cli_library = next(binary for binary in binaries if binary.name == "libpicli.so.0.0.0")
+        cli_gdb = output("gdb", "-nx", "-batch", "-ex", "set debuginfod enabled off", "-ex", "set debug-file-directory " + str(root / "usr/lib/debug"), "-ex", "file " + str(cli_library), "-ex", "info line main")
+        assert re.search(r'Line \d+ of "(?:.*/)?main\.c"', cli_gdb), cli_gdb
         log = configure.read_text()
         assert "grpc_cpp_plugin" in log and "grpc_python_plugin" in log and "protobuf" in log
-        print(json.dumps({"architecture": platform.machine(), "build_ids": ids, "installed_p4info_conversion": True, "gdb_source_line": True}, indent=2))
+        print(json.dumps({"architecture": platform.machine(), "build_ids": ids, "installed_sdk_consumer": True, "installed_p4info_conversion": True, "gdb_source_line": True, "cli_shared_library_source_line": True}, indent=2))
 
 
 if __name__ == "__main__":

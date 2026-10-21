@@ -66,6 +66,8 @@ The unchanged Debian metadata archive is 2796 bytes, SHA-256
 `2a39bf04c8d084724014b71cdeb3b91dbe7a32bf1bd6cd499e5e132aa3e4cb40`.
 FetchContent network access is disabled. CMake consumes only the declared source
 trees, excluding Git metadata, CMake caches, objects and compiled libraries.
+Inja uses the JSON header shipped in its declared source tree; host CMake
+package metadata cannot substitute an undeclared system header.
 An archive audit found no compiled Protobuf or P4C artifacts. The retained
 `p4testgen` recipe's prebuilt AMD64 Z3 static library is declared explicitly;
 ARM64 keeps that optional test tool disabled.

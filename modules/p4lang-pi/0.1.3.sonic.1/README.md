@@ -34,6 +34,10 @@ The upstream Make build always receives `-g` and the shared linker build-ID
 flags, disables the `strip_debug_symbols` linker feature, and uses `install`
 without stripping. Runtime/debug splitting consumes installed SDK ELFs directly.
 The package test verifies retained DWARF and matching build IDs.
+The source-free `pi_CLI_dummy` launcher resolves `main` from `libpicli.so.0`;
+validation checks that forwarding relationship and GDB source-line lookup in
+the library's matching debug file. The compiled C++ SDK consumer runs against
+the same installed runtime and declared target-library closure.
 
 ## Dependencies and merge gates
 
