@@ -176,8 +176,23 @@ Open **Actions → Registry CI → a successful run → Artifacts** and download
 `registry-ci-<module>-<version>-<architecture>` (`amd64` or `arm64`). Each artifact
 contains `outputs.json`, mapping the manifest's required build targets to files
 under `outputs/`, with their SHA256 hashes and sizes. Bazel's output paths are
-preserved; use the index instead of relying on a configuration directory name.
-Directory outputs, such as prepared YANG models, are indexed file by file.
+preserved for ordinary files; use the index instead of relying on a configuration
+directory name. Directory outputs, such as prepared YANG models and execution
+tool bundles, are retained as TARs under `outputs/trees/`. Their index records
+have `type: "tree_archive"` and `root` naming the original output path inside the
+TAR. Extract the TAR to preserve Unix modes, case-sensitive names, and relative
+symlinks within the tree. GitHub's artifact ZIP format cannot faithfully retain
+these properties and rejects some valid Linux filenames, including `:` in Perl
+manual pages. Links to other outputs inside the build work directory are
+materialized so each archive remains usable alone, as are relative links whose
+meaning changes when copied into the archive. Links outside the build work
+directory are rejected.
+Archive ownership and timestamps are normalized; file modes are preserved.
+The runner queries Bazel's declared directory outputs under the same build
+configuration, since build events expand those directories into individual files.
+Only files within those declared boundaries belong to a tree TAR; adjacent runtime
+and debug TAR outputs retain their original bytes. The artifact includes
+`declared-output-trees.jsonl` and the genuine build events for verification.
 
 For native libraries, download the runtime and detached-debug packages from the
 same module/version/architecture job. These packages come from the same build;
