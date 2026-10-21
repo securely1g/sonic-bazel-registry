@@ -18,3 +18,12 @@ test_suite(
     name = "package_test",
     tests = ["@p4c_source//:package_test"],
 )
+
+# Keep package identities beside the runtime TAR producers.
+exports_files(
+    [
+        "runtime_packages.json",
+        "runtime_packages.md",
+    ],
+    visibility = ["//visibility:public"],
+)
