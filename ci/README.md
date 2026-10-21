@@ -6,6 +6,13 @@ outputs and runs explicit consumer and package tests. This exercises registry
 resolution, archive integrity, patch and overlay application, compilation, and
 the behavior covered by each module's tests.
 
+Retained build outputs with a BEP `pathPrefix` keep that declared path. Repository
+outputs without one use `outputs/source/` plus their resolved path within the
+private validation workspace. This preserves distinct same-name files from
+different packages, such as locked APT `control.tar.xz` archives. `outputs.json`
+records each retained path and digest; paths outside the private workspace remain
+rejected.
+
 The workflow runs on every pull request, pushes to `main`, and manual dispatches.
 Pull requests select affected module versions. Changes to the CI implementation
 or workflow also test the latest version of each module covered by CI. Pushes and
@@ -210,7 +217,13 @@ tests.
 
 Open **Actions → Registry CI → a successful run → Artifacts** and download
 `registry-ci-<module>-<version>-<architecture>` (`amd64` or `arm64`). Each artifact
-contains `outputs.json`, mapping the manifest's required build targets to files
+contains `registry-ci-evidence.tar`. Extract that transport archive into an empty
+directory with `tar -xpf registry-ci-evidence.tar`. It preserves Linux filenames,
+case-distinct paths, executable modes and symbolic links that a direct artifact
+upload can reject or alter. All logs, generated resolution evidence and validation
+metadata travel in the same archive, including evidence from failed jobs.
+
+Inside it, `outputs.json` maps the manifest's required build targets to files
 under `outputs/`, with their SHA256 hashes and sizes. Bazel's output paths are
 preserved; use the index instead of relying on a configuration directory name.
 Directory outputs, such as prepared YANG models, are indexed file by file.

@@ -92,6 +92,31 @@ class FixtureTestCase(unittest.TestCase):
 
 
 class SelectionTests(FixtureTestCase):
+    def test_advanced_base_release_does_not_select_absent_history(self) -> None:
+        self.entry("alpha", "1.0.0", configured=False)
+        self.entry("alpha", "2.0.0")
+        ancestor = self.commit("published registry with legacy version")
+        self.git("checkout", "-b", "published-advance")
+        self.entry("alpha", "3.0.0")
+        base = self.commit("publish another release after topic fork")
+        self.git("checkout", "-b", "ci-topic", ancestor)
+        ci = self.root / "ci" / "runner.py"
+        ci.parent.mkdir()
+        ci.write_text("# topic runner change\n")
+        head = self.commit("change CI on older checkout")
+        self.assertEqual(self.selected(base, head), {("alpha", "2.0.0")})
+
+    def test_advanced_base_module_is_not_a_topic_deletion(self) -> None:
+        self.entry("alpha", "1.0.0")
+        ancestor = self.commit("published alpha")
+        self.git("checkout", "-b", "published-module")
+        self.entry("beta", "1.0.0")
+        base = self.commit("publish unrelated module after topic fork")
+        self.git("checkout", "-b", "alpha-topic", ancestor)
+        self.entry("alpha", "2.0.0")
+        head = self.commit("add the single alpha candidate")
+        self.assertEqual(self.selected(base, head), {("alpha", "2.0.0")})
+
     def test_changed_version_is_selected_without_unrelated_versions(self) -> None:
         changed = self.entry("alpha", "1.0.0")
         self.entry("alpha", "2.0.0")
@@ -899,7 +924,37 @@ class BuildOutputTests(FixtureTestCase):
         ]}})
         index = self.collect(events)
         self.assertEqual(len(index[self.labels[0]]), 1)
-        self.assertEqual(index[self.labels[0]][0]["path"], "outputs/models/model.yang")
+        self.assertEqual(index[self.labels[0]][0]["path"], "outputs/source/models/model.yang")
+
+    def test_repository_outputs_with_equal_basenames_keep_distinct_bytes(self) -> None:
+        events = self.events()
+        for offset, package in ((0, "libc6"), (2, "netbase")):
+            output = self.work / "bazel" / "output-base" / "external" / package / "control.tar.xz"
+            output.parent.mkdir(parents=True)
+            output.write_bytes(package.encode())
+            events[offset]["namedSetOfFiles"]["files"] = [
+                {"name": output.name, "uri": output.as_uri()},
+                {"name": output.name, "uri": output.as_uri()},
+            ]
+        index = self.collect(events)
+        paths = []
+        for label, package in zip(self.labels, ("libc6", "netbase")):
+            self.assertEqual(len(index[label]), 1)
+            record = index[label][0]
+            paths.append(record["path"])
+            self.assertEqual((self.root / "artifacts" / record["path"]).read_bytes(), package.encode())
+            self.assertEqual(record["sha256"], hashlib.sha256(package.encode()).hexdigest())
+        self.assertEqual(len(set(paths)), 2)
+
+    def test_unprefixed_repository_output_cannot_escape_private_workspace(self) -> None:
+        events = self.events()
+        outside = self.root / "outside-control.tar.xz"
+        outside.write_bytes(b"outside")
+        link = self.work / "control.tar.xz"
+        link.symlink_to(outside)
+        events[0]["namedSetOfFiles"]["files"] = [{"name": link.name, "uri": link.as_uri()}]
+        with self.assertRaisesRegex(registry_ci.RegistryError, "escapes work-dir"):
+            self.collect(events)
 
     def test_missing_required_target_or_output_is_rejected(self) -> None:
         events = self.events()

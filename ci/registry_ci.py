@@ -376,7 +376,10 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
                 and re.fullmatch(r"[0-9a-fA-F]{40,64}", head) is not None,
                 "base and head must be full commit SHAs")
         require(git(root, "rev-parse", "HEAD").strip() == head, "Checkout HEAD differs from planned head")
-        changed = git(root, "diff", "--name-only", "--no-renames", "-z", base, head).split("\0")
+        # A PR compares its own changes with the common ancestor. Releases
+        # added only to its target branch are not deletions from this checkout.
+        comparison_base = git(root, "merge-base", base, head).strip()
+        changed = git(root, "diff", "--name-only", "--no-renames", "-z", comparison_base, head).split("\0")
         ci_changed = False
         for name in filter(None, changed):
             parts = PurePosixPath(name).parts
@@ -399,7 +402,7 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
                     directories = {p.name for p in (root / "modules" / module).iterdir() if p.is_dir()}
                     require(set(versions) == directories, f"{module}: metadata and version directories differ")
                     previous = subprocess.run(
-                        ["git", "-C", str(root), "show", f"{base}:modules/{module}/metadata.json"],
+                        ["git", "-C", str(root), "show", f"{comparison_base}:modules/{module}/metadata.json"],
                         text=True, capture_output=True,
                     )
                     relevant = versions
@@ -536,7 +539,14 @@ def collect_outputs(bep_path: Path, labels: list[str], work_dir: Path, artifacts
             relative = PurePosixPath(name)
             require(bool(relative.parts) and not relative.is_absolute() and ".." not in relative.parts
                     and "\\" not in name, f"Unsafe build output path: {name}")
-            for record in copy_output(Path(unquote(uri.path)), relative):
+            source = Path(unquote(uri.path)).resolve()
+            require(source.is_relative_to(work_dir), f"Build output escapes work-dir: {source}")
+            # Repository files have only a basename in BEP, without pathPrefix.
+            # Preserve their private workspace identity: separate locked packages
+            # can each export a different control.tar.xz (or package.deb).
+            if not output.get("pathPrefix"):
+                relative = PurePosixPath("source") / source.relative_to(work_dir).as_posix()
+            for record in copy_output(source, relative):
                 records[record["path"]] = record
         index[label] = [records[path] for path in sorted(records)]
     (artifacts / "outputs.json").write_text(json.dumps(index, indent=2) + "\n")
