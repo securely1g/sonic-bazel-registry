@@ -71,8 +71,20 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+      - name: Install Bazel for the real artifact collector test
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(uname -m)" == x86_64 ]]
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/bazel-8.5.1" \
+            https://releases.bazel.build/8.5.1/release/bazel-8.5.1-linux-x86_64
+          printf '%s  %s\n' 61d89402f0368e64b6c827be5de79d8e65382e8124c3cbb97325611a1851392e "$RUNNER_TEMP/bazel-8.5.1" | sha256sum --check --strict
+          chmod 0755 "$RUNNER_TEMP/bazel-8.5.1"
+          echo "REGISTRY_CI_TEST_BAZEL=$RUNNER_TEMP/bazel-8.5.1" >> "$GITHUB_ENV"
       - name: Test planning and validation runner
         shell: bash
+        env:
+          REGISTRY_CI_TEST_ARTIFACTS: runner-bazel-artifacts
         run: |
           set -euo pipefail
           python3 -m unittest discover -s ci/tests -v 2>&1 | tee runner-tests.log
@@ -81,7 +93,9 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: registry-ci-runner-tests
-          path: runner-tests.log
+          path: |
+            runner-tests.log
+            runner-bazel-artifacts/
           if-no-files-found: warn
           retention-days: 14
 
