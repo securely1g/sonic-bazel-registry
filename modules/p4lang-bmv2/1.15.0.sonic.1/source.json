@@ -6,7 +6,7 @@
     "MODULE.bazel": "sha256-jc0cMFGSOXrTvjGzZsNrHX0ChaSQc5QC+MZR2Cj8CBc=",
     "bazel/bmv2.BUILD.bazel": "sha256-ylm9cJy2/lMtm9K7XeF80LqCgU9/QL4EBNLxcnCBYkY=",
     "bazel/configure.sh": "sha256-aTunq30kdL7uWFATkUENSWmHhVqLFccP6GgU1q3QCto=",
-    "bazel/package_test.py": "sha256-HHiCHTEilNde92qapPdWa0E6mp/fZRk4iJFg/zKt2U4=",
+    "bazel/package_test.py": "sha256-4Ckjg6fkpgaYfBu0AAgi0E4NZM6uI6RxilvnZp245bE=",
     "bazel/remove-unnecessary-dependencies.patch": "sha256-ptIQahFQYXUDzr1mDt8jZi/zUxYpFqTMCunacnNfWjY=",
     "bazel/runtime.bzl": "sha256-wc0BVPAcJxHHigJU9Cbw3/xOPa0S5wEhRzmC1RLOkxQ=",
     "bazel/sdk_consumer.cpp": "sha256-Spe7KIpaZ6z4DKK7NvyCkRlESdXR10ZEkXXepZaiUpo=",

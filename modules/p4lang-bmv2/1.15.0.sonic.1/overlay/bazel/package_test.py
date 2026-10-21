@@ -1,5 +1,7 @@
 """Exercise the deployed BMv2 programs, ABI, SDK and matching debug payload."""
+import copy
 import os
+import posixpath
 from pathlib import Path
 import re
 import struct
@@ -20,6 +22,17 @@ def build_id(path):
     return match.group(1)
 
 
+def private_root_filter(member, destination):
+    # Debian links use container-absolute paths. Keep them inside the isolated
+    # test root while retaining tarfile's path and special-file checks.
+    if member.issym() and member.linkname.startswith("/"):
+        member = copy.copy(member)
+        member.linkname = posixpath.relpath(
+            member.linkname.lstrip("/") or ".", posixpath.dirname(member.name) or ".",
+        )
+    return tarfile.data_filter(member, destination)
+
+
 def main():
     runtime, debug, pi_runtime, consumer, config, grpc_config, copyright_file, *dependencies = [Path(x).resolve() for x in sys.argv[1:]]
     config_text = re.sub(r"/\*.*?\*/", "", config.read_text(), flags=re.S)
@@ -30,7 +43,10 @@ def main():
     libraries = {"libbmall", "libbmp4apps", "libbmpi", "libbm_grpc_dataplane", "libruntimestubs", "libbmpdfixed", "libbmpdfixedthrift", "libsimpleswitch_runner", "libsimpleswitch_thrift", "libpnanic_thrift", "libpsaswitch_thrift"}
     with tempfile.TemporaryDirectory(dir=os.environ["TEST_TMPDIR"]) as temporary:
         root = Path(temporary)
-        for archive in [*dependencies, pi_runtime, runtime]:
+        for archive in dependencies:
+            with tarfile.open(archive) as package:
+                package.extractall(root, filter=private_root_filter)
+        for archive in (pi_runtime, runtime):
             with tarfile.open(archive) as package:
                 package.extractall(root, filter="data")
         elfs = []
