@@ -1,3 +1,7 @@
+# Shared image account and package metadata helpers
+
+[`0.0.20-e5adaecfdbd2a144e86ce1c2c99a0fa99977ff44`](0.0.20-e5adaecfdbd2a144e86ce1c2c99a0fa99977ff44/README.md) registers the shared OCI account layer and source-owned package metadata while retaining the compiler-safe build tools needed by P4/DASH. It is a draft integration snapshot of infra #56, #57 and #58. Native AMD64 and ARM64 presubmit keeps the existing runtime checks and adds all five shared-helper tests; image integration remains in buildimage #30 and #13.
+
 # Native CPU hardening registration
 
 `0.0.6-553b2f70f9ba77b74befdf77674894166139ddcc` registers the merged
