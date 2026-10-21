@@ -1,0 +1,224 @@
+load("@rules_foreign_cc//foreign_cc:defs.bzl", "cmake")
+load("@rules_python//python:defs.bzl", "py_binary", "py_test")
+load("@sonic_build_infra//binary:keep_debug_info.bzl", "keep_debug_info")
+load("@sonic_build_infra//toolchains/gcc:defs.bzl", "bin")
+load(":bazel/runtime.bzl", "p4c_runtime")
+load(":bazel/tool.bzl", "p4c_tool")
+
+package(default_visibility = ["//visibility:public"])
+
+_PROGRAMS = [
+    "p4c-bm2-ss",
+    "p4c-bm2-psa",
+    "p4c-ebpf",
+    "p4c-ubpf",
+    "p4c-dpdk",
+    "p4c-graphs",
+    "p4c-pna-p4tc",
+    "p4test",
+]
+
+_DATA = {p: "usr/share/p4c/" + p for p in glob(
+    ["p4include/**"],
+    exclude = [
+        "p4include/ebpf_model.p4",
+        "p4include/ubpf_model.p4",
+    ],
+)}
+
+_DATA.update({p: "usr/share/p4c/" + p.removeprefix("tools/driver/") for p in glob([
+    "tools/driver/p4c_src/*.py",
+    "tools/driver/p4c_src/p4c.*.cfg",
+])})
+
+_DATA.update({p: "usr/share/p4c/" + p.removeprefix("backends/ebpf/") for p in glob(["backends/ebpf/p4include/**"])})
+
+_DATA.update({p: "usr/share/p4c/" + p.removeprefix("backends/ubpf/") for p in glob(["backends/ubpf/p4include/**"])})
+
+_DATA["tools/driver/p4c.in"] = "usr/bin/p4c"
+
+# Only the primary compiler tree and selected dependency inputs enter CMake.
+# Compiled remnants, CMake caches and dependency Git metadata are excluded.
+filegroup(
+    name = "sources",
+    srcs = glob(
+        ["**"],
+        exclude = [
+            "BUILD.bazel",
+            "bazel/**",
+            "build/**",
+            "**/BUILD",
+            "**/BUILD.bazel",
+            "**/.git",
+            "**/.git/**",
+            ".github/**",
+        ],
+    ) + glob(
+        [
+            "build/_deps/protobuf-src/**",
+            "build/_deps/p4runtime-src/**",
+            "build/_deps/inja-src/**",
+        ],
+        exclude = [
+            "**/BUILD",
+            "**/BUILD.bazel",
+            "**/.git/**",
+            "**/.git",
+            "**/CMakeCache.txt",
+            "**/CMakeFiles/**",
+            "**/*.a",
+            "**/*.o",
+            "**/*.so",
+            "**/*.so.*",
+        ],
+    ) + [
+        "bazel/foreign.cmake",
+    ] + select({
+        "@platforms//cpu:x86_64": glob([
+            "build/_deps/z3-src/include/**",
+            "build/_deps/z3-src/bin/libz3.a",
+            "build/_deps/z3-src/LICENSE.txt",
+        ]),
+        "@platforms//cpu:aarch64": [],
+    }),
+)
+
+py_binary(
+    name = "python",
+    srcs = ["bazel/python.py"],
+    main = "bazel/python.py",
+)
+
+cmake(
+    name = "build",
+    build_args = ["-j4"],
+    build_data = [
+        ":python",
+        ":bazel/foreign.cmake",
+        "@sonic_build_infra//tools/build_tools:flex",
+        "@sonic_build_infra//tools/build_tools:bison",
+    ],
+    cache_entries = {
+        "CMAKE_BUILD_TYPE": "Release",
+        # Bazel owns caching; never discover an undeclared host ccache binary.
+        "CCACHE_PROGRAM": "OFF",
+        "CMAKE_INSTALL_PREFIX": "/usr",
+        "CMAKE_PROJECT_P4C_INCLUDE": "$(execpath :bazel/foreign.cmake)",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CMAKE_C_FLAGS_RELEASE": "-O2 -g -DNDEBUG -fstack-protector-strong -D_FORTIFY_SOURCE=2",
+        "CMAKE_CXX_FLAGS_RELEASE": "-O2 -g -DNDEBUG -fstack-protector-strong -D_FORTIFY_SOURCE=2",
+        "CMAKE_EXE_LINKER_FLAGS": "-Wl,-z,relro,-z,now -Wl,--build-id=sha1 -Wl,-rpath-link,$$EXT_BUILD_DEPS$$/lib",
+        "PYTHON_EXECUTABLE": "$(execpath :python)",
+        "FLEX_EXECUTABLE": "$(execpath @sonic_build_infra//tools/build_tools:flex)",
+        "BISON_EXECUTABLE": "$(execpath @sonic_build_infra//tools/build_tools:bison)",
+        "Boost_NO_BOOST_CMAKE": "ON",
+        "ENABLE_BMV2": "ON",
+        "ENABLE_EBPF": "ON",
+        "ENABLE_UBPF": "ON",
+        "ENABLE_DPDK": "ON",
+        "ENABLE_P4C_GRAPHS": "ON",
+        "ENABLE_P4TEST": "ON",
+        "ENABLE_DOCS": "OFF",
+        "ENABLE_GC": "ON",
+        "ENABLE_GTESTS": "OFF",
+        "ENABLE_PROTOBUF_STATIC": "ON",
+        "ENABLE_MULTITHREAD": "OFF",
+        "ENABLE_GMP": "ON",
+        "FETCHCONTENT_FULLY_DISCONNECTED": "ON",
+    } | select({
+        "@platforms//cpu:x86_64": {"ENABLE_TEST_TOOLS": "ON"},
+        "@platforms//cpu:aarch64": {"ENABLE_TEST_TOOLS": "OFF"},
+    }),
+    configuration = "Release",
+    env = {"P4C_VERSION": "1.2.4.2"},
+    features = ["-sanitize_pwd"],
+    generate_args = ["-GUnix Makefiles"],
+    install_args = [
+        "--prefix",
+        # Make-variable expansion consumes one '$'; retain shell braces so the
+        # staging prefix cannot acquire a trailing literal dollar sign.
+        "$${INSTALLDIR}/usr",
+    ],
+    lib_name = "p4c",
+    lib_source = ":sources",
+    out_bin_dir = "usr/bin",
+    out_binaries = _PROGRAMS + select({
+        "@platforms//cpu:x86_64": ["p4testgen"],
+        "@platforms//cpu:aarch64": [],
+    }),
+    out_data_files = _DATA.values() + [
+        "evidence/compile_commands.json",
+        "evidence/CMakeCache.txt",
+    ],
+    out_include_dir = "include",
+    postfix_script = "mkdir -p $$INSTALLDIR/include $$INSTALLDIR/evidence; cp compile_commands.json CMakeCache.txt $$INSTALLDIR/evidence/",
+    deps = [
+        "@p4c_deps//libboost-graph1.83-dev:libboost-graph1.83",
+        "@p4c_deps//libboost-iostreams1.83-dev:libboost-iostreams1.83",
+        "@p4c_deps//libfl-dev:libfl",
+        "@p4c_deps//libgc-dev:libgc",
+        "@p4c_deps//libgmp-dev:libgmp",
+        "@p4c_deps//zlib1g-dev:zlib1g",
+    ],
+)
+
+p4c_runtime(
+    name = "p4c_pkg",
+    data = _DATA,
+    programs = _PROGRAMS,
+)
+
+filegroup(
+    name = "gcc_runtime",
+    srcs = select({
+        "@platforms//cpu:x86_64": ["@gcc-14.2.0-linux-target-x86_64-host-x86_64//:multicall_support_files"],
+        "@platforms//cpu:aarch64": ["@gcc-14.2.0-linux-target-aarch64-host-aarch64//:multicall_support_files"],
+    }),
+)
+
+filegroup(
+    name = "cpp",
+    srcs = select({
+        "@platforms//cpu:x86_64": [bin("x86_64", "14.2.0", "gcc")],
+        "@platforms//cpu:aarch64": [bin("aarch64", "14.2.0", "gcc")],
+    }),
+)
+
+keep_debug_info(
+    name = "compiler",
+    src = ":built_p4c-bm2-ss",
+)
+
+p4c_tool(
+    name = "p4c_bm2_ss",
+    binary = ":compiler",
+    cpp = ":cpp",
+    data = glob(["p4include/**"]),
+    runtime = [":gcc_runtime"],
+    deps = [
+        "@p4c_deps//libboost-iostreams1.83-dev:libboost-iostreams1.83",
+        "@p4c_deps//libgc-dev:libgc",
+        "@p4c_deps//libgmp-dev:libgmp",
+        "@p4c_deps//zlib1g-dev:zlib1g",
+    ],
+)
+
+py_test(
+    name = "package_test",
+    srcs = ["bazel/package_test.py"],
+    args = [
+        "$(rootpath :p4c_pkg)",
+        "$(rootpath :p4c_pkg.debug_symbols)",
+        "$(rootpath :p4c_bm2_ss)",
+        "$(rootpath :compile_commands)",
+        "$(rootpath :cmake_cache)",
+    ],
+    data = [
+        ":cmake_cache",
+        ":compile_commands",
+        ":p4c_bm2_ss",
+        ":p4c_pkg",
+        ":p4c_pkg.debug_symbols",
+    ],
+    main = "bazel/package_test.py",
+)
