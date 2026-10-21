@@ -53,3 +53,5 @@ The temporary `codex/p4-pi-prerequisites` base combines those candidates in one
 registry snapshot for native validation. Land the prerequisites, retarget this
 producer to `main`, use merged source pins and rerun AMD64/ARM64 checks before
 marking it ready to merge. BMv2 and DASH consumers must wait for this producer.
+
+This recipe revision adds the owner-provided runtime package metadata export. It preserves the source archives, configure/Make build, runtime/debug TARs and tests from 0.1.3.sonic.1; the complete inherited .1 registration remains unchanged.

@@ -20,7 +20,8 @@
   "build_targets": [
     "@p4lang-pi//:runtime",
     "@p4lang-pi//:runtime.debug_symbols",
-    "@p4lang-pi//:sdk"
+    "@p4lang-pi//:sdk",
+    "@p4lang-pi//:runtime_packages.json"
   ],
   "test_targets": [
     "@p4lang-pi//:runtime_test"
