@@ -214,7 +214,8 @@ py_test(
         "$(rootpath :cmake_cache)",
     ],
     data = [
-        ":configuration",
+        ":cmake_cache",
+        ":compile_commands",
         ":p4c_bm2_ss",
         ":p4c_pkg",
         ":p4c_pkg.debug_symbols",
