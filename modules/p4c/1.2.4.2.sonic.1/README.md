@@ -34,6 +34,13 @@ another generic foreign-build framework. Host `ccache` discovery is explicitly
 disabled; Bazel owns the build cache. `rules_distroless` 0.9.4.sonic.9 supplies
 the complete Boost template-header inputs required by the graph backend.
 
+The upstream CMake options `BUILD_LINK_WITH_GOLD` and `BUILD_LINK_WITH_LLD`
+are both `OFF`, preserving the declared GCC/BFD linker. Otherwise a machine
+with host `ld.gold` installed can silently select it and fail to link
+`irgenerator`: Gold rejects the sysroot-relative `=/...` paths in the declared
+`libc.so` and `libm.so` linker scripts. The native package test checks these
+persisted options and rejects an injected Gold/LLD selection.
+
 ## Source provenance
 
 The compiler comes directly from upstream P4C commit

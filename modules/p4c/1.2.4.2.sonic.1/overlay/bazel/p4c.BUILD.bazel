@@ -102,6 +102,10 @@ cmake(
         "CMAKE_BUILD_TYPE": "Release",
         # Bazel owns caching; never discover an undeclared host ccache binary.
         "CCACHE_PROGRAM": "OFF",
+        # Keep the declared GCC/BFD toolchain. Host Gold cannot read the
+        # sysroot-relative paths in the declared libc/libm linker scripts.
+        "BUILD_LINK_WITH_GOLD": "OFF",
+        "BUILD_LINK_WITH_LLD": "OFF",
         "CMAKE_INSTALL_PREFIX": "/usr",
         "CMAKE_PROJECT_P4C_INCLUDE": "$(execpath :bazel/foreign.cmake)",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
