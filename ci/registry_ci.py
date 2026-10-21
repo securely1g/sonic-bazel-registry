@@ -217,8 +217,20 @@ def validate_entry(root: Path, module: str, version: str) -> dict:
     required = {"architectures", "consumer_deps", "platforms", "build_targets", "test_targets"}
     require(required <= set(config) <= required | {
         "build_flags", "rust_preparation", "go_sdk", "rust_toolchain", "generated_module_overlay",
+        "test_runtime_preparation",
     }, f"presubmit.json requires {sorted(required)} and optionally "
-       "build_flags/rust_preparation/go_sdk/rust_toolchain/generated_module_overlay")
+       "build_flags/rust_preparation/go_sdk/rust_toolchain/generated_module_overlay/test_runtime_preparation")
+    if "test_runtime_preparation" in config:
+        preparation = config["test_runtime_preparation"]
+        require(isinstance(preparation, dict) and set(preparation) == {"script", "sha256"},
+                "test_runtime_preparation requires only script and sha256")
+        script = preparation["script"]
+        require(isinstance(script, str) and re.fullmatch(r"[A-Za-z0-9_./-]+\.py", script) is not None
+                and not script.startswith("/") and ".." not in PurePosixPath(script).parts,
+                "Test runtime preparation script must be a relative Python path in the tested source")
+        require(isinstance(preparation["sha256"], str)
+                and re.fullmatch(r"[0-9a-f]{64}", preparation["sha256"]) is not None,
+                "Test runtime preparation sha256 must be a SHA256 digest")
     if "generated_module_overlay" in config:
         require(config["generated_module_overlay"] is True, "generated_module_overlay must be true when present")
         sync_module(root, module, version, check=True)
@@ -664,12 +676,64 @@ def fetched_modules(output_base: Path, module: str) -> list[Path]:
             if "++" not in path.parent.name]
 
 
+def require_test_container(image_reference: str | None) -> None:
+    """Runtime installation is opt-in and confined to a disposable native job."""
+    require(isinstance(image_reference, str)
+            and re.fullmatch(r"\S+@sha256:[0-9a-f]{64}", image_reference) is not None,
+            "Test runtime preparation requires --test-container-image with the disposable image's digest")
+    require(os.geteuid() == 0 and any(Path(p).exists() for p in ("/.dockerenv", "/run/.containerenv")),
+            "Test runtime preparation must run as root inside a disposable container")
+    require("VERSION_CODENAME=trixie" in Path("/etc/os-release").read_text().splitlines(),
+            "Test runtime preparation requires a Debian Trixie container")
+
+
+def prepare_test_runtime(config: dict, source: Path, consumer: Path, artifacts: Path,
+                         architecture: str, image_reference: str | None) -> list[str]:
+    """Reuse the fetched owner's locked setup; retain its receipt and test identity."""
+    preparation = config.get("test_runtime_preparation")
+    if preparation is None:
+        return []
+    require_test_container(image_reference)
+    helper = (source / preparation["script"]).resolve()
+    require(helper.is_relative_to(source.resolve()) and helper.is_file(),
+            "Test runtime preparation script must remain inside the fetched source")
+    content = helper.read_bytes()
+    require(hashlib.sha256(content).hexdigest() == preparation["sha256"],
+            "Test runtime preparation script checksum mismatch")
+    lock = consumer / "MODULE.bazel.lock"
+    require(lock.is_file(), "Bazel did not generate MODULE.bazel.lock resolution evidence")
+    lock_hash = hashlib.sha256(lock.read_bytes()).hexdigest()
+    shutil.copy2(lock, artifacts / "test-runtime.MODULE.bazel.lock")
+    (artifacts / "test-runtime-prepare.py").write_bytes(content)
+    receipt_path = artifacts / "test-runtime.json"
+    run_logged([sys.executable, "-B", str(helper), "--lock", str(lock),
+                "--image-reference", image_reference, "--output", str(receipt_path)],
+               consumer, artifacts / "test-runtime-preparation.log")
+    receipt = read_json(receipt_path)
+    require(receipt.get("architecture") == architecture and receipt.get("image_reference") == image_reference
+            and receipt.get("lock_sha256") == lock_hash
+            and hashlib.sha256(lock.read_bytes()).hexdigest() == lock_hash,
+            "Test runtime receipt must match the native architecture, container and consumer lock")
+    runtime_id = receipt.get("SONIC_TEST_RUNTIME_ID")
+    require(isinstance(runtime_id, str) and re.fullmatch(r"[0-9a-f]{64}", runtime_id) is not None,
+            "Test runtime preparation must provide SONIC_TEST_RUNTIME_ID")
+    identity = {key: value for key, value in receipt.items()
+                if key not in ("SONIC_TEST_RUNTIME_ID", "preserved_base_packages", "lock_sha256")}
+    require(runtime_id == hashlib.sha256(json.dumps(identity, sort_keys=True,
+                                                    separators=(",", ":")).encode()).hexdigest(),
+            "Test runtime identity does not match its receipt")
+    return [f"--test_env=SONIC_TEST_RUNTIME_ID={runtime_id}"]
+
+
 def run(root: Path, module: str, version: str, architecture: str,
-        work_dir: Path, artifacts: Path, bazel: str = "bazel") -> None:
+        work_dir: Path, artifacts: Path, bazel: str = "bazel",
+        test_container_image: str | None = None) -> None:
     config = validate_entry(root, module, version)
     require(architecture in config["architectures"], "Architecture is not configured for this version")
     require(platform.system() == "Linux" and platform.machine() == {"amd64": "x86_64", "arm64": "aarch64"}[architecture],
             "Validation must run on a native Linux host of the requested architecture")
+    if config.get("test_runtime_preparation"):
+        require_test_container(test_container_image)
     work_dir, artifacts = work_dir.resolve(), artifacts.resolve()
     require(not work_dir.exists() or not any(work_dir.iterdir()), "work-dir must be fresh and empty")
     require(not artifacts.is_relative_to(work_dir), "artifacts must be outside work-dir")
@@ -737,10 +801,6 @@ def run(root: Path, module: str, version: str, architecture: str,
         run_logged([*prefix, "build", *flags, f"--build_event_json_file={artifacts / 'build-events.jsonl'}",
                     *config["build_targets"]], consumer, artifacts / "build.log")
         collect_outputs(artifacts / "build-events.jsonl", config["build_targets"], work_dir, artifacts)
-        run_logged([*prefix, "test", *flags, "--nocache_test_results", "--test_output=errors",
-                    f"--build_event_json_file={artifacts / 'test-events.jsonl'}", *config["test_targets"]],
-                   consumer, artifacts / "test.log")
-        verify_tests(artifacts / "test-events.jsonl", config["test_targets"])
         output_base = Path(subprocess.check_output([*prefix, "info", *flags, "output_base"],
                                                   cwd=consumer, text=True).strip())
         fetched = fetched_modules(output_base, module)
@@ -756,6 +816,13 @@ def run(root: Path, module: str, version: str, architecture: str,
         require(fetched_bytes == canonical_bytes,
                 "Fetched MODULE.bazel differs from registry MODULE.bazel")
         shutil.copy2(fetched[0], artifacts / "fetched.MODULE.bazel")
+        require((consumer / "MODULE.bazel.lock").is_file(), "Bazel did not generate MODULE.bazel.lock resolution evidence")
+        test_flags = prepare_test_runtime(config, fetched[0].parent, consumer, artifacts,
+                                          architecture, test_container_image)
+        run_logged([*prefix, "test", *flags, *test_flags, "--nocache_test_results", "--test_output=errors",
+                    f"--build_event_json_file={artifacts / 'test-events.jsonl'}", *config["test_targets"]],
+                   consumer, artifacts / "test.log")
+        verify_tests(artifacts / "test-events.jsonl", config["test_targets"])
         for dependency in config["consumer_deps"]:
             name, selected_version = dependency["name"], dependency["version"]
             selected = fetched_modules(output_base, name)
@@ -763,7 +830,6 @@ def run(root: Path, module: str, version: str, architecture: str,
             require(parse_module_identity(selected[0].read_text()) == (name, selected_version),
                     f"Fetched consumer dependency {name} differs from the declared version {selected_version}")
             shutil.copy2(selected[0], artifacts / f"consumer-dep-{name}.MODULE.bazel")
-        require((consumer / "MODULE.bazel.lock").is_file(), "Bazel did not generate MODULE.bazel.lock resolution evidence")
         (artifacts / "validation.json").write_text(json.dumps({
             "module": module, "version": version, "architecture": architecture,
             "build_targets": config["build_targets"], "passed_tests": config["test_targets"],
@@ -772,6 +838,8 @@ def run(root: Path, module: str, version: str, architecture: str,
             "go_sdk": config.get("go_sdk"),
             "rust_toolchain": config.get("rust_toolchain"),
             "rust_preparation": config.get("rust_preparation"),
+            "test_runtime_preparation": config.get("test_runtime_preparation"),
+            "test_runtime_flags": test_flags,
             "generated_module_overlay": config.get("generated_module_overlay", False),
             "fetched_module_matches_registry": fetched_bytes == canonical_bytes,
             "registry_module_sha256": hashlib.sha256(canonical_bytes).hexdigest(),
@@ -812,6 +880,8 @@ def main() -> None:
     runner.add_argument("--work-dir", required=True, type=Path)
     runner.add_argument("--artifacts", required=True, type=Path)
     runner.add_argument("--bazel", default="bazel")
+    runner.add_argument("--test-container-image",
+                        help="opt into runtime preparation inside this disposable container, including its digest")
     args = parser.parse_args()
     try:
         if args.command == "plan":
@@ -823,7 +893,8 @@ def main() -> None:
         elif args.command == "sync-module":
             sync_module(ROOT, args.module, args.version, args.check)
         else:
-            run(ROOT, args.module, args.version, args.architecture, args.work_dir, args.artifacts, args.bazel)
+            run(ROOT, args.module, args.version, args.architecture, args.work_dir, args.artifacts,
+                args.bazel, args.test_container_image)
     except (RegistryError, OSError, subprocess.CalledProcessError) as error:
         parser.exit(1, f"Registry CI failed: {error}\n")
 
