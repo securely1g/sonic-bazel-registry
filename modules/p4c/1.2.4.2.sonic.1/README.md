@@ -12,7 +12,7 @@ No Debian package is generated and the existing Make build is unchanged.
 | `@p4c//:p4c_pkg` | Stripped compiler programs, installed Python driver/configuration and P4 includes |
 | `@p4c//:p4c_pkg.debug_symbols` | Matching ELF symbols indexed by GNU build ID |
 | `@p4c//:p4c_bm2_ss` | Executable compiler with declared libraries, C preprocessor and private P4 include tree; usable as an action tool with `cfg = "exec"` |
-| `@p4c//:configuration` | Installed tree plus CMake cache and compilation database for inspection |
+| `@p4c//:configuration` | CMake cache and compilation database retained as CI artifacts |
 | `@p4c//:package_test` | Compiler invocation on a v1model program and installed runtime/debug pair validation |
 
 The build retains BMV2, eBPF, uBPF, DPDK, graph, P4 test and P4TC backends,
@@ -49,7 +49,10 @@ The unchanged Debian metadata archive is 2796 bytes, SHA-256
 The five SONiC patches are retained under `overlay/bazel/`, including the
 upstream-authored Boost ADL fix with its original credit. The archive includes
 its Protobuf/P4Runtime/Inja source inputs; FetchContent network access is disabled
-and CMake consumes those declared trees. It also contains the prebuilt AMD64
+and CMake consumes only those declared source trees. All other `build/**`
+content is excluded; dependency source inputs also exclude CMake caches,
+objects and compiled libraries. An archive audit found no compiled Protobuf
+or P4C artifacts. It also contains the prebuilt AMD64
 Z3 dependency used by the retained `p4testgen` recipe.
 
 ## Validation

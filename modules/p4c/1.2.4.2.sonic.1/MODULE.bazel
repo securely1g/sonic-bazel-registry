@@ -13,7 +13,7 @@ register_toolchains("@sonic_build_infra//tools/build_tools:make_toolchain", "@so
 apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
 apt.install(
     dependency_set = "p4c_deps",
-    packages = ["libboost-graph1.83-dev", "libboost-iostreams1.83-dev", "libgc-dev", "libgmp-dev", "libfl-dev"],
+    packages = ["libboost-graph1.83-dev", "libboost-iostreams1.83-dev", "libgc-dev", "libgmp-dev", "libfl-dev", "zlib1g-dev"],
     suites = ["trixie", "trixie-updates", "trixie-security"],
 )
 use_repo(apt, "p4c_deps")

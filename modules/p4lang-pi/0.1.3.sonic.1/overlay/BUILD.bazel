@@ -2,7 +2,7 @@ load("@rules_cc//cc:cc_test.bzl", "cc_test")
 load("@rules_python//python:py_test.bzl", "py_test")
 package(default_visibility = ["//visibility:public"])
 [alias(name = name, actual = "@pi_source//:" + name) for name in ["sources", "sdk", "runtime", "runtime.debug_symbols", "configure_log", "proto_configure_log"]]
-cc_test(name = "sdk_test", srcs = ["bazel/sdk_test.cc"], deps = [":sdk"])
-py_test(name = "runtime_test", srcs = ["bazel/runtime_test.py"], args = ["$(rootpath :runtime)", "$(rootpath :runtime.debug_symbols)", "$(rootpath :proto_configure_log)"] + ["$(locations @pi_deps//:packages)"], data = [":runtime", ":runtime.debug_symbols", ":proto_configure_log", "@pi_deps//:packages"])
+cc_test(name = "sdk_test", srcs = ["//bazel:sdk_test.cc"], deps = [":sdk"])
+py_test(name = "runtime_test", srcs = ["//bazel:runtime_test.py"], args = ["$(rootpath :runtime)", "$(rootpath :runtime.debug_symbols)", "$(rootpath :proto_configure_log)"] + ["$(locations @pi_deps//:packages)"], data = [":runtime", ":runtime.debug_symbols", ":proto_configure_log", "@pi_deps//:packages"])
 
 alias(name = "runtime_libraries", actual = "@pi_deps//:packages")

@@ -30,3 +30,7 @@ def p4c_runtime(programs, data):
         )
     for suffix in ["", ".debug_symbols"]:
         native.alias(name = "p4c_pkg" + suffix, actual = select({"@platforms//cpu:" + cpu: ":p4c_pkg_" + cpu + suffix for cpu in ["x86_64", "aarch64"]}))
+    for name, filename in [("compile_commands", "compile_commands.json"), ("cmake_cache", "CMakeCache.txt")]:
+        select_file(name = name + "_raw", srcs = ":build", subpath = "p4c/evidence/" + filename)
+        keep_debug_info(name = name, src = ":" + name + "_raw")
+    native.filegroup(name = "configuration", srcs = [":compile_commands", ":cmake_cache"])

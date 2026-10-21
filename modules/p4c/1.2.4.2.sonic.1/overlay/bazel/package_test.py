@@ -5,6 +5,8 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+import struct
+import zlib
 import tarfile
 import tempfile
 
@@ -19,7 +21,12 @@ def build_id(path):
 
 with tempfile.TemporaryDirectory() as directory:
     root = Path(directory)
-    runtime, debug, compiler = map(Path, sys.argv[1:])
+    runtime, debug, compiler, commands, cache = map(Path, sys.argv[1:])
+    compilation = json.loads(commands.read_text())
+    assert any("/build/_deps/protobuf-src/" in item["file"] for item in compilation)
+    assert any("/frontends/" in item["file"] for item in compilation)
+    assert all("gcc-14.2.0-linux" in item["command"] for item in compilation)
+    assert "ENABLE_BMV2:BOOL=ON" in cache.read_text()
     for archive, destination in [(runtime, root / 'runtime'), (debug, root / 'debug')]:
         with tarfile.open(archive) as tar:
             tar.extractall(destination, filter='data')
@@ -27,6 +34,11 @@ with tempfile.TemporaryDirectory() as directory:
     identifier = build_id(binary)
     symbols = root / 'debug/usr/lib/debug/.build-id' / identifier[:2] / (identifier[2:] + '.debug')
     assert build_id(symbols) == identifier
+    link = root / 'debuglink'
+    run('objcopy', '--dump-section=.gnu_debuglink=' + str(link), str(binary))
+    data = link.read_bytes()
+    assert data.split(b'\0', 1)[0].decode() == symbols.name
+    assert struct.unpack('<I', data[-4:])[0] == zlib.crc32(symbols.read_bytes())
     assert '.debug_info' not in run('readelf', '-SW', str(binary))
     assert '.debug_info' in run('readelf', '-SW', str(symbols))
     assert 'core.p4' in '\n'.join(str(p) for p in (root / 'runtime/usr/share/p4c/p4include').rglob('*'))
@@ -50,6 +62,6 @@ V1Switch(P(), V(), I(), E(), C(), D()) main;
     run(str(compiler.resolve()), str(source), '-o', str(output), '--toJSON', str(root / 'ir.json'), '--p4runtime-files', str(root / 'p4info.json'))
     payload = json.loads(output.read_text())
     assert payload['program']
-    assert json.loads((root / 'p4info.json').read_text())
-    assert json.loads((root / 'ir.json').read_text())
+    assert isinstance(json.loads((root / 'p4info.json').read_text()), dict)
+    assert isinstance(json.loads((root / 'ir.json').read_text()), dict)
     print(json.dumps({'version':version.strip(), 'runtime_build_id':identifier, 'compiled_bmv2':True}))

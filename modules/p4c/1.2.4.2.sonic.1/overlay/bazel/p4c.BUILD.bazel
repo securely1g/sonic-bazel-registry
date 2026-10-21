@@ -14,7 +14,22 @@ _DATA.update({p: "usr/share/p4c/" + p.removeprefix("backends/ebpf/") for p in gl
 _DATA.update({p: "usr/share/p4c/" + p.removeprefix("backends/ubpf/") for p in glob(["backends/ubpf/p4include/**"])})
 _DATA["tools/driver/p4c.in"] = "usr/bin/p4c"
 
-filegroup(name = "sources", srcs = glob(["**"], exclude = ["BUILD.bazel", "bazel/**", "**/BUILD", "**/BUILD.bazel", ".git/**", ".github/**", "build/_deps/protoc-src/**"]) + ["bazel/foreign.cmake"])
+# Only dependency source trees enter CMake. The archive also carries an old
+# build directory and an unused prebuilt protoc distribution.
+filegroup(
+    name = "sources",
+    srcs = glob(["**"], exclude = ["BUILD.bazel", "bazel/**", "build/**", "**/BUILD", "**/BUILD.bazel", ".git/**", ".github/**"])
+        + glob([
+            "build/_deps/protobuf-src/**",
+            "build/_deps/p4runtime-src/**",
+            "build/_deps/inja-src/**",
+        ], exclude = ["**/BUILD", "**/BUILD.bazel", "**/CMakeCache.txt", "**/CMakeFiles/**", "**/*.a", "**/*.o", "**/*.so", "**/*.so.*"])
+        + ["bazel/foreign.cmake"]
+        + select({
+            "@platforms//cpu:x86_64": glob(["build/_deps/z3-src/include/**", "build/_deps/z3-src/bin/libz3.a", "build/_deps/z3-src/LICENSE.txt"]),
+            "@platforms//cpu:aarch64": [],
+        }),
+)
 py_binary(name = "python", srcs = ["bazel/python.py"], main = "bazel/python.py")
 
 cmake(
@@ -53,14 +68,12 @@ cmake(
     out_include_dir = "include",
     postfix_script = "mkdir -p $$INSTALLDIR/include $$INSTALLDIR/evidence; cp compile_commands.json CMakeCache.txt $$INSTALLDIR/evidence/",
     build_data = [":python", ":bazel/foreign.cmake", "@sonic_build_infra//tools/build_tools:flex", "@sonic_build_infra//tools/build_tools:bison"],
-    deps = ["@p4c_deps//libboost-graph1.83-dev:libboost-graph1.83", "@p4c_deps//libboost-iostreams1.83-dev:libboost-iostreams1.83", "@p4c_deps//libgc-dev:libgc", "@p4c_deps//libgmp-dev:libgmp", "@p4c_deps//libfl-dev:libfl"],
+    deps = ["@p4c_deps//libboost-graph1.83-dev:libboost-graph1.83", "@p4c_deps//libboost-iostreams1.83-dev:libboost-iostreams1.83", "@p4c_deps//libgc-dev:libgc", "@p4c_deps//libgmp-dev:libgmp", "@p4c_deps//libfl-dev:libfl", "@p4c_deps//zlib1g-dev:zlib1g"],
     env = {"P4C_VERSION": "1.2.4.2"},
 )
 
 p4c_runtime(_PROGRAMS, _DATA)
 
-filegroup(name = "configuration_raw", srcs = [":build"], output_group = "gen_dir")
-keep_debug_info(name = "configuration", src = ":configuration_raw")
 filegroup(name = "gcc_runtime", srcs = select({
     "@platforms//cpu:x86_64": ["@gcc-14.2.0-linux-target-x86_64-host-x86_64//:multicall_support_files"],
     "@platforms//cpu:aarch64": ["@gcc-14.2.0-linux-target-aarch64-host-aarch64//:multicall_support_files"],
@@ -76,12 +89,12 @@ p4c_tool(
     cpp = ":cpp",
     runtime = [":gcc_runtime"],
     data = glob(["p4include/**"]),
-    deps = ["@p4c_deps//libboost-iostreams1.83-dev:libboost-iostreams1.83", "@p4c_deps//libgc-dev:libgc", "@p4c_deps//libgmp-dev:libgmp"],
+    deps = ["@p4c_deps//libboost-iostreams1.83-dev:libboost-iostreams1.83", "@p4c_deps//libgc-dev:libgc", "@p4c_deps//libgmp-dev:libgmp", "@p4c_deps//zlib1g-dev:zlib1g"],
 )
 py_test(
     name = "package_test",
     srcs = ["bazel/package_test.py"],
     main = "bazel/package_test.py",
-    args = ["$(rootpath :p4c_pkg)", "$(rootpath :p4c_pkg.debug_symbols)", "$(rootpath :p4c_bm2_ss)"],
-    data = [":p4c_pkg", ":p4c_pkg.debug_symbols", ":p4c_bm2_ss"],
+    args = ["$(rootpath :p4c_pkg)", "$(rootpath :p4c_pkg.debug_symbols)", "$(rootpath :p4c_bm2_ss)", "$(rootpath :compile_commands)", "$(rootpath :cmake_cache)"],
+    data = [":p4c_pkg", ":p4c_pkg.debug_symbols", ":p4c_bm2_ss", ":configuration"],
 )

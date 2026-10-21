@@ -17,6 +17,7 @@ configure_make(
     copts = ["-O2", "-g", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-D_FORTIFY_SOURCE=2"],
     args = ["-j4", "pythondir=$$INSTALLDIR/python"],
     env = {
+        "PATH": "$(execpath @sonic_build_infra//tools/build_tools:foreign_runtime)/bin:$$PATH",
         "BAZEL_FOREIGN_TOOLS": "$(execpath @sonic_build_infra//tools/build_tools:foreign_runtime)",
         "BAZEL_PKGCONFIG_FILES": "$(locations @pi_deps//:pkgconfig)",
         "LDFLAGS": "-Wl,-z,relro,-z,now -Wl,-rpath-link=$$EXT_BUILD_DEPS/lib",
@@ -29,8 +30,8 @@ configure_make(
     postfix_script = "cp config.log $$INSTALLDIR/config.log; cp proto/config.log $$INSTALLDIR/proto.config.log",
     deps = [
         "@pi_deps//libreadline-dev:libreadline",
-        "@pi_deps//libboost-system-dev:libboost_system",
-        "@pi_deps//libboost-thread-dev:libboost_thread",
+        "@pi_deps//libboost-system-dev:libboost-system",
+        "@pi_deps//libboost-thread-dev:libboost-thread",
         "@pi_deps//libprotobuf-dev:libprotobuf",
         "@pi_deps//libgrpc++-dev:libgrpc++",
         "@pi_deps//libgrpc-dev:libgrpc",
