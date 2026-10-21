@@ -41,6 +41,15 @@ The configuration declares:
   separate pin flag or override map is needed. Use the module's `name` for
   selection; `repo_name` only controls its apparent repository name in targets.
 - `platforms`: an explicit Bazel target platform label for each architecture.
+- `host_platforms` (optional): an explicit Bazel host platform label for every
+  architecture in `architectures`. This selects the default execution platform
+  used to compile tools such as a source-built P4 compiler. A Trixie target
+  platform alone does not select the Trixie toolchain for execution dependencies.
+  For those consumers, map each architecture to its native Trixie platform,
+  matching `platforms`. The runner passes the choice to build, test and info
+  commands and records `platform` and `host_platform` in `validation.json`.
+  Omitting the map preserves Bazel's existing host-platform default and records
+  `host_platform: null`; no host flag is added to other modules.
 - `build_targets`: required output labels, including runtime and matching debug
   packages where the module provides them.
 - `test_targets`: explicit consumer and package test labels.

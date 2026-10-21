@@ -211,6 +211,24 @@ class SelectionTests(FixtureTestCase):
 
 
 class EntryValidationTests(FixtureTestCase):
+    def test_optional_host_platforms_require_complete_explicit_architecture_map(self) -> None:
+        entry = self.entry("alpha", "1.0.0")
+        path = entry / "presubmit.json"
+        config = json.loads(path.read_text())
+        config["architectures"] = ["amd64", "arm64"]
+        config["platforms"] = {arch: "@alpha//:target_" + arch for arch in config["architectures"]}
+        hosts = {arch: "@alpha//:host_" + arch for arch in config["architectures"]}
+        write_json(path, {**config, "host_platforms": hosts})
+        self.assertEqual(registry_ci.validate_entry(self.root, "alpha", "1.0.0")["host_platforms"], hosts)
+        for invalid in (None, {}, [], {"amd64": hosts["amd64"]},
+                        {**hosts, "armhf": "@alpha//:armhf"},
+                        {**hosts, "amd64": "//:ambient"},
+                        {**hosts, "amd64": "@alpha//:host --override_module=bad"}):
+            with self.subTest(host_platforms=invalid):
+                write_json(path, {**config, "host_platforms": invalid})
+                with self.assertRaisesRegex(registry_ci.RegistryError, "host_platforms must map"):
+                    registry_ci.validate_entry(self.root, "alpha", "1.0.0")
+
     def test_version_overrides_and_dependency_pin_fields_are_rejected(self) -> None:
         entry = self.entry("alpha", "1.0.0")
         path = entry / "presubmit.json"
@@ -1037,10 +1055,10 @@ class FetchedModuleTests(FixtureTestCase):
     def fetched_module(self, name: str) -> Path:
         return self.output_base / "external" / f"{name}+" / "MODULE.bazel"
 
-    def run_fixture(self, suffix: str) -> Path:
+    def run_fixture(self, suffix: str, architecture: str = "amd64") -> Path:
         artifacts = self.root / f"artifacts-{suffix}"
         registry_ci.run(
-            self.root, "alpha", "1.0.0", "amd64",
+            self.root, "alpha", "1.0.0", architecture,
             self.root / f"work-{suffix}", artifacts, str(self.fake_bazel),
         )
         return artifacts
@@ -1054,6 +1072,31 @@ class FetchedModuleTests(FixtureTestCase):
             if isinstance(node, ast.Expr) and isinstance(node.value, ast.Call)
             and isinstance(node.value.func, ast.Name) and node.value.func.id == function
         ]
+
+    def test_explicit_native_host_platform_reaches_configuration_commands(self) -> None:
+        self.config["architectures"] = ["amd64", "arm64"]
+        self.config["platforms"] = {arch: "@alpha//:target_" + arch for arch in self.config["architectures"]}
+        self.config["host_platforms"] = {arch: "@alpha//:host_" + arch for arch in self.config["architectures"]}
+        write_json(self.config_path, self.config)
+        script = self.fake_bazel.read_text()
+        for architecture, machine in (("amd64", "x86_64"), ("arm64", "aarch64")):
+            with self.subTest(architecture=architecture):
+                expected = "--host_platform=" + self.config["host_platforms"][architecture]
+                # Build, test and output-query commands select a configuration.
+                # Read-only info path queries intentionally omit platform labels.
+                self.fake_bazel.write_text(script.replace("args = sys.argv[1:]\n",
+                    "args = sys.argv[1:]\n" + f"assert 'info' in args or {expected!r} in args\n"))
+                with mock.patch.object(registry_ci.platform, "machine", return_value=machine):
+                    artifacts = self.run_fixture("host-" + architecture, architecture)
+                validation = json.loads((artifacts / "validation.json").read_text())
+                self.assertEqual(validation["host_platform"], self.config["host_platforms"][architecture])
+                self.assertEqual(validation["platform"], self.config["platforms"][architecture])
+
+    def test_omitted_host_platform_preserves_bazel_default(self) -> None:
+        self.fake_bazel.write_text(self.fake_bazel.read_text().replace("args = sys.argv[1:]\n",
+            "args = sys.argv[1:]\nassert not any(arg.startswith('--host_platform=') for arg in args)\n"))
+        artifacts = self.run_fixture("default-host")
+        self.assertIsNone(json.loads((artifacts / "validation.json").read_text())["host_platform"])
 
     def test_every_consumer_dependency_is_pinned_by_module_name_and_recorded(self) -> None:
         artifacts = self.run_fixture("control")
