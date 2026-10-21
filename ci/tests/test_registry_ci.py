@@ -814,6 +814,105 @@ class RustPreparationTests(FixtureTestCase):
             self.prepare("common --override_module=alpha=/tmp/other\n")
 
 
+class IntegrationTestModuleTests(FixtureTestCase):
+    """A separate test root must still exercise the reviewed registry recipe."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.registry_entry = self.entry("alpha", "1.0.0")
+        self.config_path = self.registry_entry / "presubmit.json"
+        self.config = json.loads(self.config_path.read_text())
+        self.config.update({"integration_test_module": "tests/integration", "consumer_deps": []})
+        self.directory = self.registry_entry / "tests/integration"
+        self.directory.mkdir(parents=True)
+        self.module = self.directory / "MODULE.bazel"
+        self.module.write_text('module(name = "integration_tests")\n'
+                               'bazel_dep(name = "alpha", version = "1.0.0")\n')
+        (self.directory / "BUILD.bazel").write_text('filegroup(name = "archives", srcs = [])\n')
+
+    def validate(self) -> dict:
+        write_json(self.config_path, self.config)
+        return registry_ci.validate_entry(self.root, "alpha", "1.0.0")
+
+    def test_root_labels_require_an_explicit_integration_module(self) -> None:
+        self.config["build_targets"].append("//:archives")
+        self.config["test_targets"].append("//:archive_contract_test")
+        self.validate()
+        del self.config["integration_test_module"]
+        with self.assertRaisesRegex(registry_ci.RegistryError, "explicit targets"):
+            self.validate()
+
+    def test_integration_root_does_not_allow_wildcards_or_unrelated_module_targets(self) -> None:
+        for label in ("//...", "//:all", "//:all-targets", "@another//:test"):
+            with self.subTest(label=label):
+                self.config["test_targets"] = [label]
+                with self.assertRaisesRegex(registry_ci.RegistryError, "explicit targets"):
+                    self.validate()
+
+    def test_test_module_cannot_escape_the_entry_or_use_symlinks(self) -> None:
+        (self.registry_entry / "linked-tests").symlink_to(self.directory, target_is_directory=True)
+        for name in ("../outside", "/tmp/tests", "tests/../integration", "linked-tests", "tests//integration"):
+            with self.subTest(name=name):
+                self.config["integration_test_module"] = name
+                with self.assertRaises(registry_ci.RegistryError):
+                    self.validate()
+        self.config["integration_test_module"] = "tests/integration"
+        (self.directory / "fixture.json").symlink_to(self.registry_entry / "source.json")
+        with self.assertRaisesRegex(registry_ci.RegistryError, "regular files"):
+            self.validate()
+
+    def test_test_module_rejects_local_build_state_and_missing_build_file(self) -> None:
+        for name in (".bazelrc", "MODULE.bazel.lock", "bazel-bin", "__pycache__", "test.pyc"):
+            with self.subTest(name=name):
+                path = self.directory / name
+                path.write_text("local state")
+                with self.assertRaisesRegex(registry_ci.RegistryError, "local build state"):
+                    self.validate()
+                path.unlink()
+        (self.directory / "BUILD.bazel").unlink()
+        with self.assertRaisesRegex(registry_ci.RegistryError, "Missing regular input"):
+            self.validate()
+
+    def test_test_module_cannot_override_registry_resolution_or_include_unchecked_files(self) -> None:
+        original = self.module.read_text()
+        for declaration in (
+            'local_path_override(module_name = "alpha", path = "/tmp/alpha")',
+            'single_version_override(module_name = "alpha", version = "1.0.0")',
+            'include("//:other.MODULE.bazel")',
+            'redirect = local_path_override\nredirect(module_name = "alpha", path = "/tmp/alpha")',
+        ):
+            with self.subTest(declaration=declaration):
+                self.module.write_text(original + declaration + "\n")
+                with self.assertRaisesRegex(registry_ci.RegistryError, "cannot include files or override"):
+                    self.validate()
+
+    def test_test_module_requires_the_exact_reviewed_dependency(self) -> None:
+        for declaration in (
+            'bazel_dep(name = "other", version = "1.0.0")',
+            'bazel_dep(name = "alpha", version = "2.0.0")',
+            'bazel_dep(name = "alpha", version = "1.0.0", repo_name = "alias")',
+            'bazel_dep(name = "alpha", version = "1.0.0")\nbazel_dep(name = "alpha", version = "1.0.0")',
+        ):
+            with self.subTest(declaration=declaration):
+                self.module.write_text(declaration + "\n")
+                with self.assertRaisesRegex(registry_ci.RegistryError, "exact tested module"):
+                    self.validate()
+
+    def test_test_module_cannot_silently_ignore_generated_root_configuration(self) -> None:
+        for field, value in (
+            ("consumer_deps", [{"name": "platforms", "version": "1.0.0"}]),
+            ("go_sdk", {"version": "1.25.0"}),
+            ("rust_toolchain", {"version": "1.90.0"}),
+            ("rust_preparation", {}),
+        ):
+            with self.subTest(field=field):
+                config = copy.deepcopy(self.config)
+                self.config[field] = value
+                with self.assertRaisesRegex(registry_ci.RegistryError, "owns its dependencies"):
+                    self.validate()
+                self.config = config
+
+
 class RequiredTestResultTests(FixtureTestCase):
     label = "@alpha//:consumer_test"
 
@@ -834,6 +933,18 @@ class RequiredTestResultTests(FixtureTestCase):
 
     def test_uncached_canonical_test_result_is_accepted(self) -> None:
         self.verify(self.events())
+
+    def test_root_integration_results_use_the_same_required_uncached_checks(self) -> None:
+        for label in ("//:archive_contract_test", "@@//:archive_contract_test", "@//:archive_contract_test"):
+            with self.subTest(label=label):
+                events = self.events()
+                for event in events:
+                    for identifier in event["id"].values():
+                        identifier["label"] = label
+                self.verify(events, ["//:archive_contract_test"])
+                events[0]["testResult"]["cachedLocally"] = True
+                with self.assertRaises(registry_ci.RegistryError):
+                    self.verify(events, ["//:archive_contract_test"])
 
     def test_every_required_test_needs_a_result_and_summary(self) -> None:
         events = self.events()
@@ -1063,6 +1174,44 @@ class FetchedModuleTests(FixtureTestCase):
         outputs = json.loads((artifacts / "outputs.json").read_text())
         self.assertEqual(set(outputs), {"@alpha//:library"})
         self.assertEqual((artifacts / outputs["@alpha//:library"][0]["path"]).read_bytes(), b"package")
+
+    def test_checked_in_integration_module_is_staged_without_mutating_reviewed_inputs(self) -> None:
+        directory = self.registry_entry / "tests/integration"
+        directory.mkdir(parents=True)
+        (directory / "MODULE.bazel").write_text(
+            'module(name = "integration_tests")\n'
+            'bazel_dep(name = "alpha", version = "1.0.0")\n')
+        (directory / "BUILD.bazel").write_text('# Consumer test targets\n')
+        (directory / "fixture.json").write_text('reviewed fixture\n')
+        before = {path.name: path.read_bytes() for path in directory.iterdir()}
+        self.config.update({"integration_test_module": "tests/integration", "consumer_deps": []})
+        self.config["test_targets"].append("//:archive_contract_test")
+        write_json(self.config_path, self.config)
+        script = self.fake_bazel.read_text()
+        build, separator, test = script.partition("elif 'test' in args:")
+        test = test.replace("    Path(path).write_text", (
+            "    events.extend([\n"
+            "        {'id': {'testResult': {'label': '@@//:archive_contract_test'}},\n"
+            "         'testResult': {'status': 'PASSED', 'cachedLocally': False}},\n"
+            "        {'id': {'testSummary': {'label': '@@//:archive_contract_test'}},\n"
+            "         'testSummary': {'overallStatus': 'PASSED', 'totalRunCount': 1, 'totalNumCached': 0}}])\n"
+            "    Path('fixture.json').write_text('private test output')\n"
+            "    Path(path).write_text"))
+        self.fake_bazel.write_text(build + separator + test)
+        artifacts = self.run_fixture("integration")
+        self.assertEqual({path.name: path.read_bytes() for path in directory.iterdir()}, before)
+        staged = self.root / "work-integration/consumer"
+        self.assertEqual((staged / "MODULE.bazel").read_bytes(), before["MODULE.bazel"])
+        self.assertEqual((staged / "BUILD.bazel").read_bytes(), before["BUILD.bazel"])
+        self.assertEqual((staged / "fixture.json").read_text(), "private test output")
+        validation = json.loads((artifacts / "validation.json").read_text())
+        self.assertEqual(validation["integration_test_module"], "tests/integration")
+        self.assertEqual(validation["passed_tests"], self.config["test_targets"])
+        self.assertTrue(validation["fetched_module_matches_registry"])
+        self.assertEqual((artifacts / "consumer.MODULE.bazel").read_bytes(), before["MODULE.bazel"])
+        self.fetched.write_text('module(name = "alpha", version = "2.0.0")\n')
+        with self.assertRaisesRegex(registry_ci.RegistryError, "Fetched source module name/version"):
+            self.run_fixture("integration-wrong-module")
 
     def test_generated_overlay_and_bazel_materialized_canonical_module_are_checked_separately(self) -> None:
         self.config["generated_module_overlay"] = True

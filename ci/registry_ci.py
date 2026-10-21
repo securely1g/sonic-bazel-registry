@@ -25,6 +25,7 @@ RUNNERS = {"amd64": "ubuntu-24.04", "arm64": "ubuntu-24.04-arm"}
 NAME = re.compile(r"[a-z][a-z0-9._-]*\Z")
 VERSION = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+-]*\Z")
 LABEL = re.compile(r"@[a-z][a-z0-9._-]*//[A-Za-z0-9_./+-]*:[A-Za-z0-9_./+-]+\Z")
+ROOT_LABEL = re.compile(r"//[A-Za-z0-9_./+-]*:[A-Za-z0-9_./+-]+\Z")
 
 
 class RegistryError(ValueError):
@@ -127,6 +128,59 @@ def entry_directory(root: Path, module: str, version: str) -> Path:
     return entry
 
 
+def integration_test_directory(entry: Path, config: dict, module: str, version: str) -> Path:
+    """Validate the ordinary test module copied into the private CI consumer."""
+    name = config["integration_test_module"]
+    require(isinstance(name, str) and bool(name), "integration_test_module must name a directory")
+    parts = name.split("/")
+    require("\\" not in name and all(part and not part.startswith(".") for part in parts),
+            "integration_test_module must be a contained, entry-relative directory")
+    directory = entry
+    for part in parts:
+        directory /= part
+        require(directory.is_dir() and not directory.is_symlink(),
+                f"Integration test directory must not contain symlinks: {directory}")
+    require(directory.resolve().is_relative_to(entry.resolve()),
+            "Integration test directory escapes the registry entry")
+    for path in directory.rglob("*"):
+        require(not path.is_symlink() and (path.is_file() or path.is_dir()),
+                f"Integration tests require regular files and directories: {path}")
+        require(not path.name.startswith((".", "bazel-"))
+                and path.name not in ("MODULE.bazel.lock", "__pycache__")
+                and path.suffix != ".pyc",
+                f"Integration tests must not contain local build state: {path}")
+    local_input(directory, "BUILD.bazel")
+    declaration = local_input(directory, "MODULE.bazel").read_text()
+    try:
+        tree = ast.parse(declaration)
+    except SyntaxError as error:
+        raise RegistryError("Integration MODULE.bazel must use ordinary module declarations") from error
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name):
+            require(not node.id.endswith("_override")
+                    and node.id not in ("include", "override_repo", "inject_repo"),
+                    "Integration MODULE.bazel cannot include files or override registry sources")
+    dependencies = []
+    for statement in tree.body:
+        if isinstance(statement, ast.Expr) and isinstance(statement.value, ast.Call):
+            call = statement.value
+            if isinstance(call.func, ast.Name) and call.func.id == "bazel_dep":
+                require(not call.args, "Integration bazel_dep requires named literal arguments")
+                try:
+                    values = {keyword.arg: ast.literal_eval(keyword.value) for keyword in call.keywords}
+                except (ValueError, TypeError) as error:
+                    raise RegistryError("Integration bazel_dep requires literal arguments") from error
+                if values.get("name") == module:
+                    dependencies.append(values)
+    require(dependencies == [{"name": module, "version": version}],
+            "Integration MODULE.bazel must directly select the exact tested module and version")
+    require(not config["consumer_deps"]
+            and not {"go_sdk", "rust_toolchain", "rust_preparation"}.intersection(config),
+            "Integration MODULE.bazel owns its dependencies and toolchains; "
+            "consumer_deps and generated toolchain options must be omitted or empty")
+    return directory
+
+
 def module_overlay_bytes(entry: Path, module: str, version: str) -> bytes:
     canonical = local_input(entry, "MODULE.bazel").read_bytes()
     require(parse_module_identity(canonical.decode("utf-8")) == (module, version),
@@ -215,8 +269,9 @@ def validate_entry(root: Path, module: str, version: str) -> dict:
     required = {"architectures", "consumer_deps", "platforms", "build_targets", "test_targets"}
     require(required <= set(config) <= required | {
         "build_flags", "rust_preparation", "go_sdk", "rust_toolchain", "generated_module_overlay",
+        "integration_test_module",
     }, f"presubmit.json requires {sorted(required)} and optionally "
-       "build_flags/rust_preparation/go_sdk/rust_toolchain/generated_module_overlay")
+       "build_flags/rust_preparation/go_sdk/rust_toolchain/generated_module_overlay/integration_test_module")
     if "generated_module_overlay" in config:
         require(config["generated_module_overlay"] is True, "generated_module_overlay must be true when present")
         sync_module(root, module, version, check=True)
@@ -232,6 +287,8 @@ def validate_entry(root: Path, module: str, version: str) -> dict:
     aliases = {module}
     names = {module}
     require(isinstance(config["consumer_deps"], list), "consumer_deps must be a list")
+    if "integration_test_module" in config:
+        integration_test_directory(entry, config, module, version)
     for dependency in config["consumer_deps"]:
         require(isinstance(dependency, dict) and set(dependency) in ({"name", "version"}, {"name", "version", "repo_name"}),
                 "consumer_deps require name/version and optional repo_name")
@@ -272,9 +329,11 @@ def validate_entry(root: Path, module: str, version: str) -> dict:
                 f"{field} must be a nonempty list")
         require(len(set(labels)) == len(labels), f"{field} must have unique targets")
         for label in labels:
-            require(LABEL.fullmatch(label) is not None and label.startswith(f"@{module}//")
+            external = LABEL.fullmatch(label) is not None and label.startswith(f"@{module}//")
+            integration = "integration_test_module" in config and ROOT_LABEL.fullmatch(label) is not None
+            require((external or integration)
                     and label.rsplit(":", 1)[1] not in ("all", "all-targets"),
-                    f"{field} requires explicit targets in @{module}: {label}")
+                    f"{field} requires explicit targets in @{module} or the configured integration module: {label}")
     build_flags = config.get("build_flags", [])
     require(isinstance(build_flags, list), "build_flags must be a list")
     settings = set()
@@ -433,6 +492,8 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
 
 def normalized_label(label: str) -> str:
     """BEP uses canonical repository names, whereas manifests use apparent names."""
+    if label.startswith(("@@//", "@//")):
+        return label[label.index("//"):]
     if label.startswith("@@"):
         repository, target = label[2:].split("//", 1)
         return "@" + repository.split("+", 1)[0] + "//" + target
@@ -620,53 +681,57 @@ def run(root: Path, module: str, version: str, architecture: str,
     consumer = work_dir / "consumer"
     consumer.mkdir(parents=True)
     artifacts.mkdir(parents=True, exist_ok=True)
-    declarations = ['module(name = "registry_ci_consumer")']
-    for dependency in [{"name": module, "version": version}, *config["consumer_deps"]]:
-        declarations.append("bazel_dep(" + ", ".join(f"{key} = {json.dumps(value)}"
-                                                   for key, value in dependency.items()) + ")")
-    for dependency in config["consumer_deps"]:
-        name, selected_version = dependency["name"], dependency["version"]
-        declarations.append(f"single_version_override(module_name = {json.dumps(name)}, "
-                            f"version = {json.dumps(selected_version)})")
-    if "go_sdk" in config:
-        dependencies = {module: module, **{
-            dependency["name"]: dependency.get("repo_name", dependency["name"])
-            for dependency in config["consumer_deps"]
-        }}
-        extension = f"@{dependencies['rules_go']}//go:extensions.bzl"
-        declarations.extend([
-            f"go_sdk = use_extension({json.dumps(extension)}, \"go_sdk\")",
-            f"go_sdk.download(version = {json.dumps(config['go_sdk']['version'])})",
-        ])
-    if "rust_toolchain" in config:
-        dependencies = {module: module, **{
-            dependency["name"]: dependency.get("repo_name", dependency["name"])
-            for dependency in config["consumer_deps"]
-        }}
-        extension = f"@{dependencies['rules_rs']}//rs:rules_rust_reexported_extensions.bzl"
-        # rules_rs' legacy Rust extension needs a root declaration even when a
-        # dependency registers the same toolchain. Match real component roots.
-        declarations.extend([
-            f"rust = use_extension({json.dumps(extension)}, \"rust\")",
-            'rust.toolchain(edition = "2021", '
-            'extra_target_triples = ["aarch64-unknown-linux-gnu", "x86_64-unknown-linux-gnu"], '
-            f"versions = [{json.dumps(config['rust_toolchain']['version'])}])",
-            'use_repo(rust, "rust_toolchains")',
-            'register_toolchains("@rust_toolchains//:all")',
-        ])
-        if config["rust_toolchain"].get("mangled_allocator_libraries", False):
+    if "integration_test_module" in config:
+        source = integration_test_directory(entry_directory(root, module, version), config, module, version)
+        shutil.copytree(source, consumer, dirs_exist_ok=True)
+    else:
+        declarations = ['module(name = "registry_ci_consumer")']
+        for dependency in [{"name": module, "version": version}, *config["consumer_deps"]]:
+            declarations.append("bazel_dep(" + ", ".join(f"{key} = {json.dumps(value)}"
+                                                       for key, value in dependency.items()) + ")")
+        for dependency in config["consumer_deps"]:
+            name, selected_version = dependency["name"], dependency["version"]
+            declarations.append(f"single_version_override(module_name = {json.dumps(name)}, "
+                                f"version = {json.dumps(selected_version)})")
+        if "go_sdk" in config:
+            dependencies = {module: module, **{
+                dependency["name"]: dependency.get("repo_name", dependency["name"])
+                for dependency in config["consumer_deps"]
+            }}
+            extension = f"@{dependencies['rules_go']}//go:extensions.bzl"
             declarations.extend([
-                f'rules_rust = use_extension("@{dependencies["rules_rs"]}//rs:rules_rust.bzl", "rules_rust")',
-                'use_repo(rules_rust, "rules_rust")',
+                f"go_sdk = use_extension({json.dumps(extension)}, \"go_sdk\")",
+                f"go_sdk.download(version = {json.dumps(config['go_sdk']['version'])})",
             ])
-        if config["rust_toolchain"].get("bindgen", False):
+        if "rust_toolchain" in config:
+            dependencies = {module: module, **{
+                dependency["name"]: dependency.get("repo_name", dependency["name"])
+                for dependency in config["consumer_deps"]
+            }}
+            extension = f"@{dependencies['rules_rs']}//rs:rules_rust_reexported_extensions.bzl"
+            # rules_rs' legacy Rust extension needs a root declaration even when a
+            # dependency registers the same toolchain. Match real component roots.
             declarations.extend([
-                f'bindgen = use_extension("@{dependencies["rules_rs"]}//rs:rules_rust_bindgen.bzl", "rules_rust_bindgen")',
-                'use_repo(bindgen, "rules_rust_bindgen")',
-                'register_toolchains("@rules_rust_bindgen//:all")',
+                f"rust = use_extension({json.dumps(extension)}, \"rust\")",
+                'rust.toolchain(edition = "2021", '
+                'extra_target_triples = ["aarch64-unknown-linux-gnu", "x86_64-unknown-linux-gnu"], '
+                f"versions = [{json.dumps(config['rust_toolchain']['version'])}])",
+                'use_repo(rust, "rust_toolchains")',
+                'register_toolchains("@rust_toolchains//:all")',
             ])
-    (consumer / "MODULE.bazel").write_text("\n\n".join(declarations) + "\n")
-    (consumer / "BUILD.bazel").write_text("# Explicit external targets are built from this consumer.\n")
+            if config["rust_toolchain"].get("mangled_allocator_libraries", False):
+                declarations.extend([
+                    f'rules_rust = use_extension("@{dependencies["rules_rs"]}//rs:rules_rust.bzl", "rules_rust")',
+                    'use_repo(rules_rust, "rules_rust")',
+                ])
+            if config["rust_toolchain"].get("bindgen", False):
+                declarations.extend([
+                    f'bindgen = use_extension("@{dependencies["rules_rs"]}//rs:rules_rust_bindgen.bzl", "rules_rust_bindgen")',
+                    'use_repo(bindgen, "rules_rust_bindgen")',
+                    'register_toolchains("@rules_rust_bindgen//:all")',
+                ])
+        (consumer / "MODULE.bazel").write_text("\n\n".join(declarations) + "\n")
+        (consumer / "BUILD.bazel").write_text("# Explicit external targets are built from this consumer.\n")
     (consumer / ".bazelversion").write_text("8.5.1\n")
     (consumer / ".gitignore").write_text("MODULE.bazel.lock\n")
     shutil.copy2(consumer / "MODULE.bazel", artifacts / "consumer.MODULE.bazel")
@@ -713,6 +778,7 @@ def run(root: Path, module: str, version: str, architecture: str,
             "build_targets": config["build_targets"], "passed_tests": config["test_targets"],
             "build_flags": config.get("build_flags", []),
             "consumer_deps": config["consumer_deps"],
+            "integration_test_module": config.get("integration_test_module"),
             "go_sdk": config.get("go_sdk"),
             "rust_toolchain": config.get("rust_toolchain"),
             "rust_preparation": config.get("rust_preparation"),
