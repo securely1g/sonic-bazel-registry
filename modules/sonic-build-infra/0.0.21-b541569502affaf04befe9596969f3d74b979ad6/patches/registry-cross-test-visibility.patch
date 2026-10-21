@@ -1,0 +1,11 @@
+--- a/tools/build_tools/BUILD.bazel
++++ b/tools/build_tools/BUILD.bazel
+@@ -117,2 +117,4 @@
+         main = "kernel_cross_runtime_test.py",
++        # Registry tests reuse this executable only on native AMD64.
++        visibility = ["//visibility:public"],
+         tags = ["no-remote-exec"],
+@@ -151,2 +153,3 @@
+     name = "kernel_runtime_test",
++    visibility = ["//visibility:public"],
+     srcs = ["kernel_runtime_test.py"],
