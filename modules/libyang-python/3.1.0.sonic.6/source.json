@@ -10,13 +10,15 @@
   },
   "patch_strip": 1,
   "overlay": {
-    "BUILD.bazel": "sha256-GBoF4U+MjqB1odvZmSP3NCASNGg6Ri5weI/e6mbfOmU=",
-    "MODULE.bazel": "sha256-5Aj9PpTXFDJ59moAV2zYqJxwgsxFXCv2dBNPvklQhNU=",
+    "BUILD.bazel": "sha256-LAW2WxUzEtsmh216ayFz/QHnMX0vAfS+sQvQfHMJlEo=",
+    "MODULE.bazel": "sha256-5FcOzvyk1ZYUtD6rdUZlGpMuGveWtUTuuc/rBBUyg74=",
+    "README.bazel.md": "sha256-ZSNaCs1WRDKNaUgIOko/CM1EoULe2kfGSZRegidSpeY=",
     "emit_cffi.py": "sha256-YjYPPXhOAhh9H+8jlDfemJopHM7Vca0LN5uSrCJU9Vk=",
-    "libyang_package_test.py": "sha256-obeBncs1mdbEO/qmK8FplP+0XuQbxCgMtvc/r9hfz70=",
+    "generate_egg_metadata.py": "sha256-s3jCx9kxNQH459x+Ze5eLR4+qQAriQVCh+ntfWH+BE8=",
+    "libyang_package_test.py": "sha256-ov5odA0x22SpLFZAYmrWdPu5bez4vvswd0Y/GdkYL0M=",
     "libyang_runtime_test.py": "sha256-vpfZRWHLAarosUE3yGf2lCmkxEE4Q6eQhUzcdJ9MIRg=",
-    "requirements.in": "sha256-4migHmSj/BK3SvTWuXdk4MKZ8PktIBv4pdaESB+j//4=",
-    "requirements_lock.txt": "sha256-kys1F7I91Enm45Eorte8JYafzoWau9Y15L7EISdjNAE=",
+    "requirements.in": "sha256-pIMyBlL0fZwZ3bMNGuWWYEsxlGnB1AD5ZVTKiI8baQM=",
+    "requirements_lock.txt": "sha256-cZl60TIjmOOg98JEodCOwcGvXv8kzCc2+1GUDyGhLx0=",
     "run_upstream_tests.py": "sha256-THWsSSu8iYVU4qVgCA41czvvWxJsHD+UDmBRRaQdR+o="
   }
 }
