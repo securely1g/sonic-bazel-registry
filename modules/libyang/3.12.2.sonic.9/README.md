@@ -1,4 +1,4 @@
-# libyang 3.12.2.sonic.2
+# libyang 3.12.2.sonic.3
 
 This module builds the libyang source used by SONiC rather than importing the
 Debian `libyang3` binary package. `source.json` verifies the Debian upstream
