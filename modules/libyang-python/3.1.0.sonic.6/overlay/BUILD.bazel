@@ -169,3 +169,12 @@ py_test(
     visibility = ["//visibility:public"],
     deps = ["@libyang_python_pip//cffi"],
 )
+
+# Keep package identities beside the runtime TAR producers.
+exports_files(
+    [
+        "runtime_packages.json",
+        "runtime_packages.md",
+    ],
+    visibility = ["//visibility:public"],
+)

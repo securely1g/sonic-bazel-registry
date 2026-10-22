@@ -1,6 +1,6 @@
 module(
     name = "libyang-python",
-    version = "3.1.0.sonic.3",
+    version = "3.1.0.sonic.4",
 )
 
 bazel_dep(name = "libyang", version = "3.12.2.sonic.1")
