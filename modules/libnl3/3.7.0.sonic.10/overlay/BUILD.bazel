@@ -235,3 +235,12 @@ sh_test(
         ".debug_symbols",
     ]
 ]
+
+# Keep package identities beside the runtime TAR producers.
+exports_files(
+    [
+        "runtime_packages.json",
+        "runtime_packages.md",
+    ],
+    visibility = ["//visibility:public"],
+)

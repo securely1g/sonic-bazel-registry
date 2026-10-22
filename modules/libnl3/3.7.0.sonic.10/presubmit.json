@@ -50,7 +50,8 @@
     "@libnl3//:libnl-nf-3-runtime_files",
     "@libnl3//:libnl-nf-3-runtime_files.debug_symbols",
     "@libnl3//:libnl-cli-3-runtime_files",
-    "@libnl3//:libnl-cli-3-runtime_files.debug_symbols"
+    "@libnl3//:libnl-cli-3-runtime_files.debug_symbols",
+    "@libnl3//:runtime_packages.json"
   ],
   "test_targets": [
     "@libnl3//:libnl3_consumer_test",
