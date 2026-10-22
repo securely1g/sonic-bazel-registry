@@ -13,6 +13,7 @@
   ],
   "test_targets": [
     "@sonic-build-infra//tools/build_tools:prepare_rootfs_test",
+    "@sonic-build-infra//tools/build_tools:kernel_debian_test",
     "@sonic-build-infra//tools/build_tools:kernel_runtime_test",
     "@sonic-build-infra//cc/tests:transitive_runtime_test",
     "@sonic-build-infra//cc/tests:shared_library_layout_test"
