@@ -8,8 +8,12 @@ the behavior covered by each module's tests.
 
 The workflow runs on every pull request, pushes to `main`, and manual dispatches.
 Pull requests select affected module versions. Changes to the CI implementation
-or workflow run every configured version; pushes and manual runs do the same.
-Changes to existing historical versions require a validation configuration too.
+or workflow also test the latest version of each module covered by CI. Pushes and
+manual runs test those latest versions by default. To test every configured
+historical version, select **all_versions** when manually running the workflow,
+or use `plan --all` locally.
+Revised unreleased candidates require a validation configuration too.
+Published version directories cannot be modified or deleted.
 Unchanged historical entries without a configuration are not represented as
 validated. Documentation-only changes can produce an empty module matrix.
 In particular, `modules/<name>/README.md` does not select a version. A README
@@ -20,6 +24,74 @@ passes only when planning and the runner's unit tests pass, and every selected
 module job passes. A skipped module matrix is accepted only after successful
 planning explicitly selected no jobs. Adding the workflow does not itself change
 repository branch-protection settings.
+
+## How CI selects the latest version
+
+Routine CI compares the numeric release, then the SONiC patch revision. For
+example, `0.9.4.sonic.10` is newer than `0.9.4.sonic.9`, and `0.9.5.sonic.1`
+is newer than both. Existing `-sonic.N` spellings remain supported; the dotted
+spelling wins when the release and patch revision match.
+
+For source versions with the same numeric release, the last registration in
+`metadata.json` wins. Git hashes do not indicate which commit is newer. Append
+new registrations without reordering existing entries. A later append of an
+older release cannot displace a higher release: build-infra `0.0.18-95cd3a9...`
+is selected ahead of any `0.0.8-...` registration. This is a CI selection rule,
+not a change to Bazel's dependency resolution.
+
+Latest selection skips versions listed in `yanked_versions`; a module with all
+versions yanked contributes no routine jobs and is reported in the plan log.
+Modules with no `presubmit.json` at any version remain outside CI coverage.
+For a module already covered by CI, the latest non-yanked version must have a
+configuration: planning fails instead of silently testing an older version.
+
+A PR that revises an unreleased `modules/sonic-build-infra/0.0.8-.../` candidate
+still tests that exact version; published directory edits are rejected first.
+If it also changes CI, the plan includes both the edited version and the latest
+version, once each. Module metadata changes retain their existing
+coverage: an append-only release addition tests the added versions; other
+metadata edits test every listed version. Explicit `plan --all` includes every
+version with a configuration, including historical or yanked versions, without
+replacing one with another.
+
+Latest selection only changes which standalone module jobs run. Each selected
+version keeps its declared architectures, targets and `consumer_deps` pins;
+older versions remain available to consumers and can still be tested explicitly.
+Routine CI does not claim that all historical versions passed.
+
+## Publication policy checks
+
+Before selecting module jobs, the planner checks that each affected module has
+at most one version absent from the maintained `main` branch. Published version
+directory trees must remain identical, and metadata must list every version
+directory. This also checks inherited candidates when a PR changes only
+metadata or documentation; the actual stacked PR base is used only to select
+validation jobs.
+
+For example, with `libyang-python@3.1.0.sonic.2` on `main`, a parent adding
+`.sonic.3` and a child adding `.sonic.4` fail with two unreleased candidates.
+After `.sonic.3` reaches `main`, preserving its bytes and adding `.sonic.4`
+passes. Unchanged historical releases do not require new CI manifests.
+
+For PRs and manual runs, the workflow explicitly fetches the public maintained
+repository's `main` and records its SHA in `plan.log`. It does not trust a fork's
+branch or treat a stacked PR base as publication. For pushes to `main`, the
+publication baseline is the event's **pre-push** `before` SHA; using current
+`main` would compare the push against itself. Pushes also pass `--push` to
+compare directly against that baseline, detecting non-fast-forward rollbacks
+that remove published entries. Missing or unavailable baselines
+fail planning, including in `--latest` and `--all` modes.
+
+Affected modules are those changed from the common ancestor of that publication
+baseline and the checked-out head. Releases in unrelated modules after a branch
+fork do not count as deletions. If a touched module has since published a new
+version, rebase to retain its published entries. Directory comparisons include
+file contents, modes, additions, and deletions.
+
+CI sees the checked-out stack, not independent open registry PRs or downstream
+repositories. Authors must also audit those PRs and update affected consumer
+versions, registry revisions, overrides, and lockfiles when consolidating a
+candidate. This policy does not change native module validation coverage.
 
 ## Module configuration
 
@@ -218,7 +290,10 @@ Use a native AMD64 or ARM64 Debian trixie environment with Bazel 8.5.1 and
 selected module:
 
 ```sh
-python3 ci/registry_ci.py plan --all --output /tmp/registry-ci-plan.json
+git fetch origin main
+python3 ci/registry_ci.py plan --latest \
+  --published "$(git rev-parse origin/main)" --head "$(git rev-parse HEAD)" \
+  --output /tmp/registry-ci-plan.json
 python3 -m unittest discover -s ci/tests -v
 python3 ci/registry_ci.py run \
   --module libyang \
@@ -230,8 +305,10 @@ python3 ci/registry_ci.py run \
 
 Use `--architecture arm64` on a native ARM64 server. `--bazel /path/to/bazel`
 selects a specific Bazel executable. To inspect a PR's selection, replace
-`--all` with `--base <base-commit> --head <head-commit>`. Keep the work and artifact
-directories outside the registry checkout and use a fresh work directory for a
+`--latest` with `--base <actual-PR-base-commit>` and check out the desired head first.
+Use `--all` to include every configured historical version. Keep `--published`
+set to the freshly fetched maintained `main` SHA, even for a stacked PR. Keep
+the work and artifact directories outside the registry checkout and use a fresh work directory for a
 clean reproduction.
 
 See the [Bazel registry format](https://bazel.build/external/registry) for module
