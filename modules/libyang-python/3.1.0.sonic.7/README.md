@@ -1,4 +1,4 @@
-# libyang-python 3.1.0.sonic.3
+# libyang-python 3.1.0.sonic.4
 
 This module builds the libyang-Python binding used by SONiC schema generation.
 Its public Python import remains `libyang`; the Bazel module is named
@@ -42,7 +42,7 @@ Consumers can use a repository alias while retaining the module name:
 ```starlark
 bazel_dep(
     name = "libyang-python",
-    version = "3.1.0.sonic.3",
+    version = "3.1.0.sonic.4",
     repo_name = "libyang_python",
 )
 ```
@@ -136,3 +136,15 @@ installation scripts. It retains the existing `_libyang.so` filename.
 The first downstream consumer is the source-built config-engine base image in
 `securely1g/sonic-buildimage`, which needs the Python binding beside libyang.
 Its image integration is separate from this producer change.
+
+## Runtime package identities
+
+Revision 4 retains revision 3's upstream egg-info generation and installed
+Python metadata tests, and exports runtime_packages.json/md beside libyang_pkg.
+The JSON binds SONiC package identity to the public runtime TAR target; it does
+not create dpkg installed state. The image consumer validates the TAR and
+selected module provenance and retains its real installation workflow.
+
+This proposal directly depends on registry #85 and serves Buildimage #13, #30
+and #33. Existing source snapshots remain available while their consumers
+move to the composed version.

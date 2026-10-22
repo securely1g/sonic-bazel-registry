@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "module": "libyang-python",
+  "packages": {
+    "python3-libyang": {
+      "runtime_target": "//:libyang_pkg",
+      "control_fields": {
+        "Depends": "python3 (<< 3.14), python3 (>= 3.13~), python3:any, libc6 (>= 2.4), libyang3 (>= 3.12.2)",
+        "Description": "CFFI bindings to libyang\n Python CFFI bindings to libyang\n https://github.com/CESNET/libyang/",
+        "Homepage": "https://github.com/CESNET/libyang-python",
+        "Maintainer": "None <None>",
+        "Package": "python3-libyang",
+        "Priority": "optional",
+        "Section": "python",
+        "Source": "libyang-python",
+        "Version": "3.1.0-1"
+      }
+    }
+  }
+}

@@ -20,7 +20,9 @@
   },
   "build_targets": [
     "@libyang-python//:libyang_pkg",
-    "@libyang-python//:libyang_pkg.debug_symbols"
+    "@libyang-python//:libyang_pkg.debug_symbols",
+    "@libyang-python//:runtime_packages.json",
+    "@libyang-python//:runtime_packages.md"
   ],
   "test_targets": [
     "@libyang-python//:libyang_runtime_test",
