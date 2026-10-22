@@ -174,8 +174,9 @@ class SelectionTests(FixtureTestCase):
         with self.assertRaises(registry_ci.RegistryError):
             registry_ci.plan(self.root, base, head)
 
-    def test_infrastructure_changes_select_all_configured_versions(self) -> None:
+    def test_infrastructure_changes_select_latest_configured_modules(self) -> None:
         self.entry("alpha", "1.0.0")
+        self.entry("alpha", "2.0.0")
         self.entry("beta", "2.0.0")
         self.entry("legacy", "1.0.0", configured=False)
         paths = [
@@ -191,14 +192,192 @@ class SelectionTests(FixtureTestCase):
             with self.subTest(path=path.relative_to(self.root)):
                 path.write_text("changed\n")
                 head = self.commit(f"change {path.name}")
-                self.assertEqual(self.selected(base, head), {("alpha", "1.0.0"), ("beta", "2.0.0")})
+                self.assertEqual(self.selected(base, head), {("alpha", "2.0.0"), ("beta", "2.0.0")})
                 base = head
 
-    def test_all_mode_selects_only_configured_versions(self) -> None:
+    def test_all_mode_keeps_configured_historical_versions(self) -> None:
         self.entry("alpha", "1.0.0")
+        self.entry("alpha", "2.0.0")
         self.entry("legacy", "1.0.0", configured=False)
         jobs = registry_ci.plan(self.root, None, None, all_versions=True)["include"]
-        self.assertEqual({(job["module"], job["version"]) for job in jobs}, {("alpha", "1.0.0")})
+        self.assertEqual({(job["module"], job["version"]) for job in jobs},
+                         {("alpha", "1.0.0"), ("alpha", "2.0.0")})
+
+    def latest_selected(self) -> set[tuple[str, str]]:
+        return {(job["module"], job["version"])
+                for job in registry_ci.plan(self.root, None, None, latest_versions=True)["include"]}
+
+    def test_latest_mode_selects_one_version_and_retains_native_architectures(self) -> None:
+        self.entry("alpha", "1.0.0")
+        latest = self.entry("alpha", "2.0.0")
+        self.entry("beta", "1.0.0")
+        self.entry("legacy", "1.0.0", configured=False)
+        config = json.loads((latest / "presubmit.json").read_text())
+        config["architectures"].append("arm64")
+        config["platforms"]["arm64"] = "@platforms//host:host"
+        write_json(latest / "presubmit.json", config)
+        jobs = registry_ci.plan(self.root, None, None, latest_versions=True)["include"]
+        self.assertEqual({(job["module"], job["version"], job["architecture"], job["runner"])
+                          for job in jobs}, {
+            ("alpha", "2.0.0", "amd64", "ubuntu-24.04"),
+            ("alpha", "2.0.0", "arm64", "ubuntu-24.04-arm"),
+            ("beta", "1.0.0", "amd64", "ubuntu-24.04"),
+        })
+
+    def test_latest_compares_release_and_sonic_patch_numbers_numerically(self) -> None:
+        cases = {
+            "release": (["0.0.10", "0.0.9"], "0.0.10"),
+            "patch": (["0.9.4.sonic.10", "0.9.4.sonic.9"], "0.9.4.sonic.10"),
+            "legacy_patch": (["0.9.4-sonic.10", "0.9.4-sonic.9"], "0.9.4-sonic.10"),
+            "patch_migration": (["0.9.4.sonic.1", "0.9.4-sonic.1"], "0.9.4.sonic.1"),
+            "release_before_patch": (["0.9.5.sonic.1", "0.9.4.sonic.99"], "0.9.5.sonic.1"),
+            "four_components": (["1.8.0.10.sonic.1", "1.8.0.3.sonic.9"], "1.8.0.10.sonic.1"),
+        }
+        for module, (versions, _) in cases.items():
+            for version in versions:
+                self.entry(module, version)
+        self.assertEqual(self.latest_selected(),
+                         {(module, expected) for module, (_, expected) in cases.items()})
+
+    def test_latest_source_snapshot_uses_registration_order_not_hash_order(self) -> None:
+        old = "0.0.18-" + "f" * 40
+        current = "0.0.18-" + "1" * 40
+        self.entry("infra", old)
+        self.entry("infra", current)
+        # A later registration of an older release must not replace 0.0.18.
+        self.entry("infra", "0.0.8-" + "e" * 40)
+        self.entry("short_hash", "1.0.0-fffffff")
+        self.entry("short_hash", "1.0.0-1111111")
+        self.assertEqual(self.latest_selected(),
+                         {("infra", current), ("short_hash", "1.0.0-1111111")})
+
+    def test_latest_handles_legacy_registry_version_names(self) -> None:
+        historical = {
+            "old_buildimage": "3.7.0.sonic-buildimage",
+            "old_patched": "0.60.0.sonic-patched",
+            "old_commit": "0.0.0.commit-" + "a" * 40,
+        }
+        for module, version in historical.items():
+            self.entry(module, version, configured=False)
+            self.entry(module, "9.0.0.sonic.1")
+        self.assertEqual(self.latest_selected(),
+                         {(module, "9.0.0.sonic.1") for module in historical})
+
+    def test_ci_change_also_tests_directly_changed_historical_version(self) -> None:
+        old = self.entry("alpha", "1.0.0")
+        self.entry("alpha", "2.0.0")
+        self.entry("beta", "1.0.0")
+        base = self.commit("initial registry")
+        ci = self.root / "ci" / "registry_ci.py"
+        ci.parent.mkdir()
+        ci.write_text("changed planner\n")
+        (old / "README.md").write_text("Changed older version.\n")
+        head = self.commit("change CI and historical alpha")
+        self.assertEqual(self.selected(base, head),
+                         {("alpha", "1.0.0"), ("alpha", "2.0.0"), ("beta", "1.0.0")})
+
+    def test_latest_does_not_fall_back_when_newest_version_has_no_manifest(self) -> None:
+        self.entry("alpha", "1.0.0")
+        self.entry("alpha", "2.0.0", configured=False)
+        with self.assertRaises(registry_ci.RegistryError):
+            self.latest_selected()
+
+    def test_latest_omits_modules_with_no_configured_versions(self) -> None:
+        self.entry("legacy", "1.0.0", configured=False)
+        self.entry("legacy", "2.0.0", configured=False)
+        self.assertEqual(self.latest_selected(), set())
+
+    def test_latest_skips_yanked_versions_but_all_mode_preserves_them(self) -> None:
+        entry = self.entry("alpha", "1.0.0")
+        self.entry("alpha", "2.0.0")
+        write_json(entry.parent / "metadata.json", {
+            "versions": ["1.0.0", "2.0.0"],
+            "yanked_versions": {"2.0.0": "Regression in the newer release"},
+        })
+        self.assertEqual(self.latest_selected(), {("alpha", "1.0.0")})
+        jobs = registry_ci.plan(self.root, None, None, all_versions=True)["include"]
+        self.assertEqual({(job["module"], job["version"]) for job in jobs},
+                         {("alpha", "1.0.0"), ("alpha", "2.0.0")})
+
+    def test_latest_omits_fully_yanked_module(self) -> None:
+        entry = self.entry("alpha", "1.0.0")
+        write_json(entry.parent / "metadata.json", {
+            "versions": ["1.0.0"], "yanked_versions": {"1.0.0": "Withdrawn"},
+        })
+        self.assertEqual(self.latest_selected(), set())
+
+    def test_direct_edit_of_yanked_version_still_gets_validation(self) -> None:
+        entry = self.entry("alpha", "1.0.0")
+        write_json(entry.parent / "metadata.json", {
+            "versions": ["1.0.0"], "yanked_versions": {"1.0.0": "Withdrawn"},
+        })
+        base = self.commit("initial registry with yanked version")
+        (entry / "README.md").write_text("Explain withdrawn release.\n")
+        head = self.commit("document yanked version")
+        self.assertEqual(self.selected(base, head), {("alpha", "1.0.0")})
+
+    def test_latest_rejects_invalid_metadata_and_unlisted_configured_versions(self) -> None:
+        entry = self.entry("alpha", "1.0.0")
+        invalid = [
+            {},
+            {"versions": "1.0.0"},
+            {"versions": []},
+            {"versions": [1]},
+            {"versions": ["1.0.0", "1.0.0"]},
+            {"versions": ["2.0.0"]},
+            {"versions": ["1.0.0"], "yanked_versions": []},
+            {"versions": ["1.0.0"], "yanked_versions": {"2.0.0": "Unknown version"}},
+        ]
+        for metadata in invalid:
+            with self.subTest(metadata=metadata):
+                write_json(entry.parent / "metadata.json", metadata)
+                with self.assertRaises(registry_ci.RegistryError):
+                    self.latest_selected()
+
+    def test_latest_rejects_unsupported_version_instead_of_guessing(self) -> None:
+        self.entry("alpha", "1.0.0")
+        self.entry("alpha", "next-release")
+        with self.assertRaises(registry_ci.RegistryError):
+            self.latest_selected()
+
+    def test_plan_cli_supports_latest_and_explicit_historical_runs(self) -> None:
+        self.entry("alpha", "1.0.0")
+        self.entry("alpha", "2.0.0")
+        output = self.root / "plan.json"
+        for flag, expected in (("--latest", {"2.0.0"}), ("--all", {"1.0.0", "2.0.0"})):
+            with self.subTest(flag=flag):
+                command = ["registry_ci.py", "plan", flag, "--output", str(output)]
+                with mock.patch.object(registry_ci, "ROOT", self.root), \
+                        mock.patch.object(sys, "argv", command), \
+                        mock.patch.object(sys, "stdout", io.StringIO()), \
+                        mock.patch.object(sys, "stderr", io.StringIO()):
+                    registry_ci.main()
+                jobs = json.loads(output.read_text())["include"]
+                self.assertEqual({job["version"] for job in jobs}, expected)
+        command = ["registry_ci.py", "plan", "--latest", "--all", "--output", str(output)]
+        before = output.read_bytes()
+        with mock.patch.object(registry_ci, "ROOT", self.root), \
+                mock.patch.object(sys, "argv", command), \
+                mock.patch.object(sys, "stderr", io.StringIO()), \
+                self.assertRaises(SystemExit) as raised:
+            registry_ci.main()
+        self.assertNotEqual(raised.exception.code, 0)
+        self.assertEqual(output.read_bytes(), before)
+
+    def test_plan_rejects_conflicting_selection_modes(self) -> None:
+        self.entry("alpha", "1.0.0")
+        sha = self.commit("initial registry")
+        cases = [
+            (None, None, True, True),
+            (sha, sha, True, False),
+            (sha, sha, False, True),
+            (sha, None, False, True),
+            (None, sha, True, False),
+        ]
+        for base, head, all_versions, latest_versions in cases:
+            with self.subTest(base=base, head=head, all=all_versions, latest=latest_versions):
+                with self.assertRaises(registry_ci.RegistryError):
+                    registry_ci.plan(self.root, base, head, all_versions, latest_versions)
 
     def test_no_relevant_change_produces_empty_matrix(self) -> None:
         self.entry("alpha", "1.0.0")
