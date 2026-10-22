@@ -20,7 +20,8 @@
   "build_targets": [
     "@iproute2//:iproute2_pkg",
     "@iproute2//:iproute2_pkg.debug_symbols",
-    "@iproute2//:iproute2_config"
+    "@iproute2//:iproute2_config",
+    "@iproute2//:runtime_packages.json"
   ],
   "test_targets": [
     "@iproute2//:iproute2_package_test"
