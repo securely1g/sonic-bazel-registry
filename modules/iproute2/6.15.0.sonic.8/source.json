@@ -3,8 +3,8 @@
   "strip_prefix": "iproute2-6.15.0",
   "integrity": "sha256-gEGFSoglg61SY0ZnNsnIxox0saNXVKt3DSM0P5R1KPs=",
   "overlay": {
-    "BUILD.bazel": "sha256-14uT/D6742xOM8MbZktdLazujxzCcmVQFPVLQT/7CX0=",
-    "MODULE.bazel": "sha256-108Hu5Uq9WTYGCjTU13TAAPFCLg2ZHB06dTLX2Y9UWI=",
+    "BUILD.bazel": "sha256-nqqMtM1DHGPfTXDWFNa6cCqhoWq/Y+x6yPZUu0C2Wwg=",
+    "MODULE.bazel": "sha256-q3T1AGDJVplv5K4GEQXSf6GnISfgqnRarBr88S2u56I=",
     "README.bazel.md": "sha256-zVbcqLvfLuNdBn2JYeVIU/kp82LIAvHbaEEYT3nuwrc=",
     "bazel/0001-bridge-fdb-protocol.patch": "sha256-qdyXQnLw6BEAVws6m0r56Of6ShvXgavipuWe8i+ONUw=",
     "bazel/configure.sh": "sha256-f6Pxhw0SdJIGpRN4oGlm1CQ+wvs34NEH+648D/N3Rjc=",
@@ -12,6 +12,8 @@
     "bazel/iproute2.BUILD.bazel": "sha256-Z34K5p0YaND3fHTqNt9QpPxMH0m3UzR/hfrj+UjVgGw=",
     "bazel/package_test.py": "sha256-R5FDzV/H93R8/n6JWGGkBuxqPUHeu0CNuaS6RvRKA3M=",
     "bazel/runtime.bzl": "sha256-4PLUIsUruUoCRZ8fBYtqGJ4oP1gGIKCVsrWbQlDCGGE=",
-    "bazel/source.bzl": "sha256-zPy0nD7RSCVBtN3CZuqvrLsy1TXK5y3e3o3I9jJDDQg="
+    "bazel/source.bzl": "sha256-zPy0nD7RSCVBtN3CZuqvrLsy1TXK5y3e3o3I9jJDDQg=",
+    "runtime_packages.json": "sha256-3YIOjz9Nx2tacZECPxMZGsUAhBbSjPpZayf4T3EqxYY=",
+    "runtime_packages.md": "sha256-p5SO5j2mHxNZKaepSV+gbxSeWUN+RVbgIcIDg8mXx1Y="
   }
 }
