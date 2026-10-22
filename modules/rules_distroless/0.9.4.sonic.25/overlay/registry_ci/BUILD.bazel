@@ -5,9 +5,10 @@ load(":architecture_test.bzl", "architecture_tests")
 load(":concrete_packages_test.bzl", "concrete_packages_test")
 load(":headers_only.bzl", "headers_only")
 load(":multiarch_test.bzl", "multiarch_test")
+load(":pkgconfig_fields_test.bzl", "pkgconfig_fields_test")
+load(":pkgconfig_quotes_test.bzl", "pkgconfig_quotes_test")
 load(":pkgconfig_selection_test.bzl", "pkgconfig_selection_test")
 load(":pkgconfig_test.bzl", "pkgconfig_test")
-load(":pkgconfig_fields_test.bzl", "pkgconfig_fields_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -155,4 +156,21 @@ cc_test(
     name = "xtables_headers_test",
     srcs = ["xtables_headers_test.c"],
     deps = [":xtables_headers"],
+)
+
+pkgconfig_quotes_test(name = "pkgconfig_quotes_test")
+
+# Real libpcap.pc has quoted variables that expand to nested quote pairs.
+headers_only(
+    name = "libpcap_headers",
+    dep = select({
+        ":linux_amd64": "@registry_ci_libpcap_amd64//:libpcap0.8",
+        ":linux_arm64": "@registry_ci_libpcap_arm64//:libpcap0.8",
+    }),
+)
+
+cc_test(
+    name = "libpcap_headers_test",
+    srcs = ["libpcap_headers_test.c"],
+    deps = [":libpcap_headers"],
 )

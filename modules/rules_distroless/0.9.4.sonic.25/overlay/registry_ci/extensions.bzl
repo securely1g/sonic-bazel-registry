@@ -29,13 +29,13 @@ _LUA = {
     "amd64": {
         "multiarch": "x86_64-linux-gnu",
         "dev": "363759cbaccd47f06b972e578ea6112e50c833d728b7a11e15609764665dabbc",
-        "runtime": "e98fb0eaa8d07fd24bbaefd3b2bd356b8c6df241865780c42adb08f7ebcf8563"
+        "runtime": "e98fb0eaa8d07fd24bbaefd3b2bd356b8c6df241865780c42adb08f7ebcf8563",
     },
     "arm64": {
         "multiarch": "aarch64-linux-gnu",
         "dev": "f0bbb58d879faa5d3f4ce40f404ac266f4ad54d20915bcaabeb8a6bd118ef2b1",
-        "runtime": "d70ec396d05c96d73098a16802bea1d2066497bc32eb2e83244d3b1777e84590"
-    }
+        "runtime": "d70ec396d05c96d73098a16802bea1d2066497bc32eb2e83244d3b1777e84590",
+    },
 }
 
 _XTABLES = {
@@ -48,6 +48,19 @@ _XTABLES = {
         "multiarch": "aarch64-linux-gnu",
         "dev": "ae4de6b8ffb303848b14546987e678e0e5e4aca1ccc82d489fb124e8872fda1f",
         "runtime": "b200a559a4ae1b4ebcee4fb0fcaef6a16ef01abbe3da8887de15e800b1a6440d",
+    },
+}
+
+_LIBPCAP = {
+    "amd64": {
+        "multiarch": "x86_64-linux-gnu",
+        "dev": "ff09ac0f76e113ccdef974645a394788d1afd07c5de1c15a0408cfadf625e2a6",
+        "runtime": "6a756d536a5b0cd3ef92f19ff9f22ed80c66baadbc0fe55d599f4aa0c27d3f86",
+    },
+    "arm64": {
+        "multiarch": "aarch64-linux-gnu",
+        "dev": "180c4d6f3158305b06d116ece7bed14024c3f6a06da2b898a34a008a20b4faf5",
+        "runtime": "9db27b0ebf0333ea8524feac225d39db283235bb408eee90cb59d426d5a422a5",
     },
 }
 
@@ -114,6 +127,33 @@ def _registry_ci_impl(module_ctx):
             urls = ["https://deb.debian.org/debian/pool/main/i/iptables/libxtables-dev_1.8.11-2_{}.deb".format(architecture)],
         )
 
+    for architecture, package in _LIBPCAP.items():
+        key = "/registry_ci/libpcap0.8t64:{}=1.10.5-2".format(architecture)
+        repository = util.sanitize(key)
+        deb_import(
+            name = repository,
+            package_name = "libpcap0.8t64",
+            sha256 = package["runtime"],
+            target_name = repository,
+            urls = ["https://deb.debian.org/debian/pool/main/libp/libpcap/libpcap0.8t64_1.10.5-2_{}.deb".format(architecture)],
+        )
+        deb_filemap(
+            name = repository + "_filemap",
+            files = json.encode([
+                "usr/lib/{}/libpcap.so.{}".format(package["multiarch"], suffix)
+                for suffix in ["0.8", "1.10.5"]
+            ]),
+        )
+        deb_import(
+            name = "registry_ci_libpcap_" + architecture,
+            depends_on = [key],
+            dep_filemaps = ["@" + repository + "_filemap//:filemap.json"],
+            package_name = "libpcap0.8-dev",
+            sha256 = package["dev"],
+            target_name = "libpcap0.8-dev",
+            urls = ["https://deb.debian.org/debian/pool/main/libp/libpcap/libpcap0.8-dev_1.10.5-2_{}.deb".format(architecture)],
+        )
+
     metadata_packages = {}
     metadata_sets = {}
 
@@ -146,6 +186,7 @@ def _registry_ci_impl(module_ctx):
         )
 
         dev_key = "/registry_ci/liblua5.1-0-dev:{}=5.1.5-11".format(architecture)
+
         # Exercise the same generated aliases an apt.install consumer receives.
         deb_import(
             name = util.sanitize(dev_key),
