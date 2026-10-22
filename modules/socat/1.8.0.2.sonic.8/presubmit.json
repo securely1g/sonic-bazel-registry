@@ -20,7 +20,8 @@
   "build_targets": [
     "@socat//:socat_pkg",
     "@socat//:socat_pkg.debug_symbols",
-    "@socat//:socat_config_log"
+    "@socat//:socat_config_log",
+    "@socat//:runtime_packages.json"
   ],
   "test_targets": [
     "@socat//:socat_package_test"
