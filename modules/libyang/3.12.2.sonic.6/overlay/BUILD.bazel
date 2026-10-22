@@ -187,6 +187,7 @@ cc_library(
 
 # CMake installs these eight source models with the runtime library.
 _MODELS = glob(["models/*.yang"])
+
 _DOCUMENTATION = {
     "usr/share/doc/libyang3/copyright": "@libyang_debian//:copyright",
     "usr/share/doc/libyang3/changelog.Debian": "@libyang_debian//:changelog",
@@ -250,8 +251,8 @@ sh_test(
         ":libyang_pkg",
         ":libyang_pkg.debug_symbols",
         ":libyang_test",
-        "@libyang_debian//:copyright",
         "@libyang_debian//:changelog",
+        "@libyang_debian//:copyright",
     ] + _MODELS,
 )
 
@@ -272,4 +273,13 @@ copy_file(
     src = "libyang_package_test.sh",
     out = "libyang_package_test_runner.sh",
     is_executable = True,
+)
+
+# Keep package identities beside the runtime TAR producers.
+exports_files(
+    [
+        "runtime_packages.json",
+        "runtime_packages.md",
+    ],
+    visibility = ["//visibility:public"],
 )
