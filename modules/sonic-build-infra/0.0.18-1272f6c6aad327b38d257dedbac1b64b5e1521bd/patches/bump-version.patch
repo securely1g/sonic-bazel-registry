@@ -5,7 +5,7 @@
  module(
      name = "sonic-build-infra",
 -    version = "0.0.18",
-+    version = "0.0.18-c5d4139a9ec621858f0ffd65c11dab05a87f5e6c",
++    version = "0.0.18-1272f6c6aad327b38d257dedbac1b64b5e1521bd",
      bazel_compatibility = [
          ">=8.5.1",
          "<=8.5.1",
