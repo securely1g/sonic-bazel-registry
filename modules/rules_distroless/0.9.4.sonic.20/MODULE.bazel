@@ -1,6 +1,6 @@
 module(
     name = "rules_distroless",
-    version = "0.9.4.sonic.8",
+    version = "0.9.4.sonic.9",
     compatibility_level = 1,
 )
 
@@ -10,6 +10,7 @@ bazel_dep(name = "bazel_lib", version = "3.0.0-rc.0")
 bazel_dep(name = "bazel_skylib", version = "1.5.0")
 bazel_dep(name = "platforms", version = "0.0.10")
 bazel_dep(name = "rules_cc", version = "0.2.8")
+bazel_dep(name = "rules_foreign_cc", version = "0.16.0")
 bazel_dep(name = "rules_java", version = "8.8.0")
 bazel_dep(name = "rules_shell", version = "0.4.1")
 bazel_dep(name = "gawk", version = "5.3.2.bcr.3")
@@ -50,3 +51,5 @@ use_repo(registry_ci, "registry_ci_xtables_amd64")
 use_repo(registry_ci, "registry_ci_xtables_arm64")
 use_repo(registry_ci, "registry_ci_libpcap_amd64")
 use_repo(registry_ci, "registry_ci_libpcap_arm64")
+use_repo(registry_ci, "registry_ci_boost_amd64")
+use_repo(registry_ci, "registry_ci_boost_arm64")

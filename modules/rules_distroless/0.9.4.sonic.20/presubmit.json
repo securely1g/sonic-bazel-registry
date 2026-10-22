@@ -13,7 +13,8 @@
     "@rules_distroless//registry_ci:lua_headers_test",
     "@rules_distroless//registry_ci:lua_pkgconfig_direct",
     "@rules_distroless//registry_ci:xtables_headers_test",
-    "@rules_distroless//registry_ci:libpcap_headers_test"
+    "@rules_distroless//registry_ci:libpcap_headers_test",
+    "@rules_distroless//registry_ci/template_headers:probe"
   ],
   "test_targets": [
     "@rules_distroless//registry_ci:protobuf_headers_test",
@@ -29,6 +30,8 @@
     "@rules_distroless//registry_ci:pkgconfig_fields_test",
     "@rules_distroless//registry_ci:xtables_headers_test",
     "@rules_distroless//registry_ci:pkgconfig_quotes_test",
-    "@rules_distroless//registry_ci:libpcap_headers_test"
+    "@rules_distroless//registry_ci:libpcap_headers_test",
+    "@rules_distroless//registry_ci/template_headers:declared_headers_test",
+    "@rules_distroless//registry_ci/template_headers:foreign_headers_test"
   ]
 }
