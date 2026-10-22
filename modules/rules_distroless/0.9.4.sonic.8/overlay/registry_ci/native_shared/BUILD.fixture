@@ -1,0 +1,64 @@
+load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_import.bzl", "cc_import")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
+load("@rules_distroless//apt/private:cc_deb_library.bzl", "cc_deb_library")
+load("@rules_distroless//apt/private:so_library.bzl", "so_library")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//visibility:public"],
+)
+
+# Model Debian's separate unversioned development link and versioned runtime
+# file. Only the runtime target exposes the name recorded in DT_NEEDED.
+cc_binary(
+    name = "runtime/libdistroless_provider_leaf.so.1",
+    srcs = ["leaf.c"],
+    linkopts = [
+        "-Wl,--enable-new-dtags",
+        "-Wl,-soname,libdistroless_provider_leaf.so.1",
+    ],
+    linkshared = True,
+)
+
+copy_file(
+    name = "link_alias",
+    src = ":runtime/libdistroless_provider_leaf.so.1",
+    out = "link/libdistroless_provider_leaf.so",
+    allow_symlink = True,
+)
+
+cc_import(
+    name = "link_library",
+    shared_library = ":link_alias",
+)
+
+so_library(
+    name = "runtime_library",
+    dynamic_libs = [":runtime/libdistroless_provider_leaf.so.1"],
+)
+
+# Both custom rules must advertise CcInfo so the native shared-library aspect
+# can visit this runtime-only branch of the dependency graph.
+cc_deb_library(
+    name = "runtime_package",
+    deps = [":runtime_library"],
+)
+
+cc_library(
+    name = "middle",
+    srcs = ["middle.c"],
+    deps = [
+        ":link_library",
+        ":runtime_package",
+    ],
+)
+
+cc_shared_library(
+    name = "middle_shared",
+    deps = [":middle"],
+    shared_lib_name = "libdistroless_provider_middle.so",
+    user_link_flags = ["-Wl,--enable-new-dtags"],
+)
