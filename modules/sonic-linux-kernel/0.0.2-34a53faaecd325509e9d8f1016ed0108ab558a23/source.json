@@ -1,0 +1,9 @@
+{
+  "url": "https://github.com/securely1g/sonic-linux-kernel/archive/1e74fb590397a3abb289a45e5a1a9d3690379f9f.tar.gz",
+  "strip_prefix": "sonic-linux-kernel-1e74fb590397a3abb289a45e5a1a9d3690379f9f",
+  "integrity": "sha256-ugIspGmcZ3WDREtUjyJbFEErB9CtCF6+fZfzwmMeo0U=",
+  "patches": {
+    "bump-version.patch": "sha256-JoBsDvjaOjykC1lPL3e59f4EWiHBpb8/+Yg8ntHJIzM="
+  },
+  "patch_strip": 1
+}
