@@ -26,7 +26,8 @@ def build_id(path):
 
 
 def main():
-    runtime, debug, native, consumer = map(lambda p: Path(p).resolve(), sys.argv[1:])
+    runtime, debug, native, consumer, generated_metadata = map(
+        lambda p: Path(p).resolve(), sys.argv[1:])
     with tempfile.TemporaryDirectory(dir=os.environ["TEST_TMPDIR"]) as temporary:
         root = Path(temporary)
         for archive in (runtime, native):
@@ -34,6 +35,13 @@ def main():
                 package.extractall(root, filter="data")
         site = root / "usr/lib/python3/dist-packages"
         extension = site / "_libyang.so"
+        metadata = site / "libyang-3.1.0.egg-info"
+        expected_metadata = {path.name for path in generated_metadata.parent.iterdir()}
+        assert {path.name for path in metadata.iterdir()} == expected_metadata
+        for name in expected_metadata:
+            installed = metadata / name
+            assert installed.read_bytes() == (generated_metadata.parent / name).read_bytes(), name
+            assert installed.stat().st_mode & 0o777 == 0o644, installed
         for source in sorted((consumer.parent / "libyang").iterdir()):
             if source.suffix == ".py" or source.name == "py.typed":
                 installed = site / "libyang" / source.name
@@ -44,6 +52,9 @@ def main():
         ).read_bytes()
         with tarfile.open(runtime) as package:
             assert package.getmember("usr/lib/python3/dist-packages/_libyang.so").mode == 0o555
+            for name in expected_metadata:
+                entry = package.getmember("usr/lib/python3/dist-packages/" + metadata.name + "/" + name)
+                assert entry.uid == entry.gid == 0, entry
         assert ".debug_info" not in command("readelf", "-SW", str(extension))
         native_libraries = list((root / "usr/lib").rglob("libyang.so.3"))
         assert len(native_libraries) == 1, native_libraries
@@ -58,8 +69,22 @@ def main():
         environment = dict(os.environ, PYTHONPATH=os.pathsep.join(map(str, search)),
                            LD_PRELOAD=str(library), LD_LIBRARY_PATH=str(library.parent))
         child = """
-import pathlib, runpy, sys
+from importlib.metadata import distribution, distributions
+import pathlib, re, runpy, sys
 root = pathlib.Path(sys.argv[2])
+site = root / 'usr/lib/python3/dist-packages'
+installed = list(distributions(path=[str(site)]))
+assert len(installed) == 1, installed
+dist = distribution('libyang')
+assert pathlib.Path(dist.locate_file('')).resolve() == site, dist
+assert dist.metadata['Name'] == 'libyang' and dist.version == '3.1.0', dist.metadata
+assert dist.metadata['Requires-Python'] == '>=3.6', dist.metadata
+assert dist.metadata['License'] == 'MIT', dist.metadata
+assert dist.read_text('top_level.txt').splitlines() == ['_libyang', 'libyang']
+requirements = dist.requires
+assert len(requirements) == 1 and re.fullmatch(
+    r'''cffi\\s*;\\s*platform_python_implementation\\s*!=\\s*['"]PyPy['"]''',
+    requirements[0]), requirements
 checks = runpy.run_path(sys.argv[1])
 for name in ('libyang', '_libyang'):
     path = pathlib.Path(checks[name].__file__).resolve()
@@ -95,7 +120,7 @@ checks['check_consumer']()
         result = debugger()
         assert re.search(r'Line \d+ of .*_libyang.c', result), result
         print(result)
-        print("Installed binding, schema roundtrip, build ID, debuglink and GDB lookup passed")
+        print("Installed distribution metadata, binding, schema roundtrip, build ID, debuglink and GDB lookup passed")
 
 
 if __name__ == "__main__":
