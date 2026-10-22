@@ -311,23 +311,77 @@ def git(root: Path, *args: str) -> str:
     return subprocess.check_output(["git", "-C", str(root), *args], text=True)
 
 
-def plan(root: Path, base: str | None, head: str | None, all_versions: bool = False) -> dict:
+def release_key(version: str) -> tuple[tuple[int, ...], int, int]:
+    """Order registry releases and patches without treating Git hashes as dates."""
+    match = re.fullmatch(r"([0-9]+(?:\.[0-9]+)*)(.*)", version)
+    require(match is not None, f"Cannot select latest registry version: {version}")
+    release, suffix = match.groups()
+    numbers = tuple(int(part) for part in release.split("."))
+    # Equivalent numeric releases must still use registration order for snapshots.
+    while len(numbers) > 1 and numbers[-1] == 0:
+        numbers = numbers[:-1]
+    patch = re.fullmatch(r"([.-])sonic\.([0-9]+)", suffix)
+    if patch:
+        return numbers, int(patch[2]), int(patch[1] == ".")
+    require(suffix in ("", ".sonic-buildimage", ".sonic-patched")
+            or re.fullmatch(r"(?:-|\.commit-)[0-9a-f]{7,40}", suffix) is not None,
+            f"Unsupported registry version for latest selection: {version}")
+    return numbers, 0, 0
+
+
+def latest_presubmits(root: Path) -> set[tuple[str, str]]:
+    """Select the newest non-yanked release of each module already covered by CI."""
+    modules = {path.parent.parent for path in (root / "modules").glob("*/*/presubmit.json")}
+    selected = set()
+    for directory in sorted(modules):
+        metadata = read_json(directory / "metadata.json")
+        versions = metadata.get("versions")
+        require(isinstance(versions, list) and bool(versions)
+                and all(isinstance(v, str) and VERSION.fullmatch(v) for v in versions),
+                f"{directory.name}: metadata needs valid versions")
+        require(len(versions) == len(set(versions)), f"{directory.name}: duplicate metadata versions")
+        directories = {path.name for path in directory.iterdir() if path.is_dir()}
+        require(set(versions) == directories, f"{directory.name}: metadata and version directories differ")
+        yanked = metadata.get("yanked_versions", {})
+        require(isinstance(yanked, dict) and set(yanked) <= set(versions)
+                and all(isinstance(reason, str) for reason in yanked.values()),
+                f"{directory.name}: invalid yanked_versions metadata")
+        eligible = [(release_key(version), index, version)
+                    for index, version in enumerate(versions) if version not in yanked]
+        if not eligible:
+            print(f"Skipping {directory.name}: all versions are yanked", file=sys.stderr)
+            continue
+        # Numeric release/patch first; metadata append order breaks snapshot ties.
+        version = max(eligible)[2]
+        require((directory / version / "presubmit.json").is_file(),
+                f"{directory.name}: latest version {version} needs presubmit.json")
+        selected.add((directory.name, version))
+    return selected
+
+
+def plan(root: Path, base: str | None, head: str | None, all_versions: bool = False,
+         latest_versions: bool = False) -> dict:
+    require(not (all_versions and latest_versions), "Choose either --all or --latest")
+    require(not ((all_versions or latest_versions) and (base or head)),
+            "Do not combine --all/--latest with --base/--head")
     selected = set()
     if all_versions:
         selected.update((path.parent.parent.name, path.parent.name)
                         for path in (root / "modules").glob("*/*/presubmit.json"))
+    elif latest_versions:
+        selected.update(latest_presubmits(root))
     else:
-        require(bool(base) and bool(head), "plan requires --base/--head or --all")
+        require(bool(base) and bool(head), "plan requires --base/--head, --latest or --all")
         require(re.fullmatch(r"[0-9a-fA-F]{40,64}", base) is not None
                 and re.fullmatch(r"[0-9a-fA-F]{40,64}", head) is not None,
                 "base and head must be full commit SHAs")
         require(git(root, "rev-parse", "HEAD").strip() == head, "Checkout HEAD differs from planned head")
         changed = git(root, "diff", "--name-only", "--no-renames", "-z", base, head).split("\0")
+        ci_changed = False
         for name in filter(None, changed):
             parts = PurePosixPath(name).parts
             if parts[0] in ("ci", ".github") or name == "bazel_registry.json":
-                selected.update((path.parent.parent.name, path.parent.name)
-                                for path in (root / "modules").glob("*/*/presubmit.json"))
+                ci_changed = True
             elif parts[0] == "modules":
                 require(len(parts) >= 3, f"Unsupported module path: {name}")
                 module = parts[1]
@@ -363,6 +417,8 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
                 else:
                     require(len(parts) >= 4, f"Unsupported version path: {name}")
                     selected.add((module, parts[2]))
+        if ci_changed:
+            selected.update(latest_presubmits(root))
     include = []
     for module, version in sorted(selected):
         config = validate_entry(root, module, version)
@@ -680,7 +736,11 @@ def main() -> None:
     planner = subparsers.add_parser("plan")
     planner.add_argument("--base")
     planner.add_argument("--head")
-    planner.add_argument("--all", action="store_true", dest="all_versions")
+    scope = planner.add_mutually_exclusive_group()
+    scope.add_argument("--all", action="store_true", dest="all_versions",
+                       help="test every configured version, including historical versions")
+    scope.add_argument("--latest", action="store_true", dest="latest_versions",
+                       help="test the latest non-yanked version of each configured module")
     planner.add_argument("--output", required=True, type=Path)
     synchronizer = subparsers.add_parser("sync-module", help="generate or check an opted-in MODULE overlay")
     synchronizer.add_argument("--module", required=True)
@@ -696,7 +756,7 @@ def main() -> None:
     args = parser.parse_args()
     try:
         if args.command == "plan":
-            result = plan(ROOT, args.base, args.head, args.all_versions)
+            result = plan(ROOT, args.base, args.head, args.all_versions, args.latest_versions)
             args.output.parent.mkdir(parents=True, exist_ok=True)
             args.output.write_text(json.dumps(result, indent=2) + "\n")
             print(json.dumps(result, separators=(",", ":")))

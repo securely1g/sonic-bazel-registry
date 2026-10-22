@@ -5,6 +5,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      all_versions:
+        description: Test every configured historical version instead of only the latest
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -27,19 +32,22 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
-      - name: Select changed modules
+      - name: Select module versions
         id: plan
         shell: bash
         env:
           EVENT_NAME: ${{ github.event_name }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          ALL_VERSIONS: ${{ inputs.all_versions }}
         run: |
           set -euo pipefail
           if [[ "$EVENT_NAME" == pull_request ]]; then
             python3 ci/registry_ci.py plan --base "$BASE_SHA" --head "$HEAD_SHA" --output plan.json 2>&1 | tee plan.log
-          else
+          elif [[ "$EVENT_NAME" == workflow_dispatch && "$ALL_VERSIONS" == true ]]; then
             python3 ci/registry_ci.py plan --all --output plan.json 2>&1 | tee plan.log
+          else
+            python3 ci/registry_ci.py plan --latest --output plan.json 2>&1 | tee plan.log
           fi
           python3 - <<'PY'
           import json
