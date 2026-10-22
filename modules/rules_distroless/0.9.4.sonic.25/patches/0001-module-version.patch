@@ -2,5 +2,5 @@
 +++ b/MODULE.bazel
 @@ -2,2 +2,3 @@
      name = "rules_distroless",
-+    version = "0.9.4.sonic.8",
++    version = "0.9.4.sonic.9",
      compatibility_level = 1,

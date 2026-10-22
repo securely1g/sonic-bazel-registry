@@ -1,22 +1,24 @@
-# Quoted pkg-config arguments
+# Complete template headers for foreign builds
 
-This version retains every `0.9.4.sonic.7` fix and parses shell quotes and
-backslash escapes in `.pc` flags after variable expansion. It also removes
-quoting from the `includedir` and `libdir` values used to locate package files.
-No shell substitutions or commands are executed.
+This version retains the complete `0.9.4.sonic.8` patch set and exports the
+C/C++ include-fragment suffixes recognized by `rules_cc` 0.2.16 from Debian
+`usr/include` trees. The existing `.h`, `.hpp` and extensionless-header handling
+is retained. Added forms include `.ipp`, `.tcc`, `.hh`, `.hxx`, `.h++`, `.inl`,
+`.tlh`, `.tli` and `.H`; `.inc` remains supported.
 
-Debian libpcap 1.10.5-2 has `prefix="/usr"` and
-`includedir="${prefix}/include"`. The old whitespace splitter left nested
-quotes in the generated include and linker paths, breaking the BMv2 foreign
-build before compilation. These now resolve to `/usr/include` and the
-architecture's `/usr/lib/<triplet>` directory. Quoted or escaped spaces inside
-an argument remain intact; empty quoted arguments are omitted.
+P4C's graph backend includes Boost `graphviz.hpp`, which reaches
+`boost/xpressive/detail/utility/chset/basic_chset.ipp`. The imported Boost
+headers omitted this file, so `rules_foreign_cc` staged an incomplete include
+tree and the native source build failed. Debian Boost 1.83.0-4.2 contains 310
+`.ipp` files; these now enter the declared compilation context.
 
-[Patch provenance and validation](PATCHES.md) documents the complete retained
-patch set. The new parser regression covers real AMD64/ARM64 libpcap metadata,
-single and double quotes, escaped spaces, literal quotes and backslashes.
-The supported fixtures were compared with native pkg-config 1.8.1. An additional
-native test compiles the actual pinned libpcap headers through their imported
-compilation context. It omits runtime linker inputs and does not claim libpcap
-runtime coverage. The shared registry CI runs all fourteen tests on native
-AMD64 and ARM64; it downloads existing Debian inputs and creates no DEB packages.
+The regression builds and runs a CMake/Make consumer of checksum-pinned
+AMD64/ARM64 Boost packages through `rules_foreign_cc`. It instantiates graph
+output and regular-expression matching, exercising the real `.ipp` include
+chain. An analysis regression separately requires those files in `CcInfo`, so
+host-installed Boost cannot hide an incomplete import. It also covers `.tcc`
+and `.hxx` classification and excludes unrelated paths and suffixes.
+
+The native matrix retains all fourteen earlier tests and adds these two
+regressions. It downloads existing SDK packages and does not create DEBs.
+See [patch provenance and validation](PATCHES.md).
