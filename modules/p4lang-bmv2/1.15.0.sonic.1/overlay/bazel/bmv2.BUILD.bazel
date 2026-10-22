@@ -1,0 +1,242 @@
+load("@bazel_skylib//rules:select_file.bzl", "select_file")
+load("@rules_foreign_cc//foreign_cc:defs.bzl", "configure_make")
+load(":bazel/runtime.bzl", "installed_file", "runtime_for_arch")
+
+package(default_visibility = ["//visibility:public"])
+
+_PROGRAMS = [
+    "simple_switch",
+    "simple_switch_grpc",
+    "psa_switch",
+    "pna_nic",
+]
+
+_LIBRARIES = [
+    "libbmall",
+    "libbmp4apps",
+    "libbmpi",
+    "libbm_grpc_dataplane",
+    "libruntimestubs",
+    "libbmpdfixed",
+    "libbmpdfixedthrift",
+    "libsimpleswitch_runner",
+    "libsimpleswitch_thrift",
+    "libpnanic_thrift",
+    "libpsaswitch_thrift",
+]
+
+_SCRIPTS = [
+    "bm_CLI",
+    "bm_p4dbg",
+    "bm_nanomsg_events",
+    "simple_switch_CLI",
+    "psa_switch_CLI",
+    "pna_nic_CLI",
+]
+
+# Public Python services and command helpers installed by the upstream Makefiles.
+_PYTHON_GROUPS = {
+    "bm_runtime/standard": "Standard",
+    "bm_runtime/simple_pre": "SimplePre",
+    "bm_runtime/simple_pre_lag": "SimplePreLAG",
+    "sswitch_runtime": "SimpleSwitch",
+    "pswitch_runtime": "PsaSwitch",
+    "pnic_runtime": "PnaNic",
+    "bm/pdfixed/conn_mgr_pd_rpc": "conn_mgr",
+    "bm/pdfixed/mc_pd_rpc": "mc",
+    "bm/pdfixed/sswitch_pd_rpc": "sswitch",
+}
+
+_PYTHON = [
+    "bmpy_utils.py",
+    "runtime_CLI.py",
+    "p4dbg.py",
+    "nanomsg_client.py",
+    "sswitch_CLI.py",
+    "pswitch_CLI.py",
+    "pnic_CLI.py",
+    "bm_runtime/__init__.py",
+    "p4/bm/dataplane_interface_pb2.py",
+    "p4/bm/__init__.py",
+] + [directory + "/" + filename + ".py" for directory, service in _PYTHON_GROUPS.items() for filename in [
+    "__init__",
+    "constants",
+    "ttypes",
+    service,
+]] + [
+    "bm/pdfixed/" + group + "_pd_rpc/" + group + "-remote"
+    for group in [
+        "conn_mgr",
+        "mc",
+        "sswitch",
+    ]
+] + ["bm/pdfixed/res_pd_rpc/" + name + ".py" for name in [
+    "__init__",
+    "constants",
+    "ttypes",
+]]
+
+_DATA = ["usr/bin/" + name for name in _SCRIPTS] + ["usr/lib/python3/dist-packages/" + name for name in _PYTHON]
+
+_TRIPLETS = {
+    "@platforms//cpu:x86_64": "x86_64-linux-gnu",
+    "@platforms//cpu:arm64": "aarch64-linux-gnu",
+}
+
+filegroup(
+    name = "sources",
+    srcs = ["bazel/configure.sh"] + glob(
+        ["**"],
+        exclude = [
+            "BUILD.bazel",
+            "bazel/**",
+        ],
+    ),
+)
+
+configure_make(
+    name = "bmv2_build",
+    args = [
+        "-j4",
+        "V=0",
+        "pythondir=/usr/lib/python3/dist-packages",
+        "pyexecdir=/usr/lib/python3/dist-packages",
+    ],
+    build_data = [
+        "@sonic_build_infra//tools/build_tools:configure_environment.sh",
+        "@sonic_build_infra//tools/build_tools:foreign_runtime",
+        "@sonic_build_infra//tools/build_tools:pkgconf",
+    ],
+    configure_command = "bazel/configure.sh",
+    configure_in_place = True,
+    configure_options = [
+        "--prefix=/usr",
+        "--sysconfdir=/etc",
+        "--localstatedir=/var",
+        "--disable-silent-rules",
+        "--disable-maintainer-mode",
+        "--disable-dependency-tracking",
+        "--with-pdfixed",
+        "--with-thrift",
+        "--with-nanomsg",
+        "--with-pi",
+    ] + select({platform: ["--libdir=/usr/lib/" + triplet] for platform, triplet in _TRIPLETS.items()}),
+    configure_prefix = "/bin/sh",
+    # Match the maintained Debian recipe: optimized ELF files with full symbols.
+    copts = [
+        "-O3",
+        "-g",
+        "-fstack-protector-strong",
+        "-Wformat",
+        "-Werror=format-security",
+        "-D_FORTIFY_SOURCE=2",
+    ],
+    data = ["@bmv2_deps//:pkgconfig"],
+    env = {
+        "PATH": "$(execpath @sonic_build_infra//tools/build_tools:foreign_runtime)/bin:$$PATH",
+        "BAZEL_CONFIGURE_ENV": "$(execpath @sonic_build_infra//tools/build_tools:configure_environment.sh)",
+        "BAZEL_P4_TOOLS": "$(execpath @sonic_build_infra//tools/build_tools:foreign_runtime)",
+        "BAZEL_PKGCONF": "$(execpath @sonic_build_infra//tools/build_tools:pkgconf)",
+        "BAZEL_PKGCONFIG_FILES": "$(locations @bmv2_deps//:pkgconfig)",
+        "LDFLAGS": "-Wl,-z,relro,-z,now -Wl,-rpath-link=$$EXT_BUILD_DEPS/lib",
+    },
+    features = [
+        "-sanitize_pwd",
+        "-strip_debug_symbols",
+    ],
+    lib_source = ":sources",
+    out_bin_dir = "usr/bin",
+    out_binaries = _PROGRAMS,
+    out_data_files = _DATA + [
+        "config.log",
+        "config.h",
+        "grpc-config.log",
+    ] + select({
+        platform: ["usr/lib/" + triplet + "/" + name + ".so.0.0.0" for name in _LIBRARIES]
+        for platform, triplet in _TRIPLETS.items()
+    }),
+    out_include_dir = "usr/include",
+    out_lib_dir = select({platform: "usr/lib/" + triplet for platform, triplet in _TRIPLETS.items()}),
+    out_shared_libs = [name + ".so.0" for name in _LIBRARIES],
+    postfix_script = "cp config.log config.h $$INSTALLDIR/; cp targets/simple_switch_grpc/config.log $$INSTALLDIR/grpc-config.log",
+    targets = [
+        "",
+        "install DESTDIR=$$BUILD_TMPDIR$$/$$INSTALL_PREFIX$$",
+    ],
+    deps = [
+        "@bmv2_deps//libboost-filesystem1.83-dev:libboost-filesystem1.83",
+        "@bmv2_deps//libboost-program-options1.83-dev:libboost-program-options1.83",
+        "@bmv2_deps//libboost-system1.83-dev:libboost-system1.83",
+        "@bmv2_deps//libboost-thread1.83-dev:libboost-thread1.83",
+        "@bmv2_deps//libboost1.83-dev:libboost1.83",
+        "@bmv2_deps//libgmp-dev:libgmp",
+        "@bmv2_deps//libgrpc++-dev:libgrpc++",
+        "@bmv2_deps//libgrpc-dev:libgrpc",
+        "@bmv2_deps//libnanomsg-dev:libnanomsg",
+        "@bmv2_deps//libpcap-dev:libpcap",
+        "@bmv2_deps//libprotobuf-dev:libprotobuf",
+        "@bmv2_deps//libssl-dev:libssl",
+        "@bmv2_deps//libthrift-dev:libthrift",
+        "@p4lang_pi//:sdk",
+    ],
+)
+
+alias(
+    name = "sdk",
+    actual = ":bmv2_build",
+)
+
+[
+    select_file(
+        name = "built_" + name,
+        srcs = ":bmv2_build",
+        subpath = "bmv2_build/usr/bin/" + name,
+    )
+    for name in _PROGRAMS
+]
+
+[
+    installed_file(
+        name = "installed_" + path.replace("/", "_"),
+        subpath = "bmv2_build/" + path,
+    )
+    for path in _DATA
+]
+
+installed_file(
+    name = "config_log",
+    subpath = "bmv2_build/config.log",
+)
+
+installed_file(
+    name = "config_header",
+    subpath = "bmv2_build/config.h",
+)
+
+installed_file(
+    name = "grpc_config_log",
+    subpath = "bmv2_build/grpc-config.log",
+)
+
+runtime_for_arch("amd64", "x86_64-linux-gnu", _PROGRAMS, _LIBRARIES, _SCRIPTS, _DATA)
+
+runtime_for_arch("arm64", "aarch64-linux-gnu", _PROGRAMS, _LIBRARIES, _SCRIPTS, _DATA)
+
+[
+    alias(
+        name = "runtime" + suffix,
+        actual = select({
+            "@platforms//cpu:x86_64": ":runtime_amd64" + suffix,
+            "@platforms//cpu:arm64": ":runtime_arm64" + suffix,
+        }),
+    )
+    for suffix in [
+        "",
+        ".debug_symbols",
+    ]
+]
+
+exports_files([
+    "LICENSE",
+    "debian/copyright",
+])
