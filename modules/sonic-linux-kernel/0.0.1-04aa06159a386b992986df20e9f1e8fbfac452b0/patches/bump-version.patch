@@ -1,0 +1,5 @@
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -3 +3 @@
+-    version = "0.0.1",
++    version = "0.0.1-04aa06159a386b992986df20e9f1e8fbfac452b0",
