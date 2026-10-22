@@ -4,7 +4,7 @@
   "archive_type": "tar.gz",
   "overlay": {
     "BUILD.bazel": "sha256-Vlf6NLXCGebNz1VYE6oBMUZylbmLIGqkD/z1yjDVw+Y=",
-    "MODULE.bazel": "sha256-Ar+O+YZEgSUj6ycfLYnDm9pp9VmhnasYHkksdQMUQvk=",
+    "MODULE.bazel": "sha256-HV9DlvGPdTZuAaR/YffbmQn9bkljFffVtWZGFw4kV78=",
     "bazel/runtime_test.py": "sha256-c8qTLTAYNzu1WgxdAv1eLnkFaB4/n/NedTthXiAdmB4=",
     "bazel/sdk_test.cc": "sha256-8Xhj1/JvO/BymtyugoLpzUd1mg7iCcL5FQMia9xvqhY=",
     "bazel/runtime.bzl": "sha256-lYcQjDWBbT9m1LilP3YGTXbml633irlcTPPBhDBXFw4=",
