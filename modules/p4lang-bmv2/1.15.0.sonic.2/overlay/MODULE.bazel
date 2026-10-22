@@ -1,10 +1,10 @@
 # AUTO-GENERATED. DO NOT EDIT MANUALLY.
 # Source: ../MODULE.bazel
-# Generator: python3 ci/registry_ci.py sync-module --module p4lang-bmv2 --version 1.15.0.sonic.1
+# Generator: python3 ci/registry_ci.py sync-module --module p4lang-bmv2 --version 1.15.0.sonic.2
 
 module(
     name = "p4lang-bmv2",
-    version = "1.15.0.sonic.1",
+    version = "1.15.0.sonic.2",
 )
 
 bazel_dep(name = "bazel_skylib", version = "1.8.2")

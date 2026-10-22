@@ -36,7 +36,7 @@ debuglink CRCs for every deployed ELF and GDB source-line lookup after adding th
 debug TAR. Native AMD64 and ARM64 jobs run the independent registry consumer.
 
 ```sh
-python3 ci/registry_ci.py run --module p4lang-bmv2 --version 1.15.0.sonic.1 \
+python3 ci/registry_ci.py run --module p4lang-bmv2 --version 1.15.0.sonic.2 \
   --architecture amd64 --work-dir /tmp/bmv2-amd64 --artifacts /tmp/bmv2-artifacts
 ```
 
@@ -59,3 +59,11 @@ that version suffix without running Git inside a build action.
 
 The BCR has no `bmv2`, `behavioral-model` or `p4lang-bmv2` entry. The imported
 archive has an Autotools build and no upstream Bazel module.
+
+## Runtime package metadata
+
+This recipe revision adds `//:runtime_packages.json` beside the runtime TAR.
+The image can record the producer's package name, version and runtime dependencies
+without duplicating those fields. The runtime/debug build and installed payload
+remain unchanged from `1.15.0.sonic.1`; that inherited recipe is preserved exactly.
+The metadata does not produce a DEB or change the legacy Make build.
