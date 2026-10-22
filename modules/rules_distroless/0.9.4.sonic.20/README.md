@@ -1,18 +1,22 @@
-# pkg-config field separators
+# Quoted pkg-config arguments
 
-This version retains every `0.9.4.sonic.6` fix and accepts pkg-config fields
-with tabs, spaces or no whitespace after `:`. It distinguishes fields from
-variables using the first `:` or `=`, so URLs in variables and `-DNAME=value`
-compiler flags remain intact. Keys and values lose boundary whitespace.
+This version retains every `0.9.4.sonic.7` fix and parses shell quotes and
+backslash escapes in `.pc` flags after variable expansion. It also removes
+quoting from the `includedir` and `libdir` values used to locate package files.
+No shell substitutions or commands are executed.
 
-Debian `libxtables-dev` 1.8.11-2 uses colon-tabs in `xtables.pc`. Previously,
-its imported C/C++ target declared the headers but lost its include directory
-and linker metadata. The native [iproute2 migration in PR #64](https://github.com/securely1g/sonic-bazel-registry/pull/64)
-exposed the missing include root when compiling `tc/em_ipset.c`.
+Debian libpcap 1.10.5-2 has `prefix="/usr"` and
+`includedir="${prefix}/include"`. The old whitespace splitter left nested
+quotes in the generated include and linker paths, breaking the BMv2 foreign
+build before compilation. These now resolve to `/usr/include` and the
+architecture's `/usr/lib/<triplet>` directory. Quoted or escaped spaces inside
+an argument remain intact; empty quoted arguments are omitted.
 
-[Patch provenance and validation](PATCHES.md) describes the retained fixes
-and twelve native AMD64/ARM64 regression and integration tests. CI uses Bazel
-8.5.1. The new header fixture imports checksum-pinned Debian xtables packages,
-then compiles against the development import's actual compilation context.
-It omits runtime linker inputs and does not claim xtables runtime coverage.
-The tests do not produce DEB packages.
+[Patch provenance and validation](PATCHES.md) documents the complete retained
+patch set. The new parser regression covers real AMD64/ARM64 libpcap metadata,
+single and double quotes, escaped spaces, literal quotes and backslashes.
+The supported fixtures were compared with native pkg-config 1.8.1. An additional
+native test compiles the actual pinned libpcap headers through their imported
+compilation context. It omits runtime linker inputs and does not claim libpcap
+runtime coverage. The shared registry CI runs all fourteen tests on native
+AMD64 and ARM64; it downloads existing Debian inputs and creates no DEB packages.

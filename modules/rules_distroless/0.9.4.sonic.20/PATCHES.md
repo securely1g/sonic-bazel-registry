@@ -1,11 +1,11 @@
 # Distroless patch provenance and validation
 
-`0.9.4.sonic.7` applies the complete SONiC patch set to the checksum-pinned
+`0.9.4.sonic.8` applies the complete SONiC patch set to the checksum-pinned
 upstream `rules_distroless` 0.9.4 archive. The registry owns these patches and
 their tests. The intermediate `.sonic.2`, `.sonic.3` and `.sonic.4` proposals
 are not published by this change; existing published versions are unchanged.
-This entry retains `.sonic.6` and adds pkg-config field separator parsing
-with parser regressions and a real xtables header consumer.
+This entry retains `.sonic.7` and adds quote-aware pkg-config argument parsing
+with parser regressions and a real libpcap header consumer.
 
 `Introduced in` identifies the first published registry version containing the
 patch's behavior; new patches show their proposed version. Later revisions
@@ -24,6 +24,7 @@ proposals and are not counted as releases.
 | `0007-concrete-packages.patch` | `0.9.4.sonic.5` | Prefer matching concrete packages while preserving virtual-provider fallback and version, suite and CPU filtering. Origin: [infra 12a67fd](https://github.com/securely1g/sonic-build-infra/commit/12a67fd2bc292af156f40372274c9cb3011e5c23). |
 | `0008-ccinfo-providers.patch` | `0.9.4.sonic.6` | Advertise the existing `CcInfo` provider so native `cc_shared_library` visits imported runtime-library metadata. |
 | `0009-pkgconfig-field-separators.patch` | `0.9.4.sonic.7` | Parse colon-tabs and colon-without-space fields; distinguish variable assignments from separators inside values. |
+| `0010-pkgconfig-quoting.patch` | `0.9.4.sonic.8` | Decode quotes and backslash escapes in expanded flags and path variables; preserve spaces within arguments. |
 
 These are SONiC-maintained adaptations, not imported upstream commits.
 [Upstream #220](https://github.com/bazel-contrib/rules_distroless/pull/220)
@@ -46,6 +47,7 @@ with the full patch set applied; there is no separately patched test archive.
 | `lua_headers_test`, `multiarch_test` | Compile real Lua headers and check include-root discovery, deduplication and unrelated-path exclusion. |
 | `pkgconfig_fields_test` | Fields with spaces, tabs or no separator whitespace; variable URLs and colon-separated values; fields containing equals signs; boundary whitespace. |
 | `xtables_headers_test` | Compile actual pinned Debian xtables headers using the include directory exported from colon-tab fields. |
+| `pkgconfig_quotes_test`, `libpcap_headers_test` | Decode real libpcap quoted variables, quoted and escaped spaces, literal quotes/backslashes; compile pinned native libpcap headers. |
 | `pkgconfig_test` | Repeated spaces, tabs, empty substitutions and empty Libs/Cflags produce no empty arguments. |
 | `pkgconfig_selection_test` | Metadata includes the selected CPU and `Architecture: all`, excludes the other CPU, maps metadata/data labels consistently and handles empty dependencies. |
 | `pkgconfig_files_test` | Direct, package and dependency-set exports preserve every original Lua `.pc` file and alias byte-for-byte. |
@@ -103,3 +105,28 @@ including URLs and compiler definitions. The native fixture imports the real
 AMD64/ARM64 `libxtables-dev` and `libxtables12` 1.8.11-2 packages with reviewed
 SHA-256 hashes. Its header-only compilation context excludes runtime linker
 inputs; it validates the metadata and headers, not runtime installation.
+
+## pkg-config quoting regression
+
+The BMv2 source build imports Debian libpcap 1.10.5-2. Its metadata wraps
+`prefix`, `includedir` and `libdir` in quotes, including nested substitutions.
+The old `_tokens` implementation only split whitespace, so generated include
+paths and RPATH flags retained literal quotes. `rules_foreign_cc` then rejected
+its malformed directory-copy arguments before compiling BMv2.
+
+Patch `0010` tokenizes the expanded flag fields with single/double-quote and
+backslash state. Whitespace only separates unquoted arguments; quote characters
+are removed, and the shell's limited double-quote backslash rules are preserved.
+Path variables use the same lexer without word splitting. Unterminated quotes
+or escapes produce an explicit metadata error. This is lexical parsing only;
+it does not evaluate shell expressions or introduce shell execution.
+
+The libpcap fixtures and general quoting fixtures were compared with native
+pkg-config 1.8.1 with system include/library filtering disabled. The native
+header consumer imports checksum-pinned AMD64/ARM64 libpcap 1.10.5-2 packages
+and compiles through their generated compilation context. Existing metadata,
+header and runtime-provider tests remain enabled.
+
+This is a SONiC-maintained repair. The upstream parser at
+[`3999d9ca`](https://github.com/bazel-contrib/rules_distroless/blob/3999d9ca8e7eb83224fcb947dbda31e5f0e55382/apt/private/pkgconfig.bzl)
+still splits flag fields by spaces and does not decode shell quoting.

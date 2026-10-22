@@ -1,6 +1,6 @@
 module(
     name = "rules_distroless",
-    version = "0.9.4.sonic.7",
+    version = "0.9.4.sonic.8",
     compatibility_level = 1,
 )
 
@@ -48,3 +48,5 @@ use_repo(registry_ci, "registry_ci_pkgconfig")
 use_repo(registry_ci, "registry_ci_native_shared")
 use_repo(registry_ci, "registry_ci_xtables_amd64")
 use_repo(registry_ci, "registry_ci_xtables_arm64")
+use_repo(registry_ci, "registry_ci_libpcap_amd64")
+use_repo(registry_ci, "registry_ci_libpcap_arm64")
