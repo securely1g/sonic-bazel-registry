@@ -64,6 +64,22 @@ required contents; otherwise increment the patch revision. Do not rename,
 rewrite, or delete an existing version directory. Keep each module's
 migration in its own PR.
 
+Keep one unreleased candidate per module across an unmerged PR stack. The
+publication boundary is the maintained `main` branch, not a stacked PR's base.
+For example, if `main` has `libyang-python@3.1.0.sonic.2`, a parent PR adding
+`.sonic.3` and a child adding `.sonic.4` contain two unreleased candidates:
+consolidate their changes into one candidate and update dependent consumers.
+Once `.sonic.3` is published on `main`, preserve it unchanged; a later PR may
+add `.sonic.4`. CI enforces this against the complete proposed stack and
+rejects edits or deletions inside published version directories.
+
+Separate open branches and downstream consumer pins are outside this
+branch-local check. Before publishing, audit other open registry PRs for the
+same module, consolidate superseded candidates, and update affected consumers'
+module versions, registry commits, overrides, and lockfiles. See the
+[publication policy checks](ci/README.md#publication-policy-checks) for CI's
+baseline and comparison details.
+
 ### Check Bazel's selected version
 
 Bazel treats the text after `-` as a prerelease suffix. Using `.sonic.y`
