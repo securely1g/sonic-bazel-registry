@@ -1264,7 +1264,37 @@ class BuildOutputTests(FixtureTestCase):
         ]}})
         index = self.collect(events)
         self.assertEqual(len(index[self.labels[0]]), 1)
-        self.assertEqual(index[self.labels[0]][0]["path"], "outputs/models/model.yang")
+        self.assertEqual(index[self.labels[0]][0]["path"], "outputs/source/models/model.yang")
+
+    def test_repository_outputs_with_equal_basenames_keep_distinct_bytes(self) -> None:
+        events = self.events()
+        for offset, package in ((0, "libc6"), (2, "netbase")):
+            output = self.work / "bazel" / "output-base" / "external" / package / "control.tar.xz"
+            output.parent.mkdir(parents=True)
+            output.write_bytes(package.encode())
+            events[offset]["namedSetOfFiles"]["files"] = [
+                {"name": output.name, "uri": output.as_uri()},
+                {"name": output.name, "uri": output.as_uri()},
+            ]
+        index = self.collect(events)
+        paths = []
+        for label, package in zip(self.labels, ("libc6", "netbase")):
+            self.assertEqual(len(index[label]), 1)
+            record = index[label][0]
+            paths.append(record["path"])
+            self.assertEqual((self.root / "artifacts" / record["path"]).read_bytes(), package.encode())
+            self.assertEqual(record["sha256"], hashlib.sha256(package.encode()).hexdigest())
+        self.assertEqual(len(set(paths)), 2)
+
+    def test_unprefixed_repository_output_cannot_escape_private_workspace(self) -> None:
+        events = self.events()
+        outside = self.root / "outside-control.tar.xz"
+        outside.write_bytes(b"outside")
+        link = self.work / "control.tar.xz"
+        link.symlink_to(outside)
+        events[0]["namedSetOfFiles"]["files"] = [{"name": link.name, "uri": link.as_uri()}]
+        with self.assertRaisesRegex(registry_ci.RegistryError, "escapes work-dir"):
+            self.collect(events)
 
     def test_missing_required_target_or_output_is_rejected(self) -> None:
         events = self.events()
