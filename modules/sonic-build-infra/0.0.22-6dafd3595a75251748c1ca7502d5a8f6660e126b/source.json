@@ -4,7 +4,7 @@
   "integrity": "sha256-n1KNUvSp/llsnSGufbTpyIXPR9TDAXt5uJmMCM5qT20=",
   "patches": {
     "bump-version.patch": "sha256-r8a4O/iy3Rl6NGL7qesNTjf11PAIPeapAnjRIu+dZts=",
-    "registry-cross-test-visibility.patch": "sha256-GrCG2tVWAjwFKXyo3nY89wBNIE/eKisDQ0aIuXwBo0Q="
+    "registry-cross-test-visibility.patch": "sha256-2+0NUZ9mcSHEHa+PIU3NVGG8uFBEgaA8LC9wDkg+GrY="
   },
   "patch_strip": 1,
   "overlay": {
