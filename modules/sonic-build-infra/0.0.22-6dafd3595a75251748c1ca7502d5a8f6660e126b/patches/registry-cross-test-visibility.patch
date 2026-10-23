@@ -1,6 +1,6 @@
 --- a/tools/build_tools/BUILD.bazel
 +++ b/tools/build_tools/BUILD.bazel
-@@ -115,6 +115,8 @@
+@@ -144,6 +144,8 @@
          ],
          data = [":kernel_runtime_amd64"],
          main = "kernel_cross_runtime_test.py",
