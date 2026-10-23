@@ -199,3 +199,18 @@ installer Python, shell and Starlark implementation is byte-identical to #110.
 Retain original package.deb in payload-only imports and preserve repo_prefix
 in original-DEB aliases. The locked-import fixture verifies the original
 archive hash through two independent imports on AMD64 and ARM64.
+
+## Base accounts compatibility
+
+`0016-preserve-base-accounts.patch` carries the public account-layer API and five
+regression targets reviewed in [registry #128](https://github.com/securely1g/sonic-bazel-registry/pull/128).
+It retains the original authorship and upstream #290/#278 links. Only the MODULE
+integration differs from the `.sonic.11` backport: this candidate already has
+Python for APT installation, so the dependency is updated to 1.7.0 and the 3.11
+execution toolchain is declared without changing the installer's BSD tar version.
+All account implementation and regression hunks are byte-for-byte unchanged.
+
+Existing patch files `0001` through `0015` and their integrity values remain
+unchanged. Native presubmits retain all 26 prior tests and add the unit, plain,
+gzip, xz and zstd account targets. Full installed-image behavior remains the
+consumer's validation responsibility.

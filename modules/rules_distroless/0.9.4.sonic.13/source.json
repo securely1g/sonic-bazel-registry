@@ -18,7 +18,8 @@
     "0012-headerless-includes.patch": "sha256-ewpKuiGsUs8HEzDVvd8kMyC8Me+fV0jBJsg97uHD4KA=",
     "0013-import-apt-lock.patch": "sha256-SHwkcfQZuJjjikfeqUwpBNZlGRn50ETvgF6inOvpTR8=",
     "0014-locked-import-tests.patch": "sha256-7l8zBDAFP9V/gq8LHJApQG7X2PXQAX6y0zrPEAGsx5A=",
-    "0015-apt-install.patch": "sha256-9xsYC3ZX34Fvfu6D6YPMIlSg90B2wK4ngCREd+MFVGQ="
+    "0015-apt-install.patch": "sha256-9xsYC3ZX34Fvfu6D6YPMIlSg90B2wK4ngCREd+MFVGQ=",
+    "0016-preserve-base-accounts.patch": "sha256-lpmKSSiEcHG6aiKN8zNDJuBjjX9VZvaMLIh0jXAq1gM="
   },
   "patch_strip": 1,
   "overlay": {
