@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import ast
 import base64
+from contextlib import contextmanager
 import hashlib
 import io
 import json
@@ -25,6 +26,7 @@ RUNNERS = {"amd64": "ubuntu-24.04", "arm64": "ubuntu-24.04-arm"}
 NAME = re.compile(r"[a-z][a-z0-9._-]*\Z")
 VERSION = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+-]*\Z")
 LABEL = re.compile(r"@[a-z][a-z0-9._-]*//[A-Za-z0-9_./+-]*:[A-Za-z0-9_./+-]+\Z")
+ROOT_LABEL = re.compile(r"//[A-Za-z0-9_./+-]*:[A-Za-z0-9_./+-]+\Z")
 
 
 class RegistryError(ValueError):
@@ -127,6 +129,59 @@ def entry_directory(root: Path, module: str, version: str) -> Path:
     return entry
 
 
+def integration_test_directory(entry: Path, config: dict, module: str, version: str) -> Path:
+    """Validate the ordinary test module copied into the private CI consumer."""
+    name = config["integration_test_module"]
+    require(isinstance(name, str) and bool(name), "integration_test_module must name a directory")
+    parts = name.split("/")
+    require("\\" not in name and all(part and not part.startswith(".") for part in parts),
+            "integration_test_module must be a contained, entry-relative directory")
+    directory = entry
+    for part in parts:
+        directory /= part
+        require(directory.is_dir() and not directory.is_symlink(),
+                f"Integration test directory must not contain symlinks: {directory}")
+    require(directory.resolve().is_relative_to(entry.resolve()),
+            "Integration test directory escapes the registry entry")
+    for path in directory.rglob("*"):
+        require(not path.is_symlink() and (path.is_file() or path.is_dir()),
+                f"Integration tests require regular files and directories: {path}")
+        require(not path.name.startswith((".", "bazel-"))
+                and path.name not in ("MODULE.bazel.lock", "__pycache__")
+                and path.suffix != ".pyc",
+                f"Integration tests must not contain local build state: {path}")
+    local_input(directory, "BUILD.bazel")
+    declaration = local_input(directory, "MODULE.bazel").read_text()
+    try:
+        tree = ast.parse(declaration)
+    except SyntaxError as error:
+        raise RegistryError("Integration MODULE.bazel must use ordinary module declarations") from error
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name):
+            require(not node.id.endswith("_override")
+                    and node.id not in ("include", "override_repo", "inject_repo"),
+                    "Integration MODULE.bazel cannot include files or override registry sources")
+    dependencies = []
+    for statement in tree.body:
+        if isinstance(statement, ast.Expr) and isinstance(statement.value, ast.Call):
+            call = statement.value
+            if isinstance(call.func, ast.Name) and call.func.id == "bazel_dep":
+                require(not call.args, "Integration bazel_dep requires named literal arguments")
+                try:
+                    values = {keyword.arg: ast.literal_eval(keyword.value) for keyword in call.keywords}
+                except (ValueError, TypeError) as error:
+                    raise RegistryError("Integration bazel_dep requires literal arguments") from error
+                if values.get("name") == module:
+                    dependencies.append(values)
+    require(dependencies == [{"name": module, "version": version}],
+            "Integration MODULE.bazel must directly select the exact tested module and version")
+    require(not config["consumer_deps"]
+            and not {"go_sdk", "rust_toolchain", "rust_preparation"}.intersection(config),
+            "Integration MODULE.bazel owns its dependencies and toolchains; "
+            "consumer_deps and generated toolchain options must be omitted or empty")
+    return directory
+
+
 def module_overlay_bytes(entry: Path, module: str, version: str) -> bytes:
     canonical = local_input(entry, "MODULE.bazel").read_bytes()
     require(parse_module_identity(canonical.decode("utf-8")) == (module, version),
@@ -215,8 +270,9 @@ def validate_entry(root: Path, module: str, version: str) -> dict:
     required = {"architectures", "consumer_deps", "platforms", "build_targets", "test_targets"}
     require(required <= set(config) <= required | {
         "build_flags", "rust_preparation", "go_sdk", "rust_toolchain", "generated_module_overlay",
+        "integration_test_module",
     }, f"presubmit.json requires {sorted(required)} and optionally "
-       "build_flags/rust_preparation/go_sdk/rust_toolchain/generated_module_overlay")
+       "build_flags/rust_preparation/go_sdk/rust_toolchain/generated_module_overlay/integration_test_module")
     if "generated_module_overlay" in config:
         require(config["generated_module_overlay"] is True, "generated_module_overlay must be true when present")
         sync_module(root, module, version, check=True)
@@ -232,6 +288,8 @@ def validate_entry(root: Path, module: str, version: str) -> dict:
     aliases = {module}
     names = {module}
     require(isinstance(config["consumer_deps"], list), "consumer_deps must be a list")
+    if "integration_test_module" in config:
+        integration_test_directory(entry, config, module, version)
     for dependency in config["consumer_deps"]:
         require(isinstance(dependency, dict) and set(dependency) in ({"name", "version"}, {"name", "version", "repo_name"}),
                 "consumer_deps require name/version and optional repo_name")
@@ -272,9 +330,11 @@ def validate_entry(root: Path, module: str, version: str) -> dict:
                 f"{field} must be a nonempty list")
         require(len(set(labels)) == len(labels), f"{field} must have unique targets")
         for label in labels:
-            require(LABEL.fullmatch(label) is not None and label.startswith(f"@{module}//")
+            external = LABEL.fullmatch(label) is not None and label.startswith(f"@{module}//")
+            integration = "integration_test_module" in config and ROOT_LABEL.fullmatch(label) is not None
+            require((external or integration)
                     and label.rsplit(":", 1)[1] not in ("all", "all-targets"),
-                    f"{field} requires explicit targets in @{module}: {label}")
+                    f"{field} requires explicit targets in @{module} or the configured integration module: {label}")
     build_flags = config.get("build_flags", [])
     require(isinstance(build_flags, list), "build_flags must be a list")
     settings = set()
@@ -308,7 +368,8 @@ def validate_entry(root: Path, module: str, version: str) -> dict:
 
 
 def git(root: Path, *args: str) -> str:
-    return subprocess.check_output(["git", "-C", str(root), *args], text=True)
+    return subprocess.check_output(
+        ["git", "-c", f"safe.directory={root.resolve()}", "-C", str(root), *args], text=True)
 
 
 def release_key(version: str) -> tuple[tuple[int, ...], int, int]:
@@ -498,6 +559,8 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
 
 def normalized_label(label: str) -> str:
     """BEP uses canonical repository names, whereas manifests use apparent names."""
+    if label.startswith(("@@//", "@//")):
+        return label[label.index("//"):]
     if label.startswith("@@"):
         repository, target = label[2:].split("//", 1)
         return "@" + repository.split("+", 1)[0] + "//" + target
@@ -673,129 +736,173 @@ def fetched_modules(output_base: Path, module: str) -> list[Path]:
             if "++" not in path.parent.name]
 
 
+def verify_native(architecture: str) -> dict:
+    native = {"system": platform.system(), "machine": platform.machine()}
+    require(native["system"] == "Linux"
+            and native["machine"] == {"amd64": "x86_64", "arm64": "aarch64"}[architecture],
+            "Validation must run on a native Linux host of the requested architecture")
+    native["userspace"] = subprocess.check_output(
+        ["dpkg", "--print-architecture"], text=True).strip()
+    require(native["userspace"] == architecture,
+            "Debian userspace must match the requested native architecture")
+    return native
+
+
+def source_inputs(entry: Path) -> dict[str, str]:
+    return {str(path.relative_to(entry)): hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in sorted(entry.rglob("*"))
+            if path.is_file() and "__pycache__" not in path.parts}
+
+
+@contextmanager
+def preserve_source_inputs(root: Path, entry: Path, artifacts: Path, native: dict):
+    """Record the reviewed recipe and reject changes even when validation fails."""
+    inputs = source_inputs(entry)
+    receipt = {"source_head": git(root, "rev-parse", "HEAD").strip(),
+               "recipe": str(entry.relative_to(root)), "native": native,
+               "source_inputs": inputs, "result": "incomplete"}
+    try:
+        yield
+        receipt["result"] = "passed"
+    finally:
+        receipt["source_inputs_unchanged"] = source_inputs(entry) == inputs
+        if not receipt["source_inputs_unchanged"]:
+            receipt["result"] = "failed: recipe inputs changed"
+        (artifacts / "source-validation.json").write_text(json.dumps(receipt, indent=2) + "\n")
+        require(receipt["source_inputs_unchanged"], "Registry source inputs changed during validation")
+
+
 def run(root: Path, module: str, version: str, architecture: str,
         work_dir: Path, artifacts: Path, bazel: str = "bazel") -> None:
     config = validate_entry(root, module, version)
     require(architecture in config["architectures"], "Architecture is not configured for this version")
-    require(platform.system() == "Linux" and platform.machine() == {"amd64": "x86_64", "arm64": "aarch64"}[architecture],
-            "Validation must run on a native Linux host of the requested architecture")
+    native = verify_native(architecture)
     work_dir, artifacts = work_dir.resolve(), artifacts.resolve()
     require(not work_dir.exists() or not any(work_dir.iterdir()), "work-dir must be fresh and empty")
     require(not artifacts.is_relative_to(work_dir), "artifacts must be outside work-dir")
-    consumer = work_dir / "consumer"
-    consumer.mkdir(parents=True)
+    entry = entry_directory(root, module, version)
+    require(not work_dir.is_relative_to(entry.resolve()) and not artifacts.is_relative_to(entry.resolve()),
+            "Validation work and artifacts must stay outside the source entry")
     artifacts.mkdir(parents=True, exist_ok=True)
-    declarations = ['module(name = "registry_ci_consumer")']
-    for dependency in [{"name": module, "version": version}, *config["consumer_deps"]]:
-        declarations.append("bazel_dep(" + ", ".join(f"{key} = {json.dumps(value)}"
-                                                   for key, value in dependency.items()) + ")")
-    for dependency in config["consumer_deps"]:
-        name, selected_version = dependency["name"], dependency["version"]
-        declarations.append(f"single_version_override(module_name = {json.dumps(name)}, "
-                            f"version = {json.dumps(selected_version)})")
-    if "go_sdk" in config:
-        dependencies = {module: module, **{
-            dependency["name"]: dependency.get("repo_name", dependency["name"])
-            for dependency in config["consumer_deps"]
-        }}
-        extension = f"@{dependencies['rules_go']}//go:extensions.bzl"
-        declarations.extend([
-            f"go_sdk = use_extension({json.dumps(extension)}, \"go_sdk\")",
-            f"go_sdk.download(version = {json.dumps(config['go_sdk']['version'])})",
-        ])
-    if "rust_toolchain" in config:
-        dependencies = {module: module, **{
-            dependency["name"]: dependency.get("repo_name", dependency["name"])
-            for dependency in config["consumer_deps"]
-        }}
-        extension = f"@{dependencies['rules_rs']}//rs:rules_rust_reexported_extensions.bzl"
-        # rules_rs' legacy Rust extension needs a root declaration even when a
-        # dependency registers the same toolchain. Match real component roots.
-        declarations.extend([
-            f"rust = use_extension({json.dumps(extension)}, \"rust\")",
-            'rust.toolchain(edition = "2021", '
-            'extra_target_triples = ["aarch64-unknown-linux-gnu", "x86_64-unknown-linux-gnu"], '
-            f"versions = [{json.dumps(config['rust_toolchain']['version'])}])",
-            'use_repo(rust, "rust_toolchains")',
-            'register_toolchains("@rust_toolchains//:all")',
-        ])
-        if config["rust_toolchain"].get("mangled_allocator_libraries", False):
-            declarations.extend([
-                f'rules_rust = use_extension("@{dependencies["rules_rs"]}//rs:rules_rust.bzl", "rules_rust")',
-                'use_repo(rules_rust, "rules_rust")',
-            ])
-        if config["rust_toolchain"].get("bindgen", False):
-            declarations.extend([
-                f'bindgen = use_extension("@{dependencies["rules_rs"]}//rs:rules_rust_bindgen.bzl", "rules_rust_bindgen")',
-                'use_repo(bindgen, "rules_rust_bindgen")',
-                'register_toolchains("@rules_rust_bindgen//:all")',
-            ])
-    (consumer / "MODULE.bazel").write_text("\n\n".join(declarations) + "\n")
-    (consumer / "BUILD.bazel").write_text("# Explicit external targets are built from this consumer.\n")
-    (consumer / ".bazelversion").write_text("8.5.1\n")
-    (consumer / ".gitignore").write_text("MODULE.bazel.lock\n")
-    shutil.copy2(consumer / "MODULE.bazel", artifacts / "consumer.MODULE.bazel")
-    prefix = [bazel, "--ignore_all_rc_files", f"--output_user_root={work_dir / 'bazel'}"]
-    flags = [f"--registry={root.resolve().as_uri()}", "--registry=https://bcr.bazel.build/",
-             f"--platforms={config['platforms'][architecture]}", "--lockfile_mode=update",
-             *config.get("build_flags", [])]
-    if config.get("rust_toolchain", {}).get("mangled_allocator_libraries", False):
-        flags.append("--@rules_rust//rust/settings:experimental_use_allocator_libraries_with_mangled_symbols=True")
-    try:
-        flags.extend(prepare_rust(config, consumer, work_dir, artifacts, bazel, flags))
-        run_logged([*prefix, "build", *flags, f"--build_event_json_file={artifacts / 'build-events.jsonl'}",
-                    *config["build_targets"]], consumer, artifacts / "build.log")
-        collect_outputs(artifacts / "build-events.jsonl", config["build_targets"], work_dir, artifacts)
-        run_logged([*prefix, "test", *flags, "--nocache_test_results", "--test_output=errors",
-                    f"--build_event_json_file={artifacts / 'test-events.jsonl'}", *config["test_targets"]],
-                   consumer, artifacts / "test.log")
-        verify_tests(artifacts / "test-events.jsonl", config["test_targets"])
-        output_base = Path(subprocess.check_output([*prefix, "info", *flags, "output_base"],
-                                                  cwd=consumer, text=True).strip())
-        fetched = fetched_modules(output_base, module)
-        require(len(fetched) == 1, f"Expected one fetched repository for {module}, found {len(fetched)}")
-        registry_module = root / "modules" / module / version / "MODULE.bazel"
-        require(parse_module_identity(fetched[0].read_text()) == (module, version),
-                "Fetched source module name/version differs from requested registry entry")
-        canonical_bytes = registry_module.read_bytes()
-        fetched_bytes = fetched[0].read_bytes()
-        # Bazel materializes the registry's MODULE after applying source
-        # overlays/patches. The generated overlay is checked independently at
-        # entry validation; its banner is not part of the fetched MODULE.
-        require(fetched_bytes == canonical_bytes,
-                "Fetched MODULE.bazel differs from registry MODULE.bazel")
-        shutil.copy2(fetched[0], artifacts / "fetched.MODULE.bazel")
-        for dependency in config["consumer_deps"]:
-            name, selected_version = dependency["name"], dependency["version"]
-            selected = fetched_modules(output_base, name)
-            require(len(selected) == 1, f"Expected one fetched repository for consumer dependency {name}")
-            require(parse_module_identity(selected[0].read_text()) == (name, selected_version),
-                    f"Fetched consumer dependency {name} differs from the declared version {selected_version}")
-            shutil.copy2(selected[0], artifacts / f"consumer-dep-{name}.MODULE.bazel")
-        require((consumer / "MODULE.bazel.lock").is_file(), "Bazel did not generate MODULE.bazel.lock resolution evidence")
-        (artifacts / "validation.json").write_text(json.dumps({
-            "module": module, "version": version, "architecture": architecture,
-            "build_targets": config["build_targets"], "passed_tests": config["test_targets"],
-            "build_flags": config.get("build_flags", []),
-            "consumer_deps": config["consumer_deps"],
-            "go_sdk": config.get("go_sdk"),
-            "rust_toolchain": config.get("rust_toolchain"),
-            "rust_preparation": config.get("rust_preparation"),
-            "generated_module_overlay": config.get("generated_module_overlay", False),
-            "fetched_module_matches_registry": fetched_bytes == canonical_bytes,
-            "registry_module_sha256": hashlib.sha256(canonical_bytes).hexdigest(),
-            "fetched_module_sha256": hashlib.sha256(fetched_bytes).hexdigest(),
-            "generated_module_overlay_sha256": (hashlib.sha256(module_overlay_bytes(
-                registry_module.parent, module, version)).hexdigest()
-                if config.get("generated_module_overlay") else None),
-        }, indent=2) + "\n")
-    finally:
-        lockfile = consumer / "MODULE.bazel.lock"
-        if lockfile.is_file():
-            shutil.copy2(lockfile, artifacts / "MODULE.bazel.lock")
-        testlogs = consumer / "bazel-testlogs"
-        if testlogs.exists():
-            shutil.copytree(testlogs, artifacts / "testlogs", dirs_exist_ok=True)
+    with preserve_source_inputs(root, entry, artifacts, native):
+        consumer = work_dir / "consumer"
+        consumer.mkdir(parents=True)
+        if "integration_test_module" in config:
+            source = integration_test_directory(entry_directory(root, module, version), config, module, version)
+            shutil.copytree(source, consumer, dirs_exist_ok=True)
+        else:
+            declarations = ['module(name = "registry_ci_consumer")']
+            for dependency in [{"name": module, "version": version}, *config["consumer_deps"]]:
+                declarations.append("bazel_dep(" + ", ".join(f"{key} = {json.dumps(value)}"
+                                                           for key, value in dependency.items()) + ")")
+            for dependency in config["consumer_deps"]:
+                name, selected_version = dependency["name"], dependency["version"]
+                declarations.append(f"single_version_override(module_name = {json.dumps(name)}, "
+                                    f"version = {json.dumps(selected_version)})")
+            if "go_sdk" in config:
+                dependencies = {module: module, **{
+                    dependency["name"]: dependency.get("repo_name", dependency["name"])
+                    for dependency in config["consumer_deps"]
+                }}
+                extension = f"@{dependencies['rules_go']}//go:extensions.bzl"
+                declarations.extend([
+                    f"go_sdk = use_extension({json.dumps(extension)}, \"go_sdk\")",
+                    f"go_sdk.download(version = {json.dumps(config['go_sdk']['version'])})",
+                ])
+            if "rust_toolchain" in config:
+                dependencies = {module: module, **{
+                    dependency["name"]: dependency.get("repo_name", dependency["name"])
+                    for dependency in config["consumer_deps"]
+                }}
+                extension = f"@{dependencies['rules_rs']}//rs:rules_rust_reexported_extensions.bzl"
+                # rules_rs' legacy Rust extension needs a root declaration even when a
+                # dependency registers the same toolchain. Match real component roots.
+                declarations.extend([
+                    f"rust = use_extension({json.dumps(extension)}, \"rust\")",
+                    'rust.toolchain(edition = "2021", '
+                    'extra_target_triples = ["aarch64-unknown-linux-gnu", "x86_64-unknown-linux-gnu"], '
+                    f"versions = [{json.dumps(config['rust_toolchain']['version'])}])",
+                    'use_repo(rust, "rust_toolchains")',
+                    'register_toolchains("@rust_toolchains//:all")',
+                ])
+                if config["rust_toolchain"].get("mangled_allocator_libraries", False):
+                    declarations.extend([
+                        f'rules_rust = use_extension("@{dependencies["rules_rs"]}//rs:rules_rust.bzl", "rules_rust")',
+                        'use_repo(rules_rust, "rules_rust")',
+                    ])
+                if config["rust_toolchain"].get("bindgen", False):
+                    declarations.extend([
+                        f'bindgen = use_extension("@{dependencies["rules_rs"]}//rs:rules_rust_bindgen.bzl", "rules_rust_bindgen")',
+                        'use_repo(bindgen, "rules_rust_bindgen")',
+                        'register_toolchains("@rules_rust_bindgen//:all")',
+                    ])
+            (consumer / "MODULE.bazel").write_text("\n\n".join(declarations) + "\n")
+            (consumer / "BUILD.bazel").write_text("# Explicit external targets are built from this consumer.\n")
+        (consumer / ".bazelversion").write_text("8.5.1\n")
+        (consumer / ".gitignore").write_text("MODULE.bazel.lock\n")
+        shutil.copy2(consumer / "MODULE.bazel", artifacts / "consumer.MODULE.bazel")
+        prefix = [bazel, "--ignore_all_rc_files", f"--output_user_root={work_dir / 'bazel'}"]
+        flags = [f"--registry={root.resolve().as_uri()}", "--registry=https://bcr.bazel.build/",
+                 f"--platforms={config['platforms'][architecture]}", "--lockfile_mode=update",
+                 *config.get("build_flags", [])]
+        if config.get("rust_toolchain", {}).get("mangled_allocator_libraries", False):
+            flags.append("--@rules_rust//rust/settings:experimental_use_allocator_libraries_with_mangled_symbols=True")
+        try:
+            flags.extend(prepare_rust(config, consumer, work_dir, artifacts, bazel, flags))
+            run_logged([*prefix, "build", *flags, f"--build_event_json_file={artifacts / 'build-events.jsonl'}",
+                        *config["build_targets"]], consumer, artifacts / "build.log")
+            collect_outputs(artifacts / "build-events.jsonl", config["build_targets"], work_dir, artifacts)
+            run_logged([*prefix, "test", *flags, "--nocache_test_results", "--test_output=errors",
+                        f"--build_event_json_file={artifacts / 'test-events.jsonl'}", *config["test_targets"]],
+                       consumer, artifacts / "test.log")
+            verify_tests(artifacts / "test-events.jsonl", config["test_targets"])
+            output_base = Path(subprocess.check_output([*prefix, "info", *flags, "output_base"],
+                                                      cwd=consumer, text=True).strip())
+            fetched = fetched_modules(output_base, module)
+            require(len(fetched) == 1, f"Expected one fetched repository for {module}, found {len(fetched)}")
+            registry_module = root / "modules" / module / version / "MODULE.bazel"
+            require(parse_module_identity(fetched[0].read_text()) == (module, version),
+                    "Fetched source module name/version differs from requested registry entry")
+            canonical_bytes = registry_module.read_bytes()
+            fetched_bytes = fetched[0].read_bytes()
+            # Bazel materializes the registry's MODULE after applying source
+            # overlays/patches. The generated overlay is checked independently at
+            # entry validation; its banner is not part of the fetched MODULE.
+            require(fetched_bytes == canonical_bytes,
+                    "Fetched MODULE.bazel differs from registry MODULE.bazel")
+            shutil.copy2(fetched[0], artifacts / "fetched.MODULE.bazel")
+            for dependency in config["consumer_deps"]:
+                name, selected_version = dependency["name"], dependency["version"]
+                selected = fetched_modules(output_base, name)
+                require(len(selected) == 1, f"Expected one fetched repository for consumer dependency {name}")
+                require(parse_module_identity(selected[0].read_text()) == (name, selected_version),
+                        f"Fetched consumer dependency {name} differs from the declared version {selected_version}")
+                shutil.copy2(selected[0], artifacts / f"consumer-dep-{name}.MODULE.bazel")
+            require((consumer / "MODULE.bazel.lock").is_file(), "Bazel did not generate MODULE.bazel.lock resolution evidence")
+            (artifacts / "validation.json").write_text(json.dumps({
+                "module": module, "version": version, "architecture": architecture,
+                "build_targets": config["build_targets"], "passed_tests": config["test_targets"],
+                "build_flags": config.get("build_flags", []),
+                "consumer_deps": config["consumer_deps"],
+                "integration_test_module": config.get("integration_test_module"),
+                "go_sdk": config.get("go_sdk"),
+                "rust_toolchain": config.get("rust_toolchain"),
+                "rust_preparation": config.get("rust_preparation"),
+                "generated_module_overlay": config.get("generated_module_overlay", False),
+                "fetched_module_matches_registry": fetched_bytes == canonical_bytes,
+                "registry_module_sha256": hashlib.sha256(canonical_bytes).hexdigest(),
+                "fetched_module_sha256": hashlib.sha256(fetched_bytes).hexdigest(),
+                "generated_module_overlay_sha256": (hashlib.sha256(module_overlay_bytes(
+                    registry_module.parent, module, version)).hexdigest()
+                    if config.get("generated_module_overlay") else None),
+            }, indent=2) + "\n")
+        finally:
+            lockfile = consumer / "MODULE.bazel.lock"
+            if lockfile.is_file():
+                shutil.copy2(lockfile, artifacts / "MODULE.bazel.lock")
+            testlogs = consumer / "bazel-testlogs"
+            if testlogs.exists():
+                shutil.copytree(testlogs, artifacts / "testlogs", dirs_exist_ok=True)
 
 
 def main() -> None:
