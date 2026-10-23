@@ -1,0 +1,192 @@
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_python//python:py_binary.bzl", "py_binary")
+load("@rules_python//python:py_library.bzl", "py_library")
+load("@rules_python//python:py_test.bzl", "py_test")
+load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
+load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
+
+package(default_visibility = ["//visibility:private"])
+
+exports_files(["requirements_lock.txt"])
+
+py_binary(
+    name = "emit_cffi",
+    srcs = ["emit_cffi.py"],
+    python_version = "3.13",
+    deps = ["@libyang_python_pip//cffi"],
+)
+
+genrule(
+    name = "cffi_c",
+    srcs = [
+        "cffi/build.py",
+        "cffi/cdefs.h",
+        "cffi/source.c",
+    ],
+    outs = ["_libyang.c"],
+    cmd = "$(execpath :emit_cffi) --build $(execpath cffi/build.py) --output $@",
+    tags = ["block-network"],
+    tools = [":emit_cffi"],
+)
+
+cc_binary(
+    name = "_libyang.so",
+    srcs = [":cffi_c"],
+    copts = ["-std=c99"],
+    linkopts = [
+        "-Wl,-z,now",
+    ],
+    linkshared = True,
+    deps = [
+        "@libyang",
+        "@python_3_13//:python_headers",
+    ],
+)
+
+py_library(
+    name = "libyang",
+    srcs = glob(["libyang/*.py"]),
+    data = [":_libyang.so"],
+    imports = ["."],
+    visibility = ["//visibility:public"],
+    deps = ["@libyang_python_pip//cffi"],
+)
+
+py_test(
+    name = "libyang_runtime_test",
+    srcs = ["libyang_runtime_test.py"],
+    python_version = "3.13",
+    visibility = ["//visibility:public"],
+    deps = [":libyang"],
+)
+
+filegroup(
+    name = "upstream_test_inputs",
+    srcs = glob([
+        "tests/*.py",
+        "tests/data/**",
+        "tests/yang/**",
+        "tests/yang-old/**",
+    ]),
+)
+
+py_test(
+    name = "libyang_upstream_test",
+    srcs = ["run_upstream_tests.py"],
+    args = ["$(locations :upstream_test_inputs)"],
+    data = [":upstream_test_inputs"],
+    main = "run_upstream_tests.py",
+    python_version = "3.13",
+    visibility = ["//visibility:public"],
+    deps = [":libyang"],
+)
+
+# This module supports CPython 3.13. Use its versioned, target-platform headers
+# above so a direct TAR build cannot accidentally compile against another
+# consumer's default Python interpreter.
+_RUNTIME_PYTHON = glob(["libyang/*.py"]) + ["libyang/py.typed"]
+
+py_binary(
+    name = "generate_egg_metadata",
+    srcs = ["generate_egg_metadata.py"],
+    python_version = "3.13",
+    deps = [
+        "@libyang_python_pip//cffi",
+        "@libyang_python_pip//setuptools",
+    ],
+)
+
+# Keep the installed metadata from upstream setup.py beside the source-built
+# binding. genrule.tools selects the declared Python/setuptools tool for exec;
+# it never compiles or replaces the target-platform CFFI extension.
+_EGG_INFO_NAMES = [
+    "PKG-INFO",
+    "SOURCES.txt",
+    "dependency_links.txt",
+    "not-zip-safe",
+    "requires.txt",
+    "top_level.txt",
+]
+
+_EGG_INFO = ["libyang-3.1.0.egg-info/" + name for name in _EGG_INFO_NAMES]
+
+genrule(
+    name = "python_egg_metadata",
+    srcs = glob([
+        "libyang/**",
+        "cffi/**",
+    ]) + [
+        "LICENSE",
+        "MANIFEST.in",
+        "README.rst",
+        "setup.cfg",
+        "setup.py",
+    ],
+    outs = _EGG_INFO,
+    cmd = "$(execpath :generate_egg_metadata) --setup $(execpath setup.py) " +
+          "--output $(RULEDIR)/libyang-3.1.0.egg-info --expected " +
+          " ".join(_EGG_INFO_NAMES),
+    tags = ["block-network"],
+    tools = [":generate_egg_metadata"],
+)
+
+sonic_deploy_tar(
+    name = "libyang_pkg",
+    srcs = _RUNTIME_PYTHON + _EGG_INFO + ["LICENSE"],
+    binaries = {
+        "usr/lib/python3/dist-packages/_libyang.so type=file mode=0555": ":_libyang.so",
+    },
+    force_debug_build = True,
+    mtree = [
+        "usr/lib/python3/dist-packages/{} type=file mode=0644 content=$(location {})".format(source, source)
+        for source in _RUNTIME_PYTHON
+    ] + [
+        "usr/lib/python3/dist-packages/{} type=file mode=0644 uid=0 gid=0 content=$(location {})".format(source, source)
+        for source in _EGG_INFO
+    ] + [
+        "usr/share/doc/python3-libyang/copyright type=file mode=0444 content=$(location LICENSE)",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+py_test(
+    name = "libyang_package_test",
+    srcs = ["libyang_package_test.py"],
+    args = [
+        "$(rootpath :libyang_pkg)",
+        "$(rootpath :libyang_pkg.debug_symbols)",
+        "$(rootpath @libyang//:libyang_pkg)",
+        "$(rootpath libyang_runtime_test.py)",
+        "$(rootpath :libyang-3.1.0.egg-info/PKG-INFO)",
+    ],
+    data = _RUNTIME_PYTHON + _EGG_INFO + [
+        "LICENSE",
+        "libyang_runtime_test.py",
+        ":libyang_pkg",
+        ":libyang_pkg.debug_symbols",
+        "@libyang//:libyang_pkg",
+    ],
+    python_version = "3.13",
+    visibility = ["//visibility:public"],
+    deps = ["@libyang_python_pip//cffi"],
+)
+
+# Package fields come from the existing Debian recipe. This mapping only
+# identifies the Bazel-built TAR for each Debian binary package.
+runtime_packages(
+    name = "runtime_packages.json",
+    changelog = "debian/changelog",
+    control = "debian/control",
+    dependencies = [
+        "@libyang//:runtime_packages.json",
+    ],
+    packages = {
+        "python3-libyang": "//:libyang_pkg",
+    },
+    visibility = ["//visibility:public"],
+)
+
+exports_files(
+    ["runtime_packages.md"],
+    visibility = ["//visibility:public"],
+)
