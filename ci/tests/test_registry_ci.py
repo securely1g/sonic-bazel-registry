@@ -13,6 +13,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
 import unittest
 from unittest import mock
@@ -172,12 +173,13 @@ class SelectionTests(FixtureTestCase):
         with self.assertRaisesRegex(registry_ci.RegistryError, "Unsupported version path"):
             registry_ci.plan(self.root, base, head, published=base)
 
-    def test_changed_version_without_manifest_fails_planning(self) -> None:
+    def test_changed_standalone_tests_without_manifest_fail_planning(self) -> None:
         entry = self.entry("alpha", "1.0.0", configured=False)
         base = self.commit("historical unconfigured version")
-        (entry / "README.md").write_text("Changed historical version.\n")
-        head = self.commit("change unconfigured version")
-        with self.assertRaises(registry_ci.RegistryError):
+        (entry / "tests").mkdir()
+        (entry / "tests" / "consumer_test.py").write_text("assert True\n")
+        head = self.commit("add test without a validation manifest")
+        with self.assertRaisesRegex(registry_ci.RegistryError, "presubmit.json"):
             registry_ci.plan(self.root, base, head, published=base)
 
     def test_deleted_version_fails_planning(self) -> None:
@@ -343,8 +345,8 @@ class SelectionTests(FixtureTestCase):
             "versions": ["1.0.0"], "yanked_versions": {"1.0.0": "Withdrawn"},
         })
         base = self.commit("initial registry with yanked version")
-        (entry / "README.md").write_text("Explain withdrawn release.\n")
-        head = self.commit("document yanked version")
+        (entry / "MODULE.bazel").write_text('module(name = "alpha", version = "1.0.0")\n# Changed\n')
+        head = self.commit("change yanked module declaration")
         with self.assertRaisesRegex(registry_ci.RegistryError, "published version changed"):
             self.selected(base, head)
 
@@ -547,8 +549,8 @@ class VersionPolicyTests(FixtureTestCase):
         with self.assertRaisesRegex(registry_ci.RegistryError, "metadata and version directories differ"):
             registry_ci.plan(self.root, published, head, published=published)
 
-    def test_published_tree_cannot_be_edited_or_removed(self) -> None:
-        """Protect file contents, additions, deletions, modes, and whole entries."""
+    def test_published_inputs_cannot_be_edited_or_removed(self) -> None:
+        """Protect consumer inputs, unknown additions, modes, and whole entries."""
         entry = self.entry("alpha", "1.0.0")
         published = self.commit("main")
         for mutation in ("edit", "add", "delete", "mode", "remove"):
@@ -557,7 +559,7 @@ class VersionPolicyTests(FixtureTestCase):
                 if mutation == "edit":
                     (entry / "source.json").write_text("{}\n")
                 elif mutation == "add":
-                    (entry / "README.md").write_text("New published content\n")
+                    (entry / "BUILD.bazel").write_text("# New build input\n")
                 elif mutation == "delete":
                     (entry / "source.json").unlink()
                 elif mutation == "mode":
@@ -566,6 +568,151 @@ class VersionPolicyTests(FixtureTestCase):
                     shutil.rmtree(entry)
                     write_json(entry.parent / "metadata.json", {"versions": []})
                 head = self.commit(mutation)
+                with self.assertRaisesRegex(registry_ci.RegistryError, "published version changed or removed"):
+                    registry_ci.plan(self.root, published, head, published=published)
+
+    def test_published_documentation_does_not_require_historical_ci(self) -> None:
+        """Maintaining docs must not require retrofitting old module tests."""
+        entry = self.entry("alpha", "1.0.0", configured=False)
+        (entry / "README.md").write_text("Old instructions\n")
+        (entry / "PATCHES.md").write_text("Obsolete notes\n")
+        published = self.commit("published version without CI")
+        (entry / "README.md").write_text("Corrected instructions\n")
+        (entry / "PATCHES.md").unlink()
+        (entry / "docs").mkdir()
+        (entry / "docs" / "example.md").write_text("A concrete consumer example\n")
+        head = self.commit("maintain published documentation")
+        self.assertEqual(self.selected(published, head), set())
+
+    def test_published_standalone_tests_select_the_historical_version(self) -> None:
+        """Updating an older release's tests must validate that release."""
+        entry = self.entry("alpha", "1.0.0")
+        tests = entry / "tests"
+        tests.mkdir()
+        (tests / "consumer_test.py").write_text("assert True\n")
+        (tests / "obsolete_fixture.txt").write_text("old fixture\n")
+        self.entry("alpha", "2.0.0")
+        published = self.commit("two published releases")
+        (tests / "consumer_test.py").write_text("assert 1 + 1 == 2\n")
+        (tests / "obsolete_fixture.txt").unlink()
+        (tests / "replacement_fixture.txt").write_text("new fixture\n")
+        config = json.loads((entry / "presubmit.json").read_text())
+        config["test_targets"].append("@alpha//:additional_consumer_test")
+        write_json(entry / "presubmit.json", config)
+        head = self.commit("maintain historical standalone tests")
+        self.assertEqual(self.selected(published, head), {("alpha", "1.0.0")})
+
+    def test_published_version_can_add_standalone_ci(self) -> None:
+        """CI configuration is maintenance, even when the release predates CI."""
+        entry = self.entry("alpha", "1.0.0", configured=False)
+        newer = self.entry("alpha", "2.0.0")
+        published = self.commit("historical release without CI")
+        shutil.copy2(newer / "presubmit.json", entry / "presubmit.json")
+        head = self.commit("add CI for the historical release")
+        self.assertEqual(self.selected(published, head), {("alpha", "1.0.0")})
+
+    def test_published_test_executable_bit_is_maintenance(self) -> None:
+        entry = self.entry("alpha", "1.0.0")
+        script = entry / "tests" / "run.sh"
+        script.parent.mkdir()
+        script.write_text("#!/bin/sh\nexit 0\n")
+        published = self.commit("published test script")
+        script.chmod(0o755)
+        head = self.commit("make standalone test executable")
+        self.assertEqual(self.selected(published, head), {("alpha", "1.0.0")})
+
+    def test_published_maintenance_cannot_introduce_symlinks(self) -> None:
+        entry = self.entry("alpha", "1.0.0")
+        docs = entry / "docs"
+        docs.mkdir()
+        (docs / "guide.md").write_text("Instructions\n")
+        published = self.commit("published documentation")
+        for relative in ("README.md", "docs/guide.md", "tests/consumer_test.py"):
+            with self.subTest(path=relative):
+                self.git("reset", "--hard", published)
+                self.git("clean", "-fdq")
+                path = entry / relative
+                path.parent.mkdir(exist_ok=True)
+                path.unlink(missing_ok=True)
+                path.symlink_to("../MODULE.bazel")
+                head = self.commit("replace maintenance file with symlink")
+                with self.assertRaisesRegex(registry_ci.RegistryError, "published version changed or removed"):
+                    registry_ci.plan(self.root, published, head, published=published)
+
+    def test_published_patch_and_overlay_docs_remain_inputs(self) -> None:
+        """A README or test copied into fetched sources is not standalone CI."""
+        entry = self.entry("alpha", "1.0.0")
+        payloads = ["patches/README.md", "overlay/docs/guide.md", "overlay/tests/consumer_test.py"]
+        source = json.loads((entry / "source.json").read_text())
+        for relative in payloads:
+            path = entry / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("original source input\n")
+            folder, name = relative.split("/", 1)
+            source.setdefault(folder, {})[name] = digest(path.read_bytes())
+        write_json(entry / "source.json", source)
+        published = self.commit("published fetched docs and tests")
+        for relative in payloads:
+            for mutation in ("edit", "delete", "mode"):
+                with self.subTest(path=relative, mutation=mutation):
+                    self.git("reset", "--hard", published)
+                    path = entry / relative
+                    if mutation == "edit":
+                        path.write_text("changed source input\n")
+                    elif mutation == "delete":
+                        path.unlink()
+                    else:
+                        path.chmod(0o755)
+                    head = self.commit("change fetched source input")
+                    with self.assertRaisesRegex(registry_ci.RegistryError, "published version changed or removed"):
+                        registry_ci.plan(self.root, published, head, published=published)
+
+    def test_published_source_references_override_maintenance_paths(self) -> None:
+        """A registry-local archive cannot become mutable by living under tests/."""
+        entry = self.entry("alpha", "1.0.0")
+        for relative in ("docs/source.tar.gz", "tests/source.tar.gz"):
+            path = entry / relative
+            path.parent.mkdir()
+            path.write_bytes(b"archive")
+        base = self.commit("source fixtures")
+        for field, url, relative in (
+            ("url", "https://example.invalid/registry/docs/source.tar.gz", "docs/source.tar.gz"),
+            ("mirror_urls", "https://example.invalid/registry/tests/source.tar.gz", "tests/source.tar.gz"),
+            ("url", "https://example.invalid/docs/%2e%2e/tests/source.tar.gz?raw=1", "tests/source.tar.gz"),
+        ):
+            with self.subTest(field=field, url=url):
+                self.git("reset", "--hard", base)
+                source = json.loads((entry / "source.json").read_text())
+                source[field] = [url] if field == "mirror_urls" else url
+                write_json(entry / "source.json", source)
+                published = self.commit("publish referenced archive")
+                (entry / relative).write_bytes(b"changed archive")
+                head = self.commit("change archive under maintenance path")
+                with self.assertRaisesRegex(registry_ci.RegistryError, "published version changed or removed"):
+                    registry_ci.plan(self.root, published, head, published=published)
+
+    def test_published_docs_url_is_informational(self) -> None:
+        entry = self.entry("alpha", "1.0.0", configured=False)
+        (entry / "README.md").write_text("Old documentation\n")
+        source = json.loads((entry / "source.json").read_text())
+        source["docs_url"] = "https://example.invalid/registry/README.md"
+        write_json(entry / "source.json", source)
+        published = self.commit("publish documentation link")
+        (entry / "README.md").write_text("Corrected documentation\n")
+        head = self.commit("maintain linked documentation")
+        self.assertEqual(self.selected(published, head), set())
+
+    def test_unknown_recipe_layout_keeps_whole_entry_immutable(self) -> None:
+        entry = self.entry("alpha", "1.0.0")
+        original = json.loads((entry / "source.json").read_text())
+        base = self.commit("archive entry")
+        for extra in ({"type": "local_path"}, {"future_build_input": "unrecognized layout"}):
+            with self.subTest(extra=extra):
+                self.git("reset", "--hard", base)
+                write_json(entry / "source.json", {**original, **extra})
+                published = self.commit("unsupported source layout")
+                (entry / "README.md").write_text("Cannot infer whether this is a build input\n")
+                head = self.commit("change unsupported source layout")
                 with self.assertRaisesRegex(registry_ci.RegistryError, "published version changed or removed"):
                     registry_ci.plan(self.root, published, head, published=published)
 
@@ -603,11 +750,11 @@ class VersionPolicyTests(FixtureTestCase):
         self.entry("alpha", "1.0.0")
         fork = self.commit("common ancestor")
         entry = self.entry("alpha", "2.0.0")
-        (entry / "README.md").write_text("Published contents\n")
+        (entry / "MODULE.bazel").write_text('module(name = "alpha", version = "2.0.0")\n# Published\n')
         published = self.commit("publish candidate independently")
         self.git("checkout", "--detach", fork)
         entry = self.entry("alpha", "2.0.0")
-        (entry / "README.md").write_text("Different contents\n")
+        (entry / "MODULE.bazel").write_text('module(name = "alpha", version = "2.0.0")\n# Different\n')
         head = self.commit("colliding candidate")
         with self.assertRaisesRegex(registry_ci.RegistryError, "published version changed or removed"):
             registry_ci.plan(self.root, fork, head, published=published)
@@ -616,7 +763,7 @@ class VersionPolicyTests(FixtureTestCase):
         """Pushes must use event.before; the post-push main tree blesses itself."""
         entry = self.entry("alpha", "1.0.0")
         before = self.commit("pre-push main")
-        (entry / "README.md").write_text("Edited published release\n")
+        (entry / "MODULE.bazel").write_text('module(name = "alpha", version = "1.0.0")\n# Edited\n')
         head = self.commit("push")
         with self.assertRaisesRegex(registry_ci.RegistryError, "published version changed or removed"):
             registry_ci.plan(self.root, None, head, all_versions=True, published=before, push=True)
@@ -1061,6 +1208,105 @@ class RustPreparationTests(FixtureTestCase):
             self.prepare("common --override_module=alpha=/tmp/other\n")
 
 
+class IntegrationTestModuleTests(FixtureTestCase):
+    """A separate test root must still exercise the reviewed registry recipe."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.registry_entry = self.entry("alpha", "1.0.0")
+        self.config_path = self.registry_entry / "presubmit.json"
+        self.config = json.loads(self.config_path.read_text())
+        self.config.update({"integration_test_module": "tests/integration", "consumer_deps": []})
+        self.directory = self.registry_entry / "tests/integration"
+        self.directory.mkdir(parents=True)
+        self.module = self.directory / "MODULE.bazel"
+        self.module.write_text('module(name = "integration_tests")\n'
+                               'bazel_dep(name = "alpha", version = "1.0.0")\n')
+        (self.directory / "BUILD.bazel").write_text('filegroup(name = "archives", srcs = [])\n')
+
+    def validate(self) -> dict:
+        write_json(self.config_path, self.config)
+        return registry_ci.validate_entry(self.root, "alpha", "1.0.0")
+
+    def test_root_labels_require_an_explicit_integration_module(self) -> None:
+        self.config["build_targets"].append("//:archives")
+        self.config["test_targets"].append("//:archive_contract_test")
+        self.validate()
+        del self.config["integration_test_module"]
+        with self.assertRaisesRegex(registry_ci.RegistryError, "explicit targets"):
+            self.validate()
+
+    def test_integration_root_does_not_allow_wildcards_or_unrelated_module_targets(self) -> None:
+        for label in ("//...", "//:all", "//:all-targets", "@another//:test"):
+            with self.subTest(label=label):
+                self.config["test_targets"] = [label]
+                with self.assertRaisesRegex(registry_ci.RegistryError, "explicit targets"):
+                    self.validate()
+
+    def test_test_module_cannot_escape_the_entry_or_use_symlinks(self) -> None:
+        (self.registry_entry / "linked-tests").symlink_to(self.directory, target_is_directory=True)
+        for name in ("../outside", "/tmp/tests", "tests/../integration", "linked-tests", "tests//integration"):
+            with self.subTest(name=name):
+                self.config["integration_test_module"] = name
+                with self.assertRaises(registry_ci.RegistryError):
+                    self.validate()
+        self.config["integration_test_module"] = "tests/integration"
+        (self.directory / "fixture.json").symlink_to(self.registry_entry / "source.json")
+        with self.assertRaisesRegex(registry_ci.RegistryError, "regular files"):
+            self.validate()
+
+    def test_test_module_rejects_local_build_state_and_missing_build_file(self) -> None:
+        for name in (".bazelrc", "MODULE.bazel.lock", "bazel-bin", "__pycache__", "test.pyc"):
+            with self.subTest(name=name):
+                path = self.directory / name
+                path.write_text("local state")
+                with self.assertRaisesRegex(registry_ci.RegistryError, "local build state"):
+                    self.validate()
+                path.unlink()
+        (self.directory / "BUILD.bazel").unlink()
+        with self.assertRaisesRegex(registry_ci.RegistryError, "Missing regular input"):
+            self.validate()
+
+    def test_test_module_cannot_override_registry_resolution_or_include_unchecked_files(self) -> None:
+        original = self.module.read_text()
+        for declaration in (
+            'local_path_override(module_name = "alpha", path = "/tmp/alpha")',
+            'single_version_override(module_name = "alpha", version = "1.0.0")',
+            'include("//:other.MODULE.bazel")',
+            'redirect = local_path_override\nredirect(module_name = "alpha", path = "/tmp/alpha")',
+        ):
+            with self.subTest(declaration=declaration):
+                self.module.write_text(original + declaration + "\n")
+                with self.assertRaisesRegex(registry_ci.RegistryError, "cannot include files or override"):
+                    self.validate()
+
+    def test_test_module_requires_the_exact_reviewed_dependency(self) -> None:
+        for declaration in (
+            'bazel_dep(name = "other", version = "1.0.0")',
+            'bazel_dep(name = "alpha", version = "2.0.0")',
+            'bazel_dep(name = "alpha", version = "1.0.0", repo_name = "alias")',
+            'bazel_dep(name = "alpha", version = "1.0.0")\nbazel_dep(name = "alpha", version = "1.0.0")',
+        ):
+            with self.subTest(declaration=declaration):
+                self.module.write_text(declaration + "\n")
+                with self.assertRaisesRegex(registry_ci.RegistryError, "exact tested module"):
+                    self.validate()
+
+    def test_test_module_cannot_silently_ignore_generated_root_configuration(self) -> None:
+        for field, value in (
+            ("consumer_deps", [{"name": "platforms", "version": "1.0.0"}]),
+            ("go_sdk", {"version": "1.25.0"}),
+            ("rust_toolchain", {"version": "1.90.0"}),
+            ("rust_preparation", {}),
+        ):
+            with self.subTest(field=field):
+                config = copy.deepcopy(self.config)
+                self.config[field] = value
+                with self.assertRaisesRegex(registry_ci.RegistryError, "owns its dependencies"):
+                    self.validate()
+                self.config = config
+
+
 class RequiredTestResultTests(FixtureTestCase):
     label = "@alpha//:consumer_test"
 
@@ -1081,6 +1327,18 @@ class RequiredTestResultTests(FixtureTestCase):
 
     def test_uncached_canonical_test_result_is_accepted(self) -> None:
         self.verify(self.events())
+
+    def test_root_integration_results_use_the_same_required_uncached_checks(self) -> None:
+        for label in ("//:archive_contract_test", "@@//:archive_contract_test", "@//:archive_contract_test"):
+            with self.subTest(label=label):
+                events = self.events()
+                for event in events:
+                    for identifier in event["id"].values():
+                        identifier["label"] = label
+                self.verify(events, ["//:archive_contract_test"])
+                events[0]["testResult"]["cachedLocally"] = True
+                with self.assertRaises(registry_ci.RegistryError):
+                    self.verify(events, ["//:archive_contract_test"])
 
     def test_every_required_test_needs_a_result_and_summary(self) -> None:
         events = self.events()
@@ -1143,11 +1401,11 @@ class BuildOutputTests(FixtureTestCase):
             ])
         return events
 
-    def collect(self, events: list[dict]) -> dict:
+    def collect(self, events: list[dict], **kwargs) -> dict:
         bep = self.root / "build-events.jsonl"
         bep.write_text("".join(json.dumps(event) + "\n" for event in events))
         artifacts = self.root / "artifacts"
-        registry_ci.collect_outputs(bep, self.labels, self.work, artifacts)
+        registry_ci.collect_outputs(bep, self.labels, self.work, artifacts, **kwargs)
         return json.loads((artifacts / "outputs.json").read_text())
 
     def test_runtime_debug_pair_and_hashes_are_retained(self) -> None:
@@ -1160,6 +1418,57 @@ class BuildOutputTests(FixtureTestCase):
             self.assertEqual(files[0]["sha256"], hashlib.sha256(data).hexdigest())
             self.assertEqual(files[0]["size"], len(data))
 
+    def expanded_tree_events(self) -> tuple[list[dict], Path, dict]:
+        events = self.events()
+        tree = self.work / "bazel-out/bin/tools"
+        tree.mkdir(parents=True)
+        (tree / "Text::Width").write_text("tree contents")
+        # This sibling shares a lexical prefix with the directory. It must
+        # remain an ordinary output and never be swallowed by tree grouping.
+        sibling = tree.parent / "tools-extra.tar"
+        sibling.write_bytes(b"ordinary tar bytes")
+        (tree.parent / "not-exported").write_bytes(b"must not enter artifacts")
+        events[0]["namedSetOfFiles"]["files"] = [
+            {"name": path.relative_to(self.work).as_posix(), "uri": path.as_uri()}
+            for path in [tree / "Text::Width", sibling]
+        ]
+        trees = {self.labels[0]: ["bazel-out/bin/tools"], self.labels[1]: []}
+        return events, tree, trees
+
+    def test_expanded_tree_records_use_declared_boundary_and_preserve_adjacent_file(self) -> None:
+        events, tree, trees = self.expanded_tree_events()
+        index = self.collect(events, declared_trees=trees, execution_root=self.work)
+        records = index[self.labels[0]]
+        self.assertEqual(len(records), 2)
+        archive_record = next(item for item in records if item.get("type") == "tree_archive")
+        regular_record = next(item for item in records if item.get("type") != "tree_archive")
+        self.assertEqual(regular_record["path"], "outputs/bazel-out/bin/tools-extra.tar")
+        self.assertEqual((self.root / "artifacts" / regular_record["path"]).read_bytes(), b"ordinary tar bytes")
+        with tarfile.open(self.root / "artifacts" / archive_record["path"]) as archive:
+            self.assertEqual(set(archive.getnames()), {"bazel-out/bin/tools", "bazel-out/bin/tools/Text::Width"})
+        self.assertFalse(any(path.name == "Text::Width" for path in (self.root / "artifacts/outputs").rglob("*")))
+
+    def test_expanded_tree_member_must_match_physical_execution_root_path(self) -> None:
+        events, tree, trees = self.expanded_tree_events()
+        events[0]["namedSetOfFiles"]["files"][0]["uri"] = (self.work / "runtime.tar").as_uri()
+        with self.assertRaisesRegex(registry_ci.RegistryError, "does not match"):
+            self.collect(events, declared_trees=trees, execution_root=self.work)
+
+    def test_declared_empty_tree_survives_empty_bep_file_set(self) -> None:
+        events, tree, trees = self.expanded_tree_events()
+        (tree / "Text::Width").unlink()
+        events[0]["namedSetOfFiles"]["files"] = []
+        index = self.collect(events, declared_trees=trees, execution_root=self.work)
+        with tarfile.open(self.root / "artifacts" / index[self.labels[0]][0]["path"]) as archive:
+            self.assertEqual(archive.getnames(), ["bazel-out/bin/tools"])
+            self.assertTrue(archive.getmembers()[0].isdir())
+
+    def test_declared_directory_cannot_escape_execution_root(self) -> None:
+        events, tree, trees = self.expanded_tree_events()
+        trees[self.labels[0]] = ["bazel-out/../../tools"]
+        with self.assertRaisesRegex(registry_ci.RegistryError, "Unsafe declared tree path"):
+            self.collect(events, declared_trees=trees, execution_root=self.work)
+
     def test_nested_sets_tree_outputs_and_repeated_files(self) -> None:
         events = self.events()
         tree = self.work / "models"
@@ -1171,7 +1480,205 @@ class BuildOutputTests(FixtureTestCase):
         ]}})
         index = self.collect(events)
         self.assertEqual(len(index[self.labels[0]]), 1)
-        self.assertEqual(index[self.labels[0]][0]["path"], "outputs/models/model.yang")
+        record = index[self.labels[0]][0]
+        self.assertEqual(record["type"], "tree_archive")
+        self.assertEqual(record["root"], "models")
+        with tarfile.open(self.root / "artifacts" / record["path"]) as archive:
+            self.assertEqual(archive.extractfile("models/model.yang").read(), b"module fixture {}")
+
+    def test_repository_outputs_with_equal_basenames_keep_distinct_bytes(self) -> None:
+        events = self.events()
+        for offset, package in ((0, "libc6"), (2, "netbase")):
+            output = self.work / "bazel" / "output-base" / "external" / package / "control.tar.xz"
+            output.parent.mkdir(parents=True)
+            output.write_bytes(package.encode())
+            events[offset]["namedSetOfFiles"]["files"] = [
+                {"name": output.name, "uri": output.as_uri()},
+                {"name": output.name, "uri": output.as_uri()},
+            ]
+        index = self.collect(events)
+        paths = []
+        for label, package in zip(self.labels, ("libc6", "netbase")):
+            self.assertEqual(len(index[label]), 1)
+            record = index[label][0]
+            paths.append(record["path"])
+            self.assertEqual((self.root / "artifacts" / record["path"]).read_bytes(), package.encode())
+            self.assertEqual(record["sha256"], hashlib.sha256(package.encode()).hexdigest())
+        self.assertEqual(len(set(paths)), 2)
+
+    def test_unprefixed_repository_output_cannot_escape_private_workspace(self) -> None:
+        events = self.events()
+        outside = self.root / "outside-control.tar.xz"
+        outside.write_bytes(b"outside")
+        link = self.work / "control.tar.xz"
+        link.symlink_to(outside)
+        events[0]["namedSetOfFiles"]["files"] = [{"name": link.name, "uri": link.as_uri()}]
+        with self.assertRaisesRegex(registry_ci.RegistryError, "escapes work-dir"):
+            self.collect(events)
+
+    def test_tree_archive_preserves_posix_names_modes_links_and_empty_directories(self) -> None:
+        events = self.events()
+        tree = self.work / "tools"
+        tree.mkdir()
+        (tree / "empty").mkdir()
+        for name in ("Text::CharWidth.3pm.gz", "xt_CONNMARK.h", "xt_connmark.h", "tool"):
+            (tree / name).write_text(name)
+        (tree / "tool").chmod(0o751)
+        (tree / "alias").symlink_to("tool")
+        events[0]["namedSetOfFiles"]["files"] = [{"name": "tools:POSIX", "uri": tree.as_uri()}]
+        index = self.collect(events)
+        record = index[self.labels[0]][0]
+        archive_path = self.root / "artifacts" / record["path"]
+        self.assertRegex(record["path"], r"^outputs/trees/[a-f0-9]{64}\.tar$")
+        self.assertEqual(record["root"], "tools:POSIX")
+        self.assertEqual(record["size"], archive_path.stat().st_size)
+        digest = hashlib.sha256(archive_path.read_bytes()).hexdigest()
+        self.assertEqual(record["sha256"], digest)
+        with tarfile.open(archive_path) as archive:
+            for name in ("Text::CharWidth.3pm.gz", "xt_CONNMARK.h", "xt_connmark.h"):
+                self.assertEqual(archive.extractfile("tools:POSIX/" + name).read(), name.encode())
+            self.assertEqual(archive.getmember("tools:POSIX/tool").mode, 0o751)
+            self.assertTrue(archive.getmember("tools:POSIX/empty").isdir())
+            link = archive.getmember("tools:POSIX/alias")
+            self.assertTrue(link.issym())
+            self.assertEqual(link.linkname, "tool")
+            self.assertTrue(all(member.uid == member.gid == member.mtime == 0 for member in archive))
+            archive.extractall(self.root / "restored", filter="data")
+        restored = self.root / "restored/tools:POSIX"
+        self.assertEqual((restored / "tool").stat().st_mode & 0o777, 0o751)
+        self.assertEqual((restored / "alias").readlink(), Path("tool"))
+        self.assertEqual((restored / "alias").read_text(), "tool")
+        # Filesystem timestamps do not change the archive or output receipt.
+        os.utime(tree / "tool", (1000, 1000))
+        shutil.rmtree(self.root / "artifacts")
+        self.assertEqual(self.collect(events)[self.labels[0]][0], record)
+
+    def test_tree_links_cannot_escape_work_dir_or_cycle(self) -> None:
+        events = self.events()
+        tree = self.work / "tools"
+        tree.mkdir()
+        events[0]["namedSetOfFiles"]["files"] = [{"name": "tools", "uri": tree.as_uri()}]
+        (self.root / "secret").write_text("not a build output")
+        for target, message in ((self.root / "secret", "escapes work-dir"), (tree, "directory cycle")):
+            with self.subTest(target=target):
+                (tree / "link").symlink_to(target)
+                with self.assertRaisesRegex(registry_ci.RegistryError, message):
+                    self.collect(events)
+                self.assertEqual(list((self.root / "artifacts/outputs/trees").iterdir()), [])
+                (tree / "link").unlink()
+                shutil.rmtree(self.root / "artifacts")
+
+    def test_tree_links_to_other_declared_outputs_are_materialized(self) -> None:
+        events = self.events()
+        tree = self.work / "tools"
+        tree.mkdir()
+        (tree / "relative").symlink_to("../debug.tar")
+        (tree / "absolute").symlink_to(self.work / "debug.tar")
+        events[0]["namedSetOfFiles"]["files"] = [{"name": "tools", "uri": tree.as_uri()}]
+        record = self.collect(events)[self.labels[0]][0]
+        with tarfile.open(self.root / "artifacts" / record["path"]) as archive:
+            for name in ("relative", "absolute"):
+                self.assertTrue(archive.getmember("tools/" + name).isreg())
+                self.assertEqual(archive.extractfile("tools/" + name).read(), b"debug")
+
+    def test_tree_external_directory_backlink_survives_relocation(self) -> None:
+        events = self.events()
+        tree = self.work / "tools"
+        shared = self.work / "shared"
+        tree.mkdir()
+        shared.mkdir()
+        (tree / "payload").write_text("inside original tree")
+        (tree / "imported").symlink_to("../shared")
+        (shared / "backlink").symlink_to("../tools/payload")
+        self.assertEqual((tree / "imported/backlink").read_text(), "inside original tree")
+        events[0]["namedSetOfFiles"]["files"] = [{"name": "tools", "uri": tree.as_uri()}]
+        record = self.collect(events)[self.labels[0]][0]
+        with tarfile.open(self.root / "artifacts" / record["path"]) as archive:
+            archive.extractall(self.root / "restored", filter="data")
+        self.assertEqual(
+            (self.root / "restored/tools/imported/backlink").read_text(), "inside original tree",
+        )
+
+    def test_tree_link_traversing_outside_then_back_is_self_contained(self) -> None:
+        events = self.events()
+        tree = self.work / "tools"
+        shared = self.work / "shared"
+        tree.mkdir()
+        shared.mkdir()
+        (tree / "payload").write_text("back inside")
+        (shared / "backlink").symlink_to("../tools/payload")
+        (tree / "link").symlink_to("../shared/backlink")
+        self.assertEqual((tree / "link").read_text(), "back inside")
+        events[0]["namedSetOfFiles"]["files"] = [{"name": "tools", "uri": tree.as_uri()}]
+        record = self.collect(events)[self.labels[0]][0]
+        with tarfile.open(self.root / "artifacts" / record["path"]) as archive:
+            archive.extractall(self.root / "restored", filter="data")
+        self.assertEqual((self.root / "restored/tools/link").read_text(), "back inside")
+
+    def test_tree_nested_materialization_preserves_returned_subtree_contents(self) -> None:
+        events = self.events()
+        tree = self.work / "tools"
+        shared = self.work / "shared"
+        tree.mkdir()
+        shared.mkdir()
+        (tree / "inside").mkdir()
+        (tree / "payload").write_text("nested contents")
+        (tree / "inside/backlink").symlink_to("../payload")
+        (tree / "imported").symlink_to("../shared")
+        (shared / "nested").symlink_to("../tools/inside")
+        self.assertEqual((tree / "imported/nested/backlink").read_text(), "nested contents")
+        events[0]["namedSetOfFiles"]["files"] = [{"name": "tools", "uri": tree.as_uri()}]
+        record = self.collect(events)[self.labels[0]][0]
+        with tarfile.open(self.root / "artifacts" / record["path"]) as archive:
+            archive.extractall(self.root / "restored", filter="data")
+        restored = self.root / "restored/tools"
+        self.assertEqual((restored / "imported/nested/backlink").read_text(), "nested contents")
+        self.assertEqual((restored / "inside/backlink").readlink(), Path("../payload"))
+        self.assertEqual((restored / "inside/backlink").read_text(), "nested contents")
+
+    def test_tree_link_parent_after_symlink_keeps_physical_target(self) -> None:
+        events = self.events()
+        tree = self.work / "tools"
+        shared = self.work / "shared"
+        tree.mkdir()
+        shared.mkdir()
+        (tree / "tools").mkdir()
+        (tree / "payload").write_text("physical target")
+        (tree / "tools/payload").write_text("different lexical target")
+        (tree / "dir").symlink_to("../shared")
+        (tree / "link").symlink_to("dir/../tools/payload")
+        self.assertEqual((tree / "link").read_text(), "physical target")
+        events[0]["namedSetOfFiles"]["files"] = [{"name": "tools", "uri": tree.as_uri()}]
+        record = self.collect(events)[self.labels[0]][0]
+        with tarfile.open(self.root / "artifacts" / record["path"]) as archive:
+            archive.extractall(self.root / "restored", filter="data")
+        self.assertEqual((self.root / "restored/tools/link").read_text(), "physical target")
+
+    def test_tree_link_leaving_and_reentering_renamed_root_is_portable(self) -> None:
+        events = self.events()
+        tree = self.work / "tools"
+        tree.mkdir()
+        (tree / "payload").write_text("renamed root contents")
+        (tree / "link").symlink_to("../tools/payload")
+        self.assertEqual((tree / "link").read_text(), "renamed root contents")
+        events[0]["namedSetOfFiles"]["files"] = [{"name": "renamed-tools", "uri": tree.as_uri()}]
+        record = self.collect(events)[self.labels[0]][0]
+        with tarfile.open(self.root / "artifacts" / record["path"]) as archive:
+            archive.extractall(self.root / "restored", filter="data")
+        self.assertEqual(
+            (self.root / "restored/renamed-tools/link").read_text(), "renamed root contents",
+        )
+
+    def test_conflicting_trees_are_rejected(self) -> None:
+        events = self.events()
+        for position, name in ((0, "first"), (2, "second")):
+            tree = self.work / name
+            tree.mkdir()
+            (tree / "file").write_text(name)
+            events[position]["namedSetOfFiles"]["files"] = [{"name": "tree", "uri": tree.as_uri()}]
+        with self.assertRaisesRegex(registry_ci.RegistryError, "Conflicting"):
+
+            self.collect(events)
 
     def test_missing_required_target_or_output_is_rejected(self) -> None:
         events = self.events()
@@ -1205,6 +1712,22 @@ class BuildOutputTests(FixtureTestCase):
         events[2]["namedSetOfFiles"]["files"][0]["name"] = "runtime.tar"
         with self.assertRaisesRegex(registry_ci.RegistryError, "Conflicting"):
             self.collect(events)
+
+
+class NativeValidationTests(unittest.TestCase):
+    def test_wrong_userspace_is_rejected_even_on_matching_host(self) -> None:
+        with mock.patch.object(registry_ci.platform, "system", return_value="Linux"), \
+             mock.patch.object(registry_ci.platform, "machine", return_value="x86_64"), \
+             mock.patch.object(registry_ci.subprocess, "check_output", return_value="arm64\n"):
+            with self.assertRaisesRegex(registry_ci.RegistryError, "userspace"):
+                registry_ci.verify_native("amd64")
+
+    def test_foreign_host_is_rejected_even_with_matching_userspace(self) -> None:
+        with mock.patch.object(registry_ci.platform, "system", return_value="Linux"), \
+             mock.patch.object(registry_ci.platform, "machine", return_value="x86_64"), \
+             mock.patch.object(registry_ci.subprocess, "check_output", return_value="arm64\n"):
+            with self.assertRaisesRegex(registry_ci.RegistryError, "native Linux host"):
+                registry_ci.verify_native("arm64")
 
 
 class FailedActionLogTests(FixtureTestCase):
@@ -1268,6 +1791,9 @@ class FetchedModuleTests(FixtureTestCase):
         self.registry_entry = self.entry("alpha", "1.0.0")
         self.config_path = self.registry_entry / "presubmit.json"
         self.config = json.loads(self.config_path.read_text())
+        self.architecture = {"x86_64": "amd64", "aarch64": "arm64"}[registry_ci.platform.machine()]
+        self.config["architectures"] = [self.architecture]
+        self.config["platforms"] = {self.architecture: "@platforms//host:host"}
         self.config["build_flags"] = ["--@alpha//bazel:yang_modules=False"]
         self.config["consumer_deps"] = [
             {"name": "platforms", "version": "1.0.0"},
@@ -1291,9 +1817,11 @@ class FetchedModuleTests(FixtureTestCase):
             "from pathlib import Path\n"
             "import sys\n"
             "args = sys.argv[1:]\n"
-            "assert '--@alpha//bazel:yang_modules=False' in args\n"
+            "assert ('--@alpha//bazel:yang_modules=False' in args) == ('info' not in args)\n"
             "if 'info' in args:\n"
-            f"    print({str(self.output_base)!r})\n"
+            f"    print(str(Path.cwd()) if 'execution_root' in args else {str(self.output_base)!r})\n"
+            "elif 'cquery' in args:\n"
+            "    print(json.dumps({'label': '@@alpha+//:library', 'trees': []}))\n"
             "elif 'build' in args:\n"
             "    assert '--lockfile_mode=update' in args\n"
             "    Path('MODULE.bazel.lock').write_text('{\"lockFileVersion\": 13}\\n')\n"
@@ -1318,17 +1846,53 @@ class FetchedModuleTests(FixtureTestCase):
             "    Path(path).write_text(''.join(json.dumps(event) + '\\n' for event in events))\n"
         )
         self.fake_bazel.chmod(0o755)
+        self.source_head = self.commit("Create registry validation fixture")
 
     def fetched_module(self, name: str) -> Path:
         return self.output_base / "external" / f"{name}+" / "MODULE.bazel"
 
-    def run_fixture(self, suffix: str, architecture: str = "amd64") -> Path:
+    def run_fixture(self, suffix: str, architecture: str | None = None) -> Path:
         artifacts = self.root / f"artifacts-{suffix}"
         registry_ci.run(
-            self.root, "alpha", "1.0.0", architecture,
+            self.root, "alpha", "1.0.0", architecture or self.architecture,
             self.root / f"work-{suffix}", artifacts, str(self.fake_bazel),
         )
         return artifacts
+
+    def test_checkout_owned_by_another_user_retains_source_head(self) -> None:
+        config = self.root / "isolated-git-config"
+        config.write_text("")
+        with mock.patch.dict(os.environ, {"GIT_TEST_ASSUME_DIFFERENT_OWNER": "1",
+                                          "GIT_CONFIG_GLOBAL": str(config),
+                                          "GIT_CONFIG_NOSYSTEM": "1"}):
+            baseline = subprocess.run(["git", "rev-parse", "HEAD"], cwd=self.root,
+                                      text=True, capture_output=True)
+            self.assertNotEqual(baseline.returncode, 0)
+            self.assertIn("dubious ownership", baseline.stderr)
+            artifacts = self.run_fixture("different-owner")
+        receipt = json.loads((artifacts / "source-validation.json").read_text())
+        self.assertEqual(receipt["source_head"], self.source_head)
+        self.assertEqual(config.read_text(), "")
+        self.assertTrue(receipt["source_inputs_unchanged"])
+        self.assertEqual(receipt["result"], "passed")
+        self.assertEqual(receipt["native"],
+                         {"system": "Linux", "machine": registry_ci.platform.machine(),
+                          "userspace": self.architecture})
+
+    def test_source_mutation_fails_and_is_recorded(self) -> None:
+        source = self.registry_entry / "README.md"
+        source.write_text("reviewed recipe")
+        self.fake_bazel.write_text(self.fake_bazel.read_text().replace(
+            "elif 'test' in args:",
+            "elif 'test' in args:\n    Path(" + repr(str(source)) + ").write_text('changed')"
+        ))
+        with self.assertRaisesRegex(registry_ci.RegistryError, "source inputs changed"):
+            self.run_fixture("changed-recipe")
+        receipt = json.loads((self.root / "artifacts-changed-recipe/source-validation.json").read_text())
+        self.assertFalse(receipt["source_inputs_unchanged"])
+        self.assertEqual(receipt["result"], "failed: recipe inputs changed")
+        self.assertEqual(receipt["source_inputs"]["README.md"],
+                         hashlib.sha256(b"reviewed recipe").hexdigest())
 
     def declarations(self, artifacts: Path, function: str) -> list[dict]:
         # The runner generates a literal-only, Python-compatible Starlark subset.
@@ -1340,7 +1904,7 @@ class FetchedModuleTests(FixtureTestCase):
             and isinstance(node.value.func, ast.Name) and node.value.func.id == function
         ]
 
-    def test_explicit_native_host_platform_reaches_every_bazel_command(self) -> None:
+    def test_explicit_native_host_platform_reaches_configuration_commands(self) -> None:
         self.config["architectures"] = ["amd64", "arm64"]
         self.config["platforms"] = {arch: "@alpha//:target_" + arch for arch in self.config["architectures"]}
         self.config["host_platforms"] = {arch: "@alpha//:host_" + arch for arch in self.config["architectures"]}
@@ -1349,11 +1913,11 @@ class FetchedModuleTests(FixtureTestCase):
         for architecture, machine in (("amd64", "x86_64"), ("arm64", "aarch64")):
             with self.subTest(architecture=architecture):
                 expected = "--host_platform=" + self.config["host_platforms"][architecture]
-                # The fake executable is invoked for build, test and info, so
-                # omitting the flag from any actual command fails this fixture.
+                # Build, test and output-query commands select a configuration.
+                # Read-only info path queries intentionally omit platform labels.
                 self.fake_bazel.write_text(script.replace("args = sys.argv[1:]\n",
-                    "args = sys.argv[1:]\n" + f"assert {expected!r} in args\n"))
-                with mock.patch.object(registry_ci.platform, "machine", return_value=machine):
+                    "args = sys.argv[1:]\n" + f"assert 'info' in args or {expected!r} in args\n"))
+                with mock.patch.object(registry_ci, "verify_native", return_value={"system": "Linux", "machine": machine, "userspace": architecture}):
                     artifacts = self.run_fixture("host-" + architecture, architecture)
                 validation = json.loads((artifacts / "validation.json").read_text())
                 self.assertEqual(validation["host_platform"], self.config["host_platforms"][architecture])
@@ -1375,6 +1939,7 @@ class FetchedModuleTests(FixtureTestCase):
             for dependency in self.config["consumer_deps"]
         ])
         validation = json.loads((artifacts / "validation.json").read_text())
+        self.assertEqual(validation["architecture"], self.architecture)
         self.assertEqual(validation["build_flags"], self.config["build_flags"])
         self.assertEqual(validation["consumer_deps"], self.config["consumer_deps"])
         self.assertNotIn("version_overrides", validation)
@@ -1390,6 +1955,44 @@ class FetchedModuleTests(FixtureTestCase):
         outputs = json.loads((artifacts / "outputs.json").read_text())
         self.assertEqual(set(outputs), {"@alpha//:library"})
         self.assertEqual((artifacts / outputs["@alpha//:library"][0]["path"]).read_bytes(), b"package")
+
+    def test_checked_in_integration_module_is_staged_without_mutating_reviewed_inputs(self) -> None:
+        directory = self.registry_entry / "tests/integration"
+        directory.mkdir(parents=True)
+        (directory / "MODULE.bazel").write_text(
+            'module(name = "integration_tests")\n'
+            'bazel_dep(name = "alpha", version = "1.0.0")\n')
+        (directory / "BUILD.bazel").write_text('# Consumer test targets\n')
+        (directory / "fixture.json").write_text('reviewed fixture\n')
+        before = {path.name: path.read_bytes() for path in directory.iterdir()}
+        self.config.update({"integration_test_module": "tests/integration", "consumer_deps": []})
+        self.config["test_targets"].append("//:archive_contract_test")
+        write_json(self.config_path, self.config)
+        script = self.fake_bazel.read_text()
+        build, separator, test = script.partition("elif 'test' in args:")
+        test = test.replace("    Path(path).write_text", (
+            "    events.extend([\n"
+            "        {'id': {'testResult': {'label': '@@//:archive_contract_test'}},\n"
+            "         'testResult': {'status': 'PASSED', 'cachedLocally': False}},\n"
+            "        {'id': {'testSummary': {'label': '@@//:archive_contract_test'}},\n"
+            "         'testSummary': {'overallStatus': 'PASSED', 'totalRunCount': 1, 'totalNumCached': 0}}])\n"
+            "    Path('fixture.json').write_text('private test output')\n"
+            "    Path(path).write_text"))
+        self.fake_bazel.write_text(build + separator + test)
+        artifacts = self.run_fixture("integration")
+        self.assertEqual({path.name: path.read_bytes() for path in directory.iterdir()}, before)
+        staged = self.root / "work-integration/consumer"
+        self.assertEqual((staged / "MODULE.bazel").read_bytes(), before["MODULE.bazel"])
+        self.assertEqual((staged / "BUILD.bazel").read_bytes(), before["BUILD.bazel"])
+        self.assertEqual((staged / "fixture.json").read_text(), "private test output")
+        validation = json.loads((artifacts / "validation.json").read_text())
+        self.assertEqual(validation["integration_test_module"], "tests/integration")
+        self.assertEqual(validation["passed_tests"], self.config["test_targets"])
+        self.assertTrue(validation["fetched_module_matches_registry"])
+        self.assertEqual((artifacts / "consumer.MODULE.bazel").read_bytes(), before["MODULE.bazel"])
+        self.fetched.write_text('module(name = "alpha", version = "2.0.0")\n')
+        with self.assertRaisesRegex(registry_ci.RegistryError, "Fetched source module name/version"):
+            self.run_fixture("integration-wrong-module")
 
     def test_generated_overlay_and_bazel_materialized_canonical_module_are_checked_separately(self) -> None:
         self.config["generated_module_overlay"] = True
@@ -1511,7 +2114,7 @@ class FetchedModuleTests(FixtureTestCase):
 
     def test_empty_consumer_dependencies_need_no_overrides_or_dependency_artifacts(self) -> None:
         self.config["consumer_deps"] = []
-        self.config["platforms"] = {"amd64": "@alpha//:platform"}
+        self.config["platforms"] = {self.architecture: "@alpha//:platform"}
         write_json(self.config_path, self.config)
         artifacts = self.run_fixture("empty-dependencies")
         self.assertEqual(self.declarations(artifacts, "single_version_override"), [])
@@ -1552,6 +2155,10 @@ class FetchedModuleTests(FixtureTestCase):
         artifacts = self.root / "artifacts-failed-bazel"
         self.assertEqual(json.loads((artifacts / "MODULE.bazel.lock").read_text()), {"lockFileVersion": 13})
         self.assertFalse((artifacts / "validation.json").exists())
+        receipt = json.loads((artifacts / "source-validation.json").read_text())
+        self.assertEqual(receipt["result"], "incomplete")
+        self.assertTrue(receipt["source_inputs_unchanged"])
+        self.assertEqual(receipt["source_head"], self.source_head)
 
     def test_action_logs_are_retained_when_build_or_test_fails(self) -> None:
         original = self.fake_bazel.read_text()
