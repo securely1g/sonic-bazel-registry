@@ -1,4 +1,4 @@
-# Import one reviewed APT lock
+# Import one reviewed APT lock and preserve base accounts
 
 This version retains all `0.9.4.sonic.10` fixes and adds `apt.import_lock` for
 container package inputs. It replaces a second MODULE file repeating every
@@ -21,8 +21,8 @@ This registry module owns the implementation, regression tests and fixture
 regeneration helper. [Build-infra #59](https://github.com/securely1g/sonic-build-infra/pull/59)
 is the original proposal, superseded by this registry implementation; it is not
 a source dependency.
-The registry runs all twenty retained tests and four new regressions on native
-AMD64 and ARM64. The new tests check graph integrity, locked package metadata,
+The registry retains the twenty earlier tests and four locked-import regressions
+on native AMD64 and ARM64. The locked-import tests check graph integrity, locked package metadata,
 complete dependencies, architecture-independent packages and identical archive
 contents across isolated imports. No DEBs are produced.
 
@@ -33,6 +33,42 @@ dependency and sample lock imports, and its `BUILD.bazel` exposes
 runs that test alongside the twenty retained tests and three locked-import unit
 tests in the registry-fetched dependency. The test module and fixture are not
 overlaid into the dependency, and no test-only patch changes its MODULE file.
+
+## Add service accounts without replacing the base's users
+
+This unreleased candidate also exposes the public `accounts` rule submitted in
+[upstream PR #290](https://github.com/bazel-contrib/rules_distroless/pull/290),
+referencing [issue #278](https://github.com/bazel-contrib/rules_distroless/issues/278).
+For example, a base containing `root` and `_apt` gains `redis` while keeping both
+inherited records. The same operation adds the Redis group and checks that new
+users have valid primary groups and that names and numeric IDs do not conflict.
+
+```starlark
+load("@rules_distroless//distroless:defs.bzl", "accounts")
+
+accounts(
+    name = "accounts",
+    base = ":base",
+    architecture = "amd64",
+    users = [{"username": "redis", "password": "x", "uid": 100, "gid": 101,
+              "home": "/var/lib/redis", "shell": "/usr/sbin/nologin"}],
+    groups = [{"name": "redis", "password": "x", "gid": 101}],
+)
+```
+
+Add `:accounts` to the child image's `oci_image.tars` using the same base.
+`:accounts.receipt` records the base digest and account-file hashes. The rule
+uses declared Python and BSD tar execution tools, preserves inherited file bytes,
+and respects newer layers and OCI deletion markers. It does not create home
+directories, configure packages or update password databases. Existing standalone
+`passwd` and `group` rules retain their behavior.
+
+[Build-infra #57](https://github.com/securely1g/sonic-build-infra/pull/57) consumes
+this API in place of its own merge implementation. This registry entry owns the
+temporary backport and runs the five upstream account-test targets: the unit
+suite plus public-rule checks for uncompressed, gzip, xz and zstd base layers.
+Keep the patch until an upstream release containing the feature is selected and
+the same tests pass on native AMD64 and ARM64.
 
 See [patch provenance and validation](PATCHES.md).
 
@@ -62,5 +98,6 @@ recipe, including the integration module, remains unchanged after validation.
 Its `locked-import-validation.json`
 receipt accompanies the generic runner's generated lock, input declarations and
 uncached test results. Both native jobs must execute all four locked-import
-regressions, alongside the twenty retained Distroless tests. Cross inspection
+regressions, alongside the twenty retained Distroless tests and five account
+tests. Cross inspection
 of ARM64 archives on AMD64 is not native ARM64 execution.

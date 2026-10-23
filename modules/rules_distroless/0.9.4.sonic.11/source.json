@@ -16,7 +16,8 @@
     "0010-pkgconfig-quoting.patch": "sha256-nvOdvQk78rsYGpP94Wod6xo9kgaBEmP/Ul2ulw3qiPs=",
     "0011-template-headers.patch": "sha256-EKSc8w5hf21HmeA8T99YGLf42DuKN/+khf2W3hX0+1M=",
     "0012-headerless-includes.patch": "sha256-ewpKuiGsUs8HEzDVvd8kMyC8Me+fV0jBJsg97uHD4KA=",
-    "0013-import-apt-lock.patch": "sha256-p/rkQGqNqPfF+M8JBFJDvieHii8C2BvPvlJhPMTmKaA="
+    "0013-import-apt-lock.patch": "sha256-p/rkQGqNqPfF+M8JBFJDvieHii8C2BvPvlJhPMTmKaA=",
+    "0015-preserve-base-accounts.patch": "sha256-u9qPs4W77j0xHKW/CLpqcJf/pYN9ITzyUpzab7Bfv4s="
   },
   "patch_strip": 1,
   "overlay": {

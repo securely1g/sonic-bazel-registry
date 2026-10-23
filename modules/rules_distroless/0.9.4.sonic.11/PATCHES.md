@@ -6,7 +6,9 @@ and fixture-regeneration support originally proposed in
 [build-infra #59](https://github.com/securely1g/sonic-build-infra/pull/59).
 The earlier source proposal is historical attribution, not a dependency. The intermediate `.sonic.2`, `.sonic.3` and `.sonic.4` proposals
 are not published by this change; existing published versions are unchanged.
-This entry retains all `.sonic.10` behavior and adds direct runtime lock imports.
+This entry retains all `.sonic.10` behavior and adds direct runtime lock imports
+and base-account preservation. Both independent features update the same
+unreleased `.sonic.11` candidate; published version directories are unchanged.
 
 `Introduced in` identifies the first published registry version containing the
 patch's behavior; new patches show their proposed version. Later revisions
@@ -29,8 +31,12 @@ proposals and are not counted as releases.
 | `0011-template-headers.patch` | `0.9.4.sonic.9` | Include the remaining rules_cc-supported header fragments under `usr/include`, including Boost `.ipp` files. |
 | `0012-headerless-includes.patch` | `0.9.4.sonic.10` | Export the package include root only when it owns declared compiler inputs; preserve all linker and transitive contexts. |
 | `0013-import-apt-lock.patch` | `0.9.4.sonic.11` (proposed) | Import exact package archives and dependency graphs from one reviewed lock; include the extension's unit regressions. Origin: [build-infra #59](https://github.com/securely1g/sonic-build-infra/pull/59). |
+| `0015-preserve-base-accounts.patch` | Proposed `0.9.4.sonic.11` | Preserve inherited users/groups while adding service accounts; generic rule and tests submitted in upstream PR #290, referencing #278. Source: `securely1g/rules_distroless` commit `d503c1141d3759390dc78ffbb99de33b7d4f4619`. |
 
-These are SONiC-maintained adaptations, not imported upstream commits.
+Patches `0001` through `0013` are SONiC-maintained adaptations. Patch `0015`
+backports the implementation and regression tests submitted in
+[upstream PR #290](https://github.com/bazel-contrib/rules_distroless/pull/290);
+that proposal has not yet been included in an upstream release.
 [Upstream #220](https://github.com/bazel-contrib/rules_distroless/pull/220)
 contains Song Qing's related multiarch proposal. The concrete-package fix has
 related proposals in [#212](https://github.com/bazel-contrib/rules_distroless/issues/212)
@@ -206,3 +212,39 @@ The original fixture-selection helper is retained byte-for-byte as
 The module-local native validation wrapper retains the original host/userspace
 architecture and source-immutability checks while the shared registry runner
 provides archive integrity, generated lock, fetched MODULE and uncached test evidence.
+
+## Preserve inherited users and groups
+
+`0015-preserve-base-accounts.patch` adds the public `accounts` rule with the
+implementation and tests submitted in
+[rules_distroless PR #290](https://github.com/bazel-contrib/rules_distroless/pull/290),
+referencing [issue #278](https://github.com/bazel-contrib/rules_distroless/issues/278).
+It backports the generic source to the existing 0.9.4 patch stack; only the
+`MODULE.bazel` dependency insertion is adapted to that older module layout.
+The runtime rule uses declared `rules_python` 1.7.0/Python 3.11 and BSD tar tools.
+Fork-specific CI configuration is not part of the registry patch.
+
+For example, the test base starts with `root` and `_apt` in `/etc/passwd`.
+Adding Redis produces those exact inherited lines followed by
+`redis:x:100:101::/var/lib/redis:/usr/sbin/nologin`. The Redis group is added to
+the inherited `/etc/group`. Repeating an identical existing account is harmless;
+giving a new service root's UID 0 fails instead of changing the inherited identity.
+Existing names such as `Debian-exim` and `service.name` remain valid. An upper
+layer that replaces `/etc` with a file or symlink is rejected, so hidden lower
+account records cannot silently reappear in the generated layer.
+
+The five explicit targets under `@rules_distroless//distroless/tests/accounts`
+are `accounts_test`, `account_layer_test`, `gzip_account_layer_test`,
+`xz_account_layer_test` and `zstd_account_layer_test`. They retain inherited bytes,
+check account conflicts and missing groups, honor OCI deletion markers, validate
+image blobs, and inspect root ownership and `0644` modes in the public rule's TAR.
+The compressed variants exercise the declared BSD tar tool on the corresponding
+base layers. All twenty-four existing tests and six build targets remain selected;
+the complete presubmit matrix runs on native AMD64 and ARM64.
+
+This temporary patch lets
+[build-infra #57](https://github.com/securely1g/sonic-build-infra/pull/57) replace its
+private merger with the shared rule. Retain it until an upstream release includes
+the feature and the original regression targets pass against that release on both
+native architectures. An upstream proposal alone is not evidence that the feature
+is available in a release.
