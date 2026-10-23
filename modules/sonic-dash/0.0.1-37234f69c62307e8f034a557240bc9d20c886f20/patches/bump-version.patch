@@ -4,7 +4,7 @@
  module(
      name = "sonic-dash",
 -    version = "0.0.1",
-+    version = "0.0.1-45f9aa1ca49127f3f301ef181e854b2e1cb341da",
++    version = "0.0.1-37234f69c62307e8f034a557240bc9d20c886f20",
      bazel_compatibility = [
          ">=8.5.1",
          "<=8.5.1",
