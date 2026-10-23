@@ -1,6 +1,32 @@
-# Import one reviewed APT lock
+# Install Debian packages while retaining the published lock importer
 
-This version retains all `0.9.4.sonic.10` fixes and adds `apt.import_lock` for
+`0.9.4.sonic.12` carries forward published `0.9.4.sonic.11` and adds optional
+`apt_install` for [buildimage #33](https://github.com/securely1g/sonic-buildimage/pull/33).
+The upstream 0.9.4 archive, patches `0002` through `0013`, compiler/header fixes,
+locked imports and their regression tests are retained. Only the version patch
+changes its identity; `0014-apt-install.patch` adds installation support.
+The published `.sonic.11` entry remains unchanged.
+
+For example, extracting `ca-certificates` files alone does not run its
+configuration scripts. `apt_install` uses APT/dpkg in an isolated native Debian
+filesystem to run those scripts and triggers, create the configuration and
+certificate links, and maintain real package state. It outputs a configured
+filesystem TAR and a receipt, not new Debian packages.
+
+The installer consumes original `:deb` archives. If the same reviewed lock is
+imported as `locked_import_ci` and `locked_import_ci_copy`, each import's
+`libc6:deb` target resolves to its own prefixed repository and the exact hash
+in the lock. The installation patch supplies these aliases without changing
+the inherited lock-import patch.
+
+Native AMD64/ARM64 presubmit retains all 25 published tests and six build targets,
+adds the installer unit suite and original-DEB identity test, and extends the
+independent archive test to check both lock prefixes. Full installed-image
+behavior remains the consuming image's validation responsibility.
+
+## Inherited locked APT imports
+
+Published `0.9.4.sonic.11` provides all earlier compiler fixes and `apt.import_lock` for
 container package inputs. It replaces a second MODULE file repeating every
 package version already recorded in the lock.
 
@@ -44,7 +70,7 @@ Keep the Lua/netbase roots and their complete AMD64/ARM64 closures from a
 reviewed image lock. From this registry checkout, run:
 
 ```sh
-entry=modules/rules_distroless/0.9.4.sonic.11
+entry=modules/rules_distroless/0.9.4.sonic.12
 python3 "$entry/tests/integration/tools/select_lock_fixture.py" \
   --input /path/to/sonic-buildimage/dockers/docker-base-trixie/bazel/apt.lock.json \
   --output "$entry/tests/integration/apt.lock.json"
@@ -62,6 +88,7 @@ The shared registry runner validates every module through the same CI entry
 point. It checks the native Linux host and Debian userspace architecture and
 verifies that recipe inputs remain unchanged, including after a failed build.
 It retains the generated lock, input declarations, source hashes and uncached
-test results. Both native jobs must execute all 25 selected tests, including
-the four locked-import regressions and fixture regeneration. Cross inspection
+test results. Both native jobs must execute all 27 selected tests, including
+the four locked-import regressions, fixture regeneration, installer unit tests and
+original-DEB identity checks. Cross inspection
 of ARM64 archives on AMD64 is not native ARM64 execution.
