@@ -164,12 +164,16 @@ jobs:
             --architecture "$CI_ARCHITECTURE" \
             --work-dir "$RUNNER_TEMP/registry-ci" \
             --artifacts "$GITHUB_WORKSPACE/ci-artifacts"
-      - name: Retain module validation results
+      - name: Archive module validation results
+        id: archive
         if: always()
+        run: bash ci/archive_artifacts.sh "$GITHUB_WORKSPACE/ci-artifacts" "$RUNNER_TEMP/registry-ci-evidence.tar"
+      - name: Retain module validation results
+        if: always() && steps.archive.outcome == 'success'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: registry-ci-${{ matrix.module }}-${{ matrix.version }}-${{ matrix.architecture }}
-          path: ci-artifacts/
+          path: ${{ runner.temp }}/registry-ci-evidence.tar
           if-no-files-found: warn
           retention-days: 14
 
