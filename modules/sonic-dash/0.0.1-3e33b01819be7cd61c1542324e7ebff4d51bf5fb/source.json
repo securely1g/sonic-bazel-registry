@@ -1,0 +1,9 @@
+{
+  "url": "https://github.com/securely1g/DASH/archive/3e33b01819be7cd61c1542324e7ebff4d51bf5fb.tar.gz",
+  "strip_prefix": "DASH-3e33b01819be7cd61c1542324e7ebff4d51bf5fb",
+  "integrity": "sha256-KtnkUryjbs/QAmZ3v51sIPzy9fEvoCdGT1rre7vuMkw=",
+  "patches": {
+    "bump-version.patch": "sha256-nqsL8ZAM2NNnbVUbFHq5too+lez+Of5zQnaCZJEdSJo="
+  },
+  "patch_strip": 1
+}
