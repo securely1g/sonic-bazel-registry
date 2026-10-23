@@ -85,22 +85,48 @@ class FixtureTestCase(unittest.TestCase):
         )
         return self.git("rev-parse", "HEAD")
 
-    def selected(self, base: str, head: str) -> set[tuple[str, str]]:
+    def selected(self, base: str, head: str, published: str | None = None) -> set[tuple[str, str]]:
         return {
             (job["module"], job["version"])
-            for job in registry_ci.plan(self.root, base, head)["include"]
+            for job in registry_ci.plan(self.root, base, head, published=published or base)["include"]
         }
 
 
 class SelectionTests(FixtureTestCase):
-    def test_changed_version_is_selected_without_unrelated_versions(self) -> None:
-        changed = self.entry("alpha", "1.0.0")
+    def test_advanced_base_release_does_not_select_absent_history(self) -> None:
+        self.entry("alpha", "1.0.0", configured=False)
         self.entry("alpha", "2.0.0")
+        ancestor = self.commit("published registry with legacy version")
+        self.git("checkout", "-b", "published-advance")
+        self.entry("alpha", "3.0.0")
+        base = self.commit("publish another release after topic fork")
+        self.git("checkout", "-b", "ci-topic", ancestor)
+        ci = self.root / "ci" / "runner.py"
+        ci.parent.mkdir()
+        ci.write_text("# topic runner change\n")
+        head = self.commit("change CI on older checkout")
+        self.assertEqual(self.selected(base, head), {("alpha", "2.0.0")})
+
+    def test_advanced_base_module_is_not_a_topic_deletion(self) -> None:
+        self.entry("alpha", "1.0.0")
+        ancestor = self.commit("published alpha")
+        self.git("checkout", "-b", "published-module")
         self.entry("beta", "1.0.0")
-        base = self.commit("initial registry")
+        base = self.commit("publish unrelated module after topic fork")
+        self.git("checkout", "-b", "alpha-topic", ancestor)
+        self.entry("alpha", "2.0.0")
+        head = self.commit("add the single alpha candidate")
+        self.assertEqual(self.selected(base, head), {("alpha", "2.0.0")})
+
+    def test_changed_version_is_selected_without_unrelated_versions(self) -> None:
+        self.entry("alpha", "1.0.0")
+        self.entry("beta", "1.0.0")
+        published = self.commit("published registry")
+        changed = self.entry("alpha", "2.0.0")
+        base = self.commit("unreleased candidate")
         (changed / "README.md").write_text("Updated module instructions.\n")
         head = self.commit("change alpha version")
-        self.assertEqual(self.selected(base, head), {("alpha", "1.0.0")})
+        self.assertEqual(self.selected(base, head, published), {("alpha", "2.0.0")})
 
     def test_metadata_change_selects_every_existing_version(self) -> None:
         entry = self.entry("alpha", "1.0.0")
@@ -145,7 +171,7 @@ class SelectionTests(FixtureTestCase):
         (entry.parent / "unexpected.json").write_text("{}\n")
         head = self.commit("add unsupported module input")
         with self.assertRaisesRegex(registry_ci.RegistryError, "Unsupported version path"):
-            registry_ci.plan(self.root, base, head)
+            registry_ci.plan(self.root, base, head, published=base)
 
     def test_changed_version_without_manifest_fails_planning(self) -> None:
         entry = self.entry("alpha", "1.0.0", configured=False)
@@ -153,7 +179,7 @@ class SelectionTests(FixtureTestCase):
         (entry / "README.md").write_text("Changed historical version.\n")
         head = self.commit("change unconfigured version")
         with self.assertRaises(registry_ci.RegistryError):
-            registry_ci.plan(self.root, base, head)
+            registry_ci.plan(self.root, base, head, published=base)
 
     def test_deleted_version_fails_planning(self) -> None:
         entry = self.entry("alpha", "1.0.0")
@@ -162,7 +188,7 @@ class SelectionTests(FixtureTestCase):
         write_json(entry.parent / "metadata.json", {"versions": []})
         head = self.commit("delete version")
         with self.assertRaises(registry_ci.RegistryError):
-            registry_ci.plan(self.root, base, head)
+            registry_ci.plan(self.root, base, head, published=base)
 
     def test_renaming_version_cannot_hide_deleted_version(self) -> None:
         entry = self.entry("alpha", "1.0.0")
@@ -173,10 +199,11 @@ class SelectionTests(FixtureTestCase):
         write_json(renamed.parent / "metadata.json", {"versions": ["2.0.0"]})
         head = self.commit("rename version")
         with self.assertRaises(registry_ci.RegistryError):
-            registry_ci.plan(self.root, base, head)
+            registry_ci.plan(self.root, base, head, published=base)
 
-    def test_infrastructure_changes_select_all_configured_versions(self) -> None:
+    def test_infrastructure_changes_select_latest_configured_modules(self) -> None:
         self.entry("alpha", "1.0.0")
+        self.entry("alpha", "2.0.0")
         self.entry("beta", "2.0.0")
         self.entry("legacy", "1.0.0", configured=False)
         paths = [
@@ -192,22 +219,428 @@ class SelectionTests(FixtureTestCase):
             with self.subTest(path=path.relative_to(self.root)):
                 path.write_text("changed\n")
                 head = self.commit(f"change {path.name}")
-                self.assertEqual(self.selected(base, head), {("alpha", "1.0.0"), ("beta", "2.0.0")})
+                self.assertEqual(self.selected(base, head), {("alpha", "2.0.0"), ("beta", "2.0.0")})
                 base = head
 
-    def test_all_mode_selects_only_configured_versions(self) -> None:
+    def test_all_mode_keeps_configured_historical_versions(self) -> None:
         self.entry("alpha", "1.0.0")
+        self.entry("alpha", "2.0.0")
         self.entry("legacy", "1.0.0", configured=False)
-        jobs = registry_ci.plan(self.root, None, None, all_versions=True)["include"]
-        self.assertEqual({(job["module"], job["version"]) for job in jobs}, {("alpha", "1.0.0")})
+        head = self.commit("published registry")
+        jobs = registry_ci.plan(self.root, None, head, all_versions=True, published=head)["include"]
+        self.assertEqual({(job["module"], job["version"]) for job in jobs},
+                         {("alpha", "1.0.0"), ("alpha", "2.0.0")})
+
+    def latest_selected(self) -> set[tuple[str, str]]:
+        head = self.commit("published registry")
+        return {(job["module"], job["version"])
+                for job in registry_ci.plan(self.root, None, head, latest_versions=True, published=head)["include"]}
+
+    def test_latest_mode_selects_one_version_and_retains_native_architectures(self) -> None:
+        self.entry("alpha", "1.0.0")
+        latest = self.entry("alpha", "2.0.0")
+        self.entry("beta", "1.0.0")
+        self.entry("legacy", "1.0.0", configured=False)
+        config = json.loads((latest / "presubmit.json").read_text())
+        config["architectures"].append("arm64")
+        config["platforms"]["arm64"] = "@platforms//host:host"
+        write_json(latest / "presubmit.json", config)
+        head = self.commit("published registry")
+        jobs = registry_ci.plan(self.root, None, head, latest_versions=True, published=head)["include"]
+        self.assertEqual({(job["module"], job["version"], job["architecture"], job["runner"])
+                          for job in jobs}, {
+            ("alpha", "2.0.0", "amd64", "ubuntu-24.04"),
+            ("alpha", "2.0.0", "arm64", "ubuntu-24.04-arm"),
+            ("beta", "1.0.0", "amd64", "ubuntu-24.04"),
+        })
+
+    def test_latest_compares_release_and_sonic_patch_numbers_numerically(self) -> None:
+        cases = {
+            "release": (["0.0.10", "0.0.9"], "0.0.10"),
+            "patch": (["0.9.4.sonic.10", "0.9.4.sonic.9"], "0.9.4.sonic.10"),
+            "legacy_patch": (["0.9.4-sonic.10", "0.9.4-sonic.9"], "0.9.4-sonic.10"),
+            "patch_migration": (["0.9.4.sonic.1", "0.9.4-sonic.1"], "0.9.4.sonic.1"),
+            "release_before_patch": (["0.9.5.sonic.1", "0.9.4.sonic.99"], "0.9.5.sonic.1"),
+            "four_components": (["1.8.0.10.sonic.1", "1.8.0.3.sonic.9"], "1.8.0.10.sonic.1"),
+        }
+        for module, (versions, _) in cases.items():
+            for version in versions:
+                self.entry(module, version)
+        self.assertEqual(self.latest_selected(),
+                         {(module, expected) for module, (_, expected) in cases.items()})
+
+    def test_latest_source_snapshot_uses_registration_order_not_hash_order(self) -> None:
+        old = "0.0.18-" + "f" * 40
+        current = "0.0.18-" + "1" * 40
+        self.entry("infra", old)
+        self.entry("infra", current)
+        # A later registration of an older release must not replace 0.0.18.
+        self.entry("infra", "0.0.8-" + "e" * 40)
+        self.entry("short_hash", "1.0.0-fffffff")
+        self.entry("short_hash", "1.0.0-1111111")
+        self.assertEqual(self.latest_selected(),
+                         {("infra", current), ("short_hash", "1.0.0-1111111")})
+
+    def test_latest_handles_legacy_registry_version_names(self) -> None:
+        historical = {
+            "old_buildimage": "3.7.0.sonic-buildimage",
+            "old_patched": "0.60.0.sonic-patched",
+            "old_commit": "0.0.0.commit-" + "a" * 40,
+        }
+        for module, version in historical.items():
+            self.entry(module, version, configured=False)
+            self.entry(module, "9.0.0.sonic.1")
+        self.assertEqual(self.latest_selected(),
+                         {(module, "9.0.0.sonic.1") for module in historical})
+
+    def test_ci_change_also_tests_directly_changed_older_candidate(self) -> None:
+        self.entry("alpha", "2.0.0")
+        self.entry("beta", "1.0.0")
+        published = self.commit("published registry")
+        old = self.entry("alpha", "1.0.0")
+        base = self.commit("unreleased older candidate")
+        ci = self.root / "ci" / "registry_ci.py"
+        ci.parent.mkdir()
+        ci.write_text("changed planner\n")
+        (old / "README.md").write_text("Changed older version.\n")
+        head = self.commit("change CI and historical alpha")
+        self.assertEqual(self.selected(base, head, published=published),
+                         {("alpha", "1.0.0"), ("alpha", "2.0.0"), ("beta", "1.0.0")})
+
+    def test_latest_does_not_fall_back_when_newest_version_has_no_manifest(self) -> None:
+        self.entry("alpha", "1.0.0")
+        self.entry("alpha", "2.0.0", configured=False)
+        with self.assertRaises(registry_ci.RegistryError):
+            self.latest_selected()
+
+    def test_latest_omits_modules_with_no_configured_versions(self) -> None:
+        self.entry("legacy", "1.0.0", configured=False)
+        self.entry("legacy", "2.0.0", configured=False)
+        self.assertEqual(self.latest_selected(), set())
+
+    def test_latest_skips_yanked_versions_but_all_mode_preserves_them(self) -> None:
+        entry = self.entry("alpha", "1.0.0")
+        self.entry("alpha", "2.0.0")
+        write_json(entry.parent / "metadata.json", {
+            "versions": ["1.0.0", "2.0.0"],
+            "yanked_versions": {"2.0.0": "Regression in the newer release"},
+        })
+        self.assertEqual(self.latest_selected(), {("alpha", "1.0.0")})
+        head = self.git("rev-parse", "HEAD")
+        jobs = registry_ci.plan(self.root, None, head, all_versions=True, published=head)["include"]
+        self.assertEqual({(job["module"], job["version"]) for job in jobs},
+                         {("alpha", "1.0.0"), ("alpha", "2.0.0")})
+
+    def test_latest_omits_fully_yanked_module(self) -> None:
+        entry = self.entry("alpha", "1.0.0")
+        write_json(entry.parent / "metadata.json", {
+            "versions": ["1.0.0"], "yanked_versions": {"1.0.0": "Withdrawn"},
+        })
+        self.assertEqual(self.latest_selected(), set())
+
+    def test_direct_edit_of_published_yanked_version_is_rejected(self) -> None:
+        entry = self.entry("alpha", "1.0.0")
+        write_json(entry.parent / "metadata.json", {
+            "versions": ["1.0.0"], "yanked_versions": {"1.0.0": "Withdrawn"},
+        })
+        base = self.commit("initial registry with yanked version")
+        (entry / "README.md").write_text("Explain withdrawn release.\n")
+        head = self.commit("document yanked version")
+        with self.assertRaisesRegex(registry_ci.RegistryError, "published version changed"):
+            self.selected(base, head)
+
+    def test_latest_rejects_invalid_metadata_and_unlisted_configured_versions(self) -> None:
+        entry = self.entry("alpha", "1.0.0")
+        invalid = [
+            {},
+            {"versions": "1.0.0"},
+            {"versions": []},
+            {"versions": [1]},
+            {"versions": ["1.0.0", "1.0.0"]},
+            {"versions": ["2.0.0"]},
+            {"versions": ["1.0.0"], "yanked_versions": []},
+            {"versions": ["1.0.0"], "yanked_versions": {"2.0.0": "Unknown version"}},
+        ]
+        for metadata in invalid:
+            with self.subTest(metadata=metadata):
+                write_json(entry.parent / "metadata.json", metadata)
+                with self.assertRaises(registry_ci.RegistryError):
+                    self.latest_selected()
+
+    def test_latest_rejects_unsupported_version_instead_of_guessing(self) -> None:
+        self.entry("alpha", "1.0.0")
+        self.entry("alpha", "next-release")
+        with self.assertRaises(registry_ci.RegistryError):
+            self.latest_selected()
+
+    def test_plan_cli_supports_latest_and_explicit_historical_runs(self) -> None:
+        self.entry("alpha", "1.0.0")
+        self.entry("alpha", "2.0.0")
+        head = self.commit("published registry")
+        output = self.root / "plan.json"
+        for flag, expected in (("--latest", {"2.0.0"}), ("--all", {"1.0.0", "2.0.0"})):
+            with self.subTest(flag=flag):
+                command = ["registry_ci.py", "plan", flag, "--published", head, "--head", head, "--output", str(output)]
+                with mock.patch.object(registry_ci, "ROOT", self.root), \
+                        mock.patch.object(sys, "argv", command), \
+                        mock.patch.object(sys, "stdout", io.StringIO()), \
+                        mock.patch.object(sys, "stderr", io.StringIO()):
+                    registry_ci.main()
+                jobs = json.loads(output.read_text())["include"]
+                self.assertEqual({job["version"] for job in jobs}, expected)
+        command = ["registry_ci.py", "plan", "--latest", "--all", "--output", str(output)]
+        before = output.read_bytes()
+        with mock.patch.object(registry_ci, "ROOT", self.root), \
+                mock.patch.object(sys, "argv", command), \
+                mock.patch.object(sys, "stderr", io.StringIO()), \
+                self.assertRaises(SystemExit) as raised:
+            registry_ci.main()
+        self.assertNotEqual(raised.exception.code, 0)
+        self.assertEqual(output.read_bytes(), before)
+
+    def test_plan_rejects_conflicting_selection_modes(self) -> None:
+        self.entry("alpha", "1.0.0")
+        sha = self.commit("initial registry")
+        cases = [
+            (None, None, True, True),
+            (sha, sha, True, False),
+            (sha, sha, False, True),
+            (sha, None, False, True),
+        ]
+        for base, head, all_versions, latest_versions in cases:
+            with self.subTest(base=base, head=head, all=all_versions, latest=latest_versions):
+                with self.assertRaises(registry_ci.RegistryError):
+                    registry_ci.plan(self.root, base, head, all_versions, latest_versions, published=sha)
+
+    def test_latest_and_all_modes_enforce_candidate_policy(self) -> None:
+        self.entry("alpha", "1.0.0")
+        published = self.commit("published registry")
+        self.entry("alpha", "2.0.0")
+        self.entry("alpha", "3.0.0")
+        head = self.commit("two unmerged candidates")
+        for mode in ("latest_versions", "all_versions"):
+            with self.subTest(mode=mode):
+                with self.assertRaisesRegex(registry_ci.RegistryError, "multiple unreleased candidates"):
+                    registry_ci.plan(self.root, None, head, published=published, **{mode: True})
+
+    def test_latest_and_all_modes_require_the_checked_out_head(self) -> None:
+        self.entry("alpha", "1.0.0")
+        published = self.commit("published registry")
+        self.entry("alpha", "2.0.0")
+        self.commit("unmerged candidate")
+        for mode in ("latest_versions", "all_versions"):
+            with self.subTest(mode=mode):
+                with self.assertRaisesRegex(registry_ci.RegistryError, "Checkout HEAD differs"):
+                    registry_ci.plan(self.root, None, published, published=published, **{mode: True})
 
     def test_no_relevant_change_produces_empty_matrix(self) -> None:
         self.entry("alpha", "1.0.0")
         base = self.commit("initial registry")
         (self.root / "README.md").write_text("Registry documentation.\n")
         head = self.commit("document registry")
-        self.assertEqual(registry_ci.plan(self.root, base, head), {"include": []})
-        self.assertEqual(registry_ci.plan(self.root, head, head), {"include": []})
+        self.assertEqual(registry_ci.plan(self.root, base, head, published=base), {"include": []})
+        self.assertEqual(registry_ci.plan(self.root, head, head, published=head), {"include": []})
+
+
+class VersionPolicyTests(FixtureTestCase):
+    """Exercise publication boundaries with real Git histories, including stacks."""
+
+    def test_stacked_base_does_not_publish_its_inherited_candidate(self) -> None:
+        """A child adding .4 must also count its parent's still-unmerged .3."""
+        self.entry("libyang-python", "3.1.0.sonic.2")
+        published = self.commit("maintained main")
+        self.entry("libyang-python", "3.1.0.sonic.3")
+        stacked_base = self.commit("parent PR")
+        self.entry("libyang-python", "3.1.0.sonic.4")
+        head = self.commit("child PR")
+        with self.assertRaisesRegex(registry_ci.RegistryError, "multiple unreleased candidates.*sonic.3.*sonic.4"):
+            registry_ci.plan(self.root, stacked_base, head, published=published)
+
+    def test_published_previous_release_and_one_new_candidate_are_valid(self) -> None:
+        """Once .3 reaches main, preserve it and validate only the new .4."""
+        self.entry("libyang-python", "3.1.0.sonic.2", configured=False)
+        self.entry("libyang-python", "3.1.0.sonic.3")
+        published = self.commit("publish .3")
+        self.entry("libyang-python", "3.1.0.sonic.4")
+        head = self.commit("next candidate")
+        self.assertEqual(self.selected(published, head), {("libyang-python", "3.1.0.sonic.4")})
+
+    def test_candidate_can_be_revised_before_publication(self) -> None:
+        """Editing the one unmerged candidate does not require another version."""
+        self.entry("alpha", "1.0.0")
+        published = self.commit("main")
+        candidate = self.entry("alpha", "1.0.1")
+        base = self.commit("candidate")
+        (candidate / "README.md").write_text("Updated candidate description.\n")
+        head = self.commit("revise candidate")
+        self.assertEqual(self.selected(base, head, published), {("alpha", "1.0.1")})
+
+    def test_replacement_selects_only_the_retained_candidate(self) -> None:
+        """Replacing an inherited draft does not select it or old releases."""
+        self.entry("alpha", "1.0.0", configured=False)
+        published = self.commit("published legacy version")
+        candidate = self.entry("alpha", "2.0.0")
+        base = self.commit("parent candidate")
+        shutil.rmtree(candidate)
+        write_json(candidate.parent / "metadata.json", {"versions": ["1.0.0"]})
+        self.entry("alpha", "3.0.0")
+        head = self.commit("replace inherited candidate")
+        self.assertEqual(self.selected(base, head, published), {("alpha", "3.0.0")})
+
+    def test_removed_candidate_does_not_select_unchanged_history(self) -> None:
+        """Removing the only draft leaves no version to build for this diff."""
+        self.entry("alpha", "1.0.0", configured=False)
+        published = self.commit("published legacy version")
+        candidate = self.entry("alpha", "2.0.0")
+        base = self.commit("parent candidate")
+        shutil.rmtree(candidate)
+        write_json(candidate.parent / "metadata.json", {"versions": ["1.0.0"]})
+        head = self.commit("remove inherited candidate")
+        self.assertEqual(self.selected(base, head, published), set())
+
+    def test_replacement_keeps_explicit_historical_validation(self) -> None:
+        """Diff planning is narrow; explicit --all still covers old manifests."""
+        self.entry("alpha", "1.0.0")
+        self.entry("alpha", "2.0.0")
+        published = self.commit("published configured versions")
+        candidate = self.entry("alpha", "3.0.0")
+        base = self.commit("parent candidate")
+        shutil.rmtree(candidate)
+        write_json(candidate.parent / "metadata.json", {"versions": ["1.0.0", "2.0.0"]})
+        self.entry("alpha", "4.0.0")
+        head = self.commit("replace inherited candidate")
+        self.assertEqual(self.selected(base, head, published), {("alpha", "4.0.0")})
+        all_jobs = registry_ci.plan(self.root, None, head, all_versions=True, published=published)
+        self.assertEqual({(job["module"], job["version"]) for job in all_jobs["include"]},
+                         {("alpha", "1.0.0"), ("alpha", "2.0.0"), ("alpha", "4.0.0")})
+
+    def test_new_module_cannot_introduce_multiple_versions(self) -> None:
+        """The one-candidate rule also applies when main has no module yet."""
+        (self.root / "README.md").write_text("Registry\n")
+        published = self.commit("empty registry")
+        self.entry("alpha", "1.0.0")
+        self.entry("alpha", "2.0.0")
+        head = self.commit("two candidates for a new module")
+        with self.assertRaisesRegex(registry_ci.RegistryError, "multiple unreleased candidates"):
+            registry_ci.plan(self.root, published, head, published=published)
+
+    def test_metadata_only_child_cannot_hide_multiple_inherited_candidates(self) -> None:
+        """Changing only a homepage still checks the complete proposed stack."""
+        self.entry("alpha", "1.0.0")
+        published = self.commit("main")
+        self.entry("alpha", "2.0.0")
+        entry = self.entry("alpha", "3.0.0")
+        base = self.commit("two inherited candidates")
+        path = entry.parent / "metadata.json"
+        write_json(path, {**json.loads(path.read_text()), "homepage": "https://example.invalid/alpha"})
+        head = self.commit("metadata only")
+        with self.assertRaisesRegex(registry_ci.RegistryError, "multiple unreleased candidates"):
+            registry_ci.plan(self.root, base, head, published=published)
+
+    def test_unlisted_candidate_directory_cannot_evade_counting(self) -> None:
+        """Directories and metadata must agree before counting new versions."""
+        self.entry("alpha", "1.0.0")
+        published = self.commit("main")
+        self.entry("alpha", "2.0.0")
+        entry = self.entry("alpha", "3.0.0")
+        write_json(entry.parent / "metadata.json", {"versions": ["1.0.0", "3.0.0"]})
+        head = self.commit("hide an inherited candidate")
+        with self.assertRaisesRegex(registry_ci.RegistryError, "metadata and version directories differ"):
+            registry_ci.plan(self.root, published, head, published=published)
+
+    def test_published_tree_cannot_be_edited_or_removed(self) -> None:
+        """Protect file contents, additions, deletions, modes, and whole entries."""
+        entry = self.entry("alpha", "1.0.0")
+        published = self.commit("main")
+        for mutation in ("edit", "add", "delete", "mode", "remove"):
+            with self.subTest(mutation=mutation):
+                self.git("reset", "--hard", published)
+                if mutation == "edit":
+                    (entry / "source.json").write_text("{}\n")
+                elif mutation == "add":
+                    (entry / "README.md").write_text("New published content\n")
+                elif mutation == "delete":
+                    (entry / "source.json").unlink()
+                elif mutation == "mode":
+                    (entry / "source.json").chmod(0o755)
+                else:
+                    shutil.rmtree(entry)
+                    write_json(entry.parent / "metadata.json", {"versions": []})
+                head = self.commit(mutation)
+                with self.assertRaisesRegex(registry_ci.RegistryError, "published version changed or removed"):
+                    registry_ci.plan(self.root, published, head, published=published)
+
+    def test_published_module_cannot_be_removed(self) -> None:
+        """Deleting its metadata as well does not hide a removed module."""
+        entry = self.entry("alpha", "1.0.0")
+        published = self.commit("main")
+        shutil.rmtree(entry.parent)
+        head = self.commit("remove module")
+        with self.assertRaisesRegex(registry_ci.RegistryError, "published module cannot be deleted"):
+            registry_ci.plan(self.root, published, head, published=published)
+
+    def test_published_metadata_membership_cannot_be_removed(self) -> None:
+        """A metadata-only edit cannot make an immutable release disappear."""
+        entry = self.entry("alpha", "1.0.0")
+        published = self.commit("main")
+        write_json(entry.parent / "metadata.json", {"versions": []})
+        head = self.commit("unlist published version")
+        with self.assertRaisesRegex(registry_ci.RegistryError, "metadata and version directories differ"):
+            registry_ci.plan(self.root, published, head, published=published)
+
+    def test_unrelated_release_after_branch_fork_is_not_a_deletion(self) -> None:
+        """A stale branch need not rebase for releases in an untouched module."""
+        self.entry("alpha", "1.0.0")
+        fork = self.commit("common ancestor")
+        self.entry("beta", "1.0.0")
+        published = self.commit("independent publication on main")
+        self.git("checkout", "--detach", fork)
+        self.entry("alpha", "2.0.0")
+        head = self.commit("unrelated candidate")
+        self.assertEqual(self.selected(fork, head, published), {("alpha", "2.0.0")})
+
+    def test_newly_published_same_version_cannot_be_overwritten(self) -> None:
+        """Fresh main catches a version collision even if the branch is stale."""
+        self.entry("alpha", "1.0.0")
+        fork = self.commit("common ancestor")
+        entry = self.entry("alpha", "2.0.0")
+        (entry / "README.md").write_text("Published contents\n")
+        published = self.commit("publish candidate independently")
+        self.git("checkout", "--detach", fork)
+        entry = self.entry("alpha", "2.0.0")
+        (entry / "README.md").write_text("Different contents\n")
+        head = self.commit("colliding candidate")
+        with self.assertRaisesRegex(registry_ci.RegistryError, "published version changed or removed"):
+            registry_ci.plan(self.root, fork, head, published=published)
+
+    def test_push_all_mode_checks_pre_push_publication_boundary(self) -> None:
+        """Pushes must use event.before; the post-push main tree blesses itself."""
+        entry = self.entry("alpha", "1.0.0")
+        before = self.commit("pre-push main")
+        (entry / "README.md").write_text("Edited published release\n")
+        head = self.commit("push")
+        with self.assertRaisesRegex(registry_ci.RegistryError, "published version changed or removed"):
+            registry_ci.plan(self.root, None, head, all_versions=True, published=before, push=True)
+
+    def test_non_fast_forward_push_cannot_roll_back_published_versions(self) -> None:
+        """A rollback replaces main; it is not an unrelated stale PR branch."""
+        self.entry("alpha", "1.0.0")
+        old_head = self.commit("original main")
+        self.entry("alpha", "2.0.0")
+        before = self.commit("publish next release")
+        self.git("checkout", "--detach", old_head)
+        with self.assertRaisesRegex(registry_ci.RegistryError, "published version changed or removed"):
+            registry_ci.plan(self.root, None, old_head, all_versions=True, published=before, push=True)
+
+    def test_unknown_or_missing_publication_baseline_fails_closed(self) -> None:
+        """No --all or missing-SHA fallback may bypass release-policy checks."""
+        self.entry("alpha", "1.0.0")
+        head = self.commit("registry")
+        for published in (None, "main", "0" * 40):
+            for all_versions in (False, True):
+                with self.subTest(published=published, all_versions=all_versions):
+                    with self.assertRaises((registry_ci.RegistryError, subprocess.CalledProcessError)):
+                        registry_ci.plan(self.root, head, head, all_versions=all_versions, published=published)
 
 
 class EntryValidationTests(FixtureTestCase):
