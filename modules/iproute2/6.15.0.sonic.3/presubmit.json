@@ -1,0 +1,30 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.21-28a3aa9b96f1ce66e4ce04f9a7d26c96e3bbb0c6"
+    },
+    {
+      "name": "tar.bzl",
+      "version": "0.10.5-sonic.1"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic-build-infra//platforms:x86_64_trixie",
+    "arm64": "@sonic-build-infra//platforms:aarch64_trixie"
+  },
+  "build_targets": [
+    "@iproute2//:iproute2_pkg",
+    "@iproute2//:iproute2_pkg.debug_symbols",
+    "@iproute2//:iproute2_config",
+    "@iproute2//:runtime_packages.json"
+  ],
+  "test_targets": [
+    "@iproute2//:iproute2_package_test"
+  ],
+  "generated_module_overlay": true
+}
