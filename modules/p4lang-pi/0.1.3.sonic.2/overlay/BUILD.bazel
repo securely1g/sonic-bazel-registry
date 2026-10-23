@@ -71,8 +71,8 @@ runtime_packages(
             "zlib1g",
         ]
     },
-    changelog = "@pi_source//:debian/changelog",
-    control = "@pi_source//:debian/control",
+    changelog = "@pi_debian//:debian/changelog",
+    control = "@pi_debian//:debian/control",
     packages = {
         "p4lang-pi": "//:runtime",
     },

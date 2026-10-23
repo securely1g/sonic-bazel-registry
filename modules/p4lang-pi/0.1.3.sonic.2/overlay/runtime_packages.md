@@ -9,3 +9,11 @@ The action computes shared-library dependencies from the target binaries and
 declared library metadata. It does not build Debian packages. The generated JSON
 and its staged dependency metadata can be consumed by other source packages and
 OCI inventory checks. No handwritten package-control JSON is maintained here.
+
+PI's control file includes the original SONiC `use-boost-1.83.patch` and
+`remove-protobuf-from-debian-dependency.patch`, exactly as selected by
+`src/p4lang/Makefile`. They are fetched unchanged from the pinned buildimage
+commit with verified checksums. The same Debian packaging archive is prepared
+separately for metadata, keeping PI source compilation and runtime TARs unchanged.
+This retains SONiC's static package requirements while the shared generator
+still derives actual ELF dependencies from the Bazel-built libraries.
