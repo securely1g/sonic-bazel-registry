@@ -1,0 +1,24 @@
+{
+  "url": "https://codeload.github.com/p4lang/p4c/tar.gz/624c6be8076881e9af1e2f7d7691bc6c4416f4b1",
+  "integrity": "sha256-hnGpC27CUr3n9SL0tp+FLmsehx5w3444FfgtrPtuk5Q=",
+  "overlay": {
+    "BUILD.bazel": "sha256-Ogui7jU6GIwuPZFRsxWarLejWoYdzgDo3w0XHbQIhx0=",
+    "MODULE.bazel": "sha256-jF41P5BzUpO/3o8AJN8jKJclVll/l+Qo9sJf+ZmXO98=",
+    "bazel/fix-build-for-boost-1.83.patch": "sha256-lIir3S1os2V47iAljZNqEOp0TSG18yiDsBmDDQu9obM=",
+    "bazel/foreign.cmake": "sha256-SKGIy2YCZqUoe+57OnScWX4VDzrazlvT7xiFdy2rcS8=",
+    "bazel/native-protoc.patch": "sha256-qlJafmRxKJxhJVnFMfRgE2gxeMzuRi1g5k/4vYCVFts=",
+    "bazel/p4c.BUILD.bazel": "sha256-zPDiBHq05nBMKZMlbpkSNA4GSgqP2nlAGPad/X8H/cc=",
+    "bazel/package_test.py": "sha256-rXroyBbKy3+QNMElI5vl7jxMqT9OPYs2rzH2eC5s14o=",
+    "bazel/python.py": "sha256-Q9tldxy5/kZLxbaivZ5I+Tc5hpkE1UtRD4SCwJZvWvw=",
+    "bazel/remove-protobuf-from-debian-dependency.patch": "sha256-YTZk6iagtgMuLRzm4fQvzCW9rzViB6YFbzetpBTHUoA=",
+    "bazel/remove-scapy-from-debian-dependency.patch": "sha256-Wl0MCiaXaXZv5P/tlT5wGyPG40aUYfGIVE+iLo9FZU0=",
+    "bazel/runtime.bzl": "sha256-I3E0JcwjIVvafvGzZ0gu3Ps6bqonqWeHMlfVPVBEuYQ=",
+    "bazel/source.bzl": "sha256-A1itwaCAU/O74W8mXyEDzQSFKKdoj4+bSvVjXDvFN5g=",
+    "bazel/tool.bzl": "sha256-SD0REg4lIZ0vGQzw5+4ERygD5fYcfwuk6uMBiUIVRzc=",
+    "bazel/update-thrift-dependency.patch": "sha256-o1tKrVH4aQhq42whdit69M4IZNUpCRiEAlToyqsMmAQ=",
+    "bazel/use-boost-1.83.patch": "sha256-S7mHEysJW4XvI+uW2xzQ7A/hz1iN1H+4+zvILwyOG3s=",
+    "runtime_packages.md": "sha256-pcAPU9KpYouH5brGxYGV6zaRxRhCDQwi74BBbjCBbs4="
+  },
+  "archive_type": "tar.gz",
+  "strip_prefix": "p4c-624c6be8076881e9af1e2f7d7691bc6c4416f4b1"
+}
