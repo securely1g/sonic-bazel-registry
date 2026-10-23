@@ -482,9 +482,11 @@ def query_output_trees(prefix: list[str], flags: list[str], labels: list[str],
             expression = ('json.encode({"label": ' + json.dumps(label) + ', '
                           '"resolved_label": str(target.label), '
                           '"trees": [f.path for f in target.files.to_list() if f.is_directory]})')
+            # Select the requested top-level configuration. A normal build can
+            # also retain this label's exec configuration through a tool dependency.
             result = subprocess.run(
                 [*prefix, "cquery", *flags, "--output=starlark", f"--starlark:expr={expression}",
-                 label], cwd=consumer, stdout=output, stderr=errors)
+                 f"config({label}, target)"], cwd=consumer, stdout=output, stderr=errors)
             require(result.returncode == 0, f"Declared output query failed for {label}; see {log}")
     trees = {}
     for line in manifest.read_text().splitlines():
