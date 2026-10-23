@@ -13,11 +13,13 @@ manual runs test those latest versions by default. To test every configured
 historical version, select **all_versions** when manually running the workflow,
 or use `plan --all` locally.
 Revised unreleased candidates require a validation configuration too.
-Published version directories cannot be modified or deleted.
+Published consumer inputs and version directories cannot be removed or rewritten;
+standalone documentation and test maintenance is allowed as described below.
 Unchanged historical entries without a configuration are not represented as
 validated. Documentation-only changes can produce an empty module matrix.
-In particular, `modules/<name>/README.md` does not select a version. A README
-change alongside a new version still validates that new version.
+In particular, `modules/<name>/README.md` and permitted documentation-only edits
+inside a published version do not select a version. Documentation changes in an
+unpublished candidate still validate that candidate.
 
 `Registry CI` is the stable aggregate check intended for branch protection. It
 passes only when planning and the runner's unit tests pass, and every selected
@@ -46,7 +48,9 @@ For a module already covered by CI, the latest non-yanked version must have a
 configuration: planning fails instead of silently testing an older version.
 
 A PR that revises an unreleased `modules/sonic-build-infra/0.0.8-.../` candidate
-still tests that exact version; published directory edits are rejected first.
+still tests that exact version. Maintaining a published version's standalone
+tests or `presubmit.json` also tests that exact version, even when it is historical.
+Disallowed published input changes are rejected before selecting jobs.
 If it also changes CI, the plan includes both the edited version and the latest
 version, once each. Module metadata changes retain their existing
 coverage: an append-only release addition tests the added versions; other
@@ -62,16 +66,42 @@ Routine CI does not claim that all historical versions passed.
 ## Publication policy checks
 
 Before selecting module jobs, the planner checks that each affected module has
-at most one version absent from the maintained `main` branch. Published version
-directory trees must remain identical, and metadata must list every version
-directory. This also checks inherited candidates when a PR changes only
+at most one version absent from the maintained `main` branch. Published consumer
+inputs must remain identical, and metadata must list every version directory.
+This also checks inherited candidates when a PR changes only
 metadata or documentation; the actual stacked PR base is used only to select
 validation jobs.
 
+For supported archive entries, the only mutable entry-relative paths are regular
+files at `README.md`, `PATCHES.md`, `docs/**`, `presubmit.json` and `tests/**`.
+These may be added, edited or removed, and regular maintenance files may change
+their executable bit. All other paths are protected by their Git object type,
+mode and contents. This includes `MODULE.bazel`, `source.json` and every file
+under `patches/` or `overlay/`, even if its name looks like documentation or a
+test. Symlinks and submodules are never maintenance files. Source layouts or
+recipe fields not understood by this policy retain whole-entry immutability.
+
+The unchanged source recipe takes precedence over the maintenance allowlist:
+the checker protects a local file named by its source fields, including archive
+or mirror URLs with that relative path. URL escaping and dot components are
+normalized before comparison. This check is intentionally conservative, so an
+unrelated fetch URL with the same path suffix also protects the local file.
+The informational `docs_url` field is excluded from this reference check;
+`source.json` itself remains immutable. The checker does not try to infer that
+an unknown file or source layout is safe to change.
+
+Permitted published documentation changes select no module jobs on their own,
+so historical entries need no new `presubmit.json` merely to fix their README.
+Standalone test or CI-manifest changes select the exact affected version and
+must pass its configured native tests. Shared CI changes retain their ordinary
+latest-version matrix. No source payload changes or weakened test assertions
+are implied by a maintenance exception; ordinary review still applies.
+
 For example, with `libyang-python@3.1.0.sonic.2` on `main`, a parent adding
 `.sonic.3` and a child adding `.sonic.4` fail with two unreleased candidates.
-After `.sonic.3` reaches `main`, preserving its bytes and adding `.sonic.4`
-passes. Unchanged historical releases do not require new CI manifests.
+After `.sonic.3` reaches `main`, preserving its consumer inputs and adding
+`.sonic.4` passes. Updating `.sonic.3`'s standalone tests instead uses its existing
+version. Unchanged historical releases do not require new CI manifests.
 
 For PRs and manual runs, the workflow explicitly fetches the public maintained
 repository's `main` and records its SHA in `plan.log`. It does not trust a fork's
@@ -85,8 +115,8 @@ fail planning, including in `--latest` and `--all` modes.
 Affected modules are those changed from the common ancestor of that publication
 baseline and the checked-out head. Releases in unrelated modules after a branch
 fork do not count as deletions. If a touched module has since published a new
-version, rebase to retain its published entries. Directory comparisons include
-file contents, modes, additions, and deletions.
+version, rebase to retain its published entries. Protected file comparisons
+include contents, modes, additions, deletions and type changes.
 
 CI sees the checked-out stack, not independent open registry PRs or downstream
 repositories. Authors must also audit those PRs and update affected consumer
@@ -113,9 +143,27 @@ The configuration declares:
   separate pin flag or override map is needed. Use the module's `name` for
   selection; `repo_name` only controls its apparent repository name in targets.
 - `platforms`: an explicit Bazel target platform label for each architecture.
+- `host_platforms` (optional): an explicit Bazel host platform label for every
+  architecture in `architectures`. This selects the default execution platform
+  used to compile tools such as a source-built P4 compiler. A Trixie target
+  platform alone does not select the Trixie toolchain for execution dependencies.
+  For those consumers, map each architecture to its native Trixie platform,
+  matching `platforms`. The runner passes the choice to build, test and info
+  commands and records `platform` and `host_platform` in `validation.json`.
+  Omitting the map preserves Bazel's existing host-platform default and records
+  `host_platform: null`; no host flag is added to other modules.
 - `build_targets`: required output labels, including runtime and matching debug
   packages where the module provides them.
 - `test_targets`: explicit consumer and package test labels.
+- `integration_test_module` (optional): an entry-relative directory containing a
+  separate test module, for example `tests/integration`. CI copies its ordinary
+  `MODULE.bazel`, `BUILD.bazel`, tests and fixtures into the fresh consumer. The
+  test module must directly select the tested module's exact name and version;
+  it cannot use source overrides or include other MODULE files. Keep
+  `consumer_deps` empty and omit the generated Go/Rust options in this mode:
+  the checked-in test module owns its dependencies and toolchains. Explicit
+  root targets such as `//:archive_contract_test` are then allowed alongside
+  `@<module>//...` targets. Omitting this field keeps the generated consumer.
 - `generated_module_overlay` (optional): set to `true` to derive
   `overlay/MODULE.bazel` from the maintained registry `MODULE.bazel`, as described
   below. Any other value is rejected. Omit the field for existing entries that
@@ -221,6 +269,21 @@ before the build. `validation.json` records the canonical, fetched and optional
 generated-overlay SHA256 hashes separately, plus `generated_module_overlay`.
 `fetched_module_matches_registry` retains its literal byte-equality meaning.
 
+## Native execution and source preservation
+
+Every module uses the shared runner. Before building, it verifies the native
+Linux CPU architecture and Debian userspace architecture. It records the exact
+registry checkout commit and SHA256 hashes of the selected entry's source files
+in `source-validation.json`. The entry must remain unchanged after validation,
+including a failed build; mutation fails the job and is recorded in that receipt.
+Work directories and artifacts stay outside the maintained entry.
+
+Module-specific checks are ordinary Bazel tests selected in `presubmit.json`.
+For example, Distroless's fixture-regeneration test runs its declared helper and
+compares the output with the reviewed lock. It uses the same uncached execution
+and test-result verification as the archive integration test, with no custom CI
+driver or module/version branch in the workflow.
+
 ## Resolution and package evidence
 
 The fresh consumer ignores `MODULE.bazel.lock` and uses `--lockfile_mode=update`.
@@ -230,9 +293,24 @@ validation requires that Bazel generated this evidence.
 
 Use explicit labels for required outputs and tests. Wildcard builds can silently
 skip targets incompatible with the selected platform. Add tests to the module's
-source or registry overlay, and update the corresponding overlay integrity hashes
-when changing overlay files. A successful library build alone does not establish
+source, registry overlay, or a separate `integration_test_module`. Update the
+corresponding overlay integrity hashes when changing overlay files. A successful library build alone does not establish
 that downstream consumers can link it or that its runtime package works.
+
+For example, the Distroless locked-import test has its own
+`tests/integration/MODULE.bazel` declaring the APT extension, reviewed lock and
+two imported package repositories. Its BUILD and Python test verify the archive
+contents through that public interface. These are ordinary registry test files;
+they need no test-only patch to the dependency's MODULE or source overlay. The
+same CI invocation retains the dependency's existing external tests and runs
+the root archive test on each configured native architecture.
+
+Integration modules use the same registry, source checksum, fetched-module and
+uncached-test checks as generated consumers. They cannot contain symlinks,
+hidden configuration, cached lockfiles or Bazel output directories. CI copies
+the files before execution, so generated lockfiles and test outputs stay outside
+the maintained test directory. The chosen directory is recorded in
+`validation.json`, and the staged MODULE and resolution lock remain artifacts.
 
 For libyang, CI builds the runtime and detached-symbol packages, then runs
 `libyang_test` and `libyang_package_test`. These cover a dynamic consumer, YANG and

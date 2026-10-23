@@ -1,0 +1,11 @@
+--- a/tools/build_tools/BUILD.bazel
++++ b/tools/build_tools/BUILD.bazel
+@@ -144,6 +144,8 @@
+         ],
+         data = [":kernel_runtime_amd64"],
+         main = "kernel_cross_runtime_test.py",
++        # Registry tests reuse this executable only on native AMD64.
++        visibility = ["//visibility:public"],
+         tags = ["no-remote-exec"],
+         target_compatible_with = [
+             "@platforms//os:linux",
