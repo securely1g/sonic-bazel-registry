@@ -1,12 +1,11 @@
 # Distroless patch provenance and validation
 
-`0.9.4.sonic.11` applies the complete SONiC patch set to the checksum-pinned
-upstream `rules_distroless` 0.9.4 archive. This registry entry maintains the locked-import extension, integration tests
-and fixture-regeneration support originally proposed in
-[build-infra #59](https://github.com/securely1g/sonic-build-infra/pull/59).
-The earlier source proposal is historical attribution, not a dependency. The intermediate `.sonic.2`, `.sonic.3` and `.sonic.4` proposals
-are not published by this change; existing published versions are unchanged.
-This entry retains all `.sonic.10` behavior and adds direct runtime lock imports.
+`0.9.4.sonic.12` uses the same checksum-pinned upstream 0.9.4 archive as published
+`0.9.4.sonic.11`. It inherits patches `0002` through `0013` byte-for-byte, including
+the lock importer and all existing compiler/header fixes. Patch `0001` changes
+only the module version. Patch `0014` adds real Debian installation and the
+original-DEB aliases needed by [buildimage #33](https://github.com/securely1g/sonic-buildimage/pull/33).
+No published entry is modified.
 
 `Introduced in` identifies the first published registry version containing the
 patch's behavior; new patches show their proposed version. Later revisions
@@ -28,9 +27,10 @@ proposals and are not counted as releases.
 | `0010-pkgconfig-quoting.patch` | `0.9.4.sonic.8` | Decode quotes and backslash escapes in expanded flags and path variables; preserve spaces within arguments. |
 | `0011-template-headers.patch` | `0.9.4.sonic.9` | Include the remaining rules_cc-supported header fragments under `usr/include`, including Boost `.ipp` files. |
 | `0012-headerless-includes.patch` | `0.9.4.sonic.10` | Export the package include root only when it owns declared compiler inputs; preserve all linker and transitive contexts. |
-| `0013-import-apt-lock.patch` | `0.9.4.sonic.11` (proposed) | Import exact package archives and dependency graphs from one reviewed lock; include the extension's unit regressions. Origin: [build-infra #59](https://github.com/securely1g/sonic-build-infra/pull/59). |
+| `0013-import-apt-lock.patch` | `0.9.4.sonic.11` | Import exact package archives and dependency graphs from one reviewed lock; include the extension's unit regressions. Origin: [build-infra #59](https://github.com/securely1g/sonic-build-infra/pull/59). |
+| `0014-apt-install.patch` | `0.9.4.sonic.12` (proposed) | Add optional APT/dpkg installation and original-DEB aliases that preserve locked-import repository prefixes. Installer source: [rules_distroless fork PR #2](https://github.com/securely1g/rules_distroless/pull/2), commit `b3d0573b06b682a7ae3d5de20cc8215b3be3a037`, previously proposed in closed registry #72 and reused in #110. |
 
-These are SONiC-maintained adaptations, not imported upstream commits.
+These are SONiC-maintained adaptations; each patch records its source.
 [Upstream #220](https://github.com/bazel-contrib/rules_distroless/pull/220)
 contains Song Qing's related multiarch proposal. The concrete-package fix has
 related proposals in [#212](https://github.com/bazel-contrib/rules_distroless/issues/212)
@@ -211,3 +211,27 @@ reproduces the reviewed lock byte-for-byte without changing its input.
 The shared registry runner checks host/userspace architecture and unchanged
 recipe inputs and provides archive integrity, generated lock, fetched MODULE
 and uncached test evidence. No module-specific CI driver is required.
+
+## Install the reviewed Debian archives
+
+`0014-apt-install.patch` retains the installer implementation and tests from
+registry #110 and the lock-prefix compatibility previously composed in #114.
+It leaves the inherited `0013` patch unchanged. Original `:deb` targets keep
+both archive bytes and the repository prefix chosen by each independent lock
+import, so APT receives the exact reviewed package instead of an unrelated
+archive target.
+
+For example, configuring `ca-certificates` runs its package scripts and triggers,
+creating `/etc/ca-certificates.conf` and certificate hash links. Extracting its
+payload and writing a synthetic package-status file does not perform that work.
+The optional installer produces a configured filesystem TAR plus an installation
+receipt; it installs existing DEBs and does not produce new DEB packages.
+
+All 25 tests and six build targets from published `.sonic.11` remain selected.
+`apt/private:install_test` checks installer input validation and helper
+behavior. `registry_ci:original_deb_test` checks direct/package alias identities.
+The independent `archive_contract_test` additionally checks the exact libc6 DEB
+hash from each of two lock prefixes, while `fixture_regeneration_test` continues
+to verify the reviewed lock generator. Native AMD64 and ARM64 each execute all
+27 tests uncached. These checks validate this registry interface; the consuming
+image must separately validate the complete installed filesystem.

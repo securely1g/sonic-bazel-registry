@@ -41,7 +41,9 @@
     "@rules_distroless//apt/tests:locked_import/invalid_lock",
     "@rules_distroless//apt/tests:locked_import/selection",
     "//:archive_contract_test",
-    "//:fixture_regeneration_test"
+    "//:fixture_regeneration_test",
+    "@rules_distroless//apt/private:install_test",
+    "@rules_distroless//registry_ci:original_deb_test"
   ],
   "integration_test_module": "tests/integration"
 }
