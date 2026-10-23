@@ -1,6 +1,6 @@
 # Generated Debian metadata for source-built images
 
-Registers `0.0.22-6dafd3595a75251748c1ca7502d5a8f6660e126b` from the reviewed source commit.
+Registers `0.0.22-4499712c23b0bac230e2396d7053a9cce75e7f43` from the reviewed source commit.
 
 The source combines existing OCI account and installed-package helpers with
 `runtime_packages`: package identity and dependency fields come from the owning
@@ -22,3 +22,14 @@ no compiler or runtime behavior.
 
 This cumulative candidate also preserves build-infra #60's static C launcher
 fix for GCC/Clang and its regression test.
+
+It also includes the separate build-infra #64 cache fix. Internal tool-directory
+aliases are materialized before caching, and relocated Debian tools prefer
+canonical `/usr/lib` package paths when Bazel restores directory aliases as
+ordinary directories. The kernel-runtime regression checks real dependency
+lookup and package ownership; native source CI proves a fresh output directory
+reuses the tool tree from disk cache and executes the test again.
+
+The compiled launcher replaces package aliases without overwriting their raw
+executables. The foreign-runtime regression checks that `dash` and `mawk` remain
+ELF files and that the relocated `sh` and `awk` entrypoints both execute.
