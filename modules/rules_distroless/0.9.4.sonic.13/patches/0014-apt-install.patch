@@ -1,0 +1,741 @@
+From: Guohan Lu <securely1g@gmail.com>
+Subject: [PATCH] Install locked Debian archives with real APT/dpkg state
+
+Keep the published rules_distroless .sonic.11 lock importer and compiler fixes.
+Add optional apt_install and original :deb exports so OCI images can configure
+packages with their own scripts and triggers. For example, ca-certificates
+must create its configuration and certificate links, not only extract files.
+Original-DEB aliases preserve each lock import's repository prefix, so two
+isolated imports each expose the exact reviewed archive they selected.
+
+Installer source: securely1g/rules_distroless PR #2, commit
+b3d0573b06b682a7ae3d5de20cc8215b3be3a037, originally registered in closed
+sonic-bazel-registry PR #72. Reuse the implementation and tests reviewed in
+registry PR #110 plus the lock-prefix integration from PR #114. Apply after
+published .sonic.11 patches 0001 through 0013; no existing fix is removed.
+This rule installs supplied Debian packages; it does not create DEB packages.
+
+Signed-off-by: Guohan Lu <securely1g@gmail.com>
+
+diff --git a/MODULE.bazel b/MODULE.bazel
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -13,8 +13,9 @@
+ bazel_dep(name = "rules_foreign_cc", version = "0.16.0")
+ bazel_dep(name = "rules_java", version = "8.8.0")
+ bazel_dep(name = "rules_shell", version = "0.4.1")
++bazel_dep(name = "rules_python", version = "1.5.1")
+ bazel_dep(name = "gawk", version = "5.3.2.bcr.3")
+-bazel_dep(name = "tar.bzl", version = "0.6.0")
++bazel_dep(name = "tar.bzl", version = "0.10.4")
+ bazel_dep(name = "yq.bzl", version = "0.3.1")
+ 
+ yq_toolchains = use_extension("@yq.bzl//yq:extensions.bzl", "yq")
+diff --git a/apt/INSTALL.md b/apt/INSTALL.md
+--- /dev/null
++++ b/apt/INSTALL.md
+@@ -0,0 +1,121 @@
++# Install packages with APT and dpkg
++
++`apt_install` installs existing Debian archives into a private copy of a Debian
++filesystem. APT chooses the installation order, and dpkg writes its own package
++database, runs package scripts and processes triggers.
++
++For example, installing `ca-certificates` creates `/etc/ca-certificates.conf`
++and the certificate hash links by running its installation script. Installing
++`vim-tiny` registers its editor alternatives. Copying package payloads and a
++generated status file does not perform either operation.
++
++This optional rule complements the existing extraction rules. It does not
++create DEBs or bootstrap an empty Debian filesystem.
++
++## Inputs and outputs
++
++```starlark
++load("@rules_distroless//apt:defs.bzl", "apt_install")
++
++apt_install(
++    name = "configured_filesystem",
++    base = ":debian_rootfs",  # Complete configured rootfs TAR, including APT/dpkg.
++    packages = [
++        "@image_packages//ca-certificates:deb",
++        "@image_packages//openssl:deb",
++    ],
++    architecture = "amd64",
++    bwrap = ":pinned_bubblewrap",  # Declared native executable, not a host lookup.
++    execution_environment = "registry.example/build@sha256:<64-hex-digit-digest>",
++)
++
++filegroup(
++    name = "installation_receipt",
++    srcs = [":configured_filesystem"],
++    output_group = "receipt",
++)
++```
++
++Supply every missing dependency as an original, integrity-checked DEB. The new
++`:deb` package target exposes the original archive retained by `apt.install`'s
++repository import; `:data` and `:control` keep their existing extraction behavior.
++The package target's ordinary dependency closure still consists of payload
++TARs, so select the required `:deb` targets explicitly.
++
++An optional `packages_manifest` can select a subset of the declared archives.
++Its format is a JSON array of their Bazel execution paths. For example, a
++consumer's package-selection check can retain a base image's OpenSSL version and
++select only the new program's DEB. The installer rejects undeclared paths and
++duplicate entries. Selection policy belongs to the consumer; this rule performs
++the selected installation and verifies each resulting package version.
++
++The default output is `<name>.tar`: a **complete installed filesystem**. Use this
++as the replacement filesystem when constructing an OCI image with `rules_oci`.
++Do not append it to the old base's layers: a package upgrade can remove old
++files, which would otherwise reappear from those layers. Preserve the desired
++image configuration separately. Inputs must already have OCI whiteouts applied;
++the installer rejects whiteout entries.
++
++The `receipt` output group contains `<name>.json`, including input hashes, the
++APT/dpkg versions, the resulting package inventory, and successful configuration,
++trigger, dependency and audit checks. `requested_execution_environment` records
++the caller's declared worker image; the build platform must enforce that image.
++
++## Execution contract
++
++Run this rule on a dedicated native Linux worker inside a build container pinned
++by digest. The worker must run as root and permit bubblewrap to create mount,
++PID, IPC, UTS and network namespaces. The native `amd64` and `arm64` paths are
++supported; cross-architecture emulation is rejected.
++
++For Docker-based CI, the integration tests use a pinned container with
++`--cap-add SYS_ADMIN --cap-add NET_ADMIN`, the normal root-container capabilities,
++and unconfined seccomp/AppArmor profiles where those profiles otherwise deny
++namespace setup. Bubblewrap uses `NET_ADMIN` only to initialize the private
++loopback device; package scripts receive neither added capability.
++Mount only the build checkout and its declared caches into that worker. No
++Docker socket is needed by the rule. An ordinary unprivileged Bazel sandbox
++cannot provide the required installation semantics, so this action disables
++that outer sandbox and creates its own private namespaces with bubblewrap.
++
++The action exposes only its private root filesystem, read-only declared DEBs and
++installation script, and an action-local result directory to package scripts.
++It provides private `/proc`, `/dev` and `/tmp`, disables networking, clears
++the inherited environment, and drops installation-unneeded capabilities before
++executing the guest shell. There is no fallback to the host's package manager,
++rootless ownership emulation or an ambient `bwrap` executable.
++
++`/run` remains part of the private image filesystem. Files installed there,
++including paths reached through `/var/run`, must survive in the output TAR.
++Installer scratch files use private `/tmp` and are not included in the result.
++
++The base supplies its pinned APT/dpkg and package-script tools. The `bwrap` input
++and its runtime libraries must come from the declared execution platform. Put
++the actual build-container digest in `execution_environment` so a platform
++change changes the action key, and configure CI or remote execution to use that
++same digest. Merely setting the attribute does not launch or attest a container.
++
++## Installation behavior
++
++- APT installs supplied local archives with repository sources, networking and
++  recommended packages disabled. Missing dependencies or unexpected removals fail.
++- Explicitly selected archives are reinstalled even when the base reports the
++  same Debian version. This replaces a rebuilt library's old payload without
++  requiring a packaging-version change; dependencies omitted by the selection
++  manifest remain untouched.
++- Package scripts and triggers run normally. A temporary `policy-rc.d` denies
++  daemon startup during the image build; the original policy is restored.
++- APT retains existing configuration files when dpkg needs a noninteractive
++  conffile decision. Dependency checks and `dpkg --audit` must pass, every selected
++  archive must have its exact version configured, and no pending trigger state
++  may remain.
++- Package-generated configuration, alternatives, users, ownership, permissions,
++  file capabilities and caches remain in the result. BSD tar performs archive
++  extraction and creation; no package database or TAR format is reimplemented.
++- `source_date_epoch` fixes archive entry timestamps and is exposed to package
++  scripts. Wall-clock package logs are removed. Arbitrary script-generated data
++  can still vary; the rule does not promise byte-identical outputs for scripts
++  that use randomness or other nondeterministic inputs.
++
++See `e2e/apt_install` for initial-configuration checks and later APT install,
++upgrade and removal tests against real Debian archives on both architectures.
+diff --git a/apt/private/install.bzl b/apt/private/install.bzl
+--- /dev/null
++++ b/apt/private/install.bzl
+@@ -0,0 +1,74 @@
++"""Install Debian packages with the base filesystem's APT and dpkg."""
++
++load("@tar.bzl//tar:tar.bzl", "tar_lib")
++
++def _apt_install_impl(ctx):
++    if "@sha256:" not in ctx.attr.execution_environment:
++        fail("execution_environment must identify the Linux build container by image@sha256:digest")
++
++    bsdtar = ctx.toolchains[tar_lib.toolchain_type]
++    output = ctx.actions.declare_file(ctx.label.name + ".tar")
++    receipt = ctx.actions.declare_file(ctx.label.name + ".json")
++    configuration = ctx.actions.declare_file(ctx.label.name + ".inputs.json")
++    ctx.actions.write(configuration, json.encode({
++        "architecture": ctx.attr.architecture,
++        "base": ctx.file.base.path,
++        "bwrap": ctx.executable.bwrap.path,
++        "execution_environment": ctx.attr.execution_environment,
++        "guest_script": ctx.file._guest_script.path,
++        "output": output.path,
++        "packages": [package.path for package in ctx.files.packages],
++        "packages_manifest": ctx.file.packages_manifest.path if ctx.file.packages_manifest else None,
++        "receipt": receipt.path,
++        "source_date_epoch": ctx.attr.source_date_epoch,
++        "tar": bsdtar.tarinfo.binary.path,
++    }))
++
++    ctx.actions.run(
++        executable = ctx.executable._installer,
++        arguments = [configuration.path],
++        inputs = depset(
++            [ctx.file.base, ctx.file._guest_script, configuration] +
++            ctx.files.packages + ctx.files.packages_manifest,
++        ),
++        tools = bsdtar.default.files.to_list() + [ctx.attr.bwrap[DefaultInfo].files_to_run],
++        outputs = [output, receipt],
++        mnemonic = "AptInstall",
++        progress_message = "Installing Debian packages and running their configuration scripts for %{label}",
++        # The optional installer needs real chown/mount semantics in its pinned
++        # build container. bubblewrap provides the private filesystem, PID and
++        # network namespaces; a nested Bazel sandbox cannot grant these rights.
++        execution_requirements = {"no-sandbox": "1"},
++    )
++    return [
++        DefaultInfo(files = depset([output])),
++        OutputGroupInfo(receipt = depset([receipt])),
++    ]
++
++apt_install = rule(
++    implementation = _apt_install_impl,
++    doc = """Install existing DEBs into a private copy of a configured Debian root filesystem.
++
++Unlike payload extraction, this runs APT/dpkg, package scripts and triggers.
++The result is a complete filesystem TAR, not an incremental OCI layer. Use it
++as the image's replacement filesystem, without the old base's layers.
++
++Execution requires a dedicated, pinned Linux build container running as root
++with the namespace/mount capabilities needed by bubblewrap. The declared
++`bwrap` executable and the base's APT/dpkg must match the native architecture.
++There is no rootless, emulated or host-package-manager fallback. See
++`apt/INSTALL.md` for the execution contract and an example.
++""",
++    attrs = {
++        "architecture": attr.string(mandatory = True, values = ["amd64", "arm64"]),
++        "base": attr.label(allow_single_file = tar_lib.common.accepted_tar_extensions, mandatory = True, doc = "Complete configured rootfs TAR; OCI whiteouts must already have been applied."),
++        "packages": attr.label_list(allow_files = [".deb"], mandatory = True, allow_empty = False, doc = "Original, integrity-checked DEB files. No DEBs are assembled by this rule."),
++        "packages_manifest": attr.label(allow_single_file = [".json"], doc = "Optional JSON array selecting a subset of packages by their declared execroot-relative paths. Every selected file must also occur in packages."),
++        "bwrap": attr.label(executable = True, cfg = "exec", mandatory = True, doc = "Declared bubblewrap executable for the native Linux execution platform."),
++        "execution_environment": attr.string(mandatory = True, doc = "Pinned build-container image@sha256:digest. Part of the action key; the execution platform must enforce this identity."),
++        "source_date_epoch": attr.int(default = 0, doc = "Fixed timestamp applied to filesystem entries and exposed to package scripts."),
++        "_installer": attr.label(default = "//apt/private:installer", executable = True, cfg = "exec"),
++        "_guest_script": attr.label(default = "//apt/private:install.sh", allow_single_file = True),
++    },
++    toolchains = [tar_lib.toolchain_type],
++)
+diff --git a/apt/private/install.py b/apt/private/install.py
+--- /dev/null
++++ b/apt/private/install.py
+@@ -0,0 +1,172 @@
++"""Run real APT/dpkg in an isolated filesystem and archive the installed result.
++
++Archive extraction and creation use tar.bzl's declared BSD tar executable.
++Package metadata and installation semantics belong entirely to APT/dpkg.
++"""
++
++import hashlib
++import json
++import os
++from pathlib import Path
++import platform
++import shutil
++import subprocess
++import sys
++import tempfile
++
++
++MOUNTS = ("__rules_distroless_install", "__rules_distroless_install_result")
++MACHINE_ARCHITECTURES = {"x86_64": "amd64", "aarch64": "arm64"}
++
++
++def sha256(path):
++    with Path(path).open("rb") as stream:
++        return hashlib.file_digest(stream, "sha256").hexdigest()
++
++
++def select_packages(declared, manifest):
++    """Validate a generated selection without accepting undeclared inputs."""
++    selected = json.loads(Path(manifest).read_text()) if manifest else declared
++    if not isinstance(selected, list) or any(not isinstance(item, str) for item in selected):
++        raise ValueError("packages_manifest must be a JSON array of declared DEB paths")
++    if len(set(selected)) != len(selected):
++        raise ValueError("packages_manifest contains duplicate DEB paths")
++    unexpected = set(selected).difference(declared)
++    if unexpected:
++        raise ValueError("packages_manifest selects undeclared inputs: " + ", ".join(sorted(unexpected)))
++    return selected
++
++
++def package_inventory(path):
++    """Read dpkg-query's public output, without rebuilding its database."""
++    result = {}
++    for line in Path(path).read_text().splitlines():
++        name, version, architecture, status = line.split("\t")
++        if status in ("config-files", "not-installed"):
++            continue
++        if status != "installed":
++            raise ValueError(f"Package {name} was left {status}, not installed")
++        result[name] = {"version": version, "architecture": architecture}
++    return result
++
++
++def run(command, **kwargs):
++    subprocess.run([str(item) for item in command], check=True, **kwargs)
++
++
++def filesystem_paths(root):
++    """List entries without following image symlinks into the build machine."""
++    paths = [root]
++    for directory, directories, files in os.walk(root, followlinks=False):
++        paths.extend(Path(directory) / name for name in directories + files)
++    return sorted(paths, key=lambda path: str(path.relative_to(root)))
++
++
++def install(configuration):
++    if os.geteuid() != 0:
++        raise RuntimeError("apt_install requires root inside a dedicated pinned Linux build container")
++    native = MACHINE_ARCHITECTURES.get(platform.machine())
++    if configuration["architecture"] != native:
++        raise RuntimeError("apt_install requires native execution; foreign-architecture emulation is not supported")
++    if configuration["source_date_epoch"] < 0:
++        raise ValueError("source_date_epoch must be nonnegative")
++
++    selected = select_packages(configuration["packages"], configuration["packages_manifest"])
++    base = Path(configuration["base"]).absolute()
++    output = Path(configuration["output"]).absolute()
++    receipt = Path(configuration["receipt"]).absolute()
++    bsdtar = Path(configuration["tar"]).absolute()
++    bwrap = Path(configuration["bwrap"]).absolute()
++
++    # Keep all writable state under a fresh action-owned directory. bubblewrap
++    # exposes only this root, the read-only declared packages/script, and the
++    # result directory. It never mounts Docker sockets or host filesystem trees.
++    with tempfile.TemporaryDirectory(prefix="apt-install-", dir=output.parent) as temporary:
++        temporary = Path(temporary)
++        root = temporary / "root"
++        inputs = temporary / "inputs"
++        results = temporary / "results"
++        for directory in (root, inputs, results):
++            directory.mkdir()
++        run([bsdtar, "--extract", "--preserve-permissions", "--numeric-owner", "--file", base, "--directory", root])
++        for name in MOUNTS:
++            if (root / name).exists() or (root / name).is_symlink():
++                raise ValueError("Base uses reserved installation mount: /" + name)
++        # This rule takes a materialized filesystem, never unapplied OCI layers.
++        if any(path.name.startswith(".wh.") for path in filesystem_paths(root)):
++            raise ValueError("base contains OCI whiteouts; materialize its filesystem before installation")
++
++        shutil.copyfile(configuration["guest_script"], inputs / "install.sh")
++        package_arguments = []
++        input_packages = []
++        for number, path in enumerate(selected):
++            filename = f"{number:06d}.deb"
++            shutil.copyfile(path, inputs / filename)
++            package_arguments.append("/" + MOUNTS[0] + "/" + filename)
++            input_packages.append({"path": path, "sha256": sha256(path)})
++
++        command = [
++            bwrap, "--die-with-parent", "--new-session",
++            "--unshare-pid", "--unshare-net", "--unshare-ipc", "--unshare-uts",
++            "--cap-drop", "ALL",
++            "--cap-add", "CAP_CHOWN", "--cap-add", "CAP_DAC_OVERRIDE",
++            "--cap-add", "CAP_FOWNER", "--cap-add", "CAP_FSETID",
++            "--cap-add", "CAP_SETUID", "--cap-add", "CAP_SETGID",
++            "--cap-add", "CAP_SETFCAP",
++            "--bind", root, "/",
++            # /run belongs to this private image root too. Do not mask it:
++            # packages can install files through /var/run -> /run, and package
++            # scripts can create persistent image contents there.
++            "--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp",
++            "--ro-bind", inputs, "/" + MOUNTS[0],
++            "--bind", results, "/" + MOUNTS[1],
++            "--chdir", "/", "--clearenv",
++            "--setenv", "PATH", "/usr/sbin:/usr/bin:/sbin:/bin",
++            "--setenv", "HOME", "/root",
++            "--setenv", "DEBIAN_FRONTEND", "noninteractive",
++            "--setenv", "LC_ALL", "C",
++            "--setenv", "TZ", "UTC",
++            "--setenv", "SOURCE_DATE_EPOCH", str(configuration["source_date_epoch"]),
++            "/bin/sh", "/" + MOUNTS[0] + "/install.sh", native,
++            *package_arguments,
++        ]
++        run(command)
++        inventory = package_inventory(results / "packages.tsv")
++        for name in MOUNTS:
++            (root / name).rmdir()
++
++        entries = filesystem_paths(root)
++        for path in entries:
++            os.utime(path, (configuration["source_date_epoch"],) * 2, follow_symlinks=False)
++        names = temporary / "entries.txt"
++        names.write_bytes(b"\0".join(os.fsencode("./" + str(path.relative_to(root))) for path in entries) + b"\0")
++        run([
++            # Restricted PAX preserves extended metadata when needed without
++            # including the build filesystem's volatile atime/ctime fields.
++            bsdtar, "--create", "--format=paxr", "--numeric-owner", "--file", output,
++            "--directory", root, "--no-recursion", "--null", "--files-from", names,
++        ])
++        receipt.write_text(json.dumps({
++            "schema": 1,
++            "operation": "apt_install",
++            "status": "passed",
++            "architecture": native,
++            "requested_execution_environment": configuration["execution_environment"],
++            "base_sha256": sha256(base),
++            "input_packages": input_packages,
++            "installed_packages": inventory,
++            "installed_input_packages": package_inventory(results / "selected.tsv"),
++            "dpkg_version": (results / "dpkg.txt").read_text().splitlines()[0],
++            "apt_version": (results / "apt.txt").read_text().splitlines()[0],
++            "initial_configuration": {
++                "maintainer_scripts": "executed_by_dpkg",
++                "triggers": "processed_by_dpkg",
++                "dpkg_audit": "passed",
++                "apt_get_check": "passed",
++            },
++            "rootfs_sha256": sha256(output),
++        }, indent=2, sort_keys=True) + "\n")
++
++
++if __name__ == "__main__":
++    install(json.loads(Path(sys.argv[1]).read_text()))
+diff --git a/apt/private/install.sh b/apt/private/install.sh
+--- /dev/null
++++ b/apt/private/install.sh
+@@ -0,0 +1,92 @@
++#!/bin/sh
++# Run only inside the private root filesystem created by install.py.
++set -eu
++
++result=/__rules_distroless_install_result
++expected_architecture=$1
++shift
++
++test "$(id -u)" = 0
++actual_architecture=$(dpkg --print-architecture)
++if test "$actual_architecture" != "$expected_architecture"; then
++    echo "Expected native $expected_architecture rootfs, found $actual_architecture" >&2
++    exit 1
++fi
++
++# Debian's documented container policy prevents starting daemons while their
++# packages are configured. Preserve the image's original policy exactly.
++policy=/usr/sbin/policy-rc.d
++scratch=/tmp/rules-distroless-install
++mkdir -p /usr/sbin "$scratch"
++if test -e "$policy" || test -L "$policy"; then
++    cp -a "$policy" "$scratch/policy-rc.d"
++fi
++restore_policy() {
++    rm -f "$policy"
++    if test -e "$scratch/policy-rc.d" || test -L "$scratch/policy-rc.d"; then
++        cp -a "$scratch/policy-rc.d" "$policy"
++    fi
++}
++trap restore_policy EXIT
++rm -f "$policy"
++printf '#!/bin/sh\nexit 101\n' > "$policy"
++chmod 755 "$policy"
++
++# Only the declared local files are available. Empty repository sources and the
++# private network namespace prevent downloads. Do not use --no-download here:
++# APT also needs its local-file acquisition step to stage the supplied archives.
++mkdir -p "$scratch/sources.list.d"
++: > "$scratch/sources.list"
++if test "$#" -gt 0; then
++    # A rebuilt input can retain its Debian version. Always install explicitly
++    # selected archives; a matching version in the base is not proof that its
++    # payload matches these declared bytes.
++    apt-get --yes --reinstall --no-install-recommends --no-remove \
++        -o Dir::Etc::sourcelist="$scratch/sources.list" \
++        -o Dir::Etc::sourceparts="$scratch/sources.list.d" \
++        -o APT::Get::List-Cleanup=0 \
++        -o Dpkg::Use-Pty=0 \
++        -o Dpkg::Options::=--force-confold \
++        install "$@"
++fi
++dpkg --configure --pending
++dpkg --triggers-only --pending
++apt-get -o Dir::Etc::sourcelist="$scratch/sources.list" \
++    -o Dir::Etc::sourceparts="$scratch/sources.list.d" check
++
++# A successful APT invocation must have installed each selected archive's
++# exact version and architecture; a different already-installed package does
++# not satisfy this output contract.
++: > "$result/selected.tsv"
++for archive in "$@"; do
++    package=$(dpkg-deb --field "$archive" Package)
++    version=$(dpkg-deb --field "$archive" Version)
++    architecture=$(dpkg-deb --field "$archive" Architecture)
++    query="$package:$architecture"
++    if test "$architecture" = all; then
++        query=$package
++    fi
++    installed=$(dpkg-query --show --showformat='${Version}|${Architecture}|${Status}' "$query")
++    if test "$installed" != "$version|$architecture|install ok installed"; then
++        echo "Requested $query=$version, found $installed" >&2
++        exit 1
++    fi
++    printf '%s\t%s\t%s\tinstalled\n' "$query" "$version" "$architecture" >> "$result/selected.tsv"
++done
++
++dpkg --audit > "$result/audit.txt"
++if test -s "$result/audit.txt"; then
++    cat "$result/audit.txt" >&2
++    exit 1
++fi
++if test -s /var/lib/dpkg/triggers/Unincorp; then
++    echo 'dpkg left unincorporated triggers' >&2
++    exit 1
++fi
++dpkg-query --show --showformat='${binary:Package}\t${Version}\t${Architecture}\t${db:Status-Status}\n' > "$result/packages.tsv"
++dpkg --version > "$result/dpkg.txt"
++apt-get --version > "$result/apt.txt"
++
++# Build-time package logs contain wall-clock timestamps. Package state,
++# configuration, alternatives and generated caches remain in the image.
++rm -f /var/log/dpkg.log /var/log/apt/history.log /var/log/apt/term.log
+diff --git a/apt/private/install_test.py b/apt/private/install_test.py
+--- /dev/null
++++ b/apt/private/install_test.py
+@@ -0,0 +1,80 @@
++"""Tests for declared package selection and interpreting real dpkg output."""
++
++import json
++from pathlib import Path
++import tempfile
++import unittest
++from unittest.mock import patch
++
++from install import filesystem_paths, install, package_inventory, select_packages
++
++
++class InstallTest(unittest.TestCase):
++    def setUp(self):
++        self.temporary = tempfile.TemporaryDirectory()
++        self.addCleanup(self.temporary.cleanup)
++        self.root = Path(self.temporary.name)
++
++    def manifest(self, content):
++        path = self.root / "selection.json"
++        path.write_text(json.dumps(content))
++        return path
++
++    def test_selection_can_preserve_base_packages(self):
++        self.assertEqual(
++            select_packages(["openssl.deb", "tcpdump.deb"], self.manifest(["tcpdump.deb"])),
++            ["tcpdump.deb"],
++        )
++
++    def test_empty_selection(self):
++        self.assertEqual(select_packages(["openssl.deb"], self.manifest([])), [])
++
++    def test_rejects_undeclared_package(self):
++        with self.assertRaisesRegex(ValueError, "undeclared"):
++            select_packages(["hello.deb"], self.manifest(["/tmp/unreviewed.deb"]))
++
++    def test_rejects_duplicate_package(self):
++        with self.assertRaisesRegex(ValueError, "duplicate"):
++            select_packages(["hello.deb"], self.manifest(["hello.deb", "hello.deb"]))
++
++    def test_rejects_malformed_selection(self):
++        for value in ({"packages": ["hello.deb"]}, [None], "hello.deb"):
++            with self.subTest(value=value), self.assertRaisesRegex(ValueError, "JSON array"):
++                select_packages(["hello.deb"], self.manifest(value))
++
++    def test_inventory_preserves_multiarch_and_ignores_removed_packages(self):
++        path = self.root / "packages.tsv"
++        path.write_text("libc6:amd64\t2.41\tamd64\tinstalled\nhello\t2.10\tamd64\tconfig-files\n")
++        self.assertEqual(package_inventory(path), {"libc6:amd64": {"version": "2.41", "architecture": "amd64"}})
++
++    def test_inventory_rejects_unconfigured_packages(self):
++        path = self.root / "packages.tsv"
++        for status in ("unpacked", "half-configured", "triggers-pending", "triggers-awaited"):
++            path.write_text(f"hello\t2.10\tamd64\t{status}\n")
++            with self.subTest(status=status), self.assertRaisesRegex(ValueError, "was left"):
++                package_inventory(path)
++
++    def test_filesystem_walk_does_not_follow_absolute_symlinks(self):
++        root = self.root / "root"
++        root.mkdir()
++        (root / "outside").symlink_to(self.root, target_is_directory=True)
++        self.assertEqual(filesystem_paths(root), [root, root / "outside"])
++
++    def test_rejects_unprivileged_worker_before_reading_inputs(self):
++        with patch("install.os.geteuid", return_value=1000):
++            with self.assertRaisesRegex(RuntimeError, "requires root"):
++                install({})
++
++    def test_rejects_foreign_architecture_before_reading_inputs(self):
++        with patch("install.os.geteuid", return_value=0), patch("install.platform.machine", return_value="x86_64"):
++            with self.assertRaisesRegex(RuntimeError, "native execution"):
++                install({"architecture": "arm64"})
++
++    def test_rejects_negative_timestamp_before_reading_inputs(self):
++        with patch("install.os.geteuid", return_value=0), patch("install.platform.machine", return_value="x86_64"):
++            with self.assertRaisesRegex(ValueError, "nonnegative"):
++                install({"architecture": "amd64", "source_date_epoch": -1})
++
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/apt/defs.bzl b/apt/defs.bzl
+--- a/apt/defs.bzl
++++ b/apt/defs.bzl
+@@ -3,5 +3,8 @@
+ load("//apt/private:dpkg_status.bzl", _dpkg_status = "dpkg_status")
+ load("//apt/private:dpkg_statusd.bzl", _dpkg_statusd = "dpkg_statusd")
+ 
++load("//apt/private:install.bzl", _apt_install = "apt_install")
++
++apt_install = _apt_install
+ dpkg_status = _dpkg_status
+ dpkg_statusd = _dpkg_statusd
+diff --git a/apt/BUILD.bazel b/apt/BUILD.bazel
+--- a/apt/BUILD.bazel
++++ b/apt/BUILD.bazel
+@@ -11,6 +11,7 @@
+     deps = [
+         "//apt/private:dpkg_status",
+         "//apt/private:dpkg_statusd",
++        "//apt/private:install",
+     ],
+ )
+ 
+diff --git a/apt/private/BUILD.bazel b/apt/private/BUILD.bazel
+--- a/apt/private/BUILD.bazel
++++ b/apt/private/BUILD.bazel
+@@ -1,10 +1,12 @@
+ load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
++load("@rules_python//python:defs.bzl", "py_binary", "py_library", "py_test")
+ 
+ exports_files([
+     "dpkg_statusd.sh",
+     "dpkg_status.sh",
+     "copy.sh.tmpl",
+     "package.BUILD.tmpl",
++    "install.sh",
+ ])
+ 
+ bzl_library(
+@@ -140,3 +142,29 @@
+     srcs = ["util.bzl"],
+     visibility = ["//apt:__subpackages__"],
+ )
++
++bzl_library(
++    name = "install",
++    srcs = ["install.bzl"],
++    visibility = ["//apt:__subpackages__"],
++    deps = ["@tar.bzl//tar:tar"],
++)
++
++py_library(
++    name = "installer_lib",
++    srcs = ["install.py"],
++    imports = ["."],
++)
++
++py_binary(
++    name = "installer",
++    srcs = ["install.py"],
++    main = "install.py",
++)
++
++py_test(
++    name = "install_test",
++    srcs = ["install_test.py"],
++    deps = [":installer_lib"],
++)
++
+diff --git a/apt/private/deb_import.bzl b/apt/private/deb_import.bzl
+--- a/apt/private/deb_import.bzl
++++ b/apt/private/deb_import.bzl
+@@ -16,6 +16,12 @@
+ load("@rules_cc//cc:cc_library.bzl", "cc_library")
+ load("@rules_distroless//apt/private:cc_deb_library.bzl", "cc_deb_library")
+ load("@bazel_skylib//rules/directory:directory.bzl", "directory")
++
++filegroup(
++    name = "deb",
++    srcs = ["package.deb"],
++    visibility = ["//visibility:public"],
++)
+ 
+ deb_postfix(
+     name = "data",
+@@ -456,10 +462,13 @@
+     return (build_file_content, outs, symlinks)
+ 
+ def _deb_import_impl(rctx):
+-    rctx.download_and_extract(
++    # Retain the verified original archive for real dpkg installation.
++    rctx.download(
+         url = rctx.attr.urls,
+         sha256 = rctx.attr.sha256,
++        output = "package.deb",
+     )
++    rctx.extract("package.deb")
+ 
+     if rctx.attr.payload_only:
+         rctx.file("BUILD.bazel", _DEB_ARCHIVES_BUILD_TMPL.format(
+diff --git a/apt/private/package.BUILD.tmpl b/apt/private/package.BUILD.tmpl
+--- a/apt/private/package.BUILD.tmpl
++++ b/apt/private/package.BUILD.tmpl
+@@ -1,4 +1,10 @@
+ """Generated by rules_distroless. DO NOT EDIT."""
++
++alias(
++    name = "deb",
++    actual = {deb_targets},
++    visibility = ["//visibility:public"],
++)
+ 
+ alias(
+     name = "data",
+diff --git a/apt/private/translate_dependency_set.bzl b/apt/private/translate_dependency_set.bzl
+--- a/apt/private/translate_dependency_set.bzl
++++ b/apt/private/translate_dependency_set.bzl
+@@ -115,6 +115,12 @@
+ """
+ 
+ alias(
++    name = "deb",
++    actual = select({deb_targets}, no_match_error = NO_MATCH_ERROR),
++    visibility = ["//visibility:public"],
++)
++
++alias(
+     name = "data",
+     actual = select({data_targets}, no_match_error = NO_MATCH_ERROR),
+     visibility = ["//visibility:public"],
+@@ -222,6 +228,7 @@
+                 package_template.format(
+                     target_name = architecture,
+                     data_targets = '"@%s//:data"' % repo_name,
++                    deb_targets = '"@%s//:deb"' % repo_name,
+                     control_targets = '"@%s//:control"' % repo_name,
+                     src = '"@%s//:data"' % repo_name,
+                     deps = package_deps_for_architecture(packages, package, architecture, repo_prefix = rctx.attr.repo_prefix),
+@@ -257,6 +264,10 @@
+             "%s/BUILD.bazel" % package_name,
+             _PACKAGE_TEMPLATE.format(
+                 target_name = package_name,
++                deb_targets = starlark_codegen_utils.to_dict_attr({
++                    "//:linux_%s" % architecture: "@%s%s//:deb" % (rctx.attr.repo_prefix, util.sanitize(package_key))
++                    for (architecture, package_key) in info.architectures.items()
++                }),
+                 data_targets = starlark_codegen_utils.to_dict_attr({
+                     "//:linux_%s" % architecture: "//%s/%s:data" % (package_name, architecture)
+                     for architecture in architectures
