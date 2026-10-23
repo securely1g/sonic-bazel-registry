@@ -1627,6 +1627,9 @@ class FetchedModuleTests(FixtureTestCase):
         self.registry_entry = self.entry("alpha", "1.0.0")
         self.config_path = self.registry_entry / "presubmit.json"
         self.config = json.loads(self.config_path.read_text())
+        self.architecture = {"x86_64": "amd64", "aarch64": "arm64"}[registry_ci.platform.machine()]
+        self.config["architectures"] = [self.architecture]
+        self.config["platforms"] = {self.architecture: "@platforms//host:host"}
         self.config["build_flags"] = ["--@alpha//bazel:yang_modules=False"]
         self.config["consumer_deps"] = [
             {"name": "platforms", "version": "1.0.0"},
@@ -1687,7 +1690,7 @@ class FetchedModuleTests(FixtureTestCase):
     def run_fixture(self, suffix: str) -> Path:
         artifacts = self.root / f"artifacts-{suffix}"
         registry_ci.run(
-            self.root, "alpha", "1.0.0", "amd64",
+            self.root, "alpha", "1.0.0", self.architecture,
             self.root / f"work-{suffix}", artifacts, str(self.fake_bazel),
         )
         return artifacts
@@ -1746,6 +1749,7 @@ class FetchedModuleTests(FixtureTestCase):
             for dependency in self.config["consumer_deps"]
         ])
         validation = json.loads((artifacts / "validation.json").read_text())
+        self.assertEqual(validation["architecture"], self.architecture)
         self.assertEqual(validation["build_flags"], self.config["build_flags"])
         self.assertEqual(validation["consumer_deps"], self.config["consumer_deps"])
         self.assertNotIn("version_overrides", validation)
@@ -1920,7 +1924,7 @@ class FetchedModuleTests(FixtureTestCase):
 
     def test_empty_consumer_dependencies_need_no_overrides_or_dependency_artifacts(self) -> None:
         self.config["consumer_deps"] = []
-        self.config["platforms"] = {"amd64": "@alpha//:platform"}
+        self.config["platforms"] = {self.architecture: "@alpha//:platform"}
         write_json(self.config_path, self.config)
         artifacts = self.run_fixture("empty-dependencies")
         self.assertEqual(self.declarations(artifacts, "single_version_override"), [])
