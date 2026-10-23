@@ -11,7 +11,8 @@
     "https://www.dest-unreach.org/socat/"
   ],
   "versions": [
-    "1.8.0.2.sonic.1"
+    "1.8.0.2.sonic.1",
+    "1.8.0.2.sonic.2"
   ],
   "yanked_versions": {}
 }

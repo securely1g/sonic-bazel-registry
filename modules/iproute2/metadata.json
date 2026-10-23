@@ -11,7 +11,8 @@
     "https://git.kernel.org/pub/scm/network/iproute2/iproute2.git"
   ],
   "versions": [
-    "6.15.0.sonic.1"
+    "6.15.0.sonic.1",
+    "6.15.0.sonic.2"
   ],
   "yanked_versions": {}
 }

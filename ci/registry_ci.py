@@ -318,23 +318,137 @@ def git(root: Path, *args: str) -> str:
     return subprocess.check_output(["git", "-C", str(root), *args], text=True)
 
 
-def plan(root: Path, base: str | None, head: str | None, all_versions: bool = False) -> dict:
+def release_key(version: str) -> tuple[tuple[int, ...], int, int]:
+    """Order registry releases and patches without treating Git hashes as dates."""
+    match = re.fullmatch(r"([0-9]+(?:\.[0-9]+)*)(.*)", version)
+    require(match is not None, f"Cannot select latest registry version: {version}")
+    release, suffix = match.groups()
+    numbers = tuple(int(part) for part in release.split("."))
+    # Equivalent numeric releases must still use registration order for snapshots.
+    while len(numbers) > 1 and numbers[-1] == 0:
+        numbers = numbers[:-1]
+    patch = re.fullmatch(r"([.-])sonic\.([0-9]+)", suffix)
+    if patch:
+        return numbers, int(patch[2]), int(patch[1] == ".")
+    require(suffix in ("", ".sonic-buildimage", ".sonic-patched")
+            or re.fullmatch(r"(?:-|\.commit-)[0-9a-f]{7,40}", suffix) is not None,
+            f"Unsupported registry version for latest selection: {version}")
+    return numbers, 0, 0
+
+
+def latest_presubmits(root: Path) -> set[tuple[str, str]]:
+    """Select the newest non-yanked release of each module already covered by CI."""
+    modules = {path.parent.parent for path in (root / "modules").glob("*/*/presubmit.json")}
+    selected = set()
+    for directory in sorted(modules):
+        metadata = read_json(directory / "metadata.json")
+        versions = metadata.get("versions")
+        require(isinstance(versions, list) and bool(versions)
+                and all(isinstance(v, str) and VERSION.fullmatch(v) for v in versions),
+                f"{directory.name}: metadata needs valid versions")
+        require(len(versions) == len(set(versions)), f"{directory.name}: duplicate metadata versions")
+        directories = {path.name for path in directory.iterdir() if path.is_dir()}
+        require(set(versions) == directories, f"{directory.name}: metadata and version directories differ")
+        yanked = metadata.get("yanked_versions", {})
+        require(isinstance(yanked, dict) and set(yanked) <= set(versions)
+                and all(isinstance(reason, str) for reason in yanked.values()),
+                f"{directory.name}: invalid yanked_versions metadata")
+        eligible = [(release_key(version), index, version)
+                    for index, version in enumerate(versions) if version not in yanked]
+        if not eligible:
+            print(f"Skipping {directory.name}: all versions are yanked", file=sys.stderr)
+            continue
+        # Numeric release/patch first; metadata append order breaks snapshot ties.
+        version = max(eligible)[2]
+        require((directory / version / "presubmit.json").is_file(),
+                f"{directory.name}: latest version {version} needs presubmit.json")
+        selected.add((directory.name, version))
+    return selected
+
+
+def check_version_policy(root: Path, published: str, head: str, push: bool = False) -> None:
+    """Protect published entries and allow one candidate across an entire PR stack."""
+    for name, revision in (("published", published), ("head", head)):
+        require(isinstance(revision, str) and re.fullmatch(r"[0-9a-fA-F]{40,64}", revision) is not None,
+                f"{name} must be a full commit SHA")
+        require(git(root, "rev-parse", "--verify", f"{revision}^{{commit}}").strip() == revision,
+                f"Cannot resolve {name} commit: {revision}")
+    # Compare the complete proposed stack with the maintained branch. Unrelated
+    # releases published after the branch fork are not deletions by this PR.
+    # A push replaces main itself, so even a non-fast-forward rollback must
+    # retain everything published before the push.
+    ancestor = published if push else git(root, "merge-base", published, head).strip()
+    changed = git(root, "diff", "--name-only", "--no-renames", "-z", ancestor, head, "--", "modules/")
+    modules = {PurePosixPath(name).parts[1] for name in changed.split("\0") if name}
+    for module in sorted(modules):
+        require(NAME.fullmatch(module) is not None, f"Invalid module name: {module}")
+        path = f"modules/{module}"
+        # ls-tree lists committed directories even when metadata omits one.
+        # Looking only at metadata or the PR's own base would miss candidates.
+        published_exists = bool(git(root, "ls-tree", published, "--", path).strip())
+        published_versions = {}
+        if published_exists:
+            for record in git(root, "ls-tree", "-z", f"{published}:{path}").split("\0"):
+                if record:
+                    info, name = record.split("\t", 1)
+                    mode, kind, oid = info.split()
+                    if kind == "tree":
+                        published_versions[name] = (mode, oid)
+        require(bool(git(root, "ls-tree", head, "--", path).strip()),
+                f"{module}: published module cannot be deleted")
+        head_versions = {}
+        for record in git(root, "ls-tree", "-z", f"{head}:{path}").split("\0"):
+            if record:
+                info, name = record.split("\t", 1)
+                mode, kind, oid = info.split()
+                if kind == "tree":
+                    head_versions[name] = (mode, oid)
+        metadata = json.loads(git(root, "show", f"{head}:{path}/metadata.json"))
+        versions = metadata.get("versions")
+        require(isinstance(versions, list) and all(isinstance(v, str) for v in versions),
+                f"{module}: metadata needs versions")
+        require(len(versions) == len(set(versions)) and set(versions) == set(head_versions),
+                f"{module}: metadata and version directories differ")
+        for version, tree in sorted(published_versions.items()):
+            require(head_versions.get(version) == tree,
+                    f"{module}@{version}: published version changed or removed; "
+                    "preserve its original contents (rebase if the maintained branch advanced)")
+        candidates = sorted(set(head_versions) - set(published_versions))
+        require(len(candidates) <= 1,
+                f"{module}: multiple unreleased candidates relative to {published}: {', '.join(candidates)}; "
+                "consolidate the unmerged stack into one candidate and update its consumers")
+        print(f"Version policy: {module}: candidates={candidates}, published={published}", file=sys.stderr)
+
+
+def plan(root: Path, base: str | None, head: str | None, all_versions: bool = False,
+         latest_versions: bool = False, published: str | None = None,
+         push: bool = False) -> dict:
+    require(not (all_versions and latest_versions), "Choose either --all or --latest")
+    require(not ((all_versions or latest_versions) and base),
+            "Do not combine --all/--latest with --base")
+    require(bool(published) and bool(head), "plan requires --published and --head")
+    require(git(root, "rev-parse", "HEAD").strip() == head, "Checkout HEAD differs from planned head")
+    check_version_policy(root, published, head, push)
     selected = set()
     if all_versions:
         selected.update((path.parent.parent.name, path.parent.name)
                         for path in (root / "modules").glob("*/*/presubmit.json"))
+    elif latest_versions:
+        selected.update(latest_presubmits(root))
     else:
-        require(bool(base) and bool(head), "plan requires --base/--head or --all")
+        require(bool(base) and bool(head), "plan requires --base/--head, --latest or --all")
         require(re.fullmatch(r"[0-9a-fA-F]{40,64}", base) is not None
                 and re.fullmatch(r"[0-9a-fA-F]{40,64}", head) is not None,
                 "base and head must be full commit SHAs")
-        require(git(root, "rev-parse", "HEAD").strip() == head, "Checkout HEAD differs from planned head")
-        changed = git(root, "diff", "--name-only", "--no-renames", "-z", base, head).split("\0")
+        # A PR compares its own changes with the common ancestor. Releases
+        # added only to its target branch are not deletions from this checkout.
+        comparison_base = base if push else git(root, "merge-base", base, head).strip()
+        changed = git(root, "diff", "--name-only", "--no-renames", "-z", comparison_base, head).split("\0")
+        ci_changed = False
         for name in filter(None, changed):
             parts = PurePosixPath(name).parts
             if parts[0] in ("ci", ".github") or name == "bazel_registry.json":
-                selected.update((path.parent.parent.name, path.parent.name)
-                                for path in (root / "modules").glob("*/*/presubmit.json"))
+                ci_changed = True
             elif parts[0] == "modules":
                 require(len(parts) >= 3, f"Unsupported module path: {name}")
                 module = parts[1]
@@ -352,7 +466,7 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
                     directories = {p.name for p in (root / "modules" / module).iterdir() if p.is_dir()}
                     require(set(versions) == directories, f"{module}: metadata and version directories differ")
                     previous = subprocess.run(
-                        ["git", "-C", str(root), "show", f"{base}:modules/{module}/metadata.json"],
+                        ["git", "-C", str(root), "show", f"{comparison_base}:modules/{module}/metadata.json"],
                         text=True, capture_output=True,
                     )
                     relevant = versions
@@ -362,14 +476,24 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
                         added = set(versions) - set(old_versions)
                         old_fields = {key: value for key, value in old.items() if key != "versions"}
                         new_fields = {key: value for key, value in metadata.items() if key != "versions"}
-                        # A release append does not require retrofitting CI to every
-                        # historical version. Other metadata changes cover them all.
-                        if added and old_fields == new_fields and [v for v in versions if v in old_versions] == old_versions:
+                        # Adding, replacing or removing a draft does not require
+                        # retrofitting CI to unchanged historical versions. The
+                        # policy check above protects all published directories.
+                        # Other metadata changes still cover every version.
+                        retained = [v for v in versions if v in old_versions]
+                        old_retained = [v for v in old_versions if v in versions]
+                        if (set(versions) != set(old_versions) and old_fields == new_fields
+                                and retained == old_retained):
                             relevant = [v for v in versions if v in added]
                     selected.update((module, version) for version in relevant)
                 else:
                     require(len(parts) >= 4, f"Unsupported version path: {name}")
-                    selected.add((module, parts[2]))
+                    # A deleted unpublished candidate has no jobs. Published
+                    # deletion already failed check_version_policy above.
+                    if (root / "modules" / module / parts[2]).exists():
+                        selected.add((module, parts[2]))
+        if ci_changed:
+            selected.update(latest_presubmits(root))
     include = []
     for module, version in sorted(selected):
         config = validate_entry(root, module, version)
@@ -822,7 +946,15 @@ def main() -> None:
     planner = subparsers.add_parser("plan")
     planner.add_argument("--base")
     planner.add_argument("--head")
-    planner.add_argument("--all", action="store_true", dest="all_versions")
+    planner.add_argument("--published", required=True,
+                         help="fresh maintained-main SHA for PRs; event.before SHA for pushes")
+    planner.add_argument("--push", action="store_true",
+                         help="compare directly against the pre-push publication baseline")
+    scope = planner.add_mutually_exclusive_group()
+    scope.add_argument("--all", action="store_true", dest="all_versions",
+                       help="test every configured version, including historical versions")
+    scope.add_argument("--latest", action="store_true", dest="latest_versions",
+                       help="test the latest non-yanked version of each configured module")
     planner.add_argument("--output", required=True, type=Path)
     synchronizer = subparsers.add_parser("sync-module", help="generate or check an opted-in MODULE overlay")
     synchronizer.add_argument("--module", required=True)
@@ -838,7 +970,8 @@ def main() -> None:
     args = parser.parse_args()
     try:
         if args.command == "plan":
-            result = plan(ROOT, args.base, args.head, args.all_versions)
+            result = plan(ROOT, args.base, args.head, args.all_versions, args.latest_versions,
+                          published=args.published, push=args.push)
             args.output.parent.mkdir(parents=True, exist_ok=True)
             args.output.write_text(json.dumps(result, indent=2) + "\n")
             print(json.dumps(result, separators=(",", ":")))
