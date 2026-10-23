@@ -1,0 +1,130 @@
+module(
+    name = "libnl3",
+    version = "3.7.0.sonic.5",
+)
+
+bazel_dep(name = "buildifier_prebuilt", version = "8.5.1.2", dev_dependency = True)
+
+bazel_dep(name = "bazel_skylib", version = "1.8.2")
+bazel_dep(name = "bazel_lib", version = "3.1.1")
+bazel_dep(name = "rules_cc", version = "0.2.20")
+bazel_dep(name = "rules_shell", version = "0.6.1")
+bazel_dep(name = "tar.bzl", version = "0.10.5-sonic.1")
+bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.1")
+bazel_dep(name = "platforms", version = "1.0.0")
+bazel_dep(name = "sonic-build-infra", version = "0.0.22-6dafd3595a75251748c1ca7502d5a8f6660e126b", repo_name = "sonic_build_infra")
+
+gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
+use_repo(gcc, "gcc_toolchains")
+
+register_toolchains("@gcc_toolchains//:all")
+
+libnl3_src = use_repo_rule("//:libnl3_src.bzl", "libnl3_src")
+
+# TODO(bazel-ready): Make work with all relevant versions of libnl.
+libnl3_src(
+    name = "libnl3_src",
+    archive_inputs = "//:archive_inputs.bzl",
+    build_file_template = "//:libnl3.BUILD",
+    patches = [
+        "//:patch/0003-Adding-support-for-RTA_NH_ID-attribute.patch",
+    ],
+    sha256 = "9fe43ccbeeea72c653bdcf8c93332583135cda46a79507bfd0a483bb57f65939",
+    strip_prefix = "libnl-3.7.0",
+    urls = ["https://deb.debian.org/debian/pool/main/libn/libnl3/libnl3_3.7.0.orig.tar.gz"],
+)
+
+bazel_dep(name = "rules_flex", version = "0.4")
+
+flex = use_extension(
+    "@rules_flex//flex/extensions:flex_repository_ext.bzl",
+    "flex_repository_ext",
+)
+flex.repository(
+    name = "flex",
+    extra_copts = [
+        "-O3",
+        "-Wno-format-truncation",
+        "-Wno-unused-parameter",
+        "-Wno-pointer-sign",
+        "-Wno-misleading-indentation",
+        "-Wno-stringop-truncation",
+        "-Wno-alloc-size-larger-than",
+    ],
+    version = "2.6.4",
+)
+use_repo(flex, "flex")
+
+register_toolchains("@flex//:toolchain")
+
+bazel_dep(name = "rules_bison", version = "0.4")
+
+bison = use_extension(
+    "@rules_bison//bison/extensions:bison_repository_ext.bzl",
+    "bison_repository_ext",
+)
+bison.repository(
+    name = "bison",
+    extra_copts = [
+        "-O3",
+        "-Wno-sign-compare",
+        "-Wno-discarded-qualifiers",
+    ],
+    version = "3.3.2",
+)
+use_repo(bison, "bison")
+
+register_toolchains("@bison//:toolchain")
+
+bazel_dep(name = "rules_m4", version = "0.3.1")
+
+m4 = use_extension(
+    "@rules_m4//m4/extensions:m4_repository_ext.bzl",
+    "m4_repository_ext",
+)
+m4.repository(
+    name = "m4",
+    extra_copts = [
+        "-O3",
+        # Disable warnings that are particularities of our toolchain.
+        "-Wno-sign-compare",
+        "-Wno-unused-parameter",
+        "-Wno-implicit-fallthrough",
+        "-Wno-attributes",
+        "-Wno-vla-parameter",
+    ],
+    version = "1.4.18",
+)
+use_repo(m4, "m4")
+
+register_toolchains("@m4//:toolchain")
+
+# Reuse the Debian packaging selected by SONiC. Its existing metadata-only
+# patches preserve the source package version; no package fields are copied.
+http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
+
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+http_file(
+    name = "libnl3_debhelper_patch",
+    sha256 = "85cbdee623c8fa254bcf0e418c8633279fc1f70f347bb495f7c7e0397b1e17bb",
+    urls = ["https://raw.githubusercontent.com/securely1g/sonic-buildimage/8ce951c42542d5e2478f6589ad0ea8bda882b972/src/libnl3/patch/switch-to-debhelper.patch"],
+)
+
+http_file(
+    name = "libnl3_changelog_patch",
+    sha256 = "bc16634349d581177cad37f285879cfa79e3ff5069742cb0f63a1a34b986307e",
+    urls = ["https://raw.githubusercontent.com/securely1g/sonic-buildimage/8ce951c42542d5e2478f6589ad0ea8bda882b972/src/libnl3/patch/update-changelog.patch"],
+)
+
+http_archive(
+    name = "libnl3_debian",
+    build_file_content = 'exports_files(glob(["debian/**"]))\n',
+    patch_args = ["-p1"],
+    patches = [
+        "@libnl3_debhelper_patch//file:downloaded",
+        "@libnl3_changelog_patch//file:downloaded",
+    ],
+    sha256 = "35ae5b6ee3a56abd3ae8603fd47c3e38c9302d02a2d498fb88a3e2f2791ac2f0",
+    urls = ["https://deb.debian.org/debian/pool/main/libn/libnl3/libnl3_3.7.0-0.2.debian.tar.xz"],
+)
