@@ -172,12 +172,13 @@ class SelectionTests(FixtureTestCase):
         with self.assertRaisesRegex(registry_ci.RegistryError, "Unsupported version path"):
             registry_ci.plan(self.root, base, head, published=base)
 
-    def test_changed_version_without_manifest_fails_planning(self) -> None:
+    def test_changed_standalone_tests_without_manifest_fail_planning(self) -> None:
         entry = self.entry("alpha", "1.0.0", configured=False)
         base = self.commit("historical unconfigured version")
-        (entry / "README.md").write_text("Changed historical version.\n")
-        head = self.commit("change unconfigured version")
-        with self.assertRaises(registry_ci.RegistryError):
+        (entry / "tests").mkdir()
+        (entry / "tests" / "consumer_test.py").write_text("assert True\n")
+        head = self.commit("add test without a validation manifest")
+        with self.assertRaisesRegex(registry_ci.RegistryError, "presubmit.json"):
             registry_ci.plan(self.root, base, head, published=base)
 
     def test_deleted_version_fails_planning(self) -> None:
@@ -343,8 +344,8 @@ class SelectionTests(FixtureTestCase):
             "versions": ["1.0.0"], "yanked_versions": {"1.0.0": "Withdrawn"},
         })
         base = self.commit("initial registry with yanked version")
-        (entry / "README.md").write_text("Explain withdrawn release.\n")
-        head = self.commit("document yanked version")
+        (entry / "MODULE.bazel").write_text('module(name = "alpha", version = "1.0.0")\n# Changed\n')
+        head = self.commit("change yanked module declaration")
         with self.assertRaisesRegex(registry_ci.RegistryError, "published version changed"):
             self.selected(base, head)
 
@@ -547,8 +548,8 @@ class VersionPolicyTests(FixtureTestCase):
         with self.assertRaisesRegex(registry_ci.RegistryError, "metadata and version directories differ"):
             registry_ci.plan(self.root, published, head, published=published)
 
-    def test_published_tree_cannot_be_edited_or_removed(self) -> None:
-        """Protect file contents, additions, deletions, modes, and whole entries."""
+    def test_published_inputs_cannot_be_edited_or_removed(self) -> None:
+        """Protect consumer inputs, unknown additions, modes, and whole entries."""
         entry = self.entry("alpha", "1.0.0")
         published = self.commit("main")
         for mutation in ("edit", "add", "delete", "mode", "remove"):
@@ -557,7 +558,7 @@ class VersionPolicyTests(FixtureTestCase):
                 if mutation == "edit":
                     (entry / "source.json").write_text("{}\n")
                 elif mutation == "add":
-                    (entry / "README.md").write_text("New published content\n")
+                    (entry / "BUILD.bazel").write_text("# New build input\n")
                 elif mutation == "delete":
                     (entry / "source.json").unlink()
                 elif mutation == "mode":
@@ -566,6 +567,151 @@ class VersionPolicyTests(FixtureTestCase):
                     shutil.rmtree(entry)
                     write_json(entry.parent / "metadata.json", {"versions": []})
                 head = self.commit(mutation)
+                with self.assertRaisesRegex(registry_ci.RegistryError, "published version changed or removed"):
+                    registry_ci.plan(self.root, published, head, published=published)
+
+    def test_published_documentation_does_not_require_historical_ci(self) -> None:
+        """Maintaining docs must not require retrofitting old module tests."""
+        entry = self.entry("alpha", "1.0.0", configured=False)
+        (entry / "README.md").write_text("Old instructions\n")
+        (entry / "PATCHES.md").write_text("Obsolete notes\n")
+        published = self.commit("published version without CI")
+        (entry / "README.md").write_text("Corrected instructions\n")
+        (entry / "PATCHES.md").unlink()
+        (entry / "docs").mkdir()
+        (entry / "docs" / "example.md").write_text("A concrete consumer example\n")
+        head = self.commit("maintain published documentation")
+        self.assertEqual(self.selected(published, head), set())
+
+    def test_published_standalone_tests_select_the_historical_version(self) -> None:
+        """Updating an older release's tests must validate that release."""
+        entry = self.entry("alpha", "1.0.0")
+        tests = entry / "tests"
+        tests.mkdir()
+        (tests / "consumer_test.py").write_text("assert True\n")
+        (tests / "obsolete_fixture.txt").write_text("old fixture\n")
+        self.entry("alpha", "2.0.0")
+        published = self.commit("two published releases")
+        (tests / "consumer_test.py").write_text("assert 1 + 1 == 2\n")
+        (tests / "obsolete_fixture.txt").unlink()
+        (tests / "replacement_fixture.txt").write_text("new fixture\n")
+        config = json.loads((entry / "presubmit.json").read_text())
+        config["test_targets"].append("@alpha//:additional_consumer_test")
+        write_json(entry / "presubmit.json", config)
+        head = self.commit("maintain historical standalone tests")
+        self.assertEqual(self.selected(published, head), {("alpha", "1.0.0")})
+
+    def test_published_version_can_add_standalone_ci(self) -> None:
+        """CI configuration is maintenance, even when the release predates CI."""
+        entry = self.entry("alpha", "1.0.0", configured=False)
+        newer = self.entry("alpha", "2.0.0")
+        published = self.commit("historical release without CI")
+        shutil.copy2(newer / "presubmit.json", entry / "presubmit.json")
+        head = self.commit("add CI for the historical release")
+        self.assertEqual(self.selected(published, head), {("alpha", "1.0.0")})
+
+    def test_published_test_executable_bit_is_maintenance(self) -> None:
+        entry = self.entry("alpha", "1.0.0")
+        script = entry / "tests" / "run.sh"
+        script.parent.mkdir()
+        script.write_text("#!/bin/sh\nexit 0\n")
+        published = self.commit("published test script")
+        script.chmod(0o755)
+        head = self.commit("make standalone test executable")
+        self.assertEqual(self.selected(published, head), {("alpha", "1.0.0")})
+
+    def test_published_maintenance_cannot_introduce_symlinks(self) -> None:
+        entry = self.entry("alpha", "1.0.0")
+        docs = entry / "docs"
+        docs.mkdir()
+        (docs / "guide.md").write_text("Instructions\n")
+        published = self.commit("published documentation")
+        for relative in ("README.md", "docs/guide.md", "tests/consumer_test.py"):
+            with self.subTest(path=relative):
+                self.git("reset", "--hard", published)
+                self.git("clean", "-fdq")
+                path = entry / relative
+                path.parent.mkdir(exist_ok=True)
+                path.unlink(missing_ok=True)
+                path.symlink_to("../MODULE.bazel")
+                head = self.commit("replace maintenance file with symlink")
+                with self.assertRaisesRegex(registry_ci.RegistryError, "published version changed or removed"):
+                    registry_ci.plan(self.root, published, head, published=published)
+
+    def test_published_patch_and_overlay_docs_remain_inputs(self) -> None:
+        """A README or test copied into fetched sources is not standalone CI."""
+        entry = self.entry("alpha", "1.0.0")
+        payloads = ["patches/README.md", "overlay/docs/guide.md", "overlay/tests/consumer_test.py"]
+        source = json.loads((entry / "source.json").read_text())
+        for relative in payloads:
+            path = entry / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("original source input\n")
+            folder, name = relative.split("/", 1)
+            source.setdefault(folder, {})[name] = digest(path.read_bytes())
+        write_json(entry / "source.json", source)
+        published = self.commit("published fetched docs and tests")
+        for relative in payloads:
+            for mutation in ("edit", "delete", "mode"):
+                with self.subTest(path=relative, mutation=mutation):
+                    self.git("reset", "--hard", published)
+                    path = entry / relative
+                    if mutation == "edit":
+                        path.write_text("changed source input\n")
+                    elif mutation == "delete":
+                        path.unlink()
+                    else:
+                        path.chmod(0o755)
+                    head = self.commit("change fetched source input")
+                    with self.assertRaisesRegex(registry_ci.RegistryError, "published version changed or removed"):
+                        registry_ci.plan(self.root, published, head, published=published)
+
+    def test_published_source_references_override_maintenance_paths(self) -> None:
+        """A registry-local archive cannot become mutable by living under tests/."""
+        entry = self.entry("alpha", "1.0.0")
+        for relative in ("docs/source.tar.gz", "tests/source.tar.gz"):
+            path = entry / relative
+            path.parent.mkdir()
+            path.write_bytes(b"archive")
+        base = self.commit("source fixtures")
+        for field, url, relative in (
+            ("url", "https://example.invalid/registry/docs/source.tar.gz", "docs/source.tar.gz"),
+            ("mirror_urls", "https://example.invalid/registry/tests/source.tar.gz", "tests/source.tar.gz"),
+            ("url", "https://example.invalid/docs/%2e%2e/tests/source.tar.gz?raw=1", "tests/source.tar.gz"),
+        ):
+            with self.subTest(field=field, url=url):
+                self.git("reset", "--hard", base)
+                source = json.loads((entry / "source.json").read_text())
+                source[field] = [url] if field == "mirror_urls" else url
+                write_json(entry / "source.json", source)
+                published = self.commit("publish referenced archive")
+                (entry / relative).write_bytes(b"changed archive")
+                head = self.commit("change archive under maintenance path")
+                with self.assertRaisesRegex(registry_ci.RegistryError, "published version changed or removed"):
+                    registry_ci.plan(self.root, published, head, published=published)
+
+    def test_published_docs_url_is_informational(self) -> None:
+        entry = self.entry("alpha", "1.0.0", configured=False)
+        (entry / "README.md").write_text("Old documentation\n")
+        source = json.loads((entry / "source.json").read_text())
+        source["docs_url"] = "https://example.invalid/registry/README.md"
+        write_json(entry / "source.json", source)
+        published = self.commit("publish documentation link")
+        (entry / "README.md").write_text("Corrected documentation\n")
+        head = self.commit("maintain linked documentation")
+        self.assertEqual(self.selected(published, head), set())
+
+    def test_unknown_recipe_layout_keeps_whole_entry_immutable(self) -> None:
+        entry = self.entry("alpha", "1.0.0")
+        original = json.loads((entry / "source.json").read_text())
+        base = self.commit("archive entry")
+        for extra in ({"type": "local_path"}, {"future_build_input": "unrecognized layout"}):
+            with self.subTest(extra=extra):
+                self.git("reset", "--hard", base)
+                write_json(entry / "source.json", {**original, **extra})
+                published = self.commit("unsupported source layout")
+                (entry / "README.md").write_text("Cannot infer whether this is a build input\n")
+                head = self.commit("change unsupported source layout")
                 with self.assertRaisesRegex(registry_ci.RegistryError, "published version changed or removed"):
                     registry_ci.plan(self.root, published, head, published=published)
 
@@ -603,11 +749,11 @@ class VersionPolicyTests(FixtureTestCase):
         self.entry("alpha", "1.0.0")
         fork = self.commit("common ancestor")
         entry = self.entry("alpha", "2.0.0")
-        (entry / "README.md").write_text("Published contents\n")
+        (entry / "MODULE.bazel").write_text('module(name = "alpha", version = "2.0.0")\n# Published\n')
         published = self.commit("publish candidate independently")
         self.git("checkout", "--detach", fork)
         entry = self.entry("alpha", "2.0.0")
-        (entry / "README.md").write_text("Different contents\n")
+        (entry / "MODULE.bazel").write_text('module(name = "alpha", version = "2.0.0")\n# Different\n')
         head = self.commit("colliding candidate")
         with self.assertRaisesRegex(registry_ci.RegistryError, "published version changed or removed"):
             registry_ci.plan(self.root, fork, head, published=published)
@@ -616,7 +762,7 @@ class VersionPolicyTests(FixtureTestCase):
         """Pushes must use event.before; the post-push main tree blesses itself."""
         entry = self.entry("alpha", "1.0.0")
         before = self.commit("pre-push main")
-        (entry / "README.md").write_text("Edited published release\n")
+        (entry / "MODULE.bazel").write_text('module(name = "alpha", version = "1.0.0")\n# Edited\n')
         head = self.commit("push")
         with self.assertRaisesRegex(registry_ci.RegistryError, "published version changed or removed"):
             registry_ci.plan(self.root, None, head, all_versions=True, published=before, push=True)
