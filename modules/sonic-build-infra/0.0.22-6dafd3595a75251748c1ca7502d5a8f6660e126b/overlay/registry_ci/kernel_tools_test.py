@@ -4,4 +4,4 @@ import subprocess
 import sys
 
 if __name__ == "__main__":
-    subprocess.run([str(Path(sys.argv[1]).absolute())], check=True)
+    subprocess.run([str(Path(sys.argv[1]).absolute()), *sys.argv[2:]], check=True)

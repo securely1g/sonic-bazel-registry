@@ -21,12 +21,25 @@ config_setting(
         name = "kernel_" + architecture + "_tools_test",
         srcs = ["kernel_tools_test.py"],
         args = select({
-            ":amd64": ["$(location //tools/build_tools:kernel_cross_runtime_" + architecture + "_test)"],
-            "//conditions:default": ["$(location //tools/build_tools:kernel_runtime_test)"],
+            ":amd64": [
+                "$(location //tools/build_tools:kernel_cross_runtime_" + architecture + "_test)",
+                "$(location //tools/build_tools:kernel_build_tools_" + architecture + ")",
+                architecture,
+            ],
+            "//conditions:default": [
+                "$(location //tools/build_tools:kernel_runtime_test)",
+                "$(location //tools/build_tools:kernel_runtime)",
+            ],
         }),
         data = select({
-            ":amd64": ["//tools/build_tools:kernel_cross_runtime_" + architecture + "_test"],
-            "//conditions:default": ["//tools/build_tools:kernel_runtime_test"],
+            ":amd64": [
+                "//tools/build_tools:kernel_cross_runtime_" + architecture + "_test",
+                "//tools/build_tools:kernel_build_tools_" + architecture,
+            ],
+            "//conditions:default": [
+                "//tools/build_tools:kernel_runtime_test",
+                "//tools/build_tools:kernel_runtime",
+            ],
         }),
         main = "kernel_tools_test.py",
         size = "large",

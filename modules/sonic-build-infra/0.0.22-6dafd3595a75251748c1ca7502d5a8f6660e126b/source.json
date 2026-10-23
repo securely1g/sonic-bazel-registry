@@ -8,7 +8,7 @@
   },
   "patch_strip": 1,
   "overlay": {
-    "registry_ci/BUILD.bazel": "sha256-HAkqYj+Or2/Xr9P5cladUCxv9NRY97Juguxpjt1RFTU=",
-    "registry_ci/kernel_tools_test.py": "sha256-+IVdJGygi3K2G7cL8sj6m7Q1xCSPpbRoTqkl1T/AAPs="
+    "registry_ci/BUILD.bazel": "sha256-vgAjW08VaalcTHz5QZnXgZEfF+uwEACL1+0o06lupAg=",
+    "registry_ci/kernel_tools_test.py": "sha256-Sc7uPv4ZgJxcUx1YjULES+OsclNgC6sh7NMGP9H5fqQ="
   }
 }
