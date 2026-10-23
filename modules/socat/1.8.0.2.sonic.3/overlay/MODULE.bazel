@@ -1,0 +1,65 @@
+# AUTO-GENERATED. DO NOT EDIT MANUALLY.
+# Source: ../MODULE.bazel
+# Generator: python3 ci/registry_ci.py sync-module --module socat --version 1.8.0.2.sonic.3
+
+module(
+    name = "socat",
+    version = "1.8.0.2.sonic.3",
+)
+
+bazel_dep(name = "bazel_skylib", version = "1.8.2")
+bazel_dep(name = "rules_foreign_cc", version = "0.15.1")
+bazel_dep(name = "rules_cc", version = "0.2.16")
+bazel_dep(name = "rules_python", version = "1.7.0")
+bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.5")
+bazel_dep(name = "sonic-build-infra", version = "0.0.22-280833c24ec33d2dbd8ea0a7639e5ac82dfc55f8", repo_name = "sonic_build_infra")
+
+# Reuse the infrastructure module's pinned Debian snapshot and native toolchain.
+gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
+use_repo(gcc, "gcc_toolchains")
+
+register_toolchains("@gcc_toolchains//:all")
+
+apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
+apt.install(
+    dependency_set = "socat_deps",
+    packages = [
+        "libreadline-dev",
+        "libreadline8t64",
+        "libssl-dev",
+        "libssl3t64",
+        "libtinfo6",
+        "libwrap0",
+        "libwrap0-dev",
+        "libzstd-dev",
+        "libzstd1",
+        "zlib1g",
+        "zlib1g-dev",
+    ],
+    suites = [
+        "trixie",
+        "trixie-updates",
+        "trixie-security",
+    ],
+)
+use_repo(apt, "socat_deps")
+
+# Match SONiC's Debian 1.8.0.2-1 source package. Both archive hashes are
+# recorded in socat_1.8.0.2-1.dsc; Debian's archive owns its patch series.
+socat_source = use_repo_rule("//:bazel/source.bzl", "socat_source")
+
+socat_source(
+    name = "socat_source",
+    build_file = "//:bazel/socat.BUILD.bazel",
+    debian_sha256 = "04b361cd91884eda6ca9fe2890ca83a6abe73dd8ce75fe9927b2d8443af36123",
+    debian_url = "https://snapshot.debian.org/archive/debian/20241222T205329Z/pool/main/s/socat/socat_1.8.0.2-1.debian.tar.xz",
+    readline_patch = "//:bazel/enable_readline.patch",
+    upstream_sha256 = "adc07a9c2723527cf6568d2fb96559794cf9c254a4bc2edd36f7f3789e9f7625",
+    upstream_url = "https://snapshot.debian.org/archive/debian/20241222T205329Z/pool/main/s/socat/socat_1.8.0.2.orig.tar.bz2",
+)
+
+register_toolchains(
+    "@sonic_build_infra//tools/build_tools:make_toolchain",
+    "@sonic_build_infra//tools/build_tools:m4_toolchain",
+    "@sonic_build_infra//tools/build_tools:pkgconfig_toolchain",
+)
