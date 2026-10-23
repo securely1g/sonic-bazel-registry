@@ -13,8 +13,8 @@ bazel_dep(name = "rules_foreign_cc", version = "0.15.1")
 bazel_dep(name = "rules_cc", version = "0.2.16")
 bazel_dep(name = "rules_python", version = "1.7.0")
 bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.10")
-bazel_dep(name = "sonic-build-infra", version = "0.0.19-70cb0fcf685aba5c2f8078ba421353fa42289e16", repo_name = "sonic_build_infra")
-bazel_dep(name = "p4lang-pi", version = "0.1.3.sonic.1", repo_name = "p4lang_pi")
+bazel_dep(name = "sonic-build-infra", version = "0.0.22-280833c24ec33d2dbd8ea0a7639e5ac82dfc55f8", repo_name = "sonic_build_infra")
+bazel_dep(name = "p4lang-pi", version = "0.1.3.sonic.2", repo_name = "p4lang_pi")
 
 gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
 use_repo(gcc, "gcc_toolchains")
@@ -25,21 +25,34 @@ apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
 apt.install(
     dependency_set = "bmv2_deps",
     packages = [
+        "libboost-atomic1.83.0",
+        "libboost-filesystem1.83.0",
         "libboost-filesystem1.83-dev",
+        "libboost-program-options1.83.0",
         "libboost-program-options1.83-dev",
         "libboost-system1.83-dev",
+        "libboost-thread1.83.0",
         "libboost-thread1.83-dev",
         "libboost1.83-dev",
         "libgmp-dev",
+        "libgmp10",
         "libgrpc++-dev",
+        "libgrpc++1.51t64",
         "libgrpc-dev",
+        "libgrpc29t64",
         "libnanomsg-dev",
+        "libnanomsg5",
         "libpcap-dev",
+        "libpcap0.8t64",
         "libprotobuf-dev",
+        "libprotobuf32t64",
         "libssl-dev",
+        "libssl3t64",
+        "libthrift-0.19.0t64",
         "libthrift-dev",
         "python3-six",
         "python3-thrift",
+        "zlib1g",
     ],
     suites = [
         "trixie",
