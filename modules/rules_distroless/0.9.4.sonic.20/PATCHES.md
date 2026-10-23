@@ -1,11 +1,12 @@
 # Distroless patch provenance and validation
 
-`0.9.4.sonic.10` applies the complete SONiC patch set to the checksum-pinned
-upstream `rules_distroless` 0.9.4 archive. The registry owns these patches and
-their tests. The intermediate `.sonic.2`, `.sonic.3` and `.sonic.4` proposals
+`0.9.4.sonic.11` applies the complete SONiC patch set to the checksum-pinned
+upstream `rules_distroless` 0.9.4 archive. This registry entry maintains the locked-import extension, integration tests
+and fixture-regeneration support originally proposed in
+[build-infra #59](https://github.com/securely1g/sonic-build-infra/pull/59).
+The earlier source proposal is historical attribution, not a dependency. The intermediate `.sonic.2`, `.sonic.3` and `.sonic.4` proposals
 are not published by this change; existing published versions are unchanged.
-This entry retains `.sonic.9` and removes nonexistent include roots from
-headerless dependency contexts.
+This entry retains all `.sonic.10` behavior and adds direct runtime lock imports.
 
 `Introduced in` identifies the first published registry version containing the
 patch's behavior; new patches show their proposed version. Later revisions
@@ -27,6 +28,7 @@ proposals and are not counted as releases.
 | `0010-pkgconfig-quoting.patch` | `0.9.4.sonic.8` | Decode quotes and backslash escapes in expanded flags and path variables; preserve spaces within arguments. |
 | `0011-template-headers.patch` | `0.9.4.sonic.9` | Include the remaining rules_cc-supported header fragments under `usr/include`, including Boost `.ipp` files. |
 | `0012-headerless-includes.patch` | `0.9.4.sonic.10` | Export the package include root only when it owns declared compiler inputs; preserve all linker and transitive contexts. |
+| `0013-import-apt-lock.patch` | `0.9.4.sonic.11` (proposed) | Import exact package archives and dependency graphs from one reviewed lock; include the extension's unit regressions. Origin: [build-infra #59](https://github.com/securely1g/sonic-build-infra/pull/59). |
 
 These are SONiC-maintained adaptations, not imported upstream commits.
 [Upstream #220](https://github.com/bazel-contrib/rules_distroless/pull/220)
@@ -39,9 +41,11 @@ the existing 0.9.4 implementation. Patch headers retain the detailed provenance.
 
 ## Required native tests
 
-`presubmit.json` runs every test below in a fresh external Bazel 8.5.1 consumer
-on both AMD64 and ARM64. Every test exercises the same registry-fetched module
-with the full patch set applied; there is no separately patched test archive.
+`presubmit.json` runs every test below from a fresh copy of the independent
+`tests/integration` Bazel 8.5.1 consumer
+on both AMD64 and ARM64. The dependency and archive tests exercise the same
+registry-fetched module with the full patch set applied; there is no separately
+patched test archive. The fixture test checks its maintained generation helper.
 
 | Tests | Contract |
 | --- | --- |
@@ -171,3 +175,39 @@ makes the headerless regression fail while the other three controls pass.
 All sixteen prior native tests are retained. The remaining GCC command-size
 issue with long build paths requires a separate compiler adapter fix; this
 entry alone does not establish that the complete BMv2 source build passes.
+
+## Import one reviewed APT lock
+
+The `apt.import_lock(lock = "//image:apt.lock.json")` tag replaces a second
+generated MODULE file repeating every package version. It reads exact archive
+URLs, hashes and dependency graphs without resolving package indexes or
+rewriting the lock. Existing `deb_import`, `deb_postfix` and dependency-set
+rules still create independent data/control targets and complete closures.
+C++ discovery remains on `apt.install`, which has Contents-index information
+that runtime locks do not contain.
+
+`0013-import-apt-lock.patch` retains the implementation and test hunks originally
+proposed as `third_party/rules_distroless/patches/0001-import-apt-lock.patch`
+in build-infra #59. Maintain further changes here; the patch header preserves
+its original authorship and records the registry ownership.
+The archive integration test and reviewed lock live in `tests/integration`,
+whose own `MODULE.bazel` imports the registry dependency and registers the sample
+repositories. They are ordinary test files, not dependency overlays or patches.
+The former `0014-locked-import-tests.patch` is removed: test repository setup no
+longer changes the dependency's MODULE file.
+The new Starlark tests cover missing dependencies, identities, hashes,
+architectures, cycles and set selection. The archive integration test checks
+locked versions, independent data/control labels, architecture-independent
+packages, full closures and identical contents from separate imports.
+All twenty prior tests and six build targets remain selected; the four
+locked-import tests and fixture-regeneration test run on native AMD64 and
+ARM64. No test creates a DEB.
+
+The original fixture-selection helper is retained byte-for-byte as
+`tests/integration/tools/select_lock_fixture.py`; see
+[fixture refresh instructions](README.md#refresh-the-reviewed-lock-fixture).
+The ordinary Bazel `//:fixture_regeneration_test` checks that the helper
+reproduces the reviewed lock byte-for-byte without changing its input.
+The shared registry runner checks host/userspace architecture and unchanged
+recipe inputs and provides archive integrity, generated lock, fetched MODULE
+and uncached test evidence. No module-specific CI driver is required.
