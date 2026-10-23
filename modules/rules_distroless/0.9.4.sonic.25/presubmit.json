@@ -43,7 +43,12 @@
     "//:archive_contract_test",
     "//:fixture_regeneration_test",
     "@rules_distroless//apt/private:install_test",
-    "@rules_distroless//registry_ci:original_deb_test"
+    "@rules_distroless//registry_ci:original_deb_test",
+    "@rules_distroless//distroless/tests/accounts:accounts_test",
+    "@rules_distroless//distroless/tests/accounts:account_layer_test",
+    "@rules_distroless//distroless/tests/accounts:gzip_account_layer_test",
+    "@rules_distroless//distroless/tests/accounts:xz_account_layer_test",
+    "@rules_distroless//distroless/tests/accounts:zstd_account_layer_test"
   ],
   "integration_test_module": "tests/integration"
 }

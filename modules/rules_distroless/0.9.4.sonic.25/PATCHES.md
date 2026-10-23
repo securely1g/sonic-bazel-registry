@@ -1,10 +1,10 @@
 # Distroless patch provenance and validation
 
-`0.9.4.sonic.12` uses the same checksum-pinned upstream 0.9.4 archive as published
-`0.9.4.sonic.11`. It inherits patches `0002` through `0013` byte-for-byte, including
-the lock importer and all existing compiler/header fixes. Patch `0001` changes
-only the module version. Patch `0014` adds real Debian installation and the
-original-DEB aliases needed by [buildimage #33](https://github.com/securely1g/sonic-buildimage/pull/33).
+`0.9.4.sonic.13` uses the same checksum-pinned upstream 0.9.4 archive as published
+`0.9.4.sonic.12`. It inherits patches `0002` through `0014` byte-for-byte,
+including the installer, lock importer and compiler/header fixes. Patch `0001`
+changes only the module version; patch `0015` adds account preservation for
+[buildimage #33](https://github.com/securely1g/sonic-buildimage/pull/33).
 No published entry is modified.
 
 `Introduced in` identifies the first published registry version containing the
@@ -28,7 +28,8 @@ proposals and are not counted as releases.
 | `0011-template-headers.patch` | `0.9.4.sonic.9` | Include the remaining rules_cc-supported header fragments under `usr/include`, including Boost `.ipp` files. |
 | `0012-headerless-includes.patch` | `0.9.4.sonic.10` | Export the package include root only when it owns declared compiler inputs; preserve all linker and transitive contexts. |
 | `0013-import-apt-lock.patch` | `0.9.4.sonic.11` | Import exact package archives and dependency graphs from one reviewed lock; include the extension's unit regressions. Origin: [build-infra #59](https://github.com/securely1g/sonic-build-infra/pull/59). |
-| `0014-apt-install.patch` | `0.9.4.sonic.12` (proposed) | Add optional APT/dpkg installation and original-DEB aliases that preserve locked-import repository prefixes. Installer source: [rules_distroless fork PR #2](https://github.com/securely1g/rules_distroless/pull/2), commit `b3d0573b06b682a7ae3d5de20cc8215b3be3a037`, previously proposed in closed registry #72 and reused in #110. |
+| `0014-apt-install.patch` | `0.9.4.sonic.12` | Add optional APT/dpkg installation and original-DEB aliases that preserve locked-import repository prefixes. Installer source: [rules_distroless fork PR #2](https://github.com/securely1g/rules_distroless/pull/2), commit `b3d0573b06b682a7ae3d5de20cc8215b3be3a037`, previously proposed in closed registry #72 and reused in #110. |
+| `0015-preserve-base-accounts.patch` | `0.9.4.sonic.13` (proposed) | Preserve inherited OCI users and groups when adding service accounts. Source: [upstream #290](https://github.com/bazel-contrib/rules_distroless/pull/290), commit `d503c1141d3759390dc78ffbb99de33b7d4f4619`; adapted MODULE integration from [registry #128](https://github.com/securely1g/sonic-bazel-registry/pull/128). |
 
 These are SONiC-maintained adaptations; each patch records its source.
 [Upstream #220](https://github.com/bazel-contrib/rules_distroless/pull/220)
@@ -232,6 +233,27 @@ All 25 tests and six build targets from published `.sonic.11` remain selected.
 behavior. `registry_ci:original_deb_test` checks direct/package alias identities.
 The independent `archive_contract_test` additionally checks the exact libc6 DEB
 hash from each of two lock prefixes, while `fixture_regeneration_test` continues
-to verify the reviewed lock generator. Native AMD64 and ARM64 each execute all
-27 tests uncached. These checks validate this registry interface; the consuming
+to verify the reviewed lock generator. These 27 inherited installer and lock
+tests run uncached on native AMD64 and ARM64 alongside the account tests below. These checks validate this registry interface; the consuming
 image must separately validate the complete installed filesystem.
+
+## Preserve inherited users and groups
+
+`0015-preserve-base-accounts.patch` carries the public account-layer API and five
+regression targets reviewed in [registry #128](https://github.com/securely1g/sonic-bazel-registry/pull/128)
+and proposed in [upstream #290](https://github.com/bazel-contrib/rules_distroless/pull/290),
+referencing upstream #278. The implementation and regression hunks match source
+commit `d503c1141d3759390dc78ffbb99de33b7d4f4619` byte-for-byte. Its MODULE hunk
+updates the installer's existing Python dependency to 1.7.0 and declares Python
+3.11 without changing BSD tar 0.10.4. Retain the local patch until a selected
+upstream release includes it and the original native tests pass.
+
+For example, adding Redis preserves `root` and `_apt` from the base image and
+rejects a conflicting UID. The merger follows OCI layer order and whiteouts,
+handles plain/gzip/xz/zstd layers, preserves capitalized and dotted account names,
+and rejects non-directory account-file ancestors.
+
+The thirteen inherited implementation patches and their integrity values, all overlays,
+independent integration fixtures, six build targets and 27 tests remain unchanged.
+Five account test targets bring the native AMD64 and ARM64 total to 32 each.
+Full installed-image behavior remains the consumer's validation responsibility.

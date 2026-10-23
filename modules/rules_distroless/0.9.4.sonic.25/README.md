@@ -1,11 +1,11 @@
-# Install Debian packages while retaining the published lock importer
+# Preserve base accounts alongside Debian installation
 
-`0.9.4.sonic.12` carries forward published `0.9.4.sonic.11` and adds optional
-`apt_install` for [buildimage #33](https://github.com/securely1g/sonic-buildimage/pull/33).
-The upstream 0.9.4 archive, patches `0002` through `0013`, compiler/header fixes,
-locked imports and their regression tests are retained. Only the version patch
-changes its identity; `0014-apt-install.patch` adds installation support.
-The published `.sonic.11` entry remains unchanged.
+`0.9.4.sonic.13` adds account preservation to published `0.9.4.sonic.12`
+for [buildimage #33](https://github.com/securely1g/sonic-buildimage/pull/33).
+It retains the checksum-pinned upstream 0.9.4 archive, installer, locked imports,
+compiler/header fixes and patches `0002` through `0014` byte-for-byte.
+Patch `0001` changes only the module version and `0015` adds the account feature.
+Published `.sonic.11` and `.sonic.12` entries remain unchanged.
 
 For example, extracting `ca-certificates` files alone does not run its
 configuration scripts. `apt_install` uses APT/dpkg in an isolated native Debian
@@ -70,7 +70,7 @@ Keep the Lua/netbase roots and their complete AMD64/ARM64 closures from a
 reviewed image lock. From this registry checkout, run:
 
 ```sh
-entry=modules/rules_distroless/0.9.4.sonic.12
+entry=modules/rules_distroless/0.9.4.sonic.13
 python3 "$entry/tests/integration/tools/select_lock_fixture.py" \
   --input /path/to/sonic-buildimage/dockers/docker-base-trixie/bazel/apt.lock.json \
   --output "$entry/tests/integration/apt.lock.json"
@@ -88,7 +88,38 @@ The shared registry runner validates every module through the same CI entry
 point. It checks the native Linux host and Debian userspace architecture and
 verifies that recipe inputs remain unchanged, including after a failed build.
 It retains the generated lock, input declarations, source hashes and uncached
-test results. Both native jobs must execute all 27 selected tests, including
+test results. Both native jobs must execute all 32 selected tests, including
 the four locked-import regressions, fixture regeneration, installer unit tests and
-original-DEB identity checks. Cross inspection
+original-DEB identity checks, plus the five account targets described below. Cross inspection
 of ARM64 archives on AMD64 is not native ARM64 execution.
+
+## Preserve the base image's users and groups
+
+[Registry #110](https://github.com/securely1g/sonic-bazel-registry/pull/110)
+published `.sonic.12` on maintained `main`. This account candidate retains its
+installer, patches, fixtures, six build targets and 27 tests. It adds the public
+`accounts(base, architecture, users, groups)` API used by
+[build-infra #57](https://github.com/securely1g/sonic-build-infra/pull/57).
+
+For example, adding a Redis user and group to a base containing `root` and `_apt`
+keeps both existing accounts. A conflicting Redis UID fails the build instead
+of replacing an inherited record. The rule follows OCI layer order and deletions,
+handles plain, gzip, xz and zstd layers, and emits an account layer and a receipt.
+It reuses the existing account writers, declared Python tools and BSD tar.
+
+`0015-preserve-base-accounts.patch` carries the reviewed implementation from
+[registry #128](https://github.com/securely1g/sonic-bazel-registry/pull/128) and
+[upstream #290](https://github.com/bazel-contrib/rules_distroless/pull/290).
+Those links record implementation provenance; the recipe fetches the upstream
+0.9.4 release and applies local patches. The generic implementation and tests
+match upstream proposal `d503c1141d3759390dc78ffbb99de33b7d4f4619`.
+Only its MODULE integration adapts the installer's existing Python dependency:
+`rules_python@1.7.0` and Python 3.11 are declared while `tar.bzl@0.10.4` stays in place.
+Keep this patch until an upstream release supplies the feature and passes the
+same validation.
+
+Both native architectures run five added account targets: unit cases and plain,
+gzip, xz and zstd OCI layer tests. They include inherited names such as
+`Debian-exim` and `monitor.agent`, and reject an upper-layer `/etc` symlink
+rather than incorrectly exposing hidden lower-layer accounts. All 27 existing
+tests remain selected, including independent lock fixture regeneration.
