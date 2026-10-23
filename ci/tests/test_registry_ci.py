@@ -13,6 +13,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
 import unittest
 from unittest import mock
@@ -1125,11 +1126,11 @@ class BuildOutputTests(FixtureTestCase):
             ])
         return events
 
-    def collect(self, events: list[dict]) -> dict:
+    def collect(self, events: list[dict], **kwargs) -> dict:
         bep = self.root / "build-events.jsonl"
         bep.write_text("".join(json.dumps(event) + "\n" for event in events))
         artifacts = self.root / "artifacts"
-        registry_ci.collect_outputs(bep, self.labels, self.work, artifacts)
+        registry_ci.collect_outputs(bep, self.labels, self.work, artifacts, **kwargs)
         return json.loads((artifacts / "outputs.json").read_text())
 
     def test_runtime_debug_pair_and_hashes_are_retained(self) -> None:
@@ -1142,6 +1143,57 @@ class BuildOutputTests(FixtureTestCase):
             self.assertEqual(files[0]["sha256"], hashlib.sha256(data).hexdigest())
             self.assertEqual(files[0]["size"], len(data))
 
+    def expanded_tree_events(self) -> tuple[list[dict], Path, dict]:
+        events = self.events()
+        tree = self.work / "bazel-out/bin/tools"
+        tree.mkdir(parents=True)
+        (tree / "Text::Width").write_text("tree contents")
+        # This sibling shares a lexical prefix with the directory. It must
+        # remain an ordinary output and never be swallowed by tree grouping.
+        sibling = tree.parent / "tools-extra.tar"
+        sibling.write_bytes(b"ordinary tar bytes")
+        (tree.parent / "not-exported").write_bytes(b"must not enter artifacts")
+        events[0]["namedSetOfFiles"]["files"] = [
+            {"name": path.relative_to(self.work).as_posix(), "uri": path.as_uri()}
+            for path in [tree / "Text::Width", sibling]
+        ]
+        trees = {self.labels[0]: ["bazel-out/bin/tools"], self.labels[1]: []}
+        return events, tree, trees
+
+    def test_expanded_tree_records_use_declared_boundary_and_preserve_adjacent_file(self) -> None:
+        events, tree, trees = self.expanded_tree_events()
+        index = self.collect(events, declared_trees=trees, execution_root=self.work)
+        records = index[self.labels[0]]
+        self.assertEqual(len(records), 2)
+        archive_record = next(item for item in records if item.get("type") == "tree_archive")
+        regular_record = next(item for item in records if item.get("type") != "tree_archive")
+        self.assertEqual(regular_record["path"], "outputs/bazel-out/bin/tools-extra.tar")
+        self.assertEqual((self.root / "artifacts" / regular_record["path"]).read_bytes(), b"ordinary tar bytes")
+        with tarfile.open(self.root / "artifacts" / archive_record["path"]) as archive:
+            self.assertEqual(set(archive.getnames()), {"bazel-out/bin/tools", "bazel-out/bin/tools/Text::Width"})
+        self.assertFalse(any(path.name == "Text::Width" for path in (self.root / "artifacts/outputs").rglob("*")))
+
+    def test_expanded_tree_member_must_match_physical_execution_root_path(self) -> None:
+        events, tree, trees = self.expanded_tree_events()
+        events[0]["namedSetOfFiles"]["files"][0]["uri"] = (self.work / "runtime.tar").as_uri()
+        with self.assertRaisesRegex(registry_ci.RegistryError, "does not match"):
+            self.collect(events, declared_trees=trees, execution_root=self.work)
+
+    def test_declared_empty_tree_survives_empty_bep_file_set(self) -> None:
+        events, tree, trees = self.expanded_tree_events()
+        (tree / "Text::Width").unlink()
+        events[0]["namedSetOfFiles"]["files"] = []
+        index = self.collect(events, declared_trees=trees, execution_root=self.work)
+        with tarfile.open(self.root / "artifacts" / index[self.labels[0]][0]["path"]) as archive:
+            self.assertEqual(archive.getnames(), ["bazel-out/bin/tools"])
+            self.assertTrue(archive.getmembers()[0].isdir())
+
+    def test_declared_directory_cannot_escape_execution_root(self) -> None:
+        events, tree, trees = self.expanded_tree_events()
+        trees[self.labels[0]] = ["bazel-out/../../tools"]
+        with self.assertRaisesRegex(registry_ci.RegistryError, "Unsafe declared tree path"):
+            self.collect(events, declared_trees=trees, execution_root=self.work)
+
     def test_nested_sets_tree_outputs_and_repeated_files(self) -> None:
         events = self.events()
         tree = self.work / "models"
@@ -1153,7 +1205,205 @@ class BuildOutputTests(FixtureTestCase):
         ]}})
         index = self.collect(events)
         self.assertEqual(len(index[self.labels[0]]), 1)
-        self.assertEqual(index[self.labels[0]][0]["path"], "outputs/models/model.yang")
+        record = index[self.labels[0]][0]
+        self.assertEqual(record["type"], "tree_archive")
+        self.assertEqual(record["root"], "models")
+        with tarfile.open(self.root / "artifacts" / record["path"]) as archive:
+            self.assertEqual(archive.extractfile("models/model.yang").read(), b"module fixture {}")
+
+    def test_repository_outputs_with_equal_basenames_keep_distinct_bytes(self) -> None:
+        events = self.events()
+        for offset, package in ((0, "libc6"), (2, "netbase")):
+            output = self.work / "bazel" / "output-base" / "external" / package / "control.tar.xz"
+            output.parent.mkdir(parents=True)
+            output.write_bytes(package.encode())
+            events[offset]["namedSetOfFiles"]["files"] = [
+                {"name": output.name, "uri": output.as_uri()},
+                {"name": output.name, "uri": output.as_uri()},
+            ]
+        index = self.collect(events)
+        paths = []
+        for label, package in zip(self.labels, ("libc6", "netbase")):
+            self.assertEqual(len(index[label]), 1)
+            record = index[label][0]
+            paths.append(record["path"])
+            self.assertEqual((self.root / "artifacts" / record["path"]).read_bytes(), package.encode())
+            self.assertEqual(record["sha256"], hashlib.sha256(package.encode()).hexdigest())
+        self.assertEqual(len(set(paths)), 2)
+
+    def test_unprefixed_repository_output_cannot_escape_private_workspace(self) -> None:
+        events = self.events()
+        outside = self.root / "outside-control.tar.xz"
+        outside.write_bytes(b"outside")
+        link = self.work / "control.tar.xz"
+        link.symlink_to(outside)
+        events[0]["namedSetOfFiles"]["files"] = [{"name": link.name, "uri": link.as_uri()}]
+        with self.assertRaisesRegex(registry_ci.RegistryError, "escapes work-dir"):
+            self.collect(events)
+
+    def test_tree_archive_preserves_posix_names_modes_links_and_empty_directories(self) -> None:
+        events = self.events()
+        tree = self.work / "tools"
+        tree.mkdir()
+        (tree / "empty").mkdir()
+        for name in ("Text::CharWidth.3pm.gz", "xt_CONNMARK.h", "xt_connmark.h", "tool"):
+            (tree / name).write_text(name)
+        (tree / "tool").chmod(0o751)
+        (tree / "alias").symlink_to("tool")
+        events[0]["namedSetOfFiles"]["files"] = [{"name": "tools:POSIX", "uri": tree.as_uri()}]
+        index = self.collect(events)
+        record = index[self.labels[0]][0]
+        archive_path = self.root / "artifacts" / record["path"]
+        self.assertRegex(record["path"], r"^outputs/trees/[a-f0-9]{64}\.tar$")
+        self.assertEqual(record["root"], "tools:POSIX")
+        self.assertEqual(record["size"], archive_path.stat().st_size)
+        digest = hashlib.sha256(archive_path.read_bytes()).hexdigest()
+        self.assertEqual(record["sha256"], digest)
+        with tarfile.open(archive_path) as archive:
+            for name in ("Text::CharWidth.3pm.gz", "xt_CONNMARK.h", "xt_connmark.h"):
+                self.assertEqual(archive.extractfile("tools:POSIX/" + name).read(), name.encode())
+            self.assertEqual(archive.getmember("tools:POSIX/tool").mode, 0o751)
+            self.assertTrue(archive.getmember("tools:POSIX/empty").isdir())
+            link = archive.getmember("tools:POSIX/alias")
+            self.assertTrue(link.issym())
+            self.assertEqual(link.linkname, "tool")
+            self.assertTrue(all(member.uid == member.gid == member.mtime == 0 for member in archive))
+            archive.extractall(self.root / "restored", filter="data")
+        restored = self.root / "restored/tools:POSIX"
+        self.assertEqual((restored / "tool").stat().st_mode & 0o777, 0o751)
+        self.assertEqual((restored / "alias").readlink(), Path("tool"))
+        self.assertEqual((restored / "alias").read_text(), "tool")
+        # Filesystem timestamps do not change the archive or output receipt.
+        os.utime(tree / "tool", (1000, 1000))
+        shutil.rmtree(self.root / "artifacts")
+        self.assertEqual(self.collect(events)[self.labels[0]][0], record)
+
+    def test_tree_links_cannot_escape_work_dir_or_cycle(self) -> None:
+        events = self.events()
+        tree = self.work / "tools"
+        tree.mkdir()
+        events[0]["namedSetOfFiles"]["files"] = [{"name": "tools", "uri": tree.as_uri()}]
+        (self.root / "secret").write_text("not a build output")
+        for target, message in ((self.root / "secret", "escapes work-dir"), (tree, "directory cycle")):
+            with self.subTest(target=target):
+                (tree / "link").symlink_to(target)
+                with self.assertRaisesRegex(registry_ci.RegistryError, message):
+                    self.collect(events)
+                self.assertEqual(list((self.root / "artifacts/outputs/trees").iterdir()), [])
+                (tree / "link").unlink()
+                shutil.rmtree(self.root / "artifacts")
+
+    def test_tree_links_to_other_declared_outputs_are_materialized(self) -> None:
+        events = self.events()
+        tree = self.work / "tools"
+        tree.mkdir()
+        (tree / "relative").symlink_to("../debug.tar")
+        (tree / "absolute").symlink_to(self.work / "debug.tar")
+        events[0]["namedSetOfFiles"]["files"] = [{"name": "tools", "uri": tree.as_uri()}]
+        record = self.collect(events)[self.labels[0]][0]
+        with tarfile.open(self.root / "artifacts" / record["path"]) as archive:
+            for name in ("relative", "absolute"):
+                self.assertTrue(archive.getmember("tools/" + name).isreg())
+                self.assertEqual(archive.extractfile("tools/" + name).read(), b"debug")
+
+    def test_tree_external_directory_backlink_survives_relocation(self) -> None:
+        events = self.events()
+        tree = self.work / "tools"
+        shared = self.work / "shared"
+        tree.mkdir()
+        shared.mkdir()
+        (tree / "payload").write_text("inside original tree")
+        (tree / "imported").symlink_to("../shared")
+        (shared / "backlink").symlink_to("../tools/payload")
+        self.assertEqual((tree / "imported/backlink").read_text(), "inside original tree")
+        events[0]["namedSetOfFiles"]["files"] = [{"name": "tools", "uri": tree.as_uri()}]
+        record = self.collect(events)[self.labels[0]][0]
+        with tarfile.open(self.root / "artifacts" / record["path"]) as archive:
+            archive.extractall(self.root / "restored", filter="data")
+        self.assertEqual(
+            (self.root / "restored/tools/imported/backlink").read_text(), "inside original tree",
+        )
+
+    def test_tree_link_traversing_outside_then_back_is_self_contained(self) -> None:
+        events = self.events()
+        tree = self.work / "tools"
+        shared = self.work / "shared"
+        tree.mkdir()
+        shared.mkdir()
+        (tree / "payload").write_text("back inside")
+        (shared / "backlink").symlink_to("../tools/payload")
+        (tree / "link").symlink_to("../shared/backlink")
+        self.assertEqual((tree / "link").read_text(), "back inside")
+        events[0]["namedSetOfFiles"]["files"] = [{"name": "tools", "uri": tree.as_uri()}]
+        record = self.collect(events)[self.labels[0]][0]
+        with tarfile.open(self.root / "artifacts" / record["path"]) as archive:
+            archive.extractall(self.root / "restored", filter="data")
+        self.assertEqual((self.root / "restored/tools/link").read_text(), "back inside")
+
+    def test_tree_nested_materialization_preserves_returned_subtree_contents(self) -> None:
+        events = self.events()
+        tree = self.work / "tools"
+        shared = self.work / "shared"
+        tree.mkdir()
+        shared.mkdir()
+        (tree / "inside").mkdir()
+        (tree / "payload").write_text("nested contents")
+        (tree / "inside/backlink").symlink_to("../payload")
+        (tree / "imported").symlink_to("../shared")
+        (shared / "nested").symlink_to("../tools/inside")
+        self.assertEqual((tree / "imported/nested/backlink").read_text(), "nested contents")
+        events[0]["namedSetOfFiles"]["files"] = [{"name": "tools", "uri": tree.as_uri()}]
+        record = self.collect(events)[self.labels[0]][0]
+        with tarfile.open(self.root / "artifacts" / record["path"]) as archive:
+            archive.extractall(self.root / "restored", filter="data")
+        restored = self.root / "restored/tools"
+        self.assertEqual((restored / "imported/nested/backlink").read_text(), "nested contents")
+        self.assertEqual((restored / "inside/backlink").readlink(), Path("../payload"))
+        self.assertEqual((restored / "inside/backlink").read_text(), "nested contents")
+
+    def test_tree_link_parent_after_symlink_keeps_physical_target(self) -> None:
+        events = self.events()
+        tree = self.work / "tools"
+        shared = self.work / "shared"
+        tree.mkdir()
+        shared.mkdir()
+        (tree / "tools").mkdir()
+        (tree / "payload").write_text("physical target")
+        (tree / "tools/payload").write_text("different lexical target")
+        (tree / "dir").symlink_to("../shared")
+        (tree / "link").symlink_to("dir/../tools/payload")
+        self.assertEqual((tree / "link").read_text(), "physical target")
+        events[0]["namedSetOfFiles"]["files"] = [{"name": "tools", "uri": tree.as_uri()}]
+        record = self.collect(events)[self.labels[0]][0]
+        with tarfile.open(self.root / "artifacts" / record["path"]) as archive:
+            archive.extractall(self.root / "restored", filter="data")
+        self.assertEqual((self.root / "restored/tools/link").read_text(), "physical target")
+
+    def test_tree_link_leaving_and_reentering_renamed_root_is_portable(self) -> None:
+        events = self.events()
+        tree = self.work / "tools"
+        tree.mkdir()
+        (tree / "payload").write_text("renamed root contents")
+        (tree / "link").symlink_to("../tools/payload")
+        self.assertEqual((tree / "link").read_text(), "renamed root contents")
+        events[0]["namedSetOfFiles"]["files"] = [{"name": "renamed-tools", "uri": tree.as_uri()}]
+        record = self.collect(events)[self.labels[0]][0]
+        with tarfile.open(self.root / "artifacts" / record["path"]) as archive:
+            archive.extractall(self.root / "restored", filter="data")
+        self.assertEqual(
+            (self.root / "restored/renamed-tools/link").read_text(), "renamed root contents",
+        )
+
+    def test_conflicting_trees_are_rejected(self) -> None:
+        events = self.events()
+        for position, name in ((0, "first"), (2, "second")):
+            tree = self.work / name
+            tree.mkdir()
+            (tree / "file").write_text(name)
+            events[position]["namedSetOfFiles"]["files"] = [{"name": "tree", "uri": tree.as_uri()}]
+        with self.assertRaisesRegex(registry_ci.RegistryError, "Conflicting"):
+
+            self.collect(events)
 
     def test_missing_required_target_or_output_is_rejected(self) -> None:
         events = self.events()
@@ -1189,12 +1439,70 @@ class BuildOutputTests(FixtureTestCase):
             self.collect(events)
 
 
+class FailedActionLogTests(FixtureTestCase):
+    def collect(self, outputs: list[dict]) -> tuple[Path, list[dict]]:
+        self.work = self.root / "work"
+        self.work.mkdir(exist_ok=True)
+        artifacts = self.root / "artifacts"
+        artifacts.mkdir(exist_ok=True)
+        bep = artifacts / "build-events.jsonl"
+        events = [{"action": {"label": "@@alpha+//:library", "type": "CcCmakeMakeRule",
+                              "exitCode": 1, **output}} for output in outputs]
+        bep.write_text("".join(json.dumps(event) + "\n" for event in events))
+        registry_ci.collect_failed_action_logs(bep, self.work, artifacts)
+        index = artifacts / "failed-actions/build-events/index.json"
+        return artifacts, json.loads(index.read_text()) if index.exists() else []
+
+    def test_retains_complete_stdout_and_stderr_above_bazel_ui_limit(self) -> None:
+        work = self.root / "work"
+        work.mkdir()
+        stdout, stderr = work / "stdout with spaces", work / "stderr"
+        stdout.write_bytes(b"x" * (1024 * 1024 + 100) + b"\ncompiler failure\n")
+        stderr.write_bytes(b"error\n")
+        artifacts, records = self.collect([{
+            "stdout": {"uri": stdout.as_uri(), "name": "../../untrusted-name"},
+            "stderr": {"uri": stderr.as_uri()},
+        }])
+        self.assertEqual(len(records), 2)
+        for record, source in zip(records, (stdout, stderr)):
+            self.assertEqual((artifacts / record["path"]).read_bytes(), source.read_bytes())
+            self.assertEqual(record["size"], source.stat().st_size)
+            self.assertEqual(record["sha256"], hashlib.sha256(source.read_bytes()).hexdigest())
+            self.assertEqual(record["label"], "@@alpha+//:library")
+
+    def test_unsafe_missing_and_nonregular_logs_are_reported_without_copying(self) -> None:
+        work = self.root / "work"
+        work.mkdir()
+        outside = self.root / "outside"
+        outside.write_text("must not copy")
+        (work / "escape").symlink_to(outside)
+        uris = [outside.as_uri(), (work / "escape").as_uri(),
+                (work / "missing").as_uri(), work.as_uri(),
+                "https://example.invalid/log", "file://remote.example/log",
+                "file:relative", (work / "valid").as_uri() + "?query=1",
+                (work / "valid").as_uri() + "#fragment"]
+        artifacts, records = self.collect([{"stdout": {"uri": uri}} for uri in uris])
+        self.assertEqual(len(records), len(uris))
+        self.assertTrue(all("error" in record and "path" not in record for record in records))
+        self.assertEqual(list((artifacts / "failed-actions").rglob("*.log")), [])
+
+    def test_successful_actions_and_absent_bep_need_no_failed_logs(self) -> None:
+        artifacts, records = self.collect([{"exitCode": 0, "success": True,
+                                            "stdout": {"uri": "file:///not-copied"}}])
+        self.assertEqual(records, [])
+        registry_ci.collect_failed_action_logs(artifacts / "absent.jsonl", self.work, artifacts)
+        self.assertFalse((artifacts / "failed-actions").exists())
+
+
 class FetchedModuleTests(FixtureTestCase):
     def setUp(self) -> None:
         super().setUp()
         self.registry_entry = self.entry("alpha", "1.0.0")
         self.config_path = self.registry_entry / "presubmit.json"
         self.config = json.loads(self.config_path.read_text())
+        self.architecture = {"x86_64": "amd64", "aarch64": "arm64"}[registry_ci.platform.machine()]
+        self.config["architectures"] = [self.architecture]
+        self.config["platforms"] = {self.architecture: "@platforms//host:host"}
         self.config["build_flags"] = ["--@alpha//bazel:yang_modules=False"]
         self.config["consumer_deps"] = [
             {"name": "platforms", "version": "1.0.0"},
@@ -1218,9 +1526,11 @@ class FetchedModuleTests(FixtureTestCase):
             "from pathlib import Path\n"
             "import sys\n"
             "args = sys.argv[1:]\n"
-            "assert '--@alpha//bazel:yang_modules=False' in args\n"
+            "assert ('--@alpha//bazel:yang_modules=False' in args) == ('info' not in args)\n"
             "if 'info' in args:\n"
-            f"    print({str(self.output_base)!r})\n"
+            f"    print(str(Path.cwd()) if 'execution_root' in args else {str(self.output_base)!r})\n"
+            "elif 'cquery' in args:\n"
+            "    print(json.dumps({'label': '@@alpha+//:library', 'trees': []}))\n"
             "elif 'build' in args:\n"
             "    assert '--lockfile_mode=update' in args\n"
             "    Path('MODULE.bazel.lock').write_text('{\"lockFileVersion\": 13}\\n')\n"
@@ -1252,7 +1562,7 @@ class FetchedModuleTests(FixtureTestCase):
     def run_fixture(self, suffix: str) -> Path:
         artifacts = self.root / f"artifacts-{suffix}"
         registry_ci.run(
-            self.root, "alpha", "1.0.0", "amd64",
+            self.root, "alpha", "1.0.0", self.architecture,
             self.root / f"work-{suffix}", artifacts, str(self.fake_bazel),
         )
         return artifacts
@@ -1277,6 +1587,7 @@ class FetchedModuleTests(FixtureTestCase):
             for dependency in self.config["consumer_deps"]
         ])
         validation = json.loads((artifacts / "validation.json").read_text())
+        self.assertEqual(validation["architecture"], self.architecture)
         self.assertEqual(validation["build_flags"], self.config["build_flags"])
         self.assertEqual(validation["consumer_deps"], self.config["consumer_deps"])
         self.assertNotIn("version_overrides", validation)
@@ -1413,7 +1724,7 @@ class FetchedModuleTests(FixtureTestCase):
 
     def test_empty_consumer_dependencies_need_no_overrides_or_dependency_artifacts(self) -> None:
         self.config["consumer_deps"] = []
-        self.config["platforms"] = {"amd64": "@alpha//:platform"}
+        self.config["platforms"] = {self.architecture: "@alpha//:platform"}
         write_json(self.config_path, self.config)
         artifacts = self.run_fixture("empty-dependencies")
         self.assertEqual(self.declarations(artifacts, "single_version_override"), [])
@@ -1454,6 +1765,27 @@ class FetchedModuleTests(FixtureTestCase):
         artifacts = self.root / "artifacts-failed-bazel"
         self.assertEqual(json.loads((artifacts / "MODULE.bazel.lock").read_text()), {"lockFileVersion": 13})
         self.assertFalse((artifacts / "validation.json").exists())
+
+    def test_action_logs_are_retained_when_build_or_test_fails(self) -> None:
+        original = self.fake_bazel.read_text()
+        for phase in ("build", "test"):
+            with self.subTest(phase=phase):
+                failure = "\n".join([
+                    "    output = Path.cwd() / 'failed-stdout'",
+                    "    output.write_text('actual compiler error\\n')",
+                    "    bep = next(arg.split('=', 1)[1] for arg in args if arg.startswith('--build_event_json_file='))",
+                    "    Path(bep).write_text(json.dumps({'action': {'exitCode': 42, 'stdout': {'uri': output.as_uri()}}}) + '\\n')",
+                    "    sys.exit(42)",
+                ])
+                self.fake_bazel.write_text(original.replace(
+                    f"elif '{phase}' in args:", f"elif '{phase}' in args:\n{failure}"
+                ))
+                with self.assertRaisesRegex(registry_ci.RegistryError, "status 42"):
+                    self.run_fixture(f"action-failure-{phase}")
+                artifacts = self.root / f"artifacts-action-failure-{phase}"
+                records = json.loads((artifacts / f"failed-actions/{phase}-events/index.json").read_text())
+                self.assertEqual((artifacts / records[0]["path"]).read_text(), "actual compiler error\n")
+                self.assertFalse((artifacts / "validation.json").exists())
 
     def test_mismatched_or_missing_fetched_consumer_dependencies_are_rejected(self) -> None:
         for dependency in self.config["consumer_deps"]:

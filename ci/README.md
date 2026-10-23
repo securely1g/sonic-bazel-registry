@@ -244,12 +244,44 @@ tests.
 
 ## Download build outputs
 
+Failed builds and tests retain local action stdout/stderr under
+`failed-actions/`, including diagnostics larger than Bazel's console-output
+limit. Each `index.json` records the action label, stream, retained path, byte
+count and SHA256. Missing files, remote URIs and paths escaping the private work
+directory are recorded as collection errors; they are never fetched or copied.
+The original build or test failure remains the result.
+
 Open **Actions → Registry CI → a successful run → Artifacts** and download
 `registry-ci-<module>-<version>-<architecture>` (`amd64` or `arm64`). Each artifact
-contains `outputs.json`, mapping the manifest's required build targets to files
-under `outputs/`, with their SHA256 hashes and sizes. Bazel's output paths are
-preserved; use the index instead of relying on a configuration directory name.
-Directory outputs, such as prepared YANG models, are indexed file by file.
+contains `registry-ci-evidence.tar`. Extract that first with
+`tar -xpf registry-ci-evidence.tar` on a case-sensitive Linux filesystem.
+It contains the complete job evidence: logs, manifests, failure diagnostics and
+`outputs.json`, mapping required build targets to files under `outputs/` with
+SHA256 hashes and sizes. There is no separate all-outputs `outputs.tar` format.
+
+Generated file paths are preserved. Repository files reported without a Bazel
+output prefix use their private workspace path under `outputs/source/`. For
+example, `external/libc6/control.tar.xz` and `external/netbase/control.tar.xz`
+remain separate even though both build-event records are named `control.tar.xz`.
+Use the index instead of relying on a configuration
+directory name. Directory outputs, such as prepared YANG models and execution
+tool bundles, are retained as TARs under `outputs/trees/`. Their index records
+have `type: "tree_archive"` and `root` naming the original output path inside the
+TAR. Extract the TAR to preserve Unix modes, case-sensitive names, and relative
+symlinks within the tree. GitHub's artifact ZIP format cannot faithfully retain
+these properties and rejects some valid Linux filenames, including `:` in Perl
+manual pages. Links to other outputs inside the build work directory are
+materialized so each archive remains usable alone, as are relative links whose
+meaning changes when copied into the archive. Links outside the build work
+directory are rejected.
+Archive ownership and timestamps are normalized; file modes are preserved.
+The runner queries Bazel's declared directory outputs under the same build
+configuration, since build events expand those directories into individual files.
+The query selects `config(label, target)`: if the same target is also a build tool,
+its execution configuration must not replace or duplicate the requested output.
+Only files within those declared boundaries belong to a tree TAR; adjacent runtime
+and debug TAR outputs retain their original bytes. The artifact includes
+`declared-output-trees.jsonl` and the genuine build events for verification.
 
 For native libraries, download the runtime and detached-debug packages from the
 same module/version/architecture job. These packages come from the same build;
@@ -263,6 +295,13 @@ outputs before running tests, so artifacts from failed jobs may contain packages
 that have **not** passed validation. Check the job result and `validation.json`
 before using them. Logs and other failure diagnostics remain available.
 
+The two archive levels serve different consumers: `registry-ci-evidence.tar`
+transports the complete job through GitHub unchanged, while each indexed directory
+TAR is a reusable build output that can be downloaded and extracted separately.
+Existing runtime/debug TAR files are not repackaged internally. For example,
+`Text::CharWidth.3pm.gz`, `xt_CONNMARK.h`, and `xt_connmark.h` retain their names,
+and a directory's executable files and portable relative links remain usable.
+
 ## Environment and coverage
 
 The build matrix uses native GitHub-hosted `ubuntu-24.04` and `ubuntu-24.04-arm`
@@ -271,6 +310,12 @@ digest. It installs the compiler and
 package-test tools in the container and downloads Bazel 8.5.1 with a pinned SHA256
 for the native CPU. GitHub actions are pinned to commit SHAs, checkout does not
 persist credentials, and the workflow uses read-only repository permissions.
+
+Runner tests execute on native AMD64 and ARM64 hosts with pinned Bazel 8.5.1.
+They build an actual directory-producing target and its public alias, including
+both target and execution configurations, then check collection and extraction.
+Transport and failure-log tests also cover rejected paths, partial archives,
+case-sensitive filenames, Unix modes, empty directories and symlink relocation.
 
 Each job uses a fresh consumer and Bazel output directory. There is no saved Bazel
 cache in this initial workflow. Logs, Bazel build-event files, available test
