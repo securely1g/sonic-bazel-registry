@@ -85,3 +85,12 @@ ARM64 keeps that optional test tool disabled.
 AMD64 and ARM64 through the shared registry workflow. Tests compile a P4 program
 to BMv2 JSON and P4Runtime metadata, compare runtime/debug build IDs, inspect
 DWARF, and confirm GDB resolves a source line in the compiler.
+
+## Generated runtime package metadata
+
+`//:runtime_packages.json` is a generated target. The existing Debian
+`control` and `changelog` define package fields; `BUILD.bazel` maps package names
+to the existing Bazel TARs. The shared metadata rule inspects those target
+binaries and declared dependency packages, so version constraints come from
+the built artifacts and Debian tools. There is no handwritten JSON metadata
+file or new DEB producer.
