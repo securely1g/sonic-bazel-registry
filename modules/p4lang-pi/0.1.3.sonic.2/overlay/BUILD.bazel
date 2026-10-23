@@ -1,19 +1,85 @@
 load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("@rules_python//python:py_test.bzl", "py_test")
+load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
+
 package(default_visibility = ["//visibility:public"])
-[alias(name = name, actual = "@pi_source//:" + name) for name in ["sources", "sdk", "runtime", "runtime.debug_symbols", "configure_log", "proto_configure_log"]]
-cc_binary(name = "sdk_consumer", srcs = ["//bazel:sdk_test.cc"], deps = [":sdk"], linkstatic = False)
+
+[alias(
+    name = name,
+    actual = "@pi_source//:" + name,
+) for name in [
+    "sources",
+    "sdk",
+    "runtime",
+    "runtime.debug_symbols",
+    "configure_log",
+    "proto_configure_log",
+]]
+
+cc_binary(
+    name = "sdk_consumer",
+    srcs = ["//bazel:sdk_test.cc"],
+    linkstatic = False,
+    deps = [":sdk"],
+)
+
 # Exercise the SDK consumer with the installed PI and declared target libraries.
-test_suite(name = "sdk_test", tests = [":runtime_test"])
-py_test(name = "runtime_test", srcs = ["//bazel:runtime_test.py"], args = ["$(rootpath :runtime)", "$(rootpath :runtime.debug_symbols)", "$(rootpath :proto_configure_log)", "$(rootpath :sdk_consumer)"] + ["$(locations @pi_deps//:packages)"], data = [":runtime", ":runtime.debug_symbols", ":proto_configure_log", ":sdk_consumer", "@pi_deps//:packages"])
+test_suite(
+    name = "sdk_test",
+    tests = [":runtime_test"],
+)
 
-alias(name = "runtime_libraries", actual = "@pi_deps//:packages")
-
-# Keep package identities beside the runtime TAR producers.
-exports_files(
-    [
-        "runtime_packages.json",
-        "runtime_packages.md",
+py_test(
+    name = "runtime_test",
+    srcs = ["//bazel:runtime_test.py"],
+    args = [
+        "$(rootpath :runtime)",
+        "$(rootpath :runtime.debug_symbols)",
+        "$(rootpath :proto_configure_log)",
+        "$(rootpath :sdk_consumer)",
+    ] + ["$(locations @pi_deps//:packages)"],
+    data = [
+        ":proto_configure_log",
+        ":runtime",
+        ":runtime.debug_symbols",
+        ":sdk_consumer",
+        "@pi_deps//:packages",
     ],
+)
+
+alias(
+    name = "runtime_libraries",
+    actual = "@pi_deps//:packages",
+)
+
+# Package fields come from the existing Debian recipe. This mapping only
+# identifies the Bazel-built TAR for each Debian binary package.
+runtime_packages(
+    name = "runtime_packages.json",
+    apt_packages = {
+        "@pi_deps//" + package + ":data": "@pi_deps//" + package + ":control"
+        for package in [
+            "libabsl20240722",
+            "libgrpc++1.51t64",
+            "libgrpc29t64",
+            "libprotobuf32t64",
+            "libreadline8t64",
+            "libtinfo6",
+            "libssl3t64",
+            "libc-ares2",
+            "libre2-11",
+            "zlib1g",
+        ]
+    },
+    changelog = "@pi_debian//:debian/changelog",
+    control = "@pi_debian//:debian/control",
+    packages = {
+        "p4lang-pi": "//:runtime",
+    },
+    visibility = ["//visibility:public"],
+)
+
+exports_files(
+    ["runtime_packages.md"],
     visibility = ["//visibility:public"],
 )
