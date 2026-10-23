@@ -283,6 +283,13 @@ tests.
 
 ## Download build outputs
 
+Failed builds and tests retain local action stdout/stderr under
+`failed-actions/`, including diagnostics larger than Bazel's console-output
+limit. Each `index.json` records the action label, stream, retained path, byte
+count and SHA256. Missing files, remote URIs and paths escaping the private work
+directory are recorded as collection errors; they are never fetched or copied.
+The original build or test failure remains the result.
+
 Open **Actions → Registry CI → a successful run → Artifacts** and download
 `registry-ci-<module>-<version>-<architecture>` (`amd64` or `arm64`). Each artifact
 contains `outputs.json`, mapping the manifest's required build targets to files
