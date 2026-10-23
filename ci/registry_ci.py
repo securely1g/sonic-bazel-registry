@@ -12,6 +12,7 @@ import io
 import json
 from pathlib import Path, PurePosixPath
 import platform
+import posixpath
 import re
 import shutil
 import subprocess
@@ -420,7 +421,61 @@ def latest_presubmits(root: Path) -> set[tuple[str, str]]:
     return selected
 
 
-def check_version_policy(root: Path, published: str, head: str, push: bool = False) -> None:
+def maintenance_kind(name: str) -> str | None:
+    """Only these entry-relative paths are documentation or standalone CI inputs."""
+    if name in ("README.md", "PATCHES.md") or name.startswith("docs/"):
+        return "docs"
+    if name == "presubmit.json" or name.startswith("tests/"):
+        return "tests"
+    return None
+
+
+def recipe_references(source: dict, name: str) -> bool:
+    """Conservatively protect local files named by the immutable source recipe."""
+    def references(value) -> bool:
+        if isinstance(value, dict):
+            return any(references(key) or references(item) for key, item in value.items())
+        if isinstance(value, list):
+            return any(references(item) for item in value)
+        if isinstance(value, str):
+            path = posixpath.normpath(unquote(urlparse(value).path))
+            return path == name or path.endswith("/" + name)
+        return False
+
+    # docs_url advertises documentation; Bazel does not use it to fetch sources.
+    return references({key: value for key, value in source.items() if key != "docs_url"})
+
+
+def check_published_files(root: Path, path: str, published: str, head: str) -> None:
+    """Allow maintenance without changing any published consumer input."""
+    def files(revision: str) -> dict[str, tuple[str, str, str]]:
+        result = {}
+        for record in git(root, "ls-tree", "-r", "-z", f"{revision}:{path}").split("\0"):
+            if record:
+                info, name = record.split("\t", 1)
+                result[name] = tuple(info.split())  # mode, object type, object ID
+        return result
+
+    before, after = files(published), files(head)
+    changed = {name for name in before.keys() | after.keys() if before.get(name) != after.get(name)}
+    source = json.loads(git(root, "show", f"{published}:{path}/source.json"))
+    # Unsupported source layouts retain whole-entry immutability. Do not guess
+    # whether their files are build inputs from a docs/ or tests/ pathname.
+    supported = (isinstance(source, dict) and source.get("type", "archive") == "archive"
+                 and set(source) <= {"type", "url", "integrity", "strip_prefix", "patches",
+                                     "patch_strip", "overlay", "docs_url", "mirror_urls"})
+    for name in sorted(changed):
+        old, new = before.get(name), after.get(name)
+        regular = all(item is None or item[0] in ("100644", "100755") and item[1] == "blob"
+                      for item in (old, new))
+        require(supported and maintenance_kind(name) is not None and regular
+                and not recipe_references(source, name),
+                f"{path}/{name}: published version changed or removed; preserve consumer inputs, "
+                "their file modes and unknown paths (rebase if the maintained branch advanced)")
+
+
+def check_version_policy(root: Path, published: str, head: str,
+                         push: bool = False) -> set[tuple[str, str]]:
     """Protect published entries and allow one candidate across an entire PR stack."""
     for name, revision in (("published", published), ("head", head)):
         require(isinstance(revision, str) and re.fullmatch(r"[0-9a-fA-F]{40,64}", revision) is not None,
@@ -434,6 +489,7 @@ def check_version_policy(root: Path, published: str, head: str, push: bool = Fal
     ancestor = published if push else git(root, "merge-base", published, head).strip()
     changed = git(root, "diff", "--name-only", "--no-renames", "-z", ancestor, head, "--", "modules/")
     modules = {PurePosixPath(name).parts[1] for name in changed.split("\0") if name}
+    published_entries = set()
     for module in sorted(modules):
         require(NAME.fullmatch(module) is not None, f"Invalid module name: {module}")
         path = f"modules/{module}"
@@ -464,14 +520,18 @@ def check_version_policy(root: Path, published: str, head: str, push: bool = Fal
         require(len(versions) == len(set(versions)) and set(versions) == set(head_versions),
                 f"{module}: metadata and version directories differ")
         for version, tree in sorted(published_versions.items()):
-            require(head_versions.get(version) == tree,
+            published_entries.add((module, version))
+            require(version in head_versions,
                     f"{module}@{version}: published version changed or removed; "
-                    "preserve its original contents (rebase if the maintained branch advanced)")
+                    "retain the version directory (rebase if the maintained branch advanced)")
+            if head_versions[version] != tree:
+                check_published_files(root, f"{path}/{version}", published, head)
         candidates = sorted(set(head_versions) - set(published_versions))
         require(len(candidates) <= 1,
                 f"{module}: multiple unreleased candidates relative to {published}: {', '.join(candidates)}; "
                 "consolidate the unmerged stack into one candidate and update its consumers")
         print(f"Version policy: {module}: candidates={candidates}, published={published}", file=sys.stderr)
+    return published_entries
 
 
 def plan(root: Path, base: str | None, head: str | None, all_versions: bool = False,
@@ -482,7 +542,7 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
             "Do not combine --all/--latest with --base")
     require(bool(published) and bool(head), "plan requires --published and --head")
     require(git(root, "rev-parse", "HEAD").strip() == head, "Checkout HEAD differs from planned head")
-    check_version_policy(root, published, head, push)
+    published_entries = check_version_policy(root, published, head, push)
     selected = set()
     if all_versions:
         selected.update((path.parent.parent.name, path.parent.name)
@@ -542,6 +602,11 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
                     selected.update((module, version) for version in relevant)
                 else:
                     require(len(parts) >= 4, f"Unsupported version path: {name}")
+                    if ((module, parts[2]) in published_entries
+                            and maintenance_kind("/".join(parts[3:])) == "docs"):
+                        # Published documentation maintenance has passed the
+                        # consumer-input check and needs no historical CI retrofit.
+                        continue
                     # A deleted unpublished candidate has no jobs. Published
                     # deletion already failed check_version_policy above.
                     if (root / "modules" / module / parts[2]).exists():
