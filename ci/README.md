@@ -13,11 +13,13 @@ manual runs test those latest versions by default. To test every configured
 historical version, select **all_versions** when manually running the workflow,
 or use `plan --all` locally.
 Revised unreleased candidates require a validation configuration too.
-Published version directories cannot be modified or deleted.
+Published consumer inputs and version directories cannot be removed or rewritten;
+standalone documentation and test maintenance is allowed as described below.
 Unchanged historical entries without a configuration are not represented as
 validated. Documentation-only changes can produce an empty module matrix.
-In particular, `modules/<name>/README.md` does not select a version. A README
-change alongside a new version still validates that new version.
+In particular, `modules/<name>/README.md` and permitted documentation-only edits
+inside a published version do not select a version. Documentation changes in an
+unpublished candidate still validate that candidate.
 
 `Registry CI` is the stable aggregate check intended for branch protection. It
 passes only when planning and the runner's unit tests pass, and every selected
@@ -46,7 +48,9 @@ For a module already covered by CI, the latest non-yanked version must have a
 configuration: planning fails instead of silently testing an older version.
 
 A PR that revises an unreleased `modules/sonic-build-infra/0.0.8-.../` candidate
-still tests that exact version; published directory edits are rejected first.
+still tests that exact version. Maintaining a published version's standalone
+tests or `presubmit.json` also tests that exact version, even when it is historical.
+Disallowed published input changes are rejected before selecting jobs.
 If it also changes CI, the plan includes both the edited version and the latest
 version, once each. Module metadata changes retain their existing
 coverage: an append-only release addition tests the added versions; other
@@ -62,16 +66,42 @@ Routine CI does not claim that all historical versions passed.
 ## Publication policy checks
 
 Before selecting module jobs, the planner checks that each affected module has
-at most one version absent from the maintained `main` branch. Published version
-directory trees must remain identical, and metadata must list every version
-directory. This also checks inherited candidates when a PR changes only
+at most one version absent from the maintained `main` branch. Published consumer
+inputs must remain identical, and metadata must list every version directory.
+This also checks inherited candidates when a PR changes only
 metadata or documentation; the actual stacked PR base is used only to select
 validation jobs.
 
+For supported archive entries, the only mutable entry-relative paths are regular
+files at `README.md`, `PATCHES.md`, `docs/**`, `presubmit.json` and `tests/**`.
+These may be added, edited or removed, and regular maintenance files may change
+their executable bit. All other paths are protected by their Git object type,
+mode and contents. This includes `MODULE.bazel`, `source.json` and every file
+under `patches/` or `overlay/`, even if its name looks like documentation or a
+test. Symlinks and submodules are never maintenance files. Source layouts or
+recipe fields not understood by this policy retain whole-entry immutability.
+
+The unchanged source recipe takes precedence over the maintenance allowlist:
+the checker protects a local file named by its source fields, including archive
+or mirror URLs with that relative path. URL escaping and dot components are
+normalized before comparison. This check is intentionally conservative, so an
+unrelated fetch URL with the same path suffix also protects the local file.
+The informational `docs_url` field is excluded from this reference check;
+`source.json` itself remains immutable. The checker does not try to infer that
+an unknown file or source layout is safe to change.
+
+Permitted published documentation changes select no module jobs on their own,
+so historical entries need no new `presubmit.json` merely to fix their README.
+Standalone test or CI-manifest changes select the exact affected version and
+must pass its configured native tests. Shared CI changes retain their ordinary
+latest-version matrix. No source payload changes or weakened test assertions
+are implied by a maintenance exception; ordinary review still applies.
+
 For example, with `libyang-python@3.1.0.sonic.2` on `main`, a parent adding
 `.sonic.3` and a child adding `.sonic.4` fail with two unreleased candidates.
-After `.sonic.3` reaches `main`, preserving its bytes and adding `.sonic.4`
-passes. Unchanged historical releases do not require new CI manifests.
+After `.sonic.3` reaches `main`, preserving its consumer inputs and adding
+`.sonic.4` passes. Updating `.sonic.3`'s standalone tests instead uses its existing
+version. Unchanged historical releases do not require new CI manifests.
 
 For PRs and manual runs, the workflow explicitly fetches the public maintained
 repository's `main` and records its SHA in `plan.log`. It does not trust a fork's
@@ -85,8 +115,8 @@ fail planning, including in `--latest` and `--all` modes.
 Affected modules are those changed from the common ancestor of that publication
 baseline and the checked-out head. Releases in unrelated modules after a branch
 fork do not count as deletions. If a touched module has since published a new
-version, rebase to retain its published entries. Directory comparisons include
-file contents, modes, additions, and deletions.
+version, rebase to retain its published entries. Protected file comparisons
+include contents, modes, additions, deletions and type changes.
 
 CI sees the checked-out stack, not independent open registry PRs or downstream
 repositories. Authors must also audit those PRs and update affected consumer
