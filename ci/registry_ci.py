@@ -664,6 +664,29 @@ def collect_outputs(bep_path: Path, labels: list[str], work_dir: Path, artifacts
     outputs.mkdir(parents=True)
     retained = {}
 
+    def resolve_output(path: Path) -> Path:
+        try:
+            return path.resolve()
+        except (OSError, RuntimeError) as error:
+            raise RegistryError(f"Invalid build output link: {path}: {error}") from error
+
+    def portable_link(path: Path, root: Path, ancestors: frozenset = frozenset()) -> bool:
+        target = path.readlink()
+        if target.is_absolute() or path in ancestors:
+            return False
+        cursor = path.parent
+        for part in target.parts:
+            cursor = cursor.parent if part == ".." else cursor / part
+            if not cursor.is_relative_to(root):
+                return False
+            if cursor.is_symlink():
+                # Follow each intermediate link before interpreting '..'. A
+                # materialized directory can otherwise change the final target.
+                if not portable_link(cursor, root, ancestors | {path}):
+                    return False
+                cursor = resolve_output(cursor)
+        return True
+
     def archive_tree(source: Path, relative: PurePosixPath) -> dict:
         # GitHub artifacts reject ':' and fold case. Put POSIX tree contents in
         # a TAR whose upload name depends only on the declared output path.
@@ -678,7 +701,7 @@ def collect_outputs(bep_path: Path, labels: list[str], work_dir: Path, artifacts
 
         def add(tree: tarfile.TarFile, path: Path, name: PurePosixPath,
                 ancestors: frozenset = frozenset()) -> None:
-            resolved = path.resolve()
+            resolved = resolve_output(path)
             require(resolved.is_relative_to(work_dir), f"Build output escapes work-dir: {resolved}")
             require(resolved.is_file() or resolved.is_dir(), f"Missing regular build output: {resolved}")
             if resolved.is_dir():
@@ -686,21 +709,8 @@ def collect_outputs(bep_path: Path, labels: list[str], work_dir: Path, artifacts
             # Preserve portable links inside this tree. Links into other build
             # outputs are materialized, as before, so they remain usable alone.
             if path.is_symlink() and path.is_relative_to(source):
-                link = path.readlink()
-                # A link copied through a materialized directory may have a
-                # different parent in the archive. Preserve it only when both
-                # its location and its relative target retain their meaning.
-                # Never retain a link that leaves the tree and then re-enters
-                # it: the parent directories are absent in a standalone TAR.
-                lexical_target = path.parent
-                stays_inside = not link.is_absolute()
-                for part in link.parts:
-                    lexical_target = lexical_target.parent if part == ".." else lexical_target / part
-                    if not lexical_target.is_relative_to(source):
-                        stays_inside = False
-                        break
-                if (stays_inside and name == relative / path.relative_to(source)
-                        and resolved.is_relative_to(source) and lexical_target.resolve() == resolved):
+                if (name == relative / path.relative_to(source)
+                        and resolved.is_relative_to(source) and portable_link(path, source)):
                     tree.add(path, arcname=name.as_posix(), recursive=False, filter=normalize)
                     return
             tree.add(resolved, arcname=name.as_posix(), recursive=False, filter=normalize)
@@ -731,7 +741,7 @@ def collect_outputs(bep_path: Path, labels: list[str], work_dir: Path, artifacts
                 temporary.unlink(missing_ok=True)
 
     def copy_output(source: Path, relative: PurePosixPath) -> list[dict]:
-        source = source.resolve()
+        source = resolve_output(source)
         require(source.is_relative_to(work_dir), f"Build output escapes work-dir: {source}")
         destination = outputs / relative
         if source.is_dir():
@@ -787,7 +797,7 @@ def collect_outputs(bep_path: Path, labels: list[str], work_dir: Path, artifacts
             relative = PurePosixPath(name)
             require(bool(relative.parts) and not relative.is_absolute() and ".." not in relative.parts
                     and "\\" not in name, f"Unsafe build output path: {name}")
-            source = Path(unquote(uri.path)).resolve()
+            source = resolve_output(Path(unquote(uri.path)))
             require(source.is_relative_to(work_dir), f"Build output escapes work-dir: {source}")
             if any(relative.is_relative_to(tree_path) for tree_path in tree_paths):
                 # Skip only expanded members of this exact declared directory.
