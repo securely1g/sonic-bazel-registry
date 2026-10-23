@@ -6,7 +6,7 @@
   "consumer_deps": [
     {
       "name": "sonic-build-infra",
-      "version": "0.0.21-787a4efffd91fb8be872d4ef2772d2b17ef3c0b0"
+      "version": "0.0.22-280833c24ec33d2dbd8ea0a7639e5ac82dfc55f8"
     },
     {
       "name": "tar.bzl",
@@ -20,7 +20,8 @@
   "build_targets": [
     "@sonic-dash//:runtime",
     "@sonic-dash//:runtime.debug_symbols",
-    "@sonic-dash//:sdk"
+    "@sonic-dash//:sdk",
+    "@sonic-dash//:runtime_packages.json"
   ],
   "test_targets": [
     "@sonic-dash//bazel:runtime_test"
