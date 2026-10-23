@@ -6,7 +6,7 @@
   "consumer_deps": [
     {
       "name": "sonic-build-infra",
-      "version": "0.0.18-1272f6c6aad327b38d257dedbac1b64b5e1521bd"
+      "version": "0.0.20-28a3aa9b96f1ce66e4ce04f9a7d26c96e3bbb0c6"
     },
     {
       "name": "tar.bzl",
@@ -20,7 +20,8 @@
   "build_targets": [
     "@p4lang-pi//:runtime",
     "@p4lang-pi//:runtime.debug_symbols",
-    "@p4lang-pi//:sdk"
+    "@p4lang-pi//:sdk",
+    "@p4lang-pi//:runtime_packages.json"
   ],
   "test_targets": [
     "@p4lang-pi//:runtime_test"
