@@ -1,0 +1,43 @@
+From: Guohan Lu <securely1g@gmail.com>
+Subject: [PATCH] Parse pkg-config fields independently of separator whitespace
+
+Debian's xtables.pc separates fields with colon-tabs, so looking for ": "
+skips Name, Libs and Cflags. The resulting development-library target loses
+its include roots, and native iproute2 consumers cannot find xtables headers.
+
+Use the first ":" or "=" to distinguish fields from variables, and trim
+boundary whitespace. Values retain embedded separators, including URLs in
+variables and -DNAME=value compiler flags.
+
+Source: https://github.com/bazel-contrib/rules_distroless/blob/v0.9.4/apt/private/pkgconfig.bzl
+Origin: SONiC-maintained compatibility fix for upstream v0.9.4.
+
+--- a/apt/private/pkgconfig.bzl
++++ b/apt/private/pkgconfig.bzl
+@@ -42,16 +42,21 @@
+     variables = {}
+     directives = {}
+     for l in pc.splitlines():
++        l = l.strip()
+         if l.startswith("#"):
+             continue
+-        if not l.strip():
++        if not l:
+             continue
+-        if l.find(": ") != -1:
++        colon = l.find(":")
++        equals = l.find("=")
++        # A variable value may contain ":"; a field value may contain "=".
++        # The first separator determines which syntax this line uses.
++        if colon != -1 and (equals == -1 or colon < equals):
+             (k, v) = _split_once(l, ":")
+-            directives[k] = _expand_value(v.removeprefix(" "), variables)
+-        elif l.find("=") != -1:
++            directives[k.strip()] = _expand_value(v.strip(), variables)
++        elif equals != -1:
+             (k, v) = _split_once(l, "=")
+-            variables[k] = _expand_value(v, variables)
++            variables[k.strip()] = _expand_value(v.strip(), variables)
+ 
+     return (directives, variables)
+ 
