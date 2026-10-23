@@ -1,17 +1,17 @@
 {
   "architectures": [
-    "amd64",
-    "arm64"
+    "amd64"
   ],
   "consumer_deps": [],
   "platforms": {
-    "amd64": "@sonic-build-infra//platforms:x86_64_trixie",
-    "arm64": "@sonic-build-infra//platforms:aarch64_trixie"
+    "amd64": "@sonic-build-infra//platforms:x86_64_trixie"
   },
   "build_targets": [
     "@sonic-build-infra//registry_ci:kernel_runtime_manifest"
   ],
   "test_targets": [
+    "@sonic-build-infra//tools/build_tools:kernel_cross_runtime_arm64_test",
+    "@sonic-build-infra//tools/build_tools:kernel_cross_runtime_armhf_test",
     "@sonic-build-infra//tools/build_tools:prepare_rootfs_test",
     "@sonic-build-infra//tools/build_tools:kernel_debian_test",
     "@sonic-build-infra//tools/build_tools:kernel_runtime_test",
