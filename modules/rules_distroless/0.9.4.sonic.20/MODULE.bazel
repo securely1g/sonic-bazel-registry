@@ -1,6 +1,6 @@
 module(
     name = "rules_distroless",
-    version = "0.9.4.sonic.9",
+    version = "0.9.4.sonic.10",
     compatibility_level = 1,
 )
 

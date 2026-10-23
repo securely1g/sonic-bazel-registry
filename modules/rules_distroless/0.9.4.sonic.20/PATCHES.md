@@ -1,11 +1,11 @@
 # Distroless patch provenance and validation
 
-`0.9.4.sonic.9` applies the complete SONiC patch set to the checksum-pinned
+`0.9.4.sonic.10` applies the complete SONiC patch set to the checksum-pinned
 upstream `rules_distroless` 0.9.4 archive. The registry owns these patches and
 their tests. The intermediate `.sonic.2`, `.sonic.3` and `.sonic.4` proposals
 are not published by this change; existing published versions are unchanged.
-This entry retains `.sonic.8` and adds complete C/C++ template-header imports
-with a real Boost foreign-build consumer.
+This entry retains `.sonic.9` and removes nonexistent include roots from
+headerless dependency contexts.
 
 `Introduced in` identifies the first published registry version containing the
 patch's behavior; new patches show their proposed version. Later revisions
@@ -26,6 +26,7 @@ proposals and are not counted as releases.
 | `0009-pkgconfig-field-separators.patch` | `0.9.4.sonic.7` | Parse colon-tabs and colon-without-space fields; distinguish variable assignments from separators inside values. |
 | `0010-pkgconfig-quoting.patch` | `0.9.4.sonic.8` | Decode quotes and backslash escapes in expanded flags and path variables; preserve spaces within arguments. |
 | `0011-template-headers.patch` | `0.9.4.sonic.9` | Include the remaining rules_cc-supported header fragments under `usr/include`, including Boost `.ipp` files. |
+| `0012-headerless-includes.patch` | `0.9.4.sonic.10` | Export the package include root only when it owns declared compiler inputs; preserve all linker and transitive contexts. |
 
 These are SONiC-maintained adaptations, not imported upstream commits.
 [Upstream #220](https://github.com/bazel-contrib/rules_distroless/pull/220)
@@ -154,3 +155,19 @@ regex operations using the imported Boost headers through CMake/Make and
 The explicit analysis assertions ensure host Boost installations cannot mask
 missing declarations. Both tests run on native AMD64 and ARM64 alongside all
 fourteen retained regressions.
+
+## Headerless runtime-context regression
+
+The BMv2 source graph contains 81 runtime package contexts advertising an
+include directory despite owning no headers. The source build's long compiler
+command exceeded Linux's per-environment-string limit when GCC spawned cc1plus.
+The importer now adds its include root only when `hdrs` or
+`additional_compiler_inputs` is nonempty. It does not filter library arguments,
+change their order, or remove declared dependency inputs.
+
+Four CcInfo regressions check empty, direct, additional and transitive header
+contexts and unchanged linker flags. Restoring the unconditional include root
+makes the headerless regression fail while the other three controls pass.
+All sixteen prior native tests are retained. The remaining GCC command-size
+issue with long build paths requires a separate compiler adapter fix; this
+entry alone does not establish that the complete BMv2 source build passes.

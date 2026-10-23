@@ -32,6 +32,10 @@
     "@rules_distroless//registry_ci:pkgconfig_quotes_test",
     "@rules_distroless//registry_ci:libpcap_headers_test",
     "@rules_distroless//registry_ci/template_headers:declared_headers_test",
-    "@rules_distroless//registry_ci/template_headers:foreign_headers_test"
+    "@rules_distroless//registry_ci/template_headers:foreign_headers_test",
+    "@rules_distroless//registry_ci/headerless:runtime_test",
+    "@rules_distroless//registry_ci/headerless:headers_test",
+    "@rules_distroless//registry_ci/headerless:additional_headers_test",
+    "@rules_distroless//registry_ci/headerless:transitive_headers_test"
   ]
 }
