@@ -60,10 +60,11 @@ that version suffix without running Git inside a build action.
 The BCR has no `bmv2`, `behavioral-model` or `p4lang-bmv2` entry. The imported
 archive has an Autotools build and no upstream Bazel module.
 
-## Runtime package metadata
+## Generated runtime package metadata
 
-This recipe revision adds `//:runtime_packages.json` beside the runtime TAR.
-The image can record the producer's package name, version and runtime dependencies
-without duplicating those fields. The runtime/debug build and installed payload
-remain unchanged from `1.15.0.sonic.1`; that inherited recipe is preserved exactly.
-The metadata does not produce a DEB or change the legacy Make build.
+`//:runtime_packages.json` is a generated target. The existing Debian
+`control` and `changelog` define package fields; `BUILD.bazel` maps package names
+to the existing Bazel TARs. The shared metadata rule inspects those target
+binaries and declared dependency packages, so version constraints come from
+the built artifacts and Debian tools. There is no handwritten JSON metadata
+file or new DEB producer.
