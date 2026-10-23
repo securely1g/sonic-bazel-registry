@@ -4,6 +4,14 @@ load(":bazel/runtime.bzl", "installed_file", "runtime_for_arch")
 
 package(default_visibility = ["//visibility:public"])
 
+exports_files(
+    [
+        "debian/control",
+        "debian/changelog",
+    ],
+    visibility = ["//visibility:public"],
+)
+
 _PROGRAMS = [
     "simple_switch",
     "simple_switch_grpc",

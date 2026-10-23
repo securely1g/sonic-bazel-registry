@@ -6,7 +6,7 @@
   "consumer_deps": [
     {
       "name": "sonic-build-infra",
-      "version": "0.0.19-70cb0fcf685aba5c2f8078ba421353fa42289e16"
+      "version": "0.0.20-28a3aa9b96f1ce66e4ce04f9a7d26c96e3bbb0c6"
     },
     {
       "name": "tar.bzl",
@@ -22,7 +22,8 @@
     "@p4lang-bmv2//:runtime.debug_symbols",
     "@p4lang-bmv2//:sdk_consumer",
     "@p4lang-bmv2//:config_log",
-    "@p4lang-bmv2//:grpc_config_log"
+    "@p4lang-bmv2//:grpc_config_log",
+    "@p4lang-bmv2//:runtime_packages.json"
   ],
   "test_targets": [
     "@p4lang-bmv2//:package_test"
