@@ -92,6 +92,31 @@ class FixtureTestCase(unittest.TestCase):
 
 
 class SelectionTests(FixtureTestCase):
+    def test_advanced_base_release_does_not_select_absent_history(self) -> None:
+        self.entry("alpha", "1.0.0", configured=False)
+        self.entry("alpha", "2.0.0")
+        ancestor = self.commit("published registry with legacy version")
+        self.git("checkout", "-b", "published-advance")
+        self.entry("alpha", "3.0.0")
+        base = self.commit("publish another release after topic fork")
+        self.git("checkout", "-b", "ci-topic", ancestor)
+        ci = self.root / "ci" / "runner.py"
+        ci.parent.mkdir()
+        ci.write_text("# topic runner change\n")
+        head = self.commit("change CI on older checkout")
+        self.assertEqual(self.selected(base, head), {("alpha", "2.0.0")})
+
+    def test_advanced_base_module_is_not_a_topic_deletion(self) -> None:
+        self.entry("alpha", "1.0.0")
+        ancestor = self.commit("published alpha")
+        self.git("checkout", "-b", "published-module")
+        self.entry("beta", "1.0.0")
+        base = self.commit("publish unrelated module after topic fork")
+        self.git("checkout", "-b", "alpha-topic", ancestor)
+        self.entry("alpha", "2.0.0")
+        head = self.commit("add the single alpha candidate")
+        self.assertEqual(self.selected(base, head), {("alpha", "2.0.0")})
+
     def test_changed_version_is_selected_without_unrelated_versions(self) -> None:
         changed = self.entry("alpha", "1.0.0")
         self.entry("alpha", "2.0.0")
