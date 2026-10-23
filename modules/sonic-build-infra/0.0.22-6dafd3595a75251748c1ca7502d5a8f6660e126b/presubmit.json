@@ -68,6 +68,7 @@
     "@sonic-build-infra//tools/build_tools:prepare_rootfs_test",
     "@sonic-build-infra//tools/build_tools:kernel_debian_test",
     "@sonic-build-infra//tools/build_tools:kernel_runtime_test",
+    "@sonic-build-infra//tools/build_tools:runtime_launcher_test",
     "@sonic-build-infra//registry_ci:kernel_arm64_tools_test",
     "@sonic-build-infra//registry_ci:kernel_armhf_tools_test"
   ],

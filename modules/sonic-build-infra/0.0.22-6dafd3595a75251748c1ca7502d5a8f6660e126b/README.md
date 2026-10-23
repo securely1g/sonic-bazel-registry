@@ -1,6 +1,6 @@
 # Generated Debian metadata for source-built images
 
-Registers `0.0.22-b2aee6e323cf193fc7a034e2c5f71a3fd04e4160` from the landed build-infra #58 squash commit.
+Registers `0.0.22-6dafd3595a75251748c1ca7502d5a8f6660e126b` from the reviewed source commit.
 
 The source combines existing OCI account and installed-package helpers with
 `runtime_packages`: package identity and dependency fields come from the owning
@@ -15,8 +15,10 @@ maintaining another handwritten control record.
 The registry retains published entries and the existing native AMD64/ARM64
 compiler, runtime, stripping and debug checks. It adds the six OCI tests,
 including real ELF dependency generation and execution/target library isolation,
-and carries the published kernel-runtime checks. Standalone registry wrappers
-execute the original AMD64-to-ARM64/ARMHF cross-compiler tests on AMD64 and
-the native kernel-runtime regression on ARM64. A test-only visibility patch
-allows these wrappers to reuse the existing source tests; no build-tool behavior
-is changed.
+and carries the published kernel-runtime checks. Registry wrappers execute the
+original AMD64-to-ARM64/ARMHF cross-compiler tests on AMD64 and the native kernel
+regression on ARM64. A test-only visibility patch permits this reuse; it changes
+no compiler or runtime behavior.
+
+This cumulative candidate also preserves build-infra #60's static C launcher
+fix for GCC/Clang and its regression test.
