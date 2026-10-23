@@ -1,24 +1,18 @@
-# Complete template headers for foreign builds
+# Include roots for declared headers
 
-This version retains the complete `0.9.4.sonic.8` patch set and exports the
-C/C++ include-fragment suffixes recognized by `rules_cc` 0.2.16 from Debian
-`usr/include` trees. The existing `.h`, `.hpp` and extensionless-header handling
-is retained. Added forms include `.ipp`, `.tcc`, `.hh`, `.hxx`, `.h++`, `.inl`,
-`.tlh`, `.tli` and `.H`; `.inc` remains supported.
+This version retains the complete `0.9.4.sonic.9` patch set and stops adding
+`<package>/usr/include` to `CcInfo` when a Debian dependency owns no declared
+headers or additional compiler inputs. Headerless runtime libraries still
+propagate their linker inputs and transitive dependency contexts unchanged.
 
-P4C's graph backend includes Boost `graphviz.hpp`, which reaches
-`boost/xpressive/detail/utility/chset/basic_chset.ipp`. The imported Boost
-headers omitted this file, so `rules_foreign_cc` staged an incomplete include
-tree and the native source build failed. Debian Boost 1.83.0-4.2 contains 310
-`.ipp` files; these now enter the declared compilation context.
+The BMv2 foreign build exposed 81 such nonexistent include roots. They enlarged
+GCC's collected option environment without providing any headers. This change
+removes those roots; a separate compiler adapter change addresses the remaining
+argument-size limit with long build paths.
 
-The regression builds and runs a CMake/Make consumer of checksum-pinned
-AMD64/ARM64 Boost packages through `rules_foreign_cc`. It instantiates graph
-output and regular-expression matching, exercising the real `.ipp` include
-chain. An analysis regression separately requires those files in `CcInfo`, so
-host-installed Boost cannot hide an incomplete import. It also covers `.tcc`
-and `.hxx` classification and excludes unrelated paths and suffixes.
+Four analysis regressions cover headerless, direct-header, additional-input
+and transitive-header contexts, including linker flag order. Native AMD64 and
+ARM64 CI retains the sixteen existing import, pkg-config, shared-library and
+Boost CMake/Make tests. No DEBs are produced.
 
-The native matrix retains all fourteen earlier tests and adds these two
-regressions. It downloads existing SDK packages and does not create DEBs.
 See [patch provenance and validation](PATCHES.md).
