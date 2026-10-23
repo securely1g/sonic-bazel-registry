@@ -5,6 +5,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      all_versions:
+        description: Test every configured historical version instead of only the latest
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -27,19 +32,41 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
-      - name: Select changed modules
+      - name: Select module versions
         id: plan
         shell: bash
         env:
           EVENT_NAME: ${{ github.event_name }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          ALL_VERSIONS: ${{ inputs.all_versions }}
         run: |
           set -euo pipefail
-          if [[ "$EVENT_NAME" == pull_request ]]; then
-            python3 ci/registry_ci.py plan --base "$BASE_SHA" --head "$HEAD_SHA" --output plan.json 2>&1 | tee plan.log
+          POLICY_FLAGS=()
+          if [[ "$EVENT_NAME" == push ]]; then
+            # main already contains this push. Comparing with current main
+            # would silently bless edits/deletions of published entries.
+            PUBLISHED_SHA="$BEFORE_SHA"
+            POLICY_FLAGS+=(--push)
           else
-            python3 ci/registry_ci.py plan --all --output plan.json 2>&1 | tee plan.log
+            # Use the maintained repository, including for forks and stacked
+            # PRs. Anonymous public fetch needs no write token or credentials.
+            git fetch --no-tags https://github.com/securely1g/sonic-bazel-registry.git \
+              +refs/heads/main:refs/registry-ci/published-main
+            PUBLISHED_SHA="$(git rev-parse refs/registry-ci/published-main)"
+          fi
+          printf 'Event: %s\nPublished baseline: %s\nPR base: %s\nHead: %s\n' \
+            "$EVENT_NAME" "$PUBLISHED_SHA" "$BASE_SHA" "$HEAD_SHA" | tee plan.log
+          if [[ "$EVENT_NAME" == pull_request ]]; then
+            python3 ci/registry_ci.py plan --published "$PUBLISHED_SHA" \
+              --base "$BASE_SHA" --head "$HEAD_SHA" --output plan.json 2>&1 | tee -a plan.log
+          elif [[ "$EVENT_NAME" == workflow_dispatch && "$ALL_VERSIONS" == true ]]; then
+            python3 ci/registry_ci.py plan --published "$PUBLISHED_SHA" \
+              --head "$HEAD_SHA" --all --output plan.json 2>&1 | tee -a plan.log
+          else
+            python3 ci/registry_ci.py plan --published "$PUBLISHED_SHA" \
+              "${POLICY_FLAGS[@]}" --head "$HEAD_SHA" --latest --output plan.json 2>&1 | tee -a plan.log
           fi
           python3 - <<'PY'
           import json
