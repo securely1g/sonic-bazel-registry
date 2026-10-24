@@ -13,12 +13,6 @@ source-built `p4lang-pi` SDK. Target libraries come from declared Trixie APT
 inputs. Autotools, Python and protocol generators come from the declared build
 infrastructure execution-tool bundle. No configure/build action downloads code.
 
-The compiler and execution-tool bundle selects published
-`sonic-build-infra@0.0.19-46f471185c80ac5fd758f995195a428a43e3831e`. This source
-revision retains the GCC argument adapter required by the large foreign builds
-and adds kernel cross-tool support. BMv2 uses the native AMD64 and ARM64
-configurations below; its source inputs and enabled features are unchanged.
-
 ## Public targets
 
 | Target | Purpose |
@@ -42,7 +36,7 @@ debuglink CRCs for every deployed ELF and GDB source-line lookup after adding th
 debug TAR. Native AMD64 and ARM64 jobs run the independent registry consumer.
 
 ```sh
-python3 ci/registry_ci.py run --module p4lang-bmv2 --version 1.15.0.sonic.1 \
+python3 ci/registry_ci.py run --module p4lang-bmv2 --version 1.15.0.sonic.2 \
   --architecture amd64 --work-dir /tmp/bmv2-amd64 --artifacts /tmp/bmv2-artifacts
 ```
 
@@ -65,3 +59,12 @@ that version suffix without running Git inside a build action.
 
 The BCR has no `bmv2`, `behavioral-model` or `p4lang-bmv2` entry. The imported
 archive has an Autotools build and no upstream Bazel module.
+
+## Generated runtime package metadata
+
+`//:runtime_packages.json` is a generated target. The existing Debian
+`control` and `changelog` define package fields; `BUILD.bazel` maps package names
+to the existing Bazel TARs. The shared metadata rule inspects those target
+binaries and declared dependency packages, so version constraints come from
+the built artifacts and Debian tools. There is no handwritten JSON metadata
+file or new DEB producer.
