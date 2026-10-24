@@ -1,0 +1,116 @@
+load("//foreign_cc:defs.bzl", "cmake_variant", "make_variant")
+load("//foreign_cc/private:transitions.bzl", "extra_toolchains_transitioned_foreign_cc_target")
+load(":headers.bzl", "classified_headers", "receipt_test")
+
+package(default_visibility = ["//visibility:public"])
+
+# CI supplies declared native execution tools from its consumer root.
+# Omitting a selection fails toolchain resolution instead of using host tools.
+filegroup(name = "explicit_fixture_toolchain_required")
+
+label_flag(
+    name = "fixture_make_toolchain",
+    build_setting_default = ":explicit_fixture_toolchain_required",
+)
+
+classified_headers(
+    name = "system_headers",
+    hdrs = glob(["system/*.h"]),
+    kind = "system",
+)
+
+classified_headers(
+    name = "ordinary_headers",
+    hdrs = glob(["ordinary/*.h"]),
+    kind = "ordinary",
+)
+
+classified_headers(
+    name = "quote_headers",
+    hdrs = glob(["quote/*.h"]),
+    kind = "quote",
+)
+
+label_flag(
+    name = "fixture_m4_toolchain",
+    build_setting_default = ":explicit_fixture_toolchain_required",
+)
+
+label_flag(
+    name = "fixture_pkgconfig_toolchain",
+    build_setting_default = ":explicit_fixture_toolchain_required",
+)
+
+filegroup(
+    name = "sdk_sources",
+    srcs = glob(["sdk_source/*"]),
+)
+
+make_variant(
+    name = "sdk_headers",
+    lib_source = ":sdk_sources",
+    out_headers_only = True,
+    toolchain = ":fixture_make_toolchain",
+)
+
+filegroup(
+    name = "make_sources",
+    srcs = glob(["make_source/*"]),
+)
+
+make_variant(
+    name = "make_headers",
+    lib_source = ":make_sources",
+    out_data_files = ["receipt.txt"],
+    out_headers_only = True,
+    out_include_dir = "",
+    toolchain = ":fixture_make_toolchain",
+    deps = [
+        ":ordinary_headers",
+        ":quote_headers",
+        ":sdk_headers",
+        ":system_headers",
+    ],
+)
+
+filegroup(
+    name = "cmake_sources",
+    srcs = glob(["cmake_source/*"]),
+)
+
+cmake_variant(
+    name = "cmake_headers_make",
+    cache_entries = {"CMAKE_TRY_COMPILE_TARGET_TYPE": "STATIC_LIBRARY"},
+    lib_source = ":cmake_sources",
+    out_data_files = ["receipt.txt"],
+    out_headers_only = True,
+    out_include_dir = "",
+    toolchain = ":fixture_make_toolchain",
+    deps = [
+        ":ordinary_headers",
+        ":sdk_headers",
+        ":system_headers",
+    ],
+)
+
+# CMake requests M4 and pkg-config toolchains even for this small compile fixture.
+# Keep those execution tools declared through the upstream variant transition.
+extra_toolchains_transitioned_foreign_cc_target(
+    name = "cmake_headers_pkgconfig",
+    extra_toolchain = ":fixture_pkgconfig_toolchain",
+    target = ":cmake_headers_make",
+)
+
+extra_toolchains_transitioned_foreign_cc_target(
+    name = "cmake_headers",
+    extra_toolchain = ":fixture_m4_toolchain",
+    target = ":cmake_headers_pkgconfig",
+)
+
+receipt_test(
+    name = "headers_test",
+    deps = [
+        ":cmake_headers",
+        ":make_headers",
+    ],
+)
