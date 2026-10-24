@@ -1,0 +1,15 @@
+{
+  "url": "https://snapshot.debian.org/archive/debian/20241222T205329Z/pool/main/s/socat/socat_1.8.0.2.orig.tar.bz2",
+  "integrity": "sha256-rcB6nCcjUnz2Vo0vuWVZeUz5wlSkvC7dNvfzeJ6fdiU=",
+  "strip_prefix": "socat-1.8.0.2",
+  "overlay": {
+    "BUILD.bazel": "sha256-r2fyCrDt8eZh66OYzj4AlITcH458u9LeESR11QU8ca4=",
+    "MODULE.bazel": "sha256-8tJHnoXymSsBtj2S5QVn/IvCcjD2XxZjpVEAtY8r0a8=",
+    "README.bazel.md": "sha256-gHjEB7/nvPBAhOvlJSR7r3lEVC5Ez33uNOzX4BrEpwI=",
+    "bazel/enable_readline.patch": "sha256-FgzwOQNXAPHYiQKMVdtAzJN0FBIwPm7WF0w+iDW1rDU=",
+    "bazel/socat.BUILD.bazel": "sha256-MEtR1QFDlDzTxLmOydEc4QtrkfcSL77XZPYBGJi26SA=",
+    "bazel/source.bzl": "sha256-K5VWiHNCFLv+hSJ23PV+eyds5jQUmI5VciC2ITiB5O8=",
+    "socat_package_test.py": "sha256-NFpwIggELVJWcUnubwm5pBIHpZ07Xo2OdrixiUVgE5s=",
+    "runtime_packages.md": "sha256-pcAPU9KpYouH5brGxYGV6zaRxRhCDQwi74BBbjCBbs4="
+  }
+}
