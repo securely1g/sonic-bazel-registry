@@ -1,6 +1,6 @@
 # Generated Debian metadata for source-built images
 
-Registers `0.0.22-4499712c23b0bac230e2396d7053a9cce75e7f43` from the reviewed source commit.
+Registers `0.0.22-280833c24ec33d2dbd8ea0a7639e5ac82dfc55f8` from the reviewed source commit.
 
 The source combines existing OCI account and installed-package helpers with
 `runtime_packages`: package identity and dependency fields come from the owning
@@ -33,3 +33,12 @@ reuses the tool tree from disk cache and executes the test again.
 The compiled launcher replaces package aliases without overwriting their raw
 executables. The foreign-runtime regression checks that `dash` and `mawk` remain
 ELF files and that the relocated `sh` and `awk` entrypoints both execute.
+
+It also includes [build-infra #65](https://github.com/securely1g/sonic-build-infra/pull/65):
+source receipts retain complete Debian control fields. Previously a generated
+`libswsscommon` receipt containing `Description`, `Maintainer`, `Section`,
+`Priority` and `Source` was rejected because the validator required exactly
+seven dependency fields. These additional fields now survive into installed
+package status, while all required dependency and identity fields remain
+mandatory. Every field must still match the reviewed package contract; changing
+an optional field or supplying a malformed control is rejected.
