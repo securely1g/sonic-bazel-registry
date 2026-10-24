@@ -1,0 +1,18 @@
+{
+  "homepage": "https://github.com/bazel-contrib/rules_foreign_cc",
+  "maintainers": [
+    {
+      "email": "james.sharpe@zenotech.com",
+      "github": "jsharpe",
+      "github_user_id": 11253,
+      "name": "James Sharpe"
+    }
+  ],
+  "repository": [
+    "github:bazel-contrib/rules_foreign_cc"
+  ],
+  "yanked_versions": {},
+  "versions": [
+    "0.16.0.sonic.1"
+  ]
+}
