@@ -1,0 +1,11 @@
+# DASH runtime metadata from its Debian recipe
+
+Registers [DASH #2](https://github.com/securely1g/DASH/pull/2) source `37234f69c62307e8f034a557240bc9d20c886f20`. `@sonic-dash//:runtime_packages.json` is generated from DASH's original finalized `dash-pipeline/SAI/debian/libsai_1.0.0_amd64/DEBIAN/control`, using `@sonic-dash//:runtime` and the actual PI package trees to derive shared-library dependencies. The output carries the TAR digest and architecture.
+
+[Syncd-vs in buildimage #13](https://github.com/securely1g/sonic-buildimage/pull/13) consumes the `libsai` record alongside that TAR. The package version remains `1.0.0`, now read from that existing control file rather than repeated in JSON. The selected Debian source recipe and linked ELF libraries determine its control fields. Runtime compilation, matching debug symbols, SDK layout and the legacy Debian build stay unchanged.
+
+The SDK metadata provider also includes its exported libraries. For example, DASH-enabled `syncd_dash` directly needs `libprotobuf-lite.so.32`. Previously that library was present in the pinned Debian dependency closure but absent from the provider, so downstream `dpkg-shlibdeps` failed. The provider now exposes the existing `libprotobuf-lite32t64` payload and control alongside the SDK. This uses the same selected Debian version and does not add a new image package.
+
+The native AMD64/ARM64 presubmits build the runtime, matching symbols, SDK and generated metadata and run the existing independent loader, ELF closure and debug-symbol validation. Source metadata generation alone is not a full pipeline or image test.
+
+The supporting base preserves [registry #94](https://github.com/securely1g/sonic-bazel-registry/pull/94)'s source registration while combining [#120](https://github.com/securely1g/sonic-bazel-registry/pull/120)'s generator, [#107](https://github.com/securely1g/sonic-bazel-registry/pull/107)'s PI controls, [#108](https://github.com/securely1g/sonic-bazel-registry/pull/108)'s BMv2 and [#109](https://github.com/securely1g/sonic-bazel-registry/pull/109)'s P4C metadata, and the existing [#119](https://github.com/securely1g/sonic-bazel-registry/pull/119) foreign-build adapter. This replaces the one unpublished DASH candidate; no published registration changes.
