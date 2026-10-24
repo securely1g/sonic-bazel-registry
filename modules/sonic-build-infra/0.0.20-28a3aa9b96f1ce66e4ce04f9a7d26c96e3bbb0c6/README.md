@@ -1,6 +1,6 @@
 # Generated Debian metadata for source-built images
 
-Registers `0.0.22-280833c24ec33d2dbd8ea0a7639e5ac82dfc55f8` from the reviewed source commit.
+Registers `0.0.20-28a3aa9b96f1ce66e4ce04f9a7d26c96e3bbb0c6` from the reviewed source commit.
 
 The source combines existing OCI account and installed-package helpers with
 `runtime_packages`: package identity and dependency fields come from the owning
@@ -42,3 +42,8 @@ seven dependency fields. These additional fields now survive into installed
 package status, while all required dependency and identity fields remain
 mandatory. Every field must still match the reviewed package contract; changing
 an optional field or supplying a malformed control is rejected.
+
+This replaces the one unpublished launcher candidate from registry #118;
+all published entries remain unchanged. The release base remains `0.0.20`
+through this unmerged feature stack. Native validation covers the exact
+registry source and includes all 26 test targets on AMD64 and ARM64.
