@@ -1,0 +1,33 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "repo_name": "sonic_build_infra",
+      "version": "0.0.21-28a3aa9b96f1ce66e4ce04f9a7d26c96e3bbb0c6"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
+  },
+  "host_platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
+  },
+  "build_targets": [
+    "@rules_foreign_cc//registry_ci:make_headers",
+    "@rules_foreign_cc//registry_ci:cmake_headers"
+  ],
+  "test_targets": [
+    "@rules_foreign_cc//registry_ci:headers_test"
+  ],
+  "build_flags": [
+    "--@rules_foreign_cc//registry_ci:fixture_make_toolchain=@sonic_build_infra//tools/build_tools:make_toolchain",
+    "--@rules_foreign_cc//registry_ci:fixture_m4_toolchain=@sonic_build_infra//tools/build_tools:m4_toolchain",
+    "--@rules_foreign_cc//registry_ci:fixture_pkgconfig_toolchain=@sonic_build_infra//tools/build_tools:pkgconfig_toolchain"
+  ]
+}
