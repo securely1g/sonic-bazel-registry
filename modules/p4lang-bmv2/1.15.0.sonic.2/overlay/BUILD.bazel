@@ -1,0 +1,102 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary")
+load("@rules_python//python:py_test.bzl", "py_test")
+load("@sonic_build_infra//binary:keep_debug_info.bzl", "keep_debug_info")
+load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
+
+package(default_visibility = ["//visibility:public"])
+
+[
+    alias(
+        name = name,
+        actual = "@bmv2_source//:" + name,
+    )
+    for name in [
+        "runtime",
+        "runtime.debug_symbols",
+        "sdk",
+        "config_log",
+        "config_header",
+        "grpc_config_log",
+    ]
+]
+
+cc_binary(
+    name = "sdk_consumer_binary",
+    testonly = True,
+    srcs = ["bazel/sdk_consumer.cpp"],
+    deps = [":sdk"],
+)
+
+# Exercise the SDK in the same debug-retaining configuration as the deployed
+# programs; this avoids a second foreign build solely for the smoke consumer.
+keep_debug_info(
+    name = "sdk_consumer",
+    testonly = True,
+    src = ":sdk_consumer_binary",
+)
+
+py_test(
+    name = "package_test",
+    srcs = ["bazel/package_test.py"],
+    args = [
+        "$(rootpath :runtime)",
+        "$(rootpath :runtime.debug_symbols)",
+        "$(rootpath @p4lang_pi//:runtime)",
+        "$(rootpath :sdk_consumer)",
+        "$(rootpath :config_header)",
+        "$(rootpath :grpc_config_log)",
+        "$(rootpath @bmv2_source//:debian/copyright)",
+        "$(locations @bmv2_deps//:packages)",
+        "$(locations @p4lang_pi//:runtime_libraries)",
+    ],
+    data = [
+        ":config_header",
+        ":grpc_config_log",
+        ":runtime",
+        ":runtime.debug_symbols",
+        ":sdk_consumer",
+        "@bmv2_deps//:packages",
+        "@bmv2_source//:debian/copyright",
+        "@p4lang_pi//:runtime",
+        "@p4lang_pi//:runtime_libraries",
+    ],
+    main = "bazel/package_test.py",
+)
+
+# Package fields come from the existing Debian recipe. This mapping only
+# identifies the Bazel-built TAR for each Debian binary package.
+runtime_packages(
+    name = "runtime_packages.json",
+    apt_packages = {
+        "@bmv2_deps//" + package + ":data": "@bmv2_deps//" + package + ":control"
+        for package in [
+            "libboost-filesystem1.83.0",
+            "libboost-program-options1.83.0",
+            "libboost-thread1.83.0",
+            "libboost-atomic1.83.0",
+            "libgmp10",
+            "libgrpc++1.51t64",
+            "libgrpc29t64",
+            "libnanomsg5",
+            "libpcap0.8t64",
+            "libprotobuf32t64",
+            "libthrift-0.19.0t64",
+            "libssl3t64",
+            "zlib1g",
+        ]
+    },
+    changelog = "@bmv2_source//:debian/changelog",
+    control = "@bmv2_source//:debian/control",
+    dependencies = [
+        "@p4lang_pi//:runtime_packages.json",
+    ],
+    packages = {
+        "p4lang-bmv2": "//:runtime",
+    },
+    visibility = ["//visibility:public"],
+)
+
+exports_files(
+    ["runtime_packages.md"],
+    visibility = ["//visibility:public"],
+)
