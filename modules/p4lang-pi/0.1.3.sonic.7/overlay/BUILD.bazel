@@ -1,0 +1,10 @@
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_python//python:py_test.bzl", "py_test")
+package(default_visibility = ["//visibility:public"])
+[alias(name = name, actual = "@pi_source//:" + name) for name in ["sources", "sdk", "runtime", "runtime.debug_symbols", "configure_log", "proto_configure_log"]]
+cc_binary(name = "sdk_consumer", srcs = ["//bazel:sdk_test.cc"], deps = [":sdk"], linkstatic = False)
+# Exercise the SDK consumer with the installed PI and declared target libraries.
+test_suite(name = "sdk_test", tests = [":runtime_test"])
+py_test(name = "runtime_test", srcs = ["//bazel:runtime_test.py"], args = ["$(rootpath :runtime)", "$(rootpath :runtime.debug_symbols)", "$(rootpath :proto_configure_log)", "$(rootpath :sdk_consumer)"] + ["$(locations @pi_deps//:packages)"], data = [":runtime", ":runtime.debug_symbols", ":proto_configure_log", ":sdk_consumer", "@pi_deps//:packages"])
+
+alias(name = "runtime_libraries", actual = "@pi_deps//:packages")
