@@ -1,19 +1,22 @@
-# AMD64 tools for ARM kernel cross compilation
+# Generated Debian metadata for source-built images
 
-`sonic-build-infra@0.0.19-161c46f2c52529239aeec345f272b583f5d7d4dd` supplies one AMD64 kernel
-build runtime containing native tools, both ARM cross compilers, and their target
-libraries. For example, `sonic-linux-kernel`'s ARM64 and ARMHF package actions use
-the same runtime while selecting the AArch64 or hard-float ARM compiler. Target
-libraries stay in separate Debian multiarch directories, and host generators use
-AMD64 libraries. Native ARM64 builds retain their native runtime.
+Registers `0.0.20-b2aee6e323cf193fc7a034e2c5f71a3fd04e4160` from the landed build-infra #58 squash commit.
 
-The source archive is pinned to `161c46f2c52529239aeec345f272b583f5d7d4dd`. The only source patch
-sets the registry module version. Published versions remain unchanged.
+The source combines existing OCI account and installed-package helpers with
+`runtime_packages`: package identity and dependency fields come from the owning
+Debian control/changelog, while actual target ELF files determine shared-library
+requirements. BUILD files retain package-to-TAR mappings. No new Debian packages
+are produced. The generated metadata binds each record to its runtime TAR hash.
 
-Registry presubmits run on AMD64, build the shared runtime once, run a native
-generator, cross-link both target programs with libelf and libcrypto, check ELF
-machine/class, and verify declared Debian compiler and library dependencies.
-The two target tests record the same runtime identity. Native AMD64 runtime
-regressions also run here. Native ARM64 regression coverage belongs to source CI;
-this registration does not claim an ARM64 host can cross-build ARMHF. Full kernel
-packages and remote-cache reuse are validated in `sonic-linux-kernel` source CI.
+For example, Common's `libswsscommon` version `1.0.0` and
+`//dist:libswsscommon_pkg` supply config-engine's installed package record without
+maintaining another handwritten control record.
+
+The registry retains published entries and the existing native AMD64/ARM64
+compiler, runtime, stripping and debug checks. It adds the six OCI tests,
+including real ELF dependency generation and execution/target library isolation,
+and carries the published kernel-runtime checks. Standalone registry wrappers
+execute the original AMD64-to-ARM64/ARMHF cross-compiler tests on AMD64 and
+the native kernel-runtime regression on ARM64. A test-only visibility patch
+allows these wrappers to reuse the existing source tests; no build-tool behavior
+is changed.
