@@ -1926,6 +1926,25 @@ class FetchedModuleTests(FixtureTestCase):
                 self.assertEqual(validation["host_platform"], self.config["host_platforms"][architecture])
                 self.assertEqual(validation["platform"], self.config["platforms"][architecture])
 
+    def test_kernel_runtime_download_policy_reaches_native_configuration_commands(self) -> None:
+        self.config["architectures"] = ["amd64", "arm64"]
+        self.config["platforms"] = {arch: "@alpha//:target_" + arch for arch in self.config["architectures"]}
+        write_json(self.config_path, self.config)
+        expected = "--remote_download_regex=(^|.*/)tools/build_tools/kernel_runtime_(amd64|arm64)(/.*)?$"
+        script = self.fake_bazel.read_text().replace("args = sys.argv[1:]\n",
+            "args = sys.argv[1:]\n"
+            + f"assert ({expected!r} in args) == ('info' not in args)\n"
+            + "assert '--remote_download_all' not in args\n")
+        self.fake_bazel.write_text(script)
+        for architecture, machine in (("amd64", "x86_64"), ("arm64", "aarch64")):
+            with self.subTest(architecture=architecture):
+                native = {"system": "Linux", "machine": machine, "userspace": architecture}
+                with mock.patch.object(registry_ci, "verify_native", return_value=native) as admission:
+                    artifacts = self.run_fixture("download-" + architecture, architecture)
+                admission.assert_called_once_with(architecture)
+                receipt = json.loads((artifacts / "source-validation.json").read_text())
+                self.assertEqual(receipt["result"], "passed")
+
     def test_omitted_host_platform_preserves_bazel_default(self) -> None:
         self.fake_bazel.write_text(self.fake_bazel.read_text().replace("args = sys.argv[1:]\n",
             "args = sys.argv[1:]\nassert not any(arg.startswith('--host_platform=') for arg in args)\n"))
