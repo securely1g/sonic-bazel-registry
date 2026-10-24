@@ -1,0 +1,10 @@
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-fips",
+-    version = "0.0.3",
++    version = "0.0.3-fb8f59927c45b642f1e3e90344d96de92b20d0ac",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
