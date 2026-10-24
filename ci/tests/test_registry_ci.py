@@ -1958,8 +1958,11 @@ class FetchedModuleTests(FixtureTestCase):
                 # Read-only info path queries intentionally omit platform labels.
                 self.fake_bazel.write_text(script.replace("args = sys.argv[1:]\n",
                     "args = sys.argv[1:]\n" + f"assert 'info' in args or {expected!r} in args\n"))
-                with mock.patch.object(registry_ci, "verify_native", return_value={"system": "Linux", "machine": machine, "userspace": architecture}):
+                # Exercise command generation, with host admission tested separately.
+                native = {"system": "Linux", "machine": machine, "userspace": architecture}
+                with mock.patch.object(registry_ci, "verify_native", return_value=native) as admission:
                     artifacts = self.run_fixture("host-" + architecture, architecture=architecture)
+                admission.assert_called_once_with(architecture)
                 validation = json.loads((artifacts / "validation.json").read_text())
                 self.assertEqual(validation["host_platform"], self.config["host_platforms"][architecture])
                 self.assertEqual(validation["platform"], self.config["platforms"][architecture])
