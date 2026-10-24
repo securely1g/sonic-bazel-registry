@@ -56,22 +56,58 @@ The version directory, the entry's `MODULE.bazel`, the module's
 must agree. Validate the entry through an external Bazel consumer and
 verify its required build, runtime, and package targets.
 
-Keep already published versions available with their original contents,
+Keep already published versions available with their original consumer inputs,
 including hyphenated names such as `0.9.4-sonic.1`. Migrate by publishing
 a dotted entry and updating consumers' dependency versions and registry
 pins. If the dotted name already exists, reuse it only when it has the
 required contents; otherwise increment the patch revision. Do not rename,
-rewrite, or delete an existing version directory. Keep each module's
+rewrite its consumer inputs, or delete an existing version directory. Keep each module's
 migration in its own PR.
+
+Publication does not require a new module version for every registry change:
+
+| Change | Version policy |
+| --- | --- |
+| Revise the one unpublished candidate | Keep its version while developing and reviewing it. |
+| Change a published source recipe, module declaration, patch, overlay, build or packaging input | Publish a new version; retain the previous inputs unchanged. |
+| Maintain a published entry's standalone documentation, CI configuration or tests | Keep its version when the change is within the maintenance paths below and does not alter fetched inputs. |
+| Change shared registry CI or repository documentation | Keep existing module versions. |
+
+Within a published version, maintenance is limited to regular files at
+`README.md`, `PATCHES.md`, `docs/**`, `presubmit.json` and `tests/**`.
+For example, correcting `tests/integration/consumer_test.py` can keep the same
+module version; changing `overlay/consumer_test.py`, which is copied into the
+fetched module, cannot. Standalone tests and their configuration still receive
+CI for the exact version being maintained, including historical versions.
+Documentation-only maintenance does not require adding CI to an old version.
+
+The published `MODULE.bazel`, `source.json`, all patches and overlays, and
+unrecognized paths stay immutable, including their file modes. A file otherwise
+eligible for maintenance is also protected when the source recipe names it as
+a fetch input, such as an archive URL under `tests/`. `docs_url` is an
+informational documentation link, not a source fetch input. Regular maintenance
+files may be added, edited or removed, including changing their executable bit;
+symlinks and submodules do not qualify. Unsupported source layouts retain
+whole-entry immutability. See [CI's precise checks](ci/README.md#publication-policy-checks).
 
 Keep one unreleased candidate per module across an unmerged PR stack. The
 publication boundary is the maintained `main` branch, not a stacked PR's base.
 For example, if `main` has `libyang-python@3.1.0.sonic.2`, a parent PR adding
 `.sonic.3` and a child adding `.sonic.4` contain two unreleased candidates:
 consolidate their changes into one candidate and update dependent consumers.
-Once `.sonic.3` is published on `main`, preserve it unchanged; a later PR may
-add `.sonic.4`. CI enforces this against the complete proposed stack and
-rejects edits or deletions inside published version directories.
+Once `.sonic.3` is published on `main`, preserve its consumer inputs; a later
+implementation change uses `.sonic.4`. CI enforces this against the complete
+proposed stack while allowing the maintenance changes described above.
+
+For reproducible validation before publication, a Draft consumer may select the
+candidate at a reviewed full registry commit SHA. Keep the candidate version
+and record that SHA with its validation; do not create another module version
+for each editing round. Use one endpoint for this registry, and update affected
+Draft consumers deliberately when the candidate changes. Committed normal-build
+defaults remain on maintained `main`; remove temporary registry selections and
+verify the selected entry is published before the consumer becomes Ready for
+review. A temporary commit reference does not publish the candidate or freeze
+its version for all later work.
 
 Separate open branches and downstream consumer pins are outside this
 branch-local check. Before publishing, audit other open registry PRs for the

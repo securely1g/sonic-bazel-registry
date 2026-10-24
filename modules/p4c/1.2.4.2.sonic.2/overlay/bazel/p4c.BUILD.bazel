@@ -7,6 +7,14 @@ load(":bazel/tool.bzl", "p4c_tool")
 
 package(default_visibility = ["//visibility:public"])
 
+exports_files(
+    [
+        "debian/control",
+        "debian/changelog",
+    ],
+    visibility = ["//visibility:public"],
+)
+
 _PROGRAMS = [
     "p4c-bm2-ss",
     "p4c-bm2-psa",

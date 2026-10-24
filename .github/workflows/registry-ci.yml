@@ -90,8 +90,22 @@ jobs:
           retention-days: 14
 
   unit:
-    name: Registry runner tests
-    runs-on: ubuntu-24.04
+    name: Registry runner tests (${{ matrix.architecture }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - architecture: amd64
+            runner: ubuntu-24.04
+            machine: x86_64
+            bazel_arch: x86_64
+            bazel_sha: 61d89402f0368e64b6c827be5de79d8e65382e8124c3cbb97325611a1851392e
+          - architecture: arm64
+            runner: ubuntu-24.04-arm
+            machine: aarch64
+            bazel_arch: arm64
+            bazel_sha: b7f2a85595e8a87d54843bc656c1e379fd9b8c1b5f783dc41717c1d7eb7cc49f
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -100,12 +114,16 @@ jobs:
           persist-credentials: false
       - name: Install Bazel for the real artifact collector test
         shell: bash
+        env:
+          EXPECTED_MACHINE: ${{ matrix.machine }}
+          BAZEL_ARCH: ${{ matrix.bazel_arch }}
+          BAZEL_SHA: ${{ matrix.bazel_sha }}
         run: |
           set -euo pipefail
-          [[ "$(uname -m)" == x86_64 ]]
+          [[ "$(uname -m)" == "$EXPECTED_MACHINE" ]]
           curl --fail --location --retry 3 --output "$RUNNER_TEMP/bazel-8.5.1" \
-            https://releases.bazel.build/8.5.1/release/bazel-8.5.1-linux-x86_64
-          printf '%s  %s\n' 61d89402f0368e64b6c827be5de79d8e65382e8124c3cbb97325611a1851392e "$RUNNER_TEMP/bazel-8.5.1" | sha256sum --check --strict
+            "https://releases.bazel.build/8.5.1/release/bazel-8.5.1-linux-${BAZEL_ARCH}"
+          printf '%s  %s\n' "$BAZEL_SHA" "$RUNNER_TEMP/bazel-8.5.1" | sha256sum --check --strict
           chmod 0755 "$RUNNER_TEMP/bazel-8.5.1"
           echo "REGISTRY_CI_TEST_BAZEL=$RUNNER_TEMP/bazel-8.5.1" >> "$GITHUB_ENV"
       - name: Test planning and validation runner
@@ -119,7 +137,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: registry-ci-runner-tests
+          name: registry-ci-runner-tests-${{ matrix.architecture }}
           path: |
             runner-tests.log
             runner-bazel-artifacts/
@@ -183,12 +201,16 @@ jobs:
             --architecture "$CI_ARCHITECTURE" \
             --work-dir "$RUNNER_TEMP/registry-ci" \
             --artifacts "$GITHUB_WORKSPACE/ci-artifacts"
-      - name: Retain module validation results
+      - name: Archive module validation results
+        id: archive
         if: always()
+        run: bash ci/archive_artifacts.sh "$GITHUB_WORKSPACE/ci-artifacts" "$RUNNER_TEMP/registry-ci-evidence.tar"
+      - name: Retain module validation results
+        if: always() && steps.archive.outcome == 'success'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: registry-ci-${{ matrix.module }}-${{ matrix.version }}-${{ matrix.architecture }}
-          path: ci-artifacts/
+          path: ${{ runner.temp }}/registry-ci-evidence.tar
           if-no-files-found: warn
           retention-days: 14
 

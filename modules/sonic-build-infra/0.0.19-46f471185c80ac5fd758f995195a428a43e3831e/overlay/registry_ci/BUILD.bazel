@@ -1,0 +1,8 @@
+# Build the shared runtime but retain only its small provenance receipt.
+genrule(
+    name = "kernel_runtime_manifest",
+    srcs = ["//tools/build_tools:kernel_runtime"],
+    outs = ["kernel_runtime.json"],
+    cmd = "cp $(location //tools/build_tools:kernel_runtime)/kernel-runtime.json $@",
+    visibility = ["//visibility:public"],
+)
