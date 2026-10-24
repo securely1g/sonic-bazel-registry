@@ -27,6 +27,25 @@ module job passes. A skipped module matrix is accepted only after successful
 planning explicitly selected no jobs. Adding the workflow does not itself change
 repository branch-protection settings.
 
+## Kernel build-tool cache downloads
+
+The runner starts each consumer with `--ignore_all_rc_files`, so it explicitly
+passes the same download policy as the source repositories:
+
+```text
+--remote_download_regex=(^|.*/)tools/build_tools/kernel_runtime_(amd64|arm64)(/.*)?$
+```
+
+This applies to build, test and output-query commands for both native
+architectures, including checked-in integration test modules. It downloads the
+kernel build-tool tree before local actions use its directory symlinks. For
+example, sairedis' generated Debian metadata uses those tools; restoring the
+cached tree without this policy can leave its Perl `5.40/machine` alias missing.
+[The native cache experiment](https://github.com/securely1g/sonic-build-infra/actions/runs/40080628232)
+reproduced that failure and verified the targeted flag on AMD64 and ARM64.
+Other output trees keep Bazel's normal download policy. Read-only `info` path
+queries do not need the flag.
+
 ## How CI selects the latest version
 
 Routine CI compares the numeric release, then the SONiC patch revision. For

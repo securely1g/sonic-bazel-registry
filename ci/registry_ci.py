@@ -1171,6 +1171,7 @@ def run(root: Path, module: str, version: str, architecture: str,
         prefix = [bazel, "--ignore_all_rc_files", f"--output_user_root={work_dir / 'bazel'}"]
         flags = [f"--registry={root.resolve().as_uri()}", "--registry=https://bcr.bazel.build/",
                  f"--platforms={config['platforms'][architecture]}", "--lockfile_mode=update",
+                 "--remote_download_regex=(^|.*/)tools/build_tools/kernel_runtime_(amd64|arm64)(/.*)?$",
                  *config.get("build_flags", [])]
         if "host_platforms" in config:
             flags.append(f"--host_platform={config['host_platforms'][architecture]}")
