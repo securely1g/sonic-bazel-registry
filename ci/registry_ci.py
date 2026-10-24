@@ -936,6 +936,45 @@ def collect_failed_action_logs(bep_path: Path, work_dir: Path, artifacts: Path) 
         (destination / "index.json").write_text(json.dumps(records, indent=2) + "\n")
 
 
+def collect_test_logs(bep_path: Path, work_dir: Path, artifacts: Path) -> None:
+    """Retain BEP-declared logs from every test configuration and attempt."""
+    index = []
+    work_dir = work_dir.resolve()
+    for line in bep_path.read_text().splitlines():
+        event = json.loads(line)
+        identity = event.get("id", {}).get("testResult")
+        if identity is None:
+            continue
+        result = event.get("testResult", {})
+        record = {"test": identity, "status": result.get("status"), "files": []}
+        for output in result.get("testActionOutput", []):
+            name = output.get("name")
+            if name not in ("test.log", "test.xml"):
+                continue
+            uri = urlparse(output.get("uri", ""))
+            require(uri.scheme == "file" and uri.netloc in ("", "localhost")
+                    and not uri.query and not uri.fragment,
+                    f"Test log must be a local file: {output.get('uri')}")
+            source = Path(unquote(uri.path)).resolve()
+            require(source.is_relative_to(work_dir), f"Test log escapes work-dir: {source}")
+            parts = source.relative_to(work_dir).parts
+            require(len(parts) >= 8 and parts[0] == "bazel" and parts[2] == "execroot"
+                    and parts[4] == "bazel-out" and parts[6] == "testlogs",
+                    f"Test log is outside Bazel's configuration testlogs: {source}")
+            require(source.is_file(), f"Missing test log: {source}")
+            relative = Path("test-results") / str(len(index)) / Path(*parts[5:])
+            destination = artifacts / relative
+            require(not destination.exists(), f"Duplicate test log: {relative}")
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, destination)
+            with destination.open("rb") as stream:
+                checksum = hashlib.file_digest(stream, "sha256").hexdigest()
+            record["files"].append({"path": relative.as_posix(), "sha256": checksum,
+                                    "size": destination.stat().st_size})
+        index.append(record)
+    (artifacts / "test-results.json").write_text(json.dumps(index, indent=2) + "\n")
+
+
 def run_logged(command: list[str], cwd: Path, log: Path) -> None:
     print(f"Running Bazel validation; log: {log}", flush=True)
     with log.open("w") as output:
@@ -1172,6 +1211,7 @@ def run(root: Path, module: str, version: str, architecture: str,
                     if config.get("generated_module_overlay") else None),
             }, indent=2) + "\n")
         finally:
+            validation_failed = sys.exc_info()[0] is not None
             for phase in ("build", "test"):
                 try:
                     collect_failed_action_logs(artifacts / f"{phase}-events.jsonl", work_dir, artifacts)
@@ -1183,6 +1223,18 @@ def run(root: Path, module: str, version: str, architecture: str,
             testlogs = consumer / "bazel-testlogs"
             if testlogs.exists():
                 shutil.copytree(testlogs, artifacts / "testlogs", dirs_exist_ok=True)
+            test_events = artifacts / "test-events.jsonl"
+            if test_events.is_file():
+                try:
+                    collect_test_logs(test_events, work_dir, artifacts)
+                except (RegistryError, OSError, ValueError) as error:
+                    (artifacts / "test-results-error.json").write_text(
+                        json.dumps({"error": str(error)}, indent=2) + "\n")
+                    if not validation_failed:
+                        raise
+                    # Keep the original build/test failure while retaining the
+                    # separate collection error and any files already copied.
+                    print(f"Test log collection failed: {error}", file=sys.stderr)
 
 
 def main() -> None:
