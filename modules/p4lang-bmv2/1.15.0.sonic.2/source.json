@@ -3,7 +3,7 @@
   "integrity": "sha256-CDu5B+RVl6+OKe87CpLTPSgrojhA3dXPuDctLwMKtBU=",
   "overlay": {
     "BUILD.bazel": "sha256-nV89f+GmeKOEPz7fBUSlxyxpcFIhKZkL/DdBpfACVAU=",
-    "MODULE.bazel": "sha256-LORj4zik0jnlYtUfMp3C5V5CvGq5Q7hMbzA7dr7Y62o=",
+    "MODULE.bazel": "sha256-4PLn11B2aw/2XixZMUaZutPS5sf1p4sT+RgjTZjSDcw=",
     "bazel/bmv2.BUILD.bazel": "sha256-DoGgynavQqWEUQZB4zdUpHz1I4PmLJY86QXa5GTqCMI=",
     "bazel/configure.sh": "sha256-aTunq30kdL7uWFATkUENSWmHhVqLFccP6GgU1q3QCto=",
     "bazel/package_test.py": "sha256-4Ckjg6fkpgaYfBu0AAgi0E4NZM6uI6RxilvnZp245bE=",
