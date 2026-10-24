@@ -1,9 +1,0 @@
-# DASH BMv2 source runtime and debug TARs
-
-Register the source implementation in [DASH #1](https://github.com/securely1g/DASH/pull/1). The module runs the source-built P4 compiler and existing DASH generator, then wraps the upstream SAI metadata/library Make targets. It exports runtime/debug TARs and an installed SDK for [buildimage #13](https://github.com/securely1g/sonic-buildimage/pull/13), with no Debian package producer or legacy Make changes.
-
-The corrected source uses declared Make/M4/pkg-config/Aspell tools, preserved system-header classes, and explicit PI/gRPC/protobuf/Abseil link dependencies. Native AMD64 and ARM64 presubmits build the public outputs and test the installed SDK, generated pipeline files, an independent runtime loader, dependency closure, build IDs, debuglink checksums, DWARF and GDB source lookup. Both host and target use the declared Trixie toolchain.
-
-This Draft registration selects unmerged source. Its temporary base contains the exact reviewed PI/P4C metadata recipes, shared tool launcher and approved `rules_foreign_cc@0.16.0.sonic.1` correction used by DASH. DASH #1 and its prerequisites must land, this archive must be repinned to landed source, the registration must target maintained main, and both native consumer jobs must pass before Ready.
-
-The native runner and complete output-tree artifact collection come through [registry #118](https://github.com/securely1g/sonic-bazel-registry/pull/118), whose prerequisites include [#92](https://github.com/securely1g/sonic-bazel-registry/pull/92) and [#98](https://github.com/securely1g/sonic-bazel-registry/pull/98). CI additionally uses [#93](https://github.com/securely1g/sonic-bazel-registry/pull/93) for failed-action evidence and [#116](https://github.com/securely1g/sonic-bazel-registry/pull/116) for the finite 180-minute native source-build allowance.
