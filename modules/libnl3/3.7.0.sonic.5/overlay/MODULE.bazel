@@ -16,7 +16,7 @@ bazel_dep(name = "rules_shell", version = "0.6.1")
 bazel_dep(name = "tar.bzl", version = "0.10.5-sonic.1")
 bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.1")
 bazel_dep(name = "platforms", version = "1.0.0")
-bazel_dep(name = "sonic-build-infra", version = "0.0.22-4499712c23b0bac230e2396d7053a9cce75e7f43", repo_name = "sonic_build_infra")
+bazel_dep(name = "sonic-build-infra", version = "0.0.22-280833c24ec33d2dbd8ea0a7639e5ac82dfc55f8", repo_name = "sonic_build_infra")
 
 gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
 use_repo(gcc, "gcc_toolchains")

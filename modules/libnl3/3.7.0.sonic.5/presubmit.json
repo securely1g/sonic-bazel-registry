@@ -7,7 +7,7 @@
   "consumer_deps": [
     {
       "name": "sonic-build-infra",
-      "version": "0.0.22-4499712c23b0bac230e2396d7053a9cce75e7f43",
+      "version": "0.0.22-280833c24ec33d2dbd8ea0a7639e5ac82dfc55f8",
       "repo_name": "sonic_build_infra"
     },
     {

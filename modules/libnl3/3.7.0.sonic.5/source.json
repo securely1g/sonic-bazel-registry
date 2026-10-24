@@ -4,7 +4,7 @@
   "integrity": "sha256-n+Q8y+7qcsZTvc+MkzMlgxNc2kanlQe/0KSDu1f2WTk=",
   "overlay": {
     "BUILD.bazel": "sha256-bn83JprJmqVg0D+mHRZ+xvhIhe0noi0ntiDVs9z86qU=",
-    "MODULE.bazel": "sha256-gxFsfVbOYv4UkOEb6amMAtMKmFLLmRbQd+F6pkg6GYk=",
+    "MODULE.bazel": "sha256-FhGMcFSFdU0yXNL7SDk3QUVV0vtEgI4ExWIK/LORCXg=",
     "libnl3.BUILD": "sha256-wb93IBFQe3P5sXTJ+5BWLkEQwCKTojzIWXKWlvcsWzE=",
     "libnl3_consumer_test.c": "sha256-l0dvXDhZLCjjQJpxQuJdTHpHLVFmpE+L9HJarF0P5T0=",
     "libnl3_package_test.sh": "sha256-kBkAIO/9JElxaQGzzq3gZarc/p1WBj6XyD3DVhXh64c=",

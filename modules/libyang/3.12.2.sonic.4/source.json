@@ -9,7 +9,7 @@
   "overlay": {
     "BUILD.bazel": "sha256-dcLc/8cgYKNarH+Ajqli6G+OQEfTZly+K1bFP7Eb6h0=",
     "LICENSES": "sha256-BvHAhiSyYIsBmAnh7jP8fANo0sRsmHxlsCFqMtVdseA=",
-    "MODULE.bazel": "sha256-lfSoC4In2O9IdILLfX4YsdxA7NtW3BvZwIMRYoDm43w=",
+    "MODULE.bazel": "sha256-OPICTOBxTQ6L5tMl8naMPnAHOKgqWoWcRUlRkFZVqQQ=",
     "README.bazel.md": "sha256-LcApHI8MFUOd4m4gk/Ly7U23XbRICrhI1vwilcx1Dy8=",
     "headers.bzl": "sha256-cQ+D1+NwSRWxqN1ZiqB+wLzt7PdtDqJ4A3pHwt04UUw=",
     "libyang_package_test.sh": "sha256-IdTtoIQxSFCudOCEWZzr41ykoxwEvWtjG5wCBxNYaoo=",
