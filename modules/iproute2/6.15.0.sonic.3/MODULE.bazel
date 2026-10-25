@@ -1,0 +1,88 @@
+module(
+    name = "iproute2",
+    version = "6.15.0.sonic.3",
+)
+
+bazel_dep(name = "bazel_skylib", version = "1.8.2")
+bazel_dep(name = "platforms", version = "1.0.0")
+bazel_dep(name = "rules_foreign_cc", version = "0.15.1")
+bazel_dep(name = "rules_cc", version = "0.2.16")
+bazel_dep(name = "rules_python", version = "1.7.0")
+bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.7")
+bazel_dep(name = "sonic-build-infra", version = "0.0.22-a12bc826d6f811a157db5c7c02a2fe033896cc14", repo_name = "sonic_build_infra")
+
+gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
+use_repo(gcc, "gcc_toolchains")
+
+register_toolchains("@gcc_toolchains//:all")
+
+apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
+apt.install(
+    dependency_set = "iproute2_deps",
+    packages = [
+        "libatm1-dev",
+        "libatm1t64",
+        "libbpf-dev",
+        "libbpf1",
+        "libbsd-dev",
+        "libbsd0",
+        "libcap-dev",
+        "libcap2",
+        "libdb-dev",
+        "libdb5.3t64",
+        "libelf-dev",
+        "libelf1t64",
+        "libmd0",
+        "libmnl-dev",
+        "libmnl0",
+        "libnsl-dev",
+        "libnsl2",
+        "libselinux1",
+        "libselinux1-dev",
+        "libtirpc3t64",
+        "libxtables-dev",
+        "libxtables12",
+        "zlib1g",
+        "zlib1g-dev",
+    ],
+    suites = [
+        "trixie",
+        "trixie-updates",
+        "trixie-security",
+    ],
+)
+use_repo(apt, "iproute2_deps")
+
+# Derive the packaging version from the existing SONiC Make recipe.
+http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
+
+http_file(
+    name = "iproute2_version_recipe",
+    sha256 = "3a6f4e9371812dfd19e2cc89c12d0391e4e6a10d203e7d9b5ef2736f344c8592",
+    urls = ["https://raw.githubusercontent.com/securely1g/sonic-buildimage/8ce951c42542d5e2478f6589ad0ea8bda882b972/rules/iproute2.mk"],
+)
+
+# Reconstruct Debian 6.15.0-1, then apply SONiC's bridge protocol patch.
+# Both archive hashes match iproute2_6.15.0-1.dsc.
+iproute2_source = use_repo_rule("//:bazel/source.bzl", "iproute2_source")
+
+iproute2_source(
+    name = "iproute2_source",
+    debian_sha256 = "780375193dffeb85f310a918b806f2f4e480f76b815a1f0f1eac5d0488ea1a8f",
+    debian_url = "https://deb.debian.org/debian/pool/main/i/iproute2/iproute2_6.15.0-1.debian.tar.xz",
+    overlays = {
+        "//:bazel/iproute2.BUILD.bazel": "BUILD.bazel",
+        "//:bazel/configure.sh": "bazel/configure.sh",
+        "//:bazel/runtime.bzl": "bazel/runtime.bzl",
+    },
+    sonic_patch = "//:bazel/0001-bridge-fdb-protocol.patch",
+    upstream_sha256 = "8041854a882583ad5263466736c9c8c68c74b1a35754ab770d23343f947528fb",
+    upstream_url = "https://deb.debian.org/debian/pool/main/i/iproute2/iproute2_6.15.0.orig.tar.xz",
+    version_recipe = "@iproute2_version_recipe//file:downloaded",
+)
+
+register_toolchains(
+    "@sonic_build_infra//tools/build_tools:make_toolchain",
+    "@sonic_build_infra//tools/build_tools:m4_toolchain",
+    "@sonic_build_infra//tools/build_tools:pkgconfig_toolchain",
+)
