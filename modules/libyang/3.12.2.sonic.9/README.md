@@ -1,4 +1,4 @@
-# libyang 3.12.2.sonic.3
+# libyang 3.12.2.sonic.4
 
 This module builds the libyang source used by SONiC rather than importing the
 Debian `libyang3` binary package. `source.json` verifies the Debian upstream
@@ -50,8 +50,8 @@ archive contains no Debian patch series; its hash and the upstream source hash
 match `libyang_3.12.2-1.dsc`. This is archive-identity verification, not signature
 verification. The existing combined notices for static PCRE2/xxHash remain.
 
-These TARs contain filesystem payloads. No DEB production, debhelper metadata
-generation or dpkg installation records are selected. A development archive and
+These TARs contain filesystem payloads. The separate metadata target generates
+package control fields without producing DEBs or installing packages. A development archive and
 standalone `yanglint`/`yangre` tools remain outside this target set. See
 [runtime details](overlay/README.bazel.md).
 
@@ -62,7 +62,17 @@ libraries and runtime packages resolve it in the target configuration. Enabled
 CI builds, tests, and retains the source-built runtime and matching symbols;
 disabled CI omits YANG from swsscommon.
 
-Registry CI validates the two TARs and both tests on native AMD64 and ARM64,
-using the landed `sonic-build-infra` revision `8baf1ad829c5095297d85148b042145b87d623a3`.
+Registry CI validates the runtime/debug TARs, generated package metadata and
+both existing tests on native AMD64 and ARM64 using the shared infrastructure
+version selected in `MODULE.bazel`.
 Downstream images receive the added models and notices when they select this
 module version; their existing version selections are not changed here.
+
+## Generated runtime package metadata
+
+`//:runtime_packages.json` is a generated target. The existing Debian
+`control` and `changelog` define package fields; `BUILD.bazel` maps package names
+to the existing Bazel TARs. The shared metadata rule inspects those target
+binaries and declared dependency packages, so version constraints come from
+the built artifacts and Debian tools. There is no handwritten JSON metadata
+file or new DEB producer.
