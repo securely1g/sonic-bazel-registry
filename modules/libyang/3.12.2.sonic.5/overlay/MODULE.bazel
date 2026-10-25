@@ -1,0 +1,28 @@
+# AUTO-GENERATED. DO NOT EDIT MANUALLY.
+# Source: ../MODULE.bazel
+# Generator: python3 ci/registry_ci.py sync-module --module libyang --version 3.12.2.sonic.5
+
+module(
+    name = "libyang",
+    version = "3.12.2.sonic.5",
+)
+
+bazel_dep(name = "bazel_skylib", version = "1.9.0")
+bazel_dep(name = "rules_cc", version = "0.2.14")
+bazel_dep(name = "rules_shell", version = "0.6.1")
+bazel_dep(name = "sonic-build-infra", version = "0.0.23-5b224d7190d04f1b7b68429eedfc03b7b1565ed0", repo_name = "sonic_build_infra")
+bazel_dep(name = "platforms", version = "1.0.0")
+bazel_dep(name = "pcre2", version = "10.45")
+bazel_dep(name = "xxhash", version = "0.8.3")
+
+# Debian 3.12.2-1 has no source patch series. Use its maintained notices
+# directly; both archive hashes match libyang_3.12.2-1.dsc.
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+http_archive(
+    name = "libyang_debian",
+    build_file_content = "exports_files([\"changelog\", \"control\", \"copyright\"])\n",
+    sha256 = "293892af674f2f3224675be815f942ddaef5d1f97548ad7e59092d2f1c55110a",
+    strip_prefix = "debian",
+    urls = ["https://deb.debian.org/debian/pool/main/liby/libyang/libyang_3.12.2-1.debian.tar.xz"],
+)
