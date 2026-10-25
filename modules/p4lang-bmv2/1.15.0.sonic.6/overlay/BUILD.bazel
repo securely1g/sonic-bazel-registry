@@ -1,6 +1,7 @@
 load("@rules_cc//cc:defs.bzl", "cc_binary")
 load("@rules_python//python:py_test.bzl", "py_test")
 load("@sonic_build_infra//binary:keep_debug_info.bzl", "keep_debug_info")
+load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -60,4 +61,42 @@ py_test(
         "@p4lang_pi//:runtime_libraries",
     ],
     main = "bazel/package_test.py",
+)
+
+# Package fields come from the existing Debian recipe. This mapping only
+# identifies the Bazel-built TAR for each Debian binary package.
+runtime_packages(
+    name = "runtime_packages.json",
+    apt_packages = {
+        "@bmv2_deps//" + package + ":data": "@bmv2_deps//" + package + ":control"
+        for package in [
+            "libboost-filesystem1.83.0",
+            "libboost-program-options1.83.0",
+            "libboost-thread1.83.0",
+            "libboost-atomic1.83.0",
+            "libgmp10",
+            "libgrpc++1.51t64",
+            "libgrpc29t64",
+            "libnanomsg5",
+            "libpcap0.8t64",
+            "libprotobuf32t64",
+            "libthrift-0.19.0t64",
+            "libssl3t64",
+            "zlib1g",
+        ]
+    },
+    changelog = "@bmv2_source//:debian/changelog",
+    control = "@bmv2_source//:debian/control",
+    dependencies = [
+        "@p4lang_pi//:runtime_packages.json",
+    ],
+    packages = {
+        "p4lang-bmv2": "//:runtime",
+    },
+    visibility = ["//visibility:public"],
+)
+
+exports_files(
+    ["runtime_packages.md"],
+    visibility = ["//visibility:public"],
 )
