@@ -1394,6 +1394,79 @@ class RequiredTestResultTests(FixtureTestCase):
             self.verify(events)
 
 
+class TestLogCollectionTests(FixtureTestCase):
+    def events(self) -> list[dict]:
+        self.work = self.root / "work"
+        self.bazel_out = self.work / "bazel/hash/execroot/_main/bazel-out"
+        events = []
+        for index, configuration in enumerate(("k8-fastbuild", "k8-fastbuild-ST-python")):
+            directory = self.bazel_out / configuration / "testlogs" / "external/alpha+/test"
+            directory.mkdir(parents=True)
+            files = []
+            for name in ("test.log", "test.xml"):
+                source = directory / name
+                source.write_text(f"{configuration}: {name}\n")
+                files.append({"name": name, "uri": source.as_uri()})
+            events.append({
+                "id": {"testResult": {"label": "@@alpha+//:test", "configuration": {"id": configuration},
+                                      "run": 1, "shard": 1, "attempt": index + 1}},
+                "testResult": {"status": "FAILED" if index == 0 else "PASSED", "testActionOutput": files},
+            })
+        (self.work / "bazel-testlogs").symlink_to(self.bazel_out / "k8-fastbuild/testlogs")
+        return events
+
+    def collect(self, events: list[dict]) -> list[dict]:
+        bep = self.root / "test-events.jsonl"
+        bep.write_text("".join(json.dumps(event) + "\n" for event in events))
+        artifacts = self.root / "artifacts"
+        artifacts.mkdir(exist_ok=True)
+        registry_ci.collect_test_logs(bep, self.work, artifacts)
+        return json.loads((artifacts / "test-results.json").read_text())
+
+    def test_transitioned_logs_and_retries_survive_outside_default_symlink(self) -> None:
+        events = self.events()
+        legacy_files = list((self.work / "bazel-testlogs").rglob("test.xml"))
+        self.assertEqual(len(legacy_files), 1)
+        index = self.collect(events)
+        self.assertEqual([row["test"] for row in index], [event["id"]["testResult"] for event in events])
+        self.assertEqual([row["status"] for row in index], ["FAILED", "PASSED"])
+        paths = set()
+        for row in index:
+            self.assertEqual(len(row["files"]), 2)
+            for record in row["files"]:
+                paths.add(record["path"])
+                data = (self.root / "artifacts" / record["path"]).read_bytes()
+                self.assertIn(row["test"]["configuration"]["id"].encode(), data)
+                self.assertEqual(record["sha256"], hashlib.sha256(data).hexdigest())
+                self.assertEqual(record["size"], len(data))
+        self.assertEqual(len(paths), 4)
+
+    def test_missing_declared_log_is_rejected(self) -> None:
+        events = self.events()
+        (self.bazel_out / "k8-fastbuild/testlogs/external/alpha+/test/test.log").unlink()
+        with self.assertRaisesRegex(registry_ci.RegistryError, "Missing test log"):
+            self.collect(events)
+
+    def test_nonlocal_and_escaping_logs_are_rejected(self) -> None:
+        events = self.events()
+        outside = self.root / "outside.log"
+        outside.write_text("outside validation")
+        consumer_file = self.work / "MODULE.bazel"
+        consumer_file.write_text("not a test output")
+        link = self.bazel_out / "k8-fastbuild/testlogs/outside.log"
+        link.symlink_to(outside)
+        for uri in ("https://example.invalid/test.log", outside.as_uri(), consumer_file.as_uri(), link.as_uri()):
+            with self.subTest(uri=uri):
+                events[0]["testResult"]["testActionOutput"][0]["uri"] = uri
+                with self.assertRaises(registry_ci.RegistryError):
+                    self.collect(events)
+
+    def test_outputs_not_declared_as_logs_are_optional(self) -> None:
+        events = self.events()
+        events[0]["testResult"]["testActionOutput"].append({"name": "coverage.dat"})
+        self.assertEqual(len(self.collect(events)[0]["files"]), 2)
+
+
 class BuildOutputTests(FixtureTestCase):
     labels = ["@alpha//:runtime", "@alpha//:debug"]
 
@@ -2353,6 +2426,34 @@ a.output.write_text(json.dumps(r))
                 records = json.loads((artifacts / f"failed-actions/{phase}-events/index.json").read_text())
                 self.assertEqual((artifacts / records[0]["path"]).read_text(), "actual compiler error\n")
                 self.assertFalse((artifacts / "validation.json").exists())
+
+
+    def test_runner_retains_bep_test_logs(self) -> None:
+        self.fake_bazel.write_text(self.fake_bazel.read_text().replace(
+            "elif 'test' in args:",
+            "elif 'test' in args:\n"
+            "    test_xml = Path.cwd().parent / 'bazel/hash/execroot/_main/bazel-out/k8-fastbuild-ST-python/testlogs/alpha/test.xml'\n"
+            "    test_xml.parent.mkdir(parents=True)\n"
+            "    test_xml.write_text('<testsuite/>')"
+        ).replace(
+            "'testResult': {'status': 'PASSED', 'cachedLocally': False}",
+            "'testResult': {'status': 'PASSED', 'cachedLocally': False, "
+            "'testActionOutput': [{'name': 'test.xml', 'uri': test_xml.as_uri()}]}"
+        ))
+        artifacts = self.run_fixture("test-logs")
+        index = json.loads((artifacts / "test-results.json").read_text())
+        self.assertEqual(index[0]["test"]["label"], "@@alpha+//:consumer_test")
+        self.assertEqual((artifacts / index[0]["files"][0]["path"]).read_text(), '<testsuite/>')
+
+    def test_collection_error_does_not_replace_original_test_failure(self) -> None:
+        with self.fake_bazel.open("a") as script:
+            script.write("\nif 'test' in args: sys.exit(42)\n")
+        with mock.patch.object(registry_ci, "collect_test_logs", side_effect=registry_ci.RegistryError("Missing test log")):
+            with self.assertRaisesRegex(registry_ci.RegistryError, "status 42"):
+                self.run_fixture("failed-test-log")
+        artifacts = self.root / "artifacts-failed-test-log"
+        self.assertEqual(json.loads((artifacts / "test-results-error.json").read_text()),
+                         {"error": "Missing test log"})
 
     def test_mismatched_or_missing_fetched_consumer_dependencies_are_rejected(self) -> None:
         for dependency in self.config["consumer_deps"]:

@@ -450,6 +450,16 @@ Existing runtime/debug TAR files are not repackaged internally. For example,
 `Text::CharWidth.3pm.gz`, `xt_CONNMARK.h`, and `xt_connmark.h` retain their names,
 and a directory's executable files and portable relative links remain usable.
 
+
+`test-results.json` indexes the `test.log` and `test.xml` files declared in each
+Bazel test-result event, with its label, configuration, run, shard and attempt.
+Files are retained under `test-results/` with SHA256 hashes and sizes. This also
+captures tests in transitioned configurations, such as DASH API's Python test,
+which are outside the default `bazel-testlogs` directory. The existing
+`testlogs/` snapshot remains available for compatibility. A collection error
+fails otherwise successful validation; after a build or test failure it is
+recorded in `test-results-error.json` without replacing the original failure.
+
 ## Environment and coverage
 
 The build matrix uses native GitHub-hosted `ubuntu-24.04` and `ubuntu-24.04-arm`
