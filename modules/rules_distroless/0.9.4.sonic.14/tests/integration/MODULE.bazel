@@ -1,0 +1,12 @@
+"""Exercise locked APT imports from an independent consumer module."""
+
+module(name = "locked_import_integration")
+
+bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.14")
+bazel_dep(name = "bazel_skylib", version = "1.9.2")
+bazel_dep(name = "rules_shell", version = "0.6.1")
+
+# Both namespaces import the same reviewed archive graph independently.
+apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
+apt.import_lock(lock = "//:apt.lock.json")
+use_repo(apt, "locked_import_ci", "locked_import_ci_copy")

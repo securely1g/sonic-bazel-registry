@@ -1,0 +1,56 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [],
+  "platforms": {
+    "amd64": "@rules_distroless//registry_ci:amd64",
+    "arm64": "@rules_distroless//registry_ci:arm64"
+  },
+  "build_targets": [
+    "@rules_distroless//registry_ci:protobuf_headers_test",
+    "@rules_distroless//registry_ci:lua_headers_test",
+    "@rules_distroless//registry_ci:lua_pkgconfig_direct",
+    "@rules_distroless//registry_ci:xtables_headers_test",
+    "@rules_distroless//registry_ci:libpcap_headers_test",
+    "@rules_distroless//registry_ci/template_headers:probe",
+    "@rules_distroless//registry_ci:lua_single_library_test"
+  ],
+  "test_targets": [
+    "@rules_distroless//registry_ci:protobuf_headers_test",
+    "@rules_distroless//registry_ci:architecture_amd64_test",
+    "@rules_distroless//registry_ci:architecture_arm64_test",
+    "@rules_distroless//registry_ci:pkgconfig_test",
+    "@rules_distroless//registry_ci:lua_headers_test",
+    "@rules_distroless//registry_ci:multiarch_test",
+    "@rules_distroless//registry_ci:pkgconfig_files_test",
+    "@rules_distroless//registry_ci:concrete_packages_test",
+    "@rules_distroless//registry_ci:pkgconfig_selection_test",
+    "@rules_distroless//registry_ci/native_shared:runpath_test",
+    "@rules_distroless//registry_ci:pkgconfig_fields_test",
+    "@rules_distroless//registry_ci:xtables_headers_test",
+    "@rules_distroless//registry_ci:pkgconfig_quotes_test",
+    "@rules_distroless//registry_ci:libpcap_headers_test",
+    "@rules_distroless//registry_ci/template_headers:declared_headers_test",
+    "@rules_distroless//registry_ci/template_headers:foreign_headers_test",
+    "@rules_distroless//registry_ci/headerless:runtime_test",
+    "@rules_distroless//registry_ci/headerless:headers_test",
+    "@rules_distroless//registry_ci/headerless:additional_headers_test",
+    "@rules_distroless//registry_ci/headerless:transitive_headers_test",
+    "@rules_distroless//apt/tests:locked_import/closure",
+    "@rules_distroless//apt/tests:locked_import/invalid_lock",
+    "@rules_distroless//apt/tests:locked_import/selection",
+    "//:archive_contract_test",
+    "//:fixture_regeneration_test",
+    "@rules_distroless//apt/private:install_test",
+    "@rules_distroless//registry_ci:original_deb_test",
+    "@rules_distroless//distroless/tests/accounts:accounts_test",
+    "@rules_distroless//distroless/tests/accounts:account_layer_test",
+    "@rules_distroless//distroless/tests/accounts:gzip_account_layer_test",
+    "@rules_distroless//distroless/tests/accounts:xz_account_layer_test",
+    "@rules_distroless//distroless/tests/accounts:zstd_account_layer_test",
+    "@rules_distroless//registry_ci:lua_single_library_test"
+  ],
+  "integration_test_module": "tests/integration"
+}

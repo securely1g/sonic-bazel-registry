@@ -1,0 +1,45 @@
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
+load("@rules_foreign_cc//foreign_cc:defs.bzl", "cmake")
+load(":declared_headers_test.bzl", "declared_headers_test")
+
+package(default_visibility = ["//visibility:public"])
+
+alias(
+    name = "boost_headers",
+    actual = select({
+        "//registry_ci:linux_amd64": "@registry_ci_boost_amd64//:libboost1.83_headers",
+        "//registry_ci:linux_arm64": "@registry_ci_boost_arm64//:libboost1.83_headers",
+    }),
+)
+
+filegroup(
+    name = "sources",
+    srcs = [
+        "CMakeLists.txt",
+        "probe.cc",
+    ],
+)
+
+cmake(
+    name = "probe",
+    cache_entries = {
+        "CMAKE_BUILD_TYPE": "Release",
+        "DECLARED_BOOST_ROOT": "$$EXT_BUILD_DEPS$$",
+    },
+    lib_source = ":sources",
+    out_static_libs = ["libtemplate_headers.a"],
+    out_include_dir = "",
+    deps = [":boost_headers"],
+)
+
+declared_headers_test(
+    name = "declared_headers_test",
+    target_under_test = ":boost_headers",
+)
+
+# Link the foreign archive through Bazel's configured C++ toolchain/runtime.
+cc_test(
+    name = "foreign_headers_test",
+    srcs = ["test.cc"],
+    deps = [":probe"],
+)
