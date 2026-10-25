@@ -52,25 +52,6 @@ Protobuf sources and adds its include path to P4Runtime generation. These two
 changes were recovered from the retained source bundle; they are explicit
 patches against primary source here.
 
-The six overlay patches are listed below in their `MODULE.bazel` application
-order. Four SONiC copies are byte-for-byte identical to the linked originals;
-the Scapy copy only adds a final newline. The numbered filenames preserve the
-existing patch contents, authorship and order. The selected Debian metadata
-archive contains no additional `debian/patches/series`.
-
-| Patch | Origin | Purpose |
-| --- | --- | --- |
-| `0001-native-protoc.patch` | First two diffs from the [retained source delta](https://github.com/securely1g/sonic-bazel-registry/releases/download/p4-source-inputs-20261021/p4c-retained-source-delta.patch), with a recovery note | Build native `protoc` and supply Protobuf headers during P4Runtime generation |
-| `0002-use-boost-1.83.patch` | [SONiC buildimage](https://github.com/sonic-net/sonic-buildimage/blob/40f1708783b5e77c28a3a4c4a7bac71158b3070d/src/p4lang/p4lang-p4c.patch/use-boost-1.83.patch) | Select Boost 1.83 in Debian dependency declarations |
-| `0003-fix-build-for-boost-1.83.patch` | [SONiC backport](https://github.com/sonic-net/sonic-buildimage/blob/e79c9c965903ca2bbb591c8777d2ab03ffd445ce/src/p4lang/p4lang-p4c.patch/fix-build-for-boost-1.83.patch) of [P4C #4181](https://github.com/p4lang/p4c/commit/99564ff3bc91fd2f4ff75c838ac48cd4699676ed), by Fabian Ruffy | Fix Boost argument-dependent lookup |
-| `0004-update-thrift-dependency.patch` | [SONiC buildimage](https://github.com/sonic-net/sonic-buildimage/blob/40f1708783b5e77c28a3a4c4a7bac71158b3070d/src/p4lang/p4lang-p4c.patch/update-thrift-dependency.patch) | Remove obsolete version-specific Thrift package alternatives |
-| `0005-remove-protobuf-from-debian-dependency.patch` | [SONiC buildimage](https://github.com/sonic-net/sonic-buildimage/blob/ac47de0f6e1a65d56a2cbc00b7d169c0ab79af1b/src/p4lang/p4lang-p4c.patch/remove-protobuf-from-debian-dependency.patch) | Avoid mixing Debian and pip Protobuf/grpcio packages |
-| `0006-remove-scapy-from-debian-dependency.patch` | [SONiC buildimage](https://github.com/sonic-net/sonic-buildimage/blob/304ae053544b41edf7e46aa10c0d9aefbc182c86/src/p4lang/p4lang-p4c.patch/remove-scapy-from-debian-dependency.patch) | Retain SONiC's wheel-based Scapy dependency handling |
-
-The `0001` diff is a recovered adaptation, not a claimed upstream release patch.
-The Debian dependency patches retain SONiC's source-package baseline; this Bazel
-producer still creates runtime/debug TARs and runs no Debian package build.
-
 An audit compared every compiler file and symlink outside Git metadata,
 `build` and `debian`, including executable permissions. All 13,118 files match
 the retained compiler tree after that patch and the libbpf checkout. The receipt
@@ -104,3 +85,12 @@ ARM64 keeps that optional test tool disabled.
 AMD64 and ARM64 through the shared registry workflow. Tests compile a P4 program
 to BMv2 JSON and P4Runtime metadata, compare runtime/debug build IDs, inspect
 DWARF, and confirm GDB resolves a source line in the compiler.
+
+## Generated runtime package metadata
+
+`//:runtime_packages.json` is a generated target. The existing Debian
+`control` and `changelog` define package fields; `BUILD.bazel` maps package names
+to the existing Bazel TARs. The shared metadata rule inspects those target
+binaries and declared dependency packages, so version constraints come from
+the built artifacts and Debian tools. There is no handwritten JSON metadata
+file or new DEB producer.
