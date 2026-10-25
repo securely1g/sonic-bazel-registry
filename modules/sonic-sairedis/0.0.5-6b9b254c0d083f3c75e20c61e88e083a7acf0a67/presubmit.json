@@ -6,12 +6,12 @@
   "consumer_deps": [
     {
       "name": "sonic-build-infra",
-      "version": "0.0.13-ff408bafc35ce0e3d7a0bd27803debdc2a921de6",
+      "version": "0.0.22-a12bc826d6f811a157db5c7c02a2fe033896cc14",
       "repo_name": "sonic_build_infra"
     },
     {
       "name": "sonic-swss-common",
-      "version": "0.0.0-5ee19a9375e667c0d507239927745de8fa29be07",
+      "version": "0.0.5-326ca764197ac788dfd55aa935ff728180745bde",
       "repo_name": "sonic_swss_common"
     },
     {
@@ -20,11 +20,23 @@
     },
     {
       "name": "libnl3",
-      "version": "3.7.0-sonic.2"
+      "version": "3.7.0.sonic.5"
     },
     {
       "name": "rules_distroless",
-      "version": "0.9.4-sonic.1"
+      "version": "0.9.4.sonic.13"
+    },
+    {
+      "name": "tar.bzl",
+      "version": "0.10.5-sonic.1"
+    },
+    {
+      "name": "rules_rs",
+      "version": "0.1.0"
+    },
+    {
+      "name": "rules_cc",
+      "version": "0.2.20"
     }
   ],
   "platforms": {
@@ -59,5 +71,12 @@
     "@sonic-sairedis//unittest/proxylib:tests",
     "@sonic-sairedis//unittest/saidump:tests",
     "@sonic-sairedis//unittest/saisdkdump:tests"
-  ]
+  ],
+  "host_platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
+  },
+  "rust_toolchain": {
+    "version": "1.90.0"
+  }
 }
