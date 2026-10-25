@@ -1,6 +1,7 @@
 load("@bazel_lib//lib:copy_file.bzl", "copy_file")
 load("@rules_cc//cc:defs.bzl", "cc_test")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
 
 alias(
     name = "libnl_3",
@@ -236,11 +237,25 @@ sh_test(
     ]
 ]
 
-# Keep package identities beside the runtime TAR producers.
+# Package fields come from the existing Debian recipe. This mapping only
+# identifies the Bazel-built TAR for each Debian binary package.
+runtime_packages(
+    name = "runtime_packages.json",
+    changelog = "@libnl3_debian//:debian/changelog",
+    control = "@libnl3_debian//:debian/control",
+    packages = {
+        "libnl-3-200": "//:libnl-3-runtime_files",
+        "libnl-cli-3-200": "//:libnl-cli-3-runtime_files",
+        "libnl-genl-3-200": "//:libnl-genl-3-runtime_files",
+        "libnl-nf-3-200": "//:libnl-nf-3-runtime_files",
+        "libnl-route-3-200": "//:libnl-route-3-runtime_files",
+        "libnl-3-dev": "//:libnl-3-dev_files",
+        "libnl-route-3-dev": "//:libnl-route-3-dev_files",
+    },
+    visibility = ["//visibility:public"],
+)
+
 exports_files(
-    [
-        "runtime_packages.json",
-        "runtime_packages.md",
-    ],
+    ["runtime_packages.md"],
     visibility = ["//visibility:public"],
 )

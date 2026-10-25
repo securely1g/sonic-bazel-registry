@@ -1,6 +1,6 @@
 # Source-built libnl packages
 
-The `3.7.0.sonic.4` candidate retains the libnl 3.7.0 source archive and SONiC
+The `3.7.0.sonic.5` candidate retains the libnl 3.7.0 source archive and SONiC
 nexthop patch, and uses native Trixie AMD64/ARM64 source compilation. It does not
 produce DEBs. Existing released registry entries remain unchanged.
 
@@ -11,7 +11,7 @@ definition. From the registry root, regenerate the copy installed into the
 upstream source archive and its `source.json` checksum:
 
 ```sh
-python3 ci/registry_ci.py sync-module --module libnl3 --version 3.7.0.sonic.4
+python3 ci/registry_ci.py sync-module --module libnl3 --version 3.7.0.sonic.5
 ```
 
 `overlay/MODULE.bazel` is generated; do not edit it manually. The registry reads
@@ -20,7 +20,7 @@ module overrides use the generated copy. Registry CI checks that the copy and
 checksum are current before building the module. To run that check locally:
 
 ```sh
-python3 ci/registry_ci.py sync-module --module libnl3 --version 3.7.0.sonic.4 --check
+python3 ci/registry_ci.py sync-module --module libnl3 --version 3.7.0.sonic.5 --check
 ```
 
 ## Image package boundaries
@@ -67,3 +67,12 @@ member to catch missing parser objects and duplicate core objects. Existing
 consumer and package tests continue to check all five DSOs, ten plugins, matching
 debug symbols and GDB source lookup. No host libnl DSO is accepted as the tested
 package's runtime dependency.
+
+## Generated runtime package metadata
+
+`//:runtime_packages.json` is a generated target. The existing Debian
+`control` and `changelog` define package fields; `BUILD.bazel` maps package names
+to the existing Bazel TARs. The shared metadata rule inspects those target
+binaries and declared dependency packages, so version constraints come from
+the built artifacts and Debian tools. There is no handwritten JSON metadata
+file or new DEB producer.
