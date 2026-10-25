@@ -6,12 +6,12 @@
   "consumer_deps": [
     {
       "name": "sonic-build-infra",
-      "version": "0.0.17-8baf1ad829c5095297d85148b042145b87d623a3",
+      "version": "0.0.22-a12bc826d6f811a157db5c7c02a2fe033896cc14",
       "repo_name": "sonic_build_infra"
     },
     {
       "name": "rules_distroless",
-      "version": "0.9.4.sonic.6"
+      "version": "0.9.4.sonic.13"
     },
     {
       "name": "tar.bzl",
@@ -48,5 +48,9 @@
     "@sonic-fips//krb5:package_test",
     "@sonic-fips//symcrypt:package_test",
     "@sonic-fips//openssl/integration:openssl_symcrypt_test"
-  ]
+  ],
+  "host_platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
+  }
 }
