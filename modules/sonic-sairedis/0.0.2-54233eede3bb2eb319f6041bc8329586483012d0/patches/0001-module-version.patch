@@ -1,0 +1,19 @@
+Subject: [PATCH] Identify the Sairedis registry module by its merged source
+
+Sairedis declares version 0.0.2 in its source tree. Append the full merged
+source commit so Bazel resolves this registration to the reviewed archive.
+This registry-only patch changes the module version, not the build rules.
+
+Source: https://github.com/securely1g/sonic-sairedis/commit/54233eede3bb2eb319f6041bc8329586483012d0
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,7 +1,7 @@
+ # Keep bazel_compatibility in sync with sonic-buildimage's .bazelversion.
+ module(
+     name = "sonic-sairedis",
+-    version = "0.0.2",
++    version = "0.0.2-54233eede3bb2eb319f6041bc8329586483012d0",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
