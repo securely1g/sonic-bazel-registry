@@ -28,3 +28,12 @@ library, including PCRE2 and SONiC's `LYD_VALIDATE_NOEXTDEPS` behavior.
 Registry CI selects only the runtime/debug TARs and these two tests on native
 AMD64 and ARM64. It uses the landed SONiC GCC/TAR infrastructure. ARMHF and cross
 execution remain outside this validation matrix.
+
+## Generated runtime package metadata
+
+`//:runtime_packages.json` is a generated target. The existing Debian
+`control` and `changelog` define package fields; `BUILD.bazel` maps package names
+to the existing Bazel TARs. The shared metadata rule inspects those target
+binaries and declared dependency packages, so version constraints come from
+the built artifacts and Debian tools. There is no handwritten JSON metadata
+file or new DEB producer.
