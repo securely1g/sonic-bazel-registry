@@ -1,8 +1,8 @@
 # Build and package libyang-Python
 
-The registry module `libyang-python` `3.1.0.sonic.4` builds the patched v3.1.0
+The registry module `libyang-python` `3.1.0.sonic.5` builds the patched v3.1.0
 CFFI binding from source for CPython 3.13. It consumes the registered source
-target from `libyang` `3.12.2.sonic.1`.
+target from `libyang` `3.12.2.sonic.4`.
 
 Public outputs:
 
@@ -38,3 +38,12 @@ The image must also supply CFFI and the native `@libyang//:libyang_pkg`.
 The package test borrows declared CFFI runfiles while isolating the installed
 binding and libyang library. These runtime/debug TARs do not install dependencies,
 produce Debian packages or create dpkg package records.
+
+## Generated runtime package metadata
+
+`//:runtime_packages.json` is a generated target. The existing Debian
+`control` and `changelog` define package fields; `BUILD.bazel` maps package names
+to the existing Bazel TARs. The shared metadata rule inspects those target
+binaries and declared dependency packages, so version constraints come from
+the built artifacts and Debian tools. There is no handwritten JSON metadata
+file or new DEB producer.

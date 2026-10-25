@@ -1,4 +1,4 @@
-# libyang-python 3.1.0.sonic.4
+# libyang-python 3.1.0.sonic.5
 
 This module builds the libyang-Python binding used by SONiC schema generation.
 Its public Python import remains `libyang`; the Bazel module is named
@@ -30,7 +30,7 @@ found the same 54 paths and identical source bytes, except for a final newline i
 an input to this binding build. This module retains the full series so its source
 contract remains the same as production.
 
-The native dependency remains `libyang` `3.12.2.sonic.1`, which builds libyang
+The native dependency remains `libyang` `3.12.2.sonic.4`, which builds libyang
 3.12.2 with SONiC's validation patch. Its PCRE2 and xxHash implementation
 libraries are linked statically into `libyang.so.3`. The binding does not fetch
 or compile another native libyang copy.
@@ -42,7 +42,7 @@ Consumers can use a repository alias while retaining the module name:
 ```starlark
 bazel_dep(
     name = "libyang-python",
-    version = "3.1.0.sonic.4",
+    version = "3.1.0.sonic.5",
     repo_name = "libyang_python",
 )
 ```
@@ -137,14 +137,11 @@ The first downstream consumer is the source-built config-engine base image in
 `securely1g/sonic-buildimage`, which needs the Python binding beside libyang.
 Its image integration is separate from this producer change.
 
-## Runtime package identities
+## Generated runtime package metadata
 
-Revision 4 retains revision 3's upstream egg-info generation and installed
-Python metadata tests, and exports runtime_packages.json/md beside libyang_pkg.
-The JSON binds SONiC package identity to the public runtime TAR target; it does
-not create dpkg installed state. The image consumer validates the TAR and
-selected module provenance and retains its real installation workflow.
-
-This proposal directly depends on registry #85 and serves Buildimage #13, #30
-and #33. Existing source snapshots remain available while their consumers
-move to the composed version.
+`//:runtime_packages.json` is a generated target. The existing Debian
+`control` and `changelog` define package fields; `BUILD.bazel` maps package names
+to the existing Bazel TARs. The shared metadata rule inspects those target
+binaries and declared dependency packages, so version constraints come from
+the built artifacts and Debian tools. There is no handwritten JSON metadata
+file or new DEB producer.
