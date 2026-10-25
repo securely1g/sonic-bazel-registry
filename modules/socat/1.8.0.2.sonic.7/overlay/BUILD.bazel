@@ -1,4 +1,5 @@
 load("@rules_python//python:py_test.bzl", "py_test")
+load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -47,11 +48,30 @@ py_test(
     python_version = "3.13",
 )
 
-# Keep package identities beside the runtime TAR producers.
+# Package fields come from the existing Debian recipe. This mapping only
+# identifies the Bazel-built TAR for each Debian binary package.
+runtime_packages(
+    name = "runtime_packages.json",
+    apt_packages = {
+        "@socat_deps//" + package + ":data": "@socat_deps//" + package + ":control"
+        for package in [
+            "libreadline8t64",
+            "libssl3t64",
+            "libwrap0",
+            "libtinfo6",
+            "libzstd1",
+            "zlib1g",
+        ]
+    },
+    changelog = "@socat_source//:debian/changelog",
+    control = "@socat_source//:debian/control",
+    packages = {
+        "socat": "//:socat_pkg",
+    },
+    visibility = ["//visibility:public"],
+)
+
 exports_files(
-    [
-        "runtime_packages.json",
-        "runtime_packages.md",
-    ],
+    ["runtime_packages.md"],
     visibility = ["//visibility:public"],
 )
