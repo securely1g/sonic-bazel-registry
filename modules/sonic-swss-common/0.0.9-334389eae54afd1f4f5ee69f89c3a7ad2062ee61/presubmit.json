@@ -6,7 +6,7 @@
   "consumer_deps": [
     {
       "name": "sonic-build-infra",
-      "version": "0.0.16-07a777db629f29ef17c2e65ee30455e2df13fe93",
+      "version": "0.0.22-a12bc826d6f811a157db5c7c02a2fe033896cc14",
       "repo_name": "sonic_build_infra"
     },
     {
@@ -15,7 +15,7 @@
     },
     {
       "name": "rules_distroless",
-      "version": "0.9.4.sonic.1"
+      "version": "0.9.4.sonic.13"
     },
     {
       "name": "rules_cc",
@@ -28,7 +28,7 @@
     },
     {
       "name": "libnl3",
-      "version": "3.7.0-sonic.2"
+      "version": "3.7.0.sonic.5"
     },
     {
       "name": "sonic-rust-deps",
@@ -56,7 +56,8 @@
     "@sonic-swss-common//goext:swsscommon",
     "@sonic-swss-common//crates/swss-common:swss_common",
     "@sonic-swss-common//dist:sonic-db-cli_pkg.debug_symbols",
-    "@sonic-swss-common//pyext:swsscommon_pkg.debug_symbols"
+    "@sonic-swss-common//pyext:swsscommon_pkg.debug_symbols",
+    "@sonic-swss-common//:runtime_packages.json"
   ],
   "test_targets": [
     "@sonic-swss-common//tests:status_code_util_test",
@@ -84,5 +85,14 @@
     "version": "1.90.0",
     "mangled_allocator_libraries": true,
     "bindgen": true
+  },
+  "test_runtime_preparation": {
+    "script": "tools/bazel/runtime/prepare.py",
+    "sha256": "8302de9c34064c4256e881d5ffd32ea8cd2d0efbdda9a78a11da6444055b899d",
+    "apt_mirror_protocol": "locked-runtime-v1"
+  },
+  "host_platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
   }
 }
