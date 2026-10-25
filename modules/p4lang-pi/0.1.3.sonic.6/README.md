@@ -53,3 +53,16 @@ The temporary `codex/p4-pi-prerequisites` base combines those candidates in one
 registry snapshot for native validation. Land the prerequisites, retarget this
 producer to `main`, use merged source pins and rerun AMD64/ARM64 checks before
 marking it ready to merge. BMv2 and DASH consumers must wait for this producer.
+
+The generated metadata target retains the existing source archives, configure/Make
+build, runtime/debug TARs and package tests. Only the current unpublished
+`0.1.3.sonic.2` recipe is updated.
+
+## Generated runtime package metadata
+
+`//:runtime_packages.json` is a generated target. The existing Debian
+`control` and `changelog` define package fields; `BUILD.bazel` maps package names
+to the existing Bazel TARs. The shared metadata rule inspects those target
+binaries and declared dependency packages, so version constraints come from
+the built artifacts and Debian tools. There is no handwritten JSON metadata
+file or new DEB producer.
