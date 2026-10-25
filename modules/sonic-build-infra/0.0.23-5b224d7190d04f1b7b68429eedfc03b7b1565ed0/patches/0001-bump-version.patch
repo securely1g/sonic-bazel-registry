@@ -1,0 +1,17 @@
+From: SONiC Bazel Registry <securely1g@gmail.com>
+Subject: [PATCH 1/2] Identify the registered producer-path-check source snapshot
+
+Keep the fetched module version equal to its registry entry. This registers
+producer-owned required file checks for config-engine's runtime packages.
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,7 +1,7 @@
+ # Keep bazel_compatibility in sync with sonic-buildimage's .bazelversion.
+ module(
+     name = "sonic-build-infra",
+-    version = "0.0.23",
++    version = "0.0.23-5b224d7190d04f1b7b68429eedfc03b7b1565ed0",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
