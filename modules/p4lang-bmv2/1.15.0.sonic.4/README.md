@@ -2,8 +2,9 @@
 
 This module builds the BMv2 `1.15.0-9` source used by SONiC's P4 image. Bazel
 fetches the checksum-verified original archive and Debian source archive, applies
-Debian's `fix-distclean.patch` followed by SONiC's Boost 1.83 and unnecessary
-dependency patches, and invokes upstream Autotools/Make through
+Debian's `fix-distclean.patch`, then SONiC's `0001-use-boost-1.83.patch`
+and `0002-remove-unnecessary-dependencies.patch` in that order. It invokes
+upstream Autotools/Make through
 `rules_foreign_cc.configure_make`. It does not build Debian packages or change
 SONiC's existing Make recipes.
 
@@ -12,12 +13,6 @@ PI and `simple_switch_grpc`. PI headers/libraries come from the independently
 source-built `p4lang-pi` SDK. Target libraries come from declared Trixie APT
 inputs. Autotools, Python and protocol generators come from the declared build
 infrastructure execution-tool bundle. No configure/build action downloads code.
-
-The compiler and execution-tool bundle selects published
-`sonic-build-infra@0.0.19-46f471185c80ac5fd758f995195a428a43e3831e`. This source
-revision retains the GCC argument adapter required by the large foreign builds
-and adds kernel cross-tool support. BMv2 uses the native AMD64 and ARM64
-configurations below; its source inputs and enabled features are unchanged.
 
 ## Public targets
 
@@ -42,7 +37,7 @@ debuglink CRCs for every deployed ELF and GDB source-line lookup after adding th
 debug TAR. Native AMD64 and ARM64 jobs run the independent registry consumer.
 
 ```sh
-python3 ci/registry_ci.py run --module p4lang-bmv2 --version 1.15.0.sonic.1 \
+python3 ci/registry_ci.py run --module p4lang-bmv2 --version 1.15.0.sonic.2 \
   --architecture amd64 --work-dir /tmp/bmv2-amd64 --artifacts /tmp/bmv2-artifacts
 ```
 
@@ -65,3 +60,12 @@ that version suffix without running Git inside a build action.
 
 The BCR has no `bmv2`, `behavioral-model` or `p4lang-bmv2` entry. The imported
 archive has an Autotools build and no upstream Bazel module.
+
+## Generated runtime package metadata
+
+`//:runtime_packages.json` is a generated target. The existing Debian
+`control` and `changelog` define package fields; `BUILD.bazel` maps package names
+to the existing Bazel TARs. The shared metadata rule inspects those target
+binaries and declared dependency packages, so version constraints come from
+the built artifacts and Debian tools. There is no handwritten JSON metadata
+file or new DEB producer.
