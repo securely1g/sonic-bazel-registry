@@ -66,3 +66,12 @@ matching Debian `.dsc`, and check SONiC's readline patch still applies. The
 Debian archive supplies the patch inventory; do not copy it into the registry.
 Keep the required feature flags in the installed test;
 configure can otherwise silently disable a feature when a library is missing.
+
+## Generated runtime package metadata
+
+`//:runtime_packages.json` is a generated target. The existing Debian
+`control` and `changelog` define package fields; `BUILD.bazel` maps package names
+to the existing Bazel TARs. The shared metadata rule inspects those target
+binaries and declared dependency packages, so version constraints come from
+the built artifacts and Debian tools. There is no handwritten JSON metadata
+file or new DEB producer.
