@@ -1,0 +1,33 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.23-6d1a535450987015c3e13f5a089b7d446567d536",
+      "repo_name": "sonic_build_infra"
+    },
+    {
+      "name": "tar.bzl",
+      "version": "0.10.5-sonic.1"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
+  },
+  "build_targets": [
+    "@libyang-python//:libyang_pkg",
+    "@libyang-python//:libyang_pkg.debug_symbols",
+    "@libyang-python//:runtime_packages.json",
+    "@libyang-python//:runtime_packages.md"
+  ],
+  "test_targets": [
+    "@libyang-python//:libyang_runtime_test",
+    "@libyang-python//:libyang_upstream_test",
+    "@libyang-python//:libyang_package_test"
+  ],
+  "generated_module_overlay": true
+}
