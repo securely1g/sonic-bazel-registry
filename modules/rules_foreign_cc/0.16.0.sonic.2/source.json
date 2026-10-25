@@ -1,0 +1,29 @@
+{
+  "integrity": "sha256-Mns/ys3pe5ZlQk2ytsN+b42lnsx4PcW4aDxpOW+CChI=",
+  "strip_prefix": "rules_foreign_cc-0.16.0",
+  "url": "https://github.com/bazel-contrib/rules_foreign_cc/releases/download/0.16.0/rules_foreign_cc-0.16.0.tar.gz",
+  "patches": {
+    "module_dot_bazel_version.patch": "sha256-C9sBvqWVY72BKfpnL9/UhMX4vQlUGY6o6Xwyt2jWKHc=",
+    "preserve-header-classes.patch": "sha256-xzc3Xgtn1w5NbiK7vR3h06zoBH6u/IpC90ax2gPdoao="
+  },
+  "patch_strip": 1,
+  "overlay": {
+    "registry_ci/BUILD.bazel": "sha256-MJmay7b7POFppv9++fC+5ic+tXBwM23Jm2KWkbmuuH8=",
+    "registry_ci/cmake_source/CMakeLists.txt": "sha256-Nz0tS4yOkfJkmMe5jEjnTp5dlLE4aut770RpvgrqbXY=",
+    "registry_ci/cmake_source/paths.cc": "sha256-FY2OeAmZXkIKGAY0Li+o/ka/yCgDUYd+3m4D9bu+rEs=",
+    "registry_ci/headers.bzl": "sha256-AhgYFFGzFIOTEdJuKpM9VkvTrQqJd53OeXRZDjLobto=",
+    "registry_ci/make_source/Makefile": "sha256-S236WTMn2+mKRbqklOItR2NNkbungUDqqNbl0K94nqI=",
+    "registry_ci/make_source/angle_quote.cc": "sha256-NVbi4ydjo/SQACxKGeGWaiKrO13/krYg8pJixpCvsi0=",
+    "registry_ci/make_source/lookup.cc": "sha256-cULY1CNIkYvJzgxI9m2wMdz7qPsNvnURt2Gc07iBqPI=",
+    "registry_ci/make_source/ordinary.cc": "sha256-EnEc80XxJebvAMzpRBYPReZLaefqAGf94cOIk5O7ipw=",
+    "registry_ci/make_source/system.cc": "sha256-FY2OeAmZXkIKGAY0Li+o/ka/yCgDUYd+3m4D9bu+rEs=",
+    "registry_ci/ordinary/ordinary.h": "sha256-MusxQbztAIR1YC7IefjDL1GTgNCsfaxx06sORyoSFEc=",
+    "registry_ci/ordinary/ordinary_warning.h": "sha256-Ze3XiXt55ESJPWvJEyVwahQBQkmTCWsV7RSglCLYi0Y=",
+    "registry_ci/ordinary/precedence.h": "sha256-K5ZZ3a8MBCZXJclOhud1k13C5CID5sjntyGt9p5dtdI=",
+    "registry_ci/quote/precedence.h": "sha256-fiUBJ4//rG5LSxbJqEQQoBgyW4GYhnmmYhgJrcdb2NU=",
+    "registry_ci/quote/quote_only.h": "sha256-rXQLqLeYYC7SephtO3Xz4nh1kfrmQWvirbhxmb/Nf+w=",
+    "registry_ci/sdk_source/Makefile": "sha256-35hOa3q9j11nMBqnv6vKo44jhzOcZbiHO+hp2TO3984=",
+    "registry_ci/sdk_source/sdk_warning.h": "sha256-kvq2ij/mSqSZeKmpJLIgCI9u3zLcAELssq+K/PhQrBA=",
+    "registry_ci/system/system_warning.h": "sha256-x7xFRbgBUcrIqRL1KpD98IWylHbPk6cfj8FxpXLP64I="
+  }
+}
