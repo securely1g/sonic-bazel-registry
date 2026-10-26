@@ -1,30 +1,23 @@
-# Common checks its runtime files before generating package metadata
+# Common runtime data for direct OCI consumption
 
-Registers the source in [Common #32](https://github.com/securely1g/sonic-swss-common/pull/32)
-at commit `be3495e6958310cb3dd02d6a290a6564efd9aa95`.
-The ordinary `@sonic-swss-common//:runtime_packages.json` build now checks
-required files inside the three runtime TARs before it records their hashes and
-Debian package metadata. The checks travel with the producer instead of being
-copied into every image.
-
-[Buildimage #30](https://github.com/securely1g/sonic-buildimage/pull/30) consumes
-these outputs for config-engine. For example, Common now owns the checks for
-`usr/lib/{multiarch}/libswsscommon.so.0`, `libsonicdbcli.so.0` in that same directory,
-`var/run/redis/sonic-db/database_config.json`, the Python binding and
-`usr/bin/sonic-db-cli`. `{multiarch}` selects `x86_64-linux-gnu` on AMD64 and
-`aarch64-linux-gnu` on ARM64. The metadata keeps the reviewed raw TAR paths;
-image assembly handles any installed-path normalization.
+Registers [Common #34](https://github.com/securely1g/sonic-swss-common/pull/34)
+at source commit `f7fda40c02b3a8b4bbbff3d17fca3dff83f4cbad`.
+[Buildimage #13](https://github.com/securely1g/sonic-buildimage/pull/13) will consume
+`@sonic_swss_common//dist:libswsscommon_pkg` to install these producer-owned files
+without correcting their metadata in the image. The consumer update is separate.
 
 | Input or action | Before | After |
 | --- | --- | --- |
-| Build Common metadata with its normal runtime TARs | Emits package controls and hashes; config-engine separately lists required Common files. | Checks Common files first and includes those requirements beside the controls and hashes. |
-| Runtime TAR accidentally omits `libswsscommon.so.0` | An image owning that requirement detects the omission. | Common metadata generation fails before the image consumes it. |
+| Redis Lua runtime files | Mode `0755` | Mode `0644`, root ownership and fixed timestamps. |
+| Library SONAME links | Raw mode `0000` | Explicit `0777` to match inherited OCI layer metadata. |
+| Database configuration | Raw `var/run/redis/sonic-db/database_config.json` | Canonical `run/redis/sonic-db/database_config.json`, mode `0644`, root ownership. The base image preserves `/var/run` access. |
 
-This uses the shared producer check in [infra #66](https://github.com/securely1g/sonic-build-infra/pull/66),
-registered by [registry #141](https://github.com/securely1g/sonic-bazel-registry/pull/141).
-It changes neither compilation nor TAR layout, introduces no DEB producer, and
-preserves all existing C++, Python, Go, Rust, runtime/debug and timestamp checks
-on native AMD64 and ARM64. Existing published registrations remain unchanged.
+The source package test now checks raw archive metadata and legacy-path access.
+The registration carries forward all native AMD64/ARM64 C++, Python, Go, Rust,
+runtime/debug and timestamp checks from published `0.0.6-be3495e6958310cb3dd02d6a290a6564efd9aa95`.
+Its only patch, `0001-module-version.patch`, updates the source module version
+`0.0.6` to this exact registry version. Published entries remain unchanged.
 
-The only registry patch, `0001-module-version.patch`, changes the source module
-version `0.0.6` to the full registry version identifying this exact source commit.
+The selected source is the squash commit landed by Common #34 on maintained
+`master`. Native AMD64/ARM64 source CI passed with YANG enabled and disabled.
+Registry CI validates this exact registration on both native architectures.
