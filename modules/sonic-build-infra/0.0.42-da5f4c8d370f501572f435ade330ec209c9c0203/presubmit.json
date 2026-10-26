@@ -42,7 +42,10 @@
     "@sonic-build-infra//tools/build_tools:grpc_python_plugin",
     "@sonic-build-infra//tools/build_tools:thrift",
     "@sonic-build-infra//tools/build_tools:python3",
-    "@sonic-build-infra//registry_ci:kernel_runtime_manifest"
+    "@sonic-build-infra//registry_ci:kernel_runtime_manifest",
+    "@sonic-build-infra//deps/compiler:alternatives_pkg",
+    "@sonic-build-infra//deps/automake:alternatives_pkg",
+    "@sonic-build-infra//deps/openmpi:alternatives_pkg"
   ],
   "test_targets": [
     "@sonic-build-infra//tools/build_tools:runtime_test",
@@ -70,7 +73,8 @@
     "@sonic-build-infra//tools/build_tools:kernel_runtime_test",
     "@sonic-build-infra//tools/build_tools:runtime_launcher_test",
     "@sonic-build-infra//registry_ci:kernel_arm64_tools_test",
-    "@sonic-build-infra//registry_ci:kernel_armhf_tools_test"
+    "@sonic-build-infra//registry_ci:kernel_armhf_tools_test",
+    "@sonic-build-infra//deps:alternatives_test"
   ],
   "host_platforms": {
     "amd64": "@sonic-build-infra//platforms:x86_64_trixie",
