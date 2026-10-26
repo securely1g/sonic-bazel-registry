@@ -1,9 +1,25 @@
-# Sairedis metadata from its Debian recipe
+# Syncd runtime service links
 
-Registers merged [sairedis #6](https://github.com/securely1g/sonic-sairedis/pull/6), source `54233eede3bb2eb319f6041bc8329586483012d0`. The public `@sonic-sairedis//:runtime_packages.json` is now generated from the existing Debian control/changelog and the four actual runtime TARs, using the shared generator registered by [registry #120](https://github.com/securely1g/sonic-bazel-registry/pull/120).
+Registers [Sairedis #7](https://github.com/securely1g/sonic-sairedis/pull/7)
+at source commit `5e765149371aeca207254641873791db76a95f5f`.
+[Buildimage #13](https://github.com/securely1g/sonic-buildimage/pull/13) will consume
+`@sonic_sairedis//syncd:syncd_pkg` directly without reconstructing these links in
+the image. The consumer update is separate.
 
-For [syncd-vs in buildimage #13](https://github.com/securely1g/sonic-buildimage/pull/13), `syncd-vs` remains mapped to `@sonic_sairedis//syncd:syncd_pkg`. Its version and control fields come from the original recipe. That recipe places its shared-library substitutions in `Recommends`; generation preserves this placement instead of promoting them to `Depends`. The JSON also binds each record to its actual runtime TAR digest. No runtime compilation, TAR layout, or legacy Debian recipe changes.
+| Runtime paths | Published package | Candidate |
+| --- | --- | --- |
+| `etc/rc0.d/K01syncd`, `etc/rc6.d/K01syncd`, `etc/rcS.d/S01syncd` | Missing | Root-owned symlinks to `../init.d/syncd`, mode `0777`, timestamp `0` |
 
-Dependencies are generated from Common's actual package trees via [registry #104](https://github.com/securely1g/sonic-bazel-registry/pull/104). DASH-enabled image consumers also pass `--@sonic_sairedis//:dash_runtime_metadata=@sonic_dash//:runtime_packages.json` alongside the existing DASH SDK setting. The default registry job retains all native producer tests and builds all four metadata records; the DASH variant is validated with its image consumer.
+The links are in the existing producer init TAR for both ordinary VS and DASH
+builds. Existing source archive-contract tests verify their raw headers and
+installed targets. No installation scripts run while packaging.
 
-This is a new `0.0.2` registration. Published `0.0.1` inputs remain unchanged. CI retains the native AMD64/ARM64 runtime/debug targets and seven producer test targets, and builds the generated metadata output.
+This candidate carries forward published `0.0.2-54233eede3bb2eb319f6041bc8329586483012d0`'s
+native AMD64/ARM64 build and test targets unchanged, including runtime/debug
+packages and metadata. Dependency selections and published entries are unchanged.
+The numbered module-version patch changes source version `0.0.2` to this exact
+candidate version.
+
+The selected source is the squash commit landed by Sairedis #7 on maintained
+`master`. Native AMD64/ARM64 source CI passed, including raw service-link checks.
+Registry CI validates this exact registration on both native architectures.
