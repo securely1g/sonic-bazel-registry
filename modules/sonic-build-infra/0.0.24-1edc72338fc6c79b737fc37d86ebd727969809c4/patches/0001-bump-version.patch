@@ -1,0 +1,17 @@
+From: SONiC Bazel Registry <securely1g@gmail.com>
+Subject: [PATCH 1/2] Identify the registered runtime-alternatives source snapshot
+
+Keep the fetched module version equal to its registry entry. This registers
+compiler, Automake and MPI installation links for Syncd's APT image layers.
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,7 +1,7 @@
+ # Keep bazel_compatibility in sync with sonic-buildimage's .bazelversion.
+ module(
+     name = "sonic-build-infra",
+-    version = "0.0.23",
++    version = "0.0.24-1edc72338fc6c79b737fc37d86ebd727969809c4",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
