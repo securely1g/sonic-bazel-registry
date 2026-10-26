@@ -1,38 +1,30 @@
-# Common metadata generated from Debian recipes
+# Common checks its runtime files before generating package metadata
 
-Registers merged [Common #31](https://github.com/securely1g/sonic-swss-common/pull/31)
-at maintained `master` commit `326ca764197ac788dfd55aa935ff728180745bde`. The public
-`@sonic-swss-common//:runtime_packages.json` is now generated from existing
-`debian/control`, `debian/changelog` and the three runtime TARs. Its label stays
-unchanged; the handwritten JSON is removed from the selected source.
-
-The YANG-enabled AMD64 build produces `libswsscommon` version `1.0.0` with
-`libyang3 (>= 3.12.2-1)`, where the library's Debian version comes from its own
-generated metadata. A no-YANG build omits that dependency. `sonic-db-cli` lists
-its actual hiredis and compiler ABI dependencies; it no longer claims to load
-`libswsscommon.so` when the binary statically includes that code. These are
-observed producer outputs, with no change to runtime compilation or TAR layout.
+Registers the source in [Common #32](https://github.com/securely1g/sonic-swss-common/pull/32)
+at commit `be3495e6958310cb3dd02d6a290a6564efd9aa95`.
+The ordinary `@sonic-swss-common//:runtime_packages.json` build now checks
+required files inside the three runtime TARs before it records their hashes and
+Debian package metadata. The checks travel with the producer instead of being
+copied into every image.
 
 [Buildimage #30](https://github.com/securely1g/sonic-buildimage/pull/30) consumes
-Common's runtime TARs and generated controls in config-engine. Its policy keeps
-required installed paths, such as
-`usr/lib/x86_64-linux-gnu/libswsscommon.so.0`, rather than package versions or
-library dependency lists. [Syncd #13](https://github.com/securely1g/sonic-buildimage/pull/13)
-uses the same interface. Their earlier draft source snapshots contain the same
-runtime implementation; this registration selects the landed source revision.
+these outputs for config-engine. For example, Common now owns the checks for
+`usr/lib/{multiarch}/libswsscommon.so.0`, `libsonicdbcli.so.0` in that same directory,
+`var/run/redis/sonic-db/database_config.json`, the Python binding and
+`usr/bin/sonic-db-cli`. `{multiarch}` selects `x86_64-linux-gnu` on AMD64 and
+`aarch64-linux-gnu` on ARM64. The metadata keeps the reviewed raw TAR paths;
+image assembly handles any installed-path normalization.
 
-This registration consumes the shared generator from
-[infra #58](https://github.com/securely1g/sonic-build-infra/pull/58), registered in
-[registry #120](https://github.com/securely1g/sonic-bazel-registry/pull/120), and
-the published library recipes from [#131](https://github.com/securely1g/sonic-bazel-registry/pull/131)
-and [#132](https://github.com/securely1g/sonic-bazel-registry/pull/132).
-[Registry #117](https://github.com/securely1g/sonic-bazel-registry/pull/117)
-prepares the declared native runtime used by the existing consumer tests.
-All published Common versions remain unchanged; this replaces only the prior
-unreleased metadata candidate. Existing C++, Python, Go, Rust, runtime/debug
-and timestamp checks remain in the native AMD64/ARM64 registry matrix. CI also
-builds and retains the generated metadata; no new DEB producer is introduced.
+| Input or action | Before | After |
+| --- | --- | --- |
+| Build Common metadata with its normal runtime TARs | Emits package controls and hashes; config-engine separately lists required Common files. | Checks Common files first and includes those requirements beside the controls and hashes. |
+| Runtime TAR accidentally omits `libswsscommon.so.0` | An image owning that requirement detects the omission. | Common metadata generation fails before the image consumes it. |
 
-The existing `0.0.5` registration series is retained. The single patch,
-`0001-module-version.patch`, sets the fetched module's version from its source
-declaration `0.0.4` to the full registry version; it changes no build targets.
+This uses the shared producer check in [infra #66](https://github.com/securely1g/sonic-build-infra/pull/66),
+registered by [registry #141](https://github.com/securely1g/sonic-bazel-registry/pull/141).
+It changes neither compilation nor TAR layout, introduces no DEB producer, and
+preserves all existing C++, Python, Go, Rust, runtime/debug and timestamp checks
+on native AMD64 and ARM64. Existing published registrations remain unchanged.
+
+The only registry patch, `0001-module-version.patch`, changes the source module
+version `0.0.6` to the full registry version identifying this exact source commit.
