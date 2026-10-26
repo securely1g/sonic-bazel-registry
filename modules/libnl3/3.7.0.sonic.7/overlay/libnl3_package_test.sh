@@ -40,6 +40,10 @@ for index in "${!stems[@]}"; do
     check_library_link "$libdir/$stem.so" "$library"
     [[ $(readelf -d "$library" | sed -n 's/.*Library soname: \[\(.*\)\]/\1/p') == "$stem.so.200" ]]
     [[ ! -e "$root/usr/include" ]]
+    if [[ "$stem" == libnl-3 ]]; then
+        [[ -f "$root/etc/libnl-3/classid" ]]
+        [[ -f "$root/etc/libnl-3/pktloc" ]]
+    fi
     tar -xf "${runtime_tars[$index]}" -C "$combined_root"
 done
 

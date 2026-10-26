@@ -252,6 +252,25 @@ runtime_packages(
         "libnl-3-dev": "//:libnl-3-dev_files",
         "libnl-route-3-dev": "//:libnl-route-3-dev_files",
     },
+    required_paths = {
+        "libnl-3-200": [
+            "usr/lib/{multiarch}/libnl-3.so.200",
+            "etc/libnl-3/classid",
+            "etc/libnl-3/pktloc",
+        ],
+        "libnl-cli-3-200": [
+            "usr/lib/{multiarch}/libnl-cli-3.so.200",
+        ],
+        "libnl-genl-3-200": [
+            "usr/lib/{multiarch}/libnl-genl-3.so.200",
+        ],
+        "libnl-nf-3-200": [
+            "usr/lib/{multiarch}/libnl-nf-3.so.200",
+        ],
+        "libnl-route-3-200": [
+            "usr/lib/{multiarch}/libnl-route-3.so.200",
+        ],
+    },
     visibility = ["//visibility:public"],
 )
 

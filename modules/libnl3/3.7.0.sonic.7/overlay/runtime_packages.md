@@ -14,3 +14,8 @@ The Bazel libraries retain upstream symbol versioning. Their symbol metadata is
 generated from those actual libraries; the Debian reference symbol files describe
 unversioned builds and are not used as a second ABI contract. Dependencies use
 the current Debian changelog version as a conservative minimum.
+
+The producer checks its reviewed `required_paths` against the runtime TAR before
+emitting this metadata. Consumers reuse these checks; an image adds only its own
+installed-path requirements. Missing required files fail ordinary builds, including
+image builds, without waiting for a separate package-test invocation.
