@@ -1,0 +1,19 @@
+From: Guohan Lu <securely1g@gmail.com>
+Subject: [PATCH] Set the registry version for Common
+
+Register the source reviewed in securely1g/sonic-swss-common#34.
+Use its full source commit in the module version so consumers select
+the exact runtime data packaging. This changes only registry identity;
+the source build and packaging declarations are unchanged.
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,7 +1,7 @@
+ # Keep bazel_compatibility in sync with sonic-buildimage's .bazelversion.
+ module(
+     name = "sonic-swss-common",
+-    version = "0.0.6",
++    version = "0.0.7-9c8c0645b7a30273c3637146eac840cad377b6ff",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
