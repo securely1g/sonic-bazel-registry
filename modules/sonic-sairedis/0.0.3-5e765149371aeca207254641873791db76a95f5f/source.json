@@ -1,0 +1,9 @@
+{
+  "url": "https://github.com/securely1g/sonic-sairedis/archive/5e765149371aeca207254641873791db76a95f5f.tar.gz",
+  "strip_prefix": "sonic-sairedis-5e765149371aeca207254641873791db76a95f5f",
+  "integrity": "sha256-qB0RZ221XWWkfjFOH8oEK+xziT1WcS0Fay2YlXwLGAA=",
+  "patch_strip": 1,
+  "patches": {
+    "0001-module-version.patch": "sha256-A7D9gB6tNljSVb+MG7tWUMeFWemsVTzS04xp6d4RrN0="
+  }
+}
