@@ -1,8 +1,8 @@
 # Build and package libyang-Python
 
-The registry module `libyang-python` `3.1.0.sonic.5` builds the patched v3.1.0
+The registry module `libyang-python` `3.1.0.sonic.6` builds the patched v3.1.0
 CFFI binding from source for CPython 3.13. It consumes the registered source
-target from `libyang` `3.12.2.sonic.4`.
+target from `libyang` `3.12.2.sonic.5`.
 
 Public outputs:
 

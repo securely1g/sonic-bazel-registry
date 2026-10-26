@@ -183,6 +183,11 @@ runtime_packages(
     packages = {
         "python3-libyang": "//:libyang_pkg",
     },
+    required_paths = {
+        "python3-libyang": [
+            "usr/lib/python3/dist-packages/libyang/__init__.py",
+        ],
+    },
     visibility = ["//visibility:public"],
 )
 
