@@ -1,0 +1,63 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary")
+
+package(default_visibility = ["//visibility:public"])
+
+genrule(
+    name = "trap_constants",
+    outs = ["TrapReceiver/const-c.inc", "TrapReceiver/const-xs.inc"],
+    tools = ["@sonic_build_infra//tools/build_tools:perl_bookworm"],
+    cmd = "$(location @sonic_build_infra//tools/build_tools:perl_bookworm) -MExtUtils::Constant -e 'my ($$c,$$xs,@names)=@ARGV; ExtUtils::Constant::WriteConstants(NAME=>\"NetSNMP::TrapReceiver\", NAMES=>\\@names, DEFAULT_TYPE=>\"IV\", C_FILE=>$$c, XS_FILE=>$$xs);' $(location TrapReceiver/const-c.inc) $(location TrapReceiver/const-xs.inc) NETSNMPTRAPD_AUTH_HANDLER NETSNMPTRAPD_HANDLER_BREAK NETSNMPTRAPD_HANDLER_FAIL NETSNMPTRAPD_HANDLER_FINISH NETSNMPTRAPD_HANDLER_OK NETSNMPTRAPD_POST_HANDLER NETSNMPTRAPD_PRE_HANDLER",
+)
+
+[
+    genrule(
+        name = directory.replace("/", "_"),
+        srcs = ["@net_snmp_source//:perl/" + directory + "/" + basename + ".xs"] + (["@net_snmp_source//:perl/" + directory + "/typemap"] if custom_typemap else []) + ([":trap_constants"] if directory == "TrapReceiver" else []),
+        outs = [directory + "/" + basename + ".c"],
+        tools = ["//:perl_xs_tool", "@sonic_build_infra//tools/build_tools:perl_bookworm"],
+        cmd = 'output="$@"; logical="$${output#$(BINDIR)/}"; $(execpath //:perl_xs_tool)' + " $(execpath @sonic_build_infra//tools/build_tools:perl_bookworm) $(execpath @net_snmp_source//:perl/" + directory + "/" + basename + ".xs) $@ $$logical " + ("0" if directory == "SNMP" else "1") + (" $(execpath @net_snmp_source//:perl/" + directory + "/typemap)" if custom_typemap else "") + (" $(execpaths :trap_constants)" if directory == "TrapReceiver" else ""),
+    )
+    for directory, basename, custom_typemap in [
+        ("ASN", "ASN", False),
+        ("OID", "OID", True),
+        ("default_store", "default_store", True),
+        ("agent", "agent", True),
+        ("agent/default_store", "default_store", False),
+        ("SNMP", "SNMP", True),
+        ("TrapReceiver", "TrapReceiver", True),
+    ]
+]
+
+filegroup(name = "all", srcs = [":ASN", ":OID", ":default_store", ":agent", ":agent_default_store", ":SNMP", ":TrapReceiver", ":trap_constants"])
+
+alias(name = "SNMP_headers", actual = "@net_snmp_source//:SNMP_perl_headers")
+alias(name = "TrapReceiver_headers", actual = "@net_snmp_source//:TrapReceiver_perl_headers")
+
+_XS_COPTS = [
+    "-O2", "-g", '-DVERSION=\\\"5.0903\\\"', '-DXS_VERSION=\\\"5.0903\\\"',
+    "-D_REENTRANT", "-D_GNU_SOURCE", "-DDEBIAN", "-D_LARGEFILE_SOURCE", "-D_FILE_OFFSET_BITS=64",
+    "-DNETSNMP_USE_INLINE", "-DNETSNMP_ENABLE_IPV6", "-DNETSNMP_REMOVE_U64",
+    "-fno-strict-aliasing", "-fwrapv", "-pipe",
+]
+
+[
+    cc_binary(
+        name = directory + "/" + basename + ".so",
+        srcs = [":" + directory.replace("/", "_")] + ([":trap_constants"] if directory == "TrapReceiver" else []),
+        copts = _XS_COPTS,
+        linkshared = True,
+        linkstatic = True,
+        deps = ["//:headers", "//:perl_headers", "//:netsnmp"] + ([":" + directory + "_headers"] if directory in ["SNMP", "TrapReceiver"] else []) + (["//:netsnmpagent", "//:netsnmpmibs"] if directory in ["agent", "TrapReceiver"] else ["//:system_ssl"]) + (["//:netsnmptrapd"] if directory == "TrapReceiver" else []),
+        linkopts = (["-lm"] if directory not in ["agent", "TrapReceiver"] else []),
+    )
+    for directory, basename in [
+        ("ASN", "ASN"), ("OID", "OID"), ("default_store", "default_store"),
+        ("agent", "agent"), ("agent/default_store", "default_store"),
+        ("SNMP", "SNMP"), ("TrapReceiver", "TrapReceiver"),
+    ]
+]
+filegroup(name = "bindings", srcs = [directory + "/" + basename + ".so" for directory, basename in [
+    ("ASN", "ASN"), ("OID", "OID"), ("default_store", "default_store"),
+    ("agent", "agent"), ("agent/default_store", "default_store"),
+    ("SNMP", "SNMP"), ("TrapReceiver", "TrapReceiver"),
+]])
