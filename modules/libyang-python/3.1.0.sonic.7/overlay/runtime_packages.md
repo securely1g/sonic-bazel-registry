@@ -18,3 +18,8 @@ helper behavior; it is not a complete resolver for Python distribution markers.
 Consumers must retain the declared CFFI runtime, as the installed-binding test
 does using pinned Bazel runfiles. The runtime TAR still contains the original
 egg-info requirement for Python-aware consumers.
+
+The producer checks its reviewed `required_paths` against the runtime TAR before
+emitting this metadata. Consumers reuse these checks; an image adds only its own
+installed-path requirements. Missing required files fail ordinary builds, including
+image builds, without waiting for a separate package-test invocation.

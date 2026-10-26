@@ -1,4 +1,4 @@
-# libyang-python 3.1.0.sonic.5
+# libyang-python 3.1.0.sonic.6
 
 This module builds the libyang-Python binding used by SONiC schema generation.
 Its public Python import remains `libyang`; the Bazel module is named
@@ -30,7 +30,7 @@ found the same 54 paths and identical source bytes, except for a final newline i
 an input to this binding build. This module retains the full series so its source
 contract remains the same as production.
 
-The native dependency remains `libyang` `3.12.2.sonic.4`, which builds libyang
+The native dependency remains `libyang` `3.12.2.sonic.5`, which builds libyang
 3.12.2 with SONiC's validation patch. Its PCRE2 and xxHash implementation
 libraries are linked statically into `libyang.so.3`. The binding does not fetch
 or compile another native libyang copy.
@@ -42,13 +42,13 @@ Consumers can use a repository alias while retaining the module name:
 ```starlark
 bazel_dep(
     name = "libyang-python",
-    version = "3.1.0.sonic.5",
+    version = "3.1.0.sonic.6",
     repo_name = "libyang_python",
 )
 ```
 
 This revision uses the registered `sonic-build-infra`
-`0.0.17-8baf1ad829c5095297d85148b042145b87d623a3` for runtime TARs and
+`0.0.23-5b224d7190d04f1b7b68429eedfc03b7b1565ed0` for runtime TARs and
 matching debug symbols. Earlier versions remain unchanged.
 
 Public targets:
@@ -145,3 +145,9 @@ to the existing Bazel TARs. The shared metadata rule inspects those target
 binaries and declared dependency packages, so version constraints come from
 the built artifacts and Debian tools. There is no handwritten JSON metadata
 file or new DEB producer.
+
+The producer requires `usr/lib/python3/dist-packages/libyang/__init__.py`
+in the `python3-libyang` runtime TAR. Building `//:runtime_packages.json`
+checks this path before emitting metadata, so config-engine can reuse the
+package requirement instead of duplicating it in its image configuration.
+Image-specific installation checks remain with the image.
