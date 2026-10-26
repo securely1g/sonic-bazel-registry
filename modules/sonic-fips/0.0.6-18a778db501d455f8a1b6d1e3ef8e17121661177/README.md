@@ -1,33 +1,28 @@
-# FIPS metadata generated from Debian recipes
+# OpenSSH producer installation metadata
 
-Registers [sonic-fips #7](https://github.com/securely1g/sonic-fips/pull/7),
-landed source `0565bc0426dde6a1e7c495de17707c9557f843a9` on maintained `main`. The public
-`@sonic-fips//:runtime_packages.json` is generated from the four existing Debian
-recipes and nine native runtime TARs. No handwritten package metadata remains
-in this source revision. The published `0.0.2-df34b541eb08d1a6a4b039e69c4d716c84566061`
-entry and its inputs remain unchanged.
+Registers [FIPS #8](https://github.com/securely1g/sonic-fips/pull/8) at source
+`d1a2c8f692d4197295269ed445022c3890b0f1a6`, its squash commit on maintained `main`. The downloaded
+source tree matches the source revision validated below. The previously published
+`0.0.3-0565bc0426dde6a1e7c495de17707c9557f843a9` entry stays unchanged.
 
-For example, OpenSSL's prepared changelog supplies `3.5.7-1~deb13u2`; its existing
-SONiC preparation policy adds `+fips`. Metadata generation produces
-`Version: 3.5.7-1~deb13u2+fips` without a second version literal, and preserves
-Debian's generated `perl:any` dependency on the `openssl` package. SymCrypt
-reuses its existing finalized binary control and derives `libc6 (>= 2.14)` and
-`libssl3t64 (>= 3.4.0)` from the actual AMD64 ELF output, in addition to the
-recipe's explicit `openssl (>= 3.0)`. These fields were observed in the native
-AMD64 producer build; registry CI independently rebuilds both architectures.
+[Buildimage #13](https://github.com/securely1g/sonic-buildimage/pull/13) consumes
+`@sonic_fips//openssh:openssh_client_pkg` for its Syncd image. The new producer
+TAR carries `usr/bin/ssh-agent` with mode `02755`, uid 0 and gid 104 (`_ssh`),
+and the user socket enablement link at
+`etc/systemd/user/sockets.target.wants/ssh-agent.socket` pointing to
+`/lib/systemd/user/ssh-agent.socket`. The old producer emitted `0755` root:root
+and omitted that link, requiring image-side installation changes. Consumers
+must provide `_ssh` GID 104 and preserve producer ownership and modes.
+`ssh-keysign` stays `04755`; the graphical-session service link is unchanged.
 
-[Buildimage #30](https://github.com/securely1g/sonic-buildimage/pull/30) and
-[#13](https://github.com/securely1g/sonic-buildimage/pull/13) use the generated
-controls with source TARs for the FIPS-enabled base and Syncd images. The rule
-comes from [infra #58](https://github.com/securely1g/sonic-build-infra/pull/58)
-through [registry #120](https://github.com/securely1g/sonic-bazel-registry/pull/120),
-which retains the static C tool-launcher fix and [cache-safe execution tools](https://github.com/securely1g/sonic-build-infra/pull/64).
+[Source CI](https://github.com/securely1g/sonic-fips/actions/runs/40285998940)
+passed the original upstream/client and package tests on native AMD64 and ARM64.
+Both actual runtime TARs were checked against their same-run receipts for the
+new owners, mode and socket link. This does not establish the final Syncd image.
 
-The entry retains all runtime/debug build targets, package checks and the
-OpenSSL/SymCrypt integration test on native AMD64 and ARM64. Metadata generation
-creates no DEB and runs no maintainer scripts. Registry CI retains the generated
-JSON alongside the source runtime/debug TARs.
-
-`0001-module-version.patch` changes only the source module version to the full
-registered version. The archive integrity and patched module are verified against
-the merged source.
+The registration inherits the previous entry's entire native AMD64/ARM64
+presubmit configuration unchanged: all OpenSSL, OpenSSH, Kerberos and SymCrypt
+runtime/debug targets, generated package metadata, package tests and the
+OpenSSL/SymCrypt integration test remain selected. The existing module-version
+patch is adapted only to identify the new full source version. The downloaded
+archive hash and patched MODULE.bazel were verified. No DEB is added.
