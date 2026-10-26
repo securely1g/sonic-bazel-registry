@@ -1,0 +1,15 @@
+module(
+    name = "sonic-linux-kernel",
+    version = "0.0.2-c894fafda9f0e4c9d40bb2f43bf6d41ea5bf79cc",
+)
+
+bazel_dep(name = "platforms", version = "1.1.0")
+bazel_dep(name = "patchelf", version = "0.18.0.bcr.1")
+bazel_dep(name = "rules_python", version = "1.7.0")
+bazel_dep(name = "sonic-build-infra", version = "0.0.22-a12bc826d6f811a157db5c7c02a2fe033896cc14", repo_name = "sonic_build_infra")
+
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(python_version = "3.13")
+
+sources = use_extension("//tools/bazel:sources.bzl", "kernel_sources")
+use_repo(sources, "kernel_debian", "kernel_dsc", "kernel_orig")

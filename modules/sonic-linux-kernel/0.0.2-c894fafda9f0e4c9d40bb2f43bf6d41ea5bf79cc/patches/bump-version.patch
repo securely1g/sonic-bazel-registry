@@ -1,0 +1,10 @@
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-linux-kernel",
+-    version = "0.0.2",
++    version = "0.0.2-c894fafda9f0e4c9d40bb2f43bf6d41ea5bf79cc",
+ )
+ 
+ bazel_dep(name = "platforms", version = "1.1.0")
