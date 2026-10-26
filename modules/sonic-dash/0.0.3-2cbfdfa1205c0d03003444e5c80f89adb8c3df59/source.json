@@ -1,32 +1,9 @@
 {
-  "url": "https://codeload.github.com/sonic-net/DASH/tar.gz/d5c003dd7774c2b43f275c0233acc73a0ea28d2f",
-  "strip_prefix": "DASH-d5c003dd7774c2b43f275c0233acc73a0ea28d2f",
-  "integrity": "sha256-raoVWvGuq6oD7wq1NlCflixeDWiAKmRwhRkIpER8Mvc=",
-  "archive_type": "tar.gz",
-  "overlay": {
-    "BUILD.bazel": "sha256-b6/vPfnShpNNDakKFHVB5Q4+UcywC97JzVmXnG094FE=",
-    "MODULE.bazel": "sha256-FW8G4f3C/za+gPQ+OEb59FDStB46sXMZHz+NXMyqBWs=",
-    "bazel/BUILD.bazel": "sha256-56XJE6IxVxeLBDU46gpilz8eE2brDGNua9CC3R8wTyY=",
-    "bazel/README.md": "sha256-ANMncNu53CMSlEuf3LUpHWbqfB27ZHB6of35ph7qGS4=",
-    "bazel/direct_metadata_inputs.patch": "sha256-p34AniYVVYNhC9xW4jwaOQ2i2AFrQoSkr2fTL8gagNE=",
-    "bazel/generate_metadata.py": "sha256-TeQi3+lvA6pftT9Ym2Rzqg8HRnzjDbjRyjEhVfE+428=",
-    "bazel/metadata.bzl": "sha256-S0rBe8SXtn+1MAfke9hCZIT9dwvOXZcxVd8Liu1KNyw=",
-    "bazel/requirements.in": "sha256-IiAaB3Dx0lCU3sTG6MuNSH8+AsnHvbI37r9Y5dci+gI=",
-    "bazel/requirements_lock.txt": "sha256-IVnsnZkB+IY7Y8WXwrJENnBPtltCNJjeTKHMW8nCVMI=",
-    "bazel/runtime.bzl": "sha256-2kVc6sA9XRg3d/y3N5xwVXlzs491EtOxAfDtQ7wrnsc=",
-    "bazel/runtime_loader.c": "sha256-OeW7msP6R93rq2n8MQdbyytHwocQ8uFO6KceZbuvxCA=",
-    "bazel/runtime_test.py": "sha256-xub08fiY3jBBOGAZgMSWYk2lIgDrSZqf3yNnbfm9Bds=",
-    "bazel/sai_source.BUILD.bazel": "sha256-nRA3PlotoVEgPzK4kxOXYTJso1RZzyBaUa4m5f3S3TM=",
-    "bazel/sdk_consumer.cpp": "sha256-kV3o0z4i8s6AR9poS0u5K79BndtqBJirbY1T+L+3PBU=",
-    "dash-pipeline/BUILD.bazel": "sha256-zJ/vTKS+b7BPqG+KdQKDed1DNg6/M/wa/fizdai8b9g=",
-    "dash-pipeline/SAI/BUILD.bazel": "sha256-70oJQx+mwysrbYuqHiRrK1KsbBCNfnw/Ihf7Y8zRb+A=",
-    "dash-pipeline/SAI/sai_api_gen.py": "sha256-iQ6V89VAWWJprQdSJhR7qrVznH6QV0tzB4b49UZNMHE=",
-    "dash-pipeline/SAI/utils/sai_gen/sai_file_updater.py": "sha256-Duy6+EleDQ9ertEZ/Xra41KkAZSxuws6FzwhTtLtYUs=",
-    "dash-pipeline/SAI/utils/sai_gen/sai_generator.py": "sha256-c9ETQzyrVXPV9coCkERcjRTGwYm49UysoE7fJr78EIk=",
-    "dash-pipeline/SAI/utils/sai_gen/sai_header_generator.py": "sha256-oeP0n4mNYpfDwMiW3NZbda9yFPOMNXbD3NIK5yDQQGI=",
-    "dash-pipeline/SAI/utils/sai_gen/sai_impl_generator.py": "sha256-Om9Rm+qsRcR7Di3HVNaqztszErUYOagXl45zfiKJWfg=",
-    "dash-pipeline/SAI/utils/sai_gen/sai_template_renderer.py": "sha256-5ZItBpqsSwng/cSEha+5jLuKLE4rULgFEWyQt0I53Ic=",
-    "dash-pipeline/SAI/utils/sai_spec/sai_spec_utils.py": "sha256-BnlHZL+l306iFgn9jIEnzwEAopqpgpjVtpWl3A7Zfb4=",
-    "runtime_packages.md": "sha256-wmBrLduJfkP6EewwXIQiDSZCYrU9LYThNGVAviqzrjQ="
-  }
+  "url": "https://github.com/securely1g/DASH/archive/5c9305403585a7ae54f86918219acb8ed39f740a.tar.gz",
+  "strip_prefix": "DASH-5c9305403585a7ae54f86918219acb8ed39f740a",
+  "integrity": "sha256-YYLLbkKzulo5Qfz+xyl+a0ZOXuZWg8xJdA2tc98F7eY=",
+  "patches": {
+    "0001-bump-version.patch": "sha256-NPzBMtM5dswT16J/GGp87OYxvRCFQULR5/PKFaZKL/k="
+  },
+  "patch_strip": 1
 }
