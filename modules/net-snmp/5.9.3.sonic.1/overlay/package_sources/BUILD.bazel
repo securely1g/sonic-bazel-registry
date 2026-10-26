@@ -1,0 +1,1364 @@
+load("@bazel_lib//lib:run_binary.bzl", "run_binary")
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("@rules_pkg//pkg:mappings.bzl", "pkg_attributes", "pkg_files")
+load("@tar.bzl//tar:mtree.bzl", "mtree_spec", "mtree_mutate")
+load("@tar.bzl//tar:tar.bzl", "tar")
+load("@bazel_skylib//rules:expand_template.bzl", "expand_template")
+load("@rules_python//python:defs.bzl", "py_binary")
+load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+load("@sonic_build_infra//cc:preprocess.bzl", "cc_preprocess")
+
+package(default_visibility = ["//visibility:public"])
+
+
+
+
+_INSTALL = {
+    "headers": {
+        "usr/include/net-snmp/version.h": "include/net-snmp/version.h",
+        "usr/include/net-snmp/net-snmp-features.h": "include/net-snmp/net-snmp-features.h",
+        "usr/include/net-snmp/system/aix.h": "include/net-snmp/system/aix.h",
+        "usr/include/net-snmp/system/bsd.h": "include/net-snmp/system/bsd.h",
+        "usr/include/net-snmp/system/bsdi3.h": "include/net-snmp/system/bsdi3.h",
+        "usr/include/net-snmp/system/bsdi4.h": "include/net-snmp/system/bsdi4.h",
+        "usr/include/net-snmp/system/bsdi.h": "include/net-snmp/system/bsdi.h",
+        "usr/include/net-snmp/system/cygwin.h": "include/net-snmp/system/cygwin.h",
+        "usr/include/net-snmp/system/darwin.h": "include/net-snmp/system/darwin.h",
+        "usr/include/net-snmp/system/dragonfly.h": "include/net-snmp/system/dragonfly.h",
+        "usr/include/net-snmp/system/dynix.h": "include/net-snmp/system/dynix.h",
+        "usr/include/net-snmp/system/freebsd2.h": "include/net-snmp/system/freebsd2.h",
+        "usr/include/net-snmp/system/freebsd3.h": "include/net-snmp/system/freebsd3.h",
+        "usr/include/net-snmp/system/freebsd4.h": "include/net-snmp/system/freebsd4.h",
+        "usr/include/net-snmp/system/freebsd5.h": "include/net-snmp/system/freebsd5.h",
+        "usr/include/net-snmp/system/freebsd6.h": "include/net-snmp/system/freebsd6.h",
+        "usr/include/net-snmp/system/freebsd7.h": "include/net-snmp/system/freebsd7.h",
+        "usr/include/net-snmp/system/freebsd8.h": "include/net-snmp/system/freebsd8.h",
+        "usr/include/net-snmp/system/freebsd9.h": "include/net-snmp/system/freebsd9.h",
+        "usr/include/net-snmp/system/freebsd10.h": "include/net-snmp/system/freebsd10.h",
+        "usr/include/net-snmp/system/freebsd11.h": "include/net-snmp/system/freebsd11.h",
+        "usr/include/net-snmp/system/freebsd12.h": "include/net-snmp/system/freebsd12.h",
+        "usr/include/net-snmp/system/freebsd13.h": "include/net-snmp/system/freebsd13.h",
+        "usr/include/net-snmp/system/freebsd14.h": "include/net-snmp/system/freebsd14.h",
+        "usr/include/net-snmp/system/freebsd.h": "include/net-snmp/system/freebsd.h",
+        "usr/include/net-snmp/system/generic.h": "include/net-snmp/system/generic.h",
+        "usr/include/net-snmp/system/hpux.h": "include/net-snmp/system/hpux.h",
+        "usr/include/net-snmp/system/irix.h": "include/net-snmp/system/irix.h",
+        "usr/include/net-snmp/system/kfreebsd.h": "include/net-snmp/system/kfreebsd.h",
+        "usr/include/net-snmp/system/linux.h": "include/net-snmp/system/linux.h",
+        "usr/include/net-snmp/system/mingw32.h": "include/net-snmp/system/mingw32.h",
+        "usr/include/net-snmp/system/mingw32msvc.h": "include/net-snmp/system/mingw32msvc.h",
+        "usr/include/net-snmp/system/mips.h": "include/net-snmp/system/mips.h",
+        "usr/include/net-snmp/system/netbsd.h": "include/net-snmp/system/netbsd.h",
+        "usr/include/net-snmp/system/nto-qnx6.h": "include/net-snmp/system/nto-qnx6.h",
+        "usr/include/net-snmp/system/osf5.h": "include/net-snmp/system/osf5.h",
+        "usr/include/net-snmp/system/openbsd.h": "include/net-snmp/system/openbsd.h",
+        "usr/include/net-snmp/system/openbsd6.h": "include/net-snmp/system/openbsd6.h",
+        "usr/include/net-snmp/system/openbsd5.h": "include/net-snmp/system/openbsd5.h",
+        "usr/include/net-snmp/system/openbsd4.h": "include/net-snmp/system/openbsd4.h",
+        "usr/include/net-snmp/system/solaris2.3.h": "include/net-snmp/system/solaris2.3.h",
+        "usr/include/net-snmp/system/solaris2.4.h": "include/net-snmp/system/solaris2.4.h",
+        "usr/include/net-snmp/system/solaris2.5.h": "include/net-snmp/system/solaris2.5.h",
+        "usr/include/net-snmp/system/solaris2.6.h": "include/net-snmp/system/solaris2.6.h",
+        "usr/include/net-snmp/system/solaris.h": "include/net-snmp/system/solaris.h",
+        "usr/include/net-snmp/system/sunos.h": "include/net-snmp/system/sunos.h",
+        "usr/include/net-snmp/system/svr5.h": "include/net-snmp/system/svr5.h",
+        "usr/include/net-snmp/system/sysv.h": "include/net-snmp/system/sysv.h",
+        "usr/include/net-snmp/system/ultrix4.h": "include/net-snmp/system/ultrix4.h",
+        "usr/include/net-snmp/machine/generic.h": "include/net-snmp/machine/generic.h",
+        "usr/include/net-snmp/net-snmp-config.h": "include/net-snmp/net-snmp-config.h",
+        "usr/include/ucd-snmp/ucd-snmp-config.h": "include/ucd-snmp/ucd-snmp-config.h",
+        "usr/include/ucd-snmp/version.h": "include/ucd-snmp/version.h",
+        "usr/include/ucd-snmp/mib_module_config.h": "include/ucd-snmp/mib_module_config.h",
+        "usr/include/net-snmp/agent/agent_read_config.h": "include/net-snmp/agent/agent_read_config.h",
+        "usr/include/net-snmp/agent/agent_registry.h": "include/net-snmp/agent/agent_registry.h",
+        "usr/include/net-snmp/agent/agent_index.h": "include/net-snmp/agent/agent_index.h",
+        "usr/include/net-snmp/agent/agent_sysORTable.h": "include/net-snmp/agent/agent_sysORTable.h",
+        "usr/include/net-snmp/agent/agent_trap.h": "include/net-snmp/agent/agent_trap.h",
+        "usr/include/net-snmp/agent/auto_nlist.h": "include/net-snmp/agent/auto_nlist.h",
+        "usr/include/net-snmp/agent/ds_agent.h": "include/net-snmp/agent/ds_agent.h",
+        "usr/include/net-snmp/agent/snmp_agent.h": "include/net-snmp/agent/snmp_agent.h",
+        "usr/include/net-snmp/agent/snmp_vars.h": "include/net-snmp/agent/snmp_vars.h",
+        "usr/include/net-snmp/agent/var_struct.h": "include/net-snmp/agent/var_struct.h",
+        "usr/include/net-snmp/agent/agent_handler.h": "include/net-snmp/agent/agent_handler.h",
+        "usr/include/net-snmp/agent/net-snmp-agent-includes.h": "include/net-snmp/agent/net-snmp-agent-includes.h",
+        "usr/include/net-snmp/agent/mib_modules.h": "include/net-snmp/agent/mib_modules.h",
+        "usr/include/net-snmp/agent/agent_callbacks.h": "include/net-snmp/agent/agent_callbacks.h",
+        "usr/include/net-snmp/agent/sysORTable.h": "include/net-snmp/agent/sysORTable.h",
+        "usr/include/net-snmp/agent/all_helpers.h": "include/net-snmp/agent/all_helpers.h",
+        "usr/include/net-snmp/agent/baby_steps.h": "include/net-snmp/agent/baby_steps.h",
+        "usr/include/net-snmp/agent/bulk_to_next.h": "include/net-snmp/agent/bulk_to_next.h",
+        "usr/include/net-snmp/agent/cache_handler.h": "include/net-snmp/agent/cache_handler.h",
+        "usr/include/net-snmp/agent/debug_handler.h": "include/net-snmp/agent/debug_handler.h",
+        "usr/include/net-snmp/agent/instance.h": "include/net-snmp/agent/instance.h",
+        "usr/include/net-snmp/agent/mode_end_call.h": "include/net-snmp/agent/mode_end_call.h",
+        "usr/include/net-snmp/agent/multiplexer.h": "include/net-snmp/agent/multiplexer.h",
+        "usr/include/net-snmp/agent/null.h": "include/net-snmp/agent/null.h",
+        "usr/include/net-snmp/agent/old_api.h": "include/net-snmp/agent/old_api.h",
+        "usr/include/net-snmp/agent/read_only.h": "include/net-snmp/agent/read_only.h",
+        "usr/include/net-snmp/agent/row_merge.h": "include/net-snmp/agent/row_merge.h",
+        "usr/include/net-snmp/agent/scalar.h": "include/net-snmp/agent/scalar.h",
+        "usr/include/net-snmp/agent/scalar_group.h": "include/net-snmp/agent/scalar_group.h",
+        "usr/include/net-snmp/agent/serialize.h": "include/net-snmp/agent/serialize.h",
+        "usr/include/net-snmp/agent/snmp_get_statistic.h": "include/net-snmp/agent/snmp_get_statistic.h",
+        "usr/include/net-snmp/agent/stash_cache.h": "include/net-snmp/agent/stash_cache.h",
+        "usr/include/net-snmp/agent/stash_to_next.h": "include/net-snmp/agent/stash_to_next.h",
+        "usr/include/net-snmp/agent/table_array.h": "include/net-snmp/agent/table_array.h",
+        "usr/include/net-snmp/agent/table_container.h": "include/net-snmp/agent/table_container.h",
+        "usr/include/net-snmp/agent/table.h": "include/net-snmp/agent/table.h",
+        "usr/include/net-snmp/agent/table_data.h": "include/net-snmp/agent/table_data.h",
+        "usr/include/net-snmp/agent/table_dataset.h": "include/net-snmp/agent/table_dataset.h",
+        "usr/include/net-snmp/agent/table_tdata.h": "include/net-snmp/agent/table_tdata.h",
+        "usr/include/net-snmp/agent/table_iterator.h": "include/net-snmp/agent/table_iterator.h",
+        "usr/include/net-snmp/agent/watcher.h": "include/net-snmp/agent/watcher.h",
+        "usr/include/net-snmp/agent/netsnmp_close_fds.h": "include/net-snmp/agent/netsnmp_close_fds.h",
+        "usr/include/net-snmp/agent/mfd.h": "include/net-snmp/agent/mfd.h",
+        "usr/include/net-snmp/agent/set_helper.h": "include/net-snmp/agent/set_helper.h",
+        "usr/include/net-snmp/agent/mib_module_config.h": "include/net-snmp/agent/mib_module_config.h",
+        "usr/include/net-snmp/agent/agent_module_config.h": "include/net-snmp/agent/agent_module_config.h",
+        "usr/include/net-snmp/agent/mib_module_includes.h": "agent/mibgroup/mib_module_includes.h",
+        "usr/include/ucd-snmp/agent_index.h": "include/ucd-snmp/agent_index.h",
+        "usr/include/ucd-snmp/agent_read_config.h": "include/ucd-snmp/agent_read_config.h",
+        "usr/include/ucd-snmp/agent_registry.h": "include/ucd-snmp/agent_registry.h",
+        "usr/include/ucd-snmp/agent_trap.h": "include/ucd-snmp/agent_trap.h",
+        "usr/include/ucd-snmp/auto_nlist.h": "include/ucd-snmp/auto_nlist.h",
+        "usr/include/ucd-snmp/ds_agent.h": "include/ucd-snmp/ds_agent.h",
+        "usr/include/ucd-snmp/header_complex.h": "include/ucd-snmp/header_complex.h",
+        "usr/include/ucd-snmp/mibincl.h": "include/ucd-snmp/mibincl.h",
+        "usr/include/ucd-snmp/snmp_agent.h": "include/ucd-snmp/snmp_agent.h",
+        "usr/include/ucd-snmp/ucd-snmp-includes.h": "include/ucd-snmp/ucd-snmp-includes.h",
+        "usr/include/ucd-snmp/ucd-snmp-agent-includes.h": "include/ucd-snmp/ucd-snmp-agent-includes.h",
+        "usr/include/ucd-snmp/util_funcs.h": "include/ucd-snmp/util_funcs.h",
+        "usr/include/ucd-snmp/var_struct.h": "include/ucd-snmp/var_struct.h",
+        "usr/include/net-snmp/agent/struct.h": "agent/mibgroup/struct.h",
+        "usr/include/net-snmp/agent/util_funcs.h": "agent/mibgroup/util_funcs.h",
+        "usr/include/net-snmp/agent/util_funcs/header_generic.h": "agent/mibgroup/util_funcs/header_generic.h",
+        "usr/include/net-snmp/agent/util_funcs/header_simple_table.h": "agent/mibgroup/util_funcs/header_simple_table.h",
+        "usr/include/net-snmp/agent/util_funcs/MIB_STATS_CACHE_TIMEOUT.h": "agent/mibgroup/util_funcs/MIB_STATS_CACHE_TIMEOUT.h",
+        "usr/include/net-snmp/config_api.h": "include/net-snmp/config_api.h",
+        "usr/include/net-snmp/definitions.h": "include/net-snmp/definitions.h",
+        "usr/include/net-snmp/mib_api.h": "include/net-snmp/mib_api.h",
+        "usr/include/net-snmp/net-snmp-includes.h": "include/net-snmp/net-snmp-includes.h",
+        "usr/include/net-snmp/output_api.h": "include/net-snmp/output_api.h",
+        "usr/include/net-snmp/pdu_api.h": "include/net-snmp/pdu_api.h",
+        "usr/include/net-snmp/session_api.h": "include/net-snmp/session_api.h",
+        "usr/include/net-snmp/snmpv3_api.h": "include/net-snmp/snmpv3_api.h",
+        "usr/include/net-snmp/types.h": "include/net-snmp/types.h",
+        "usr/include/net-snmp/utilities.h": "include/net-snmp/utilities.h",
+        "usr/include/net-snmp/varbind_api.h": "include/net-snmp/varbind_api.h",
+        "usr/include/net-snmp/library/README": "include/net-snmp/library/README",
+        "usr/include/net-snmp/library/asn1.h": "include/net-snmp/library/asn1.h",
+        "usr/include/net-snmp/library/callback.h": "include/net-snmp/library/callback.h",
+        "usr/include/net-snmp/library/cert_util.h": "include/net-snmp/library/cert_util.h",
+        "usr/include/net-snmp/library/check_varbind.h": "include/net-snmp/library/check_varbind.h",
+        "usr/include/net-snmp/library/container.h": "include/net-snmp/library/container.h",
+        "usr/include/net-snmp/library/container_binary_array.h": "include/net-snmp/library/container_binary_array.h",
+        "usr/include/net-snmp/library/container_iterator.h": "include/net-snmp/library/container_iterator.h",
+        "usr/include/net-snmp/library/container_list_ssll.h": "include/net-snmp/library/container_list_ssll.h",
+        "usr/include/net-snmp/library/container_null.h": "include/net-snmp/library/container_null.h",
+        "usr/include/net-snmp/library/data_list.h": "include/net-snmp/library/data_list.h",
+        "usr/include/net-snmp/library/default_store.h": "include/net-snmp/library/default_store.h",
+        "usr/include/net-snmp/library/dir_utils.h": "include/net-snmp/library/dir_utils.h",
+        "usr/include/net-snmp/library/fd_event_manager.h": "include/net-snmp/library/fd_event_manager.h",
+        "usr/include/net-snmp/library/file_utils.h": "include/net-snmp/library/file_utils.h",
+        "usr/include/net-snmp/library/getopt.h": "include/net-snmp/library/getopt.h",
+        "usr/include/net-snmp/library/int64.h": "include/net-snmp/library/int64.h",
+        "usr/include/net-snmp/library/keytools.h": "include/net-snmp/library/keytools.h",
+        "usr/include/net-snmp/library/large_fd_set.h": "include/net-snmp/library/large_fd_set.h",
+        "usr/include/net-snmp/library/lcd_time.h": "include/net-snmp/library/lcd_time.h",
+        "usr/include/net-snmp/library/md5.h": "include/net-snmp/library/md5.h",
+        "usr/include/net-snmp/library/mib.h": "include/net-snmp/library/mib.h",
+        "usr/include/net-snmp/library/mt_support.h": "include/net-snmp/library/mt_support.h",
+        "usr/include/net-snmp/library/netsnmp-attribute-format.h": "include/net-snmp/library/netsnmp-attribute-format.h",
+        "usr/include/net-snmp/library/oid.h": "include/net-snmp/library/oid.h",
+        "usr/include/net-snmp/library/oid_stash.h": "include/net-snmp/library/oid_stash.h",
+        "usr/include/net-snmp/library/parse.h": "include/net-snmp/library/parse.h",
+        "usr/include/net-snmp/library/read_config.h": "include/net-snmp/library/read_config.h",
+        "usr/include/net-snmp/library/scapi.h": "include/net-snmp/library/scapi.h",
+        "usr/include/net-snmp/library/snmp-tc.h": "include/net-snmp/library/snmp-tc.h",
+        "usr/include/net-snmp/library/snmp.h": "include/net-snmp/library/snmp.h",
+        "usr/include/net-snmp/library/snmp_alarm.h": "include/net-snmp/library/snmp_alarm.h",
+        "usr/include/net-snmp/library/snmp_api.h": "include/net-snmp/library/snmp_api.h",
+        "usr/include/net-snmp/library/snmp_assert.h": "include/net-snmp/library/snmp_assert.h",
+        "usr/include/net-snmp/library/snmp_client.h": "include/net-snmp/library/snmp_client.h",
+        "usr/include/net-snmp/library/snmp_debug.h": "include/net-snmp/library/snmp_debug.h",
+        "usr/include/net-snmp/library/snmp_enum.h": "include/net-snmp/library/snmp_enum.h",
+        "usr/include/net-snmp/library/snmp_impl.h": "include/net-snmp/library/snmp_impl.h",
+        "usr/include/net-snmp/library/snmp_logging.h": "include/net-snmp/library/snmp_logging.h",
+        "usr/include/net-snmp/library/snmp_parse_args.h": "include/net-snmp/library/snmp_parse_args.h",
+        "usr/include/net-snmp/library/snmp_secmod.h": "include/net-snmp/library/snmp_secmod.h",
+        "usr/include/net-snmp/library/snmp_service.h": "include/net-snmp/library/snmp_service.h",
+        "usr/include/net-snmp/library/snmp_transport.h": "include/net-snmp/library/snmp_transport.h",
+        "usr/include/net-snmp/library/snmpv3.h": "include/net-snmp/library/snmpv3.h",
+        "usr/include/net-snmp/library/system.h": "include/net-snmp/library/system.h",
+        "usr/include/net-snmp/library/text_utils.h": "include/net-snmp/library/text_utils.h",
+        "usr/include/net-snmp/library/tools.h": "include/net-snmp/library/tools.h",
+        "usr/include/net-snmp/library/transform_oids.h": "include/net-snmp/library/transform_oids.h",
+        "usr/include/net-snmp/library/types.h": "include/net-snmp/library/types.h",
+        "usr/include/net-snmp/library/ucd_compat.h": "include/net-snmp/library/ucd_compat.h",
+        "usr/include/net-snmp/library/vacm.h": "include/net-snmp/library/vacm.h",
+        "usr/include/net-snmp/library/winpipe.h": "include/net-snmp/library/winpipe.h",
+        "usr/include/net-snmp/library/winservice.h": "include/net-snmp/library/winservice.h",
+        "usr/include/net-snmp/library/snmpTLSBaseDomain.h": "include/net-snmp/library/snmpTLSBaseDomain.h",
+        "usr/include/net-snmp/library/snmpIPv6BaseDomain.h": "include/net-snmp/library/snmpIPv6BaseDomain.h",
+        "usr/include/net-snmp/library/snmpIPBaseDomain.h": "include/net-snmp/library/snmpIPBaseDomain.h",
+        "usr/include/net-snmp/library/snmpUDPBaseDomain.h": "include/net-snmp/library/snmpUDPBaseDomain.h",
+        "usr/include/net-snmp/library/snmpUDPIPv4BaseDomain.h": "include/net-snmp/library/snmpUDPIPv4BaseDomain.h",
+        "usr/include/net-snmp/library/snmpTCPBaseDomain.h": "include/net-snmp/library/snmpTCPBaseDomain.h",
+        "usr/include/net-snmp/library/snmpSocketBaseDomain.h": "include/net-snmp/library/snmpSocketBaseDomain.h",
+        "usr/include/net-snmp/library/snmpIPv4BaseDomain.h": "include/net-snmp/library/snmpIPv4BaseDomain.h",
+        "usr/include/net-snmp/library/snmpDTLSUDPDomain.h": "include/net-snmp/library/snmpDTLSUDPDomain.h",
+        "usr/include/net-snmp/library/snmpTLSTCPDomain.h": "include/net-snmp/library/snmpTLSTCPDomain.h",
+        "usr/include/net-snmp/library/snmpUDPIPv6Domain.h": "include/net-snmp/library/snmpUDPIPv6Domain.h",
+        "usr/include/net-snmp/library/snmpTCPIPv6Domain.h": "include/net-snmp/library/snmpTCPIPv6Domain.h",
+        "usr/include/net-snmp/library/snmpUDPDomain.h": "include/net-snmp/library/snmpUDPDomain.h",
+        "usr/include/net-snmp/library/snmpTCPDomain.h": "include/net-snmp/library/snmpTCPDomain.h",
+        "usr/include/net-snmp/library/snmpAliasDomain.h": "include/net-snmp/library/snmpAliasDomain.h",
+        "usr/include/net-snmp/library/snmpUnixDomain.h": "include/net-snmp/library/snmpUnixDomain.h",
+        "usr/include/net-snmp/library/snmpCallbackDomain.h": "include/net-snmp/library/snmpCallbackDomain.h",
+        "usr/include/net-snmp/library/snmptsm.h": "include/net-snmp/library/snmptsm.h",
+        "usr/include/net-snmp/library/snmpusm.h": "include/net-snmp/library/snmpusm.h",
+        "usr/include/net-snmp/library/snmpv3-security-includes.h": "include/net-snmp/library/snmpv3-security-includes.h",
+        "usr/include/ucd-snmp/asn1.h": "include/ucd-snmp/asn1.h",
+        "usr/include/ucd-snmp/callback.h": "include/ucd-snmp/callback.h",
+        "usr/include/ucd-snmp/default_store.h": "include/ucd-snmp/default_store.h",
+        "usr/include/ucd-snmp/int64.h": "include/ucd-snmp/int64.h",
+        "usr/include/ucd-snmp/keytools.h": "include/ucd-snmp/keytools.h",
+        "usr/include/ucd-snmp/mib.h": "include/ucd-snmp/mib.h",
+        "usr/include/ucd-snmp/parse.h": "include/ucd-snmp/parse.h",
+        "usr/include/ucd-snmp/read_config.h": "include/ucd-snmp/read_config.h",
+        "usr/include/ucd-snmp/scapi.h": "include/ucd-snmp/scapi.h",
+        "usr/include/ucd-snmp/snmp-tc.h": "include/ucd-snmp/snmp-tc.h",
+        "usr/include/ucd-snmp/snmp.h": "include/ucd-snmp/snmp.h",
+        "usr/include/ucd-snmp/snmp_alarm.h": "include/ucd-snmp/snmp_alarm.h",
+        "usr/include/ucd-snmp/snmp_api.h": "include/ucd-snmp/snmp_api.h",
+        "usr/include/ucd-snmp/snmp_client.h": "include/ucd-snmp/snmp_client.h",
+        "usr/include/ucd-snmp/snmp_debug.h": "include/ucd-snmp/snmp_debug.h",
+        "usr/include/ucd-snmp/snmp_impl.h": "include/ucd-snmp/snmp_impl.h",
+        "usr/include/ucd-snmp/snmp_logging.h": "include/ucd-snmp/snmp_logging.h",
+        "usr/include/ucd-snmp/snmp_parse_args.h": "include/ucd-snmp/snmp_parse_args.h",
+        "usr/include/ucd-snmp/snmp_vars.h": "include/ucd-snmp/snmp_vars.h",
+        "usr/include/ucd-snmp/snmpusm.h": "include/ucd-snmp/snmpusm.h",
+        "usr/include/ucd-snmp/snmpv3.h": "include/ucd-snmp/snmpv3.h",
+        "usr/include/ucd-snmp/struct.h": "include/ucd-snmp/struct.h",
+        "usr/include/ucd-snmp/system.h": "include/ucd-snmp/system.h",
+        "usr/include/ucd-snmp/tools.h": "include/ucd-snmp/tools.h",
+        "usr/include/ucd-snmp/transform_oids.h": "include/ucd-snmp/transform_oids.h",
+        "usr/include/net-snmp/util_funcs.h": "agent/mibgroup/util_funcs.h",
+        "usr/include/net-snmp/library/mibincl.h": "agent/mibgroup/mibincl.h",
+        "usr/include/net-snmp/agent/header_complex.h": "agent/mibgroup/header_complex.h"
+    },
+    "manuals": {
+        "MAN1": [
+            "snmpinform.1",
+            "snmp-bridge-mib.1",
+            "snmptop.1"
+        ],
+        "MAN1G": [
+            "agentxtrap.1",
+            "snmpbulkget.1",
+            "snmpcmd.1",
+            "snmpget.1",
+            "snmpset.1",
+            "snmpwalk.1",
+            "snmpbulkwalk.1",
+            "snmpgetnext.1",
+            "snmptest.1",
+            "snmptranslate.1",
+            "snmptrap.1",
+            "snmpusm.1",
+            "snmpvacm.1",
+            "snmptable.1",
+            "snmpstatus.1",
+            "snmpconf.1",
+            "mib2c.1",
+            "snmpnetstat.1",
+            "snmpdelta.1",
+            "snmpdf.1",
+            "snmpps.1",
+            "encode_keychange.1",
+            "fixproc.1",
+            "net-snmp-config.1",
+            "mib2c-update.1",
+            "tkmib.1",
+            "traptoemail.1",
+            "net-snmp-create-v3-user.1"
+        ],
+        "MAN3": [],
+        "MAN3G": [
+            "default_store.3",
+            "netsnmp_agent_api.3",
+            "netsnmp_mib_api.3",
+            "netsnmp_config_api.3",
+            "snmp_alarm.3",
+            "netsnmp_session_api.3",
+            "netsnmp_sess_api.3",
+            "netsnmp_trap_api.3",
+            "netsnmp_varbind_api.3",
+            "netsnmp_pdu_api.3"
+        ],
+        "MAN5G": [
+            "snmpd.conf.5",
+            "snmptrapd.conf.5",
+            "snmp.conf.5",
+            "snmp_config.5",
+            "variables.5",
+            "mib2c.conf.5",
+            "snmpd.examples.5",
+            "snmpd.internal.5"
+        ],
+        "MAN8G": [
+            "snmptrapd.8",
+            "snmpd.8"
+        ],
+        "MAN3_API": [
+            "netsnmp_mib_api.3",
+            "netsnmp_config_api.3",
+            "snmp_alarm.3",
+            "netsnmp_session_api.3",
+            "netsnmp_sess_api.3",
+            "netsnmp_trap_api.3",
+            "netsnmp_varbind_api.3",
+            "netsnmp_pdu_api.3"
+        ]
+    },
+    "aliases": {
+        "add_mibdir.3": "netsnmp_mib_api.3",
+        "add_module_replacement.3": "netsnmp_mib_api.3",
+        "fprint_description.3": "netsnmp_mib_api.3",
+        "fprint_objid.3": "netsnmp_mib_api.3",
+        "get_module_node.3": "netsnmp_mib_api.3",
+        "netsnmp_init_mib.3": "netsnmp_mib_api.3",
+        "netsnmp_read_module.3": "netsnmp_mib_api.3",
+        "print_description.3": "netsnmp_mib_api.3",
+        "print_mib.3": "netsnmp_mib_api.3",
+        "print_objid.3": "netsnmp_mib_api.3",
+        "read_all_mibs.3": "netsnmp_mib_api.3",
+        "read_mib.3": "netsnmp_mib_api.3",
+        "read_objid.3": "netsnmp_mib_api.3",
+        "shutdown_mib.3": "netsnmp_mib_api.3",
+        "snmp_parse_oid.3": "netsnmp_mib_api.3",
+        "snmp_set_mib_errors.3": "netsnmp_mib_api.3",
+        "snmp_set_mib_warnings.3": "netsnmp_mib_api.3",
+        "snmp_set_save_descriptions.3": "netsnmp_mib_api.3",
+        "snprint_description.3": "netsnmp_mib_api.3",
+        "snprint_objid.3": "netsnmp_mib_api.3",
+        "config_perror.3": "netsnmp_config_api.3",
+        "config_pwarn.3": "netsnmp_config_api.3",
+        "read_config_print_usage.3": "netsnmp_config_api.3",
+        "read_configs.3": "netsnmp_config_api.3",
+        "read_premib_configs.3": "netsnmp_config_api.3",
+        "register_app_config_handler.3": "netsnmp_config_api.3",
+        "register_app_prenetsnmp_mib_handler.3": "netsnmp_config_api.3",
+        "register_config_handler.3": "netsnmp_config_api.3",
+        "register_const_config_handler.3": "netsnmp_config_api.3",
+        "register_mib_handlers.3": "netsnmp_config_api.3",
+        "register_prenetsnmp_mib_handler.3": "netsnmp_config_api.3",
+        "unregister_all_config_handlers.3": "netsnmp_config_api.3",
+        "unregister_app_config_handler.3": "netsnmp_config_api.3",
+        "unregister_config_handler.3": "netsnmp_config_api.3",
+        "snmp_alarm_register.3": "snmp_alarm.3",
+        "snmp_alarm_register_hr.3": "snmp_alarm.3",
+        "snmp_alarm_unregister.3": "snmp_alarm.3",
+        "snmp_api_errstring.3": "netsnmp_session_api.3",
+        "snmp_close.3": "netsnmp_session_api.3",
+        "snmp_error.3": "netsnmp_session_api.3",
+        "snmp_open.3": "netsnmp_session_api.3",
+        "snmp_perror.3": "netsnmp_session_api.3",
+        "snmp_read.3": "netsnmp_session_api.3",
+        "snmp_select_info.3": "netsnmp_session_api.3",
+        "snmp_send.3": "netsnmp_session_api.3",
+        "snmp_sess_perror.3": "netsnmp_session_api.3",
+        "snmp_timeout.3": "netsnmp_session_api.3",
+        "snmp_async_send.3": "netsnmp_session_api.3",
+        "snmp_synch_response.3": "netsnmp_session_api.3",
+        "snmp_sess_async_send.3": "netsnmp_sess_api.3",
+        "snmp_sess_close.3": "netsnmp_sess_api.3",
+        "snmp_sess_error.3": "netsnmp_sess_api.3",
+        "snmp_sess_init.3": "netsnmp_sess_api.3",
+        "snmp_sess_open.3": "netsnmp_sess_api.3",
+        "snmp_sess_read.3": "netsnmp_sess_api.3",
+        "snmp_sess_select_info.3": "netsnmp_sess_api.3",
+        "snmp_sess_send.3": "netsnmp_sess_api.3",
+        "snmp_sess_session.3": "netsnmp_sess_api.3",
+        "snmp_sess_timeout.3": "netsnmp_sess_api.3",
+        "snmp_sess_synch_response.3": "netsnmp_sess_api.3",
+        "send_easy_trap.3": "netsnmp_trap_api.3",
+        "send_trap_vars.3": "netsnmp_trap_api.3",
+        "send_v2trap.3": "netsnmp_trap_api.3",
+        "fprint_value.3": "netsnmp_varbind_api.3",
+        "fprint_variable.3": "netsnmp_varbind_api.3",
+        "print_value.3": "netsnmp_varbind_api.3",
+        "print_variable.3": "netsnmp_varbind_api.3",
+        "snmp_add_null_var.3": "netsnmp_varbind_api.3",
+        "snmp_clone_varbind.3": "netsnmp_varbind_api.3",
+        "snmp_free_var.3": "netsnmp_varbind_api.3",
+        "snmp_free_varbind.3": "netsnmp_varbind_api.3",
+        "snmp_pdu_add_variable.3": "netsnmp_varbind_api.3",
+        "snmp_set_var_objid.3": "netsnmp_varbind_api.3",
+        "snmp_set_var_typed_integer.3": "netsnmp_varbind_api.3",
+        "snmp_set_var_typed_value.3": "netsnmp_varbind_api.3",
+        "snmp_set_var_value.3": "netsnmp_varbind_api.3",
+        "snmp_varlist_add_variable.3": "netsnmp_varbind_api.3",
+        "snprint_value.3": "netsnmp_varbind_api.3",
+        "snprint_variable.3": "netsnmp_varbind_api.3",
+        "snmp_clone_pdu.3": "netsnmp_pdu_api.3",
+        "snmp_fix_pdu.3": "netsnmp_pdu_api.3",
+        "snmp_free_pdu.3": "netsnmp_pdu_api.3",
+        "snmp_pdu_create.3": "netsnmp_pdu_api.3"
+    },
+    "selectors": {
+        "libsnmp-base": [
+            "usr/share/snmp/mibs/*",
+            "usr/share/snmp/mib2c-data",
+            "usr/share/man/man5/mib2c.conf.5",
+            "usr/share/man/man5/snmp.conf.5",
+            "usr/share/man/man5/snmp_config.5",
+            "usr/share/man/man5/snmpd.examples.5",
+            "usr/share/man/man5/snmpd.internal.5",
+            "usr/share/man/man5/variables.5"
+        ],
+        "libsnmp40": [
+            "usr/lib/*/libnetsnmp.so.*",
+            "usr/lib/*/libnetsnmpagent.so.*",
+            "usr/lib/*/libnetsnmphelpers.so.*",
+            "usr/lib/*/libnetsnmpmibs.so.*",
+            "usr/lib/*/libsnmp.so.*"
+        ],
+        "libnetsnmptrapd40": [
+            "usr/lib/*/libnetsnmptrapd.so.*"
+        ],
+        "libsnmp-dev": [
+            "usr/share/snmp/mib2c*.conf",
+            "usr/bin/mib2c",
+            "usr/bin/mib2c-update",
+            "usr/include/*",
+            "usr/lib/*/lib*.so",
+            "usr/lib/*/pkgconfig/netsnmp-agent.pc",
+            "usr/lib/*/pkgconfig/netsnmp.pc",
+            "usr/bin/net-snmp-config",
+            "usr/share/man/man1/net-snmp-config.1",
+            "usr/share/man/man1/mib2c.1",
+            "usr/share/man/man1/mib2c-update.1",
+            "usr/share/man/man3/*.3"
+        ],
+        "libsnmp-perl": [
+            "usr/share/man/man3/*.3pm"
+        ],
+        "snmp": [
+            "usr/bin/agentxtrap",
+            "usr/bin/snmp*",
+            "usr/bin/encode*",
+            "usr/bin/fixproc",
+            "usr/share/snmp/snmpconf-data/snmp-data",
+            "usr/share/man/man1/agentxtrap.1",
+            "usr/share/man/man1/snmp*.1",
+            "usr/share/man/man1/encode*.1",
+            "usr/share/man/man1/fixproc.1"
+        ],
+        "snmpd": [
+            "usr/sbin/snmpd",
+            "usr/share/snmp/snmpconf-data/snmpd-data",
+            "usr/share/snmp/snmp_perl.pl",
+            "usr/bin/net-snmp-create-v3-user",
+            "usr/share/man/man1/net-snmp-create-v3-user.1",
+            "usr/share/man/man5/snmpd.conf.5",
+            "usr/share/man/man8/snmpd.8"
+        ],
+        "snmptrapd": [
+            "usr/bin/traptoemail",
+            "usr/sbin/snmptrapd",
+            "usr/share/snmp/snmpconf-data/snmptrapd-data",
+            "usr/share/snmp/snmp_perl_trapd.pl",
+            "usr/share/man/man1/traptoemail.1",
+            "usr/share/man/man5/snmptrapd.conf.5",
+            "usr/share/man/man8/snmptrapd.8"
+        ],
+        "tkmib": [
+            "usr/bin/tkmib",
+            "usr/share/man/man1/tkmib.1"
+        ]
+    },
+    "man_extras": {
+        "libsnmp-base": {},
+        "libsnmp40": {},
+        "libnetsnmptrapd40": {},
+        "libsnmp-dev": {},
+        "libsnmp-perl": {},
+        "snmp": {
+            "usr/share/man/man1/snmpcheck.1": "debian/snmpcheck.1",
+            "usr/share/man/man1/snmpping.1": "debian/snmpping.1"
+        },
+        "snmpd": {},
+        "snmptrapd": {},
+        "tkmib": {}
+    },
+    "examples": {
+        "libsnmp-base": {},
+        "libsnmp40": {},
+        "libnetsnmptrapd40": {},
+        "libsnmp-dev": {},
+        "libsnmp-perl": {
+            "usr/share/doc/libsnmp-perl/examples/async1.pl": {
+                "source": "perl/SNMP/examples/async1.pl",
+                "mode": 420
+            },
+            "usr/share/doc/libsnmp-perl/examples/async2.pl": {
+                "source": "perl/SNMP/examples/async2.pl",
+                "mode": 420
+            },
+            "usr/share/doc/libsnmp-perl/examples/bulkwalk.pl": {
+                "source": "perl/SNMP/examples/bulkwalk.pl",
+                "mode": 420
+            },
+            "usr/share/doc/libsnmp-perl/examples/ipforward.pl": {
+                "source": "perl/SNMP/examples/ipforward.pl",
+                "mode": 420
+            },
+            "usr/share/doc/libsnmp-perl/examples/mibtree.pl": {
+                "source": "perl/SNMP/examples/mibtree.pl",
+                "mode": 420
+            },
+            "usr/share/doc/libsnmp-perl/examples/mibwalk.pl": {
+                "source": "perl/SNMP/examples/mibwalk.pl",
+                "mode": 420
+            },
+            "usr/share/doc/libsnmp-perl/examples/pingmib.pl": {
+                "source": "perl/SNMP/examples/pingmib.pl",
+                "mode": 493
+            },
+            "usr/share/doc/libsnmp-perl/examples/tablewalk.pl": {
+                "source": "perl/SNMP/examples/tablewalk.pl",
+                "mode": 420
+            },
+            "usr/share/doc/libsnmp-perl/examples/testleak.pl": {
+                "source": "perl/SNMP/examples/testleak.pl",
+                "mode": 420
+            },
+            "usr/share/doc/libsnmp-perl/examples/trap-example.pl": {
+                "source": "perl/SNMP/examples/trap-example.pl",
+                "mode": 420
+            }
+        },
+        "snmp": {},
+        "snmpd": {},
+        "snmptrapd": {},
+        "tkmib": {}
+    },
+    "scripts": {
+        "snmpcheck": {
+            "source": "local/snmpcheck.def",
+            "configure": False,
+            "destination": "usr/bin/snmpcheck",
+            "package": "snmp",
+            "perl": True,
+            "sedscript": True
+        },
+        "tkmib": {
+            "source": "local/tkmib",
+            "configure": False,
+            "destination": "usr/bin/tkmib",
+            "package": "tkmib",
+            "perl": True,
+            "sedscript": False
+        },
+        "mib2c": {
+            "source": "local/mib2c",
+            "configure": False,
+            "destination": "usr/bin/mib2c",
+            "package": "libsnmp-dev",
+            "perl": True,
+            "sedscript": False
+        },
+        "fixproc": {
+            "source": "local/fixproc",
+            "configure": False,
+            "destination": "usr/bin/fixproc",
+            "package": "snmp",
+            "perl": True,
+            "sedscript": False
+        },
+        "snmpconf": {
+            "source": "local/snmpconf.in",
+            "configure": True,
+            "destination": "usr/bin/snmpconf",
+            "package": "snmp",
+            "perl": True,
+            "sedscript": False
+        },
+        "traptoemail": {
+            "source": "local/traptoemail",
+            "configure": False,
+            "destination": "usr/bin/traptoemail",
+            "package": "snmptrapd",
+            "perl": True,
+            "sedscript": False
+        },
+        "snmp-bridge-mib": {
+            "source": "local/snmp-bridge-mib",
+            "configure": False,
+            "destination": "usr/bin/snmp-bridge-mib",
+            "package": "snmp",
+            "perl": True,
+            "sedscript": False
+        },
+        "net-snmp-cert": {
+            "source": "local/net-snmp-cert",
+            "configure": False,
+            "destination": "usr/share/doc/libsnmp-perl/examples/net-snmp-cert",
+            "package": "libsnmp-perl",
+            "perl": True,
+            "sedscript": False
+        },
+        "checkbandwidth": {
+            "source": "local/checkbandwidth",
+            "configure": False,
+            "destination": "usr/share/doc/libsnmp-perl/examples/checkbandwidth",
+            "package": "libsnmp-perl",
+            "perl": True,
+            "sedscript": False
+        },
+        "mib2c-update": {
+            "source": "local/mib2c-update",
+            "configure": False,
+            "destination": "usr/bin/mib2c-update",
+            "package": "libsnmp-dev",
+            "perl": False,
+            "sedscript": False
+        }
+    }
+}
+
+pkg_tar(
+    name = "libsnmp-base",
+    files = {
+        "@net_snmp_source//:mibs/NET-SNMP-TC.txt": "usr/share/snmp/mibs/NET-SNMP-TC.txt",
+        "@net_snmp_source//:mibs/NET-SNMP-MIB.txt": "usr/share/snmp/mibs/NET-SNMP-MIB.txt",
+        "@net_snmp_source//:mibs/NET-SNMP-AGENT-MIB.txt": "usr/share/snmp/mibs/NET-SNMP-AGENT-MIB.txt",
+        "@net_snmp_source//:mibs/NET-SNMP-EXAMPLES-MIB.txt": "usr/share/snmp/mibs/NET-SNMP-EXAMPLES-MIB.txt",
+        "@net_snmp_source//:mibs/NET-SNMP-EXTEND-MIB.txt": "usr/share/snmp/mibs/NET-SNMP-EXTEND-MIB.txt",
+        "@net_snmp_source//:mibs/NET-SNMP-PASS-MIB.txt": "usr/share/snmp/mibs/NET-SNMP-PASS-MIB.txt",
+        "@net_snmp_source//:mibs/UCD-SNMP-MIB.txt": "usr/share/snmp/mibs/UCD-SNMP-MIB.txt",
+        "@net_snmp_source//:mibs/UCD-DEMO-MIB.txt": "usr/share/snmp/mibs/UCD-DEMO-MIB.txt",
+        "@net_snmp_source//:mibs/UCD-IPFWACC-MIB.txt": "usr/share/snmp/mibs/UCD-IPFWACC-MIB.txt",
+        "@net_snmp_source//:mibs/UCD-DLMOD-MIB.txt": "usr/share/snmp/mibs/UCD-DLMOD-MIB.txt",
+        "@net_snmp_source//:mibs/UCD-DISKIO-MIB.txt": "usr/share/snmp/mibs/UCD-DISKIO-MIB.txt",
+        "@net_snmp_source//:mibs/LM-SENSORS-MIB.txt": "usr/share/snmp/mibs/LM-SENSORS-MIB.txt",
+        "@net_snmp_source//:mibs/NET-SNMP-VACM-MIB.txt": "usr/share/snmp/mibs/NET-SNMP-VACM-MIB.txt",
+        "@net_snmp_source//:local/mib2c-conf.d/default-mfd-top.m2c": "usr/share/snmp/mib2c-data/default-mfd-top.m2c",
+        "@net_snmp_source//:local/mib2c-conf.d/details-enums.m2i": "usr/share/snmp/mib2c-data/details-enums.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/details-node.m2i": "usr/share/snmp/mib2c-data/details-node.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/details-table.m2i": "usr/share/snmp/mib2c-data/details-table.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/generic-ctx-copy.m2i": "usr/share/snmp/mib2c-data/generic-ctx-copy.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/generic-ctx-get.m2i": "usr/share/snmp/mib2c-data/generic-ctx-get.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/generic-ctx-set.m2i": "usr/share/snmp/mib2c-data/generic-ctx-set.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/generic-data-allocate.m2i": "usr/share/snmp/mib2c-data/generic-data-allocate.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/generic-data-context.m2i": "usr/share/snmp/mib2c-data/generic-data-context.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/generic-get-char.m2i": "usr/share/snmp/mib2c-data/generic-get-char.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/generic-get-decl-bot.m2i": "usr/share/snmp/mib2c-data/generic-get-decl-bot.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/generic-get-decl.m2i": "usr/share/snmp/mib2c-data/generic-get-decl.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/generic-get-long.m2i": "usr/share/snmp/mib2c-data/generic-get-long.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/generic-get-oid.m2i": "usr/share/snmp/mib2c-data/generic-get-oid.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/generic-get-U64.m2i": "usr/share/snmp/mib2c-data/generic-get-U64.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/generic-header-bottom.m2i": "usr/share/snmp/mib2c-data/generic-header-bottom.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/generic-header-top.m2i": "usr/share/snmp/mib2c-data/generic-header-top.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/generic-source-includes.m2i": "usr/share/snmp/mib2c-data/generic-source-includes.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/generic-table-constants.m2c": "usr/share/snmp/mib2c-data/generic-table-constants.m2c",
+        "@net_snmp_source//:local/mib2c-conf.d/generic-table-enums.m2c": "usr/share/snmp/mib2c-data/generic-table-enums.m2c",
+        "@net_snmp_source//:local/mib2c-conf.d/generic-table-indexes-from-oid.m2i": "usr/share/snmp/mib2c-data/generic-table-indexes-from-oid.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/generic-table-indexes-set.m2i": "usr/share/snmp/mib2c-data/generic-table-indexes-set.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/generic-table-indexes-to-oid.m2i": "usr/share/snmp/mib2c-data/generic-table-indexes-to-oid.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/generic-table-indexes-varbind-setup.m2i": "usr/share/snmp/mib2c-data/generic-table-indexes-varbind-setup.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/generic-table-indexes.m2i": "usr/share/snmp/mib2c-data/generic-table-indexes.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/generic-table-oids.m2c": "usr/share/snmp/mib2c-data/generic-table-oids.m2c",
+        "@net_snmp_source//:local/mib2c-conf.d/generic-value-map-func.m2i": "usr/share/snmp/mib2c-data/generic-value-map-func.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/generic-value-map-reverse.m2i": "usr/share/snmp/mib2c-data/generic-value-map-reverse.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/generic-value-map.m2i": "usr/share/snmp/mib2c-data/generic-value-map.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/m2c-internal-warning.m2i": "usr/share/snmp/mib2c-data/m2c-internal-warning.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/m2c_setup_enum.m2i": "usr/share/snmp/mib2c-data/m2c_setup_enum.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/m2c_setup_node.m2i": "usr/share/snmp/mib2c-data/m2c_setup_node.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/m2c_setup_table.m2i": "usr/share/snmp/mib2c-data/m2c_setup_table.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/m2c_table_save_defaults.m2i": "usr/share/snmp/mib2c-data/m2c_table_save_defaults.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/mfd-access-container-cached-defines.m2i": "usr/share/snmp/mib2c-data/mfd-access-container-cached-defines.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/mfd-access-unsorted-external-defines.m2i": "usr/share/snmp/mib2c-data/mfd-access-unsorted-external-defines.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/mfd-data-access.m2c": "usr/share/snmp/mib2c-data/mfd-data-access.m2c",
+        "@net_snmp_source//:local/mib2c-conf.d/mfd-data-get.m2c": "usr/share/snmp/mib2c-data/mfd-data-get.m2c",
+        "@net_snmp_source//:local/mib2c-conf.d/mfd-data-set.m2c": "usr/share/snmp/mib2c-data/mfd-data-set.m2c",
+        "@net_snmp_source//:local/mib2c-conf.d/mfd-doxygen.m2c": "usr/share/snmp/mib2c-data/mfd-doxygen.m2c",
+        "@net_snmp_source//:local/mib2c-conf.d/mfd-interactive-setup.m2c": "usr/share/snmp/mib2c-data/mfd-interactive-setup.m2c",
+        "@net_snmp_source//:local/mib2c-conf.d/mfd-interface.m2c": "usr/share/snmp/mib2c-data/mfd-interface.m2c",
+        "@net_snmp_source//:local/mib2c-conf.d/mfd-makefile.m2m": "usr/share/snmp/mib2c-data/mfd-makefile.m2m",
+        "@net_snmp_source//:local/mib2c-conf.d/mfd-readme.m2c": "usr/share/snmp/mib2c-data/mfd-readme.m2c",
+        "@net_snmp_source//:local/mib2c-conf.d/mfd-top.m2c": "usr/share/snmp/mib2c-data/mfd-top.m2c",
+        "@net_snmp_source//:local/mib2c-conf.d/mfd-persistence.m2i": "usr/share/snmp/mib2c-data/mfd-persistence.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/node-get.m2i": "usr/share/snmp/mib2c-data/node-get.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/node-set.m2i": "usr/share/snmp/mib2c-data/node-set.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/node-storage.m2i": "usr/share/snmp/mib2c-data/node-storage.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/node-validate.m2i": "usr/share/snmp/mib2c-data/node-validate.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/node-varbind-validate.m2i": "usr/share/snmp/mib2c-data/node-varbind-validate.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/parent-dependencies.m2i": "usr/share/snmp/mib2c-data/parent-dependencies.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/parent-set.m2i": "usr/share/snmp/mib2c-data/parent-set.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/subagent.m2c": "usr/share/snmp/mib2c-data/subagent.m2c",
+        "@net_snmp_source//:local/mib2c-conf.d/syntax-COUNTER64-get.m2i": "usr/share/snmp/mib2c-data/syntax-COUNTER64-get.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/syntax-DateAndTime-get.m2d": "usr/share/snmp/mib2c-data/syntax-DateAndTime-get.m2d",
+        "@net_snmp_source//:local/mib2c-conf.d/syntax-DateAndTime-get.m2i": "usr/share/snmp/mib2c-data/syntax-DateAndTime-get.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/syntax-DateAndTime-readme.m2i": "usr/share/snmp/mib2c-data/syntax-DateAndTime-readme.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/syntax-InetAddress-get.m2i": "usr/share/snmp/mib2c-data/syntax-InetAddress-get.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/syntax-InetAddress-set.m2i": "usr/share/snmp/mib2c-data/syntax-InetAddress-set.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/syntax-InetAddressType-get.m2i": "usr/share/snmp/mib2c-data/syntax-InetAddressType-get.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/syntax-InetAddressType-set.m2i": "usr/share/snmp/mib2c-data/syntax-InetAddressType-set.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/syntax-RowStatus-dependencies.m2i": "usr/share/snmp/mib2c-data/syntax-RowStatus-dependencies.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/syntax-RowStatus-get.m2i": "usr/share/snmp/mib2c-data/syntax-RowStatus-get.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/syntax-RowStatus-varbind-validate.m2i": "usr/share/snmp/mib2c-data/syntax-RowStatus-varbind-validate.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/syntax-StorageType-dependencies.m2i": "usr/share/snmp/mib2c-data/syntax-StorageType-dependencies.m2i",
+        "@net_snmp_source//:local/mib2c-conf.d/syntax-TestAndIncr-get.m2i": "usr/share/snmp/mib2c-data/syntax-TestAndIncr-get.m2i",
+        "@net_snmp_source//:debian/snmp.conf": "etc/snmp/snmp.conf",
+    },
+    modes = {
+        "usr/share/snmp/mibs/NET-SNMP-TC.txt": "0644",
+        "usr/share/snmp/mibs/NET-SNMP-MIB.txt": "0644",
+        "usr/share/snmp/mibs/NET-SNMP-AGENT-MIB.txt": "0644",
+        "usr/share/snmp/mibs/NET-SNMP-EXAMPLES-MIB.txt": "0644",
+        "usr/share/snmp/mibs/NET-SNMP-EXTEND-MIB.txt": "0644",
+        "usr/share/snmp/mibs/NET-SNMP-PASS-MIB.txt": "0644",
+        "usr/share/snmp/mibs/UCD-SNMP-MIB.txt": "0644",
+        "usr/share/snmp/mibs/UCD-DEMO-MIB.txt": "0644",
+        "usr/share/snmp/mibs/UCD-IPFWACC-MIB.txt": "0644",
+        "usr/share/snmp/mibs/UCD-DLMOD-MIB.txt": "0644",
+        "usr/share/snmp/mibs/UCD-DISKIO-MIB.txt": "0644",
+        "usr/share/snmp/mibs/LM-SENSORS-MIB.txt": "0644",
+        "usr/share/snmp/mibs/NET-SNMP-VACM-MIB.txt": "0644",
+        "usr/share/snmp/mib2c-data/default-mfd-top.m2c": "0644",
+        "usr/share/snmp/mib2c-data/details-enums.m2i": "0644",
+        "usr/share/snmp/mib2c-data/details-node.m2i": "0644",
+        "usr/share/snmp/mib2c-data/details-table.m2i": "0644",
+        "usr/share/snmp/mib2c-data/generic-ctx-copy.m2i": "0644",
+        "usr/share/snmp/mib2c-data/generic-ctx-get.m2i": "0644",
+        "usr/share/snmp/mib2c-data/generic-ctx-set.m2i": "0644",
+        "usr/share/snmp/mib2c-data/generic-data-allocate.m2i": "0644",
+        "usr/share/snmp/mib2c-data/generic-data-context.m2i": "0644",
+        "usr/share/snmp/mib2c-data/generic-get-char.m2i": "0644",
+        "usr/share/snmp/mib2c-data/generic-get-decl-bot.m2i": "0644",
+        "usr/share/snmp/mib2c-data/generic-get-decl.m2i": "0644",
+        "usr/share/snmp/mib2c-data/generic-get-long.m2i": "0644",
+        "usr/share/snmp/mib2c-data/generic-get-oid.m2i": "0644",
+        "usr/share/snmp/mib2c-data/generic-get-U64.m2i": "0644",
+        "usr/share/snmp/mib2c-data/generic-header-bottom.m2i": "0644",
+        "usr/share/snmp/mib2c-data/generic-header-top.m2i": "0644",
+        "usr/share/snmp/mib2c-data/generic-source-includes.m2i": "0644",
+        "usr/share/snmp/mib2c-data/generic-table-constants.m2c": "0644",
+        "usr/share/snmp/mib2c-data/generic-table-enums.m2c": "0644",
+        "usr/share/snmp/mib2c-data/generic-table-indexes-from-oid.m2i": "0644",
+        "usr/share/snmp/mib2c-data/generic-table-indexes-set.m2i": "0644",
+        "usr/share/snmp/mib2c-data/generic-table-indexes-to-oid.m2i": "0644",
+        "usr/share/snmp/mib2c-data/generic-table-indexes-varbind-setup.m2i": "0644",
+        "usr/share/snmp/mib2c-data/generic-table-indexes.m2i": "0644",
+        "usr/share/snmp/mib2c-data/generic-table-oids.m2c": "0644",
+        "usr/share/snmp/mib2c-data/generic-value-map-func.m2i": "0644",
+        "usr/share/snmp/mib2c-data/generic-value-map-reverse.m2i": "0644",
+        "usr/share/snmp/mib2c-data/generic-value-map.m2i": "0644",
+        "usr/share/snmp/mib2c-data/m2c-internal-warning.m2i": "0644",
+        "usr/share/snmp/mib2c-data/m2c_setup_enum.m2i": "0644",
+        "usr/share/snmp/mib2c-data/m2c_setup_node.m2i": "0644",
+        "usr/share/snmp/mib2c-data/m2c_setup_table.m2i": "0644",
+        "usr/share/snmp/mib2c-data/m2c_table_save_defaults.m2i": "0644",
+        "usr/share/snmp/mib2c-data/mfd-access-container-cached-defines.m2i": "0644",
+        "usr/share/snmp/mib2c-data/mfd-access-unsorted-external-defines.m2i": "0644",
+        "usr/share/snmp/mib2c-data/mfd-data-access.m2c": "0644",
+        "usr/share/snmp/mib2c-data/mfd-data-get.m2c": "0644",
+        "usr/share/snmp/mib2c-data/mfd-data-set.m2c": "0644",
+        "usr/share/snmp/mib2c-data/mfd-doxygen.m2c": "0644",
+        "usr/share/snmp/mib2c-data/mfd-interactive-setup.m2c": "0644",
+        "usr/share/snmp/mib2c-data/mfd-interface.m2c": "0644",
+        "usr/share/snmp/mib2c-data/mfd-makefile.m2m": "0644",
+        "usr/share/snmp/mib2c-data/mfd-readme.m2c": "0644",
+        "usr/share/snmp/mib2c-data/mfd-top.m2c": "0644",
+        "usr/share/snmp/mib2c-data/mfd-persistence.m2i": "0644",
+        "usr/share/snmp/mib2c-data/node-get.m2i": "0644",
+        "usr/share/snmp/mib2c-data/node-set.m2i": "0644",
+        "usr/share/snmp/mib2c-data/node-storage.m2i": "0644",
+        "usr/share/snmp/mib2c-data/node-validate.m2i": "0644",
+        "usr/share/snmp/mib2c-data/node-varbind-validate.m2i": "0644",
+        "usr/share/snmp/mib2c-data/parent-dependencies.m2i": "0644",
+        "usr/share/snmp/mib2c-data/parent-set.m2i": "0644",
+        "usr/share/snmp/mib2c-data/subagent.m2c": "0644",
+        "usr/share/snmp/mib2c-data/syntax-COUNTER64-get.m2i": "0644",
+        "usr/share/snmp/mib2c-data/syntax-DateAndTime-get.m2d": "0644",
+        "usr/share/snmp/mib2c-data/syntax-DateAndTime-get.m2i": "0644",
+        "usr/share/snmp/mib2c-data/syntax-DateAndTime-readme.m2i": "0644",
+        "usr/share/snmp/mib2c-data/syntax-InetAddress-get.m2i": "0644",
+        "usr/share/snmp/mib2c-data/syntax-InetAddress-set.m2i": "0644",
+        "usr/share/snmp/mib2c-data/syntax-InetAddressType-get.m2i": "0644",
+        "usr/share/snmp/mib2c-data/syntax-InetAddressType-set.m2i": "0644",
+        "usr/share/snmp/mib2c-data/syntax-RowStatus-dependencies.m2i": "0644",
+        "usr/share/snmp/mib2c-data/syntax-RowStatus-get.m2i": "0644",
+        "usr/share/snmp/mib2c-data/syntax-RowStatus-varbind-validate.m2i": "0644",
+        "usr/share/snmp/mib2c-data/syntax-StorageType-dependencies.m2i": "0644",
+        "usr/share/snmp/mib2c-data/syntax-TestAndIncr-get.m2i": "0644",
+        "etc/snmp/snmp.conf": "0644",
+    },
+    mode = "0644",
+    owner = "0.0",
+    ownername = "root.root",
+    mtime = 0,
+    portable_mtime = False,
+    create_parents = False,
+)
+
+pkg_tar(
+    name = "libsnmp40",
+    files = {
+    },
+    modes = {
+    },
+    mode = "0644",
+    owner = "0.0",
+    ownername = "root.root",
+    mtime = 0,
+    portable_mtime = False,
+    create_parents = False,
+)
+
+pkg_tar(
+    name = "libnetsnmptrapd40",
+    files = {
+    },
+    modes = {
+    },
+    mode = "0644",
+    owner = "0.0",
+    ownername = "root.root",
+    mtime = 0,
+    portable_mtime = False,
+    create_parents = False,
+)
+
+pkg_tar(
+    name = "libsnmp-dev",
+    files = {
+        "@net_snmp_source//:local/mib2c.conf": "etc/snmp/mib2c.conf",
+        "@net_snmp_source//:local/mib2c.iterate.conf": "etc/snmp/mib2c.iterate.conf",
+        "@net_snmp_source//:local/mib2c.iterate_access.conf": "etc/snmp/mib2c.iterate_access.conf",
+        "@net_snmp_source//:local/mib2c.create-dataset.conf": "etc/snmp/mib2c.create-dataset.conf",
+        "@net_snmp_source//:local/mib2c.mfd.conf": "etc/snmp/mib2c.mfd.conf",
+        "@net_snmp_source//:local/mib2c.array-user.conf": "etc/snmp/mib2c.array-user.conf",
+        "@net_snmp_source//:local/mib2c.column_enums.conf": "etc/snmp/mib2c.column_enums.conf",
+        "@net_snmp_source//:local/mib2c.column_defines.conf": "etc/snmp/mib2c.column_defines.conf",
+        "@net_snmp_source//:local/mib2c.column_storage.conf": "etc/snmp/mib2c.column_storage.conf",
+        "@net_snmp_source//:local/mib2c.old-api.conf": "etc/snmp/mib2c.old-api.conf",
+        "@net_snmp_source//:local/mib2c.scalar.conf": "etc/snmp/mib2c.scalar.conf",
+        "@net_snmp_source//:local/mib2c.check_values.conf": "etc/snmp/mib2c.check_values.conf",
+        "@net_snmp_source//:local/mib2c.check_values_local.conf": "etc/snmp/mib2c.check_values_local.conf",
+        "@net_snmp_source//:local/mib2c.access_functions.conf": "etc/snmp/mib2c.access_functions.conf",
+        "@net_snmp_source//:local/mib2c.notify.conf": "etc/snmp/mib2c.notify.conf",
+        "@net_snmp_source//:local/mib2c.int_watch.conf": "etc/snmp/mib2c.int_watch.conf",
+        "@net_snmp_source//:local/mib2c.genhtml.conf": "etc/snmp/mib2c.genhtml.conf",
+        "@net_snmp_source//:local/mib2c.org-mode.conf": "etc/snmp/mib2c.org-mode.conf",
+        "@net_snmp_source//:local/mib2c.raw-table.conf": "etc/snmp/mib2c.raw-table.conf",
+        "@net_snmp_source//:local/mib2c.table_data.conf": "etc/snmp/mib2c.table_data.conf",
+        "@net_snmp_source//:local/mib2c.container.conf": "etc/snmp/mib2c.container.conf",
+        "@net_snmp_source//:local/mib2c.perl.conf": "etc/snmp/mib2c.perl.conf",
+    },
+    modes = {
+        "etc/snmp/mib2c.conf": "0644",
+        "etc/snmp/mib2c.iterate.conf": "0644",
+        "etc/snmp/mib2c.iterate_access.conf": "0644",
+        "etc/snmp/mib2c.create-dataset.conf": "0644",
+        "etc/snmp/mib2c.mfd.conf": "0644",
+        "etc/snmp/mib2c.array-user.conf": "0644",
+        "etc/snmp/mib2c.column_enums.conf": "0644",
+        "etc/snmp/mib2c.column_defines.conf": "0644",
+        "etc/snmp/mib2c.column_storage.conf": "0644",
+        "etc/snmp/mib2c.old-api.conf": "0644",
+        "etc/snmp/mib2c.scalar.conf": "0644",
+        "etc/snmp/mib2c.check_values.conf": "0644",
+        "etc/snmp/mib2c.check_values_local.conf": "0644",
+        "etc/snmp/mib2c.access_functions.conf": "0644",
+        "etc/snmp/mib2c.notify.conf": "0644",
+        "etc/snmp/mib2c.int_watch.conf": "0644",
+        "etc/snmp/mib2c.genhtml.conf": "0644",
+        "etc/snmp/mib2c.org-mode.conf": "0644",
+        "etc/snmp/mib2c.raw-table.conf": "0644",
+        "etc/snmp/mib2c.table_data.conf": "0644",
+        "etc/snmp/mib2c.container.conf": "0644",
+        "etc/snmp/mib2c.perl.conf": "0644",
+    },
+    mode = "0644",
+    owner = "0.0",
+    ownername = "root.root",
+    mtime = 0,
+    portable_mtime = False,
+    create_parents = False,
+)
+
+pkg_tar(
+    name = "libsnmp-perl",
+    files = {
+    },
+    modes = {
+    },
+    mode = "0644",
+    owner = "0.0",
+    ownername = "root.root",
+    mtime = 0,
+    portable_mtime = False,
+    create_parents = False,
+)
+
+pkg_tar(
+    name = "snmp",
+    files = {
+        "@net_snmp_source//:local/snmpconf.dir/snmp-data/authopts": "usr/share/snmp/snmpconf-data/snmp-data/authopts",
+        "@net_snmp_source//:local/snmpconf.dir/snmp-data/debugging": "usr/share/snmp/snmpconf-data/snmp-data/debugging",
+        "@net_snmp_source//:local/snmpconf.dir/snmp-data/output": "usr/share/snmp/snmpconf-data/snmp-data/output",
+        "@net_snmp_source//:local/snmpconf.dir/snmp-data/mibs": "usr/share/snmp/snmpconf-data/snmp-data/mibs",
+        "@net_snmp_source//:local/snmpconf.dir/snmp-data/snmpconf-config": "usr/share/snmp/snmpconf-data/snmp-data/snmpconf-config",
+    },
+    modes = {
+        "usr/share/snmp/snmpconf-data/snmp-data/authopts": "0644",
+        "usr/share/snmp/snmpconf-data/snmp-data/debugging": "0644",
+        "usr/share/snmp/snmpconf-data/snmp-data/output": "0644",
+        "usr/share/snmp/snmpconf-data/snmp-data/mibs": "0644",
+        "usr/share/snmp/snmpconf-data/snmp-data/snmpconf-config": "0644",
+    },
+    mode = "0644",
+    owner = "0.0",
+    ownername = "root.root",
+    mtime = 0,
+    portable_mtime = False,
+    create_parents = False,
+)
+
+pkg_tar(
+    name = "snmpd",
+    files = {
+        "@net_snmp_source//:local/snmpconf.dir/snmpd-data/system": "usr/share/snmp/snmpconf-data/snmpd-data/system",
+        "@net_snmp_source//:local/snmpconf.dir/snmpd-data/acl": "usr/share/snmp/snmpconf-data/snmpd-data/acl",
+        "@net_snmp_source//:local/snmpconf.dir/snmpd-data/trapsinks": "usr/share/snmp/snmpconf-data/snmpd-data/trapsinks",
+        "@net_snmp_source//:local/snmpconf.dir/snmpd-data/monitor": "usr/share/snmp/snmpconf-data/snmpd-data/monitor",
+        "@net_snmp_source//:local/snmpconf.dir/snmpd-data/extending": "usr/share/snmp/snmpconf-data/snmpd-data/extending",
+        "@net_snmp_source//:local/snmpconf.dir/snmpd-data/operation": "usr/share/snmp/snmpconf-data/snmpd-data/operation",
+        "@net_snmp_source//:local/snmpconf.dir/snmpd-data/basic_setup": "usr/share/snmp/snmpconf-data/snmpd-data/basic_setup",
+        "@net_snmp_source//:local/snmpconf.dir/snmpd-data/snmpconf-config": "usr/share/snmp/snmpconf-data/snmpd-data/snmpconf-config",
+        "@net_snmp_source//:debian/snmpd.conf": "etc/snmp/snmpd.conf",
+        "@net_snmp_source//:agent/snmp_perl.pl": "usr/share/snmp/snmp_perl.pl",
+    },
+    modes = {
+        "usr/share/snmp/snmpconf-data/snmpd-data/system": "0644",
+        "usr/share/snmp/snmpconf-data/snmpd-data/acl": "0644",
+        "usr/share/snmp/snmpconf-data/snmpd-data/trapsinks": "0644",
+        "usr/share/snmp/snmpconf-data/snmpd-data/monitor": "0644",
+        "usr/share/snmp/snmpconf-data/snmpd-data/extending": "0644",
+        "usr/share/snmp/snmpconf-data/snmpd-data/operation": "0644",
+        "usr/share/snmp/snmpconf-data/snmpd-data/basic_setup": "0644",
+        "usr/share/snmp/snmpconf-data/snmpd-data/snmpconf-config": "0644",
+        "etc/snmp/snmpd.conf": "0640",
+        "usr/share/snmp/snmp_perl.pl": "0644",
+    },
+    mode = "0644",
+    owner = "0.0",
+    ownername = "root.root",
+    mtime = 0,
+    portable_mtime = False,
+    create_parents = False,
+)
+
+pkg_tar(
+    name = "snmptrapd",
+    files = {
+        "@net_snmp_source//:local/snmpconf.dir/snmptrapd-data/formatting": "usr/share/snmp/snmpconf-data/snmptrapd-data/formatting",
+        "@net_snmp_source//:local/snmpconf.dir/snmptrapd-data/traphandle": "usr/share/snmp/snmpconf-data/snmptrapd-data/traphandle",
+        "@net_snmp_source//:local/snmpconf.dir/snmptrapd-data/authentication": "usr/share/snmp/snmpconf-data/snmptrapd-data/authentication",
+        "@net_snmp_source//:local/snmpconf.dir/snmptrapd-data/logging": "usr/share/snmp/snmpconf-data/snmptrapd-data/logging",
+        "@net_snmp_source//:local/snmpconf.dir/snmptrapd-data/runtime": "usr/share/snmp/snmpconf-data/snmptrapd-data/runtime",
+        "@net_snmp_source//:local/snmpconf.dir/snmptrapd-data/snmpconf-config": "usr/share/snmp/snmpconf-data/snmptrapd-data/snmpconf-config",
+        "@net_snmp_source//:debian/snmptrapd.conf": "etc/snmp/snmptrapd.conf",
+        "@net_snmp_source//:apps/snmp_perl_trapd.pl": "usr/share/snmp/snmp_perl_trapd.pl",
+    },
+    modes = {
+        "usr/share/snmp/snmpconf-data/snmptrapd-data/formatting": "0644",
+        "usr/share/snmp/snmpconf-data/snmptrapd-data/traphandle": "0644",
+        "usr/share/snmp/snmpconf-data/snmptrapd-data/authentication": "0644",
+        "usr/share/snmp/snmpconf-data/snmptrapd-data/logging": "0644",
+        "usr/share/snmp/snmpconf-data/snmptrapd-data/runtime": "0644",
+        "usr/share/snmp/snmpconf-data/snmptrapd-data/snmpconf-config": "0644",
+        "etc/snmp/snmptrapd.conf": "0644",
+        "usr/share/snmp/snmp_perl_trapd.pl": "0644",
+    },
+    mode = "0644",
+    owner = "0.0",
+    ownername = "root.root",
+    mtime = 0,
+    portable_mtime = False,
+    create_parents = False,
+)
+
+pkg_tar(
+    name = "tkmib",
+    files = {
+    },
+    modes = {
+    },
+    mode = "0644",
+    owner = "0.0",
+    ownername = "root.root",
+    mtime = 0,
+    portable_mtime = False,
+    create_parents = False,
+)
+
+py_binary(name = "documentation_tool", srcs = ["documentation.py"], main = "documentation.py")
+pkg_tar(name = "libsnmp-dev_documentation", symlinks = {"usr/share/doc/libsnmp-dev": "libsnmp40"}, mode = "0777", mtime = 0, portable_mtime = False, owner = "0.0", ownername = "root.root", create_parents = False)
+pkg_tar(name = "libnetsnmptrapd40_documentation", symlinks = {"usr/share/doc/libnetsnmptrapd40": "libsnmp40"}, mode = "0777", mtime = 0, portable_mtime = False, owner = "0.0", ownername = "root.root", create_parents = False)
+pkg_tar(name = "snmpd_documentation", symlinks = {"usr/share/doc/snmpd": "libsnmp40"}, mode = "0777", mtime = 0, portable_mtime = False, owner = "0.0", ownername = "root.root", create_parents = False)
+pkg_tar(name = "snmptrapd_documentation", symlinks = {"usr/share/doc/snmptrapd": "libsnmp40"}, mode = "0777", mtime = 0, portable_mtime = False, owner = "0.0", ownername = "root.root", create_parents = False)
+pkg_tar(name = "snmp_documentation", symlinks = {"usr/share/doc/snmp": "libsnmp40"}, mode = "0777", mtime = 0, portable_mtime = False, owner = "0.0", ownername = "root.root", create_parents = False)
+run_binary(
+    name = "libsnmp-base_documentation_files", tool = ":documentation_tool",
+    srcs = ["@net_snmp_source//:source", "@net_snmp_source//:configure.ac"],
+    out_dirs = ["documentation/libsnmp-base"],
+    args = ["--source-marker", "$(location @net_snmp_source//:configure.ac)", "--package", "libsnmp-base", "--files", "'{\"FAQ\": \"FAQ\", \"NEWS\": \"NEWS\", \"README\": \"README\", \"README.snmpv3\": \"README.snmpv3\", \"README.thread\": \"README.thread\", \"README.mibs\": \"mibs/README.mibs\", \"copyright\": \"debian/copyright\"}'", "--output", "$(RULEDIR)/documentation/libsnmp-base"],
+)
+run_binary(
+    name = "libsnmp40_documentation_files", tool = ":documentation_tool",
+    srcs = ["@net_snmp_source//:source", "@net_snmp_source//:configure.ac"],
+    out_dirs = ["documentation/libsnmp40"],
+    args = ["--source-marker", "$(location @net_snmp_source//:configure.ac)", "--package", "libsnmp40", "--files", "'{\"AGENT.txt\": \"AGENT.txt\", \"FAQ\": \"FAQ\", \"NEWS\": \"NEWS\", \"README\": \"README\", \"README.agentx\": \"README.agentx\", \"README.snmpv3\": \"README.snmpv3\", \"README.thread\": \"README.thread\", \"TODO\": \"TODO\", \"README.mib2c\": \"local/README.mib2c\", \"copyright\": \"debian/copyright\"}'", "--output", "$(RULEDIR)/documentation/libsnmp40"],
+)
+run_binary(
+    name = "libsnmp-perl_documentation_files", tool = ":documentation_tool",
+    srcs = ["@net_snmp_source//:source", "@net_snmp_source//:configure.ac"],
+    out_dirs = ["documentation/libsnmp-perl"],
+    args = ["--source-marker", "$(location @net_snmp_source//:configure.ac)", "--package", "libsnmp-perl", "--files", "'{\"README\": \"perl/SNMP/README\", \"copyright\": \"debian/copyright\"}'", "--output", "$(RULEDIR)/documentation/libsnmp-perl"],
+)
+run_binary(
+    name = "tkmib_documentation_files", tool = ":documentation_tool",
+    srcs = ["@net_snmp_source//:source", "@net_snmp_source//:configure.ac"],
+    out_dirs = ["documentation/tkmib"],
+    args = ["--source-marker", "$(location @net_snmp_source//:configure.ac)", "--package", "tkmib", "--files", "'{\"FAQ\": \"FAQ\", \"NEWS\": \"NEWS\", \"README\": \"README\", \"copyright\": \"debian/copyright\"}'", "--output", "$(RULEDIR)/documentation/tkmib"],
+)
+
+cc_preprocess(name = "sedscript_preprocessed", src = "@net_snmp_source//:sedscript.in", deps = ["//:headers"], copts = ["-DDONT_INC_STRUCTS", "-DBINDIR=/usr/bin"])
+
+_PERL_RESOURCES = {
+    "pm_to_blib": [
+        {
+            "module": ".",
+            "source": "MakefileSubs.pm",
+            "input": "perl/MakefileSubs.pm",
+            "destination": "blib/lib/Bundle/MakefileSubs.pm",
+            "INST_LIB": "blib/lib"
+        },
+        {
+            "module": "default_store",
+            "source": "default_store.pm",
+            "input": "perl/default_store/default_store.pm",
+            "destination": "../blib/lib/NetSNMP/default_store.pm",
+            "INST_LIB": "../blib/lib"
+        },
+        {
+            "module": "ASN",
+            "source": "ASN.pm",
+            "input": "perl/ASN/ASN.pm",
+            "destination": "../blib/lib/NetSNMP/ASN.pm",
+            "INST_LIB": "../blib/lib"
+        },
+        {
+            "module": "OID",
+            "source": "OID.pm",
+            "input": "perl/OID/OID.pm",
+            "destination": "../blib/lib/NetSNMP/OID.pm",
+            "INST_LIB": "../blib/lib"
+        },
+        {
+            "module": "agent",
+            "source": "agent.pm",
+            "input": "perl/agent/agent.pm",
+            "destination": "../blib/lib/NetSNMP/agent.pm",
+            "INST_LIB": "../blib/lib"
+        },
+        {
+            "module": "agent",
+            "source": "netsnmp_request_infoPtr.pm",
+            "input": "perl/agent/netsnmp_request_infoPtr.pm",
+            "destination": "../blib/lib/NetSNMP/agent/netsnmp_request_infoPtr.pm",
+            "INST_LIB": "../blib/lib"
+        },
+        {
+            "module": "agent/default_store",
+            "source": "default_store.pm",
+            "input": "perl/agent/default_store/default_store.pm",
+            "destination": "../../blib/lib/NetSNMP/agent/default_store.pm",
+            "INST_LIB": "../../blib/lib"
+        },
+        {
+            "module": "agent/Support",
+            "source": "Support.pm",
+            "input": "perl/agent/Support/Support.pm",
+            "destination": "../../blib/lib/NetSNMP/agent/Support.pm",
+            "INST_LIB": "../../blib/lib"
+        },
+        {
+            "module": "SNMP",
+            "source": "SNMP.pm",
+            "input": "perl/SNMP/SNMP.pm",
+            "destination": "../blib/lib/SNMP.pm",
+            "INST_LIB": "../blib/lib"
+        },
+        {
+            "module": "TrapReceiver",
+            "source": "TrapReceiver.pm",
+            "input": "perl/TrapReceiver/TrapReceiver.pm",
+            "destination": "../blib/lib/NetSNMP/TrapReceiver.pm",
+            "INST_LIB": "../blib/lib"
+        }
+    ],
+    "pods": [
+        {
+            "module": "default_store",
+            "source": "default_store.pm",
+            "output": "blib/man3/NetSNMP::default_store.3pm",
+            "installed": "/usr/share/man/man3/NetSNMP::default_store.3pm",
+            "arguments": [
+                "--section=3pm",
+                "--perm_rw=644",
+                "-u"
+            ]
+        },
+        {
+            "module": "ASN",
+            "source": "ASN.pm",
+            "output": "blib/man3/NetSNMP::ASN.3pm",
+            "installed": "/usr/share/man/man3/NetSNMP::ASN.3pm",
+            "arguments": [
+                "--section=3pm",
+                "--perm_rw=644",
+                "-u"
+            ]
+        },
+        {
+            "module": "OID",
+            "source": "OID.pm",
+            "output": "blib/man3/NetSNMP::OID.3pm",
+            "installed": "/usr/share/man/man3/NetSNMP::OID.3pm",
+            "arguments": [
+                "--section=3pm",
+                "--perm_rw=644",
+                "-u"
+            ]
+        },
+        {
+            "module": "agent",
+            "source": "agent.pm",
+            "output": "blib/man3/NetSNMP::agent.3pm",
+            "installed": "/usr/share/man/man3/NetSNMP::agent.3pm",
+            "arguments": [
+                "--section=3pm",
+                "--perm_rw=644",
+                "-u"
+            ]
+        },
+        {
+            "module": "agent",
+            "source": "netsnmp_request_infoPtr.pm",
+            "output": "blib/man3/NetSNMP::netsnmp_request_infoPtr.3pm",
+            "installed": "/usr/share/man/man3/NetSNMP::netsnmp_request_infoPtr.3pm",
+            "arguments": [
+                "--section=3pm",
+                "--perm_rw=644",
+                "-u"
+            ]
+        },
+        {
+            "module": "agent/default_store",
+            "source": "default_store.pm",
+            "output": "blib/man3/NetSNMP::agent::default_store.3pm",
+            "installed": "/usr/share/man/man3/NetSNMP::agent::default_store.3pm",
+            "arguments": [
+                "--section=3pm",
+                "--perm_rw=644",
+                "-u"
+            ]
+        },
+        {
+            "module": "SNMP",
+            "source": "SNMP.pm",
+            "output": "blib/man3/SNMP.3pm",
+            "installed": "/usr/share/man/man3/SNMP.3pm",
+            "arguments": [
+                "--section=3pm",
+                "--perm_rw=644",
+                "-u"
+            ]
+        },
+        {
+            "module": "TrapReceiver",
+            "source": "TrapReceiver.pm",
+            "output": "blib/man3/NetSNMP::TrapReceiver.3pm",
+            "installed": "/usr/share/man/man3/NetSNMP::TrapReceiver.3pm",
+            "arguments": [
+                "--section=3pm",
+                "--perm_rw=644",
+                "-u"
+            ]
+        }
+    ]
+}
+
+py_binary(
+    name = "perl_resources_tool", srcs = ["perl_resources.py"], main = "perl_resources.py",
+    deps = ["@rules_python//python/runfiles"], data = ["@sonic_build_infra//tools/build_tools:perl_bookworm"],
+)
+run_binary(
+    name = "perl_resources_files", tool = ":perl_resources_tool",
+    srcs = ["@net_snmp_source//:source", "@net_snmp_source//:configure.ac"],
+    out_dirs = ["perl_resources"],
+    args = ["--source-marker", "$(location @net_snmp_source//:configure.ac)", "--mapping", "'" + json.encode(_PERL_RESOURCES) + "'", "--vendorarch"] + select({"@platforms//cpu:x86_64": ["/usr/lib/x86_64-linux-gnu/perl5/5.36"], "@platforms//cpu:aarch64": ["/usr/lib/aarch64-linux-gnu/perl5/5.36"]}) + ["--output", "$(RULEDIR)/perl_resources"],
+)
+
+_RESOURCE_SUBSTITUTIONS = {
+    "@prefix@": "/usr",
+    "@exec_prefix@": "${prefix}",
+    "@includedir@": "${prefix}/include",
+    "@datarootdir@": "${prefix}/share",
+    "@LDFLAGS@": "    -Wl,-z,relro -Wl,-z,now",
+    "@LIBS@": "",
+    "@LAGENTLIBS@": "  -lwrap",
+    "@PERLLDOPTS_FOR_APPS@": "-Wl,-E",
+    "@LMIBLIBS@": "-lnl-3 -lsensors -lpci -lm ",
+    "@srcdir@": ".",
+    "      @MODULE_LIST@\n": "echo  mibII/mta_sendmail ucd-snmp/diskio ucd-snmp/dlmod ucd-snmp/lmsensorsMib etherlike-mib/dot3StatsTable/dot3StatsTable etherlike-mib/dot3StatsTable/dot3StatsTable_data_get etherlike-mib/dot3StatsTable/dot3StatsTable_data_set etherlike-mib/dot3StatsTable/dot3StatsTable_data_access etherlike-mib/dot3StatsTable/dot3StatsTable_interface host/hrh_storage host/hrh_filesys host/hrSWInstalledTable host/hrSWRunTable host/hr_system host/hr_device host/hr_other host/hr_proc host/hr_network host/hr_print host/hr_disk host/hr_partition smux/smux util_funcs/header_simple_table snmpv3/snmpEngine snmpv3/snmpMPDStats snmpv3/usmStats snmpv3/usmConf snmpv3/usmUser mibII/system_mib mibII/sysORTable mibII/snmp_mib mibII/vacm_vars mibII/setSerialNo mibII/at mibII/ip mibII/tcp mibII/udp mibII/ipv6 mibII/icmp ucd-snmp/proc ucd-snmp/versioninfo ucd-snmp/pass ucd-snmp/pass_persist ucd-snmp/disk_hw ucd-snmp/loadave agent/extend ucd-snmp/errormib ucd-snmp/file ucd-snmp/proxy ucd-snmp/logmatch ucd-snmp/memory ucd-snmp/vmstat notification/snmpNotifyTable notification/snmpNotifyFilterProfileTable notification-log-mib/notification_log target/snmpTargetAddrEntry target/snmpTargetParamsEntry target/target target/target_counters agent/nsTransactionTable agent/nsModuleTable agent/nsDebug agent/nsCache agent/nsLogging agent/nsVacmAccessTable agentx/master agentx/subagent disman/event/mteScalars disman/event/mteTrigger disman/event/mteTriggerTable disman/event/mteTriggerDeltaTable disman/event/mteTriggerExistenceTable disman/event/mteTriggerBooleanTable disman/event/mteTriggerThresholdTable disman/event/mteTriggerConf disman/event/mteEvent disman/event/mteEventTable disman/event/mteEventSetTable disman/event/mteEventNotificationTable disman/event/mteEventConf disman/event/mteObjects disman/event/mteObjectsTable disman/event/mteObjectsConf disman/schedule/schedCore disman/schedule/schedConf disman/schedule/schedTable utilities/override utilities/execute utilities/iquery etherlike-mib/data_access/dot3stats_linux host/data_access/swinst host/data_access/swrun host/hrSWRunPerfTable util_funcs hardware/sensors/hw_sensors hardware/sensors/lmsensors_v3 util_funcs/header_generic mibII/updates mibII/vacm_context mibII/vacm_conf mibII/data_access/at_linux mibII/data_access/at_unix mibII/ipAddr mibII/var_route mibII/route_write mibII/kernel_linux mibII/tcpTable mibII/udpTable ip-mib/ip_scalars util_funcs/restart ucd-snmp/pass_common notification/snmpNotifyTable_data header_complex snmp-notification-mib/snmpNotifyFilterTable/snmpNotifyFilterTable_data_storage snmp-notification-mib/snmpNotifyFilterTable/snmpNotifyFilterTable notification/snmpNotifyFilterProfileTable_data target/snmpTargetAddrEntry_data target/snmpTargetParamsEntry_data agentx/protocol agentx/master_admin agentx/agentx_config agentx/client hardware/memory/hw_mem hardware/memory/memory_linux hardware/fsys/hw_fsys hardware/fsys/fsys_mntent host/data_access/swinst_apt host/data_access/swrun_procfs_status hardware/cpu/cpu hardware/cpu/cpu_linux if-mib/ifTable/ifTable if-mib/ifXTable/ifXTable ip-mib/ipAddressTable/ipAddressTable ip-mib/ipAddressPrefixTable/ipAddressPrefixTable ip-mib/ipDefaultRouterTable/ipDefaultRouterTable ip-mib/inetNetToMediaTable/inetNetToMediaTable ip-mib/inetNetToMediaTable/inetNetToMediaTable_interface ip-mib/inetNetToMediaTable/inetNetToMediaTable_data_access ip-mib/ipSystemStatsTable/ipSystemStatsTable ip-mib/ipSystemStatsTable/ipSystemStatsTable_interface ip-mib/ipSystemStatsTable/ipSystemStatsTable_data_access ip-mib/ipv6ScopeZoneIndexTable/ipv6ScopeZoneIndexTable ip-mib/ipIfStatsTable/ipIfStatsTable ip-mib/ipIfStatsTable/ipIfStatsTable_interface ip-mib/ipIfStatsTable/ipIfStatsTable_data_access ip-forward-mib/ipCidrRouteTable/ipCidrRouteTable ip-forward-mib/inetCidrRouteTable/inetCidrRouteTable tcp-mib/tcpConnectionTable/tcpConnectionTable tcp-mib/tcpListenerTable/tcpListenerTable udp-mib/udpEndpointTable/udpEndpointTable snmp-notification-mib/snmpNotifyFilterTable/snmpNotifyFilterTable_interface snmp-notification-mib/snmpNotifyFilterTable/snmpNotifyFilterTable_data_access if-mib/data_access/interface if-mib/ifTable/ifTable_interface if-mib/ifTable/ifTable_data_access if-mib/ifXTable/ifXTable_interface if-mib/ifXTable/ifXTable_data_access ip-mib/ipAddressTable/ipAddressTable_interface ip-mib/ipAddressTable/ipAddressTable_data_access ip-mib/ipAddressPrefixTable/ipAddressPrefixTable_interface ip-mib/ipAddressPrefixTable/ipAddressPrefixTable_data_access ip-mib/ipDefaultRouterTable/ipDefaultRouterTable_interface ip-mib/ipDefaultRouterTable/ipDefaultRouterTable_data_access ip-mib/ipDefaultRouterTable/ipDefaultRouterTable_data_get ip-mib/data_access/arp_common ip-mib/data_access/arp_netlink ip-mib/data_access/systemstats_common ip-mib/data_access/systemstats_linux ip-mib/data_access/scalars_linux ip-mib/ipv6ScopeZoneIndexTable/ipv6ScopeZoneIndexTable_interface ip-mib/ipv6ScopeZoneIndexTable/ipv6ScopeZoneIndexTable_data_access ip-mib/ipIfStatsTable/ipIfStatsTable_data_get ip-forward-mib/ipCidrRouteTable/ipCidrRouteTable_interface ip-forward-mib/ipCidrRouteTable/ipCidrRouteTable_data_access ip-forward-mib/inetCidrRouteTable/inetCidrRouteTable_interface ip-forward-mib/inetCidrRouteTable/inetCidrRouteTable_data_access tcp-mib/data_access/tcpConn_common tcp-mib/data_access/tcpConn_linux util_funcs/get_pid_from_inode tcp-mib/tcpConnectionTable/tcpConnectionTable_interface tcp-mib/tcpConnectionTable/tcpConnectionTable_data_access tcp-mib/tcpListenerTable/tcpListenerTable_interface tcp-mib/tcpListenerTable/tcpListenerTable_data_access udp-mib/udpEndpointTable/udpEndpointTable_interface udp-mib/udpEndpointTable/udpEndpointTable_data_access if-mib/data_access/interface_linux if-mib/data_access/interface_ioctl ip-mib/data_access/ipaddress_common ip-mib/data_access/ipaddress_linux ip-mib/data_access/defaultrouter_common ip-mib/data_access/defaultrouter_linux ip-mib/data_access/ipv6scopezone_common ip-mib/data_access/ipv6scopezone_linux ip-forward-mib/data_access/route_common ip-forward-mib/data_access/route_linux ip-forward-mib/data_access/route_ioctl udp-mib/data_access/udp_endpoint_common udp-mib/data_access/udp_endpoint_linux ip-mib/data_access/ipaddress_ioctl",
+    "@NETSNMP_DEFAULT_MIBS@": ":SNMPv2-MIB:IF-MIB:IP-MIB:TCP-MIB:UDP-MIB:HOST-RESOURCES-MIB:NOTIFICATION-LOG-MIB:DISMAN-EVENT-MIB:DISMAN-SCHEDULE-MIB:HOST-RESOURCES-TYPES:MTA-MIB:NETWORK-SERVICES-MIB:UCD-DISKIO-MIB:UCD-DLMOD-MIB:LM-SENSORS-MIB:UCD-SNMP-MIB:UCD-DEMO-MIB:SNMP-TARGET-MIB:NET-SNMP-AGENT-MIB:SNMP-FRAMEWORK-MIB:SNMP-MPD-MIB:SNMP-USER-BASED-SM-MIB:SNMP-VIEW-BASED-ACM-MIB:SNMP-COMMUNITY-MIB:IPV6-ICMP-MIB:IPV6-MIB:IPV6-TCP-MIB:IPV6-UDP-MIB:IP-FORWARD-MIB:NET-SNMP-PASS-MIB:NET-SNMP-EXTEND-MIB:SNMP-NOTIFICATION-MIB:SNMPv2-TM:NET-SNMP-VACM-MIB",
+    "@NETSNMP_DEFAULT_MIBDIRS@": "$HOME/.snmp/mibs:/usr/share/snmp/mibs:/usr/share/snmp/mibs/iana:/usr/share/snmp/mibs/ietf",
+    "@ENV_SEPARATOR@": ":",
+    "@EXEEXT@": "",
+    "@SNMPCONFPATH@": "/etc/snmp",
+    "@SNMPSHAREPATH@": "/usr/share/snmp",
+    "@PERSISTENT_DIRECTORY@": "/var/lib/snmp",
+    "@PERLPROG@": "/usr/bin/perl",
+    "@LIBCFLAGS@": "-DNETSNMP_ENABLE_IPV6 -fno-strict-aliasing -DNETSNMP_REMOVE_U64 -g -O2 -ffile-prefix-map=.=. -fstack-protector-strong -Wformat  -DNETSNMP_USE_INLINE -Ulinux -Dlinux=linux",
+    "@DEVFLAGS@": "",
+    "@VERSION@": "5.9.3",
+    "@PACKAGE_NAME@": "Net-SNMP",
+    "@PACKAGE_VERSION@": "5.9.3"
+}
+
+_RESOURCE_TEMPLATE_SUBSTITUTIONS = select({
+    "@platforms//cpu:x86_64": _RESOURCE_SUBSTITUTIONS | {
+    "@libdir@": "/usr/lib/x86_64-linux-gnu",
+    "@LNETSNMPLIBS@": "-lm    -lssl  -lssl -lssl -L/usr/lib/x86_64-linux-gnu -lssl -lcrypto ",
+    "@CONFIGURE_OPTIONS@": "\" '--build=x86_64-linux-gnu' '--host=x86_64-linux-gnu' '--prefix=/usr' '--sysconfdir=/etc' '--mandir=/usr/share/man' '--libdir=/usr/lib/x86_64-linux-gnu' '--with-persistent-directory=/var/lib/snmp' '--enable-ucd-snmp-compatibility' '--with-cflags=-g -O2 -ffile-prefix-map=.=. -fstack-protector-strong -Wformat -Werror=format-security -DNETSNMP_USE_INLINE' '--with-ldflags=-Wl,-z,relro -Wl,-z,now' '--with-perl-modules=INSTALLDIRS=vendor' '--enable-as-needed' '--with-logfile=none' '--without-rpm' '--with-libwrap' '--with-openssl' '--without-dmalloc' '--without-efence' '--without-rsaref' '--with-sys-contact=root' '--with-sys-location=Unknown' '--with-mib-modules=smux ucd-snmp/dlmod mibII/mta_sendmail disman/event-mib ucd-snmp/diskio ucd-snmp/lmsensorsMib etherlike-mib/dot3StatsTable host' '--with-out-mib-modules=' '--with-transports=TLSTCP DTLSUDP' '--with-security-modules=tsm' '--enable-mfd-rewrites' '--with-mnttab=/etc/mtab' '--with-mibdirs=$HOME/.snmp/mibs:/usr/share/snmp/mibs:/usr/share/snmp/mibs/iana:/usr/share/snmp/mibs/ietf' '--with-mysql' '--with-systemd' '--enable-blumenthal-aes' 'UNAMEPROG=/bin/uname' 'PSPROG=/bin/ps' '--with-defaults' 'build_alias=x86_64-linux-gnu' 'host_alias=x86_64-linux-gnu' 'CC=x86_64-linux-gnu-gcc' 'CFLAGS=-g -O2 -ffile-prefix-map=.=. -fstack-protector-strong -Wformat -Werror=format-security -DNETSNMP_USE_INLINE -DNETSNMP_ENABLE_IPV6 -fno-strict-aliasing -DNETSNMP_REMOVE_U64 -g -O2 -ffile-prefix-map=.=. -fstack-protector-strong -Wformat  -DNETSNMP_USE_INLINE -Ulinux -Dlinux=linux  -D_REENTRANT -D_GNU_SOURCE -DDEBIAN -fwrapv -fno-strict-aliasing -pipe  -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64  -I/usr/lib/x86_64-linux-gnu/perl/5.36.0/CORE ' 'LDFLAGS=    -Wl,-z,relro -Wl,-z,now' 'CPPFLAGS=-I/usr/include/libnl3   -I/usr/include -I/usr/include/x86_64-linux-gnu -I/usr/lib/x86_64-linux-gnu/perl/5.36.0/CORE -I/usr/include -I/usr/include -I/usr/include                      -I/usr/include -I/usr/include/x86_64-linux-gnu   -I/usr/include/x86_64-linux-gnu -I/usr/include  -I/usr/include   -I/usr/include  -I/usr/include/tirpc -I/usr/include  -I/usr/include   -I/usr/include  -I/usr/include/mariadb -I/usr/include  -I/usr/include   -I/usr/include           -I/usr/include  -I/usr/include/dbus-1.0 -I/usr/lib/x86_64-linux-gnu/dbus-1.0/include -I/usr/include -Wdate-time -D_FORTIFY_SOURCE=2' 'PKG_CONFIG=/usr/bin/pkg-config' 'PKG_CONFIG_PATH=' 'PKG_CONFIG_LIBDIR=/usr/lib/x86_64-linux-gnu/pkgconfig'\"",
+    "@SNMPLIBPATH@": "/usr/lib/x86_64-linux-gnu/snmp",
+    "@CFLAGS@": "-g -O2 -ffile-prefix-map=.=. -fstack-protector-strong -Wformat -Werror=format-security -DNETSNMP_USE_INLINE -DNETSNMP_ENABLE_IPV6 -fno-strict-aliasing -DNETSNMP_REMOVE_U64 -g -O2 -ffile-prefix-map=.=. -fstack-protector-strong -Wformat  -DNETSNMP_USE_INLINE -Ulinux -Dlinux=linux  -D_REENTRANT -D_GNU_SOURCE -DDEBIAN -fwrapv -fno-strict-aliasing -pipe  -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64  -I/usr/lib/x86_64-linux-gnu/perl/5.36.0/CORE ",
+    "@CPPFLAGS@": "-I/usr/include/libnl3   -I/usr/include -I/usr/include/x86_64-linux-gnu -I/usr/lib/x86_64-linux-gnu/perl/5.36.0/CORE -I/usr/include -I/usr/include -I/usr/include                      -I/usr/include -I/usr/include/x86_64-linux-gnu   -I/usr/include/x86_64-linux-gnu -I/usr/include  -I/usr/include   -I/usr/include  -I/usr/include/tirpc -I/usr/include  -I/usr/include   -I/usr/include  -I/usr/include/mariadb -I/usr/include  -I/usr/include   -I/usr/include           -I/usr/include  -I/usr/include/dbus-1.0 -I/usr/lib/x86_64-linux-gnu/dbus-1.0/include -I/usr/include -Wdate-time -D_FORTIFY_SOURCE=2",
+    "@CC@": "x86_64-linux-gnu-gcc"
+},
+    "@platforms//cpu:aarch64": _RESOURCE_SUBSTITUTIONS | {
+    "@libdir@": "/usr/lib/aarch64-linux-gnu",
+    "@LNETSNMPLIBS@": "-lm    -lssl  -lssl -lssl -L/usr/lib/aarch64-linux-gnu -lssl -lcrypto ",
+    "@CONFIGURE_OPTIONS@": "\" '--build=x86_64-linux-gnu' '--host=aarch64-linux-gnu' '--prefix=/usr' '--sysconfdir=/etc' '--mandir=/usr/share/man' '--libdir=/usr/lib/aarch64-linux-gnu' '--with-persistent-directory=/var/lib/snmp' '--enable-ucd-snmp-compatibility' '--with-cflags=-g -O2 -ffile-prefix-map=.=. -fstack-protector-strong -Wformat -Werror=format-security -DNETSNMP_USE_INLINE' '--with-ldflags=-Wl,-z,relro -Wl,-z,now' '--with-perl-modules=INSTALLDIRS=vendor' '--enable-as-needed' '--with-logfile=none' '--without-rpm' '--with-libwrap' '--with-openssl' '--without-dmalloc' '--without-efence' '--without-rsaref' '--with-sys-contact=root' '--with-sys-location=Unknown' '--with-mib-modules=smux ucd-snmp/dlmod mibII/mta_sendmail disman/event-mib ucd-snmp/diskio ucd-snmp/lmsensorsMib etherlike-mib/dot3StatsTable host' '--with-out-mib-modules=' '--with-transports=TLSTCP DTLSUDP' '--with-security-modules=tsm' '--enable-mfd-rewrites' '--with-mnttab=/etc/mtab' '--with-mibdirs=$HOME/.snmp/mibs:/usr/share/snmp/mibs:/usr/share/snmp/mibs/iana:/usr/share/snmp/mibs/ietf' '--with-mysql' '--with-systemd' '--enable-blumenthal-aes' 'UNAMEPROG=/bin/uname' 'PSPROG=/bin/ps' '--with-defaults' 'build_alias=x86_64-linux-gnu' 'host_alias=aarch64-linux-gnu' 'CC=aarch64-linux-gnu-gcc' 'CFLAGS=-g -O2 -ffile-prefix-map=.=. -fstack-protector-strong -Wformat -Werror=format-security -DNETSNMP_USE_INLINE -DNETSNMP_ENABLE_IPV6 -fno-strict-aliasing -DNETSNMP_REMOVE_U64 -g -O2 -ffile-prefix-map=.=. -fstack-protector-strong -Wformat  -DNETSNMP_USE_INLINE -Ulinux -Dlinux=linux  -D_REENTRANT -D_GNU_SOURCE -DDEBIAN -fwrapv -fno-strict-aliasing -pipe  -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64  -I/usr/lib/aarch64-linux-gnu/perl/5.36.0/CORE ' 'LDFLAGS=    -Wl,-z,relro -Wl,-z,now' 'CPPFLAGS=-I/usr/include/libnl3   -I/usr/include -I/usr/include/aarch64-linux-gnu -I/usr/lib/aarch64-linux-gnu/perl/5.36.0/CORE -I/usr/include -I/usr/include -I/usr/include                    -I/usr/include -I/usr/include/aarch64-linux-gnu   -I/usr/include/aarch64-linux-gnu -I/usr/include  -I/usr/include   -I/usr/include  -I/usr/include/tirpc -I/usr/include  -I/usr/include   -I/usr/include  -I/usr/include/mariadb -I/usr/include  -I/usr/include   -I/usr/include          -Wdate-time -D_FORTIFY_SOURCE=2' 'PKG_CONFIG=/usr/bin/pkg-config' 'PKG_CONFIG_PATH=' 'PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig'\"",
+    "@SNMPLIBPATH@": "/usr/lib/aarch64-linux-gnu/snmp",
+    "@CFLAGS@": "-g -O2 -ffile-prefix-map=.=. -fstack-protector-strong -Wformat -Werror=format-security -DNETSNMP_USE_INLINE -DNETSNMP_ENABLE_IPV6 -fno-strict-aliasing -DNETSNMP_REMOVE_U64 -g -O2 -ffile-prefix-map=.=. -fstack-protector-strong -Wformat  -DNETSNMP_USE_INLINE -Ulinux -Dlinux=linux  -D_REENTRANT -D_GNU_SOURCE -DDEBIAN -fwrapv -fno-strict-aliasing -pipe  -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64  -I/usr/lib/aarch64-linux-gnu/perl/5.36.0/CORE ",
+    "@CPPFLAGS@": "-I/usr/include/libnl3   -I/usr/include -I/usr/include/aarch64-linux-gnu -I/usr/lib/aarch64-linux-gnu/perl/5.36.0/CORE -I/usr/include -I/usr/include -I/usr/include                    -I/usr/include -I/usr/include/aarch64-linux-gnu   -I/usr/include/aarch64-linux-gnu -I/usr/include  -I/usr/include   -I/usr/include  -I/usr/include/tirpc -I/usr/include  -I/usr/include   -I/usr/include  -I/usr/include/mariadb -I/usr/include  -I/usr/include   -I/usr/include          -Wdate-time -D_FORTIFY_SOURCE=2",
+    "@CC@": "aarch64-linux-gnu-gcc"
+},
+})
+
+[
+    expand_template(
+        name = "configured_" + str(index),
+        template = "@net_snmp_source//:" + path,
+        out = "configured/" + path.removesuffix(".in"),
+        substitutions = _RESOURCE_TEMPLATE_SUBSTITUTIONS,
+    )
+    for index, path in enumerate([
+    "net-snmp-config.in",
+    "net-snmp-create-v3-user.in",
+    "netsnmp.pc.in",
+    "netsnmp-agent.pc.in",
+    "local/snmpconf.in"
+])
+]
+
+py_binary(
+    name = "generated_resources_tool", srcs = ["generated_resources.py"], main = "generated_resources.py",
+    deps = ["@rules_python//python/runfiles"], data = ["@sonic_build_infra//tools/build_tools:perl_bookworm"],
+)
+[
+    run_binary(
+        name = package + "_generated_files", tool = ":generated_resources_tool",
+        srcs = ["@net_snmp_source//:source", "@net_snmp_source//:configure.ac", ":sedscript_preprocessed", ":configured_4"],
+        out_dirs = ["generated/" + package],
+        args = [
+            "--source-marker", "$(location @net_snmp_source//:configure.ac)",
+            "--manifest", "'" + json.encode({key: value for key, value in _INSTALL.items() if key not in ["headers", "examples"]}) + "'",
+            "--paths", "'" + json.encode({"VERSION": "5.9.3", "datadir": "/usr/share", "bindir": "/usr/bin", "PERSISTENT_DIRECTORY": "/var/lib/snmp", "sysconfdir": "/etc", "SNMPCONFPATH": "/etc/snmp"}) + "'",
+            "--sedscript", "$(location :sedscript_preprocessed)",
+            "--configured-snmpconf", "$(location :configured_4)",
+            "--package", package, "--output", "$(RULEDIR)/generated/" + package,
+        ] + select({
+            "@platforms//cpu:x86_64": ["--libdir", "/usr/lib/x86_64-linux-gnu"],
+            "@platforms//cpu:aarch64": ["--libdir", "/usr/lib/aarch64-linux-gnu"],
+        }),
+    )
+    for package in ['libsnmp-base', 'libsnmp40', 'libnetsnmptrapd40', 'libsnmp-dev', 'libsnmp-perl', 'snmp', 'snmpd', 'snmptrapd', 'tkmib']
+]
+pkg_files(name = "installed_headers", srcs = ['@net_snmp_source//:include/net-snmp/version.h', '@net_snmp_source//:include/net-snmp/net-snmp-features.h', '@net_snmp_source//:include/net-snmp/system/aix.h', '@net_snmp_source//:include/net-snmp/system/bsd.h', '@net_snmp_source//:include/net-snmp/system/bsdi3.h', '@net_snmp_source//:include/net-snmp/system/bsdi4.h', '@net_snmp_source//:include/net-snmp/system/bsdi.h', '@net_snmp_source//:include/net-snmp/system/cygwin.h', '@net_snmp_source//:include/net-snmp/system/darwin.h', '@net_snmp_source//:include/net-snmp/system/dragonfly.h', '@net_snmp_source//:include/net-snmp/system/dynix.h', '@net_snmp_source//:include/net-snmp/system/freebsd2.h', '@net_snmp_source//:include/net-snmp/system/freebsd3.h', '@net_snmp_source//:include/net-snmp/system/freebsd4.h', '@net_snmp_source//:include/net-snmp/system/freebsd5.h', '@net_snmp_source//:include/net-snmp/system/freebsd6.h', '@net_snmp_source//:include/net-snmp/system/freebsd7.h', '@net_snmp_source//:include/net-snmp/system/freebsd8.h', '@net_snmp_source//:include/net-snmp/system/freebsd9.h', '@net_snmp_source//:include/net-snmp/system/freebsd10.h', '@net_snmp_source//:include/net-snmp/system/freebsd11.h', '@net_snmp_source//:include/net-snmp/system/freebsd12.h', '@net_snmp_source//:include/net-snmp/system/freebsd13.h', '@net_snmp_source//:include/net-snmp/system/freebsd14.h', '@net_snmp_source//:include/net-snmp/system/freebsd.h', '@net_snmp_source//:include/net-snmp/system/generic.h', '@net_snmp_source//:include/net-snmp/system/hpux.h', '@net_snmp_source//:include/net-snmp/system/irix.h', '@net_snmp_source//:include/net-snmp/system/kfreebsd.h', '@net_snmp_source//:include/net-snmp/system/linux.h', '@net_snmp_source//:include/net-snmp/system/mingw32.h', '@net_snmp_source//:include/net-snmp/system/mingw32msvc.h', '@net_snmp_source//:include/net-snmp/system/mips.h', '@net_snmp_source//:include/net-snmp/system/netbsd.h', '@net_snmp_source//:include/net-snmp/system/nto-qnx6.h', '@net_snmp_source//:include/net-snmp/system/osf5.h', '@net_snmp_source//:include/net-snmp/system/openbsd.h', '@net_snmp_source//:include/net-snmp/system/openbsd6.h', '@net_snmp_source//:include/net-snmp/system/openbsd5.h', '@net_snmp_source//:include/net-snmp/system/openbsd4.h', '@net_snmp_source//:include/net-snmp/system/solaris2.3.h', '@net_snmp_source//:include/net-snmp/system/solaris2.4.h', '@net_snmp_source//:include/net-snmp/system/solaris2.5.h', '@net_snmp_source//:include/net-snmp/system/solaris2.6.h', '@net_snmp_source//:include/net-snmp/system/solaris.h', '@net_snmp_source//:include/net-snmp/system/sunos.h', '@net_snmp_source//:include/net-snmp/system/svr5.h', '@net_snmp_source//:include/net-snmp/system/sysv.h', '@net_snmp_source//:include/net-snmp/system/ultrix4.h', '@net_snmp_source//:include/net-snmp/machine/generic.h', '//:config_header', '@net_snmp_source//:include/ucd-snmp/ucd-snmp-config.h', '@net_snmp_source//:include/ucd-snmp/version.h', '@net_snmp_source//:include/ucd-snmp/mib_module_config.h', '@net_snmp_source//:include/net-snmp/agent/agent_read_config.h', '@net_snmp_source//:include/net-snmp/agent/agent_registry.h', '@net_snmp_source//:include/net-snmp/agent/agent_index.h', '@net_snmp_source//:include/net-snmp/agent/agent_sysORTable.h', '@net_snmp_source//:include/net-snmp/agent/agent_trap.h', '@net_snmp_source//:include/net-snmp/agent/auto_nlist.h', '@net_snmp_source//:include/net-snmp/agent/ds_agent.h', '@net_snmp_source//:include/net-snmp/agent/snmp_agent.h', '@net_snmp_source//:include/net-snmp/agent/snmp_vars.h', '@net_snmp_source//:include/net-snmp/agent/var_struct.h', '@net_snmp_source//:include/net-snmp/agent/agent_handler.h', '@net_snmp_source//:include/net-snmp/agent/net-snmp-agent-includes.h', '@net_snmp_source//:include/net-snmp/agent/mib_modules.h', '@net_snmp_source//:include/net-snmp/agent/agent_callbacks.h', '@net_snmp_source//:include/net-snmp/agent/sysORTable.h', '@net_snmp_source//:include/net-snmp/agent/all_helpers.h', '@net_snmp_source//:include/net-snmp/agent/baby_steps.h', '@net_snmp_source//:include/net-snmp/agent/bulk_to_next.h', '@net_snmp_source//:include/net-snmp/agent/cache_handler.h', '@net_snmp_source//:include/net-snmp/agent/debug_handler.h', '@net_snmp_source//:include/net-snmp/agent/instance.h', '@net_snmp_source//:include/net-snmp/agent/mode_end_call.h', '@net_snmp_source//:include/net-snmp/agent/multiplexer.h', '@net_snmp_source//:include/net-snmp/agent/null.h', '@net_snmp_source//:include/net-snmp/agent/old_api.h', '@net_snmp_source//:include/net-snmp/agent/read_only.h', '@net_snmp_source//:include/net-snmp/agent/row_merge.h', '@net_snmp_source//:include/net-snmp/agent/scalar.h', '@net_snmp_source//:include/net-snmp/agent/scalar_group.h', '@net_snmp_source//:include/net-snmp/agent/serialize.h', '@net_snmp_source//:include/net-snmp/agent/snmp_get_statistic.h', '@net_snmp_source//:include/net-snmp/agent/stash_cache.h', '@net_snmp_source//:include/net-snmp/agent/stash_to_next.h', '@net_snmp_source//:include/net-snmp/agent/table_array.h', '@net_snmp_source//:include/net-snmp/agent/table_container.h', '@net_snmp_source//:include/net-snmp/agent/table.h', '@net_snmp_source//:include/net-snmp/agent/table_data.h', '@net_snmp_source//:include/net-snmp/agent/table_dataset.h', '@net_snmp_source//:include/net-snmp/agent/table_tdata.h', '@net_snmp_source//:include/net-snmp/agent/table_iterator.h', '@net_snmp_source//:include/net-snmp/agent/watcher.h', '@net_snmp_source//:include/net-snmp/agent/netsnmp_close_fds.h', '@net_snmp_source//:include/net-snmp/agent/mfd.h', '@net_snmp_source//:include/net-snmp/agent/set_helper.h', '//:header_9', '//:header_8', '//:header_5', '@net_snmp_source//:include/ucd-snmp/agent_index.h', '@net_snmp_source//:include/ucd-snmp/agent_read_config.h', '@net_snmp_source//:include/ucd-snmp/agent_registry.h', '@net_snmp_source//:include/ucd-snmp/agent_trap.h', '@net_snmp_source//:include/ucd-snmp/auto_nlist.h', '@net_snmp_source//:include/ucd-snmp/ds_agent.h', '@net_snmp_source//:include/ucd-snmp/header_complex.h', '@net_snmp_source//:include/ucd-snmp/mibincl.h', '@net_snmp_source//:include/ucd-snmp/snmp_agent.h', '@net_snmp_source//:include/ucd-snmp/ucd-snmp-includes.h', '@net_snmp_source//:include/ucd-snmp/ucd-snmp-agent-includes.h', '@net_snmp_source//:include/ucd-snmp/util_funcs.h', '@net_snmp_source//:include/ucd-snmp/var_struct.h', '@net_snmp_source//:agent/mibgroup/struct.h', '@net_snmp_source//:agent/mibgroup/util_funcs.h', '@net_snmp_source//:agent/mibgroup/util_funcs/header_generic.h', '@net_snmp_source//:agent/mibgroup/util_funcs/header_simple_table.h', '@net_snmp_source//:agent/mibgroup/util_funcs/MIB_STATS_CACHE_TIMEOUT.h', '@net_snmp_source//:include/net-snmp/config_api.h', '@net_snmp_source//:include/net-snmp/definitions.h', '@net_snmp_source//:include/net-snmp/mib_api.h', '@net_snmp_source//:include/net-snmp/net-snmp-includes.h', '@net_snmp_source//:include/net-snmp/output_api.h', '@net_snmp_source//:include/net-snmp/pdu_api.h', '@net_snmp_source//:include/net-snmp/session_api.h', '@net_snmp_source//:include/net-snmp/snmpv3_api.h', '@net_snmp_source//:include/net-snmp/types.h', '@net_snmp_source//:include/net-snmp/utilities.h', '@net_snmp_source//:include/net-snmp/varbind_api.h', '@net_snmp_source//:include/net-snmp/library/README', '@net_snmp_source//:include/net-snmp/library/asn1.h', '@net_snmp_source//:include/net-snmp/library/callback.h', '@net_snmp_source//:include/net-snmp/library/cert_util.h', '@net_snmp_source//:include/net-snmp/library/check_varbind.h', '@net_snmp_source//:include/net-snmp/library/container.h', '@net_snmp_source//:include/net-snmp/library/container_binary_array.h', '@net_snmp_source//:include/net-snmp/library/container_iterator.h', '@net_snmp_source//:include/net-snmp/library/container_list_ssll.h', '@net_snmp_source//:include/net-snmp/library/container_null.h', '@net_snmp_source//:include/net-snmp/library/data_list.h', '@net_snmp_source//:include/net-snmp/library/default_store.h', '@net_snmp_source//:include/net-snmp/library/dir_utils.h', '@net_snmp_source//:include/net-snmp/library/fd_event_manager.h', '@net_snmp_source//:include/net-snmp/library/file_utils.h', '@net_snmp_source//:include/net-snmp/library/getopt.h', '@net_snmp_source//:include/net-snmp/library/int64.h', '@net_snmp_source//:include/net-snmp/library/keytools.h', '@net_snmp_source//:include/net-snmp/library/large_fd_set.h', '@net_snmp_source//:include/net-snmp/library/lcd_time.h', '@net_snmp_source//:include/net-snmp/library/md5.h', '@net_snmp_source//:include/net-snmp/library/mib.h', '@net_snmp_source//:include/net-snmp/library/mt_support.h', '@net_snmp_source//:include/net-snmp/library/netsnmp-attribute-format.h', '@net_snmp_source//:include/net-snmp/library/oid.h', '@net_snmp_source//:include/net-snmp/library/oid_stash.h', '@net_snmp_source//:include/net-snmp/library/parse.h', '@net_snmp_source//:include/net-snmp/library/read_config.h', '@net_snmp_source//:include/net-snmp/library/scapi.h', '@net_snmp_source//:include/net-snmp/library/snmp-tc.h', '@net_snmp_source//:include/net-snmp/library/snmp.h', '@net_snmp_source//:include/net-snmp/library/snmp_alarm.h', '@net_snmp_source//:include/net-snmp/library/snmp_api.h', '@net_snmp_source//:include/net-snmp/library/snmp_assert.h', '@net_snmp_source//:include/net-snmp/library/snmp_client.h', '@net_snmp_source//:include/net-snmp/library/snmp_debug.h', '@net_snmp_source//:include/net-snmp/library/snmp_enum.h', '@net_snmp_source//:include/net-snmp/library/snmp_impl.h', '@net_snmp_source//:include/net-snmp/library/snmp_logging.h', '@net_snmp_source//:include/net-snmp/library/snmp_parse_args.h', '@net_snmp_source//:include/net-snmp/library/snmp_secmod.h', '@net_snmp_source//:include/net-snmp/library/snmp_service.h', '@net_snmp_source//:include/net-snmp/library/snmp_transport.h', '@net_snmp_source//:include/net-snmp/library/snmpv3.h', '@net_snmp_source//:include/net-snmp/library/system.h', '@net_snmp_source//:include/net-snmp/library/text_utils.h', '@net_snmp_source//:include/net-snmp/library/tools.h', '@net_snmp_source//:include/net-snmp/library/transform_oids.h', '@net_snmp_source//:include/net-snmp/library/types.h', '@net_snmp_source//:include/net-snmp/library/ucd_compat.h', '@net_snmp_source//:include/net-snmp/library/vacm.h', '@net_snmp_source//:include/net-snmp/library/winpipe.h', '@net_snmp_source//:include/net-snmp/library/winservice.h', '@net_snmp_source//:include/net-snmp/library/snmpTLSBaseDomain.h', '@net_snmp_source//:include/net-snmp/library/snmpIPv6BaseDomain.h', '@net_snmp_source//:include/net-snmp/library/snmpIPBaseDomain.h', '@net_snmp_source//:include/net-snmp/library/snmpUDPBaseDomain.h', '@net_snmp_source//:include/net-snmp/library/snmpUDPIPv4BaseDomain.h', '@net_snmp_source//:include/net-snmp/library/snmpTCPBaseDomain.h', '@net_snmp_source//:include/net-snmp/library/snmpSocketBaseDomain.h', '@net_snmp_source//:include/net-snmp/library/snmpIPv4BaseDomain.h', '@net_snmp_source//:include/net-snmp/library/snmpDTLSUDPDomain.h', '@net_snmp_source//:include/net-snmp/library/snmpTLSTCPDomain.h', '@net_snmp_source//:include/net-snmp/library/snmpUDPIPv6Domain.h', '@net_snmp_source//:include/net-snmp/library/snmpTCPIPv6Domain.h', '@net_snmp_source//:include/net-snmp/library/snmpUDPDomain.h', '@net_snmp_source//:include/net-snmp/library/snmpTCPDomain.h', '@net_snmp_source//:include/net-snmp/library/snmpAliasDomain.h', '@net_snmp_source//:include/net-snmp/library/snmpUnixDomain.h', '@net_snmp_source//:include/net-snmp/library/snmpCallbackDomain.h', '@net_snmp_source//:include/net-snmp/library/snmptsm.h', '@net_snmp_source//:include/net-snmp/library/snmpusm.h', '//:header_10', '@net_snmp_source//:include/ucd-snmp/asn1.h', '@net_snmp_source//:include/ucd-snmp/callback.h', '@net_snmp_source//:include/ucd-snmp/default_store.h', '@net_snmp_source//:include/ucd-snmp/int64.h', '@net_snmp_source//:include/ucd-snmp/keytools.h', '@net_snmp_source//:include/ucd-snmp/mib.h', '@net_snmp_source//:include/ucd-snmp/parse.h', '@net_snmp_source//:include/ucd-snmp/read_config.h', '@net_snmp_source//:include/ucd-snmp/scapi.h', '@net_snmp_source//:include/ucd-snmp/snmp-tc.h', '@net_snmp_source//:include/ucd-snmp/snmp.h', '@net_snmp_source//:include/ucd-snmp/snmp_alarm.h', '@net_snmp_source//:include/ucd-snmp/snmp_api.h', '@net_snmp_source//:include/ucd-snmp/snmp_client.h', '@net_snmp_source//:include/ucd-snmp/snmp_debug.h', '@net_snmp_source//:include/ucd-snmp/snmp_impl.h', '@net_snmp_source//:include/ucd-snmp/snmp_logging.h', '@net_snmp_source//:include/ucd-snmp/snmp_parse_args.h', '@net_snmp_source//:include/ucd-snmp/snmp_vars.h', '@net_snmp_source//:include/ucd-snmp/snmpusm.h', '@net_snmp_source//:include/ucd-snmp/snmpv3.h', '@net_snmp_source//:include/ucd-snmp/struct.h', '@net_snmp_source//:include/ucd-snmp/system.h', '@net_snmp_source//:include/ucd-snmp/tools.h', '@net_snmp_source//:include/ucd-snmp/transform_oids.h', '@net_snmp_source//:agent/mibgroup/mibincl.h', '@net_snmp_source//:agent/mibgroup/header_complex.h'], renames = {'@net_snmp_source//:include/net-snmp/version.h': 'usr/include/net-snmp/version.h', '@net_snmp_source//:include/net-snmp/net-snmp-features.h': 'usr/include/net-snmp/net-snmp-features.h', '@net_snmp_source//:include/net-snmp/system/aix.h': 'usr/include/net-snmp/system/aix.h', '@net_snmp_source//:include/net-snmp/system/bsd.h': 'usr/include/net-snmp/system/bsd.h', '@net_snmp_source//:include/net-snmp/system/bsdi3.h': 'usr/include/net-snmp/system/bsdi3.h', '@net_snmp_source//:include/net-snmp/system/bsdi4.h': 'usr/include/net-snmp/system/bsdi4.h', '@net_snmp_source//:include/net-snmp/system/bsdi.h': 'usr/include/net-snmp/system/bsdi.h', '@net_snmp_source//:include/net-snmp/system/cygwin.h': 'usr/include/net-snmp/system/cygwin.h', '@net_snmp_source//:include/net-snmp/system/darwin.h': 'usr/include/net-snmp/system/darwin.h', '@net_snmp_source//:include/net-snmp/system/dragonfly.h': 'usr/include/net-snmp/system/dragonfly.h', '@net_snmp_source//:include/net-snmp/system/dynix.h': 'usr/include/net-snmp/system/dynix.h', '@net_snmp_source//:include/net-snmp/system/freebsd2.h': 'usr/include/net-snmp/system/freebsd2.h', '@net_snmp_source//:include/net-snmp/system/freebsd3.h': 'usr/include/net-snmp/system/freebsd3.h', '@net_snmp_source//:include/net-snmp/system/freebsd4.h': 'usr/include/net-snmp/system/freebsd4.h', '@net_snmp_source//:include/net-snmp/system/freebsd5.h': 'usr/include/net-snmp/system/freebsd5.h', '@net_snmp_source//:include/net-snmp/system/freebsd6.h': 'usr/include/net-snmp/system/freebsd6.h', '@net_snmp_source//:include/net-snmp/system/freebsd7.h': 'usr/include/net-snmp/system/freebsd7.h', '@net_snmp_source//:include/net-snmp/system/freebsd8.h': 'usr/include/net-snmp/system/freebsd8.h', '@net_snmp_source//:include/net-snmp/system/freebsd9.h': 'usr/include/net-snmp/system/freebsd9.h', '@net_snmp_source//:include/net-snmp/system/freebsd10.h': 'usr/include/net-snmp/system/freebsd10.h', '@net_snmp_source//:include/net-snmp/system/freebsd11.h': 'usr/include/net-snmp/system/freebsd11.h', '@net_snmp_source//:include/net-snmp/system/freebsd12.h': 'usr/include/net-snmp/system/freebsd12.h', '@net_snmp_source//:include/net-snmp/system/freebsd13.h': 'usr/include/net-snmp/system/freebsd13.h', '@net_snmp_source//:include/net-snmp/system/freebsd14.h': 'usr/include/net-snmp/system/freebsd14.h', '@net_snmp_source//:include/net-snmp/system/freebsd.h': 'usr/include/net-snmp/system/freebsd.h', '@net_snmp_source//:include/net-snmp/system/generic.h': 'usr/include/net-snmp/system/generic.h', '@net_snmp_source//:include/net-snmp/system/hpux.h': 'usr/include/net-snmp/system/hpux.h', '@net_snmp_source//:include/net-snmp/system/irix.h': 'usr/include/net-snmp/system/irix.h', '@net_snmp_source//:include/net-snmp/system/kfreebsd.h': 'usr/include/net-snmp/system/kfreebsd.h', '@net_snmp_source//:include/net-snmp/system/linux.h': 'usr/include/net-snmp/system/linux.h', '@net_snmp_source//:include/net-snmp/system/mingw32.h': 'usr/include/net-snmp/system/mingw32.h', '@net_snmp_source//:include/net-snmp/system/mingw32msvc.h': 'usr/include/net-snmp/system/mingw32msvc.h', '@net_snmp_source//:include/net-snmp/system/mips.h': 'usr/include/net-snmp/system/mips.h', '@net_snmp_source//:include/net-snmp/system/netbsd.h': 'usr/include/net-snmp/system/netbsd.h', '@net_snmp_source//:include/net-snmp/system/nto-qnx6.h': 'usr/include/net-snmp/system/nto-qnx6.h', '@net_snmp_source//:include/net-snmp/system/osf5.h': 'usr/include/net-snmp/system/osf5.h', '@net_snmp_source//:include/net-snmp/system/openbsd.h': 'usr/include/net-snmp/system/openbsd.h', '@net_snmp_source//:include/net-snmp/system/openbsd6.h': 'usr/include/net-snmp/system/openbsd6.h', '@net_snmp_source//:include/net-snmp/system/openbsd5.h': 'usr/include/net-snmp/system/openbsd5.h', '@net_snmp_source//:include/net-snmp/system/openbsd4.h': 'usr/include/net-snmp/system/openbsd4.h', '@net_snmp_source//:include/net-snmp/system/solaris2.3.h': 'usr/include/net-snmp/system/solaris2.3.h', '@net_snmp_source//:include/net-snmp/system/solaris2.4.h': 'usr/include/net-snmp/system/solaris2.4.h', '@net_snmp_source//:include/net-snmp/system/solaris2.5.h': 'usr/include/net-snmp/system/solaris2.5.h', '@net_snmp_source//:include/net-snmp/system/solaris2.6.h': 'usr/include/net-snmp/system/solaris2.6.h', '@net_snmp_source//:include/net-snmp/system/solaris.h': 'usr/include/net-snmp/system/solaris.h', '@net_snmp_source//:include/net-snmp/system/sunos.h': 'usr/include/net-snmp/system/sunos.h', '@net_snmp_source//:include/net-snmp/system/svr5.h': 'usr/include/net-snmp/system/svr5.h', '@net_snmp_source//:include/net-snmp/system/sysv.h': 'usr/include/net-snmp/system/sysv.h', '@net_snmp_source//:include/net-snmp/system/ultrix4.h': 'usr/include/net-snmp/system/ultrix4.h', '@net_snmp_source//:include/net-snmp/machine/generic.h': 'usr/include/net-snmp/machine/generic.h', '//:config_header': 'usr/include/net-snmp/net-snmp-config.h', '@net_snmp_source//:include/ucd-snmp/ucd-snmp-config.h': 'usr/include/ucd-snmp/ucd-snmp-config.h', '@net_snmp_source//:include/ucd-snmp/version.h': 'usr/include/ucd-snmp/version.h', '@net_snmp_source//:include/ucd-snmp/mib_module_config.h': 'usr/include/ucd-snmp/mib_module_config.h', '@net_snmp_source//:include/net-snmp/agent/agent_read_config.h': 'usr/include/net-snmp/agent/agent_read_config.h', '@net_snmp_source//:include/net-snmp/agent/agent_registry.h': 'usr/include/net-snmp/agent/agent_registry.h', '@net_snmp_source//:include/net-snmp/agent/agent_index.h': 'usr/include/net-snmp/agent/agent_index.h', '@net_snmp_source//:include/net-snmp/agent/agent_sysORTable.h': 'usr/include/net-snmp/agent/agent_sysORTable.h', '@net_snmp_source//:include/net-snmp/agent/agent_trap.h': 'usr/include/net-snmp/agent/agent_trap.h', '@net_snmp_source//:include/net-snmp/agent/auto_nlist.h': 'usr/include/net-snmp/agent/auto_nlist.h', '@net_snmp_source//:include/net-snmp/agent/ds_agent.h': 'usr/include/net-snmp/agent/ds_agent.h', '@net_snmp_source//:include/net-snmp/agent/snmp_agent.h': 'usr/include/net-snmp/agent/snmp_agent.h', '@net_snmp_source//:include/net-snmp/agent/snmp_vars.h': 'usr/include/net-snmp/agent/snmp_vars.h', '@net_snmp_source//:include/net-snmp/agent/var_struct.h': 'usr/include/net-snmp/agent/var_struct.h', '@net_snmp_source//:include/net-snmp/agent/agent_handler.h': 'usr/include/net-snmp/agent/agent_handler.h', '@net_snmp_source//:include/net-snmp/agent/net-snmp-agent-includes.h': 'usr/include/net-snmp/agent/net-snmp-agent-includes.h', '@net_snmp_source//:include/net-snmp/agent/mib_modules.h': 'usr/include/net-snmp/agent/mib_modules.h', '@net_snmp_source//:include/net-snmp/agent/agent_callbacks.h': 'usr/include/net-snmp/agent/agent_callbacks.h', '@net_snmp_source//:include/net-snmp/agent/sysORTable.h': 'usr/include/net-snmp/agent/sysORTable.h', '@net_snmp_source//:include/net-snmp/agent/all_helpers.h': 'usr/include/net-snmp/agent/all_helpers.h', '@net_snmp_source//:include/net-snmp/agent/baby_steps.h': 'usr/include/net-snmp/agent/baby_steps.h', '@net_snmp_source//:include/net-snmp/agent/bulk_to_next.h': 'usr/include/net-snmp/agent/bulk_to_next.h', '@net_snmp_source//:include/net-snmp/agent/cache_handler.h': 'usr/include/net-snmp/agent/cache_handler.h', '@net_snmp_source//:include/net-snmp/agent/debug_handler.h': 'usr/include/net-snmp/agent/debug_handler.h', '@net_snmp_source//:include/net-snmp/agent/instance.h': 'usr/include/net-snmp/agent/instance.h', '@net_snmp_source//:include/net-snmp/agent/mode_end_call.h': 'usr/include/net-snmp/agent/mode_end_call.h', '@net_snmp_source//:include/net-snmp/agent/multiplexer.h': 'usr/include/net-snmp/agent/multiplexer.h', '@net_snmp_source//:include/net-snmp/agent/null.h': 'usr/include/net-snmp/agent/null.h', '@net_snmp_source//:include/net-snmp/agent/old_api.h': 'usr/include/net-snmp/agent/old_api.h', '@net_snmp_source//:include/net-snmp/agent/read_only.h': 'usr/include/net-snmp/agent/read_only.h', '@net_snmp_source//:include/net-snmp/agent/row_merge.h': 'usr/include/net-snmp/agent/row_merge.h', '@net_snmp_source//:include/net-snmp/agent/scalar.h': 'usr/include/net-snmp/agent/scalar.h', '@net_snmp_source//:include/net-snmp/agent/scalar_group.h': 'usr/include/net-snmp/agent/scalar_group.h', '@net_snmp_source//:include/net-snmp/agent/serialize.h': 'usr/include/net-snmp/agent/serialize.h', '@net_snmp_source//:include/net-snmp/agent/snmp_get_statistic.h': 'usr/include/net-snmp/agent/snmp_get_statistic.h', '@net_snmp_source//:include/net-snmp/agent/stash_cache.h': 'usr/include/net-snmp/agent/stash_cache.h', '@net_snmp_source//:include/net-snmp/agent/stash_to_next.h': 'usr/include/net-snmp/agent/stash_to_next.h', '@net_snmp_source//:include/net-snmp/agent/table_array.h': 'usr/include/net-snmp/agent/table_array.h', '@net_snmp_source//:include/net-snmp/agent/table_container.h': 'usr/include/net-snmp/agent/table_container.h', '@net_snmp_source//:include/net-snmp/agent/table.h': 'usr/include/net-snmp/agent/table.h', '@net_snmp_source//:include/net-snmp/agent/table_data.h': 'usr/include/net-snmp/agent/table_data.h', '@net_snmp_source//:include/net-snmp/agent/table_dataset.h': 'usr/include/net-snmp/agent/table_dataset.h', '@net_snmp_source//:include/net-snmp/agent/table_tdata.h': 'usr/include/net-snmp/agent/table_tdata.h', '@net_snmp_source//:include/net-snmp/agent/table_iterator.h': 'usr/include/net-snmp/agent/table_iterator.h', '@net_snmp_source//:include/net-snmp/agent/watcher.h': 'usr/include/net-snmp/agent/watcher.h', '@net_snmp_source//:include/net-snmp/agent/netsnmp_close_fds.h': 'usr/include/net-snmp/agent/netsnmp_close_fds.h', '@net_snmp_source//:include/net-snmp/agent/mfd.h': 'usr/include/net-snmp/agent/mfd.h', '@net_snmp_source//:include/net-snmp/agent/set_helper.h': 'usr/include/net-snmp/agent/set_helper.h', '//:header_9': 'usr/include/net-snmp/agent/mib_module_config.h', '//:header_8': 'usr/include/net-snmp/agent/agent_module_config.h', '//:header_5': 'usr/include/net-snmp/agent/mib_module_includes.h', '@net_snmp_source//:include/ucd-snmp/agent_index.h': 'usr/include/ucd-snmp/agent_index.h', '@net_snmp_source//:include/ucd-snmp/agent_read_config.h': 'usr/include/ucd-snmp/agent_read_config.h', '@net_snmp_source//:include/ucd-snmp/agent_registry.h': 'usr/include/ucd-snmp/agent_registry.h', '@net_snmp_source//:include/ucd-snmp/agent_trap.h': 'usr/include/ucd-snmp/agent_trap.h', '@net_snmp_source//:include/ucd-snmp/auto_nlist.h': 'usr/include/ucd-snmp/auto_nlist.h', '@net_snmp_source//:include/ucd-snmp/ds_agent.h': 'usr/include/ucd-snmp/ds_agent.h', '@net_snmp_source//:include/ucd-snmp/header_complex.h': 'usr/include/ucd-snmp/header_complex.h', '@net_snmp_source//:include/ucd-snmp/mibincl.h': 'usr/include/ucd-snmp/mibincl.h', '@net_snmp_source//:include/ucd-snmp/snmp_agent.h': 'usr/include/ucd-snmp/snmp_agent.h', '@net_snmp_source//:include/ucd-snmp/ucd-snmp-includes.h': 'usr/include/ucd-snmp/ucd-snmp-includes.h', '@net_snmp_source//:include/ucd-snmp/ucd-snmp-agent-includes.h': 'usr/include/ucd-snmp/ucd-snmp-agent-includes.h', '@net_snmp_source//:include/ucd-snmp/util_funcs.h': 'usr/include/ucd-snmp/util_funcs.h', '@net_snmp_source//:include/ucd-snmp/var_struct.h': 'usr/include/ucd-snmp/var_struct.h', '@net_snmp_source//:agent/mibgroup/struct.h': 'usr/include/net-snmp/agent/struct.h', '@net_snmp_source//:agent/mibgroup/util_funcs.h': 'usr/include/net-snmp/agent/util_funcs.h', '@net_snmp_source//:agent/mibgroup/util_funcs/header_generic.h': 'usr/include/net-snmp/agent/util_funcs/header_generic.h', '@net_snmp_source//:agent/mibgroup/util_funcs/header_simple_table.h': 'usr/include/net-snmp/agent/util_funcs/header_simple_table.h', '@net_snmp_source//:agent/mibgroup/util_funcs/MIB_STATS_CACHE_TIMEOUT.h': 'usr/include/net-snmp/agent/util_funcs/MIB_STATS_CACHE_TIMEOUT.h', '@net_snmp_source//:include/net-snmp/config_api.h': 'usr/include/net-snmp/config_api.h', '@net_snmp_source//:include/net-snmp/definitions.h': 'usr/include/net-snmp/definitions.h', '@net_snmp_source//:include/net-snmp/mib_api.h': 'usr/include/net-snmp/mib_api.h', '@net_snmp_source//:include/net-snmp/net-snmp-includes.h': 'usr/include/net-snmp/net-snmp-includes.h', '@net_snmp_source//:include/net-snmp/output_api.h': 'usr/include/net-snmp/output_api.h', '@net_snmp_source//:include/net-snmp/pdu_api.h': 'usr/include/net-snmp/pdu_api.h', '@net_snmp_source//:include/net-snmp/session_api.h': 'usr/include/net-snmp/session_api.h', '@net_snmp_source//:include/net-snmp/snmpv3_api.h': 'usr/include/net-snmp/snmpv3_api.h', '@net_snmp_source//:include/net-snmp/types.h': 'usr/include/net-snmp/types.h', '@net_snmp_source//:include/net-snmp/utilities.h': 'usr/include/net-snmp/utilities.h', '@net_snmp_source//:include/net-snmp/varbind_api.h': 'usr/include/net-snmp/varbind_api.h', '@net_snmp_source//:include/net-snmp/library/README': 'usr/include/net-snmp/library/README', '@net_snmp_source//:include/net-snmp/library/asn1.h': 'usr/include/net-snmp/library/asn1.h', '@net_snmp_source//:include/net-snmp/library/callback.h': 'usr/include/net-snmp/library/callback.h', '@net_snmp_source//:include/net-snmp/library/cert_util.h': 'usr/include/net-snmp/library/cert_util.h', '@net_snmp_source//:include/net-snmp/library/check_varbind.h': 'usr/include/net-snmp/library/check_varbind.h', '@net_snmp_source//:include/net-snmp/library/container.h': 'usr/include/net-snmp/library/container.h', '@net_snmp_source//:include/net-snmp/library/container_binary_array.h': 'usr/include/net-snmp/library/container_binary_array.h', '@net_snmp_source//:include/net-snmp/library/container_iterator.h': 'usr/include/net-snmp/library/container_iterator.h', '@net_snmp_source//:include/net-snmp/library/container_list_ssll.h': 'usr/include/net-snmp/library/container_list_ssll.h', '@net_snmp_source//:include/net-snmp/library/container_null.h': 'usr/include/net-snmp/library/container_null.h', '@net_snmp_source//:include/net-snmp/library/data_list.h': 'usr/include/net-snmp/library/data_list.h', '@net_snmp_source//:include/net-snmp/library/default_store.h': 'usr/include/net-snmp/library/default_store.h', '@net_snmp_source//:include/net-snmp/library/dir_utils.h': 'usr/include/net-snmp/library/dir_utils.h', '@net_snmp_source//:include/net-snmp/library/fd_event_manager.h': 'usr/include/net-snmp/library/fd_event_manager.h', '@net_snmp_source//:include/net-snmp/library/file_utils.h': 'usr/include/net-snmp/library/file_utils.h', '@net_snmp_source//:include/net-snmp/library/getopt.h': 'usr/include/net-snmp/library/getopt.h', '@net_snmp_source//:include/net-snmp/library/int64.h': 'usr/include/net-snmp/library/int64.h', '@net_snmp_source//:include/net-snmp/library/keytools.h': 'usr/include/net-snmp/library/keytools.h', '@net_snmp_source//:include/net-snmp/library/large_fd_set.h': 'usr/include/net-snmp/library/large_fd_set.h', '@net_snmp_source//:include/net-snmp/library/lcd_time.h': 'usr/include/net-snmp/library/lcd_time.h', '@net_snmp_source//:include/net-snmp/library/md5.h': 'usr/include/net-snmp/library/md5.h', '@net_snmp_source//:include/net-snmp/library/mib.h': 'usr/include/net-snmp/library/mib.h', '@net_snmp_source//:include/net-snmp/library/mt_support.h': 'usr/include/net-snmp/library/mt_support.h', '@net_snmp_source//:include/net-snmp/library/netsnmp-attribute-format.h': 'usr/include/net-snmp/library/netsnmp-attribute-format.h', '@net_snmp_source//:include/net-snmp/library/oid.h': 'usr/include/net-snmp/library/oid.h', '@net_snmp_source//:include/net-snmp/library/oid_stash.h': 'usr/include/net-snmp/library/oid_stash.h', '@net_snmp_source//:include/net-snmp/library/parse.h': 'usr/include/net-snmp/library/parse.h', '@net_snmp_source//:include/net-snmp/library/read_config.h': 'usr/include/net-snmp/library/read_config.h', '@net_snmp_source//:include/net-snmp/library/scapi.h': 'usr/include/net-snmp/library/scapi.h', '@net_snmp_source//:include/net-snmp/library/snmp-tc.h': 'usr/include/net-snmp/library/snmp-tc.h', '@net_snmp_source//:include/net-snmp/library/snmp.h': 'usr/include/net-snmp/library/snmp.h', '@net_snmp_source//:include/net-snmp/library/snmp_alarm.h': 'usr/include/net-snmp/library/snmp_alarm.h', '@net_snmp_source//:include/net-snmp/library/snmp_api.h': 'usr/include/net-snmp/library/snmp_api.h', '@net_snmp_source//:include/net-snmp/library/snmp_assert.h': 'usr/include/net-snmp/library/snmp_assert.h', '@net_snmp_source//:include/net-snmp/library/snmp_client.h': 'usr/include/net-snmp/library/snmp_client.h', '@net_snmp_source//:include/net-snmp/library/snmp_debug.h': 'usr/include/net-snmp/library/snmp_debug.h', '@net_snmp_source//:include/net-snmp/library/snmp_enum.h': 'usr/include/net-snmp/library/snmp_enum.h', '@net_snmp_source//:include/net-snmp/library/snmp_impl.h': 'usr/include/net-snmp/library/snmp_impl.h', '@net_snmp_source//:include/net-snmp/library/snmp_logging.h': 'usr/include/net-snmp/library/snmp_logging.h', '@net_snmp_source//:include/net-snmp/library/snmp_parse_args.h': 'usr/include/net-snmp/library/snmp_parse_args.h', '@net_snmp_source//:include/net-snmp/library/snmp_secmod.h': 'usr/include/net-snmp/library/snmp_secmod.h', '@net_snmp_source//:include/net-snmp/library/snmp_service.h': 'usr/include/net-snmp/library/snmp_service.h', '@net_snmp_source//:include/net-snmp/library/snmp_transport.h': 'usr/include/net-snmp/library/snmp_transport.h', '@net_snmp_source//:include/net-snmp/library/snmpv3.h': 'usr/include/net-snmp/library/snmpv3.h', '@net_snmp_source//:include/net-snmp/library/system.h': 'usr/include/net-snmp/library/system.h', '@net_snmp_source//:include/net-snmp/library/text_utils.h': 'usr/include/net-snmp/library/text_utils.h', '@net_snmp_source//:include/net-snmp/library/tools.h': 'usr/include/net-snmp/library/tools.h', '@net_snmp_source//:include/net-snmp/library/transform_oids.h': 'usr/include/net-snmp/library/transform_oids.h', '@net_snmp_source//:include/net-snmp/library/types.h': 'usr/include/net-snmp/library/types.h', '@net_snmp_source//:include/net-snmp/library/ucd_compat.h': 'usr/include/net-snmp/library/ucd_compat.h', '@net_snmp_source//:include/net-snmp/library/vacm.h': 'usr/include/net-snmp/library/vacm.h', '@net_snmp_source//:include/net-snmp/library/winpipe.h': 'usr/include/net-snmp/library/winpipe.h', '@net_snmp_source//:include/net-snmp/library/winservice.h': 'usr/include/net-snmp/library/winservice.h', '@net_snmp_source//:include/net-snmp/library/snmpTLSBaseDomain.h': 'usr/include/net-snmp/library/snmpTLSBaseDomain.h', '@net_snmp_source//:include/net-snmp/library/snmpIPv6BaseDomain.h': 'usr/include/net-snmp/library/snmpIPv6BaseDomain.h', '@net_snmp_source//:include/net-snmp/library/snmpIPBaseDomain.h': 'usr/include/net-snmp/library/snmpIPBaseDomain.h', '@net_snmp_source//:include/net-snmp/library/snmpUDPBaseDomain.h': 'usr/include/net-snmp/library/snmpUDPBaseDomain.h', '@net_snmp_source//:include/net-snmp/library/snmpUDPIPv4BaseDomain.h': 'usr/include/net-snmp/library/snmpUDPIPv4BaseDomain.h', '@net_snmp_source//:include/net-snmp/library/snmpTCPBaseDomain.h': 'usr/include/net-snmp/library/snmpTCPBaseDomain.h', '@net_snmp_source//:include/net-snmp/library/snmpSocketBaseDomain.h': 'usr/include/net-snmp/library/snmpSocketBaseDomain.h', '@net_snmp_source//:include/net-snmp/library/snmpIPv4BaseDomain.h': 'usr/include/net-snmp/library/snmpIPv4BaseDomain.h', '@net_snmp_source//:include/net-snmp/library/snmpDTLSUDPDomain.h': 'usr/include/net-snmp/library/snmpDTLSUDPDomain.h', '@net_snmp_source//:include/net-snmp/library/snmpTLSTCPDomain.h': 'usr/include/net-snmp/library/snmpTLSTCPDomain.h', '@net_snmp_source//:include/net-snmp/library/snmpUDPIPv6Domain.h': 'usr/include/net-snmp/library/snmpUDPIPv6Domain.h', '@net_snmp_source//:include/net-snmp/library/snmpTCPIPv6Domain.h': 'usr/include/net-snmp/library/snmpTCPIPv6Domain.h', '@net_snmp_source//:include/net-snmp/library/snmpUDPDomain.h': 'usr/include/net-snmp/library/snmpUDPDomain.h', '@net_snmp_source//:include/net-snmp/library/snmpTCPDomain.h': 'usr/include/net-snmp/library/snmpTCPDomain.h', '@net_snmp_source//:include/net-snmp/library/snmpAliasDomain.h': 'usr/include/net-snmp/library/snmpAliasDomain.h', '@net_snmp_source//:include/net-snmp/library/snmpUnixDomain.h': 'usr/include/net-snmp/library/snmpUnixDomain.h', '@net_snmp_source//:include/net-snmp/library/snmpCallbackDomain.h': 'usr/include/net-snmp/library/snmpCallbackDomain.h', '@net_snmp_source//:include/net-snmp/library/snmptsm.h': 'usr/include/net-snmp/library/snmptsm.h', '@net_snmp_source//:include/net-snmp/library/snmpusm.h': 'usr/include/net-snmp/library/snmpusm.h', '//:header_10': 'usr/include/net-snmp/library/snmpv3-security-includes.h', '@net_snmp_source//:include/ucd-snmp/asn1.h': 'usr/include/ucd-snmp/asn1.h', '@net_snmp_source//:include/ucd-snmp/callback.h': 'usr/include/ucd-snmp/callback.h', '@net_snmp_source//:include/ucd-snmp/default_store.h': 'usr/include/ucd-snmp/default_store.h', '@net_snmp_source//:include/ucd-snmp/int64.h': 'usr/include/ucd-snmp/int64.h', '@net_snmp_source//:include/ucd-snmp/keytools.h': 'usr/include/ucd-snmp/keytools.h', '@net_snmp_source//:include/ucd-snmp/mib.h': 'usr/include/ucd-snmp/mib.h', '@net_snmp_source//:include/ucd-snmp/parse.h': 'usr/include/ucd-snmp/parse.h', '@net_snmp_source//:include/ucd-snmp/read_config.h': 'usr/include/ucd-snmp/read_config.h', '@net_snmp_source//:include/ucd-snmp/scapi.h': 'usr/include/ucd-snmp/scapi.h', '@net_snmp_source//:include/ucd-snmp/snmp-tc.h': 'usr/include/ucd-snmp/snmp-tc.h', '@net_snmp_source//:include/ucd-snmp/snmp.h': 'usr/include/ucd-snmp/snmp.h', '@net_snmp_source//:include/ucd-snmp/snmp_alarm.h': 'usr/include/ucd-snmp/snmp_alarm.h', '@net_snmp_source//:include/ucd-snmp/snmp_api.h': 'usr/include/ucd-snmp/snmp_api.h', '@net_snmp_source//:include/ucd-snmp/snmp_client.h': 'usr/include/ucd-snmp/snmp_client.h', '@net_snmp_source//:include/ucd-snmp/snmp_debug.h': 'usr/include/ucd-snmp/snmp_debug.h', '@net_snmp_source//:include/ucd-snmp/snmp_impl.h': 'usr/include/ucd-snmp/snmp_impl.h', '@net_snmp_source//:include/ucd-snmp/snmp_logging.h': 'usr/include/ucd-snmp/snmp_logging.h', '@net_snmp_source//:include/ucd-snmp/snmp_parse_args.h': 'usr/include/ucd-snmp/snmp_parse_args.h', '@net_snmp_source//:include/ucd-snmp/snmp_vars.h': 'usr/include/ucd-snmp/snmp_vars.h', '@net_snmp_source//:include/ucd-snmp/snmpusm.h': 'usr/include/ucd-snmp/snmpusm.h', '@net_snmp_source//:include/ucd-snmp/snmpv3.h': 'usr/include/ucd-snmp/snmpv3.h', '@net_snmp_source//:include/ucd-snmp/struct.h': 'usr/include/ucd-snmp/struct.h', '@net_snmp_source//:include/ucd-snmp/system.h': 'usr/include/ucd-snmp/system.h', '@net_snmp_source//:include/ucd-snmp/tools.h': 'usr/include/ucd-snmp/tools.h', '@net_snmp_source//:include/ucd-snmp/transform_oids.h': 'usr/include/ucd-snmp/transform_oids.h', '@net_snmp_source//:agent/mibgroup/mibincl.h': 'usr/include/net-snmp/library/mibincl.h', '@net_snmp_source//:agent/mibgroup/header_complex.h': 'usr/include/net-snmp/agent/header_complex.h'}, attributes = pkg_attributes(mode = "0644"))
+pkg_files(name = "compatibility_headers", srcs = ['@net_snmp_source//:agent/mibgroup/util_funcs.h'], renames = {'@net_snmp_source//:agent/mibgroup/util_funcs.h': 'usr/include/net-snmp/util_funcs.h'}, attributes = pkg_attributes(mode = "0644"))
+pkg_files(name = "configured_devel_scripts", srcs = [":configured_0"], renames = {":configured_0": "usr/bin/net-snmp-config"}, attributes = pkg_attributes(mode = "0755"))
+pkg_files(name = "configured_snmpd_scripts", srcs = [":configured_1"], renames = {":configured_1": "usr/bin/net-snmp-create-v3-user"}, attributes = pkg_attributes(mode = "0755"))
+pkg_files(name = "configured_pkgconfig", srcs = [":configured_2", ":configured_3"], prefix = select({"@platforms//cpu:x86_64": "usr/lib/x86_64-linux-gnu/pkgconfig", "@platforms//cpu:aarch64": "usr/lib/aarch64-linux-gnu/pkgconfig"}), renames = {":configured_2": "netsnmp.pc", ":configured_3": "netsnmp-agent.pc"}, attributes = pkg_attributes(mode = "0644"))
+pkg_files(name = "libsnmp-perl_examples_420", srcs = ['@net_snmp_source//:perl/SNMP/examples/async1.pl', '@net_snmp_source//:perl/SNMP/examples/async2.pl', '@net_snmp_source//:perl/SNMP/examples/bulkwalk.pl', '@net_snmp_source//:perl/SNMP/examples/ipforward.pl', '@net_snmp_source//:perl/SNMP/examples/mibtree.pl', '@net_snmp_source//:perl/SNMP/examples/mibwalk.pl', '@net_snmp_source//:perl/SNMP/examples/tablewalk.pl', '@net_snmp_source//:perl/SNMP/examples/testleak.pl', '@net_snmp_source//:perl/SNMP/examples/trap-example.pl'], renames = {'@net_snmp_source//:perl/SNMP/examples/async1.pl': 'usr/share/doc/libsnmp-perl/examples/async1.pl', '@net_snmp_source//:perl/SNMP/examples/async2.pl': 'usr/share/doc/libsnmp-perl/examples/async2.pl', '@net_snmp_source//:perl/SNMP/examples/bulkwalk.pl': 'usr/share/doc/libsnmp-perl/examples/bulkwalk.pl', '@net_snmp_source//:perl/SNMP/examples/ipforward.pl': 'usr/share/doc/libsnmp-perl/examples/ipforward.pl', '@net_snmp_source//:perl/SNMP/examples/mibtree.pl': 'usr/share/doc/libsnmp-perl/examples/mibtree.pl', '@net_snmp_source//:perl/SNMP/examples/mibwalk.pl': 'usr/share/doc/libsnmp-perl/examples/mibwalk.pl', '@net_snmp_source//:perl/SNMP/examples/tablewalk.pl': 'usr/share/doc/libsnmp-perl/examples/tablewalk.pl', '@net_snmp_source//:perl/SNMP/examples/testleak.pl': 'usr/share/doc/libsnmp-perl/examples/testleak.pl', '@net_snmp_source//:perl/SNMP/examples/trap-example.pl': 'usr/share/doc/libsnmp-perl/examples/trap-example.pl'}, attributes = pkg_attributes(mode = "0644"))
+pkg_files(name = "libsnmp-perl_examples_493", srcs = ['@net_snmp_source//:perl/SNMP/examples/pingmib.pl'], renames = {'@net_snmp_source//:perl/SNMP/examples/pingmib.pl': 'usr/share/doc/libsnmp-perl/examples/pingmib.pl'}, attributes = pkg_attributes(mode = "0755"))
+# TreeArtifact regular files stay regular archive members. Package links are
+# declared explicitly below; sandbox filesystem links are never probed.
+write_file(
+    name = "resource_modes",
+    out = "resource_modes.awk",
+    content = ['{ mode = ($0 ~ /type=dir/) ? "0755" : "0644"; if ($1 == "usr/bin/snmpcheck" || $1 == "usr/bin/tkmib" || $1 == "usr/bin/mib2c" || $1 == "usr/bin/fixproc" || $1 == "usr/bin/snmpconf" || $1 == "usr/bin/traptoemail" || $1 == "usr/bin/snmp-bridge-mib" || $1 == "usr/share/doc/libsnmp-perl/examples/net-snmp-cert" || $1 == "usr/share/doc/libsnmp-perl/examples/checkbandwidth" || $1 == "usr/bin/mib2c-update") mode = "0755"; sub(/mode=[0-7]+/, "mode=" mode); }', 'END { count = split(man_aliases, aliases, ";"); for (i = 1; i <= count; ++i) { split(aliases[i], parts, ":"); print "usr/share/man/" man_section "/" parts[1] " uid=0 gid=0 uname=root gname=root mode=0777 time=0 type=link link=" parts[2]; } }'],
+)
+mtree_spec(name = "libsnmp-base_generated_spec", srcs = [":libsnmp-base_generated_files"])
+mtree_mutate(name = "libsnmp-base_generated_layout", mtree = ":libsnmp-base_generated_spec", srcs = [":libsnmp-base_generated_files"], strip_prefix = "package_sources/generated/libsnmp-base", owner = "0", ownername = "root", mtime = "0", includes = [":resource_modes"])
+tar(name = "libsnmp-base_generated", srcs = [":libsnmp-base_generated_files"], mtree = ":libsnmp-base_generated_layout")
+mtree_spec(name = "libsnmp40_generated_spec", srcs = [":libsnmp40_generated_files"])
+mtree_mutate(name = "libsnmp40_generated_layout", mtree = ":libsnmp40_generated_spec", srcs = [":libsnmp40_generated_files"], strip_prefix = "package_sources/generated/libsnmp40", owner = "0", ownername = "root", mtime = "0", includes = [":resource_modes"])
+tar(name = "libsnmp40_generated", srcs = [":libsnmp40_generated_files"], mtree = ":libsnmp40_generated_layout")
+mtree_spec(name = "libnetsnmptrapd40_generated_spec", srcs = [":libnetsnmptrapd40_generated_files"])
+mtree_mutate(name = "libnetsnmptrapd40_generated_layout", mtree = ":libnetsnmptrapd40_generated_spec", srcs = [":libnetsnmptrapd40_generated_files"], strip_prefix = "package_sources/generated/libnetsnmptrapd40", owner = "0", ownername = "root", mtime = "0", includes = [":resource_modes"])
+tar(name = "libnetsnmptrapd40_generated", srcs = [":libnetsnmptrapd40_generated_files"], mtree = ":libnetsnmptrapd40_generated_layout")
+mtree_spec(name = "libsnmp-dev_generated_spec", srcs = [":libsnmp-dev_generated_files"])
+mtree_mutate(name = "libsnmp-dev_generated_layout", script_args = {"man_section": "man3", "man_aliases": ";".join([name + ".gz:" + target + ".gz" for name, target in _INSTALL["aliases"].items()])}, mtree = ":libsnmp-dev_generated_spec", srcs = [":libsnmp-dev_generated_files"], strip_prefix = "package_sources/generated/libsnmp-dev", owner = "0", ownername = "root", mtime = "0", includes = [":resource_modes"])
+tar(name = "libsnmp-dev_generated_tree_tar", srcs = [":libsnmp-dev_generated_files"], mtree = ":libsnmp-dev_generated_layout")
+pkg_tar(name = "libsnmp-dev_generated", deps = [":libsnmp-dev_generated_tree_tar"], srcs = [':compatibility_headers', ':installed_headers', ':configured_devel_scripts', ':configured_pkgconfig'], owner = "0.0", ownername = "root.root", mtime = 0, portable_mtime = False, create_parents = False)
+mtree_spec(name = "libsnmp-perl_generated_spec", srcs = [":libsnmp-perl_generated_files"])
+mtree_mutate(name = "libsnmp-perl_generated_layout", mtree = ":libsnmp-perl_generated_spec", srcs = [":libsnmp-perl_generated_files"], strip_prefix = "package_sources/generated/libsnmp-perl", owner = "0", ownername = "root", mtime = "0", includes = [":resource_modes"])
+tar(name = "libsnmp-perl_generated_tree_tar", srcs = [":libsnmp-perl_generated_files"], mtree = ":libsnmp-perl_generated_layout")
+pkg_tar(name = "libsnmp-perl_generated", deps = [":libsnmp-perl_generated_tree_tar"], srcs = [':libsnmp-perl_examples_420', ':libsnmp-perl_examples_493'], owner = "0.0", ownername = "root.root", mtime = 0, portable_mtime = False, create_parents = False)
+mtree_spec(name = "snmp_generated_spec", srcs = [":snmp_generated_files"])
+# These two upstream .so man1 entry points alias the installed real manuals.
+mtree_mutate(name = "snmp_generated_layout", script_args = {"man_section": "man1", "man_aliases": "snmpinform.1.gz:snmptrap.1.gz;snmptop.1.gz:snmpps.1.gz"}, mtree = ":snmp_generated_spec", srcs = [":snmp_generated_files"], strip_prefix = "package_sources/generated/snmp", owner = "0", ownername = "root", mtime = "0", includes = [":resource_modes"])
+tar(name = "snmp_generated", srcs = [":snmp_generated_files"], mtree = ":snmp_generated_layout")
+mtree_spec(name = "snmpd_generated_spec", srcs = [":snmpd_generated_files"])
+mtree_mutate(name = "snmpd_generated_layout", mtree = ":snmpd_generated_spec", srcs = [":snmpd_generated_files"], strip_prefix = "package_sources/generated/snmpd", owner = "0", ownername = "root", mtime = "0", includes = [":resource_modes"])
+tar(name = "snmpd_generated_tree_tar", srcs = [":snmpd_generated_files"], mtree = ":snmpd_generated_layout")
+pkg_tar(name = "snmpd_generated", deps = [":snmpd_generated_tree_tar"], srcs = [':configured_snmpd_scripts'], owner = "0.0", ownername = "root.root", mtime = 0, portable_mtime = False, create_parents = False)
+mtree_spec(name = "snmptrapd_generated_spec", srcs = [":snmptrapd_generated_files"])
+mtree_mutate(name = "snmptrapd_generated_layout", mtree = ":snmptrapd_generated_spec", srcs = [":snmptrapd_generated_files"], strip_prefix = "package_sources/generated/snmptrapd", owner = "0", ownername = "root", mtime = "0", includes = [":resource_modes"])
+tar(name = "snmptrapd_generated", srcs = [":snmptrapd_generated_files"], mtree = ":snmptrapd_generated_layout")
+mtree_spec(name = "tkmib_generated_spec", srcs = [":tkmib_generated_files"])
+mtree_mutate(name = "tkmib_generated_layout", mtree = ":tkmib_generated_spec", srcs = [":tkmib_generated_files"], strip_prefix = "package_sources/generated/tkmib", owner = "0", ownername = "root", mtime = "0", includes = [":resource_modes"])
+tar(name = "tkmib_generated", srcs = [":tkmib_generated_files"], mtree = ":tkmib_generated_layout")
+mtree_spec(name = "libsnmp-base_documentation_spec", srcs = [":libsnmp-base_documentation_files"])
+mtree_mutate(name = "libsnmp-base_documentation_layout", mtree = ":libsnmp-base_documentation_spec", srcs = [":libsnmp-base_documentation_files"], strip_prefix = "package_sources/documentation/libsnmp-base", owner = "0", ownername = "root", mtime = "0", includes = [":resource_modes"])
+tar(name = "libsnmp-base_documentation", srcs = [":libsnmp-base_documentation_files"], mtree = ":libsnmp-base_documentation_layout")
+mtree_spec(name = "libsnmp40_documentation_spec", srcs = [":libsnmp40_documentation_files"])
+mtree_mutate(name = "libsnmp40_documentation_layout", mtree = ":libsnmp40_documentation_spec", srcs = [":libsnmp40_documentation_files"], strip_prefix = "package_sources/documentation/libsnmp40", owner = "0", ownername = "root", mtime = "0", includes = [":resource_modes"])
+tar(name = "libsnmp40_documentation", srcs = [":libsnmp40_documentation_files"], mtree = ":libsnmp40_documentation_layout")
+mtree_spec(name = "libsnmp-perl_documentation_spec", srcs = [":libsnmp-perl_documentation_files"])
+mtree_mutate(name = "libsnmp-perl_documentation_layout", mtree = ":libsnmp-perl_documentation_spec", srcs = [":libsnmp-perl_documentation_files"], strip_prefix = "package_sources/documentation/libsnmp-perl", owner = "0", ownername = "root", mtime = "0", includes = [":resource_modes"])
+tar(name = "libsnmp-perl_documentation", srcs = [":libsnmp-perl_documentation_files"], mtree = ":libsnmp-perl_documentation_layout")
+mtree_spec(name = "tkmib_documentation_spec", srcs = [":tkmib_documentation_files"])
+mtree_mutate(name = "tkmib_documentation_layout", mtree = ":tkmib_documentation_spec", srcs = [":tkmib_documentation_files"], strip_prefix = "package_sources/documentation/tkmib", owner = "0", ownername = "root", mtime = "0", includes = [":resource_modes"])
+tar(name = "tkmib_documentation", srcs = [":tkmib_documentation_files"], mtree = ":tkmib_documentation_layout")
+mtree_spec(name = "perl_resources_spec", srcs = [":perl_resources_files"])
+mtree_mutate(name = "perl_resources_layout", mtree = ":perl_resources_spec", srcs = [":perl_resources_files"], strip_prefix = "package_sources/perl_resources", owner = "0", ownername = "root", mtime = "0", includes = [":resource_modes"])
+tar(name = "perl_resources", srcs = [":perl_resources_files"], mtree = ":perl_resources_layout")

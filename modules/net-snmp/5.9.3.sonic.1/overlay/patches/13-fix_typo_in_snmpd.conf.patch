@@ -1,0 +1,12 @@
+diff --git a/EXAMPLE.conf.def b/EXAMPLE.conf.def
+--- a/EXAMPLE.conf.def
++++ b/EXAMPLE.conf.def
+@@ -63,7 +63,7 @@
+ #rwuser   authPrivUser   priv
+ 
+ #  It's no longer typically necessary to use the full 'com2sec/group/access' configuration
+-#  r[ou]user and r[ow]community, together with suitable views, should cover most requirements
++#  r[ow]user and r[ow]community, together with suitable views, should cover most requirements
+ 
+ 
+ 

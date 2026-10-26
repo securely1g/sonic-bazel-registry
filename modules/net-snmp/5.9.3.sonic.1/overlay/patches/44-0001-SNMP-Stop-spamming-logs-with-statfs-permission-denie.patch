@@ -1,0 +1,12 @@
+diff --git a/agent/mibgroup/hardware/fsys/fsys_mntctl.c b/agent/mibgroup/hardware/fsys/fsys_mntctl.c
+--- a/agent/mibgroup/hardware/fsys/fsys_mntctl.c
++++ b/agent/mibgroup/hardware/fsys/fsys_mntctl.c
+@@ -167,8 +167,6 @@
+             continue;
+ 
+         if ( statfs( entry->path, &stat_buf ) < 0 ) {
+-            snprintf( tmpbuf, sizeof(tmpbuf), "Cannot statfs %s", entry->path );
+-            snmp_log_perror( tmpbuf );
+             continue;
+         }
+         entry->units =  stat_buf.f_bsize;

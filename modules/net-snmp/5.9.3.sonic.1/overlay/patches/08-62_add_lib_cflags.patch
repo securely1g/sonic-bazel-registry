@@ -1,0 +1,37 @@
+diff --git a/net-snmp-config.in b/net-snmp-config.in
+--- a/net-snmp-config.in
++++ b/net-snmp-config.in
+@@ -144,6 +144,9 @@
+     #################################################### compile
+     --base-cflags)
+       echo @CFLAGS@ @CPPFLAGS@ -I${NSC_INCLUDEDIR}
++      ;;
++    --base-lib-cflags)
++      echo @LIBCFLAGS@ @CPPFLAGS@ -I${NSC_INCLUDEDIR}
+       ;;
+     --cflags|--cf*)
+       echo @CFLAGS@ @DEVFLAGS@ @CPPFLAGS@ -I. -I${NSC_INCLUDEDIR}
+@@ -707,6 +710,8 @@
+   echo "  These options produce the various compilation flags needed when"
+   echo "  building external SNMP applications:"
+   echo ""
++  echo "    --base-lib-cflags lists additional compilation flags needed for linking"
++  echo "                      against libsnmp"
+   echo "    --base-cflags     lists additional compilation flags needed"
+   echo "    --cflags          lists additional compilation flags needed"
+   echo "                      (includes -I. and extra developer warning flags)"
+diff --git a/configure.ac b/configure.ac
+--- a/configure.ac
++++ b/configure.ac
+@@ -74,6 +74,11 @@
+ m4_include([configure.d/config_os_misc1])
+ m4_include([configure.d/config_os_libs2])
+ AC_CACHE_SAVE
++
++# Save CFLAGS for net-snmp-config
++LIBCFLAGS=$CFLAGS
++AC_SUBST(LIBCFLAGS)
++
+ m4_include([configure.d/config_project_perl_python])
+ m4_include([configure.d/config_os_misc2])
+ m4_include([configure.d/config_project_types])
