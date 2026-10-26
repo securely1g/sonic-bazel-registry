@@ -1,0 +1,38 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.22-a12bc826d6f811a157db5c7c02a2fe033896cc14",
+      "repo_name": "sonic_build_infra"
+    },
+    {
+      "name": "rules_distroless",
+      "version": "0.9.4.sonic.13"
+    },
+    {
+      "name": "tar.bzl",
+      "version": "0.10.5-sonic.1"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
+  },
+  "build_targets": [
+    "@sonic-dash-api//:libdashapi_pkg",
+    "@sonic-dash-api//:libdashapi_pkg.debug_symbols",
+    "@sonic-dash-api//:protobuf_runtime_pkg",
+    "@sonic-dash-api//:protobuf_debug_pkg",
+    "@sonic-dash-api//bazel:runtime_consumer_test"
+  ],
+  "test_targets": [
+    "@sonic-dash-api//bazel:source_contract_test",
+    "@sonic-dash-api//bazel:runtime_consumer_test",
+    "@sonic-dash-api//bazel:utils_test",
+    "@sonic-dash-api//misc:python_test"
+  ]
+}
