@@ -1,0 +1,17 @@
+From: SONiC Bazel Registry <securely1g@gmail.com>
+Subject: [PATCH 1/2] Identify the registered source-receipt path fix
+
+Keep the fetched module version equal to its registry entry. This registers
+checked source receipts without optional producer path requirements.
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,7 +1,7 @@
+ # Keep bazel_compatibility in sync with sonic-buildimage's .bazelversion.
+ module(
+     name = "sonic-build-infra",
+-    version = "0.0.25",
++    version = "0.0.25-17a1e555291c64be1a6ff008f33352bffc4f8e5c",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
