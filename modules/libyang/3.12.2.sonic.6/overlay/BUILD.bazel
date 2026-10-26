@@ -285,6 +285,11 @@ runtime_packages(
     packages = {
         "libyang3": "//:libyang_pkg",
     },
+    required_paths = {
+        "libyang3": [
+            "usr/lib/{multiarch}/libyang.so.3",
+        ],
+    },
     visibility = ["//visibility:public"],
 )
 

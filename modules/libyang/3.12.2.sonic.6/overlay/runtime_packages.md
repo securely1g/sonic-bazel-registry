@@ -14,3 +14,8 @@ The existing library target links PCRE2 and xxHash statically. The generated
 shared-library dependencies describe the resulting ELF file: for the selected
 AMD64 build, `libyang3` version `3.12.2-1` depends on `libc6 (>= 2.38)`.
 PCRE2 and xxHash remain declared build inputs and retain their installed notices.
+
+The producer checks its reviewed `required_paths` against the runtime TAR before
+emitting this metadata. Consumers reuse these checks; an image adds only its own
+installed-path requirements. Missing required files fail ordinary builds, including
+image builds, without waiting for a separate package-test invocation.
