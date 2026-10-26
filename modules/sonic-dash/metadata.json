@@ -11,7 +11,8 @@
     "github:securely1g/DASH"
   ],
   "versions": [
-    "0.0.1-97c07d05193e346bc990e816e30a7e3d72e8f4c0"
+    "0.0.1-97c07d05193e346bc990e816e30a7e3d72e8f4c0",
+    "0.0.2-5c9305403585a7ae54f86918219acb8ed39f740a"
   ],
   "yanked_versions": {}
 }
