@@ -7,14 +7,14 @@
   },
   "patch_strip": 1,
   "overlay": {
-    "BUILD.bazel": "sha256-dcLc/8cgYKNarH+Ajqli6G+OQEfTZly+K1bFP7Eb6h0=",
+    "BUILD.bazel": "sha256-1+vK6WQaT/v84ih0nzK0Csa4mevRze/O79vdfrycIMg=",
     "LICENSES": "sha256-BvHAhiSyYIsBmAnh7jP8fANo0sRsmHxlsCFqMtVdseA=",
-    "MODULE.bazel": "sha256-uG+ra8tRNpviZTAfk7w84FZme7bihqvfoGmQ7fRzwE0=",
+    "MODULE.bazel": "sha256-/kRzceEshjyROl4/wITwfTmvNzqz2SrJj380tevbYEc=",
     "README.bazel.md": "sha256-LcApHI8MFUOd4m4gk/Ly7U23XbRICrhI1vwilcx1Dy8=",
     "headers.bzl": "sha256-cQ+D1+NwSRWxqN1ZiqB+wLzt7PdtDqJ4A3pHwt04UUw=",
     "libyang_package_test.sh": "sha256-IdTtoIQxSFCudOCEWZzr41ykoxwEvWtjG5wCBxNYaoo=",
     "libyang_srcs.bzl": "sha256-m/mLGdfxZ9F9fo36l+P3DqETLnxRfy5i/QlMiK1b3MY=",
     "libyang_test.c": "sha256-PvL3aPjkBdZRdJCfuEX7c0aVHcHtpSk/xxdqvekqKVw=",
-    "runtime_packages.md": "sha256-gox29Fwrb2gz6/47mxMZqornK9hNbMHSM0Yu4u5ngl8="
+    "runtime_packages.md": "sha256-W7RPmXyFG07sIyHkjLHR/Ow3NSLflv2lob0gxf8bP2g="
   }
 }
