@@ -142,6 +142,31 @@ repositories. Authors must also audit those PRs and update affected consumer
 versions, registry revisions, overrides, and lockfiles when consolidating a
 candidate. This policy does not change native module validation coverage.
 
+### Approved in-place update
+
+PR [#146](https://github.com/securely1g/sonic-bazel-registry/pull/146) has explicit
+approval to add native APT library exports to the existing
+`rules_distroless@0.9.4.sonic.13` entry. `PUBLISHED_INPUT_UPDATES` permits only
+this exact Git tree transition for `modules/rules_distroless/0.9.4.sonic.13`:
+
+| Original entry tree | Updated entry tree |
+| --- | --- |
+| `6950d6dfd5369d86aad23d1479cad70631c97993` | `f449be186aaa231a7278a773452b22cb4fed9e86` |
+
+For example, the approved update adds `0016-native-library-exports.patch` and
+its public-header/Lua tests while retaining patches `0001`–`0015`. The exact
+transition passes the publication check and logs both trees in `plan.log`.
+An extra patch edit, file-mode change, different original tree or reverse
+transition does not match; the usual published-input checks still reject it.
+After publication, another implementation change is also rejected. Ordinary
+standalone documentation/test maintenance keeps its existing rules.
+
+This is not a module-wide exemption or a command-line bypass. Metadata,
+candidate limits, source integrity and native validation remain enforced. The
+workflow still uses fresh maintained `main` for PRs and the pre-push SHA for
+pushes. Changing the shared runner continues to select the latest configured
+versions of all modules; the exception does not narrow that CI coverage.
+
 ## Module configuration
 
 Add `modules/<name>/<version>/presubmit.json` with the module's registry change.
