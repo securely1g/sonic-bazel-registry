@@ -90,6 +90,14 @@ files may be added, edited or removed, including changing their executable bit;
 symlinks and submodules do not qualify. Unsupported source layouts retain
 whole-entry immutability. See [CI's precise checks](ci/README.md#publication-policy-checks).
 
+PR [#146](https://github.com/securely1g/sonic-bazel-registry/pull/146) explicitly
+updates `rules_distroless@0.9.4.sonic.13` in place to add individual APT library
+exports. Its one-time exception binds the exact original and updated entry
+trees; it does not permit other `.sonic.13` revisions, rollbacks or changes to
+other published entries. See the [recorded transition](ci/README.md#approved-in-place-update).
+The module version stays the same, so consumers must revalidate against the
+updated recipe instead of assuming the version alone identifies the old inputs.
+
 Keep one unreleased candidate per module across an unmerged PR stack. The
 publication boundary is the maintained `main` branch, not a stacked PR's base.
 For example, if `main` has `libyang-python@3.1.0.sonic.2`, a parent PR adding

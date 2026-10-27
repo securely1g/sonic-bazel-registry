@@ -1,0 +1,621 @@
+diff --git a/apt/README.md b/apt/README.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..478865186198bec96f833dd9c121a0b3da255042
+--- /dev/null
++++ b/apt/README.md
+@@ -0,0 +1,21 @@
++
++## Individual shared libraries
++
++`apt.install` exports each development package's unversioned `libNAME.so` as
++`@packages//package-dev:libNAME_cc`. This native C/C++ target supplies one shared
++library, the package's public headers, and declared runtime linker inputs. Other
++libraries from the same package are available to resolve runtime dependencies
++without being added as direct link libraries. The existing package-level library
++and `_headers` targets retain their interfaces.
++
++For link options requiring an explicitly ordered library filename,
++`@packages//package-dev:libNAME_shared` supplies that one file. Both targets select
++the requested target architecture. For transitional development packages, consume
++the development package that actually owns the library. Runtime-only locked
++imports continue to expose archive inputs without C/C++ exports.
++
++The runtime closure reuses each package's existing `_so_libs` interface. Its
++empty interface libraries keep runtime-only files out of direct `DT_NEEDED`
++entries, while their declared SONAME filenames enter Bazel's solib directories
++and runtime search paths. Plain `data` files and `additional_linker_inputs` do
++not provide that runtime linking interface.
+diff --git a/apt/extensions.bzl b/apt/extensions.bzl
+index d110abbfee369c7b8476b02aca61a5f6f371f8f1..3009f2b9d9723e880b505e4887720b6a9805369b 100644
+--- a/apt/extensions.bzl
++++ b/apt/extensions.bzl
+@@ -364,7 +364,7 @@ def _distroless_extension(mctx):
+ 
+         if not package:
+             suite_msg = " in suite(s) [%s]" % ", ".join(suites) if suites else ""
+-            version_str = "".join(version)
++            version_str = "".join(version) if version else "<any>"
+             fail(
+                 "\n\nUnable to locate package `%s` at version `%s` for %s%s. It may only exist for specific set of architectures or suites. \n" % (name, version_str, arch, suite_msg) +
+                 "   1 - Ensure that the package is available for the specified architecture. \n" +
+@@ -433,6 +433,12 @@ def _distroless_extension(mctx):
+             name = depset_name,
+             depset_name = depset_name,
+             lock_content = lock_content,
++            cc_exports = {
++                "@%s//:cc_exports.json" % util.sanitize(package_key + "=" + version): package_key + "=" + version
++                for architecture_set in dependency_sets[depset_name]["sets"].values()
++                for package_key, version in architecture_set.items()
++                if lockfile.parse_package_key(package_key + "=" + version)[1].endswith("-dev")
++            },
+         )
+ 
+     # Generate a repo per package which will be aliased by hub repo.
+diff --git a/apt/private/deb_export.bzl b/apt/private/deb_export.bzl
+index 2ad406b4c1f9472b88ed1ebb0a822bae29296072..51ed3a1947805a20a260962c0c4ff3c27136ec8f 100644
+--- a/apt/private/deb_export.bzl
++++ b/apt/private/deb_export.bzl
+@@ -22,8 +22,26 @@ def _deb_export_impl(ctx):
+                 target_file = target[DefaultInfo].files.to_list()[0],
+             )
+ 
+-    if len(ctx.outputs.outs):
+-        fout = ctx.outputs.outs[0]
++    installed_outputs = {
++        output.short_path[len(output.owner.repo_name) + 4:]: output
++        for output in ctx.outputs.outs + ctx.outputs.symlink_outs
++    }
++    # Absolute links in a DEB refer to its installation root, never the host.
++    # Separate symlink actions target declared files and support local chains.
++    for name, destination in ctx.attr.self_symlinks.items():
++        ctx.actions.symlink(output = installed_outputs[name], target_file = installed_outputs[destination])
++
++    # Preserve the package's GNU linker scripts byte for byte. Native links
++    # remap their installation paths through CcInfo; foreign builds retain the
++    # package's original sysroot semantics regardless of their working directory.
++    extracted_outputs = [
++        output
++        for output in ctx.outputs.outs
++        if output.short_path[len(output.owner.repo_name) + 4:] not in ctx.attr.self_symlinks
++    ]
++
++    if extracted_outputs:
++        fout = extracted_outputs[0]
+         output = fout.path[:fout.path.find(fout.owner.repo_name) + len(fout.owner.repo_name)]
+         args = ctx.actions.args()
+         args.add("-xf")
+@@ -31,7 +49,7 @@ def _deb_export_impl(ctx):
+         args.add("-C")
+         args.add(output)
+         args.add_all(
+-            ctx.outputs.outs,
++            extracted_outputs,
+             map_each = lambda src: src.short_path[len(src.owner.repo_name) + 4:],
+             allow_closure = True,
+         )
+@@ -41,7 +59,7 @@ def _deb_export_impl(ctx):
+             # files from other packages, therefore symlink_outs must be present in the
+             # sandbox for Bazel to succesfully track them.
+             inputs = ctx.files.srcs + ctx.outputs.symlink_outs,
+-            outputs = ctx.outputs.outs,
++            outputs = extracted_outputs,
+             arguments = [args],
+             mnemonic = "Unpack",
+             toolchain = TAR_TOOLCHAIN_TYPE,
+@@ -63,6 +81,7 @@ deb_export = rule(
+         "foreign_symlinks": attr.label_keyed_string_dict(allow_files = True),
+         "symlink_outs": attr.output_list(),
+         "outs": attr.output_list(),
++        "self_symlinks": attr.string_dict(doc = "In-package symlink output paths mapped to their declared target output paths."),
+     },
+     toolchains = [
+         TAR_TOOLCHAIN_TYPE,
+diff --git a/apt/private/deb_import.bzl b/apt/private/deb_import.bzl
+index 6446f3b48f694a6e613fd68989aaed34521097fa..ebf5b4587fae54363bb264d645ab41ee3647fa7a 100644
+--- a/apt/private/deb_import.bzl
++++ b/apt/private/deb_import.bzl
+@@ -47,12 +47,15 @@ filegroup(
+ 
+ _DEB_IMPORT_BUILD_TMPL = _DEB_ARCHIVES_BUILD_TMPL + '''
+ 
++exports_files(["cc_exports.json"], visibility = ["//visibility:public"])
++
+ deb_export(
+     name = "export",
+     srcs = glob(["data.tar*"]),
+     foreign_symlinks = {foreign_symlinks},
+     symlink_outs = {symlink_outs},
+     outs = {outs},
++    self_symlinks = {self_symlinks},
+     visibility = ["//visibility:public"]
+ )
+ 
+@@ -131,6 +134,91 @@ cc_library(
+ )
+ """
+ 
++def _shared_library_exports(rctx, target_name, so_files, o_files, script_linker_inputs, rpaths, depends_on, options):
++    # depends_on already contains the resolved package closure. Use leaf inputs,
++    # as Debian package dependencies can cycle (for example libc6 and libgcc).
++    runtime_deps = [
++        "@%s%s//:_runtime_link_inputs_wodeps" % (rctx.attr.repo_prefix, util.sanitize(dep))
++        for dep in depends_on
++    ]
++    content = """
++filegroup(
++    name = "_runtime_files_wodeps",
++    srcs = {runtime_files},
++    visibility = ["//visibility:public"],
++)
++
++cc_library(
++    name = "_runtime_link_inputs_wodeps",
++    deps = [":_so_libs"],
++    additional_linker_inputs = [":_runtime_files_wodeps"] + {extra_inputs},
++    linkopts = {linkopts},
++    data = [":_runtime_files_wodeps"],
++    visibility = ["//visibility:public"],
++)
++
++cc_library(
++    name = "_runtime_link_inputs",
++    deps = [":_runtime_link_inputs_wodeps"] + {runtime_deps},
++    visibility = ["//visibility:public"],
++)
++""".format(
++        runtime_files = so_files,
++        extra_inputs = {path: None for path in o_files + script_linker_inputs}.keys(),
++        # GNU ld scripts resolve INPUT/GROUP library names through -L;
++        # -rpath-link is only sufficient for ELF DT_NEEDED dependencies.
++        linkopts = [
++            "-L$(BINDIR)/external/%s/%s" % (rctx.attr.name, path)
++            for path in rpaths
++        ] + [
++            "-Wl,-rpath-link=$(BINDIR)/external/%s/%s" % (rctx.attr.name, path)
++            for path in rpaths
++        ],
++        runtime_deps = runtime_deps,
++    )
++    exports = {}
++    libraries = {}
++    for path in so_files if rctx.attr.package_name.endswith("-dev") else []:
++        basename = path.rsplit("/", 1)[-1]
++        if not basename.startswith("lib") or not basename.endswith(".so"):
++            continue
++        name = basename.removesuffix(".so")
++        if name in libraries and libraries[name] != path:
++            fail("Ambiguous shared library %s in %s: %s and %s" % (name, target_name, libraries[name], path))
++        libraries[name] = path
++
++    for name, path in sorted(libraries.items()):
++        pkgc = options.get(name)
++        content += """
++cc_import(
++    name = "_{name}_native_import",
++    shared_library = "{path}",
++)
++
++filegroup(
++    name = "{name}_shared",
++    srcs = ["{path}"],
++    visibility = ["//visibility:public"],
++)
++
++cc_library(
++    name = "{name}_cc",
++    deps = [":_{name}_native_import", ":{package}_headers", ":_runtime_link_inputs"],
++    defines = {defines},
++    linkopts = {linkopts},
++    visibility = ["//visibility:public"],
++)
++""".format(
++            name = name,
++            path = path,
++            package = target_name,
++            defines = pkgc.defines if pkgc else [],
++            linkopts = pkgc.linkopts if pkgc else [],
++        )
++        exports[name + "_cc"] = name + "_cc"
++        exports[name + "_shared"] = name + "_shared"
++    return (content, exports)
++
+ def resolve_symlink(target_path, relative_symlink):
+     # Split paths into components
+     target_parts = target_path.split("/")
+@@ -161,37 +249,33 @@ def resolve_symlink(target_path, relative_symlink):
+ # inspect on disk.
+ _EXTRACT_DIR = "_extracted"
+ 
+-def _remap_linkopts(rctx, extract_dir, so_regular_files, self_files, depends_file_map, target_name):
+-    # Some .so files are GNU ld linker scripts (e.g. libc.so, libbsd.so) that
+-    # reference libraries by absolute install path (e.g. /usr/lib/x86_64-linux-gnu/libbsd.so.0.11.7).
+-    # The hermetic linker cannot open those paths,
+-    # so we emit --remap-inputs pointing at the Bazel-provided copy of each referenced file (in this package or a dependency).
+-    # The candidate .so files are expected to have already been extracted into `extract_dir`.
++def _linker_script_inputs(rctx, extract_dir, so_regular_files, self_files, depends_file_map, target_name):
+     if not so_regular_files:
+-        return []
+-
+-    # `grep -I` skips binary (ELF) files, leaving only the text linker scripts.
+-    scratch_paths = [extract_dir + "/" + so for so in so_regular_files]
++        return struct(linkopts = [], inputs = [])
++    # Inspect text scripts only; never read binary ELF payload as Starlark text.
+     grep = rctx.execute(
+-        ["grep", "-I", "-l", "-e", "OUTPUT_FORMAT", "-e", "GROUP", "-e", "INPUT"] + scratch_paths,
++        ["grep", "-I", "-l", "-e", "OUTPUT_FORMAT", "-e", "GROUP", "-e", "INPUT"] +
++        [extract_dir + "/" + so for so in so_regular_files],
+     )
+-
+     referenced = []
+     for script_path in grep.stdout.splitlines():
+         referenced += linker_script.files_to_remap(rctx.read(script_path))
+-
+-    result = linker_script.remap_linkopts(referenced, self_files, depends_file_map, rctx.attr.name)
+-
+-    if len(result.unresolved):
++    resolved = linker_script.resolve_paths(referenced, self_files, depends_file_map, rctx.attr.name)
++    remapped = linker_script.remap_linkopts(referenced, self_files, depends_file_map, rctx.attr.name)
++    if resolved.unresolved:
+         util.warning(
+             rctx,
+             "some linker-script paths could not be resolved for {}. unresolved: {}".format(
+                 target_name,
+-                json.encode_indent(result.unresolved),
++                json.encode_indent(resolved.unresolved),
+             ),
+         )
+-
+-    return result.linkopts
++    # Declare each remapped payload independently of the package's CcInfo deps.
++    inputs = {
++        installed if repo == rctx.attr.name else "@@%s//:%s" % (repo, installed): None
++        for repo, installed in resolved.paths.values()
++    }.keys()
++    return struct(linkopts = remapped.linkopts, inputs = inputs)
+ 
+ def _discover_contents(rctx, depends_on, depends_file_map, target_name):
+     result = rctx.execute(["tar", "--exclude='./usr/share/**'", "--exclude='./**/'", "-tvf", "data.tar.xz"])
+@@ -262,12 +346,13 @@ def _discover_contents(rctx, depends_on, depends_file_map, target_name):
+     # Resolve symlinks
+     # For each symlink, we check:
+     #  - If provided by a dependency -> rewrite to that dependency's label
+-    #  - If shipped by this package  -> drop it from `symlinks` so it is emitted as a plain output
++    #  - If shipped by this package  -> declare a link to the matching extracted output
+     #  - Else                        -> leave unresolved, and warn
+     self_files = {
+         f: None
+-        for f in so_files + h_files + hpp_files + a_files + hpp_files_woext + pc_files
++        for f in so_files + h_files + hpp_files + a_files + hpp_files_woext + pc_files + o_files
+     }
++    self_symlinks = {}
+     unresolved_symlinks = {}
+     for (symlink, symlink_target) in symlinks.items():
+         dep_repo = depends_file_map.get(symlink_target)
+@@ -275,6 +360,7 @@ def _discover_contents(rctx, depends_on, depends_file_map, target_name):
+             # dep_repo is a canonical repo name, so reference it with "@@".
+             symlinks[symlink] = "@@{dep}//:{file}".format(dep = dep_repo, file = symlink_target)
+         elif symlink_target in self_files:
++            self_symlinks[symlink] = symlink_target
+             symlinks.pop(symlink)
+         else:
+             unresolved_symlinks[symlink] = symlink_target
+@@ -300,7 +386,7 @@ def _discover_contents(rctx, depends_on, depends_file_map, target_name):
+             ["./" + f for f in files_to_extract],
+         )
+ 
+-    remap_linkopts = _remap_linkopts(
++    script_inputs = _linker_script_inputs(
+         rctx,
+         _EXTRACT_DIR,
+         so_regular_files,
+@@ -309,6 +395,9 @@ def _discover_contents(rctx, depends_on, depends_file_map, target_name):
+         target_name,
+     )
+ 
++    script_linker_inputs = script_inputs.inputs
++    remap_linkopts = script_inputs.linkopts
++
+     outs = []
+ 
+     for out in so_files + h_files + hpp_files + a_files + hpp_files_woext + o_files + pc_files:
+@@ -322,6 +411,8 @@ def _discover_contents(rctx, depends_on, depends_file_map, target_name):
+             "@%s//:%s_wodeps" % (util.sanitize(dep), name.removesuffix("-dev")),
+         )
+ 
++    header_deps = [dep.removesuffix("_wodeps") + "_headers_wodeps" for dep in deps]
++
+     pkgconfigs = []
+     for pc in pc_files:
+         if pc not in pc_aliases and rctx.path(_EXTRACT_DIR + "/" + pc).exists:
+@@ -336,15 +427,20 @@ filegroup(
+ 
+ so_library(
+     name = "_so_libs",
+-    dynamic_libs = {}
++    dynamic_libs = {},
++    additional_linker_inputs = {},
++    linkopts = {},
+ )
+-""".format(pc_files, so_files)
++""".format(pc_files, so_files, script_linker_inputs, remap_linkopts)
+ 
+     rpaths = {}
+     for so in so_files + a_files:
+         rpath = so[:so.rfind("/")]
+         rpaths[rpath] = None
+ 
++    includes = []
++    shared_options = {}
++
+     # Package has a pkgconfig, use that as the source of truth.
+     if len(pkgconfigs):
+         link_paths = []
+@@ -364,6 +460,7 @@ so_library(
+                 continue
+ 
+             for libname in pkgc.libnames:
++                shared_options.setdefault(libname, pkgc)
+                 if libname + "_import" in import_targets:
+                     continue
+ 
+@@ -399,7 +496,7 @@ so_library(
+             name = target_name,
+             hdrs = h_files + hpp_files,
+             additional_compiler_inputs = hpp_files_woext,
+-            additional_linker_inputs = so_files + o_files,
++            additional_linker_inputs = {path: None for path in so_files + o_files + script_linker_inputs}.keys(),
+             linkopts = {
+                 opt: True
+                 for opt in [
+@@ -428,7 +525,7 @@ so_library(
+             name = target_name,
+             hdrs = h_files + hpp_files,
+             additional_compiler_inputs = hpp_files_woext,
+-            additional_linker_inputs = so_files + a_files + o_files,
++            additional_linker_inputs = {path: None for path in so_files + a_files + o_files + script_linker_inputs}.keys(),
+             includes = [],
+             linkopts = remap_linkopts,
+         )
+@@ -438,7 +535,7 @@ so_library(
+             hdrs = h_files + hpp_files,
+             deps = deps,
+             additional_compiler_inputs = hpp_files_woext,
+-            additional_linker_inputs = so_files + o_files,
++            additional_linker_inputs = {path: None for path in so_files + o_files + script_linker_inputs}.keys(),
+             linkopts = [
+                 # Required for linker to find .so libraries
+                 "-L$(BINDIR)/external/{}/{}".format(rctx.attr.name, rp)
+@@ -459,7 +556,51 @@ so_library(
+             direct_deps = [":_so_libs"],
+         )
+ 
+-    return (build_file_content, outs, symlinks)
++    # Publish a compile-only package interface with the same declared include
++    # roots for pkg-config and non-pkg-config packages. Native includes cover
++    # both repository inputs and generated deb_export outputs, without copies.
++    header_includes = {
++        include.removeprefix("/"): True
++        for include in includes + default_include_dirs(h_files + hpp_files + hpp_files_woext)
++    }
++    # Perl's public embedding headers can belong to the versioned runtime
++    # package. Its declared CORE/perl.h supplies the exact include directory,
++    # independently of the development package name or Perl version.
++    for header in h_files:
++        if header.endswith("/CORE/perl.h"):
++            header_includes[header.rsplit("/", 1)[0]] = True
++    build_file_content += """
++cc_library(
++    name = "{name}_headers_wodeps",
++    hdrs = {hdrs},
++    includes = {includes},
++    visibility = ["//visibility:public"],
++)
++
++cc_library(
++    name = "{name}_headers",
++    deps = [":{name}_headers_wodeps"] + {deps},
++    visibility = ["//visibility:public"],
++)
++""".format(
++        name = target_name,
++        hdrs = h_files + hpp_files + hpp_files_woext,
++        includes = header_includes.keys(),
++        deps = header_deps,
++    )
++
++    shared_content, shared_exports = _shared_library_exports(
++        rctx,
++        target_name,
++        so_files,
++        o_files,
++        script_linker_inputs,
++        rpaths,
++        depends_on,
++        shared_options,
++    )
++    build_file_content += shared_content
++    return (build_file_content, outs, symlinks, self_symlinks, shared_exports)
+ 
+ def _deb_import_impl(rctx):
+     # Retain the verified original archive for real dpkg installation.
+@@ -489,7 +630,7 @@ def _deb_import_impl(rctx):
+                 provided_by[file] = dep_repo
+ 
+     # TODO: only do this if package is -dev or dependent of a -dev pkg.
+-    cc_import_targets, outs, symlinks = _discover_contents(
++    cc_import_targets, outs, symlinks, self_symlinks, shared_exports = _discover_contents(
+         rctx,
+         rctx.attr.depends_on,
+         provided_by,
+@@ -507,12 +648,14 @@ def _deb_import_impl(rctx):
+         for (symlink, indices) in foreign_symlinks.items()
+     }
+ 
++    rctx.file("cc_exports.json", json.encode(shared_exports))
+     rctx.file("BUILD.bazel", _DEB_IMPORT_BUILD_TMPL.format(
+         mergedusr = rctx.attr.mergedusr,
+         depends_on = ["@" + util.sanitize(dep_key) + "//:data" for dep_key in rctx.attr.depends_on],
+         target_name = rctx.attr.target_name,
+         cc_import_targets = cc_import_targets,
+         outs = outs,
++        self_symlinks = self_symlinks,
+         foreign_symlinks = foreign_symlinks,
+         symlink_outs = symlinks.keys(),
+     ))
+diff --git a/apt/private/linker_script.bzl b/apt/private/linker_script.bzl
+index f3f8720779b5cde7e933babfd78549d2e0dc60c2..29795576db89a108deb6a09e12373604a849c07c 100644
+--- a/apt/private/linker_script.bzl
++++ b/apt/private/linker_script.bzl
+@@ -152,6 +152,17 @@ def _resolve_installed_path(abs_path, self_files, depends_file_map, self_repo):
+             return (depends_file_map[candidate], candidate)
+     return (None, None)
+ 
++def _resolve_paths(referenced_paths, self_files, depends_file_map, self_repo):
++    paths = {}
++    unresolved = []
++    for abs_path in sorted({p: None for p in referenced_paths}.keys()):
++        repo, installed = _resolve_installed_path(abs_path, self_files, depends_file_map, self_repo)
++        if repo == None:
++            unresolved.append(abs_path)
++        else:
++            paths[abs_path] = [repo, installed]
++    return struct(paths = paths, unresolved = unresolved)
++
+ _REMAP_LINKOPT = "-Wl,--remap-inputs={abs}=$(BINDIR)/external/{repo}/{installed}"
+ 
+ def _remap_linkopts(referenced_paths, self_files, depends_file_map, self_repo):
+@@ -182,4 +193,5 @@ def _remap_linkopts(referenced_paths, self_files, depends_file_map, self_repo):
+ linker_script = struct(
+     files_to_remap = _files_to_remap,
+     remap_linkopts = _remap_linkopts,
++    resolve_paths = _resolve_paths,
+ )
+diff --git a/apt/private/so_library.bzl b/apt/private/so_library.bzl
+index c18b528e7e513b216ab76b607f90c7c1b8f65c00..f7afb7d69d1539f01cd93f22cb9b0fb2664b8102 100644
+--- a/apt/private/so_library.bzl
++++ b/apt/private/so_library.bzl
+@@ -42,11 +42,13 @@ def _so_library_impl(ctx):
+         )
+         libraries.append(lib)
+ 
++    # Native cc_shared_library drops linker inputs that contain no libraries.
++    # Keep script payloads and their remap flags on this input with its libraries.
+     linker_input = cc_common.create_linker_input(
+         owner = ctx.label,
+         libraries = depset(libraries),
+-        additional_inputs = depset([]),
+-        user_link_flags = depset([]),
++        additional_inputs = depset(ctx.files.additional_linker_inputs),
++        user_link_flags = depset([ctx.expand_make_variables("linkopts", opt, {}) for opt in ctx.attr.linkopts]),
+     )
+ 
+     linking_context = cc_common.create_linking_context(
+@@ -62,6 +64,11 @@ so_library = rule(
+     provides = [CcInfo],
+     attrs = {
+         "dynamic_libs": attr.label_list(allow_files = True),
++        "linkopts": attr.string_list(doc = "Linker flags accompanying dynamic_libs; supports Make variables."),
++        "additional_linker_inputs": attr.label_list(
++            allow_files = True,
++            doc = "Declared files referenced by GNU linker scripts in dynamic_libs.",
++        ),
+     },
+     fragments = ["cpp"],
+     toolchains = use_cc_toolchain(),
+diff --git a/apt/private/translate_dependency_set.bzl b/apt/private/translate_dependency_set.bzl
+index 7ba271a61dd8cc5100c2f57f622ba7d0a032a294..666169b61e3c24dba44b03bf801a97a90e242352 100644
+--- a/apt/private/translate_dependency_set.bzl
++++ b/apt/private/translate_dependency_set.bzl
+@@ -172,6 +172,10 @@ def package_deps_for_architecture(packages, package, architecture, target = "dat
+ 
+ def _translate_dependency_set_impl(rctx):
+     package_template = rctx.read(rctx.attr.package_template)
++    cc_exports = {
++        package_key: (export_file, json.decode(rctx.read(export_file)))
++        for export_file, package_key in rctx.attr.cc_exports.items()
++    } if not rctx.attr.payload_only else {}
+     lockf = lockfile.from_json(rctx, rctx.attr.lock_content)
+ 
+     sources = lockf.sources()
+@@ -260,6 +264,30 @@ Please unify the versions manually, or use separate `apt.install` calls (with di
+                 }),
+             )
+ 
++            extra += _DEB_CC_IMPORT.format(
++                target_name = target_name + "_headers",
++                selects = starlark_codegen_utils.to_dict_attr({
++                    "//:linux_%s" % architecture: "@%s//:%s_headers" % (util.sanitize(package_key), target_name)
++                    for (architecture, package_key) in info.architectures.items()
++                }),
++            )
++
++        # Package importers describe the actual shared libraries in each DEB.
++        # Label attributes retain the extension's sibling-repository mapping.
++        library_targets = {}
++        if package_name.endswith("-dev") and not rctx.attr.payload_only:
++            for architecture, package_key in info.architectures.items():
++                if package_key not in cc_exports:
++                    continue
++                export_file, targets = cc_exports[package_key]
++                for public_name, target in targets.items():
++                    library_targets.setdefault(public_name, {})["//:linux_%s" % architecture] = str(export_file.same_package_label(target))
++        for target_name, selects in sorted(library_targets.items()):
++            extra += _DEB_CC_IMPORT.format(
++                target_name = target_name,
++                selects = starlark_codegen_utils.to_dict_attr(selects),
++            )
++
+         rctx.file(
+             "%s/BUILD.bazel" % package_name,
+             _PACKAGE_TEMPLATE.format(
+@@ -302,6 +330,7 @@ translate_dependency_set = repository_rule(
+     implementation = _translate_dependency_set_impl,
+     attrs = {
+         "payload_only": attr.bool(doc = "Expose archive inputs without native C++ targets."),
++        "cc_exports": attr.label_keyed_string_dict(doc = "Internal package-export metadata labels mapped to lockfile package keys."),
+         "repo_prefix": attr.string(doc = "Internal namespace for locked package repositories."),
+         "depset_name": attr.string(doc = "INTERNAL: DO NOT USE"),
+         "lock_content": attr.string(doc = "INTERNAL: DO NOT USE"),
+diff --git a/apt/tests/linker_script_test.bzl b/apt/tests/linker_script_test.bzl
+index 40f118fc100e747109c5248b684d5bcf4c6e81f6..71c3c9e88c43785cd1178624f28d2431fca32fd1 100644
+--- a/apt/tests/linker_script_test.bzl
++++ b/apt/tests/linker_script_test.bzl
+@@ -147,6 +147,38 @@ GROUP ( /lib/x86_64-linux-gnu/libc.so.6 /usr/lib/x86_64-linux-gnu/libc_nonshared
+ 
+ remap_linkopts_test = unittest.make(_remap_linkopts_test)
+ 
++def _declared_paths_test(ctx):
++    env = unittest.begin(ctx)
++    source = "/* GNU ld script */ GROUP(/lib/libfoo.so /lib/libfoo.so.1 AS_NEEDED(-lm))"
++    resolved = linker_script.resolve_paths(
++        linker_script.files_to_remap(source),
++        self_files = {"usr/lib/libfoo.so": None},
++        depends_file_map = {"lib/libfoo.so.1": "runtime_repo"},
++        self_repo = "development_repo",
++    )
++    asserts.equals(env, {
++        "/lib/libfoo.so": ["development_repo", "usr/lib/libfoo.so"],
++        "/lib/libfoo.so.1": ["runtime_repo", "lib/libfoo.so.1"],
++    }, resolved.paths)
++    asserts.equals(env, [], resolved.unresolved)
++    # The declared payload and remap option must identify the same package file.
++    remapped = linker_script.remap_linkopts(
++        linker_script.files_to_remap(source),
++        self_files = {"usr/lib/libfoo.so": None},
++        depends_file_map = {"lib/libfoo.so.1": "runtime_repo"},
++        self_repo = "development_repo",
++    )
++    asserts.equals(env, [
++        "-Wl,--remap-inputs=/lib/libfoo.so=$(BINDIR)/external/development_repo/usr/lib/libfoo.so",
++        "-Wl,--remap-inputs=/lib/libfoo.so.1=$(BINDIR)/external/runtime_repo/lib/libfoo.so.1",
++    ], remapped.linkopts)
++    missing = linker_script.resolve_paths(["/unknown/libfoo.so"], {}, {}, "self")
++    asserts.equals(env, ["/unknown/libfoo.so"], missing.unresolved)
++    return unittest.end(env)
++
++declared_paths_test = unittest.make(_declared_paths_test)
++
+ def linker_script_tests():
++    declared_paths_test(name = _TEST_SUITE_PREFIX + "declared_paths")
+     files_to_remap_test(name = _TEST_SUITE_PREFIX + "files_to_remap")
+     remap_linkopts_test(name = _TEST_SUITE_PREFIX + "remap_linkopts")
