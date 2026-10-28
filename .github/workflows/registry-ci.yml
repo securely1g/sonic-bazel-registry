@@ -15,7 +15,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: registry-ci-${{ github.event.pull_request.number || github.ref }}
+  group: registry-ci-${{ github.event.pull_request.number || github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 
 jobs:
@@ -197,21 +197,22 @@ jobs:
         if: matrix.module == 'libyang' && matrix.version == '3.12.2.sonic.6'
         run: |
           set -euo pipefail
-          git fetch --no-tags https://github.com/securely1g/sonic-bazel-registry.git 41d98ae02d50c83a5575e76992294d24db70028d
-          test "$(git rev-parse FETCH_HEAD)" = 41d98ae02d50c83a5575e76992294d24db70028d
+          git -c safe.directory="$GITHUB_WORKSPACE" fetch --no-tags https://github.com/securely1g/sonic-bazel-registry.git 41d98ae02d50c83a5575e76992294d24db70028d
+          test "$(git -c safe.directory="$GITHUB_WORKSPACE" rev-parse FETCH_HEAD)" = 41d98ae02d50c83a5575e76992294d24db70028d
           python3 - <<'PYTHON'
           import json
           from pathlib import Path
           import subprocess
 
+          git = ["git", "-c", "safe.directory=" + str(Path.cwd().resolve())]
           revision = "41d98ae02d50c83a5575e76992294d24db70028d"
           expected = {'modules/rules_distroless/0.9.4.sonic.13': 'f449be186aaa231a7278a773452b22cb4fed9e86', 'modules/sonic-build-infra/0.0.25-6f6658865b7f687fa5e78d1675c0db8a5765b2ce': 'e59e689f4e22ac19a1517ea26a2e4186622ca584'}
           for path, tree in expected.items():
-              actual = subprocess.check_output(["git", "rev-parse", revision + ":" + path], text=True).strip()
+              actual = subprocess.check_output(git + ["rev-parse", revision + ":" + path], text=True).strip()
               if actual != tree:
                   raise SystemExit("Draft prerequisite tree mismatch: " + path)
           # Restore only prerequisite recipes; the PR's own candidate stays under test.
-          subprocess.run(["git", "restore", "--source=" + revision, "--worktree", "--", *expected], check=True)
+          subprocess.run(git + ["restore", "--source=" + revision, "--worktree", "--", *expected], check=True)
           output = Path("ci-artifacts")
           output.mkdir(exist_ok=True)
           (output / "draft-prerequisites.json").write_text(json.dumps({"registry_commit": revision, "entry_trees": expected}, indent=2) + "\n")
