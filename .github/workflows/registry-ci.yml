@@ -15,7 +15,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: registry-ci-${{ github.event.pull_request.number || github.ref }}
+  group: registry-ci-${{ github.event.pull_request.number || github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 
 jobs:
@@ -192,6 +192,38 @@ jobs:
           curl --fail --location --retry 3 --output /tmp/bazel "https://releases.bazel.build/8.5.1/release/bazel-8.5.1-linux-${bazel_arch}"
           printf '%s  %s\n' "$bazel_sha" /tmp/bazel | sha256sum --check --strict
           install -m 0755 /tmp/bazel /usr/local/bin/bazel
+      # Temporary Draft-only prerequisite catalog. Remove after #146/#147 land.
+      - name: Stage reviewed native libnl3 prerequisites
+        # Other latest-module jobs can also resolve the patched published libnl3.
+        run: |
+          set -euo pipefail
+          git -c safe.directory="$GITHUB_WORKSPACE" fetch --no-tags https://github.com/securely1g/sonic-bazel-registry.git e0bf141cea82764b18d15d7d2c8516cbf3e99290
+          test "$(git -c safe.directory="$GITHUB_WORKSPACE" rev-parse FETCH_HEAD)" = e0bf141cea82764b18d15d7d2c8516cbf3e99290
+          python3 - <<'PYTHON'
+          import json
+          from pathlib import Path
+          import subprocess
+
+          git = ["git", "-c", "safe.directory=" + str(Path.cwd().resolve())]
+          revision = "e0bf141cea82764b18d15d7d2c8516cbf3e99290"
+          expected = {'modules/rules_distroless/0.9.4.sonic.13': 'f449be186aaa231a7278a773452b22cb4fed9e86', 'modules/sonic-build-infra/0.0.25-17a1e555291c64be1a6ff008f33352bffc4f8e5c': '6b821f37d75f2c19a33e95499c4a6962a36bcb29'}
+          for path, tree in expected.items():
+              actual = subprocess.check_output(git + ["rev-parse", revision + ":" + path], text=True).strip()
+              if actual != tree:
+                  raise SystemExit("Draft prerequisite tree mismatch: " + path)
+          # The latest-module matrix also collects infrastructure runtime trees.
+          # Reuse #147's reviewed Unicode-path collector after the policy plan.
+          runner = "ci/registry_ci.py"
+          runner_blob = "ab719e6f494b03f715dde3aff05a6c6693bb47de"
+          actual = subprocess.check_output(git + ["rev-parse", revision + ":" + runner], text=True).strip()
+          if actual != runner_blob:
+              raise SystemExit("Draft prerequisite runner mismatch")
+          # Restore prerequisites only; the PR's own module remains under test.
+          subprocess.run(git + ["restore", "--source=" + revision, "--worktree", "--", *expected, runner], check=True)
+          output = Path("ci-artifacts")
+          output.mkdir(exist_ok=True)
+          (output / "draft-prerequisites.json").write_text(json.dumps({"registry_commit": revision, "entry_trees": expected, "runner_blob": runner_blob}, indent=2) + "\n")
+          PYTHON
       - name: Build and test through the registry
         run: |
           set -euo pipefail
@@ -202,6 +234,18 @@ jobs:
             --work-dir "$RUNNER_TEMP/registry-ci" \
             --artifacts "$GITHUB_WORKSPACE/ci-artifacts" \
             --test-container-image debian:trixie-20260918@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c
+      - name: Check installed libnl3 SDK and runtime
+        if: matrix.module == 'libnl3' && matrix.version == '3.7.0.sonic.6'
+        run: |
+          set -euo pipefail
+          python3 modules/libnl3/3.7.0.sonic.6/tests/installed_sdk_test.py \
+            --artifacts "$GITHUB_WORKSPACE/ci-artifacts" 2>&1 | tee "$GITHUB_WORKSPACE/ci-artifacts/libnl3-installed-sdk.log"
+      - name: Check installed libnl3 debug symbols
+        if: matrix.module == 'libnl3' && matrix.version == '3.7.0.sonic.6'
+        run: |
+          set -euo pipefail
+          python3 modules/libnl3/3.7.0.sonic.6/tests/installed_debug_test.py \
+            --artifacts "$GITHUB_WORKSPACE/ci-artifacts" 2>&1 | tee "$GITHUB_WORKSPACE/ci-artifacts/libnl3-installed-debug.log"
       - name: Archive module validation results
         id: archive
         if: always()

@@ -7,16 +7,8 @@
   "consumer_deps": [
     {
       "name": "sonic-build-infra",
-      "version": "0.0.23-5b224d7190d04f1b7b68429eedfc03b7b1565ed0",
+      "version": "0.0.25-17a1e555291c64be1a6ff008f33352bffc4f8e5c",
       "repo_name": "sonic_build_infra"
-    },
-    {
-      "name": "tar.bzl",
-      "version": "0.10.5-sonic.1"
-    },
-    {
-      "name": "rules_cc",
-      "version": "0.2.20"
     }
   ],
   "platforms": {
@@ -24,38 +16,15 @@
     "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
   },
   "build_targets": [
-    "@libnl3//:libnl-3_pkg",
-    "@libnl3//:libnl-genl-3_pkg",
-    "@libnl3//:libnl-route-3_pkg",
-    "@libnl3//:libnl-nf-3_pkg",
-    "@libnl3//:libnl-cli-3_pkg",
-    "@libnl3//:libnl-3-dev_pkg",
-    "@libnl3//:libnl-genl-3-dev_pkg",
-    "@libnl3//:libnl-route-3-dev_pkg",
-    "@libnl3//:libnl-nf-3-dev_pkg",
-    "@libnl3//:libnl-cli-3-dev_pkg",
-    "@libnl3//:libnl-3_pkg.debug_symbols",
-    "@libnl3//:libnl-genl-3_pkg.debug_symbols",
-    "@libnl3//:libnl-route-3_pkg.debug_symbols",
-    "@libnl3//:libnl-nf-3_pkg.debug_symbols",
-    "@libnl3//:libnl-cli-3_pkg.debug_symbols",
-    "@libnl3//:libnl-3-dev_files",
-    "@libnl3//:libnl-route-3-dev_files",
-    "@libnl3//:libnl-3-runtime_files",
-    "@libnl3//:libnl-3-runtime_files.debug_symbols",
-    "@libnl3//:libnl-route-3-runtime_files",
-    "@libnl3//:libnl-route-3-runtime_files.debug_symbols",
-    "@libnl3//:libnl-genl-3-runtime_files",
-    "@libnl3//:libnl-genl-3-runtime_files.debug_symbols",
-    "@libnl3//:libnl-nf-3-runtime_files",
-    "@libnl3//:libnl-nf-3-runtime_files.debug_symbols",
-    "@libnl3//:libnl-cli-3-runtime_files",
-    "@libnl3//:libnl-cli-3-runtime_files.debug_symbols",
-    "@libnl3//:runtime_packages.json"
+    "@libnl3//:all_libraries",
+    "@libnl3//:programs",
+    "@libnl3//:check_programs",
+    "@libnl3//:runtime_packages.json",
+    "@libnl3//:raw_tars"
   ],
   "test_targets": [
-    "@libnl3//:libnl3_consumer_test",
     "@libnl3//:libnl3_package_test",
-    "@libnl3//:libnl3_dev_files_test"
+    "@libnl3//:libnl3_consumer_test",
+    "@libnl3//:libnl3_installed_paths_test"
   ]
 }
