@@ -10,6 +10,10 @@ Its native CI stages only those exact prerequisite recipes from [reviewed Draft 
 
 | Input or action | Before | After |
 | --- | --- | --- |
-| Native libyang registry validation for FRR's libraries and installation TARs | Infrastructure `0.0.25-f27d1bc8…` cannot resolve; compilation does not start | The reviewed `0.0.25-6f665886…` recipe and `.13` exports resolve from one explicit Draft catalog before the unchanged build/test target set |
+| Native libyang registry validation for FRR's libraries and installation TARs | Infrastructure `0.0.25-f27d1bc8…` cannot resolve; compilation does not start | The reviewed `0.0.25-6f665886…` recipe and `.13` exports resolve from one explicit Draft catalog before the declared build/test target set |
 
 For local reproduction, stage the same entry trees from the pinned catalog into a disposable registry worktree, preserving this candidate, then run its existing `ci/registry_ci.py run --module libyang --version 3.12.2.sonic.6` command for the native architecture. Published module entries in the PR remain unchanged; historical cross-build results do not establish native ARM64 execution.
+
+The validation also executes the public API consumer against the installed runtime TAR, with build-tree library search paths removed. Package checks enforce Debian file and directory permissions alongside existing ELF/debug pairing checks.
+
+After the Bazel tests, native CI uses its explicitly installed GDB to resolve `ly_ctx_new` to `context.c` from the collected runtime and matching debug TARs. The result is retained as `gdb-source-line.log`.

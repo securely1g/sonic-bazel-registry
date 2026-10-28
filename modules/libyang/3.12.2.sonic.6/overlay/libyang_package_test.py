@@ -25,9 +25,20 @@ def build_id(elf):
     return note[start:start + size].hex()
 
 
+def check_permissions(members, executables=()):
+    # Debian dh_fixperms installs documentation/headers as 0644 and tools as 0755.
+    for name, member in members.items():
+        if member.isfile():
+            expected = 0o755 if name in executables else 0o644
+            assert member.mode == expected, (name, oct(member.mode), oct(expected))
+        elif member.isdir():
+            assert member.mode == 0o755, (name, oct(member.mode))
+
+
 def main():
     runtime, debug, development, tools, tools_debug, copyright, changelog, *models = sys.argv[1:]
     members, data = contents(runtime)
+    check_permissions(members)
     expected_models = {'usr/share/yang/modules/libyang/' + Path(model).name: Path(model).read_bytes() for model in models}
     actual_models = {name: payload for name, payload in data.items() if name.startswith('usr/share/yang/modules/libyang/')}
     assert actual_models == expected_models
@@ -52,11 +63,13 @@ def main():
     assert link.split(b'\0', 1)[0].decode() == Path(debug_path).name
     assert struct.unpack(elf.order + 'I', link[-4:])[0] == zlib.crc32(symbols)
     dev_members, dev_data = contents(development)
+    check_permissions(dev_members)
     assert 'usr/include/libyang/libyang.h' in dev_data
     assert any(name.endswith('/pkgconfig/libyang.pc') for name in dev_data)
     assert any(name.endswith('/libyang.so') and item.issym() and item.linkname == 'libyang.so.3' for name, item in dev_members.items())
     assert 'usr/share/doc/libyang-dev/html/index.html' in dev_data
     tool_members, tool_data = contents(tools)
+    check_permissions(tool_members, ('usr/bin/yanglint', 'usr/bin/yangre'))
     _, tool_debug_data = contents(tools_debug)
     for tool in ('yanglint', 'yangre'):
         binary = Elf(tool_data['usr/bin/' + tool])

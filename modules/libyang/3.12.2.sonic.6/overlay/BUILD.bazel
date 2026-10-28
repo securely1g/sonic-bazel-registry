@@ -1,3 +1,4 @@
+load("@sonic_build_infra//binary:strip_binary.bzl", "strip_binary")
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("@sonic_build_infra//cc:runtime_test.bzl", "native_runtime_binary")
 load("@sonic_build_infra//cc:runtime_test.bzl", "native_runtime_test")
@@ -627,6 +628,15 @@ native_runtime_test(
     name = "libyang_test",
     binary = ":libyang_test_binary",
     runtime_payloads = [":sys_libc6_data", ":sys_libpcre2-8-0_data", ":sys_libxxhash0_data", ":sys_libgcc-s1_data"],
+)
+
+# Strip runfiles RPATHs from the consumer so only the delivered TAR supplies libyang.
+strip_binary(name = "installed_consumer", src = ":libyang_test_binary")
+filegroup(name = "installed_consumer_elf", srcs = [":installed_consumer"], output_group = "stripped")
+native_runtime_test(
+    name = "libyang_installed_test",
+    binary = ":installed_consumer_elf",
+    runtime_payloads = [":libyang_pkg", ":sys_libc6_data", ":sys_libpcre2-8-0_data", ":sys_libxxhash0_data", ":sys_libgcc-s1_data"],
 )
 
 _UNIT_TESTS = {

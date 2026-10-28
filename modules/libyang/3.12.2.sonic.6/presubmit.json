@@ -31,7 +31,8 @@
     "@libyang//:libyang_test",
     "@libyang//:libyang_package_test",
     "@libyang//:upstream_check",
-    "@libyang//:runtime_metadata_test"
+    "@libyang//:runtime_metadata_test",
+    "@libyang//:libyang_installed_test"
   ],
   "generated_module_overlay": true
 }

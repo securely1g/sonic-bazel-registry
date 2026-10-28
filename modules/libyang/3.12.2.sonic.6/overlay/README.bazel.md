@@ -16,6 +16,8 @@ target Debian shared libraries selected for Trixie or Bookworm.
 `libyang_package_test` checks installed payloads and debug symbol pairing using
 stdlib ELF inspection. `libyang_test` covers schema/data parsing and the SONiC
 validation extension through the declared target loader and runtime libraries.
+`libyang_installed_test` runs the consumer with build-tree search paths removed,
+using the stripped library extracted from the runtime TAR.
 
 `upstream_check` runs 56 CMocka programs, the compatibility-header check, three
 fuzz-regression drivers, and interactive/noninteractive yanglint and yangre Tcl
