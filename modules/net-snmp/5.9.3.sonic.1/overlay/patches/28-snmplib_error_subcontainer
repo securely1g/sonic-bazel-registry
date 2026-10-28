@@ -1,0 +1,14 @@
+diff --git a/snmplib/container.c b/snmplib/container.c
+--- a/snmplib/container.c
++++ b/snmplib/container.c
+@@ -344,8 +344,8 @@
+     if(x) {
+         int rc = x->insert(x,k);
+         if(rc)
+-            snmp_log(LOG_DEBUG,"error on subcontainer '%s' insert (%d)\n",
+-                     x->container_name ? x->container_name : "", rc);
++            DEBUGMSGTL(("container:insert_helper", "error on subcontainer '%s' insert (%d)\n",
++                     x->container_name ? x->container_name : "", rc));
+         else {
+             rc = CONTAINER_INSERT_HELPER(x->next, k);
+             if(rc)
