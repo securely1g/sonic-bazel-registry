@@ -30,6 +30,27 @@ Local checker validation used retained historical SONiC `.3` AMD64 and ARM64
 archives: all 30 ELF pairs passed; 16 altered archives were rejected for missing
 files, wrong permissions or symlinks, wrong architecture, or damaged debug data.
 This validates the checker against real TARs, not a new native `.7` build. Native
-candidate CI remains required. Extracted shared/whole-archive SDK execution,
-loaded-library origin and GDB source-line regressions still need restoration;
-these archive checks do not establish that remaining coverage.
+candidate CI remains required. Extracted shared/whole-archive SDK execution and
+loaded-library origin regressions still need restoration; these archive checks
+do not establish that remaining coverage.
+
+## Check installed debug symbols in native CI
+
+After the existing Bazel build and tests, the native AMD64/ARM64 workflow runs
+`tests/installed_debug_test.py` with the GDB already installed in its pinned
+Debian container. It verifies the retained output checksums, extracts each of
+the five runtime/symbol TAR pairs, and asks GDB to locate an actual source file
+and line for all five libraries and ten CLI plugins. Debuginfod and automatic
+GDB scripts are disabled; only the matching extracted debug directory is used.
+The JSON receipt and log are retained with the original build outputs.
+
+| Input or action | Before | After |
+| --- | --- | --- |
+| Debug `libnl-route-3.so.200.26.0` used by FRR or a shipped `qdisc/plug.so` plugin | Archive metadata can match without proving GDB reads the delivered line tables | Native CI fails unless GDB resolves source and line information from the paired delivered symbols |
+
+This is a post-build validation step, not a new tool dependency in the Bazel
+producer. It does not change source recipes, published versions or TAR outputs.
+Local execution against historical `.3` AMD64 and ARM64 TARs validates the GDB
+checker only; ARM64 binary execution and current `.7` native CI remain separate
+evidence. Run `python3 modules/libnl3/3.7.0.sonic.7/tests/installed_debug_test.py
+--artifacts <retained-ci-artifacts>` in a validation environment with GDB.
