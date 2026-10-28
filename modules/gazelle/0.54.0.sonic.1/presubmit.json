@@ -1,0 +1,19 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [],
+  "platforms": {
+    "amd64": "@platforms//host:host",
+    "arm64": "@platforms//host:host"
+  },
+  "build_targets": [
+    "@gazelle//cmd/fetch_repo:fetch_repo"
+  ],
+  "test_targets": [
+    "@gazelle//cmd/fetch_repo:module_zip_test",
+    "//:consumer_test"
+  ],
+  "integration_test_module": "tests/integration"
+}
