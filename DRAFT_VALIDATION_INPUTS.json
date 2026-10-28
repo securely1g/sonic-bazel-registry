@@ -1,7 +1,7 @@
 {
   "purpose": "Temporary reviewed registry for Draft native validation only; not a maintained endpoint or release. Recipe commit identities exclude later workflow-only catalog pin updates.",
   "base": "791f12022342f5439fb527ba03eca0225f8c772d",
-  "source_pr67": "917c7d5792f88c9de485ea5172a835bb0c06bf6a",
+  "source_pr67": "1341eaf4a7759ef0121ae7c17edcd0000d063038",
   "entries": [
     {
       "pr": "https://github.com/securely1g/sonic-bazel-registry/pull/146",
@@ -12,33 +12,33 @@
     },
     {
       "pr": "https://github.com/securely1g/sonic-bazel-registry/pull/147",
-      "reviewed_recipe_commit": "b0047cdb43928ce9aea2fd766cb0937b05550c57",
+      "reviewed_recipe_commit": "23360027ea76bf29822f91cf596a5c81bd1e9a7a",
       "module": "sonic-build-infra",
-      "version": "0.0.25-917c7d5792f88c9de485ea5172a835bb0c06bf6a",
-      "entry_tree": "fe334da888bfb181c339c0d391c6aa83163c3914"
+      "version": "0.0.25-1341eaf4a7759ef0121ae7c17edcd0000d063038",
+      "entry_tree": "529256d0a7e303a11f2903d3619731d3ec614984"
     },
     {
       "pr": "https://github.com/securely1g/sonic-bazel-registry/pull/148",
-      "reviewed_recipe_commit": "05a9c22e87e3e6585a97f8b1b48aaaa389d20e4a",
+      "reviewed_recipe_commit": "0045ae154e2350679aa7d7c264cfd1256e390aa8",
       "module": "libnl3",
       "version": "3.7.0.sonic.7",
-      "entry_tree": "267d59db4d54c7f74713f1e99b814904b66696bc"
+      "entry_tree": "1181ca081aefd7ae21362892bdb6e01ac95687e3"
     },
     {
       "pr": "https://github.com/securely1g/sonic-bazel-registry/pull/149",
-      "reviewed_recipe_commit": "4ff16a32c5c32a6f1606c9c25114d2ab04aa0792",
+      "reviewed_recipe_commit": "f01216ae0fa3d81249f99099256195409f4d65fb",
       "module": "libyang",
       "version": "3.12.2.sonic.6",
-      "entry_tree": "49ed29daa7fc97cb80cef05cda0f2d03256266fa"
+      "entry_tree": "aa5cbf9395c9ab30be93ed8117630c67a9aa8974"
     },
     {
       "pr": "https://github.com/securely1g/sonic-bazel-registry/pull/150",
-      "reviewed_recipe_commit": "1b7c9966a6ee30058c1cb34aa9a34bd3b6bdf06b",
+      "reviewed_recipe_commit": "254110611f1ec0a001618791cd5921f54d44d351",
       "module": "net-snmp",
       "version": "5.9.3.sonic.1",
-      "entry_tree": "869d99e5363253e4c2f1f301d219d9c91a9143ef"
+      "entry_tree": "438053f3154403c4b4c0ffba6f35683ded9c0532"
     }
   ],
-  "selected_infrastructure": "0.0.25-917c7d5792f88c9de485ea5172a835bb0c06bf6a",
+  "selected_infrastructure": "0.0.25-1341eaf4a7759ef0121ae7c17edcd0000d063038",
   "published_entries_preserved_except_existing_pr146_exact_transition": true
 }

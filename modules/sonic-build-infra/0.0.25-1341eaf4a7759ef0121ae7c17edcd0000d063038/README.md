@@ -2,7 +2,7 @@
 
 Register the verified FRR shared infrastructure source, retaining upstream installation links and checked OCI receipts. Ordinary components use native Bazel compilation and installation TARs. No component DEB assembly or source-snapshot extension is introduced. Fixed Debian execution tools remain Bazel-managed.
 
-Source: https://github.com/songqing-sq/sonic-build-infra-securely1g/commit/917c7d5792f88c9de485ea5172a835bb0c06bf6a
+Source: https://github.com/songqing-sq/sonic-build-infra-securely1g/commit/1341eaf4a7759ef0121ae7c17edcd0000d063038
 
 This candidate selects `rules_distroless 0.9.4.sonic.13` with the native APT exports from [registry #146](https://github.com/securely1g/sonic-bazel-registry/pull/146), replacing the removed `.sonic.14` selection. The source also retains the Bookworm GCC 12 compiler and glibc 2.36 sysroot while using its declared architecture-matched Trixie linker.
 
