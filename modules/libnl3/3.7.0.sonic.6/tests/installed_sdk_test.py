@@ -112,7 +112,7 @@ def check(artifacts):
         work = Path(directory)
         root = work / "installed"
         root.mkdir()
-        cpu = {"amd64": "x86_64", "arm64": "aarch64"}[architecture]
+        cpu = {"amd64": "x86_64", "arm64": "arm64"}[architecture]
         for stem in STEMS:
             extract(stem + "_pkg_" + cpu + "_rttar.tar", root)
         extract("libnl-3-dev_files.tar", root)

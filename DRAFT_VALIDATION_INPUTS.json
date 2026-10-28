@@ -1,44 +1,57 @@
 {
-  "purpose": "Temporary reviewed registry for Draft native validation only; not a maintained endpoint or release. Recipe commit identities exclude later workflow-only catalog pin updates.",
+  "purpose": "Temporary reviewed registry for Draft validation, not a release. Exact entry trees include prepared recipe edits; workflow-only catalog pin updates do not change those trees.",
   "base": "791f12022342f5439fb527ba03eca0225f8c772d",
-  "source_pr67": "1341eaf4a7759ef0121ae7c17edcd0000d063038",
+  "source_pr67_backport": "1341eaf4a7759ef0121ae7c17edcd0000d063038",
+  "selected_infrastructure": "0.0.25-17a1e555291c64be1a6ff008f33352bffc4f8e5c",
   "entries": [
     {
       "pr": "https://github.com/securely1g/sonic-bazel-registry/pull/146",
-      "reviewed_recipe_commit": "6f277d4a12de1fa156a1e2566080e0bf23bc38ea",
+      "reviewed_branch_head_before_catalog": "6f277d4a12de1fa156a1e2566080e0bf23bc38ea",
       "module": "rules_distroless",
       "version": "0.9.4.sonic.13",
       "entry_tree": "f449be186aaa231a7278a773452b22cb4fed9e86"
     },
     {
       "pr": "https://github.com/securely1g/sonic-bazel-registry/pull/147",
-      "reviewed_recipe_commit": "23360027ea76bf29822f91cf596a5c81bd1e9a7a",
+      "reviewed_branch_head_before_catalog": "db411f9a2d2f6e7bd579d1b7623c1407dcb45a07",
       "module": "sonic-build-infra",
-      "version": "0.0.25-1341eaf4a7759ef0121ae7c17edcd0000d063038",
-      "entry_tree": "529256d0a7e303a11f2903d3619731d3ec614984"
+      "version": "0.0.25-17a1e555291c64be1a6ff008f33352bffc4f8e5c",
+      "entry_tree": "6b821f37d75f2c19a33e95499c4a6962a36bcb29"
     },
     {
       "pr": "https://github.com/securely1g/sonic-bazel-registry/pull/148",
-      "reviewed_recipe_commit": "0045ae154e2350679aa7d7c264cfd1256e390aa8",
+      "reviewed_branch_head_before_catalog": "d910fd300b6538bf2b30fc0dcac7748cd2827303",
       "module": "libnl3",
-      "version": "3.7.0.sonic.7",
-      "entry_tree": "1181ca081aefd7ae21362892bdb6e01ac95687e3"
+      "version": "3.7.0.sonic.6",
+      "entry_tree": "59bda4975eb5e55c8af91b727037ad4d45d381cb"
     },
     {
       "pr": "https://github.com/securely1g/sonic-bazel-registry/pull/149",
-      "reviewed_recipe_commit": "f01216ae0fa3d81249f99099256195409f4d65fb",
+      "reviewed_branch_head_before_catalog": "6c8a6c55715ba2421c09d5a9530d375496fb85dd",
       "module": "libyang",
       "version": "3.12.2.sonic.6",
-      "entry_tree": "aa5cbf9395c9ab30be93ed8117630c67a9aa8974"
+      "entry_tree": "634abb0b4599143ea712e8cf712c6c87c344c611"
     },
     {
       "pr": "https://github.com/securely1g/sonic-bazel-registry/pull/150",
-      "reviewed_recipe_commit": "254110611f1ec0a001618791cd5921f54d44d351",
+      "reviewed_branch_head_before_catalog": "2efdac1e2680ea76f3f044bb84ec5c3f51a84a2a",
       "module": "net-snmp",
       "version": "5.9.3.sonic.1",
-      "entry_tree": "438053f3154403c4b4c0ffba6f35683ded9c0532"
+      "entry_tree": "6352954556111a07dcd72b212093e5ee26c0cc2e"
     }
   ],
-  "selected_infrastructure": "0.0.25-1341eaf4a7759ef0121ae7c17edcd0000d063038",
-  "published_entries_preserved_except_existing_pr146_exact_transition": true
+  "explicitly_authorized_published_entry_transitions": {
+    "modules/rules_distroless/0.9.4.sonic.13": [
+      "6950d6dfd5369d86aad23d1479cad70631c97993",
+      "f449be186aaa231a7278a773452b22cb4fed9e86"
+    ],
+    "modules/sonic-build-infra/0.0.25-17a1e555291c64be1a6ff008f33352bffc4f8e5c": [
+      "5ca74473e9f316822fa5f8596a5ea2ab5b7b857c",
+      "6b821f37d75f2c19a33e95499c4a6962a36bcb29"
+    ],
+    "modules/libnl3/3.7.0.sonic.6": [
+      "11cd81e4c2a98a7347f2ada686c8cdaff8bcbbdc",
+      "59bda4975eb5e55c8af91b727037ad4d45d381cb"
+    ]
+  }
 }

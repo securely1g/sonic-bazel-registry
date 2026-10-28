@@ -4,13 +4,13 @@ Native Bazel C rules build the SONiC-patched libyang 3.12.2 library, interactive
 
 ## Native Draft validation prerequisites
 
-The libyang candidate uses infrastructure `0.0.25-1341eaf4a7759ef0121ae7c17edcd0000d063038` from [registry #147](https://github.com/securely1g/sonic-bazel-registry/pull/147) and the `.13` library exports from [#146](https://github.com/securely1g/sonic-bazel-registry/pull/146). This infrastructure supplies the shared Bookworm execution-tool set and corrected packaged Python extension lookup.
+The libyang candidate uses infrastructure `0.0.25-17a1e555291c64be1a6ff008f33352bffc4f8e5c` from [registry #147](https://github.com/securely1g/sonic-bazel-registry/pull/147) and the `.13` library exports from [#146](https://github.com/securely1g/sonic-bazel-registry/pull/146). The user-requested in-place registry patch retains the published infrastructure source archive and supplies the shared Bookworm execution-tool set and corrected packaged Python extension lookup.
 
 Its native CI stages only those exact prerequisite recipes from the immutable Draft catalog pinned by [this PR’s workflow](../../../.github/workflows/registry-ci.yml); the PR's own `libyang@3.12.2.sonic.6` recipe stays under test. The runner uses that single local catalog plus BCR, and retains `draft-prerequisites.json` with the exact entry trees. This is temporary validation, not a published dependency or a Ready criterion. Remove the staging step and verify maintained-main resolution after the prerequisites land.
 
 | Input or action | Before | After |
 | --- | --- | --- |
-| Native libyang registry validation for FRR's libraries and installation TARs | Older Draft infrastructure omits the reviewed execution-tool fixes | The reviewed `0.0.25-1341eaf4…` recipe supplies the shared Bookworm tools and Python extension lookup; `.13` provides the required APT library targets |
+| Native libyang registry validation for FRR's libraries and installation TARs | Older Draft infrastructure omits the reviewed execution-tool fixes | The reviewed `0.0.25-17a1e555…` recipe supplies the shared Bookworm tools and Python extension lookup; `.13` provides the required APT library targets |
 
 For local reproduction, stage the same entry trees from the pinned catalog into a disposable registry worktree, preserving this candidate, then run its existing `ci/registry_ci.py run --module libyang --version 3.12.2.sonic.6` command for the native architecture. Published module entries in the PR remain unchanged; historical cross-build results do not establish native ARM64 execution.
 

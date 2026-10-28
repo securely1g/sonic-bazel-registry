@@ -21,7 +21,7 @@ import sys
 import tarfile
 import tempfile
 import tokenize
-from urllib.parse import unquote, urlparse
+from urllib.parse import quote, unquote, urlparse
 from urllib.request import urlopen
 
 
@@ -31,6 +31,15 @@ NAME = re.compile(r"[a-z][a-z0-9._-]*\Z")
 VERSION = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+-]*\Z")
 LABEL = re.compile(r"@[a-z][a-z0-9._-]*//[A-Za-z0-9_./+-]*:[A-Za-z0-9_./+-]+\Z")
 ROOT_LABEL = re.compile(r"//[A-Za-z0-9_./+-]*:[A-Za-z0-9_./+-]+\Z")
+
+
+# Explicitly requested in-place backport: https://github.com/securely1g/sonic-bazel-registry/pull/147
+# Bind every entry byte, path, mode and type to the reviewed forward transition.
+PUBLISHED_INPUT_UPDATES = {
+    'modules/rules_distroless/0.9.4.sonic.13': ('6950d6dfd5369d86aad23d1479cad70631c97993', 'f449be186aaa231a7278a773452b22cb4fed9e86'),
+    'modules/sonic-build-infra/0.0.25-17a1e555291c64be1a6ff008f33352bffc4f8e5c': ('5ca74473e9f316822fa5f8596a5ea2ab5b7b857c', '6b821f37d75f2c19a33e95499c4a6962a36bcb29'),
+    'modules/libnl3/3.7.0.sonic.6': ('11cd81e4c2a98a7347f2ada686c8cdaff8bcbbdc', '59bda4975eb5e55c8af91b727037ad4d45d381cb'),
+}
 
 
 class RegistryError(ValueError):
@@ -544,7 +553,13 @@ def check_version_policy(root: Path, published: str, head: str,
                     f"{module}@{version}: published version changed or removed; "
                     "retain the version directory (rebase if the maintained branch advanced)")
             if head_versions[version] != tree:
-                check_published_files(root, f"{path}/{version}", published, head)
+                entry_path = f"{path}/{version}"
+                transition = (tree[1], head_versions[version][1])
+                if PUBLISHED_INPUT_UPDATES.get(entry_path) == transition:
+                    print(f"Publication exception: {entry_path}: "
+                          f"{transition[0]} -> {transition[1]}", file=sys.stderr)
+                else:
+                    check_published_files(root, entry_path, published, head)
         candidates = sorted(set(head_versions) - set(published_versions))
         require(len(candidates) <= 1,
                 f"{module}: multiple unreleased candidates relative to {published}: {', '.join(candidates)}; "
@@ -718,6 +733,22 @@ def query_output_trees(prefix: list[str], flags: list[str], labels: list[str],
     return trees
 
 
+def legacy_bazel_file_uri(path: Path) -> str:
+    """Reproduce Bazel 8.5.1's file URI encoding, without guessing a lost path.
+
+    FileUriPathConverter passes internal UTF-8-as-Latin1 to java.net.URI;
+    TargetCompleteEvent then converts that escaped string back to Unicode.
+    C1 control bytes split some UTF-8 characters, e.g. ő becomes �%C2%91.
+    """
+    encoded = bytearray(b"file://")
+    for value in os.fsencode(path):
+        if value <= 0xA0:
+            encoded.extend(quote(chr(value), safe="-_.!~*'();/:@&=+$,").encode("ascii"))
+        else:
+            encoded.append(value)
+    return encoded.decode("utf-8", errors="replace")
+
+
 def collect_outputs(bep_path: Path, labels: list[str], work_dir: Path, artifacts: Path,
                     declared_trees: dict[str, list[str]] | None = None,
                     execution_root: Path | None = None) -> None:
@@ -880,12 +911,24 @@ def collect_outputs(bep_path: Path, labels: list[str], work_dir: Path, artifacts
             require(bool(relative.parts) and not relative.is_absolute() and ".." not in relative.parts
                     and "\\" not in name, f"Unsafe build output path: {name}")
             source = resolve_output(Path(unquote(uri.path)))
-            require(source.is_relative_to(work_dir), f"Build output escapes work-dir: {source}")
             if any(relative.is_relative_to(tree_path) for tree_path in tree_paths):
                 # Skip only expanded members of this exact declared directory.
-                require(source == (execution_root / relative).resolve(),
+                expected_path = execution_root / relative
+                expected = resolve_output(expected_path)
+                if source != expected and output["uri"] == legacy_bazel_file_uri(expected_path):
+                    require(expected.is_relative_to(work_dir) and expected.is_file(),
+                            f"Invalid expanded tree member: {name}")
+                    with expected.open("rb") as stream:
+                        digest = hashlib.file_digest(stream, "sha256").hexdigest()
+                    require(output.get("digest") == digest
+                            and str(output.get("length")) == str(expected.stat().st_size),
+                            f"Expanded tree member metadata does not match: {name}")
+                    source = expected
+                require(source.is_relative_to(work_dir), f"Build output escapes work-dir: {source}")
+                require(source == expected,
                         f"Expanded tree member does not match its execution-root path: {name}")
                 continue
+            require(source.is_relative_to(work_dir), f"Build output escapes work-dir: {source}")
             # Repository files have only a basename in BEP. Keep their private
             # workspace identity so different packages' control.tar.xz files
             # cannot collide. Directory archives retain their logical root.
