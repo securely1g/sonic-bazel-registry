@@ -1,0 +1,84 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "tar.bzl",
+      "version": "0.10.5-sonic.1"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic-build-infra//platforms:x86_64_trixie",
+    "arm64": "@sonic-build-infra//platforms:aarch64_trixie"
+  },
+  "build_targets": [
+    "@sonic-build-infra//tools/build_tools:make",
+    "@sonic-build-infra//tools/build_tools:m4",
+    "@sonic-build-infra//tools/build_tools:pkgconf",
+    "@sonic-build-infra//tools/build_tools:perl",
+    "@sonic-build-infra//tools/build_tools:bison",
+    "@sonic-build-infra//tools/build_tools:flex",
+    "@sonic-build-infra//tools/build_tools:autoconf",
+    "@sonic-build-infra//tools/build_tools:autoheader",
+    "@sonic-build-infra//tools/build_tools:autom4te",
+    "@sonic-build-infra//tools/build_tools:launcher_action_check",
+    "@sonic-build-infra//tools/build_tools:configure_probe_binary",
+    "@sonic-build-infra//tools/build_tools:compile_et",
+    "@sonic-build-infra//tools/build_tools:mk_cmds",
+    "@sonic-build-infra//tests:hello_cpp",
+    "@sonic-build-infra//tests:hello_deploy_tar",
+    "@sonic-build-infra//tests:hello_deploy_tar.debug_symbols",
+    "@sonic-build-infra//tests:libgreet.so",
+    "@sonic-build-infra//tools/build_tools:foreign_runtime",
+    "@sonic-build-infra//tools/build_tools:metadata_runtime",
+    "@sonic-build-infra//tools/build_tools:autoreconf",
+    "@sonic-build-infra//tools/build_tools:automake",
+    "@sonic-build-infra//tools/build_tools:aclocal",
+    "@sonic-build-infra//tools/build_tools:libtoolize",
+    "@sonic-build-infra//tools/build_tools:protoc",
+    "@sonic-build-infra//tools/build_tools:grpc_cpp_plugin",
+    "@sonic-build-infra//tools/build_tools:grpc_python_plugin",
+    "@sonic-build-infra//tools/build_tools:thrift",
+    "@sonic-build-infra//tools/build_tools:python3",
+    "@sonic-build-infra//registry_ci:kernel_runtime_manifest",
+    "@sonic-build-infra//deps/compiler:alternatives_pkg",
+    "@sonic-build-infra//deps/automake:alternatives_pkg",
+    "@sonic-build-infra//deps/openmpi:alternatives_pkg",
+    "@sonic-build-infra//go:lock.py"
+  ],
+  "test_targets": [
+    "@sonic-build-infra//tools/build_tools:runtime_test",
+    "@sonic-build-infra//tools/build_tools:configure_runtime_test",
+    "@sonic-build-infra//tools/build_tools:configure_make_test",
+    "@sonic-build-infra//toolchains/gcc/tests:foreign_link_test",
+    "@sonic-build-infra//tools/build_tools:kerberos_runtime_test",
+    "@sonic-build-infra//tests:hello_strip_test",
+    "@sonic-build-infra//tests:libgreet_pic_test",
+    "@sonic-build-infra//tests:libgreet_strip_test",
+    "@sonic-build-infra//tests:hello_deploy_tar_content_test",
+    "@sonic-build-infra//tests:hello_deploy_tar_provides_debug_symbols_test",
+    "@sonic-build-infra//cc/tests:transitive_runtime_test",
+    "@sonic-build-infra//cc/tests:shared_library_layout_test",
+    "@sonic-build-infra//tools/build_tools:foreign_runtime_test",
+    "@sonic-build-infra//tools/build_tools:libtool_test",
+    "@sonic-build-infra//oci/tests:account_layer_test",
+    "@sonic-build-infra//oci/tests:installed_packages_test",
+    "@sonic-build-infra//oci/tests:owner_metadata_test",
+    "@sonic-build-infra//oci/tests:installed_packages_rule_test",
+    "@sonic-build-infra//oci/tests:runtime_packages_test",
+    "@sonic-build-infra//oci/tests:runtime_packages_rule_test",
+    "@sonic-build-infra//tools/build_tools:prepare_rootfs_test",
+    "@sonic-build-infra//tools/build_tools:kernel_debian_test",
+    "@sonic-build-infra//tools/build_tools:kernel_runtime_test",
+    "@sonic-build-infra//tools/build_tools:runtime_launcher_test",
+    "@sonic-build-infra//registry_ci:kernel_arm64_tools_test",
+    "@sonic-build-infra//registry_ci:kernel_armhf_tools_test",
+    "@sonic-build-infra//deps:alternatives_test"
+  ],
+  "host_platforms": {
+    "amd64": "@sonic-build-infra//platforms:x86_64_trixie",
+    "arm64": "@sonic-build-infra//platforms:aarch64_trixie"
+  }
+}
