@@ -73,7 +73,9 @@
     "@sonic-swss-common//dist:package_timestamps_test",
     "@sonic-swss-common//crates/swss-common:swss_common_test",
     "@sonic-swss-common//tools/bazel/rust:shared_serde_test",
-    "@sonic-swss-common//sonic-db-cli:shared_library_test"
+    "@sonic-swss-common//sonic-db-cli:shared_library_test",
+    "@sonic-swss-common//tools/bazel/runtime:declared_loader_test",
+    "@sonic-swss-common//goext/tests/hiredis:hiredis_cgo_test"
   ],
   "build_flags": [
     "--@sonic-swss-common//tools/bazel:yang_modules=True"
