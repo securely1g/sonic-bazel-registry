@@ -21,7 +21,7 @@ import sys
 import tarfile
 import tempfile
 import tokenize
-from urllib.parse import unquote, urlparse
+from urllib.parse import quote, unquote, urlparse
 from urllib.request import urlopen
 
 
@@ -718,6 +718,22 @@ def query_output_trees(prefix: list[str], flags: list[str], labels: list[str],
     return trees
 
 
+def legacy_bazel_file_uri(path: Path) -> str:
+    """Reproduce Bazel 8.5.1's file URI encoding, without guessing a lost path.
+
+    FileUriPathConverter passes internal UTF-8-as-Latin1 to java.net.URI;
+    TargetCompleteEvent then converts that escaped string back to Unicode.
+    C1 control bytes split some UTF-8 characters, e.g. ő becomes �%C2%91.
+    """
+    encoded = bytearray(b"file://")
+    for value in os.fsencode(path):
+        if value <= 0xA0:
+            encoded.extend(quote(chr(value), safe="-_.!~*'();/:@&=+$,").encode("ascii"))
+        else:
+            encoded.append(value)
+    return encoded.decode("utf-8", errors="replace")
+
+
 def collect_outputs(bep_path: Path, labels: list[str], work_dir: Path, artifacts: Path,
                     declared_trees: dict[str, list[str]] | None = None,
                     execution_root: Path | None = None) -> None:
@@ -880,12 +896,24 @@ def collect_outputs(bep_path: Path, labels: list[str], work_dir: Path, artifacts
             require(bool(relative.parts) and not relative.is_absolute() and ".." not in relative.parts
                     and "\\" not in name, f"Unsafe build output path: {name}")
             source = resolve_output(Path(unquote(uri.path)))
-            require(source.is_relative_to(work_dir), f"Build output escapes work-dir: {source}")
             if any(relative.is_relative_to(tree_path) for tree_path in tree_paths):
                 # Skip only expanded members of this exact declared directory.
-                require(source == (execution_root / relative).resolve(),
+                expected_path = execution_root / relative
+                expected = resolve_output(expected_path)
+                if source != expected and output["uri"] == legacy_bazel_file_uri(expected_path):
+                    require(expected.is_relative_to(work_dir) and expected.is_file(),
+                            f"Invalid expanded tree member: {name}")
+                    with expected.open("rb") as stream:
+                        digest = hashlib.file_digest(stream, "sha256").hexdigest()
+                    require(output.get("digest") == digest
+                            and str(output.get("length")) == str(expected.stat().st_size),
+                            f"Expanded tree member metadata does not match: {name}")
+                    source = expected
+                require(source.is_relative_to(work_dir), f"Build output escapes work-dir: {source}")
+                require(source == expected,
                         f"Expanded tree member does not match its execution-root path: {name}")
                 continue
+            require(source.is_relative_to(work_dir), f"Build output escapes work-dir: {source}")
             # Repository files have only a basename in BEP. Keep their private
             # workspace identity so different packages' control.tar.xz files
             # cannot collide. Directory archives retain their logical root.

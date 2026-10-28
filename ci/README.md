@@ -431,6 +431,14 @@ Only files within those declared boundaries belong to a tree TAR; adjacent runti
 and debug TAR outputs retain their original bytes. The artifact includes
 `declared-output-trees.jsonl` and the genuine build events for verification.
 
+Bazel 8.5.1 can corrupt a local file URI when a Unicode filename contains UTF-8
+bytes that Java URI treats as control characters. For expanded members of a
+declared output tree, the collector also recognizes that exact encoding of the
+expected execution-root path. This compatibility path requires the actual file
+to match the event's SHA-256 and length. Local URI validation, declared-directory
+boundaries and symlink containment still apply. The real Bazel artifact fixture
+checks that Unicode names and literal URI punctuation survive collection.
+
 For native libraries, download the runtime and detached-debug packages from the
 same module/version/architecture job. These packages come from the same build;
 symbols from another run are not guaranteed to match. Extract package archives

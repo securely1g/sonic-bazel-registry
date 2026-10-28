@@ -1469,6 +1469,46 @@ class BuildOutputTests(FixtureTestCase):
         with self.assertRaisesRegex(registry_ci.RegistryError, "does not match"):
             self.collect(events, declared_trees=trees, execution_root=self.work)
 
+    def unicode_tree_events(self) -> tuple[list[dict], Path, dict]:
+        events, tree, trees = self.expanded_tree_events()
+        certificate = tree / "Főtanúsítvány.crt"
+        certificate.write_bytes(b"certificate fixture\n")
+        # Captured from real Bazel 8.5.1 BEP, independently of the collector.
+        events[0]["namedSetOfFiles"]["files"][0] = {
+            "name": certificate.relative_to(self.work).as_posix(),
+            "uri": tree.as_uri() + "/F\ufffd%C2%91tanúsítvány.crt",
+            "digest": hashlib.sha256(b"certificate fixture\n").hexdigest(),
+            "length": str(len(b"certificate fixture\n")),
+        }
+        return events, certificate, trees
+
+    def test_unicode_tree_member_preserves_name_and_bytes(self) -> None:
+        events, certificate, trees = self.unicode_tree_events()
+        index = self.collect(events, declared_trees=trees, execution_root=self.work)
+        tree_record = next(item for item in index[self.labels[0]] if item.get("type") == "tree_archive")
+        with tarfile.open(self.root / "artifacts" / tree_record["path"]) as archive:
+            member = archive.extractfile("bazel-out/bin/tools/Főtanúsítvány.crt")
+            self.assertEqual(member.read(), b"certificate fixture\n")
+
+    def test_unicode_tree_member_rejects_other_uri_even_with_matching_bytes(self) -> None:
+        events, certificate, trees = self.unicode_tree_events()
+        other = self.work / "Főtanúsítvány.crt"
+        other.write_bytes(certificate.read_bytes())
+        events[0]["namedSetOfFiles"]["files"][0]["uri"] = self.work.as_uri() + "/F\ufffd%C2%91tanúsítvány.crt"
+        with self.assertRaisesRegex(registry_ci.RegistryError, "does not match"):
+            self.collect(events, declared_trees=trees, execution_root=self.work)
+
+    def test_unicode_tree_member_requires_matching_digest_and_length(self) -> None:
+        events, certificate, trees = self.unicode_tree_events()
+        for field, value in (("digest", "0" * 64), ("digest", None),
+                             ("length", "0"), ("length", None)):
+            with self.subTest(field=field, value=value):
+                invalid = copy.deepcopy(events)
+                invalid[0]["namedSetOfFiles"]["files"][0][field] = value
+                shutil.rmtree(self.root / "artifacts", ignore_errors=True)
+                with self.assertRaisesRegex(registry_ci.RegistryError, "metadata does not match"):
+                    self.collect(invalid, declared_trees=trees, execution_root=self.work)
+
     def test_declared_empty_tree_survives_empty_bep_file_set(self) -> None:
         events, tree, trees = self.expanded_tree_events()
         (tree / "Text::Width").unlink()
