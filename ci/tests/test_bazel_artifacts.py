@@ -39,6 +39,7 @@ printf '%s\\n' "$4" > "$1/configuration-mode"
 printf 'perl manual\\n' > "$1/Text::CharWidth.3pm.gz"
 printf 'UPPER header\\n' > "$1/xt_CONNMARK.h"
 printf 'lower header\\n' > "$1/xt_connmark.h"
+printf 'certificate fixture\\n' > "$1/Főtanúsítvány # %%20 ?.crt"
 printf '#!/bin/sh\\nprintf fixture\\\\n\\n' > "$1/tool"
 chmod 751 "$1/tool"
 ln -s tool "$1/alias"
@@ -167,6 +168,8 @@ class BazelArtifactIntegrationTest(unittest.TestCase):
                 self.assertEqual((payload / "Text::CharWidth.3pm.gz").read_bytes(), b"perl manual\n")
                 self.assertEqual((payload / "xt_CONNMARK.h").read_bytes(), b"UPPER header\n")
                 self.assertEqual((payload / "xt_connmark.h").read_bytes(), b"lower header\n")
+                self.assertEqual((payload / "Főtanúsítvány # %%20 ?.crt").read_bytes(),
+                                 b"certificate fixture\n")
                 # Bazel makes outputs read-only, and Python's safe extraction
                 # filter restores owner write access. Check exact archive modes
                 # above and retained executability after safe extraction here.

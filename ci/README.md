@@ -142,6 +142,22 @@ repositories. Authors must also audit those PRs and update affected consumer
 versions, registry revisions, overrides, and lockfiles when consolidating a
 candidate. This policy does not change native module validation coverage.
 
+### Approved in-place infrastructure backport
+
+[PR #147](https://github.com/securely1g/sonic-bazel-registry/pull/147) explicitly
+updates the existing `sonic-build-infra` version instead of registering a new
+one. `PUBLISHED_INPUT_UPDATES` permits only this entry's exact tree transition:
+
+| Version | Original tree | Updated tree |
+| --- | --- | --- |
+| `0.0.25-17a1e555291c64be1a6ff008f33352bffc4f8e5c` | `5ca74473e9f316822fa5f8596a5ea2ab5b7b857c` | `6b821f37d75f2c19a33e95499c4a6962a36bcb29` |
+
+The source archive and original patches remain unchanged; patch `0003` adds
+the reviewed native interfaces and regression tests. Extra input edits,
+mode/type changes, other entries and reverse transitions remain rejected.
+Metadata, source integrity, candidate limits and native validation still run.
+Shared runner changes still select the latest versions of all covered modules.
+
 ## Module configuration
 
 Add `modules/<name>/<version>/presubmit.json` with the module's registry change.
@@ -430,6 +446,14 @@ its execution configuration must not replace or duplicate the requested output.
 Only files within those declared boundaries belong to a tree TAR; adjacent runtime
 and debug TAR outputs retain their original bytes. The artifact includes
 `declared-output-trees.jsonl` and the genuine build events for verification.
+
+Bazel 8.5.1 can corrupt a local file URI when a Unicode filename contains UTF-8
+bytes that Java URI treats as control characters. For expanded members of a
+declared output tree, the collector also recognizes that exact encoding of the
+expected execution-root path. This compatibility path requires the actual file
+to match the event's SHA-256 and length. Local URI validation, declared-directory
+boundaries and symlink containment still apply. The real Bazel artifact fixture
+checks that Unicode names and literal URI punctuation survive collection.
 
 For native libraries, download the runtime and detached-debug packages from the
 same module/version/architecture job. These packages come from the same build;
