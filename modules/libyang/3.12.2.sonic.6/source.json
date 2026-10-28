@@ -1,0 +1,24 @@
+{
+  "url": "https://deb.debian.org/debian/pool/main/liby/libyang/libyang_3.12.2.orig.tar.xz",
+  "strip_prefix": "libyang-3.12.2",
+  "integrity": "sha256-17NaX586W5KbnJ7gwrG2P773vniNiPdOE2K4WZAALbM=",
+  "patches": {
+    "0001-pr2362-lyd_validate_noextdeps.patch": "sha256-PafSCuECsAtBgQbRU/ydMFn++r+mSk43cEyfD2XceHo="
+  },
+  "patch_strip": 1,
+  "overlay": {
+    ".bazelrc": "sha256-62p0YxTC6qq2Q8Zpnj07nArW6f4a0pOzywpbGeOFCIo=",
+    "BUILD.bazel": "sha256-rO3yd5FuuzCKu5pp9jHWCGxchx8XUNaazk+nD3Pml4s=",
+    "MODULE.bazel": "sha256-arSNibKRqRcYsX4aPkRnKab0OdzL38MHPvIc32m82DI=",
+    "README.bazel.md": "sha256-qdPohVuUFFX9JrFimrgcEsESI/a26H76qfWPLzWx5/E=",
+    "docs_permissions.awk": "sha256-v/fRLKNaROWRRZVTWIbeO5OJz6t0aMXAneIXP+x+EHk=",
+    "documentation.py": "sha256-jQ9odFa1OWrCD4ZU++BfiimtAkMi+V5FWgY63AKIk4M=",
+    "libyang_package_test.py": "sha256-Qz/V2pLi2Ml9rF2lCpR+asiJUGUp4n6ODV/QKLAGDeg=",
+    "libyang_test.c": "sha256-PvL3aPjkBdZRdJCfuEX7c0aVHcHtpSk/xxdqvekqKVw=",
+    "relocate_test_paths.py": "sha256-a9rsQvfOsCJhYhjXs7jn4Eoj1/pUSZcK+3XHMgLreqk=",
+    "runtime_metadata_test.py": "sha256-oxPg75PZ7+majjcpxwqQN8fnqSmaU9ucJAZx+PT+gTc=",
+    "runtime_packages.md": "sha256-4ZIU++/CDtdfUFIEqtgwjFMhRszHBM2FX0MziArTA9M=",
+    "upstream_tests.py": "sha256-lTH33S89BQOBQ+XmNnLaFDGW2Wec2XnEVKH7HF38GRg=",
+    "upstream_tests_config.h": "sha256-uv9Y8blvozW4k1HTUcQET4o3DrfSfYckaIdTWNXBz7E="
+  }
+}
