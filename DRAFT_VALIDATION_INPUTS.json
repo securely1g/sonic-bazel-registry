@@ -1,0 +1,28 @@
+{
+  "purpose": "Temporary reviewed registry for Draft native CI only; not a maintained registry endpoint or release.",
+  "base": "791f12022342f5439fb527ba03eca0225f8c772d",
+  "pr146": "6f277d4a12de1fa156a1e2566080e0bf23bc38ea",
+  "pr147": "fdd61f8edd711e679d8fb09c577a4d00685c0a31",
+  "consumers": [
+    {
+      "pr": 148,
+      "head": "403546b5abeb8993a7e33c22e19b8c2cd5ecde0d",
+      "module": "libnl3",
+      "version": "3.7.0.sonic.7"
+    },
+    {
+      "pr": 149,
+      "head": "c081db12cae3c292768527806ec25ec8407834f6",
+      "module": "libyang",
+      "version": "3.12.2.sonic.6"
+    },
+    {
+      "pr": 150,
+      "head": "55f47d689f3553b965b972ffabc363b6b7c031b5",
+      "module": "net-snmp",
+      "version": "5.9.3.sonic.1"
+    }
+  ],
+  "selected_infrastructure": "0.0.25-6f6658865b7f687fa5e78d1675c0db8a5765b2ce",
+  "published_entries_preserved_except_explicitly_approved_pr146_recipe": true
+}

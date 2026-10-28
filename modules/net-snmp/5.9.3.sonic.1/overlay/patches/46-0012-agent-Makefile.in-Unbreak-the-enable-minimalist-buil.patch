@@ -1,0 +1,12 @@
+diff --git a/agent/Makefile.in b/agent/Makefile.in
+--- a/agent/Makefile.in
++++ b/agent/Makefile.in
+@@ -16,7 +16,7 @@
+ # what to install
+ #
+ SUBDIRS=helpers
+-FTSUBDIRS=helpers
++FTSUBDIRS=mibgroup helpers
+ 
+ INSTALLSBINPROGS= @SNMPD@
+ INSTALLLIBS	= libnetsnmpagent.$(LIB_EXTENSION)$(LIB_VERSION)

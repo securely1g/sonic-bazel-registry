@@ -1,4 +1,5 @@
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("@rules_cc//cc:cc_import.bzl", "cc_import")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
@@ -61,4 +62,60 @@ cc_shared_library(
     deps = [":middle"],
     shared_lib_name = "libdistroless_provider_middle.so",
     user_link_flags = ["-Wl,--enable-new-dtags"],
+)
+
+# Some Debian development .so files are GNU linker scripts, not ELF files.
+# Preserve those original bytes and use the same declared-input remapping as
+# deb_import. The linker needs the real payload, not only its solib symlink.
+cc_binary(
+    name = "script_runtime/libdistroless_provider_leaf.so.1",
+    srcs = ["leaf.c"],
+    linkopts = [
+        "-Wl,--enable-new-dtags",
+        "-Wl,-soname,libdistroless_provider_leaf.so.1",
+    ],
+    linkshared = True,
+)
+
+write_file(
+    name = "linker_script",
+    out = "script/libdistroless_provider_leaf.so",
+    content = ["GROUP ( /usr/lib/libdistroless_provider_leaf.so.1 )", ""],
+)
+
+cc_import(
+    name = "script_link_library",
+    shared_library = ":script/libdistroless_provider_leaf.so",
+)
+
+so_library(
+    name = "script_runtime_library",
+    dynamic_libs = [":script_runtime/libdistroless_provider_leaf.so.1"],
+    # Keep script inputs/flags on the same CcInfo owner as real libraries.
+    # Native cc_shared_library discards the library-less wrapper's inputs.
+    additional_linker_inputs = [":script_runtime/libdistroless_provider_leaf.so.1"],
+    linkopts = ["-Wl,--remap-inputs=/usr/lib/libdistroless_provider_leaf.so.1=$(BINDIR)/external/REGISTRY_CI_NATIVE_SHARED_REPOSITORY/script_runtime/libdistroless_provider_leaf.so.1"],
+)
+
+cc_library(
+    name = "script_middle",
+    srcs = ["middle.c"],
+    deps = [":script_package"],
+)
+
+# Model deb_import's aggregate wrapper. Native cc_shared_library can discard
+# a library-less wrapper's linker inputs, so this alone is insufficient.
+cc_deb_library(
+    name = "script_package",
+    deps = [":script_link_library", ":script_runtime_library"],
+    additional_linker_inputs = [":script_runtime/libdistroless_provider_leaf.so.1"],
+    linkopts = ["-Wl,--remap-inputs=/usr/lib/libdistroless_provider_leaf.so.1=$(BINDIR)/external/REGISTRY_CI_NATIVE_SHARED_REPOSITORY/script_runtime/libdistroless_provider_leaf.so.1"],
+)
+
+cc_shared_library(
+    name = "script_middle_shared",
+    deps = [":script_middle"],
+    shared_lib_name = "script/libdistroless_provider_middle.so",
+    # Match SONiC's GNU BFD linker; --remap-inputs is its existing contract.
+    user_link_flags = ["-fuse-ld=bfd", "-Wl,--enable-new-dtags"],
 )
