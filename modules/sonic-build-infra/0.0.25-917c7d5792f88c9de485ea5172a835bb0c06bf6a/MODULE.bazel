@@ -1,7 +1,7 @@
 # Keep bazel_compatibility in sync with sonic-buildimage's .bazelversion.
 module(
     name = "sonic-build-infra",
-    version = "0.0.25-6f6658865b7f687fa5e78d1675c0db8a5765b2ce",
+    version = "0.0.25-917c7d5792f88c9de485ea5172a835bb0c06bf6a",
     bazel_compatibility = [
         ">=8.5.1",
         "<=8.5.1",
@@ -1104,15 +1104,6 @@ gcc.debian_toolchain(
     version = "12.2.0",
 )
 
-# Bookworm's original XS generators execute Perl 5.36, independently of target ABI.
-apt_bookworm.install(
-    dependency_set = "bookworm_perl_tools",
-    packages = ["perl", "perl-base", "perl-modules-5.36", "libperl-dev"],
-    suites = ["bookworm", "bookworm-updates", "bookworm-security"],
-    include_transitive = True,
-)
-use_repo(apt_bookworm, "bookworm_perl_tools")
-
 # Target-side debug symbols must match the selected target loader, not exec tools.
 apt_bookworm.install(
     dependency_set = "bookworm_target_debug",
@@ -1122,14 +1113,25 @@ apt_bookworm.install(
 )
 use_repo(apt_bookworm, "bookworm_target_debug")
 
-# Bookworm normal-check instrumentation preserves the original builder tool suite.
+# One shared Bookworm execution set preserves Perl's XS ABI and the original
+# instrumentation versions. Consumers select runtime subsets from this set;
+# Trixie execution tools remain in the existing build_tools dependency set.
 apt_bookworm.install(
-    dependency_set = "bookworm_test_tools",
-    packages = ["valgrind", "libc6-dbg", "tcl8.6", "tcl-expect"],
+    dependency_set = "bookworm_build_tools",
+    packages = [
+        "perl",
+        "perl-base",
+        "perl-modules-5.36",
+        "libperl-dev",
+        "valgrind",
+        "libc6-dbg",
+        "tcl8.6",
+        "tcl-expect",
+    ],
     suites = ["bookworm", "bookworm-updates", "bookworm-security"],
     include_transitive = True,
 )
-use_repo(apt_bookworm, "bookworm_test_tools")
+use_repo(apt_bookworm, "bookworm_build_tools")
 
 # Deterministic compression uses the existing native BCR pigz toolchain.
 bazel_dep(name = "pigz", version = "2.8.bcr.2")

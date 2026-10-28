@@ -78,13 +78,16 @@
     "@sonic-build-infra//testing:exec_test_args_test",
     "@sonic-build-infra//cc/tests/runtime_context:layout_test",
     "@sonic-build-infra//cc/tests/runtime_test:contract_test",
+    "@sonic-build-infra//cc/tests/runtime_test:native_test",
+    "@sonic-build-infra//cc/tests/runtime_test:origin_contract_test",
     "@sonic-build-infra//tar:root_owned_tar_test",
     "@sonic-build-infra//tar:debug_symbols_ownership_test",
     "@sonic-build-infra//tests:installation_rpath_tar_test",
     "@sonic-build-infra//tests:hello_rpath_installation_test",
     "@sonic-build-infra//tests:hello_runpath_installation_test",
     "@sonic-build-infra//registry_ci:prefix_map_test",
-    "@sonic-build-infra//tools/build_tools:perl_bookworm_test"
+    "@sonic-build-infra//tools/build_tools:perl_bookworm_test",
+    "@sonic-build-infra//tools/build_tools:bookworm_test_runtime_test"
   ],
   "host_platforms": {
     "amd64": "@sonic-build-infra//platforms:x86_64_trixie",
