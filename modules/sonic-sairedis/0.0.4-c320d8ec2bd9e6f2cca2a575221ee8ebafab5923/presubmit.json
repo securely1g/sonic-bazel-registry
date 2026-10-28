@@ -1,0 +1,83 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.25-1341eaf4a7759ef0121ae7c17edcd0000d063038",
+      "repo_name": "sonic_build_infra"
+    },
+    {
+      "name": "sonic-swss-common",
+      "version": "0.0.5-326ca764197ac788dfd55aa935ff728180745bde",
+      "repo_name": "sonic_swss_common"
+    },
+    {
+      "name": "sai",
+      "version": "1.18.0-sonic.1"
+    },
+    {
+      "name": "libnl3",
+      "version": "3.7.0.sonic.5"
+    },
+    {
+      "name": "rules_distroless",
+      "version": "0.9.4.sonic.13"
+    },
+    {
+      "name": "tar.bzl",
+      "version": "0.10.5-sonic.1"
+    },
+    {
+      "name": "rules_rs",
+      "version": "0.1.0"
+    },
+    {
+      "name": "rules_cc",
+      "version": "0.2.20"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
+  },
+  "build_targets": [
+    "@sonic-sairedis//:canonical_outputs",
+    "@sonic-sairedis//lib:libsairedis_pkg",
+    "@sonic-sairedis//lib:libsairedis_pkg.debug_symbols",
+    "@sonic-sairedis//lib:libsairedis_dev_pkg",
+    "@sonic-sairedis//lib:libsairedis_dev_pkg.debug_symbols",
+    "@sonic-sairedis//meta:libsaimetadata_pkg",
+    "@sonic-sairedis//meta:libsaimetadata_pkg.debug_symbols",
+    "@sonic-sairedis//meta:libsaimetadata_dev_pkg",
+    "@sonic-sairedis//meta:libsaimetadata_dev_pkg.debug_symbols",
+    "@sonic-sairedis//vslib:libsaivs_pkg",
+    "@sonic-sairedis//vslib:libsaivs_pkg.debug_symbols",
+    "@sonic-sairedis//vslib:libsaivs_dev_pkg",
+    "@sonic-sairedis//vslib:libsaivs_dev_pkg.debug_symbols",
+    "@sonic-sairedis//syncd:syncd_pkg",
+    "@sonic-sairedis//syncd:syncd_pkg.debug_symbols",
+    "@sonic-sairedis//pyext:pysairedis_pkg",
+    "@sonic-sairedis//pyext:pysairedis_pkg.debug_symbols",
+    "@sonic-sairedis//:runtime_packages.json",
+    "@sonic-sairedis//:library_runtime_packages.json"
+  ],
+  "test_targets": [
+    "@sonic-sairedis//lib:tests_test",
+    "@sonic-sairedis//tests:tests_test",
+    "@sonic-sairedis//saiasiccmp:tests",
+    "@sonic-sairedis//unittest/meta:tests",
+    "@sonic-sairedis//unittest/proxylib:tests",
+    "@sonic-sairedis//unittest/saidump:tests",
+    "@sonic-sairedis//unittest/saisdkdump:tests"
+  ],
+  "host_platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
+  },
+  "rust_toolchain": {
+    "version": "1.90.0"
+  }
+}
