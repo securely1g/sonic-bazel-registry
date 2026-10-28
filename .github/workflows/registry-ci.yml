@@ -211,11 +211,18 @@ jobs:
               actual = subprocess.check_output(git + ["rev-parse", revision + ":" + path], text=True).strip()
               if actual != tree:
                   raise SystemExit("Draft prerequisite tree mismatch: " + path)
-          # Restore only prerequisite recipes; the PR's own candidate stays under test.
-          subprocess.run(git + ["restore", "--source=" + revision, "--worktree", "--", *expected], check=True)
+          # The latest-module matrix also collects infrastructure runtime trees.
+          # Reuse #147's reviewed Unicode-path collector after the policy plan.
+          runner = "ci/registry_ci.py"
+          runner_blob = "ab719e6f494b03f715dde3aff05a6c6693bb47de"
+          actual = subprocess.check_output(git + ["rev-parse", revision + ":" + runner], text=True).strip()
+          if actual != runner_blob:
+              raise SystemExit("Draft prerequisite runner mismatch")
+          # Restore prerequisites only; the PR's own module remains under test.
+          subprocess.run(git + ["restore", "--source=" + revision, "--worktree", "--", *expected, runner], check=True)
           output = Path("ci-artifacts")
           output.mkdir(exist_ok=True)
-          (output / "draft-prerequisites.json").write_text(json.dumps({"registry_commit": revision, "entry_trees": expected}, indent=2) + "\n")
+          (output / "draft-prerequisites.json").write_text(json.dumps({"registry_commit": revision, "entry_trees": expected, "runner_blob": runner_blob}, indent=2) + "\n")
           PYTHON
       - name: Build and test through the registry
         run: |
