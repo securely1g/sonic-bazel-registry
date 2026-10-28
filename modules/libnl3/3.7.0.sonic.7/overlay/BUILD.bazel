@@ -1,0 +1,238 @@
+load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
+load("@rules_cc//cc:defs.bzl", "cc_binary")
+load("@rules_python//python:defs.bzl", "py_binary")
+load("@sonic_build_infra//cc:runtime_test.bzl", "native_runtime_binary", "native_runtime_test")
+load("@sonic_build_infra//testing:exec_test.bzl", "exec_test")
+
+[
+    alias(
+        name = name,
+        actual = "@libnl3_src//:" + name,
+        visibility = ["//visibility:public"],
+    )
+    for name in [
+        "libnl_3",
+        "libnl_genl_3",
+        "libnl_route_3",
+        "libnl_nf_3",
+        "libnl_cli_3",
+        "programs",
+        "check_programs",
+        "all_libraries",
+    ]
+]
+
+alias(
+    name = "headers",
+    actual = "@libnl3_src//:public_headers",
+    visibility = ["//visibility:public"],
+)
+
+[
+    alias(
+        name = stem + suffix,
+        actual = "@libnl3_src//:" + stem + suffix,
+        visibility = ["//visibility:public"],
+    )
+    for stem in [
+        "libnl-3",
+        "libnl-genl-3",
+        "libnl-route-3",
+        "libnl-nf-3",
+        "libnl-cli-3",
+    ]
+    for suffix in [
+        "_pkg",
+        "-dev_pkg",
+        "_pkg.debug_symbols",
+        "-runtime_files",
+        "-runtime_files.debug_symbols",
+    ]
+]
+
+[
+    alias(
+        name = stem + "-dev_files",
+        actual = "@libnl3_src//:" + stem + "-dev_files",
+        visibility = ["//visibility:public"],
+    )
+    for stem in [
+        "libnl-3",
+        "libnl-route-3",
+    ]
+]
+
+cc_binary(
+    name = "consumer_binary",
+    srcs = ["libnl3_consumer_test.c"],
+    dynamic_deps = [
+        "@libnl3_src//:libnl_3_shared",
+        "@libnl3_src//:libnl_route_3_shared",
+    ],
+    linkopts = ["-ldl"],
+    deps = [
+        ":libnl_3",
+        ":libnl_route_3",
+    ],
+)
+
+native_runtime_test(
+    name = "libnl3_consumer_test",
+    binary = ":consumer_binary",
+    runtime_payloads = [
+        ":target_libc_data",
+        ":libnl-3-runtime_files",
+        ":libnl-route-3-runtime_files",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+cc_binary(
+    name = "installed_paths_binary",
+    srcs = ["installed_paths_probe.c"],
+    dynamic_deps = [":" + name + "_shared" for name in ["libnl_3", "libnl_genl_3", "libnl_route_3", "libnl_nf_3", "libnl_cli_3"]],
+    deps = [":libnl_cli_3"],
+)
+
+native_runtime_binary(
+    name = "installed_paths_probe",
+    binary = ":installed_paths_binary",
+    runtime_payloads = [":target_libc_data"] + [":" + stem + "-runtime_files" for stem in ["libnl-3", "libnl-genl-3", "libnl-route-3", "libnl-nf-3", "libnl-cli-3"]],
+)
+
+py_binary(
+    name = "installed_paths_runner",
+    srcs = ["installed_paths_test.py"],
+    main = "installed_paths_test.py",
+)
+
+exec_test(
+    name = "libnl3_installed_paths_test",
+    srcs = [":installed_paths_probe", ":libnl-3-runtime_files", ":libnl-cli-3-runtime_files"],
+    runner = ":installed_paths_runner",
+    visibility = ["//visibility:public"],
+)
+
+py_binary(
+    name = "tar_contract_runner",
+    srcs = ["tar_contract_test.py"],
+    main = "tar_contract_test.py",
+    deps = ["@sonic_build_infra//deb:elf_metadata"],
+)
+
+filegroup(
+    name = "raw_tars",
+    srcs = [":" + stem + suffix for stem in [
+        "libnl-3",
+        "libnl-genl-3",
+        "libnl-route-3",
+        "libnl-nf-3",
+        "libnl-cli-3",
+    ] for suffix in [
+        "_pkg",
+        "-dev_pkg",
+        "_pkg.debug_symbols",
+    ]] + [
+        ":libnl-3-dev_files",
+        ":libnl-route-3-dev_files",
+    ],
+)
+
+exec_test(
+    name = "libnl3_package_test",
+    srcs = [":raw_tars"],
+    data = [
+        ":libnl-3-dev_files",
+        ":libnl-route-3-dev_files",
+    ] + [":" + stem + suffix for stem in [
+        "libnl-3",
+        "libnl-route-3",
+        "libnl-genl-3",
+        "libnl-nf-3",
+        "libnl-cli-3",
+    ] for suffix in ["-runtime_files", "-runtime_files.debug_symbols"]],
+    checker_args = [
+        "--dev-core=$(location :libnl-3-dev_files)",
+        "--dev-route=$(location :libnl-route-3-dev_files)",
+    ] + ["--" + role + "=$(location :" + stem + suffix + ")" for stem in [
+        "libnl-3",
+        "libnl-route-3",
+        "libnl-genl-3",
+        "libnl-nf-3",
+        "libnl-cli-3",
+    ] for role, suffix in [
+        ("runtime", "-runtime_files"),
+        ("debug", "-runtime_files.debug_symbols"),
+    ]],
+    runner = ":tar_contract_runner",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "libnl3_dev_files_test",
+    actual = ":libnl3_package_test",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "target_libc_data",
+    actual = select({
+        "@sonic_build_infra//platforms:bookworm": "@libnl_bookworm_system//libc6:data",
+        "//conditions:default": "@libnl_system//libc6:data",
+    }),
+)
+
+alias(
+    name = "target_libc_control",
+    actual = select({
+        "@sonic_build_infra//platforms:bookworm": "@libnl_bookworm_system//libc6:control",
+        "//conditions:default": "@libnl_system//libc6:control",
+    }),
+)
+
+filegroup(name = "pkgconfig", srcs = ["@libnl3_src//:" + name for name in ["libnl3_pc_generated", "libnl3_genl_pc_generated", "libnl3_route_pc_generated", "libnl3_nf_pc_generated", "libnl3_cli_pc_generated"]], visibility = ["//visibility:public"])
+
+[alias(name = name + "_shared", actual = "@libnl3_src//:" + name + "_shared", visibility = ["//visibility:public"]) for name in ["libnl_3", "libnl_genl_3", "libnl_route_3", "libnl_nf_3", "libnl_cli_3"]]
+
+
+# Package fields come from the existing Debian recipe. This mapping only
+# identifies the Bazel-built TAR for each Debian binary package.
+runtime_packages(
+    name = "runtime_packages.json",
+    changelog = "@libnl3_debian//:debian/changelog",
+    control = "@libnl3_debian//:debian/control",
+    packages = {
+        "libnl-3-200": "//:libnl-3-runtime_files",
+        "libnl-cli-3-200": "//:libnl-cli-3-runtime_files",
+        "libnl-genl-3-200": "//:libnl-genl-3-runtime_files",
+        "libnl-nf-3-200": "//:libnl-nf-3-runtime_files",
+        "libnl-route-3-200": "//:libnl-route-3-runtime_files",
+        "libnl-3-dev": "//:libnl-3-dev_files",
+        "libnl-route-3-dev": "//:libnl-route-3-dev_files",
+    },
+    required_paths = {
+        "libnl-3-200": [
+            "usr/lib/{multiarch}/libnl-3.so.200",
+            "etc/libnl-3/classid",
+            "etc/libnl-3/pktloc",
+        ],
+        "libnl-cli-3-200": [
+            "usr/lib/{multiarch}/libnl-cli-3.so.200",
+        ],
+        "libnl-genl-3-200": [
+            "usr/lib/{multiarch}/libnl-genl-3.so.200",
+        ],
+        "libnl-nf-3-200": [
+            "usr/lib/{multiarch}/libnl-nf-3.so.200",
+        ],
+        "libnl-route-3-200": [
+            "usr/lib/{multiarch}/libnl-route-3.so.200",
+        ],
+    },
+    visibility = ["//visibility:public"],
+)
+
+exports_files(
+    ["runtime_packages.md"],
+    visibility = ["//visibility:public"],
+)

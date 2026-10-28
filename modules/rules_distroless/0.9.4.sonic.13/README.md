@@ -1,28 +1,36 @@
-# Preserve base accounts alongside Debian installation
+# Native library exports from APT packages
 
-`0.9.4.sonic.13` adds account preservation to published `0.9.4.sonic.12`
-for [buildimage #33](https://github.com/securely1g/sonic-buildimage/pull/33).
-It retains the checksum-pinned upstream 0.9.4 archive, installer, locked imports,
-compiler/header fixes and patches `0002` through `0014` byte-for-byte.
-Patch `0001` changes only the module version and `0015` adds the account feature.
-Published `.sonic.11` and `.sonic.12` entries remain unchanged.
+This update adds individual C/C++ library and public-header targets directly
+to `0.9.4.sonic.13`, retaining that module version. It supports the native component builds in
+[build-infra #67](https://github.com/securely1g/sonic-build-infra/pull/67) and
+[buildimage #51](https://github.com/securely1g/sonic-buildimage/pull/51).
 
-For example, extracting `ca-certificates` files alone does not run its
-configuration scripts. `apt_install` uses APT/dpkg in an isolated native Debian
-filesystem to run those scripts and triggers, create the configuration and
-certificate links, and maintain real package state. It outputs a configured
-filesystem TAR and a receipt, not new Debian packages.
+For example, the pinned Lua development package contains several link inputs.
+A consumer that needs Lua can depend on `@registry_ci_pkgconfig//liblua5.1-0-dev:liblua5.1_cc`
+to obtain that library, its headers and declared runtime dependencies without
+selecting a library from the package's aggregate `CcInfo`. The corresponding
+`:liblua5.1_shared` target supplies the individual link file for ordered linking.
+The checked-in `registry_ci:lua_single_library_test` exercises this interface.
 
-The installer consumes original `:deb` archives. If the same reviewed lock is
-imported as `locked_import_ci` and `locked_import_ci_copy`, each import's
-`libc6:deb` target resolves to its own prefixed repository and the exact hash
-in the lock. The installation patch supplies these aliases without changing
-the inherited lock-import patch.
+| Input or action | Original `.sonic.13` | Updated `.sonic.13` |
+| --- | --- | --- |
+| Select one Lua library from `liblua5.1-0-dev` | Package-level C/C++ interface; no public per-library target | `liblua5.1_cc` and `liblua5.1_shared` select that library |
+| Compile against a development package's public headers | Consumers extract the compilation context from the aggregate interface | A public `*_headers` target supplies the headers directly |
+| Use existing package-level targets or locked archive imports | Existing behavior | Preserved and tested independently |
 
-Native AMD64/ARM64 presubmit retains all 25 published tests and six build targets,
-adds the installer unit suite and original-DEB identity test, and extends the
-independent archive test to check both lock prefixes. Full installed-image
-behavior remains the consuming image's validation responsibility.
+The upstream archive and original patches `0001` through `0015` are unchanged.
+Regenerated patch `0016` contains only the library-export changes relative to
+the complete original `.sonic.13` source. It combines the original proposal's
+`0016` and `0017`, with native linker-input handling corrected and the original
+`.sonic.13` GNU linker-script bytes and remap behavior retained. This revises the
+existing source recipe and exports; it adds no module version.
+
+Native AMD64/ARM64 presubmit retains all 32 inherited tests and adds Lua
+single-library, public-header and GNU linker-script coverage. The inherited
+aggregate-header tests retain their original helper and assertions.
+Presubmit runs 13 build targets and 41 tests on each native architecture.
+Installer/account behavior below is inherited; these tests do not establish
+full installed-image behavior.
 
 ## Inherited locked APT imports
 
@@ -88,16 +96,17 @@ The shared registry runner validates every module through the same CI entry
 point. It checks the native Linux host and Debian userspace architecture and
 verifies that recipe inputs remain unchanged, including after a failed build.
 It retains the generated lock, input declarations, source hashes and uncached
-test results. Both native jobs must execute all 32 selected tests, including
-the four locked-import regressions, fixture regeneration, installer unit tests and
-original-DEB identity checks, plus the five account targets described below. Cross inspection
+test results. Both native jobs must execute all 41 selected tests, including the 32 inherited
+checks, the Lua single-library test and eight additional header/linker-script
+checks. Cross inspection
 of ARM64 archives on AMD64 is not native ARM64 execution.
 
 ## Preserve the base image's users and groups
 
 [Registry #110](https://github.com/securely1g/sonic-bazel-registry/pull/110)
-published `.sonic.12` on maintained `main`. This account candidate retains its
-installer, patches, fixtures, six build targets and 27 tests. It adds the public
+published `.sonic.12` on maintained `main`. Published `.sonic.13` extended it
+with account preservation while retaining the installer and earlier tests. This
+update retains that implementation and the public
 `accounts(base, architecture, users, groups)` API used by
 [build-infra #57](https://github.com/securely1g/sonic-build-infra/pull/57).
 
@@ -123,3 +132,29 @@ gzip, xz and zstd OCI layer tests. They include inherited names such as
 `Debian-exim` and `monitor.agent`, and reject an upper-layer `/etc` symlink
 rather than incorrectly exposing hidden lower-layer accounts. All 27 existing
 tests remain selected, including independent lock fixture regeneration.
+
+Patch `0016` adds native library exports, public headers, declared linker-script
+inputs and producer-owned Perl CORE includes above the published patch chain.
+
+Individual shared libraries are exported as `libNAME_cc` and single-file `libNAME_shared` targets under each owning development package. Consumers can use specific libraries without selecting from a package-level CcInfo in private adapters.
+
+GNU linker scripts keep their original installation-path references. The package
+exports the exact referenced files and remap flags on its library-bearing
+`CcInfo` input, so native `cc_shared_library` retains them in its link action.
+This preserves the existing script format used by configure-based consumers.
+
+A pre-existing limitation remains for GNU scripts through native
+`cc_shared_library(dynamic_deps=...)`: Bazel 8.5.1 forwards the precompiled
+libraries but drops their remap flags and additional inputs. The existing
+Debian CI base contains the exact `libbsd.so.0.12.2` file used by SWSS Common;
+a local Ubuntu host without that file cannot complete the same downstream
+link. The direct-link regression does not establish hermetic linking through
+that boundary. This update preserves the published behavior and does not
+change that separate contract.
+
+The new public header targets are opt-in: existing aggregate package targets
+retain their original dependency shape and include paths. Attaching every new
+header target to those existing aggregates expanded FIPS OpenSSH's compiler
+arguments enough to produce `posix_spawn: Argument list too long`. Keeping the
+old aggregate interface avoids that growth while individual library consumers
+can use the new headers explicitly.

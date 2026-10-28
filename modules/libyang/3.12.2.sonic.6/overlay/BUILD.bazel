@@ -1,0 +1,788 @@
+load("@sonic_build_infra//binary:strip_binary.bzl", "strip_binary")
+load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
+load("@sonic_build_infra//cc:runtime_test.bzl", "native_runtime_binary")
+load("@sonic_build_infra//cc:runtime_test.bzl", "native_runtime_test")
+load("@bazel_skylib//rules:expand_template.bzl", "expand_template")
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_import", "cc_library")
+load("@tar.bzl//tar:tar.bzl", "tar")
+load("@tar.bzl//tar:mtree.bzl", "mtree_spec", "mtree_mutate")
+load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
+load("@rules_python//python:defs.bzl", "py_binary")
+load("@bazel_lib//lib:run_binary.bzl", "run_binary")
+load("@sonic_build_infra//testing:exec_test.bzl", "exec_test")
+load("@rules_gzip//gzip/compress:defs.bzl", "gzip_compress")
+load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
+
+package(default_visibility = ["//visibility:public"])
+
+LIBYANG_SRCS = [
+    "src/ly_common.c",
+    "src/log.c",
+    "src/hash_table.c",
+    "src/dict.c",
+    "src/set.c",
+    "src/path.c",
+    "src/diff.c",
+    "src/context.c",
+    "src/json.c",
+    "src/tree_data.c",
+    "src/tree_data_free.c",
+    "src/tree_data_common.c",
+    "src/tree_data_hash.c",
+    "src/tree_data_new.c",
+    "src/parser_xml.c",
+    "src/parser_json.c",
+    "src/parser_lyb.c",
+    "src/out.c",
+    "src/printer_data.c",
+    "src/printer_xml.c",
+    "src/printer_json.c",
+    "src/printer_lyb.c",
+    "src/schema_compile.c",
+    "src/schema_compile_node.c",
+    "src/schema_compile_amend.c",
+    "src/schema_features.c",
+    "src/tree_data_sorted.c",
+    "src/tree_schema.c",
+    "src/tree_schema_free.c",
+    "src/tree_schema_common.c",
+    "src/in.c",
+    "src/lyb.c",
+    "src/parser_common.c",
+    "src/parser_yang.c",
+    "src/parser_yin.c",
+    "src/printer_schema.c",
+    "src/printer_yang.c",
+    "src/printer_yin.c",
+    "src/printer_tree.c",
+    "src/plugins.c",
+    "src/plugins_types.c",
+    "src/plugins_exts.c",
+    "src/plugins_exts/metadata.c",
+    "src/plugins_exts/nacm.c",
+    "src/plugins_exts/yangdata.c",
+    "src/plugins_exts/schema_mount.c",
+    "src/plugins_exts/structure.c",
+    "src/xml.c",
+    "src/xpath.c",
+    "src/validation.c",
+    "src/plugins_types/binary.c",
+    "src/plugins_types/bits.c",
+    "src/plugins_types/boolean.c",
+    "src/plugins_types/decimal64.c",
+    "src/plugins_types/empty.c",
+    "src/plugins_types/enumeration.c",
+    "src/plugins_types/identityref.c",
+    "src/plugins_types/instanceid.c",
+    "src/plugins_types/instanceid_keys.c",
+    "src/plugins_types/integer.c",
+    "src/plugins_types/leafref.c",
+    "src/plugins_types/lyds_tree.c",
+    "src/plugins_types/string.c",
+    "src/plugins_types/union.c",
+    "src/plugins_types/ipv4_address.c",
+    "src/plugins_types/ipv4_address_no_zone.c",
+    "src/plugins_types/ipv6_address.c",
+    "src/plugins_types/ipv6_address_no_zone.c",
+    "src/plugins_types/ipv4_prefix.c",
+    "src/plugins_types/ipv6_prefix.c",
+    "src/plugins_types/date_and_time.c",
+    "src/plugins_types/hex_string.c",
+    "src/plugins_types/xpath1.0.c",
+    "src/plugins_types/node_instanceid.c",
+    "src/plugins_types/time_period.c",
+    "compat/compat.c",
+]
+
+LIBYANG_HDRS = [
+    "src/context.h",
+    "src/hash_table.h",
+    "src/dict.h",
+    "src/in.h",
+    "src/libyang.h",
+    "src/log.h",
+    "src/out.h",
+    "src/parser_data.h",
+    "src/parser_schema.h",
+    "src/plugins.h",
+    "src/plugins_exts.h",
+    "src/plugins_exts/metadata.h",
+    "src/plugins_types.h",
+    "src/printer_data.h",
+    "src/printer_schema.h",
+    "src/set.h",
+    "src/tree.h",
+    "src/tree_data.h",
+    "src/tree_edit.h",
+    "src/tree_schema.h",
+]
+
+config_setting(name = "bookworm", constraint_values = ["@sonic_build_infra//platforms:bookworm"])
+config_setting(name = "trixie_amd64", constraint_values = ["@sonic_build_infra//platforms:trixie", "@platforms//cpu:x86_64"])
+config_setting(name = "trixie_arm64", constraint_values = ["@sonic_build_infra//platforms:trixie", "@platforms//cpu:aarch64"])
+
+alias(name = 'sys_pcre2', actual = select({":bookworm": "@libyang_system_bookworm//libpcre2-dev:libpcre2-8_cc", "//conditions:default": "@libyang_system//libpcre2-dev:libpcre2-8_cc"}))
+alias(name = 'sys_xxhash', actual = select({":bookworm": "@libyang_system_bookworm//libxxhash-dev:libxxhash_cc", "//conditions:default": "@libyang_system//libxxhash-dev:libxxhash_cc"}))
+alias(name = 'sys_cmocka', actual = select({":bookworm": "@libyang_system_bookworm//libcmocka-dev:libcmocka_cc", "//conditions:default": "@libyang_system//libcmocka-dev:libcmocka_cc"}))
+alias(name = 'sys_pcre2_payload', actual = select({":bookworm": "@libyang_system_bookworm//libpcre2-dev", "//conditions:default": "@libyang_system//libpcre2-dev"}))
+alias(name = 'sys_xxhash_payload', actual = select({":bookworm": "@libyang_system_bookworm//libxxhash-dev", "//conditions:default": "@libyang_system//libxxhash-dev"}))
+alias(name = 'sys_cmocka_payload', actual = select({":bookworm": "@libyang_system_bookworm//libcmocka-dev", "//conditions:default": "@libyang_system//libcmocka-dev"}))
+alias(name = 'sys_libc6_data', actual = select({":bookworm": "@libyang_system_bookworm//libc6:data", "//conditions:default": "@libyang_system//libc6:data"}))
+alias(name = 'sys_libc6_control', actual = select({":bookworm": "@libyang_system_bookworm//libc6:control", "//conditions:default": "@libyang_system//libc6:control"}))
+alias(name = 'sys_libgcc-s1_data', actual = select({":bookworm": "@libyang_system_bookworm//libgcc-s1:data", "//conditions:default": "@libyang_system//libgcc-s1:data"}))
+alias(name = 'sys_libgcc-s1_control', actual = select({":bookworm": "@libyang_system_bookworm//libgcc-s1:control", "//conditions:default": "@libyang_system//libgcc-s1:control"}))
+alias(name = 'sys_libpcre2-8-0_data', actual = select({":bookworm": "@libyang_system_bookworm//libpcre2-8-0:data", "//conditions:default": "@libyang_system//libpcre2-8-0:data"}))
+alias(name = 'sys_libpcre2-8-0_control', actual = select({":bookworm": "@libyang_system_bookworm//libpcre2-8-0:control", "//conditions:default": "@libyang_system//libpcre2-8-0:control"}))
+alias(name = 'sys_libxxhash0_data', actual = select({":bookworm": "@libyang_system_bookworm//libxxhash0:data", "//conditions:default": "@libyang_system//libxxhash0:data"}))
+alias(name = 'sys_libxxhash0_control', actual = select({":bookworm": "@libyang_system_bookworm//libxxhash0:control", "//conditions:default": "@libyang_system//libxxhash0:control"}))
+
+
+# Target glibc platforms use little-endian configuration.
+config_setting(
+    name = "amd64",
+    constraint_values = ["@platforms//cpu:x86_64"],
+)
+
+config_setting(
+    name = "arm64",
+    constraint_values = ["@platforms//cpu:aarch64"],
+)
+
+config_setting(
+    name = "armhf",
+    constraint_values = ["@platforms//cpu:armv7"],
+)
+
+# Debian suite hardening flags.
+_DEBIAN_COPTS = [
+    "-g", "-O2", "-fstack-protector-strong",
+    "-D_FORTIFY_SOURCE=2", "-Wdate-time", "-Wformat", "-Werror=format-security",
+] + select({
+    ":bookworm": [],
+    ":trixie_amd64": ["-fstack-clash-protection", "-Werror=implicit-function-declaration", "-fcf-protection"],
+    ":trixie_arm64": ["-fstack-clash-protection", "-Werror=implicit-function-declaration", "-mbranch-protection=standard"],
+})
+
+expand_template(
+    name = "compat_h",
+    out = "generated/compat.h",
+    substitutions = {
+        "#cmakedefine HAVE_VDPRINTF": "#define HAVE_VDPRINTF",
+        "#cmakedefine HAVE_ASPRINTF": "#define HAVE_ASPRINTF",
+        "#cmakedefine HAVE_VASPRINTF": "#define HAVE_VASPRINTF",
+        "#cmakedefine HAVE_GETLINE": "#define HAVE_GETLINE",
+        "#cmakedefine HAVE_STRNDUP": "#define HAVE_STRNDUP",
+        "#cmakedefine HAVE_STRNSTR": "/* HAVE_STRNSTR is unavailable on glibc. */",
+        "#cmakedefine HAVE_STRDUPA": "#define HAVE_STRDUPA",
+        "#cmakedefine HAVE_STRCHRNUL": "#define HAVE_STRCHRNUL",
+        "#cmakedefine HAVE_GET_CURRENT_DIR_NAME": "#define HAVE_GET_CURRENT_DIR_NAME",
+        "#cmakedefine HAVE_PTHREAD_MUTEX_TIMEDLOCK": "#define HAVE_PTHREAD_MUTEX_TIMEDLOCK",
+        "#cmakedefine HAVE_REALPATH": "#define HAVE_REALPATH",
+        "#cmakedefine HAVE_LOCALTIME_R": "#define HAVE_LOCALTIME_R",
+        "#cmakedefine HAVE_GMTIME_R": "#define HAVE_GMTIME_R",
+        "#cmakedefine HAVE_TIMEGM": "#define HAVE_TIMEGM",
+        "#cmakedefine HAVE_STRPTIME": "#define HAVE_STRPTIME",
+        "#cmakedefine HAVE_MMAP": "#define HAVE_MMAP",
+        "#cmakedefine HAVE_STRCASECMP": "/* HAVE_STRCASECMP is not enabled. */",
+        "#cmakedefine HAVE_SETENV": "#define HAVE_SETENV",
+        "#cmakedefine HAVE_STDATOMIC": "#define HAVE_STDATOMIC",
+        "#cmakedefine IS_BIG_ENDIAN": "/* Supported SONiC platforms are little-endian. */",
+    },
+    template = "compat/compat.h.in",
+)
+
+expand_template(
+    name = "config_h",
+    out = "libyang/ly_config.h",
+    substitutions = select({
+        ":amd64": {
+            "@LYD_VALUE_SIZE@": "24",
+            "@CMAKE_SHARED_MODULE_SUFFIX@": ".so",
+            "@PLUGINS_DIR_TYPES@": "/usr/lib/x86_64-linux-gnu/libyang/types",
+            "@PLUGINS_DIR_EXTENSIONS@": "/usr/lib/x86_64-linux-gnu/libyang/extensions",
+        },
+        ":arm64": {
+            "@LYD_VALUE_SIZE@": "24",
+            "@CMAKE_SHARED_MODULE_SUFFIX@": ".so",
+            "@PLUGINS_DIR_TYPES@": "/usr/lib/aarch64-linux-gnu/libyang/types",
+            "@PLUGINS_DIR_EXTENSIONS@": "/usr/lib/aarch64-linux-gnu/libyang/extensions",
+        },
+        ":armhf": {
+            "@LYD_VALUE_SIZE@": "24",
+            "@CMAKE_SHARED_MODULE_SUFFIX@": ".so",
+            "@PLUGINS_DIR_TYPES@": "/usr/lib/arm-linux-gnueabihf/libyang/types",
+            "@PLUGINS_DIR_EXTENSIONS@": "/usr/lib/arm-linux-gnueabihf/libyang/extensions",
+        },
+    }),
+    template = "src/ly_config.h.in",
+)
+
+expand_template(
+    name = "version_h",
+    out = "libyang/version.h",
+    substitutions = {
+        "@LIBYANG_MAJOR_VERSION@": "3",
+        "@LIBYANG_MINOR_VERSION@": "12",
+        "@LIBYANG_MICRO_VERSION@": "2",
+        "@LIBYANG_VERSION@": "3.12.2",
+        "@LIBYANG_MAJOR_SOVERSION@": "3",
+        "@LIBYANG_MINOR_SOVERSION@": "9",
+        "@LIBYANG_MICRO_SOVERSION@": "1",
+        "@LIBYANG_SOVERSION_FULL@": "3.9.1",
+    },
+    template = "src/version.h.in",
+)
+
+# Installed public headers use a flat libyang/ namespace, including metadata.h.
+[
+    cc_library(
+        name = "public_headers_" + directory.replace("/", "_"),
+        hdrs = [header for header in LIBYANG_HDRS if header.rsplit("/", 1)[0] == directory],
+        strip_include_prefix = directory,
+        includes = [directory],
+        include_prefix = "libyang",
+    )
+    for directory in ["src", "src/plugins_exts"]
+]
+
+cc_library(
+    name = "generated_public_headers",
+    hdrs = [":config_h", ":version_h"],
+    includes = ["libyang"],
+    strip_include_prefix = "libyang",
+    include_prefix = "libyang",
+)
+
+cc_library(
+    name = "public_headers",
+    deps = [":public_headers_src", ":public_headers_src_plugins_exts", ":generated_public_headers", ":pcre2_headers"],
+)
+
+cc_library(
+    name = "generated_headers",
+    hdrs = [
+        ":config_h",
+        ":version_h",
+    ],
+    includes = ["libyang"],
+)
+
+cc_library(
+    name = "yang_objects",
+    srcs = LIBYANG_SRCS,
+    hdrs = glob([
+        "src/**/*.h",
+        "models/*.h",
+    ]) + [":compat_h"],
+    copts = _DEBIAN_COPTS + [
+        "-std=c11",
+        "-Wall", "-Wextra", "-Wpedantic", "-O2", "-g",
+        "-fvisibility=hidden",
+    ],
+    includes = [
+        "generated",
+        "src",
+        "src/plugins_exts",
+    ],
+    local_defines = [
+        "LIBYANG_BUILD",
+        "LY_XXHASH_SUPPORT",
+        "_FILE_OFFSET_BITS=64",
+        "NDEBUG",
+    ],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":generated_headers",
+        ":sys_pcre2",
+        ":sys_xxhash",
+    ],
+    alwayslink = True,
+)
+
+cc_binary(
+    name = "libyang.so.3",
+    features = ["-sonic_installed_runtime_paths"],
+    linkopts = [
+        "-Wl,-soname,libyang.so.3",
+        "-Wl,--as-needed",
+        "-Wl,-z,relro", "-Wl,-z,now",
+        "-lm",
+        "-ldl",
+        "-pthread",
+    ],
+    linkshared = True,
+    linkstatic = True,
+    deps = [":yang_objects"],
+)
+
+cc_import(
+    name = "yang_shared",
+    shared_library = ":libyang.so.3",
+)
+
+cc_library(
+    name = "libyang",
+    deps = [
+        ":public_headers",
+        ":yang_shared",
+        ":sys_pcre2",
+        ":sys_xxhash",
+    ],
+)
+
+# Runtime YANG models.
+_MODELS = glob(["models/*.yang"])
+
+gzip_compress(name = "debian_changelog", src = "@libyang_debian//:changelog", level = 9)
+gzip_compress(name = "yanglint_man", src = "tools/lint/yanglint.1", level = 9)
+gzip_compress(name = "yangre_man", src = "tools/re/yangre.1", level = 9)
+
+_DOCUMENTATION = {
+    "usr/share/doc/libyang3/copyright": "@libyang_debian//:copyright",
+    "usr/share/doc/libyang3/changelog.Debian.gz": ":debian_changelog",
+}
+
+[
+    sonic_deploy_tar(
+        name = "libyang_pkg_" + cpu,
+        debug_symlinks = {"usr/share/doc/libyang3-dbgsym": "libyang3"},
+        srcs = _MODELS + _DOCUMENTATION.values(),
+        binaries = {"usr/lib/{}/libyang.so.3.9.1 type=file uid=0 gid=0 mode=0644".format(multiarch): ":libyang.so.3"},
+        force_debug_build = True,
+        mtree = [
+            "usr/lib/{}/libyang.so.3 type=link uid=0 gid=0 mode=0777 link=libyang.so.3.9.1".format(multiarch),
+        ] + [
+            path + " type=file uid=0 gid=0 mode=0644 content=$(location " + source + ")"
+            for path, source in _DOCUMENTATION.items()
+        ] + [
+            "usr/share/yang/modules/libyang/" + source[len("models/"):] + " type=file uid=0 gid=0 mode=0644 content=$(location " + source + ")"
+            for source in _MODELS
+        ],
+        target_compatible_with = ["@platforms//cpu:" + cpu],
+    )
+    for cpu, multiarch in [
+        ("x86_64", "x86_64-linux-gnu"),
+        ("aarch64", "aarch64-linux-gnu"),
+        ("armv7", "arm-linux-gnueabihf"),
+    ]
+]
+
+alias(
+    name = "libyang_pkg",
+    actual = select({
+        ":amd64": ":libyang_pkg_x86_64",
+        ":arm64": ":libyang_pkg_aarch64",
+        ":armhf": ":libyang_pkg_armv7",
+    }),
+)
+
+alias(
+    name = "libyang_pkg.debug_symbols",
+    actual = select({
+        ":amd64": ":libyang_pkg_x86_64.debug_symbols",
+        ":arm64": ":libyang_pkg_aarch64.debug_symbols",
+        ":armhf": ":libyang_pkg_armv7.debug_symbols",
+    }),
+)
+
+py_binary(
+    name = "libyang_package_test_runner",
+    srcs = ["libyang_package_test.py"],
+    main = "libyang_package_test.py",
+    deps = ["@sonic_build_infra//deb:elf_metadata"],
+)
+
+exec_test(
+    name = "libyang_package_test",
+    runner = ":libyang_package_test_runner",
+    srcs = [
+        ":libyang_pkg", ":libyang_pkg.debug_symbols",
+        ":development_pkg", ":tools_pkg", ":tools_pkg.debug_symbols",
+        "@libyang_debian//:copyright", "@libyang_debian//:changelog",
+    ] + _MODELS,
+)
+
+cc_binary(
+    name = "libyang_test_binary",
+    srcs = ["libyang_test.c"],
+    deps = [":libyang"],
+)
+
+alias(
+    name = "pcre2_headers",
+    actual = select({
+        ":bookworm": "@libyang_system_bookworm//libpcre2-dev:libpcre2_headers",
+        "//conditions:default": "@libyang_system//libpcre2-dev:libpcre2_headers",
+    }),
+)
+
+# Image metadata is derived from the Debian recipe and actual target TAR.
+# The image metadata interface supports Trixie AMD64 and ARM64.
+_OCI_COMPATIBLE_WITH = select({
+    ":bookworm": ["@platforms//:incompatible"],
+    ":armhf": ["@platforms//:incompatible"],
+    "//conditions:default": [],
+})
+
+runtime_packages(
+    name = "runtime_packages.json",
+    control = "@libyang_debian//:control",
+    changelog = "@libyang_debian//:changelog",
+    packages = {"libyang3": ":libyang_pkg"},
+    apt_packages = {
+        ":sys_libpcre2-8-0_data": ":sys_libpcre2-8-0_control",
+        ":sys_libxxhash0_data": ":sys_libxxhash0_control",
+    },
+    required_paths = {"libyang3": ["usr/lib/{multiarch}/libyang.so.3"]},
+    target_compatible_with = _OCI_COMPATIBLE_WITH,
+)
+
+exports_files(["MODULE.bazel", "runtime_packages.md"])
+
+py_binary(
+    name = "runtime_metadata_test_runner",
+    srcs = ["runtime_metadata_test.py"],
+    main = "runtime_metadata_test.py",
+    deps = [
+        "@sonic_build_infra//apt:lib",
+        "@sonic_build_infra//oci:package_metadata",
+    ],
+)
+
+exec_test(
+    name = "runtime_metadata_test",
+    runner = ":runtime_metadata_test_runner",
+    srcs = [
+        ":runtime_packages.json",
+        ":libyang_pkg",
+        "MODULE.bazel",
+        "@libyang_debian//:control",
+        "@libyang_debian//:changelog",
+    ],
+    checker_args = select({":arm64": ["arm64"], "//conditions:default": ["amd64"]}),
+    target_compatible_with = _OCI_COMPATIBLE_WITH,
+)
+
+# Interactive yanglint is enabled.
+expand_template(
+    name = "tools_config_h",
+    template = "tools/config.h.in",
+    out = "generated/tools/config.h",
+    substitutions = {"@LIBYANG_VERSION@": "3.12.2"},
+)
+
+cc_library(
+    name = "tool_headers",
+    hdrs = glob(["tools/lint/*.h", "tools/lint/linenoise/*.h"]) + [":tools_config_h", ":compat_h"],
+    includes = ["generated"],
+)
+
+cc_binary(
+    name = "yanglint",
+    srcs = ["compat/compat.c"] + ["tools/lint/" + source for source in [
+        "main_ni.c", "cmd.c", "cmd_add.c", "cmd_clear.c", "cmd_data.c",
+        "cmd_list.c", "cmd_feature.c", "cmd_load.c", "cmd_print.c", "cmd_searchpath.c",
+        "cmd_extdata.c", "cmd_help.c", "cmd_verb.c", "cmd_debug.c", "yl_opt.c",
+        "yl_schema_features.c", "common.c", "main.c", "completion.c", "configuration.c",
+        "linenoise/linenoise.c", "linenoise/utf8.c",
+    ]],
+    copts = _DEBIAN_COPTS + ["-std=c11", "-Wall", "-Wextra", "-Wpedantic", "-DNDEBUG", "-D_FILE_OFFSET_BITS=64", "-DLY_XXHASH_SUPPORT"],
+    linkopts = ["-Wl,-z,relro", "-Wl,-z,now"],
+    deps = [":tool_headers", ":libyang"],
+)
+
+cc_binary(
+    name = "yangre",
+    srcs = ["tools/re/main.c", "compat/compat.c"],
+    copts = _DEBIAN_COPTS + ["-std=c11", "-Wall", "-Wextra", "-Wpedantic", "-DNDEBUG", "-D_FILE_OFFSET_BITS=64", "-DLY_XXHASH_SUPPORT"],
+    linkopts = ["-Wl,-z,relro", "-Wl,-z,now"],
+    deps = [":tool_headers", ":libyang"],
+)
+
+[
+    sonic_deploy_tar(
+        name = "tools_pkg_" + cpu,
+        debug_symlinks = {"usr/share/doc/libyang3-tools-dbgsym": "libyang3-tools"},
+        binaries = {
+            "usr/bin/yanglint type=file uid=0 gid=0 mode=0755 time=0": ":yanglint",
+            "usr/bin/yangre type=file uid=0 gid=0 mode=0755 time=0": ":yangre",
+        },
+        srcs = [":yanglint_man", ":yangre_man", ":debian_changelog", "@libyang_debian//:copyright"] + glob(["tools/lint/examples/*"]),
+        mtree = [
+            "usr/share/man/man1/yanglint.1.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :yanglint_man)",
+            "usr/share/man/man1/yangre.1.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :yangre_man)",
+            "usr/share/doc/libyang3-tools/copyright type=file uid=0 gid=0 mode=0644 time=0 content=$(location @libyang_debian//:copyright)",
+            "usr/share/doc/libyang3-tools/changelog.Debian.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :debian_changelog)",
+        ] + ["usr/share/doc/libyang3-tools/examples/" + source.split("/")[-1] + " type=file uid=0 gid=0 mode=0644 time=0 content=$(location " + source + ")" for source in glob(["tools/lint/examples/*"])],
+        force_debug_build = True,
+        target_compatible_with = ["@platforms//cpu:" + cpu],
+    )
+    for cpu in ["x86_64", "aarch64"]
+]
+
+alias(name = "tools_pkg", actual = select({":amd64": ":tools_pkg_x86_64", ":arm64": ":tools_pkg_aarch64"}))
+alias(name = "tools_pkg.debug_symbols", actual = select({":amd64": ":tools_pkg_x86_64.debug_symbols", ":arm64": ":tools_pkg_aarch64.debug_symbols"}))
+
+[
+    expand_template(
+        name = "pkgconfig_" + cpu,
+        template = "libyang.pc.in",
+        out = "pkgconfig/" + cpu + "/libyang.pc",
+        substitutions = {
+            "@CMAKE_INSTALL_PREFIX@": "/usr",
+            "@CMAKE_INSTALL_INCLUDEDIR@": "include",
+            "@CMAKE_INSTALL_LIBDIR@": "lib/" + multiarch,
+            "@PROJECT_NAME@": "libyang",
+            "@LIBYANG_DESCRIPTION@": "libyang is YANG data modelling language parser and toolkit written (and providing API) in C.",
+            "@LIBYANG_VERSION@": "3.12.2",
+        },
+    )
+    for cpu, multiarch in [("x86_64", "x86_64-linux-gnu"), ("aarch64", "aarch64-linux-gnu")]
+]
+
+[
+    tar(
+        name = "development_files_pkg_" + cpu,
+        srcs = LIBYANG_HDRS + [
+            ":config_h", ":version_h", ":pkgconfig_" + cpu,
+            ":debian_changelog", "@libyang_debian//:copyright",
+        ],
+        mtree = [
+            "usr/include/libyang/" + header.split("/")[-1] + " type=file uid=0 gid=0 mode=0644 time=0 content=$(location " + header + ")"
+            for header in LIBYANG_HDRS
+        ] + [
+            "usr/include/libyang/ly_config.h type=file uid=0 gid=0 mode=0644 time=0 content=$(location :config_h)",
+            "usr/include/libyang/version.h type=file uid=0 gid=0 mode=0644 time=0 content=$(location :version_h)",
+            "usr/lib/" + multiarch + "/libyang.so type=link uid=0 gid=0 mode=0777 time=0 link=libyang.so.3",
+            "usr/lib/" + multiarch + "/pkgconfig/libyang.pc type=file uid=0 gid=0 mode=0644 time=0 content=$(location :pkgconfig_" + cpu + ")",
+            "usr/share/doc/libyang-dev/changelog.Debian.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :debian_changelog)",
+            "usr/share/doc/libyang-dev/copyright type=file uid=0 gid=0 mode=0644 time=0 content=$(location @libyang_debian//:copyright)",
+        ],
+        target_compatible_with = ["@platforms//cpu:" + cpu],
+    )
+    for cpu, multiarch in [("x86_64", "x86_64-linux-gnu"), ("aarch64", "aarch64-linux-gnu")]
+]
+
+alias(name = "development_pkg", actual = select({":amd64": ":development_pkg_x86_64", ":arm64": ":development_pkg_aarch64"}))
+
+
+py_binary(
+    name = "documentation_runner",
+    srcs = ["documentation.py"],
+    main = "documentation.py",
+    data = ["@sonic_build_infra//tools/build_tools:doxygen", "@sonic_build_infra//tools/build_tools:dot"],
+    deps = ["@rules_python//python/runfiles"],
+)
+
+run_binary(
+    name = "html_docs",
+    tool = ":documentation_runner",
+    srcs = ["Doxyfile.in", "doc/logo.png", "doc/cesnet-style.css"] + LIBYANG_HDRS + [source for source in LIBYANG_SRCS if source.startswith("src/plugins_types/")] + [
+        "doc/build.dox", "doc/transition_1_2.dox", "doc/transition_2_3.dox", ":version_h",
+    ],
+    out_dirs = ["html_docs"],
+    args = ["$(execpath Doxyfile.in)", "$(RULEDIR)/html_docs", "$(execpath doc/logo.png)", "$(execpath doc/cesnet-style.css)"] + [
+        "$(execpath " + source + ")" for source in LIBYANG_HDRS + [source for source in LIBYANG_SRCS if source.startswith("src/plugins_types/")] + [
+            "doc/build.dox", "doc/transition_1_2.dox", "doc/transition_2_3.dox", ":version_h",
+        ]
+    ],
+)
+
+
+mtree_spec(name = "html_docs_mtree", srcs = [":html_docs"], include_runfiles = False)
+mtree_mutate(
+    name = "html_docs_install_mtree",
+    mtree = ":html_docs_mtree",
+    includes = [":docs_permissions.awk"],
+    strip_prefix = "html_docs",
+    package_dir = "usr/share/doc/libyang-dev/html",
+    owner = "0",
+    mtime = "0",
+)
+
+[
+    genrule(
+        name = "development_install_mtree_" + cpu,
+        srcs = [":development_files_pkg_" + cpu + "_mtree", ":html_docs_install_mtree"],
+        outs = ["development_install_" + cpu + ".mtree"],
+        cmd = "cat $(location :development_files_pkg_" + cpu + "_mtree) $(location :html_docs_install_mtree) > $@",
+    )
+    for cpu in ["x86_64", "aarch64"]
+]
+
+[
+    tar(
+        name = "development_pkg_" + cpu,
+        srcs = LIBYANG_HDRS + [
+            ":config_h", ":version_h", ":pkgconfig_" + cpu,
+            ":debian_changelog", "@libyang_debian//:copyright",
+        ] + [":html_docs"],
+        mtree = ":development_install_mtree_" + cpu,
+        target_compatible_with = ["@platforms//cpu:" + cpu],
+    )
+    for cpu in ["x86_64", "aarch64"]
+]
+
+
+native_runtime_test(
+    name = "libyang_test",
+    binary = ":libyang_test_binary",
+    runtime_payloads = [":sys_libc6_data", ":sys_libpcre2-8-0_data", ":sys_libxxhash0_data", ":sys_libgcc-s1_data"],
+)
+
+# Strip runfiles RPATHs from the consumer so only the delivered TAR supplies libyang.
+strip_binary(name = "installed_consumer", src = ":libyang_test_binary")
+filegroup(name = "installed_consumer_elf", srcs = [":installed_consumer"], output_group = "stripped")
+native_runtime_test(
+    name = "libyang_installed_test",
+    binary = ":installed_consumer_elf",
+    runtime_payloads = [":libyang_pkg", ":sys_libc6_data", ":sys_libpcre2-8-0_data", ":sys_libxxhash0_data", ":sys_libgcc-s1_data"],
+)
+
+_UNIT_TESTS = {
+    "uint8": "tests/utests/types/uint8.c",
+    "uint16": "tests/utests/types/uint16.c",
+    "uint32": "tests/utests/types/uint32.c",
+    "uint64": "tests/utests/types/uint64.c",
+    "int8": "tests/utests/types/int8.c",
+    "int16": "tests/utests/types/int16.c",
+    "int32": "tests/utests/types/int32.c",
+    "int64": "tests/utests/types/int64.c",
+    "string": "tests/utests/types/string.c",
+    "bits": "tests/utests/types/bits.c",
+    "binary": "tests/utests/types/binary.c",
+    "inet_types": "tests/utests/types/inet_types.c",
+    "yang_types": "tests/utests/types/yang_types.c",
+    "enumeration": "tests/utests/types/enumeration.c",
+    "instanceid": "tests/utests/types/instanceid.c",
+    "instanceid_keys": "tests/utests/types/instanceid_keys.c",
+    "union": "tests/utests/types/union.c",
+    "boolean": "tests/utests/types/boolean.c",
+    "decimal64": "tests/utests/types/decimal64.c",
+    "empty": "tests/utests/types/empty.c",
+    "identityref": "tests/utests/types/identityref.c",
+    "leafref": "tests/utests/types/leafref.c",
+    "range": "tests/utests/restriction/test_range.c",
+    "pattern": "tests/utests/restriction/test_pattern.c",
+    "list": "tests/utests/node/list.c",
+    "common": "tests/utests/basic/test_common.c",
+    "set": "tests/utests/basic/test_set.c",
+    "hash_table": "tests/utests/basic/test_hash_table.c",
+    "inout": "tests/utests/basic/test_inout.c",
+    "context": "tests/utests/basic/test_context.c",
+    "plugins": "tests/utests/basic/test_plugins.c",
+    "xml": "tests/utests/basic/test_xml.c",
+    "json": "tests/utests/basic/test_json.c",
+    "xpath": "tests/utests/basic/test_xpath.c",
+    "yanglib": "tests/utests/basic/test_yanglib.c",
+    "schema": "tests/utests/schema/test_schema.c",
+    "yang": "tests/utests/schema/test_yang.c",
+    "yin": "tests/utests/schema/test_yin.c",
+    "tree_schema_compile": "tests/utests/schema/test_tree_schema_compile.c",
+    "printer_tree": "tests/utests/schema/test_printer_tree.c",
+    "tree_data": "tests/utests/data/test_tree_data.c",
+    "tree_data_sorted": "tests/utests/data/test_tree_data_sorted.c",
+    "new": "tests/utests/data/test_new.c",
+    "parser_xml": "tests/utests/data/test_parser_xml.c",
+    "printer_xml": "tests/utests/data/test_printer_xml.c",
+    "printer_json": "tests/utests/data/test_printer_json.c",
+    "parser_json": "tests/utests/data/test_parser_json.c",
+    "lyb": "tests/utests/data/test_lyb.c",
+    "validation": "tests/utests/data/test_validation.c",
+    "merge": "tests/utests/data/test_merge.c",
+    "diff": "tests/utests/data/test_diff.c",
+    "metadata": "tests/utests/extensions/test_metadata.c",
+    "nacm": "tests/utests/extensions/test_nacm.c",
+    "yangdata": "tests/utests/extensions/test_yangdata.c",
+    "schema_mount": "tests/utests/extensions/test_schema_mount.c",
+    "structure": "tests/utests/extensions/test_structure.c"
+}
+
+py_binary(name = "relocate_test_paths", srcs = ["relocate_test_paths.py"])
+py_binary(
+    name = "upstream_tests_runner",
+    srcs = ["upstream_tests.py"],
+    main = "upstream_tests.py",
+    data = ["@sonic_build_infra//tools/build_tools:tclsh"],
+    deps = ["@rules_python//python/runfiles"],
+)
+copy_file(name = "tests_config", src = "upstream_tests_config.h", out = "upstream_sources/tests/tests_config.h", allow_symlink = True)
+
+[
+    genrule(
+        name = "relocate_" + source.replace("/", "_").replace(".", "_"),
+        srcs = [source],
+        outs = ["upstream_sources/" + source],
+        tools = [":relocate_test_paths"],
+        cmd = "$(location :relocate_test_paths) $(location " + source + ") $@",
+    )
+    for source in glob(["tests/utests/**/*.c", "tests/utests/**/*.h"])
+]
+
+cc_library(
+    name = "upstream_headers",
+    hdrs = [":relocate_" + source.replace("/", "_").replace(".", "_") for source in glob(["tests/utests/**/*.h"])] + [":tests_config"],
+    includes = ["upstream_sources/tests", "upstream_sources/tests/utests"],
+    deps = [":generated_headers", ":public_headers"],
+)
+
+_UPSTREAM_COPTS = _DEBIAN_COPTS + ["-DNDEBUG", "-D_FILE_OFFSET_BITS=64", "-DLY_XXHASH_SUPPORT", "-std=c11"]
+_UPSTREAM_PAYLOADS = [":libyang_pkg", ":sys_cmocka_payload", ":sys_pcre2_payload", ":sys_xxhash_payload"]
+
+[
+    cc_binary(
+        name = "utest_" + name + "_binary",
+        srcs = [":relocate_" + source.replace("/", "_").replace(".", "_")] + glob(["src/**/*.h"]) + [":compat_h"],
+        copts = _UPSTREAM_COPTS + ["-Wall", "-Wextra", "-Wpedantic"],
+        local_defines = ["LIBYANG_BUILD", "NDEBUG"],
+        includes = ["src", "generated"],
+        deps = [":yang_objects", ":upstream_headers", ":sys_cmocka"],
+        linkopts = ["-pthread", "-ldl", "-lm"],
+    )
+    for name, source in _UNIT_TESTS.items()
+]
+
+[
+    native_runtime_binary(name = "utest_" + name, binary = ":utest_" + name + "_binary", runtime_payloads = _UPSTREAM_PAYLOADS)
+    for name in _UNIT_TESTS
+]
+
+[
+    cc_binary(name = "plugin_" + name + ".so", srcs = ["tests/plugins/" + name + ".c"], copts = _UPSTREAM_COPTS, linkshared = True, linkstatic = True, deps = [":libyang"])
+    for name in ["invalid", "simple"]
+]
+
+cc_binary(name = "cpp_compat", srcs = ["tests/style/cpp_compat.c"], copts = _UPSTREAM_COPTS + ["-Werror=c++-compat"], deps = [":yang_objects", ":public_headers"], linkopts = ["-pthread", "-ldl", "-lm"])
+cc_binary(name = "fuzz_regression_test_binary", srcs = ["tests/fuzz/fuzz_regression_test.c"], copts = _UPSTREAM_COPTS)
+native_runtime_binary(name = "fuzz_regression_test", binary = ":fuzz_regression_test_binary", runtime_payloads = _UPSTREAM_PAYLOADS)
+
+[
+    cc_binary(name = "regress_fuzz_" + name + "_binary", srcs = ["tests/fuzz/" + name + ".c", "tests/fuzz/main.c"], copts = _UPSTREAM_COPTS, deps = [":libyang"])
+    for name in ["lys_parse_mem", "lyd_parse_mem_xml", "lyd_parse_mem_json"]
+]
+
+[
+    native_runtime_binary(name = "regress_fuzz_" + name, binary = ":regress_fuzz_" + name + "_binary", runtime_payloads = _UPSTREAM_PAYLOADS)
+    for name in ["lys_parse_mem", "lyd_parse_mem_xml", "lyd_parse_mem_json"]
+]
+
+[
+    native_runtime_binary(name = "test_" + name, binary = ":" + name, runtime_payloads = _UPSTREAM_PAYLOADS)
+    for name in ["yanglint", "yangre"]
+]
+
+_UPSTREAM_BINARIES = [":utest_" + name for name in _UNIT_TESTS] + [":fuzz_regression_test", ":regress_fuzz_lys_parse_mem", ":regress_fuzz_lyd_parse_mem_xml", ":regress_fuzz_lyd_parse_mem_json", ":test_yanglint", ":test_yangre"]
+_UPSTREAM_LOGICAL_BINARIES = ["utest_" + name for name in _UNIT_TESTS] + ["fuzz_regression_test", "regress_fuzz_lys_parse_mem", "regress_fuzz_lyd_parse_mem_xml", "regress_fuzz_lyd_parse_mem_json", "yanglint", "yangre"]
+_UPSTREAM_PLUGINS = [":plugin_invalid.so", ":plugin_simple.so"]
+
+filegroup(name = "upstream_test_binaries", srcs = _UPSTREAM_BINARIES + _UPSTREAM_PLUGINS + [":cpp_compat"])
+exec_test(
+    name = "upstream_check",
+    runner = ":upstream_tests_runner",
+    data = _UPSTREAM_BINARIES + _UPSTREAM_PLUGINS + [":cpp_compat"] + glob(["tests/**", "src/**", "tools/lint/**", "tools/re/**", "compat/check_includes.sh", "CMakeModules/**", "doc/**"]),
+    checker_args = [argument for source in glob(["tests/**", "src/**", "tools/lint/**", "tools/re/**", "compat/check_includes.sh", "CMakeModules/**", "doc/**"]) for argument in ["--fixture", source, "$(location " + source + ")"]] + [
+        argument for logical, binary in zip(_UPSTREAM_LOGICAL_BINARIES, _UPSTREAM_BINARIES) for argument in ["--binary", logical, "$(location " + binary + ")"]
+    ] + [argument for plugin in _UPSTREAM_PLUGINS for argument in ["--plugin", plugin[1:], "$(location " + plugin + ")"]],
+    timeout = "long",
+    size = "large",
+)
