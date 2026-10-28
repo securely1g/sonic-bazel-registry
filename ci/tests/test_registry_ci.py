@@ -789,6 +789,136 @@ class VersionPolicyTests(FixtureTestCase):
                         registry_ci.plan(self.root, head, head, all_versions=all_versions, published=published)
 
 
+class PublishedInputUpdateTests(FixtureTestCase):
+    """An approved tree transition must not make a release generally mutable."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.updated_entry = self.entry("rules_distroless", "0.9.4.sonic.13")
+        self.other_entry = self.entry("unrelated", "1.0.0")
+        self.path = str(self.updated_entry.relative_to(self.root))
+        self.published = self.commit("publish original inputs")
+        source = json.loads((self.updated_entry / "source.json").read_text())
+        source["integrity"] = digest(b"reviewed replacement archive")
+        write_json(self.updated_entry / "source.json", source)
+        self.updated = self.commit("review one exact source update")
+        self.before_tree = self.git("rev-parse", f"{self.published}:{self.path}")
+        self.after_tree = self.git("rev-parse", f"{self.updated}:{self.path}")
+        # Exercise real Git comparisons and planning; substitute only the
+        # approved content identities for this temporary repository's trees.
+        patcher = mock.patch.dict(registry_ci.PUBLISHED_INPUT_UPDATES, {
+            self.path: (self.before_tree, self.after_tree),
+        }, clear=True)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_exact_forward_update_selects_native_jobs_for_pr_and_push(self) -> None:
+        """The exception permits the reviewed input change without skipping CI."""
+        for push in (False, True):
+            with self.subTest(push=push):
+                jobs = registry_ci.plan(self.root, self.published, self.updated,
+                                        published=self.published, push=push)["include"]
+                self.assertEqual([(job["module"], job["version"], job["architecture"])
+                                  for job in jobs],
+                                 [("rules_distroless", "0.9.4.sonic.13", "amd64")])
+
+    def test_all_and_latest_keep_their_normal_matrix_for_approved_update(self) -> None:
+        """A publication exception does not narrow explicit validation scopes."""
+        for mode in ("all_versions", "latest_versions"):
+            with self.subTest(mode=mode):
+                jobs = registry_ci.plan(self.root, None, self.updated,
+                                        published=self.published, push=True,
+                                        **{mode: True})["include"]
+                self.assertEqual({(job["module"], job["version"]) for job in jobs},
+                                 {("rules_distroless", "0.9.4.sonic.13"), ("unrelated", "1.0.0")})
+
+    def test_wrong_entry_or_before_or_after_tree_does_not_match(self) -> None:
+        """Neither a version-wide waiver nor a one-sided hash check is enough."""
+        exceptions = {
+            "path": {"modules/rules_distroless/0.9.4.sonic.12": (self.before_tree, self.after_tree)},
+            "before": {self.path: (self.after_tree, self.after_tree)},
+            "after": {self.path: (self.before_tree, self.before_tree)},
+        }
+        for mismatch, exception in exceptions.items():
+            with self.subTest(mismatch=mismatch), mock.patch.dict(
+                    registry_ci.PUBLISHED_INPUT_UPDATES, exception, clear=True):
+                with self.assertRaisesRegex(registry_ci.RegistryError, "published version changed or removed"):
+                    self.selected(self.published, self.updated)
+
+    def test_extra_content_modes_types_additions_and_deletions_are_rejected(self) -> None:
+        """The final tree binds every file, including modes and object types."""
+        for mutation in ("content", "mode", "symlink", "add", "delete"):
+            with self.subTest(mutation=mutation):
+                self.git("reset", "--hard", self.updated)
+                source = self.updated_entry / "source.json"
+                if mutation == "content":
+                    recipe = json.loads(source.read_text())
+                    recipe["integrity"] = digest(b"unreviewed replacement archive")
+                    write_json(source, recipe)
+                elif mutation == "mode":
+                    source.chmod(0o755)
+                elif mutation == "symlink":
+                    source.unlink()
+                    source.symlink_to("MODULE.bazel")
+                elif mutation == "add":
+                    (self.updated_entry / "unexpected.bzl").write_text("# Unreviewed input\n")
+                else:
+                    (self.updated_entry / "MODULE.bazel").unlink()
+                head = self.commit(f"unreviewed {mutation}")
+                with self.assertRaisesRegex(registry_ci.RegistryError, "published version changed or removed"):
+                    self.selected(self.published, head)
+
+    def test_reverse_transition_cannot_roll_back_the_published_update(self) -> None:
+        """An authorized forward change never authorizes restoring old inputs."""
+        self.git("reset", "--hard", self.published)
+        with self.assertRaisesRegex(registry_ci.RegistryError, "published version changed or removed"):
+            registry_ci.plan(self.root, self.updated, self.published,
+                             published=self.updated, push=True)
+
+    def test_next_input_change_requires_a_separate_reviewed_transition(self) -> None:
+        """After publication, the old exception cannot authorize further edits."""
+        (self.updated_entry / "MODULE.bazel").write_text(
+            'module(name = "rules_distroless", version = "0.9.4.sonic.13")\n# Another change\n')
+        head = self.commit("change inputs after publishing the approved update")
+        with self.assertRaisesRegex(registry_ci.RegistryError, "published version changed or removed"):
+            self.selected(self.updated, head)
+
+    def test_other_published_entry_still_rejects_input_changes(self) -> None:
+        """Accepting this entry must not bypass checks for another module."""
+        (self.other_entry / "MODULE.bazel").write_text(
+            'module(name = "unrelated", version = "1.0.0")\n# Unreviewed change\n')
+        head = self.commit("approved update alongside an unrelated mutation")
+        with self.assertRaisesRegex(registry_ci.RegistryError, "modules/unrelated/1.0.0/.*published version"):
+            self.selected(self.published, head)
+
+    def test_metadata_membership_remains_required(self) -> None:
+        """Exact entry bytes do not excuse an inconsistent module catalog."""
+        write_json(self.updated_entry.parent / "metadata.json", {"versions": []})
+        head = self.commit("unlist the approved entry")
+        with self.assertRaisesRegex(registry_ci.RegistryError, "metadata and version directories differ"):
+            self.selected(self.published, head)
+
+    def test_candidate_limit_remains_required(self) -> None:
+        """The exception does not exempt a module from the single-candidate rule."""
+        self.entry("rules_distroless", "0.9.4.sonic.14")
+        self.entry("rules_distroless", "0.9.4.sonic.15")
+        head = self.commit("add two candidates beside the approved update")
+        with self.assertRaisesRegex(registry_ci.RegistryError, "multiple unreleased candidates"):
+            self.selected(self.published, head)
+
+    def test_standalone_maintenance_is_allowed_after_the_update(self) -> None:
+        """Normal documentation and standalone-test maintenance stays available."""
+        (self.updated_entry / "README.md").write_text("Updated consumer instructions\n")
+        docs = self.commit("maintain documentation after publication")
+        self.assertEqual(self.selected(self.updated, docs), set())
+        tests = self.updated_entry / "tests"
+        tests.mkdir()
+        (tests / "fixture.txt").write_text("Standalone test fixture\n")
+        head = self.commit("maintain standalone tests after publication")
+        self.assertEqual(self.selected(docs, head, published=self.updated),
+                         {("rules_distroless", "0.9.4.sonic.13")})
+
+
 class EntryValidationTests(FixtureTestCase):
     def test_optional_host_platforms_require_complete_explicit_architecture_map(self) -> None:
         entry = self.entry("alpha", "1.0.0")

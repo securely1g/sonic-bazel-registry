@@ -4,11 +4,14 @@
   "integrity": "sha256-PrPSAL6whLYiTZiJtV23JDg2BEhWDV4ysyUPm6m879A=",
   "patches": {
     "0001-bump-version.patch": "sha256-KbLucjzPMzJMLq46jMjPczp0n6OpoL1lz44hZvVQ9ls=",
-    "0002-registry-cross-test-visibility.patch": "sha256-2+0NUZ9mcSHEHa+PIU3NVGG8uFBEgaA8LC9wDkg+GrY="
+    "0002-registry-cross-test-visibility.patch": "sha256-2+0NUZ9mcSHEHa+PIU3NVGG8uFBEgaA8LC9wDkg+GrY=",
+    "0003-native-component-interfaces.patch": "sha256-nc7h/KdEugYWwYuKOyOuV2AxBmQ1d12oRJQBIG9xRs4="
   },
   "patch_strip": 1,
   "overlay": {
-    "registry_ci/BUILD.bazel": "sha256-vgAjW08VaalcTHz5QZnXgZEfF+uwEACL1+0o06lupAg=",
-    "registry_ci/kernel_tools_test.py": "sha256-Sc7uPv4ZgJxcUx1YjULES+OsclNgC6sh7NMGP9H5fqQ="
+    "registry_ci/BUILD.bazel": "sha256-O6pQn3QF3IBxGW/Kq+svUjYhM+IN+iTSyNcaAXGD+tQ=",
+    "registry_ci/kernel_tools_test.py": "sha256-Sc7uPv4ZgJxcUx1YjULES+OsclNgC6sh7NMGP9H5fqQ=",
+    "registry_ci/prefix_map.c": "sha256-2fTAaKxgA4m3vf/VQwcRc63QjZgq0m/ZbrhPEtVNmzI=",
+    "registry_ci/prefix_map_test.py": "sha256-tL/W5IwYk52E4XKgWZ8alih011f2qfKX5u8UGtY35ec="
   }
 }
