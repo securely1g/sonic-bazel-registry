@@ -1,0 +1,50 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.25-1341eaf4a7759ef0121ae7c17edcd0000d063038",
+      "repo_name": "sonic_build_infra"
+    },
+    {
+      "name": "tar.bzl",
+      "version": "0.10.5-sonic.1"
+    },
+    {
+      "name": "rules_rs",
+      "version": "0.1.0"
+    },
+    {
+      "name": "rules_cc",
+      "version": "0.2.20"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
+  },
+  "build_targets": [
+    "@sonic-swss//dist:cpp_binaries",
+    "@sonic-swss//dist:swss_pkg",
+    "@sonic-swss//dist:swss_pkg.debug_symbols",
+    "@sonic-swss//dist:runtime_packages.json",
+    "@sonic-swss//crates/countersyncd:countersyncd"
+  ],
+  "test_targets": [
+    "@sonic-swss//gcovpreload:gcovpreload_test",
+    "@sonic-swss//bazel:protobuf_runtime_test",
+    "@sonic-swss//crates/countersyncd:common_rust_test"
+  ],
+  "rust_toolchain": {
+    "version": "1.90.0",
+    "mangled_allocator_libraries": true,
+    "bindgen": true
+  },
+  "host_platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
+  }
+}
