@@ -197,16 +197,16 @@ jobs:
         if: matrix.module == 'net-snmp' && matrix.version == '5.9.3.sonic.1'
         run: |
           set -euo pipefail
-          git -c safe.directory="$GITHUB_WORKSPACE" fetch --no-tags https://github.com/securely1g/sonic-bazel-registry.git 88b921106d3c5097204752a38be6c6b29bad2399
-          test "$(git -c safe.directory="$GITHUB_WORKSPACE" rev-parse FETCH_HEAD)" = 88b921106d3c5097204752a38be6c6b29bad2399
+          git -c safe.directory="$GITHUB_WORKSPACE" fetch --no-tags https://github.com/securely1g/sonic-bazel-registry.git d25ab9d2a37ab2caf9b052cc3aaa4e35aee1a74d
+          test "$(git -c safe.directory="$GITHUB_WORKSPACE" rev-parse FETCH_HEAD)" = d25ab9d2a37ab2caf9b052cc3aaa4e35aee1a74d
           python3 - <<'PYTHON'
           import json
           from pathlib import Path
           import subprocess
 
           git = ["git", "-c", "safe.directory=" + str(Path.cwd().resolve())]
-          revision = "88b921106d3c5097204752a38be6c6b29bad2399"
-          expected = {'modules/rules_distroless/0.9.4.sonic.13': 'f449be186aaa231a7278a773452b22cb4fed9e86', 'modules/sonic-build-infra/0.0.25-917c7d5792f88c9de485ea5172a835bb0c06bf6a': 'fe334da888bfb181c339c0d391c6aa83163c3914', 'modules/libnl3/3.7.0.sonic.7': '267d59db4d54c7f74713f1e99b814904b66696bc'}
+          revision = "d25ab9d2a37ab2caf9b052cc3aaa4e35aee1a74d"
+          expected = {'modules/rules_distroless/0.9.4.sonic.13': 'f449be186aaa231a7278a773452b22cb4fed9e86', 'modules/sonic-build-infra/0.0.25-1341eaf4a7759ef0121ae7c17edcd0000d063038': '529256d0a7e303a11f2903d3619731d3ec614984', 'modules/libnl3/3.7.0.sonic.7': '1181ca081aefd7ae21362892bdb6e01ac95687e3'}
           for path, tree in expected.items():
               actual = subprocess.check_output(git + ["rev-parse", revision + ":" + path], text=True).strip()
               if actual != tree:
