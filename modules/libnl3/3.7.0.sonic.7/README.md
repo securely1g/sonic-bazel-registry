@@ -30,9 +30,8 @@ Local checker validation used retained historical SONiC `.3` AMD64 and ARM64
 archives: all 30 ELF pairs passed; 16 altered archives were rejected for missing
 files, wrong permissions or symlinks, wrong architecture, or damaged debug data.
 This validates the checker against real TARs, not a new native `.7` build. Native
-candidate CI remains required. Extracted shared/whole-archive SDK execution and
-loaded-library origin regressions still need restoration; these archive checks
-do not establish that remaining coverage.
+candidate CI remains required. The post-build SDK checks below separately cover
+extracted shared/whole-archive execution and loaded-library origins.
 
 ## Check installed debug symbols in native CI
 
@@ -54,3 +53,30 @@ Local execution against historical `.3` AMD64 and ARM64 TARs validates the GDB
 checker only; ARM64 binary execution and current `.7` native CI remain separate
 evidence. Run `python3 modules/libnl3/3.7.0.sonic.7/tests/installed_debug_test.py
 --artifacts <retained-ci-artifacts>` in a validation environment with GDB.
+
+## Exercise the installed SDK and runtime
+
+Native CI runs `tests/installed_sdk_test.py` using the compiler, binutils and
+Python already installed in the validation container. It verifies the retained
+TAR checksums, extracts the core/route development files with the five runtime
+packages, and compiles two consumers against those files: the inherited socket,
+link and `ip.src` configuration lookup, and SONiC's route next-hop regression.
+Each consumer runs once with shared libraries and once with every member of the
+core and route static archives linked. The static executables must not depend on
+libnl shared libraries; the shared SONiC consumer verifies their extracted origin.
+
+| Input or action | Before | After |
+| --- | --- | --- |
+| Link FRR's core/route SDK with `--whole-archive` | File inventories alone cannot detect missing parser objects or duplicate library members | Compile and run both consumers using every object from the delivered static archives |
+| Load `libnl-cli-3` and its ten CLI plugins | A valid ELF/archive does not establish that every symbol resolves or that the installed library is used | Load all five libraries and ten plugins with immediate symbol resolution and require every mapped libnl path to be inside the extracted package tree |
+
+Local native AMD64 validation passed all four consumer executions and all 15
+library/plugin loads against retained historical SONiC `.3` TARs. It rejected
+missing and unresolved plugins, an empty static archive, a library loaded from
+outside the extracted tree, and a mismatched native architecture. These are
+checker tests, not new `.7` producer builds; current native AMD64/ARM64 CI and
+full FRR/config-engine image integration remain separate validation. No source
+recipe, published version or Bazel tool dependency changes. Reproduce with
+`python3 modules/libnl3/3.7.0.sonic.7/tests/installed_sdk_test.py --artifacts
+<retained-ci-artifacts>` in the native validation container. Its JSON receipt
+and log are retained alongside the build outputs.
