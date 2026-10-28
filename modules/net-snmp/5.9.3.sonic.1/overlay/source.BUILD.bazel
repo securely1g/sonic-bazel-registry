@@ -969,10 +969,7 @@ cc_binary(
 
 cc_binary(
     name = "snmppcap",
-    srcs = select({
-    "@platforms//cpu:x86_64": ["apps/snmppcap.c"],
-    "@platforms//cpu:aarch64": [],
-}),
+    srcs = ["apps/snmppcap.c"],
     copts = [
         "-g",
         "-Wdate-time",
@@ -992,10 +989,7 @@ cc_binary(
     ],
     deps = [":headers", ":netsnmp", ":netsnmpagent", ":netsnmpmibs", "@net_snmp//:system_pcap"],
     linkopts = [],
-    target_compatible_with = select({
-    "@platforms//cpu:x86_64": [],
-    "@platforms//cpu:aarch64": ["@platforms//:incompatible"],
-}),
+    target_compatible_with = [],
 )
 
 cc_binary(
@@ -1383,6 +1377,7 @@ filegroup(
         ":snmptls",
         ":snmpusm",
         ":encode_keychange",
+        ":snmppcap",
         ":snmptrapd",
         ":snmpnetstat",
     ],

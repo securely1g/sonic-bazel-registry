@@ -499,7 +499,7 @@ expand_template(
     "@NETSNMP_CONFIGURE_OPTIONS@": "#define NETSNMP_CONFIGURE_OPTIONS \" '--build=x86_64-linux-gnu' '--host=aarch64-linux-gnu' '--prefix=/usr' '--sysconfdir=/etc' '--mandir=/usr/share/man' '--libdir=/usr/lib/aarch64-linux-gnu' '--with-persistent-directory=/var/lib/snmp' '--enable-ucd-snmp-compatibility' '--with-cflags=-g -O2 -ffile-prefix-map=.=. -fstack-protector-strong -Wformat -Werror=format-security -DNETSNMP_USE_INLINE' '--with-ldflags=-Wl,-z,relro -Wl,-z,now' '--with-perl-modules=INSTALLDIRS=vendor' '--enable-as-needed' '--with-logfile=none' '--without-rpm' '--with-libwrap' '--with-openssl' '--without-dmalloc' '--without-efence' '--without-rsaref' '--with-sys-contact=root' '--with-sys-location=Unknown' '--with-mib-modules=smux ucd-snmp/dlmod mibII/mta_sendmail disman/event-mib ucd-snmp/diskio ucd-snmp/lmsensorsMib etherlike-mib/dot3StatsTable host' '--with-out-mib-modules=' '--with-transports=TLSTCP DTLSUDP' '--with-security-modules=tsm' '--enable-mfd-rewrites' '--with-mnttab=/etc/mtab' '--with-mibdirs=$HOME/.snmp/mibs:/usr/share/snmp/mibs:/usr/share/snmp/mibs/iana:/usr/share/snmp/mibs/ietf' '--with-mysql' '--with-systemd' '--enable-blumenthal-aes' 'UNAMEPROG=/bin/uname' 'PSPROG=/bin/ps' '--with-defaults' 'build_alias=x86_64-linux-gnu' 'host_alias=aarch64-linux-gnu' 'CC=aarch64-linux-gnu-gcc' 'CFLAGS=-g -O2 -ffile-prefix-map=.=. -fstack-protector-strong -Wformat -Werror=format-security -DNETSNMP_USE_INLINE -DNETSNMP_ENABLE_IPV6 -fno-strict-aliasing -DNETSNMP_REMOVE_U64 -g -O2 -ffile-prefix-map=.=. -fstack-protector-strong -Wformat  -DNETSNMP_USE_INLINE -Ulinux -Dlinux=linux  -D_REENTRANT -D_GNU_SOURCE -DDEBIAN -fwrapv -fno-strict-aliasing -pipe  -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64  -I/usr/lib/aarch64-linux-gnu/perl/5.36.0/CORE ' 'LDFLAGS=    -Wl,-z,relro -Wl,-z,now' 'CPPFLAGS=-I/usr/include/libnl3   -I/usr/include -I/usr/include/aarch64-linux-gnu -I/usr/lib/aarch64-linux-gnu/perl/5.36.0/CORE -I/usr/include -I/usr/include -I/usr/include                    -I/usr/include -I/usr/include/aarch64-linux-gnu   -I/usr/include/aarch64-linux-gnu -I/usr/include  -I/usr/include   -I/usr/include  -I/usr/include/tirpc -I/usr/include  -I/usr/include   -I/usr/include  -I/usr/include/mariadb -I/usr/include  -I/usr/include   -I/usr/include          -Wdate-time -D_FORTIFY_SOURCE=2' 'PKG_CONFIG=/usr/bin/pkg-config' 'PKG_CONFIG_PATH=' 'PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig'\"",
     "@SNMPLIBPATH@": "#define SNMPLIBPATH \"/usr/lib/aarch64-linux-gnu/snmp\"",
     "@SNMPDLMODPATH@": "#define SNMPDLMODPATH \"/usr/lib/aarch64-linux-gnu/snmp/dlmod\"",
-    "@HAVE_PCAP_PCAP_H@": "/* #undef HAVE_PCAP_PCAP_H */"
+    "@HAVE_PCAP_PCAP_H@": "#define HAVE_PCAP_PCAP_H 1"
 },
     }),
 )
@@ -2023,6 +2023,7 @@ sonic_deploy_tar(
         "usr/bin/snmpusm type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmpusm",
         "usr/bin/encode_keychange type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:encode_keychange",
         "usr/bin/snmpnetstat type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmpnetstat",
+        "usr/bin/snmppcap type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmppcap",
     },
     mtree = ["usr/bin/snmpinform type=link uid=0 gid=0 mode=0777 link=snmptrap"],
     force_debug_build = True,
@@ -2411,3 +2412,34 @@ pkg_tar(
 
 
 py_binary(name = "perl_xs_tool", srcs = ["perl_xs.py"], main = "perl_xs.py")
+
+# Validate the shipped files, including architecture parity and matching symbols.
+py_binary(
+    name = "package_contract_runner",
+    srcs = ["package_contract_test.py"],
+    main = "package_contract_test.py",
+    deps = ["@sonic_build_infra//deb:elf_metadata"],
+)
+
+_RUNTIME_DEBUG_PAIRS = {
+    "snmp": (":snmp_layout", ":snmp_elf.debug_symbols"),
+    "snmpd": (":snmpd_layout", ":snmpd_elf.debug_symbols"),
+    "snmptrapd": (":snmptrapd_layout", ":snmptrapd_elf.debug_symbols"),
+    "libsnmp40": (":libsnmp40_layout", ":libsnmp40_elf.debug_symbols"),
+    "libnetsnmptrapd40": (":libnetsnmptrapd40_layout", ":libnetsnmptrapd40_elf.debug_symbols"),
+    "libsnmp-perl": (":libsnmp_perl_layout", ":libsnmp-perl_elf.debug_symbols"),
+}
+
+exec_test(
+    name = "package_contract_test",
+    runner = ":package_contract_runner",
+    data = [label for pair in _RUNTIME_DEBUG_PAIRS.values() for label in pair],
+    checker_args = select({
+        "@platforms//cpu:x86_64": ["--machine=62"],
+        "@platforms//cpu:aarch64": ["--machine=183"],
+    }) + [
+        "--" + flag + "=" + name + "=$(location " + label + ")"
+        for name, pair in _RUNTIME_DEBUG_PAIRS.items()
+        for flag, label in zip(["runtime", "debug"], pair)
+    ],
+)

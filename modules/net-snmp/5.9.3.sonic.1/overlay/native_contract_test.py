@@ -17,7 +17,7 @@ def main():
     parser.add_argument('--library', action='append', default=[])
     args = parser.parse_args()
     header = Path(args.header).read_text(encoding='latin1')
-    for macro in ['HAVE_LIBNL3', 'HAVE_NETLINK_NETLINK_H', 'NETSNMP_EMBEDDED_PERL', 'NETSNMP_USE_MYSQL', 'HAVE_CURSES_H']:
+    for macro in ['HAVE_LIBNL3', 'HAVE_NETLINK_NETLINK_H', 'NETSNMP_EMBEDDED_PERL', 'NETSNMP_USE_MYSQL', 'HAVE_CURSES_H', 'HAVE_PCAP_PCAP_H']:
         assert re.search(r'^#define ' + macro + r' 1$', header, re.MULTILINE), macro
     required = {
         "snmp": {"libssl.so.3", "libcrypto.so.3"},

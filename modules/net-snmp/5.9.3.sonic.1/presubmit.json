@@ -33,7 +33,8 @@
     "@net-snmp//:libsnmp-perl_elf.debug_symbols"
   ],
   "test_targets": [
-    "@net-snmp//:native_contract_test"
+    "@net-snmp//:native_contract_test",
+    "@net-snmp//:package_contract_test"
   ],
   "generated_module_overlay": true
 }

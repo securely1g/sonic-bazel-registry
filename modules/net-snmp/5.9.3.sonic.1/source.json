@@ -4,9 +4,9 @@
   "integrity": "sha256-t4+TJ2qA1Acm2UlWqn0G/YdStcBiSvW78VXLwz/VIdE=",
   "overlay": {
     ".bazelrc": "sha256-bqY6IRC9+XT1Dr9Nk3d13o7/xwbyi+ZEex2vx/6hHe4=",
-    "BUILD.bazel": "sha256-TzgvJVkNktPCYoQhxaDNXZeq8rr8fpVUYZZNWRgP6jg=",
+    "BUILD.bazel": "sha256-uEuKNWr/1j6wQBxxXsjAM7wybNM6OqoEkfCny+oJo0w=",
     "MODULE.bazel": "sha256-lb/2Z0kT5l2Z8L1ynY3D1qbBbHOvfBedPDBCKpQ6iwM=",
-    "native_contract_test.py": "sha256-sARWe9bLfDlHSvGBBU1SMhRrUdZr7gyV6W8v1pr3FVY=",
+    "native_contract_test.py": "sha256-woV2+5coW4OsnQWPvx5S82P/wskOsf1hK4tLmn7rhMg=",
     "package_sources/BUILD.bazel": "sha256-ECIJSnnFtZCAb9CYoKYs4sUfJxL1GG2WRw0lNa5RzK0=",
     "package_sources/documentation.py": "sha256-CFInmA2ft12P58e7Y7f5xLhL9ckiYi15CLcQBym8L6s=",
     "package_sources/generated_resources.py": "sha256-jmodK+Q7UQxF8EhSOOuJWSZNCl882fwQz/HoY3qn6Qc=",
@@ -61,12 +61,13 @@
     "patches/48-cross-compile-changes.patch": "sha256-/szcMkwLv1bUNa19VuxLYl6VSpO6H9UXB2lA3cENTAM=",
     "perl_sources/BUILD.bazel": "sha256-siGh4uz6Qvkjp2Poj+iyHGd8Nhz9f6YfDfHYu9ZxV8I=",
     "perl_xs.py": "sha256-SRFRPTuHCn7z/VdtbzW2boaMiJT8mmpj7qSLSDrzPkE=",
-    "source.BUILD.bazel": "sha256-EdMVe240PaVqBfSLWHDqQ9KqZv307eSdfDG088dWukU=",
+    "source.BUILD.bazel": "sha256-WIxgD63hmRqAmMpwnc2jYyhk+4qpJDjmdgQwRuchUrI=",
     "source_overrides/agent/mibgroup/mibII/interfaces.c": "sha256-gfuyFNNQCfeySqGTznC2220hvJ2jRB2rJI0gTqaaKT0=",
     "source_overrides/agent/snmp_agent.c": "sha256-plAAP8BA4kZJaeluW7MKbpLQ7+LcCObYjgM1mtuwATU=",
     "source_overrides/agent/snmpd.c": "sha256-lECrAgU8InZwZcw2ep9kMxW8pBqploC/8z4M7GxQi2I=",
     "source_overrides/configure.ac": "sha256-TuPPSXfi7pWZAh/5doWqUq9uDFGBh6O8nFbw+tym4us=",
     "source_overrides/snmplib/snmp_api.c": "sha256-Dyk67dmfYWFaIRJeumQ7IDa2cihkKrforaKJV/cHEEk=",
-    "templates/net-snmp-config.h.in": "sha256-4YmqEdi6cqYlTL7CBP/gUkXFKEyxUbZMQ4PDokQNC0c="
+    "templates/net-snmp-config.h.in": "sha256-4YmqEdi6cqYlTL7CBP/gUkXFKEyxUbZMQ4PDokQNC0c=",
+    "package_contract_test.py": "sha256-M9a36NkiqXzetzMJJPnqUUehtWVQvb3yFk9u7HmuQoY="
   }
 }
