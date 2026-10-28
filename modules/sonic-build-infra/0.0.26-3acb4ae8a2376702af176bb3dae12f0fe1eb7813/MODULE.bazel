@@ -1,0 +1,628 @@
+# Keep bazel_compatibility in sync with sonic-buildimage's .bazelversion.
+module(
+    name = "sonic-build-infra",
+    version = "0.0.26-3acb4ae8a2376702af176bb3dae12f0fe1eb7813",
+    bazel_compatibility = [
+        ">=8.5.1",
+        "<=8.5.1",
+    ],
+)
+
+bazel_dep(name = "swig", version = "4.3.0.bcr.2")
+bazel_dep(name = "rules_cc", version = "0.2.16")
+bazel_dep(name = "rules_foreign_cc", version = "0.15.1")
+bazel_dep(name = "rules_python", version = "1.7.0")
+bazel_dep(name = "platforms", version = "1.0.0")
+bazel_dep(name = "tar.bzl", version = "0.10.5-sonic.1")
+
+sysroot_tar = use_extension("@tar.bzl//tar:extensions.bzl", "toolchains")
+use_repo(sysroot_tar, "bsd_tar_toolchains_linux_amd64", "bsd_tar_toolchains_linux_arm64")
+
+# Root builds must select the patch even when another dependency requests the
+# upstream release, which sorts above its SONiC prerelease version.
+single_version_override(
+    module_name = "tar.bzl",
+    version = "0.10.5-sonic.1",
+)
+
+bazel_dep(name = "bazel_skylib", version = "1.9.0")
+bazel_dep(name = "bazel_lib", version = "3.1.1")
+bazel_dep(name = "aspect_rules_py", version = "1.11.2")
+bazel_dep(name = "patchelf", version = "0.18.0.bcr.1")
+
+# A local module providing a cc_binary in a separate module, used only by our
+# tests to prove that we correctly package binaries from another module.
+bazel_dep(name = "deploy_tar_external_binary", version = "0.0.0", dev_dependency = True)
+local_path_override(
+    module_name = "deploy_tar_external_binary",
+    path = "tests/external_binary_module",
+)
+
+bazel_dep(name = "buildifier_prebuilt", version = "8.5.1.3", dev_dependency = True)
+
+# The SONiC patch sorts above upstream 0.9.4 without a root override.
+bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.13")
+
+# One multiarch directory shared by GCC and Clang on both architectures.
+# Consumers import this same repository through use_extension/use_repo.
+sysroots = use_extension("//toolchains/sysroot:extensions.bzl", "sysroots")
+sysroots.debian(name = "sonic_sysroot")
+use_repo(sysroots, "sonic_sysroot")
+
+gcc = use_extension("//toolchains/gcc:extensions.bzl", "gcc")
+use_repo(gcc, "gcc_toolchains")
+
+# Architectures with native build tools and general C/C++ toolchain setup.
+NATIVE_ARCHITECTURES = [
+    "amd64",
+    "arm64",
+]
+
+# Kernel builds also target ARMHF using the AMD64 cross tools.
+KERNEL_TARGET_ARCHITECTURES = NATIVE_ARCHITECTURES + ["armhf"]
+
+# Every toolchain the gcc.debian_toolchain() tags below declare,
+# one cc and one binutils toolchain per tag.
+register_toolchains("@gcc_toolchains//:all")
+
+DEBIAN_SNAPSHOT = "https://snapshot.debian.org/archive/debian/20260727T143429Z"
+
+apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
+apt.sources_list(
+    architectures = KERNEL_TARGET_ARCHITECTURES,
+    components = ["main"],
+    suites = [
+        "trixie",
+        "trixie-updates",
+    ],
+    uris = [DEBIAN_SNAPSHOT],
+)
+apt.sources_list(
+    architectures = KERNEL_TARGET_ARCHITECTURES,
+    components = ["main"],
+    suites = ["trixie-security"],
+    uris = ["https://snapshot.debian.org/archive/debian-security/20260726T121236Z"],
+)
+
+# The cc toolchains' sysroot: libc, libstdc++ and kernel headers.
+# We keep it in a separate apt install set so that the toolchain can resolve
+# without fetching the entire closure of packages.
+apt.install(
+    dependency_set = "sysroot",
+    packages = [
+        # Expose the target ABI controls as well as the compiler headers.
+        # Runtime metadata must inspect target libraries, never build-tool copies.
+        "libc6",
+        "libc6-dev",
+        "libgcc-s1",
+        "libgcc-14-dev",
+        "libstdc++6",
+        "libstdc++-14-dev",
+        "linux-libc-dev",
+    ],
+    suites = [
+        "trixie",
+        "trixie-updates",
+        "trixie-security",
+    ],
+)
+
+# Build tools used by source generation. Consumers select these package
+# payloads in the execution configuration so the tools and their runtime files
+# match the machine running the generator.
+# Kernel roots also retain source Build-Depends and runtime-library control
+# metadata needed by dpkg-checkbuilddeps and dpkg-shlibdeps.
+apt.install(
+    dependency_set = "build_tools",
+    packages = [
+        name if ":" in name else name + ":" + architecture
+        for name in [
+            "aspell",
+            "aspell-en",
+            "autoconf",
+            "automake",
+            "bash",
+            "bc",
+            "bison",
+            "build-essential",
+            "comerr-dev",
+            "coreutils",
+            "cpio",
+            "dash",
+            "debhelper",
+            "debianutils",
+            "dh-python",
+            "diffutils",
+            "doxygen",
+            "findutils",
+            "flex",
+            "fonts-dejavu-core",
+            "gcc-14",
+            # The ARM64 kernel builds a 32-bit compatibility vDSO with this compiler.
+            "gcc-arm-linux-gnueabihf:arm64",
+            "graphviz",
+            "grep",
+            "gzip",
+            "kernel-wedge",
+            "kmod",
+            "libc-bin",
+            "libc6",
+            "libelf-dev",
+            "libelf1t64",
+            "libgcc-s1",
+            "libprotobuf-dev",
+            "libssl-dev",
+            "libssl3t64",
+            "libtool",
+            "libtool-bin",
+            "libxml-simple-perl",
+            "libzstd1",
+            "lz4",
+            "m4",
+            "mawk",
+            "openssl",
+            "pahole",
+            "perl",
+            "pkgconf",
+            "protobuf-compiler",
+            "protobuf-compiler-grpc",
+            "python3",
+            "python3-dacite",
+            "python3-jinja2",
+            "quilt",
+            "rsync",
+            "sed",
+            "ss-dev",
+            "thrift-compiler",
+            "util-linux",
+            "xz-utils",
+            "zlib1g",
+            "zstd",
+        ]
+        for architecture in NATIVE_ARCHITECTURES
+        if ":" not in name or name.endswith(":" + architecture)
+    ],
+    suites = [
+        "trixie",
+        "trixie-updates",
+        "trixie-security",
+    ],
+)
+
+# The kernel's AMD64 execution tools also compile ARM64 and ARMHF targets.
+apt.install(
+    dependency_set = "build_tools",
+    packages = [
+        "gcc-14-aarch64-linux-gnu:amd64",
+        "gcc-14-arm-linux-gnueabihf:amd64",
+        "gcc-aarch64-linux-gnu:amd64",
+        "gcc-arm-linux-gnueabihf:amd64",
+    ] + [
+        name + ":" + architecture
+        for name in [
+            "libelf-dev",
+            "libelf1t64",
+            "libssl-dev",
+            "libssl3t64",
+            "libzstd-dev",
+            "libzstd1",
+            "zlib1g-dev",
+            "zlib1g",
+        ]
+        for architecture in [
+            "arm64",
+            "armhf",
+        ]
+    ],
+    suites = [
+        "trixie",
+        "trixie-updates",
+        "trixie-security",
+    ],
+)
+
+# Expose individual ABI package payloads and metadata to kernel cross builds.
+apt.install(
+    dependency_set = "sysroot",
+    packages = [
+        name + ":" + architecture
+        for name in [
+            "libc6",
+            "libc6-dev",
+            "libgcc-s1",
+            "libgcc-14-dev",
+            "libcrypt1",
+            "libcrypt-dev",
+            "linux-libc-dev",
+        ]
+        for architecture in [
+            "arm64",
+            "armhf",
+        ]
+    ],
+    suites = [
+        "trixie",
+        "trixie-updates",
+        "trixie-security",
+    ],
+)
+apt.install(
+    dependency_set = "trixie",
+    packages = [
+        name if ":" in name else name + ":" + architecture
+        for name in [
+            # do not sort
+            # debug utilities
+            "gdb",
+            "gdbserver",
+            # Needed for vim, though vim itself is fetched from the main buildimage,
+            # because we can't resolve the right virtual package from rules_distroless yet.
+            "libgpm2",
+            "strace",
+            "sshpass",
+            "openssh-client",
+            # openssh-client's shared libraries.
+            # The FIPS OpenSSH deb ships without deps, so we fetch these from apt.
+            "libedit2",
+            "libfido2-1",
+
+            # for sonic-swss-common
+            # trixie ships libyang 3, so the -dev package lost its soversion suffix.
+            "nlohmann-json3-dev",
+            "libhiredis-dev",
+            "libboost-dev",
+            "libboost-serialization-dev",
+            "uuid-dev",
+            "libzmq3-dev",
+            "libyang-dev",
+            "swig",
+            "python3-dev",
+
+            # for docker-sysmgr
+            "libdbus-1-3",
+            "libdbus-c++-1-0v5",
+            "libprotobuf32t64",
+
+            # for sonic-sysmgr
+            "libdbus-c++-bin",
+            "libdbus-c++-dev",
+        ]
+        for architecture in NATIVE_ARCHITECTURES
+        if ":" not in name or name.endswith(":" + architecture)
+    ],
+    suites = [
+        "trixie",
+        "trixie-updates",
+        "trixie-security",
+    ],
+)
+use_repo(
+    apt,
+    # Re-export the hub repo, so that dependents on sonic-build-infra can get the whole central list
+    # without having to declare their own dependencies.
+    #
+    # Dependents can use it by importing `sonic-build-infra` and loading it:
+    #     apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
+    #     use_repo(apt, "trixie")
+    "trixie",
+
+    # The cc toolchains' sysroot, resolved per architecture.
+    "sysroot",
+
+    # Build tools and their runtime dependencies, resolved per architecture.
+    "build_tools",
+)
+
+# The `vim` .debs, because rules_distroless can't give us vim.
+#
+# `vim` is a virtual package that many packages provide, not just the one named `vim`.
+# rules_distroless resolves a name to a virtual provider before it looks for a real package,
+# so asking it for "vim" hands back vim-nox, which is a package with a bunch of extra
+# language runtimes and different configuration.
+# The Make build installs this concrete `vim` package, so we fetch those .debs directly
+# and unpack them for //deps/vim:BUILD.bazel to assemble into layers.
+# The reason why they're here instead of an `imported` file inside deps/vim is
+# that we want to use DEBIAN_SNAPSHOT, and we can't import it without building a whole extension,
+# which would be overkill.
+#
+# TODO(bazel-ready): drop all of this once rules_distroless prefers a real
+# package over a virtual one of the same name.
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+_DEB_BUILD_FILE = """exports_files(["data.tar.xz"])"""
+
+http_archive(
+    name = "vim_amd64",
+    build_file_content = _DEB_BUILD_FILE,
+    sha256 = "7050d710bbcd5dee68865d90fd95a9aa865bf16d9a3874c5bb6a4f1d69231cfe",
+    urls = [DEBIAN_SNAPSHOT + "/pool/main/v/vim/vim_9.1.1230-2_amd64.deb"],
+)
+
+http_archive(
+    name = "vim_arm64",
+    build_file_content = _DEB_BUILD_FILE,
+    sha256 = "933d4a979a78574f3e57b0ddb87088c720a4526fdd254c39394c4b70f5e59aa7",
+    urls = [DEBIAN_SNAPSHOT + "/pool/main/v/vim/vim_9.1.1230-2_arm64.deb"],
+)
+
+# vim-runtime is Architecture: all, so one copy serves every platform.
+http_archive(
+    name = "vim_runtime",
+    build_file_content = _DEB_BUILD_FILE,
+    sha256 = "5addd2e7d3aae7d1907aba6c0c16c525e78ccfc0f6ee9ef9651c139a80c97058",
+    urls = [DEBIAN_SNAPSHOT + "/pool/main/v/vim/vim-runtime_9.1.1230-2_all.deb"],
+)
+
+# Raw APT source archives used to assemble the shared compiler sysroots.
+#
+# Import these repositories for //toolchains/sysroot:packages.bzl; compilers
+# consume the combined sysroot rather than individual package directories.
+#
+# Will fail loudly if the versions get out of sync.
+SYSROOT_PACKAGE_REPO_TEMPLATES = [
+    "trixie-security_linux-libc-dev-{arch}_6.12.96-1",
+    "trixie_libc6-{arch}_2.41-12-deb13u3",
+    "trixie_libc6-dev-{arch}_2.41-12-deb13u3",
+    "trixie_libgcc-14-dev-{arch}_14.2.0-19",
+    "trixie_libgcc-s1-{arch}_14.2.0-19",
+    "trixie_libstdc---14-dev-{arch}_14.2.0-19",
+    "trixie_libstdc--6-{arch}_14.2.0-19",
+] + [
+    "trixie_" + package + "-{arch}_14.2.0-19"
+    for package in [
+        "gcc-14-base",
+        "libasan8",
+        "libatomic1",
+        "libgomp1",
+        "libhwasan0",
+        "libitm1",
+        "liblsan0",
+        "libtsan2",
+        "libubsan1",
+    ]
+]
+
+[
+    [
+        use_repo(apt, repo_template.format(arch = arch))
+        for repo_template in SYSROOT_PACKAGE_REPO_TEMPLATES
+    ]
+    for arch in NATIVE_ARCHITECTURES
+]
+
+use_repo(apt, "trixie_libquadmath0-amd64_14.2.0-19")
+
+# Debian compiler executables and the libraries needed to run them. Native
+# AMD64, native ARM64 and AMD64-to-ARM64 builds use the same package snapshot.
+# Target headers and libraries remain in the shared sonic_sysroot repository.
+GCC_RUNTIME_PACKAGES = {
+    "binutils-common": "2.44-3",
+    "gcc-14-base": "14.2.0-19",
+    "libc6": "2.41-12+deb13u3",
+    "libgcc-s1": "14.2.0-19",
+    "libstdc++6": "14.2.0-19",
+    "libcc1-0": "14.2.0-19",
+    "libgmp10": "2:6.3.0+dfsg-3",
+    "libmpfr6": "4.2.2-1",
+    "libmpc3": "1.3.1-1+b3",
+    "libisl23": "0.27-1",
+    "libzstd1": "1.5.7+dfsg-1",
+    "zlib1g": "1:1.3.dfsg+really1.3.1-1+b1",
+    "libjansson4": "2.14-2+b3",
+    "libsframe1": "2.44-3",
+}
+
+apt.install(
+    dependency_set = "gcc_runtime",
+    include_transitive = False,
+    packages = [
+        name + ":" + arch + " (= " + version + ")"
+        for arch in NATIVE_ARCHITECTURES
+        for name, version in GCC_RUNTIME_PACKAGES.items()
+    ],
+    suites = ["trixie"],
+)
+
+GCC_RUNTIME_REPOS = {
+    arch: {
+        name: "trixie_" + name.replace("+", "-") + "-" + arch + "_" + version.replace("+", "-").replace(":", "-")
+        for name, version in GCC_RUNTIME_PACKAGES.items()
+    }
+    for arch in NATIVE_ARCHITECTURES
+}
+
+[
+    use_repo(apt, repo)
+    for repos in GCC_RUNTIME_REPOS.values()
+    for name, repo in repos.items()
+    # These packages were already imported for the shared sysroot above.
+    if name not in [
+        "gcc-14-base",
+        "libc6",
+        "libgcc-s1",
+        "libstdc++6",
+    ]
+]
+
+NATIVE_GCC_PLATFORMS = {
+    "amd64": {
+        "cpu": "x86_64",
+        # Debian package names use x86-64; executable names use x86_64.
+        "package_prefix": "x86-64-linux-gnu",
+        "tool_prefix": "x86_64-linux-gnu",
+    },
+    "arm64": {
+        "cpu": "aarch64",
+        "package_prefix": "aarch64-linux-gnu",
+        "tool_prefix": "aarch64-linux-gnu",
+    },
+}
+
+NATIVE_GCC_PACKAGES = {
+    arch: {
+        "gcc-14-" + platform["package_prefix"]: "14.2.0-19",
+        "g++-14-" + platform["package_prefix"]: "14.2.0-19",
+        "cpp-14-" + platform["package_prefix"]: "14.2.0-19",
+        "binutils-" + platform["package_prefix"]: "2.44-3",
+        # Native binutils keep these libraries in separate packages; the
+        # cross binutils package carries its own copies for its target.
+        "libbinutils": "2.44-3",
+        "libctf0": "2.44-3",
+        "libctf-nobfd0": "2.44-3",
+    }
+    for arch, platform in NATIVE_GCC_PLATFORMS.items()
+}
+
+apt.install(
+    dependency_set = "gcc_native",
+    include_transitive = False,
+    packages = [
+        name + ":" + arch + " (= " + version + ")"
+        for arch, packages in NATIVE_GCC_PACKAGES.items()
+        for name, version in packages.items()
+    ],
+    suites = ["trixie"],
+)
+
+NATIVE_GCC_REPOS = {
+    arch: [
+        "trixie_" + name.replace("+", "-") + "-" + arch + "_" + version
+        for name, version in packages.items()
+    ]
+    for arch, packages in NATIVE_GCC_PACKAGES.items()
+}
+
+[
+    use_repo(apt, repo)
+    for repos in NATIVE_GCC_REPOS.values()
+    for repo in repos
+]
+
+[
+    gcc.debian_toolchain(
+        arch = platform["cpu"],
+        debian_packages = [
+            "@" + repo + "//:data.tar.xz"
+            for repo in NATIVE_GCC_REPOS[arch] + GCC_RUNTIME_REPOS[arch].values()
+        ],
+        suite = "trixie",
+        sysroot = "@sonic_sysroot//root:sysroot",
+        target_platform = "//platforms:trixie",
+        tool_prefix = platform["tool_prefix"],
+        version = "14.2.0",
+    )
+    for arch, platform in NATIVE_GCC_PLATFORMS.items()
+]
+
+CROSS_GCC_PACKAGES = {
+    "gcc-14-aarch64-linux-gnu": "14.2.0-19cross1",
+    "g++-14-aarch64-linux-gnu": "14.2.0-19cross1",
+    "cpp-14-aarch64-linux-gnu": "14.2.0-19cross1",
+    "gcc-14-aarch64-linux-gnu-base": "14.2.0-19cross1",
+    "binutils-aarch64-linux-gnu": "2.44-3",
+}
+
+apt.install(
+    dependency_set = "gcc_cross_amd64",
+    include_transitive = False,
+    packages = [name + ":amd64 (= " + version + ")" for name, version in CROSS_GCC_PACKAGES.items()],
+    suites = ["trixie"],
+)
+
+CROSS_GCC_REPOS = [
+    "trixie_" + name.replace("+", "-") + "-amd64_" + version
+    for name, version in CROSS_GCC_PACKAGES.items()
+]
+
+[use_repo(apt, repo) for repo in CROSS_GCC_REPOS]
+
+gcc.debian_toolchain(
+    arch = "aarch64",
+    debian_packages = [
+        "@" + repo + "//:data.tar.xz"
+        for repo in CROSS_GCC_REPOS + GCC_RUNTIME_REPOS["amd64"].values()
+    ],
+    exec_arch = "x86_64",
+    suite = "trixie",
+    sysroot = "@sonic_sysroot//root:sysroot",
+    target_platform = "//platforms:trixie",
+    tool_prefix = "aarch64-linux-gnu",
+    version = "14.2.0",
+)
+
+uv = use_extension("@aspect_rules_py//uv/unstable:extension.bzl", "uv")
+uv.declare_hub(
+    hub_name = "pypi",
+)
+uv.project(
+    default_build_dependencies = [
+        "build",
+        "setuptools",
+    ],
+    hub_name = "pypi",
+    lock = "//deps:uv.lock",
+    pyproject = "//deps:pyproject.toml",
+)
+use_repo(uv, "pypi")
+
+# Provision both pip runtimes. This default applies only when infrastructure is
+# the root module; image consumers keep the Python version chosen by their root.
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.defaults(python_version = "3.11")
+python.toolchain(python_version = "3.11")
+python.toolchain(python_version = "3.13")
+
+# Installation tools run on the execution platform. The installer wheel is pure
+# Python; its resolver version does not select the target image's Python ABI.
+wheel_pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+wheel_pip.parse(
+    hub_name = "sonic_wheel_pip",
+    python_version = "3.11",
+    requirements_lock = "//python:wheel_requirements_lock.txt",
+)
+use_repo(wheel_pip, "sonic_wheel_pip")
+
+# Share Debian parsing across the infrastructure and image Python runtimes.
+[
+    wheel_pip.parse(
+        hub_name = "sonic_apt_pip",
+        python_version = version,
+        requirements_lock = "//apt:requirements_lock.txt",
+    )
+    for version in [
+        "3.11",
+        "3.13",
+    ]
+]
+
+use_repo(wheel_pip, "sonic_apt_pip")
+
+# Declared execution tools for upstream configure/Make source builds.
+register_toolchains(
+    "//tools/build_tools:make_toolchain",
+    "//tools/build_tools:m4_toolchain",
+    "//tools/build_tools:pkgconfig_toolchain",
+    "//tools/build_tools:autoconf_toolchain",
+)
+
+# Like vim above, make must select its concrete package, not make-guile.
+
+http_archive(
+    name = "build_make_amd64",
+    build_file_content = _DEB_BUILD_FILE,
+    sha256 = "70a9709e665383b06068ccd423d62ea191b65355f318a25565dbf324b254cec6",
+    urls = [DEBIAN_SNAPSHOT + "/pool/main/m/make-dfsg/make_4.4.1-2_amd64.deb"],
+)
+
+http_archive(
+    name = "build_make_arm64",
+    build_file_content = _DEB_BUILD_FILE,
+    sha256 = "043219839669c431def9bb410c4a827f115ee5bf377469d55c4ed905f81f73be",
+    urls = [DEBIAN_SNAPSHOT + "/pool/main/m/make-dfsg/make_4.4.1-2_arm64.deb"],
+)
+
+# The Go lock updater's contract tests use a Bazel-managed SDK.
+bazel_dep(name = "rules_go", version = "0.64.1", repo_name = "io_bazel_rules_go", dev_dependency = True)
+go_sdk = use_extension("@io_bazel_rules_go//go:extensions.bzl", "go_sdk", dev_dependency = True)
+go_sdk.download(name = "go_sdk", version = "1.26.7")
+use_repo(go_sdk, "go_sdk")
