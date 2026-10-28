@@ -141,6 +141,29 @@ filegroup(
 exec_test(
     name = "libnl3_package_test",
     srcs = [":raw_tars"],
+    data = [
+        ":libnl-3-dev_files",
+        ":libnl-route-3-dev_files",
+    ] + [":" + stem + suffix for stem in [
+        "libnl-3",
+        "libnl-route-3",
+        "libnl-genl-3",
+        "libnl-nf-3",
+        "libnl-cli-3",
+    ] for suffix in ["-runtime_files", "-runtime_files.debug_symbols"]],
+    checker_args = [
+        "--dev-core=$(location :libnl-3-dev_files)",
+        "--dev-route=$(location :libnl-route-3-dev_files)",
+    ] + ["--" + role + "=$(location :" + stem + suffix + ")" for stem in [
+        "libnl-3",
+        "libnl-route-3",
+        "libnl-genl-3",
+        "libnl-nf-3",
+        "libnl-cli-3",
+    ] for role, suffix in [
+        ("runtime", "-runtime_files"),
+        ("debug", "-runtime_files.debug_symbols"),
+    ]],
     runner = ":tar_contract_runner",
     visibility = ["//visibility:public"],
 )
