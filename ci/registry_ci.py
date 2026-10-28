@@ -33,6 +33,16 @@ LABEL = re.compile(r"@[a-z][a-z0-9._-]*//[A-Za-z0-9_./+-]*:[A-Za-z0-9_./+-]+\Z")
 ROOT_LABEL = re.compile(r"//[A-Za-z0-9_./+-]*:[A-Za-z0-9_./+-]+\Z")
 
 
+# Explicit in-place update requested for libnl3 in registry PR #148.
+# Bind the entire before/after entry trees; no other change is exempt.
+PUBLISHED_INPUT_UPDATES = {
+    "modules/libnl3/3.7.0.sonic.6": (
+        "11cd81e4c2a98a7347f2ada686c8cdaff8bcbbdc",
+        "59bda4975eb5e55c8af91b727037ad4d45d381cb",
+    ),
+}
+
+
 class RegistryError(ValueError):
     """A registry entry or required validation result is invalid."""
 
@@ -544,7 +554,13 @@ def check_version_policy(root: Path, published: str, head: str,
                     f"{module}@{version}: published version changed or removed; "
                     "retain the version directory (rebase if the maintained branch advanced)")
             if head_versions[version] != tree:
-                check_published_files(root, f"{path}/{version}", published, head)
+                entry_path = f"{path}/{version}"
+                transition = (tree[1], head_versions[version][1])
+                if PUBLISHED_INPUT_UPDATES.get(entry_path) == transition:
+                    print(f"Publication exception: {entry_path}: "
+                          f"{transition[0]} -> {transition[1]}", file=sys.stderr)
+                else:
+                    check_published_files(root, entry_path, published, head)
         candidates = sorted(set(head_versions) - set(published_versions))
         require(len(candidates) <= 1,
                 f"{module}: multiple unreleased candidates relative to {published}: {', '.join(candidates)}; "
