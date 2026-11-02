@@ -1,78 +1,72 @@
-# Source-built libnl packages
+# Native libnl3 source build
 
-The `3.7.0.sonic.6` candidate retains the libnl 3.7.0 source archive and SONiC
-nexthop patch, and uses native Trixie AMD64/ARM64 source compilation. It does not
-produce DEBs. Existing released registry entries remain unchanged.
+FRR links `libnl_3` and `libnl_route_3`; config-engine consumes
+`libnl-3-runtime_files` and `runtime_packages.json`. This update keeps
+`3.7.0.sonic.6` and its original Debian 3.7.0 archive URL and SHA-256. At the
+user's explicit request, it patches this published entry in place instead of
+adding `.7`. Registry CI permits only the recorded before/after entry trees;
+other published inputs remain protected.
 
-## Updating module dependencies
+| Input or action | Before | After |
+| --- | --- | --- |
+| Build libnl3 for FRR with its SONiC source fixes | Separate repository generation and parser toolchains | Shared native compiler and declared parser tools; the same runtime, SDK and debug interfaces |
+| Request `libnl3@3.7.0.sonic.6` | Published build overlay | That overlay followed by `patches/0001-build-libnl3-with-shared-native-rules.patch` |
 
-Edit this version's `MODULE.bazel`. It is the single maintained module
-definition. From the registry root, regenerate the copy installed into the
-upstream source archive and its `source.json` checksum:
+The original overlay files and nexthop patch remain intact, except for the
+regenerated `MODULE.bazel`. The numbered patch updates the build definitions,
+adds the remaining SONiC source fixes and package tests, and removes unused
+repository-generation helpers. Bazel applies it after installing the overlays.
+No new DEB producer is introduced.
+
+## Dependencies and reproduction
+
+[Registry #147](https://github.com/securely1g/sonic-bazel-registry/pull/147)
+patches infrastructure `0.0.25-17a1e555291c64be1a6ff008f33352bffc4f8e5c` with the
+shared Bookworm execution tools and native runtime fixes.
+[Registry #146](https://github.com/securely1g/sonic-bazel-registry/pull/146)
+supplies the Distroless `.13` library exports. Draft CI stages those exact
+prerequisite trees from the immutable catalog recorded in the workflow and
+retains `draft-prerequisites.json`. This PR's libnl3 entry remains under test.
+Remove temporary staging and verify maintained-main resolution after those
+prerequisites land.
+
+`MODULE.bazel` is the maintained module definition. After editing it, update
+and check its generated overlay:
 
 ```sh
 python3 ci/registry_ci.py sync-module --module libnl3 --version 3.7.0.sonic.6
-```
-
-`overlay/MODULE.bazel` is generated; do not edit it manually. The registry reads
-the maintained file for dependency resolution. Source checkouts and local
-module overrides use the generated copy. Registry CI checks that the copy and
-checksum are current before building the module. To run that check locally:
-
-```sh
 python3 ci/registry_ci.py sync-module --module libnl3 --version 3.7.0.sonic.6 --check
 ```
 
-## Image package boundaries
+Reproduce native validation in the pinned CI container, with the same
+prerequisite recipes staged into a disposable registry checkout:
 
-Use these public TAR targets when recording individual installed packages:
+```sh
+python3 ci/registry_ci.py run --module libnl3 --version 3.7.0.sonic.6 \
+  --architecture amd64 --work-dir /tmp/libnl3-ci --artifacts /tmp/libnl3-evidence
+python3 modules/libnl3/3.7.0.sonic.6/tests/installed_sdk_test.py \
+  --artifacts /tmp/libnl3-evidence
+python3 modules/libnl3/3.7.0.sonic.6/tests/installed_debug_test.py \
+  --artifacts /tmp/libnl3-evidence
+```
 
-| Target | Installed files |
-| --- | --- |
-| `libnl-3-runtime_files` | Versioned core DSO, SONAME link, `/etc/libnl-3/{classid,pktloc}` |
-| `libnl-route-3-runtime_files` | Versioned route DSO and SONAME link |
-| `libnl-genl-3-runtime_files` | Versioned generic-netlink DSO and SONAME link |
-| `libnl-nf-3-runtime_files` | Versioned netfilter DSO and SONAME link |
-| `libnl-cli-3-runtime_files` | Versioned CLI DSO, SONAME link and ten CLI plugins |
-| `libnl-3-dev_files` | Public headers, core static archive, unversioned core link and core pkg-config file |
-| `libnl-route-3-dev_files` | Route static archive, unversioned route link and route pkg-config file |
+Use `--architecture arm64` on a native ARM64 runner. Cross-built archive
+inspection does not establish native consumer execution.
 
-Every `*-runtime_files` target also exposes `.debug_symbols` and the shared debug
-provider for OCI image assembly. The runtime and development files do not overlap.
-Libraries use `/usr/lib/<multiarch>`; this canonicalizes Debian's core `/lib`
-placement for SONiC's merged `/usr` filesystem. Public headers are regular `0644`
-files. Both runtime configuration data and the compiled `SYSCONFDIR` use
-`/etc/libnl-3`, following Debian's `etc-libnl-3` patch.
+## Installation and regression coverage
 
-The package split follows the `libnl-3-dev.install`, `libnl-route-3-dev.install`
-and runtime manifests in
-[Debian 3.7.0-0.2 packaging](https://deb.debian.org/debian/pool/main/libn/libnl3/libnl3_3.7.0-0.2.debian.tar.xz)
-(SHA256 `35ae5b6ee3a56abd3ae8603fd47c3e38c9302d02a2d498fb88a3e2f2791ac2f0`).
-The existing `*_pkg` and `*_dev_pkg` targets remain aggregate compatibility APIs;
-they include development symlinks or additional runtime/header/pkg-config files
-and should not be recorded as the precise individual Debian package inventories.
+Runtime targets ship five libraries, ten CLI plugins and configuration files;
+core and route development targets separately ship headers, static archives,
+linker symlinks and pkg-config data. Libraries use `/usr/lib/<multiarch>` and
+configuration uses `/etc/libnl-3`. Existing aggregate SDK targets remain
+available. Runtime package metadata comes from the pinned Debian packaging
+and the built files.
 
-## Static archives and validation
-
-Standard `cc_static_library` creates both static archives from the existing
-compiled objects. The route archive selects the route and two generated parser
-targets' own linker inputs, excluding the separately shipped core archive. The
-small `archive_inputs.bzl` rule only forwards providers; it runs no archive tool
-or compiler and leaves existing C/C++ targets unchanged.
-
-Native presubmits build all legacy and precise TARs. The development-file test
-checks disjoint package inventories, ownership, modes, configuration lookup,
-shared linking and static linking. Its static consumer includes every archive
-member to catch missing parser objects and duplicate core objects. Existing
-consumer and package tests continue to check all five DSOs, ten plugins, matching
-debug symbols and GDB source lookup. No host libnl DSO is accepted as the tested
-package's runtime dependency.
-
-## Generated runtime package metadata
-
-`//:runtime_packages.json` is a generated target. The existing Debian
-`control` and `changelog` define package fields; `BUILD.bazel` maps package names
-to the existing Bazel TARs. The shared metadata rule inspects those target
-binaries and declared dependency packages, so version constraints come from
-the built artifacts and Debian tools. There is no handwritten JSON metadata
-file or new DEB producer.
+The existing native AMD64/ARM64 matrix builds all libraries, utilities,
+metadata and runtime/debug TARs. Tests check exact split inventories, ownership,
+modes, symlinks, architecture, SONAMEs, build IDs, debug-link CRCs and DWARF
+separation for every library and plugin. Post-build checks verify output
+checksums, compile and run shared and whole-archive SDK consumers, require
+loaded libraries to come from the extracted packages, and locate source lines
+with GDB using only the matching delivered symbols. Receipts and logs remain
+with the artifacts. Full FRR/config-engine image validation is separate.
