@@ -1,6 +1,6 @@
 # Default timestamps in tar.bzl
 
-`0.10.5-sonic.1` applies a small timestamp-default patch and its regression
+`0.10.5.sonic.1` applies a small timestamp-default patch and its regression
 suite to the verified upstream **0.10.5 release archive**. Bazel Central
 Registry already supplies unpatched 0.10.5; this explicitly requested local
 patch keeps the normal `tar()` / `tar_rule()` APIs and `bsdtar` executable.
@@ -45,7 +45,18 @@ Consumers are [build-infra #21](https://github.com/securely1g/sonic-build-infra/
 tests remain with those repositories; [registry #33](https://github.com/securely1g/sonic-bazel-registry/pull/33)
 publishes the updated build-infra source.
 
-Because `0.10.5-sonic.1` sorts below unpatched `0.10.5`, consuming root modules
-must use a `single_version_override` for this version if their graph requests
-unpatched 0.10.5. A dependency's own override does not propagate to its users.
-Verify the generated lock and fetched module before claiming patch adoption.
+Use `bazel_dep(name = "tar.bzl", version = "0.10.5.sonic.1")` in modules
+that need `default_mtime`. The dotted version sorts above upstream `0.10.5`,
+so ordinary consuming roots retain the timestamp patch without a
+`single_version_override`. The previously published `0.10.5-sonic.1` entry
+remains unchanged for existing pinned consumers.
+
+For example, the ordinary consumer of [gNMI #2](https://github.com/securely1g/sonic-gnmi/pull/2)
+reaches historical `sonic-yang-models` and build-infra module declarations
+that request upstream `0.10.5`. Bazel's version selection then replaces the
+older hyphenated patch version and Common's `common:lua_runtime` fails with
+`no such attribute 'default_mtime' in 'tar' rule`. The dotted successor keeps
+the same upstream source and timestamp implementation while making that
+selection safe. Presubmits include build-infra's published `0.0.4` declaration,
+which requests upstream `0.10.5`, and run the existing archive-byte and invalid
+attribute tests on both native architectures. No dependency override is used.
