@@ -75,13 +75,14 @@
     "@sonic-swss-common//tools/bazel/rust:shared_serde_test",
     "@sonic-swss-common//sonic-db-cli:shared_library_test",
     "@sonic-swss-common//tools/bazel/runtime:declared_loader_test",
-    "@sonic-swss-common//goext/tests/hiredis:hiredis_cgo_test"
+    "@sonic-swss-common//goext/tests/hiredis:hiredis_cgo_test",
+    "@sonic-swss-common//goext/tests/gnmi:alias_test"
   ],
   "build_flags": [
     "--@sonic-swss-common//tools/bazel:yang_modules=True"
   ],
   "go_sdk": {
-    "version": "1.25.0"
+    "version": "1.25.9"
   },
   "rust_toolchain": {
     "version": "1.90.0",
