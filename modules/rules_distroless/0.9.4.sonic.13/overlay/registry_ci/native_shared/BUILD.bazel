@@ -18,3 +18,16 @@ cc_test(
         "-Wl,-rpath,$$ORIGIN",
     ],
 )
+
+# Link through an original GNU ld script with remapped declared inputs, then
+# run the result. String-only tests cannot detect missing sandbox inputs/flags.
+cc_test(
+    name = "linker_script_runpath_test",
+    srcs = ["test.c"],
+    args = ["$(rootpath @registry_ci_native_shared//:script_middle_shared)"],
+    data = ["@registry_ci_native_shared//:script_middle_shared"],
+    linkopts = [
+        "-Wl,--enable-new-dtags",
+        "-Wl,-rpath,$$ORIGIN",
+    ],
+)
