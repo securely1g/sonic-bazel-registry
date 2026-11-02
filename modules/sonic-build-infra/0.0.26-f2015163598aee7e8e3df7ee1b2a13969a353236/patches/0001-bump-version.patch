@@ -1,0 +1,17 @@
+From: SONiC Bazel Registry <securely1g@gmail.com>
+Subject: [PATCH 1/2] Identify the registered shared CLI build tools
+
+Keep the fetched module version equal to its registry entry. This registers
+GNU patch and XML tools in the existing shared foreign runtime.
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,7 +1,7 @@
+ # Keep bazel_compatibility in sync with sonic-buildimage's .bazelversion.
+ module(
+     name = "sonic-build-infra",
+-    version = "0.0.26",
++    version = "0.0.26-f2015163598aee7e8e3df7ee1b2a13969a353236",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
