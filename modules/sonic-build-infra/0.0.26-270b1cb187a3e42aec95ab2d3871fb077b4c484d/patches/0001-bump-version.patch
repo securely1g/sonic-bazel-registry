@@ -11,7 +11,7 @@ shared CLI build tools and the declared BFD compiler wrapper.
  module(
      name = "sonic-build-infra",
 -    version = "0.0.26",
-+    version = "0.0.26-75c6327950c6befe9606d3f2c4a7564b3437ab1c",
++    version = "0.0.26-270b1cb187a3e42aec95ab2d3871fb077b4c484d",
      bazel_compatibility = [
          ">=8.5.1",
          "<=8.5.1",

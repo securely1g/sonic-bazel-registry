@@ -531,3 +531,22 @@ clean reproduction.
 
 See the [Bazel registry format](https://bazel.build/external/registry) for module
 source, patch, and overlay metadata.
+
+### Temporary source-only collector validation
+
+The `codex/registry-unicode-artifacts` repair and its `codex/docbook-tools-registry`
+consumer have an explicitly limited no-DEB validation scope. The normal planner
+still checks publication policy first. Both AMD64 and ARM64 runner suites,
+including the real Bazel artifact test, remain enabled. The repair runs those
+suites; PR #175 also runs its exact reviewed `sonic-build-infra` .26 source graph
+(37 build targets and 41 test targets, including tools-only kernel checks).
+`collector_validation_scope.py` rejects unexpected changed files, another module,
+a changed candidate tree, or an absent/different native module job. The full
+unrestricted plan is retained for review. All other branches keep normal planning.
+
+Remove the two branch cases and this temporary helper when broader module builds
+are authorized before reusing or merging the collector repair outside this scope.
+It does not establish full-registry build validation. The repair itself only
+recovers a malformed non-ASCII tree-member URI when its real declared file stays
+inside that exact declared tree and its SHA256 and length match the build event;
+ASCII mismatches, escapes, malformed metadata and checksum mismatches still fail.
