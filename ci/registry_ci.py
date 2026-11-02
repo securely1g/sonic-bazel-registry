@@ -881,10 +881,36 @@ def collect_outputs(bep_path: Path, labels: list[str], work_dir: Path, artifacts
                     and "\\" not in name, f"Unsafe build output path: {name}")
             source = resolve_output(Path(unquote(uri.path)))
             require(source.is_relative_to(work_dir), f"Build output escapes work-dir: {source}")
-            if any(relative.is_relative_to(tree_path) for tree_path in tree_paths):
-                # Skip only expanded members of this exact declared directory.
-                require(source == (execution_root / relative).resolve(),
-                        f"Expanded tree member does not match its execution-root path: {name}")
+            matching_trees = [tree_path for tree_path in tree_paths
+                              if relative.is_relative_to(tree_path)]
+            if matching_trees:
+                # The declared tree has already been archived. Bazel 8.5.1 can
+                # corrupt a non-ASCII basename in an expanded member's URI while
+                # retaining its correct logical name, digest and length. Accept
+                # only that narrow case, using the real declared member's bytes.
+                expected = resolve_output(execution_root / relative)
+                require(expected.is_relative_to(work_dir),
+                        f"Expanded tree member escapes work-dir: {name}")
+                if source != expected:
+                    decoded = Path(unquote(uri.path))
+                    ascii_name = lambda value: "".join(c for c in value if c.isascii())
+                    require("\ufffd" in uri.path and not relative.name.isascii()
+                            and not re.search(r"%(?![0-9A-Fa-f]{2})", uri.path)
+                            and ".." not in decoded.parts and "\\" not in uri.path
+                            and decoded.parent.resolve() == (execution_root / relative).parent.resolve()
+                            and ascii_name(decoded.name) == ascii_name(relative.name),
+                            f"Expanded tree member does not match its execution-root path: {name}")
+                    require(any(expected.is_relative_to(resolve_output(execution_root / tree_path))
+                                for tree_path in matching_trees) and expected.is_file(),
+                            f"Expanded tree member is not a confined regular file: {name}")
+                    digest, length = output.get("digest"), output.get("length")
+                    require(isinstance(digest, str) and re.fullmatch(r"[0-9a-f]{64}", digest)
+                            and isinstance(length, str) and re.fullmatch(r"0|[1-9][0-9]*", length),
+                            f"Expanded tree member requires SHA256 and length: {name}")
+                    with expected.open("rb") as stream:
+                        actual_digest = hashlib.file_digest(stream, "sha256").hexdigest()
+                    require(expected.stat().st_size == int(length) and actual_digest == digest,
+                            f"Expanded tree member digest or length mismatch: {name}")
                 continue
             # Repository files have only a basename in BEP. Keep their private
             # workspace identity so different packages' control.tar.xz files
