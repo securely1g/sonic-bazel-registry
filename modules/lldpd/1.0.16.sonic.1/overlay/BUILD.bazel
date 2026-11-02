@@ -1,0 +1,72 @@
+load("@rules_python//python:py_binary.bzl", "py_binary")
+load("@rules_python//python:py_test.bzl", "py_test")
+load("@rules_multirun//:defs.bzl", "command")
+load("@toolchain_utils//toolchain/info:defs.bzl", "toolchain_info")
+load(":bazel/inputs.bzl", "target_libraries")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(glob(["bazel/**"]))
+
+# Public upstream rules configure pigz to omit input names and timestamps.
+# Keep this ordinary toolchain configuration local; no compression wrapper.
+command(name = "reproducible_gzip", command = "@pigz", arguments = ["--no-name"])
+toolchain_info(name = "gzip_info", target = ":reproducible_gzip")
+toolchain(
+    name = "gzip_toolchain",
+    toolchain = ":gzip_info",
+    toolchain_type = "@rules_gzip//gzip/toolchain/gzip:type",
+)
+
+py_binary(name = "unpack", srcs = ["bazel/unpack.py"])
+target_libraries(name = "target_libraries", archives = ["@lldpd_deps//:packages"])
+[
+    alias(name = name, actual = "@lldpd_source//:" + name)
+    for name in ["runtime", "runtime.debug_symbols", "configuration", "configure_log", "lldpd", "lldpcli", "liblldpctl", "upstream_tests"]
+]
+py_test(
+    name = "upstream_test",
+    srcs = ["bazel/upstream_test.py"],
+    args = ["$(location :target_libraries)"] + ["$(location @lldpd_source//:check_" + name + ")" for name in ["marshal", "pattern", "bitmap", "fixedpoint", "lldp", "cdp", "sonmp", "edp", "snmp"]],
+    data = [":target_libraries"] + ["@lldpd_source//:check_" + name for name in ["marshal", "pattern", "bitmap", "fixedpoint", "lldp", "cdp", "sonmp", "edp", "snmp"]],
+    target_compatible_with = ["@platforms//cpu:x86_64", "@sonic_build_infra//platforms:trixie"],
+)
+
+# Independent installed payload inventory from Debian's install/docs/init rules.
+_FILES = {
+    "etc/lldpd.d/README.conf": "@lldpd_source//:data_0",
+    "lib/systemd/system/lldpd.service": "@lldpd_source//:data_1",
+    "usr/share/man/man8/lldpd.8.gz": "@lldpd_source//:data_2",
+    "usr/share/man/man8/lldpcli.8.gz": "@lldpd_source//:data_3",
+    "usr/share/bash-completion/completions/lldpcli": "@lldpd_source//:data_5",
+    "usr/share/zsh/vendor-completions/_lldpcli": "@lldpd_source//:data_6",
+    "etc/default/lldpd": "@lldpd_source//:debian/lldpd.default",
+    "etc/init.d/lldpd": "@lldpd_source//:debian/lldpd.init.d",
+    "usr/share/doc/lldpd/README.Debian": "@lldpd_source//:debian/README.Debian",
+    "usr/share/lintian/overrides/lldpd": "@lldpd_source//:debian/lldpd.lintian-overrides",
+    "usr/share/doc/lldpd/copyright": "@lldpd_source//:debian/copyright",
+    "usr/share/doc/lldpd/CONTRIBUTE.md": "@lldpd_source//:CONTRIBUTE.md",
+    "usr/share/doc/lldpd/NEWS.gz": "@lldpd_source//:NEWS",
+    "usr/share/doc/lldpd/README.md.gz": "@lldpd_source//:README.md",
+    "usr/share/doc/lldpd/changelog.gz": "@lldpd_source//:ChangeLog",
+    "usr/share/doc/lldpd/changelog.Debian.gz": "@lldpd_source//:debian/changelog",
+}
+
+py_test(
+    name = "package_test",
+    srcs = ["bazel/package_test.py"],
+    args = [
+        "--runtime", "$(location :runtime)",
+        "--debug", "$(location :runtime.debug_symbols)",
+        "--configuration", "$(location :configuration)",
+        "--dependencies", "$(location :target_libraries)",
+        "--readelf", "$(location @sonic_build_infra//toolchains/binutils:readelf)",
+        "--objcopy", "$(location @sonic_build_infra//toolchains/binutils:objcopy)",
+    ] + [item for installed, source in _FILES.items() for item in ["--file", installed, "$(location " + source + ")"]],
+    data = [
+        ":runtime", ":runtime.debug_symbols", ":configuration", ":target_libraries",
+        "@sonic_build_infra//toolchains/binutils:readelf",
+        "@sonic_build_infra//toolchains/binutils:objcopy",
+    ] + _FILES.values(),
+    target_compatible_with = ["@platforms//cpu:x86_64", "@sonic_build_infra//platforms:trixie"],
+)
