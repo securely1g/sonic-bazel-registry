@@ -77,7 +77,8 @@
     "@sonic-swss-common//tools/bazel/runtime:declared_loader_test",
     "@sonic-swss-common//goext/tests/hiredis:hiredis_cgo_test",
     "@sonic-swss-common//goext/tests/gnmi:alias_test",
-    "@sonic-swss-common//sonic-db-cli:declared_shared_library_test"
+    "@sonic-swss-common//sonic-db-cli:declared_shared_library_test",
+    "@sonic-swss-common//tests:redis_lua_path_test"
   ],
   "build_flags": [
     "--@sonic-swss-common//tools/bazel:yang_modules=True"
