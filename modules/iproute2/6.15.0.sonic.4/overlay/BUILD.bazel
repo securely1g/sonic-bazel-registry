@@ -1,0 +1,91 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary")
+load("@rules_python//python:py_test.bzl", "py_test")
+load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
+
+package(default_visibility = ["//visibility:public"])
+
+# Keep the consumer interface stable while assembling Debian's source package.
+[
+    alias(
+        name = name,
+        actual = "@iproute2_source//:" + name,
+    )
+    for name in [
+        "iproute2_pkg",
+        "iproute2_pkg.debug_symbols",
+        "iproute2_config",
+    ]
+]
+
+cc_binary(
+    name = "ematch_config_redirect.so",
+    testonly = True,
+    srcs = ["bazel/ematch_config_redirect.c"],
+    linkopts = ["-ldl"],
+    linkshared = True,
+)
+
+py_test(
+    name = "iproute2_package_test",
+    srcs = ["bazel/package_test.py"],
+    args = [
+        "$(rootpath :iproute2_pkg)",
+        "$(rootpath :iproute2_pkg.debug_symbols)",
+        "$(rootpath :iproute2_config)",
+        "$(rootpath @iproute2_source//:debian/iproute2.install)",
+        "$(rootpath :ematch_config_redirect.so)",
+        "$(locations @iproute2_deps//:packages)",
+    ],
+    data = [
+        ":ematch_config_redirect.so",
+        ":iproute2_config",
+        ":iproute2_pkg",
+        ":iproute2_pkg.debug_symbols",
+        "@iproute2_deps//:packages",
+        "@iproute2_source//:debian/copyright",
+        "@iproute2_source//:debian/iproute2.install",
+        "@iproute2_source//:etc/iproute2/rt_protos",
+        "@iproute2_source//:include/bpf_elf.h",
+        "@iproute2_source//:ip/routel",
+    ],
+    main = "bazel/package_test.py",
+)
+
+# Package fields come from the existing Debian recipe. This mapping only
+# identifies the Bazel-built TAR for each Debian binary package.
+runtime_packages(
+    name = "runtime_packages.json",
+    apt_packages = {
+        "@iproute2_deps//" + package + ":data": "@iproute2_deps//" + package + ":control"
+        for package in [
+            "libbpf1",
+            "libcap2",
+            "libdb5.3t64",
+            "libelf1t64",
+            "libmnl0",
+            "libselinux1",
+            "libtirpc3t64",
+            "libxtables12",
+            "libbsd0",
+            "libmd0",
+            "libatm1t64",
+            "libnsl2",
+            "zlib1g",
+        ]
+    },
+    changelog = "@iproute2_source//:debian/changelog",
+    control = "@iproute2_source//:debian/control",
+    debian_files = {
+        "iproute2.templates": "@iproute2_source//:debian/iproute2.templates",
+        "iproute2.config": "@iproute2_source//:debian/iproute2.config",
+    },
+    packages = {
+        "iproute2": "//:iproute2_pkg",
+    },
+    visibility = ["//visibility:public"],
+)
+
+exports_files(
+    ["runtime_packages.md"],
+    visibility = ["//visibility:public"],
+)
