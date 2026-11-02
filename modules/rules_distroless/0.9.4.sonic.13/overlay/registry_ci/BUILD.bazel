@@ -199,3 +199,69 @@ py_test(
         "@registry_ci_pkgconfig//liblua5.1-0-dev:deb",
     ],
 )
+
+# The public hub selects a single Lua library and its target runtime closure.
+cc_test(
+    name = "lua_single_library_test",
+    srcs = ["lua_single_library_test.cc"],
+    deps = ["@registry_ci_pkgconfig//liblua5.1-0-dev:liblua5.1_cc"],
+)
+
+# Keep the inherited aggregate-CcInfo probes above. These additional probes
+# exercise the producer's public headers-only API directly: each compiles the
+# same real package headers without inheriting a package's runtime link inputs.
+alias(
+    name = "protobuf_public_headers",
+    actual = select({
+        ":linux_amd64": "@registry_ci_protobuf_amd64//:libprotobuf_headers",
+        ":linux_arm64": "@registry_ci_protobuf_arm64//:libprotobuf_headers",
+    }),
+)
+
+cc_test(
+    name = "protobuf_public_headers_test",
+    srcs = ["protobuf_headers_test.cc"],
+    deps = [":protobuf_public_headers"],
+)
+
+alias(
+    name = "lua_public_headers",
+    actual = select({
+        ":linux_amd64": "@registry_ci_lua_amd64//:liblua5.1-0_headers",
+        ":linux_arm64": "@registry_ci_lua_arm64//:liblua5.1-0_headers",
+    }),
+)
+
+cc_test(
+    name = "lua_public_headers_test",
+    srcs = ["lua_headers_test.cc"],
+    deps = [":lua_public_headers"],
+)
+
+alias(
+    name = "xtables_public_headers",
+    actual = select({
+        ":linux_amd64": "@registry_ci_xtables_amd64//:libxtables_headers",
+        ":linux_arm64": "@registry_ci_xtables_arm64//:libxtables_headers",
+    }),
+)
+
+cc_test(
+    name = "xtables_public_headers_test",
+    srcs = ["xtables_headers_test.c"],
+    deps = [":xtables_public_headers"],
+)
+
+alias(
+    name = "libpcap_public_headers",
+    actual = select({
+        ":linux_amd64": "@registry_ci_libpcap_amd64//:libpcap0.8_headers",
+        ":linux_arm64": "@registry_ci_libpcap_arm64//:libpcap0.8_headers",
+    }),
+)
+
+cc_test(
+    name = "libpcap_public_headers_test",
+    srcs = ["libpcap_headers_test.c"],
+    deps = [":libpcap_public_headers"],
+)
