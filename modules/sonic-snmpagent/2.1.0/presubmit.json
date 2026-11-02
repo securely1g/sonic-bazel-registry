@@ -1,0 +1,17 @@
+{
+  "architectures": [
+    "amd64"
+  ],
+  "consumer_deps": [],
+  "platforms": {
+    "amd64": "@platforms//host:host"
+  },
+  "integration_test_module": "tests/integration",
+  "build_targets": [
+    "@sonic-snmpagent//:sonic_snmpagent_wheel",
+    "@sonic-snmpagent//:snmp_install"
+  ],
+  "test_targets": [
+    "//:installed_wheel_test"
+  ]
+}
