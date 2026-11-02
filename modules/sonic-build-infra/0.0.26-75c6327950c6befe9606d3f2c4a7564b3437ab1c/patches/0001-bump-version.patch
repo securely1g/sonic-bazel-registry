@@ -1,8 +1,8 @@
 From: SONiC Bazel Registry <securely1g@gmail.com>
-Subject: [PATCH 1/2] Identify the registered shared CLI build tools
+Subject: [PATCH 1/2] Identify the registered CLI tools and declared BFD linker
 
 Keep the fetched module version equal to its registry entry. This registers
-GNU patch and XML tools in the existing shared foreign runtime.
+shared CLI build tools and the declared BFD compiler wrapper.
 
 --- a/MODULE.bazel
 +++ b/MODULE.bazel
@@ -11,7 +11,7 @@ GNU patch and XML tools in the existing shared foreign runtime.
  module(
      name = "sonic-build-infra",
 -    version = "0.0.26",
-+    version = "0.0.26-f2015163598aee7e8e3df7ee1b2a13969a353236",
++    version = "0.0.26-75c6327950c6befe9606d3f2c4a7564b3437ab1c",
      bazel_compatibility = [
          ">=8.5.1",
          "<=8.5.1",
