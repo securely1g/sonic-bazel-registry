@@ -223,6 +223,11 @@ def _registry_ci_impl(module_ctx):
 
     translate_dependency_set(
         name = "registry_ci_pkgconfig",
+        cc_exports = {
+            "@%s//:cc_exports.json" % util.sanitize(package_key): package_key
+            for package_key, package in metadata_packages.items()
+            if package["name"].endswith("-dev")
+        },
         depset_name = "registry_ci",
         lock_content = json.encode({
             "version": 2,
