@@ -46,7 +46,9 @@
     "@sonic-build-infra//deps/openmpi:alternatives_pkg",
     "@sonic-build-infra//tools/build_tools:patch",
     "@sonic-build-infra//tools/build_tools:xmllint",
-    "@sonic-build-infra//tools/build_tools:xsltproc"
+    "@sonic-build-infra//tools/build_tools:xsltproc",
+    "@sonic-build-infra//tools/build_tools:docbook_runtime",
+    "@sonic-build-infra//tools/build_tools:docbook2man"
   ],
   "test_targets": [
     "@sonic-build-infra//tools/build_tools:runtime_test",
@@ -74,7 +76,22 @@
     "@sonic-build-infra//tools/build_tools:runtime_launcher_test",
     "@sonic-build-infra//registry_ci:kernel_arm64_tools_test",
     "@sonic-build-infra//registry_ci:kernel_armhf_tools_test",
-    "@sonic-build-infra//deps:alternatives_test"
+    "@sonic-build-infra//deps:alternatives_test",
+    "@sonic-build-infra//tools/build_tools:kernel_runtime_tools_test",
+    "@sonic-build-infra//testing:exec_test_args_test",
+    "@sonic-build-infra//cc/tests/runtime_context:layout_test",
+    "@sonic-build-infra//cc/tests/runtime_test:contract_test",
+    "@sonic-build-infra//cc/tests/runtime_test:native_test",
+    "@sonic-build-infra//cc/tests/runtime_test:origin_contract_test",
+    "@sonic-build-infra//tar:root_owned_tar_test",
+    "@sonic-build-infra//tar:debug_symbols_ownership_test",
+    "@sonic-build-infra//tests:installation_rpath_tar_test",
+    "@sonic-build-infra//tests:hello_rpath_installation_test",
+    "@sonic-build-infra//tests:hello_runpath_installation_test",
+    "@sonic-build-infra//registry_ci:prefix_map_test",
+    "@sonic-build-infra//tools/build_tools:perl_bookworm_test",
+    "@sonic-build-infra//tools/build_tools:bookworm_test_runtime_test",
+    "@sonic-build-infra//tools/build_tools:docbook_runtime_test"
   ],
   "host_platforms": {
     "amd64": "@sonic-build-infra//platforms:x86_64_trixie"
