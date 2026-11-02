@@ -32,6 +32,16 @@ VERSION = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+-]*\Z")
 LABEL = re.compile(r"@[a-z][a-z0-9._-]*//[A-Za-z0-9_./+-]*:[A-Za-z0-9_./+-]+\Z")
 ROOT_LABEL = re.compile(r"//[A-Za-z0-9_./+-]*:[A-Za-z0-9_./+-]+\Z")
 
+# Explicitly approved in-place update: https://github.com/securely1g/sonic-bazel-registry/pull/146
+# Whole entry trees bind every file, path, mode and type. This permits only the
+# reviewed forward transition, not subsequent edits or a rollback of .sonic.13.
+PUBLISHED_INPUT_UPDATES = {
+    "modules/rules_distroless/0.9.4.sonic.13": (
+        "6950d6dfd5369d86aad23d1479cad70631c97993",
+        "f449be186aaa231a7278a773452b22cb4fed9e86",
+    ),
+}
+
 
 class RegistryError(ValueError):
     """A registry entry or required validation result is invalid."""
@@ -544,7 +554,13 @@ def check_version_policy(root: Path, published: str, head: str,
                     f"{module}@{version}: published version changed or removed; "
                     "retain the version directory (rebase if the maintained branch advanced)")
             if head_versions[version] != tree:
-                check_published_files(root, f"{path}/{version}", published, head)
+                entry_path = f"{path}/{version}"
+                transition = (tree[1], head_versions[version][1])
+                if PUBLISHED_INPUT_UPDATES.get(entry_path) == transition:
+                    print(f"Publication exception: {entry_path}: "
+                          f"{transition[0]} -> {transition[1]}", file=sys.stderr)
+                else:
+                    check_published_files(root, entry_path, published, head)
         candidates = sorted(set(head_versions) - set(published_versions))
         require(len(candidates) <= 1,
                 f"{module}: multiple unreleased candidates relative to {published}: {', '.join(candidates)}; "
