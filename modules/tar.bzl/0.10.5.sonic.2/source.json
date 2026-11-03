@@ -1,0 +1,11 @@
+{
+  "integrity": "sha256-J5nf1DEx6HLI+f7UGlR6jFr9Vxxd9rgJ6rYhnURAOHI=",
+  "strip_prefix": "tar.bzl-0.10.5",
+  "url": "https://github.com/bazel-contrib/tar.bzl/releases/download/v0.10.5/tar.bzl-v0.10.5.tar.gz",
+  "patches": {
+    "0001-module-version.patch": "sha256-vGEnP/HxVBeK9NLAsN9KhP7xVeSQLmpKMBQhqcgqsRg=",
+    "0002-default-mtime.patch": "sha256-4wW4b2NsxqH4uXWXE9NLkevF1DgmqE6Es/corFMF9fw=",
+    "0003-declared-awk.patch": "sha256-pwzFcz1ZRLHkDbjK9mj99YHBSQ9GkHxySK8tzVdCna4="
+  },
+  "patch_strip": 1
+}
