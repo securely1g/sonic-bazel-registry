@@ -1,0 +1,20 @@
+{
+  "url": "https://github.com/secdev/scapy/archive/8e08cbf759de6709a5b4af6bea3655d293129bb4.tar.gz",
+  "strip_prefix": "scapy-8e08cbf759de6709a5b4af6bea3655d293129bb4",
+  "integrity": "sha256-ldTu4QUkuwemsLSDzL/vpJwk+Fc7Vw6VZr/O+NP5Uv4=",
+  "patch_strip": 1,
+  "patches": {
+    "0001-support-submodule-version-discovery.patch": "sha256-guyBAy/qFJfVulE0xdI3T8NYTt43iqYVz8VT1b3MVi0=",
+    "0002-close-async-sniffer-sockets.patch": "sha256-ZOFQ9CbmlkF+0gQXn7vBypmJGInzx4oKRppT61mnS7k=",
+    "0003-test-version-discovery-in-git-submodules.patch": "sha256-ArnlVd58r92cP/7/FIz/0XDlwI16tBDqb9n52pqA+t4=",
+    "0004-isolate-native-tls-test-server-port.patch": "sha256-pyAf+vWcY6LddNCgxCu8hUje6T9EJuTJIAOECZRzUq0="
+  },
+  "overlay": {
+    "BUILD.bazel": "sha256-Zqe/EtUv0+UaDGqU8S1P1M3Ly0D8x7XOjD1a2Ax/k28=",
+    "MODULE.bazel": "sha256-WYHR/DMWK/QyXsZeP1R4QUbnuZ+9CLoAnKEqisLW92A=",
+    "build_wheel.py": "sha256-Gk8S9qoz6zt3/MbMM5NAyMJEmfueGoi2Zk/2sPDkda0=",
+    "requirements.in": "sha256-drzszxTpKL1KxTOZckKZSgf7ZTbXQK1VtcKH37cucdk=",
+    "requirements_lock.txt": "sha256-b/9Lty0bRVWIbm75Sy7xyspQWQs9h/OhtKxjw1A7IBc=",
+    "validation.py": "sha256-Q5ftQoFIapDGQx+Jf8S6PrAHyq62gblN2YeunPd5hhs="
+  }
+}
