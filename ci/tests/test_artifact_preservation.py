@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 from pathlib import Path
+import shutil
 import sys
 import tarfile
 import tempfile
@@ -60,6 +62,67 @@ class ArtifactPreservationTests(unittest.TestCase):
         with tarfile.open(archive_path) as archive:
             archive.extractall(restored, filter="data")
         return restored / self.tree_path
+
+    def unicode_member(self) -> tuple[Path, dict]:
+        name = "NetLock_Arany_=Class_Gold=_Főtanúsítvány.crt"
+        member = self.tree / name
+        member.write_bytes(b"certificate fixture\n")
+        # Exact malformed basename observed in Bazel 8.5.1's real BEP.
+        uri = member.parent.as_uri() + "/" + name.replace("ő", "\ufffd%C2%91")
+        return member, {"name": "tree/" + name, "pathPrefix": ["bazel-out", "bin"],
+                        "uri": uri, "digest": hashlib.sha256(member.read_bytes()).hexdigest(),
+                        "length": str(member.stat().st_size)}
+
+    def test_lossy_unicode_tree_uri_uses_verified_declared_file(self) -> None:
+        member, output = self.unicode_member()
+        _, archive = self.collect([output])
+        restored = self.restore(archive)
+        self.assertEqual((restored / member.name).read_bytes(), member.read_bytes())
+
+    def test_lossy_unicode_tree_uri_rejects_bad_identity_metadata(self) -> None:
+        _, output = self.unicode_member()
+        for field, value in [("digest", None), ("digest", "bad"), ("digest", "0" * 64),
+                             ("length", None), ("length", True), ("length", "-1"),
+                             ("length", "01"), ("length", "999")]:
+            with self.subTest(field=field, value=value):
+                changed = dict(output, **{field: value})
+                with self.assertRaises(registry_ci.RegistryError):
+                    self.collect([changed])
+                shutil.rmtree(self.artifacts)
+
+    def test_lossy_unicode_tree_uri_rejects_path_mismatches(self) -> None:
+        member, output = self.unicode_member()
+        for uri in [output["uri"].replace("NetLock", "Wrong"),
+                    output["uri"].replace("/tree/", "/other/"),
+                    output["uri"].replace("/tree/", "/tree/../tree/"),
+                    output["uri"] + "%ZZ", member.parent.as_uri() + "/wrong.crt",
+                    self.root.as_uri() + "/" + Path(output["uri"]).name]:
+            with self.subTest(uri=uri):
+                with self.assertRaises(registry_ci.RegistryError):
+                    self.collect([dict(output, uri=uri)])
+                shutil.rmtree(self.artifacts)
+
+    def test_ascii_tree_uri_mismatch_is_not_recovered(self) -> None:
+        member = self.tree / "certificate.crt"
+        member.write_bytes(b"certificate fixture\n")
+        with self.assertRaisesRegex(registry_ci.RegistryError, "does not match"):
+            self.collect([{"name": "tree/certificate.crt", "pathPrefix": ["bazel-out", "bin"],
+                           "uri": self.tree.as_uri() + "/certifi\ufffdcate.crt",
+                           "digest": hashlib.sha256(member.read_bytes()).hexdigest(),
+                           "length": str(member.stat().st_size)}])
+
+    def test_lossy_unicode_tree_uri_cannot_select_file_outside_declared_tree(self) -> None:
+        member, output = self.unicode_member()
+        outside_tree = self.work / "certificate.crt"
+        member.replace(outside_tree)
+        member.symlink_to(outside_tree)
+        with self.assertRaisesRegex(registry_ci.RegistryError, "confined regular file"):
+            self.collect([output])
+
+    def test_lossy_unicode_tree_uri_rejects_logical_escape(self) -> None:
+        _, output = self.unicode_member()
+        with self.assertRaisesRegex(registry_ci.RegistryError, "Unsafe build output path"):
+            self.collect([dict(output, name="tree/../" + Path(output["name"]).name)])
 
     def test_directory_modes_names_and_internal_file_and_directory_links(self) -> None:
         self.tree.chmod(0o750)
