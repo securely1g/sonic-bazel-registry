@@ -1,0 +1,17 @@
+{
+  "homepage": "https://lldpd.github.io",
+  "maintainers": [
+    {
+      "name": "Guohan Lu",
+      "email": "securely1g@gmail.com",
+      "github": "securely1g"
+    }
+  ],
+  "repository": [
+    "https://github.com/lldpd/lldpd"
+  ],
+  "versions": [
+    "1.0.16.sonic.1"
+  ],
+  "yanked_versions": {}
+}
