@@ -1,6 +1,8 @@
 """Check the source compiler and the installed shared runtime/debug pair."""
 
 import argparse
+import hashlib
+import json
 import os
 from pathlib import Path
 import re
@@ -23,11 +25,32 @@ def build_id(path):
 
 def main():
     parser = argparse.ArgumentParser()
-    for name in ["runtime", "debug", "consumer", "protoc"]:
+    names = ["runtime", "debug", "consumer", "protoc", "metadata", "control", "changelog"]
+    for name in names:
         parser.add_argument("--" + name, required=True)
     args = parser.parse_args()
     resolver = runfiles.Create()
-    paths = {name: Path(resolver.Rlocation(getattr(args, name))).resolve() for name in ["runtime", "debug", "consumer", "protoc"]}
+    paths = {name: Path(resolver.Rlocation(getattr(args, name))).resolve() for name in names}
+    metadata = json.loads(paths["metadata"].read_text())
+    assert metadata["schema"] == 1 and metadata["module"] == "protobuf-legacy"
+    assert set(metadata["packages"]) == {"libprotobuf32t64"}
+    package = metadata["packages"]["libprotobuf32t64"]
+    assert package["runtime_target"] == "//:libprotobuf_pkg"
+    assert package["payload_sha256"] == hashlib.sha256(paths["runtime"].read_bytes()).hexdigest()
+    for name in ["control", "changelog"]:
+        assert metadata["_generated"][name + "_sha256"] == hashlib.sha256(paths[name].read_bytes()).hexdigest()
+    fields = package["control_fields"]
+    version = "3.21.12-11+deb13u1"
+    assert fields["Package"] == "libprotobuf32t64" and fields["Version"] == version
+    # The shared schema stores architecture once; verify it against the ELF below.
+    assert metadata["architecture"] in ("amd64", "arm64")
+    assert fields["Multi-Arch"] == "same"
+    assert fields["Provides"] == "libprotobuf32 (= " + version + ")"
+    assert fields["Replaces"] == "libprotobuf32"
+    assert "libprotobuf32 (<< " + version + ")" in fields["Breaks"]
+    for library in ["libc6", "libgcc-s1", "libstdc++6"]:
+        assert re.search(r"(?:^|, )" + re.escape(library) + r"(?: \(|,|$)", fields["Depends"]), fields
+    assert "${" not in json.dumps(fields)
     assert output(str(paths["protoc"]), "--version").strip() == "libprotoc 3.21.12"
     with tempfile.TemporaryDirectory() as temporary:
         root = Path(temporary)
@@ -40,6 +63,8 @@ def main():
         libraries = list(root.glob("usr/lib/*-linux-gnu/libprotobuf.so.32.0.12"))
         assert len(libraries) == 1, libraries
         library = libraries[0]
+        assert metadata["architecture"] == {62: "amd64", 183: "arm64"}[struct.unpack_from("<H", library.read_bytes(), 18)[0]]
+        assert (root / "usr/share/doc/libprotobuf32t64/copyright").is_file()
         soname = library.with_name("libprotobuf.so.32")
         assert soname.is_symlink() and os.readlink(soname) == library.name
         dynamic = output("readelf", "-d", str(library))
