@@ -39,7 +39,7 @@ def pcap(payloads):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    for key in ("runtime", "debug", "unstripped", "copyright", "readelf", "objcopy"):
+    for key in ("runtime", "debug", "unstripped", "copyright", "readelf", "objcopy", "metadata"):
         parser.add_argument("--" + key, type=Path, required=True)
     args = parser.parse_args()
     env = {key: value for key, value in os.environ.items() if key not in ("LD_LIBRARY_PATH", "LD_PRELOAD", "LD_AUDIT")}
@@ -59,6 +59,13 @@ def main():
         with tarfile.open(args.debug) as archive:
             archive.extractall(debug, filter="data")
         assert (runtime / "usr/share/doc/sflowtool/copyright").read_bytes() == args.copyright.read_bytes()
+        metadata = json.loads(args.metadata.read_text())
+        assert metadata["schema"] == 1 and metadata["architecture"] == "amd64"
+        assert set(metadata["packages"]) == {"sflowtool"}
+        fields = metadata["packages"]["sflowtool"]["control_fields"]
+        assert fields["Package"] == "sflowtool" and fields["Version"] == "6.11"
+        assert "libc6" in fields["Depends"]
+        assert "${" not in fields["Depends"], fields
         binary = runtime / "usr/bin/sflowtool"
 
         def elf(path, *flags):

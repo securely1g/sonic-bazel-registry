@@ -3,7 +3,7 @@
 This entry builds the `sflowtool` executable selected by SONiC's
 `src/sflow/sflowtool/Makefile`: upstream commit
 `c953cfe8991286457080938a29fc72019f64718a`. Its `configure.ac` declares version
-`6.11`; the registry represents that as `6.11.0.sonic.1` to follow the
+`6.11`; the registry represents that as `6.11.0.sonic.2` to follow the
 three-component foreign-package version convention. The source revision has no
 Bazel files and the Bazel Central Registry has no sflowtool module (checked
 2026-11-03).
@@ -30,6 +30,9 @@ Public targets:
 
 - `@sflowtool//:runtime`: `/usr/bin/sflowtool` (root, 0755) and the unchanged
   upstream `COPYING` notice at `/usr/share/doc/sflowtool/copyright`.
+- `@sflowtool//:runtime_packages.json`: original package identity `sflowtool`
+  version `6.11`, with the architecture and libc dependency derived from the
+  actual runtime ELF; no DEB output.
 - `@sflowtool//:runtime.debug_symbols`: symbols from the same deployed ELF.
 - `@sflowtool//:sflowtool`: unstripped executable for inspection.
 - `@sflowtool//:configuration` and `:configure_log`: generated configure evidence.
@@ -48,3 +51,12 @@ any declared source reruns that action; packaging and consumers are separate
 Bazel actions. Normal builds do not regenerate maintained BUILD definitions.
 To add upstream files, keep them in the declared source tree; to change installed
 paths, update the small runtime target and its independent installed inventory.
+
+The metadata target uses the unchanged `control` and `changelog` selected by
+`sonic-buildimage` at `17807c19314b3397a694bd8070e3b515667b56b3`, under
+`src/sflow/sflowtool/debian`. Its package version is `6.11`, independently of
+the registry module version `6.11.0.sonic.2`. The legacy debhelper compat level
+is 9; it is not an input to metadata derivation. Recipe metadata is excluded
+from compilation inputs, so a metadata-only edit does not rebuild the binary.
+The sFlow image consumes this owner target when constructing package state
+for its directly installed source TARs.
