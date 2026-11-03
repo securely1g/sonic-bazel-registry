@@ -1,0 +1,19 @@
+{
+  "url": "https://mirrors.kernel.org/gnu/gawk/gawk-5.3.2.tar.xz",
+  "mirror_urls": [
+    "https://ftp.gnu.org/gnu/gawk/gawk-5.3.2.tar.xz",
+    "https://ftpmirror.gnu.org/gnu/gawk/gawk-5.3.2.tar.xz"
+  ],
+  "strip_prefix": "gawk-5.3.2",
+  "integrity": "sha256-+MNIZQnecFGSE4sA7ywAu73Q6Eww1cB9I/xzqdxMycw=",
+  "overlay": {
+    "BUILD.bazel": "sha256-a5USn+jAJwKdFEfjzPIGcBWfb3DMlrcdrSnn6C63e9E=",
+    "MODULE.bazel": "sha256-qtyj5IX5iA1CTb6kNEDGVze85r065ipvpKLTYJvsMR0=",
+    "posix/config_darwin.h": "sha256-gPVRlvtdXPw4Ikwd5S89wPPw5AaiB2HTHa1KOtj40mU=",
+    "posix/config_linux.h": "sha256-iEaeXYBUCvprsIEEi5ipwqt0JV8d73+rLgoBYTegC6Q=",
+    "test/BUILD.bazel": "sha256-NktOb/GQZ8AimXwLEfGFMJB3TtgAFhobM5f9aWsHwLQ=",
+    "toolchain.bzl": "sha256-1+zgePqGsmfOjz3a1CMPGQlWR5S8zxBeFKGf/VFins4=",
+    "registry_ci/BUILD.bazel": "sha256-8pVtw19mhoPBLPuKsbUknzPIDuLhbozhFku7cgEndtw=",
+    "registry_ci/toolchain_smoke.expected": "sha256-CEx5nNVR3R2NXF+aXVk7LpMfXjYSLuXHk8HQihmDnMA="
+  }
+}
