@@ -29,3 +29,12 @@ unchanged. That evidence stays bound to its recorded inputs and preceding
 review catalog.
 Current-head source/CodeQL and ordinary registry acceptance are separate CI
 gates; this Draft registration does not claim downstream image acceptance.
+
+Source `706cc3d1` additionally fixes the standalone `bazel --version` query in
+the review CI launcher. Its archive differs from `7c49be4d` only in that CI
+helper and its regression test; native build, runtime and original test inputs
+are byte-identical. The prior `fea55db`/`7c49be4d` ARM64 ordinary consumer has
+44 independently verified outputs and seven XMLs (419 passes/two original
+applicability skips). Those receipts remain bound to the prior candidate.
+Actual new-head payload equality, source package-contract and registry native
+acceptance remain pending; source-input equality alone is not artifact proof.

@@ -5,7 +5,7 @@
  module(
      name = "sonic-sairedis",
 -    version = "0.0.4",
-+    version = "0.0.4-7c49be4d19826917b457a3e8183529af760df296",
++    version = "0.0.4-706cc3d1f6182dea18deed36a2ddb0fbcf1a59fc",
      bazel_compatibility = [
          ">=8.5.1",
          "<=8.5.1",
