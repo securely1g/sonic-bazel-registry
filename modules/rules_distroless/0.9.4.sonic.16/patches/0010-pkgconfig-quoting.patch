@@ -1,0 +1,61 @@
+# SONiC adaptation: shell-unquote pkg-config flags after variable expansion.
+# Reproduced with Debian libpcap 1.10.5-2 quoted prefix/include/lib variables.
+# The upstream main parser still whitespace-splits fields at review time.
+--- a/apt/private/pkgconfig.bzl
++++ b/apt/private/pkgconfig.bzl
+@@ -75,17 +75,51 @@
+ def _trim(str):
+     return str.rstrip(" ").lstrip(" ")
+ 
+-def _tokens(value):
+-    return [token for token in value.replace("\t", " ").split(" ") if token]
++def _tokens(value, split_words = True):
++    # .pc flag fields use shell quoting after variable expansion. Preserve
++    # whitespace inside quotes and escaped characters, without evaluating shell
++    # substitutions. Paths read from variables need unquoting but not splitting.
++    tokens = []
++    token = ""
++    quote = ""
++    escaped = False
++    for char in value.elems():
++        if escaped:
++            # Within double quotes a backslash only escapes these characters.
++            if quote == '"' and char not in ['"', "\\", "$", "`", "\n"]:
++                token += "\\"
++            if char != "\n":
++                token += char
++            escaped = False
++        elif char == "\\" and quote != "'":
++            escaped = True
++        elif quote:
++            if char == quote:
++                quote = ""
++            else:
++                token += char
++        elif char in ["'", '"']:
++            quote = char
++        elif split_words and char in [" ", "\t", "\n", "\r"]:
++            if token:
++                tokens.append(token)
++                token = ""
++        else:
++            token += char
++    if escaped or quote:
++        fail("unterminated quote or escape in pkg-config value: " + value)
++    if token:
++        tokens.append(token)
++    return tokens
+ 
+ def process_pcconfig(pc):
+     (directives, variables) = pc
+     includedir = ""
+     libdir = ""
+     if "includedir" in variables:
+-        includedir = _trim(variables["includedir"])
++        includedir = "".join(_tokens(_trim(variables["includedir"]), split_words = False))
+     if "libdir" in variables:
+-        libdir = _trim(variables["libdir"])
++        libdir = "".join(_tokens(_trim(variables["libdir"]), split_words = False))
+     linkopts = []
+     includes = []
+     link_paths = []
