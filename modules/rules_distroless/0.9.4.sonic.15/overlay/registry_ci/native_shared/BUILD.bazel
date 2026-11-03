@@ -1,0 +1,20 @@
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "BUILD.fixture",
+    "leaf.c",
+    "middle.c",
+])
+
+cc_test(
+    name = "runpath_test",
+    srcs = ["test.c"],
+    args = ["$(rootpath @registry_ci_native_shared//:middle_shared)"],
+    data = ["@registry_ci_native_shared//:middle_shared"],
+    linkopts = [
+        "-Wl,--enable-new-dtags",
+        "-Wl,-rpath,$$ORIGIN",
+    ],
+)
