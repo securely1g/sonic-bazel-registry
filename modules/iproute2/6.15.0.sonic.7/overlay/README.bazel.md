@@ -89,3 +89,12 @@ to the existing Bazel TARs. The shared metadata rule inspects those target
 binaries and declared dependency packages, so version constraints come from
 the built artifacts and Debian tools. There is no handwritten JSON metadata
 file or new DEB producer.
+
+## Reproducible debug paths
+
+The native rule enables upstream `set_file_prefix_map` for the entire execution
+root, including dependency and sysroot headers outside the current source
+directory. A different sandbox location therefore does not enter DWARF paths
+or change build IDs for that reason. The installed-package test rejects
+execution-root paths in every delivered debug file and retains the original
+program, runtime, parser, feature and matching-symbol checks.
