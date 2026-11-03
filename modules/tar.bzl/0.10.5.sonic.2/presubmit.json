@@ -26,5 +26,6 @@
     "@tar.bzl//tests/default_mtime:invalid_3_test",
     "@tar.bzl//tests/default_mtime:invalid_4_test",
     "@tar.bzl//tests/default_mtime:invalid_5_test"
-  ]
+  ],
+  "integration_test_module": "tests/integration"
 }
