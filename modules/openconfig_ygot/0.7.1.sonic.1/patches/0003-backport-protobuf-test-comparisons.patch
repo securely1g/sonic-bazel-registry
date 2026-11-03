@@ -1,0 +1,285 @@
+Subject: Compare protobuf messages through their supported test API
+
+SONiC already selects protobuf 1.36.11. The old ygot test comparers inspect
+protobuf implementation state, which prevents the shared owner's original
+suite from testing that dependency combination. Use standard protocmp for
+gNMI messages and adapt custom JSON comparisons to its message form.
+Preserve the exported JSONIETFComparer signature and verify that JSON-IETF
+and string oneofs remain distinct. No dependency version changes are made.
+
+Origin: Backport of openconfig/ygot PR #377's testcmp/testutil changes,
+with SONiC adaptations and regressions preserving the v0.7.1 public API:
+https://github.com/openconfig/ygot/pull/377
+
+diff --git a/testcmp/cmp.go b/testcmp/cmp.go
+--- a/testcmp/cmp.go
++++ b/testcmp/cmp.go
+@@ -23,11 +23,13 @@
+ 	"reflect"
+ 
+ 	log "github.com/golang/glog"
++	"github.com/golang/protobuf/proto"
+ 	"github.com/google/go-cmp/cmp"
+ 	"github.com/google/go-cmp/cmp/cmpopts"
+ 	"github.com/openconfig/ygot/testutil"
+ 	"github.com/openconfig/ygot/ygot"
+ 	"github.com/openconfig/ygot/ytypes"
++	"google.golang.org/protobuf/testing/protocmp"
+ 
+ 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
+ )
+@@ -43,13 +45,18 @@
+ 	}
+ 
+ 	return testutil.CustomComparer{
+-		reflect.TypeOf(&gnmipb.Update{}): cmp.Comparer(func(a, b *gnmipb.Update) bool {
+-			_, equal, err := GNMIUpdateComparer(a, b, schema)
+-			if err != nil {
+-				log.Errorf("cannot compare updates for Notifications, got err: %v", err)
+-			}
+-			return equal
+-		}),
++		reflect.TypeOf(&gnmipb.Update{}): protocmp.FilterMessage(&gnmipb.Update{},
++			cmp.Comparer(func(ma, mb protocmp.Message) bool {
++				a := new(gnmipb.Update)
++				proto.Merge(a, ma)
++				b := new(gnmipb.Update)
++				proto.Merge(b, mb)
++				_, equal, err := GNMIUpdateComparer(a, b, schema)
++				if err != nil {
++					log.Errorf("cannot compare updates for Notifications, got err: %v", err)
++				}
++				return equal
++			})),
+ 	}, nil
+ }
+ 
+@@ -82,7 +89,7 @@
+ 	if !aOK || !bOK {
+ 		// One or both of the updates doesn't contain a JSON IETF typed value
+ 		// so revert to using cmp.Equal to test their equality.
+-		return nil, cmp.Equal(a, b, cmpopts.EquateEmpty()), nil
++		return nil, cmp.Equal(a, b, cmpopts.EquateEmpty(), protocmp.Transform()), nil
+ 	}
+ 
+ 	// Create a new root, since GetOrCreateNode can modify the root even during
+diff --git a/testcmp/cmp_test.go b/testcmp/cmp_test.go
+--- a/testcmp/cmp_test.go
++++ b/testcmp/cmp_test.go
+@@ -17,13 +17,14 @@
+ 	"fmt"
+ 	"testing"
+ 
+-	"github.com/kylelemons/godebug/pretty"
++	"github.com/google/go-cmp/cmp"
+ 	"github.com/openconfig/gnmi/errdiff"
+ 	"github.com/openconfig/ygot/exampleoc"
+ 	"github.com/openconfig/ygot/testutil"
+ 	"github.com/openconfig/ygot/uexampleoc"
+ 	"github.com/openconfig/ygot/ygot"
+ 	"github.com/openconfig/ygot/ytypes"
++	"google.golang.org/protobuf/testing/protocmp"
+ 
+ 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
+ )
+@@ -262,7 +263,7 @@
+ 				t.Errorf("did not get expected equal status, got: %v, want: %v", gotEqual, tt.wantEqual)
+ 			}
+ 
+-			if diff := pretty.Compare(gotDiff, tt.wantDiff); diff != "" {
++			if diff := cmp.Diff(gotDiff, tt.wantDiff, protocmp.Transform()); diff != "" {
+ 				t.Errorf("did not get expected diff, diff(-got,+want):\n%s", diff)
+ 			}
+ 		})
+diff --git a/testutil/testutil.go b/testutil/testutil.go
+--- a/testutil/testutil.go
++++ b/testutil/testutil.go
+@@ -26,6 +26,7 @@
+ 	"github.com/google/go-cmp/cmp"
+ 	"github.com/google/go-cmp/cmp/cmpopts"
+ 	"github.com/openconfig/gnmi/value"
++	"google.golang.org/protobuf/testing/protocmp"
+ 
+ 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
+ )
+@@ -58,6 +59,9 @@
+ // compare a specific field of a gNMI message. It is a map, keyed by
+ // a reflect.Type of the message field, with a value of a cmp.Option
+ // produced by cmp.Comparer().
++// NOTE: Proto comparison is done through protocmp -- this means any custom
++// comparison of a proto field can only be done by supplying a protocmp-created
++// cmp.Option.
+ type CustomComparer map[reflect.Type]cmp.Option
+ 
+ // IsComparerOpt marks CustomComparer as a ComparerOpt.
+@@ -68,7 +72,15 @@
+ // with those in any CustomComparer that is found within the opts slice.
+ func comparers(opts []ComparerOpt) []cmp.Option {
+ 	cmps := map[reflect.Type]cmp.Option{
+-		reflect.TypeOf(&gnmipb.TypedValue_JsonIetfVal{}): cmp.Comparer(JSONIETFComparer),
++		reflect.TypeOf(&gnmipb.TypedValue{}): protocmp.FilterMessage(&gnmipb.TypedValue{},
++			cmp.Comparer(func(a, b protocmp.Message) bool {
++				aj, aOK := a["json_ietf_val"]
++				bj, bOK := b["json_ietf_val"]
++				if aOK || bOK {
++					return aOK && bOK && jsonIETFBytesEqual(aj.([]byte), bj.([]byte))
++				}
++				return cmp.Equal(a, b)
++			})),
+ 	}
+ 
+ 	for _, o := range opts {
+@@ -131,7 +143,7 @@
+ func NotificationSetEqual(a, b []*gnmipb.Notification, opts ...ComparerOpt) bool {
+ 	ignoreTS := hasIgnoreTimestamp(opts)
+ 	cmps := comparers(opts)
+-	cmps = append(cmps, []cmp.Option{cmpopts.SortSlices(UpdateLess), cmpopts.EquateEmpty()}...)
++	cmps = append(cmps, []cmp.Option{cmpopts.SortSlices(UpdateLess), cmpopts.EquateEmpty(), protocmp.Transform()}...)
+ 
+ 	for _, an := range a {
+ 		var matched bool
+@@ -142,7 +154,7 @@
+ 				update: cmp.Equal(an.GetUpdate(), bn.GetUpdate(),
+ 					cmps...,
+ 				),
+-				delete: cmp.Equal(an.GetDelete(), bn.GetDelete(), cmpopts.SortSlices(PathLess), cmpopts.EquateEmpty()),
++				delete: cmp.Equal(an.GetDelete(), bn.GetDelete(), cmpopts.SortSlices(PathLess), cmpopts.EquateEmpty(), protocmp.Transform()),
+ 			}
+ 
+ 			if !ignoreTS {
+@@ -165,12 +177,18 @@
+ // determine whether their contents are the same. If either value is
+ // invalid JSON, the function returns false.
+ func JSONIETFComparer(a, b *gnmipb.TypedValue_JsonIetfVal) bool {
++	return jsonIETFBytesEqual(a.JsonIetfVal, b.JsonIetfVal)
++}
++
++// jsonIETFBytesEqual adapts protocmp's byte fields without changing the public
++// JSONIETFComparer signature used by existing SONiC callers.
++func jsonIETFBytesEqual(a, b []byte) bool {
+ 	aj, bj := map[string]interface{}{}, map[string]interface{}{}
+-	if err := json.Unmarshal(a.JsonIetfVal, &aj); err != nil {
+-		return false
+-	}
+-
+-	if err := json.Unmarshal(b.JsonIetfVal, &bj); err != nil {
++	if err := json.Unmarshal(a, &aj); err != nil {
++		return false
++	}
++
++	if err := json.Unmarshal(b, &bj); err != nil {
+ 		return false
+ 	}
+ 
+@@ -194,7 +212,7 @@
+ // UpdateSetEqual compares the contents of a and b and returns true if they are
+ // equal. Order of the slices is ignored.
+ func UpdateSetEqual(a, b []*gnmipb.Update) bool {
+-	return cmp.Equal(a, b, cmpopts.SortSlices(UpdateLess), cmpopts.EquateEmpty())
++	return cmp.Equal(a, b, cmpopts.SortSlices(UpdateLess), cmpopts.EquateEmpty(), protocmp.Transform())
+ }
+ 
+ // updateSet is an alias for a slice of gNMI Update messages.
+@@ -245,7 +263,7 @@
+ 		return PathLess(a.Prefix, b.Prefix)
+ 	}
+ 
+-	if !cmp.Equal(a.Update, b.Update, cmpopts.SortSlices(UpdateLess), cmpopts.EquateEmpty()) {
++	if !cmp.Equal(a.Update, b.Update, cmpopts.SortSlices(UpdateLess), cmpopts.EquateEmpty(), protocmp.Transform()) {
+ 		if len(a.Update) < len(b.Update) {
+ 			return true
+ 		}
+@@ -267,7 +285,7 @@
+ 		}
+ 	}
+ 
+-	if !cmp.Equal(a.Delete, b.Delete, cmpopts.SortSlices(PathLess), cmpopts.EquateEmpty()) {
++	if !cmp.Equal(a.Delete, b.Delete, cmpopts.SortSlices(PathLess), cmpopts.EquateEmpty(), protocmp.Transform()) {
+ 		if len(a.Delete) < len(b.Delete) {
+ 			return true
+ 		}
+diff --git a/testutil/testutil_test.go b/testutil/testutil_test.go
+--- a/testutil/testutil_test.go
++++ b/testutil/testutil_test.go
+@@ -20,10 +20,10 @@
+ 	"strings"
+ 	"testing"
+ 
+-	"github.com/golang/protobuf/proto"
+ 	"github.com/google/go-cmp/cmp"
+ 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
+ 	"github.com/openconfig/ygot/ygot"
++	"google.golang.org/protobuf/testing/protocmp"
+ )
+ 
+ func mustPath(s string) *gnmipb.Path {
+@@ -96,18 +96,19 @@
+ 		},
+ 		inOpts: []ComparerOpt{
+ 			CustomComparer{
+-				reflect.TypeOf(&gnmipb.Path{}): cmp.Comparer(func(a, b *gnmipb.Path) bool {
+-					for _, p := range []*gnmipb.Path{a, b} {
+-						for _, e := range p.Elem {
+-							// Remove anything before a ":"
+-							if pp := strings.Split(e.Name, ":"); len(pp) == 2 {
+-								e.Name = pp[1]
++				reflect.TypeOf(&gnmipb.Path{}): protocmp.FilterMessage(&gnmipb.Path{},
++					cmp.Comparer(func(a, b protocmp.Message) bool {
++						for _, p := range []protocmp.Message{a, b} {
++							for _, e := range p["elem"].([]protocmp.Message) {
++								// Remove anything before a ":"
++								if pp := strings.Split(e["name"].(string), ":"); len(pp) == 2 {
++									e["name"] = pp[1]
++								}
+ 							}
+ 						}
+-					}
+-
+-					return proto.Equal(a, b)
+-				}),
++
++						return cmp.Equal(a, b)
++					})),
+ 			},
+ 		},
+ 		want: true,
+@@ -1964,3 +1965,39 @@
+ 		})
+ 	}
+ }
++
++// Keep the pre-protocmp public API available to existing SONiC callers.
++var _ func(*gnmipb.TypedValue_JsonIetfVal, *gnmipb.TypedValue_JsonIetfVal) bool = JSONIETFComparer
++
++func TestJSONIETFComparerPublicAPI(t *testing.T) {
++	for _, tt := range []struct {
++		name, a, b string
++		want       bool
++	}{
++		{"object order", `{"a":1,"b":2}`, `{"b":2,"a":1}`, true},
++		{"different value", `{"a":1}`, `{"a":2}`, false},
++		{"invalid first", `{`, `{"a":1}`, false},
++		{"invalid second", `{"a":1}`, `{`, false},
++	} {
++		t.Run(tt.name, func(t *testing.T) {
++			a := &gnmipb.TypedValue_JsonIetfVal{JsonIetfVal: []byte(tt.a)}
++			b := &gnmipb.TypedValue_JsonIetfVal{JsonIetfVal: []byte(tt.b)}
++			if got := JSONIETFComparer(a, b); got != tt.want {
++				t.Errorf("JSONIETFComparer(%q, %q) = %v, want %v", tt.a, tt.b, got, tt.want)
++			}
++		})
++	}
++}
++
++func TestNotificationSetEqualDistinctJSONOneof(t *testing.T) {
++	jsonValue := jsonIETF(`{"a":1}`)
++	stringValue := &gnmipb.TypedValue{Value: &gnmipb.TypedValue_StringVal{StringVal: `{"a":1}`}}
++	notifications := func(value *gnmipb.TypedValue) []*gnmipb.Notification {
++		return []*gnmipb.Notification{{Update: []*gnmipb.Update{{Val: value}}}}
++	}
++	for _, values := range [][2]*gnmipb.TypedValue{{jsonValue, stringValue}, {stringValue, jsonValue}} {
++		if NotificationSetEqual(notifications(values[0]), notifications(values[1])) {
++			t.Error("JSON IETF and string oneofs must remain unequal")
++		}
++	}
++}
