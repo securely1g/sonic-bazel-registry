@@ -23,7 +23,8 @@
     "0017-individual-apt-libraries.patch": "sha256-a8xX5bQIaCSBcRW9Sc6HlJbbcx3MdbtOqNNGyn4vMWI=",
     "0018-public-cc-import.patch": "sha256-HQNENBz+9QFA86VVpBtiVucEr8qTPymgkPTjBvScF4o=",
     "0019-target-multiarch-headers.patch": "sha256-Hh7GolQOH3aufgXVUS4/kb+/lKfCqFzTuxxsY92+mes=",
-    "0020-unified-apt-inputs.patch": "sha256-mlGpxlpinCCix2dvusFLRVpJY6l/V+9LkuoDsjsqEcI="
+    "0020-unified-apt-inputs.patch": "sha256-mlGpxlpinCCix2dvusFLRVpJY6l/V+9LkuoDsjsqEcI=",
+    "0021-complete-shared-package-dependencies.patch": "sha256-6ZmSB0VxVRHq6bbBNNFPv78SsIkHuIq0c5Aqni0mcWw="
   },
   "patch_strip": 1,
   "overlay": {

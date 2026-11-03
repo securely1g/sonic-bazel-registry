@@ -293,3 +293,5 @@ entry point and the inherited native tests pass.
 ## Unified APT source and lock interfaces
 
 Patch 0020 adds shared source/request inputs and reviewed lock imports, static-library and linker-script inputs, original archive aliases, declared AWK execution and relocatable exported pkg-config files. The package payload archives retain their original bytes. This candidate preserves patches 0002–0019 from registry PR #200 byte-for-byte, including target-CPU header selection, and retains all 35 test targets before adding the pkg-config relocation regression. The two sample package-lock tests remain in the standalone integration module. The declared AWK tool requires the gawk candidate registration.
+
+`0021-complete-shared-package-dependencies.patch` preserves dependency expansion when a package is first selected without transitive dependencies and is later required by a native library. The shared resolution state records completed transitive work; a payload-only request cannot suppress or erase it. The Bookworm production-lock regression and native header/link tests in sonic-build-infra PR #79 cover the libc6-dev → libc6 failure.
