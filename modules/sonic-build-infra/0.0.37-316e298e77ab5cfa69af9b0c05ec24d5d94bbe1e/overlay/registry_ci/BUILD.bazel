@@ -1,4 +1,28 @@
 load("@rules_python//python:defs.bzl", "py_test")
+load("//toolchains/gcc/tests:prefix_map.bzl", "prefix_map_fixture")
+
+# The producer's root-only assertion does not include external/<repository>/.
+# Exercise the same absolute-source compilation with this consumer's execpath.
+prefix_map_fixture(
+    name = "prefix_map_object",
+    src = "prefix_map.c",
+)
+
+py_test(
+    name = "prefix_map_test",
+    srcs = ["prefix_map_test.py"],
+    args = [
+        "$(execpath :prefix_map.c)",
+        "$(location //toolchains/binutils:objcopy)",
+        "$(locations :prefix_map_object)",
+    ],
+    data = [
+        ":prefix_map.c",
+        ":prefix_map_object",
+        "//toolchains/binutils:objcopy",
+    ],
+    visibility = ["//visibility:public"],
+)
 
 # Build the shared runtime but retain only its small provenance receipt.
 genrule(
