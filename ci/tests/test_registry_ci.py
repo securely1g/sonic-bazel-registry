@@ -1312,6 +1312,7 @@ class RustPreparationTests(FixtureTestCase):
         def run(command, cwd, log):
             self.assertIn("--shared-only", command)
             self.assertIn("--bazel-arg=--registry=file:///registry", command)
+            self.assertIn("--bazel-arg=--experimental_downloader_config=/registry/ci/source_mirrors.cfg", command)
             self.assertNotIn("--bazel-arg=--platforms=@alpha//:platform", command)
             self.assertNotIn("--bazel-arg=--@alpha//:feature=True", command)
             staged = work / "rust-deps" / "alpha-private"
@@ -1330,6 +1331,7 @@ class RustPreparationTests(FixtureTestCase):
                 return
             flags = registry_ci.prepare_rust(self.config, consumer, work, artifacts, "bazel", [
                 "--registry=file:///registry", "--platforms=@alpha//:platform", "--@alpha//:feature=True",
+                "--experimental_downloader_config=/registry/ci/source_mirrors.cfg",
             ])
         return flags, execute, artifacts
 
@@ -1988,6 +1990,7 @@ class FetchedModuleTests(FixtureTestCase):
             "from pathlib import Path\n"
             "import sys\n"
             "args = sys.argv[1:]\n"
+            f"assert {str("--experimental_downloader_config=" + str(self.root / "ci/source_mirrors.cfg"))!r} in args\n"
             "assert ('--@alpha//bazel:yang_modules=False' in args) == ('info' not in args)\n"
             "if 'info' in args:\n"
             f"    print(str(Path.cwd()) if 'execution_root' in args else {str(self.output_base)!r})\n"
