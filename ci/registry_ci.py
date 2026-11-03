@@ -36,6 +36,11 @@ ROOT_LABEL = re.compile(r"//[A-Za-z0-9_./+-]*:[A-Za-z0-9_./+-]+\Z")
 # Whole entry trees bind every file, path, mode and type. This permits only the
 # reviewed forward transition, not subsequent edits or a rollback of .sonic.13.
 PUBLISHED_INPUT_UPDATES = {
+    # Preserve PR #148's existing exact-tree approval alongside PR #146.
+    "modules/libnl3/3.7.0.sonic.6": (
+        "11cd81e4c2a98a7347f2ada686c8cdaff8bcbbdc",
+        "59bda4975eb5e55c8af91b727037ad4d45d381cb",
+    ),
     "modules/rules_distroless/0.9.4.sonic.13": (
         "6950d6dfd5369d86aad23d1479cad70631c97993",
         "f449be186aaa231a7278a773452b22cb4fed9e86",
