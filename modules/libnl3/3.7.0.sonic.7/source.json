@@ -17,6 +17,7 @@
   "patch_strip": 1,
   "patches": {
     "0001-build-libnl3-with-shared-native-rules.patch": "sha256-YMpBm7aIaqpq5oxGuXSBSc8INGhg6/dhJDOouGZKNkM=",
-    "0002-match-shared-output-sonames.patch": "sha256-1tzqA9pqF9za3LoyTrvByMHKdkv2/TLWZd5YVTRials="
+    "0002-match-shared-output-sonames.patch": "sha256-1tzqA9pqF9za3LoyTrvByMHKdkv2/TLWZd5YVTRials=",
+    "0003-normalize-sdk-timestamps.patch": "sha256-lZ02pCyWttso85uUq1crBsGEUAXTs+AdiU+6GS3LyBw="
   }
 }

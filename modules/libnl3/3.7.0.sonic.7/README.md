@@ -36,3 +36,13 @@ This replaces the retired draft declaration without changing libnl source,
 compiler options, installed libraries, or its existing SDK/debug regressions.
 
 The ordinary consumer now selects the sole current infrastructure candidate from [registry #209](https://github.com/securely1g/sonic-bazel-registry/pull/209). The module, fetched overlay and test consumer declare the same minimum. Source features, SDK outputs and all four tests remain unchanged; fresh acceptance is pending.
+
+The header and exact development-library TARs use the existing `tar.bzl`
+`default_mtime` attribute with epoch `1672560000`. This prevents patched headers,
+generated pkg-config files and static libraries from inheriting build-time
+filesystem timestamps; explicit library-link timestamps remain zero. The
+existing package test checks both exact SDK splits and aggregate header times.
+The existing pkg-config TAR also declares root ownership through upstream
+`mutate(owner="0", group="0")`, so synthesized parent directories do not
+inherit the builder UID/GID. The package test checks every aggregate member,
+including directories. Payload bytes, modes and symlink targets are unchanged.
