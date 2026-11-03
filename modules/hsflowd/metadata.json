@@ -1,0 +1,17 @@
+{
+    "homepage": "https://github.com/sflow/host-sflow",
+    "maintainers": [
+        {
+            "name": "Guohan Lu",
+            "email": "securely1g@gmail.com",
+            "github": "securely1g"
+        }
+    ],
+    "repository": [
+        "https://github.com/sflow/host-sflow"
+    ],
+    "versions": [
+        "2.1.26.sonic.1"
+    ],
+    "yanked_versions": {}
+}

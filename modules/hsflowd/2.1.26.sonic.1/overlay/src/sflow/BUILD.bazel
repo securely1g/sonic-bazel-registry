@@ -1,0 +1,42 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+load("//bazel:settings.bzl", "KEEP_SYMBOLS", "NATIVE")
+
+package(default_visibility = ["//:__subpackages__"])
+
+cc_library(
+    name = "headers",
+    hdrs = glob(["*.h"]),
+    includes = ["."],
+    target_compatible_with = NATIVE,
+)
+
+# Keep the six objects and C99 settings from the owner's src/sflow/Makefile.
+cc_library(
+    name = "sflow",
+    srcs = [
+        "sflow_agent.c",
+        "sflow_notifier.c",
+        "sflow_poller.c",
+        "sflow_receiver.c",
+        "sflow_sampler.c",
+        "sflow_xdr.c",
+    ],
+    copts = [
+        "-std=c99",
+        "-g",
+        "-gdwarf-4",
+        "-O2",
+        "-Wall",
+        "-Wcast-align",
+        "-Wno-unused-function",
+    ],
+    features = KEEP_SYMBOLS,
+    linkstatic = True,
+    local_defines = [
+        "_GNU_SOURCE",
+        "STDC_HEADERS",
+        "SFL_USE_32BIT_INDEX",
+    ],
+    target_compatible_with = NATIVE,
+    deps = [":headers"],
+)
