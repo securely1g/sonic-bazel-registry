@@ -1,18 +1,17 @@
 # Distroless patch provenance and validation
 
-`0.9.4.sonic.15` starts from published `0.9.4.sonic.14` at registry commit
-`6974c594c5403db3f2ad2abbc850068114f4479d`. The upstream 0.9.4 archive and
-patches `0002` through `0017` retain their exact bytes and integrity values.
-Patch `0001` changes only the module version. The new `0018` patch replaces the
-private rules_cc `cc_import` load with its public compatibility entry point.
-All published entries remain unchanged.
+`0.9.4.sonic.16` starts from published `0.9.4.sonic.15` at maintained registry
+commit `82e6f9470be0d35099096ae127969157cda5e5e1`. It retains the exact upstream
+0.9.4 archive, patches 0002–0018, existing overlays and fixtures, seven build
+outputs and 33 tests. Patch 0001 changes only the module version; new patch 0019
+selects the imported multiarch include paths for the configured target CPU.
 
-The independent integration module selects `rules_cc@0.2.22` to reproduce the
-Bazel 8.5.1 compatibility issue. It keeps all seven build targets and all 33
-tests from `.sonic.14`, including the individual Lua library consumer. Existing
-generated imports exercise the corrected load without changing header or linker
-semantics. The detailed sections below document the inherited features and the
-coverage originally added with them.
+The reproduction uses the exact existing Debian linux-libc-dev 6.12.96-1
+archive from FIPS registry #197. Its architecture-independent payload has
+22 CPU header roots. The old AMD64 compiler command searches ARM64 first;
+preprocessing those declared headers with `-nostdinc` yields `io_setup=0`
+instead of 206. New native/provider tests verify both AMD64 and ARM64 without
+removing any inherited crypto test or changing the runtime package payload.
 
 `Introduced in` identifies the first published registry version containing the
 patch's behavior; new patches show their proposed version. Later revisions
@@ -40,7 +39,9 @@ proposals and are not counted as releases.
 
 | `0016-native-library-exports.patch` | `0.9.4.sonic.14` | Public headers-only interfaces, declared GNU linker-script inputs and producer-owned Perl CORE includes. Source: [registry #146](https://github.com/securely1g/sonic-bazel-registry/pull/146), original commit `b10335fcfc475aa439ee4095c83315d3475d75ee`. |
 | `0017-individual-apt-libraries.patch` | `0.9.4.sonic.14` | Individual `libNAME_cc`/`libNAME_shared` exports and architecture hub aliases; preserved unchanged from registry #146. |
-| `0018-public-cc-import.patch` | `0.9.4.sonic.15` (proposed) | Use the public rules_cc compatibility entry point on Bazel 8. Original fix: [rules_distroless #5](https://github.com/securely1g/rules_distroless/pull/5), commit `5be9ab5c921dcd58d35ccdbd81e35dd65f4a5411`; adapted to published `.sonic.14`, whose import already omits the unsupported `includes` attribute. |
+| `0018-public-cc-import.patch` | `0.9.4.sonic.15` | Use the public rules_cc compatibility entry point on Bazel 8. Original fix: [rules_distroless #5](https://github.com/securely1g/rules_distroless/pull/5), commit `5be9ab5c921dcd58d35ccdbd81e35dd65f4a5411`; adapted to published `.sonic.14`, whose import already omits the unsupported `includes` attribute. |
+
+| `0019-target-multiarch-headers.patch` | `0.9.4.sonic.16` (proposed) | Select CPU-specific include roots in the public native header exporter; preserve declared headers and symlinks. Reproduces FIPS registry #197's AF_ALG syscall mismatch. |
 
 These are SONiC-maintained adaptations; each patch records its source.
 [Upstream #220](https://github.com/bazel-contrib/rules_distroless/pull/220)

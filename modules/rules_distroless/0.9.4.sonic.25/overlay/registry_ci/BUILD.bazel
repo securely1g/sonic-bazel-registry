@@ -1,9 +1,10 @@
-load("@rules_python//python:defs.bzl", "py_test")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
+load("@rules_python//python:defs.bzl", "py_test")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load(":architecture_test.bzl", "architecture_tests")
 load(":concrete_packages_test.bzl", "concrete_packages_test")
+load(":linux_headers_test.bzl", "linux_headers_provider_test")
 load(":multiarch_test.bzl", "multiarch_test")
 load(":pkgconfig_fields_test.bzl", "pkgconfig_fields_test")
 load(":pkgconfig_quotes_test.bzl", "pkgconfig_quotes_test")
@@ -204,4 +205,25 @@ cc_test(
     name = "lua_single_library_test",
     srcs = ["lua_single_library_test.cc"],
     deps = ["@registry_ci_pkgconfig//liblua5.1-0-dev:liblua5.1_cc"],
+)
+
+# Compile the same Architecture: all kernel archive on both native CPUs.
+alias(
+    name = "linux_headers",
+    actual = "@registry_ci_linux_headers//:linux-libc_headers",
+)
+
+linux_headers_provider_test(
+    name = "linux_headers_provider_test",
+    target_under_test = ":linux_headers",
+    triplet = select({
+        ":linux_amd64": "x86_64-linux-gnu",
+        ":linux_arm64": "aarch64-linux-gnu",
+    }),
+)
+
+cc_test(
+    name = "linux_headers_test",
+    srcs = ["linux_headers_test.c"],
+    deps = [":linux_headers"],
 )

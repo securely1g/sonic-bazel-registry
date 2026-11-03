@@ -4,7 +4,7 @@
   "docs_url": "https://github.com/bazel-contrib/rules_distroless/releases/download/v0.9.4/rules_distroless-v0.9.4.docs.tar.gz",
   "url": "https://github.com/bazel-contrib/rules_distroless/releases/download/v0.9.4/rules_distroless-v0.9.4.tar.gz",
   "patches": {
-    "0001-module-version.patch": "sha256-5ZU5aINAulPHvxiMjYrrANXq3uMNwHLKanEI//W27Hw=",
+    "0001-module-version.patch": "sha256-tBVidjSmhKw8P3xWQg816ePmhGylnd/Bq7HIdDArJcE=",
     "0002-include-fragments.patch": "sha256-iNpoe/p+zvHebAowncGruHEtEPSMrsIunHTfMNZOY5o=",
     "0003-registry-ci.patch": "sha256-t8SegtaPxng70+DtM4wHjzZyDy05k6Lmvj+Gy5gpGWg=",
     "0004-pkgconfig-whitespace.patch": "sha256-Q4KG8wakd7ul6zsMbpmXofnzVeTFBWgqVWJL9eOvPBY=",
@@ -21,18 +21,21 @@
     "0015-preserve-base-accounts.patch": "sha256-G8e4q0YaftjiKDxn10Bhv2o0HZh7QpP+Osy2UiDmLZY=",
     "0016-native-library-exports.patch": "sha256-liEcyU0lYXTwZJg6VMiJpYr/krm1jsVo8Nts/EulgCo=",
     "0017-individual-apt-libraries.patch": "sha256-a8xX5bQIaCSBcRW9Sc6HlJbbcx3MdbtOqNNGyn4vMWI=",
-    "0018-public-cc-import.patch": "sha256-HQNENBz+9QFA86VVpBtiVucEr8qTPymgkPTjBvScF4o="
+    "0018-public-cc-import.patch": "sha256-HQNENBz+9QFA86VVpBtiVucEr8qTPymgkPTjBvScF4o=",
+    "0019-target-multiarch-headers.patch": "sha256-Hh7GolQOH3aufgXVUS4/kb+/lKfCqFzTuxxsY92+mes="
   },
   "patch_strip": 1,
   "overlay": {
-    "registry_ci/BUILD.bazel": "sha256-DgbPmspe1ltU+dcgtYtLSoZ4kfgPjjtKvaVR+3TdU4M=",
+    "registry_ci/BUILD.bazel": "sha256-iNao122VHstWDz/mkKAO7tWwjUxcR/WaZIstYJo+Cts=",
     "registry_ci/architecture_test.bzl": "sha256-HIC5ABS7Y/EIggtAdmwQbcbpvAgcaq8POR1bTq48c7s=",
     "registry_ci/concrete_packages_test.bzl": "sha256-O95p0U6IQ9uJL4ndxgJMOLgiWtcK35G82D3C9uOoeTw=",
-    "registry_ci/extensions.bzl": "sha256-FX6NqfCBdCoLC6KtDl5KQYvYfNeDMxD3aopGtLGaU+k=",
+    "registry_ci/extensions.bzl": "sha256-80dAdrjKGjs1kmJoT8KhgW+EirvGsFUizOqHBcuQff4=",
     "registry_ci/headerless/BUILD.bazel": "sha256-2VJiDfNIq40fpv3plAhKmKsarCZumc+gkSLOcqEbu28=",
     "registry_ci/headerless/context_test.bzl": "sha256-dEiSu02l+2mO676O7sGBpdF7WLJwS7l2+g61RUGjMJk=",
     "registry_ci/headerless/fixture.h": "sha256-qidf3CUW8pkWsIlI7TJELsvO4ETbBlke2zv9SXb8Fz8=",
     "registry_ci/libpcap_headers_test.c": "sha256-K5fr/Di9QkLPrpXnnUz/JL/SBsiiXFeMFXsEtLjCkWg=",
+    "registry_ci/linux_headers_test.bzl": "sha256-C2s02IUohj1l2trodA+VO7lKy7NhEQSMY1DuveZ6ABU=",
+    "registry_ci/linux_headers_test.c": "sha256-o3SO4Ht+9wQsOkZAVaRREG7nQaLAEt1r30+OcZgGhJc=",
     "registry_ci/lua_headers_test.cc": "sha256-aGaQlovTN7heWec2TbtXSb8Q3zC4yJ0FI9BTiXvD068=",
     "registry_ci/lua_single_library_test.cc": "sha256-VPx+37WLyZ+cKBpGyWfkQZu5CCYigBy+BXGzAmsL6w4=",
     "registry_ci/multiarch_test.bzl": "sha256-b+92AeEZOYKR7wnQk8fAD1sxA/mnk5IW3m8lYu823vY=",
