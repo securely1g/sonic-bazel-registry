@@ -1,0 +1,22 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_cross_binary")
+
+# Read the actual installed ELF using Go's supported parser, only during tests.
+go_binary(
+    name = "reader",
+    testonly = True,
+    srcs = ["main.go"],
+    pure = "on",
+    visibility = ["//visibility:private"],
+)
+
+go_cross_binary(
+    name = "buildinfo",
+    testonly = True,
+    sdk_version = "1.25.6",
+    target = ":reader",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    visibility = ["//distributions/otelcol-contrib:__pkg__"],
+)

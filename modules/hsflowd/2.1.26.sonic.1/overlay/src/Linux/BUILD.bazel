@@ -1,0 +1,97 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
+load("//bazel:settings.bzl", "KEEP_SYMBOLS", "LINUX_COPTS", "LINUX_DEFINES", "NATIVE")
+
+package(default_visibility = ["//:__subpackages__"])
+
+exports_files([
+    "scripts/hsflowd.conf.sonic",
+    "scripts/hsflowd.deb",
+    "scripts/net.sflow.hsflowd.conf",
+])
+
+cc_library(
+    name = "headers",
+    hdrs = glob(["*.h"]),
+    includes = ["."],
+    target_compatible_with = NATIVE,
+    deps = [
+        "//src/json:headers",
+        "//src/sflow:headers",
+    ],
+)
+
+cc_binary(
+    name = "hsflowd",
+    srcs = [
+        "evbus.c",
+        "hsflowconfig.c",
+        "hsflowd.c",
+        "readCpuCounters.c",
+        "readDiskCounters.c",
+        "readHidCounters.c",
+        "readInterfaces.c",
+        "readMemoryCounters.c",
+        "readNioCounters.c",
+        "readPackets.c",
+        "readTcpipCounters.c",
+        "readVNIC.c",
+        "util.c",
+    ],
+    copts = LINUX_COPTS,
+    features = KEEP_SYMBOLS,
+    linkopts = [
+        "-rdynamic",
+        "-lm",
+        "-pthread",
+        "-ldl",
+        "-lrt",
+    ],
+    linkstatic = True,
+    local_defines = LINUX_DEFINES,
+    target_compatible_with = NATIVE,
+    deps = [
+        ":headers",
+        "//src/json:cjson",
+        "//src/sflow",
+    ],
+)
+
+# SONIC VPP expands to these modules; JSON and DNS-SD are always selected.
+# PSAMPLE uses this owner's netlink code, not the separate libpsample project.
+_MODULES = {
+    "mod_json": ["mod_json.c"],
+    "mod_dnssd": ["mod_dnssd.c"],
+    "mod_sonic": ["mod_sonic.c"],
+    "mod_psample": [
+        "mod_psample.c",
+        "util_netlink.c",
+    ],
+    "mod_docker": ["mod_docker.c"],
+    "mod_dropmon": [
+        "mod_dropmon.c",
+        "util_netlink.c",
+    ],
+    "mod_vpp": [
+        "mod_vpp.c",
+        "util_netlink.c",
+    ],
+}
+
+[
+    cc_binary(
+        name = name + ".so",
+        srcs = sources,
+        copts = LINUX_COPTS,
+        features = KEEP_SYMBOLS,
+        linkopts = {
+            "mod_dnssd": ["-lresolv"],
+            "mod_docker": ["-lm"],
+        }.get(name, []),
+        linkshared = True,
+        linkstatic = False,
+        local_defines = LINUX_DEFINES,
+        target_compatible_with = NATIVE,
+        deps = [":headers"] + (["@hsflowd_deps//libhiredis-dev:libhiredis"] if name == "mod_sonic" else []),
+    )
+    for name, sources in _MODULES.items()
+]

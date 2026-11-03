@@ -1,0 +1,25 @@
+// buildinfo reads the standard Go metadata from a declared test artifact.
+package main
+
+import (
+	"debug/buildinfo"
+	"encoding/json"
+	"fmt"
+	"os"
+)
+
+func main() {
+	if len(os.Args) != 2 {
+		fmt.Fprintln(os.Stderr, "usage: buildinfo EXECUTABLE")
+		os.Exit(2)
+	}
+	info, err := buildinfo.ReadFile(os.Args[1])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	if err := json.NewEncoder(os.Stdout).Encode(info); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
