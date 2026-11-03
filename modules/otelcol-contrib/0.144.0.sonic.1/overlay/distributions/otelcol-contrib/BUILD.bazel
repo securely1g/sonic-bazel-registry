@@ -1,0 +1,256 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_cross_binary")
+load("@rules_python//python:py_test.bzl", "py_test")
+load("@sonic_build_infra//binary:keep_debug_info.bzl", "keep_debug_info")
+load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
+load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
+load("@tar.bzl//tar:tar.bzl", "tar")
+load(":components.bzl", "COLLECTOR_DEPS")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "go.mod",
+    "go.sum",
+])
+
+# The upstream source generator writes only declared outputs. It never invokes
+# Go, fetches dependencies, or compiles the collector inside this action.
+genrule(
+    name = "generated_sources",
+    srcs = ["manifest.yaml"],
+    outs = [
+        "generated/components.go",
+        "generated/go.mod",
+        "generated/main.go",
+        "generated/main_others.go",
+        "generated/main_windows.go",
+    ],
+    cmd = "$(location //bazel/tools:ocb) --config $(location manifest.yaml) --output-path $(@D)/generated --skip-get-modules --skip-compilation",
+    tools = ["//bazel/tools:ocb"],
+)
+
+go_binary(
+    name = "collector",
+    srcs = [
+        "generated/components.go",
+        "generated/main.go",
+        "generated/main_others.go",
+    ],
+    importpath = "github.com/open-telemetry/opentelemetry-collector-releases/contrib",
+    pure = "on",
+    visibility = ["//visibility:private"],
+    x_defs = {
+        # Official release: Go 1.25.6 compiling a Go 1.24 module. Match the Go
+        # driver's compatibility defaults without changing runtime features.
+        "runtime.godebugDefault": "containermaxprocs=0,decoratemappings=0,tlssha1=1,updatemaxprocs=0,x509sha256skid=0",
+    },
+    deps = COLLECTOR_DEPS,
+)
+
+# Pin the release SDK and optimized compilation without changing the platform.
+go_cross_binary(
+    name = "collector_sdk",
+    compilation_mode = "opt",
+    sdk_version = "1.25.6",
+    target = ":collector",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    visibility = ["//visibility:private"],
+)
+
+# The existing shared rule preserves DWARF even if the consumer uses --strip=always.
+# Its C/C++ flags do not change this pure-Go link. Both TARs consume this one ELF.
+keep_debug_info(
+    name = "otelcol-contrib",
+    src = ":collector_sdk",
+)
+
+sonic_deploy_tar(
+    name = "runtime",
+    srcs = [
+        "config.yaml",
+        "otelcol-contrib.conf",
+        "otelcol-contrib.service",
+        "//:LICENSE",
+    ],
+    binaries = {"usr/bin/otelcol-contrib uid=0 gid=0 mode=0755 type=file": ":otelcol-contrib"},
+    force_debug_build = False,
+    mtree = [
+        "etc/otelcol-contrib/config.yaml uid=0 gid=0 mode=0644 type=file content=$(location config.yaml)",
+        "etc/otelcol-contrib/otelcol-contrib.conf uid=0 gid=0 mode=0644 type=file content=$(location otelcol-contrib.conf)",
+        "lib/systemd/system/otelcol-contrib.service uid=0 gid=0 mode=0644 type=file content=$(location otelcol-contrib.service)",
+        "usr/share/doc/otelcol-contrib/copyright uid=0 gid=0 mode=0644 type=file content=$(location //:LICENSE)",
+    ],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+)
+
+runtime_packages(
+    name = "runtime_packages.json",
+    # Preserve the existing official package metadata. This does not define or
+    # generate a Debian package; the declared source TAR supplies its payload.
+    control = "//bazel:release.control",
+    packages = {"otelcol-contrib": ":runtime"},
+    required_paths = {"otelcol-contrib": ["usr/bin/otelcol-contrib"]},
+)
+
+# Collector-owned generated entrypoints and canonical module locks. Dependency
+# source modules retain their own upstream ownership and checksum references.
+tar(
+    name = "sources",
+    srcs = [
+        "generated/components.go",
+        "generated/main.go",
+        "generated/main_others.go",
+        "go.mod",
+        "go.sum",
+        "manifest.yaml",
+    ],
+    default_mtime = "1672560000",
+    mtree = [
+        "usr/src/debug/otelcol-contrib/" + name + " uid=0 gid=0 mode=0644 type=file content=$(location " + src + ")"
+        for name, src in {
+            "components.go": "generated/components.go",
+            "main.go": "generated/main.go",
+            "main_others.go": "generated/main_others.go",
+            "manifest.yaml": "manifest.yaml",
+            "go.mod": "go.mod",
+            "go.sum": "go.sum",
+        }.items()
+    ],
+)
+
+py_test(
+    name = "source_contract_test",
+    srcs = ["//bazel:source_contract_test.py"],
+    args = [
+        "--manifest",
+        "$(location manifest.yaml)",
+        "--go-mod",
+        "$(location go.mod)",
+        "--dependencies",
+        "$(location components.bzl)",
+        "--source",
+        "$(location generated/components.go)",
+        "--source",
+        "$(location generated/main.go)",
+        "--source",
+        "$(location generated/main_others.go)",
+    ],
+    data = [
+        "components.bzl",
+        "generated/components.go",
+        "generated/main.go",
+        "generated/main_others.go",
+        "go.mod",
+        "manifest.yaml",
+    ],
+    main = "//bazel:source_contract_test.py",
+)
+
+# Native registry CI supplies GDB; every production/test artifact is declared.
+# Keep the original telemetry port8888 and run this test without competing tests.
+py_test(
+    name = "package_test",
+    size = "large",
+    timeout = "long",
+    srcs = ["//bazel:package_test.py"],
+    args = [
+        "--runtime",
+        "$(location :runtime)",
+        "--debug",
+        "$(location :runtime.debug_symbols)",
+        "--sources",
+        "$(location :sources)",
+        "--binary",
+        "$(location :otelcol-contrib)",
+        "--metadata",
+        "$(location :runtime_packages.json)",
+        "--readelf",
+        "$(location @sonic_build_infra//toolchains/binutils:readelf)",
+        "--objcopy",
+        "$(location @sonic_build_infra//toolchains/binutils:objcopy)",
+        "--gdb",
+        "/usr/bin/gdb",
+        "--golden",
+        "$(location //bazel/golden:golden)",
+        "--baseline-version",
+        "$(location //bazel/testdata:release-version.txt)",
+        "--baseline-components",
+        "$(location //bazel/testdata:release-components.txt)",
+        "--buildinfo",
+        "$(location //bazel/buildinfo:buildinfo)",
+        "--baseline-buildinfo",
+        "$(location //bazel/testdata:release-buildinfo.json)",
+        "--default-config",
+        "$(location //:tests/docker-tests/default-config.yaml)",
+        "--golden-config",
+        "$(location //:tests/golden/config.yaml)",
+        "--golden-compose",
+        "$(location //:tests/golden/docker-compose.yaml)",
+        "--golden-expected",
+        "$(location //:tests/golden/data/expected.yaml)",
+        "--runtime-file",
+        "etc/otelcol-contrib/config.yaml=$(location config.yaml)",
+        "--runtime-file",
+        "etc/otelcol-contrib/otelcol-contrib.conf=$(location otelcol-contrib.conf)",
+        "--runtime-file",
+        "lib/systemd/system/otelcol-contrib.service=$(location otelcol-contrib.service)",
+        "--runtime-file",
+        "usr/share/doc/otelcol-contrib/copyright=$(location //:LICENSE)",
+        "--source-file",
+        "components.go=$(location generated/components.go)",
+        "--source-file",
+        "main.go=$(location generated/main.go)",
+        "--source-file",
+        "main_others.go=$(location generated/main_others.go)",
+        "--source-file",
+        "manifest.yaml=$(location manifest.yaml)",
+        "--source-file",
+        "go.mod=$(location go.mod)",
+        "--source-file",
+        "go.sum=$(location go.sum)",
+    ],
+    data = [
+        "config.yaml",
+        "generated/components.go",
+        "generated/main.go",
+        "generated/main_others.go",
+        "go.mod",
+        "go.sum",
+        "manifest.yaml",
+        "otelcol-contrib.conf",
+        "otelcol-contrib.service",
+        ":otelcol-contrib",
+        ":runtime",
+        ":runtime.debug_symbols",
+        ":runtime_packages.json",
+        ":sources",
+        "//:LICENSE",
+        "//:tests/docker-tests/default-config.yaml",
+        "//:tests/golden/config.yaml",
+        "//:tests/golden/data/expected.yaml",
+        "//:tests/golden/docker-compose.yaml",
+        "//bazel/buildinfo",
+        "//bazel/golden",
+        "//bazel/testdata:release-buildinfo.json",
+        "//bazel/testdata:release-components.txt",
+        "//bazel/testdata:release-provenance.json",
+        "//bazel/testdata:release-version.txt",
+        "@sonic_build_infra//toolchains/binutils:objcopy",
+        "@sonic_build_infra//toolchains/binutils:readelf",
+    ],
+    main = "//bazel:package_test.py",
+    tags = [
+        "exclusive",
+        "local",
+    ],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+)

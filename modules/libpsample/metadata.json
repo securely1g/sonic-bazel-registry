@@ -1,0 +1,17 @@
+{
+  "homepage": "https://github.com/Mellanox/libpsample",
+  "maintainers": [
+    {
+      "name": "Guohan Lu",
+      "email": "securely1g@gmail.com",
+      "github": "securely1g"
+    }
+  ],
+  "repository": [
+    "github:Mellanox/libpsample"
+  ],
+  "versions": [
+    "1.1.0.sonic.1"
+  ],
+  "yanked_versions": {}
+}

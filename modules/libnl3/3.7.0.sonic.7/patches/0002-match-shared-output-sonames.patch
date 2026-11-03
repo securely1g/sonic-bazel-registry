@@ -1,0 +1,142 @@
+From: Guohan Lu <securely1g@gmail.com>
+Subject: [PATCH] Name native libnl shared outputs after their ABI SONAMEs
+
+diff --git a/BUILD.bazel b/BUILD.bazel
+--- a/BUILD.bazel
++++ b/BUILD.bazel
+@@ -1,5 +1,5 @@
+ load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
+-load("@rules_cc//cc:defs.bzl", "cc_binary")
++load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_test")
+ load("@rules_python//python:defs.bzl", "py_binary")
+ load("@sonic_build_infra//cc:runtime_test.bzl", "native_runtime_binary", "native_runtime_test")
+ load("@sonic_build_infra//testing:exec_test.bzl", "exec_test")
+@@ -236,3 +236,18 @@
+     ["runtime_packages.md"],
+     visibility = ["//visibility:public"],
+ )
++
++# Exercise all five native shared providers from ordinary Bazel runfiles.
++# This intentionally does not use an installed TAR or a custom runtime wrapper.
++cc_test(
++    name = "libnl3_shared_consumer_test",
++    srcs = ["libnl3_consumer_test.c"],
++    args = ["$(rootpath :" + name + "_shared)" for name in ["libnl_3", "libnl_genl_3", "libnl_route_3", "libnl_nf_3", "libnl_cli_3"]],
++    data = [":" + name + "_shared" for name in ["libnl_3", "libnl_genl_3", "libnl_route_3", "libnl_nf_3", "libnl_cli_3"]],
++    defines = ["LIBNL3_RAW_SHARED=1"],
++    dynamic_deps = [":" + name + "_shared" for name in ["libnl_3", "libnl_genl_3", "libnl_route_3", "libnl_nf_3", "libnl_cli_3"]],
++    linkopts = ["-ldl"],
++    linkstatic = False,
++    visibility = ["//visibility:public"],
++    deps = [":" + name for name in ["libnl_3", "libnl_genl_3", "libnl_route_3", "libnl_nf_3", "libnl_cli_3"]],
++)
+diff --git a/libnl3.BUILD b/libnl3.BUILD
+--- a/libnl3.BUILD
++++ b/libnl3.BUILD
+@@ -207,6 +207,7 @@
+ 
+ cc_shared_library(
+     name = "libnl_3_shared",
++    shared_lib_name = "libnl-3.so.200",
+     additional_linker_inputs = ["libnl-3.sym"],
+     user_link_flags = LIBNL_LINKOPTS + [
+         "-Wl,--version-script=$(location libnl-3.sym)",
+@@ -233,6 +234,7 @@
+ 
+ cc_shared_library(
+     name = "libnl_genl_3_shared",
++    shared_lib_name = "libnl-genl-3.so.200",
+     additional_linker_inputs = ["libnl-genl-3.sym"],
+     dynamic_deps = [":libnl_3_shared"],
+     user_link_flags = LIBNL_LINKOPTS + [
+@@ -271,6 +273,7 @@
+ 
+ cc_shared_library(
+     name = "libnl_route_3_shared",
++    shared_lib_name = "libnl-route-3.so.200",
+     additional_linker_inputs = ["libnl-route-3.sym"],
+     dynamic_deps = [":libnl_3_shared"],
+     user_link_flags = LIBNL_LINKOPTS + [
+@@ -299,6 +302,7 @@
+ 
+ cc_shared_library(
+     name = "libnl_nf_3_shared",
++    shared_lib_name = "libnl-nf-3.so.200",
+     additional_linker_inputs = ["libnl-nf-3.sym"],
+     dynamic_deps = [
+         ":libnl_3_shared",
+@@ -336,6 +340,7 @@
+ 
+ cc_shared_library(
+     name = "libnl_cli_3_shared",
++    shared_lib_name = "libnl-cli-3.so.200",
+     additional_linker_inputs = ["libnl-cli-3.sym"],
+     dynamic_deps = [
+         ":libnl_3_shared",
+diff --git a/libnl3_consumer_test.c b/libnl3_consumer_test.c
+--- a/libnl3_consumer_test.c
++++ b/libnl3_consumer_test.c
+@@ -3,6 +3,12 @@
+ #endif
+ #include <dlfcn.h>
+ #include <netlink/addr.h>
++#ifdef LIBNL3_RAW_SHARED
++#include <netlink/cli/utils.h>
++#include <netlink/genl/genl.h>
++#include <netlink/netfilter/ct.h>
++#include <linux/genetlink.h>
++#endif
+ #include <netlink/msg.h>
+ #include <netlink/route/link.h>
+ #include <netlink/route/route.h>
+@@ -43,7 +49,23 @@
+     return failed;
+ }
+ 
+-int main(void) {
++#ifdef LIBNL3_RAW_SHARED
++static int check_declared_shared(void *symbol, const char *declared, const char *soname) {
++    Dl_info info;
++    if (!dladdr(symbol, &info) || !info.dli_fname) return 1;
++    char *expected = realpath(declared, NULL);
++    char *actual = realpath(info.dli_fname, NULL);
++    const char *basename = actual ? strrchr(actual, '/') : NULL;
++    int failed = !expected || !actual || strcmp(expected, actual) ||
++                 !basename || strcmp(basename + 1, soname);
++    if (failed) fprintf(stderr, "Expected declared %s (%s), loaded %s\n", declared, soname, info.dli_fname);
++    free(expected);
++    free(actual);
++    return failed;
++}
++#endif
++
++int main(int argc, char **argv) {
+     int result = 1;
+     struct nl_sock *socket = nl_socket_alloc();
+     struct rtnl_route *route = rtnl_route_alloc();
+@@ -69,6 +91,25 @@
+     CHECK(!nl_addr_cmp(rtnl_route_get_dst(parsed), destination));
+     CHECK(!check_library_origin((void *)nl_socket_alloc, "libnl-3.so.200"));
+     CHECK(!check_library_origin((void *)rtnl_route_alloc, "libnl-route-3.so.200"));
++#ifdef LIBNL3_RAW_SHARED
++    CHECK(argc == 6);
++    CHECK(!check_declared_shared((void *)nl_socket_alloc, argv[1], "libnl-3.so.200"));
++    CHECK(!check_declared_shared((void *)genlmsg_put, argv[2], "libnl-genl-3.so.200"));
++    CHECK(!check_declared_shared((void *)rtnl_route_alloc, argv[3], "libnl-route-3.so.200"));
++    CHECK(!check_declared_shared((void *)nfnl_ct_alloc, argv[4], "libnl-nf-3.so.200"));
++    CHECK(!check_declared_shared((void *)nl_cli_alloc_socket, argv[5], "libnl-cli-3.so.200"));
++    struct nl_msg *generic = nlmsg_alloc();
++    struct nfnl_ct *connection = nfnl_ct_alloc();
++    struct nl_sock *cli = nl_cli_alloc_socket();
++    CHECK(generic && connection && cli);
++    CHECK(genlmsg_put(generic, 0, 0, GENL_ID_CTRL, 0, 0, CTRL_CMD_GETFAMILY, 1));
++    nlmsg_free(generic);
++    nfnl_ct_put(connection);
++    nl_socket_free(cli);
++#else
++    (void)argc;
++    (void)argv;
++#endif
+     result = 0;
+ 
+ cleanup:
