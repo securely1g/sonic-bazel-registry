@@ -1,0 +1,13 @@
+{
+  "url": "https://github.com/openconfig/oc-pyang/archive/4607fd1987d4f586aba03b40f222015cb3ef8161.tar.gz",
+  "strip_prefix": "oc-pyang-4607fd1987d4f586aba03b40f222015cb3ef8161",
+  "integrity": "sha256-07eS08fPt6m83KbXUw8xtnOZf0mfn4FhCsCj27uIdtc=",
+  "overlay": {
+    "BUILD.bazel": "sha256-vHHEikoVAUHC31dMdgt2Wk0kQFx4h3MnjB9hpfLyDSg=",
+    "MODULE.bazel": "sha256-0x33otSaCKRkx6D567u06xyDtGLOZJiR1LEozSc1b0U=",
+    "oclint.py": "sha256-bLTCU5faoy0BjDyE/qisBwSotj/2qroRBHvFEjeHLBo=",
+    "requirements.in": "sha256-XMJDUhuHZqlI3Pc+/UN/geTTeh1OTnMsXNsRKmKUWS0=",
+    "requirements_lock.txt": "sha256-BAFx1oIEkJjA2zym20uJtRMs/vQAKLwOB5p+2/PeKxE=",
+    "upstream_linter_test.py": "sha256-nPiBj9AYZV5N95tFc7C/gD7i4VhdQyjJ79osGebAZ/Q="
+  }
+}
