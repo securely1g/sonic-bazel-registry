@@ -2,7 +2,8 @@
 
 SONiC's `docker-macsec` needs the patched WPA supplicant and its database
 adapter. This entry consumes the source-owned targets from
-[WPA PR #1](https://github.com/securely1g/sonic-wpa-supplicant/pull/1), which
+[WPA PR #1](https://github.com/securely1g/sonic-wpa-supplicant/pull/1) and its
+[compiler-flag fix #2](https://github.com/securely1g/sonic-wpa-supplicant/pull/2), which
 compile the repository's selected source with `debian/config/wpasupplicant/linux`.
 The public outputs are `wpasupplicant_pkg`, its matching `debug_symbols` output,
 and `runtime_packages.json`. They include `wpa_supplicant`, `wpa_cli`,
@@ -15,22 +16,38 @@ module's mapping of WPA 2.9 and its existing SONiC/Debian downstream changes.
 The immutable archive owns all build definitions. The registry adds no source
 patch or replacement build implementation.
 
-The ordinary consumer declares the source module and compatible native tool
-interfaces without root source or version overrides. It keeps Common's declared
-YANG-enabled default. AMD64 CI builds all three
-public outputs and executes the owner's upstream, installed-package and flag
-preservation tests. Those tests check exact payload bytes/modes/links/epoch,
+The ordinary consumer selects the accepted Common `.8-43598143`, infrastructure
+`.26-51c838da`, FIPS `.3-e910ec22` and Distroless `.16` interfaces used by the
+MACsec image. Direct version requirements select these accepted candidates;
+there are no root source overrides or replacement build definitions. It keeps
+Common's declared YANG-enabled default. AMD64 CI builds all three public outputs
+and executes the owner's upstream, installed-package, flag-preservation and
+large-include-list tests. Those tests check exact payload bytes/modes/links/epoch,
 three ELF/debug pairs, real GDB lookup, declared Common/libnl/OpenSSL loading,
 the IEEE PBKDF2 vector and private supplicant/control-client PING/PONG. Twelve
 upstream programs compile; nine self-contained suites execute. Three HTTPS/X.509
 programs have compile-only coverage because their external fixtures are absent.
 
-The dependency chain is [Common registration #180](https://github.com/securely1g/sonic-bazel-registry/pull/180),
-including the `.8-33d2790e` Common owner, [libnl #181](https://github.com/securely1g/sonic-bazel-registry/pull/181)
-with `.7` native SONAME filenames, [infra #179](https://github.com/securely1g/sonic-bazel-registry/pull/179),
-[public Distroless #177](https://github.com/securely1g/sonic-bazel-registry/pull/177),
-and the already merged [dotted TAR #174](https://github.com/securely1g/sonic-bazel-registry/pull/174).
-Keep this registration Draft while the remaining inputs and the source PR are unlanded.
+The previous entry is [registration #185](https://github.com/securely1g/sonic-bazel-registry/pull/185).
+This separate fix updates its sole unpublished WPA version to source commit
+`d14bf3ac61597273e8940f9b14c8034568cccff7`. In
+[MACsec image #149](https://github.com/securely1g/sonic-buildimage/pull/149),
+133,110 bytes of ordered preprocessing flags exceeded Linux's limit before Make
+could start. The owner now sources a Bash adapter through `rules_foreign_cc`'s
+public tool-prefix hook and passes the same flags in GCC's response file.
+The added test reproduces the original exec failure, verifies recursive C/C++
+compilation with quoted values and include paths, and rejects driver options in
+preprocessing flags. No validation or runtime features are removed.
+
+This review catalog retains [libnl #181](https://github.com/securely1g/sonic-bazel-registry/pull/181),
+[Common #201](https://github.com/securely1g/sonic-bazel-registry/pull/201),
+[infrastructure #195](https://github.com/securely1g/sonic-bazel-registry/pull/195),
+[FIPS #197](https://github.com/securely1g/sonic-bazel-registry/pull/197) and
+[Distroless #200](https://github.com/securely1g/sonic-bazel-registry/pull/200).
+The source owner's declared minima and the registry MODULE match these accepted
+interfaces, so ordinary resolution exercises the actual larger downstream closure. Keep this registration Draft while its
+source and registry prerequisites are unlanded. Every published version remains
+unchanged.
 
 The image consumer is [buildimage issue #131](https://github.com/securely1g/sonic-buildimage/issues/131).
 Image assembly, an actual installed macsecmgrd/WPA handoff and full VS installer

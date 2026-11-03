@@ -18,6 +18,7 @@
   "test_targets": [
     "@sonic-wpa-supplicant//:package_test",
     "@sonic-wpa-supplicant//:upstream_test",
-    "@sonic-wpa-supplicant//:build_flags_test"
+    "@sonic-wpa-supplicant//:build_flags_test",
+    "@sonic-wpa-supplicant//:make_flags_test"
   ]
 }
