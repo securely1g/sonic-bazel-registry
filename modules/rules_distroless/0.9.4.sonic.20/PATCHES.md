@@ -1,11 +1,18 @@
 # Distroless patch provenance and validation
 
-`0.9.4.sonic.14` uses the same checksum-pinned upstream 0.9.4 archive as published
-`0.9.4.sonic.12`. It inherits patches `0002` through `0014` byte-for-byte,
-including the installer, lock importer and compiler/header fixes. Patch `0001`
-changes only the module version; patch `0015` adds account preservation for
-[buildimage #33](https://github.com/securely1g/sonic-buildimage/pull/33).
-No published entry is modified.
+`0.9.4.sonic.15` starts from published `0.9.4.sonic.14` at registry commit
+`6974c594c5403db3f2ad2abbc850068114f4479d`. The upstream 0.9.4 archive and
+patches `0002` through `0017` retain their exact bytes and integrity values.
+Patch `0001` changes only the module version. The new `0018` patch replaces the
+private rules_cc `cc_import` load with its public compatibility entry point.
+All published entries remain unchanged.
+
+The independent integration module selects `rules_cc@0.2.22` to reproduce the
+Bazel 8.5.1 compatibility issue. It keeps all seven build targets and all 33
+tests from `.sonic.14`, including the individual Lua library consumer. Existing
+generated imports exercise the corrected load without changing header or linker
+semantics. The detailed sections below document the inherited features and the
+coverage originally added with them.
 
 `Introduced in` identifies the first published registry version containing the
 patch's behavior; new patches show their proposed version. Later revisions
@@ -26,10 +33,14 @@ proposals and are not counted as releases.
 | `0009-pkgconfig-field-separators.patch` | `0.9.4.sonic.7` | Parse colon-tabs and colon-without-space fields; distinguish variable assignments from separators inside values. |
 | `0010-pkgconfig-quoting.patch` | `0.9.4.sonic.8` | Decode quotes and backslash escapes in expanded flags and path variables; preserve spaces within arguments. |
 | `0011-template-headers.patch` | `0.9.4.sonic.9` | Include the remaining rules_cc-supported header fragments under `usr/include`, including Boost `.ipp` files. |
-| `0012-headerless-includes.patch` | `0.9.4.sonic.14` | Export the package include root only when it owns declared compiler inputs; preserve all linker and transitive contexts. |
+| `0012-headerless-includes.patch` | `0.9.4.sonic.10` | Export the package include root only when it owns declared compiler inputs; preserve all linker and transitive contexts. |
 | `0013-import-apt-lock.patch` | `0.9.4.sonic.11` | Import exact package archives and dependency graphs from one reviewed lock; include the extension's unit regressions. Origin: [build-infra #59](https://github.com/securely1g/sonic-build-infra/pull/59). |
 | `0014-apt-install.patch` | `0.9.4.sonic.12` | Add optional APT/dpkg installation and original-DEB aliases that preserve locked-import repository prefixes. Installer source: [rules_distroless fork PR #2](https://github.com/securely1g/rules_distroless/pull/2), commit `b3d0573b06b682a7ae3d5de20cc8215b3be3a037`, previously proposed in closed registry #72 and reused in #110. |
-| `0015-preserve-base-accounts.patch` | `0.9.4.sonic.14` (proposed) | Preserve inherited OCI users and groups when adding service accounts. Source: [upstream #290](https://github.com/bazel-contrib/rules_distroless/pull/290), commit `d503c1141d3759390dc78ffbb99de33b7d4f4619`; adapted MODULE integration from [registry #128](https://github.com/securely1g/sonic-bazel-registry/pull/128). |
+| `0015-preserve-base-accounts.patch` | `0.9.4.sonic.13` | Preserve inherited OCI users and groups when adding service accounts. Source: [upstream #290](https://github.com/bazel-contrib/rules_distroless/pull/290), commit `d503c1141d3759390dc78ffbb99de33b7d4f4619`; adapted MODULE integration from [registry #128](https://github.com/securely1g/sonic-bazel-registry/pull/128). |
+
+| `0016-native-library-exports.patch` | `0.9.4.sonic.14` | Public headers-only interfaces, declared GNU linker-script inputs and producer-owned Perl CORE includes. Source: [registry #146](https://github.com/securely1g/sonic-bazel-registry/pull/146), original commit `b10335fcfc475aa439ee4095c83315d3475d75ee`. |
+| `0017-individual-apt-libraries.patch` | `0.9.4.sonic.14` | Individual `libNAME_cc`/`libNAME_shared` exports and architecture hub aliases; preserved unchanged from registry #146. |
+| `0018-public-cc-import.patch` | `0.9.4.sonic.15` (proposed) | Use the public rules_cc compatibility entry point on Bazel 8. Original fix: [rules_distroless #5](https://github.com/securely1g/rules_distroless/pull/5), commit `5be9ab5c921dcd58d35ccdbd81e35dd65f4a5411`; adapted to published `.sonic.14`, whose import already omits the unsupported `includes` attribute. |
 
 These are SONiC-maintained adaptations; each patch records its source.
 [Upstream #220](https://github.com/bazel-contrib/rules_distroless/pull/220)
@@ -261,3 +272,15 @@ Full installed-image behavior remains the consumer's validation responsibility.
 Native component exports retain all .sonic.13 fixes and add public headers-only interfaces, declared linker-script inputs, and producer-owned Perl CORE includes. Patch 0016 merges these changes on top of the published patch chain.
 
 Patch 0017 adds native per-library APT targets and architecture hub aliases, retaining package-level interfaces and declared runtime dependency inputs.
+
+
+## Public cc_import compatibility
+
+`0018-public-cc-import.patch` changes only the generated BUILD load in
+`apt/private/deb_import.bzl`. It keeps `.sonic.14`'s header propagation through
+public header targets and its declared linker-script implementation. No private
+rules_cc implementation is loaded by generated Debian imports. The recipe
+fetches the released upstream archive and applies the local checksum-pinned
+patch; the source PR above records provenance rather than an archive dependency.
+Retain this patch until a selected upstream release supplies the compatible
+entry point and the inherited native tests pass.
