@@ -1,0 +1,22 @@
+{
+  "url": "https://codeload.github.com/sflow/host-sflow/tar.gz/41f10e6a2068ff15856e2bd1f1af2df1a506461b",
+  "integrity": "sha256-VgBWUWFToSkecAwIwEpHuEWqnzNqrIf4ytPFYtJ5sE8=",
+  "strip_prefix": "host-sflow-41f10e6a2068ff15856e2bd1f1af2df1a506461b",
+  "patch_strip": 1,
+  "patches": {
+    "0001-host_sflow_debian.patch": "sha256-UivgDeHU8+93m+ItE1GXjeudZbtaISQOdHgH7kp2d+0=",
+    "0002-vpp-osindex-counter-sampling.patch": "sha256-yY19odDM4VNdhG8md6lIA44pesQkT3mPgwQ3mRSdNUw="
+  },
+  "overlay": {
+    "BUILD.bazel": "sha256-sH18hsnVhG2SZV5c9k36Nh9JNzNbcO/HBxkhCCNRZBY=",
+    "MODULE.bazel": "sha256-MpjVM1HAcaqGXR0rBELSe6Qvt/xXJmITJfx9ic9HFLk=",
+    "bazel/BUILD.bazel": "sha256-O5dwZLFDs+RlcO1PxcIC551HH/9a1acxgfbDFfuXULY=",
+    "bazel/package_test.py": "sha256-XRWWNS78R+ZtOXA8SuFXgLf1TTb8wyiWMY2DPdaqAQ4=",
+    "bazel/settings.bzl": "sha256-aKd8kCqcZs6krRKBX+dLchY7xouiO/alhGuSl15Go+A=",
+    "src/Linux/BUILD.bazel": "sha256-0aQhkuIhtlTCwPKKvDDhcrppenF4n7jDtCFNSuM9uck=",
+    "src/json/BUILD.bazel": "sha256-NpTWxFo53a95penrmgcigqyTyR190rF8f8lORsrHsmQ=",
+    "src/json/bazel_upstream_test.py": "sha256-z94DIRuKaP+mgRRpRG5kMV51ePA3m8HaH4FDEzFGyXY=",
+    "src/sflow/BUILD.bazel": "sha256-+dNiB3p1MlLtegGtL0mV/N2EhB4di5Qv+93sd+OCfGw="
+  },
+  "archive_type": "tar.gz"
+}
