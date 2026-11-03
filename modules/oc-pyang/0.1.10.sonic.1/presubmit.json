@@ -1,0 +1,18 @@
+{
+  "architectures": [
+    "amd64"
+  ],
+  "build_targets": [
+    "@oc-pyang//:openconfig_linter",
+    "@oc-pyang//:oclint"
+  ],
+  "test_targets": [
+    "@oc-pyang//:upstream_linter_test"
+  ],
+  "generated_module_overlay": true,
+  "consumer_deps": [],
+  "platforms": {
+    "amd64": "@platforms//host:host"
+  },
+  "integration_test_module": "tests/consumer"
+}
