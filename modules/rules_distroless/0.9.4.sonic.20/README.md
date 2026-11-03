@@ -1,6 +1,6 @@
 # Preserve base accounts alongside Debian installation
 
-`0.9.4.sonic.13` adds account preservation to published `0.9.4.sonic.12`
+`0.9.4.sonic.14` adds account preservation to published `0.9.4.sonic.12`
 for [buildimage #33](https://github.com/securely1g/sonic-buildimage/pull/33).
 It retains the checksum-pinned upstream 0.9.4 archive, installer, locked imports,
 compiler/header fixes and patches `0002` through `0014` byte-for-byte.
@@ -70,7 +70,7 @@ Keep the Lua/netbase roots and their complete AMD64/ARM64 closures from a
 reviewed image lock. From this registry checkout, run:
 
 ```sh
-entry=modules/rules_distroless/0.9.4.sonic.13
+entry=modules/rules_distroless/0.9.4.sonic.14
 python3 "$entry/tests/integration/tools/select_lock_fixture.py" \
   --input /path/to/sonic-buildimage/dockers/docker-base-trixie/bazel/apt.lock.json \
   --output "$entry/tests/integration/apt.lock.json"
@@ -123,3 +123,7 @@ gzip, xz and zstd OCI layer tests. They include inherited names such as
 `Debian-exim` and `monitor.agent`, and reject an upper-layer `/etc` symlink
 rather than incorrectly exposing hidden lower-layer accounts. All 27 existing
 tests remain selected, including independent lock fixture regeneration.
+
+Native component exports retain all .sonic.13 fixes and add public headers-only interfaces, declared linker-script inputs, and producer-owned Perl CORE includes. Patch 0016 merges these changes on top of the published patch chain.
+
+Individual shared libraries are exported as `libNAME_cc` and single-file `libNAME_shared` targets under each owning development package. Consumers can use specific libraries without selecting from a package-level CcInfo in private adapters.

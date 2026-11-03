@@ -1,15 +1,14 @@
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
 load("@rules_foreign_cc//foreign_cc:defs.bzl", "cmake")
-load("//registry_ci:headers_only.bzl", "headers_only")
 load(":declared_headers_test.bzl", "declared_headers_test")
 
 package(default_visibility = ["//visibility:public"])
 
-headers_only(
+alias(
     name = "boost_headers",
-    dep = select({
-        "//registry_ci:linux_amd64": "@registry_ci_boost_amd64//:libboost1.83",
-        "//registry_ci:linux_arm64": "@registry_ci_boost_arm64//:libboost1.83",
+    actual = select({
+        "//registry_ci:linux_amd64": "@registry_ci_boost_amd64//:libboost1.83_headers",
+        "//registry_ci:linux_arm64": "@registry_ci_boost_arm64//:libboost1.83_headers",
     }),
 )
 
