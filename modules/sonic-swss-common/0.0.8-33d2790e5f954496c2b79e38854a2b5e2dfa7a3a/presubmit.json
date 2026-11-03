@@ -6,7 +6,7 @@
   "consumer_deps": [
     {
       "name": "sonic-build-infra",
-      "version": "0.0.23-5b224d7190d04f1b7b68429eedfc03b7b1565ed0",
+      "version": "0.0.26-0378d53824b18b253ecbd6faadba00e505ff4ccf",
       "repo_name": "sonic_build_infra"
     },
     {
@@ -28,7 +28,7 @@
     },
     {
       "name": "libnl3",
-      "version": "3.7.0.sonic.5"
+      "version": "3.7.0.sonic.7"
     },
     {
       "name": "sonic-rust-deps",
@@ -78,7 +78,9 @@
     "@sonic-swss-common//goext/tests/hiredis:hiredis_cgo_test",
     "@sonic-swss-common//goext/tests/gnmi:alias_test",
     "@sonic-swss-common//sonic-db-cli:declared_shared_library_test",
-    "@sonic-swss-common//tests:redis_lua_path_test"
+    "@sonic-swss-common//tests:redis_lua_path_test",
+    "@sonic-swss-common//tests/shared_netlink:consumer_test",
+    "@sonic-swss-common//tests:shared_library_elf_test"
   ],
   "build_flags": [
     "--@sonic-swss-common//tools/bazel:yang_modules=True"

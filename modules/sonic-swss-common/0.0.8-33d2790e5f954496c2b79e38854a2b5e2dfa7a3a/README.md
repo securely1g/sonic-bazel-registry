@@ -1,7 +1,7 @@
 # Common Go binding, native libraries and Lua scripts for gNMI
 
 This single unreleased Common candidate selects owned snapshot
-`aae5fe1b755259fbf00225db455f145b99f98f00`, combining the unchanged source
+`33d2790e5f954496c2b79e38854a2b5e2dfa7a3a`, combining the unchanged source
 commits from [Common #38](https://github.com/securely1g/sonic-swss-common/pull/38),
 [Common #39](https://github.com/securely1g/sonic-swss-common/pull/39), and
 [Common #40](https://github.com/securely1g/sonic-swss-common/pull/40).
@@ -41,3 +41,30 @@ registration, and registry #146's native APT interface remain unlanded.
 The owned registry base combines #161 and #146 without rewriting either
 contributor branch. Keep the registration Draft until its required source and
 registry contents land, then recheck immutable pins and validation.
+
+## Shared netlink ownership for Linkmgrd
+
+[Common #41](https://github.com/securely1g/sonic-swss-common/pull/41) declares
+libnl's three native shared providers and runtime package metadata in Common.
+Linkmgrd's `//:linkmgrd` needs Common and libnl base/route together. Previously
+Bazel rejected their duplicate ownership because Common embedded libnl static
+objects. The owner change uses the original shared providers instead. It also
+preserves each owner's runtime TAR; consumers install the libnl TARs alongside
+Common. No DEB producer is selected.
+
+The original 13 build targets and 19 tests remain. Two additional tests link
+and execute the Common/base/route/netfilter APIs together and check Common's
+ELF dependencies and absence of embedded libnl symbols (21 tests total).
+Both native architectures are retained; the consumer explicitly requires
+`libnl3@3.7.0.sonic.7` from [registry #181](https://github.com/securely1g/sonic-bazel-registry/pull/181).
+It retains #148's native support and gives the original shared outputs their
+SONAME filenames, so Common's unwrapped C++ and Rust tests can load them from
+Bazel runfiles. This source replaces the preceding
+unreleased .8 candidate, preserving all existing feature commits and the
+version-only registry patch. Registry and installed consumer acceptance are
+pending; no complete Linkmgrd/OCI result is claimed.
+
+The native libnl interface also loads the shared test/runtime helpers from
+[registry #179](https://github.com/securely1g/sonic-bazel-registry/pull/179).
+The owner and external consumer both declare that minimum infrastructure
+version; merely changing the registry endpoint cannot raise a module minimum.
