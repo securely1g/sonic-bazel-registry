@@ -1,6 +1,6 @@
 module(
     name = "rules_distroless",
-    version = "0.9.4.sonic.15",
+    version = "0.9.4.sonic.16",
     compatibility_level = 1,
 )
 
@@ -58,3 +58,4 @@ use_repo(registry_ci, "registry_ci_libpcap_amd64")
 use_repo(registry_ci, "registry_ci_libpcap_arm64")
 use_repo(registry_ci, "registry_ci_boost_amd64")
 use_repo(registry_ci, "registry_ci_boost_arm64")
+use_repo(registry_ci, "registry_ci_linux_headers")
