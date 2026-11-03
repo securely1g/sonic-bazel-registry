@@ -38,6 +38,8 @@ filegroup(
 
 configure_make(
     name = "socat_build",
+    # Map dependency/sysroot paths too, beyond the compiler's current directory.
+    set_file_prefix_map = True,
     configure_in_place = True,
     configure_options = [
         "--prefix=/usr",
