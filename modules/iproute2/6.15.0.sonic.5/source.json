@@ -1,0 +1,19 @@
+{
+  "url": "https://deb.debian.org/debian/pool/main/i/iproute2/iproute2_6.15.0.orig.tar.xz",
+  "strip_prefix": "iproute2-6.15.0",
+  "integrity": "sha256-gEGFSoglg61SY0ZnNsnIxox0saNXVKt3DSM0P5R1KPs=",
+  "overlay": {
+    "BUILD.bazel": "sha256-kJhsSpKEfggJZirTGp+C2OAR/fQX+3YozNjDq+BITYc=",
+    "MODULE.bazel": "sha256-95OSNsQXamSPfTx/7APEcYDL5d999CMFiepm17kgWd4=",
+    "README.bazel.md": "sha256-bRRHmzP+eNgrL/efkULNrFH/6UkuftWIZUFdeRkDv4I=",
+    "bazel/0001-bridge-fdb-protocol.patch": "sha256-qdyXQnLw6BEAVws6m0r56Of6ShvXgavipuWe8i+ONUw=",
+    "bazel/configure.sh": "sha256-FsIhWYoQi23A1yqf54Hip/jmVjZTw6jiWDKkhNqEkg4=",
+    "bazel/configure_flags_test.py": "sha256-e2szjQpvxqSJ+4iWIjBfLSEdHRTmD3ShQbVmR33o4D4=",
+    "bazel/ematch_config_redirect.c": "sha256-xmLG3/bHzWnTmNFLWrTiWiXLT6j6XQOvgFW34IErXSQ=",
+    "bazel/iproute2.BUILD.bazel": "sha256-bdItDXGLf6neUN3EbwCLfad4+Trido0xYvHuRfTNBP4=",
+    "bazel/package_test.py": "sha256-Fgcw8eLXjM8miP/5MZwUwU4M4Xyrt7XdzGmDBlaKNAo=",
+    "bazel/runtime.bzl": "sha256-4PLUIsUruUoCRZ8fBYtqGJ4oP1gGIKCVsrWbQlDCGGE=",
+    "bazel/source.bzl": "sha256-6nhdqmYvf9lb+Tp49ITJ/e61n4PS8il1If3rbVCm7lo=",
+    "runtime_packages.md": "sha256-LtS1dgAhyjBMBtAJcf97+Kr64cC935yQJ9yx47P7YY8="
+  }
+}
