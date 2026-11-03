@@ -4,7 +4,6 @@ load("@rules_cc//cc:cc_test.bzl", "cc_test")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load(":architecture_test.bzl", "architecture_tests")
 load(":concrete_packages_test.bzl", "concrete_packages_test")
-load(":headers_only.bzl", "headers_only")
 load(":multiarch_test.bzl", "multiarch_test")
 load(":pkgconfig_fields_test.bzl", "pkgconfig_fields_test")
 load(":pkgconfig_quotes_test.bzl", "pkgconfig_quotes_test")
@@ -45,13 +44,13 @@ config_setting(
     ],
 )
 
-# The contract under test is the compilation context exported by deb_import.
-# Discard linker inputs so this header check does not link the runtime libraries.
-headers_only(
+# The package producer exports a compile-only public interface.
+# These programs compile real APIs and link without package runtime libraries.
+alias(
     name = "protobuf_headers",
-    dep = select({
-        ":linux_amd64": "@registry_ci_protobuf_amd64//:libprotobuf",
-        ":linux_arm64": "@registry_ci_protobuf_arm64//:libprotobuf",
+    actual = select({
+        ":linux_amd64": "@registry_ci_protobuf_amd64//:libprotobuf_headers",
+        ":linux_arm64": "@registry_ci_protobuf_arm64//:libprotobuf_headers",
     }),
 )
 
@@ -72,11 +71,11 @@ pkgconfig_selection_test(name = "pkgconfig_selection_test")
 concrete_packages_test(name = "concrete_packages_test")
 
 # Compile the actual Lua public headers, including Debian's CPU-specific file.
-headers_only(
+alias(
     name = "lua_headers",
-    dep = select({
-        ":linux_amd64": "@registry_ci_lua_amd64//:liblua5.1-0",
-        ":linux_arm64": "@registry_ci_lua_arm64//:liblua5.1-0",
+    actual = select({
+        ":linux_amd64": "@registry_ci_lua_amd64//:liblua5.1-0_headers",
+        ":linux_arm64": "@registry_ci_lua_arm64//:liblua5.1-0_headers",
     }),
 )
 
@@ -145,11 +144,11 @@ sh_test(
 
 # xtables.pc uses tabs after its field colons. Its development import must
 # contribute the include directory, not only declare the header files.
-headers_only(
+alias(
     name = "xtables_headers",
-    dep = select({
-        ":linux_amd64": "@registry_ci_xtables_amd64//:libxtables",
-        ":linux_arm64": "@registry_ci_xtables_arm64//:libxtables",
+    actual = select({
+        ":linux_amd64": "@registry_ci_xtables_amd64//:libxtables_headers",
+        ":linux_arm64": "@registry_ci_xtables_arm64//:libxtables_headers",
     }),
 )
 
@@ -162,11 +161,11 @@ cc_test(
 pkgconfig_quotes_test(name = "pkgconfig_quotes_test")
 
 # Real libpcap.pc has quoted variables that expand to nested quote pairs.
-headers_only(
+alias(
     name = "libpcap_headers",
-    dep = select({
-        ":linux_amd64": "@registry_ci_libpcap_amd64//:libpcap0.8",
-        ":linux_arm64": "@registry_ci_libpcap_arm64//:libpcap0.8",
+    actual = select({
+        ":linux_amd64": "@registry_ci_libpcap_amd64//:libpcap0.8_headers",
+        ":linux_arm64": "@registry_ci_libpcap_arm64//:libpcap0.8_headers",
     }),
 )
 
@@ -198,4 +197,11 @@ py_test(
         ":lua_original_deb",
         "@registry_ci_pkgconfig//liblua5.1-0-dev:deb",
     ],
+)
+
+# The public hub selects a single Lua library and its target runtime closure.
+cc_test(
+    name = "lua_single_library_test",
+    srcs = ["lua_single_library_test.cc"],
+    deps = ["@registry_ci_pkgconfig//liblua5.1-0-dev:liblua5.1_cc"],
 )

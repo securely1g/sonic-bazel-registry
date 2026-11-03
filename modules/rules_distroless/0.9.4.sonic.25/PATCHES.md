@@ -1,6 +1,6 @@
 # Distroless patch provenance and validation
 
-`0.9.4.sonic.13` uses the same checksum-pinned upstream 0.9.4 archive as published
+`0.9.4.sonic.14` uses the same checksum-pinned upstream 0.9.4 archive as published
 `0.9.4.sonic.12`. It inherits patches `0002` through `0014` byte-for-byte,
 including the installer, lock importer and compiler/header fixes. Patch `0001`
 changes only the module version; patch `0015` adds account preservation for
@@ -26,10 +26,10 @@ proposals and are not counted as releases.
 | `0009-pkgconfig-field-separators.patch` | `0.9.4.sonic.7` | Parse colon-tabs and colon-without-space fields; distinguish variable assignments from separators inside values. |
 | `0010-pkgconfig-quoting.patch` | `0.9.4.sonic.8` | Decode quotes and backslash escapes in expanded flags and path variables; preserve spaces within arguments. |
 | `0011-template-headers.patch` | `0.9.4.sonic.9` | Include the remaining rules_cc-supported header fragments under `usr/include`, including Boost `.ipp` files. |
-| `0012-headerless-includes.patch` | `0.9.4.sonic.10` | Export the package include root only when it owns declared compiler inputs; preserve all linker and transitive contexts. |
+| `0012-headerless-includes.patch` | `0.9.4.sonic.14` | Export the package include root only when it owns declared compiler inputs; preserve all linker and transitive contexts. |
 | `0013-import-apt-lock.patch` | `0.9.4.sonic.11` | Import exact package archives and dependency graphs from one reviewed lock; include the extension's unit regressions. Origin: [build-infra #59](https://github.com/securely1g/sonic-build-infra/pull/59). |
 | `0014-apt-install.patch` | `0.9.4.sonic.12` | Add optional APT/dpkg installation and original-DEB aliases that preserve locked-import repository prefixes. Installer source: [rules_distroless fork PR #2](https://github.com/securely1g/rules_distroless/pull/2), commit `b3d0573b06b682a7ae3d5de20cc8215b3be3a037`, previously proposed in closed registry #72 and reused in #110. |
-| `0015-preserve-base-accounts.patch` | `0.9.4.sonic.13` (proposed) | Preserve inherited OCI users and groups when adding service accounts. Source: [upstream #290](https://github.com/bazel-contrib/rules_distroless/pull/290), commit `d503c1141d3759390dc78ffbb99de33b7d4f4619`; adapted MODULE integration from [registry #128](https://github.com/securely1g/sonic-bazel-registry/pull/128). |
+| `0015-preserve-base-accounts.patch` | `0.9.4.sonic.14` (proposed) | Preserve inherited OCI users and groups when adding service accounts. Source: [upstream #290](https://github.com/bazel-contrib/rules_distroless/pull/290), commit `d503c1141d3759390dc78ffbb99de33b7d4f4619`; adapted MODULE integration from [registry #128](https://github.com/securely1g/sonic-bazel-registry/pull/128). |
 
 These are SONiC-maintained adaptations; each patch records its source.
 [Upstream #220](https://github.com/bazel-contrib/rules_distroless/pull/220)
@@ -257,3 +257,7 @@ The thirteen inherited implementation patches and their integrity values, all ov
 independent integration fixtures, six build targets and 27 tests remain unchanged.
 Five account test targets bring the native AMD64 and ARM64 total to 32 each.
 Full installed-image behavior remains the consumer's validation responsibility.
+
+Native component exports retain all .sonic.13 fixes and add public headers-only interfaces, declared linker-script inputs, and producer-owned Perl CORE includes. Patch 0016 merges these changes on top of the published patch chain.
+
+Patch 0017 adds native per-library APT targets and architecture hub aliases, retaining package-level interfaces and declared runtime dependency inputs.
