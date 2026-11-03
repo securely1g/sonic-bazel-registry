@@ -100,6 +100,10 @@ def main():
                          result.stdout), result.stdout
         for name in ("filan", "procan"):
             assert command(*prefix, str(root / "usr/bin" / name), "-h", env=environment)
+        process_metadata = command(*prefix, str(root / "usr/bin/procan"), env=environment)
+        compiler = re.search(r"^// CC:\s+(.+)$", process_metadata, re.M)
+        assert compiler and compiler[1].startswith("./external/"), process_metadata
+        assert "/execroot/" not in compiler[1], compiler[1]
 
         with tarfile.open(debug) as package:
             package.extractall(root, filter="data")
@@ -108,6 +112,8 @@ def main():
             symbols = root / "usr/lib/debug/.build-id" / identity[:2] / (identity[2:] + ".debug")
             assert build_id(symbols) == identity
             assert ".debug_info" in command("readelf", "-SW", str(symbols))
+            paths = command("readelf", "-p", ".debug_line_str", "-p", ".debug_str", str(symbols))
+            assert "/execroot/" not in paths, paths
             section = root / (name + ".debuglink")
             command("objcopy", "--dump-section", f".gnu_debuglink={section}",
                     str(binary), str(root / (name + ".copy")))

@@ -61,6 +61,15 @@ The resolver selects the same snapshot packages for both native architectures.
 Build-time `-rpath-link` searches only the declared dependency directory; the
 installed programs have no build-directory RPATH or RUNPATH.
 
+The native rule enables upstream `set_file_prefix_map` so debug information
+uses paths relative to the execution root, including dependency and sysroot
+headers. This prevents a different sandbox directory from changing build IDs
+and detached debug symbols. A small Makefile patch also normalizes the compiler
+path printed by `procan`: that value is literal metadata, which compiler prefix
+maps cannot change. The actual compiler command and flags remain unchanged.
+The installed test rejects execution-root paths in both debug strings and
+`procan`'s compiler report.
+
 When updating the source, update both source archive URLs and hashes from the
 matching Debian `.dsc`, and check SONiC's readline patch still applies. The
 Debian archive supplies the patch inventory; do not copy it into the registry.

@@ -1,0 +1,11 @@
+--- a/Makefile.in
++++ b/Makefile.in
+@@ -110,7 +110,7 @@
+ 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ socat.o libxio.a $(CLIBS)
+ 
+ procan.o: $(srcdir)/procan.c
+-	$(CC) $(CFLAGS) -c -D CC="\"$(CC)\"" -o $@ $(srcdir)/procan.c
++	$(CC) $(CFLAGS) -c -D CC="\"$(if $(EXT_BUILD_ROOT),$(subst $(EXT_BUILD_ROOT)/,./,$(CC)),$(CC))\"" -o $@ $(srcdir)/procan.c
+ 
+ PROCAN_OBJS=procan_main.o procan.o procan-cdefs.o hostan.o error.o sycls.o sysutils.o utils.o vsnprintf_r.o snprinterr.o
+ procan: $(PROCAN_OBJS)
