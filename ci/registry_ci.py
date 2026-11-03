@@ -976,7 +976,7 @@ def prepare_rust(config: dict, consumer: Path, work_dir: Path, artifacts: Path,
     # The shared module has its own native toolchains. Consumer platform labels
     # and Starlark settings may name repositories that do not exist there.
     preparation_flags = [flag for flag in flags
-                         if flag.startswith(("--registry=", "--lockfile_mode="))]
+                         if flag.startswith(("--registry=", "--lockfile_mode=", "--experimental_downloader_config="))]
     command = [sys.executable, str(helper), "--workspace", str(consumer),
                "--shared-only", "--shared-dependency",
                f"{preparation['module']}={preparation['repo_name']}",
@@ -1171,6 +1171,7 @@ def run(root: Path, module: str, version: str, architecture: str,
         prefix = [bazel, "--ignore_all_rc_files", f"--output_user_root={work_dir / 'bazel'}"]
         flags = [f"--registry={root.resolve().as_uri()}", "--registry=https://bcr.bazel.build/",
                  f"--platforms={config['platforms'][architecture]}", "--lockfile_mode=update",
+                 f"--experimental_downloader_config={root.resolve() / 'ci/source_mirrors.cfg'}",
                  "--remote_download_regex=(^|.*/)tools/build_tools/kernel_runtime_(amd64|arm64)(/.*)?$",
                  *config.get("build_flags", [])]
         if "host_platforms" in config:
@@ -1185,7 +1186,8 @@ def run(root: Path, module: str, version: str, architecture: str,
             # Path queries need dependency resolution, but not target/host platform
             # flags whose apparent labels may be unresolved in a fresh info command.
             info_flags = [flag for flag in flags if flag.startswith(
-                ("--registry=", "--lockfile_mode=", "--override_module=", "--override_repository="))]
+                ("--registry=", "--lockfile_mode=", "--experimental_downloader_config=",
+                 "--override_module=", "--override_repository="))]
             execution_root = Path(subprocess.check_output([*prefix, "info", *info_flags, "execution_root"],
                                                          cwd=consumer, text=True).strip())
             collect_outputs(artifacts / "build-events.jsonl", config["build_targets"], work_dir, artifacts,
