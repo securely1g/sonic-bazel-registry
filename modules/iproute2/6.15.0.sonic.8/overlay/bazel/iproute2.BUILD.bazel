@@ -72,6 +72,8 @@ filegroup(
 
 configure_make(
     name = "iproute2_build",
+    # Normalize dependency/sysroot paths as well as the package source directory.
+    set_file_prefix_map = True,
     args = ["-j4"],
     build_data = [
         "@sonic_build_infra//tools/build_tools:pkgconf",
