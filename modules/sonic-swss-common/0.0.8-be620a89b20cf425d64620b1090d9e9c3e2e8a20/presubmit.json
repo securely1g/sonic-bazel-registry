@@ -6,7 +6,7 @@
   "consumer_deps": [
     {
       "name": "sonic-build-infra",
-      "version": "0.0.26-0378d53824b18b253ecbd6faadba00e505ff4ccf",
+      "version": "0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568",
       "repo_name": "sonic_build_infra"
     },
     {
@@ -15,7 +15,7 @@
     },
     {
       "name": "rules_distroless",
-      "version": "0.9.4.sonic.13"
+      "version": "0.9.4.sonic.15"
     },
     {
       "name": "rules_cc",
@@ -32,7 +32,7 @@
     },
     {
       "name": "sonic-rust-deps",
-      "version": "0.0.2-127e89b9396824166caa6a300872398c6896bfec",
+      "version": "0.0.4-6d9c70f708d7420e9e2b2cdc906b80cee6b140f1",
       "repo_name": "sonic_rust_deps"
     },
     {
@@ -57,7 +57,10 @@
     "@sonic-swss-common//crates/swss-common:swss_common",
     "@sonic-swss-common//dist:sonic-db-cli_pkg.debug_symbols",
     "@sonic-swss-common//pyext:swsscommon_pkg.debug_symbols",
-    "@sonic-swss-common//:runtime_packages.json"
+    "@sonic-swss-common//:runtime_packages.json",
+    "@sonic-swss-common//crates/swss-common:swss_common_async",
+    "@sonic-swss-common//crates/swss-common-testing:swss_common_testing",
+    "@sonic-swss-common//crates/swss-common-testing:swss_common_testing_async"
   ],
   "test_targets": [
     "@sonic-swss-common//tests:status_code_util_test",
@@ -80,7 +83,10 @@
     "@sonic-swss-common//sonic-db-cli:declared_shared_library_test",
     "@sonic-swss-common//tests:redis_lua_path_test",
     "@sonic-swss-common//tests/shared_netlink:consumer_test",
-    "@sonic-swss-common//tests:shared_library_elf_test"
+    "@sonic-swss-common//tests:shared_library_elf_test",
+    "@sonic-swss-common//crates/swss-common:swss_common_async_test",
+    "@sonic-swss-common//tools/bazel/rust:testing_interface_test",
+    "@sonic-swss-common//tools/bazel/rust:async_testing_interface_test"
   ],
   "build_flags": [
     "--@sonic-swss-common//tools/bazel:yang_modules=True"
