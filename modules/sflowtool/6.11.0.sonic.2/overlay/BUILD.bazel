@@ -1,0 +1,87 @@
+load("@bazel_skylib//rules:select_file.bzl", "select_file")
+load("@rules_foreign_cc//foreign_cc:defs.bzl", "configure_make")
+load("@rules_python//python:py_test.bzl", "py_test")
+load("@sonic_build_infra//binary:keep_debug_info.bzl", "keep_debug_info")
+load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
+load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
+
+package(default_visibility = ["//visibility:public"])
+
+_NATIVE = ["@platforms//cpu:x86_64", "@sonic_build_infra//platforms:trixie"]
+
+# Keep the upstream build definition and its complete source/header inputs.
+filegroup(name = "sources", srcs = glob(["**"], exclude = ["BUILD.bazel", "MODULE.bazel", "bazel/package_test.py", "bazel/debian/**"]))
+exports_files(["COPYING", "src/sflowtool.c"])
+
+configure_make(
+    name = "sflowtool_build",
+    lib_source = ":sources",
+    configure_in_place = True,
+    configure_command = "bazel/configure.sh",
+    configure_prefix = "/bin/sh",
+    configure_options = ["--disable-silent-rules"],
+    build_data = [
+        "bazel/configure.sh",
+        "@sonic_build_infra//tools/build_tools:foreign_runtime",
+        "@sonic_build_infra//tools/build_tools:configure_environment.sh",
+    ],
+    env = {
+        "BAZEL_FOREIGN_TOOLS": "$(execpath @sonic_build_infra//tools/build_tools:foreign_runtime)",
+        "BAZEL_CONFIGURE_ENV": "$(execpath @sonic_build_infra//tools/build_tools:configure_environment.sh)",
+        "PATH": "$(execpath @sonic_build_infra//tools/build_tools:foreign_runtime)/bin:$$PATH",
+        "SOURCE_DATE_EPOCH": "0",
+        "LC_ALL": "C",
+        "TZ": "UTC",
+    },
+    features = ["-sanitize_pwd"],
+    set_file_prefix_map = True,
+    postfix_script = "cp config.h config.log $$INSTALLDIR/",
+    out_binaries = ["sflowtool"],
+    out_data_files = ["config.h", "config.log"],
+    target_compatible_with = _NATIVE,
+)
+
+select_file(name = "sflowtool_raw", srcs = ":sflowtool_build", subpath = "sflowtool_build/bin/sflowtool")
+# Also retain the unstripped executable, as the legacy dh_strip override does.
+keep_debug_info(name = "sflowtool", src = ":sflowtool_raw")
+select_file(name = "configure_log_raw", srcs = ":sflowtool_build", subpath = "sflowtool_build/config.log")
+select_file(name = "configuration_raw", srcs = ":sflowtool_build", subpath = "sflowtool_build/config.h")
+keep_debug_info(name = "configure_log", src = ":configure_log_raw")
+keep_debug_info(name = "configuration", src = ":configuration_raw")
+
+sonic_deploy_tar(
+    name = "runtime",
+    binaries = {"usr/bin/sflowtool uid=0 gid=0 mode=0755 type=file": ":sflowtool_raw"},
+    force_debug_build = True,
+    srcs = ["COPYING"],
+    mtree = ["usr/share/doc/sflowtool/copyright uid=0 gid=0 mode=0644 type=file content=$(location COPYING)"],
+    visibility = ["//visibility:public"],
+)
+
+# Derive the installed package identity and libc dependency without a DEB.
+runtime_packages(
+    name = "runtime_packages.json",
+    control = "bazel/debian/control",
+    changelog = "bazel/debian/changelog",
+    packages = {"sflowtool": "//:runtime"},
+)
+
+py_test(
+    name = "package_test",
+    srcs = ["bazel/package_test.py"],
+    args = [
+        "--runtime", "$(location :runtime)",
+        "--debug", "$(location :runtime.debug_symbols)",
+        "--unstripped", "$(location :sflowtool)",
+        "--copyright", "$(location COPYING)",
+        "--metadata", "$(location :runtime_packages.json)",
+        "--readelf", "$(location @sonic_build_infra//toolchains/binutils:readelf)",
+        "--objcopy", "$(location @sonic_build_infra//toolchains/binutils:objcopy)",
+    ],
+    data = [
+        ":runtime", ":runtime.debug_symbols", ":sflowtool", "COPYING", ":runtime_packages.json",
+        "@sonic_build_infra//toolchains/binutils:readelf",
+        "@sonic_build_infra//toolchains/binutils:objcopy",
+    ],
+    target_compatible_with = _NATIVE,
+)
