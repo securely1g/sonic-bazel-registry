@@ -18,7 +18,8 @@
     "@sflowtool//:runtime.debug_symbols",
     "@sflowtool//:sflowtool",
     "@sflowtool//:configuration",
-    "@sflowtool//:configure_log"
+    "@sflowtool//:configure_log",
+    "@sflowtool//:runtime_packages.json"
   ],
   "test_targets": [
     "@sflowtool//:package_test"
