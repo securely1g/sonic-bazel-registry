@@ -89,3 +89,14 @@ exports_files(
     ["runtime_packages.md"],
     visibility = ["//visibility:public"],
 )
+
+# Registry CI's native Trixie environment provides build-essential and make.
+# Exercise real GCC response parsing and recursive Make with a >128 KiB
+# combined flag set, without producing a Debian package.
+py_test(
+    name = "configure_flags_test",
+    srcs = ["bazel/configure_flags_test.py"],
+    args = ["$(rootpath bazel/configure.sh)"],
+    data = ["bazel/configure.sh"],
+    tags = ["local"],
+)
