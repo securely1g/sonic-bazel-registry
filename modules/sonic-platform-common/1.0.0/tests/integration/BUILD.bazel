@@ -1,0 +1,19 @@
+load("@registry_test_pip//:requirements.bzl", "requirement")
+load("@rules_python//python:py_test.bzl", "py_test")
+
+py_test(
+    name = "installed_wheel_test",
+    srcs = ["installed_wheel_test.py"],
+    args = [
+        "$(rootpath @sonic-platform-common//:sonic_platform_common_wheel)",
+        "$(rootpath @sonic-platform-common//:setup.py)",
+    ],
+    data = [
+        "@sonic-platform-common//:setup.py",
+        "@sonic-platform-common//:sonic_platform_common_wheel",
+        "@sonic-platform-common//:wheel_payload",
+    ],
+    legacy_create_init = False,
+    python_version = "3.13",
+    deps = [requirement("installer")],
+)
