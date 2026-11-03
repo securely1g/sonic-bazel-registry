@@ -1,11 +1,11 @@
 {
-  "url": "https://github.com/securely1g/sonic-build-infra/archive/270b1cb187a3e42aec95ab2d3871fb077b4c484d.tar.gz",
-  "strip_prefix": "sonic-build-infra-270b1cb187a3e42aec95ab2d3871fb077b4c484d",
-  "integrity": "sha256-RhDpYxeBFfHDBgDdYc0vufyJZiGlw/VLK3kVBz5ynjs=",
+  "url": "https://github.com/securely1g/sonic-build-infra/archive/0378d53824b18b253ecbd6faadba00e505ff4ccf.tar.gz",
+  "strip_prefix": "sonic-build-infra-0378d53824b18b253ecbd6faadba00e505ff4ccf",
+  "integrity": "sha256-DuQV6XZA6gqL7hIeTaZAuugLmZzolnTTVCuPO0xxYgs=",
   "patches": {
-    "0001-bump-version.patch": "sha256-QmgjxwLSBv8OSOjJ8oJaxT/bAZCxgpRE4V2LuNnC+X0=",
+    "0001-bump-version.patch": "sha256-eGsjfWOMiSy+T/Qnqpp1Yjv8KGh0coNE7SOrQwfE/+M=",
     "0002-registry-cross-test-visibility.patch": "sha256-2+0NUZ9mcSHEHa+PIU3NVGG8uFBEgaA8LC9wDkg+GrY=",
-    "0003-native-component-interfaces.patch": "sha256-bRUr+i37x17qmnffT+Qt+F46MAgZZaa93RtsiTFixU4="
+    "0003-native-component-interfaces.patch": "sha256-hMQ35J9iSC7z5dS4Xm5oxPsqKC4I0hvM7forCuxuD5U="
   },
   "patch_strip": 1,
   "overlay": {
