@@ -2,6 +2,7 @@
 
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_import", "cc_library")
 load("@rules_python//python:defs.bzl", "py_test")
+load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
 load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
 load("//:defs.bzl", "cpp_proto_sources", "python_proto_sources")
 
@@ -32,18 +33,32 @@ def sonic_targets():
     for cpu, multiarch in [("x86_64", "x86_64-linux-gnu"), ("aarch64", "aarch64-linux-gnu")]:
         sonic_deploy_tar(
             name = "libprotobuf_pkg_" + cpu,
-            srcs = ["LICENSE"],
+            srcs = ["LICENSE", "//debian:copyright"],
             binaries = {"usr/lib/{}/libprotobuf.so.32.0.12 uid=0 gid=0 type=file mode=0644".format(multiarch): ":libprotobuf.so.32"},
             force_debug_build = True,
             mtree = [
                 "usr/lib/{}/libprotobuf.so.32 uid=0 gid=0 type=link link=libprotobuf.so.32.0.12".format(multiarch),
                 "usr/share/doc/protobuf-legacy/copyright uid=0 gid=0 type=file mode=0644 content=$(location LICENSE)",
+                "usr/share/doc/libprotobuf32t64/copyright uid=0 gid=0 type=file mode=0644 content=$(location //debian:copyright)",
             ],
             target_compatible_with = ["@platforms//cpu:" + cpu],
             visibility = public,
         )
     for suffix in ["", ".debug_symbols"]:
         native.alias(name = "libprotobuf_pkg" + suffix, actual = select({":sonic_" + cpu: ":libprotobuf_pkg_" + cpu + suffix for cpu in ["x86_64", "aarch64"]}), visibility = public)
+    runtime_packages(
+        name = "runtime_packages.json",
+        module_name = "protobuf-legacy",
+        packages = {"libprotobuf32t64": ":libprotobuf_pkg"},
+        control = "//debian:control",
+        changelog = "//debian:changelog",
+        required_paths = {"libprotobuf32t64": [
+            "usr/lib/{multiarch}/libprotobuf.so.32",
+            "usr/lib/{multiarch}/libprotobuf.so.32.0.12",
+            "usr/share/doc/libprotobuf32t64/copyright",
+        ]},
+        visibility = public,
+    )
     cpp_proto_sources(name = "probe_generated", srcs = ["probe.proto"], output_prefix = "generated", visibility = public)
     native.filegroup(name = "probe_sources", srcs = [":probe_generated"], output_group = "sources")
     native.filegroup(name = "probe_headers", srcs = [":probe_generated"], output_group = "headers")
@@ -75,11 +90,25 @@ def sonic_targets():
         main = "//bazel:source_package_test.py",
         args = [
             "--runtime=$(rlocationpath :libprotobuf_pkg)",
+            "--metadata=$(rlocationpath :runtime_packages.json)",
+            "--control=$(rlocationpath //debian:control)",
+            "--changelog=$(rlocationpath //debian:changelog)",
             "--debug=$(rlocationpath :libprotobuf_pkg.debug_symbols)",
             "--consumer=$(rlocationpath :generated_runtime_consumer)",
             "--protoc=$(rlocationpath :protoc)",
         ],
-        data = [":libprotobuf_pkg", ":libprotobuf_pkg.debug_symbols", ":generated_runtime_consumer", ":protoc"],
+        data = [":libprotobuf_pkg", ":libprotobuf_pkg.debug_symbols", ":generated_runtime_consumer", ":protoc", ":runtime_packages.json", "//debian:control", "//debian:changelog"],
         deps = ["@rules_python//python/runfiles"],
+        visibility = public,
+    )
+
+    py_test(
+        name = "source_preparation_test",
+        srcs = ["//bazel:source_preparation_test.py"],
+        main = "//bazel:source_preparation_test.py",
+        args = ["--source-marker=$(rlocationpath //debian:patches/series)"],
+        data = [":source_preparation_inputs", "//debian:patches/series"],
+        deps = ["@rules_python//python/runfiles"],
+        legacy_create_init = False,
         visibility = public,
     )
