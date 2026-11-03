@@ -1,0 +1,30 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [],
+  "platforms": {
+    "amd64": "@tar.bzl//tests/default_mtime:amd64",
+    "arm64": "@tar.bzl//tests/default_mtime:arm64"
+  },
+  "build_targets": [
+    "@tar.bzl//tests/default_mtime:normalized_first",
+    "@tar.bzl//tests/default_mtime:normalized_second",
+    "@tar.bzl//tests/default_mtime:raw_first",
+    "@tar.bzl//tests/default_mtime:raw_second",
+    "@tar.bzl//tests/default_mtime:file_manifest",
+    "@tar.bzl//tests/default_mtime:automatic",
+    "@tar.bzl//tests/default_mtime:pruned",
+    "@tar.bzl//tests/default_mtime:unused_inputs"
+  ],
+  "test_targets": [
+    "@tar.bzl//tests/default_mtime:default_mtime_test",
+    "@tar.bzl//tests/default_mtime:invalid_0_test",
+    "@tar.bzl//tests/default_mtime:invalid_1_test",
+    "@tar.bzl//tests/default_mtime:invalid_2_test",
+    "@tar.bzl//tests/default_mtime:invalid_3_test",
+    "@tar.bzl//tests/default_mtime:invalid_4_test",
+    "@tar.bzl//tests/default_mtime:invalid_5_test"
+  ]
+}
