@@ -4,7 +4,7 @@
   "docs_url": "https://github.com/bazel-contrib/rules_distroless/releases/download/v0.9.4/rules_distroless-v0.9.4.docs.tar.gz",
   "url": "https://github.com/bazel-contrib/rules_distroless/releases/download/v0.9.4/rules_distroless-v0.9.4.tar.gz",
   "patches": {
-    "0001-module-version.patch": "sha256-zqZ7e5zfy0eAI1pbCrihhRhLyFz8EHSQIwiMFzgTz2M=",
+    "0001-module-version.patch": "sha256-5ZU5aINAulPHvxiMjYrrANXq3uMNwHLKanEI//W27Hw=",
     "0002-include-fragments.patch": "sha256-iNpoe/p+zvHebAowncGruHEtEPSMrsIunHTfMNZOY5o=",
     "0003-registry-ci.patch": "sha256-t8SegtaPxng70+DtM4wHjzZyDy05k6Lmvj+Gy5gpGWg=",
     "0004-pkgconfig-whitespace.patch": "sha256-Q4KG8wakd7ul6zsMbpmXofnzVeTFBWgqVWJL9eOvPBY=",
@@ -20,7 +20,8 @@
     "0014-apt-install.patch": "sha256-6ja3FB67bdh+5Q7jqchPESh4jZk0uwsaN/PUE/qch/M=",
     "0015-preserve-base-accounts.patch": "sha256-G8e4q0YaftjiKDxn10Bhv2o0HZh7QpP+Osy2UiDmLZY=",
     "0016-native-library-exports.patch": "sha256-liEcyU0lYXTwZJg6VMiJpYr/krm1jsVo8Nts/EulgCo=",
-    "0017-individual-apt-libraries.patch": "sha256-a8xX5bQIaCSBcRW9Sc6HlJbbcx3MdbtOqNNGyn4vMWI="
+    "0017-individual-apt-libraries.patch": "sha256-a8xX5bQIaCSBcRW9Sc6HlJbbcx3MdbtOqNNGyn4vMWI=",
+    "0018-public-cc-import.patch": "sha256-HQNENBz+9QFA86VVpBtiVucEr8qTPymgkPTjBvScF4o="
   },
   "patch_strip": 1,
   "overlay": {
