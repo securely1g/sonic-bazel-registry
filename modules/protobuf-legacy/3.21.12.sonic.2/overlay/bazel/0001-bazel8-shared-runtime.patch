@@ -1,0 +1,163 @@
+diff --git a/BUILD.bazel b/BUILD.bazel
+--- a/BUILD.bazel
++++ b/BUILD.bazel
+@@ -1,11 +1,14 @@
+ # Bazel (https://bazel.build/) BUILD file for Protobuf.
+ 
+ load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
++load("//sonic:targets.bzl", "sonic_targets")
+ load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
+ load("@rules_pkg//:mappings.bzl", "pkg_files", "strip_prefix")
+ load("@rules_proto//proto:defs.bzl", "proto_lang_toolchain", "proto_library")
+ load("@rules_python//python:defs.bzl", "py_library")
+-load("@rules_java//java:defs.bzl", "java_binary", "java_lite_proto_library", "java_proto_library")
++load("@rules_java//java:defs.bzl", "java_binary")
++load("@protobuf//bazel:java_lite_proto_library.bzl", "java_lite_proto_library")
++load("@protobuf//bazel:java_proto_library.bzl", "java_proto_library")
+ load("//build_defs:cpp_opts.bzl", "COPTS", "LINK_OPTS", "PROTOC_LINK_OPTS")
+ load(
+     ":protobuf.bzl",
+@@ -26,6 +29,7 @@
+ 
+ cc_library(
+     name = "protobuf_lite",
++    alwayslink = True,
+     srcs = [
+         # AUTOGEN(protobuf_lite_srcs)
+         "src/google/protobuf/any_lite.cc",
+@@ -73,6 +77,7 @@
+ 
+ cc_library(
+     name = "protobuf",
++    alwayslink = True,
+     srcs = [
+         # AUTOGEN(protobuf_srcs)
+         "src/google/protobuf/any.cc",
+@@ -1366,3 +1371,6 @@
+     strip_prefix = strip_prefix.from_root(""),
+     visibility = ["//pkg:__pkg__"],
+ )
++
++# Shared runtime, generation adapters and native SONiC package checks.
++sonic_targets()
+diff --git a/protobuf.bzl b/protobuf.bzl
+--- a/protobuf.bzl
++++ b/protobuf.bzl
+@@ -2,6 +2,8 @@
+ load("@rules_cc//cc:defs.bzl", "cc_library")
+ load("@rules_proto//proto:defs.bzl", "ProtoInfo")
+ load("@rules_python//python:defs.bzl", "py_library", "py_test")
++
++LegacyProtoInfo = provider(fields = ["srcs", "import_flags", "deps"])
+ 
+ def _GetPath(ctx, path):
+     if ctx.label.workspace_root:
+@@ -95,23 +97,21 @@
+     import_flags = depset(direct=import_flags)
+ 
+     for dep in ctx.attr.deps:
+-        if type(dep.proto.import_flags) == "list":
+-            import_flags = depset(transitive=[import_flags], direct=dep.proto.import_flags)
++        if type(dep[LegacyProtoInfo].import_flags) == "list":
++            import_flags = depset(transitive=[import_flags], direct=dep[LegacyProtoInfo].import_flags)
+         else:
+-            import_flags = depset(transitive=[import_flags, dep.proto.import_flags])
+-        if type(dep.proto.deps) == "list":
+-            deps = depset(transitive=[deps], direct=dep.proto.deps)
++            import_flags = depset(transitive=[import_flags, dep[LegacyProtoInfo].import_flags])
++        if type(dep[LegacyProtoInfo].deps) == "list":
++            deps = depset(transitive=[deps], direct=dep[LegacyProtoInfo].deps)
+         else:
+-            deps = depset(transitive=[deps, dep.proto.deps])
+-
+-    if not ctx.attr.gen_cc and not ctx.attr.gen_py and not ctx.executable.plugin:
+-        return struct(
+-            proto = struct(
+-                srcs = srcs,
+-                import_flags = import_flags,
+-                deps = deps,
+-            ),
+-        )
++            deps = depset(transitive=[deps, dep[LegacyProtoInfo].deps])
++
++    if not ctx.attr.gen_cc and not ctx.attr.gen_py and not ctx.attr.gen_pyi and not ctx.executable.plugin:
++        return [LegacyProtoInfo(
++            srcs = srcs,
++            import_flags = import_flags,
++            deps = deps,
++        )]
+ 
+     for src in srcs:
+         args = []
+@@ -129,6 +129,9 @@
+         if ctx.attr.gen_cc:
+             args += [("--cpp_out=" + path_tpl) % gen_dir]
+             outs.extend(_CcOuts([src.basename], use_grpc_plugin = use_grpc_plugin))
++        if ctx.attr.gen_pyi:
++            args += [("--pyi_out=" + path_tpl) % gen_dir]
++            outs.append(src.basename[:-len(".proto")] + "_pb2.pyi")
+         if ctx.attr.gen_py:
+             args += [("--python_out=" + path_tpl) % gen_dir]
+             outs.extend(_PyOuts([src.basename], use_grpc_plugin = use_grpc_plugin))
+@@ -186,18 +189,16 @@
+                     use_default_shell_env = True,
+                 )
+ 
+-    return struct(
+-        proto = struct(
+-            srcs = srcs,
+-            import_flags = import_flags,
+-            deps = deps,
+-        ),
+-    )
++    return [LegacyProtoInfo(
++        srcs = srcs,
++        import_flags = import_flags,
++        deps = deps,
++    )]
+ 
+ proto_gen = rule(
+     attrs = {
+         "srcs": attr.label_list(allow_files = True),
+-        "deps": attr.label_list(providers = ["proto"]),
++        "deps": attr.label_list(providers = [LegacyProtoInfo]),
+         "includes": attr.string_list(),
+         "protoc": attr.label(
+             cfg = "exec",
+@@ -214,6 +215,7 @@
+         "plugin_options": attr.string_list(),
+         "gen_cc": attr.bool(),
+         "gen_py": attr.bool(),
++        "gen_pyi": attr.bool(),
+         "outs": attr.output_list(),
+     },
+     output_to_genfiles = True,
+@@ -244,13 +246,11 @@
+     deps = [dep[ProtoInfo] for dep in ctx.attr.deps]
+ 
+     srcs = [src for dep in deps for src in dep.direct_sources]
+-    return struct(
+-        proto = struct(
+-            srcs = srcs,
+-            import_flags = ["-I{}".format(path) for dep in deps for path in dep.transitive_proto_path.to_list()],
+-            deps = srcs,
+-        ),
+-    )
++    return [LegacyProtoInfo(
++        srcs = srcs,
++        import_flags = ["-I{}".format(path) for dep in deps for path in dep.transitive_proto_path.to_list()],
++        deps = srcs,
++    )]
+ 
+ adapt_proto_library = rule(
+     implementation = _adapt_proto_library_impl,
+diff --git a/build_defs/cc_proto_blacklist_test.bzl b/build_defs/cc_proto_blacklist_test.bzl
+--- a/build_defs/cc_proto_blacklist_test.bzl
++++ b/build_defs/cc_proto_blacklist_test.bzl
+@@ -1,4 +1,6 @@
+ """Contains a unittest to verify that `cc_proto_library` does not generate code for blacklisted `.proto` sources (i.e. WKPs)."""
++
++load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
+ 
+ load("@bazel_skylib//lib:unittest.bzl", "asserts", "unittest")
+ 

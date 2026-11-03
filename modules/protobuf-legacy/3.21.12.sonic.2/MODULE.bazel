@@ -1,0 +1,40 @@
+module(
+    name = "protobuf-legacy",
+    version = "3.21.12.sonic.2",
+    compatibility_level = 1,
+    repo_name = "com_google_protobuf",
+)
+
+bazel_dep(name = "bazel_skylib", version = "1.9.0")
+bazel_dep(name = "protobuf", version = "29.0")
+bazel_dep(name = "platforms", version = "1.1.0")
+bazel_dep(name = "rules_cc", version = "0.2.16")
+bazel_dep(name = "rules_java", version = "8.14.0")
+bazel_dep(name = "rules_pkg", version = "1.1.0")
+bazel_dep(name = "rules_proto", version = "7.0.2")
+bazel_dep(name = "rules_python", version = "1.7.0")
+bazel_dep(name = "sonic-build-infra", version = "0.0.25-17a1e555291c64be1a6ff008f33352bffc4f8e5c", repo_name = "sonic_build_infra")
+bazel_dep(name = "zlib", version = "1.3.1.bcr.5")
+
+# Fetch Debian's original series and metadata instead of maintaining copies.
+protobuf_source = use_repo_rule("//bazel:source.bzl", "protobuf_source")
+protobuf_source(
+    name = "protobuf_source",
+    upstream_url = "https://deb.debian.org/debian/pool/main/p/protobuf/protobuf_3.21.12.orig.tar.gz",
+    upstream_sha256 = "930c2c3b5ecc6c9c12615cf5ad93f1cd6e12d0aba862b572e076259970ac3a53",
+    debian_url = "https://deb.debian.org/debian/pool/main/p/protobuf/protobuf_3.21.12-11+deb13u1.debian.tar.xz",
+    debian_sha256 = "52c7c9377a2cb93649fb778baf4fe76d4489893ef04bad675acfa9b16e6313d5",
+    integration_patch = "//bazel:0001-bazel8-shared-runtime.patch",
+    overlays = {
+        "//:probe.proto": "probe.proto",
+        "//sonic:source_defs.bzl": "defs.bzl",
+        "//sonic:targets.bzl": "sonic/targets.bzl",
+        "//sonic:BUILD.bazel": "sonic/BUILD.bazel",
+        "//bazel:BUILD.bazel": "bazel/BUILD.bazel",
+        "//bazel:generated_runtime_consumer.cc": "bazel/generated_runtime_consumer.cc",
+        "//bazel:generated_runtime_test.py": "bazel/generated_runtime_test.py",
+        "//bazel:generated_python_test.py": "bazel/generated_python_test.py",
+        "//bazel:source_package_test.py": "bazel/source_package_test.py",
+        "//bazel:source_preparation_test.py": "bazel/source_preparation_test.py",
+    },
+)
