@@ -1,0 +1,22 @@
+Index: protobuf-2.1.0/python/mox.py
+===================================================================
+diff --git a/python/mox.py b/python/mox.py
+index 9dd8ac7..9a72fea 100755
+--- a/python/mox.py
++++ b/python/mox.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/python2.4
++#!/usr/bin/python
+ #
+ # Copyright 2008 Google Inc.
+ #
+diff --git a/python/stubout.py b/python/stubout.py
+index ba39104..578e22f 100755
+--- a/python/stubout.py
++++ b/python/stubout.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/python2.4
++#!/usr/bin/python
+ #
+ # Copyright 2008 Google Inc.
+ #

@@ -1,0 +1,40 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.25-17a1e555291c64be1a6ff008f33352bffc4f8e5c",
+      "repo_name": "sonic_build_infra"
+    },
+    {
+      "name": "rules_distroless",
+      "version": "0.9.4.sonic.15"
+    },
+    {
+      "name": "tar.bzl",
+      "version": "0.10.5.sonic.1"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
+  },
+  "build_targets": [
+    "@protobuf-legacy//:shared_library",
+    "@protobuf-legacy//:protoc",
+    "@protobuf-legacy//:probe_generated",
+    "@protobuf-legacy//:generated_runtime_consumer",
+    "@protobuf-legacy//:probe_python",
+    "@protobuf-legacy//:libprotobuf_pkg",
+    "@protobuf-legacy//:libprotobuf_pkg.debug_symbols",
+    "@protobuf-legacy//:runtime_packages.json"
+  ],
+  "test_targets": [
+    "@protobuf-legacy//:generated_runtime_test",
+    "@protobuf-legacy//:generated_python_test",
+    "@protobuf-legacy//:source_package_test"
+  ]
+}

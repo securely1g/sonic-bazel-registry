@@ -1,0 +1,207 @@
+{
+  "debian_version": "3.21.12-11+deb13u1",
+  "dsc": "https://deb.debian.org/debian/pool/main/p/protobuf/protobuf_3.21.12-11+deb13u1.dsc",
+  "patches": [
+    {
+      "source": "debian/patches/hurd.patch",
+      "registry_patch": "0001-debian-hurd.patch",
+      "sha256": "69e98dcfd587715e8bc04c2a34dbe0e77895a94ac2f3d8312353da422df4da2e",
+      "normalized_patch_sha256": "9cf38d9205c9677e328edb5b598116fa05064d58f5c4e8a9305aafe42d0c1386"
+    },
+    {
+      "source": "debian/patches/default_python_version",
+      "registry_patch": "0002-debian-default_python_version.patch",
+      "sha256": "20a25e15b646168f2c5ddac05ff65fe83b95af9fa51650af61621a84d1db917a",
+      "normalized_patch_sha256": "c4db7443e5dc2f92445cf6f3e85660e2a824b24cfca514e8b02d3641e9f4c859"
+    },
+    {
+      "source": "debian/patches/s390x.patch",
+      "registry_patch": "0003-debian-s390x.patch",
+      "sha256": "dc1453baec056f03ed9c9e7d6f010459f292a981767c58c168e23f82c1f8fbd7",
+      "normalized_patch_sha256": "68a8c5ac50a1043bda4e6f070931e5af2d06e4286024bab0052aafe3fa63900f"
+    },
+    {
+      "source": "debian/patches/disable_local_gmock.patch",
+      "registry_patch": "0004-debian-disable_local_gmock.patch",
+      "sha256": "0b31ac5881ca29c82a6329576f34b87a571f3b72c821c145bd16fed190db6698",
+      "normalized_patch_sha256": "180756d29ca148f8411c05a37ce92db0d7c4e78d72a2e0a7e0b0da8592248325"
+    },
+    {
+      "source": "debian/patches/fix_google_test_link.patch",
+      "registry_patch": "0005-debian-fix_google_test_link.patch",
+      "sha256": "36407f3272644ca2ed0638892e95c193c90ce4e403af298bd2223bba5ce8b96f",
+      "normalized_patch_sha256": "45d74af348c65d5b2caa48a6d2385a825f2209fed4739bd59784723932a73dc4"
+    },
+    {
+      "source": "debian/patches/no_thirdparty.patch",
+      "registry_patch": "0006-debian-no_thirdparty.patch",
+      "sha256": "86142bc2cc2da691cd6489aaa323ee5dada33ccdf289a5cfd674a34dbc3445bb",
+      "normalized_patch_sha256": "0bcf285ae75649f3ca6d3c9c062b4234a0849ac5dc4e727b3847bd8a4b9dcc3f"
+    },
+    {
+      "source": "debian/patches/x32.patch",
+      "registry_patch": "0007-debian-x32.patch",
+      "sha256": "779d57718e62762d384d0c31286777f2a2745da93fe21c76db1fa74f6bb84a44",
+      "normalized_patch_sha256": "63562061a9cb7a5dcc98a30881419509450e8292ff95db21cf0b24121866c557"
+    },
+    {
+      "source": "debian/patches/32bit.patch",
+      "registry_patch": "0008-debian-32bit.patch",
+      "sha256": "847d9f2da8813a1cab8a86b8aa3902cd3160c8d4f8873bd8cad22a57819fa98b",
+      "normalized_patch_sha256": "65c79f7eb90828738c02137c80b39d18f9dfb5f1662fac0591483cf1e1f46e82"
+    },
+    {
+      "source": "debian/patches/python3ify_examples.patch",
+      "registry_patch": "0009-debian-python3ify_examples.patch",
+      "sha256": "153f8bc388f8e6b34155eb8783c4281e145192e8417c5aaab751ef17f4aea871",
+      "normalized_patch_sha256": "ea36965078c888306380f37b6778c45383d6a49759562907a882d8a636a4173f"
+    },
+    {
+      "source": "debian/patches/no_errorprone.patch",
+      "registry_patch": "0010-debian-no_errorprone.patch",
+      "sha256": "013369eb6945397bdec695e691594e2d0cebfaf1ef7ce3c82de9945025233ef2",
+      "normalized_patch_sha256": "a7d6cbb7af83b53d99985b338eb964975946f103e2e32aad610a73bee1fbb59b"
+    },
+    {
+      "source": "debian/patches/no_j2objc.patch",
+      "registry_patch": "0011-debian-no_j2objc.patch",
+      "sha256": "fd7bc8e657c2c9459d5ba1f6b4ecb1c2a491305cd59d677850bf54f508949373",
+      "normalized_patch_sha256": "deafdecebb40170eb091e2c23de6cbea7da175c9608d8f575519ca5d36257805"
+    },
+    {
+      "source": "debian/patches/no_javax.patch",
+      "registry_patch": "0012-debian-no_javax.patch",
+      "sha256": "6023a019ca7a6ba021ffc7cf334a86cab493fa948317f7a27feb72d8a50d46f7",
+      "normalized_patch_sha256": "e872383a0792a8871574e6d98fda4f63ca0a04ec550e0c8726cd36b4da862fe8"
+    },
+    {
+      "source": "debian/patches/Fix_build_with_Python_3.11.patch",
+      "registry_patch": "0013-debian-Fix_build_with_Python_3.11.patch",
+      "sha256": "5b34eeb268894a9d26be373a41ed0fe2748fba9467bf9a283b2ca36e1ec7093f",
+      "normalized_patch_sha256": "4c2bf18f19e632843fcbf41ad091f10910bf7d676673fffeaf035ba8dc043b51"
+    },
+    {
+      "source": "debian/patches/fix_hppa_alignof_assert.patch",
+      "registry_patch": "0014-debian-fix_hppa_alignof_assert.patch",
+      "sha256": "0efbce37970df1907249fc38e3582a0a6320383c91fa9e0cbdf4ea800f4f69e2",
+      "normalized_patch_sha256": "5ba076959e340423e92714d0a33a8f041e257fa0e36a54a1e875bfa109e37afd"
+    },
+    {
+      "source": "debian/patches/Fix_rule_for_java_target.patch",
+      "registry_patch": "0015-debian-Fix_rule_for_java_target.patch",
+      "sha256": "3ffcdfa185eff102b7124be6954560fc5cd83667354ed716abdeed9bb6597903",
+      "normalized_patch_sha256": "0918fdc3b31a81bb5e911dc346aaa996068d65958aa838b5c72f6fa36b49bd43"
+    },
+    {
+      "source": "debian/patches/build_32_bit_tests.patch",
+      "registry_patch": "0016-debian-build_32_bit_tests.patch",
+      "sha256": "ae16013cb077c9438510303687dc6e30ef593ac59c26e88c8197e99e1fd4aad7",
+      "normalized_patch_sha256": "6369e58e1c0717c8b7d9859ee79f39b9418a33691ac367c05026d49e0ca35c27"
+    },
+    {
+      "source": "debian/patches/fix_C++_32bit_tests.patch",
+      "registry_patch": "0017-debian-fix_C++_32bit_tests.patch",
+      "sha256": "896f62bdb687b7e1b9bedf2f0015aa65ecdbccb347159be00e2021709d8aadb8",
+      "normalized_patch_sha256": "fd3a4afbfa299d869bcc44a94b41421f58d8d892e04cf11ec3ca13fbc1e46387"
+    },
+    {
+      "source": "debian/patches/fix_Python_32bit_tests.patch",
+      "registry_patch": "0018-debian-fix_Python_32bit_tests.patch",
+      "sha256": "c23d4e24e1106fb8e2cf43ffe693185bc89a8250184601dc49c69351783e0776",
+      "normalized_patch_sha256": "8c607b72b4f1baed7d12f55c89f3dbbf17f1e999985cd6078f39337bc72c0f9e"
+    },
+    {
+      "source": "debian/patches/test_scope_for_junit.patch",
+      "registry_patch": "0019-debian-test_scope_for_junit.patch",
+      "sha256": "cadac0de81321e18181eb350d3aaf09798180f7a725f3a42f9b5f7dec68508e7",
+      "normalized_patch_sha256": "17a358a273f898b76683be0518c9e115d043b18b1be45267d1235f7fa339ba73"
+    },
+    {
+      "source": "debian/patches/stop_using_backward_compatibility_timezones.patch",
+      "registry_patch": "0020-debian-stop_using_backward_compatibility_timezones.patch",
+      "sha256": "ff021c2d419f3b28ae18ff0d1808194f2c4143a89021b11d58e8b655f3dba53a",
+      "normalized_patch_sha256": "116971385addb9f9d5a32f3e15c50185890dc34f72226ba8a6d7908a20dee3cc"
+    },
+    {
+      "source": "debian/patches/python3.12.diff",
+      "registry_patch": "0021-debian-python3.12.diff.patch",
+      "sha256": "9408a8e993d415131655b3bcee821cefdb4dc599c8d51e3ffd14b4ece2326f8e",
+      "normalized_patch_sha256": "52fadc955ede1a5137c0b200bc44e41178d77bc51ebae79780a517a1b0d3553b"
+    },
+    {
+      "source": "debian/patches/CVE-2024-7254-1.patch",
+      "registry_patch": "0022-debian-CVE-2024-7254-1.patch",
+      "sha256": "c31f9e24aebb34f929407019689b86268619f23418cb048f55f8f38b37c0bf16",
+      "normalized_patch_sha256": "bf2be5ffba3920476711280d961df8e9b0279bea66a9f53c0b9cd6680f06dc01"
+    },
+    {
+      "source": "debian/patches/CVE-2024-7254-2.patch",
+      "registry_patch": "0023-debian-CVE-2024-7254-2.patch",
+      "sha256": "a998fbf0051545cbd00f895775a1399b07a2475cd0bd3f4b0f102ab24c2b39be",
+      "normalized_patch_sha256": "b1f3a28a438210f0adcb971832a789df587492e06460d13fe0108dccaf2d6df0"
+    },
+    {
+      "source": "debian/patches/CVE-2024-7254-3.patch",
+      "registry_patch": "0024-debian-CVE-2024-7254-3.patch",
+      "sha256": "2fecdc4a92927a2e51e7ffcc3114e4dabad5585569d665d8050ed8dace420756",
+      "normalized_patch_sha256": "a0afd181c7d6db0d1123562078d0c2f6759a22232b8e724a3ed1d64dba909f9b"
+    },
+    {
+      "source": "debian/patches/CVE-2024-7254-4.patch",
+      "registry_patch": "0025-debian-CVE-2024-7254-4.patch",
+      "sha256": "bfee9b435514afdf52f49124527a1d925d276ec8ee902914786abea7ad903a37",
+      "normalized_patch_sha256": "066f6499c3a3995fb113549624f9308624d951202ce160b307b8790dbf92b0db"
+    },
+    {
+      "source": "debian/patches/CVE-2024-7254-5.patch",
+      "registry_patch": "0026-debian-CVE-2024-7254-5.patch",
+      "sha256": "8b03c51ed898875f4c301aab71730f4552a5226cb896ba5b30bcdb9448e3713f",
+      "normalized_patch_sha256": "4f35a0720367b0def888a124343813b48ff5659c90a98e9514d12dd94a999c17"
+    },
+    {
+      "source": "debian/patches/CVE-2025-4565-1.patch",
+      "registry_patch": "0027-debian-CVE-2025-4565-1.patch",
+      "sha256": "648bdbcbec28f0787636d132667a88ff1f8af172c02be2dbe82997c3546098d2",
+      "normalized_patch_sha256": "05289d6b4c8cf85ee23e9d100cf7c7574dfff661549a6257eeb401fb12f850af"
+    },
+    {
+      "source": "debian/patches/CVE-2025-4565-2.patch",
+      "registry_patch": "0028-debian-CVE-2025-4565-2.patch",
+      "sha256": "a184ac65c616ed6d09744936d589ac6451ce501ff7a4fc223db3772515802ed7",
+      "normalized_patch_sha256": "f39fcb852b316b9ea8d2f033277b407dd0c3758bc5d68686354610ab145c3c6c"
+    },
+    {
+      "source": "debian/patches/CVE-2025-4565-3.patch",
+      "registry_patch": "0029-debian-CVE-2025-4565-3.patch",
+      "sha256": "37fa002b5e4e11be55453bb7b51db613e5bfc8c236ecd1a6fd90ab030f2d7f52",
+      "normalized_patch_sha256": "33b71356074d0ef64cce54de9e33415ea7460b9518da4b12510c120ffa8ea24e"
+    },
+    {
+      "source": "debian/patches/0001-Fix-Any-recursion-depth-bypass-in-Python-json_format.patch",
+      "registry_patch": "0030-debian-Fix-Any-recursion-depth-bypass-in-Python-json_format.patch",
+      "sha256": "c05808f5d900f00bbb3b2738c1b7c6bf2572c8124a3f53779aa762e656ca62b2",
+      "normalized_patch_sha256": "84a935ee1c60553858f8c8fd8adc49cc5477fc466299fd24a362174b93757b5a"
+    },
+    {
+      "source": "debian/patches/0002-Check-that-readRaw-does-not-accept-negative-length-v.patch",
+      "registry_patch": "0031-debian-Check-that-readRaw-does-not-accept-negative-length-v.patch",
+      "sha256": "2784d169eaecf4226b7d229b2436a9acc87ba25e5b0b952c2fe379be4ffaac34",
+      "normalized_patch_sha256": "1b084fcd10d07ee088177f374258a050c22cea7a17fda2a66d9fbba859d8eb22"
+    },
+    {
+      "source": "debian/patches/0003-php-Fix-that-recursion-limit-is-not-enforced.patch",
+      "registry_patch": "0032-debian-php-Fix-that-recursion-limit-is-not-enforced.patch",
+      "sha256": "87ecb2182f8b5a1a41da50f3100f03b1956e0bef6a87c1ed30044b3925e9c4fe",
+      "normalized_patch_sha256": "eb1577b8f4b4c3fbecaf428f7db1df208c87c9c6f42cdc6ec66f68a5c3124b45"
+    }
+  ],
+  "legacy_patch_sha256": "3c678b8267ab6147348ff106feb9ea332dd7632fb850634b05c1587bbebaf1f3",
+  "recipe_files": {
+    "control": "16b051eaf329ae7cabc59b03ee447d0d468ebd6a1a34a04b8fadef603299770f",
+    "changelog": "6d17884cc6ef7c85da0d4d335e7b2af4fe8ed8bb11750581c29de12d6beda8a2",
+    "copyright": "77ae762c8b3aa11e07a48184818111d28e2274229a8eb121e19477d1a40f3b76"
+  },
+  "normalization": "Git-format file boundaries and current hunk offsets; replayed source bytes and modes equal the original Debian series plus unchanged Bazel patch.",
+  "source_file_count": 2248,
+  "source_tree_sha256": "002505f90c1c594c32c2fd84f7a1934a235d8066ff81329004a444b914495dc6"
+}

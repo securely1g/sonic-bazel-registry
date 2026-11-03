@@ -1,0 +1,36 @@
+From 6c06a790c4bc4fa8218a072621c4f62166aba4f8 Mon Sep 17 00:00:00 2001
+From: Aurelien Jarno <aurelien@aurel32.net>
+Date: Wed, 6 Sep 2023 22:18:32 +0200
+Subject: [PATCH] Python: stop using backward compatibility timezones
+
+The 'Japan' and 'US/Pacific' timezones used in Python tests are
+backward compatibility timezones (defined in the backward file of
+tzdata) and might not be available on all systems. For instance Debian
+recently split those timezones in a tzdata-legacy package.
+
+Update the tests to the use the canonical name of the timezones instead,
+that is respectively 'Asia/Tokyo' and 'America/Los_Angeles'.
+---
+ python/google/protobuf/internal/well_known_types_test.py | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/python/google/protobuf/internal/well_known_types_test.py b/python/google/protobuf/internal/well_known_types_test.py
+index a32459a..f7facf4 100644
+--- a/python/google/protobuf/internal/well_known_types_test.py
++++ b/python/google/protobuf/internal/well_known_types_test.py
+@@ -53,11 +53,11 @@ from google.protobuf.internal import _parameterized
+ try:
+   # New module in Python 3.9:
+   import zoneinfo  # pylint:disable=g-import-not-at-top
+-  _TZ_JAPAN = zoneinfo.ZoneInfo('Japan')
+-  _TZ_PACIFIC = zoneinfo.ZoneInfo('US/Pacific')
++  _TZ_JAPAN = zoneinfo.ZoneInfo('Asia/Tokyo')
++  _TZ_PACIFIC = zoneinfo.ZoneInfo('America/Los_Angeles')
+ except ImportError:
+-  _TZ_JAPAN = datetime.timezone(datetime.timedelta(hours=9), 'Japan')
+-  _TZ_PACIFIC = datetime.timezone(datetime.timedelta(hours=-8), 'US/Pacific')
++  _TZ_JAPAN = datetime.timezone(datetime.timedelta(hours=9), 'Asia/Tokyo')
++  _TZ_PACIFIC = datetime.timezone(datetime.timedelta(hours=-8), 'America/Los_Angeles')
+ 
+ 
+ class TimeUtilTestBase(_parameterized.TestCase):

@@ -1,0 +1,20 @@
+Bug-Debian: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=835267
+Bug-Upstream: https://github.com/google/protobuf/issues/2000
+Description: Add support for GNU/Hurd which doesn't define PATH_MAX.
+Author: Bas Couwenberg <sebastic@debian.org>
+Last-Update: 2022-03-11
+
+diff --git a/src/google/protobuf/compiler/command_line_interface.cc b/src/google/protobuf/compiler/command_line_interface.cc
+index 5e9a2c4..bfcffd5 100644
+--- a/src/google/protobuf/compiler/command_line_interface.cc
++++ b/src/google/protobuf/compiler/command_line_interface.cc
+@@ -56,6 +56,9 @@
+ #include <iostream>
+ 
+ #include <limits.h>  // For PATH_MAX
++#if defined(__GNU__)
++#define PATH_MAX 4096
++#endif
+ 
+ #include <memory>
+ 

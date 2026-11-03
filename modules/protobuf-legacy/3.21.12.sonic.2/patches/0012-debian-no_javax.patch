@@ -1,0 +1,81 @@
+Description: Remove dependency on javax.annotation library
+ It's not yet packaged and not mandatory.
+Author: Laszlo Boszormenyi (GCS) <gcs@debian.org>
+Forwarded: not-needed
+Last-Update: 2022-03-11
+
+---
+
+diff --git a/java/util/src/main/java/com/google/protobuf/util/FieldMaskUtil.java b/java/util/src/main/java/com/google/protobuf/util/FieldMaskUtil.java
+index 1232c49..dc9d2c8 100644
+--- a/java/util/src/main/java/com/google/protobuf/util/FieldMaskUtil.java
++++ b/java/util/src/main/java/com/google/protobuf/util/FieldMaskUtil.java
+@@ -46,7 +46,7 @@ import com.google.protobuf.Message;
+ import java.util.ArrayList;
+ import java.util.Arrays;
+ import java.util.List;
+-import javax.annotation.Nullable;
++//import javax.annotation.Nullable;
+ 
+ /**
+  * Utility helper functions to work with {@link com.google.protobuf.FieldMask}.
+@@ -232,7 +232,7 @@ public final class FieldMaskUtil {
+   }
+ 
+   /** Checks whether paths in a given fields mask are valid. */
+-  public static boolean isValid(@Nullable Descriptor descriptor, String path) {
++  public static boolean isValid(Descriptor descriptor, String path) {
+     String[] parts = path.split(FIELD_SEPARATOR_REGEX);
+     if (parts.length == 0) {
+       return false;
+diff --git a/java/util/src/main/java/com/google/protobuf/util/JsonFormat.java b/java/util/src/main/java/com/google/protobuf/util/JsonFormat.java
+index 9ad33fc..c8ecef4 100644
+--- a/java/util/src/main/java/com/google/protobuf/util/JsonFormat.java
++++ b/java/util/src/main/java/com/google/protobuf/util/JsonFormat.java
+@@ -88,7 +88,7 @@ import java.util.Map;
+ import java.util.Set;
+ import java.util.TreeMap;
+ import java.util.logging.Logger;
+-import javax.annotation.Nullable;
++//import javax.annotation.Nullable;
+ 
+ /**
+  * Utility class to convert protobuf messages to/from the <a href=
+@@ -518,12 +518,10 @@ public class JsonFormat {
+      * Find a type by its full name. Returns null if it cannot be found in this {@link
+      * TypeRegistry}.
+      */
+-    @Nullable
+     public Descriptor find(String name) {
+       return types.get(name);
+     }
+ 
+-    @Nullable
+     Descriptor getDescriptorForTypeUrl(String typeUrl) throws InvalidProtocolBufferException {
+       return find(getTypeName(typeUrl));
+     }
+@@ -980,7 +978,7 @@ public class JsonFormat {
+     }
+ 
+     /** Prints a regular message with an optional type URL. */
+-    private void print(MessageOrBuilder message, @Nullable String typeUrl) throws IOException {
++    private void print(MessageOrBuilder message, String typeUrl) throws IOException {
+       generator.print("{" + blankOrNewLine);
+       generator.indent();
+ 
+@@ -1907,7 +1905,6 @@ public class JsonFormat {
+       }
+     }
+ 
+-    @Nullable
+     private EnumValueDescriptor parseEnum(EnumDescriptor enumDescriptor, JsonElement json)
+         throws InvalidProtocolBufferException {
+       String value = json.getAsString();
+@@ -1937,7 +1934,6 @@ public class JsonFormat {
+       return result;
+     }
+ 
+-    @Nullable
+     private Object parseFieldValue(FieldDescriptor field, JsonElement json, Message.Builder builder)
+         throws InvalidProtocolBufferException {
+       if (json instanceof JsonNull) {

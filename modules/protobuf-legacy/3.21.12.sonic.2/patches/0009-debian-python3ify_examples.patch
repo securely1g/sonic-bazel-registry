@@ -1,0 +1,27 @@
+Description: execute examples with Pyhton 3
+ Update shebang to call Python 3 binary.
+Author: Laszlo Boszormenyi (GCS) <gcs@debian.org>
+Last-Update: 2020-03-24
+
+---
+
+diff --git a/examples/add_person.py b/examples/add_person.py
+index aa0fbca..c65c359 100755
+--- a/examples/add_person.py
++++ b/examples/add_person.py
+@@ -1,4 +1,4 @@
+-#! /usr/bin/env python
++#! /usr/bin/env python3
+ 
+ # See README.txt for information and build instructions.
+ 
+diff --git a/examples/list_people.py b/examples/list_people.py
+index d2c294c..6f61697 100755
+--- a/examples/list_people.py
++++ b/examples/list_people.py
+@@ -1,4 +1,4 @@
+-#! /usr/bin/env python
++#! /usr/bin/env python3
+ 
+ # See README.txt for information and build instructions.
+ 

@@ -1,0 +1,45 @@
+From 8d3c56f84a1158095f28ef859757872df6c176cc Mon Sep 17 00:00:00 2001
+From: Protobuf Team Bot <protobuf-github-bot@google.com>
+Date: Tue, 13 Jan 2026 12:31:18 -0800
+Subject: Check that `readRaw` does not accept negative length value.
+
+Fixes https://github.com/protocolbuffers/protobuf/issues/24159
+
+PiperOrigin-RevId: 855837030
+---
+ php/src/Google/Protobuf/Internal/CodedInputStream.php | 3 ++-
+ php/tests/EncodeDecodeTest.php                        | 7 +++++++
+ 2 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/php/src/Google/Protobuf/Internal/CodedInputStream.php b/php/src/Google/Protobuf/Internal/CodedInputStream.php
+index 2ed2dfd..0f98be7 100644
+--- a/php/src/Google/Protobuf/Internal/CodedInputStream.php
++++ b/php/src/Google/Protobuf/Internal/CodedInputStream.php
+@@ -295,7 +295,8 @@ class CodedInputStream
+     public function readRaw($size, &$buffer)
+     {
+         $current_buffer_size = 0;
+-        if ($this->bufferSize() < $size) {
++        // size (varint) read from the wire could be negative.
++        if ($size < 0 || $this->bufferSize() < $size) {
+             return false;
+         }
+ 
+diff --git a/php/tests/EncodeDecodeTest.php b/php/tests/EncodeDecodeTest.php
+index 33d8da1..ddd01a1 100644
+--- a/php/tests/EncodeDecodeTest.php
++++ b/php/tests/EncodeDecodeTest.php
+@@ -538,6 +538,13 @@ class EncodeDecodeTest extends TestBase
+         $this->assertEquals(-1, $m->getOptionalInt32());
+     }
+ 
++    public function testInvalidVarintLength() {
++        $this->expectException(Exception::class);
++
++        $m = new TestMessage();
++        $m->mergeFromString(hex2bin("0afaffffff0f"));
++    }
++
+     public function testRandomFieldOrder()
+     {
+         $m = new TestRandomFieldOrder();
