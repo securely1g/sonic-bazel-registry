@@ -98,3 +98,21 @@ directory. A different sandbox location therefore does not enter DWARF paths
 or change build IDs for that reason. The installed-package test rejects
 execution-root paths in every delivered debug file and retains the original
 program, runtime, parser, feature and matching-symbol checks.
+
+## Long dependency flags
+
+The source parent in SONiC buildimage PR #151 supplies 89,512 bytes of ordered
+CPPFLAGS and 43,782 bytes of LDFLAGS. Combining them into `CC` exceeded Linux's
+per-string execution limit before iproute2's configure could start. The owner
+wrapper now writes GCC response files and uses them in both configure
+probes and recursive Make. Its dependency CPPFLAGS goes through `-Wp,@file`
+to the preprocessor; expanding it in the driver would recreate the same limit
+in `COLLECT_GCC_OPTIONS`. Driver/sysroot/hardening and linker options remain
+with the GCC driver, and invalid preprocessor options fail with a diagnostic.
+This is tested with the selected GCC 14 toolchain. Include precedence, library order, hardening flags
+and debug-prefix mappings are retained; no dependency flags are removed.
+
+`@iproute2//:configure_flags_test` uses the native registry CI environment's
+GNU compiler and Make to check large flags, quoted defines, header precedence,
+recursive builds, and unchanged output bytes compared with a short equivalent
+flag set. The original complete installed-package test remains selected.

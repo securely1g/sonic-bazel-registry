@@ -11,6 +11,14 @@
     {
       "name": "tar.bzl",
       "version": "0.10.5-sonic.1"
+    },
+    {
+      "name": "rules_distroless",
+      "version": "0.9.4.sonic.15"
+    },
+    {
+      "name": "rules_cc",
+      "version": "0.2.22"
     }
   ],
   "platforms": {
@@ -24,7 +32,8 @@
     "@iproute2//:runtime_packages.json"
   ],
   "test_targets": [
-    "@iproute2//:iproute2_package_test"
+    "@iproute2//:iproute2_package_test",
+    "@iproute2//:configure_flags_test"
   ],
   "generated_module_overlay": true
 }
