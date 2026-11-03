@@ -1,0 +1,13 @@
+--- a/util/reflect.go
++++ b/util/reflect.go
+@@ -288,7 +288,9 @@
+ 		n = reflect.Zero(ft.Type)
+ 	}
+ 
+-	if !isFieldTypeCompatible(ft, n) && !IsValueTypeCompatible(ft.Type, v) {
++	// The conversions above preserve supported YANG bool/binary and pointer values.
++	// Equal reflect.Kind alone does not make slices, maps or named types assignable.
++	if !n.Type().AssignableTo(ft.Type) {
+ 		return fmt.Errorf("cannot assign value %v (type %T) to struct field %s (type %v) in struct %T", fieldValue, fieldValue, fieldName, ft.Type, parentStruct)
+ 	}
+ 
