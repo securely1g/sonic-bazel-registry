@@ -11,7 +11,7 @@ the retained native tools, debug permissions and finalized-control metadata.
  module(
      name = "sonic-build-infra",
 -    version = "0.0.26",
-+    version = "0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568",
++    version = "0.0.26-2cfc059c2cf1dc3b2f2b2ec1bcd70400b04ecb75",
      bazel_compatibility = [
          ">=8.5.1",
          "<=8.5.1",

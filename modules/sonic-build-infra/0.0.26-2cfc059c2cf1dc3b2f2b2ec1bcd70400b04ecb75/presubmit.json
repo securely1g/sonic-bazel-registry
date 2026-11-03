@@ -52,7 +52,12 @@
     "@sonic-build-infra//tools/build_tools:xmllint",
     "@sonic-build-infra//tools/build_tools:xsltproc",
     "@sonic-build-infra//tools/build_tools:docbook_runtime",
-    "@sonic-build-infra//tools/build_tools:docbook2man"
+    "@sonic-build-infra//tools/build_tools:docbook2man",
+    "@sonic-build-infra//tools/build_tools:libtool_program",
+    "@sonic-build-infra//tools/build_tools:libtool_library",
+    "@sonic-build-infra//tools/build_tools:libtool_c_library",
+    "@sonic-build-infra//tools/build_tools:libtool_config",
+    "@sonic-build-infra//tools/build_tools:libtool_argv_validation"
   ],
   "test_targets": [
     "@sonic-build-infra//tools/build_tools:runtime_test",
