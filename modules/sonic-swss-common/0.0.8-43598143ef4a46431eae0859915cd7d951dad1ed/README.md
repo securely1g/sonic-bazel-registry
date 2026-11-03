@@ -1,6 +1,6 @@
 # Common native, Rust and testing interfaces
 
-This sole unreleased Common candidate selects source `be620a89b20cf425d64620b1090d9e9c3e2e8a20`.
+This sole unreleased Common candidate selects source `43598143ef4a46431eae0859915cd7d951dad1ed`.
 It preserves the native loader, Go binding, ZMQ, Lua-directory and shared libnl
 interfaces from Common PRs #37–#41, and adds [Common #42](https://github.com/securely1g/sonic-swss-common/pull/42)'s
 source-owned async Rust library and matching test helpers.
@@ -44,3 +44,17 @@ unpublished infrastructure declaration in libnl from selecting a removed entry.
 The ordinary consumer selects published Distroless `.15`, matching the image
 graph. The preceding `.13` override predates the published native ZMQ exports
 and would force a version below libnl .7's `.14` requirement.
+
+## Runtime TAR ownership
+
+[Common #43](https://github.com/securely1g/sonic-swss-common/pull/43) makes the
+CLI and Python runtime archives explicitly root-owned. The extended existing
+archive check covers those payloads and rejects builder-dependent UID/GID
+headers. It preserves installed bytes, modes, timestamps and debug pairing.
+
+This review source combines Common #42 with the exact independent #43 feature
+commit; the async/testing and archive-ownership changes remain separate review
+units. All 16 existing output targets and 24 tests are retained unchanged. The
+sole unpublished .8 candidate is replaced; no published entry is modified.
+
+The registration module and source MODULE patch now select infrastructure `0.0.26-2cfc059c2cf1dc3b2f2b2ec1bcd70400b04ecb75` from [registry #209](https://github.com/securely1g/sonic-bazel-registry/pull/209), together with the aligned libnl [#181](https://github.com/securely1g/sonic-bazel-registry/pull/181). This replaces a removed unpublished minimum and lets ordinary downstream consumers resolve the current catalog. The source archive, ownership fix and complete 16-output/24-test presubmit are preserved; fresh dependency-graph acceptance is pending.
