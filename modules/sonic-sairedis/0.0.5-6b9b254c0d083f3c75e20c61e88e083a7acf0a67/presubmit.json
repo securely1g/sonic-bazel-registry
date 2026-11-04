@@ -6,12 +6,12 @@
   "consumer_deps": [
     {
       "name": "sonic-build-infra",
-      "version": "0.0.22-a12bc826d6f811a157db5c7c02a2fe033896cc14",
+      "version": "0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568",
       "repo_name": "sonic_build_infra"
     },
     {
       "name": "sonic-swss-common",
-      "version": "0.0.5-326ca764197ac788dfd55aa935ff728180745bde",
+      "version": "0.0.9-334389eae54afd1f4f5ee69f89c3a7ad2062ee61",
       "repo_name": "sonic_swss_common"
     },
     {
@@ -20,11 +20,11 @@
     },
     {
       "name": "libnl3",
-      "version": "3.7.0.sonic.5"
+      "version": "3.7.0.sonic.7"
     },
     {
       "name": "rules_distroless",
-      "version": "0.9.4.sonic.13"
+      "version": "0.9.4.sonic.16"
     },
     {
       "name": "tar.bzl",
@@ -61,7 +61,8 @@
     "@sonic-sairedis//syncd:syncd_pkg.debug_symbols",
     "@sonic-sairedis//pyext:pysairedis_pkg",
     "@sonic-sairedis//pyext:pysairedis_pkg.debug_symbols",
-    "@sonic-sairedis//:runtime_packages.json"
+    "@sonic-sairedis//:runtime_packages.json",
+    "@sonic-sairedis//:library_runtime_packages.json"
   ],
   "test_targets": [
     "@sonic-sairedis//lib:tests_test",
