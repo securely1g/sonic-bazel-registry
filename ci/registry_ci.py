@@ -6,7 +6,7 @@ from __future__ import annotations
 import argparse
 import ast
 import base64
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 import hashlib
 import io
 import json
@@ -26,6 +26,8 @@ from urllib.request import urlopen
 
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import container_provenance
 RUNNERS = {"amd64": "ubuntu-24.04", "arm64": "ubuntu-24.04-arm"}
 NAME = re.compile(r"[a-z][a-z0-9._-]*\Z")
 VERSION = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+-]*\Z")
@@ -1124,12 +1126,16 @@ def require_test_container(image_reference: str | None) -> None:
 
 
 def prepare_test_runtime(config: dict, source: Path, consumer: Path, artifacts: Path,
-                         architecture: str, image_reference: str | None) -> list[str]:
+                         architecture: str, image_reference: str | None,
+                         provenance: container_provenance.Session | None = None) -> list[str]:
     """Reuse the fetched owner's locked setup; retain its receipt and test identity."""
     preparation = config.get("test_runtime_preparation")
     if preparation is None:
         return []
-    require_test_container(image_reference)
+    if provenance is None:
+        require_test_container(image_reference)
+    else:
+        image_reference = provenance.check("before_preparation")
     helper = (source / preparation["script"]).resolve()
     require(helper.is_relative_to(source.resolve()) and helper.is_file(),
             "Test runtime preparation script must remain inside the fetched source")
@@ -1142,9 +1148,13 @@ def prepare_test_runtime(config: dict, source: Path, consumer: Path, artifacts: 
     shutil.copy2(lock, artifacts / "test-runtime.MODULE.bazel.lock")
     (artifacts / "test-runtime-prepare.py").write_bytes(content)
     receipt_path = artifacts / "test-runtime.json"
-    run_logged([sys.executable, "-B", str(helper), "--lock", str(lock),
-                "--image-reference", image_reference, "--output", str(receipt_path)],
-               consumer, artifacts / "test-runtime-preparation.log")
+    try:
+        run_logged([sys.executable, "-B", str(helper), "--lock", str(lock),
+                    "--image-reference", image_reference, "--output", str(receipt_path)],
+                   consumer, artifacts / "test-runtime-preparation.log")
+    finally:
+        if provenance is not None:
+            provenance.check("after_preparation")
     receipt = read_json(receipt_path)
     require(receipt.get("architecture") == architecture and receipt.get("image_reference") == image_reference
             and receipt.get("lock_sha256") == lock_hash
@@ -1163,12 +1173,18 @@ def prepare_test_runtime(config: dict, source: Path, consumer: Path, artifacts: 
 
 def run(root: Path, module: str, version: str, architecture: str,
         work_dir: Path, artifacts: Path, bazel: str = "bazel",
-        test_container_image: str | None = None) -> None:
+        test_container_image: str | None = None,
+        test_container_provenance: Path | None = None) -> None:
     config = validate_entry(root, module, version)
     require(architecture in config["architectures"], "Architecture is not configured for this version")
     native = verify_native(architecture)
-    if config.get("test_runtime_preparation"):
+    require(test_container_image is None or test_container_provenance is None,
+            "Choose only one test container identity option")
+    require(test_container_provenance is None or config.get("test_runtime_preparation") is not None,
+            "Typed provenance requires source-owned test runtime preparation")
+    if config.get("test_runtime_preparation") and test_container_provenance is None:
         require_test_container(test_container_image)
+    original_work_dir = work_dir.absolute()
     work_dir, artifacts = work_dir.resolve(), artifacts.resolve()
     require(not work_dir.exists() or not any(work_dir.iterdir()), "work-dir must be fresh and empty")
     require(not artifacts.is_relative_to(work_dir), "artifacts must be outside work-dir")
@@ -1176,7 +1192,11 @@ def run(root: Path, module: str, version: str, architecture: str,
     require(not work_dir.is_relative_to(entry.resolve()) and not artifacts.is_relative_to(entry.resolve()),
             "Validation work and artifacts must stay outside the source entry")
     artifacts.mkdir(parents=True, exist_ok=True)
-    with preserve_source_inputs(root, entry, artifacts, native):
+    provenance = None
+    if test_container_provenance is not None:
+        provenance = container_provenance.Session(test_container_provenance, original_work_dir, artifacts)
+        provenance.check("before_build")
+    with (provenance or nullcontext()), preserve_source_inputs(root, entry, artifacts, native):
         consumer = work_dir / "consumer"
         consumer.mkdir(parents=True)
         if "integration_test_module" in config:
@@ -1274,7 +1294,7 @@ def run(root: Path, module: str, version: str, architecture: str,
             shutil.copy2(fetched[0], artifacts / "fetched.MODULE.bazel")
             require((consumer / "MODULE.bazel.lock").is_file(), "Bazel did not generate MODULE.bazel.lock resolution evidence")
             test_flags = prepare_test_runtime(config, fetched[0].parent, consumer, artifacts,
-                                              architecture, test_container_image)
+                                              architecture, test_container_image, provenance)
             run_logged([*prefix, "test", *flags, *test_flags, "--nocache_test_results", "--test_output=errors",
                         f"--build_event_json_file={artifacts / 'test-events.jsonl'}", *config["test_targets"]],
                        consumer, artifacts / "test.log")
@@ -1299,6 +1319,11 @@ def run(root: Path, module: str, version: str, architecture: str,
                 "rust_preparation": config.get("rust_preparation"),
                 "test_runtime_preparation": config.get("test_runtime_preparation"),
                 "test_runtime_flags": test_flags,
+                **({"test_container_provenance": {
+                    "kind": provenance.receipt["kind"], "scope": provenance.receipt["scope"],
+                    "reference": provenance.receipt["reference"],
+                    "expected_sha256": provenance.receipt["expected_sha256"]}}
+                   if provenance is not None else {}),
                 "generated_module_overlay": config.get("generated_module_overlay", False),
                 "fetched_module_matches_registry": fetched_bytes == canonical_bytes,
                 "registry_module_sha256": hashlib.sha256(canonical_bytes).hexdigest(),
@@ -1364,8 +1389,11 @@ def main() -> None:
     runner.add_argument("--work-dir", required=True, type=Path)
     runner.add_argument("--artifacts", required=True, type=Path)
     runner.add_argument("--bazel", default="bazel")
-    runner.add_argument("--test-container-image",
-                        help="opt into runtime preparation inside this disposable container, including its digest")
+    identity = runner.add_mutually_exclusive_group()
+    identity.add_argument("--test-container-image",
+                          help="opt into runtime preparation inside this disposable container, including its digest")
+    identity.add_argument("--test-container-provenance", type=Path,
+                          help="reviewed local base/provisioner identity in the private per-run directory")
     args = parser.parse_args()
     try:
         if args.command == "plan":
@@ -1379,8 +1407,8 @@ def main() -> None:
             sync_module(ROOT, args.module, args.version, args.check)
         else:
             run(ROOT, args.module, args.version, args.architecture, args.work_dir, args.artifacts,
-                args.bazel, args.test_container_image)
-    except (RegistryError, OSError, subprocess.CalledProcessError) as error:
+                args.bazel, args.test_container_image, args.test_container_provenance)
+    except (RegistryError, container_provenance.ProvenanceError, OSError, subprocess.CalledProcessError) as error:
         parser.exit(1, f"Registry CI failed: {error}\n")
 
 

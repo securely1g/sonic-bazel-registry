@@ -344,6 +344,40 @@ Artifacts retain `test-runtime-prepare.py`, `test-runtime.MODULE.bazel.lock`,
 adjacent logs, including on failure. `validation.json` records the opt-in and
 test environment flag after every declared test passes.
 
+### Explicit local base/provisioner provenance
+
+The qualified `--test-container-image` path above is unchanged. A dedicated
+native AMD64 Trixie worker may instead explicitly pass
+`--test-container-provenance /PRIVATE/expected-provenance.json`. The two options
+are mutually exclusive, with no fallback between them. Typed mode is allowed
+only for an entry declaring source-owned runtime preparation.
+
+`/PRIVATE` must be the root-owned0700 parent of the fresh `--work-dir`.
+The expected file must have exactly that name, be root-owned0400, and contain
+the reviewed version1 `local_base_config_and_provisioner` identity. It records
+the actual root-owned0444 worker marker and three root-owned0555 provisioner
+helper hashes, the base configuration ID and manager revision. Integer fields
+do not accept booleans; unknown fields and duplicate JSON keys are rejected.
+The runner reads only fixed installed paths, without symlinks or executing the
+helpers, and compares fresh observations before any build and before/after
+the original runtime preparation. Changed inputs fail closed.
+
+The reference passed to the unchanged hash-pinned owner helper is explicitly
+`sonic-worker-base-config-provisioner-v1:sha256:<canonical-identity-hash>`.
+Its original runtime receipt/fingerprint binds that reference to actual
+installed packages and runtime libraries. Root/container/native checks,
+the exact lock and helper hash, all declared builds/tests, and uncached test
+execution remain required. This identity does **not** verify a registry manifest,
+the complete derived container, or source attestation.
+
+Artifacts retain the exact expected bytes as
+`test-container-provenance.expected.json` and all measured checks in
+`test-container-provenance.json`, including bounded failure stage/class.
+The final validation records its explicit kind/scope/reference/input hash.
+No raw marker reference, arbitrary file content, or private exception string is
+published by the provenance reader. An earlier diagnostic JSON is not an
+admission token: the live files are independently measured each time.
+
 ## Maintain one MODULE declaration
 
 For an entry whose source archive needs a MODULE overlay, opt in with
@@ -562,3 +596,9 @@ Registered SONiC patches may retain a Go pseudo-version suffix, for example
 SONiC patch number and separator precedence. Equal release/patch snapshots
 continue to use metadata registration order; hashes/timestamps are not sorted.
 Malformed or unrelated suffixes remain rejected.
+
+The owned CI-only branch `codex/registry-worker-provenance` retains the original
+policy plan and both native runner fixture suites, with an empty module matrix.
+Exact owned repository/branch and six changed CI paths are checked; unexpected
+changes fail planning. Other branches/events retain original routing. Common's
+complete 16-build/24-test ordinary consumer proof is separate from these CI tests.
