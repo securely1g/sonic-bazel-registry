@@ -31,7 +31,7 @@ repository branch-protection settings.
 
 The runner passes Bazel's standard `--experimental_downloader_config` with
 [`source_mirrors.cfg`](source_mirrors.cfg) to dependency preparation, builds,
-tests and output queries. The only rewrite is the exact upstream URL for
+tests and output queries. One rewrite is the exact upstream URL for
 BCR `pigz@2.8.bcr.2`, used by build-infra's reproducible gzip tool when packaging
 WPA's debug TAR. The original URL now serves different bytes; a clean
 [WPA registry build](https://github.com/securely1g/sonic-bazel-registry/actions/runs/41587703074/job/125760920377)
@@ -40,7 +40,7 @@ fails its BCR checksum before compiling any source.
 The MacPorts mirror retains the original archive with SHA256
 `eb872b4f0e1f0ebe59c9f7bd8c506c4204893ba6a8492de31df416f0d5170fd0`.
 Bazel still verifies BCR's unchanged integrity and applies its unchanged patches.
-Other versions, paths and hosts are not rewritten. No source/version override,
+Other pigz versions, paths and hosts are not rewritten. No source/version override,
 custom pigz module, prebuilt pigz, or disabled integrity check is involved.
 
 This config applies automatically in this registry's validation runner. It does
@@ -61,6 +61,92 @@ The `codex/pigz-source-mirror` PR validates this CI fix with those fetch tests a
 the existing AMD64/ARM64 runner tests. Its path-checked exception retains the
 normal publication-policy plan but does not run the unrelated module build
 matrix. All other branches and pushes retain normal module selection.
+
+## Pinned Debian package downloads
+
+The same downloader configuration also prefers Debian's official pool for
+checksum-pinned `.deb` URLs from dated `snapshot.debian.org` pool paths. It
+retains the original snapshot as a fallback. The four generic rules are identical
+to [buildimage PR181](https://github.com/securely1g/sonic-buildimage/pull/181).
+They do not match Release/Packages indexes, source archives or other hosts.
+The existing pigz rule, registry recipes, package versions and hashes stay intact.
+
+For example, [BMv2 PR211](https://github.com/securely1g/sonic-bazel-registry/pull/211)
+failed during AMD64 analysis while fetching the declared ARMHF
+`libthrift-dev_0.19.0-4+b1_armhf.deb` (SHA256
+`feef88038da4c689aa4e46f4bf2d39c90b7d4971c0ae5ab0f9568fa671b1d4c3`).
+Its APT hub reads compiler metadata for all declared architectures before
+selecting native targets; this request does not imply ARMHF compilation.
+
+| Input or action | Before | After |
+| --- | --- | --- |
+| The pinned BMv2 libthrift package | Only the dated snapshot URL, which returned503 | Official Debian pool first, then that exact snapshot URL; unchanged SHA256 required |
+| `debian-security` binary package | Only its dated security snapshot | Official security pool first, preserving `pool/updates` and snapshot fallback |
+| Package mirror serves different bytes | Checksum failure | Checksum failure |
+| Dated package index or source archive | Original URL | Original URL |
+| Existing pigz source | Verified MacPorts mirror | Same verified MacPorts mirror |
+
+This addresses the same transport failure affecting
+[build-infra registration226](https://github.com/securely1g/sonic-bazel-registry/pull/226)
+and the declared tools in
+[source PR82](https://github.com/securely1g/sonic-build-infra/pull/82).
+The registry runner already passes this config to all preparation, build, test
+and output-query commands. Standalone source CI ignores dependency RC files;
+it needs a separate explicit opt-in to an immutable, checksum-verified copy of
+this combined config. This change does not update those PR heads or imply their
+native checks have passed.
+
+Historical packages can disappear from the current official pool. Four exact
+AMD64 payloads already used by the source-image worker have verified Snapshot
+content-ID routes: `libpython3.13-minimal`, `libpython3.13`, `libdebconfclient0`
+and `libselinux1`. These routes follow the official pool and precede the dated
+Snapshot fallback. Each matches one timestamp, version, architecture and path;
+the declared package SHA256 still verifies the bytes. The existing Bookworm
+security-header content route is retained.
+
+[Source PR83's AMD64 run](https://github.com/securely1g/sonic-build-infra/actions/runs/41909259565/job/126852139994)
+built all 15 tools and passed its initial 12 tests, then failed analysis for a
+fresh three-test run: the selected `libpython3.13-minimal` returned 404 from the
+pool and 503 from its dated Snapshot URL. The content-ID route reuses the same
+locked bytes. Other historical packages still depend on an available download
+route; this does not repair snapshot index outages or change package selection.
+
+The same ordered fallback covers three more exact historical payloads:
+`libheif1_1.19.8-1_amd64.deb`, selected through Graphviz by
+[libteam's AMD64 retry](https://github.com/securely1g/sonic-buildimage/actions/runs/41900723985/job/126883238634).
+Its pool returned 404 and its dated Snapshot URL returned 503 during analysis.
+The existing 520,256-byte package matches the same URL's retained source-CI
+recipe and SHA256 `06460065e7768d7a4a72cb02a0eddd386936756a33596bb23901faeb72dc8f68`.
+The libteam artifact did not retain its generated lock; this is not a claim
+that its missing lock was inspected. No package version changes.
+
+FRR's inherited image checks failed on
+[`libaudit-dev_4.0.2-2+b2_amd64.deb`](https://github.com/securely1g/sonic-buildimage/actions/runs/41900888844/job/126822668186)
+and [`uuid-dev_2.41-5_amd64.deb`](https://github.com/securely1g/sonic-buildimage/actions/runs/41900888825/job/126822668789)
+with the same pool-404/Snapshot-503 sequence. Their exact content-ID routes use
+the existing 89,348-byte and 48,836-byte packages, independently checked against
+the matching immutable source-image recipes. The failed-run FRR generated locks
+were not used for this binding; the matching source-image recipes supply the
+integrity proof. Both packages are AMD64, including the execution
+dependency used by the ARM64 image check. These routes do not change the
+requested package versions, architectures or integrity checks.
+
+[FRR's YANG AMD64 check](https://github.com/securely1g/sonic-buildimage/actions/runs/41931851590/job/126930441231)
+also stopped during its initial image-root query on
+`libc6-dev_2.41-12+deb13u3_amd64.deb`: pool 404, then dated Snapshot 503.
+Its exact content route retains SHA256
+`53a9b789bb02415d758f652ef5ac913d89fed29782610e9fe0fd2488e4f2e465`.
+The 1,992,332-byte payload matches the generated lock from the successful native
+FRR job at the same source `7cf59340` and catalog `cfd42fb5`; the failed YANG
+job's lock was not used. YANG's initial query used only the generic shared
+default, so that workflow needs its own verified opt-in to this configuration.
+
+The exact owned `codex/registry-debian-pool-transport` branch retains the full
+publication-policy plan and AMD64/ARM64 runner suites, including real checksum
+rejection and cold-fetch tests, while selecting no unrelated module jobs.
+Unexpected files fail this exception; other branches and pushes retain normal
+selection. The real download tests only fetch existing payloads and execute no
+package producer or compilation.
 
 ## Kernel build-tool cache downloads
 
