@@ -1,0 +1,10 @@
+{
+  "base": "a802726af663bce3890d729f0f88b9c939cdb4eb",
+  "head": "3464a60e78a0dea8fa39b3ff400de06d38395e5a",
+  "candidate_tree": "59a069d82b1b820e29280cac9ea5445c91afbfd4",
+  "baseline_with_copied_previous_entry": "54055b81bbda2a0bd570b859e072393bd4c9b690",
+  "patch_sha256": "ea55dfbc9cfb531fa637be9688f9e2de6b85631fdb81442ac6116913c4b27527",
+  "bytes": 94703,
+  "applied_whole_tree_equals_candidate": true,
+  "published_entry_files_modes_preserved": 1877
+}
