@@ -4,7 +4,7 @@
   "integrity": "sha256-5YnJwJL75ebUOPAOP1CRq/mOkYvAPt6dDLKS/wwGdv4=",
   "patches": {
     "module-version.patch": "sha256-TUY+1A5eXyQuG4ivcqLkYMVhuZYoh9dczvx35vXQA+4=",
-    "0002-shared-root-text-version.patch": "sha256-wtny14XjuFcpw5GrrZrii1eXo0K3bOvn9OhPdFzejfA="
+    "0002-shared-root-text-version.patch": "sha256-o2BRsxNZFm9yoqXMVxW8eP9Sd+6eYtnOt0kHTLvAwsA="
   },
   "patch_strip": 1
 }
