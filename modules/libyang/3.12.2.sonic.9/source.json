@@ -7,14 +7,18 @@
   },
   "patch_strip": 1,
   "overlay": {
-    "BUILD.bazel": "sha256-1+vK6WQaT/v84ih0nzK0Csa4mevRze/O79vdfrycIMg=",
-    "LICENSES": "sha256-BvHAhiSyYIsBmAnh7jP8fANo0sRsmHxlsCFqMtVdseA=",
-    "MODULE.bazel": "sha256-/kRzceEshjyROl4/wITwfTmvNzqz2SrJj380tevbYEc=",
-    "README.bazel.md": "sha256-LcApHI8MFUOd4m4gk/Ly7U23XbRICrhI1vwilcx1Dy8=",
-    "headers.bzl": "sha256-cQ+D1+NwSRWxqN1ZiqB+wLzt7PdtDqJ4A3pHwt04UUw=",
-    "libyang_package_test.sh": "sha256-IdTtoIQxSFCudOCEWZzr41ykoxwEvWtjG5wCBxNYaoo=",
-    "libyang_srcs.bzl": "sha256-m/mLGdfxZ9F9fo36l+P3DqETLnxRfy5i/QlMiK1b3MY=",
+    ".bazelrc": "sha256-62p0YxTC6qq2Q8Zpnj07nArW6f4a0pOzywpbGeOFCIo=",
+    "BUILD.bazel": "sha256-rO3yd5FuuzCKu5pp9jHWCGxchx8XUNaazk+nD3Pml4s=",
+    "MODULE.bazel": "sha256-oHyrHM6KCkwghIqnU+SlP14Nhd3+3QXTtSrxRqWr8Bs=",
+    "README.bazel.md": "sha256-qdPohVuUFFX9JrFimrgcEsESI/a26H76qfWPLzWx5/E=",
+    "docs_permissions.awk": "sha256-v/fRLKNaROWRRZVTWIbeO5OJz6t0aMXAneIXP+x+EHk=",
+    "documentation.py": "sha256-jQ9odFa1OWrCD4ZU++BfiimtAkMi+V5FWgY63AKIk4M=",
+    "libyang_package_test.py": "sha256-iLSN4p1FxJf6QOkceDZwOYXyx9KRSm3H+h/zKHiZkhA=",
     "libyang_test.c": "sha256-PvL3aPjkBdZRdJCfuEX7c0aVHcHtpSk/xxdqvekqKVw=",
-    "runtime_packages.md": "sha256-W7RPmXyFG07sIyHkjLHR/Ow3NSLflv2lob0gxf8bP2g="
+    "relocate_test_paths.py": "sha256-a9rsQvfOsCJhYhjXs7jn4Eoj1/pUSZcK+3XHMgLreqk=",
+    "runtime_metadata_test.py": "sha256-oxPg75PZ7+majjcpxwqQN8fnqSmaU9ucJAZx+PT+gTc=",
+    "runtime_packages.md": "sha256-4ZIU++/CDtdfUFIEqtgwjFMhRszHBM2FX0MziArTA9M=",
+    "upstream_tests.py": "sha256-lTH33S89BQOBQ+XmNnLaFDGW2Wec2XnEVKH7HF38GRg=",
+    "upstream_tests_config.h": "sha256-uv9Y8blvozW4k1HTUcQET4o3DrfSfYckaIdTWNXBz7E="
   }
 }

@@ -6,7 +6,7 @@
   "consumer_deps": [
     {
       "name": "sonic-build-infra",
-      "version": "0.0.23-5b224d7190d04f1b7b68429eedfc03b7b1565ed0",
+      "version": "0.0.25-34de7330abc72229dfc8dab88dec71b89c52aa88",
       "repo_name": "sonic_build_infra"
     },
     {
@@ -21,11 +21,18 @@
   "build_targets": [
     "@libyang//:libyang_pkg",
     "@libyang//:libyang_pkg.debug_symbols",
-    "@libyang//:runtime_packages.json"
+    "@libyang//:tools_pkg",
+    "@libyang//:tools_pkg.debug_symbols",
+    "@libyang//:runtime_packages.json",
+    "@libyang//:upstream_test_binaries",
+    "@libyang//:development_pkg"
   ],
   "test_targets": [
     "@libyang//:libyang_test",
-    "@libyang//:libyang_package_test"
+    "@libyang//:libyang_package_test",
+    "@libyang//:upstream_check",
+    "@libyang//:runtime_metadata_test",
+    "@libyang//:libyang_installed_test"
   ],
   "generated_module_overlay": true
 }

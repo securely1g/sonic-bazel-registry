@@ -1,20 +1,16 @@
 module(
     name = "libyang",
-    version = "3.12.2.sonic.5",
+    version = "3.12.2.sonic.6",
 )
 
 bazel_dep(name = "bazel_skylib", version = "1.9.0")
-bazel_dep(name = "rules_cc", version = "0.2.14")
-bazel_dep(name = "rules_shell", version = "0.6.1")
-bazel_dep(name = "sonic-build-infra", version = "0.0.23-5b224d7190d04f1b7b68429eedfc03b7b1565ed0", repo_name = "sonic_build_infra")
+bazel_dep(name = "rules_cc", version = "0.2.16")
+bazel_dep(name = "sonic-build-infra", version = "0.0.25-34de7330abc72229dfc8dab88dec71b89c52aa88", repo_name = "sonic_build_infra")
 bazel_dep(name = "platforms", version = "1.0.0")
-bazel_dep(name = "pcre2", version = "10.45")
-bazel_dep(name = "xxhash", version = "0.8.3")
 
 # Debian 3.12.2-1 has no source patch series. Use its maintained notices
 # directly; both archive hashes match libyang_3.12.2-1.dsc.
 http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
-
 http_archive(
     name = "libyang_debian",
     build_file_content = "exports_files([\"changelog\", \"control\", \"copyright\"])\n",
@@ -22,3 +18,40 @@ http_archive(
     strip_prefix = "debian",
     urls = ["https://deb.debian.org/debian/pool/main/liby/libyang/libyang_3.12.2-1.debian.tar.xz"],
 )
+
+bazel_dep(name = "rules_python", version = "1.8.0")
+bazel_dep(name = "rules_gzip", version = "1.0.0")
+bazel_dep(name = "tar.bzl", version = "0.10.5-sonic.1")
+
+bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.15")
+apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
+apt.install(
+    dependency_set = "libyang_system",
+    packages = ["libpcre2-dev", "libxxhash-dev", "libpcre2-8-0", "libxxhash0", "libc6", "libgcc-s1", "libcmocka-dev", "libcmocka0"],
+    suites = ["trixie", "trixie-updates", "trixie-security"],
+)
+use_repo(apt, "libyang_system")
+
+# Isolate suites: Architecture:all packages can share versions across releases.
+bookworm_apt = use_extension("@sonic_build_infra//toolchains/bookworm:apt.bzl", "apt")
+bookworm_apt.install(
+    dependency_set = "libyang_system_bookworm",
+    packages = ["libpcre2-dev", "libxxhash-dev", "libpcre2-8-0", "libxxhash0", "libc6", "libgcc-s1", "libcmocka-dev", "libcmocka0"],
+    suites = ["bookworm", "bookworm-updates", "bookworm-security"],
+)
+use_repo(bookworm_apt, "libyang_system_bookworm")
+
+# The source overlay is independently buildable with the same declared tools.
+gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
+use_repo(gcc, "gcc_toolchains")
+register_toolchains("@gcc_toolchains//:all")
+
+tar_toolchains = use_extension("@tar.bzl//tar:extensions.bzl", "toolchains")
+use_repo(tar_toolchains, "bsd_tar_toolchains")
+register_toolchains("@bsd_tar_toolchains//:all")
+register_toolchains("@sonic_build_infra//tools/gzip:toolchain")
+
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(is_default = True, python_version = "3.13")
+
+bazel_dep(name = "bazel_lib", version = "3.1.1")
