@@ -1,0 +1,12 @@
+diff --git a/ytypes/container.go b/ytypes/container.go
+--- a/ytypes/container.go
++++ b/ytypes/container.go
+@@ -78,7 +78,7 @@
+ 						errors = util.AppendErrs(errors, errs)
+ 					}
+ 				}
+-			case !structElems.Field(i).IsNil():
++			case !util.IsValueNilOrDefault(fieldValue):
+ 				// Either an element in choice schema subtree, or bad field.
+ 				// If the former, it will be found in the choice check below.
+ 				extraFields[fieldName] = nil
