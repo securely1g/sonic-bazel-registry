@@ -1,0 +1,8 @@
+module(name = "libnl3_shared_runtime_consumer")
+
+bazel_dep(name = "libnl3", version = "3.7.0.sonic.7")
+bazel_dep(name = "sonic-build-infra", version = "0.0.26-2cfc059c2cf1dc3b2f2b2ec1bcd70400b04ecb75", repo_name = "sonic_build_infra")
+
+gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
+use_repo(gcc, "gcc_toolchains")
+register_toolchains("@gcc_toolchains//:all")
