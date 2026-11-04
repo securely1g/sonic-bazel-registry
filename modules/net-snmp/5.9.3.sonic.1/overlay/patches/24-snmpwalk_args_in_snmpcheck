@@ -1,0 +1,14 @@
+diff --git a/local/snmpcheck.def b/local/snmpcheck.def
+--- a/local/snmpcheck.def
++++ b/local/snmpcheck.def
+@@ -27,8 +27,8 @@
+ 		 '.LOADAVEMIBNUM.1' => 1,
+ 		 '.ERRORMIBNUM' => 1);
+ $errlog="/net/tyfon/1/OV/log/ece-log";
+-$default_get_args = "-v 1 %s private";
+-$default_set_args = "-v 1 %s private";
++$default_get_args = "-v 1 -c private %s";
++$default_set_args = "-v 1 -c private %s";
+ $andlog=0;
+ $snmppath="BINDIR";
+ $eraseline="                                                                           \r";

@@ -1,0 +1,13 @@
+diff --git a/man/snmpd.conf.5.def b/man/snmpd.conf.5.def
+--- a/man/snmpd.conf.5.def
++++ b/man/snmpd.conf.5.def
+@@ -1398,9 +1398,6 @@
+ \fIrun-command(3)\fR.  Unlike the equivalent \fIexecfix\fR,
+ this directive does not need to be paired with a corresponding
+ \fIextend\fR entry, and can appear on its own.
+-.PP
+-Both \fIextend\fR and \fIextendfix\fR directives can be configured
+-dynamically, using SNMP SET requests to the NET\-SNMP\-EXTEND\-MIB.
+ .SS "MIB-Specific Extension Commands"
+ The first group of extension directives invoke arbitrary commands,
+ and rely on the MIB structure (and management applications) having

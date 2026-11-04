@@ -1,0 +1,23 @@
+diff --git a/snmplib/snmp_api.c b/snmplib/snmp_api.c
+--- a/snmplib/snmp_api.c
++++ b/snmplib/snmp_api.c
+@@ -5772,9 +5772,6 @@
+        * should be per session ! 
+        */
+ 
+-      if (callback == NULL
+-	  || callback(NETSNMP_CALLBACK_OP_RECEIVED_MESSAGE, sp,
+-		      pdu->reqid, pdu, magic) == 1) {
+ 	if (pdu->command == SNMP_MSG_REPORT) {
+ 	  if (sp->s_snmp_errno == SNMPERR_NOT_IN_TIME_WINDOW ||
+ 	      snmpv3_get_report_type(pdu) ==
+@@ -5843,6 +5840,9 @@
+ 	  }
+ 	}
+ 
++    if (callback == NULL
++	  || callback(NETSNMP_CALLBACK_OP_RECEIVED_MESSAGE, sp,
++		      pdu->reqid, pdu, magic) == 1) {
+ 	/*
+ 	 * Successful, so delete request.  
+ 	 */
