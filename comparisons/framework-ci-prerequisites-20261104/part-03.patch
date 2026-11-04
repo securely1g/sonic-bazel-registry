@@ -1,0 +1,5036 @@
++environment = os.environ | {'SOURCE_DATE_EPOCH': str(int(parsedate_to_datetime(first_signature[1].decode()).timestamp()))}
++with tempfile.TemporaryDirectory() as temporary:
++    staging = Path(temporary)
++    for entry in mapping['pm_to_blib']:
++        directory = staging / 'perl' / entry['module']
++        directory.mkdir(parents=True, exist_ok=True)
++        (directory / entry['source']).symlink_to((source / entry['input']).absolute())
++        subprocess.run([perl, '-MExtUtils::Install', '-e', 'my $auto = shift @ARGV; ExtUtils::Install::pm_to_blib({@ARGV}, $auto, q[], 0755);', '--', entry['INST_LIB'] + '/auto', entry['source'], entry['destination']], cwd=directory, env=environment, check=True)
++    for file in sorted((staging / 'perl/blib/lib').rglob('*')):
++        if not file.is_file():
++            continue
++        output = output_root / mapping['vendorarch'].lstrip('/') / file.relative_to(staging / 'perl/blib/lib')
++        output.parent.mkdir(parents=True, exist_ok=True)
++        output.write_bytes(file.read_bytes())
++    for entry in mapping['pods']:
++        output = staging / 'perl' / entry['output']
++        output.parent.mkdir(parents=True, exist_ok=True)
++        directory = staging / 'perl' / entry['module']
++        relative_output = os.path.relpath(output, directory)
++        subprocess.run([perl, '-MExtUtils::Command::MM', '-e', 'pod2man', '--', *entry['arguments'], entry['source'], relative_output], cwd=directory, env=environment, check=True)
++        data = gzip.compress(output.read_bytes(), compresslevel=9, mtime=0)
++        installed = output_root / (entry['installed'].lstrip('/') + '.gz')
++        installed.parent.mkdir(parents=True, exist_ok=True)
++        installed.write_bytes(data)
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/01-pingmib_perl_path b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/01-pingmib_perl_path
+new file mode 100644
+index 0000000000000000000000000000000000000000..7f4ba8c7c10d09c766de00aaa7dc4daa9c34c465
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/01-pingmib_perl_path
+@@ -0,0 +1,9 @@
++diff --git a/perl/SNMP/examples/pingmib.pl b/perl/SNMP/examples/pingmib.pl
++--- a/perl/SNMP/examples/pingmib.pl
+++++ b/perl/SNMP/examples/pingmib.pl
++@@ -1,4 +1,4 @@
++-#!/usr/bin/env perl
+++#!/usr/bin/perl
++ 
++ # Ping a host via the CISCO-PING-MIB. For more information about the
++ # CISCO-PING-MIB, see also
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/02-02_statistics.patch b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/02-02_statistics.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..aa8b18060b8f49d8261199556e4c89f77152a100
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/02-02_statistics.patch
+@@ -0,0 +1,23 @@
++diff --git a/agent/mibgroup/mibII/interfaces.c b/agent/mibgroup/mibII/interfaces.c
++--- a/agent/mibgroup/mibII/interfaces.c
+++++ b/agent/mibgroup/mibII/interfaces.c
++@@ -1579,6 +1579,10 @@
++         struct ifnet   *nnew;
++         char           *stats, *ifstart = line;
++ 
+++	/* Ignore interfaces with no statistics. */
+++	if (strstr(line, "No statistics available."))
+++	    continue;
+++
++         if (line[strlen(line) - 1] == '\n')
++             line[strlen(line) - 1] = '\0';
++ 
++@@ -1611,7 +1615,7 @@
++                                                &coll) != 5)) {
++             if ((scan_line_to_use == scan_line_2_2)
++                 && !strstr(line, "No statistics available"))
++-                snmp_log(LOG_ERR,
+++                snmp_log(LOG_DEBUG,
++                          "/proc/net/dev data format error, line ==|%s|",
++                          line);
++             continue;
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/03-03_makefiles.patch b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/03-03_makefiles.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..76410ed15f2bdfdd53ca61dc50a0f509523bf4c0
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/03-03_makefiles.patch
+@@ -0,0 +1,53 @@
++diff --git a/Makefile.in b/Makefile.in
++--- a/Makefile.in
+++++ b/Makefile.in
++@@ -173,7 +173,7 @@
++ #
++ # override LD_RUN_PATH to avoid dependencies on the build directory
++ perlmodules: perlmakefiles subdirs
++-	@(cd perl ; $(MAKE) LD_RUN_PATH="$(libdir):`$(PERL) -e 'use Config; print qq($$Config{archlibexp}/CORE);'`") ; \
+++	@(cd perl ; $(MAKE) LD_RUN_PATH="") ; \
++         if test $$? != 0 ; then \
++            exit 1 ; \
++         fi
++diff --git a/Makefile.top b/Makefile.top
++--- a/Makefile.top
+++++ b/Makefile.top
++@@ -28,6 +28,7 @@
++ snmplibdir	= $(datadir)/snmp
++ mibdir		= $(snmplibdir)/mibs
++ persistentdir	= @PERSISTENT_DIRECTORY@
+++sysconfdir	= @sysconfdir@
++ DESTDIR         = @INSTALL_PREFIX@
++ INSTALL_PREFIX  = $(DESTDIR)
++ 
++diff --git a/local/Makefile.in b/local/Makefile.in
++--- a/local/Makefile.in
+++++ b/local/Makefile.in
++@@ -101,7 +101,7 @@
++ 
++ mib2c.made: $(srcdir)/mib2c
++ 	if test "x$(PERL)" != "x" ; then \
++-	  $(PERL) -p -e 's%^#!.*/perl.*%#!$(PERL)%;s#/usr/local/share/snmp#$(snmplibdir)#;' ${srcdir}/mib2c > mib2c.made; \
+++	  $(PERL) -p -e 's%^#!.*/perl.*%#!$(PERL)%;s#/usr/local/share/snmp#$(snmplibdir)#;s#/usr/local/etc/snmp#$(SNMPCONFPATH)#;' ${srcdir}/mib2c > mib2c.made; \
++ 	else \
++ 	  touch mib2c.made; \
++         fi
++diff --git a/mibs/Makefile.in b/mibs/Makefile.in
++--- a/mibs/Makefile.in
+++++ b/mibs/Makefile.in
++@@ -47,11 +47,11 @@
++ UCDMIBS = UCD-SNMP-MIB.txt UCD-DEMO-MIB.txt UCD-IPFWACC-MIB.txt \
++ 	UCD-DLMOD-MIB.txt UCD-DISKIO-MIB.txt
++ 
+++EXTRAMIBS = GNOME-SMI LM-SENSORS-MIB
+++
++ DEFAULTMIBS = @default_mibs_install@
++ 
++-MIBS	= $(V1MIBS) $(V2MIBS) $(V3MIBS) $(RFCMIBS) \
++-	$(AGENTMIBS) $(IANAMIBS) \
++-	$(NETSNMPMIBS) $(UCDMIBS) $(DEFAULTMIBS)
+++MIBS	=  $(NETSNMPMIBS) $(UCDMIBS) $(DEFAULTMIBS) $(EXTRAMIBS)
++ 
++ all: standardall
++ 
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/04-05_searchdirs.patch b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/04-05_searchdirs.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..a13d66854c6a9fde8a5f6f0f92a9846b5eb7d420
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/04-05_searchdirs.patch
+@@ -0,0 +1,15 @@
++diff --git a/local/mib2c b/local/mib2c
++--- a/local/mib2c
+++++ b/local/mib2c
++@@ -61,8 +61,9 @@
++ if($ENV{MIB2C_DIR}) {
++    push @def_search_dirs, split(/:/, $ENV{MIB2C_DIR});
++ }
++-push @def_search_dirs, "/usr/local/share/snmp/";
++-push @def_search_dirs, "/usr/local/share/snmp/mib2c-data";
+++push @def_search_dirs, "/etc/snmp/";
+++push @def_search_dirs, "/usr/share/snmp/";
+++push @def_search_dirs, "/usr/share/snmp/mib2c-data";
++ push @def_search_dirs, "./mib2c-conf.d";
++ 
++ sub usage {
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/05-06_extramibs.patch b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/05-06_extramibs.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..f14a76e2f06fdfdff9e17e3d0bb41f6783e42b6e
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/05-06_extramibs.patch
+@@ -0,0 +1,92 @@
++diff --git a/mibs/GNOME-SMI.txt b/mibs/GNOME-SMI.txt
++--- a/mibs/GNOME-SMI.txt
+++++ b/mibs/GNOME-SMI.txt
++@@ -0,0 +1,88 @@
+++GNOME-SMI DEFINITIONS ::= BEGIN
+++
+++IMPORTS
+++	MODULE-IDENTITY,
+++	OBJECT-IDENTITY,
+++	enterprises
+++		FROM SNMPv2-SMI;
+++
+++gnome MODULE-IDENTITY
+++	LAST-UPDATED "200709070000Z"
+++	ORGANIZATION "GNOME project"
+++	CONTACT-INFO
+++		"GNU Network Object Model Environment project
+++		
+++		see http://www.gnome.org for contact persons of a particular
+++		area or subproject of GNOME.
+++
+++		Administrative contact for MIB module:
+++
+++		Jochen Friedrich
+++		Ramsaystr. 9
+++		63450 Hanau
+++		Germany 
+++
+++		email: jochen@scram.de"
+++	DESCRIPTION
+++		"The Structure of GNOME."
+++
+++	-- revision history
+++
+++	REVISION "200709070000Z"  -- Sep 07, 2007
+++	DESCRIPTION
+++		"Fixed wrong enterprise number (how comes this
+++		typo was unnoticed for so long?)."
+++
+++	REVISION "200505070000Z"  -- May 07, 2005
+++	DESCRIPTION
+++		"Added gnomeLDAP subtree for LDAP definitions."
+++
+++	REVISION "200312070000Z"  -- December 07, 2003
+++	DESCRIPTION
+++		"Added gnomeSysadmin subtree for GNOME project system administration.
+++		Updated contact info."
+++
+++	REVISION "9809010000Z"  -- September 01, 1998
+++	DESCRIPTION
+++		"Initial version."
+++
+++	::= { enterprises 3319 }	-- assigned by IANA
+++
+++gnomeProducts OBJECT-IDENTITY
+++	STATUS	current
+++	DESCRIPTION
+++		"gnomeProducts is the root OBJECT IDENTIFIER from
+++		which sysObjectID values are assigned."
+++	::= { gnome 1 }
+++
+++gnomeMgmt OBJECT-IDENTITY
+++	STATUS  current
+++	DESCRIPTION
+++		"gnomeMgmt defines the subtree for production GNOME related
+++		MIB registrations."
+++	::= { gnome 2 }
+++
+++gnomeTest OBJECT-IDENTITY
+++	STATUS  current
+++	DESCRIPTION
+++		"gnomeTest defines the subtree for testing GNOME related
+++		MIB registrations."
+++	::= { gnome 3 }
+++
+++gnomeSysadmin OBJECT-IDENTITY
+++	STATUS  current
+++	DESCRIPTION
+++		"gnomeSysadmin defines the subtree for GNOME related Sysadmin
+++		MIB registrations."
+++	::= { gnome 4 }
+++
+++gnomeLDAP OBJECT-IDENTITY
+++	STATUS  current
+++	DESCRIPTION
+++		"gnomeLDAP defines the subtree for GNOME related LDAP
+++		registrations."
+++	::= { gnome 5 }
+++
+++-- more to come if necessary.
+++
+++END
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/06-07_docfiles.patch b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/06-07_docfiles.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..077161963381496b3a9d00eb38ea724ffa7cced2
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/06-07_docfiles.patch
+@@ -0,0 +1,100 @@
++diff --git a/EXAMPLE.conf.def b/EXAMPLE.conf.def
++--- a/EXAMPLE.conf.def
+++++ b/EXAMPLE.conf.def
++@@ -23,7 +23,7 @@
++ #  SNMPv3 AUTHENTICATION
++ #
++ #  Note that these particular settings don't actually belong here.
++-#  They should be copied to the file /var/net-snmp/snmpd.conf
+++#  They should be copied to the file /var/lib/snmp/snmpd.conf
++ #     and the passwords changed, before being uncommented in that file *only*.
++ #  Then restart the agent
++ 
++diff --git a/FAQ b/FAQ
++--- a/FAQ
+++++ b/FAQ
++@@ -108,7 +108,7 @@
++    How do I configure access control?
++    How do I configure SNMPv3 users?
++    The 'createUser' line disappears when I start the agent.  Why?
++-   What's the difference between /var/net-snmp and /usr/local/share/snmp?
+++   What's the difference between /var/lib/snmp and /usr/share/snmp?
++    My new agent is ignoring the old snmpd.conf file. Why?
++    Where should the snmpd.conf file go?
++    Why am I getting "Connection refused"?
++@@ -699,7 +699,7 @@
++   There are two steps required to add a new MIB file to the tools.
++   Firstly, copy the MIB file into the appropriate location:
++ 
++-	cp MY-MIB.txt /usr/local/share/snmp/mibs
+++	cp MY-MIB.txt /usr/share/snmp/mibs
++             (which makes it available to everyone on the system)
++     or
++         mkdir $HOME/.snmp
++@@ -1395,7 +1395,7 @@
++   If this is the case, then you can specify this interpreter
++   explicitly as part of the trap handle directive:
++ 
++-	traphandle default /usr/bin/perl /usr/local/bin/log_it
+++	traphandle default /usr/bin/perl /usr/bin/log_it
++ 
++     In this case, it's almost certain that you'll also
++   need to give the full path to the traphandle script (as shown)
++@@ -1489,7 +1489,7 @@
++   string to use.
++ 
++     Some of these (such as MIB information), might be best put in a
++-  shared snmp.conf file (typically /usr/local/share/snmp/snmp.conf or
+++  shared snmp.conf file (typically /usr/share/snmp/snmp.conf or
++   /etc/snmp/snmp.conf) to apply to all users of the system.  Others
++   (particularly the SNMPv3 security settings), are more likely to refer
++   to a particular user, and should probably go in a personal snmp.conf
++@@ -2663,7 +2663,7 @@
++ 
++ 	createUser {myUser} MD5 {myPassword} DES
++ 
++-    to the file /var/net-snmp/snmpd.conf (where {myUser} and
+++    to the file /var/lib/snmp/snmpd.conf (where {myUser} and
++     {myPassword} are the appropriate values for username and password,
++     _without_ the braces!).  Then re-start the snmpd agent.
++ 
++@@ -2672,7 +2672,7 @@
++         net-snmp-config --create-snmpv3-user
++ 
++      and follow the prompts given.  This will create an entry
++-     in the /var/net-snmp/snmpd.conf file similar to the above.
+++     in the /var/lib/snmp/snmpd.conf file similar to the above.
++      Then re-start the snmpd agent.
++ 
++   3) Make sure the agent is running, and will respond to an SNMPv3
++@@ -2706,16 +2706,16 @@
++ 
++ 
++ 
++-What's the difference between /var/net-snmp and /usr/local/share/snmp?
++----------------------------------------------------------------------
++-
++-    The /var/net-snmp location is primarily used for information set
+++What's the difference between /var/lib/snmp and /usr/share/snmp?
+++----------------------------------------------------------------
+++
+++    The /var/lib/snmp location is primarily used for information set
++   during the running of the agent, which needs to be persistent between
++   one run of the agent and the next.   Apart from "createUser" (see
++   the previous entry), you shouldn't need to touch this file.
++ 
++   All other user-provided configuration should go in the traditional
++-  location (typically /usr/local/share/snmp/snmpd.conf or /etc/snmp).
+++  location (typically /usr/share/snmp or /etc/snmp).
++ 
++ 
++ 
++@@ -2736,7 +2736,7 @@
++ -----------------------------------
++ 
++     The default location for this file with the basic distribution is
++-  /usr/local/share/snmp/snmpd.conf (or PREFIX/share/snmp/snmpd.conf).
+++  /usr/share/snmp/snmpd.conf (or PREFIX/share/snmp/snmpd.conf).
++   Ready-installed versions often look for the file as /etc/snmpd.conf,
++   or /etc/snmp/snmpd.conf.
++ 
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/07-60_libsensors_api.patch b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/07-60_libsensors_api.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..4fad2c7e3b8810268030104143b10745f7939da1
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/07-60_libsensors_api.patch
+@@ -0,0 +1,208 @@
++diff --git a/agent/mibgroup/ucd-snmp/lmSensors.c b/agent/mibgroup/ucd-snmp/lmSensors.c
++--- a/agent/mibgroup/ucd-snmp/lmSensors.c
+++++ b/agent/mibgroup/ucd-snmp/lmSensors.c
++@@ -94,7 +94,6 @@
++     #endif 
++ #else
++     #include <sensors/sensors.h>
++-    #define CONFIG_FILE_NAME "/etc/sensors.conf"
++ #endif
++ 
++ #include "lmSensors.h"
++@@ -357,9 +356,7 @@
++ {
++     int             res;
++ #ifndef solaris2
++-    char            filename[] = CONFIG_FILE_NAME;
++     time_t          t = time(NULL);
++-    FILE            *fp = fopen(filename, "r");
++     int             i = 0;
++   
++     DEBUGMSG(("ucd-snmp/lmSensors", "=> sensor_init\n"));
++@@ -371,13 +368,7 @@
++         sensor_array[i].sensor = NULL;
++     }
++ 
++-    if (!fp)
++-    {
++-        res = 1;
++-        goto leaving;
++-    }
++-
++-    if (sensors_init(fp))
+++    if (sensors_init(NULL))
++     {
++         res = 2;
++         goto leaving;
++@@ -395,7 +386,7 @@
++ sensor_load(void)
++ {
++     int rc = 0;
++-    time_t	   t = time(NULL);
+++    time_t        t = time(NULL);
++ 
++     if (t > timestamp + 7) /* this may require some tuning - currently 7 seconds*/
++     {
++@@ -947,7 +938,8 @@
++ #else /* end solaris2 only ie. ifdef everything else */
++ 
++     const sensors_chip_name *chip;
++-    const sensors_feature_data *data;
+++    const sensors_feature *feature;
+++    const sensors_subfeature *subfeature;
++     int             chip_nr = 0;
++     unsigned int    i = 0;
++ 
++@@ -969,78 +961,80 @@
++         sensor_array[i].current_len = DEFAULT_SENSORS;
++     } /* end for */
++ 
++-    while ((chip = sensors_get_detected_chips(&chip_nr))) {
++-	int             a = 0;
++-	int             b = 0;
++-
++-        while ((data = sensors_get_all_features(*chip, &a, &b))) {
++-            char           *label = NULL;
++-            double          val;
++-
++-            if ((data->mode & SENSORS_MODE_R) &&
++-                (data->mapping == SENSORS_NO_MAPPING) &&
++-                !sensors_get_label(*chip, data->number, &label) &&
++-                !sensors_get_feature(*chip, data->number, &val)) {
++-                int             type = -1;
++-                float           mul = 0;
++-                _sensor_array  *array;
++-
++-                /* The label, as determined for a given chip in sensors.conf,
++-                 * is used to place each sensor in the appropriate bucket.
++-                 * Volt, Fan, Temp, and Misc.  If the text being looked for below
++-                 * is not in the label of a given sensor (e.g., the temp1 sensor
++-                 * has been labeled 'CPU' and not 'CPU temp') it will end up being
++-                 * lumped in the MISC bucket. */
++-
++-                if (strstr(label, "V")) {
++-                    type = VOLT_TYPE;
++-                    mul = 1000.0;
++-                }
++-                if (strstr(label, "fan") || strstr(label, "Fan")) {
++-                    type = FAN_TYPE;
++-                    mul = 1.0;
++-                }
++-                if (strstr(label, "temp") || strstr(label, "Temp")) {
++-                    type = TEMP_TYPE;
++-                    mul = 1000.0;
++-                }
++-                if (type == -1) {
++-                    type = MISC_TYPE;
++-                    mul = 1000.0;
++-                }
++-
++-                array = &sensor_array[type];
++-                if ( array->current_len <= array->n) {
++-                    _sensor* old_buffer = array->sensor;
++-                    size_t new_size = (sizeof(_sensor) * array->current_len) + (sizeof(_sensor) * DEFAULT_SENSORS);
++-                    array->sensor = (_sensor*)realloc(array->sensor, new_size);
++-                    if (array->sensor == NULL)
++-                    {
++-                       /* Continuing would be unsafe */
++-                       snmp_log(LOG_ERR, "too many sensors to fit, and failed to alloc more, failing on %s\n", label);
++-                       free(old_buffer);
++-                       old_buffer = NULL;
++-                       if (label) {
++-                           free(label);
++-                           label = NULL;
++-                       } /* end if label */
++-                       return 1;
++-                    } /* end if array->sensor */
++-                    array->current_len = new_size / sizeof(_sensor);
++-                    DEBUGMSG(("ucd-snmp/lmSensors", "type #%d increased to %d elements\n", type, (int)array->current_len));
++-                } /* end if array->current */
++-                strlcpy(array->sensor[array->n].name, label, MAX_NAME);
++-                array->sensor[array->n].value = (int) (val * mul);
++-                DEBUGMSGTL(("sensors","sensor %s, value %d\n",
++-                            array->sensor[array->n].name,
++-                            array->sensor[array->n].value));
++-                array->n++;
++-            } /* end if data-mode */
++-	    if (label) {
++-		free(label);
++-		label = NULL;
++-	    } /* end if label */
++-        } /* end while data */
+++    while ((chip = sensors_get_detected_chips(NULL, &chip_nr))) {
+++        int             a = 0;
+++        while ((feature = sensors_get_features(chip, &a))) {
+++            int             b = 0;
+++            while ((subfeature = sensors_get_all_subfeatures(chip,
+++                    feature, &b))) {
+++                char           *label = NULL;
+++                double          val;
+++
+++                if ((subfeature->flags & SENSORS_MODE_R) &&
+++                    (label = sensors_get_label(chip, feature)) &&
+++                    !sensors_get_value(chip, subfeature->number, &val)) {
+++                    int             type = -1;
+++                    float           mul;
+++                    _sensor_array  *array;
+++
+++                    /* The label, as determined for a given chip in
+++                     * sensors.conf, is used to place each sensor in the
+++                     * appropriate bucket.  Volt, Fan, Temp, and Misc.
+++                     * If the text being looked for below is not in the
+++                     * label of a given sensor (e.g., the temp1 sensor
+++                     * has been labeled 'CPU' and not 'CPU temp') it
+++                     * will end up being lumped in the MISC bucket. */
+++
+++                    if (strstr(label, "V")) {
+++                        type = VOLT_TYPE;
+++                        mul = 1000.0;
+++                    }
+++                    if (strstr(label, "fan") || strstr(label, "Fan")) {
+++                        type = FAN_TYPE;
+++                        mul = 1.0;
+++                    }
+++                    if (strstr(label, "temp") || strstr(label, "Temp")) {
+++                        type = TEMP_TYPE;
+++                        mul = 1000.0;
+++                    }
+++                    if (type == -1) {
+++                        type = MISC_TYPE;
+++                        mul = 1000.0;
+++                    }
+++
+++                    array = &sensor_array[type];
+++                    if ( array->current_len <= array->n) {
+++                        _sensor* old_buffer = array->sensor;
+++                        size_t new_size = (sizeof(_sensor) * array->current_len) + (sizeof(_sensor) * DEFAULT_SENSORS);
+++                        array->sensor = (_sensor*)realloc(array->sensor, new_size);
+++                        if (array->sensor == NULL)
+++                        {
+++                           /* Continuing would be unsafe */
+++                           snmp_log(LOG_ERR, "too many sensors to fit, and failed to alloc more, failing on %s\n", label);
+++                           free(old_buffer);
+++                           old_buffer = NULL;
+++                           if (label) {
+++                               free(label);
+++                               label = NULL;
+++                           } /* end if label */
+++                           return (rc=1);
+++                        } /* end if array->sensor */
+++                        array->current_len = new_size / sizeof(_sensor);
+++                        DEBUGMSG(("ucd-snmp/lmSensors", "type #%d increased to %d elements\n", type, array->current_len));
+++                    } /* end if array->current */
+++                    strncpy(array->sensor[array->n].name, label, MAX_NAME);
+++                    array->sensor[array->n].value = (int) (val * mul);
+++                    DEBUGMSGTL(("sensors","sensor %d, value %d\n",
+++                                array->sensor[array->n].name,
+++                                array->sensor[array->n].value));
+++                    array->n++;
+++                } /* end if data-mode */
+++                if (label) {
+++                    free(label);
+++                    label = NULL;
+++                } /* end if label */
+++            } /* end while subfeature */
+++        } /* end while feature */
++     } /* end while chip */
++     DEBUGMSG(("ucd-snmp/lmSensors", "<= sensor_load\n"));
++ #endif  /* end else ie. ifdef everything else */
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/08-62_add_lib_cflags.patch b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/08-62_add_lib_cflags.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..9894dc60d6479636cc62f3fdf0843d074777e70a
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/08-62_add_lib_cflags.patch
+@@ -0,0 +1,37 @@
++diff --git a/net-snmp-config.in b/net-snmp-config.in
++--- a/net-snmp-config.in
+++++ b/net-snmp-config.in
++@@ -144,6 +144,9 @@
++     #################################################### compile
++     --base-cflags)
++       echo @CFLAGS@ @CPPFLAGS@ -I${NSC_INCLUDEDIR}
+++      ;;
+++    --base-lib-cflags)
+++      echo @LIBCFLAGS@ @CPPFLAGS@ -I${NSC_INCLUDEDIR}
++       ;;
++     --cflags|--cf*)
++       echo @CFLAGS@ @DEVFLAGS@ @CPPFLAGS@ -I. -I${NSC_INCLUDEDIR}
++@@ -707,6 +710,8 @@
++   echo "  These options produce the various compilation flags needed when"
++   echo "  building external SNMP applications:"
++   echo ""
+++  echo "    --base-lib-cflags lists additional compilation flags needed for linking"
+++  echo "                      against libsnmp"
++   echo "    --base-cflags     lists additional compilation flags needed"
++   echo "    --cflags          lists additional compilation flags needed"
++   echo "                      (includes -I. and extra developer warning flags)"
++diff --git a/configure.ac b/configure.ac
++--- a/configure.ac
+++++ b/configure.ac
++@@ -74,6 +74,11 @@
++ m4_include([configure.d/config_os_misc1])
++ m4_include([configure.d/config_os_libs2])
++ AC_CACHE_SAVE
+++
+++# Save CFLAGS for net-snmp-config
+++LIBCFLAGS=$CFLAGS
+++AC_SUBST(LIBCFLAGS)
+++
++ m4_include([configure.d/config_project_perl_python])
++ m4_include([configure.d/config_os_misc2])
++ m4_include([configure.d/config_project_types])
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/09-64_missing_lib.patch b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/09-64_missing_lib.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..3d8b040548e275d3225ba1bfd21186cadfd5ef13
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/09-64_missing_lib.patch
+@@ -0,0 +1,43 @@
++diff --git a/apps/Makefile.in b/apps/Makefile.in
++--- a/apps/Makefile.in
+++++ b/apps/Makefile.in
++@@ -95,6 +95,8 @@
++ USEAGENTLIBS	= $(MIBLIB) $(AGENTLIB) $(USELIBS)
++ MYSQL_LIBS	= @MYSQL_LIBS@
++ MYSQL_INCLUDES	= @MYSQL_INCLUDES@
+++LIBCRYPTO       = @LIBCRYPTO@
+++LIBWRAP         = @LIBWRAP@
++ 
++ VAL_LIBS	= @VAL_LIBS@
++ LIBS		= $(USELIBS) $(VAL_LIBS) @LIBS@
++@@ -190,7 +192,7 @@
++ 	$(LINK) ${CFLAGS} -o $@ snmptest.$(OSUFFIX) ${LDFLAGS} ${LIBS}
++ 
++ snmptrapd$(EXEEXT):    $(TRAPD_OBJECTS) $(USETRAPLIBS) $(INSTALLLIBS)
++-	$(LINK) ${CFLAGS} -o $@ $(TRAPD_OBJECTS) $(INSTALLLIBS) ${LDFLAGS} ${TRAPLIBS}
+++	$(LINK) ${CFLAGS} -o $@ $(TRAPD_OBJECTS) $(INSTALLLIBS) ${LDFLAGS} ${TRAPLIBS} $(LIBWRAP)
++ 
++ snmptrap$(EXEEXT):    snmptrap.$(OSUFFIX) $(USELIBS)
++ 	$(LINK) ${CFLAGS} -o $@ snmptrap.$(OSUFFIX) ${LDFLAGS} ${LIBS}
++@@ -207,7 +209,7 @@
++ 	$(LINK) ${CFLAGS} -o $@ snmpset.$(OSUFFIX) ${LDFLAGS} ${LIBS}
++ 
++ snmpusm$(EXEEXT):    snmpusm.$(OSUFFIX) $(USELIBS)
++-	$(LINK) ${CFLAGS} -o $@ snmpusm.$(OSUFFIX) ${LDFLAGS} ${LIBS}
+++	$(LINK) ${CFLAGS} -o $@ snmpusm.$(OSUFFIX) ${LDFLAGS} ${LIBS} $(LIBCRYPTO)
++ 
++ snmpvacm$(EXEEXT):    snmpvacm.$(OSUFFIX) $(USELIBS)
++ 	$(LINK) ${CFLAGS} -o $@ snmpvacm.$(OSUFFIX) ${LDFLAGS} ${LIBS}
++diff --git a/configure.ac b/configure.ac
++--- a/configure.ac
+++++ b/configure.ac
++@@ -107,6 +107,9 @@
++ 
++ AC_SUBST(PARTIALTARGETFLAGS)
++ AC_SUBST(ac_cv_NETSNMP_SYSTEM_INCLUDE_FILE)
+++LIBWRAP="$_wraplibs"
+++AC_SUBST(LIBWRAP)
+++AC_SUBST(LIBCRYPTO)
++ 
++ AC_CONFIG_FILES([Makefile:Makefile.top:Makefile.in:Makefile.rules])
++ AC_CONFIG_FILES([snmplib/Makefile:Makefile.top:snmplib/Makefile.in:Makefile.rules:snmplib/Makefile.depend])
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/10-fix_snmpcheck_perl_path.patch b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/10-fix_snmpcheck_perl_path.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..e91b1f5162e65957025315040aaeaeabe8532183
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/10-fix_snmpcheck_perl_path.patch
+@@ -0,0 +1,9 @@
++diff --git a/local/snmpcheck.def b/local/snmpcheck.def
++--- a/local/snmpcheck.def
+++++ b/local/snmpcheck.def
++@@ -1,4 +1,4 @@
++-#!/usr/local/bin/perl -w
+++#!/usr/bin/perl 
++ 
++ use strict 'refs';
++ require Net::Ping;
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/11-snmptranslate.1.patch b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/11-snmptranslate.1.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..bfe334d8591ce421192aff5173b03eb892dba026
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/11-snmptranslate.1.patch
+@@ -0,0 +1,49 @@
++diff --git a/man/snmptranslate.1.def b/man/snmptranslate.1.def
++--- a/man/snmptranslate.1.def
+++++ b/man/snmptranslate.1.def
++@@ -179,22 +179,22 @@
++ .nf
++ +--system(1)
++    |
++-   +-- -R-- String    sysDescr(1)
+++   +-- \-R-- String    sysDescr(1)
++    |        Textual Convention: DisplayString
++    |        Size: 0..255
++-   +-- -R-- ObjID     sysObjectID(2)
++-   +-- -R-- TimeTicks sysUpTime(3)
++-   +-- -RW- String    sysContact(4)
+++   +-- \-R-- ObjID     sysObjectID(2)
+++   +-- \-R-- TimeTicks sysUpTime(3)
+++   +-- \-RW- String    sysContact(4)
++    |        Textual Convention: DisplayString
++    |        Size: 0..255
++-   +-- -RW- String    sysName(5)
+++   +-- \-RW- String    sysName(5)
++    |        Textual Convention: DisplayString
++    |        Size: 0..255
++-   +-- -RW- String    sysLocation(6)
+++   +-- \-RW- String    sysLocation(6)
++    |        Textual Convention: DisplayString
++    |        Size: 0..255
++-   +-- -R-- Integer   sysServices(7)
++-   +-- -R-- TimeTicks sysORLastChange(8)
+++   +-- \-R-- Integer   sysServices(7)
+++   +-- \-R-- TimeTicks sysORLastChange(8)
++    |        Textual Convention: TimeStamp
++    |
++    +--sysORTable(9)
++@@ -202,11 +202,11 @@
++       +--sysOREntry(1)
++          |
++          +-- ---- Integer   sysORIndex(1)
++-         +-- -R-- ObjID     sysORID(2)
++-         +-- -R-- String    sysORDescr(3)
+++         +-- \-R-- ObjID     sysORID(2)
+++         +-- \-R-- String    sysORDescr(3)
++          |        Textual Convention: DisplayString
++          |        Size: 0..255
++-         +-- -R-- TimeTicks sysORUpTime(4)
+++         +-- \-R-- TimeTicks sysORUpTime(4)
++                   Textual Convention: TimeStamp
++ 
++ .fi
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/12-fix_spelling_error.patch b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/12-fix_spelling_error.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..fadb8e46b1e4127b349bc17aea5f15955c2a2f5e
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/12-fix_spelling_error.patch
+@@ -0,0 +1,24 @@
++diff --git a/apps/snmpnetstat/inet.c b/apps/snmpnetstat/inet.c
++--- a/apps/snmpnetstat/inet.c
+++++ b/apps/snmpnetstat/inet.c
++@@ -456,7 +456,7 @@
++     struct stat_table icmpstats_tbl[] = {
++         {1, "%14lu total message%s received"},
++         {2, "%14lu message%s dropped due to errors"},
++-        {14, "%14lu ouput message request%s"},
+++        {14, "%14lu output message request%s"},
++         {15, "%14lu output message%s discarded"},
++         {0, ""}
++     };
++diff --git a/apps/snmpnetstat/inet6.c b/apps/snmpnetstat/inet6.c
++--- a/apps/snmpnetstat/inet6.c
+++++ b/apps/snmpnetstat/inet6.c
++@@ -332,7 +332,7 @@
++     struct stat_table icmp6stats_tbl[] = {
++         {1, "%14d total message%s received"},
++         {2, "%14d message%s dropped due to errors"},
++-        {18, "%14d ouput message request%s"},
+++        {18, "%14d output message request%s"},
++         {19, "%14d output message%s discarded"},
++         {0, ""}
++     };
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/13-fix_typo_in_snmpd.conf.patch b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/13-fix_typo_in_snmpd.conf.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..f6012cffc3e4e6813f6c325c2c76626392c11b0c
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/13-fix_typo_in_snmpd.conf.patch
+@@ -0,0 +1,12 @@
++diff --git a/EXAMPLE.conf.def b/EXAMPLE.conf.def
++--- a/EXAMPLE.conf.def
+++++ b/EXAMPLE.conf.def
++@@ -63,7 +63,7 @@
++ #rwuser   authPrivUser   priv
++ 
++ #  It's no longer typically necessary to use the full 'com2sec/group/access' configuration
++-#  r[ou]user and r[ow]community, together with suitable views, should cover most requirements
+++#  r[ow]user and r[ow]community, together with suitable views, should cover most requirements
++ 
++ 
++ 
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/14-fix_manpage-has-errors_break_line.patch b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/14-fix_manpage-has-errors_break_line.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..2875dc08c7b8986ef419a849fc4be485123a4a13
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/14-fix_manpage-has-errors_break_line.patch
+@@ -0,0 +1,12 @@
++diff --git a/man/netsnmp_config_api.3.def b/man/netsnmp_config_api.3.def
++--- a/man/netsnmp_config_api.3.def
+++++ b/man/netsnmp_config_api.3.def
++@@ -365,7 +365,7 @@
++ SNMPCONFPATH
++ A colon separated list of directories to search for configuration
++ files in.
++-Default:
+++Default\:
++ .br
++ SYSCONFDIR/snmp:\:DATADIR/snmp:\:LIBDIR/snmp:\:$HOME/.snmp
++ .SH "SEE ALSO"
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/15-add_rocommunity6.patch b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/15-add_rocommunity6.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..203ef8513c9cb99766476aaa8c10e006fbfa5c99
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/15-add_rocommunity6.patch
+@@ -0,0 +1,12 @@
++diff --git a/EXAMPLE.conf.def b/EXAMPLE.conf.def
++--- a/EXAMPLE.conf.def
+++++ b/EXAMPLE.conf.def
++@@ -49,6 +49,8 @@
++ #rocommunity public  localhost
++                                                  #  Default access to basic system info
++  rocommunity public  default    -V systemonly
+++                                                 #  rocommunity6 is for IPv6
+++ rocommunity6 public  default   -V systemonly
++ 
++                                                  #  Full access from an example network
++                                                  #     Adjust this network address to match your local
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/16-fix-request-id-0.patch b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/16-fix-request-id-0.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..098d4e22d668d09b64c969eed40be9ef52b0e453
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/16-fix-request-id-0.patch
+@@ -0,0 +1,13 @@
++diff --git a/snmplib/snmp_api.c b/snmplib/snmp_api.c
++--- a/snmplib/snmp_api.c
+++++ b/snmplib/snmp_api.c
++@@ -5431,6 +5431,9 @@
++         /*
++          * No response expected...  
++          */
+++        if ((reqid == 0) && (pdu->command == SNMP_MSG_RESPONSE)) {
+++            reqid = 2;
+++        }
++         if (reqid) {
++             /*
++              * Free v1 or v2 TRAP PDU iff no error  
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/17-0026-fix-Bug-785380-incorrect-date-format.patch b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/17-0026-fix-Bug-785380-incorrect-date-format.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..552321c8821dba56926e515e1d45927eb8dcd681
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/17-0026-fix-Bug-785380-incorrect-date-format.patch
+@@ -0,0 +1,13 @@
++diff --git a/local/traptoemail b/local/traptoemail
++--- a/local/traptoemail
+++++ b/local/traptoemail
++@@ -12,6 +12,9 @@
++ use Net::SMTP;
++ use Getopt::Std;
++ use POSIX qw(strftime);
+++
+++# for sane timestamp format
+++$ENV{LANG} = 'C';
++ 
++ $opts{'s'} = "localhost";
++ $opts{'f'} = 'root@' . `hostname`;
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/18-0027-fix-455707-traptoemail-use-FQDN.patch b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/18-0027-fix-455707-traptoemail-use-FQDN.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..c5a7163ede669040adc16b1cd17a54b047810f23
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/18-0027-fix-455707-traptoemail-use-FQDN.patch
+@@ -0,0 +1,12 @@
++diff --git a/local/traptoemail b/local/traptoemail
++--- a/local/traptoemail
+++++ b/local/traptoemail
++@@ -17,7 +17,7 @@
++ $ENV{LANG} = 'C';
++ 
++ $opts{'s'} = "localhost";
++-$opts{'f'} = 'root@' . `hostname`;
+++$opts{'f'} = 'root@' . `hostname -f`;
++ chomp($opts{'f'});
++ getopts("hs:f:", \%opts);
++ 
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/19-let_perl_access_engineid.diff b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/19-let_perl_access_engineid.diff
+new file mode 100644
+index 0000000000000000000000000000000000000000..8f1c9b278272ca49ebc6b31c2ae06bd50db93d04
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/19-let_perl_access_engineid.diff
+@@ -0,0 +1,92 @@
++diff --git a/perl/SNMP/SNMP.pm b/perl/SNMP/SNMP.pm
++--- a/perl/SNMP/SNMP.pm
+++++ b/perl/SNMP/SNMP.pm
++@@ -1245,6 +1245,16 @@
++    return(wantarray() ? @res : $res[0]);
++ }
++ 
+++sub get_sec_engine_id {
+++   my $this = shift;
+++   return SNMP::_get_sec_engine_id($this);
+++}
+++
+++sub get_context_engine_id {
+++   my $this = shift;
+++   return SNMP::_get_context_engine_id($this);
+++}
+++
++ package SNMP::TrapSession;
++ @SNMP::TrapSession::ISA = ('SNMP::Session');
++ 
++@@ -2047,6 +2057,17 @@
++ 
++ =back
++ 
+++=item $sess->get_sec_engine_id
+++
+++Returns the security engine ID for the current session, whether probed
+++or provided by the client, in hex format suitable for the SecEngineId
+++parameter when creating a session in the future. Returns undef if we have not
+++had not had any contact with the remote agent yet.
+++
+++=item $sess->get_context_engine_id
+++
+++Like get_sec_engine_id, but for the context engine ID (ContextEngineId).
+++
++ =back
++ 
++ =head1 SNMP::TrapSession
++diff --git a/perl/SNMP/SNMP.xs b/perl/SNMP/SNMP.xs
++--- a/perl/SNMP/SNMP.xs
+++++ b/perl/SNMP/SNMP.xs
++@@ -4711,6 +4711,50 @@
++ 	Safefree(oid_arr);
++         }
++ 
+++
+++
+++char *
+++snmp_get_sec_engine_id(sess_ref)
+++        SV *	sess_ref
+++	CODE:
+++	{
+++           RETVAL = NULL;
+++           if (SvROK(sess_ref)) {
+++              SV **sess_ptr_sv = hv_fetch((HV*)SvRV(sess_ref), "SessPtr", 7, 1);
+++	      SnmpSession *ss = (SnmpSession *)SvIV((SV*)SvRV(*sess_ptr_sv));
+++              if (ss->securityEngineIDLen > 0) {
+++                 binary_to_hex(ss->securityEngineID,
+++                               ss->securityEngineIDLen,
+++                               &RETVAL);
+++              }
+++           }
+++	}
+++	OUTPUT:
+++        RETVAL
+++        CLEANUP:
+++        netsnmp_free(RETVAL);
+++
+++
+++char *
+++snmp_get_context_engine_id(sess_ref)
+++        SV *	sess_ref
+++	CODE:
+++	{
+++           RETVAL = NULL;
+++           if (SvROK(sess_ref)) {
+++              SV **sess_ptr_sv = hv_fetch((HV*)SvRV(sess_ref), "SessPtr", 7, 1);
+++	      SnmpSession *ss = (SnmpSession *)SvIV((SV*)SvRV(*sess_ptr_sv));
+++              if (ss->contextEngineIDLen > 0) {
+++                 binary_to_hex(ss->contextEngineID,
+++                               ss->contextEngineIDLen,
+++                               &RETVAL);
+++              }
+++           }
+++	}
+++	OUTPUT:
+++        RETVAL
+++        CLEANUP:
+++        netsnmp_free(RETVAL);
++ 
++ 
++ char *
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/20-fix_perl_bulk_gets.diff b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/20-fix_perl_bulk_gets.diff
+new file mode 100644
+index 0000000000000000000000000000000000000000..09f678778fc1d392d7a71c7d3f0676e21923deee
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/20-fix_perl_bulk_gets.diff
+@@ -0,0 +1,89 @@
++diff --git a/perl/SNMP/SNMP.pm b/perl/SNMP/SNMP.pm
++--- a/perl/SNMP/SNMP.pm
+++++ b/perl/SNMP/SNMP.pm
++@@ -866,22 +866,11 @@
++ 
++     $vbl = $_[$#_] if ($state->{'options'}{'callback'});
++ 
++-    while ($#$vbl > -1 && !$this->{ErrorNum}) {
++-	if (($#$vbl + 1) % ($#{$state->{'stopconds'}} + 1) != 0) {
++-	    if ($vbl->[$#$vbl][2] ne 'ENDOFMIBVIEW') {
++-		# unless it's an end of mib view we didn't get the
++-		# proper number of results back.
++-		print STDERR "ack: gettable results not appropriate\n";
++-	    }
++-	    my @k = keys(%{$state->{'result_hash'}});
++-	    last if ($#k > -1);  # bail with what we have
++-	    return;
++-	}
++-
++-	$state->{'varbinds'} = [];
++-	my $newstopconds;
++-
++-	my $lastsetstart = ($state->{'repeatcount'}-1) * ($#{$state->{'stopconds'}}+1);
+++    my $num_vbls = defined($vbl) ? scalar @$vbl : 0;
+++    my $num_stopconds = scalar @{$state->{'stopconds'}};
+++
+++    while ($num_vbls > 0 && !$this->{ErrorNum}) {
+++	my @found_eof = (0) x $num_stopconds;
++ 
++ 	for (my $i = 0; $i <= $#$vbl; $i++) {
++ 	    my $row_oid = SNMP::translateObj($vbl->[$i][0]);
++@@ -890,9 +879,11 @@
++ 	    my $row_value = $vbl->[$i][2];
++ 	    my $row_type = $vbl->[$i][3];
++ 
++-	    if ($row_oid =~
++-		/^$state->{'stopconds'}[$i % ($#{$state->{'stopconds'}}+1)]/ &&
++-		$row_value ne 'ENDOFMIBVIEW' ){
+++	    my $stopcond_num = $i % $num_stopconds;
+++	    my $stopcond = $state->{'stopconds'}[$stopcond_num];
+++	    if ($row_oid !~ /^\Q$stopcond\E/ || $row_value eq 'ENDOFMIBVIEW') {
+++		$found_eof[$stopcond_num] = 1;
+++	    } else {
++ 
++ 		if ($row_type eq "OBJECTID") {
++ 
++@@ -903,26 +894,30 @@
++ 
++ 		}
++ 
+++		# continue past this next time
+++
+++		$state->{'varbinds'}[$stopcond_num] = [ $row_text, $row_index ];
+++
++ 		# Place the results in a hash
++ 
++ 		$state->{'result_hash'}{$row_index}{$row_text} = $row_value;
++-
++-		# continue past this next time
++-		if ($i >= $lastsetstart) {
++-		    push @$newstopconds,
++-		      $state->{'stopconds'}->[$i%($#{$state->{'stopconds'}}+1)];
++-		    push @{$state->{'varbinds'}},[$vbl->[$i][0],$vbl->[$i][1]];
++-		}
++ 	    }
++ 	}
++-	if ($#$newstopconds == -1) {
+++
+++	my @newstopconds = ();
+++	my @newvarbinds = ();
+++	for (my $i = 0; $i < $num_stopconds; ++$i) {
+++	    unless ($found_eof[$i]) {
+++		push @newstopconds, $state->{'stopconds'}[$i];
+++		push @newvarbinds, $state->{'varbinds'}[$i];
+++	    }
+++	}
+++	if ($#newstopconds == -1) {
++ 	    last;
++ 	}
++-	if ($#{$state->{'varbinds'}} == -1) {
++-	    print "gettable ack.  shouldn't get here\n";
++-	}
+++	$state->{'varbinds'} = \@newvarbinds;
+++	$state->{'stopconds'} = \@newstopconds;
++ 	$vbl = $state->{'varbinds'};
++-	$state->{'stopconds'} = $newstopconds;
++ 
++         #
++         # if we've been configured with a callback, then call the
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/21-do_not_callback_for_failed_reports.diff b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/21-do_not_callback_for_failed_reports.diff
+new file mode 100644
+index 0000000000000000000000000000000000000000..4fc91fb5eac84bc3b2f45c2a661f14520388c72a
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/21-do_not_callback_for_failed_reports.diff
+@@ -0,0 +1,23 @@
++diff --git a/snmplib/snmp_api.c b/snmplib/snmp_api.c
++--- a/snmplib/snmp_api.c
+++++ b/snmplib/snmp_api.c
++@@ -5772,9 +5772,6 @@
++        * should be per session ! 
++        */
++ 
++-      if (callback == NULL
++-	  || callback(NETSNMP_CALLBACK_OP_RECEIVED_MESSAGE, sp,
++-		      pdu->reqid, pdu, magic) == 1) {
++ 	if (pdu->command == SNMP_MSG_REPORT) {
++ 	  if (sp->s_snmp_errno == SNMPERR_NOT_IN_TIME_WINDOW ||
++ 	      snmpv3_get_report_type(pdu) ==
++@@ -5843,6 +5840,9 @@
++ 	  }
++ 	}
++ 
+++    if (callback == NULL
+++	  || callback(NETSNMP_CALLBACK_OP_RECEIVED_MESSAGE, sp,
+++		      pdu->reqid, pdu, magic) == 1) {
++ 	/*
++ 	 * Successful, so delete request.  
++ 	 */
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/22-callback_print.diff b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/22-callback_print.diff
+new file mode 100644
+index 0000000000000000000000000000000000000000..751873adc05b62efeda3619ad246884380c0ed86
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/22-callback_print.diff
+@@ -0,0 +1,14 @@
++diff --git a/perl/SNMP/SNMP.xs b/perl/SNMP/SNMP.xs
++--- a/perl/SNMP/SNMP.xs
+++++ b/perl/SNMP/SNMP.xs
++@@ -1268,6 +1268,10 @@
++          netsnmp_ds_set_boolean(NETSNMP_DS_LIBRARY_ID, NETSNMP_DS_LIB_PRINT_NUMERIC_OIDS, 1);
++          netsnmp_ds_set_int(NETSNMP_DS_LIBRARY_ID, NETSNMP_DS_LIB_OID_OUTPUT_FORMAT, NETSNMP_OID_OUTPUT_NUMERIC);
++       }
+++      if (SvIV(*hv_fetch((HV*)SvRV(sess_ref),"UseEnums", 8, 1)))
+++         sprintval_flag = USE_ENUMS;
+++      if (SvIV(*hv_fetch((HV*)SvRV(sess_ref),"UseSprintValue", 14, 1)))
+++         sprintval_flag = USE_SPRINT_VALUE;
++ 
++       sv_bless(varlist_ref, gv_stashpv("SNMP::VarList",0));
++       for(vars = (pdu?pdu->variables:NULL); vars; vars = vars->next_variable) {
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/23-fix_engineid_reprobe.diff b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/23-fix_engineid_reprobe.diff
+new file mode 100644
+index 0000000000000000000000000000000000000000..c47c8871c63cf6e4d1c5fc5bcfbdb4fe47ac8f2c
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/23-fix_engineid_reprobe.diff
+@@ -0,0 +1,15 @@
++diff --git a/snmplib/snmpusm.c b/snmplib/snmpusm.c
++--- a/snmplib/snmpusm.c
+++++ b/snmplib/snmpusm.c
++@@ -3693,6 +3693,11 @@
++     netsnmp_pdu    *pdu = NULL, *response = NULL;
++     int status, i;
++ 
+++    if (slp->session->securityEngineIDLen != 0) {
+++        DEBUGMSGTL(("snmp_api", "engineID already known, skipping probe\n"));
+++        return SNMPERR_SUCCESS;
+++    }
+++
++     if (usm_build_probe_pdu(&pdu) != 0) {
++         DEBUGMSGTL(("snmp_api", "unable to create probe PDU\n"));
++         return SNMP_ERR_GENERR;
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/24-snmpwalk_args_in_snmpcheck b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/24-snmpwalk_args_in_snmpcheck
+new file mode 100644
+index 0000000000000000000000000000000000000000..777e72384c976f689741e98e1f122afab4227537
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/24-snmpwalk_args_in_snmpcheck
+@@ -0,0 +1,14 @@
++diff --git a/local/snmpcheck.def b/local/snmpcheck.def
++--- a/local/snmpcheck.def
+++++ b/local/snmpcheck.def
++@@ -27,8 +27,8 @@
++ 		 '.LOADAVEMIBNUM.1' => 1,
++ 		 '.ERRORMIBNUM' => 1);
++ $errlog="/net/tyfon/1/OV/log/ece-log";
++-$default_get_args = "-v 1 %s private";
++-$default_set_args = "-v 1 %s private";
+++$default_get_args = "-v 1 -c private %s";
+++$default_set_args = "-v 1 -c private %s";
++ $andlog=0;
++ $snmppath="BINDIR";
++ $eraseline="                                                                           \r";
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/25-snmpd_pidfile_mode b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/25-snmpd_pidfile_mode
+new file mode 100644
+index 0000000000000000000000000000000000000000..99c412b730db1fe61d823e4a5de4cf066bdb085b
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/25-snmpd_pidfile_mode
+@@ -0,0 +1,12 @@
++diff --git a/agent/snmpd.c b/agent/snmpd.c
++--- a/agent/snmpd.c
+++++ b/agent/snmpd.c
++@@ -946,7 +946,7 @@
++          * already exists.
++          */
++         unlink(pid_file);
++-        fd = open(pid_file, O_CREAT | O_EXCL | O_WRONLY, 0600);
+++        fd = open(pid_file, O_CREAT | O_EXCL | O_WRONLY, 0644);
++         if (fd == -1) {
++             snmp_log_perror(pid_file);
++             if (!netsnmp_ds_get_boolean(NETSNMP_DS_APPLICATION_ID, 
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/26-snmpcmd_1_groff b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/26-snmpcmd_1_groff
+new file mode 100644
+index 0000000000000000000000000000000000000000..a1dcf3bcd3335e041101ee42f3df2d9be08ddb45
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/26-snmpcmd_1_groff
+@@ -0,0 +1,14 @@
++diff --git a/man/snmpcmd.1.def b/man/snmpcmd.1.def
++--- a/man/snmpcmd.1.def
+++++ b/man/snmpcmd.1.def
++@@ -905,8 +905,9 @@
++ Defaults to .iso.org.dod.internet.mgmt.mib\-2
++ .IP MIBS
++ The list of MIBs to load. Defaults to
++-.br
+++.ad l
++ SNMPv2\-TC:\:SNMPv2\-MIB:\:IF\-MIB:\:IP\-MIB:\:TCP\-MIB:\:UDP\-MIB:\:SNMP\-VACM\-MIB.
+++.ad
++ .br
++ Overridden by the
++ .B \-m
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/27-netsnmp_mib_api_3_groff b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/27-netsnmp_mib_api_3_groff
+new file mode 100644
+index 0000000000000000000000000000000000000000..fc7426102b6f7319556a0731aa903a47b7509317
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/27-netsnmp_mib_api_3_groff
+@@ -0,0 +1,13 @@
++diff --git a/man/netsnmp_mib_api.3.def b/man/netsnmp_mib_api.3.def
++--- a/man/netsnmp_mib_api.3.def
+++++ b/man/netsnmp_mib_api.3.def
++@@ -278,7 +278,9 @@
++ The default list of modules will depend on how the Net-SNMP software
++ was originally compiled, but is typically:
++ .br
+++.ad l
++ IP\-MIB:\:IF\-MIB:\:TCP\-MIB:\:UDP\-MIB:\:SNMPv2\-MIB:\:RFC1213\-MIB:\:UCD\-SNMP\-MIB:\:HOST\-RESOURCES\-MIB
+++.ad
++ .IP
++ If the value of the
++ .B MIBS
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/28-snmplib_error_subcontainer b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/28-snmplib_error_subcontainer
+new file mode 100644
+index 0000000000000000000000000000000000000000..5297dbd7c1b56f4283d55f3032a95015a99e3981
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/28-snmplib_error_subcontainer
+@@ -0,0 +1,14 @@
++diff --git a/snmplib/container.c b/snmplib/container.c
++--- a/snmplib/container.c
+++++ b/snmplib/container.c
++@@ -344,8 +344,8 @@
++     if(x) {
++         int rc = x->insert(x,k);
++         if(rc)
++-            snmp_log(LOG_DEBUG,"error on subcontainer '%s' insert (%d)\n",
++-                     x->container_name ? x->container_name : "", rc);
+++            DEBUGMSGTL(("container:insert_helper", "error on subcontainer '%s' insert (%d)\n",
+++                     x->container_name ? x->container_name : "", rc));
++         else {
++             rc = CONTAINER_INSERT_HELPER(x->next, k);
++             if(rc)
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/29-apps_makefile_use_ldflags b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/29-apps_makefile_use_ldflags
+new file mode 100644
+index 0000000000000000000000000000000000000000..9346b674227801bb6ae3a93b19b93f9fc2174a53
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/29-apps_makefile_use_ldflags
+@@ -0,0 +1,12 @@
++diff --git a/Makefile.in b/Makefile.in
++--- a/Makefile.in
+++++ b/Makefile.in
++@@ -114,7 +114,7 @@
++ # local build rules
++ #
++ sedscript: sedscript.in include/net-snmp/net-snmp-config.h $(srcdir)/agent/mibgroup/mibdefs.h
++-	$(CPP) $(srcdir)/sedscript.in | egrep '^s[/#]' | sed 's/REMOVEME//g;s# */#/#g;s/ *#/#/g;s#/ *#/#g;s/# g/#g/;' > sedscript
+++	$(CPP) $(CPPFLAGS) $(srcdir)/sedscript.in | egrep '^s[/#]' | sed 's/REMOVEME//g;s# */#/#g;s/ *#/#/g;s#/ *#/#g;s/# g/#g/;' > sedscript
++ 	echo 's/VERSIONINFO/$(VERSION)/g' >> sedscript
++ 	echo 's#DATADIR#$(datadir)#g' >> sedscript
++ 	echo 's#LIBDIR#$(libdir)#g' >> sedscript
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/30-cross.patch b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/30-cross.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..83a606c5632d57a141dee59197b22b0f6a3bfce7
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/30-cross.patch
+@@ -0,0 +1,49 @@
++diff --git a/configure.d/config_os_libs2 b/configure.d/config_os_libs2
++--- a/configure.d/config_os_libs2
+++++ b/configure.d/config_os_libs2
++@@ -546,12 +546,16 @@
++ ##
++ #   mysql
++ ##
++-if test "x$with_mysql" = "xyes" ; then
++-  AC_PATH_PROGS(MYSQLCONFIG,mysql_config)
++-  test -x "$MYSQLCONFIG" \
+++AS_IF([test "x$with_mysql" = "xyes"],[
+++  PKG_CHECK_MODULES([MYSQL],[mysqlclient],[
+++    MYSQL_INCLUDES="$MYSQL_CFLAGS"
+++  ],[
+++    AC_PATH_PROGS(MYSQLCONFIG,mysql_config)
+++    test -x "$MYSQLCONFIG" \
++ 	|| AC_MSG_ERROR([Could not find mysql_config and was specifically asked to use MySQL support])
++-  MYSQL_LIBS=`$MYSQLCONFIG --libs`
++-  MYSQL_INCLUDES=`$MYSQLCONFIG --include`
+++    MYSQL_LIBS=`$MYSQLCONFIG --libs`
+++    MYSQL_INCLUDES=`$MYSQLCONFIG --include`
+++  ])
++   _libs="${LIBS}"
++   _cppflags="${CPPFLAGS}"
++   LIBS="${LIBS} ${MYSQL_LIBS}"
++@@ -593,9 +597,9 @@
++   CPPFLAGS="${_cppflags}"
++   LIBS="${_libs}"
++   AC_MSG_CACHE_ADD(MYSQL Trap Logging:         enabled)
++-else
+++],[
++   AC_MSG_CACHE_ADD(MYSQL Trap Logging:         unavailable)
++-fi
+++])
++ AC_SUBST(MYSQL_LIBS)
++ AC_SUBST(MYSQL_INCLUDES)
++ 
++diff --git a/Makefile.in b/Makefile.in
++--- a/Makefile.in
+++++ b/Makefile.in
++@@ -186,7 +186,7 @@
++ 	if false; then							\
++ 	    carp=-MCarp::Always;					\
++ 	fi &&								\
++-	export PERL5LIB="$$dir/perl" &&					\
+++	export PERL5LIB="$$dir/perl$${PERL5LIB:+:$$PERL5LIB}" &&	\
++ 	$(PERL) $$carp Makefile.PL -NET-SNMP-IN-SOURCE=true		\
++ 	    -NET-SNMP-CONFIG="sh $$dir/net-snmp-config" $(PERLARGS)
++ 
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/31-agent_silent_eacces b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/31-agent_silent_eacces
+new file mode 100644
+index 0000000000000000000000000000000000000000..f37d284ed75b2eb864d96085a36b6e5ac9f929d2
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/31-agent_silent_eacces
+@@ -0,0 +1,23 @@
++diff --git a/agent/mibgroup/hardware/fsys/fsys_mntent.c b/agent/mibgroup/hardware/fsys/fsys_mntent.c
++--- a/agent/mibgroup/hardware/fsys/fsys_mntent.c
+++++ b/agent/mibgroup/hardware/fsys/fsys_mntent.c
++@@ -6,6 +6,7 @@
++ #include "hardware/fsys/hw_fsys_private.h"
++ 
++ #include <stdio.h>
+++#include <errno.h>
++ #if HAVE_MNTENT_H
++ #include <mntent.h>
++ #endif
++@@ -269,7 +270,10 @@
++ 
++             if (!logged &&
++                 asprintf(&tmpbuf, "Cannot statfs %s", entry->path) >= 0) {
++-                snmp_log_perror(tmpbuf);
+++		if (errno == EACCES)
+++		    DEBUGMSGTL(("fsys", "%s\n", tmpbuf));
+++		else
+++                    snmp_log_perror(tmpbuf);
++                 free(tmpbuf);
++                 logged = 1;
++             }
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/32-agent_swinst_dpkg_date b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/32-agent_swinst_dpkg_date
+new file mode 100644
+index 0000000000000000000000000000000000000000..f28d38ed1d372f3637a3c1eeadb829f49927ede4
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/32-agent_swinst_dpkg_date
+@@ -0,0 +1,76 @@
++diff --git a/agent/mibgroup/host/data_access/swinst_apt.c b/agent/mibgroup/host/data_access/swinst_apt.c
++--- a/agent/mibgroup/host/data_access/swinst_apt.c
+++++ b/agent/mibgroup/host/data_access/swinst_apt.c
++@@ -33,17 +33,14 @@
++ 
++ config_require(date_n_time)
++ 
++-char pkg_directory[SNMP_MAXBUF];
++ static char apt_fmt[SNMP_MAXBUF];
++-static char file[SNMP_MAXBUF];
++ 
++ /* ---------------------------------------------------------------------
++  */
++ void
++ netsnmp_swinst_arch_init(void)
++ {
++-    strlcpy(pkg_directory, "/var/lib/dpkg/info", sizeof(pkg_directory));
++-    snprintf(apt_fmt, SNMP_MAXBUF, "%%%d[^#]#%%%d[^#]#%%%d[^#]#%%%d[^#]#%%%d[^#]#%%%d[^#]#%%%ds",
+++    snprintf(apt_fmt, SNMP_MAXBUF, "%%%d[^#]#%%%d[^#]#%%%d[^#]#%%%d[^#]#%%%d[^#]#%%%d[^#]#%%%d[^#]#%%lld",
++ 	SNMP_MAXBUF-1, SNMP_MAXBUF-1, SNMP_MAXBUF-1, SNMP_MAXBUF-1,
++ 	SNMP_MAXBUF-1, SNMP_MAXBUF-1, SNMP_MAXBUF-1);
++ }
++@@ -60,7 +57,7 @@
++ int
++ netsnmp_swinst_arch_load( netsnmp_container *container, u_int flags)
++ {
++-    FILE *p = popen("dpkg-query --show --showformat '${Package}#${Version}#${Section}#${Priority}#${Essential}#${Architecture}#${Status}\n'", "r");
+++    FILE *p = popen("dpkg-query --show --showformat '${Package}#${Version}#${Section}#${Priority}#${Essential}#${Architecture}#${Status}#${db-fsys:Last-Modified}\n'", "r");
++     char package[SNMP_MAXBUF];
++     char version[SNMP_MAXBUF];
++     char section[SNMP_MAXBUF];
++@@ -68,8 +65,8 @@
++     char essential[SNMP_MAXBUF];
++     char arch[SNMP_MAXBUF];
++     char status[SNMP_MAXBUF];
+++    long long last_modified;
++     char buf[BUFSIZ];
++-    struct stat stat_buf;
++     netsnmp_swinst_entry *entry;
++     u_char *date_buf;
++     size_t date_len;
++@@ -87,7 +84,7 @@
++             continue;   /* error already logged by function */
++         CONTAINER_INSERT(container, entry);
++ 
++-	sscanf(buf, apt_fmt, package, version, section, priority, essential, arch, status);
+++	sscanf(buf, apt_fmt, package, version, section, priority, essential, arch, status, &last_modified);
++ 	if (strstr(status, "not-installed"))
++ 	    continue;
++ 
++@@ -99,21 +96,10 @@
++                         ? 2      /* operatingSystem */
++                         : 4;     /*  application    */
++ 
++-        /* get the last mod date */
++-        snprintf(file, sizeof(file), "%s/%s.list", pkg_directory, package);
++-        if(stat(file, &stat_buf) != -1) {
++-            date_buf = date_n_time(&stat_buf.st_mtime, &date_len);
++-            entry->swDate_len = date_len;
++-            memcpy(entry->swDate, date_buf, entry->swDate_len);
++-        } else {
++-            /* somewhy some files include :arch in .list name */
++-            snprintf(file, sizeof(file), "%s/%s:%s.list", pkg_directory, package, arch);
++-            if(stat(file, &stat_buf) != -1) {
++-                date_buf = date_n_time(&stat_buf.st_mtime, &date_len);
++-                entry->swDate_len = date_len;
++-                memcpy(entry->swDate, date_buf, entry->swDate_len);
++-            }
++-        }
+++	date_buf = date_n_time((time_t*)(&last_modified), &date_len);
+++        entry->swDate_len = date_len;
+++        memcpy(entry->swDate, date_buf, entry->swDate_len);
+++
++         /* FIXME, or fallback to whatever nonsesnse was here before, or leave it uninitialied?
++              else {
++         entry->swDate_len = 8;
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/33-snmpd_conf_5_ro_extend b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/33-snmpd_conf_5_ro_extend
+new file mode 100644
+index 0000000000000000000000000000000000000000..388d6f5cfa534d42b9eeccfba5595b44b414597e
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/33-snmpd_conf_5_ro_extend
+@@ -0,0 +1,13 @@
++diff --git a/man/snmpd.conf.5.def b/man/snmpd.conf.5.def
++--- a/man/snmpd.conf.5.def
+++++ b/man/snmpd.conf.5.def
++@@ -1398,9 +1398,6 @@
++ \fIrun-command(3)\fR.  Unlike the equivalent \fIexecfix\fR,
++ this directive does not need to be paired with a corresponding
++ \fIextend\fR entry, and can appear on its own.
++-.PP
++-Both \fIextend\fR and \fIextendfix\fR directives can be configured
++-dynamically, using SNMP SET requests to the NET\-SNMP\-EXTEND\-MIB.
++ .SS "MIB-Specific Extension Commands"
++ The first group of extension directives invoke arbitrary commands,
++ and rely on the MIB structure (and management applications) having
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/34-perl_makefile_man3pods b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/34-perl_makefile_man3pods
+new file mode 100644
+index 0000000000000000000000000000000000000000..21cecc144c9ebf3e9ed45174b4f8bf89c35d6628
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/34-perl_makefile_man3pods
+@@ -0,0 +1,12 @@
++diff --git a/perl/SNMP/Makefile.PL b/perl/SNMP/Makefile.PL
++--- a/perl/SNMP/Makefile.PL
+++++ b/perl/SNMP/Makefile.PL
++@@ -25,7 +25,7 @@
++     my %Params = (
++ 		  NAME         => 'SNMP',
++ 		  dist         => { SUFFIX => "gz", COMPRESS => "gzip -9f"},
++-		  MAN3PODS => { 'SNMP.pm' => '$(INST_MAN3DIR)/SNMP.3' },
+++		  MAN3PODS => { 'SNMP.pm' => '$(INST_MAN3DIR)/SNMP.3pm' },
++ 		  XSPROTOARG   => '-noprototypes', 	# XXX remove later?
++ 		  VERSION_FROM => 'SNMP.pm',
++ 		  realclean        => { FILES => 'host' },
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/35-ci_libmariadb-dev b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/35-ci_libmariadb-dev
+new file mode 100644
+index 0000000000000000000000000000000000000000..3b71a6d2ae5a7cc431e6364a4116a6087d086005
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/35-ci_libmariadb-dev
+@@ -0,0 +1,12 @@
++diff --git a/ci/net-snmp-configure b/ci/net-snmp-configure
++--- a/ci/net-snmp-configure
+++++ b/ci/net-snmp-configure
++@@ -71,7 +71,7 @@
++ echo "libatmver=$libatmver"
++ 
++ libmysqlver="$(rpm_version libmariadb-devel;
++-	      for p in libmariadbclient-dev libmariadb-client-lgpl-dev; do
+++	      for p in libmariadb-dev-compat; do
++ 	        dpkg_version "$p";
++               done;
++               pacman_version mingw-w64-x86_64-libmariadbclient)"
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/36-mib2c_perl_error b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/36-mib2c_perl_error
+new file mode 100644
+index 0000000000000000000000000000000000000000..05e505dc09333f74e43177fef888bd36f08ffafa
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/36-mib2c_perl_error
+@@ -0,0 +1,17 @@
++diff --git a/local/mib2c b/local/mib2c
++--- a/local/mib2c
+++++ b/local/mib2c
++@@ -23,10 +23,9 @@
++ if (!$havesnmp) {
++     print "
++ ERROR: You don't have the SNMP perl module installed.  Please obtain
++-this by getting the latest source release of the net-snmp toolkit from
++-http://www.net-snmp.org/download/ .  Once you download the source and
++-unpack it, the perl module is contained in the perl/SNMP directory.
++-See the README file there for instructions.
+++this by running the command:
+++
+++apt-get install libsnmp-perl
++ 
++ ";
++     exit;
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/37-net-snmp-create-v3-user_paths b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/37-net-snmp-create-v3-user_paths
+new file mode 100644
+index 0000000000000000000000000000000000000000..e93fb6df7ddb70efee5675b285484a2845fce009
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/37-net-snmp-create-v3-user_paths
+@@ -0,0 +1,21 @@
++diff --git a/net-snmp-create-v3-user.in b/net-snmp-create-v3-user.in
++--- a/net-snmp-create-v3-user.in
+++++ b/net-snmp-create-v3-user.in
++@@ -3,7 +3,7 @@
++ # this shell script is designed to add new SNMPv3 users
++ # to Net-SNMP config file.
++ 
++-if @PSCMD@ | egrep ' snmpd *$' > /dev/null 2>&1 ; then
+++if /bin/pidof -q snmpd > /dev/null 2>&1 ; then
++     echo "Apparently at least one snmpd demon is already running."
++     echo "You must stop them in order to use this command."
++     exit 1
++@@ -138,7 +138,7 @@
++ datarootdir=@datarootdir@
++ # To suppress shellcheck complaints about $prefix and $datarootdir.
++ : "$prefix" "$datarootdir"
++-outfile="@datadir@/snmp/snmpd.conf"
+++outfile="@SNMPCONFPATH@/snmpd.conf"
++ line="$token $user"
++ echo "adding the following line to $outfile:"
++ echo "   $line"
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/38-snmptrapd_correct_mysql_includes b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/38-snmptrapd_correct_mysql_includes
+new file mode 100644
+index 0000000000000000000000000000000000000000..bc2f373649ae7bb7648ac9e7e4387d43ecbd3a24
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/38-snmptrapd_correct_mysql_includes
+@@ -0,0 +1,16 @@
++diff --git a/apps/snmptrapd_sql.c b/apps/snmptrapd_sql.c
++--- a/apps/snmptrapd_sql.c
+++++ b/apps/snmptrapd_sql.c
++@@ -23,12 +23,6 @@
++ #undef PACKAGE_STRING
++ #undef PACKAGE_TARNAME
++ #undef PACKAGE_VERSION
++-#ifdef HAVE_MY_GLOBAL_H
++-#include <my_global.h>
++-#endif
++-#ifdef HAVE_MY_SYS_H
++-#include <my_sys.h>
++-#endif
++ #include <mysql.h>
++ #include <errmsg.h>
++ 
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/39-makefile_trap_needs_agent b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/39-makefile_trap_needs_agent
+new file mode 100644
+index 0000000000000000000000000000000000000000..872cf465f99eb3d05442b71d788baf3c95df3e50
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/39-makefile_trap_needs_agent
+@@ -0,0 +1,12 @@
++diff --git a/apps/Makefile.in b/apps/Makefile.in
++--- a/apps/Makefile.in
+++++ b/apps/Makefile.in
++@@ -239,7 +239,7 @@
++ 	$(LINK) ${CFLAGS} -o $@ snmppcap.$(OSUFFIX) ${LDFLAGS} ${USEAGENTLIBS} ${LIBS} -lpcap
++ 
++ libnetsnmptrapd.$(LIB_EXTENSION)$(LIB_VERSION): $(LLIBTRAPD_OBJS)
++-	$(LIB_LD_CMD) $@ ${LLIBTRAPD_OBJS} $(MIBLIB) $(MYSQL_LIBS) $(USELIBS) $(PERLLDOPTS_FOR_LIBS) $(LDFLAGS)
+++	$(LIB_LD_CMD) $@ ${LLIBTRAPD_OBJS} $(MIBLIB) $(MYSQL_LIBS) $(USELIBS) $(USEAGENTLIBS) $(PERLLDOPTS_FOR_LIBS) $(LDFLAGS)
++ 	$(RANLIB) $@
++ 
++ snmpinforminstall:
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/40-includes_fix_national_encoding b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/40-includes_fix_national_encoding
+new file mode 100644
+index 0000000000000000000000000000000000000000..76e7634b8ae126734b7babcf51ca6be63eb27b8b
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/40-includes_fix_national_encoding
+@@ -0,0 +1,108 @@
++diff --git a/include/net-snmp/agent/snmp_agent.h b/include/net-snmp/agent/snmp_agent.h
++--- a/include/net-snmp/agent/snmp_agent.h
+++++ b/include/net-snmp/agent/snmp_agent.h
++@@ -4,7 +4,7 @@
++  */
++ /*
++  * Portions of this file are copyrighted by:
++- * Copyright © 2003 Sun Microsystems, Inc. All rights reserved.
+++ * Copyright Â© 2003 Sun Microsystems, Inc. All rights reserved.
++  * Use is subject to license terms specified in the COPYING file
++  * distributed with the Net-SNMP package.
++  *
++diff --git a/include/net-snmp/agent/agent_handler.h b/include/net-snmp/agent/agent_handler.h
++--- a/include/net-snmp/agent/agent_handler.h
+++++ b/include/net-snmp/agent/agent_handler.h
++@@ -4,7 +4,7 @@
++  */
++ /*
++  * Portions of this file are copyrighted by:
++- * Copyright © 2003 Sun Microsystems, Inc. All rights reserved.
+++ * Copyright Â© 2003 Sun Microsystems, Inc. All rights reserved.
++  * Use is subject to license terms specified in the COPYING file
++  * distributed with the Net-SNMP package.
++  */
++diff --git a/include/net-snmp/agent/snmp_vars.h b/include/net-snmp/agent/snmp_vars.h
++--- a/include/net-snmp/agent/snmp_vars.h
+++++ b/include/net-snmp/agent/snmp_vars.h
++@@ -38,7 +38,7 @@
++ ******************************************************************/
++ /*
++  * Portions of this file are copyrighted by:
++- * Copyright © 2003 Sun Microsystems, Inc. All rights reserved.
+++ * Copyright Â© 2003 Sun Microsystems, Inc. All rights reserved.
++  * Use is subject to license terms specified in the COPYING file
++  * distributed with the Net-SNMP package.
++  */
++diff --git a/include/net-snmp/agent/table.h b/include/net-snmp/agent/table.h
++--- a/include/net-snmp/agent/table.h
+++++ b/include/net-snmp/agent/table.h
++@@ -4,7 +4,7 @@
++  */
++ /*
++  * Portions of this file are copyrighted by:
++- * Copyright © 2003 Sun Microsystems, Inc. All rights reserved.
+++ * Copyright Â© 2003 Sun Microsystems, Inc. All rights reserved.
++  * Use is subject to license terms specified in the COPYING file
++  * distributed with the Net-SNMP package.
++  */
++diff --git a/include/net-snmp/agent/table_iterator.h b/include/net-snmp/agent/table_iterator.h
++--- a/include/net-snmp/agent/table_iterator.h
+++++ b/include/net-snmp/agent/table_iterator.h
++@@ -4,7 +4,7 @@
++  */
++ /*
++  * Portions of this file are copyrighted by:
++- * Copyright © 2003 Sun Microsystems, Inc. All rights reserved.
+++ * Copyright Â© 2003 Sun Microsystems, Inc. All rights reserved.
++  * Use is subject to license terms specified in the COPYING file
++  * distributed with the Net-SNMP package.
++  */
++diff --git a/include/net-snmp/library/data_list.h b/include/net-snmp/library/data_list.h
++--- a/include/net-snmp/library/data_list.h
+++++ b/include/net-snmp/library/data_list.h
++@@ -4,7 +4,7 @@
++  */
++ /*
++  * Portions of this file are copyrighted by:
++- * Copyright © 2003 Sun Microsystems, Inc. All rights reserved.
+++ * Copyright Â© 2003 Sun Microsystems, Inc. All rights reserved.
++  * Use is subject to license terms specified in the COPYING file
++  * distributed with the Net-SNMP package.
++  *
++diff --git a/include/net-snmp/library/default_store.h b/include/net-snmp/library/default_store.h
++--- a/include/net-snmp/library/default_store.h
+++++ b/include/net-snmp/library/default_store.h
++@@ -4,7 +4,7 @@
++  */
++ /*
++  * Portions of this file are copyrighted by:
++- * Copyright © 2003 Sun Microsystems, Inc. All rights reserved.
+++ * Copyright Â© 2003 Sun Microsystems, Inc. All rights reserved.
++  * Use is subject to license terms specified in the COPYING file
++  * distributed with the Net-SNMP package.
++  *
++diff --git a/include/net-snmp/library/snmp_api.h b/include/net-snmp/library/snmp_api.h
++--- a/include/net-snmp/library/snmp_api.h
+++++ b/include/net-snmp/library/snmp_api.h
++@@ -4,7 +4,7 @@
++  */
++ /*
++  * Portions of this file are copyrighted by:
++- * Copyright © 2003 Sun Microsystems, Inc. All rights reserved.
+++ * Copyright Â© 2003 Sun Microsystems, Inc. All rights reserved.
++  * Use is subject to license terms specified in the COPYING file
++  * distributed with the Net-SNMP package.
++  *
++diff --git a/include/net-snmp/library/system.h b/include/net-snmp/library/system.h
++--- a/include/net-snmp/library/system.h
+++++ b/include/net-snmp/library/system.h
++@@ -37,7 +37,7 @@
++ SOFTWARE.
++ ******************************************************************/
++ /*
++- * portions Copyright © 2003 Sun Microsystems, Inc. All rights reserved.
+++ * portions Copyright Â© 2003 Sun Microsystems, Inc. All rights reserved.
++  * Use is subject to license terms specified in the COPYING file
++  * distributed with the Net-SNMP package.
++  */
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/41-agent_set_null_varbind b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/41-agent_set_null_varbind
+new file mode 100644
+index 0000000000000000000000000000000000000000..65ad91bf0c36aefa8117f7e692354cbde1ce0cda
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/41-agent_set_null_varbind
+@@ -0,0 +1,93 @@
++diff --git a/agent/snmp_agent.c b/agent/snmp_agent.c
++--- a/agent/snmp_agent.c
+++++ b/agent/snmp_agent.c
++@@ -3719,11 +3719,43 @@
++     return 1;
++ }
++ 
+++static int
+++check_set_pdu_for_null_varbind(netsnmp_agent_session *asp)
+++{
+++    int i;
+++    netsnmp_variable_list *v = NULL;
+++
+++    for (i = 1, v = asp->pdu->variables; v != NULL; i++, v = v->next_variable) {
+++	if (v->type == ASN_NULL) {
+++	    /*
+++	     * Protect SET implementations that do not protect themselves
+++	     * against wrong type.
+++	     */
+++	    DEBUGMSGTL(("snmp_agent", "disallowing SET with NULL var for varbind %d\n", i));
+++	    asp->index = i;
+++	    return SNMP_ERR_WRONGTYPE;
+++	}
+++    }
+++    return SNMP_ERR_NOERROR;
+++}
+++
++ int
++ handle_pdu(netsnmp_agent_session *asp)
++ {
++     int             status, inclusives = 0;
++     netsnmp_variable_list *v = NULL;
+++
+++#ifndef NETSNMP_NO_WRITE_SUPPORT
+++    /*
+++     * Check for ASN_NULL in SET request
+++     */
+++    if (asp->pdu->command == SNMP_MSG_SET) {
+++	status = check_set_pdu_for_null_varbind(asp);
+++	if (status != SNMP_ERR_NOERROR) {
+++	    return status;
+++	}
+++    }
+++#endif /* NETSNMP_NO_WRITE_SUPPORT */
++ 
++     /*
++      * for illegal requests, mark all nodes as ASN_NULL 
++diff --git a/apps/snmpset.c b/apps/snmpset.c
++--- a/apps/snmpset.c
+++++ b/apps/snmpset.c
++@@ -182,6 +182,7 @@
++             case 'x':
++             case 'd':
++             case 'b':
+++            case 'n': /* undocumented */
++ #ifdef NETSNMP_WITH_OPAQUE_SPECIAL_TYPES
++             case 'I':
++             case 'U':
++diff --git a/testing/fulltests/default/T0142snmpv2csetnull_simple b/testing/fulltests/default/T0142snmpv2csetnull_simple
++--- a/testing/fulltests/default/T0142snmpv2csetnull_simple
+++++ b/testing/fulltests/default/T0142snmpv2csetnull_simple
++@@ -0,0 +1,31 @@
+++#!/bin/sh
+++
+++. ../support/simple_eval_tools.sh
+++
+++HEADER SNMPv2c set of system.sysContact.0 with NULL varbind
+++
+++SKIPIF NETSNMP_DISABLE_SET_SUPPORT
+++SKIPIF NETSNMP_NO_WRITE_SUPPORT
+++SKIPIF NETSNMP_DISABLE_SNMPV2C
+++SKIPIFNOT USING_MIBII_SYSTEM_MIB_MODULE
+++
+++#
+++# Begin test
+++#
+++
+++# standard V2C configuration: testcomunnity
+++snmp_write_access='all'
+++. ./Sv2cconfig
+++STARTAGENT
+++
+++CAPTURE "snmpget -On $SNMP_FLAGS -c testcommunity -v 2c $SNMP_TRANSPORT_SPEC:$SNMP_TEST_DEST$SNMP_SNMPD_PORT .1.3.6.1.2.1.1.4.0"
+++
+++CHECK ".1.3.6.1.2.1.1.4.0 = STRING:"
+++
+++CAPTURE "snmpset -On $SNMP_FLAGS -c testcommunity -v 2c $SNMP_TRANSPORT_SPEC:$SNMP_TEST_DEST$SNMP_SNMPD_PORT .1.3.6.1.2.1.1.4.0 n x"
+++
+++CHECK "Reason: wrongType"
+++
+++STOPAGENT
+++
+++FINISHED
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/42-snmptrapd_trapoid_length b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/42-snmptrapd_trapoid_length
+new file mode 100644
+index 0000000000000000000000000000000000000000..86de3ebd0a51e0148196c0ccdea2e81095f1a73f
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/42-snmptrapd_trapoid_length
+@@ -0,0 +1,16 @@
++diff --git a/apps/snmptrapd_handlers.c b/apps/snmptrapd_handlers.c
++--- a/apps/snmptrapd_handlers.c
+++++ b/apps/snmptrapd_handlers.c
++@@ -1112,6 +1112,12 @@
++ 	     */
++             if (pdu->trap_type == SNMP_TRAP_ENTERPRISESPECIFIC) {
++                 trapOidLen = pdu->enterprise_length;
+++                /*
+++                 * Drop packets that would trigger an out-of-bounds trapOid[]
+++                 * access.
+++                 */
+++                if (trapOidLen < 1 || trapOidLen > OID_LENGTH(trapOid) - 2)
+++                    return 1;
++                 memcpy(trapOid, pdu->enterprise, sizeof(oid) * trapOidLen);
++                 if (trapOid[trapOidLen - 1] != 0) {
++                     trapOid[trapOidLen++] = 0;
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/43-linux_systemstats b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/43-linux_systemstats
+new file mode 100644
+index 0000000000000000000000000000000000000000..4d4453c844d54f86186615808f431a0013afcf0f
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/43-linux_systemstats
+@@ -0,0 +1,105 @@
++diff --git a/agent/mibgroup/ip-mib/data_access/systemstats_linux.c b/agent/mibgroup/ip-mib/data_access/systemstats_linux.c
++--- a/agent/mibgroup/ip-mib/data_access/systemstats_linux.c
+++++ b/agent/mibgroup/ip-mib/data_access/systemstats_linux.c
++@@ -36,7 +36,7 @@
++ }
++ 
++ /*
++-  /proc/net/snmp
+++  /proc/net/snmp - Linux 6.6 and lower
++ 
++   Ip: Forwarding DefaultTTL InReceives InHdrErrors InAddrErrors ForwDatagrams InUnknownProtos InDiscards InDelivers OutRequests OutDiscards OutNoRoutes ReasmTimeout ReasmReqds ReasmOKs ReasmFails FragOKs FragFails FragCreates
++   Ip: 2 64 7083534 0 0 0 0 0 6860233 6548963 0 0 1 286623 63322 1 259920 0 0
++@@ -49,6 +49,26 @@
++   
++   Udp: InDatagrams NoPorts InErrors OutDatagrams
++   Udp: 1491094 122 0 1466178
+++*
+++  /proc/net/snmp - Linux 6.7 and higher
+++
+++  Ip: Forwarding DefaultTTL InReceives InHdrErrors InAddrErrors ForwDatagrams InUnknownProtos InDiscards InDelivers OutRequests OutDiscards OutNoRoutes ReasmTimeout ReasmReqds ReasmOKs ReasmFails FragOKs FragFails FragCreates OutTransmits
+++  Ip: 1 64 50859058 496 0 37470604 0 0 20472980 7515791 1756 0 0 7264 3632 0 3548 0 7096 44961424
+++
+++  Icmp: InMsgs InErrors InCsumErrors InDestUnreachs InTimeExcds InParmProbs InSrcQuenchs InRedirects InEchos InEchoReps InTimestamps InTimestampReps InAddrMasks InAddrMaskReps OutMsgs OutErrors OutRateLimitGlobal OutRateLimitHost OutDestUnreachs OutTimeExcds OutParmProbs OutSrcQuenchs OutRedirects OutEchos OutEchoReps OutTimestamps OutTimestampReps OutAddrMasks OutAddrMaskReps
+++  Icmp: 114447 2655 0 17589 0 0 0 0 66905 29953 0 0 0 0 143956 0 0 572 16610 484 0 0 0 59957 66905 0 0 0 0
+++
+++  IcmpMsg: InType0 InType3 InType8 OutType0 OutType3 OutType8 OutType11
+++  IcmpMsg: 29953 17589 66905 66905 16610 59957 484
+++
+++  Tcp: RtoAlgorithm RtoMin RtoMax MaxConn ActiveOpens PassiveOpens AttemptFails EstabResets CurrEstab InSegs OutSegs RetransSegs InErrs OutRsts InCsumErrors
+++  Tcp: 1 200 120000 -1 17744 13525 307 3783 6 18093137 9277788 3499 8 7442 0
+++
+++  Udp: InDatagrams NoPorts InErrors OutDatagrams RcvbufErrors SndbufErrors InCsumErrors IgnoredMulti MemErrors
+++  Udp: 2257832 1422 0 2252835 0 0 0 84 0
+++
+++  UdpLite: InDatagrams NoPorts InErrors OutDatagrams RcvbufErrors SndbufErrors InCsumErrors IgnoredMulti MemErrors
+++  UdpLite: 0 0 0 0 0 0 0 0 0
++ */
++ 
++ 
++@@ -101,10 +121,10 @@
++     FILE           *devin;
++     char            line[1024];
++     netsnmp_systemstats_entry *entry = NULL;
++-    int             scan_count;
+++    int             scan_count, expected_scan_count;
++     char           *stats, *start = line;
++     int             len;
++-    unsigned long long scan_vals[19];
+++    unsigned long long scan_vals[20];
++ 
++     DEBUGMSGTL(("access:systemstats:container:arch", "load v4 (flags %x)\n",
++                 load_flags));
++@@ -126,10 +146,17 @@
++      */
++     NETSNMP_IGNORE_RESULT(fgets(line, sizeof(line), devin));
++     len = strlen(line);
++-    if (224 != len) {
+++    switch (len) {
+++    case 224:
+++	expected_scan_count = 19;
+++	break;
+++    case 237:
+++	expected_scan_count = 20;
+++	break;
+++    default:
++         fclose(devin);
++         snmp_log(LOG_ERR, "systemstats_linux: unexpected header length in /proc/net/snmp."
++-                 " %d != 224\n", len);
+++                 " %d not in { 224, 237 } \n", len);
++         return -4;
++     }
++ 
++@@ -178,20 +205,20 @@
++         memset(scan_vals, 0x0, sizeof(scan_vals));
++         scan_count = sscanf(stats,
++                             "%llu %llu %llu %llu %llu %llu %llu %llu %llu %llu"
++-                            "%llu %llu %llu %llu %llu %llu %llu %llu %llu",
+++                            "%llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",
++                             &scan_vals[0],&scan_vals[1],&scan_vals[2],
++                             &scan_vals[3],&scan_vals[4],&scan_vals[5],
++                             &scan_vals[6],&scan_vals[7],&scan_vals[8],
++                             &scan_vals[9],&scan_vals[10],&scan_vals[11],
++                             &scan_vals[12],&scan_vals[13],&scan_vals[14],
++                             &scan_vals[15],&scan_vals[16],&scan_vals[17],
++-                            &scan_vals[18]);
+++                            &scan_vals[18],&scan_vals[19]);
++         DEBUGMSGTL(("access:systemstats", "  read %d values\n", scan_count));
++ 
++-        if(scan_count != 19) {
+++        if(scan_count != expected_scan_count) {
++             snmp_log(LOG_ERR,
++                      "error scanning systemstats data (expected %d, got %d)\n",
++-                     19, scan_count);
+++                     expected_scan_count, scan_count);
++             netsnmp_access_systemstats_entry_free(entry);
++             return -4;
++         }
++@@ -223,6 +250,7 @@
++         entry->stats.HCOutFragFails.high = scan_vals[17] >> 32;
++         entry->stats.HCOutFragCreates.low = scan_vals[18] & 0xffffffff;
++         entry->stats.HCOutFragCreates.high = scan_vals[18] >> 32;
+++        /* entry->stats. = scan_vals[19]; / * OutTransmits */
++ 
++         entry->stats.columnAvail[IPSYSTEMSTATSTABLE_HCINRECEIVES] = 1;
++         entry->stats.columnAvail[IPSYSTEMSTATSTABLE_INHDRERRORS] = 1;
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/44-0001-SNMP-Stop-spamming-logs-with-statfs-permission-denie.patch b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/44-0001-SNMP-Stop-spamming-logs-with-statfs-permission-denie.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..54cade7ec9bc2a74a9385cb2e205d8647f86b3bf
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/44-0001-SNMP-Stop-spamming-logs-with-statfs-permission-denie.patch
+@@ -0,0 +1,12 @@
++diff --git a/agent/mibgroup/hardware/fsys/fsys_mntctl.c b/agent/mibgroup/hardware/fsys/fsys_mntctl.c
++--- a/agent/mibgroup/hardware/fsys/fsys_mntctl.c
+++++ b/agent/mibgroup/hardware/fsys/fsys_mntctl.c
++@@ -167,8 +167,6 @@
++             continue;
++ 
++         if ( statfs( entry->path, &stat_buf ) < 0 ) {
++-            snprintf( tmpbuf, sizeof(tmpbuf), "Cannot statfs %s", entry->path );
++-            snmp_log_perror( tmpbuf );
++             continue;
++         }
++         entry->units =  stat_buf.f_bsize;
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/45-0008-Enable-macro-DEB_BUILD_ARCH_OS-in-order-to-build-ipv.patch b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/45-0008-Enable-macro-DEB_BUILD_ARCH_OS-in-order-to-build-ipv.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..f39723a275fe3f232270309a87409eb0cfcd71d8
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/45-0008-Enable-macro-DEB_BUILD_ARCH_OS-in-order-to-build-ipv.patch
+@@ -0,0 +1,12 @@
++diff --git a/debian/rules b/debian/rules
++--- a/debian/rules
+++++ b/debian/rules
++@@ -4,6 +4,8 @@
++ export DEB_BUILD_MAINT_OPTIONS := hardening=+all
++ include /usr/share/dpkg/architecture.mk
++ include /usr/share/dpkg/buildtools.mk
+++DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
+++DEB_BUILD_ARCH_OS  ?= $(shell dpkg-architecture -qDEB_BUILD_ARCH_OS)
++ 
++ LIB_VERSION = 40
++ 
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/46-0012-agent-Makefile.in-Unbreak-the-enable-minimalist-buil.patch b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/46-0012-agent-Makefile.in-Unbreak-the-enable-minimalist-buil.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..5e85ab829e800772040d26cb18638c4f7cf56d5b
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/46-0012-agent-Makefile.in-Unbreak-the-enable-minimalist-buil.patch
+@@ -0,0 +1,12 @@
++diff --git a/agent/Makefile.in b/agent/Makefile.in
++--- a/agent/Makefile.in
+++++ b/agent/Makefile.in
++@@ -16,7 +16,7 @@
++ # what to install
++ #
++ SUBDIRS=helpers
++-FTSUBDIRS=helpers
+++FTSUBDIRS=mibgroup helpers
++ 
++ INSTALLSBINPROGS= @SNMPD@
++ INSTALLLIBS	= libnetsnmpagent.$(LIB_EXTENSION)$(LIB_VERSION)
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/47-0013-enable-parallel-build-for-net-snmp.patch b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/47-0013-enable-parallel-build-for-net-snmp.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..1d8537ff6855fcb05bcdd732d8339215f00c7a0a
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/47-0013-enable-parallel-build-for-net-snmp.patch
+@@ -0,0 +1,14 @@
++diff --git a/debian/rules b/debian/rules
++--- a/debian/rules
+++++ b/debian/rules
++@@ -36,10 +36,6 @@
++ 
++ %:
++ 	dh $@
++-
++-# The net-snmp Makefiles cannot handle parallel builds
++-override_dh_auto_build:
++-	dh_auto_build --no-parallel
++ 
++ override_dh_auto_configure:
++ 	dh_auto_configure -- --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man \
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/patches/48-cross-compile-changes.patch b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/48-cross-compile-changes.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..2678767615f21d63711ce2b8cb905751a9f020d5
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/patches/48-cross-compile-changes.patch
+@@ -0,0 +1,16 @@
++diff --git a/debian/rules b/debian/rules
++--- a/debian/rules
+++++ b/debian/rules
++@@ -6,6 +6,12 @@
++ include /usr/share/dpkg/buildtools.mk
++ DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
++ DEB_BUILD_ARCH_OS  ?= $(shell dpkg-architecture -qDEB_BUILD_ARCH_OS)
+++
+++DEB_BUILD_MULTIARCH  ?= $(shell dpkg-architecture -qDEB_BUILD_MULTIARCH)
+++
+++ifneq ($(DEB_BUILD_MULTIARCH),$(DEB_HOST_MULTIARCH))
+++export PERL5OPT := -I/usr/lib/$(DEB_HOST_MULTIARCH)/perl/cross-config
+++endif
++ 
++ LIB_VERSION = 40
++ 
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/perl_sources/BUILD.bazel b/modules/net-snmp/5.9.3.sonic.1/overlay/perl_sources/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..2e9c18fa560604a8e1ee49f5647d02eb65948307
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/perl_sources/BUILD.bazel
+@@ -0,0 +1,63 @@
++load("@rules_cc//cc:defs.bzl", "cc_binary")
++
++package(default_visibility = ["//visibility:public"])
++
++genrule(
++    name = "trap_constants",
++    outs = ["TrapReceiver/const-c.inc", "TrapReceiver/const-xs.inc"],
++    tools = ["@sonic_build_infra//tools/build_tools:perl_bookworm"],
++    cmd = "$(location @sonic_build_infra//tools/build_tools:perl_bookworm) -MExtUtils::Constant -e 'my ($$c,$$xs,@names)=@ARGV; ExtUtils::Constant::WriteConstants(NAME=>\"NetSNMP::TrapReceiver\", NAMES=>\\@names, DEFAULT_TYPE=>\"IV\", C_FILE=>$$c, XS_FILE=>$$xs);' $(location TrapReceiver/const-c.inc) $(location TrapReceiver/const-xs.inc) NETSNMPTRAPD_AUTH_HANDLER NETSNMPTRAPD_HANDLER_BREAK NETSNMPTRAPD_HANDLER_FAIL NETSNMPTRAPD_HANDLER_FINISH NETSNMPTRAPD_HANDLER_OK NETSNMPTRAPD_POST_HANDLER NETSNMPTRAPD_PRE_HANDLER",
++)
++
++[
++    genrule(
++        name = directory.replace("/", "_"),
++        srcs = ["@net_snmp_source//:perl/" + directory + "/" + basename + ".xs"] + (["@net_snmp_source//:perl/" + directory + "/typemap"] if custom_typemap else []) + ([":trap_constants"] if directory == "TrapReceiver" else []),
++        outs = [directory + "/" + basename + ".c"],
++        tools = ["//:perl_xs_tool", "@sonic_build_infra//tools/build_tools:perl_bookworm"],
++        cmd = 'output="$@"; logical="$${output#$(BINDIR)/}"; $(execpath //:perl_xs_tool)' + " $(execpath @sonic_build_infra//tools/build_tools:perl_bookworm) $(execpath @net_snmp_source//:perl/" + directory + "/" + basename + ".xs) $@ $$logical " + ("0" if directory == "SNMP" else "1") + (" $(execpath @net_snmp_source//:perl/" + directory + "/typemap)" if custom_typemap else "") + (" $(execpaths :trap_constants)" if directory == "TrapReceiver" else ""),
++    )
++    for directory, basename, custom_typemap in [
++        ("ASN", "ASN", False),
++        ("OID", "OID", True),
++        ("default_store", "default_store", True),
++        ("agent", "agent", True),
++        ("agent/default_store", "default_store", False),
++        ("SNMP", "SNMP", True),
++        ("TrapReceiver", "TrapReceiver", True),
++    ]
++]
++
++filegroup(name = "all", srcs = [":ASN", ":OID", ":default_store", ":agent", ":agent_default_store", ":SNMP", ":TrapReceiver", ":trap_constants"])
++
++alias(name = "SNMP_headers", actual = "@net_snmp_source//:SNMP_perl_headers")
++alias(name = "TrapReceiver_headers", actual = "@net_snmp_source//:TrapReceiver_perl_headers")
++
++_XS_COPTS = [
++    "-O2", "-g", '-DVERSION=\\\"5.0903\\\"', '-DXS_VERSION=\\\"5.0903\\\"',
++    "-D_REENTRANT", "-D_GNU_SOURCE", "-DDEBIAN", "-D_LARGEFILE_SOURCE", "-D_FILE_OFFSET_BITS=64",
++    "-DNETSNMP_USE_INLINE", "-DNETSNMP_ENABLE_IPV6", "-DNETSNMP_REMOVE_U64",
++    "-fno-strict-aliasing", "-fwrapv", "-pipe",
++]
++
++[
++    cc_binary(
++        name = directory + "/" + basename + ".so",
++        srcs = [":" + directory.replace("/", "_")] + ([":trap_constants"] if directory == "TrapReceiver" else []),
++        copts = _XS_COPTS,
++        linkshared = True,
++        linkstatic = True,
++        deps = ["//:headers", "//:perl_headers", "//:netsnmp"] + ([":" + directory + "_headers"] if directory in ["SNMP", "TrapReceiver"] else []) + (["//:netsnmpagent", "//:netsnmpmibs"] if directory in ["agent", "TrapReceiver"] else ["//:system_ssl"]) + (["//:netsnmptrapd"] if directory == "TrapReceiver" else []),
++        linkopts = (["-lm"] if directory not in ["agent", "TrapReceiver"] else []),
++    )
++    for directory, basename in [
++        ("ASN", "ASN"), ("OID", "OID"), ("default_store", "default_store"),
++        ("agent", "agent"), ("agent/default_store", "default_store"),
++        ("SNMP", "SNMP"), ("TrapReceiver", "TrapReceiver"),
++    ]
++]
++filegroup(name = "bindings", srcs = [directory + "/" + basename + ".so" for directory, basename in [
++    ("ASN", "ASN"), ("OID", "OID"), ("default_store", "default_store"),
++    ("agent", "agent"), ("agent/default_store", "default_store"),
++    ("SNMP", "SNMP"), ("TrapReceiver", "TrapReceiver"),
++]])
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/perl_xs.py b/modules/net-snmp/5.9.3.sonic.1/overlay/perl_xs.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..483f4926bacbbf85a00eaaedbc5ab9da56791650
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/perl_xs.py
+@@ -0,0 +1,35 @@
++"""Run original ParseXS with declared input and stable logical line filenames."""
++from pathlib import Path, PurePosixPath
++import subprocess
++import sys
++import tempfile
++
++perl, source, output, logical_output, prototypes, *inputs = sys.argv[1:]
++source_name = PurePosixPath(source)
++if source_name.is_absolute() or '..' in source_name.parts:
++    raise ValueError('XS source must be a declared execution-root-relative path')
++perl = str(Path(perl).absolute())
++output = str(Path(output).absolute())
++source_input = Path(source).absolute()
++extra_inputs = [Path(name).absolute() for name in inputs]
++with tempfile.TemporaryDirectory(prefix='netsnmp-xs-') as directory:
++    work = Path(directory)
++    staged_source = work / source
++    staged_source.parent.mkdir(parents=True, exist_ok=True)
++    staged_source.symlink_to(source_input)
++    for path in extra_inputs:
++        (staged_source.parent / path.name).symlink_to(path)
++    # ParseXS keeps filename for XS #line entries and outfile for C #line
++    # entries. A handle prevents it replacing outfile with the writable path.
++    program = r'''
++use File::Basename qw(dirname);
++my ($source,$output,$logical_output,$prototypes)=@ARGV;
++open my $handle, '>', $output or die "Cannot create output: $!";
++my %options=(filename=>$source, output=>$handle, outfile=>$logical_output,
++             prototypes=>$prototypes);
++$options{typemap}=["typemap"] if -f dirname($source)."/typemap";
++ExtUtils::ParseXS::process_file(%options);
++close $handle or die "Cannot close output: $!";
++'''
++    subprocess.run([perl, '-MExtUtils::ParseXS', '-e', program, source,
++                    output, logical_output, prototypes], cwd=work, check=True)
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/source.BUILD.bazel b/modules/net-snmp/5.9.3.sonic.1/overlay/source.BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..b1746c355c8fcbb937434892ec26dfe2128bf780
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/source.BUILD.bazel
+@@ -0,0 +1,1418 @@
++load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
++load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
++load("@sonic_build_infra//cc:shared_library.bzl", "shared_library_cc_info")
++
++package(
++    default_visibility = ["//visibility:public"],
++)
++
++cc_library(
++    name = "headers",
++    hdrs = glob(["include/**/*.h", "snmplib/**/*.h", "agent/**/*.h", "apps/**/*.h"]) + ["@net_snmp//:configured_headers"],
++    includes = [
++        "include",
++        "snmplib",
++        "snmplib/transports",
++        "agent",
++        "agent/mibgroup",
++        "agent/helpers",
++        "apps",
++    ],
++    deps = ["@net_snmp//:configuration_headers", "@net_snmp//:ssl_headers"],
++)
++
++alias(
++    name = "perl_headers",
++    actual = "@net_snmp//:perl_headers",
++)
++
++cc_library(
++    name = "snmp_objects",
++    linkopts = ["-lm"],
++    srcs = [
++        "snmplib/snmp_client.c",
++        "snmplib/mib.c",
++        "snmplib/parse.c",
++        "snmplib/snmp_api.c",
++        "snmplib/snmp.c",
++        "snmplib/snmp_auth.c",
++        "snmplib/asn1.c",
++        "snmplib/md5.c",
++        "snmplib/snmp_parse_args.c",
++        "snmplib/system.c",
++        "snmplib/vacm.c",
++        "snmplib/int64.c",
++        "snmplib/read_config.c",
++        "snmplib/pkcs.c",
++        "snmplib/snmp_debug.c",
++        "snmplib/tools.c",
++        "snmplib/snmp_logging.c",
++        "snmplib/text_utils.c",
++        "snmplib/large_fd_set.c",
++        "snmplib/cert_util.c",
++        "snmplib/snmp_openssl.c",
++        "snmplib/snmpv3.c",
++        "snmplib/lcd_time.c",
++        "snmplib/keytools.c",
++        "snmplib/scapi.c",
++        "snmplib/callback.c",
++        "snmplib/default_store.c",
++        "snmplib/snmp_alarm.c",
++        "snmplib/data_list.c",
++        "snmplib/oid_stash.c",
++        "snmplib/fd_event_manager.c",
++        "snmplib/check_varbind.c",
++        "snmplib/mt_support.c",
++        "snmplib/snmp_enum.c",
++        "snmplib/snmp-tc.c",
++        "snmplib/snmp_service.c",
++        "snmplib/snprintf.c",
++        "snmplib/asprintf.c",
++        "snmplib/snmp_transport.c",
++        "snmplib/transports/snmpTLSBaseDomain.c",
++        "snmplib/transports/snmpIPv6BaseDomain.c",
++        "snmplib/transports/snmpIPBaseDomain.c",
++        "snmplib/transports/snmpUDPBaseDomain.c",
++        "snmplib/transports/snmpUDPIPv4BaseDomain.c",
++        "snmplib/transports/snmpTCPBaseDomain.c",
++        "snmplib/transports/snmpSocketBaseDomain.c",
++        "snmplib/transports/snmpIPv4BaseDomain.c",
++        "snmplib/transports/snmpDTLSUDPDomain.c",
++        "snmplib/transports/snmpTLSTCPDomain.c",
++        "snmplib/transports/snmpUDPIPv6Domain.c",
++        "snmplib/transports/snmpTCPIPv6Domain.c",
++        "snmplib/transports/snmpUDPDomain.c",
++        "snmplib/transports/snmpTCPDomain.c",
++        "snmplib/transports/snmpAliasDomain.c",
++        "snmplib/transports/snmpUnixDomain.c",
++        "snmplib/transports/snmpCallbackDomain.c",
++        "snmplib/snmp_secmod.c",
++        "snmplib/snmptsm.c",
++        "snmplib/snmpusm.c",
++        "snmplib/snmp_version.c",
++        "snmplib/container_null.c",
++        "snmplib/container_list_ssll.c",
++        "snmplib/container_iterator.c",
++        "snmplib/ucd_compat.c",
++        "snmplib/sd-daemon.c",
++        "snmplib/strlcat.c",
++        "snmplib/strlcpy.c",
++        "snmplib/dir_utils.c",
++        "snmplib/file_utils.c",
++        "snmplib/container.c",
++        "snmplib/container_binary_array.c",
++    ],
++    copts = [
++        "-g",
++        "-Wdate-time",
++        "-DNETSNMP_USE_INLINE",
++        "-DNETSNMP_ENABLE_IPV6",
++        "-DNETSNMP_REMOVE_U64",
++        "-Ulinux",
++        "-Dlinux=linux",
++        "-D_REENTRANT",
++        "-D_GNU_SOURCE",
++        "-DDEBIAN",
++        "-D_LARGEFILE_SOURCE",
++        "-D_FILE_OFFSET_BITS=64",
++        "-fno-strict-aliasing",
++        "-fwrapv",
++        "-pipe",
++    ],
++    deps = [":headers", "@net_snmp//:system_ssl"],
++)
++
++cc_shared_library(
++    name = "snmp_shared",
++    deps = [":snmp_objects"],
++    dynamic_deps = [],
++    shared_lib_name = "libsnmp.so.40.2.0",
++    user_link_flags = ["-Wl,-soname,libsnmp.so.40"],
++)
++
++shared_library_cc_info(
++    name = "snmp_cc_info",
++    shared_library = ":snmp_shared",
++    runtime_deps = ["@net_snmp//:system_ssl"],
++)
++
++cc_library(
++    name = "snmp",
++    deps = [":snmp_cc_info", ":headers"],
++)
++
++cc_library(
++    name = "netsnmp_objects",
++    linkopts = ["-lm"],
++    srcs = [
++        "snmplib/snmp_client.c",
++        "snmplib/mib.c",
++        "snmplib/parse.c",
++        "snmplib/snmp_api.c",
++        "snmplib/snmp.c",
++        "snmplib/snmp_auth.c",
++        "snmplib/asn1.c",
++        "snmplib/md5.c",
++        "snmplib/snmp_parse_args.c",
++        "snmplib/system.c",
++        "snmplib/vacm.c",
++        "snmplib/int64.c",
++        "snmplib/read_config.c",
++        "snmplib/pkcs.c",
++        "snmplib/snmp_debug.c",
++        "snmplib/tools.c",
++        "snmplib/snmp_logging.c",
++        "snmplib/text_utils.c",
++        "snmplib/large_fd_set.c",
++        "snmplib/cert_util.c",
++        "snmplib/snmp_openssl.c",
++        "snmplib/snmpv3.c",
++        "snmplib/lcd_time.c",
++        "snmplib/keytools.c",
++        "snmplib/scapi.c",
++        "snmplib/callback.c",
++        "snmplib/default_store.c",
++        "snmplib/snmp_alarm.c",
++        "snmplib/data_list.c",
++        "snmplib/oid_stash.c",
++        "snmplib/fd_event_manager.c",
++        "snmplib/check_varbind.c",
++        "snmplib/mt_support.c",
++        "snmplib/snmp_enum.c",
++        "snmplib/snmp-tc.c",
++        "snmplib/snmp_service.c",
++        "snmplib/snprintf.c",
++        "snmplib/asprintf.c",
++        "snmplib/snmp_transport.c",
++        "snmplib/transports/snmpTLSBaseDomain.c",
++        "snmplib/transports/snmpIPv6BaseDomain.c",
++        "snmplib/transports/snmpIPBaseDomain.c",
++        "snmplib/transports/snmpUDPBaseDomain.c",
++        "snmplib/transports/snmpUDPIPv4BaseDomain.c",
++        "snmplib/transports/snmpTCPBaseDomain.c",
++        "snmplib/transports/snmpSocketBaseDomain.c",
++        "snmplib/transports/snmpIPv4BaseDomain.c",
++        "snmplib/transports/snmpDTLSUDPDomain.c",
++        "snmplib/transports/snmpTLSTCPDomain.c",
++        "snmplib/transports/snmpUDPIPv6Domain.c",
++        "snmplib/transports/snmpTCPIPv6Domain.c",
++        "snmplib/transports/snmpUDPDomain.c",
++        "snmplib/transports/snmpTCPDomain.c",
++        "snmplib/transports/snmpAliasDomain.c",
++        "snmplib/transports/snmpUnixDomain.c",
++        "snmplib/transports/snmpCallbackDomain.c",
++        "snmplib/snmp_secmod.c",
++        "snmplib/snmptsm.c",
++        "snmplib/snmpusm.c",
++        "snmplib/snmp_version.c",
++        "snmplib/container_null.c",
++        "snmplib/container_list_ssll.c",
++        "snmplib/container_iterator.c",
++        "snmplib/ucd_compat.c",
++        "snmplib/sd-daemon.c",
++        "snmplib/strlcat.c",
++        "snmplib/strlcpy.c",
++        "snmplib/dir_utils.c",
++        "snmplib/file_utils.c",
++        "snmplib/container.c",
++        "snmplib/container_binary_array.c",
++    ],
++    copts = [
++        "-g",
++        "-Wdate-time",
++        "-DNETSNMP_USE_INLINE",
++        "-DNETSNMP_ENABLE_IPV6",
++        "-DNETSNMP_REMOVE_U64",
++        "-Ulinux",
++        "-Dlinux=linux",
++        "-D_REENTRANT",
++        "-D_GNU_SOURCE",
++        "-DDEBIAN",
++        "-D_LARGEFILE_SOURCE",
++        "-D_FILE_OFFSET_BITS=64",
++        "-fno-strict-aliasing",
++        "-fwrapv",
++        "-pipe",
++    ],
++    deps = [":headers", "@net_snmp//:system_ssl"],
++)
++
++cc_shared_library(
++    name = "netsnmp_shared",
++    deps = [":netsnmp_objects"],
++    dynamic_deps = [],
++    shared_lib_name = "libnetsnmp.so.40.2.0",
++    user_link_flags = ["-Wl,-soname,libnetsnmp.so.40"],
++)
++
++shared_library_cc_info(
++    name = "netsnmp_cc_info",
++    shared_library = ":netsnmp_shared",
++    runtime_deps = ["@net_snmp//:system_ssl"],
++)
++
++cc_library(
++    name = "netsnmp",
++    deps = [":netsnmp_cc_info", ":headers"],
++)
++
++cc_library(
++    name = "netsnmpagent_objects",
++    linkopts = ["-Wl,-E", "-ldl", "-lm", "-lpthread", "-lc"],
++    srcs = [
++        "agent/helpers/all_helpers.c",
++        "agent/helpers/baby_steps.c",
++        "agent/helpers/bulk_to_next.c",
++        "agent/helpers/cache_handler.c",
++        "agent/helpers/debug_handler.c",
++        "agent/helpers/instance.c",
++        "agent/helpers/mode_end_call.c",
++        "agent/helpers/multiplexer.c",
++        "agent/helpers/null.c",
++        "agent/helpers/old_api.c",
++        "agent/helpers/read_only.c",
++        "agent/helpers/row_merge.c",
++        "agent/helpers/scalar.c",
++        "agent/helpers/scalar_group.c",
++        "agent/helpers/serialize.c",
++        "agent/helpers/snmp_get_statistic.c",
++        "agent/helpers/stash_cache.c",
++        "agent/helpers/stash_to_next.c",
++        "agent/helpers/table.c",
++        "agent/helpers/table_array.c",
++        "agent/helpers/table_container.c",
++        "agent/helpers/table_data.c",
++        "agent/helpers/table_dataset.c",
++        "agent/helpers/table_iterator.c",
++        "agent/helpers/table_row.c",
++        "agent/helpers/table_tdata.c",
++        "agent/helpers/watcher.c",
++        "agent/agent_handler.c",
++        "agent/agent_index.c",
++        "agent/agent_read_config.c",
++        "agent/agent_registry.c",
++        "agent/agent_sysORTable.c",
++        "agent/agent_trap.c",
++        "agent/kernel.c",
++        "agent/netsnmp_close_fds.c",
++        "agent/snmp_agent.c",
++        "agent/snmp_vars.c",
++        "agent/mibgroup/smux/smux.c",
++        "agent/mibgroup/snmpv3/usmConf.c",
++        "agent/mibgroup/agentx/master.c",
++        "agent/mibgroup/agentx/subagent.c",
++        "agent/mibgroup/utilities/execute.c",
++        "agent/mibgroup/utilities/iquery.c",
++        "agent/mibgroup/mibII/vacm_conf.c",
++        "agent/mibgroup/agentx/protocol.c",
++        "agent/mibgroup/agentx/master_admin.c",
++        "agent/mibgroup/agentx/agentx_config.c",
++        "agent/mibgroup/agentx/client.c",
++        "agent/snmp_perl.c",
++    ],
++    copts = [
++        "-g",
++        "-Wdate-time",
++        "-DNETSNMP_USE_INLINE",
++        "-DNETSNMP_ENABLE_IPV6",
++        "-DNETSNMP_REMOVE_U64",
++        "-Ulinux",
++        "-Dlinux=linux",
++        "-D_REENTRANT",
++        "-D_GNU_SOURCE",
++        "-DDEBIAN",
++        "-D_LARGEFILE_SOURCE",
++        "-D_FILE_OFFSET_BITS=64",
++        "-fno-strict-aliasing",
++        "-fwrapv",
++        "-pipe",
++    ],
++    deps = [
++        ":headers",
++        ":netsnmp_objects",
++        ":perl_headers",
++        "@net_snmp//:system_wrap",
++        "@net_snmp//:system_perl",
++        "@net_snmp//:system_crypt",
++    ],
++)
++
++cc_shared_library(
++    name = "netsnmpagent_shared",
++    deps = [":netsnmpagent_objects"],
++    dynamic_deps = [":netsnmp_shared"],
++    shared_lib_name = "libnetsnmpagent.so.40.2.0",
++    user_link_flags = ["-Wl,-soname,libnetsnmpagent.so.40"],
++)
++
++shared_library_cc_info(
++    name = "netsnmpagent_cc_info",
++    shared_library = ":netsnmpagent_shared",
++    runtime_deps = ["@net_snmp//:system_wrap", "@net_snmp//:system_perl", "@net_snmp//:system_crypt"],
++)
++
++cc_library(
++    name = "netsnmpagent",
++    deps = [":netsnmpagent_cc_info", ":headers"],
++)
++
++cc_library(
++    name = "netsnmpmibs_objects",
++    linkopts = ["-lm", "-Wl,-E", "-ldl", "-lpthread", "-lc"],
++    srcs = [
++        "agent/mibgroup/mibII/mta_sendmail.c",
++        "agent/mibgroup/ucd-snmp/diskio.c",
++        "agent/mibgroup/ucd-snmp/dlmod.c",
++        "agent/mibgroup/ucd-snmp/lmsensorsMib.c",
++        "agent/mibgroup/etherlike-mib/dot3StatsTable/dot3StatsTable.c",
++        "agent/mibgroup/etherlike-mib/dot3StatsTable/dot3StatsTable_data_get.c",
++        "agent/mibgroup/etherlike-mib/dot3StatsTable/dot3StatsTable_data_set.c",
++        "agent/mibgroup/etherlike-mib/dot3StatsTable/dot3StatsTable_data_access.c",
++        "agent/mibgroup/etherlike-mib/dot3StatsTable/dot3StatsTable_interface.c",
++        "agent/mibgroup/host/hrh_storage.c",
++        "agent/mibgroup/host/hrh_filesys.c",
++        "agent/mibgroup/host/hrSWInstalledTable.c",
++        "agent/mibgroup/host/hrSWRunTable.c",
++        "agent/mibgroup/host/hr_system.c",
++        "agent/mibgroup/host/hr_device.c",
++        "agent/mibgroup/host/hr_other.c",
++        "agent/mibgroup/host/hr_proc.c",
++        "agent/mibgroup/host/hr_network.c",
++        "agent/mibgroup/host/hr_print.c",
++        "agent/mibgroup/host/hr_disk.c",
++        "agent/mibgroup/host/hr_partition.c",
++        "agent/mibgroup/util_funcs/header_simple_table.c",
++        "agent/mibgroup/snmpv3/snmpEngine.c",
++        "agent/mibgroup/snmpv3/snmpMPDStats.c",
++        "agent/mibgroup/snmpv3/usmStats.c",
++        "agent/mibgroup/snmpv3/usmUser.c",
++        "agent/mibgroup/mibII/system_mib.c",
++        "agent/mibgroup/mibII/sysORTable.c",
++        "agent/mibgroup/mibII/snmp_mib.c",
++        "agent/mibgroup/mibII/vacm_vars.c",
++        "agent/mibgroup/mibII/setSerialNo.c",
++        "agent/mibgroup/mibII/at.c",
++        "agent/mibgroup/mibII/ip.c",
++        "agent/mibgroup/mibII/tcp.c",
++        "agent/mibgroup/mibII/udp.c",
++        "agent/mibgroup/mibII/ipv6.c",
++        "agent/mibgroup/mibII/icmp.c",
++        "agent/mibgroup/ucd-snmp/proc.c",
++        "agent/mibgroup/ucd-snmp/versioninfo.c",
++        "agent/mibgroup/ucd-snmp/pass.c",
++        "agent/mibgroup/ucd-snmp/pass_persist.c",
++        "agent/mibgroup/ucd-snmp/disk_hw.c",
++        "agent/mibgroup/ucd-snmp/loadave.c",
++        "agent/mibgroup/agent/extend.c",
++        "agent/mibgroup/ucd-snmp/errormib.c",
++        "agent/mibgroup/ucd-snmp/file.c",
++        "agent/mibgroup/ucd-snmp/proxy.c",
++        "agent/mibgroup/ucd-snmp/logmatch.c",
++        "agent/mibgroup/ucd-snmp/memory.c",
++        "agent/mibgroup/ucd-snmp/vmstat.c",
++        "agent/mibgroup/notification/snmpNotifyTable.c",
++        "agent/mibgroup/notification/snmpNotifyFilterProfileTable.c",
++        "agent/mibgroup/notification-log-mib/notification_log.c",
++        "agent/mibgroup/target/snmpTargetAddrEntry.c",
++        "agent/mibgroup/target/snmpTargetParamsEntry.c",
++        "agent/mibgroup/target/target.c",
++        "agent/mibgroup/target/target_counters.c",
++        "agent/mibgroup/agent/nsTransactionTable.c",
++        "agent/mibgroup/agent/nsModuleTable.c",
++        "agent/mibgroup/agent/nsDebug.c",
++        "agent/mibgroup/agent/nsCache.c",
++        "agent/mibgroup/agent/nsLogging.c",
++        "agent/mibgroup/agent/nsVacmAccessTable.c",
++        "agent/mibgroup/disman/event/mteScalars.c",
++        "agent/mibgroup/disman/event/mteTrigger.c",
++        "agent/mibgroup/disman/event/mteTriggerTable.c",
++        "agent/mibgroup/disman/event/mteTriggerDeltaTable.c",
++        "agent/mibgroup/disman/event/mteTriggerExistenceTable.c",
++        "agent/mibgroup/disman/event/mteTriggerBooleanTable.c",
++        "agent/mibgroup/disman/event/mteTriggerThresholdTable.c",
++        "agent/mibgroup/disman/event/mteTriggerConf.c",
++        "agent/mibgroup/disman/event/mteEvent.c",
++        "agent/mibgroup/disman/event/mteEventTable.c",
++        "agent/mibgroup/disman/event/mteEventSetTable.c",
++        "agent/mibgroup/disman/event/mteEventNotificationTable.c",
++        "agent/mibgroup/disman/event/mteEventConf.c",
++        "agent/mibgroup/disman/event/mteObjects.c",
++        "agent/mibgroup/disman/event/mteObjectsTable.c",
++        "agent/mibgroup/disman/event/mteObjectsConf.c",
++        "agent/mibgroup/disman/schedule/schedCore.c",
++        "agent/mibgroup/disman/schedule/schedConf.c",
++        "agent/mibgroup/disman/schedule/schedTable.c",
++        "agent/mibgroup/utilities/override.c",
++        "agent/mibgroup/etherlike-mib/data_access/dot3stats_linux.c",
++        "agent/mibgroup/host/data_access/swinst.c",
++        "agent/mibgroup/host/data_access/swrun.c",
++        "agent/mibgroup/host/hrSWRunPerfTable.c",
++        "agent/mibgroup/util_funcs.c",
++        "agent/mibgroup/hardware/sensors/hw_sensors.c",
++        "agent/mibgroup/hardware/sensors/lmsensors_v3.c",
++        "agent/mibgroup/util_funcs/header_generic.c",
++        "agent/mibgroup/mibII/updates.c",
++        "agent/mibgroup/mibII/vacm_context.c",
++        "agent/mibgroup/mibII/data_access/at_linux.c",
++        "agent/mibgroup/mibII/data_access/at_unix.c",
++        "agent/mibgroup/mibII/ipAddr.c",
++        "agent/mibgroup/mibII/var_route.c",
++        "agent/mibgroup/mibII/route_write.c",
++        "agent/mibgroup/mibII/kernel_linux.c",
++        "agent/mibgroup/mibII/tcpTable.c",
++        "agent/mibgroup/mibII/udpTable.c",
++        "agent/mibgroup/ip-mib/ip_scalars.c",
++        "agent/mibgroup/util_funcs/restart.c",
++        "agent/mibgroup/ucd-snmp/pass_common.c",
++        "agent/mibgroup/notification/snmpNotifyTable_data.c",
++        "agent/mibgroup/header_complex.c",
++        "agent/mibgroup/snmp-notification-mib/snmpNotifyFilterTable/snmpNotifyFilterTable_data_storage.c",
++        "agent/mibgroup/snmp-notification-mib/snmpNotifyFilterTable/snmpNotifyFilterTable.c",
++        "agent/mibgroup/notification/snmpNotifyFilterProfileTable_data.c",
++        "agent/mibgroup/target/snmpTargetAddrEntry_data.c",
++        "agent/mibgroup/target/snmpTargetParamsEntry_data.c",
++        "agent/mibgroup/hardware/memory/hw_mem.c",
++        "agent/mibgroup/hardware/memory/memory_linux.c",
++        "agent/mibgroup/hardware/fsys/hw_fsys.c",
++        "agent/mibgroup/hardware/fsys/fsys_mntent.c",
++        "agent/mibgroup/host/data_access/swinst_apt.c",
++        "agent/mibgroup/host/data_access/swrun_procfs_status.c",
++        "agent/mibgroup/hardware/cpu/cpu.c",
++        "agent/mibgroup/hardware/cpu/cpu_linux.c",
++        "agent/mibgroup/if-mib/ifTable/ifTable.c",
++        "agent/mibgroup/if-mib/ifXTable/ifXTable.c",
++        "agent/mibgroup/ip-mib/ipAddressTable/ipAddressTable.c",
++        "agent/mibgroup/ip-mib/ipAddressPrefixTable/ipAddressPrefixTable.c",
++        "agent/mibgroup/ip-mib/ipDefaultRouterTable/ipDefaultRouterTable.c",
++        "agent/mibgroup/ip-mib/inetNetToMediaTable/inetNetToMediaTable.c",
++        "agent/mibgroup/ip-mib/inetNetToMediaTable/inetNetToMediaTable_interface.c",
++        "agent/mibgroup/ip-mib/inetNetToMediaTable/inetNetToMediaTable_data_access.c",
++        "agent/mibgroup/ip-mib/ipSystemStatsTable/ipSystemStatsTable.c",
++        "agent/mibgroup/ip-mib/ipSystemStatsTable/ipSystemStatsTable_interface.c",
++        "agent/mibgroup/ip-mib/ipSystemStatsTable/ipSystemStatsTable_data_access.c",
++        "agent/mibgroup/ip-mib/ipv6ScopeZoneIndexTable/ipv6ScopeZoneIndexTable.c",
++        "agent/mibgroup/ip-mib/ipIfStatsTable/ipIfStatsTable.c",
++        "agent/mibgroup/ip-mib/ipIfStatsTable/ipIfStatsTable_interface.c",
++        "agent/mibgroup/ip-mib/ipIfStatsTable/ipIfStatsTable_data_access.c",
++        "agent/mibgroup/ip-forward-mib/ipCidrRouteTable/ipCidrRouteTable.c",
++        "agent/mibgroup/ip-forward-mib/inetCidrRouteTable/inetCidrRouteTable.c",
++        "agent/mibgroup/tcp-mib/tcpConnectionTable/tcpConnectionTable.c",
++        "agent/mibgroup/tcp-mib/tcpListenerTable/tcpListenerTable.c",
++        "agent/mibgroup/udp-mib/udpEndpointTable/udpEndpointTable.c",
++        "agent/mibgroup/snmp-notification-mib/snmpNotifyFilterTable/snmpNotifyFilterTable_interface.c",
++        "agent/mibgroup/snmp-notification-mib/snmpNotifyFilterTable/snmpNotifyFilterTable_data_access.c",
++        "agent/mibgroup/if-mib/data_access/interface.c",
++        "agent/mibgroup/if-mib/ifTable/ifTable_interface.c",
++        "agent/mibgroup/if-mib/ifTable/ifTable_data_access.c",
++        "agent/mibgroup/if-mib/ifXTable/ifXTable_interface.c",
++        "agent/mibgroup/if-mib/ifXTable/ifXTable_data_access.c",
++        "agent/mibgroup/ip-mib/ipAddressTable/ipAddressTable_interface.c",
++        "agent/mibgroup/ip-mib/ipAddressTable/ipAddressTable_data_access.c",
++        "agent/mibgroup/ip-mib/ipAddressPrefixTable/ipAddressPrefixTable_interface.c",
++        "agent/mibgroup/ip-mib/ipAddressPrefixTable/ipAddressPrefixTable_data_access.c",
++        "agent/mibgroup/ip-mib/ipDefaultRouterTable/ipDefaultRouterTable_interface.c",
++        "agent/mibgroup/ip-mib/ipDefaultRouterTable/ipDefaultRouterTable_data_access.c",
++        "agent/mibgroup/ip-mib/ipDefaultRouterTable/ipDefaultRouterTable_data_get.c",
++        "agent/mibgroup/ip-mib/data_access/arp_common.c",
++        "agent/mibgroup/ip-mib/data_access/arp_netlink.c",
++        "agent/mibgroup/ip-mib/data_access/systemstats_common.c",
++        "agent/mibgroup/ip-mib/data_access/systemstats_linux.c",
++        "agent/mibgroup/ip-mib/data_access/scalars_linux.c",
++        "agent/mibgroup/ip-mib/ipv6ScopeZoneIndexTable/ipv6ScopeZoneIndexTable_interface.c",
++        "agent/mibgroup/ip-mib/ipv6ScopeZoneIndexTable/ipv6ScopeZoneIndexTable_data_access.c",
++        "agent/mibgroup/ip-mib/ipIfStatsTable/ipIfStatsTable_data_get.c",
++        "agent/mibgroup/ip-forward-mib/ipCidrRouteTable/ipCidrRouteTable_interface.c",
++        "agent/mibgroup/ip-forward-mib/ipCidrRouteTable/ipCidrRouteTable_data_access.c",
++        "agent/mibgroup/ip-forward-mib/inetCidrRouteTable/inetCidrRouteTable_interface.c",
++        "agent/mibgroup/ip-forward-mib/inetCidrRouteTable/inetCidrRouteTable_data_access.c",
++        "agent/mibgroup/tcp-mib/data_access/tcpConn_common.c",
++        "agent/mibgroup/tcp-mib/data_access/tcpConn_linux.c",
++        "agent/mibgroup/util_funcs/get_pid_from_inode.c",
++        "agent/mibgroup/tcp-mib/tcpConnectionTable/tcpConnectionTable_interface.c",
++        "agent/mibgroup/tcp-mib/tcpConnectionTable/tcpConnectionTable_data_access.c",
++        "agent/mibgroup/tcp-mib/tcpListenerTable/tcpListenerTable_interface.c",
++        "agent/mibgroup/tcp-mib/tcpListenerTable/tcpListenerTable_data_access.c",
++        "agent/mibgroup/udp-mib/udpEndpointTable/udpEndpointTable_interface.c",
++        "agent/mibgroup/udp-mib/udpEndpointTable/udpEndpointTable_data_access.c",
++        "agent/mibgroup/if-mib/data_access/interface_linux.c",
++        "agent/mibgroup/if-mib/data_access/interface_ioctl.c",
++        "agent/mibgroup/ip-mib/data_access/ipaddress_common.c",
++        "agent/mibgroup/ip-mib/data_access/ipaddress_linux.c",
++        "agent/mibgroup/ip-mib/data_access/defaultrouter_common.c",
++        "agent/mibgroup/ip-mib/data_access/defaultrouter_linux.c",
++        "agent/mibgroup/ip-mib/data_access/ipv6scopezone_common.c",
++        "agent/mibgroup/ip-mib/data_access/ipv6scopezone_linux.c",
++        "agent/mibgroup/ip-forward-mib/data_access/route_common.c",
++        "agent/mibgroup/ip-forward-mib/data_access/route_linux.c",
++        "agent/mibgroup/ip-forward-mib/data_access/route_ioctl.c",
++        "agent/mibgroup/udp-mib/data_access/udp_endpoint_common.c",
++        "agent/mibgroup/udp-mib/data_access/udp_endpoint_linux.c",
++        "agent/mibgroup/ip-mib/data_access/ipaddress_ioctl.c",
++        "agent/mib_modules.c",
++        "agent/auto_nlist.c",
++    ],
++    copts = [
++        "-g",
++        "-Wdate-time",
++        "-DNETSNMP_USE_INLINE",
++        "-DNETSNMP_ENABLE_IPV6",
++        "-DNETSNMP_REMOVE_U64",
++        "-Ulinux",
++        "-Dlinux=linux",
++        "-D_REENTRANT",
++        "-D_GNU_SOURCE",
++        "-DDEBIAN",
++        "-D_LARGEFILE_SOURCE",
++        "-D_FILE_OFFSET_BITS=64",
++        "-fno-strict-aliasing",
++        "-fwrapv",
++        "-pipe",
++    ],
++    deps = [
++        ":headers",
++        ":netsnmp_objects",
++        ":netsnmpagent_objects",
++        "@libnl3//:libnl_3",
++        "@net_snmp//:system_sensors",
++        "@net_snmp//:system_pci",
++        "@net_snmp//:system_crypt",
++    ],
++)
++
++cc_shared_library(
++    name = "netsnmpmibs_shared",
++    deps = [":netsnmpmibs_objects"],
++    dynamic_deps = [":netsnmp_shared", ":netsnmpagent_shared", "@libnl3//:libnl_3_shared"],
++    shared_lib_name = "libnetsnmpmibs.so.40.2.0",
++    user_link_flags = ["-Wl,-soname,libnetsnmpmibs.so.40"],
++)
++
++shared_library_cc_info(
++    name = "netsnmpmibs_cc_info",
++    shared_library = ":netsnmpmibs_shared",
++    runtime_deps = ["@libnl3//:libnl_3", "@net_snmp//:system_sensors", "@net_snmp//:system_pci", "@net_snmp//:system_crypt"],
++)
++
++cc_library(
++    name = "netsnmpmibs",
++    deps = [":netsnmpmibs_cc_info", ":headers"],
++)
++
++cc_library(
++    name = "netsnmphelpers_objects",
++    linkopts = [],
++    srcs = ["agent/helpers/dummy.c"],
++    copts = [
++        "-g",
++        "-Wdate-time",
++        "-DNETSNMP_USE_INLINE",
++        "-DNETSNMP_ENABLE_IPV6",
++        "-DNETSNMP_REMOVE_U64",
++        "-Ulinux",
++        "-Dlinux=linux",
++        "-D_REENTRANT",
++        "-D_GNU_SOURCE",
++        "-DDEBIAN",
++        "-D_LARGEFILE_SOURCE",
++        "-D_FILE_OFFSET_BITS=64",
++        "-fno-strict-aliasing",
++        "-fwrapv",
++        "-pipe",
++    ],
++    deps = [":headers"],
++)
++
++cc_shared_library(
++    name = "netsnmphelpers_shared",
++    deps = [":netsnmphelpers_objects"],
++    dynamic_deps = [],
++    shared_lib_name = "libnetsnmphelpers.so.40.2.0",
++    user_link_flags = ["-Wl,-soname,libnetsnmphelpers.so.40"],
++)
++
++shared_library_cc_info(
++    name = "netsnmphelpers_cc_info",
++    shared_library = ":netsnmphelpers_shared",
++    runtime_deps = [],
++)
++
++cc_library(
++    name = "netsnmphelpers",
++    deps = [":netsnmphelpers_cc_info", ":headers"],
++)
++
++cc_library(
++    name = "netsnmptrapd_objects",
++    linkopts = ["-Wl,-E", "-ldl", "-lm", "-lpthread", "-lc"],
++    srcs = [
++        "apps/snmptrapd_handlers.c",
++        "apps/snmptrapd_log.c",
++        "apps/snmptrapd_auth.c",
++        "apps/snmptrapd_sql.c",
++    ],
++    copts = [
++        "-g",
++        "-Wdate-time",
++        "-DNETSNMP_USE_INLINE",
++        "-DNETSNMP_ENABLE_IPV6",
++        "-DNETSNMP_REMOVE_U64",
++        "-Ulinux",
++        "-Dlinux=linux",
++        "-D_REENTRANT",
++        "-D_GNU_SOURCE",
++        "-DDEBIAN",
++        "-D_LARGEFILE_SOURCE",
++        "-D_FILE_OFFSET_BITS=64",
++        "-fno-strict-aliasing",
++        "-fwrapv",
++        "-pipe",
++    ],
++    deps = [
++        ":headers",
++        ":netsnmp_objects",
++        ":netsnmpagent_objects",
++        ":netsnmpmibs_objects",
++        ":perl_headers",
++        "@net_snmp//:system_mariadb",
++        "@net_snmp//:system_perl",
++        "@net_snmp//:system_crypt",
++    ],
++)
++
++cc_shared_library(
++    name = "netsnmptrapd_shared",
++    deps = [":netsnmptrapd_objects"],
++    dynamic_deps = [":netsnmp_shared", ":netsnmpagent_shared", ":netsnmpmibs_shared"],
++    shared_lib_name = "libnetsnmptrapd.so.40.2.0",
++    user_link_flags = ["-Wl,-soname,libnetsnmptrapd.so.40"],
++)
++
++shared_library_cc_info(
++    name = "netsnmptrapd_cc_info",
++    shared_library = ":netsnmptrapd_shared",
++    runtime_deps = ["@net_snmp//:system_mariadb", "@net_snmp//:system_perl", "@net_snmp//:system_crypt"],
++)
++
++cc_library(
++    name = "netsnmptrapd",
++    deps = [":netsnmptrapd_cc_info", ":headers"],
++)
++
++cc_binary(
++    name = "agentxtrap",
++    srcs = ["apps/agentxtrap.c"],
++    copts = [
++        "-g",
++        "-Wdate-time",
++        "-DNETSNMP_USE_INLINE",
++        "-DNETSNMP_ENABLE_IPV6",
++        "-DNETSNMP_REMOVE_U64",
++        "-Ulinux",
++        "-Dlinux=linux",
++        "-D_REENTRANT",
++        "-D_GNU_SOURCE",
++        "-DDEBIAN",
++        "-D_LARGEFILE_SOURCE",
++        "-D_FILE_OFFSET_BITS=64",
++        "-fno-strict-aliasing",
++        "-fwrapv",
++        "-pipe",
++    ],
++    deps = [":headers", ":netsnmp", ":netsnmpagent", ":netsnmpmibs"],
++    linkopts = ["-Wl,-E"],
++    target_compatible_with = [],
++)
++
++cc_binary(
++    name = "encode_keychange",
++    srcs = ["apps/encode_keychange.c"],
++    copts = [
++        "-g",
++        "-Wdate-time",
++        "-DNETSNMP_USE_INLINE",
++        "-DNETSNMP_ENABLE_IPV6",
++        "-DNETSNMP_REMOVE_U64",
++        "-Ulinux",
++        "-Dlinux=linux",
++        "-D_REENTRANT",
++        "-D_GNU_SOURCE",
++        "-DDEBIAN",
++        "-D_LARGEFILE_SOURCE",
++        "-D_FILE_OFFSET_BITS=64",
++        "-fno-strict-aliasing",
++        "-fwrapv",
++        "-pipe",
++    ],
++    deps = [":headers", ":netsnmp"],
++    linkopts = [],
++    target_compatible_with = [],
++)
++
++cc_binary(
++    name = "snmpbulkget",
++    srcs = ["apps/snmpbulkget.c"],
++    copts = [
++        "-g",
++        "-Wdate-time",
++        "-DNETSNMP_USE_INLINE",
++        "-DNETSNMP_ENABLE_IPV6",
++        "-DNETSNMP_REMOVE_U64",
++        "-Ulinux",
++        "-Dlinux=linux",
++        "-D_REENTRANT",
++        "-D_GNU_SOURCE",
++        "-DDEBIAN",
++        "-D_LARGEFILE_SOURCE",
++        "-D_FILE_OFFSET_BITS=64",
++        "-fno-strict-aliasing",
++        "-fwrapv",
++        "-pipe",
++    ],
++    deps = [":headers", ":netsnmp"],
++    linkopts = [],
++    target_compatible_with = [],
++)
++
++cc_binary(
++    name = "snmpbulkwalk",
++    srcs = ["apps/snmpbulkwalk.c"],
++    copts = [
++        "-g",
++        "-Wdate-time",
++        "-DNETSNMP_USE_INLINE",
++        "-DNETSNMP_ENABLE_IPV6",
++        "-DNETSNMP_REMOVE_U64",
++        "-Ulinux",
++        "-Dlinux=linux",
++        "-D_REENTRANT",
++        "-D_GNU_SOURCE",
++        "-DDEBIAN",
++        "-D_LARGEFILE_SOURCE",
++        "-D_FILE_OFFSET_BITS=64",
++        "-fno-strict-aliasing",
++        "-fwrapv",
++        "-pipe",
++    ],
++    deps = [":headers", ":netsnmp"],
++    linkopts = [],
++    target_compatible_with = [],
++)
++
++cc_binary(
++    name = "snmpd",
++    srcs = ["agent/snmpd.c"],
++    copts = [
++        "-g",
++        "-Wdate-time",
++        "-DNETSNMP_USE_INLINE",
++        "-DNETSNMP_ENABLE_IPV6",
++        "-DNETSNMP_REMOVE_U64",
++        "-Ulinux",
++        "-Dlinux=linux",
++        "-D_REENTRANT",
++        "-D_GNU_SOURCE",
++        "-DDEBIAN",
++        "-D_LARGEFILE_SOURCE",
++        "-D_FILE_OFFSET_BITS=64",
++        "-fno-strict-aliasing",
++        "-fwrapv",
++        "-pipe",
++    ],
++    deps = [
++        ":headers",
++        ":netsnmp",
++        ":netsnmpagent",
++        ":netsnmpmibs",
++        ":perl_headers",
++        "@net_snmp//:system_wrap",
++        "@net_snmp//:system_systemd",
++        "@net_snmp//:system_perl",
++    ],
++    linkopts = ["-Wl,-E"],
++    target_compatible_with = [],
++)
++
++cc_binary(
++    name = "snmpdelta",
++    srcs = ["apps/snmpdelta.c"],
++    copts = [
++        "-g",
++        "-Wdate-time",
++        "-DNETSNMP_USE_INLINE",
++        "-DNETSNMP_ENABLE_IPV6",
++        "-DNETSNMP_REMOVE_U64",
++        "-Ulinux",
++        "-Dlinux=linux",
++        "-D_REENTRANT",
++        "-D_GNU_SOURCE",
++        "-DDEBIAN",
++        "-D_LARGEFILE_SOURCE",
++        "-D_FILE_OFFSET_BITS=64",
++        "-fno-strict-aliasing",
++        "-fwrapv",
++        "-pipe",
++    ],
++    deps = [":headers", ":netsnmp"],
++    linkopts = [],
++    target_compatible_with = [],
++)
++
++cc_binary(
++    name = "snmpdf",
++    srcs = ["apps/snmpdf.c"],
++    copts = [
++        "-g",
++        "-Wdate-time",
++        "-DNETSNMP_USE_INLINE",
++        "-DNETSNMP_ENABLE_IPV6",
++        "-DNETSNMP_REMOVE_U64",
++        "-Ulinux",
++        "-Dlinux=linux",
++        "-D_REENTRANT",
++        "-D_GNU_SOURCE",
++        "-DDEBIAN",
++        "-D_LARGEFILE_SOURCE",
++        "-D_FILE_OFFSET_BITS=64",
++        "-fno-strict-aliasing",
++        "-fwrapv",
++        "-pipe",
++    ],
++    deps = [":headers", ":netsnmp"],
++    linkopts = [],
++    target_compatible_with = [],
++)
++
++cc_binary(
++    name = "snmpget",
++    srcs = ["apps/snmpget.c"],
++    copts = [
++        "-g",
++        "-Wdate-time",
++        "-DNETSNMP_USE_INLINE",
++        "-DNETSNMP_ENABLE_IPV6",
++        "-DNETSNMP_REMOVE_U64",
++        "-Ulinux",
++        "-Dlinux=linux",
++        "-D_REENTRANT",
++        "-D_GNU_SOURCE",
++        "-DDEBIAN",
++        "-D_LARGEFILE_SOURCE",
++        "-D_FILE_OFFSET_BITS=64",
++        "-fno-strict-aliasing",
++        "-fwrapv",
++        "-pipe",
++    ],
++    deps = [":headers", ":netsnmp"],
++    linkopts = [],
++    target_compatible_with = [],
++)
++
++cc_binary(
++    name = "snmpgetnext",
++    srcs = ["apps/snmpgetnext.c"],
++    copts = [
++        "-g",
++        "-Wdate-time",
++        "-DNETSNMP_USE_INLINE",
++        "-DNETSNMP_ENABLE_IPV6",
++        "-DNETSNMP_REMOVE_U64",
++        "-Ulinux",
++        "-Dlinux=linux",
++        "-D_REENTRANT",
++        "-D_GNU_SOURCE",
++        "-DDEBIAN",
++        "-D_LARGEFILE_SOURCE",
++        "-D_FILE_OFFSET_BITS=64",
++        "-fno-strict-aliasing",
++        "-fwrapv",
++        "-pipe",
++    ],
++    deps = [":headers", ":netsnmp"],
++    linkopts = [],
++    target_compatible_with = [],
++)
++
++cc_binary(
++    name = "snmpnetstat",
++    srcs = [
++        "apps/snmpnetstat/inet.c",
++        "apps/snmpnetstat/inet6.c",
++        "apps/snmpnetstat/inetx.c",
++        "apps/snmpnetstat/if.c",
++        "apps/snmpnetstat/main.c",
++        "apps/snmpnetstat/route.c",
++        "apps/snmpnetstat/routex.c",
++        "apps/snmpnetstat/winstub.c",
++        "apps/snmpnetstat/ffs.c",
++    ],
++    copts = [
++        "-g",
++        "-Wdate-time",
++        "-DNETSNMP_USE_INLINE",
++        "-DNETSNMP_ENABLE_IPV6",
++        "-DNETSNMP_REMOVE_U64",
++        "-Ulinux",
++        "-Dlinux=linux",
++        "-D_REENTRANT",
++        "-D_GNU_SOURCE",
++        "-DDEBIAN",
++        "-D_LARGEFILE_SOURCE",
++        "-D_FILE_OFFSET_BITS=64",
++        "-fno-strict-aliasing",
++        "-fwrapv",
++        "-pipe",
++    ],
++    deps = [":headers", ":netsnmp"],
++    linkopts = [],
++    target_compatible_with = [],
++)
++
++cc_binary(
++    name = "snmppcap",
++    srcs = ["apps/snmppcap.c"],
++    copts = [
++        "-g",
++        "-Wdate-time",
++        "-DNETSNMP_USE_INLINE",
++        "-DNETSNMP_ENABLE_IPV6",
++        "-DNETSNMP_REMOVE_U64",
++        "-Ulinux",
++        "-Dlinux=linux",
++        "-D_REENTRANT",
++        "-D_GNU_SOURCE",
++        "-DDEBIAN",
++        "-D_LARGEFILE_SOURCE",
++        "-D_FILE_OFFSET_BITS=64",
++        "-fno-strict-aliasing",
++        "-fwrapv",
++        "-pipe",
++    ],
++    deps = [":headers", ":netsnmp", ":netsnmpagent", ":netsnmpmibs", "@net_snmp//:system_pcap"],
++    linkopts = [],
++    target_compatible_with = [],
++)
++
++cc_binary(
++    name = "snmpping",
++    srcs = ["apps/snmpping.c"],
++    copts = [
++        "-g",
++        "-Wdate-time",
++        "-DNETSNMP_USE_INLINE",
++        "-DNETSNMP_ENABLE_IPV6",
++        "-DNETSNMP_REMOVE_U64",
++        "-Ulinux",
++        "-Dlinux=linux",
++        "-D_REENTRANT",
++        "-D_GNU_SOURCE",
++        "-DDEBIAN",
++        "-D_LARGEFILE_SOURCE",
++        "-D_FILE_OFFSET_BITS=64",
++        "-fno-strict-aliasing",
++        "-fwrapv",
++        "-pipe",
++    ],
++    deps = [":headers", ":netsnmp"],
++    linkopts = [],
++    target_compatible_with = [],
++)
++
++cc_binary(
++    name = "snmpps",
++    srcs = ["apps/snmpps.c"],
++    copts = [
++        "-g",
++        "-Wdate-time",
++        "-DNETSNMP_USE_INLINE",
++        "-DNETSNMP_ENABLE_IPV6",
++        "-DNETSNMP_REMOVE_U64",
++        "-Ulinux",
++        "-Dlinux=linux",
++        "-D_REENTRANT",
++        "-D_GNU_SOURCE",
++        "-DDEBIAN",
++        "-D_LARGEFILE_SOURCE",
++        "-D_FILE_OFFSET_BITS=64",
++        "-fno-strict-aliasing",
++        "-fwrapv",
++        "-pipe",
++    ],
++    deps = [":headers", ":netsnmp", "@net_snmp//:system_ncurses"],
++    linkopts = [],
++    target_compatible_with = [],
++)
++
++cc_binary(
++    name = "snmpset",
++    srcs = ["apps/snmpset.c"],
++    copts = [
++        "-g",
++        "-Wdate-time",
++        "-DNETSNMP_USE_INLINE",
++        "-DNETSNMP_ENABLE_IPV6",
++        "-DNETSNMP_REMOVE_U64",
++        "-Ulinux",
++        "-Dlinux=linux",
++        "-D_REENTRANT",
++        "-D_GNU_SOURCE",
++        "-DDEBIAN",
++        "-D_LARGEFILE_SOURCE",
++        "-D_FILE_OFFSET_BITS=64",
++        "-fno-strict-aliasing",
++        "-fwrapv",
++        "-pipe",
++    ],
++    deps = [":headers", ":netsnmp"],
++    linkopts = [],
++    target_compatible_with = [],
++)
++
++cc_binary(
++    name = "snmpstatus",
++    srcs = ["apps/snmpstatus.c"],
++    copts = [
++        "-g",
++        "-Wdate-time",
++        "-DNETSNMP_USE_INLINE",
++        "-DNETSNMP_ENABLE_IPV6",
++        "-DNETSNMP_REMOVE_U64",
++        "-Ulinux",
++        "-Dlinux=linux",
++        "-D_REENTRANT",
++        "-D_GNU_SOURCE",
++        "-DDEBIAN",
++        "-D_LARGEFILE_SOURCE",
++        "-D_FILE_OFFSET_BITS=64",
++        "-fno-strict-aliasing",
++        "-fwrapv",
++        "-pipe",
++    ],
++    deps = [":headers", ":netsnmp"],
++    linkopts = [],
++    target_compatible_with = [],
++)
++
++cc_binary(
++    name = "snmptable",
++    srcs = ["apps/snmptable.c"],
++    copts = [
++        "-g",
++        "-Wdate-time",
++        "-DNETSNMP_USE_INLINE",
++        "-DNETSNMP_ENABLE_IPV6",
++        "-DNETSNMP_REMOVE_U64",
++        "-Ulinux",
++        "-Dlinux=linux",
++        "-D_REENTRANT",
++        "-D_GNU_SOURCE",
++        "-DDEBIAN",
++        "-D_LARGEFILE_SOURCE",
++        "-D_FILE_OFFSET_BITS=64",
++        "-fno-strict-aliasing",
++        "-fwrapv",
++        "-pipe",
++    ],
++    deps = [":headers", ":netsnmp"],
++    linkopts = [],
++    target_compatible_with = [],
++)
++
++cc_binary(
++    name = "snmptest",
++    srcs = ["apps/snmptest.c"],
++    copts = [
++        "-g",
++        "-Wdate-time",
++        "-DNETSNMP_USE_INLINE",
++        "-DNETSNMP_ENABLE_IPV6",
++        "-DNETSNMP_REMOVE_U64",
++        "-Ulinux",
++        "-Dlinux=linux",
++        "-D_REENTRANT",
++        "-D_GNU_SOURCE",
++        "-DDEBIAN",
++        "-D_LARGEFILE_SOURCE",
++        "-D_FILE_OFFSET_BITS=64",
++        "-fno-strict-aliasing",
++        "-fwrapv",
++        "-pipe",
++    ],
++    deps = [":headers", ":netsnmp"],
++    linkopts = [],
++    target_compatible_with = [],
++)
++
++cc_binary(
++    name = "snmptls",
++    srcs = ["apps/snmptls.c"],
++    copts = [
++        "-g",
++        "-Wdate-time",
++        "-DNETSNMP_USE_INLINE",
++        "-DNETSNMP_ENABLE_IPV6",
++        "-DNETSNMP_REMOVE_U64",
++        "-Ulinux",
++        "-Dlinux=linux",
++        "-D_REENTRANT",
++        "-D_GNU_SOURCE",
++        "-DDEBIAN",
++        "-D_LARGEFILE_SOURCE",
++        "-D_FILE_OFFSET_BITS=64",
++        "-fno-strict-aliasing",
++        "-fwrapv",
++        "-pipe",
++    ],
++    deps = [":headers", ":netsnmp"],
++    linkopts = [],
++    target_compatible_with = [],
++)
++
++cc_binary(
++    name = "snmptranslate",
++    srcs = ["apps/snmptranslate.c"],
++    copts = [
++        "-g",
++        "-Wdate-time",
++        "-DNETSNMP_USE_INLINE",
++        "-DNETSNMP_ENABLE_IPV6",
++        "-DNETSNMP_REMOVE_U64",
++        "-Ulinux",
++        "-Dlinux=linux",
++        "-D_REENTRANT",
++        "-D_GNU_SOURCE",
++        "-DDEBIAN",
++        "-D_LARGEFILE_SOURCE",
++        "-D_FILE_OFFSET_BITS=64",
++        "-fno-strict-aliasing",
++        "-fwrapv",
++        "-pipe",
++    ],
++    deps = [":headers", ":netsnmp"],
++    linkopts = [],
++    target_compatible_with = [],
++)
++
++cc_binary(
++    name = "snmptrap",
++    srcs = ["apps/snmptrap.c"],
++    copts = [
++        "-g",
++        "-Wdate-time",
++        "-DNETSNMP_USE_INLINE",
++        "-DNETSNMP_ENABLE_IPV6",
++        "-DNETSNMP_REMOVE_U64",
++        "-Ulinux",
++        "-Dlinux=linux",
++        "-D_REENTRANT",
++        "-D_GNU_SOURCE",
++        "-DDEBIAN",
++        "-D_LARGEFILE_SOURCE",
++        "-D_FILE_OFFSET_BITS=64",
++        "-fno-strict-aliasing",
++        "-fwrapv",
++        "-pipe",
++    ],
++    deps = [":headers", ":netsnmp"],
++    linkopts = [],
++    target_compatible_with = [],
++)
++
++cc_binary(
++    name = "snmptrapd",
++    srcs = ["apps/snmptrapd.c"],
++    copts = [
++        "-g",
++        "-Wdate-time",
++        "-DNETSNMP_USE_INLINE",
++        "-DNETSNMP_ENABLE_IPV6",
++        "-DNETSNMP_REMOVE_U64",
++        "-Ulinux",
++        "-Dlinux=linux",
++        "-D_REENTRANT",
++        "-D_GNU_SOURCE",
++        "-DDEBIAN",
++        "-D_LARGEFILE_SOURCE",
++        "-D_FILE_OFFSET_BITS=64",
++        "-fno-strict-aliasing",
++        "-fwrapv",
++        "-pipe",
++    ],
++    deps = [
++        ":headers",
++        ":netsnmp",
++        ":netsnmpagent",
++        ":netsnmpmibs",
++        "@net_snmp//:system_wrap",
++        ":netsnmptrapd",
++        ":perl_headers",
++        "@net_snmp//:system_perl",
++    ],
++    linkopts = ["-Wl,-E"],
++    target_compatible_with = [],
++)
++
++cc_binary(
++    name = "snmpusm",
++    srcs = ["apps/snmpusm.c"],
++    copts = [
++        "-g",
++        "-Wdate-time",
++        "-DNETSNMP_USE_INLINE",
++        "-DNETSNMP_ENABLE_IPV6",
++        "-DNETSNMP_REMOVE_U64",
++        "-Ulinux",
++        "-Dlinux=linux",
++        "-D_REENTRANT",
++        "-D_GNU_SOURCE",
++        "-DDEBIAN",
++        "-D_LARGEFILE_SOURCE",
++        "-D_FILE_OFFSET_BITS=64",
++        "-fno-strict-aliasing",
++        "-fwrapv",
++        "-pipe",
++    ],
++    deps = [":headers", ":netsnmp"],
++    linkopts = [],
++    target_compatible_with = [],
++)
++
++cc_binary(
++    name = "snmpvacm",
++    srcs = ["apps/snmpvacm.c"],
++    copts = [
++        "-g",
++        "-Wdate-time",
++        "-DNETSNMP_USE_INLINE",
++        "-DNETSNMP_ENABLE_IPV6",
++        "-DNETSNMP_REMOVE_U64",
++        "-Ulinux",
++        "-Dlinux=linux",
++        "-D_REENTRANT",
++        "-D_GNU_SOURCE",
++        "-DDEBIAN",
++        "-D_LARGEFILE_SOURCE",
++        "-D_FILE_OFFSET_BITS=64",
++        "-fno-strict-aliasing",
++        "-fwrapv",
++        "-pipe",
++    ],
++    deps = [":headers", ":netsnmp"],
++    linkopts = [],
++    target_compatible_with = [],
++)
++
++cc_binary(
++    name = "snmpwalk",
++    srcs = ["apps/snmpwalk.c"],
++    copts = [
++        "-g",
++        "-Wdate-time",
++        "-DNETSNMP_USE_INLINE",
++        "-DNETSNMP_ENABLE_IPV6",
++        "-DNETSNMP_REMOVE_U64",
++        "-Ulinux",
++        "-Dlinux=linux",
++        "-D_REENTRANT",
++        "-D_GNU_SOURCE",
++        "-DDEBIAN",
++        "-D_LARGEFILE_SOURCE",
++        "-D_FILE_OFFSET_BITS=64",
++        "-fno-strict-aliasing",
++        "-fwrapv",
++        "-pipe",
++    ],
++    deps = [":headers", ":netsnmp"],
++    linkopts = [],
++    target_compatible_with = [],
++)
++
++filegroup(
++    name = "programs",
++    srcs = select({
++    "@platforms//cpu:x86_64": [
++        ":snmpd",
++        ":snmpget",
++        ":snmpgetnext",
++        ":snmpset",
++        ":snmpwalk",
++        ":snmpbulkwalk",
++        ":snmptable",
++        ":snmptrap",
++        ":snmpbulkget",
++        ":snmptranslate",
++        ":snmpstatus",
++        ":snmpdelta",
++        ":snmptest",
++        ":snmpdf",
++        ":snmpps",
++        ":snmpping",
++        ":agentxtrap",
++        ":snmpvacm",
++        ":snmptls",
++        ":snmpusm",
++        ":encode_keychange",
++        ":snmppcap",
++        ":snmptrapd",
++        ":snmpnetstat",
++    ],
++    "@platforms//cpu:aarch64": [
++        ":snmpd",
++        ":snmpget",
++        ":snmpgetnext",
++        ":snmpset",
++        ":snmpwalk",
++        ":snmpbulkwalk",
++        ":snmptable",
++        ":snmptrap",
++        ":snmpbulkget",
++        ":snmptranslate",
++        ":snmpstatus",
++        ":snmpdelta",
++        ":snmptest",
++        ":snmpdf",
++        ":snmpps",
++        ":snmpping",
++        ":agentxtrap",
++        ":snmpvacm",
++        ":snmptls",
++        ":snmpusm",
++        ":encode_keychange",
++        ":snmppcap",
++        ":snmptrapd",
++        ":snmpnetstat",
++    ],
++}),
++)
++
++filegroup(
++    name = "all_libraries",
++    srcs = [
++        ":snmp_shared",
++        ":netsnmp_shared",
++        ":netsnmpagent_shared",
++        ":netsnmpmibs_shared",
++        ":netsnmphelpers_shared",
++        ":netsnmptrapd_shared",
++        ":snmp_objects",
++        ":netsnmp_objects",
++        ":netsnmpagent_objects",
++        ":netsnmpmibs_objects",
++        ":netsnmphelpers_objects",
++        ":netsnmptrapd_objects",
++    ],
++)
++
++
++# Perl source headers export their own include directories to XS consumers.
++cc_library(
++    name = "SNMP_perl_headers",
++    hdrs = ["perl/SNMP/perlsnmp.h", "perl/SNMP/netsnmp-feature-definitions.h"],
++    includes = ["perl/SNMP"],
++)
++cc_library(
++    name = "TrapReceiver_perl_headers",
++    hdrs = ["perl/TrapReceiver/ppport.h", "perl/TrapReceiver/perl_snmptrapd.h", "perl/TrapReceiver/netsnmp-feature-definitions.h"],
++    includes = ["perl/TrapReceiver"],
++)
++filegroup(name = "source", srcs = glob(["**"], exclude = ["BUILD.bazel"]))
++exports_files(glob(["**"]))
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/source_overrides/agent/mibgroup/mibII/interfaces.c b/modules/net-snmp/5.9.3.sonic.1/overlay/source_overrides/agent/mibgroup/mibII/interfaces.c
+new file mode 100644
+index 0000000000000000000000000000000000000000..e8770235cade59edcd1f979aeb74a7ba42fc9b68
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/source_overrides/agent/mibgroup/mibII/interfaces.c
+@@ -0,0 +1,2946 @@
++/*
++ *  Interfaces MIB group implementation - interfaces.c
++ *
++ */
++
++/* Portions of this file are subject to the following copyright(s).  See
++ * the Net-SNMP's COPYING file for more details and other copyrights
++ * that may apply:
++ */
++/*
++ * Portions of this file are copyrighted by:
++ * Copyright © 2003 Sun Microsystems, Inc. All rights reserved.
++ * Use is subject to license terms specified in the COPYING file
++ * distributed with the Net-SNMP package.
++ *
++ * Portions of this file are copyrighted by:
++ * Copyright (c) 2016 VMware, Inc. All rights reserved.
++ * Use is subject to license terms specified in the COPYING file
++ * distributed with the Net-SNMP package.
++ */
++
++#include <net-snmp/net-snmp-config.h>
++#include <net-snmp/net-snmp-features.h>
++
++netsnmp_feature_provide(interface_legacy);
++
++#if defined(NETSNMP_IFNET_NEEDS_KERNEL) && !defined(_KERNEL) && !defined(NETSNMP_IFNET_NEEDS_KERNEL_LATE)
++#define _KERNEL 1
++#define _I_DEFINED_KERNEL
++#endif
++
++#if HAVE_STRING_H
++#include <string.h>
++#else
++#include <strings.h>
++#endif
++
++#if HAVE_STDLIB_H
++#include <stdlib.h>
++#endif
++#if HAVE_UNISTD_H
++#include <unistd.h>
++#endif
++#if HAVE_SYS_PARAM_H
++#include <sys/param.h>
++#endif
++#include <sys/types.h>
++#if defined(NETSNMP_IFNET_NEEDS_KERNEL) && !defined(_KERNEL) && defined(NETSNMP_IFNET_NEEDS_KERNEL_LATE)
++#define _KERNEL 1
++#define _I_DEFINED_KERNEL
++#endif
++#if HAVE_SYS_SOCKET_H
++#include <sys/socket.h>
++#endif
++#ifndef STREAM_NEEDS_KERNEL_ISLANDS
++#if HAVE_SYS_STREAM_H
++#include <sys/stream.h>
++#endif
++#endif
++#if HAVE_SYS_SOCKETVAR_H
++#include <sys/socketvar.h>
++#endif
++
++#if TIME_WITH_SYS_TIME
++# include <sys/time.h>
++# include <time.h>
++#else
++# if HAVE_SYS_TIME_H
++#  include <sys/time.h>
++# else
++#  include <time.h>
++# endif
++#endif
++#if HAVE_SYS_SOCKIO_H
++#include <sys/sockio.h>
++#endif
++#if HAVE_FCNTL_H
++#include <fcntl.h>
++#endif
++#if HAVE_SYS_IOCTL_H
++#include <sys/ioctl.h>
++#endif
++#if HAVE_NETINET_IN_H
++#include <netinet/in.h>
++#endif
++#if HAVE_NET_IF_H
++#include <net/if.h>
++#endif
++#if HAVE_NETINET_IN_VAR_H
++#include <netinet/in_var.h>
++#endif
++#if HAVE_NET_IF_VAR_H
++#include <net/if_var.h>
++#endif
++#ifdef _I_DEFINED_KERNEL
++#undef _KERNEL
++#endif
++#ifdef STREAM_NEEDS_KERNEL_ISLANDS
++#if HAVE_SYS_STREAM_H
++#include <sys/stream.h>
++#endif
++#endif
++#if HAVE_NET_ROUTE_H
++#include <net/route.h>
++#endif
++#if HAVE_NETINET_IN_SYSTM_H
++#include <netinet/in_systm.h>
++#endif
++#if HAVE_SYS_HASHING_H
++#include <sys/hashing.h>
++#endif
++#if HAVE_NETINET_IN_VAR_H
++#include <netinet/in_var.h>
++#endif
++#if HAVE_NETINET_IP_H
++#include <netinet/ip.h>
++#endif
++#ifdef NETSNMP_ENABLE_IPV6
++#if HAVE_NETINET_IP6_H
++#include <netinet/ip6.h>
++#endif
++#endif
++#if HAVE_SYS_QUEUE_H
++#include <sys/queue.h>
++#endif
++#if HAVE_NETINET_IP_VAR_H
++#include <netinet/ip_var.h>
++#endif
++#ifdef NETSNMP_ENABLE_IPV6
++#if HAVE_NETNETSNMP_ENABLE_IPV6_IP6_VAR_H
++#include <netinet6/ip6_var.h>
++#endif
++#endif
++#if HAVE_NETINET_IN_PCB_H
++#include <netinet/in_pcb.h>
++#endif
++#if HAVE_NETINET_IF_ETHER_H
++#include <netinet/if_ether.h>
++#endif
++#if HAVE_NET_IF_TYPES_H
++#include <net/if_types.h>
++#endif
++#if HAVE_NET_IF_DL_H
++#ifndef dynix
++#include <net/if_dl.h>
++#else
++#include <sys/net/if_dl.h>
++#endif
++#endif
++#if HAVE_INET_MIB2_H
++#include <inet/mib2.h>
++#endif
++#if HAVE_IOCTLS_H
++#include <ioctls.h>
++#endif
++
++#ifdef solaris2
++# include <errno.h>
++#include "kernel_sunos5.h"
++#else
++#include "kernel.h"
++#endif
++
++#ifdef hpux
++#include <sys/mib.h>
++#include <netinet/mib_kern.h>
++#endif                          /* hpux */
++
++#if defined(cygwin) || defined(mingw32)
++#include <windows.h>
++#endif
++
++#if HAVE_SYS_SYSCTL_H
++#include <sys/sysctl.h>
++
++#if defined(freebsd3) || defined(freebsd4) || defined(freebsd5)
++#    define USE_SYSCTL_IFLIST
++#else
++# if defined(CTL_NET) && !defined(freebsd2) && !defined(netbsd1)
++#  ifdef PF_ROUTE
++#   ifdef NET_RT_IFLIST
++#    ifndef netbsd1
++#     define USE_SYSCTL_IFLIST
++#    endif
++#   endif
++#  endif
++# endif
++#endif                          /* defined(freebsd3) */
++#endif                          /* HAVE_SYS_SYSCTL_H */
++
++#if HAVE_OSRELDATE_H
++#include <osreldate.h>
++#endif
++#ifdef NETSNMP_CAN_USE_SYSCTL
++#include <sys/sysctl.h>
++#endif
++
++#include <net-snmp/net-snmp-includes.h>
++#include <net-snmp/agent/net-snmp-agent-includes.h>
++#include <net-snmp/agent/auto_nlist.h>
++#include <net-snmp/agent/sysORTable.h>
++#include <net-snmp/data_access/interface.h>
++
++#include "interfaces.h"
++#include "struct.h"
++#include "util_funcs.h"
++#include "util_funcs/header_generic.h"
++
++/* if you want caching enabled for speed retrieval purposes, set this to 5?*/
++#define MINLOADFREQ 0                     /* min reload frequency in seconds */
++#ifdef linux
++static unsigned long LastLoad = 0;        /* ET in secs at last table load */
++#endif
++
++#define starttime (*(const struct timeval*)netsnmp_get_agent_starttime())
++
++struct variable3 interfaces_variables[] = {
++    {NETSNMP_IFNUMBER, ASN_INTEGER, NETSNMP_OLDAPI_RONLY,
++     var_interfaces, 1, {1}},
++    {NETSNMP_IFINDEX, ASN_INTEGER, NETSNMP_OLDAPI_RONLY,
++     var_ifEntry, 3, {2, 1, 1}},
++    {NETSNMP_IFDESCR, ASN_OCTET_STR, NETSNMP_OLDAPI_RONLY,
++     var_ifEntry, 3, {2, 1, 2}},
++    {NETSNMP_IFTYPE, ASN_INTEGER, NETSNMP_OLDAPI_RONLY,
++     var_ifEntry, 3, {2, 1, 3}},
++    {NETSNMP_IFMTU, ASN_INTEGER, NETSNMP_OLDAPI_RONLY,
++     var_ifEntry, 3, {2, 1, 4}},
++    {NETSNMP_IFSPEED, ASN_GAUGE, NETSNMP_OLDAPI_RONLY,
++     var_ifEntry, 3, {2, 1, 5}},
++    {NETSNMP_IFPHYSADDRESS, ASN_OCTET_STR, NETSNMP_OLDAPI_RONLY,
++     var_ifEntry, 3, {2, 1, 6}},
++#ifndef NETSNMP_NO_WRITE_SUPPORT
++#if defined (WIN32) || defined (cygwin)
++    {NETSNMP_IFADMINSTATUS, ASN_INTEGER, NETSNMP_OLDAPI_RWRITE,
++     var_ifEntry, 3, {2, 1, 7}},
++#else
++    {NETSNMP_IFADMINSTATUS, ASN_INTEGER, NETSNMP_OLDAPI_RONLY,
++     var_ifEntry, 3, {2, 1, 7}},
++#endif
++#else  /* !NETSNMP_NO_WRITE_SUPPORT */
++    {NETSNMP_IFADMINSTATUS, ASN_INTEGER, NETSNMP_OLDAPI_RONLY,
++     var_ifEntry, 3, {2, 1, 7}},
++#endif /* !NETSNMP_NO_WRITE_SUPPORT */
++    {NETSNMP_IFOPERSTATUS, ASN_INTEGER, NETSNMP_OLDAPI_RONLY,
++     var_ifEntry, 3, {2, 1, 8}},
++    {NETSNMP_IFLASTCHANGE, ASN_TIMETICKS, NETSNMP_OLDAPI_RONLY,
++     var_ifEntry, 3, {2, 1, 9}},
++    {NETSNMP_IFINOCTETS, ASN_COUNTER, NETSNMP_OLDAPI_RONLY,
++     var_ifEntry, 3, {2, 1, 10}},
++    {NETSNMP_IFINUCASTPKTS, ASN_COUNTER, NETSNMP_OLDAPI_RONLY,
++     var_ifEntry, 3, {2, 1, 11}},
++    {NETSNMP_IFINNUCASTPKTS, ASN_COUNTER, NETSNMP_OLDAPI_RONLY,
++     var_ifEntry, 3, {2, 1, 12}},
++    {NETSNMP_IFINDISCARDS, ASN_COUNTER, NETSNMP_OLDAPI_RONLY,
++     var_ifEntry, 3, {2, 1, 13}},
++    {NETSNMP_IFINERRORS, ASN_COUNTER, NETSNMP_OLDAPI_RONLY,
++     var_ifEntry, 3, {2, 1, 14}},
++    {NETSNMP_IFINUNKNOWNPROTOS, ASN_COUNTER, NETSNMP_OLDAPI_RONLY,
++     var_ifEntry, 3, {2, 1, 15}},
++    {NETSNMP_IFOUTOCTETS, ASN_COUNTER, NETSNMP_OLDAPI_RONLY,
++     var_ifEntry, 3, {2, 1, 16}},
++    {NETSNMP_IFOUTUCASTPKTS, ASN_COUNTER, NETSNMP_OLDAPI_RONLY,
++     var_ifEntry, 3, {2, 1, 17}},
++    {NETSNMP_IFOUTNUCASTPKTS, ASN_COUNTER, NETSNMP_OLDAPI_RONLY,
++     var_ifEntry, 3, {2, 1, 18}},
++    {NETSNMP_IFOUTDISCARDS, ASN_COUNTER, NETSNMP_OLDAPI_RONLY,
++     var_ifEntry, 3, {2, 1, 19}},
++    {NETSNMP_IFOUTERRORS, ASN_COUNTER, NETSNMP_OLDAPI_RONLY,
++     var_ifEntry, 3, {2, 1, 20}},
++    {NETSNMP_IFOUTQLEN, ASN_GAUGE, NETSNMP_OLDAPI_RONLY,
++     var_ifEntry, 3, {2, 1, 21}},
++    {NETSNMP_IFSPECIFIC, ASN_OBJECT_ID, NETSNMP_OLDAPI_RONLY,
++     var_ifEntry, 3, {2, 1, 22}}
++};
++
++/*
++ * Define the OID pointer to the top of the mib tree that we're
++ * registering underneath, and the OID of the MIB module 
++ */
++oid             interfaces_variables_oid[] = { SNMP_OID_MIB2, 2 };
++oid             interfaces_module_oid[] = { SNMP_OID_MIB2, 31 };
++
++void
++init_interfaces(void)
++{
++    /*
++     * register ourselves with the agent to handle our mib tree 
++     */
++    REGISTER_MIB("mibII/interfaces", interfaces_variables, variable3,
++                 interfaces_variables_oid);
++    REGISTER_SYSOR_ENTRY(interfaces_module_oid,
++                         "The MIB module to describe generic objects for network interface sub-layers");
++
++#ifndef USE_SYSCTL_IFLIST
++#if HAVE_NET_IF_MIB_H
++    init_interfaces_setup();
++#endif
++#endif
++#ifdef solaris2
++    init_kernel_sunos5();
++#endif
++}
++
++#ifdef linux
++/*
++ * if_type_from_name
++ * Return interface type using the interface name as a clue.
++ * Returns 1 to imply "other" type if name not recognized. 
++ */
++static int
++if_type_from_name(const char *pcch)
++{
++    typedef struct _match_if {
++        int             mi_type;
++        const char     *mi_name;
++    }              *pmatch_if, match_if;
++
++    static match_if lmatch_if[] = {
++        {24, "lo"},
++        {6, "eth"},
++        {9, "tr"},
++        {23, "ppp"},
++        {28, "sl"},
++        {0, 0}                  /* end of list */
++    };
++
++    int             len;
++    register pmatch_if pm;
++
++    for (pm = lmatch_if; pm->mi_name; pm++) {
++        len = strlen(pm->mi_name);
++        if (0 == strncmp(pcch, pm->mi_name, len)) {
++            return (pm->mi_type);
++        }
++    }
++    return (1);                 /* in case search fails */
++}
++#endif
++
++
++#ifdef linux
++static struct ifnet *ifnetaddr_list;
++#endif
++
++
++/*
++ * header_ifEntry(...
++ * Arguments:
++ * vp     IN      - pointer to variable entry that points here
++ * name    IN/OUT  - IN/name requested, OUT/name found
++ * length  IN/OUT  - length of IN/OUT oid's 
++ * exact   IN      - TRUE if an exact match was requested
++ * var_len OUT     - length of variable or 0 if function returned
++ * write_method
++ * 
++ */
++#if !defined (WIN32) && !defined (cygwin)
++static int
++header_ifEntry(struct variable *vp,
++               oid * name,
++               size_t * length,
++               int exact, size_t * var_len, WriteMethod ** write_method)
++{
++#define IFENTRY_NAME_LENGTH	10
++    oid             newname[MAX_OID_LEN];
++    register int    interface;
++    int             result, count;
++
++    DEBUGMSGTL(("mibII/interfaces", "var_ifEntry: "));
++    DEBUGMSGOID(("mibII/interfaces", name, *length));
++    DEBUGMSG(("mibII/interfaces", " %d\n", exact));
++
++    memcpy((char *) newname, (char *) vp->name,
++           (int) vp->namelen * sizeof(oid));
++    /*
++     * find "next" interface 
++     */
++    count = Interface_Scan_Get_Count();
++    for (interface = 1; interface <= count; interface++) {
++        newname[IFENTRY_NAME_LENGTH] = (oid) interface;
++        result =
++            snmp_oid_compare(name, *length, newname,
++                             (int) vp->namelen + 1);
++        if ((exact && (result == 0)) || (!exact && (result < 0)))
++            break;
++    }
++    if (interface > count) {
++        DEBUGMSGTL(("mibII/interfaces", "... index out of range\n"));
++        return MATCH_FAILED;
++    }
++
++
++    memcpy((char *) name, (char *) newname,
++           ((int) vp->namelen + 1) * sizeof(oid));
++    *length = vp->namelen + 1;
++    *write_method = 0;
++    *var_len = sizeof(long);    /* default to 'long' results */
++
++    DEBUGMSGTL(("mibII/interfaces", "... get I/F stats "));
++    DEBUGMSGOID(("mibII/interfaces", name, *length));
++    DEBUGMSG(("mibII/interfaces", "\n"));
++
++    return interface;
++}
++
++
++
++u_char         *
++var_interfaces(struct variable * vp,
++               oid * name,
++               size_t * length,
++               int exact, size_t * var_len, WriteMethod ** write_method)
++{
++    if (header_generic(vp, name, length, exact, var_len, write_method) ==
++        MATCH_FAILED)
++        return NULL;
++
++    switch (vp->magic) {
++    case NETSNMP_IFNUMBER:
++        long_return = Interface_Scan_Get_Count();
++        return (u_char *) & long_return;
++    default:
++        DEBUGMSGTL(("snmpd", "unknown sub-id %d in var_interfaces\n",
++                    vp->magic));
++    }
++    return NULL;
++}
++
++#ifdef USE_SYSCTL_IFLIST
++
++static u_char  *if_list = 0;
++static const u_char *if_list_end;
++static size_t   if_list_size = 0;
++
++struct small_ifaddr {
++    struct in_addr  sifa_addr;
++    struct in_addr  sifa_netmask;
++    struct in_addr  sifa_broadcast;
++};
++
++static int      Interface_Scan_By_Index(int, struct if_msghdr *, char *,
++                                        struct small_ifaddr *);
++static int      Interface_Get_Ether_By_Index(int, u_char *);
++
++static int
++Interface_Scan_By_Index(int iindex,
++                        struct if_msghdr *if_msg,
++                        char *if_name, struct small_ifaddr *sifa)
++{
++    u_char         *cp;
++    struct if_msghdr *ifp;
++    int             have_ifinfo = 0, have_addr = 0;
++
++    if (NULL != sifa)
++        memset(sifa, 0, sizeof(*sifa));
++    for (cp = if_list; cp < if_list_end; cp += ifp->ifm_msglen) {
++        ifp = (struct if_msghdr *) cp;
++        DEBUGMSGTL(("mibII/interfaces", "ifm_type = %d, ifm_index = %d\n",
++                    ifp->ifm_type, ifp->ifm_index));
++
++        switch (ifp->ifm_type) {
++        case RTM_IFINFO:
++            {
++                const struct sockaddr *a;
++
++                if (ifp->ifm_index == iindex) {
++                    a = get_address(ifp + 1, ifp->ifm_addrs, RTA_IFP);
++                    if (a == NULL)
++                        return 0;
++                    sprintf(if_name, "%.*s", ((const u_char *) a)[5],
++                            ((const struct sockaddr_in *) a)->sin_zero);
++                    *if_msg = *ifp;
++                    ++have_ifinfo;
++                }
++            }
++            break;
++        case RTM_NEWADDR:
++            {
++                struct ifa_msghdr *ifap = (struct ifa_msghdr *) cp;
++
++                if ((NULL != sifa) && (ifap->ifam_index == iindex)) {
++                    const struct in_addr *ia;
++
++                    /*
++                     * I don't know why the normal get_address() doesn't
++                     * work on IRIX 6.2.  Maybe this has to do with the
++                     * existence of struct sockaddr_new.  Hopefully, on
++                     * other systems we can simply use get_in_address
++                     * three times, with (ifap+1) as the starting
++                     * address. 
++                     */
++
++                    sifa->sifa_netmask =
++                        *((struct in_addr *) ((char *) (ifap + 1) + 4));
++                    ia = get_in_address((char *) (ifap + 1) + 8,
++                                        ifap->ifam_addrs &=
++                                        ~RTA_NETMASK, RTA_IFA);
++                    if (ia == NULL)
++                        return 0;
++
++                    sifa->sifa_addr = *ia;
++                    ia = get_in_address((char *) (ifap + 1) + 8,
++                                        ifap->ifam_addrs &= ~RTA_NETMASK,
++                                        RTA_BRD);
++                    if (ia == NULL)
++                        return 0;
++
++                    sifa->sifa_broadcast = *ia;
++                    ++have_addr;
++                }
++            }
++            break;
++        default:
++            DEBUGMSGTL(("mibII/interfaces",
++                        "routing socket: unknown message type %d\n",
++                        ifp->ifm_type));
++        }
++    }
++    if (have_ifinfo && (NULL == sifa) || (have_addr)) {
++        return 0;
++    } else if (have_ifinfo && !(if_msg->ifm_flags & IFF_UP))
++        return 0;
++    else {
++        return -1;
++    }
++}
++
++int
++Interface_Scan_Get_Count(void)
++{
++    u_char         *cp;
++    struct if_msghdr *ifp;
++    long            n = 0;
++
++    Interface_Scan_Init();
++
++    if (if_list_size) {
++        for (cp = if_list, n = 0; cp < if_list_end; cp += ifp->ifm_msglen) {
++            ifp = (struct if_msghdr *) cp;
++    
++            if (ifp->ifm_type == RTM_IFINFO) {
++                ++n;
++            }
++        }
++    }
++    return n;
++}
++
++void
++Interface_Scan_Init(void)
++{
++    int             name[] = { CTL_NET, PF_ROUTE, 0, 0, NET_RT_IFLIST, 0 };
++    size_t          size;
++
++    if (sysctl(name, sizeof(name) / sizeof(int), 0, &size, 0, 0) == -1) {
++        snmp_log(LOG_ERR, "sysctl size fail\n");
++    } else {
++        if (if_list == 0 || if_list_size < size) {
++            if (if_list != 0) {
++                free(if_list);
++            }
++            if_list      = NULL;
++            if_list_size = 0;
++            if_list_end  = 0;
++            if ((if_list = malloc(size)) == NULL) {
++                snmp_log(LOG_ERR,
++                         "out of memory allocating route table (size = %d)\n", size);
++                return;
++            }
++            if_list_size = size;
++        } else {
++            size = if_list_size;
++        }
++        if (sysctl(name, sizeof(name) / sizeof(int),
++                   if_list, &size, 0, 0) == -1) {
++            snmp_log(LOG_ERR, "sysctl get fail\n");
++        }
++        if_list_end = if_list + size;
++    }
++}
++
++u_char         *
++var_ifEntry(struct variable *vp,
++            oid * name,
++            size_t * length,
++            int exact, size_t * var_len, WriteMethod ** write_method)
++{
++    int             interface;
++    struct if_msghdr if_msg;
++    static char     if_name[100];
++    conf_if_list   *if_ptr;
++    char           *cp;
++
++    interface =
++        header_ifEntry(vp, name, length, exact, var_len, write_method);
++    if (interface == MATCH_FAILED)
++        return NULL;
++
++    if (Interface_Scan_By_Index(interface, &if_msg, if_name, NULL) != 0)
++        return NULL;
++    if_ptr = netsnmp_access_interface_entry_overrides_get(if_name);
++
++    switch (vp->magic) {
++    case NETSNMP_IFINDEX:
++        long_return = interface;
++        return (u_char *) & long_return;
++    case NETSNMP_IFDESCR:
++        cp = if_name;
++        *var_len = strlen(if_name);
++        return (u_char *) cp;
++    case NETSNMP_IFTYPE:
++        if (if_ptr)
++            long_return = if_ptr->type;
++        else
++        long_return = (long) if_msg.ifm_data.ifi_type;
++        return (u_char *) & long_return;
++    case NETSNMP_IFMTU:
++        long_return = (long) if_msg.ifm_data.ifi_mtu;
++        return (u_char *) & long_return;
++    case NETSNMP_IFSPEED:
++        if (if_ptr)
++            long_return = if_ptr->speed;
++        else {
++#if HAVE_STRUCT_IFNET_IF_BAUDRATE_IFS_VALUE
++        long_return = (u_long) if_msg.ifm_data.ifi_baudrate.ifs_value <<
++            if_msg.ifm_data.ifi_baudrate.ifs_log2;
++#else
++        long_return = (u_long) if_msg.ifm_data.ifi_baudrate;
++#endif
++        }
++        return (u_char *) & long_return;
++    case NETSNMP_IFPHYSADDRESS:
++        /*
++         * XXX 
++         */
++        return NULL;
++    case NETSNMP_IFADMINSTATUS:
++        long_return = if_msg.ifm_flags & IFF_UP ? 1 : 2;
++        return (u_char *) & long_return;
++    case NETSNMP_IFOPERSTATUS:
++        long_return = if_msg.ifm_flags & IFF_RUNNING ? 1 : 2;
++        return (u_char *) & long_return;
++        /*
++         * ifLastChange 
++         */
++    case NETSNMP_IFINOCTETS:
++        long_return = (u_long) if_msg.ifm_data.ifi_ibytes;
++        return (u_char *) & long_return;
++    case NETSNMP_IFINUCASTPKTS:
++        long_return =
++            (u_long) if_msg.ifm_data.ifi_ipackets -
++            if_msg.ifm_data.ifi_imcasts;
++        return (u_char *) & long_return;
++    case NETSNMP_IFINNUCASTPKTS:
++        long_return = (u_long) if_msg.ifm_data.ifi_imcasts;
++        return (u_char *) & long_return;
++    case NETSNMP_IFINDISCARDS:
++        long_return = (u_long) if_msg.ifm_data.ifi_iqdrops;
++        return (u_char *) & long_return;
++    case NETSNMP_IFINERRORS:
++        long_return = (u_long) if_msg.ifm_data.ifi_ierrors;
++        return (u_char *) & long_return;
++    case NETSNMP_IFINUNKNOWNPROTOS:
++        long_return = (u_long) if_msg.ifm_data.ifi_noproto;
++        return (u_char *) & long_return;
++    case NETSNMP_IFOUTOCTETS:
++        long_return = (u_long) if_msg.ifm_data.ifi_obytes;
++        return (u_char *) & long_return;
++    case NETSNMP_IFOUTUCASTPKTS:
++        long_return =
++            (u_long) if_msg.ifm_data.ifi_opackets -
++            if_msg.ifm_data.ifi_omcasts;
++        return (u_char *) & long_return;
++    case NETSNMP_IFOUTNUCASTPKTS:
++        long_return = (u_long) if_msg.ifm_data.ifi_omcasts;
++        return (u_char *) & long_return;
++    case NETSNMP_IFOUTDISCARDS:
++#ifdef if_odrops
++        long_return = (u_long) if_msg.ifm_data.ifi_odrops;
++#else
++#if NETSNMP_NO_DUMMY_VALUES
++        return NULL;
++#endif
++        long_return = 0;
++#endif
++        return (u_char *) & long_return;
++    case NETSNMP_IFOUTERRORS:
++        long_return = (u_long) if_msg.ifm_data.ifi_oerrors;
++        return (u_char *) & long_return;
++    case NETSNMP_IFLASTCHANGE:
++#ifdef irix6
++        long_return = 0;
++#else
++        if (if_msg.ifm_data.ifi_lastchange.tv_sec == 0 &&
++#if STRUCT_IFNET_HAS_IF_LASTCHANGE_TV_NSEC
++            if_msg.ifm_data.ifi_lastchange.tv_nsec == 0
++#else
++            if_msg.ifm_data.ifi_lastchange.tv_usec == 0
++#endif
++           )
++            long_return = 0;
++        else if (if_msg.ifm_data.ifi_lastchange.tv_sec < starttime.tv_sec)
++            long_return = 0;
++        else {
++            long_return = (u_long)
++                ((if_msg.ifm_data.ifi_lastchange.tv_sec -
++                  starttime.tv_sec) * 100 +
++                 (
++#if STRUCT_IFNET_HAS_IF_LASTCHANGE_TV_NSEC
++                  if_msg.ifm_data.ifi_lastchange.tv_nsec / 1000
++#else
++                  if_msg.ifm_data.ifi_lastchange.tv_usec
++#endif
++                  - starttime.tv_usec) / 10000);
++        }
++#endif
++        return (u_char *) & long_return;
++    default:
++        return 0;
++    }
++}
++
++int
++Interface_Scan_Next(short *Index,
++                    char *Name,
++                    struct ifnet *Retifnet, struct in_ifaddr *Retin_ifaddr)
++{
++    return 0;
++}
++
++int
++Interface_Scan_NextInt(int *Index,
++                    char *Name,
++                    struct ifnet *Retifnet, struct in_ifaddr *Retin_ifaddr)
++{
++    return 0;
++}
++
++#else                           /* not USE_SYSCTL_IFLIST */
++
++        /*********************
++	 *
++	 *  Kernel & interface information,
++	 *   and internal forward declarations
++	 *
++	 *********************/
++
++#ifndef HAVE_NET_IF_MIB_H
++
++#ifndef solaris2
++#ifndef hpux11
++static int      Interface_Scan_By_Index(int, char *, struct ifnet *,
++                                        struct in_ifaddr *);
++static int      Interface_Get_Ether_By_Index(int, u_char *);
++#else
++static int      Interface_Scan_By_Index(int, char *, nmapi_phystat *);
++#endif
++#endif
++
++
++
++        /*********************
++	 *
++	 *  System specific implementation functions
++	 *
++	 *********************/
++
++
++#ifndef solaris2
++#ifndef hpux
++
++u_char         *
++var_ifEntry(struct variable *vp,
++            oid * name,
++            size_t * length,
++            int exact, size_t * var_len, WriteMethod ** write_method)
++{
++    static struct ifnet ifnet;
++    int             interface;
++    static struct in_ifaddr in_ifaddr;
++    static char     Name[16];
++    char           *cp;
++    conf_if_list   *if_ptr;
++
++    interface =
++        header_ifEntry(vp, name, length, exact, var_len, write_method);
++    if (interface == MATCH_FAILED)
++        return NULL;
++
++    Interface_Scan_By_Index(interface, Name, &ifnet, &in_ifaddr);
++    if_ptr = netsnmp_access_interface_entry_overrides_get(Name);
++
++    switch (vp->magic) {
++    case NETSNMP_IFINDEX:
++        long_return = interface;
++        return (u_char *) & long_return;
++    case NETSNMP_IFDESCR:
++        cp = Name;
++        *var_len = strlen(cp);
++        return (u_char *) cp;
++    case NETSNMP_IFTYPE:
++        if (if_ptr)
++            long_return = if_ptr->type;
++        else {
++#if HAVE_STRUCT_IFNET_IF_TYPE
++            long_return = ifnet.if_type;
++#else
++            long_return = 1;    /* OTHER */
++#endif
++        }
++        return (u_char *) & long_return;
++    case NETSNMP_IFMTU:{
++            long_return = (long) ifnet.if_mtu;
++            return (u_char *) & long_return;
++        }
++    case NETSNMP_IFSPEED:
++        if (if_ptr)
++            long_return = if_ptr->speed;
++        else {
++#if HAVE_STRUCT_IFNET_IF_BAUDRATE
++            long_return = ifnet.if_baudrate;
++#elif HAVE_STRUCT_IFNET_IF_SPEED
++            long_return = ifnet.if_speed;
++#elif HAVE_STRUCT_IFNET_IF_TYPE && defined(IFT_ETHER)
++            if (ifnet.if_type == IFT_ETHER)
++                long_return = 10000000;
++            if (ifnet.if_type == IFT_P10)
++                long_return = 10000000;
++            if (ifnet.if_type == IFT_P80)
++                long_return = 80000000;
++            if (ifnet.if_type == IFT_ISDNBASIC)
++                long_return = 64000;    /* EDSS1 only */
++            if (ifnet.if_type == IFT_ISDNPRIMARY)
++                long_return = 64000 * 30;
++#else
++#if NETSNMP_NO_DUMMY_VALUES
++            return NULL;
++#endif
++            long_return = (u_long) 10000000;
++#endif
++        }
++        return (u_char *) & long_return;
++    case NETSNMP_IFPHYSADDRESS:
++        Interface_Get_Ether_By_Index(interface, return_buf);
++#if defined(aix4) || defined(aix5) || defined(aix6) || defined(aix7)
++	*var_len = 0;
++#else
++        if ((return_buf[0] == 0) && (return_buf[1] == 0) &&
++            (return_buf[2] == 0) && (return_buf[3] == 0) &&
++            (return_buf[4] == 0) && (return_buf[5] == 0))
++            *var_len = 0;
++        else
++            *var_len = 6;
++#endif
++        return (u_char *) return_buf;
++    case NETSNMP_IFADMINSTATUS:
++        long_return = ifnet.if_flags & IFF_UP ? 1 : 2;
++        return (u_char *) & long_return;
++    case NETSNMP_IFOPERSTATUS:
++        long_return = ifnet.if_flags & IFF_RUNNING ? 1 : 2;
++        return (u_char *) & long_return;
++    case NETSNMP_IFLASTCHANGE:
++#if defined(HAVE_STRUCT_IFNET_IF_LASTCHANGE_TV_SEC) && !(defined(freebsd2) && __FreeBSD_version < 199607)
++        /*
++         * XXX - SNMP's ifLastchange is time when op. status changed
++         * * FreeBSD's if_lastchange is time when packet was input or output
++         * * (at least in 2.1.0-RELEASE. Changed in later versions of the kernel?)
++         */
++        /*
++         * FreeBSD's if_lastchange before the 2.1.5 release is the time when
++         * * a packet was last input or output.  In the 2.1.5 and later releases,
++         * * this is fixed, thus the 199607 comparison.
++         */
++        if (ifnet.if_lastchange.tv_sec == 0 &&
++            ifnet.if_lastchange.tv_usec == 0)
++            long_return = 0;
++        else if (ifnet.if_lastchange.tv_sec < starttime.tv_sec)
++            long_return = 0;
++        else {
++            long_return = (u_long)
++                ((ifnet.if_lastchange.tv_sec - starttime.tv_sec) * 100
++                 + (ifnet.if_lastchange.tv_usec -
++                    starttime.tv_usec) / 10000);
++        }
++#else
++#if NETSNMP_NO_DUMMY_VALUES
++        return NULL;
++#endif
++        long_return = 0;        /* XXX */
++#endif
++        return (u_char *) & long_return;
++    case NETSNMP_IFINOCTETS:
++#ifdef HAVE_STRUCT_IFNET_IF_IBYTES
++#if defined(aix4) || defined(aix5) || defined(aix6) || defined(aix7)
++        long_return = (u_long) ifnet.if_ibytes & 0xffffffff;
++#else
++        long_return = (u_long) ifnet.if_ibytes;
++#endif
++#else
++#if NETSNMP_NO_DUMMY_VALUES
++        return NULL;
++#endif
++        long_return = (u_long) ifnet.if_ipackets * 308; /* XXX */
++#endif
++        return (u_char *) & long_return;
++    case NETSNMP_IFINUCASTPKTS:
++        {
++#if defined(aix4) || defined(aix5) || defined(aix6) || defined(aix7)
++            long_return = (u_long) ifnet.if_ipackets & 0xffffffff;
++#else
++            long_return = (u_long) ifnet.if_ipackets;
++#endif
++#if HAVE_STRUCT_IFNET_IF_IMCASTS
++#if defined(aix4) || defined(aix5) || defined(aix6) || defined(aix7)
++            long_return -= (u_long) ifnet.if_imcasts & 0xffffffff;
++#else
++            long_return -= (u_long) ifnet.if_imcasts;
++#endif
++#endif
++        }
++        return (u_char *) & long_return;
++    case NETSNMP_IFINNUCASTPKTS:
++#if HAVE_STRUCT_IFNET_IF_IMCASTS
++#if defined(aix4) || defined(aix5) || defined(aix6) || defined(aix7)
++        long_return = (u_long) ifnet.if_imcasts & 0xffffffff;
++#else
++        long_return = (u_long) ifnet.if_imcasts;
++#endif
++#else
++#if NETSNMP_NO_DUMMY_VALUES
++        return NULL;
++#endif
++        long_return = (u_long) 0;       /* XXX */
++#endif
++        return (u_char *) & long_return;
++    case NETSNMP_IFINDISCARDS:
++#if HAVE_STRUCT_IFNET_IF_IQDROPS
++#if defined(aix4) || defined(aix5) || defined(aix6) || defined(aix7)
++        long_return = (u_long) ifnet.if_iqdrops & 0xffffffff;
++#else
++        long_return = (u_long) ifnet.if_iqdrops;
++#endif
++#else
++#if NETSNMP_NO_DUMMY_VALUES
++        return NULL;
++#endif
++        long_return = (u_long) 0;       /* XXX */
++#endif
++        return (u_char *) & long_return;
++    case NETSNMP_IFINERRORS:
++#if defined(aix4) || defined(aix5) || defined(aix6) || defined(aix7)
++        long_return = (u_long) ifnet.if_ierrors & 0xffffffff;
++#else
++        long_return = (u_long) ifnet.if_ierrors;
++#endif
++        return (u_char *) & long_return;
++    case NETSNMP_IFINUNKNOWNPROTOS:
++#if HAVE_STRUCT_IFNET_IF_NOPROTO
++#if defined(aix4) || defined(aix5) || defined(aix6) || defined(aix7)
++        long_return = (u_long) ifnet.if_noproto & 0xffffffff;
++#else
++        long_return = (u_long) ifnet.if_noproto;
++#endif
++#else
++#if NETSNMP_NO_DUMMY_VALUES
++        return NULL;
++#endif
++        long_return = (u_long) 0;       /* XXX */
++#endif
++        return (u_char *) & long_return;
++    case NETSNMP_IFOUTOCTETS:
++#ifdef HAVE_STRUCT_IFNET_IF_OBYTES
++#if defined(aix4) || defined(aix5) || defined(aix6) || defined(aix7)
++        long_return = (u_long) ifnet.if_obytes & 0xffffffff;
++#else
++        long_return = (u_long) ifnet.if_obytes;
++#endif
++#else
++#if NETSNMP_NO_DUMMY_VALUES
++        return NULL;
++#endif
++        long_return = (u_long) ifnet.if_opackets * 308; /* XXX */
++#endif
++        return (u_char *) & long_return;
++    case NETSNMP_IFOUTUCASTPKTS:
++        {
++#if defined(aix4) || defined(aix5) || defined(aix6) || defined(aix7)
++            long_return = (u_long) ifnet.if_opackets & 0xffffffff;
++#else
++            long_return = (u_long) ifnet.if_opackets;
++#endif
++#if HAVE_STRUCT_IFNET_IF_OMCASTS
++#if defined(aix4) || defined(aix5) || defined(aix6) || defined(aix7)
++            long_return -= (u_long) ifnet.if_omcasts & 0xffffffff;
++#else
++            long_return -= (u_long) ifnet.if_omcasts;
++#endif
++#endif
++        }
++        return (u_char *) & long_return;
++    case NETSNMP_IFOUTNUCASTPKTS:
++#if HAVE_STRUCT_IFNET_IF_OMCASTS
++#if defined(aix4) || defined(aix5) || defined(aix6) || defined(aix7)
++        long_return = (u_long) ifnet.if_omcasts & 0xffffffff;
++#else
++        long_return = (u_long) ifnet.if_omcasts;
++#endif
++#else
++#if NETSNMP_NO_DUMMY_VALUES
++        return NULL;
++#endif
++        long_return = (u_long) 0;       /* XXX */
++#endif
++        return (u_char *) & long_return;
++    case NETSNMP_IFOUTDISCARDS:
++#if defined(aix4) || defined(aix5) || defined(aix6) || defined(aix7)
++        long_return = ifnet.if_snd.ifq_drops & 0xffffffff;
++#else
++        long_return = ifnet.if_snd.ifq_drops;
++#endif
++        return (u_char *) & long_return;
++    case NETSNMP_IFOUTERRORS:
++#if defined(aix4) || defined(aix5) || defined(aix6) || defined(aix7)
++        long_return = ifnet.if_oerrors & 0xffffffff;
++#else
++        long_return = ifnet.if_oerrors;
++#endif
++        return (u_char *) & long_return;
++    case NETSNMP_IFOUTQLEN:
++#if defined(aix4) || defined(aix5) || defined(aix6) || defined(aix7)
++        long_return = ifnet.if_snd.ifq_len & 0xffffffff;
++#else
++        long_return = ifnet.if_snd.ifq_len;
++#endif
++        return (u_char *) & long_return;
++    case NETSNMP_IFSPECIFIC:
++        *var_len = nullOidLen;
++        return (u_char *) nullOid;
++    default:
++        DEBUGMSGTL(("snmpd", "unknown sub-id %d in var_ifEntry\n",
++                    vp->magic));
++    }
++    return NULL;
++}
++
++#else                           /* hpux */
++
++u_char         *
++var_ifEntry(struct variable *vp,
++            oid * name,
++            size_t * length,
++            int exact, size_t * var_len, WriteMethod ** write_method)
++{
++#if defined(hpux11)
++    static nmapi_phystat ifnet;
++#else
++    static struct ifnet ifnet;
++#endif
++    register int    interface;
++#if !defined(hpux11)
++    static struct in_ifaddr in_ifaddrVar;
++#endif
++#if defined(hpux11)
++    static char     Name[MAX_PHYSADDR_LEN];
++#else
++    static char     Name[16];
++#endif
++    register char  *cp;
++#if HAVE_STRUCT_IFNET_IF_LASTCHANGE_TV_SEC
++    struct timeval  now;
++#endif
++#if !defined(hpux11)
++    struct nmparms  hp_nmparms;
++    static mib_ifEntry hp_ifEntry;
++    int             hp_fd;
++    int             hp_len = sizeof(hp_ifEntry);
++#endif
++    conf_if_list   *if_ptr;
++
++    interface =
++        header_ifEntry(vp, name, length, exact, var_len, write_method);
++    if (interface == MATCH_FAILED)
++        return NULL;
++
++#if defined(hpux11)
++    Interface_Scan_By_Index(interface, Name, &ifnet);
++#else
++    Interface_Scan_By_Index(interface, Name, &ifnet, &in_ifaddrVar);
++#endif
++
++#if !defined(hpux11)
++    /*
++     * Additional information about the interfaces is available under
++     * HP-UX through the network management interface '/dev/netman'
++     */
++    hp_ifEntry.ifIndex = interface;
++    hp_nmparms.objid = ID_ifEntry;
++    hp_nmparms.buffer = (char *) &hp_ifEntry;
++    hp_nmparms.len = &hp_len;
++    if ((hp_fd = open("/dev/netman", O_RDONLY)) != -1) {
++        if (ioctl(hp_fd, NMIOGET, &hp_nmparms) != -1) {
++            close(hp_fd);
++        } else {
++            close(hp_fd);
++            hp_fd = -1;         /* failed */
++        }
++    }
++#endif
++    if_ptr = netsnmp_access_interface_entry_overrides_get(Name);
++
++    switch (vp->magic) {
++    case NETSNMP_IFINDEX:
++        long_return = interface;
++        return (u_char *) & long_return;
++    case NETSNMP_IFDESCR:
++#if defined(hpux11)
++        cp = ifnet.if_entry.ifDescr;
++#else
++        if (hp_fd != -1)
++            cp = hp_ifEntry.ifDescr;
++        else
++            cp = Name;
++#endif
++        *var_len = strlen(cp);
++        return (u_char *) cp;
++    case NETSNMP_IFTYPE:
++        if (if_ptr)
++            long_return = if_ptr->type;
++        else {
++#if defined(hpux11)
++        long_return = ifnet.if_entry.ifType;
++#else
++        if (hp_fd != -1)
++            long_return = hp_ifEntry.ifType;
++        else
++            long_return = 1;    /* OTHER */
++#endif
++        }
++        return (u_char *) & long_return;
++    case NETSNMP_IFMTU:{
++#if defined(hpux11)
++            long_return = (long) ifnet.if_entry.ifMtu;
++#else
++            long_return = (long) ifnet.if_mtu;
++#endif
++            return (u_char *) & long_return;
++        }
++    case NETSNMP_IFSPEED:
++        if (if_ptr)
++            long_return = if_ptr->speed;
++        else {
++#if defined(hpux11)
++        long_return = ifnet.if_entry.ifSpeed;
++#else
++        if (hp_fd != -1)
++            long_return = hp_ifEntry.ifSpeed;
++        else
++            long_return = (u_long) 1;   /* OTHER */
++#endif
++        }
++        return (u_char *) & long_return;
++    case NETSNMP_IFPHYSADDRESS:
++#if defined(hpux11)
++        *var_len = ifnet.if_entry.ifPhysAddress.o_length;
++        return (u_char *) ifnet.if_entry.ifPhysAddress.o_bytes;
++#else
++        Interface_Get_Ether_By_Index(interface, return_buf);
++        if ((return_buf[0] == 0) && (return_buf[1] == 0) &&
++            (return_buf[2] == 0) && (return_buf[3] == 0) &&
++            (return_buf[4] == 0) && (return_buf[5] == 0))
++            *var_len = 0;
++        else
++            *var_len = 6;
++        return (u_char *) return_buf;
++#endif
++    case NETSNMP_IFADMINSTATUS:
++#if defined(hpux11)
++        long_return = ifnet.if_entry.ifAdmin;
++#else
++        long_return = ifnet.if_flags & IFF_UP ? 1 : 2;
++#endif
++        return (u_char *) & long_return;
++    case NETSNMP_IFOPERSTATUS:
++#if defined(hpux11)
++        long_return = ifnet.if_entry.ifOper;
++#else
++        long_return = ifnet.if_flags & IFF_RUNNING ? 1 : 2;
++#endif
++        return (u_char *) & long_return;
++    case NETSNMP_IFLASTCHANGE:
++#if defined(hpux11)
++        long_return = ifnet.if_entry.ifLastChange;
++#else
++        if (hp_fd != -1)
++            long_return = hp_ifEntry.ifLastChange;
++        else
++            long_return = 0;    /* XXX */
++#endif
++        return (u_char *) & long_return;
++    case NETSNMP_IFINOCTETS:
++#if defined(hpux11)
++        long_return = ifnet.if_entry.ifInOctets;
++#else
++        if (hp_fd != -1)
++            long_return = hp_ifEntry.ifInOctets;
++        else
++            long_return = (u_long) ifnet.if_ipackets * 308;     /* XXX */
++#endif
++        return (u_char *) & long_return;
++    case NETSNMP_IFINUCASTPKTS:
++#if defined(hpux11)
++        long_return = ifnet.if_entry.ifInUcastPkts;
++#else
++        if (hp_fd != -1)
++            long_return = hp_ifEntry.ifInUcastPkts;
++        else
++            long_return = (u_long) ifnet.if_ipackets;
++#endif
++        return (u_char *) & long_return;
++    case NETSNMP_IFINNUCASTPKTS:
++#if defined(hpux11)
++        long_return = ifnet.if_entry.ifInNUcastPkts;
++#else
++        if (hp_fd != -1)
++            long_return = hp_ifEntry.ifInNUcastPkts;
++        else
++            long_return = (u_long) 0;   /* XXX */
++#endif
++        return (u_char *) & long_return;
++    case NETSNMP_IFINDISCARDS:
++#if defined(hpux11)
++        long_return = ifnet.if_entry.ifInDiscards;
++#else
++        if (hp_fd != -1)
++            long_return = hp_ifEntry.ifInDiscards;
++        else
++            long_return = (u_long) 0;   /* XXX */
++#endif
++        return (u_char *) & long_return;
++    case NETSNMP_IFINERRORS:
++#if defined(hpux11)
++        long_return = ifnet.if_entry.ifInErrors;
++#else
++        long_return = ifnet.if_ierrors;
++#endif
++        return (u_char *) & long_return;
++    case NETSNMP_IFINUNKNOWNPROTOS:
++#if defined(hpux11)
++        long_return = ifnet.if_entry.ifInUnknownProtos;
++#else
++        if (hp_fd != -1)
++            long_return = hp_ifEntry.ifInUnknownProtos;
++        else
++            long_return = (u_long) 0;   /* XXX */
++#endif
++        return (u_char *) & long_return;
++    case NETSNMP_IFOUTOCTETS:
++#if defined(hpux11)
++        long_return = ifnet.if_entry.ifOutOctets;
++#else
++        if (hp_fd != -1)
++            long_return = hp_ifEntry.ifOutOctets;
++        else
++            long_return = (u_long) ifnet.if_opackets * 308;     /* XXX */
++#endif
++        return (u_char *) & long_return;
++    case NETSNMP_IFOUTUCASTPKTS:
++#if defined(hpux11)
++        long_return = ifnet.if_entry.ifOutUcastPkts;
++#else
++        if (hp_fd != -1)
++            long_return = hp_ifEntry.ifOutUcastPkts;
++        else
++            long_return = (u_long) ifnet.if_opackets;
++#endif
++        return (u_char *) & long_return;
++    case NETSNMP_IFOUTNUCASTPKTS:
++#if defined(hpux11)
++        long_return = ifnet.if_entry.ifOutNUcastPkts;
++#else
++        if (hp_fd != -1)
++            long_return = hp_ifEntry.ifOutNUcastPkts;
++        else
++            long_return = (u_long) 0;   /* XXX */
++#endif
++        return (u_char *) & long_return;
++    case NETSNMP_IFOUTDISCARDS:
++#if defined(hpux11)
++        long_return = ifnet.if_entry.ifOutDiscards;
++#else
++        long_return = ifnet.if_snd.ifq_drops;
++#endif
++        return (u_char *) & long_return;
++    case NETSNMP_IFOUTERRORS:
++#if defined(hpux11)
++        long_return = ifnet.if_entry.ifOutErrors;
++#else
++        long_return = ifnet.if_oerrors;
++#endif
++        return (u_char *) & long_return;
++    case NETSNMP_IFOUTQLEN:
++#if defined(hpux11)
++        long_return = ifnet.if_entry.ifOutQlen;
++#else
++        long_return = ifnet.if_snd.ifq_len;
++#endif
++        return (u_char *) & long_return;
++    case NETSNMP_IFSPECIFIC:
++        *var_len = nullOidLen;
++        return (u_char *) nullOid;
++    default:
++        DEBUGMSGTL(("snmpd", "unknown sub-id %d in var_ifEntry\n",
++                    vp->magic));
++    }
++    return NULL;
++}
++
++#endif                          /* hpux */
++#else                           /* solaris2 */
++
++static int
++IF_cmp(void *addr, void *ep)
++{
++    DEBUGMSGTL(("mibII/interfaces", "... IF_cmp %d %d\n",
++                ((mib2_ifEntry_t *) ep)->ifIndex,
++                ((mib2_ifEntry_t *) addr)->ifIndex));
++    if (((mib2_ifEntry_t *) ep)->ifIndex ==
++        ((mib2_ifEntry_t *) addr)->ifIndex)
++        return (0);
++    else
++        return (1);
++}
++
++u_char         *
++var_ifEntry(struct variable * vp,
++            oid * name,
++            size_t * length,
++            int exact, size_t * var_len, WriteMethod ** write_method)
++{
++    int             interface;
++    mib2_ifEntry_t  ifstat;
++    conf_if_list   *if_ptr = NULL;
++
++    interface =
++        header_ifEntry(vp, name, length, exact, var_len, write_method);
++    if (interface == MATCH_FAILED)
++        return NULL;
++
++    if (getMibstat(MIB_INTERFACES, &ifstat, sizeof(mib2_ifEntry_t),
++                   GET_EXACT, &IF_cmp, &interface) != 0) {
++        DEBUGMSGTL(("mibII/interfaces", "... no mib stats\n"));
++        return NULL;
++    }
++    /*
++     * hmmm.. where to get the interface name to check overrides?
++     *
++     * if_ptr = netsnmp_access_interface_entry_overrides_get(Name);
++     */
++    switch (vp->magic) {
++    case NETSNMP_IFINDEX:
++        long_return = ifstat.ifIndex;
++        return (u_char *) & long_return;
++    case NETSNMP_IFDESCR:
++        *var_len = ifstat.ifDescr.o_length;
++        (void) memcpy(return_buf, ifstat.ifDescr.o_bytes, *var_len);
++        return (u_char *) return_buf;
++    case NETSNMP_IFTYPE:
++        if (if_ptr)
++            long_return = if_ptr->type;
++        else
++        long_return = (u_long) ifstat.ifType;
++        return (u_char *) & long_return;
++    case NETSNMP_IFMTU:
++        long_return = (u_long) ifstat.ifMtu;
++        return (u_char *) & long_return;
++    case NETSNMP_IFSPEED:
++        if (if_ptr)
++            long_return = if_ptr->speed;
++        else
++        long_return = (u_long) ifstat.ifSpeed;
++        return (u_char *) & long_return;
++    case NETSNMP_IFPHYSADDRESS:
++        *var_len = ifstat.ifPhysAddress.o_length;
++        (void) memcpy(return_buf, ifstat.ifPhysAddress.o_bytes, *var_len);
++        return (u_char *) return_buf;
++    case NETSNMP_IFADMINSTATUS:
++        long_return = (u_long) ifstat.ifAdminStatus;
++        return (u_char *) & long_return;
++    case NETSNMP_IFOPERSTATUS:
++        long_return = (u_long) ifstat.ifOperStatus;
++        return (u_char *) & long_return;
++    case NETSNMP_IFLASTCHANGE:
++        long_return = (u_long) ifstat.ifLastChange;
++        return (u_char *) & long_return;
++    case NETSNMP_IFINOCTETS:
++        long_return = (u_long) ifstat.ifInOctets;
++        return (u_char *) & long_return;
++    case NETSNMP_IFINUCASTPKTS:
++        long_return = (u_long) ifstat.ifInUcastPkts;
++        return (u_char *) & long_return;
++    case NETSNMP_IFINNUCASTPKTS:
++        long_return = (u_long) ifstat.ifInNUcastPkts;
++        return (u_char *) & long_return;
++    case NETSNMP_IFINDISCARDS:
++        long_return = (u_long) ifstat.ifInDiscards;
++        return (u_char *) & long_return;
++    case NETSNMP_IFINERRORS:
++        long_return = (u_long) ifstat.ifInErrors;
++        return (u_char *) & long_return;
++    case NETSNMP_IFINUNKNOWNPROTOS:
++        long_return = (u_long) ifstat.ifInUnknownProtos;
++        return (u_char *) & long_return;
++    case NETSNMP_IFOUTOCTETS:
++        long_return = (u_long) ifstat.ifOutOctets;
++        return (u_char *) & long_return;
++    case NETSNMP_IFOUTUCASTPKTS:
++        long_return = (u_long) ifstat.ifOutUcastPkts;
++        return (u_char *) & long_return;
++    case NETSNMP_IFOUTNUCASTPKTS:
++        long_return = (u_long) ifstat.ifOutNUcastPkts;
++        return (u_char *) & long_return;
++    case NETSNMP_IFOUTDISCARDS:
++        long_return = (u_long) ifstat.ifOutDiscards;
++        return (u_char *) & long_return;
++    case NETSNMP_IFOUTERRORS:
++        long_return = (u_long) ifstat.ifOutErrors;
++        return (u_char *) & long_return;
++    case NETSNMP_IFOUTQLEN:
++        long_return = (u_long) ifstat.ifOutQLen;
++        return (u_char *) & long_return;
++    case NETSNMP_IFSPECIFIC:
++	long_return = (u_long) ifstat.ifSpecific;
++	return (u_char *) & long_return;
++    default:
++        DEBUGMSGTL(("snmpd", "unknown sub-id %d in var_ifEntry\n",
++                    vp->magic));
++    }
++    return NULL;
++}
++
++#endif                          /* solaris2 */
++
++
++
++        /*********************
++	 *
++	 *  Internal implementation functions
++	 *
++	 *********************/
++
++
++#ifndef solaris2
++
++#if !defined(sunV3) && !defined(linux) && !defined(hpux11)
++static struct in_ifaddr savein_ifaddr;
++#endif
++#if !defined(hpux11)
++static struct ifnet *ifnetaddr, saveifnet, *saveifnetaddr;
++static char     saveName[16];
++#endif
++static int      saveIndex = 0;
++
++/**
++* Determines network interface speed. It is system specific. Only linux
++* realization is made. 
++*/
++unsigned int getIfSpeed(int fd, struct ifreq ifr, unsigned int defaultspeed)
++{
++#ifdef linux
++    return netsnmp_linux_interface_get_if_speed(fd, ifr.ifr_name, defaultspeed);
++#else /*!linux*/			   
++    return defaultspeed;
++#endif 
++}
++
++void
++Interface_Scan_Init(void)
++{
++#ifdef linux
++    char            line[256], ifname_buf[64], *ifname, *ptr;
++    struct ifreq    ifrq;
++    struct ifnet  **ifnetaddr_ptr;
++    FILE           *devin;
++    int             i, fd;
++    conf_if_list   *if_ptr;
++    /*
++     * scanline_2_2:
++     *  [               IN                        ]
++     *   byte pkts errs drop fifo frame cmprs mcst |
++     *  [               OUT                               ]
++     *   byte pkts errs drop fifo colls carrier compressed
++     */
++    uintmax_t       rec_pkt, rec_oct, rec_err, rec_drop;
++    uintmax_t       snd_pkt, snd_oct, snd_err, snd_drop, coll;
++    const char     *scan_line_2_2 =
++        "%"   SCNuMAX " %"  SCNuMAX " %"  SCNuMAX " %"  SCNuMAX
++        " %*" SCNuMAX " %*" SCNuMAX " %*" SCNuMAX " %*" SCNuMAX

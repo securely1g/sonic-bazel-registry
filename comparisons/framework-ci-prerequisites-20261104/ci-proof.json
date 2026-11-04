@@ -1,0 +1,83 @@
+{
+  "at": "2026-11-04T12:35:02.854649+00:00",
+  "original_head": "6a69c2d89070d4d2ffc80b1e13626da387f7ea65",
+  "original_base": "2f781510b5bc3b7b5982ec7507c5721eae57f5b3",
+  "existing_parser_pr": 224,
+  "parser_head": "82348fff41c69be7921387fc31c1886ec77ac57e",
+  "existing_version_pin_pr": 220,
+  "version_pin_head": "db8230e6a4abf0afa1b053b6912d02b78295eaab",
+  "ci_prerequisite_composition": "56902ee4876f40e6fde4c3f6114a497d06ca7b67",
+  "head": "aac93f1daa343687d186cc33aeaf5ba3807c760f",
+  "base": "55310a5c3ec08235dbf02d4030358af8c50526b5",
+  "tree": "0408269ccc94945ceee7bea02fe50d781a760bff",
+  "module_tree": "1c038b6a898d96a09cb26fe798f0b535a7ca2ef1",
+  "all_module_entries_modes_and_native_inventories_unchanged": true,
+  "feature_diff_byte_identical": true,
+  "changed_paths": [
+    ".github/workflows/registry-ci.yml",
+    "ci/README.md",
+    "ci/registry_ci.py",
+    "ci/tests/test_release_order.py",
+    "ci/tests/test_workflow_scope.py"
+  ],
+  "scope": "RAM staging only, pending peer; no public169/220 mutation",
+  "pure_unit_tests_passed": true,
+  "unit_log_sha256": "627e21ab1355eeeecd87a26e1a512222807b00be82a1e263c3cdfe154e338869",
+  "actual_plan": {
+    "include": [
+      {
+        "module": "sonic-mgmt-framework",
+        "version": "1.0.0-4036a01aa4648913ce44a0b4db52556a55cb2911",
+        "architecture": "amd64",
+        "runner": "ubuntu-24.04"
+      }
+    ]
+  },
+  "publication_baseline": "ce3ac4e892e1a28dccd60d54c3a8385ae1c8f163",
+  "native_acceptance": "Existing Framework native PASS remains original6a69; no new native execution",
+  "pure_tests": {
+    "total": 190,
+    "pass": 187,
+    "existing_hosted_opt_in_skips": 3
+  },
+  "automatic_event_routing_verified": true,
+  "routed_plan": {
+    "include": [
+      {
+        "module": "sonic-mgmt-framework",
+        "version": "1.0.0-4036a01aa4648913ce44a0b4db52556a55cb2911",
+        "architecture": "amd64",
+        "runner": "ubuntu-24.04"
+      }
+    ]
+  },
+  "production_runner_functions_changed": [
+    "release_key"
+  ],
+  "release_key_exact_pr224": true,
+  "unit_module_required_jobs_byte_identical": true,
+  "bash_blocks": 8,
+  "framework_presubmit_sha256": "8bbffed369e8ce06f332b8c96d81b474ad55cf47b54ceff2675d92977f1d297b",
+  "native_build_targets": [
+    "//:image_payload",
+    "@sonic-mgmt-framework//dist:runtime",
+    "@sonic-mgmt-framework//dist:runtime.debug_symbols",
+    "@sonic-mgmt-framework//dist:rest_binaries",
+    "@sonic-mgmt-framework//dist:ui",
+    "@sonic-mgmt-framework//CLI:runtime",
+    "@sonic-mgmt-framework//CLI:runtime.debug_symbols"
+  ],
+  "native_test_targets": [
+    "@sonic-mgmt-framework//dist:package_test",
+    "@sonic-mgmt-framework//dist:rest_runtime_test",
+    "@sonic-mgmt-framework//CLI:installed_runtime_test",
+    "@sonic-mgmt-framework//tools/bazel:models_repro_test",
+    "@sonic-mgmt-framework//tools/bazel:codegen_config_test",
+    "@sonic-mgmt-framework//rest/server:server_test",
+    "@sonic-mgmt-framework//tools/openapi_tests:generator_test",
+    "@sonic-mgmt-framework//CLI:cli_client_test",
+    "@sonic-mgmt-framework//CLI:generator_order_test",
+    "@sonic-mgmt-framework//CLI:rest_tls_test"
+  ],
+  "no_deb_scope": "Only Framework AMD64 module plus unchanged two native runner suites; real runner fixture emits TAR/tree/text and mirror fixture downloads only; no broad latest/kernel/infra fixture module jobs"
+}

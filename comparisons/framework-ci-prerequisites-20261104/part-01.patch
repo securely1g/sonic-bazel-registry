@@ -1,0 +1,2680 @@
+# Complete registry #169 version comparison
+# Published baseline: 51de33d8d4eb949ed7e5a02578deee2eeab34e76
+# Candidate: aac93f1daa343687d186cc33aeaf5ba3807c760f
+# PR review base: 55310a5c3ec08235dbf02d4030358af8c50526b5
+# Common runtime owner backport: a525b4ea3a7db24e4d161952c275c794e4d14322
+# Apply in a fresh checkout; every candidate destination must be absent.
+# git checkout --detach 51de33d8d4eb949ed7e5a02578deee2eeab34e76
+# test ! -e modules/p4lang-bmv2/1.15.0.sonic.3
+# cp -a -- modules/p4lang-bmv2/1.15.0.sonic.2 modules/p4lang-bmv2/1.15.0.sonic.3
+# git add -- modules/p4lang-bmv2/1.15.0.sonic.3
+# test ! -e modules/sonic-build-infra/0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e
+# cp -a -- modules/sonic-build-infra/0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568 modules/sonic-build-infra/0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e
+# git add -- modules/sonic-build-infra/0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e
+# test ! -e modules/sonic-dash/0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686
+# cp -a -- modules/sonic-dash/0.0.2-5c9305403585a7ae54f86918219acb8ed39f740a modules/sonic-dash/0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686
+# git add -- modules/sonic-dash/0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686
+# test ! -e modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9
+# cp -a -- modules/sonic-fips/0.0.4-ef423363e8fd50358f0aa2a8a20d3e08d4450a56 modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9
+# git add -- modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9
+# test ! -e modules/sonic-mgmt-common/1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744
+# cp -a -- modules/sonic-mgmt-common/1.0.0-f5361ba8b88cde7ec59bdb4652a986c68d66da64 modules/sonic-mgmt-common/1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744
+# git add -- modules/sonic-mgmt-common/1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744
+# test ! -e modules/sonic-rust-deps/0.0.5-c53741eb56e55e4f1c9b48c577ed5de986e62192
+# cp -a -- modules/sonic-rust-deps/0.0.4-6d9c70f708d7420e9e2b2cdc906b80cee6b140f1 modules/sonic-rust-deps/0.0.5-c53741eb56e55e4f1c9b48c577ed5de986e62192
+# git add -- modules/sonic-rust-deps/0.0.5-c53741eb56e55e4f1c9b48c577ed5de986e62192
+# test ! -e modules/sonic-sairedis/0.0.4-706cc3d1f6182dea18deed36a2ddb0fbcf1a59fc
+# cp -a -- modules/sonic-sairedis/0.0.3-5e765149371aeca207254641873791db76a95f5f modules/sonic-sairedis/0.0.4-706cc3d1f6182dea18deed36a2ddb0fbcf1a59fc
+# git add -- modules/sonic-sairedis/0.0.4-706cc3d1f6182dea18deed36a2ddb0fbcf1a59fc
+# test ! -e modules/sonic-swss-common/0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed
+# cp -a -- modules/sonic-swss-common/0.0.8-a0450924719a9f706125cc44a07dc88934935003 modules/sonic-swss-common/0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed
+# git add -- modules/sonic-swss-common/0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed
+# First registration: net-snmp@5.9.3.sonic.1; no published predecessor.
+# First registration: openconfig_ygot@0.7.1.sonic.1; no published predecessor.
+# First registration: sonic-dash-ha@0.0.1-3e17acff2fe1d3eab1febe686262d376d859b37b; no published predecessor.
+# First registration: sonic-dbsyncd@2.0.0-a4025c14068b3afdf2eac3e73094f0fd2cfcf746; no published predecessor.
+# First registration: sonic-gnmi@0.1.0-ce49e93eb3a0cff8daf77a3092535d76265ebc3d; no published predecessor.
+# First registration: sonic-linkmgrd@1.0.0-803c4b170de1ebdf38d638517fd1115368ec9a5c; no published predecessor.
+# First registration: sonic-mgmt-framework@1.0.0-4036a01aa4648913ce44a0b4db52556a55cb2911; no published predecessor.
+# First registration: sonic-snmpagent@2.1.0; no published predecessor.
+# First registration: sonic-wpa-supplicant@2.9.0.sonic.1; no published predecessor.
+# git apply --check --index registry-169.patch
+# git apply --index registry-169.patch
+# Resulting complete tree: 0408269ccc94945ceee7bea02fe50d781a760bff
+
+diff --git a/.github/workflows/registry-ci.yml b/.github/workflows/registry-ci.yml
+index c3d89cd1d8a36c5cdcd0129428df0962e847f883..fc7e5b48b4f305238d7e21e21d2c57d2761ce24f 100644
+--- a/.github/workflows/registry-ci.yml
++++ b/.github/workflows/registry-ci.yml
+@@ -43,6 +43,7 @@ jobs:
+           ALL_VERSIONS: ${{ inputs.all_versions }}
+           HEAD_REF: ${{ github.head_ref }}
+           HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
++          REPOSITORY: ${{ github.repository }}
+         run: |
+           set -euo pipefail
+           POLICY_FLAGS=()
+@@ -71,6 +72,7 @@ jobs:
+               "${POLICY_FLAGS[@]}" --head "$HEAD_SHA" --latest --output plan.json 2>&1 | tee -a plan.log
+           fi
+           python3 - <<'PY'
++          import hashlib
+           import json
+           import os
+           import subprocess
+@@ -90,6 +92,37 @@ jobs:
+                   raise SystemExit("Source-mirror test scope rejects unexpected files: " + repr(changed - allowed))
+               print("Source-mirror CI fix: retain policy plan; run native runner and cold-fetch tests only.")
+               matrix = {"include": []}
++          elif (os.environ["EVENT_NAME"] == "pull_request"
++                  and os.environ["HEAD_REF"] == "codex/registry-goyang-release-order"
++                  and os.environ["HEAD_REPOSITORY"] == os.environ["REPOSITORY"]
++                  == "securely1g/sonic-bazel-registry"):
++              allowed = {".github/workflows/registry-ci.yml", "ci/registry_ci.py",
++                         "ci/README.md", "ci/tests/test_release_order.py"}
++              changed = set(filter(None, subprocess.check_output(
++                  ["git", "diff", "--no-renames", "--name-only", "-z",
++                   os.environ["BASE_SHA"] + "..." + os.environ["HEAD_SHA"]],
++                  text=True).split("\0")))
++              if not changed or not changed <= allowed:
++                  raise SystemExit("Release-order test scope rejects unexpected files: " + repr(changed - allowed))
++              original = matrix
++              matrix = {"include": []}
++              effective = json.dumps(matrix, indent=2) + "\n"
++              Path("plan-effective.json").write_text(effective)
++              receipt = {
++                  "schema": 1, "scope": "release ordering CI feature: runner fixtures only, no module jobs",
++                  "event": os.environ["EVENT_NAME"], "branch": os.environ["HEAD_REF"],
++                  "repository": os.environ["HEAD_REPOSITORY"],
++                  "base": os.environ["BASE_SHA"], "head": os.environ["HEAD_SHA"],
++                  "changed_files": sorted(changed),
++                  "original_plan_sha256": hashlib.sha256(Path("plan.json").read_bytes()).hexdigest(),
++                  "effective_plan_sha256": hashlib.sha256(effective.encode()).hexdigest(),
++                  "planned_jobs": len(original["include"]), "retained_jobs": 0,
++                  "excluded_jobs": [{"job": job, "reason": "separate module acceptance is outside this CI-only PR"}
++                                    for job in original["include"]],
++              }
++              Path("plan-scope.json").write_text(json.dumps(receipt, indent=2) + "\n")
++              print("Release-order CI feature: retain policy plan and both native runner fixture suites; "
++                    "module validation is separate. See plan-scope.json.")
+           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+               print("matrix=" + json.dumps(matrix, separators=(",", ":")), file=output)
+               print("has_jobs=" + str(bool(matrix["include"])).lower(), file=output)
+@@ -102,6 +135,8 @@ jobs:
+           path: |
+             plan.json
+             plan.log
++            plan-effective.json
++            plan-scope.json
+           if-no-files-found: warn
+           retention-days: 14
+ 
+diff --git a/ci/README.md b/ci/README.md
+index 9a46db1f41ebca085ec77813402113a66744c6e8..24eff8dd2adc8ddfbd3a151ccefe5a1b7257b7a6 100644
+--- a/ci/README.md
++++ b/ci/README.md
+@@ -213,7 +213,15 @@ The configuration declares:
+   separate test module, for example `tests/integration`. CI copies its ordinary
+   `MODULE.bazel`, `BUILD.bazel`, tests and fixtures into the fresh consumer. The
+   test module must directly select the tested module's exact name and version;
+-  it cannot use source overrides or include other MODULE files. Keep
++  it cannot use source overrides or include other MODULE files. A standard
++  `single_version_override` may contain exactly the literal, nonempty
++  `module_name` and `version` arguments. This selects a registry version without
++  replacing its source; patches, registry redirects and other arguments are
++  rejected, and the tested module must retain its exact reviewed version. For
++  example, Framework's shared consumer pins the reviewed infrastructure
++  `0.0.26-2a6fc39c55be05e849b0e3a2d1808a4a59f123a6` while existing dependency
++  minima name an earlier, higher-sorting commit suffix. This matches the
++  generated consumer's existing version-pin behavior. Keep
+   `consumer_deps` empty and omit the generated Go/Rust options in this mode:
+   the checked-in test module owns its dependencies and toolchains. Explicit
+   root targets such as `//:archive_contract_test` are then allowed alongside
+@@ -553,3 +561,17 @@ clean reproduction.
+ 
+ See the [Bazel registry format](https://bazel.build/external/registry) for module
+ source, patch, and overlay metadata.
++
++### SONiC Go pseudo-version ordering
++
++Registered SONiC patches may retain a Go pseudo-version suffix, for example
++0.0.0.sonic.1-20200309174518-a00bece872fc. The planner accepts the exact
++14-digit timestamp and 12-lowercase-hex form while preserving numeric release,
++SONiC patch number and separator precedence. Equal release/patch snapshots
++continue to use metadata registration order; hashes/timestamps are not sorted.
++Malformed or unrelated suffixes remain rejected.
++
++The owned CI-only branch codex/registry-goyang-release-order retains the policy
++plan and both native runner fixture suites, with an empty module matrix after
++an exact owned repository/branch/four-file check. Other events and branches keep
++their existing routing. This does not claim native module acceptance.
+diff --git a/ci/registry_ci.py b/ci/registry_ci.py
+index e56c3bd46e008cdd19e7715fcb5dbc60f8e59c1f..53c0a58ca75f6eb62f4a5a740c2418a428c21c97 100644
+--- a/ci/registry_ci.py
++++ b/ci/registry_ci.py
+@@ -160,9 +160,26 @@ def integration_test_directory(entry: Path, config: dict, module: str, version:
+         tree = ast.parse(declaration)
+     except SyntaxError as error:
+         raise RegistryError("Integration MODULE.bazel must use ordinary module declarations") from error
++    version_pin_functions = set()
++    for statement in tree.body:
++        if not (isinstance(statement, ast.Expr) and isinstance(statement.value, ast.Call)):
++            continue
++        call = statement.value
++        if not (isinstance(call.func, ast.Name) and call.func.id == "single_version_override"):
++            continue
++        require(not call.args and len(call.keywords) == 2
++                and {keyword.arg for keyword in call.keywords} == {"module_name", "version"}
++                and all(isinstance(keyword.value, ast.Constant)
++                        and isinstance(keyword.value.value, str)
++                        and bool(keyword.value.value.strip()) for keyword in call.keywords),
++                "Integration single_version_override requires only literal nonempty module_name and version")
++        values = {keyword.arg: keyword.value.value for keyword in call.keywords}
++        require(values["module_name"] != module or values["version"] == version,
++                "Integration version pin must retain the exact reviewed module version")
++        version_pin_functions.add(call.func)
+     for node in ast.walk(tree):
+         if isinstance(node, ast.Name):
+-            require(not node.id.endswith("_override")
++            require((not node.id.endswith("_override") or node in version_pin_functions)
+                     and node.id not in ("include", "override_repo", "inject_repo"),
+                     "Integration MODULE.bazel cannot include files or override registry sources")
+     dependencies = []
+@@ -401,7 +418,7 @@ def release_key(version: str) -> tuple[tuple[int, ...], int, int]:
+     # Equivalent numeric releases must still use registration order for snapshots.
+     while len(numbers) > 1 and numbers[-1] == 0:
+         numbers = numbers[:-1]
+-    patch = re.fullmatch(r"([.-])sonic\.([0-9]+)", suffix)
++    patch = re.fullmatch(r"([.-])sonic\.([0-9]+)(?:-[0-9]{14}-[0-9a-f]{12})?", suffix)
+     if patch:
+         return numbers, int(patch[2]), int(patch[1] == ".")
+     require(suffix in ("", ".sonic-buildimage", ".sonic-patched")
+diff --git a/ci/tests/test_registry_ci.py b/ci/tests/test_registry_ci.py
+index 25417e8cd0c3a84859b795a71959ab6f15b8a320..00778b09dc6ab5b4bee678c77892ef71f045106b 100644
+--- a/ci/tests/test_registry_ci.py
++++ b/ci/tests/test_registry_ci.py
+@@ -1288,15 +1288,52 @@ class IntegrationTestModuleTests(FixtureTestCase):
+         original = self.module.read_text()
+         for declaration in (
+             'local_path_override(module_name = "alpha", path = "/tmp/alpha")',
+-            'single_version_override(module_name = "alpha", version = "1.0.0")',
++            'archive_override(module_name = "alpha", urls = ["https://example.invalid/source.tar.gz"])',
++            'git_override(module_name = "alpha", remote = "https://example.invalid/source.git", commit = "abc")',
+             'include("//:other.MODULE.bazel")',
+             'redirect = local_path_override\nredirect(module_name = "alpha", path = "/tmp/alpha")',
++            'redirect = single_version_override\nredirect(module_name = "alpha", version = "1.0.0")',
+         ):
+             with self.subTest(declaration=declaration):
+                 self.module.write_text(original + declaration + "\n")
+                 with self.assertRaisesRegex(registry_ci.RegistryError, "cannot include files or override"):
+                     self.validate()
+ 
++    def test_version_only_pins_keep_registry_resolution(self) -> None:
++        self.module.write_text(self.module.read_text() +
++                               'single_version_override(module_name = "alpha", version = "1.0.0")\n'
++                               'single_version_override(module_name = "infra", version = "0.0.26-2a6")\n')
++        self.validate()
++
++    def test_version_pins_reject_source_options_and_nonliteral_or_missing_arguments(self) -> None:
++        original = self.module.read_text()
++        for arguments in (
++            '"alpha", "1.0.0"',
++            '*["alpha"], version = "1.0.0"',
++            '**{"module_name": "alpha", "version": "1.0.0"}',
++            'module_name = "alpha"',
++            'module_name = "alpha", module_name = "infra"',
++            'module_name = "alpha", version = "1.0.0", version = "2.0.0"',
++            'module_name = "alpha", version = "1.0.0", patches = ["//:source.patch"]',
++            'module_name = "alpha", version = "1.0.0", patch_cmds = ["touch source"]',
++            'module_name = "alpha", version = "1.0.0", registry = "https://example.invalid"',
++            'module_name = "alpha", version = chosen_version',
++            'module_name = "alpha", version = "1." + "0.0"',
++            'module_name = "alpha", version = 1',
++            'module_name = "alpha", version = " "',
++            'module_name = "", version = "1.0.0"',
++        ):
++            with self.subTest(arguments=arguments):
++                self.module.write_text(original + 'single_version_override(' + arguments + ')\n')
++                with self.assertRaisesRegex(registry_ci.RegistryError, "requires only literal nonempty"):
++                    self.validate()
++
++    def test_version_pin_cannot_replace_the_tested_entry_version(self) -> None:
++        self.module.write_text(self.module.read_text() +
++                               'single_version_override(module_name = "alpha", version = "2.0.0")\n')
++        with self.assertRaisesRegex(registry_ci.RegistryError, "exact reviewed module version"):
++            self.validate()
++
+     def test_test_module_requires_the_exact_reviewed_dependency(self) -> None:
+         for declaration in (
+             'bazel_dep(name = "other", version = "1.0.0")',
+@@ -2210,7 +2247,8 @@ a.output.write_text(json.dumps(r))
+         directory.mkdir(parents=True)
+         (directory / "MODULE.bazel").write_text(
+             'module(name = "integration_tests")\n'
+-            'bazel_dep(name = "alpha", version = "1.0.0")\n')
++            'bazel_dep(name = "alpha", version = "1.0.0")\n'
++            'single_version_override(module_name = "alpha", version = "1.0.0")\n')
+         (directory / "BUILD.bazel").write_text('# Consumer test targets\n')
+         (directory / "fixture.json").write_text('reviewed fixture\n')
+         before = {path.name: path.read_bytes() for path in directory.iterdir()}
+diff --git a/ci/tests/test_release_order.py b/ci/tests/test_release_order.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..23db45c6eece86569fc67f3a06d346bd8879ce9e
+--- /dev/null
++++ b/ci/tests/test_release_order.py
+@@ -0,0 +1,182 @@
++"""Execute actual release-order workflow routing over real Git diffs."""
++import hashlib
++import os
++import subprocess
++import sys
++import tempfile
++import importlib.util
++import json
++from pathlib import Path
++import unittest
++import test_registry_ci as fixtures
++
++ROOT = Path(__file__).resolve().parents[2]
++BRANCH = "codex/registry-goyang-release-order"
++ALLOWED = (".github/workflows/registry-ci.yml", "ci/registry_ci.py",
++           "ci/README.md", "ci/tests/test_release_order.py")
++
++REPOSITORY = "securely1g/sonic-bazel-registry"
++WORKFLOW = (ROOT / ".github/workflows/registry-ci.yml").read_text()
++SCRIPT = WORKFLOW.split("          python3 - <<'PY'\n", 1)[1].split("          PY\n", 1)[0]
++SCRIPT = "\n".join(line[10:] for line in SCRIPT.splitlines())
++
++class ReleaseOrderWorkflowTests(unittest.TestCase):
++    def route(self, matrix, *, changed=("ci/registry_ci.py",), event="pull_request",
++              branch=BRANCH, repository=REPOSITORY, workflow_repository=REPOSITORY):
++        with tempfile.TemporaryDirectory(prefix="registry-workflow-scope-") as temporary:
++            work = Path(temporary)
++            environment = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1"}
++
++            def git(*arguments):
++                return subprocess.check_output(
++                    ["git", *arguments], cwd=work, env=environment, text=True,
++                    stderr=subprocess.PIPE,
++                ).strip()
++
++            def commit(message):
++                git("add", "--all")
++                git("-c", "user.name=Registry CI fixture", "-c", "user.email=fixture@example.invalid",
++                    "-c", "commit.gpgsign=false", "commit", "--quiet", "--allow-empty", "-m", message)
++                return git("rev-parse", "HEAD")
++
++            git("init", "--quiet")
++            (work / "initial").write_text("fixture\n")
++            base = commit("baseline")
++            for name in changed:
++                path = work / name
++                path.parent.mkdir(parents=True, exist_ok=True)
++                path.write_text("changed fixture\n")
++            head = commit("validator change")
++            # Whitespace is intentional: routing must preserve the original bytes.
++            original = (json.dumps(matrix, indent=4) + "\n\n").encode()
++            (work / "plan.json").write_bytes(original)
++            environment.update(EVENT_NAME=event, HEAD_REF=branch, HEAD_REPOSITORY=repository,
++                               REPOSITORY=workflow_repository, BASE_SHA=base, HEAD_SHA=head,
++                               GITHUB_OUTPUT=str(work / "output"))
++            result = subprocess.run([sys.executable, "-I", "-c", SCRIPT], cwd=work, env=environment,
++                                    text=True, capture_output=True, timeout=30)
++            self.assertEqual((work / "plan.json").read_bytes(), original)
++            files = {name: (work / name).read_bytes() if (work / name).exists() else None
++                     for name in ("output", "plan-effective.json", "plan-scope.json")}
++            return result, files, original
++
++    def matrix(self):
++        return {"include": [
++            {"module": module, "version": "reviewed-version", "architecture": architecture,
++             "runner": "ubuntu-24.04" if architecture == "amd64" else "ubuntu-24.04-arm"}
++            for module in ("sonic-build-infra", "rules_distroless", "sonic-linux-kernel", "sonic-mgmt-common")
++            for architecture in ("amd64", "arm64")
++        ]}
++
++    def output_matrix(self, files):
++        values = dict(line.split("=", 1) for line in files["output"].decode().splitlines())
++        matrix = json.loads(values["matrix"])
++        self.assertEqual(values["has_jobs"], str(bool(matrix["include"])).lower())
++        return matrix
++
++
++    def test_owned_feature_has_no_module_jobs_and_preserves_policy_evidence(self):
++        matrix = self.matrix()
++        result, files, original = self.route(matrix, changed=ALLOWED, branch=BRANCH)
++        self.assertEqual(result.returncode, 0, result.stderr)
++        self.assertEqual(self.output_matrix(files), {"include": []})
++        proof = json.loads(files["plan-scope.json"])
++        self.assertEqual(proof["planned_jobs"], len(matrix["include"]))
++        self.assertEqual(proof["retained_jobs"], 0)
++        self.assertEqual([row["job"] for row in proof["excluded_jobs"]], matrix["include"])
++        self.assertEqual(proof["changed_files"], sorted(ALLOWED))
++        self.assertEqual(proof["original_plan_sha256"], hashlib.sha256(original).hexdigest())
++        self.assertEqual(proof["effective_plan_sha256"], hashlib.sha256(files["plan-effective.json"]).hexdigest())
++
++    def test_actual_catalog_including_deb_fixtures_is_unselected(self):
++        spec = importlib.util.spec_from_file_location("typed_scope_registry", ROOT / "ci/registry_ci.py")
++        module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
++        rows = []
++        for name, version in module.latest_presubmits(ROOT):
++            config = json.loads((ROOT / "modules" / name / version / "presubmit.json").read_text())
++            rows.extend({"module": name, "version": version, "architecture": arch,
++                         "runner": module.RUNNERS[arch]} for arch in config["architectures"])
++        self.assertTrue({"sonic-build-infra", "sonic-linux-kernel"} <= {row["module"] for row in rows})
++        result, files, _ = self.route({"include": rows}, changed=ALLOWED, branch=BRANCH)
++        self.assertEqual(result.returncode, 0, result.stderr)
++        self.assertEqual(self.output_matrix(files), {"include": []})
++        self.assertEqual(json.loads(files["plan-scope.json"])["planned_jobs"], len(rows))
++
++    def test_empty_module_and_unlisted_changes_fail_before_matrix_output(self):
++        for changed in ((), ("modules/sonic-swss-common/metadata.json",),
++                        ("ci/registry_ci.py", "ci/source_mirrors.cfg"),
++                        ("ci/tests/unreviewed_test.py",), ("ci/README.md\nmodules/hidden",)):
++            with self.subTest(changed=changed):
++                result, files, _ = self.route(self.matrix(), changed=changed, branch=BRANCH)
++                self.assertNotEqual(result.returncode, 0)
++                self.assertIn("Release-order test scope rejects unexpected files", result.stderr)
++                self.assertTrue(all(value is None for value in files.values()))
++
++    def test_other_branch_suffix_repo_push_and_manual_are_unchanged(self):
++        matrix = self.matrix()
++        for context in ({"branch": "unrelated"}, {"branch": BRANCH + "-suffix"},
++                        {"repository": "other/fork"}, {"workflow_repository": "other/fork"},
++                        {"event": "push"}, {"event": "workflow_dispatch"}):
++            with self.subTest(context=context):
++                result, files, _ = self.route(matrix, changed=("modules/other/metadata.json",),
++                                             **{"branch": BRANCH, **context})
++                self.assertEqual(result.returncode, 0, result.stderr)
++                self.assertEqual(self.output_matrix(files), matrix)
++                self.assertIsNone(files["plan-effective.json"])
++                self.assertIsNone(files["plan-scope.json"])
++
++    def test_policy_and_both_runner_suites_are_preserved(self):
++        text = (ROOT / ".github/workflows/registry-ci.yml").read_text()
++        self.assertLess(text.index("python3 ci/registry_ci.py plan --published"),
++                        text.index('matrix = json.loads(Path("plan.json").read_text())'))
++        unit = text.split("\n  unit:\n", 1)[1].split("\n  modules:\n", 1)[0]
++        for arch in ("amd64", "arm64"): self.assertIn("architecture: " + arch, unit)
++        self.assertNotIn("\n    if:", "\n" + unit)
++        self.assertIn("python3 -m unittest discover -s ci/tests -v", unit)
++        self.assertIn("if: needs.plan.outputs.has_jobs == 'true'", text)
++        self.assertIn("codex/pigz-source-mirror", text)
++
++
++class ReleaseOrderingTests(fixtures.FixtureTestCase):
++    def test_actual_goyang_pseudo_version_uses_existing_sonic_patch_order(self):
++        key = fixtures.registry_ci.release_key
++        version = "0.0.0.sonic.1-20200309174518-a00bece872fc"
++        self.assertEqual(key(version), key("0.0.0.sonic.1"))
++        self.assertLess(key("0.0.0-sonic.1"), key(version))
++        self.assertLess(key(version), key("0.0.0.sonic.2"))
++        self.assertLess(key("0.0.0.sonic.99"), key("1.0.0"))
++
++    def test_existing_numeric_patch_separator_and_snapshot_keys_are_exact(self):
++        key = fixtures.registry_ci.release_key
++        for version, expected in (
++            ("1.0.0", ((1,), 0, 0)), ("1.2.0", ((1, 2), 0, 0)),
++            ("1.0.0.sonic.2", ((1,), 2, 1)), ("1.0.0-sonic.2", ((1,), 2, 0)),
++            ("1.0.0-a00bece872fc", ((1,), 0, 0)),
++            ("1.0.0.commit-a00bece", ((1,), 0, 0)),
++            ("1.0.0.sonic-buildimage", ((1,), 0, 0))):
++            with self.subTest(version=version): self.assertEqual(key(version), expected)
++
++    def test_pseudo_versions_use_registration_order_without_timestamp_sorting(self):
++        newer = "0.0.0.sonic.1-20260309174518-ffffffffffff"
++        older = "0.0.0.sonic.1-20200309174518-a00bece872fc"
++        self.entry("alpha", newer); self.entry("alpha", older)
++        self.assertEqual(fixtures.registry_ci.latest_presubmits(self.root), {("alpha", older)})
++        metadata = self.root / "modules/alpha/metadata.json"
++        value = json.loads(metadata.read_text()); value["versions"].reverse()
++        metadata.write_text(json.dumps(value))
++        self.assertEqual(fixtures.registry_ci.latest_presubmits(self.root), {("alpha", newer)})
++
++    def test_malformed_and_unrelated_suffixes_remain_rejected(self):
++        for version in (
++            "0.0.0.sonic.1-2020030917451-a00bece872fc",
++            "0.0.0.sonic.1-202003091745180-a00bece872fc",
++            "0.0.0.sonic.1-20200309174518-a00bece872f",
++            "0.0.0.sonic.1-20200309174518-A00BECE872FC",
++            "0.0.0.sonic.1-20200309174518-a00bece872fc0",
++            "0.0.0.sonic.1-20200309174518-a00bece872fc-extra",
++            "0.0.0.sonic.1-snapshot", "0.0.0.unknown.1"):
++            with self.subTest(version=version), self.assertRaises(fixtures.registry_ci.RegistryError):
++                fixtures.registry_ci.release_key(version)
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/modules/net-snmp/5.9.3.sonic.1/MODULE.bazel b/modules/net-snmp/5.9.3.sonic.1/MODULE.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..b3a51cf1168f9dbecbecc2f862b2ed37508cbdcb
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/MODULE.bazel
+@@ -0,0 +1,48 @@
++module(name = "net-snmp", version = "5.9.3.sonic.1", repo_name = "net_snmp")
++
++bazel_dep(name = "bazel_skylib", version = "1.8.2")
++bazel_dep(name = "rules_cc", version = "0.2.20")
++bazel_dep(name = "platforms", version = "1.0.0")
++bazel_dep(name = "sonic-build-infra", version = "0.0.25-17a1e555291c64be1a6ff008f33352bffc4f8e5c", repo_name = "sonic_build_infra")
++
++bazel_dep(name = "rules_pkg", version = "1.1.0")
++
++bazel_dep(name = "rules_python", version = "1.8.0")
++bazel_dep(name = "libnl3", version = "3.7.0.sonic.6")
++
++gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
++use_repo(gcc, "gcc_toolchains")
++register_toolchains("@gcc_toolchains//:all")
++
++http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
++# Debian-only patches commute with the source-only subsequence: they touch
++# debian/rules exclusively. Each subsequence retains its original order.
++http_archive(
++    name = "net_snmp_debian",
++    urls = ["https://packages.trafficmanager.net/public/debian/pool/main/n/net-snmp/net-snmp_5.9.3+dfsg-2+deb12u1.debian.tar.xz"],
++    sha256 = "42bfdc8dff259be56735b0d48a4cbd85f45ff40d0bea86fceaf88ba7a6dc735f",
++    build_file_content = 'exports_files(glob(["debian/**"]))\n',
++    patch_args = ["-p1"],
++    patches = ['//:patches/45-0008-Enable-macro-DEB_BUILD_ARCH_OS-in-order-to-build-ipv.patch', '//:patches/47-0013-enable-parallel-build-for-net-snmp.patch', '//:patches/48-cross-compile-changes.patch'],
++)
++http_archive(
++    name = "net_snmp_source",
++    urls = ["https://packages.trafficmanager.net/public/debian/pool/main/n/net-snmp/net-snmp_5.9.3+dfsg.orig.tar.xz"],
++    sha256 = "b78f93276a80d40726d94956aa7d06fd8752b5c0624af5bbf155cbc33fd521d1",
++    strip_prefix = "net-snmp-5.9.3",
++    build_file = "//:source.BUILD.bazel",
++    patch_args = ["-p1"],
++    patches = ['//:patches/01-pingmib_perl_path', '//:patches/02-02_statistics.patch', '//:patches/03-03_makefiles.patch', '//:patches/04-05_searchdirs.patch', '//:patches/05-06_extramibs.patch', '//:patches/06-07_docfiles.patch', '//:patches/07-60_libsensors_api.patch', '//:patches/08-62_add_lib_cflags.patch', '//:patches/09-64_missing_lib.patch', '//:patches/10-fix_snmpcheck_perl_path.patch', '//:patches/11-snmptranslate.1.patch', '//:patches/12-fix_spelling_error.patch', '//:patches/13-fix_typo_in_snmpd.conf.patch', '//:patches/14-fix_manpage-has-errors_break_line.patch', '//:patches/15-add_rocommunity6.patch', '//:patches/16-fix-request-id-0.patch', '//:patches/17-0026-fix-Bug-785380-incorrect-date-format.patch', '//:patches/18-0027-fix-455707-traptoemail-use-FQDN.patch', '//:patches/19-let_perl_access_engineid.diff', '//:patches/20-fix_perl_bulk_gets.diff', '//:patches/21-do_not_callback_for_failed_reports.diff', '//:patches/22-callback_print.diff', '//:patches/23-fix_engineid_reprobe.diff', '//:patches/24-snmpwalk_args_in_snmpcheck', '//:patches/25-snmpd_pidfile_mode', '//:patches/26-snmpcmd_1_groff', '//:patches/27-netsnmp_mib_api_3_groff', '//:patches/28-snmplib_error_subcontainer', '//:patches/29-apps_makefile_use_ldflags', '//:patches/30-cross.patch', '//:patches/31-agent_silent_eacces', '//:patches/32-agent_swinst_dpkg_date', '//:patches/33-snmpd_conf_5_ro_extend', '//:patches/34-perl_makefile_man3pods', '//:patches/35-ci_libmariadb-dev', '//:patches/36-mib2c_perl_error', '//:patches/37-net-snmp-create-v3-user_paths', '//:patches/38-snmptrapd_correct_mysql_includes', '//:patches/39-makefile_trap_needs_agent', '//:patches/40-includes_fix_national_encoding', '//:patches/41-agent_set_null_varbind', '//:patches/42-snmptrapd_trapoid_length', '//:patches/43-linux_systemstats', '//:patches/44-0001-SNMP-Stop-spamming-logs-with-statfs-permission-denie.patch', '//:patches/46-0012-agent-Makefile.in-Unbreak-the-enable-minimalist-buil.patch'],
++    # PatchUtil decodes and rewrites touched files as UTF-8. These five inputs
++    # retain the original Latin-1 bytes of the same ordered GNU patch result.
++    files = {'debian/README.Debian': '@net_snmp_debian//:debian/README.Debian', 'debian/README.Debian-source': '@net_snmp_debian//:debian/README.Debian-source', 'debian/TODO': '@net_snmp_debian//:debian/TODO', 'debian/changelog': '@net_snmp_debian//:debian/changelog', 'debian/control': '@net_snmp_debian//:debian/control', 'debian/copyright': '@net_snmp_debian//:debian/copyright', 'debian/libnetsnmptrapd40.install': '@net_snmp_debian//:debian/libnetsnmptrapd40.install', 'debian/libsnmp-base.dirs': '@net_snmp_debian//:debian/libsnmp-base.dirs', 'debian/libsnmp-base.docs': '@net_snmp_debian//:debian/libsnmp-base.docs', 'debian/libsnmp-base.install': '@net_snmp_debian//:debian/libsnmp-base.install', 'debian/libsnmp-base.manpages': '@net_snmp_debian//:debian/libsnmp-base.manpages', 'debian/libsnmp-base.postrm': '@net_snmp_debian//:debian/libsnmp-base.postrm', 'debian/libsnmp-base.prerm': '@net_snmp_debian//:debian/libsnmp-base.prerm', 'debian/libsnmp-dev.dirs': '@net_snmp_debian//:debian/libsnmp-dev.dirs', 'debian/libsnmp-dev.install': '@net_snmp_debian//:debian/libsnmp-dev.install', 'debian/libsnmp-dev.lintian-overrides': '@net_snmp_debian//:debian/libsnmp-dev.lintian-overrides', 'debian/libsnmp-dev.manpages': '@net_snmp_debian//:debian/libsnmp-dev.manpages', 'debian/libsnmp-perl.docs': '@net_snmp_debian//:debian/libsnmp-perl.docs', 'debian/libsnmp-perl.examples': '@net_snmp_debian//:debian/libsnmp-perl.examples', 'debian/libsnmp-perl.install': '@net_snmp_debian//:debian/libsnmp-perl.install', 'debian/libsnmp-perl.manpages': '@net_snmp_debian//:debian/libsnmp-perl.manpages', 'debian/libsnmp-perl.preinst': '@net_snmp_debian//:debian/libsnmp-perl.preinst', 'debian/libsnmp40.dirs': '@net_snmp_debian//:debian/libsnmp40.dirs', 'debian/libsnmp40.docs': '@net_snmp_debian//:debian/libsnmp40.docs', 'debian/libsnmp40.install': '@net_snmp_debian//:debian/libsnmp40.install', 'debian/libsnmp40.lintian-overrides': '@net_snmp_debian//:debian/libsnmp40.lintian-overrides', 'debian/not-installed': '@net_snmp_debian//:debian/not-installed', 'debian/patches/0026-fix-Bug-785380-incorrect-date-format.patch': '@net_snmp_debian//:debian/patches/0026-fix-Bug-785380-incorrect-date-format.patch', 'debian/patches/0027-fix-455707-traptoemail-use-FQDN.patch': '@net_snmp_debian//:debian/patches/0027-fix-455707-traptoemail-use-FQDN.patch', 'debian/patches/02_statistics.patch': '@net_snmp_debian//:debian/patches/02_statistics.patch', 'debian/patches/03_makefiles.patch': '@net_snmp_debian//:debian/patches/03_makefiles.patch', 'debian/patches/05_searchdirs.patch': '@net_snmp_debian//:debian/patches/05_searchdirs.patch', 'debian/patches/06_extramibs.patch': '@net_snmp_debian//:debian/patches/06_extramibs.patch', 'debian/patches/07_docfiles.patch': '@net_snmp_debian//:debian/patches/07_docfiles.patch', 'debian/patches/26_kfreebsd.patch': '@net_snmp_debian//:debian/patches/26_kfreebsd.patch', 'debian/patches/27_kfreebsd.patch': '@net_snmp_debian//:debian/patches/27_kfreebsd.patch', 'debian/patches/60_libsensors_api.patch': '@net_snmp_debian//:debian/patches/60_libsensors_api.patch', 'debian/patches/62_add_lib_cflags.patch': '@net_snmp_debian//:debian/patches/62_add_lib_cflags.patch', 'debian/patches/64_missing_lib.patch': '@net_snmp_debian//:debian/patches/64_missing_lib.patch', 'debian/patches/add_rocommunity6.patch': '@net_snmp_debian//:debian/patches/add_rocommunity6.patch', 'debian/patches/agent_set_null_varbind': '@net_snmp_debian//:debian/patches/agent_set_null_varbind', 'debian/patches/agent_silent_eacces': '@net_snmp_debian//:debian/patches/agent_silent_eacces', 'debian/patches/agent_swinst_dpkg_date': '@net_snmp_debian//:debian/patches/agent_swinst_dpkg_date', 'debian/patches/apps_makefile_use_ldflags': '@net_snmp_debian//:debian/patches/apps_makefile_use_ldflags', 'debian/patches/callback_print.diff': '@net_snmp_debian//:debian/patches/callback_print.diff', 'debian/patches/ci_libmariadb-dev': '@net_snmp_debian//:debian/patches/ci_libmariadb-dev', 'debian/patches/cross.patch': '@net_snmp_debian//:debian/patches/cross.patch', 'debian/patches/do_not_callback_for_failed_reports.diff': '@net_snmp_debian//:debian/patches/do_not_callback_for_failed_reports.diff', 'debian/patches/fix-request-id-0.patch': '@net_snmp_debian//:debian/patches/fix-request-id-0.patch', 'debian/patches/fix_engineid_reprobe.diff': '@net_snmp_debian//:debian/patches/fix_engineid_reprobe.diff', 'debian/patches/fix_manpage-has-errors_break_line.patch': '@net_snmp_debian//:debian/patches/fix_manpage-has-errors_break_line.patch', 'debian/patches/fix_perl_bulk_gets.diff': '@net_snmp_debian//:debian/patches/fix_perl_bulk_gets.diff', 'debian/patches/fix_snmpcheck_perl_path.patch': '@net_snmp_debian//:debian/patches/fix_snmpcheck_perl_path.patch', 'debian/patches/fix_spelling_error.patch': '@net_snmp_debian//:debian/patches/fix_spelling_error.patch', 'debian/patches/fix_typo_in_snmpd.conf.patch': '@net_snmp_debian//:debian/patches/fix_typo_in_snmpd.conf.patch', 'debian/patches/includes_fix_national_encoding': '@net_snmp_debian//:debian/patches/includes_fix_national_encoding', 'debian/patches/let_perl_access_engineid.diff': '@net_snmp_debian//:debian/patches/let_perl_access_engineid.diff', 'debian/patches/linux_systemstats': '@net_snmp_debian//:debian/patches/linux_systemstats', 'debian/patches/makefile_trap_needs_agent': '@net_snmp_debian//:debian/patches/makefile_trap_needs_agent', 'debian/patches/mib2c_perl_error': '@net_snmp_debian//:debian/patches/mib2c_perl_error', 'debian/patches/net-snmp-create-v3-user_paths': '@net_snmp_debian//:debian/patches/net-snmp-create-v3-user_paths', 'debian/patches/netsnmp_mib_api_3_groff': '@net_snmp_debian//:debian/patches/netsnmp_mib_api_3_groff', 'debian/patches/perl_makefile_man3pods': '@net_snmp_debian//:debian/patches/perl_makefile_man3pods', 'debian/patches/pingmib_perl_path': '@net_snmp_debian//:debian/patches/pingmib_perl_path', 'debian/patches/series': '@net_snmp_debian//:debian/patches/series', 'debian/patches/snmpcmd_1_groff': '@net_snmp_debian//:debian/patches/snmpcmd_1_groff', 'debian/patches/snmpd_conf_5_ro_extend': '@net_snmp_debian//:debian/patches/snmpd_conf_5_ro_extend', 'debian/patches/snmpd_pidfile_mode': '@net_snmp_debian//:debian/patches/snmpd_pidfile_mode', 'debian/patches/snmplib_error_subcontainer': '@net_snmp_debian//:debian/patches/snmplib_error_subcontainer', 'debian/patches/snmptranslate.1.patch': '@net_snmp_debian//:debian/patches/snmptranslate.1.patch', 'debian/patches/snmptrapd_correct_mysql_includes': '@net_snmp_debian//:debian/patches/snmptrapd_correct_mysql_includes', 'debian/patches/snmptrapd_trapoid_length': '@net_snmp_debian//:debian/patches/snmptrapd_trapoid_length', 'debian/patches/snmpwalk_args_in_snmpcheck': '@net_snmp_debian//:debian/patches/snmpwalk_args_in_snmpcheck', 'debian/po/POTFILES.in': '@net_snmp_debian//:debian/po/POTFILES.in', 'debian/po/ca.po': '@net_snmp_debian//:debian/po/ca.po', 'debian/po/cs.po': '@net_snmp_debian//:debian/po/cs.po', 'debian/po/da.po': '@net_snmp_debian//:debian/po/da.po', 'debian/po/de.po': '@net_snmp_debian//:debian/po/de.po', 'debian/po/es.po': '@net_snmp_debian//:debian/po/es.po', 'debian/po/eu.po': '@net_snmp_debian//:debian/po/eu.po', 'debian/po/fi.po': '@net_snmp_debian//:debian/po/fi.po', 'debian/po/fr.po': '@net_snmp_debian//:debian/po/fr.po', 'debian/po/gl.po': '@net_snmp_debian//:debian/po/gl.po', 'debian/po/id.po': '@net_snmp_debian//:debian/po/id.po', 'debian/po/it.po': '@net_snmp_debian//:debian/po/it.po', 'debian/po/ja.po': '@net_snmp_debian//:debian/po/ja.po', 'debian/po/ko.po': '@net_snmp_debian//:debian/po/ko.po', 'debian/po/nl.po': '@net_snmp_debian//:debian/po/nl.po', 'debian/po/pl.po': '@net_snmp_debian//:debian/po/pl.po', 'debian/po/pt.po': '@net_snmp_debian//:debian/po/pt.po', 'debian/po/pt_BR.po': '@net_snmp_debian//:debian/po/pt_BR.po', 'debian/po/ro.po': '@net_snmp_debian//:debian/po/ro.po', 'debian/po/ru.po': '@net_snmp_debian//:debian/po/ru.po', 'debian/po/sk.po': '@net_snmp_debian//:debian/po/sk.po', 'debian/po/sr.po': '@net_snmp_debian//:debian/po/sr.po', 'debian/po/sr@latin.po': '@net_snmp_debian//:debian/po/sr@latin.po', 'debian/po/sv.po': '@net_snmp_debian//:debian/po/sv.po', 'debian/po/ta.po': '@net_snmp_debian//:debian/po/ta.po', 'debian/po/templates.pot': '@net_snmp_debian//:debian/po/templates.pot', 'debian/po/vi.po': '@net_snmp_debian//:debian/po/vi.po', 'debian/rules': '@net_snmp_debian//:debian/rules', 'debian/salsa-ci.yml': '@net_snmp_debian//:debian/salsa-ci.yml', 'debian/snmp.conf': '@net_snmp_debian//:debian/snmp.conf', 'debian/snmp.install': '@net_snmp_debian//:debian/snmp.install', 'debian/snmp.lintian-overrides': '@net_snmp_debian//:debian/snmp.lintian-overrides', 'debian/snmp.manpages': '@net_snmp_debian//:debian/snmp.manpages', 'debian/snmp.postinst': '@net_snmp_debian//:debian/snmp.postinst', 'debian/snmp.preinst': '@net_snmp_debian//:debian/snmp.preinst', 'debian/snmpcheck.1': '@net_snmp_debian//:debian/snmpcheck.1', 'debian/snmpd.NEWS': '@net_snmp_debian//:debian/snmpd.NEWS', 'debian/snmpd.conf': '@net_snmp_debian//:debian/snmpd.conf', 'debian/snmpd.config': '@net_snmp_debian//:debian/snmpd.config', 'debian/snmpd.default': '@net_snmp_debian//:debian/snmpd.default', 'debian/snmpd.dirs': '@net_snmp_debian//:debian/snmpd.dirs', 'debian/snmpd.init': '@net_snmp_debian//:debian/snmpd.init', 'debian/snmpd.install': '@net_snmp_debian//:debian/snmpd.install', 'debian/snmpd.lintian-overrides': '@net_snmp_debian//:debian/snmpd.lintian-overrides', 'debian/snmpd.manpages': '@net_snmp_debian//:debian/snmpd.manpages', 'debian/snmpd.postinst': '@net_snmp_debian//:debian/snmpd.postinst', 'debian/snmpd.postrm': '@net_snmp_debian//:debian/snmpd.postrm', 'debian/snmpd.preinst': '@net_snmp_debian//:debian/snmpd.preinst', 'debian/snmpd.service': '@net_snmp_debian//:debian/snmpd.service', 'debian/snmpd.templates': '@net_snmp_debian//:debian/snmpd.templates', 'debian/snmpping.1': '@net_snmp_debian//:debian/snmpping.1', 'debian/snmptrapd.NEWS': '@net_snmp_debian//:debian/snmptrapd.NEWS', 'debian/snmptrapd.conf': '@net_snmp_debian//:debian/snmptrapd.conf', 'debian/snmptrapd.default': '@net_snmp_debian//:debian/snmptrapd.default', 'debian/snmptrapd.dirs': '@net_snmp_debian//:debian/snmptrapd.dirs', 'debian/snmptrapd.init': '@net_snmp_debian//:debian/snmptrapd.init', 'debian/snmptrapd.install': '@net_snmp_debian//:debian/snmptrapd.install', 'debian/snmptrapd.lintian-overrides': '@net_snmp_debian//:debian/snmptrapd.lintian-overrides', 'debian/snmptrapd.manpages': '@net_snmp_debian//:debian/snmptrapd.manpages', 'debian/snmptrapd.postrm': '@net_snmp_debian//:debian/snmptrapd.postrm', 'debian/snmptrapd.service': '@net_snmp_debian//:debian/snmptrapd.service', 'debian/snmptrapd.socket': '@net_snmp_debian//:debian/snmptrapd.socket', 'debian/source/format': '@net_snmp_debian//:debian/source/format', 'debian/tests/control': '@net_snmp_debian//:debian/tests/control', 'debian/tests/trap': '@net_snmp_debian//:debian/tests/trap', 'debian/tkmib.docs': '@net_snmp_debian//:debian/tkmib.docs', 'debian/tkmib.install': '@net_snmp_debian//:debian/tkmib.install', 'debian/upstream/signing-key.asc': '@net_snmp_debian//:debian/upstream/signing-key.asc', 'debian/watch': '@net_snmp_debian//:debian/watch', 'configure.ac': '//:source_overrides/configure.ac', 'agent/snmp_agent.c': '//:source_overrides/agent/snmp_agent.c', 'agent/snmpd.c': '//:source_overrides/agent/snmpd.c', 'snmplib/snmp_api.c': '//:source_overrides/snmplib/snmp_api.c', 'agent/mibgroup/mibII/interfaces.c': '//:source_overrides/agent/mibgroup/mibII/interfaces.c'},
++)
++
++
++apt = use_extension("@sonic_build_infra//toolchains/bookworm:apt.bzl", "apt")
++apt.install(dependency_set = "net_snmp_system", packages = ["libcrypt-dev", "libncurses-dev", "libpcap0.8-dev", "libwrap0-dev", "libssl-dev", "libsensors-dev", "libpci-dev", "default-libmysqlclient-dev", "libmariadb-dev", "libsystemd-dev", "libperl-dev", "perl-base", "perl", "perl-modules-5.36", "perl-xs-dev", "libncurses5-dev", "libpcap-dev", "libc6", "libgcc-s1", "libstdc++6", "libssl3", "libwrap0", "libperl5.36", "libcrypt1", "libsensors5", "libpci3", "libmariadb3", "libsystemd0", "libncurses6", "libtinfo6", "libpcap0.8"], suites = ["bookworm", "bookworm-updates", "bookworm-security"])
++use_repo(apt, "net_snmp_system")
++
++bazel_dep(name = "bazel_lib", version = "3.1.1")
++
++bazel_dep(name = "tar.bzl", version = "0.10.5-sonic.1")
+diff --git a/modules/net-snmp/5.9.3.sonic.1/README.md b/modules/net-snmp/5.9.3.sonic.1/README.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..7dc873f3fa3620a48a90c601f0d7709ad3dfbe67
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/README.md
+@@ -0,0 +1,17 @@
++# Native Net-SNMP Bazel registration
++
++Builds Net-SNMP libraries, agents, tools and Perl bindings with native Bazel rules. Public `*_layout` targets provide OCI installation TARs, with matching `*_elf.debug_symbols` TARs. The AMD64 and ARM64 target platforms use Debian Bookworm user-space dependencies. Final DEB assembly and package-manager maintenance scripts are outside this registration.
++
++Both architectures include `snmppcap`, using the declared libpcap dependency. Upstream enables this command when libpcap is available; it has no CPU restriction. `package_contract_test` checks all 22 commands, two daemons, six shared libraries and seven Perl bindings in the delivered TARs, including permissions, architecture and matching build IDs/debug-link checksums. These archive checks complement the feature/ABI test; they do not establish live SNMP service behavior.
++
++## Native Draft validation prerequisites
++
++The net-snmp candidate uses infrastructure `0.0.25-17a1e555291c64be1a6ff008f33352bffc4f8e5c` from [registry #147](https://github.com/securely1g/sonic-bazel-registry/pull/147) and the `.13` library exports from [#146](https://github.com/securely1g/sonic-bazel-registry/pull/146). The user-requested in-place registry patch retains the published infrastructure source archive and supplies the shared Bookworm execution-tool set and corrected packaged Python extension lookup.
++
++Its native CI stages only those exact prerequisite recipes and libnl3 from #148 from the immutable Draft catalog pinned by [this PR’s workflow](../../../.github/workflows/registry-ci.yml); the PR's own `net-snmp@5.9.3.sonic.1` recipe stays under test. The runner uses that single local catalog plus BCR, and retains `draft-prerequisites.json` with the exact entry trees. This is temporary validation, not a published dependency or a Ready criterion. Remove the staging step and verify maintained-main resolution after the prerequisites land.
++
++| Input or action | Before | After |
++| --- | --- | --- |
++| Native net-snmp registry validation for FRR's libraries and installation TARs | Older Draft infrastructure omits the reviewed execution-tool fixes | The reviewed `0.0.25-17a1e555…` recipe supplies the shared Bookworm tools and Python extension lookup; `.13` provides the required APT library targets |
++
++For local reproduction, stage the same entry trees from the pinned catalog into a disposable registry worktree, preserving this candidate, then run its existing `ci/registry_ci.py run --module net-snmp --version 5.9.3.sonic.1` command for the native architecture. Published module entries in the PR remain unchanged; historical cross-build results do not establish native ARM64 execution.
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/.bazelrc b/modules/net-snmp/5.9.3.sonic.1/overlay/.bazelrc
+new file mode 100644
+index 0000000000000000000000000000000000000000..b768b156f1f17b190926926bb402df7747d5a825
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/.bazelrc
+@@ -0,0 +1,4 @@
++common --registry=https://raw.githubusercontent.com/securely1g/sonic-bazel-registry/main
++common --registry=https://bcr.bazel.build
++build --platforms=@sonic_build_infra//platforms:x86_64_bookworm
++build --host_platform=@sonic_build_infra//platforms:x86_64_trixie
+diff --git a/modules/net-snmp/5.9.3.sonic.1/overlay/BUILD.bazel b/modules/net-snmp/5.9.3.sonic.1/overlay/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..ac7434640639ce660e36e413f3f38418aa5ac4d7
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/overlay/BUILD.bazel
+@@ -0,0 +1,2445 @@
++load("@bazel_lib//lib:run_binary.bzl", "run_binary")
++load("@rules_cc//cc:defs.bzl", "cc_library")
++load("@bazel_skylib//rules:expand_template.bzl", "expand_template")
++load("@bazel_skylib//rules:write_file.bzl", "write_file")
++load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
++load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
++load("@rules_python//python:defs.bzl", "py_binary")
++load("@sonic_build_infra//testing:exec_test.bzl", "exec_test")
++package(default_visibility = ["//visibility:public"])
++exports_files(glob(["patches/*", "source_overrides/**", "templates/*"]))
++filegroup(name = "source", srcs = ["@net_snmp_source//:source"])
++
++
++_HEADER_SUBSTITUTIONS = {
++    "@config_error@": "#define config_error(x)",
++    "@config_warning@": "#define config_warning(x)",
++    "@config_belongs_in@": "#define config_belongs_in(x)",
++    "@config_exclude@": "#define config_exclude(x)",
++    "@config_arch_require@": "#define config_arch_require(x,y)",
++    "@config_version_require@": "#define config_version_require(x)",
++    "@config_require@": "#define config_require(x)",
++    "@config_add_mib@": "#define config_add_mib(x)",
++    "@config_parse_dot_conf@": "#define config_parse_dot_conf(w,x,y,z)",
++    "@ENV_SEPARATOR@": "#define ENV_SEPARATOR \":\"",
++    "@ENV_SEPARATOR_CHAR@": "#define ENV_SEPARATOR_CHAR ':'",
++    "@ETC_MNTTAB@": "#define ETC_MNTTAB \"/etc/mtab\"",
++    "@HAVE_AES_CFB128_ENCRYPT@": "#define HAVE_AES_CFB128_ENCRYPT 1",
++    "@HAVE_ALLOCA@": "#define HAVE_ALLOCA 1",
++    "@HAVE_ALLOCA_H@": "#define HAVE_ALLOCA_H 1",
++    "@HAVE_ARPA_INET_H@": "#define HAVE_ARPA_INET_H 1",
++    "@HAVE_ASM_TYPES_H@": "#define HAVE_ASM_TYPES_H 1",
++    "@HAVE_ASN1_STRING_GET0_DATA@": "#define HAVE_ASN1_STRING_GET0_DATA 1",
++    "@HAVE_ASPRINTF@": "#define HAVE_ASPRINTF 1",
++    "@HAVE_CHOWN@": "#define HAVE_CHOWN 1",
++    "@HAVE_CLOCK_GETTIME@": "#define HAVE_CLOCK_GETTIME 1",
++    "@HAVE_CLOSEDIR@": "#define HAVE_CLOSEDIR 1",
++    "@HAVE_CURSES_H@": "#define HAVE_CURSES_H 1",
++    "@HAVE_DECL_DAYLIGHT@": "#define HAVE_DECL_DAYLIGHT 1",
++    "@HAVE_DECL_SENSORS_GET_ALL_SUBFEATURES@": "#define HAVE_DECL_SENSORS_GET_ALL_SUBFEATURES 1",
++    "@HAVE_DECL_TIMEZONE@": "#define HAVE_DECL_TIMEZONE 1",
++    "@HAVE_DH_GET0_KEY@": "#define HAVE_DH_GET0_KEY 1",
++    "@HAVE_DH_GET0_PQG@": "#define HAVE_DH_GET0_PQG 1",
++    "@HAVE_DH_SET0_PQG@": "#define HAVE_DH_SET0_PQG 1",
++    "@HAVE_DIRENT_H@": "#define HAVE_DIRENT_H 1",
++    "@HAVE_DLFCN_H@": "#define HAVE_DLFCN_H 1",
++    "@HAVE_DLOPEN@": "#define HAVE_DLOPEN 1",
++    "@HAVE_DPKG_QUERY@": "#define HAVE_DPKG_QUERY 1",
++    "@HAVE_DTLSV1_METHOD@": "#define HAVE_DTLSV1_METHOD 1",
++    "@HAVE_DTLS_METHOD@": "#define HAVE_DTLS_METHOD 1",
++    "@HAVE_ENDFSENT@": "#define HAVE_ENDFSENT 1",
++    "@HAVE_ERR_GET_ERROR_ALL@": "#define HAVE_ERR_GET_ERROR_ALL 1",
++    "@HAVE_ERR_H@": "#define HAVE_ERR_H 1",
++    "@HAVE_EVP_MD_CTX_FREE@": "#define HAVE_EVP_MD_CTX_FREE 1",
++    "@HAVE_EVP_MD_CTX_NEW@": "#define HAVE_EVP_MD_CTX_NEW 1",
++    "@HAVE_EVP_SHA224@": "#define HAVE_EVP_SHA224 1",
++    "@HAVE_EVP_SHA384@": "#define HAVE_EVP_SHA384 1",
++    "@HAVE_EXECV@": "#define HAVE_EXECV 1",
++    "@HAVE_FCNTL_H@": "#define HAVE_FCNTL_H 1",
++    "@HAVE_FGETC_UNLOCKED@": "#define HAVE_FGETC_UNLOCKED 1",
++    "@HAVE_FLOCKFILE@": "#define HAVE_FLOCKFILE 1",
++    "@HAVE_FORK@": "#define HAVE_FORK 1",
++    "@HAVE_FSTAB_H@": "#define HAVE_FSTAB_H 1",
++    "@HAVE_FSYNC@": "#define HAVE_FSYNC 1",
++    "@HAVE_FUNLOCKFILE@": "#define HAVE_FUNLOCKFILE 1",
++    "@HAVE_GAI_STRERROR@": "#define HAVE_GAI_STRERROR 1",
++    "@HAVE_GETADDRINFO@": "#define HAVE_GETADDRINFO 1",
++    "@HAVE_GETDTABLESIZE@": "#define HAVE_GETDTABLESIZE 1",
++    "@HAVE_GETFSENT@": "#define HAVE_GETFSENT 1",
++    "@HAVE_GETGRNAM@": "#define HAVE_GETGRNAM 1",
++    "@HAVE_GETHOSTBYADDR@": "#define HAVE_GETHOSTBYADDR 1",
++    "@HAVE_GETHOSTBYNAME@": "#define HAVE_GETHOSTBYNAME 1",
++    "@HAVE_GETHOSTBYNAME2@": "#define HAVE_GETHOSTBYNAME2 1",
++    "@HAVE_GETHOSTNAME@": "#define HAVE_GETHOSTNAME 1",
++    "@HAVE_GETLOADAVG@": "#define HAVE_GETLOADAVG 1",
++    "@HAVE_GETLOGIN@": "#define HAVE_GETLOGIN 1",
++    "@HAVE_GETMNTENT@": "#define HAVE_GETMNTENT 1",
++    "@HAVE_GETOPT@": "#define HAVE_GETOPT 1",
++    "@HAVE_GETOPT_H@": "#define HAVE_GETOPT_H 1",
++    "@HAVE_GETPAGESIZE@": "#define HAVE_GETPAGESIZE 1",
++    "@HAVE_GETPID@": "#define HAVE_GETPID 1",
++    "@HAVE_GETPWNAM@": "#define HAVE_GETPWNAM 1",
++    "@HAVE_GETTIMEOFDAY@": "#define HAVE_GETTIMEOFDAY 1",
++    "@HAVE_GRP_H@": "#define HAVE_GRP_H 1",
++    "@HAVE_HASMNTOPT@": "#define HAVE_HASMNTOPT 1",
++    "@HAVE_IF_FREENAMEINDEX@": "#define HAVE_IF_FREENAMEINDEX 1",
++    "@HAVE_IF_INDEXTONAME@": "#define HAVE_IF_INDEXTONAME 1",
++    "@HAVE_IF_NAMEINDEX@": "#define HAVE_IF_NAMEINDEX 1",
++    "@HAVE_IF_NAMETOINDEX@": "#define HAVE_IF_NAMETOINDEX 1",
++    "@HAVE_INET_NTOP@": "#define HAVE_INET_NTOP 1",
++    "@HAVE_INET_PTON@": "#define HAVE_INET_PTON 1",
++    "@HAVE_INITGROUPS@": "#define HAVE_INITGROUPS 1",
++    "@HAVE_INTMAX_T@": "#define HAVE_INTMAX_T 1",
++    "@HAVE_INTPTR_T@": "#define HAVE_INTPTR_T 1",
++    "@HAVE_INTTYPES_H@": "#define HAVE_INTTYPES_H 1",
++    "@HAVE_IN_ADDR_T@": "#define HAVE_IN_ADDR_T 1",
++    "@HAVE_IP_PKTINFO@": "#define HAVE_IP_PKTINFO 1",
++    "@HAVE_LIBCRYPTO@": "#define HAVE_LIBCRYPTO 1",
++    "@HAVE_LIBNL3@": "#define HAVE_LIBNL3 1",
++    "@HAVE_LIBSSL@": "#define HAVE_LIBSSL 1",
++    "@HAVE_LIBSSL_DTLS@": "#define HAVE_LIBSSL_DTLS 1",
++    "@HAVE_LIMITS_H@": "#define HAVE_LIMITS_H 1",
++    "@HAVE_LINUX_ETHTOOL_H@": "#define HAVE_LINUX_ETHTOOL_H 1",
++    "@HAVE_LINUX_HDREG_H@": "#define HAVE_LINUX_HDREG_H 1",
++    "@HAVE_LINUX_NETLINK_H@": "#define HAVE_LINUX_NETLINK_H 1",
++    "@HAVE_LINUX_RTNETLINK_H@": "#define HAVE_LINUX_RTNETLINK_H 1",
++    "@HAVE_LOCALE_H@": "#define HAVE_LOCALE_H 1",
++    "@HAVE_LOCALTIME_R@": "#define HAVE_LOCALTIME_R 1",
++    "@HAVE_LONG_LONG_INT@": "#define HAVE_LONG_LONG_INT 1",
++    "@HAVE_LRAND48@": "#define HAVE_LRAND48 1",
++    "@HAVE_LSEEK64@": "#define HAVE_LSEEK64 1",
++    "@HAVE_MALLOC_H@": "#define HAVE_MALLOC_H 1",
++    "@HAVE_MKSTEMP@": "#define HAVE_MKSTEMP 1",
++    "@HAVE_MKTIME@": "#define HAVE_MKTIME 1",
++    "@HAVE_MNTENT_H@": "#define HAVE_MNTENT_H 1",
++    "@HAVE_MYSQL_INIT@": "#define HAVE_MYSQL_INIT 1",
++    "@HAVE_MYSQL_OPTIONS@": "#define HAVE_MYSQL_OPTIONS 1",
++    "@HAVE_MY_GLOBAL_H@": "#define HAVE_MY_GLOBAL_H 1",
++    "@HAVE_MY_SYS_H@": "#define HAVE_MY_SYS_H 1",
++    "@HAVE_NETDB_H@": "#define HAVE_NETDB_H 1",
++    "@HAVE_NETINET_ICMP6_H@": "#define HAVE_NETINET_ICMP6_H 1",
++    "@HAVE_NETINET_IF_ETHER_H@": "#define HAVE_NETINET_IF_ETHER_H 1",
++    "@HAVE_NETINET_IN_H@": "#define HAVE_NETINET_IN_H 1",
++    "@HAVE_NETINET_IN_SYSTM_H@": "#define HAVE_NETINET_IN_SYSTM_H 1",
++    "@HAVE_NETINET_IP6_H@": "#define HAVE_NETINET_IP6_H 1",
++    "@HAVE_NETINET_IP_H@": "#define HAVE_NETINET_IP_H 1",
++    "@HAVE_NETINET_IP_ICMP_H@": "#define HAVE_NETINET_IP_ICMP_H 1",
++    "@HAVE_NETINET_TCP_H@": "#define HAVE_NETINET_TCP_H 1",
++    "@HAVE_NETINET_UDP_H@": "#define HAVE_NETINET_UDP_H 1",
++    "@HAVE_NETIPX_IPX_H@": "#define HAVE_NETIPX_IPX_H 1",
++    "@HAVE_NETLINK_NETLINK_H@": "#define HAVE_NETLINK_NETLINK_H 1",
++    "@HAVE_NET_IF_ARP_H@": "#define HAVE_NET_IF_ARP_H 1",
++    "@HAVE_NET_IF_H@": "#define HAVE_NET_IF_H 1",
++    "@HAVE_NET_ROUTE_H@": "#define HAVE_NET_ROUTE_H 1",
++    "@HAVE_NFDS_T@": "#define HAVE_NFDS_T 1",
++    "@HAVE_OFF64_T@": "#define HAVE_OFF64_T 1",
++    "@HAVE_OPENDIR@": "#define HAVE_OPENDIR 1",
++    "@HAVE_OPENSSL_AES_H@": "#define HAVE_OPENSSL_AES_H 1",
++    "@HAVE_OPENSSL_DES_H@": "#define HAVE_OPENSSL_DES_H 1",
++    "@HAVE_OPENSSL_DH_H@": "#define HAVE_OPENSSL_DH_H 1",
++    "@HAVE_OPENSSL_EVP_H@": "#define HAVE_OPENSSL_EVP_H 1",
++    "@HAVE_OPENSSL_HMAC_H@": "#define HAVE_OPENSSL_HMAC_H 1",
++    "@HAVE_OPENSSL_SK_NUM@": "#define HAVE_OPENSSL_SK_NUM 1",
++    "@HAVE_OPENSSL_SK_VALUE@": "#define HAVE_OPENSSL_SK_VALUE 1",
++    "@HAVE_PCI_LOOKUP_NAME@": "#define HAVE_PCI_LOOKUP_NAME 1",
++    "@HAVE_PCI_PCI_H@": "#define HAVE_PCI_PCI_H 1",
++    "@HAVE_PERL_EVAL_PV_UC@": "#define HAVE_PERL_EVAL_PV_UC 1",
++    "@HAVE_POLL@": "#define HAVE_POLL 1",
++    "@HAVE_POSIX_SPAWN@": "#define HAVE_POSIX_SPAWN 1",
++    "@HAVE_PREAD64@": "#define HAVE_PREAD64 1",
++    "@HAVE_PRIORITYNAMES@": "#define HAVE_PRIORITYNAMES 1",
++    "@HAVE_PTHREAD_H@": "#define HAVE_PTHREAD_H 1",
++    "@HAVE_PWD_H@": "#define HAVE_PWD_H 1",
++    "@HAVE_RAND@": "#define HAVE_RAND 1",
++    "@HAVE_RANDOM@": "#define HAVE_RANDOM 1",
++    "@HAVE_READDIR@": "#define HAVE_READDIR 1",
++    "@HAVE_REGCOMP@": "#define HAVE_REGCOMP 1",
++    "@HAVE_REGEX_H@": "#define HAVE_REGEX_H 1",
++    "@HAVE_SCALAR_TIMEZONE@": "#define HAVE_SCALAR_TIMEZONE 1",
++    "@HAVE_SEARCH_H@": "#define HAVE_SEARCH_H 1",
++    "@HAVE_SELECT@": "#define HAVE_SELECT 1",
++    "@HAVE_SENSORS_SENSORS_H@": "#define HAVE_SENSORS_SENSORS_H 1",
++    "@HAVE_SETENV@": "#define HAVE_SETENV 1",
++    "@HAVE_SETFSENT@": "#define HAVE_SETFSENT 1",
++    "@HAVE_SETGID@": "#define HAVE_SETGID 1",
++    "@HAVE_SETGROUPS@": "#define HAVE_SETGROUPS 1",
++    "@HAVE_SETITIMER@": "#define HAVE_SETITIMER 1",
++    "@HAVE_SETLOCALE@": "#define HAVE_SETLOCALE 1",
++    "@HAVE_SETMNTENT@": "#define HAVE_SETMNTENT 1",
++    "@HAVE_SETSID@": "#define HAVE_SETSID 1",
++    "@HAVE_SETUID@": "#define HAVE_SETUID 1",
++    "@HAVE_SGTTY_H@": "#define HAVE_SGTTY_H 1",
++    "@HAVE_SIGACTION@": "#define HAVE_SIGACTION 1",
++    "@HAVE_SIGBLOCK@": "#define HAVE_SIGBLOCK 1",
++    "@HAVE_SIGHUP@": "#define HAVE_SIGHUP 1",
++    "@HAVE_SIGNAL@": "#define HAVE_SIGNAL 1",
++    "@HAVE_SIGPROCMASK@": "#define HAVE_SIGPROCMASK 1",
++    "@HAVE_SIGSET@": "#define HAVE_SIGSET 1",
++    "@HAVE_SNPRINTF@": "#define HAVE_SNPRINTF 1",
++    "@HAVE_SOCKET@": "#define HAVE_SOCKET 1",
++    "@HAVE_SOCKLEN_T@": "#define HAVE_SOCKLEN_T 1",
++    "@HAVE_SO_BINDTODEVICE@": "#define HAVE_SO_BINDTODEVICE 1",
++    "@HAVE_SPAWN_H@": "#define HAVE_SPAWN_H 1",
++    "@HAVE_SRAND@": "#define HAVE_SRAND 1",
++    "@HAVE_SRAND48@": "#define HAVE_SRAND48 1",
++    "@HAVE_SRANDOM@": "#define HAVE_SRANDOM 1",
++    "@HAVE_SSIZE_T@": "#define HAVE_SSIZE_T 1",
++    "@HAVE_SSL_GET1_PEER_CERTIFICATE@": "#define HAVE_SSL_GET1_PEER_CERTIFICATE 1",
++    "@HAVE_STATFS@": "#define HAVE_STATFS 1",
++    "@HAVE_STATVFS@": "#define HAVE_STATVFS 1",
++    "@HAVE_STDINT_H@": "#define HAVE_STDINT_H 1",
++    "@HAVE_STDIO_H@": "#define HAVE_STDIO_H 1",
++    "@HAVE_STDLIB_H@": "#define HAVE_STDLIB_H 1",
++    "@HAVE_STRCASESTR@": "#define HAVE_STRCASESTR 1",
++    "@HAVE_STRDUP@": "#define HAVE_STRDUP 1",
++    "@HAVE_STRERROR@": "#define HAVE_STRERROR 1",
++    "@HAVE_STRINGS_H@": "#define HAVE_STRINGS_H 1",
++    "@HAVE_STRING_H@": "#define HAVE_STRING_H 1",
++    "@HAVE_STRNCASECMP@": "#define HAVE_STRNCASECMP 1",
++    "@HAVE_STRTOK_R@": "#define HAVE_STRTOK_R 1",
++    "@HAVE_STRTOL@": "#define HAVE_STRTOL 1",
++    "@HAVE_STRTOUL@": "#define HAVE_STRTOUL 1",
++    "@HAVE_STRTOULL@": "#define HAVE_STRTOULL 1",
++    "@HAVE_STRUCT_DIRENT_D_TYPE@": "#define HAVE_STRUCT_DIRENT_D_TYPE 1",
++    "@HAVE_STRUCT_ETHTOOL_CMD_SPEED_HI@": "#define HAVE_STRUCT_ETHTOOL_CMD_SPEED_HI 1",
++    "@HAVE_STRUCT_IFADDR_IFA_NEXT@": "#define HAVE_STRUCT_IFADDR_IFA_NEXT 1",
++    "@HAVE_STRUCT_IFNET_IF_IBYTES@": "#define HAVE_STRUCT_IFNET_IF_IBYTES 1",
++    "@HAVE_STRUCT_IFNET_IF_IQDROPS@": "#define HAVE_STRUCT_IFNET_IF_IQDROPS 1",
++    "@HAVE_STRUCT_IFNET_IF_MTU@": "#define HAVE_STRUCT_IFNET_IF_MTU 1",
++    "@HAVE_STRUCT_IFNET_IF_OBYTES@": "#define HAVE_STRUCT_IFNET_IF_OBYTES 1",
++    "@HAVE_STRUCT_IFNET_IF_SPEED@": "#define HAVE_STRUCT_IFNET_IF_SPEED 1",
++    "@HAVE_STRUCT_IFNET_IF_TYPE@": "#define HAVE_STRUCT_IFNET_IF_TYPE 1",
++    "@HAVE_STRUCT_IN_PKTINFO_IPI_SPEC_DST@": "#define HAVE_STRUCT_IN_PKTINFO_IPI_SPEC_DST 1",
++    "@HAVE_STRUCT_RTENTRY_RT_DST@": "#define HAVE_STRUCT_RTENTRY_RT_DST 1",
++    "@HAVE_STRUCT_SIGACTION_SA_SIGACTION@": "#define HAVE_STRUCT_SIGACTION_SA_SIGACTION 1",
++    "@HAVE_STRUCT_SOCKADDR_IN6_SIN6_SCOPE_ID@": "#define HAVE_STRUCT_SOCKADDR_IN6_SIN6_SCOPE_ID 1",
++    "@HAVE_STRUCT_SOCKADDR_STORAGE_SS_FAMILY@": "#define HAVE_STRUCT_SOCKADDR_STORAGE_SS_FAMILY 1",
++    "@HAVE_STRUCT_STATFS_F_FFREE@": "#define HAVE_STRUCT_STATFS_F_FFREE 1",
++    "@HAVE_STRUCT_STATFS_F_FILES@": "#define HAVE_STRUCT_STATFS_F_FILES 1",
++    "@HAVE_STRUCT_STATFS_F_FLAGS@": "#define HAVE_STRUCT_STATFS_F_FLAGS 1",
++    "@HAVE_STRUCT_STATFS_F_FRSIZE@": "#define HAVE_STRUCT_STATFS_F_FRSIZE 1",
++    "@HAVE_STRUCT_STATVFS_F_FILES@": "#define HAVE_STRUCT_STATVFS_F_FILES 1",
++    "@HAVE_STRUCT_STATVFS_F_FRSIZE@": "#define HAVE_STRUCT_STATVFS_F_FRSIZE 1",
++    "@HAVE_STRUCT_TIMEZONE_TZ_DSTTIME@": "#define HAVE_STRUCT_TIMEZONE_TZ_DSTTIME 1",
++    "@HAVE_STRUCT_TM_TM_GMTOFF@": "#define HAVE_STRUCT_TM_TM_GMTOFF 1",
++    "@HAVE_STRUCT_TM_TM_ISDST@": "#define HAVE_STRUCT_TM_TM_ISDST 1",
++    "@HAVE_SYSCONF@": "#define HAVE_SYSCONF 1",
++    "@HAVE_SYSLOG_H@": "#define HAVE_SYSLOG_H 1",
++    "@HAVE_SYSTEM@": "#define HAVE_SYSTEM 1",
++    "@HAVE_SYS_CDEFS_H@": "#define HAVE_SYS_CDEFS_H 1",
++    "@HAVE_SYS_FILE_H@": "#define HAVE_SYS_FILE_H 1",
++    "@HAVE_SYS_IOCTL_H@": "#define HAVE_SYS_IOCTL_H 1",
++    "@HAVE_SYS_MOUNT_H@": "#define HAVE_SYS_MOUNT_H 1",
++    "@HAVE_SYS_PARAM_H@": "#define HAVE_SYS_PARAM_H 1",
++    "@HAVE_SYS_POLL_H@": "#define HAVE_SYS_POLL_H 1",
++    "@HAVE_SYS_QUEUE_H@": "#define HAVE_SYS_QUEUE_H 1",
++    "@HAVE_SYS_SELECT_H@": "#define HAVE_SYS_SELECT_H 1",
++    "@HAVE_SYS_SOCKETVAR_H@": "#define HAVE_SYS_SOCKETVAR_H 1",
++    "@HAVE_SYS_SOCKET_H@": "#define HAVE_SYS_SOCKET_H 1",
++    "@HAVE_SYS_STATFS_H@": "#define HAVE_SYS_STATFS_H 1",
++    "@HAVE_SYS_STATVFS_H@": "#define HAVE_SYS_STATVFS_H 1",
++    "@HAVE_SYS_STAT_H@": "#define HAVE_SYS_STAT_H 1",
++    "@HAVE_SYS_SWAP_H@": "#define HAVE_SYS_SWAP_H 1",
++    "@HAVE_SYS_SYSLOG_H@": "#define HAVE_SYS_SYSLOG_H 1",
++    "@HAVE_SYS_SYSMACROS_H@": "#define HAVE_SYS_SYSMACROS_H 1",
++    "@HAVE_SYS_TIMEB_H@": "#define HAVE_SYS_TIMEB_H 1",
++    "@HAVE_SYS_TIMES_H@": "#define HAVE_SYS_TIMES_H 1",
++    "@HAVE_SYS_TIME_H@": "#define HAVE_SYS_TIME_H 1",
++    "@HAVE_SYS_TYPES_H@": "#define HAVE_SYS_TYPES_H 1",
++    "@HAVE_SYS_UIO_H@": "#define HAVE_SYS_UIO_H 1",
++    "@HAVE_SYS_UN_H@": "#define HAVE_SYS_UN_H 1",
++    "@HAVE_SYS_USER_H@": "#define HAVE_SYS_USER_H 1",
++    "@HAVE_SYS_UTSNAME_H@": "#define HAVE_SYS_UTSNAME_H 1",
++    "@HAVE_SYS_VFS_H@": "#define HAVE_SYS_VFS_H 1",
++    "@HAVE_SYS_WAIT_H@": "#define HAVE_SYS_WAIT_H 1",
++    "@HAVE_TCGETATTR@": "#define HAVE_TCGETATTR 1",
++    "@HAVE_TIMES@": "#define HAVE_TIMES 1",
++    "@HAVE_TLSV1_METHOD@": "#define HAVE_TLSV1_METHOD 1",
++    "@HAVE_TLS_METHOD@": "#define HAVE_TLS_METHOD 1",
++    "@HAVE_UINTMAX_T@": "#define HAVE_UINTMAX_T 1",
++    "@HAVE_UINTPTR_T@": "#define HAVE_UINTPTR_T 1",
++    "@HAVE_UNAME@": "#define HAVE_UNAME 1",
++    "@HAVE_UNISTD_H@": "#define HAVE_UNISTD_H 1",
++    "@HAVE_UNSIGNED_LONG_LONG_INT@": "#define HAVE_UNSIGNED_LONG_LONG_INT 1",
++    "@HAVE_USLEEP@": "#define HAVE_USLEEP 1",
++    "@HAVE_UTMPX_H@": "#define HAVE_UTMPX_H 1",
++    "@HAVE_VSNPRINTF@": "#define HAVE_VSNPRINTF 1",
++    "@HAVE_WAITPID@": "#define HAVE_WAITPID 1",
++    "@HAVE_WCHAR_H@": "#define HAVE_WCHAR_H 1",
++    "@HAVE_X509_GET_SIGNATURE_NID@": "#define HAVE_X509_GET_SIGNATURE_NID 1",
++    "@HAVE_X509_NAME_ENTRY_GET_DATA@": "#define HAVE_X509_NAME_ENTRY_GET_DATA 1",
++    "@HAVE_X509_NAME_ENTRY_GET_OBJECT@": "#define HAVE_X509_NAME_ENTRY_GET_OBJECT 1",
++    "@KERNEL_LOC@": "#define KERNEL_LOC \"unknown\"",
++    "@LT_OBJDIR@": "#define LT_OBJDIR \".libs/\"",
++    "@NETSNMP_AGENTX_SOCKET@": "#define NETSNMP_AGENTX_SOCKET \"/var/agentx/master\"",
++    "@NETSNMP_ATTRIBUTE_DEPRECATED@": "#define NETSNMP_ATTRIBUTE_DEPRECATED __attribute__((deprecated))",
++    "@NETSNMP_ATTRIBUTE_UNUSED@": "#define NETSNMP_ATTRIBUTE_UNUSED __attribute__((unused))",
++    "@NETSNMP_CAN_DO_CRYPTO@": "#define NETSNMP_CAN_DO_CRYPTO 1",
++    "@NETSNMP_DEFAULT_MIBDIRS@": "#define NETSNMP_DEFAULT_MIBDIRS \"$HOME/.snmp/mibs:/usr/share/snmp/mibs:/usr/share/snmp/mibs/iana:/usr/share/snmp/mibs/ietf\"",
++    "@NETSNMP_DRAFT_BLUMENTHAL_AES_04@": "#define NETSNMP_DRAFT_BLUMENTHAL_AES_04 1",
++    "@NETSNMP_EMBEDDED_PERL@": "#define NETSNMP_EMBEDDED_PERL 1",
++    "@NETSNMP_ENABLE_IPV6@": "#define NETSNMP_ENABLE_IPV6 1",
++    "@NETSNMP_ENABLE_MFD_REWRITES@": "#define NETSNMP_ENABLE_MFD_REWRITES 1",
++    "@NETSNMP_ENABLE_SCAPI_AUTHPRIV@": "#define NETSNMP_ENABLE_SCAPI_AUTHPRIV 1",
++    "@NETSNMP_FUNCTION@": "#define NETSNMP_FUNCTION __func__",
++    "@NETSNMP_IOCTLSOCKET_ARG@": "#define NETSNMP_IOCTLSOCKET_ARG unknown",
++    "@NETSNMP_NO_DUMMY_VALUES@": "#define NETSNMP_NO_DUMMY_VALUES 1",
++    "@NETSNMP_PERSISTENT_MASK@": "#define NETSNMP_PERSISTENT_MASK 077",
++    "@NETSNMP_PRIz@": "#define NETSNMP_PRIz \"z\"",
++    "@NETSNMP_SELECT_TIMEVAL@": "#define NETSNMP_SELECT_TIMEVAL struct timeval",
++    "@NETSNMP_TEMP_FILE_PATTERN@": "#define NETSNMP_TEMP_FILE_PATTERN \"/tmp/snmpdXXXXXX\"",
++    "@NETSNMP_USE_MYSQL@": "#define NETSNMP_USE_MYSQL 1",
++    "@NETSNMP_USE_SENSORS_V3@": "#define NETSNMP_USE_SENSORS_V3 1",
++    "@NETSNMP_WITH_OPAQUE_SPECIAL_TYPES@": "#define NETSNMP_WITH_OPAQUE_SPECIAL_TYPES 1",
++    "@PACKAGE_BUGREPORT@": "#define PACKAGE_BUGREPORT \"net-snmp-coders@lists.sourceforge.net\"",
++    "@PACKAGE_NAME@": "#define PACKAGE_NAME \"Net-SNMP\"",
++    "@PACKAGE_STRING@": "#define PACKAGE_STRING \"Net-SNMP 5.9.3\"",
++    "@PACKAGE_TARNAME@": "#define PACKAGE_TARNAME \"net-snmp\"",
++    "@PACKAGE_URL@": "#define PACKAGE_URL \"\"",
++    "@PACKAGE_VERSION@": "#define PACKAGE_VERSION \"5.9.3\"",
++    "@PSCMD@": "#define PSCMD \"/bin/ps -e\"",
++    "@RETSIGTYPE@": "#define RETSIGTYPE void",
++    "@RTENTRY@": "#define RTENTRY struct rtentry",
++    "@SECOND_APPVERIFY_COOKIE_CB_ARG_QUALIFIER@": "#define SECOND_APPVERIFY_COOKIE_CB_ARG_QUALIFIER const",
++    "@SIZEOF_INT@": "#define SIZEOF_INT 4",
++    "@SIZEOF_INTMAX_T@": "#define SIZEOF_INTMAX_T 8",
++    "@SIZEOF_LONG@": "#define SIZEOF_LONG 8",
++    "@SIZEOF_LONG_LONG@": "#define SIZEOF_LONG_LONG 8",
++    "@SIZEOF_SHORT@": "#define SIZEOF_SHORT 2",
++    "@SIZEOF_SOCKADDR_UN_SUN_PATH@": "#define SIZEOF_SOCKADDR_UN_SUN_PATH 108",
++    "@STDC_HEADERS@": "#define STDC_HEADERS 1",
++    "@SYS_IOCTL_H_HAS_SIOCGIFADDR@": "#define SYS_IOCTL_H_HAS_SIOCGIFADDR 1",
++    "@TIME_WITH_SYS_TIME@": "#define TIME_WITH_SYS_TIME 1",
++    "@UNAMEPROG@": "#define UNAMEPROG \"/bin/uname\"",
++    "@NETSNMP_USE_OPENSSL@": "#define NETSNMP_USE_OPENSSL 1",
++    "@HAVE_AES@": "#define HAVE_AES 1",
++    "@signal@": "#define signal(a,b) sigset(a,b)",
++    "@DMALLOC_FUNC_CHECK@": "#define DMALLOC_FUNC_CHECK",
++    "@NETSNMP_DEFAULT_SNMP_VERSION@": "#define NETSNMP_DEFAULT_SNMP_VERSION 3",
++    "@NETSNMP_SNMPV1@": "#define NETSNMP_SNMPV1      0xAAAA       /* readable by anyone */",
++    "@NETSNMP_SNMPV2ANY@": "#define NETSNMP_SNMPV2ANY   0xA000       /* V2 Any type (includes NoAuth) */",
++    "@NETSNMP_SNMPV2AUTH@": "#define NETSNMP_SNMPV2AUTH  0x8000       /* V2 Authenticated requests only */",
++    "@NETSNMP_DEFAULT_MIBS@": "#define NETSNMP_DEFAULT_MIBS \":SNMPv2-MIB:IF-MIB:IP-MIB:TCP-MIB:UDP-MIB:HOST-RESOURCES-MIB:NOTIFICATION-LOG-MIB:DISMAN-EVENT-MIB:DISMAN-SCHEDULE-MIB:HOST-RESOURCES-TYPES:MTA-MIB:NETWORK-SERVICES-MIB:UCD-DISKIO-MIB:UCD-DLMOD-MIB:LM-SENSORS-MIB:UCD-SNMP-MIB:UCD-DEMO-MIB:SNMP-TARGET-MIB:NET-SNMP-AGENT-MIB:SNMP-FRAMEWORK-MIB:SNMP-MPD-MIB:SNMP-USER-BASED-SM-MIB:SNMP-VIEW-BASED-ACM-MIB:SNMP-COMMUNITY-MIB:IPV6-ICMP-MIB:IPV6-MIB:IPV6-TCP-MIB:IPV6-UDP-MIB:IP-FORWARD-MIB:NET-SNMP-PASS-MIB:NET-SNMP-EXTEND-MIB:SNMP-NOTIFICATION-MIB:SNMPv2-TM:NET-SNMP-VACM-MIB\"",
++    "@NETSNMP_ALWAYS_DEBUG@": "#define NETSNMP_ALWAYS_DEBUG 0",
++    "@NETSNMP_USE_REVERSE_ASNENCODING@": "#define NETSNMP_USE_REVERSE_ASNENCODING       1",
++    "@NETSNMP_DEFAULT_ASNENCODING_DIRECTION@": "#define NETSNMP_DEFAULT_ASNENCODING_DIRECTION 1 /* 1 = reverse, 0 = forwards */",
++    "@NETSNMP_PERSISTENT_DIRECTORY@": "#define NETSNMP_PERSISTENT_DIRECTORY \"/var/lib/snmp\"",
++    "@NETSNMP_AGENT_DIRECTORY_MODE@": "#define NETSNMP_AGENT_DIRECTORY_MODE 0700",
++    "@NETSNMP_MAX_PERSISTENT_BACKUPS@": "#define NETSNMP_MAX_PERSISTENT_BACKUPS 10",
++    "@NETSNMP_SYSTEM_INCLUDE_FILE@": "#define NETSNMP_SYSTEM_INCLUDE_FILE \"net-snmp/system/linux.h\"",
++    "@NETSNMP_MACHINE_INCLUDE_FILE@": "#define NETSNMP_MACHINE_INCLUDE_FILE \"net-snmp/machine/generic.h\"",
++    "@SNMPSHAREPATH@": "#define SNMPSHAREPATH \"/usr/share/snmp\"",
++    "@SNMPCONFPATH@": "#define SNMPCONFPATH \"/etc/snmp\"",
++    "@NETSNMP_SYS_CONTACT@": "#define NETSNMP_SYS_CONTACT \"root\"",
++    "@NETSNMP_SYS_LOC@": "#define NETSNMP_SYS_LOC \"Unknown\"",
++    "@NETSNMP_USE_LIBWRAP@": "#define NETSNMP_USE_LIBWRAP 1",
++    "@NETSNMP_VERS_DESC@": "#define NETSNMP_VERS_DESC   \"unknown\"             /* overridden at run time */",
++    "@NETSNMP_SYS_NAME@": "#define NETSNMP_SYS_NAME    \"unknown\"             /* overridden at run time */",
++    "@NETSNMP_PROCMIBNUM@": "#define NETSNMP_PROCMIBNUM 2",
++    "@NETSNMP_SHELLMIBNUM@": "#define NETSNMP_SHELLMIBNUM 8",
++    "@NETSNMP_MEMMIBNUM@": "#define NETSNMP_MEMMIBNUM 4",
++    "@NETSNMP_DISKMIBNUM@": "#define NETSNMP_DISKMIBNUM 9",
++    "@NETSNMP_LOADAVEMIBNUM@": "#define NETSNMP_LOADAVEMIBNUM 10",
++    "@NETSNMP_VERSIONMIBNUM@": "#define NETSNMP_VERSIONMIBNUM 100",
++    "@NETSNMP_ERRORMIBNUM@": "#define NETSNMP_ERRORMIBNUM 101",
++    "@NETSNMP_AGENTID@": "#define NETSNMP_AGENTID 250",
++    "@NETSNMP_HPUX9ID@": "#define NETSNMP_HPUX9ID 1",
++    "@NETSNMP_SUNOS4ID@": "#define NETSNMP_SUNOS4ID 2 ",
++    "@NETSNMP_SOLARISID@": "#define NETSNMP_SOLARISID 3",
++    "@NETSNMP_OSFID@": "#define NETSNMP_OSFID 4",
++    "@NETSNMP_ULTRIXID@": "#define NETSNMP_ULTRIXID 5",
++    "@NETSNMP_HPUX10ID@": "#define NETSNMP_HPUX10ID 6",
++    "@NETSNMP_NETBSD1ID@": "#define NETSNMP_NETBSD1ID 7",
++    "@NETSNMP_FREEBSDID@": "#define NETSNMP_FREEBSDID 8",
++    "@NETSNMP_IRIXID@": "#define NETSNMP_IRIXID 9",
++    "@NETSNMP_LINUXID@": "#define NETSNMP_LINUXID 10",
++    "@NETSNMP_BSDIID@": "#define NETSNMP_BSDIID 11",
++    "@NETSNMP_OPENBSDID@": "#define NETSNMP_OPENBSDID 12",
++    "@NETSNMP_WIN32ID@": "#define NETSNMP_WIN32ID 13",
++    "@NETSNMP_HPUX11ID@": "#define NETSNMP_HPUX11ID 14",
++    "@NETSNMP_AIXID@": "#define NETSNMP_AIXID 15",
++    "@NETSNMP_MACOSXID@": "#define NETSNMP_MACOSXID 16",
++    "@NETSNMP_DRAGONFLYID@": "#define NETSNMP_DRAGONFLYID 17",
++    "@NETSNMP_UNKNOWNID@": "#define NETSNMP_UNKNOWNID 255",
++    "@NETSNMP_OSTYPE@": "#define NETSNMP_OSTYPE NETSNMP_HPUX9ID",
++    "@NETSNMP_OSTYPE_2@": "#define NETSNMP_OSTYPE NETSNMP_HPUX10ID",
++    "@NETSNMP_OSTYPE_3@": "#define NETSNMP_OSTYPE NETSNMP_HPUX11ID",
++    "@NETSNMP_OSTYPE_4@": "#define NETSNMP_OSTYPE NETSNMP_SUNOS4ID",
++    "@NETSNMP_OSTYPE_5@": "#define NETSNMP_OSTYPE NETSNMP_SOLARISID",
++    "@NETSNMP_OSTYPE_6@": "#define NETSNMP_OSTYPE NETSNMP_OSFID",
++    "@NETSNMP_OSTYPE_7@": "#define NETSNMP_OSTYPE NETSNMP_ULTRIXID",
++    "@NETSNMP_OSTYPE_8@": "#define NETSNMP_OSTYPE NETSNMP_NETBSD1ID",
++    "@NETSNMP_OSTYPE_9@": "#define NETSNMP_OSTYPE NETSNMP_FREEBSDID",
++    "@NETSNMP_OSTYPE_10@": "#define NETSNMP_OSTYPE NETSNMP_DRAGONFLYID",
++    "@NETSNMP_OSTYPE_11@": "#define NETSNMP_OSTYPE NETSNMP_IRIXID",
++    "@NETSNMP_OSTYPE_12@": "#define NETSNMP_OSTYPE NETSNMP_LINUXID",
++    "@NETSNMP_OSTYPE_13@": "#define NETSNMP_OSTYPE NETSNMP_BSDIID",
++    "@NETSNMP_OSTYPE_14@": "#define NETSNMP_OSTYPE NETSNMP_OPENBSDID",
++    "@NETSNMP_OSTYPE_15@": "#define NETSNMP_OSTYPE NETSNMP_WIN32ID",
++    "@NETSNMP_OSTYPE_16@": "#define NETSNMP_OSTYPE NETSNMP_AIXID",
++    "@NETSNMP_OSTYPE_17@": "#define NETSNMP_OSTYPE NETSNMP_MACOSXID",
++    "@NETSNMP_OSTYPE_18@": "#define NETSNMP_OSTYPE NETSNMP_UNKNOWNID",
++    "@NETSNMP_ENTERPRISE_OID@": "#define NETSNMP_ENTERPRISE_OID\t\t\t8072",
++    "@NETSNMP_ENTERPRISE_MIB@": "#define NETSNMP_ENTERPRISE_MIB\t\t\t1,3,6,1,4,1,8072",
++    "@NETSNMP_ENTERPRISE_DOT_MIB@": "#define NETSNMP_ENTERPRISE_DOT_MIB\t\t1.3.6.1.4.1.8072",
++    "@NETSNMP_ENTERPRISE_DOT_MIB_LENGTH@": "#define NETSNMP_ENTERPRISE_DOT_MIB_LENGTH\t7",
++    "@NETSNMP_SYSTEM_MIB@": "#define NETSNMP_SYSTEM_MIB\t\t1,3,6,1,4,1,8072,3,2,NETSNMP_OSTYPE",
++    "@NETSNMP_SYSTEM_DOT_MIB@": "#define NETSNMP_SYSTEM_DOT_MIB\t\t1.3.6.1.4.1.8072.3.2.NETSNMP_OSTYPE",
++    "@NETSNMP_SYSTEM_DOT_MIB_LENGTH@": "#define NETSNMP_SYSTEM_DOT_MIB_LENGTH\t10",
++    "@NETSNMP_NOTIFICATION_MIB@": "#define NETSNMP_NOTIFICATION_MIB\t\t1,3,6,1,4,1,8072,4",
++    "@NETSNMP_NOTIFICATION_DOT_MIB@": "#define NETSNMP_NOTIFICATION_DOT_MIB\t\t1.3.6.1.4.1.8072.4",
++    "@NETSNMP_NOTIFICATION_DOT_MIB_LENGTH@": "#define NETSNMP_NOTIFICATION_DOT_MIB_LENGTH\t8",
++    "@NETSNMP_UCDAVIS_OID@": "#define NETSNMP_UCDAVIS_OID\t\t2021",
++    "@NETSNMP_UCDAVIS_MIB@": "#define NETSNMP_UCDAVIS_MIB\t\t1,3,6,1,4,1,2021",
++    "@NETSNMP_UCDAVIS_DOT_MIB@": "#define NETSNMP_UCDAVIS_DOT_MIB\t\t1.3.6.1.4.1.2021",
++    "@NETSNMP_UCDAVIS_DOT_MIB_LENGTH@": "#define NETSNMP_UCDAVIS_DOT_MIB_LENGTH\t7",
++    "@NETSNMP_ERRORTIMELENGTH@": "#define NETSNMP_ERRORTIMELENGTH 600 ",
++    "@NETSNMP_EXCACHETIME@": "#define NETSNMP_EXCACHETIME 30",
++    "@NETSNMP_CACHEFILE@": "#define NETSNMP_CACHEFILE \".snmp-exec-cache\"",
++    "@NETSNMP_MAXCACHESIZE@": "#define NETSNMP_MAXCACHESIZE (1500*80)   /* roughly 1500 lines max */",
++    "@NETSNMP_DEFDISKMINIMUMSPACE@": "#define NETSNMP_DEFDISKMINIMUMSPACE 100000",
++    "@NETSNMP_DEFMAXLOADAVE@": "#define NETSNMP_DEFMAXLOADAVE 12.0",
++    "@NETSNMP_MAXREADCOUNT@": "#define NETSNMP_MAXREADCOUNT 100",
++    "@NETSNMP_SNMPBLOCK@": "#define NETSNMP_SNMPBLOCK 1",
++    "@NETSNMP_RESTARTSLEEP@": "#define NETSNMP_RESTARTSLEEP 5",
++    "@NETSNMP_NUM_COMMUNITIES@": "#define NETSNMP_NUM_COMMUNITIES\t5",
++    "@NETSNMP_LASTFIELD@": "#define NETSNMP_LASTFIELD -1",
++    "@NETSNMP_TRANSPORT_UDP_DOMAIN@": "#define NETSNMP_TRANSPORT_UDP_DOMAIN 1",
++    "@NETSNMP_TRANSPORT_CALLBACK_DOMAIN@": "#define NETSNMP_TRANSPORT_CALLBACK_DOMAIN 1",
++    "@NETSNMP_TRANSPORT_TCP_DOMAIN@": "#define NETSNMP_TRANSPORT_TCP_DOMAIN 1",
++    "@NETSNMP_TRANSPORT_UNIX_DOMAIN@": "#define NETSNMP_TRANSPORT_UNIX_DOMAIN 1",
++    "@NETSNMP_TRANSPORT_UDPIPV6_DOMAIN@": "#define NETSNMP_TRANSPORT_UDPIPV6_DOMAIN 1",
++    "@NETSNMP_TRANSPORT_TCPIPV6_DOMAIN@": "#define NETSNMP_TRANSPORT_TCPIPV6_DOMAIN 1",
++    "@NETSNMP_TRANSPORT_TLSBASE_DOMAIN@": "#define NETSNMP_TRANSPORT_TLSBASE_DOMAIN 1",
++    "@NETSNMP_TRANSPORT_ALIAS_DOMAIN@": "#define NETSNMP_TRANSPORT_ALIAS_DOMAIN 1",
++    "@NETSNMP_TRANSPORT_DTLSUDP_DOMAIN@": "#define NETSNMP_TRANSPORT_DTLSUDP_DOMAIN 1",
++    "@NETSNMP_TRANSPORT_TLSTCP_DOMAIN@": "#define NETSNMP_TRANSPORT_TLSTCP_DOMAIN 1",
++    "@NETSNMP_TRANSPORT_IPV4BASE_DOMAIN@": "#define NETSNMP_TRANSPORT_IPV4BASE_DOMAIN 1",
++    "@NETSNMP_SECMOD_USM@": "#define NETSNMP_SECMOD_USM 1",
++    "@NETSNMP_OID@": "#define NETSNMP_OID\t\t8072",
++    "@NETSNMP_MIB@": "#define NETSNMP_MIB\t\t1,3,6,1,4,1,8072",
++    "@NETSNMP_DOT_MIB@": "#define NETSNMP_DOT_MIB\t\t1.3.6.1.4.1.8072",
++    "@NETSNMP_DOT_MIB_LENGTH@": "#define NETSNMP_DOT_MIB_LENGTH\t7",
++    "@NETSNMP_TEMP_FILE_PATTERN_2@": "#define NETSNMP_TEMP_FILE_PATTERN \"/tmp/snmpdXXXXXX\"",
++    "@UCD_SNMP_LIBRARY@": "#define UCD_SNMP_LIBRARY 1",
++    "@NETSNMP_CAN_USE_NLIST@": "#define NETSNMP_CAN_USE_NLIST",
++    "@PERSISTENT_DIRECTORY@": "#define PERSISTENT_DIRECTORY NETSNMP_PERSISTENT_DIRECTORY",
++    "@PERSISTENT_MASK@": "#define PERSISTENT_MASK NETSNMP_PERSISTENT_MASK",
++    "@AGENT_DIRECTORY_MODE@": "#define AGENT_DIRECTORY_MODE NETSNMP_AGENT_DIRECTORY_MODE",
++    "@MAX_PERSISTENT_BACKUPS@": "#define MAX_PERSISTENT_BACKUPS NETSNMP_MAX_PERSISTENT_BACKUPS",
++    "@SYSTEM_INCLUDE_FILE@": "#define SYSTEM_INCLUDE_FILE NETSNMP_SYSTEM_INCLUDE_FILE",
++    "@MACHINE_INCLUDE_FILE@": "#define MACHINE_INCLUDE_FILE NETSNMP_MACHINE_INCLUDE_FILE",
++    "@VERS_DESC@": "#define VERS_DESC     NETSNMP_VERS_DESC",
++    "@SYS_NAME@": "#define SYS_NAME      NETSNMP_SYS_NAME",
++    "@PROCMIBNUM@": "#define PROCMIBNUM    NETSNMP_PROCMIBNUM",
++    "@SHELLMIBNUM@": "#define SHELLMIBNUM   NETSNMP_SHELLMIBNUM",
++    "@MEMMIBNUM@": "#define MEMMIBNUM     NETSNMP_MEMMIBNUM",
++    "@DISKMIBNUM@": "#define DISKMIBNUM    NETSNMP_DISKMIBNUM",
++    "@LOADAVEMIBNUM@": "#define LOADAVEMIBNUM NETSNMP_LOADAVEMIBNUM",
++    "@VERSIONMIBNUM@": "#define VERSIONMIBNUM NETSNMP_VERSIONMIBNUM",
++    "@ERRORMIBNUM@": "#define ERRORMIBNUM   NETSNMP_ERRORMIBNUM",
++    "@AGENTID@": "#define AGENTID       NETSNMP_AGENTID",
++    "@HPUX9ID@": "#define HPUX9ID       NETSNMP_HPUX9ID",
++    "@SUNOS4ID@": "#define SUNOS4ID      NETSNMP_SUNOS4ID",
++    "@SOLARISID@": "#define SOLARISID     NETSNMP_SOLARISID",
++    "@OSFID@": "#define OSFID         NETSNMP_OSFID",
++    "@ULTRIXID@": "#define ULTRIXID      NETSNMP_ULTRIXID",
++    "@HPUX10ID@": "#define HPUX10ID      NETSNMP_HPUX10ID",
++    "@NETBSD1ID@": "#define NETBSD1ID     NETSNMP_NETBSD1ID",
++    "@FREEBSDID@": "#define FREEBSDID     NETSNMP_FREEBSDID",
++    "@IRIXID@": "#define IRIXID        NETSNMP_IRIXID",
++    "@LINUXID@": "#define LINUXID       NETSNMP_LINUXID",
++    "@BSDIID@": "#define BSDIID        NETSNMP_BSDIID",
++    "@OPENBSDID@": "#define OPENBSDID     NETSNMP_OPENBSDID",
++    "@WIN32ID@": "#define WIN32ID       NETSNMP_WIN32ID",
++    "@HPUX11ID@": "#define HPUX11ID      NETSNMP_HPUX11ID",
++    "@AIXID@": "#define AIXID         NETSNMP_AIXID",
++    "@MACOSXID@": "#define MACOSXID      NETSNMP_MACOSXID",
++    "@UNKNOWNID@": "#define UNKNOWNID     NETSNMP_UNKNOWNID",
++    "@ENTERPRISE_OID@": "#define ENTERPRISE_OID            NETSNMP_ENTERPRISE_OID",
++    "@ENTERPRISE_MIB@": "#define ENTERPRISE_MIB            NETSNMP_ENTERPRISE_MIB",
++    "@ENTERPRISE_DOT_MIB@": "#define ENTERPRISE_DOT_MIB        NETSNMP_ENTERPRISE_DOT_MIB",
++    "@ENTERPRISE_DOT_MIB_LENGTH@": "#define ENTERPRISE_DOT_MIB_LENGTH NETSNMP_ENTERPRISE_DOT_MIB_LENGTH",
++    "@SYSTEM_MIB@": "#define SYSTEM_MIB\t\t  NETSNMP_SYSTEM_MIB",
++    "@SYSTEM_DOT_MIB@": "#define SYSTEM_DOT_MIB\t\t  NETSNMP_SYSTEM_DOT_MIB",
++    "@SYSTEM_DOT_MIB_LENGTH@": "#define SYSTEM_DOT_MIB_LENGTH\t  NETSNMP_SYSTEM_DOT_MIB_LENGTH",
++    "@NOTIFICATION_MIB@": "#define NOTIFICATION_MIB\t    NETSNMP_NOTIFICATION_MIB\t",
++    "@NOTIFICATION_DOT_MIB@": "#define NOTIFICATION_DOT_MIB\t    NETSNMP_NOTIFICATION_DOT_MIB",
++    "@NOTIFICATION_DOT_MIB_LENGTH@": "#define NOTIFICATION_DOT_MIB_LENGTH NETSNMP_NOTIFICATION_DOT_MIB_LENGTH",
++    "@UCDAVIS_OID@": "#define UCDAVIS_OID\t\t  NETSNMP_UCDAVIS_OID",
++    "@UCDAVIS_MIB@": "#define UCDAVIS_MIB\t\t  NETSNMP_UCDAVIS_MIB",
++    "@UCDAVIS_DOT_MIB@": "#define UCDAVIS_DOT_MIB\t\t  NETSNMP_UCDAVIS_DOT_MIB",
++    "@UCDAVIS_DOT_MIB_LENGTH@": "#define UCDAVIS_DOT_MIB_LENGTH\t  NETSNMP_UCDAVIS_DOT_MIB_LENGTH",
++    "@ERRORTIMELENGTH@": "#define ERRORTIMELENGTH NETSNMP_ERRORTIMELENGTH",
++    "@EXCACHETIME@": "#define EXCACHETIME  NETSNMP_EXCACHETIME",
++    "@CACHEFILE@": "#define CACHEFILE    NETSNMP_CACHEFILE",
++    "@MAXCACHESIZE@": "#define MAXCACHESIZE NETSNMP_MAXCACHESIZE",
++    "@DEFDISKMINIMUMSPACE@": "#define DEFDISKMINIMUMSPACE NETSNMP_DEFDISKMINIMUMSPACE",
++    "@DEFMAXLOADAVE@": "#define DEFMAXLOADAVE NETSNMP_DEFMAXLOADAVE",
++    "@MAXREADCOUNT@": "#define MAXREADCOUNT NETSNMP_MAXREADCOUNT",
++    "@SNMPBLOCK@": "#define SNMPBLOCK NETSNMP_SNMPBLOCK",
++    "@RESTARTSLEEP@": "#define RESTARTSLEEP NETSNMP_RESTARTSLEEP",
++    "@NUM_COMMUNITIES@": "#define NUM_COMMUNITIES\tNETSNMP_NUM_COMMUNITIES",
++    "@LASTFIELD@": "#define LASTFIELD NETSNMP_LASTFIELD",
++    "@CONFIGURE_OPTIONS@": "#define CONFIGURE_OPTIONS NETSNMP_CONFIGURE_OPTIONS"
++}
++
++expand_template(
++    name = "config_header",
++    template = "templates/net-snmp-config.h.in",
++    out = "include/net-snmp/net-snmp-config.h",
++    substitutions = select({
++        "@platforms//cpu:x86_64": _HEADER_SUBSTITUTIONS | {
++    "@HAVE_PCAP_PCAP_H@": "#define HAVE_PCAP_PCAP_H 1",
++    "@NETSNMP_CONFIGURE_OPTIONS@": "#define NETSNMP_CONFIGURE_OPTIONS \" '--build=x86_64-linux-gnu' '--host=x86_64-linux-gnu' '--prefix=/usr' '--sysconfdir=/etc' '--mandir=/usr/share/man' '--libdir=/usr/lib/x86_64-linux-gnu' '--with-persistent-directory=/var/lib/snmp' '--enable-ucd-snmp-compatibility' '--with-cflags=-g -O2 -ffile-prefix-map=.=. -fstack-protector-strong -Wformat -Werror=format-security -DNETSNMP_USE_INLINE' '--with-ldflags=-Wl,-z,relro -Wl,-z,now' '--with-perl-modules=INSTALLDIRS=vendor' '--enable-as-needed' '--with-logfile=none' '--without-rpm' '--with-libwrap' '--with-openssl' '--without-dmalloc' '--without-efence' '--without-rsaref' '--with-sys-contact=root' '--with-sys-location=Unknown' '--with-mib-modules=smux ucd-snmp/dlmod mibII/mta_sendmail disman/event-mib ucd-snmp/diskio ucd-snmp/lmsensorsMib etherlike-mib/dot3StatsTable host' '--with-out-mib-modules=' '--with-transports=TLSTCP DTLSUDP' '--with-security-modules=tsm' '--enable-mfd-rewrites' '--with-mnttab=/etc/mtab' '--with-mibdirs=$HOME/.snmp/mibs:/usr/share/snmp/mibs:/usr/share/snmp/mibs/iana:/usr/share/snmp/mibs/ietf' '--with-mysql' '--with-systemd' '--enable-blumenthal-aes' 'UNAMEPROG=/bin/uname' 'PSPROG=/bin/ps' '--with-defaults' 'build_alias=x86_64-linux-gnu' 'host_alias=x86_64-linux-gnu' 'CC=x86_64-linux-gnu-gcc' 'CFLAGS=-g -O2 -ffile-prefix-map=.=. -fstack-protector-strong -Wformat -Werror=format-security -DNETSNMP_USE_INLINE -DNETSNMP_ENABLE_IPV6 -fno-strict-aliasing -DNETSNMP_REMOVE_U64 -g -O2 -ffile-prefix-map=.=. -fstack-protector-strong -Wformat  -DNETSNMP_USE_INLINE -Ulinux -Dlinux=linux  -D_REENTRANT -D_GNU_SOURCE -DDEBIAN -fwrapv -fno-strict-aliasing -pipe  -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64  -I/usr/lib/x86_64-linux-gnu/perl/5.36.0/CORE ' 'LDFLAGS=    -Wl,-z,relro -Wl,-z,now' 'CPPFLAGS=-I/usr/include/libnl3   -I/usr/include -I/usr/include/x86_64-linux-gnu -I/usr/lib/x86_64-linux-gnu/perl/5.36.0/CORE -I/usr/include -I/usr/include -I/usr/include                      -I/usr/include -I/usr/include/x86_64-linux-gnu   -I/usr/include/x86_64-linux-gnu -I/usr/include  -I/usr/include   -I/usr/include  -I/usr/include/tirpc -I/usr/include  -I/usr/include   -I/usr/include  -I/usr/include/mariadb -I/usr/include  -I/usr/include   -I/usr/include           -I/usr/include  -I/usr/include/dbus-1.0 -I/usr/lib/x86_64-linux-gnu/dbus-1.0/include -I/usr/include -Wdate-time -D_FORTIFY_SOURCE=2' 'PKG_CONFIG=/usr/bin/pkg-config' 'PKG_CONFIG_PATH=' 'PKG_CONFIG_LIBDIR=/usr/lib/x86_64-linux-gnu/pkgconfig'\"",
++    "@SNMPLIBPATH@": "#define SNMPLIBPATH \"/usr/lib/x86_64-linux-gnu/snmp\"",
++    "@SNMPDLMODPATH@": "#define SNMPDLMODPATH \"/usr/lib/x86_64-linux-gnu/snmp/dlmod\""
++},
++        "@platforms//cpu:aarch64": _HEADER_SUBSTITUTIONS | {
++    "@NETSNMP_CONFIGURE_OPTIONS@": "#define NETSNMP_CONFIGURE_OPTIONS \" '--build=x86_64-linux-gnu' '--host=aarch64-linux-gnu' '--prefix=/usr' '--sysconfdir=/etc' '--mandir=/usr/share/man' '--libdir=/usr/lib/aarch64-linux-gnu' '--with-persistent-directory=/var/lib/snmp' '--enable-ucd-snmp-compatibility' '--with-cflags=-g -O2 -ffile-prefix-map=.=. -fstack-protector-strong -Wformat -Werror=format-security -DNETSNMP_USE_INLINE' '--with-ldflags=-Wl,-z,relro -Wl,-z,now' '--with-perl-modules=INSTALLDIRS=vendor' '--enable-as-needed' '--with-logfile=none' '--without-rpm' '--with-libwrap' '--with-openssl' '--without-dmalloc' '--without-efence' '--without-rsaref' '--with-sys-contact=root' '--with-sys-location=Unknown' '--with-mib-modules=smux ucd-snmp/dlmod mibII/mta_sendmail disman/event-mib ucd-snmp/diskio ucd-snmp/lmsensorsMib etherlike-mib/dot3StatsTable host' '--with-out-mib-modules=' '--with-transports=TLSTCP DTLSUDP' '--with-security-modules=tsm' '--enable-mfd-rewrites' '--with-mnttab=/etc/mtab' '--with-mibdirs=$HOME/.snmp/mibs:/usr/share/snmp/mibs:/usr/share/snmp/mibs/iana:/usr/share/snmp/mibs/ietf' '--with-mysql' '--with-systemd' '--enable-blumenthal-aes' 'UNAMEPROG=/bin/uname' 'PSPROG=/bin/ps' '--with-defaults' 'build_alias=x86_64-linux-gnu' 'host_alias=aarch64-linux-gnu' 'CC=aarch64-linux-gnu-gcc' 'CFLAGS=-g -O2 -ffile-prefix-map=.=. -fstack-protector-strong -Wformat -Werror=format-security -DNETSNMP_USE_INLINE -DNETSNMP_ENABLE_IPV6 -fno-strict-aliasing -DNETSNMP_REMOVE_U64 -g -O2 -ffile-prefix-map=.=. -fstack-protector-strong -Wformat  -DNETSNMP_USE_INLINE -Ulinux -Dlinux=linux  -D_REENTRANT -D_GNU_SOURCE -DDEBIAN -fwrapv -fno-strict-aliasing -pipe  -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64  -I/usr/lib/aarch64-linux-gnu/perl/5.36.0/CORE ' 'LDFLAGS=    -Wl,-z,relro -Wl,-z,now' 'CPPFLAGS=-I/usr/include/libnl3   -I/usr/include -I/usr/include/aarch64-linux-gnu -I/usr/lib/aarch64-linux-gnu/perl/5.36.0/CORE -I/usr/include -I/usr/include -I/usr/include                    -I/usr/include -I/usr/include/aarch64-linux-gnu   -I/usr/include/aarch64-linux-gnu -I/usr/include  -I/usr/include   -I/usr/include  -I/usr/include/tirpc -I/usr/include  -I/usr/include   -I/usr/include  -I/usr/include/mariadb -I/usr/include  -I/usr/include   -I/usr/include          -Wdate-time -D_FORTIFY_SOURCE=2' 'PKG_CONFIG=/usr/bin/pkg-config' 'PKG_CONFIG_PATH=' 'PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig'\"",
++    "@SNMPLIBPATH@": "#define SNMPLIBPATH \"/usr/lib/aarch64-linux-gnu/snmp\"",
++    "@SNMPDLMODPATH@": "#define SNMPDLMODPATH \"/usr/lib/aarch64-linux-gnu/snmp/dlmod\"",
++    "@HAVE_PCAP_PCAP_H@": "#define HAVE_PCAP_PCAP_H 1"
++},
++    }),
++)
++
++_MODULE_HEADERS = {
++    "agent/mibgroup/agent_module_dot_conf.h": [
++        "/* Net-SNMP module declarations. */"
++    ],
++    "agent/mibgroup/agent_module_includes.h": [
++        "/* Net-SNMP module declarations. */",
++        "#include \"mibgroup/smux/smux.h\"",
++        "#include \"mibgroup/snmpv3/usmConf.h\"",
++        "/*#include \"mibgroup/agentx/master.h\"*/",
++        "/*#include \"mibgroup/agentx/subagent.h\"*/",
++        "/*#include \"mibgroup/utilities/execute.h\"*/",
++        "#include \"mibgroup/utilities/iquery.h\"",
++        "#include \"mibgroup/mibII/vacm_conf.h\"",
++        "/*#include \"mibgroup/agentx/protocol.h\"*/",
++        "/*#include \"mibgroup/agentx/master_admin.h\"*/",
++        "/*#include \"mibgroup/agentx/agentx_config.h\"*/",
++        "/*#include \"mibgroup/agentx/client.h\"*/"
++    ],
++    "agent/mibgroup/agent_module_inits.h": [
++        "/* Net-SNMP module declarations. */",
++        "  if (should_init(\"smux\")) init_smux();",
++        "  if (should_init(\"usmConf\")) init_usmConf();",
++        "  if (should_init(\"iquery\")) init_iquery();",
++        "  if (should_init(\"vacm_conf\")) init_vacm_conf();"
++    ],
++    "agent/mibgroup/agent_module_shutdown.h": [
++        "/* Net-SNMP module declarations. */"
++    ],
++    "agent/mibgroup/mib_module_dot_conf.h": [
++        "/* Net-SNMP module declarations. */"
++    ],
++    "agent/mibgroup/mib_module_includes.h": [
++        "/* Net-SNMP module declarations. */",
++        "/*#include \"mibgroup/default_modules.h\"*/",
++        "/*#include \"mibgroup/disman/event-mib.h\"*/",
++        "/*#include \"mibgroup/etherlike-mib/dot3StatsTable.h\"*/",
++        "/*#include \"mibgroup/host.h\"*/",
++        "#include \"mibgroup/mibII/mta_sendmail.h\"",
++        "/*#include \"mibgroup/smux.h\"*/",
++        "#include \"mibgroup/ucd-snmp/diskio.h\"",
++        "#include \"mibgroup/ucd-snmp/dlmod.h\"",
++        "#include \"mibgroup/ucd-snmp/lmsensorsMib.h\"",
++        "/*#include \"mibgroup/snmpv3mibs.h\"*/",
++        "/*#include \"mibgroup/mibII.h\"*/",
++        "/*#include \"mibgroup/ucd_snmp.h\"*/",
++        "/*#include \"mibgroup/notification.h\"*/",
++        "/*#include \"mibgroup/notification-log-mib.h\"*/",
++        "/*#include \"mibgroup/target.h\"*/",
++        "/*#include \"mibgroup/agent_mibs.h\"*/",
++        "/*#include \"mibgroup/agentx.h\"*/",
++        "/*#include \"mibgroup/disman/event.h\"*/",
++        "/*#include \"mibgroup/disman/schedule.h\"*/",
++        "/*#include \"mibgroup/utilities.h\"*/",
++        "/*#include \"mibgroup/etherlike-mib/data_access/dot3stats.h\"*/",
++        "#include \"mibgroup/etherlike-mib/dot3StatsTable/dot3StatsTable.h\"",
++        "/*#include \"mibgroup/etherlike-mib/dot3StatsTable/dot3StatsTable_data_get.h\"*/",
++        "/*#include \"mibgroup/etherlike-mib/dot3StatsTable/dot3StatsTable_data_set.h\"*/",
++        "/*#include \"mibgroup/etherlike-mib/dot3StatsTable/dot3StatsTable_data_access.h\"*/",
++        "/*#include \"mibgroup/etherlike-mib/dot3StatsTable/dot3StatsTable_interface.h\"*/",
++        "#include \"mibgroup/host/hrh_storage.h\"",
++        "#include \"mibgroup/host/hrh_filesys.h\"",
++        "#include \"mibgroup/host/hrSWInstalledTable.h\"",
++        "#include \"mibgroup/host/hrSWRunTable.h\"",
++        "#include \"mibgroup/host/hr_system.h\"",
++        "#include \"mibgroup/host/hr_device.h\"",
++        "#include \"mibgroup/host/hr_other.h\"",
++        "#include \"mibgroup/host/hr_proc.h\"",
++        "#include \"mibgroup/host/hr_network.h\"",
++        "#include \"mibgroup/host/hr_print.h\"",
++        "#include \"mibgroup/host/hr_disk.h\"",
++        "#include \"mibgroup/host/hr_partition.h\"",
++        "/*#include \"mibgroup/util_funcs/header_simple_table.h\"*/",
++        "/*#include \"mibgroup/hardware/sensors.h\"*/",
++        "#include \"mibgroup/snmpv3/snmpEngine.h\"",
++        "#include \"mibgroup/snmpv3/snmpMPDStats.h\"",
++        "#include \"mibgroup/snmpv3/usmStats.h\"",
++        "#include \"mibgroup/snmpv3/usmUser.h\"",
++        "#include \"mibgroup/mibII/system_mib.h\"",
++        "#include \"mibgroup/mibII/sysORTable.h\"",
++        "#include \"mibgroup/mibII/snmp_mib.h\"",
++        "#include \"mibgroup/mibII/vacm_vars.h\"",
++        "#include \"mibgroup/mibII/setSerialNo.h\"",
++        "#include \"mibgroup/mibII/at.h\"",
++        "/*#include \"mibgroup/mibII/ifTable.h\"*/",
++        "#include \"mibgroup/mibII/ip.h\"",
++        "#include \"mibgroup/mibII/tcp.h\"",
++        "#include \"mibgroup/mibII/udp.h\"",
++        "#include \"mibgroup/mibII/ipv6.h\"",
++        "#include \"mibgroup/mibII/icmp.h\"",
++        "/*#include \"mibgroup/if-mib.h\"*/",
++        "/*#include \"mibgroup/ip-mib.h\"*/",
++        "/*#include \"mibgroup/ip-forward-mib.h\"*/",
++        "/*#include \"mibgroup/tcp-mib.h\"*/",
++        "/*#include \"mibgroup/udp-mib.h\"*/",
++        "#include \"mibgroup/ucd-snmp/proc.h\"",
++        "#include \"mibgroup/ucd-snmp/versioninfo.h\"",
++        "#include \"mibgroup/ucd-snmp/pass.h\"",
++        "#include \"mibgroup/ucd-snmp/pass_persist.h\"",
++        "#include \"mibgroup/ucd-snmp/disk_hw.h\"",
++        "#include \"mibgroup/ucd-snmp/loadave.h\"",
++        "#include \"mibgroup/agent/extend.h\"",
++        "#include \"mibgroup/ucd-snmp/errormib.h\"",
++        "#include \"mibgroup/ucd-snmp/file.h\"",
++        "#include \"mibgroup/ucd-snmp/proxy.h\"",
++        "#include \"mibgroup/ucd-snmp/logmatch.h\"",
++        "#include \"mibgroup/ucd-snmp/memory.h\"",
++        "#include \"mibgroup/ucd-snmp/vmstat.h\"",
++        "#include \"mibgroup/notification/snmpNotifyTable.h\"",
++        "/*#include \"mibgroup/snmp-notification-mib/snmpNotifyFilterTable.h\"*/",
++        "#include \"mibgroup/notification/snmpNotifyFilterProfileTable.h\"",
++        "#include \"mibgroup/notification-log-mib/notification_log.h\"",
++        "#include \"mibgroup/target/snmpTargetAddrEntry.h\"",
++        "#include \"mibgroup/target/snmpTargetParamsEntry.h\"",
++        "/*#include \"mibgroup/target/target.h\"*/",
++        "#include \"mibgroup/target/target_counters.h\"",
++        "#include \"mibgroup/agent/nsTransactionTable.h\"",
++        "#include \"mibgroup/agent/nsModuleTable.h\"",
++        "#include \"mibgroup/agent/nsDebug.h\"",
++        "#include \"mibgroup/agent/nsCache.h\"",
++        "#include \"mibgroup/agent/nsLogging.h\"",
++        "#include \"mibgroup/agent/nsVacmAccessTable.h\"",
++        "#include \"mibgroup/disman/event/mteScalars.h\"",
++        "#include \"mibgroup/disman/event/mteTrigger.h\"",
++        "#include \"mibgroup/disman/event/mteTriggerTable.h\"",
++        "#include \"mibgroup/disman/event/mteTriggerDeltaTable.h\"",
++        "#include \"mibgroup/disman/event/mteTriggerExistenceTable.h\"",
++        "#include \"mibgroup/disman/event/mteTriggerBooleanTable.h\"",
++        "#include \"mibgroup/disman/event/mteTriggerThresholdTable.h\"",
++        "#include \"mibgroup/disman/event/mteTriggerConf.h\"",
++        "#include \"mibgroup/disman/event/mteEvent.h\"",
++        "#include \"mibgroup/disman/event/mteEventTable.h\"",
++        "#include \"mibgroup/disman/event/mteEventSetTable.h\"",
++        "#include \"mibgroup/disman/event/mteEventNotificationTable.h\"",
++        "#include \"mibgroup/disman/event/mteEventConf.h\"",
++        "#include \"mibgroup/disman/event/mteObjects.h\"",
++        "#include \"mibgroup/disman/event/mteObjectsTable.h\"",
++        "#include \"mibgroup/disman/event/mteObjectsConf.h\"",
++        "#include \"mibgroup/disman/schedule/schedCore.h\"",
++        "#include \"mibgroup/disman/schedule/schedConf.h\"",
++        "#include \"mibgroup/disman/schedule/schedTable.h\"",
++        "#include \"mibgroup/utilities/override.h\"",
++        "/*#include \"mibgroup/etherlike-mib/data_access/dot3stats_linux.h\"*/",
++        "/*#include \"mibgroup/hardware/memory.h\"*/",
++        "/*#include \"mibgroup/hardware/fsys.h\"*/",
++        "#include \"mibgroup/host/data_access/swinst.h\"",
++        "#include \"mibgroup/host/data_access/swrun.h\"",
++        "#include \"mibgroup/host/hrSWRunPerfTable.h\"",
++        "/*#include \"mibgroup/hardware/cpu.h\"*/",
++        "/*#include \"mibgroup/util_funcs.h\"*/",
++        "#include \"mibgroup/hardware/sensors/hw_sensors.h\"",
++        "/*#include \"mibgroup/hardware/sensors/lmsensors_v3.h\"*/",
++        "/*#include \"mibgroup/util_funcs/header_generic.h\"*/",
++        "/*#include \"mibgroup/mibII/updates.h\"*/",
++        "#include \"mibgroup/mibII/vacm_context.h\"",
++        "/*#include \"mibgroup/mibII/data_access/at_linux.h\"*/",
++        "/*#include \"mibgroup/mibII/data_access/at_unix.h\"*/",
++        "/*#include \"mibgroup/if-mib/ifTable.h\"*/",
++        "/*#include \"mibgroup/mibII/ipAddr.h\"*/",
++        "#include \"mibgroup/mibII/var_route.h\"",
++        "/*#include \"mibgroup/mibII/route_write.h\"*/",
++        "/*#include \"mibgroup/mibII/kernel_linux.h\"*/",
++        "#include \"mibgroup/mibII/tcpTable.h\"",
++        "#include \"mibgroup/mibII/udpTable.h\"",
++        "/*#include \"mibgroup/if-mib/ifXTable.h\"*/",
++        "/*#include \"mibgroup/ip-mib/ipAddressTable.h\"*/",
++        "/*#include \"mibgroup/ip-mib/ipAddressPrefixTable.h\"*/",
++        "/*#include \"mibgroup/ip-mib/ipDefaultRouterTable.h\"*/",
++        "/*#include \"mibgroup/ip-mib/inetNetToMediaTable.h\"*/",
++        "/*#include \"mibgroup/ip-mib/ipSystemStatsTable.h\"*/",
++        "#include \"mibgroup/ip-mib/ip_scalars.h\"",
++        "/*#include \"mibgroup/ip-mib/ipv6ScopeZoneIndexTable.h\"*/",
++        "/*#include \"mibgroup/ip-mib/ipIfStatsTable.h\"*/",
++        "/*#include \"mibgroup/ip-forward-mib/ipCidrRouteTable.h\"*/",
++        "/*#include \"mibgroup/ip-forward-mib/inetCidrRouteTable.h\"*/",
++        "/*#include \"mibgroup/tcp-mib/tcpConnectionTable.h\"*/",
++        "/*#include \"mibgroup/tcp-mib/tcpListenerTable.h\"*/",
++        "/*#include \"mibgroup/udp-mib/udpEndpointTable.h\"*/",
++        "/*#include \"mibgroup/util_funcs/restart.h\"*/",
++        "/*#include \"mibgroup/ucd-snmp/pass_common.h\"*/",
++        "#include \"mibgroup/notification/snmpNotifyTable_data.h\"",
++        "/*#include \"mibgroup/header_complex.h\"*/",
++        "#include \"mibgroup/snmp-notification-mib/snmpNotifyFilterTable/snmpNotifyFilterTable_data_storage.h\"",
++        "#include \"mibgroup/snmp-notification-mib/snmpNotifyFilterTable/snmpNotifyFilterTable.h\"",
++        "#include \"mibgroup/notification/snmpNotifyFilterProfileTable_data.h\"",
++        "#include \"mibgroup/target/snmpTargetAddrEntry_data.h\"",
++        "#include \"mibgroup/target/snmpTargetParamsEntry_data.h\"",
++        "#include \"mibgroup/hardware/memory/hw_mem.h\"",
++        "/*#include \"mibgroup/hardware/memory/memory_linux.h\"*/",
++        "#include \"mibgroup/hardware/fsys/hw_fsys.h\"",
++        "/*#include \"mibgroup/hardware/fsys/fsys_mntent.h\"*/",
++        "/*#include \"mibgroup/host/data_access/swinst_apt.h\"*/",
++        "/*#include \"mibgroup/host/data_access/swrun_procfs_status.h\"*/",
++        "#include \"mibgroup/hardware/cpu/cpu.h\"",
++        "#include \"mibgroup/hardware/cpu/cpu_linux.h\"",
++        "#include \"mibgroup/if-mib/ifTable/ifTable.h\"",
++        "#include \"mibgroup/if-mib/ifXTable/ifXTable.h\"",
++        "#include \"mibgroup/ip-mib/ipAddressTable/ipAddressTable.h\"",
++        "#include \"mibgroup/ip-mib/ipAddressPrefixTable/ipAddressPrefixTable.h\"",
++        "#include \"mibgroup/ip-mib/ipDefaultRouterTable/ipDefaultRouterTable.h\"",
++        "/*#include \"mibgroup/ip-mib/data_access/arp.h\"*/",
++        "#include \"mibgroup/ip-mib/inetNetToMediaTable/inetNetToMediaTable.h\"",
++        "/*#include \"mibgroup/ip-mib/inetNetToMediaTable/inetNetToMediaTable_interface.h\"*/",
++        "/*#include \"mibgroup/ip-mib/inetNetToMediaTable/inetNetToMediaTable_data_access.h\"*/",
++        "/*#include \"mibgroup/ip-mib/data_access/systemstats.h\"*/",
++        "#include \"mibgroup/ip-mib/ipSystemStatsTable/ipSystemStatsTable.h\"",
++        "/*#include \"mibgroup/ip-mib/ipSystemStatsTable/ipSystemStatsTable_interface.h\"*/",
++        "/*#include \"mibgroup/ip-mib/ipSystemStatsTable/ipSystemStatsTable_data_access.h\"*/",
++        "/*#include \"mibgroup/ip-mib/data_access/scalars_common.h\"*/",
++        "#include \"mibgroup/ip-mib/ipv6ScopeZoneIndexTable/ipv6ScopeZoneIndexTable.h\"",
++        "#include \"mibgroup/ip-mib/ipIfStatsTable/ipIfStatsTable.h\"",
++        "/*#include \"mibgroup/ip-mib/ipIfStatsTable/ipIfStatsTable_interface.h\"*/",
++        "/*#include \"mibgroup/ip-mib/ipIfStatsTable/ipIfStatsTable_data_access.h\"*/",
++        "#include \"mibgroup/ip-forward-mib/ipCidrRouteTable/ipCidrRouteTable.h\"",
++        "#include \"mibgroup/ip-forward-mib/inetCidrRouteTable/inetCidrRouteTable.h\"",
++        "/*#include \"mibgroup/tcp-mib/data_access/tcpConn.h\"*/",
++        "#include \"mibgroup/tcp-mib/tcpConnectionTable/tcpConnectionTable.h\"",
++        "#include \"mibgroup/tcp-mib/tcpListenerTable/tcpListenerTable.h\"",
++        "#include \"mibgroup/udp-mib/udpEndpointTable/udpEndpointTable.h\"",
++        "/*#include \"mibgroup/snmp-notification-mib/snmpNotifyFilterTable/snmpNotifyFilterTable_interface.h\"*/",
++        "/*#include \"mibgroup/snmp-notification-mib/snmpNotifyFilterTable/snmpNotifyFilterTable_data_access.h\"*/",
++        "#include \"mibgroup/if-mib/data_access/interface.h\"",
++        "/*#include \"mibgroup/if-mib/ifTable/ifTable_interface.h\"*/",
++        "/*#include \"mibgroup/if-mib/ifTable/ifTable_data_access.h\"*/",
++        "/*#include \"mibgroup/if-mib/ifXTable/ifXTable_interface.h\"*/",
++        "/*#include \"mibgroup/if-mib/ifXTable/ifXTable_data_access.h\"*/",
++        "/*#include \"mibgroup/ip-mib/data_access/ipaddress.h\"*/",
++        "/*#include \"mibgroup/ip-mib/ipAddressTable/ipAddressTable_interface.h\"*/",
++        "/*#include \"mibgroup/ip-mib/ipAddressTable/ipAddressTable_data_access.h\"*/",
++        "/*#include \"mibgroup/ip-mib/ipAddressPrefixTable/ipAddressPrefixTable_interface.h\"*/",
++        "/*#include \"mibgroup/ip-mib/ipAddressPrefixTable/ipAddressPrefixTable_data_access.h\"*/",
++        "/*#include \"mibgroup/ip-mib/data_access/defaultrouter.h\"*/",
++        "/*#include \"mibgroup/ip-mib/ipDefaultRouterTable/ipDefaultRouterTable_interface.h\"*/",
++        "/*#include \"mibgroup/ip-mib/ipDefaultRouterTable/ipDefaultRouterTable_data_access.h\"*/",
++        "/*#include \"mibgroup/ip-mib/ipDefaultRouterTable/ipDefaultRouterTable_data_get.h\"*/",
++        "/*#include \"mibgroup/ip-mib/data_access/arp_common.h\"*/",
++        "/*#include \"mibgroup/ip-mib/data_access/arp_netlink.h\"*/",
++        "/*#include \"mibgroup/ip-mib/data_access/systemstats_common.h\"*/",
++        "/*#include \"mibgroup/ip-mib/data_access/systemstats_linux.h\"*/",
++        "/*#include \"mibgroup/ip-mib/data_access/scalars_linux.h\"*/",
++        "/*#include \"mibgroup/ip-mib/data_access/ipv6scopezone.h\"*/",
++        "/*#include \"mibgroup/ip-mib/ipv6ScopeZoneIndexTable/ipv6ScopeZoneIndexTable_interface.h\"*/",
++        "/*#include \"mibgroup/ip-mib/ipv6ScopeZoneIndexTable/ipv6ScopeZoneIndexTable_data_access.h\"*/",
++        "/*#include \"mibgroup/ip-mib/ipIfStatsTable/ipIfStatsTable_data_get.h\"*/",
++        "/*#include \"mibgroup/ip-forward-mib/data_access/route.h\"*/",
++        "/*#include \"mibgroup/ip-forward-mib/ipCidrRouteTable/ipCidrRouteTable_interface.h\"*/",
++        "/*#include \"mibgroup/ip-forward-mib/ipCidrRouteTable/ipCidrRouteTable_data_access.h\"*/",
++        "/*#include \"mibgroup/ip-forward-mib/inetCidrRouteTable/inetCidrRouteTable_interface.h\"*/",
++        "/*#include \"mibgroup/ip-forward-mib/inetCidrRouteTable/inetCidrRouteTable_data_access.h\"*/",
++        "/*#include \"mibgroup/tcp-mib/data_access/tcpConn_common.h\"*/",
++        "/*#include \"mibgroup/tcp-mib/data_access/tcpConn_linux.h\"*/",
++        "/*#include \"mibgroup/util_funcs/get_pid_from_inode.h\"*/",
++        "/*#include \"mibgroup/tcp-mib/tcpConnectionTable/tcpConnectionTable_interface.h\"*/",
++        "/*#include \"mibgroup/tcp-mib/tcpConnectionTable/tcpConnectionTable_data_access.h\"*/",
++        "/*#include \"mibgroup/tcp-mib/tcpListenerTable/tcpListenerTable_interface.h\"*/",
++        "/*#include \"mibgroup/tcp-mib/tcpListenerTable/tcpListenerTable_data_access.h\"*/",
++        "/*#include \"mibgroup/udp-mib/data_access/udp_endpoint.h\"*/",
++        "/*#include \"mibgroup/udp-mib/udpEndpointTable/udpEndpointTable_interface.h\"*/",
++        "/*#include \"mibgroup/udp-mib/udpEndpointTable/udpEndpointTable_data_access.h\"*/",
++        "/*#include \"mibgroup/if-mib/data_access/interface_linux.h\"*/",
++        "/*#include \"mibgroup/if-mib/data_access/interface_ioctl.h\"*/",
++        "/*#include \"mibgroup/ip-mib/data_access/ipaddress_common.h\"*/",
++        "/*#include \"mibgroup/ip-mib/data_access/ipaddress_linux.h\"*/",
++        "/*#include \"mibgroup/ip-mib/data_access/defaultrouter_common.h\"*/",
++        "/*#include \"mibgroup/ip-mib/data_access/defaultrouter_linux.h\"*/",
++        "/*#include \"mibgroup/ip-mib/data_access/ipv6scopezone_common.h\"*/",
++        "/*#include \"mibgroup/ip-mib/data_access/ipv6scopezone_linux.h\"*/",
++        "/*#include \"mibgroup/ip-forward-mib/data_access/route_common.h\"*/",
++        "/*#include \"mibgroup/ip-forward-mib/data_access/route_linux.h\"*/",
++        "/*#include \"mibgroup/ip-forward-mib/data_access/route_ioctl.h\"*/",
++        "/*#include \"mibgroup/udp-mib/data_access/udp_endpoint_common.h\"*/",
++        "/*#include \"mibgroup/udp-mib/data_access/udp_endpoint_linux.h\"*/",
++        "/*#include \"mibgroup/ip-mib/data_access/ipaddress_ioctl.h\"*/"
++    ],
++    "agent/mibgroup/mib_module_inits.h": [
++        "/* Net-SNMP module declarations. */",
++        "  if (should_init(\"mta_sendmail\")) init_mta_sendmail();",
++        "  if (should_init(\"diskio\")) init_diskio();",
++        "  if (should_init(\"dlmod\")) init_dlmod();",
++        "  if (should_init(\"lmsensorsMib\")) init_lmsensorsMib();",
++        "  if (should_init(\"dot3StatsTable\")) init_dot3StatsTable();",
++        "  if (should_init(\"hrh_storage\")) init_hrh_storage();",
++        "  if (should_init(\"hrh_filesys\")) init_hrh_filesys();",
++        "  if (should_init(\"hrSWInstalledTable\")) init_hrSWInstalledTable();",
++        "  if (should_init(\"hrSWRunTable\")) init_hrSWRunTable();",
++        "  if (should_init(\"hr_system\")) init_hr_system();",
++        "  if (should_init(\"hr_device\")) init_hr_device();",
++        "  if (should_init(\"hr_other\")) init_hr_other();",
++        "  if (should_init(\"hr_proc\")) init_hr_proc();",
++        "  if (should_init(\"hr_network\")) init_hr_network();",
++        "  if (should_init(\"hr_print\")) init_hr_print();",
++        "  if (should_init(\"hr_disk\")) init_hr_disk();",
++        "  if (should_init(\"hr_partition\")) init_hr_partition();",
++        "  if (should_init(\"snmpEngine\")) init_snmpEngine();",
++        "  if (should_init(\"snmpMPDStats\")) init_snmpMPDStats();",
++        "  if (should_init(\"usmStats\")) init_usmStats();",
++        "  if (should_init(\"usmUser\")) init_usmUser();",
++        "  if (should_init(\"system_mib\")) init_system_mib();",
++        "  if (should_init(\"sysORTable\")) init_sysORTable();",
++        "  if (should_init(\"snmp_mib\")) init_snmp_mib();",
++        "  if (should_init(\"vacm_vars\")) init_vacm_vars();",
++        "  if (should_init(\"setSerialNo\")) init_setSerialNo();",
++        "  if (should_init(\"at\")) init_at();",
++        "  if (should_init(\"ip\")) init_ip();",
++        "  if (should_init(\"tcp\")) init_tcp();",
++        "  if (should_init(\"udp\")) init_udp();",
++        "  if (should_init(\"ipv6\")) init_ipv6();",
++        "  if (should_init(\"icmp\")) init_icmp();",
++        "  if (should_init(\"proc\")) init_proc();",
++        "  if (should_init(\"versioninfo\")) init_versioninfo();",
++        "  if (should_init(\"pass\")) init_pass();",
++        "  if (should_init(\"pass_persist\")) init_pass_persist();",
++        "  if (should_init(\"disk_hw\")) init_disk_hw();",
++        "  if (should_init(\"loadave\")) init_loadave();",
++        "  if (should_init(\"extend\")) init_extend();",
++        "  if (should_init(\"errormib\")) init_errormib();",
++        "  if (should_init(\"file\")) init_file();",
++        "  if (should_init(\"proxy\")) init_proxy();",
++        "  if (should_init(\"logmatch\")) init_logmatch();",
++        "  if (should_init(\"memory\")) init_memory();",
++        "  if (should_init(\"vmstat\")) init_vmstat();",
++        "  if (should_init(\"snmpNotifyTable\")) init_snmpNotifyTable();",
++        "  if (should_init(\"snmpNotifyFilterProfileTable\")) init_snmpNotifyFilterProfileTable();",
++        "  if (should_init(\"notification_log\")) init_notification_log();",
++        "  if (should_init(\"snmpTargetAddrEntry\")) init_snmpTargetAddrEntry();",
++        "  if (should_init(\"snmpTargetParamsEntry\")) init_snmpTargetParamsEntry();",
++        "  if (should_init(\"target_counters\")) init_target_counters();",
++        "  if (should_init(\"nsTransactionTable\")) init_nsTransactionTable();",
++        "  if (should_init(\"nsModuleTable\")) init_nsModuleTable();",
++        "  if (should_init(\"nsDebug\")) init_nsDebug();",
++        "  if (should_init(\"nsCache\")) init_nsCache();",
++        "  if (should_init(\"nsLogging\")) init_nsLogging();",
++        "  if (should_init(\"nsVacmAccessTable\")) init_nsVacmAccessTable();",
++        "  if (should_init(\"mteScalars\")) init_mteScalars();",
++        "  if (should_init(\"mteTrigger\")) init_mteTrigger();",
++        "  if (should_init(\"mteTriggerTable\")) init_mteTriggerTable();",
++        "  if (should_init(\"mteTriggerDeltaTable\")) init_mteTriggerDeltaTable();",
++        "  if (should_init(\"mteTriggerExistenceTable\")) init_mteTriggerExistenceTable();",
++        "  if (should_init(\"mteTriggerBooleanTable\")) init_mteTriggerBooleanTable();",
++        "  if (should_init(\"mteTriggerThresholdTable\")) init_mteTriggerThresholdTable();",
++        "  if (should_init(\"mteTriggerConf\")) init_mteTriggerConf();",
++        "  if (should_init(\"mteEvent\")) init_mteEvent();",
++        "  if (should_init(\"mteEventTable\")) init_mteEventTable();",
++        "  if (should_init(\"mteEventSetTable\")) init_mteEventSetTable();",
++        "  if (should_init(\"mteEventNotificationTable\")) init_mteEventNotificationTable();",
++        "  if (should_init(\"mteEventConf\")) init_mteEventConf();",
++        "  if (should_init(\"mteObjects\")) init_mteObjects();",
++        "  if (should_init(\"mteObjectsTable\")) init_mteObjectsTable();",
++        "  if (should_init(\"mteObjectsConf\")) init_mteObjectsConf();",
++        "  if (should_init(\"schedCore\")) init_schedCore();",
++        "  if (should_init(\"schedConf\")) init_schedConf();",
++        "  if (should_init(\"schedTable\")) init_schedTable();",
++        "  if (should_init(\"override\")) init_override();",
++        "  if (should_init(\"swinst\")) init_swinst();",
++        "  if (should_init(\"swrun\")) init_swrun();",
++        "  if (should_init(\"hrSWRunPerfTable\")) init_hrSWRunPerfTable();",
++        "  if (should_init(\"hw_sensors\")) init_hw_sensors();",
++        "  if (should_init(\"vacm_context\")) init_vacm_context();",
++        "  if (should_init(\"var_route\")) init_var_route();",
++        "  if (should_init(\"tcpTable\")) init_tcpTable();",
++        "  if (should_init(\"udpTable\")) init_udpTable();",
++        "  if (should_init(\"ip_scalars\")) init_ip_scalars();",
++        "  if (should_init(\"snmpNotifyTable_data\")) init_snmpNotifyTable_data();",
++        "  if (should_init(\"snmpNotifyFilterTable_data_storage\")) init_snmpNotifyFilterTable_data_storage();",
++        "  if (should_init(\"snmpNotifyFilterTable\")) init_snmpNotifyFilterTable();",
++        "  if (should_init(\"snmpNotifyFilterProfileTable_data\")) init_snmpNotifyFilterProfileTable_data();",
++        "  if (should_init(\"snmpTargetAddrEntry_data\")) init_snmpTargetAddrEntry_data();",
++        "  if (should_init(\"snmpTargetParamsEntry_data\")) init_snmpTargetParamsEntry_data();",
++        "  if (should_init(\"hw_mem\")) init_hw_mem();",
++        "  if (should_init(\"hw_fsys\")) init_hw_fsys();",
++        "  if (should_init(\"cpu\")) init_cpu();",
++        "  if (should_init(\"cpu_linux\")) init_cpu_linux();",
++        "  if (should_init(\"ifTable\")) init_ifTable();",
++        "  if (should_init(\"ifXTable\")) init_ifXTable();",
++        "  if (should_init(\"ipAddressTable\")) init_ipAddressTable();",
++        "  if (should_init(\"ipAddressPrefixTable\")) init_ipAddressPrefixTable();",
++        "  if (should_init(\"ipDefaultRouterTable\")) init_ipDefaultRouterTable();",
++        "  if (should_init(\"inetNetToMediaTable\")) init_inetNetToMediaTable();",
++        "  if (should_init(\"ipSystemStatsTable\")) init_ipSystemStatsTable();",
++        "  if (should_init(\"ipv6ScopeZoneIndexTable\")) init_ipv6ScopeZoneIndexTable();",
++        "  if (should_init(\"ipIfStatsTable\")) init_ipIfStatsTable();",
++        "  if (should_init(\"ipCidrRouteTable\")) init_ipCidrRouteTable();",
++        "  if (should_init(\"inetCidrRouteTable\")) init_inetCidrRouteTable();",
++        "  if (should_init(\"tcpConnectionTable\")) init_tcpConnectionTable();",
++        "  if (should_init(\"tcpListenerTable\")) init_tcpListenerTable();",
++        "  if (should_init(\"udpEndpointTable\")) init_udpEndpointTable();",
++        "  if (should_init(\"interface\")) init_interface();"
++    ],
++    "agent/mibgroup/mib_module_shutdown.h": [
++        "/* Net-SNMP module declarations. */",
++        "  if (should_init(\"dlmod\")) shutdown_dlmod();",
++        "  if (should_init(\"dot3StatsTable\")) shutdown_dot3StatsTable();",
++        "  if (should_init(\"hrSWInstalledTable\")) shutdown_hrSWInstalledTable();",
++        "  if (should_init(\"hrSWRunTable\")) shutdown_hrSWRunTable();",
++        "  if (should_init(\"hr_disk\")) shutdown_hr_disk();",
++        "  if (should_init(\"snmpMPDStats\")) shutdown_snmpMPDStats();",
++        "  if (should_init(\"usmStats\")) shutdown_usmStats();",
++        "  if (should_init(\"sysORTable\")) shutdown_sysORTable();",
++        "  if (should_init(\"pass_persist\")) shutdown_pass_persist();",
++        "  if (should_init(\"extend\")) shutdown_extend();",
++        "  if (should_init(\"proxy\")) shutdown_proxy();",
++        "  if (should_init(\"snmpNotifyTable\")) shutdown_snmpNotifyTable();",
++        "  if (should_init(\"snmpNotifyFilterProfileTable\")) shutdown_snmpNotifyFilterProfileTable();",
++        "  if (should_init(\"notification_log\")) shutdown_notification_log();",
++        "  if (should_init(\"snmpTargetAddrEntry\")) shutdown_snmpTargetAddrEntry();",
++        "  if (should_init(\"snmpTargetParamsEntry\")) shutdown_snmpTargetParamsEntry();",
++        "  if (should_init(\"mteTriggerTable\")) shutdown_mteTriggerTable();",
++        "  if (should_init(\"mteTriggerBooleanTable\")) shutdown_mteTriggerBooleanTable();",
++        "  if (should_init(\"mteTriggerThresholdTable\")) shutdown_mteTriggerThresholdTable();",
++        "  if (should_init(\"mteEventTable\")) shutdown_mteEventTable();",
++        "  if (should_init(\"mteEventSetTable\")) shutdown_mteEventSetTable();",
++        "  if (should_init(\"mteEventNotificationTable\")) shutdown_mteEventNotificationTable();",
++        "  if (should_init(\"mteObjectsTable\")) shutdown_mteObjectsTable();",
++        "  if (should_init(\"schedTable\")) shutdown_schedTable();",
++        "  if (should_init(\"swinst\")) shutdown_swinst();",
++        "  if (should_init(\"swrun\")) shutdown_swrun();",
++        "  if (should_init(\"hrSWRunPerfTable\")) shutdown_hrSWRunPerfTable();",
++        "  if (should_init(\"hw_sensors\")) shutdown_hw_sensors();",
++        "  if (should_init(\"snmpNotifyTable_data\")) shutdown_snmpNotifyTable_data();",
++        "  if (should_init(\"snmpNotifyFilterTable_data_storage\")) shutdown_snmpNotifyFilterTable_data_storage();",
++        "  if (should_init(\"snmpNotifyFilterTable\")) shutdown_snmpNotifyFilterTable();",
++        "  if (should_init(\"snmpNotifyFilterProfileTable_data\")) shutdown_snmpNotifyFilterProfileTable_data();",
++        "  if (should_init(\"snmpTargetAddrEntry_data\")) shutdown_snmpTargetAddrEntry_data();",
++        "  if (should_init(\"snmpTargetParamsEntry_data\")) shutdown_snmpTargetParamsEntry_data();",
++        "  if (should_init(\"hw_fsys\")) shutdown_hw_fsys();",
++        "  if (should_init(\"cpu\")) shutdown_cpu();",
++        "  if (should_init(\"ifTable\")) shutdown_ifTable();",
++        "  if (should_init(\"ifXTable\")) shutdown_ifXTable();",
++        "  if (should_init(\"ipAddressTable\")) shutdown_ipAddressTable();",
++        "  if (should_init(\"ipAddressPrefixTable\")) shutdown_ipAddressPrefixTable();",
++        "  if (should_init(\"ipDefaultRouterTable\")) shutdown_ipDefaultRouterTable();",
++        "  if (should_init(\"inetNetToMediaTable\")) shutdown_inetNetToMediaTable();",
++        "  if (should_init(\"ipSystemStatsTable\")) shutdown_ipSystemStatsTable();",
++        "  if (should_init(\"ipv6ScopeZoneIndexTable\")) shutdown_ipv6ScopeZoneIndexTable();",
++        "  if (should_init(\"ipIfStatsTable\")) shutdown_ipIfStatsTable();",
++        "  if (should_init(\"ipCidrRouteTable\")) shutdown_ipCidrRouteTable();",
++        "  if (should_init(\"inetCidrRouteTable\")) shutdown_inetCidrRouteTable();",
++        "  if (should_init(\"tcpConnectionTable\")) shutdown_tcpConnectionTable();",
++        "  if (should_init(\"tcpListenerTable\")) shutdown_tcpListenerTable();",
++        "  if (should_init(\"udpEndpointTable\")) shutdown_udpEndpointTable();"
++    ],
++    "include/net-snmp/agent/agent_module_config.h": [
++        "/* Net-SNMP module declarations. */",
++        "/* Define if compiling with the smux/smux module files.  */",
++        "#define USING_SMUX_SMUX_MODULE 1",
++        " ",
++        "/* Define if compiling with the snmpv3/usmConf module files.  */",
++        "#define USING_SNMPV3_USMCONF_MODULE 1",
++        " ",
++        "/* Define if compiling with the agentx/master module files.  */",
++        "#define USING_AGENTX_MASTER_MODULE 1",
++        " ",
++        "/* Define if compiling with the agentx/subagent module files.  */",
++        "#define USING_AGENTX_SUBAGENT_MODULE 1",
++        " ",
++        "/* Define if compiling with the utilities/execute module files.  */",
++        "#define USING_UTILITIES_EXECUTE_MODULE 1",
++        " ",
++        "/* Define if compiling with the utilities/iquery module files.  */",
++        "#define USING_UTILITIES_IQUERY_MODULE 1",
++        " ",
++        "/* Define if compiling with the mibII/vacm_conf module files.  */",
++        "#define USING_MIBII_VACM_CONF_MODULE 1",
++        " ",
++        "/* Define if compiling with the agentx/protocol module files.  */",
++        "#define USING_AGENTX_PROTOCOL_MODULE 1",
++        " ",
++        "/* Define if compiling with the agentx/master_admin module files.  */",
++        "#define USING_AGENTX_MASTER_ADMIN_MODULE 1",
++        " ",
++        "/* Define if compiling with the agentx/agentx_config module files.  */",
++        "#define USING_AGENTX_AGENTX_CONFIG_MODULE 1",
++        " ",
++        "/* Define if compiling with the agentx/client module files.  */",
++        "#define USING_AGENTX_CLIENT_MODULE 1",
++        " "
++    ],
++    "include/net-snmp/agent/mib_module_config.h": [
++        "/* Net-SNMP module declarations. */",
++        "/* Define if compiling with the default_modules module files.  */",
++        "#define USING_DEFAULT_MODULES_MODULE 1",
++        " ",
++        "/* Define if compiling with the disman/event-mib module files.  */",
++        "#define USING_DISMAN_EVENT_MIB_MODULE 1",
++        " ",
++        "/* Define if compiling with the etherlike-mib/dot3StatsTable module files.  */",
++        "#define USING_ETHERLIKE_MIB_DOT3STATSTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the host module files.  */",
++        "#define USING_HOST_MODULE 1",
++        " ",
++        "/* Define if compiling with the mibII/mta_sendmail module files.  */",
++        "#define USING_MIBII_MTA_SENDMAIL_MODULE 1",
++        " ",
++        "/* Define if compiling with the smux module files.  */",
++        "#define USING_SMUX_MODULE 1",
++        " ",
++        "/* Define if compiling with the ucd-snmp/diskio module files.  */",
++        "#define USING_UCD_SNMP_DISKIO_MODULE 1",
++        " ",
++        "/* Define if compiling with the ucd-snmp/dlmod module files.  */",
++        "#define USING_UCD_SNMP_DLMOD_MODULE 1",
++        " ",
++        "/* Define if compiling with the ucd-snmp/lmsensorsMib module files.  */",
++        "#define USING_UCD_SNMP_LMSENSORSMIB_MODULE 1",
++        " ",
++        "/* Define if compiling with the snmpv3mibs module files.  */",
++        "#define USING_SNMPV3MIBS_MODULE 1",
++        " ",
++        "/* Define if compiling with the mibII module files.  */",
++        "#define USING_MIBII_MODULE 1",
++        " ",
++        "/* Define if compiling with the ucd_snmp module files.  */",
++        "#define USING_UCD_SNMP_MODULE 1",
++        " ",
++        "/* Define if compiling with the notification module files.  */",
++        "#define USING_NOTIFICATION_MODULE 1",
++        " ",
++        "/* Define if compiling with the notification-log-mib module files.  */",
++        "#define USING_NOTIFICATION_LOG_MIB_MODULE 1",
++        " ",
++        "/* Define if compiling with the target module files.  */",
++        "#define USING_TARGET_MODULE 1",
++        " ",
++        "/* Define if compiling with the agent_mibs module files.  */",
++        "#define USING_AGENT_MIBS_MODULE 1",
++        " ",
++        "/* Define if compiling with the agentx module files.  */",
++        "#define USING_AGENTX_MODULE 1",
++        " ",
++        "/* Define if compiling with the disman/event module files.  */",
++        "#define USING_DISMAN_EVENT_MODULE 1",
++        " ",
++        "/* Define if compiling with the disman/schedule module files.  */",
++        "#define USING_DISMAN_SCHEDULE_MODULE 1",
++        " ",
++        "/* Define if compiling with the utilities module files.  */",
++        "#define USING_UTILITIES_MODULE 1",
++        " ",
++        "/* Define if compiling with the etherlike-mib/data_access/dot3stats module files.  */",
++        "#define USING_ETHERLIKE_MIB_DATA_ACCESS_DOT3STATS_MODULE 1",
++        " ",
++        "/* Define if compiling with the etherlike-mib/dot3StatsTable/dot3StatsTable module files.  */",
++        "#define USING_ETHERLIKE_MIB_DOT3STATSTABLE_DOT3STATSTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the etherlike-mib/dot3StatsTable/dot3StatsTable_data_get module files.  */",
++        "#define USING_ETHERLIKE_MIB_DOT3STATSTABLE_DOT3STATSTABLE_DATA_GET_MODULE 1",
++        " ",
++        "/* Define if compiling with the etherlike-mib/dot3StatsTable/dot3StatsTable_data_set module files.  */",
++        "#define USING_ETHERLIKE_MIB_DOT3STATSTABLE_DOT3STATSTABLE_DATA_SET_MODULE 1",
++        " ",
++        "/* Define if compiling with the etherlike-mib/dot3StatsTable/dot3StatsTable_data_access module files.  */",
++        "#define USING_ETHERLIKE_MIB_DOT3STATSTABLE_DOT3STATSTABLE_DATA_ACCESS_MODULE 1",
++        " ",
++        "/* Define if compiling with the etherlike-mib/dot3StatsTable/dot3StatsTable_interface module files.  */",
++        "#define USING_ETHERLIKE_MIB_DOT3STATSTABLE_DOT3STATSTABLE_INTERFACE_MODULE 1",
++        " ",
++        "/* Define if compiling with the host/hrh_storage module files.  */",
++        "#define USING_HOST_HRH_STORAGE_MODULE 1",
++        " ",
++        "/* Define if compiling with the host/hrh_filesys module files.  */",
++        "#define USING_HOST_HRH_FILESYS_MODULE 1",
++        " ",
++        "/* Define if compiling with the host/hrSWInstalledTable module files.  */",
++        "#define USING_HOST_HRSWINSTALLEDTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the host/hrSWRunTable module files.  */",
++        "#define USING_HOST_HRSWRUNTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the host/hr_system module files.  */",
++        "#define USING_HOST_HR_SYSTEM_MODULE 1",
++        " ",
++        "/* Define if compiling with the host/hr_device module files.  */",
++        "#define USING_HOST_HR_DEVICE_MODULE 1",
++        " ",
++        "/* Define if compiling with the host/hr_other module files.  */",
++        "#define USING_HOST_HR_OTHER_MODULE 1",
++        " ",
++        "/* Define if compiling with the host/hr_proc module files.  */",
++        "#define USING_HOST_HR_PROC_MODULE 1",
++        " ",
++        "/* Define if compiling with the host/hr_network module files.  */",
++        "#define USING_HOST_HR_NETWORK_MODULE 1",
++        " ",
++        "/* Define if compiling with the host/hr_print module files.  */",
++        "#define USING_HOST_HR_PRINT_MODULE 1",
++        " ",
++        "/* Define if compiling with the host/hr_disk module files.  */",
++        "#define USING_HOST_HR_DISK_MODULE 1",
++        " ",
++        "/* Define if compiling with the host/hr_partition module files.  */",
++        "#define USING_HOST_HR_PARTITION_MODULE 1",
++        " ",
++        "/* Define if compiling with the util_funcs/header_simple_table module files.  */",
++        "#define USING_UTIL_FUNCS_HEADER_SIMPLE_TABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the hardware/sensors module files.  */",
++        "#define USING_HARDWARE_SENSORS_MODULE 1",
++        " ",
++        "/* Define if compiling with the snmpv3/snmpEngine module files.  */",
++        "#define USING_SNMPV3_SNMPENGINE_MODULE 1",
++        " ",
++        "/* Define if compiling with the snmpv3/snmpMPDStats module files.  */",
++        "#define USING_SNMPV3_SNMPMPDSTATS_MODULE 1",
++        " ",
++        "/* Define if compiling with the snmpv3/usmStats module files.  */",
++        "#define USING_SNMPV3_USMSTATS_MODULE 1",
++        " ",
++        "/* Define if compiling with the snmpv3/usmUser module files.  */",
++        "#define USING_SNMPV3_USMUSER_MODULE 1",
++        " ",
++        "/* Define if compiling with the mibII/system_mib module files.  */",
++        "#define USING_MIBII_SYSTEM_MIB_MODULE 1",
++        " ",
++        "/* Define if compiling with the mibII/sysORTable module files.  */",
++        "#define USING_MIBII_SYSORTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the mibII/snmp_mib module files.  */",
++        "#define USING_MIBII_SNMP_MIB_MODULE 1",
++        " ",
++        "/* Define if compiling with the mibII/vacm_vars module files.  */",
++        "#define USING_MIBII_VACM_VARS_MODULE 1",
++        " ",
++        "/* Define if compiling with the mibII/setSerialNo module files.  */",
++        "#define USING_MIBII_SETSERIALNO_MODULE 1",
++        " ",
++        "/* Define if compiling with the mibII/at module files.  */",
++        "#define USING_MIBII_AT_MODULE 1",
++        " ",
++        "/* Define if compiling with the mibII/ifTable module files.  */",
++        "#define USING_MIBII_IFTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the mibII/ip module files.  */",
++        "#define USING_MIBII_IP_MODULE 1",
++        " ",
++        "/* Define if compiling with the mibII/tcp module files.  */",
++        "#define USING_MIBII_TCP_MODULE 1",
++        " ",
++        "/* Define if compiling with the mibII/udp module files.  */",
++        "#define USING_MIBII_UDP_MODULE 1",
++        " ",
++        "/* Define if compiling with the mibII/ipv6 module files.  */",
++        "#define USING_MIBII_IPV6_MODULE 1",
++        " ",
++        "/* Define if compiling with the mibII/icmp module files.  */",
++        "#define USING_MIBII_ICMP_MODULE 1",
++        " ",
++        "/* Define if compiling with the if-mib module files.  */",
++        "#define USING_IF_MIB_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib module files.  */",
++        "#define USING_IP_MIB_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-forward-mib module files.  */",
++        "#define USING_IP_FORWARD_MIB_MODULE 1",
++        " ",
++        "/* Define if compiling with the tcp-mib module files.  */",
++        "#define USING_TCP_MIB_MODULE 1",
++        " ",
++        "/* Define if compiling with the udp-mib module files.  */",
++        "#define USING_UDP_MIB_MODULE 1",
++        " ",
++        "/* Define if compiling with the ucd-snmp/proc module files.  */",
++        "#define USING_UCD_SNMP_PROC_MODULE 1",
++        " ",
++        "/* Define if compiling with the ucd-snmp/versioninfo module files.  */",
++        "#define USING_UCD_SNMP_VERSIONINFO_MODULE 1",
++        " ",
++        "/* Define if compiling with the ucd-snmp/pass module files.  */",
++        "#define USING_UCD_SNMP_PASS_MODULE 1",
++        " ",
++        "/* Define if compiling with the ucd-snmp/pass_persist module files.  */",
++        "#define USING_UCD_SNMP_PASS_PERSIST_MODULE 1",
++        " ",
++        "/* Define if compiling with the ucd-snmp/disk_hw module files.  */",
++        "#define USING_UCD_SNMP_DISK_HW_MODULE 1",
++        " ",
++        "/* Define if compiling with the ucd-snmp/loadave module files.  */",
++        "#define USING_UCD_SNMP_LOADAVE_MODULE 1",
++        " ",
++        "/* Define if compiling with the agent/extend module files.  */",
++        "#define USING_AGENT_EXTEND_MODULE 1",
++        " ",
++        "/* Define if compiling with the ucd-snmp/errormib module files.  */",
++        "#define USING_UCD_SNMP_ERRORMIB_MODULE 1",
++        " ",
++        "/* Define if compiling with the ucd-snmp/file module files.  */",
++        "#define USING_UCD_SNMP_FILE_MODULE 1",
++        " ",
++        "/* Define if compiling with the ucd-snmp/proxy module files.  */",
++        "#define USING_UCD_SNMP_PROXY_MODULE 1",
++        " ",
++        "/* Define if compiling with the ucd-snmp/logmatch module files.  */",
++        "#define USING_UCD_SNMP_LOGMATCH_MODULE 1",
++        " ",
++        "/* Define if compiling with the ucd-snmp/memory module files.  */",
++        "#define USING_UCD_SNMP_MEMORY_MODULE 1",
++        " ",
++        "/* Define if compiling with the ucd-snmp/vmstat module files.  */",
++        "#define USING_UCD_SNMP_VMSTAT_MODULE 1",
++        " ",
++        "/* Define if compiling with the notification/snmpNotifyTable module files.  */",
++        "#define USING_NOTIFICATION_SNMPNOTIFYTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the snmp-notification-mib/snmpNotifyFilterTable module files.  */",
++        "#define USING_SNMP_NOTIFICATION_MIB_SNMPNOTIFYFILTERTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the notification/snmpNotifyFilterProfileTable module files.  */",
++        "#define USING_NOTIFICATION_SNMPNOTIFYFILTERPROFILETABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the notification-log-mib/notification_log module files.  */",
++        "#define USING_NOTIFICATION_LOG_MIB_NOTIFICATION_LOG_MODULE 1",
++        " ",
++        "/* Define if compiling with the target/snmpTargetAddrEntry module files.  */",
++        "#define USING_TARGET_SNMPTARGETADDRENTRY_MODULE 1",
++        " ",
++        "/* Define if compiling with the target/snmpTargetParamsEntry module files.  */",
++        "#define USING_TARGET_SNMPTARGETPARAMSENTRY_MODULE 1",
++        " ",
++        "/* Define if compiling with the target/target module files.  */",
++        "#define USING_TARGET_TARGET_MODULE 1",
++        " ",
++        "/* Define if compiling with the target/target_counters module files.  */",
++        "#define USING_TARGET_TARGET_COUNTERS_MODULE 1",
++        " ",
++        "/* Define if compiling with the agent/nsTransactionTable module files.  */",
++        "#define USING_AGENT_NSTRANSACTIONTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the agent/nsModuleTable module files.  */",
++        "#define USING_AGENT_NSMODULETABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the agent/nsDebug module files.  */",
++        "#define USING_AGENT_NSDEBUG_MODULE 1",
++        " ",
++        "/* Define if compiling with the agent/nsCache module files.  */",
++        "#define USING_AGENT_NSCACHE_MODULE 1",
++        " ",
++        "/* Define if compiling with the agent/nsLogging module files.  */",
++        "#define USING_AGENT_NSLOGGING_MODULE 1",
++        " ",
++        "/* Define if compiling with the agent/nsVacmAccessTable module files.  */",
++        "#define USING_AGENT_NSVACMACCESSTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the disman/event/mteScalars module files.  */",
++        "#define USING_DISMAN_EVENT_MTESCALARS_MODULE 1",
++        " ",
++        "/* Define if compiling with the disman/event/mteTrigger module files.  */",
++        "#define USING_DISMAN_EVENT_MTETRIGGER_MODULE 1",
++        " ",
++        "/* Define if compiling with the disman/event/mteTriggerTable module files.  */",
++        "#define USING_DISMAN_EVENT_MTETRIGGERTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the disman/event/mteTriggerDeltaTable module files.  */",
++        "#define USING_DISMAN_EVENT_MTETRIGGERDELTATABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the disman/event/mteTriggerExistenceTable module files.  */",
++        "#define USING_DISMAN_EVENT_MTETRIGGEREXISTENCETABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the disman/event/mteTriggerBooleanTable module files.  */",
++        "#define USING_DISMAN_EVENT_MTETRIGGERBOOLEANTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the disman/event/mteTriggerThresholdTable module files.  */",
++        "#define USING_DISMAN_EVENT_MTETRIGGERTHRESHOLDTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the disman/event/mteTriggerConf module files.  */",
++        "#define USING_DISMAN_EVENT_MTETRIGGERCONF_MODULE 1",
++        " ",
++        "/* Define if compiling with the disman/event/mteEvent module files.  */",
++        "#define USING_DISMAN_EVENT_MTEEVENT_MODULE 1",
++        " ",
++        "/* Define if compiling with the disman/event/mteEventTable module files.  */",
++        "#define USING_DISMAN_EVENT_MTEEVENTTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the disman/event/mteEventSetTable module files.  */",
++        "#define USING_DISMAN_EVENT_MTEEVENTSETTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the disman/event/mteEventNotificationTable module files.  */",
++        "#define USING_DISMAN_EVENT_MTEEVENTNOTIFICATIONTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the disman/event/mteEventConf module files.  */",
++        "#define USING_DISMAN_EVENT_MTEEVENTCONF_MODULE 1",
++        " ",
++        "/* Define if compiling with the disman/event/mteObjects module files.  */",
++        "#define USING_DISMAN_EVENT_MTEOBJECTS_MODULE 1",
++        " ",
++        "/* Define if compiling with the disman/event/mteObjectsTable module files.  */",
++        "#define USING_DISMAN_EVENT_MTEOBJECTSTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the disman/event/mteObjectsConf module files.  */",
++        "#define USING_DISMAN_EVENT_MTEOBJECTSCONF_MODULE 1",
++        " ",
++        "/* Define if compiling with the disman/schedule/schedCore module files.  */",
++        "#define USING_DISMAN_SCHEDULE_SCHEDCORE_MODULE 1",
++        " ",
++        "/* Define if compiling with the disman/schedule/schedConf module files.  */",
++        "#define USING_DISMAN_SCHEDULE_SCHEDCONF_MODULE 1",
++        " ",
++        "/* Define if compiling with the disman/schedule/schedTable module files.  */",
++        "#define USING_DISMAN_SCHEDULE_SCHEDTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the utilities/override module files.  */",
++        "#define USING_UTILITIES_OVERRIDE_MODULE 1",
++        " ",
++        "/* Define if compiling with the etherlike-mib/data_access/dot3stats_linux module files.  */",
++        "#define USING_ETHERLIKE_MIB_DATA_ACCESS_DOT3STATS_LINUX_MODULE 1",
++        " ",
++        "/* Define if compiling with the hardware/memory module files.  */",
++        "#define USING_HARDWARE_MEMORY_MODULE 1",
++        " ",
++        "/* Define if compiling with the hardware/fsys module files.  */",
++        "#define USING_HARDWARE_FSYS_MODULE 1",
++        " ",
++        "/* Define if compiling with the host/data_access/swinst module files.  */",
++        "#define USING_HOST_DATA_ACCESS_SWINST_MODULE 1",
++        " ",
++        "/* Define if compiling with the host/data_access/swrun module files.  */",
++        "#define USING_HOST_DATA_ACCESS_SWRUN_MODULE 1",
++        " ",
++        "/* Define if compiling with the host/hrSWRunPerfTable module files.  */",
++        "#define USING_HOST_HRSWRUNPERFTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the hardware/cpu module files.  */",
++        "#define USING_HARDWARE_CPU_MODULE 1",
++        " ",
++        "/* Define if compiling with the util_funcs module files.  */",
++        "#define USING_UTIL_FUNCS_MODULE 1",
++        " ",
++        "/* Define if compiling with the hardware/sensors/hw_sensors module files.  */",
++        "#define USING_HARDWARE_SENSORS_HW_SENSORS_MODULE 1",
++        " ",
++        "/* Define if compiling with the hardware/sensors/lmsensors_v3 module files.  */",
++        "#define USING_HARDWARE_SENSORS_LMSENSORS_V3_MODULE 1",
++        " ",
++        "/* Define if compiling with the util_funcs/header_generic module files.  */",
++        "#define USING_UTIL_FUNCS_HEADER_GENERIC_MODULE 1",
++        " ",
++        "/* Define if compiling with the mibII/updates module files.  */",
++        "#define USING_MIBII_UPDATES_MODULE 1",
++        " ",
++        "/* Define if compiling with the mibII/vacm_context module files.  */",
++        "#define USING_MIBII_VACM_CONTEXT_MODULE 1",
++        " ",
++        "/* Define if compiling with the mibII/data_access/at_linux module files.  */",
++        "#define USING_MIBII_DATA_ACCESS_AT_LINUX_MODULE 1",
++        " ",
++        "/* Define if compiling with the mibII/data_access/at_unix module files.  */",
++        "#define USING_MIBII_DATA_ACCESS_AT_UNIX_MODULE 1",
++        " ",
++        "/* Define if compiling with the if-mib/ifTable module files.  */",
++        "#define USING_IF_MIB_IFTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the mibII/ipAddr module files.  */",
++        "#define USING_MIBII_IPADDR_MODULE 1",
++        " ",
++        "/* Define if compiling with the mibII/var_route module files.  */",
++        "#define USING_MIBII_VAR_ROUTE_MODULE 1",
++        " ",
++        "/* Define if compiling with the mibII/route_write module files.  */",
++        "#define USING_MIBII_ROUTE_WRITE_MODULE 1",
++        " ",
++        "/* Define if compiling with the mibII/kernel_linux module files.  */",
++        "#define USING_MIBII_KERNEL_LINUX_MODULE 1",
++        " ",
++        "/* Define if compiling with the mibII/tcpTable module files.  */",
++        "#define USING_MIBII_TCPTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the mibII/udpTable module files.  */",
++        "#define USING_MIBII_UDPTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the if-mib/ifXTable module files.  */",
++        "#define USING_IF_MIB_IFXTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/ipAddressTable module files.  */",
++        "#define USING_IP_MIB_IPADDRESSTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/ipAddressPrefixTable module files.  */",
++        "#define USING_IP_MIB_IPADDRESSPREFIXTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/ipDefaultRouterTable module files.  */",
++        "#define USING_IP_MIB_IPDEFAULTROUTERTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/inetNetToMediaTable module files.  */",
++        "#define USING_IP_MIB_INETNETTOMEDIATABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/ipSystemStatsTable module files.  */",
++        "#define USING_IP_MIB_IPSYSTEMSTATSTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/ip_scalars module files.  */",
++        "#define USING_IP_MIB_IP_SCALARS_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/ipv6ScopeZoneIndexTable module files.  */",
++        "#define USING_IP_MIB_IPV6SCOPEZONEINDEXTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/ipIfStatsTable module files.  */",
++        "#define USING_IP_MIB_IPIFSTATSTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-forward-mib/ipCidrRouteTable module files.  */",
++        "#define USING_IP_FORWARD_MIB_IPCIDRROUTETABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-forward-mib/inetCidrRouteTable module files.  */",
++        "#define USING_IP_FORWARD_MIB_INETCIDRROUTETABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the tcp-mib/tcpConnectionTable module files.  */",
++        "#define USING_TCP_MIB_TCPCONNECTIONTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the tcp-mib/tcpListenerTable module files.  */",
++        "#define USING_TCP_MIB_TCPLISTENERTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the udp-mib/udpEndpointTable module files.  */",
++        "#define USING_UDP_MIB_UDPENDPOINTTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the util_funcs/restart module files.  */",
++        "#define USING_UTIL_FUNCS_RESTART_MODULE 1",
++        " ",
++        "/* Define if compiling with the ucd-snmp/pass_common module files.  */",
++        "#define USING_UCD_SNMP_PASS_COMMON_MODULE 1",
++        " ",
++        "/* Define if compiling with the notification/snmpNotifyTable_data module files.  */",
++        "#define USING_NOTIFICATION_SNMPNOTIFYTABLE_DATA_MODULE 1",
++        " ",
++        "/* Define if compiling with the header_complex module files.  */",
++        "#define USING_HEADER_COMPLEX_MODULE 1",
++        " ",
++        "/* Define if compiling with the snmp-notification-mib/snmpNotifyFilterTable/snmpNotifyFilterTable_data_storage module files.  */",
++        "#define USING_SNMP_NOTIFICATION_MIB_SNMPNOTIFYFILTERTABLE_SNMPNOTIFYFILTERTABLE_DATA_STORAGE_MODULE 1",
++        " ",
++        "/* Define if compiling with the snmp-notification-mib/snmpNotifyFilterTable/snmpNotifyFilterTable module files.  */",
++        "#define USING_SNMP_NOTIFICATION_MIB_SNMPNOTIFYFILTERTABLE_SNMPNOTIFYFILTERTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the notification/snmpNotifyFilterProfileTable_data module files.  */",
++        "#define USING_NOTIFICATION_SNMPNOTIFYFILTERPROFILETABLE_DATA_MODULE 1",
++        " ",
++        "/* Define if compiling with the target/snmpTargetAddrEntry_data module files.  */",
++        "#define USING_TARGET_SNMPTARGETADDRENTRY_DATA_MODULE 1",
++        " ",
++        "/* Define if compiling with the target/snmpTargetParamsEntry_data module files.  */",
++        "#define USING_TARGET_SNMPTARGETPARAMSENTRY_DATA_MODULE 1",
++        " ",
++        "/* Define if compiling with the hardware/memory/hw_mem module files.  */",
++        "#define USING_HARDWARE_MEMORY_HW_MEM_MODULE 1",
++        " ",
++        "/* Define if compiling with the hardware/memory/memory_linux module files.  */",
++        "#define USING_HARDWARE_MEMORY_MEMORY_LINUX_MODULE 1",
++        " ",
++        "/* Define if compiling with the hardware/fsys/hw_fsys module files.  */",
++        "#define USING_HARDWARE_FSYS_HW_FSYS_MODULE 1",
++        " ",
++        "/* Define if compiling with the hardware/fsys/fsys_mntent module files.  */",
++        "#define USING_HARDWARE_FSYS_FSYS_MNTENT_MODULE 1",
++        " ",
++        "/* Define if compiling with the host/data_access/swinst_apt module files.  */",
++        "#define USING_HOST_DATA_ACCESS_SWINST_APT_MODULE 1",
++        " ",
++        "/* Define if compiling with the host/data_access/swrun_procfs_status module files.  */",
++        "#define USING_HOST_DATA_ACCESS_SWRUN_PROCFS_STATUS_MODULE 1",
++        " ",
++        "/* Define if compiling with the hardware/cpu/cpu module files.  */",
++        "#define USING_HARDWARE_CPU_CPU_MODULE 1",
++        " ",
++        "/* Define if compiling with the hardware/cpu/cpu_linux module files.  */",
++        "#define USING_HARDWARE_CPU_CPU_LINUX_MODULE 1",
++        " ",
++        "/* Define if compiling with the if-mib/ifTable/ifTable module files.  */",
++        "#define USING_IF_MIB_IFTABLE_IFTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the if-mib/ifXTable/ifXTable module files.  */",
++        "#define USING_IF_MIB_IFXTABLE_IFXTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/ipAddressTable/ipAddressTable module files.  */",
++        "#define USING_IP_MIB_IPADDRESSTABLE_IPADDRESSTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/ipAddressPrefixTable/ipAddressPrefixTable module files.  */",
++        "#define USING_IP_MIB_IPADDRESSPREFIXTABLE_IPADDRESSPREFIXTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/ipDefaultRouterTable/ipDefaultRouterTable module files.  */",
++        "#define USING_IP_MIB_IPDEFAULTROUTERTABLE_IPDEFAULTROUTERTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/data_access/arp module files.  */",
++        "#define USING_IP_MIB_DATA_ACCESS_ARP_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/inetNetToMediaTable/inetNetToMediaTable module files.  */",
++        "#define USING_IP_MIB_INETNETTOMEDIATABLE_INETNETTOMEDIATABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/inetNetToMediaTable/inetNetToMediaTable_interface module files.  */",
++        "#define USING_IP_MIB_INETNETTOMEDIATABLE_INETNETTOMEDIATABLE_INTERFACE_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/inetNetToMediaTable/inetNetToMediaTable_data_access module files.  */",
++        "#define USING_IP_MIB_INETNETTOMEDIATABLE_INETNETTOMEDIATABLE_DATA_ACCESS_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/data_access/systemstats module files.  */",
++        "#define USING_IP_MIB_DATA_ACCESS_SYSTEMSTATS_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/ipSystemStatsTable/ipSystemStatsTable module files.  */",
++        "#define USING_IP_MIB_IPSYSTEMSTATSTABLE_IPSYSTEMSTATSTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/ipSystemStatsTable/ipSystemStatsTable_interface module files.  */",
++        "#define USING_IP_MIB_IPSYSTEMSTATSTABLE_IPSYSTEMSTATSTABLE_INTERFACE_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/ipSystemStatsTable/ipSystemStatsTable_data_access module files.  */",
++        "#define USING_IP_MIB_IPSYSTEMSTATSTABLE_IPSYSTEMSTATSTABLE_DATA_ACCESS_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/data_access/scalars_common module files.  */",
++        "#define USING_IP_MIB_DATA_ACCESS_SCALARS_COMMON_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/ipv6ScopeZoneIndexTable/ipv6ScopeZoneIndexTable module files.  */",
++        "#define USING_IP_MIB_IPV6SCOPEZONEINDEXTABLE_IPV6SCOPEZONEINDEXTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/ipIfStatsTable/ipIfStatsTable module files.  */",
++        "#define USING_IP_MIB_IPIFSTATSTABLE_IPIFSTATSTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/ipIfStatsTable/ipIfStatsTable_interface module files.  */",
++        "#define USING_IP_MIB_IPIFSTATSTABLE_IPIFSTATSTABLE_INTERFACE_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/ipIfStatsTable/ipIfStatsTable_data_access module files.  */",
++        "#define USING_IP_MIB_IPIFSTATSTABLE_IPIFSTATSTABLE_DATA_ACCESS_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-forward-mib/ipCidrRouteTable/ipCidrRouteTable module files.  */",
++        "#define USING_IP_FORWARD_MIB_IPCIDRROUTETABLE_IPCIDRROUTETABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-forward-mib/inetCidrRouteTable/inetCidrRouteTable module files.  */",
++        "#define USING_IP_FORWARD_MIB_INETCIDRROUTETABLE_INETCIDRROUTETABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the tcp-mib/data_access/tcpConn module files.  */",
++        "#define USING_TCP_MIB_DATA_ACCESS_TCPCONN_MODULE 1",
++        " ",
++        "/* Define if compiling with the tcp-mib/tcpConnectionTable/tcpConnectionTable module files.  */",
++        "#define USING_TCP_MIB_TCPCONNECTIONTABLE_TCPCONNECTIONTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the tcp-mib/tcpListenerTable/tcpListenerTable module files.  */",
++        "#define USING_TCP_MIB_TCPLISTENERTABLE_TCPLISTENERTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the udp-mib/udpEndpointTable/udpEndpointTable module files.  */",
++        "#define USING_UDP_MIB_UDPENDPOINTTABLE_UDPENDPOINTTABLE_MODULE 1",
++        " ",
++        "/* Define if compiling with the snmp-notification-mib/snmpNotifyFilterTable/snmpNotifyFilterTable_interface module files.  */",
++        "#define USING_SNMP_NOTIFICATION_MIB_SNMPNOTIFYFILTERTABLE_SNMPNOTIFYFILTERTABLE_INTERFACE_MODULE 1",
++        " ",
++        "/* Define if compiling with the snmp-notification-mib/snmpNotifyFilterTable/snmpNotifyFilterTable_data_access module files.  */",
++        "#define USING_SNMP_NOTIFICATION_MIB_SNMPNOTIFYFILTERTABLE_SNMPNOTIFYFILTERTABLE_DATA_ACCESS_MODULE 1",
++        " ",
++        "/* Define if compiling with the if-mib/data_access/interface module files.  */",
++        "#define USING_IF_MIB_DATA_ACCESS_INTERFACE_MODULE 1",
++        " ",
++        "/* Define if compiling with the if-mib/ifTable/ifTable_interface module files.  */",
++        "#define USING_IF_MIB_IFTABLE_IFTABLE_INTERFACE_MODULE 1",
++        " ",
++        "/* Define if compiling with the if-mib/ifTable/ifTable_data_access module files.  */",
++        "#define USING_IF_MIB_IFTABLE_IFTABLE_DATA_ACCESS_MODULE 1",
++        " ",
++        "/* Define if compiling with the if-mib/ifXTable/ifXTable_interface module files.  */",
++        "#define USING_IF_MIB_IFXTABLE_IFXTABLE_INTERFACE_MODULE 1",
++        " ",
++        "/* Define if compiling with the if-mib/ifXTable/ifXTable_data_access module files.  */",
++        "#define USING_IF_MIB_IFXTABLE_IFXTABLE_DATA_ACCESS_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/data_access/ipaddress module files.  */",
++        "#define USING_IP_MIB_DATA_ACCESS_IPADDRESS_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/ipAddressTable/ipAddressTable_interface module files.  */",
++        "#define USING_IP_MIB_IPADDRESSTABLE_IPADDRESSTABLE_INTERFACE_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/ipAddressTable/ipAddressTable_data_access module files.  */",
++        "#define USING_IP_MIB_IPADDRESSTABLE_IPADDRESSTABLE_DATA_ACCESS_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/ipAddressPrefixTable/ipAddressPrefixTable_interface module files.  */",
++        "#define USING_IP_MIB_IPADDRESSPREFIXTABLE_IPADDRESSPREFIXTABLE_INTERFACE_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/ipAddressPrefixTable/ipAddressPrefixTable_data_access module files.  */",
++        "#define USING_IP_MIB_IPADDRESSPREFIXTABLE_IPADDRESSPREFIXTABLE_DATA_ACCESS_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/data_access/defaultrouter module files.  */",
++        "#define USING_IP_MIB_DATA_ACCESS_DEFAULTROUTER_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/ipDefaultRouterTable/ipDefaultRouterTable_interface module files.  */",
++        "#define USING_IP_MIB_IPDEFAULTROUTERTABLE_IPDEFAULTROUTERTABLE_INTERFACE_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/ipDefaultRouterTable/ipDefaultRouterTable_data_access module files.  */",
++        "#define USING_IP_MIB_IPDEFAULTROUTERTABLE_IPDEFAULTROUTERTABLE_DATA_ACCESS_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/ipDefaultRouterTable/ipDefaultRouterTable_data_get module files.  */",
++        "#define USING_IP_MIB_IPDEFAULTROUTERTABLE_IPDEFAULTROUTERTABLE_DATA_GET_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/data_access/arp_common module files.  */",
++        "#define USING_IP_MIB_DATA_ACCESS_ARP_COMMON_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/data_access/arp_netlink module files.  */",
++        "#define USING_IP_MIB_DATA_ACCESS_ARP_NETLINK_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/data_access/systemstats_common module files.  */",
++        "#define USING_IP_MIB_DATA_ACCESS_SYSTEMSTATS_COMMON_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/data_access/systemstats_linux module files.  */",
++        "#define USING_IP_MIB_DATA_ACCESS_SYSTEMSTATS_LINUX_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/data_access/scalars_linux module files.  */",
++        "#define USING_IP_MIB_DATA_ACCESS_SCALARS_LINUX_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/data_access/ipv6scopezone module files.  */",
++        "#define USING_IP_MIB_DATA_ACCESS_IPV6SCOPEZONE_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/ipv6ScopeZoneIndexTable/ipv6ScopeZoneIndexTable_interface module files.  */",
++        "#define USING_IP_MIB_IPV6SCOPEZONEINDEXTABLE_IPV6SCOPEZONEINDEXTABLE_INTERFACE_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/ipv6ScopeZoneIndexTable/ipv6ScopeZoneIndexTable_data_access module files.  */",
++        "#define USING_IP_MIB_IPV6SCOPEZONEINDEXTABLE_IPV6SCOPEZONEINDEXTABLE_DATA_ACCESS_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/ipIfStatsTable/ipIfStatsTable_data_get module files.  */",
++        "#define USING_IP_MIB_IPIFSTATSTABLE_IPIFSTATSTABLE_DATA_GET_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-forward-mib/data_access/route module files.  */",
++        "#define USING_IP_FORWARD_MIB_DATA_ACCESS_ROUTE_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-forward-mib/ipCidrRouteTable/ipCidrRouteTable_interface module files.  */",
++        "#define USING_IP_FORWARD_MIB_IPCIDRROUTETABLE_IPCIDRROUTETABLE_INTERFACE_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-forward-mib/ipCidrRouteTable/ipCidrRouteTable_data_access module files.  */",
++        "#define USING_IP_FORWARD_MIB_IPCIDRROUTETABLE_IPCIDRROUTETABLE_DATA_ACCESS_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-forward-mib/inetCidrRouteTable/inetCidrRouteTable_interface module files.  */",
++        "#define USING_IP_FORWARD_MIB_INETCIDRROUTETABLE_INETCIDRROUTETABLE_INTERFACE_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-forward-mib/inetCidrRouteTable/inetCidrRouteTable_data_access module files.  */",
++        "#define USING_IP_FORWARD_MIB_INETCIDRROUTETABLE_INETCIDRROUTETABLE_DATA_ACCESS_MODULE 1",
++        " ",
++        "/* Define if compiling with the tcp-mib/data_access/tcpConn_common module files.  */",
++        "#define USING_TCP_MIB_DATA_ACCESS_TCPCONN_COMMON_MODULE 1",
++        " ",
++        "/* Define if compiling with the tcp-mib/data_access/tcpConn_linux module files.  */",
++        "#define USING_TCP_MIB_DATA_ACCESS_TCPCONN_LINUX_MODULE 1",
++        " ",
++        "/* Define if compiling with the util_funcs/get_pid_from_inode module files.  */",
++        "#define USING_UTIL_FUNCS_GET_PID_FROM_INODE_MODULE 1",
++        " ",
++        "/* Define if compiling with the tcp-mib/tcpConnectionTable/tcpConnectionTable_interface module files.  */",
++        "#define USING_TCP_MIB_TCPCONNECTIONTABLE_TCPCONNECTIONTABLE_INTERFACE_MODULE 1",
++        " ",
++        "/* Define if compiling with the tcp-mib/tcpConnectionTable/tcpConnectionTable_data_access module files.  */",
++        "#define USING_TCP_MIB_TCPCONNECTIONTABLE_TCPCONNECTIONTABLE_DATA_ACCESS_MODULE 1",
++        " ",
++        "/* Define if compiling with the tcp-mib/tcpListenerTable/tcpListenerTable_interface module files.  */",
++        "#define USING_TCP_MIB_TCPLISTENERTABLE_TCPLISTENERTABLE_INTERFACE_MODULE 1",
++        " ",
++        "/* Define if compiling with the tcp-mib/tcpListenerTable/tcpListenerTable_data_access module files.  */",
++        "#define USING_TCP_MIB_TCPLISTENERTABLE_TCPLISTENERTABLE_DATA_ACCESS_MODULE 1",
++        " ",
++        "/* Define if compiling with the udp-mib/data_access/udp_endpoint module files.  */",
++        "#define USING_UDP_MIB_DATA_ACCESS_UDP_ENDPOINT_MODULE 1",
++        " ",
++        "/* Define if compiling with the udp-mib/udpEndpointTable/udpEndpointTable_interface module files.  */",
++        "#define USING_UDP_MIB_UDPENDPOINTTABLE_UDPENDPOINTTABLE_INTERFACE_MODULE 1",
++        " ",
++        "/* Define if compiling with the udp-mib/udpEndpointTable/udpEndpointTable_data_access module files.  */",
++        "#define USING_UDP_MIB_UDPENDPOINTTABLE_UDPENDPOINTTABLE_DATA_ACCESS_MODULE 1",
++        " ",
++        "/* Define if compiling with the if-mib/data_access/interface_linux module files.  */",
++        "#define USING_IF_MIB_DATA_ACCESS_INTERFACE_LINUX_MODULE 1",
++        " ",
++        "/* Define if compiling with the if-mib/data_access/interface_ioctl module files.  */",
++        "#define USING_IF_MIB_DATA_ACCESS_INTERFACE_IOCTL_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/data_access/ipaddress_common module files.  */",
++        "#define USING_IP_MIB_DATA_ACCESS_IPADDRESS_COMMON_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/data_access/ipaddress_linux module files.  */",
++        "#define USING_IP_MIB_DATA_ACCESS_IPADDRESS_LINUX_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/data_access/defaultrouter_common module files.  */",
++        "#define USING_IP_MIB_DATA_ACCESS_DEFAULTROUTER_COMMON_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/data_access/defaultrouter_linux module files.  */",
++        "#define USING_IP_MIB_DATA_ACCESS_DEFAULTROUTER_LINUX_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/data_access/ipv6scopezone_common module files.  */",
++        "#define USING_IP_MIB_DATA_ACCESS_IPV6SCOPEZONE_COMMON_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/data_access/ipv6scopezone_linux module files.  */",
++        "#define USING_IP_MIB_DATA_ACCESS_IPV6SCOPEZONE_LINUX_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-forward-mib/data_access/route_common module files.  */",
++        "#define USING_IP_FORWARD_MIB_DATA_ACCESS_ROUTE_COMMON_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-forward-mib/data_access/route_linux module files.  */",
++        "#define USING_IP_FORWARD_MIB_DATA_ACCESS_ROUTE_LINUX_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-forward-mib/data_access/route_ioctl module files.  */",
++        "#define USING_IP_FORWARD_MIB_DATA_ACCESS_ROUTE_IOCTL_MODULE 1",
++        " ",
++        "/* Define if compiling with the udp-mib/data_access/udp_endpoint_common module files.  */",
++        "#define USING_UDP_MIB_DATA_ACCESS_UDP_ENDPOINT_COMMON_MODULE 1",
++        " ",
++        "/* Define if compiling with the udp-mib/data_access/udp_endpoint_linux module files.  */",
++        "#define USING_UDP_MIB_DATA_ACCESS_UDP_ENDPOINT_LINUX_MODULE 1",
++        " ",
++        "/* Define if compiling with the ip-mib/data_access/ipaddress_ioctl module files.  */",
++        "#define USING_IP_MIB_DATA_ACCESS_IPADDRESS_IOCTL_MODULE 1",
++        " "
++    ],
++    "include/net-snmp/library/snmpv3-security-includes.h": [
++        "/* Net-SNMP module declarations. */",
++        "#include <net-snmp/library/snmptsm.h>",
++        "#include <net-snmp/library/snmpusm.h>"
++    ],
++    "snmplib/snmpsm_init.h": [
++        "/* Net-SNMP module declarations. */",
++        "init_tsm();",
++        "init_usm();"
++    ],
++    "snmplib/snmpsm_shutdown.h": [
++        "/* Net-SNMP module declarations. */",
++        "shutdown_tsm();",
++        "shutdown_usm();"
++    ],
++    "snmplib/transports/snmp_transport_inits.h": [
++        "/* Net-SNMP module declarations. */",
++        "netsnmp_tlsbase_ctor();",
++        "netsnmp_dtlsudp_ctor();",
++        "netsnmp_tlstcp_ctor();",
++        "netsnmp_udpipv6_ctor();",
++        "netsnmp_tcpipv6_ctor();",
++        "netsnmp_udp_ctor();",
++        "netsnmp_tcp_ctor();",
++        "netsnmp_alias_ctor();",
++        "netsnmp_unix_ctor();"
++    ]
++}
++
++[
++    write_file(name = "header_" + str(index), out = path, content = content + [""], newline = "unix")
++    for index, (path, content) in enumerate(_MODULE_HEADERS.items())
++]
++
++filegroup(name = "configured_headers", srcs = [":config_header"] + [":header_" + str(index) for index in range(len(_MODULE_HEADERS))])
++
++cc_library(
++    name = "configuration_headers",
++    hdrs = [":configured_headers"],
++    includes = ["include", "snmplib", "snmplib/transports", "agent", "agent/mibgroup"],
++)
++
++cc_library(name = "system_ssl", deps = ['@net_snmp_system//libssl-dev:libssl_cc', '@net_snmp_system//libssl-dev:libcrypto_cc'])
++cc_library(name = "system_wrap", deps = ['@net_snmp_system//libwrap0-dev:libwrap_cc'])
++cc_library(name = "system_perl", deps = ['@net_snmp_system//libperl-dev:libperl_cc'])
++cc_library(name = "system_crypt", deps = ['@net_snmp_system//libcrypt-dev:libcrypt_cc'])
++cc_library(name = "system_sensors", deps = ['@net_snmp_system//libsensors-dev:libsensors_cc'])
++cc_library(name = "system_pci", deps = ['@net_snmp_system//libpci-dev:libpci_cc'])
++cc_library(name = "system_mariadb", deps = ['@net_snmp_system//libmariadb-dev:libmariadb_cc'])
++cc_library(name = "system_systemd", deps = ['@net_snmp_system//libsystemd-dev:libsystemd_cc'])
++cc_library(name = "system_ncurses", deps = ['@net_snmp_system//libncurses-dev:libncurses_cc', '@net_snmp_system//libncurses-dev:libtinfo_cc'])
++cc_library(name = "system_pcap", deps = ['@net_snmp_system//libpcap0.8-dev:libpcap_cc'])
++alias(name = "ssl_headers", actual = "@net_snmp_system//libssl-dev:libssl_headers")
++alias(name = "perl_headers", actual = "@net_snmp_system//libperl-dev:libperl_headers")
++[
++    alias(name = name, actual = "@net_snmp_source//:" + name)
++    for name in ["headers", "snmp_shared", "snmp_objects", "netsnmp", "netsnmpagent", "netsnmpmibs", "netsnmphelpers", "netsnmptrapd", "netsnmp_shared", "netsnmpagent_shared", "netsnmpmibs_shared", "netsnmphelpers_shared", "netsnmptrapd_shared", "netsnmp_objects", "netsnmpagent_objects", "netsnmpmibs_objects", "netsnmphelpers_objects", "netsnmptrapd_objects", "all_libraries", "programs"]
++]
++
++
++filegroup(name = "pkgconfig", srcs = ["//package_sources:configured_2", "//package_sources:configured_3"])
++
++# Target ELF inspection runs on the execution platform for both architectures.
++py_binary(name = "native_contract_test_runner", main = "native_contract_test.py", srcs = ["native_contract_test.py"], deps = ["@sonic_build_infra//deb:elf_metadata"])
++exec_test(
++    name = "native_contract_test",
++    runner = ":native_contract_test_runner",
++    data = [":config_header", ":snmp_shared", ":netsnmp_shared", ":netsnmpagent_shared", ":netsnmpmibs_shared", ":netsnmphelpers_shared", ":netsnmptrapd_shared"],
++    checker_args = select({
++        "@platforms//cpu:x86_64": ["--machine=62"],
++        "@platforms//cpu:aarch64": ["--machine=183"],
++    }) + [
++        "--header=$(location :config_header)",
++        "--library=snmp=$(location :snmp_shared)",
++        "--library=netsnmp=$(location :netsnmp_shared)",
++        "--library=netsnmpagent=$(location :netsnmpagent_shared)",
++        "--library=netsnmpmibs=$(location :netsnmpmibs_shared)",
++        "--library=netsnmphelpers=$(location :netsnmphelpers_shared)",
++        "--library=netsnmptrapd=$(location :netsnmptrapd_shared)",
++    ],
++)
++
++alias(name = "snmp_compat", actual = "@net_snmp_source//:snmp")
++
++
++sonic_deploy_tar(
++    default_mtime = "0",
++    name = "libsnmp40_elf_x86_64",
++    binaries = {
++        "usr/lib/x86_64-linux-gnu/libsnmp.so.40.2.0 type=file uid=0 gid=0 mode=0644 time=0": ":snmp_shared",
++        "usr/lib/x86_64-linux-gnu/libnetsnmp.so.40.2.0 type=file uid=0 gid=0 mode=0644 time=0": ":netsnmp_shared",
++        "usr/lib/x86_64-linux-gnu/libnetsnmpagent.so.40.2.0 type=file uid=0 gid=0 mode=0644 time=0": ":netsnmpagent_shared",
++        "usr/lib/x86_64-linux-gnu/libnetsnmphelpers.so.40.2.0 type=file uid=0 gid=0 mode=0644 time=0": ":netsnmphelpers_shared",
++        "usr/lib/x86_64-linux-gnu/libnetsnmpmibs.so.40.2.0 type=file uid=0 gid=0 mode=0644 time=0": ":netsnmpmibs_shared",
++    },
++    mtree = [
++        "usr/lib/x86_64-linux-gnu/libsnmp.so.40 type=link uid=0 gid=0 mode=0777 link=libsnmp.so.40.2.0",
++        "usr/lib/x86_64-linux-gnu/libnetsnmp.so.40 type=link uid=0 gid=0 mode=0777 link=libnetsnmp.so.40.2.0",
++        "usr/lib/x86_64-linux-gnu/libnetsnmpagent.so.40 type=link uid=0 gid=0 mode=0777 link=libnetsnmpagent.so.40.2.0",
++        "usr/lib/x86_64-linux-gnu/libnetsnmphelpers.so.40 type=link uid=0 gid=0 mode=0777 link=libnetsnmphelpers.so.40.2.0",
++        "usr/lib/x86_64-linux-gnu/libnetsnmpmibs.so.40 type=link uid=0 gid=0 mode=0777 link=libnetsnmpmibs.so.40.2.0",
++    ],
++    force_debug_build = True,
++    debug_symlinks = {
++        "usr/share/doc/libsnmp40-dbgsym": "libsnmp40",
++    },
++    target_compatible_with = ["@platforms//cpu:x86_64"],
++    visibility = ["//visibility:public"],
++)
++
++sonic_deploy_tar(
++    default_mtime = "0",
++    name = "libnetsnmptrapd40_elf_x86_64",
++    binaries = {
++        "usr/lib/x86_64-linux-gnu/libnetsnmptrapd.so.40.2.0 type=file uid=0 gid=0 mode=0644 time=0": ":netsnmptrapd_shared",
++    },
++    mtree = [
++        "usr/lib/x86_64-linux-gnu/libnetsnmptrapd.so.40 type=link uid=0 gid=0 mode=0777 link=libnetsnmptrapd.so.40.2.0",
++    ],
++    force_debug_build = True,
++    debug_symlinks = {
++        "usr/share/doc/libnetsnmptrapd40-dbgsym": "libnetsnmptrapd40",
++    },
++    target_compatible_with = ["@platforms//cpu:x86_64"],
++    visibility = ["//visibility:public"],
++)
++
++sonic_deploy_tar(
++    default_mtime = "0",
++    name = "libsnmp-dev_elf_x86_64",
++    binaries = {
++    },
++    mtree = [
++        "usr/lib/x86_64-linux-gnu/libsnmp.so type=link uid=0 gid=0 mode=0777 link=libsnmp.so.40.2.0",
++        "usr/lib/x86_64-linux-gnu/libnetsnmp.so type=link uid=0 gid=0 mode=0777 link=libnetsnmp.so.40.2.0",
++        "usr/lib/x86_64-linux-gnu/libnetsnmpagent.so type=link uid=0 gid=0 mode=0777 link=libnetsnmpagent.so.40.2.0",
++        "usr/lib/x86_64-linux-gnu/libnetsnmphelpers.so type=link uid=0 gid=0 mode=0777 link=libnetsnmphelpers.so.40.2.0",
++        "usr/lib/x86_64-linux-gnu/libnetsnmpmibs.so type=link uid=0 gid=0 mode=0777 link=libnetsnmpmibs.so.40.2.0",
++        "usr/lib/x86_64-linux-gnu/libnetsnmptrapd.so type=link uid=0 gid=0 mode=0777 link=libnetsnmptrapd.so.40.2.0",
++    ],
++    force_debug_build = True,
++    debug_symlinks = {
++        "usr/share/doc/libsnmp-dev-dbgsym": "libsnmp-dev",
++    },
++    target_compatible_with = ["@platforms//cpu:x86_64"],
++    visibility = ["//visibility:public"],
++)
++
++sonic_deploy_tar(
++    default_mtime = "0",
++    name = "snmp_elf_x86_64",
++    binaries = {
++        "usr/bin/snmpget type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmpget",
++        "usr/bin/snmpgetnext type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmpgetnext",
++        "usr/bin/snmpset type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmpset",
++        "usr/bin/snmpwalk type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmpwalk",
++        "usr/bin/snmpbulkwalk type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmpbulkwalk",
++        "usr/bin/snmptable type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmptable",
++        "usr/bin/snmptrap type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmptrap",
++        "usr/bin/snmpbulkget type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmpbulkget",
++        "usr/bin/snmptranslate type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmptranslate",
++        "usr/bin/snmpstatus type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmpstatus",
++        "usr/bin/snmpdelta type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmpdelta",
++        "usr/bin/snmptest type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmptest",
++        "usr/bin/snmpdf type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmpdf",
++        "usr/bin/snmpps type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmpps",
++        "usr/bin/snmpping type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmpping",
++        "usr/bin/agentxtrap type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:agentxtrap",
++        "usr/bin/snmpvacm type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmpvacm",
++        "usr/bin/snmptls type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmptls",
++        "usr/bin/snmpusm type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmpusm",
++        "usr/bin/encode_keychange type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:encode_keychange",
++        "usr/bin/snmpnetstat type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmpnetstat",
++        "usr/bin/snmppcap type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmppcap",
++    },
++    mtree = ["usr/bin/snmpinform type=link uid=0 gid=0 mode=0777 link=snmptrap"],
++    force_debug_build = True,
++    debug_symlinks = {
++        "usr/share/doc/snmp-dbgsym": "snmp",
++    },
++    target_compatible_with = ["@platforms//cpu:x86_64"],
++    visibility = ["//visibility:public"],
++)
++
++sonic_deploy_tar(
++    default_mtime = "0",
++    name = "snmpd_elf_x86_64",
++    binaries = {
++        "usr/sbin/snmpd type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmpd",
++    },
++    mtree = [],
++    force_debug_build = True,
++    debug_symlinks = {
++        "usr/share/doc/snmpd-dbgsym": "snmpd",
++    },
++    target_compatible_with = ["@platforms//cpu:x86_64"],
++    visibility = ["//visibility:public"],
++)
++
++sonic_deploy_tar(
++    default_mtime = "0",
++    name = "snmptrapd_elf_x86_64",
++    binaries = {
++        "usr/sbin/snmptrapd type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmptrapd",
++    },
++    mtree = [],
++    force_debug_build = True,
++    debug_symlinks = {
++        "usr/share/doc/snmptrapd-dbgsym": "snmptrapd",
++    },
++    target_compatible_with = ["@platforms//cpu:x86_64"],
++    visibility = ["//visibility:public"],
++)
++
++sonic_deploy_tar(
++    default_mtime = "0",
++    name = "libsnmp-perl_elf_x86_64",
++    binaries = {
++        "usr/lib/x86_64-linux-gnu/perl5/5.36/auto/NetSNMP/ASN/ASN.so type=file uid=0 gid=0 mode=0644 time=0": "//perl_sources:ASN/ASN.so",
++        "usr/lib/x86_64-linux-gnu/perl5/5.36/auto/NetSNMP/OID/OID.so type=file uid=0 gid=0 mode=0644 time=0": "//perl_sources:OID/OID.so",
++        "usr/lib/x86_64-linux-gnu/perl5/5.36/auto/NetSNMP/default_store/default_store.so type=file uid=0 gid=0 mode=0644 time=0": "//perl_sources:default_store/default_store.so",
++        "usr/lib/x86_64-linux-gnu/perl5/5.36/auto/NetSNMP/agent/agent.so type=file uid=0 gid=0 mode=0644 time=0": "//perl_sources:agent/agent.so",
++        "usr/lib/x86_64-linux-gnu/perl5/5.36/auto/NetSNMP/agent/default_store/default_store.so type=file uid=0 gid=0 mode=0644 time=0": "//perl_sources:agent/default_store/default_store.so",
++        "usr/lib/x86_64-linux-gnu/perl5/5.36/auto/SNMP/SNMP.so type=file uid=0 gid=0 mode=0644 time=0": "//perl_sources:SNMP/SNMP.so",
++        "usr/lib/x86_64-linux-gnu/perl5/5.36/auto/NetSNMP/TrapReceiver/TrapReceiver.so type=file uid=0 gid=0 mode=0644 time=0": "//perl_sources:TrapReceiver/TrapReceiver.so",
++    },
++    mtree = [],
++    force_debug_build = True,
++    debug_symlinks = {
++        "usr/share/doc/libsnmp-perl-dbgsym": "libsnmp-perl",
++    },
++    target_compatible_with = ["@platforms//cpu:x86_64"],
++    visibility = ["//visibility:public"],
++)
++
++sonic_deploy_tar(
++    default_mtime = "0",
++    name = "libsnmp40_elf_aarch64",
++    binaries = {
++        "usr/lib/aarch64-linux-gnu/libsnmp.so.40.2.0 type=file uid=0 gid=0 mode=0644 time=0": ":snmp_shared",
++        "usr/lib/aarch64-linux-gnu/libnetsnmp.so.40.2.0 type=file uid=0 gid=0 mode=0644 time=0": ":netsnmp_shared",
++        "usr/lib/aarch64-linux-gnu/libnetsnmpagent.so.40.2.0 type=file uid=0 gid=0 mode=0644 time=0": ":netsnmpagent_shared",
++        "usr/lib/aarch64-linux-gnu/libnetsnmphelpers.so.40.2.0 type=file uid=0 gid=0 mode=0644 time=0": ":netsnmphelpers_shared",
++        "usr/lib/aarch64-linux-gnu/libnetsnmpmibs.so.40.2.0 type=file uid=0 gid=0 mode=0644 time=0": ":netsnmpmibs_shared",
++    },
++    mtree = [
++        "usr/lib/aarch64-linux-gnu/libsnmp.so.40 type=link uid=0 gid=0 mode=0777 link=libsnmp.so.40.2.0",
++        "usr/lib/aarch64-linux-gnu/libnetsnmp.so.40 type=link uid=0 gid=0 mode=0777 link=libnetsnmp.so.40.2.0",
++        "usr/lib/aarch64-linux-gnu/libnetsnmpagent.so.40 type=link uid=0 gid=0 mode=0777 link=libnetsnmpagent.so.40.2.0",
++        "usr/lib/aarch64-linux-gnu/libnetsnmphelpers.so.40 type=link uid=0 gid=0 mode=0777 link=libnetsnmphelpers.so.40.2.0",
++        "usr/lib/aarch64-linux-gnu/libnetsnmpmibs.so.40 type=link uid=0 gid=0 mode=0777 link=libnetsnmpmibs.so.40.2.0",
++    ],
++    force_debug_build = True,
++    debug_symlinks = {
++        "usr/share/doc/libsnmp40-dbgsym": "libsnmp40",
++    },
++    target_compatible_with = ["@platforms//cpu:aarch64"],
++    visibility = ["//visibility:public"],
++)
++
++sonic_deploy_tar(
++    default_mtime = "0",
++    name = "libnetsnmptrapd40_elf_aarch64",
++    binaries = {
++        "usr/lib/aarch64-linux-gnu/libnetsnmptrapd.so.40.2.0 type=file uid=0 gid=0 mode=0644 time=0": ":netsnmptrapd_shared",
++    },
++    mtree = [
++        "usr/lib/aarch64-linux-gnu/libnetsnmptrapd.so.40 type=link uid=0 gid=0 mode=0777 link=libnetsnmptrapd.so.40.2.0",
++    ],
++    force_debug_build = True,
++    debug_symlinks = {
++        "usr/share/doc/libnetsnmptrapd40-dbgsym": "libnetsnmptrapd40",
++    },
++    target_compatible_with = ["@platforms//cpu:aarch64"],
++    visibility = ["//visibility:public"],
++)
++
++sonic_deploy_tar(
++    default_mtime = "0",
++    name = "libsnmp-dev_elf_aarch64",
++    binaries = {
++    },
++    mtree = [
++        "usr/lib/aarch64-linux-gnu/libsnmp.so type=link uid=0 gid=0 mode=0777 link=libsnmp.so.40.2.0",
++        "usr/lib/aarch64-linux-gnu/libnetsnmp.so type=link uid=0 gid=0 mode=0777 link=libnetsnmp.so.40.2.0",
++        "usr/lib/aarch64-linux-gnu/libnetsnmpagent.so type=link uid=0 gid=0 mode=0777 link=libnetsnmpagent.so.40.2.0",
++        "usr/lib/aarch64-linux-gnu/libnetsnmphelpers.so type=link uid=0 gid=0 mode=0777 link=libnetsnmphelpers.so.40.2.0",
++        "usr/lib/aarch64-linux-gnu/libnetsnmpmibs.so type=link uid=0 gid=0 mode=0777 link=libnetsnmpmibs.so.40.2.0",
++        "usr/lib/aarch64-linux-gnu/libnetsnmptrapd.so type=link uid=0 gid=0 mode=0777 link=libnetsnmptrapd.so.40.2.0",
++    ],
++    force_debug_build = True,
++    debug_symlinks = {
++        "usr/share/doc/libsnmp-dev-dbgsym": "libsnmp-dev",
++    },
++    target_compatible_with = ["@platforms//cpu:aarch64"],
++    visibility = ["//visibility:public"],
++)
++
++sonic_deploy_tar(
++    default_mtime = "0",
++    name = "snmp_elf_aarch64",
++    binaries = {
++        "usr/bin/snmpget type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmpget",
++        "usr/bin/snmpgetnext type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmpgetnext",
++        "usr/bin/snmpset type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmpset",
++        "usr/bin/snmpwalk type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmpwalk",
++        "usr/bin/snmpbulkwalk type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmpbulkwalk",
++        "usr/bin/snmptable type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmptable",
++        "usr/bin/snmptrap type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmptrap",
++        "usr/bin/snmpbulkget type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmpbulkget",
++        "usr/bin/snmptranslate type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmptranslate",
++        "usr/bin/snmpstatus type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmpstatus",
++        "usr/bin/snmpdelta type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmpdelta",
++        "usr/bin/snmptest type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmptest",
++        "usr/bin/snmpdf type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmpdf",
++        "usr/bin/snmpps type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmpps",
++        "usr/bin/snmpping type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmpping",
++        "usr/bin/agentxtrap type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:agentxtrap",
++        "usr/bin/snmpvacm type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmpvacm",
++        "usr/bin/snmptls type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmptls",
++        "usr/bin/snmpusm type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmpusm",
++        "usr/bin/encode_keychange type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:encode_keychange",
++        "usr/bin/snmpnetstat type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmpnetstat",
++        "usr/bin/snmppcap type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmppcap",
++    },
++    mtree = ["usr/bin/snmpinform type=link uid=0 gid=0 mode=0777 link=snmptrap"],
++    force_debug_build = True,
++    debug_symlinks = {
++        "usr/share/doc/snmp-dbgsym": "snmp",
++    },
++    target_compatible_with = ["@platforms//cpu:aarch64"],
++    visibility = ["//visibility:public"],
++)
++
++sonic_deploy_tar(
++    default_mtime = "0",
++    name = "snmpd_elf_aarch64",
++    binaries = {
++        "usr/sbin/snmpd type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmpd",
++    },
++    mtree = [],
++    force_debug_build = True,
++    debug_symlinks = {
++        "usr/share/doc/snmpd-dbgsym": "snmpd",
++    },
++    target_compatible_with = ["@platforms//cpu:aarch64"],
++    visibility = ["//visibility:public"],
++)
++
++sonic_deploy_tar(
++    default_mtime = "0",
++    name = "snmptrapd_elf_aarch64",
++    binaries = {
++        "usr/sbin/snmptrapd type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmptrapd",
++    },
++    mtree = [],
++    force_debug_build = True,
++    debug_symlinks = {
++        "usr/share/doc/snmptrapd-dbgsym": "snmptrapd",
++    },
++    target_compatible_with = ["@platforms//cpu:aarch64"],
++    visibility = ["//visibility:public"],
++)
++
++sonic_deploy_tar(
++    default_mtime = "0",
++    name = "libsnmp-perl_elf_aarch64",
++    binaries = {
++        "usr/lib/aarch64-linux-gnu/perl5/5.36/auto/NetSNMP/ASN/ASN.so type=file uid=0 gid=0 mode=0644 time=0": "//perl_sources:ASN/ASN.so",
++        "usr/lib/aarch64-linux-gnu/perl5/5.36/auto/NetSNMP/OID/OID.so type=file uid=0 gid=0 mode=0644 time=0": "//perl_sources:OID/OID.so",
++        "usr/lib/aarch64-linux-gnu/perl5/5.36/auto/NetSNMP/default_store/default_store.so type=file uid=0 gid=0 mode=0644 time=0": "//perl_sources:default_store/default_store.so",
++        "usr/lib/aarch64-linux-gnu/perl5/5.36/auto/NetSNMP/agent/agent.so type=file uid=0 gid=0 mode=0644 time=0": "//perl_sources:agent/agent.so",
++        "usr/lib/aarch64-linux-gnu/perl5/5.36/auto/NetSNMP/agent/default_store/default_store.so type=file uid=0 gid=0 mode=0644 time=0": "//perl_sources:agent/default_store/default_store.so",
++        "usr/lib/aarch64-linux-gnu/perl5/5.36/auto/SNMP/SNMP.so type=file uid=0 gid=0 mode=0644 time=0": "//perl_sources:SNMP/SNMP.so",
++        "usr/lib/aarch64-linux-gnu/perl5/5.36/auto/NetSNMP/TrapReceiver/TrapReceiver.so type=file uid=0 gid=0 mode=0644 time=0": "//perl_sources:TrapReceiver/TrapReceiver.so",
++    },
++    mtree = [],
++    force_debug_build = True,
++    debug_symlinks = {
++        "usr/share/doc/libsnmp-perl-dbgsym": "libsnmp-perl",
++    },
++    target_compatible_with = ["@platforms//cpu:aarch64"],
++    visibility = ["//visibility:public"],
++)
++
++alias(
++    name = "libsnmp40_elf",
++    actual = select({
++    "@platforms//cpu:x86_64": ":libsnmp40_elf_x86_64",
++    "@platforms//cpu:aarch64": ":libsnmp40_elf_aarch64",
++}),
++)
++
++alias(
++    name = "libsnmp40_elf.debug_symbols",
++    actual = select({
++    "@platforms//cpu:x86_64": ":libsnmp40_elf_x86_64.debug_symbols",
++    "@platforms//cpu:aarch64": ":libsnmp40_elf_aarch64.debug_symbols",
++}),
++)
++
++alias(
++    name = "libnetsnmptrapd40_elf",
++    actual = select({
++    "@platforms//cpu:x86_64": ":libnetsnmptrapd40_elf_x86_64",
++    "@platforms//cpu:aarch64": ":libnetsnmptrapd40_elf_aarch64",
++}),
++)
++
++alias(
++    name = "libnetsnmptrapd40_elf.debug_symbols",
++    actual = select({
++    "@platforms//cpu:x86_64": ":libnetsnmptrapd40_elf_x86_64.debug_symbols",
++    "@platforms//cpu:aarch64": ":libnetsnmptrapd40_elf_aarch64.debug_symbols",
++}),
++)
++
++alias(
++    name = "libsnmp-dev_elf",
++    actual = select({
++    "@platforms//cpu:x86_64": ":libsnmp-dev_elf_x86_64",
++    "@platforms//cpu:aarch64": ":libsnmp-dev_elf_aarch64",
++}),
++)
++
++alias(
++    name = "libsnmp-dev_elf.debug_symbols",
++    actual = select({
++    "@platforms//cpu:x86_64": ":libsnmp-dev_elf_x86_64.debug_symbols",
++    "@platforms//cpu:aarch64": ":libsnmp-dev_elf_aarch64.debug_symbols",
++}),
++)
++
++alias(
++    name = "snmp_elf",
++    actual = select({
++    "@platforms//cpu:x86_64": ":snmp_elf_x86_64",
++    "@platforms//cpu:aarch64": ":snmp_elf_aarch64",
