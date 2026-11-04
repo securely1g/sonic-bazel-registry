@@ -1,4 +1,4 @@
-# SONiC kernel: 0.0.1-fbfb9d6bb89705ad2c49fd48cfc608061cf0d83a
+# SONiC kernel: 0.0.2-34a53faaecd325509e9d8f1016ed0108ab558a23
 
 Register `//:kernel_packages` for native AMD64 and ARM64 VS builds with Debian
 source `6.12.41-1`. Bazel runs the Debian/SONiC Make packaging recipes directly in
@@ -19,10 +19,11 @@ configuration; unsupported settings fail during analysis instead of silently
 selecting a different builder. Configuration is bound to the action inputs,
 manifest and source/cache verification.
 
-[Source revision](https://github.com/securely1g/sonic-linux-kernel/commit/fbfb9d6bb89705ad2c49fd48cfc608061cf0d83a).
+[Source revision](https://github.com/securely1g/sonic-linux-kernel/commit/34a53faaecd325509e9d8f1016ed0108ab558a23),
+the landed squash of [kernel #5](https://github.com/securely1g/sonic-linux-kernel/pull/5).
 The version patch is the only source patch; historical registrations are unchanged.
-The module and presubmit select shared tools `0.0.18-95cd3a9050551247063ef31eea4a48269dc50866` from
-[registry #122](https://github.com/securely1g/sonic-bazel-registry/pull/122).
+The module and presubmit select shared tools `0.0.22-a12bc826d6f811a157db5c7c02a2fe033896cc14` from
+[registry #120](https://github.com/securely1g/sonic-bazel-registry/pull/120).
 That shared tool version is published on the maintained registry `main`.
 The kernel source is landed on the maintained `master` branch. This registration
 adds its new version; one reviewed endpoint contains both versions for the
