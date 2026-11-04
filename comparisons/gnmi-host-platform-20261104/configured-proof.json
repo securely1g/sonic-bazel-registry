@@ -1,0 +1,42 @@
+{
+  "status": "passed",
+  "source_registry": "2b87d3d58022e878951a343c61089d4ae1e31a6a",
+  "candidate": "9837316918eecbc43e3c04d80909bddaadce021c",
+  "unchanged_consumer_inputs": {
+    "BUILD.bazel": "916e76a93bf67d2137ca4b71e8efaf51428f1347065c05537758862d1265c5aa",
+    "MODULE.bazel": "222e6cf537bacbc135dfc387ce34ffe35516b9232a914eaa36e7c87bb0cd10ff",
+    "main.go": "3abd9ae18c35ef5b9bfc7a601d6e5b8e1dddbbfa23628e476c48234e24d8e723"
+  },
+  "negative_positive": [
+    {
+      "phase": "negative",
+      "returncode": 1,
+      "seconds": 196.331,
+      "targets": [
+        "@sonic-gnmi//gnoi_yang:server"
+      ],
+      "stderr_sha256": "7a8434e51b6fb1b29be9f78ad186084457331d427741f7085ef4846dfcd642a9",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "phase": "positive",
+      "returncode": 0,
+      "seconds": 448.565,
+      "targets": [
+        "//:consumer",
+        "@sonic-gnmi//dist:runtime",
+        "@sonic-gnmi//dist:runtime.debug_symbols",
+        "@sonic-gnmi//dist:runtime_packages.json",
+        "@sonic-gnmi//dist:sources",
+        "@sonic-gnmi//gnoi_yang:server",
+        "@sonic-gnmi//dist:package_test",
+        "@sonic-gnmi//dist:source_test",
+        "@sonic-gnmi//dist:installed_runtime_test"
+      ],
+      "stderr_sha256": "fb0df69aec0f2fdbcb25d92beadb199bc57d94b8b63f6963dccbbda8ed100679",
+      "stdout_sha256": "9bce07641d52b03ff9c7f81c41718af7c4b0980ba853416e44559c06cee75cc7"
+    }
+  ],
+  "scope": "Actual native AMD64/Trixie cquery configuration only; no target actions or test execution",
+  "at": "2026-11-04T12:15:54.101041+00:00"
+}

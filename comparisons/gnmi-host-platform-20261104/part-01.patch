@@ -1,0 +1,4549 @@
+# Complete registry #182 version comparison
+# Published baseline: 51de33d8d4eb949ed7e5a02578deee2eeab34e76
+# Candidate: 9837316918eecbc43e3c04d80909bddaadce021c
+# PR review base: 43f864ac25952637f7f28540b8bf697971107f84
+# Common runtime owner backport: a525b4ea3a7db24e4d161952c275c794e4d14322
+# Apply in a fresh checkout; every candidate destination must be absent.
+# git checkout --detach 51de33d8d4eb949ed7e5a02578deee2eeab34e76
+# test ! -e modules/sonic-build-infra/0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e
+# cp -a -- modules/sonic-build-infra/0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568 modules/sonic-build-infra/0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e
+# git add -- modules/sonic-build-infra/0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e
+# test ! -e modules/sonic-mgmt-common/1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744
+# cp -a -- modules/sonic-mgmt-common/1.0.0-f5361ba8b88cde7ec59bdb4652a986c68d66da64 modules/sonic-mgmt-common/1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744
+# git add -- modules/sonic-mgmt-common/1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744
+# test ! -e modules/sonic-swss-common/0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed
+# cp -a -- modules/sonic-swss-common/0.0.8-a0450924719a9f706125cc44a07dc88934935003 modules/sonic-swss-common/0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed
+# git add -- modules/sonic-swss-common/0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed
+# First registration: openconfig_ygot@0.7.1.sonic.1; no published predecessor.
+# First registration: sonic-gnmi@0.1.0-ce49e93eb3a0cff8daf77a3092535d76265ebc3d; no published predecessor.
+# git apply --check --index registry-182.patch
+# git apply --index registry-182.patch
+# Resulting complete tree: 876047885375695437cdddf2e355e65bc075120d
+
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/MODULE.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/MODULE.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..ca74d19821456fb32285b4de962c6750e8b66e2c
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/MODULE.bazel
+@@ -0,0 +1,28 @@
++module(
++    name = "openconfig_ygot",
++    version = "0.7.1.sonic.1",
++    bazel_compatibility = [">=8.5.1"],
++)
++
++bazel_dep(name = "gazelle", version = "0.54.0", repo_name = "bazel_gazelle")
++bazel_dep(name = "openconfig_goyang", version = "0.0.0.sonic.1-20200309174518-a00bece872fc", repo_name = "com_github_openconfig_goyang")
++bazel_dep(name = "protobuf", version = "29.0", repo_name = "com_google_protobuf")
++bazel_dep(name = "rules_go", version = "0.64.1-sonic.1", repo_name = "io_bazel_rules_go")
++
++go_sdk = use_extension("@io_bazel_rules_go//go:extensions.bzl", "go_sdk")
++go_sdk.download(version = "1.25.9")
++
++go_deps = use_extension("@bazel_gazelle//:extensions.bzl", "go_deps")
++go_deps.from_file(go_mod = "//:go.mod")
++use_repo(
++    go_deps,
++    "com_github_golang_glog",
++    "com_github_golang_protobuf",
++    "com_github_google_go_cmp",
++    "com_github_kylelemons_godebug",
++    "com_github_openconfig_gnmi",
++    "com_github_pmezard_go_difflib",
++    "org_golang_google_genproto_googleapis_rpc",
++    "org_golang_google_grpc",
++    "org_golang_google_protobuf",
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/README.md b/modules/openconfig_ygot/0.7.1.sonic.1/README.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..2022d0cb0e7102976e52efdf88d0e2f7d8b7ea71
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/README.md
+@@ -0,0 +1,110 @@
++# SONiC's shared ygot dependency
++
++Management-common's generator and runtime libraries use ygot 0.7.1 with the
++existing SONiC schema/validation changes. This entry retains that source and
++its SONiC patches while moving dependency ownership out of the consumer. `//generator:generator`, `//ygen`, `//ygot` and `//ytypes` are public
++targets. They depend on the shared `openconfig_goyang` target, so callers and
++generated bindings use the same Go `yang.Entry` type.
++
++The source is upstream `v0.7.1`. Its existing SONiC Make/vendor patch and union
++enumeration-order fix are copied unchanged from management-common's accepted
++`f5361ba8b88cde7ec59bdb4652a986c68d66da64` source. The old Bazel patch that added
++`@com_github_openconfig_gnmi//value` is represented directly in the maintained
++`ytypes/BUILD.bazel` dependency list. It no longer patches another repository's
++generated BUILD file during the consuming build.
++
++The component BUILD definitions reuse the accepted management-common dependency
++graph. They retain the original source/test lists and production protobuf rules;
++they are checked-in definitions that can be edited beside the corresponding
++components. Standard `proto_library` import prefixes match the upstream protobuf
++imports. Demo protobuf fixtures use the Go files shipped by v0.7.1, preserving
++their original package names instead of regenerating a different API. Declared
++generator actions reproduce the original `go:generate` preparation for the four
++demo/integration schema packages before their tests. Gazelle remains an optional
++maintenance command. Normal builds do not regenerate these BUILD files. Unused generated package-metadata helpers are
++not copied.
++
++The Go lock overlay declares the dependency versions already selected by the
++accepted SONiC build, including protobuf 1.36.11, gRPC 1.82.1, split genproto RPC
++and the selected 2020 gNMI/goyang revisions. It does not upgrade ygot's source.
++The ordinary registry integration consumer retains management-common's existing
++glog replacement and checked-in gNMI protobuf setting. It compiles and tests a
++direct goyang schema passed to ygot's public validator, including an invalid
++value rejection. Standard Gazelle module mapping supplies the shared Go type
++identity; no custom resolver is used.
++
++Native AMD64/Trixie acceptance with Go 1.25.9 passes all 26 targets and 1,545
++reported test cases without skips: all 24 original targets, the new union-order
++regression and the separate shared-type consumer. The actual generator is built
++and exercised. All 329 original test functions remain, with fixture adaptations
++described below. Build and test action audits contain no DEB outputs. Removing only the historical
++union-order patch makes the same regression fail: declared `ZULU, ALPHA` becomes
++`ALPHA, ZULU` in the generated reflection map; the complete candidate preserves
++the declared order.
++
++This entry depends on shared goyang [registry #212](https://github.com/securely1g/sonic-bazel-registry/pull/212).
++Management-common's actual 20-generation, CVL/translib and output-restoration
++checks remain pending. Registry #165 and active image pins stay unchanged until
++that consumer acceptance passes.
++
++The full original suite exposes compatibility gaps that the former consumer did
++not execute. Additional numbered patches keep their scope explicit:
++
++- `0003` backports upstream [PR 377](https://github.com/openconfig/ygot/pull/377)
++  only for `testcmp`/`testutil` and their tests. Standard `protocmp` handles the
++  already-selected protobuf API; the old exported `JSONIETFComparer` signature
++  remains. No Go dependency version changes are included.
++- `0004` checks actual Go assignability after the existing bool, binary and
++  pointer conversions. An incompatible `[]string` assigned to a derived
++  `[]byte` field now returns the original test's expected error instead of
++  panicking. Valid conversions and interface assignments remain covered.
++- `0005` initializes old handwritten/pre-generated test schemas with the
++  performance state created by the SONiC parser. It also tests the existing
++  enabled/disabled debug behavior and compares compact demo JSON against every
++  original expected token. The helper is a Bazel `testonly` dependency.
++
++The original two SONiC patches remain byte-identical. The cumulative runtime
++source includes the separately documented corrections below, so the full
++runtime tree is not claimed unchanged. Legacy Make/vendor inputs are unchanged
++at this stage and still contain the inherited defects described here. All 26
++test targets remain enabled; management-consumer validation is required before
++adoption.
++
++The full original tests also expose small inherited defects. These corrections
++are kept separate from the byte-identical historical SONiC patches:
++
++- `0006` records the existing SONiC schema metadata in the five JSON goldens.
++  Every original key/value remains; the additional ordering, performance and
++  module metadata comes from the unchanged accepted generator.
++- `0007` passes binary values into the existing length validator. The old
++  upstream branch left the value unset and accepted invalid lengths.
++- `0008` uses the existing nil/default predicate for unknown container fields,
++  avoiding `reflect.IsNil` on scalar values while retaining rejection of
++  non-default unknown fields and the SONiC readonly handling.
++- `0009` handles standalone leaf schemas with no parent. The existing parsed
++  leaf-list conversion remains unchanged.
++- `0010` preserves destination-only map entries during merges, as the retained
++  public API and management-common subscription coalescing require. It retains
++  SONiC's deep key matching and source-key choice, including equal-content
++  pointer keys, without duplicating those keys or changing conflict handling.
++
++- `0011` restores the existing annotation marshaler dispatch. RFC7952 metadata
++  continues to use `Annotation.MarshalJSON`, including its existing error
++  checks; normal fields retain SONiC's optimized tag-path cache.
++- `0012` lets annotation fields reach their existing setter without requiring
++  a YANG schema. Normal fields still reject missing schemas.
++
++- `0013` reuses upstream PR 377's original path-copy test adaptation to standard
++  `protocmp`, retaining comparison of private path state and every assertion.
++
++SONiC's historical performance patch intentionally emits compact JSON without
++calling `Validate`; `Indent`, `SkipValidation` and `ValidationOpts` do not change
++that behavior in this selected version. Fixture expectations preserve those
++existing defaults. Original invalid-value assertions call `Validate` explicitly,
++and JSON checks compact only whitespace while retaining every expected token.
++The leafref fixture prunes only empty branches created by `BuildEmptyTree`, so it
++does not introduce unrelated read-only containers into the tested configuration.
++
++- `0014` updates only the embedded gzip schema literals in the five generated-code
++  goldens. Decompression matches the already-verified additive SONiC JSON
++  metadata in `0006`; every byte outside those literals remains unchanged.
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/integration/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/integration/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..11bca370c6930dd7bd157fe9a8de80e925e86bcc
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/integration/BUILD.bazel
+@@ -0,0 +1,12 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_test")
++
++go_test(
++    name = "shared_types_test",
++    srcs = ["shared_types_test.go"],
++    args = ["-test.v"],
++    deps = [
++        "@openconfig_goyang//pkg/yang",
++        "@openconfig_ygot//ygot",
++        "@openconfig_ygot//ytypes",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/integration/MODULE.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/integration/MODULE.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..0077ca4fd157dbbb2969f22768d2a67e9d6d5fb1
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/integration/MODULE.bazel
+@@ -0,0 +1,19 @@
++module(name = "sonic_ygot_consumer")
++
++bazel_dep(name = "openconfig_ygot", version = "0.7.1.sonic.1")
++bazel_dep(name = "openconfig_goyang", version = "0.0.0.sonic.1-20200309174518-a00bece872fc")
++bazel_dep(name = "gazelle", version = "0.54.0")
++bazel_dep(name = "rules_go", version = "0.64.1-sonic.1", repo_name = "io_bazel_rules_go")
++bazel_dep(name = "sonic-build-infra", version = "0.0.25-34de7330abc72229dfc8dab88dec71b89c52aa88", repo_name = "sonic_build_infra")
++
++go_sdk = use_extension("@io_bazel_rules_go//go:extensions.bzl", "go_sdk")
++go_sdk.download(version = "1.25.9")
++
++go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
++go_deps.from_file(go_mod = "//:go.mod")
++
++# Preserve management-common's existing treatment of checked-in gNMI protobufs.
++go_deps.gazelle_override(
++    directives = ["gazelle:proto disable_global"],
++    path = "github.com/openconfig/gnmi",
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/integration/go.mod b/modules/openconfig_ygot/0.7.1.sonic.1/integration/go.mod
+new file mode 100644
+index 0000000000000000000000000000000000000000..e2c7790970b80b9c284601afddba89ff6f42a9ee
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/integration/go.mod
+@@ -0,0 +1,11 @@
++module sonic_ygot_consumer
++
++go 1.25.9
++
++require (
++ github.com/openconfig/goyang v0.0.0-20200309174518-a00bece872fc
++ github.com/openconfig/ygot v0.7.1
++)
++
++// Same selected logging revision as the accepted management-common consumer.
++replace github.com/golang/glog => github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/integration/go.sum b/modules/openconfig_ygot/0.7.1.sonic.1/integration/go.sum
+new file mode 100644
+index 0000000000000000000000000000000000000000..27702480955ba9f23f2b35fec34445ce7b48a442
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/integration/go.sum
+@@ -0,0 +1,111 @@
++cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
++github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
++github.com/cenkalti/backoff/v4 v4.0.0/go.mod h1:eEew/i+1Q6OrCDZh3WiXYv3+nJwBASZ8Bog/87DQnVg=
++github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
++github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=
++github.com/cespare/xxhash/v2 v2.3.0/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
++github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
++github.com/envoyproxy/go-control-plane v0.9.1-0.20191026205805-5f8ba28d4473/go.mod h1:YTl/9mNaCwkRvm6d1a2C3ymFceY/DCBVvsKhRF0iEA4=
++github.com/envoyproxy/protoc-gen-validate v0.1.0/go.mod h1:iSmxcyjqTsJpI2R4NaDN7+kN2VEUnK/pcBlmesArF7c=
++github.com/go-logr/logr v1.4.3 h1:CjnDlHq8ikf6E492q6eKboGOC0T8CDaOvkHCIg8idEI=
++github.com/go-logr/logr v1.4.3/go.mod h1:9T104GzyrTigFIr8wt5mBrctHMim0Nb2HLGrmQ40KvY=
++github.com/go-logr/stdr v1.2.2 h1:hSWxHoqTgW2S2qGc0LTAI563KZ5YKYRhT3MFKZMbjag=
++github.com/go-logr/stdr v1.2.2/go.mod h1:mMo/vtBO5dYbehREoey6XUKy/eSumjCCveDpRre4VKE=
++github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b h1:VKtxabqXZkF25pY9ekfRL6a582T4P37/31XEstQ5p58=
++github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b/go.mod h1:SBH7ygxi8pfUlaOkMMuAQtPIUF8ecWP5IEl/CR7VP2Q=
++github.com/golang/glog v1.2.5 h1:DrW6hGnjIhtvhOIiAKT6Psh/Kd/ldepEa81DKeiRJ5I=
++github.com/golang/glog v1.2.5/go.mod h1:6AhwSGph0fcJtXVM/PEHPqZlFeoLxhs7/t5UDAwmO+w=
++github.com/golang/mock v1.1.1/go.mod h1:oTYuIxOrZwtPieC+H1uAHpcLFnEyAGVDL/k47Jfbm0A=
++github.com/golang/protobuf v1.2.0/go.mod h1:6lQm79b+lXiMfvg/cZm0SGofjICqVBUtrP5yJMmIC1U=
++github.com/golang/protobuf v1.3.2/go.mod h1:6lQm79b+lXiMfvg/cZm0SGofjICqVBUtrP5yJMmIC1U=
++github.com/golang/protobuf v1.4.0-rc.1.0.20200221234624-67d41d38c208/go.mod h1:xKAWHe0F5eneWXFV3EuXVDTCmh+JuBKY0li0aMyXATA=
++github.com/golang/protobuf v1.4.0-rc.1/go.mod h1:ceaxUfeHdC40wWswd/P6IGgMaK3YpKi5j83Wpe3EHw8=
++github.com/golang/protobuf v1.4.0-rc.2/go.mod h1:LlEzMj4AhA7rCAGe4KMBDvJI+AwstrUpVNzEA03Pprs=
++github.com/golang/protobuf v1.4.0-rc.4.0.20200313231945-b860323f09d0/go.mod h1:WU3c8KckQ9AFe+yFwt9sWVRKCVIyN9cPHBJSNnbL67w=
++github.com/golang/protobuf v1.5.4 h1:i7eJL8qZTpSEXOPTxNKhASYpMn+8e5Q6AdndVa1dWek=
++github.com/golang/protobuf v1.5.4/go.mod h1:lnTiLA8Wa4RWRcIUkrtSVa5nRhsEGBg48fD6rSs7xps=
++github.com/google/go-cmp v0.2.0/go.mod h1:oXzfMopK8JAjlY9xF4vHSVASa0yLyX7SntLO5aqRK0M=
++github.com/google/go-cmp v0.3.0/go.mod h1:8QqcDgzrUqlUb/G2PQTWiueGozuR1884gddMywk6iLU=
++github.com/google/go-cmp v0.3.1/go.mod h1:8QqcDgzrUqlUb/G2PQTWiueGozuR1884gddMywk6iLU=
++github.com/google/go-cmp v0.4.0/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/gNBxE=
++github.com/google/go-cmp v0.7.0 h1:wk8382ETsv4JYUZwIsn6YpYiWiBsYLSJiTsyBybVuN8=
++github.com/google/go-cmp v0.7.0/go.mod h1:pXiqmnSA92OHEEa9HXL2W4E7lf9JzCmGVUdgjX3N/iU=
++github.com/google/protobuf v3.11.4+incompatible/go.mod h1:lUQ9D1ePzbH2PrIS7ob/bjm9HXyH5WHB0Akwh7URreM=
++github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
++github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
++github.com/kylelemons/godebug v1.1.0 h1:RPNrshWIDI6G2gRW9EHilWtl7Z6Sb1BR0xunSBf0SNc=
++github.com/kylelemons/godebug v1.1.0/go.mod h1:9/0rRGxNHcop5bhtWyNeEfOS8JIWk580+fNqagV/RAw=
++github.com/openconfig/gnmi v0.0.0-20200617225440-d2b4e6a45802 h1:WXFwJlWOJINlwlyAZuNo4GdYZS6qPX36+rRUncLmN8Q=
++github.com/openconfig/gnmi v0.0.0-20200617225440-d2b4e6a45802/go.mod h1:M/EcuapNQgvzxo1DDXHK4tx3QpYM/uG4l591v33jG2A=
++github.com/openconfig/goyang v0.0.0-20200115183954-d0a48929f0ea/go.mod h1:dhXaV0JgHJzdrHi2l+w0fZrwArtXL7jEFoiqLEdmkvU=
++github.com/openconfig/goyang v0.0.0-20200309174518-a00bece872fc h1:W6XYKuH3mxF5WFhsSQOPPN9DRDba1xz9lbUbQR3uHkg=
++github.com/openconfig/goyang v0.0.0-20200309174518-a00bece872fc/go.mod h1:dhXaV0JgHJzdrHi2l+w0fZrwArtXL7jEFoiqLEdmkvU=
++github.com/openconfig/ygot v0.6.0/go.mod h1:o30svNf7O0xK+R35tlx95odkDmZWS9JyWWQSmIhqwAs=
++github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
++github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
++github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4/go.mod h1:xMI15A0UPsDsEKsMN9yxemIoYk6Tm2C1GtYGdfGttqA=
++go.opentelemetry.io/auto/sdk v1.2.1 h1:jXsnJ4Lmnqd11kwkBV2LgLoFMZKizbCi5fNZ/ipaZ64=
++go.opentelemetry.io/auto/sdk v1.2.1/go.mod h1:KRTj+aOaElaLi+wW1kO/DZRXwkF4C5xPbEe3ZiIhN7Y=
++go.opentelemetry.io/otel v1.43.0 h1:mYIM03dnh5zfN7HautFE4ieIig9amkNANT+xcVxAj9I=
++go.opentelemetry.io/otel v1.43.0/go.mod h1:JuG+u74mvjvcm8vj8pI5XiHy1zDeoCS2LB1spIq7Ay0=
++go.opentelemetry.io/otel/metric v1.43.0 h1:d7638QeInOnuwOONPp4JAOGfbCEpYb+K6DVWvdxGzgM=
++go.opentelemetry.io/otel/metric v1.43.0/go.mod h1:RDnPtIxvqlgO8GRW18W6Z/4P462ldprJtfxHxyKd2PY=
++go.opentelemetry.io/otel/sdk v1.43.0 h1:pi5mE86i5rTeLXqoF/hhiBtUNcrAGHLKQdhg4h4V9Dg=
++go.opentelemetry.io/otel/sdk v1.43.0/go.mod h1:P+IkVU3iWukmiit/Yf9AWvpyRDlUeBaRg6Y+C58QHzg=
++go.opentelemetry.io/otel/sdk/metric v1.43.0 h1:S88dyqXjJkuBNLeMcVPRFXpRw2fuwdvfCGLEo89fDkw=
++go.opentelemetry.io/otel/sdk/metric v1.43.0/go.mod h1:C/RJtwSEJ5hzTiUz5pXF1kILHStzb9zFlIEe85bhj6A=
++go.opentelemetry.io/otel/trace v1.43.0 h1:BkNrHpup+4k4w+ZZ86CZoHHEkohws8AY+WTX09nk+3A=
++go.opentelemetry.io/otel/trace v1.43.0/go.mod h1:/QJhyVBUUswCphDVxq+8mld+AvhXZLhe+8WVFxiFff0=
++golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
++golang.org/x/crypto v0.0.0-20200302210943-78000ba7a073/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
++golang.org/x/exp v0.0.0-20190121172915-509febef88a4/go.mod h1:CJ0aWSM057203Lf6IL+f9T1iT9GByDxfZKAQTCR3kQA=
++golang.org/x/lint v0.0.0-20181026193005-c67002cb31c3/go.mod h1:UVdnD1Gm6xHRNCYTkRU2/jEulfH38KcIWyp/GAMgvoE=
++golang.org/x/lint v0.0.0-20190227174305-5b3e6a55c961/go.mod h1:wehouNa3lNwaWXcvxsM5YxQ5yQlVC4a0KAMCusXpPoU=
++golang.org/x/lint v0.0.0-20190313153728-d0100b6bd8b3/go.mod h1:6SW0HCj/g11FgYtHlgUYUwCkIfeOF89ocIRzGO/8vkc=
++golang.org/x/net v0.0.0-20180724234803-3673e40ba225/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=
++golang.org/x/net v0.0.0-20180826012351-8a410e7b638d/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=
++golang.org/x/net v0.0.0-20190213061140-3a22650c66bd/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=
++golang.org/x/net v0.0.0-20190311183353-d8887717615a/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
++golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
++golang.org/x/net v0.0.0-20200301022130-244492dfa37a/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
++golang.org/x/net v0.53.0 h1:d+qAbo5L0orcWAr0a9JweQpjXF19LMXJE8Ey7hwOdUA=
++golang.org/x/net v0.53.0/go.mod h1:JvMuJH7rrdiCfbeHoo3fCQU24Lf5JJwT9W3sJFulfgs=
++golang.org/x/oauth2 v0.0.0-20180821212333-d2e6202438be/go.mod h1:N/0e6XlmueqKjAGxoOufVs8QHGRruUQn6yWY3a++T0U=
++golang.org/x/sync v0.0.0-20180314180146-1d60e4601c6f/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
++golang.org/x/sync v0.0.0-20181108010431-42b317875d0f/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
++golang.org/x/sync v0.0.0-20190423024810-112230192c58/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
++golang.org/x/sys v0.0.0-20180830151530-49385e6e1522/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
++golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
++golang.org/x/sys v0.0.0-20190412213103-97732733099d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
++golang.org/x/sys v0.43.0 h1:Rlag2XtaFTxp19wS8MXlJwTvoh8ArU6ezoyFsMyCTNI=
++golang.org/x/sys v0.43.0/go.mod h1:4GL1E5IUh+htKOUEOaiffhrAeqysfVGipDYzABqnCmw=
++golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
++golang.org/x/text v0.36.0 h1:JfKh3XmcRPqZPKevfXVpI1wXPTqbkE5f7JA92a55Yxg=
++golang.org/x/text v0.36.0/go.mod h1:NIdBknypM8iqVmPiuco0Dh6P5Jcdk8lJL0CUebqK164=
++golang.org/x/tools v0.0.0-20190114222345-bf090417da8b/go.mod h1:n7NCudcB/nEzxVGmLbDWY5pfWTLqBcC2KZ6jyYvM4mQ=
++golang.org/x/tools v0.0.0-20190226205152-f727befe758c/go.mod h1:9Yl7xja0Znq3iFh3HoIrodX9oNMXvdceNzlUR8zjMvY=
++golang.org/x/tools v0.0.0-20190311212946-11955173bddd/go.mod h1:LCzVGOaR6xXOjkQ3onu1FJEFr0SW1gC7cKk1uF8kGRs=
++golang.org/x/tools v0.0.0-20190524140312-2c0ae7006135/go.mod h1:RgjU9mgBXZiqYHBnxXauZ1Gv1EHHAz9KjViQ78xBX0Q=
++golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
++gonum.org/v1/gonum v0.17.0 h1:VbpOemQlsSMrYmn7T2OUvQ4dqxQXU+ouZFQsZOx50z4=
++gonum.org/v1/gonum v0.17.0/go.mod h1:El3tOrEuMpv2UdMrbNlKEh9vd86bmQ6vqIcDwxEOc1E=
++google.golang.org/appengine v1.1.0/go.mod h1:EbEs0AVv82hx2wNQdGPgUI5lhzA/G0D9YwlJXL52JkM=
++google.golang.org/appengine v1.4.0/go.mod h1:xpcJRLb0r/rnEns0DIKYYv+WjYCduHsrkT7/EB5XEv4=
++google.golang.org/genproto v0.0.0-20180817151627-c66870c02cf8/go.mod h1:JiN7NxoALGmiZfu7CAH4rXhgtRTLTxftemlI0sWmxmc=
++google.golang.org/genproto v0.0.0-20190819201941-24fa4b261c55/go.mod h1:DMBHOl98Agz4BDEuKkezgsaosCRResVns1a3J2ZsMNc=
++google.golang.org/genproto/googleapis/rpc v0.0.0-20260414002931-afd174a4e478 h1:RmoJA1ujG+/lRGNfUnOMfhCy5EipVMyvUE+KNbPbTlw=
++google.golang.org/genproto/googleapis/rpc v0.0.0-20260414002931-afd174a4e478/go.mod h1:4Hqkh8ycfw05ld/3BWL7rJOSfebL2Q+DVDeRgYgxUU8=
++google.golang.org/grpc v1.19.0/go.mod h1:mqu4LbDTu4XGKhr4mRzUsmM4RtVoemTSY81AxZiDr8c=
++google.golang.org/grpc v1.23.0/go.mod h1:Y5yQAOtifL1yxbo5wqy6BxZv8vAUGQwXBOALyacEbxg=
++google.golang.org/grpc v1.27.1/go.mod h1:qbnxyOmOxrQa7FizSgH+ReBfzJrCY1pSN7KXBS8abTk=
++google.golang.org/grpc v1.82.1 h1:NnAxzGRA0677vCa4BUkOAnO5+FfQqVl9iUXeD0IqcGE=
++google.golang.org/grpc v1.82.1/go.mod h1:yzTZ1TB1Z3SG+LIYaI+WiE8D5+PZ3ArnrSp8zF3+/ZA=
++google.golang.org/protobuf v0.0.0-20200109180630-ec00e32a8dfd/go.mod h1:DFci5gLYBciE7Vtevhsrf46CRTquxDuWsQurQQe4oz8=
++google.golang.org/protobuf v0.0.0-20200221191635-4d8936d0db64/go.mod h1:kwYJMbMJ01Woi6D6+Kah6886xMZcty6N08ah7+eCXa0=
++google.golang.org/protobuf v0.0.0-20200228230310-ab0ca4ff8a60/go.mod h1:cfTl7dwQJ+fmap5saPgwCLgHXTUD7jkjRqWcaiX5VyM=
++google.golang.org/protobuf v1.20.1-0.20200309200217-e05f789c0967/go.mod h1:A+miEFZTKqfCUM6K7xSMQL9OKL/b6hQv+e19PK+JZNE=
++google.golang.org/protobuf v1.21.0/go.mod h1:47Nbq4nVaFHyn7ilMalzfO3qCViNmqZ2kzikPIcrTAo=
++google.golang.org/protobuf v1.36.11 h1:fV6ZwhNocDyBLK0dj+fg8ektcVegBBuEolpbTQyBNVE=
++google.golang.org/protobuf v1.36.11/go.mod h1:HTf+CrKn2C3g5S8VImy6tdcUvCska2kB7j23XfzDpco=
++honnef.co/go/tools v0.0.0-20190102054323-c2f93a96b099/go.mod h1:rf3lG4BRIbNafJWhAfAdb/ePZxsR/4RtNHQocxwk9r4=
++honnef.co/go/tools v0.0.0-20190523083050-ea95bdfd59fc/go.mod h1:rf3lG4BRIbNafJWhAfAdb/ePZxsR/4RtNHQocxwk9r4=
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/integration/shared_types_test.go b/modules/openconfig_ygot/0.7.1.sonic.1/integration/shared_types_test.go
+new file mode 100644
+index 0000000000000000000000000000000000000000..065edb1b08218b8c752e444de57555f548c44dcf
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/integration/shared_types_test.go
+@@ -0,0 +1,24 @@
++package consumer
++
++import (
++	"testing"
++
++	"github.com/openconfig/goyang/pkg/yang"
++	"github.com/openconfig/ygot/ygot"
++	"github.com/openconfig/ygot/ytypes"
++)
++
++func TestSourceOwnersShareTheSameYANGType(t *testing.T) {
++	// The direct shared goyang dependency must have exactly the Go type accepted
++	// by ygot's public validator, including SONiC's legacy performance fields.
++	schema := &yang.Entry{
++		Name: "selected", Kind: yang.LeafEntry,
++		Type: &yang.YangType{Kind: yang.Ystring}, PerfOpts: &yang.PerformanceOpts{},
++	}
++	if errors := ytypes.Validate(schema, ygot.String("selected")); len(errors) != 0 {
++		t.Fatalf("shared schema/string validation failed: %v", errors)
++	}
++	if errors := ytypes.Validate(schema, ygot.Uint64(42)); len(errors) == 0 {
++		t.Fatal("string schema accepted an integer")
++	}
++}
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..7ac9f284d1d1248dc24ea998c3fccdcbe6bd68eb
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/BUILD.bazel
+@@ -0,0 +1,11 @@
++load("@bazel_gazelle//:def.bzl", "gazelle")
++
++# gazelle:prefix github.com/openconfig/ygot
++# gazelle:go_naming_convention import_alias
++gazelle(name = "gazelle")
++
++filegroup(
++    name = "schema_testdata",
++    srcs = glob(["testdata/**"]),
++    visibility = ["//visibility:public"],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/MODULE.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/MODULE.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..978ec34a11d55886c63f7f011bd9a1afebb10b4c
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/MODULE.bazel
+@@ -0,0 +1,32 @@
++# AUTO-GENERATED. DO NOT EDIT MANUALLY.
++# Source: ../MODULE.bazel
++# Generator: python3 ci/registry_ci.py sync-module --module openconfig_ygot --version 0.7.1.sonic.1
++
++module(
++    name = "openconfig_ygot",
++    version = "0.7.1.sonic.1",
++    bazel_compatibility = [">=8.5.1"],
++)
++
++bazel_dep(name = "gazelle", version = "0.54.0", repo_name = "bazel_gazelle")
++bazel_dep(name = "openconfig_goyang", version = "0.0.0.sonic.1-20200309174518-a00bece872fc", repo_name = "com_github_openconfig_goyang")
++bazel_dep(name = "protobuf", version = "29.0", repo_name = "com_google_protobuf")
++bazel_dep(name = "rules_go", version = "0.64.1-sonic.1", repo_name = "io_bazel_rules_go")
++
++go_sdk = use_extension("@io_bazel_rules_go//go:extensions.bzl", "go_sdk")
++go_sdk.download(version = "1.25.9")
++
++go_deps = use_extension("@bazel_gazelle//:extensions.bzl", "go_deps")
++go_deps.from_file(go_mod = "//:go.mod")
++use_repo(
++    go_deps,
++    "com_github_golang_glog",
++    "com_github_golang_protobuf",
++    "com_github_google_go_cmp",
++    "com_github_kylelemons_godebug",
++    "com_github_openconfig_gnmi",
++    "com_github_pmezard_go_difflib",
++    "org_golang_google_genproto_googleapis_rpc",
++    "org_golang_google_grpc",
++    "org_golang_google_protobuf",
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/bgp/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/bgp/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..3f6aeebd2e11465dc00843ff3d3890bdc95b10b7
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/bgp/BUILD.bazel
+@@ -0,0 +1,31 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
++
++go_library(
++    name = "bgp_lib",
++    srcs = ["main.go"],
++    importpath = "github.com/openconfig/ygot/demo/bgp",
++    visibility = ["//visibility:private"],
++    deps = [
++        "//exampleoc",
++        "//ygot",
++        "@com_github_golang_glog//:glog",
++    ],
++)
++
++go_binary(
++    name = "bgp",
++    embed = [":bgp_lib"],
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "bgp_test",
++    srcs = ["main_test.go"],
++    args = ["-test.v"],
++    data = glob(["testdata/**"]),
++    embed = [":bgp_lib"],
++    deps = [
++        "//testutil",
++        "@com_github_kylelemons_godebug//pretty",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/device/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/device/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..e58b83cf85845cc25bf3e73e443e2ad26b370f95
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/device/BUILD.bazel
+@@ -0,0 +1,31 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
++
++go_library(
++    name = "device_lib",
++    srcs = ["devicedemo.go"],
++    importpath = "github.com/openconfig/ygot/demo/device",
++    visibility = ["//visibility:private"],
++    deps = [
++        "//exampleoc",
++        "//ygot",
++        "@com_github_golang_glog//:glog",
++    ],
++)
++
++go_binary(
++    name = "device",
++    embed = [":device_lib"],
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "device_test",
++    srcs = ["devicedemo_test.go"],
++    args = ["-test.v"],
++    data = glob(["testdata/**"]),
++    embed = [":device_lib"],
++    deps = [
++        "//testutil",
++        "@com_github_kylelemons_godebug//pretty",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/getting_started/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/getting_started/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..f42c746e6b733700b95504524ec7d90e0d1cf68e
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/getting_started/BUILD.bazel
+@@ -0,0 +1,40 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
++
++go_library(
++    name = "getting_started_lib",
++    srcs = ["interfaces.go"],
++    importpath = "github.com/openconfig/ygot/demo/getting_started",
++    visibility = ["//visibility:private"],
++    deps = [
++        "//demo/getting_started/pkg/ocdemo",
++        "//ygot",
++    ],
++)
++
++go_binary(
++    name = "getting_started",
++    embed = [":getting_started_lib"],
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "getting_started_test",
++    srcs = ["interfaces_test.go"],
++    args = ["-test.v"],
++    data = glob(["yang/**"]),
++    embed = [":getting_started_lib"],
++    deps = [
++        "//genutil",
++        "//ygen",
++    ],
++)
++
++# Match the original go:generate preparation required by upstream Make/CI.
++genrule(
++    name = "generated_oc",
++    srcs = glob(["yang/**"]),
++    outs = ["generated_oc.go"],
++    cmd = "$(execpath //generator:generator) -path=$$(dirname $(location yang/openconfig-interfaces.yang)) -output_file=$@ -package_name=ocdemo -generate_fakeroot -fakeroot_name=device -compress_paths=true -exclude_modules=ietf-interfaces $(location yang/openconfig-interfaces.yang) $(location yang/openconfig-if-ip.yang)",
++    tools = ["//generator"],
++    visibility = ["//visibility:public"],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/getting_started/pkg/ocdemo/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/getting_started/pkg/ocdemo/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..705f0e6567c0a56513b68e76d3b7ae946a8ec49a
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/getting_started/pkg/ocdemo/BUILD.bazel
+@@ -0,0 +1,22 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library")
++
++go_library(
++    name = "ocdemo",
++    srcs = [
++        "ocdemo.go",
++        "//demo/getting_started:generated_oc",
++    ],
++    importpath = "github.com/openconfig/ygot/demo/getting_started/pkg/ocdemo",
++    visibility = ["//visibility:public"],
++    deps = [
++        "//ygot",
++        "//ytypes",
++        "@com_github_openconfig_goyang//pkg/yang",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":ocdemo",
++    visibility = ["//visibility:public"],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/gnmi_telemetry/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/gnmi_telemetry/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..5bfdb12782a1bf26247f2dcd4d9b624101942051
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/gnmi_telemetry/BUILD.bazel
+@@ -0,0 +1,35 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
++
++go_library(
++    name = "gnmi_telemetry_lib",
++    srcs = ["gnmi.go"],
++    importpath = "github.com/openconfig/ygot/demo/gnmi_telemetry",
++    visibility = ["//visibility:private"],
++    deps = [
++        "//exampleoc",
++        "//ygot",
++        "@com_github_golang_glog//:glog",
++        "@com_github_golang_protobuf//proto",
++        "@com_github_openconfig_gnmi//proto/gnmi",
++    ],
++)
++
++go_binary(
++    name = "gnmi_telemetry",
++    embed = [":gnmi_telemetry_lib"],
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "gnmi_telemetry_test",
++    srcs = ["gnmi_test.go"],
++    args = ["-test.v"],
++    data = glob(["testdata/**"]),
++    embed = [":gnmi_telemetry_lib"],
++    deps = [
++        "//ygot",
++        "@com_github_golang_protobuf//proto",
++        "@com_github_google_go_cmp//cmp",
++        "@com_github_openconfig_gnmi//proto/gnmi",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/optical/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/optical/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..5ab35a75a6892f06d447822a3bfc42331b391b9b
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/optical/BUILD.bazel
+@@ -0,0 +1,31 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
++
++go_library(
++    name = "optical_lib",
++    srcs = ["opticaldemo.go"],
++    importpath = "github.com/openconfig/ygot/demo/optical",
++    visibility = ["//visibility:private"],
++    deps = [
++        "//exampleoc",
++        "//ygot",
++        "@com_github_golang_glog//:glog",
++    ],
++)
++
++go_binary(
++    name = "optical",
++    embed = [":optical_lib"],
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "optical_test",
++    srcs = ["opticaldemo_test.go"],
++    args = ["-test.v"],
++    data = glob(["testdata/**"]),
++    embed = [":optical_lib"],
++    deps = [
++        "//testutil",
++        "@com_github_kylelemons_godebug//pretty",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/protobuf_getting_started/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/protobuf_getting_started/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..6ea2fdf206097e917a95e883e7df7eea1ef4d228
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/protobuf_getting_started/BUILD.bazel
+@@ -0,0 +1,36 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
++
++go_library(
++    name = "protobuf_getting_started_lib",
++    srcs = ["demo.go"],
++    importpath = "github.com/openconfig/ygot/demo/protobuf_getting_started",
++    visibility = ["//visibility:private"],
++    deps = [
++        "//demo/protobuf_getting_started/ribproto/openconfig",
++        "//demo/protobuf_getting_started/ribproto/openconfig/enums",
++        "//demo/protobuf_getting_started/ribproto/openconfig/openconfig_rib_bgp",
++        "//proto/ywrapper",
++        "@com_github_golang_glog//:glog",
++        "@com_github_golang_protobuf//proto",
++    ],
++)
++
++go_binary(
++    name = "protobuf_getting_started",
++    embed = [":protobuf_getting_started_lib"],
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "protobuf_getting_started_test",
++    srcs = ["demo_test.go"],
++    args = ["-test.v"],
++    data = glob(["testdata/**"]),
++    embed = [":protobuf_getting_started_lib"],
++    deps = [
++        "//demo/protobuf_getting_started/ribproto/openconfig",
++        "//demo/protobuf_getting_started/ribproto/openconfig/enums",
++        "@com_github_golang_protobuf//proto",
++        "@com_github_kylelemons_godebug//pretty",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/protobuf_getting_started/ribproto/openconfig/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/protobuf_getting_started/ribproto/openconfig/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..2935f46e757b2beb8267ec71dbc18b2ece696022
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/protobuf_getting_started/ribproto/openconfig/BUILD.bazel
+@@ -0,0 +1,24 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library")
++
++# Preserve the generated Go fixtures shipped by upstream v0.7.1.
++go_library(
++    name = "openconfig",
++    srcs = [
++        "openconfig.pb.go",
++        "pkg.go",
++    ],
++    importpath = "github.com/openconfig/ygot/demo/protobuf_getting_started/ribproto/openconfig",
++    visibility = ["//visibility:public"],
++    deps = [
++        "//demo/protobuf_getting_started/ribproto/openconfig/openconfig_rib_bgp",
++        "//proto/yext",
++        "//proto/ywrapper",
++        "@com_github_golang_protobuf//proto",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":openconfig",
++    visibility = ["//visibility:public"],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/protobuf_getting_started/ribproto/openconfig/enums/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/protobuf_getting_started/ribproto/openconfig/enums/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..94cdae70d044d5bd5cba646c81912627328f0a74
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/protobuf_getting_started/ribproto/openconfig/enums/BUILD.bazel
+@@ -0,0 +1,23 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library")
++
++# Preserve the generated Go fixtures shipped by upstream v0.7.1.
++go_library(
++    name = "enums",
++    srcs = [
++        "enums.pb.go",
++        "pkg.go",
++    ],
++    importpath = "github.com/openconfig/ygot/demo/protobuf_getting_started/ribproto/openconfig/enums",
++    visibility = ["//visibility:public"],
++    deps = [
++        "//proto/yext",
++        "//proto/ywrapper",
++        "@com_github_golang_protobuf//proto",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":enums",
++    visibility = ["//visibility:public"],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/protobuf_getting_started/ribproto/openconfig/openconfig_rib_bgp/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/protobuf_getting_started/ribproto/openconfig/openconfig_rib_bgp/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..ce996e25c5831fca42c6250a4f0d08e87cfedcde
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/protobuf_getting_started/ribproto/openconfig/openconfig_rib_bgp/BUILD.bazel
+@@ -0,0 +1,24 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library")
++
++# Preserve the generated Go fixtures shipped by upstream v0.7.1.
++go_library(
++    name = "openconfig_rib_bgp",
++    srcs = [
++        "openconfig_rib_bgp.pb.go",
++        "pkg.go",
++    ],
++    importpath = "github.com/openconfig/ygot/demo/protobuf_getting_started/ribproto/openconfig/openconfig_rib_bgp",
++    visibility = ["//visibility:public"],
++    deps = [
++        "//demo/protobuf_getting_started/ribproto/openconfig/enums",
++        "//proto/yext",
++        "//proto/ywrapper",
++        "@com_github_golang_protobuf//proto",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":openconfig_rib_bgp",
++    visibility = ["//visibility:public"],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/uncompressed/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/uncompressed/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..36873a49297025778708b18b3a5cc4db30c2d214
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/uncompressed/BUILD.bazel
+@@ -0,0 +1,41 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
++
++go_library(
++    name = "uncompressed_lib",
++    srcs = ["uncompressed.go"],
++    importpath = "github.com/openconfig/ygot/demo/uncompressed",
++    visibility = ["//visibility:private"],
++    deps = [
++        "//demo/uncompressed/pkg/demo",
++        "//ygot",
++    ],
++)
++
++go_binary(
++    name = "uncompressed",
++    embed = [":uncompressed_lib"],
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "uncompressed_test",
++    srcs = ["uncompressed_test.go"],
++    args = ["-test.v"],
++    data = glob(["testdata/**"]),
++    embed = [":uncompressed_lib"],
++    deps = [
++        "//demo/uncompressed/pkg/demo",
++        "//testutil",
++        "@com_github_kylelemons_godebug//pretty",
++    ],
++)
++
++# Match the original go:generate preparation required by upstream Make/CI.
++genrule(
++    name = "generated_uncompressed",
++    srcs = glob(["yang/**"]),
++    outs = ["generated_uncompressed.go"],
++    cmd = "$(execpath //generator:generator) -path=$$(dirname $(location yang/example.yang)) -output_file=$@ -package_name=demo -generate_fakeroot -fakeroot_name=root  $(location yang/example.yang)",
++    tools = ["//generator"],
++    visibility = ["//visibility:public"],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/uncompressed/pkg/demo/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/uncompressed/pkg/demo/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..f37a156bbda01d2aebad7c24e8e608525791bebf
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/uncompressed/pkg/demo/BUILD.bazel
+@@ -0,0 +1,22 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library")
++
++go_library(
++    name = "demo",
++    srcs = [
++        "demo.go",
++        "//demo/uncompressed:generated_uncompressed",
++    ],
++    importpath = "github.com/openconfig/ygot/demo/uncompressed/pkg/demo",
++    visibility = ["//visibility:public"],
++    deps = [
++        "//ygot",
++        "//ytypes",
++        "@com_github_openconfig_goyang//pkg/yang",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":demo",
++    visibility = ["//visibility:public"],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/exampleoc/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/exampleoc/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..3449810ae4af259357d4ac12a016ec8d034f1295
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/exampleoc/BUILD.bazel
+@@ -0,0 +1,19 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library")
++
++go_library(
++    name = "exampleoc",
++    srcs = ["oc.go"],
++    importpath = "github.com/openconfig/ygot/exampleoc",
++    visibility = ["//visibility:public"],
++    deps = [
++        "//ygot",
++        "//ytypes",
++        "@com_github_openconfig_goyang//pkg/yang",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":exampleoc",
++    visibility = ["//visibility:public"],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/exampleocpath/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/exampleocpath/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..1a1e5d3482e7e6f148a3d8d6856fdfe69a651216
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/exampleocpath/BUILD.bazel
+@@ -0,0 +1,22 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library")
++
++go_library(
++    name = "exampleocpath",
++    srcs = [
++        "ocpath.go",
++        "ocpath_augment.go",
++    ],
++    importpath = "github.com/openconfig/ygot/exampleocpath",
++    visibility = ["//visibility:public"],
++    deps = [
++        "//exampleoc",
++        "//ygot",
++        "@com_github_openconfig_gnmi//proto/gnmi",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":exampleocpath",
++    visibility = ["//visibility:public"],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/experimental/ygotutils/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/experimental/ygotutils/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..9b9b312d0af0bb8f12d3861e3ff5fd18be01f953
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/experimental/ygotutils/BUILD.bazel
+@@ -0,0 +1,42 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
++
++go_library(
++    name = "ygotutils",
++    srcs = [
++        "common.go",
++        "getnode.go",
++    ],
++    importpath = "github.com/openconfig/ygot/experimental/ygotutils",
++    visibility = ["//visibility:public"],
++    deps = [
++        "//util",
++        "//ygot",
++        "@com_github_golang_glog//:glog",
++        "@com_github_openconfig_gnmi//proto/gnmi",
++        "@com_github_openconfig_goyang//pkg/yang",
++        "@org_golang_google_genproto_googleapis_rpc//code",
++        "@org_golang_google_genproto_googleapis_rpc//status",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":ygotutils",
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "ygotutils_test",
++    srcs = ["getnode_test.go"],
++    args = ["-test.v"],
++    embed = [":ygotutils"],
++    deps = [
++        "//ygot",
++        "@com_github_golang_protobuf//proto",
++        "@com_github_google_go_cmp//cmp",
++        "@com_github_openconfig_gnmi//proto/gnmi",
++        "@com_github_openconfig_goyang//pkg/yang",
++        "@org_golang_google_genproto_googleapis_rpc//code",
++        "@org_golang_google_genproto_googleapis_rpc//status",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/generator/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/generator/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..5c99388ddaa3099c6702b9dc176d12f3a6bda0b9
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/generator/BUILD.bazel
+@@ -0,0 +1,31 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
++
++go_library(
++    name = "generator_lib",
++    srcs = ["generator.go"],
++    importpath = "github.com/openconfig/ygot/generator",
++    visibility = ["//visibility:private"],
++    deps = [
++        "//genutil",
++        "//ygen",
++        "@com_github_golang_glog//:glog",
++        "@com_github_openconfig_goyang//pkg/yang",
++    ],
++)
++
++go_binary(
++    name = "generator",
++    embed = [":generator_lib"],
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "generator_test",
++    srcs = ["generator_test.go"],
++    args = ["-test.v"],
++    embed = [":generator_lib"],
++    deps = [
++        "//ygen",
++        "@com_github_kylelemons_godebug//pretty",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/genutil/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/genutil/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..de3c1db6de33c516efa8f27fd5de0cd60e7fe6ac
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/genutil/BUILD.bazel
+@@ -0,0 +1,38 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
++
++go_library(
++    name = "genutil",
++    srcs = [
++        "common.go",
++        "file.go",
++        "names.go",
++    ],
++    importpath = "github.com/openconfig/ygot/genutil",
++    visibility = ["//visibility:public"],
++    deps = [
++        "//util",
++        "//ygot",
++        "@com_github_golang_glog//:glog",
++        "@com_github_openconfig_goyang//pkg/yang",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":genutil",
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "genutil_test",
++    srcs = [
++        "common_test.go",
++        "names_test.go",
++    ],
++    args = ["-test.v"],
++    embed = [":genutil"],
++    deps = [
++        "@com_github_google_go_cmp//cmp",
++        "@com_github_openconfig_goyang//pkg/yang",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/go.mod b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/go.mod
+new file mode 100644
+index 0000000000000000000000000000000000000000..36f9bf4d1125c73195d051d87488cfe8076d15bd
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/go.mod
+@@ -0,0 +1,22 @@
++module github.com/openconfig/ygot
++
++go 1.25.9
++
++require (
++	github.com/golang/glog v1.2.5
++	github.com/golang/protobuf v1.5.4
++	github.com/google/go-cmp v0.7.0
++	github.com/kylelemons/godebug v1.1.0
++	github.com/openconfig/gnmi v0.0.0-20200617225440-d2b4e6a45802
++	github.com/openconfig/goyang v0.0.0-20200309174518-a00bece872fc
++	github.com/pmezard/go-difflib v1.0.0
++	google.golang.org/genproto/googleapis/rpc v0.0.0-20260414002931-afd174a4e478
++	google.golang.org/grpc v1.82.1
++	google.golang.org/protobuf v1.36.11
++)
++
++require (
++	golang.org/x/net v0.53.0 // indirect
++	golang.org/x/sys v0.43.0 // indirect
++	golang.org/x/text v0.36.0 // indirect
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/go.sum b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/go.sum
+new file mode 100644
+index 0000000000000000000000000000000000000000..63daac3bfdc2c59d362945618970942a5c3f841b
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/go.sum
+@@ -0,0 +1,110 @@
++cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
++github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
++github.com/cenkalti/backoff/v4 v4.0.0/go.mod h1:eEew/i+1Q6OrCDZh3WiXYv3+nJwBASZ8Bog/87DQnVg=
++github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
++github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=
++github.com/cespare/xxhash/v2 v2.3.0/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
++github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
++github.com/envoyproxy/go-control-plane v0.9.1-0.20191026205805-5f8ba28d4473/go.mod h1:YTl/9mNaCwkRvm6d1a2C3ymFceY/DCBVvsKhRF0iEA4=
++github.com/envoyproxy/protoc-gen-validate v0.1.0/go.mod h1:iSmxcyjqTsJpI2R4NaDN7+kN2VEUnK/pcBlmesArF7c=
++github.com/go-logr/logr v1.4.3 h1:CjnDlHq8ikf6E492q6eKboGOC0T8CDaOvkHCIg8idEI=
++github.com/go-logr/logr v1.4.3/go.mod h1:9T104GzyrTigFIr8wt5mBrctHMim0Nb2HLGrmQ40KvY=
++github.com/go-logr/stdr v1.2.2 h1:hSWxHoqTgW2S2qGc0LTAI563KZ5YKYRhT3MFKZMbjag=
++github.com/go-logr/stdr v1.2.2/go.mod h1:mMo/vtBO5dYbehREoey6XUKy/eSumjCCveDpRre4VKE=
++github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b/go.mod h1:SBH7ygxi8pfUlaOkMMuAQtPIUF8ecWP5IEl/CR7VP2Q=
++github.com/golang/glog v1.2.5 h1:DrW6hGnjIhtvhOIiAKT6Psh/Kd/ldepEa81DKeiRJ5I=
++github.com/golang/glog v1.2.5/go.mod h1:6AhwSGph0fcJtXVM/PEHPqZlFeoLxhs7/t5UDAwmO+w=
++github.com/golang/mock v1.1.1/go.mod h1:oTYuIxOrZwtPieC+H1uAHpcLFnEyAGVDL/k47Jfbm0A=
++github.com/golang/protobuf v1.2.0/go.mod h1:6lQm79b+lXiMfvg/cZm0SGofjICqVBUtrP5yJMmIC1U=
++github.com/golang/protobuf v1.3.2/go.mod h1:6lQm79b+lXiMfvg/cZm0SGofjICqVBUtrP5yJMmIC1U=
++github.com/golang/protobuf v1.4.0-rc.1/go.mod h1:ceaxUfeHdC40wWswd/P6IGgMaK3YpKi5j83Wpe3EHw8=
++github.com/golang/protobuf v1.4.0-rc.1.0.20200221234624-67d41d38c208/go.mod h1:xKAWHe0F5eneWXFV3EuXVDTCmh+JuBKY0li0aMyXATA=
++github.com/golang/protobuf v1.4.0-rc.2/go.mod h1:LlEzMj4AhA7rCAGe4KMBDvJI+AwstrUpVNzEA03Pprs=
++github.com/golang/protobuf v1.4.0-rc.4.0.20200313231945-b860323f09d0/go.mod h1:WU3c8KckQ9AFe+yFwt9sWVRKCVIyN9cPHBJSNnbL67w=
++github.com/golang/protobuf v1.5.4 h1:i7eJL8qZTpSEXOPTxNKhASYpMn+8e5Q6AdndVa1dWek=
++github.com/golang/protobuf v1.5.4/go.mod h1:lnTiLA8Wa4RWRcIUkrtSVa5nRhsEGBg48fD6rSs7xps=
++github.com/google/go-cmp v0.2.0/go.mod h1:oXzfMopK8JAjlY9xF4vHSVASa0yLyX7SntLO5aqRK0M=
++github.com/google/go-cmp v0.3.0/go.mod h1:8QqcDgzrUqlUb/G2PQTWiueGozuR1884gddMywk6iLU=
++github.com/google/go-cmp v0.3.1/go.mod h1:8QqcDgzrUqlUb/G2PQTWiueGozuR1884gddMywk6iLU=
++github.com/google/go-cmp v0.4.0/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/gNBxE=
++github.com/google/go-cmp v0.7.0 h1:wk8382ETsv4JYUZwIsn6YpYiWiBsYLSJiTsyBybVuN8=
++github.com/google/go-cmp v0.7.0/go.mod h1:pXiqmnSA92OHEEa9HXL2W4E7lf9JzCmGVUdgjX3N/iU=
++github.com/google/protobuf v3.11.4+incompatible/go.mod h1:lUQ9D1ePzbH2PrIS7ob/bjm9HXyH5WHB0Akwh7URreM=
++github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
++github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
++github.com/kylelemons/godebug v1.1.0 h1:RPNrshWIDI6G2gRW9EHilWtl7Z6Sb1BR0xunSBf0SNc=
++github.com/kylelemons/godebug v1.1.0/go.mod h1:9/0rRGxNHcop5bhtWyNeEfOS8JIWk580+fNqagV/RAw=
++github.com/openconfig/gnmi v0.0.0-20200617225440-d2b4e6a45802 h1:WXFwJlWOJINlwlyAZuNo4GdYZS6qPX36+rRUncLmN8Q=
++github.com/openconfig/gnmi v0.0.0-20200617225440-d2b4e6a45802/go.mod h1:M/EcuapNQgvzxo1DDXHK4tx3QpYM/uG4l591v33jG2A=
++github.com/openconfig/goyang v0.0.0-20200115183954-d0a48929f0ea/go.mod h1:dhXaV0JgHJzdrHi2l+w0fZrwArtXL7jEFoiqLEdmkvU=
++github.com/openconfig/goyang v0.0.0-20200309174518-a00bece872fc h1:W6XYKuH3mxF5WFhsSQOPPN9DRDba1xz9lbUbQR3uHkg=
++github.com/openconfig/goyang v0.0.0-20200309174518-a00bece872fc/go.mod h1:dhXaV0JgHJzdrHi2l+w0fZrwArtXL7jEFoiqLEdmkvU=
++github.com/openconfig/ygot v0.6.0/go.mod h1:o30svNf7O0xK+R35tlx95odkDmZWS9JyWWQSmIhqwAs=
++github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
++github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
++github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4/go.mod h1:xMI15A0UPsDsEKsMN9yxemIoYk6Tm2C1GtYGdfGttqA=
++go.opentelemetry.io/auto/sdk v1.2.1 h1:jXsnJ4Lmnqd11kwkBV2LgLoFMZKizbCi5fNZ/ipaZ64=
++go.opentelemetry.io/auto/sdk v1.2.1/go.mod h1:KRTj+aOaElaLi+wW1kO/DZRXwkF4C5xPbEe3ZiIhN7Y=
++go.opentelemetry.io/otel v1.43.0 h1:mYIM03dnh5zfN7HautFE4ieIig9amkNANT+xcVxAj9I=
++go.opentelemetry.io/otel v1.43.0/go.mod h1:JuG+u74mvjvcm8vj8pI5XiHy1zDeoCS2LB1spIq7Ay0=
++go.opentelemetry.io/otel/metric v1.43.0 h1:d7638QeInOnuwOONPp4JAOGfbCEpYb+K6DVWvdxGzgM=
++go.opentelemetry.io/otel/metric v1.43.0/go.mod h1:RDnPtIxvqlgO8GRW18W6Z/4P462ldprJtfxHxyKd2PY=
++go.opentelemetry.io/otel/sdk v1.43.0 h1:pi5mE86i5rTeLXqoF/hhiBtUNcrAGHLKQdhg4h4V9Dg=
++go.opentelemetry.io/otel/sdk v1.43.0/go.mod h1:P+IkVU3iWukmiit/Yf9AWvpyRDlUeBaRg6Y+C58QHzg=
++go.opentelemetry.io/otel/sdk/metric v1.43.0 h1:S88dyqXjJkuBNLeMcVPRFXpRw2fuwdvfCGLEo89fDkw=
++go.opentelemetry.io/otel/sdk/metric v1.43.0/go.mod h1:C/RJtwSEJ5hzTiUz5pXF1kILHStzb9zFlIEe85bhj6A=
++go.opentelemetry.io/otel/trace v1.43.0 h1:BkNrHpup+4k4w+ZZ86CZoHHEkohws8AY+WTX09nk+3A=
++go.opentelemetry.io/otel/trace v1.43.0/go.mod h1:/QJhyVBUUswCphDVxq+8mld+AvhXZLhe+8WVFxiFff0=
++golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
++golang.org/x/crypto v0.0.0-20200302210943-78000ba7a073/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
++golang.org/x/exp v0.0.0-20190121172915-509febef88a4/go.mod h1:CJ0aWSM057203Lf6IL+f9T1iT9GByDxfZKAQTCR3kQA=
++golang.org/x/lint v0.0.0-20181026193005-c67002cb31c3/go.mod h1:UVdnD1Gm6xHRNCYTkRU2/jEulfH38KcIWyp/GAMgvoE=
++golang.org/x/lint v0.0.0-20190227174305-5b3e6a55c961/go.mod h1:wehouNa3lNwaWXcvxsM5YxQ5yQlVC4a0KAMCusXpPoU=
++golang.org/x/lint v0.0.0-20190313153728-d0100b6bd8b3/go.mod h1:6SW0HCj/g11FgYtHlgUYUwCkIfeOF89ocIRzGO/8vkc=
++golang.org/x/net v0.0.0-20180724234803-3673e40ba225/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=
++golang.org/x/net v0.0.0-20180826012351-8a410e7b638d/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=
++golang.org/x/net v0.0.0-20190213061140-3a22650c66bd/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=
++golang.org/x/net v0.0.0-20190311183353-d8887717615a/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
++golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
++golang.org/x/net v0.0.0-20200301022130-244492dfa37a/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
++golang.org/x/net v0.53.0 h1:d+qAbo5L0orcWAr0a9JweQpjXF19LMXJE8Ey7hwOdUA=
++golang.org/x/net v0.53.0/go.mod h1:JvMuJH7rrdiCfbeHoo3fCQU24Lf5JJwT9W3sJFulfgs=
++golang.org/x/oauth2 v0.0.0-20180821212333-d2e6202438be/go.mod h1:N/0e6XlmueqKjAGxoOufVs8QHGRruUQn6yWY3a++T0U=
++golang.org/x/sync v0.0.0-20180314180146-1d60e4601c6f/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
++golang.org/x/sync v0.0.0-20181108010431-42b317875d0f/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
++golang.org/x/sync v0.0.0-20190423024810-112230192c58/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
++golang.org/x/sys v0.0.0-20180830151530-49385e6e1522/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
++golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
++golang.org/x/sys v0.0.0-20190412213103-97732733099d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
++golang.org/x/sys v0.43.0 h1:Rlag2XtaFTxp19wS8MXlJwTvoh8ArU6ezoyFsMyCTNI=
++golang.org/x/sys v0.43.0/go.mod h1:4GL1E5IUh+htKOUEOaiffhrAeqysfVGipDYzABqnCmw=
++golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
++golang.org/x/text v0.36.0 h1:JfKh3XmcRPqZPKevfXVpI1wXPTqbkE5f7JA92a55Yxg=
++golang.org/x/text v0.36.0/go.mod h1:NIdBknypM8iqVmPiuco0Dh6P5Jcdk8lJL0CUebqK164=
++golang.org/x/tools v0.0.0-20190114222345-bf090417da8b/go.mod h1:n7NCudcB/nEzxVGmLbDWY5pfWTLqBcC2KZ6jyYvM4mQ=
++golang.org/x/tools v0.0.0-20190226205152-f727befe758c/go.mod h1:9Yl7xja0Znq3iFh3HoIrodX9oNMXvdceNzlUR8zjMvY=
++golang.org/x/tools v0.0.0-20190311212946-11955173bddd/go.mod h1:LCzVGOaR6xXOjkQ3onu1FJEFr0SW1gC7cKk1uF8kGRs=
++golang.org/x/tools v0.0.0-20190524140312-2c0ae7006135/go.mod h1:RgjU9mgBXZiqYHBnxXauZ1Gv1EHHAz9KjViQ78xBX0Q=
++golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
++gonum.org/v1/gonum v0.17.0 h1:VbpOemQlsSMrYmn7T2OUvQ4dqxQXU+ouZFQsZOx50z4=
++gonum.org/v1/gonum v0.17.0/go.mod h1:El3tOrEuMpv2UdMrbNlKEh9vd86bmQ6vqIcDwxEOc1E=
++google.golang.org/appengine v1.1.0/go.mod h1:EbEs0AVv82hx2wNQdGPgUI5lhzA/G0D9YwlJXL52JkM=
++google.golang.org/appengine v1.4.0/go.mod h1:xpcJRLb0r/rnEns0DIKYYv+WjYCduHsrkT7/EB5XEv4=
++google.golang.org/genproto v0.0.0-20180817151627-c66870c02cf8/go.mod h1:JiN7NxoALGmiZfu7CAH4rXhgtRTLTxftemlI0sWmxmc=
++google.golang.org/genproto v0.0.0-20190819201941-24fa4b261c55/go.mod h1:DMBHOl98Agz4BDEuKkezgsaosCRResVns1a3J2ZsMNc=
++google.golang.org/genproto/googleapis/rpc v0.0.0-20260414002931-afd174a4e478 h1:RmoJA1ujG+/lRGNfUnOMfhCy5EipVMyvUE+KNbPbTlw=
++google.golang.org/genproto/googleapis/rpc v0.0.0-20260414002931-afd174a4e478/go.mod h1:4Hqkh8ycfw05ld/3BWL7rJOSfebL2Q+DVDeRgYgxUU8=
++google.golang.org/grpc v1.19.0/go.mod h1:mqu4LbDTu4XGKhr4mRzUsmM4RtVoemTSY81AxZiDr8c=
++google.golang.org/grpc v1.23.0/go.mod h1:Y5yQAOtifL1yxbo5wqy6BxZv8vAUGQwXBOALyacEbxg=
++google.golang.org/grpc v1.27.1/go.mod h1:qbnxyOmOxrQa7FizSgH+ReBfzJrCY1pSN7KXBS8abTk=
++google.golang.org/grpc v1.82.1 h1:NnAxzGRA0677vCa4BUkOAnO5+FfQqVl9iUXeD0IqcGE=
++google.golang.org/grpc v1.82.1/go.mod h1:yzTZ1TB1Z3SG+LIYaI+WiE8D5+PZ3ArnrSp8zF3+/ZA=
++google.golang.org/protobuf v0.0.0-20200109180630-ec00e32a8dfd/go.mod h1:DFci5gLYBciE7Vtevhsrf46CRTquxDuWsQurQQe4oz8=
++google.golang.org/protobuf v0.0.0-20200221191635-4d8936d0db64/go.mod h1:kwYJMbMJ01Woi6D6+Kah6886xMZcty6N08ah7+eCXa0=
++google.golang.org/protobuf v0.0.0-20200228230310-ab0ca4ff8a60/go.mod h1:cfTl7dwQJ+fmap5saPgwCLgHXTUD7jkjRqWcaiX5VyM=
++google.golang.org/protobuf v1.20.1-0.20200309200217-e05f789c0967/go.mod h1:A+miEFZTKqfCUM6K7xSMQL9OKL/b6hQv+e19PK+JZNE=
++google.golang.org/protobuf v1.21.0/go.mod h1:47Nbq4nVaFHyn7ilMalzfO3qCViNmqZ2kzikPIcrTAo=
++google.golang.org/protobuf v1.36.11 h1:fV6ZwhNocDyBLK0dj+fg8ektcVegBBuEolpbTQyBNVE=
++google.golang.org/protobuf v1.36.11/go.mod h1:HTf+CrKn2C3g5S8VImy6tdcUvCska2kB7j23XfzDpco=
++honnef.co/go/tools v0.0.0-20190102054323-c2f93a96b099/go.mod h1:rf3lG4BRIbNafJWhAfAdb/ePZxsR/4RtNHQocxwk9r4=
++honnef.co/go/tools v0.0.0-20190523083050-ea95bdfd59fc/go.mod h1:rf3lG4BRIbNafJWhAfAdb/ePZxsR/4RtNHQocxwk9r4=
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/integration_tests/uncompressed/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/integration_tests/uncompressed/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..1d999f0609e98fd3ef885a44265d372aac96d542
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/integration_tests/uncompressed/BUILD.bazel
+@@ -0,0 +1,46 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
++
++go_library(
++    name = "uncompressed",
++    srcs = ["cp.go"],
++    importpath = "github.com/openconfig/ygot/integration_tests/uncompressed",
++    visibility = ["//visibility:public"],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":uncompressed",
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "uncompressed_test",
++    srcs = ["cp_test.go"],
++    args = ["-test.v"],
++    embed = [":uncompressed"],
++    deps = [
++        "//integration_tests/uncompressed/cschema",
++        "//integration_tests/uncompressed/uschema",
++        "//ygot",
++    ],
++)
++
++# Match the original go:generate preparation required by upstream Make/CI.
++genrule(
++    name = "generated_compressed",
++    srcs = glob(["yang/**"]),
++    outs = ["generated_compressed.go"],
++    cmd = "$(execpath //generator:generator) -path=$$(dirname $(location yang/uncompressed.yang)) -output_file=$@ -package_name=cschema -generate_fakeroot -fakeroot_name=root -generate_getters -compress_paths $(location yang/uncompressed.yang)",
++    tools = ["//generator"],
++    visibility = ["//visibility:public"],
++)
++
++# Match the original go:generate preparation required by upstream Make/CI.
++genrule(
++    name = "generated_uncompressed",
++    srcs = glob(["yang/**"]),
++    outs = ["generated_uncompressed.go"],
++    cmd = "$(execpath //generator:generator) -path=$$(dirname $(location yang/uncompressed.yang)) -output_file=$@ -package_name=uschema -generate_fakeroot -fakeroot_name=root -generate_getters $(location yang/uncompressed.yang)",
++    tools = ["//generator"],
++    visibility = ["//visibility:public"],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/integration_tests/uncompressed/cschema/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/integration_tests/uncompressed/cschema/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..430c8987793412d227e1b9a68b11b286397182f4
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/integration_tests/uncompressed/cschema/BUILD.bazel
+@@ -0,0 +1,22 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library")
++
++go_library(
++    name = "cschema",
++    srcs = [
++        "cschema.go",
++        "//integration_tests/uncompressed:generated_compressed",
++    ],
++    importpath = "github.com/openconfig/ygot/integration_tests/uncompressed/cschema",
++    visibility = ["//visibility:public"],
++    deps = [
++        "//ygot",
++        "//ytypes",
++        "@com_github_openconfig_goyang//pkg/yang",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":cschema",
++    visibility = ["//visibility:public"],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/integration_tests/uncompressed/uschema/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/integration_tests/uncompressed/uschema/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..d5109224e707dce82e4bd9021a82cd6017227901
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/integration_tests/uncompressed/uschema/BUILD.bazel
+@@ -0,0 +1,22 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library")
++
++go_library(
++    name = "uschema",
++    srcs = [
++        "uschema.go",
++        "//integration_tests/uncompressed:generated_uncompressed",
++    ],
++    importpath = "github.com/openconfig/ygot/integration_tests/uncompressed/uschema",
++    visibility = ["//visibility:public"],
++    deps = [
++        "//ygot",
++        "//ytypes",
++        "@com_github_openconfig_goyang//pkg/yang",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":uschema",
++    visibility = ["//visibility:public"],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/internal/sonicfixture/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/internal/sonicfixture/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..344405711477b2a3dad3e42ec4cc1f7750eafe7a
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/internal/sonicfixture/BUILD.bazel
+@@ -0,0 +1,10 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library")
++
++go_library(
++    name = "sonicfixture",
++    testonly = True,
++    srcs = ["schema.go"],
++    importpath = "github.com/openconfig/ygot/internal/sonicfixture",
++    visibility = ["//visibility:public"],
++    deps = ["@com_github_openconfig_goyang//pkg/yang"],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/internal/sonicfixture/schema.go b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/internal/sonicfixture/schema.go
+new file mode 100644
+index 0000000000000000000000000000000000000000..056243c248c00adf208fdfdb7fb0111df91e7769
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/internal/sonicfixture/schema.go
+@@ -0,0 +1,27 @@
++// Package sonicfixture initializes the performance state omitted from old,
++// handwritten and pre-generated upstream test schemas. It is test-only.
++package sonicfixture
++
++import "github.com/openconfig/goyang/pkg/yang"
++
++// Entry preserves every schema field and existing cache while supplying the
++// state that the actual SONiC parser/generator creates for each entry.
++func Entry(root *yang.Entry) *yang.Entry {
++	seen := map[*yang.Entry]bool{}
++	var visit func(*yang.Entry)
++	visit = func(entry *yang.Entry) {
++		if entry == nil || seen[entry] {
++			return
++		}
++		seen[entry] = true
++		if entry.PerfOpts == nil {
++			entry.PerfOpts = &yang.PerformanceOpts{}
++		}
++		for _, child := range entry.Dir {
++			visit(child)
++		}
++		visit(entry.Parent)
++	}
++	visit(root)
++	return root
++}
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/proto/yext/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/proto/yext/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..5062e67e2f0f86ef41ea3156fdbcde7730df5666
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/proto/yext/BUILD.bazel
+@@ -0,0 +1,32 @@
++load("@com_google_protobuf//bazel:proto_library.bzl", "proto_library")
++load("@io_bazel_rules_go//go:def.bzl", "go_library")
++load("@io_bazel_rules_go//proto:def.bzl", "go_proto_library")
++
++proto_library(
++    name = "yext_proto",
++    srcs = ["yext.proto"],
++    import_prefix = "github.com/openconfig/ygot",
++    visibility = ["//visibility:public"],
++    deps = ["@com_google_protobuf//:descriptor_proto"],
++)
++
++go_proto_library(
++    name = "yext_go_proto",
++    importpath = "github.com/openconfig/ygot/proto/yext",
++    proto = ":yext_proto",
++    visibility = ["//visibility:public"],
++)
++
++go_library(
++    name = "yext",
++    srcs = ["gen.go"],
++    embed = [":yext_go_proto"],
++    importpath = "github.com/openconfig/ygot/proto/yext",
++    visibility = ["//visibility:public"],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":yext",
++    visibility = ["//visibility:public"],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/proto/ywrapper/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/proto/ywrapper/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..8126b06e176c2a28b07cc6c00fe446e1bab6ce52
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/proto/ywrapper/BUILD.bazel
+@@ -0,0 +1,31 @@
++load("@com_google_protobuf//bazel:proto_library.bzl", "proto_library")
++load("@io_bazel_rules_go//go:def.bzl", "go_library")
++load("@io_bazel_rules_go//proto:def.bzl", "go_proto_library")
++
++proto_library(
++    name = "ywrapper_proto",
++    srcs = ["ywrapper.proto"],
++    import_prefix = "github.com/openconfig/ygot",
++    visibility = ["//visibility:public"],
++)
++
++go_proto_library(
++    name = "ywrapper_go_proto",
++    importpath = "github.com/openconfig/ygot/proto/ywrapper",
++    proto = ":ywrapper_proto",
++    visibility = ["//visibility:public"],
++)
++
++go_library(
++    name = "ywrapper",
++    srcs = ["gen.go"],
++    embed = [":ywrapper_go_proto"],
++    importpath = "github.com/openconfig/ygot/proto/ywrapper",
++    visibility = ["//visibility:public"],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":ywrapper",
++    visibility = ["//visibility:public"],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/proto_generator/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/proto_generator/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..14ff3b9b6ce99f1f5ec4a2838afdbbe3dccf3470
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/proto_generator/BUILD.bazel
+@@ -0,0 +1,20 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
++
++go_library(
++    name = "proto_generator_lib",
++    srcs = ["protogenerator.go"],
++    importpath = "github.com/openconfig/ygot/proto_generator",
++    visibility = ["//visibility:private"],
++    deps = [
++        "//genutil",
++        "//ygen",
++        "@com_github_golang_glog//:glog",
++        "@com_github_openconfig_goyang//pkg/yang",
++    ],
++)
++
++go_binary(
++    name = "proto_generator",
++    embed = [":proto_generator_lib"],
++    visibility = ["//visibility:public"],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/testcmp/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/testcmp/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..cfb3174c5f92ac72a8cf49e4bd948a7f36065d51
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/testcmp/BUILD.bazel
+@@ -0,0 +1,48 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
++
++go_library(
++    name = "testcmp",
++    srcs = ["cmp.go"],
++    importpath = "github.com/openconfig/ygot/testcmp",
++    visibility = ["//visibility:public"],
++    deps = [
++        "//testutil",
++        "//ygot",
++        "//ytypes",
++        "@com_github_golang_glog//:glog",
++        "@com_github_golang_protobuf//proto",
++        "@com_github_google_go_cmp//cmp",
++        "@com_github_google_go_cmp//cmp/cmpopts",
++        "@com_github_openconfig_gnmi//proto/gnmi",
++        "@org_golang_google_protobuf//testing/protocmp",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":testcmp",
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "testcmp_test",
++    srcs = [
++        "cmp_test.go",
++        "sonic_fixture_test.go",
++    ],
++    args = ["-test.v"],
++    embed = [":testcmp"],
++    deps = [
++        "//exampleoc",
++        "//internal/sonicfixture",
++        "//testutil",
++        "//uexampleoc",
++        "//ygot",
++        "//ytypes",
++        "@com_github_google_go_cmp//cmp",
++        "@com_github_kylelemons_godebug//pretty",
++        "@com_github_openconfig_gnmi//errdiff",
++        "@com_github_openconfig_gnmi//proto/gnmi",
++        "@org_golang_google_protobuf//testing/protocmp",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/testcmp/sonic_fixture_test.go b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/testcmp/sonic_fixture_test.go
+new file mode 100644
+index 0000000000000000000000000000000000000000..ea01b689c774463e0164e53b79ef3553991a2ab5
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/testcmp/sonic_fixture_test.go
+@@ -0,0 +1,30 @@
++package testcmp
++
++import (
++	"github.com/openconfig/ygot/exampleoc"
++	"github.com/openconfig/ygot/internal/sonicfixture"
++	"github.com/openconfig/ygot/uexampleoc"
++	"github.com/openconfig/ygot/ytypes"
++)
++
++func init() {
++	for _, entry := range exampleoc.SchemaTree {
++		sonicfixture.Entry(entry)
++	}
++	for _, entry := range uexampleoc.SchemaTree {
++		sonicfixture.Entry(entry)
++	}
++}
++
++// The legacy generated Schema callback returns a newly unzipped tree each time.
++func sonicFixtureSchema(fn func() (*ytypes.Schema, error)) func() (*ytypes.Schema, error) {
++	return func() (*ytypes.Schema, error) {
++		schema, err := fn()
++		if schema != nil {
++			for _, entry := range schema.SchemaTree {
++				sonicfixture.Entry(entry)
++			}
++		}
++		return schema, err
++	}
++}
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/testutil/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/testutil/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..9e993057259d79ba32af7dabc480cb34dcabe4ab
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/testutil/BUILD.bazel
+@@ -0,0 +1,43 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
++
++go_library(
++    name = "testutil",
++    srcs = [
++        "diff.go",
++        "testutil.go",
++    ],
++    importpath = "github.com/openconfig/ygot/testutil",
++    visibility = ["//visibility:public"],
++    deps = [
++        "@com_github_golang_protobuf//proto",
++        "@com_github_google_go_cmp//cmp",
++        "@com_github_google_go_cmp//cmp/cmpopts",
++        "@com_github_openconfig_gnmi//proto/gnmi",
++        "@com_github_openconfig_gnmi//value",
++        "@com_github_pmezard_go_difflib//difflib",
++        "@org_golang_google_protobuf//testing/protocmp",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":testutil",
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "testutil_test",
++    srcs = [
++        "diff_test.go",
++        "testutil_test.go",
++    ],
++    args = ["-test.v"],
++    embed = [":testutil"],
++    deps = [
++        "//ygot",
++        "@com_github_golang_protobuf//proto",
++        "@com_github_google_go_cmp//cmp",
++        "@com_github_openconfig_gnmi//proto/gnmi",
++        "@org_golang_google_protobuf//testing/protocmp",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/uexampleoc/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/uexampleoc/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..9ab54ffdd8aee648e1e4bba072f83fc9529d5ad2
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/uexampleoc/BUILD.bazel
+@@ -0,0 +1,19 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library")
++
++go_library(
++    name = "uexampleoc",
++    srcs = ["oc.go"],
++    importpath = "github.com/openconfig/ygot/uexampleoc",
++    visibility = ["//visibility:public"],
++    deps = [
++        "//ygot",
++        "//ytypes",
++        "@com_github_openconfig_goyang//pkg/yang",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":uexampleoc",
++    visibility = ["//visibility:public"],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/util/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/util/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..363c35d23975df4e298c079fc267a1efe384c7dc
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/util/BUILD.bazel
+@@ -0,0 +1,55 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
++
++go_library(
++    name = "util",
++    srcs = [
++        "debug.go",
++        "errs.go",
++        "gnmi.go",
++        "path.go",
++        "reflect.go",
++        "yang.go",
++    ],
++    importpath = "github.com/openconfig/ygot/util",
++    visibility = ["//visibility:public"],
++    deps = [
++        "@com_github_golang_glog//:glog",
++        "@com_github_golang_protobuf//proto",
++        "@com_github_google_go_cmp//cmp",
++        "@com_github_kylelemons_godebug//pretty",
++        "@com_github_openconfig_gnmi//proto/gnmi",
++        "@com_github_openconfig_goyang//pkg/yang",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":util",
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "util_test",
++    srcs = [
++        "debug_test.go",
++        "errs_test.go",
++        "gnmi_test.go",
++        "path_test.go",
++        "reflect_test.go",
++        "sonic_assignability_test.go",
++        "yang_test.go",
++    ],
++    args = ["-test.v"],
++    embed = [":util"],
++    deps = [
++        "//internal/sonicfixture",
++        "//testutil",
++        "@com_github_golang_protobuf//proto",
++        "@com_github_google_go_cmp//cmp",
++        "@com_github_google_go_cmp//cmp/cmpopts",
++        "@com_github_kylelemons_godebug//pretty",
++        "@com_github_openconfig_gnmi//errdiff",
++        "@com_github_openconfig_gnmi//proto/gnmi",
++        "@com_github_openconfig_goyang//pkg/yang",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/util/sonic_assignability_test.go b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/util/sonic_assignability_test.go
+new file mode 100644
+index 0000000000000000000000000000000000000000..8ca70ed21eacc11ff2161f9945cabaa0004c10d4
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/util/sonic_assignability_test.go
+@@ -0,0 +1,57 @@
++package util
++
++import (
++	"reflect"
++	"testing"
++)
++
++type sonicTestBool bool
++type sonicTestBytes []byte
++type sonicTestNamedInt int
++type sonicTestStringer struct{}
++
++func (sonicTestStringer) String() string { return "value" }
++
++func TestSONiCStructAssignmentCompatibility(t *testing.T) {
++	type fields struct {
++		Bool     sonicTestBool
++		Bytes    sonicTestBytes
++		Number   *int
++		Any      interface{}
++		Stringer interface{ String() string }
++		Named    sonicTestNamedInt
++		Map      map[string]string
++	}
++	number := 42
++	tests := []struct {
++		name, field string
++		value, want interface{}
++		fail        bool
++	}{
++		{"derived bool", "Bool", true, sonicTestBool(true), false},
++		{"derived binary", "Bytes", []byte("sonic"), sonicTestBytes("sonic"), false},
++		{"pointer adaptation", "Number", number, &number, false},
++		{"pointer identity", "Number", &number, &number, false},
++		{"nil pointer", "Number", nil, (*int)(nil), false},
++		{"empty interface", "Any", []string{"sonic"}, []string{"sonic"}, false},
++		{"implemented interface", "Stringer", sonicTestStringer{}, sonicTestStringer{}, false},
++		{"same named type", "Named", sonicTestNamedInt(42), sonicTestNamedInt(42), false},
++		{"incompatible slice", "Bytes", []string{"one", "two"}, nil, true},
++		{"incompatible pointer", "Number", new(string), nil, true},
++		{"incompatible map", "Map", map[string]int{"one": 1}, nil, true},
++		{"different named type", "Named", number, nil, true},
++		{"unimplemented interface", "Stringer", number, nil, true},
++	}
++	for _, tt := range tests {
++		t.Run(tt.name, func(t *testing.T) {
++			got := &fields{}
++			err := InsertIntoStruct(got, tt.field, tt.value)
++			if (err != nil) != tt.fail {
++				t.Fatalf("error=%v, want failure=%v", err, tt.fail)
++			}
++			if !tt.fail && !reflect.DeepEqual(reflect.ValueOf(got).Elem().FieldByName(tt.field).Interface(), tt.want) {
++				t.Fatalf("field=%v want=%v", reflect.ValueOf(got).Elem().FieldByName(tt.field).Interface(), tt.want)
++			}
++		})
++	}
++}
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygen/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygen/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..5e099a7bc9faad9f989bd15d86a42013fce293a1
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygen/BUILD.bazel
+@@ -0,0 +1,74 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
++
++go_library(
++    name = "ygen",
++    srcs = [
++        "codegen.go",
++        "directory.go",
++        "genstate.go",
++        "goelements.go",
++        "gogen.go",
++        "helpers.go",
++        "protoelements.go",
++        "protogen.go",
++        "schemaparse.go",
++        "schematree.go",
++    ],
++    importpath = "github.com/openconfig/ygot/ygen",
++    visibility = ["//visibility:public"],
++    deps = [
++        "//genutil",
++        "//util",
++        "//ygot",
++        "@com_github_golang_glog//:glog",
++        "@com_github_google_go_cmp//cmp",
++        "@com_github_openconfig_gnmi//ctree",
++        "@com_github_openconfig_gnmi//errlist",
++        "@com_github_openconfig_gnmi//proto/gnmi",
++        "@com_github_openconfig_goyang//pkg/yang",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":ygen",
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "ygen_test",
++    srcs = [
++        "codegen_test.go",
++        "directory_test.go",
++        "genstate_test.go",
++        "goelements_test.go",
++        "gogen_test.go",
++        "helpers_test.go",
++        "protoelements_test.go",
++        "protogen_test.go",
++        "schemaparse_test.go",
++        "schematree_test.go",
++    ],
++    args = ["-test.v"],
++    data = glob(["testdata/**"]) + ["//:schema_testdata"],
++    embed = [":ygen"],
++    deps = [
++        "//genutil",
++        "//internal/sonicfixture",
++        "//testutil",
++        "//ygot",
++        "@com_github_google_go_cmp//cmp",
++        "@com_github_google_go_cmp//cmp/cmpopts",
++        "@com_github_kylelemons_godebug//pretty",
++        "@com_github_openconfig_gnmi//errdiff",
++        "@com_github_openconfig_goyang//pkg/yang",
++    ],
++)
++
++go_test(
++    name = "sonic_union_order_test",
++    srcs = ["sonic_union_order_test.go"],
++    args = ["-test.v"],
++    data = ["sonic_union_order.yang"],
++    embed = [":ygen"],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygen/schema_tests/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygen/schema_tests/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..35ef5b1a5ce5dacf73fafc7413fdd4b267beb9f3
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygen/schema_tests/BUILD.bazel
+@@ -0,0 +1,26 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
++
++go_library(
++    name = "schema_tests",
++    srcs = ["schema.go"],
++    importpath = "github.com/openconfig/ygot/ygen/schema_tests",
++    visibility = ["//visibility:public"],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":schema_tests",
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "schema_tests_test",
++    srcs = ["schema_test.go"],
++    args = ["-test.v"],
++    embed = [":schema_tests"],
++    deps = [
++        "//exampleoc",
++        "//ygot",
++        "@com_github_google_go_cmp//cmp",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygen/sonic_union_order.yang b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygen/sonic_union_order.yang
+new file mode 100644
+index 0000000000000000000000000000000000000000..2a95763d3c85b3ca3f489dd69dcee69da832ccfc
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygen/sonic_union_order.yang
+@@ -0,0 +1,16 @@
++module sonic-ordering {
++  namespace "urn:sonic:ordering";
++  prefix ordering;
++  identity ZULU;
++  identity ZULU_CHILD { base ZULU; }
++  identity ALPHA;
++  identity ALPHA_CHILD { base ALPHA; }
++  container root {
++    leaf selected {
++      type union {
++        type identityref { base ZULU; }
++        type identityref { base ALPHA; }
++      }
++    }
++  }
++}
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygen/sonic_union_order_test.go b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygen/sonic_union_order_test.go
+new file mode 100644
+index 0000000000000000000000000000000000000000..fbeed0e64283f743e2353170f530a2a73562d820
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygen/sonic_union_order_test.go
+@@ -0,0 +1,30 @@
++package ygen
++
++import (
++	"strings"
++	"testing"
++)
++
++func TestSONiCUnionEnumReflectionOrder(t *testing.T) {
++	var first string
++	for round := 0; round < 64; round++ {
++		generator := NewYANGCodeGenerator(&GeneratorConfig{
++			PackageName: "ordering", Caller: "sonic-ordering-test",
++			GenerateJSONSchema: true,
++		})
++		generated, errors := generator.GenerateGoCode([]string{"sonic_union_order.yang"}, nil)
++		if len(errors) != 0 {
++			t.Fatal(errors)
++		}
++		reflection := strings.ToLower(generated.EnumTypeMap)
++		zulu, alpha := strings.Index(reflection, "zulu"), strings.Index(reflection, "alpha")
++		if zulu < 0 || alpha <= zulu || !strings.Contains(reflection, "/selected") {
++			t.Fatalf("declared union order lost in reflection map: %s", generated.EnumTypeMap)
++		}
++		if round == 0 {
++			first = generated.EnumTypeMap
++		} else if first != generated.EnumTypeMap {
++			t.Fatalf("round %d changed the union reflection output", round)
++		}
++	}
++}
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygot/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygot/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..db07405aadb1b0639f5172c58517c91ff0cf7559
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygot/BUILD.bazel
+@@ -0,0 +1,73 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
++
++go_library(
++    name = "ygot",
++    srcs = [
++        "diff.go",
++        "helpers.go",
++        "path_types.go",
++        "pathstrings.go",
++        "proto.go",
++        "render.go",
++        "schema.go",
++        "struct_validation_map.go",
++        "types.go",
++    ],
++    importpath = "github.com/openconfig/ygot/ygot",
++    visibility = ["//visibility:public"],
++    deps = [
++        "//proto/yext",
++        "//proto/ywrapper",
++        "//util",
++        "@com_github_golang_protobuf//proto",
++        "@com_github_google_go_cmp//cmp",
++        "@com_github_kylelemons_godebug//pretty",
++        "@com_github_openconfig_gnmi//errlist",
++        "@com_github_openconfig_gnmi//proto/gnmi",
++        "@com_github_openconfig_gnmi//value",
++        "@com_github_openconfig_goyang//pkg/yang",
++        "@org_golang_google_protobuf//proto",
++        "@org_golang_google_protobuf//reflect/protoreflect",
++        "@org_golang_google_protobuf//types/descriptorpb",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":ygot",
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "ygot_test",
++    srcs = [
++        "diff_test.go",
++        "helpers_test.go",
++        "path_types_test.go",
++        "pathstrings_test.go",
++        "proto_test.go",
++        "render_test.go",
++        "schema_test.go",
++        "sonic_json_test.go",
++        "sonic_map_merge_test.go",
++        "struct_validation_map_test.go",
++    ],
++    args = ["-test.v"],
++    data = glob(["testdata/*.json-txt"]),
++    embed = [":ygot"],
++    deps = [
++        "//proto/ywrapper",
++        "//testutil",
++        "//util",
++        "//ygot/testdata/exschemapath",
++        "@com_github_golang_protobuf//proto",
++        "@com_github_google_go_cmp//cmp",
++        "@com_github_google_go_cmp//cmp/cmpopts",
++        "@com_github_kylelemons_godebug//pretty",
++        "@com_github_openconfig_gnmi//errdiff",
++        "@com_github_openconfig_gnmi//proto/gnmi",
++        "@com_github_openconfig_goyang//pkg/yang",
++        "@org_golang_google_protobuf//proto",
++        "@org_golang_google_protobuf//testing/protocmp",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygot/pathtranslate/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygot/pathtranslate/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..5203cc2a7b166c4ed2abbba68957cd3368fd1757
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygot/pathtranslate/BUILD.bazel
+@@ -0,0 +1,32 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
++
++go_library(
++    name = "pathtranslate",
++    srcs = ["pathtranslate.go"],
++    importpath = "github.com/openconfig/ygot/ygot/pathtranslate",
++    visibility = ["//visibility:public"],
++    deps = [
++        "@com_github_openconfig_gnmi//proto/gnmi",
++        "@com_github_openconfig_goyang//pkg/yang",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":pathtranslate",
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "pathtranslate_test",
++    srcs = ["pathtranslate_test.go"],
++    args = ["-test.v"],
++    embed = [":pathtranslate"],
++    deps = [
++        "@com_github_golang_protobuf//proto",
++        "@com_github_google_go_cmp//cmp",
++        "@com_github_openconfig_gnmi//errdiff",
++        "@com_github_openconfig_gnmi//proto/gnmi",
++        "@com_github_openconfig_goyang//pkg/yang",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygot/schema_tests/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygot/schema_tests/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..705d2e9b56c5d2db55444e374cba4fc426fd42a8
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygot/schema_tests/BUILD.bazel
+@@ -0,0 +1,33 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
++
++go_library(
++    name = "schema_tests",
++    srcs = ["schema.go"],
++    importpath = "github.com/openconfig/ygot/ygot/schema_tests",
++    visibility = ["//visibility:public"],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":schema_tests",
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "schema_tests_test",
++    srcs = ["schema_test.go"],
++    args = ["-test.v"],
++    data = glob(["testdata/**"]),
++    embed = [":schema_tests"],
++    deps = [
++        "//exampleoc",
++        "//testutil",
++        "//uexampleoc",
++        "//ygot",
++        "@com_github_golang_protobuf//proto",
++        "@com_github_kylelemons_godebug//pretty",
++        "@com_github_openconfig_gnmi//errdiff",
++        "@com_github_openconfig_gnmi//proto/gnmi",
++        "@com_github_openconfig_gnmi//value",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygot/sonic_json_test.go b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygot/sonic_json_test.go
+new file mode 100644
+index 0000000000000000000000000000000000000000..54823f2eecceabdbe2efc6999d9979d9df500c90
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygot/sonic_json_test.go
+@@ -0,0 +1,17 @@
++package ygot
++
++import (
++	"bytes"
++	"encoding/json"
++	"testing"
++)
++
++// SONiC emits compact JSON. Preserve every original expected token and its order.
++func sonicCompactJSON(t *testing.T, data []byte) []byte {
++	t.Helper()
++	var out bytes.Buffer
++	if err := json.Compact(&out, data); err != nil {
++		t.Fatal(err)
++	}
++	return out.Bytes()
++}
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygot/testdata/exschemapath/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygot/testdata/exschemapath/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..6a13f1cc957b083283058a6b547f5cf5642863f3
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygot/testdata/exschemapath/BUILD.bazel
+@@ -0,0 +1,25 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library")
++
++# Preserve the generated Go fixtures shipped by upstream v0.7.1.
++go_library(
++    name = "exschemapath",
++    srcs = [
++        "exschemapath.pb.go",
++        "gen.go",
++    ],
++    importpath = "github.com/openconfig/ygot/ygot/testdata/exschemapath",
++    visibility = ["//visibility:public"],
++    deps = [
++        "//proto/yext",
++        "//proto/ywrapper",
++        "@com_github_golang_protobuf//proto",
++        "@org_golang_google_protobuf//reflect/protoreflect",
++        "@org_golang_google_protobuf//runtime/protoimpl",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":exschemapath",
++    visibility = ["//visibility:public"],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ypathgen/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ypathgen/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..e03febf2d143cf5b54607c7e9e0a819b23115853
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ypathgen/BUILD.bazel
+@@ -0,0 +1,37 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
++
++go_library(
++    name = "ypathgen",
++    srcs = ["pathgen.go"],
++    importpath = "github.com/openconfig/ygot/ypathgen",
++    visibility = ["//visibility:public"],
++    deps = [
++        "//genutil",
++        "//util",
++        "//ygen",
++        "//ygot",
++        "@com_github_openconfig_goyang//pkg/yang",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":ypathgen",
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "ypathgen_test",
++    srcs = ["pathgen_test.go"],
++    args = ["-test.v"],
++    data = glob(["testdata/**"]) + ["//:schema_testdata"],
++    embed = [":ypathgen"],
++    deps = [
++        "//testutil",
++        "//ygen",
++        "@com_github_google_go_cmp//cmp",
++        "@com_github_google_go_cmp//cmp/cmpopts",
++        "@com_github_openconfig_gnmi//errdiff",
++        "@com_github_openconfig_goyang//pkg/yang",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ypathgen/generator/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ypathgen/generator/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..f3a4596c0cff612652a77dcdf45fc6ac54e1bfed
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ypathgen/generator/BUILD.bazel
+@@ -0,0 +1,31 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
++
++go_library(
++    name = "generator_lib",
++    srcs = ["generator.go"],
++    importpath = "github.com/openconfig/ygot/ypathgen/generator",
++    visibility = ["//visibility:private"],
++    deps = [
++        "//genutil",
++        "//ypathgen",
++        "@com_github_golang_glog//:glog",
++        "@com_github_openconfig_goyang//pkg/yang",
++    ],
++)
++
++go_binary(
++    name = "generator",
++    embed = [":generator_lib"],
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "generator_test",
++    srcs = ["generator_test.go"],
++    args = ["-test.v"],
++    embed = [":generator_lib"],
++    deps = [
++        "//ypathgen",
++        "@com_github_google_go_cmp//cmp",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ypathgen/path_tests/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ypathgen/path_tests/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..dfbdc9b2acff491c37268e4aa0c823e54127c93b
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ypathgen/path_tests/BUILD.bazel
+@@ -0,0 +1,29 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
++
++go_library(
++    name = "path_tests",
++    srcs = ["path.go"],
++    importpath = "github.com/openconfig/ygot/ypathgen/path_tests",
++    visibility = ["//visibility:public"],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":path_tests",
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "path_tests_test",
++    srcs = ["path_test.go"],
++    args = ["-test.v"],
++    embed = [":path_tests"],
++    deps = [
++        "//exampleoc",
++        "//exampleocpath",
++        "//ygot",
++        "//ypathgen",
++        "@com_github_golang_protobuf//proto",
++        "@com_github_google_go_cmp//cmp",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ytypes/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ytypes/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..aa52b9fd0639fc23f0dbe64061f9e87f933ebbff
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ytypes/BUILD.bazel
+@@ -0,0 +1,90 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
++
++go_library(
++    name = "ytypes",
++    srcs = [
++        "any_type.go",
++        "binary_type.go",
++        "bitset_type.go",
++        "bool_type.go",
++        "choice.go",
++        "common.go",
++        "container.go",
++        "decimal_type.go",
++        "empty_type.go",
++        "int_type.go",
++        "leaf.go",
++        "leaf_list.go",
++        "leafref.go",
++        "list.go",
++        "node.go",
++        "string_type.go",
++        "types.go",
++        "unmarshal.go",
++        "util_json.go",
++        "util_schema.go",
++        "util_types.go",
++        "validate.go",
++    ],
++    importpath = "github.com/openconfig/ygot/ytypes",
++    visibility = ["//visibility:public"],
++    deps = [
++        "//util",
++        "//ygot",
++        "@com_github_golang_glog//:glog",
++        "@com_github_golang_protobuf//proto",
++        "@com_github_google_go_cmp//cmp",
++        "@com_github_kylelemons_godebug//pretty",
++        "@com_github_openconfig_gnmi//proto/gnmi",
++        "@com_github_openconfig_gnmi//value",
++        "@com_github_openconfig_goyang//pkg/yang",
++        "@org_golang_google_grpc//codes",
++        "@org_golang_google_grpc//status",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":ytypes",
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "ytypes_test",
++    srcs = [
++        "any_type_test.go",
++        "binary_type_test.go",
++        "bitset_type_test.go",
++        "bool_type_test.go",
++        "choice_test.go",
++        "common_test.go",
++        "container_test.go",
++        "decimal_type_test.go",
++        "empty_type_test.go",
++        "int_type_test.go",
++        "leaf_list_test.go",
++        "leaf_test.go",
++        "leafref_test.go",
++        "list_test.go",
++        "node_test.go",
++        "sonic_container_defaults_test.go",
++        "string_type_test.go",
++        "types_test.go",
++        "unmarshal_test.go",
++        "util_test.go",
++        "validate_test.go",
++    ],
++    args = ["-test.v"],
++    embed = [":ytypes"],
++    deps = [
++        "//internal/sonicfixture",
++        "//util",
++        "//ygot",
++        "@com_github_golang_protobuf//proto",
++        "@com_github_google_go_cmp//cmp",
++        "@com_github_kylelemons_godebug//pretty",
++        "@com_github_openconfig_gnmi//errdiff",
++        "@com_github_openconfig_gnmi//proto/gnmi",
++        "@com_github_openconfig_goyang//pkg/yang",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ytypes/schema_tests/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ytypes/schema_tests/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..482998601a0d58ce625895225c6c4b7094c91e08
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ytypes/schema_tests/BUILD.bazel
+@@ -0,0 +1,48 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
++
++go_library(
++    name = "schema_tests",
++    srcs = ["validate.go"],
++    importpath = "github.com/openconfig/ygot/ytypes/schema_tests",
++    visibility = ["//visibility:public"],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":schema_tests",
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "schema_tests_test",
++    srcs = [
++        "diff_benchmark_test.go",
++        "get_test.go",
++        "leafref_benchmark_test.go",
++        "race_test.go",
++        "set_test.go",
++        "sonic_fixture_test.go",
++        "validate_test.go",
++    ],
++    args = ["-test.v"],
++    data = glob(["testdata/**"]),
++    embed = [":schema_tests"],
++    deps = [
++        "//exampleoc",
++        "//experimental/ygotutils",
++        "//internal/sonicfixture",
++        "//testutil",
++        "//uexampleoc",
++        "//util",
++        "//ygot",
++        "//ytypes",
++        "@com_github_golang_protobuf//proto",
++        "@com_github_google_go_cmp//cmp",
++        "@com_github_google_go_cmp//cmp/cmpopts",
++        "@com_github_openconfig_gnmi//errdiff",
++        "@com_github_openconfig_gnmi//proto/gnmi",
++        "@com_github_openconfig_goyang//pkg/yang",
++        "@org_golang_google_genproto_googleapis_rpc//code",
++        "@org_golang_google_genproto_googleapis_rpc//status",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ytypes/schema_tests/sonic_fixture_test.go b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ytypes/schema_tests/sonic_fixture_test.go
+new file mode 100644
+index 0000000000000000000000000000000000000000..476c4323bbae2874e60e4cf71321993c0d9a7f45
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ytypes/schema_tests/sonic_fixture_test.go
+@@ -0,0 +1,16 @@
++package validate
++
++import (
++	"github.com/openconfig/ygot/exampleoc"
++	"github.com/openconfig/ygot/internal/sonicfixture"
++	"github.com/openconfig/ygot/uexampleoc"
++)
++
++func init() {
++	for _, entry := range exampleoc.SchemaTree {
++		sonicfixture.Entry(entry)
++	}
++	for _, entry := range uexampleoc.SchemaTree {
++		sonicfixture.Entry(entry)
++	}
++}
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ytypes/sonic_container_defaults_test.go b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ytypes/sonic_container_defaults_test.go
+new file mode 100644
+index 0000000000000000000000000000000000000000..5f1981949a609d51eebc5e55ffa80203a18de37d
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ytypes/sonic_container_defaults_test.go
+@@ -0,0 +1,40 @@
++package ytypes
++
++import (
++	"github.com/openconfig/goyang/pkg/yang"
++	"testing"
++)
++
++type sonicUnknownFields struct {
++	Map     map[string]int `path:"map"`
++	Slice   []string       `path:"slice"`
++	Pointer *int           `path:"pointer"`
++	Bool    bool           `path:"bool"`
++	Enum    int64          `path:"enum"`
++}
++
++func (*sonicUnknownFields) IsYANGGoStruct() {}
++func TestSONiCUnknownContainerFieldDefaults(t *testing.T) {
++	zero := 0
++	tests := []struct {
++		name  string
++		input *sonicUnknownFields
++		fail  bool
++	}{
++		{"nil maps slices pointers and zero scalars", &sonicUnknownFields{}, false},
++		{"nonnil empty map", &sonicUnknownFields{Map: map[string]int{}}, true},
++		{"nonnil empty slice", &sonicUnknownFields{Slice: []string{}}, true},
++		{"nonnil zero pointer", &sonicUnknownFields{Pointer: &zero}, true},
++		{"nonzero bool", &sonicUnknownFields{Bool: true}, true},
++		{"nonzero enum", &sonicUnknownFields{Enum: 1}, true},
++	}
++	for _, tt := range tests {
++		t.Run(tt.name, func(t *testing.T) {
++			schema := &yang.Entry{Name: "root", Kind: yang.DirectoryEntry, Dir: map[string]*yang.Entry{}, PerfOpts: &yang.PerformanceOpts{}}
++			errs := validateContainer(schema, tt.input)
++			if (errs != nil) != tt.fail {
++				t.Fatalf("errors %v, want failure %v", errs, tt.fail)
++			}
++		})
++	}
++}
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/patches/0001-preserve-sonic-behavior.patch b/modules/openconfig_ygot/0.7.1.sonic.1/patches/0001-preserve-sonic-behavior.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..0b3ccb42524e78f2ae1d8bf2d1345966cf4afb8e
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/patches/0001-preserve-sonic-behavior.patch
+@@ -0,0 +1,2017 @@
++diff --git a/generator/generator.go b/generator/generator.go
++index a1c7e5e..e191dc3 100644
++--- a/generator/generator.go
+++++ b/generator/generator.go
++@@ -109,7 +109,7 @@ func writeGoCodeSingleFile(w io.Writer, goCode *ygen.GeneratedGoCode) error {
++ }
++ 
++ // writeIfNotEmpty writes the string s to b if it has a non-zero length.
++-func writeIfNotEmpty(b io.StringWriter, s string) {
+++func writeIfNotEmpty(b *strings.Builder, s string) {
++ 	if len(s) != 0 {
++ 		b.WriteString(s)
++ 	}
++diff --git a/genutil/common.go b/genutil/common.go
++index 6b9f251..7caee4a 100644
++--- a/genutil/common.go
+++++ b/genutil/common.go
++@@ -18,9 +18,9 @@ package genutil
++ 
++ import (
++ 	"fmt"
++-	"io"
++ 	"sort"
++-
+++	"strings"
+++	
++ 	"github.com/openconfig/goyang/pkg/yang"
++ 	"github.com/openconfig/ygot/util"
++ 	"github.com/openconfig/ygot/ygot"
++@@ -42,7 +42,7 @@ const (
++ )
++ 
++ // WriteIfNotEmpty writes the string s to b if it has a non-zero length.
++-func WriteIfNotEmpty(b io.StringWriter, s string) {
+++func WriteIfNotEmpty(b *strings.Builder, s string) {
++ 	if len(s) != 0 {
++ 		b.WriteString(s)
++ 	}
++diff --git a/util/debug.go b/util/debug.go
++index 225468e..5c5ea23 100644
++--- a/util/debug.go
+++++ b/util/debug.go
++@@ -12,6 +12,9 @@
++ // See the License for the specific language governing permissions and
++ // limitations under the License.
++ 
+++// This file is changed by Broadcom.
+++// Modifications - Copyright 2019 Broadcom. The term Broadcom refers to Broadcom Inc. and/or its subsidiaries.
+++
++ package util
++ 
++ import (
++@@ -53,6 +56,14 @@ func DbgPrint(v ...interface{}) {
++ 	fmt.Println(globalIndent + out)
++ }
++ 
+++func IsDebugLibraryEnabled () bool {
+++	return debugLibrary
+++}
+++
+++func IsDebugSchemaEnabled () bool {
+++	return debugSchema
+++}
+++
++ // DbgSchema prints v if the package global variable debugSchema is set.
++ // v has the same format as Printf.
++ func DbgSchema(v ...interface{}) {
++@@ -177,6 +188,9 @@ func SchemaTypeStr(schema *yang.Entry) string {
++ 
++ // YangTypeToDebugString returns a debug string representation of a YangType.
++ func YangTypeToDebugString(yt *yang.YangType) string {
+++	if !debugLibrary {
+++		return ""
+++	}
++ 	out := fmt.Sprintf("(TypeKind: %s", yang.TypeKindToName[yt.Kind])
++ 	if len(yt.Pattern) != 0 {
++ 		out += fmt.Sprintf(", Pattern: %s", strings.Join(yt.Pattern, " or "))
++diff --git a/util/path.go b/util/path.go
++index c5709dc..decfc08 100644
++--- a/util/path.go
+++++ b/util/path.go
++@@ -12,6 +12,9 @@
++ // See the License for the specific language governing permissions and
++ // limitations under the License.
++ 
+++// This file is changed by Broadcom.
+++// Modifications - Copyright 2019 Broadcom. The term Broadcom refers to Broadcom Inc. and/or its subsidiaries.
+++
++ package util
++ 
++ import (
++@@ -19,10 +22,14 @@ import (
++ 	"fmt"
++ 	"reflect"
++ 	"strings"
+++	"sync"
++ 
++ 	"github.com/openconfig/goyang/pkg/yang"
++ )
++ 
+++var pathToSchemaCache map[reflect.StructTag][]string = make(map[reflect.StructTag][]string)
+++var pathToSchemaMutex sync.RWMutex
+++
++ // SchemaPaths returns all the paths in the path tag.
++ func SchemaPaths(f reflect.StructField) ([][]string, error) {
++ 	var out [][]string
++@@ -40,34 +47,52 @@ func SchemaPaths(f reflect.StructField) ([][]string, error) {
++ 
++ // RelativeSchemaPath returns a path to the schema for the struct field f.
++ // Paths are embedded in the "path" struct tag and can be either simple:
++-//   e.g. "path:a"
+++//
+++//	e.g. "path:a"
+++//
++ // or composite (if path compression is used) e.g.
++-//   e.g. "path:config/a|a"
+++//
+++//	e.g. "path:config/a|a"
+++//
++ // In the latter case, this function returns {"config", "a"}, because only the
++ // longer path exists in the data tree and we want the schema for that node.
++ // This case is found in OpenConfig leaf-ref cases where the key of a list is a
++ // leafref; the schema *yang.Entry for the field is given by
++ // schema.Dir["config"].Dir["a"].
++ func RelativeSchemaPath(f reflect.StructField) ([]string, error) {
++-	pathTag, ok := f.Tag.Lookup("path")
++-	if !ok || pathTag == "" {
++-		return nil, fmt.Errorf("field %s did not specify a path", f.Name)
++-	}
+++	pathToSchemaMutex.RLock()
+++	if pe, ok := pathToSchemaCache[f.Tag]; ok {
+++		pathToSchemaMutex.RUnlock()
+++		return pe, nil
+++	} else {
+++		pathToSchemaMutex.RUnlock()
+++		pathTag, ok := f.Tag.Lookup("path")
+++		if !ok || pathTag == "" {
+++			return nil, fmt.Errorf("field %s did not specify a path", f.Name)
+++		}
++ 
++-	paths := strings.Split(pathTag, "|")
++-	if len(paths) == 1 {
++-		pathTag = strings.TrimPrefix(pathTag, "/")
++-		return strings.Split(pathTag, "/"), nil
++-	}
++-	for _, pv := range paths {
++-		pv = strings.TrimPrefix(pv, "/")
++-		pe := strings.Split(pv, "/")
++-		if len(pe) > 1 {
++-			return pe, nil
+++		paths := strings.Split(pathTag, "|")
+++		if len(paths) == 1 {
+++			pathTag = strings.TrimPrefix(pathTag, "/")
+++			retPath := strings.Split(pathTag, "/")
+++			pathToSchemaMutex.Lock()
+++			pathToSchemaCache[f.Tag] = retPath
+++			pathToSchemaMutex.Unlock()
+++			return retPath, nil
+++		}
+++		for _, pv := range paths {
+++			pv = strings.TrimPrefix(pv, "/")
+++			pe := strings.Split(pv, "/")
+++			if len(pe) > 1 {
+++				pathToSchemaMutex.Lock()
+++				pathToSchemaCache[f.Tag] = pe
+++				pathToSchemaMutex.Unlock()
+++				return pe, nil
+++			}
++ 		}
++-	}
++ 
++-	return nil, fmt.Errorf("field %s had path tag %s with |, but no elements of form a/b", f.Name, pathTag)
+++		return nil, fmt.Errorf("field %s had path tag %s with |, but no elements of form a/b", f.Name, pathTag)
+++	}
++ }
++ 
++ // SchemaTreePath returns the schema tree path of the supplied yang.Entry
++@@ -174,10 +199,10 @@ func removeXPATHPredicates(s string) (string, error) {
++ // FindLeafRefSchema returns a schema Entry at the path pathStr relative to
++ // schema if it exists, or an error otherwise.
++ // pathStr has either:
++-//  - the relative form "../a/b/../b/c", where ".." indicates the parent of the
++-//    node, or
++-//  - the absolute form "/a/b/c", which indicates the absolute path from the
++-//    root of the schema tree.
+++//   - the relative form "../a/b/../b/c", where ".." indicates the parent of the
+++//     node, or
+++//   - the absolute form "/a/b/c", which indicates the absolute path from the
+++//     root of the schema tree.
++ func FindLeafRefSchema(schema *yang.Entry, pathStr string) (*yang.Entry, error) {
++ 	if pathStr == "" {
++ 		return nil, fmt.Errorf("leafref schema %s has empty path", schema.Name)
++@@ -215,6 +240,10 @@ func FindLeafRefSchema(schema *yang.Entry, pathStr string) (*yang.Entry, error)
++ 		refSchema = refSchema.Dir[pe]
++ 	}
++ 
+++	if refSchema.Type.Kind == yang.Yleafref {
+++		return FindLeafRefSchema(refSchema, refSchema.Type.Path)
+++	}
+++
++ 	return refSchema, nil
++ }
++ 
++@@ -271,7 +300,7 @@ func StripModulePrefix(name string) string {
++ // names. The path returned omits any leading or trailing empty elements when
++ // splitting on the / character.
++ func PathStringToElements(path string) []string {
++-	parts := SplitPath(path)
+++	parts := SplitPath2(path)
++ 	// Remove leading empty element
++ 	if len(parts) > 0 && parts[0] == "" {
++ 		parts = parts[1:]
++@@ -283,6 +312,44 @@ func PathStringToElements(path string) []string {
++ 	return parts
++ }
++ 
+++// SplitPath2 splits path across unescaped /.
+++// Any / inside square brackets are ignored.
+++func SplitPath2(path string) []string {
+++	var parts []string
+++	var buf bytes.Buffer
+++
+++	var inKey, inEscape bool
+++
+++	var ch rune
+++	for _, ch = range path {
+++		switch {
+++		case ch == '[' && !inEscape:
+++			inKey = true
+++		case ch == ']' && !inEscape:
+++			inKey = false
+++		case ch == '\\' && !inEscape:
+++			inEscape = true
+++			if inKey {
+++				buf.WriteRune(ch)
+++			}
+++			continue
+++		case ch == '/' && !inEscape && !inKey:
+++			parts = append(parts, buf.String())
+++			buf.Reset()
+++			continue
+++		}
+++
+++		buf.WriteRune(ch)
+++		inEscape = false
+++	}
+++
+++	if buf.Len() != 0 || (len(path) != 1 && ch == '/') {
+++		parts = append(parts, buf.String())
+++	}
+++
+++	return parts
+++}
+++
++ // SplitPath splits path across unescaped /.
++ // Any / inside square brackets are ignored.
++ func SplitPath(path string) []string {
++diff --git a/util/reflect.go b/util/reflect.go
++index 6f9f3ea..4ff75b6 100644
++--- a/util/reflect.go
+++++ b/util/reflect.go
++@@ -12,6 +12,9 @@
++ // See the License for the specific language governing permissions and
++ // limitations under the License.
++ 
+++// This file is changed by Broadcom.
+++// Modifications - Copyright 2019 Broadcom. The term Broadcom refers to Broadcom Inc. and/or its subsidiaries.
+++
++ package util
++ 
++ import (
++@@ -191,8 +194,10 @@ func InsertIntoSlice(parentSlice interface{}, value interface{}) error {
++ 
++ // InsertIntoMap inserts value with key into parent which must be a map.
++ func InsertIntoMap(parentMap interface{}, key interface{}, value interface{}) error {
++-	DbgPrint("InsertIntoMap into parent type %T with key %v(%T) value \n%s\n (%T)",
++-		parentMap, ValueStrDebug(key), key, pretty.Sprint(value), value)
+++	if debugLibrary {
+++		DbgPrint("InsertIntoMap into parent type %T with key %v(%T) value \n%s\n (%T)",
+++		         parentMap, ValueStrDebug(key), key, pretty.Sprint(value), value)
+++	}
++ 
++ 	v := reflect.ValueOf(parentMap)
++ 	t := reflect.TypeOf(parentMap)
++@@ -283,7 +288,7 @@ func InsertIntoStruct(parentStruct interface{}, fieldName string, fieldValue int
++ 		n = reflect.Zero(ft.Type)
++ 	}
++ 
++-	if !isFieldTypeCompatible(ft, n) {
+++	if !isFieldTypeCompatible(ft, n) && !IsValueTypeCompatible(ft.Type, v) {
++ 		return fmt.Errorf("cannot assign value %v (type %T) to struct field %s (type %v) in struct %T", fieldValue, fieldValue, fieldName, ft.Type, parentStruct)
++ 	}
++ 
++@@ -452,14 +457,46 @@ func DeepEqualDerefPtrs(a, b interface{}) bool {
++ 	return cmp.Equal(aa, bb)
++ }
++ 
+++func updateChildSchemaCache (schema *yang.Entry, tagStr reflect.StructTag, ygEntry *yang.Entry) {
+++	schema.PerfOpts.ChildSchemaMutex.Lock()
+++	schema.PerfOpts.ChildSchemaCache[tagStr] = ygEntry
+++	schema.PerfOpts.ChildSchemaMutex.Unlock()
+++}
+++
+++func childSchemaCache(schema *yang.Entry, tagStr reflect.StructTag) *yang.Entry {
+++	if schema.PerfOpts.ChildSchemaCache == nil {
+++		schema.PerfOpts.ChildSchemaMutex.Lock()
+++		if schema.PerfOpts.ChildSchemaCache == nil {
+++			schema.PerfOpts.ChildSchemaCache = make(map[reflect.StructTag]*yang.Entry)
+++			schema.PerfOpts.ChildSchemaMutex.Unlock()
+++			return nil
+++		}
+++		schema.PerfOpts.ChildSchemaMutex.Unlock()
+++	}
+++	schema.PerfOpts.ChildSchemaMutex.RLock()
+++	rv, ok := schema.PerfOpts.ChildSchemaCache[tagStr]
+++	schema.PerfOpts.ChildSchemaMutex.RUnlock()
+++	if ok {
+++		return rv
+++	}
+++	return nil
+++}
+++
++ // ChildSchema returns the schema for the struct field f, if f contains a valid
++ // path tag and the schema path is found in the schema tree. It returns an error
++ // if the struct tag is invalid, or nil if tag is valid but the schema is not
++ // found in the tree at the specified path.
++ // TODO(wenbli): need unit test
++ func ChildSchema(schema *yang.Entry, f reflect.StructField) (*yang.Entry, error) {
++-	pathTag, _ := f.Tag.Lookup("path")
++-	DbgSchema("childSchema for schema %s, field %s, tag %s\n", schema.Name, f.Name, pathTag)
+++	if cschema := childSchemaCache(schema, f.Tag); cschema != nil {
+++		return cschema, nil
+++	}
+++
+++	if IsDebugSchemaEnabled() {
+++		pathTag, _ := f.Tag.Lookup("path")
+++		DbgSchema("childSchema for schema %s, field %s, tag %s\n", schema.Name, f.Name, pathTag)	
+++	}
+++	
++ 	p, err := RelativeSchemaPath(f)
++ 	if err != nil {
++ 		return nil, err
++@@ -490,6 +527,7 @@ func ChildSchema(schema *yang.Entry, f reflect.StructField) (*yang.Entry, error)
++ 	}
++ 	if foundSchema {
++ 		DbgSchema(" - found\n")
+++		updateChildSchemaCache (schema, f.Tag, childSchema)
++ 		return childSchema, nil
++ 	}
++ 	DbgSchema(" - not found\n")
++@@ -505,11 +543,15 @@ func ChildSchema(schema *yang.Entry, f reflect.StructField) (*yang.Entry, error)
++ 		// path element i.e. choice1/case1/leaf1 path in the schema will have
++ 		// struct tag `path:"leaf1"`. This implies that only paths with length
++ 		// 1 are eligible for this matching.
+++		updateChildSchemaCache (schema, f.Tag, nil)
++ 		return nil, nil
++ 	}
++ 	entries := FindFirstNonChoiceOrCase(schema)
++ 
++-	DbgSchema("checking for %s against non choice/case entries: %v\n", p[0], stringMapKeys(entries))
+++	if IsDebugSchemaEnabled() {
+++		DbgSchema("checking for %s against non choice/case entries: %v\n", p[0], stringMapKeys(entries))
+++	}
+++
++ 	for path, entry := range entries {
++ 		splitPath := SplitPath(path)
++ 		name := splitPath[len(splitPath)-1]
++@@ -517,11 +559,13 @@ func ChildSchema(schema *yang.Entry, f reflect.StructField) (*yang.Entry, error)
++ 
++ 		if StripModulePrefix(name) == p[0] {
++ 			DbgSchema(" - match\n")
+++			updateChildSchemaCache (schema, f.Tag, entry)
++ 			return entry, nil
++ 		}
++ 	}
++ 
++ 	DbgSchema(" - no matches\n")
+++	updateChildSchemaCache (schema, f.Tag, nil)	
++ 	return nil, nil
++ }
++ 
++diff --git a/ygen/codegen.go b/ygen/codegen.go
++index 991705e..ca48c82 100644
++--- a/ygen/codegen.go
+++++ b/ygen/codegen.go
++@@ -15,6 +15,10 @@
++ // Package ygen contains a library to generate Go structs from a YANG model.
++ // The Goyang parsing library is used to parse YANG. The output can consider
++ // OpenConfig-specific conventions such that the schema is compressed.
+++
+++// This file is changed by Broadcom.
+++// Modifications - Copyright 2019 Broadcom. The term Broadcom refers to Broadcom Inc. and/or its subsidiaries.
+++
++ package ygen
++ 
++ import (
++@@ -946,7 +950,7 @@ func findMappableEntities(e *yang.Entry, dirs map[string]*yang.Entry, enums map[
++ 			dirs[ch.Path()] = ch
++ 			// Recurse down the tree.
++ 			errs = util.AppendErrs(errs, findMappableEntities(ch, dirs, enums, excludeModules, compressPaths, modules))
++-		case ch.Kind == yang.AnyDataEntry:
+++		case (ch.Kind == yang.AnyDataEntry), (ch.Kind == yang.NotificationEntry):	
++ 			continue
++ 		default:
++ 			errs = util.AppendErr(errs, fmt.Errorf("unknown type of entry %v in findMappableEntities for %s", e.Kind, e.Path()))
++@@ -999,6 +1003,7 @@ func MakeFakeRoot(rootName string) *yang.Entry {
++ 		Node: &yang.Value{
++ 			Name: rootElementNodeName,
++ 		},
+++		PerfOpts: &yang.PerformanceOpts{},
++ 	}
++ }
++ 
++diff --git a/ygen/genstate.go b/ygen/genstate.go
++index e39c478..b7766f0 100644
++--- a/ygen/genstate.go
+++++ b/ygen/genstate.go
++@@ -12,6 +12,9 @@
++ // See the License for the specific language governing permissions and
++ // limitations under the License.
++ 
+++// This file is changed by Broadcom.
+++// Modifications - Copyright 2019 Broadcom. The term Broadcom refers to Broadcom Inc. and/or its subsidiaries.
+++
++ package ygen
++ 
++ import (
++@@ -83,6 +86,7 @@ func newEnumGenState() *enumGenState {
++ // noUnderscores boolean.
++ func (s *enumGenState) enumeratedUnionEntry(e *yang.Entry, compressPaths, noUnderscores bool) ([]*yangEnum, error) {
++ 	var es []*yangEnum
+++	enumSet := make(map[string]*yangEnum)
++ 
++ 	for _, t := range util.EnumeratedUnionTypes(e.Type.Type) {
++ 		var en *yangEnum
++@@ -111,20 +115,36 @@ func (s *enumGenState) enumeratedUnionEntry(e *yang.Entry, compressPaths, noUnde
++ 				}
++ 			}
++ 
++-			en = &yangEnum{
++-				name: enumName,
++-				entry: &yang.Entry{
++-					Name: e.Name,
++-					Type: &yang.YangType{
++-						Name: e.Type.Name,
++-						Kind: yang.Yenum,
++-						Enum: t.Enum,
+++			if tmpEn, ok := enumSet[enumName]; ok {
+++				enumTmp := yang.NewEnumType()
+++				for eNm, eVal := range t.Enum.NameMap() {
+++					if err := enumTmp.Set(eNm, eVal); err != nil {
+++						return nil, fmt.Errorf("%v", err)
+++					}
+++				}
+++				for eNm, eVal := range tmpEn.entry.Type.Enum.NameMap() {
+++					if err := enumTmp.Set(eNm, eVal); err != nil {
+++						return nil, fmt.Errorf("%v", err)
+++					}
+++				}
+++				tmpEn.entry.Type.Enum = enumTmp
+++				continue
+++			} else {
+++				en = &yangEnum{
+++					name: enumName,
+++					entry: &yang.Entry{
+++						Name: e.Name,
+++						Type: &yang.YangType{
+++							Name: e.Type.Name,
+++							Kind: yang.Yenum,
+++							Enum: t.Enum,
+++						},
+++						Annotation: map[string]interface{}{"valuePrefix": util.SchemaPathNoChoiceCase(e)},
++ 					},
++-					Annotation: map[string]interface{}{"valuePrefix": util.SchemaPathNoChoiceCase(e)},
++-				},
+++				}
+++				enumSet[enumName] = en
++ 			}
++ 		}
++-
++ 		es = append(es, en)
++ 	}
++ 
++diff --git a/ygen/schemaparse.go b/ygen/schemaparse.go
++index f71e7e6..1183fb8 100644
++--- a/ygen/schemaparse.go
+++++ b/ygen/schemaparse.go
++@@ -40,13 +40,32 @@ func buildJSONTree(ms []*yang.Entry, dn map[string]string, fakeroot *yang.Entry,
++ 	rootEntry := &yang.Entry{
++ 		Dir:        map[string]*yang.Entry{},
++ 		Annotation: map[string]interface{}{},
+++		PerfOpts:   &yang.PerformanceOpts{},
++ 	}
++ 	for _, m := range ms {
++ 		annotateChildren(m, dn)
+++
+++		// a leaf with a different prefix
+++		if len(m.Dir) == 0 {
+++			if _, found := m.Annotation["modulename"]; found {
+++				rootEntry.Dir[m.Name] = m
+++			}
+++		}
+++
++ 		for _, ch := range util.Children(m) {
++ 			if _, ex := rootEntry.Dir[ch.Name]; ex {
++ 				return nil, fmt.Errorf("overlapping root children for key %s", ch.Name)
++ 			}
+++
+++			ch.Annotation["namespace"] = m.Namespace().Name
+++			ch.Annotation["modulename"] = m.Prefix.Parent.NName()
+++			ch.Annotation["revision"] = m.Prefix.Parent.(*yang.Module).Current()
+++			if m.Prefix.Parent.(*yang.Module).Organization != nil {
+++				ch.Annotation["organization"] = m.Prefix.Parent.(*yang.Module).Organization.Name
+++			} else {
+++				ch.Annotation["organization"] = ""
+++			}
+++
++ 			rootEntry.Dir[ch.Name] = ch
++ 		}
++ 	}
++@@ -101,6 +120,7 @@ func annotateChildren(e *yang.Entry, dn map[string]string) {
++ //    corresponds to a YANG directory.
++ func annotateEntry(e *yang.Entry, dn map[string]string) {
++ 	e.Description = ""
+++	e.Augmented = nil
++ 	if e.Annotation == nil {
++ 		e.Annotation = map[string]interface{}{}
++ 	}
++@@ -110,6 +130,11 @@ func annotateEntry(e *yang.Entry, dn map[string]string) {
++ 	if e.IsDir() {
++ 		e.Annotation["schemapath"] = e.Path()
++ 	}
+++	// add the modulename if the prefix is different from its parent
+++	// and it belong to "module" only, i.e. filter out submodule
+++	if e.Parent != nil && e.Namespace().Name != e.Parent.Namespace().Name && e.Prefix.Parent.Statement().Keyword == "module" {
+++		e.Annotation["modulename"] = e.Prefix.Parent.NName()
+++	}
++ }
++ 
++ // WriteGzippedByteSlice takes an input slice of bytes, gzips it
++diff --git a/ygot/render.go b/ygot/render.go
++index 0d649c3..393e7fa 100644
++--- a/ygot/render.go
+++++ b/ygot/render.go
++@@ -20,6 +20,7 @@ import (
++ 	"fmt"
++ 	"reflect"
++ 	"sort"
+++	"strconv"
++ 	"strings"
++ 
++ 	"github.com/golang/protobuf/proto"
++@@ -45,6 +46,11 @@ type path struct {
++ 	p *gnmiPath
++ }
++ 
+++type structTagInfo struct {
+++	gPathList []*gnmiPath
+++	chModName string
+++}
+++
++ func (p *path) String() string {
++ 	if p.p.isPathElemPath() {
++ 		return proto.MarshalTextString(&gnmipb.Path{Elem: p.p.pathElemPath})
++@@ -272,6 +278,8 @@ type GNMINotificationsConfig struct {
++ 	// of PathElem messages. This path format is used by gNMI 0.4.0 and
++ 	// above. Used if PathElem is set.
++ 	PathElemPrefix []*gnmipb.PathElem
+++	// Encoding to be used for atomic values - like keyless lists
+++	Encoding gnmipb.Encoding
++ }
++ 
++ // TogNMINotifications takes an input GoStruct and renders it to slice of
++@@ -297,7 +305,7 @@ func TogNMINotifications(s GoStruct, ts int64, cfg GNMINotificationsConfig) ([]*
++ 		return nil, err
++ 	}
++ 
++-	msgs, err := leavesToNotifications(leaves, ts, pfx)
+++	msgs, err := leavesToNotifications(leaves, ts, pfx, cfg.Encoding)
++ 	if err != nil {
++ 		return nil, err
++ 	}
++@@ -379,6 +387,13 @@ func findUpdatedLeaves(leaves map[*path]interface{}, s GoStruct, parent *gnmiPat
++ 			}
++ 		case reflect.Slice:
++ 			if fval.Type().Elem().Kind() == reflect.Ptr {
+++				// s is a container with single keyless list. Add the whole container
+++				if sval.NumField() == 1 {
+++					for _, p := range mapPaths {
+++						leaves[&path{p}] = s
+++					}
+++					continue
+++				}
++ 				// This is a keyless list - currently unsupported for mapping since there is
++ 				// not an explicit path that can be used.
++ 				errs.Add(fmt.Errorf("unimplemented: keyless list cannot be output: %v", mapPaths[0]))
++@@ -591,7 +606,7 @@ func sliceToScalarArray(v []interface{}) (*gnmipb.ScalarArray, error) {
++ // likely to be suboptimal since it results in very large Notifications for particular
++ // structs. There should be some fragmentation of Updates across Notification messages
++ // in a future implementation. We return a slice to keep the API stable.
++-func leavesToNotifications(leaves map[*path]interface{}, ts int64, pfx *gnmiPath) ([]*gnmipb.Notification, error) {
+++func leavesToNotifications(leaves map[*path]interface{}, ts int64, pfx *gnmiPath, enc gnmipb.Encoding) ([]*gnmipb.Notification, error) {
++ 	n := &gnmipb.Notification{
++ 		Timestamp: ts,
++ 	}
++@@ -613,7 +628,7 @@ func leavesToNotifications(leaves map[*path]interface{}, ts int64, pfx *gnmiPath
++ 			return nil, err
++ 		}
++ 
++-		val, err := EncodeTypedValue(v, gnmipb.Encoding_JSON)
+++		val, err := EncodeTypedValue(v, enc)
++ 		if err != nil {
++ 			return nil, err
++ 		}
++@@ -713,7 +728,7 @@ func marshalStruct(s GoStruct, enc gnmipb.Encoding) (*gnmipb.TypedValue, error)
++ 		return nil, err
++ 	}
++ 
++-	js, err := json.MarshalIndent(j, "", "  ")
+++	js, err := json.Marshal(j)
++ 	if err != nil {
++ 		return nil, fmt.Errorf("cannot encode JSON, %v", err)
++ 	}
++@@ -870,19 +885,21 @@ type RFC7951JSONConfig struct {
++ // the module name should be appended to entities that are defined in a different
++ // module to their parent.
++ func ConstructIETFJSON(s GoStruct, args *RFC7951JSONConfig) (map[string]interface{}, error) {
+++	tagPaths := map[reflect.StructTag]*structTagInfo{}
++ 	return structJSON(s, "", jsonOutputConfig{
++ 		jType:         RFC7951,
++ 		rfc7951Config: args,
++-	})
+++	}, tagPaths)
++ }
++ 
++ // ConstructInternalJSON marshals a supplied GoStruct to a map, suitable for handing
++-// to json.Marshal. It uses the loosely specified JSON format document in
+++// to json.Marshal. It usstres the loosely specified JSON format document in
++ // go/yang-internal-json.
++ func ConstructInternalJSON(s GoStruct) (map[string]interface{}, error) {
+++	tagPaths := map[reflect.StructTag]*structTagInfo{}
++ 	return structJSON(s, "", jsonOutputConfig{
++ 		jType: Internal,
++-	})
+++	}, tagPaths)
++ }
++ 
++ // jsonOutputConfig is used to determine how constructJSON should generate
++@@ -902,7 +919,7 @@ type jsonOutputConfig struct {
++ // be produced and whether such module names are appended is controlled through the
++ // supplied jsonOutputConfig. Returns an error if the GoStruct cannot be rendered
++ // to JSON.
++-func structJSON(s GoStruct, parentMod string, args jsonOutputConfig) (map[string]interface{}, error) {
+++func structJSON(s GoStruct, parentMod string, args jsonOutputConfig, tagPaths map[reflect.StructTag]*structTagInfo) (map[string]interface{}, error) {
++ 	var errs errlist.List
++ 
++ 	sval := reflect.ValueOf(s).Elem()
++@@ -916,20 +933,51 @@ func structJSON(s GoStruct, parentMod string, args jsonOutputConfig) (map[string
++ 		field := sval.Field(i)
++ 		fType := stype.Field(i)
++ 
+++		switch field.Kind() {
+++		case reflect.Map, reflect.Slice, reflect.Ptr, reflect.Interface:
+++			if field.IsNil() {
+++				continue
+++			}
+++		}
+++
++ 		// Determine whether we should append a module name to the path in RFC7951
++ 		// output mode.
++ 		var appmod string
+++
++ 		pmod := parentMod
++-		if chMod, ok := fType.Tag.Lookup("module"); ok {
++-			// If the child module isn't the same as the parent module,
++-			// then appmod stores the name of the module to prefix to paths
++-			// within this context.
++-			if chMod != parentMod {
++-				appmod = chMod
+++
+++		var mapPaths []*gnmiPath
+++		var err error
+++
+++		if tagInfo, ok := tagPaths[fType.Tag]; !ok {
+++			tagInfoObj := new(structTagInfo)
+++			tagInfoObj.gPathList, err = structTagToLibPaths(fType, newStringSliceGNMIPath([]string{}))
+++			if err != nil {
+++				errs.Add(fmt.Errorf("%s: %v", fType.Name, err))
+++				continue
+++			}
+++			if chMod, modOk := fType.Tag.Lookup("module"); modOk {
+++				// If the child module isn't the same as the parent module,
+++				// then appmod stores the name of the module to prefix to pathsmakejson
+++				// within this context.
+++				if chMod != parentMod {
+++					appmod = chMod
+++				}
+++				// Update the parent module name to be used for subsequent
+++				// children.
+++				pmod = chMod
+++				tagInfoObj.chModName = chMod
+++			} else {
+++				tagInfoObj.chModName = pmod
+++			}
+++			tagPaths[fType.Tag] = tagInfoObj
+++			mapPaths = tagInfoObj.gPathList
+++		} else {
+++			mapPaths = tagInfo.gPathList
+++			pmod = tagInfo.chModName
+++			if tagInfo.chModName != parentMod {
+++				appmod = tagInfo.chModName
++ 			}
++-			// Update the parent module name to be used for subsequent
++-			// children.
++-			pmod = chMod
++ 		}
++ 
++ 		var appendModName bool
++@@ -937,19 +985,8 @@ func structJSON(s GoStruct, parentMod string, args jsonOutputConfig) (map[string
++ 			appendModName = true
++ 		}
++ 
++-		mapPaths, err := structTagToLibPaths(fType, newStringSliceGNMIPath([]string{}))
++-		if err != nil {
++-			errs.Add(fmt.Errorf("%s: %v", fType.Name, err))
++-			continue
++-		}
++-
++ 		var value interface{}
++-
++-		if util.IsYgotAnnotation(fType) {
++-			value, err = jsonAnnotationSlice(field)
++-		} else {
++-			value, err = jsonValue(field, pmod, args)
++-		}
+++		value, err = jsonValue(field, pmod, args, tagPaths)
++ 
++ 		if err != nil {
++ 			errs.Add(err)
++@@ -1058,7 +1095,10 @@ func structJSON(s GoStruct, parentMod string, args jsonOutputConfig) (map[string
++ // and float64 values are represented as strings.
++ func writeIETFScalarJSON(i interface{}) interface{} {
++ 	switch reflect.ValueOf(i).Kind() {
++-	case reflect.Uint64, reflect.Int64, reflect.Float64:
+++	case reflect.Float64:
+++		val, _ := i.(float64)
+++		return strconv.FormatFloat(val, 'f', -1, 64)
+++	case reflect.Uint64, reflect.Int64:
++ 		return fmt.Sprintf("%v", i)
++ 	}
++ 	return i
++@@ -1086,7 +1126,7 @@ func keyValue(v reflect.Value, appendModuleName bool) (interface{}, error) {
++ // constructs the representation for JSON marshalling that corresponds to it.
++ // The module within which the map is defined is specified by the parentMod
++ // argument.
++-func mapJSON(field reflect.Value, parentMod string, args jsonOutputConfig) (interface{}, error) {
+++func mapJSON(field reflect.Value, parentMod string, args jsonOutputConfig, tagPaths map[reflect.StructTag]*structTagInfo) (interface{}, error) {
++ 	var errs errlist.List
++ 	mapKeyMap := map[string]reflect.Value{}
++ 	// Order of elements determines the order in which keys will be processed.
++@@ -1155,6 +1195,7 @@ func mapJSON(field reflect.Value, parentMod string, args jsonOutputConfig) (inte
++ 	default:
++ 		return nil, fmt.Errorf("invalid JSON format specified: %v", args.jType)
++ 	}
+++
++ 	for _, kn := range mapKeys {
++ 		k := mapKeyMap[kn]
++ 		goStruct, ok := field.MapIndex(k).Interface().(GoStruct)
++@@ -1163,7 +1204,7 @@ func mapJSON(field reflect.Value, parentMod string, args jsonOutputConfig) (inte
++ 			continue
++ 		}
++ 
++-		val, err := structJSON(goStruct, parentMod, args)
+++		val, err := structJSON(goStruct, parentMod, args, tagPaths)
++ 		if err != nil {
++ 			errs.Add(err)
++ 			continue
++@@ -1191,7 +1232,7 @@ func mapJSON(field reflect.Value, parentMod string, args jsonOutputConfig) (inte
++ // The module within which the value is defined is specified by the parentMod string,
++ // and the type of JSON to be rendered controlled by the value of the jsonOutputConfig
++ // provided. Returns an error if one occurs during the mapping process.
++-func jsonValue(field reflect.Value, parentMod string, args jsonOutputConfig) (interface{}, error) {
+++func jsonValue(field reflect.Value, parentMod string, args jsonOutputConfig, tagPaths map[reflect.StructTag]*structTagInfo) (interface{}, error) {
++ 	var value interface{}
++ 	var errs errlist.List
++ 
++@@ -1210,7 +1251,7 @@ func jsonValue(field reflect.Value, parentMod string, args jsonOutputConfig) (in
++ 	switch field.Kind() {
++ 	case reflect.Map:
++ 		var err error
++-		value, err = mapJSON(field, parentMod, args)
+++		value, err = mapJSON(field, parentMod, args, tagPaths)
++ 		if err != nil {
++ 			errs.Add(err)
++ 		}
++@@ -1223,7 +1264,7 @@ func jsonValue(field reflect.Value, parentMod string, args jsonOutputConfig) (in
++ 			}
++ 
++ 			var err error
++-			value, err = structJSON(goStruct, parentMod, args)
+++			value, err = structJSON(goStruct, parentMod, args, tagPaths)
++ 			if err != nil {
++ 				errs.Add(err)
++ 			}
++@@ -1235,7 +1276,7 @@ func jsonValue(field reflect.Value, parentMod string, args jsonOutputConfig) (in
++ 		}
++ 	case reflect.Slice:
++ 		var err error
++-		value, err = jsonSlice(field, parentMod, args)
+++		value, err = jsonSlice(field, parentMod, args, tagPaths)
++ 		if err != nil {
++ 			return nil, err
++ 		}
++@@ -1289,7 +1330,7 @@ func jsonValue(field reflect.Value, parentMod string, args jsonOutputConfig) (in
++ // GoStruct, a slice may be a binary field, leaf-list or an unkeyed list. The
++ // parentMod is used to track the name of the parent module in the case that
++ // module names should be appended.
++-func jsonSlice(field reflect.Value, parentMod string, args jsonOutputConfig) (interface{}, error) {
+++func jsonSlice(field reflect.Value, parentMod string, args jsonOutputConfig, tagPaths map[reflect.StructTag]*structTagInfo) (interface{}, error) {
++ 	if field.Type().Name() == BinaryTypeName {
++ 		// Handle the case that that we have a Binary ([]byte) value,
++ 		// which must be returned as a JSON string.
++@@ -1305,7 +1346,7 @@ func jsonSlice(field reflect.Value, parentMod string, args jsonOutputConfig) (in
++ 			if !ok {
++ 				return nil, fmt.Errorf("invalid member of a slice, %s was not a valid GoStruct", c.Name())
++ 			}
++-			j, err := structJSON(gs, parentMod, args)
+++			j, err := structJSON(gs, parentMod, args, tagPaths)
++ 			if err != nil {
++ 				return nil, err
++ 			}
++diff --git a/ygot/struct_validation_map.go b/ygot/struct_validation_map.go
++index d3e54b9..6d16641 100644
++--- a/ygot/struct_validation_map.go
+++++ b/ygot/struct_validation_map.go
++@@ -19,6 +19,10 @@
++ //	  to return pointers to a type.
++ //	- Renders structs to other output formats such as JSON, or gNMI
++ //	  notifications.
+++
+++// This file is changed by Broadcom.
+++// Modifications - Copyright 2019 Broadcom. The term Broadcom refers to Broadcom Inc. and/or its subsidiaries.
+++
++ package ygot
++ 
++ import (
++@@ -336,31 +340,12 @@ type EmitJSONConfig struct {
++ // EmitJSON takes an input ValidatedGoStruct (produced by ygen with validation enabled)
++ // and serialises it to a JSON string. By default, produces the Internal format JSON.
++ func EmitJSON(s ValidatedGoStruct, opts *EmitJSONConfig) (string, error) {
++-	var (
++-		vopts          []ValidationOption
++-		skipValidation bool
++-	)
++-
++-	if opts != nil {
++-		vopts = opts.ValidationOpts
++-		skipValidation = opts.SkipValidation
++-	}
++-
++-	if err := s.Validate(vopts...); !skipValidation && err != nil {
++-		return "", fmt.Errorf("validation err: %v", err)
++-	}
++-
++ 	v, err := makeJSON(s, opts)
++ 	if err != nil {
++ 		return "", err
++ 	}
++ 
++-	indent := indentString
++-	if opts != nil && opts.Indent != "" {
++-		indent = opts.Indent
++-	}
++-
++-	j, err := json.MarshalIndent(v, "", indent)
+++	j, err := json.Marshal(v)
++ 	if err != nil {
++ 		return "", fmt.Errorf("JSON marshalling error: %v", err)
++ 	}
++@@ -525,7 +510,6 @@ func copyStruct(dstVal, srcVal reflect.Value) error {
++ 	for i := 0; i < srcVal.NumField(); i++ {
++ 		srcField := srcVal.Field(i)
++ 		dstField := dstVal.Field(i)
++-
++ 		switch srcField.Kind() {
++ 		case reflect.Ptr:
++ 			if err := copyPtrField(dstField, srcField); err != nil {
++@@ -555,7 +539,13 @@ func copyStruct(dstVal, srcVal reflect.Value) error {
++ 				dstField.Set(srcField)
++ 			}
++ 		default:
++-			dstField.Set(srcField)
+++                    if srcField.Type().Implements(reflect.TypeOf((*GoEnum)(nil)).Elem()) == true {
+++                        if srcField.Int() != 0 {
+++                            dstField.Set(srcField)
+++                        }
+++                    } else {
+++                        dstField.Set(srcField)
+++                    }
++ 		}
++ 	}
++ 	return nil
++@@ -595,6 +585,7 @@ func copyPtrField(dstField, srcField reflect.Value) error {
++ 			return err
++ 		}
++ 		dstField.Set(d)
+++		
++ 		return nil
++ 	}
++ 
++@@ -608,6 +599,7 @@ func copyPtrField(dstField, srcField reflect.Value) error {
++ 	p := reflect.New(srcField.Type().Elem())
++ 	p.Elem().Set(srcField.Elem())
++ 	dstField.Set(p)
+++	
++ 	return nil
++ }
++ 
++@@ -636,6 +628,7 @@ func copyInterfaceField(dstField, srcField reflect.Value) error {
++ 		return err
++ 	}
++ 	dstField.Set(d)
+++
++ 	return nil
++ }
++ 
++@@ -645,6 +638,7 @@ func copyInterfaceField(dstField, srcField reflect.Value) error {
++ // key is populated in srcField and dstField, their contents are merged if they
++ // do not overlap, otherwise an error is returned.
++ func copyMapField(dstField, srcField reflect.Value) error {
+++
++ 	if !util.IsValueMap(srcField) {
++ 		return fmt.Errorf("received a non-map type in src map field: %v", srcField.Kind())
++ 	}
++@@ -664,8 +658,6 @@ func copyMapField(dstField, srcField reflect.Value) error {
++ 	}
++ 
++ 	srcKeys := srcField.MapKeys()
++-	dstKeys := dstField.MapKeys()
++-
++ 	nm := reflect.MakeMapWithSize(reflect.MapOf(m.key, m.value), srcField.Len())
++ 
++ 	mapsToMap := []struct {
++@@ -673,20 +665,24 @@ func copyMapField(dstField, srcField reflect.Value) error {
++ 		field reflect.Value
++ 	}{
++ 		{srcKeys, srcField},
++-		{dstKeys, dstField},
++ 	}
++ 	existingKeys := map[interface{}]reflect.Value{}
++ 
+++	for _, dstKey := range dstField.MapKeys()  {
+++		existingKeys[dstKey.Interface()] = dstField.MapIndex(dstKey)
+++	}
+++	
++ 	for _, m := range mapsToMap {
++ 		for _, k := range m.keys {
++ 			// If the key already exists, then determine the existing item to merge
++ 			// into.
++ 			v := m.field.MapIndex(k)
++ 			var d reflect.Value
++-			var ok bool
++-			if d, ok = existingKeys[k.Interface()]; !ok {
+++			if tmpVal, keyErr := compareMapKeys(existingKeys, k.Interface()); keyErr != nil {
++ 				d = reflect.New(v.Elem().Type())
++ 				existingKeys[k.Interface()] = v
+++			} else {
+++				d = *tmpVal
++ 			}
++ 
++ 			if err := copyStruct(d.Elem(), v.Elem()); err != nil {
++@@ -804,3 +800,12 @@ func uniqueSlices(a, b reflect.Value) (bool, error) {
++ 	}
++ 	return true, nil
++ }
+++
+++func compareMapKeys(existingKeys map[interface{}]reflect.Value, searchKey interface{}) (*reflect.Value, error) {
+++	for tmpKey, tmpVal := range existingKeys  {
+++		if cmp.Equal(tmpKey, searchKey) {
+++			return &tmpVal, nil
+++		}		
+++	}
+++	return nil, fmt.Errorf("No match found in the existingKeys map.")
+++}
++diff --git a/ytypes/container.go b/ytypes/container.go
++index 9864a2c..3209c78 100644
++--- a/ytypes/container.go
+++++ b/ytypes/container.go
++@@ -12,6 +12,9 @@
++ // See the License for the specific language governing permissions and
++ // limitations under the License.
++ 
+++// This file is changed by Broadcom.
+++// Modifications - Copyright 2019 Broadcom. The term Broadcom refers to Broadcom Inc. and/or its subsidiaries.
+++
++ package ytypes
++ 
++ import (
++@@ -69,9 +72,13 @@ func validateContainer(schema *yang.Entry, value ygot.GoStruct) util.Errors {
++ 			case cschema != nil:
++ 				// Regular named child.
++ 				if errs := Validate(cschema, fieldValue); errs != nil {
++-					errors = util.AppendErrs(errors, util.PrefixErrors(errs, cschema.Path()))
+++					if errs.Error() != "ERROR_READONLY_OBJECT_FOUND" {
+++						errors = util.AppendErrs(errors, util.PrefixErrors(errs, cschema.Path()))
+++					} else if len(errors) == 0 {
+++						errors = util.AppendErrs(errors, errs)
+++					}
++ 				}
++-			case !util.IsValueNilOrDefault(structElems.Field(i).Interface()):
+++			case !structElems.Field(i).IsNil():
++ 				// Either an element in choice schema subtree, or bad field.
++ 				// If the former, it will be found in the choice check below.
++ 				extraFields[fieldName] = nil
++@@ -101,6 +108,10 @@ func validateContainer(schema *yang.Entry, value ygot.GoStruct) util.Errors {
++ 		errors = util.AppendErr(errors, fmt.Errorf("fields %v are not found in the container schema %s", stringMapSetToSlice(extraFields), schema.Name))
++ 	}
++ 
+++	if len(errors) == 0 && schema.ReadOnly() == true {
+++		errors = util.AppendErrs(errors, util.NewErrs(fmt.Errorf("ERROR_READONLY_OBJECT_FOUND")))
+++	}
+++
++ 	return util.UniqueErrors(errors)
++ }
++ 
++@@ -138,6 +149,94 @@ func unmarshalContainer(schema *yang.Entry, parent interface{}, jsonTree interfa
++ 	return unmarshalStruct(schema, parent, jt, enc, opts...)
++ }
++ 
+++// unmarshalKeyFieldsInStruct unmarshals a JSON tree into a struct only for the Key fields.
+++// schema is the YANG schema of the node corresponding to the struct being unmarshalled into.
+++// mapParent is the interface which of type map holds this parent struct with the key
+++// parent is the parent struct, which must be a struct ptr.
+++// jsonTree is a JSON data tree which must be a map[string]interface{}.
+++// returns key as formatted string, else error
+++func unmarshalKeyFieldsInStruct(schema *yang.Entry, mapParent interface{}, parent interface{}, jsonTree map[string]interface{}, enc Encoding, opts ...UnmarshalOpt) (string, error) {
+++	destv := reflect.ValueOf(parent).Elem()
+++
+++	keySet := make(map[string]bool)
+++	listKeyType := reflect.TypeOf(mapParent).Key()
+++	if util.IsTypeStruct(listKeyType) {
+++		newKey := reflect.New(listKeyType).Elem()
+++		for i := 0; i < newKey.NumField(); i++ {
+++			keySet[listKeyType.Field(i).Name] = true
+++		}
+++	} else {
+++		if fName, err := schemaNameToFieldName(destv, schema.Key); err == nil {
+++			keySet[fName] = true
+++		}
+++	}
+++
+++	keyStr := ""
+++	// Range over the parent struct fields. For each field, check if the data
+++	// is present in the JSON tree and if so unmarshal it into the field.
+++	for i := 0; i < destv.NumField(); i++ {
+++		f := destv.Field(i)
+++		ft := destv.Type().Field(i)
+++		if _, ok := keySet[ft.Name]; !ok {
+++			continue
+++		}
+++		// Skip annotation fields since they do not have a schema.
+++		// TODO(robjs): Implement unmarshalling annotations.
+++		if util.IsYgotAnnotation(ft) {
+++			continue
+++		}
+++
+++		cschema, err := util.ChildSchema(schema, ft)
+++		if err != nil {
+++			return "", err
+++		}
+++		if cschema == nil {
+++			return "", fmt.Errorf("unmarshalContainer could not find schema for type %T, field name %s", parent, ft.Name)
+++		}
+++		jsonValue, err := getJSONTreeValForField(schema, cschema, ft, jsonTree)
+++		if err != nil {
+++			return "", err
+++		}
+++		// Store the data tree path of the current field. These will be used
+++		// at the end to ensure that there are no excess elements in the JSON
+++		// tree not covered by any data path.
+++		sp, err := dataTreePaths(schema, cschema, ft)
+++		if err != nil {
+++			return "", err
+++		}
+++		if jsonValue == nil {
+++			util.DbgPrint("field %s paths %v not present in tree", ft.Name, sp)
+++			continue
+++		}
+++		keyStr = keyStr + fmt.Sprintf("%v", jsonValue) + "#"
+++		util.DbgPrint("populating field %s type %s with paths %v.", ft.Name, ft.Type, sp)
+++		// Only create a new field if it is nil, otherwise update just the
+++		// fields that are in the data tree being passed to unmarshal, and
+++		// preserve all other existing values.
+++		if util.IsNilOrInvalidValue(f) {
+++			makeField(destv, ft)
+++		}
+++
+++		p := parent
+++		switch {
+++		case util.IsUnkeyedList(cschema):
+++			// For unkeyed list, we must pass in the addr of the slice to be
+++			// able to append to it.
+++			p = f.Addr().Interface()
+++		case cschema.IsContainer() || cschema.IsList():
+++			// For list and container, the new parent is the field we just
+++			// created. For leaf and leaf-list, the parent is still the
+++			// current container.
+++			p = f.Interface()
+++		}
+++		if err := unmarshalGeneric(cschema, p, jsonValue, enc, opts...); err != nil {
+++			return "", err
+++		}
+++	}
+++
+++	return keyStr, nil
+++}
+++
++ // unmarshalStruct unmarshals a JSON tree into a struct.
++ //   schema is the YANG schema of the node corresponding to the struct being
++ //     unmarshalled into.
++@@ -217,7 +316,10 @@ func unmarshalStruct(schema *yang.Entry, parent interface{}, jsonTree map[string
++ 		}
++ 	}
++ 
++-	util.DbgPrint("container after unmarshal:\n%s\n", pretty.Sprint(destv.Interface()))
+++	if util.IsDebugLibraryEnabled() {
+++		util.DbgPrint("container after unmarshal:\n%s\n", pretty.Sprint(destv.Interface()))
+++	}
+++
++ 	return nil
++ }
++ 
++diff --git a/ytypes/leaf.go b/ytypes/leaf.go
++index 1d4195a..55de85c 100644
++--- a/ytypes/leaf.go
+++++ b/ytypes/leaf.go
++@@ -12,6 +12,9 @@
++ // See the License for the specific language governing permissions and
++ // limitations under the License.
++ 
+++// This file is changed by Broadcom.
+++// Modifications - Copyright 2019 Broadcom. The term Broadcom refers to Broadcom Inc. and/or its subsidiaries.
+++
++ package ytypes
++ 
++ import (
++@@ -20,11 +23,13 @@ import (
++ 	"math/big"
++ 	"reflect"
++ 	"strconv"
+++	"strings"
++ 
++ 	log "github.com/golang/glog"
++ 	"github.com/openconfig/goyang/pkg/yang"
++ 	"github.com/openconfig/ygot/util"
++ 	"github.com/openconfig/ygot/ygot"
+++	"github.com/openconfig/gnmi/value"
++ 
++ 	gpb "github.com/openconfig/gnmi/proto/gnmi"
++ )
++@@ -77,7 +82,7 @@ func validateLeaf(inSchema *yang.Entry, value interface{}) util.Errors {
++ 
++ 	switch ykind {
++ 	case yang.Ybinary:
++-		return util.NewErrs(validateBinary(schema, value))
+++		return util.NewErrs(validateBinary(schema, rv))
++ 	case yang.Ybits:
++ 		return nil
++ 		// TODO(mostrowski): restore when representation is decided.
++@@ -258,7 +263,7 @@ func validateUnion(schema *yang.Entry, value interface{}) util.Errors {
++ // during validation against each matching schema otherwise.
++ func validateMatchingSchemas(schema *yang.Entry, value interface{}) util.Errors {
++ 	var errors []error
++-	ss := findMatchingSchemasInUnion(schema.Type, value)
+++	ss := findMatchingSchemasInUnion(schema, schema.Type, value)
++ 	var kk []yang.TypeKind
++ 	for _, s := range ss {
++ 		kk = append(kk, s.Type.Kind)
++@@ -289,17 +294,25 @@ func validateMatchingSchemas(schema *yang.Entry, value interface{}) util.Errors
++ // findMatchingSchemasInUnion returns all schemas in the given union type,
++ // including those within nested unions, that match the Go type of value.
++ // value must not be nil.
++-func findMatchingSchemasInUnion(ytype *yang.YangType, value interface{}) []*yang.Entry {
+++func findMatchingSchemasInUnion(schema *yang.Entry, ytype *yang.YangType, value interface{}) []*yang.Entry {
++ 	var matches []*yang.Entry
++ 
++ 	util.DbgPrint("findMatchingSchemasInUnion for type %T, kind %s", value, reflect.TypeOf(value).Kind())
++ 	for _, t := range ytype.Type {
++ 		if t.Kind == yang.Yunion {
++ 			// Recursively check all union types within this union.
++-			matches = append(matches, findMatchingSchemasInUnion(t, value)...)
+++			matches = append(matches, findMatchingSchemasInUnion(schema, t, value)...)
++ 			continue
++ 		}
++ 
+++		if t.Kind == yang.Yleafref {
+++			ns, err := util.FindLeafRefSchema(schema, t.Path)
+++			if err != nil {
+++				log.Warningf("not found base Go type for type %v in union value %s", t.Kind, util.ValueStr(value))
+++				continue
+++			}
+++			t = ns.Type
+++		}
++ 		ybt := yangBuiltinTypeToGoType(t.Kind)
++ 		if reflect.ValueOf(value).Kind() == reflect.Ptr {
++ 			ybt = ygot.ToPtr(yangBuiltinTypeToGoType(t.Kind))
++@@ -467,8 +480,11 @@ func unmarshalUnion(schema *yang.Entry, parent interface{}, fieldName string, va
++ 		default:
++ 			return fmt.Errorf("got %v non-enum types and %v enum types for union schema %s for type %T, expect just one type in total", sks, ets, fieldName, parent)
++ 		}
++-
++-		goValue, err := unmarshalScalar(parent, yangKindToLeafEntry(yk), fieldName, value, enc)
+++		
+++		ygEntry := yangKindToLeafEntry(yk)
+++		ygEntry.Name = schema.Name
+++		ygEntry.Parent = schema.Parent
+++		goValue, err := unmarshalScalar(parent, ygEntry, fieldName, value, enc)
++ 		if err != nil {
++ 			return fmt.Errorf("could not unmarshal %v into type %s", value, yk)
++ 		}
++@@ -533,6 +549,8 @@ func unmarshalUnion(schema *yang.Entry, parent interface{}, fieldName string, va
++ 	for _, sk := range sks {
++ 		util.DbgPrint("try to unmarshal into type %s", sk)
++ 		sch := yangKindToLeafEntry(sk)
+++		sch.Parent = schema.Parent
+++		sch.Name = schema.Name
++ 		gv, err := unmarshalScalar(parent, sch, fieldName, value, enc)
++ 		if err == nil {
++ 			return setFieldWithTypedValue(parentT, destUnionFieldV, destUnionFieldElemT, gv)
++@@ -632,22 +650,24 @@ func getUnionTypesNotEnums(schema *yang.Entry, yt *yang.YangType) ([]*yang.YangT
++ // type) for a given schema, which must be for an enum type. t is the type of
++ // the containing parent struct.
++ func schemaToEnumTypes(schema *yang.Entry, t reflect.Type) ([]reflect.Type, error) {
++-	enumTypesMethod := reflect.New(t).Elem().MethodByName("ΛEnumTypeMap")
+++	enumTypesMethod := reflect.New(t).Elem().MethodByName("\u039bEnumTypeMap")
++ 	if !enumTypesMethod.IsValid() {
++-		return nil, fmt.Errorf("type %s does not have a ΛEnumTypesMap function", t)
+++		return nil, fmt.Errorf("type %s does not have a \u039bEnumTypesMap function", t)
++ 	}
++ 
++ 	ec := enumTypesMethod.Call(nil)
++ 	if len(ec) == 0 {
++-		return nil, fmt.Errorf("%s ΛEnumTypes function returns empty value", t)
+++		return nil, fmt.Errorf("%s \u039bEnumTypes function returns empty value", t)
++ 	}
++ 	ei := ec[0].Interface()
++ 	enumTypesMap, ok := ei.(map[string][]reflect.Type)
++ 	if !ok {
++-		return nil, fmt.Errorf("%s ΛEnumTypes function returned wrong type %T, want map[string][]reflect.Type", t, ei)
+++		return nil, fmt.Errorf("%s \u039bEnumTypes function returned wrong type %T, want map[string][]reflect.Type", t, ei)
++ 	}
++ 
++-	util.DbgPrint("path is %s for schema %s", absoluteSchemaDataPath(schema), schema.Name)
+++	if util.IsDebugLibraryEnabled() {
+++		util.DbgPrint("path is %s for schema %s", absoluteSchemaDataPath(schema), schema.Name)	
+++	}
++ 
++ 	return enumTypesMap[absoluteSchemaDataPath(schema)], nil
++ }
++@@ -770,6 +790,65 @@ func sanitizeJSON(parent interface{}, schema *yang.Entry, fieldName string, valu
++ 	return nil, fmt.Errorf("unmarshalScalar: unsupported type %v in schema node %s", ykind, schema.Name)
++ }
++ 
+++func yangTypeToGoTypeVal (parent interface{}, schema *yang.Entry, fieldName string, value interface{}) (interface{}, error) {
+++	ykind := schema.Type.Kind
+++
+++	switch ykind {
+++	case yang.Ybinary:
+++		v, err := base64.StdEncoding.DecodeString(value.(string))
+++		if err != nil {
+++			return nil, fmt.Errorf("Error in Decode String for \n%v\n for schema %s: %v", value, schema.Name, err)
+++		}
+++		return []byte(v), nil
+++
+++	case yang.Ybool:
+++		if strings.ToLower(value.(string)) == "false" {
+++			return false, nil
+++		} else if strings.ToLower(value.(string)) == "true" {
+++			return true, nil
+++		} else {
+++			return nil, fmt.Errorf("Error in converting to yang bool type for the value for \n%v\n for schema %s", value, schema.Name)
+++		}
+++
+++	case yang.Ystring:
+++		return value.(string), nil
+++
+++	case yang.Ydecimal64:
+++		floatV, err := strconv.ParseFloat(value.(string), 64)
+++		if err != nil {
+++			return nil, fmt.Errorf("Error parsing %v for schema %s: %v", value, schema.Name, err)
+++		}
+++		return floatV, nil
+++
+++	case yang.Yenum, yang.Yidentityref:
+++		return enumStringToValue(parent, fieldName, value.(string))
+++
+++	case yang.Yint64:
+++		// TODO(b/64812268): value types are different for internal style JSON.
+++		intV, err := strconv.ParseInt(value.(string), 10, 64)
+++		if err != nil {
+++			return nil, fmt.Errorf("Error parsing %v for schema %s: %v", value, schema.Name, err)
+++		}
+++		return intV, nil
+++
+++	case yang.Yuint64:
+++		uintV, err := strconv.ParseUint(value.(string), 10, 64)
+++		if err != nil {
+++			return nil, fmt.Errorf("Error parsing %v for schema %s: %v", value, schema.Name, err)
+++		}
+++		return uintV, nil
+++
+++	case yang.Yint8, yang.Yint16, yang.Yint32, yang.Yuint8, yang.Yuint16, yang.Yuint32:
+++		gt := reflect.TypeOf(yangBuiltinTypeToGoType(ykind))
+++		if rv, err := StringToType(gt, value.(string)); err != nil {
+++			return nil, fmt.Errorf("Error StringToType:parsing %v for schema %s: %v", value, schema.Name, err)
+++		} else {
+++			return rv.Interface(), nil
+++		}
+++	}
+++	return nil, fmt.Errorf("Error: unsupported type %v in schema node %s", ykind, schema.Name)
+++}
+++
++ // sanitizeGNMI decodes the GNMI TypedValue encoded value into a field of the
++ // corresponding type in GoStruct. Parent is the parent struct containing the
++ // field being unmarshaled. schema is *yang.Entry corresponding to the field.
++@@ -780,6 +859,18 @@ func sanitizeJSON(parent interface{}, schema *yang.Entry, fieldName string, valu
++ func sanitizeGNMI(parent interface{}, schema *yang.Entry, fieldName string, tv *gpb.TypedValue, jsonTolerance bool) (interface{}, error) {
++ 	ykind := schema.Type.Kind
++ 
+++	//get the original schema of the node and check whether it is leaf-list
+++	if ygNode := schema.Parent.Dir[schema.Name]; ygNode != nil && ygNode.IsLeafList() {
+++		// convert the leaf-list's value only if its of type string(TypedValue_StringVal)
+++		if len(tv.GetStringVal()) > 0 {
+++			if goVal, err := yangTypeToGoTypeVal (parent, schema, fieldName, tv.GetStringVal()); err == nil {
+++				if gnmiTypeVal, err := value.FromScalar(goVal); err == nil {
+++					tv = gnmiTypeVal
+++				}			
+++			}
+++		}
+++	}
+++	
++ 	var ok bool
++ 	if ok = gNMIToYANGTypeMatches(ykind, tv, jsonTolerance); !ok {
++ 		return nil, fmt.Errorf("failed to unmarshal %v into %v", tv.GetValue(), yang.TypeKindToName[ykind])
++@@ -875,4 +966,4 @@ func isValueInterfacePtrToEnum(v reflect.Value) bool {
++ 	v = v.Elem()
++ 
++ 	return v.Kind() == reflect.Int64
++-}
+++}
++\ No newline at end of file
++diff --git a/ytypes/list.go b/ytypes/list.go
++index ec52ee3..a67b164 100644
++--- a/ytypes/list.go
+++++ b/ytypes/list.go
++@@ -12,6 +12,9 @@
++ // See the License for the specific language governing permissions and
++ // limitations under the License.
++ 
+++// This file is changed by Broadcom.
+++// Modifications - Copyright 2019 Broadcom. The term Broadcom refers to Broadcom Inc. and/or its subsidiaries.
+++
++ package ytypes
++ 
++ import (
++@@ -19,6 +22,8 @@ import (
++ 	"reflect"
++ 	"strings"
++ 
+++	log "github.com/golang/glog"
+++	"github.com/google/go-cmp/cmp"
++ 	"github.com/kylelemons/godebug/pretty"
++ 	"github.com/openconfig/goyang/pkg/yang"
++ 	"github.com/openconfig/ygot/util"
++@@ -217,6 +222,9 @@ func validateListSchema(schema *yang.Entry) error {
++ 		if len(schema.Key) == 0 {
++ 			return fmt.Errorf("list %s with config set must have a key", schema.Name)
++ 		}
+++		if schema.PerfOpts.IsSchemaValidated.Load() {
+++			return nil
+++		}
++ 		keys := strings.Fields(schema.Key)
++ 		keysMissing := make(map[string]bool)
++ 		for _, v := range keys {
++@@ -232,6 +240,7 @@ func validateListSchema(schema *yang.Entry) error {
++ 		}
++ 	}
++ 
+++	schema.PerfOpts.IsSchemaValidated.Store(true)
++ 	return nil
++ }
++ 
++@@ -271,6 +280,31 @@ func nameMatchesPath(fieldName string, path []string) (bool, error) {
++ 	return false, fmt.Errorf("expected field %s path to have one or two elements, got %v", fieldName, path)
++ }
++ 
+++func isKeyHasStructPtr(key reflect.Value) bool {
+++	switch key.Type().Kind() {
+++	case reflect.Ptr:
+++		return true
+++	case reflect.Interface:
+++		key = key.Elem()
+++		switch key.Type().Kind() {
+++		case reflect.Ptr:
+++			return true
+++		case reflect.Struct:
+++		default:
+++			return false
+++		}
+++	case reflect.Struct:
+++	default:
+++		return false
+++	}
+++	for i, n := 0, key.NumField(); i < n; i++ {
+++		if isKeyHasStructPtr(key.Field(i)) {
+++			return true
+++		}
+++	}
+++	return false
+++}
+++
++ // unmarshalList unmarshals a JSON array into a list parent, which must be a
++ // map or slice ptr.
++ //   schema is the schema of the schema node corresponding to the struct being
++@@ -316,6 +350,22 @@ func unmarshalList(schema *yang.Entry, parent interface{}, jsonList interface{},
++ 	if !util.IsTypeStructPtr(listElementType) {
++ 		return fmt.Errorf("unmarshalList for %s parent type %T, has bad field type %v", listElementType, parent, listElementType)
++ 	}
+++	isUpdate := (util.IsTypeMap(t) && isAllowUpdateInListMap(opts))
+++	isListUpdate := isUpdate
+++	mapV := reflect.ValueOf(parent)
+++
+++	isKeyHasPtr := false
+++	keyCnt := 0
+++	if isListUpdate {
+++		keyCnt = mapV.Len()
+++		if keyCnt == 0 {
+++			isListUpdate = false
+++		} else {
+++			itr := mapV.MapRange()
+++			itr.Next()
+++			isKeyHasPtr = isKeyHasStructPtr(itr.Key())
+++		}
+++	}
++ 
++ 	// Iterate over JSON list. Each JSON list element is a map with the field
++ 	// name as the key. The JSON values must be unmarshaled and inserted into
++@@ -325,22 +375,75 @@ func unmarshalList(schema *yang.Entry, parent interface{}, jsonList interface{},
++ 	// types respectively.
++ 	// For a keyed list, the value(s) of the key are derived from the key fields
++ 	// in the new list element.
+++	keyMap := make(map[string]bool)
++ 	for _, le := range jl {
++ 		var err error
++ 		jt := le.(map[string]interface{})
++ 		newVal := reflect.New(listElementType.Elem())
++ 		util.DbgPrint("creating a new list element val of type %v", newVal.Type())
++-		if err := unmarshalStruct(schema, newVal.Interface(), jt, enc, opts...); err != nil {
++-			return err
+++		keyStr := ""
+++		if isUpdate {
+++			keyStr, err = unmarshalKeyFieldsInStruct(schema, parent, newVal.Interface(), jt, enc, opts...)
+++			if err != nil {
+++				log.Warning("Error in unmarshaling key fields: ", err, " and the structure type: ", newVal.Type())
+++				pretty.Print(newVal.Interface())
+++				pretty.Print(jt)
+++				log.Info("Error in unmarshaling: schema key: ", schema.Key, " - parent type : ", reflect.TypeOf(parent), " - key type", reflect.TypeOf(parent).Key())
+++				return err
+++			} else if log.V(6) {
+++				log.Info("unmarshalKeyFieldsInStruct: key in string format: ", keyStr)
+++			}
+++			if keyCnt == 0 && !keyMap[keyStr] {
+++				isListUpdate = false
+++			}
+++		}
+++		if !isListUpdate {
+++			if err := unmarshalStruct(schema, newVal.Interface(), jt, enc, opts...); err != nil {
+++				return err
+++			}
++ 		}
++-
++ 		switch {
++ 		case util.IsTypeMap(t):
++ 			newKey, err := makeKeyForInsert(schema, parent, newVal)
++ 			if err != nil {
++ 				return err
++ 			}
++-			err = util.InsertIntoMap(parent, newKey.Interface(), newVal.Interface())
+++			isKeyExist := false
+++			if isListUpdate {
+++				if isKeyHasPtr {
+++					iter := mapV.MapRange()
+++					for iter.Next() {
+++						if cmp.Equal(iter.Key().Interface(), newKey.Interface()) {
+++							newVal = iter.Value()
+++							isKeyExist = true
+++							if !keyMap[keyStr] {
+++								keyCnt--
+++								keyMap[keyStr] = true
+++							}
+++							break
+++						}
+++					}
+++				} else if listKV := mapV.MapIndex(reflect.ValueOf(newKey.Interface())); listKV.IsValid() {
+++					if log.V(6) {
+++						log.Info("Unmarshaling: key's type: ", newKey.Type(), " with value: ", newKey, " already exist in the map for the structure: ", listKV.Type())
+++						log.Info("Unmarshaling: schema.Key: ", schema.Key, " - parent type : ", reflect.TypeOf(parent), " - key type", reflect.TypeOf(parent).Key())
+++						pretty.Print(listKV.Interface())
+++						pretty.Print(jt)
+++					}
+++					newVal = listKV
+++					isKeyExist = true
+++					if !keyMap[keyStr] {
+++						keyCnt--
+++						keyMap[keyStr] = true
+++					}
+++				}
+++				if err := unmarshalStruct(schema, newVal.Interface(), jt, enc, opts...); err != nil {
+++					return err
+++				}
+++			}
+++			if !isKeyExist {
+++				err = util.InsertIntoMap(parent, newKey.Interface(), newVal.Interface())
+++			}
++ 		case util.IsTypeSlicePtr(t):
++ 			err = util.InsertIntoSlice(parent, newVal.Interface())
++ 		default:
++@@ -350,7 +453,9 @@ func unmarshalList(schema *yang.Entry, parent interface{}, jsonList interface{},
++ 			return err
++ 		}
++ 	}
++-	util.DbgPrint("list after unmarshal:\n%s\n", pretty.Sprint(parent))
+++	if util.IsDebugLibraryEnabled() {
+++		util.DbgPrint("list after unmarshal:\n%s\n", pretty.Sprint(parent))
+++	}
++ 
++ 	return nil
++ }
++@@ -394,11 +499,91 @@ func makeValForInsert(schema *yang.Entry, parent interface{}, keys map[string]st
++ 		if util.IsValuePtr(fv) {
++ 			ft = ft.Elem()
++ 		}
++-
++-		nv, err := StringToType(ft, fieldVal)
+++		sf, ok := val.Elem().Type().FieldByName(fn)
+++		if ok == false {
+++			return fmt.Errorf("Field %s not present in the struct %s", fn, val.Elem())
+++		}
+++		cschema, err := util.ChildSchema(schema, sf)
++ 		if err != nil {
++ 			return err
++ 		}
+++		keyLeafKind := cschema.Type.Kind
+++		if keyLeafKind == yang.Yleafref {
+++			lrfschema, err := util.ResolveIfLeafRef(cschema)
+++			if err != nil {
+++				return err
+++			}
+++			keyLeafKind = lrfschema.Type.Kind
+++		}
+++
+++		var nv reflect.Value
+++		if keyLeafKind == yang.Yunion && strings.HasSuffix(ft.Name(), "_Union") {
+++			sks, err := getUnionKindsNotEnums(cschema)
+++			if err != nil {
+++				return err
+++			}
+++			for _, sk := range sks {
+++				gv, err := StringToType(reflect.TypeOf(yangBuiltinTypeToGoType(sk)), fieldVal)
+++				if err == nil {
+++					mn := "To_" + ft.Name()
+++					mapMethod := val.MethodByName(mn)
+++					if !mapMethod.IsValid() {
+++						return fmt.Errorf("%s does not have a %s function", val, mn)
+++					}
+++					ec := mapMethod.Call([]reflect.Value{gv})
+++					if len(ec) != 2 {
+++						return fmt.Errorf("%s %s function returns %d params", ft.Name(), mn, len(ec))
+++					}
+++					ei := ec[0].Interface()
+++					ee := ec[1].Interface()
+++					if ee != nil {
+++						return fmt.Errorf("unmarshaled %v type %T does not have a union type: %v", fieldVal, fieldVal, ee)
+++					}
+++					nv = reflect.ValueOf(ei)
+++					break
+++				}
+++			}
+++
+++			if nv.IsValid() == false {
+++				ets, err := schemaToEnumTypes(cschema, val.Type())
+++				if err != nil {
+++					return err
+++				}
+++				for _, et := range ets {
+++					ev, err := castToEnumValue(et, fieldVal)
+++					if err != nil {
+++						return err
+++					}
+++					if ev != nil {
+++						mn := "To_" + ft.Name()
+++						mapMethod := val.MethodByName(mn)
+++						if !mapMethod.IsValid() {
+++							return fmt.Errorf("%s does not have a %s function", val, mn)
+++						}
+++						ec := mapMethod.Call([]reflect.Value{reflect.ValueOf(ev)})
+++						if len(ec) != 2 {
+++							return fmt.Errorf("%s %s function returns %d params", ft.Name(), mn, len(ec))
+++						}
+++						ei := ec[0].Interface()
+++						ee := ec[1].Interface()
+++						if ee != nil {
+++							return fmt.Errorf("unmarshaled %v type %T does not have a union type: %v", fieldVal, fieldVal, ee)
+++						}
+++						nv = reflect.ValueOf(ei)
+++						break
+++					}
+++					fmt.Errorf("could not unmarshal %v into enum type: %s\n", fieldVal, err)
+++				}
+++				if nv.IsValid() == false {
+++					return fmt.Errorf("could not create the value type for the field name %s  with the value %s", fn, fieldVal)
+++				}
+++			}
+++		} else {
+++			nv, err = StringToType(ft, fieldVal)
+++			if err != nil {
+++				return err
+++			}
+++		}
++ 		return util.InsertIntoStruct(val.Interface(), fn, nv.Interface())
++ 	}
++ 
++@@ -468,6 +653,8 @@ func makeKeyForInsert(schema *yang.Entry, parentMap interface{}, newVal reflect.
++ 	kv, err := getKeyValue(newVal.Elem(), schema.Key)
++ 	if err != nil {
++ 		return reflect.ValueOf(nil), err
+++	} else if kv == nil {
+++		return reflect.ValueOf(nil), fmt.Errorf("List key leaf node %v is not present in the payload", schema.Key)
++ 	}
++ 	util.DbgPrint("key value is %v.", kv)
++ 
++@@ -494,6 +681,9 @@ func insertAndGetKey(schema *yang.Entry, root interface{}, keys map[string]strin
++ 	}
++ 
++ 	// TODO(yusufsn): When the key is a leafref, its target should be filled out.
+++	if len(keys) == 0 {
+++		return nil, nil
+++	}
++ 	mapVal, err := makeValForInsert(schema, root, keys)
++ 	if err != nil {
++ 		return nil, fmt.Errorf("failed to create map value for insert, root %T, keys %v: %v", root, keys, err)
++@@ -557,3 +747,43 @@ func getKeyValue(structVal reflect.Value, key string) (interface{}, error) {
++ 
++ 	return nil, fmt.Errorf("could not find key field %s in struct type %s", key, structVal.Type())
++ }
+++
+++// UnmarshalListKey creates the key and its value (ygot struct) and insert into the map return the created ygot struct
+++// if the key is not already present in the map
+++func UnmarshalListKey(schema *yang.Entry, root interface{}, keys map[string]string) (interface{}, error) {
+++	switch {
+++	case schema.Key == "":
+++		return nil, fmt.Errorf("unkeyed list can't be traversed, type %T, keys %v", root, keys)
+++	case !util.IsValueMap(reflect.ValueOf(root)):
+++		return nil, fmt.Errorf("root has type %T, want map", root)
+++	}
+++	if len(keys) == 0 {
+++		return nil, nil
+++	}
+++
+++	mapVal, err := makeValForInsert(schema, root, keys)
+++	if err != nil {
+++		return nil, fmt.Errorf("failed to create map value for insert, root %T, keys %v: %v", root, keys, err)
+++	}
+++
+++	mapKey, err := makeKeyForInsert(schema, root, mapVal)
+++	if err != nil {
+++		return nil, err
+++	}
+++
+++	mapV := reflect.ValueOf(root)
+++
+++	if listKV := mapV.MapIndex(mapKey); listKV.IsValid() {
+++		if log.V(5) {
+++			log.Info("Unmarshaling: key's type: ", mapKey.Type(), " with value: ", mapKey, " already exist in the map for the structure: ", listKV.Type())
+++		}
+++		return listKV.Interface(), nil
+++	}
+++
+++	err = util.InsertIntoMap(root, mapKey.Interface(), mapVal.Interface())
+++	if err != nil {
+++		return nil, fmt.Errorf("failed to insert into map %T, keys %v: %v", root, keys, err)
+++	}
+++
+++	return mapVal.Interface(), nil
+++}
++diff --git a/ytypes/node.go b/ytypes/node.go
++index bad8474..e38c0f9 100644
++--- a/ytypes/node.go
+++++ b/ytypes/node.go
++@@ -12,6 +12,9 @@
++ // See the License for the specific language governing permissions and
++ // limitations under the License.
++ 
+++// This file is changed by Broadcom.
+++// Modifications - Copyright 2019 Broadcom. The term Broadcom refers to Broadcom Inc. and/or its subsidiaries.
+++
++ package ytypes
++ 
++ import (
++@@ -24,6 +27,8 @@ import (
++ 	"google.golang.org/grpc/codes"
++ 	"google.golang.org/grpc/status"
++ 
+++	"strings"
+++
++ 	gpb "github.com/openconfig/gnmi/proto/gnmi"
++ )
++ 
++@@ -53,6 +58,9 @@ type retrieveNodeArgs struct {
++ 	// specifically to deal with uint values being streamed as positive int
++ 	// values.
++ 	tolerateJSONInconsistenciesForVal bool
+++	// if retListMap is set to true then target list map will be retrieved
+++	// if the target node of the path is list without keys
+++	retListMap bool
++ }
++ 
++ // retrieveNode is an internal function that retrieves the node specified by
++@@ -140,6 +148,16 @@ func retrieveNodeContainer(schema *yang.Entry, root interface{}, path *gpb.Path,
++ 				if err := util.InitializeStructField(root, ft.Name); err != nil {
++ 					return nil, status.Errorf(codes.Unknown, "failed to initialize struct field %s in %T, child schema %v, path %v", ft.Name, root, cschema, path)
++ 				}
+++
+++				if cschema.IsLeaf() || cschema.IsLeafList() {
+++					if len(path.Elem) == 1 && len(path.Elem[0].Key) == 1 {
+++						var vals []string
+++						vals = append(vals, path.Elem[0].Key[path.Elem[0].Name])
+++						if args.val, err = ygot.EncodeTypedValue(vals, gpb.Encoding_JSON_IETF); err != nil {
+++							return nil, status.Errorf(codes.Unknown, "failed to get the typed value '%v' for leaf/leaf-list => %s in %T ; because of %v", vals, ft.Name, root, err)
+++						}
+++					}
+++				}
++ 			}
++ 
++ 			// If delete is specified, and the path is exhausted, then we set the
++@@ -202,6 +220,11 @@ func retrieveNodeList(schema *yang.Entry, root interface{}, path, traversedPath
++ 		return nil, status.Errorf(codes.InvalidArgument, "root has type %T, expect map", root)
++ 	}
++ 
+++	if len(path.GetElem()[0].GetKey()) == 0 && args.retListMap {
+++		// returning list map, since there is no keys present in the path
+++		return []*TreeNode{{Path: traversedPath, Schema: schema, Data: root}}, nil
+++	}
+++
++ 	var matches []*TreeNode
++ 
++ 	listKeyT := rv.Type().Key()
++@@ -243,6 +266,17 @@ func retrieveNodeList(schema *yang.Entry, root interface{}, path, traversedPath
++ 			if err != nil {
++ 				return nil, status.Errorf(codes.InvalidArgument, "failed to convert %v to a string, path %v: %v", kv, path, err)
++ 			}
+++
+++			if strings.Contains(keyAsString, "\\") {
+++				keyPath, err := ygot.StringToStructuredPath(schema.Name + "[" + schema.Key + "=" + keyAsString + "]")
+++				if err != nil {
+++					return nil, status.Errorf(codes.InvalidArgument, "failed to convert %v to a string, path %v: %v", kv, path, err)
+++				}
+++				if len(keyPath.Elem) == 1 {
+++					keyAsString = keyPath.Elem[0].Key[schema.Key]
+++				}
+++			}
+++
++ 			if keyAsString == pathKey {
++ 				remainingPath := util.PopGNMIPath(path)
++ 				if args.delete && len(remainingPath.GetElem()) == 0 {
++@@ -287,6 +321,15 @@ func retrieveNodeList(schema *yang.Entry, root interface{}, path, traversedPath
++ 			if err != nil {
++ 				return nil, status.Errorf(codes.Unknown, "failed to convert the field value to string, field %v: %v", fieldName, err)
++ 			}
+++			if strings.Contains(keyAsString, "\\") {
+++				keyPath, err := ygot.StringToStructuredPath(schema.Name + "[" + schemaKey + "=" + keyAsString + "]")
+++				if err != nil {
+++					return nil, status.Errorf(codes.Unknown, "failed to convert the field value to string, field %v: %v", fieldName, err)
+++				}
+++				if len(keyPath.Elem) == 1 {
+++					keyAsString = keyPath.Elem[0].Key[schemaKey]
+++				}
+++			}
++ 			if !(args.handleWildcards && pathKey == "*") && pathKey != keyAsString {
++ 				match = false
++ 				break
++@@ -319,6 +362,11 @@ func retrieveNodeList(schema *yang.Entry, root interface{}, path, traversedPath
++ 		if err != nil {
++ 			return nil, err
++ 		}
+++
+++		if key == nil {
+++			return []*TreeNode{{Path: traversedPath, Schema: schema, Data: root}}, nil
+++		}
+++
++ 		nodes, err := retrieveNode(schema, rv.MapIndex(reflect.ValueOf(key)).Interface(), util.PopGNMIPath(path), appendElem(traversedPath, path.GetElem()[0]), args)
++ 		if err != nil {
++ 			return nil, err
++@@ -345,6 +393,18 @@ func GetOrCreateNode(schema *yang.Entry, root interface{}, path *gpb.Path) (inte
++ 	return nodes[0].Data, nodes[0].Schema, nil
++ }
++ 
+++// GetOrCreateTargetNode function is similar to GetOrCreateNode function, but it returns the list map object
+++// if the target node of the path is list without keys
+++func GetOrCreateTargetNode(schema *yang.Entry, root interface{}, path *gpb.Path) (interface{}, *yang.Entry, error) {
+++	nodes, err := retrieveNode(schema, root, path, nil, retrieveNodeArgs{modifyRoot: true, retListMap: true})
+++	if err != nil {
+++		return nil, nil, err
+++	}
+++
+++	// There must be a result as this function initializes nodes along the supplied path.
+++	return nodes[0].Data, nodes[0].Schema, nil
+++}
+++
++ // TreeNode wraps an individual entry within a YANG data tree to return to a caller.
++ type TreeNode struct {
++ 	// Schema is the schema entry for the data tree node, specified as a goyang Entry struct.
++diff --git a/ytypes/string_type.go b/ytypes/string_type.go
++index 4ae91e2..9ea12c3 100644
++--- a/ytypes/string_type.go
+++++ b/ytypes/string_type.go
++@@ -12,6 +12,9 @@
++ // See the License for the specific language governing permissions and
++ // limitations under the License.
++ 
+++// This file is changed by Broadcom.
+++// Modifications - Copyright 2019 Broadcom. The term Broadcom refers to Broadcom Inc. and/or its subsidiaries.
+++
++ package ytypes
++ 
++ import (
++@@ -19,10 +22,14 @@ import (
++ 	"fmt"
++ 	"regexp"
++ 	"unicode/utf8"
+++	"sync"
++ 
++ 	"github.com/openconfig/goyang/pkg/yang"
++ )
++ 
+++var regexpCache map[string]*regexp.Regexp = make(map[string]*regexp.Regexp)
+++var regexpMutex sync.RWMutex = sync.RWMutex{}
+++
++ // Refer to: https://tools.ietf.org/html/rfc6020#section-9.4.
++ 
++ // validateString validates value, which must be a Go string type, against the
++@@ -48,10 +55,23 @@ func validateString(schema *yang.Entry, value interface{}) error {
++ 
++ 	// Check that the value satisfies any regex patterns.
++ 	for _, p := range schema.Type.Pattern {
++-		r, err := regexp.Compile(fixYangRegexp(p))
++-		if err != nil {
++-			return err
+++		var r *regexp.Regexp
+++		regexpMutex.RLock()
+++		if val, ok := regexpCache[p]; ok {
+++			regexpMutex.RUnlock()
+++			r = val
+++		} else {
+++			regexpMutex.RUnlock()
+++			var err error
+++			r, err = regexp.Compile(fixYangRegexp(p))
+++			if err != nil {
+++				return err
+++			}
+++			regexpMutex.Lock()
+++			regexpCache[p] = r
+++			regexpMutex.Unlock()	
++ 		}
+++		
++ 		// fixYangRegexp adds ^(...)$ around the pattern - the result is
++ 		// equivalent to a full match of whole string.
++ 		if !r.MatchString(stringVal) {
++@@ -105,13 +125,33 @@ func validateStringSchema(schema *yang.Entry) error {
++ 		return fmt.Errorf("string schema %s has wrong type %v", schema.Name, schema.Type.Kind)
++ 	}
++ 
+++	if schema.PerfOpts.IsSchemaValidated.Load() {
+++		return nil
+++	}
+++	
+++	var err error
+++	
++ 	for _, p := range schema.Type.Pattern {
++-		if _, err := regexp.Compile(fixYangRegexp(p)); err != nil {
++-			return fmt.Errorf("error generating regexp %s %v for schema %s", p, err, schema.Name)
++-		}
+++	  regexpMutex.RLock()
+++		_, ok := regexpCache[p]
+++		regexpMutex.RUnlock()
+++		if (ok == false) {
+++			var r *regexp.Regexp
+++			if r, err = regexp.Compile(fixYangRegexp(p)); err != nil {
+++				return fmt.Errorf("error generating regexp %s %v for schema %s", p, err, schema.Name)
+++			} else {
+++			  regexpMutex.Lock()
+++				regexpCache[p] = r
+++				regexpMutex.Unlock()
+++			}
+++		}		
++ 	}
++ 
++-	return validateLengthSchema(schema)
+++	if err = validateLengthSchema(schema); err == nil {
+++		schema.PerfOpts.IsSchemaValidated.Store(true)
+++	}
+++	
+++	return err 
++ }
++ 
++ // fixYangRegexp takes a pattern regular expression from a YANG module and
++diff --git a/ytypes/unmarshal.go b/ytypes/unmarshal.go
++index 864562f..2eea6d2 100644
++--- a/ytypes/unmarshal.go
+++++ b/ytypes/unmarshal.go
++@@ -12,6 +12,9 @@
++ // See the License for the specific language governing permissions and
++ // limitations under the License.
++ 
+++// This file is changed by Broadcom.
+++// Modifications - Copyright 2019 Broadcom. The term Broadcom refers to Broadcom Inc. and/or its subsidiaries.
+++
++ package ytypes
++ 
++ import (
++@@ -39,6 +42,13 @@ type IgnoreExtraFields struct{}
++ // IsUnmarshalOpt marks IgnoreExtraFields as a valid UnmarshalOpt.
++ func (*IgnoreExtraFields) IsUnmarshalOpt() {}
++ 
+++// AllowUpdateInListMap is an unmarshal option to update the key and value
+++// if it is present in the list map already
+++type AllowUpdateInListMap struct{}
+++
+++// IsUnmarshalOpt marks AllowUpdateInListMap as a valid UnmarshalOpt.
+++func (*AllowUpdateInListMap) IsUnmarshalOpt() {}
+++
++ // Unmarshal recursively unmarshals JSON data tree in value into the given
++ // parent, using the given schema. Any values already in the parent that are
++ // not present in value are preserved. If provided schema is a leaf or leaf
++@@ -81,7 +91,10 @@ func unmarshalGeneric(schema *yang.Entry, parent interface{}, value interface{},
++ 	if schema == nil {
++ 		return fmt.Errorf("nil schema for parent type %T, value %v (%T)", parent, value, value)
++ 	}
++-	util.DbgPrint("Unmarshal value %v, type %T, into parent type %T, schema name %s", util.ValueStrDebug(value), value, parent, schema.Name)
+++	
+++	if (util.IsDebugLibraryEnabled()) {
+++		util.DbgPrint("Unmarshal value %v, type %T, into parent type %T, schema name %s", util.ValueStrDebug(value), value, parent, schema.Name)	
+++	}
++ 
++ 	if enc == GNMIEncoding && !(schema.IsLeaf() || schema.IsLeafList()) {
++ 		return errors.New("unmarshalling a non leaf node isn't supported in GNMIEncoding mode")
++@@ -112,3 +125,14 @@ func hasIgnoreExtraFields(opts []UnmarshalOpt) bool {
++ 	}
++ 	return false
++ }
+++
+++// isAllowUpdateInListMap determines whether the supplied slice of UnmarshalOpts contains
+++// the AllowUpdateInListMap option.
+++func isAllowUpdateInListMap(opts []UnmarshalOpt) bool {
+++	for _, o := range opts {
+++		if _, ok := o.(*AllowUpdateInListMap); ok {
+++			return true
+++		}
+++	}
+++	return false
+++}
++diff --git a/ytypes/util_types.go b/ytypes/util_types.go
++index 38a3535..21fc68c 100644
++--- a/ytypes/util_types.go
+++++ b/ytypes/util_types.go
++@@ -244,8 +244,9 @@ func checkJSONFloat64Range(t yang.TypeKind, f float64) error {
++ // yangTypeToLeafEntry returns a leaf Entry with Type set to t.
++ func yangTypeToLeafEntry(t *yang.YangType) *yang.Entry {
++ 	return &yang.Entry{
++-		Kind: yang.LeafEntry,
++-		Type: t,
+++		Kind:     yang.LeafEntry,
+++		Type:     t,
+++		PerfOpts: &yang.PerformanceOpts{},
++ 	}
++ }
++ 
++@@ -256,5 +257,6 @@ func yangKindToLeafEntry(k yang.TypeKind) *yang.Entry {
++ 		Type: &yang.YangType{
++ 			Kind: k,
++ 		},
+++		PerfOpts: &yang.PerformanceOpts{},
++ 	}
++ }
++diff --git a/ytypes/validate.go b/ytypes/validate.go
++index a99f449..1ee0c17 100644
++--- a/ytypes/validate.go
+++++ b/ytypes/validate.go
++@@ -12,6 +12,9 @@
++ // See the License for the specific language governing permissions and
++ // limitations under the License.
++ 
+++// This file is changed by Broadcom.
+++// Modifications - Copyright 2019 Broadcom. The term Broadcom refers to Broadcom Inc. and/or its subsidiaries.
+++
++ package ytypes
++ 
++ import (
++@@ -74,7 +77,7 @@ func Validate(schema *yang.Entry, value interface{}, opts ...ygot.ValidationOpti
++ 		errs = ValidateLeafRefData(schema, value, leafrefOpt)
++ 	}
++ 
++-	util.DbgPrint("Validate with value %v, type %T, schema name %s", util.ValueStr(value), value, schema.Name)
+++	util.DbgPrint("Validate with value %v, type %T, schema name %s", util.ValueStrDebug(value), value, schema.Name)
++ 
++ 	switch {
++ 	case schema.IsLeaf():
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/patches/0002-preserve-union-enum-order.patch b/modules/openconfig_ygot/0.7.1.sonic.1/patches/0002-preserve-union-enum-order.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..620274ba3a16da0aab9314dc15e77234c4ae8023
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/patches/0002-preserve-union-enum-order.patch
+@@ -0,0 +1,23 @@
++--- a/ygen/gogen.go
+++++ b/ygen/gogen.go
++@@ -1321,7 +1321,20 @@
++ 					ParentReceiver: targetStruct.Name,
++ 				}
++ 
+++				// UnionTypes records the declared subtype order as map values.
+++				// Keep that order in the enum reflection candidates as well.
+++				orderedTypes := make([]string, 0, len(mtype.UnionTypes))
++ 				for t := range mtype.UnionTypes {
+++					orderedTypes = append(orderedTypes, t)
+++				}
+++				sort.Slice(orderedTypes, func(i, j int) bool {
+++					left, right := mtype.UnionTypes[orderedTypes[i]], mtype.UnionTypes[orderedTypes[j]]
+++					if left != right {
+++						return left < right
+++					}
+++					return orderedTypes[i] < orderedTypes[j]
+++				})
+++				for _, t := range orderedTypes {
++ 					// If the type within the union is not a builtin type then we store
++ 					// it within the enumMap, since it is an enumerated type.
++ 					if _, builtin := validGoBuiltinTypes[t]; !builtin {
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/patches/0003-backport-protobuf-test-comparisons.patch b/modules/openconfig_ygot/0.7.1.sonic.1/patches/0003-backport-protobuf-test-comparisons.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..973b07eff102ba4780ef21f3750c449a2e565b8e
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/patches/0003-backport-protobuf-test-comparisons.patch
+@@ -0,0 +1,272 @@
++diff --git a/testcmp/cmp.go b/testcmp/cmp.go
++--- a/testcmp/cmp.go
+++++ b/testcmp/cmp.go
++@@ -23,11 +23,13 @@
++ 	"reflect"
++ 
++ 	log "github.com/golang/glog"
+++	"github.com/golang/protobuf/proto"
++ 	"github.com/google/go-cmp/cmp"
++ 	"github.com/google/go-cmp/cmp/cmpopts"
++ 	"github.com/openconfig/ygot/testutil"
++ 	"github.com/openconfig/ygot/ygot"
++ 	"github.com/openconfig/ygot/ytypes"
+++	"google.golang.org/protobuf/testing/protocmp"
++ 
++ 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
++ )
++@@ -43,13 +45,18 @@
++ 	}
++ 
++ 	return testutil.CustomComparer{
++-		reflect.TypeOf(&gnmipb.Update{}): cmp.Comparer(func(a, b *gnmipb.Update) bool {
++-			_, equal, err := GNMIUpdateComparer(a, b, schema)
++-			if err != nil {
++-				log.Errorf("cannot compare updates for Notifications, got err: %v", err)
++-			}
++-			return equal
++-		}),
+++		reflect.TypeOf(&gnmipb.Update{}): protocmp.FilterMessage(&gnmipb.Update{},
+++			cmp.Comparer(func(ma, mb protocmp.Message) bool {
+++				a := new(gnmipb.Update)
+++				proto.Merge(a, ma)
+++				b := new(gnmipb.Update)
+++				proto.Merge(b, mb)
+++				_, equal, err := GNMIUpdateComparer(a, b, schema)
+++				if err != nil {
+++					log.Errorf("cannot compare updates for Notifications, got err: %v", err)
+++				}
+++				return equal
+++			})),

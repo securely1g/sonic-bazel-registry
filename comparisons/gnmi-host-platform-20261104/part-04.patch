@@ -1,0 +1,3229 @@
+++		0x44, 0x89, 0x2e, 0x0b, 0xa0, 0xe8, 0xd7, 0x5d, 0xd5, 0x06, 0x02, 0x9b, 0x80, 0x3c, 0xa5, 0x85,
+++		0x29, 0x08, 0xcb, 0x18, 0x7e, 0xef, 0xde, 0x6e, 0xac, 0x5e, 0xdc, 0xa8, 0xd7, 0xa9, 0x01, 0xa7,
+++		0x09, 0x14, 0xb2, 0xf0, 0x9d, 0xc8, 0x63, 0xb9, 0x07, 0xb7, 0xb1, 0xa8, 0xba, 0xc1, 0x30, 0x69,
+++		0x1d, 0x06, 0x74, 0x9a, 0x66, 0xef, 0xa4, 0x18, 0xee, 0xb8, 0xe9, 0xd0, 0x97, 0x2e, 0x15, 0xfc,
+++		0xdf, 0x7c, 0x74, 0x52, 0xd5, 0x46, 0xb2, 0xbf, 0x79, 0x58, 0xf3, 0x5e, 0x8b, 0x2c, 0x95, 0x1d,
+++		0x9b, 0xa9, 0x41, 0x6a, 0xdd, 0x5f, 0x4b, 0x00, 0x2d, 0xe0, 0xd7, 0xf0, 0xa6, 0x7f, 0xc5, 0xeb,
+++		0xdb, 0x2a, 0x73, 0x60, 0xd7, 0xbb, 0xf5, 0x2e, 0xa4, 0x08, 0x0f, 0xaf, 0xe8, 0x5f, 0xec, 0x93,
+++		0xef, 0xe7, 0xbf, 0xde, 0x4a, 0xb6, 0x2a, 0x67, 0x59, 0x3b, 0xbb, 0xb8, 0x13, 0xff, 0x0f, 0x00,
+++		0x00, 0xff, 0xff, 0x01, 0x00, 0x00, 0xff, 0xff, 0x3f, 0x8e, 0x19, 0xed, 0x66, 0x53, 0x00, 0x00,
++ 	}
++ )
++ 
++diff --git a/ygen/testdata/schema/openconfig-options-compress-fakeroot.formatted-txt b/ygen/testdata/schema/openconfig-options-compress-fakeroot.formatted-txt
++--- a/ygen/testdata/schema/openconfig-options-compress-fakeroot.formatted-txt
+++++ b/ygen/testdata/schema/openconfig-options-compress-fakeroot.formatted-txt
++@@ -315,75 +315,87 @@
++ 	// contents of a goyang yang.Entry struct, which defines the schema for the
++ 	// fields within the struct.
++ 	ySchema = []byte{
++-		0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xec, 0x5c, 0x5f, 0x6f, 0xdb, 0x36,
++-		0x10, 0x7f, 0xd7, 0xa7, 0x10, 0xf8, 0xba, 0x38, 0x4e, 0x33, 0x6f, 0x99, 0xfd, 0xe6, 0x24, 0x35,
++-		0x66, 0x74, 0xc9, 0x82, 0xa6, 0xeb, 0x4b, 0x6b, 0x14, 0xb4, 0x75, 0x96, 0x89, 0x49, 0xa4, 0x40,
++-		0x52, 0x5b, 0x8c, 0xc1, 0xdf, 0x7d, 0x90, 0xf5, 0x27, 0x95, 0x25, 0xc7, 0x22, 0x29, 0xff, 0xa9,
++-		0xc1, 0x37, 0x47, 0x12, 0x8f, 0xc7, 0xfb, 0xfd, 0x4e, 0x77, 0x3c, 0x5e, 0xf4, 0x9f, 0xe3, 0xba,
++-		0xae, 0x8b, 0x1e, 0x71, 0x08, 0x68, 0xe0, 0x22, 0x0f, 0xfe, 0x21, 0x33, 0x40, 0x17, 0xe9, 0xd5,
++-		0x0f, 0x84, 0x7a, 0x68, 0xe0, 0xbe, 0xcb, 0xfe, 0xbc, 0x63, 0x74, 0x4e, 0x7c, 0x34, 0x70, 0xaf,
++-		0xb2, 0x0b, 0xf7, 0x84, 0xa3, 0x81, 0x9b, 0x8a, 0x58, 0x5f, 0x98, 0xfa, 0x51, 0xe9, 0x42, 0x49,
++-		0x76, 0x72, 0xf3, 0xa2, 0x7c, 0xab, 0x3c, 0x41, 0x71, 0x79, 0x73, 0xa2, 0xe2, 0xc6, 0x13, 0x87,
++-		0x39, 0x79, 0xa9, 0x4c, 0x51, 0x9a, 0x86, 0xcd, 0xd8, 0xc6, 0x34, 0xeb, 0xdb, 0xcf, 0x2c, 0xe6,
++-		0x33, 0xa8, 0x1d, 0x9a, 0xaa, 0x02, 0xcb, 0x7f, 0x19, 0x4f, 0xb4, 0x41, 0x51, 0x3a, 0xcb, 0x45,
++-		0xfd, 0x83, 0xbf, 0x63, 0x31, 0xe4, 0x7e, 0x1c, 0x02, 0x95, 0x68, 0xe0, 0x4a, 0x1e, 0xc3, 0x96,
++-		0x07, 0xbf, 0x7b, 0x6a, 0xad, 0x54, 0xe5, 0xa9, 0x55, 0xe9, 0xca, 0x6a, 0x63, 0xad, 0x9b, 0xc6,
++-		0x2d, 0x6e, 0x50, 0x20, 0xfe, 0x62, 0xca, 0xb8, 0xd8, 0xbe, 0x98, 0xdc, 0x16, 0xaf, 0x8f, 0x6e,
++-		0xd1, 0xb1, 0x1e, 0x80, 0x9d, 0x40, 0x34, 0x01, 0xa4, 0x21, 0x30, 0x4d, 0x01, 0x52, 0x06, 0x4a,
++-		0x19, 0xb0, 0xe6, 0xc0, 0xd5, 0x03, 0xb8, 0x05, 0xc8, 0x9d, 0x80, 0x56, 0x80, 0xdd, 0x6d, 0x83,
++-		0x4d, 0x7c, 0x77, 0x99, 0xe0, 0x6d, 0x98, 0x1b, 0xc3, 0xad, 0x02, 0xbb, 0x22, 0xfc, 0xaa, 0x34,
++-		0xd0, 0xa6, 0x83, 0x36, 0x2d, 0xd4, 0xe9, 0xf1, 0x36, 0x4d, 0x76, 0xd0, 0xa5, 0x31, 0x6d, 0x8a,
++-		0x07, 0x67, 0x39, 0x7a, 0x0d, 0x2d, 0x97, 0x03, 0x93, 0x8d, 0x6b, 0xb8, 0xfa, 0x66, 0x54, 0x52,
++-		0xa6, 0x94, 0x0e, 0xb5, 0x34, 0x29, 0xa6, 0x4b, 0x35, 0x63, 0xca, 0x19, 0x53, 0x4f, 0x9f, 0x82,
++-		0xcd, 0xa8, 0xd8, 0x90, 0x92, 0xca, 0xd4, 0x2c, 0x06, 0x2c, 0x58, 0xe0, 0x75, 0x24, 0x09, 0x35,
++-		0x8c, 0x9e, 0x63, 0xfc, 0x2a, 0x42, 0xd1, 0x66, 0x19, 0x71, 0xaf, 0x14, 0x87, 0xa9, 0x12, 0xd8,
++-		0x84, 0xc8, 0x86, 0x84, 0x36, 0x25, 0x76, 0x6b, 0x04, 0x6f, 0x8d, 0xe8, 0xe6, 0x84, 0x57, 0x23,
++-		0xbe, 0xa2, 0x03, 0x14, 0xea, 0x7d, 0x5a, 0x46, 0x60, 0x86, 0x74, 0x4c, 0xa8, 0xfc, 0xf9, 0x5a,
++-		0x07, 0xec, 0x8c, 0xd7, 0x37, 0x1a, 0x43, 0x3f, 0x62, 0xea, 0x27, 0xb3, 0x7f, 0xd1, 0x02, 0x45,
++-		0x8f, 0x5c, 0xeb, 0x89, 0x1f, 0x08, 0xd5, 0x66, 0xa7, 0xa1, 0x43, 0x57, 0xc4, 0x7c, 0xc6, 0x41,
++-		0x0c, 0x2d, 0xc8, 0x19, 0x71, 0x3c, 0x93, 0x84, 0xd1, 0x7b, 0xe2, 0x13, 0x99, 0xe4, 0xe6, 0x57,
++-		0xda, 0xf2, 0x56, 0x17, 0x06, 0xa6, 0xc5, 0x2f, 0x27, 0x67, 0xda, 0xde, 0x75, 0xbf, 0xd7, 0xff,
++-		0xf5, 0xe6, 0xba, 0xff, 0xcb, 0x09, 0xd9, 0xd8, 0x39, 0xcc, 0xa8, 0x89, 0xb3, 0x1f, 0xf9, 0x0a,
++-		0x1c, 0x41, 0x11, 0x00, 0xef, 0x60, 0xcf, 0xe3, 0x20, 0x84, 0x7e, 0xe4, 0x2d, 0x49, 0xb1, 0xc1,
++-		0xd7, 0x06, 0xdf, 0xf3, 0x09, 0xbe, 0x94, 0x30, 0x6a, 0x10, 0x7b, 0xdf, 0xf5, 0x35, 0xc6, 0x66,
++-		0x6a, 0x1f, 0x3c, 0xf6, 0xe6, 0x8b, 0x16, 0x92, 0x13, 0xea, 0x23, 0x83, 0x50, 0x93, 0xaf, 0xfe,
++-		0x37, 0x03, 0x19, 0x4f, 0x58, 0x4a, 0xe0, 0x54, 0xdb, 0x10, 0x85, 0xa0, 0x2f, 0x57, 0x9d, 0xfe,
++-		0xd7, 0xaf, 0x97, 0x93, 0x9f, 0x90, 0xb6, 0x9c, 0x89, 0x73, 0xc0, 0x60, 0x6d, 0x11, 0xac, 0x43,
++-		0x70, 0xd8, 0x19, 0x0d, 0x8e, 0x00, 0xe1, 0xe9, 0x44, 0xf5, 0x56, 0xf7, 0xe7, 0x43, 0x4a, 0x99,
++-		0xc4, 0x49, 0xc2, 0xa4, 0xb6, 0x4d, 0x17, 0xb3, 0x05, 0x84, 0x38, 0xc2, 0x72, 0x91, 0xd0, 0xac,
++-		0xcb, 0x22, 0xa0, 0x69, 0x91, 0xa8, 0xc3, 0xa2, 0x44, 0x9a, 0xe8, 0x4e, 0xfd, 0xa8, 0x5b, 0x14,
++-		0x97, 0x8b, 0x5f, 0xdd, 0xac, 0x94, 0xe4, 0xb4, 0xb3, 0xd4, 0x06, 0xcb, 0xd4, 0x4b, 0x6d, 0x4c,
++-		0x52, 0x1a, 0xc5, 0x54, 0xc6, 0x16, 0xc0, 0xce, 0xb9, 0x00, 0xa6, 0x9c, 0x7a, 0x14, 0x48, 0x05,
++-		0x80, 0xe7, 0x1c, 0xe6, 0x2a, 0x68, 0xe5, 0x2f, 0x6b, 0x85, 0x9d, 0x7e, 0xf2, 0x72, 0x5e, 0xfb,
++-		0xf0, 0xe5, 0x65, 0xe6, 0x9b, 0xdd, 0x12, 0xe5, 0x0f, 0xe8, 0xa8, 0x42, 0x62, 0x09, 0xea, 0x1e,
++-		0x9a, 0x0e, 0xdb, 0x73, 0x6d, 0xfa, 0xda, 0xba, 0xe6, 0xd9, 0xb9, 0xa6, 0x72, 0x6d, 0x1a, 0x28,
++-		0x9e, 0x06, 0xe0, 0xe5, 0xbe, 0xd1, 0x99, 0xe3, 0x90, 0x04, 0x4b, 0xfd, 0xed, 0xf2, 0x16, 0x79,
++-		0x76, 0xe3, 0x6c, 0x37, 0xce, 0x76, 0xe3, 0xfc, 0x23, 0x6f, 0x9c, 0x89, 0x07, 0x54, 0x12, 0xb9,
++-		0x54, 0x0b, 0xdf, 0x5b, 0x4d, 0x60, 0x50, 0x13, 0x45, 0xe3, 0x4c, 0x95, 0x5b, 0x2c, 0xc0, 0xbc,
++-		0xea, 0x9b, 0x2f, 0x70, 0x38, 0x1a, 0xa3, 0x36, 0x2a, 0xbf, 0xc2, 0x78, 0x4f, 0x68, 0x86, 0x58,
++-		0xed, 0xe2, 0xc6, 0x4f, 0x9f, 0x7b, 0xdf, 0xfe, 0x7a, 0x1c, 0xdf, 0x0d, 0x9f, 0x3f, 0x21, 0x63,
++-		0xd1, 0x2b, 0x23, 0x09, 0x93, 0x43, 0x57, 0xaf, 0x8f, 0x56, 0xaa, 0xd0, 0x3e, 0xde, 0xda, 0x74,
++-		0x97, 0x1b, 0x03, 0x11, 0x66, 0xc7, 0x5d, 0xed, 0xf1, 0xb1, 0x95, 0xe3, 0x2f, 0xc3, 0x0c, 0xe1,
++-		0x6d, 0xcf, 0x6d, 0x51, 0x5e, 0x8b, 0x47, 0x36, 0x86, 0x34, 0x2e, 0x43, 0xd0, 0xc2, 0x31, 0xd9,
++-		0xbe, 0x21, 0x68, 0xeb, 0xd8, 0x6c, 0xaf, 0x58, 0x38, 0xc7, 0x19, 0x7d, 0xa2, 0x85, 0x3e, 0xc5,
++-		0x0c, 0xec, 0x0f, 0x22, 0xe4, 0x50, 0x4a, 0xae, 0x97, 0x85, 0x3d, 0x10, 0xfa, 0x3e, 0x80, 0x24,
++-		0xc1, 0x4c, 0xb0, 0xa4, 0x71, 0x10, 0x68, 0x64, 0x53, 0x0f, 0xf8, 0xc5, 0x5c, 0xc8, 0x9f, 0xdc,
++-		0x03, 0x0e, 0xde, 0xed, 0x32, 0x13, 0x71, 0x02, 0x67, 0x9e, 0xb6, 0xd5, 0xc8, 0x6e, 0xda, 0xec,
++-		0xa6, 0xad, 0xd5, 0x5c, 0xcc, 0xb6, 0x1a, 0xd9, 0x56, 0xa3, 0xb6, 0x73, 0x28, 0xdb, 0x6a, 0x74,
++-		0xb4, 0x5c, 0xc5, 0xb6, 0x1a, 0xd9, 0xe0, 0x6b, 0x83, 0xef, 0xa1, 0x83, 0xaf, 0x6d, 0x35, 0x32,
++-		0x88, 0x12, 0xb6, 0xd5, 0xc8, 0x22, 0x68, 0x5b, 0x8d, 0x0e, 0x1f, 0xd5, 0x05, 0x08, 0x41, 0x18,
++-		0xed, 0xa8, 0x1d, 0xe2, 0x57, 0x59, 0x54, 0x12, 0x63, 0xe3, 0xba, 0x8d, 0xeb, 0x67, 0x13, 0xd7,
++-		0x81, 0xc6, 0x21, 0xf0, 0xb4, 0xd7, 0xce, 0x20, 0xba, 0xf7, 0x34, 0xc6, 0xbe, 0xa7, 0x71, 0x98,
++-		0x28, 0xbf, 0xb2, 0x3d, 0x89, 0x75, 0x3d, 0x89, 0xe9, 0xcb, 0xa6, 0xad, 0x4e, 0x27, 0xa3, 0x7f,
++-		0xe5, 0xfd, 0x00, 0x4b, 0xc5, 0xdd, 0x8d, 0x5a, 0x85, 0x58, 0xab, 0x22, 0xac, 0x55, 0x01, 0x56,
++-		0xab, 0xf8, 0xee, 0xb2, 0x8b, 0x22, 0x27, 0xb4, 0xb9, 0x80, 0x1a, 0xf5, 0xa9, 0xf1, 0x78, 0x26,
++-		0x69, 0xe6, 0xd6, 0xb7, 0x7e, 0xf4, 0xed, 0x31, 0x1f, 0xed, 0xe8, 0x31, 0x43, 0xed, 0x2b, 0x01,
++-		0x0d, 0x6d, 0xa1, 0x6a, 0x83, 0x7a, 0xe5, 0x57, 0x8a, 0xdf, 0xa4, 0xd8, 0xa1, 0x5c, 0x33, 0xa5,
++-		0xea, 0xbe, 0xce, 0x51, 0xb1, 0x7a, 0x59, 0xdf, 0x57, 0xad, 0xd2, 0x5f, 0x99, 0x5e, 0xdb, 0xf4,
++-		0x41, 0x44, 0xdc, 0xb1, 0x30, 0x4a, 0xfc, 0x0b, 0xbc, 0xe7, 0xb5, 0x4e, 0x95, 0xf0, 0x85, 0x88,
++-		0x18, 0xe1, 0xbf, 0xe1, 0x23, 0x63, 0xd5, 0xd0, 0xb6, 0xb9, 0x0e, 0xf4, 0xfd, 0xad, 0x92, 0xa6,
++-		0xf7, 0xe9, 0xf7, 0x52, 0x52, 0xa5, 0x9c, 0xd5, 0xff, 0x00, 0x00, 0x00, 0xff, 0xff, 0x01, 0x00,
++-		0x00, 0xff, 0xff, 0x7f, 0xc7, 0xbc, 0x17, 0x4e, 0x45, 0x00, 0x00,
+++		0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xec, 0x5c, 0x5d, 0x6f, 0xdb, 0x36,
+++		0x14, 0x7d, 0xf7, 0xaf, 0x10, 0xf8, 0x3a, 0x3b, 0x49, 0xb3, 0x6c, 0x99, 0xfd, 0xe6, 0x38, 0x0d,
+++		0x16, 0x74, 0xf9, 0x40, 0xd3, 0xf5, 0x25, 0x35, 0x0a, 0xc6, 0xa2, 0x65, 0x62, 0x32, 0x25, 0x90,
+++		0x54, 0x17, 0x6f, 0xd0, 0x7f, 0x1f, 0x64, 0x7d, 0x38, 0x92, 0x25, 0x8b, 0x97, 0x94, 0x13, 0xb7,
+++		0xe3, 0x5b, 0x22, 0x91, 0x97, 0xe4, 0x3d, 0x87, 0xd4, 0xf1, 0xbd, 0x17, 0xfc, 0xb7, 0xe7, 0x38,
+++		0x8e, 0x83, 0x6e, 0xf1, 0x92, 0xa0, 0x91, 0x83, 0x5c, 0xf2, 0x8d, 0xce, 0x08, 0xea, 0xa7, 0x4f,
+++		0x3f, 0x50, 0xe6, 0xa2, 0x91, 0xf3, 0x2e, 0xfb, 0x77, 0x12, 0xb0, 0x39, 0xf5, 0xd0, 0xc8, 0x39,
+++		0xc9, 0x1e, 0x5c, 0x52, 0x8e, 0x46, 0x4e, 0x6a, 0x62, 0xfd, 0xe0, 0xc9, 0x0b, 0x4b, 0x0f, 0x4a,
+++		0xb6, 0x93, 0x97, 0xfd, 0xf2, 0xab, 0xf2, 0x00, 0xc5, 0xe3, 0xea, 0x40, 0xc5, 0x8b, 0x7b, 0x4e,
+++		0xe6, 0xf4, 0x79, 0x6b, 0x88, 0xd2, 0x30, 0xc1, 0x2c, 0xa8, 0x0c, 0xb3, 0x7e, 0xfd, 0x10, 0x44,
+++		0x7c, 0x46, 0x6a, 0xbb, 0xa6, 0x53, 0x21, 0xab, 0xbf, 0x03, 0x9e, 0xcc, 0x06, 0x85, 0xe9, 0x28,
+++		0xfd, 0xfa, 0x86, 0xbf, 0x63, 0x31, 0xe6, 0x5e, 0xb4, 0x24, 0x4c, 0xa2, 0x91, 0x23, 0x79, 0x44,
+++		0x1a, 0x1a, 0xbe, 0x68, 0xb5, 0x9e, 0xd4, 0x56, 0xab, 0xb8, 0xf4, 0x24, 0xae, 0xac, 0xb5, 0xea,
+++		0xdc, 0xe2, 0x05, 0x23, 0xd4, 0x5b, 0x3c, 0x05, 0x5c, 0x34, 0x2f, 0x26, 0xf7, 0xc5, 0xa6, 0x69,
+++		0xc3, 0x1c, 0xeb, 0x01, 0x68, 0x05, 0x42, 0x05, 0x10, 0x45, 0x60, 0x54, 0x01, 0x02, 0x03, 0x05,
+++		0x06, 0x4c, 0x1d, 0xb8, 0x7a, 0x00, 0x1b, 0x80, 0x6c, 0x05, 0x74, 0x0b, 0xd8, 0x76, 0x1f, 0x54,
+++		0xf1, 0x6d, 0x73, 0xc1, 0x6e, 0x98, 0x95, 0xe1, 0x86, 0xc0, 0x0e, 0x84, 0x1f, 0x4a, 0x03, 0x6d,
+++		0x3a, 0x68, 0xd3, 0x02, 0x4e, 0x8f, 0xdd, 0x34, 0x69, 0xa1, 0x8b, 0x32, 0x6d, 0x8a, 0x86, 0xb3,
+++		0x1c, 0x3d, 0x45, 0xcf, 0xe5, 0xc0, 0x64, 0xfd, 0x14, 0x57, 0xaf, 0x46, 0x25, 0x30, 0xa5, 0x74,
+++		0xa8, 0xa5, 0x49, 0x31, 0x5d, 0xaa, 0x19, 0x53, 0xce, 0x98, 0x7a, 0xfa, 0x14, 0x54, 0xa3, 0xa2,
+++		0x22, 0x25, 0xc1, 0xd4, 0x2c, 0x3a, 0x2c, 0x02, 0xdf, 0x1d, 0x48, 0xba, 0xd4, 0x70, 0x7a, 0x8e,
+++		0xf1, 0xc6, 0x04, 0xd0, 0x67, 0x19, 0x71, 0x4f, 0x80, 0xdd, 0xa0, 0x04, 0x36, 0x21, 0xb2, 0x21,
+++		0xa1, 0x4d, 0x89, 0xdd, 0x19, 0xc1, 0x3b, 0x23, 0xba, 0x39, 0xe1, 0x61, 0xc4, 0x07, 0x6e, 0x80,
+++		0x97, 0x1b, 0xe1, 0xee, 0x03, 0x59, 0x25, 0x8a, 0xec, 0x71, 0x0a, 0xec, 0xfb, 0x69, 0x15, 0x12,
+++		0x33, 0x96, 0x44, 0x94, 0xc9, 0x9f, 0x4f, 0x75, 0x88, 0x92, 0xed, 0x89, 0x73, 0x8d, 0xae, 0x1f,
+++		0x31, 0xf3, 0x92, 0xd1, 0x1f, 0xb5, 0x00, 0xd5, 0x23, 0xe6, 0x7a, 0xe0, 0x1b, 0xca, 0xb4, 0x99,
+++		0x6d, 0x78, 0x18, 0x6c, 0x99, 0xf9, 0x8c, 0xfd, 0x88, 0x74, 0x60, 0xe7, 0x8a, 0xe3, 0x99, 0xa4,
+++		0x01, 0xbb, 0xa4, 0x1e, 0x95, 0x09, 0x8b, 0x4e, 0xb4, 0xed, 0xc5, 0x7d, 0x03, 0xd7, 0xe2, 0xe7,
+++		0x83, 0x73, 0xed, 0xd9, 0xe9, 0xf0, 0x6c, 0xf8, 0xeb, 0xf9, 0xe9, 0xf0, 0x97, 0x03, 0xf2, 0x71,
+++		0xef, 0x75, 0x7a, 0x4d, 0xf7, 0x7a, 0x68, 0xdd, 0x13, 0x3e, 0xbf, 0x0b, 0xa5, 0xd0, 0x3b, 0x7c,
+++		0x26, 0x0b, 0xea, 0xbb, 0x0f, 0xb3, 0x05, 0x59, 0xe2, 0x09, 0x9e, 0x2d, 0x12, 0xa8, 0x58, 0xe4,
+++		0xfb, 0xbd, 0xfd, 0x78, 0x04, 0xb0, 0x36, 0x14, 0x12, 0xc2, 0x07, 0xd8, 0x75, 0x39, 0x11, 0x42,
+++		0x5f, 0x67, 0x94, 0xac, 0x58, 0xa9, 0x61, 0xa5, 0x86, 0x95, 0x1a, 0x89, 0xd4, 0x60, 0x34, 0x60,
+++		0x06, 0x4a, 0xe3, 0xdd, 0x50, 0xa3, 0x6f, 0x36, 0xed, 0x57, 0x57, 0x1a, 0xf9, 0xa2, 0x85, 0xe4,
+++		0x94, 0x79, 0xc8, 0xe0, 0xc3, 0x9a, 0xaf, 0xfe, 0x37, 0x03, 0x1b, 0xf7, 0x58, 0x4a, 0xc2, 0x99,
+++		0xb6, 0x23, 0x0a, 0x43, 0x8f, 0x27, 0x83, 0xe1, 0x97, 0x2f, 0x47, 0xd3, 0x9f, 0x90, 0xb6, 0x9d,
+++		0x69, 0xef, 0x15, 0xa5, 0x89, 0x45, 0xb0, 0x0e, 0xc1, 0xf1, 0xe0, 0x6a, 0xf4, 0x06, 0x10, 0x5a,
+++		0x0d, 0xa3, 0xaf, 0x61, 0xba, 0x8e, 0xbd, 0x14, 0xdf, 0x01, 0x4d, 0x6d, 0xd4, 0xd7, 0x09, 0xdc,
+++		0x28, 0xf5, 0x99, 0xaa, 0x86, 0x52, 0x19, 0x0b, 0x24, 0x4e, 0x54, 0x39, 0x2c, 0x8e, 0x24, 0xd6,
+++		0x98, 0x85, 0x58, 0x2e, 0x92, 0xdd, 0x7d, 0x1c, 0x84, 0x84, 0xa5, 0x51, 0xcc, 0x41, 0x10, 0x26,
+++		0xd6, 0xc4, 0xf1, 0x93, 0x17, 0x1e, 0x17, 0xd9, 0x8f, 0xe2, 0xaf, 0xe3, 0x2c, 0xd6, 0xd9, 0x29,
+++		0x12, 0x5a, 0x1c, 0x34, 0xe2, 0x5e, 0x3b, 0x93, 0x14, 0xe6, 0xae, 0xa7, 0x93, 0x4d, 0xf4, 0x31,
+++		0x50, 0x17, 0xdb, 0xd8, 0xf1, 0x3e, 0x74, 0xee, 0x01, 0xc5, 0x8e, 0xa1, 0x3a, 0x16, 0xae, 0x5f,
+++		0x0b, 0x74, 0x7d, 0x82, 0xe7, 0x9c, 0xcc, 0x21, 0x08, 0xe7, 0x5f, 0x7c, 0x40, 0x70, 0x2c, 0xf9,
+++		0xc2, 0xaf, 0x4f, 0xa4, 0xa3, 0xa3, 0xec, 0xa4, 0x39, 0x2e, 0x6d, 0x13, 0x7b, 0xec, 0x24, 0x67,
+++		0xb7, 0xc4, 0x92, 0xc0, 0xcf, 0x9b, 0xb4, 0xdb, 0x9e, 0x93, 0x54, 0xa7, 0xf6, 0xa0, 0xf9, 0x11,
+++		0x0f, 0x1a, 0x18, 0x50, 0x84, 0xe1, 0x27, 0x9f, 0xb8, 0xf9, 0xae, 0x1d, 0xcc, 0xf1, 0x92, 0xfa,
+++		0x2b, 0xfd, 0x48, 0x52, 0x83, 0x3d, 0x1b, 0x53, 0xb2, 0x31, 0x25, 0x1b, 0x53, 0xfa, 0xbf, 0xc6,
+++		0x94, 0xa8, 0x4b, 0x98, 0xa4, 0x72, 0x05, 0x13, 0x25, 0x8d, 0x2e, 0x30, 0x48, 0x8e, 0xa0, 0xeb,
+++		0x6c, 0x2a, 0x17, 0x58, 0x10, 0xf3, 0xf4, 0x4f, 0xbe, 0xc0, 0xf1, 0xd5, 0x35, 0xea, 0x22, 0x05,
+++		0x24, 0x8c, 0xc3, 0x25, 0x66, 0x88, 0xd5, 0x2e, 0xee, 0xfa, 0xfe, 0xf3, 0xd9, 0xd7, 0x3f, 0x6f,
+++		0xaf, 0x27, 0xe3, 0x87, 0x4f, 0xc8, 0xd8, 0x74, 0x6c, 0x64, 0x61, 0xfa, 0xda, 0x69, 0xac, 0x37,
+++		0x8b, 0xe2, 0x69, 0xe7, 0xb9, 0xab, 0xdb, 0xe5, 0xdc, 0xc0, 0x84, 0x59, 0xde, 0xbb, 0x3b, 0x3e,
+++		0x76, 0x92, 0x07, 0x37, 0x54, 0x17, 0xbb, 0x77, 0x6e, 0x87, 0xf6, 0x3a, 0xcc, 0xdd, 0x1a, 0xd2,
+++		0xb8, 0x0c, 0x41, 0x07, 0xf9, 0xf2, 0x7d, 0x43, 0xd0, 0x55, 0xfe, 0x7c, 0xaf, 0x58, 0xf4, 0xde,
+++		0xa6, 0xf7, 0x8f, 0x11, 0x03, 0xff, 0x83, 0x0a, 0x39, 0x96, 0x92, 0xeb, 0xa9, 0xb0, 0x1b, 0xca,
+++		0xde, 0xfb, 0x24, 0x11, 0xa7, 0x22, 0x8b, 0x05, 0x68, 0xa8, 0xa9, 0x1b, 0xfc, 0x6c, 0x6e, 0xe4,
+++		0x8e, 0xbb, 0x84, 0x13, 0xf7, 0x62, 0xa5, 0x15, 0x86, 0xb7, 0xc5, 0x0f, 0x8e, 0xad, 0xb0, 0xb4,
+++		0x3f, 0x51, 0xed, 0x4f, 0xd4, 0xbd, 0xfc, 0x44, 0xb5, 0x15, 0x96, 0x6f, 0x23, 0x67, 0x6c, 0x85,
+++		0xe5, 0xfe, 0x5d, 0x6b, 0x2b, 0x2c, 0xad, 0xc8, 0xb0, 0x15, 0x96, 0x56, 0x6a, 0x58, 0xa9, 0x71,
+++		0x10, 0x52, 0xc3, 0x56, 0x58, 0x1a, 0x7c, 0x13, 0x6d, 0x85, 0xa5, 0x45, 0xd0, 0x56, 0x58, 0x5a,
+++		0x0d, 0xd3, 0x3e, 0x33, 0x41, 0x84, 0xa0, 0x01, 0x1b, 0xc0, 0xca, 0x51, 0xb6, 0x79, 0x5f, 0x32,
+++		0x63, 0x55, 0x8c, 0x55, 0x31, 0x56, 0xc5, 0xac, 0x6b, 0x5e, 0xa2, 0x25, 0xe1, 0x69, 0x65, 0xaf,
+++		0x81, 0x96, 0x39, 0xd3, 0xe8, 0xfb, 0x9e, 0x45, 0xcb, 0x64, 0xf2, 0xb1, 0x3d, 0x16, 0x41, 0x2d,
+++		0x0f, 0xbd, 0xf0, 0xbc, 0x6f, 0x5c, 0xc1, 0xa5, 0xfd, 0x75, 0xf8, 0xbe, 0x6b, 0xde, 0x01, 0x6b,
+++		0xf8, 0xae, 0x6b, 0x4f, 0x4d, 0x6f, 0x59, 0x51, 0x67, 0x35, 0x94, 0xcd, 0xea, 0x57, 0xac, 0x20,
+++		0x05, 0xb0, 0xa6, 0xfd, 0xd6, 0x0b, 0x92, 0x80, 0xe1, 0x15, 0x58, 0x0a, 0x51, 0x2b, 0x65, 0xa8,
+++		0x95, 0x22, 0x84, 0xa5, 0x04, 0xdb, 0x20, 0x06, 0x6e, 0x3c, 0xed, 0x0d, 0xa7, 0x06, 0x33, 0x8f,
+++		0x66, 0x92, 0x65, 0x5f, 0xcb, 0x0b, 0x2f, 0xfc, 0x7a, 0x9b, 0xf7, 0x36, 0x5a, 0x23, 0x68, 0x63,
+++		0x6a, 0x6d, 0xc8, 0xb8, 0xbb, 0xdb, 0xb0, 0xda, 0x37, 0xdc, 0xe6, 0x82, 0xab, 0x1e, 0x60, 0x27,
+++		0xa8, 0x22, 0x0d, 0x45, 0x18, 0x81, 0x16, 0xa8, 0x04, 0x05, 0x08, 0x82, 0x18, 0x7e, 0x83, 0x5c,
+++		0xb3, 0x8b, 0x51, 0xc3, 0xb2, 0x2a, 0x3e, 0x6d, 0xf3, 0x25, 0x5a, 0x06, 0x6e, 0xe4, 0x93, 0x9c,
+++		0xc9, 0xdb, 0x2e, 0xac, 0xbb, 0x8b, 0x2f, 0x69, 0x2d, 0x42, 0x3c, 0x4b, 0x03, 0x5e, 0x9c, 0x8d,
+++		0x1a, 0xee, 0xec, 0x0b, 0xb8, 0x87, 0x19, 0xfd, 0x27, 0x1f, 0x1d, 0xd5, 0xb5, 0xe1, 0xe4, 0x1b,
+++		0x15, 0x3b, 0xde, 0x2b, 0x61, 0x5c, 0xdb, 0xb1, 0xba, 0x45, 0xd1, 0x4e, 0x67, 0xef, 0x84, 0x5b,
+++		0x09, 0xe6, 0x0d, 0x98, 0xe9, 0x5f, 0xf1, 0xe6, 0x96, 0xc5, 0x1c, 0xc6, 0xcd, 0xb1, 0xd9, 0x84,
+++		0x0b, 0xa2, 0x62, 0x12, 0x2c, 0xc3, 0xe4, 0xd0, 0x27, 0xd9, 0x80, 0x5b, 0x3f, 0x73, 0x10, 0x15,
+++		0x57, 0xf8, 0x2f, 0xf2, 0x31, 0x08, 0xb6, 0x7f, 0x02, 0x55, 0xfd, 0x85, 0x5e, 0xbe, 0x2a, 0x79,
+++		0xe4, 0x32, 0xbd, 0x2a, 0xb2, 0x34, 0xd5, 0x5a, 0x27, 0xec, 0x5c, 0x7c, 0xdc, 0x8b, 0xff, 0x03,
+++		0x00, 0x00, 0xff, 0xff, 0x01, 0x00, 0x00, 0xff, 0xff, 0xed, 0x38, 0x3a, 0x80, 0x83, 0x52, 0x00,
+++		0x00,
++ 	}
++ )
++ 
++diff --git a/ygen/testdata/schema/openconfig-options-nocompress-fakeroot.formatted-txt b/ygen/testdata/schema/openconfig-options-nocompress-fakeroot.formatted-txt
++--- a/ygen/testdata/schema/openconfig-options-nocompress-fakeroot.formatted-txt
+++++ b/ygen/testdata/schema/openconfig-options-nocompress-fakeroot.formatted-txt
++@@ -384,76 +384,88 @@
++ 	// contents of a goyang yang.Entry struct, which defines the schema for the
++ 	// fields within the struct.
++ 	ySchema = []byte{
++-		0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xec, 0x5c, 0x4b, 0x6f, 0xe3, 0x36,
++-		0x10, 0xbe, 0xfb, 0x57, 0x08, 0xbc, 0x36, 0x8e, 0xb3, 0x69, 0xda, 0xd4, 0xbe, 0x39, 0x9b, 0x0d,
++-		0x1a, 0x6c, 0xf3, 0xc0, 0x66, 0xbb, 0x97, 0xdd, 0x20, 0x60, 0xac, 0xb1, 0x42, 0x54, 0xa6, 0x04,
++-		0x8a, 0x6a, 0x63, 0x14, 0xfa, 0xef, 0x85, 0xac, 0x47, 0x22, 0x5b, 0xb6, 0x39, 0x24, 0xfd, 0xa8,
++-		0xc1, 0x9b, 0x23, 0x89, 0x33, 0xc3, 0xf9, 0x3e, 0x6a, 0x86, 0xc3, 0x89, 0xfe, 0xed, 0x78, 0x9e,
++-		0xe7, 0x91, 0x5b, 0x3a, 0x01, 0x32, 0xf0, 0x88, 0x0f, 0x7f, 0xb3, 0x11, 0x90, 0xa3, 0xe2, 0xea,
++-		0x67, 0xc6, 0x7d, 0x32, 0xf0, 0x3e, 0x94, 0x7f, 0x7e, 0x8c, 0xf8, 0x98, 0x05, 0x64, 0xe0, 0x9d,
++-		0x94, 0x17, 0x2e, 0x99, 0x20, 0x03, 0xaf, 0x10, 0x31, 0xbb, 0xf0, 0x1c, 0xc4, 0x8d, 0x0b, 0x0d,
++-		0xd9, 0xf9, 0xcd, 0xa3, 0xe6, 0xad, 0xa6, 0x82, 0xfa, 0xf2, 0xbc, 0xa2, 0xfa, 0xc6, 0xbd, 0x80,
++-		0x31, 0x7b, 0x5d, 0x50, 0xd1, 0x50, 0x13, 0x8d, 0xa2, 0x39, 0x35, 0xb3, 0xdb, 0x0f, 0x51, 0x2a,
++-		0x46, 0xd0, 0x3a, 0xb4, 0x30, 0x05, 0xa6, 0xff, 0x44, 0x22, 0xb7, 0x86, 0xc4, 0x85, 0x96, 0xa3,
++-		0xf6, 0x07, 0x7f, 0xa7, 0xc9, 0x50, 0x04, 0xe9, 0x04, 0xb8, 0x24, 0x03, 0x4f, 0x8a, 0x14, 0x96,
++-		0x3c, 0xf8, 0xee, 0xa9, 0x99, 0x51, 0x0b, 0x4f, 0x65, 0x8d, 0x2b, 0xd9, 0xdc, 0x5c, 0xe7, 0x9d,
++-		0x5b, 0xdf, 0xe0, 0xc0, 0x82, 0x97, 0xe7, 0x48, 0x24, 0xcb, 0x27, 0x53, 0xf9, 0xe2, 0xed, 0xd1,
++-		0x25, 0x36, 0xb6, 0x03, 0xb0, 0x16, 0x08, 0x15, 0x40, 0x14, 0x81, 0x51, 0x05, 0x08, 0x0d, 0x14,
++-		0x1a, 0x30, 0x75, 0xe0, 0xda, 0x01, 0x5c, 0x02, 0xe4, 0x5a, 0x40, 0x17, 0x80, 0x5d, 0xef, 0x83,
++-		0x79, 0x7c, 0xd7, 0xb9, 0x60, 0x35, 0xcc, 0xca, 0x70, 0x63, 0x60, 0x47, 0xc2, 0x8f, 0xa5, 0x81,
++-		0x36, 0x1d, 0xb4, 0x69, 0x81, 0xa7, 0xc7, 0x6a, 0x9a, 0xac, 0xa1, 0x8b, 0x32, 0x6d, 0xea, 0x07,
++-		0x47, 0x15, 0x7a, 0x8a, 0x9e, 0xab, 0x80, 0x29, 0xc7, 0x29, 0xce, 0x5e, 0x8d, 0x4a, 0x68, 0x4a,
++-		0xe9, 0x50, 0x4b, 0x93, 0x62, 0xba, 0x54, 0x33, 0xa6, 0x9c, 0x31, 0xf5, 0xf4, 0x29, 0xa8, 0x46,
++-		0x45, 0x45, 0x4a, 0xa2, 0xa9, 0x59, 0x0f, 0x78, 0x89, 0x42, 0xbf, 0x2b, 0xd9, 0x44, 0xc3, 0xe9,
++-		0x15, 0xc6, 0x6f, 0x22, 0x90, 0x3e, 0x2b, 0x89, 0x7b, 0x82, 0x1c, 0x86, 0x25, 0xb0, 0x09, 0x91,
++-		0x0d, 0x09, 0x6d, 0x4a, 0x6c, 0x6b, 0x04, 0xb7, 0x46, 0x74, 0x73, 0xc2, 0xe3, 0x88, 0x8f, 0x5c,
++-		0x00, 0xb5, 0x79, 0x5f, 0xa7, 0x31, 0x98, 0x21, 0x9d, 0x32, 0x2e, 0x7f, 0x3e, 0xd5, 0x01, 0xbb,
++-		0xe4, 0xf5, 0xb9, 0xc6, 0xd0, 0x2f, 0x94, 0x07, 0xb9, 0xf6, 0xef, 0x5a, 0xa0, 0xe8, 0x91, 0x6b,
++-		0xa6, 0xf8, 0x86, 0x71, 0x6d, 0x76, 0x1a, 0x2e, 0xe8, 0x05, 0x31, 0xdf, 0x68, 0x98, 0x82, 0x05,
++-		0x39, 0x57, 0x82, 0x8e, 0x24, 0x8b, 0xf8, 0x25, 0x0b, 0x98, 0xcc, 0x73, 0xf3, 0x13, 0x6d, 0x79,
++-		0xd9, 0x91, 0x81, 0x6b, 0xe9, 0xeb, 0xde, 0xb9, 0xf6, 0xec, 0xb4, 0x7f, 0xd6, 0xff, 0xf5, 0xfc,
++-		0xb4, 0xff, 0xcb, 0x1e, 0xf9, 0xb8, 0xb3, 0x9d, 0x51, 0x8f, 0x9d, 0xcd, 0xc8, 0x47, 0x70, 0x84,
++-		0xc4, 0x00, 0xa2, 0x4b, 0x7d, 0x5f, 0x40, 0x92, 0xe8, 0x47, 0xde, 0x86, 0x14, 0x17, 0x7c, 0x5d,
++-		0xf0, 0x3d, 0x9c, 0xe0, 0xcb, 0x59, 0xc4, 0x0d, 0x62, 0xef, 0x87, 0xbe, 0xc6, 0xd8, 0xd2, 0xec,
++-		0xad, 0xc7, 0xde, 0x6a, 0xd2, 0x89, 0x14, 0x8c, 0x07, 0xc4, 0x20, 0xd4, 0x54, 0xb3, 0xff, 0xcd,
++-		0x40, 0xc6, 0x3d, 0x95, 0x12, 0x04, 0xd7, 0x76, 0x44, 0x2d, 0xe8, 0xfb, 0x49, 0xb7, 0xff, 0xe3,
++-		0xc7, 0xf1, 0xe3, 0x4f, 0x44, 0x5b, 0xce, 0x63, 0x67, 0x8b, 0xc1, 0xda, 0x21, 0xd8, 0x86, 0xe0,
++-		0xb0, 0x7b, 0x35, 0xd8, 0x01, 0x84, 0xfb, 0x13, 0xd5, 0xad, 0xee, 0xcf, 0x87, 0x9c, 0x47, 0x92,
++-		0xe6, 0x09, 0x13, 0x6e, 0x9b, 0x9e, 0x8c, 0x5e, 0x60, 0x42, 0x63, 0x2a, 0x5f, 0x72, 0x9a, 0xf5,
++-		0xa2, 0x18, 0x78, 0x51, 0x24, 0xea, 0x46, 0x71, 0x2e, 0x2d, 0xe9, 0x3d, 0x07, 0x71, 0xaf, 0x2e,
++-		0x2e, 0xd7, 0xbf, 0x7a, 0xa8, 0x52, 0x52, 0xa1, 0x4a, 0x8a, 0x74, 0x24, 0x79, 0xc9, 0xe8, 0xbb,
++-		0x5a, 0xd3, 0x5d, 0xa1, 0xe8, 0xe9, 0x22, 0x88, 0x9f, 0x6e, 0x2b, 0x45, 0xf5, 0xaf, 0xa7, 0x32,
++-		0x31, 0xe8, 0xd8, 0xf1, 0xa9, 0x82, 0x3f, 0xf5, 0x72, 0x28, 0x93, 0xdc, 0x09, 0x99, 0x33, 0xb9,
++-		0x4a, 0xdb, 0x21, 0x57, 0xda, 0xd0, 0x39, 0x4e, 0x8d, 0x54, 0x08, 0x74, 0x2c, 0x60, 0x8c, 0x41,
++-		0xab, 0x8a, 0x0a, 0x88, 0x92, 0x42, 0x1e, 0x05, 0x66, 0x2f, 0x8b, 0xe3, 0xe3, 0xf2, 0x25, 0xd0,
++-		0x6b, 0x50, 0x7e, 0x8b, 0x0b, 0x35, 0x91, 0x54, 0x02, 0x7e, 0x85, 0x16, 0xc3, 0x36, 0x5c, 0x04,
++-		0x3f, 0x75, 0x4b, 0xf3, 0xe0, 0x96, 0x26, 0xba, 0x08, 0x0e, 0x9c, 0x3e, 0x87, 0xe0, 0x57, 0x6b,
++-		0xa3, 0x3b, 0xa6, 0x13, 0x16, 0x4e, 0xf5, 0xf7, 0xe5, 0x4b, 0xe4, 0xb9, 0x1d, 0xba, 0xdb, 0xa1,
++-		0xbb, 0x1d, 0xfa, 0xff, 0x79, 0x87, 0xce, 0x7c, 0xe0, 0x92, 0xc9, 0x29, 0x2e, 0x7c, 0x2f, 0x75,
++-		0x81, 0x41, 0xf1, 0x95, 0x5c, 0x97, 0xa6, 0x5c, 0xd0, 0x04, 0xcc, 0xcb, 0xcb, 0xd5, 0x04, 0x87,
++-		0x57, 0xd7, 0xc4, 0x46, 0x89, 0x39, 0x31, 0xde, 0x7c, 0x9a, 0x21, 0xd6, 0x3a, 0xb9, 0xeb, 0xfb,
++-		0x6f, 0x67, 0x4f, 0x7f, 0xde, 0x5e, 0x7f, 0x1c, 0x3e, 0x7c, 0x25, 0xc6, 0xa2, 0x33, 0x23, 0x09,
++-		0x8f, 0xdb, 0x2e, 0x93, 0xef, 0xac, 0x26, 0xa2, 0x7d, 0x8e, 0x36, 0xbf, 0x5c, 0xce, 0x0d, 0x44,
++-		0x98, 0x9d, 0xab, 0xd9, 0xe3, 0xa3, 0x95, 0x73, 0x36, 0xc3, 0x0c, 0x61, 0xf5, 0xca, 0xb5, 0x28,
++-		0xcf, 0xe2, 0xd9, 0x90, 0x21, 0x8d, 0x9b, 0x10, 0x58, 0x38, 0x8f, 0xdb, 0x34, 0x04, 0xb6, 0xce,
++-		0xe7, 0x36, 0x8a, 0x45, 0x67, 0x37, 0xa3, 0xf7, 0xb4, 0xa2, 0x88, 0xcc, 0xc0, 0xfe, 0x60, 0x89,
++-		0x1c, 0x4a, 0x29, 0xf4, 0xb2, 0xb0, 0x1b, 0xc6, 0x3f, 0x85, 0x90, 0x27, 0x98, 0x39, 0x96, 0x3c,
++-		0x0d, 0x43, 0x8d, 0x6c, 0xea, 0x86, 0xbe, 0x9a, 0x0b, 0xb9, 0x13, 0x3e, 0x08, 0xf0, 0x2f, 0xa6,
++-		0xa5, 0x88, 0x3d, 0x38, 0x5c, 0x75, 0x3d, 0x4d, 0x6e, 0xd3, 0xe6, 0x36, 0x6d, 0x56, 0x73, 0x31,
++-		0xd7, 0xd3, 0xe4, 0x7a, 0x9a, 0x6c, 0xe7, 0x50, 0xae, 0xa7, 0x69, 0x67, 0xb9, 0x8a, 0xeb, 0x69,
++-		0x72, 0xc1, 0xd7, 0x05, 0xdf, 0x6d, 0x07, 0x5f, 0xd7, 0xd3, 0x64, 0x10, 0x25, 0x5c, 0x4f, 0x93,
++-		0x43, 0xd0, 0xf5, 0x34, 0x6d, 0x3f, 0xaa, 0x27, 0x90, 0x24, 0x2c, 0xe2, 0x5d, 0xdc, 0x21, 0xfe,
++-		0x22, 0x8b, 0x1a, 0x62, 0x5c, 0x5c, 0x77, 0x71, 0xfd, 0x60, 0xe2, 0x3a, 0xf0, 0x74, 0x02, 0xa2,
++-		0x68, 0xea, 0x33, 0x88, 0xee, 0x67, 0x1a, 0x63, 0x3f, 0xf1, 0x74, 0x92, 0x1b, 0x9f, 0xb9, 0xe6,
++-		0xc7, 0xb6, 0xe6, 0x47, 0xec, 0xcb, 0x46, 0xb7, 0xf7, 0xf1, 0x61, 0xa6, 0xc7, 0x56, 0x47, 0x95,
++-		0xd1, 0xff, 0x26, 0x7f, 0x86, 0x29, 0x72, 0x17, 0x85, 0xab, 0x44, 0x6b, 0x55, 0x9e, 0xb5, 0x2a,
++-		0xcd, 0xb8, 0xca, 0xf2, 0x3a, 0xbf, 0x20, 0xb9, 0xa7, 0xcd, 0x39, 0xa2, 0xd4, 0x0f, 0xa7, 0xc3,
++-		0xb2, 0xd5, 0xfc, 0xca, 0x2c, 0x7d, 0x12, 0x41, 0xd1, 0x4f, 0x58, 0xff, 0xac, 0xfa, 0xcc, 0x04,
++-		0xca, 0x1d, 0xed, 0x5e, 0xc8, 0x90, 0x5f, 0xf2, 0x58, 0x33, 0x4b, 0xb5, 0xd9, 0xb5, 0x7d, 0xd3,
++-		0x44, 0x61, 0x2e, 0xcd, 0x19, 0xbc, 0xd9, 0x59, 0xfc, 0x2a, 0x2d, 0x5d, 0x66, 0x21, 0x61, 0xc9,
++-		0x15, 0xfd, 0x0b, 0xbe, 0x44, 0xd1, 0x62, 0x54, 0x9e, 0xb7, 0x9a, 0xbc, 0xbf, 0xd5, 0xb0, 0xeb,
++-		0xb2, 0xf8, 0xa6, 0x4c, 0xa1, 0xb0, 0x93, 0xfd, 0x07, 0x00, 0x00, 0xff, 0xff, 0x01, 0x00, 0x00,
++-		0xff, 0xff, 0xad, 0x19, 0x34, 0x77, 0x72, 0x46, 0x00, 0x00,
+++		0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xec, 0x5c, 0xdf, 0x53, 0xe3, 0x36,
+++		0x10, 0x7e, 0xcf, 0x5f, 0xe1, 0xd1, 0x6b, 0x13, 0xc2, 0x51, 0x5a, 0x9a, 0xbc, 0x05, 0x38, 0xa6,
+++		0xcc, 0x15, 0xc2, 0x1c, 0xd7, 0x7b, 0xe1, 0x32, 0x8c, 0x88, 0x15, 0x47, 0x53, 0x47, 0xf6, 0x48,
+++		0xf2, 0x95, 0xb4, 0xe3, 0xff, 0xbd, 0xe3, 0xf8, 0x47, 0x70, 0xe2, 0xd8, 0x5a, 0xc9, 0x81, 0x1c,
+++		0xd5, 0x1b, 0xd8, 0xd2, 0x4a, 0xda, 0xef, 0x5b, 0xf9, 0xcb, 0x6a, 0x47, 0xff, 0x76, 0x1c, 0xc7,
+++		0x71, 0xd0, 0x2d, 0x5e, 0x10, 0x34, 0x74, 0x90, 0x4b, 0xbe, 0xd3, 0x29, 0x41, 0xdd, 0xf4, 0xe9,
+++		0x27, 0xca, 0x5c, 0x34, 0x74, 0x3e, 0x64, 0xff, 0x5e, 0x04, 0x6c, 0x46, 0x3d, 0x34, 0x74, 0x8e,
+++		0xb3, 0x07, 0x97, 0x94, 0xa3, 0xa1, 0x93, 0x9a, 0x58, 0x3d, 0x78, 0xf2, 0xc2, 0xd2, 0x83, 0x92,
+++		0xed, 0xe4, 0x65, 0xb7, 0xfc, 0xaa, 0x3c, 0x40, 0xf1, 0x78, 0x73, 0xa0, 0xe2, 0xc5, 0x1d, 0x27,
+++		0x33, 0xfa, 0xbc, 0x35, 0x44, 0x69, 0x98, 0x60, 0x1a, 0x6c, 0x0c, 0xb3, 0x7a, 0x7d, 0x1f, 0x44,
+++		0x7c, 0x4a, 0x2a, 0xbb, 0xa6, 0x53, 0x21, 0xcb, 0xbf, 0x03, 0x9e, 0xcc, 0x06, 0x85, 0xe9, 0x28,
+++		0xdd, 0xea, 0x86, 0xbf, 0x63, 0x31, 0xe2, 0x5e, 0xb4, 0x20, 0x4c, 0xa2, 0xa1, 0x23, 0x79, 0x44,
+++		0x76, 0x34, 0x7c, 0xd1, 0x6a, 0x35, 0xa9, 0xad, 0x56, 0x71, 0xe9, 0x49, 0xbc, 0xb1, 0xd6, 0x4d,
+++		0xe7, 0x16, 0x2f, 0x18, 0xa1, 0xde, 0xfc, 0x29, 0xe0, 0x62, 0xf7, 0x62, 0x72, 0x5f, 0xac, 0x9b,
+++		0xee, 0x98, 0x63, 0x35, 0x00, 0x8d, 0x40, 0xa8, 0x00, 0xa2, 0x08, 0x8c, 0x2a, 0x40, 0x60, 0xa0,
+++		0xc0, 0x80, 0xa9, 0x03, 0x57, 0x0d, 0xe0, 0x0e, 0x20, 0x1b, 0x01, 0xdd, 0x02, 0xb6, 0xd9, 0x07,
+++		0x9b, 0xf8, 0x36, 0xb9, 0xa0, 0x1e, 0x66, 0x65, 0xb8, 0x21, 0xb0, 0x03, 0xe1, 0x87, 0xd2, 0x40,
+++		0x9b, 0x0e, 0xda, 0xb4, 0x80, 0xd3, 0xa3, 0x9e, 0x26, 0x0d, 0x74, 0x51, 0xa6, 0x4d, 0xd1, 0x70,
+++		0x9a, 0xa3, 0xa7, 0xe8, 0xb9, 0x1c, 0x98, 0xac, 0x9f, 0xe2, 0xea, 0xd5, 0xa8, 0x04, 0xa6, 0x94,
+++		0x0e, 0xb5, 0x34, 0x29, 0xa6, 0x4b, 0x35, 0x63, 0xca, 0x19, 0x53, 0x4f, 0x9f, 0x82, 0x6a, 0x54,
+++		0x54, 0xa4, 0x24, 0x98, 0x9a, 0x45, 0x87, 0x79, 0xe0, 0xbb, 0x3d, 0x49, 0x17, 0x1a, 0x4e, 0xcf,
+++		0x31, 0x5e, 0x9b, 0x00, 0xfa, 0x2c, 0x23, 0xee, 0x31, 0xb0, 0x1b, 0x94, 0xc0, 0x26, 0x44, 0x36,
+++		0x24, 0xb4, 0x29, 0xb1, 0x5b, 0x23, 0x78, 0x6b, 0x44, 0x37, 0x27, 0x3c, 0x8c, 0xf8, 0xc0, 0x00,
+++		0x78, 0x19, 0x08, 0xe3, 0x4f, 0x64, 0x99, 0x28, 0xb2, 0x87, 0x09, 0xb0, 0xef, 0x97, 0x65, 0x48,
+++		0xcc, 0x58, 0x12, 0x51, 0x26, 0x7f, 0x3e, 0xd1, 0x21, 0x4a, 0x16, 0x13, 0x67, 0x1a, 0x5d, 0x3f,
+++		0x63, 0xe6, 0x25, 0xa3, 0x3f, 0x68, 0x01, 0xaa, 0x47, 0xcc, 0xd5, 0xc0, 0x37, 0x94, 0x69, 0x33,
+++		0xdb, 0x70, 0x33, 0xd8, 0x32, 0xf3, 0x15, 0xfb, 0x11, 0x69, 0xc1, 0xce, 0x15, 0xc7, 0x53, 0x49,
+++		0x03, 0x76, 0x49, 0x3d, 0x2a, 0x13, 0x16, 0x1d, 0x6b, 0xdb, 0x8b, 0xbb, 0x06, 0xae, 0xc5, 0xcf,
+++		0x07, 0xe7, 0xda, 0xd3, 0x93, 0xc1, 0xe9, 0xe0, 0xd7, 0xb3, 0x93, 0xc1, 0x2f, 0x07, 0xe4, 0xe3,
+++		0xce, 0xeb, 0xf4, 0x9a, 0xec, 0x75, 0xd3, 0xba, 0x23, 0x7c, 0x36, 0x0e, 0xa5, 0xd0, 0xdb, 0x7c,
+++		0x2e, 0xe6, 0xd4, 0x77, 0xef, 0xa7, 0x73, 0xb2, 0xc0, 0x17, 0x78, 0x3a, 0x4f, 0xa0, 0x62, 0x91,
+++		0xef, 0x77, 0xf6, 0xe3, 0x11, 0xc0, 0xda, 0x50, 0x48, 0x08, 0xef, 0x61, 0xd7, 0xe5, 0x44, 0x08,
+++		0x7d, 0x9d, 0x51, 0xb2, 0x62, 0xa5, 0x86, 0x95, 0x1a, 0x56, 0x6a, 0x24, 0x52, 0x83, 0xd1, 0x80,
+++		0x19, 0x28, 0x8d, 0x0f, 0x03, 0x8d, 0xbe, 0xd9, 0xb4, 0x5f, 0x5d, 0x69, 0xe4, 0x8b, 0x16, 0x92,
+++		0x53, 0xe6, 0x21, 0x83, 0x0f, 0x6b, 0xbe, 0xfa, 0xdf, 0x0c, 0x6c, 0xdc, 0x61, 0x29, 0x09, 0x67,
+++		0xda, 0x8e, 0x28, 0x0c, 0x3d, 0x1c, 0xf7, 0x06, 0xdf, 0xbe, 0x1d, 0x4d, 0x7e, 0x42, 0xda, 0x76,
+++		0x26, 0x9d, 0x57, 0x94, 0x26, 0x16, 0xc1, 0x2a, 0x04, 0x47, 0xbd, 0xab, 0xe1, 0x1b, 0x40, 0x68,
+++		0x35, 0x8c, 0xbe, 0x86, 0x69, 0x3b, 0xf7, 0x52, 0x7c, 0x07, 0x34, 0xb5, 0x51, 0x57, 0x27, 0x71,
+++		0xa3, 0xd4, 0x67, 0xa2, 0x9a, 0x4a, 0x65, 0x2c, 0x90, 0x38, 0x51, 0xe5, 0xb0, 0x3c, 0x92, 0x58,
+++		0x61, 0x16, 0x62, 0x39, 0x4f, 0xa2, 0xbb, 0x1f, 0x84, 0x84, 0xa5, 0x59, 0xcc, 0x5e, 0x10, 0x26,
+++		0xd6, 0x44, 0xff, 0xc9, 0x0b, 0xfb, 0xc5, 0xe9, 0x47, 0xf1, 0x57, 0x1f, 0x94, 0xeb, 0x4c, 0x87,
+++		0x92, 0x3c, 0x9a, 0x4a, 0x96, 0x6d, 0x24, 0xe3, 0x62, 0xa4, 0x71, 0x3a, 0xd0, 0xe3, 0xb9, 0x17,
+++		0x3e, 0xde, 0xe6, 0x03, 0x15, 0x7f, 0x3d, 0x66, 0x5a, 0xae, 0x55, 0xc8, 0xb5, 0xc8, 0x6e, 0x44,
+++		0xf2, 0x66, 0xca, 0x2a, 0xcc, 0x5d, 0x4f, 0x90, 0x9b, 0x08, 0x71, 0xa0, 0x00, 0xb7, 0x49, 0xea,
+++		0x7d, 0x08, 0xea, 0x03, 0x4a, 0x52, 0x43, 0x05, 0x33, 0x5c, 0x28, 0x17, 0xe8, 0xfa, 0x04, 0xcf,
+++		0x38, 0x99, 0x41, 0x10, 0xce, 0xa5, 0x05, 0x20, 0x0b, 0x97, 0x48, 0x89, 0xd5, 0xd6, 0x77, 0x74,
+++		0x94, 0x6d, 0x69, 0xfd, 0x52, 0x98, 0xd8, 0x6d, 0x67, 0xb5, 0x73, 0x63, 0x49, 0xe0, 0xfb, 0x4d,
+++		0xda, 0x6d, 0xcf, 0xa7, 0x61, 0x27, 0x76, 0xa3, 0x79, 0x8f, 0x1b, 0x0d, 0x0c, 0x28, 0xc2, 0xf0,
+++		0x93, 0x4f, 0xdc, 0x3c, 0x6a, 0x7b, 0x33, 0xbc, 0xa0, 0xfe, 0x52, 0x3f, 0x65, 0xb5, 0xc3, 0x9e,
+++		0x4d, 0x5e, 0xd9, 0xe4, 0x95, 0x4d, 0x5e, 0xfd, 0x5f, 0x93, 0x57, 0xd4, 0x25, 0x4c, 0x52, 0xb9,
+++		0x84, 0x89, 0x92, 0x9d, 0x2e, 0x30, 0x38, 0x85, 0x41, 0xd7, 0xd9, 0x54, 0xce, 0xb1, 0x20, 0xe6,
+++		0xe7, 0x4c, 0xf9, 0x02, 0x47, 0x57, 0xd7, 0xa8, 0x8d, 0xb3, 0x26, 0x61, 0x9c, 0x97, 0x31, 0x43,
+++		0xac, 0x72, 0x71, 0xd7, 0x77, 0x5f, 0x4f, 0x1f, 0xff, 0xbc, 0xbd, 0xbe, 0x18, 0xdd, 0x7f, 0x41,
+++		0xc6, 0xa6, 0x63, 0x23, 0x0b, 0x93, 0xd7, 0x3e, 0x2f, 0x7b, 0xb3, 0x74, 0xa1, 0xf6, 0x81, 0xfa,
+++		0x66, 0xb8, 0x9c, 0x19, 0x98, 0x30, 0x3b, 0x60, 0x6f, 0x8f, 0x8f, 0xad, 0x1c, 0xb8, 0x1b, 0xaa,
+++		0x8b, 0xfa, 0xc8, 0x6d, 0xd1, 0x5e, 0x8b, 0x87, 0xc4, 0x86, 0x34, 0x2e, 0x43, 0xd0, 0xc2, 0xc1,
+++		0xfc, 0xbe, 0x21, 0x68, 0xeb, 0xa0, 0x7e, 0xaf, 0x58, 0x74, 0xde, 0xa6, 0xf7, 0xfb, 0x48, 0xb6,
+++		0xff, 0x41, 0x85, 0x1c, 0x49, 0xc9, 0xf5, 0x54, 0xd8, 0x0d, 0x65, 0x1f, 0x7d, 0x92, 0x88, 0x53,
+++		0x91, 0xe5, 0x02, 0x34, 0xd4, 0xd4, 0x0d, 0x7e, 0x36, 0x37, 0x32, 0xe6, 0x2e, 0xe1, 0xc4, 0x3d,
+++		0x5f, 0x6a, 0xe5, 0xfb, 0x6d, 0x95, 0x85, 0x63, 0x4b, 0x39, 0xed, 0x4f, 0x54, 0xfb, 0x13, 0x75,
+++		0x2f, 0x3f, 0x51, 0x6d, 0x29, 0xe7, 0xdb, 0xc8, 0x19, 0x5b, 0xca, 0xb9, 0x7f, 0xd7, 0xda, 0x52,
+++		0x4e, 0x2b, 0x32, 0x6c, 0x29, 0xa7, 0x95, 0x1a, 0x56, 0x6a, 0x1c, 0x84, 0xd4, 0xb0, 0xa5, 0x9c,
+++		0x06, 0xdf, 0x44, 0x5b, 0xca, 0x69, 0x11, 0xb4, 0xa5, 0x9c, 0x56, 0xc3, 0x34, 0xcf, 0x4c, 0x10,
+++		0x21, 0x68, 0xc0, 0x7a, 0xb0, 0x72, 0x94, 0x6d, 0xde, 0x97, 0xcc, 0x58, 0x15, 0x63, 0x55, 0x8c,
+++		0x55, 0x31, 0xab, 0x9a, 0x97, 0x68, 0x41, 0x78, 0x5a, 0x42, 0x6c, 0xa0, 0x65, 0x4e, 0x35, 0xfa,
+++		0x7e, 0x64, 0xd1, 0x22, 0x99, 0x7c, 0x6c, 0xb7, 0x45, 0x50, 0xcb, 0x43, 0xaf, 0x70, 0xef, 0x1a,
+++		0x57, 0x70, 0x69, 0x7f, 0x1d, 0x7e, 0xec, 0xe2, 0x7a, 0xe8, 0xa7, 0x49, 0xb7, 0xb6, 0xfe, 0x5e,
+++		0xdd, 0x57, 0x3f, 0x74, 0x8d, 0xab, 0xe9, 0xb5, 0x31, 0xea, 0xd1, 0x03, 0x8d, 0x1a, 0xf5, 0x3b,
+++		0x63, 0x90, 0x02, 0xb1, 0x27, 0xdd, 0xc6, 0x1b, 0x9f, 0x80, 0x69, 0x1c, 0xd8, 0x51, 0xa5, 0xd6,
+++		0xd1, 0xa4, 0xd6, 0x51, 0x24, 0xec, 0xe8, 0xb1, 0x09, 0x62, 0x60, 0x80, 0x6b, 0x07, 0xb6, 0x1a,
+++		0xcc, 0x3a, 0xa1, 0x8c, 0x8c, 0xd6, 0x0f, 0x0a, 0x5a, 0xad, 0x60, 0x8d, 0xdb, 0xbb, 0xfa, 0xab,
+++		0x39, 0x18, 0xd7, 0xb7, 0x79, 0x75, 0x00, 0x51, 0xa2, 0xca, 0x02, 0x28, 0xfa, 0x75, 0x57, 0xb5,
+++		0x81, 0xc0, 0x46, 0x20, 0x4f, 0x29, 0x61, 0x0a, 0xc2, 0x32, 0x86, 0xdf, 0xbb, 0xb7, 0x1b, 0xab,
+++		0x17, 0x37, 0xea, 0x75, 0x6a, 0xc0, 0x69, 0x02, 0x05, 0x2d, 0x02, 0x37, 0xf2, 0x49, 0xee, 0xc1,
+++		0x6d, 0x2c, 0xaa, 0x6e, 0x30, 0x4c, 0x5a, 0x8b, 0x10, 0x4f, 0xd3, 0xec, 0x1d, 0x67, 0xc3, 0x1d,
+++		0x37, 0x1d, 0x06, 0xdc, 0xc3, 0x8c, 0xfe, 0x93, 0x8f, 0x8e, 0xaa, 0xda, 0x70, 0xf2, 0x9d, 0x8a,
+++		0x9a, 0xf7, 0x4a, 0x64, 0xa9, 0xec, 0xd8, 0x4c, 0x0d, 0x54, 0xeb, 0xfe, 0x5a, 0x02, 0x28, 0x01,
+++		0xbf, 0x86, 0x37, 0xfd, 0x2b, 0x5e, 0xdf, 0x56, 0x99, 0x03, 0xbb, 0xde, 0xad, 0x77, 0x21, 0x85,
+++		0xa8, 0xb8, 0xc2, 0x7f, 0x91, 0xcf, 0x41, 0xb0, 0xfd, 0xeb, 0x6d, 0xd3, 0x3b, 0xe8, 0xe5, 0xab,
+++		0xd2, 0xfa, 0x2f, 0xd3, 0xeb, 0x34, 0x4b, 0xd3, 0xa8, 0x5c, 0x60, 0xed, 0xc2, 0xe2, 0x4e, 0xfc,
+++		0x1f, 0x00, 0x00, 0x00, 0xff, 0xff, 0x01, 0x00, 0x00, 0xff, 0xff, 0xfd, 0x35, 0xfe, 0xb7, 0xa7,
+++		0x53, 0x00, 0x00,
++ 	}
++ )
++ 
++diff --git a/ygen/testdata/schema/openconfig-options-explicit.formatted-txt b/ygen/testdata/schema/openconfig-options-explicit.formatted-txt
++--- a/ygen/testdata/schema/openconfig-options-explicit.formatted-txt
+++++ b/ygen/testdata/schema/openconfig-options-explicit.formatted-txt
++@@ -223,53 +223,64 @@
++ 	// contents of a goyang yang.Entry struct, which defines the schema for the
++ 	// fields within the struct.
++ 	YANGSchema = []byte{
++-		0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xec, 0x5a, 0x4f, 0x8f, 0xda, 0x3e,
++-		0x10, 0xbd, 0xe7, 0x53, 0x44, 0x3e, 0x83, 0x60, 0x7f, 0xfa, 0x1d, 0x5a, 0x6e, 0x2b, 0xda, 0x55,
++-		0xa5, 0x4a, 0xd5, 0x6a, 0xb7, 0xf7, 0xca, 0x0d, 0x03, 0x58, 0x4b, 0xec, 0x68, 0xe2, 0x88, 0xa2,
++-		0x8a, 0xef, 0x5e, 0x11, 0x87, 0x2c, 0x09, 0xf9, 0x33, 0x36, 0x34, 0xa5, 0x5d, 0x1f, 0xb1, 0xc7,
++-		0x78, 0xc6, 0xf3, 0x9e, 0xed, 0xe7, 0xcc, 0xcf, 0x20, 0x0c, 0xc3, 0x90, 0x7d, 0xe1, 0x31, 0xb0,
++-		0x59, 0xc8, 0x96, 0xfc, 0x05, 0x50, 0x29, 0xcd, 0x46, 0xa6, 0xfd, 0xb3, 0x90, 0x0b, 0x36, 0x0b,
++-		0xef, 0x8a, 0x9f, 0x73, 0x25, 0x97, 0x62, 0xc5, 0x66, 0xe1, 0xb4, 0x68, 0xf8, 0x20, 0x90, 0xcd,
++-		0x42, 0xf3, 0x27, 0x79, 0x43, 0xc2, 0x11, 0xa4, 0xae, 0xb4, 0x55, 0x26, 0x28, 0xfa, 0x47, 0xd5,
++-		0xde, 0xea, 0x34, 0x65, 0x73, 0x7d, 0xba, 0xb2, 0xe3, 0x11, 0x61, 0x29, 0x7e, 0x9c, 0xcd, 0x52,
++-		0x99, 0x49, 0x45, 0x69, 0x6d, 0x9a, 0xbc, 0xfb, 0x59, 0x65, 0x18, 0x41, 0xe3, 0x50, 0xe3, 0x0a,
++-		0xec, 0xb6, 0x0a, 0x17, 0xb9, 0xaf, 0x66, 0x96, 0x51, 0xb3, 0xe1, 0x27, 0x9e, 0xde, 0xe3, 0x2a,
++-		0x8b, 0x4d, 0xb8, 0x1a, 0x33, 0x68, 0x31, 0x3c, 0xb1, 0xca, 0x9d, 0x3a, 0xb3, 0xda, 0x57, 0x5a,
++-		0xf6, 0xb5, 0x58, 0xeb, 0x4b, 0x5c, 0x76, 0x44, 0x6b, 0xb1, 0x59, 0xb4, 0x07, 0x72, 0x5c, 0x07,
++-		0x63, 0xd6, 0xe2, 0x5b, 0xf3, 0xc2, 0xf7, 0x26, 0x80, 0x92, 0x08, 0x62, 0x42, 0xa8, 0x89, 0xb1,
++-		0x4e, 0x90, 0x75, 0xa2, 0xe8, 0x09, 0x6b, 0x4e, 0x5c, 0x4b, 0x02, 0x7b, 0x13, 0xf9, 0x9a, 0xd0,
++-		0xe3, 0x6a, 0xf7, 0xac, 0x40, 0x99, 0x59, 0x63, 0xdf, 0x13, 0x4d, 0x77, 0x8a, 0xc9, 0xa9, 0xb6,
++-		0x49, 0xb9, 0x65, 0xea, 0x6d, 0x21, 0xe0, 0x0c, 0x05, 0x67, 0x48, 0xd8, 0x43, 0xa3, 0x1b, 0x22,
++-		0x3d, 0x50, 0x21, 0x43, 0xa6, 0x34, 0x5c, 0xaa, 0x0c, 0xe9, 0xeb, 0x56, 0xee, 0xf6, 0x87, 0x51,
++-		0xc4, 0xc8, 0x0b, 0x18, 0x4d, 0x89, 0xe6, 0x54, 0x38, 0xb9, 0xc0, 0xca, 0x11, 0x5e, 0xae, 0x30,
++-		0xbb, 0x18, 0x6e, 0x17, 0xc3, 0xce, 0x1d, 0x7e, 0x34, 0x18, 0x12, 0xe1, 0x58, 0xba, 0xf1, 0x75,
++-		0x97, 0x80, 0x5b, 0xa6, 0xbe, 0x0b, 0xc9, 0x71, 0x67, 0x93, 0xac, 0x02, 0x77, 0xef, 0x83, 0xeb,
++-		0x84, 0x49, 0x08, 0x91, 0x29, 0x09, 0xf6, 0x5c, 0x3a, 0x0c, 0xf2, 0x54, 0xf2, 0x54, 0x1a, 0x8c,
++-		0x4a, 0xa9, 0x46, 0x21, 0x57, 0x0e, 0x54, 0xba, 0x7b, 0x37, 0x20, 0x97, 0xf4, 0x1a, 0xc1, 0x81,
++-		0x4d, 0x66, 0x98, 0xe7, 0x93, 0xe7, 0xd3, 0x60, 0x7c, 0x02, 0x99, 0xc5, 0x80, 0x5c, 0x0b, 0x25,
++-		0x5d, 0x48, 0xf5, 0xbf, 0xc5, 0x98, 0x8f, 0x32, 0x8b, 0x0f, 0x4e, 0xee, 0xaf, 0x45, 0xc4, 0x8b,
++-		0x2e, 0x99, 0xf7, 0x52, 0x2a, 0x6d, 0xe2, 0x26, 0xdd, 0x35, 0xd3, 0x68, 0x0d, 0x31, 0x4f, 0xb8,
++-		0x5e, 0x1f, 0x96, 0x6d, 0xa2, 0x12, 0x90, 0x46, 0x89, 0x8c, 0x53, 0x11, 0x27, 0x1b, 0x98, 0x18,
++-		0x8d, 0x3f, 0xc9, 0x85, 0xe7, 0xa4, 0x10, 0x29, 0x81, 0x9b, 0xff, 0x1d, 0xbe, 0xb3, 0x54, 0x73,
++-		0x0d, 0x74, 0xb5, 0x64, 0xcc, 0xbd, 0x58, 0xf2, 0x62, 0xc9, 0x8b, 0x25, 0x7f, 0x22, 0x79, 0xb1,
++-		0xe4, 0xc5, 0x92, 0xa7, 0x92, 0x17, 0x4b, 0x5e, 0x2c, 0x79, 0x3e, 0x79, 0x3e, 0xbd, 0x29, 0xb1,
++-		0x44, 0x21, 0xe2, 0x56, 0x39, 0xd0, 0x70, 0xab, 0x3c, 0x09, 0x3d, 0x09, 0xdf, 0xd4, 0xa1, 0x76,
++-		0xc3, 0x0f, 0x0f, 0x46, 0xef, 0xbb, 0xbe, 0x3b, 0x58, 0x7d, 0xd9, 0x25, 0x06, 0x62, 0x17, 0x00,
++-		0xeb, 0x7c, 0xfa, 0xc0, 0x2c, 0xd2, 0xb2, 0xc0, 0xc1, 0x63, 0x3e, 0xea, 0xdb, 0x3c, 0x1f, 0x15,
++-		0xd0, 0xc2, 0xe9, 0xae, 0x39, 0xe8, 0x09, 0x88, 0x1a, 0x48, 0x53, 0xfd, 0x45, 0x93, 0xeb, 0x55,
++-		0xa7, 0x5f, 0x5d, 0x3b, 0x71, 0x8b, 0x21, 0xc4, 0x4a, 0xc3, 0x38, 0x52, 0x52, 0x73, 0x21, 0x01,
++-		0xdb, 0x4b, 0x4c, 0xce, 0x2c, 0x07, 0x29, 0x36, 0xc1, 0x5b, 0x2c, 0x36, 0xc1, 0xeb, 0x15, 0x9b,
++-		0x74, 0xd7, 0x26, 0xd0, 0x6a, 0x12, 0x06, 0x2e, 0x37, 0xc1, 0xbf, 0xb1, 0xdc, 0x04, 0x07, 0x2b,
++-		0x37, 0xe1, 0xe3, 0x0d, 0xf0, 0x25, 0xfd, 0x01, 0xb5, 0xb0, 0xa7, 0xbd, 0xa0, 0x4e, 0xff, 0xec,
++-		0x0b, 0x2a, 0xfe, 0x8b, 0x2f, 0xa8, 0xf8, 0xbb, 0x5f, 0x50, 0xc9, 0x57, 0x11, 0xfb, 0x2b, 0x08,
++-		0xf1, 0xea, 0x71, 0x73, 0x27, 0x72, 0xfd, 0x30, 0xe9, 0xfc, 0x9e, 0xd1, 0x70, 0xcc, 0x36, 0x9e,
++-		0x80, 0x5d, 0xdf, 0x2d, 0x48, 0xdf, 0x2b, 0xc8, 0x1b, 0xe9, 0x7f, 0x7e, 0x23, 0xf5, 0x1b, 0xa9,
++-		0xdf, 0x48, 0xfd, 0x46, 0x7a, 0x7b, 0x1b, 0x69, 0x87, 0x3e, 0x1b, 0x5c, 0xae, 0xf4, 0x48, 0x86,
++-		0x06, 0xe1, 0xf2, 0x94, 0x8f, 0x98, 0x97, 0x03, 0xda, 0x14, 0x4c, 0x70, 0xe2, 0x6f, 0x9b, 0x9f,
++-		0x4c, 0xa4, 0x73, 0x15, 0x27, 0x08, 0x69, 0x0a, 0x8b, 0xe7, 0xdc, 0xd7, 0x33, 0x74, 0x33, 0x91,
++-		0x3e, 0xf0, 0x17, 0x78, 0x52, 0xea, 0x1c, 0xf9, 0xf5, 0xf8, 0xd8, 0x69, 0x57, 0xc5, 0xeb, 0x87,
++-		0x63, 0x79, 0xbf, 0x71, 0x2b, 0xd8, 0xff, 0x02, 0x00, 0x00, 0xff, 0xff, 0x01, 0x00, 0x00, 0xff,
++-		0xff, 0xb3, 0xb5, 0x6f, 0x08, 0xff, 0x2f, 0x00, 0x00,
+++		0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xec, 0x5b, 0xdf, 0x6f, 0xda, 0x30,
+++		0x10, 0x7e, 0xe7, 0xaf, 0x88, 0xfc, 0x4c, 0x45, 0x3b, 0xed, 0x61, 0xe3, 0x6d, 0x62, 0xab, 0x26,
+++		0x55, 0x5a, 0xab, 0x76, 0x6f, 0x53, 0x35, 0x79, 0x70, 0x40, 0x54, 0x62, 0x47, 0x67, 0x67, 0x1d,
+++		0x9b, 0xf8, 0xdf, 0xa7, 0xfc, 0x20, 0x25, 0x90, 0x38, 0xe7, 0x50, 0x01, 0x6d, 0xef, 0x71, 0xf6,
+++		0x19, 0xdb, 0xf7, 0x7d, 0xfb, 0x6c, 0x7f, 0xb9, 0xfe, 0xeb, 0x05, 0x41, 0x10, 0x88, 0x6f, 0x32,
+++		0x02, 0x31, 0x0c, 0xc4, 0x54, 0x3e, 0x00, 0x6a, 0x6d, 0x45, 0x3f, 0x6f, 0xbf, 0x0a, 0xd5, 0x44,
+++		0x0c, 0x83, 0x8b, 0xe2, 0x9f, 0x23, 0xad, 0xa6, 0xe1, 0x4c, 0x0c, 0x83, 0xf3, 0xa2, 0xe1, 0x73,
+++		0x88, 0x62, 0x18, 0xe4, 0x3f, 0x92, 0x35, 0xc4, 0x12, 0x41, 0xd9, 0x4a, 0x5b, 0x65, 0x82, 0xa2,
+++		0xbf, 0x5f, 0xed, 0xad, 0x4e, 0x53, 0x36, 0x6f, 0x4f, 0x57, 0x76, 0xdc, 0x20, 0x4c, 0xc3, 0x3f,
+++		0x3b, 0xb3, 0x54, 0x66, 0xd2, 0x63, 0xb3, 0x35, 0x4d, 0xd6, 0x7d, 0xa7, 0x13, 0x1c, 0x43, 0xed,
+++		0xd0, 0x7c, 0x29, 0xb0, 0x7c, 0xd4, 0x38, 0xc9, 0xd6, 0x9a, 0xcf, 0xd2, 0xaf, 0x0f, 0xfc, 0x2a,
+++		0xcd, 0x27, 0x9c, 0x25, 0x51, 0xbe, 0x5d, 0x8b, 0x09, 0x34, 0x04, 0x6e, 0x44, 0x65, 0x8b, 0xda,
+++		0x89, 0x5a, 0x55, 0x5a, 0x56, 0x5b, 0x7b, 0xdd, 0x4e, 0x71, 0xd9, 0x31, 0x9e, 0x87, 0x8b, 0x49,
+++		0xf3, 0x46, 0xd6, 0x79, 0xc8, 0xc3, 0x1a, 0xd6, 0x56, 0x9f, 0xf8, 0x56, 0x00, 0x28, 0x40, 0x10,
+++		0x01, 0xa1, 0x02, 0xe3, 0x0d, 0x90, 0x37, 0x50, 0x74, 0xc0, 0xea, 0x81, 0x6b, 0x00, 0xb0, 0x15,
+++		0xc8, 0x27, 0x40, 0xd7, 0xd9, 0x6e, 0xc9, 0x40, 0x89, 0x6c, 0x1e, 0xdf, 0xb2, 0x1b, 0x37, 0xc4,
+++		0x64, 0xa8, 0x7d, 0x20, 0xf7, 0x84, 0xde, 0x97, 0x02, 0x9d, 0xa9, 0xd0, 0x99, 0x12, 0xfe, 0xd4,
+++		0x70, 0x53, 0xa4, 0x85, 0x2a, 0x64, 0xca, 0x94, 0x81, 0x53, 0x9d, 0x20, 0x3d, 0x6f, 0xa5, 0xda,
+++		0xa7, 0xa3, 0x88, 0x3b, 0x2f, 0x68, 0x74, 0x4e, 0x0c, 0xa7, 0xd2, 0xa9, 0x0b, 0xad, 0x3a, 0xd2,
+++		0xab, 0x2b, 0xcd, 0xf6, 0xa6, 0xdb, 0xde, 0xb4, 0xeb, 0x4e, 0x3f, 0x1a, 0x0d, 0x89, 0x74, 0xdc,
+++		0xa4, 0xe5, 0xf5, 0x15, 0x2c, 0x8d, 0x18, 0x06, 0x3f, 0xee, 0x89, 0x63, 0xbe, 0x2f, 0x63, 0xe8,
+++		0x86, 0xee, 0xaf, 0x50, 0x49, 0x5c, 0xfa, 0x00, 0x5c, 0x70, 0xf5, 0xe3, 0xb3, 0x6e, 0xfa, 0x06,
+++		0x70, 0x7a, 0x1d, 0x5b, 0xe3, 0xb7, 0x89, 0x51, 0x7a, 0xfa, 0xde, 0x8d, 0xe7, 0x10, 0xc9, 0x91,
+++		0x1c, 0xcf, 0xd3, 0x0d, 0xa9, 0x64, 0xb1, 0xe8, 0x3d, 0x0f, 0x68, 0x84, 0xb5, 0x0b, 0xad, 0xc0,
+++		0x5f, 0x19, 0xd2, 0x41, 0x2c, 0x0c, 0x2c, 0x0c, 0x27, 0x2d, 0x0c, 0xc6, 0x62, 0xa8, 0x66, 0x1d,
+++		0x84, 0xe1, 0xe2, 0x03, 0x2b, 0x43, 0x10, 0x08, 0x3b, 0x47, 0xe8, 0xa0, 0x0d, 0xf9, 0x30, 0x56,
+++		0x07, 0x56, 0x87, 0x93, 0x56, 0x07, 0x50, 0x49, 0x04, 0x28, 0x6d, 0xa8, 0x55, 0x17, 0x89, 0x78,
+++		0xef, 0x31, 0xe6, 0x8b, 0x4a, 0xa2, 0x74, 0x91, 0xab, 0xd7, 0x2f, 0x2b, 0xfb, 0x3e, 0x67, 0x4a,
+++		0x02, 0xd0, 0x2e, 0x2e, 0x64, 0x15, 0xeb, 0x13, 0xdf, 0x48, 0xce, 0xb0, 0xfb, 0x36, 0x63, 0x40,
+++		0x29, 0x6d, 0x73, 0x46, 0x91, 0x5e, 0x65, 0x26, 0x83, 0x21, 0x96, 0x76, 0x9e, 0x12, 0x72, 0xa0,
+++		0x63, 0x50, 0xf9, 0x9b, 0xfd, 0xcc, 0x84, 0x51, 0xbc, 0x80, 0x41, 0xee, 0x86, 0x0d, 0x32, 0x8b,
+++		0x66, 0x50, 0x3c, 0xe7, 0xf7, 0xca, 0xb0, 0x17, 0x67, 0x3a, 0x71, 0xa5, 0x99, 0x01, 0x8e, 0xb5,
+++		0x09, 0x63, 0xa5, 0x05, 0xba, 0xb3, 0x91, 0x87, 0xb3, 0xb1, 0xc1, 0xc6, 0x06, 0x1b, 0x1b, 0x7c,
+++		0x43, 0x61, 0x63, 0x83, 0x8d, 0x0d, 0x36, 0x36, 0x58, 0x18, 0xd8, 0xd8, 0x60, 0x63, 0x83, 0x8d,
+++		0x0d, 0x56, 0x07, 0x36, 0x36, 0xd8, 0xd8, 0x38, 0x8a, 0xac, 0x3c, 0xea, 0x0e, 0xa2, 0xf2, 0xa8,
+++		0x59, 0x52, 0x58, 0x52, 0xf8, 0xc2, 0xc1, 0x96, 0xe7, 0x91, 0x2c, 0x4f, 0xa2, 0xb2, 0x9d, 0xb0,
+++		0x33, 0x9a, 0xdb, 0x81, 0x2f, 0xd7, 0x18, 0xf5, 0x2d, 0x13, 0x6b, 0x67, 0x4c, 0x7b, 0xed, 0x97,
+++		0x70, 0x24, 0xed, 0xbe, 0xa9, 0x52, 0x91, 0x86, 0xa2, 0x1f, 0x7a, 0xee, 0x35, 0x62, 0x32, 0xb6,
+++		0xaa, 0x50, 0xa1, 0x9b, 0x6c, 0xd4, 0xcf, 0x2c, 0xf9, 0xc2, 0x2b, 0x67, 0x24, 0x74, 0xbd, 0x50,
+++		0x5d, 0xf9, 0x57, 0x69, 0x36, 0xa3, 0x56, 0xd4, 0x60, 0xf6, 0x1c, 0x18, 0xb4, 0xe5, 0x5e, 0x44,
+++		0x7a, 0x92, 0x2c, 0x60, 0x9d, 0xaa, 0x9d, 0x94, 0xd7, 0x95, 0xba, 0xa6, 0xc1, 0x26, 0x96, 0xd9,
+++		0x39, 0x2c, 0x12, 0x54, 0xc3, 0x86, 0x92, 0x58, 0x8d, 0x33, 0xa9, 0xc2, 0xbf, 0xeb, 0xc9, 0x45,
+++		0x5d, 0x0c, 0xc2, 0xef, 0xd0, 0x38, 0xfa, 0x89, 0x94, 0xa8, 0x1d, 0x5a, 0x43, 0x02, 0xe1, 0x4c,
+++		0xb6, 0x13, 0x6e, 0x12, 0xcc, 0x4f, 0x60, 0x6e, 0xfc, 0xb6, 0x40, 0x88, 0xb4, 0x85, 0xb3, 0xb1,
+++		0x56, 0x56, 0x86, 0x0a, 0xb0, 0xb9, 0x8c, 0x79, 0x27, 0xf2, 0x20, 0x05, 0xcd, 0x78, 0x8a, 0x05,
+++		0xcd, 0xf8, 0x7c, 0x05, 0xcd, 0xee, 0xfa, 0x57, 0x5a, 0xdd, 0xeb, 0x81, 0x4b, 0x9a, 0xf1, 0x25,
+++		0x96, 0x34, 0xe3, 0xc1, 0x4a, 0x9a, 0xe5, 0xd9, 0x02, 0xe4, 0x94, 0xfe, 0xe1, 0xaf, 0x88, 0xa7,
+++		0x7d, 0xf9, 0x3b, 0x3f, 0xee, 0x97, 0x3f, 0x7c, 0x8d, 0x5f, 0xfe, 0x50, 0x1c, 0xf0, 0x42, 0xdc,
+++		0x76, 0xab, 0x24, 0x3f, 0x68, 0xfc, 0x1f, 0x32, 0xc4, 0x07, 0xcc, 0x5b, 0xbb, 0x56, 0x16, 0xff,
+++		0xff, 0x8e, 0x73, 0x6b, 0xdc, 0x3e, 0x54, 0x9d, 0x15, 0x11, 0x47, 0xbd, 0x0a, 0xd6, 0xde, 0x62,
+++		0x5c, 0x15, 0x0e, 0xa4, 0xca, 0x06, 0xf2, 0xd1, 0xf5, 0x8e, 0x8f, 0x2e, 0x3e, 0xba, 0xf8, 0xe8,
+++		0xe2, 0xa3, 0x8b, 0x8f, 0xae, 0x53, 0x3d, 0xba, 0x1c, 0xee, 0xcb, 0x8b, 0x35, 0x31, 0x9a, 0x9e,
+++		0x5d, 0x75, 0x56, 0xd3, 0x5b, 0xb3, 0x37, 0x5a, 0x0c, 0x81, 0x1a, 0xa3, 0xe3, 0x36, 0x1b, 0x31,
+++		0x2a, 0x07, 0x1c, 0xce, 0xf1, 0xe8, 0x6d, 0xcc, 0xb0, 0x89, 0x79, 0x3a, 0xa6, 0x68, 0x6d, 0x80,
+++		0x4b, 0x84, 0x66, 0xa4, 0xa3, 0x18, 0xc1, 0x18, 0x28, 0x26, 0xdc, 0x51, 0x6c, 0x11, 0x9a, 0x4b,
+++		0xf9, 0x00, 0xb7, 0x5a, 0xef, 0xaa, 0xf9, 0x76, 0x1e, 0xc5, 0x66, 0x57, 0x25, 0x3b, 0x97, 0xeb,
+++		0x3f, 0x44, 0xaf, 0x2c, 0xb6, 0x36, 0x0d, 0xce, 0xed, 0xaf, 0x7a, 0xab, 0xff, 0x00, 0x00, 0x00,
+++		0xff, 0xff, 0x01, 0x00, 0x00, 0xff, 0xff, 0xa2, 0xac, 0x4f, 0xa3, 0xe3, 0x3e, 0x00, 0x00,
++ 	}
++ )
++ 
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/presubmit.json b/modules/openconfig_ygot/0.7.1.sonic.1/presubmit.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..023b1b6bfd0d5291a3469b42490993cf297a4311
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/presubmit.json
+@@ -0,0 +1,43 @@
++{
++  "generated_module_overlay": true,
++  "architectures": [
++    "amd64"
++  ],
++  "consumer_deps": [],
++  "platforms": {
++    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
++  },
++  "build_targets": [
++    "@openconfig_ygot//generator:generator",
++    "//:shared_types_test"
++  ],
++  "test_targets": [
++    "@openconfig_ygot//demo/bgp:bgp_test",
++    "@openconfig_ygot//demo/device:device_test",
++    "@openconfig_ygot//demo/getting_started:getting_started_test",
++    "@openconfig_ygot//demo/gnmi_telemetry:gnmi_telemetry_test",
++    "@openconfig_ygot//demo/optical:optical_test",
++    "@openconfig_ygot//demo/protobuf_getting_started:protobuf_getting_started_test",
++    "@openconfig_ygot//demo/uncompressed:uncompressed_test",
++    "@openconfig_ygot//experimental/ygotutils:ygotutils_test",
++    "@openconfig_ygot//generator:generator_test",
++    "@openconfig_ygot//genutil:genutil_test",
++    "@openconfig_ygot//integration_tests/uncompressed:uncompressed_test",
++    "@openconfig_ygot//testcmp:testcmp_test",
++    "@openconfig_ygot//testutil:testutil_test",
++    "@openconfig_ygot//util:util_test",
++    "@openconfig_ygot//ygen/schema_tests:schema_tests_test",
++    "@openconfig_ygot//ygen:ygen_test",
++    "@openconfig_ygot//ygot/pathtranslate:pathtranslate_test",
++    "@openconfig_ygot//ygot/schema_tests:schema_tests_test",
++    "@openconfig_ygot//ygot:ygot_test",
++    "@openconfig_ygot//ypathgen/generator:generator_test",
++    "@openconfig_ygot//ypathgen/path_tests:path_tests_test",
++    "@openconfig_ygot//ypathgen:ypathgen_test",
++    "@openconfig_ygot//ytypes/schema_tests:schema_tests_test",
++    "@openconfig_ygot//ytypes:ytypes_test",
++    "@openconfig_ygot//ygen:sonic_union_order_test",
++    "//:shared_types_test"
++  ],
++  "integration_test_module": "integration"
++}
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/source.json b/modules/openconfig_ygot/0.7.1.sonic.1/source.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..e00d46bf344964a17c1f17085b8f67828b4d92bb
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/source.json
+@@ -0,0 +1,75 @@
++{
++  "url": "https://github.com/openconfig/ygot/archive/refs/tags/v0.7.1.tar.gz",
++  "integrity": "sha256-wjmGLBTFCYYGIDd4EPZlUjWoOb/tYhVQH2MAH9eieZw=",
++  "strip_prefix": "ygot-0.7.1",
++  "patch_strip": 1,
++  "patches": {
++    "0001-preserve-sonic-behavior.patch": "sha256-hLJQK4kEV0odXBQbEE/3IqI7YMNTdBJmVJem2z2EoL4=",
++    "0002-preserve-union-enum-order.patch": "sha256-gxqnH3HqopV8PjQwmu8lIbwhBkfxsJNJtbi4wV4s/t8=",
++    "0003-backport-protobuf-test-comparisons.patch": "sha256-EHnkHgXE0RI1r/Vpg8QHjib1mn4OAYlePOCgfgncQkE=",
++    "0004-reject-incompatible-struct-assignment.patch": "sha256-xuRbROVzDDEMyKTRdaN5Jz9kAkS0g9Y1pvjCb4K4mUU=",
++    "0005-initialize-sonic-test-schema-fixtures.patch": "sha256-7dEN70WoaWYEeyBL5o5axa8EiqiX3Kx6CeUMIFvsdU4=",
++    "0006-record-existing-sonic-schema-metadata.patch": "sha256-hLpYaXzWXYqHu8aIOk1sGpTp4Pmlf5vZrrVd4afbUj8=",
++    "0007-validate-binary-leaf-values.patch": "sha256-HV7tIKmoNIAA9IgzLGJM6XvWQ1PVsaBlLYTnXGtfQaE=",
++    "0008-handle-default-container-fields-safely.patch": "sha256-bV9zOzjAQkmNC3x1Pm0aeAuLvTjbHkiWsi9wPch5198=",
++    "0009-handle-standalone-leaf-schema.patch": "sha256-LDTiVmc6w5mQHXMGGWky7oTM2PW1VyuKfP4+AUzdnKI=",
++    "0010-preserve-destination-map-entries.patch": "sha256-T0S5VfE7yZJxW8+6ndJgklAd+w0g3XgKDMHsqRoYuzw=",
++    "0011-preserve-annotation-marshaler-contract.patch": "sha256-rGcumf+YHqs9Ez8wPCoXjuhZAPdrCYPmC+lW/YVp4zo=",
++    "0012-handle-annotation-fields-without-schema.patch": "sha256-uPYSkUhXIoUUFEw92x2XLOYlgC8/q3ze0Kt0Nn0lcKs=",
++    "0013-compare-protobuf-paths-in-original-tests.patch": "sha256-M08fJeFkhkeyzq/PAa/BtIyhSLdYjZ7xEUYdLIsedmU=",
++    "0014-record-existing-sonic-embedded-schema.patch": "sha256-R/zF7q8Rve0f4WBeUMyitTQVCzOU7KXGK8wXL0/nBDE="
++  },
++  "overlay": {
++    "BUILD.bazel": "sha256-1AIwjhQ8PZtyd1OyPc6t1otXkKKK0dEUsBH+b+0Cbnw=",
++    "MODULE.bazel": "sha256-TYmyQevZr90eUrCGe81c80WgOTk1J+dksMpDRZOJbt4=",
++    "demo/bgp/BUILD.bazel": "sha256-MjAs+lcFwR4WzFaEPF8PQS10UOUaD61HvJGkd/9e4f0=",
++    "demo/device/BUILD.bazel": "sha256-rgDVZQCdqwf1egiO75N0aIIrZk4t8egrprADYrmVN4w=",
++    "demo/getting_started/BUILD.bazel": "sha256-AA/hzc8vMTYkPVdLamL6xz1QeOnLCYGQ60vwGlyzzWw=",
++    "demo/getting_started/pkg/ocdemo/BUILD.bazel": "sha256-uJs1sgJoQnnCM36HADV7UoO9PTikk23YBDuYiEBkpL4=",
++    "demo/gnmi_telemetry/BUILD.bazel": "sha256-H+x1o5SWj62H2r6Z1Qm2zdOYKhG2YEkbE4vfO/fnNBY=",
++    "demo/optical/BUILD.bazel": "sha256-N0sWciHTJMCeDFZwSZ2BauNrPVL/d4fdnCzrKiJEAiI=",
++    "demo/protobuf_getting_started/BUILD.bazel": "sha256-gkCXzviYFom1wlEQ/ou93CrtmmSP8QZ8oK8P1qfN5C8=",
++    "demo/protobuf_getting_started/ribproto/openconfig/BUILD.bazel": "sha256-VjzLFiA8GAc4y9N04pTD6CTWXki8Y1xWwzV+yZ0X6ok=",
++    "demo/protobuf_getting_started/ribproto/openconfig/enums/BUILD.bazel": "sha256-TmjdvWCQ4XNJDxWpZQjWxSYQvZcFfGo+VaEEh0GwUWQ=",
++    "demo/protobuf_getting_started/ribproto/openconfig/openconfig_rib_bgp/BUILD.bazel": "sha256-95u040RqfNA668zgCobRzkDImFbby/CGZo6wK6qA4QQ=",
++    "demo/uncompressed/BUILD.bazel": "sha256-EhGYEMhtAA8nB5h7JQJWEgQgqvi/J0Pp3NsXD1x8TAg=",
++    "demo/uncompressed/pkg/demo/BUILD.bazel": "sha256-eicEm5V3QbgWw0oCiG4MMCcaBzMlz/OMlAVsllfTiKc=",
++    "exampleoc/BUILD.bazel": "sha256-I42svTJbA1o9JH9snRlxkOqPgJzLFNpgOuFzXT3AQmQ=",
++    "exampleocpath/BUILD.bazel": "sha256-iIbaqt58zD26i9BQuY5+UaJz9i2cwKQqcCFqPzCAQ8U=",
++    "experimental/ygotutils/BUILD.bazel": "sha256-0qPfcY232yVH/yNQOs0y3FFW9KbNlKKyqnfNtPS+Yak=",
++    "generator/BUILD.bazel": "sha256-Zd0op3Ov77WJLJqtMMHpjG8xffUC1FvalP1G2I3MBfo=",
++    "genutil/BUILD.bazel": "sha256-wURHf2rYemxKxyx85ezYqzFByYVoEqiRqOL05rzfC7o=",
++    "go.mod": "sha256-Jg4TCupGtVN7BlcGFL3kvO9SL6UnKulKf1kdNFiZp1w=",
++    "go.sum": "sha256-0h8SRts3KjbvfxB54RJTYTL/m/APSdIlfalGCKERGCI=",
++    "integration_tests/uncompressed/BUILD.bazel": "sha256-hTsvBdMdmoB7PLrR2Hd/GN/8PlumAmN56/GTBPlXV/s=",
++    "integration_tests/uncompressed/cschema/BUILD.bazel": "sha256-Mfb88Fwz/GKJMBMaJMfWiDbL5FQEZO26q30MVxVlkaM=",
++    "integration_tests/uncompressed/uschema/BUILD.bazel": "sha256-Vq0vn/bNHpizZaodL1VHETEg7UlpLvrU/GLiDh5qsdE=",
++    "internal/sonicfixture/BUILD.bazel": "sha256-ChbLxD12UgvBNWP3iGObP/OnOFRAc0zZDyMB/b+NnPo=",
++    "internal/sonicfixture/schema.go": "sha256-lQMt2hJWt3h3eBTW4KeVfSNKr3EhVuvLbck1QDA4ThU=",
++    "proto/yext/BUILD.bazel": "sha256-jvoXAVB2K2m3pF4m0vfv2Y7gCPqJKwaEfD1fQIw0+L0=",
++    "proto/ywrapper/BUILD.bazel": "sha256-LJTRaT9NjoIqtQomb3muJFnokKlkMNG10IVRyAlA54c=",
++    "proto_generator/BUILD.bazel": "sha256-mqoENURYN9yI+p51Ui8ZlSkjo3ZYSSobt53PeolKhus=",
++    "testcmp/BUILD.bazel": "sha256-EFRpAbhuQ4HK16DkQ2NSuGe30HfnvubBEARgTB2xxz8=",
++    "testcmp/sonic_fixture_test.go": "sha256-Sm1YApH2i0xTQTh7JJaI68wYtWN35B+89Cacnn+C9YY=",
++    "testutil/BUILD.bazel": "sha256-ML3fq7hMYxYcKHvZfaJuL01OacDcTojnwkDc59q2pIU=",
++    "uexampleoc/BUILD.bazel": "sha256-tQU8QknsL7kDVND5MUz8kI09NA+2P8dMhEA2/78+Nws=",
++    "util/BUILD.bazel": "sha256-vM2BZ95TvRJMCml+yExL8MfdJVxR8Qv6P9BTMrugZUA=",
++    "util/sonic_assignability_test.go": "sha256-nJgkWyWgfMjrk9ghb2k30qWoGcUzOdImS/+/flCxJos=",
++    "ygen/BUILD.bazel": "sha256-DO5g8GdceoqeSBa/Ex0PnrTA74WnUW5QeriVJBFayVI=",
++    "ygen/schema_tests/BUILD.bazel": "sha256-/s/dRmRoKtRs5Jh/NNgGm6lSKfKyJIj0vesYcJ8+Tuo=",
++    "ygen/sonic_union_order.yang": "sha256-zqIsYxCULITCK7I0P6hALCiYlntxIKuD+/TzT3h4xKM=",
++    "ygen/sonic_union_order_test.go": "sha256-mCI5u8IIZR6fsZf6K72DauaAZe3nezSfwydy5dir7gs=",
++    "ygot/BUILD.bazel": "sha256-AWRZlfQFrQGSXk/na48m7sQHkgeX1OR+KTB3pJQvArA=",
++    "ygot/pathtranslate/BUILD.bazel": "sha256-HtUICYG/LA7uTU6APbSHnQH6lg96p4mPYMkJ17Ujq78=",
++    "ygot/schema_tests/BUILD.bazel": "sha256-iZ7GmLGXf6Bc9QGXC3HFcRA9sQoAtYtoXgtY4RV2Nmc=",
++    "ygot/sonic_json_test.go": "sha256-QCQjW4pow5CuHZjsY87XqklRE/u30Vy1mAH7PEVOKx0=",
++    "ygot/testdata/exschemapath/BUILD.bazel": "sha256-XAMz7K2S9xzoti1YXH7o5AaSad3CX+iccjFemqt78KY=",
++    "ypathgen/BUILD.bazel": "sha256-cd70Y1kiFPj5mZUhLWFbR8ITCxdIBvktVyzFaMJqSZg=",
++    "ypathgen/generator/BUILD.bazel": "sha256-jw/SQHnU9tmCM/dzBTkviZpSyMzM1OWD4MdPhaSpFOs=",
++    "ypathgen/path_tests/BUILD.bazel": "sha256-ScNZTUJeUwG05zVZsGO1GKQmlFhHmwg/iC+ypd0mvdw=",
++    "ytypes/BUILD.bazel": "sha256-1IZHdpOyF5usQ6/ZKrcHVH5o4w4lRKRMdfJ9V6hg1QE=",
++    "ytypes/schema_tests/BUILD.bazel": "sha256-o3gxk+vYE12Ggg1ZK/aLWjbofhIqzoxmSm00ruwyAOc=",
++    "ytypes/schema_tests/sonic_fixture_test.go": "sha256-Y+XHKjmM+2Bs/mg/Kw+eA+pGeHoz0t80jHBOGObBNZo=",
++    "ytypes/sonic_container_defaults_test.go": "sha256-ZKHFcOsU/MoLlA997J9G/31IFvX+DUKfxVn+Y0vvmPo="
++  }
++}
+diff --git a/modules/openconfig_ygot/metadata.json b/modules/openconfig_ygot/metadata.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..32683d9b7c4cf34c698924bcedbbbb6288fe5c0e
+--- /dev/null
++++ b/modules/openconfig_ygot/metadata.json
+@@ -0,0 +1,17 @@
++{
++    "homepage": "https://github.com/openconfig/ygot",
++    "maintainers": [
++        {
++            "name": "Guohan Lu",
++            "email": "securely1g@gmail.com",
++            "github": "securely1g"
++        }
++    ],
++    "repository": [
++        "https://github.com/openconfig/ygot"
++    ],
++    "versions": [
++        "0.7.1.sonic.1"
++    ],
++    "yanked_versions": {}
++}
+diff --git a/modules/sonic-build-infra/0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e/MODULE.bazel b/modules/sonic-build-infra/0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e/MODULE.bazel
+index 757a4c71f4f892dcbb1d472569ef4cb24e27857a..e0e411a8d1f6975c63bcc39bdcb0789f859efe3e 100644
+--- a/modules/sonic-build-infra/0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e/MODULE.bazel
++++ b/modules/sonic-build-infra/0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e/MODULE.bazel
+@@ -1,7 +1,7 @@
+ # Keep bazel_compatibility in sync with sonic-buildimage's .bazelversion.
+ module(
+     name = "sonic-build-infra",
+-    version = "0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568",
++    version = "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
+@@ -41,7 +41,7 @@ local_path_override(
+ bazel_dep(name = "buildifier_prebuilt", version = "8.5.1.3", dev_dependency = True)
+ 
+ # The SONiC patch sorts above upstream 0.9.4 without a root override.
+-bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.13")
++bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.15")
+ 
+ # One multiarch directory shared by GCC and Clang on both architectures.
+ # Consumers import this same repository through use_extension/use_repo.
+@@ -992,7 +992,7 @@ gcc.debian_toolchain(
+         "@bookworm_zlib1g-amd64_1-1.2.13.dfsg-1//:data.tar.xz",
+     ],
+     exec_arch = "x86_64",
+-    # Distroless script remapping needs modern BFD; retain GCC12 and its sysroot.
++    # Share the declared Trixie linker runtime; retain GCC12 and its Bookworm sysroot.
+     linker = "@gcc-14.2.0-linux-target-x86_64-host-x86_64//:bin/x86_64-linux-gnu-ld",
+     linker_files = "@gcc-14.2.0-linux-target-x86_64-host-x86_64//:multicall_support_files",
+     suite = "bookworm",
+@@ -1055,7 +1055,7 @@ gcc.debian_toolchain(
+         "@bookworm_zlib1g-arm64_1-1.2.13.dfsg-1//:data.tar.xz",
+     ],
+     exec_arch = "aarch64",
+-    # Distroless script remapping needs modern BFD; retain GCC12 and its sysroot.
++    # Share the declared Trixie linker runtime; retain GCC12 and its Bookworm sysroot.
+     linker = "@gcc-14.2.0-linux-target-aarch64-host-aarch64//:bin/aarch64-linux-gnu-ld",
+     linker_files = "@gcc-14.2.0-linux-target-aarch64-host-aarch64//:multicall_support_files",
+     suite = "bookworm",
+@@ -1103,7 +1103,7 @@ gcc.debian_toolchain(
+         "@bookworm_zlib1g-amd64_1-1.2.13.dfsg-1//:data.tar.xz",
+     ],
+     exec_arch = "x86_64",
+-    # Distroless script remapping needs modern BFD; retain GCC12 and its sysroot.
++    # Share the declared Trixie linker runtime; retain GCC12 and its Bookworm sysroot.
+     linker = "@gcc-14.2.0-linux-target-aarch64-host-x86_64//:bin/aarch64-linux-gnu-ld",
+     linker_files = "@gcc-14.2.0-linux-target-aarch64-host-x86_64//:multicall_support_files",
+     suite = "bookworm",
+diff --git a/modules/sonic-build-infra/0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e/README.md b/modules/sonic-build-infra/0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e/README.md
+index 94f93e6be0036554d3c9c35ae2a50eb420ab79c5..66f6a51176c2f165c408da59749f1d8c5a94b4e8 100644
+--- a/modules/sonic-build-infra/0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e/README.md
++++ b/modules/sonic-build-infra/0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e/README.md
+@@ -1,18 +1,23 @@
+-# Finalized package controls with the retained native tools
++# Unique paths in selected APT layers
+ 
+-This updates the sole unpublished infrastructure `0.0.26` candidate from [registry #179](https://github.com/securely1g/sonic-bazel-registry/pull/179). It adds [infra #77](https://github.com/securely1g/sonic-build-infra/pull/77)'s finalized-control metadata fix while preserving the existing CLI/XML/BFD, DocBook, kernel-tool subset, debug-symbol permissions and native component interfaces. Every published version is unchanged.
++Register merged [infra #81](https://github.com/securely1g/sonic-build-infra/pull/81)
++at source commit `3ee15ec9b4d99d7f8eae3e324cead79b203b451e`. The source includes the merged compiler
++header-option fix from [infra #80](https://github.com/securely1g/sonic-build-infra/pull/80).
+ 
+-The independent source fix is `0b920096239bdafe9952aecde461e70e14b57761` on maintained master. The consumed combined source is `51c838da6ff57295fde6e0bc3807841cb31a8568`: existing `0378d53824b18b253ecbd6faadba00e505ff4ccf` plus only that fix, with its CI branch guard adapted to preserve the existing tools-only checks. Production metadata and regression files match the independent fix exactly. The existing native-interface and registry-visibility patches remain byte-for-byte unchanged.
++Gearbox image [#154](https://github.com/securely1g/sonic-buildimage/pull/154)
++selects package TARs with shared directory headers. `apt_layer` now enables
++Distroless `flatten(..., deduplicate=True)` to emit each path once, preserving
++last-entry payload and metadata semantics. The overlap regression checks shared
++directories, regular files, symlinks, hardlinks and a later configuration override.
+ 
+-OTEL's source-built runtime TAR installs `lib/systemd/system/otelcol-contrib.service` and uses its existing finalized release control, version `0.144.0`. It has no Debian source recipe or unfinished helper substitutions. Previously the metadata action invoked `dh_installsystemd` and failed for missing debhelper compatibility input. The owner now runs recipe helpers only for source templates; finalized controls retain their actual dependencies. ELF symbol/dependency analysis and `dpkg-gencontrol` remain active. No DEB is built or new Debian recipe invented.
++The recipe retains the prior CLI patch/XML tools and external-test visibility.
++Native component interfaces are supplied by the merged source, replacing the
++previous large registry patch. The source module base version is `0.0.25`;
++consumers must verify Bazel selects this exact commit-based registration when
++other dependencies request a higher numeric release or commit suffix.
+ 
+-| Input or action | Before | After |
+-| --- | --- | --- |
+-| OTEL's actual finalized control and systemd unit | Fails with unsupported compatibility level 1 | Describes the actual source-built TAR and preserves package identity/unit bytes |
+-| Source template with the same service | Uses real Debian helpers and requires source compat metadata | Same behavior and same rejection when compat is missing |
+-| Finalized control with an undeclared target library | Rejects missing target libc | Still rejected; finalized text cannot replace actual ELF dependency analysis |
+-| Existing debug/native/CLI/XML/BFD/DocBook/kernel features | Reviewed179 candidate interfaces | Preserved, including regular debug-file mode `0644` |
+-
+-Presubmit retains every registry #179 build and test target:37 builds and 43 test labels, including the extended metadata rule tests. Kernel checks remain tools-only and do not generate packages. The ordinary consumer selects published Distroless `.15`, matching native SONiC image use, while preserving the owner's inherited `.13` minimum. Independent AMD64/Trixie metadata tests pass; ordinary combined-candidate and hosted acceptance are in progress. This does not claim complete OTEL or downstream image acceptance.
+-
+-The review base combines exact registry #179 inputs with [rules_go #193](https://github.com/securely1g/sonic-bazel-registry/pull/193), so the OTEL consumer can select both requirements from one immutable registry endpoint. Registry #147 is a separate Ready but unpublished registration of landed native source; it is neither rewritten nor treated as a published baseline here. Keep this stack Draft until the exact combined source history and registry prerequisites land, then return consumers to maintained main. Existing frozen catalogs remain available while consumers are deliberately reassessed.
++Presubmit retains all 44 required outputs and 45 tests, including the overlap
++layer and selection receipt. It pins published Distroless `0.9.4.sonic.16`.
++Published registrations, including `0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568`,
++retain their original consumer inputs. Registry acceptance covers the registered
++module; full Gearbox image acceptance is a separate consumer boundary.
+diff --git a/modules/sonic-build-infra/0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e/patches/0001-bump-version.patch b/modules/sonic-build-infra/0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e/patches/0001-bump-version.patch
+index d4e2536607136d47d318fecaf8a98cd372a3b271..ecac714fb196da6aca822a7c66abd92343c19699 100644
+--- a/modules/sonic-build-infra/0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e/patches/0001-bump-version.patch
++++ b/modules/sonic-build-infra/0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e/patches/0001-bump-version.patch
+@@ -10,8 +10,8 @@ the retained native tools, debug permissions and finalized-control metadata.
+  # Keep bazel_compatibility in sync with sonic-buildimage's .bazelversion.
+  module(
+      name = "sonic-build-infra",
+--    version = "0.0.26",
+-+    version = "0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568",
++-    version = "0.0.25",
+++    version = "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e",
+      bazel_compatibility = [
+          ">=8.5.1",
+          "<=8.5.1",
+diff --git a/modules/sonic-build-infra/0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e/patches/0003-native-component-interfaces.patch b/modules/sonic-build-infra/0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e/patches/0003-native-component-interfaces.patch
+deleted file mode 100644
+index cbeb94850f7d969e7edd386aac0b48ebabaa8a77..0000000000000000000000000000000000000000
+--- a/modules/sonic-build-infra/0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e/patches/0003-native-component-interfaces.patch
++++ /dev/null
+@@ -1,3961 +0,0 @@
+-diff --git a/.github/workflows/bazel.yml b/.github/workflows/bazel.yml
+-index 696a3a7..9119104 100644
+---- a/.github/workflows/bazel.yml
+-+++ b/.github/workflows/bazel.yml
+-@@ -44,8 +44,9 @@ jobs:
+-       EXPECTED_MACHINE: ${{ matrix.machine }}
+-       EXPECTED_DEBIAN_ARCH: ${{ matrix.debian_arch }}
+-       CI_IMAGE: debian:trixie-20260918@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c
+--      # Use the published account-support module from the maintained registry.
+--      SONIC_BAZEL_REGISTRY: https://raw.githubusercontent.com/securely1g/sonic-bazel-registry/main
+-+      # Draft validation of the .13 native interfaces from registry PR #146.
+-+      # Restore maintained main after that exact recipe lands.
+-+      SONIC_BAZEL_REGISTRY: https://raw.githubusercontent.com/songqing-sq/sonic-bazel-registry/6f277d4a12de1fa156a1e2566080e0bf23bc38ea
+-     steps:
+-       - name: Install native build tools
+-         run: |
+-diff --git a/.github/workflows/declared-build-tools.yml b/.github/workflows/declared-build-tools.yml
+-index 1133add..1ce9e7e 100644
+---- a/.github/workflows/declared-build-tools.yml
+-+++ b/.github/workflows/declared-build-tools.yml
+-@@ -43,8 +43,9 @@ jobs:
+-       PLATFORM: ${{ matrix.platform }}
+-       BAZEL_ARCH: ${{ matrix.bazel_arch }}
+-       BAZEL_SHA: ${{ matrix.bazel_sha }}
+--      # Use the published account-support module from the maintained registry.
+--      SONIC_BAZEL_REGISTRY: https://raw.githubusercontent.com/securely1g/sonic-bazel-registry/main
+-+      # Draft validation of the .13 native interfaces from registry PR #146.
+-+      # Restore maintained main after that exact recipe lands.
+-+      SONIC_BAZEL_REGISTRY: https://raw.githubusercontent.com/songqing-sq/sonic-bazel-registry/6f277d4a12de1fa156a1e2566080e0bf23bc38ea
+-     steps:
+-       - name: Prepare Bazel bootstrap dependencies
+-         run: |
+-@@ -96,6 +97,9 @@ jobs:
+-             //tools/build_tools:configure_runtime_test \
+-             //tools/build_tools:foreign_runtime_test //tools/build_tools:libtool_test \
+-             //tools/build_tools:kerberos_runtime_test \
+-+            //tools/build_tools:test_runtime_test \
+-+            //tools/build_tools:perl_bookworm_test \
+-+            //tools/build_tools:bookworm_test_runtime_test \
+-             //tools/build_tools:configure_make_test \
+-             //tools/build_tools:prepare_rootfs_test "${kernel_tests[@]}" \
+-             2>&1 | tee ci-artifacts/test.log
+-diff --git a/MODULE.bazel b/MODULE.bazel
+-index bbb5e1f..ddb79b8 100644
+---- a/MODULE.bazel
+-+++ b/MODULE.bazel
+-@@ -50,7 +50,13 @@ sysroots.debian(name = "sonic_sysroot")
+- use_repo(sysroots, "sonic_sysroot")
+- 
+- gcc = use_extension("//toolchains/gcc:extensions.bzl", "gcc")
+--use_repo(gcc, "gcc_toolchains")
+-+use_repo(
+-+    gcc,
+-+    "gcc-14.2.0-linux-target-aarch64-host-aarch64",
+-+    "gcc-14.2.0-linux-target-aarch64-host-x86_64",
+-+    "gcc-14.2.0-linux-target-x86_64-host-x86_64",
+-+    "gcc_toolchains",
+-+)
+- 
+- # Architectures with native build tools and general C/C++ toolchain setup.
+- NATIVE_ARCHITECTURES = [
+-@@ -186,6 +192,15 @@ apt.install(
+-             "xz-utils",
+-             "zlib1g",
+-             "zstd",
+-+            "dpkg-dev",
+-+            "python3-dev",
+-+            "python3-sphinx",
+-+            "python3-pytest",
+-+            "valgrind",
+-+            "libc6-dbg",
+-+            "tcl8.6",
+-+            "tcl-expect",
+-+            "texinfo",
+-         ]
+-         for architecture in NATIVE_ARCHITECTURES
+-         if ":" not in name or name.endswith(":" + architecture)
+-@@ -629,6 +644,509 @@ http_archive(
+-     urls = [DEBIAN_SNAPSHOT + "/pool/main/m/make-dfsg/make_4.4.1-2_arm64.deb"],
+- )
+- 
+-+bookworm_bazel_lib_tools = use_extension("@bazel_lib//lib:extensions.bzl", "toolchains")
+-+use_repo(bookworm_bazel_lib_tools, "coreutils_toolchains", "zstd_toolchains")
+-+
+-+use_repo(sysroot_tar, "bsd_tar_toolchains")
+-+
+-+apt_bookworm = use_extension("//toolchains/bookworm:apt.bzl", "apt")
+-+
+-+# Bookworm target ABI and GCC12 distributions, isolated from Trixie indexes.
+-+apt_bookworm.sources_list(
+-+    architectures = NATIVE_ARCHITECTURES,
+-+    components = ["main"],
+-+    suites = [
+-+        "bookworm",
+-+        "bookworm-updates",
+-+    ],
+-+    uris = [DEBIAN_SNAPSHOT],
+-+)
+-+apt_bookworm.sources_list(
+-+    architectures = NATIVE_ARCHITECTURES,
+-+    components = ["main"],
+-+    suites = ["bookworm-security"],
+-+    uris = ["https://snapshot.debian.org/archive/debian-security/20260726T121236Z"],
+-+)
+-+apt_bookworm.install(
+-+    dependency_set = "bookworm_toolchains",
+-+    include_transitive = False,
+-+    packages = [
+-+        "binutils:amd64 (= 2.40-2)",
+-+        "binutils:arm64 (= 2.40-2)",
+-+        "binutils-aarch64-linux-gnu:amd64 (= 2.40-2)",
+-+        "binutils-aarch64-linux-gnu:arm64 (= 2.40-2)",
+-+        "binutils-common:amd64 (= 2.40-2)",
+-+        "binutils-common:arm64 (= 2.40-2)",
+-+        "binutils-x86-64-linux-gnu:amd64 (= 2.40-2)",
+-+        "cpp-12:amd64 (= 12.2.0-14+deb12u1)",
+-+        "cpp-12:arm64 (= 12.2.0-14+deb12u1)",
+-+        "cpp-12-aarch64-linux-gnu:amd64 (= 12.2.0-14cross1)",
+-+        "g++-12:amd64 (= 12.2.0-14+deb12u1)",
+-+        "g++-12:arm64 (= 12.2.0-14+deb12u1)",
+-+        "g++-12-aarch64-linux-gnu:amd64 (= 12.2.0-14cross1)",
+-+        "gcc-12:amd64 (= 12.2.0-14+deb12u1)",
+-+        "gcc-12:arm64 (= 12.2.0-14+deb12u1)",
+-+        "gcc-12-aarch64-linux-gnu:amd64 (= 12.2.0-14cross1)",
+-+        "gcc-12-aarch64-linux-gnu-base:amd64 (= 12.2.0-14cross1)",
+-+        "gcc-12-base:amd64 (= 12.2.0-14+deb12u1)",
+-+        "gcc-12-base:arm64 (= 12.2.0-14+deb12u1)",
+-+        "gcc-12-cross-base:amd64 (= 12.2.0-14cross1)",
+-+        "libasan8:amd64 (= 12.2.0-14+deb12u1)",
+-+        "libasan8:arm64 (= 12.2.0-14+deb12u1)",
+-+        "libasan8-arm64-cross:amd64 (= 12.2.0-14cross1)",
+-+        "libatomic1:amd64 (= 12.2.0-14+deb12u1)",
+-+        "libatomic1:arm64 (= 12.2.0-14+deb12u1)",
+-+        "libatomic1-arm64-cross:amd64 (= 12.2.0-14cross1)",
+-+        "libbinutils:amd64 (= 2.40-2)",
+-+        "libbinutils:arm64 (= 2.40-2)",
+-+        "libc-dev-bin:amd64 (= 2.36-9+deb12u14)",
+-+        "libc-dev-bin:arm64 (= 2.36-9+deb12u14)",
+-+        "libc6:amd64 (= 2.36-9+deb12u14)",
+-+        "libc6:arm64 (= 2.36-9+deb12u14)",
+-+        "libc6-arm64-cross:amd64 (= 2.36-8cross1)",
+-+        "libc6-dev:amd64 (= 2.36-9+deb12u14)",
+-+        "libc6-dev:arm64 (= 2.36-9+deb12u14)",
+-+        "libc6-dev-arm64-cross:amd64 (= 2.36-8cross1)",
+-+        "libcc1-0:amd64 (= 12.2.0-14+deb12u1)",
+-+        "libcc1-0:arm64 (= 12.2.0-14+deb12u1)",
+-+        "libcom-err2:amd64 (= 1.47.0-2+b2)",
+-+        "libcom-err2:arm64 (= 1.47.0-2+b2)",
+-+        "libcrypt-dev:amd64 (= 1:4.4.33-2)",
+-+        "libcrypt-dev:arm64 (= 1:4.4.33-2)",
+-+        "libcrypt1:amd64 (= 1:4.4.33-2)",
+-+        "libcrypt1:arm64 (= 1:4.4.33-2)",
+-+        "libctf-nobfd0:amd64 (= 2.40-2)",
+-+        "libctf-nobfd0:arm64 (= 2.40-2)",
+-+        "libctf0:amd64 (= 2.40-2)",
+-+        "libctf0:arm64 (= 2.40-2)",
+-+        "libgcc-12-dev:amd64 (= 12.2.0-14+deb12u1)",
+-+        "libgcc-12-dev:arm64 (= 12.2.0-14+deb12u1)",
+-+        "libgcc-12-dev-arm64-cross:amd64 (= 12.2.0-14cross1)",
+-+        "libgcc-s1:amd64 (= 12.2.0-14+deb12u1)",
+-+        "libgcc-s1:arm64 (= 12.2.0-14+deb12u1)",
+-+        "libgcc-s1-arm64-cross:amd64 (= 12.2.0-14cross1)",
+-+        "libgmp10:amd64 (= 2:6.2.1+dfsg1-1.1)",
+-+        "libgmp10:arm64 (= 2:6.2.1+dfsg1-1.1)",
+-+        "libgomp1:amd64 (= 12.2.0-14+deb12u1)",
+-+        "libgomp1:arm64 (= 12.2.0-14+deb12u1)",
+-+        "libgomp1-arm64-cross:amd64 (= 12.2.0-14cross1)",
+-+        "libgprofng0:amd64 (= 2.40-2)",
+-+        "libgprofng0:arm64 (= 2.40-2)",
+-+        "libgssapi-krb5-2:amd64 (= 1.20.1-2+deb12u5)",
+-+        "libgssapi-krb5-2:arm64 (= 1.20.1-2+deb12u5)",
+-+        "libhwasan0:arm64 (= 12.2.0-14+deb12u1)",
+-+        "libhwasan0-arm64-cross:amd64 (= 12.2.0-14cross1)",
+-+        "libisl23:amd64 (= 0.25-1.1)",
+-+        "libisl23:arm64 (= 0.25-1.1)",
+-+        "libitm1:amd64 (= 12.2.0-14+deb12u1)",
+-+        "libitm1:arm64 (= 12.2.0-14+deb12u1)",
+-+        "libitm1-arm64-cross:amd64 (= 12.2.0-14cross1)",
+-+        "libjansson4:amd64 (= 2.14-2)",
+-+        "libjansson4:arm64 (= 2.14-2)",
+-+        "libk5crypto3:amd64 (= 1.20.1-2+deb12u5)",
+-+        "libk5crypto3:arm64 (= 1.20.1-2+deb12u5)",
+-+        "libkeyutils1:amd64 (= 1.6.3-2)",
+-+        "libkeyutils1:arm64 (= 1.6.3-2)",
+-+        "libkrb5-3:amd64 (= 1.20.1-2+deb12u5)",
+-+        "libkrb5-3:arm64 (= 1.20.1-2+deb12u5)",
+-+        "libkrb5support0:amd64 (= 1.20.1-2+deb12u5)",
+-+        "libkrb5support0:arm64 (= 1.20.1-2+deb12u5)",
+-+        "liblsan0:amd64 (= 12.2.0-14+deb12u1)",
+-+        "liblsan0:arm64 (= 12.2.0-14+deb12u1)",
+-+        "liblsan0-arm64-cross:amd64 (= 12.2.0-14cross1)",
+-+        "libmpc3:amd64 (= 1.3.1-1)",
+-+        "libmpc3:arm64 (= 1.3.1-1)",
+-+        "libmpfr6:amd64 (= 4.2.0-1)",
+-+        "libmpfr6:arm64 (= 4.2.0-1)",
+-+        "libnsl-dev:amd64 (= 1.3.0-2)",
+-+        "libnsl-dev:arm64 (= 1.3.0-2)",
+-+        "libnsl2:amd64 (= 1.3.0-2)",
+-+        "libnsl2:arm64 (= 1.3.0-2)",
+-+        "libquadmath0:amd64 (= 12.2.0-14+deb12u1)",
+-+        "libssl3:amd64 (= 3.0.20-1~deb12u2)",
+-+        "libssl3:arm64 (= 3.0.20-1~deb12u2)",
+-+        "libstdc++-12-dev:amd64 (= 12.2.0-14+deb12u1)",
+-+        "libstdc++-12-dev:arm64 (= 12.2.0-14+deb12u1)",
+-+        "libstdc++-12-dev-arm64-cross:amd64 (= 12.2.0-14cross1)",
+-+        "libstdc++6:amd64 (= 12.2.0-14+deb12u1)",
+-+        "libstdc++6:arm64 (= 12.2.0-14+deb12u1)",
+-+        "libstdc++6-arm64-cross:amd64 (= 12.2.0-14cross1)",
+-+        "libtirpc-common:amd64 (= 1.3.3+ds-1)",
+-+        "libtirpc-common:arm64 (= 1.3.3+ds-1)",
+-+        "libtirpc-dev:amd64 (= 1.3.3+ds-1)",
+-+        "libtirpc-dev:arm64 (= 1.3.3+ds-1)",
+-+        "libtirpc3:amd64 (= 1.3.3+ds-1)",
+-+        "libtirpc3:arm64 (= 1.3.3+ds-1)",
+-+        "libtsan2:amd64 (= 12.2.0-14+deb12u1)",
+-+        "libtsan2:arm64 (= 12.2.0-14+deb12u1)",
+-+        "libtsan2-arm64-cross:amd64 (= 12.2.0-14cross1)",
+-+        "libubsan1:amd64 (= 12.2.0-14+deb12u1)",
+-+        "libubsan1:arm64 (= 12.2.0-14+deb12u1)",
+-+        "libubsan1-arm64-cross:amd64 (= 12.2.0-14cross1)",
+-+        "libzstd1:amd64 (= 1.5.4+dfsg2-5)",
+-+        "libzstd1:arm64 (= 1.5.4+dfsg2-5)",
+-+        "linux-libc-dev:amd64 (= 6.1.177-1)",
+-+        "linux-libc-dev:arm64 (= 6.1.177-1)",
+-+        "linux-libc-dev-arm64-cross:amd64 (= 6.1.4-1cross1)",
+-+        "rpcsvc-proto:amd64 (= 1.4.3-1)",
+-+        "rpcsvc-proto:arm64 (= 1.4.3-1)",
+-+        "zlib1g:amd64 (= 1:1.2.13.dfsg-1)",
+-+        "zlib1g:arm64 (= 1:1.2.13.dfsg-1)",
+-+    ],
+-+    suites = [
+-+        "bookworm",
+-+        "bookworm-updates",
+-+        "bookworm-security",
+-+    ],
+-+)
+-+use_repo(
+-+    apt_bookworm,
+-+    "bookworm-security_libgssapi-krb5-2-amd64_1.20.1-2-deb12u5",
+-+    "bookworm-security_libgssapi-krb5-2-arm64_1.20.1-2-deb12u5",
+-+    "bookworm-security_libk5crypto3-amd64_1.20.1-2-deb12u5",
+-+    "bookworm-security_libk5crypto3-arm64_1.20.1-2-deb12u5",
+-+    "bookworm-security_libkrb5-3-amd64_1.20.1-2-deb12u5",
+-+    "bookworm-security_libkrb5-3-arm64_1.20.1-2-deb12u5",
+-+    "bookworm-security_libkrb5support0-amd64_1.20.1-2-deb12u5",
+-+    "bookworm-security_libkrb5support0-arm64_1.20.1-2-deb12u5",
+-+    "bookworm-security_libssl3-amd64_3.0.20-1_deb12u2",
+-+    "bookworm-security_libssl3-arm64_3.0.20-1_deb12u2",
+-+    "bookworm-security_linux-libc-dev-amd64_6.1.177-1",
+-+    "bookworm-security_linux-libc-dev-arm64_6.1.177-1",
+-+    "bookworm_binutils-aarch64-linux-gnu-amd64_2.40-2",
+-+    "bookworm_binutils-aarch64-linux-gnu-arm64_2.40-2",
+-+    "bookworm_binutils-amd64_2.40-2",
+-+    "bookworm_binutils-arm64_2.40-2",
+-+    "bookworm_binutils-common-amd64_2.40-2",
+-+    "bookworm_binutils-common-arm64_2.40-2",
+-+    "bookworm_binutils-x86-64-linux-gnu-amd64_2.40-2",
+-+    "bookworm_cpp-12-aarch64-linux-gnu-amd64_12.2.0-14cross1",
+-+    "bookworm_cpp-12-amd64_12.2.0-14-deb12u1",
+-+    "bookworm_cpp-12-arm64_12.2.0-14-deb12u1",
+-+    "bookworm_g---12-aarch64-linux-gnu-amd64_12.2.0-14cross1",
+-+    "bookworm_g---12-amd64_12.2.0-14-deb12u1",
+-+    "bookworm_g---12-arm64_12.2.0-14-deb12u1",
+-+    "bookworm_gcc-12-aarch64-linux-gnu-amd64_12.2.0-14cross1",
+-+    "bookworm_gcc-12-aarch64-linux-gnu-base-amd64_12.2.0-14cross1",
+-+    "bookworm_gcc-12-amd64_12.2.0-14-deb12u1",
+-+    "bookworm_gcc-12-arm64_12.2.0-14-deb12u1",
+-+    "bookworm_gcc-12-base-amd64_12.2.0-14-deb12u1",
+-+    "bookworm_gcc-12-base-arm64_12.2.0-14-deb12u1",
+-+    "bookworm_gcc-12-cross-base-amd64_12.2.0-14cross1",
+-+    "bookworm_libasan8-amd64_12.2.0-14-deb12u1",
+-+    "bookworm_libasan8-arm64-cross-amd64_12.2.0-14cross1",
+-+    "bookworm_libasan8-arm64_12.2.0-14-deb12u1",
+-+    "bookworm_libatomic1-amd64_12.2.0-14-deb12u1",
+-+    "bookworm_libatomic1-arm64-cross-amd64_12.2.0-14cross1",
+-+    "bookworm_libatomic1-arm64_12.2.0-14-deb12u1",
+-+    "bookworm_libbinutils-amd64_2.40-2",
+-+    "bookworm_libbinutils-arm64_2.40-2",
+-+    "bookworm_libc-dev-bin-amd64_2.36-9-deb12u14",
+-+    "bookworm_libc-dev-bin-arm64_2.36-9-deb12u14",
+-+    "bookworm_libc6-amd64_2.36-9-deb12u14",
+-+    "bookworm_libc6-arm64-cross-amd64_2.36-8cross1",
+-+    "bookworm_libc6-arm64_2.36-9-deb12u14",
+-+    "bookworm_libc6-dev-amd64_2.36-9-deb12u14",
+-+    "bookworm_libc6-dev-arm64-cross-amd64_2.36-8cross1",
+-+    "bookworm_libc6-dev-arm64_2.36-9-deb12u14",
+-+    "bookworm_libcc1-0-amd64_12.2.0-14-deb12u1",
+-+    "bookworm_libcc1-0-arm64_12.2.0-14-deb12u1",
+-+    "bookworm_libcom-err2-amd64_1.47.0-2-b2",
+-+    "bookworm_libcom-err2-arm64_1.47.0-2-b2",
+-+    "bookworm_libcrypt-dev-amd64_1-4.4.33-2",
+-+    "bookworm_libcrypt-dev-arm64_1-4.4.33-2",
+-+    "bookworm_libcrypt1-amd64_1-4.4.33-2",
+-+    "bookworm_libcrypt1-arm64_1-4.4.33-2",
+-+    "bookworm_libctf-nobfd0-amd64_2.40-2",
+-+    "bookworm_libctf-nobfd0-arm64_2.40-2",
+-+    "bookworm_libctf0-amd64_2.40-2",
+-+    "bookworm_libctf0-arm64_2.40-2",
+-+    "bookworm_libgcc-12-dev-amd64_12.2.0-14-deb12u1",
+-+    "bookworm_libgcc-12-dev-arm64-cross-amd64_12.2.0-14cross1",
+-+    "bookworm_libgcc-12-dev-arm64_12.2.0-14-deb12u1",
+-+    "bookworm_libgcc-s1-amd64_12.2.0-14-deb12u1",
+-+    "bookworm_libgcc-s1-arm64-cross-amd64_12.2.0-14cross1",
+-+    "bookworm_libgcc-s1-arm64_12.2.0-14-deb12u1",
+-+    "bookworm_libgmp10-amd64_2-6.2.1-dfsg1-1.1",
+-+    "bookworm_libgmp10-arm64_2-6.2.1-dfsg1-1.1",
+-+    "bookworm_libgomp1-amd64_12.2.0-14-deb12u1",
+-+    "bookworm_libgomp1-arm64-cross-amd64_12.2.0-14cross1",
+-+    "bookworm_libgomp1-arm64_12.2.0-14-deb12u1",
+-+    "bookworm_libgprofng0-amd64_2.40-2",
+-+    "bookworm_libgprofng0-arm64_2.40-2",
+-+    "bookworm_libhwasan0-arm64-cross-amd64_12.2.0-14cross1",
+-+    "bookworm_libhwasan0-arm64_12.2.0-14-deb12u1",
+-+    "bookworm_libisl23-amd64_0.25-1.1",
+-+    "bookworm_libisl23-arm64_0.25-1.1",
+-+    "bookworm_libitm1-amd64_12.2.0-14-deb12u1",
+-+    "bookworm_libitm1-arm64-cross-amd64_12.2.0-14cross1",
+-+    "bookworm_libitm1-arm64_12.2.0-14-deb12u1",
+-+    "bookworm_libjansson4-amd64_2.14-2",
+-+    "bookworm_libjansson4-arm64_2.14-2",
+-+    "bookworm_libkeyutils1-amd64_1.6.3-2",
+-+    "bookworm_libkeyutils1-arm64_1.6.3-2",
+-+    "bookworm_liblsan0-amd64_12.2.0-14-deb12u1",
+-+    "bookworm_liblsan0-arm64-cross-amd64_12.2.0-14cross1",
+-+    "bookworm_liblsan0-arm64_12.2.0-14-deb12u1",
+-+    "bookworm_libmpc3-amd64_1.3.1-1",
+-+    "bookworm_libmpc3-arm64_1.3.1-1",
+-+    "bookworm_libmpfr6-amd64_4.2.0-1",
+-+    "bookworm_libmpfr6-arm64_4.2.0-1",
+-+    "bookworm_libnsl-dev-amd64_1.3.0-2",
+-+    "bookworm_libnsl-dev-arm64_1.3.0-2",
+-+    "bookworm_libnsl2-amd64_1.3.0-2",
+-+    "bookworm_libnsl2-arm64_1.3.0-2",
+-+    "bookworm_libquadmath0-amd64_12.2.0-14-deb12u1",
+-+    "bookworm_libstdc---12-dev-amd64_12.2.0-14-deb12u1",
+-+    "bookworm_libstdc---12-dev-arm64-cross-amd64_12.2.0-14cross1",
+-+    "bookworm_libstdc---12-dev-arm64_12.2.0-14-deb12u1",
+-+    "bookworm_libstdc--6-amd64_12.2.0-14-deb12u1",
+-+    "bookworm_libstdc--6-arm64-cross-amd64_12.2.0-14cross1",
+-+    "bookworm_libstdc--6-arm64_12.2.0-14-deb12u1",
+-+    "bookworm_libtirpc-common-amd64_1.3.3-ds-1",
+-+    "bookworm_libtirpc-common-arm64_1.3.3-ds-1",
+-+    "bookworm_libtirpc-dev-amd64_1.3.3-ds-1",
+-+    "bookworm_libtirpc-dev-arm64_1.3.3-ds-1",
+-+    "bookworm_libtirpc3-amd64_1.3.3-ds-1",
+-+    "bookworm_libtirpc3-arm64_1.3.3-ds-1",
+-+    "bookworm_libtsan2-amd64_12.2.0-14-deb12u1",
+-+    "bookworm_libtsan2-arm64-cross-amd64_12.2.0-14cross1",
+-+    "bookworm_libtsan2-arm64_12.2.0-14-deb12u1",
+-+    "bookworm_libubsan1-amd64_12.2.0-14-deb12u1",
+-+    "bookworm_libubsan1-arm64-cross-amd64_12.2.0-14cross1",
+-+    "bookworm_libubsan1-arm64_12.2.0-14-deb12u1",
+-+    "bookworm_libzstd1-amd64_1.5.4-dfsg2-5",
+-+    "bookworm_libzstd1-arm64_1.5.4-dfsg2-5",
+-+    "bookworm_linux-libc-dev-arm64-cross-amd64_6.1.4-1cross1",
+-+    "bookworm_rpcsvc-proto-amd64_1.4.3-1",
+-+    "bookworm_rpcsvc-proto-arm64_1.4.3-1",
+-+    "bookworm_toolchains",
+-+    "bookworm_zlib1g-amd64_1-1.2.13.dfsg-1",
+-+    "bookworm_zlib1g-arm64_1-1.2.13.dfsg-1",
+-+)
+-+
+-+sysroots.debian(
+-+    name = "bookworm_sysroot_amd64",
+-+    architectures = ["amd64"],
+-+    suite = "bookworm",
+-+)
+-+sysroots.debian(
+-+    name = "bookworm_sysroot_arm64",
+-+    architectures = ["arm64"],
+-+    suite = "bookworm",
+-+)
+-+use_repo(sysroots, "bookworm_sysroot_amd64", "bookworm_sysroot_arm64")
+-+
+-+gcc.debian_toolchain(
+-+    arch = "x86_64",
+-+    debian_packages = [
+-+        "@bookworm_binutils-amd64_2.40-2//:data.tar.xz",
+-+        "@bookworm_binutils-common-amd64_2.40-2//:data.tar.xz",
+-+        "@bookworm_binutils-x86-64-linux-gnu-amd64_2.40-2//:data.tar.xz",
+-+        "@bookworm_cpp-12-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+-+        "@bookworm_g---12-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+-+        "@bookworm_gcc-12-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+-+        "@bookworm_gcc-12-base-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+-+        "@bookworm_libasan8-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+-+        "@bookworm_libatomic1-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+-+        "@bookworm_libbinutils-amd64_2.40-2//:data.tar.xz",
+-+        "@bookworm_libc-dev-bin-amd64_2.36-9-deb12u14//:data.tar.xz",
+-+        "@bookworm_libc6-amd64_2.36-9-deb12u14//:data.tar.xz",
+-+        "@bookworm_libc6-dev-amd64_2.36-9-deb12u14//:data.tar.xz",
+-+        "@bookworm_libcc1-0-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+-+        "@bookworm_libcom-err2-amd64_1.47.0-2-b2//:data.tar.xz",
+-+        "@bookworm_libcrypt-dev-amd64_1-4.4.33-2//:data.tar.xz",
+-+        "@bookworm_libcrypt1-amd64_1-4.4.33-2//:data.tar.xz",
+-+        "@bookworm_libctf-nobfd0-amd64_2.40-2//:data.tar.xz",
+-+        "@bookworm_libctf0-amd64_2.40-2//:data.tar.xz",
+-+        "@bookworm_libgcc-12-dev-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+-+        "@bookworm_libgcc-s1-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+-+        "@bookworm_libgmp10-amd64_2-6.2.1-dfsg1-1.1//:data.tar.xz",
+-+        "@bookworm_libgomp1-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+-+        "@bookworm_libgprofng0-amd64_2.40-2//:data.tar.xz",
+-+        "@bookworm-security_libgssapi-krb5-2-amd64_1.20.1-2-deb12u5//:data.tar.xz",
+-+        "@bookworm_libisl23-amd64_0.25-1.1//:data.tar.xz",
+-+        "@bookworm_libitm1-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+-+        "@bookworm_libjansson4-amd64_2.14-2//:data.tar.xz",
+-+        "@bookworm-security_libk5crypto3-amd64_1.20.1-2-deb12u5//:data.tar.xz",
+-+        "@bookworm_libkeyutils1-amd64_1.6.3-2//:data.tar.xz",
+-+        "@bookworm-security_libkrb5-3-amd64_1.20.1-2-deb12u5//:data.tar.xz",
+-+        "@bookworm-security_libkrb5support0-amd64_1.20.1-2-deb12u5//:data.tar.xz",
+-+        "@bookworm_liblsan0-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+-+        "@bookworm_libmpc3-amd64_1.3.1-1//:data.tar.xz",
+-+        "@bookworm_libmpfr6-amd64_4.2.0-1//:data.tar.xz",
+-+        "@bookworm_libnsl-dev-amd64_1.3.0-2//:data.tar.xz",
+-+        "@bookworm_libnsl2-amd64_1.3.0-2//:data.tar.xz",
+-+        "@bookworm_libquadmath0-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+-+        "@bookworm-security_libssl3-amd64_3.0.20-1_deb12u2//:data.tar.xz",
+-+        "@bookworm_libstdc---12-dev-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+-+        "@bookworm_libstdc--6-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+-+        "@bookworm_libtirpc-common-amd64_1.3.3-ds-1//:data.tar.xz",
+-+        "@bookworm_libtirpc-dev-amd64_1.3.3-ds-1//:data.tar.xz",
+-+        "@bookworm_libtirpc3-amd64_1.3.3-ds-1//:data.tar.xz",
+-+        "@bookworm_libtsan2-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+-+        "@bookworm_libubsan1-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+-+        "@bookworm_libzstd1-amd64_1.5.4-dfsg2-5//:data.tar.xz",
+-+        "@bookworm-security_linux-libc-dev-amd64_6.1.177-1//:data.tar.xz",
+-+        "@bookworm_rpcsvc-proto-amd64_1.4.3-1//:data.tar.xz",
+-+        "@bookworm_zlib1g-amd64_1-1.2.13.dfsg-1//:data.tar.xz",
+-+    ],
+-+    exec_arch = "x86_64",
+-+    # Distroless script remapping needs modern BFD; retain GCC12 and its sysroot.
+-+    linker = "@gcc-14.2.0-linux-target-x86_64-host-x86_64//:bin/x86_64-linux-gnu-ld",
+-+    linker_files = "@gcc-14.2.0-linux-target-x86_64-host-x86_64//:multicall_support_files",
+-+    suite = "bookworm",
+-+    sysroot = "@bookworm_sysroot_amd64//root:sysroot",
+-+    target_platform = "//platforms:bookworm",
+-+    version = "12.2.0",
+-+)
+-+gcc.debian_toolchain(
+-+    arch = "aarch64",
+-+    debian_packages = [
+-+        "@bookworm_binutils-arm64_2.40-2//:data.tar.xz",
+-+        "@bookworm_binutils-aarch64-linux-gnu-arm64_2.40-2//:data.tar.xz",
+-+        "@bookworm_binutils-common-arm64_2.40-2//:data.tar.xz",
+-+        "@bookworm_cpp-12-arm64_12.2.0-14-deb12u1//:data.tar.xz",
+-+        "@bookworm_g---12-arm64_12.2.0-14-deb12u1//:data.tar.xz",
+-+        "@bookworm_gcc-12-arm64_12.2.0-14-deb12u1//:data.tar.xz",
+-+        "@bookworm_gcc-12-base-arm64_12.2.0-14-deb12u1//:data.tar.xz",
+-+        "@bookworm_libasan8-arm64_12.2.0-14-deb12u1//:data.tar.xz",
+-+        "@bookworm_libatomic1-arm64_12.2.0-14-deb12u1//:data.tar.xz",
+-+        "@bookworm_libbinutils-arm64_2.40-2//:data.tar.xz",
+-+        "@bookworm_libc-dev-bin-arm64_2.36-9-deb12u14//:data.tar.xz",
+-+        "@bookworm_libc6-arm64_2.36-9-deb12u14//:data.tar.xz",
+-+        "@bookworm_libc6-dev-arm64_2.36-9-deb12u14//:data.tar.xz",
+-+        "@bookworm_libcc1-0-arm64_12.2.0-14-deb12u1//:data.tar.xz",
+-+        "@bookworm_libcom-err2-arm64_1.47.0-2-b2//:data.tar.xz",
+-+        "@bookworm_libcrypt-dev-arm64_1-4.4.33-2//:data.tar.xz",
+-+        "@bookworm_libcrypt1-arm64_1-4.4.33-2//:data.tar.xz",
+-+        "@bookworm_libctf-nobfd0-arm64_2.40-2//:data.tar.xz",
+-+        "@bookworm_libctf0-arm64_2.40-2//:data.tar.xz",
+-+        "@bookworm_libgcc-12-dev-arm64_12.2.0-14-deb12u1//:data.tar.xz",
+-+        "@bookworm_libgcc-s1-arm64_12.2.0-14-deb12u1//:data.tar.xz",
+-+        "@bookworm_libgmp10-arm64_2-6.2.1-dfsg1-1.1//:data.tar.xz",
+-+        "@bookworm_libgomp1-arm64_12.2.0-14-deb12u1//:data.tar.xz",
+-+        "@bookworm_libgprofng0-arm64_2.40-2//:data.tar.xz",
+-+        "@bookworm-security_libgssapi-krb5-2-arm64_1.20.1-2-deb12u5//:data.tar.xz",
+-+        "@bookworm_libhwasan0-arm64_12.2.0-14-deb12u1//:data.tar.xz",
+-+        "@bookworm_libisl23-arm64_0.25-1.1//:data.tar.xz",
+-+        "@bookworm_libitm1-arm64_12.2.0-14-deb12u1//:data.tar.xz",
+-+        "@bookworm_libjansson4-arm64_2.14-2//:data.tar.xz",
+-+        "@bookworm-security_libk5crypto3-arm64_1.20.1-2-deb12u5//:data.tar.xz",
+-+        "@bookworm_libkeyutils1-arm64_1.6.3-2//:data.tar.xz",
+-+        "@bookworm-security_libkrb5-3-arm64_1.20.1-2-deb12u5//:data.tar.xz",
+-+        "@bookworm-security_libkrb5support0-arm64_1.20.1-2-deb12u5//:data.tar.xz",
+-+        "@bookworm_liblsan0-arm64_12.2.0-14-deb12u1//:data.tar.xz",
+-+        "@bookworm_libmpc3-arm64_1.3.1-1//:data.tar.xz",
+-+        "@bookworm_libmpfr6-arm64_4.2.0-1//:data.tar.xz",
+-+        "@bookworm_libnsl-dev-arm64_1.3.0-2//:data.tar.xz",
+-+        "@bookworm_libnsl2-arm64_1.3.0-2//:data.tar.xz",
+-+        "@bookworm-security_libssl3-arm64_3.0.20-1_deb12u2//:data.tar.xz",
+-+        "@bookworm_libstdc---12-dev-arm64_12.2.0-14-deb12u1//:data.tar.xz",
+-+        "@bookworm_libstdc--6-arm64_12.2.0-14-deb12u1//:data.tar.xz",
+-+        "@bookworm_libtirpc-common-arm64_1.3.3-ds-1//:data.tar.xz",
+-+        "@bookworm_libtirpc-dev-arm64_1.3.3-ds-1//:data.tar.xz",
+-+        "@bookworm_libtirpc3-arm64_1.3.3-ds-1//:data.tar.xz",
+-+        "@bookworm_libtsan2-arm64_12.2.0-14-deb12u1//:data.tar.xz",
+-+        "@bookworm_libubsan1-arm64_12.2.0-14-deb12u1//:data.tar.xz",
+-+        "@bookworm_libzstd1-arm64_1.5.4-dfsg2-5//:data.tar.xz",
+-+        "@bookworm-security_linux-libc-dev-arm64_6.1.177-1//:data.tar.xz",
+-+        "@bookworm_rpcsvc-proto-arm64_1.4.3-1//:data.tar.xz",
+-+        "@bookworm_zlib1g-arm64_1-1.2.13.dfsg-1//:data.tar.xz",
+-+    ],
+-+    exec_arch = "aarch64",
+-+    # Distroless script remapping needs modern BFD; retain GCC12 and its sysroot.
+-+    linker = "@gcc-14.2.0-linux-target-aarch64-host-aarch64//:bin/aarch64-linux-gnu-ld",
+-+    linker_files = "@gcc-14.2.0-linux-target-aarch64-host-aarch64//:multicall_support_files",
+-+    suite = "bookworm",
+-+    sysroot = "@bookworm_sysroot_arm64//root:sysroot",
+-+    target_platform = "//platforms:bookworm",
+-+    version = "12.2.0",
+-+)
+-+gcc.debian_toolchain(
+-+    arch = "aarch64",
+-+    debian_packages = [
+-+        "@bookworm_binutils-aarch64-linux-gnu-amd64_2.40-2//:data.tar.xz",
+-+        "@bookworm_binutils-common-amd64_2.40-2//:data.tar.xz",
+-+        "@bookworm_cpp-12-aarch64-linux-gnu-amd64_12.2.0-14cross1//:data.tar.xz",
+-+        "@bookworm_g---12-aarch64-linux-gnu-amd64_12.2.0-14cross1//:data.tar.xz",
+-+        "@bookworm_gcc-12-aarch64-linux-gnu-amd64_12.2.0-14cross1//:data.tar.xz",
+-+        "@bookworm_gcc-12-aarch64-linux-gnu-base-amd64_12.2.0-14cross1//:data.tar.xz",
+-+        "@bookworm_gcc-12-base-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+-+        "@bookworm_gcc-12-cross-base-amd64_12.2.0-14cross1//:data.tar.xz",
+-+        "@bookworm_libasan8-arm64-cross-amd64_12.2.0-14cross1//:data.tar.xz",
+-+        "@bookworm_libatomic1-arm64-cross-amd64_12.2.0-14cross1//:data.tar.xz",
+-+        "@bookworm_libbinutils-amd64_2.40-2//:data.tar.xz",
+-+        "@bookworm_libc6-amd64_2.36-9-deb12u14//:data.tar.xz",
+-+        "@bookworm_libc6-arm64-cross-amd64_2.36-8cross1//:data.tar.xz",
+-+        "@bookworm_libc6-dev-arm64-cross-amd64_2.36-8cross1//:data.tar.xz",
+-+        "@bookworm_libcc1-0-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+-+        "@bookworm_libgcc-12-dev-arm64-cross-amd64_12.2.0-14cross1//:data.tar.xz",
+-+        "@bookworm_libgcc-s1-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+-+        "@bookworm_libgcc-s1-arm64-cross-amd64_12.2.0-14cross1//:data.tar.xz",
+-+        "@bookworm_libgmp10-amd64_2-6.2.1-dfsg1-1.1//:data.tar.xz",
+-+        "@bookworm_libgomp1-arm64-cross-amd64_12.2.0-14cross1//:data.tar.xz",
+-+        "@bookworm_libhwasan0-arm64-cross-amd64_12.2.0-14cross1//:data.tar.xz",
+-+        "@bookworm_libisl23-amd64_0.25-1.1//:data.tar.xz",
+-+        "@bookworm_libitm1-arm64-cross-amd64_12.2.0-14cross1//:data.tar.xz",
+-+        "@bookworm_libjansson4-amd64_2.14-2//:data.tar.xz",
+-+        "@bookworm_liblsan0-arm64-cross-amd64_12.2.0-14cross1//:data.tar.xz",
+-+        "@bookworm_libmpc3-amd64_1.3.1-1//:data.tar.xz",
+-+        "@bookworm_libmpfr6-amd64_4.2.0-1//:data.tar.xz",
+-+        "@bookworm_libstdc---12-dev-arm64-cross-amd64_12.2.0-14cross1//:data.tar.xz",
+-+        "@bookworm_libstdc--6-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+-+        "@bookworm_libstdc--6-arm64-cross-amd64_12.2.0-14cross1//:data.tar.xz",
+-+        "@bookworm_libtsan2-arm64-cross-amd64_12.2.0-14cross1//:data.tar.xz",
+-+        "@bookworm_libubsan1-arm64-cross-amd64_12.2.0-14cross1//:data.tar.xz",
+-+        "@bookworm_libzstd1-amd64_1.5.4-dfsg2-5//:data.tar.xz",
+-+        "@bookworm_linux-libc-dev-arm64-cross-amd64_6.1.4-1cross1//:data.tar.xz",
+-+        "@bookworm_zlib1g-amd64_1-1.2.13.dfsg-1//:data.tar.xz",
+-+    ],
+-+    exec_arch = "x86_64",
+-+    # Distroless script remapping needs modern BFD; retain GCC12 and its sysroot.
+-+    linker = "@gcc-14.2.0-linux-target-aarch64-host-x86_64//:bin/aarch64-linux-gnu-ld",
+-+    linker_files = "@gcc-14.2.0-linux-target-aarch64-host-x86_64//:multicall_support_files",
+-+    suite = "bookworm",
+-+    sysroot = "@bookworm_sysroot_arm64//root:sysroot",
+-+    target_platform = "//platforms:bookworm",
+-+    version = "12.2.0",
+-+)
+-+
+-+# Target-side debug symbols must match the selected target loader, not exec tools.
+-+apt_bookworm.install(
+-+    dependency_set = "bookworm_target_debug",
+-+    packages = ["libc6-dbg"],
+-+    suites = ["bookworm", "bookworm-updates", "bookworm-security"],
+-+    include_transitive = True,
+-+)
+-+use_repo(apt_bookworm, "bookworm_target_debug")
+-+
+-+# One shared Bookworm execution set preserves Perl's XS ABI and the original
+-+# instrumentation versions. Consumers select runtime subsets from this set;
+-+# Trixie execution tools remain in the existing build_tools dependency set.
+-+apt_bookworm.install(
+-+    dependency_set = "bookworm_build_tools",
+-+    packages = [
+-+        "perl",
+-+        "perl-base",
+-+        "perl-modules-5.36",
+-+        "libperl-dev",
+-+        "valgrind",
+-+        "libc6-dbg",
+-+        "tcl8.6",
+-+        "tcl-expect",
+-+    ],
+-+    suites = ["bookworm", "bookworm-updates", "bookworm-security"],
+-+    include_transitive = True,
+-+)
+-+use_repo(apt_bookworm, "bookworm_build_tools")
+-+
+-+# Deterministic compression uses the existing native BCR pigz toolchain.
+-+bazel_dep(name = "pigz", version = "2.8.bcr.2")
+-+bazel_dep(name = "rules_gzip", version = "1.0.0")
+-+bazel_dep(name = "rules_multirun", version = "0.14.0")
+-+bazel_dep(name = "toolchain_utils", version = "1.0.2")
+-+
+- # Real SONiC manuals exercise the declared SGML compiler without building WPA.
+- http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
+- 
+-diff --git a/binary/strip_binary.bzl b/binary/strip_binary.bzl
+-index 2784449..23308d9 100644
+---- a/binary/strip_binary.bzl
+-+++ b/binary/strip_binary.bzl
+-@@ -38,7 +38,7 @@ def _strip_binary_rule_impl(ctx):
+-         env = {
+-             # If the base image is Make-built, it already has a /etc/ld.so.cache to look up installed binaries,
+-             # and rpaths could mess resolution order (since they have precedence over LD_LIBRARY_PATH).
+--            "STRIP_RPATH": "true" if ctx.attr._make_built_base[BuildSettingInfo].value else "false",
+-+            "STRIP_RPATH": "true" if ctx.attr._make_built_base[BuildSettingInfo].value and not ctx.attr.preserve_install_rpath else "false",
+-         },
+-         tools = [
+-             binutils.readelf,
+-@@ -63,6 +63,10 @@ _strip_binary_rule = rule(
+-     doc = "Takes a single compiled ELF target and produces (a) a stripped version with debug " +
+-           "info removed, and (b) the extracted debug symbols as a <build-id>.debug file. ",
+-     attrs = {
+-+        "preserve_install_rpath": attr.bool(
+-+            default = False,
+-+            doc = "Keep intentional installation RPATH/RUNPATH entries while filtering Bazel solib/runfiles paths, including with a Make-built base.",
+-+        ),
+-         "src": attr.label(
+-             mandatory = True,
+-             allow_single_file = True,
+-diff --git a/cc/BUILD.bazel b/cc/BUILD.bazel
+-index 23d6292..54a69dc 100644
+---- a/cc/BUILD.bazel
+-+++ b/cc/BUILD.bazel
+-@@ -1 +1 @@
+--exports_files(["shared_library.bzl"])
+-+exports_files(["preprocess.bzl", "shared_library.bzl", "runtime_test.bzl", "runtime_test.py", "direct_linker_inputs.bzl"])
+-diff --git a/cc/README.md b/cc/README.md
+-index 0b820b7..179634d 100644
+---- a/cc/README.md
+-+++ b/cc/README.md
+-@@ -59,3 +59,36 @@ the default linker behavior, without flags that force RUNPATH. The ELF check
+- requires RUNPATH, rejects RPATH, and verifies that the executable only needs
+- the middle library directly. The standard native AMD64 and ARM64 CI runs both
+- tests.
+-+
+-+`native_runtime_binary` and `native_runtime_test` in `//cc:runtime_test.bzl`
+-+execute native Linux target ELFs using the matching loader and libraries from
+-+explicit target Debian payload tar archives. They preserve installed PT_INTERP.
+-+Provide `binary` and `runtime_payloads` (including libc6 and the runtime library
+-+closure). Payload labels may be architecture-selecting filegroups. The wrapper
+-+retains the binary's runfiles and its relative ORIGIN library paths.
+-+Shared libraries expand ORIGIN relative to their own location. RPATH search
+-+paths reach indirect dependencies; RUNPATH applies only to direct dependencies.
+-+An execution tool attribute with `cfg = "exec"` selects the complete wrapper
+-+in exec configuration.
+-+Cross architecture binaries may be built; this interface requires matching
+-+execution and target CPUs to execute them. It supports library payloads, not a
+-+chroot filesystem or arbitrary package data requirements.
+-+
+-+Set `instrument` to a declared executable (selected in exec configuration) and
+-+`instrument_args` to its arguments when testing through Valgrind or a similar
+-+ELF instrument. The instrument receives the matching loader, its library search
+-+arguments, the real target ELF, and the program arguments. Its runfiles are
+-+included. Both the program exit and an instrument-reported error propagate to
+-+the caller. The runtime regression uses real Memcheck on valid and out-of-bounds
+-+memory accesses to verify this boundary.
+-+When an instrument needs a stripped library's internal symbols, include its
+-+matching debug package in `runtime_payloads`. Matching GNU Build-ID and
+-+debuglink CRC data are installed next to the declared library, so debug lookup
+-+continues to work after runtime relocation.
+-+
+-+The runtime regression executes real target glibc 2.41 programs, checks argument
+-+and nonzero exit forwarding, preserves signal termination for callers using
+-+waitpid/WIFSIGNALED, exercises the wrapper as an exec tool and rejects a
+-+missing declared libc6 payload. It addresses the observed failure where the
+-+system interpreter started a binary with imported target glibc and crashed
+-+before main.
+-diff --git a/cc/direct_linker_inputs.bzl b/cc/direct_linker_inputs.bzl
+-new file mode 100644
+-index 0000000..432990f
+---- /dev/null
+-+++ b/cc/direct_linker_inputs.bzl
+-@@ -0,0 +1,33 @@
+-+"""Expose only direct linker inputs while preserving producer compilation contexts.
+-+
+-+Use before cc_static_library when an installed archive contains selected direct
+-+objects while its transitive libraries are supplied separately by consumers.
+-+"""
+-+
+-+load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
+-+load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
+-+
+-+def _impl(ctx):
+-+    # cc_static_library includes transitive objects; keep only the selected
+-+    # producers' own linker inputs without rebuilding or copying their artifacts.
+-+    owners = {dep.label: True for dep in ctx.attr.deps}
+-+    inputs = []
+-+    found = {}
+-+    for dep in ctx.attr.deps:
+-+        for linker_input in dep[CcInfo].linking_context.linker_inputs.to_list():
+-+            if linker_input.owner in owners:
+-+                inputs.append(linker_input)
+-+                found[linker_input.owner] = True
+-+    missing = [owner for owner in owners if owner not in found]
+-+    if missing:
+-+        fail("Missing direct archive objects for %s" % missing)
+-+    compilation = cc_common.merge_cc_infos(cc_infos = [dep[CcInfo] for dep in ctx.attr.deps])
+-+    return [CcInfo(
+-+        compilation_context = compilation.compilation_context,
+-+        linking_context = cc_common.create_linking_context(linker_inputs = depset(inputs)),
+-+    )]
+-+
+-+direct_linker_inputs = rule(
+-+    implementation = _impl,
+-+    attrs = {"deps": attr.label_list(providers = [CcInfo], mandatory = True)},
+-+)
+-diff --git a/cc/preprocess.bzl b/cc/preprocess.bzl
+-new file mode 100644
+-index 0000000..94e5040
+---- /dev/null
+-+++ b/cc/preprocess.bzl
+-@@ -0,0 +1,44 @@
+-+"""Preprocess a C input with its target toolchain and declared CcInfo dependencies."""
+-+
+-+load("@rules_cc//cc:action_names.bzl", "ACTION_NAMES")
+-+load("@rules_cc//cc:defs.bzl", "CcInfo", "cc_common")
+-+load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain", "use_cc_toolchain")
+-+
+-+def _impl(ctx):
+-+    cc = find_cc_toolchain(ctx)
+-+    features = cc_common.configure_features(ctx = ctx, cc_toolchain = cc, requested_features = ctx.features, unsupported_features = ctx.disabled_features)
+-+    variables = cc_common.create_compile_variables(feature_configuration = features, cc_toolchain = cc)
+-+    flags = cc_common.get_memory_inefficient_command_line(feature_configuration = features, action_name = ACTION_NAMES.c_compile, variables = variables)
+-+    compilation = cc_common.merge_cc_infos(cc_infos = [dep[CcInfo] for dep in ctx.attr.deps]).compilation_context
+-+    output = ctx.actions.declare_file(ctx.label.name + ".i")
+-+    args = ctx.actions.args()
+-+    args.add_all(flags)
+-+    args.add_all(["-E", "-P", "-x", "c"])
+-+    args.add_all(compilation.includes, format_each = "-I%s")
+-+    args.add_all(compilation.quote_includes, format_each = "-iquote%s")
+-+    args.add_all(compilation.system_includes, format_each = "-isystem%s")
+-+    args.add_all(compilation.external_includes, format_each = "-isystem%s")
+-+    args.add_all(compilation.defines, format_each = "-D%s")
+-+    args.add_all(ctx.attr.copts)
+-+    args.add(ctx.file.src)
+-+    args.add("-o")
+-+    args.add(output)
+-+    ctx.actions.run(
+-+        executable = cc_common.get_tool_for_action(feature_configuration = features, action_name = ACTION_NAMES.c_compile),
+-+        arguments = [args],
+-+        inputs = depset([ctx.file.src], transitive = [cc.all_files, compilation.headers]),
+-+        outputs = [output],
+-+        mnemonic = "CcPreprocess",
+-+    )
+-+    return [DefaultInfo(files = depset([output]))]
+-+
+-+cc_preprocess = rule(
+-+    implementation = _impl,
+-+    attrs = {
+-+        "src": attr.label(mandatory = True, allow_single_file = True),
+-+        "deps": attr.label_list(providers = [CcInfo]),
+-+        "copts": attr.string_list(),
+-+    },
+-+    fragments = ["cpp"],
+-+    toolchains = use_cc_toolchain(),
+-+)
+-diff --git a/cc/runtime_test.bzl b/cc/runtime_test.bzl
+-new file mode 100644
+-index 0000000..5851e71
+---- /dev/null
+-+++ b/cc/runtime_test.bzl
+-@@ -0,0 +1,79 @@
+-+"""Native target ELF execution with a declared matching distribution runtime."""
+-+
+-+load("@rules_python//python:py_info.bzl", "PyInfo")
+-+
+-+def _runfile(ctx, file):
+-+    return file.short_path[3:] if file.short_path.startswith("../") else ctx.workspace_name + "/" + file.short_path
+-+
+-+def _quote(value):
+-+    return "'" + value.replace("'", "'\\''") + "'"
+-+
+-+def _impl(ctx):
+-+    executable = ctx.actions.declare_file(ctx.label.name)
+-+    python = ctx.attr._python[platform_common.ToolchainInfo].py3_runtime
+-+    if python == None or python.interpreter == None:
+-+        fail("Native runtime execution requires a declared Python interpreter")
+-+    sources = ctx.attr._metadata[PyInfo].transitive_sources.to_list()
+-+    metadata = [source for source in sources if source.basename == "elf_metadata.py"]
+-+    if len(metadata) != 1:
+-+        fail("Expected the declared ELF metadata parser source")
+-+    metadata_directory = _runfile(ctx, metadata[0]).rsplit("/", 1)[0]
+-+    # -E isolates only helper initialization. The target keeps the caller's
+-+    # environment, including embedded-Python HOME/PATH values used by clippy.
+-+    bootstrap = "import runpy,sys;sys.path.insert(0,sys.argv.pop(1));sys.argv[0]=sys.argv.pop(1);runpy.run_path(sys.argv[0],run_name='__main__')"
+-+    command = 'exec "$runfiles/%s" -E -c %s "$runfiles/%s" "$runfiles/%s" --binary "$runfiles/%s"' % (
+-+        _runfile(ctx, python.interpreter), _quote(bootstrap), metadata_directory,
+-+        _runfile(ctx, ctx.file._runner_source), _runfile(ctx, ctx.file.binary),
+-+    )
+-+    for payload in ctx.files.runtime_payloads:
+-+        command += ' --payload "$runfiles/%s"' % _runfile(ctx, payload)
+-+    if ctx.executable.instrument:
+-+        command += ' --instrument "$runfiles/%s"' % _runfile(ctx, ctx.executable.instrument)
+-+        for argument in ctx.attr.instrument_args:
+-+            command += " " + _quote("--instrument-arg=" + argument)
+-+    command += ' -- "$@"\n'
+-+    ctx.actions.write(executable, """#!/bin/sh
+-+set -eu
+-+self=$0
+-+case "$self" in /*) ;; *) self="$PWD/$self" ;; esac
+-+runfiles="$self.runfiles"
+-+if [ ! -d "$runfiles" ] && [ -n "${RUNFILES_DIR:-}" ] && [ -d "$RUNFILES_DIR" ]; then
+-+    runfiles=$RUNFILES_DIR
+-+fi
+-+if [ ! -d "$runfiles" ] && [ -n "${TEST_SRCDIR:-}" ] && [ -d "$TEST_SRCDIR" ]; then
+-+    runfiles=$TEST_SRCDIR
+-+fi
+-+if [ ! -d "$runfiles" ]; then
+-+    runfiles=$self
+-+    while :; do
+-+        case "$runfiles" in
+-+            *.runfiles) break ;;
+-+            /|"") echo "Missing native target runtime runfiles: $self" >&2; exit 1 ;;
+-+        esac
+-+        runfiles=${runfiles%/*}
+-+    done
+-+fi
+-+export RUNFILES_DIR="$runfiles"
+-+""" + command, is_executable = True)
+-+    runfiles = ctx.runfiles(files = [ctx.file.binary, ctx.file._runner_source, python.interpreter] + sources + ctx.files.runtime_payloads + ctx.files.data, transitive_files = python.files)
+-+    targets = [ctx.attr.binary, ctx.attr._metadata] + ctx.attr.data
+-+    if ctx.attr.instrument:
+-+        runfiles = runfiles.merge(ctx.runfiles(files = [ctx.executable.instrument]))
+-+        targets.append(ctx.attr.instrument)
+-+    for target in targets:
+-+        runfiles = runfiles.merge(target[DefaultInfo].default_runfiles).merge(target[DefaultInfo].data_runfiles)
+-+    return [DefaultInfo(executable = executable, runfiles = runfiles)]
+-+
+-+_attrs = {
+-+    "binary": attr.label(allow_single_file = True, mandatory = True),
+-+    "runtime_payloads": attr.label_list(allow_files = True, mandatory = True),
+-+    "data": attr.label_list(allow_files = True),
+-+    "instrument": attr.label(executable = True, cfg = "exec", doc = "Declared instrumentation tool invoked before the target loader and ELF."),
+-+    "instrument_args": attr.string_list(),
+-+    "_runner_source": attr.label(default = Label("//cc:runtime_test.py"), allow_single_file = True, cfg = "exec"),
+-+    "_metadata": attr.label(default = Label("//deb:elf_metadata"), providers = [PyInfo], cfg = "exec"),
+-+    "_python": attr.label(default = Label("@rules_python//python:current_py_toolchain"), cfg = "exec"),
+-+}
+-+
+-+native_runtime_binary = rule(implementation = _impl, executable = True, attrs = _attrs, doc = "Wrap a native ELF with declared matching libc6 and library payloads; consumers may select cfg=exec.")
+-+native_runtime_test = rule(implementation = _impl, test = True, attrs = _attrs, doc = "Test a native ELF using declared libc6 and target library payloads. Cross targets are compile-only.")
+-diff --git a/cc/runtime_test.py b/cc/runtime_test.py
+-new file mode 100644
+-index 0000000..988b96a
+---- /dev/null
+-+++ b/cc/runtime_test.py
+-@@ -0,0 +1,141 @@
+-+"""Run a native Linux ELF using the matching loader from declared target data."""
+-+import argparse
+-+import hashlib
+-+import os
+-+from pathlib import Path
+-+import platform
+-+import subprocess
+-+import signal
+-+import tarfile
+-+import tempfile
+-+import zlib
+-+
+-+from elf_metadata import Elf
+-+
+-+
+-+def origin_paths(elf, directory):
+-+    paths = {15: [], 29: []}
+-+    has_runpath = False
+-+    for section in elf.sections:
+-+        if section[1] != 6:
+-+            continue
+-+        strings = elf.section_data(elf.sections[section[6]])
+-+        for offset in range(section[4], section[4] + section[5], section[9]):
+-+            tag, value = elf.unpack("qQ" if elf.bits == 64 else "iI", offset)
+-+            if tag not in paths:
+-+                continue
+-+            has_runpath |= tag == 29
+-+            for entry in elf.string(strings, value).split(":"):
+-+                if "$ORIGIN" in entry or "${ORIGIN}" in entry:
+-+                    paths[tag].append(entry.replace("${ORIGIN}", str(directory)).replace("$ORIGIN", str(directory)))
+-+    return ([] if has_runpath else paths[15], paths[29], has_runpath)
+-+
+-+
+-+def run(binary, payloads, arguments, instrument=None, instrument_arguments=()):
+-+    binary = Path(binary).resolve()
+-+    elf = Elf(binary.read_bytes())
+-+    native = {"x86_64": 62, "aarch64": 183}.get(platform.machine())
+-+    if elf.machine != native:
+-+        raise ValueError("native_runtime_test requires matching execution and target CPUs")
+-+    with tempfile.TemporaryDirectory(prefix="native-target-runtime-") as temporary:
+-+        root = Path(temporary)
+-+        libraries = {}
+-+        library_metadata = {}
+-+        debug_files = {}
+-+        loader = None
+-+        for payload in payloads:
+-+            with tarfile.open(payload) as archive:
+-+                for member in archive:
+-+                    if not member.isfile():
+-+                        continue
+-+                    contents = archive.extractfile(member).read()
+-+                    if contents[:4] != b"\x7fELF":
+-+                        continue
+-+                    item = Elf(contents)
+-+                    if item.machine != native:
+-+                        raise ValueError("runtime payload contains an ELF for a different CPU: " + member.name)
+-+                    if member.name.removeprefix("./").startswith("usr/lib/debug/") and item.build_id:
+-+                        previous = debug_files.setdefault(item.build_id, contents)
+-+                        if previous != contents:
+-+                            raise ValueError("conflicting runtime debug Build-ID: " + item.build_id)
+-+                        continue
+-+                    if not item.soname:
+-+                        continue
+-+                    digest = hashlib.sha256(contents).digest()
+-+                    if item.soname in libraries:
+-+                        if libraries[item.soname] != digest:
+-+                            raise ValueError("conflicting runtime SONAME: " + item.soname)
+-+                        continue
+-+                    if Path(item.soname).name != item.soname:
+-+                        raise ValueError("invalid runtime SONAME")
+-+                    libraries[item.soname] = digest
+-+                    library_metadata[item.soname] = item
+-+                    target = root / item.soname
+-+                    target.write_bytes(contents)
+-+                    target.chmod(0o755)
+-+                    if item.soname.startswith("ld-linux-"):
+-+                        if loader is not None:
+-+                            raise ValueError("multiple target ELF loaders")
+-+                        loader = target
+-+        if loader is None or "libc.so.6" not in libraries:
+-+            raise ValueError("runtime_payloads must include a matching libc6 loader and libc.so.6")
+-+        for item in library_metadata.values():
+-+            debug = debug_files.get(item.build_id)
+-+            if debug is None or not item.debuglink:
+-+                continue
+-+            if Path(item.debuglink).name != item.debuglink:
+-+                raise ValueError("invalid runtime debuglink")
+-+            if zlib.crc32(debug) != item.debuglink_crc:
+-+                raise ValueError("runtime debuglink CRC differs from matching Build-ID data")
+-+            destination = root / ".debug" / item.debuglink
+-+            destination.parent.mkdir(exist_ok=True)
+-+            if destination.exists() and destination.read_bytes() != debug:
+-+                raise ValueError("conflicting runtime debuglink filename: " + item.debuglink)
+-+            destination.write_bytes(debug)
+-+        pending = [(binary, [])]
+-+        checked = set()
+-+        while pending:
+-+            current, inherited_rpaths = pending.pop()
+-+            if current in checked:
+-+                continue
+-+            checked.add(current)
+-+            current_elf = Elf(current.read_bytes())
+-+            rpaths, runpaths, has_runpath = origin_paths(current_elf, current.parent)
+-+            paths = rpaths + ([] if has_runpath else inherited_rpaths) + [str(root)] + runpaths
+-+            for soname in current_elf.needed:
+-+                provider = next((Path(directory) / soname for directory in paths if (Path(directory) / soname).is_file()), None)
+-+                if provider is None:
+-+                    raise ValueError("undeclared runtime library: " + soname + " required by " + str(current))
+-+                pending.append((provider, rpaths + inherited_rpaths))
+-+        environment = dict(os.environ)
+-+        for name in ("LD_LIBRARY_PATH", "LD_PRELOAD", "LD_AUDIT"):
+-+            environment.pop(name, None)
+-+        # Let the loader apply each object's RPATH/RUNPATH itself. Promoting
+-+        # the main RUNPATH to --library-path incorrectly makes it transitive.
+-+        command = [str(loader), "--inhibit-cache", "--library-path", str(root), str(binary)] + arguments
+-+        if instrument:
+-+            command = [str(Path(instrument).absolute())] + list(instrument_arguments) + command
+-+        return subprocess.run(command, env=environment).returncode
+-+
+-+
+-+def main():
+-+    parser = argparse.ArgumentParser(description=__doc__)
+-+    parser.add_argument("--binary", required=True)
+-+    parser.add_argument("--payload", action="append", default=[])
+-+    parser.add_argument("--instrument")
+-+    parser.add_argument("--instrument-arg", action="append", default=[])
+-+    parser.add_argument("arguments", nargs=argparse.REMAINDER)
+-+    options = parser.parse_args()
+-+    arguments = options.arguments[1:] if options.arguments[:1] == ["--"] else options.arguments
+-+    return run(options.binary, options.payload, arguments, options.instrument, options.instrument_arg)
+-+
+-+
+-+if __name__ == "__main__":
+-+    status = main()
+-+    if status < 0:
+-+        terminating_signal = -status
+-+        if terminating_signal not in (signal.SIGKILL, signal.SIGSTOP):
+-+            signal.signal(terminating_signal, signal.SIG_DFL)
+-+        signal.pthread_sigmask(signal.SIG_UNBLOCK, {terminating_signal})
+-+        os.kill(os.getpid(), terminating_signal)
+-+    raise SystemExit(status)
+-diff --git a/cc/shared_library.bzl b/cc/shared_library.bzl
+-index 0fdd09d..72c8a57 100644
+---- a/cc/shared_library.bzl
+-+++ b/cc/shared_library.bzl
+-@@ -10,7 +10,21 @@ def _shared_library_cc_info_impl(ctx):
+-     # Reuse the producer's LibraryToLink objects and solib paths. Creating a
+-     # new library or importing its output would relocate the ELF again.
+-     # The producer's linker_input also carries precompiled dynamic libraries.
+--    linker_inputs = [shared.linker_input] + [
+-+    linker_input = shared.linker_input
+-+    if ctx.attr.runtime_deps:
+-+        runtime_flags = []
+-+        runtime_inputs = []
+-+        for dependency in ctx.attr.runtime_deps:
+-+            for item in dependency[CcInfo].linking_context.linker_inputs.to_list():
+-+                runtime_flags.extend([flag for flag in item.user_link_flags if flag.startswith("-Wl,-rpath-link") or flag.startswith("-L")])
+-+                runtime_inputs.extend(item.additional_inputs)
+-+        linker_input = cc_common.create_linker_input(
+-+            owner = linker_input.owner,
+-+            libraries = depset(linker_input.libraries),
+-+            user_link_flags = depset(linker_input.user_link_flags + runtime_flags),
+-+            additional_inputs = depset(linker_input.additional_inputs + runtime_inputs),
+-+        )
+-+    linker_inputs = [linker_input] + [
+-         dependency.linker_input
+-         for dependency in shared.dynamic_deps.to_list()
+-     ]
+-@@ -33,6 +47,10 @@ reintroduce the producer's static archives. Add headers through a cc_library
+- depending on this target; use the original producer for native dynamic_deps.
+- """,
+-     attrs = {
+-+        "runtime_deps": attr.label_list(
+-+            providers = [CcInfo],
+-+            doc = "Forward only indirect-library search flags and declared linker inputs; no static archives or additional direct libraries.",
+-+        ),
+-         "shared_library": attr.label(
+-             mandatory = True,
+-             providers = [CcSharedLibraryInfo],
+-diff --git a/cc/tests/header_includes/BUILD.bazel b/cc/tests/header_includes/BUILD.bazel
+-new file mode 100644
+-index 0000000..0fa1d12
+---- /dev/null
+-+++ b/cc/tests/header_includes/BUILD.bazel
+-@@ -0,0 +1,31 @@
+-+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_shared_library")
+-+load("@rules_python//python:defs.bzl", "py_binary")
+-+load("//testing:exec_test.bzl", "exec_test")
+-+
+-+package(default_testonly = True)
+-+
+-+alias(name = "perl", actual = "@bookworm_build_tools//libperl-dev:libperl_cc")
+-+
+-+cc_library(name = "perl_headers_objects", srcs = ["perl_headers_probe.c"], deps = [":perl"])
+-+cc_shared_library(name = "perl_headers_shared", deps = [":perl_headers_objects"], shared_lib_name = "libheader_probe.so", target_compatible_with = ["//platforms:bookworm"])
+-+
+-+cc_binary(
+-+    name = "perl_headers_probe",
+-+    srcs = ["perl_headers_probe.c"],
+-+    deps = [":perl"],
+-+    target_compatible_with = ["//platforms:bookworm"],
+-+)
+-+
+-+py_binary(
+-+    name = "headers_link_checker",
+-+    srcs = ["headers_link_test.py"],
+-+    main = "headers_link_test.py",
+-+    deps = ["//deb:elf_metadata"],
+-+)
+-+
+-+exec_test(
+-+    name = "headers_link_test",
+-+    runner = ":headers_link_checker",
+-+    srcs = [":perl_headers_probe", ":perl_headers_shared"],
+-+    target_compatible_with = ["//platforms:bookworm"],
+-+)
+-diff --git a/cc/tests/header_includes/headers_link_test.py b/cc/tests/header_includes/headers_link_test.py
+-new file mode 100644
+-index 0000000..42e32c9
+---- /dev/null
+-+++ b/cc/tests/header_includes/headers_link_test.py
+-@@ -0,0 +1,9 @@
+-+"""The native Perl package export supplies CORE headers and its shared library."""
+-+from pathlib import Path
+-+import sys
+-+from elf_metadata import Elf
+-+
+-+for path in sys.argv[1:]:
+-+    elf = Elf(Path(path).read_bytes())
+-+    assert "libperl.so.5.36" in elf.needed, (path, elf.needed)
+-+print("Declared Perl CORE headers compiled; target integer/pointer ABI checked; original libperl dependency retained PASS")
+-diff --git a/cc/tests/header_includes/perl_headers_probe.c b/cc/tests/header_includes/perl_headers_probe.c
+-new file mode 100644
+-index 0000000..59711c9
+---- /dev/null
+-+++ b/cc/tests/header_includes/perl_headers_probe.c
+-@@ -0,0 +1,12 @@
+-+#include <EXTERN.h>
+-+#include <perl.h>
+-+
+-+_Static_assert(sizeof(IV) == IVSIZE, "Perl target integer ABI must match its configuration header");
+-+_Static_assert(sizeof(void *) == PTRSIZE, "Perl target pointer ABI must match its configuration header");
+-+
+-+int main(int argc, char **argv)
+-+{
+-+    char **environment = 0;
+-+    Perl_sys_init3(&argc, &argv, &environment);
+-+    return 0;
+-+}
+-diff --git a/cc/tests/middle/BUILD.bazel b/cc/tests/middle/BUILD.bazel
+-index 67ac53b..a56b979 100644
+---- a/cc/tests/middle/BUILD.bazel
+-+++ b/cc/tests/middle/BUILD.bazel
+-@@ -22,6 +22,7 @@ cc_shared_library(
+- shared_library_cc_info(
+-     name = "shared_link",
+-     shared_library = ":shared",
+-+    runtime_deps = [":implementation"],
+- )
+- 
+- cc_library(
+-diff --git a/cc/tests/runtime_context/BUILD.bazel b/cc/tests/runtime_context/BUILD.bazel
+-new file mode 100644
+-index 0000000..9d3bf98
+---- /dev/null
+-+++ b/cc/tests/runtime_context/BUILD.bazel
+-@@ -0,0 +1,30 @@
+-+load("@bazel_lib//lib:copy_file.bzl", "copy_file")
+-+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_shared_library")
+-+load("@rules_python//python:defs.bzl", "py_test")
+-+load("//cc:shared_library.bzl", "shared_library_cc_info")
+-+
+-+package(default_testonly = True)
+-+
+-+cc_binary(name = "arbitrary_payload.so", srcs = ["leaf.c"], linkshared = True, linkopts = ["-Wl,-soname,libindirect.so.7"])
+-+# The fixture ELF declares this SONAME. Make that name a declared linker input.
+-+copy_file(name = "runtime_soname", src = ":arbitrary_payload.so", out = "libindirect.so.7", allow_symlink = True)
+-+copy_file(name = "script", src = "script.ld", out = "libscript.so", allow_symlink = True)
+-+# Keep the precompiled library and its search flags in one linker input.
+-+_REPOSITORY = repository_name().lstrip("@")
+-+_FIXTURE_OUTPUT_DIR = "$(BINDIR)/" + ("external/" + _REPOSITORY + "/" if _REPOSITORY else "") + "cc/tests/runtime_context"
+-+
+-+cc_library(name = "dependency", srcs = [":script"])
+-+cc_library(
+-+    name = "middle_objects",
+-+    srcs = ["middle.c"],
+-+    deps = [":dependency"],
+-+    additional_linker_inputs = [":script", ":runtime_soname"],
+-+    data = [":runtime_soname"],
+-+    linkopts = ["-L" + _FIXTURE_OUTPUT_DIR, "-Wl,-rpath-link," + _FIXTURE_OUTPUT_DIR],
+-+    alwayslink = True,
+-+)
+-+
+-+cc_shared_library(name = "middle", deps = [":middle_objects"], shared_lib_name = "libnative_context_middle.so.0", user_link_flags = ["-Wl,-soname,libnative_context_middle.so.0"])
+-+shared_library_cc_info(name = "middle_link", shared_library = ":middle", runtime_deps = [":middle_objects"])
+-+cc_binary(name = "consumer", srcs = ["main.c"], deps = [":middle_link"], linkstatic = False)
+-+py_test(name = "layout_test", srcs = ["layout_test.py"], args = ["$(location :consumer)", "$(location :middle)"], data = [":consumer", ":middle"], deps = ["//deb:elf_metadata"])
+-diff --git a/cc/tests/runtime_context/layout_test.py b/cc/tests/runtime_context/layout_test.py
+-new file mode 100644
+-index 0000000..48c3685
+---- /dev/null
+-+++ b/cc/tests/runtime_context/layout_test.py
+-@@ -0,0 +1,9 @@
+-+"""The consumer resolves the indirect library without linking it directly."""
+-+from pathlib import Path
+-+import sys
+-+from elf_metadata import Elf
+-+
+-+consumer, middle = [Elf(Path(path).read_bytes()) for path in sys.argv[1:]]
+-+assert "libnative_context_middle.so.0" in consumer.needed
+-+assert "libindirect.so.7" not in consumer.needed
+-+assert "libindirect.so.7" in middle.needed
+-diff --git a/cc/tests/runtime_context/leaf.c b/cc/tests/runtime_context/leaf.c
+-new file mode 100644
+-index 0000000..fba56cf
+---- /dev/null
+-+++ b/cc/tests/runtime_context/leaf.c
+-@@ -0,0 +1,2 @@
+-+int indirect_value(void);
+-+int indirect_value(void) { return 7; }
+-diff --git a/cc/tests/runtime_context/main.c b/cc/tests/runtime_context/main.c
+-new file mode 100644
+-index 0000000..b320e30
+---- /dev/null
+-+++ b/cc/tests/runtime_context/main.c
+-@@ -0,0 +1,2 @@
+-+int context_middle(void);
+-+int main(void) { return context_middle() == 8 ? 0 : 1; }
+-diff --git a/cc/tests/runtime_context/middle.c b/cc/tests/runtime_context/middle.c
+-new file mode 100644
+-index 0000000..2bd6a7d
+---- /dev/null
+-+++ b/cc/tests/runtime_context/middle.c
+-@@ -0,0 +1,3 @@
+-+int indirect_value(void);
+-+int context_middle(void);
+-+int context_middle(void) { return indirect_value() + 1; }
+-diff --git a/cc/tests/runtime_context/script.ld b/cc/tests/runtime_context/script.ld
+-new file mode 100644
+-index 0000000..ec0fb22
+---- /dev/null
+-+++ b/cc/tests/runtime_context/script.ld
+-@@ -0,0 +1 @@
+-+INPUT ( libindirect.so.7 )
+-diff --git a/cc/tests/runtime_test/BUILD.bazel b/cc/tests/runtime_test/BUILD.bazel
+-new file mode 100644
+-index 0000000..98a1daf
+---- /dev/null
+-+++ b/cc/tests/runtime_test/BUILD.bazel
+-@@ -0,0 +1,89 @@
+-+load("@rules_cc//cc:defs.bzl", "cc_binary")
+-+load("@rules_python//python:defs.bzl", "py_test")
+-+load("//cc:runtime_test.bzl", "native_runtime_binary", "native_runtime_test")
+-+
+-+cc_binary(name = "program", srcs = ["program.c"])
+-+
+-+native_runtime_binary(
+-+    name = "wrapped",
+-+    binary = ":program",
+-+    runtime_payloads = ["@build_tools//libc6:data"],
+-+)
+-+
+-+native_runtime_test(
+-+    name = "native_test",
+-+    binary = ":program",
+-+    runtime_payloads = ["@build_tools//libc6:data"],
+-+    args = ["native-test", "0"],
+-+)
+-+
+-+py_test(
+-+    name = "contract_test",
+-+    srcs = ["contract_test.py"],
+-+    args = ["$(location :wrapped)", "$(location :missing_runtime)", "$(location :exec_tool_output)", "$(location :instrumented)", "$(location :memchecked)"],
+-+    data = [":wrapped", ":missing_runtime", ":exec_tool_output", ":instrumented", ":memchecked"],
+-+)
+-+
+-+native_runtime_binary(name = "missing_runtime", binary = ":program", runtime_payloads = [])
+-+
+-+genrule(
+-+    name = "exec_tool_output",
+-+    tools = [":wrapped"],
+-+    outs = ["exec-tool.txt"],
+-+    cmd = "$(location :wrapped) 'exec tool' 0 > $@",
+-+)
+-+
+-+native_runtime_binary(
+-+    name = "instrumented",
+-+    binary = ":program",
+-+    runtime_payloads = ["@build_tools//libc6:data", "@build_tools//libc6-dbg:data"],
+-+    instrument = "//tools/build_tools:valgrind",
+-+    instrument_args = ["--quiet", "--error-exitcode=86", "--leak-check=full"],
+-+)
+-+
+-+cc_binary(name = "memory_access", srcs = ["memory_access.c"])
+-+
+-+native_runtime_binary(
+-+    name = "memchecked",
+-+    binary = ":memory_access",
+-+    runtime_payloads = ["@build_tools//libc6:data", "@build_tools//libc6-dbg:data"],
+-+    instrument = "//tools/build_tools:valgrind",
+-+    instrument_args = ["--quiet", "--error-exitcode=86", "--leak-check=full"],
+-+)
+-+
+-+# Distinct SONAMEs and a relocatable three-object graph exercise the ELF loader
+-+# contract independently of Bazel's generated solib search paths.
+-+cc_binary(
+-+    name = "liborigin_leaf.so",
+-+    srcs = ["origin_leaf.c"],
+-+    linkshared = True,
+-+    linkopts = ["-Wl,-soname,liborigin_leaf.so"],
+-+)
+-+
+-+cc_binary(
+-+    name = "liborigin_middle.so",
+-+    srcs = ["origin_middle.c", ":liborigin_leaf.so"],
+-+    linkshared = True,
+-+    linkopts = ["-Wl,-soname,liborigin_middle.so"],
+-+)
+-+
+-+cc_binary(
+-+    name = "origin_program",
+-+    srcs = ["origin_main.c", ":liborigin_middle.so"],
+-+    linkopts = ["-Wl,--allow-shlib-undefined"],
+-+)
+-+
+-+py_test(
+-+    name = "origin_contract_test",
+-+    srcs = ["origin_contract_test.py", "//cc:runtime_test.py"],
+-+    main = "origin_contract_test.py",
+-+    args = [
+-+        "$(location :origin_program)",
+-+        "$(location :liborigin_middle.so)",
+-+        "$(location :liborigin_leaf.so)",
+-+        "$(location @patchelf//:patchelf)",
+-+        "$(location @build_tools//libc6:data)",
+-+    ],
+-+    data = [":origin_program", ":liborigin_middle.so", ":liborigin_leaf.so", "@patchelf//:patchelf", "@build_tools//libc6:data"],
+-+    deps = ["//deb:elf_metadata"],
+-+)
+-diff --git a/cc/tests/runtime_test/contract_test.py b/cc/tests/runtime_test/contract_test.py
+-new file mode 100644
+-index 0000000..d8f1693
+---- /dev/null
+-+++ b/cc/tests/runtime_test/contract_test.py
+-@@ -0,0 +1,51 @@
+-+"""Real ELF regression: matching libc, argument forwarding and exit propagation."""
+-+from pathlib import Path
+-+import os
+-+import subprocess
+-+import signal
+-+import sys
+-+import tempfile
+-+
+-+wrapper = str(Path(sys.argv[1]).absolute())
+-+for value, status in [("first argument", 0), ("second argument", 37)]:
+-+    result = subprocess.run([wrapper, value, str(status)], capture_output=True, text=True)
+-+    assert result.returncode == status, (result.returncode, result.stderr)
+-+    assert result.stdout == "target-glibc=2.41 argument=" + value + "\n", result.stdout
+-+
+-+missing = subprocess.run([str(Path(sys.argv[2]).absolute()), "unused", "0"], capture_output=True, text=True)
+-+assert missing.returncode != 0 and "matching libc6 loader" in missing.stderr, missing
+-+assert Path(sys.argv[3]).read_text() == "target-glibc=2.41 argument=exec tool\n"
+-+
+-+with tempfile.TemporaryDirectory() as temporary:
+-+    link = Path(temporary) / "original-layout-program"
+-+    link.symlink_to(wrapper)
+-+    result = subprocess.run([str(link), "linked argument", "0"], capture_output=True, text=True)
+-+    assert result.returncode == 0, result.stderr
+-+    assert result.stdout == "target-glibc=2.41 argument=linked argument\n"
+-+
+-+# FRR's upstream Memcheck scripts require the real target ELF, matching libc,
+-+# and the instrument's error status, while preserving program arguments/exits.
+-+instrumented = str(Path(sys.argv[4]).absolute())
+-+for value, status in [("instrumented first argument", 0), ("instrumented second argument", 37)]:
+-+    result = subprocess.run([instrumented, value, str(status)], capture_output=True, text=True)
+-+    assert result.returncode == status, (result.returncode, result.stderr)
+-+    assert result.stdout == "target-glibc=2.41 argument=" + value + "\n", result.stdout
+-+
+-+memchecked = str(Path(sys.argv[5]).absolute())
+-+for index, expected in [("0", 0), ("2", 86)]:
+-+    result = subprocess.run([memchecked, index], capture_output=True, text=True)
+-+    assert result.returncode == expected, (index, result.returncode, result.stderr)
+-+
+-+# Original fuzz regression drivers use waitpid/WIFEXITED: a crashing target
+-+# must remain signal-terminated when executed through this runtime wrapper.
+-+for terminating_signal in (signal.SIGTERM, signal.SIGABRT, signal.SIGKILL):
+-+    result = subprocess.run([wrapper, "raise-signal", str(terminating_signal)], capture_output=True, text=True)
+-+    assert result.returncode == -terminating_signal, (result.returncode, result.stderr)
+-+
+-+# Build generators can provide another Python on PATH and an embedded target
+-+# PYTHONHOME. The helper must initialize its declared interpreter while leaving
+-+# those target settings intact. An empty PATH also excludes /usr/bin/env Python.
+-+foreign_environment = dict(os.environ, PATH="", PYTHONHOME="/missing/target-python", PYTHONPATH="/target/python/modules")
+-+result = subprocess.run([wrapper, "python-environment", "0"], env=foreign_environment, capture_output=True, text=True)
+-+assert result.returncode == 0, result.stderr
+-+assert result.stdout == "/missing/target-python|/target/python/modules\n", result.stdout
+-diff --git a/cc/tests/runtime_test/memory_access.c b/cc/tests/runtime_test/memory_access.c
+-new file mode 100644
+-index 0000000..fb5d6c1
+---- /dev/null
+-+++ b/cc/tests/runtime_test/memory_access.c
+-@@ -0,0 +1,11 @@
+-+#include <stdlib.h>
+-+
+-+int main(int argc, char **argv) {
+-+    if (argc != 2) return 2;
+-+    volatile int *values = malloc(2 * sizeof(int));
+-+    if (!values) return 3;
+-+    /* Index 0 is valid; index 2 deliberately exercises Memcheck's error exit. */
+-+    values[atoi(argv[1])] = 42;
+-+    free((void *)values);
+-+    return 0;
+-+}
+-diff --git a/cc/tests/runtime_test/origin_contract_test.py b/cc/tests/runtime_test/origin_contract_test.py
+-new file mode 100644
+-index 0000000..b6ce34c
+---- /dev/null
+-+++ b/cc/tests/runtime_test/origin_contract_test.py
+-@@ -0,0 +1,75 @@
+-+"""Compare declared-runtime execution with real ELF loader search semantics."""
+-+from pathlib import Path
+-+import shutil
+-+import subprocess
+-+import sys
+-+import tarfile
+-+import tempfile
+-+
+-+from cc.runtime_test import run
+-+from elf_metadata import Elf
+-+
+-+
+-+program, middle, leaf, patchelf, payload = map(lambda name: Path(name).absolute(), sys.argv[1:])
+-+with tempfile.TemporaryDirectory(prefix="origin-contract-") as temporary:
+-+    root = Path(temporary) / "layout with spaces"
+-+    (root / "lib/leaf").mkdir(parents=True)
+-+    binary = root / "program"
+-+    shared = root / "lib/liborigin_middle.so"
+-+    child = root / "lib/leaf/liborigin_leaf.so"
+-+    for source, target in [(program, binary), (middle, shared), (leaf, child)]:
+-+        shutil.copyfile(source, target)
+-+        target.chmod(0o755)
+-+    runtime = root / "runtime"
+-+    runtime.mkdir()
+-+    with tarfile.open(payload) as archive:
+-+        for member in archive:
+-+            if member.isfile():
+-+                data = archive.extractfile(member).read()
+-+                if data.startswith(b"\x7fELF"):
+-+                    soname = Elf(data).soname
+-+                    if soname:
+-+                        target = runtime / soname
+-+                        target.write_bytes(data)
+-+                        target.chmod(0o755)
+-+    loader = next(runtime.glob("ld-linux-*"))
+-+
+-+    def set_path(target, value, *, rpath=False):
+-+        subprocess.run([str(patchelf), *(["--force-rpath"] if rpath else []), "--set-rpath", value, str(target)], check=True)
+-+
+-+    def check(expected):
+-+        # The control is the actual loader supplied by the declared libc6.
+-+        control = subprocess.run([str(loader), "--inhibit-cache", "--library-path", str(runtime), str(binary)], capture_output=True)
+-+        assert (control.returncode == 0) == expected, (control.returncode, control.stderr)
+-+        if expected:
+-+            assert run(binary, [payload], []) == 0
+-+        else:
+-+            try:
+-+                run(binary, [payload], [])
+-+            except ValueError as error:
+-+                assert "undeclared runtime library: liborigin_leaf.so" in str(error), error
+-+            else:
+-+                raise AssertionError("An unresolved indirect dependency must be rejected")
+-+
+-+    # A shared object's ORIGIN is its own directory, including braced tokens.
+-+    set_path(binary, "$ORIGIN/lib")
+-+    set_path(shared, "${ORIGIN}/leaf")
+-+    check(True)
+-+    set_path(shared, "$ORIGIN/leaf", rpath=True)
+-+    check(True)
+-+
+-+    # Main RPATH reaches grandchildren; main RUNPATH reaches only children.
+-+    subprocess.run([str(patchelf), "--remove-rpath", str(shared)], check=True)
+-+    set_path(binary, "$ORIGIN/lib:$ORIGIN/lib/leaf", rpath=True)
+-+    check(True)
+-+    set_path(shared, "$ORIGIN/missing")
+-+    check(False)
+-+    subprocess.run([str(patchelf), "--remove-rpath", str(shared)], check=True)
+-+    subprocess.run([str(patchelf), "--remove-rpath", str(binary)], check=True)
+-+    set_path(binary, "$ORIGIN/lib:$ORIGIN/lib/leaf")
+-+    check(False)
+-+
+-+    # A valid search path never supplies a missing declared file.
+-+    set_path(shared, "$ORIGIN/leaf")
+-+    child.unlink()
+-+    check(False)
+-diff --git a/cc/tests/runtime_test/origin_leaf.c b/cc/tests/runtime_test/origin_leaf.c
+-new file mode 100644
+-index 0000000..aadaf19
+---- /dev/null
+-+++ b/cc/tests/runtime_test/origin_leaf.c
+-@@ -0,0 +1 @@
+-+int origin_leaf(void) { return 42; }
+-diff --git a/cc/tests/runtime_test/origin_main.c b/cc/tests/runtime_test/origin_main.c
+-new file mode 100644
+-index 0000000..27c1318
+---- /dev/null
+-+++ b/cc/tests/runtime_test/origin_main.c
+-@@ -0,0 +1,2 @@
+-+int origin_middle(void);
+-+int main(void) { return origin_middle() == 42 ? 0 : 1; }
+-diff --git a/cc/tests/runtime_test/origin_middle.c b/cc/tests/runtime_test/origin_middle.c
+-new file mode 100644
+-index 0000000..2ba4d5f
+---- /dev/null
+-+++ b/cc/tests/runtime_test/origin_middle.c
+-@@ -0,0 +1,2 @@
+-+int origin_leaf(void);
+-+int origin_middle(void) { return origin_leaf(); }
+-diff --git a/cc/tests/runtime_test/program.c b/cc/tests/runtime_test/program.c
+-new file mode 100644
+-index 0000000..3c7b108
+---- /dev/null
+-+++ b/cc/tests/runtime_test/program.c
+-@@ -0,0 +1,17 @@
+-+#include <gnu/libc-version.h>
+-+#include <stdio.h>
+-+#include <signal.h>
+-+#include <stdlib.h>
+-+#include <string.h>
+-+int main(int argc, char **argv) {
+-+    /* MODULE.bazel's target snapshot fixes libc6 to Debian glibc 2.41. */
+-+    if (strcmp(gnu_get_libc_version(), "2.41") || argc != 3) { fprintf(stderr,"glibc=%s argc=%d\n",gnu_get_libc_version(),argc); return 91; }
+-+    if (!strcmp(argv[1], "raise-signal")) { raise(atoi(argv[2])); return 92; }
+-+    if (!strcmp(argv[1], "python-environment")) {
+-+        const char *home = getenv("PYTHONHOME"), *path = getenv("PYTHONPATH");
+-+        printf("%s|%s\n", home ? home : "", path ? path : "");
+-+        return atoi(argv[2]);
+-+    }
+-+    printf("target-glibc=%s argument=%s\n", gnu_get_libc_version(), argv[1]);
+-+    return atoi(argv[2]);
+-+}
+-diff --git a/ci/README.md b/ci/README.md
+-index a737229..3c72bb3 100644
+---- a/ci/README.md
+-+++ b/ci/README.md
+-@@ -8,21 +8,29 @@ revision, so the checks exercise the current PR with its target branch.
+- Run `bash ci/bazel-ci.sh` on a native AMD64 or ARM64 Debian Trixie host with
+- Bazel 8.5.1, a C/C++ compiler, binutils, GDB, Git, Python, tar and xz installed.
+- Local builds default to `sonic-bazel-registry/main` and the Bazel Central
+--Registry. The Bazel and declared-tool workflows use that same maintained
+--endpoint, which contains `rules_distroless` 0.9.4.sonic.1. On a native Trixie
+--host, reproduce the source checks with:
+-+Registry. Native APT exports require the updated `rules_distroless` `0.9.4.sonic.13`
+-+recipe from [registry #146](https://github.com/securely1g/sonic-bazel-registry/pull/146),
+-+which adds the individual APT library and header interfaces.
+-+
+-+The Bazel and declared-tool workflows temporarily select the reviewed registry
+-+commit `6f277d4a12de1fa156a1e2566080e0bf23bc38ea`. On a native Trixie host,
+-+reproduce that same candidate with:
+- 
+- ```sh
+--bash ci/bazel-ci.sh
+-+SONIC_BAZEL_REGISTRY=https://raw.githubusercontent.com/songqing-sq/sonic-bazel-registry/6f277d4a12de1fa156a1e2566080e0bf23bc38ea \
+-+  bash ci/bazel-ci.sh
+- ```
+- 
+--CI selects its URLs explicitly so user-specific Bazel settings cannot change
+--its registries.
+-+The script ignores user/workspace rc files and selects exactly this SONiC
+-+endpoint plus BCR, replacing the default instead of adding another snapshot.
+-+It generates `MODULE.bazel.lock` and records the endpoint with the CI evidence;
+-+the lock remains ignored. Ordinary Bazel commands continue to use `.bazelrc`'s
+-+maintained `main` default.
+- 
+- Distroless patches, upstream regressions and package-import consumer tests live
+- with the [registry module](https://github.com/securely1g/sonic-bazel-registry/tree/main/modules/rules_distroless).
+- This repository tests its own SONiC rules, toolchains and APT adapters against
+--the selected published dependency; it does not maintain a second Distroless
+-+the selected dependency recipe; it does not maintain a second Distroless
+- patch archive or test suite.
+- 
+- The main branch contains the landed tar.bzl patch. The separate shared-Rust
+-@@ -39,9 +47,22 @@ also runs the nine external-consumer analysis/sysroot tests and rejects the
+- unsafe archive fixture. Wheel installation tests run when the wheel-layer rule
+- is present; archive ownership and debug-header ownership tests run when the
+- ownership rule is present. These rule families are selected independently, so
+--either can be developed and validated on its own. These checks do not claim
+-+either can be developed and validated on its own. The native matrix also selects
+-+the three existing Bookworm contracts:
+-+`//cc/tests/header_includes:headers_link_test` builds and inspects an executable
+-+and shared library using `@bookworm_build_tools//libperl-dev:libperl_cc`;
+-+`//toolchains/bookworm/tests:abi_test` checks the target ELF ABI; and
+-+`:native_test` executes it with the declared Bookworm runtime. They keep Trixie
+-+execution tools and select the matching Bookworm target architecture, retaining
+-+a separate action audit, test events and logs. These checks do not claim
+- ARMHF execution, an installed SONiC image, or full component downstream coverage.
+- 
+-+The native source matrix explicitly runs runtime-context and native-runtime
+-+contracts, including per-object ORIGIN, RPATH inheritance and RUNPATH isolation,
+-+checker argument forwarding, installation RPATH preservation and GCC prefix maps.
+-+The declared-tool matrix also runs the Trixie test runtime, Bookworm Perl and
+-+Bookworm Valgrind contracts on both native architectures.
+-+
+- Archive timestamp checks cover the shared default and caller overrides, explicit
+- zero times, and both direct tar and stripped-binary deployment paths. The tar.bzl
+- patch owns generic manifest and changed-input-mtime regressions. The source
+-diff --git a/deb/BUILD.bazel b/deb/BUILD.bazel
+-index ee2d940..bff027e 100644
+---- a/deb/BUILD.bazel
+-+++ b/deb/BUILD.bazel
+-@@ -8,3 +8,15 @@ py_binary(
+-     srcs = ["md5sums_from_tar.py"],
+-     visibility = ["//visibility:public"],
+- )
+-+
+-+load("@rules_python//python:py_library.bzl", "py_library")
+-+
+-+# ELF inspection shared by execution-runtime and native linking checks.
+-+py_library(
+-+    name = "elf_metadata",
+-+    srcs = ["elf_metadata.py"],
+-+    imports = ["."],
+-+    visibility = ["//visibility:public"],
+-+)
+-+
+-+exports_files(["elf_metadata.py"], visibility = ["//tools/build_tools:__pkg__"])
+-diff --git a/deb/elf_metadata.py b/deb/elf_metadata.py
+-new file mode 100644
+-index 0000000..c2a3c3a
+---- /dev/null
+-+++ b/deb/elf_metadata.py
+-@@ -0,0 +1,111 @@
+-+"""Read ELF dynamic dependencies and symbol versions without executing target code."""
+-+import struct
+-+
+-+
+-+class Elf:
+-+    def __init__(self, data):
+-+        if data[:4] != b'\x7fELF':
+-+            raise ValueError('expected ELF')
+-+        self.data = data
+-+        self.bits = {1: 32, 2: 64}[data[4]]
+-+        self.order = {1: '<', 2: '>'}[data[5]]
+-+        header = self.unpack('HHIQQQIHHHHHH' if self.bits == 64 else 'HHIIIIIHHHHHH', 16)
+-+        self.machine = header[1]
+-+        layout = 'IIQQQQIIQQ' if self.bits == 64 else 'IIIIIIIIII'
+-+        self.sections = [self.unpack(layout, header[5] + n * header[10]) for n in range(header[11])]
+-+        if not self.sections:
+-+            raise ValueError('ELF section table is required for dependency analysis')
+-+        names = self.section_data(self.sections[header[12]])
+-+        self.by_name = {self.string(names, section[0]): section for section in self.sections}
+-+        self.build_id = None
+-+        for section in self.sections:
+-+            if section[1] != 7:
+-+                continue
+-+            notes = self.section_data(section)
+-+            offset = 0
+-+            while offset + 12 <= len(notes):
+-+                namesz, descsz, kind = struct.unpack_from(self.order + 'III', notes, offset)
+-+                name = notes[offset + 12:offset + 12 + namesz]
+-+                descriptor = offset + 12 + ((namesz + 3) & ~3)
+-+                if name.rstrip(b'\0') == b'GNU' and kind == 3:
+-+                    self.build_id = notes[descriptor:descriptor + descsz].hex()
+-+                offset = descriptor + ((descsz + 3) & ~3)
+-+        self.debuglink = None
+-+        self.debuglink_crc = None
+-+        if '.gnu_debuglink' in self.by_name:
+-+            data = self.section_data(self.by_name['.gnu_debuglink'])
+-+            length = data.index(b'\0')
+-+            self.debuglink = data[:length].decode()
+-+            self.debuglink_crc = struct.unpack_from(self.order + 'I', data, (length + 4) & ~3)[0]
+-+        self.needed = []
+-+        self.soname = None
+-+        dynamic = self.by_name.get('.dynamic')
+-+        if dynamic and dynamic[1] != 8:
+-+            strings = self.section_data(self.sections[dynamic[6]])
+-+            for offset in range(dynamic[4], dynamic[4] + dynamic[5], dynamic[9]):
+-+                tag, value = self.unpack('qQ' if self.bits == 64 else 'iI', offset)
+-+                if tag == 1:
+-+                    self.needed.append(self.string(strings, value))
+-+                elif tag == 14:
+-+                    self.soname = self.string(strings, value)
+-+        versions = {}
+-+        version_section = self.by_name.get('.gnu.version_r')
+-+        if version_section and version_section[1] != 8:
+-+            strings = self.section_data(self.sections[version_section[6]])
+-+            offset = version_section[4]
+-+            while True:
+-+                _, count, file_name, auxiliary, next_record = self.unpack('HHIII', offset)
+-+                cursor = offset + auxiliary
+-+                for _ in range(count):
+-+                    _, _, other, name, next_aux = self.unpack('IHHII', cursor)
+-+                    versions[other & 0x7fff] = (self.string(strings, file_name), self.string(strings, name))
+-+                    cursor += next_aux
+-+                if not next_record:
+-+                    break
+-+                offset += next_record
+-+        definitions = {}
+-+        definition_section = self.by_name.get('.gnu.version_d')
+-+        if definition_section and definition_section[1] != 8:
+-+            strings = self.section_data(self.sections[definition_section[6]])
+-+            offset = definition_section[4]
+-+            while True:
+-+                _, _, index, _, _, auxiliary, next_record = self.unpack('HHHHIII', offset)
+-+                name, _ = self.unpack('II', offset + auxiliary)
+-+                definitions[index & 0x7fff] = self.string(strings, name)
+-+                if not next_record:
+-+                    break
+-+                offset += next_record
+-+        self.required_versions = list(versions.values())
+-+        self.undefined = []
+-+        self.exports = set()
+-+        self.export_versions = set()
+-+        symbols = self.by_name.get('.dynsym')
+-+        version_indexes = self.by_name.get('.gnu.version')
+-+        if version_indexes and version_indexes[1] == 8:
+-+            version_indexes = None
+-+        if symbols and symbols[1] != 8:
+-+            strings = self.section_data(self.sections[symbols[6]])
+-+            for index, offset in enumerate(range(symbols[4], symbols[4] + symbols[5], symbols[9])):
+-+                symbol = self.unpack('IBBHQQ' if self.bits == 64 else 'IIIBBH', offset)
+-+                name = self.string(strings, symbol[0])
+-+                binding = (symbol[1] if self.bits == 64 else symbol[3]) >> 4
+-+                defined = symbol[3] if self.bits == 64 else symbol[5]
+-+                if not name or binding not in (1, 2, 10):
+-+                    continue
+-+                if defined:
+-+                    self.exports.add(name)
+-+                    version = self.unpack('H', version_indexes[4] + index * 2)[0] & 0x7fff if version_indexes else 0
+-+                    self.export_versions.add((name, definitions.get(version)))
+-+                elif binding != 2:
+-+                    version = self.unpack('H', version_indexes[4] + index * 2)[0] & 0x7fff if version_indexes else 0
+-+                    self.undefined.append((name, versions.get(version)))
+-+
+-+    def unpack(self, layout, offset):
+-+        return struct.unpack_from(self.order + layout, self.data, offset)
+-+
+-+    def section_data(self, section):
+-+        return self.data[section[4]:section[4] + section[5]]
+-+
+-+    @staticmethod
+-+    def string(data, offset):
+-+        return data[offset:data.index(b'\0', offset)].decode()
+-diff --git a/platforms/BUILD.bazel b/platforms/BUILD.bazel
+-index f5a6171..acfb155 100644
+---- a/platforms/BUILD.bazel
+-+++ b/platforms/BUILD.bazel
+-@@ -45,3 +45,30 @@ platform(
+-     ],
+-     visibility = ["//visibility:public"],
+- )
+-+
+-+# Each target belongs to one Debian libc ABI; execution tools stay independent.
+-+constraint_value(
+-+    name = "bookworm",
+-+    constraint_setting = ":trixie_libc_sysroot",
+-+    visibility = ["//visibility:public"],
+-+)
+-+
+-+platform(
+-+    name = "x86_64_bookworm",
+-+    constraint_values = [
+-+        "@platforms//cpu:x86_64",
+-+        "@platforms//os:linux",
+-+        ":bookworm",
+-+    ],
+-+    visibility = ["//visibility:public"],
+-+)
+-+
+-+platform(
+-+    name = "aarch64_bookworm",
+-+    constraint_values = [
+-+        "@platforms//cpu:aarch64",
+-+        "@platforms//os:linux",
+-+        ":bookworm",
+-+    ],
+-+    visibility = ["//visibility:public"],
+-+)
+-diff --git a/tar/BUILD.bazel b/tar/BUILD.bazel
+-index e174f22..b5149c8 100644
+---- a/tar/BUILD.bazel
+-+++ b/tar/BUILD.bazel
+-@@ -31,6 +31,7 @@ write_file(
+- debug_symbols_tar(
+-     name = "ownership_fixture_tar",
+-     srcs = [":ownership_fixture"],
+-+    symlinks = {"usr/share/doc/fixture-dbgsym": "fixture"},
+- )
+- 
+- py_test(
+-diff --git a/tar/debug_symbols_ownership_test.py b/tar/debug_symbols_ownership_test.py
+---- a/tar/debug_symbols_ownership_test.py
+-+++ b/tar/debug_symbols_ownership_test.py
+-@@ -14,6 +14,11 @@ with tarfile.open(sys.argv[1]) as archive:
+-     assert archive.extractfile(symbols[0]).read() == b"fixture symbols\n"
+-     assert symbols[0].mode == 0o644, (symbols[0].name, oct(symbols[0].mode))
+-     assert symbols[0].mtime == 1672560000
+-+    links = [member for member in members if member.issym()]
+-+    assert len(links) == 1, links
+-+    assert links[0].name == "./usr/share/doc/fixture-dbgsym"
+-+    assert links[0].linkname == "fixture"
+-+    assert links[0].mode == 0o777
+-     for member in members:
+-         if member.isdir():
+-             assert member.mode == 0o755, (member.name, oct(member.mode))
+-diff --git a/tar/debug_symbols_tar.bzl b/tar/debug_symbols_tar.bzl
+-index 9e6b809..698fcf3 100644
+---- a/tar/debug_symbols_tar.bzl
+-+++ b/tar/debug_symbols_tar.bzl
+-@@ -1,6 +1,6 @@
+- """Lay a set of debug-symbol trees into a tar under /usr/lib/debug.
+- 
+--Both 
+-+Both
+-  - `sonic_deploy_tar` (for a single tar's own binaries), and
+-  - `debug_symbols_layer` (for a whole image's graph)
+- 
+-@@ -18,7 +18,7 @@ def _join_package(path):
+-     pkg = native.package_name()
+-     return pkg + "/" + path if pkg else path
+- 
+--def _debug_symbols_tar_impl(name, visibility, srcs):
+-+def _debug_symbols_tar_impl(name, visibility, srcs, symlinks):
+-     # Normalize the per-target output paths down to a shared .build-id/... tree.
+-     # We're often gathering trees from different SONiC components,
+-     # which means different Bazel modules (`@sonic-sysmgr//...`).
+-@@ -46,6 +46,7 @@ def _debug_symbols_tar_impl(name, visibility, srcs):
+-     root_owned_tar(
+-         name = name,
+-         src = ":" + raw_tar,
+-+        symlinks = symlinks,
+-         visibility = visibility,
+-     )
+- 
+-@@ -53,6 +54,7 @@ debug_symbols_tar = macro(
+-     implementation = _debug_symbols_tar_impl,
+-     doc = "A tar of debug symbols laid out under /usr/lib/debug/.build-id.",
+-     attrs = {
+-+        "symlinks": attr.string_dict(configurable = False, doc = "Additional installation symlinks, e.g. the dbgsym documentation link."),
+-         "srcs": attr.label_list(
+-             mandatory = True,
+-             allow_files = True,
+-diff --git a/tar/root_owned_tar.bzl b/tar/root_owned_tar.bzl
+-index 23ec03b..c105d19 100644
+---- a/tar/root_owned_tar.bzl
+-+++ b/tar/root_owned_tar.bzl
+-@@ -1,10 +1,13 @@
+--"""Normalize all tar ownership headers while preserving payload and file modes."""
+-+"""Normalize tar ownership and add declared installation symlinks."""
+- 
+- def _root_owned_tar_impl(ctx):
+-     output = ctx.actions.declare_file(ctx.label.name + ".tar")
+-+    arguments = [ctx.file.src.path, output.path]
+-+    for name, target in ctx.attr.symlinks.items():
+-+        arguments.extend(["--symlink", name, target])
+-     ctx.actions.run(
+-         executable = ctx.executable._tool,
+--        arguments = [ctx.file.src.path, output.path],
+-+        arguments = arguments,
+-         inputs = [ctx.file.src],
+-         outputs = [output],
+-         mnemonic = "RootOwnedTar",
+-@@ -16,6 +19,7 @@ root_owned_tar = rule(
+-     implementation = _root_owned_tar_impl,
+-     attrs = {
+-         "src": attr.label(mandatory = True, allow_single_file = True),
+-+        "symlinks": attr.string_dict(),
+-         "_tool": attr.label(
+-             default = Label("//tar:root_owned_tar"),
+-             executable = True,
+-diff --git a/tar/root_owned_tar.py b/tar/root_owned_tar.py
+-index 1595a4e..641ff2f 100644
+---- a/tar/root_owned_tar.py
+-+++ b/tar/root_owned_tar.py
+-@@ -1,13 +1,16 @@
+- """Normalize tar ownership without changing file contents or other metadata."""
+- 
+- import argparse
+-+from pathlib import PurePosixPath
+- import tarfile
+- 
+- 
+--def root_owned_tar(source: str, destination: str) -> None:
+-+def root_owned_tar(source: str, destination: str, symlinks: dict[str, str] | None = None) -> None:
+-     with tarfile.open(source, "r|*") as archive:
+-         with tarfile.open(destination, "w|", format=tarfile.PAX_FORMAT) as output:
+-+            seen = set()
+-             for member in archive:
+-+                seen.add(str(PurePosixPath(member.name)))
+-                 member.uid = member.gid = 0
+-                 member.uname = member.gname = ""
+-                 # PAX fields otherwise override the numeric and name headers.
+-@@ -22,10 +25,21 @@ def root_owned_tar(source: str, destination: str) -> None:
+-                 else:
+-                     output.addfile(member)
+- 
+-+            for name, target in sorted((symlinks or {}).items()):
+-+                path = PurePosixPath(name.removeprefix("./"))
+-+                if path.is_absolute() or ".." in path.parts:
+-+                    raise ValueError("invalid installation symlink path: " + name)
+-+                if str(path) in seen:
+-+                    raise ValueError("installation symlink duplicates archive entry: " + name)
+-+                entry = tarfile.TarInfo("./" + str(path))
+-+                entry.type, entry.mode, entry.linkname = tarfile.SYMTYPE, 0o777, target
+-+                output.addfile(entry)
+-+
+- 
+- if __name__ == "__main__":
+-     parser = argparse.ArgumentParser(description=__doc__)
+-     parser.add_argument("source")
+-     parser.add_argument("destination")
+-+    parser.add_argument("--symlink", nargs=2, action="append", default=[])
+-     args = parser.parse_args()
+--    root_owned_tar(args.source, args.destination)
+-+    root_owned_tar(args.source, args.destination, dict(args.symlink))
+-diff --git a/tar/sonic_deploy_tar.bzl b/tar/sonic_deploy_tar.bzl
+-index a89a465..aa24b0c 100644
+---- a/tar/sonic_deploy_tar.bzl
+-+++ b/tar/sonic_deploy_tar.bzl
+-@@ -33,7 +33,7 @@ _runtime_tar = rule(
+-     },
+- )
+- 
+--def _sonic_deploy_tar_impl(name, force_debug_build, binaries = {}, srcs = [], mtree = [], **kwargs):
+-+def _sonic_deploy_tar_impl(name, force_debug_build, preserve_install_rpath, binaries = {}, srcs = [], mtree = [], debug_symlinks = {}, **kwargs):
+-     # We strip each binary and generate its mtree line pointing at the stripped ELF
+-     stripped_targets = []
+-     debug_targets = []
+-@@ -45,6 +45,7 @@ def _sonic_deploy_tar_impl(name, force_debug_build, binaries = {}, srcs = [], mt
+-             name = stripped_name,
+-             src = binary,
+-             force_debug_build = force_debug_build,
+-+            preserve_install_rpath = preserve_install_rpath,
+-             **propagate_common_rule_attributes(kwargs)
+-         )
+-         debug_symbol_targets.append(":" + stripped_name)
+-@@ -94,6 +95,7 @@ def _sonic_deploy_tar_impl(name, force_debug_build, binaries = {}, srcs = [], mt
+-     debug_symbols_tar(
+-         name = name + ".debug_symbols",
+-         srcs = debug_targets,
+-+        symlinks = debug_symlinks,
+-         visibility = kwargs["visibility"],
+-     )
+- 
+-@@ -107,6 +109,8 @@ It produces two targets:
+-     implementation = _sonic_deploy_tar_impl,
+-     inherit_attrs = tar_rule,
+-     attrs = {
+-+        "preserve_install_rpath": attr.bool(default = False, configurable = False, doc = "Retain installation RPATH/RUNPATH entries and remove Bazel build paths during ELF splitting."),
+-+        "debug_symlinks": attr.string_dict(configurable = False, doc = "Installation symlinks added only to the debug-symbol tar."),
+-         "srcs": attr.label_list(
+-             default = [],
+-             allow_files = True,
+-diff --git a/testing/BUILD.bazel b/testing/BUILD.bazel
+-new file mode 100644
+-index 0000000..0173709
+---- /dev/null
+-+++ b/testing/BUILD.bazel
+-@@ -0,0 +1,25 @@
+-+load("@rules_python//python:defs.bzl", "py_binary")
+-+load(":exec_test.bzl", "exec_test")
+-+
+-+exports_files(["exec_test.bzl"])
+-+
+-+py_binary(
+-+    name = "argv_check",
+-+    srcs = ["argv_check.py"],
+-+    main = "argv_check.py",
+-+)
+-+
+-+alias(name = "argv_long", actual = "argv/foobar")
+-+
+-+exec_test(
+-+    name = "exec_test_args_test",
+-+    runner = ":argv_check",
+-+    srcs = ["argv/foo", ":argv_long"],
+-+    data = ["argv/data file's.txt"],
+-+    checker_args = [
+-+        "--long=$(location :argv_long)",
+-+        "--literal=testing/argv/foo",
+-+        "--spaced=$(location argv/data file's.txt)",
+-+        "--text=a value with 'quotes'; untouched",
+-+    ],
+-+)
+-diff --git a/testing/argv/data file's.txt b/testing/argv/data file's.txt
+-new file mode 100644
+-index 0000000..13c663c
+---- /dev/null
+-+++ b/testing/argv/data file's.txt	
+-@@ -0,0 +1 @@
+-+space and apostrophe source file
+-diff --git a/testing/argv/foo b/testing/argv/foo
+-new file mode 100644
+-index 0000000..b9dc763
+---- /dev/null
+-+++ b/testing/argv/foo
+-@@ -0,0 +1 @@
+-+short source file
+-diff --git a/testing/argv/foobar b/testing/argv/foobar
+-new file mode 100644
+-index 0000000..f10295d
+---- /dev/null
+-+++ b/testing/argv/foobar
+-@@ -0,0 +1 @@
+-+long source file
+-diff --git a/testing/argv_check.py b/testing/argv_check.py
+-new file mode 100644
+-index 0000000..2481fea
+---- /dev/null
+-+++ b/testing/argv_check.py
+-@@ -0,0 +1,18 @@
+-+"""Check ordered positional files, location argv and unchanged literal arguments."""
+-+from pathlib import Path
+-+import sys
+-+
+-+first, second, *arguments = sys.argv[1:]
+-+short, long = Path(first), Path(second)
+-+assert short.name == "foo" and short.read_text() == "short source file\n", first
+-+assert long.name == "foobar" and long.read_text() == "long source file\n", second
+-+spaced = long.parent / "data file's.txt"
+-+assert spaced.read_text() == "space and apostrophe source file\n"
+-+expected = [
+-+    "--long=" + str(long),
+-+    "--literal=testing/argv/foo",
+-+    "--spaced=" + str(spaced),
+-+    "--text=a value with 'quotes'; untouched",
+-+]
+-+assert arguments == expected, ("argv contract", arguments, expected)
+-+print("PASS: ordered files, prefix names, literal preservation, spaces and quotes")
+-diff --git a/testing/exec_test.bzl b/testing/exec_test.bzl
+-new file mode 100644
+-index 0000000..49a39c7
+---- /dev/null
+-+++ b/testing/exec_test.bzl
+-@@ -0,0 +1,45 @@
+-+"""Run an execution-platform checker against target-platform artifacts."""
+-+
+-+load("@bazel_skylib//lib:shell.bzl", "shell")
+-+
+-+def _runfile(ctx, file):
+-+    return file.short_path[3:] if file.short_path.startswith("../") else ctx.workspace_name + "/" + file.short_path
+-+
+-+def _impl(ctx):
+-+    files = ctx.files.srcs + ctx.files.data
+-+    by_location = {file.path: file for file in files}
+-+    for file in files:
+-+        # expand_location shell-quotes paths containing spaces/apostrophes.
+-+        by_location[shell.quote(file.path)] = file
+-+    arguments = ['"$TEST_SRCDIR"/' + shell.quote(_runfile(ctx, file)) for file in ctx.files.srcs]
+-+    for value in ctx.attr.checker_args:
+-+        parts = value.split("$(location ")
+-+        fragments = [shell.quote(parts[0])]
+-+        for part in parts[1:]:
+-+            if ")" not in part:
+-+                fail("Unterminated $(location ...) in argument: " + value)
+-+            label, literal = part.split(")", 1)
+-+            path = ctx.expand_location("$(location " + label + ")", targets = ctx.attr.srcs + ctx.attr.data)
+-+            if path not in by_location:
+-+                fail("$(location ...) must resolve to one declared srcs/data file: " + label)
+-+            fragments.append('"$TEST_SRCDIR"/' + shell.quote(_runfile(ctx, by_location[path])))
+-+            fragments.append(shell.quote(literal))
+-+        arguments.append("".join(fragments))
+-+    executable = ctx.actions.declare_file(ctx.label.name + ".sh")
+-+    command = 'exec "$TEST_SRCDIR"/' + shell.quote(_runfile(ctx, ctx.executable.runner)) + " " + " ".join(arguments)
+-+    ctx.actions.write(executable, "#!/bin/sh\nset -eu\n" + command + "\n", is_executable = True)
+-+    runfiles = ctx.runfiles(files = files + [ctx.executable.runner])
+-+    for dependency in ctx.attr.srcs + ctx.attr.data + [ctx.attr.runner]:
+-+        runfiles = runfiles.merge(dependency[DefaultInfo].default_runfiles).merge(dependency[DefaultInfo].data_runfiles)
+-+    return [DefaultInfo(executable = executable, runfiles = runfiles)]
+-+
+-+exec_test = rule(
+-+    implementation = _impl,
+-+    test = True,
+-+    attrs = {
+-+        "runner": attr.label(executable = True, cfg = "exec", mandatory = True),
+-+        "srcs": attr.label_list(allow_files = True, doc = "Ordered target files passed as leading positional arguments."),
+-+        "data": attr.label_list(allow_files = True),
+-+        "checker_args": attr.string_list(doc = "One literal argument per item, with optional single-file $(location label) substitutions."),
+-+    },
+-+)
+-diff --git a/tests/BUILD.bazel b/tests/BUILD.bazel
+-index 25eb9bf..d39c3e5 100644
+---- a/tests/BUILD.bazel
+-+++ b/tests/BUILD.bazel
+-@@ -562,3 +562,66 @@ cc_binary(
+-         "static",
+-     ]
+- ]
+-+
+-+# FRR installs private libraries outside ld.so.cache's standard directories.
+-+# Its deployment RPATH must survive either base-image policy, with build paths
+-+# filtered and the original dynamic tag/debug pairing preserved.
+-+[
+-+    strip_binary(
+-+        name = "hello_" + kind + "_installation_split",
+-+        src = ":hello_" + kind,
+-+        force_debug_build = True,
+-+        preserve_install_rpath = True,
+-+    )
+-+    for kind in ["rpath", "runpath"]
+-+]
+-+
+-+[
+-+    filegroup(
+-+        name = "hello_" + kind + "_installation_" + group,
+-+        srcs = [":hello_" + kind + "_installation_split"],
+-+        output_group = group,
+-+    )
+-+    for kind in ["rpath", "runpath"]
+-+    for group in ["stripped", "debug"]
+-+]
+-+
+-+[
+-+    py_test(
+-+        name = "hello_" + kind + "_installation_test",
+-+        srcs = ["strip_rpath_test.py"],
+-+        args = [
+-+            "$(location //toolchains/binutils:readelf)",
+-+            "$(location //toolchains/binutils:objcopy)",
+-+            "$(location :hello_" + kind + ")",
+-+            "$(location :hello_" + kind + "_installation_stripped)",
+-+            "$(location :hello_" + kind + "_installation_debug)",
+-+            kind.upper(),
+-+            "build",
+-+        ],
+-+        data = [
+-+            "//toolchains/binutils:objcopy",
+-+            "//toolchains/binutils:readelf",
+-+            ":hello_" + kind,
+-+            ":hello_" + kind + "_installation_stripped",
+-+            ":hello_" + kind + "_installation_debug",
+-+        ],
+-+        main = "strip_rpath_test.py",
+-+    )
+-+    for kind in ["rpath", "runpath"]
+-+]
+-+
+-+sonic_deploy_tar(
+-+    name = "installation_rpath_tar",
+-+    binaries = {"./usr/bin/hello type=file uid=0 gid=0 mode=0755": ":hello_runpath"},
+-+    force_debug_build = True,
+-+    preserve_install_rpath = True,
+-+)
+-+
+-+py_test(
+-+    name = "installation_rpath_tar_test",
+-+    srcs = ["deploy_rpath_test.py"],
+-+    main = "deploy_rpath_test.py",
+-+    args = ["$(location //toolchains/binutils:readelf)", "$(location :installation_rpath_tar)"],
+-+    data = ["//toolchains/binutils:readelf", ":installation_rpath_tar"],
+-+)
+-diff --git a/tests/deploy_rpath_test.py b/tests/deploy_rpath_test.py
+-new file mode 100644
+-index 0000000..5989e82
+---- /dev/null
+-+++ b/tests/deploy_rpath_test.py
+-@@ -0,0 +1,18 @@
+-+"""A deployment tar retains private-library search paths without Bazel paths."""
+-+from pathlib import Path
+-+import re
+-+import subprocess
+-+import sys
+-+import tarfile
+-+import tempfile
+-+
+-+with tarfile.open(sys.argv[2]) as archive:
+-+    members = {member.name.removeprefix("./"): member for member in archive}
+-+    data = archive.extractfile(members["usr/bin/hello"]).read()
+-+with tempfile.TemporaryDirectory() as directory:
+-+    binary = Path(directory) / "hello"
+-+    binary.write_bytes(data)
+-+    dynamic = subprocess.check_output([sys.argv[1], "-d", str(binary)], text=True)
+-+    assert re.findall(r"\((RPATH|RUNPATH)\).*?\[(.*?)\]", dynamic) == [
+-+        ("RUNPATH", "$ORIGIN/../lib:/opt/sonic/lib")
+-+    ], dynamic
+-diff --git a/toolchains/args/BUILD.bazel b/toolchains/args/BUILD.bazel
+-index 91a93ff..2235ae5 100644
+---- a/toolchains/args/BUILD.bazel
+-+++ b/toolchains/args/BUILD.bazel
+-@@ -53,6 +53,24 @@ cc_args(
+-     visibility = ["//visibility:public"],
+- )
+- 
+-+# Native config_setting constraints permit Bookworm's more specific suite
+-+# condition to specialize the generic Linux architecture condition.
+-+[
+-+    config_setting(
+-+        name = name + "_hardening",
+-+        constraint_values = [
+-+            "@platforms//os:linux",
+-+            "@platforms//cpu:" + cpu,
+-+        ] + (["//platforms:bookworm"] if bookworm else []),
+-+    )
+-+    for name, cpu, bookworm in [
+-+        ("linux_x86_64", "x86_64", False),
+-+        ("linux_aarch64", "aarch64", False),
+-+        ("bookworm_x86_64", "x86_64", True),
+-+        ("bookworm_aarch64", "aarch64", True),
+-+    ]
+-+]
+-+
+- # dpkg-buildflags hands these flags to every Debian package build,
+- # so we have to replicate them in this toolchain.
+- cc_args(
+-@@ -62,15 +80,23 @@ cc_args(
+-     ],
+-     args = [
+-         "-fstack-protector-strong",
+--        "-fstack-clash-protection",
+-         "-Wformat",
+-         "-Werror=format-security",
+-         # Inert without optimisation, and glibc warns when it is missing.
+-         "-O2",
+-         "-D_FORTIFY_SOURCE=2",
+-     ] + select({
+--        "//toolchains/constraint:linux_aarch64": ["-mbranch-protection=standard"],
+--        "//toolchains/constraint:linux_x86_64": ["-fcf-protection"],
+-+        # Bookworm dpkg1.21.23 does not add Trixie dpkg1.22 hardening defaults.
+-+        ":bookworm_aarch64_hardening": [],
+-+        ":bookworm_x86_64_hardening": [],
+-+        ":linux_aarch64_hardening": [
+-+            "-fstack-clash-protection",
+-+            "-mbranch-protection=standard",
+-+        ],
+-+        ":linux_x86_64_hardening": [
+-+            "-fstack-clash-protection",
+-+            "-fcf-protection",
+-+        ],
+-     }),
+-     visibility = ["//visibility:public"],
+- )
+-diff --git a/toolchains/binutils/defs.bzl b/toolchains/binutils/defs.bzl
+-index 22e17e4..baf4b18 100644
+---- a/toolchains/binutils/defs.bzl
+-+++ b/toolchains/binutils/defs.bzl
+-@@ -6,7 +6,7 @@ load("//toolchains/gcc:defs.bzl", "bin")
+- load("//toolchains/gcc:gcc.bzl", "gcc_repo_name")
+- load(":binutils_toolchain.bzl", "binutils_toolchain")
+- 
+--def sonic_binutils_toolchain(name, cpu, version, visibility = None, exec_cpu = None, tool_prefix = None):
+-+def sonic_binutils_toolchain(name, cpu, version, visibility = None, exec_cpu = None, tool_prefix = None, suite = "trixie", target_platform = None):
+-     """Declares binutils that run on exec_cpu and process files for cpu.
+- 
+-     Args:
+-@@ -17,14 +17,16 @@ def sonic_binutils_toolchain(name, cpu, version, visibility = None, exec_cpu = N
+-         visibility: Visibility of the generated `toolchain()` target.
+-         exec_cpu: Architecture running the tools; defaults to cpu.
+-         tool_prefix: Distribution target triple; defaults to the native prefix.
+-+        suite: Debian distribution containing these tools.
+-+        target_platform: Optional target distribution constraint.
+-     """
+-     tools = {}
+-     for tool in ["objcopy", "objdump", "readelf"]:
+--        source = bin(cpu, version, tool, exec_cpu, tool_prefix)
+-+        source = bin(cpu, version, tool, exec_cpu, tool_prefix, suite)
+-         cc_tool(
+-             name = name + "_" + tool,
+-             src = source,
+--            data = ["@" + gcc_repo_name(cpu, version, exec_cpu) + "//:multicall_support_files"],
+-+            data = ["@" + gcc_repo_name(cpu, version, exec_cpu, suite) + "//:multicall_support_files"],
+-         )
+-         source = ":" + name + "_" + tool
+-         tools[tool] = source
+-@@ -41,6 +43,9 @@ def sonic_binutils_toolchain(name, cpu, version, visibility = None, exec_cpu = N
+-         Label("@platforms//cpu:" + cpu),
+-     ]
+- 
+-+    if target_platform:
+-+        constraints.append(target_platform)
+-+
+-     native.toolchain(
+-         name = name,
+-         exec_compatible_with = [
+-diff --git a/toolchains/bookworm/BUILD.bazel b/toolchains/bookworm/BUILD.bazel
+-new file mode 100644
+-index 0000000..25c9e4a
+---- /dev/null
+-+++ b/toolchains/bookworm/BUILD.bazel
+-@@ -0,0 +1 @@
+-+exports_files(["apt.bzl"])
+-diff --git a/toolchains/bookworm/README.md b/toolchains/bookworm/README.md
+-new file mode 100644
+-index 0000000..63ac45d
+---- /dev/null
+-+++ b/toolchains/bookworm/README.md
+-@@ -0,0 +1,48 @@
+-+# Bookworm target toolchains
+-+
+-+Public platforms: `//platforms:x86_64_bookworm`, `//platforms:aarch64_bookworm`.
+-+They select source-native Cc actions with fixed Debian GCC12 and an independent
+-+Bookworm glibc2.36 sysroot. Linux AMD64 execution can target both architectures;
+-+ARM64 execution has a declared native compiler distribution.
+-+
+-+Bookworm keeps GCC12, its compiler support files and its glibc2.36 target
+-+sysroot. Linking uses the architecture-matched declared Trixie BFD launcher:
+-+Distroless preserves Debian linker scripts and supplies `--remap-inputs` so their
+-+absolute paths resolve to declared package files; Bookworm's BFD2.40 cannot read
+-+that option. The Trixie launcher brings its own execution loader and libraries,
+-+separately from the Bookworm target ABI. Compiler action inputs and runfiles
+-+include that complete linker runtime. The compiler's `inputs.json` records the
+-+selected linker and support-files labels.
+-+
+-+Components declare target APT packages through the shared extension namespace:
+-+
+-+```starlark
+-+apt_bookworm = use_extension("@sonic_build_infra//toolchains/bookworm:apt.bzl", "apt")
+-+apt_bookworm.install(
+-+    dependency_set = "component_bookworm",
+-+    packages = ["libc6"],
+-+    suites = ["bookworm", "bookworm-updates", "bookworm-security"],
+-+)
+-+use_repo(apt_bookworm, "component_bookworm")
+-+```
+-+
+-+The extension reuses the pinned rules_distroless implementation. Its separate
+-+namespace prevents identical package versions in Bookworm from overwriting
+-+Trixie package source identity. Infrastructure owns the fixed sources; target
+-+packages select the complete main/updates/security suite set used by the builder.
+-+Execution tools remain independent and can use the existing Trixie tool runtime.
+-+
+-+Snapshot and package URLs, versions and integrity values are declared in
+-+`MODULE.bazel`; compiler and sysroot package sets are declared in
+-+`toolchains/gcc/debian.bzl` and `toolchains/sysroot/packages.bzl`. Absolute
+-+root-internal Debian loader aliases become relative links inside declared extracted repositories.
+-+Native and cross compiler helpers always use the execution architecture loader.
+-+
+-+Bookworm default compiler hardening follows dpkg1.21.23. Trixie retains its
+-+existing stack-clash and CPU branch-protection defaults. The existing shared
+-+bindnow linker policy applies to both suites; component-specific original
+-+hardening settings belong in their native target attributes for the selected suite.
+-+
+-+Regression fixtures in `tests` compile with GCC12, assert target ELF ABI and
+-+symbol requirements, and execute native programs using declared Bookworm libc,
+-+libstdc++ and libgcc payloads. ARM64 targets are compiled and inspected on AMD64.
+-diff --git a/toolchains/bookworm/apt.bzl b/toolchains/bookworm/apt.bzl
+-new file mode 100644
+-index 0000000..9594cf0
+---- /dev/null
+-+++ b/toolchains/bookworm/apt.bzl
+-@@ -0,0 +1,10 @@
+-+"""Reuse the pinned APT implementation with a separate Bookworm index namespace.
+-+
+-+The upstream resolver indexes packages by architecture/name/version, so equal
+-+versions in two suites overwrite their source identity. Separate extension
+-+usage keeps Trixie and Bookworm package/control metadata independent.
+-+"""
+-+
+-+load("@rules_distroless//apt:extensions.bzl", _apt = "apt")
+-+
+-+apt = _apt
+-diff --git a/toolchains/bookworm/tests/BUILD.bazel b/toolchains/bookworm/tests/BUILD.bazel
+-new file mode 100644
+-index 0000000..b3835a3
+---- /dev/null
+-+++ b/toolchains/bookworm/tests/BUILD.bazel
+-@@ -0,0 +1,39 @@
+-+load("@rules_cc//cc:defs.bzl", "cc_binary")
+-+load("@rules_python//python:defs.bzl", "py_binary")
+-+load("//cc:runtime_test.bzl", "native_runtime_test")
+-+load("//testing:exec_test.bzl", "exec_test")
+-+
+-+cc_binary(
+-+    name = "probe",
+-+    srcs = ["probe.cc"],
+-+    linkstatic = False,
+-+    target_compatible_with = ["//platforms:bookworm"],
+-+)
+-+
+-+native_runtime_test(
+-+    name = "native_test",
+-+    binary = ":probe",
+-+    runtime_payloads = [
+-+        "@bookworm_toolchains//libc6:data",
+-+        "@bookworm_toolchains//libstdc++6:data",
+-+        "@bookworm_toolchains//libgcc-s1:data",
+-+    ],
+-+    target_compatible_with = ["//platforms:bookworm"],
+-+)
+-+
+-+py_binary(
+-+    name = "inspect",
+-+    srcs = ["inspect.py"],
+-+    deps = ["//deb:elf_metadata"],
+-+)
+-+
+-+exec_test(
+-+    name = "abi_test",
+-+    runner = ":inspect",
+-+    srcs = [":probe"],
+-+    checker_args = select({
+-+        "@platforms//cpu:x86_64": ["62"],
+-+        "@platforms//cpu:aarch64": ["183"],
+-+    }),
+-+    target_compatible_with = ["//platforms:bookworm"],
+-+)
+-diff --git a/toolchains/bookworm/tests/inspect.py b/toolchains/bookworm/tests/inspect.py
+-new file mode 100644
+-index 0000000..6ceb1de
+---- /dev/null
+-+++ b/toolchains/bookworm/tests/inspect.py
+-@@ -0,0 +1,14 @@
+-+"""Target ABI contract independent of the executor's libc/toolchain."""
+-+from pathlib import Path
+-+import sys
+-+from deb.elf_metadata import Elf
+-+elf = Elf(Path(sys.argv[1]).read_bytes())
+-+assert elf.machine == int(sys.argv[2]), (elf.machine, sys.argv[2])
+-+assert elf.build_id
+-+assert 'libc.so.6' in elf.needed
+-+assert 'libstdc++.so.6' in elf.needed
+-+versions = [version for library, version in elf.required_versions if library == 'libc.so.6']
+-+assert versions, elf.required_versions
+-+for version in versions:
+-+    if version.startswith('GLIBC_') and version[6:][:1].isdigit():
+-+        assert tuple(map(int, version[6:].split('.'))) <= (2, 36), version
+-diff --git a/toolchains/bookworm/tests/probe.cc b/toolchains/bookworm/tests/probe.cc
+-new file mode 100644
+-index 0000000..a9d8a58
+---- /dev/null
+-+++ b/toolchains/bookworm/tests/probe.cc
+-@@ -0,0 +1,14 @@
+-+// Debian Bookworm build-essential selects GCC12 and glibc2.36.
+-+#include <gnu/libc-version.h>
+-+#include <cstring>
+-+#include <iostream>
+-+#include <vector>
+-+#if __GNUC__ != 12
+-+#error Bookworm compiler must be GCC12
+-+#endif
+-+int main() {
+-+    std::vector<int> values{20, 22};
+-+    if (values[0] + values[1] != 42 || std::strcmp(gnu_get_libc_version(), "2.36")) return 1;
+-+    std::cout << "Bookworm GCC12 glibc2.36 42\n";
+-+    return 0;
+-+}
+-diff --git a/toolchains/gcc/debian.bzl b/toolchains/gcc/debian.bzl
+-index 50767bb..02f6438 100644
+---- a/toolchains/gcc/debian.bzl
+-+++ b/toolchains/gcc/debian.bzl
+-@@ -5,7 +5,7 @@ load(":gcc.bzl", "GCC_METADATA")
+- 
+- _NOTICE = "# AUTO-GENERATED by //toolchains/gcc:debian.bzl. DO NOT EDIT MANUALLY.\n"
+- 
+--def _launcher(ctx, path, executable, root_relative, layout, driver = False, archiver = False):
+-+def _launcher(ctx, path, executable, root_relative, layout, driver = False, archiver = False, delegate = None):
+-     # Only shell builtins bootstrap the declared loader. Each subprocess gets
+-     # its own launcher, so LD_LIBRARY_PATH never leaks into generated programs.
+-     script = """#!/bin/sh
+-@@ -27,23 +27,33 @@ if [ ! -f "$root/inputs.json" ]; then
+-     fi
+-     root="$runfiles/{repository}"
+- fi
+--unset LD_LIBRARY_PATH LD_PRELOAD LD_AUDIT
+-+""".format(
+-+        notice = _NOTICE,
+-+        relative = root_relative,
+-+        repository = ctx.name,
+-+    )
+-+    if delegate:
+-+        # Repository names are canonical in both action sandboxes and runfiles.
+-+        # The selected tool's own launcher supplies its execution libraries.
+-+        delegated_path = "/".join([delegate.workspace_name] + ([delegate.package] if delegate.package else []) + [delegate.name])
+-+        script += 'exec "$root/../' + delegated_path + '" "$@"\n'
+-+        ctx.file(path, script, executable = True)
+-+        return
+-+
+-+    script += """unset LD_LIBRARY_PATH LD_PRELOAD LD_AUDIT
+- COMPILER_PATH="$root/{triple}/bin"
+- GCC_EXEC_PREFIX="$root/usr/lib/{gcc_directory}/"
+- export COMPILER_PATH GCC_EXEC_PREFIX
+- exec "$root/{loader}" \
+--    --inhibit-cache --library-path "$root/{library_directory}" \
+-+    --inhibit-cache --library-path "{library_paths}" \
+-     "$root/{executable}" {options}"$@"
+- """.format(
+--        notice = _NOTICE,
+--        relative = root_relative,
+--        repository = ctx.name,
+-         executable = executable,
+-         triple = layout.triple,
+-         gcc_directory = layout.gcc_directory,
+-         loader = layout.loader,
+--        library_directory = layout.library_directory,
+--        options = ('-B "$root/' + layout.triple + '/bin/" ' if driver else '-B "$root/' + layout.libexec + '/" ' if archiver else ""),
+-+        library_paths = ":".join(["$root/" + path for path in layout.library_paths]),
+-+        options = ('-ffile-prefix-map="$PWD"=. -B "$root/' + layout.triple + '/bin/" ' if driver else '-B "$root/' + layout.libexec + '/" ' if archiver else ""),
+-     )
+-     ctx.file(path, script, executable = True)
+- 
+-@@ -51,24 +61,31 @@ def _debian_gcc_impl(ctx):
+-     host_arch = {"amd64": "amd64", "x86_64": "amd64", "aarch64": "arm64", "arm64": "arm64"}.get(ctx.os.arch)
+-     if ctx.os.name.lower() != "linux" or not host_arch:
+-         fail("Debian compiler assembly requires a Linux AMD64 or ARM64 host")
+-+    if bool(ctx.attr.linker) != bool(ctx.attr.linker_files):
+-+        fail("A delegated linker requires both its executable and support files")
+-+    if ctx.attr.linker and (not ctx.attr.linker.workspace_name or not ctx.path(ctx.attr.linker).exists):
+-+        fail("The delegated linker must name an exported source-file launcher in an external repository")
+-     tar = ctx.path(getattr(ctx.attr, "_tar_" + host_arch))
+--    collisions = extract_archives(ctx, tar, ctx.attr.packages, ".")
+-+    collisions = extract_archives(ctx, tar, ctx.attr.packages, ".", relocate_root_symlinks = ctx.attr.suite == "bookworm")
+- 
+-     target = GCC_METADATA[ctx.attr.target_arch]
+-     execution = GCC_METADATA[ctx.attr.exec_arch]
+-     gcc_directory = "gcc" if ctx.attr.target_arch == ctx.attr.exec_arch else "gcc-cross"
+-+    major = ctx.attr.gcc_major
+-+    old_layout = ctx.attr.suite == "bookworm"
+-     layout = struct(
+-         triple = target.multiarch,
+-         gcc_directory = gcc_directory,
+--        libexec = "usr/libexec/{}/{}/14".format(gcc_directory, target.multiarch),
+--        loader = "usr/lib/{}/{}".format(execution.multiarch, execution.dynamic_linker.split("/")[-1]),
+-+        libexec = "usr/{}/{}/{}/{}".format("lib" if old_layout else "libexec", gcc_directory, target.multiarch, major),
+-+        loader = "{}/{}/{}".format("lib" if old_layout else "usr/lib", execution.multiarch, execution.dynamic_linker.split("/")[-1]),
+-         library_directory = "usr/lib/" + execution.multiarch,
+-+        library_paths = ["usr/lib/" + execution.multiarch] + (["lib/" + execution.multiarch] if old_layout else []),
+-     )
+- 
+-     tools = {
+--        "gcc": "usr/bin/" + layout.triple + "-gcc-14",
+--        "g++": "usr/bin/" + layout.triple + "-g++-14",
+--        "gcc-ar": "usr/bin/" + layout.triple + "-gcc-ar-14",
+-+        "gcc": "usr/bin/" + layout.triple + "-gcc-" + major,
+-+        "g++": "usr/bin/" + layout.triple + "-g++-" + major,
+-+        "gcc-ar": "usr/bin/" + layout.triple + "-gcc-ar-" + major,
+-     }
+-     # Explicit -fuse-ld=bfd (including Common's CGo links) searches ld.bfd
+-     # separately from ld. Both must use the declared Debian execution runtime.
+-@@ -82,13 +99,14 @@ def _debian_gcc_impl(ctx):
+- 
+-         # gcc-ar needs explicit search directories for its LTO plugin and
+-         # archiver when its executable is started through the private loader.
+--        _launcher(ctx, "bin/" + layout.triple + "-" + tool, executable, "..", layout, tool in ["gcc", "g++"], tool == "gcc-ar")
+--        _launcher(ctx, layout.triple + "/bin/" + tool, executable, "../..", layout, tool in ["gcc", "g++"], tool == "gcc-ar")
+-+        delegate = ctx.attr.linker if tool == "ld" else None
+-+        _launcher(ctx, "bin/" + layout.triple + "-" + tool, executable, "..", layout, tool in ["gcc", "g++"], tool == "gcc-ar", delegate)
+-+        _launcher(ctx, layout.triple + "/bin/" + tool, executable, "../..", layout, tool in ["gcc", "g++"], tool == "gcc-ar", delegate)
+- 
+-     # gcc-ar accepts one -B directory for both its plugin and archiver.
+-     _launcher(ctx, layout.libexec + "/ar", tools["ar"], "../../../../..", layout)
+- 
+--    ctx.file("inputs.json", json.encode_indent({
+-+    inputs = {
+-         "_generated": {"notice": "AUTO-GENERATED. DO NOT EDIT MANUALLY.", "generator": "sonic-build-infra//toolchains/gcc:debian.bzl"},
+-         "format_version": 1,
+-         "execution_architecture": execution.deb,
+-@@ -96,20 +114,35 @@ def _debian_gcc_impl(ctx):
+-         "packages": [{"archive": str(label)} for label in ctx.attr.packages],
+-         "tools": tools,
+-         "loader": layout.loader,
+--        "library_directories": [layout.library_directory],
+-+        "library_directories": layout.library_paths,
+-+        "suite": ctx.attr.suite,
+-+        "gcc_major": major,
+-         "collision_check": collisions,
+--    }) + "\n", executable = False)
+-+    }
+-+    if ctx.attr.linker:
+-+        inputs["linker_override"] = {
+-+            "executable": str(ctx.attr.linker),
+-+            "support_files": str(ctx.attr.linker_files),
+-+        }
+-+    ctx.file("inputs.json", json.encode_indent(inputs) + "\n", executable = False)
+-     ctx.template(
+-         "BUILD.bazel",
+-         ctx.attr._build_file_template,
+--        substitutions = {"{triple}": layout.triple},
+-+        substitutions = {
+-+            "{triple}": layout.triple,
+-+            "{linker_files}": repr([str(ctx.attr.linker), str(ctx.attr.linker_files)] if ctx.attr.linker else []),
+-+        },
+-         executable = False,
+-     )
+- 
+- debian_gcc = repository_rule(
+-     implementation = _debian_gcc_impl,
+-     attrs = {
+-+        "suite": attr.string(default = "trixie", values = ["trixie", "bookworm"]),
