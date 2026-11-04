@@ -1,0 +1,173 @@
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_python//python:py_binary.bzl", "py_binary")
+load("@rules_python//python:py_test.bzl", "py_test")
+load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
+load("@tar.bzl//tar:tar.bzl", "tar")
+
+package(default_visibility = ["//visibility:public"])
+
+_PYTHON = ["nnpy/" + name for name in [
+    "__init__.py",
+    "errors.py",
+    "socket.py",
+    "tests.py",
+]]
+
+_SOURCES = _PYTHON + [
+    "generate.py",
+    "setup.py",
+    "MANIFEST.in",
+    "README.rst",
+    "LICENSE",
+]
+
+_HEADERS = ["generated/include/nanomsg/" + name + ".h" for name in [
+    "bus",
+    "inproc",
+    "ipc",
+    "nn",
+    "pair",
+    "pipeline",
+    "pubsub",
+    "reqrep",
+    "survey",
+    "tcp",
+    "ws",
+]]
+
+_EGG = ["generated/nnpy-1.4.2.egg-info/" + name for name in [
+    "PKG-INFO",
+    "SOURCES.txt",
+    "dependency_links.txt",
+    "requires.txt",
+    "top_level.txt",
+]]
+
+py_binary(
+    name = "generate",
+    srcs = ["emit_cffi.py"],
+    main = "emit_cffi.py",
+    python_version = "3.13",
+    visibility = ["//visibility:private"],
+    deps = [
+        "@nnpy_tools//cffi",
+        "@nnpy_tools//setuptools",
+    ],
+)
+
+genrule(
+    name = "generated",
+    srcs = _SOURCES,
+    outs = [
+        "generated/_nnpy.c",
+        "generated/constants.py",
+        "generated/generation.json",
+    ] + _HEADERS + _EGG,
+    cmd = "$(execpath :generate) --setup $(execpath setup.py) " +
+          "--headers $(execpath @nnpy_deps//libnanomsg-dev:data) " +
+          "--library $(execpath @nnpy_deps//libnanomsg5:data) " +
+          "--bsdtar $(BSDTAR_BIN) --output $(RULEDIR)/generated",
+    tags = ["block-network"],
+    toolchains = ["@tar.bzl//tar/toolchain:type"],
+    tools = [
+        ":generate",
+        "@nnpy_deps//libnanomsg-dev:data",
+        "@nnpy_deps//libnanomsg5:data",
+    ],
+)
+
+cc_library(
+    name = "generated_headers",
+    hdrs = _HEADERS,
+    includes = ["generated/include/nanomsg"],
+    visibility = ["//visibility:private"],
+)
+
+cc_binary(
+    name = "_nnpy.so",
+    srcs = ["generated/_nnpy.c"],
+    linkopts = ["-Wl,-z,now"],
+    linkshared = True,
+    deps = [
+        ":generated_headers",
+        "@nnpy_deps//libnanomsg-dev:libnanomsg_cc",
+        "@python_3_13//:python_headers",
+    ],
+)
+
+sonic_deploy_tar(
+    name = "runtime",
+    srcs = _PYTHON + _EGG + [
+        "LICENSE",
+        "generated/constants.py",
+    ],
+    binaries = {"usr/lib/python3/dist-packages/_nnpy.so type=file mode=0755 uid=0 gid=0": ":_nnpy.so"},
+    force_debug_build = True,
+    mtree = [
+        "{} type=dir mode=0755 uid=0 gid=0 time=1672560000".format(name)
+        for name in [
+            "usr",
+            "usr/lib",
+            "usr/lib/python3",
+            "usr/lib/python3/dist-packages",
+            "usr/lib/python3/dist-packages/nnpy",
+            "usr/lib/python3/dist-packages/nnpy-1.4.2.egg-info",
+            "usr/share",
+            "usr/share/doc",
+            "usr/share/doc/nnpy",
+        ]
+    ] + [
+        "usr/lib/python3/dist-packages/{} type=file mode=0644 uid=0 gid=0 content=$(location {})".format(name, name)
+        for name in _PYTHON
+    ] + [
+        "usr/lib/python3/dist-packages/{} type=file mode=0644 uid=0 gid=0 content=$(location {})".format(
+            name.removeprefix("generated/"),
+            name,
+        )
+        for name in _EGG
+    ] + [
+        "usr/lib/python3/dist-packages/nnpy/constants.py type=file mode=0644 uid=0 gid=0 content=$(location generated/constants.py)",
+        "usr/share/doc/nnpy/LICENSE type=file mode=0644 uid=0 gid=0 content=$(location LICENSE)",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+tar(
+    name = "source",
+    srcs = _SOURCES,
+    default_mtime = "1672560000",
+    mtree = ["nnpy type=dir mode=0755 uid=0 gid=0 time=1672560000"] + ["{} type=file mode=0644 uid=0 gid=0 content=$(location {})".format(name, name) for name in _SOURCES],
+)
+
+alias(
+    name = "generation.json",
+    actual = "generated/generation.json",
+)
+
+py_test(
+    name = "package_test",
+    srcs = ["package_test.py"],
+    args = [
+        "--runtime",
+        "$(rootpath :runtime)",
+        "--debug",
+        "$(rootpath :runtime.debug_symbols)",
+        "--native",
+        "$(rootpath @nnpy_deps//libnanomsg5:data)",
+        "--source",
+        "$(rootpath setup.py)",
+        "--generation",
+        "$(rootpath :generation.json)",
+    ],
+    data = _SOURCES + [
+        ":generation.json",
+        ":runtime",
+        ":runtime.debug_symbols",
+        "@nnpy_deps//libnanomsg5:data",
+    ],
+    python_version = "3.13",
+    deps = ["@nnpy_tools//cffi"],
+)
+
+exports_files(["requirements_lock.txt"])
