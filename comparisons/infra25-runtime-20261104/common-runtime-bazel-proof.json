@@ -1,0 +1,84 @@
+{
+  "schema": 1,
+  "verified_at": "2026-11-04T10:37:05.000170+00:00",
+  "scope": "Bazel-built AMD64 Trixie YANG-enabled Common test runtime and strict loader validation against retained Common SDK; excludes full P4RT tests and final VS image acceptance.",
+  "source": {
+    "archive_revision": "43598143ef4a46431eae0859915cd7d951dad1ed",
+    "runtime_fix_pr": "https://github.com/securely1g/sonic-swss-common/pull/45",
+    "owner_head": "90d3f8302f6b77e7b06e06a12f051cc8c257758a",
+    "owner_production_runtime_unchanged_from": "a525b4ea3a7db24e4d161952c275c794e4d14322",
+    "registry_version": "0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed",
+    "registry_entry_tree": "f64a5e3ed9fb96fae6c020f549f99f640a0b1547",
+    "libyang_version": "3.12.2.sonic.6",
+    "infrastructure_version": "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e",
+    "source_module_matches_registry": true
+  },
+  "configuration": {
+    "bazel_version": "8.5.1",
+    "target": "@sonic-swss-common//tools/bazel/runtime:test_runtime",
+    "platform": "@sonic_build_infra//platforms:x86_64_trixie",
+    "yang_modules": true,
+    "jobs": 1,
+    "container_memory_gib": 12,
+    "container_cpus": 2,
+    "root_bootstrap": "Exact Rust/bindgen declarations from sonic-buildimage e7dfd37b MODULE.bazel172-191"
+  },
+  "configured_no_deb_audit": {
+    "schema": 1,
+    "action_count": 2638,
+    "output_count": 5302,
+    "deb_outputs": [],
+    "packaging_wrappers": [],
+    "targets": [
+      "@sonic-swss-common//tools/bazel/runtime:test_runtime"
+    ]
+  },
+  "build": {
+    "status": "passed",
+    "elapsed_seconds": 107.006,
+    "actions": 1899,
+    "disk_cache_hits": 427,
+    "internal_actions": 1462,
+    "sandbox_processes": 10,
+    "runtime_tar": {
+      "bytes": 396989440,
+      "sha256": "521c58d556d6bf9c745b305b1af73038eebbe2b209cad7048cd5094a0afa5728"
+    }
+  },
+  "loader": {
+    "status": "passed",
+    "retained_sdk_common_sha256": "c9f0151396ede4298b6ceaf1841d210d2ad7d632ae0bcaa70a9254dd6a20cf19",
+    "declared_libraries": {
+      "libhiredis.so.1.1.0": "adfb8e6f9d2d430d5d577f85626490769fb69ef41a6967fba611b5a16b09ab15",
+      "libnl-3.so.200": "56c57e170de57270ece18bed5a97f449b421b06657f10826ecbbf54751f9a6ba",
+      "libnl-route-3.so.200": "9143d1fca40c5ef2381d5bcd72b2fe90187386f179761c01c84f46f06f811cc2",
+      "libnl-nf-3.so.200": "1fc01f85ffc49eca971e190a370eb4e0c003d0c6f83fc30d4f21cca3cf22b1c7",
+      "libzmq.so.5": "dd57b7fc0ee994c65ba8028814b407a54d7457751ba002cf82f3019c77bf2eef",
+      "libuuid.so.1": "f6263cc349c58f18d9d8baf68af99765725375e3960dd17dbd110a8399aae0e9",
+      "libboost_serialization.so.1.83.0": "d9ac464397973b3d89821e85740c4f59762dd6d7ac91c6f887339ae2af41fee6",
+      "libyang.so.3": "9b81fa9d26d96150df16a7640012e240d490ef932dd13f0377e1eea904d33b0e",
+      "libstdc++.so.6": "972bb2a18b71140dab0240f8a1f68ab3fb1d56bcd4c4f824a91b70888faf5a00",
+      "libm.so.6": "6d567d53e895273ca14a1f9dc164fc6c8d39aed2f60aa46a733c2784228915f3",
+      "libgcc_s.so.1": "30c61ab012a4241bed033725a09b61f5fdd3bb7df95ee852d0b096520524c7af",
+      "libc.so.6": "fa430b8f298f817a266046af84a77533185ad6fc4406c7d3787b5a0a0c207826",
+      "libbsd.so.0": "167e3fa2b6320ce61534a48002e6d0921f61d61eae88a669c117e23ed3de9f37",
+      "libsodium.so.23": "85e2e494494f4f50c4b6d2b4ae90e885da1bfdefd52c4cc5767fd10abff62505",
+      "libpgm-5.3.so.0": "ea4273bad000882cacc3fe27b66b27c8a06970daef5230584aaec72770893e9c",
+      "libnorm.so.1": "00b75c0ea021290c260a459edd3b95331564b5779432a489727a1a24e159f64c",
+      "libgssapi_krb5.so.2": "c290f761873ebeac539911010526e1c5db86218bfcb29672760da46841741de0",
+      "libpcre2-8.so.0": "8ee551e7f9645d6212c017df0938062ba046608a5378aab7d7c01c47b81a9f50",
+      "libxxhash.so.0": "7dd49b353facbee50c371d0559ce29db5afee5ac33249ca5c7068420fb642762",
+      "libmd.so.0": "1c8c51474c0eb67dabd9f1605097eb58195cdabef64427ae17cfcd2053c37479",
+      "libkrb5.so.3": "c4ab64e6bc2874a83e649e4439be752465da027a0041e2bb5343f81c80f0882d",
+      "libk5crypto.so.3": "c4c3221d0350f882cee0430b58d5fb289a5776c684d3156964864c8a9719dff1",
+      "libcom_err.so.2": "dc4828400674492839b630c001db424cd38e5cecfcf46dbf705a637647e04bea",
+      "libkrb5support.so.0": "f559f051ee5d39f151a57d79f2cde475c484030098b0c73f9f7035b421b187c4",
+      "libkeyutils.so.1": "e5d5a7450d08eff7d4bbcaac75ef2b94d3447c81a1b2ddf3ab85d2de4709a9a8",
+      "libresolv.so.2": "d41dd4adacf5a35df426461dd8a92d7bdd5ba29bb61a1c3531bec0ada386f8dd"
+    },
+    "negative_baseline": "The original runtime fails the same strict guard for ambient libxxhash.so.0; independently reproduced with the same SDK and loader."
+  },
+  "total_elapsed_seconds": 338.06,
+  "no_p4rt_rebuild": true,
+  "all_probe_processes_terminal": true
+}
