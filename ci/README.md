@@ -565,3 +565,12 @@ clean reproduction.
 
 See the [Bazel registry format](https://bazel.build/external/registry) for module
 source, patch, and overlay metadata.
+
+### SONiC Go pseudo-version ordering
+
+Registered SONiC patches may retain a Go pseudo-version suffix, for example
+0.0.0.sonic.1-20200309174518-a00bece872fc. The planner accepts the exact
+14-digit timestamp and 12-lowercase-hex form while preserving numeric release,
+SONiC patch number and separator precedence. Equal release/patch snapshots
+continue to use metadata registration order; hashes/timestamps are not sorted.
+Malformed or unrelated suffixes remain rejected.
