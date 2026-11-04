@@ -1,0 +1,15 @@
+{
+  "url": "https://github.com/Mellanox/libpsample/archive/e48fad2402500a2aeb73961729aad06f793ff46e.tar.gz",
+  "integrity": "sha256-zmOvmpoLIyP2XaNi6fylK8rbQVuM6U7imfqLzFijVRk=",
+  "strip_prefix": "libpsample-e48fad2402500a2aeb73961729aad06f793ff46e",
+  "overlay": {
+    "BUILD.bazel": "sha256-CYwYEu36lmkJTZ6+BU9QBGIZaslxJUNhd3cgLtRUsnw=",
+    "MODULE.bazel": "sha256-lRMaXEu750kpGgTAohDl9c008CvlFD+FsE7QDZS6Go4=",
+    "bazel/copyright": "sha256-vBOuWKivfOeIJCm/YO7iyOpMwVuOMJ9Afp5N51zs8QE=",
+    "bazel/debian/changelog": "sha256-ZZ7KcWuixiA8hkpQLmWdRGh7UrbvHpOFXezNEe0xRLc=",
+    "bazel/debian/control": "sha256-TnajPF/+OG6vYPpsybaalCBZ/ktbEC4+DmfMOZYCVm0=",
+    "bazel/netlink_fixture.c": "sha256-IDP1FQxDRF3Nv+pl4St9zQ3gHFRDhzCqopIczk+cTX0=",
+    "bazel/package_test.py": "sha256-9W5XOZRQk/ERlhKUeILoCY+5CBENiEwg/sF7dhMIGZY=",
+    "bazel/sdk_probe.c": "sha256-YMS+3cttxgK6IdvJiD17SDqg/pHokkWCLHQlB+hwevI="
+  }
+}
