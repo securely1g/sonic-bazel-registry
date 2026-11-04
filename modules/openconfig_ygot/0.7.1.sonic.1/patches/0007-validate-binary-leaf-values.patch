@@ -1,0 +1,11 @@
+diff --git a/ytypes/leaf.go b/ytypes/leaf.go
+--- a/ytypes/leaf.go
++++ b/ytypes/leaf.go
+@@ -67,6 +67,7 @@
+ 		if ykind != yang.Ybinary {
+ 			return util.NewErrs(fmt.Errorf("bad leaf type: expect []byte for binary value %v for schema %s, have type %v", value, schema.Name, ykind))
+ 		}
++		rv = value
+ 	case reflect.Int64:
+ 		if ykind != yang.Yenum && ykind != yang.Yidentityref && ykind != yang.Yunion {
+ 			return util.NewErrs(fmt.Errorf("bad leaf type: expect Int64 for enum type for schema %s, have type %v", schema.Name, ykind))
