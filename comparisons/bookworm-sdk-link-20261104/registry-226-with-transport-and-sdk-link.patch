@@ -1,0 +1,1967 @@
+diff --git a/.github/workflows/registry-ci.yml b/.github/workflows/registry-ci.yml
+index c3d89cd1d8a36c5cdcd0129428df0962e847f883..fd87a2cf840163ac52c8957f773881b8b6b23b83 100644
+--- a/.github/workflows/registry-ci.yml
++++ b/.github/workflows/registry-ci.yml
+@@ -90,6 +90,18 @@ jobs:
+                   raise SystemExit("Source-mirror test scope rejects unexpected files: " + repr(changed - allowed))
+               print("Source-mirror CI fix: retain policy plan; run native runner and cold-fetch tests only.")
+               matrix = {"include": []}
++          if (os.environ["EVENT_NAME"] == "pull_request"
++                  and os.environ["HEAD_REF"] == "codex/registry-debian-pool-transport"
++                  and os.environ["HEAD_REPOSITORY"] == "securely1g/sonic-bazel-registry"):
++              allowed = {".github/workflows/registry-ci.yml", "ci/source_mirrors.cfg",
++                         "ci/tests/test_debian_pool.py", "ci/README.md"}
++              changed = set(subprocess.check_output(
++                  ["git", "diff", "--name-only", os.environ["BASE_SHA"] + "..." + os.environ["HEAD_SHA"]],
++                  text=True).splitlines())
++              if not changed or not changed <= allowed:
++                  raise SystemExit("Debian transport scope rejects unexpected files: " + repr(changed - allowed))
++              print("Debian transport CI fix: retain policy plan and both runner/fetch suites; no module jobs.")
++              matrix = {"include": []}
+           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+               print("matrix=" + json.dumps(matrix, separators=(",", ":")), file=output)
+               print("has_jobs=" + str(bool(matrix["include"])).lower(), file=output)
+diff --git a/ci/README.md b/ci/README.md
+index 9a46db1f41ebca085ec77813402113a66744c6e8..060d551205bf2a5d01fb7ebb311977acbb28f253 100644
+--- a/ci/README.md
++++ b/ci/README.md
+@@ -31,7 +31,7 @@ repository branch-protection settings.
+ 
+ The runner passes Bazel's standard `--experimental_downloader_config` with
+ [`source_mirrors.cfg`](source_mirrors.cfg) to dependency preparation, builds,
+-tests and output queries. The only rewrite is the exact upstream URL for
++tests and output queries. One rewrite is the exact upstream URL for
+ BCR `pigz@2.8.bcr.2`, used by build-infra's reproducible gzip tool when packaging
+ WPA's debug TAR. The original URL now serves different bytes; a clean
+ [WPA registry build](https://github.com/securely1g/sonic-bazel-registry/actions/runs/41587703074/job/125760920377)
+@@ -40,7 +40,7 @@ fails its BCR checksum before compiling any source.
+ The MacPorts mirror retains the original archive with SHA256
+ `eb872b4f0e1f0ebe59c9f7bd8c506c4204893ba6a8492de31df416f0d5170fd0`.
+ Bazel still verifies BCR's unchanged integrity and applies its unchanged patches.
+-Other versions, paths and hosts are not rewritten. No source/version override,
++Other pigz versions, paths and hosts are not rewritten. No source/version override,
+ custom pigz module, prebuilt pigz, or disabled integrity check is involved.
+ 
+ This config applies automatically in this registry's validation runner. It does
+@@ -62,6 +62,51 @@ the existing AMD64/ARM64 runner tests. Its path-checked exception retains the
+ normal publication-policy plan but does not run the unrelated module build
+ matrix. All other branches and pushes retain normal module selection.
+ 
++## Pinned Debian package downloads
++
++The same downloader configuration also prefers Debian's official pool for
++checksum-pinned `.deb` URLs from dated `snapshot.debian.org` pool paths. It
++retains the original snapshot as the second URL. The four rules are identical
++to [buildimage PR181](https://github.com/securely1g/sonic-buildimage/pull/181).
++They do not match Release/Packages indexes, source archives or other hosts.
++The existing pigz rule, registry recipes, package versions and hashes stay intact.
++
++For example, [BMv2 PR211](https://github.com/securely1g/sonic-bazel-registry/pull/211)
++failed during AMD64 analysis while fetching the declared ARMHF
++`libthrift-dev_0.19.0-4+b1_armhf.deb` (SHA256
++`feef88038da4c689aa4e46f4bf2d39c90b7d4971c0ae5ab0f9568fa671b1d4c3`).
++Its APT hub reads compiler metadata for all declared architectures before
++selecting native targets; this request does not imply ARMHF compilation.
++
++| Input or action | Before | After |
++| --- | --- | --- |
++| The pinned BMv2 libthrift package | Only the dated snapshot URL, which returned503 | Official Debian pool first, then that exact snapshot URL; unchanged SHA256 required |
++| `debian-security` binary package | Only its dated security snapshot | Official security pool first, preserving `pool/updates` and snapshot fallback |
++| Package mirror serves different bytes | Checksum failure | Checksum failure |
++| Dated package index or source archive | Original URL | Original URL |
++| Existing pigz source | Verified MacPorts mirror | Same verified MacPorts mirror |
++
++This addresses the same transport failure affecting
++[build-infra registration226](https://github.com/securely1g/sonic-bazel-registry/pull/226)
++and the declared tools in
++[source PR82](https://github.com/securely1g/sonic-build-infra/pull/82).
++The registry runner already passes this config to all preparation, build, test
++and output-query commands. Standalone source CI ignores dependency RC files;
++it needs a separate explicit opt-in to an immutable, checksum-verified copy of
++this combined config. This change does not update those PR heads or imply their
++native checks have passed.
++
++Historical packages can disappear from the current official pool. In that case,
++the snapshot still has to be available; this does not repair snapshot index
++outages. No integrity check, package version or architecture is relaxed.
++
++The exact owned `codex/registry-debian-pool-transport` branch retains the full
++publication-policy plan and AMD64/ARM64 runner suites, including real checksum
++rejection and cold-fetch tests, while selecting no unrelated module jobs.
++Unexpected files fail this exception; other branches and pushes retain normal
++selection. The real download tests only fetch existing payloads and execute no
++package producer or compilation.
++
+ ## Kernel build-tool cache downloads
+ 
+ The runner starts each consumer with `--ignore_all_rc_files`, so it explicitly
+@@ -553,3 +598,12 @@ clean reproduction.
+ 
+ See the [Bazel registry format](https://bazel.build/external/registry) for module
+ source, patch, and overlay metadata.
++
++### SONiC Go pseudo-version ordering
++
++Registered SONiC patches may retain a Go pseudo-version suffix, for example
++0.0.0.sonic.1-20200309174518-a00bece872fc. The planner accepts the exact
++14-digit timestamp and 12-lowercase-hex form while preserving numeric release,
++SONiC patch number and separator precedence. Equal release/patch snapshots
++continue to use metadata registration order; hashes/timestamps are not sorted.
++Malformed or unrelated suffixes remain rejected.
+diff --git a/ci/registry_ci.py b/ci/registry_ci.py
+index e56c3bd46e008cdd19e7715fcb5dbc60f8e59c1f..2e57b5bc805a8f957d57c699bb0fb73d66e1ae88 100644
+--- a/ci/registry_ci.py
++++ b/ci/registry_ci.py
+@@ -401,7 +401,7 @@ def release_key(version: str) -> tuple[tuple[int, ...], int, int]:
+     # Equivalent numeric releases must still use registration order for snapshots.
+     while len(numbers) > 1 and numbers[-1] == 0:
+         numbers = numbers[:-1]
+-    patch = re.fullmatch(r"([.-])sonic\.([0-9]+)", suffix)
++    patch = re.fullmatch(r"([.-])sonic\.([0-9]+)(?:-[0-9]{14}-[0-9a-f]{12})?", suffix)
+     if patch:
+         return numbers, int(patch[2]), int(patch[1] == ".")
+     require(suffix in ("", ".sonic-buildimage", ".sonic-patched")
+diff --git a/ci/source_mirrors.cfg b/ci/source_mirrors.cfg
+index a123e07cbd29fdbef9d4e8db7f3655fcf94f94a5..c474dc335fb72039fe5999fa80d200d4cc202149 100644
+--- a/ci/source_mirrors.cfg
++++ b/ci/source_mirrors.cfg
+@@ -2,3 +2,15 @@
+ # Original SHA256: eb872b4f0e1f0ebe59c9f7bd8c506c4204893ba6a8492de31df416f0d5170fd0
+ # Bazel matches the complete URL without its https:// prefix.
+ rewrite zlib\.net/pigz/pigz-2\.8\.tar\.gz https://distfiles.macports.org/pigz/pigz-2.8.tar.gz
++
++# Exact Bookworm security header payload; the repository SHA256 remains
++# ea265b1dff21ab2e4b22b38097031f8d63fb940ecb89427659655598860efc0f.
++rewrite snapshot\.debian\.org/archive/debian-security/20260726T121236Z/pool/updates/main/l/linux/linux-libc-dev_6\.1\.177-1_amd64\.deb https://snapshot.debian.org/file/aed472fca7f9b98fdb7103b974db264cb60c2248
++
++# Prefer the official pool for pinned Debian binary packages. Bazel keeps the
++# repository rule's checksum; the original snapshot remains the second URL.
++# Indexes and source archives must retain their snapshot URLs.
++rewrite (snapshot\.debian\.org/archive/debian/[0-9]{8}T[0-9]{6}Z/pool/([^?#]+\.deb)) https://deb.debian.org/debian/pool/$2
++rewrite (snapshot\.debian\.org/archive/debian/[0-9]{8}T[0-9]{6}Z/pool/([^?#]+\.deb)) https://$1
++rewrite (snapshot\.debian\.org/archive/debian-security/[0-9]{8}T[0-9]{6}Z/pool/([^?#]+\.deb)) https://deb.debian.org/debian-security/pool/$2
++rewrite (snapshot\.debian\.org/archive/debian-security/[0-9]{8}T[0-9]{6}Z/pool/([^?#]+\.deb)) https://$1
+diff --git a/ci/tests/test_debian_pool.py b/ci/tests/test_debian_pool.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..b79f3bd2498cf6154e828e07617ab18229ca8b4d
+--- /dev/null
++++ b/ci/tests/test_debian_pool.py
+@@ -0,0 +1,218 @@
++"""Exercise pinned Debian URL routing and Bazel's unchanged payload checksum."""
++from __future__ import annotations
++
++import hashlib
++from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
++import json
++import os
++from pathlib import Path
++import re
++import shutil
++import subprocess
++import tempfile
++import threading
++import unittest
++from unittest import mock
++
++ROOT = Path(__file__).resolve().parents[2]
++BRANCH = "codex/registry-debian-pool-transport"
++# Exact input from source PR82's failed declared-build-tools attempt2.
++TOMLI_URL = "https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/p/python-tomli/python3-tomli_2.2.1-2+b1_amd64.deb"
++TOMLI_SHA256 = "57d5ee29234ba145e298a36e4530ff261bf2e706e9df95d08cfeee1d7e8362a9"
++
++
++def routed_urls(url):
++    """Evaluate the checked-in rewrite data with full URL matching."""
++    result = []
++    for line in (ROOT / "ci/source_mirrors.cfg").read_text().splitlines():
++        if not line.startswith("rewrite "):
++            continue
++        _, pattern, replacement = line.split()
++        match = re.fullmatch(pattern, url.removeprefix("https://"))
++        if match:
++            result.append(re.sub(r"\$(\d+)", lambda m: match.group(int(m[1])), replacement))
++    return result or [url]
++
++
++class DebianPoolRoutingTest(unittest.TestCase):
++    def test_actual_bookworm_failure_uses_verified_content_before_prior_routes(self):
++        # Registry226 run41895100402 retained the actual failed lock. The
++        # repository still requires SHA256 ea265b1dff21ab2e4b22b38097031f8d63fb940ecb89427659655598860efc0f;
++        # this SHA1-derived URL changes delivery, not the checksum policy.
++        original = "https://snapshot.debian.org/archive/debian-security/20260726T121236Z/pool/updates/main/l/linux/linux-libc-dev_6.1.177-1_amd64.deb"
++        self.assertEqual(routed_urls(original), [
++            "https://snapshot.debian.org/file/aed472fca7f9b98fdb7103b974db264cb60c2248",
++            "https://deb.debian.org/debian-security/pool/updates/main/l/linux/linux-libc-dev_6.1.177-1_amd64.deb",
++            original,
++        ])
++
++    def test_historical_rule_cannot_redirect_other_package_identities(self):
++        original = "https://snapshot.debian.org/archive/debian-security/20260726T121236Z/pool/updates/main/l/linux/linux-libc-dev_6.1.177-1_amd64.deb"
++        for changed in (
++            original.replace("6.1.177-1", "6.1.178-1"),
++            original.replace("_amd64", "_arm64"),
++            original.replace("20260726T121236Z", "20260725T121236Z"),
++            original.replace("linux-libc-dev", "linux-headers"),
++        ):
++            with self.subTest(url=changed):
++                relative = changed.split("/pool/", 1)[1]
++                self.assertEqual(routed_urls(changed), [
++                    "https://deb.debian.org/debian-security/pool/" + relative,
++                    changed,
++                ])
++        for unchanged in (original + "?alternate=1", original + "#fragment",
++                          original.replace("snapshot.debian.org", "other.example")):
++            with self.subTest(url=unchanged):
++                self.assertEqual(routed_urls(unchanged), [unchanged])
++
++    def test_actual_failed_payloads_keep_original_snapshot_second(self):
++        for original in [TOMLI_URL,
++            "https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/t/thrift/libthrift-dev_0.19.0-4+b1_armhf.deb",
++            "https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/g/gmp/libgmp-dev_6.3.0+dfsg-3_armhf.deb",
++            "https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/g/glibc/libc6-dbg_2.41-12+deb13u3_amd64.deb",
++            "https://snapshot.debian.org/archive/debian-security/20260726T121236Z/pool/updates/main/o/openssl/libssl-dev_3.5.6-1~deb13u2_armhf.deb"]:
++            with self.subTest(url=original):
++                archive, relative = original.split("/archive/", 1)[1].split("/", 1)
++                pool = relative.split("/pool/", 1)[1]
++                self.assertEqual(routed_urls(original),
++                    [f"https://deb.debian.org/{archive}/pool/{pool}", original])
++
++    def test_indexes_sources_and_other_hosts_are_unchanged(self):
++        for url in [
++            "https://snapshot.debian.org/archive/debian/20260727T143429Z/dists/trixie/Release",
++            "https://snapshot.debian.org/archive/debian-security/20260726T121236Z/dists/trixie-security/main/binary-amd64/Packages.xz",
++            TOMLI_URL.replace(".deb", ".dsc"), TOMLI_URL.replace(".deb", ".orig.tar.gz"),
++            TOMLI_URL.replace("snapshot.debian.org", "other.example"),
++            TOMLI_URL + "?alternate=1", TOMLI_URL + "#fragment",
++            TOMLI_URL.replace("20260727T143429Z", "latest"),
++        ]:
++            with self.subTest(url=url):
++                self.assertEqual(routed_urls(url), [url])
++
++    def test_existing_pigz_mirror_is_preserved(self):
++        self.assertEqual(routed_urls("https://zlib.net/pigz/pigz-2.8.tar.gz"),
++                         ["https://distfiles.macports.org/pigz/pigz-2.8.tar.gz"])
++        original = "https://zlib.net/pigz/pigz-2.9.tar.gz"
++        self.assertEqual(routed_urls(original), [original])
++
++    def test_exact_workflow_scope_and_rejected_changes(self):
++        workflow = (ROOT / ".github/workflows/registry-ci.yml").read_text()
++        script = workflow.split("          python3 - <<'PY'\n", 1)[1].split("          PY\n", 1)[0]
++        script = "\n".join(line[10:] for line in script.splitlines())
++        original = {"include": [{"module": "original"}]}
++        cases = [
++            ("pull_request", BRANCH, "securely1g/sonic-bazel-registry", "ci/source_mirrors.cfg", []),
++            ("pull_request", BRANCH, "securely1g/sonic-bazel-registry", "ci/registry_ci.py", None),
++            ("pull_request", BRANCH, "securely1g/sonic-bazel-registry", "modules/pigz/metadata.json", None),
++            ("pull_request", BRANCH, "securely1g/sonic-bazel-registry", "", None),
++            ("pull_request", BRANCH + "-other", "securely1g/sonic-bazel-registry", "ci/source_mirrors.cfg", original["include"]),
++            ("pull_request", BRANCH, "another/fork", "ci/source_mirrors.cfg", original["include"]),
++            ("push", BRANCH, "securely1g/sonic-bazel-registry", "ci/source_mirrors.cfg", original["include"]),
++            ("workflow_dispatch", BRANCH, "securely1g/sonic-bazel-registry", "ci/source_mirrors.cfg", original["include"]),
++        ]
++        for event, branch, repository, changed, expected in cases:
++            with self.subTest(event=event, branch=branch, repository=repository, changed=changed):
++                with tempfile.TemporaryDirectory() as temporary:
++                    output = Path(temporary) / "output"
++                    env = {"EVENT_NAME": event, "HEAD_REF": branch, "HEAD_REPOSITORY": repository,
++                           "BASE_SHA": "a" * 40, "HEAD_SHA": "b" * 40, "GITHUB_OUTPUT": str(output)}
++                    with mock.patch.dict(os.environ, env), \
++                         mock.patch.object(Path, "read_text", return_value=json.dumps(original)), \
++                         mock.patch.object(subprocess, "check_output", return_value=changed + "\n"):
++                        if expected is None:
++                            with self.assertRaises(SystemExit):
++                                exec(compile(script, "registry-workflow", "exec"), {})
++                            self.assertFalse(output.exists())
++                            continue
++                        exec(compile(script, "registry-workflow", "exec"), {})
++                    actual = json.loads(output.read_text().splitlines()[0].removeprefix("matrix="))
++                    self.assertEqual(actual["include"], expected)
++
++
++@unittest.skipUnless(os.environ.get("REGISTRY_CI_TEST_BAZEL"),
++                     "set REGISTRY_CI_TEST_BAZEL to exercise real Bazel downloads")
++class DebianPoolIntegrationTest(unittest.TestCase):
++    def test_actual_locked_payload_through_production_config(self):
++        self.fetch_payload(corrupt=False)
++
++    def test_corrupt_payload_cannot_enter_verified_cache(self):
++        self.fetch_payload(corrupt=True)
++
++    def fetch_payload(self, *, corrupt):
++        with tempfile.TemporaryDirectory(prefix="registry-debian-pool-") as temporary:
++            work = Path(temporary)
++            consumer, artifacts, cache = work / "consumer", work / "artifacts", work / "cache"
++            for directory in [consumer, artifacts, cache]:
++                directory.mkdir()
++            (consumer / "MODULE.bazel").write_text(
++                'module(name = "debian_transport_check")\n'
++                'http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")\n'
++                'http_file(name = "locked_debian_payload", urls = [' + json.dumps(TOMLI_URL) + '], '
++                'sha256 = ' + json.dumps(TOMLI_SHA256) + ', downloaded_file_path = "package.deb")\n')
++            (consumer / "BUILD.bazel").write_text("")
++            config = ROOT / "ci/source_mirrors.cfg"
++            server = None
++            requests = []
++            if corrupt:
++                class WrongPayload(BaseHTTPRequestHandler):
++                    def do_GET(self):
++                        requests.append(self.path)
++                        payload = b"corrupt existing Debian payload\n"
++                        self.send_response(200)
++                        self.send_header("Content-Length", str(len(payload)))
++                        self.end_headers()
++                        self.wfile.write(payload)
++
++                    def log_message(self, *_args):
++                        pass
++
++                server = ThreadingHTTPServer(("127.0.0.1", 0), WrongPayload)
++                threading.Thread(target=server.serve_forever, daemon=True).start()
++                config = work / "corrupt.cfg"
++                # Keep the production match expressions. Make both mirror and
++                # fallback serve invalid bytes so a healthy snapshot cannot hide
++                # a checksum-validation regression.
++                lines = []
++                for line in (ROOT / "ci/source_mirrors.cfg").read_text().splitlines():
++                    if line.startswith("rewrite (snapshot"):
++                        line = line.rsplit(" ", 1)[0] + f" http://127.0.0.1:{server.server_port}/package.deb"
++                    lines.append(line)
++                config.write_text("\n".join(lines) + "\n")
++            command = [os.environ["REGISTRY_CI_TEST_BAZEL"], "--batch", "--ignore_all_rc_files",
++                       "--output_user_root=" + str(work / "bazel"), "--output_base=" + str(work / "output"),
++                       "fetch", "--repo=@locked_debian_payload", "--incompatible_autoload_externally=",
++                       "--repository_cache=" + str(cache), "--lockfile_mode=update",
++                       "--experimental_downloader_config=" + str(config)]
++            try:
++                (artifacts / "command.json").write_text(json.dumps(command, indent=2) + "\n")
++                with (artifacts / "fetch.log").open("w") as log:
++                    result = subprocess.run(command, cwd=consumer, stdout=log,
++                                            stderr=subprocess.STDOUT, timeout=180)
++                transcript = (artifacts / "fetch.log").read_text()
++                payload = cache / "content_addressable/sha256" / TOMLI_SHA256 / "file"
++                if corrupt:
++                    self.assertNotEqual(result.returncode, 0, transcript)
++                    self.assertIn("Checksum", transcript)
++                    self.assertTrue(requests)
++                    self.assertEqual(set(requests), {"/package.deb"})
++                    self.assertFalse(payload.exists(), "Corrupt payload entered the verified cache")
++                else:
++                    self.assertEqual(result.returncode, 0, transcript)
++                    self.assertEqual(hashlib.sha256(payload.read_bytes()).hexdigest(), TOMLI_SHA256)
++                (artifacts / "result.json").write_text(json.dumps({
++                    "url": TOMLI_URL, "expected_sha256": TOMLI_SHA256,
++                    "corrupt_mirror": corrupt, "status": "passed", "empty_repository_cache": True,
++                    "compilation_or_package_actions_executed": False,
++                    "production_config_sha256": hashlib.sha256((ROOT / "ci/source_mirrors.cfg").read_bytes()).hexdigest(),
++                }, indent=2) + "\n")
++            finally:
++                if server:
++                    server.shutdown()
++                    server.server_close()
++                destination = os.environ.get("REGISTRY_CI_TEST_ARTIFACTS")
++                if destination:
++                    shutil.copytree(artifacts, Path(destination) / work.name)
++
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/ci/tests/test_release_order.py b/ci/tests/test_release_order.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..a39ab0a87d430a819838ad560de624dfdc689329
+--- /dev/null
++++ b/ci/tests/test_release_order.py
+@@ -0,0 +1,50 @@
++"""Regression tests for registered SONiC Go pseudo-version ordering."""
++import json
++import unittest
++
++import test_registry_ci as fixtures
++
++
++class ReleaseOrderingTests(fixtures.FixtureTestCase):
++    def test_actual_goyang_pseudo_version_uses_existing_sonic_patch_order(self):
++        key = fixtures.registry_ci.release_key
++        version = "0.0.0.sonic.1-20200309174518-a00bece872fc"
++        self.assertEqual(key(version), key("0.0.0.sonic.1"))
++        self.assertLess(key("0.0.0-sonic.1"), key(version))
++        self.assertLess(key(version), key("0.0.0.sonic.2"))
++        self.assertLess(key("0.0.0.sonic.99"), key("1.0.0"))
++
++    def test_existing_numeric_patch_separator_and_snapshot_keys_are_exact(self):
++        key = fixtures.registry_ci.release_key
++        for version, expected in (
++            ("1.0.0", ((1,), 0, 0)), ("1.2.0", ((1, 2), 0, 0)),
++            ("1.0.0.sonic.2", ((1,), 2, 1)), ("1.0.0-sonic.2", ((1,), 2, 0)),
++            ("1.0.0-a00bece872fc", ((1,), 0, 0)),
++            ("1.0.0.commit-a00bece", ((1,), 0, 0)),
++            ("1.0.0.sonic-buildimage", ((1,), 0, 0))):
++            with self.subTest(version=version): self.assertEqual(key(version), expected)
++
++    def test_pseudo_versions_use_registration_order_without_timestamp_sorting(self):
++        newer = "0.0.0.sonic.1-20260309174518-ffffffffffff"
++        older = "0.0.0.sonic.1-20200309174518-a00bece872fc"
++        self.entry("alpha", newer); self.entry("alpha", older)
++        self.assertEqual(fixtures.registry_ci.latest_presubmits(self.root), {("alpha", older)})
++        metadata = self.root / "modules/alpha/metadata.json"
++        value = json.loads(metadata.read_text()); value["versions"].reverse()
++        metadata.write_text(json.dumps(value))
++        self.assertEqual(fixtures.registry_ci.latest_presubmits(self.root), {("alpha", newer)})
++
++    def test_malformed_and_unrelated_suffixes_remain_rejected(self):
++        for version in (
++            "0.0.0.sonic.1-2020030917451-a00bece872fc",
++            "0.0.0.sonic.1-202003091745180-a00bece872fc",
++            "0.0.0.sonic.1-20200309174518-a00bece872f",
++            "0.0.0.sonic.1-20200309174518-A00BECE872FC",
++            "0.0.0.sonic.1-20200309174518-a00bece872fc0",
++            "0.0.0.sonic.1-20200309174518-a00bece872fc-extra",
++            "0.0.0.sonic.1-snapshot", "0.0.0.unknown.1"):
++            with self.subTest(version=version), self.assertRaises(fixtures.registry_ci.RegistryError):
++                fixtures.registry_ci.release_key(version)
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/modules/sonic-build-infra/0.0.26-f6da55505437cb139fdf610db8c61cb9420b0fec/MODULE.bazel b/modules/sonic-build-infra/0.0.26-f6da55505437cb139fdf610db8c61cb9420b0fec/MODULE.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..f133964e7263a944845dc85885780e9b841afe26
+--- /dev/null
++++ b/modules/sonic-build-infra/0.0.26-f6da55505437cb139fdf610db8c61cb9420b0fec/MODULE.bazel
+@@ -0,0 +1,1186 @@
++# Keep bazel_compatibility in sync with sonic-buildimage's .bazelversion.
++module(
++    name = "sonic-build-infra",
++    version = "0.0.26-f6da55505437cb139fdf610db8c61cb9420b0fec",
++    bazel_compatibility = [
++        ">=8.5.1",
++        "<=8.5.1",
++    ],
++)
++
++bazel_dep(name = "swig", version = "4.3.0.bcr.2")
++bazel_dep(name = "rules_cc", version = "0.2.16")
++bazel_dep(name = "rules_foreign_cc", version = "0.15.1")
++bazel_dep(name = "rules_python", version = "1.7.0")
++bazel_dep(name = "platforms", version = "1.0.0")
++bazel_dep(name = "tar.bzl", version = "0.10.5-sonic.1")
++
++sysroot_tar = use_extension("@tar.bzl//tar:extensions.bzl", "toolchains")
++use_repo(sysroot_tar, "bsd_tar_toolchains_linux_amd64", "bsd_tar_toolchains_linux_arm64")
++
++# Root builds must select the patch even when another dependency requests the
++# upstream release, which sorts above its SONiC prerelease version.
++single_version_override(
++    module_name = "tar.bzl",
++    version = "0.10.5-sonic.1",
++)
++
++bazel_dep(name = "bazel_skylib", version = "1.9.0")
++bazel_dep(name = "bazel_lib", version = "3.1.1")
++bazel_dep(name = "aspect_rules_py", version = "1.11.2")
++bazel_dep(name = "patchelf", version = "0.18.0.bcr.1")
++
++# A local module providing a cc_binary in a separate module, used only by our
++# tests to prove that we correctly package binaries from another module.
++bazel_dep(name = "deploy_tar_external_binary", version = "0.0.0", dev_dependency = True)
++local_path_override(
++    module_name = "deploy_tar_external_binary",
++    path = "tests/external_binary_module",
++)
++
++bazel_dep(name = "buildifier_prebuilt", version = "8.5.1.3", dev_dependency = True)
++
++# The SONiC patch sorts above upstream 0.9.4 without a root override.
++bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.15")
++
++# One multiarch directory shared by GCC and Clang on both architectures.
++# Consumers import this same repository through use_extension/use_repo.
++sysroots = use_extension("//toolchains/sysroot:extensions.bzl", "sysroots")
++sysroots.debian(name = "sonic_sysroot")
++use_repo(sysroots, "sonic_sysroot")
++
++gcc = use_extension("//toolchains/gcc:extensions.bzl", "gcc")
++use_repo(
++    gcc,
++    "gcc-14.2.0-linux-target-aarch64-host-aarch64",
++    "gcc-14.2.0-linux-target-aarch64-host-x86_64",
++    "gcc-14.2.0-linux-target-x86_64-host-x86_64",
++    "gcc_toolchains",
++)
++
++# Architectures with native build tools and general C/C++ toolchain setup.
++NATIVE_ARCHITECTURES = [
++    "amd64",
++    "arm64",
++]
++
++# Kernel builds also target ARMHF using the AMD64 cross tools.
++KERNEL_TARGET_ARCHITECTURES = NATIVE_ARCHITECTURES + ["armhf"]
++
++# Every toolchain the gcc.debian_toolchain() tags below declare,
++# one cc and one binutils toolchain per tag.
++register_toolchains("@gcc_toolchains//:all")
++
++DEBIAN_SNAPSHOT = "https://snapshot.debian.org/archive/debian/20260727T143429Z"
++
++apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
++apt.sources_list(
++    architectures = KERNEL_TARGET_ARCHITECTURES,
++    components = ["main"],
++    suites = [
++        "trixie",
++        "trixie-updates",
++    ],
++    uris = [DEBIAN_SNAPSHOT],
++)
++apt.sources_list(
++    architectures = KERNEL_TARGET_ARCHITECTURES,
++    components = ["main"],
++    suites = ["trixie-security"],
++    uris = ["https://snapshot.debian.org/archive/debian-security/20260726T121236Z"],
++)
++
++# The cc toolchains' sysroot: libc, libstdc++ and kernel headers.
++# We keep it in a separate apt install set so that the toolchain can resolve
++# without fetching the entire closure of packages.
++apt.install(
++    dependency_set = "sysroot",
++    packages = [
++        # Expose the target ABI controls as well as the compiler headers.
++        # Runtime metadata must inspect target libraries, never build-tool copies.
++        "libc6",
++        "libc6-dev",
++        "libgcc-s1",
++        "libgcc-14-dev",
++        "libstdc++6",
++        "libstdc++-14-dev",
++        "linux-libc-dev",
++    ],
++    suites = [
++        "trixie",
++        "trixie-updates",
++        "trixie-security",
++    ],
++)
++
++# Build tools used by source generation. Consumers select these package
++# payloads in the execution configuration so the tools and their runtime files
++# match the machine running the generator.
++# Kernel roots also retain source Build-Depends and runtime-library control
++# metadata needed by dpkg-checkbuilddeps and dpkg-shlibdeps.
++apt.install(
++    dependency_set = "build_tools",
++    packages = [
++        name if ":" in name else name + ":" + architecture
++        for name in [
++            "aspell",
++            "aspell-en",
++            "autoconf",
++            "automake",
++            "bash",
++            "bc",
++            "bison",
++            "build-essential",
++            "comerr-dev",
++            "coreutils",
++            "cpio",
++            "dash",
++            "debhelper",
++            "debianutils",
++            "dh-python",
++            "diffutils",
++            "docbook",
++            "docbook-utils",
++            "doxygen",
++            "findutils",
++            "flex",
++            "fonts-dejavu-core",
++            "gcc-14",
++            # The ARM64 kernel builds a 32-bit compatibility vDSO with this compiler.
++            "gcc-arm-linux-gnueabihf:arm64",
++            "graphviz",
++            "grep",
++            "gzip",
++            "kernel-wedge",
++            "kmod",
++            "libc-bin",
++            "libc6",
++            "libelf-dev",
++            "libelf1t64",
++            "libgcc-s1",
++            "libprotobuf-dev",
++            "libsgmls-perl",
++            "sgmlspl",
++            "libssl-dev",
++            "libssl3t64",
++            "libtool",
++            "libtool-bin",
++            "libxml-simple-perl",
++            "libxml2-utils",
++            "libzstd1",
++            "lz4",
++            "m4",
++            "mawk",
++            "openssl",
++            "opensp",
++            "pahole",
++            "patch",
++            "perl",
++            "pkgconf",
++            "protobuf-compiler",
++            "protobuf-compiler-grpc",
++            "python3",
++            "python3-dacite",
++            "python3-jinja2",
++            "quilt",
++            "rsync",
++            "sed",
++            "ss-dev",
++            "thrift-compiler",
++            "util-linux",
++            "xsltproc",
++            "xz-utils",
++            "zlib1g",
++            "zstd",
++            "dpkg-dev",
++            "python3-dev",
++            "python3-sphinx",
++            "python3-pytest",
++            "valgrind",
++            "libc6-dbg",
++            "tcl8.6",
++            "tcl-expect",
++            "texinfo",
++        ]
++        for architecture in NATIVE_ARCHITECTURES
++        if ":" not in name or name.endswith(":" + architecture)
++    ],
++    suites = [
++        "trixie",
++        "trixie-updates",
++        "trixie-security",
++    ],
++)
++
++# The kernel's AMD64 execution tools also compile ARM64 and ARMHF targets.
++apt.install(
++    dependency_set = "build_tools",
++    packages = [
++        "gcc-14-aarch64-linux-gnu:amd64",
++        "gcc-14-arm-linux-gnueabihf:amd64",
++        "gcc-aarch64-linux-gnu:amd64",
++        "gcc-arm-linux-gnueabihf:amd64",
++    ] + [
++        name + ":" + architecture
++        for name in [
++            "libelf-dev",
++            "libelf1t64",
++            "libssl-dev",
++            "libssl3t64",
++            "libzstd-dev",
++            "libzstd1",
++            "zlib1g-dev",
++            "zlib1g",
++        ]
++        for architecture in [
++            "arm64",
++            "armhf",
++        ]
++    ],
++    suites = [
++        "trixie",
++        "trixie-updates",
++        "trixie-security",
++    ],
++)
++
++# Expose individual ABI package payloads and metadata to kernel cross builds.
++apt.install(
++    dependency_set = "sysroot",
++    packages = [
++        name + ":" + architecture
++        for name in [
++            "libc6",
++            "libc6-dev",
++            "libgcc-s1",
++            "libgcc-14-dev",
++            "libcrypt1",
++            "libcrypt-dev",
++            "linux-libc-dev",
++        ]
++        for architecture in [
++            "arm64",
++            "armhf",
++        ]
++    ],
++    suites = [
++        "trixie",
++        "trixie-updates",
++        "trixie-security",
++    ],
++)
++apt.install(
++    dependency_set = "trixie",
++    packages = [
++        name if ":" in name else name + ":" + architecture
++        for name in [
++            # do not sort
++            # debug utilities
++            "gdb",
++            "gdbserver",
++            # Needed for vim, though vim itself is fetched from the main buildimage,
++            # because we can't resolve the right virtual package from rules_distroless yet.
++            "libgpm2",
++            "strace",
++            "sshpass",
++            "openssh-client",
++            # openssh-client's shared libraries.
++            # The FIPS OpenSSH deb ships without deps, so we fetch these from apt.
++            "libedit2",
++            "libfido2-1",
++
++            # for sonic-swss-common
++            # trixie ships libyang 3, so the -dev package lost its soversion suffix.
++            "nlohmann-json3-dev",
++            "libhiredis-dev",
++            "libboost-dev",
++            "libboost-serialization-dev",
++            "uuid-dev",
++            "libzmq3-dev",
++            "libyang-dev",
++            "swig",
++            "python3-dev",
++
++            # for docker-sysmgr
++            "libdbus-1-3",
++            "libdbus-c++-1-0v5",
++            "libprotobuf32t64",
++
++            # for sonic-sysmgr
++            "libdbus-c++-bin",
++            "libdbus-c++-dev",
++        ]
++        for architecture in NATIVE_ARCHITECTURES
++        if ":" not in name or name.endswith(":" + architecture)
++    ],
++    suites = [
++        "trixie",
++        "trixie-updates",
++        "trixie-security",
++    ],
++)
++use_repo(
++    apt,
++    # Re-export the hub repo, so that dependents on sonic-build-infra can get the whole central list
++    # without having to declare their own dependencies.
++    #
++    # Dependents can use it by importing `sonic-build-infra` and loading it:
++    #     apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
++    #     use_repo(apt, "trixie")
++    "trixie",
++
++    # The cc toolchains' sysroot, resolved per architecture.
++    "sysroot",
++
++    # Build tools and their runtime dependencies, resolved per architecture.
++    "build_tools",
++)
++
++# The `vim` .debs, because rules_distroless can't give us vim.
++#
++# `vim` is a virtual package that many packages provide, not just the one named `vim`.
++# rules_distroless resolves a name to a virtual provider before it looks for a real package,
++# so asking it for "vim" hands back vim-nox, which is a package with a bunch of extra
++# language runtimes and different configuration.
++# The Make build installs this concrete `vim` package, so we fetch those .debs directly
++# and unpack them for //deps/vim:BUILD.bazel to assemble into layers.
++# The reason why they're here instead of an `imported` file inside deps/vim is
++# that we want to use DEBIAN_SNAPSHOT, and we can't import it without building a whole extension,
++# which would be overkill.
++#
++# TODO(bazel-ready): drop all of this once rules_distroless prefers a real
++# package over a virtual one of the same name.
++http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
++
++_DEB_BUILD_FILE = """exports_files(["data.tar.xz"])"""
++
++http_archive(
++    name = "vim_amd64",
++    build_file_content = _DEB_BUILD_FILE,
++    sha256 = "7050d710bbcd5dee68865d90fd95a9aa865bf16d9a3874c5bb6a4f1d69231cfe",
++    urls = [DEBIAN_SNAPSHOT + "/pool/main/v/vim/vim_9.1.1230-2_amd64.deb"],
++)
++
++http_archive(
++    name = "vim_arm64",
++    build_file_content = _DEB_BUILD_FILE,
++    sha256 = "933d4a979a78574f3e57b0ddb87088c720a4526fdd254c39394c4b70f5e59aa7",
++    urls = [DEBIAN_SNAPSHOT + "/pool/main/v/vim/vim_9.1.1230-2_arm64.deb"],
++)
++
++# vim-runtime is Architecture: all, so one copy serves every platform.
++http_archive(
++    name = "vim_runtime",
++    build_file_content = _DEB_BUILD_FILE,
++    sha256 = "5addd2e7d3aae7d1907aba6c0c16c525e78ccfc0f6ee9ef9651c139a80c97058",
++    urls = [DEBIAN_SNAPSHOT + "/pool/main/v/vim/vim-runtime_9.1.1230-2_all.deb"],
++)
++
++# Raw APT source archives used to assemble the shared compiler sysroots.
++#
++# Import these repositories for //toolchains/sysroot:packages.bzl; compilers
++# consume the combined sysroot rather than individual package directories.
++#
++# Will fail loudly if the versions get out of sync.
++SYSROOT_PACKAGE_REPO_TEMPLATES = [
++    "trixie-security_linux-libc-dev-{arch}_6.12.96-1",
++    "trixie_libc6-{arch}_2.41-12-deb13u3",
++    "trixie_libc6-dev-{arch}_2.41-12-deb13u3",
++    "trixie_libgcc-14-dev-{arch}_14.2.0-19",
++    "trixie_libgcc-s1-{arch}_14.2.0-19",
++    "trixie_libstdc---14-dev-{arch}_14.2.0-19",
++    "trixie_libstdc--6-{arch}_14.2.0-19",
++] + [
++    "trixie_" + package + "-{arch}_14.2.0-19"
++    for package in [
++        "gcc-14-base",
++        "libasan8",
++        "libatomic1",
++        "libgomp1",
++        "libhwasan0",
++        "libitm1",
++        "liblsan0",
++        "libtsan2",
++        "libubsan1",
++    ]
++]
++
++[
++    [
++        use_repo(apt, repo_template.format(arch = arch))
++        for repo_template in SYSROOT_PACKAGE_REPO_TEMPLATES
++    ]
++    for arch in NATIVE_ARCHITECTURES
++]
++
++use_repo(apt, "trixie_libquadmath0-amd64_14.2.0-19")
++
++# Debian compiler executables and the libraries needed to run them. Native
++# AMD64, native ARM64 and AMD64-to-ARM64 builds use the same package snapshot.
++# Target headers and libraries remain in the shared sonic_sysroot repository.
++GCC_RUNTIME_PACKAGES = {
++    "binutils-common": "2.44-3",
++    "gcc-14-base": "14.2.0-19",
++    "libc6": "2.41-12+deb13u3",
++    "libgcc-s1": "14.2.0-19",
++    "libstdc++6": "14.2.0-19",
++    "libcc1-0": "14.2.0-19",
++    "libgmp10": "2:6.3.0+dfsg-3",
++    "libmpfr6": "4.2.2-1",
++    "libmpc3": "1.3.1-1+b3",
++    "libisl23": "0.27-1",
++    "libzstd1": "1.5.7+dfsg-1",
++    "zlib1g": "1:1.3.dfsg+really1.3.1-1+b1",
++    "libjansson4": "2.14-2+b3",
++    "libsframe1": "2.44-3",
++}
++
++apt.install(
++    dependency_set = "gcc_runtime",
++    include_transitive = False,
++    packages = [
++        name + ":" + arch + " (= " + version + ")"
++        for arch in NATIVE_ARCHITECTURES
++        for name, version in GCC_RUNTIME_PACKAGES.items()
++    ],
++    suites = ["trixie"],
++)
++
++GCC_RUNTIME_REPOS = {
++    arch: {
++        name: "trixie_" + name.replace("+", "-") + "-" + arch + "_" + version.replace("+", "-").replace(":", "-")
++        for name, version in GCC_RUNTIME_PACKAGES.items()
++    }
++    for arch in NATIVE_ARCHITECTURES
++}
++
++[
++    use_repo(apt, repo)
++    for repos in GCC_RUNTIME_REPOS.values()
++    for name, repo in repos.items()
++    # These packages were already imported for the shared sysroot above.
++    if name not in [
++        "gcc-14-base",
++        "libc6",
++        "libgcc-s1",
++        "libstdc++6",
++    ]
++]
++
++NATIVE_GCC_PLATFORMS = {
++    "amd64": {
++        "cpu": "x86_64",
++        # Debian package names use x86-64; executable names use x86_64.
++        "package_prefix": "x86-64-linux-gnu",
++        "tool_prefix": "x86_64-linux-gnu",
++    },
++    "arm64": {
++        "cpu": "aarch64",
++        "package_prefix": "aarch64-linux-gnu",
++        "tool_prefix": "aarch64-linux-gnu",
++    },
++}
++
++NATIVE_GCC_PACKAGES = {
++    arch: {
++        "gcc-14-" + platform["package_prefix"]: "14.2.0-19",
++        "g++-14-" + platform["package_prefix"]: "14.2.0-19",
++        "cpp-14-" + platform["package_prefix"]: "14.2.0-19",
++        "binutils-" + platform["package_prefix"]: "2.44-3",
++        # Native binutils keep these libraries in separate packages; the
++        # cross binutils package carries its own copies for its target.
++        "libbinutils": "2.44-3",
++        "libctf0": "2.44-3",
++        "libctf-nobfd0": "2.44-3",
++    }
++    for arch, platform in NATIVE_GCC_PLATFORMS.items()
++}
++
++apt.install(
++    dependency_set = "gcc_native",
++    include_transitive = False,
++    packages = [
++        name + ":" + arch + " (= " + version + ")"
++        for arch, packages in NATIVE_GCC_PACKAGES.items()
++        for name, version in packages.items()
++    ],
++    suites = ["trixie"],
++)
++
++NATIVE_GCC_REPOS = {
++    arch: [
++        "trixie_" + name.replace("+", "-") + "-" + arch + "_" + version
++        for name, version in packages.items()
++    ]
++    for arch, packages in NATIVE_GCC_PACKAGES.items()
++}
++
++[
++    use_repo(apt, repo)
++    for repos in NATIVE_GCC_REPOS.values()
++    for repo in repos
++]
++
++[
++    gcc.debian_toolchain(
++        arch = platform["cpu"],
++        debian_packages = [
++            "@" + repo + "//:data.tar.xz"
++            for repo in NATIVE_GCC_REPOS[arch] + GCC_RUNTIME_REPOS[arch].values()
++        ],
++        suite = "trixie",
++        sysroot = "@sonic_sysroot//root:sysroot",
++        target_platform = "//platforms:trixie",
++        tool_prefix = platform["tool_prefix"],
++        version = "14.2.0",
++    )
++    for arch, platform in NATIVE_GCC_PLATFORMS.items()
++]
++
++CROSS_GCC_PACKAGES = {
++    "gcc-14-aarch64-linux-gnu": "14.2.0-19cross1",
++    "g++-14-aarch64-linux-gnu": "14.2.0-19cross1",
++    "cpp-14-aarch64-linux-gnu": "14.2.0-19cross1",
++    "gcc-14-aarch64-linux-gnu-base": "14.2.0-19cross1",
++    "binutils-aarch64-linux-gnu": "2.44-3",
++}
++
++apt.install(
++    dependency_set = "gcc_cross_amd64",
++    include_transitive = False,
++    packages = [name + ":amd64 (= " + version + ")" for name, version in CROSS_GCC_PACKAGES.items()],
++    suites = ["trixie"],
++)
++
++CROSS_GCC_REPOS = [
++    "trixie_" + name.replace("+", "-") + "-amd64_" + version
++    for name, version in CROSS_GCC_PACKAGES.items()
++]
++
++[use_repo(apt, repo) for repo in CROSS_GCC_REPOS]
++
++gcc.debian_toolchain(
++    arch = "aarch64",
++    debian_packages = [
++        "@" + repo + "//:data.tar.xz"
++        for repo in CROSS_GCC_REPOS + GCC_RUNTIME_REPOS["amd64"].values()
++    ],
++    exec_arch = "x86_64",
++    suite = "trixie",
++    sysroot = "@sonic_sysroot//root:sysroot",
++    target_platform = "//platforms:trixie",
++    tool_prefix = "aarch64-linux-gnu",
++    version = "14.2.0",
++)
++
++uv = use_extension("@aspect_rules_py//uv/unstable:extension.bzl", "uv")
++uv.declare_hub(
++    hub_name = "pypi",
++)
++uv.project(
++    default_build_dependencies = [
++        "build",
++        "setuptools",
++    ],
++    hub_name = "pypi",
++    lock = "//deps:uv.lock",
++    pyproject = "//deps:pyproject.toml",
++)
++use_repo(uv, "pypi")
++
++# Provision both pip runtimes. This default applies only when infrastructure is
++# the root module; image consumers keep the Python version chosen by their root.
++python = use_extension("@rules_python//python/extensions:python.bzl", "python")
++python.defaults(python_version = "3.11")
++python.toolchain(python_version = "3.11")
++python.toolchain(python_version = "3.13")
++
++# Installation tools run on the execution platform. The installer wheel is pure
++# Python; its resolver version does not select the target image's Python ABI.
++wheel_pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
++wheel_pip.parse(
++    hub_name = "sonic_wheel_pip",
++    python_version = "3.11",
++    requirements_lock = "//python:wheel_requirements_lock.txt",
++)
++use_repo(wheel_pip, "sonic_wheel_pip")
++
++# Share Debian parsing across the infrastructure and image Python runtimes.
++[
++    wheel_pip.parse(
++        hub_name = "sonic_apt_pip",
++        python_version = version,
++        requirements_lock = "//apt:requirements_lock.txt",
++    )
++    for version in [
++        "3.11",
++        "3.13",
++    ]
++]
++
++use_repo(wheel_pip, "sonic_apt_pip")
++
++# Declared execution tools for upstream configure/Make source builds.
++register_toolchains(
++    "//tools/build_tools:make_toolchain",
++    "//tools/build_tools:m4_toolchain",
++    "//tools/build_tools:pkgconfig_toolchain",
++    "//tools/build_tools:autoconf_toolchain",
++)
++
++# Like vim above, make must select its concrete package, not make-guile.
++
++http_archive(
++    name = "build_make_amd64",
++    build_file_content = _DEB_BUILD_FILE,
++    sha256 = "70a9709e665383b06068ccd423d62ea191b65355f318a25565dbf324b254cec6",
++    urls = [DEBIAN_SNAPSHOT + "/pool/main/m/make-dfsg/make_4.4.1-2_amd64.deb"],
++)
++
++http_archive(
++    name = "build_make_arm64",
++    build_file_content = _DEB_BUILD_FILE,
++    sha256 = "043219839669c431def9bb410c4a827f115ee5bf377469d55c4ed905f81f73be",
++    urls = [DEBIAN_SNAPSHOT + "/pool/main/m/make-dfsg/make_4.4.1-2_arm64.deb"],
++)
++
++bookworm_bazel_lib_tools = use_extension("@bazel_lib//lib:extensions.bzl", "toolchains")
++use_repo(bookworm_bazel_lib_tools, "coreutils_toolchains", "zstd_toolchains")
++
++use_repo(sysroot_tar, "bsd_tar_toolchains")
++
++apt_bookworm = use_extension("//toolchains/bookworm:apt.bzl", "apt")
++
++# Bookworm target ABI and GCC12 distributions, isolated from Trixie indexes.
++apt_bookworm.sources_list(
++    architectures = NATIVE_ARCHITECTURES,
++    components = ["main"],
++    suites = [
++        "bookworm",
++        "bookworm-updates",
++    ],
++    uris = [DEBIAN_SNAPSHOT],
++)
++apt_bookworm.sources_list(
++    architectures = NATIVE_ARCHITECTURES,
++    components = ["main"],
++    suites = ["bookworm-security"],
++    uris = ["https://snapshot.debian.org/archive/debian-security/20260726T121236Z"],
++)
++apt_bookworm.install(
++    dependency_set = "bookworm_toolchains",
++    include_transitive = False,
++    packages = [
++        "binutils:amd64 (= 2.40-2)",
++        "binutils:arm64 (= 2.40-2)",
++        "binutils-aarch64-linux-gnu:amd64 (= 2.40-2)",
++        "binutils-aarch64-linux-gnu:arm64 (= 2.40-2)",
++        "binutils-common:amd64 (= 2.40-2)",
++        "binutils-common:arm64 (= 2.40-2)",
++        "binutils-x86-64-linux-gnu:amd64 (= 2.40-2)",
++        "cpp-12:amd64 (= 12.2.0-14+deb12u1)",
++        "cpp-12:arm64 (= 12.2.0-14+deb12u1)",
++        "cpp-12-aarch64-linux-gnu:amd64 (= 12.2.0-14cross1)",
++        "g++-12:amd64 (= 12.2.0-14+deb12u1)",
++        "g++-12:arm64 (= 12.2.0-14+deb12u1)",
++        "g++-12-aarch64-linux-gnu:amd64 (= 12.2.0-14cross1)",
++        "gcc-12:amd64 (= 12.2.0-14+deb12u1)",
++        "gcc-12:arm64 (= 12.2.0-14+deb12u1)",
++        "gcc-12-aarch64-linux-gnu:amd64 (= 12.2.0-14cross1)",
++        "gcc-12-aarch64-linux-gnu-base:amd64 (= 12.2.0-14cross1)",
++        "gcc-12-base:amd64 (= 12.2.0-14+deb12u1)",
++        "gcc-12-base:arm64 (= 12.2.0-14+deb12u1)",
++        "gcc-12-cross-base:amd64 (= 12.2.0-14cross1)",
++        "libasan8:amd64 (= 12.2.0-14+deb12u1)",
++        "libasan8:arm64 (= 12.2.0-14+deb12u1)",
++        "libasan8-arm64-cross:amd64 (= 12.2.0-14cross1)",
++        "libatomic1:amd64 (= 12.2.0-14+deb12u1)",
++        "libatomic1:arm64 (= 12.2.0-14+deb12u1)",
++        "libatomic1-arm64-cross:amd64 (= 12.2.0-14cross1)",
++        "libbinutils:amd64 (= 2.40-2)",
++        "libbinutils:arm64 (= 2.40-2)",
++        "libc-dev-bin:amd64 (= 2.36-9+deb12u14)",
++        "libc-dev-bin:arm64 (= 2.36-9+deb12u14)",
++        "libc6:amd64 (= 2.36-9+deb12u14)",
++        "libc6:arm64 (= 2.36-9+deb12u14)",
++        "libc6-arm64-cross:amd64 (= 2.36-8cross1)",
++        "libc6-dev:amd64 (= 2.36-9+deb12u14)",
++        "libc6-dev:arm64 (= 2.36-9+deb12u14)",
++        "libc6-dev-arm64-cross:amd64 (= 2.36-8cross1)",
++        "libcc1-0:amd64 (= 12.2.0-14+deb12u1)",
++        "libcc1-0:arm64 (= 12.2.0-14+deb12u1)",
++        "libcom-err2:amd64 (= 1.47.0-2+b2)",
++        "libcom-err2:arm64 (= 1.47.0-2+b2)",
++        "libcrypt-dev:amd64 (= 1:4.4.33-2)",
++        "libcrypt-dev:arm64 (= 1:4.4.33-2)",
++        "libcrypt1:amd64 (= 1:4.4.33-2)",
++        "libcrypt1:arm64 (= 1:4.4.33-2)",
++        "libctf-nobfd0:amd64 (= 2.40-2)",
++        "libctf-nobfd0:arm64 (= 2.40-2)",
++        "libctf0:amd64 (= 2.40-2)",
++        "libctf0:arm64 (= 2.40-2)",
++        "libgcc-12-dev:amd64 (= 12.2.0-14+deb12u1)",
++        "libgcc-12-dev:arm64 (= 12.2.0-14+deb12u1)",
++        "libgcc-12-dev-arm64-cross:amd64 (= 12.2.0-14cross1)",
++        "libgcc-s1:amd64 (= 12.2.0-14+deb12u1)",
++        "libgcc-s1:arm64 (= 12.2.0-14+deb12u1)",
++        "libgcc-s1-arm64-cross:amd64 (= 12.2.0-14cross1)",
++        "libgmp10:amd64 (= 2:6.2.1+dfsg1-1.1)",
++        "libgmp10:arm64 (= 2:6.2.1+dfsg1-1.1)",
++        "libgomp1:amd64 (= 12.2.0-14+deb12u1)",
++        "libgomp1:arm64 (= 12.2.0-14+deb12u1)",
++        "libgomp1-arm64-cross:amd64 (= 12.2.0-14cross1)",
++        "libgprofng0:amd64 (= 2.40-2)",
++        "libgprofng0:arm64 (= 2.40-2)",
++        "libgssapi-krb5-2:amd64 (= 1.20.1-2+deb12u5)",
++        "libgssapi-krb5-2:arm64 (= 1.20.1-2+deb12u5)",
++        "libhwasan0:arm64 (= 12.2.0-14+deb12u1)",
++        "libhwasan0-arm64-cross:amd64 (= 12.2.0-14cross1)",
++        "libisl23:amd64 (= 0.25-1.1)",
++        "libisl23:arm64 (= 0.25-1.1)",
++        "libitm1:amd64 (= 12.2.0-14+deb12u1)",
++        "libitm1:arm64 (= 12.2.0-14+deb12u1)",
++        "libitm1-arm64-cross:amd64 (= 12.2.0-14cross1)",
++        "libjansson4:amd64 (= 2.14-2)",
++        "libjansson4:arm64 (= 2.14-2)",
++        "libk5crypto3:amd64 (= 1.20.1-2+deb12u5)",
++        "libk5crypto3:arm64 (= 1.20.1-2+deb12u5)",
++        "libkeyutils1:amd64 (= 1.6.3-2)",
++        "libkeyutils1:arm64 (= 1.6.3-2)",
++        "libkrb5-3:amd64 (= 1.20.1-2+deb12u5)",
++        "libkrb5-3:arm64 (= 1.20.1-2+deb12u5)",
++        "libkrb5support0:amd64 (= 1.20.1-2+deb12u5)",
++        "libkrb5support0:arm64 (= 1.20.1-2+deb12u5)",
++        "liblsan0:amd64 (= 12.2.0-14+deb12u1)",
++        "liblsan0:arm64 (= 12.2.0-14+deb12u1)",
++        "liblsan0-arm64-cross:amd64 (= 12.2.0-14cross1)",
++        "libmpc3:amd64 (= 1.3.1-1)",
++        "libmpc3:arm64 (= 1.3.1-1)",
++        "libmpfr6:amd64 (= 4.2.0-1)",
++        "libmpfr6:arm64 (= 4.2.0-1)",
++        "libnsl-dev:amd64 (= 1.3.0-2)",
++        "libnsl-dev:arm64 (= 1.3.0-2)",
++        "libnsl2:amd64 (= 1.3.0-2)",
++        "libnsl2:arm64 (= 1.3.0-2)",
++        "libquadmath0:amd64 (= 12.2.0-14+deb12u1)",
++        "libssl3:amd64 (= 3.0.20-1~deb12u2)",
++        "libssl3:arm64 (= 3.0.20-1~deb12u2)",
++        "libstdc++-12-dev:amd64 (= 12.2.0-14+deb12u1)",
++        "libstdc++-12-dev:arm64 (= 12.2.0-14+deb12u1)",
++        "libstdc++-12-dev-arm64-cross:amd64 (= 12.2.0-14cross1)",
++        "libstdc++6:amd64 (= 12.2.0-14+deb12u1)",
++        "libstdc++6:arm64 (= 12.2.0-14+deb12u1)",
++        "libstdc++6-arm64-cross:amd64 (= 12.2.0-14cross1)",
++        "libtirpc-common:amd64 (= 1.3.3+ds-1)",
++        "libtirpc-common:arm64 (= 1.3.3+ds-1)",
++        "libtirpc-dev:amd64 (= 1.3.3+ds-1)",
++        "libtirpc-dev:arm64 (= 1.3.3+ds-1)",
++        "libtirpc3:amd64 (= 1.3.3+ds-1)",
++        "libtirpc3:arm64 (= 1.3.3+ds-1)",
++        "libtsan2:amd64 (= 12.2.0-14+deb12u1)",
++        "libtsan2:arm64 (= 12.2.0-14+deb12u1)",
++        "libtsan2-arm64-cross:amd64 (= 12.2.0-14cross1)",
++        "libubsan1:amd64 (= 12.2.0-14+deb12u1)",
++        "libubsan1:arm64 (= 12.2.0-14+deb12u1)",
++        "libubsan1-arm64-cross:amd64 (= 12.2.0-14cross1)",
++        "libzstd1:amd64 (= 1.5.4+dfsg2-5)",
++        "libzstd1:arm64 (= 1.5.4+dfsg2-5)",
++        "linux-libc-dev:amd64 (= 6.1.177-1)",
++        "linux-libc-dev:arm64 (= 6.1.177-1)",
++        "linux-libc-dev-arm64-cross:amd64 (= 6.1.4-1cross1)",
++        "rpcsvc-proto:amd64 (= 1.4.3-1)",
++        "rpcsvc-proto:arm64 (= 1.4.3-1)",
++        "zlib1g:amd64 (= 1:1.2.13.dfsg-1)",
++        "zlib1g:arm64 (= 1:1.2.13.dfsg-1)",
++    ],
++    suites = [
++        "bookworm",
++        "bookworm-updates",
++        "bookworm-security",
++    ],
++)
++use_repo(
++    apt_bookworm,
++    "bookworm-security_libgssapi-krb5-2-amd64_1.20.1-2-deb12u5",
++    "bookworm-security_libgssapi-krb5-2-arm64_1.20.1-2-deb12u5",
++    "bookworm-security_libk5crypto3-amd64_1.20.1-2-deb12u5",
++    "bookworm-security_libk5crypto3-arm64_1.20.1-2-deb12u5",
++    "bookworm-security_libkrb5-3-amd64_1.20.1-2-deb12u5",
++    "bookworm-security_libkrb5-3-arm64_1.20.1-2-deb12u5",
++    "bookworm-security_libkrb5support0-amd64_1.20.1-2-deb12u5",
++    "bookworm-security_libkrb5support0-arm64_1.20.1-2-deb12u5",
++    "bookworm-security_libssl3-amd64_3.0.20-1_deb12u2",
++    "bookworm-security_libssl3-arm64_3.0.20-1_deb12u2",
++    "bookworm-security_linux-libc-dev-amd64_6.1.177-1",
++    "bookworm-security_linux-libc-dev-arm64_6.1.177-1",
++    "bookworm_binutils-aarch64-linux-gnu-amd64_2.40-2",
++    "bookworm_binutils-aarch64-linux-gnu-arm64_2.40-2",
++    "bookworm_binutils-amd64_2.40-2",
++    "bookworm_binutils-arm64_2.40-2",
++    "bookworm_binutils-common-amd64_2.40-2",
++    "bookworm_binutils-common-arm64_2.40-2",
++    "bookworm_binutils-x86-64-linux-gnu-amd64_2.40-2",
++    "bookworm_cpp-12-aarch64-linux-gnu-amd64_12.2.0-14cross1",
++    "bookworm_cpp-12-amd64_12.2.0-14-deb12u1",
++    "bookworm_cpp-12-arm64_12.2.0-14-deb12u1",
++    "bookworm_g---12-aarch64-linux-gnu-amd64_12.2.0-14cross1",
++    "bookworm_g---12-amd64_12.2.0-14-deb12u1",
++    "bookworm_g---12-arm64_12.2.0-14-deb12u1",
++    "bookworm_gcc-12-aarch64-linux-gnu-amd64_12.2.0-14cross1",
++    "bookworm_gcc-12-aarch64-linux-gnu-base-amd64_12.2.0-14cross1",
++    "bookworm_gcc-12-amd64_12.2.0-14-deb12u1",
++    "bookworm_gcc-12-arm64_12.2.0-14-deb12u1",
++    "bookworm_gcc-12-base-amd64_12.2.0-14-deb12u1",
++    "bookworm_gcc-12-base-arm64_12.2.0-14-deb12u1",
++    "bookworm_gcc-12-cross-base-amd64_12.2.0-14cross1",
++    "bookworm_libasan8-amd64_12.2.0-14-deb12u1",
++    "bookworm_libasan8-arm64-cross-amd64_12.2.0-14cross1",
++    "bookworm_libasan8-arm64_12.2.0-14-deb12u1",
++    "bookworm_libatomic1-amd64_12.2.0-14-deb12u1",
++    "bookworm_libatomic1-arm64-cross-amd64_12.2.0-14cross1",
++    "bookworm_libatomic1-arm64_12.2.0-14-deb12u1",
++    "bookworm_libbinutils-amd64_2.40-2",
++    "bookworm_libbinutils-arm64_2.40-2",
++    "bookworm_libc-dev-bin-amd64_2.36-9-deb12u14",
++    "bookworm_libc-dev-bin-arm64_2.36-9-deb12u14",
++    "bookworm_libc6-amd64_2.36-9-deb12u14",
++    "bookworm_libc6-arm64-cross-amd64_2.36-8cross1",
++    "bookworm_libc6-arm64_2.36-9-deb12u14",
++    "bookworm_libc6-dev-amd64_2.36-9-deb12u14",
++    "bookworm_libc6-dev-arm64-cross-amd64_2.36-8cross1",
++    "bookworm_libc6-dev-arm64_2.36-9-deb12u14",
++    "bookworm_libcc1-0-amd64_12.2.0-14-deb12u1",
++    "bookworm_libcc1-0-arm64_12.2.0-14-deb12u1",
++    "bookworm_libcom-err2-amd64_1.47.0-2-b2",
++    "bookworm_libcom-err2-arm64_1.47.0-2-b2",
++    "bookworm_libcrypt-dev-amd64_1-4.4.33-2",
++    "bookworm_libcrypt-dev-arm64_1-4.4.33-2",
++    "bookworm_libcrypt1-amd64_1-4.4.33-2",
++    "bookworm_libcrypt1-arm64_1-4.4.33-2",
++    "bookworm_libctf-nobfd0-amd64_2.40-2",
++    "bookworm_libctf-nobfd0-arm64_2.40-2",
++    "bookworm_libctf0-amd64_2.40-2",
++    "bookworm_libctf0-arm64_2.40-2",
++    "bookworm_libgcc-12-dev-amd64_12.2.0-14-deb12u1",
++    "bookworm_libgcc-12-dev-arm64-cross-amd64_12.2.0-14cross1",
++    "bookworm_libgcc-12-dev-arm64_12.2.0-14-deb12u1",
++    "bookworm_libgcc-s1-amd64_12.2.0-14-deb12u1",
++    "bookworm_libgcc-s1-arm64-cross-amd64_12.2.0-14cross1",
++    "bookworm_libgcc-s1-arm64_12.2.0-14-deb12u1",
++    "bookworm_libgmp10-amd64_2-6.2.1-dfsg1-1.1",
++    "bookworm_libgmp10-arm64_2-6.2.1-dfsg1-1.1",
++    "bookworm_libgomp1-amd64_12.2.0-14-deb12u1",
++    "bookworm_libgomp1-arm64-cross-amd64_12.2.0-14cross1",
++    "bookworm_libgomp1-arm64_12.2.0-14-deb12u1",
++    "bookworm_libgprofng0-amd64_2.40-2",
++    "bookworm_libgprofng0-arm64_2.40-2",
++    "bookworm_libhwasan0-arm64-cross-amd64_12.2.0-14cross1",
++    "bookworm_libhwasan0-arm64_12.2.0-14-deb12u1",
++    "bookworm_libisl23-amd64_0.25-1.1",
++    "bookworm_libisl23-arm64_0.25-1.1",
++    "bookworm_libitm1-amd64_12.2.0-14-deb12u1",
++    "bookworm_libitm1-arm64-cross-amd64_12.2.0-14cross1",
++    "bookworm_libitm1-arm64_12.2.0-14-deb12u1",
++    "bookworm_libjansson4-amd64_2.14-2",
++    "bookworm_libjansson4-arm64_2.14-2",
++    "bookworm_libkeyutils1-amd64_1.6.3-2",
++    "bookworm_libkeyutils1-arm64_1.6.3-2",
++    "bookworm_liblsan0-amd64_12.2.0-14-deb12u1",
++    "bookworm_liblsan0-arm64-cross-amd64_12.2.0-14cross1",
++    "bookworm_liblsan0-arm64_12.2.0-14-deb12u1",
++    "bookworm_libmpc3-amd64_1.3.1-1",
++    "bookworm_libmpc3-arm64_1.3.1-1",
++    "bookworm_libmpfr6-amd64_4.2.0-1",
++    "bookworm_libmpfr6-arm64_4.2.0-1",
++    "bookworm_libnsl-dev-amd64_1.3.0-2",
++    "bookworm_libnsl-dev-arm64_1.3.0-2",
++    "bookworm_libnsl2-amd64_1.3.0-2",
++    "bookworm_libnsl2-arm64_1.3.0-2",
++    "bookworm_libquadmath0-amd64_12.2.0-14-deb12u1",
++    "bookworm_libstdc---12-dev-amd64_12.2.0-14-deb12u1",
++    "bookworm_libstdc---12-dev-arm64-cross-amd64_12.2.0-14cross1",
++    "bookworm_libstdc---12-dev-arm64_12.2.0-14-deb12u1",
++    "bookworm_libstdc--6-amd64_12.2.0-14-deb12u1",
++    "bookworm_libstdc--6-arm64-cross-amd64_12.2.0-14cross1",
++    "bookworm_libstdc--6-arm64_12.2.0-14-deb12u1",
++    "bookworm_libtirpc-common-amd64_1.3.3-ds-1",
++    "bookworm_libtirpc-common-arm64_1.3.3-ds-1",
++    "bookworm_libtirpc-dev-amd64_1.3.3-ds-1",
++    "bookworm_libtirpc-dev-arm64_1.3.3-ds-1",
++    "bookworm_libtirpc3-amd64_1.3.3-ds-1",
++    "bookworm_libtirpc3-arm64_1.3.3-ds-1",
++    "bookworm_libtsan2-amd64_12.2.0-14-deb12u1",
++    "bookworm_libtsan2-arm64-cross-amd64_12.2.0-14cross1",
++    "bookworm_libtsan2-arm64_12.2.0-14-deb12u1",
++    "bookworm_libubsan1-amd64_12.2.0-14-deb12u1",
++    "bookworm_libubsan1-arm64-cross-amd64_12.2.0-14cross1",
++    "bookworm_libubsan1-arm64_12.2.0-14-deb12u1",
++    "bookworm_libzstd1-amd64_1.5.4-dfsg2-5",
++    "bookworm_libzstd1-arm64_1.5.4-dfsg2-5",
++    "bookworm_linux-libc-dev-arm64-cross-amd64_6.1.4-1cross1",
++    "bookworm_rpcsvc-proto-amd64_1.4.3-1",
++    "bookworm_rpcsvc-proto-arm64_1.4.3-1",
++    "bookworm_toolchains",
++    "bookworm_zlib1g-amd64_1-1.2.13.dfsg-1",
++    "bookworm_zlib1g-arm64_1-1.2.13.dfsg-1",
++)
++
++sysroots.debian(
++    name = "bookworm_sysroot_amd64",
++    architectures = ["amd64"],
++    suite = "bookworm",
++)
++sysroots.debian(
++    name = "bookworm_sysroot_arm64",
++    architectures = ["arm64"],
++    suite = "bookworm",
++)
++use_repo(sysroots, "bookworm_sysroot_amd64", "bookworm_sysroot_arm64")
++
++gcc.debian_toolchain(
++    arch = "x86_64",
++    debian_packages = [
++        "@bookworm_binutils-amd64_2.40-2//:data.tar.xz",
++        "@bookworm_binutils-common-amd64_2.40-2//:data.tar.xz",
++        "@bookworm_binutils-x86-64-linux-gnu-amd64_2.40-2//:data.tar.xz",
++        "@bookworm_cpp-12-amd64_12.2.0-14-deb12u1//:data.tar.xz",
++        "@bookworm_g---12-amd64_12.2.0-14-deb12u1//:data.tar.xz",
++        "@bookworm_gcc-12-amd64_12.2.0-14-deb12u1//:data.tar.xz",
++        "@bookworm_gcc-12-base-amd64_12.2.0-14-deb12u1//:data.tar.xz",
++        "@bookworm_libasan8-amd64_12.2.0-14-deb12u1//:data.tar.xz",
++        "@bookworm_libatomic1-amd64_12.2.0-14-deb12u1//:data.tar.xz",
++        "@bookworm_libbinutils-amd64_2.40-2//:data.tar.xz",
++        "@bookworm_libc-dev-bin-amd64_2.36-9-deb12u14//:data.tar.xz",
++        "@bookworm_libc6-amd64_2.36-9-deb12u14//:data.tar.xz",
++        "@bookworm_libc6-dev-amd64_2.36-9-deb12u14//:data.tar.xz",
++        "@bookworm_libcc1-0-amd64_12.2.0-14-deb12u1//:data.tar.xz",
++        "@bookworm_libcom-err2-amd64_1.47.0-2-b2//:data.tar.xz",
++        "@bookworm_libcrypt-dev-amd64_1-4.4.33-2//:data.tar.xz",
++        "@bookworm_libcrypt1-amd64_1-4.4.33-2//:data.tar.xz",
++        "@bookworm_libctf-nobfd0-amd64_2.40-2//:data.tar.xz",
++        "@bookworm_libctf0-amd64_2.40-2//:data.tar.xz",
++        "@bookworm_libgcc-12-dev-amd64_12.2.0-14-deb12u1//:data.tar.xz",
++        "@bookworm_libgcc-s1-amd64_12.2.0-14-deb12u1//:data.tar.xz",
++        "@bookworm_libgmp10-amd64_2-6.2.1-dfsg1-1.1//:data.tar.xz",
++        "@bookworm_libgomp1-amd64_12.2.0-14-deb12u1//:data.tar.xz",
++        "@bookworm_libgprofng0-amd64_2.40-2//:data.tar.xz",
++        "@bookworm-security_libgssapi-krb5-2-amd64_1.20.1-2-deb12u5//:data.tar.xz",
++        "@bookworm_libisl23-amd64_0.25-1.1//:data.tar.xz",
++        "@bookworm_libitm1-amd64_12.2.0-14-deb12u1//:data.tar.xz",
++        "@bookworm_libjansson4-amd64_2.14-2//:data.tar.xz",
++        "@bookworm-security_libk5crypto3-amd64_1.20.1-2-deb12u5//:data.tar.xz",
++        "@bookworm_libkeyutils1-amd64_1.6.3-2//:data.tar.xz",
++        "@bookworm-security_libkrb5-3-amd64_1.20.1-2-deb12u5//:data.tar.xz",
++        "@bookworm-security_libkrb5support0-amd64_1.20.1-2-deb12u5//:data.tar.xz",
++        "@bookworm_liblsan0-amd64_12.2.0-14-deb12u1//:data.tar.xz",
++        "@bookworm_libmpc3-amd64_1.3.1-1//:data.tar.xz",
++        "@bookworm_libmpfr6-amd64_4.2.0-1//:data.tar.xz",
++        "@bookworm_libnsl-dev-amd64_1.3.0-2//:data.tar.xz",
++        "@bookworm_libnsl2-amd64_1.3.0-2//:data.tar.xz",
++        "@bookworm_libquadmath0-amd64_12.2.0-14-deb12u1//:data.tar.xz",
++        "@bookworm-security_libssl3-amd64_3.0.20-1_deb12u2//:data.tar.xz",
++        "@bookworm_libstdc---12-dev-amd64_12.2.0-14-deb12u1//:data.tar.xz",
++        "@bookworm_libstdc--6-amd64_12.2.0-14-deb12u1//:data.tar.xz",
++        "@bookworm_libtirpc-common-amd64_1.3.3-ds-1//:data.tar.xz",
++        "@bookworm_libtirpc-dev-amd64_1.3.3-ds-1//:data.tar.xz",
++        "@bookworm_libtirpc3-amd64_1.3.3-ds-1//:data.tar.xz",
++        "@bookworm_libtsan2-amd64_12.2.0-14-deb12u1//:data.tar.xz",
++        "@bookworm_libubsan1-amd64_12.2.0-14-deb12u1//:data.tar.xz",
++        "@bookworm_libzstd1-amd64_1.5.4-dfsg2-5//:data.tar.xz",
++        "@bookworm-security_linux-libc-dev-amd64_6.1.177-1//:data.tar.xz",
++        "@bookworm_rpcsvc-proto-amd64_1.4.3-1//:data.tar.xz",
++        "@bookworm_zlib1g-amd64_1-1.2.13.dfsg-1//:data.tar.xz",
++    ],
++    exec_arch = "x86_64",
++    # Share the declared Trixie linker runtime; retain GCC12 and its Bookworm sysroot.
++    linker = "@gcc-14.2.0-linux-target-x86_64-host-x86_64//:bin/x86_64-linux-gnu-ld",
++    linker_files = "@gcc-14.2.0-linux-target-x86_64-host-x86_64//:multicall_support_files",
++    suite = "bookworm",
++    sysroot = "@bookworm_sysroot_amd64//root:sysroot",
++    target_platform = "//platforms:bookworm",
++    version = "12.2.0",
++)
++gcc.debian_toolchain(
++    arch = "aarch64",
++    debian_packages = [
++        "@bookworm_binutils-arm64_2.40-2//:data.tar.xz",
++        "@bookworm_binutils-aarch64-linux-gnu-arm64_2.40-2//:data.tar.xz",
++        "@bookworm_binutils-common-arm64_2.40-2//:data.tar.xz",
++        "@bookworm_cpp-12-arm64_12.2.0-14-deb12u1//:data.tar.xz",
++        "@bookworm_g---12-arm64_12.2.0-14-deb12u1//:data.tar.xz",
++        "@bookworm_gcc-12-arm64_12.2.0-14-deb12u1//:data.tar.xz",
++        "@bookworm_gcc-12-base-arm64_12.2.0-14-deb12u1//:data.tar.xz",
++        "@bookworm_libasan8-arm64_12.2.0-14-deb12u1//:data.tar.xz",
++        "@bookworm_libatomic1-arm64_12.2.0-14-deb12u1//:data.tar.xz",
++        "@bookworm_libbinutils-arm64_2.40-2//:data.tar.xz",
++        "@bookworm_libc-dev-bin-arm64_2.36-9-deb12u14//:data.tar.xz",
++        "@bookworm_libc6-arm64_2.36-9-deb12u14//:data.tar.xz",
++        "@bookworm_libc6-dev-arm64_2.36-9-deb12u14//:data.tar.xz",
++        "@bookworm_libcc1-0-arm64_12.2.0-14-deb12u1//:data.tar.xz",
++        "@bookworm_libcom-err2-arm64_1.47.0-2-b2//:data.tar.xz",
++        "@bookworm_libcrypt-dev-arm64_1-4.4.33-2//:data.tar.xz",
++        "@bookworm_libcrypt1-arm64_1-4.4.33-2//:data.tar.xz",
++        "@bookworm_libctf-nobfd0-arm64_2.40-2//:data.tar.xz",
++        "@bookworm_libctf0-arm64_2.40-2//:data.tar.xz",
++        "@bookworm_libgcc-12-dev-arm64_12.2.0-14-deb12u1//:data.tar.xz",
++        "@bookworm_libgcc-s1-arm64_12.2.0-14-deb12u1//:data.tar.xz",
++        "@bookworm_libgmp10-arm64_2-6.2.1-dfsg1-1.1//:data.tar.xz",
++        "@bookworm_libgomp1-arm64_12.2.0-14-deb12u1//:data.tar.xz",
++        "@bookworm_libgprofng0-arm64_2.40-2//:data.tar.xz",
++        "@bookworm-security_libgssapi-krb5-2-arm64_1.20.1-2-deb12u5//:data.tar.xz",
++        "@bookworm_libhwasan0-arm64_12.2.0-14-deb12u1//:data.tar.xz",
++        "@bookworm_libisl23-arm64_0.25-1.1//:data.tar.xz",
++        "@bookworm_libitm1-arm64_12.2.0-14-deb12u1//:data.tar.xz",
++        "@bookworm_libjansson4-arm64_2.14-2//:data.tar.xz",
++        "@bookworm-security_libk5crypto3-arm64_1.20.1-2-deb12u5//:data.tar.xz",
++        "@bookworm_libkeyutils1-arm64_1.6.3-2//:data.tar.xz",
++        "@bookworm-security_libkrb5-3-arm64_1.20.1-2-deb12u5//:data.tar.xz",
++        "@bookworm-security_libkrb5support0-arm64_1.20.1-2-deb12u5//:data.tar.xz",
++        "@bookworm_liblsan0-arm64_12.2.0-14-deb12u1//:data.tar.xz",
++        "@bookworm_libmpc3-arm64_1.3.1-1//:data.tar.xz",
++        "@bookworm_libmpfr6-arm64_4.2.0-1//:data.tar.xz",
++        "@bookworm_libnsl-dev-arm64_1.3.0-2//:data.tar.xz",
++        "@bookworm_libnsl2-arm64_1.3.0-2//:data.tar.xz",
++        "@bookworm-security_libssl3-arm64_3.0.20-1_deb12u2//:data.tar.xz",
++        "@bookworm_libstdc---12-dev-arm64_12.2.0-14-deb12u1//:data.tar.xz",
++        "@bookworm_libstdc--6-arm64_12.2.0-14-deb12u1//:data.tar.xz",
++        "@bookworm_libtirpc-common-arm64_1.3.3-ds-1//:data.tar.xz",
++        "@bookworm_libtirpc-dev-arm64_1.3.3-ds-1//:data.tar.xz",
++        "@bookworm_libtirpc3-arm64_1.3.3-ds-1//:data.tar.xz",
++        "@bookworm_libtsan2-arm64_12.2.0-14-deb12u1//:data.tar.xz",
++        "@bookworm_libubsan1-arm64_12.2.0-14-deb12u1//:data.tar.xz",
++        "@bookworm_libzstd1-arm64_1.5.4-dfsg2-5//:data.tar.xz",
++        "@bookworm-security_linux-libc-dev-arm64_6.1.177-1//:data.tar.xz",
++        "@bookworm_rpcsvc-proto-arm64_1.4.3-1//:data.tar.xz",
++        "@bookworm_zlib1g-arm64_1-1.2.13.dfsg-1//:data.tar.xz",
++    ],
++    exec_arch = "aarch64",
++    # Share the declared Trixie linker runtime; retain GCC12 and its Bookworm sysroot.
++    linker = "@gcc-14.2.0-linux-target-aarch64-host-aarch64//:bin/aarch64-linux-gnu-ld",
++    linker_files = "@gcc-14.2.0-linux-target-aarch64-host-aarch64//:multicall_support_files",
++    suite = "bookworm",
++    sysroot = "@bookworm_sysroot_arm64//root:sysroot",
++    target_platform = "//platforms:bookworm",
++    version = "12.2.0",
++)
++gcc.debian_toolchain(
++    arch = "aarch64",
++    debian_packages = [
++        "@bookworm_binutils-aarch64-linux-gnu-amd64_2.40-2//:data.tar.xz",
++        "@bookworm_binutils-common-amd64_2.40-2//:data.tar.xz",
++        "@bookworm_cpp-12-aarch64-linux-gnu-amd64_12.2.0-14cross1//:data.tar.xz",
++        "@bookworm_g---12-aarch64-linux-gnu-amd64_12.2.0-14cross1//:data.tar.xz",
++        "@bookworm_gcc-12-aarch64-linux-gnu-amd64_12.2.0-14cross1//:data.tar.xz",
++        "@bookworm_gcc-12-aarch64-linux-gnu-base-amd64_12.2.0-14cross1//:data.tar.xz",
++        "@bookworm_gcc-12-base-amd64_12.2.0-14-deb12u1//:data.tar.xz",
++        "@bookworm_gcc-12-cross-base-amd64_12.2.0-14cross1//:data.tar.xz",
++        "@bookworm_libasan8-arm64-cross-amd64_12.2.0-14cross1//:data.tar.xz",
++        "@bookworm_libatomic1-arm64-cross-amd64_12.2.0-14cross1//:data.tar.xz",
++        "@bookworm_libbinutils-amd64_2.40-2//:data.tar.xz",
++        "@bookworm_libc6-amd64_2.36-9-deb12u14//:data.tar.xz",
++        "@bookworm_libc6-arm64-cross-amd64_2.36-8cross1//:data.tar.xz",
++        "@bookworm_libc6-dev-arm64-cross-amd64_2.36-8cross1//:data.tar.xz",
++        "@bookworm_libcc1-0-amd64_12.2.0-14-deb12u1//:data.tar.xz",
++        "@bookworm_libgcc-12-dev-arm64-cross-amd64_12.2.0-14cross1//:data.tar.xz",
++        "@bookworm_libgcc-s1-amd64_12.2.0-14-deb12u1//:data.tar.xz",
++        "@bookworm_libgcc-s1-arm64-cross-amd64_12.2.0-14cross1//:data.tar.xz",
++        "@bookworm_libgmp10-amd64_2-6.2.1-dfsg1-1.1//:data.tar.xz",
++        "@bookworm_libgomp1-arm64-cross-amd64_12.2.0-14cross1//:data.tar.xz",
++        "@bookworm_libhwasan0-arm64-cross-amd64_12.2.0-14cross1//:data.tar.xz",
++        "@bookworm_libisl23-amd64_0.25-1.1//:data.tar.xz",
++        "@bookworm_libitm1-arm64-cross-amd64_12.2.0-14cross1//:data.tar.xz",
++        "@bookworm_libjansson4-amd64_2.14-2//:data.tar.xz",
++        "@bookworm_liblsan0-arm64-cross-amd64_12.2.0-14cross1//:data.tar.xz",
++        "@bookworm_libmpc3-amd64_1.3.1-1//:data.tar.xz",
++        "@bookworm_libmpfr6-amd64_4.2.0-1//:data.tar.xz",
++        "@bookworm_libstdc---12-dev-arm64-cross-amd64_12.2.0-14cross1//:data.tar.xz",
++        "@bookworm_libstdc--6-amd64_12.2.0-14-deb12u1//:data.tar.xz",
++        "@bookworm_libstdc--6-arm64-cross-amd64_12.2.0-14cross1//:data.tar.xz",
++        "@bookworm_libtsan2-arm64-cross-amd64_12.2.0-14cross1//:data.tar.xz",
++        "@bookworm_libubsan1-arm64-cross-amd64_12.2.0-14cross1//:data.tar.xz",
++        "@bookworm_libzstd1-amd64_1.5.4-dfsg2-5//:data.tar.xz",
++        "@bookworm_linux-libc-dev-arm64-cross-amd64_6.1.4-1cross1//:data.tar.xz",
++        "@bookworm_zlib1g-amd64_1-1.2.13.dfsg-1//:data.tar.xz",
++    ],
++    exec_arch = "x86_64",
++    # Share the declared Trixie linker runtime; retain GCC12 and its Bookworm sysroot.
++    linker = "@gcc-14.2.0-linux-target-aarch64-host-x86_64//:bin/aarch64-linux-gnu-ld",
++    linker_files = "@gcc-14.2.0-linux-target-aarch64-host-x86_64//:multicall_support_files",
++    suite = "bookworm",
++    sysroot = "@bookworm_sysroot_arm64//root:sysroot",
++    target_platform = "//platforms:bookworm",
++    version = "12.2.0",
++)
++
++# Target-side debug symbols must match the selected target loader, not exec tools.
++apt_bookworm.install(
++    dependency_set = "bookworm_target_debug",
++    packages = ["libc6-dbg"],
++    suites = ["bookworm", "bookworm-updates", "bookworm-security"],
++    include_transitive = True,
++)
++use_repo(apt_bookworm, "bookworm_target_debug")
++
++# One shared Bookworm execution set preserves Perl's XS ABI and the original
++# instrumentation versions. Consumers select runtime subsets from this set;
++# Trixie execution tools remain in the existing build_tools dependency set.
++apt_bookworm.install(
++    dependency_set = "bookworm_build_tools",
++    packages = [
++        "perl",
++        "perl-base",
++        "perl-modules-5.36",
++        "libperl-dev",
++        "valgrind",
++        "libc6-dbg",
++        "tcl8.6",
++        "tcl-expect",
++    ],
++    suites = ["bookworm", "bookworm-updates", "bookworm-security"],
++    include_transitive = True,
++)
++use_repo(apt_bookworm, "bookworm_build_tools")
++
++# Deterministic compression uses the existing native BCR pigz toolchain.
++bazel_dep(name = "pigz", version = "2.8.bcr.2")
++bazel_dep(name = "rules_gzip", version = "1.0.0")
++bazel_dep(name = "rules_multirun", version = "0.14.0")
++bazel_dep(name = "toolchain_utils", version = "1.0.2")
++
++# Real SONiC manuals exercise the declared SGML compiler without building WPA.
++http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
++
++http_file(
++    name = "wpa_man_wpa_background",
++    urls = ["https://raw.githubusercontent.com/securely1g/sonic-wpa-supplicant/6ca19c73b9c868782b59a0d7adc6ff34de5bbdba/wpa_supplicant/doc/docbook/wpa_background.sgml"],
++    sha256 = "418d8ba990695b7f05611ecb1a8e2e08db66c12f09d7b3e62465ac9561b6afb2",
++    downloaded_file_path = "wpa_background.sgml",
++)
++
++http_file(
++    name = "wpa_man_wpa_cli",
++    urls = ["https://raw.githubusercontent.com/securely1g/sonic-wpa-supplicant/6ca19c73b9c868782b59a0d7adc6ff34de5bbdba/wpa_supplicant/doc/docbook/wpa_cli.sgml"],
++    sha256 = "d1a73abc52acd3f3d7ff25ab232d66bb5bc6f4bd936486350ae0d0866c9dd586",
++    downloaded_file_path = "wpa_cli.sgml",
++)
++
++http_file(
++    name = "wpa_man_wpa_passphrase",
++    urls = ["https://raw.githubusercontent.com/securely1g/sonic-wpa-supplicant/6ca19c73b9c868782b59a0d7adc6ff34de5bbdba/wpa_supplicant/doc/docbook/wpa_passphrase.sgml"],
++    sha256 = "ac5bc057c20dfacbf9d276c682d6cd800d5cce2fd4b002c4b9cdb2e5e8539480",
++    downloaded_file_path = "wpa_passphrase.sgml",
++)
++
++http_file(
++    name = "wpa_man_wpa_supplicant",
++    urls = ["https://raw.githubusercontent.com/securely1g/sonic-wpa-supplicant/6ca19c73b9c868782b59a0d7adc6ff34de5bbdba/wpa_supplicant/doc/docbook/wpa_supplicant.sgml"],
++    sha256 = "c9a7c4e58d2565dc7fe9051dab19b49feef1ef1cb66a4d3b734fb590e691d501",
++    downloaded_file_path = "wpa_supplicant.sgml",
++)
++
++http_file(
++    name = "wpa_man_wpa_supplicant_conf",
++    urls = ["https://raw.githubusercontent.com/securely1g/sonic-wpa-supplicant/6ca19c73b9c868782b59a0d7adc6ff34de5bbdba/wpa_supplicant/doc/docbook/wpa_supplicant.conf.sgml"],
++    sha256 = "beaaa9115d9e26080ea3a4405748276d9c65a307fcd21147352133e58b6b9829",
++    downloaded_file_path = "wpa_supplicant.conf.sgml",
++)
+diff --git a/modules/sonic-build-infra/0.0.26-f6da55505437cb139fdf610db8c61cb9420b0fec/README.md b/modules/sonic-build-infra/0.0.26-f6da55505437cb139fdf610db8c61cb9420b0fec/README.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..ec422a0ac0e4cfab3b78c576dc56cb938c120fbb
+--- /dev/null
++++ b/modules/sonic-build-infra/0.0.26-f6da55505437cb139fdf610db8c61cb9420b0fec/README.md
+@@ -0,0 +1,29 @@
++# Compiler launcher with private linker arguments
++
++This entry registers source commit
++`f6da55505437cb139fdf610db8c61cb9420b0fec` from
++[sonic-build-infra PR #82](https://github.com/securely1g/sonic-build-infra/pull/82).
++The DASH Engine image build passed a 136,826-byte `LDFLAGS` value to the compiler,
++exceeding Linux's per-string process limit before GCC could start.
++
++The existing compiler launcher recognizes only its owner's private sibling
++`.sonic-linker-arguments` vector, expands its ordered literal arguments and then
++performs its existing per-working-directory library-path shortening. Ordinary
++GCC response files remain opaque. The BMv2 producer change is tracked in
++[registry PR #211](https://github.com/securely1g/sonic-bazel-registry/pull/211).
++
++The source is based on maintained master `c47081689ed841191bf9531b46dad3430ed2e761`.
++It includes the native interfaces previously backported onto
++`0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568`, plus the maintained APT layer,
++large system-include and shared tool fixes. That now-redundant interface patch
++is removed; its existing 37 build and 43 test targets and every registry overlay
++are retained. The source's own updated Libtool regression runs through the same
++existing test label. The unchanged registry visibility patch remains applied.
++Published versions and source recipes remain unchanged.
++
++Local validation covers the actual 338-argument Engine vector, real GCC14 C/C++
++links, recursive Autoconf/Libtool builds and byte-identical short/long executables.
++Registry native acceptance and the full Engine image rebuild remain pending.
++This presubmit uses the existing tools-only kernel checks and produces no DEBs.
++The consumer must select this exact version explicitly; commit suffix ordering
++does not establish the intended source selection.
+diff --git a/modules/sonic-build-infra/0.0.26-f6da55505437cb139fdf610db8c61cb9420b0fec/overlay/registry_ci/BUILD.bazel b/modules/sonic-build-infra/0.0.26-f6da55505437cb139fdf610db8c61cb9420b0fec/overlay/registry_ci/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..2de4cc9ff51d227ef0ad709f0ab1c6fb05620784
+--- /dev/null
++++ b/modules/sonic-build-infra/0.0.26-f6da55505437cb139fdf610db8c61cb9420b0fec/overlay/registry_ci/BUILD.bazel
+@@ -0,0 +1,73 @@
++load("@rules_python//python:defs.bzl", "py_test")
++load("//toolchains/gcc/tests:prefix_map.bzl", "prefix_map_fixture")
++
++# The producer's root-only assertion does not include external/<repository>/.
++# Exercise the same absolute-source compilation with this consumer's execpath.
++prefix_map_fixture(
++    name = "prefix_map_object",
++    src = "prefix_map.c",
++)
++
++py_test(
++    name = "prefix_map_test",
++    srcs = ["prefix_map_test.py"],
++    args = [
++        "$(execpath :prefix_map.c)",
++        "$(location //toolchains/binutils:objcopy)",
++        "$(locations :prefix_map_object)",
++    ],
++    data = [
++        ":prefix_map.c",
++        ":prefix_map_object",
++        "//toolchains/binutils:objcopy",
++    ],
++    visibility = ["//visibility:public"],
++)
++
++# Build the shared runtime but retain only its small provenance receipt.
++genrule(
++    name = "kernel_runtime_manifest",
++    srcs = ["//tools/build_tools:kernel_runtime"],
++    outs = ["kernel_runtime.json"],
++    cmd = "cp $(location //tools/build_tools:kernel_runtime)/kernel-runtime.json $@",
++    visibility = ["//visibility:public"],
++)
++
++config_setting(
++    name = "amd64",
++    constraint_values = ["@platforms//cpu:x86_64"],
++)
++
++# Keep the original AMD64-to-ARM compiler checks. On native ARM64, reuse the
++# native kernel runtime regression, since AMD64 cross tools cannot run there.
++[
++    py_test(
++        name = "kernel_" + architecture + "_tools_test",
++        srcs = ["kernel_tools_test.py"],
++        args = select({
++            ":amd64": [
++                "$(location //tools/build_tools:kernel_cross_runtime_" + architecture + "_test)",
++                "$(location //tools/build_tools:kernel_build_tools_" + architecture + ")",
++                architecture,
++            ],
++            "//conditions:default": [
++                "$(location //tools/build_tools:kernel_runtime_tools_test)",
++                "$(location //tools/build_tools:kernel_runtime)",
++            ],
++        }),
++        data = select({
++            ":amd64": [
++                "//tools/build_tools:kernel_cross_runtime_" + architecture + "_test",
++                "//tools/build_tools:kernel_build_tools_" + architecture,
++            ],
++            "//conditions:default": [
++                "//tools/build_tools:kernel_runtime_tools_test",
++                "//tools/build_tools:kernel_runtime",
++            ],
++        }),
++        main = "kernel_tools_test.py",
++        size = "large",
++        visibility = ["//visibility:public"],
++    )
++    for architecture in ["arm64", "armhf"]
++]
+diff --git a/modules/sonic-build-infra/0.0.26-f6da55505437cb139fdf610db8c61cb9420b0fec/overlay/registry_ci/kernel_tools_test.py b/modules/sonic-build-infra/0.0.26-f6da55505437cb139fdf610db8c61cb9420b0fec/overlay/registry_ci/kernel_tools_test.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..e135e5c6d5356eb817186ddfe14ef9d52f33f788
+--- /dev/null
++++ b/modules/sonic-build-infra/0.0.26-f6da55505437cb139fdf610db8c61cb9420b0fec/overlay/registry_ci/kernel_tools_test.py
+@@ -0,0 +1,7 @@
++"""Reuse the source kernel tools regression appropriate to native execution."""
++from pathlib import Path
++import subprocess
++import sys
++
++if __name__ == "__main__":
++    subprocess.run([str(Path(sys.argv[1]).absolute()), *sys.argv[2:]], check=True)
+diff --git a/modules/sonic-build-infra/0.0.26-f6da55505437cb139fdf610db8c61cb9420b0fec/overlay/registry_ci/prefix_map.c b/modules/sonic-build-infra/0.0.26-f6da55505437cb139fdf610db8c61cb9420b0fec/overlay/registry_ci/prefix_map.c
+new file mode 100644
+index 0000000000000000000000000000000000000000..73aadf829f8ba4869b37daf565d1e18800f1376f
+--- /dev/null
++++ b/modules/sonic-build-infra/0.0.26-f6da55505437cb139fdf610db8c61cb9420b0fec/overlay/registry_ci/prefix_map.c
+@@ -0,0 +1,2 @@
++/* The consumer observes this absolute compiler input through __FILE__. */
++const char *compiled_source_path = __FILE__;
+diff --git a/modules/sonic-build-infra/0.0.26-f6da55505437cb139fdf610db8c61cb9420b0fec/overlay/registry_ci/prefix_map_test.py b/modules/sonic-build-infra/0.0.26-f6da55505437cb139fdf610db8c61cb9420b0fec/overlay/registry_ci/prefix_map_test.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..f4db173391691da2dcbf9d6b6cbc5c3a202e5934
+--- /dev/null
++++ b/modules/sonic-build-infra/0.0.26-f6da55505437cb139fdf610db8c61cb9420b0fec/overlay/registry_ci/prefix_map_test.py
+@@ -0,0 +1,31 @@
++"""Check GCC's file-prefix mapping in a registered-module consumer."""
++
++from pathlib import Path
++import re
++import subprocess
++import sys
++import tempfile
++
++
++source, objcopy = sys.argv[1:3]
++obj = next(Path(name) for name in sys.argv[3:] if name.endswith(".o"))
++dwarf = next(Path(name) for name in sys.argv[3:] if name.endswith(".dwarf")).read_text()
++expected = "./" + source
++
++# GCC replaces the compilation working directory with '.', preserving the
++# declared source's execpath, including its external repository directory.
++for attribute, value in [("comp_dir", "."), ("name", expected)]:
++    pattern = (r"\bDW_AT_" + attribute + r"[ \t]*:[ \t]*(?:\([^\n)]*\):[ \t]*)?"
++               + re.escape(value) + r"[ \t]*$")
++    assert re.search(pattern, dwarf, re.MULTILINE), dwarf
++
++# Inspect the C string itself; the correct path appearing only in debug
++# information must not mask an unmapped __FILE__ value.
++with tempfile.TemporaryDirectory() as temporary:
++    root = Path(temporary)
++    rodata = root / "rodata"
++    subprocess.run(
++        [objcopy, "--dump-section=.rodata=" + str(rodata), str(obj), str(root / "copy.o")],
++        check=True,
++    )
++    assert expected.encode() in rodata.read_bytes().split(b"\0"), rodata.read_bytes()
+diff --git a/modules/sonic-build-infra/0.0.26-f6da55505437cb139fdf610db8c61cb9420b0fec/patches/0001-bump-version.patch b/modules/sonic-build-infra/0.0.26-f6da55505437cb139fdf610db8c61cb9420b0fec/patches/0001-bump-version.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..87d7bc36fac0525fb2224e3887d04159d3f945c9
+--- /dev/null
++++ b/modules/sonic-build-infra/0.0.26-f6da55505437cb139fdf610db8c61cb9420b0fec/patches/0001-bump-version.patch
+@@ -0,0 +1,11 @@
++--- a/MODULE.bazel
+++++ b/MODULE.bazel
++@@ -1,7 +1,7 @@
++ # Keep bazel_compatibility in sync with sonic-buildimage's .bazelversion.
++ module(
++     name = "sonic-build-infra",
++-    version = "0.0.26",
+++    version = "0.0.26-f6da55505437cb139fdf610db8c61cb9420b0fec",
++     bazel_compatibility = [
++         ">=8.5.1",
++         "<=8.5.1",
+diff --git a/modules/sonic-build-infra/0.0.26-f6da55505437cb139fdf610db8c61cb9420b0fec/patches/0002-registry-cross-test-visibility.patch b/modules/sonic-build-infra/0.0.26-f6da55505437cb139fdf610db8c61cb9420b0fec/patches/0002-registry-cross-test-visibility.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..133ead5ce931df0f4d7c4670e5eef0fdf9075cdf
+--- /dev/null
++++ b/modules/sonic-build-infra/0.0.26-f6da55505437cb139fdf610db8c61cb9420b0fec/patches/0002-registry-cross-test-visibility.patch
+@@ -0,0 +1,11 @@
++--- a/tools/build_tools/BUILD.bazel
+++++ b/tools/build_tools/BUILD.bazel
++@@ -146,2 +146,4 @@
++         main = "kernel_cross_runtime_test.py",
+++        # Registry tests reuse this executable only on native AMD64.
+++        visibility = ["//visibility:public"],
++         tags = ["no-remote-exec"],
++@@ -180,2 +182,3 @@
++     name = "kernel_runtime_test",
+++    visibility = ["//visibility:public"],
++     srcs = ["kernel_runtime_test.py"],
+diff --git a/modules/sonic-build-infra/0.0.26-f6da55505437cb139fdf610db8c61cb9420b0fec/presubmit.json b/modules/sonic-build-infra/0.0.26-f6da55505437cb139fdf610db8c61cb9420b0fec/presubmit.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..fd8d378d82ac0d3ecfbcccdb9a66746857dd9f85
+--- /dev/null
++++ b/modules/sonic-build-infra/0.0.26-f6da55505437cb139fdf610db8c61cb9420b0fec/presubmit.json
+@@ -0,0 +1,105 @@
++{
++  "architectures": [
++    "amd64"
++  ],
++  "consumer_deps": [
++    {
++      "name": "tar.bzl",
++      "version": "0.10.5-sonic.1"
++    },
++    {
++      "name": "rules_distroless",
++      "version": "0.9.4.sonic.15"
++    }
++  ],
++  "platforms": {
++    "amd64": "@sonic-build-infra//platforms:x86_64_trixie"
++  },
++  "build_targets": [
++    "@sonic-build-infra//tools/build_tools:make",
++    "@sonic-build-infra//tools/build_tools:m4",
++    "@sonic-build-infra//tools/build_tools:pkgconf",
++    "@sonic-build-infra//tools/build_tools:perl",
++    "@sonic-build-infra//tools/build_tools:bison",
++    "@sonic-build-infra//tools/build_tools:flex",
++    "@sonic-build-infra//tools/build_tools:autoconf",
++    "@sonic-build-infra//tools/build_tools:autoheader",
++    "@sonic-build-infra//tools/build_tools:autom4te",
++    "@sonic-build-infra//tools/build_tools:launcher_action_check",
++    "@sonic-build-infra//tools/build_tools:configure_probe_binary",
++    "@sonic-build-infra//tools/build_tools:compile_et",
++    "@sonic-build-infra//tools/build_tools:mk_cmds",
++    "@sonic-build-infra//tests:hello_cpp",
++    "@sonic-build-infra//tests:hello_deploy_tar",
++    "@sonic-build-infra//tests:hello_deploy_tar.debug_symbols",
++    "@sonic-build-infra//tests:libgreet.so",
++    "@sonic-build-infra//tools/build_tools:foreign_runtime",
++    "@sonic-build-infra//tools/build_tools:metadata_runtime",
++    "@sonic-build-infra//tools/build_tools:autoreconf",
++    "@sonic-build-infra//tools/build_tools:automake",
++    "@sonic-build-infra//tools/build_tools:aclocal",
++    "@sonic-build-infra//tools/build_tools:libtoolize",
++    "@sonic-build-infra//tools/build_tools:protoc",
++    "@sonic-build-infra//tools/build_tools:grpc_cpp_plugin",
++    "@sonic-build-infra//tools/build_tools:grpc_python_plugin",
++    "@sonic-build-infra//tools/build_tools:thrift",
++    "@sonic-build-infra//tools/build_tools:python3",
++    "@sonic-build-infra//registry_ci:kernel_runtime_manifest",
++    "@sonic-build-infra//deps/compiler:alternatives_pkg",
++    "@sonic-build-infra//deps/automake:alternatives_pkg",
++    "@sonic-build-infra//deps/openmpi:alternatives_pkg",
++    "@sonic-build-infra//tools/build_tools:patch",
++    "@sonic-build-infra//tools/build_tools:xmllint",
++    "@sonic-build-infra//tools/build_tools:xsltproc",
++    "@sonic-build-infra//tools/build_tools:docbook_runtime",
++    "@sonic-build-infra//tools/build_tools:docbook2man"
++  ],
++  "test_targets": [
++    "@sonic-build-infra//tools/build_tools:runtime_test",
++    "@sonic-build-infra//tools/build_tools:configure_runtime_test",
++    "@sonic-build-infra//tools/build_tools:configure_make_test",
++    "@sonic-build-infra//toolchains/gcc/tests:foreign_link_test",
++    "@sonic-build-infra//tools/build_tools:kerberos_runtime_test",
++    "@sonic-build-infra//tests:hello_strip_test",
++    "@sonic-build-infra//tests:libgreet_pic_test",
++    "@sonic-build-infra//tests:libgreet_strip_test",
++    "@sonic-build-infra//tests:hello_deploy_tar_content_test",
++    "@sonic-build-infra//tests:hello_deploy_tar_provides_debug_symbols_test",
++    "@sonic-build-infra//cc/tests:transitive_runtime_test",
++    "@sonic-build-infra//cc/tests:shared_library_layout_test",
++    "@sonic-build-infra//tools/build_tools:foreign_runtime_test",
++    "@sonic-build-infra//tools/build_tools:libtool_test",
++    "@sonic-build-infra//oci/tests:account_layer_test",
++    "@sonic-build-infra//oci/tests:installed_packages_test",
++    "@sonic-build-infra//oci/tests:owner_metadata_test",
++    "@sonic-build-infra//oci/tests:installed_packages_rule_test",
++    "@sonic-build-infra//oci/tests:runtime_packages_test",
++    "@sonic-build-infra//oci/tests:runtime_packages_rule_test",
++    "@sonic-build-infra//tools/build_tools:prepare_rootfs_test",
++    "@sonic-build-infra//tools/build_tools:kernel_debian_test",
++    "@sonic-build-infra//tools/build_tools:runtime_launcher_test",
++    "@sonic-build-infra//registry_ci:kernel_arm64_tools_test",
++    "@sonic-build-infra//registry_ci:kernel_armhf_tools_test",
++    "@sonic-build-infra//deps:alternatives_test",
++    "@sonic-build-infra//tools/build_tools:kernel_runtime_tools_test",
++    "@sonic-build-infra//testing:exec_test_args_test",
++    "@sonic-build-infra//cc/tests/runtime_context:layout_test",
++    "@sonic-build-infra//cc/tests/runtime_test:contract_test",
++    "@sonic-build-infra//cc/tests/runtime_test:native_test",
++    "@sonic-build-infra//cc/tests/runtime_test:origin_contract_test",
++    "@sonic-build-infra//tar:root_owned_tar_test",
++    "@sonic-build-infra//tar:debug_symbols_ownership_test",
++    "@sonic-build-infra//tests:installation_rpath_tar_test",
++    "@sonic-build-infra//tests:hello_rpath_installation_test",
++    "@sonic-build-infra//tests:hello_runpath_installation_test",
++    "@sonic-build-infra//registry_ci:prefix_map_test",
++    "@sonic-build-infra//tools/build_tools:perl_bookworm_test",
++    "@sonic-build-infra//tools/build_tools:bookworm_test_runtime_test",
++    "@sonic-build-infra//tools/build_tools:docbook_runtime_test",
++    "@sonic-build-infra//tar:debug_symbols_modes_test",
++    "@sonic-build-infra//tests:deploy_tar_timestamps_test"
++  ],
++  "host_platforms": {
++    "amd64": "@sonic-build-infra//platforms:x86_64_trixie"
++  }
++}
+diff --git a/modules/sonic-build-infra/0.0.26-f6da55505437cb139fdf610db8c61cb9420b0fec/source.json b/modules/sonic-build-infra/0.0.26-f6da55505437cb139fdf610db8c61cb9420b0fec/source.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..64ca67f83f7445ed41db661d2879c783008c66e6
+--- /dev/null
++++ b/modules/sonic-build-infra/0.0.26-f6da55505437cb139fdf610db8c61cb9420b0fec/source.json
+@@ -0,0 +1,16 @@
++{
++  "url": "https://github.com/securely1g/sonic-build-infra/archive/f6da55505437cb139fdf610db8c61cb9420b0fec.tar.gz",
++  "strip_prefix": "sonic-build-infra-f6da55505437cb139fdf610db8c61cb9420b0fec",
++  "integrity": "sha256-/6s8Ut9VgM6Z0Ok3xp/n8+EH8tylLUSJW7Ei9fN9Hz0=",
++  "patches": {
++    "0001-bump-version.patch": "sha256-6A9Xt60yuGwUYN+o6GA6LSnWIXBIJ/6x+pQrB+2j/MQ=",
++    "0002-registry-cross-test-visibility.patch": "sha256-2+0NUZ9mcSHEHa+PIU3NVGG8uFBEgaA8LC9wDkg+GrY="
++  },
++  "patch_strip": 1,
++  "overlay": {
++    "registry_ci/BUILD.bazel": "sha256-caSrh4+9CA2qdHetNyAfD86mHFFodd9zGgYRFSeLvxc=",
++    "registry_ci/kernel_tools_test.py": "sha256-Sc7uPv4ZgJxcUx1YjULES+OsclNgC6sh7NMGP9H5fqQ=",
++    "registry_ci/prefix_map.c": "sha256-2fTAaKxgA4m3vf/VQwcRc63QjZgq0m/ZbrhPEtVNmzI=",
++    "registry_ci/prefix_map_test.py": "sha256-tL/W5IwYk52E4XKgWZ8alih011f2qfKX5u8UGtY35ec="
++  }
++}
+diff --git a/modules/sonic-build-infra/metadata.json b/modules/sonic-build-infra/metadata.json
+index 70f4df0c83239fd28e8bd70b3517f4c7f554b236..73591221fe8036a1af7195dfe67ec4945655699f 100644
+--- a/modules/sonic-build-infra/metadata.json
++++ b/modules/sonic-build-infra/metadata.json
+@@ -29,6 +29,7 @@
+     "0.0.25-17a1e555291c64be1a6ff008f33352bffc4f8e5c",
+     "0.0.25-34de7330abc72229dfc8dab88dec71b89c52aa88",
+     "0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568",
+-    "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e"
++    "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e",
++    "0.0.26-f6da55505437cb139fdf610db8c61cb9420b0fec"
+   ]
+ }
