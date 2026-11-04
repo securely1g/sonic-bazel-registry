@@ -1,0 +1,27 @@
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-dash-ha",
+-    version = "0.0.1",
++    version = "0.0.1-3e17acff2fe1d3eab1febe686262d376d859b37b",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
+@@ -19,13 +19,13 @@
+ bazel_dep(name = "protobuf-legacy", version = "3.21.12-sonic.1", repo_name = "protobuf_legacy")
+ bazel_dep(name = "sonic-rust-deps", version = "0.0.5-c53741eb56e55e4f1c9b48c577ed5de986e62192", repo_name = "sonic_rust_deps")
+ bazel_dep(name = "sonic-swss-common", version = "0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed", repo_name = "sonic_swss_common")
+-bazel_dep(name = "sonic-dash-api", version = "0.0.5-fd8eab1b90a6f67124996d24417cff5d4d849edd", repo_name = "sonic_dash_api")
+-bazel_dep(name = "sonic-build-infra", version = "0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568", repo_name = "sonic_build_infra")
++bazel_dep(name = "sonic-dash-api", version = "0.0.5-9b2893e890734a2db0c53a5e5c64b031ec0dcfbd", repo_name = "sonic_dash_api")
++bazel_dep(name = "sonic-build-infra", version = "0.0.26-2a6fc39c55be05e849b0e3a2d1808a4a59f123a6", repo_name = "sonic_build_infra")
+ 
+ # Select one coherent native tooling candidate during the review stack.
+ single_version_override(
+     module_name = "sonic-build-infra",
+-    version = "0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568",
++    version = "0.0.26-2a6fc39c55be05e849b0e3a2d1808a4a59f123a6",
+ )
+ 
+ single_version_override(
