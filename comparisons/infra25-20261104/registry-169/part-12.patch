@@ -1,0 +1,3294 @@
+-Register the landed [DASH #2](https://github.com/securely1g/DASH/pull/2) implementation at `5c9305403585a7ae54f86918219acb8ed39f740a`. The source owns all build and metadata behavior; the registry applies only `patches/0001-bump-version.patch` to set the module version. Version `0.0.2` follows the published `0.0.1-97c07d05193e346bc990e816e30a7e3d72e8f4c0` entry, which remains unchanged.
++Register [DASH #4](https://github.com/securely1g/DASH/pull/4) at `53e524a348589e2b2e0585a8c148bd9b2f8bc686` as the separate `0.0.3` candidate. Both published versions remain unchanged. The source owns the response-file adapter and regression; the registry applies only the module version patch.
+ 
+-[Syncd VS in buildimage #13](https://github.com/securely1g/sonic-buildimage/pull/13) maps `libsai` to `@sonic_dash//:runtime` and needs its package identity and dependencies alongside the TAR. The generated `@sonic-dash//:runtime_packages.json` reads the existing `dash-pipeline/SAI/debian/libsai_1.0.0_amd64/DEBIAN/control` and analyzes the actual runtime libraries with the declared PI/APT metadata. The package version remains `1.0.0`; the record includes the target architecture and exact runtime TAR hash. This registry version exposes that landed implementation; consumer adoption is separate work.
++[Gearbox buildimage #154](https://github.com/securely1g/sonic-buildimage/pull/154) reaches DASH's original recursive Make call with 86,193 bytes of compiler flags and 64,724 bytes of linker flags. GNU Make combines those overrides into a 151,870-byte environment value, so Linux rejects a child before its compiler starts. The source launcher keeps the complete ordered `CPPFLAGS` value in a standard GCC driver response file, expanded at its original argument position. Compiler and linker lists remain separate in the original recipes.
+ 
+-| Input or action | Published source registration | This registration |
++| Input or action | Published `0.0.2` | This candidate |
+ | --- | --- | --- |
+-| Build `@sonic-dash//:runtime_packages.json` | No metadata target. | Generates the `libsai` package record from the existing control and runtime TAR. |
+-| Build on native ARM64 with the legacy AMD64-named control path | Runtime and SDK are ARM64, but there is no generated package record. | Validates the ELF architecture and records `arm64`. |
+-| Analyze SDK consumers that link protobuf-lite | Its already-selected Debian payload/control is not exported by the metadata provider. | Exposes `libprotobuf-lite32t64` from the same pinned Debian dependency set. |
++| Recursive Make with the retained Gearbox flag sizes | Environment export exceeds Linux's per-string limit | Make exports a short response-file reference |
++| Include roots and macro overrides across both compiler variables | Original order is required | Driver response preserves that order; a preprocessor-only response is a tested negative control |
++| Runtime/debug/SDK/package metadata | Existing source-owned public outputs | Same targets and installed contract |
+ 
+-Native AMD64 and ARM64 presubmits retain the published runtime, matching debug TAR and SDK builds and `@sonic-dash//bazel:runtime_test`, then add the generated metadata target. They cover installed SDK use, pipeline outputs, independent loading, ELF closure, matching debug symbols and GDB source lookup. Both host and target use the declared Trixie toolchain. The shared runner retains source, module resolution, build/test and complete output-tree evidence.
++The ordinary consumer explicitly selects published Distroless `.16` and infrastructure `.25-3ee15ec` from [registry #218](https://github.com/securely1g/sonic-bazel-registry/pull/218). This selects the current native interface used by the image while preserving the source owner's declared minimum. The coordinated review base must preserve maintained published entries and include that exact infrastructure candidate. Registry #209 remains historical validation of the preceding infrastructure input; fresh ordinary consumer acceptance is required for the updated graph.
+ 
+-Selected build infrastructure `0.0.22-a12bc826d6f811a157db5c7c02a2fe033896cc14`, PI, P4C, `rules_foreign_cc` and `rules_distroless` recipes are published on canonical registry `main`. No temporary registry override or new DEB producer is added. These producer checks do not establish a full Syncd image, boot or forwarding test.
++Presubmits retain all four public outputs, the original installed runtime/SDK/pipeline/GDB test and both native architectures, then add the real recursive-Make compiler regression. Source validation has passed that regression on native GCC14 and through Bazel. The complete retained compiler argument vector produces identical backend arguments and an 89,108-byte GCC options export with the driver response. Full ordinary package and installed wide-consumer acceptance remain pending; neither a catalog nor this source regression establishes completed Gearbox acceptance. No DEB producer is added or selected.
++
++The source archive declares `archive_type = tar.gz` because the pinned codeload URL ends in the source revision. The source revision differs from the originally tested `5fb62ec` only by one README spelling correction; the full source archive file/mode comparison preserves every other input.
++
++This dependency refresh selects maintained infrastructure source 3ee15ec9 through
++registry #218. Its numeric version is .25; published .26 entries remain intact.
++Fresh module-graph checks must verify the selected version, followed by the
++unchanged ordinary-consumer outputs and tests. This metadata/source-patch proof
++does not establish native or image acceptance. Existing worker runs and earlier
++receipts retain their exact preceding dependency inputs.
+diff --git a/modules/sonic-dash/0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686/patches/0001-bump-version.patch b/modules/sonic-dash/0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686/patches/0001-bump-version.patch
+index 6151005b7573b6030745cd3a7e89db58b4fefe18..a4155c61bd34a04d3506273d7b210bf5a835501f 100644
+--- a/modules/sonic-dash/0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686/patches/0001-bump-version.patch
++++ b/modules/sonic-dash/0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686/patches/0001-bump-version.patch
+@@ -4,7 +4,7 @@
+  module(
+      name = "sonic-dash",
+ -    version = "0.0.1",
+-+    version = "0.0.2-5c9305403585a7ae54f86918219acb8ed39f740a",
+++    version = "0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686",
+      bazel_compatibility = [
+          ">=8.5.1",
+          "<=8.5.1",
+diff --git a/modules/sonic-dash/0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686/presubmit.json b/modules/sonic-dash/0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686/presubmit.json
+index 4afda4a78e071cbe708fafe48fe9305e159070ef..8571285aa18191492fcc0dc70e68b41992e50cfd 100644
+--- a/modules/sonic-dash/0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686/presubmit.json
++++ b/modules/sonic-dash/0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686/presubmit.json
+@@ -6,11 +6,15 @@
+   "consumer_deps": [
+     {
+       "name": "sonic-build-infra",
+-      "version": "0.0.22-a12bc826d6f811a157db5c7c02a2fe033896cc14"
++      "version": "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e"
+     },
+     {
+       "name": "tar.bzl",
+       "version": "0.10.5-sonic.1"
++    },
++    {
++      "name": "rules_distroless",
++      "version": "0.9.4.sonic.16"
+     }
+   ],
+   "platforms": {
+@@ -24,7 +28,8 @@
+     "@sonic-dash//:runtime_packages.json"
+   ],
+   "test_targets": [
+-    "@sonic-dash//bazel:runtime_test"
++    "@sonic-dash//bazel:runtime_test",
++    "@sonic-dash//bazel:make_flags_test"
+   ],
+   "host_platforms": {
+     "amd64": "@sonic-build-infra//platforms:x86_64_trixie",
+diff --git a/modules/sonic-dash/0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686/source.json b/modules/sonic-dash/0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686/source.json
+index 1a24b5ab672455da1f37a9015e68e9dbfa4ee446..dfddc881907589b1cc9760a6dec5705d79239ca6 100644
+--- a/modules/sonic-dash/0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686/source.json
++++ b/modules/sonic-dash/0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686/source.json
+@@ -1,9 +1,10 @@
+ {
+-  "url": "https://github.com/securely1g/DASH/archive/5c9305403585a7ae54f86918219acb8ed39f740a.tar.gz",
+-  "strip_prefix": "DASH-5c9305403585a7ae54f86918219acb8ed39f740a",
+-  "integrity": "sha256-YYLLbkKzulo5Qfz+xyl+a0ZOXuZWg8xJdA2tc98F7eY=",
++  "url": "https://codeload.github.com/securely1g/DASH/tar.gz/53e524a348589e2b2e0585a8c148bd9b2f8bc686",
++  "strip_prefix": "DASH-53e524a348589e2b2e0585a8c148bd9b2f8bc686",
++  "integrity": "sha256-iR476L1n0HBQIpAzO8VspsPr4Qm6wNMCTedjwXjcDRI=",
+   "patches": {
+-    "0001-bump-version.patch": "sha256-NPzBMtM5dswT16J/GGp87OYxvRCFQULR5/PKFaZKL/k="
++    "0001-bump-version.patch": "sha256-JyfLfAQyiVzwaEc6FdXEwe/cebqYeKE83n0Qa496AQI="
+   },
+-  "patch_strip": 1
++  "patch_strip": 1,
++  "archive_type": "tar.gz"
+ }
+diff --git a/modules/sonic-dash/metadata.json b/modules/sonic-dash/metadata.json
+index 1f6f1c2fe65f1ee18ec8d1e965fa0773e0911841..cb997b5796a4f6a998589d4341c86526cdd798e2 100644
+--- a/modules/sonic-dash/metadata.json
++++ b/modules/sonic-dash/metadata.json
+@@ -1,18 +1,19 @@
+ {
+-  "homepage": "https://github.com/securely1g/DASH",
+-  "maintainers": [
+-    {
+-      "name": "Guohan Lu",
+-      "email": "securely1g@gmail.com",
+-      "github": "securely1g"
+-    }
+-  ],
+-  "repository": [
+-    "github:securely1g/DASH"
+-  ],
+-  "versions": [
+-    "0.0.1-97c07d05193e346bc990e816e30a7e3d72e8f4c0",
+-    "0.0.2-5c9305403585a7ae54f86918219acb8ed39f740a"
+-  ],
+-  "yanked_versions": {}
++    "homepage": "https://github.com/securely1g/DASH",
++    "maintainers": [
++        {
++            "name": "Guohan Lu",
++            "email": "securely1g@gmail.com",
++            "github": "securely1g"
++        }
++    ],
++    "repository": [
++        "github:securely1g/DASH"
++    ],
++    "versions": [
++        "0.0.1-97c07d05193e346bc990e816e30a7e3d72e8f4c0",
++        "0.0.2-5c9305403585a7ae54f86918219acb8ed39f740a",
++        "0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686"
++    ],
++    "yanked_versions": {}
+ }
+diff --git a/modules/sonic-dbsyncd/2.0.0-a4025c14068b3afdf2eac3e73094f0fd2cfcf746/MODULE.bazel b/modules/sonic-dbsyncd/2.0.0-a4025c14068b3afdf2eac3e73094f0fd2cfcf746/MODULE.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..fadb0e64149b7b110bf814bbbd84c0cf13778592
+--- /dev/null
++++ b/modules/sonic-dbsyncd/2.0.0-a4025c14068b3afdf2eac3e73094f0fd2cfcf746/MODULE.bazel
+@@ -0,0 +1,43 @@
++module(
++    name = "sonic-dbsyncd",
++    version = "2.0.0-a4025c14068b3afdf2eac3e73094f0fd2cfcf746",
++    bazel_compatibility = [
++        ">=8.5.1",
++        "<=8.5.1",
++    ],
++)
++
++bazel_dep(name = "rules_python", version = "1.9.0")
++bazel_dep(name = "aspect_bazel_lib", version = "2.19.3")
++bazel_dep(name = "rules_pkg", version = "1.1.0")
++bazel_dep(name = "tar.bzl", version = "0.10.5.sonic.1")
++bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.14")
++bazel_dep(name = "platforms", version = "1.1.0")
++bazel_dep(
++    name = "sonic-build-infra",
++    version = "0.0.25-17a1e555291c64be1a6ff008f33352bffc4f8e5c",
++    repo_name = "sonic_build_infra",
++)
++bazel_dep(
++    name = "sonic-swss-common",
++    version = "0.0.7-f7fda40c02b3a8b4bbbff3d17fca3dff83f4cbad",
++    repo_name = "sonic_swss_common",
++)
++
++python = use_extension("@rules_python//python/extensions:python.bzl", "python")
++python.toolchain(
++    is_default = True,
++    python_version = "3.13",
++)
++
++# The selected infrastructure extension requires a root tag. This Python
++# component does not build Rust or request another Rust toolchain.
++bazel_dep(name = "rules_rs", version = "0.1.0")
++
++rust = use_extension("@rules_rs//rs:rules_rust_reexported_extensions.bzl", "rust")
++rust.toolchain(versions = [])
++
++# This migration executes natively on Linux AMD64. Use the declared upstream
++# BSD tar executable, never a host-installed extraction command.
++tar_tools = use_extension("@tar.bzl//tar:extensions.bzl", "toolchains")
++use_repo(tar_tools, "bsd_tar_toolchains_linux_amd64")
+diff --git a/modules/sonic-dbsyncd/2.0.0-a4025c14068b3afdf2eac3e73094f0fd2cfcf746/patches/module-version.patch b/modules/sonic-dbsyncd/2.0.0-a4025c14068b3afdf2eac3e73094f0fd2cfcf746/patches/module-version.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..35c45e3a00315b719b593cc3d89daddab571f5b4
+--- /dev/null
++++ b/modules/sonic-dbsyncd/2.0.0-a4025c14068b3afdf2eac3e73094f0fd2cfcf746/patches/module-version.patch
+@@ -0,0 +1,10 @@
++--- a/MODULE.bazel
+++++ b/MODULE.bazel
++@@ -1,6 +1,6 @@
++ module(
++     name = "sonic-dbsyncd",
++-    version = "2.0.0",
+++    version = "2.0.0-a4025c14068b3afdf2eac3e73094f0fd2cfcf746",
++     bazel_compatibility = [
++         ">=8.5.1",
++         "<=8.5.1",
+diff --git a/modules/sonic-dbsyncd/2.0.0-a4025c14068b3afdf2eac3e73094f0fd2cfcf746/presubmit.json b/modules/sonic-dbsyncd/2.0.0-a4025c14068b3afdf2eac3e73094f0fd2cfcf746/presubmit.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..3701060351040035d447ac16eca33e7bd30dcc5f
+--- /dev/null
++++ b/modules/sonic-dbsyncd/2.0.0-a4025c14068b3afdf2eac3e73094f0fd2cfcf746/presubmit.json
+@@ -0,0 +1,23 @@
++{
++  "architectures": [
++    "amd64"
++  ],
++  "consumer_deps": [],
++  "platforms": {
++    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
++  },
++  "host_platforms": {
++    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
++  },
++  "integration_test_module": "tests/consumer",
++  "build_targets": [
++    "@sonic-dbsyncd//:lldp_syncd",
++    "@sonic-dbsyncd//:sonic_syncd",
++    "@sonic-dbsyncd//:sonic_dbsyncd_wheel",
++    "@sonic-dbsyncd//:sonic_dbsyncd_runtime"
++  ],
++  "test_targets": [
++    "//:archive_contract_test",
++    "//:library_test"
++  ]
++}
+diff --git a/modules/sonic-dbsyncd/2.0.0-a4025c14068b3afdf2eac3e73094f0fd2cfcf746/source.json b/modules/sonic-dbsyncd/2.0.0-a4025c14068b3afdf2eac3e73094f0fd2cfcf746/source.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..91ef74907c4c19a0f7ba5720d8fa06cb632d3907
+--- /dev/null
++++ b/modules/sonic-dbsyncd/2.0.0-a4025c14068b3afdf2eac3e73094f0fd2cfcf746/source.json
+@@ -0,0 +1,9 @@
++{
++  "url": "https://github.com/securely1g/sonic-dbsyncd/archive/a4025c14068b3afdf2eac3e73094f0fd2cfcf746.tar.gz",
++  "strip_prefix": "sonic-dbsyncd-a4025c14068b3afdf2eac3e73094f0fd2cfcf746",
++  "integrity": "sha256-n1tdAaqRySDe0kZRyNitBQkbRmWTjmiyjBwxpLcRju4=",
++  "patches": {
++    "module-version.patch": "sha256-vl1auc1Hvk/6A+ChTJk3KqX7tq0r8odxm8XgKKcT5wI="
++  },
++  "patch_strip": 1
++}
+diff --git a/modules/sonic-dbsyncd/2.0.0-a4025c14068b3afdf2eac3e73094f0fd2cfcf746/tests/consumer/BUILD.bazel b/modules/sonic-dbsyncd/2.0.0-a4025c14068b3afdf2eac3e73094f0fd2cfcf746/tests/consumer/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..390b78961d7fb9b676c9201df10797ae4bb9613a
+--- /dev/null
++++ b/modules/sonic-dbsyncd/2.0.0-a4025c14068b3afdf2eac3e73094f0fd2cfcf746/tests/consumer/BUILD.bazel
+@@ -0,0 +1,48 @@
++load("@rules_python//python:py_binary.bzl", "py_binary")
++load("@rules_python//python:py_test.bzl", "py_test")
++load("@rules_shell//shell:sh_test.bzl", "sh_test")
++
++py_test(
++    name = "archive_contract_test",
++    srcs = ["archive_contract_test.py"],
++    args = [
++        "$(rootpath @sonic-dbsyncd//:sonic_dbsyncd_wheel)",
++        "$(rootpath @sonic-dbsyncd//:sonic_dbsyncd_runtime)",
++        "$(rootpath @sonic-dbsyncd//:setup.py)",
++    ],
++    data = [
++        "@sonic-dbsyncd//:setup.py",
++        "@sonic-dbsyncd//:sonic_dbsyncd_runtime",
++        "@sonic-dbsyncd//:sonic_dbsyncd_wheel",
++        "@sonic-dbsyncd//:test_sources",
++    ],
++    legacy_create_init = False,
++    python_version = "3.13",
++)
++
++py_binary(
++    name = "library_probe",
++    testonly = True,
++    srcs = ["library_probe.py"],
++    legacy_create_init = False,
++    python_version = "3.13",
++    deps = [
++        "@sonic-dbsyncd//:lldp_syncd",
++        "@sonic-dbsyncd//:sonic_syncd",
++    ],
++)
++
++sh_test(
++    name = "library_test",
++    srcs = ["@sonic_swss_common//tools/bazel/runtime:run_with_runtime.py"],
++    args = [
++        "$(rootpath @sonic_swss_common//tools/bazel/runtime:test_runtime)",
++        "-",
++        "enabled",
++        "$(rootpath :library_probe)",
++    ],
++    data = [
++        ":library_probe",
++        "@sonic_swss_common//tools/bazel/runtime:test_runtime",
++    ],
++)
+diff --git a/modules/sonic-dbsyncd/2.0.0-a4025c14068b3afdf2eac3e73094f0fd2cfcf746/tests/consumer/MODULE.bazel b/modules/sonic-dbsyncd/2.0.0-a4025c14068b3afdf2eac3e73094f0fd2cfcf746/tests/consumer/MODULE.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..f39a09962344b24f6d0e77bb86c5600494bf031f
+--- /dev/null
++++ b/modules/sonic-dbsyncd/2.0.0-a4025c14068b3afdf2eac3e73094f0fd2cfcf746/tests/consumer/MODULE.bazel
+@@ -0,0 +1,24 @@
++module(name = "dbsyncd_registry_consumer")
++
++bazel_dep(name = "sonic-dbsyncd", version = "2.0.0-a4025c14068b3afdf2eac3e73094f0fd2cfcf746")
++bazel_dep(name = "rules_python", version = "1.9.0")
++bazel_dep(name = "rules_shell", version = "0.8.0")
++bazel_dep(name = "platforms", version = "1.1.0")
++bazel_dep(name = "sonic-build-infra", version = "0.0.25-17a1e555291c64be1a6ff008f33352bffc4f8e5c", repo_name = "sonic_build_infra")
++bazel_dep(name = "sonic-swss-common", version = "0.0.7-f7fda40c02b3a8b4bbbff3d17fca3dff83f4cbad", repo_name = "sonic_swss_common")
++
++python = use_extension("@rules_python//python/extensions:python.bzl", "python")
++python.toolchain(
++    is_default = True,
++    python_version = "3.13",
++)
++
++gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
++use_repo(gcc, "gcc_toolchains")
++
++register_toolchains("@gcc_toolchains//:all")
++
++bazel_dep(name = "rules_rs", version = "0.1.0")
++
++rust = use_extension("@rules_rs//rs:rules_rust_reexported_extensions.bzl", "rust")
++rust.toolchain(versions = [])
+diff --git a/modules/sonic-dbsyncd/2.0.0-a4025c14068b3afdf2eac3e73094f0fd2cfcf746/tests/consumer/archive_contract_test.py b/modules/sonic-dbsyncd/2.0.0-a4025c14068b3afdf2eac3e73094f0fd2cfcf746/tests/consumer/archive_contract_test.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..fca53653db063a1a2c8c33dca3c2c163c58dbaef
+--- /dev/null
++++ b/modules/sonic-dbsyncd/2.0.0-a4025c14068b3afdf2eac3e73094f0fd2cfcf746/tests/consumer/archive_contract_test.py
+@@ -0,0 +1,98 @@
++"""Verify a fetched owner's wheel, installed TAR and source-free imports."""
++
++import base64
++import csv
++from email.parser import BytesParser
++import hashlib
++import io
++import json
++import os
++from pathlib import Path, PurePosixPath
++import subprocess
++import sys
++import tarfile
++import tempfile
++import unittest
++import zipfile
++
++WHEEL, TAR, SETUP = map(Path, sys.argv[1:4])
++sys.argv = sys.argv[:1]
++PREFIX = "usr/local/lib/python3.13/dist-packages/"
++
++
++class ArchiveContractTest(unittest.TestCase):
++    def test_owner_wheel_and_installed_payload(self):
++        root = SETUP.resolve().parent
++        expected = {str(path.relative_to(root / "src")): path.read_bytes()
++                    for package in ("lldp_syncd", "sonic_syncd")
++                    for path in (root / "src" / package).glob("*.py")}
++        self.assertEqual(len(expected), 7)
++        with zipfile.ZipFile(WHEEL) as wheel, tarfile.open(TAR) as layer:
++            self.assertEqual({name for name in wheel.namelist() if name.endswith(".py")}, set(expected))
++            for name, contents in expected.items():
++                self.assertEqual(wheel.read(name), contents, name)
++            names = wheel.namelist()
++            metadata_name, = [name for name in names if name.endswith(".dist-info/METADATA")]
++            metadata = BytesParser().parsebytes(wheel.read(metadata_name))
++            self.assertEqual(metadata["Name"], "sonic-d")
++            self.assertEqual(metadata["Version"], "2.0.0")
++            self.assertEqual(metadata["License"], "Apache 2.0")
++            license_name, = [name for name in names if name.endswith("/licenses/LICENSE")]
++            self.assertEqual(wheel.read(license_name), (root / "LICENSE").read_bytes())
++            record_name, = [name for name in names if name.endswith(".dist-info/RECORD")]
++            for name, digest, size in csv.reader(io.StringIO(wheel.read(record_name).decode())):
++                if name == record_name:
++                    continue
++                contents = wheel.read(name)
++                self.assertEqual(int(size), len(contents), name)
++                self.assertEqual(digest, "sha256=" + base64.urlsafe_b64encode(
++                    hashlib.sha256(contents).digest()).rstrip(b"=").decode(), name)
++            members = layer.getmembers()
++            regular = {}
++            for member in members:
++                path = PurePosixPath(member.name)
++                self.assertFalse(path.is_absolute() or ".." in path.parts, member.name)
++                self.assertTrue(member.isfile() or member.isdir(), member.name)
++                self.assertEqual((member.uid, member.gid, member.mtime), (0, 0, 0), member.name)
++                self.assertEqual(member.mode, 0o644 if member.isfile() else 0o755, member.name)
++                if member.isfile():
++                    regular[str(path)] = layer.extractfile(member).read()
++            self.assertEqual({name for name in regular if name.endswith(".py")},
++                             {PREFIX + name for name in expected})
++            for name in names:
++                if not name.endswith("/") and name != record_name:
++                    self.assertEqual(regular[PREFIX + name], wheel.read(name), name)
++
++    def test_imports_from_installed_tar_without_source(self):
++        with tempfile.TemporaryDirectory() as directory, tarfile.open(TAR) as layer:
++            root = Path(directory)
++            layer.extractall(root, filter="data")
++            site = root / PREFIX
++            probe = """
++import importlib, importlib.metadata, pathlib, sys
++site = pathlib.Path(sys.argv[1]).resolve()
++sys.path.insert(0, str(site))
++for name in ('sonic_syncd', 'sonic_syncd.interface'):
++    module = importlib.import_module(name)
++    assert pathlib.Path(module.__file__).resolve().is_relative_to(site), module.__file__
++assert importlib.metadata.version('sonic-d') == '2.0.0'
++from sonic_syncd import SonicSyncDaemon
++assert SonicSyncDaemon(update_frequency=5)._update_frequency == 5
++"""
++            result = subprocess.run([sys.executable, "-I", "-c", probe, str(site)],
++                                    cwd=root, capture_output=True, text=True, timeout=30)
++            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
++
++
++if __name__ == "__main__":
++    result = unittest.main(exit=False).result
++    output = os.environ.get("TEST_UNDECLARED_OUTPUTS_DIR")
++    if output:
++        Path(output, "archive-contract.json").write_text(json.dumps({
++            "status": "passed" if result.wasSuccessful() else "failed",
++            "wheel_sha256": hashlib.sha256(WHEEL.read_bytes()).hexdigest(),
++            "runtime_tar_sha256": hashlib.sha256(TAR.read_bytes()).hexdigest(),
++            "tests": result.testsRun,
++            "scope": "Owner payload and installed stdlib-only imports; native library import tested separately",
++        }, indent=2) + "\n")
++    raise SystemExit(not result.wasSuccessful())
+diff --git a/modules/sonic-dbsyncd/2.0.0-a4025c14068b3afdf2eac3e73094f0fd2cfcf746/tests/consumer/library_probe.py b/modules/sonic-dbsyncd/2.0.0-a4025c14068b3afdf2eac3e73094f0fd2cfcf746/tests/consumer/library_probe.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..e3f52d1772d44f214c0110b567ba4ebc4333f1cc
+--- /dev/null
++++ b/modules/sonic-dbsyncd/2.0.0-a4025c14068b3afdf2eac3e73094f0fd2cfcf746/tests/consumer/library_probe.py
+@@ -0,0 +1,37 @@
++"""Exercise the public libraries with the owner's real Common binding."""
++
++from lldp_syncd.conventions import LldpChassisIdSubtype, LldpPortIdSubtype
++from lldp_syncd.daemon import LldpSyncDaemon, parse_time
++from sonic_syncd import SonicSyncDaemon
++from swsscommon.swsscommon import SonicV2Connector
++
++assert SonicV2Connector.__module__ == "swsscommon.swsscommon"
++assert issubclass(LldpSyncDaemon, SonicSyncDaemon)
++assert parse_time("2 days, 03:04:05") == 183845
++assert parse_time("0 day, 00:00:30") == 30
++assert LldpChassisIdSubtype.macAddress == 4
++assert LldpPortIdSubtype.interfaceName == 5
++
++
++class OneUpdate(SonicSyncDaemon):
++    def __init__(self):
++        super().__init__(update_frequency=0.001)
++        self.saved = []
++
++    def source_update(self):
++        return {"Ethernet0": "peer"}
++
++    def parse_update(self, value):
++        return {key: name.upper() for key, name in value.items()}
++
++    def sync(self, value):
++        self.saved.append(value)
++        self.stop()
++
++
++daemon = OneUpdate()
++daemon.start()
++daemon.join(timeout=5)
++assert not daemon.is_alive()
++assert daemon.saved == [{"Ethernet0": "PEER"}]
++print("Public Common-backed LLDP parser and one real sync thread passed")
+diff --git a/modules/sonic-dbsyncd/metadata.json b/modules/sonic-dbsyncd/metadata.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..aef6870bc4a14518bd7d019ec83ff979f4906c56
+--- /dev/null
++++ b/modules/sonic-dbsyncd/metadata.json
+@@ -0,0 +1,6 @@
++{
++    "homepage": "https://github.com/sonic-net/sonic-dbsyncd",
++    "versions": [
++        "2.0.0-a4025c14068b3afdf2eac3e73094f0fd2cfcf746"
++    ]
++}
+diff --git a/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/MODULE.bazel b/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/MODULE.bazel
+index baf7ca344db8c35876f69d0564e1ada0a00ac288..9fc3b25a52734f77dbacb02bd3bc846a2ddd8847 100644
+--- a/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/MODULE.bazel
++++ b/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-fips",
+-    version = "0.0.4-ef423363e8fd50358f0aa2a8a20d3e08d4450a56",
++    version = "0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
+diff --git a/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/README.md b/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/README.md
+index 492e8a7d36ef664ea90363077bfaa1837f1ac4b2..e527c76814d215afff007c099450b41aa920661f 100644
+--- a/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/README.md
++++ b/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/README.md
+@@ -1,29 +1,32 @@
+-# SONiC FIPS cumulative candidate `0.0.4`
++# Register the landed cumulative FIPS source
+ 
+-Registers landed source commit `ef423363e8fd50358f0aa2a8a20d3e08d4450a56`
+-from [FIPS #12](https://github.com/securely1g/sonic-fips/pull/12). Its tree
+-is identical to `sonic-fips` `main@15fcb926a302` (the merge commit of #12),
+-so this one entry carries every fix landed on FIPS `main`:
++This entry selects `sonic-fips` maintained `main` commit
++`15fcb926a302059ec379f0c2fd15eb3d88bda4c9`, the first-parent merge of
++[FIPS #12](https://github.com/securely1g/sonic-fips/pull/12).
++The complete source tree and all nine submodule revisions equal published
++`.4-ef423363`; that earlier pin names the merge's second parent rather than the
++landed integration commit. Published `.4` and every earlier entry are preserved.
+ 
+-| FIPS PR | Change |
+-| --- | --- |
+-| [#9](https://github.com/securely1g/sonic-fips/pull/9), [#10](https://github.com/securely1g/sonic-fips/pull/10) | Kerberos/OpenSSH debug paths and OpenSSL compiler metadata normalization (published through `0.0.3-401a5d7e…`) |
+-| [#11](https://github.com/securely1g/sonic-fips/pull/11) | SymCrypt provider/engine build-path RPATH padding (published as `0.0.3-44d18af6…` by registry #184) |
+-| [#13](https://github.com/securely1g/sonic-fips/pull/13) | Declared source paths in SymCrypt assembly debug data (not registered before this entry) |
+-| [#14](https://github.com/securely1g/sonic-fips/pull/14) | Ordered response files for large OpenSSH and Kerberos compiler flag lists (previously proposed by closed registry #194) |
+-| [#15](https://github.com/securely1g/sonic-fips/pull/15) | OpenSSH selects the source OpenSSL SDK with `--with-ssl-dir`, so Debian 3.5.6 headers are no longer mixed with the source 3.5.7 library |
+-| [#12](https://github.com/securely1g/sonic-fips/pull/12) | SymCrypt build metadata uses the pinned source timestamp |
++| Consumer input | Published `.4` | This `.5` registration |
++| --- | --- | --- |
++| Exact cumulative source | Review head `ef423363`, reachable through a merge's second parent | Landed first-parent commit `15fcb926`, with identical source files, modes and submodules |
++| Native build/test contract | 18 output targets and six tests on AMD64/ARM64 | The same complete presubmit, byte-for-byte |
++| Explicit FIPS selection in Teamd, Libteam and FRR | Earlier consumers pin `d1`/`e910`; current staging selects `.4` | A coordinated direct dependency and version override can select the landed cumulative source |
+ 
+-The minor version is bumped to `0.0.4` so Bzlmod selects this entry over
+-every published `0.0.3-<sha>` without relying on SHA-suffix ordering.
++The cumulative source retains the compiler response-file, OpenSSH source-SDK,
++SymCrypt build-path and deterministic timestamp repairs from FIPS #9–#15.
++The numeric revision is advanced because `.4` is already published; no source
++producer, dependency minimum, crypto behavior or packaging target changes.
++The only source patch changes the module's version string.
+ 
+-The ordinary native AMD64/ARM64 consumer selects published Distroless
+-`0.9.4.sonic.16` (registry #200, which fixes target-CPU header selection);
+-the owner's module minimum remains `.13`. All 18 runtime/debug/SDK/metadata
+-outputs and the installed/integration tests are retained, and SymCrypt's new
+-`timestamp_test` from #12 is added to the validation targets.
++The ordinary consumer continues to select published Distroless `.16` and its
++existing infrastructure contract. Teamd/Libteam/FRR and final image catalog
++adoption are separate validation boundaries: update both direct dependencies
++and explicit overrides, verify the fetched module and run the affected native
++checks. Live SDK and image inputs remain frozen until their current phases
++finish. No full image or sealed-crypto reproducibility claim follows from
++source-tree equality.
+ 
+-No crypto, entropy, integrity sealing or DEB output is changed. Sealed-core
+-and whole-image reproducibility remain separate, unproven claims. Consumers
+-with an explicit FIPS `single_version_override` must update it to this direct
+-pin and verify the fetched MODULE.
++Archive integrity, first-parent provenance and exact source/registration
++comparisons are required before publication. Fresh registry-fetched/native
++acceptance remains pending for this source identity. No DEB output is added.
+diff --git a/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/patches/0001-module-version.patch b/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/patches/0001-module-version.patch
+index aea3a1d5618ab258e15653211478cffd8c5ac34d..a03a26879ba011ac6699f6c388b503239b3c01a1 100644
+--- a/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/patches/0001-module-version.patch
++++ b/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/patches/0001-module-version.patch
+@@ -4,7 +4,7 @@
+  module(
+      name = "sonic-fips",
+ -    version = "0.0.3",
+-+    version = "0.0.4-ef423363e8fd50358f0aa2a8a20d3e08d4450a56",
+++    version = "0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9",
+      bazel_compatibility = [
+          ">=8.5.1",
+          "<=8.5.1",
+diff --git a/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/source.json b/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/source.json
+index 5f7ba1ff6875d5a92f6cfa15e279c71be93f4e2a..d00a65824c64b4ef2bed3d2391aa966ed465e43f 100644
+--- a/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/source.json
++++ b/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/source.json
+@@ -1,9 +1,9 @@
+ {
+-  "url": "https://github.com/securely1g/sonic-fips/archive/ef423363e8fd50358f0aa2a8a20d3e08d4450a56.tar.gz",
+-  "strip_prefix": "sonic-fips-ef423363e8fd50358f0aa2a8a20d3e08d4450a56",
+-  "integrity": "sha256-gQNd1oD/3e1Patla6iDL1mzoFwExsp2LfCfsFuU7+Sk=",
++  "url": "https://github.com/securely1g/sonic-fips/archive/15fcb926a302059ec379f0c2fd15eb3d88bda4c9.tar.gz",
++  "strip_prefix": "sonic-fips-15fcb926a302059ec379f0c2fd15eb3d88bda4c9",
++  "integrity": "sha256-MCDEjRbcrn5nABA2SQ2JU0gd58/VGPlWISWIepSVT38=",
+   "patch_strip": 1,
+   "patches": {
+-    "0001-module-version.patch": "sha256-ZbbZK+8DsI0abhmE43u6GVb0wzy74HWFB/bFARkUmYk="
++    "0001-module-version.patch": "sha256-xSh/ETCyZnmZFot/LsoQUigHuTi4fJsmPwXI9wyRTCA="
+   }
+ }
+diff --git a/modules/sonic-fips/metadata.json b/modules/sonic-fips/metadata.json
+index 80b019fa38f5fa7cbf9a5540525d124ac909cc51..e22aa2f2e64820a61f2bd10c1b43cb91aae0a3aa 100644
+--- a/modules/sonic-fips/metadata.json
++++ b/modules/sonic-fips/metadata.json
+@@ -1,11 +1,12 @@
+ {
+-  "versions": [
+-    "0.0.2-da444a14aea8483fcb8df84d0a049bf9db0fb15a",
+-    "0.0.2-df34b541eb08d1a6a4b039e69c4d716c84566061",
+-    "0.0.3-0565bc0426dde6a1e7c495de17707c9557f843a9",
+-    "0.0.3-d1a2c8f692d4197295269ed445022c3890b0f1a6",
+-    "0.0.3-401a5d7ea7d741f405f4ccd8b7de94678d27ad4c",
+-    "0.0.3-44d18af69f1b1868cebd41a93a76feb7c0b9a0f6",
+-    "0.0.4-ef423363e8fd50358f0aa2a8a20d3e08d4450a56"
+-  ]
++    "versions": [
++        "0.0.2-da444a14aea8483fcb8df84d0a049bf9db0fb15a",
++        "0.0.2-df34b541eb08d1a6a4b039e69c4d716c84566061",
++        "0.0.3-0565bc0426dde6a1e7c495de17707c9557f843a9",
++        "0.0.3-d1a2c8f692d4197295269ed445022c3890b0f1a6",
++        "0.0.3-401a5d7ea7d741f405f4ccd8b7de94678d27ad4c",
++        "0.0.3-44d18af69f1b1868cebd41a93a76feb7c0b9a0f6",
++        "0.0.4-ef423363e8fd50358f0aa2a8a20d3e08d4450a56",
++        "0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9"
++    ]
+ }
+diff --git a/modules/sonic-gnmi/0.1.0-ce49e93eb3a0cff8daf77a3092535d76265ebc3d/MODULE.bazel b/modules/sonic-gnmi/0.1.0-ce49e93eb3a0cff8daf77a3092535d76265ebc3d/MODULE.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..d6e4e69b6bad49501e524ef0db731a308f129557
+--- /dev/null
++++ b/modules/sonic-gnmi/0.1.0-ce49e93eb3a0cff8daf77a3092535d76265ebc3d/MODULE.bazel
+@@ -0,0 +1,171 @@
++module(
++    name = "sonic-gnmi",
++    version = "0.1.0-ce49e93eb3a0cff8daf77a3092535d76265ebc3d",
++    bazel_compatibility = [
++        ">=8.5.1",
++        "<=8.5.1",
++    ],
++)
++
++bazel_dep(name = "sonic-mgmt-common", version = "1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744", repo_name = "sonic_mgmt_common")
++bazel_dep(name = "gazelle", version = "0.54.0")
++bazel_dep(name = "openconfig_goyang", version = "0.0.0.sonic.1-20200309174518-a00bece872fc", repo_name = "com_github_openconfig_goyang")
++bazel_dep(name = "openconfig_ygot", version = "0.7.1.sonic.1", repo_name = "com_github_openconfig_ygot")
++bazel_dep(name = "rules_go", version = "0.64.1-sonic.1", repo_name = "io_bazel_rules_go")
++bazel_dep(name = "sonic-build-infra", version = "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e", repo_name = "sonic_build_infra")
++
++go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
++go_deps.from_file(go_work = "//:go.bazel.work")
++use_repo(go_deps, "cc_mvdan_sh_v3", "com_github_agiledragon_gomonkey_v2", "com_github_alicebob_miniredis_v2", "com_github_c9s_goprocinfo", "com_github_dgrijalva_jwt_go", "com_github_fsnotify_fsnotify", "com_github_go_redis_redismock_v9", "com_github_godbus_dbus_v5", "com_github_gogo_protobuf", "com_github_golang_glog", "com_github_golang_mock", "com_github_golang_protobuf", "com_github_google_gnxi", "com_github_google_go_cmp", "com_github_google_shlex", "com_github_kylelemons_godebug", "com_github_maruel_natural", "com_github_msteinert_pam", "com_github_openconfig_gnmi", "com_github_openconfig_gnoi", "com_github_openconfig_gnsi", "com_github_opencontainers_go_digest", "com_github_opencontainers_image_spec", "com_github_redis_go_redis_v9", "com_github_stretchr_testify", "com_github_workiva_go_datastructures", "in_gopkg_yaml_v2", "in_gopkg_yaml_v3", "land_oras_oras_go_v2", "org_golang_google_grpc", "org_golang_google_grpc_security_advancedtls", "org_golang_google_protobuf", "org_golang_x_crypto", "org_golang_x_net", "org_golang_x_term", "org_golang_x_time")
++
++go_patches = use_extension("@gazelle//:extensions.bzl", "go_deps", dev_dependency = True)
++
++# The public goyang/ygot owners supply the same Go types as Management
++# Common. Keep the remaining upstream Go dependency settings unchanged.
++go_patches.gazelle_override(
++    directives = ["gazelle:proto disable_global"],
++    path = "github.com/openconfig/gnmi",
++)
++
++# These modules ship C++/proto Bazel files for their own workspace. Generate
++# their checked-in Go bindings as native Go packages for this consuming graph.
++[go_patches.gazelle_override(
++    build_file_generation = "clean",
++    directives = ["gazelle:proto disable_global"],
++    path = path,
++) for path in [
++    "github.com/openconfig/gnoi",
++    "github.com/openconfig/gnsi",
++]]
++
++# These are the existing Make/vendor patches, applied to isolated dependency
++# repositories. Build actions never modify go.mod, vendor, or the checkout.
++go_patches.module_override(
++    patch_strip = 1,
++    patches = ["@sonic_mgmt_common//patches:jsonquery.patch"],
++    path = "github.com/antchfx/jsonquery",
++)
++go_patches.module_override(
++    patch_strip = 1,
++    patches = ["@sonic_mgmt_common//patches:xmlquery.patch"],
++    path = "github.com/antchfx/xmlquery",
++)
++go_patches.module_override(
++    patch_strip = 1,
++    patches = ["@sonic_mgmt_common//patches:xpath.patch"],
++    path = "github.com/antchfx/xpath",
++)
++
++[go_patches.module_override(
++    patch_strip = 1,
++    patches = ["//patches/bazel:" + patch] + (["//patches/bazel:" + {
++        "0001-gnxi.patch": "0005-gnxi-build.patch",
++        "0002-gnmi.patch": "0006-gnmi-build.patch",
++    }[patch]] if path in [
++        "github.com/google/gnxi",
++        "github.com/openconfig/gnmi",
++    ] else []),
++    path = path,
++) for path, patch in [
++    ("github.com/google/gnxi", "0001-gnxi.patch"),
++    ("github.com/openconfig/gnmi", "0002-gnmi.patch"),
++    ("github.com/fsnotify/fsnotify", "0003-fsnotify.patch"),
++    ("google.golang.org/grpc/security/advancedtls", "0004-advancedtls.patch"),
++]]
++# Native gNMI deliberately omits Common's glog.patch for glog v1.2.4.
++
++# Match the owner generators and source toolchain in this consuming root.
++bazel_dep(name = "rules_python", version = "1.9.0")
++
++python = use_extension("@rules_python//python/extensions:python.bzl", "python")
++python.toolchain(python_version = "3.13")
++
++go_sdk = use_extension("@io_bazel_rules_go//go:extensions.bzl", "go_sdk", dev_dependency = True)
++go_sdk.download(
++    name = "go_sdk",
++    version = "1.25.9",
++)
++
++bazel_dep(name = "sonic-swss-common", version = "0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed", repo_name = "sonic_swss_common")
++
++# CodeQL stages the public native libraries required by Common.
++bazel_dep(name = "libnl3", version = "3.7.0.sonic.7", dev_dependency = True)
++
++bazel_dep(name = "bazel_skylib", version = "1.9.2")
++bazel_dep(name = "platforms", version = "1.1.0")
++bazel_dep(name = "rules_cc", version = "0.2.22")
++bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.14")
++bazel_dep(name = "rules_pkg", version = "1.1.0")
++bazel_dep(name = "rules_shell", version = "0.8.0")
++bazel_dep(name = "tar.bzl", version = "0.10.5.sonic.1")
++
++gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
++use_repo(gcc, "gcc_toolchains")
++
++register_toolchains("@gcc_toolchains//:all")
++
++tar_toolchains = use_extension("@tar.bzl//tar:extensions.bzl", "toolchains")
++use_repo(tar_toolchains, "bsd_tar_toolchains")
++
++register_toolchains("@bsd_tar_toolchains//:all")
++
++# Common registers the Rust toolchain extension even for a Go-only consumer.
++bazel_dep(name = "rules_rs", version = "0.1.0")
++
++rules_rust = use_extension("@rules_rs//rs:rules_rust.bzl", "rules_rust")
++use_repo(rules_rust, "rules_rust")
++
++rust = use_extension("@rules_rs//rs:rules_rust_reexported_extensions.bzl", "rust", dev_dependency = True)
++rust.toolchain(
++    edition = "2021",
++    versions = ["1.90.0"],
++)
++use_repo(rust, "rust_toolchains")
++
++register_toolchains(
++    "@rust_toolchains//:all",
++    dev_dependency = True,
++)
++
++pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
++pip.parse(
++    hub_name = "gnmi_pip",
++    python_version = "3.13",
++    requirements_lock = "//:requirements_lock.txt",
++)
++use_repo(pip, "gnmi_pip", "mgmt_pip")
++
++# Upstream proto rules require protoc29 options absent from Trixie protoc3.21.
++# Keep the existing upstream source compiler and the legacy Go plugin versions.
++bazel_dep(name = "protobuf", version = "29.1", repo_name = "com_google_protobuf")
++
++go_patches.module_override(
++    patch_strip = 1,
++    patches = ["//patches/bazel:0007-gnoi-build.patch"],
++    path = "github.com/openconfig/gnoi",
++)
++
++# Reuse the shared target APT set for the native Python embedding and PAM APIs.
++apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
++apt.install(
++    dependency_set = "trixie",
++    packages = [
++        "libpam0g:amd64",
++        "libpam0g-dev:amd64",
++    ],
++    suites = [
++        "trixie",
++        "trixie-updates",
++        "trixie-security",
++    ],
++)
++use_repo(apt, "trixie")
++
++go_patches.module_override(
++    patch_strip = 1,
++    patches = ["//patches/bazel:0008-pam-build.patch"],
++    path = "github.com/msteinert/pam",
++)
++
++bazel_dep(name = "patchelf", version = "0.18.0.bcr.1")
++bazel_dep(name = "libyang", version = "3.12.2.sonic.5")
+diff --git a/modules/sonic-gnmi/0.1.0-ce49e93eb3a0cff8daf77a3092535d76265ebc3d/README.md b/modules/sonic-gnmi/0.1.0-ce49e93eb3a0cff8daf77a3092535d76265ebc3d/README.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..fc08006e71acab4b027ff4b40c9440284f3282a5
+--- /dev/null
++++ b/modules/sonic-gnmi/0.1.0-ce49e93eb3a0cff8daf77a3092535d76265ebc3d/README.md
+@@ -0,0 +1,28 @@
++# Native AMD64 gNMI runtime and source TARs
++
++Register the unchanged gNMI source `ce49e93eb3a0cff8daf77a3092535d76265ebc3d` from [gNMI #2](https://github.com/securely1g/sonic-gnmi/pull/2), which includes [#1](https://github.com/securely1g/sonic-gnmi/pull/1), for [buildimage #148](https://github.com/securely1g/sonic-buildimage/pull/148) and [issue #126](https://github.com/securely1g/sonic-buildimage/issues/126).
++
++The owner builds the existing nine telemetry, dialout and gNMI/gNOI programs and exports runtime, matching debug symbols, component sources and runtime metadata. SWSS Common owns the reusable CGo binding; Management Common owns generated schemas and Go interfaces. Legacy Make remains available. No DEB producer is selected.
++
++The registry and separate consumer select the same current shared dependencies:
++
++| Dependency | Selected input | Registration |
++| --- | --- | --- |
++| SWSS Common | `0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed` | [#199](https://github.com/securely1g/sonic-bazel-registry/pull/199) |
++| Build infrastructure | `0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e` | [#218](https://github.com/securely1g/sonic-bazel-registry/pull/218) |
++| Management Common | `1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744` | [#219](https://github.com/securely1g/sonic-bazel-registry/pull/219), child of [#216](https://github.com/securely1g/sonic-bazel-registry/pull/216) |
++| Shared goyang / ygot | `0.0.0.sonic.1-20200309174518-a00bece872fc` / `0.7.1.sonic.1` | published [#212](https://github.com/securely1g/sonic-bazel-registry/pull/212) / [#214](https://github.com/securely1g/sonic-bazel-registry/pull/214) |
++| libnl / Distroless | published `3.7.0.sonic.7` / `0.9.4.sonic.16` | [#181](https://github.com/securely1g/sonic-bazel-registry/pull/181) / [#200](https://github.com/securely1g/sonic-bazel-registry/pull/200) |
++
++The existing MODULE patch aligns the fetched source with these registry declarations byte-for-byte. The ordinary consumer uses public owner mappings without module/source overrides or duplicated goyang/ygot patches. The source archive integrity stays unchanged. Its Go workspace also receives the existing shared-root compatibility patch, selecting `golang.org/x/text v0.39.0` and `golang.org/x/sync v0.21.0`; both replacements match the composed consumer graph and retain Go 1.25.9. The `rules_go@0.64.1-sonic.1` declaration, unrelated feature patches, optimized configuration and empty global Go tags are unchanged.
++
++All six build targets and three tests are preserved. They build a separate public-library consumer plus runtime/debug/source artifacts and the generated YANG server; checks inspect package/source contracts and exercise telemetry/gnmi_get against private Redis fixtures. Source CI separately owns the original suites, CodeQL and compiler canaries. Fresh ordinary-consumer and downstream image acceptance is required for this updated dependency graph. Historical receipts remain associated with their original source/catalog revisions.
++
++This initial registration is scoped to native AMD64 Trixie; ARM, ASAN and full VS installer acceptance remain outside it. Keep Draft until the required source and registry changes land, the registration targets maintained main, and its current CI passes.
++
++This dependency refresh selects maintained infrastructure source 3ee15ec9 through
++registry #218. Its numeric version is .25; published .26 entries remain intact.
++Fresh module-graph checks must verify the selected version, followed by the
++unchanged ordinary-consumer outputs and tests. This metadata/source-patch proof
++does not establish native or image acceptance. Existing worker runs and earlier
++receipts retain their exact preceding dependency inputs.
+diff --git a/modules/sonic-gnmi/0.1.0-ce49e93eb3a0cff8daf77a3092535d76265ebc3d/patches/0002-shared-root-text-version.patch b/modules/sonic-gnmi/0.1.0-ce49e93eb3a0cff8daf77a3092535d76265ebc3d/patches/0002-shared-root-text-version.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..28a8566692b747be6e87aae05bc63b1d564633c2
+--- /dev/null
++++ b/modules/sonic-gnmi/0.1.0-ce49e93eb3a0cff8daf77a3092535d76265ebc3d/patches/0002-shared-root-text-version.patch
+@@ -0,0 +1,11 @@
++--- a/go.bazel.work
+++++ b/go.bazel.work
++@@ -6,3 +6,8 @@
++ // own Gazelle/rules_go tool modules request newer versions in their graph.
++ replace github.com/fsnotify/fsnotify => github.com/fsnotify/fsnotify v1.4.9
++ replace golang.org/x/net => golang.org/x/net v0.55.0
+++
+++// Keep the existing application selections on the declared Go 1.25 SDK.
+++// rules_go otherwise raises these runtime libraries through its build-tool graph.
+++replace golang.org/x/text => golang.org/x/text v0.39.0
+++replace golang.org/x/sync => golang.org/x/sync v0.21.0
+diff --git a/modules/sonic-gnmi/0.1.0-ce49e93eb3a0cff8daf77a3092535d76265ebc3d/patches/module-version.patch b/modules/sonic-gnmi/0.1.0-ce49e93eb3a0cff8daf77a3092535d76265ebc3d/patches/module-version.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..a5def091be55d4b9bfa3551f3e6cbb53680805ba
+--- /dev/null
++++ b/modules/sonic-gnmi/0.1.0-ce49e93eb3a0cff8daf77a3092535d76265ebc3d/patches/module-version.patch
+@@ -0,0 +1,74 @@
++--- a/MODULE.bazel
+++++ b/MODULE.bazel
++@@ -1,26 +1,27 @@
++ module(
++     name = "sonic-gnmi",
++-    version = "0.1.0",
+++    version = "0.1.0-ce49e93eb3a0cff8daf77a3092535d76265ebc3d",
++     bazel_compatibility = [
++         ">=8.5.1",
++         "<=8.5.1",
++     ],
++ )
++ 
++-bazel_dep(name = "sonic-mgmt-common", version = "1.0.0-af147e78654ad423ea0a2af268dfd0b71092b38b", repo_name = "sonic_mgmt_common")
+++bazel_dep(name = "sonic-mgmt-common", version = "1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744", repo_name = "sonic_mgmt_common")
++ bazel_dep(name = "gazelle", version = "0.54.0")
+++bazel_dep(name = "openconfig_goyang", version = "0.0.0.sonic.1-20200309174518-a00bece872fc", repo_name = "com_github_openconfig_goyang")
+++bazel_dep(name = "openconfig_ygot", version = "0.7.1.sonic.1", repo_name = "com_github_openconfig_ygot")
++ bazel_dep(name = "rules_go", version = "0.64.1-sonic.1", repo_name = "io_bazel_rules_go")
++-bazel_dep(name = "sonic-build-infra", version = "0.0.26-0378d53824b18b253ecbd6faadba00e505ff4ccf", repo_name = "sonic_build_infra")
+++bazel_dep(name = "sonic-build-infra", version = "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e", repo_name = "sonic_build_infra")
++ 
++ go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
++ go_deps.from_file(go_work = "//:go.bazel.work")
++-
++-use_repo(go_deps, "cc_mvdan_sh_v3", "com_github_agiledragon_gomonkey_v2", "com_github_alicebob_miniredis_v2", "com_github_c9s_goprocinfo", "com_github_dgrijalva_jwt_go", "com_github_fsnotify_fsnotify", "com_github_go_redis_redismock_v9", "com_github_godbus_dbus_v5", "com_github_gogo_protobuf", "com_github_golang_glog", "com_github_golang_mock", "com_github_golang_protobuf", "com_github_google_gnxi", "com_github_google_go_cmp", "com_github_google_shlex", "com_github_kylelemons_godebug", "com_github_maruel_natural", "com_github_msteinert_pam", "com_github_openconfig_gnmi", "com_github_openconfig_gnoi", "com_github_openconfig_gnsi", "com_github_openconfig_ygot", "com_github_opencontainers_go_digest", "com_github_opencontainers_image_spec", "com_github_redis_go_redis_v9", "com_github_stretchr_testify", "com_github_workiva_go_datastructures", "in_gopkg_yaml_v2", "in_gopkg_yaml_v3", "land_oras_oras_go_v2", "org_golang_google_grpc", "org_golang_google_grpc_security_advancedtls", "org_golang_google_protobuf", "org_golang_x_crypto", "org_golang_x_net", "org_golang_x_term", "org_golang_x_time")
+++use_repo(go_deps, "cc_mvdan_sh_v3", "com_github_agiledragon_gomonkey_v2", "com_github_alicebob_miniredis_v2", "com_github_c9s_goprocinfo", "com_github_dgrijalva_jwt_go", "com_github_fsnotify_fsnotify", "com_github_go_redis_redismock_v9", "com_github_godbus_dbus_v5", "com_github_gogo_protobuf", "com_github_golang_glog", "com_github_golang_mock", "com_github_golang_protobuf", "com_github_google_gnxi", "com_github_google_go_cmp", "com_github_google_shlex", "com_github_kylelemons_godebug", "com_github_maruel_natural", "com_github_msteinert_pam", "com_github_openconfig_gnmi", "com_github_openconfig_gnoi", "com_github_openconfig_gnsi", "com_github_opencontainers_go_digest", "com_github_opencontainers_image_spec", "com_github_redis_go_redis_v9", "com_github_stretchr_testify", "com_github_workiva_go_datastructures", "in_gopkg_yaml_v2", "in_gopkg_yaml_v3", "land_oras_oras_go_v2", "org_golang_google_grpc", "org_golang_google_grpc_security_advancedtls", "org_golang_google_protobuf", "org_golang_x_crypto", "org_golang_x_net", "org_golang_x_term", "org_golang_x_time")
++ 
++ go_patches = use_extension("@gazelle//:extensions.bzl", "go_deps", dev_dependency = True)
++ 
++-# The consuming root selects the owner's existing SONiC Go patches. Public
++-# libraries and their consumers share one Go graph and the same Go types.
+++# The public goyang/ygot owners supply the same Go types as Management
+++# Common. Keep the remaining upstream Go dependency settings unchanged.
++ go_patches.gazelle_override(
++     directives = ["gazelle:proto disable_global"],
++     path = "github.com/openconfig/gnmi",
++@@ -39,23 +40,6 @@
++ 
++ # These are the existing Make/vendor patches, applied to isolated dependency
++ # repositories. Build actions never modify go.mod, vendor, or the checkout.
++-go_patches.module_override(
++-    patch_strip = 1,
++-    patches = [
++-        "@sonic_mgmt_common//patches:ygot/ygot.patch",
++-        "@sonic_mgmt_common//patches:0001-ygot-declare-patched-value-dependency.patch",
++-        "@sonic_mgmt_common//patches:0003-ygot-preserve-union-enum-order.patch",
++-    ],
++-    path = "github.com/openconfig/ygot",
++-)
++-go_patches.module_override(
++-    patch_strip = 1,
++-    patches = [
++-        "@sonic_mgmt_common//patches:goyang/goyang.patch",
++-        "@sonic_mgmt_common//patches:0002-goyang-preserve-declared-schema-order.patch",
++-    ],
++-    path = "github.com/openconfig/goyang",
++-)
++ go_patches.module_override(
++     patch_strip = 1,
++     patches = ["@sonic_mgmt_common//patches:jsonquery.patch"],
++@@ -102,9 +86,11 @@
++     version = "1.25.9",
++ )
++ 
++-bazel_dep(name = "sonic-swss-common", version = "0.0.8-33d2790e5f954496c2b79e38854a2b5e2dfa7a3a", repo_name = "sonic_swss_common")
+++bazel_dep(name = "sonic-swss-common", version = "0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed", repo_name = "sonic_swss_common")
+++
++ # CodeQL stages the public native libraries required by Common.
++ bazel_dep(name = "libnl3", version = "3.7.0.sonic.7", dev_dependency = True)
+++
++ bazel_dep(name = "bazel_skylib", version = "1.9.2")
++ bazel_dep(name = "platforms", version = "1.1.0")
++ bazel_dep(name = "rules_cc", version = "0.2.22")
+diff --git a/modules/sonic-gnmi/0.1.0-ce49e93eb3a0cff8daf77a3092535d76265ebc3d/presubmit.json b/modules/sonic-gnmi/0.1.0-ce49e93eb3a0cff8daf77a3092535d76265ebc3d/presubmit.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..f3a43c657b69809189fa882ca43a58686c80d83a
+--- /dev/null
++++ b/modules/sonic-gnmi/0.1.0-ce49e93eb3a0cff8daf77a3092535d76265ebc3d/presubmit.json
+@@ -0,0 +1,23 @@
++{
++  "architectures": [
++    "amd64"
++  ],
++  "consumer_deps": [],
++  "platforms": {
++    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
++  },
++  "build_targets": [
++    "//:consumer",
++    "@sonic-gnmi//dist:runtime",
++    "@sonic-gnmi//dist:runtime.debug_symbols",
++    "@sonic-gnmi//dist:runtime_packages.json",
++    "@sonic-gnmi//dist:sources",
++    "@sonic-gnmi//gnoi_yang:server"
++  ],
++  "test_targets": [
++    "@sonic-gnmi//dist:package_test",
++    "@sonic-gnmi//dist:source_test",
++    "@sonic-gnmi//dist:installed_runtime_test"
++  ],
++  "integration_test_module": "tests/consumer"
++}
+diff --git a/modules/sonic-gnmi/0.1.0-ce49e93eb3a0cff8daf77a3092535d76265ebc3d/source.json b/modules/sonic-gnmi/0.1.0-ce49e93eb3a0cff8daf77a3092535d76265ebc3d/source.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..d8079baa5770043c278f43e792c50229a638b026
+--- /dev/null
++++ b/modules/sonic-gnmi/0.1.0-ce49e93eb3a0cff8daf77a3092535d76265ebc3d/source.json
+@@ -0,0 +1,10 @@
++{
++  "url": "https://github.com/securely1g/sonic-gnmi/archive/ce49e93eb3a0cff8daf77a3092535d76265ebc3d.tar.gz",
++  "strip_prefix": "sonic-gnmi-ce49e93eb3a0cff8daf77a3092535d76265ebc3d",
++  "integrity": "sha256-5YnJwJL75ebUOPAOP1CRq/mOkYvAPt6dDLKS/wwGdv4=",
++  "patches": {
++    "module-version.patch": "sha256-TVqvfqaobNpmwHosyGWddAaQNmIvwmxBs2Tww7O5Wu0=",
++    "0002-shared-root-text-version.patch": "sha256-o2BRsxNZFm9yoqXMVxW8eP9Sd+6eYtnOt0kHTLvAwsA="
++  },
++  "patch_strip": 1
++}
+diff --git a/modules/sonic-gnmi/0.1.0-ce49e93eb3a0cff8daf77a3092535d76265ebc3d/tests/consumer/BUILD.bazel b/modules/sonic-gnmi/0.1.0-ce49e93eb3a0cff8daf77a3092535d76265ebc3d/tests/consumer/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..99b68eb73520234843b671f908369a7fe42ea90f
+--- /dev/null
++++ b/modules/sonic-gnmi/0.1.0-ce49e93eb3a0cff8daf77a3092535d76265ebc3d/tests/consumer/BUILD.bazel
+@@ -0,0 +1,14 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_binary")
++
++go_binary(
++    name = "consumer",
++    srcs = ["main.go"],
++    gotags = [
++        "gnmi_translib_write",
++        "gnmi_native_write",
++    ],
++    deps = [
++        "@sonic-gnmi//gnmi_server",
++        "@sonic-gnmi//sonic_db_config",
++    ],
++)
+diff --git a/modules/sonic-gnmi/0.1.0-ce49e93eb3a0cff8daf77a3092535d76265ebc3d/tests/consumer/MODULE.bazel b/modules/sonic-gnmi/0.1.0-ce49e93eb3a0cff8daf77a3092535d76265ebc3d/tests/consumer/MODULE.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..1c32445935f17fe7b6966be1d4951cbb4b2f112a
+--- /dev/null
++++ b/modules/sonic-gnmi/0.1.0-ce49e93eb3a0cff8daf77a3092535d76265ebc3d/tests/consumer/MODULE.bazel
+@@ -0,0 +1,107 @@
++module(name = "gnmi_external_consumer")
++
++bazel_dep(name = "sonic-gnmi", version = "0.1.0-ce49e93eb3a0cff8daf77a3092535d76265ebc3d")
++bazel_dep(name = "sonic-mgmt-common", version = "1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744", repo_name = "sonic_mgmt_common")
++bazel_dep(name = "sonic-swss-common", version = "0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed", repo_name = "sonic_swss_common")
++bazel_dep(name = "sonic-build-infra", version = "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e", repo_name = "sonic_build_infra")
++bazel_dep(name = "gazelle", version = "0.54.0")
++bazel_dep(name = "openconfig_goyang", version = "0.0.0.sonic.1-20200309174518-a00bece872fc", repo_name = "com_github_openconfig_goyang")
++bazel_dep(name = "openconfig_ygot", version = "0.7.1.sonic.1", repo_name = "com_github_openconfig_ygot")
++bazel_dep(name = "rules_go", version = "0.64.1-sonic.1", repo_name = "io_bazel_rules_go")
++bazel_dep(name = "rules_cc", version = "0.2.22")
++bazel_dep(name = "rules_python", version = "1.9.0")
++bazel_dep(name = "rules_rs", version = "0.1.0")
++bazel_dep(name = "tar.bzl", version = "0.10.5.sonic.1")
++
++go_sdk = use_extension("@io_bazel_rules_go//go:extensions.bzl", "go_sdk")
++go_sdk.download(version = "1.25.9")
++
++python = use_extension("@rules_python//python/extensions:python.bzl", "python")
++python.toolchain(
++    is_default = True,
++    python_version = "3.13",
++)
++
++rules_rust = use_extension("@rules_rs//rs:rules_rust.bzl", "rules_rust")
++use_repo(rules_rust, "rules_rust")
++
++rust = use_extension("@rules_rs//rs:rules_rust_reexported_extensions.bzl", "rust")
++rust.toolchain(
++    edition = "2021",
++    versions = ["1.90.0"],
++)
++use_repo(rust, "rust_toolchains")
++
++register_toolchains("@rust_toolchains//:all")
++
++go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
++go_deps.from_file(go_work = "@sonic-gnmi//:go.bazel.work")
++
++go_patches = use_extension("@gazelle//:extensions.bzl", "go_deps", dev_dependency = True)
++
++# The public goyang/ygot owners supply the same Go types as Management
++# Common. Keep the remaining upstream Go dependency settings unchanged.
++go_patches.gazelle_override(
++    directives = ["gazelle:proto disable_global"],
++    path = "github.com/openconfig/gnmi",
++)
++
++# These modules ship C++/proto Bazel files for their own workspace. Generate
++# their checked-in Go bindings as native Go packages for this consuming graph.
++[go_patches.gazelle_override(
++    build_file_generation = "clean",
++    directives = ["gazelle:proto disable_global"],
++    path = path,
++) for path in [
++    "github.com/openconfig/gnoi",
++    "github.com/openconfig/gnsi",
++]]
++
++# These are the existing Make/vendor patches, applied to isolated dependency
++# repositories. Build actions never modify go.mod, vendor, or the checkout.
++go_patches.module_override(
++    patch_strip = 1,
++    patches = ["@sonic_mgmt_common//patches:jsonquery.patch"],
++    path = "github.com/antchfx/jsonquery",
++)
++go_patches.module_override(
++    patch_strip = 1,
++    patches = ["@sonic_mgmt_common//patches:xmlquery.patch"],
++    path = "github.com/antchfx/xmlquery",
++)
++go_patches.module_override(
++    patch_strip = 1,
++    patches = ["@sonic_mgmt_common//patches:xpath.patch"],
++    path = "github.com/antchfx/xpath",
++)
++
++[go_patches.module_override(
++    patch_strip = 1,
++    patches = ["@sonic-gnmi//patches/bazel:" + patch] + (["@sonic-gnmi//patches/bazel:" + {
++        "0001-gnxi.patch": "0005-gnxi-build.patch",
++        "0002-gnmi.patch": "0006-gnmi-build.patch",
++    }[patch]] if path in [
++        "github.com/google/gnxi",
++        "github.com/openconfig/gnmi",
++    ] else []),
++    path = path,
++) for path, patch in [
++    ("github.com/google/gnxi", "0001-gnxi.patch"),
++    ("github.com/openconfig/gnmi", "0002-gnmi.patch"),
++    ("github.com/fsnotify/fsnotify", "0003-fsnotify.patch"),
++    ("google.golang.org/grpc/security/advancedtls", "0004-advancedtls.patch"),
++]]
++# Native gNMI deliberately omits Common's glog.patch for glog v1.2.4.
++
++go_patches.module_override(
++    patch_strip = 1,
++    patches = ["@sonic-gnmi//patches/bazel:0007-gnoi-build.patch"],
++    path = "github.com/openconfig/gnoi",
++)
++go_patches.module_override(
++    patch_strip = 1,
++    patches = ["@sonic-gnmi//patches/bazel:0008-pam-build.patch"],
++    path = "github.com/msteinert/pam",
++)
++
++bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.16")
+diff --git a/modules/sonic-gnmi/0.1.0-ce49e93eb3a0cff8daf77a3092535d76265ebc3d/tests/consumer/main.go b/modules/sonic-gnmi/0.1.0-ce49e93eb3a0cff8daf77a3092535d76265ebc3d/tests/consumer/main.go
+new file mode 100644
+index 0000000000000000000000000000000000000000..c361799a5b8264b97c7a7f21f787535f334ae8ab
+--- /dev/null
++++ b/modules/sonic-gnmi/0.1.0-ce49e93eb3a0cff8daf77a3092535d76265ebc3d/tests/consumer/main.go
+@@ -0,0 +1,16 @@
++package main
++
++import (
++	"fmt"
++	server "github.com/sonic-net/sonic-gnmi/gnmi_server"
++	dbconfig "github.com/sonic-net/sonic-gnmi/sonic_db_config"
++)
++
++func main() {
++	config := server.Config{Port: 8080}
++	namespace, err := dbconfig.GetDbDefaultNamespace()
++	if err != nil {
++		panic(err)
++	}
++	fmt.Printf("public gNMI config port=%d default_namespace=%q\n", config.Port, namespace)
++}
+diff --git a/modules/sonic-gnmi/metadata.json b/modules/sonic-gnmi/metadata.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..ccc8045225402137cce7ee5f297be78501891d57
+--- /dev/null
++++ b/modules/sonic-gnmi/metadata.json
+@@ -0,0 +1,6 @@
++{
++    "homepage": "https://github.com/sonic-net/sonic-gnmi",
++    "versions": [
++        "0.1.0-ce49e93eb3a0cff8daf77a3092535d76265ebc3d"
++    ]
++}
+diff --git a/modules/sonic-linkmgrd/1.0.0-803c4b170de1ebdf38d638517fd1115368ec9a5c/MODULE.bazel b/modules/sonic-linkmgrd/1.0.0-803c4b170de1ebdf38d638517fd1115368ec9a5c/MODULE.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..c6d1ccc1833cea55f28bb160f0ce241b136a3f8a
+--- /dev/null
++++ b/modules/sonic-linkmgrd/1.0.0-803c4b170de1ebdf38d638517fd1115368ec9a5c/MODULE.bazel
+@@ -0,0 +1,70 @@
++module(
++    name = "sonic-linkmgrd",
++    version = "1.0.0-803c4b170de1ebdf38d638517fd1115368ec9a5c",
++    bazel_compatibility = [
++        ">=8.5.1",
++        "<=8.5.1",
++    ],
++)
++
++bazel_dep(name = "rules_cc", version = "0.2.22")
++bazel_dep(name = "rules_python", version = "1.9.0")
++bazel_dep(name = "rules_gzip", version = "1.0.0")
++bazel_dep(name = "platforms", version = "1.1.0")
++bazel_dep(name = "googletest", version = "1.17.0")
++bazel_dep(name = "tar.bzl", version = "0.10.5.sonic.1")
++bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.14")
++bazel_dep(name = "libnl3", version = "3.7.0.sonic.7")
++bazel_dep(
++    name = "sonic-build-infra",
++    version = "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e",
++    repo_name = "sonic_build_infra",
++)
++bazel_dep(
++    name = "sonic-swss-common",
++    version = "0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed",
++    repo_name = "sonic_swss_common",
++)
++
++# Reuse the shared, snapshot-pinned target APT set for Boost's native ABI.
++apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
++apt.install(
++    dependency_set = "trixie",
++    packages = [
++        "libboost-date-time1.83.0:amd64",
++        "libboost-date-time1.83-dev:amd64",
++        "libboost-filesystem1.83.0:amd64",
++        "libboost-filesystem1.83-dev:amd64",
++        "libboost-log1.83.0:amd64",
++        "libboost-log1.83-dev:amd64",
++        "libboost-program-options1.83.0:amd64",
++        "libboost-program-options1.83-dev:amd64",
++        "libboost-thread1.83.0:amd64",
++        "libboost-thread1.83-dev:amd64",
++    ],
++    suites = [
++        "trixie",
++        "trixie-updates",
++        "trixie-security",
++    ],
++)
++use_repo(apt, "trixie")
++
++gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
++use_repo(gcc, "gcc_toolchains")
++
++register_toolchains("@gcc_toolchains//:all")
++
++register_toolchains("@sonic_build_infra//tools/gzip:toolchain")
++
++python = use_extension("@rules_python//python/extensions:python.bzl", "python")
++python.toolchain(
++    is_default = True,
++    python_version = "3.13",
++)
++
++# Common declares this extension; this C++ producer needs no Rust toolchain.
++bazel_dep(name = "rules_rs", version = "0.1.0")
++
++rust = use_extension("@rules_rs//rs:rules_rust_reexported_extensions.bzl", "rust")
++rust.toolchain(versions = [])
+diff --git a/modules/sonic-linkmgrd/1.0.0-803c4b170de1ebdf38d638517fd1115368ec9a5c/README.md b/modules/sonic-linkmgrd/1.0.0-803c4b170de1ebdf38d638517fd1115368ec9a5c/README.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..a92d8a09909240fc3904b5a1849a03209f919279
+--- /dev/null
++++ b/modules/sonic-linkmgrd/1.0.0-803c4b170de1ebdf38d638517fd1115368ec9a5c/README.md
+@@ -0,0 +1,44 @@
++# Native AMD64 Linkmgrd for docker-mux
++
++This entry registers [Linkmgrd PR #1](https://github.com/securely1g/sonic-linkmgrd/pull/1)
++at `803c4b170de1ebdf38d638517fd1115368ec9a5c`. Its source owner builds the daemon and matching runtime/debug TARs
++for [docker-mux integration #123](https://github.com/securely1g/sonic-buildimage/issues/123).
++No DEB is generated or imported as a substitute for the project source.
++
++The runtime installs `/usr/sbin/linkmgrd` and its existing compressed Debian
++changelog. The debug TAR contains the matching Build-ID symbols with `0644`
++permissions. Common and libnl remain separately owned dependencies; the MUX
++config-engine parent supplies their runtime TARs. Boost 1.83 comes from the
++existing pinned target APT set.
++
++The ordinary external consumer has no source overrides. Native AMD64/Trixie CI
++builds the daemon (including its core libraries), two TARs and package metadata,
++runs all 189 original C++ test cases and source-contract checks, then validates installed
++ELF dependencies, real CLI behavior and GDB symbol discovery. Source CI
++separately checks no-op/edit/restore behavior and traced C++ CodeQL coverage.
++The output checks list file-producing targets. `linkmgrd_core` groups its C++
++libraries through `CcInfo` and has no standalone default file; the daemon and
++original tests compile and link those libraries. Acceptance for this new
++registration is pending.
++
++The existing source MODULE patch sets the registered version and aligns the
++shared dependencies: infrastructure `0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e`
++from [registry #218](https://github.com/securely1g/sonic-bazel-registry/pull/218)
++and Common `0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed` from
++[#199](https://github.com/securely1g/sonic-bazel-registry/pull/199). The separate
++consumer uses the same infrastructure. Published libnl `3.7.0.sonic.7` is
++preserved. Other published dependency declarations remain unchanged; Common's
++minimum selects Distroless `.16` through normal module resolution.
++
++The source archive and production code, all four build targets and all three
++tests remain unchanged. There is one unpublished candidate. Keep Draft until
++required source/registry prerequisites land, this registration targets maintained
++main and current CI passes. Ordinary-consumer and MUX acceptance must be verified
++on these exact inputs; earlier receipts retain their original dependency graph.
++
++This dependency refresh selects maintained infrastructure source 3ee15ec9 through
++registry #218. Its numeric version is .25; published .26 entries remain intact.
++Fresh module-graph checks must verify the selected version, followed by the
++unchanged ordinary-consumer outputs and tests. This metadata/source-patch proof
++does not establish native or image acceptance. Existing worker runs and earlier
++receipts retain their exact preceding dependency inputs.
+diff --git a/modules/sonic-linkmgrd/1.0.0-803c4b170de1ebdf38d638517fd1115368ec9a5c/patches/0001-module-version.patch b/modules/sonic-linkmgrd/1.0.0-803c4b170de1ebdf38d638517fd1115368ec9a5c/patches/0001-module-version.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..367c88b8627d73577d85c08096c2ddbe99b846ab
+--- /dev/null
++++ b/modules/sonic-linkmgrd/1.0.0-803c4b170de1ebdf38d638517fd1115368ec9a5c/patches/0001-module-version.patch
+@@ -0,0 +1,25 @@
++--- a/MODULE.bazel
+++++ b/MODULE.bazel
++@@ -1,6 +1,6 @@
++ module(
++     name = "sonic-linkmgrd",
++-    version = "1.0.0",
+++    version = "1.0.0-803c4b170de1ebdf38d638517fd1115368ec9a5c",
++     bazel_compatibility = [
++         ">=8.5.1",
++         "<=8.5.1",
++@@ -17,12 +17,12 @@
++ bazel_dep(name = "libnl3", version = "3.7.0.sonic.7")
++ bazel_dep(
++     name = "sonic-build-infra",
++-    version = "0.0.26-0378d53824b18b253ecbd6faadba00e505ff4ccf",
+++    version = "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e",
++     repo_name = "sonic_build_infra",
++ )
++ bazel_dep(
++     name = "sonic-swss-common",
++-    version = "0.0.8-33d2790e5f954496c2b79e38854a2b5e2dfa7a3a",
+++    version = "0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed",
++     repo_name = "sonic_swss_common",
++ )
++ 
+diff --git a/modules/sonic-linkmgrd/1.0.0-803c4b170de1ebdf38d638517fd1115368ec9a5c/presubmit.json b/modules/sonic-linkmgrd/1.0.0-803c4b170de1ebdf38d638517fd1115368ec9a5c/presubmit.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..25a941617c4f71782f4671fc7bee1b6cc9c46043
+--- /dev/null
++++ b/modules/sonic-linkmgrd/1.0.0-803c4b170de1ebdf38d638517fd1115368ec9a5c/presubmit.json
+@@ -0,0 +1,24 @@
++{
++  "architectures": [
++    "amd64"
++  ],
++  "consumer_deps": [],
++  "platforms": {
++    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
++  },
++  "host_platforms": {
++    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
++  },
++  "build_targets": [
++    "@sonic-linkmgrd//:linkmgrd",
++    "@sonic-linkmgrd//:sonic_linkmgrd_runtime",
++    "@sonic-linkmgrd//:sonic_linkmgrd_debug",
++    "@sonic-linkmgrd//:runtime_packages.json"
++  ],
++  "test_targets": [
++    "@sonic-linkmgrd//:linkmgrd_test",
++    "@sonic-linkmgrd//:source_contract_test",
++    "@sonic-linkmgrd//:package_test"
++  ],
++  "integration_test_module": "tests/consumer"
++}
+diff --git a/modules/sonic-linkmgrd/1.0.0-803c4b170de1ebdf38d638517fd1115368ec9a5c/source.json b/modules/sonic-linkmgrd/1.0.0-803c4b170de1ebdf38d638517fd1115368ec9a5c/source.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..9c1de8d2359488583a061781be902d6d90e9c221
+--- /dev/null
++++ b/modules/sonic-linkmgrd/1.0.0-803c4b170de1ebdf38d638517fd1115368ec9a5c/source.json
+@@ -0,0 +1,9 @@
++{
++  "url": "https://github.com/securely1g/sonic-linkmgrd/archive/803c4b170de1ebdf38d638517fd1115368ec9a5c.tar.gz",
++  "integrity": "sha256-28fN6uaxdHFm6tUYhRm/7oeuWDndwtwtHApzMAUpOiw=",
++  "strip_prefix": "sonic-linkmgrd-803c4b170de1ebdf38d638517fd1115368ec9a5c",
++  "patch_strip": 1,
++  "patches": {
++    "0001-module-version.patch": "sha256-0b+FDIC/wC27t0JiCTN4VoEkUlYdOdkswAVvly8ULdE="
++  }
++}
+diff --git a/modules/sonic-linkmgrd/1.0.0-803c4b170de1ebdf38d638517fd1115368ec9a5c/tests/consumer/BUILD.bazel b/modules/sonic-linkmgrd/1.0.0-803c4b170de1ebdf38d638517fd1115368ec9a5c/tests/consumer/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..ffd0fb0cdc5bc3ecb62d3cbb5b502b353073615f
+--- /dev/null
++++ b/modules/sonic-linkmgrd/1.0.0-803c4b170de1ebdf38d638517fd1115368ec9a5c/tests/consumer/BUILD.bazel
+@@ -0,0 +1 @@
++package(default_visibility = ["//visibility:public"])
+diff --git a/modules/sonic-linkmgrd/1.0.0-803c4b170de1ebdf38d638517fd1115368ec9a5c/tests/consumer/MODULE.bazel b/modules/sonic-linkmgrd/1.0.0-803c4b170de1ebdf38d638517fd1115368ec9a5c/tests/consumer/MODULE.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..512325b5c15deb3c9729f865897da9858c010527
+--- /dev/null
++++ b/modules/sonic-linkmgrd/1.0.0-803c4b170de1ebdf38d638517fd1115368ec9a5c/tests/consumer/MODULE.bazel
+@@ -0,0 +1,19 @@
++module(
++    name = "linkmgrd_external_consumer",
++    version = "1.0.0",
++)
++
++bazel_dep(name = "sonic-linkmgrd", version = "1.0.0-803c4b170de1ebdf38d638517fd1115368ec9a5c")
++bazel_dep(name = "sonic-build-infra", version = "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e", repo_name = "sonic_build_infra")
++bazel_dep(name = "rules_python", version = "1.9.0")
++bazel_dep(name = "rules_rs", version = "0.1.0")
++
++python = use_extension("@rules_python//python/extensions:python.bzl", "python")
++python.toolchain(
++    is_default = True,
++    python_version = "3.13",
++)
++
++# The consumer selects C++ and TAR targets, with no Rust compilation.
++rust = use_extension("@rules_rs//rs:rules_rust_reexported_extensions.bzl", "rust")
++rust.toolchain(versions = [])
+diff --git a/modules/sonic-linkmgrd/metadata.json b/modules/sonic-linkmgrd/metadata.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..0470e8fa5a44ff3a6cac854208d68760c408c929
+--- /dev/null
++++ b/modules/sonic-linkmgrd/metadata.json
+@@ -0,0 +1,6 @@
++{
++    "homepage": "https://github.com/sonic-net/sonic-linkmgrd",
++    "versions": [
++        "1.0.0-803c4b170de1ebdf38d638517fd1115368ec9a5c"
++    ]
++}
+diff --git a/modules/sonic-mgmt-common/1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744/MODULE.bazel b/modules/sonic-mgmt-common/1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744/MODULE.bazel
+index 36dc5505b579cd6ff616708ffe8a604cf6dd438e..7d2ffce0db50c7d01a58d4cfd7d00b56bf52d77d 100644
+--- a/modules/sonic-mgmt-common/1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744/MODULE.bazel
++++ b/modules/sonic-mgmt-common/1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-mgmt-common",
+-    version = "1.0.0-f5361ba8b88cde7ec59bdb4652a986c68d66da64",
++    version = "1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
+@@ -9,6 +9,8 @@ module(
+ 
+ bazel_dep(name = "bazel_skylib", version = "1.9.2")
+ bazel_dep(name = "gazelle", version = "0.54.0")
++bazel_dep(name = "openconfig_goyang", version = "0.0.0.sonic.1-20200309174518-a00bece872fc", repo_name = "com_github_openconfig_goyang")
++bazel_dep(name = "openconfig_ygot", version = "0.7.1.sonic.1", repo_name = "com_github_openconfig_ygot")
+ bazel_dep(name = "libyang", version = "3.12.2.sonic.5")
+ bazel_dep(name = "oc-pyang", version = "0.1.10.sonic.1", repo_name = "oc_pyang")
+ bazel_dep(name = "platforms", version = "1.1.0")
+@@ -42,9 +44,8 @@ go_sdk.download(version = "1.25.9")
+ go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
+ go_deps.from_file(go_mod = "//:go.mod")
+ 
+-# Shared Go module overrides belong to the consuming root. When this repository
+-# is the root, apply the same owner patches; downstream roots select these
+-# exported patches explicitly without creating a second Go dependency graph.
++# goyang and ygot use their public owners above. These remaining overrides
++# preserve the existing gNMI and unrelated Go dependency behavior.
+ go_patches = use_extension("@gazelle//:extensions.bzl", "go_deps", dev_dependency = True)
+ go_patches.gazelle_override(
+     directives = ["gazelle:proto disable_global"],
+@@ -53,23 +54,6 @@ go_patches.gazelle_override(
+ 
+ # These are the existing Make/vendor patches, applied to isolated dependency
+ # repositories. Build actions never modify go.mod, vendor, or the checkout.
+-go_patches.module_override(
+-    patch_strip = 1,
+-    patches = [
+-        "//patches:ygot/ygot.patch",
+-        "//patches:0001-ygot-declare-patched-value-dependency.patch",
+-        "//patches:0003-ygot-preserve-union-enum-order.patch",
+-    ],
+-    path = "github.com/openconfig/ygot",
+-)
+-go_patches.module_override(
+-    patch_strip = 1,
+-    patches = [
+-        "//patches:goyang/goyang.patch",
+-        "//patches:0002-goyang-preserve-declared-schema-order.patch",
+-    ],
+-    path = "github.com/openconfig/goyang",
+-)
+ go_patches.module_override(
+     patch_strip = 1,
+     patches = ["//patches:jsonquery.patch"],
+@@ -91,7 +75,7 @@ go_patches.module_override(
+     path = "github.com/golang/glog",
+ )
+ 
+-use_repo(go_deps, "af_inet_netaddr", "com_github_antchfx_jsonquery", "com_github_antchfx_xmlquery", "com_github_antchfx_xpath", "com_github_go_redis_redis_v7", "com_github_godbus_dbus_v5", "com_github_golang_glog", "com_github_google_go_cmp", "com_github_kylelemons_godebug", "com_github_maruel_natural", "com_github_openconfig_gnmi", "com_github_openconfig_goyang", "com_github_openconfig_ygot", "com_github_philopon_go_toposort", "com_github_pkg_profile", "com_github_redis_go_redis_v9", "com_github_workiva_go_datastructures", "org_golang_google_grpc", "org_golang_x_text")
++use_repo(go_deps, "af_inet_netaddr", "com_github_antchfx_jsonquery", "com_github_antchfx_xmlquery", "com_github_antchfx_xpath", "com_github_go_redis_redis_v7", "com_github_godbus_dbus_v5", "com_github_golang_glog", "com_github_google_go_cmp", "com_github_kylelemons_godebug", "com_github_maruel_natural", "com_github_openconfig_gnmi", "com_github_philopon_go_toposort", "com_github_pkg_profile", "com_github_redis_go_redis_v9", "com_github_workiva_go_datastructures", "org_golang_google_grpc", "org_golang_x_text")
+ 
+ python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+ python.toolchain(
+diff --git a/modules/sonic-mgmt-common/1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744/README.md b/modules/sonic-mgmt-common/1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744/README.md
+index a7b81455653607fd51ba5084bf2a18913295071d..fb5365d8c3e5bfb9f6a5a71f93a137187fb9f18f 100644
+--- a/modules/sonic-mgmt-common/1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744/README.md
++++ b/modules/sonic-mgmt-common/1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744/README.md
+@@ -1,29 +1,24 @@
+-# Management-common source owner
++# Management Common with stable documentation discovery
+ 
+-Registers `sonic-mgmt-common@1.0.0-f5361ba8b88cde7ec59bdb4652a986c68d66da64` from
+-[the exact source revision](https://github.com/securely1g/sonic-mgmt-common/tree/f5361ba8b88cde7ec59bdb4652a986c68d66da64).
+-The only registry patch gives its MODULE the immutable source version.
++This cumulative source preserves the accepted shared goyang/ygot ownership from
++Management Common source #3 and adds source #4's deterministic YANG discovery.
++The public text and HTML documentation tools now retain the same module order
++when directory creation order differs. Runtime source, Go dependencies, library
++interfaces and package recipes are unchanged from the accepted shared-owner
++source. The code-generation TAR contains the deterministically rendered
++documentation.
+ 
+-The native AMD64/Trixie consumer compiles against the owner's public CVL,
+-translib and generated Go bindings, then builds and checks its runtime and
+-code-generation TARs. The actual generator runs 20 times to verify byte identity.
+-Go1.25.9/Python3.13 and the owner's exported dependency patches are selected by
+-the consuming root, on a single shared Go dependency graph. The small Go
+-consumer and root configuration follow the source owner's checked fixture;
+-implementation sources and schema generators stay with their owner.
++All six ordinary build outputs and four existing package/schema/binding tests
++remain. The added `//tools/pyang:discovery_test` exercises the real renderer in
++both discovery orders, preserving root-before-extension, explicit caller order,
++module payloads and annotation behavior. The cumulative registered consumer passed
++all six outputs and five tests. Its
++consumer executable, CVL/translib/ocbinds libraries and runtime TAR are byte-identical
++to the accepted source #3 registration. Only four rendered text/HTML documentation
++files differ in the code-generation TAR; file inventory and metadata are preserved.
++Current-head hosted verification and downstream image acceptance remain separate.
+ 
+-Management-framework and gNMI consume these interfaces for their server builds
+-and install the runtime TAR in their images. Docker/VS assembly is separate.
+-No Debian package is generated. External locked distribution packages remain
+-allowed imported inputs.
+-
+-The selected source is the maintained merge of
+-[management-common #1](https://github.com/securely1g/sonic-mgmt-common/pull/1).
+-Its source tree exactly matches the tested PR head. Compared with the earlier
+-`af147e7` candidate, only the source CI workflow and README changed; the producer,
+-public interfaces and both TAR outputs are unchanged. The OpenConfig linter
+-prerequisite [registry #163](https://github.com/securely1g/sonic-bazel-registry/pull/163)
+-is also merged. This registration targets maintained registry main.
+-
+-The owner's recorded follow-ups for shared generator-patch ownership and
+-resolved-graph/working-tree checks remain separate from this registration.
++Sources: https://github.com/securely1g/sonic-mgmt-common/pull/3 and
++https://github.com/securely1g/sonic-mgmt-common/pull/4. The selected review source
++is 71eb5f710b5347ca0510ee8e3f5294a7c64bb744. Published f536 inputs remain intact, and this registration
++replaces only the preceding unpublished 20afb candidate.
+diff --git a/modules/sonic-mgmt-common/1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744/patches/0001-module-version.patch b/modules/sonic-mgmt-common/1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744/patches/0001-module-version.patch
+index 5582b49ea4cede91c9a9b7caf25f83c295986569..3339d8668523c4d4fbd02e085639c5c28e3bfbf5 100644
+--- a/modules/sonic-mgmt-common/1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744/patches/0001-module-version.patch
++++ b/modules/sonic-mgmt-common/1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744/patches/0001-module-version.patch
+@@ -4,7 +4,7 @@
+  module(
+      name = "sonic-mgmt-common",
+ -    version = "1.0.0",
+-+    version = "1.0.0-f5361ba8b88cde7ec59bdb4652a986c68d66da64",
+++    version = "1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744",
+      bazel_compatibility = [
+          ">=8.5.1",
+          "<=8.5.1",
+diff --git a/modules/sonic-mgmt-common/1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744/presubmit.json b/modules/sonic-mgmt-common/1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744/presubmit.json
+index 5f1de87df8492cf2037cfe0b8cfcaf9c0060d571..1bf985ec184272f6415d7026c749c46da02d9e95 100644
+--- a/modules/sonic-mgmt-common/1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744/presubmit.json
++++ b/modules/sonic-mgmt-common/1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744/presubmit.json
+@@ -18,7 +18,8 @@
+     "@sonic-mgmt-common//dist:runtime_test",
+     "@sonic-mgmt-common//dist:codegen_contract_test",
+     "@sonic-mgmt-common//dist:schema_lint_test",
+-    "@sonic-mgmt-common//dist:bindings_repro_test"
++    "@sonic-mgmt-common//dist:bindings_repro_test",
++    "@sonic-mgmt-common//tools/pyang:discovery_test"
+   ],
+   "integration_test_module": "tests/consumer"
+ }
+diff --git a/modules/sonic-mgmt-common/1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744/source.json b/modules/sonic-mgmt-common/1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744/source.json
+index e067a4f65e6bc49ee637bf61d3ebe76afc5a0a4b..52575a568041a26463c9d2830a2257c8f33cb5bd 100644
+--- a/modules/sonic-mgmt-common/1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744/source.json
++++ b/modules/sonic-mgmt-common/1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744/source.json
+@@ -1,9 +1,9 @@
+ {
+-  "url": "https://github.com/securely1g/sonic-mgmt-common/archive/f5361ba8b88cde7ec59bdb4652a986c68d66da64.tar.gz",
+-  "strip_prefix": "sonic-mgmt-common-f5361ba8b88cde7ec59bdb4652a986c68d66da64",
+-  "integrity": "sha256-1OisIvLjiFL7woeKDiBfspOv8QIWc5Ba6gqx7Ec4mKE=",
++  "url": "https://github.com/securely1g/sonic-mgmt-common/archive/71eb5f710b5347ca0510ee8e3f5294a7c64bb744.tar.gz",
++  "strip_prefix": "sonic-mgmt-common-71eb5f710b5347ca0510ee8e3f5294a7c64bb744",
++  "integrity": "sha256-EatM/9x8l11emDmunAEbR2UkOTX+4oR6EJoVN4ocVa4=",
+   "patches": {
+-    "0001-module-version.patch": "sha256-c0D3ekRGPADRkrjs4u3Zn2KFGqLnH7in5tVqXouJ+6A="
++    "0001-module-version.patch": "sha256-QHmpGQbmR5JfWsUPqtP+oWOjgvnZ2F83ksi8ii9vAf4="
+   },
+   "patch_strip": 1
+ }
+diff --git a/modules/sonic-mgmt-common/1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744/tests/consumer/MODULE.bazel b/modules/sonic-mgmt-common/1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744/tests/consumer/MODULE.bazel
+index 2136eda01ab20b3e562f5691244986bccfd0c625..75f75c459bba68de2b7c14c496361d99c0897e17 100644
+--- a/modules/sonic-mgmt-common/1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744/tests/consumer/MODULE.bazel
++++ b/modules/sonic-mgmt-common/1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744/tests/consumer/MODULE.bazel
+@@ -1,7 +1,9 @@
+ module(name = "management_common_consumer")
+ 
+-bazel_dep(name = "sonic-mgmt-common", version = "1.0.0-f5361ba8b88cde7ec59bdb4652a986c68d66da64")
++bazel_dep(name = "sonic-mgmt-common", version = "1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744")
+ bazel_dep(name = "gazelle", version = "0.54.0")
++bazel_dep(name = "openconfig_goyang", version = "0.0.0.sonic.1-20200309174518-a00bece872fc", repo_name = "com_github_openconfig_goyang")
++bazel_dep(name = "openconfig_ygot", version = "0.7.1.sonic.1", repo_name = "com_github_openconfig_ygot")
+ bazel_dep(name = "rules_go", version = "0.64.1-sonic.1", repo_name = "io_bazel_rules_go")
+ bazel_dep(name = "sonic-build-infra", version = "0.0.25-17a1e555291c64be1a6ff008f33352bffc4f8e5c", repo_name = "sonic_build_infra")
+ bazel_dep(name = "tar.bzl", version = "0.10.5-sonic.1")
+@@ -9,8 +11,8 @@ bazel_dep(name = "tar.bzl", version = "0.10.5-sonic.1")
+ go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
+ go_deps.from_file(go_mod = "//:go.mod")
+ 
+-# The consuming root selects the owner's existing SONiC Go patches. Public
+-# libraries and their consumers share one Go graph and the same Go types.
++# Public goyang/ygot owners supply the same Go types as management-common.
++# Preserve the existing settings for the other Go dependencies.
+ go_deps.gazelle_override(
+     directives = ["gazelle:proto disable_global"],
+     path = "github.com/openconfig/gnmi",
+@@ -18,23 +20,6 @@ go_deps.gazelle_override(
+ 
+ # These are the existing Make/vendor patches, applied to isolated dependency
+ # repositories. Build actions never modify go.mod, vendor, or the checkout.
+-go_deps.module_override(
+-    patch_strip = 1,
+-    patches = [
+-        "@sonic-mgmt-common//patches:ygot/ygot.patch",
+-        "@sonic-mgmt-common//patches:0001-ygot-declare-patched-value-dependency.patch",
+-        "@sonic-mgmt-common//patches:0003-ygot-preserve-union-enum-order.patch",
+-    ],
+-    path = "github.com/openconfig/ygot",
+-)
+-go_deps.module_override(
+-    patch_strip = 1,
+-    patches = [
+-        "@sonic-mgmt-common//patches:goyang/goyang.patch",
+-        "@sonic-mgmt-common//patches:0002-goyang-preserve-declared-schema-order.patch",
+-    ],
+-    path = "github.com/openconfig/goyang",
+-)
+ go_deps.module_override(
+     patch_strip = 1,
+     patches = ["@sonic-mgmt-common//patches:jsonquery.patch"],
+diff --git a/modules/sonic-mgmt-common/metadata.json b/modules/sonic-mgmt-common/metadata.json
+index c051033ecd5ac52606161de19b65acb9c86323f0..0809b907652885be5719c39e15c8e2434c7151de 100644
+--- a/modules/sonic-mgmt-common/metadata.json
++++ b/modules/sonic-mgmt-common/metadata.json
+@@ -1,6 +1,7 @@
+ {
+-  "homepage": "https://github.com/sonic-net/sonic-mgmt-common",
+-  "versions": [
+-    "1.0.0-f5361ba8b88cde7ec59bdb4652a986c68d66da64"
+-  ]
++    "homepage": "https://github.com/sonic-net/sonic-mgmt-common",
++    "versions": [
++        "1.0.0-f5361ba8b88cde7ec59bdb4652a986c68d66da64",
++        "1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744"
++    ]
+ }
+diff --git a/modules/sonic-mgmt-framework/1.0.0-4036a01aa4648913ce44a0b4db52556a55cb2911/MODULE.bazel b/modules/sonic-mgmt-framework/1.0.0-4036a01aa4648913ce44a0b4db52556a55cb2911/MODULE.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..efdea7850f42b732212e33e466bf1d423103abfd
+--- /dev/null
++++ b/modules/sonic-mgmt-framework/1.0.0-4036a01aa4648913ce44a0b4db52556a55cb2911/MODULE.bazel
+@@ -0,0 +1,110 @@
++module(
++    name = "sonic-mgmt-framework",
++    version = "1.0.0-4036a01aa4648913ce44a0b4db52556a55cb2911",
++    bazel_compatibility = [
++        ">=8.5.1",
++        "<=8.5.1",
++    ],
++)
++
++bazel_dep(name = "sonic-mgmt-common", version = "1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744", repo_name = "sonic_mgmt_common")
++bazel_dep(name = "gazelle", version = "0.54.0")
++bazel_dep(name = "openconfig_goyang", version = "0.0.0.sonic.1-20200309174518-a00bece872fc", repo_name = "com_github_openconfig_goyang")
++bazel_dep(name = "openconfig_ygot", version = "0.7.1.sonic.1", repo_name = "com_github_openconfig_ygot")
++bazel_dep(name = "rules_go", version = "0.65.0.sonic.1", repo_name = "io_bazel_rules_go")
++bazel_dep(name = "sonic-build-infra", version = "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e", repo_name = "sonic_build_infra")
++
++single_version_override(
++    module_name = "rules_go",
++    version = "0.65.0.sonic.1",
++)
++
++single_version_override(
++    module_name = "tar.bzl",
++    version = "0.10.5-sonic.1",
++)
++
++go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
++
++# The consuming root owns the single Go work-file selection. This module
++# contributes its requirements through standard non-root go.mod discovery.
++go_deps.from_file(go_mod = "//:go.mod")
++
++# Root-only patch selection, matching the management-common owner.
++go_patches = use_extension("@gazelle//:extensions.bzl", "go_deps", dev_dependency = True)
++
++# The consuming root selects the owner's existing SONiC Go patches. Public
++# libraries and their consumers share one Go graph and the same Go types.
++go_patches.gazelle_override(
++    directives = ["gazelle:proto disable_global"],
++    path = "github.com/openconfig/gnmi",
++)
++
++# These are the existing Make/vendor patches, applied to isolated dependency
++# repositories. Build actions never modify go.mod, vendor, or the checkout.
++go_patches.module_override(
++    patch_strip = 1,
++    patches = ["@sonic_mgmt_common//patches:jsonquery.patch"],
++    path = "github.com/antchfx/jsonquery",
++)
++go_patches.module_override(
++    patch_strip = 1,
++    patches = ["@sonic_mgmt_common//patches:xmlquery.patch"],
++    path = "github.com/antchfx/xmlquery",
++)
++go_patches.module_override(
++    patch_strip = 1,
++    patches = ["@sonic_mgmt_common//patches:xpath.patch"],
++    path = "github.com/antchfx/xpath",
++)
++go_patches.module_override(
++    patch_strip = 1,
++    patches = ["@sonic_mgmt_common//patches:glog.patch"],
++    path = "github.com/golang/glog",
++)
++
++# Match the owner generators and source toolchain in this consuming root.
++bazel_dep(name = "rules_python", version = "1.9.0")
++
++python = use_extension("@rules_python//python/extensions:python.bzl", "python")
++python.toolchain(
++    is_default = True,
++    python_version = "3.13",
++)
++
++go_sdk = use_extension("@io_bazel_rules_go//go:extensions.bzl", "go_sdk")
++go_sdk.download(version = "1.25.9")
++
++bazel_dep(name = "bazel_skylib", version = "1.9.2")
++bazel_dep(name = "platforms", version = "1.1.0")
++bazel_dep(name = "rules_foreign_cc", version = "0.16.0")
++bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.16")
++bazel_dep(name = "tar.bzl", version = "0.10.5-sonic.1")
++
++gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
++use_repo(gcc, "gcc_toolchains")
++
++register_toolchains("@gcc_toolchains//:all")
++
++use_repo(go_deps, "com_github_golang_glog", "com_github_gorilla_mux", "com_github_pkg_profile", "in_gopkg_go_playground_validator_v9", "org_golang_x_crypto")
++
++pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
++pip.parse(
++    hub_name = "framework_pip",
++    python_version = "3.13",
++    requirements_lock = "//:requirements_lock.txt",
++)
++use_repo(pip, "framework_pip")
++
++tar_toolchains = use_extension("@tar.bzl//tar:extensions.bzl", "toolchains")
++use_repo(tar_toolchains, "bsd_tar_toolchains")
++
++register_toolchains("@bsd_tar_toolchains//:all")
++
++bazel_dep(name = "rules_pkg", version = "1.1.0")
++
++apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
++apt.import_lock(lock = "//CLI/bazel:apt.lock.json")
++use_repo(apt, "framework_cli_target_debian")
++
++bazel_dep(name = "rules_cc", version = "0.2.18")
+diff --git a/modules/sonic-mgmt-framework/1.0.0-4036a01aa4648913ce44a0b4db52556a55cb2911/README.md b/modules/sonic-mgmt-framework/1.0.0-4036a01aa4648913ce44a0b4db52556a55cb2911/README.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..88b6a78d4e5291c425331cf22064d4e31e5e3818
+--- /dev/null
++++ b/modules/sonic-mgmt-framework/1.0.0-4036a01aa4648913ce44a0b4db52556a55cb2911/README.md
+@@ -0,0 +1,40 @@
++# Framework in the shared management Go graph
++
++The registered Framework source remains 4036a01aa4648913ce44a0b4db52556a55cb2911.
++Its production Go/C/Python source, generated-model recipe, REST compiler flags,
++CLI recipe, Go locks and runtime/debug TAR contracts are unchanged. A separate
++MODULE-only patch selects Management Common's cumulative shared-generator and
++documentation source, plus the approved SONiC-patched public goyang/ygot modules.
++It contributes go.mod requirements using the standard non-root Gazelle API.
++
++The ordinary integration root uses gNMI's one existing go.bazel.work. It selects
++glog 1.2.4, x/net 0.55.0, x/crypto 0.52.0 and x/sys 0.45.0, with Go 1.25.9 and
++rules_go 0.65.0.sonic.1. These are deliberate shared dependency changes from the
++older isolated Framework graph. The old pre-flag.Parse glog patch is not applied
++to modern glog; unrelated JSON/XML/XPath and gNMI patches remain. Framework's
++root-only legacy glog setting remains for its original standalone source use.
++
++All seven output targets and five installed/code-generation tests remain. The
++ordinary consumer also selects the five omitted existing source-CI suites, for
++all ten original targets: REST server, OpenAPI generator, CLI client, CLI order,
++TLS C++, installed REST/CLI, payload/symbols and model/codegen checks. Existing
++host-authentication opt-in skips in the original REST suite are unchanged.
++
++Current shared-graph native and installed-image acceptance is pending. Prior
++4036 standalone acceptance is historical and does not establish compatibility
++with these shared selections. No source override or DEB producer is introduced.
++
++The initial shared graph at complete catalog `28bd77d92d8d28f100ca328489a49f3b025e1a65` passed all seven ordinary build outputs and all ten original test targets on native AMD64/Trixie. Independent verification checks every retained output/input hash, fetched module, nonempty test XML and successful build/test event. The installed REST binary reports Go 1.25.9 with glog 1.2.4, net 0.55, crypto 0.52, sys 0.45 and text 0.39. Runtime/debug TAR hashes are `029f87e5cbc5a147405bd72745ba8e3af166070ba231e615f6e96cb239f085fa` and `49af80b7afa83cad33a8bf1f0224c1819dc42352c8b57b0d59940434df07b161`. This is an ordinary-consumer result, separate from image acceptance.
++
++The review base preserves every published infrastructure version, including
++.26-51c, while this candidate selects the maintained .25-3ee source through
++matching registry, source MODULE and ordinary-consumer declarations. Production
++Framework source, runtime contracts and all seven outputs/ten tests are unchanged.
++Earlier ordinary and image validation remains bound to its original catalogs.
++
++This dependency refresh selects maintained infrastructure source 3ee15ec9 through
++registry #218. Its numeric version is .25; published .26 entries remain intact.
++Fresh module-graph checks must verify the selected version, followed by the
++unchanged ordinary-consumer outputs and tests. This metadata/source-patch proof
++does not establish native or image acceptance. Existing worker runs and earlier
++receipts retain their exact preceding dependency inputs.
+diff --git a/modules/sonic-mgmt-framework/1.0.0-4036a01aa4648913ce44a0b4db52556a55cb2911/patches/0002-share-management-go-owners.patch b/modules/sonic-mgmt-framework/1.0.0-4036a01aa4648913ce44a0b4db52556a55cb2911/patches/0002-share-management-go-owners.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..faf72325533262f0cc39717d418970eaf1b2865d
+--- /dev/null
++++ b/modules/sonic-mgmt-framework/1.0.0-4036a01aa4648913ce44a0b4db52556a55cb2911/patches/0002-share-management-go-owners.patch
+@@ -0,0 +1,80 @@
++--- a/MODULE.bazel
+++++ b/MODULE.bazel
++@@ -7,14 +7,16 @@
++     ],
++ )
++ 
++-bazel_dep(name = "sonic-mgmt-common", version = "1.0.0-af147e78654ad423ea0a2af268dfd0b71092b38b", repo_name = "sonic_mgmt_common")
+++bazel_dep(name = "sonic-mgmt-common", version = "1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744", repo_name = "sonic_mgmt_common")
++ bazel_dep(name = "gazelle", version = "0.54.0")
++-bazel_dep(name = "rules_go", version = "0.64.1-sonic.1", repo_name = "io_bazel_rules_go")
++-bazel_dep(name = "sonic-build-infra", version = "0.0.25-17a1e555291c64be1a6ff008f33352bffc4f8e5c", repo_name = "sonic_build_infra")
+++bazel_dep(name = "openconfig_goyang", version = "0.0.0.sonic.1-20200309174518-a00bece872fc", repo_name = "com_github_openconfig_goyang")
+++bazel_dep(name = "openconfig_ygot", version = "0.7.1.sonic.1", repo_name = "com_github_openconfig_ygot")
+++bazel_dep(name = "rules_go", version = "0.65.0.sonic.1", repo_name = "io_bazel_rules_go")
+++bazel_dep(name = "sonic-build-infra", version = "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e", repo_name = "sonic_build_infra")
++ 
++ single_version_override(
++     module_name = "rules_go",
++-    version = "0.64.1-sonic.1",
+++    version = "0.65.0.sonic.1",
++ )
++ 
++ single_version_override(
++@@ -23,7 +25,10 @@
++ )
++ 
++ go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
++-go_deps.from_file(go_work = "//:go.bazel.work")
+++
+++# The consuming root owns the single Go work-file selection. This module
+++# contributes its requirements through standard non-root go.mod discovery.
+++go_deps.from_file(go_mod = "//:go.mod")
++ 
++ # Root-only patch selection, matching the management-common owner.
++ go_patches = use_extension("@gazelle//:extensions.bzl", "go_deps", dev_dependency = True)
++@@ -37,23 +42,6 @@
++ 
++ # These are the existing Make/vendor patches, applied to isolated dependency
++ # repositories. Build actions never modify go.mod, vendor, or the checkout.
++-go_patches.module_override(
++-    patch_strip = 1,
++-    patches = [
++-        "@sonic_mgmt_common//patches:ygot/ygot.patch",
++-        "@sonic_mgmt_common//patches:0001-ygot-declare-patched-value-dependency.patch",
++-        "@sonic_mgmt_common//patches:0003-ygot-preserve-union-enum-order.patch",
++-    ],
++-    path = "github.com/openconfig/ygot",
++-)
++-go_patches.module_override(
++-    patch_strip = 1,
++-    patches = [
++-        "@sonic_mgmt_common//patches:goyang/goyang.patch",
++-        "@sonic_mgmt_common//patches:0002-goyang-preserve-declared-schema-order.patch",
++-    ],
++-    path = "github.com/openconfig/goyang",
++-)
++ go_patches.module_override(
++     patch_strip = 1,
++     patches = ["@sonic_mgmt_common//patches:jsonquery.patch"],
++@@ -90,7 +78,7 @@
++ bazel_dep(name = "bazel_skylib", version = "1.9.2")
++ bazel_dep(name = "platforms", version = "1.1.0")
++ bazel_dep(name = "rules_foreign_cc", version = "0.16.0")
++-bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.13")
+++bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.16")
++ bazel_dep(name = "tar.bzl", version = "0.10.5-sonic.1")
++ 
++ gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
++@@ -120,11 +108,3 @@
++ use_repo(apt, "framework_cli_target_debian")
++ 
++ bazel_dep(name = "rules_cc", version = "0.2.18")
++-
++-# Temporary immutable selection for the shared CLI execution-tool extension.
++-archive_override(
++-    module_name = "sonic-build-infra",
++-    integrity = "sha256-U6b0szFANCQXXbl3MmLYjjn8YVze4e8AJ3a5iJS4OSg=",
++-    strip_prefix = "sonic-build-infra-f2015163598aee7e8e3df7ee1b2a13969a353236",
++-    urls = ["https://github.com/securely1g/sonic-build-infra/archive/f2015163598aee7e8e3df7ee1b2a13969a353236.tar.gz"],
++-)
+diff --git a/modules/sonic-mgmt-framework/1.0.0-4036a01aa4648913ce44a0b4db52556a55cb2911/patches/module-version.patch b/modules/sonic-mgmt-framework/1.0.0-4036a01aa4648913ce44a0b4db52556a55cb2911/patches/module-version.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..f05d5788aa405677d6272c057323d81770fac730
+--- /dev/null
++++ b/modules/sonic-mgmt-framework/1.0.0-4036a01aa4648913ce44a0b4db52556a55cb2911/patches/module-version.patch
+@@ -0,0 +1,10 @@
++--- a/MODULE.bazel
+++++ b/MODULE.bazel
++@@ -1,6 +1,6 @@
++ module(
++     name = "sonic-mgmt-framework",
++-    version = "1.0.0",
+++    version = "1.0.0-4036a01aa4648913ce44a0b4db52556a55cb2911",
++     bazel_compatibility = [
++         ">=8.5.1",
++         "<=8.5.1",
+diff --git a/modules/sonic-mgmt-framework/1.0.0-4036a01aa4648913ce44a0b4db52556a55cb2911/presubmit.json b/modules/sonic-mgmt-framework/1.0.0-4036a01aa4648913ce44a0b4db52556a55cb2911/presubmit.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..d8eb77bf9e720b473db5baa0e73dfcbc247ed3b9
+--- /dev/null
++++ b/modules/sonic-mgmt-framework/1.0.0-4036a01aa4648913ce44a0b4db52556a55cb2911/presubmit.json
+@@ -0,0 +1,31 @@
++{
++  "architectures": [
++    "amd64"
++  ],
++  "consumer_deps": [],
++  "platforms": {
++    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
++  },
++  "build_targets": [
++    "//:image_payload",
++    "@sonic-mgmt-framework//dist:runtime",
++    "@sonic-mgmt-framework//dist:runtime.debug_symbols",
++    "@sonic-mgmt-framework//dist:rest_binaries",
++    "@sonic-mgmt-framework//dist:ui",
++    "@sonic-mgmt-framework//CLI:runtime",
++    "@sonic-mgmt-framework//CLI:runtime.debug_symbols"
++  ],
++  "test_targets": [
++    "@sonic-mgmt-framework//dist:package_test",
++    "@sonic-mgmt-framework//dist:rest_runtime_test",
++    "@sonic-mgmt-framework//CLI:installed_runtime_test",
++    "@sonic-mgmt-framework//tools/bazel:models_repro_test",
++    "@sonic-mgmt-framework//tools/bazel:codegen_config_test",
++    "@sonic-mgmt-framework//rest/server:server_test",
++    "@sonic-mgmt-framework//tools/openapi_tests:generator_test",
++    "@sonic-mgmt-framework//CLI:cli_client_test",
++    "@sonic-mgmt-framework//CLI:generator_order_test",
++    "@sonic-mgmt-framework//CLI:rest_tls_test"
++  ],
++  "integration_test_module": "tests/consumer"
++}
+diff --git a/modules/sonic-mgmt-framework/1.0.0-4036a01aa4648913ce44a0b4db52556a55cb2911/source.json b/modules/sonic-mgmt-framework/1.0.0-4036a01aa4648913ce44a0b4db52556a55cb2911/source.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..6c2b7594ad6f4b691ce795a75803e18c68d89db0
+--- /dev/null
++++ b/modules/sonic-mgmt-framework/1.0.0-4036a01aa4648913ce44a0b4db52556a55cb2911/source.json
+@@ -0,0 +1,10 @@
++{
++  "url": "https://github.com/securely1g/sonic-mgmt-framework/archive/4036a01aa4648913ce44a0b4db52556a55cb2911.tar.gz",
++  "strip_prefix": "sonic-mgmt-framework-4036a01aa4648913ce44a0b4db52556a55cb2911",
++  "integrity": "sha256-F4AVNAbV6Ssplk2rYSDdL6eqGGQVpVkduhhQ21E64Rs=",
++  "patches": {
++    "module-version.patch": "sha256-En8lkTVaBy7WBRVVsuG6Y3C/nP0GxLJ9fKyecoCzBIc=",
++    "0002-share-management-go-owners.patch": "sha256-8m6ubAJ4VMBweR+4a+UX4c71cbbJg0HVJ+TxGnDne0M="
++  },
++  "patch_strip": 1
++}
+diff --git a/modules/sonic-mgmt-framework/1.0.0-4036a01aa4648913ce44a0b4db52556a55cb2911/tests/consumer/BUILD.bazel b/modules/sonic-mgmt-framework/1.0.0-4036a01aa4648913ce44a0b4db52556a55cb2911/tests/consumer/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..fd707c43e3577f74219c38b34060348e25034c0f
+--- /dev/null
++++ b/modules/sonic-mgmt-framework/1.0.0-4036a01aa4648913ce44a0b4db52556a55cb2911/tests/consumer/BUILD.bazel
+@@ -0,0 +1,11 @@
++load("@rules_distroless//distroless:defs.bzl", "flatten")
++
++# Docker management installs both owners into one runtime filesystem.
++flatten(
++    name = "image_payload",
++    deduplicate = True,
++    tars = [
++        "@sonic-mgmt-common//dist:runtime",
++        "@sonic-mgmt-framework//dist:runtime",
++    ],
++)
+diff --git a/modules/sonic-mgmt-framework/1.0.0-4036a01aa4648913ce44a0b4db52556a55cb2911/tests/consumer/MODULE.bazel b/modules/sonic-mgmt-framework/1.0.0-4036a01aa4648913ce44a0b4db52556a55cb2911/tests/consumer/MODULE.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..82ca8c73704925253eafa3e5a5ab98c1ea6b37dd
+--- /dev/null
++++ b/modules/sonic-mgmt-framework/1.0.0-4036a01aa4648913ce44a0b4db52556a55cb2911/tests/consumer/MODULE.bazel
+@@ -0,0 +1,130 @@
++module(name = "management_framework_consumer")
++
++bazel_dep(name = "sonic-mgmt-framework", version = "1.0.0-4036a01aa4648913ce44a0b4db52556a55cb2911")
++bazel_dep(name = "sonic-mgmt-common", version = "1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744")
++bazel_dep(name = "sonic-gnmi", version = "0.1.0-ce49e93eb3a0cff8daf77a3092535d76265ebc3d", repo_name = "sonic_gnmi")
++bazel_dep(name = "gazelle", version = "0.54.0")
++bazel_dep(name = "openconfig_goyang", version = "0.0.0.sonic.1-20200309174518-a00bece872fc", repo_name = "com_github_openconfig_goyang")
++bazel_dep(name = "openconfig_ygot", version = "0.7.1.sonic.1", repo_name = "com_github_openconfig_ygot")
++bazel_dep(name = "rules_go", version = "0.65.0.sonic.1", repo_name = "io_bazel_rules_go")
++bazel_dep(name = "sonic-build-infra", version = "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e", repo_name = "sonic_build_infra")
++bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.16")
++bazel_dep(name = "tar.bzl", version = "0.10.5-sonic.1")
++bazel_dep(name = "rules_python", version = "1.9.0")
++bazel_dep(name = "rules_rs", version = "0.1.0")
++
++single_version_override(
++    module_name = "sonic-mgmt-common",
++    version = "1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744",
++)
++
++single_version_override(
++    module_name = "sonic-build-infra",
++    version = "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e",
++)
++
++single_version_override(
++    module_name = "sonic-swss-common",
++    version = "0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed",
++)
++
++single_version_override(
++    module_name = "libnl3",
++    version = "3.7.0.sonic.7",
++)
++
++single_version_override(
++    module_name = "rules_go",
++    version = "0.65.0.sonic.1",
++)
++
++rules_rust = use_extension("@rules_rs//rs:rules_rust.bzl", "rules_rust")
++use_repo(rules_rust, "rules_rust")
++
++rust = use_extension("@rules_rs//rs:rules_rust_reexported_extensions.bzl", "rust")
++rust.toolchain(
++    edition = "2021",
++    versions = ["1.90.0"],
++)
++use_repo(rust, "rust_toolchains")
++
++register_toolchains("@rust_toolchains//:all")
++
++go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
++go_deps.from_file(go_work = "@sonic_gnmi//:go.bazel.work")
++
++go_patches = use_extension("@gazelle//:extensions.bzl", "go_deps", dev_dependency = True)
++
++# The public goyang/ygot owners supply the same Go types as Management
++# Common. Keep the remaining upstream Go dependency settings unchanged.
++go_patches.gazelle_override(
++    directives = ["gazelle:proto disable_global"],
++    path = "github.com/openconfig/gnmi",
++)
++
++# These modules ship C++/proto Bazel files for their own workspace. Generate
++# their checked-in Go bindings as native Go packages for this consuming graph.
++[go_patches.gazelle_override(
++    build_file_generation = "clean",
++    directives = ["gazelle:proto disable_global"],
++    path = path,
++) for path in [
++    "github.com/openconfig/gnoi",
++    "github.com/openconfig/gnsi",
++]]
++
++# These are the existing Make/vendor patches, applied to isolated dependency
++# repositories. Build actions never modify go.mod, vendor, or the checkout.
++go_patches.module_override(
++    patch_strip = 1,
++    patches = ["@sonic-mgmt-common//patches:jsonquery.patch"],
++    path = "github.com/antchfx/jsonquery",
++)
++go_patches.module_override(
++    patch_strip = 1,
++    patches = ["@sonic-mgmt-common//patches:xmlquery.patch"],
++    path = "github.com/antchfx/xmlquery",
++)
++go_patches.module_override(
++    patch_strip = 1,
++    patches = ["@sonic-mgmt-common//patches:xpath.patch"],
++    path = "github.com/antchfx/xpath",
++)
++
++[go_patches.module_override(
++    patch_strip = 1,
++    patches = ["@sonic_gnmi//patches/bazel:" + patch] + (["@sonic_gnmi//patches/bazel:" + {
++        "0001-gnxi.patch": "0005-gnxi-build.patch",
++        "0002-gnmi.patch": "0006-gnmi-build.patch",
++    }[patch]] if path in [
++        "github.com/google/gnxi",
++        "github.com/openconfig/gnmi",
++    ] else []),
++    path = path,
++) for path, patch in [
++    ("github.com/google/gnxi", "0001-gnxi.patch"),
++    ("github.com/openconfig/gnmi", "0002-gnmi.patch"),
++    ("github.com/fsnotify/fsnotify", "0003-fsnotify.patch"),
++    ("google.golang.org/grpc/security/advancedtls", "0004-advancedtls.patch"),
++]]
++# Native gNMI deliberately omits Common's glog.patch for glog v1.2.4.
++
++go_patches.module_override(
++    patch_strip = 1,
++    patches = ["@sonic_gnmi//patches/bazel:0007-gnoi-build.patch"],
++    path = "github.com/openconfig/gnoi",
++)
++go_patches.module_override(
++    patch_strip = 1,
++    patches = ["@sonic_gnmi//patches/bazel:0008-pam-build.patch"],
++    path = "github.com/msteinert/pam",
++)
++
++python = use_extension("@rules_python//python/extensions:python.bzl", "python")
++python.toolchain(
++    is_default = True,
++    python_version = "3.13",
++)
++
++go_sdk = use_extension("@io_bazel_rules_go//go:extensions.bzl", "go_sdk")
++go_sdk.download(version = "1.25.9")
+diff --git a/modules/sonic-mgmt-framework/metadata.json b/modules/sonic-mgmt-framework/metadata.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..d45f5d950f04974e174c0e511850643961e986fc
+--- /dev/null
++++ b/modules/sonic-mgmt-framework/metadata.json
+@@ -0,0 +1,6 @@
++{
++    "homepage": "https://github.com/sonic-net/sonic-mgmt-framework",
++    "versions": [
++        "1.0.0-4036a01aa4648913ce44a0b4db52556a55cb2911"
++    ]
++}
+diff --git a/modules/sonic-rust-deps/0.0.5-c53741eb56e55e4f1c9b48c577ed5de986e62192/MODULE.bazel b/modules/sonic-rust-deps/0.0.5-c53741eb56e55e4f1c9b48c577ed5de986e62192/MODULE.bazel
+index b696e9af06710694be319be695837531272c2071..da4a2e0506d47496d4a1be80272b8138b21a64cb 100644
+--- a/modules/sonic-rust-deps/0.0.5-c53741eb56e55e4f1c9b48c577ed5de986e62192/MODULE.bazel
++++ b/modules/sonic-rust-deps/0.0.5-c53741eb56e55e4f1c9b48c577ed5de986e62192/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-rust-deps",
+-    version = "0.0.4-6d9c70f708d7420e9e2b2cdc906b80cee6b140f1",
++    version = "0.0.5-c53741eb56e55e4f1c9b48c577ed5de986e62192",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
+@@ -18,6 +18,7 @@ rules_rust_patches.patch(
+     strip = 1,
+ )
+ use_repo(rules_rust_patches, "rules_rust")
++
+ bazel_dep(name = "platforms", version = "1.1.0")
+ 
+ # Keep a pinned toolchain available to standalone and fresh registry consumers.
+diff --git a/modules/sonic-rust-deps/0.0.5-c53741eb56e55e4f1c9b48c577ed5de986e62192/README.md b/modules/sonic-rust-deps/0.0.5-c53741eb56e55e4f1c9b48c577ed5de986e62192/README.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..90d0e4d7c67af126c6636e87e9cbd789d8199fa5
+--- /dev/null
++++ b/modules/sonic-rust-deps/0.0.5-c53741eb56e55e4f1c9b48c577ed5de986e62192/README.md
+@@ -0,0 +1,20 @@
++# Shared Rust dependencies for DASH HA
++
++This registers [infra #78](https://github.com/securely1g/sonic-build-infra/pull/78)
++for [DASH HA source conversion](https://github.com/securely1g/sonic-buildimage/issues/104).
++HA's fourteen crates, original prost/tonic generators and Common-owned Rust
++interfaces use one third-party graph. Source compilation and installed runtime/debug
++TAR validation remain with `sonic-dash-ha`; this module owns only external crates.
++
++The `.4` build targets and tests are retained. Five native consumer tests exercise
++shared Serde traits, tracing, supervisor I/O, panic/unwind native runtime linking,
++and HA protocol/state/cancellation interfaces. All thirty added public crate
++interfaces are explicit build targets on both existing architectures. Source CI
++also retains its full-LTO panic test and verifies unchanged canonical Cargo.lock.
++
++The deliberate compatibility change selects HA's original tokio-util 0.7.11 in
++place of 0.7.17. HA enables `rt`; the latter version imports newer Tokio APIs when
++that feature is active, while retained OpenTelemetry 0.25 requires Tokio ~1.38.0.
++Tokio remains 1.38.2. Every other prior package identity/checksum is preserved;
++new dependencies start from HA's original lock. The source README and
++`dash_ha_contract_test` document and exercise the actual cancellation contract.
+diff --git a/modules/sonic-rust-deps/0.0.5-c53741eb56e55e4f1c9b48c577ed5de986e62192/patches/bump-version.patch b/modules/sonic-rust-deps/0.0.5-c53741eb56e55e4f1c9b48c577ed5de986e62192/patches/bump-version.patch
+index 99ddfa309ed29583c581bb8f2511ae55525c6c08..f28618114576c9d8b256bd45e2bb204b02760a55 100644
+--- a/modules/sonic-rust-deps/0.0.5-c53741eb56e55e4f1c9b48c577ed5de986e62192/patches/bump-version.patch
++++ b/modules/sonic-rust-deps/0.0.5-c53741eb56e55e4f1c9b48c577ed5de986e62192/patches/bump-version.patch
+@@ -3,8 +3,8 @@
+ @@ -1,6 +1,6 @@
+  module(
+      name = "sonic-rust-deps",
+--    version = "0.0.4",
+-+    version = "0.0.4-6d9c70f708d7420e9e2b2cdc906b80cee6b140f1",
++-    version = "0.0.5",
+++    version = "0.0.5-c53741eb56e55e4f1c9b48c577ed5de986e62192",
+      bazel_compatibility = [
+          ">=8.5.1",
+          "<=8.5.1",
+diff --git a/modules/sonic-rust-deps/0.0.5-c53741eb56e55e4f1c9b48c577ed5de986e62192/presubmit.json b/modules/sonic-rust-deps/0.0.5-c53741eb56e55e4f1c9b48c577ed5de986e62192/presubmit.json
+index 5e983e08c7293ba87638e1020a1e5af31ad44061..cb6854a65688c835ebcc0829d3b9dbc9a8bcfe76 100644
+--- a/modules/sonic-rust-deps/0.0.5-c53741eb56e55e4f1c9b48c577ed5de986e62192/presubmit.json
++++ b/modules/sonic-rust-deps/0.0.5-c53741eb56e55e4f1c9b48c577ed5de986e62192/presubmit.json
+@@ -19,13 +19,45 @@
+     "@sonic-rust-deps//tests:serde_roundtrip_test",
+     "@sonic-rust-deps//tests:tracing_test",
+     "@sonic-rust-deps//tests:supervisor_io_test",
+-    "@sonic-rust-deps//tests:panic_runtime_test"
++    "@sonic-rust-deps//tests:panic_runtime_test",
++    "@sonic-rust-deps//tests:dash_ha_contract_test",
++    "@sonic-rust-deps//:anyhow",
++    "@sonic-rust-deps//:atomic_enum",
++    "@sonic-rust-deps//:better-panic",
++    "@sonic-rust-deps//:bollard",
++    "@sonic-rust-deps//:contracts",
++    "@sonic-rust-deps//:dashmap",
++    "@sonic-rust-deps//:derivative",
++    "@sonic-rust-deps//:enumset",
++    "@sonic-rust-deps//:file-rotate",
++    "@sonic-rust-deps//:futures-core",
++    "@sonic-rust-deps//:futures-util",
++    "@sonic-rust-deps//:hex",
++    "@sonic-rust-deps//:human-panic",
++    "@sonic-rust-deps//:hyper-util",
++    "@sonic-rust-deps//:pretty_assertions",
++    "@sonic-rust-deps//:proc-macro2",
++    "@sonic-rust-deps//:prost-build",
++    "@sonic-rust-deps//:quote",
++    "@sonic-rust-deps//:serde_serializer_quick_unsupported",
++    "@sonic-rust-deps//:serde_with",
++    "@sonic-rust-deps//:signal-hook",
++    "@sonic-rust-deps//:strum",
++    "@sonic-rust-deps//:strum_macros",
++    "@sonic-rust-deps//:syn",
++    "@sonic-rust-deps//:tabled",
++    "@sonic-rust-deps//:tokio-util",
++    "@sonic-rust-deps//:tonic-build",
++    "@sonic-rust-deps//:tower",
++    "@sonic-rust-deps//:tracing-error",
++    "@sonic-rust-deps//:uuid"
+   ],
+   "test_targets": [
+     "@sonic-rust-deps//tests:serde_roundtrip_test",
+     "@sonic-rust-deps//tests:tracing_test",
+     "@sonic-rust-deps//tests:supervisor_io_test",
+-    "@sonic-rust-deps//tests:panic_runtime_test"
++    "@sonic-rust-deps//tests:panic_runtime_test",
++    "@sonic-rust-deps//tests:dash_ha_contract_test"
+   ],
+   "rust_toolchain": {
+     "version": "1.90.0"
+diff --git a/modules/sonic-rust-deps/0.0.5-c53741eb56e55e4f1c9b48c577ed5de986e62192/source.json b/modules/sonic-rust-deps/0.0.5-c53741eb56e55e4f1c9b48c577ed5de986e62192/source.json
+index 3aad63685f39a0aebf7066d67f529336d2641d22..7fb2105efc7364b59d34a08abc8d7b19a9a12b94 100644
+--- a/modules/sonic-rust-deps/0.0.5-c53741eb56e55e4f1c9b48c577ed5de986e62192/source.json
++++ b/modules/sonic-rust-deps/0.0.5-c53741eb56e55e4f1c9b48c577ed5de986e62192/source.json
+@@ -1,9 +1,9 @@
+ {
+-  "url": "https://github.com/securely1g/sonic-build-infra/archive/6d9c70f708d7420e9e2b2cdc906b80cee6b140f1.tar.gz",
+-  "strip_prefix": "sonic-build-infra-6d9c70f708d7420e9e2b2cdc906b80cee6b140f1/rust/deps",
+-  "integrity": "sha256-KyIvlWUL+QvC/3zLlRYWRsFwdoRUiVLk5yyMmQdobAQ=",
++  "url": "https://github.com/securely1g/sonic-build-infra/archive/c53741eb56e55e4f1c9b48c577ed5de986e62192.tar.gz",
++  "strip_prefix": "sonic-build-infra-c53741eb56e55e4f1c9b48c577ed5de986e62192/rust/deps",
++  "integrity": "sha256-08UxOv6MXOk/5otqN6iq23Fr/igEXnh1aq3aE7dNJLE=",
+   "patch_strip": 1,
+   "patches": {
+-    "bump-version.patch": "sha256-N/9BsSxsgyqPpVtR/5Lyeb9u1jZH8TAfIwkQyzPrpe8="
++    "bump-version.patch": "sha256-FvYmvAF7aClnCcpe3IuZVyrVPx3xKyATWQSroN7LmBI="
+   }
+ }
+diff --git a/modules/sonic-rust-deps/metadata.json b/modules/sonic-rust-deps/metadata.json
+index 71031c82bebd59e7f40da2f858b2ac58efc93af6..77341d67745ee5533cc1cf4a4461b0c9342e2c02 100644
+--- a/modules/sonic-rust-deps/metadata.json
++++ b/modules/sonic-rust-deps/metadata.json
+@@ -1,7 +1,8 @@
+ {
+-  "versions": [
+-    "0.0.1-7707c0f4ab0a624941924fb02e5d908d86962277",
+-    "0.0.2-127e89b9396824166caa6a300872398c6896bfec",
+-    "0.0.4-6d9c70f708d7420e9e2b2cdc906b80cee6b140f1"
+-  ]
++    "versions": [
++        "0.0.1-7707c0f4ab0a624941924fb02e5d908d86962277",
++        "0.0.2-127e89b9396824166caa6a300872398c6896bfec",
++        "0.0.4-6d9c70f708d7420e9e2b2cdc906b80cee6b140f1",
++        "0.0.5-c53741eb56e55e4f1c9b48c577ed5de986e62192"
++    ]
+ }
+diff --git a/modules/sonic-sairedis/0.0.4-706cc3d1f6182dea18deed36a2ddb0fbcf1a59fc/MODULE.bazel b/modules/sonic-sairedis/0.0.4-706cc3d1f6182dea18deed36a2ddb0fbcf1a59fc/MODULE.bazel
+index 941697d596df00d97b92e91bdcf9409cc418dc3a..9752d4341777cfc97d331a10b11a2138ebc647f0 100644
+--- a/modules/sonic-sairedis/0.0.4-706cc3d1f6182dea18deed36a2ddb0fbcf1a59fc/MODULE.bazel
++++ b/modules/sonic-sairedis/0.0.4-706cc3d1f6182dea18deed36a2ddb0fbcf1a59fc/MODULE.bazel
+@@ -1,7 +1,7 @@
+ # Keep bazel_compatibility in sync with sonic-buildimage's .bazelversion.
+ module(
+     name = "sonic-sairedis",
+-    version = "0.0.3-5e765149371aeca207254641873791db76a95f5f",
++    version = "0.0.4-706cc3d1f6182dea18deed36a2ddb0fbcf1a59fc",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
+@@ -13,10 +13,11 @@ bazel_dep(name = "buildifier_prebuilt", version = "8.5.1.3", dev_dependency = Tr
+ bazel_dep(name = "bazel_lib", version = "3.1.1")
+ bazel_dep(name = "bazel_skylib", version = "1.9.0")
+ bazel_dep(name = "googletest", version = "1.16.0", repo_name = "com_google_googletest")
+-bazel_dep(name = "libnl3", version = "3.7.0.sonic.5")
++bazel_dep(name = "libnl3", version = "3.7.0.sonic.7")
++bazel_dep(name = "patchelf", version = "0.18.0.bcr.1")
+ bazel_dep(name = "platforms", version = "1.1.0")
+ bazel_dep(name = "rules_cc", version = "0.2.20")
+-bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.13")
++bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.16")
+ bazel_dep(name = "rules_perl", version = "1.1.2")
+ bazel_dep(name = "rules_python", version = "1.7.0")
+ bazel_dep(name = "rules_shell", version = "0.6.1")
+@@ -25,8 +26,8 @@ bazel_dep(name = "rules_rs", version = "0.1.0", dev_dependency = True)
+ 
+ bazel_dep(name = "swig", version = "4.3.0.bcr.2")
+ bazel_dep(name = "tar.bzl", version = "0.10.5-sonic.1")
+-bazel_dep(name = "sonic-build-infra", version = "0.0.22-a12bc826d6f811a157db5c7c02a2fe033896cc14", repo_name = "sonic_build_infra")
+-bazel_dep(name = "sonic-swss-common", version = "0.0.5-326ca764197ac788dfd55aa935ff728180745bde", repo_name = "sonic_swss_common")
++bazel_dep(name = "sonic-build-infra", version = "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e", repo_name = "sonic_build_infra")
++bazel_dep(name = "sonic-swss-common", version = "0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed", repo_name = "sonic_swss_common")
+ bazel_dep(name = "sai", version = "1.18.0-sonic.1", repo_name = "sai_source")
+ 
+ gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
+diff --git a/modules/sonic-sairedis/0.0.4-706cc3d1f6182dea18deed36a2ddb0fbcf1a59fc/README.md b/modules/sonic-sairedis/0.0.4-706cc3d1f6182dea18deed36a2ddb0fbcf1a59fc/README.md
+index 346f0d399cebb182f67dcb74246fb06888d5d50b..bb036020bdaff0443adb92a7af773be85f74e8da 100644
+--- a/modules/sonic-sairedis/0.0.4-706cc3d1f6182dea18deed36a2ddb0fbcf1a59fc/README.md
++++ b/modules/sonic-sairedis/0.0.4-706cc3d1f6182dea18deed36a2ddb0fbcf1a59fc/README.md
+@@ -1,25 +1,52 @@
+-# Syncd runtime service links
+-
+-Registers [Sairedis #7](https://github.com/securely1g/sonic-sairedis/pull/7)
+-at source commit `5e765149371aeca207254641873791db76a95f5f`.
+-[Buildimage #13](https://github.com/securely1g/sonic-buildimage/pull/13) will consume
+-`@sonic_sairedis//syncd:syncd_pkg` directly without reconstructing these links in
+-the image. The consumer update is separate.
+-
+-| Runtime paths | Published package | Candidate |
+-| --- | --- | --- |
+-| `etc/rc0.d/K01syncd`, `etc/rc6.d/K01syncd`, `etc/rcS.d/S01syncd` | Missing | Root-owned symlinks to `../init.d/syncd`, mode `0777`, timestamp `0` |
+-
+-The links are in the existing producer init TAR for both ordinary VS and DASH
+-builds. Existing source archive-contract tests verify their raw headers and
+-installed targets. No installation scripts run while packaging.
+-
+-This candidate carries forward published `0.0.2-54233eede3bb2eb319f6041bc8329586483012d0`'s
+-native AMD64/ARM64 build and test targets unchanged, including runtime/debug
+-packages and metadata. Dependency selections and published entries are unchanged.
+-The numbered module-version patch changes source version `0.0.2` to this exact
+-candidate version.
+-
+-The selected source is the squash commit landed by Sairedis #7 on maintained
+-`master`. Native AMD64/ARM64 source CI passed, including raw service-link checks.
+-Registry CI validates this exact registration on both native architectures.
++# Sairedis library package metadata
++
++This candidate registers [source PR #9](https://github.com/securely1g/sonic-sairedis/pull/9), including the unchanged library-metadata feature from [source PR #8](https://github.com/securely1g/sonic-sairedis/pull/8). It continues the same work as [registry PR #157](https://github.com/securely1g/sonic-bazel-registry/pull/157) in a securely1g-owned branch; those original proposals remain open and are not separate build prerequisites.
++
++`@sonic-sairedis//:library_runtime_packages.json` describes only `libsairedis` and `libsaimetadata`, using their original package controls and exact source runtime TAR hashes. The existing aggregate metadata and source-built library, Syncd and VS SAI TARs remain available.
++
++The concrete `sonic-buildimage` P4RT debug consumer needs `libsairedis.so.0.0.0`, `libsaimeta.so.0.0.0` and `libsaimetadata.so.0.0.0`, together with their matching symbols. Selecting this library metadata avoids building unrelated Syncd and VS SAI outputs merely to generate package records. SWSS/Orchagent and Syncd/Gearbox also consume these libraries; their image validation remains separate.
++
++The source and ordinary consumer select Common `.8-4359814`, infrastructure
++`.25-3ee15ec`, libnl `3.7.0.sonic.7` and published Distroless `.16`.
++The coordinated review base must contain the exact selected prerequisite
++entries, including libnl's SDK timestamp normalization, while preserving every
++published entry. Only the sole unpublished Sairedis `.4` candidate is replaced here;
++there is no source repository override or second packaging definition.
++
++The original 19 build targets, seven component tests and both native AMD64/ARM64
++consumer lanes remain. The source's ELF test children use Common's declared
++loader/runtime/patchelf interface. The new P4RT image work is AMD64 only, and no
++DEB producer is selected. Direct prerequisites are source #9 and registry
++#199/#181/#218; the original proposals #8/#157 remain historical references.
++
++The source graph covers all 358 original sources and 366 ownership pairs.
++Local library metadata/runtime acceptance retained the exact two package
++records and three library ELFs. All seven original Bazel targets pass across
++the retained run and focused declared-runtime retry: 419 passed XML cases and
++two original PaValidation applicability skips. The runtime retry adds only
++the two owner library TARs to the affected test fixture; original C++ code is
++unchanged. That evidence stays bound to its recorded inputs and preceding
++review catalog.
++Current-head source/CodeQL and ordinary registry acceptance are separate CI
++gates; this Draft registration does not claim downstream image acceptance.
++
++Source `706cc3d1` additionally fixes the standalone `bazel --version` query in
++the review CI launcher. Its archive differs from `7c49be4d` only in that CI
++helper and its regression test; native build, runtime and original test inputs
++are byte-identical. The prior `fea55db`/`7c49be4d` ARM64 ordinary consumer has
++44 independently verified outputs and seven XMLs (419 passes/two original
++applicability skips). Those receipts remain bound to the prior candidate.
++Actual new-head payload equality, source package-contract and registry native
++acceptance remain pending; source-input equality alone is not artifact proof.
++
++The registry MODULE and its source MODULE patch select the same current
++infrastructure revision as the ordinary consumer. This dependency alignment
++preserves the source archive and all original build/test/architecture lists.
++The preceding native receipts do not establish acceptance of the updated graph.
++
++This dependency refresh selects maintained infrastructure source 3ee15ec9 through
++registry #218. Its numeric version is .25; published .26 entries remain intact.
++Fresh module-graph checks must verify the selected version, followed by the
++unchanged ordinary-consumer outputs and tests. This metadata/source-patch proof
++does not establish native or image acceptance. Existing worker runs and earlier
++receipts retain their exact preceding dependency inputs.
+diff --git a/modules/sonic-sairedis/0.0.4-706cc3d1f6182dea18deed36a2ddb0fbcf1a59fc/patches/0001-module-version.patch b/modules/sonic-sairedis/0.0.4-706cc3d1f6182dea18deed36a2ddb0fbcf1a59fc/patches/0001-module-version.patch
+index 17671d172387120c7ba3fd7236c29f134428fd30..45a7358c2ed86fc2d1f56de73ba7a235485eef60 100644
+--- a/modules/sonic-sairedis/0.0.4-706cc3d1f6182dea18deed36a2ddb0fbcf1a59fc/patches/0001-module-version.patch
++++ b/modules/sonic-sairedis/0.0.4-706cc3d1f6182dea18deed36a2ddb0fbcf1a59fc/patches/0001-module-version.patch
+@@ -1,19 +1,20 @@
+-Subject: [PATCH] Identify the Sairedis registry module by its exact source
+-
+-Sairedis declares version 0.0.2 in its source tree. Use a new revision with the full
+-source commit so Bazel resolves this registration to the reviewed archive.
+-This registry-only patch changes the module version, not the build rules.
+-
+-Source: https://github.com/securely1g/sonic-sairedis/commit/5e765149371aeca207254641873791db76a95f5f
+-
+ --- a/MODULE.bazel
+ +++ b/MODULE.bazel
+ @@ -1,7 +1,7 @@
+  # Keep bazel_compatibility in sync with sonic-buildimage's .bazelversion.
+  module(
+      name = "sonic-sairedis",
+--    version = "0.0.2",
+-+    version = "0.0.3-5e765149371aeca207254641873791db76a95f5f",
++-    version = "0.0.4",
+++    version = "0.0.4-706cc3d1f6182dea18deed36a2ddb0fbcf1a59fc",
+      bazel_compatibility = [
+          ">=8.5.1",
+          "<=8.5.1",
++@@ -26,7 +26,7 @@
++ 
++ bazel_dep(name = "swig", version = "4.3.0.bcr.2")
++ bazel_dep(name = "tar.bzl", version = "0.10.5-sonic.1")
++-bazel_dep(name = "sonic-build-infra", version = "0.0.26-2cfc059c2cf1dc3b2f2b2ec1bcd70400b04ecb75", repo_name = "sonic_build_infra")
+++bazel_dep(name = "sonic-build-infra", version = "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e", repo_name = "sonic_build_infra")
++ bazel_dep(name = "sonic-swss-common", version = "0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed", repo_name = "sonic_swss_common")
++ bazel_dep(name = "sai", version = "1.18.0-sonic.1", repo_name = "sai_source")
++ 
+diff --git a/modules/sonic-sairedis/0.0.4-706cc3d1f6182dea18deed36a2ddb0fbcf1a59fc/presubmit.json b/modules/sonic-sairedis/0.0.4-706cc3d1f6182dea18deed36a2ddb0fbcf1a59fc/presubmit.json
+index d406c583b1b7ebf5ebc7f86b6a042e9032fab01c..4aa770547accfafbf35a2d40249dc4b841d84ef1 100644
+--- a/modules/sonic-sairedis/0.0.4-706cc3d1f6182dea18deed36a2ddb0fbcf1a59fc/presubmit.json
++++ b/modules/sonic-sairedis/0.0.4-706cc3d1f6182dea18deed36a2ddb0fbcf1a59fc/presubmit.json
+@@ -6,12 +6,12 @@
+   "consumer_deps": [
+     {
+       "name": "sonic-build-infra",
+-      "version": "0.0.22-a12bc826d6f811a157db5c7c02a2fe033896cc14",
++      "version": "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e",
+       "repo_name": "sonic_build_infra"
+     },
+     {
+       "name": "sonic-swss-common",
+-      "version": "0.0.5-326ca764197ac788dfd55aa935ff728180745bde",
++      "version": "0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed",
+       "repo_name": "sonic_swss_common"
+     },
+     {
+@@ -20,11 +20,11 @@
+     },
+     {
+       "name": "libnl3",
+-      "version": "3.7.0.sonic.5"
++      "version": "3.7.0.sonic.7"
+     },
+     {
+       "name": "rules_distroless",
+-      "version": "0.9.4.sonic.13"
++      "version": "0.9.4.sonic.16"
+     },
+     {
+       "name": "tar.bzl",
+@@ -61,7 +61,8 @@
+     "@sonic-sairedis//syncd:syncd_pkg.debug_symbols",
+     "@sonic-sairedis//pyext:pysairedis_pkg",
+     "@sonic-sairedis//pyext:pysairedis_pkg.debug_symbols",
+-    "@sonic-sairedis//:runtime_packages.json"
++    "@sonic-sairedis//:runtime_packages.json",
++    "@sonic-sairedis//:library_runtime_packages.json"
+   ],
+   "test_targets": [
+     "@sonic-sairedis//lib:tests_test",
+diff --git a/modules/sonic-sairedis/0.0.4-706cc3d1f6182dea18deed36a2ddb0fbcf1a59fc/source.json b/modules/sonic-sairedis/0.0.4-706cc3d1f6182dea18deed36a2ddb0fbcf1a59fc/source.json
+index 39c389ebc08a1af01c26e5e02b2dd3e0a3d2a9da..97eb0be87035032cbe9e6896b828a6a4a91e6e50 100644
+--- a/modules/sonic-sairedis/0.0.4-706cc3d1f6182dea18deed36a2ddb0fbcf1a59fc/source.json
++++ b/modules/sonic-sairedis/0.0.4-706cc3d1f6182dea18deed36a2ddb0fbcf1a59fc/source.json
+@@ -1,9 +1,9 @@
+ {
+-  "url": "https://github.com/securely1g/sonic-sairedis/archive/5e765149371aeca207254641873791db76a95f5f.tar.gz",
+-  "strip_prefix": "sonic-sairedis-5e765149371aeca207254641873791db76a95f5f",
+-  "integrity": "sha256-qB0RZ221XWWkfjFOH8oEK+xziT1WcS0Fay2YlXwLGAA=",
+-  "patch_strip": 1,
++  "url": "https://github.com/securely1g/sonic-sairedis/archive/706cc3d1f6182dea18deed36a2ddb0fbcf1a59fc.tar.gz",
++  "strip_prefix": "sonic-sairedis-706cc3d1f6182dea18deed36a2ddb0fbcf1a59fc",
++  "integrity": "sha256-Cz1LqP3IsAQloWYp7bU/kLEsXUKRmGjagcWMMdOtoqc=",
+   "patches": {
+-    "0001-module-version.patch": "sha256-A7D9gB6tNljSVb+MG7tWUMeFWemsVTzS04xp6d4RrN0="
+-  }
++    "0001-module-version.patch": "sha256-ilstS2JgswWHd+lVldZxQ+4ElJOlDyyndvTQlNlfgvo="
++  },
++  "patch_strip": 1
+ }
+diff --git a/modules/sonic-sairedis/metadata.json b/modules/sonic-sairedis/metadata.json
+index 4f8a18fa939e36bc9bcc1a2f5406d3166d59ea97..fbb5b0e98ba63b7380ea8b624c572345285cb433 100644
+--- a/modules/sonic-sairedis/metadata.json
++++ b/modules/sonic-sairedis/metadata.json
+@@ -1,9 +1,10 @@
+ {
+-  "versions": [
+-    "0.0.0-e9402b77ba43aee6323665921598ef67e66293f9",
+-    "0.0.1-befd501a41549c9fedea9a116d081a6ad542cbe3",
+-    "0.0.1-1a6eb685de84d73b5939d269af1dc3e1fa71ff50",
+-    "0.0.2-54233eede3bb2eb319f6041bc8329586483012d0",
+-    "0.0.3-5e765149371aeca207254641873791db76a95f5f"
+-  ]
++    "versions": [
++        "0.0.0-e9402b77ba43aee6323665921598ef67e66293f9",
++        "0.0.1-befd501a41549c9fedea9a116d081a6ad542cbe3",
++        "0.0.1-1a6eb685de84d73b5939d269af1dc3e1fa71ff50",
++        "0.0.2-54233eede3bb2eb319f6041bc8329586483012d0",
++        "0.0.3-5e765149371aeca207254641873791db76a95f5f",
++        "0.0.4-706cc3d1f6182dea18deed36a2ddb0fbcf1a59fc"
++    ]
+ }
+diff --git a/modules/sonic-snmpagent/2.1.0/MODULE.bazel b/modules/sonic-snmpagent/2.1.0/MODULE.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..1b927fb70068e81f1cc9c99827b4eac4308b897d
+--- /dev/null
++++ b/modules/sonic-snmpagent/2.1.0/MODULE.bazel
+@@ -0,0 +1,31 @@
++module(
++    name = "sonic-snmpagent",
++    version = "2.1.0",
++    bazel_compatibility = [
++        ">=8.5.1",
++        "<=8.5.1",
++    ],
++)
++
++bazel_dep(name = "rules_python", version = "1.9.0")
++
++python = use_extension("@rules_python//python/extensions:python.bzl", "python")
++python.toolchain(
++    is_default = True,
++    python_version = "3.13",
++)
++
++pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
++pip.parse(
++    hub_name = "snmpagent_pip",
++    python_version = "3.13",
++    requirements_lock = "//:requirements_lock.txt",
++)
++use_repo(pip, "snmpagent_pip")
++
++bazel_dep(name = "tar.bzl", version = "0.10.5-sonic.1")
++
++toolchains = use_extension("@tar.bzl//tar:extensions.bzl", "toolchains")
++use_repo(toolchains, "bsd_tar_toolchains")
++
++register_toolchains("@bsd_tar_toolchains//:all")
+diff --git a/modules/sonic-snmpagent/2.1.0/presubmit.json b/modules/sonic-snmpagent/2.1.0/presubmit.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..bc2dc51057dec1d7930708d7348ba9fd12caab5a
+--- /dev/null
++++ b/modules/sonic-snmpagent/2.1.0/presubmit.json
+@@ -0,0 +1,17 @@
++{
++  "architectures": [
++    "amd64"
++  ],
++  "consumer_deps": [],
++  "platforms": {
++    "amd64": "@platforms//host:host"
++  },
++  "integration_test_module": "tests/integration",
++  "build_targets": [
++    "@sonic-snmpagent//:sonic_snmpagent_wheel",
++    "@sonic-snmpagent//:snmp_install"
++  ],
++  "test_targets": [
++    "//:installed_wheel_test"
++  ]
++}
+diff --git a/modules/sonic-snmpagent/2.1.0/source.json b/modules/sonic-snmpagent/2.1.0/source.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..d264e814113a82d091530892832766e14ce054de
+--- /dev/null
++++ b/modules/sonic-snmpagent/2.1.0/source.json
+@@ -0,0 +1,5 @@
++{
++  "url": "https://github.com/securely1g/sonic-snmpagent/archive/5445b3138b586f988472a0840f274cae101996af.tar.gz",
++  "integrity": "sha256-tiVx7BqUtQ0UOotka+jvzdzcTqWsxZuG32tWsXkgdqs=",
++  "strip_prefix": "sonic-snmpagent-5445b3138b586f988472a0840f274cae101996af"
++}
+diff --git a/modules/sonic-snmpagent/2.1.0/tests/integration/BUILD.bazel b/modules/sonic-snmpagent/2.1.0/tests/integration/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..b84784af35b3bdbae2a42f8ecee8687089a09d01
+--- /dev/null
++++ b/modules/sonic-snmpagent/2.1.0/tests/integration/BUILD.bazel
+@@ -0,0 +1,21 @@
++load("@registry_test_pip//:requirements.bzl", "requirement")
++load("@rules_python//python:py_test.bzl", "py_test")
++
++py_test(
++    name = "installed_wheel_test",
++    srcs = ["installed_wheel_test.py"],
++    args = [
++        "$(rootpath @sonic-snmpagent//:sonic_snmpagent_wheel)",
++        "$(rootpath @sonic-snmpagent//:setup.py)",
++        "$(rootpath @sonic-snmpagent//:snmp_install)",
++    ],
++    data = [
++        "@sonic-snmpagent//:setup.py",
++        "@sonic-snmpagent//:snmp_install",
++        "@sonic-snmpagent//:sonic_snmpagent_wheel",
++        "@sonic-snmpagent//:wheel_payload",
++    ],
++    legacy_create_init = False,
++    python_version = "3.13",
++    deps = [requirement("installer")],
++)
+diff --git a/modules/sonic-snmpagent/2.1.0/tests/integration/MODULE.bazel b/modules/sonic-snmpagent/2.1.0/tests/integration/MODULE.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..63e8db6def39883910abd8cc19a59875ecc962f5
+--- /dev/null
++++ b/modules/sonic-snmpagent/2.1.0/tests/integration/MODULE.bazel
+@@ -0,0 +1,19 @@
++module(name = "snmpagent_registry_consumer")
++
++bazel_dep(name = "sonic-snmpagent", version = "2.1.0")
++bazel_dep(name = "rules_python", version = "1.9.0")
++bazel_dep(name = "platforms", version = "1.1.0")
++
++python = use_extension("@rules_python//python/extensions:python.bzl", "python")
++python.toolchain(
++    is_default = True,
++    python_version = "3.13",
++)
++
++pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
++pip.parse(
++    hub_name = "registry_test_pip",
++    python_version = "3.13",
++    requirements_lock = "//:requirements_lock.txt",
++)
++use_repo(pip, "registry_test_pip")
+diff --git a/modules/sonic-snmpagent/2.1.0/tests/integration/installed_wheel_test.py b/modules/sonic-snmpagent/2.1.0/tests/integration/installed_wheel_test.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..8b1f4da0fa98f58ede121808779d79263b3a187c
+--- /dev/null
++++ b/modules/sonic-snmpagent/2.1.0/tests/integration/installed_wheel_test.py
+@@ -0,0 +1,119 @@
++"""Validate the registered owner wheel and install TAR in a source-free consumer."""
++
++import ast
++from email.parser import BytesParser
++import hashlib
++import json
++import os
++from pathlib import Path
++import platform
++import subprocess
++import sys
++import tarfile
++import tempfile
++import venv
++import zipfile
++
++from installer import install
++from installer.destinations import SchemeDictionaryDestination
++from installer.sources import WheelFile
++
++
++def main():
++    wheel, setup, install_tar = [Path(arg).absolute() for arg in sys.argv[1:]]
++    assert platform.machine() == 'x86_64'
++    assert sys.version_info[:2] == (3, 13)
++    tree = ast.parse(setup.read_text())
++    calls = [node for node in ast.walk(tree) if isinstance(node, ast.Call)
++             and isinstance(node.func, ast.Name) and node.func.id == 'setup']
++    assert len(calls) == 1
++    arguments = {item.arg: item.value for item in calls[0].keywords}
++    declarations = {target.id: node.value for node in tree.body if isinstance(node, ast.Assign)
++                    for target in node.targets if isinstance(target, ast.Name)}
++    package_call = arguments['packages']
++    assert isinstance(package_call, ast.Call) and package_call.func.id == 'find_packages'
++    assert [ast.literal_eval(value) for value in package_call.args] == ['src']
++    assert ast.literal_eval(arguments['package_dir']) == {
++        'sonic_ax_impl': 'src/sonic_ax_impl', 'ax_interface': 'src/ax_interface',
++    }
++    source_root = setup.parent / 'src'
++    packages = []
++    expected = {}
++    for init in source_root.rglob('__init__.py'):
++        directory = init.parent
++        parents = [directory, *list(directory.parents)[:len(directory.relative_to(source_root).parts) - 1]]
++        if not all((parent / '__init__.py').is_file() for parent in parents):
++            continue
++        packages.append(directory.relative_to(source_root).as_posix().replace('/', '.'))
++        for path in directory.glob('*.py'):
++            expected[path.relative_to(source_root).as_posix()] = path
++    assert packages
++    for package, patterns in ast.literal_eval(arguments['package_data']).items():
++        for pattern in patterns:
++            for path in (source_root / package.replace('.', '/')).glob(pattern):
++                if path.is_file():
++                    expected[path.relative_to(source_root).as_posix()] = path
++    requirements = ast.literal_eval(declarations[arguments['install_requires'].id])
++    with tempfile.TemporaryDirectory(dir=os.environ['TEST_TMPDIR']) as temporary:
++        environment = Path(temporary) / 'installed'
++        venv.EnvBuilder(with_pip=False).create(environment)
++        python = environment / 'bin/python'
++        scheme = json.loads(subprocess.check_output([
++            str(python), '-I', '-c', 'import json,sysconfig;print(json.dumps(sysconfig.get_paths()))',
++        ], text=True))
++        scheme['headers'] = scheme['include']
++        destination = SchemeDictionaryDestination(
++            scheme, interpreter=str(python), script_kind='posix', bytecode_optimization_levels=(),
++        )
++        with WheelFile.open(wheel) as contents:
++            install(source=contents, destination=destination, additional_metadata={'INSTALLER': b'registry-ci\n'})
++        site = Path(scheme['purelib'])
++        with zipfile.ZipFile(wheel) as archive:
++            names = archive.namelist()
++            assert {name for name in names if '.dist-info/' not in name} == set(expected)
++            for name, source in expected.items():
++                assert archive.read(name) == source.read_bytes() == (site / name).read_bytes(), name
++            metadata = BytesParser().parsebytes(archive.read(next(name for name in names if name.endswith('.dist-info/METADATA'))))
++            assert metadata['Name'] == ast.literal_eval(arguments['name']) == 'asyncsnmp'
++            assert metadata['Version'] == ast.literal_eval(arguments['version']) == '2.1.0'
++            assert {value.replace('_', '-') for value in metadata.get_all('Requires-Dist', [])} == {
++                value.replace('_', '-') for value in requirements}
++            assert {value.replace('_', '-') for value in metadata.get_all('Provides-Extra', [])} == {'high-perf'}
++            assert len([name for name in names if name.endswith('/licenses/LICENSE')]) == 1
++        with tarfile.open(install_tar) as archive:
++            members = archive.getmembers()
++            assert [member.name for member in members] == ['usr/share/snmp/sysDescr_pass.py']
++            member = members[0]
++            assert (member.uid, member.gid, member.mode, member.mtime) == (0, 0, 0o755, 0)
++            assert archive.extractfile(member).read() == expected['sonic_ax_impl/bin/sysDescr_pass.py'].read_bytes()
++        probe = r'''import importlib,importlib.metadata,json,pathlib,sys
++site=pathlib.Path(sys.argv[1]).resolve()
++modules=['ax_interface','ax_interface.encodings','ax_interface.protocol',
++         'sonic_ax_impl','sonic_ax_impl.utils.arg_parser']
++for name in modules:
++    module=importlib.import_module(name)
++    assert pathlib.Path(module.__file__).resolve().is_relative_to(site), module.__file__
++from ax_interface.encodings import ObjectIdentifier
++value=ObjectIdentifier.from_iterable((1,3,6,1,2,1,1,5,0))
++assert str(ObjectIdentifier.from_bytes(value.to_bytes('!'),'!'))=='.1.3.6.1.2.1.1.5.0'
++assert importlib.metadata.version('asyncsnmp')=='2.1.0'
++print(json.dumps({'modules':modules,'agentx_oid_roundtrip':str(value)}))
++'''
++        result = subprocess.run([str(python), '-I', '-c', probe, str(site)], cwd=temporary,
++                                capture_output=True, text=True, timeout=30)
++        assert result.returncode == 0, result.stdout + result.stderr
++        output = Path(os.environ['TEST_UNDECLARED_OUTPUTS_DIR'])
++        output.mkdir(parents=True, exist_ok=True)
++        (output / 'registered-wheel.json').write_text(json.dumps({
++            'status': 'passed', 'architecture': platform.machine(), 'python': platform.python_version(),
++            'source_revision': '5445b3138b586f988472a0840f274cae101996af',
++            'wheel': wheel.name, 'wheel_sha256': hashlib.sha256(wheel.read_bytes()).hexdigest(),
++            'install_tar_sha256': hashlib.sha256(install_tar.read_bytes()).hexdigest(),
++            'packages': len(packages), 'payload_files': len(expected),
++            'installed_probe': json.loads(result.stdout),
++            'scope': 'Registered wheel/TAR bytes, metadata and installed AgentX interfaces; full Common/Redis/snmpd queries are covered by source CI',
++        }, indent=2) + '\n')
++
++
++if __name__ == '__main__':
++    main()
+diff --git a/modules/sonic-snmpagent/2.1.0/tests/integration/requirements.in b/modules/sonic-snmpagent/2.1.0/tests/integration/requirements.in
+new file mode 100644
+index 0000000000000000000000000000000000000000..3fce600561c9fa7014891b78e55525e9133a3bab
+--- /dev/null
++++ b/modules/sonic-snmpagent/2.1.0/tests/integration/requirements.in
+@@ -0,0 +1 @@
++installer==0.7.0
+diff --git a/modules/sonic-snmpagent/2.1.0/tests/integration/requirements_lock.txt b/modules/sonic-snmpagent/2.1.0/tests/integration/requirements_lock.txt
+new file mode 100644
+index 0000000000000000000000000000000000000000..722b5201e23678e715080104998385100b517c0c
+--- /dev/null
++++ b/modules/sonic-snmpagent/2.1.0/tests/integration/requirements_lock.txt
+@@ -0,0 +1,3 @@
++installer==0.7.0 \
++    --hash=sha256:05d1933f0a5ba7d8d6296bb6d5018e7c94fa473ceb10cf198a92ccea19c27b53 \
++    --hash=sha256:a26d3e3116289bb08216e0d0f7d925fcef0b0194eedfa0c944bcaaa106c4b631
+diff --git a/modules/sonic-snmpagent/metadata.json b/modules/sonic-snmpagent/metadata.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..f4de5ca7d82499a780c83e3a07ea4e8bc7e4b59e
+--- /dev/null
++++ b/modules/sonic-snmpagent/metadata.json
+@@ -0,0 +1,5 @@
++{
++    "versions": [
++        "2.1.0"
++    ]
++}
+diff --git a/modules/sonic-swss-common/0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed/MODULE.bazel b/modules/sonic-swss-common/0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed/MODULE.bazel
+index b653487d02437e8beef25657ccc4d38d4675ee82..1c8fcb57c9202447c51596833c15f9883430a08d 100644
+--- a/modules/sonic-swss-common/0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed/MODULE.bazel
++++ b/modules/sonic-swss-common/0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed/MODULE.bazel
+@@ -1,7 +1,7 @@
+ # Keep bazel_compatibility in sync with sonic-buildimage's .bazelversion.
+ module(
+     name = "sonic-swss-common",
+-    version = "0.0.8-a0450924719a9f706125cc44a07dc88934935003",
++    version = "0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
+@@ -15,7 +15,7 @@ bazel_dep(name = "googletest", version = "1.11.0", repo_name = "com_google_googl
+ bazel_dep(name = "glog", version = "0.5.0", repo_name = "com_github_google_glog")
+ bazel_dep(name = "rules_python", version = "1.7.0")
+ bazel_dep(name = "rules_rs", version = "0.1.0")
+-bazel_dep(name = "sonic-rust-deps", version = "0.0.2-127e89b9396824166caa6a300872398c6896bfec", repo_name = "sonic_rust_deps")
++bazel_dep(name = "sonic-rust-deps", version = "0.0.4-6d9c70f708d7420e9e2b2cdc906b80cee6b140f1", repo_name = "sonic_rust_deps")
+ 
+ # rules_rs selects rules_cc with sanitize_pwd; rules_go 0.64.1 excludes that
+ # C/C++ feature from cgo so its builder paths stay valid after changing cwd.
+@@ -26,16 +26,22 @@ bazel_dep(name = "rules_shell", version = "0.6.1")
+ bazel_dep(name = "bazel_skylib", version = "1.9.0")
+ bazel_dep(name = "platforms", version = "1.1.0")
+ bazel_dep(name = "tar.bzl", version = "0.10.5-sonic.1")
+-bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.13")
++bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.16")
+ bazel_dep(name = "libyang", version = "3.12.2.sonic.4")
+ 
+-# This published revision uses the public Debian source URL and preserves the
+-# SONiC nexthop patch; the older registration points at a retired mirror.
+-bazel_dep(name = "libnl3", version = "3.7.0.sonic.5")
+-bazel_dep(name = "sonic-build-infra", version = "0.0.23-5b224d7190d04f1b7b68429eedfc03b7b1565ed0", repo_name = "sonic_build_infra")
++# Use the owner-exported native shared targets and matching runtime metadata.
++# This retains the SONiC nexthop patch and the public Debian source URL.
++bazel_dep(name = "libnl3", version = "3.7.0.sonic.7")
++bazel_dep(name = "sonic-build-infra", version = "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e", repo_name = "sonic_build_infra")
+ bazel_dep(name = "sonic-yang-mgmt", version = "1.0.0-9ab452d22773c41783092ae3bd6c206d6c257c8d", repo_name = "sonic_yang_mgmt")
+ bazel_dep(name = "sonic-yang-models", version = "1.0.0-9ab452d22773c41783092ae3bd6c206d6c257c8d", repo_name = "sonic_yang_models")
+ 
++# Keep the standalone source graph on the sole current infrastructure candidate.
++single_version_override(
++    module_name = "sonic-build-infra",
++    version = "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e",
++)
++
+ # Upstream 0.10.5 sorts above the patched prerelease. Keep transitive requests
+ # from replacing the default_mtime implementation selected by this build.
+ single_version_override(
+diff --git a/modules/sonic-swss-common/0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed/README.md b/modules/sonic-swss-common/0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed/README.md
+index 96c24430223c7242e0b08da799002cc37c5dc6c0..34a0d49706593719c1d5816197163a9b47ed8fee 100644
+--- a/modules/sonic-swss-common/0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed/README.md
++++ b/modules/sonic-swss-common/0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed/README.md
+@@ -1,9 +1,58 @@
+-# Declared loaders for Common native test execution
++# Common native, Go, Rust and testing interfaces
+ 
+-Registers https://github.com/securely1g/sonic-swss-common/pull/37.
+-Go and Python native test runners use the declared Trixie ELF interpreter,
+-including Go's XML wrapper self-execution. The source-owned loader regression
+-and hiredis CGo test join the inherited registry matrix.
++This registration selects cumulative source
++`43598143ef4a46431eae0859915cd7d951dad1ed`. It retains the Go import interface
++from [Common #38](https://github.com/securely1g/sonic-swss-common/pull/38),
++the shared libnl providers from [Common #41](https://github.com/securely1g/sonic-swss-common/pull/41),
++and the async Rust library and testing helpers from
++[Common #42](https://github.com/securely1g/sonic-swss-common/pull/42).
++Those source changes remain independent reviews. The source also includes the
++landed native loader, ZMQ, Lua-directory and root-owned runtime TAR changes.
++Published Common entries, including `.8-a0450924`, are preserved unchanged.
+ 
+-Standalone consumption retains the declared Go 1.25.0 SDK and existing source
+-library dependencies. Buildimage also validates Go 1.26.7 and both YANG modes.
++DASH HA's `swbus-actor` and `swss-common-bridge` enable Common's Cargo `async`
++feature. They consume `//crates/swss-common:swss_common_async` and
++`//crates/swss-common-testing:swss_common_testing_async` from this owner.
++Default consumers retain `:swss_common` and `:swss_common_testing`.
++These variants share their public Rust types and the existing
++`sonic-rust-deps` dependencies. gNMI consumes the same owner's Go bindings;
++Common and Linkmgrd consume the same native libnl providers.
++
++The ordinary external consumer retains all 16 output targets and 24 tests from
++the preceding registration. They include C++, Go, CLI, Python, Rust, detached
++debug, archive ownership, shared Serde and async Tokio checks. The complete
++13-output/19-test contract from [registry #167](https://github.com/securely1g/sonic-bazel-registry/pull/167)
++is a subset of this contract. The AMD64/ARM64 matrix is preserved; current
++Docker validation is AMD64 and does not establish ARM64 or image acceptance.
++No DEB-producing targets are selected.
++
++| Input or action | Previous registration | Current registration |
++| --- | --- | --- |
++| HA async/testing and gNMI Go interfaces | Separate draft registrations selected different Common sources | One cumulative source supplies both interfaces and preserves every existing test |
++| Common's infrastructure dependency | The older draft `2cfc059c` could be selected by its standalone module | Module, version patch and ordinary consumer select `3ee15ec9` from [registry #218](https://github.com/securely1g/sonic-bazel-registry/pull/218) |
++| Distroless dependency | The source minimum was `.13` and the ordinary consumer pinned `.15` | Both select published `.16` |
++
++The sole source patch sets the registry module version and these dependency
++selections; it changes no producer, header, runtime or test source. Source
++archive integrity is unchanged. Source-owned public targets and installed
++runtime metadata remain the consumer boundary.
++
++This is the proposed coordinated refresh of
++[registry #199](https://github.com/securely1g/sonic-bazel-registry/pull/199).
++The older #167 registration must be superseded only after its source features,
++coverage and consumers are verified against this candidate. Closed
++[registry #201](https://github.com/securely1g/sonic-bazel-registry/pull/201)
++remains historical evidence, not a current dependency or a new acceptance
++claim. The independent source #38/#41/#42 reviews remain required.
++
++Keep this registration Draft while those sources or the infrastructure
++prerequisite are unlanded. Fresh configured and ordinary-consumer acceptance
++on these current registration inputs is pending; earlier successful image and
++source receipts retain their original source/catalog identities.
++
++This dependency refresh selects maintained infrastructure source 3ee15ec9 through
++registry #218. Its numeric version is .25; published .26 entries remain intact.
++Fresh module-graph checks must verify the selected version, followed by the
++unchanged ordinary-consumer outputs and tests. This metadata/source-patch proof
++does not establish native or image acceptance. Existing worker runs and earlier
++receipts retain their exact preceding dependency inputs.
+diff --git a/modules/sonic-swss-common/0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed/patches/0001-module-version.patch b/modules/sonic-swss-common/0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed/patches/0001-module-version.patch
+index d9b055879f92c9fc1435ac96ee096d6ea20dd23b..67581f68ba781262c7b9e0a6df9b47b63cbb725e 100644
+--- a/modules/sonic-swss-common/0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed/patches/0001-module-version.patch
++++ b/modules/sonic-swss-common/0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed/patches/0001-module-version.patch
+@@ -5,7 +5,33 @@
+  module(
+      name = "sonic-swss-common",
+ -    version = "0.0.8",
+-+    version = "0.0.8-a0450924719a9f706125cc44a07dc88934935003",
+++    version = "0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed",
+      bazel_compatibility = [
+          ">=8.5.1",
+          "<=8.5.1",
++@@ -26,21 +26,20 @@
++ bazel_dep(name = "bazel_skylib", version = "1.9.0")
++ bazel_dep(name = "platforms", version = "1.1.0")
++ bazel_dep(name = "tar.bzl", version = "0.10.5-sonic.1")
++-bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.13")
+++bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.16")
++ bazel_dep(name = "libyang", version = "3.12.2.sonic.4")
++ 
++ # Use the owner-exported native shared targets and matching runtime metadata.
++ # This retains the SONiC nexthop patch and the public Debian source URL.
++ bazel_dep(name = "libnl3", version = "3.7.0.sonic.7")
++-bazel_dep(name = "sonic-build-infra", version = "0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568", repo_name = "sonic_build_infra")
+++bazel_dep(name = "sonic-build-infra", version = "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e", repo_name = "sonic_build_infra")
++ bazel_dep(name = "sonic-yang-mgmt", version = "1.0.0-9ab452d22773c41783092ae3bd6c206d6c257c8d", repo_name = "sonic_yang_mgmt")
++ bazel_dep(name = "sonic-yang-models", version = "1.0.0-9ab452d22773c41783092ae3bd6c206d6c257c8d", repo_name = "sonic_yang_models")
++ 
++-# Draft libnl .7 still declares the preceding unpublished infrastructure
++-# candidate. Select the complete current candidate for the standalone graph.
+++# Keep the standalone source graph on the sole current infrastructure candidate.
++ single_version_override(
++     module_name = "sonic-build-infra",
++-    version = "0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568",
+++    version = "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e",
++ )
++ 
++ # Upstream 0.10.5 sorts above the patched prerelease. Keep transitive requests
+diff --git a/modules/sonic-swss-common/0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed/presubmit.json b/modules/sonic-swss-common/0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed/presubmit.json
+index 095a53cec6f87f46052a4e3b7514464a931fb400..18b426c8e9e4e8ac7b1e506bbc11d1d20e2d1d9f 100644
+--- a/modules/sonic-swss-common/0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed/presubmit.json
++++ b/modules/sonic-swss-common/0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed/presubmit.json
+@@ -6,7 +6,7 @@
+   "consumer_deps": [
+     {
+       "name": "sonic-build-infra",
+-      "version": "0.0.23-5b224d7190d04f1b7b68429eedfc03b7b1565ed0",
++      "version": "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e",
+       "repo_name": "sonic_build_infra"
+     },
+     {
+@@ -15,7 +15,7 @@
+     },
+     {
+       "name": "rules_distroless",
+-      "version": "0.9.4.sonic.13"
++      "version": "0.9.4.sonic.16"
+     },
+     {
+       "name": "rules_cc",
+@@ -28,11 +28,11 @@
+     },
+     {
+       "name": "libnl3",
+-      "version": "3.7.0.sonic.5"
++      "version": "3.7.0.sonic.7"
+     },
+     {
+       "name": "sonic-rust-deps",
+-      "version": "0.0.2-127e89b9396824166caa6a300872398c6896bfec",
++      "version": "0.0.4-6d9c70f708d7420e9e2b2cdc906b80cee6b140f1",
+       "repo_name": "sonic_rust_deps"
+     },
+     {
+@@ -57,7 +57,10 @@
+     "@sonic-swss-common//crates/swss-common:swss_common",
+     "@sonic-swss-common//dist:sonic-db-cli_pkg.debug_symbols",
+     "@sonic-swss-common//pyext:swsscommon_pkg.debug_symbols",
+-    "@sonic-swss-common//:runtime_packages.json"
++    "@sonic-swss-common//:runtime_packages.json",
++    "@sonic-swss-common//crates/swss-common:swss_common_async",
++    "@sonic-swss-common//crates/swss-common-testing:swss_common_testing",
++    "@sonic-swss-common//crates/swss-common-testing:swss_common_testing_async"
+   ],
+   "test_targets": [
+     "@sonic-swss-common//tests:status_code_util_test",
+@@ -75,13 +78,21 @@
+     "@sonic-swss-common//tools/bazel/rust:shared_serde_test",
+     "@sonic-swss-common//sonic-db-cli:shared_library_test",
+     "@sonic-swss-common//tools/bazel/runtime:declared_loader_test",
+-    "@sonic-swss-common//goext/tests/hiredis:hiredis_cgo_test"
++    "@sonic-swss-common//goext/tests/hiredis:hiredis_cgo_test",
++    "@sonic-swss-common//goext/tests/gnmi:alias_test",
++    "@sonic-swss-common//sonic-db-cli:declared_shared_library_test",
++    "@sonic-swss-common//tests:redis_lua_path_test",
++    "@sonic-swss-common//tests/shared_netlink:consumer_test",
++    "@sonic-swss-common//tests:shared_library_elf_test",
++    "@sonic-swss-common//crates/swss-common:swss_common_async_test",
++    "@sonic-swss-common//tools/bazel/rust:testing_interface_test",
++    "@sonic-swss-common//tools/bazel/rust:async_testing_interface_test"
+   ],
+   "build_flags": [
+     "--@sonic-swss-common//tools/bazel:yang_modules=True"
+   ],
+   "go_sdk": {
+-    "version": "1.25.0"
++    "version": "1.25.9"
+   },
+   "rust_toolchain": {
+     "version": "1.90.0",
+diff --git a/modules/sonic-swss-common/0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed/source.json b/modules/sonic-swss-common/0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed/source.json
+index 99b5f4bdac58306ad7b09a92c0dcdb8d7e408295..cf22f9b8f87a33a06c48b574454a9e0e95ff2591 100644
+--- a/modules/sonic-swss-common/0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed/source.json
++++ b/modules/sonic-swss-common/0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed/source.json
+@@ -1,9 +1,9 @@
+ {
+-  "url": "https://github.com/securely1g/sonic-swss-common/archive/a0450924719a9f706125cc44a07dc88934935003.tar.gz",
+-  "strip_prefix": "sonic-swss-common-a0450924719a9f706125cc44a07dc88934935003",
+-  "integrity": "sha256-3tM1ST2TaTNrjEV5WQbqZzu5g45A77KkSdiU7S5MzFc=",
++  "url": "https://github.com/securely1g/sonic-swss-common/archive/43598143ef4a46431eae0859915cd7d951dad1ed.tar.gz",
++  "strip_prefix": "sonic-swss-common-43598143ef4a46431eae0859915cd7d951dad1ed",
++  "integrity": "sha256-a6PXXUxzW+0tTMaaOwypdZC/T6vvj7b1SiiEwLfhhpE=",
+   "patch_strip": 1,
+   "patches": {
+-    "0001-module-version.patch": "sha256-gxgrOPGWT3kL9yfElK0C89Do9IF6EidQCd5mBO9fvio="
++    "0001-module-version.patch": "sha256-C8nWgueKsqgtUa8jU+cZjMRU8qpLMfTlgq8a517qS2E="
+   }
+ }
+diff --git a/modules/sonic-swss-common/metadata.json b/modules/sonic-swss-common/metadata.json
+index 569e71f405abab004069688d98c08adf6574aa8d..5e5154c126de09f30c917b6ec9142efc0978be3d 100644
+--- a/modules/sonic-swss-common/metadata.json
++++ b/modules/sonic-swss-common/metadata.json
+@@ -1,19 +1,20 @@
+ {
+-  "versions": [
+-    "0.0.0-0bbc08794128e4e1d7df043c3e3f3c4cd3ec9750",
+-    "0.0.0-120a955096bb18413d170d42b30668dc7a9b7f68",
+-    "0.0.0-15bf05daf330307889d4bbbf90e967137e6271d3",
+-    "0.0.0-3e7582ebd86c85b75dea11370e7730465a3b13a7",
+-    "0.0.0-5ee19a9375e667c0d507239927745de8fa29be07",
+-    "0.0.0-78fd65209df8ff6c3d551593eae27532d7339698",
+-    "0.0.0-99572f5a34e7f408dee49eaf2a3ba60c5d443fb6",
+-    "0.0.0-e11c139e59e990bd4cd406ff93b64270fd36e7c1",
+-    "0.0.1-6e0204634f2f78605abdd94ea2b013a46e0660ac",
+-    "0.0.2-cec18aae143f8b0338703ca0ab2683a60ef2465d",
+-    "0.0.4-db8f451c76fdc1135cd40f585c218e7d589a7223",
+-    "0.0.5-326ca764197ac788dfd55aa935ff728180745bde",
+-    "0.0.6-be3495e6958310cb3dd02d6a290a6564efd9aa95",
+-    "0.0.7-f7fda40c02b3a8b4bbbff3d17fca3dff83f4cbad",
+-    "0.0.8-a0450924719a9f706125cc44a07dc88934935003"
+-  ]
++    "versions": [
++        "0.0.0-0bbc08794128e4e1d7df043c3e3f3c4cd3ec9750",
++        "0.0.0-120a955096bb18413d170d42b30668dc7a9b7f68",
++        "0.0.0-15bf05daf330307889d4bbbf90e967137e6271d3",
++        "0.0.0-3e7582ebd86c85b75dea11370e7730465a3b13a7",
++        "0.0.0-5ee19a9375e667c0d507239927745de8fa29be07",
++        "0.0.0-78fd65209df8ff6c3d551593eae27532d7339698",
++        "0.0.0-99572f5a34e7f408dee49eaf2a3ba60c5d443fb6",
++        "0.0.0-e11c139e59e990bd4cd406ff93b64270fd36e7c1",
++        "0.0.1-6e0204634f2f78605abdd94ea2b013a46e0660ac",
++        "0.0.2-cec18aae143f8b0338703ca0ab2683a60ef2465d",
++        "0.0.4-db8f451c76fdc1135cd40f585c218e7d589a7223",
++        "0.0.5-326ca764197ac788dfd55aa935ff728180745bde",
++        "0.0.6-be3495e6958310cb3dd02d6a290a6564efd9aa95",
++        "0.0.7-f7fda40c02b3a8b4bbbff3d17fca3dff83f4cbad",
++        "0.0.8-a0450924719a9f706125cc44a07dc88934935003",
++        "0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed"
++    ]
+ }
+diff --git a/modules/sonic-wpa-supplicant/2.9.0.sonic.1/MODULE.bazel b/modules/sonic-wpa-supplicant/2.9.0.sonic.1/MODULE.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..2fcbae8ce5e166f7a1c884ea81d48c975cd7dabd
+--- /dev/null
++++ b/modules/sonic-wpa-supplicant/2.9.0.sonic.1/MODULE.bazel
+@@ -0,0 +1,54 @@
++module(name = "sonic-wpa-supplicant", version = "2.9.0.sonic.1", bazel_compatibility = [">=8.5.1", "<=8.5.1"])
++
++bazel_dep(name = "bazel_lib", version = "3.2.2")
++bazel_dep(name = "platforms", version = "1.1.0")
++bazel_dep(name = "rules_cc", version = "0.2.22")
++bazel_dep(name = "rules_python", version = "1.9.0")
++bazel_dep(name = "rules_rs", version = "0.1.0")
++bazel_dep(name = "rules_gzip", version = "1.0.0")
++bazel_dep(name = "rules_foreign_cc", version = "0.16.0.sonic.1")
++bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.16")
++bazel_dep(name = "tar.bzl", version = "0.10.5.sonic.1")
++bazel_dep(name = "sonic-build-infra", version = "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e", repo_name = "sonic_build_infra")
++bazel_dep(name = "sonic-swss-common", version = "0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed", repo_name = "sonic_swss_common")
++bazel_dep(name = "sonic-fips", version = "0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9", repo_name = "sonic_fips")
++bazel_dep(name = "libnl3", version = "3.7.0.sonic.7")
++
++single_version_override(module_name = "rules_foreign_cc", version = "0.16.0.sonic.1")
++single_version_override(module_name = "rules_go", version = "0.64.1-sonic.1")
++
++gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
++use_repo(gcc, "gcc_toolchains")
++register_toolchains("@gcc_toolchains//:all")
++register_toolchains("@sonic_build_infra//tools/gzip:toolchain")
++register_toolchains(
++    "@sonic_build_infra//tools/build_tools:make_toolchain",
++    "@sonic_build_infra//tools/build_tools:m4_toolchain",
++    "@sonic_build_infra//tools/build_tools:pkgconfig_toolchain",
++)
++
++# Common owns its Rust targets. Its shared extension still requires a root
++# toolchain declaration when this consumer selects only the C++ interface.
++rust = use_extension("@rules_rs//rs:rules_rust_reexported_extensions.bzl", "rust", dev_dependency = True)
++rust.toolchain(edition = "2021", versions = ["1.90.0"])
++use_repo(rust, "rust_toolchains")
++register_toolchains("@rust_toolchains//:all", dev_dependency = True)
++
++# Target ABI libraries only. SONiC Common, patched libnl and OpenSSL are built
++# by their source owners rather than taken from these Debian packages.
++apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
++apt.install(
++    dependency_set = "wpa_deps",
++    packages = [
++        "libdbus-1-dev:amd64",
++        "libncurses-dev:amd64",
++        "libpcsclite-dev:amd64",
++        "libreadline-dev:amd64",
++    ],
++    suites = ["trixie", "trixie-updates", "trixie-security"],
++)
++use_repo(apt, "wpa_deps", "sysroot")
++
++# Runtime-only target libraries, pinned from the same selected native closure.
++apt.import_lock(lock = "//:tools/bazel/apt.lock.json")
++use_repo(apt, "wpa_runtime")
+diff --git a/modules/sonic-wpa-supplicant/2.9.0.sonic.1/README.md b/modules/sonic-wpa-supplicant/2.9.0.sonic.1/README.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..80b6e7de5b6ba36a87212abc916ec5c29259ff44
+--- /dev/null
++++ b/modules/sonic-wpa-supplicant/2.9.0.sonic.1/README.md
+@@ -0,0 +1,65 @@
++# WPA source TARs for the MACsec image
++
++SONiC's `docker-macsec` needs the patched WPA supplicant and its database
++adapter. This entry consumes the source-owned targets from
++[WPA PR #1](https://github.com/securely1g/sonic-wpa-supplicant/pull/1) and its
++[compiler-flag fix #2](https://github.com/securely1g/sonic-wpa-supplicant/pull/2), which
++compile the repository's selected source with `debian/config/wpasupplicant/linux`.
++The public outputs are `wpasupplicant_pkg`, its matching `debug_symbols` output,
++and `runtime_packages.json`. They include `wpa_supplicant`, `wpa_cli`,
++`wpa_passphrase`, the declared service/configuration/documentation payload and
++non-executable detached symbols. No DEB-producing targets are selected.
++
++WPA is an upstream third-party project even though this patched source is kept
++in a SONiC fork. The registry version is `2.9.0.sonic.1`, matching the source
++module's mapping of WPA 2.9 and its existing SONiC/Debian downstream changes.
++The immutable archive owns all build definitions. A narrow registry patch
++updates only the source MODULE dependency declarations to match the registered
++module; it does not replace the owner build implementation.
++
++The ordinary consumer selects Common `.8-43598143`, infrastructure
++`.25-3ee15ec9`, FIPS `.5-15fcb926` and published Distroless `.16`.
++Direct version requirements select these current candidates;
++there are no root source overrides or replacement build definitions. It keeps
++Common's declared YANG-enabled default. AMD64 CI builds all three public outputs
++and executes the owner's upstream, installed-package, flag-preservation and
++large-include-list tests. Those tests check exact payload bytes/modes/links/epoch,
++three ELF/debug pairs, real GDB lookup, declared Common/libnl/OpenSSL loading,
++the IEEE PBKDF2 vector and private supplicant/control-client PING/PONG. Twelve
++upstream programs compile; nine self-contained suites execute. Three HTTPS/X.509
++programs have compile-only coverage because their external fixtures are absent.
++
++The previous entry is [registration #185](https://github.com/securely1g/sonic-bazel-registry/pull/185).
++This separate fix updates its sole unpublished WPA version to source commit
++`d14bf3ac61597273e8940f9b14c8034568cccff7`. In
++[MACsec image #149](https://github.com/securely1g/sonic-buildimage/pull/149),
++133,110 bytes of ordered preprocessing flags exceeded Linux's limit before Make
++could start. The owner now sources a Bash adapter through `rules_foreign_cc`'s
++public tool-prefix hook and passes the same flags in GCC's response file.
++The added test reproduces the original exec failure, verifies recursive C/C++
++compilation with quoted values and include paths, and rejects driver options in
++preprocessing flags. No validation or runtime features are removed.
++
++The review catalog preserves published [libnl #181](https://github.com/securely1g/sonic-bazel-registry/pull/181)
++and [Distroless #200](https://github.com/securely1g/sonic-bazel-registry/pull/200),
++and carries the current [Common #199](https://github.com/securely1g/sonic-bazel-registry/pull/199),
++[infrastructure #218](https://github.com/securely1g/sonic-bazel-registry/pull/218)
++and [FIPS #221](https://github.com/securely1g/sonic-bazel-registry/pull/221) candidates.
++The source MODULE patch and registry MODULE match byte-for-byte. The source
++archive, runtime code, compiler-response-file fix, three build targets and four
++tests are unchanged. Ordinary-consumer and MACsec acceptance remains pending on
++this exact dependency graph; old receipts are not new acceptance. Keep Draft
++until relevant prerequisites land, this registration targets maintained main and
++current CI passes. Every published version remains unchanged.
++
++The image consumer is [buildimage issue #131](https://github.com/securely1g/sonic-buildimage/issues/131).
++Image assembly, an actual installed macsecmgrd/WPA handoff and full VS installer
++coverage are separate from source/registry acceptance. ARM, cross builds,
++physical MACsec traffic and ASIC/FIPS POST behavior are outside this phase.
++
++This dependency refresh selects maintained infrastructure source 3ee15ec9 through
++registry #218. Its numeric version is .25; published .26 entries remain intact.
++Fresh module-graph checks must verify the selected version, followed by the
++unchanged ordinary-consumer outputs and tests. This metadata/source-patch proof
++does not establish native or image acceptance. Existing worker runs and earlier
++receipts retain their exact preceding dependency inputs.
+diff --git a/modules/sonic-wpa-supplicant/2.9.0.sonic.1/patches/0001-current-dependencies.patch b/modules/sonic-wpa-supplicant/2.9.0.sonic.1/patches/0001-current-dependencies.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..ab2e36e6ce6f285e164f26a2fd5ab233baec8e14
+--- /dev/null
++++ b/modules/sonic-wpa-supplicant/2.9.0.sonic.1/patches/0001-current-dependencies.patch
+@@ -0,0 +1,14 @@
++--- a/MODULE.bazel
+++++ b/MODULE.bazel
++@@ -9,9 +9,9 @@
++ bazel_dep(name = "rules_foreign_cc", version = "0.16.0.sonic.1")
++ bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.16")
++ bazel_dep(name = "tar.bzl", version = "0.10.5.sonic.1")
++-bazel_dep(name = "sonic-build-infra", version = "0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568", repo_name = "sonic_build_infra")
+++bazel_dep(name = "sonic-build-infra", version = "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e", repo_name = "sonic_build_infra")
++ bazel_dep(name = "sonic-swss-common", version = "0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed", repo_name = "sonic_swss_common")
++-bazel_dep(name = "sonic-fips", version = "0.0.3-e910ec2217bc42aae8a185a398b23a329f482fef", repo_name = "sonic_fips")
+++bazel_dep(name = "sonic-fips", version = "0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9", repo_name = "sonic_fips")
++ bazel_dep(name = "libnl3", version = "3.7.0.sonic.7")
++ 
++ single_version_override(module_name = "rules_foreign_cc", version = "0.16.0.sonic.1")
+diff --git a/modules/sonic-wpa-supplicant/2.9.0.sonic.1/presubmit.json b/modules/sonic-wpa-supplicant/2.9.0.sonic.1/presubmit.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..93e25b3573776e46728d2e29b5583e8c4a907d72
+--- /dev/null
++++ b/modules/sonic-wpa-supplicant/2.9.0.sonic.1/presubmit.json
+@@ -0,0 +1,24 @@
++{
++  "architectures": [
++    "amd64"
++  ],
++  "consumer_deps": [],
++  "platforms": {
++    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
++  },
++  "host_platforms": {
++    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
++  },
++  "integration_test_module": "tests/consumer",
++  "build_targets": [
++    "@sonic-wpa-supplicant//:wpasupplicant_pkg",
++    "@sonic-wpa-supplicant//:wpasupplicant_pkg.debug_symbols",
++    "@sonic-wpa-supplicant//:runtime_packages.json"
++  ],
++  "test_targets": [
++    "@sonic-wpa-supplicant//:package_test",
++    "@sonic-wpa-supplicant//:upstream_test",
++    "@sonic-wpa-supplicant//:build_flags_test",
++    "@sonic-wpa-supplicant//:make_flags_test"
++  ]
++}
+diff --git a/modules/sonic-wpa-supplicant/2.9.0.sonic.1/source.json b/modules/sonic-wpa-supplicant/2.9.0.sonic.1/source.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..ec29ab6b7be8cff72379a5cfc2e9b8e1fdc31753
+--- /dev/null
++++ b/modules/sonic-wpa-supplicant/2.9.0.sonic.1/source.json
+@@ -0,0 +1,9 @@
++{
++  "url": "https://github.com/securely1g/sonic-wpa-supplicant/archive/d14bf3ac61597273e8940f9b14c8034568cccff7.tar.gz",
++  "strip_prefix": "sonic-wpa-supplicant-d14bf3ac61597273e8940f9b14c8034568cccff7",
++  "integrity": "sha256-U1Pc54JFhHeecXwSMHuZKznuZYlASka1rbCma3G4EGc=",
++  "patches": {
++    "0001-current-dependencies.patch": "sha256-TZeh10M0vIJxk376WAEVFaL+hCBbYCl8KD1FFaTWK0o="
++  },
++  "patch_strip": 1
++}
+diff --git a/modules/sonic-wpa-supplicant/2.9.0.sonic.1/tests/consumer/BUILD.bazel b/modules/sonic-wpa-supplicant/2.9.0.sonic.1/tests/consumer/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..4767ebb46face5539ec47cb7bdf507da705228ce
+--- /dev/null
++++ b/modules/sonic-wpa-supplicant/2.9.0.sonic.1/tests/consumer/BUILD.bazel
+@@ -0,0 +1 @@
++# Registry CI executes the source owner's public native/installed tests.
+diff --git a/modules/sonic-wpa-supplicant/2.9.0.sonic.1/tests/consumer/MODULE.bazel b/modules/sonic-wpa-supplicant/2.9.0.sonic.1/tests/consumer/MODULE.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..64a8fc2c59a9f6e791f3844b63ce4b5c46be160b
+--- /dev/null
++++ b/modules/sonic-wpa-supplicant/2.9.0.sonic.1/tests/consumer/MODULE.bazel
+@@ -0,0 +1,22 @@
++module(name = "wpa_registry_consumer")
++
++bazel_dep(name = "sonic-wpa-supplicant", version = "2.9.0.sonic.1")
++bazel_dep(name = "rules_cc", version = "0.2.22")
++bazel_dep(name = "rules_rs", version = "0.1.0")
++bazel_dep(name = "sonic-build-infra", version = "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e", repo_name = "sonic_build_infra")
++bazel_dep(name = "sonic-swss-common", version = "0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed", repo_name = "sonic_swss_common")
++
++# Select the same accepted native closure as the MACsec image. These exact
++# candidate versions replace older unpublished requests; source archives and
++# all production target definitions remain owned by their registered modules.
++bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.16")
++bazel_dep(name = "sonic-fips", version = "0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9", repo_name = "sonic_fips")
++
++gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
++use_repo(gcc, "gcc_toolchains")
++
++register_toolchains("@gcc_toolchains//:all")
++
++# This consumer selects the C++ interface, with no Rust artifacts of its own.
++rust = use_extension("@rules_rs//rs:rules_rust_reexported_extensions.bzl", "rust")
++rust.toolchain(versions = [])
+diff --git a/modules/sonic-wpa-supplicant/metadata.json b/modules/sonic-wpa-supplicant/metadata.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..41eddee05be0163c5f73a5a209bd4bc7754c94a7
+--- /dev/null
++++ b/modules/sonic-wpa-supplicant/metadata.json
+@@ -0,0 +1,6 @@
++{
++    "homepage": "https://w1.fi/wpa_supplicant/",
++    "versions": [
++        "2.9.0.sonic.1"
++    ]
++}

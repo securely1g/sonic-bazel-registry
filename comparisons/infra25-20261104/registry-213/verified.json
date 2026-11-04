@@ -1,0 +1,36 @@
+{
+  "pr": 213,
+  "baseline": "51de33d8d4eb949ed7e5a02578deee2eeab34e76",
+  "candidate": "bc3f30b881f51311ee1fdb612735059bb2b4f719",
+  "candidate_tree": "01e258019bb7cc24b6b2ecc0ce743251dd5dcc88",
+  "prepared_copy_tree": "fcaa19e6088d944622636d773d76592e6fd63b80",
+  "published_copies": [
+    {
+      "module": "sonic-build-infra",
+      "published_version": "0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568",
+      "candidate_version": "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e",
+      "source": "modules/sonic-build-infra/0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568",
+      "destination": "modules/sonic-build-infra/0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e"
+    },
+    {
+      "module": "sonic-sairedis",
+      "published_version": "0.0.3-5e765149371aeca207254641873791db76a95f5f",
+      "candidate_version": "0.0.4-706cc3d1f6182dea18deed36a2ddb0fbcf1a59fc",
+      "source": "modules/sonic-sairedis/0.0.3-5e765149371aeca207254641873791db76a95f5f",
+      "destination": "modules/sonic-sairedis/0.0.4-706cc3d1f6182dea18deed36a2ddb0fbcf1a59fc"
+    },
+    {
+      "module": "sonic-swss-common",
+      "published_version": "0.0.8-a0450924719a9f706125cc44a07dc88934935003",
+      "candidate_version": "0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed",
+      "source": "modules/sonic-swss-common/0.0.8-a0450924719a9f706125cc44a07dc88934935003",
+      "destination": "modules/sonic-swss-common/0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed"
+    }
+  ],
+  "first_registrations": [],
+  "bytes": 255889,
+  "sha256": "dd24fa8b15764e1dc65bb91c21ff89a5d8c74afa81326ff78c89e04270722973",
+  "applied_full_tree_equals_candidate": true,
+  "modes_and_unchanged_entry_files_preserved": true,
+  "artifact_path": "comparisons/infra25-20261104/registry-213.patch"
+}

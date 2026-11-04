@@ -1,0 +1,894 @@
+-+        for name, filename in info["loaded"].items():
+-+            assert Path(filename).resolve().is_relative_to(root), (name, filename, str(Path(filename).resolve()), str(root))
+-+        for filename in info["inc"]:
+-+            assert Path(filename).resolve().is_relative_to(root), filename
+-+        assert run(["-e", 'system($^X, "-MConfig", "-e", q{print $Config{version}}); exit($? >> 8)']) == "5.36.0"
+-+        (work / "Consumer.pm").write_text("package Consumer; sub value { 42 } 1;\n")
+-+        assert run(["-MConsumer", "-e", "print Consumer::value()"], {"PERL5OPT": "-I" + str(work)}) == "42"
+-+        xs = work / "Probe.xs"
+-+        xs.write_text("MODULE = Probe PACKAGE = Probe\n\nint\nanswer()\n CODE:\n  RETVAL = 42;\n OUTPUT:\n  RETVAL\n")
+-+        xsubpp = next(root.glob("usr/share/perl/5.36*/ExtUtils/xsubpp"))
+-+        typemap = xsubpp.parent / "typemap"
+-+        generated = run([str(xsubpp), "-typemap", str(typemap), str(xs)])
+-+        assert "XS_Probe_answer" in generated and "RETVAL = 42" in generated, generated
+-+        run(["-MExtUtils::Constant=WriteConstants", "-e", 'WriteConstants(NAME=>"Probe", NAMES=>["EINVAL"], C_FILE=>"const-c.inc", XS_FILE=>"const-xs.inc")'])
+-+        assert "EINVAL" in (work / "const-c.inc").read_text()
+-+        assert "constant" in (work / "const-xs.inc").read_text()
+-+        print("Perl 5.36.0: relocated core/XS modules, self-exec, xsubpp and ExtUtils::Constant PASS")
+-+
+-+
+-+if __name__ == "__main__":
+-+    main()
+-diff --git a/tools/build_tools/prepare_rootfs.py b/tools/build_tools/prepare_rootfs.py
+-index f2c92d8..93d3959 100644
+---- a/tools/build_tools/prepare_rootfs.py
+-+++ b/tools/build_tools/prepare_rootfs.py
+-@@ -144,6 +144,9 @@ def validate_links(root: Path) -> None:
+-         # contract: system CAs, Quilt's mail helper, and documentation targets.
+-         optional = str(path.relative_to(root)) in (
+-             "usr/lib/ssl/cert.pem", "usr/share/quilt/compat/sendmail",
+-+            # tex-common creates this TeX search cache in its postinst. The
+-+            # offline kernel compiler/packager does not invoke TeX.
+-+            "usr/share/texmf/ls-R",
+-         ) or any(path.is_relative_to(root / part) for part in ("usr/share/man", "usr/share/doc"))
+-         if not destination.exists() and optional:
+-             path.unlink()
+-diff --git a/tools/build_tools/prepare_rootfs_test.py b/tools/build_tools/prepare_rootfs_test.py
+-index ed55222..f88c350 100644
+---- a/tools/build_tools/prepare_rootfs_test.py
+-+++ b/tools/build_tools/prepare_rootfs_test.py
+-@@ -245,6 +245,21 @@ class RootfsTest(unittest.TestCase):
+-         with self.assertRaisesRegex(ValueError, "unresolved runtime"):
+-             validate_links(self.root)
+- 
+-+    def test_optional_tex_search_index_does_not_require_postinst(self):
+-+        directory = self.root / "usr/share/texmf"
+-+        directory.mkdir(parents=True)
+-+        index = directory / "ls-R"
+-+        index.symlink_to("../../../var/lib/texmf/ls-R-TEXMFMAIN")
+-+        validate_links(self.root)
+-+        self.assertFalse(index.is_symlink())
+-+        # An actually supplied index remains part of the declared runtime.
+-+        data = self.root / "var/lib/texmf/ls-R-TEXMFMAIN"
+-+        data.parent.mkdir(parents=True)
+-+        data.write_text("declared index")
+-+        index.symlink_to("../../../var/lib/texmf/ls-R-TEXMFMAIN")
+-+        validate_links(self.root)
+-+        self.assertEqual(index.read_text(), "declared index")
+-+
+-     def test_unresolved_manpage_does_not_require_an_unrelated_package(self):
+-         directory = self.root / "usr/share/man/man1"
+-         directory.mkdir(parents=True)
+-diff --git a/tools/build_tools/prepare_runtime.py b/tools/build_tools/prepare_runtime.py
+-index aff43da..99edf98 100644
+---- a/tools/build_tools/prepare_runtime.py
+-+++ b/tools/build_tools/prepare_runtime.py
+-@@ -128,22 +128,25 @@ def write_launcher(root: Path, name: str, script: str, executable: Path) -> None
+-     destination.chmod(0o755)
+- 
+- 
+--def prepare_configure(root: Path, architecture: str, loader: Path, libraries: list[Path], executable: Path, *, foreign: bool = False, docbook: bool = False) -> None:
+-+def prepare_configure(root: Path, architecture: str, loader: Path, libraries: list[Path], executable: Path, *, foreign: bool = False, perl_only: bool = False, docbook: bool = False) -> None:
+-     """Keep foreign_cc tools self-contained when it copies their tree artifact."""
+-     script_tools = ("autoconf", "autoheader", "autom4te")
+-     tools = {name: root / "usr/bin" / name for name in
+-              ("make", "m4", "pkgconf", "perl", "bison", "flex", "grep", *script_tools)}
+-     shell_tools = ()
+-+    if perl_only:
+-+        script_tools = ()
+-+        tools = {"perl": root / "usr/bin/perl"}
+-     if docbook:
+-         script_tools += ("sgmlspl",)
+-         for name in ("onsgmls", "sgmlspl", "cat", "date", "mktemp", "rm"):
+-             tools[name] = root / "usr/bin" / name
+-         tools["sh"] = root / "usr/bin/dash"
+-     if foreign:
+--        script_tools += ("autoreconf", "automake", "aclocal")
+-+        script_tools += ("autoreconf", "automake", "aclocal", "makeinfo")
+-         shell_tools = ("libtoolize", "which")
+-         for name in ("autoreconf", "libtoolize", "protoc", "grpc_cpp_plugin", "grpc_python_plugin",
+--                     "thrift", "python3", "dot", "bash", "dash", "sed", "mawk", "find", "xargs",
+-+                     "thrift", "python3", "sphinx-build", "makeinfo", "dot", "bash", "dash", "sed", "mawk", "find", "xargs",
+-                      "basename", "cat", "chmod", "cp", "cut", "dirname", "echo", "expr", "head", "install",
+-                      "ln", "mkdir", "mv", "od", "printf", "readlink", "realpath", "rm", "rmdir",
+-                      "sleep", "sort", "tail", "test", "touch", "tr", "uname", "wc", "cmp", "diff",
+-@@ -162,24 +165,54 @@ def prepare_configure(root: Path, architecture: str, loader: Path, libraries: li
+-                 raise RuntimeError("unexpected libtoolize data-directory configuration")
+-             text = text.replace(assignment, '="$SONIC_BUILD_TOOLS_ROOT' + directory + '"')
+-         libtoolize.write_text(text)
+-+        # Texinfo's fallback relocation depends on whether the host happens to
+-+        # have /usr/share/texinfo. Bind its installed data and XS directories to
+-+        # the same declared runtime unconditionally.
+-+        makeinfo = tools["makeinfo"].resolve()
+-+        text = makeinfo.read_text()
+-+        for original, relocated in [
+-+            ("\n  my $datadir = '/usr/share';\n", '\n  my $datadir = "$ENV{SONIC_BUILD_TOOLS_ROOT}/usr/share";\n'),
+-+            ("\n  my $xsdir = '/usr/lib/texinfo';\n", '\n  my $xsdir = "$ENV{SONIC_BUILD_TOOLS_ROOT}/usr/lib/texinfo";\n'),
+-+        ]:
+-+            if text.count(original) != 1:
+-+                raise RuntimeError("unexpected Texinfo installed directory configuration")
+-+            text = text.replace(original, relocated)
+-+        for directory in ("/usr/share", "/usr/etc"):
+-+            text = text.replace("eval '\"" + directory + "\"'", "eval '\"$ENV{SONIC_BUILD_TOOLS_ROOT}" + directory + "\"'")
+-+        makeinfo.write_text(text)
+-+        # Debian splits documentation templates into /usr/share packages.
+-+        # Module-relative upstream lookups are replaced by those absolute
+-+        # prefixes, so relocate the two package data entry points as well.
+-+        for relative, original, replacement in [
+-+            ("docutils/__init__.py", "datadir = os.path.join('/usr/share/docutils/', suffix)",
+-+             "datadir = os.path.join(os.environ['SONIC_BUILD_TOOLS_ROOT'], 'usr/share/docutils', suffix)"),
+-+            ("sphinx/__init__.py", "package_dir = '/usr/share/sphinx'",
+-+             "package_dir = os.path.join(os.environ['SONIC_BUILD_TOOLS_ROOT'], 'usr/share/sphinx')"),
+-+        ]:
+-+            module = root / "usr/lib/python3/dist-packages" / relative
+-+            content = module.read_text()
+-+            if content.count(original) != 1:
+-+                raise RuntimeError("unexpected Debian documentation data path: " + relative)
+-+            module.write_text(content.replace(original, replacement))
+-         tools["which"] = root / "usr/bin/which.debianutils"
+-         tools["awk"] = tools["mawk"]
+-         tools["sh"] = tools["dash"]
+-     for name, path in tools.items():
+-         if not path.is_file():
+-             raise RuntimeError(f"configure packages contain no {name}")
+--    # Replace the package's compiled-in macro-directory options with one
+--    # launcher-provided path. Keep every language/macro definition unchanged.
+--    config = root / "usr/share/autoconf/autom4te.cfg"
+--    lines = config.read_text().splitlines(keepends=True)
+--    directory_option = "args: --prepend-include '/usr/share/autoconf'"
+--    if sum(line.strip() == directory_option for line in lines) != 4:
+--        raise RuntimeError("unexpected Autoconf macro-directory configuration")
+--    config.write_text("".join(line for line in lines if line.strip() != directory_option))
+-+    if not perl_only:
+-+        # Replace the package's compiled-in macro-directory options with one
+-+        # launcher-provided path. Keep every language/macro definition unchanged.
+-+        config = root / "usr/share/autoconf/autom4te.cfg"
+-+        lines = config.read_text().splitlines(keepends=True)
+-+        directory_option = "args: --prepend-include '/usr/share/autoconf'"
+-+        if sum(line.strip() == directory_option for line in lines) != 4:
+-+            raise RuntimeError("unexpected Autoconf macro-directory configuration")
+-+        config.write_text("".join(line for line in lines if line.strip() != directory_option))
+-     environment = {"LANG": "C", "LC_ALL": "C", "PATH": ""}
+-     prefix = [str(loader), "--library-path", os.pathsep.join(map(str, libraries))]
+-     plugin_files = list(root.glob("usr/lib/*/graphviz/*.so*")) if foreign else []
+--    for binary in [path for name, path in tools.items() if name not in script_tools + shell_tools] + list(root.glob("usr/lib/*/perl*/*/auto/**/*.so")) + plugin_files:
+-+    for binary in [path for name, path in tools.items() if name not in script_tools + shell_tools + ("sphinx-build",)] + list(root.glob("usr/lib/*/perl*/*/auto/**/*.so")) + plugin_files:
+-         if not binary.is_file():
+-             raise RuntimeError(f"configure packages contain no tool: {binary}")
+-         listing = run_tool(prefix + ["--list", str(binary)], environment=environment).decode()
+-@@ -272,7 +305,7 @@ export autom4te_perllibdir AC_MACRODIR AUTOM4TE_CFG trailer_m4 AUTOM4TE M4
+-         if name == "make":
+-             script += 'MAKE="$root/bin/make"\nexport MAKE\n'
+-         if name == "perl":
+--            script += 'PERL5LIB="' + perl_path + '"\nPERL5OPT="-MSonic::BuildTools"\nexport PERL5LIB PERL5OPT\n'
+-+            script += 'PERL5LIB="' + perl_path + '"\ncase " ${PERL5OPT:-} " in *" -MSonic::BuildTools "*) ;; *) PERL5OPT="-MSonic::BuildTools${PERL5OPT:+ $PERL5OPT}" ;; esac\nexport PERL5LIB PERL5OPT\n'
+-         if name == "pkgconf":
+-             # No host /usr/lib/pkgconfig fallback; foreign_cc supplies explicit
+-             # PKG_CONFIG_LIBDIR/PATH for its declared target dependencies.
+-@@ -310,6 +343,9 @@ fi
+-             if name == "aclocal":
+-                 script += '--system-acdir "$root/usr/share/aclocal" '
+-             script += '"$@"\n'
+-+        elif name == "sphinx-build":
+-+            script += 'PYTHONPATH="$root/usr/lib/python3/dist-packages${PYTHONPATH:+:$PYTHONPATH}"\nexport PYTHONPATH\n'
+-+            script += 'exec "$root/bin/python3" "$root/' + str(binary.relative_to(root)) + '" "$@"\n'
+-         elif name in shell_tools:
+-             script += 'pkgdatadir="$root/usr/share/libtool"\naclocaldir="$root/usr/share/aclocal"\nexport pkgdatadir aclocaldir\n'
+-             script += 'exec "$root/bin/sh" "$root/' + str(binary.relative_to(root)) + '" "$@"\n'
+-@@ -318,11 +354,12 @@ fi
+-                 # A caller supplies schemas/stylesheets explicitly. Never consult
+-                 # the worker's mutable /etc/xml/catalog as a hidden build input.
+-                 script += 'XML_CATALOG_FILES=\nexport XML_CATALOG_FILES\n'
+--            script += 'exec "$root/' + str(loader.relative_to(root)) + '" --library-path "' + library_path + '" "$root/' + str(binary.relative_to(root)) + '" "$@"\n'
+-+            argv0 = ' --argv0 "$root/bin/python3"' if name == "python3" else ""
+-+            script += 'exec "$root/' + str(loader.relative_to(root)) + '"' + argv0 + ' --library-path "' + library_path + '" "$root/' + str(binary.relative_to(root)) + '" "$@"\n'
+-         write_launcher(root, name, script, executable)
+-     versions = {name: run_tool([str(root / "bin" / name), "--version"], environment=environment).decode().strip()
+--                for name in ("make", "m4", "pkgconf", "perl", "bison", "flex", "autoconf", "autoheader", "autom4te") +
+--                (("autoreconf", "automake", "aclocal", "libtoolize", "protoc", "python3") if foreign else ())}
+-+                for name in (("perl",) if perl_only else ("make", "m4", "pkgconf", "perl", "bison", "flex", "autoconf", "autoheader", "autom4te")) +
+-+                (("autoreconf", "automake", "aclocal", "libtoolize", "protoc", "python3", "sphinx-build", "makeinfo") if foreign else ())}
+-     if foreign:
+-         # Debian generates this plugin index in postinst. Reproduce it with the
+-         # declared executable, and keep relative plugin names for relocation.
+-@@ -333,7 +370,7 @@ fi
+-         os.utime(indexes[0], (0, 0))
+-     manifest = {
+-         "format_version": 1,
+--        "profile": "docbook" if docbook else "foreign" if foreign else "configure",
+-+        "profile": "docbook" if docbook else "perl" if perl_only else ("foreign" if foreign else "configure"),
+-         "architecture": architecture,
+-         "loader": str(loader.relative_to(root)),
+-         "library_directories": [str(path.relative_to(root)) for path in libraries],
+-@@ -341,7 +378,7 @@ fi
+-         "perl_directories": [str(path.relative_to(root)) for path in perl_directories],
+-         "versions": versions,
+-     }
+--    if foreign:
+-+    if foreign or perl_only:
+-         # Optional Debian alternatives (for example /etc/rmt) can point at
+-         # packages outside the selected closure. They are not executable
+-         # inputs, and dangling links are invalid inside Bazel tree outputs.
+-@@ -496,7 +533,7 @@ def main() -> None:
+-     parser.add_argument("--architecture", choices=("amd64", "arm64"), required=True)
+-     parser.add_argument("--launcher", required=True, type=Path)
+-     parser.add_argument("--tar", action="append", default=[])
+--    parser.add_argument("--profile", choices=("documentation", "configure", "kerberos", "foreign", "docbook"), default="documentation")
+-+    parser.add_argument("--profile", choices=("documentation", "configure", "kerberos", "foreign", "tests", "perl", "docbook"), default="documentation")
+-     args = parser.parse_args()
+-     validate_launcher(args.launcher, args.architecture)
+-     root = Path(args.out).resolve()
+-@@ -504,7 +541,7 @@ def main() -> None:
+-     for payload in sorted(map(Path, args.tar)):
+-         extract_payload(root, payload)
+- 
+--    if args.profile in ("configure", "foreign", "docbook"):
+-+    if args.profile in ("configure", "foreign", "tests", "perl", "docbook"):
+-         # Bazel caches files inside tree outputs. Materialize directory aliases
+-         # (notably Perl's 5.40 -> 5.40.1) so cache restoration never has to create
+-         # a child through a directory symlink before its target is populated.
+-@@ -526,8 +563,12 @@ def main() -> None:
+-     loader = loader_path(root, args.architecture)
+-     libraries = library_directories(root)
+-     prefix = [str(loader), "--library-path", os.pathsep.join(map(str, libraries))]
+--    if args.profile in ("configure", "foreign", "docbook"):
+--        prepare_configure(root, args.architecture, loader, libraries, args.launcher, foreign=args.profile == "foreign", docbook=args.profile == "docbook")
+-+    if args.profile in ("configure", "foreign", "perl", "docbook"):
+-+        prepare_configure(root, args.architecture, loader, libraries, args.launcher, foreign=args.profile == "foreign", perl_only=args.profile == "perl", docbook=args.profile == "docbook")
+-+        return
+-+    if args.profile == "tests":
+-+        from test_runtime import prepare_tests
+-+        prepare_tests(root, args.architecture, loader, libraries)
+-         return
+-     if args.profile == "kerberos":
+-         prepare_kerberos(root, args.architecture, loader, libraries, args.launcher)
+-diff --git a/tools/build_tools/sphinx.py b/tools/build_tools/sphinx.py
+-new file mode 100644
+-index 0000000..378a58f
+---- /dev/null
+-+++ b/tools/build_tools/sphinx.py
+-@@ -0,0 +1,31 @@
+-+"""Run Sphinx on the directory of a declared conf.py source artifact."""
+-+
+-+import argparse
+-+import os
+-+from pathlib import Path
+-+import subprocess
+-+
+-+from python.runfiles import runfiles
+-+
+-+
+-+def main():
+-+    parser = argparse.ArgumentParser(description=__doc__)
+-+    parser.add_argument('--source-config', required=True)
+-+    parser.add_argument('--builder', required=True)
+-+    parser.add_argument('--output', required=True)
+-+    args = parser.parse_args()
+-+    environment = dict(os.environ)
+-+    for name in ('PYTHONHOME', 'PYTHONPATH', 'PYTHONSAFEPATH'):
+-+        environment.pop(name, None)
+-+    resolver = runfiles.Create()
+-+    environment.update(resolver.EnvVars())
+-+    tool = resolver.Rlocation('sonic-build-infra/tools/build_tools/sphinx-build')
+-+    subprocess.run([
+-+        tool, '-b', args.builder,
+-+        str(Path(args.source_config).absolute().parent),
+-+        str(Path(args.output).absolute()),
+-+    ], env=environment, check=True)
+-+
+-+
+-+if __name__ == '__main__':
+-+    main()
+-diff --git a/tools/build_tools/test_runtime.py b/tools/build_tools/test_runtime.py
+-new file mode 100644
+-index 0000000..c7720a8
+---- /dev/null
+-+++ b/tools/build_tools/test_runtime.py
+-@@ -0,0 +1,77 @@
+-+"""Relocatable native Valgrind and Tcl/Expect execution environment."""
+-+import json
+-+import os
+-+from elf_metadata import Elf
+-+from pathlib import Path
+-+
+-+
+-+def prepare_tests(root, architecture, loader, libraries):
+-+    workers = [path for path in [root / 'usr/libexec/valgrind', root / 'usr/lib/valgrind'] if list(path.glob('memcheck-*-linux'))]
+-+    if len(workers) != 1:
+-+        raise RuntimeError('expected one declared Valgrind worker directory')
+-+    valgrind = root / 'usr/bin/valgrind.bin'
+-+    if not valgrind.is_file():
+-+        valgrind = root / 'usr/bin/valgrind'
+-+    if valgrind.read_bytes()[:4] != b'\x7fELF':
+-+        raise RuntimeError('expected declared Valgrind ELF launcher')
+-+    tcl = sorted(root.glob('usr/share/tcltk/tcl*/init.tcl'))
+-+    if len(tcl) != 1:
+-+        raise RuntimeError('expected one declared Tcl script library')
+-+    packages = sorted({path.parent for path in root.rglob('pkgIndex.tcl')})
+-+    # Debian Expect's pkgIndex embeds /usr/lib. Resolve that declared plugin
+-+    # relative to the index so every Tcl child interpreter remains relocatable.
+-+    for index in root.rglob('pkgIndex.tcl'):
+-+        content = index.read_text()
+-+        if 'package ifneeded Expect ' not in content:
+-+            continue
+-+        import re
+-+        def relocate(match):
+-+            target = root/'usr'/Path(*match.group(1).split())
+-+            if not target.is_file():
+-+                raise RuntimeError('missing declared Tcl plugin: ' + str(target))
+-+            return '[file join $dir ' + os.path.relpath(target, index.parent) + ']'
+-+        content, count = re.subn(r'\[file join /usr ([^\]]+)\]', relocate, content)
+-+        if not count:
+-+            raise RuntimeError('unsupported declared Expect package index')
+-+        index.write_text(content)
+-+    tools = {'valgrind': valgrind, 'tclsh': root / 'usr/bin/tclsh8.6'}
+-+    library_path = ':'.join('$root/' + str(path.relative_to(root)) for path in libraries)
+-+    (root / 'bin').mkdir(exist_ok=True)
+-+    for name, binary in tools.items():
+-+        if not binary.is_file():
+-+            raise RuntimeError('declared test packages contain no ' + name)
+-+        script = '''#!/bin/sh
+-+set -eu
+-+self=$0
+-+case "$self" in /*) ;; *) self="$PWD/$self" ;; esac
+-+root=$(CDPATH= cd -- "${self%/*}/.." && pwd -P)
+-+unset LD_LIBRARY_PATH LD_PRELOAD LD_AUDIT
+-+'''
+-+        if name == 'valgrind':
+-+            script += 'VALGRIND_LIB="$root/' + str(workers[0].relative_to(root)) + '"\nVALGRIND_LAUNCHER="$root/bin/valgrind"\nexport VALGRIND_LIB VALGRIND_LAUNCHER\n'
+-+        else:
+-+            script += 'TCL_LIBRARY="$root/' + str(tcl[0].parent.relative_to(root)) + '"\n'
+-+            script += 'TCLLIBPATH="' + ' '.join('{$root/' + str(path.relative_to(root)) + '}' for path in packages) + '"\nexport TCL_LIBRARY TCLLIBPATH\n'
+-+            script += 'TCL8_6_TM_PATH="$root/' + str((tcl[0].parent / 'tcl8').relative_to(root)) + '"\nexport TCL8_6_TM_PATH\n'
+-+        script += 'exec "$root/' + str(loader.relative_to(root)) + '"' + (' --argv0 "$root/bin/tclsh"' if name == 'tclsh' else '') + ' --library-path "' + library_path + '" "$root/' + str(binary.relative_to(root)) + '" "$@"\n'
+-+        (root / 'bin' / name).write_text(script)
+-+        (root / 'bin' / name).chmod(0o755)
+-+    # GNU debuglink lookup is object-relative. Valgrind's extra-debuginfo-path
+-+    # prepends the absolute object path, so a relocated Debian build-id tree
+-+    # alone is insufficient. Add standard adjacent .debug links by identity.
+-+    for binary in list(root.rglob('*.so*')):
+-+        if not binary.is_file() or binary.read_bytes()[:4] != b'\x7fELF':
+-+            continue
+-+        elf = Elf(binary.read_bytes())
+-+        if not elf.build_id or not elf.debuglink:
+-+            continue
+-+        debug = root/'usr/lib/debug/.build-id'/elf.build_id[:2]/(elf.build_id[2:]+'.debug')
+-+        if debug.is_file():
+-+            link = binary.parent/'.debug'/elf.debuglink
+-+            link.parent.mkdir(exist_ok=True)
+-+            if not link.exists():
+-+                link.symlink_to(os.path.relpath(debug, link.parent))
+-+    dangling = [path for path in root.rglob('*') if path.is_symlink() and not path.exists()]
+-+    for path in dangling:
+-+        path.unlink()
+-+    (root / 'toolchain.json').write_text(json.dumps({'format_version': 1, 'profile': 'tests', 'architecture': architecture, 'omitted_unresolved_symlinks': [str(path.relative_to(root)) for path in dangling], 'tools': {name: str(binary.relative_to(root)) for name, binary in tools.items()}, 'loader': str(loader.relative_to(root)), 'library_directories': [str(path.relative_to(root)) for path in libraries]}, indent=2) + '\n')
+-diff --git a/tools/build_tools/test_runtime_probe.c b/tools/build_tools/test_runtime_probe.c
+-new file mode 100644
+-index 0000000..6e3e07d
+---- /dev/null
+-+++ b/tools/build_tools/test_runtime_probe.c
+-@@ -0,0 +1,12 @@
+-+#include <stdlib.h>
+-+char * volatile allocation;
+-+int main(int argc, char **argv) {
+-+    allocation = malloc(32);
+-+    if (!allocation) return 2;
+-+    allocation[0] = 0;
+-+    if (argc > 1 && argv[1][0] == 'l') { allocation = 0; return 0; }
+-+    free(allocation);
+-+    if (argc > 1 && argv[1][0] == 'r') return allocation[0];
+-+    allocation = 0;
+-+    return 0;
+-+}
+-diff --git a/tools/build_tools/test_runtime_test.py b/tools/build_tools/test_runtime_test.py
+-new file mode 100644
+-index 0000000..5914624
+---- /dev/null
+-+++ b/tools/build_tools/test_runtime_test.py
+-@@ -0,0 +1,51 @@
+-+"""Real relocated Tcl/Expect and Valgrind memory-error execution contracts."""
+-+import json
+-+import os
+-+from pathlib import Path
+-+import shutil
+-+import subprocess
+-+import sys
+-+import tempfile
+-+
+-+source = Path(sys.argv[1]).absolute(); binary = Path(sys.argv[2]).absolute()
+-+with tempfile.TemporaryDirectory(prefix='declared-test-tools-') as directory:
+-+    work = Path(directory); root = work / 'relocated-runtime'
+-+    shutil.copytree(source, root, symlinks=True)
+-+    manifest = json.loads((root/'toolchain.json').read_text())
+-+    env = {'PATH':'', 'HOME':str(work), 'LANG':'C', 'LC_ALL':'C', 'DEBUGINFOD_URLS':''}
+-+    def run(tool, args, data=None):
+-+        if tool == 'tclsh' and data is not None:
+-+            script_file = work/'driver.tcl'; script_file.write_text(data)
+-+            args = [str(script_file), *args]; data = None
+-+        return subprocess.run([str(root/'bin'/tool),*args], input=data, env=env, cwd=work, capture_output=True, text=True)
+-+    r = run('valgrind',['--version']); assert r.returncode == 0 and r.stdout.startswith('valgrind-'), r
+-+    child = work/'interactive.tcl'
+-+    child.write_text('gets stdin line\nputs [expr {$line * 2}]\n')
+-+    script = r'''package require tcltest
+-+package require Expect
+-+set timeout 10
+-+spawn {TCLSH} {CHILD}
+-+send "21\r"
+-+expect {
+-+    -re {42[\r\n]+} {}
+-+    timeout {error "declared child produced no result"}
+-+    eof {error "declared child exited without result"}
+-+}
+-+expect eof
+-+set result [wait]
+-+if {[lindex $result 3] != 0} {exit 1}
+-+puts TCL_EXPECT_PASS
+-+'''.replace('TCLSH', str(root/'bin/tclsh')).replace('CHILD', str(child))
+-+    r = run('tclsh',[],script); assert r.returncode == 0 and 'TCL_EXPECT_PASS' in r.stdout, (r.stdout,r.stderr)
+-+    suite = work/'suite'; suite.mkdir()
+-+    (suite/'child.test').write_text('package require tcltest\npackage require Expect\n::tcltest::test child-1 {separate interpreter executes declared Tcl} -body {expr {6*7}} -result 42\n::tcltest::cleanupTests\n')
+-+    script = 'package require tcltest\n::tcltest::configure -testdir {'+str(suite)+'}\n::tcltest::runAllTests\n'
+-+    r = run('tclsh', [], script)
+-+    assert r.returncode == 0 and 'Total\t1' in r.stdout and 'Passed\t1' in r.stdout and 'exiting with errors' not in r.stdout+r.stderr, (r.stdout, r.stderr)
+-+    loader = root/manifest['loader']; libraries = ':'.join(str(root/path) for path in manifest['library_directories'])
+-+    common = ['--tool=memcheck','--error-exitcode=97','--leak-check=full','--errors-for-leak-kinds=definite','--extra-debuginfo-path='+str(root/'usr/lib/debug'),str(loader),'--library-path',libraries,str(binary)]
+-+    for arguments, expected in [([],0),(['leak'],97),(['read'],97)]:
+-+        r = run('valgrind',common+arguments)
+-+        assert r.returncode == expected, (arguments,r.returncode,r.stdout,r.stderr)
+-+        if arguments == ['read']: assert 'Invalid read' in r.stderr, r.stderr
+-+        if arguments == ['leak']: assert 'definitely lost' in r.stderr, r.stderr
+-diff --git a/tools/gzip/BUILD.bazel b/tools/gzip/BUILD.bazel
+-new file mode 100644
+-index 0000000..2033aa8
+---- /dev/null
+-+++ b/tools/gzip/BUILD.bazel
+-@@ -0,0 +1,24 @@
+-+load("@rules_multirun//:defs.bzl", "command")
+-+load("@toolchain_utils//toolchain/info:defs.bzl", "toolchain_info")
+-+
+-+# rules_gzip 1.0.0 has no extra-arguments attribute. Configure its executable
+-+# with standard rules so it always omits input filenames and timestamps.
+-+# Consumers register this toolchain explicitly in their MODULE.bazel.
+-+command(
+-+    name = "reproducible_gzip",
+-+    arguments = ["--no-name"],
+-+    command = "@pigz",
+-+    visibility = ["//visibility:public"],
+-+)
+-+
+-+toolchain_info(
+-+    name = "info",
+-+    target = ":reproducible_gzip",
+-+)
+-+
+-+toolchain(
+-+    name = "toolchain",
+-+    toolchain = ":info",
+-+    toolchain_type = "@rules_gzip//gzip/toolchain/gzip:type",
+-+    visibility = ["//visibility:public"],
+-+)
+diff --git a/modules/sonic-build-infra/0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e/patches/0003-retain-cli-tools.patch b/modules/sonic-build-infra/0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e/patches/0003-retain-cli-tools.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..6e9ffd1d2aeab0041b4c43c5ea4dce7fd1695fdf
+--- /dev/null
++++ b/modules/sonic-build-infra/0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e/patches/0003-retain-cli-tools.patch
+@@ -0,0 +1,134 @@
++From: SONiC Bazel Registry <securely1g@gmail.com>
++Subject: [PATCH] Retain the registered CLI XML and patch tools
++
++Keep the existing registered tool interface while native component interfaces
++are now provided by the merged source.
++
++diff --git a/MODULE.bazel b/MODULE.bazel
++--- a/MODULE.bazel
+++++ b/MODULE.bazel
++@@ -166,6 +166,7 @@
++             "libtool",
++             "libtool-bin",
++             "libxml-simple-perl",
+++            "libxml2-utils",
++             "libzstd1",
++             "lz4",
++             "m4",
++@@ -173,6 +174,7 @@
++             "openssl",
++             "opensp",
++             "pahole",
+++            "patch",
++             "perl",
++             "pkgconf",
++             "protobuf-compiler",
++@@ -186,6 +188,7 @@
++             "ss-dev",
++             "thrift-compiler",
++             "util-linux",
+++            "xsltproc",
++             "xz-utils",
++             "zlib1g",
++             "zstd",
++diff --git a/tools/build_tools/BUILD.bazel b/tools/build_tools/BUILD.bazel
++--- a/tools/build_tools/BUILD.bazel
+++++ b/tools/build_tools/BUILD.bazel
++@@ -490,6 +490,7 @@
++                 "libtool", "libtool-bin", "coreutils", "diffutils", "grep", "sed", "mawk",
++                 "findutils", "bash", "dash", "protobuf-compiler", "protobuf-compiler-grpc",
++                 "thrift-compiler", "python3", "python3-sphinx", "python3-pytest", "texinfo", "libxml-simple-perl", "graphviz", "fonts-dejavu-core", "debianutils",
+++                "patch", "libxml2-utils", "xsltproc",
++             ]
++         ] + ["@build_tools//libprotobuf-dev:data"],
++     )
++@@ -507,7 +508,7 @@
++ 
++ [
++     build_tool(name = tool, tool = tool, runtime = ":foreign_runtime", visibility = ["//visibility:public"])
++-    for tool in ["autoreconf", "automake", "aclocal", "libtoolize", "protoc", "grpc_cpp_plugin", "grpc_python_plugin", "thrift", "python3", "sphinx-build", "makeinfo", "dot"]
+++    for tool in ["autoreconf", "automake", "aclocal", "libtoolize", "protoc", "grpc_cpp_plugin", "grpc_python_plugin", "thrift", "python3", "sphinx-build", "makeinfo", "dot", "patch", "xmllint", "xsltproc"]
++ ]
++ 
++ py_test(
++diff --git a/tools/build_tools/defs.bzl b/tools/build_tools/defs.bzl
++--- a/tools/build_tools/defs.bzl
+++++ b/tools/build_tools/defs.bzl
++@@ -163,7 +163,7 @@
++     implementation = _executable_impl,
++     executable = True,
++     attrs = {
++-        "tool": attr.string(mandatory = True, values = ["aspell", "doxygen", "make", "m4", "pkgconf", "perl", "bison", "flex", "autoconf", "autoheader", "autom4te", "compile_et", "mk_cmds", "autoreconf", "automake", "aclocal", "libtoolize", "protoc", "grpc_cpp_plugin", "grpc_python_plugin", "thrift", "python3", "sphinx-build", "makeinfo", "dot", "valgrind", "tclsh", "po2debconf", "msgcat", "docbook2man"]),
+++        "tool": attr.string(mandatory = True, values = ["aspell", "doxygen", "make", "m4", "pkgconf", "perl", "bison", "flex", "autoconf", "autoheader", "autom4te", "compile_et", "mk_cmds", "autoreconf", "automake", "aclocal", "libtoolize", "protoc", "grpc_cpp_plugin", "grpc_python_plugin", "thrift", "python3", "sphinx-build", "makeinfo", "dot", "valgrind", "tclsh", "po2debconf", "msgcat", "docbook2man", "patch", "xmllint", "xsltproc"]),
++         "_launcher": attr.label(default = Label(":launcher.py"), allow_single_file = True, cfg = "exec"),
++         "runtime": attr.label(default = Label(":runtime"), allow_single_file = True, cfg = "exec"),
++         "_python": attr.label(default = Label(":python_runtime"), providers = [PythonRuntimeInfo], cfg = "exec"),
++diff --git a/tools/build_tools/prepare_runtime.py b/tools/build_tools/prepare_runtime.py
++--- a/tools/build_tools/prepare_runtime.py
+++++ b/tools/build_tools/prepare_runtime.py
++@@ -149,7 +149,8 @@
++                      "thrift", "python3", "sphinx-build", "makeinfo", "dot", "bash", "dash", "sed", "mawk", "find", "xargs",
++                      "basename", "cat", "chmod", "cp", "cut", "dirname", "echo", "expr", "head", "install",
++                      "ln", "mkdir", "mv", "od", "printf", "readlink", "realpath", "rm", "rmdir",
++-                     "sleep", "sort", "tail", "test", "touch", "tr", "uname", "wc", "cmp", "diff"):
+++                     "sleep", "sort", "tail", "test", "touch", "tr", "uname", "wc", "cmp", "diff",
+++                     "patch", "xmllint", "xsltproc"):
++             tools[name] = root / "usr/bin" / name
++         for name in ("automake", "aclocal"):
++             candidates = sorted((root / "usr/bin").glob(name + "-[0-9]*"))
++@@ -349,6 +350,10 @@
++             script += 'pkgdatadir="$root/usr/share/libtool"\naclocaldir="$root/usr/share/aclocal"\nexport pkgdatadir aclocaldir\n'
++             script += 'exec "$root/bin/sh" "$root/' + str(binary.relative_to(root)) + '" "$@"\n'
++         else:
+++            if name in ("xmllint", "xsltproc"):
+++                # A caller supplies schemas/stylesheets explicitly. Never consult
+++                # the worker's mutable /etc/xml/catalog as a hidden build input.
+++                script += 'XML_CATALOG_FILES=\nexport XML_CATALOG_FILES\n'
++             argv0 = ' --argv0 "$root/bin/python3"' if name == "python3" else ""
++             script += 'exec "$root/' + str(loader.relative_to(root)) + '"' + argv0 + ' --library-path "' + library_path + '" "$root/' + str(binary.relative_to(root)) + '" "$@"\n'
++         write_launcher(root, name, script, executable)
++diff --git a/tools/build_tools/foreign_runtime_test.py b/tools/build_tools/foreign_runtime_test.py
++--- a/tools/build_tools/foreign_runtime_test.py
+++++ b/tools/build_tools/foreign_runtime_test.py
++@@ -119,7 +119,31 @@
++         assert all(not p.startswith(("/usr/", "/lib/")) for p in python), python
++         perl = json.loads(run("perl", ["-MJSON::PP", "-MXML::Simple", "-MData::Dumper", "-MGetopt::Long", "-e", 'print encode_json(\\%INC)']))
++         assert all(str(runtime) in p for p in perl.values()), perl
+++        # Framework CLI owns normal-diff patches and XSD/XSLT inputs. Exercise
+++        # the real shared tools after relocation with no worker tools on PATH.
+++        (work / "patched.txt").write_text("before\n")
+++        (work / "change.diff").write_text("1c1\n< before\n---\n> after\n")
+++        run("patch", ["--batch", "--forward", "--fuzz=0", "patched.txt", "change.diff"])
+++        assert (work / "patched.txt").read_text() == "after\n"
+++        reverse = subprocess.run([str(tools / "patch"), "--batch", "--forward", "--fuzz=0",
+++                                  "patched.txt", "change.diff"], cwd=work, env=env, capture_output=True)
+++        assert reverse.returncode != 0 and (work / "patched.txt").read_text() == "after\n"
+++        (work / "schema.xsd").write_text(
+++            '<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">'
+++            '<xs:element name="value" type="xs:integer"/></xs:schema>')
+++        (work / "input.xml").write_text('<value>42</value>')
+++        run("xmllint", ["--nonet", "--noout", "--schema", "schema.xsd", "input.xml"])
+++        (work / "invalid.xml").write_text('<value>invalid</value>')
+++        invalid = subprocess.run([str(tools / "xmllint"), "--nonet", "--noout", "--schema",
+++                                  "schema.xsd", "invalid.xml"], cwd=work, env=env, capture_output=True)
+++        assert invalid.returncode != 0, invalid
+++        (work / "transform.xsl").write_text(
+++            '<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">'
+++            '<xsl:output method="text"/><xsl:template match="/">'
+++            '<xsl:value-of select="value"/></xsl:template></xsl:stylesheet>')
+++        assert run("xsltproc", ["--nonet", "transform.xsl", "input.xml"]) == b"42"
++         manifest = json.loads((runtime / "toolchain.json").read_text())
+++        assert all(name in manifest["tools"] for name in ("patch", "xmllint", "xsltproc"))
++         graph = run("dot", ["-Tsvg"], data=b"digraph G { a -> b }\n")
++         assert b"<svg" in graph and b"a" in graph
++         metadata = root / "relocated-metadata"
++@@ -130,7 +154,8 @@
++         print(json.dumps({"architecture": platform.machine(), "profile": manifest["profile"],
++                           "relocated": True, "empty_path": True, "autotools": True,
++                           "protobuf_cpp_python_grpc": True, "thrift_cpp": True,
++-                          "graphviz_svg": True, "private_python": python, "private_perl": perl}, indent=2))
+++                          "patch_apply_reject_reverse": True, "xml_schema_reject_invalid": True,
+++                          "xslt_transform": True, "graphviz_svg": True, "private_python": python, "private_perl": perl}, indent=2))
++ 
++ 
++ if __name__ == "__main__":
+diff --git a/modules/sonic-build-infra/0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e/presubmit.json b/modules/sonic-build-infra/0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e/presubmit.json
+index fd8d378d82ac0d3ecfbcccdb9a66746857dd9f85..0f1c8ee94f2a0a0d0ab4cb0f5469ad81d693ed9d 100644
+--- a/modules/sonic-build-infra/0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e/presubmit.json
++++ b/modules/sonic-build-infra/0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e/presubmit.json
+@@ -9,7 +9,7 @@
+     },
+     {
+       "name": "rules_distroless",
+-      "version": "0.9.4.sonic.15"
++      "version": "0.9.4.sonic.16"
+     }
+   ],
+   "platforms": {
+@@ -52,7 +52,14 @@
+     "@sonic-build-infra//tools/build_tools:xmllint",
+     "@sonic-build-infra//tools/build_tools:xsltproc",
+     "@sonic-build-infra//tools/build_tools:docbook_runtime",
+-    "@sonic-build-infra//tools/build_tools:docbook2man"
++    "@sonic-build-infra//tools/build_tools:docbook2man",
++    "@sonic-build-infra//tools/build_tools:libtool_program",
++    "@sonic-build-infra//tools/build_tools:libtool_library",
++    "@sonic-build-infra//tools/build_tools:libtool_c_library",
++    "@sonic-build-infra//tools/build_tools:libtool_config",
++    "@sonic-build-infra//tools/build_tools:libtool_argv_validation",
++    "@sonic-build-infra//apt/tests/integration:overlap_layer",
++    "@sonic-build-infra//apt/tests/integration:overlap_receipt"
+   ],
+   "test_targets": [
+     "@sonic-build-infra//tools/build_tools:runtime_test",
+@@ -97,7 +104,9 @@
+     "@sonic-build-infra//tools/build_tools:bookworm_test_runtime_test",
+     "@sonic-build-infra//tools/build_tools:docbook_runtime_test",
+     "@sonic-build-infra//tar:debug_symbols_modes_test",
+-    "@sonic-build-infra//tests:deploy_tar_timestamps_test"
++    "@sonic-build-infra//tests:deploy_tar_timestamps_test",
++    "@sonic-build-infra//apt/tests/integration:adapter_test",
++    "@sonic-build-infra//apt/tests/integration:overlap_test"
+   ],
+   "host_platforms": {
+     "amd64": "@sonic-build-infra//platforms:x86_64_trixie"
+diff --git a/modules/sonic-build-infra/0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e/source.json b/modules/sonic-build-infra/0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e/source.json
+index 4ff4db46d41ea9ad5d86022659fa968a338f0d55..fdc2a67fe899f22e8702462995eb010e00ccbd7f 100644
+--- a/modules/sonic-build-infra/0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e/source.json
++++ b/modules/sonic-build-infra/0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e/source.json
+@@ -1,11 +1,11 @@
+ {
+-  "url": "https://github.com/securely1g/sonic-build-infra/archive/51c838da6ff57295fde6e0bc3807841cb31a8568.tar.gz",
+-  "strip_prefix": "sonic-build-infra-51c838da6ff57295fde6e0bc3807841cb31a8568",
+-  "integrity": "sha256-nYuM1ahKhqAJUXseWPs2LRNi9qKEAyAGLYVw7GbX750=",
++  "url": "https://github.com/securely1g/sonic-build-infra/archive/3ee15ec9b4d99d7f8eae3e324cead79b203b451e.tar.gz",
++  "strip_prefix": "sonic-build-infra-3ee15ec9b4d99d7f8eae3e324cead79b203b451e",
++  "integrity": "sha256-3tmKMxkAWCM7RXMEcLC49HmegY7FUEPk3mK1UMg5oVQ=",
+   "patches": {
+-    "0001-bump-version.patch": "sha256-31D0o/1Mc4YBq/VJa7owiBE9NMt9/ySquMkHM0n4tUc=",
++    "0001-bump-version.patch": "sha256-IfPQ2TQrgLytU/A6p+49ojuIe27M8GMCSukYoOZFPhk=",
+     "0002-registry-cross-test-visibility.patch": "sha256-2+0NUZ9mcSHEHa+PIU3NVGG8uFBEgaA8LC9wDkg+GrY=",
+-    "0003-native-component-interfaces.patch": "sha256-hMQ35J9iSC7z5dS4Xm5oxPsqKC4I0hvM7forCuxuD5U="
++    "0003-retain-cli-tools.patch": "sha256-zbueRlKEosbJ2ZXtntAmeP10hFbfqv0WGTSGIhjFCVs="
+   },
+   "patch_strip": 1,
+   "overlay": {
+diff --git a/modules/sonic-build-infra/metadata.json b/modules/sonic-build-infra/metadata.json
+index 59e9ecbf235878808928c3869b5f38a9ec80058e..a5b1271c8dba4297de6c860ed6b8663761e5a827 100644
+--- a/modules/sonic-build-infra/metadata.json
++++ b/modules/sonic-build-infra/metadata.json
+@@ -1,33 +1,34 @@
+ {
+-  "versions": [
+-    "0.0.0-d2283ad0aebb0eb78821920635e7f9ab54c6f146",
+-    "0.0.1-5b8535804cae4eade881b378016a6f297039ee82",
+-    "0.0.2-8192ea3f8bbecd9982a529e547252b67dcb60804",
+-    "0.0.4-83b4e9d963f7f268d06983a8c954fc5d6d93ce2b",
+-    "0.0.5-8783000eaaa56b3551bdc371ddb4038b103c49ad",
+-    "0.0.6-553b2f70f9ba77b74befdf77674894166139ddcc",
+-    "0.0.8-e8b05b109187345586a18628ad01626e69c02fbe",
+-    "0.0.13-ff408bafc35ce0e3d7a0bd27803debdc2a921de6",
+-    "0.0.14-5859f7e63b6bff0f601a9b8d00853fa3ae7f216e",
+-    "0.0.14-f9876051703da05af745ffc781706e29fed7dd4b",
+-    "0.0.15-6653ac1a0b15488a4b54f69ca78440b52be3ccf8",
+-    "0.0.15-199a3d5aa97a6c5260cb7ca4bb5eb36cafb1a57a",
+-    "0.0.15-62a7892228a72a1a98b9659432d67842172a9266",
+-    "0.0.15-8043a299756436464a8b58662921dfd50172a3ff",
+-    "0.0.16-07a777db629f29ef17c2e65ee30455e2df13fe93",
+-    "0.0.16-4429ada56a20a9d9cb01369271766991974472bb",
+-    "0.0.16-1d6990a2ba2980315f086a461a08312bbc3f217c",
+-    "0.0.17-8baf1ad829c5095297d85148b042145b87d623a3",
+-    "0.0.17-306286c253b22b6bf2a75732c82bbf3d00e77cb7",
+-    "0.0.18-95cd3a9050551247063ef31eea4a48269dc50866",
+-    "0.0.19-46f471185c80ac5fd758f995195a428a43e3831e",
+-    "0.0.20-b2aee6e323cf193fc7a034e2c5f71a3fd04e4160",
+-    "0.0.21-b541569502affaf04befe9596969f3d74b979ad6",
+-    "0.0.22-a12bc826d6f811a157db5c7c02a2fe033896cc14",
+-    "0.0.23-5b224d7190d04f1b7b68429eedfc03b7b1565ed0",
+-    "0.0.24-1edc72338fc6c79b737fc37d86ebd727969809c4",
+-    "0.0.25-17a1e555291c64be1a6ff008f33352bffc4f8e5c",
+-    "0.0.25-34de7330abc72229dfc8dab88dec71b89c52aa88",
+-    "0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568"
+-  ]
++    "versions": [
++        "0.0.0-d2283ad0aebb0eb78821920635e7f9ab54c6f146",
++        "0.0.1-5b8535804cae4eade881b378016a6f297039ee82",
++        "0.0.2-8192ea3f8bbecd9982a529e547252b67dcb60804",
++        "0.0.4-83b4e9d963f7f268d06983a8c954fc5d6d93ce2b",
++        "0.0.5-8783000eaaa56b3551bdc371ddb4038b103c49ad",
++        "0.0.6-553b2f70f9ba77b74befdf77674894166139ddcc",
++        "0.0.8-e8b05b109187345586a18628ad01626e69c02fbe",
++        "0.0.13-ff408bafc35ce0e3d7a0bd27803debdc2a921de6",
++        "0.0.14-5859f7e63b6bff0f601a9b8d00853fa3ae7f216e",
++        "0.0.14-f9876051703da05af745ffc781706e29fed7dd4b",
++        "0.0.15-6653ac1a0b15488a4b54f69ca78440b52be3ccf8",
++        "0.0.15-199a3d5aa97a6c5260cb7ca4bb5eb36cafb1a57a",
++        "0.0.15-62a7892228a72a1a98b9659432d67842172a9266",
++        "0.0.15-8043a299756436464a8b58662921dfd50172a3ff",
++        "0.0.16-07a777db629f29ef17c2e65ee30455e2df13fe93",
++        "0.0.16-4429ada56a20a9d9cb01369271766991974472bb",
++        "0.0.16-1d6990a2ba2980315f086a461a08312bbc3f217c",
++        "0.0.17-8baf1ad829c5095297d85148b042145b87d623a3",
++        "0.0.17-306286c253b22b6bf2a75732c82bbf3d00e77cb7",
++        "0.0.18-95cd3a9050551247063ef31eea4a48269dc50866",
++        "0.0.19-46f471185c80ac5fd758f995195a428a43e3831e",
++        "0.0.20-b2aee6e323cf193fc7a034e2c5f71a3fd04e4160",
++        "0.0.21-b541569502affaf04befe9596969f3d74b979ad6",
++        "0.0.22-a12bc826d6f811a157db5c7c02a2fe033896cc14",
++        "0.0.23-5b224d7190d04f1b7b68429eedfc03b7b1565ed0",
++        "0.0.24-1edc72338fc6c79b737fc37d86ebd727969809c4",
++        "0.0.25-17a1e555291c64be1a6ff008f33352bffc4f8e5c",
++        "0.0.25-34de7330abc72229dfc8dab88dec71b89c52aa88",
++        "0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568",
++        "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e"
++    ]
+ }
+diff --git a/modules/sonic-dash/0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686/MODULE.bazel b/modules/sonic-dash/0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686/MODULE.bazel
+index f40adb51ca06a22fb4aec67d2c1b2dac30182817..00fc70a980cf607373a7a25906d4763abde4f5f6 100644
+--- a/modules/sonic-dash/0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686/MODULE.bazel
++++ b/modules/sonic-dash/0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-dash",
+-    version = "0.0.2-5c9305403585a7ae54f86918219acb8ed39f740a",
++    version = "0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
+diff --git a/modules/sonic-dash/0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686/README.md b/modules/sonic-dash/0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686/README.md
+index 946455f130d508bf84cf605ea315641fb5d63824..8b24800f672c273762c7d4b05ad3c5b55b5bf06a 100644
+--- a/modules/sonic-dash/0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686/README.md
++++ b/modules/sonic-dash/0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686/README.md
+@@ -1,15 +1,24 @@
+-# DASH runtime metadata from its Debian recipe
++# DASH recursive Make compiler flags
+ 
+-Register the landed [DASH #2](https://github.com/securely1g/DASH/pull/2) implementation at `5c9305403585a7ae54f86918219acb8ed39f740a`. The source owns all build and metadata behavior; the registry applies only `patches/0001-bump-version.patch` to set the module version. Version `0.0.2` follows the published `0.0.1-97c07d05193e346bc990e816e30a7e3d72e8f4c0` entry, which remains unchanged.
++Register [DASH #4](https://github.com/securely1g/DASH/pull/4) at `53e524a348589e2b2e0585a8c148bd9b2f8bc686` as the separate `0.0.3` candidate. Both published versions remain unchanged. The source owns the response-file adapter and regression; the registry applies only the module version patch.
+ 
+-[Syncd VS in buildimage #13](https://github.com/securely1g/sonic-buildimage/pull/13) maps `libsai` to `@sonic_dash//:runtime` and needs its package identity and dependencies alongside the TAR. The generated `@sonic-dash//:runtime_packages.json` reads the existing `dash-pipeline/SAI/debian/libsai_1.0.0_amd64/DEBIAN/control` and analyzes the actual runtime libraries with the declared PI/APT metadata. The package version remains `1.0.0`; the record includes the target architecture and exact runtime TAR hash. This registry version exposes that landed implementation; consumer adoption is separate work.
++[Gearbox buildimage #154](https://github.com/securely1g/sonic-buildimage/pull/154) reaches DASH's original recursive Make call with 86,193 bytes of compiler flags and 64,724 bytes of linker flags. GNU Make combines those overrides into a 151,870-byte environment value, so Linux rejects a child before its compiler starts. The source launcher keeps the complete ordered `CPPFLAGS` value in a standard GCC driver response file, expanded at its original argument position. Compiler and linker lists remain separate in the original recipes.
+ 
+-| Input or action | Published source registration | This registration |
++| Input or action | Published `0.0.2` | This candidate |
+ | --- | --- | --- |
+-| Build `@sonic-dash//:runtime_packages.json` | No metadata target. | Generates the `libsai` package record from the existing control and runtime TAR. |
+-| Build on native ARM64 with the legacy AMD64-named control path | Runtime and SDK are ARM64, but there is no generated package record. | Validates the ELF architecture and records `arm64`. |
+-| Analyze SDK consumers that link protobuf-lite | Its already-selected Debian payload/control is not exported by the metadata provider. | Exposes `libprotobuf-lite32t64` from the same pinned Debian dependency set. |
++| Recursive Make with the retained Gearbox flag sizes | Environment export exceeds Linux's per-string limit | Make exports a short response-file reference |
++| Include roots and macro overrides across both compiler variables | Original order is required | Driver response preserves that order; a preprocessor-only response is a tested negative control |
++| Runtime/debug/SDK/package metadata | Existing source-owned public outputs | Same targets and installed contract |
+ 
+-Native AMD64 and ARM64 presubmits retain the published runtime, matching debug TAR and SDK builds and `@sonic-dash//bazel:runtime_test`, then add the generated metadata target. They cover installed SDK use, pipeline outputs, independent loading, ELF closure, matching debug symbols and GDB source lookup. Both host and target use the declared Trixie toolchain. The shared runner retains source, module resolution, build/test and complete output-tree evidence.
++The ordinary consumer explicitly selects published Distroless `.16` and infrastructure `.25-3ee15ec` from [registry #218](https://github.com/securely1g/sonic-bazel-registry/pull/218). This selects the current native interface used by the image while preserving the source owner's declared minimum. The coordinated review base must preserve maintained published entries and include that exact infrastructure candidate. Registry #209 remains historical validation of the preceding infrastructure input; fresh ordinary consumer acceptance is required for the updated graph.
+ 
+-Selected build infrastructure `0.0.22-a12bc826d6f811a157db5c7c02a2fe033896cc14`, PI, P4C, `rules_foreign_cc` and `rules_distroless` recipes are published on canonical registry `main`. No temporary registry override or new DEB producer is added. These producer checks do not establish a full Syncd image, boot or forwarding test.
++Presubmits retain all four public outputs, the original installed runtime/SDK/pipeline/GDB test and both native architectures, then add the real recursive-Make compiler regression. Source validation has passed that regression on native GCC14 and through Bazel. The complete retained compiler argument vector produces identical backend arguments and an 89,108-byte GCC options export with the driver response. Full ordinary package and installed wide-consumer acceptance remain pending; neither a catalog nor this source regression establishes completed Gearbox acceptance. No DEB producer is added or selected.
++
++The source archive declares `archive_type = tar.gz` because the pinned codeload URL ends in the source revision. The source revision differs from the originally tested `5fb62ec` only by one README spelling correction; the full source archive file/mode comparison preserves every other input.
++
++This dependency refresh selects maintained infrastructure source 3ee15ec9 through
++registry #218. Its numeric version is .25; published .26 entries remain intact.
++Fresh module-graph checks must verify the selected version, followed by the
++unchanged ordinary-consumer outputs and tests. This metadata/source-patch proof
++does not establish native or image acceptance. Existing worker runs and earlier
++receipts retain their exact preceding dependency inputs.
+diff --git a/modules/sonic-dash/0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686/patches/0001-bump-version.patch b/modules/sonic-dash/0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686/patches/0001-bump-version.patch
+index 6151005b7573b6030745cd3a7e89db58b4fefe18..a4155c61bd34a04d3506273d7b210bf5a835501f 100644
+--- a/modules/sonic-dash/0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686/patches/0001-bump-version.patch
++++ b/modules/sonic-dash/0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686/patches/0001-bump-version.patch
+@@ -4,7 +4,7 @@
+  module(
+      name = "sonic-dash",
+ -    version = "0.0.1",
+-+    version = "0.0.2-5c9305403585a7ae54f86918219acb8ed39f740a",
+++    version = "0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686",
+      bazel_compatibility = [
+          ">=8.5.1",
+          "<=8.5.1",
+diff --git a/modules/sonic-dash/0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686/presubmit.json b/modules/sonic-dash/0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686/presubmit.json
+index 4afda4a78e071cbe708fafe48fe9305e159070ef..8571285aa18191492fcc0dc70e68b41992e50cfd 100644
+--- a/modules/sonic-dash/0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686/presubmit.json
++++ b/modules/sonic-dash/0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686/presubmit.json
+@@ -6,11 +6,15 @@
+   "consumer_deps": [
+     {
+       "name": "sonic-build-infra",
+-      "version": "0.0.22-a12bc826d6f811a157db5c7c02a2fe033896cc14"
++      "version": "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e"
+     },
+     {
+       "name": "tar.bzl",
+       "version": "0.10.5-sonic.1"
++    },
++    {
++      "name": "rules_distroless",
++      "version": "0.9.4.sonic.16"
+     }
+   ],
+   "platforms": {
+@@ -24,7 +28,8 @@
+     "@sonic-dash//:runtime_packages.json"
+   ],
+   "test_targets": [
+-    "@sonic-dash//bazel:runtime_test"
++    "@sonic-dash//bazel:runtime_test",
++    "@sonic-dash//bazel:make_flags_test"
+   ],
+   "host_platforms": {
+     "amd64": "@sonic-build-infra//platforms:x86_64_trixie",
+diff --git a/modules/sonic-dash/0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686/source.json b/modules/sonic-dash/0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686/source.json
+index 1a24b5ab672455da1f37a9015e68e9dbfa4ee446..dfddc881907589b1cc9760a6dec5705d79239ca6 100644
+--- a/modules/sonic-dash/0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686/source.json
++++ b/modules/sonic-dash/0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686/source.json
+@@ -1,9 +1,10 @@
+ {
+-  "url": "https://github.com/securely1g/DASH/archive/5c9305403585a7ae54f86918219acb8ed39f740a.tar.gz",
+-  "strip_prefix": "DASH-5c9305403585a7ae54f86918219acb8ed39f740a",
+-  "integrity": "sha256-YYLLbkKzulo5Qfz+xyl+a0ZOXuZWg8xJdA2tc98F7eY=",
++  "url": "https://codeload.github.com/securely1g/DASH/tar.gz/53e524a348589e2b2e0585a8c148bd9b2f8bc686",
++  "strip_prefix": "DASH-53e524a348589e2b2e0585a8c148bd9b2f8bc686",
++  "integrity": "sha256-iR476L1n0HBQIpAzO8VspsPr4Qm6wNMCTedjwXjcDRI=",
+   "patches": {
+-    "0001-bump-version.patch": "sha256-NPzBMtM5dswT16J/GGp87OYxvRCFQULR5/PKFaZKL/k="
++    "0001-bump-version.patch": "sha256-JyfLfAQyiVzwaEc6FdXEwe/cebqYeKE83n0Qa496AQI="
+   },
+-  "patch_strip": 1
++  "patch_strip": 1,
++  "archive_type": "tar.gz"
+ }
+diff --git a/modules/sonic-dash/metadata.json b/modules/sonic-dash/metadata.json
+index 1f6f1c2fe65f1ee18ec8d1e965fa0773e0911841..cb997b5796a4f6a998589d4341c86526cdd798e2 100644
+--- a/modules/sonic-dash/metadata.json
++++ b/modules/sonic-dash/metadata.json
+@@ -1,18 +1,19 @@
+ {
+-  "homepage": "https://github.com/securely1g/DASH",
+-  "maintainers": [
+-    {
+-      "name": "Guohan Lu",
+-      "email": "securely1g@gmail.com",
+-      "github": "securely1g"
+-    }
+-  ],
+-  "repository": [
+-    "github:securely1g/DASH"
+-  ],
+-  "versions": [
+-    "0.0.1-97c07d05193e346bc990e816e30a7e3d72e8f4c0",
+-    "0.0.2-5c9305403585a7ae54f86918219acb8ed39f740a"
+-  ],
+-  "yanked_versions": {}
++    "homepage": "https://github.com/securely1g/DASH",
++    "maintainers": [
++        {
++            "name": "Guohan Lu",
++            "email": "securely1g@gmail.com",
++            "github": "securely1g"
++        }
++    ],
++    "repository": [
++        "github:securely1g/DASH"
++    ],
++    "versions": [
++        "0.0.1-97c07d05193e346bc990e816e30a7e3d72e8f4c0",
++        "0.0.2-5c9305403585a7ae54f86918219acb8ed39f740a",
++        "0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686"
++    ],
++    "yanked_versions": {}
+ }

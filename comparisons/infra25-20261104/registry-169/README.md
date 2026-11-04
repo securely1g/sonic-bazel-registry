@@ -1,0 +1,46 @@
+# Complete registry #169 version comparison
+
+Published baseline: 51de33d8d4eb949ed7e5a02578deee2eeab34e76. Candidate: 72f5a2e1bfb2c7034f4258f2768a5cb3ec200fb2.
+
+The raw patch includes all version-entry changes, inherited prerequisites, metadata, tests and supporting CI files. Its header gives exact application instructions. Applying it after the documented copies reproduces the complete candidate tree and Git file modes while retaining every published entry.
+
+[Download the complete applicable patch](../registry-169.patch). SHA-256: 65cb626e401c409ede5520de73ce8f49e815e76f2b7a00b254697e201c036dc2.
+
+The full colored comparison is split into the consecutive parts below so GitHub can display every line. Parts are for review; apply the complete raw patch. Concatenating the unmodified part bytes exactly reproduces the raw patch.
+
+| Part | Bytes |
+| --- | ---: |
+| [View colored part 1](part-01.patch) | 179946 |
+| [View colored part 2](part-02.patch) | 179997 |
+| [View colored part 3](part-03.patch) | 179952 |
+| [View colored part 4](part-04.patch) | 179987 |
+| [View colored part 5](part-05.patch) | 179991 |
+| [View colored part 6](part-06.patch) | 179969 |
+| [View colored part 7](part-07.patch) | 179999 |
+| [View colored part 8](part-08.patch) | 179982 |
+| [View colored part 9](part-09.patch) | 179964 |
+| [View colored part 10](part-10.patch) | 179973 |
+| [View colored part 11](part-11.patch) | 179802 |
+| [View colored part 12](part-12.patch) | 175648 |
+
+## Compared entries
+
+| Module | Published version | Candidate version |
+| --- | --- | --- |
+| p4lang-bmv2 | 1.15.0.sonic.2 | 1.15.0.sonic.3 |
+| sonic-build-infra | 0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568 | 0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e |
+| sonic-dash | 0.0.2-5c9305403585a7ae54f86918219acb8ed39f740a | 0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686 |
+| sonic-fips | 0.0.4-ef423363e8fd50358f0aa2a8a20d3e08d4450a56 | 0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9 |
+| sonic-mgmt-common | 1.0.0-f5361ba8b88cde7ec59bdb4652a986c68d66da64 | 1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744 |
+| sonic-rust-deps | 0.0.4-6d9c70f708d7420e9e2b2cdc906b80cee6b140f1 | 0.0.5-c53741eb56e55e4f1c9b48c577ed5de986e62192 |
+| sonic-sairedis | 0.0.3-5e765149371aeca207254641873791db76a95f5f | 0.0.4-706cc3d1f6182dea18deed36a2ddb0fbcf1a59fc |
+| sonic-swss-common | 0.0.8-a0450924719a9f706125cc44a07dc88934935003 | 0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed |
+| net-snmp | No published predecessor | 5.9.3.sonic.1 |
+| openconfig_ygot | No published predecessor | 0.7.1.sonic.1 |
+| sonic-dash-ha | No published predecessor | 0.0.1-3e17acff2fe1d3eab1febe686262d376d859b37b |
+| sonic-dbsyncd | No published predecessor | 2.0.0-a4025c14068b3afdf2eac3e73094f0fd2cfcf746 |
+| sonic-gnmi | No published predecessor | 0.1.0-ce49e93eb3a0cff8daf77a3092535d76265ebc3d |
+| sonic-linkmgrd | No published predecessor | 1.0.0-803c4b170de1ebdf38d638517fd1115368ec9a5c |
+| sonic-mgmt-framework | No published predecessor | 1.0.0-4036a01aa4648913ce44a0b4db52556a55cb2911 |
+| sonic-snmpagent | No published predecessor | 2.1.0 |
+| sonic-wpa-supplicant | No published predecessor | 2.9.0.sonic.1 |

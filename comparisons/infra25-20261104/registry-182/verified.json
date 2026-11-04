@@ -1,0 +1,45 @@
+{
+  "pr": 182,
+  "baseline": "51de33d8d4eb949ed7e5a02578deee2eeab34e76",
+  "candidate": "2d3fbcb9aa2d665b9da44219090a9ad68d66a20e",
+  "candidate_tree": "30cd3efcfd92bca2df88978a69f0abbeadc01310",
+  "prepared_copy_tree": "2cbee8437f772d4c598fd97676caa263dd46f1e8",
+  "published_copies": [
+    {
+      "module": "sonic-build-infra",
+      "published_version": "0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568",
+      "candidate_version": "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e",
+      "source": "modules/sonic-build-infra/0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568",
+      "destination": "modules/sonic-build-infra/0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e"
+    },
+    {
+      "module": "sonic-mgmt-common",
+      "published_version": "1.0.0-f5361ba8b88cde7ec59bdb4652a986c68d66da64",
+      "candidate_version": "1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744",
+      "source": "modules/sonic-mgmt-common/1.0.0-f5361ba8b88cde7ec59bdb4652a986c68d66da64",
+      "destination": "modules/sonic-mgmt-common/1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744"
+    },
+    {
+      "module": "sonic-swss-common",
+      "published_version": "0.0.8-a0450924719a9f706125cc44a07dc88934935003",
+      "candidate_version": "0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed",
+      "source": "modules/sonic-swss-common/0.0.8-a0450924719a9f706125cc44a07dc88934935003",
+      "destination": "modules/sonic-swss-common/0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed"
+    }
+  ],
+  "first_registrations": [
+    {
+      "module": "openconfig_ygot",
+      "candidate": "0.7.1.sonic.1"
+    },
+    {
+      "module": "sonic-gnmi",
+      "candidate": "0.1.0-ce49e93eb3a0cff8daf77a3092535d76265ebc3d"
+    }
+  ],
+  "bytes": 874373,
+  "sha256": "75269d3349defc43625e40950f05fb0bb1c307c6be7132d5078e7840747c786b",
+  "applied_full_tree_equals_candidate": true,
+  "modes_and_unchanged_entry_files_preserved": true,
+  "artifact_path": "comparisons/infra25-20261104/registry-182.patch"
+}

@@ -1,0 +1,29 @@
+{
+  "pr": 215,
+  "baseline": "51de33d8d4eb949ed7e5a02578deee2eeab34e76",
+  "candidate": "66a27c0e13ad2819d44e750c0c3ef1b305147f5f",
+  "candidate_tree": "aca92c99ab8a974184d31c8048850fc1a9c222c9",
+  "prepared_copy_tree": "9f774c58b7d0c9eee745f5cd1bb63a1da3a245ab",
+  "published_copies": [
+    {
+      "module": "sonic-build-infra",
+      "published_version": "0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568",
+      "candidate_version": "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e",
+      "source": "modules/sonic-build-infra/0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568",
+      "destination": "modules/sonic-build-infra/0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e"
+    },
+    {
+      "module": "sonic-dash",
+      "published_version": "0.0.2-5c9305403585a7ae54f86918219acb8ed39f740a",
+      "candidate_version": "0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686",
+      "source": "modules/sonic-dash/0.0.2-5c9305403585a7ae54f86918219acb8ed39f740a",
+      "destination": "modules/sonic-dash/0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686"
+    }
+  ],
+  "first_registrations": [],
+  "bytes": 235461,
+  "sha256": "1cb94fadd8abe05d4e1bf14846092fc6f163dff15e2c7ceaf550521146e9bba6",
+  "applied_full_tree_equals_candidate": true,
+  "modes_and_unchanged_entry_files_preserved": true,
+  "artifact_path": "comparisons/infra25-20261104/registry-215.patch"
+}

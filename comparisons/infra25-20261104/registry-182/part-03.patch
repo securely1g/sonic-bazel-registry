@@ -1,0 +1,4735 @@
++-	moduleTwoContainerTwo := &yang.Entry{
+++	moduleTwoContainerTwo := sonicfixture.Entry(&yang.Entry{
++ 		Name:   "container-two",
++ 		Kind:   yang.DirectoryEntry,
++ 		Parent: moduleTwo,
++-	}
+++	})
++ 	moduleTwoContainerTwo.Dir = map[string]*yang.Entry{
++ 		"ch2-leafone": {
++ 			Name:   "ch2-leafone",
++@@ -116,18 +117,34 @@
++                 "simple-leaf": {
++                     "Name": "simple-leaf",
++                     "Kind": 0,
++-                    "Config": 0
+++                    "Config": 0,
+++                    "DirOKeys": null,
+++                    "PerfOpts": {
+++                        "ChildSchemaCache": null
+++                    }
++                 }
++             },
+++            "DirOKeys": null,
++             "Annotation": {
+++                "modulename": "a-module",
+++                "namespace": "urn:a-module",
+++                "organization": "",
+++                "revision": "",
++                 "schemapath": "/a-module/simple-container",
++                 "structname": "SimpleContainer"
+++            },
+++            "PerfOpts": {
+++                "ChildSchemaCache": null
++             }
++         }
++     },
+++    "DirOKeys": null,
++     "Annotation": {
++         "isCompressedSchema": true,
++         "isFakeRoot": true
+++    },
+++    "PerfOpts": {
+++        "ChildSchemaCache": null
++     }
++ }`,
++ 	}, {
++@@ -152,23 +169,39 @@
++                     "Name": "ch-one",
++                     "Kind": 0,
++                     "Config": 0,
+++                    "DirOKeys": null,
++                     "Type": {
++                         "Name": "",
++                         "Kind": 18
+++                    },
+++                    "PerfOpts": {
+++                        "ChildSchemaCache": null
++                     }
++                 },
++                 "ch-two": {
++                     "Name": "ch-two",
++                     "Kind": 0,
++                     "Config": 0,
+++                    "DirOKeys": null,
++                     "Type": {
++                         "Name": "",
++                         "Kind": 7
+++                    },
+++                    "PerfOpts": {
+++                        "ChildSchemaCache": null
++                     }
++                 }
++             },
+++            "DirOKeys": null,
++             "Annotation": {
+++                "modulename": "a-module",
+++                "namespace": "urn:a-module",
+++                "organization": "",
+++                "revision": "",
++                 "schemapath": "/a-module/container-one"
+++            },
+++            "PerfOpts": {
+++                "ChildSchemaCache": null
++             }
++         },
++         "container-two": {
++@@ -180,14 +213,26 @@
++                     "Name": "ch2-leafone",
++                     "Kind": 0,
++                     "Config": 0,
+++                    "DirOKeys": null,
++                     "Type": {
++                         "Name": "",
++                         "Kind": 18
+++                    },
+++                    "PerfOpts": {
+++                        "ChildSchemaCache": null
++                     }
++                 }
++             },
+++            "DirOKeys": null,
++             "Annotation": {
+++                "modulename": "a-module",
+++                "namespace": "urn:a-module",
+++                "organization": "",
+++                "revision": "",
++                 "schemapath": "/a-module/container-two"
+++            },
+++            "PerfOpts": {
+++                "ChildSchemaCache": null
++             }
++         },
++         "simple-container": {
++@@ -198,17 +243,33 @@
++                 "simple-leaf": {
++                     "Name": "simple-leaf",
++                     "Kind": 0,
++-                    "Config": 0
+++                    "Config": 0,
+++                    "DirOKeys": null,
+++                    "PerfOpts": {
+++                        "ChildSchemaCache": null
+++                    }
++                 }
++             },
+++            "DirOKeys": null,
++             "Annotation": {
+++                "modulename": "a-module",
+++                "namespace": "urn:a-module",
+++                "organization": "",
+++                "revision": "",
++                 "schemapath": "/a-module/simple-container",
++                 "structname": "SimpleContainer"
+++            },
+++            "PerfOpts": {
+++                "ChildSchemaCache": null
++             }
++         }
++     },
+++    "DirOKeys": null,
++     "Annotation": {
++         "isFakeRoot": true
+++    },
+++    "PerfOpts": {
+++        "ChildSchemaCache": null
++     }
++ }`,
++ 	}, {
++@@ -221,9 +282,9 @@
++ 	}, {
++ 		name:      "non-nil fake root",
++ 		inEntries: []*yang.Entry{simpleModule},
++-		inFakeRoot: &yang.Entry{
+++		inFakeRoot: sonicfixture.Entry(&yang.Entry{
++ 			Name: "device",
++-		},
+++		}),
++ 		inDirectoryNames: map[string]string{
++ 			"/a-module/simple-container": "uniqueName",
++ 			"/device":                    "TheFakeRoot",
++@@ -241,24 +302,46 @@
++                 "simple-leaf": {
++                     "Name": "simple-leaf",
++                     "Kind": 0,
++-                    "Config": 0
+++                    "Config": 0,
+++                    "DirOKeys": null,
+++                    "PerfOpts": {
+++                        "ChildSchemaCache": null
+++                    }
++                 }
++             },
+++            "DirOKeys": null,
++             "Annotation": {
+++                "modulename": "a-module",
+++                "namespace": "urn:a-module",
+++                "organization": "",
+++                "revision": "",
++                 "schemapath": "/a-module/simple-container",
++                 "structname": "uniqueName"
+++            },
+++            "PerfOpts": {
+++                "ChildSchemaCache": null
++             }
++         }
++     },
+++    "DirOKeys": null,
++     "Annotation": {
++         "isFakeRoot": true,
++         "schemapath": "/",
++         "structname": "TheFakeRoot"
+++    },
+++    "PerfOpts": {
+++        "ChildSchemaCache": null
++     }
++ }`,
++ 	}}
++ 
++ 	for _, tt := range tests {
+++		for _, entry := range tt.inEntries {
+++			sonicfixture.Entry(entry)
+++			module := &yang.Module{Name: entry.Name, Namespace: &yang.Value{Name: "urn:" + entry.Name}}
+++			module.Prefix = &yang.Value{Name: "test", Parent: module}
+++			entry.Node, entry.Prefix = module, module.Prefix
+++		}
++ 		gotb, err := buildJSONTree(tt.inEntries, tt.inDirectoryNames, tt.inFakeRoot, tt.inCompressed)
++ 		if err != nil && err.Error() != tt.wantErr {
++ 			t.Errorf("%s: buildJSONTree(%v, %v): did not get expected error, got: %v, want: %v", tt.name, tt.inEntries, tt.inDirectoryNames, err, tt.wantErr)
++@@ -332,18 +415,18 @@
++ func TestSchemaRoundtrip(t *testing.T) {
++ 	// Test case 1 input, annotations are added during the schema generation,
++ 	// therefore we must annotate the schema after the fact.
++-	moduleEntry := &yang.Entry{
+++	moduleEntry := sonicfixture.Entry(&yang.Entry{
++ 		Name: "module",
++-	}
++-	containerEntry := &yang.Entry{
+++	})
+++	containerEntry := sonicfixture.Entry(&yang.Entry{
++ 		Name:   "container",
++ 		Kind:   yang.DirectoryEntry,
++ 		Parent: moduleEntry,
++-	}
++-	leafEntry := &yang.Entry{
+++	})
+++	leafEntry := sonicfixture.Entry(&yang.Entry{
++ 		Name:   "leaf",
++ 		Parent: containerEntry,
++-	}
+++	})
++ 	containerEntry.Dir = map[string]*yang.Entry{
++ 		"leaf": leafEntry,
++ 	}
++@@ -351,11 +434,11 @@
++ 		"container": containerEntry,
++ 	}
++ 
++-	annotatedRootEntry := &yang.Entry{
+++	annotatedRootEntry := sonicfixture.Entry(&yang.Entry{
++ 		Dir:        map[string]*yang.Entry{},
++ 		Annotation: map[string]interface{}{"isFakeRoot": true},
++-	}
++-	annotatedContainerEntry := &yang.Entry{
+++	})
+++	annotatedContainerEntry := sonicfixture.Entry(&yang.Entry{
++ 		Name: "container",
++ 		Kind: yang.DirectoryEntry,
++ 		Annotation: map[string]interface{}{
++@@ -363,47 +446,47 @@
++ 			"structname": "Container",
++ 		},
++ 		Parent: annotatedRootEntry,
++-	}
+++	})
++ 	annotatedRootEntry.Dir["container"] = annotatedContainerEntry
++-	annotatedLeafEntry := &yang.Entry{
+++	annotatedLeafEntry := sonicfixture.Entry(&yang.Entry{
++ 		Name:   "leaf",
++ 		Parent: annotatedContainerEntry,
++-	}
+++	})
++ 	annotatedContainerEntry.Dir = map[string]*yang.Entry{
++ 		"leaf": annotatedLeafEntry,
++ 	}
++ 
++ 	// Test case 2: with fakeroot
++-	fakeRootEntry := &yang.Entry{
+++	fakeRootEntry := sonicfixture.Entry(&yang.Entry{
++ 		Name: "device",
++ 		Kind: yang.DirectoryEntry,
++-	}
++-
++-	fakeRootModuleEntry := &yang.Entry{
+++	})
+++
+++	fakeRootModuleEntry := sonicfixture.Entry(&yang.Entry{
++ 		Name: "module",
++ 		Kind: yang.DirectoryEntry,
++ 		Dir:  map[string]*yang.Entry{},
++-	}
++-
++-	fakeRootContainerEntry := &yang.Entry{
+++	})
+++
+++	fakeRootContainerEntry := sonicfixture.Entry(&yang.Entry{
++ 		Name:   "container",
++ 		Kind:   yang.DirectoryEntry,
++ 		Parent: fakeRootModuleEntry,
++ 		Dir:    map[string]*yang.Entry{},
++-	}
+++	})
++ 	fakeRootModuleEntry.Dir["container"] = fakeRootContainerEntry
++ 
++-	fakeRootLeafEntry := &yang.Entry{
+++	fakeRootLeafEntry := sonicfixture.Entry(&yang.Entry{
++ 		Name: "leaf",
++ 		Kind: yang.LeafEntry,
++ 		Type: &yang.YangType{
++ 			Kind: yang.Ystring,
++ 		},
++ 		Parent: fakeRootContainerEntry,
++-	}
+++	})
++ 	fakeRootContainerEntry.Dir["leaf"] = fakeRootLeafEntry
++ 
++-	annotatedFakeRootEntry := &yang.Entry{
+++	annotatedFakeRootEntry := sonicfixture.Entry(&yang.Entry{
++ 		Name: "device",
++ 		Kind: yang.DirectoryEntry,
++ 		Dir:  map[string]*yang.Entry{},
++@@ -412,8 +495,8 @@
++ 			"schemapath": "/",
++ 			"structname": "Device",
++ 		},
++-	}
++-	annotatedFakeRootContainerEntry := &yang.Entry{
+++	})
+++	annotatedFakeRootContainerEntry := sonicfixture.Entry(&yang.Entry{
++ 		Name:   "container",
++ 		Kind:   yang.DirectoryEntry,
++ 		Parent: annotatedFakeRootEntry,
++@@ -422,17 +505,17 @@
++ 			"schemapath": "/module/container",
++ 		},
++ 		Dir: map[string]*yang.Entry{},
++-	}
+++	})
++ 	annotatedFakeRootEntry.Dir["container"] = annotatedFakeRootContainerEntry
++ 
++-	annotatedFakeRootLeafEntry := &yang.Entry{
+++	annotatedFakeRootLeafEntry := sonicfixture.Entry(&yang.Entry{
++ 		Name: "leaf",
++ 		Kind: yang.LeafEntry,
++ 		Type: &yang.YangType{
++ 			Kind: yang.Ystring,
++ 		},
++ 		Parent: annotatedFakeRootContainerEntry,
++-	}
+++	})
++ 	annotatedFakeRootContainerEntry.Dir["leaf"] = annotatedFakeRootLeafEntry
++ 
++ 	tests := []struct {
++@@ -469,6 +552,19 @@
++ 	}}
++ 
++ 	for _, tt := range tests {
+++		for _, entry := range tt.inEntries {
+++			module := &yang.Module{Name: entry.Name, Namespace: &yang.Value{Name: "urn:" + entry.Name}}
+++			module.Prefix = &yang.Value{Name: "test", Parent: module}
+++			entry.Node, entry.Prefix = module, module.Prefix
+++		}
+++		for _, entry := range tt.want {
+++			if entry.Name == "container" {
+++				entry.Annotation["namespace"] = "urn:module"
+++				entry.Annotation["modulename"] = "module"
+++				entry.Annotation["revision"] = ""
+++				entry.Annotation["organization"] = ""
+++			}
+++		}
++ 		gotByte, err := buildJSONTree(tt.inEntries, tt.inDirectoryNames, tt.inFakeRoot, tt.inCompressed)
++ 		if err != nil && err.Error() != tt.wantJSONErr {
++ 			t.Errorf("%s: buildJSONTree(%v, %v): did not get expected error, got: %v, want: %v", tt.name, tt.inEntries, tt.inDirectoryNames, err, tt.wantJSONErr)
++diff --git a/ygen/schematree_test.go b/ygen/schematree_test.go
++--- a/ygen/schematree_test.go
+++++ b/ygen/schematree_test.go
++@@ -15,6 +15,7 @@
++ package ygen
++ 
++ import (
+++	"github.com/openconfig/ygot/internal/sonicfixture"
++ 	"testing"
++ 
++ 	"github.com/google/go-cmp/cmp"
++@@ -39,39 +40,39 @@
++ 		inEntries: []*yang.Entry{
++ 			{
++ 				Name: "root-entity",
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "module",
++-				},
+++				}),
++ 				Dir: map[string]*yang.Entry{
++ 					"child-one": {
++ 						Name: "child-one",
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "root-entity",
++-							Parent: &yang.Entry{
+++							Parent: sonicfixture.Entry(&yang.Entry{
++ 								Name: "module",
++-							},
++-						},
+++							}),
+++						}),
++ 					},
++ 					"child-two": {
++ 						Name: "child-two",
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "root-entity",
++-							Parent: &yang.Entry{
+++							Parent: sonicfixture.Entry(&yang.Entry{
++ 								Name: "module",
++-							},
++-						},
+++							}),
+++						}),
++ 					},
++ 					"child-dir": {
++ 						Name: "grandchild-a",
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "child-dir",
++-							Parent: &yang.Entry{
+++							Parent: sonicfixture.Entry(&yang.Entry{
++ 								Name: "root-entity",
++-								Parent: &yang.Entry{
+++								Parent: sonicfixture.Entry(&yang.Entry{
++ 									Name: "module",
++-								},
++-							},
++-						},
+++								}),
+++							}),
+++						}),
++ 					},
++ 				},
++ 			},
++@@ -79,45 +80,51 @@
++ 		wantElements: []wantTreeEntry{
++ 			{
++ 				path: []string{"root-entity", "child-one"},
++-				value: &yang.Entry{
+++				value: sonicfixture.Entry(&yang.Entry{
++ 					Name: "child-one",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "root-entity",
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "module",
++-						},
++-					},
++-				},
+++						}),
+++					}),
+++				}),
++ 			}, {
++ 				path: []string{"root-entity", "child-two"},
++-				value: &yang.Entry{
+++				value: sonicfixture.Entry(&yang.Entry{
++ 					Name: "child-two",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "root-entity",
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "module",
++-						},
++-					},
++-				},
+++						}),
+++					}),
+++				}),
++ 			}, {
++ 				path: []string{"root-entity", "child-dir", "grandchild-a"},
++-				value: &yang.Entry{
+++				value: sonicfixture.Entry(&yang.Entry{
++ 					Name: "grandchild-a",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "child-dir",
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "root-entity",
++-							Parent: &yang.Entry{
+++							Parent: sonicfixture.Entry(&yang.Entry{
++ 								Name: "module",
++-							},
++-						},
++-					},
++-				},
+++							}),
+++						}),
+++					}),
+++				}),
++ 			},
++ 		},
++ 	}}
++ 
++ 	for _, tt := range tests {
+++		for _, entry := range tt.inEntries {
+++			sonicfixture.Entry(entry)
+++		}
+++		for _, want := range tt.wantElements {
+++			sonicfixture.Entry(want.value)
+++		}
++ 		got, err := buildSchemaTree(tt.inEntries)
++ 		if err != nil {
++ 			t.Errorf("%s: buildSchemaTree(%v): got unexpected error building tree: %v", tt.name, tt.inEntries, err)
++@@ -160,48 +167,48 @@
++ 	}, {
++ 		name:   "relative path",
++ 		inPath: "../../aardvark/anteater",
++-		inContext: &yang.Entry{
+++		inContext: sonicfixture.Entry(&yang.Entry{
++ 			Name: "cage",
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "row",
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "zoo",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "module",
++-					},
++-				},
++-			},
++-		},
+++					}),
+++				}),
+++			}),
+++		}),
++ 		wantParts: []string{"zoo", "aardvark", "anteater"},
++ 	}, {
++ 		name:   "relative path with too many parts",
++ 		inPath: "../../../../../../foo",
++-		inContext: &yang.Entry{
+++		inContext: sonicfixture.Entry(&yang.Entry{
++ 			Name:   "root",
++-			Parent: &yang.Entry{Name: "module"},
++-		},
+++			Parent: sonicfixture.Entry(&yang.Entry{Name: "module"}),
+++		}),
++ 		wantErr: true,
++ 	}, {
++ 		name:   "relative path that goes to the root",
++ 		inPath: "../../foo",
++-		inContext: &yang.Entry{
+++		inContext: sonicfixture.Entry(&yang.Entry{
++ 			Name: "son",
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name:   "parent",
++-				Parent: &yang.Entry{Name: "module"},
++-			},
++-		},
+++				Parent: sonicfixture.Entry(&yang.Entry{Name: "module"}),
+++			}),
+++		}),
++ 		wantParts: []string{"foo"},
++ 	}, {
++ 		name:   "relative path that goes above the root",
++ 		inPath: "../../../foo",
++-		inContext: &yang.Entry{
+++		inContext: sonicfixture.Entry(&yang.Entry{
++ 			Name: "son",
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name:   "parent",
++-				Parent: &yang.Entry{Name: "module"},
++-			},
++-		},
+++				Parent: sonicfixture.Entry(&yang.Entry{Name: "module"}),
+++			}),
+++		}),
++ 		wantErr: true,
++ 	}}
++ 
++diff --git a/ygot/render_test.go b/ygot/render_test.go
++--- a/ygot/render_test.go
+++++ b/ygot/render_test.go
++@@ -2667,6 +2667,12 @@
++ 				t.Fatalf("did not get expected error, %s", diff)
++ 			}
++ 
+++			switch v := tt.want.GetValue().(type) {
+++			case *gnmipb.TypedValue_JsonVal:
+++				v.JsonVal = sonicCompactJSON(t, v.JsonVal)
+++			case *gnmipb.TypedValue_JsonIetfVal:
+++				v.JsonIetfVal = sonicCompactJSON(t, v.JsonIetfVal)
+++			}
++ 			if !proto.Equal(got, tt.want) {
++ 				t.Fatalf("did not get expected value, got: %v, want: %v", got, tt.want)
++ 			}
++diff --git a/ygot/schema_tests/schema_test.go b/ygot/schema_tests/schema_test.go
++--- a/ygot/schema_tests/schema_test.go
+++++ b/ygot/schema_tests/schema_test.go
++@@ -17,6 +17,8 @@
++ package schematest
++ 
++ import (
+++	"bytes"
+++	"encoding/json"
++ 	"io/ioutil"
++ 	"testing"
++ 
++@@ -243,6 +245,11 @@
++ 				t.Fatalf("got unexpected error, %v", err)
++ 			}
++ 
+++			var compact bytes.Buffer
+++			if err := json.Compact(&compact, want); err != nil {
+++				t.Fatal(err)
+++			}
+++			want = compact.Bytes()
++ 			if diff := pretty.Compare(string(got), string(want)); diff != "" {
++ 				if diffl, err := testutil.GenerateUnifiedDiff(string(got), string(want)); err == nil {
++ 					diff = diffl
++diff --git a/ygot/struct_validation_map_test.go b/ygot/struct_validation_map_test.go
++--- a/ygot/struct_validation_map_test.go
+++++ b/ygot/struct_validation_map_test.go
++@@ -451,11 +451,13 @@
++ // for a set of input structs and schema definitions.
++ func TestEmitJSON(t *testing.T) {
++ 	tests := []struct {
++-		name         string
++-		inStruct     ValidatedGoStruct
++-		inConfig     *EmitJSONConfig
++-		wantJSONPath string
++-		wantErr      string
+++		name              string
+++		inStruct          ValidatedGoStruct
+++		inConfig          *EmitJSONConfig
+++		wantJSONPath      string
+++		wantJSON          string
+++		wantValidationErr string
+++		wantErr           string
++ 	}{{
++ 		name: "simple schema JSON output",
++ 		inStruct: &mapStructTestOne{
++@@ -514,9 +516,10 @@
++ 		},
++ 		wantJSONPath: filepath.Join(TestRoot, "testdata/emitjson2_ietf.json-txt"),
++ 	}, {
++-		name:     "invalid struct contents",
++-		inStruct: &mapStructInvalid{Name: String("aardvark")},
++-		wantErr:  "validation err: invalid",
+++		name:              "invalid struct contents",
+++		inStruct:          &mapStructInvalid{Name: String("aardvark")},
+++		wantValidationErr: "validation err: invalid",
+++		wantJSON:          `{"name":"aardvark"}`,
++ 	}, {
++ 		name:     "invalid with skip validation",
++ 		inStruct: &mapStructInvalid{Name: String("aardwolf")},
++@@ -538,6 +541,12 @@
++ 	}}
++ 
++ 	for _, tt := range tests {
+++		if tt.wantValidationErr != "" {
+++			err := tt.inStruct.Validate()
+++			if err == nil || fmt.Sprintf("validation err: %v", err) != tt.wantValidationErr {
+++				t.Fatalf("%s: explicit Validate error = %v, want %s", tt.name, err, tt.wantValidationErr)
+++			}
+++		}
++ 		got, err := EmitJSON(tt.inStruct, tt.inConfig)
++ 		if errToString(err) != tt.wantErr {
++ 			t.Errorf("%s: EmitJSON(%v, nil): did not get expected error, got: %v, want: %v", tt.name, tt.inStruct, err, tt.wantErr)
++@@ -548,12 +557,18 @@
++ 			continue
++ 		}
++ 
++-		wantJSON, ioerr := ioutil.ReadFile(tt.wantJSONPath)
+++		wantJSON := []byte(tt.wantJSON)
+++		var ioerr error
+++		if tt.wantJSONPath != "" {
+++			wantJSON, ioerr = ioutil.ReadFile(tt.wantJSONPath)
+++		}
+++
++ 		if ioerr != nil {
++ 			t.Errorf("%s: ioutil.ReadFile(%s): could not open file: %v", tt.name, tt.wantJSONPath, ioerr)
++ 			continue
++ 		}
++ 
+++		wantJSON = sonicCompactJSON(t, wantJSON)
++ 		if diff := pretty.Compare(got, string(wantJSON)); diff != "" {
++ 			if diffl, err := testutil.GenerateUnifiedDiff(string(wantJSON), got); err == nil {
++ 				diff = diffl
++diff --git a/ytypes/any_type_test.go b/ytypes/any_type_test.go
++--- a/ytypes/any_type_test.go
+++++ b/ytypes/any_type_test.go
++@@ -15,6 +15,7 @@
++ package ytypes
++ 
++ import (
+++	"github.com/openconfig/ygot/internal/sonicfixture"
++ 	"testing"
++ 
++ 	"github.com/openconfig/goyang/pkg/yang"
++@@ -28,11 +29,11 @@
++ 		wantErr bool
++ 	}{{
++ 		desc:   "test success",
++-		schema: &yang.Entry{},
+++		schema: sonicfixture.Entry(&yang.Entry{}),
++ 		val:    []interface{}{},
++ 	}, {
++ 		desc:   "test string success",
++-		schema: &yang.Entry{},
+++		schema: sonicfixture.Entry(&yang.Entry{}),
++ 		val:    "xxx",
++ 	}}
++ 
++@@ -55,11 +56,11 @@
++ 		wantErr bool
++ 	}{{
++ 		desc:   "test success",
++-		schema: &yang.Entry{},
+++		schema: sonicfixture.Entry(&yang.Entry{}),
++ 		val:    []interface{}{},
++ 	}, {
++ 		desc:   "test string success",
++-		schema: &yang.Entry{},
+++		schema: sonicfixture.Entry(&yang.Entry{}),
++ 		val:    "xxx",
++ 	}}
++ 
++diff --git a/ytypes/binary_type_test.go b/ytypes/binary_type_test.go
++--- a/ytypes/binary_type_test.go
+++++ b/ytypes/binary_type_test.go
++@@ -15,6 +15,7 @@
++ package ytypes
++ 
++ import (
+++	"github.com/openconfig/ygot/internal/sonicfixture"
++ 	"testing"
++ 
++ 	"github.com/openconfig/goyang/pkg/yang"
++@@ -24,9 +25,9 @@
++ var validBinarySchema = yrangeToBinarySchema("schema-with-range-2-to-10", yang.YRange{Min: yang.FromInt(2), Max: yang.FromInt(10)})
++ 
++ func yrangeToBinarySchema(schemaName string, yr yang.YRange) *yang.Entry {
++-	return &yang.Entry{
+++	return sonicfixture.Entry(&yang.Entry{
++ 		Name: schemaName,
++-		Type: &yang.YangType{Kind: yang.Ybinary, Length: yang.YangRange{yr}}}
+++		Type: &yang.YangType{Kind: yang.Ybinary, Length: yang.YangRange{yr}}})
++ }
++ 
++ func TestValidateBinarySchema(t *testing.T) {
++@@ -46,12 +47,12 @@
++ 		},
++ 		{
++ 			desc:    "nil schema type",
++-			schema:  &yang.Entry{Name: "nil-type-schema", Type: nil},
+++			schema:  sonicfixture.Entry(&yang.Entry{Name: "nil-type-schema", Type: nil}),
++ 			wantErr: true,
++ 		},
++ 		{
++ 			desc:    "bad schema type",
++-			schema:  &yang.Entry{Name: "empty-type-schema", Type: &yang.YangType{Kind: yang.Yempty}},
+++			schema:  sonicfixture.Entry(&yang.Entry{Name: "empty-type-schema", Type: &yang.YangType{Kind: yang.Yempty}}),
++ 			wantErr: true,
++ 		},
++ 	}
++diff --git a/ytypes/bitset_type_test.go b/ytypes/bitset_type_test.go
++--- a/ytypes/bitset_type_test.go
+++++ b/ytypes/bitset_type_test.go
++@@ -15,6 +15,7 @@
++ package ytypes
++ 
++ import (
+++	"github.com/openconfig/ygot/internal/sonicfixture"
++ 	"testing"
++ 
++ 	"github.com/openconfig/goyang/pkg/yang"
++@@ -27,13 +28,13 @@
++ 	for k, v := range bm {
++ 		b.Set(k, v)
++ 	}
++-	return &yang.Entry{
+++	return sonicfixture.Entry(&yang.Entry{
++ 		Name: schemaName,
++ 		Type: &yang.YangType{
++ 			Kind: yang.Ybits,
++ 			Bit:  b,
++ 		},
++-	}
+++	})
++ }
++ 
++ func TestValidateBitsetSchema(t *testing.T) {
++@@ -53,12 +54,12 @@
++ 		},
++ 		{
++ 			desc:    "nil schema type",
++-			schema:  &yang.Entry{Name: "empty schema", Type: nil},
+++			schema:  sonicfixture.Entry(&yang.Entry{Name: "empty schema", Type: nil}),
++ 			wantErr: true,
++ 		},
++ 		{
++ 			desc:    "bad schema type",
++-			schema:  &yang.Entry{Name: "empty schema", Type: &yang.YangType{Kind: yang.Yempty}},
+++			schema:  sonicfixture.Entry(&yang.Entry{Name: "empty schema", Type: &yang.YangType{Kind: yang.Yempty}}),
++ 			wantErr: true,
++ 		},
++ 	}
++diff --git a/ytypes/bool_type_test.go b/ytypes/bool_type_test.go
++--- a/ytypes/bool_type_test.go
+++++ b/ytypes/bool_type_test.go
++@@ -15,12 +15,13 @@
++ package ytypes
++ 
++ import (
+++	"github.com/openconfig/ygot/internal/sonicfixture"
++ 	"testing"
++ 
++ 	"github.com/openconfig/goyang/pkg/yang"
++ )
++ 
++-var validBoolSchema = &yang.Entry{Name: "valid-bool-schema", Type: &yang.YangType{Kind: yang.Ybool}}
+++var validBoolSchema = sonicfixture.Entry(&yang.Entry{Name: "valid-bool-schema", Type: &yang.YangType{Kind: yang.Ybool}})
++ 
++ func TestValidateBoolSchema(t *testing.T) {
++ 	tests := []struct {
++@@ -39,12 +40,12 @@
++ 		},
++ 		{
++ 			desc:    "nil schema type",
++-			schema:  &yang.Entry{Name: "nil-type-schema", Type: nil},
+++			schema:  sonicfixture.Entry(&yang.Entry{Name: "nil-type-schema", Type: nil}),
++ 			wantErr: true,
++ 		},
++ 		{
++ 			desc:    "bad schema type",
++-			schema:  &yang.Entry{Name: "string-type-schema", Type: &yang.YangType{Kind: yang.Ystring}},
+++			schema:  sonicfixture.Entry(&yang.Entry{Name: "string-type-schema", Type: &yang.YangType{Kind: yang.Ystring}}),
++ 			wantErr: true,
++ 		},
++ 	}
++diff --git a/ytypes/choice_test.go b/ytypes/choice_test.go
++--- a/ytypes/choice_test.go
+++++ b/ytypes/choice_test.go
++@@ -17,6 +17,7 @@
++ import (
++ 	"encoding/json"
++ 	"fmt"
+++	"github.com/openconfig/ygot/internal/sonicfixture"
++ 	"testing"
++ 
++ 	"github.com/kylelemons/godebug/pretty"
++@@ -47,7 +48,7 @@
++ func (*ChoiceEmptyEnumStringStruct) IsYANGGoStruct() {}
++ 
++ func TestValidateChoice(t *testing.T) {
++-	containerWithChoiceSchema := &yang.Entry{
+++	containerWithChoiceSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "container-with-choice-schema",
++ 		Kind: yang.DirectoryEntry,
++ 		Dir: map[string]*yang.Entry{
++@@ -92,9 +93,9 @@
++ 				},
++ 			},
++ 		},
++-	}
++-
++-	containerWithBadChoiceSchema := &yang.Entry{
+++	})
+++
+++	containerWithBadChoiceSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "container-with-bad-choice-schema",
++ 		Kind: yang.DirectoryEntry,
++ 		Dir: map[string]*yang.Entry{
++@@ -127,9 +128,9 @@
++ 				},
++ 			},
++ 		},
++-	}
++-
++-	containerWithChoiceEmptyEnumStringSchema := &yang.Entry{
+++	})
+++
+++	containerWithChoiceEmptyEnumStringSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "container-with-choice-empty-enum-string-schema",
++ 		Kind: yang.DirectoryEntry,
++ 		Dir: map[string]*yang.Entry{
++@@ -173,7 +174,7 @@
++ 				},
++ 			},
++ 		},
++-	}
+++	})
++ 
++ 	tests := []struct {
++ 		desc    string
++@@ -233,7 +234,7 @@
++ }
++ 
++ func TestUnmarshalChoice(t *testing.T) {
++-	containerWithChoiceSchema := &yang.Entry{
+++	containerWithChoiceSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "container-with-choice",
++ 		Kind: yang.DirectoryEntry,
++ 		Dir: map[string]*yang.Entry{
++@@ -278,15 +279,15 @@
++ 				},
++ 			},
++ 		},
++-	}
++-
++-	containerSchema := &yang.Entry{
+++	})
+++
+++	containerSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "parent-field",
++ 		Kind: yang.DirectoryEntry,
++ 		Dir: map[string]*yang.Entry{
++ 			"container-with-choice": containerWithChoiceSchema,
++ 		},
++-	}
+++	})
++ 
++ 	populateParentField(nil, containerSchema)
++ 
++diff --git a/ytypes/common_test.go b/ytypes/common_test.go
++--- a/ytypes/common_test.go
+++++ b/ytypes/common_test.go
++@@ -16,6 +16,7 @@
++ 
++ import (
++ 	"fmt"
+++	"github.com/openconfig/ygot/internal/sonicfixture"
++ 	"reflect"
++ 	"testing"
++ 
++@@ -89,47 +90,47 @@
++ }
++ 
++ func TestValidateListAttr(t *testing.T) {
++-	validLeafListSchemaMin1 := &yang.Entry{
+++	validLeafListSchemaMin1 := sonicfixture.Entry(&yang.Entry{
++ 		Name:     "min1",
++ 		Kind:     yang.LeafEntry,
++ 		Type:     &yang.YangType{Kind: yang.Ystring},
++ 		ListAttr: &yang.ListAttr{MinElements: &yang.Value{Name: "1"}},
++-	}
++-	validLeafListSchemaMax3 := &yang.Entry{
+++	})
+++	validLeafListSchemaMax3 := sonicfixture.Entry(&yang.Entry{
++ 		Name:     "max3",
++ 		Kind:     yang.LeafEntry,
++ 		Type:     &yang.YangType{Kind: yang.Ystring},
++ 		ListAttr: &yang.ListAttr{MaxElements: &yang.Value{Name: "3"}},
++-	}
++-	validLeafListSchemaMin1Max3 := &yang.Entry{
+++	})
+++	validLeafListSchemaMin1Max3 := sonicfixture.Entry(&yang.Entry{
++ 		Name:     "min1max3",
++ 		Kind:     yang.LeafEntry,
++ 		Type:     &yang.YangType{Kind: yang.Ystring},
++ 		ListAttr: &yang.ListAttr{MinElements: &yang.Value{Name: "1"}, MaxElements: &yang.Value{Name: "3"}},
++-	}
++-	invalidLeafListSchemaNoAttr := &yang.Entry{
+++	})
+++	invalidLeafListSchemaNoAttr := sonicfixture.Entry(&yang.Entry{
++ 		Name: "no_attr",
++ 		Kind: yang.LeafEntry,
++ 		Type: &yang.YangType{Kind: yang.Ystring},
++-	}
++-	invalidLeafListSchemaBadRange := &yang.Entry{
+++	})
+++	invalidLeafListSchemaBadRange := sonicfixture.Entry(&yang.Entry{
++ 		Name:     "bad_range",
++ 		Kind:     yang.LeafEntry,
++ 		Type:     &yang.YangType{Kind: yang.Ystring},
++ 		ListAttr: &yang.ListAttr{MinElements: &yang.Value{Name: "bad"}},
++-	}
++-	invalidLeafListSchemaNegativeMinRange := &yang.Entry{
+++	})
+++	invalidLeafListSchemaNegativeMinRange := sonicfixture.Entry(&yang.Entry{
++ 		Name:     "negative_min_range",
++ 		Kind:     yang.LeafEntry,
++ 		Type:     &yang.YangType{Kind: yang.Ystring},
++ 		ListAttr: &yang.ListAttr{MinElements: &yang.Value{Name: "-1"}},
++-	}
++-	invalidLeafListSchemaNegativeMaxRange := &yang.Entry{
+++	})
+++	invalidLeafListSchemaNegativeMaxRange := sonicfixture.Entry(&yang.Entry{
++ 		Name:     "negative_min_range",
++ 		Kind:     yang.LeafEntry,
++ 		Type:     &yang.YangType{Kind: yang.Ystring},
++ 		ListAttr: &yang.ListAttr{MaxElements: &yang.Value{Name: "-1"}},
++-	}
+++	})
++ 
++ 	tests := []struct {
++ 		desc    string
++@@ -239,19 +240,19 @@
++ 	}{
++ 		{
++ 			desc: "explicitly true",
++-			in: &yang.Entry{
+++			in: sonicfixture.Entry(&yang.Entry{
++ 				Name: "entry",
++ 				Annotation: map[string]interface{}{
++ 					"isFakeRoot": true,
++ 				},
++-			},
+++			}),
++ 			want: true,
++ 		},
++ 		{
++ 			desc: "unspecified",
++-			in: &yang.Entry{
+++			in: sonicfixture.Entry(&yang.Entry{
++ 				Name: "entry",
++-			},
+++			}),
++ 		},
++ 	}
++ 
++@@ -279,7 +280,7 @@
++ func (c *ComplexStruct) IsYANGGoStruct() {}
++ 
++ func TestForEachSchemaNode(t *testing.T) {
++-	complexSchema := &yang.Entry{
+++	complexSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "complex-schema",
++ 		Kind: yang.DirectoryEntry,
++ 		Dir: map[string]*yang.Entry{
++@@ -336,7 +337,7 @@
++ 				},
++ 			},
++ 		},
++-	}
+++	})
++ 
++ 	printFieldsIterFunc := func(ni *util.NodeInfo, in, out interface{}) (errs util.Errors) {
++ 		// Only print basic scalar values, skip everything else.
++diff --git a/ytypes/container_test.go b/ytypes/container_test.go
++--- a/ytypes/container_test.go
+++++ b/ytypes/container_test.go
++@@ -17,6 +17,7 @@
++ import (
++ 	"encoding/json"
++ 	"fmt"
+++	"github.com/openconfig/ygot/internal/sonicfixture"
++ 	"testing"
++ 
++ 	"github.com/kylelemons/godebug/pretty"
++@@ -46,7 +47,7 @@
++ func (c *ContainerStruct) IsYANGGoStruct() {}
++ 
++ func TestValidateContainerSchema(t *testing.T) {
++-	validContainerSchema := &yang.Entry{
+++	validContainerSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "valid-container-schema",
++ 		Kind: yang.DirectoryEntry,
++ 		Dir: map[string]*yang.Entry{
++@@ -65,7 +66,7 @@
++ 				Type: &yang.YangType{Kind: yang.Ystring},
++ 			},
++ 		},
++-	}
+++	})
++ 	tests := []struct {
++ 		desc    string
++ 		schema  *yang.Entry
++@@ -77,7 +78,7 @@
++ 		},
++ 		{
++ 			desc:   "empty container",
++-			schema: &yang.Entry{Kind: yang.DirectoryEntry},
+++			schema: sonicfixture.Entry(&yang.Entry{Kind: yang.DirectoryEntry}),
++ 		},
++ 		{
++ 			desc:    "nil schema",
++@@ -86,7 +87,7 @@
++ 		},
++ 		{
++ 			desc:    "nil schema type",
++-			schema:  &yang.Entry{},
+++			schema:  sonicfixture.Entry(&yang.Entry{}),
++ 			wantErr: true,
++ 		},
++ 	}
++@@ -109,7 +110,7 @@
++ func (*BadStruct) IsYANGGoStruct() {}
++ 
++ func TestValidateContainer(t *testing.T) {
++-	containerSchema := &yang.Entry{
+++	containerSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "container-schema",
++ 		Kind: yang.DirectoryEntry,
++ 		Dir: map[string]*yang.Entry{
++@@ -167,7 +168,7 @@
++ 				},
++ 			},
++ 		},
++-	}
+++	})
++ 
++ 	tests := []struct {
++ 		desc    string
++@@ -269,7 +270,7 @@
++ }
++ 
++ func TestUnmarshalContainer(t *testing.T) {
++-	innerContainerSchema := &yang.Entry{
+++	innerContainerSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "container-field",
++ 		Kind: yang.DirectoryEntry,
++ 		Dir: map[string]*yang.Entry{
++@@ -301,14 +302,14 @@
++ 				Type: &yang.YangType{Kind: yang.Yint32},
++ 			},
++ 		},
++-	}
++-	containerSchema := &yang.Entry{
+++	})
+++	containerSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "parent-field",
++ 		Kind: yang.DirectoryEntry,
++ 		Dir: map[string]*yang.Entry{
++ 			"container-field": innerContainerSchema,
++ 		},
++-	}
+++	})
++ 
++ 	populateParentField(nil, containerSchema)
++ 
++diff --git a/ytypes/decimal_type_test.go b/ytypes/decimal_type_test.go
++--- a/ytypes/decimal_type_test.go
+++++ b/ytypes/decimal_type_test.go
++@@ -15,6 +15,7 @@
++ package ytypes
++ 
++ import (
+++	"github.com/openconfig/ygot/internal/sonicfixture"
++ 	"testing"
++ 
++ 	"github.com/openconfig/goyang/pkg/yang"
++@@ -32,16 +33,16 @@
++ 	tooSmallFloat = 1e-20
++ )
++ 
++-var validDecimalSchema = &yang.Entry{Name: "valid-decimal-schema", Type: &yang.YangType{Kind: yang.Ydecimal64}}
+++var validDecimalSchema = sonicfixture.Entry(&yang.Entry{Name: "valid-decimal-schema", Type: &yang.YangType{Kind: yang.Ydecimal64}})
++ 
++ func rangeToDecimalSchema(schemaName string, r yang.YangRange) *yang.Entry {
++-	return &yang.Entry{
+++	return sonicfixture.Entry(&yang.Entry{
++ 		Name: schemaName,
++ 		Type: &yang.YangType{
++ 			Kind:  yang.Ydecimal64,
++ 			Range: r,
++ 		},
++-	}
+++	})
++ }
++ 
++ func TestValidateDecimalSchema(t *testing.T) {
++@@ -61,12 +62,12 @@
++ 		},
++ 		{
++ 			desc:    "nil schema type",
++-			schema:  &yang.Entry{Name: "nil-type-schema", Type: nil},
+++			schema:  sonicfixture.Entry(&yang.Entry{Name: "nil-type-schema", Type: nil}),
++ 			wantErr: true,
++ 		},
++ 		{
++ 			desc:    "bad schema type",
++-			schema:  &yang.Entry{Name: "string-type-schema", Type: &yang.YangType{Kind: yang.Ystring}},
+++			schema:  sonicfixture.Entry(&yang.Entry{Name: "string-type-schema", Type: &yang.YangType{Kind: yang.Ystring}}),
++ 			wantErr: true,
++ 		},
++ 	}
++diff --git a/ytypes/empty_type_test.go b/ytypes/empty_type_test.go
++--- a/ytypes/empty_type_test.go
+++++ b/ytypes/empty_type_test.go
++@@ -15,12 +15,13 @@
++ package ytypes
++ 
++ import (
+++	"github.com/openconfig/ygot/internal/sonicfixture"
++ 	"testing"
++ 
++ 	"github.com/openconfig/goyang/pkg/yang"
++ )
++ 
++-var validEmptySchema = &yang.Entry{Name: "empty-schema", Type: &yang.YangType{Kind: yang.Yempty}}
+++var validEmptySchema = sonicfixture.Entry(&yang.Entry{Name: "empty-schema", Type: &yang.YangType{Kind: yang.Yempty}})
++ 
++ func TestValidateEmptySchema(t *testing.T) {
++ 	tests := []struct {
++@@ -35,12 +36,12 @@
++ 		},
++ 		{
++ 			desc:    "nil schema type",
++-			schema:  &yang.Entry{Name: "nil-type-schema", Type: nil},
+++			schema:  sonicfixture.Entry(&yang.Entry{Name: "nil-type-schema", Type: nil}),
++ 			wantErr: true,
++ 		},
++ 		{
++ 			desc:    "bad schema type",
++-			schema:  &yang.Entry{Name: "string-type-schema", Type: &yang.YangType{Kind: yang.Ystring}},
+++			schema:  sonicfixture.Entry(&yang.Entry{Name: "string-type-schema", Type: &yang.YangType{Kind: yang.Ystring}}),
++ 			wantErr: true,
++ 		},
++ 		{
++diff --git a/ytypes/int_type_test.go b/ytypes/int_type_test.go
++--- a/ytypes/int_type_test.go
+++++ b/ytypes/int_type_test.go
++@@ -16,6 +16,7 @@
++ 
++ import (
++ 	"fmt"
+++	"github.com/openconfig/ygot/internal/sonicfixture"
++ 	"testing"
++ 
++ 	"github.com/openconfig/goyang/pkg/yang"
++@@ -38,13 +39,13 @@
++ }
++ 
++ func typeAndRangeToIntSchema(schemaName string, t yang.TypeKind, r yang.YangRange) *yang.Entry {
++-	return &yang.Entry{
+++	return sonicfixture.Entry(&yang.Entry{
++ 		Name: schemaName,
++ 		Type: &yang.YangType{
++ 			Kind:  t,
++ 			Range: r,
++ 		},
++-	}
+++	})
++ }
++ 
++ func TestValidateIntSchema(t *testing.T) {
++@@ -64,17 +65,17 @@
++ 		},
++ 		{
++ 			desc:    "nil schema type",
++-			schema:  &yang.Entry{Name: "nil-type-schema", Type: nil},
+++			schema:  sonicfixture.Entry(&yang.Entry{Name: "nil-type-schema", Type: nil}),
++ 			wantErr: true,
++ 		},
++ 		{
++ 			desc:    "bad schema type",
++-			schema:  &yang.Entry{Name: "string-type-schema", Type: &yang.YangType{Kind: yang.Ystring}},
+++			schema:  sonicfixture.Entry(&yang.Entry{Name: "string-type-schema", Type: &yang.YangType{Kind: yang.Ystring}}),
++ 			wantErr: true,
++ 		},
++ 		{
++ 			desc: "bad range Min",
++-			schema: &yang.Entry{
+++			schema: sonicfixture.Entry(&yang.Entry{
++ 				Name: "bad-range-schema",
++ 				Type: &yang.YangType{
++ 					Kind: yang.Yint8,
++@@ -86,12 +87,12 @@
++ 						},
++ 					},
++ 				},
++-			},
+++			}),
++ 			wantErr: true,
++ 		},
++ 		{
++ 			desc: "bad range Max",
++-			schema: &yang.Entry{
+++			schema: sonicfixture.Entry(&yang.Entry{
++ 				Name: "bad-range-schema",
++ 				Type: &yang.YangType{
++ 					Kind: yang.Yint8,
++@@ -103,7 +104,7 @@
++ 						},
++ 					},
++ 				},
++-			},
+++			}),
++ 			wantErr: true,
++ 		},
++ 	}
++diff --git a/ytypes/leaf_list_test.go b/ytypes/leaf_list_test.go
++--- a/ytypes/leaf_list_test.go
+++++ b/ytypes/leaf_list_test.go
++@@ -17,6 +17,7 @@
++ import (
++ 	"encoding/json"
++ 	"fmt"
+++	"github.com/openconfig/ygot/internal/sonicfixture"
++ 	"reflect"
++ 	"testing"
++ 
++@@ -28,12 +29,12 @@
++ 	"github.com/openconfig/ygot/ygot"
++ )
++ 
++-var validLeafListSchema = &yang.Entry{
+++var validLeafListSchema = sonicfixture.Entry(&yang.Entry{
++ 	Name:     "valid-leaf-list-schema",
++ 	Kind:     yang.LeafEntry,
++ 	Type:     &yang.YangType{Kind: yang.Ystring},
++ 	ListAttr: &yang.ListAttr{MinElements: &yang.Value{Name: "0"}},
++-}
+++})
++ 
++ func TestValidateLeafListSchema(t *testing.T) {
++ 	tests := []struct {
++@@ -52,17 +53,17 @@
++ 		},
++ 		{
++ 			desc:    "nil schema type",
++-			schema:  &yang.Entry{Name: "nil-type-schema", Type: nil},
+++			schema:  sonicfixture.Entry(&yang.Entry{Name: "nil-type-schema", Type: nil}),
++ 			wantErr: true,
++ 		},
++ 		{
++ 			desc: "invalid leaf-list schema - contains empty",
++-			schema: &yang.Entry{
+++			schema: sonicfixture.Entry(&yang.Entry{
++ 				Name:     "invalid-leaflist",
++ 				Kind:     yang.LeafEntry,
++ 				Type:     &yang.YangType{Kind: yang.Yempty},
++ 				ListAttr: &yang.ListAttr{},
++-			},
+++			}),
++ 			wantErr: true,
++ 		},
++ 	}
++@@ -79,12 +80,12 @@
++ }
++ 
++ func TestValidateLeafList(t *testing.T) {
++-	leafListSchema := &yang.Entry{
+++	leafListSchema := sonicfixture.Entry(&yang.Entry{
++ 		Kind:     yang.LeafEntry,
++ 		ListAttr: &yang.ListAttr{MinElements: &yang.Value{Name: "0"}},
++ 		Type:     &yang.YangType{Kind: yang.Ystring},
++ 		Name:     "leaf-list-schema",
++-	}
+++	})
++ 	tests := []struct {
++ 		desc    string
++ 		schema  *yang.Entry
++@@ -173,7 +174,7 @@
++ }
++ 
++ func TestUnmarshalLeafListGNMIEncoding(t *testing.T) {
++-	containerSchema := &yang.Entry{
+++	containerSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "container-schema",
++ 		Kind: yang.DirectoryEntry,
++ 		Dir: map[string]*yang.Entry{
++@@ -186,24 +187,24 @@
++ 				},
++ 			},
++ 		},
++-	}
++-	int32LeafListSchema := &yang.Entry{
+++	})
+++	int32LeafListSchema := sonicfixture.Entry(&yang.Entry{
++ 		Parent:   containerSchema,
++ 		Name:     "int32-leaf-list",
++ 		Kind:     yang.LeafEntry,
++ 		ListAttr: &yang.ListAttr{MinElements: &yang.Value{Name: "0"}},
++ 		Type:     &yang.YangType{Kind: yang.Yint32},
++-	}
++-
++-	enumLeafListSchema := &yang.Entry{
+++	})
+++
+++	enumLeafListSchema := sonicfixture.Entry(&yang.Entry{
++ 		Parent:   containerSchema,
++ 		Name:     "enum-leaf-list",
++ 		Kind:     yang.LeafEntry,
++ 		ListAttr: &yang.ListAttr{MinElements: &yang.Value{Name: "0"}},
++ 		Type:     &yang.YangType{Kind: yang.Yenum},
++-	}
++-
++-	unionLeafListSchema := &yang.Entry{
+++	})
+++
+++	unionLeafListSchema := sonicfixture.Entry(&yang.Entry{
++ 		Parent:   containerSchema,
++ 		Name:     "union-leaflist",
++ 		Kind:     yang.LeafEntry,
++@@ -223,7 +224,7 @@
++ 				},
++ 			},
++ 		},
++-	}
+++	})
++ 
++ 	tests := []struct {
++ 		desc    string
++@@ -336,7 +337,7 @@
++ }
++ 
++ func TestUnmarshalLeafListJSONEncoding(t *testing.T) {
++-	containerWithLeafListSchema := &yang.Entry{
+++	containerWithLeafListSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "container",
++ 		Kind: yang.DirectoryEntry,
++ 		Dir: map[string]*yang.Entry{
++@@ -353,7 +354,7 @@
++ 				Type:     &yang.YangType{Kind: yang.Yenum},
++ 			},
++ 		},
++-	}
+++	})
++ 	type ContainerStruct struct {
++ 		Int32LeafList []*int32   `path:"int32-leaf-list"`
++ 		EnumLeafList  []EnumType `path:"enum-leaf-list"`
++diff --git a/ytypes/leaf_test.go b/ytypes/leaf_test.go
++--- a/ytypes/leaf_test.go
+++++ b/ytypes/leaf_test.go
++@@ -18,6 +18,7 @@
++ 	"encoding/base64"
++ 	"encoding/json"
++ 	"fmt"
+++	"github.com/openconfig/ygot/internal/sonicfixture"
++ 	"reflect"
++ 	"testing"
++ 
++@@ -35,41 +36,41 @@
++ )
++ 
++ func typeToLeafSchema(name string, t yang.TypeKind) *yang.Entry {
++-	return &yang.Entry{
+++	return sonicfixture.Entry(&yang.Entry{
++ 		Name: name,
++ 		Kind: yang.LeafEntry,
++ 		Type: &yang.YangType{
++ 			Kind: t,
++ 		},
++-	}
+++	})
++ }
++ 
++ func yrangeToLeafSchema(name string, yr yang.YRange) *yang.Entry {
++-	return &yang.Entry{
+++	return sonicfixture.Entry(&yang.Entry{
++ 		Name: name,
++ 		Kind: yang.LeafEntry,
++ 		Type: &yang.YangType{
++ 			Kind:   yang.Ybinary,
++ 			Length: yang.YangRange{yr},
++ 		},
++-	}
+++	})
++ }
++ 
++ var (
++-	validLeafSchema = &yang.Entry{
+++	validLeafSchema = sonicfixture.Entry(&yang.Entry{
++ 		Name: "valid-leaf",
++ 		Kind: yang.LeafEntry,
++ 		Type: &yang.YangType{
++ 			Kind: yang.Ystring,
++ 		},
++-	}
++-	enumLeafSchema = &yang.Entry{
+++	})
+++	enumLeafSchema = sonicfixture.Entry(&yang.Entry{
++ 		Name: "enum-leaf",
++ 		Kind: yang.LeafEntry,
++ 		Type: &yang.YangType{
++ 			Kind: yang.Yenum,
++ 		},
++-	}
+++	})
++ )
++ 
++ func TestValidateLeafSchema(t *testing.T) {
++@@ -89,17 +90,17 @@
++ 		},
++ 		{
++ 			desc:    "test nil schema type",
++-			schema:  &yang.Entry{Type: nil},
+++			schema:  sonicfixture.Entry(&yang.Entry{Type: nil}),
++ 			wantErr: true,
++ 		},
++ 		{
++ 			desc: "test bad schema type",
++-			schema: &yang.Entry{
+++			schema: sonicfixture.Entry(&yang.Entry{
++ 				Kind: yang.DirectoryEntry,
++ 				Type: &yang.YangType{
++ 					Kind: yang.Ystring,
++ 				},
++-			},
+++			}),
++ 			wantErr: true,
++ 		},
++ 	}
++@@ -288,7 +289,7 @@
++ 
++ 	for _, tt := range tests {
++ 		t.Run(tt.desc, func(t *testing.T) {
++-			errs := Validate(tt.schema, tt.val)
+++			errs := Validate(sonicfixture.Entry(tt.schema), tt.val)
++ 			if got, want := (errs != nil), tt.wantErr; got != want {
++ 				t.Errorf("%s: Validate(%v) got error: %v, want error? %v", tt.desc, tt.schema, errs, tt.wantErr)
++ 			}
++@@ -354,7 +355,7 @@
++ func (*UnionContainerSingleEnum) IsYANGGoStruct() {}
++ 
++ func TestValidateLeafUnion(t *testing.T) {
++-	unionContainerSchema := &yang.Entry{
+++	unionContainerSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "union1-container",
++ 		Kind: yang.DirectoryEntry,
++ 		Dir: map[string]*yang.Entry{
++@@ -382,9 +383,9 @@
++ 				},
++ 			},
++ 		},
++-	}
++-
++-	unionContainerSingleEnumSchema := &yang.Entry{
+++	})
+++
+++	unionContainerSingleEnumSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "union1-container",
++ 		Kind: yang.DirectoryEntry,
++ 		Dir: map[string]*yang.Entry{
++@@ -403,11 +404,11 @@
++ 				},
++ 			},
++ 		},
++-	}
+++	})
++ 
++ 	// This schema has a data tree that does not define wrappers for the union
++ 	// choices because the types are all the same.
++-	unionContainerSchemaNoWrappingStruct := &yang.Entry{
+++	unionContainerSchemaNoWrappingStruct := sonicfixture.Entry(&yang.Entry{
++ 		Name: "union1-container",
++ 		Kind: yang.DirectoryEntry,
++ 		Dir: map[string]*yang.Entry{
++@@ -431,9 +432,9 @@
++ 				},
++ 			},
++ 		},
++-	}
++-
++-	unionContainerSchemaRecursive := &yang.Entry{
+++	})
+++
+++	unionContainerSchemaRecursive := sonicfixture.Entry(&yang.Entry{
++ 		Name: "union1-container",
++ 		Kind: yang.DirectoryEntry,
++ 		Dir: map[string]*yang.Entry{
++@@ -468,7 +469,7 @@
++ 				},
++ 			},
++ 		},
++-	}
+++	})
++ 
++ 	tests := []struct {
++ 		desc    string
++@@ -544,7 +545,7 @@
++ 
++ 	for _, tt := range tests {
++ 		t.Run(tt.desc, func(t *testing.T) {
++-			errs := Validate(tt.schema, tt.val)
+++			errs := Validate(sonicfixture.Entry(tt.schema), tt.val)
++ 			if got, want := (errs != nil), tt.wantErr; got != want {
++ 				t.Errorf("%s: got error: %v, want error? %v", tt.desc, errs, tt.wantErr)
++ 			}
++@@ -586,15 +587,15 @@
++ func (*PredicateSchemaList) IsYANGGoStruct() {}
++ 
++ func TestValidateLeafRef(t *testing.T) {
++-	validDeviceSchema := &yang.Entry{
+++	validDeviceSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "device",
++ 		Kind: yang.DirectoryEntry,
++-	}
++-	validContainerSchema := &yang.Entry{
+++	})
+++	validContainerSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name:   "container1",
++ 		Parent: validDeviceSchema,
++ 		Kind:   yang.DirectoryEntry,
++-	}
+++	})
++ 	validContainerSchema.Dir = map[string]*yang.Entry{
++ 		"config": {
++ 			Parent: validContainerSchema,
++@@ -647,10 +648,10 @@
++ 		"container1": validContainerSchema,
++ 	}
++ 
++-	badContainerSchema := &yang.Entry{
+++	badContainerSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "container1",
++ 		Kind: yang.DirectoryEntry,
++-	}
+++	})
++ 	badContainerSchema.Dir = map[string]*yang.Entry{
++ 		"config": {
++ 			Parent: badContainerSchema,
++@@ -673,10 +674,10 @@
++ 		},
++ 	}
++ 
++-	missingParentContainerSchema := &yang.Entry{
+++	missingParentContainerSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "container1",
++ 		Kind: yang.DirectoryEntry,
++-	}
+++	})
++ 	missingParentContainerSchema.Dir = map[string]*yang.Entry{
++ 		"config": {
++ 			Dir: map[string]*yang.Entry{
++@@ -697,10 +698,10 @@
++ 		},
++ 	}
++ 
++-	invalidLeafrefPathContainerSchema := &yang.Entry{
+++	invalidLeafrefPathContainerSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "container1",
++ 		Kind: yang.DirectoryEntry,
++-	}
+++	})
++ 	invalidLeafrefPathContainerSchema.Dir = map[string]*yang.Entry{
++ 		"config": {
++ 			Dir: map[string]*yang.Entry{
++@@ -722,16 +723,16 @@
++ 		},
++ 	}
++ 
++-	fakeRootWithList := &yang.Entry{
+++	fakeRootWithList := sonicfixture.Entry(&yang.Entry{
++ 		Name:       "device",
++ 		Kind:       yang.DirectoryEntry,
++ 		Annotation: map[string]interface{}{"isFakeRoot": true},
++-	}
++-	fakeRootContainerSchema := &yang.Entry{
+++	})
+++	fakeRootContainerSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name:   "container1",
++ 		Kind:   yang.DirectoryEntry,
++ 		Parent: fakeRootWithList,
++-	}
+++	})
++ 	fakeRootContainerSchema.Dir = map[string]*yang.Entry{
++ 		"leaf1": {
++ 			Name:   "leaf1",
++@@ -788,10 +789,10 @@
++ 		},
++ 	}
++ 
++-	predicateSchema := &yang.Entry{
+++	predicateSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "container",
++ 		Kind: yang.DirectoryEntry,
++-	}
+++	})
++ 	predicateSchema.Dir = map[string]*yang.Entry{
++ 		"list": {
++ 			Name: "list",
++@@ -891,7 +892,7 @@
++ 
++ 	for _, tt := range tests {
++ 		t.Run(tt.desc, func(t *testing.T) {
++-			errs := Validate(tt.schema, tt.val)
+++			errs := Validate(sonicfixture.Entry(tt.schema), tt.val)
++ 			if got, want := (errs != nil), tt.wantErr; got != want {
++ 				t.Errorf("%s: got error: %v, want error? %v", tt.desc, errs, tt.wantErr)
++ 			}
++@@ -1203,7 +1204,7 @@
++ 		},
++ 	}
++ 
++-	containerSchema := &yang.Entry{
+++	containerSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "container-schema",
++ 		Kind: yang.DirectoryEntry,
++ 		Dir: map[string]*yang.Entry{
++@@ -1216,9 +1217,9 @@
++ 				},
++ 			},
++ 		},
++-	}
++-
++-	unionSchema := &yang.Entry{
+++	})
+++
+++	unionSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "union-leaf",
++ 		Kind: yang.LeafEntry,
++ 		Type: &yang.YangType{
++@@ -1243,9 +1244,9 @@
++ 				},
++ 			},
++ 		},
++-	}
++-
++-	unionLeafListSchema := &yang.Entry{
+++	})
+++
+++	unionLeafListSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name:     "union-leaflist",
++ 		Kind:     yang.LeafEntry,
++ 		ListAttr: &yang.ListAttr{},
++@@ -1267,9 +1268,9 @@
++ 				},
++ 			},
++ 		},
++-	}
++-
++-	unionNoStructSchema := &yang.Entry{
+++	})
+++
+++	unionNoStructSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "union-leaf2",
++ 		Kind: yang.LeafEntry,
++ 		Type: &yang.YangType{
++@@ -1287,9 +1288,9 @@
++ 				},
++ 			},
++ 		},
++-	}
++-
++-	unionSTLeafListSchema := &yang.Entry{
+++	})
+++
+++	unionSTLeafListSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name:     "union-stleaflist",
++ 		Kind:     yang.LeafEntry,
++ 		ListAttr: &yang.ListAttr{},
++@@ -1308,16 +1309,16 @@
++ 				},
++ 			},
++ 		},
++-	}
++-
++-	leafListSchema := &yang.Entry{
+++	})
+++
+++	leafListSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name:     "int8-leaflist",
++ 		Kind:     yang.LeafEntry,
++ 		Type:     &yang.YangType{Kind: yang.Yint8},
++ 		ListAttr: &yang.ListAttr{MinElements: &yang.Value{Name: "0"}},
++-	}
++-
++-	unionSingleEnumSchema := &yang.Entry{
+++	})
+++
+++	unionSingleEnumSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "union-enum-leaf",
++ 		Kind: yang.LeafEntry,
++ 		Type: &yang.YangType{
++@@ -1328,8 +1329,8 @@
++ 				},
++ 			},
++ 		},
++-	}
++-	unionSingleEnumLeafListSchema := &yang.Entry{
+++	})
+++	unionSingleEnumLeafListSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name:     "union-enum-leaflist",
++ 		Kind:     yang.LeafEntry,
++ 		ListAttr: &yang.ListAttr{},
++@@ -1341,7 +1342,7 @@
++ 				},
++ 			},
++ 		},
++-	}
+++	})
++ 	var leafSchemas = []*yang.Entry{
++ 		typeToLeafSchema("int8-leaf", yang.Yint8),
++ 		typeToLeafSchema("uint8-leaf", yang.Yuint8),
++@@ -1425,10 +1426,10 @@
++ }
++ 
++ func TestUnmarshalLeafRef(t *testing.T) {
++-	containerSchema := &yang.Entry{
+++	containerSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "container",
++ 		Kind: yang.DirectoryEntry,
++-	}
+++	})
++ 	containerSchema.Dir = map[string]*yang.Entry{
++ 		"config": {
++ 			Parent: containerSchema,
++@@ -1498,7 +1499,7 @@
++ }
++ 
++ func TestUnmarshalLeafGNMIEncoding(t *testing.T) {
++-	containerSchema := &yang.Entry{
+++	containerSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "container-schema",
++ 		Kind: yang.DirectoryEntry,
++ 		Dir: map[string]*yang.Entry{
++@@ -1511,8 +1512,8 @@
++ 				},
++ 			},
++ 		},
++-	}
++-	unionSchema := &yang.Entry{
+++	})
+++	unionSchema := sonicfixture.Entry(&yang.Entry{
++ 		Parent: containerSchema,
++ 		Name:   "union-leaf",
++ 		Kind:   yang.LeafEntry,
++@@ -1538,8 +1539,8 @@
++ 				},
++ 			},
++ 		},
++-	}
++-	unionSingleStringSchema := &yang.Entry{
+++	})
+++	unionSingleStringSchema := sonicfixture.Entry(&yang.Entry{
++ 		Parent: containerSchema,
++ 		Name:   "union-leaf2",
++ 		Kind:   yang.LeafEntry,
++@@ -1551,8 +1552,8 @@
++ 				},
++ 			},
++ 		},
++-	}
++-	unionSingleEnumSchema := &yang.Entry{
+++	})
+++	unionSingleEnumSchema := sonicfixture.Entry(&yang.Entry{
++ 		Parent: containerSchema,
++ 		Name:   "union-enum-leaf",
++ 		Kind:   yang.LeafEntry,
++@@ -1564,8 +1565,8 @@
++ 				},
++ 			},
++ 		},
++-	}
++-	unionSingleEnumLeafListSchema := &yang.Entry{
+++	})
+++	unionSingleEnumLeafListSchema := sonicfixture.Entry(&yang.Entry{
++ 		Parent:   containerSchema,
++ 		Name:     "union-enum-leaflist",
++ 		Kind:     yang.LeafEntry,
++@@ -1578,9 +1579,9 @@
++ 				},
++ 			},
++ 		},
++-	}
++-
++-	unionSTLeafListSchema := &yang.Entry{
+++	})
+++
+++	unionSTLeafListSchema := sonicfixture.Entry(&yang.Entry{
++ 		Parent:   containerSchema,
++ 		Name:     "union-stleaflist",
++ 		Kind:     yang.LeafEntry,
++@@ -1600,15 +1601,15 @@
++ 				},
++ 			},
++ 		},
++-	}
++-
++-	leafListSchema := &yang.Entry{
+++	})
+++
+++	leafListSchema := sonicfixture.Entry(&yang.Entry{
++ 		Parent:   containerSchema,
++ 		Name:     "int8-leaflist",
++ 		Kind:     yang.LeafEntry,
++ 		Type:     &yang.YangType{Kind: yang.Yint8},
++ 		ListAttr: &yang.ListAttr{MinElements: &yang.Value{Name: "0"}},
++-	}
+++	})
++ 
++ 	tests := []struct {
++ 		desc     string
++diff --git a/ytypes/leafref_test.go b/ytypes/leafref_test.go
++--- a/ytypes/leafref_test.go
+++++ b/ytypes/leafref_test.go
++@@ -15,6 +15,7 @@
++ package ytypes
++ 
++ import (
+++	"github.com/openconfig/ygot/internal/sonicfixture"
++ 	"strings"
++ 	"testing"
++ 
++@@ -33,7 +34,7 @@
++ }
++ 
++ func TestValidateLeafRefData(t *testing.T) {
++-	containerWithLeafListSchema := &yang.Entry{
+++	containerWithLeafListSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "container",
++ 		Kind: yang.DirectoryEntry,
++ 		Dir: map[string]*yang.Entry{
++@@ -183,7 +184,7 @@
++ 				},
++ 			},
++ 		},
++-	}
+++	})
++ 
++ 	type Container3 struct {
++ 		LeafRefToList *int32 `path:"int32-ref-to-list"`
++@@ -460,7 +461,7 @@
++ 	//     type string;
++ 	//   }
++ 	// }
++-	containerWithListSchema := &yang.Entry{
+++	containerWithListSchema := sonicfixture.Entry(&yang.Entry{
++ 		Kind: yang.LeafEntry,
++ 		Dir: map[string]*yang.Entry{
++ 			"root": {
++@@ -524,7 +525,7 @@
++ 			},
++ 		},
++ 		Annotation: map[string]interface{}{"isCompressedSchema": true, "isFakeRoot": true},
++-	}
+++	})
++ 	// Set the parent pointers
++ 	addParents(containerWithListSchema)
++ 
++@@ -872,21 +873,21 @@
++ 	// TODO(robjs): Seriously think about whether we should refactor here, this code is very complex to understand
++ 	// and even harder to debug. :-( I think we made a mistake here.
++ 
++-	rootSchema := &yang.Entry{
+++	rootSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "root",
++ 		Kind: yang.DirectoryEntry,
++ 		Dir:  map[string]*yang.Entry{},
++ 		Annotation: map[string]interface{}{
++ 			"isFakeRoot": true,
++ 		},
++-	}
++-	targetListSchema := &yang.Entry{
+++	})
+++	targetListSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name:     "target",
++ 		Key:      "key",
++ 		Kind:     yang.DirectoryEntry,
++ 		ListAttr: &yang.ListAttr{},
++ 		Parent:   rootSchema,
++-	}
+++	})
++ 	rootSchema.Dir["target"] = targetListSchema
++ 	targetListSchema.Dir = map[string]*yang.Entry{
++ 		"key": {
++@@ -903,13 +904,13 @@
++ 		},
++ 	}
++ 
++-	refListSchema := &yang.Entry{
+++	refListSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name:     "ref",
++ 		Kind:     yang.DirectoryEntry,
++ 		Key:      "key",
++ 		ListAttr: &yang.ListAttr{},
++ 		Parent:   rootSchema,
++-	}
+++	})
++ 	rootSchema.Dir["ref"] = refListSchema
++ 	refListSchema.Dir = map[string]*yang.Entry{
++ 		"key": {
++diff --git a/ytypes/list_test.go b/ytypes/list_test.go
++--- a/ytypes/list_test.go
+++++ b/ytypes/list_test.go
++@@ -17,6 +17,7 @@
++ import (
++ 	"encoding/json"
++ 	"fmt"
+++	"github.com/openconfig/ygot/internal/sonicfixture"
++ 	"reflect"
++ 	"testing"
++ 
++@@ -27,7 +28,7 @@
++ 	"github.com/openconfig/ygot/ygot"
++ )
++ 
++-var validListSchema = &yang.Entry{
+++var validListSchema = sonicfixture.Entry(&yang.Entry{
++ 	Name:     "valid-list-schema",
++ 	Kind:     yang.DirectoryEntry,
++ 	ListAttr: &yang.ListAttr{MinElements: &yang.Value{Name: "0"}},
++@@ -40,7 +41,7 @@
++ 			Type: &yang.YangType{Kind: yang.Ystring},
++ 		},
++ 	},
++-}
+++})
++ 
++ func TestValidateListSchema(t *testing.T) {
++ 	tests := []struct {
++@@ -59,22 +60,22 @@
++ 		},
++ 		{
++ 			desc:    "bad schema type",
++-			schema:  &yang.Entry{Name: "nil-type-schema", Kind: yang.LeafEntry},
+++			schema:  sonicfixture.Entry(&yang.Entry{Name: "nil-type-schema", Kind: yang.LeafEntry}),
++ 			wantErr: true,
++ 		},
++ 		{
++ 			desc: "missing dir",
++-			schema: &yang.Entry{
+++			schema: sonicfixture.Entry(&yang.Entry{
++ 				Name:   "missing-dir-schema",
++ 				Kind:   yang.DirectoryEntry,
++ 				Key:    "key_field_name",
++ 				Config: yang.TSTrue,
++-			},
+++			}),
++ 			wantErr: true,
++ 		},
++ 		{
++ 			desc: "missing key field",
++-			schema: &yang.Entry{
+++			schema: sonicfixture.Entry(&yang.Entry{
++ 				Name:     "missing-key-field-schema",
++ 				Kind:     yang.DirectoryEntry,
++ 				ListAttr: &yang.ListAttr{MinElements: &yang.Value{Name: "0"}},
++@@ -86,12 +87,12 @@
++ 						Type: &yang.YangType{Kind: yang.Ystring},
++ 					},
++ 				},
++-			},
+++			}),
++ 			wantErr: true,
++ 		},
++ 		{
++ 			desc: "missing key leaf",
++-			schema: &yang.Entry{
+++			schema: sonicfixture.Entry(&yang.Entry{
++ 				Name:     "missing-key-leaf-schema",
++ 				Kind:     yang.DirectoryEntry,
++ 				ListAttr: &yang.ListAttr{MinElements: &yang.Value{Name: "0"}},
++@@ -104,7 +105,7 @@
++ 						Type: &yang.YangType{Kind: yang.Ystring},
++ 					},
++ 				},
++-			},
+++			}),
++ 			wantErr: true,
++ 		},
++ 	}
++@@ -142,7 +143,7 @@
++ }
++ 
++ func TestValidateListNoKey(t *testing.T) {
++-	listSchema := &yang.Entry{
+++	listSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name:     "list-schema",
++ 		Kind:     yang.DirectoryEntry,
++ 		ListAttr: &yang.ListAttr{MinElements: &yang.Value{Name: "0"}},
++@@ -153,7 +154,7 @@
++ 				Type: &yang.YangType{Kind: yang.Ystring},
++ 			},
++ 		},
++-	}
+++	})
++ 
++ 	type StringListElemStruct struct {
++ 		LeafName   *string `path:"leaf-name"`
++@@ -215,7 +216,7 @@
++ }
++ 
++ func TestValidateListSimpleKey(t *testing.T) {
++-	listSchema := &yang.Entry{
+++	listSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name:     "list-schema",
++ 		Kind:     yang.DirectoryEntry,
++ 		ListAttr: &yang.ListAttr{MinElements: &yang.Value{Name: "0"}},
++@@ -233,7 +234,7 @@
++ 				Type: &yang.YangType{Kind: yang.Ystring},
++ 			},
++ 		},
++-	}
+++	})
++ 
++ 	type StringListElemStruct struct {
++ 		KeyFieldName *string `path:"keyfield-name"`
++@@ -290,7 +291,7 @@
++ }
++ 
++ func TestValidateListStructKey(t *testing.T) {
++-	listSchemaStructKey := &yang.Entry{
+++	listSchemaStructKey := sonicfixture.Entry(&yang.Entry{
++ 		Name:     "list-schema-struct-key",
++ 		Kind:     yang.DirectoryEntry,
++ 		ListAttr: &yang.ListAttr{MinElements: &yang.Value{Name: "0"}},
++@@ -313,7 +314,7 @@
++ 				Type: &yang.YangType{Kind: yang.Ystring},
++ 			},
++ 		},
++-	}
+++	})
++ 
++ 	type KeyStruct struct {
++ 		Key1 string
++@@ -426,7 +427,7 @@
++ }
++ 
++ func TestUnmarshalUnkeyedList(t *testing.T) {
++-	containerWithLeafListSchema := &yang.Entry{
+++	containerWithLeafListSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "container",
++ 		Kind: yang.DirectoryEntry,
++ 		Dir: map[string]*yang.Entry{
++@@ -448,7 +449,7 @@
++ 				},
++ 			},
++ 		},
++-	}
+++	})
++ 
++ 	type ListElemStruct struct {
++ 		LeafName *int32   `path:"leaf-field"`
++@@ -526,7 +527,7 @@
++ }
++ 
++ func TestUnmarshalKeyedList(t *testing.T) {
++-	containerWithLeafListSchema := &yang.Entry{
+++	containerWithLeafListSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "container",
++ 		Kind: yang.DirectoryEntry,
++ 		Dir: map[string]*yang.Entry{
++@@ -550,7 +551,7 @@
++ 				},
++ 			},
++ 		},
++-	}
+++	})
++ 
++ 	type ListElemStruct struct {
++ 		Key       *string `path:"key"`
++@@ -623,7 +624,7 @@
++ }
++ 
++ func TestUnmarshalStructKeyedList(t *testing.T) {
++-	containerWithLeafListSchema := &yang.Entry{
+++	containerWithLeafListSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "container",
++ 		Kind: yang.DirectoryEntry,
++ 		Dir: map[string]*yang.Entry{
++@@ -657,7 +658,7 @@
++ 				},
++ 			},
++ 		},
++-	}
+++	})
++ 
++ 	type KeyStruct struct {
++ 		Key1    string
++@@ -721,7 +722,7 @@
++ }
++ 
++ func TestUnmarshalSingleListElement(t *testing.T) {
++-	listSchema := &yang.Entry{
+++	listSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name:     "struct-list",
++ 		Kind:     yang.DirectoryEntry,
++ 		ListAttr: &yang.ListAttr{MinElements: &yang.Value{Name: "0"}},
++@@ -737,7 +738,7 @@
++ 				Type: &yang.YangType{Kind: yang.Yenum},
++ 			},
++ 		},
++-	}
+++	})
++ 
++ 	type ListElemStruct struct {
++ 		LeafName *int32   `path:"leaf-field"`
++@@ -790,7 +791,7 @@
++ }
++ 
++ func TestStructMapKeyValueCreation(t *testing.T) {
++-	containerWithLeafListSchema := &yang.Entry{
+++	containerWithLeafListSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "container",
++ 		Kind: yang.DirectoryEntry,
++ 		Dir: map[string]*yang.Entry{
++@@ -824,7 +825,7 @@
++ 				},
++ 			},
++ 		},
++-	}
+++	})
++ 
++ 	type KeyStruct struct {
++ 		Key1    string   `path:"key1"`
++@@ -886,14 +887,14 @@
++ 		t.Run(tt.desc, func(t *testing.T) {
++ 			parent := &ContainerStruct{}
++ 			util.InitializeStructField(parent, "StructKeyList")
++-			v, e := makeValForInsert(containerWithLeafListSchema, parent.StructKeyList, tt.keys)
+++			v, e := makeValForInsert(containerWithLeafListSchema.Dir["struct-key-list"], parent.StructKeyList, tt.keys)
++ 			if diff := errdiff.Substring(e, tt.errSubstring); diff != "" {
++ 				t.Fatalf("got %v, want error %v", e, tt.errSubstring)
++ 			}
++ 			if e != nil {
++ 				return
++ 			}
++-			k, e := makeKeyForInsert(containerWithLeafListSchema, parent.StructKeyList, v)
+++			k, e := makeKeyForInsert(containerWithLeafListSchema.Dir["struct-key-list"], parent.StructKeyList, v)
++ 			if diff := errdiff.Substring(e, tt.errSubstring); diff != "" {
++ 				t.Fatalf("got %v, want error %v", e, tt.errSubstring)
++ 			}
++@@ -935,7 +936,7 @@
++ 		{
++ 			desc: "success - uint32 <key,value> creation",
++ 			keys: map[string]string{"key": "42"},
++-			inSchema: &yang.Entry{
+++			inSchema: sonicfixture.Entry(&yang.Entry{
++ 				Name:     "key-list",
++ 				Kind:     yang.DirectoryEntry,
++ 				ListAttr: &yang.ListAttr{MinElements: &yang.Value{Name: "0"}},
++@@ -948,14 +949,14 @@
++ 						Type: &yang.YangType{Kind: yang.Yuint32},
++ 					},
++ 				},
++-			},
+++			}),
++ 			container: &simpleStruct{KeyList: map[uint32]*ListUintStruct{}},
++ 			want:      uint32(42),
++ 		},
++ 		{
++ 			desc: "incorrect type - uint32 <key,value> creation",
++ 			keys: map[string]string{"key": "-42"},
++-			inSchema: &yang.Entry{
+++			inSchema: sonicfixture.Entry(&yang.Entry{
++ 				Name:     "key-list",
++ 				Kind:     yang.DirectoryEntry,
++ 				ListAttr: &yang.ListAttr{MinElements: &yang.Value{Name: "0"}},
++@@ -968,14 +969,14 @@
++ 						Type: &yang.YangType{Kind: yang.Yuint32},
++ 					},
++ 				},
++-			},
+++			}),
++ 			container:    &simpleStruct{KeyList: map[uint32]*ListUintStruct{}},
++ 			errSubstring: "unable to convert",
++ 		},
++ 		{
++ 			desc: "overflowing type - uint32 <key,value> creation",
++ 			keys: map[string]string{"key": "14294967296"},
++-			inSchema: &yang.Entry{
+++			inSchema: sonicfixture.Entry(&yang.Entry{
++ 				Name:     "key-list",
++ 				Kind:     yang.DirectoryEntry,
++ 				ListAttr: &yang.ListAttr{MinElements: &yang.Value{Name: "0"}},
++@@ -988,14 +989,14 @@
++ 						Type: &yang.YangType{Kind: yang.Yuint32},
++ 					},
++ 				},
++-			},
+++			}),
++ 			container:    &simpleStruct{KeyList: map[uint32]*ListUintStruct{}},
++ 			errSubstring: "unable to convert",
++ 		},
++ 		{
++ 			desc: "incorrect type - uint32 <key,value> creation",
++ 			keys: map[string]string{"key": "test"},
++-			inSchema: &yang.Entry{
+++			inSchema: sonicfixture.Entry(&yang.Entry{
++ 				Name:     "key-list",
++ 				Kind:     yang.DirectoryEntry,
++ 				ListAttr: &yang.ListAttr{MinElements: &yang.Value{Name: "0"}},
++@@ -1008,14 +1009,14 @@
++ 						Type: &yang.YangType{Kind: yang.Yuint32},
++ 					},
++ 				},
++-			},
+++			}),
++ 			container:    &simpleStruct{KeyList: map[uint32]*ListUintStruct{}},
++ 			errSubstring: "unable to convert",
++ 		},
++ 		{
++ 			desc: "success - string <key,value> creation",
++ 			keys: map[string]string{"key": "test0"},
++-			inSchema: &yang.Entry{
+++			inSchema: sonicfixture.Entry(&yang.Entry{
++ 				Name:     "key-list",
++ 				Kind:     yang.DirectoryEntry,
++ 				ListAttr: &yang.ListAttr{MinElements: &yang.Value{Name: "0"}},
++@@ -1033,14 +1034,14 @@
++ 						Type: &yang.YangType{Kind: yang.Yint32},
++ 					},
++ 				},
++-			},
+++			}),
++ 			container: &simpleStruct{KeyList: map[string]*ListStringStruct{}},
++ 			want:      "test0",
++ 		},
++ 		{
++ 			desc: "missing key - string <key,value> creation",
++ 			keys: map[string]string{"missing_key": "test0"},
++-			inSchema: &yang.Entry{
+++			inSchema: sonicfixture.Entry(&yang.Entry{
++ 				Name:     "key-list",
++ 				Kind:     yang.DirectoryEntry,
++ 				ListAttr: &yang.ListAttr{MinElements: &yang.Value{Name: "0"}},
++@@ -1058,7 +1059,7 @@
++ 						Type: &yang.YangType{Kind: yang.Yint32},
++ 					},
++ 				},
++-			},
+++			}),
++ 			container:    &simpleStruct{KeyList: map[string]*ListStringStruct{}},
++ 			errSubstring: "missing key",
++ 		},
++@@ -1075,7 +1076,7 @@
++ 		{
++ 			desc: "fail map value doesn't have the key with the tag specified in path",
++ 			keys: map[string]string{"missing-key": "42"},
++-			inSchema: &yang.Entry{
+++			inSchema: sonicfixture.Entry(&yang.Entry{
++ 				Name:     "key-list",
++ 				Kind:     yang.DirectoryEntry,
++ 				ListAttr: &yang.ListAttr{MinElements: &yang.Value{Name: "0"}},
++@@ -1088,7 +1089,7 @@
++ 						Type: &yang.YangType{Kind: yang.Yuint32},
++ 					},
++ 				},
++-			},
+++			}),
++ 			container:    &simpleStruct{KeyList: map[uint32]*ListUintStruct{}},
++ 			errSubstring: "does not contain a field with tag missing-key",
++ 		},
++@@ -1140,7 +1141,7 @@
++ 	}{
++ 		{
++ 			inDesc: "success creating key and value for uint32 key type",
++-			inSchema: &yang.Entry{
+++			inSchema: sonicfixture.Entry(&yang.Entry{
++ 				Name:     "key-list",
++ 				Kind:     yang.DirectoryEntry,
++ 				ListAttr: &yang.ListAttr{MinElements: &yang.Value{Name: "0"}},
++@@ -1153,25 +1154,25 @@
++ 						Type: &yang.YangType{Kind: yang.Yuint32},
++ 					},
++ 				},
++-			},
+++			}),
++ 			inParent: map[uint32]*ListUintStruct{},
++ 			inKeys:   map[string]string{"key": "42"},
++ 			want:     &ListUintStruct{Key: ygot.Uint32(42)},
++ 		},
++ 		{
++ 			inDesc: "fail missing key in the schema",
++-			inSchema: &yang.Entry{
+++			inSchema: sonicfixture.Entry(&yang.Entry{
++ 				Name:     "key-list",
++ 				Kind:     yang.DirectoryEntry,
++ 				ListAttr: &yang.ListAttr{MinElements: &yang.Value{Name: "0"}},
++ 				Config:   yang.TSTrue,
++ 				Dir:      map[string]*yang.Entry{},
++-			},
+++			}),
++ 			wantErrSubstring: "unkeyed list can't be traversed",
++ 		},
++ 		{
++ 			inDesc: "fail non-map root",
++-			inSchema: &yang.Entry{
+++			inSchema: sonicfixture.Entry(&yang.Entry{
++ 				Name:     "key-list",
++ 				Kind:     yang.DirectoryEntry,
++ 				ListAttr: &yang.ListAttr{MinElements: &yang.Value{Name: "0"}},
++@@ -1184,13 +1185,13 @@
++ 						Type: &yang.YangType{Kind: yang.Yuint32},
++ 					},
++ 				},
++-			},
+++			}),
++ 			inParent:         []*ListUintStruct{},
++ 			wantErrSubstring: "root has type []*ytypes.ListUintStruct, want map",
++ 		},
++ 		{
++ 			inDesc: "fail missing key in keys map",
++-			inSchema: &yang.Entry{
+++			inSchema: sonicfixture.Entry(&yang.Entry{
++ 				Name:     "key-list",
++ 				Kind:     yang.DirectoryEntry,
++ 				ListAttr: &yang.ListAttr{MinElements: &yang.Value{Name: "0"}},
++@@ -1203,13 +1204,13 @@
++ 						Type: &yang.YangType{Kind: yang.Yuint32},
++ 					},
++ 				},
++-			},
+++			}),
++ 			inParent:         map[uint32]*ListUintStruct{},
++ 			wantErrSubstring: "missing missing-key key in map[]",
++ 		},
++ 		{
++ 			inDesc: "fail creating key due to not matching type",
++-			inSchema: &yang.Entry{
+++			inSchema: sonicfixture.Entry(&yang.Entry{
++ 				Name:     "key-list",
++ 				Kind:     yang.DirectoryEntry,
++ 				ListAttr: &yang.ListAttr{MinElements: &yang.Value{Name: "0"}},
++@@ -1222,14 +1223,14 @@
++ 						Type: &yang.YangType{Kind: yang.Yuint32},
++ 					},
++ 				},
++-			},
+++			}),
++ 			inParent:         map[string]*ListUintStruct{},
++ 			inKeys:           map[string]string{"key": "42"},
++ 			wantErrSubstring: "uint32 is not assignable to string",
++ 		},
++ 		{
++ 			inDesc: "fail creating key due to not maching key type - struct key",
++-			inSchema: &yang.Entry{
+++			inSchema: sonicfixture.Entry(&yang.Entry{
++ 				Name:     "struct-key-list",
++ 				Kind:     yang.DirectoryEntry,
++ 				ListAttr: &yang.ListAttr{MinElements: &yang.Value{Name: "0"}},
++@@ -1252,7 +1253,7 @@
++ 						Type: &yang.YangType{Kind: yang.Yenum},
++ 					},
++ 				},
++-			},
+++			}),
++ 			inParent:         map[KeyStruct]*ListElemStruct{},
++ 			inKeys:           map[string]string{"key1": "42", "key2": "42", "key3": "E_VALUE_FORTY_TWO"},
++ 			wantErrSubstring: "string is not assignable to int32",
++@@ -1262,6 +1263,16 @@
++ 	for _, tt := range tests {
++ 		t.Run(tt.inDesc, func(t *testing.T) {
++ 			got, err := insertAndGetKey(tt.inSchema, tt.inParent, tt.inKeys)
+++			if len(tt.inKeys) == 0 && tt.inSchema.Key != "" && util.IsValueMap(reflect.ValueOf(tt.inParent)) {
+++				if got != nil || err != nil || reflect.ValueOf(tt.inParent).Len() != 0 {
+++					t.Fatalf("SONiC list-map target must return nil sentinel without mutation, got %v, error %v, parent %v", got, err, tt.inParent)
+++				}
+++				// Empty keys select the map. Nonempty incomplete keys still reject.
+++				if _, err := insertAndGetKey(tt.inSchema, tt.inParent, map[string]string{"unrelated": "x"}); err == nil {
+++					t.Fatal("nonempty incomplete list keys were accepted")
+++				}
+++				return
+++			}
++ 			if diff := errdiff.Substring(err, tt.wantErrSubstring); diff != "" {
++ 				t.Fatalf("got %v, want error %v", err, tt.wantErrSubstring)
++ 			}
++@@ -1308,7 +1319,7 @@
++ }
++ 
++ func TestUnmarshalUnionKeyedList(t *testing.T) {
++-	schema := &yang.Entry{
+++	schema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "union-key-test-struct",
++ 		Kind: yang.DirectoryEntry,
++ 		Dir: map[string]*yang.Entry{
++@@ -1343,7 +1354,7 @@
++ 				},
++ 			},
++ 		},
++-	}
+++	})
++ 
++ 	tests := []struct {
++ 		name             string
++diff --git a/ytypes/node_test.go b/ytypes/node_test.go
++--- a/ytypes/node_test.go
+++++ b/ytypes/node_test.go
++@@ -3,6 +3,7 @@
++ import (
++ 	"encoding/json"
++ 	"fmt"
+++	"github.com/openconfig/ygot/internal/sonicfixture"
++ 	"reflect"
++ 	"testing"
++ 
++@@ -81,7 +82,7 @@
++ 	Key1 *uint32 `path:"key1"`
++ }
++ 
++-var listElemStruct4Schema = &yang.Entry{
+++var listElemStruct4Schema = sonicfixture.Entry(&yang.Entry{
++ 	Name: "list-elem-struct4",
++ 	Kind: yang.DirectoryEntry,
++ 	Dir: map[string]*yang.Entry{
++@@ -91,7 +92,7 @@
++ 			Type: &yang.YangType{Kind: yang.Yuint32},
++ 		},
++ 	},
++-}
+++})
++ 
++ type SuperContainer struct {
++ 	ContainerStruct1 *ContainerStruct1 `path:"container"`
++@@ -99,15 +100,15 @@
++ 
++ func (*SuperContainer) IsYANGGoStruct() {}
++ 
++-var superContainerSchema = &yang.Entry{
+++var superContainerSchema = sonicfixture.Entry(&yang.Entry{
++ 	Name: "super-container",
++ 	Kind: yang.DirectoryEntry,
++ 	Dir: map[string]*yang.Entry{
++ 		"container": containerWithStringKey,
++ 	},
++-}
++-
++-var containerWithStringKey = &yang.Entry{
+++})
+++
+++var containerWithStringKey = sonicfixture.Entry(&yang.Entry{
++ 	Name: "container",
++ 	Kind: yang.DirectoryEntry,
++ 	Dir: map[string]*yang.Entry{
++@@ -171,10 +172,10 @@
++ 			},
++ 		},
++ 	},
++-}
+++})
++ 
++ func TestGetOrCreateNodeSimpleKey(t *testing.T) {
++-	containerWithUInt32Key := &yang.Entry{
+++	containerWithUInt32Key := sonicfixture.Entry(&yang.Entry{
++ 		Name: "container",
++ 		Kind: yang.DirectoryEntry,
++ 		Dir: map[string]*yang.Entry{
++@@ -232,9 +233,9 @@
++ 				},
++ 			},
++ 		},
++-	}
++-
++-	containerWithEnumKey := &yang.Entry{
+++	})
+++
+++	containerWithEnumKey := sonicfixture.Entry(&yang.Entry{
++ 		Name: "container",
++ 		Kind: yang.DirectoryEntry,
++ 		Dir: map[string]*yang.Entry{
++@@ -259,7 +260,7 @@
++ 				},
++ 			},
++ 		},
++-	}
+++	})
++ 
++ 	tests := []struct {
++ 		inDesc           string
++@@ -479,7 +480,7 @@
++ 
++ func (*ContainerStruct3) IsYANGGoStruct() {}
++ 
++-var containerWithMultiKeyedList *yang.Entry = &yang.Entry{
+++var containerWithMultiKeyedList *yang.Entry = sonicfixture.Entry(&yang.Entry{
++ 	Name: "container",
++ 	Kind: yang.DirectoryEntry,
++ 	Dir: map[string]*yang.Entry{
++@@ -547,7 +548,7 @@
++ 			},
++ 		},
++ 	},
++-}
+++})
++ 
++ func TestGetOrCreateNodeStructKeyedList(t *testing.T) {
++ 	tests := []struct {
++@@ -629,7 +630,7 @@
++ 	}
++ }
++ 
++-var simpleSchema = &yang.Entry{
+++var simpleSchema = sonicfixture.Entry(&yang.Entry{
++ 	Name: "list-elem-struct1",
++ 	Kind: yang.DirectoryEntry,
++ 	Dir: map[string]*yang.Entry{
++@@ -678,7 +679,7 @@
++ 			},
++ 		},
++ 	},
++-}
+++})
++ 
++ func TestGetOrCreateNodeWithSimpleSchema(t *testing.T) {
++ 	tests := []struct {
++@@ -855,130 +856,130 @@
++ }
++ 
++ func TestGetNode(t *testing.T) {
++-	rootSchema := &yang.Entry{
+++	rootSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "root",
++ 		Kind: yang.DirectoryEntry,
++ 		Dir:  map[string]*yang.Entry{},
++-	}
++-
++-	leafSchema := &yang.Entry{
+++	})
+++
+++	leafSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "leaf",
++ 		Kind: yang.LeafEntry,
++ 		Type: &yang.YangType{
++ 			Kind: yang.Ystring,
++ 		},
++ 		Parent: rootSchema,
++-	}
+++	})
++ 	rootSchema.Dir["leaf"] = leafSchema
++ 
++-	leafListSchema := &yang.Entry{
+++	leafListSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name:     "int32-leaf-list",
++ 		Kind:     yang.LeafEntry,
++ 		ListAttr: &yang.ListAttr{MinElements: &yang.Value{Name: "0"}},
++ 		Type:     &yang.YangType{Kind: yang.Yint32},
++-	}
+++	})
++ 	rootSchema.Dir["int32-leaf-list"] = leafListSchema
++ 
++-	childContainerSchema := &yang.Entry{
+++	childContainerSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name:   "container",
++ 		Kind:   yang.DirectoryEntry,
++ 		Parent: rootSchema,
++ 		Dir:    map[string]*yang.Entry{},
++-	}
+++	})
++ 	rootSchema.Dir["container"] = childContainerSchema
++ 
++-	grandchildContainerSchema := &yang.Entry{
+++	grandchildContainerSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name:   "grandchild",
++ 		Kind:   yang.DirectoryEntry,
++ 		Parent: childContainerSchema,
++ 		Dir:    map[string]*yang.Entry{},
++-	}
+++	})
++ 	childContainerSchema.Dir["grandchild"] = grandchildContainerSchema
++ 
++-	valSchema := &yang.Entry{
+++	valSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "val",
++ 		Kind: yang.LeafEntry,
++ 		Type: &yang.YangType{
++ 			Kind: yang.Ystring,
++ 		},
++-	}
+++	})
++ 	grandchildContainerSchema.Dir["val"] = valSchema
++ 
++-	simpleListSchema := &yang.Entry{
+++	simpleListSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name:     "list",
++ 		Kind:     yang.DirectoryEntry,
++ 		Parent:   rootSchema,
++ 		Key:      "key",
++ 		ListAttr: &yang.ListAttr{},
++ 		Dir:      map[string]*yang.Entry{},
++-	}
+++	})
++ 	rootSchema.Dir["list"] = simpleListSchema
++ 
++-	keyLeafSchema := &yang.Entry{
+++	keyLeafSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name:   "key",
++ 		Kind:   yang.LeafEntry,
++ 		Parent: simpleListSchema,
++-	}
+++	})
++ 	simpleListSchema.Dir["key"] = keyLeafSchema
++ 
++-	multiKeyListSchema := &yang.Entry{
+++	multiKeyListSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name:     "multilist",
++ 		Kind:     yang.DirectoryEntry,
++ 		Parent:   rootSchema,
++ 		Key:      "keyone keytwo",
++ 		ListAttr: &yang.ListAttr{},
++ 		Dir:      map[string]*yang.Entry{},
++-	}
+++	})
++ 	rootSchema.Dir["multilist"] = multiKeyListSchema
++ 
++-	keyOneListSchema := &yang.Entry{
+++	keyOneListSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name:   "keyone",
++ 		Kind:   yang.LeafEntry,
++ 		Type:   &yang.YangType{Kind: yang.Yuint32},
++ 		Parent: multiKeyListSchema,
++-	}
+++	})
++ 	multiKeyListSchema.Dir["keyone"] = keyOneListSchema
++ 
++-	keyTwoListSchema := &yang.Entry{
+++	keyTwoListSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name:   "keytwo",
++ 		Kind:   yang.LeafEntry,
++ 		Type:   &yang.YangType{Kind: yang.Yuint32},
++ 		Parent: multiKeyListSchema,
++-	}
+++	})
++ 	multiKeyListSchema.Dir["keytwo"] = keyTwoListSchema
++ 
++-	childListSchema := &yang.Entry{
+++	childListSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name:     "childlist",
++ 		Kind:     yang.DirectoryEntry,
++ 		Parent:   rootSchema,
++ 		Key:      "key",
++ 		ListAttr: &yang.ListAttr{},
++ 		Dir:      map[string]*yang.Entry{},
++-	}
+++	})
++ 	rootSchema.Dir["childlist"] = childListSchema
++ 
++-	childListKeySchema := &yang.Entry{
+++	childListKeySchema := sonicfixture.Entry(&yang.Entry{
++ 		Name:   "key",
++ 		Kind:   yang.DirectoryEntry,
++ 		Parent: childListSchema,
++ 		Type:   &yang.YangType{Kind: yang.Ystring},
++-	}
+++	})
++ 	childListSchema.Dir["key"] = childListKeySchema
++ 
++-	childListContainerSchema := &yang.Entry{
+++	childListContainerSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name:   "child-container",
++ 		Kind:   yang.DirectoryEntry,
++ 		Parent: childListSchema,
++ 		Dir:    map[string]*yang.Entry{},
++-	}
+++	})
++ 	childListSchema.Dir["child-container"] = childListContainerSchema
++ 
++-	childListContainerValueSchema := &yang.Entry{
+++	childListContainerValueSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name:   "value",
++ 		Kind:   yang.LeafEntry,
++ 		Parent: childListContainerSchema,
++ 		Type:   &yang.YangType{Kind: yang.Ystring},
++-	}
+++	})
++ 	childListContainerSchema.Dir["value"] = childListContainerValueSchema
++ 
++ 	tests := []struct {
++@@ -1819,13 +1820,13 @@
++ 		wantErrSubstring: "schema is nil",
++ 	}, {
++ 		desc:             "nil root",
++-		inSchema:         &yang.Entry{Name: "root"},
+++		inSchema:         sonicfixture.Entry(&yang.Entry{Name: "root"}),
++ 		inRoot:           nil,
++ 		inPath:           &gpb.Path{Elem: []*gpb.PathElem{{Name: "foo"}}},
++ 		wantErrSubstring: "could not find children",
++ 	}, {
++ 		desc:             "non-container parent",
++-		inSchema:         &yang.Entry{Name: "root"},
+++		inSchema:         sonicfixture.Entry(&yang.Entry{Name: "root"}),
++ 		inRoot:           "fakeroot",
++ 		inPath:           &gpb.Path{Elem: []*gpb.PathElem{{Name: "foo"}}},
++ 		wantErrSubstring: "can not use a parent that is not a container",
++@@ -1842,7 +1843,7 @@
++ }
++ 
++ func TestRetrieveContainerListError(t *testing.T) {
++-	rootSchema := &yang.Entry{
+++	rootSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "",
++ 		Kind: yang.DirectoryEntry,
++ 		Dir: map[string]*yang.Entry{
++@@ -1851,7 +1852,7 @@
++ 				Type: &yang.YangType{Kind: yang.Ystring},
++ 			},
++ 		},
++-	}
+++	})
++ 
++ 	type Root struct {
++ 		Ok *string `path:"ok"`
++@@ -1867,7 +1868,7 @@
++ 		Field *string `path:"field"`
++ 	}
++ 
++-	lrSchema := &yang.Entry{
+++	lrSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "",
++ 		Kind: yang.DirectoryEntry,
++ 		Dir: map[string]*yang.Entry{
++@@ -1879,7 +1880,7 @@
++ 				},
++ 			},
++ 		},
++-	}
+++	})
++ 
++ 	type UnresolvedLeafRef struct {
++ 		Field *string `path:"field"`
++@@ -1895,7 +1896,7 @@
++ 		wantErrSubstring string
++ 	}{{
++ 		desc:             "non-struct ptr root",
++-		inSchema:         &yang.Entry{},
+++		inSchema:         sonicfixture.Entry(&yang.Entry{}),
++ 		inRoot:           "fish",
++ 		inPath:           &gpb.Path{Elem: []*gpb.PathElem{{Name: "ok"}}},
++ 		inTestFunc:       retrieveNodeContainer,
++@@ -1923,17 +1924,17 @@
++ 		wantErrSubstring: "no match found",
++ 	}, {
++ 		desc:             "no list key",
++-		inSchema:         &yang.Entry{Name: "foo"},
+++		inSchema:         sonicfixture.Entry(&yang.Entry{Name: "foo"}),
++ 		inTestFunc:       retrieveNodeList,
++ 		wantErrSubstring: "unkeyed list can't be traversed",
++ 	}, {
++ 		desc:             "nil path",
++-		inSchema:         &yang.Entry{Name: "foo", Key: "bar"},
+++		inSchema:         sonicfixture.Entry(&yang.Entry{Name: "foo", Key: "bar"}),
++ 		inTestFunc:       retrieveNodeList,
++ 		wantErrSubstring: "path length is 0",
++ 	}, {
++ 		desc:             "root is not a map",
++-		inSchema:         &yang.Entry{Name: "ant", Key: "bear"},
+++		inSchema:         sonicfixture.Entry(&yang.Entry{Name: "ant", Key: "bear"}),
++ 		inPath:           &gpb.Path{Elem: []*gpb.PathElem{{Name: "cat", Key: map[string]string{"dog": "woof"}}}},
++ 		inRoot:           "menagerie",
++ 		inTestFunc:       retrieveNodeList,
++diff --git a/ytypes/schema_tests/set_test.go b/ytypes/schema_tests/set_test.go
++--- a/ytypes/schema_tests/set_test.go
+++++ b/ytypes/schema_tests/set_test.go
++@@ -17,6 +17,8 @@
++ import (
++ 	"testing"
++ 
+++	"github.com/openconfig/ygot/internal/sonicfixture"
+++
++ 	"github.com/golang/protobuf/proto"
++ 	"github.com/google/go-cmp/cmp"
++ 	"github.com/google/go-cmp/cmp/cmpopts"
++@@ -33,6 +35,9 @@
++ 	s, err := fn()
++ 	if err != nil {
++ 		panic(err)
+++	}
+++	for _, entry := range s.SchemaTree {
+++		sonicfixture.Entry(entry)
++ 	}
++ 	return s
++ }
++diff --git a/ytypes/schema_tests/validate_test.go b/ytypes/schema_tests/validate_test.go
++--- a/ytypes/schema_tests/validate_test.go
+++++ b/ytypes/schema_tests/validate_test.go
++@@ -532,8 +532,14 @@
++ 			}
++ 			testErrLog(t, tt.desc, err)
++ 			if err == nil {
+++				if tt.wantValidationErr != "" {
+++					err := tt.parent.Validate()
+++					if err == nil || fmt.Sprintf("validation err: %v", err) != tt.wantValidationErr {
+++						t.Fatalf("%s: explicit Validate error = %v, want %s", tt.desc, err, tt.wantValidationErr)
+++					}
+++				}
++ 				jo, err := ygot.EmitJSON(tt.parent, emitJSONConfig)
++-				if got, want := errToString(err), tt.wantValidationErr; got != want {
+++				if got, want := errToString(err), ""; got != want {
++ 					t.Errorf("%s: got error: %v, want error: %v ", tt.desc, got, want)
++ 					return
++ 				}
++@@ -824,16 +830,18 @@
++ 	}
++ }
++ 
++-/* TestLeafrefCurrent validates that the current() function works when
++-   leafrefs are validated in a real schema.
++-   It uses the following struct as the input:
++-   type Mpls_Global_Interface struct {
++-        InterfaceId  *string                             `path:"config/interface-id|interface-id" module:"openconfig-mpls"`
++-        InterfaceRef *Mpls_Global_Interface_InterfaceRef `path:"interface-ref" module:"openconfig-mpls"`
++-        MplsEnabled  *bool                               `path:"config/mpls-enabled" module:"openconfig-mpls"`
++-   }
++-   where the InterfaceRef container references an interface/subinterface
++-   in the /interfaces/interface list.
+++/*
+++TestLeafrefCurrent validates that the current() function works when
+++
+++	leafrefs are validated in a real schema.
+++	It uses the following struct as the input:
+++	type Mpls_Global_Interface struct {
+++	     InterfaceId  *string                             `path:"config/interface-id|interface-id" module:"openconfig-mpls"`
+++	     InterfaceRef *Mpls_Global_Interface_InterfaceRef `path:"interface-ref" module:"openconfig-mpls"`
+++	     MplsEnabled  *bool                               `path:"config/mpls-enabled" module:"openconfig-mpls"`
+++	}
+++	where the InterfaceRef container references an interface/subinterface
+++	in the /interfaces/interface list.
++ */
++ func TestLeafrefCurrent(t *testing.T) {
++ 	dev := &oc.Device{}
++@@ -857,6 +865,23 @@
++ 		Subinterface: ygot.Uint32(0),
++ 	}
++ 
+++	// BuildEmptyTree also creates read-only containers rejected by SONiC.
+++	// Remove only empty branches; retain all configured leafref data.
+++	beforePrune, err := ygot.DeepCopy(dev)
+++	if err != nil {
+++		t.Fatal(err)
+++	}
+++	ygot.PruneEmptyBranches(dev)
+++	unchangedLeaves, err := ygot.Diff(beforePrune, dev)
+++	if err != nil || len(unchangedLeaves.Update) != 0 || len(unchangedLeaves.Delete) != 0 {
+++		t.Fatalf("pruning fixture changed populated leaves: diff %v, error %v", unchangedLeaves, err)
+++	}
+++	if dev.Interface["eth0"] == nil || dev.Interface["eth0"].Subinterface[0] == nil ||
+++		dev.NetworkInstance["DEFAULT"] == nil || ni.Mpls.Global.Interface["eth0.0"] == nil ||
+++		mi.InterfaceRef == nil || *mi.InterfaceRef.Interface != "eth0" || *mi.InterfaceRef.Subinterface != 0 {
+++		t.Fatal("pruning fixture removed a leafref target, list key or configured value")
+++	}
+++
++ 	if err := dev.Validate(); err != nil {
++ 		t.Fatalf("TestLeafrefCurrent: could not validate populated interfaces, got: %v, want: nil", err)
++ 	}
++diff --git a/ytypes/string_type_test.go b/ytypes/string_type_test.go
++--- a/ytypes/string_type_test.go
+++++ b/ytypes/string_type_test.go
++@@ -15,6 +15,7 @@
++ package ytypes
++ 
++ import (
+++	"github.com/openconfig/ygot/internal/sonicfixture"
++ 	"testing"
++ 
++ 	"github.com/openconfig/goyang/pkg/yang"
++@@ -24,7 +25,7 @@
++ var validStringSchema = yrangeAndPatternToStringSchema("valid-string-schema", yang.YRange{Min: yang.FromInt(2), Max: yang.FromInt(10)}, nil)
++ 
++ func yrangeAndPatternToStringSchema(schemaName string, yr yang.YRange, rePattern []string) *yang.Entry {
++-	return &yang.Entry{Name: schemaName, Type: &yang.YangType{Kind: yang.Ystring, Length: yang.YangRange{yr}, Pattern: rePattern}}
+++	return sonicfixture.Entry(&yang.Entry{Name: schemaName, Type: &yang.YangType{Kind: yang.Ystring, Length: yang.YangRange{yr}, Pattern: rePattern}})
++ }
++ 
++ func TestValidateStringSchema(t *testing.T) {
++@@ -44,12 +45,12 @@
++ 		},
++ 		{
++ 			desc:    "nil schema type",
++-			schema:  &yang.Entry{Name: "nil-type-schema", Type: nil},
+++			schema:  sonicfixture.Entry(&yang.Entry{Name: "nil-type-schema", Type: nil}),
++ 			wantErr: true,
++ 		},
++ 		{
++ 			desc:    "bad schema type",
++-			schema:  &yang.Entry{Name: "empty-type-schema", Type: &yang.YangType{Kind: yang.Yempty}},
+++			schema:  sonicfixture.Entry(&yang.Entry{Name: "empty-type-schema", Type: &yang.YangType{Kind: yang.Yempty}}),
++ 			wantErr: true,
++ 		},
++ 	}
++diff --git a/ytypes/types_test.go b/ytypes/types_test.go
++--- a/ytypes/types_test.go
+++++ b/ytypes/types_test.go
++@@ -15,6 +15,7 @@
++ package ytypes
++ 
++ import (
+++	"github.com/openconfig/ygot/internal/sonicfixture"
++ 	"reflect"
++ 	"testing"
++ 
++@@ -44,7 +45,7 @@
++ 			},
++ 			Unmarshal: func([]byte, ygot.GoStruct, ...UnmarshalOpt) error { return nil },
++ 		},
++-		wantRootSchema: &yang.Entry{Name: "test"},
+++		wantRootSchema: sonicfixture.Entry(&yang.Entry{Name: "test"}),
++ 		wantValid:      true,
++ 	}, {
++ 		desc:      "invalid schema",
++@@ -62,6 +63,9 @@
++ 	}}
++ 
++ 	for _, tt := range tests {
+++		for _, entry := range tt.in.SchemaTree {
+++			sonicfixture.Entry(entry)
+++		}
++ 		t.Run(tt.desc, func(t *testing.T) {
++ 			if got := tt.in.IsValid(); got != tt.wantValid {
++ 				t.Errorf("did not get expected valid status, got: %v, want: %v", got, tt.wantValid)
++diff --git a/ytypes/unmarshal_test.go b/ytypes/unmarshal_test.go
++--- a/ytypes/unmarshal_test.go
+++++ b/ytypes/unmarshal_test.go
++@@ -15,6 +15,7 @@
++ package ytypes
++ 
++ import (
+++	"github.com/openconfig/ygot/internal/sonicfixture"
++ 	"testing"
++ 
++ 	"github.com/openconfig/goyang/pkg/yang"
++@@ -24,17 +25,17 @@
++ 	type ParentStruct struct {
++ 		Leaf *string `path:"leaf"`
++ 	}
++-	validSchema := &yang.Entry{
+++	validSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "leaf",
++ 		Kind: yang.LeafEntry,
++ 		Type: &yang.YangType{
++ 			Kind: yang.Ystring,
++ 		},
++-	}
++-	choiceSchema := &yang.Entry{
+++	})
+++	choiceSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "choice",
++ 		Kind: yang.ChoiceEntry,
++-	}
+++	})
++ 	tests := []struct {
++ 		desc    string
++ 		schema  *yang.Entry
++diff --git a/ytypes/validate_test.go b/ytypes/validate_test.go
++--- a/ytypes/validate_test.go
+++++ b/ytypes/validate_test.go
++@@ -15,6 +15,7 @@
++ package ytypes
++ 
++ import (
+++	"github.com/openconfig/ygot/internal/sonicfixture"
++ 	"testing"
++ 
++ 	"github.com/openconfig/goyang/pkg/yang"
++@@ -47,9 +48,9 @@
++ func (*FakeRootStruct) IsYANGGoStruct() {}
++ 
++ func TestValidate(t *testing.T) {
++-	leafSchema := &yang.Entry{Name: "leaf-schema", Kind: yang.LeafEntry, Type: &yang.YangType{Kind: yang.Ystring}}
++-
++-	containerSchema := &yang.Entry{
+++	leafSchema := sonicfixture.Entry(&yang.Entry{Name: "leaf-schema", Kind: yang.LeafEntry, Type: &yang.YangType{Kind: yang.Ystring}})
+++
+++	containerSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "container-schema",
++ 		Kind: yang.DirectoryEntry,
++ 		Dir: map[string]*yang.Entry{
++@@ -63,21 +64,21 @@
++ 				},
++ 			},
++ 		},
++-	}
++-
++-	emptyContainerSchema := &yang.Entry{
+++	})
+++
+++	emptyContainerSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "empty-container-schema",
++ 		Kind: yang.DirectoryEntry,
++-	}
++-
++-	leafListSchema := &yang.Entry{
+++	})
+++
+++	leafListSchema := sonicfixture.Entry(&yang.Entry{
++ 		Kind:     yang.LeafEntry,
++ 		ListAttr: &yang.ListAttr{MinElements: &yang.Value{Name: "0"}},
++ 		Type:     &yang.YangType{Kind: yang.Ystring},
++ 		Name:     "leaf-list-schema",
++-	}
++-
++-	listSchema := &yang.Entry{
+++	})
+++
+++	listSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name:     "list-schema",
++ 		Kind:     yang.DirectoryEntry,
++ 		ListAttr: &yang.ListAttr{MinElements: &yang.Value{Name: "0"}},
++@@ -88,9 +89,9 @@
++ 				Type: &yang.YangType{Kind: yang.Ystring},
++ 			},
++ 		},
++-	}
++-
++-	containerWithChoiceSchema := &yang.Entry{
+++	})
+++
+++	containerWithChoiceSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "container-with-choice-schema",
++ 		Kind: yang.DirectoryEntry,
++ 		Dir: map[string]*yang.Entry{
++@@ -112,19 +113,19 @@
++ 				},
++ 			},
++ 		},
++-	}
+++	})
++ 
++ 	type StringListElemStruct struct {
++ 		LeafName *string `path:"leaf-name"`
++ 	}
++ 
++-	fakerootSchema := &yang.Entry{
+++	fakerootSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "device",
++ 		Kind: yang.DirectoryEntry,
++ 		Annotation: map[string]interface{}{
++ 			"isFakeRoot": true,
++ 		},
++-	}
+++	})
++ 	fakerootSchema.Dir = map[string]*yang.Entry{
++ 		"leaf-one": {
++ 			Name: "leaf-one",
++@@ -226,7 +227,7 @@
++ 		},
++ 		{
++ 			desc:    "choice schema not allowed",
++-			schema:  &yang.Entry{Kind: yang.ChoiceEntry, Name: "choice"},
+++			schema:  sonicfixture.Entry(&yang.Entry{Kind: yang.ChoiceEntry, Name: "choice"}),
++ 			val:     &EmptyContainerStruct{},
++ 			wantErr: `cannot pass choice schema choice to Validate`,
++ 		},
++@@ -234,7 +235,7 @@
++ 
++ 	for _, tt := range tests {
++ 		t.Run(tt.desc, func(t *testing.T) {
++-			errs := Validate(tt.schema, tt.val, tt.opts...)
+++			errs := Validate(sonicfixture.Entry(tt.schema), tt.val, tt.opts...)
++ 			if got, want := errs.String(), tt.wantErr; got != want {
++ 				t.Errorf("%s: Validate got error: %s, want error: %s", tt.desc, got, want)
++ 			}
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/patches/0006-record-existing-sonic-schema-metadata.patch b/modules/openconfig_ygot/0.7.1.sonic.1/patches/0006-record-existing-sonic-schema-metadata.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..d0c8e444db2ba51aac346e60531d360e4b7195ee
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/patches/0006-record-existing-sonic-schema-metadata.patch
+@@ -0,0 +1,1069 @@
++diff --git a/ygen/testdata/schema/openconfig-options-compress-schema.json b/ygen/testdata/schema/openconfig-options-compress-schema.json
++--- a/ygen/testdata/schema/openconfig-options-compress-schema.json
+++++ b/ygen/testdata/schema/openconfig-options-compress-schema.json
++@@ -67,6 +67,7 @@
++                                                     "Argument": "oco"
++                                                 }
++                                             },
+++                                            "DirOKeys": [],
++                                             "Type": {
++                                                 "Name": "uint32",
++                                                 "Kind": 7,
++@@ -84,6 +85,9 @@
++                                                         }
++                                                     }
++                                                 ]
+++                                            },
+++                                            "PerfOpts": {
+++                                                "ChildSchemaCache": null
++                                             }
++                                         },
++                                         "peer-address": {
++@@ -98,6 +102,7 @@
++                                                     "Argument": "oco"
++                                                 }
++                                             },
+++                                            "DirOKeys": [],
++                                             "Type": {
++                                                 "Name": "union",
++                                                 "Kind": 19,
++@@ -117,11 +122,21 @@
++                                                         ]
++                                                     }
++                                                 ]
++-                                            }
++-                                        }
++-                                    },
+++                                            },
+++                                            "PerfOpts": {
+++                                                "ChildSchemaCache": null
+++                                            }
+++                                        }
+++                                    },
+++                                    "DirOKeys": [
+++                                        "peer-address",
+++                                        "hold-time"
+++                                    ],
++                                     "Annotation": {
++                                         "schemapath": "/openconfig-options/bgp/neighbors/neighbor/config"
+++                                    },
+++                                    "PerfOpts": {
+++                                        "ChildSchemaCache": null
++                                     }
++                                 },
++                                 "peer-address": {
++@@ -136,10 +151,14 @@
++                                             "Argument": "oco"
++                                         }
++                                     },
+++                                    "DirOKeys": [],
++                                     "Type": {
++                                         "Name": "leafref",
++                                         "Kind": 17,
++                                         "Path": "../config/peer-address"
+++                                    },
+++                                    "PerfOpts": {
+++                                        "ChildSchemaCache": null
++                                     }
++                                 },
++                                 "state": {
++@@ -167,6 +186,7 @@
++                                                     "Argument": "oco"
++                                                 }
++                                             },
+++                                            "DirOKeys": [],
++                                             "Type": {
++                                                 "Name": "union",
++                                                 "Kind": 19,
++@@ -207,6 +227,9 @@
++                                                 "MinElements": null,
++                                                 "MaxElements": null,
++                                                 "OrderedBy": null
+++                                            },
+++                                            "PerfOpts": {
+++                                                "ChildSchemaCache": null
++                                             }
++                                         },
++                                         "hold-time": {
++@@ -221,6 +244,7 @@
++                                                     "Argument": "oco"
++                                                 }
++                                             },
+++                                            "DirOKeys": [],
++                                             "Type": {
++                                                 "Name": "uint32",
++                                                 "Kind": 7,
++@@ -238,6 +262,9 @@
++                                                         }
++                                                     }
++                                                 ]
+++                                            },
+++                                            "PerfOpts": {
+++                                                "ChildSchemaCache": null
++                                             }
++                                         },
++                                         "peer-address": {
++@@ -252,6 +279,7 @@
++                                                     "Argument": "oco"
++                                                 }
++                                             },
+++                                            "DirOKeys": [],
++                                             "Type": {
++                                                 "Name": "union",
++                                                 "Kind": 19,
++@@ -271,6 +299,9 @@
++                                                         ]
++                                                     }
++                                                 ]
+++                                            },
+++                                            "PerfOpts": {
+++                                                "ChildSchemaCache": null
++                                             }
++                                         },
++                                         "session-state": {
++@@ -285,18 +316,36 @@
++                                                     "Argument": "oco"
++                                                 }
++                                             },
+++                                            "DirOKeys": [],
++                                             "Type": {
++                                                 "Name": "enumeration",
++                                                 "Kind": 14,
++                                                 "Enum": {}
++-                                            }
++-                                        }
++-                                    },
+++                                            },
+++                                            "PerfOpts": {
+++                                                "ChildSchemaCache": null
+++                                            }
+++                                        }
+++                                    },
+++                                    "DirOKeys": [
+++                                        "peer-address",
+++                                        "hold-time",
+++                                        "enabled-address-family",
+++                                        "session-state"
+++                                    ],
++                                     "Annotation": {
++                                         "schemapath": "/openconfig-options/bgp/neighbors/neighbor/state"
+++                                    },
+++                                    "PerfOpts": {
+++                                        "ChildSchemaCache": null
++                                     }
++                                 }
++                             },
+++                            "DirOKeys": [
+++                                "peer-address",
+++                                "config",
+++                                "state"
+++                            ],
++                             "Key": "peer-address",
++                             "ListAttr": {
++                                 "MinElements": null,
++@@ -306,22 +355,45 @@
++                             "Annotation": {
++                                 "schemapath": "/openconfig-options/bgp/neighbors/neighbor",
++                                 "structname": "Bgp_Neighbor"
+++                            },
+++                            "PerfOpts": {
+++                                "ChildSchemaCache": null
++                             }
++                         }
++                     },
+++                    "DirOKeys": [
+++                        "neighbor"
+++                    ],
++                     "Annotation": {
++                         "schemapath": "/openconfig-options/bgp/neighbors"
+++                    },
+++                    "PerfOpts": {
+++                        "ChildSchemaCache": null
++                     }
++                 }
++             },
+++            "DirOKeys": [
+++                "neighbors"
+++            ],
++             "Annotation": {
+++                "modulename": "openconfig-options",
+++                "namespace": "urn:oco",
+++                "organization": "",
+++                "revision": "",
++                 "schemapath": "/openconfig-options/bgp",
++                 "structname": "Bgp"
+++            },
+++            "PerfOpts": {
+++                "ChildSchemaCache": null
++             }
++         }
++     },
+++    "DirOKeys": null,
++     "Annotation": {
++         "isCompressedSchema": true,
++         "isFakeRoot": true
+++    },
+++    "PerfOpts": {
+++        "ChildSchemaCache": null
++     }
++ }
++diff --git a/ygen/testdata/schema/openconfig-options-nocompress-schema.json b/ygen/testdata/schema/openconfig-options-nocompress-schema.json
++--- a/ygen/testdata/schema/openconfig-options-nocompress-schema.json
+++++ b/ygen/testdata/schema/openconfig-options-nocompress-schema.json
++@@ -67,6 +67,7 @@
++                                                     "Argument": "oco"
++                                                 }
++                                             },
+++                                            "DirOKeys": [],
++                                             "Type": {
++                                                 "Name": "uint32",
++                                                 "Kind": 7,
++@@ -84,6 +85,9 @@
++                                                         }
++                                                     }
++                                                 ]
+++                                            },
+++                                            "PerfOpts": {
+++                                                "ChildSchemaCache": null
++                                             }
++                                         },
++                                         "peer-address": {
++@@ -98,6 +102,7 @@
++                                                     "Argument": "oco"
++                                                 }
++                                             },
+++                                            "DirOKeys": [],
++                                             "Type": {
++                                                 "Name": "union",
++                                                 "Kind": 19,
++@@ -117,12 +122,22 @@
++                                                         ]
++                                                     }
++                                                 ]
+++                                            },
+++                                            "PerfOpts": {
+++                                                "ChildSchemaCache": null
++                                             }
++                                         }
++                                     },
+++                                    "DirOKeys": [
+++                                        "peer-address",
+++                                        "hold-time"
+++                                    ],
++                                     "Annotation": {
++                                         "schemapath": "/openconfig-options/bgp/neighbors/neighbor/config",
++                                         "structname": "OpenconfigOptions_Bgp_Neighbors_Neighbor_Config"
+++                                    },
+++                                    "PerfOpts": {
+++                                        "ChildSchemaCache": null
++                                     }
++                                 },
++                                 "peer-address": {
++@@ -137,10 +152,14 @@
++                                             "Argument": "oco"
++                                         }
++                                     },
+++                                    "DirOKeys": [],
++                                     "Type": {
++                                         "Name": "leafref",
++                                         "Kind": 17,
++                                         "Path": "../config/peer-address"
+++                                    },
+++                                    "PerfOpts": {
+++                                        "ChildSchemaCache": null
++                                     }
++                                 },
++                                 "state": {
++@@ -168,6 +187,7 @@
++                                                     "Argument": "oco"
++                                                 }
++                                             },
+++                                            "DirOKeys": [],
++                                             "Type": {
++                                                 "Name": "union",
++                                                 "Kind": 19,
++@@ -208,6 +228,9 @@
++                                                 "MinElements": null,
++                                                 "MaxElements": null,
++                                                 "OrderedBy": null
+++                                            },
+++                                            "PerfOpts": {
+++                                                "ChildSchemaCache": null
++                                             }
++                                         },
++                                         "hold-time": {
++@@ -222,6 +245,7 @@
++                                                     "Argument": "oco"
++                                                 }
++                                             },
+++                                            "DirOKeys": [],
++                                             "Type": {
++                                                 "Name": "uint32",
++                                                 "Kind": 7,
++@@ -239,6 +263,9 @@
++                                                         }
++                                                     }
++                                                 ]
+++                                            },
+++                                            "PerfOpts": {
+++                                                "ChildSchemaCache": null
++                                             }
++                                         },
++                                         "peer-address": {
++@@ -253,6 +280,7 @@
++                                                     "Argument": "oco"
++                                                 }
++                                             },
+++                                            "DirOKeys": [],
++                                             "Type": {
++                                                 "Name": "union",
++                                                 "Kind": 19,
++@@ -272,6 +300,9 @@
++                                                         ]
++                                                     }
++                                                 ]
+++                                            },
+++                                            "PerfOpts": {
+++                                                "ChildSchemaCache": null
++                                             }
++                                         },
++                                         "session-state": {
++@@ -286,19 +317,37 @@
++                                                     "Argument": "oco"
++                                                 }
++                                             },
+++                                            "DirOKeys": [],
++                                             "Type": {
++                                                 "Name": "enumeration",
++                                                 "Kind": 14,
++                                                 "Enum": {}
+++                                            },
+++                                            "PerfOpts": {
+++                                                "ChildSchemaCache": null
++                                             }
++                                         }
++                                     },
+++                                    "DirOKeys": [
+++                                        "peer-address",
+++                                        "hold-time",
+++                                        "enabled-address-family",
+++                                        "session-state"
+++                                    ],
++                                     "Annotation": {
++                                         "schemapath": "/openconfig-options/bgp/neighbors/neighbor/state",
++                                         "structname": "OpenconfigOptions_Bgp_Neighbors_Neighbor_State"
+++                                    },
+++                                    "PerfOpts": {
+++                                        "ChildSchemaCache": null
++                                     }
++                                 }
++                             },
+++                            "DirOKeys": [
+++                                "peer-address",
+++                                "config",
+++                                "state"
+++                            ],
++                             "Key": "peer-address",
++                             "ListAttr": {
++                                 "MinElements": null,
++@@ -308,22 +357,45 @@
++                             "Annotation": {
++                                 "schemapath": "/openconfig-options/bgp/neighbors/neighbor",
++                                 "structname": "OpenconfigOptions_Bgp_Neighbors_Neighbor"
+++                            },
+++                            "PerfOpts": {
+++                                "ChildSchemaCache": null
++                             }
++                         }
++                     },
+++                    "DirOKeys": [
+++                        "neighbor"
+++                    ],
++                     "Annotation": {
++                         "schemapath": "/openconfig-options/bgp/neighbors",
++                         "structname": "OpenconfigOptions_Bgp_Neighbors"
+++                    },
+++                    "PerfOpts": {
+++                        "ChildSchemaCache": null
++                     }
++                 }
++             },
+++            "DirOKeys": [
+++                "neighbors"
+++            ],
++             "Annotation": {
+++                "modulename": "openconfig-options",
+++                "namespace": "urn:oco",
+++                "organization": "",
+++                "revision": "",
++                 "schemapath": "/openconfig-options/bgp",
++                 "structname": "OpenconfigOptions_Bgp"
+++            },
+++            "PerfOpts": {
+++                "ChildSchemaCache": null
++             }
++         }
++     },
+++    "DirOKeys": null,
++     "Annotation": {
++         "isFakeRoot": true
+++    },
+++    "PerfOpts": {
+++        "ChildSchemaCache": null
++     }
++ }
++diff --git a/ygen/testdata/schema/openconfig-options-compress-fakeroot-schema.json b/ygen/testdata/schema/openconfig-options-compress-fakeroot-schema.json
++--- a/ygen/testdata/schema/openconfig-options-compress-fakeroot-schema.json
+++++ b/ygen/testdata/schema/openconfig-options-compress-fakeroot-schema.json
++@@ -67,6 +67,7 @@
++                                                     "Argument": "oco"
++                                                 }
++                                             },
+++                                            "DirOKeys": [],
++                                             "Type": {
++                                                 "Name": "uint32",
++                                                 "Kind": 7,
++@@ -84,6 +85,9 @@
++                                                         }
++                                                     }
++                                                 ]
+++                                            },
+++                                            "PerfOpts": {
+++                                                "ChildSchemaCache": null
++                                             }
++                                         },
++                                         "peer-address": {
++@@ -98,6 +102,7 @@
++                                                     "Argument": "oco"
++                                                 }
++                                             },
+++                                            "DirOKeys": [],
++                                             "Type": {
++                                                 "Name": "union",
++                                                 "Kind": 19,
++@@ -117,11 +122,21 @@
++                                                         ]
++                                                     }
++                                                 ]
+++                                            },
+++                                            "PerfOpts": {
+++                                                "ChildSchemaCache": null
++                                             }
++                                         }
++                                     },
+++                                    "DirOKeys": [
+++                                        "peer-address",
+++                                        "hold-time"
+++                                    ],
++                                     "Annotation": {
++                                         "schemapath": "/openconfig-options/bgp/neighbors/neighbor/config"
+++                                    },
+++                                    "PerfOpts": {
+++                                        "ChildSchemaCache": null
++                                     }
++                                 },
++                                 "peer-address": {
++@@ -136,10 +151,14 @@
++                                             "Argument": "oco"
++                                         }
++                                     },
+++                                    "DirOKeys": [],
++                                     "Type": {
++                                         "Name": "leafref",
++                                         "Kind": 17,
++                                         "Path": "../config/peer-address"
+++                                    },
+++                                    "PerfOpts": {
+++                                        "ChildSchemaCache": null
++                                     }
++                                 },
++                                 "state": {
++@@ -167,6 +186,7 @@
++                                                     "Argument": "oco"
++                                                 }
++                                             },
+++                                            "DirOKeys": [],
++                                             "Type": {
++                                                 "Name": "union",
++                                                 "Kind": 19,
++@@ -207,6 +227,9 @@
++                                                 "MinElements": null,
++                                                 "MaxElements": null,
++                                                 "OrderedBy": null
+++                                            },
+++                                            "PerfOpts": {
+++                                                "ChildSchemaCache": null
++                                             }
++                                         },
++                                         "hold-time": {
++@@ -221,6 +244,7 @@
++                                                     "Argument": "oco"
++                                                 }
++                                             },
+++                                            "DirOKeys": [],
++                                             "Type": {
++                                                 "Name": "uint32",
++                                                 "Kind": 7,
++@@ -238,6 +262,9 @@
++                                                         }
++                                                     }
++                                                 ]
+++                                            },
+++                                            "PerfOpts": {
+++                                                "ChildSchemaCache": null
++                                             }
++                                         },
++                                         "peer-address": {
++@@ -252,6 +279,7 @@
++                                                     "Argument": "oco"
++                                                 }
++                                             },
+++                                            "DirOKeys": [],
++                                             "Type": {
++                                                 "Name": "union",
++                                                 "Kind": 19,
++@@ -271,6 +299,9 @@
++                                                         ]
++                                                     }
++                                                 ]
+++                                            },
+++                                            "PerfOpts": {
+++                                                "ChildSchemaCache": null
++                                             }
++                                         },
++                                         "session-state": {
++@@ -285,18 +316,36 @@
++                                                     "Argument": "oco"
++                                                 }
++                                             },
+++                                            "DirOKeys": [],
++                                             "Type": {
++                                                 "Name": "enumeration",
++                                                 "Kind": 14,
++                                                 "Enum": {}
+++                                            },
+++                                            "PerfOpts": {
+++                                                "ChildSchemaCache": null
++                                             }
++                                         }
++                                     },
+++                                    "DirOKeys": [
+++                                        "peer-address",
+++                                        "hold-time",
+++                                        "enabled-address-family",
+++                                        "session-state"
+++                                    ],
++                                     "Annotation": {
++                                         "schemapath": "/openconfig-options/bgp/neighbors/neighbor/state"
+++                                    },
+++                                    "PerfOpts": {
+++                                        "ChildSchemaCache": null
++                                     }
++                                 }
++                             },
+++                            "DirOKeys": [
+++                                "peer-address",
+++                                "config",
+++                                "state"
+++                            ],
++                             "Key": "peer-address",
++                             "ListAttr": {
++                                 "MinElements": null,
++@@ -306,24 +355,47 @@
++                             "Annotation": {
++                                 "schemapath": "/openconfig-options/bgp/neighbors/neighbor",
++                                 "structname": "Bgp_Neighbor"
+++                            },
+++                            "PerfOpts": {
+++                                "ChildSchemaCache": null
++                             }
++                         }
++                     },
+++                    "DirOKeys": [
+++                        "neighbor"
+++                    ],
++                     "Annotation": {
++                         "schemapath": "/openconfig-options/bgp/neighbors"
+++                    },
+++                    "PerfOpts": {
+++                        "ChildSchemaCache": null
++                     }
++                 }
++             },
+++            "DirOKeys": [
+++                "neighbors"
+++            ],
++             "Annotation": {
+++                "modulename": "openconfig-options",
+++                "namespace": "urn:oco",
+++                "organization": "",
+++                "revision": "",
++                 "schemapath": "/openconfig-options/bgp",
++                 "structname": "Bgp"
+++            },
+++            "PerfOpts": {
+++                "ChildSchemaCache": null
++             }
++         }
++     },
+++    "DirOKeys": null,
++     "Annotation": {
++         "isCompressedSchema": true,
++         "isFakeRoot": true,
++         "schemapath": "/",
++         "structname": "Device"
+++    },
+++    "PerfOpts": {
+++        "ChildSchemaCache": null
++     }
++ }
++diff --git a/ygen/testdata/schema/openconfig-options-nocompress-fakeroot-schema.json b/ygen/testdata/schema/openconfig-options-nocompress-fakeroot-schema.json
++--- a/ygen/testdata/schema/openconfig-options-nocompress-fakeroot-schema.json
+++++ b/ygen/testdata/schema/openconfig-options-nocompress-fakeroot-schema.json
++@@ -67,6 +67,7 @@
++                                                     "Argument": "oco"
++                                                 }
++                                             },
+++                                            "DirOKeys": [],
++                                             "Type": {
++                                                 "Name": "uint32",
++                                                 "Kind": 7,
++@@ -84,6 +85,9 @@
++                                                         }
++                                                     }
++                                                 ]
+++                                            },
+++                                            "PerfOpts": {
+++                                                "ChildSchemaCache": null
++                                             }
++                                         },
++                                         "peer-address": {
++@@ -98,6 +102,7 @@
++                                                     "Argument": "oco"
++                                                 }
++                                             },
+++                                            "DirOKeys": [],
++                                             "Type": {
++                                                 "Name": "union",
++                                                 "Kind": 19,
++@@ -117,12 +122,22 @@
++                                                         ]
++                                                     }
++                                                 ]
+++                                            },
+++                                            "PerfOpts": {
+++                                                "ChildSchemaCache": null
++                                             }
++                                         }
++                                     },
+++                                    "DirOKeys": [
+++                                        "peer-address",
+++                                        "hold-time"
+++                                    ],
++                                     "Annotation": {
++                                         "schemapath": "/openconfig-options/bgp/neighbors/neighbor/config",
++                                         "structname": "OpenconfigOptions_Bgp_Neighbors_Neighbor_Config"
+++                                    },
+++                                    "PerfOpts": {
+++                                        "ChildSchemaCache": null
++                                     }
++                                 },
++                                 "peer-address": {
++@@ -137,10 +152,14 @@
++                                             "Argument": "oco"
++                                         }
++                                     },
+++                                    "DirOKeys": [],
++                                     "Type": {
++                                         "Name": "leafref",
++                                         "Kind": 17,
++                                         "Path": "../config/peer-address"
+++                                    },
+++                                    "PerfOpts": {
+++                                        "ChildSchemaCache": null
++                                     }
++                                 },
++                                 "state": {
++@@ -168,6 +187,7 @@
++                                                     "Argument": "oco"
++                                                 }
++                                             },
+++                                            "DirOKeys": [],
++                                             "Type": {
++                                                 "Name": "union",
++                                                 "Kind": 19,
++@@ -208,6 +228,9 @@
++                                                 "MinElements": null,
++                                                 "MaxElements": null,
++                                                 "OrderedBy": null
+++                                            },
+++                                            "PerfOpts": {
+++                                                "ChildSchemaCache": null
++                                             }
++                                         },
++                                         "hold-time": {
++@@ -222,6 +245,7 @@
++                                                     "Argument": "oco"
++                                                 }
++                                             },
+++                                            "DirOKeys": [],
++                                             "Type": {
++                                                 "Name": "uint32",
++                                                 "Kind": 7,
++@@ -239,6 +263,9 @@
++                                                         }
++                                                     }
++                                                 ]
+++                                            },
+++                                            "PerfOpts": {
+++                                                "ChildSchemaCache": null
++                                             }
++                                         },
++                                         "peer-address": {
++@@ -253,6 +280,7 @@
++                                                     "Argument": "oco"
++                                                 }
++                                             },
+++                                            "DirOKeys": [],
++                                             "Type": {
++                                                 "Name": "union",
++                                                 "Kind": 19,
++@@ -272,6 +300,9 @@
++                                                         ]
++                                                     }
++                                                 ]
+++                                            },
+++                                            "PerfOpts": {
+++                                                "ChildSchemaCache": null
++                                             }
++                                         },
++                                         "session-state": {
++@@ -286,19 +317,37 @@
++                                                     "Argument": "oco"
++                                                 }
++                                             },
+++                                            "DirOKeys": [],
++                                             "Type": {
++                                                 "Name": "enumeration",
++                                                 "Kind": 14,
++                                                 "Enum": {}
+++                                            },
+++                                            "PerfOpts": {
+++                                                "ChildSchemaCache": null
++                                             }
++                                         }
++                                     },
+++                                    "DirOKeys": [
+++                                        "peer-address",
+++                                        "hold-time",
+++                                        "enabled-address-family",
+++                                        "session-state"
+++                                    ],
++                                     "Annotation": {
++                                         "schemapath": "/openconfig-options/bgp/neighbors/neighbor/state",
++                                         "structname": "OpenconfigOptions_Bgp_Neighbors_Neighbor_State"
+++                                    },
+++                                    "PerfOpts": {
+++                                        "ChildSchemaCache": null
++                                     }
++                                 }
++                             },
+++                            "DirOKeys": [
+++                                "peer-address",
+++                                "config",
+++                                "state"
+++                            ],
++                             "Key": "peer-address",
++                             "ListAttr": {
++                                 "MinElements": null,
++@@ -308,24 +357,47 @@
++                             "Annotation": {
++                                 "schemapath": "/openconfig-options/bgp/neighbors/neighbor",
++                                 "structname": "OpenconfigOptions_Bgp_Neighbors_Neighbor"
+++                            },
+++                            "PerfOpts": {
+++                                "ChildSchemaCache": null
++                             }
++                         }
++                     },
+++                    "DirOKeys": [
+++                        "neighbor"
+++                    ],
++                     "Annotation": {
++                         "schemapath": "/openconfig-options/bgp/neighbors",
++                         "structname": "OpenconfigOptions_Bgp_Neighbors"
+++                    },
+++                    "PerfOpts": {
+++                        "ChildSchemaCache": null
++                     }
++                 }
++             },
+++            "DirOKeys": [
+++                "neighbors"
+++            ],
++             "Annotation": {
+++                "modulename": "openconfig-options",
+++                "namespace": "urn:oco",
+++                "organization": "",
+++                "revision": "",
++                 "schemapath": "/openconfig-options/bgp",
++                 "structname": "OpenconfigOptions_Bgp"
+++            },
+++            "PerfOpts": {
+++                "ChildSchemaCache": null
++             }
++         }
++     },
+++    "DirOKeys": null,
++     "Annotation": {
++         "isFakeRoot": true,
++         "schemapath": "/",
++         "structname": "Device"
+++    },
+++    "PerfOpts": {
+++        "ChildSchemaCache": null
++     }
++ }
++diff --git a/ygen/testdata/schema/openconfig-options-explicit-schema.json b/ygen/testdata/schema/openconfig-options-explicit-schema.json
++--- a/ygen/testdata/schema/openconfig-options-explicit-schema.json
+++++ b/ygen/testdata/schema/openconfig-options-explicit-schema.json
++@@ -54,9 +54,13 @@
++                                             "Argument": "ocs"
++                                         }
++                                     },
+++                                    "DirOKeys": [],
++                                     "Type": {
++                                         "Name": "binary",
++                                         "Kind": 9
+++                                    },
+++                                    "PerfOpts": {
+++                                        "ChildSchemaCache": null
++                                     }
++                                 },
++                                 "one": {
++@@ -71,9 +75,13 @@
++                                             "Argument": "ocs"
++                                         }
++                                     },
+++                                    "DirOKeys": [],
++                                     "Type": {
++                                         "Name": "string",
++                                         "Kind": 18
+++                                    },
+++                                    "PerfOpts": {
+++                                        "ChildSchemaCache": null
++                                     }
++                                 },
++                                 "three": {
++@@ -88,15 +96,27 @@
++                                             "Argument": "ocs"
++                                         }
++                                     },
+++                                    "DirOKeys": [],
++                                     "Type": {
++                                         "Name": "enumeration",
++                                         "Kind": 14,
++                                         "Enum": {}
++-                                    }
++-                                }
++-                            },
+++                                    },
+++                                    "PerfOpts": {
+++                                        "ChildSchemaCache": null
+++                                    }
+++                                }
+++                            },
+++                            "DirOKeys": [
+++                                "one",
+++                                "three",
+++                                "four"
+++                            ],
++                             "Annotation": {
++                                 "schemapath": "/openconfig-simple/parent/child/config"
+++                            },
+++                            "PerfOpts": {
+++                                "ChildSchemaCache": null
++                             }
++                         },
++                         "state": {
++@@ -124,9 +144,13 @@
++                                             "Argument": "ocs"
++                                         }
++                                     },
+++                                    "DirOKeys": [],
++                                     "Type": {
++                                         "Name": "binary",
++                                         "Kind": 9
+++                                    },
+++                                    "PerfOpts": {
+++                                        "ChildSchemaCache": null
++                                     }
++                                 },
++                                 "one": {
++@@ -141,9 +165,13 @@
++                                             "Argument": "ocs"
++                                         }
++                                     },
+++                                    "DirOKeys": [],
++                                     "Type": {
++                                         "Name": "string",
++                                         "Kind": 18
+++                                    },
+++                                    "PerfOpts": {
+++                                        "ChildSchemaCache": null
++                                     }
++                                 },
++                                 "three": {
++@@ -158,10 +186,14 @@
++                                             "Argument": "ocs"
++                                         }
++                                     },
+++                                    "DirOKeys": [],
++                                     "Type": {
++                                         "Name": "enumeration",
++                                         "Kind": 14,
++                                         "Enum": {}
+++                                    },
+++                                    "PerfOpts": {
+++                                        "ChildSchemaCache": null
++                                     }
++                                 },
++                                 "two": {
++@@ -176,26 +208,56 @@
++                                             "Argument": "ocs"
++                                         }
++                                     },
+++                                    "DirOKeys": [],
++                                     "Type": {
++                                         "Name": "string",
++                                         "Kind": 18
++-                                    }
++-                                }
++-                            },
+++                                    },
+++                                    "PerfOpts": {
+++                                        "ChildSchemaCache": null
+++                                    }
+++                                }
+++                            },
+++                            "DirOKeys": [
+++                                "one",
+++                                "three",
+++                                "four",
+++                                "two"
+++                            ],
++                             "Annotation": {
++                                 "schemapath": "/openconfig-simple/parent/child/state"
+++                            },
+++                            "PerfOpts": {
+++                                "ChildSchemaCache": null
++                             }
++                         }
++                     },
+++                    "DirOKeys": [
+++                        "config",
+++                        "state"
+++                    ],
++                     "Annotation": {
++                         "schemapath": "/openconfig-simple/parent/child",
++                         "structname": "Parent_Child"
+++                    },
+++                    "PerfOpts": {
+++                        "ChildSchemaCache": null
++                     }
++                 }
++             },
+++            "DirOKeys": [
+++                "child"
+++            ],
++             "Annotation": {
+++                "modulename": "openconfig-simple",
+++                "namespace": "urn:ocs",
+++                "organization": "",
+++                "revision": "",
++                 "schemapath": "/openconfig-simple/parent",
++                 "structname": "Parent"
+++            },
+++            "PerfOpts": {
+++                "ChildSchemaCache": null
++             }
++         },
++         "remote-container": {
++@@ -236,14 +298,24 @@
++                                     "Argument": "ocr"
++                                 }
++                             },
+++                            "DirOKeys": [],
++                             "Type": {
++                                 "Name": "string",
++                                 "Kind": 18
+++                            },
+++                            "PerfOpts": {
+++                                "ChildSchemaCache": null
++                             }
++                         }
++                     },
+++                    "DirOKeys": [
+++                        "a-leaf"
+++                    ],
++                     "Annotation": {
++                         "schemapath": "/openconfig-simple/remote-container/config"
+++                    },
+++                    "PerfOpts": {
+++                        "ChildSchemaCache": null
++                     }
++                 },
++                 "state": {
++@@ -271,27 +343,52 @@
++                                     "Argument": "ocr"
++                                 }
++                             },
+++                            "DirOKeys": [],
++                             "Type": {
++                                 "Name": "string",
++                                 "Kind": 18
+++                            },
+++                            "PerfOpts": {
+++                                "ChildSchemaCache": null
++                             }
++                         }
++                     },
+++                    "DirOKeys": [
+++                        "a-leaf"
+++                    ],
++                     "Annotation": {
++                         "schemapath": "/openconfig-simple/remote-container/state"
+++                    },
+++                    "PerfOpts": {
+++                        "ChildSchemaCache": null
++                     }
++                 }
++             },
+++            "DirOKeys": [
+++                "config",
+++                "state"
+++            ],
++             "Annotation": {
+++                "modulename": "openconfig-simple",
+++                "namespace": "urn:ocs",
+++                "organization": "",
+++                "revision": "",
++                 "schemapath": "/openconfig-simple/remote-container",
++                 "structname": "RemoteContainer"
+++            },
+++            "PerfOpts": {
+++                "ChildSchemaCache": null
++             }
++         }
++     },
+++    "DirOKeys": null,
++     "Annotation": {
++         "isCompressedSchema": true,
++         "isFakeRoot": true,
++         "schemapath": "/",
++         "structname": "Fakeroot"
+++    },
+++    "PerfOpts": {
+++        "ChildSchemaCache": null
++     }
++ }
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/patches/0007-validate-binary-leaf-values.patch b/modules/openconfig_ygot/0.7.1.sonic.1/patches/0007-validate-binary-leaf-values.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..c9d309b71a7e92ff4fb6ccd5e64a41bfc6eb7595
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/patches/0007-validate-binary-leaf-values.patch
+@@ -0,0 +1,11 @@
++diff --git a/ytypes/leaf.go b/ytypes/leaf.go
++--- a/ytypes/leaf.go
+++++ b/ytypes/leaf.go
++@@ -67,6 +67,7 @@
++ 		if ykind != yang.Ybinary {
++ 			return util.NewErrs(fmt.Errorf("bad leaf type: expect []byte for binary value %v for schema %s, have type %v", value, schema.Name, ykind))
++ 		}
+++		rv = value
++ 	case reflect.Int64:
++ 		if ykind != yang.Yenum && ykind != yang.Yidentityref && ykind != yang.Yunion {
++ 			return util.NewErrs(fmt.Errorf("bad leaf type: expect Int64 for enum type for schema %s, have type %v", schema.Name, ykind))
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/patches/0008-handle-default-container-fields-safely.patch b/modules/openconfig_ygot/0.7.1.sonic.1/patches/0008-handle-default-container-fields-safely.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..8adad915e796d9224af07861fa50c118b3c2b49d
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/patches/0008-handle-default-container-fields-safely.patch
+@@ -0,0 +1,12 @@
++diff --git a/ytypes/container.go b/ytypes/container.go
++--- a/ytypes/container.go
+++++ b/ytypes/container.go
++@@ -78,7 +78,7 @@
++ 						errors = util.AppendErrs(errors, errs)
++ 					}
++ 				}
++-			case !structElems.Field(i).IsNil():
+++			case !util.IsValueNilOrDefault(fieldValue):
++ 				// Either an element in choice schema subtree, or bad field.
++ 				// If the former, it will be found in the choice check below.
++ 				extraFields[fieldName] = nil
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/patches/0009-handle-standalone-leaf-schema.patch b/modules/openconfig_ygot/0.7.1.sonic.1/patches/0009-handle-standalone-leaf-schema.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..4b50563051cd13d946cb243daeb5ee3870b80d32
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/patches/0009-handle-standalone-leaf-schema.patch
+@@ -0,0 +1,16 @@
++diff --git a/ytypes/leaf.go b/ytypes/leaf.go
++--- a/ytypes/leaf.go
+++++ b/ytypes/leaf.go
++@@ -860,7 +860,11 @@
++ 	ykind := schema.Type.Kind
++ 
++ 	//get the original schema of the node and check whether it is leaf-list
++-	if ygNode := schema.Parent.Dir[schema.Name]; ygNode != nil && ygNode.IsLeafList() {
+++	var ygNode *yang.Entry
+++	if schema.Parent != nil {
+++		ygNode = schema.Parent.Dir[schema.Name]
+++	}
+++	if ygNode != nil && ygNode.IsLeafList() {
++ 		// convert the leaf-list's value only if its of type string(TypedValue_StringVal)
++ 		if len(tv.GetStringVal()) > 0 {
++ 			if goVal, err := yangTypeToGoTypeVal (parent, schema, fieldName, tv.GetStringVal()); err == nil {
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/patches/0010-preserve-destination-map-entries.patch b/modules/openconfig_ygot/0.7.1.sonic.1/patches/0010-preserve-destination-map-entries.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..4b28a65d3ddb8a0edaf1dd89969cb430e6114a27
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/patches/0010-preserve-destination-map-entries.patch
+@@ -0,0 +1,106 @@
++diff --git a/ygot/struct_validation_map.go b/ygot/struct_validation_map.go
++--- a/ygot/struct_validation_map.go
+++++ b/ygot/struct_validation_map.go
++@@ -667,6 +667,7 @@
++ 		{srcKeys, srcField},
++ 	}
++ 	existingKeys := map[interface{}]reflect.Value{}
+++	emittedKeys := map[interface{}]reflect.Value{}
++ 
++ 	for _, dstKey := range dstField.MapKeys()  {
++ 		existingKeys[dstKey.Interface()] = dstField.MapIndex(dstKey)
++@@ -689,6 +690,14 @@
++ 				return err
++ 			}
++ 			nm.SetMapIndex(k, d)
+++			emittedKeys[k.Interface()] = d
+++		}
+++	}
+++	// Preserve destination-only entries. Use the same semantic key comparison
+++	// as the source merge so equal pointer-containing keys are not duplicated.
+++	for _, k := range dstField.MapKeys() {
+++		if _, err := compareMapKeys(emittedKeys, k.Interface()); err != nil {
+++			nm.SetMapIndex(k, dstField.MapIndex(k))
++ 		}
++ 	}
++ 	dstField.Set(nm)
++diff --git a/ygot/sonic_map_merge_test.go b/ygot/sonic_map_merge_test.go
++new file mode 100644
++--- /dev/null
+++++ b/ygot/sonic_map_merge_test.go
++@@ -0,0 +1,75 @@
+++package ygot
+++
+++import (
+++	"reflect"
+++	"testing"
+++)
+++
+++func TestSONiCMapMergePreservesDestinationOnlyEntries(t *testing.T) {
+++	for _, tt := range []struct {
+++		name string
+++		dst  map[string]*copyTest
+++		src  map[string]*copyTest
+++		want map[string]*copyTest
+++	}{
+++		{
+++			name: "nil source retains destination",
+++			dst:  map[string]*copyTest{"retained": {StringField: String("old")}},
+++			want: map[string]*copyTest{"retained": {StringField: String("old")}},
+++		},
+++		{
+++			name: "empty source retains destination",
+++			dst:  map[string]*copyTest{"retained": {StringField: String("old")}},
+++			src:  map[string]*copyTest{},
+++			want: map[string]*copyTest{"retained": {StringField: String("old")}},
+++		},
+++		{
+++			name: "disjoint source adds entry",
+++			dst:  map[string]*copyTest{"retained": {StringField: String("old")}},
+++			src:  map[string]*copyTest{"added": {StringField: String("new")}},
+++			want: map[string]*copyTest{"retained": {StringField: String("old")}, "added": {StringField: String("new")}},
+++		},
+++		{
+++			name: "matching source merges fields without dropping unrelated entry",
+++			dst:  map[string]*copyTest{"retained": {StringField: String("old")}, "shared": {Uint32Field: Uint32(42)}},
+++			src:  map[string]*copyTest{"shared": {StringField: String("new")}},
+++			want: map[string]*copyTest{"retained": {StringField: String("old")}, "shared": {StringField: String("new"), Uint32Field: Uint32(42)}},
+++		},
+++	} {
+++		t.Run(tt.name, func(t *testing.T) {
+++			if err := copyMapField(reflect.ValueOf(&tt.dst).Elem(), reflect.ValueOf(tt.src)); err != nil {
+++				t.Fatal(err)
+++			}
+++			if !reflect.DeepEqual(tt.dst, tt.want) {
+++				t.Fatalf("merged map = %#v, want %#v", tt.dst, tt.want)
+++			}
+++		})
+++	}
+++}
+++
+++func TestSONiCMapMergePreservesSemanticKeyMatching(t *testing.T) {
+++	dstKey, srcKey, retainedKey := String("same"), String("same"), String("retained")
+++	if dstKey == srcKey {
+++		t.Fatal("test requires distinct pointers with equal contents")
+++	}
+++	dst := map[*string]*copyTest{
+++		dstKey:      {Uint32Field: Uint32(42)},
+++		retainedKey: {StringField: String("old")},
+++	}
+++	src := map[*string]*copyTest{srcKey: {StringField: String("new")}}
+++	if err := copyMapField(reflect.ValueOf(&dst).Elem(), reflect.ValueOf(src)); err != nil {
+++		t.Fatal(err)
+++	}
+++	if len(dst) != 2 || dst[dstKey] != nil || dst[srcKey] == nil || dst[retainedKey] == nil {
+++		t.Fatalf("expected source canonical key plus destination-only key, got %#v", dst)
+++	}
+++	if got := dst[srcKey]; got.StringField == nil || *got.StringField != "new" || got.Uint32Field == nil || *got.Uint32Field != 42 {
+++		t.Fatalf("semantic key did not merge fields: %#v", got)
+++	}
+++	if got := dst[retainedKey]; got.StringField == nil || *got.StringField != "old" {
+++		t.Fatalf("destination-only value changed: %#v", got)
+++	}
+++	if src[srcKey].Uint32Field != nil || *src[srcKey].StringField != "new" {
+++		t.Fatal("source value was mutated")
+++	}
+++}
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/patches/0011-preserve-annotation-marshaler-contract.patch b/modules/openconfig_ygot/0.7.1.sonic.1/patches/0011-preserve-annotation-marshaler-contract.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..c0fb9501202646466b7234f56e30a7502223fdc1
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/patches/0011-preserve-annotation-marshaler-contract.patch
+@@ -0,0 +1,16 @@
++diff --git a/ygot/render.go b/ygot/render.go
++--- a/ygot/render.go
+++++ b/ygot/render.go
++@@ -986,7 +986,11 @@
++ 		}
++ 
++ 		var value interface{}
++-		value, err = jsonValue(field, pmod, args, tagPaths)
+++		if util.IsYgotAnnotation(fType) {
+++			value, err = jsonAnnotationSlice(field)
+++		} else {
+++			value, err = jsonValue(field, pmod, args, tagPaths)
+++		}
++ 
++ 		if err != nil {
++ 			errs.Add(err)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/patches/0012-handle-annotation-fields-without-schema.patch b/modules/openconfig_ygot/0.7.1.sonic.1/patches/0012-handle-annotation-fields-without-schema.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..0dd331b67badef14b6f03cb420a2bb2acd7b5307
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/patches/0012-handle-annotation-fields-without-schema.patch
+@@ -0,0 +1,12 @@
++diff --git a/ytypes/node.go b/ytypes/node.go
++--- a/ytypes/node.go
+++++ b/ytypes/node.go
++@@ -149,7 +149,7 @@
++ 					return nil, status.Errorf(codes.Unknown, "failed to initialize struct field %s in %T, child schema %v, path %v", ft.Name, root, cschema, path)
++ 				}
++ 
++-				if cschema.IsLeaf() || cschema.IsLeafList() {
+++				if cschema != nil && (cschema.IsLeaf() || cschema.IsLeafList()) {
++ 					if len(path.Elem) == 1 && len(path.Elem[0].Key) == 1 {
++ 						var vals []string
++ 						vals = append(vals, path.Elem[0].Key[path.Elem[0].Name])
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/patches/0013-compare-protobuf-paths-in-original-tests.patch b/modules/openconfig_ygot/0.7.1.sonic.1/patches/0013-compare-protobuf-paths-in-original-tests.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..649256eb45d27ec32c245b57132aff86b9c1b9d3
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/patches/0013-compare-protobuf-paths-in-original-tests.patch
+@@ -0,0 +1,20 @@
++diff --git a/ygot/render_test.go b/ygot/render_test.go
++--- a/ygot/render_test.go
+++++ b/ygot/render_test.go
++@@ -26,6 +26,7 @@
++ 	"github.com/kylelemons/godebug/pretty"
++ 	"github.com/openconfig/gnmi/errdiff"
++ 	"github.com/openconfig/ygot/testutil"
+++	"google.golang.org/protobuf/testing/protocmp"
++ 
++ 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
++ )
++@@ -169,7 +170,7 @@
++ 	}}
++ 
++ 	for _, tt := range tests {
++-		if got := tt.inPath.Copy(); !cmp.Equal(got, tt.inPath, cmp.AllowUnexported(gnmiPath{})) {
+++		if got := tt.inPath.Copy(); !cmp.Equal(got, tt.inPath, cmp.AllowUnexported(gnmiPath{}), protocmp.Transform()) {
++ 			t.Errorf("%s: (gnmiPath).Copy(): did not get expected result, got: %v, want: %v", tt.name, got, tt.inPath)
++ 		}
++ 	}
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/patches/0014-record-existing-sonic-embedded-schema.patch b/modules/openconfig_ygot/0.7.1.sonic.1/patches/0014-record-existing-sonic-embedded-schema.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..71162bc5fbf8543ff1285f0b5a729ae45e1e4494
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/patches/0014-record-existing-sonic-embedded-schema.patch
+@@ -0,0 +1,753 @@
++diff --git a/ygen/testdata/schema/openconfig-options-compress.formatted-txt b/ygen/testdata/schema/openconfig-options-compress.formatted-txt
++--- a/ygen/testdata/schema/openconfig-options-compress.formatted-txt
+++++ b/ygen/testdata/schema/openconfig-options-compress.formatted-txt
++@@ -293,74 +293,85 @@
++ 	// contents of a goyang yang.Entry struct, which defines the schema for the
++ 	// fields within the struct.
++ 	ySchema = []byte{
++-		0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xec, 0x5c, 0x5b, 0x6f, 0xfa, 0x36,
++-		0x14, 0x7f, 0xcf, 0xa7, 0x88, 0xfc, 0x3a, 0x28, 0xfd, 0x33, 0xb6, 0x0e, 0xde, 0xe8, 0x05, 0x0d,
++-		0x75, 0xed, 0xaa, 0xb6, 0xeb, 0x4b, 0x8b, 0x2a, 0x43, 0x4c, 0xb0, 0x96, 0xd8, 0x91, 0xed, 0x68,
++-		0x45, 0x13, 0xdf, 0x7d, 0x0a, 0xb9, 0xb4, 0x81, 0x50, 0x7c, 0x09, 0x97, 0x21, 0xbf, 0x95, 0xc4,
++-		0x3e, 0x3e, 0x3e, 0xbf, 0xdf, 0xe1, 0x1c, 0x1f, 0x9f, 0xf2, 0xaf, 0xe3, 0xba, 0xae, 0x0b, 0xee,
++-		0x61, 0x88, 0x40, 0xcf, 0x05, 0xa0, 0x91, 0x7e, 0xbe, 0xc5, 0xc4, 0x03, 0x3d, 0xf7, 0x3c, 0xfb,
++-		0x78, 0x45, 0xc9, 0x14, 0xfb, 0x5f, 0x1e, 0x5c, 0x63, 0x06, 0x7a, 0x6e, 0x3a, 0x79, 0xf9, 0x60,
++-		0xec, 0x47, 0xa5, 0x07, 0x25, 0xa9, 0xc9, 0xcb, 0x46, 0xf9, 0x55, 0xb6, 0xc0, 0x8f, 0x95, 0xc7,
++-		0xab, 0x0b, 0x15, 0x2f, 0x1e, 0x18, 0x9a, 0xe2, 0x8f, 0xb5, 0x25, 0x4a, 0xcb, 0xd0, 0x09, 0x5d,
++-		0x59, 0x66, 0xf9, 0xfa, 0x89, 0xc6, 0x6c, 0x82, 0x2a, 0xa7, 0xa6, 0xaa, 0xa0, 0xf9, 0x3f, 0x94,
++-		0x25, 0xda, 0x80, 0x28, 0x5d, 0xa5, 0x51, 0x3d, 0xf0, 0x77, 0xc8, 0xfb, 0xcc, 0x8f, 0x43, 0x44,
++-		0x04, 0xe8, 0xb9, 0x82, 0xc5, 0x68, 0xc3, 0xc0, 0x2f, 0xa3, 0x96, 0x4a, 0xad, 0x8d, 0x5a, 0x94,
++-		0x9e, 0x2c, 0x56, 0xf6, 0xba, 0x6a, 0xdc, 0xe2, 0x05, 0x41, 0xd8, 0x9f, 0x8d, 0x29, 0xe3, 0x9b,
++-		0x37, 0x93, 0xdb, 0xe2, 0x73, 0xe8, 0x06, 0x1d, 0xab, 0x01, 0xd8, 0x0a, 0x84, 0x0c, 0x20, 0x92,
++-		0xc0, 0xc8, 0x02, 0xa4, 0x0c, 0x94, 0x32, 0x60, 0xf2, 0xc0, 0x55, 0x03, 0xb8, 0x01, 0xc8, 0xad,
++-		0x80, 0xae, 0x01, 0xbb, 0xdd, 0x06, 0xab, 0xf8, 0x6e, 0x33, 0xc1, 0xf7, 0x30, 0x4b, 0xc3, 0xad,
++-		0x02, 0xbb, 0x22, 0xfc, 0xaa, 0x34, 0xd0, 0xa6, 0x83, 0x36, 0x2d, 0xd4, 0xe9, 0xf1, 0x3d, 0x4d,
++-		0xb6, 0xd0, 0x45, 0x9a, 0x36, 0xc5, 0xc0, 0x49, 0x8e, 0x9e, 0xa4, 0xe5, 0x72, 0x60, 0xb2, 0x79,
++-		0x92, 0xbb, 0x97, 0xa3, 0x92, 0x32, 0xa5, 0x74, 0xa8, 0xa5, 0x49, 0x31, 0x5d, 0xaa, 0x19, 0x53,
++-		0xce, 0x98, 0x7a, 0xfa, 0x14, 0x94, 0xa3, 0xa2, 0x24, 0x25, 0x95, 0xa9, 0x59, 0x4c, 0x98, 0xd1,
++-		0xc0, 0x6b, 0x0a, 0x1c, 0x6a, 0x18, 0x3d, 0xc7, 0xf8, 0x53, 0x84, 0xa2, 0xcd, 0xca, 0xc9, 0x8c,
++-		0xf4, 0x34, 0x55, 0x02, 0x9b, 0x10, 0xd9, 0x90, 0xd0, 0xa6, 0xc4, 0xae, 0x8d, 0xe0, 0xb5, 0x11,
++-		0xdd, 0x9c, 0xf0, 0x6a, 0xc4, 0x57, 0x74, 0x80, 0x42, 0xbd, 0xe7, 0x79, 0x84, 0xcc, 0x90, 0x8e,
++-		0x31, 0x11, 0x3f, 0xb7, 0x75, 0xc0, 0xce, 0x78, 0x7d, 0xa1, 0x31, 0xf5, 0x11, 0x12, 0x3f, 0x59,
++-		0xfd, 0x55, 0x0b, 0x14, 0x3d, 0x72, 0x2d, 0x17, 0xbe, 0xc3, 0x44, 0x9b, 0x9d, 0x86, 0x0e, 0xbd,
++-		0x26, 0xe6, 0x05, 0x06, 0x31, 0xaa, 0x41, 0xce, 0x80, 0xc1, 0x89, 0xc0, 0x94, 0x5c, 0x63, 0x1f,
++-		0x8b, 0x24, 0x37, 0x3f, 0xd7, 0x96, 0xb7, 0x68, 0x18, 0x98, 0x16, 0x7e, 0x1c, 0x9d, 0x69, 0x3b,
++-		0xed, 0x6e, 0xa7, 0xfb, 0xeb, 0x45, 0xbb, 0xfb, 0xcb, 0x11, 0xd9, 0xd8, 0xd9, 0xcf, 0xac, 0x91,
++-		0xb3, 0x1b, 0xf9, 0x0a, 0x1c, 0x01, 0x11, 0x42, 0xac, 0x09, 0x3d, 0x8f, 0x21, 0xce, 0xf5, 0x23,
++-		0x6f, 0x49, 0x8a, 0x0d, 0xbe, 0x36, 0xf8, 0x9e, 0x4e, 0xf0, 0x25, 0x98, 0x12, 0x83, 0xd8, 0xfb,
++-		0xa3, 0xab, 0x31, 0x37, 0x53, 0x7b, 0xef, 0xb1, 0x37, 0xdf, 0x34, 0x17, 0x0c, 0x13, 0x1f, 0x18,
++-		0x84, 0x9a, 0x7c, 0xf7, 0xbf, 0x19, 0xc8, 0x78, 0x80, 0x42, 0x20, 0x46, 0xb4, 0x0d, 0x51, 0x08,
++-		0x7a, 0x3d, 0x6f, 0x76, 0xdf, 0xde, 0xce, 0x46, 0x3f, 0x01, 0x6d, 0x39, 0x23, 0x67, 0x8f, 0xc1,
++-		0xda, 0x22, 0x58, 0x85, 0x60, 0xbf, 0x39, 0xe8, 0x1d, 0x00, 0xc2, 0xe3, 0x89, 0xea, 0xb5, 0x9e,
++-		0xcf, 0xfb, 0x84, 0x50, 0x01, 0x93, 0x84, 0x49, 0xed, 0x98, 0xce, 0x27, 0x33, 0x14, 0xc2, 0x08,
++-		0x8a, 0x59, 0x42, 0xb3, 0x16, 0x8d, 0x10, 0x49, 0x8b, 0x44, 0x4d, 0x1a, 0x25, 0xd2, 0x78, 0x6b,
++-		0xec, 0x47, 0xad, 0xa2, 0xb8, 0x5c, 0xfc, 0xd5, 0xca, 0x4a, 0x49, 0x4e, 0x3d, 0x5b, 0x95, 0xd8,
++-		0xa6, 0x5e, 0x6a, 0x63, 0x92, 0xd2, 0x28, 0xa6, 0x32, 0xb6, 0x00, 0x76, 0xca, 0x05, 0x30, 0xe5,
++-		0xd4, 0xa3, 0x40, 0x2a, 0x40, 0x70, 0xca, 0xd0, 0x54, 0x05, 0xad, 0xfc, 0xcb, 0x5a, 0xe1, 0xa4,
++-		0x9f, 0x7c, 0x39, 0x2f, 0x7d, 0xf8, 0xec, 0x2c, 0xf3, 0xcd, 0x56, 0x89, 0xf2, 0x7b, 0x74, 0x54,
++-		0x2e, 0xa0, 0x40, 0xea, 0x1e, 0x9a, 0x4e, 0xdb, 0x71, 0x6d, 0xba, 0x6d, 0x5d, 0xf3, 0xe4, 0x5c,
++-		0x53, 0xb9, 0x36, 0x8d, 0x08, 0x1c, 0x07, 0xc8, 0xcb, 0x7d, 0xa3, 0x39, 0x85, 0x21, 0x0e, 0xe6,
++-		0xfa, 0xc7, 0xe5, 0x0d, 0xf2, 0xec, 0xc1, 0xd9, 0x1e, 0x9c, 0xed, 0xc1, 0xf9, 0xff, 0x7c, 0x70,
++-		0xc6, 0x1e, 0x22, 0x02, 0x8b, 0xb9, 0x5a, 0xf8, 0xde, 0x68, 0x02, 0x83, 0x9a, 0x28, 0x18, 0x66,
++-		0xaa, 0x5c, 0x42, 0x8e, 0xcc, 0xab, 0xbe, 0xf9, 0x06, 0xfb, 0x83, 0x21, 0xa8, 0xa3, 0xf2, 0xcb,
++-		0x8d, 0xcf, 0x84, 0x66, 0x88, 0x55, 0x6e, 0x6e, 0xf8, 0xf0, 0xd2, 0x79, 0xff, 0xeb, 0x7e, 0x78,
++-		0xd5, 0x7f, 0x7a, 0x06, 0xc6, 0xa2, 0x17, 0x46, 0x12, 0x46, 0xfb, 0xae, 0x5e, 0x1f, 0xac, 0x54,
++-		0xa1, 0x7d, 0xbd, 0xb5, 0xea, 0x2e, 0x17, 0x06, 0x22, 0xcc, 0xae, 0xbb, 0xea, 0xe3, 0x63, 0x2d,
++-		0xd7, 0x5f, 0x86, 0x19, 0xc2, 0xf7, 0x9e, 0x5b, 0xa3, 0xbc, 0x1a, 0xaf, 0x6c, 0x0c, 0x69, 0x5c,
++-		0x86, 0xa0, 0x86, 0x6b, 0xb2, 0x5d, 0x43, 0x50, 0xd7, 0xb5, 0xd9, 0x4e, 0xb1, 0x70, 0x0e, 0x33,
++-		0xfb, 0x48, 0x0b, 0x7d, 0x8a, 0x19, 0xd8, 0x1f, 0x98, 0x8b, 0xbe, 0x10, 0x4c, 0x2f, 0x0b, 0xbb,
++-		0xc3, 0xe4, 0x26, 0x40, 0x49, 0x82, 0x99, 0x60, 0x49, 0xe2, 0x20, 0xd0, 0xc8, 0xa6, 0xee, 0xe0,
++-		0x87, 0xb9, 0x90, 0x3f, 0x99, 0x87, 0x18, 0xf2, 0x2e, 0xe7, 0x99, 0x88, 0x23, 0xb8, 0xf3, 0xb4,
++-		0xad, 0x46, 0xf6, 0xd0, 0x66, 0x0f, 0x6d, 0xb5, 0xe6, 0x62, 0xb6, 0xd5, 0xc8, 0xb6, 0x1a, 0xd5,
++-		0x9d, 0x43, 0xd9, 0x56, 0xa3, 0x83, 0xe5, 0x2a, 0xb6, 0xd5, 0xc8, 0x06, 0x5f, 0x1b, 0x7c, 0xf7,
++-		0x1d, 0x7c, 0x6d, 0xab, 0x91, 0x41, 0x94, 0xb0, 0xad, 0x46, 0x16, 0x41, 0xdb, 0x6a, 0xb4, 0xff,
++-		0xa8, 0xce, 0x11, 0xe7, 0x98, 0x92, 0xa6, 0xda, 0x25, 0xfe, 0x3a, 0x8b, 0x4a, 0x62, 0x6c, 0x5c,
++-		0xb7, 0x71, 0xfd, 0x64, 0xe2, 0x3a, 0x22, 0x71, 0x88, 0x58, 0xda, 0x6b, 0x67, 0x10, 0xdd, 0x3b,
++-		0x1a, 0x73, 0x6f, 0x48, 0x1c, 0x26, 0xca, 0x2f, 0x6c, 0x4f, 0x62, 0x55, 0x4f, 0x62, 0xfa, 0x65,
++-		0x53, 0x57, 0xa7, 0x93, 0xd1, 0xbf, 0xf2, 0xde, 0xa2, 0xb9, 0xe2, 0xe9, 0x46, 0xad, 0x42, 0xac,
++-		0x55, 0x11, 0xd6, 0xaa, 0x00, 0xab, 0x55, 0x7c, 0xb7, 0xd9, 0x45, 0x91, 0x13, 0xda, 0x5c, 0x00,
++-		0x52, 0x7d, 0x6a, 0x2c, 0x9e, 0x08, 0x92, 0xb9, 0xf5, 0xa5, 0x1f, 0xbd, 0xdf, 0xe7, 0xb3, 0x1d,
++-		0x3d, 0x66, 0xa8, 0xfd, 0x4a, 0x80, 0xa4, 0x2d, 0x54, 0x6d, 0x50, 0xad, 0xfc, 0x42, 0xf1, 0x37,
++-		0x29, 0xb6, 0x28, 0x27, 0xa7, 0x54, 0xd5, 0xaf, 0x73, 0xac, 0x59, 0xbd, 0xac, 0xef, 0xa7, 0x56,
++-		0xe9, 0x5f, 0x99, 0x5e, 0x9b, 0xf4, 0x01, 0x98, 0x5f, 0xd1, 0x30, 0x4a, 0xfc, 0x0b, 0x79, 0x4f,
++-		0x4b, 0x9d, 0xd6, 0xc2, 0x17, 0xc0, 0x7c, 0x00, 0xff, 0x46, 0x8f, 0x94, 0xe6, 0xa1, 0x2d, 0x95,
++-		0xec, 0x2c, 0xfe, 0x03, 0x00, 0x00, 0xff, 0xff, 0x01, 0x00, 0x00, 0xff, 0xff, 0x92, 0xe0, 0x18,
++-		0x91, 0x0d, 0x45, 0x00, 0x00,
+++		0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xec, 0x5c, 0x5f, 0x73, 0xe2, 0xb6,
+++		0x17, 0x7d, 0xe7, 0x53, 0x30, 0x7a, 0xfd, 0x41, 0xc8, 0xe6, 0x97, 0x36, 0x85, 0x37, 0xc2, 0x6e,
+++		0xa6, 0x99, 0x6d, 0xfe, 0xcc, 0x66, 0xbb, 0x2f, 0x59, 0x66, 0x47, 0xc1, 0xc2, 0x68, 0x6a, 0x24,
+++		0x8f, 0x24, 0xb7, 0xa1, 0x1d, 0x7f, 0xf7, 0x8e, 0xc1, 0x36, 0xb1, 0xb1, 0xb1, 0xae, 0x64, 0x12,
+++		0x76, 0xab, 0xb7, 0x04, 0x4b, 0x57, 0xd2, 0x3d, 0x47, 0xf2, 0xf1, 0xbd, 0x77, 0xf4, 0x4f, 0xa7,
+++		0xdb, 0xed, 0x76, 0xd1, 0x2d, 0x5e, 0x12, 0x34, 0xea, 0x22, 0xd4, 0xdb, 0xfc, 0xff, 0x91, 0x32,
+++		0x0f, 0x8d, 0xba, 0xa7, 0xe9, 0xbf, 0x13, 0xce, 0xe6, 0xd4, 0x7f, 0xf1, 0xc3, 0x7b, 0x2a, 0xd0,
+++		0xa8, 0xbb, 0xe9, 0xbc, 0xfe, 0xe1, 0xc9, 0x0f, 0x0b, 0x3f, 0x14, 0xac, 0x26, 0x0f, 0x7b, 0xc5,
+++		0x47, 0xe9, 0x00, 0xef, 0x4a, 0x3f, 0x97, 0x07, 0xca, 0x1f, 0xdc, 0x0b, 0x32, 0xa7, 0xcf, 0x3b,
+++		0x43, 0x14, 0x86, 0xe1, 0x33, 0x5e, 0x1a, 0x66, 0xfd, 0xf8, 0x81, 0x47, 0x62, 0x46, 0x2a, 0xbb,
+++		0x6e, 0xa6, 0x42, 0x56, 0x7f, 0x71, 0x91, 0xcc, 0x06, 0x85, 0x9b, 0x51, 0x7a, 0xd5, 0x0d, 0x7f,
+++		0xc5, 0x72, 0x2c, 0xfc, 0x68, 0x49, 0x98, 0x42, 0xa3, 0xae, 0x12, 0x11, 0xa9, 0x69, 0xf8, 0xa2,
+++		0xd5, 0x7a, 0x52, 0x3b, 0xad, 0xe2, 0xc2, 0x2f, 0x71, 0x69, 0xad, 0x65, 0xe7, 0xe6, 0x0f, 0x18,
+++		0xa1, 0xfe, 0xe2, 0x89, 0x0b, 0x59, 0xbf, 0x98, 0xcc, 0x17, 0xdb, 0xa6, 0x35, 0x73, 0xac, 0x06,
+++		0xa0, 0x11, 0x08, 0x1d, 0x40, 0x34, 0x81, 0xd1, 0x05, 0x08, 0x0c, 0x14, 0x18, 0x30, 0x7d, 0xe0,
+++		0xaa, 0x01, 0xac, 0x01, 0xb2, 0x11, 0xd0, 0x1d, 0x60, 0x9b, 0x7d, 0x50, 0xc6, 0xb7, 0xc9, 0x05,
+++		0xfb, 0x61, 0xd6, 0x86, 0x1b, 0x02, 0x3b, 0x10, 0x7e, 0x28, 0x0d, 0x8c, 0xe9, 0x60, 0x4c, 0x0b,
+++		0x38, 0x3d, 0xf6, 0xd3, 0xa4, 0x81, 0x2e, 0xda, 0xb4, 0xc9, 0x1b, 0xce, 0x32, 0xf4, 0x34, 0x3d,
+++		0x97, 0x01, 0x93, 0xf6, 0xd3, 0x5c, 0xbd, 0x1e, 0x95, 0xc0, 0x94, 0x32, 0xa1, 0x96, 0x21, 0xc5,
+++		0x4c, 0xa9, 0x66, 0x4d, 0x39, 0x6b, 0xea, 0x99, 0x53, 0x50, 0x8f, 0x8a, 0x9a, 0x94, 0x04, 0x53,
+++		0x33, 0xef, 0xb0, 0xe0, 0x81, 0xd7, 0x57, 0x74, 0x69, 0xe0, 0xf4, 0x0c, 0xe3, 0xad, 0x09, 0xa0,
+++		0xcf, 0x8a, 0x62, 0x46, 0xbb, 0x1b, 0x94, 0xc0, 0x36, 0x44, 0xb6, 0x24, 0xb4, 0x2d, 0xb1, 0x5b,
+++		0x23, 0x78, 0x6b, 0x44, 0xb7, 0x27, 0x3c, 0x8c, 0xf8, 0xc0, 0x0d, 0xf0, 0x72, 0x23, 0xdc, 0x7d,
+++		0x24, 0xab, 0x44, 0x91, 0x3d, 0x4e, 0x81, 0x7d, 0x3f, 0xaf, 0x42, 0x62, 0xc7, 0x92, 0x88, 0x32,
+++		0xf5, 0xff, 0x33, 0x13, 0xa2, 0xa4, 0x7b, 0xe2, 0xc2, 0xa0, 0xeb, 0x27, 0xcc, 0xfc, 0x64, 0xf4,
+++		0x47, 0x23, 0x40, 0xcd, 0x88, 0xb9, 0x1e, 0xf8, 0x86, 0x32, 0x63, 0x66, 0x5b, 0x1e, 0x06, 0x3b,
+++		0x66, 0xbe, 0xe0, 0x20, 0x22, 0x2d, 0xd8, 0xb9, 0x12, 0x78, 0xa6, 0x28, 0x67, 0xef, 0xa9, 0x4f,
+++		0x55, 0xc2, 0xa2, 0x53, 0x63, 0x7b, 0x71, 0xcf, 0xc2, 0xb5, 0xf8, 0xf9, 0xe8, 0x5c, 0x7b, 0x7e,
+++		0x36, 0x3c, 0x1f, 0xfe, 0x7c, 0x71, 0x36, 0xfc, 0xe9, 0x88, 0x7c, 0xdc, 0x79, 0x9d, 0x5e, 0xd3,
+++		0x83, 0x1e, 0x5a, 0xf7, 0x44, 0xcc, 0xef, 0x42, 0x25, 0xcd, 0x0e, 0x9f, 0xc9, 0x82, 0x06, 0xde,
+++		0xc3, 0x6c, 0x41, 0x96, 0x78, 0x82, 0x67, 0x8b, 0x04, 0x2a, 0x16, 0x05, 0x41, 0xe7, 0x30, 0x1e,
+++		0x01, 0xac, 0x0d, 0x85, 0x84, 0x88, 0x3e, 0xf6, 0x3c, 0x41, 0xa4, 0x34, 0xd7, 0x19, 0x05, 0x2b,
+++		0x4e, 0x6a, 0x38, 0xa9, 0xe1, 0xa4, 0x46, 0x22, 0x35, 0x18, 0xe5, 0xcc, 0x42, 0x69, 0xbc, 0x1b,
+++		0x1a, 0xf4, 0x4d, 0xa7, 0xfd, 0xea, 0x4a, 0x23, 0x5b, 0xb4, 0x54, 0x82, 0x32, 0x1f, 0x59, 0xbc,
+++		0x58, 0xb3, 0xd5, 0xff, 0x62, 0x61, 0xe3, 0x1e, 0x2b, 0x45, 0x04, 0x33, 0x76, 0x44, 0x6e, 0xe8,
+++		0xf1, 0xb4, 0x3f, 0xfc, 0xfa, 0xf5, 0x64, 0xfa, 0x3f, 0x64, 0x6c, 0x67, 0xda, 0x79, 0x45, 0x69,
+++		0xe2, 0x10, 0xac, 0x42, 0x70, 0xdc, 0xbf, 0x1a, 0xbd, 0x01, 0x84, 0x4e, 0xc3, 0x98, 0x6b, 0x98,
+++		0xb6, 0x63, 0x2f, 0xf9, 0x7b, 0xc0, 0x50, 0x1b, 0xf5, 0x4c, 0x02, 0x37, 0x5a, 0x7d, 0xa6, 0xba,
+++		0xa1, 0x54, 0xc6, 0xb8, 0xc2, 0x89, 0x2a, 0x87, 0xc5, 0x91, 0xe4, 0x1a, 0xb3, 0x10, 0xab, 0x45,
+++		0xb2, 0xbb, 0x07, 0x3c, 0x24, 0x6c, 0x13, 0xc5, 0xec, 0xf3, 0x30, 0xb1, 0x26, 0x07, 0x4f, 0x7e,
+++		0x38, 0xc8, 0xb3, 0x1f, 0xf9, 0x5f, 0x83, 0x34, 0xd6, 0xd9, 0x2a, 0x12, 0x46, 0x1c, 0xb4, 0xe2,
+++		0x5e, 0x33, 0x93, 0x34, 0xe6, 0x6e, 0xa6, 0x93, 0x6d, 0xf4, 0x31, 0x50, 0x17, 0xbb, 0xd8, 0xf1,
+++		0x21, 0x74, 0xee, 0x11, 0xc5, 0x8e, 0xa1, 0x3a, 0x16, 0xae, 0x5f, 0x73, 0x74, 0x03, 0x82, 0xe7,
+++		0x82, 0xcc, 0x21, 0x08, 0x67, 0x6f, 0x7c, 0x40, 0x70, 0x2c, 0x79, 0xc3, 0xaf, 0x4f, 0xa4, 0x93,
+++		0x93, 0xf4, 0xa4, 0x19, 0x14, 0xb6, 0x89, 0x3b, 0x76, 0x92, 0xb3, 0x5b, 0x61, 0x45, 0xe0, 0xe7,
+++		0xcd, 0xa6, 0xdb, 0x81, 0x93, 0x54, 0x67, 0xee, 0xa0, 0xf9, 0x11, 0x0f, 0x1a, 0x18, 0x50, 0x84,
+++		0xe1, 0xa7, 0x80, 0x78, 0xd9, 0xae, 0xed, 0xcf, 0xf1, 0x92, 0x06, 0x2b, 0xf3, 0x48, 0x52, 0x8d,
+++		0x3d, 0x17, 0x53, 0x72, 0x31, 0x25, 0x17, 0x53, 0xfa, 0xaf, 0xc6, 0x94, 0xa8, 0x47, 0x98, 0xa2,
+++		0x6a, 0x05, 0x13, 0x25, 0xb5, 0x2e, 0xb0, 0x48, 0x8e, 0xa0, 0xeb, 0x74, 0x2a, 0x97, 0x58, 0x12,
+++		0xfb, 0xf4, 0x4f, 0xb6, 0xc0, 0xf1, 0xd5, 0x35, 0x6a, 0x23, 0x05, 0x24, 0xad, 0xc3, 0x25, 0x76,
+++		0x88, 0x55, 0x2e, 0xee, 0xfa, 0xfe, 0xcb, 0xf9, 0xb7, 0xdf, 0x6f, 0xaf, 0x27, 0xe3, 0x87, 0xcf,
+++		0xc8, 0xda, 0x74, 0x6c, 0x65, 0x61, 0xfa, 0xda, 0x69, 0xac, 0x37, 0x8b, 0xe2, 0x19, 0xe7, 0xb9,
+++		0xcb, 0xdb, 0xe5, 0xc2, 0xc2, 0x84, 0x5d, 0xde, 0xbb, 0x3d, 0x3e, 0xb6, 0x92, 0x07, 0xb7, 0x54,
+++		0x17, 0xfb, 0x77, 0x6e, 0x8b, 0xf6, 0x5a, 0xcc, 0xdd, 0x5a, 0xd2, 0xb8, 0x08, 0x41, 0x0b, 0xf9,
+++		0xf2, 0x43, 0x43, 0xd0, 0x56, 0xfe, 0xfc, 0xa0, 0x58, 0x74, 0xde, 0xa6, 0xf7, 0x8f, 0x11, 0x03,
+++		0xff, 0x8d, 0x4a, 0x35, 0x56, 0x4a, 0x98, 0xa9, 0xb0, 0x1b, 0xca, 0x3e, 0x04, 0x24, 0x11, 0xa7,
+++		0x32, 0x8d, 0x05, 0x18, 0xa8, 0xa9, 0x1b, 0xfc, 0x6c, 0x6f, 0xe4, 0x4e, 0x78, 0x44, 0x10, 0xef,
+++		0x72, 0x65, 0x14, 0x86, 0x77, 0xc5, 0x0f, 0x5d, 0x57, 0x61, 0xe9, 0x3e, 0x51, 0xdd, 0x27, 0xea,
+++		0x41, 0x3e, 0x51, 0x5d, 0x85, 0xe5, 0xdb, 0xc8, 0x19, 0x57, 0x61, 0x79, 0x78, 0xd7, 0xba, 0x0a,
+++		0x4b, 0x27, 0x32, 0x5c, 0x85, 0xa5, 0x93, 0x1a, 0x4e, 0x6a, 0x1c, 0x85, 0xd4, 0x70, 0x15, 0x96,
+++		0x16, 0xef, 0x44, 0x57, 0x61, 0xe9, 0x10, 0x74, 0x15, 0x96, 0x4e, 0xc3, 0x34, 0xcf, 0x4c, 0x12,
+++		0x29, 0x29, 0x67, 0x7d, 0x58, 0x39, 0xca, 0x2e, 0xef, 0x0b, 0x66, 0x9c, 0x8a, 0x71, 0x2a, 0xc6,
+++		0xa9, 0x98, 0x75, 0xcd, 0x4b, 0xb4, 0x24, 0x62, 0x53, 0xd9, 0x6b, 0xa1, 0x65, 0xce, 0x0d, 0xfa,
+++		0x7e, 0x60, 0xd1, 0x32, 0x99, 0x7c, 0xec, 0x8e, 0x45, 0x50, 0xcb, 0x63, 0x2f, 0x3c, 0xef, 0x59,
+++		0x57, 0x70, 0x19, 0xbf, 0x1d, 0xbe, 0xef, 0x9a, 0x77, 0xc0, 0x1a, 0xbe, 0xeb, 0xda, 0x53, 0xdb,
+++		0x5b, 0x56, 0xf4, 0x59, 0x0d, 0x65, 0xb3, 0xfe, 0x15, 0x2b, 0x48, 0x03, 0xac, 0x69, 0xaf, 0xf1,
+++		0x82, 0x24, 0x60, 0x78, 0x05, 0x96, 0x42, 0x34, 0x4a, 0x19, 0x1a, 0xa5, 0x08, 0x61, 0x29, 0xc1,
+++		0x26, 0x88, 0x81, 0x1b, 0xcf, 0x78, 0xc3, 0xe9, 0xc1, 0x2c, 0xa2, 0x99, 0x62, 0xe9, 0xdb, 0xf2,
+++		0xd2, 0x0f, 0xbf, 0xdd, 0x66, 0xbd, 0xad, 0xd6, 0x08, 0xda, 0x98, 0x46, 0x1b, 0x32, 0x6e, 0xef,
+++		0x36, 0xac, 0xe6, 0x0d, 0xb7, 0xbd, 0xe0, 0xaa, 0x03, 0xd8, 0x09, 0xba, 0x48, 0x43, 0x11, 0x46,
+++		0xa0, 0x05, 0x6a, 0x41, 0x01, 0x82, 0x20, 0x86, 0xdf, 0x20, 0x57, 0xef, 0x62, 0x54, 0xb3, 0xac,
+++		0x92, 0x4f, 0x9b, 0x7c, 0x89, 0x96, 0xdc, 0x8b, 0x02, 0x92, 0x31, 0x79, 0xd7, 0x85, 0x55, 0x77,
+++		0xf1, 0x25, 0xad, 0x65, 0x88, 0x67, 0x9b, 0x80, 0x97, 0x60, 0xa3, 0x9a, 0x3b, 0xfb, 0xb8, 0xf0,
+++		0x31, 0xa3, 0x7f, 0x67, 0xa3, 0xa3, 0xaa, 0x36, 0x82, 0xfc, 0x49, 0xe5, 0x9e, 0xe7, 0x5a, 0x18,
+++		0x57, 0x76, 0x2c, 0x6f, 0x51, 0xb4, 0xd7, 0xd9, 0x7b, 0xe1, 0xd6, 0x82, 0x79, 0x0b, 0xe6, 0xe6,
+++		0xaf, 0x78, 0x7b, 0xcb, 0x62, 0x06, 0xe3, 0xf6, 0xd8, 0xac, 0xc3, 0x05, 0x51, 0x39, 0xe1, 0xcb,
+++		0x30, 0x39, 0xf4, 0x49, 0x3a, 0xe0, 0xce, 0x67, 0x0e, 0xa2, 0xf2, 0x0a, 0xff, 0x41, 0x3e, 0x71,
+++		0x9e, 0x7d, 0x02, 0x15, 0xc6, 0xab, 0x5c, 0xc9, 0xde, 0x15, 0xc4, 0x9d, 0xf8, 0x5f, 0x00, 0x00,
+++		0x00, 0xff, 0xff, 0x01, 0x00, 0x00, 0xff, 0xff, 0x97, 0x8f, 0x27, 0xd5, 0x42, 0x52, 0x00, 0x00,
++ 	}
++ )
++ 
++diff --git a/ygen/testdata/schema/openconfig-options-nocompress.formatted-txt b/ygen/testdata/schema/openconfig-options-nocompress.formatted-txt
++--- a/ygen/testdata/schema/openconfig-options-nocompress.formatted-txt
+++++ b/ygen/testdata/schema/openconfig-options-nocompress.formatted-txt
++@@ -362,75 +362,86 @@
++ 	// contents of a goyang yang.Entry struct, which defines the schema for the
++ 	// fields within the struct.
++ 	ySchema = []byte{
++-		0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xec, 0x5c, 0xdd, 0x8f, 0xe2, 0x36,
++-		0x10, 0x7f, 0xe7, 0xaf, 0x88, 0xfc, 0x5a, 0x58, 0xf6, 0x28, 0xed, 0x16, 0xde, 0xd8, 0xbb, 0x43,
++-		0x45, 0xd7, 0xfd, 0xd0, 0xed, 0xf5, 0x5e, 0xee, 0x10, 0x32, 0xc4, 0x04, 0xab, 0xc1, 0x89, 0x1c,
++-		0x47, 0x5d, 0x54, 0xe5, 0x7f, 0xaf, 0x42, 0x3e, 0xf6, 0x02, 0x01, 0x3c, 0xb6, 0xf9, 0x38, 0xe4,
++-		0x37, 0x36, 0xc9, 0xcc, 0xd8, 0xf3, 0xfb, 0x39, 0x33, 0x1e, 0xcf, 0xe6, 0xbf, 0x86, 0xe3, 0x38,
++-		0x0e, 0x7a, 0xc4, 0x4b, 0x82, 0xfa, 0x0e, 0x42, 0xcd, 0xec, 0xef, 0x4f, 0x94, 0xb9, 0xa8, 0xef,
++-		0xdc, 0xe6, 0x7f, 0xbe, 0x0f, 0xd8, 0x9c, 0x7a, 0x3f, 0x5c, 0xf8, 0x40, 0x39, 0xea, 0x3b, 0x99,
++-		0xf0, 0xfa, 0xc2, 0xd4, 0x0b, 0x2b, 0x17, 0x2a, 0x5a, 0xd3, 0x9b, 0xcd, 0xea, 0xad, 0xdc, 0xc0,
++-		0xbb, 0x8d, 0xcb, 0x9b, 0x86, 0xca, 0x1b, 0xcf, 0x9c, 0xcc, 0xe9, 0xeb, 0x96, 0x89, 0x8a, 0x99,
++-		0x60, 0x16, 0x6c, 0x98, 0x59, 0xdf, 0x7e, 0x09, 0x62, 0x3e, 0x23, 0xb5, 0xa2, 0xd9, 0x50, 0xc8,
++-		0xea, 0xdf, 0x80, 0xa7, 0xa3, 0x41, 0x61, 0x66, 0xa5, 0x59, 0xff, 0xe0, 0x9f, 0x38, 0x1a, 0x70,
++-		0x2f, 0x5e, 0x12, 0x26, 0x50, 0xdf, 0x11, 0x3c, 0x26, 0x3b, 0x1e, 0xfc, 0xe1, 0xa9, 0xf5, 0xa0,
++-		0xb6, 0x9e, 0x4a, 0x2a, 0x57, 0x92, 0x8d, 0xb9, 0x6e, 0x3a, 0xb7, 0xbc, 0xc1, 0x08, 0xf5, 0x16,
++-		0xd3, 0x80, 0x47, 0xbb, 0x27, 0x53, 0xf8, 0xe2, 0xed, 0xd1, 0x1d, 0x63, 0xac, 0x07, 0xe0, 0x20,
++-		0x10, 0x32, 0x80, 0x48, 0x02, 0x23, 0x0b, 0x10, 0x18, 0x28, 0x30, 0x60, 0xf2, 0xc0, 0xd5, 0x03,
++-		0xb8, 0x03, 0xc8, 0x83, 0x80, 0x6e, 0x01, 0x7b, 0xd8, 0x07, 0x9b, 0xf8, 0x1e, 0x72, 0xc1, 0x7e,
++-		0x98, 0xa5, 0xe1, 0x86, 0xc0, 0x0e, 0x84, 0x1f, 0x4a, 0x03, 0x65, 0x3a, 0x28, 0xd3, 0x02, 0x4e,
++-		0x8f, 0xfd, 0x34, 0x39, 0x40, 0x17, 0x69, 0xda, 0x94, 0x0f, 0xce, 0x0a, 0xf4, 0x24, 0x3d, 0x57,
++-		0x00, 0x93, 0xcb, 0x49, 0xce, 0x5e, 0x8e, 0x4a, 0x60, 0x4a, 0xa9, 0x50, 0x4b, 0x91, 0x62, 0xaa,
++-		0x54, 0xd3, 0xa6, 0x9c, 0x36, 0xf5, 0xd4, 0x29, 0x28, 0x47, 0x45, 0x49, 0x4a, 0x82, 0xa9, 0x59,
++-		0x0a, 0x2c, 0x02, 0xdf, 0x6d, 0x09, 0xba, 0x54, 0x70, 0x7a, 0x81, 0xf1, 0x9b, 0x0a, 0xa0, 0xcf,
++-		0xaa, 0xc9, 0x8c, 0xb4, 0x18, 0x94, 0xc0, 0x3a, 0x44, 0xd6, 0x24, 0xb4, 0x2e, 0xb1, 0x8d, 0x11,
++-		0xdc, 0x18, 0xd1, 0xf5, 0x09, 0x0f, 0x23, 0x3e, 0x70, 0x01, 0x94, 0xc3, 0xfb, 0xb2, 0x0a, 0x89,
++-		0x1e, 0xd2, 0x31, 0x65, 0xe2, 0xd7, 0x8e, 0x0a, 0xd8, 0x39, 0xaf, 0xef, 0x14, 0x44, 0x3f, 0x63,
++-		0xe6, 0xa5, 0xd6, 0xbf, 0x29, 0x81, 0xa2, 0x46, 0xae, 0xb5, 0xe1, 0x07, 0xca, 0x94, 0xd9, 0xa9,
++-		0xb9, 0xa0, 0xb7, 0xd4, 0x7c, 0xc5, 0x7e, 0x4c, 0x0c, 0xe8, 0x19, 0x72, 0x3c, 0x13, 0x34, 0x60,
++-		0x1f, 0xa8, 0x47, 0x45, 0x9a, 0x9b, 0xdf, 0x2a, 0xeb, 0x4b, 0x9a, 0x1a, 0xae, 0xc5, 0xaf, 0x17,
++-		0xe7, 0xda, 0x6e, 0xa7, 0xd7, 0xed, 0xfd, 0x7e, 0xd7, 0xe9, 0xfd, 0x76, 0x41, 0x3e, 0x6e, 0x9c,
++-		0x46, 0x6a, 0xdc, 0x38, 0x8e, 0x7e, 0x00, 0x47, 0x50, 0x48, 0x08, 0x6f, 0x61, 0xd7, 0xe5, 0x24,
++-		0x8a, 0xd4, 0x23, 0x6f, 0x45, 0x8b, 0x0d, 0xbe, 0x36, 0xf8, 0x5e, 0x4f, 0xf0, 0x65, 0x34, 0x60,
++-		0x1a, 0xb1, 0xf7, 0x5d, 0x4f, 0x41, 0x36, 0x1f, 0xf6, 0xc9, 0x63, 0x6f, 0x31, 0xe9, 0x48, 0x70,
++-		0xca, 0x3c, 0xa4, 0x11, 0x6a, 0x8a, 0xd9, 0xff, 0xa1, 0xa1, 0xe3, 0x19, 0x0b, 0x41, 0x38, 0x53,
++-		0x76, 0x44, 0xa9, 0xe8, 0xdb, 0x6d, 0xab, 0xf7, 0xfd, 0xfb, 0xcd, 0xf8, 0x17, 0xa4, 0xac, 0x67,
++-		0xdc, 0x38, 0x61, 0xb0, 0xb6, 0x08, 0xd6, 0x21, 0x38, 0x68, 0x0d, 0xfb, 0x67, 0x80, 0xf0, 0x72,
++-		0xa2, 0xba, 0xd1, 0xfd, 0xf9, 0x80, 0xb1, 0x40, 0xe0, 0x34, 0x61, 0x82, 0x6d, 0xd3, 0xa3, 0xd9,
++-		0x82, 0x2c, 0x71, 0x88, 0xc5, 0x22, 0xa5, 0x59, 0x3b, 0x08, 0x09, 0xcb, 0x8a, 0x44, 0xad, 0x20,
++-		0x4c, 0xb5, 0x45, 0xed, 0xa9, 0x17, 0xb6, 0xcb, 0xe2, 0x72, 0xf9, 0xab, 0x0d, 0x2a, 0x25, 0x65,
++-		0xa6, 0x04, 0x8f, 0x67, 0x82, 0xe5, 0x8c, 0x7e, 0x2a, 0x2d, 0x3d, 0x65, 0x86, 0x26, 0xf7, 0x5e,
++-		0x38, 0x79, 0x2c, 0x0c, 0x95, 0xbf, 0x26, 0x79, 0x62, 0xd0, 0x30, 0xe3, 0x53, 0x09, 0x7f, 0xaa,
++-		0xe5, 0x50, 0x3a, 0xb9, 0x13, 0x30, 0x67, 0xb2, 0x95, 0xb6, 0x6b, 0xae, 0xb4, 0x81, 0x73, 0x9c,
++-		0x12, 0x29, 0x9f, 0xe0, 0x39, 0x27, 0x73, 0x08, 0x5a, 0x45, 0x54, 0x00, 0x94, 0x14, 0xd2, 0x28,
++-		0xb0, 0x7e, 0x59, 0xdc, 0xdc, 0xe4, 0x2f, 0x81, 0x76, 0x85, 0xf2, 0x27, 0x5c, 0xa8, 0x91, 0xc0,
++-		0x82, 0xc0, 0x57, 0x68, 0x26, 0x76, 0xe4, 0x22, 0x78, 0xc7, 0x2e, 0xcd, 0xab, 0x5b, 0x9a, 0xe0,
++-		0x22, 0x38, 0x61, 0x78, 0xea, 0x13, 0xb7, 0x58, 0x1b, 0xad, 0x39, 0x5e, 0x52, 0x7f, 0xa5, 0xbe,
++-		0x2f, 0xdf, 0xa1, 0xcf, 0xee, 0xd0, 0xed, 0x0e, 0xdd, 0xee, 0xd0, 0x7f, 0xe6, 0x1d, 0x3a, 0x75,
++-		0x09, 0x13, 0x54, 0xac, 0x60, 0xe1, 0x7b, 0xa7, 0x0b, 0x34, 0x8a, 0xaf, 0x68, 0x94, 0x0f, 0xe5,
++-		0x1e, 0x47, 0x44, 0xbf, 0xbc, 0x5c, 0x4c, 0x70, 0x30, 0x1c, 0x21, 0x13, 0x25, 0xe6, 0x48, 0x7b,
++-		0xf3, 0xa9, 0x87, 0x58, 0xed, 0xe4, 0x46, 0xcf, 0x5f, 0xbb, 0x93, 0xbf, 0x1f, 0x47, 0xef, 0x07,
++-		0x2f, 0x5f, 0x90, 0xb6, 0xea, 0x44, 0x4b, 0xc3, 0xf8, 0xd4, 0x65, 0xf2, 0xb3, 0xd5, 0x44, 0x94,
++-		0xcf, 0xd1, 0x36, 0x97, 0xcb, 0x9d, 0x86, 0x0a, 0xbd, 0x73, 0x35, 0x73, 0x7c, 0x34, 0x72, 0xce,
++-		0xa6, 0x99, 0x21, 0xec, 0x5f, 0xb9, 0x06, 0xf5, 0x19, 0x3c, 0x1b, 0xd2, 0xa4, 0x71, 0x15, 0x02,
++-		0x03, 0xe7, 0x71, 0xc7, 0x86, 0xc0, 0xd4, 0xf9, 0xdc, 0x51, 0xb1, 0x68, 0x9c, 0x47, 0xfa, 0x42,
++-		0x2b, 0x8a, 0xc0, 0x0c, 0xec, 0x2f, 0x1a, 0x89, 0x81, 0x10, 0x5c, 0x2d, 0x0b, 0x7b, 0xa0, 0xec,
++-		0xa3, 0x4f, 0xd2, 0x04, 0x33, 0xc5, 0x92, 0xc5, 0xbe, 0xaf, 0x90, 0x4d, 0x3d, 0xe0, 0x57, 0x7d,
++-		0x25, 0x4f, 0xdc, 0x25, 0x9c, 0xb8, 0xf7, 0xab, 0x5c, 0xc5, 0x05, 0x1c, 0xae, 0xda, 0x9e, 0x26,
++-		0xbb, 0x69, 0xb3, 0x9b, 0x36, 0xa3, 0xb9, 0x98, 0xed, 0x69, 0xb2, 0x3d, 0x4d, 0xa6, 0x73, 0x28,
++-		0xdb, 0xd3, 0x74, 0xb6, 0x5c, 0xc5, 0xf6, 0x34, 0xd9, 0xe0, 0x6b, 0x83, 0xef, 0xa9, 0x83, 0xaf,
++-		0xed, 0x69, 0xd2, 0x88, 0x12, 0xb6, 0xa7, 0xc9, 0x22, 0x68, 0x7b, 0x9a, 0x4e, 0x1f, 0xd5, 0x23,
++-		0x12, 0x45, 0x34, 0x60, 0x2d, 0xd8, 0x21, 0xfe, 0x36, 0x8b, 0x2a, 0x6a, 0x6c, 0x5c, 0xb7, 0x71,
++-		0xfd, 0x6a, 0xe2, 0x3a, 0x61, 0xf1, 0x92, 0xf0, 0xac, 0xa9, 0x4f, 0x23, 0xba, 0x77, 0x15, 0x64,
++-		0x3f, 0xb2, 0x78, 0x99, 0x0e, 0x3e, 0xb1, 0xcd, 0x8f, 0x75, 0xcd, 0x8f, 0xd0, 0x97, 0x8d, 0x6a,
++-		0xef, 0xe3, 0xcb, 0xda, 0x8e, 0xa9, 0x8e, 0x2a, 0xad, 0xff, 0x4d, 0xfe, 0x44, 0x56, 0xc0, 0x5d,
++-		0x14, 0xac, 0x12, 0xad, 0x54, 0x79, 0x56, 0xaa, 0x34, 0xc3, 0x2a, 0xcb, 0x87, 0xfc, 0x02, 0xe4,
++-		0x9e, 0x32, 0xe7, 0x90, 0x54, 0x3f, 0x9c, 0x0a, 0xcb, 0xf6, 0xf3, 0x2b, 0x31, 0xf4, 0x49, 0x04,
++-		0x49, 0x3f, 0x41, 0xfd, 0xb3, 0xef, 0x33, 0x13, 0x20, 0x77, 0xd4, 0x7b, 0x21, 0x01, 0x7e, 0xc9,
++-		0xe3, 0xc0, 0x2c, 0xe5, 0x66, 0x57, 0xf7, 0x4d, 0x13, 0x89, 0xb9, 0x54, 0x67, 0xf0, 0x36, 0xce,
++-		0xec, 0x57, 0x3e, 0xd2, 0x5d, 0x23, 0x44, 0x34, 0x1a, 0xe2, 0x7f, 0xc8, 0xe7, 0x20, 0x28, 0xa2,
++-		0x72, 0x26, 0xd5, 0x48, 0xfe, 0x07, 0x00, 0x00, 0xff, 0xff, 0x01, 0x00, 0x00, 0xff, 0xff, 0x1c,
++-		0xf1, 0xba, 0xfe, 0x31, 0x46, 0x00, 0x00,
+++		0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xec, 0x5c, 0xdf, 0x53, 0xe3, 0x36,
+++		0x10, 0x7e, 0xcf, 0x5f, 0x91, 0xd1, 0x6b, 0x13, 0xe0, 0x28, 0x2d, 0x4d, 0xde, 0x02, 0x77, 0x4c,
+++		0x99, 0x2b, 0x84, 0x39, 0xae, 0xf7, 0xc2, 0x65, 0x18, 0x11, 0x2b, 0x8e, 0xa6, 0x8e, 0xec, 0x91,
+++		0xe5, 0x96, 0xb4, 0xe3, 0xff, 0xbd, 0xe3, 0xf8, 0x47, 0x70, 0xe2, 0xd8, 0xda, 0x95, 0x03, 0xb9,
+++		0x3b, 0xbd, 0x81, 0x2d, 0xad, 0xa4, 0xfd, 0xbe, 0x95, 0xbf, 0xac, 0x76, 0xf4, 0x5f, 0xa7, 0xdb,
+++		0xed, 0x76, 0xc9, 0x2d, 0x5d, 0x30, 0x32, 0xec, 0x12, 0xd2, 0x4b, 0xff, 0xff, 0xc8, 0x85, 0x43,
+++		0x86, 0xdd, 0x93, 0xec, 0xdf, 0x4b, 0x5f, 0xcc, 0xb8, 0xfb, 0xe2, 0xc1, 0x7b, 0x2e, 0xc9, 0xb0,
+++		0x9b, 0x76, 0x5e, 0x3d, 0x78, 0x72, 0x83, 0xd2, 0x83, 0x92, 0xd5, 0xe4, 0x65, 0xaf, 0xfc, 0x2a,
+++		0x1b, 0xe0, 0xdd, 0xc6, 0xe3, 0xcd, 0x81, 0x8a, 0x17, 0x77, 0x92, 0xcd, 0xf8, 0xf3, 0xd6, 0x10,
+++		0xa5, 0x61, 0xfc, 0xa9, 0xbf, 0x31, 0xcc, 0xea, 0xf5, 0xbd, 0x1f, 0xc9, 0x29, 0xab, 0xec, 0x9a,
+++		0x4e, 0x85, 0x2d, 0xff, 0xf1, 0x65, 0x32, 0x1b, 0x12, 0xa4, 0xa3, 0xf4, 0xaa, 0x1b, 0xfe, 0x4e,
+++		0xc3, 0x91, 0x74, 0xa3, 0x05, 0x13, 0x8a, 0x0c, 0xbb, 0x4a, 0x46, 0x6c, 0x47, 0xc3, 0x17, 0xad,
+++		0x56, 0x93, 0xda, 0x6a, 0x15, 0x97, 0x9e, 0xc4, 0x1b, 0x6b, 0xdd, 0x74, 0x6e, 0xf1, 0x42, 0x30,
+++		0xee, 0xce, 0x9f, 0x7c, 0x19, 0xee, 0x5e, 0x4c, 0xee, 0x8b, 0x75, 0xd3, 0x1d, 0x73, 0xac, 0x06,
+++		0xa0, 0x11, 0x08, 0x1d, 0x40, 0x34, 0x81, 0xd1, 0x05, 0x08, 0x0c, 0x14, 0x18, 0x30, 0x7d, 0xe0,
+++		0xaa, 0x01, 0xdc, 0x01, 0x64, 0x23, 0xa0, 0x5b, 0xc0, 0x36, 0xfb, 0x60, 0x13, 0xdf, 0x26, 0x17,
+++		0xd4, 0xc3, 0xac, 0x0d, 0x37, 0x04, 0x76, 0x20, 0xfc, 0x50, 0x1a, 0xa0, 0xe9, 0x80, 0xa6, 0x05,
+++		0x9c, 0x1e, 0xf5, 0x34, 0x69, 0xa0, 0x8b, 0x36, 0x6d, 0x8a, 0x86, 0xd3, 0x1c, 0x3d, 0x4d, 0xcf,
+++		0xe5, 0xc0, 0x64, 0xfd, 0x34, 0x57, 0xaf, 0x47, 0x25, 0x30, 0xa5, 0x30, 0xd4, 0x42, 0x52, 0x0c,
+++		0x4b, 0x35, 0x63, 0xca, 0x19, 0x53, 0x0f, 0x4f, 0x41, 0x3d, 0x2a, 0x6a, 0x52, 0x12, 0x4c, 0xcd,
+++		0xa2, 0xc3, 0xdc, 0xf7, 0x9c, 0xbe, 0xe2, 0x0b, 0x84, 0xd3, 0x73, 0x8c, 0xd7, 0x26, 0x80, 0x3e,
+++		0x2b, 0x8b, 0x19, 0xed, 0x6e, 0x50, 0x02, 0x9b, 0x10, 0xd9, 0x90, 0xd0, 0xa6, 0xc4, 0x6e, 0x8d,
+++		0xe0, 0xad, 0x11, 0xdd, 0x9c, 0xf0, 0x30, 0xe2, 0x03, 0x03, 0xe0, 0x65, 0x20, 0x8c, 0x3f, 0xb2,
+++		0x65, 0xa2, 0xc8, 0x1e, 0x26, 0xc0, 0xbe, 0x9f, 0x97, 0x01, 0x33, 0x63, 0x49, 0xc4, 0x85, 0xfa,
+++		0xf9, 0x14, 0x43, 0x94, 0x2c, 0x26, 0xce, 0x11, 0x5d, 0x3f, 0x51, 0xe1, 0x26, 0xa3, 0x3f, 0xa0,
+++		0x00, 0xc5, 0x11, 0x73, 0x35, 0xf0, 0x0d, 0x17, 0x68, 0x66, 0x1b, 0x6e, 0x06, 0x5b, 0x66, 0xbe,
+++		0x50, 0x2f, 0x62, 0x2d, 0xd8, 0xb9, 0x92, 0x74, 0xaa, 0xb8, 0x2f, 0xde, 0x73, 0x97, 0xab, 0x84,
+++		0x45, 0x27, 0x68, 0x7b, 0x71, 0xcf, 0xc0, 0xb5, 0xf4, 0xf9, 0xe0, 0x5c, 0x7b, 0x76, 0x3a, 0x38,
+++		0x1b, 0xfc, 0x7a, 0x7e, 0x3a, 0xf8, 0xe5, 0x80, 0x7c, 0xdc, 0x79, 0x9d, 0x5e, 0x93, 0xbd, 0x6e,
+++		0x5a, 0x77, 0x4c, 0xce, 0xc6, 0x81, 0x0a, 0x71, 0x9b, 0xcf, 0xe5, 0x9c, 0x7b, 0xce, 0xfd, 0x74,
+++		0xce, 0x16, 0xf4, 0x92, 0x4e, 0xe7, 0x09, 0x54, 0x22, 0xf2, 0xbc, 0xce, 0x7e, 0x3c, 0x02, 0x58,
+++		0x1b, 0x09, 0x18, 0x93, 0x7d, 0xea, 0x38, 0x92, 0x85, 0x21, 0x5e, 0x67, 0x94, 0xac, 0x58, 0xa9,
+++		0x61, 0xa5, 0x86, 0x95, 0x1a, 0x89, 0xd4, 0x10, 0xdc, 0x17, 0x06, 0x4a, 0xe3, 0xdd, 0x00, 0xd1,
+++		0x37, 0x9b, 0xf6, 0xab, 0x2b, 0x8d, 0x7c, 0xd1, 0xa1, 0x92, 0x5c, 0xb8, 0xc4, 0xe0, 0xc3, 0x9a,
+++		0xaf, 0xfe, 0x37, 0x03, 0x1b, 0x77, 0x54, 0x29, 0x26, 0x05, 0xda, 0x11, 0x85, 0xa1, 0x87, 0x93,
+++		0xfe, 0xe0, 0xeb, 0xd7, 0xa3, 0xc9, 0x4f, 0x04, 0x6d, 0x67, 0xd2, 0x79, 0x45, 0x69, 0x62, 0x11,
+++		0xac, 0x42, 0x70, 0xd4, 0xbf, 0x1a, 0xbe, 0x01, 0x84, 0x56, 0xc3, 0xe0, 0x35, 0x4c, 0xdb, 0xb9,
+++		0x97, 0xe2, 0x3b, 0x80, 0xd4, 0x46, 0x3d, 0x4c, 0xe2, 0x46, 0xab, 0xcf, 0x44, 0x37, 0x95, 0x2a,
+++		0x84, 0xaf, 0x68, 0xa2, 0xca, 0x61, 0x79, 0xa4, 0x70, 0x85, 0x59, 0x40, 0xd5, 0x3c, 0x89, 0xee,
+++		0x63, 0x3f, 0x60, 0x22, 0xcd, 0x62, 0xf6, 0xfd, 0x20, 0xb1, 0x16, 0x1e, 0x3f, 0xb9, 0xc1, 0x71,
+++		0x71, 0xfa, 0x51, 0xfc, 0x75, 0x0c, 0xca, 0x75, 0xa6, 0x43, 0x29, 0x19, 0x4d, 0x95, 0xc8, 0x36,
+++		0x92, 0x71, 0x31, 0xd2, 0x38, 0x1d, 0xe8, 0xf1, 0xc2, 0x0d, 0x1e, 0x6f, 0xf3, 0x81, 0x8a, 0xbf,
+++		0x1e, 0x33, 0x2d, 0xd7, 0x2a, 0xe4, 0x28, 0xb2, 0x1b, 0x91, 0xbc, 0x99, 0xb2, 0x1a, 0x73, 0xc7,
+++		0x09, 0x72, 0x13, 0x21, 0x0e, 0x14, 0xe0, 0x36, 0x49, 0xbd, 0x0f, 0x41, 0x7d, 0x40, 0x49, 0x6a,
+++		0xa8, 0x60, 0x86, 0x0b, 0xe5, 0x02, 0x5d, 0x8f, 0xd1, 0x99, 0x64, 0x33, 0x08, 0xc2, 0xb9, 0xb4,
+++		0x00, 0x64, 0xe1, 0x12, 0x29, 0xb1, 0xda, 0xfa, 0x8e, 0x8e, 0xb2, 0x2d, 0xed, 0xb8, 0x14, 0x26,
+++		0x76, 0xdb, 0x59, 0xed, 0xdc, 0x54, 0x31, 0xf8, 0x7e, 0x93, 0x76, 0xdb, 0xf3, 0x69, 0xd8, 0xa9,
+++		0xdd, 0x68, 0xbe, 0xc7, 0x8d, 0x06, 0x06, 0x14, 0x13, 0xf4, 0xc9, 0x63, 0x4e, 0x1e, 0xb5, 0xfd,
+++		0x19, 0x5d, 0x70, 0x6f, 0x89, 0x4f, 0x59, 0xed, 0xb0, 0x67, 0x93, 0x57, 0x36, 0x79, 0x65, 0x93,
+++		0x57, 0x3f, 0x6a, 0xf2, 0x8a, 0x3b, 0x4c, 0x28, 0xae, 0x96, 0x30, 0x51, 0xb2, 0xd3, 0x05, 0x06,
+++		0xa7, 0x30, 0xe4, 0x3a, 0x9b, 0xca, 0x05, 0x0d, 0x99, 0xf9, 0x39, 0x53, 0xbe, 0xc0, 0xd1, 0xd5,
+++		0x35, 0x69, 0xe3, 0xac, 0x29, 0x34, 0xce, 0xcb, 0x98, 0x21, 0x56, 0xb9, 0xb8, 0xeb, 0xbb, 0x2f,
+++		0x67, 0x8f, 0x7f, 0xde, 0x5e, 0x5f, 0x8e, 0xee, 0x3f, 0x13, 0x63, 0xd3, 0xb1, 0x91, 0x85, 0xc9,
+++		0x6b, 0x9f, 0x97, 0xbd, 0x59, 0xba, 0x10, 0x7d, 0xa0, 0xbe, 0x19, 0x2e, 0xe7, 0x06, 0x26, 0xcc,
+++		0x0e, 0xd8, 0xdb, 0xe3, 0x63, 0x2b, 0x07, 0xee, 0x86, 0xea, 0xa2, 0x3e, 0x72, 0x5b, 0xb4, 0xd7,
+++		0xe2, 0x21, 0xb1, 0x21, 0x8d, 0xcb, 0x10, 0xb4, 0x70, 0x30, 0xbf, 0x6f, 0x08, 0xda, 0x3a, 0xa8,
+++		0xdf, 0x2b, 0x16, 0x9d, 0xb7, 0xe9, 0xfd, 0x7d, 0x24, 0xdb, 0xff, 0xe0, 0xa1, 0x1a, 0x29, 0x25,
+++		0x71, 0x2a, 0xec, 0x86, 0x8b, 0x0f, 0x1e, 0x4b, 0xc4, 0x69, 0x98, 0xe5, 0x02, 0x10, 0x6a, 0xea,
+++		0x86, 0x3e, 0x9b, 0x1b, 0x19, 0x4b, 0x87, 0x49, 0xe6, 0x5c, 0x2c, 0x51, 0xf9, 0x7e, 0x5b, 0x65,
+++		0xd1, 0xb5, 0xa5, 0x9c, 0xf6, 0x27, 0xaa, 0xfd, 0x89, 0xba, 0x97, 0x9f, 0xa8, 0xb6, 0x94, 0xf3,
+++		0x6d, 0xe4, 0x8c, 0x2d, 0xe5, 0xdc, 0xbf, 0x6b, 0x6d, 0x29, 0xa7, 0x15, 0x19, 0xb6, 0x94, 0xd3,
+++		0x4a, 0x0d, 0x2b, 0x35, 0x0e, 0x42, 0x6a, 0xd8, 0x52, 0x4e, 0x83, 0x6f, 0xa2, 0x2d, 0xe5, 0xb4,
+++		0x08, 0xda, 0x52, 0x4e, 0xab, 0x61, 0x9a, 0x67, 0x16, 0xb2, 0x30, 0xe4, 0xbe, 0xe8, 0xc3, 0xca,
+++		0x51, 0xb6, 0x79, 0x5f, 0x32, 0x63, 0x55, 0x8c, 0x55, 0x31, 0x56, 0xc5, 0xac, 0x6a, 0x5e, 0xa2,
+++		0x05, 0x93, 0x69, 0x09, 0xb1, 0x81, 0x96, 0x39, 0x43, 0xf4, 0xfd, 0x20, 0xa2, 0x45, 0x32, 0xf9,
+++		0xd8, 0x6e, 0x8b, 0xa0, 0x96, 0x87, 0x5e, 0xe1, 0xde, 0x33, 0xae, 0xe0, 0x42, 0x7f, 0x1d, 0xbe,
+++		0xed, 0xe2, 0x7a, 0xe8, 0xa7, 0x09, 0x5b, 0x5b, 0x7f, 0xaf, 0xef, 0xab, 0x6f, 0xba, 0xc6, 0xd5,
+++		0xf4, 0xda, 0x18, 0xfd, 0xe8, 0x81, 0x46, 0x8d, 0xfe, 0x9d, 0x31, 0x44, 0x83, 0xd8, 0x93, 0x5e,
+++		0xe3, 0x8d, 0x4f, 0xc0, 0x34, 0x0e, 0xec, 0xa8, 0x12, 0x75, 0x34, 0x89, 0x3a, 0x8a, 0x84, 0x1d,
+++		0x3d, 0x36, 0x41, 0x0c, 0x0c, 0x70, 0x74, 0x60, 0xeb, 0xc1, 0x8c, 0x09, 0x65, 0x62, 0xb4, 0x7e,
