@@ -34,6 +34,7 @@ gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
 use_repo(gcc, "gcc_toolchains")
 
 register_toolchains("@gcc_toolchains//:all")
+register_toolchains("@sonic_build_infra//tools/gzip:toolchain")
 
 # Native libraries and headers use the shared, pinned Trixie dependency set.
 apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")

@@ -10,7 +10,7 @@ diff --git a/MODULE.bazel b/MODULE.bazel
      bazel_compatibility = [
          ">=8.5.1",
          "<=8.5.1",
-@@ -26,8 +26,8 @@
+@@ -26,11 +26,12 @@
  
  bazel_dep(name = "swig", version = "4.3.0.bcr.2")
  bazel_dep(name = "tar.bzl", version = "0.10.5-sonic.1")
@@ -21,3 +21,7 @@ diff --git a/MODULE.bazel b/MODULE.bazel
  bazel_dep(name = "sai", version = "1.18.0-sonic.1", repo_name = "sai_source")
  
  gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
+ use_repo(gcc, "gcc_toolchains")
+ 
+ register_toolchains("@gcc_toolchains//:all")
++register_toolchains("@sonic_build_infra//tools/gzip:toolchain")
