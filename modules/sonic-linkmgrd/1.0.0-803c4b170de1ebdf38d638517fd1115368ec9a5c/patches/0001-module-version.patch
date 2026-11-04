@@ -1,0 +1,25 @@
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-linkmgrd",
+-    version = "1.0.0",
++    version = "1.0.0-803c4b170de1ebdf38d638517fd1115368ec9a5c",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
+@@ -17,12 +17,12 @@
+ bazel_dep(name = "libnl3", version = "3.7.0.sonic.7")
+ bazel_dep(
+     name = "sonic-build-infra",
+-    version = "0.0.26-0378d53824b18b253ecbd6faadba00e505ff4ccf",
++    version = "0.0.26-2a6fc39c55be05e849b0e3a2d1808a4a59f123a6",
+     repo_name = "sonic_build_infra",
+ )
+ bazel_dep(
+     name = "sonic-swss-common",
+-    version = "0.0.8-33d2790e5f954496c2b79e38854a2b5e2dfa7a3a",
++    version = "0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed",
+     repo_name = "sonic_swss_common",
+ )
+ 
