@@ -244,9 +244,26 @@ def integration_test_directory(entry: Path, config: dict, module: str, version: 
         tree = ast.parse(declaration)
     except SyntaxError as error:
         raise RegistryError("Integration MODULE.bazel must use ordinary module declarations") from error
+    version_pin_functions = set()
+    for statement in tree.body:
+        if not (isinstance(statement, ast.Expr) and isinstance(statement.value, ast.Call)):
+            continue
+        call = statement.value
+        if not (isinstance(call.func, ast.Name) and call.func.id == "single_version_override"):
+            continue
+        require(not call.args and len(call.keywords) == 2
+                and {keyword.arg for keyword in call.keywords} == {"module_name", "version"}
+                and all(isinstance(keyword.value, ast.Constant)
+                        and isinstance(keyword.value.value, str)
+                        and bool(keyword.value.value.strip()) for keyword in call.keywords),
+                "Integration single_version_override requires only literal nonempty module_name and version")
+        values = {keyword.arg: keyword.value.value for keyword in call.keywords}
+        require(values["module_name"] != module or values["version"] == version,
+                "Integration version pin must retain the exact reviewed module version")
+        version_pin_functions.add(call.func)
     for node in ast.walk(tree):
         if isinstance(node, ast.Name):
-            require(not node.id.endswith("_override")
+            require((not node.id.endswith("_override") or node in version_pin_functions)
                     and node.id not in ("include", "override_repo", "inject_repo"),
                     "Integration MODULE.bazel cannot include files or override registry sources")
     dependencies = []
