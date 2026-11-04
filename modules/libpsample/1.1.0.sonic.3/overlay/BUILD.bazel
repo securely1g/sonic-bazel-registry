@@ -1,0 +1,127 @@
+load("@bazel_skylib//rules:select_file.bzl", "select_file")
+load("@rules_cc//cc:defs.bzl", "cc_binary")
+load("@rules_gzip//gzip/compress:defs.bzl", "gzip_compress")
+load("@rules_multirun//:defs.bzl", "command")
+load("@toolchain_utils//toolchain/info:defs.bzl", "toolchain_info")
+load("@rules_foreign_cc//foreign_cc:defs.bzl", "cmake")
+load("@rules_python//python:py_test.bzl", "py_test")
+load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
+load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
+
+package(default_visibility = ["//visibility:public"])
+
+_NATIVE = ["@platforms//cpu:x86_64", "@sonic_build_infra//platforms:trixie"]
+
+filegroup(
+    name = "sources",
+    srcs = ["CMakeLists.txt"] + glob(["include/**", "src/**", "psample_tool/**", "man/**"]),
+)
+exports_files(["include/psample.h", "src/mnlg.h", "bazel/copyright"])
+
+# Keep upstream's Debug build, SONAME 1, two library C sources and CLI unchanged.
+# Only normalize installation paths to the private prefix used by foreign_cc.
+cmake(
+    name = "psample_build",
+    lib_source = ":sources",
+    cache_entries = {
+        "CMAKE_INSTALL_LIBDIR": "lib",
+        "CMAKE_INSTALL_BINDIR": "bin",
+        "CMAKE_INSTALL_MANDIR": "share/man",
+        "CMAKE_SKIP_RPATH": "ON",
+    },
+    build_args = ["-j1"],
+    # Upstream uses -lmnl directly instead of find_package; use foreign_cc's
+    # declared private dependency prefix for its headers and library.
+    copts = ["-g", "-isystem$EXT_BUILD_DEPS/include"],
+    linkopts = ["-Wl,--build-id", "-L$EXT_BUILD_DEPS/lib"],
+    env = {"SOURCE_DATE_EPOCH": "0", "LC_ALL": "C", "TZ": "UTC"},
+    # Keep the linked Debug ELF intact; deployment splits its symbols later.
+    features = ["-sanitize_pwd", "-strip_debug_symbols"],
+    set_file_prefix_map = True,
+    out_shared_libs = ["libpsample.so", "libpsample.so.1", "libpsample.so.1.0"],
+    out_binaries = ["psample"],
+    out_data_files = ["share/man/man8/psample.8"],
+    deps = ["@psample_deps//libmnl-dev:libmnl"],
+    target_compatible_with = _NATIVE,
+)
+
+# The foreign build exposes installed headers and the shared-library CcInfo.
+alias(name = "libpsample", actual = ":psample_build")
+select_file(name = "psample_raw", srcs = ":psample_build", subpath = "psample_build/bin/psample")
+select_file(name = "library_raw", srcs = ":psample_build", subpath = "psample_build/lib/libpsample.so.1.0")
+alias(name = "psample", actual = ":psample_raw")
+alias(name = "library", actual = ":library_raw")
+
+# Standard gzip rules preserve the legacy compressed manual without timestamps.
+command(name = "gzip_without_name", command = "@pigz", arguments = ["--no-name"])
+toolchain_info(name = "gzip_info", target = ":gzip_without_name")
+toolchain(name = "gzip_toolchain", toolchain = ":gzip_info", toolchain_type = "@rules_gzip//gzip/toolchain/gzip:type")
+gzip_compress(name = "manual", src = "man/psample.8", level = 9)
+
+sonic_deploy_tar(
+    name = "runtime",
+    binaries = {
+        "usr/bin/psample uid=0 gid=0 mode=0755 type=file": ":psample_raw",
+        "usr/lib/x86_64-linux-gnu/libpsample.so.1.0 uid=0 gid=0 mode=0644 type=file": ":library_raw",
+    },
+    # The same upstream Debug build supplies the public SDK and both TARs.
+    force_debug_build = False,
+    srcs = [":manual", "bazel/copyright"],
+    mtree = [
+        "usr/lib/x86_64-linux-gnu/libpsample.so uid=0 gid=0 mode=0777 type=link link=libpsample.so.1",
+        "usr/lib/x86_64-linux-gnu/libpsample.so.1 uid=0 gid=0 mode=0777 type=link link=libpsample.so.1.0",
+        "usr/share/man/man8/psample.8.gz uid=0 gid=0 mode=0644 type=file content=$(location :manual)",
+        "usr/share/doc/psample/copyright uid=0 gid=0 mode=0644 type=file content=$(location bazel/copyright)",
+    ],
+    target_compatible_with = _NATIVE,
+)
+
+runtime_packages(
+    name = "runtime_packages.json",
+    control = "bazel/debian/control",
+    changelog = "bazel/debian/changelog",
+    packages = {"psample": "//:runtime"},
+    apt_packages = {"@psample_deps//libmnl0:data": "@psample_deps//libmnl0:control"},
+)
+
+cc_binary(
+    name = "netlink_fixture.so",
+    testonly = True,
+    srcs = ["bazel/netlink_fixture.c", "src/mnlg.h", "include/linux/psample.h"],
+    includes = ["include", "src"],
+    linkshared = True,
+    deps = ["@psample_deps//libmnl-dev:libmnl"],
+    target_compatible_with = _NATIVE,
+)
+
+cc_binary(
+    name = "sdk_probe",
+    testonly = True,
+    srcs = ["bazel/sdk_probe.c"],
+    deps = [":libpsample"],
+    target_compatible_with = _NATIVE,
+)
+
+py_test(
+    name = "package_test",
+    srcs = ["bazel/package_test.py"],
+    args = [
+        "--runtime", "$(location :runtime)",
+        "--debug", "$(location :runtime.debug_symbols)",
+        "--fixture", "$(location :netlink_fixture.so)",
+        "--sdk", "$(location :sdk_probe)",
+        "--copyright", "$(location bazel/copyright)",
+        "--readelf", "$(location @sonic_build_infra//toolchains/binutils:readelf)",
+        "--objcopy", "$(location @sonic_build_infra//toolchains/binutils:objcopy)",
+        "--mnl", "$(location @psample_deps//libmnl0:data)",
+        "--manual", "$(location man/psample.8)",
+        "--metadata", "$(location :runtime_packages.json)",
+    ],
+    data = [
+        ":runtime", ":runtime.debug_symbols", ":netlink_fixture.so", ":sdk_probe", "bazel/copyright",
+        "@psample_deps//libmnl0:data", "man/psample.8", ":runtime_packages.json",
+        "@sonic_build_infra//toolchains/binutils:readelf",
+        "@sonic_build_infra//toolchains/binutils:objcopy",
+    ],
+    target_compatible_with = _NATIVE,
+)
