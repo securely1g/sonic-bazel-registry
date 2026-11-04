@@ -1,7 +1,7 @@
 # Keep bazel_compatibility in sync with sonic-buildimage's .bazelversion.
 module(
     name = "sonic-build-infra",
-    version = "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e",
+    version = "0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568",
     bazel_compatibility = [
         ">=8.5.1",
         "<=8.5.1",
@@ -41,7 +41,7 @@ local_path_override(
 bazel_dep(name = "buildifier_prebuilt", version = "8.5.1.3", dev_dependency = True)
 
 # The SONiC patch sorts above upstream 0.9.4 without a root override.
-bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.15")
+bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.13")
 
 # One multiarch directory shared by GCC and Clang on both architectures.
 # Consumers import this same repository through use_extension/use_repo.
@@ -992,7 +992,7 @@ gcc.debian_toolchain(
         "@bookworm_zlib1g-amd64_1-1.2.13.dfsg-1//:data.tar.xz",
     ],
     exec_arch = "x86_64",
-    # Share the declared Trixie linker runtime; retain GCC12 and its Bookworm sysroot.
+    # Distroless script remapping needs modern BFD; retain GCC12 and its sysroot.
     linker = "@gcc-14.2.0-linux-target-x86_64-host-x86_64//:bin/x86_64-linux-gnu-ld",
     linker_files = "@gcc-14.2.0-linux-target-x86_64-host-x86_64//:multicall_support_files",
     suite = "bookworm",
@@ -1055,7 +1055,7 @@ gcc.debian_toolchain(
         "@bookworm_zlib1g-arm64_1-1.2.13.dfsg-1//:data.tar.xz",
     ],
     exec_arch = "aarch64",
-    # Share the declared Trixie linker runtime; retain GCC12 and its Bookworm sysroot.
+    # Distroless script remapping needs modern BFD; retain GCC12 and its sysroot.
     linker = "@gcc-14.2.0-linux-target-aarch64-host-aarch64//:bin/aarch64-linux-gnu-ld",
     linker_files = "@gcc-14.2.0-linux-target-aarch64-host-aarch64//:multicall_support_files",
     suite = "bookworm",
@@ -1103,7 +1103,7 @@ gcc.debian_toolchain(
         "@bookworm_zlib1g-amd64_1-1.2.13.dfsg-1//:data.tar.xz",
     ],
     exec_arch = "x86_64",
-    # Share the declared Trixie linker runtime; retain GCC12 and its Bookworm sysroot.
+    # Distroless script remapping needs modern BFD; retain GCC12 and its sysroot.
     linker = "@gcc-14.2.0-linux-target-aarch64-host-x86_64//:bin/aarch64-linux-gnu-ld",
     linker_files = "@gcc-14.2.0-linux-target-aarch64-host-x86_64//:multicall_support_files",
     suite = "bookworm",
