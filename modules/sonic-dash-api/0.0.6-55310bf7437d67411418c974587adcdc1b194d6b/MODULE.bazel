@@ -1,6 +1,6 @@
 module(
     name = "sonic-dash-api",
-    version = "0.0.4-2a6e390b96a4fc17c191fa0da4b7ed1f40aed069",
+    version = "0.0.5-9b2893e890734a2db0c53a5e5c64b031ec0dcfbd",
     bazel_compatibility = [
         ">=8.5.1",
         "<=8.5.1",
@@ -12,15 +12,17 @@ bazel_dep(name = "buildifier_prebuilt", version = "8.5.1.3", dev_dependency = Tr
 bazel_dep(name = "googletest", version = "1.14.0.bcr.1", repo_name = "com_google_googletest")
 bazel_dep(name = "platforms", version = "1.1.0")
 bazel_dep(name = "rules_cc", version = "0.2.16")
-bazel_dep(name = "rules_distroless", version = "0.9.4-sonic.1")
+bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.15")
 bazel_dep(name = "rules_python", version = "1.7.0")
 bazel_dep(name = "protobuf-legacy", version = "3.21.12-sonic.1", repo_name = "protobuf_legacy")
-bazel_dep(name = "sonic-build-infra", version = "0.0.14-f9876051703da05af745ffc781706e29fed7dd4b", repo_name = "sonic_build_infra")
+bazel_dep(name = "sonic-build-infra", version = "0.0.25-34de7330abc72229dfc8dab88dec71b89c52aa88", repo_name = "sonic_build_infra")
+bazel_dep(name = "tar.bzl", version = "0.10.5-sonic.1")
 
-# Historical dotted versions requested by dependencies sort above this native fix.
+# The SONiC deployment rule needs the patched deterministic-time tar API.
+# Dependency overrides do not propagate into this root.
 single_version_override(
-    module_name = "rules_distroless",
-    version = "0.9.4-sonic.1",
+    module_name = "tar.bzl",
+    version = "0.10.5-sonic.1",
 )
 
 # Native execution and target toolchains share the pinned SONiC Trixie inputs.
@@ -59,3 +61,28 @@ apt.install(
     ],
 )
 use_repo(apt, "dash_test_debian")
+
+# sonic-dash-ha's selected Git submodule. Its HaScopeConfigKey field numbers
+# differ from the current API, so retain a distinct owner-exported source set.
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+http_archive(
+    name = "dash_ha_schema",
+    build_file = "//bazel:ha_schema.BUILD.bazel",
+    sha256 = "38b8f846fb6191f9315da3df8ea7285881726c1507dc26d0d73a78c17fbf96c3",
+    strip_prefix = "sonic-dash-api-18a29c1c8a21aeb22a4893c786564acaf8212156",
+    type = "tar.gz",
+    urls = ["https://codeload.github.com/securely1g/sonic-dash-api/tar.gz/18a29c1c8a21aeb22a4893c786564acaf8212156"],
+)
+
+# Target libraries used to derive the installed Debian dependency controls.
+apt.install(
+    dependency_set = "dash_runtime_debian",
+    packages = ["libprotobuf32t64"],
+    suites = [
+        "trixie",
+        "trixie-updates",
+        "trixie-security",
+    ],
+)
+use_repo(apt, "dash_runtime_debian")
