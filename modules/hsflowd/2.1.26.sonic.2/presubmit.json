@@ -1,0 +1,54 @@
+{
+  "generated_module_overlay": true,
+  "architectures": [
+    "amd64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.25-17a1e555291c64be1a6ff008f33352bffc4f8e5c",
+      "repo_name": "sonic_build_infra"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
+  },
+  "build_targets": [
+    "@hsflowd//:runtime",
+    "@hsflowd//:runtime.debug_symbols",
+    "@hsflowd//:runtime_packages.json",
+    "@hsflowd//:hsflowd",
+    "@hsflowd//:mod_json",
+    "@hsflowd//:mod_dnssd",
+    "@hsflowd//:mod_sonic",
+    "@hsflowd//:mod_psample",
+    "@hsflowd//:mod_docker",
+    "@hsflowd//:mod_dropmon",
+    "@hsflowd//:mod_vpp"
+  ],
+  "test_targets": [
+    "@hsflowd//src/json:parse_examples_test",
+    "@hsflowd//src/json:parse_number_test",
+    "@hsflowd//src/json:parse_hex4_test",
+    "@hsflowd//src/json:parse_string_test",
+    "@hsflowd//src/json:parse_array_test",
+    "@hsflowd//src/json:parse_object_test",
+    "@hsflowd//src/json:parse_value_test",
+    "@hsflowd//src/json:print_string_test",
+    "@hsflowd//src/json:print_number_test",
+    "@hsflowd//src/json:print_array_test",
+    "@hsflowd//src/json:print_object_test",
+    "@hsflowd//src/json:print_value_test",
+    "@hsflowd//src/json:misc_tests_test",
+    "@hsflowd//src/json:parse_with_opts_test",
+    "@hsflowd//src/json:compare_tests_test",
+    "@hsflowd//src/json:cjson_add_test",
+    "@hsflowd//src/json:readme_examples_test",
+    "@hsflowd//src/json:minify_tests_test",
+    "@hsflowd//src/json:json_patch_tests_test",
+    "@hsflowd//src/json:old_utils_tests_test",
+    "@hsflowd//src/json:misc_utils_tests_test",
+    "@hsflowd//src/json:original_make_test",
+    "@hsflowd//:package_test"
+  ]
+}

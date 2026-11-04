@@ -1,0 +1,149 @@
+load("@bazel_skylib//rules:expand_template.bzl", "expand_template")
+load("@rules_distroless//distroless:defs.bzl", "flatten")
+load("@rules_gzip//gzip/compress:defs.bzl", "gzip_compress")
+load("@rules_multirun//:defs.bzl", "command")
+load("@rules_python//python:py_test.bzl", "py_test")
+load("@sonic_build_infra//binary:drop_build_rpath.bzl", "drop_build_rpath")
+load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
+load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
+load("@toolchain_utils//toolchain/info:defs.bzl", "toolchain_info")
+load("//bazel:settings.bzl", "NATIVE")
+
+package(default_visibility = ["//visibility:public"])
+
+_MODULES = [
+    "mod_json",
+    "mod_dnssd",
+    "mod_sonic",
+    "mod_psample",
+    "mod_docker",
+    "mod_dropmon",
+    "mod_vpp",
+]
+
+drop_build_rpath(
+    name = "hsflowd",
+    src = "//src/Linux:hsflowd",
+    target_compatible_with = NATIVE,
+)
+
+[
+    drop_build_rpath(
+        name = name,
+        src = "//src/Linux:" + name + ".so",
+        target_compatible_with = NATIVE,
+    )
+    for name in _MODULES
+]
+
+expand_template(
+    name = "changelog",
+    out = "changelog.Debian",
+    substitutions = {"_VERSION_": "2.1.26-1"},
+    template = "DEBIAN_build/changelog",
+)
+
+# Use standard source-built pigz with no stored filename or timestamp.
+command(
+    name = "gzip_without_name",
+    arguments = ["--no-name"],
+    command = "@pigz",
+)
+
+toolchain_info(
+    name = "gzip_info",
+    target = ":gzip_without_name",
+)
+
+toolchain(
+    name = "gzip_toolchain",
+    toolchain = ":gzip_info",
+    toolchain_type = "@rules_gzip//gzip/toolchain/gzip:type",
+)
+
+gzip_compress(
+    name = "changelog_gz",
+    src = ":changelog",
+    level = 9,
+)
+
+sonic_deploy_tar(
+    name = "runtime",
+    srcs = [
+        "LICENSE",
+        ":changelog_gz",
+        "//src/Linux:scripts/hsflowd.conf.sonic",
+        "//src/Linux:scripts/hsflowd.deb",
+        "//src/Linux:scripts/net.sflow.hsflowd.conf",
+    ],
+    binaries = {"usr/sbin/hsflowd uid=0 gid=0 mode=0755 type=file": ":hsflowd"} | {
+        "etc/hsflowd/modules/" + name + ".so uid=0 gid=0 mode=0644 type=file": ":" + name
+        for name in _MODULES
+    },
+    # Every native target retains the selected source's debug compilation.
+    # Both TARs consume those same linked ELFs without compiling a second copy.
+    force_debug_build = False,
+    mtree = [
+        "etc/hsflowd.conf uid=0 gid=0 mode=0644 type=file content=$(location //src/Linux:scripts/hsflowd.conf.sonic)",
+        "etc/init.d/hsflowd uid=0 gid=0 mode=0755 type=file content=$(location //src/Linux:scripts/hsflowd.deb)",
+        "etc/dbus-1/system.d/net.sflow.hsflowd.conf uid=0 gid=0 mode=0644 type=file content=$(location //src/Linux:scripts/net.sflow.hsflowd.conf)",
+        "usr/share/doc/hsflowd/changelog.Debian.gz uid=0 gid=0 mode=0644 type=file content=$(location :changelog_gz)",
+        "usr/share/doc/hsflowd/copyright uid=0 gid=0 mode=0644 type=file content=$(location LICENSE)",
+    ],
+    target_compatible_with = NATIVE,
+)
+
+runtime_packages(
+    name = "runtime_packages.json",
+    apt_packages = {"@hsflowd_deps//libhiredis1.1.0:data": "@hsflowd_deps//libhiredis1.1.0:control"},
+    changelog = ":changelog",
+    control = "DEBIAN_build/control",
+    debian_files = {"compat": "DEBIAN_build/compat"},
+    packages = {"hsflowd": "//:runtime"},
+)
+
+flatten(
+    name = "service_fixtures",
+    testonly = True,
+    deduplicate = True,
+    tars = [
+        "@build_tools//redis-server",
+        "@build_tools//redis-tools",
+    ],
+)
+
+py_test(
+    name = "package_test",
+    timeout = "moderate",
+    srcs = ["//bazel:package_test.py"],
+    args = [
+        "--runtime",
+        "$(location :runtime)",
+        "--debug",
+        "$(location :runtime.debug_symbols)",
+        "--metadata",
+        "$(location :runtime_packages.json)",
+        "--fixtures",
+        "$(location :service_fixtures)",
+        "--hiredis",
+        "$(location @hsflowd_deps//libhiredis1.1.0:data)",
+        "--readelf",
+        "$(location @sonic_build_infra//toolchains/binutils:readelf)",
+        "--objcopy",
+        "$(location @sonic_build_infra//toolchains/binutils:objcopy)",
+        "--changelog",
+        "$(location :changelog)",
+    ],
+    data = [
+        ":changelog",
+        ":runtime",
+        ":runtime.debug_symbols",
+        ":runtime_packages.json",
+        ":service_fixtures",
+        "@hsflowd_deps//libhiredis1.1.0:data",
+        "@sonic_build_infra//toolchains/binutils:objcopy",
+        "@sonic_build_infra//toolchains/binutils:readelf",
+    ],
+    main = "//bazel:package_test.py",
+    target_compatible_with = NATIVE,
+)
