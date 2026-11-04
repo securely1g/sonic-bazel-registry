@@ -1,42 +1,29 @@
-# Register the landed cumulative FIPS source
+# SONiC FIPS cumulative candidate `0.0.4`
 
-This entry selects `sonic-fips` maintained `main` commit
-`15fcb926a302059ec379f0c2fd15eb3d88bda4c9`, the first-parent merge of
-[FIPS #12](https://github.com/securely1g/sonic-fips/pull/12), as
-`0.0.3-15fcb926a302059ec379f0c2fd15eb3d88bda4c9`. The `0.0.3` prefix matches
-[the source module](https://github.com/securely1g/sonic-fips/blob/15fcb926a302059ec379f0c2fd15eb3d88bda4c9/MODULE.bazel#L1-L4).
+Registers landed source commit `ef423363e8fd50358f0aa2a8a20d3e08d4450a56`
+from [FIPS #12](https://github.com/securely1g/sonic-fips/pull/12). Its tree
+is identical to `sonic-fips` `main@15fcb926a302` (the merge commit of #12),
+so this one entry carries every fix landed on FIPS `main`:
 
-SONiC's source-built base image consumes this module's OpenSSL, Kerberos and
-SymCrypt runtime TARs, for example
-`@sonic_fips//openssl:libssl3t64_pkg` and `@sonic_fips//symcrypt:runtime`,
-through `//dockers/docker-base-trixie:docker-base-trixie`.
-[Libteam PR #162](https://github.com/securely1g/sonic-buildimage/pull/162) and
-[FRR PR #163](https://github.com/securely1g/sonic-buildimage/pull/163) currently
-select the earlier unpublished `.5-15fc...` spelling in frozen review catalogs;
-adopting this corrected entry requires updating their direct dependency,
-root version override and temporary catalog together.
+| FIPS PR | Change |
+| --- | --- |
+| [#9](https://github.com/securely1g/sonic-fips/pull/9), [#10](https://github.com/securely1g/sonic-fips/pull/10) | Kerberos/OpenSSH debug paths and OpenSSL compiler metadata normalization (published through `0.0.3-401a5d7e…`) |
+| [#11](https://github.com/securely1g/sonic-fips/pull/11) | SymCrypt provider/engine build-path RPATH padding (published as `0.0.3-44d18af6…` by registry #184) |
+| [#13](https://github.com/securely1g/sonic-fips/pull/13) | Declared source paths in SymCrypt assembly debug data (not registered before this entry) |
+| [#14](https://github.com/securely1g/sonic-fips/pull/14) | Ordered response files for large OpenSSH and Kerberos compiler flag lists (previously proposed by closed registry #194) |
+| [#15](https://github.com/securely1g/sonic-fips/pull/15) | OpenSSH selects the source OpenSSL SDK with `--with-ssl-dir`, so Debian 3.5.6 headers are no longer mixed with the source 3.5.7 library |
+| [#12](https://github.com/securely1g/sonic-fips/pull/12) | SymCrypt build metadata uses the pinned source timestamp |
 
-| Consumer input | Published `.4-ef423...` | This `.3-15fc...` registration |
-| --- | --- | --- |
-| Exact cumulative source | Review head `ef423363`, the merge's second parent | Landed first-parent commit `15fcb926`, with identical source files, modes and all nine submodules |
-| Registry version prefix | Published `0.0.4` entry, preserved unchanged | Source module's declared `0.0.3`, followed by the full landed source commit |
-| Native build/test contract | 18 output targets and six tests on AMD64/ARM64 | The same complete presubmit, byte-for-byte |
+The minor version is bumped to `0.0.4` so Bzlmod selects this entry over
+every published `0.0.3-<sha>` without relying on SHA-suffix ordering.
 
-The cumulative source retains the compiler response-file, OpenSSH source-SDK,
-SymCrypt build-path and deterministic timestamp repairs from FIPS #9–#15.
-The only source patch adjusts the module's version string to the full registry
-identity; its header records the reason and source provenance. Published `.4`
-and every earlier entry remain available unchanged.
+The ordinary native AMD64/ARM64 consumer selects published Distroless
+`0.9.4.sonic.16` (registry #200, which fixes target-CPU header selection);
+the owner's module minimum remains `.13`. All 18 runtime/debug/SDK/metadata
+outputs and the installed/integration tests are retained, and SymCrypt's new
+`timestamp_test` from #12 is added to the validation targets.
 
-Keep consumers' direct dependency and explicit root override aligned. A commit
-suffix is not a chronological version, and a higher version request elsewhere
-can otherwise select another entry. The registry's routine `--latest` CI still
-selects published `.4`; PR validation selects this changed `.3` entry explicitly.
-No published entry is renamed, removed or yanked to change that ordering.
-
-The standalone presubmit retains published Distroless `.16` and the existing
-infrastructure contract. Registry validation of the corrected identity and
-consumer adoption are separate acceptance boundaries. Existing results for the
-previous `.5` spelling must not be relabeled as results for this entry. No DEB
-output is added, and source-tree equality alone does not establish a successful
-full image build or sealed-crypto reproducibility.
+No crypto, entropy, integrity sealing or DEB output is changed. Sealed-core
+and whole-image reproducibility remain separate, unproven claims. Consumers
+with an explicit FIPS `single_version_override` must update it to this direct
+pin and verify the fetched MODULE.
