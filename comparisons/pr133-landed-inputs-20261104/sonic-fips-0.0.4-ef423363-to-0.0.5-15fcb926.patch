@@ -1,0 +1,148 @@
+Complete SONiC registry version comparison
+
+Published baseline: modules/sonic-fips/0.0.4-ef423363e8fd50358f0aa2a8a20d3e08d4450a56
+Baseline registry commit: ce3ac4e892e1a28dccd60d54c3a8385ae1c8f163 (maintained main observed 2026-11-04)
+Candidate: modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9
+Candidate PR: https://github.com/securely1g/sonic-bazel-registry/pull/221
+Candidate registry commit: 8374b07ca138b98546122186d832544f1b46ac07
+
+The baseline entry and module metadata are unchanged since the PR's original
+base ccf06568a0b85b18780becdad95e26d87f89d04e. This patch compares complete
+version entries at matching relative paths and includes the module metadata.
+No other supporting files change in this PR. Unchanged files are inherited
+by copying the baseline; all candidate bytes, symlinks and Git modes are verified.
+
+Apply from a fresh registry checkout (ARTIFACT is this saved patch's absolute path):
+  git checkout --detach ce3ac4e892e1a28dccd60d54c3a8385ae1c8f163
+  test ! -e modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9
+  cp -a modules/sonic-fips/0.0.4-ef423363e8fd50358f0aa2a8a20d3e08d4450a56 modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9
+  git apply --check "$ARTIFACT"
+  git apply "$ARTIFACT"
+
+The destination must not already exist. The published entry remains untouched.
+The resulting candidate entry and module metadata match 8374b07ca138b98546122186d832544f1b46ac07 exactly.
+Unrelated registry files retain the baseline revision rather than being rolled
+back to the candidate PR's older base. This patch is outside the compared tree.
+
+The source archive changes from ef423363e8fd50358f0aa2a8a20d3e08d4450a56 to
+15fcb926a302059ec379f0c2fd15eb3d88bda4c9; URL and integrity changes are below.
+The registry-entry patch does not contain the external archive's source delta:
+https://github.com/securely1g/sonic-fips/compare/ef423363e8fd50358f0aa2a8a20d3e08d4450a56...15fcb926a302059ec379f0c2fd15eb3d88bda4c9
+
+diff --git a/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/MODULE.bazel b/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/MODULE.bazel
+index baf7ca344db8c35876f69d0564e1ada0a00ac288..9fc3b25a52734f77dbacb02bd3bc846a2ddd8847 100644
+--- a/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/MODULE.bazel
++++ b/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-fips",
+-    version = "0.0.4-ef423363e8fd50358f0aa2a8a20d3e08d4450a56",
++    version = "0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
+diff --git a/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/README.md b/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/README.md
+index 492e8a7d36ef664ea90363077bfaa1837f1ac4b2..e527c76814d215afff007c099450b41aa920661f 100644
+--- a/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/README.md
++++ b/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/README.md
+@@ -1,29 +1,32 @@
+-# SONiC FIPS cumulative candidate `0.0.4`
++# Register the landed cumulative FIPS source
+ 
+-Registers landed source commit `ef423363e8fd50358f0aa2a8a20d3e08d4450a56`
+-from [FIPS #12](https://github.com/securely1g/sonic-fips/pull/12). Its tree
+-is identical to `sonic-fips` `main@15fcb926a302` (the merge commit of #12),
+-so this one entry carries every fix landed on FIPS `main`:
++This entry selects `sonic-fips` maintained `main` commit
++`15fcb926a302059ec379f0c2fd15eb3d88bda4c9`, the first-parent merge of
++[FIPS #12](https://github.com/securely1g/sonic-fips/pull/12).
++The complete source tree and all nine submodule revisions equal published
++`.4-ef423363`; that earlier pin names the merge's second parent rather than the
++landed integration commit. Published `.4` and every earlier entry are preserved.
+ 
+-| FIPS PR | Change |
+-| --- | --- |
+-| [#9](https://github.com/securely1g/sonic-fips/pull/9), [#10](https://github.com/securely1g/sonic-fips/pull/10) | Kerberos/OpenSSH debug paths and OpenSSL compiler metadata normalization (published through `0.0.3-401a5d7e…`) |
+-| [#11](https://github.com/securely1g/sonic-fips/pull/11) | SymCrypt provider/engine build-path RPATH padding (published as `0.0.3-44d18af6…` by registry #184) |
+-| [#13](https://github.com/securely1g/sonic-fips/pull/13) | Declared source paths in SymCrypt assembly debug data (not registered before this entry) |
+-| [#14](https://github.com/securely1g/sonic-fips/pull/14) | Ordered response files for large OpenSSH and Kerberos compiler flag lists (previously proposed by closed registry #194) |
+-| [#15](https://github.com/securely1g/sonic-fips/pull/15) | OpenSSH selects the source OpenSSL SDK with `--with-ssl-dir`, so Debian 3.5.6 headers are no longer mixed with the source 3.5.7 library |
+-| [#12](https://github.com/securely1g/sonic-fips/pull/12) | SymCrypt build metadata uses the pinned source timestamp |
++| Consumer input | Published `.4` | This `.5` registration |
++| --- | --- | --- |
++| Exact cumulative source | Review head `ef423363`, reachable through a merge's second parent | Landed first-parent commit `15fcb926`, with identical source files, modes and submodules |
++| Native build/test contract | 18 output targets and six tests on AMD64/ARM64 | The same complete presubmit, byte-for-byte |
++| Explicit FIPS selection in Teamd, Libteam and FRR | Earlier consumers pin `d1`/`e910`; current staging selects `.4` | A coordinated direct dependency and version override can select the landed cumulative source |
+ 
+-The minor version is bumped to `0.0.4` so Bzlmod selects this entry over
+-every published `0.0.3-<sha>` without relying on SHA-suffix ordering.
++The cumulative source retains the compiler response-file, OpenSSH source-SDK,
++SymCrypt build-path and deterministic timestamp repairs from FIPS #9–#15.
++The numeric revision is advanced because `.4` is already published; no source
++producer, dependency minimum, crypto behavior or packaging target changes.
++The only source patch changes the module's version string.
+ 
+-The ordinary native AMD64/ARM64 consumer selects published Distroless
+-`0.9.4.sonic.16` (registry #200, which fixes target-CPU header selection);
+-the owner's module minimum remains `.13`. All 18 runtime/debug/SDK/metadata
+-outputs and the installed/integration tests are retained, and SymCrypt's new
+-`timestamp_test` from #12 is added to the validation targets.
++The ordinary consumer continues to select published Distroless `.16` and its
++existing infrastructure contract. Teamd/Libteam/FRR and final image catalog
++adoption are separate validation boundaries: update both direct dependencies
++and explicit overrides, verify the fetched module and run the affected native
++checks. Live SDK and image inputs remain frozen until their current phases
++finish. No full image or sealed-crypto reproducibility claim follows from
++source-tree equality.
+ 
+-No crypto, entropy, integrity sealing or DEB output is changed. Sealed-core
+-and whole-image reproducibility remain separate, unproven claims. Consumers
+-with an explicit FIPS `single_version_override` must update it to this direct
+-pin and verify the fetched MODULE.
++Archive integrity, first-parent provenance and exact source/registration
++comparisons are required before publication. Fresh registry-fetched/native
++acceptance remains pending for this source identity. No DEB output is added.
+diff --git a/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/patches/0001-module-version.patch b/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/patches/0001-module-version.patch
+index aea3a1d5618ab258e15653211478cffd8c5ac34d..a03a26879ba011ac6699f6c388b503239b3c01a1 100644
+--- a/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/patches/0001-module-version.patch
++++ b/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/patches/0001-module-version.patch
+@@ -4,7 +4,7 @@
+  module(
+      name = "sonic-fips",
+ -    version = "0.0.3",
+-+    version = "0.0.4-ef423363e8fd50358f0aa2a8a20d3e08d4450a56",
+++    version = "0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9",
+      bazel_compatibility = [
+          ">=8.5.1",
+          "<=8.5.1",
+diff --git a/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/source.json b/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/source.json
+index 5f7ba1ff6875d5a92f6cfa15e279c71be93f4e2a..d00a65824c64b4ef2bed3d2391aa966ed465e43f 100644
+--- a/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/source.json
++++ b/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/source.json
+@@ -1,9 +1,9 @@
+ {
+-  "url": "https://github.com/securely1g/sonic-fips/archive/ef423363e8fd50358f0aa2a8a20d3e08d4450a56.tar.gz",
+-  "strip_prefix": "sonic-fips-ef423363e8fd50358f0aa2a8a20d3e08d4450a56",
+-  "integrity": "sha256-gQNd1oD/3e1Patla6iDL1mzoFwExsp2LfCfsFuU7+Sk=",
++  "url": "https://github.com/securely1g/sonic-fips/archive/15fcb926a302059ec379f0c2fd15eb3d88bda4c9.tar.gz",
++  "strip_prefix": "sonic-fips-15fcb926a302059ec379f0c2fd15eb3d88bda4c9",
++  "integrity": "sha256-MCDEjRbcrn5nABA2SQ2JU0gd58/VGPlWISWIepSVT38=",
+   "patch_strip": 1,
+   "patches": {
+-    "0001-module-version.patch": "sha256-ZbbZK+8DsI0abhmE43u6GVb0wzy74HWFB/bFARkUmYk="
++    "0001-module-version.patch": "sha256-xSh/ETCyZnmZFot/LsoQUigHuTi4fJsmPwXI9wyRTCA="
+   }
+ }
+diff --git a/modules/sonic-fips/metadata.json b/modules/sonic-fips/metadata.json
+index 80b019fa38f5fa7cbf9a5540525d124ac909cc51..bf8676de2db864914ab5b9b4de8ad5142b5828a4 100644
+--- a/modules/sonic-fips/metadata.json
++++ b/modules/sonic-fips/metadata.json
+@@ -6,6 +6,7 @@
+     "0.0.3-d1a2c8f692d4197295269ed445022c3890b0f1a6",
+     "0.0.3-401a5d7ea7d741f405f4ccd8b7de94678d27ad4c",
+     "0.0.3-44d18af69f1b1868cebd41a93a76feb7c0b9a0f6",
+-    "0.0.4-ef423363e8fd50358f0aa2a8a20d3e08d4450a56"
++    "0.0.4-ef423363e8fd50358f0aa2a8a20d3e08d4450a56",
++    "0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9"
+   ]
+ }
