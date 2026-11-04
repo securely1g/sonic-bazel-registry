@@ -1,0 +1,31 @@
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,16 +1,16 @@
+ module(
+     name = "sonic-gnmi",
+-    version = "0.1.0",
++    version = "0.1.0-ce49e93eb3a0cff8daf77a3092535d76265ebc3d",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
+     ],
+ )
+ 
+-bazel_dep(name = "sonic-mgmt-common", version = "1.0.0-af147e78654ad423ea0a2af268dfd0b71092b38b", repo_name = "sonic_mgmt_common")
++bazel_dep(name = "sonic-mgmt-common", version = "1.0.0-f5361ba8b88cde7ec59bdb4652a986c68d66da64", repo_name = "sonic_mgmt_common")
+ bazel_dep(name = "gazelle", version = "0.54.0")
+ bazel_dep(name = "rules_go", version = "0.64.1-sonic.1", repo_name = "io_bazel_rules_go")
+-bazel_dep(name = "sonic-build-infra", version = "0.0.26-0378d53824b18b253ecbd6faadba00e505ff4ccf", repo_name = "sonic_build_infra")
++bazel_dep(name = "sonic-build-infra", version = "0.0.26-2cfc059c2cf1dc3b2f2b2ec1bcd70400b04ecb75", repo_name = "sonic_build_infra")
+ 
+ go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
+ go_deps.from_file(go_work = "//:go.bazel.work")
+@@ -102,7 +102,7 @@
+     version = "1.25.9",
+ )
+ 
+-bazel_dep(name = "sonic-swss-common", version = "0.0.8-33d2790e5f954496c2b79e38854a2b5e2dfa7a3a", repo_name = "sonic_swss_common")
++bazel_dep(name = "sonic-swss-common", version = "0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed", repo_name = "sonic_swss_common")
+ # CodeQL stages the public native libraries required by Common.
+ bazel_dep(name = "libnl3", version = "3.7.0.sonic.7", dev_dependency = True)
+ bazel_dep(name = "bazel_skylib", version = "1.9.2")

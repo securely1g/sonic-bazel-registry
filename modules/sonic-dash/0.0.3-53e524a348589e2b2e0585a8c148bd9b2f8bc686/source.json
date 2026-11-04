@@ -1,0 +1,10 @@
+{
+  "url": "https://codeload.github.com/securely1g/DASH/tar.gz/53e524a348589e2b2e0585a8c148bd9b2f8bc686",
+  "strip_prefix": "DASH-53e524a348589e2b2e0585a8c148bd9b2f8bc686",
+  "integrity": "sha256-iR476L1n0HBQIpAzO8VspsPr4Qm6wNMCTedjwXjcDRI=",
+  "patches": {
+    "0001-bump-version.patch": "sha256-JyfLfAQyiVzwaEc6FdXEwe/cebqYeKE83n0Qa496AQI="
+  },
+  "patch_strip": 1,
+  "archive_type": "tar.gz"
+}

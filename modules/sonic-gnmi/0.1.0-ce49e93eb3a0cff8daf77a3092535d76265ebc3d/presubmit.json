@@ -1,0 +1,23 @@
+{
+  "architectures": [
+    "amd64"
+  ],
+  "consumer_deps": [],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
+  },
+  "build_targets": [
+    "//:consumer",
+    "@sonic-gnmi//dist:runtime",
+    "@sonic-gnmi//dist:runtime.debug_symbols",
+    "@sonic-gnmi//dist:runtime_packages.json",
+    "@sonic-gnmi//dist:sources",
+    "@sonic-gnmi//gnoi_yang:server"
+  ],
+  "test_targets": [
+    "@sonic-gnmi//dist:package_test",
+    "@sonic-gnmi//dist:source_test",
+    "@sonic-gnmi//dist:installed_runtime_test"
+  ],
+  "integration_test_module": "tests/consumer"
+}
