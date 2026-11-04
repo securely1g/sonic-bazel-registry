@@ -10,6 +10,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -250,9 +251,9 @@ class SelectionTests(FixtureTestCase):
         jobs = registry_ci.plan(self.root, None, head, latest_versions=True, published=head)["include"]
         self.assertEqual({(job["module"], job["version"], job["architecture"], tuple(job["runner"]))
                           for job in jobs}, {
-            ("alpha", "2.0.0", "amd64", ("self-hosted", "Linux", "X64", "ubuntu-24.04-container")),
+            ("alpha", "2.0.0", "amd64", ("self-hosted", "Linux", "X64", "debian-trixie-container")),
             ("alpha", "2.0.0", "arm64", ("ubuntu-24.04-arm",)),
-            ("beta", "1.0.0", "amd64", ("self-hosted", "Linux", "X64", "ubuntu-24.04-container")),
+            ("beta", "1.0.0", "amd64", ("self-hosted", "Linux", "X64", "debian-trixie-container")),
         })
 
     def test_latest_compares_release_and_sonic_patch_numbers_numerically(self) -> None:
@@ -1896,9 +1897,58 @@ class TestContainerTests(unittest.TestCase):
 
     def test_workflow_passes_the_actual_pinned_container_to_runtime_preparation(self):
         workflow = (registry_ci.ROOT / ".github/workflows/registry-ci.yml").read_text()
-        image = next(line.split("container: ", 1)[1] for line in workflow.splitlines()
-                     if line.strip().startswith("container: "))
-        self.assertIn("--test-container-image " + image, workflow)
+        expression = next(line.split("container: ", 1)[1] for line in workflow.splitlines()
+                          if line.strip().startswith("container: "))
+        selection = re.fullmatch(
+            r"\$\{\{ matrix\.architecture == 'arm64' && '(\S+@sha256:[0-9a-f]{64})' \|\| '' \}\}",
+            expression)
+        self.assertIsNotNone(selection)
+        self.assertIn("TEST_CONTAINER_IMAGE: " + expression, workflow)
+        arm_image = selection[1]
+        direct_image = "sonic-slave-runner@sha256:" + "c" * 64
+        step = workflow.split("      - name: Build and test through the registry\n", 1)[1]
+        step = step.split("\n      - ", 1)[0].split("        run: |\n", 1)[1]
+        script = "\n".join(line[10:] for line in step.splitlines())
+        for architecture, identity, succeeds in (
+                ("amd64", direct_image, True), ("arm64", "", True), ("amd64", "", False)):
+            with self.subTest(architecture=architecture, identity=identity), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                commands = root / "bin"
+                commands.mkdir()
+                for name, body in {
+                    "sudo": 'printf "%s\\n" "$*" >> "$SUDO_LOG"\n[[ "$1" == -n ]]\nshift\nexec "$@"\n',
+                    "git": 'printf "%s\\n" "$@" > "$GIT_LOG"\n',
+                    "python3": 'printf "%s\\n" "$@" > "$CAPTURE"\n',
+                }.items():
+                    command = commands / name
+                    command.write_text("#!/bin/bash\nset -euo pipefail\n" + body)
+                    command.chmod(0o755)
+                capture, sudo_log, git_log = [root / name for name in ("args", "sudo", "git")]
+                environment = {**os.environ, "PATH": str(commands) + os.pathsep + os.environ["PATH"],
+                               "CAPTURE": str(capture), "SUDO_LOG": str(sudo_log), "GIT_LOG": str(git_log),
+                               "CI_MODULE": "alpha", "CI_VERSION": "1.0.0", "CI_ARCHITECTURE": architecture,
+                               "SONIC_RUNNER_IMAGE_REFERENCE": identity,
+                               "TEST_CONTAINER_IMAGE": arm_image if architecture == "arm64" else "",
+                               "GITHUB_WORKSPACE": str(root / "workspace"), "RUNNER_TEMP": str(root / "runner temp")}
+                result = subprocess.run(["/bin/bash", "-c", script], env=environment, text=True, capture_output=True)
+                if not succeeds:
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn("Missing runner image identity", result.stderr)
+                    self.assertFalse(capture.exists())
+                    continue
+                self.assertEqual(result.returncode, 0, result.stderr)
+                arguments = capture.read_text().splitlines()
+                self.assertEqual(arguments[arguments.index("--test-container-image") + 1],
+                                 direct_image if architecture == "amd64" else arm_image)
+                self.assertEqual(arguments[arguments.index("--bazel") + 1], "/usr/local/bin/bazel")
+                self.assertEqual(arguments[arguments.index("--work-dir") + 1],
+                                 str(root / "runner temp" / "registry-ci"))
+                if architecture == "amd64":
+                    self.assertEqual(git_log.read_text().splitlines(),
+                                     ["config", "--global", "--add", "safe.directory", str(root / "workspace")])
+                    self.assertEqual(len(sudo_log.read_text().splitlines()), 2)
+                else:
+                    self.assertFalse(sudo_log.exists())
 
 
 class FetchedModuleTests(FixtureTestCase):

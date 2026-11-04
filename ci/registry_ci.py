@@ -27,7 +27,7 @@ from urllib.request import urlopen
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNNERS = {
-    "amd64": ["self-hosted", "Linux", "X64", "ubuntu-24.04-container"],
+    "amd64": ["self-hosted", "Linux", "X64", "debian-trixie-container"],
     "arm64": ["ubuntu-24.04-arm"],
 }
 NAME = re.compile(r"[a-z][a-z0-9._-]*\Z")

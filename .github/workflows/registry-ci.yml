@@ -21,7 +21,7 @@ concurrency:
 jobs:
   plan:
     name: Plan module validation
-    runs-on: [self-hosted, Linux, X64, ubuntu-24.04-container]
+    runs-on: [self-hosted, Linux, X64, debian-trixie-container]
     timeout-minutes: 10
     outputs:
       matrix: ${{ steps.plan.outputs.matrix }}
@@ -112,7 +112,7 @@ jobs:
       matrix:
         include:
           - architecture: amd64
-            runner: [self-hosted, Linux, X64, ubuntu-24.04-container]
+            runner: [self-hosted, Linux, X64, debian-trixie-container]
             machine: x86_64
             bazel_arch: x86_64
             bazel_sha: 61d89402f0368e64b6c827be5de79d8e65382e8124c3cbb97325611a1851392e
@@ -137,11 +137,18 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$(uname -m)" == "$EXPECTED_MACHINE" ]]
-          curl --fail --location --retry 3 --output "$RUNNER_TEMP/bazel-8.5.1" \
-            "https://releases.bazel.build/8.5.1/release/bazel-8.5.1-linux-${BAZEL_ARCH}"
-          printf '%s  %s\n' "$BAZEL_SHA" "$RUNNER_TEMP/bazel-8.5.1" | sha256sum --check --strict
-          chmod 0755 "$RUNNER_TEMP/bazel-8.5.1"
-          echo "REGISTRY_CI_TEST_BAZEL=$RUNNER_TEMP/bazel-8.5.1" >> "$GITHUB_ENV"
+          if [[ "$BAZEL_ARCH" == x86_64 ]]; then
+            printf '%s  %s\n' "$BAZEL_SHA" /usr/local/lib/bazel-8.5.1 | sha256sum --check --strict
+            # The image wrapper passes its Java CA store as a startup option,
+            # including when tests use --ignore_all_rc_files.
+            echo "REGISTRY_CI_TEST_BAZEL=/usr/local/bin/bazel" >> "$GITHUB_ENV"
+          else
+            curl --fail --location --retry 3 --output "$RUNNER_TEMP/bazel-8.5.1" \
+              "https://releases.bazel.build/8.5.1/release/bazel-8.5.1-linux-${BAZEL_ARCH}"
+            printf '%s  %s\n' "$BAZEL_SHA" "$RUNNER_TEMP/bazel-8.5.1" | sha256sum --check --strict
+            chmod 0755 "$RUNNER_TEMP/bazel-8.5.1"
+            echo "REGISTRY_CI_TEST_BAZEL=$RUNNER_TEMP/bazel-8.5.1" >> "$GITHUB_ENV"
+          fi
       - name: Test planning and validation runner
         shell: bash
         env:
@@ -169,7 +176,9 @@ jobs:
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 180
-    container: debian:trixie-20260918@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c
+    # AMD64 already runs inside a fresh Trixie runner container. An empty
+    # container string leaves steps in that container; ARM64 needs a job image.
+    container: ${{ matrix.architecture == 'arm64' && 'debian:trixie-20260918@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c' || '' }}
     defaults:
       run:
         shell: bash
@@ -178,8 +187,10 @@ jobs:
       CI_MODULE: ${{ matrix.module }}
       CI_VERSION: ${{ matrix.version }}
       CI_ARCHITECTURE: ${{ matrix.architecture }}
+      TEST_CONTAINER_IMAGE: ${{ matrix.architecture == 'arm64' && 'debian:trixie-20260918@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c' || '' }}
     steps:
       - name: Install build and package test tools
+        if: matrix.architecture == 'arm64'
         run: |
           set -euo pipefail
           apt-get update
@@ -205,23 +216,46 @@ jobs:
               ;;
             *) echo "Unsupported native architecture" >&2; exit 1 ;;
           esac
-          curl --fail --location --retry 3 --output /tmp/bazel "https://releases.bazel.build/8.5.1/release/bazel-8.5.1-linux-${bazel_arch}"
-          printf '%s  %s\n' "$bazel_sha" /tmp/bazel | sha256sum --check --strict
-          install -m 0755 /tmp/bazel /usr/local/bin/bazel
+          if [[ "$CI_ARCHITECTURE" == amd64 ]]; then
+            printf '%s  %s\n' "$bazel_sha" /usr/local/lib/bazel-8.5.1 | sha256sum --check --strict
+          else
+            curl --fail --location --retry 3 --output /tmp/bazel "https://releases.bazel.build/8.5.1/release/bazel-8.5.1-linux-${bazel_arch}"
+            printf '%s  %s\n' "$bazel_sha" /tmp/bazel | sha256sum --check --strict
+            install -m 0755 /tmp/bazel /usr/local/bin/bazel
+          fi
       - name: Build and test through the registry
         run: |
           set -euo pipefail
-          python3 ci/registry_ci.py run \
+          ROOT=()
+          if [[ "$CI_ARCHITECTURE" == amd64 ]]; then
+            TEST_CONTAINER_IMAGE="${SONIC_RUNNER_IMAGE_REFERENCE:?Missing runner image identity}"
+            ROOT=(sudo -n)
+            "${ROOT[@]}" git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          fi
+          "${ROOT[@]}" python3 ci/registry_ci.py run \
             --module "$CI_MODULE" \
             --version "$CI_VERSION" \
             --architecture "$CI_ARCHITECTURE" \
+            --bazel /usr/local/bin/bazel \
             --work-dir "$RUNNER_TEMP/registry-ci" \
             --artifacts "$GITHUB_WORKSPACE/ci-artifacts" \
-            --test-container-image debian:trixie-20260918@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c
+            --test-container-image "$TEST_CONTAINER_IMAGE"
       - name: Archive module validation results
         id: archive
         if: always()
-        run: bash ci/archive_artifacts.sh "$GITHUB_WORKSPACE/ci-artifacts" "$RUNNER_TEMP/registry-ci-evidence.tar"
+        run: |
+          set -euo pipefail
+          ROOT=()
+          if [[ "$CI_ARCHITECTURE" == amd64 ]]; then
+            ROOT=(sudo -n)
+          fi
+          archive="$RUNNER_TEMP/registry-ci-evidence.tar"
+          "${ROOT[@]}" bash ci/archive_artifacts.sh "$GITHUB_WORKSPACE/ci-artifacts" "$archive"
+          if [[ -f "$archive" && "$CI_ARCHITECTURE" == amd64 ]]; then
+            # Keep permissions inside the TAR intact while letting the
+            # non-root upload action read the root-created archive.
+            sudo -n chown "$(id -u):$(id -g)" "$archive"
+          fi
       - name: Retain module validation results
         if: always() && steps.archive.outcome == 'success'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -235,7 +269,7 @@ jobs:
     name: Registry CI
     if: always()
     needs: [plan, unit, modules]
-    runs-on: [self-hosted, Linux, X64, ubuntu-24.04-container]
+    runs-on: [self-hosted, Linux, X64, debian-trixie-container]
     timeout-minutes: 5
     steps:
       - name: Require successful planning, runner tests, and module validation

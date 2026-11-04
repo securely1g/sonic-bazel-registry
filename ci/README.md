@@ -500,8 +500,8 @@ original validation failure is still preserved.
 ## Environment and coverage
 
 Planning, the aggregate check, and AMD64 runner tests and module validation use
-self-hosted Ubuntu 24.04 Docker runners with the labels `self-hosted`, `Linux`,
-`X64`, and `ubuntu-24.04-container`. Register the runners as ephemeral so each
+self-hosted Debian Trixie Docker runners with the labels `self-hosted`, `Linux`,
+`X64`, and `debian-trixie-container`. Register the runners as ephemeral so each
 accepts only one job; `sonic-slave-wrk-mgr` must remove the finished container
 and replace it with a fresh registered runner after success, failure, or
 cancellation. Keep registration credentials in the manager, outside job
@@ -509,15 +509,28 @@ containers, and retain runner diagnostics before removing a container.
 
 ARM64 jobs continue to use native GitHub-hosted `ubuntu-24.04-arm` runners until
 an ARM64 container-runner host is available. An AMD64 runner cannot provide
-native ARM64 validation. Both architectures retain the
-`debian:trixie-20260918` job container pinned to its multiarch image digest;
-runtime preparation requires Debian Trixie. The self-hosted runner installation
-must start and health-check its isolated Docker daemon before launching the
-Actions listener: GitHub creates the job container before any workflow steps
-run. The daemon must see the runner workspace and tool paths used for mounts.
-The workflow installs the compiler and
-package-test tools in the container and downloads Bazel 8.5.1 with a pinned SHA256
-for the native CPU. GitHub actions are pinned to commit SHAs, checkout does not
+native ARM64 validation. ARM64 module jobs retain the
+`debian:trixie-20260918` container pinned to its multiarch image digest. AMD64
+steps execute directly inside the disposable runner, built from that same
+pinned Trixie base with the compiler and package-test tools preinstalled.
+AMD64 does not start a second container or require a Docker daemon. Actions run
+as UID 1000; module validation and runtime package preparation use passwordless
+`sudo` inside the disposable container. Evidence is archived as root, then only
+the resulting TAR is given to the action user, preserving the archived modes.
+
+The manager supplies `SONIC_RUNNER_IMAGE_REFERENCE=sonic-slave-runner@sha256:...`
+from the actual derived image's inspected Docker image ID. This is a local
+content identity, not a registry pull reference or the upstream base digest.
+AMD64 runtime preparation records that identity; ARM64 records its pinned job
+image reference. Missing AMD64 identity fails validation. The receipt also
+records the prepared package inventory and library hashes.
+
+The AMD64 image contains the checksum-verified Bazel 8.5.1 binary at
+`/usr/local/lib/bazel-8.5.1`. Its `/usr/local/bin/bazel` wrapper explicitly passes
+the image's Java CA trust store as a startup argument, including when CI ignores
+all bazelrc files. The workflow verifies the binary's checksum again. ARM64
+downloads and verifies its native Bazel binary in the job container. GitHub
+actions are pinned to commit SHAs, checkout does not
 persist credentials, and the workflow uses read-only repository permissions.
 
 Runner tests execute on native AMD64 and ARM64 hosts with pinned Bazel 8.5.1.
