@@ -30,6 +30,11 @@ RUNNERS = {
     "amd64": ["self-hosted", "Linux", "X64", "debian-trixie-container"],
     "arm64": ["ubuntu-24.04-arm"],
 }
+HTTP_DOWNLOAD_FLAGS = (
+    "--http_connector_attempts=12",
+    "--http_connector_retry_max_timeout=10s",
+    "--http_max_parallel_downloads=4",
+)
 NAME = re.compile(r"[a-z][a-z0-9._-]*\Z")
 VERSION = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+-]*\Z")
 LABEL = re.compile(r"@[a-z][a-z0-9._-]*//[A-Za-z0-9_./+-]*:[A-Za-z0-9_./+-]+\Z")
@@ -1044,7 +1049,9 @@ def prepare_rust(config: dict, consumer: Path, work_dir: Path, artifacts: Path,
     # The shared module has its own native toolchains. Consumer platform labels
     # and Starlark settings may name repositories that do not exist there.
     preparation_flags = [flag for flag in flags
-                         if flag.startswith(("--registry=", "--lockfile_mode=", "--experimental_downloader_config="))]
+                         if flag.startswith(("--registry=", "--lockfile_mode=", "--experimental_downloader_config=",
+                                             "--http_connector_attempts=", "--http_connector_retry_max_timeout=",
+                                             "--http_max_parallel_downloads="))]
     command = [sys.executable, str(helper), "--workspace", str(consumer),
                "--shared-only", "--shared-dependency",
                f"{preparation['module']}={preparation['repo_name']}",
@@ -1242,6 +1249,7 @@ def run(root: Path, module: str, version: str, architecture: str,
         flags = [f"--registry={root.resolve().as_uri()}", "--registry=https://bcr.bazel.build/",
                  f"--platforms={config['platforms'][architecture]}", "--lockfile_mode=update",
                  f"--experimental_downloader_config={root.resolve() / 'ci/source_mirrors.cfg'}",
+                 *HTTP_DOWNLOAD_FLAGS,
                  "--remote_download_regex=(^|.*/)tools/build_tools/kernel_runtime_(amd64|arm64)(/.*)?$",
                  *config.get("build_flags", [])]
         if "host_platforms" in config:

@@ -1187,6 +1187,8 @@ class RustPreparationTests(FixtureTestCase):
             self.assertIn("--shared-only", command)
             self.assertIn("--bazel-arg=--registry=file:///registry", command)
             self.assertIn("--bazel-arg=--experimental_downloader_config=/registry/ci/source_mirrors.cfg", command)
+            for flag in registry_ci.HTTP_DOWNLOAD_FLAGS:
+                self.assertIn("--bazel-arg=" + flag, command)
             self.assertNotIn("--bazel-arg=--platforms=@alpha//:platform", command)
             self.assertNotIn("--bazel-arg=--@alpha//:feature=True", command)
             staged = work / "rust-deps" / "alpha-private"
@@ -1206,6 +1208,7 @@ class RustPreparationTests(FixtureTestCase):
             flags = registry_ci.prepare_rust(self.config, consumer, work, artifacts, prefix, [
                 "--registry=file:///registry", "--platforms=@alpha//:platform", "--@alpha//:feature=True",
                 "--experimental_downloader_config=/registry/ci/source_mirrors.cfg",
+                *registry_ci.HTTP_DOWNLOAD_FLAGS,
             ])
         return flags, execute, artifacts
 
@@ -2013,6 +2016,8 @@ class FetchedModuleTests(FixtureTestCase):
             "import sys\n"
             "args = sys.argv[1:]\n"
             "assert ('--test_env=HOME=' in args) == ('test' in args)\n"
+            f"for flag in {registry_ci.HTTP_DOWNLOAD_FLAGS!r}:\n"
+            "    assert (flag in args) == ('info' not in args)\n"
             f"assert {str("--experimental_downloader_config=" + str(self.root / "ci/source_mirrors.cfg"))!r} in args\n"
             "assert ('--@alpha//bazel:yang_modules=False' in args) == ('info' not in args)\n"
             "if 'info' in args:\n"
