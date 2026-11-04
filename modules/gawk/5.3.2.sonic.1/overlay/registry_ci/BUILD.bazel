@@ -1,0 +1,32 @@
+load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
+
+package(default_visibility = ["//visibility:public"])
+
+platform(
+    name = "amd64",
+    constraint_values = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+)
+
+platform(
+    name = "arm64",
+    constraint_values = [
+        "@platforms//os:linux",
+        "@platforms//cpu:aarch64",
+    ],
+)
+
+genrule(
+    name = "toolchain_smoke",
+    outs = ["toolchain_smoke.txt"],
+    cmd = "\"$(location //:resolved_toolchain)\" 'BEGIN { if (7 * 6 != 42) exit 1; print 7 * 6 }' > $@",
+    tools = ["//:resolved_toolchain"],
+)
+
+diff_test(
+    name = "toolchain_smoke_test",
+    file1 = ":toolchain_smoke",
+    file2 = "toolchain_smoke.expected",
+)
