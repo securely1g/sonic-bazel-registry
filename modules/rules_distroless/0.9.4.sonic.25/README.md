@@ -1,52 +1,40 @@
-# Select Debian headers for the target CPU
+# Share locked APT inputs across payloads, libraries and tools
 
-`0.9.4.sonic.16` fixes the public header interface used by SONiC source
-builds. Debian `linux-libc-dev` 6.12.96-1 has `Architecture: all` and ships
-22 CPU-specific header directories in one archive. The previous importer
-exported all those directories alphabetically. On AMD64, it found ARM64's
-`asm/unistd.h` first and compiled OpenSSL's AF_ALG engine with
-`__NR_io_setup=0`, which invokes `read` on AMD64 and fails with `EBADF`.
-AMD64 requires syscall 206; ARM64 correctly requires syscall 0.
+`rules_distroless@0.9.4.sonic.17` adds the shared source/request and locked
+import interfaces consumed by [build-infra #79](https://github.com/securely1g/sonic-build-infra/pull/79).
+That source supplies `apt/sources.json`, `apt/requests.json` and
+`apt/apt.lock.json` so package payloads, target headers/libraries and execution
+tools can use the same reviewed package graph.
 
-| Input or action | Before | After |
+| Input or action | Published `.16` | This `.17` candidate |
 | --- | --- | --- |
-| The same Linux header archive, AMD64 target | ARM64 directory precedes AMD64; `io_setup=0` | Only AMD64 multiarch roots are exported; `io_setup=206` |
-| The same archive, ARM64 target | Every architecture directory is exported | Only ARM64 multiarch roots are exported; `io_setup=0` |
-| Ordinary and pkg-config include paths | All declared paths are exported | Ordinary paths and matching nested multiarch paths retain their order |
+| Import shared source/request/lock files | The complete shared-input interface is unavailable | Resolve and import the reviewed package graph through the shared interface |
+| Export static libraries, linker scripts and original DEBs | The additional export interface is unavailable | Preserve those inputs alongside native library and payload exports |
+| Read exported pkg-config installation paths | Absolute paths refer to Debian's installation tree | Relocate exported standard variables relative to `pcfiledir` |
+| Select Linux multiarch header roots | Select the configured target CPU's roots | Preserve the same target-CPU selection and AIO regression coverage |
 
-The generated `cc_library` selects search paths using Bazel's target CPU,
-not the execution host or the Debian archive's `all` label. It retains all
-header files and their declared symlink targets. The CPU mapping matches the
-existing APT hub: AMD64, ARM64, armhf, i386, ppc64el, mips64el and s390x.
-Unsupported multiarch directories are not exported as a fallback.
-The package payload and all crypto code and tests remain unchanged.
+Original Debian package archives remain unchanged. Patch 0020 provides the
+additional interfaces and uses the declared AWK tool from
+[gawk registry #204](https://github.com/securely1g/sonic-bazel-registry/pull/204).
+The existing native header/library exports, symlink handling and package tests
+remain part of the candidate.
 
-The concrete consumer is
-[FIPS registry #197](https://github.com/securely1g/sonic-bazel-registry/pull/197),
-whose native AMD64 OpenSSL integration test fails at `30-test_afalg.t` with
-`.sonic.15`. Its ARM64 integration test passes. The source OpenSSH provider
-selection in [FIPS #15](https://github.com/securely1g/sonic-fips/pull/15) is a
-separate change; this module fixes the shared kernel-header exporter.
-Consumer adoption and complete crypto-suite validation remain pending.
+## Inherited inputs and validation
 
-## Validation
-
-The independent integration module uses Bazel 8.5.1 and `rules_cc@0.2.22`.
-CI retains all seven outputs and 33 tests from published `.sonic.15` and adds:
-
-- An analysis test inspects the actual `CcInfo` of the same imported archive
-  under AMD64 and ARM64 target configurations, rejecting foreign include roots.
-- A native C test compiles the imported `asm/unistd.h`, checks the correct
-  syscall numbers, and creates/destroys a real Linux AIO context. It runs on
-  both native CPUs without capability skips.
-
-This produces eight build outputs and 35 tests per architecture. Local/native
-and hosted results are pending. The recipe only fetches and extracts existing
-checksum-pinned Debian archives; it adds no DEB producer. Complete FIPS crypto
-and installed-image acceptance remains the downstream consumer's gate.
-
-The upstream archive is unchanged. Published entries remain unchanged;
-patches 0002–0018 are inherited byte-for-byte. Patch 0001 changes only this
-candidate's module version and 0019 adds the target header selection and its
-lazy test repository. All existing fixtures and test selections are retained.
+Published `.16`, including registry #200's CPU-header fix, remains unchanged.
+This candidate carries patches 0002–0019 forward byte-for-byte and changes
+patch 0001 only to declare `.17`. It retains all eight build selections and
+all 35 inherited tests, then adds the pkg-config relocation regression for
+36 tests on each native AMD64 and ARM64 runner. The standalone integration
+module selects `.17` and retains its package-lock and original-archive checks.
 See [patch provenance](PATCHES.md).
+
+The native AIO check still verifies `io_setup=206` on AMD64 and `io_setup=0`
+on ARM64 and creates/destroys a real AIO context. The recipe imports existing
+checksum-pinned packages; it adds no DEB producer. Source or registry tests do
+not establish complete SONiC image acceptance.
+
+The `.17` rebase requires fresh native validation; earlier `.16` candidate
+results do not establish this revision's CI status. Before its prerequisites
+land, use one pinned complete Draft-validation catalog alongside BCR. Normal
+consumer defaults remain on the maintained registry branch.

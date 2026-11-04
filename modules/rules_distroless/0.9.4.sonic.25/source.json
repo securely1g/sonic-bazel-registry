@@ -4,7 +4,7 @@
   "docs_url": "https://github.com/bazel-contrib/rules_distroless/releases/download/v0.9.4/rules_distroless-v0.9.4.docs.tar.gz",
   "url": "https://github.com/bazel-contrib/rules_distroless/releases/download/v0.9.4/rules_distroless-v0.9.4.tar.gz",
   "patches": {
-    "0001-module-version.patch": "sha256-tBVidjSmhKw8P3xWQg816ePmhGylnd/Bq7HIdDArJcE=",
+    "0001-module-version.patch": "sha256-bdc6wKCmbGN81K0uoxEe/Ju0Oi1vYLKA5sps7N2jgPk=",
     "0002-include-fragments.patch": "sha256-iNpoe/p+zvHebAowncGruHEtEPSMrsIunHTfMNZOY5o=",
     "0003-registry-ci.patch": "sha256-t8SegtaPxng70+DtM4wHjzZyDy05k6Lmvj+Gy5gpGWg=",
     "0004-pkgconfig-whitespace.patch": "sha256-Q4KG8wakd7ul6zsMbpmXofnzVeTFBWgqVWJL9eOvPBY=",
@@ -22,7 +22,9 @@
     "0016-native-library-exports.patch": "sha256-liEcyU0lYXTwZJg6VMiJpYr/krm1jsVo8Nts/EulgCo=",
     "0017-individual-apt-libraries.patch": "sha256-a8xX5bQIaCSBcRW9Sc6HlJbbcx3MdbtOqNNGyn4vMWI=",
     "0018-public-cc-import.patch": "sha256-HQNENBz+9QFA86VVpBtiVucEr8qTPymgkPTjBvScF4o=",
-    "0019-target-multiarch-headers.patch": "sha256-Hh7GolQOH3aufgXVUS4/kb+/lKfCqFzTuxxsY92+mes="
+    "0019-target-multiarch-headers.patch": "sha256-Hh7GolQOH3aufgXVUS4/kb+/lKfCqFzTuxxsY92+mes=",
+    "0020-unified-apt-inputs.patch": "sha256-mlGpxlpinCCix2dvusFLRVpJY6l/V+9LkuoDsjsqEcI=",
+    "0021-complete-shared-package-dependencies.patch": "sha256-6ZmSB0VxVRHq6bbBNNFPv78SsIkHuIq0c5Aqni0mcWw="
   },
   "patch_strip": 1,
   "overlay": {
@@ -47,16 +49,19 @@
     "registry_ci/native_shared/test.c": "sha256-vsVIedINKXXuR2GspUkiNcuYiqZY6QnL8W6oevkOI1g=",
     "registry_ci/original_deb_test.py": "sha256-VZNspACD7bXyATv/R8cWkPE8f2iY4v6lYlBMN/PXif4=",
     "registry_ci/pkgconfig_fields_test.bzl": "sha256-YdH1fWqxuv3iLk8QyKSJIwevkhjjiYF1xUA23uOYpxA=",
-    "registry_ci/pkgconfig_files_test.py": "sha256-Cq5g830zNqYtW9x1E73FDltOqYULj0CcHH31VtJdN0s=",
+    "registry_ci/pkgconfig_files_test.py": "sha256-xLtVJTKUMdWwW8b8g4uLg+A4Liip9vX4jBG5ukAnXxg=",
     "registry_ci/pkgconfig_quotes_test.bzl": "sha256-Nwtqr3p/6x6X8nYzhM1uRl2VhlvArScrupZHC+r1no4=",
     "registry_ci/pkgconfig_selection_test.bzl": "sha256-Cj9JUyjekK/jV9hyr1YJCwv7RmK4egCOBDppLt9qJ1k=",
     "registry_ci/pkgconfig_test.bzl": "sha256-uoZqhjeEig7Ctql6cit/lD8JmUN5ezS4R9D+CvKkrec=",
     "registry_ci/protobuf_headers_test.cc": "sha256-Olh22GMJyNSUyijD9763cyAvy+H7jPUoFk3qd7cDflI=",
-    "registry_ci/template_headers/BUILD.bazel": "sha256-fuF4MO9D4SUG6ejNDDS5vudgTbbvBNUXJ+JDu8XJM70=",
+    "registry_ci/template_headers/BUILD.bazel": "sha256-i3GruKLG6OggFDCh8i2Ux4Upl/VExwSyiIcmxSpVCko=",
     "registry_ci/template_headers/CMakeLists.txt": "sha256-zH4YPZIJfXD3O7V9+Lcsz6rQe85A3E9KQfQdyyQP2rI=",
     "registry_ci/template_headers/declared_headers_test.bzl": "sha256-CWI/xW6DwpcIsTc+bMzwaojHR+wmGBnRDMvME/fuf4E=",
     "registry_ci/template_headers/probe.cc": "sha256-bJTxHl+EvXqsMqfZgrB9c4+nc27S3qkz5n1XhpoWhi8=",
     "registry_ci/template_headers/test.cc": "sha256-UyoubqBYKzUMDqN09hGBhRsNuJEqH5gZKg5PDIUiu/A=",
-    "registry_ci/xtables_headers_test.c": "sha256-Ff3IJ87nRUWBGXyWEo74poQLv1iqbDKVy5jAuymCZpM="
+    "registry_ci/xtables_headers_test.c": "sha256-Ff3IJ87nRUWBGXyWEo74poQLv1iqbDKVy5jAuymCZpM=",
+    "apt/private/configuration.bzl": "sha256-o0GZSdHyUo8RYh1ph7V7ycWHjNbR3m+buRbd39otHc8=",
+    "apt/private/relocate_pkgconfig.py": "sha256-GrAq6RT5FHxW/jd+tfStPSaj9bxzaEkBFtrD+MDqFrc=",
+    "apt/private/relocate_pkgconfig_test.py": "sha256-VvEJvsXHwQ/S5DFGJ1vbgOZb50A30qVmHYSMTZKCkdU="
   }
 }

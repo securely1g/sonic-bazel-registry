@@ -1,10 +1,12 @@
 # Distroless patch provenance and validation
 
-`0.9.4.sonic.16` starts from published `0.9.4.sonic.15` at maintained registry
-commit `82e6f9470be0d35099096ae127969157cda5e5e1`. It retains the exact upstream
-0.9.4 archive, patches 0002–0018, existing overlays and fixtures, seven build
-outputs and 33 tests. Patch 0001 changes only the module version; new patch 0019
-selects the imported multiarch include paths for the configured target CPU.
+`0.9.4.sonic.17` starts from published `0.9.4.sonic.16` at maintained registry
+commit `47690df33f75ed36452b9fc80596cd0d599d2a5c`. It retains the exact upstream
+0.9.4 archive, patches 0002–0019, existing overlays and fixtures, eight build
+outputs and all 35 tests. Patch 0001 changes only the module version; new patch
+0020 adds shared APT source/request/lock inputs and native package exports.
+The new pkg-config relocation regression brings the selected total to 36 tests.
+The target-CPU header correction described below is inherited from `.16`.
 
 The reproduction uses the exact existing Debian linux-libc-dev 6.12.96-1
 archive from FIPS registry #197. Its architecture-independent payload has
@@ -41,7 +43,8 @@ proposals and are not counted as releases.
 | `0017-individual-apt-libraries.patch` | `0.9.4.sonic.14` | Individual `libNAME_cc`/`libNAME_shared` exports and architecture hub aliases; preserved unchanged from registry #146. |
 | `0018-public-cc-import.patch` | `0.9.4.sonic.15` | Use the public rules_cc compatibility entry point on Bazel 8. Original fix: [rules_distroless #5](https://github.com/securely1g/rules_distroless/pull/5), commit `5be9ab5c921dcd58d35ccdbd81e35dd65f4a5411`; adapted to published `.sonic.14`, whose import already omits the unsupported `includes` attribute. |
 
-| `0019-target-multiarch-headers.patch` | `0.9.4.sonic.16` (proposed) | Select CPU-specific include roots in the public native header exporter; preserve declared headers and symlinks. Reproduces FIPS registry #197's AF_ALG syscall mismatch. |
+| `0019-target-multiarch-headers.patch` | `0.9.4.sonic.16` | Select CPU-specific include roots in the public native header exporter; preserve declared headers and symlinks. Reproduces FIPS registry #197's AF_ALG syscall mismatch. |
+| `0020-unified-apt-inputs.patch` | `0.9.4.sonic.17` | Shared APT source/request/lock inputs, native exports, declared AWK and relocatable pkg-config files; registry #207. |
 
 These are SONiC-maintained adaptations; each patch records its source.
 [Upstream #220](https://github.com/bazel-contrib/rules_distroless/pull/220)
@@ -285,3 +288,10 @@ fetches the released upstream archive and applies the local checksum-pinned
 patch; the source PR above records provenance rather than an archive dependency.
 Retain this patch until a selected upstream release supplies the compatible
 entry point and the inherited native tests pass.
+
+
+## Unified APT source and lock interfaces
+
+Patch 0020 adds shared source/request inputs and reviewed lock imports, static-library and linker-script inputs, original archive aliases, declared AWK execution and relocatable exported pkg-config files. The package payload archives retain their original bytes. This candidate preserves patches 0002–0019 from registry PR #200 byte-for-byte, including target-CPU header selection, and retains all 35 test targets before adding the pkg-config relocation regression. The two sample package-lock tests remain in the standalone integration module. The declared AWK tool requires the gawk candidate registration.
+
+`0021-complete-shared-package-dependencies.patch` preserves dependency expansion when a package is first selected without transitive dependencies and is later required by a native library. The shared resolution state records completed transitive work; a payload-only request cannot suppress or erase it. The Bookworm production-lock regression and native header/link tests in sonic-build-infra PR #79 cover the libc6-dev → libc6 failure.
