@@ -35,13 +35,15 @@ tests and output queries. Rewrites match only the archive and binary-package
 URLs described below; registry order, module versions, source recipes and
 integrity values stay unchanged.
 
-The three ARM-hosted BCR archives use verified copies in this repository's
+The five ARM-hosted BCR archives use verified copies in this repository's
 [source-mirror release](https://github.com/securely1g/sonic-bazel-registry/releases/tag/ci-source-mirrors-20261104)
 first, with each original GitLab release URL retained as the next candidate:
 
 | BCR module | Release asset |
 | --- | --- |
 | `ape@1.0.1` | `ape-v1.0.1.tar.gz` |
+| `download_utils@1.0.1` | `download_utils-v1.0.1.tar.gz` |
+| `rules_coreutils@1.0.1` | `rules_coreutils-v1.0.1.tar.gz` |
 | `rules_gzip@1.0.0` | `rules_gzip-v1.0.0.tar.gz` |
 | `toolchain_utils@1.0.2` | `toolchain_utils-v1.0.2.tar.gz` |
 
@@ -64,11 +66,23 @@ try the identical pool path on Debian's official `deb.debian.org/debian/` CDN
 first, then retain the exact timestamped snapshot URL as fallback. This avoids
 transient snapshot HTTP 503 failures for package versions still present in the
 current pool; older packages absent from the CDN continue through the snapshot.
+Binary-package inputs on `snapshot-cloudflare.debian.org` try the identical CDN
+pool path, then the identical timestamp/path on `snapshot.debian.org`, then the
+original Cloudflare snapshot URL. The native AMD64 and ARM64 BusyBox 1.36.1-6
+packages declared by `rules_coreutils@1.0.1` retain all three candidates, with
+cold-fetch regressions checking both original SHA256 hashes without executing
+either package.
 The locked filename, version and SHA256 remain unchanged. Indexes, metadata,
 source archives and other snapshot archives such as `debian-security` are not
 rewritten. The cold-fetch regression checks `libsframe1_2.44-3_amd64.deb` against
 its generated APT lock's SHA256
 `38f625dfdc582717029ac3a3e97c51d994ec2e7a0e9b230c6b44e40d1276311f`.
+
+Repository downloads allow 12 HTTP connection attempts with a nominal 10-second
+retry-delay cap and at most four parallel downloads per Bazel process. These flags
+apply to both architectures, repository-dependent commands and Rust preparation;
+the cold-fetch regressions use the same policy. This allows transient HTTP
+503/504 responses to recover without changing package inputs or retrying tests.
 
 BCR `pigz@2.8.bcr.2` is used by build-infra's reproducible gzip tool when packaging
 WPA's debug TAR. Its original URL now serves different bytes; a clean

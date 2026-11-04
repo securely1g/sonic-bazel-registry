@@ -4,6 +4,7 @@ from __future__ import annotations
 import base64
 import hashlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -17,10 +18,16 @@ from unittest import mock
 from urllib.request import urlopen
 
 ROOT = Path(__file__).resolve().parents[2]
+CI_SPEC = importlib.util.spec_from_file_location("registry_ci_source_mirrors", ROOT / "ci/registry_ci.py")
+assert CI_SPEC is not None and CI_SPEC.loader is not None
+REGISTRY_CI = importlib.util.module_from_spec(CI_SPEC)
+CI_SPEC.loader.exec_module(REGISTRY_CI)
 PIGZ_SHA256 = "eb872b4f0e1f0ebe59c9f7bd8c506c4204893ba6a8492de31df416f0d5170fd0"
 PIGZ_MODULE = "https://bcr.bazel.build/modules/pigz/2.8.bcr.2/MODULE.bazel"
 ARM_ARCHIVES = (
     ("ape", "1.0.1", "sha512-YHlfxYHiCxzrifn5ywADS59XhmTk5u0rW/1fPepfk1C6/bXn3uwSADixLkvee6rAP9u2sulmHX0igt5F5+eqTA=="),
+    ("download_utils", "1.0.1", "sha512-nsUJrJJjUWKzTQA187uWHhnBSqPA7t8Q6Rqry83Sj63Kf09L6xEFCR7thlnRUtbRbzabIKGr7JreouFdjjdarw=="),
+    ("rules_coreutils", "1.0.1", "sha512-ViXfJnpIYJ/rhVAcq/WIc/SwekMKubAFS/1cVrziq9NoHkLBtXbf977l/fEknU1ElXtteVDtxOfgi8vcM+34Qg=="),
     ("rules_gzip", "1.0.0", "sha512-KK1A/NSvOaixXftdIRSBHt+QSPEk1ZorO2HtKY6o5KRP/i8KQ1hsDQPVwbCCi0++6pE529idMytTL/3SmhNmCQ=="),
     ("toolchain_utils", "1.0.2", "sha512-AXqtA9CzczVUdS5dw0dX332eaXZQhFcEZmf1iKALwsoKoT9Mboah7/j1JN9hZpzq6B5X7gpe83TPpya6yJZ6Lw=="),
 )
@@ -31,6 +38,12 @@ GAWK_HOSTS = ("mirrors.kernel.org", "ftp.gnu.org", "ftpmirror.gnu.org")
 LIBSFRAME_SNAPSHOT = "https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/b/binutils/libsframe1_2.44-3_amd64.deb"
 # The libyang-python@3.1.0.sonic.6 generated APT lock pins these exact package bytes.
 LIBSFRAME_SHA256 = "38f625dfdc582717029ac3a3e97c51d994ec2e7a0e9b230c6b44e40d1276311f"
+# BusyBox package inputs pinned by BCR rules_coreutils@1.0.1's MODULE.bazel.
+BUSYBOX_PACKAGES = (
+    ("amd64", "d161cd711fcf0d21a53dd7b9665933463de9fa6a37718e78ffee4d7732e1e02a", 937460),
+    ("arm64", "76e03728f35dcc63b40ad52e5273c888ffd8eed254c0c9f871d5b4e31a485150", 830700),
+)
+BUSYBOX_SNAPSHOT_PREFIX = "https://snapshot-cloudflare.debian.org/archive/debian/20240210T223313Z/pool/main/b/busybox/"
 
 
 def arm_urls(name, version):
@@ -67,22 +80,21 @@ class ArmSourceMirrorScopeTest(unittest.TestCase):
 
 
 class DebianPoolMirrorScopeTest(unittest.TestCase):
-    def test_only_timestamped_debian_binary_pool_paths_are_rewritten(self):
+    def candidates(self, url):
         rewrites = [line.split()[1:] for line in (ROOT / "ci/source_mirrors.cfg").read_text().splitlines()
                     if line.startswith("rewrite ")]
+        result = []
+        for pattern, replacement in rewrites:
+            matched = re.fullmatch(pattern, url.removeprefix("https://"))
+            if matched:
+                result.append(re.sub(r"\$(\d+)", lambda ref: matched.group(int(ref[1])), replacement))
+        return result
 
-        def candidates(url):
-            result = []
-            for pattern, replacement in rewrites:
-                matched = re.fullmatch(pattern, url.removeprefix("https://"))
-                if matched:
-                    result.append(re.sub(r"\$(\d+)", lambda ref: matched.group(int(ref[1])), replacement))
-            return result
-
+    def test_only_timestamped_debian_binary_pool_paths_are_rewritten(self):
         for upstream in (LIBSFRAME_SNAPSHOT,
                          "https://snapshot.debian.org/archive/debian/20250101T010203Z/pool/main/f/foo/foo_2%3a1.0~rc1+dfsg-3_arm64.deb"):
             pool_path = upstream.split("/pool/", 1)[1]
-            self.assertEqual(candidates(upstream), ["https://deb.debian.org/debian/pool/" + pool_path, upstream])
+            self.assertEqual(self.candidates(upstream), ["https://deb.debian.org/debian/pool/" + pool_path, upstream])
         for other in (
             LIBSFRAME_SNAPSHOT.replace("snapshot.debian.org", "snapshot.example.org"),
             LIBSFRAME_SNAPSHOT.replace("/archive/debian/", "/archive/debian-security/"),
@@ -95,7 +107,24 @@ class DebianPoolMirrorScopeTest(unittest.TestCase):
             LIBSFRAME_SNAPSHOT.replace("/main/", "/../"),
             LIBSFRAME_SNAPSHOT + "?query", LIBSFRAME_SNAPSHOT + ".sha256",
         ):
-            self.assertEqual(candidates(other), [], other)
+            self.assertEqual(self.candidates(other), [], other)
+
+    def test_cloudflare_package_candidates_keep_standard_and_original_snapshots(self):
+        for architecture, _checksum, _size in BUSYBOX_PACKAGES:
+            upstream = BUSYBOX_SNAPSHOT_PREFIX + f"busybox-static_1.36.1-6_{architecture}.deb"
+            self.assertEqual(self.candidates(upstream), [
+                "https://deb.debian.org/debian/pool/main/b/busybox/" + upstream.rsplit("/", 1)[1],
+                upstream.replace("snapshot-cloudflare.debian.org", "snapshot.debian.org"), upstream,
+            ])
+            for other in (
+                upstream.replace("/archive/debian/", "/archive/debian-security/"),
+                upstream.replace("20240210T223313Z/", ""),
+                upstream.replace("pool/main/b/busybox/" + upstream.rsplit("/", 1)[1],
+                                 "dists/bookworm/main/binary-amd64/Packages.xz"),
+                upstream.removesuffix(".deb") + ".tar.xz", upstream + "?query",
+                upstream.replace("snapshot-cloudflare.debian.org", "other.debian.org"),
+            ):
+                self.assertEqual(self.candidates(other), [], other)
 
 
 @unittest.skipUnless(os.environ.get("REGISTRY_CI_TEST_BAZEL"),
@@ -113,6 +142,7 @@ class ArchiveFetchTestCase(unittest.TestCase):
                    "--output_user_root=" + str(work / "bazel"), "--output_base=" + str(work / "output"),
                    "fetch", "--repo=@" + repo, "--registry=https://bcr.bazel.build/",
                    "--repository_cache=" + str(cache), "--lockfile_mode=update",
+                   *REGISTRY_CI.HTTP_DOWNLOAD_FLAGS,
                    "--experimental_downloader_config=" + str(config)]
         artifacts = work / "artifacts"
         artifacts.mkdir()
@@ -251,7 +281,37 @@ class DebianPoolMirrorIntegrationTest(ArchiveFetchTestCase):
             self.assertEqual(package.stat().st_size, 78360)
             self.assertEqual(hashlib.sha256(package.read_bytes()).hexdigest(), LIBSFRAME_SHA256)
 
+    def test_busybox_candidates_preserve_both_architecture_hashes_with_empty_caches(self):
+        for architecture, checksum, size in BUSYBOX_PACKAGES:
+            with self.subTest(architecture=architecture), \
+                    tempfile.TemporaryDirectory(prefix="registry-busybox-pool-") as temporary:
+                work = Path(temporary)
+                upstream = BUSYBOX_SNAPSHOT_PREFIX + f"busybox-static_1.36.1-6_{architecture}.deb"
+                result, transcript, cache = self.fetch(work,
+                    'module(name = "busybox_pool_consumer")\n'
+                    'http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")\n'
+                    f'http_file(name = "busybox_package", urls = [{upstream!r}], sha256 = {checksum!r})\n',
+                    "busybox_package", ROOT / "ci/source_mirrors.cfg")
+                self.assertEqual(result.returncode, 0, transcript)
+                package = cache / "content_addressable/sha256" / checksum / "file"
+                self.assertEqual(package.stat().st_size, size)
+                self.assertEqual(hashlib.sha256(package.read_bytes()).hexdigest(), checksum)
+
     def test_missing_pool_version_falls_back_to_exact_snapshot_path(self):
+        self.exercise_snapshot_fallback(LIBSFRAME_SNAPSHOT, [
+            "/cdn/pool/main/b/binutils/libsframe1_2.44-3_amd64.deb",
+            "/snapshot/20260727T143429Z/pool/main/b/binutils/libsframe1_2.44-3_amd64.deb",
+        ])
+
+    def test_cloudflare_original_is_retained_when_both_alternatives_are_missing(self):
+        self.exercise_snapshot_fallback(
+            LIBSFRAME_SNAPSHOT.replace("snapshot.debian.org", "snapshot-cloudflare.debian.org"), [
+                "/cdn/pool/main/b/binutils/libsframe1_2.44-3_amd64.deb",
+                "/snapshot/20260727T143429Z/pool/main/b/binutils/libsframe1_2.44-3_amd64.deb",
+                "/cloudflare/20260727T143429Z/pool/main/b/binutils/libsframe1_2.44-3_amd64.deb",
+            ])
+
+    def exercise_snapshot_fallback(self, upstream, expected_requests):
         payload = b"locked Debian package fixture\n"
         checksum = hashlib.sha256(payload).hexdigest()
         requests = []
@@ -259,7 +319,7 @@ class DebianPoolMirrorIntegrationTest(ArchiveFetchTestCase):
         class PackageSource(BaseHTTPRequestHandler):
             def do_GET(self):
                 requests.append(self.path)
-                if self.path.startswith("/cdn/"):
+                if self.path != expected_requests[-1]:
                     self.send_error(404)
                     return
                 self.send_response(200)
@@ -279,17 +339,16 @@ class DebianPoolMirrorIntegrationTest(ArchiveFetchTestCase):
                 config.write_text((ROOT / "ci/source_mirrors.cfg").read_text()
                                   .replace("https://deb.debian.org/debian/$2", f"http://127.0.0.1:{server.server_port}/cdn/$2")
                                   .replace("https://snapshot.debian.org/archive/debian/$1/$2",
-                                           f"http://127.0.0.1:{server.server_port}/snapshot/$1/$2"))
+                                           f"http://127.0.0.1:{server.server_port}/snapshot/$1/$2")
+                                  .replace("https://snapshot-cloudflare.debian.org/archive/debian/$1/$2",
+                                           f"http://127.0.0.1:{server.server_port}/cloudflare/$1/$2"))
                 result, transcript, cache = self.fetch(work,
                     'module(name = "debian_fallback_consumer")\n'
                     'http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")\n'
-                    f'http_file(name = "package_fixture", urls = [{LIBSFRAME_SNAPSHOT!r}], sha256 = {checksum!r})\n',
+                    f'http_file(name = "package_fixture", urls = [{upstream!r}], sha256 = {checksum!r})\n',
                     "package_fixture", config)
                 self.assertEqual(result.returncode, 0, transcript)
-                self.assertEqual(list(dict.fromkeys(requests)), [
-                    "/cdn/pool/main/b/binutils/libsframe1_2.44-3_amd64.deb",
-                    "/snapshot/20260727T143429Z/pool/main/b/binutils/libsframe1_2.44-3_amd64.deb",
-                ])
+                self.assertEqual(list(dict.fromkeys(requests)), expected_requests)
                 self.assertEqual((cache / "content_addressable/sha256" / checksum / "file").read_bytes(), payload)
         finally:
             server.shutdown()
@@ -376,6 +435,7 @@ class SourceMirrorIntegrationTest(unittest.TestCase):
                       "--output_base=" + str(work / "output")]
             command = [*prefix, "fetch", "--repo=@pigz", "--registry=https://bcr.bazel.build/",
                        "--repository_cache=" + str(cache), "--lockfile_mode=update",
+                       *REGISTRY_CI.HTTP_DOWNLOAD_FLAGS,
                        "--experimental_downloader_config=" + str(config)]
             try:
                 (artifacts / "command.json").write_text(json.dumps(command, indent=2) + "\n")
