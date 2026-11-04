@@ -1,0 +1,6 @@
+exports_files([
+    "release-version.txt",
+    "release-components.txt",
+    "release-provenance.json",
+    "release-buildinfo.json",
+])
