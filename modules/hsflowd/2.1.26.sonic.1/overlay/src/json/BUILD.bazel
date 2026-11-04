@@ -1,0 +1,157 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
+load("@rules_python//python:py_test.bzl", "py_test")
+load("//bazel:settings.bzl", "KEEP_SYMBOLS", "NATIVE")
+
+package(default_visibility = ["//:__subpackages__"])
+
+cc_library(
+    name = "headers",
+    hdrs = [
+        "cJSON.h",
+        "cJSON_Utils.h",
+    ],
+    includes = ["."],
+    target_compatible_with = NATIVE,
+)
+
+cc_library(
+    name = "cjson_utils",
+    testonly = True,
+    srcs = ["cJSON_Utils.c"],
+    copts = [
+        "-std=c89",
+        "-fPIC",
+        "-g",
+        "-O2",
+    ],
+    target_compatible_with = NATIVE,
+    deps = [":cjson"],
+)
+
+cc_library(
+    name = "unity",
+    testonly = True,
+    srcs = ["tests/unity/src/unity.c"],
+    hdrs = ["tests/unity/examples/unity_config.h"] + glob(["tests/unity/src/*.h"]),
+    target_compatible_with = NATIVE,
+)
+
+# Upstream common.h includes cJSON.c to exercise its internal static helpers.
+# Declare that input without modifying the original tests or production library.
+cc_library(
+    name = "test_internals",
+    testonly = True,
+    target_compatible_with = NATIVE,
+    textual_hdrs = ["cJSON.c"],
+    deps = [":headers"],
+)
+
+# Original tests from tests/CMakeLists.txt, plus the Makefile's cJSON_test.
+_UPSTREAM_TESTS = [
+    "parse_examples",
+    "parse_number",
+    "parse_hex4",
+    "parse_string",
+    "parse_array",
+    "parse_object",
+    "parse_value",
+    "print_string",
+    "print_number",
+    "print_array",
+    "print_object",
+    "print_value",
+    "misc_tests",
+    "parse_with_opts",
+    "compare_tests",
+    "cjson_add",
+    "readme_examples",
+    "minify_tests",
+    "json_patch_tests",
+    "old_utils_tests",
+    "misc_utils_tests",
+]
+
+[
+    cc_binary(
+        name = name + "_binary",
+        testonly = True,
+        srcs = [
+            "tests/" + name + ".c",
+            "tests/common.h",
+        ],
+        target_compatible_with = NATIVE,
+        deps = [
+            ":cjson",
+            ":cjson_utils",
+            ":test_internals",
+            ":unity",
+        ],
+    )
+    for name in _UPSTREAM_TESTS
+]
+
+cc_binary(
+    name = "original_make_binary",
+    testonly = True,
+    srcs = ["test.c"],
+    copts = ["-std=c89"],
+    target_compatible_with = NATIVE,
+    deps = [":cjson"],
+)
+
+[
+    py_test(
+        name = name + "_test",
+        srcs = ["bazel_upstream_test.py"],
+        args = [
+            "--binary",
+            "$(rootpath :" + name + "_binary)",
+            "--input",
+            "$(rootpath tests/inputs/test1)",
+            "--json-patch-input",
+            "$(rootpath tests/json-patch-tests/tests.json)",
+        ] + (["--make-test"] if name == "original_make" else []),
+        data = [":" + name + "_binary"] + glob([
+            "tests/inputs/**",
+            "tests/json-patch-tests/**",
+        ]),
+        main = "bazel_upstream_test.py",
+        target_compatible_with = NATIVE,
+    )
+    for name in _UPSTREAM_TESTS + ["original_make"]
+]
+
+# The daemon links its owner's bundled cJSON statically; no second wheel or
+# external JSON library is substituted. Preserve the upstream C89 contract.
+cc_library(
+    name = "cjson",
+    srcs = ["cJSON.c"],
+    copts = [
+        "-std=c89",
+        "-fPIC",
+        "-fstack-protector-strong",
+        "-g",
+        "-O2",
+        "-pedantic",
+        "-Wall",
+        "-Werror",
+        "-Wstrict-prototypes",
+        "-Wwrite-strings",
+        "-Wshadow",
+        "-Winit-self",
+        "-Wcast-align",
+        "-Wformat=2",
+        "-Wmissing-prototypes",
+        "-Wstrict-overflow=2",
+        "-Wcast-qual",
+        "-Wc++-compat",
+        "-Wundef",
+        "-Wswitch-default",
+        "-Wconversion",
+    ],
+    features = KEEP_SYMBOLS,
+    linkopts = ["-lm"],
+    linkstatic = True,
+    target_compatible_with = NATIVE,
+    deps = [":headers"],
+)
