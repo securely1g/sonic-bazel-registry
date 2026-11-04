@@ -1,17 +1,19 @@
 {
   "architectures": [
-    "amd64",
-    "arm64"
+    "amd64"
   ],
   "consumer_deps": [
     {
       "name": "tar.bzl",
       "version": "0.10.5-sonic.1"
+    },
+    {
+      "name": "rules_distroless",
+      "version": "0.9.4.sonic.16"
     }
   ],
   "platforms": {
-    "amd64": "@sonic-build-infra//platforms:x86_64_trixie",
-    "arm64": "@sonic-build-infra//platforms:aarch64_trixie"
+    "amd64": "@sonic-build-infra//platforms:x86_64_trixie"
   },
   "build_targets": [
     "@sonic-build-infra//tools/build_tools:make",
@@ -45,7 +47,19 @@
     "@sonic-build-infra//registry_ci:kernel_runtime_manifest",
     "@sonic-build-infra//deps/compiler:alternatives_pkg",
     "@sonic-build-infra//deps/automake:alternatives_pkg",
-    "@sonic-build-infra//deps/openmpi:alternatives_pkg"
+    "@sonic-build-infra//deps/openmpi:alternatives_pkg",
+    "@sonic-build-infra//tools/build_tools:patch",
+    "@sonic-build-infra//tools/build_tools:xmllint",
+    "@sonic-build-infra//tools/build_tools:xsltproc",
+    "@sonic-build-infra//tools/build_tools:docbook_runtime",
+    "@sonic-build-infra//tools/build_tools:docbook2man",
+    "@sonic-build-infra//tools/build_tools:libtool_program",
+    "@sonic-build-infra//tools/build_tools:libtool_library",
+    "@sonic-build-infra//tools/build_tools:libtool_c_library",
+    "@sonic-build-infra//tools/build_tools:libtool_config",
+    "@sonic-build-infra//tools/build_tools:libtool_argv_validation",
+    "@sonic-build-infra//apt/tests/integration:overlap_layer",
+    "@sonic-build-infra//apt/tests/integration:overlap_receipt"
   ],
   "test_targets": [
     "@sonic-build-infra//tools/build_tools:runtime_test",
@@ -70,11 +84,11 @@
     "@sonic-build-infra//oci/tests:runtime_packages_rule_test",
     "@sonic-build-infra//tools/build_tools:prepare_rootfs_test",
     "@sonic-build-infra//tools/build_tools:kernel_debian_test",
-    "@sonic-build-infra//tools/build_tools:kernel_runtime_test",
     "@sonic-build-infra//tools/build_tools:runtime_launcher_test",
     "@sonic-build-infra//registry_ci:kernel_arm64_tools_test",
     "@sonic-build-infra//registry_ci:kernel_armhf_tools_test",
     "@sonic-build-infra//deps:alternatives_test",
+    "@sonic-build-infra//tools/build_tools:kernel_runtime_tools_test",
     "@sonic-build-infra//testing:exec_test_args_test",
     "@sonic-build-infra//cc/tests/runtime_context:layout_test",
     "@sonic-build-infra//cc/tests/runtime_test:contract_test",
@@ -87,10 +101,14 @@
     "@sonic-build-infra//tests:hello_runpath_installation_test",
     "@sonic-build-infra//registry_ci:prefix_map_test",
     "@sonic-build-infra//tools/build_tools:perl_bookworm_test",
-    "@sonic-build-infra//tools/build_tools:bookworm_test_runtime_test"
+    "@sonic-build-infra//tools/build_tools:bookworm_test_runtime_test",
+    "@sonic-build-infra//tools/build_tools:docbook_runtime_test",
+    "@sonic-build-infra//tar:debug_symbols_modes_test",
+    "@sonic-build-infra//tests:deploy_tar_timestamps_test",
+    "@sonic-build-infra//apt/tests/integration:adapter_test",
+    "@sonic-build-infra//apt/tests/integration:overlap_test"
   ],
   "host_platforms": {
-    "amd64": "@sonic-build-infra//platforms:x86_64_trixie",
-    "arm64": "@sonic-build-infra//platforms:aarch64_trixie"
+    "amd64": "@sonic-build-infra//platforms:x86_64_trixie"
   }
 }
