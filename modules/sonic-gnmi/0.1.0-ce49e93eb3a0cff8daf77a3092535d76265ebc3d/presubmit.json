@@ -19,5 +19,8 @@
     "@sonic-gnmi//dist:source_test",
     "@sonic-gnmi//dist:installed_runtime_test"
   ],
-  "integration_test_module": "tests/consumer"
+  "integration_test_module": "tests/consumer",
+  "host_platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
+  }
 }
