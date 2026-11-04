@@ -1,0 +1,7 @@
+{
+  "homepage": "https://github.com/nanomsg/nnpy",
+  "maintainers": [{"name": "Guohan Lu", "email": "securely1g@gmail.com", "github": "securely1g"}],
+  "repository": ["github:nanomsg/nnpy"],
+  "versions": ["1.4.2.sonic.1"],
+  "yanked_versions": {}
+}
