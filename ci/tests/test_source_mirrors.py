@@ -20,13 +20,13 @@ PIGZ_MODULE = "https://bcr.bazel.build/modules/pigz/2.8.bcr.2/MODULE.bazel"
 
 
 class SourceMirrorWorkflowScopeTest(unittest.TestCase):
-    def test_matrix_is_preserved_for_every_branch(self):
+    def test_scope_is_limited_to_this_pr_and_rejects_module_changes(self):
         workflow = (ROOT / ".github/workflows/registry-ci.yml").read_text()
         script = workflow.split("          python3 - <<'PY'\n", 1)[1].split("          PY\n", 1)[0]
         script = "\n".join(line[10:] for line in script.splitlines())
         for branch, repository, changed, expected in (
-            ("codex/pigz-source-mirror", "securely1g/sonic-bazel-registry", "ci/source_mirrors.cfg", [{"module": "original"}]),
-            ("codex/pigz-source-mirror", "securely1g/sonic-bazel-registry", "modules/pigz/source.json", [{"module": "original"}]),
+            ("codex/pigz-source-mirror", "securely1g/sonic-bazel-registry", "ci/source_mirrors.cfg", []),
+            ("codex/pigz-source-mirror", "securely1g/sonic-bazel-registry", "modules/pigz/source.json", None),
             ("other", "securely1g/sonic-bazel-registry", "ci/source_mirrors.cfg", [{"module": "original"}]),
             ("codex/pigz-source-mirror", "another/fork", "ci/source_mirrors.cfg", [{"module": "original"}]),
         ):
@@ -39,10 +39,14 @@ class SourceMirrorWorkflowScopeTest(unittest.TestCase):
                     with mock.patch.dict(os.environ, env), \
                             mock.patch.object(Path, "read_text", return_value='{"include":[{"module":"original"}]}'), \
                             mock.patch.object(subprocess, "check_output", return_value=changed + "\n"):
+                        if expected is None:
+                            with self.assertRaises(SystemExit):
+                                exec(compile(script, "registry-ci-workflow", "exec"), {})
+                            self.assertFalse(output.exists())
+                            continue
                         exec(compile(script, "registry-ci-workflow", "exec"), {})
                     line = output.read_text().splitlines()[0]
                     self.assertEqual(json.loads(line.removeprefix("matrix="))["include"], expected)
-                    self.assertIn("has_jobs=true", output.read_text().splitlines())
 
 
 @unittest.skipUnless(os.environ.get("REGISTRY_CI_TEST_BAZEL"),

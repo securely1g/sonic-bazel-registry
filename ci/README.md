@@ -57,9 +57,10 @@ without a distdir, verify its original archive hash and patched MODULE, and
 confirm that a mirror serving different bytes is still rejected. These are
 repository fetches; they execute no compilation or package actions.
 
-The native AMD64/ARM64 runner tests retain these source-fetch checks. Every
-branch uses the normal publication-policy plan and module matrix; source-mirror
-changes have no branch-specific test exception.
+The `codex/pigz-source-mirror` PR validates this CI fix with those fetch tests and
+the existing AMD64/ARM64 runner tests. Its path-checked exception retains the
+normal publication-policy plan but does not run the unrelated module build
+matrix. All other branches and pushes retain normal module selection.
 
 ## Kernel build-tool cache downloads
 
@@ -87,9 +88,8 @@ example, `0.9.4.sonic.10` is newer than `0.9.4.sonic.9`, and `0.9.5.sonic.1`
 is newer than both. Existing `-sonic.N` spellings remain supported; the dotted
 spelling wins when the release and patch revision match.
 
-For source versions with the same numeric release and SONiC patch, the last
-registration in `metadata.json` wins. This includes the published Go snapshot
-form, such as `0.0.0.sonic.1-20200309174518-a00bece872fc`. Git hashes do not indicate which commit is newer. Append
+For source versions with the same numeric release, the last registration in
+`metadata.json` wins. Git hashes do not indicate which commit is newer. Append
 new registrations without reordering existing entries. A later append of an
 older release cannot displace a higher release: build-infra `0.0.18-95cd3a9...`
 is selected ahead of any `0.0.8-...` registration. This is a CI selection rule,
