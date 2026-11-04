@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "strategy": "initial_entry",
+  "baseline": "df04df4a0292ba9cb7bcc276f756b0dd80a998bc",
+  "head": "fcae8974d831d638431c7c7f1c7f3ec7ec0fcc66",
+  "review_base": "64ab26439559ef6bf339bdc82b8becc94f370395",
+  "module": "sonic-mgmt-framework",
+  "candidate_version": "1.0.0-4036a01aa4648913ce44a0b4db52556a55cb2911",
+  "published_version": null,
+  "files_total": 9,
+  "version_files": 8,
+  "module_metadata_files": 1,
+  "patch_sha256": "e65bf40b8443533cfa05d6cca510cf3bc77b9f314e4195a501134bdd0db3a3d1",
+  "patch_bytes": 23428,
+  "git_apply_check": true,
+  "git_apply": true,
+  "all_contents_symlinks_modes_match": true,
+  "all_other_baseline_files_unchanged": true,
+  "module_tree": "6d98f84e58af4880268d1ee783111c3d70858a1e",
+  "local_integrity_checks": [
+    {
+      "path": "patches/module-version.patch",
+      "sha256": "127f2591355a072ed6051555b2e1ba6370bf9cfd06c4b27d7cac9e7280b30487",
+      "integrity": "sha256-En8lkTVaBy7WBRVVsuG6Y3C/nP0GxLJ9fKyecoCzBIc="
+    },
+    {
+      "path": "patches/0002-share-management-go-owners.patch",
+      "sha256": "45ab73d91d555eba9f376ec14099f8b46dae92dfcac5a3c101a376945402954d",
+      "integrity": "sha256-Ratz2R1VXrqfN27BQJn4tG2ukt/KxaPBAaN2lFQClU0="
+    }
+  ],
+  "validation_scope": "comparison completeness only; no builds/tests executed"
+}
