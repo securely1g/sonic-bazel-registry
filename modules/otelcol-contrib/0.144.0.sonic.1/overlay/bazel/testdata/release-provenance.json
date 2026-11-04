@@ -1,0 +1,36 @@
+{
+  "purpose": "Expected CLI output and embedded Go module metadata from the verified official release; no binary is a production input",
+  "release": {
+    "name": "otelcol-contrib_0.144.0_linux_amd64.deb",
+    "url": "https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v0.144.0/otelcol-contrib_0.144.0_linux_amd64.deb",
+    "sha256": "e83278a763b9c7779f9facf3ac2356b7add8975a5f14d4606a625605f50eee94",
+    "size": 91057108
+  },
+  "executable": "usr/bin/otelcol-contrib",
+  "executable_sha256": "ccbd404dd466a2e09f6f2c548e64f4df832a0bce8c55793f752455edd9f48ab1",
+  "commands": [
+    {
+      "argv": [
+        "otelcol-contrib",
+        "--version"
+      ],
+      "stdout": "release-version.txt",
+      "sha256": "c2aceead4dc998655c8d022eec36d1f4d83eaad79c5269dd23c936693ab76ca5"
+    },
+    {
+      "argv": [
+        "otelcol-contrib",
+        "components"
+      ],
+      "stdout": "release-components.txt",
+      "sha256": "890844cc7dbdaa9ccafddb361687c718413e46f94cad6511bda2a4a5c0ea2de4"
+    }
+  ],
+  "buildinfo": {
+    "reader": "Go 1.25.6 debug/buildinfo.ReadFile, encoded with encoding/json",
+    "output": "release-buildinfo.json",
+    "sha256": "6639d19e39f08f4a62937e626c67179f1eeb63ef9efae149e13e50dc91d67579",
+    "dependency_count": 1007,
+    "source_executable_sha256": "ccbd404dd466a2e09f6f2c548e64f4df832a0bce8c55793f752455edd9f48ab1"
+  }
+}

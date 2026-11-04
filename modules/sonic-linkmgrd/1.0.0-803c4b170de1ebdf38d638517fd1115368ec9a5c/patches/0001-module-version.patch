@@ -1,0 +1,10 @@
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-linkmgrd",
+-    version = "1.0.0",
++    version = "1.0.0-803c4b170de1ebdf38d638517fd1115368ec9a5c",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",

@@ -1,0 +1,9 @@
+{
+  "url": "https://github.com/securely1g/sonic-dash-api/archive/fd8eab1b90a6f67124996d24417cff5d4d849edd.tar.gz",
+  "strip_prefix": "sonic-dash-api-fd8eab1b90a6f67124996d24417cff5d4d849edd",
+  "integrity": "sha256-+YoHOVPa3rhs+VddYaKf+c+MdmOYUjYKvjWxDd48dmM=",
+  "patches": {
+    "0001-module-version.patch": "sha256-ZhTpO5N2DY2AaN3RICuc9YyiLtDX1GD6nNxo0zFNKIY="
+  },
+  "patch_strip": 1
+}
