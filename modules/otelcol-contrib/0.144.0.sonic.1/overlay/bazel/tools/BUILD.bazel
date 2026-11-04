@@ -1,0 +1,14 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_cross_binary")
+
+exports_files([
+    "go.mod",
+    "go.sum",
+])
+
+# Select the release compiler for the generator without changing its platform.
+go_cross_binary(
+    name = "ocb",
+    sdk_version = "1.25.6",
+    target = "@io_opentelemetry_go_collector_cmd_builder//:builder",
+    visibility = ["//distributions/otelcol-contrib:__pkg__"],
+)
