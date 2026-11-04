@@ -1,0 +1,6694 @@
++ 	}, nil
++ }
++ 
++@@ -82,7 +89,7 @@
++ 	if !aOK || !bOK {
++ 		// One or both of the updates doesn't contain a JSON IETF typed value
++ 		// so revert to using cmp.Equal to test their equality.
++-		return nil, cmp.Equal(a, b, cmpopts.EquateEmpty()), nil
+++		return nil, cmp.Equal(a, b, cmpopts.EquateEmpty(), protocmp.Transform()), nil
++ 	}
++ 
++ 	// Create a new root, since GetOrCreateNode can modify the root even during
++diff --git a/testcmp/cmp_test.go b/testcmp/cmp_test.go
++--- a/testcmp/cmp_test.go
+++++ b/testcmp/cmp_test.go
++@@ -17,13 +17,14 @@
++ 	"fmt"
++ 	"testing"
++ 
++-	"github.com/kylelemons/godebug/pretty"
+++	"github.com/google/go-cmp/cmp"
++ 	"github.com/openconfig/gnmi/errdiff"
++ 	"github.com/openconfig/ygot/exampleoc"
++ 	"github.com/openconfig/ygot/testutil"
++ 	"github.com/openconfig/ygot/uexampleoc"
++ 	"github.com/openconfig/ygot/ygot"
++ 	"github.com/openconfig/ygot/ytypes"
+++	"google.golang.org/protobuf/testing/protocmp"
++ 
++ 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
++ )
++@@ -262,7 +263,7 @@
++ 				t.Errorf("did not get expected equal status, got: %v, want: %v", gotEqual, tt.wantEqual)
++ 			}
++ 
++-			if diff := pretty.Compare(gotDiff, tt.wantDiff); diff != "" {
+++			if diff := cmp.Diff(gotDiff, tt.wantDiff, protocmp.Transform()); diff != "" {
++ 				t.Errorf("did not get expected diff, diff(-got,+want):\n%s", diff)
++ 			}
++ 		})
++diff --git a/testutil/testutil.go b/testutil/testutil.go
++--- a/testutil/testutil.go
+++++ b/testutil/testutil.go
++@@ -26,6 +26,7 @@
++ 	"github.com/google/go-cmp/cmp"
++ 	"github.com/google/go-cmp/cmp/cmpopts"
++ 	"github.com/openconfig/gnmi/value"
+++	"google.golang.org/protobuf/testing/protocmp"
++ 
++ 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
++ )
++@@ -58,6 +59,9 @@
++ // compare a specific field of a gNMI message. It is a map, keyed by
++ // a reflect.Type of the message field, with a value of a cmp.Option
++ // produced by cmp.Comparer().
+++// NOTE: Proto comparison is done through protocmp -- this means any custom
+++// comparison of a proto field can only be done by supplying a protocmp-created
+++// cmp.Option.
++ type CustomComparer map[reflect.Type]cmp.Option
++ 
++ // IsComparerOpt marks CustomComparer as a ComparerOpt.
++@@ -68,7 +72,15 @@
++ // with those in any CustomComparer that is found within the opts slice.
++ func comparers(opts []ComparerOpt) []cmp.Option {
++ 	cmps := map[reflect.Type]cmp.Option{
++-		reflect.TypeOf(&gnmipb.TypedValue_JsonIetfVal{}): cmp.Comparer(JSONIETFComparer),
+++		reflect.TypeOf(&gnmipb.TypedValue{}): protocmp.FilterMessage(&gnmipb.TypedValue{},
+++			cmp.Comparer(func(a, b protocmp.Message) bool {
+++				aj, aOK := a["json_ietf_val"]
+++				bj, bOK := b["json_ietf_val"]
+++				if aOK || bOK {
+++					return aOK && bOK && jsonIETFBytesEqual(aj.([]byte), bj.([]byte))
+++				}
+++				return cmp.Equal(a, b)
+++			})),
++ 	}
++ 
++ 	for _, o := range opts {
++@@ -131,7 +143,7 @@
++ func NotificationSetEqual(a, b []*gnmipb.Notification, opts ...ComparerOpt) bool {
++ 	ignoreTS := hasIgnoreTimestamp(opts)
++ 	cmps := comparers(opts)
++-	cmps = append(cmps, []cmp.Option{cmpopts.SortSlices(UpdateLess), cmpopts.EquateEmpty()}...)
+++	cmps = append(cmps, []cmp.Option{cmpopts.SortSlices(UpdateLess), cmpopts.EquateEmpty(), protocmp.Transform()}...)
++ 
++ 	for _, an := range a {
++ 		var matched bool
++@@ -142,7 +154,7 @@
++ 				update: cmp.Equal(an.GetUpdate(), bn.GetUpdate(),
++ 					cmps...,
++ 				),
++-				delete: cmp.Equal(an.GetDelete(), bn.GetDelete(), cmpopts.SortSlices(PathLess), cmpopts.EquateEmpty()),
+++				delete: cmp.Equal(an.GetDelete(), bn.GetDelete(), cmpopts.SortSlices(PathLess), cmpopts.EquateEmpty(), protocmp.Transform()),
++ 			}
++ 
++ 			if !ignoreTS {
++@@ -165,12 +177,18 @@
++ // determine whether their contents are the same. If either value is
++ // invalid JSON, the function returns false.
++ func JSONIETFComparer(a, b *gnmipb.TypedValue_JsonIetfVal) bool {
+++	return jsonIETFBytesEqual(a.JsonIetfVal, b.JsonIetfVal)
+++}
+++
+++// jsonIETFBytesEqual adapts protocmp's byte fields without changing the public
+++// JSONIETFComparer signature used by existing SONiC callers.
+++func jsonIETFBytesEqual(a, b []byte) bool {
++ 	aj, bj := map[string]interface{}{}, map[string]interface{}{}
++-	if err := json.Unmarshal(a.JsonIetfVal, &aj); err != nil {
++-		return false
++-	}
++-
++-	if err := json.Unmarshal(b.JsonIetfVal, &bj); err != nil {
+++	if err := json.Unmarshal(a, &aj); err != nil {
+++		return false
+++	}
+++
+++	if err := json.Unmarshal(b, &bj); err != nil {
++ 		return false
++ 	}
++ 
++@@ -194,7 +212,7 @@
++ // UpdateSetEqual compares the contents of a and b and returns true if they are
++ // equal. Order of the slices is ignored.
++ func UpdateSetEqual(a, b []*gnmipb.Update) bool {
++-	return cmp.Equal(a, b, cmpopts.SortSlices(UpdateLess), cmpopts.EquateEmpty())
+++	return cmp.Equal(a, b, cmpopts.SortSlices(UpdateLess), cmpopts.EquateEmpty(), protocmp.Transform())
++ }
++ 
++ // updateSet is an alias for a slice of gNMI Update messages.
++@@ -245,7 +263,7 @@
++ 		return PathLess(a.Prefix, b.Prefix)
++ 	}
++ 
++-	if !cmp.Equal(a.Update, b.Update, cmpopts.SortSlices(UpdateLess), cmpopts.EquateEmpty()) {
+++	if !cmp.Equal(a.Update, b.Update, cmpopts.SortSlices(UpdateLess), cmpopts.EquateEmpty(), protocmp.Transform()) {
++ 		if len(a.Update) < len(b.Update) {
++ 			return true
++ 		}
++@@ -267,7 +285,7 @@
++ 		}
++ 	}
++ 
++-	if !cmp.Equal(a.Delete, b.Delete, cmpopts.SortSlices(PathLess), cmpopts.EquateEmpty()) {
+++	if !cmp.Equal(a.Delete, b.Delete, cmpopts.SortSlices(PathLess), cmpopts.EquateEmpty(), protocmp.Transform()) {
++ 		if len(a.Delete) < len(b.Delete) {
++ 			return true
++ 		}
++diff --git a/testutil/testutil_test.go b/testutil/testutil_test.go
++--- a/testutil/testutil_test.go
+++++ b/testutil/testutil_test.go
++@@ -20,10 +20,10 @@
++ 	"strings"
++ 	"testing"
++ 
++-	"github.com/golang/protobuf/proto"
++ 	"github.com/google/go-cmp/cmp"
++ 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
++ 	"github.com/openconfig/ygot/ygot"
+++	"google.golang.org/protobuf/testing/protocmp"
++ )
++ 
++ func mustPath(s string) *gnmipb.Path {
++@@ -96,18 +96,19 @@
++ 		},
++ 		inOpts: []ComparerOpt{
++ 			CustomComparer{
++-				reflect.TypeOf(&gnmipb.Path{}): cmp.Comparer(func(a, b *gnmipb.Path) bool {
++-					for _, p := range []*gnmipb.Path{a, b} {
++-						for _, e := range p.Elem {
++-							// Remove anything before a ":"
++-							if pp := strings.Split(e.Name, ":"); len(pp) == 2 {
++-								e.Name = pp[1]
+++				reflect.TypeOf(&gnmipb.Path{}): protocmp.FilterMessage(&gnmipb.Path{},
+++					cmp.Comparer(func(a, b protocmp.Message) bool {
+++						for _, p := range []protocmp.Message{a, b} {
+++							for _, e := range p["elem"].([]protocmp.Message) {
+++								// Remove anything before a ":"
+++								if pp := strings.Split(e["name"].(string), ":"); len(pp) == 2 {
+++									e["name"] = pp[1]
+++								}
++ 							}
++ 						}
++-					}
++-
++-					return proto.Equal(a, b)
++-				}),
+++
+++						return cmp.Equal(a, b)
+++					})),
++ 			},
++ 		},
++ 		want: true,
++@@ -1964,3 +1965,39 @@
++ 		})
++ 	}
++ }
+++
+++// Keep the pre-protocmp public API available to existing SONiC callers.
+++var _ func(*gnmipb.TypedValue_JsonIetfVal, *gnmipb.TypedValue_JsonIetfVal) bool = JSONIETFComparer
+++
+++func TestJSONIETFComparerPublicAPI(t *testing.T) {
+++	for _, tt := range []struct {
+++		name, a, b string
+++		want       bool
+++	}{
+++		{"object order", `{"a":1,"b":2}`, `{"b":2,"a":1}`, true},
+++		{"different value", `{"a":1}`, `{"a":2}`, false},
+++		{"invalid first", `{`, `{"a":1}`, false},
+++		{"invalid second", `{"a":1}`, `{`, false},
+++	} {
+++		t.Run(tt.name, func(t *testing.T) {
+++			a := &gnmipb.TypedValue_JsonIetfVal{JsonIetfVal: []byte(tt.a)}
+++			b := &gnmipb.TypedValue_JsonIetfVal{JsonIetfVal: []byte(tt.b)}
+++			if got := JSONIETFComparer(a, b); got != tt.want {
+++				t.Errorf("JSONIETFComparer(%q, %q) = %v, want %v", tt.a, tt.b, got, tt.want)
+++			}
+++		})
+++	}
+++}
+++
+++func TestNotificationSetEqualDistinctJSONOneof(t *testing.T) {
+++	jsonValue := jsonIETF(`{"a":1}`)
+++	stringValue := &gnmipb.TypedValue{Value: &gnmipb.TypedValue_StringVal{StringVal: `{"a":1}`}}
+++	notifications := func(value *gnmipb.TypedValue) []*gnmipb.Notification {
+++		return []*gnmipb.Notification{{Update: []*gnmipb.Update{{Val: value}}}}
+++	}
+++	for _, values := range [][2]*gnmipb.TypedValue{{jsonValue, stringValue}, {stringValue, jsonValue}} {
+++		if NotificationSetEqual(notifications(values[0]), notifications(values[1])) {
+++			t.Error("JSON IETF and string oneofs must remain unequal")
+++		}
+++	}
+++}
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/patches/0004-reject-incompatible-struct-assignment.patch b/modules/openconfig_ygot/0.7.1.sonic.1/patches/0004-reject-incompatible-struct-assignment.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..372fc3085deb0322ac256553437c48cbff0dcee3
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/patches/0004-reject-incompatible-struct-assignment.patch
+@@ -0,0 +1,13 @@
++--- a/util/reflect.go
+++++ b/util/reflect.go
++@@ -288,7 +288,9 @@
++ 		n = reflect.Zero(ft.Type)
++ 	}
++ 
++-	if !isFieldTypeCompatible(ft, n) && !IsValueTypeCompatible(ft.Type, v) {
+++	// The conversions above preserve supported YANG bool/binary and pointer values.
+++	// Equal reflect.Kind alone does not make slices, maps or named types assignable.
+++	if !n.Type().AssignableTo(ft.Type) {
++ 		return fmt.Errorf("cannot assign value %v (type %T) to struct field %s (type %v) in struct %T", fieldValue, fieldValue, fieldName, ft.Type, parentStruct)
++ 	}
++ 
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/patches/0005-initialize-sonic-test-schema-fixtures.patch b/modules/openconfig_ygot/0.7.1.sonic.1/patches/0005-initialize-sonic-test-schema-fixtures.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..d93c46dea88f36e832ca209f729907f1143fc252
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/patches/0005-initialize-sonic-test-schema-fixtures.patch
+@@ -0,0 +1,9550 @@
++diff --git a/demo/bgp/main_test.go b/demo/bgp/main_test.go
++--- a/demo/bgp/main_test.go
+++++ b/demo/bgp/main_test.go
++@@ -15,6 +15,8 @@
++ package main
++ 
++ import (
+++	"bytes"
+++	"encoding/json"
++ 	"io/ioutil"
++ 	"path/filepath"
++ 	"testing"
++@@ -71,6 +73,13 @@
++ 			t.Fatalf("TestBGPDemo %s: ioutil.ReadFile(%s/%s): could not open file: %v", tt.name, TestRoot, tt.wantFile, ioerr)
++ 		}
++ 
+++		// SONiC emits compact JSON. Preserve every upstream expected token and
+++		// still compare exact output, including the established compact format.
+++		var compact bytes.Buffer
+++		if err := json.Compact(&compact, want); err != nil {
+++			t.Fatal(err)
+++		}
+++		want = compact.Bytes()
++ 		if diff := pretty.Compare(tt.got, string(want)); diff != "" {
++ 			if diffl, err := testutil.GenerateUnifiedDiff(tt.got, string(want)); err == nil {
++ 				diff = diffl
++diff --git a/demo/device/devicedemo_test.go b/demo/device/devicedemo_test.go
++--- a/demo/device/devicedemo_test.go
+++++ b/demo/device/devicedemo_test.go
++@@ -15,6 +15,8 @@
++ package main
++ 
++ import (
+++	"bytes"
+++	"encoding/json"
++ 	"io/ioutil"
++ 	"path/filepath"
++ 	"testing"
++@@ -67,6 +69,13 @@
++ 			t.Fatalf("%s: TestDeviceDemo: ioutil.ReadFile(%s/%s): could not open file: %v", tt.name, TestRoot, tt.wantFile, ioerr)
++ 		}
++ 
+++		// SONiC emits compact JSON. Preserve every upstream expected token and
+++		// still compare exact output, including the established compact format.
+++		var compact bytes.Buffer
+++		if err := json.Compact(&compact, want); err != nil {
+++			t.Fatal(err)
+++		}
+++		want = compact.Bytes()
++ 		if diff := pretty.Compare(tt.got, string(want)); diff != "" {
++ 			if diffl, err := testutil.GenerateUnifiedDiff(tt.got, string(want)); err == nil {
++ 				diff = diffl
++diff --git a/demo/optical/opticaldemo_test.go b/demo/optical/opticaldemo_test.go
++--- a/demo/optical/opticaldemo_test.go
+++++ b/demo/optical/opticaldemo_test.go
++@@ -15,6 +15,8 @@
++ package main
++ 
++ import (
+++	"bytes"
+++	"encoding/json"
++ 	"io/ioutil"
++ 	"path/filepath"
++ 	"testing"
++@@ -67,6 +69,13 @@
++ 			t.Errorf("ioutil.ReadFile(%s/testdata/%s): could not open file: %v", TestRoot, tt.wantFile, err)
++ 			continue
++ 		}
+++		// SONiC emits compact JSON. Preserve every upstream expected token and
+++		// still compare exact output, including the established compact format.
+++		var compact bytes.Buffer
+++		if err := json.Compact(&compact, want); err != nil {
+++			t.Fatal(err)
+++		}
+++		want = compact.Bytes()
++ 		if diff := pretty.Compare(tt.got, string(want)); diff != "" {
++ 			if diffl, err := testutil.GenerateUnifiedDiff(tt.got, string(want)); err == nil {
++ 				diff = diffl
++diff --git a/demo/uncompressed/uncompressed_test.go b/demo/uncompressed/uncompressed_test.go
++--- a/demo/uncompressed/uncompressed_test.go
+++++ b/demo/uncompressed/uncompressed_test.go
++@@ -15,6 +15,8 @@
++ package main
++ 
++ import (
+++	"bytes"
+++	"encoding/json"
++ 	"fmt"
++ 	"io/ioutil"
++ 	"path/filepath"
++@@ -69,6 +71,13 @@
++ 			continue
++ 		}
++ 
+++		// SONiC emits compact JSON. Preserve every upstream expected token and
+++		// still compare exact output, including the established compact format.
+++		var compact bytes.Buffer
+++		if err := json.Compact(&compact, want); err != nil {
+++			t.Fatal(err)
+++		}
+++		want = compact.Bytes()
++ 		if diff := pretty.Compare(tt.got, string(want)); diff != "" {
++ 			if diffl, err := testutil.GenerateUnifiedDiff(tt.got, string(want)); err != nil {
++ 				diff = diffl
++diff --git a/testcmp/cmp_test.go b/testcmp/cmp_test.go
++--- a/testcmp/cmp_test.go
+++++ b/testcmp/cmp_test.go
++@@ -4,7 +4,7 @@
++ // you may not use this file except in compliance with the License.
++ // You may obtain a copy of the License at
++ //
++-//      http://www.apache.org/licenses/LICENSE-2.0
+++//	http://www.apache.org/licenses/LICENSE-2.0
++ //
++ // Unless required by applicable law or agreed to in writing, software
++ // distributed under the License is distributed on an "AS IS" BASIS,
++@@ -15,6 +15,7 @@
++ 
++ import (
++ 	"fmt"
+++	"github.com/openconfig/ygot/internal/sonicfixture"
++ 	"testing"
++ 
++ 	"github.com/google/go-cmp/cmp"
++@@ -47,6 +48,11 @@
++ 
++ func TestGNMIUpdateComparer(t *testing.T) {
++ 	commonSpec, err := uexampleoc.Schema()
+++	if commonSpec != nil {
+++		for _, entry := range commonSpec.SchemaTree {
+++			sonicfixture.Entry(entry)
+++		}
+++	}
++ 	if err != nil {
++ 		t.Fatalf("cannot get schema from package, %v", err)
++ 	}
++@@ -249,6 +255,11 @@
++ 	}}
++ 
++ 	for _, tt := range tests {
+++		if tt.inSpec != nil {
+++			for _, entry := range tt.inSpec.SchemaTree {
+++				sonicfixture.Entry(entry)
+++			}
+++		}
++ 		t.Run(tt.desc, func(t *testing.T) {
++ 			gotDiff, gotEqual, err := GNMIUpdateComparer(tt.inA, tt.inB, tt.inSpec)
++ 			if diff := errdiff.Substring(err, tt.wantErrSubstring); diff != "" {
++@@ -274,12 +285,12 @@
++ 	// This test checks that the GNMIUpdateComparer can be used within the testutil
++ 	// framework.
++ 
++-	ocComparer, err := UpdateComparer(exampleoc.Schema)
+++	ocComparer, err := UpdateComparer(sonicFixtureSchema(exampleoc.Schema))
++ 	if err != nil {
++ 		t.Fatalf("cannot get exampleoc comparer, %v", err)
++ 	}
++ 
++-	uocComparer, err := UpdateComparer(uexampleoc.Schema)
+++	uocComparer, err := UpdateComparer(sonicFixtureSchema(uexampleoc.Schema))
++ 	if err != nil {
++ 		t.Fatalf("cannot get uexampleoc comparer, %v", err)
++ 	}
++diff --git a/util/debug_test.go b/util/debug_test.go
++--- a/util/debug_test.go
+++++ b/util/debug_test.go
++@@ -15,6 +15,7 @@
++ package util
++ 
++ import (
+++	"github.com/openconfig/ygot/internal/sonicfixture"
++ 	"testing"
++ 
++ 	"github.com/openconfig/goyang/pkg/yang"
++@@ -121,49 +122,49 @@
++ 		want   string
++ 	}{
++ 		{
++-			schema: &yang.Entry{
+++			schema: sonicfixture.Entry(&yang.Entry{
++ 				Kind: yang.ChoiceEntry,
++-			},
+++			}),
++ 			want: "choice",
++ 		},
++ 		{
++-			schema: &yang.Entry{
+++			schema: sonicfixture.Entry(&yang.Entry{
++ 				Kind: yang.CaseEntry,
++-			},
+++			}),
++ 			want: "case",
++ 		},
++ 		{
++-			schema: &yang.Entry{
+++			schema: sonicfixture.Entry(&yang.Entry{
++ 				Kind: yang.DirectoryEntry,
++-			},
+++			}),
++ 			want: "container",
++ 		},
++ 		{
++-			schema: &yang.Entry{
+++			schema: sonicfixture.Entry(&yang.Entry{
++ 				Kind:     yang.DirectoryEntry,
++ 				Dir:      map[string]*yang.Entry{},
++ 				ListAttr: &yang.ListAttr{MinElements: &yang.Value{Name: "0"}},
++-			},
+++			}),
++ 			want: "list",
++ 		},
++ 		{
++-			schema: &yang.Entry{
+++			schema: sonicfixture.Entry(&yang.Entry{
++ 				Kind: yang.LeafEntry,
++-			},
+++			}),
++ 			want: "leaf",
++ 		},
++ 		{
++-			schema: &yang.Entry{
+++			schema: sonicfixture.Entry(&yang.Entry{
++ 				Kind:     yang.LeafEntry,
++ 				ListAttr: &yang.ListAttr{MinElements: &yang.Value{Name: "0"}},
++-			},
+++			}),
++ 			want: "leaf-list",
++ 		},
++ 		{
++-			schema: &yang.Entry{
+++			schema: sonicfixture.Entry(&yang.Entry{
++ 				Kind:     yang.DirectoryEntry,
++ 				ListAttr: &yang.ListAttr{MinElements: &yang.Value{Name: "0"}},
++-			},
+++			}),
++ 			want: "other",
++ 		},
++ 	}
++@@ -175,12 +176,20 @@
++ }
++ 
++ func TestYangTypeToDebugString(t *testing.T) {
+++	previous := debugLibrary
+++	defer func() { debugLibrary = previous }()
+++	debugLibrary = true
++ 	yangType := &yang.YangType{
++ 		Kind:    yang.Ystring,
++ 		Pattern: []string{"abc"},
++ 		Range:   yang.YangRange{yang.YRange{Min: YangMinNumber, Max: YangMaxNumber}},
++ 	}
++ 
+++	debugLibrary = false
+++	if got := YangTypeToDebugString(yangType); got != "" {
+++		t.Fatalf("disabled debug returned %q", got)
+++	}
+++	debugLibrary = true
++ 	wantStr := `(TypeKind: string, Pattern: abc, Range: min..max)`
++ 	if got, want := YangTypeToDebugString(yangType), wantStr; got != want {
++ 		t.Errorf("got:\n%s\nwant:\n%s", got, want)
++@@ -188,7 +197,7 @@
++ }
++ 
++ func TestSchemaTreeString(t *testing.T) {
++-	schema := &yang.Entry{
+++	schema := sonicfixture.Entry(&yang.Entry{
++ 		Kind:     yang.DirectoryEntry,
++ 		ListAttr: &yang.ListAttr{MinElements: &yang.Value{Name: "0"}},
++ 		Key:      "key_field_name",
++@@ -200,7 +209,7 @@
++ 				Type: &yang.YangType{Kind: yang.Ystring},
++ 			},
++ 		},
++-	}
+++	})
++ 
++ 	wantStr := ` (list)
++   key_field_name (leaf)
++@@ -211,7 +220,7 @@
++ }
++ 
++ func TestDataSchemaTreesString(t *testing.T) {
++-	containerWithListSchema := &yang.Entry{
+++	containerWithListSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "container",
++ 		Kind: yang.DirectoryEntry,
++ 		Dir: map[string]*yang.Entry{
++@@ -240,7 +249,7 @@
++ 				},
++ 			},
++ 		},
++-	}
+++	})
++ 
++ 	type ListElemStruct struct {
++ 		Key        *string `path:"key"`
++diff --git a/util/path_test.go b/util/path_test.go
++--- a/util/path_test.go
+++++ b/util/path_test.go
++@@ -15,6 +15,7 @@
++ package util
++ 
++ import (
+++	"github.com/openconfig/ygot/internal/sonicfixture"
++ 	"reflect"
++ 	"strings"
++ 	"testing"
++@@ -143,53 +144,53 @@
++ 		wantNoModule string
++ 	}{{
++ 		name: "simple entry test",
++-		in: &yang.Entry{
+++		in: sonicfixture.Entry(&yang.Entry{
++ 			Name: "leaf",
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "container",
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "module",
++-				},
++-			},
++-		},
+++				}),
+++			}),
+++		}),
++ 		want:         "/module/container/leaf",
++ 		wantNoModule: "/container/leaf",
++ 	}, {
++ 		name: "entry with a choice node",
++-		in: &yang.Entry{
+++		in: sonicfixture.Entry(&yang.Entry{
++ 			Name: "leaf",
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "choice",
++ 				Kind: yang.ChoiceEntry,
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "container",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "module",
++-					},
++-				},
++-			},
++-		},
+++					}),
+++				}),
+++			}),
+++		}),
++ 		want:         "/module/container/leaf",
++ 		wantNoModule: "/container/leaf",
++ 	}, {
++ 		name: "entry with choice and case",
++-		in: &yang.Entry{
+++		in: sonicfixture.Entry(&yang.Entry{
++ 			Name: "leaf",
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "case",
++ 				Kind: yang.CaseEntry,
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "choice",
++ 					Kind: yang.ChoiceEntry,
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "container",
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "module",
++-						},
++-					},
++-				},
++-			},
++-		},
+++						}),
+++					}),
+++				}),
+++			}),
+++		}),
++ 		want:         "/module/container/leaf",
++ 		wantNoModule: "/container/leaf",
++ 	}}
++@@ -215,7 +216,7 @@
++ }
++ 
++ func getContainerWithChoiceSchema() *yang.Entry {
++-	containerWithChoiceSchema := &yang.Entry{
+++	containerWithChoiceSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "container-with-choice-schema",
++ 		Kind: yang.DirectoryEntry,
++ 		Dir: map[string]*yang.Entry{
++@@ -260,7 +261,7 @@
++ 				},
++ 			},
++ 		},
++-	}
+++	})
++ 	addParents(containerWithChoiceSchema)
++ 
++ 	return containerWithChoiceSchema
++@@ -433,13 +434,13 @@
++ 		wantErr   string
++ 	}{{
++ 		desc: "simple reference",
++-		inSchema: &yang.Entry{
+++		inSchema: sonicfixture.Entry(&yang.Entry{
++ 			Name: "referencing",
++ 			Type: &yang.YangType{
++ 				Kind: yang.Yleafref,
++ 				Path: "../foo",
++ 			},
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "directory",
++ 				Kind: yang.DirectoryEntry,
++ 				Dir: map[string]*yang.Entry{
++@@ -448,36 +449,36 @@
++ 						Type: &yang.YangType{Kind: yang.Ystring},
++ 					},
++ 				},
++-			},
++-		},
+++			}),
+++		}),
++ 		inPathStr: "../foo",
++-		wantEntry: &yang.Entry{
+++		wantEntry: sonicfixture.Entry(&yang.Entry{
++ 			Name: "foo",
++ 			Type: &yang.YangType{Kind: yang.Ystring},
++-		},
+++		}),
++ 	}, {
++ 		desc: "empty path",
++-		inSchema: &yang.Entry{
+++		inSchema: sonicfixture.Entry(&yang.Entry{
++ 			Name: "referencing",
++ 			Type: &yang.YangType{
++ 				Kind: yang.Yleafref,
++ 			},
++-		},
+++		}),
++ 		wantErr: "leafref schema referencing has empty path",
++ 	}, {
++ 		desc: "bad xpath predicate, mismatched []s",
++-		inSchema: &yang.Entry{
+++		inSchema: sonicfixture.Entry(&yang.Entry{
++ 			Name: "referencing",
++ 			Type: &yang.YangType{
++ 				Kind: yang.Yleafref,
++ 				Path: "/interfaces/interface[name=foo/bar",
++ 			},
++-		},
+++		}),
++ 		inPathStr: "/interfaces/interface[name=foo/bar",
++ 		wantErr:   "Mismatched brackets within substring /interfaces/interface[name=foo/bar of /interfaces/interface[name=foo/bar, [ pos: 21, ] pos: -1",
++ 	}, {
++ 		desc: "with xpath predicate",
++-		inSchema: &yang.Entry{
+++		inSchema: sonicfixture.Entry(&yang.Entry{
++ 			Name: "module",
++ 			Kind: yang.DirectoryEntry,
++ 			Dir: map[string]*yang.Entry{
++@@ -519,33 +520,33 @@
++ 					},
++ 				},
++ 			},
++-		},
+++		}),
++ 		inPathStr: "/oc-if:interfaces/oc-if:interface[oc-if:name=current()/../interface]/oc-if:subinterface",
++-		wantEntry: &yang.Entry{
+++		wantEntry: sonicfixture.Entry(&yang.Entry{
++ 			Name: "subinterface",
++ 			Kind: yang.LeafEntry,
++ 			Type: &yang.YangType{Kind: yang.Ystring},
++-		},
+++		}),
++ 	}, {
++ 		desc: "strip prefix error in path",
++-		inSchema: &yang.Entry{
+++		inSchema: sonicfixture.Entry(&yang.Entry{
++ 			Name: "referencing",
++ 			Type: &yang.YangType{
++ 				Kind: yang.Yleafref,
++ 				Path: "/interface:foo:bar/baz",
++ 			},
++-		},
+++		}),
++ 		inPathStr: "/interface:foo:bar/baz",
++ 		wantErr:   "leafref schema referencing path /interface:foo:bar/baz: path element did not form a valid name (name, prefix:name): interface:foo:bar",
++ 	}, {
++ 		desc: "nil reference",
++-		inSchema: &yang.Entry{
+++		inSchema: sonicfixture.Entry(&yang.Entry{
++ 			Name: "referencing",
++ 			Type: &yang.YangType{
++ 				Kind: yang.Yleafref,
++ 				Path: "/interfaces/interface/baz",
++ 			},
++-		},
+++		}),
++ 		inPathStr: "/interfaces/interface/baz",
++ 		wantErr:   "schema node interfaces is nil for leafref schema referencing with path /interfaces/interface/baz",
++ 	}}
++diff --git a/util/reflect_test.go b/util/reflect_test.go
++--- a/util/reflect_test.go
+++++ b/util/reflect_test.go
++@@ -16,6 +16,7 @@
++ 
++ import (
++ 	"fmt"
+++	"github.com/openconfig/ygot/internal/sonicfixture"
++ 	"reflect"
++ 	"strings"
++ 	"testing"
++@@ -961,7 +962,7 @@
++ 
++ var (
++ 	// forEachContainerSchema is a schema shared in tests below.
++-	forEachContainerSchema = &yang.Entry{
+++	forEachContainerSchema = sonicfixture.Entry(&yang.Entry{
++ 		Name: "container",
++ 		Kind: yang.DirectoryEntry,
++ 		Dir: map[string]*yang.Entry{
++@@ -992,7 +993,7 @@
++ 				},
++ 			},
++ 		},
++-	}
+++	})
++ )
++ 
++ type PathErrorStruct struct {
++@@ -1125,7 +1126,7 @@
++ }
++ 
++ func TestForEachField(t *testing.T) {
++-	annotatedStructSchema := &yang.Entry{
+++	annotatedStructSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "annotatedStruct",
++ 		Kind: yang.DirectoryEntry,
++ 		Dir: map[string]*yang.Entry{
++@@ -1136,7 +1137,7 @@
++ 				},
++ 			},
++ 		},
++-	}
+++	})
++ 
++ 	tests := []struct {
++ 		desc         string
++@@ -1466,7 +1467,7 @@
++ func (*ContainerStruct1) IsYANGGoStruct() {}
++ 
++ func TestGetNodesSimpleKeyedList(t *testing.T) {
++-	containerWithLeafListSchema := &yang.Entry{
+++	containerWithLeafListSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "container",
++ 		Kind: yang.DirectoryEntry,
++ 		Dir: map[string]*yang.Entry{
++@@ -1559,7 +1560,7 @@
++ 				},
++ 			},
++ 		},
++-	}
+++	})
++ 
++ 	c1 := &ContainerStruct1{
++ 		StructKeyList: map[string]*ListElemStruct1{
++@@ -1834,7 +1835,7 @@
++ func (*ContainerStruct2) IsYANGGoStruct() {}
++ 
++ func TestGetNodesStructKeyedList(t *testing.T) {
++-	containerWithLeafListSchema := &yang.Entry{
+++	containerWithLeafListSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "container",
++ 		Kind: yang.DirectoryEntry,
++ 		Dir: map[string]*yang.Entry{
++@@ -1875,7 +1876,7 @@
++ 				},
++ 			},
++ 		},
++-	}
+++	})
++ 
++ 	c1 := &ContainerStruct2{
++ 		StructKeyList: map[KeyStruct2]*ListElemStruct2{
++diff --git a/util/yang_test.go b/util/yang_test.go
++--- a/util/yang_test.go
+++++ b/util/yang_test.go
++@@ -15,6 +15,7 @@
++ package util
++ 
++ import (
+++	"github.com/openconfig/ygot/internal/sonicfixture"
++ 	"reflect"
++ 	"testing"
++ 
++@@ -24,9 +25,9 @@
++ )
++ 
++ func TestSchemaTreeRoot(t *testing.T) {
++-	module := &yang.Entry{
+++	module := sonicfixture.Entry(&yang.Entry{
++ 		Name: "module",
++-	}
+++	})
++ 	tests := []struct {
++ 		name    string
++ 		want    *yang.Entry
++@@ -34,20 +35,20 @@
++ 	}{{
++ 		name: "simple chained entries",
++ 		want: module,
++-		inChild: &yang.Entry{
+++		inChild: sonicfixture.Entry(&yang.Entry{
++ 			Name: "child",
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name:   "parent",
++ 				Parent: module,
++-			},
++-		},
+++			}),
+++		}),
++ 	}, {
++ 		name: "single-leveled chain",
++ 		want: module,
++-		inChild: &yang.Entry{
+++		inChild: sonicfixture.Entry(&yang.Entry{
++ 			Name:   "child",
++ 			Parent: module,
++-		},
+++		}),
++ 	}, {
++ 		name:    "no parent",
++ 		want:    module,
++@@ -83,64 +84,64 @@
++ 		wantLeafList        bool
++ 	}{{
++ 		name: "valid directory node",
++-		inEntry: &yang.Entry{
+++		inEntry: sonicfixture.Entry(&yang.Entry{
++ 			Name: "container",
++ 			Kind: yang.DirectoryEntry,
++ 			Dir: map[string]*yang.Entry{
++ 				"child": {},
++ 			},
++-			Parent: &yang.Entry{},
++-		},
+++			Parent: sonicfixture.Entry(&yang.Entry{}),
+++		}),
++ 		wantDir:             true,
++ 		wantContainer:       true,
++ 		wantCompressedValid: true,
++ 		wantHasOnlyChild:    true,
++ 	}, {
++ 		name: "non-directory entry",
++-		inEntry: &yang.Entry{
+++		inEntry: sonicfixture.Entry(&yang.Entry{
++ 			Name:   "container",
++-			Parent: &yang.Entry{},
++-		},
+++			Parent: sonicfixture.Entry(&yang.Entry{}),
+++		}),
++ 		wantCompressedValid: true,
++ 		wantLeaf:            true,
++ 	}, {
++ 		name: "list entry",
++-		inEntry: &yang.Entry{
+++		inEntry: sonicfixture.Entry(&yang.Entry{
++ 			Name:   "list-node",
++-			Parent: &yang.Entry{},
+++			Parent: sonicfixture.Entry(&yang.Entry{}),
++ 			Dir: map[string]*yang.Entry{
++ 				"child": {},
++ 			},
++ 			ListAttr: &yang.ListAttr{},
++-		},
+++		}),
++ 		wantDir:             true,
++ 		wantList:            true,
++ 		wantCompressedValid: true,
++ 		wantHasOnlyChild:    true,
++ 	}, {
++ 		name: "root entry",
++-		inEntry: &yang.Entry{
+++		inEntry: sonicfixture.Entry(&yang.Entry{
++ 			Name: "root-entry",
++-		},
+++		}),
++ 		wantRoot: true,
++ 		wantLeaf: true,
++ 	}, {
++ 		name: "config container",
++-		inEntry: &yang.Entry{
+++		inEntry: sonicfixture.Entry(&yang.Entry{
++ 			Name:   "config",
++-			Parent: &yang.Entry{},
+++			Parent: sonicfixture.Entry(&yang.Entry{}),
++ 			Dir: map[string]*yang.Entry{
++ 				"child": {},
++ 			},
++-		},
+++		}),
++ 		wantDir:          true,
++ 		wantConfigState:  true,
++ 		wantHasOnlyChild: true,
++ 	}, {
++ 		name: "surrounding-container",
++-		inEntry: &yang.Entry{
+++		inEntry: sonicfixture.Entry(&yang.Entry{
++ 			Name:   "plural",
++-			Parent: &yang.Entry{},
+++			Parent: sonicfixture.Entry(&yang.Entry{}),
++ 			Dir: map[string]*yang.Entry{
++ 				"singular": {
++ 					Name:     "singular",
++@@ -148,44 +149,44 @@
++ 					Dir:      map[string]*yang.Entry{},
++ 				},
++ 			},
++-		},
+++		}),
++ 		wantDir:          true,
++ 		wantHasOnlyChild: true,
++ 	}, {
++ 		name: "choice-node",
++-		inEntry: &yang.Entry{
+++		inEntry: sonicfixture.Entry(&yang.Entry{
++ 			Name:   "choice",
++ 			Kind:   yang.ChoiceEntry,
++-			Parent: &yang.Entry{},
++-		},
+++			Parent: sonicfixture.Entry(&yang.Entry{}),
+++		}),
++ 		wantChoiceOrCase:    true,
++ 		wantCompressedValid: false,
++ 	}, {
++ 		name: "case-node",
++-		inEntry: &yang.Entry{
+++		inEntry: sonicfixture.Entry(&yang.Entry{
++ 			Name:   "case",
++ 			Kind:   yang.CaseEntry,
++-			Parent: &yang.Entry{},
++-		},
+++			Parent: sonicfixture.Entry(&yang.Entry{}),
+++		}),
++ 		wantChoiceOrCase:    true,
++ 		wantCompressedValid: false,
++ 	}, {
++ 		name: "leaf",
++-		inEntry: &yang.Entry{
+++		inEntry: sonicfixture.Entry(&yang.Entry{
++ 			Name:   "leaf",
++ 			Kind:   yang.LeafEntry,
++-			Parent: &yang.Entry{},
++-		},
+++			Parent: sonicfixture.Entry(&yang.Entry{}),
+++		}),
++ 		wantLeaf:            true,
++ 		wantCompressedValid: true,
++ 	}, {
++ 		name: "leaf-list",
++-		inEntry: &yang.Entry{
+++		inEntry: sonicfixture.Entry(&yang.Entry{
++ 			Name:     "leaf-list",
++ 			Kind:     yang.LeafEntry,
++ 			ListAttr: &yang.ListAttr{},
++-			Parent:   &yang.Entry{},
++-		},
+++			Parent:   sonicfixture.Entry(&yang.Entry{}),
+++		}),
++ 		wantLeafList:        true,
++ 		wantCompressedValid: true,
++ 	}}
++@@ -231,7 +232,7 @@
++ 		wantChildNames map[string]bool
++ 	}{{
++ 		name: "basic test container",
++-		inEntry: &yang.Entry{
+++		inEntry: sonicfixture.Entry(&yang.Entry{
++ 			Dir: map[string]*yang.Entry{
++ 				"config": {
++ 					Name: "config",
++@@ -240,7 +241,7 @@
++ 					Name: "state",
++ 				},
++ 			},
++-		},
+++		}),
++ 		wantChildNames: map[string]bool{
++ 			"config":   true,
++ 			"state":    true,
++@@ -248,7 +249,7 @@
++ 		},
++ 	}, {
++ 		name: "nested test container",
++-		inEntry: &yang.Entry{
+++		inEntry: sonicfixture.Entry(&yang.Entry{
++ 			Dir: map[string]*yang.Entry{
++ 				"config": {
++ 					Name: "config",
++@@ -264,7 +265,7 @@
++ 					},
++ 				},
++ 			},
++-		},
+++		}),
++ 		wantChildNames: map[string]bool{
++ 			"config":      true,
++ 			"state":       true,
++@@ -273,13 +274,13 @@
++ 		},
++ 	}, {
++ 		name: "test container with RPC entry",
++-		inEntry: &yang.Entry{
+++		inEntry: sonicfixture.Entry(&yang.Entry{
++ 			Dir: map[string]*yang.Entry{
++ 				"rpc":    {RPC: &yang.RPCEntry{}},
++ 				"config": {Name: "config"},
++ 				"state":  {Name: "state"},
++ 			},
++-		},
+++		}),
++ 		wantChildNames: map[string]bool{
++ 			"config": true,
++ 			"state":  true,
++@@ -312,41 +313,41 @@
++ 		wantConfig bool
++ 	}{{
++ 		name: "simple element - config true",
++-		in: &yang.Entry{
+++		in: sonicfixture.Entry(&yang.Entry{
++ 			Name: "elem",
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Config: yang.TSTrue,
++-			},
+++			}),
++ 			Config: yang.TSTrue,
++-		},
+++		}),
++ 		wantConfig: true,
++ 	}, {
++ 		name: "simple element - config false",
++-		in: &yang.Entry{
+++		in: sonicfixture.Entry(&yang.Entry{
++ 			Name:   "elem",
++ 			Config: yang.TSFalse,
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Config: yang.TSTrue,
++-			},
++-		},
+++			}),
+++		}),
++ 		wantConfig: false,
++ 	}, {
++ 		name: "parent determines config",
++-		in: &yang.Entry{
+++		in: sonicfixture.Entry(&yang.Entry{
++ 			Name: "elem",
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Config: yang.TSFalse,
++-			},
++-		},
+++			}),
+++		}),
++ 		wantConfig: false,
++ 	}, {
++ 		name: "root determines config",
++-		in: &yang.Entry{
+++		in: sonicfixture.Entry(&yang.Entry{
++ 			Name: "elem",
++-			Parent: &yang.Entry{
++-				Parent: &yang.Entry{Name: "parent"},
++-			},
++-		},
+++			Parent: sonicfixture.Entry(&yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{Name: "parent"}),
+++			}),
+++		}),
++ 		wantConfig: true,
++ 	}}
++ 
++@@ -366,172 +367,172 @@
++ 		want            bool
++ 	}{{
++ 		name: "simple entry with no path compression",
++-		inParent: &yang.Entry{
+++		inParent: sonicfixture.Entry(&yang.Entry{
++ 			Name: "parent",
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "module",
++-			},
++-		},
++-		inChild: &yang.Entry{
+++			}),
+++		}),
+++		inChild: sonicfixture.Entry(&yang.Entry{
++ 			Name: "child",
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "parent",
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "module",
++-				},
++-			},
++-		},
+++				}),
+++			}),
+++		}),
++ 		want: true,
++ 	}, {
++ 		name: "non-child entry with path compression",
++-		inParent: &yang.Entry{
+++		inParent: sonicfixture.Entry(&yang.Entry{
++ 			Name: "item-one",
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "module",
++-			},
++-		},
++-		inChild: &yang.Entry{
+++			}),
+++		}),
+++		inChild: sonicfixture.Entry(&yang.Entry{
++ 			Name: "item-two",
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "module",
++-			},
++-		},
+++			}),
+++		}),
++ 	}, {
++ 		name: "child path length less than parent length",
++-		inParent: &yang.Entry{
+++		inParent: sonicfixture.Entry(&yang.Entry{
++ 			Name: "item-one",
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "container",
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "module",
++-				},
++-			},
++-		},
++-		inChild: &yang.Entry{
+++				}),
+++			}),
+++		}),
+++		inChild: sonicfixture.Entry(&yang.Entry{
++ 			Name: "item-two",
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "module",
++-			},
++-		},
+++			}),
+++		}),
++ 	}, {
++ 		name: "compress paths on, child path length too short",
++-		inParent: &yang.Entry{
+++		inParent: sonicfixture.Entry(&yang.Entry{
++ 			Name: "item-one",
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "container",
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "module",
++-				},
++-			},
++-		},
++-		inChild: &yang.Entry{
+++				}),
+++			}),
+++		}),
+++		inChild: sonicfixture.Entry(&yang.Entry{
++ 			Name:     "item-two",
++ 			Dir:      map[string]*yang.Entry{},
++ 			ListAttr: &yang.ListAttr{},
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "module",
++-			},
++-		},
+++			}),
+++		}),
++ 		inCompressPaths: true,
++ 	}, {
++ 		name: "compress paths on, child path length is too long",
++-		inParent: &yang.Entry{
+++		inParent: sonicfixture.Entry(&yang.Entry{
++ 			Name: "item-one",
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "module",
++-			},
++-		},
++-		inChild: &yang.Entry{
+++			}),
+++		}),
+++		inChild: sonicfixture.Entry(&yang.Entry{
++ 			Name:     "item-three",
++ 			Dir:      map[string]*yang.Entry{},
++ 			ListAttr: &yang.ListAttr{},
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "item-two",
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "item-one",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "module",
++-					},
++-				},
++-			},
++-		},
+++					}),
+++				}),
+++			}),
+++		}),
++ 		inCompressPaths: true,
++ 	}, {
++ 		name: "compress paths on, child is not a list",
++-		inParent: &yang.Entry{
+++		inParent: sonicfixture.Entry(&yang.Entry{
++ 			Name: "parent-nl",
++ 			Kind: yang.DirectoryEntry,
++ 			Dir:  map[string]*yang.Entry{},
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "module-nl",
++-			},
++-		},
++-		inChild: &yang.Entry{
+++			}),
+++		}),
+++		inChild: sonicfixture.Entry(&yang.Entry{
++ 			Name: "child",
++ 			Kind: yang.DirectoryEntry,
++ 			Dir:  map[string]*yang.Entry{},
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "parent-nl",
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "module-nl",
++-				},
++-			},
++-		},
+++				}),
+++			}),
+++		}),
++ 		inCompressPaths: true,
++ 		want:            true,
++ 	}, {
++ 		name: "compress paths on, parent does not have an only child",
++-		inParent: &yang.Entry{
+++		inParent: sonicfixture.Entry(&yang.Entry{
++ 			Name: "parent",
++ 			Kind: yang.DirectoryEntry,
++ 			Dir: map[string]*yang.Entry{
++ 				"surrounding-container": {Name: "child"},
++ 				"childtwo":              {Name: "childtwo"},
++ 			},
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "module",
++-			},
++-		},
++-		inChild: &yang.Entry{
+++			}),
+++		}),
+++		inChild: sonicfixture.Entry(&yang.Entry{
++ 			Name:     "child",
++ 			Kind:     yang.DirectoryEntry,
++ 			Dir:      map[string]*yang.Entry{},
++ 			ListAttr: &yang.ListAttr{},
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "surrounding-container",
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "parent",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "module",
++-					},
++-				},
++-			},
++-		},
+++					}),
+++				}),
+++			}),
+++		}),
++ 		inCompressPaths: true,
++ 	}, {
++ 		name: "compress paths on, container in state container",
++-		inParent: &yang.Entry{
+++		inParent: sonicfixture.Entry(&yang.Entry{
++ 			Name: "parent",
++ 			Kind: yang.DirectoryEntry,
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "module",
++-			},
++-		},
++-		inChild: &yang.Entry{
+++			}),
+++		}),
+++		inChild: sonicfixture.Entry(&yang.Entry{
++ 			Name: "counters",
++ 			Kind: yang.DirectoryEntry,
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "state",
++ 				Kind: yang.DirectoryEntry,
++ 				Dir:  map[string]*yang.Entry{},
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "parent",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "module",
++-					},
++-				},
++-			},
++-		},
+++					}),
+++				}),
+++			}),
+++		}),
++ 		inCompressPaths: true,
++ 		want:            true,
++ 	}}
++@@ -550,36 +551,36 @@
++ 		want bool
++ 	}{{
++ 		name: "simple entry - root",
++-		in: &yang.Entry{
+++		in: sonicfixture.Entry(&yang.Entry{
++ 			Annotation: map[string]interface{}{
++ 				CompressedSchemaAnnotation: true,
++ 			},
++-		},
+++		}),
++ 		want: true,
++ 	}, {
++ 		name: "simple entry - not compressed - root",
++-		in:   &yang.Entry{},
+++		in:   sonicfixture.Entry(&yang.Entry{}),
++ 	}, {
++ 		name: "child entry - compressed",
++-		in: &yang.Entry{
++-			Parent: &yang.Entry{
++-				Parent: &yang.Entry{
++-					Parent: &yang.Entry{
++-						Parent: &yang.Entry{},
++-					},
++-				},
++-			},
+++		in: sonicfixture.Entry(&yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{}),
+++					}),
+++				}),
+++			}),
++ 			Annotation: map[string]interface{}{
++ 				CompressedSchemaAnnotation: true,
++ 			},
++-		},
+++		}),
++ 	}, {
++ 		name: "child entry - not compressed",
++-		in: &yang.Entry{
++-			Parent: &yang.Entry{
++-				Parent: &yang.Entry{},
++-			},
++-		},
+++		in: sonicfixture.Entry(&yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{}),
+++			}),
+++		}),
++ 	}}
++ 
++ 	for _, tt := range tests {
++@@ -612,7 +613,7 @@
++ 		},
++ 		{
++ 			desc:           "nil Type",
++-			schema:         &yang.Entry{},
+++			schema:         sonicfixture.Entry(&yang.Entry{}),
++ 			wantLeafRef:    false,
++ 			wantUnion:      false,
++ 			wantEnumerated: false,
++@@ -621,12 +622,12 @@
++ 		},
++ 		{
++ 			desc: "int32 type",
++-			schema: &yang.Entry{
+++			schema: sonicfixture.Entry(&yang.Entry{
++ 				Kind: yang.LeafEntry,
++ 				Type: &yang.YangType{
++ 					Kind: yang.Yint32,
++ 				},
++-			},
+++			}),
++ 			wantLeafRef:    false,
++ 			wantUnion:      false,
++ 			wantEnumerated: false,
++@@ -635,12 +636,12 @@
++ 		},
++ 		{
++ 			desc: "leafref type",
++-			schema: &yang.Entry{
+++			schema: sonicfixture.Entry(&yang.Entry{
++ 				Kind: yang.LeafEntry,
++ 				Type: &yang.YangType{
++ 					Kind: yang.Yleafref,
++ 				},
++-			},
+++			}),
++ 			wantLeafRef:    true,
++ 			wantUnion:      false,
++ 			wantEnumerated: false,
++@@ -649,7 +650,7 @@
++ 		},
++ 		{
++ 			desc: "union type",
++-			schema: &yang.Entry{
+++			schema: sonicfixture.Entry(&yang.Entry{
++ 				Kind: yang.LeafEntry,
++ 				Type: &yang.YangType{
++ 					Kind: yang.Yunion,
++@@ -673,7 +674,7 @@
++ 						},
++ 					},
++ 					},
++-				}},
+++				}}),
++ 			wantLeafRef:    false,
++ 			wantUnion:      true,
++ 			wantEnumerated: false,
++@@ -682,7 +683,7 @@
++ 		},
++ 		{
++ 			desc: "union type with one type entry",
++-			schema: &yang.Entry{
+++			schema: sonicfixture.Entry(&yang.Entry{
++ 				Kind: yang.LeafEntry,
++ 				Type: &yang.YangType{
++ 					Kind: yang.Yunion,
++@@ -697,7 +698,7 @@
++ 						},
++ 					},
++ 					},
++-				}},
+++				}}),
++ 			wantLeafRef:    false,
++ 			wantUnion:      true,
++ 			wantEnumerated: false,
++@@ -706,12 +707,12 @@
++ 		},
++ 		{
++ 			desc: "union type with no type entries (invalid)",
++-			schema: &yang.Entry{
+++			schema: sonicfixture.Entry(&yang.Entry{
++ 				Kind: yang.LeafEntry,
++ 				Type: &yang.YangType{
++ 					Kind: yang.Yunion,
++ 					Type: []*yang.YangType{},
++-				}},
+++				}}),
++ 			wantLeafRef:    false,
++ 			wantUnion:      false,
++ 			wantEnumerated: false,
++@@ -720,13 +721,13 @@
++ 		},
++ 		{
++ 			desc: "simple enum",
++-			schema: &yang.Entry{
+++			schema: sonicfixture.Entry(&yang.Entry{
++ 				Kind: yang.LeafEntry,
++ 				Type: &yang.YangType{
++ 					Kind: yang.Yenum,
++ 					Name: yang.TypeKindToName[yang.Yenum],
++ 				},
++-			},
+++			}),
++ 			wantLeafRef:    false,
++ 			wantUnion:      false,
++ 			wantEnumerated: true,
++@@ -735,12 +736,12 @@
++ 		},
++ 		{
++ 			desc: "identityref",
++-			schema: &yang.Entry{
+++			schema: sonicfixture.Entry(&yang.Entry{
++ 				Kind: yang.LeafEntry,
++ 				Type: &yang.YangType{
++ 					Kind: yang.Yidentityref,
++ 				},
++-			},
+++			}),
++ 			wantLeafRef:    false,
++ 			wantUnion:      false,
++ 			wantEnumerated: true,
++@@ -749,9 +750,9 @@
++ 		},
++ 		{
++ 			desc: "anydata",
++-			schema: &yang.Entry{
+++			schema: sonicfixture.Entry(&yang.Entry{
++ 				Kind: yang.AnyDataEntry,
++-			},
+++			}),
++ 			wantLeafRef:    false,
++ 			wantUnion:      false,
++ 			wantEnumerated: false,
++@@ -760,13 +761,13 @@
++ 		},
++ 		{
++ 			desc: "non-simple enum",
++-			schema: &yang.Entry{
+++			schema: sonicfixture.Entry(&yang.Entry{
++ 				Kind: yang.LeafEntry,
++ 				Type: &yang.YangType{
++ 					Kind: yang.Yenum,
++ 					Name: "union-enum",
++ 				},
++-			},
+++			}),
++ 			wantLeafRef:    false,
++ 			wantUnion:      false,
++ 			wantEnumerated: true,
++@@ -808,26 +809,26 @@
++ 		},
++ 		{
++ 			desc: "leaf type",
++-			schema: &yang.Entry{
+++			schema: sonicfixture.Entry(&yang.Entry{
++ 				Kind: yang.LeafEntry,
++ 				Type: &yang.YangType{
++ 					Kind: yang.Yint32,
++ 				},
++-			},
+++			}),
++ 			want: false,
++ 		},
++ 		{
++ 			desc: "choice type",
++-			schema: &yang.Entry{
+++			schema: sonicfixture.Entry(&yang.Entry{
++ 				Kind: yang.ChoiceEntry,
++-			},
+++			}),
++ 			want: true,
++ 		},
++ 		{
++ 			desc: "case type",
++-			schema: &yang.Entry{
+++			schema: sonicfixture.Entry(&yang.Entry{
++ 				Kind: yang.CaseEntry,
++-			},
+++			}),
++ 			want: true,
++ 		},
++ 	}
++@@ -854,18 +855,18 @@
++ 		},
++ 		{
++ 			desc: "not fakeroot",
++-			schema: &yang.Entry{
+++			schema: sonicfixture.Entry(&yang.Entry{
++ 				Kind:       yang.DirectoryEntry,
++ 				Annotation: map[string]interface{}{},
++-			},
+++			}),
++ 			want: false,
++ 		},
++ 		{
++ 			desc: "fakeroot",
++-			schema: &yang.Entry{
+++			schema: sonicfixture.Entry(&yang.Entry{
++ 				Kind:       yang.DirectoryEntry,
++ 				Annotation: map[string]interface{}{"isFakeRoot": nil},
++-			},
+++			}),
++ 			want: true,
++ 		},
++ 	}
++@@ -894,33 +895,33 @@
++ 		},
++ 		{
++ 			desc: "leaf type",
++-			schema: &yang.Entry{
+++			schema: sonicfixture.Entry(&yang.Entry{
++ 				Kind: yang.LeafEntry,
++ 				Type: &yang.YangType{
++ 					Kind: yang.Yint32,
++ 				},
++-			},
+++			}),
++ 			wantKeyedList:   false,
++ 			wantUnkeyedList: false,
++ 		},
++ 		{
++ 			desc: "keyed list",
++-			schema: &yang.Entry{
+++			schema: sonicfixture.Entry(&yang.Entry{
++ 				Kind:     yang.DirectoryEntry,
++ 				ListAttr: &yang.ListAttr{MinElements: &yang.Value{Name: "0"}},
++ 				Key:      "key",
++ 				Dir:      map[string]*yang.Entry{},
++-			},
+++			}),
++ 			wantKeyedList:   true,
++ 			wantUnkeyedList: false,
++ 		},
++ 		{
++ 			desc: "unkeyed list",
++-			schema: &yang.Entry{
+++			schema: sonicfixture.Entry(&yang.Entry{
++ 				Kind:     yang.DirectoryEntry,
++ 				ListAttr: &yang.ListAttr{MinElements: &yang.Value{Name: "0"}},
++ 				Dir:      map[string]*yang.Entry{},
++-			},
+++			}),
++ 			wantKeyedList:   false,
++ 			wantUnkeyedList: true,
++ 		},
++@@ -1109,7 +1110,7 @@
++ 		wantKeys []string
++ 	}{{
++ 		name: "choice with single case",
++-		inEntry: &yang.Entry{
+++		inEntry: sonicfixture.Entry(&yang.Entry{
++ 			Name: "choice-node",
++ 			Kind: yang.ChoiceEntry,
++ 			Dir: map[string]*yang.Entry{
++@@ -1119,20 +1120,20 @@
++ 					Dir: map[string]*yang.Entry{
++ 						"child-one": {
++ 							Name:   "child-one",
++-							Parent: &yang.Entry{Name: "parent"},
+++							Parent: sonicfixture.Entry(&yang.Entry{Name: "parent"}),
++ 						},
++ 						"child-two": {
++ 							Name:   "child-two",
++-							Parent: &yang.Entry{Name: "parent"},
++-						},
++-					},
++-				},
++-			},
++-		},
+++							Parent: sonicfixture.Entry(&yang.Entry{Name: "parent"}),
+++						},
+++					},
+++				},
+++			},
+++		}),
++ 		wantKeys: []string{"/parent/child-one", "/parent/child-two"},
++ 	}, {
++ 		name: "choice with multiple cases",
++-		inEntry: &yang.Entry{
+++		inEntry: sonicfixture.Entry(&yang.Entry{
++ 			Name: "choice-node",
++ 			Kind: yang.ChoiceEntry,
++ 			Dir: map[string]*yang.Entry{
++@@ -1142,7 +1143,7 @@
++ 					Dir: map[string]*yang.Entry{
++ 						"child-one": {
++ 							Name:   "child-one",
++-							Parent: &yang.Entry{Name: "parent"},
+++							Parent: sonicfixture.Entry(&yang.Entry{Name: "parent"}),
++ 						},
++ 					},
++ 				},
++@@ -1152,12 +1153,12 @@
++ 					Dir: map[string]*yang.Entry{
++ 						"child-two": {
++ 							Name:   "child-two",
++-							Parent: &yang.Entry{Name: "parent"},
++-						},
++-					},
++-				},
++-			},
++-		},
+++							Parent: sonicfixture.Entry(&yang.Entry{Name: "parent"}),
+++						},
+++					},
+++				},
+++			},
+++		}),
++ 		wantKeys: []string{"/parent/child-one", "/parent/child-two"},
++ 	}}
++ 
++@@ -1197,7 +1198,7 @@
++ }
++ 
++ func TestValidateLeafRefData(t *testing.T) {
++-	containerWithLeafListSchema := &yang.Entry{
+++	containerWithLeafListSchema := sonicfixture.Entry(&yang.Entry{
++ 		Name: "container",
++ 		Kind: yang.DirectoryEntry,
++ 		Dir: map[string]*yang.Entry{
++@@ -1331,9 +1332,9 @@
++ 				},
++ 			},
++ 		},
++-	}
++-
++-	emptySchema := &yang.Entry{}
+++	})
+++
+++	emptySchema := sonicfixture.Entry(&yang.Entry{})
++ 
++ 	tests := []struct {
++ 		desc    string
++@@ -1443,33 +1444,33 @@
++ 		want  map[string]bool
++ 	}{{
++ 		desc: "empty",
++-		entry: &yang.Entry{
+++		entry: sonicfixture.Entry(&yang.Entry{
++ 			Key: "",
++-		},
+++		}),
++ 		want: map[string]bool{},
++ 	}, {
++ 		desc: "one one-letter key",
++-		entry: &yang.Entry{
+++		entry: sonicfixture.Entry(&yang.Entry{
++ 			Key: "a",
++-		},
+++		}),
++ 		want: map[string]bool{"a": true},
++ 	}, {
++ 		desc: "two one-letter keys",
++-		entry: &yang.Entry{
+++		entry: sonicfixture.Entry(&yang.Entry{
++ 			Key: "a b",
++-		},
+++		}),
++ 		want: map[string]bool{"a": true, "b": true},
++ 	}, {
++ 		desc: "one multi-letter key",
++-		entry: &yang.Entry{
+++		entry: sonicfixture.Entry(&yang.Entry{
++ 			Key: "abc",
++-		},
+++		}),
++ 		want: map[string]bool{"abc": true},
++ 	}, {
++ 		desc: "three variable letter keys",
++-		entry: &yang.Entry{
+++		entry: sonicfixture.Entry(&yang.Entry{
++ 			Key: "ab a abc",
++-		},
+++		}),
++ 		want: map[string]bool{"a": true, "ab": true, "abc": true},
++ 	}}
++ 
++diff --git a/ygen/codegen_test.go b/ygen/codegen_test.go
++--- a/ygen/codegen_test.go
+++++ b/ygen/codegen_test.go
++@@ -18,6 +18,7 @@
++ 	"bytes"
++ 	"encoding/json"
++ 	"fmt"
+++	"github.com/openconfig/ygot/internal/sonicfixture"
++ 	"io/ioutil"
++ 	"path/filepath"
++ 	"sort"
++@@ -61,7 +62,7 @@
++ 		wantUncompressed map[string][]string
++ 	}{{
++ 		name: "base-test",
++-		in: &yang.Entry{
+++		in: sonicfixture.Entry(&yang.Entry{
++ 			Name: "module",
++ 			Kind: yang.DirectoryEntry,
++ 			Dir: map[string]*yang.Entry{
++@@ -82,7 +83,7 @@
++ 					},
++ 				},
++ 			},
++-		},
+++		}),
++ 		wantCompressed: map[string][]string{
++ 			"structs": {"base"},
++ 			"enums":   {},
++@@ -93,7 +94,7 @@
++ 		},
++ 	}, {
++ 		name: "enum-test",
++-		in: &yang.Entry{
+++		in: sonicfixture.Entry(&yang.Entry{
++ 			Name: "module",
++ 			Dir: map[string]*yang.Entry{
++ 				"base": {
++@@ -127,7 +128,7 @@
++ 					},
++ 				},
++ 			},
++-		},
+++		}),
++ 		wantCompressed: map[string][]string{
++ 			"structs": {"base"},
++ 			"enums":   {"enumleaf"},
++@@ -138,7 +139,7 @@
++ 		},
++ 	}, {
++ 		name: "skip module",
++-		in: &yang.Entry{
+++		in: sonicfixture.Entry(&yang.Entry{
++ 			Name: "module",
++ 			Kind: yang.DirectoryEntry,
++ 			Dir: map[string]*yang.Entry{
++@@ -161,7 +162,7 @@
++ 					Name: "module-namespace",
++ 				},
++ 			},
++-		},
+++		}),
++ 		inSkipModules: []string{"module"},
++ 		inModules: []*yang.Entry{{
++ 			Name: "module",
++@@ -181,7 +182,7 @@
++ 		},
++ 	}, {
++ 		name: "surrounding container for list at root",
++-		in: &yang.Entry{
+++		in: sonicfixture.Entry(&yang.Entry{
++ 			Name: "module",
++ 			Kind: yang.DirectoryEntry,
++ 			Dir: map[string]*yang.Entry{
++@@ -198,7 +199,7 @@
++ 					},
++ 				},
++ 			},
++-		},
+++		}),
++ 		wantCompressed: map[string][]string{
++ 			"structs": {"child-list"},
++ 		},
++@@ -207,7 +208,7 @@
++ 		},
++ 	}, {
++ 		name: "choice/case at root",
++-		in: &yang.Entry{
+++		in: sonicfixture.Entry(&yang.Entry{
++ 			Name: "module",
++ 			Dir: map[string]*yang.Entry{
++ 				"choice": {
++@@ -228,7 +229,7 @@
++ 					},
++ 				},
++ 			},
++-		},
+++		}),
++ 		wantCompressed: map[string][]string{
++ 			"structs": {"container"},
++ 		},
++@@ -237,7 +238,7 @@
++ 		},
++ 	}, {
++ 		name: "enumerated value within a union leaf",
++-		in: &yang.Entry{
+++		in: sonicfixture.Entry(&yang.Entry{
++ 			Name: "module",
++ 			Kind: yang.DirectoryEntry,
++ 			Dir: map[string]*yang.Entry{
++@@ -251,12 +252,12 @@
++ 					},
++ 				},
++ 			},
++-		},
+++		}),
++ 		wantCompressed:   map[string][]string{"enums": {"leaf"}},
++ 		wantUncompressed: map[string][]string{"enums": {"leaf"}},
++ 	}, {
++ 		name: "identityref value within a union leaf",
++-		in: &yang.Entry{
+++		in: sonicfixture.Entry(&yang.Entry{
++ 			Name: "module",
++ 			Kind: yang.DirectoryEntry,
++ 			Dir: map[string]*yang.Entry{
++@@ -272,12 +273,12 @@
++ 					},
++ 				},
++ 			},
++-		},
+++		}),
++ 		wantCompressed:   map[string][]string{"enums": {"leaf"}},
++ 		wantUncompressed: map[string][]string{"enums": {"leaf"}},
++ 	}, {
++ 		name: "enumeration within a typedef which is a union",
++-		in: &yang.Entry{
+++		in: sonicfixture.Entry(&yang.Entry{
++ 			Name: "module",
++ 			Kind: yang.DirectoryEntry,
++ 			Dir: map[string]*yang.Entry{
++@@ -293,12 +294,12 @@
++ 					},
++ 				},
++ 			},
++-		},
+++		}),
++ 		wantCompressed:   map[string][]string{"enums": {"leaf"}},
++ 		wantUncompressed: map[string][]string{"enums": {"leaf"}},
++ 	}, {
++ 		name: "enumerated value within a choice that has a child",
++-		in: &yang.Entry{
+++		in: sonicfixture.Entry(&yang.Entry{
++ 			Name: "module",
++ 			Kind: yang.DirectoryEntry,
++ 			Dir: map[string]*yang.Entry{
++@@ -339,7 +340,7 @@
++ 					},
++ 				},
++ 			},
++-		},
+++		}),
++ 		wantCompressed: map[string][]string{
++ 			"structs": {"container"},
++ 			"enums":   {"choice-case-container-leaf", "choice-case2-leaf", "direct"}},
++@@ -1394,20 +1395,20 @@
++ 				Name: "foo",
++ 				Dir:  map[string]*yang.Entry{},
++ 				Kind: yang.DirectoryEntry,
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "module",
++-				},
+++				}),
++ 			},
++ 			"/foo/bar": {
++ 				Name: "bar",
++ 				Dir:  map[string]*yang.Entry{},
++ 				Kind: yang.DirectoryEntry,
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "foo",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "module",
++-					},
++-				},
+++					}),
+++				}),
++ 			},
++ 		},
++ 		inRootName:                 "fakeroot",
++@@ -1420,26 +1421,26 @@
++ 				Name: "foo",
++ 				Dir:  map[string]*yang.Entry{},
++ 				Kind: yang.DirectoryEntry,
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "module",
++-				},
+++				}),
++ 			},
++ 		},
++ 		inRootElems: []*yang.Entry{{
++ 			Name: "foo",
++ 			Dir:  map[string]*yang.Entry{},
++ 			Kind: yang.DirectoryEntry,
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "module",
++-			},
+++			}),
++ 		}, {
++ 			Name: "leaf",
++ 			Type: &yang.YangType{
++ 				Kind: yang.Ystring,
++ 			},
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "module",
++-			},
+++			}),
++ 		}},
++ 		inRootName:                 "fakeroot",
++ 		wantCompressRootChildren:   []string{"foo", "leaf"},
++@@ -1449,6 +1450,12 @@
++ 	for _, tt := range tests {
++ 		t.Run(tt.name, func(t *testing.T) {
++ 			for compress, wantChildren := range map[bool][]string{true: tt.wantCompressRootChildren, false: tt.wantUncompressRootChildren} {
+++				for _, entry := range tt.inStructs {
+++					sonicfixture.Entry(entry)
+++				}
+++				for _, entry := range tt.inRootElems {
+++					sonicfixture.Entry(entry)
+++				}
++ 				if err := createFakeRoot(tt.inStructs, tt.inRootElems, tt.inRootName, compress); err != nil {
++ 					t.Errorf("cg.createFakeRoot(%v), compressEnabled: %v, got unexpected error: %v", tt.inStructs, compress, err)
++ 					continue
++@@ -1899,25 +1906,25 @@
++ 	}{{
++ 		name:       "simple empty root named device",
++ 		inRootName: "device",
++-		want: &yang.Entry{
+++		want: sonicfixture.Entry(&yang.Entry{
++ 			Name: "device",
++ 			Kind: yang.DirectoryEntry,
++ 			Dir:  map[string]*yang.Entry{},
++ 			Node: &yang.Value{
++ 				Name: rootElementNodeName,
++ 			},
++-		},
+++		}),
++ 	}, {
++ 		name:       "simple root named !@#$",
++ 		inRootName: "!@#$",
++-		want: &yang.Entry{
+++		want: sonicfixture.Entry(&yang.Entry{
++ 			Name: "!@#$",
++ 			Kind: yang.DirectoryEntry,
++ 			Dir:  map[string]*yang.Entry{},
++ 			Node: &yang.Value{
++ 				Name: rootElementNodeName,
++ 			},
++-		},
+++		}),
++ 	}}
++ 
++ 	for _, tt := range tests {
++@@ -1948,65 +1955,65 @@
++ 			"/module/foo": {
++ 				Name: "foo",
++ 				Kind: yang.DirectoryEntry,
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "module",
++-				},
+++				}),
++ 			},
++ 		},
++ 		inRootElems: []*yang.Entry{{
++ 			Name: "foo",
++ 			Kind: yang.DirectoryEntry,
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "module",
++-			},
+++			}),
++ 		}, {
++ 			Name: "bar",
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "module",
++-			},
+++			}),
++ 			Type: &yang.YangType{Kind: yang.Ystring},
++ 		}},
++ 		inRootName:      "",
++ 		inCompressPaths: false,
++-		wantRoot: &yang.Entry{
+++		wantRoot: sonicfixture.Entry(&yang.Entry{
++ 			Name: defaultRootName,
++ 			Kind: yang.DirectoryEntry,
++ 			Dir: map[string]*yang.Entry{
++ 				"foo": {
++ 					Name: "foo",
++ 					Kind: yang.DirectoryEntry,
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "module",
++-					},
+++					}),
++ 				},
++ 				"bar": {
++ 					Name: "bar",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "module",
++-					},
+++					}),
++ 					Type: &yang.YangType{Kind: yang.Ystring},
++ 				},
++ 			},
++ 			Node: &yang.Value{
++ 				Name: rootElementNodeName,
++ 			},
++-		},
+++		}),
++ 	}, {
++ 		name: "overlapping root entries",
++ 		inStructs: map[string]*yang.Entry{
++ 			"/module1/foo": {
++ 				Name: "foo",
++ 				Kind: yang.DirectoryEntry,
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "module1",
++-				},
+++				}),
++ 			},
++ 			"/module2/foo": {
++ 				Name: "foo",
++ 				Kind: yang.DirectoryEntry,
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "module2",
++-				},
+++				}),
++ 			},
++ 		},
++ 		inRootName: "name",
++@@ -2014,6 +2021,13 @@
++ 	}}
++ 
++ 	for _, tt := range tests {
+++		for _, entry := range tt.inStructs {
+++			sonicfixture.Entry(entry)
+++		}
+++		for _, entry := range tt.inRootElems {
+++			sonicfixture.Entry(entry)
+++		}
+++		sonicfixture.Entry(tt.wantRoot)
++ 		err := createFakeRoot(tt.inStructs, tt.inRootElems, tt.inRootName, tt.inCompressPaths)
++ 		if (err != nil) != tt.wantErr {
++ 			t.Errorf("%s: createFakeRoot(%v, %v, %s, %v): did not get expected error, got: %s, wantErr: %v", tt.name, tt.inStructs, tt.inRootElems, tt.inRootName, tt.inCompressPaths, err, tt.wantErr)
++diff --git a/ygen/directory_test.go b/ygen/directory_test.go
++--- a/ygen/directory_test.go
+++++ b/ygen/directory_test.go
++@@ -1,6 +1,7 @@
++ package ygen
++ 
++ import (
+++	"github.com/openconfig/ygot/internal/sonicfixture"
++ 	"testing"
++ 
++ 	"github.com/google/go-cmp/cmp"
++@@ -248,13 +249,13 @@
++ 		Fields: map[string]*yang.Entry{
++ 			"baz": {
++ 				Name: "baz",
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "bar",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name:   "foo",
++-						Parent: &yang.Entry{Name: "module"},
++-					},
++-				},
+++						Parent: sonicfixture.Entry(&yang.Entry{Name: "module"}),
+++					}),
+++				}),
++ 			},
++ 		},
++ 	}
++@@ -268,9 +269,9 @@
++ 				Type: &yang.YangType{
++ 					Kind: yang.Yleafref,
++ 				},
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "config",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "d-list",
++ 						Kind: yang.DirectoryEntry,
++ 						Dir: map[string]*yang.Entry{
++@@ -279,14 +280,14 @@
++ 								Type: &yang.YangType{Kind: yang.Yleafref},
++ 							},
++ 						},
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "d-container",
++-							Parent: &yang.Entry{
+++							Parent: sonicfixture.Entry(&yang.Entry{
++ 								Name: "d-module",
++-							},
++-						},
++-					},
++-				},
+++							}),
+++						}),
+++					}),
+++				}),
++ 			},
++ 		},
++ 	}
++@@ -324,13 +325,13 @@
++ 			Fields: map[string]*yang.Entry{
++ 				"baz": {
++ 					Name: "baz",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "bar",
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name:   "foo",
++-							Parent: &yang.Entry{Name: "module"},
++-						},
++-					},
+++							Parent: sonicfixture.Entry(&yang.Entry{Name: "module"}),
+++						}),
+++					}),
++ 				},
++ 			},
++ 		},
++diff --git a/ygen/genstate_test.go b/ygen/genstate_test.go
++--- a/ygen/genstate_test.go
+++++ b/ygen/genstate_test.go
++@@ -17,6 +17,7 @@
++ import (
++ 	"encoding/json"
++ 	"fmt"
+++	"github.com/openconfig/ygot/internal/sonicfixture"
++ 	"testing"
++ 
++ 	"github.com/google/go-cmp/cmp"
++@@ -70,7 +71,7 @@
++ 		wantCompressed: map[string]*yangEnum{
++ 			"TestModule_BaseIdentity": {
++ 				name: "TestModule_BaseIdentity",
++-				entry: &yang.Entry{
+++				entry: sonicfixture.Entry(&yang.Entry{
++ 					Name: "identityref-leaf",
++ 					Type: &yang.YangType{
++ 						IdentityBase: &yang.Identity{
++@@ -80,7 +81,7 @@
++ 							},
++ 						},
++ 					},
++-				},
+++				}),
++ 			},
++ 		},
++ 		wantSame: true,
++@@ -104,13 +105,13 @@
++ 						},
++ 					},
++ 				},
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "config",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name:   "container",
++-						Parent: &yang.Entry{Name: "base-module"},
++-					},
++-				},
+++						Parent: sonicfixture.Entry(&yang.Entry{Name: "base-module"}),
+++					}),
+++				}),
++ 			},
++ 			"/container/state/enumeration-leaf": {
++ 				Name: "enumeration-leaf",
++@@ -129,46 +130,46 @@
++ 						},
++ 					},
++ 				},
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "state",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "container",
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "base-module",
++-						},
++-					},
++-				},
+++						}),
+++					}),
+++				}),
++ 			},
++ 		},
++ 		wantCompressed: map[string]*yangEnum{
++ 			"BaseModule_Container_EnumerationLeaf": {
++ 				name: "BaseModule_Container_EnumerationLeaf",
++-				entry: &yang.Entry{
+++				entry: sonicfixture.Entry(&yang.Entry{
++ 					Name: "enumeration-leaf",
++ 					Type: &yang.YangType{
++ 						Enum: &yang.EnumType{},
++ 					},
++-				},
+++				}),
++ 			},
++ 		},
++ 		wantUncompressed: map[string]*yangEnum{
++ 			"BaseModule_Container_State_EnumerationLeaf": {
++ 				name: "BaseModule_Container_State_EnumerationLeaf",
++-				entry: &yang.Entry{
+++				entry: sonicfixture.Entry(&yang.Entry{
++ 					Name: "enumeration-leaf",
++ 					Type: &yang.YangType{
++ 						Enum: &yang.EnumType{},
++ 					},
++-				},
+++				}),
++ 			},
++ 			"BaseModule_Container_Config_EnumerationLeaf": {
++ 				name: "BaseModule_Container_Config_EnumerationLeaf",
++-				entry: &yang.Entry{
+++				entry: sonicfixture.Entry(&yang.Entry{
++ 					Name: "enumeration-leaf",
++ 					Type: &yang.YangType{
++ 						Enum: &yang.EnumType{},
++ 					},
++-				},
+++				}),
++ 			},
++ 		},
++ 	}, {
++@@ -185,15 +186,15 @@
++ 						Name: "base-module",
++ 					},
++ 				},
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "config",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "container",
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "base-module",
++-						},
++-					},
++-				},
+++						}),
+++					}),
+++				}),
++ 			},
++ 			"/container/state/enumeration-leaf": {
++ 				Name: "enumeration-leaf",
++@@ -206,29 +207,29 @@
++ 						Name: "base-module",
++ 					},
++ 				},
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "state",
++ 					Node: &yang.Container{Name: "state"},
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "container",
++ 						Node: &yang.Container{Name: "container"},
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "base-module",
++ 							Node: &yang.Module{Name: "base-module"},
++-						},
++-					},
++-				},
+++						}),
+++					}),
+++				}),
++ 			},
++ 		},
++ 		wantCompressed: map[string]*yangEnum{
++ 			"BaseModule_DerivedEnumeration": {
++ 				name: "BaseModule_DerivedEnumeration",
++-				entry: &yang.Entry{
+++				entry: sonicfixture.Entry(&yang.Entry{
++ 					Name: "enumeration-leaf",
++ 					Type: &yang.YangType{
++ 						Enum: &yang.EnumType{},
++ 					},
++-				},
+++				}),
++ 			},
++ 		},
++ 		wantSame: true,
++@@ -249,20 +250,20 @@
++ 						Name: "base-module",
++ 					},
++ 				},
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "state",
++ 					Node: &yang.Container{Name: "state"},
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "base-module",
++ 						Node: &yang.Module{Name: "base-module"},
++-					},
++-				},
+++					}),
+++				}),
++ 			},
++ 		},
++ 		wantCompressed: map[string]*yangEnum{
++ 			"BaseModule_Derived_Enum": {
++ 				name: "BaseModule_Derived_Enum",
++-				entry: &yang.Entry{
+++				entry: sonicfixture.Entry(&yang.Entry{
++ 					Name: "e",
++ 					Type: &yang.YangType{
++ 						Kind: yang.Yunion,
++@@ -271,7 +272,7 @@
++ 							{Kind: yang.Ystring},
++ 						},
++ 					},
++-				},
+++				}),
++ 			},
++ 		},
++ 		wantSame: true,
++@@ -312,12 +313,12 @@
++ 		wantCompressed: map[string]*yangEnum{
++ 			"BaseModule_DerivedUnionEnum": {
++ 				name: "BaseModule_DerivedUnionEnum",
++-				entry: &yang.Entry{
+++				entry: sonicfixture.Entry(&yang.Entry{
++ 					Name: "enumeration-leaf",
++ 					Type: &yang.YangType{
++ 						Enum: &yang.EnumType{},
++ 					},
++-				},
+++				}),
++ 			},
++ 		},
++ 		wantSame: true,
++@@ -362,7 +363,7 @@
++ 		wantCompressed: map[string]*yangEnum{
++ 			"BaseModule_DerivedIdentityref": {
++ 				name: "BaseModule_DerivedIdentityref",
++-				entry: &yang.Entry{
+++				entry: sonicfixture.Entry(&yang.Entry{
++ 					Name: "identityref-leaf",
++ 					Type: &yang.YangType{
++ 						IdentityBase: &yang.Identity{
++@@ -372,7 +373,7 @@
++ 							},
++ 						},
++ 					},
++-				},
+++				}),
++ 			},
++ 		},
++ 		wantSame: true,
++@@ -422,7 +423,7 @@
++ 		wantCompressed: map[string]*yangEnum{
++ 			"BaseModule_BaseIdentity": {
++ 				name: "BaseModule_BaseIdentity",
++-				entry: &yang.Entry{
+++				entry: sonicfixture.Entry(&yang.Entry{
++ 					Name: "union-identityref",
++ 					Type: &yang.YangType{
++ 						Type: []*yang.YangType{{
++@@ -437,7 +438,7 @@
++ 							Kind: yang.Ystring,
++ 						}},
++ 					},
++-				},
+++				}),
++ 			},
++ 		},
++ 		wantSame: true,
++@@ -471,7 +472,7 @@
++ 		wantCompressed: map[string]*yangEnum{
++ 			"BaseModule_BaseIdentity": {
++ 				name: "BaseModule_BaseIdentity",
++-				entry: &yang.Entry{
+++				entry: sonicfixture.Entry(&yang.Entry{
++ 					Name: "union-typedef-identityref",
++ 					Type: &yang.YangType{
++ 						Kind: yang.Yunion,
++@@ -493,7 +494,7 @@
++ 							Name: "test-module",
++ 						},
++ 					},
++-				},
+++				}),
++ 			},
++ 		},
++ 		wantSame: true,
++@@ -527,7 +528,7 @@
++ 		wantCompressed: map[string]*yangEnum{
++ 			"BaseModule_BaseIdentity": {
++ 				name: "BaseModule_BaseIdentity",
++-				entry: &yang.Entry{
+++				entry: sonicfixture.Entry(&yang.Entry{
++ 					Name: "typedef-union-identityref",
++ 					Type: &yang.YangType{
++ 						Name: "derived",
++@@ -549,7 +550,7 @@
++ 							Name: "test-module",
++ 						},
++ 					},
++-				},
+++				}),
++ 			},
++ 		},
++ 		wantSame: true,
++@@ -569,12 +570,12 @@
++ 						Enum: &yang.EnumType{},
++ 					}},
++ 				},
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "config",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "test-container",
++-					},
++-				},
+++					}),
+++				}),
++ 				Node: &yang.Leaf{
++ 					Name: "err",
++ 					Parent: &yang.Container{
++@@ -600,12 +601,12 @@
++ 					Kind: yang.Yunion,
++ 					Type: []*yang.YangType{},
++ 				},
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "config",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "test-container",
++-					},
++-				},
+++					}),
+++				}),
++ 				Node: &yang.Leaf{
++ 					Name: "err",
++ 					Parent: &yang.Container{
++@@ -653,19 +654,19 @@
++ 						},
++ 					},
++ 				},
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "state",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name:   "container",
++-						Parent: &yang.Entry{Name: "base-module"},
++-					},
++-				},
+++						Parent: sonicfixture.Entry(&yang.Entry{Name: "base-module"}),
+++					}),
+++				}),
++ 			},
++ 		},
++ 		wantCompressed: map[string]*yangEnum{
++ 			"BaseModule_Container_E": {
++ 				name: "BaseModule_Container_E",
++-				entry: &yang.Entry{
+++				entry: sonicfixture.Entry(&yang.Entry{
++ 					Name: "e",
++ 					Type: &yang.YangType{
++ 						Kind: yang.Yunion,
++@@ -694,20 +695,20 @@
++ 							},
++ 						},
++ 					},
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "state",
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name:   "container",
++-							Parent: &yang.Entry{Name: "base-module"},
++-						},
++-					},
++-				},
+++							Parent: sonicfixture.Entry(&yang.Entry{Name: "base-module"}),
+++						}),
+++					}),
+++				}),
++ 			},
++ 		},
++ 		wantUncompressed: map[string]*yangEnum{
++ 			"BaseModule_Container_State_E": {
++ 				name: "BaseModule_Container_State_E",
++-				entry: &yang.Entry{
+++				entry: sonicfixture.Entry(&yang.Entry{
++ 					Name: "e",
++ 					Type: &yang.YangType{
++ 						Kind: yang.Yunion,
++@@ -735,14 +736,14 @@
++ 							},
++ 						},
++ 					},
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "state",
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name:   "container",
++-							Parent: &yang.Entry{Name: "base-module"},
++-						},
++-					},
++-				},
+++							Parent: sonicfixture.Entry(&yang.Entry{Name: "base-module"}),
+++						}),
+++					}),
+++				}),
++ 			},
++ 		},
++ 	}, {
++@@ -766,13 +767,13 @@
++ 						},
++ 					},
++ 				},
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "config",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name:   "container",
++-						Parent: &yang.Entry{Name: "base-module"},
++-					},
++-				},
+++						Parent: sonicfixture.Entry(&yang.Entry{Name: "base-module"}),
+++					}),
+++				}),
++ 			},
++ 			"/container/config/enumeration-leaf-two": {
++ 				Name: "enumeration-leaf-two",
++@@ -792,13 +793,13 @@
++ 						},
++ 					},
++ 				},
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "config",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name:   "container",
++-						Parent: &yang.Entry{Name: "base-module"},
++-					},
++-				},
+++						Parent: sonicfixture.Entry(&yang.Entry{Name: "base-module"}),
+++					}),
+++				}),
++ 			},
++ 			"/container/state/enumeration-leaf": {
++ 				Name: "enumeration-leaf",
++@@ -817,15 +818,15 @@
++ 						},
++ 					},
++ 				},
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "state",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "container",
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "base-module",
++-						},
++-					},
++-				},
+++						}),
+++					}),
+++				}),
++ 			},
++ 			"/container/state/enumeration-leaf-two": {
++ 				Name: "enumeration-leaf-two",
++@@ -845,71 +846,71 @@
++ 						},
++ 					},
++ 				},
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "state",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name:   "container",
++-						Parent: &yang.Entry{Name: "base-module"},
++-					},
++-				},
+++						Parent: sonicfixture.Entry(&yang.Entry{Name: "base-module"}),
+++					}),
+++				}),
++ 			},
++ 		},
++ 		wantCompressed: map[string]*yangEnum{
++ 			"BaseModule_Container_EnumerationLeaf": {
++ 				name: "BaseModule_Container_EnumerationLeaf",
++-				entry: &yang.Entry{
+++				entry: sonicfixture.Entry(&yang.Entry{
++ 					Name: "enumeration-leaf",
++ 					Type: &yang.YangType{
++ 						Enum: &yang.EnumType{},
++ 					},
++-				},
+++				}),
++ 			},
++ 			"BaseModule_Container_EnumerationLeafTwo": {
++ 				name: "BaseModule_Container_EnumerationLeafTwo",
++-				entry: &yang.Entry{
+++				entry: sonicfixture.Entry(&yang.Entry{
++ 					Name: "enumeration-leaf-two",
++ 					Type: &yang.YangType{
++ 						Enum: &yang.EnumType{},
++ 					},
++-				},
+++				}),
++ 			},
++ 		},
++ 		wantUncompressed: map[string]*yangEnum{
++ 			"BaseModule_Container_State_EnumerationLeaf": {
++ 				name: "BaseModule_Container_State_EnumerationLeaf",
++-				entry: &yang.Entry{
+++				entry: sonicfixture.Entry(&yang.Entry{
++ 					Name: "enumeration-leaf",
++ 					Type: &yang.YangType{
++ 						Enum: &yang.EnumType{},
++ 					},
++-				},
+++				}),
++ 			},
++ 			"BaseModule_Container_Config_EnumerationLeaf": {
++ 				name: "BaseModule_Container_Config_EnumerationLeaf",
++-				entry: &yang.Entry{
+++				entry: sonicfixture.Entry(&yang.Entry{
++ 					Name: "enumeration-leaf",
++ 					Type: &yang.YangType{
++ 						Enum: &yang.EnumType{},
++ 					},
++-				},
+++				}),
++ 			},
++ 			"BaseModule_Container_State_EnumerationLeafTwo": {
++ 				name: "BaseModule_Container_State_EnumerationLeafTwo",
++-				entry: &yang.Entry{
+++				entry: sonicfixture.Entry(&yang.Entry{
++ 					Name: "enumeration-leaf-two",
++ 					Type: &yang.YangType{
++ 						Enum: &yang.EnumType{},
++ 					},
++-				},
+++				}),
++ 			},
++ 			"BaseModule_Container_Config_EnumerationLeafTwo": {
++ 				name: "BaseModule_Container_Config_EnumerationLeafTwo",
++-				entry: &yang.Entry{
+++				entry: sonicfixture.Entry(&yang.Entry{
++ 					Name: "enumeration-leaf-two",
++ 					Type: &yang.YangType{
++ 						Enum: &yang.EnumType{},
++ 					},
++-				},
+++				}),
++ 			},
++ 		},
++ 	}}
++@@ -966,16 +967,16 @@
++ 		wantUncompressed string      // wantUncompressed is the expected name with compression disabled.
++ 	}{{
++ 		name: "/interfaces/interface/config/description",
++-		inElement: &yang.Entry{
+++		inElement: sonicfixture.Entry(&yang.Entry{
++ 			Name: "description",
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "config",
++ 				Dir:  map[string]*yang.Entry{},
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name:     "interface",
++ 					Dir:      map[string]*yang.Entry{},
++ 					ListAttr: &yang.ListAttr{},
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "interfaces",
++ 						Dir: map[string]*yang.Entry{
++ 							"interface": {
++@@ -983,31 +984,31 @@
++ 								ListAttr: &yang.ListAttr{},
++ 							},
++ 						},
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "openconfig-interfaces",
++ 							Dir:  map[string]*yang.Entry{},
++-						},
++-					},
++-				},
++-			},
++-		},
+++						}),
+++					}),
+++				}),
+++			}),
+++		}),
++ 		wantCompressed:   "Interface_Description",
++ 		wantUncompressed: "OpenconfigInterfaces_Interfaces_Interface_Config_Description",
++ 	}, {
++ 		name: "/interfaces/interface/hold-time/config/up",
++-		inElement: &yang.Entry{
+++		inElement: sonicfixture.Entry(&yang.Entry{
++ 			Name: "up",
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "config",
++ 				Dir:  map[string]*yang.Entry{},
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "hold-time",
++ 					Dir:  map[string]*yang.Entry{},
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name:     "interface",
++ 						Dir:      map[string]*yang.Entry{},
++ 						ListAttr: &yang.ListAttr{},
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "interfaces",
++ 							Dir: map[string]*yang.Entry{
++ 								"interface": {
++@@ -1015,29 +1016,29 @@
++ 									ListAttr: &yang.ListAttr{},
++ 								},
++ 							},
++-							Parent: &yang.Entry{
+++							Parent: sonicfixture.Entry(&yang.Entry{
++ 								Name: "openconfig-interfaces",
++ 								Dir:  map[string]*yang.Entry{},
++-							},
++-						},
++-					},
++-				},
++-			},
++-		},
+++							}),
+++						}),
+++					}),
+++				}),
+++			}),
+++		}),
++ 		wantCompressed:   "Interface_HoldTime_Up",
++ 		wantUncompressed: "OpenconfigInterfaces_Interfaces_Interface_HoldTime_Config_Up",
++ 	}, {
++ 		name: "/interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/ip",
++-		inElement: &yang.Entry{
+++		inElement: sonicfixture.Entry(&yang.Entry{
++ 			Name: "ip",
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "config",
++ 				Dir:  map[string]*yang.Entry{},
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name:     "address",
++ 					ListAttr: &yang.ListAttr{},
++ 					Dir:      map[string]*yang.Entry{},
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "addresses",
++ 						Dir: map[string]*yang.Entry{
++ 							"address": {
++@@ -1045,14 +1046,14 @@
++ 								ListAttr: &yang.ListAttr{},
++ 							},
++ 						},
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "ipv4",
++ 							Dir:  map[string]*yang.Entry{},
++-							Parent: &yang.Entry{
+++							Parent: sonicfixture.Entry(&yang.Entry{
++ 								Name:     "subinterface",
++ 								ListAttr: &yang.ListAttr{},
++ 								Dir:      map[string]*yang.Entry{},
++-								Parent: &yang.Entry{
+++								Parent: sonicfixture.Entry(&yang.Entry{
++ 									Name: "subinterfaces",
++ 									Dir: map[string]*yang.Entry{
++ 										"subinterface": {
++@@ -1061,11 +1062,11 @@
++ 											Dir:      map[string]*yang.Entry{},
++ 										},
++ 									},
++-									Parent: &yang.Entry{
+++									Parent: sonicfixture.Entry(&yang.Entry{
++ 										Name:     "interface",
++ 										Dir:      map[string]*yang.Entry{},
++ 										ListAttr: &yang.ListAttr{},
++-										Parent: &yang.Entry{
+++										Parent: sonicfixture.Entry(&yang.Entry{
++ 											Name: "interfaces",
++ 											Dir: map[string]*yang.Entry{
++ 												"interface": {
++@@ -1073,19 +1074,19 @@
++ 													ListAttr: &yang.ListAttr{},
++ 												},
++ 											},
++-											Parent: &yang.Entry{
+++											Parent: sonicfixture.Entry(&yang.Entry{
++ 												Name: "openconfig-interfaces",
++ 												Dir:  map[string]*yang.Entry{},
++-											},
++-										},
++-									},
++-								},
++-							},
++-						},
++-					},
++-				},
++-			},
++-		},
+++											}),
+++										}),
+++									}),
+++								}),
+++							}),
+++						}),
+++					}),
+++				}),
+++			}),
+++		}),
++ 		wantCompressed:   "Interface_Subinterface_Ipv4_Address_Ip",
++ 		wantUncompressed: "OpenconfigInterfaces_Interfaces_Interface_Subinterfaces_Subinterface_Ipv4_Addresses_Address_Config_Ip",
++ 	}}
++@@ -1122,18 +1123,18 @@
++ 			Dir: map[string]*yang.Entry{
++ 				"s1": {
++ 					Name:   "s1",
++-					Parent: &yang.Entry{Name: "module"},
+++					Parent: sonicfixture.Entry(&yang.Entry{Name: "module"}),
++ 					Kind:   yang.DirectoryEntry,
++ 					Dir: map[string]*yang.Entry{
++ 						"config": {
++ 							Name: "config",
++ 							Kind: yang.DirectoryEntry,
++-							Parent: &yang.Entry{
+++							Parent: sonicfixture.Entry(&yang.Entry{
++ 								Name: "s1",
++-								Parent: &yang.Entry{
+++								Parent: sonicfixture.Entry(&yang.Entry{
++ 									Name: "module",
++-								},
++-							},
+++								}),
+++							}),
++ 							Dir: map[string]*yang.Entry{
++ 								"l1": {Name: "l1", Type: &yang.YangType{Kind: yang.Ystring}},
++ 								"l2": {Name: "l2", Type: &yang.YangType{Kind: yang.Yint8}},
++@@ -1143,12 +1144,12 @@
++ 							Name:   "state",
++ 							Config: yang.TSFalse,
++ 							Kind:   yang.DirectoryEntry,
++-							Parent: &yang.Entry{
+++							Parent: sonicfixture.Entry(&yang.Entry{
++ 								Name: "s1",
++-								Parent: &yang.Entry{
+++								Parent: sonicfixture.Entry(&yang.Entry{
++ 									Name: "module",
++-								},
++-							},
+++								}),
+++							}),
++ 							Dir: map[string]*yang.Entry{
++ 								"l1": {Name: "l1", Type: &yang.YangType{Kind: yang.Yint8}}, // Deliberate type mismatch
++ 								"l2": {Name: "l2", Type: &yang.YangType{Kind: yang.Yint8}},
++@@ -1319,7 +1320,7 @@
++ 			Dir: map[string]*yang.Entry{
++ 				"s1": {
++ 					Name:   "s1",
++-					Parent: &yang.Entry{Name: "module"},
+++					Parent: sonicfixture.Entry(&yang.Entry{Name: "module"}),
++ 					Kind:   yang.DirectoryEntry,
++ 					Dir: map[string]*yang.Entry{
++ 						"read-only": {
++@@ -1379,17 +1380,17 @@
++ 					"s1": {
++ 						Name:   "s1",
++ 						Kind:   yang.DirectoryEntry,
++-						Parent: &yang.Entry{Name: "module"},
+++						Parent: sonicfixture.Entry(&yang.Entry{Name: "module"}),
++ 						Dir: map[string]*yang.Entry{
++ 							"config": {
++ 								Name: "config",
++ 								Kind: yang.DirectoryEntry,
++-								Parent: &yang.Entry{
+++								Parent: sonicfixture.Entry(&yang.Entry{
++ 									Name: "s1",
++-									Parent: &yang.Entry{
+++									Parent: sonicfixture.Entry(&yang.Entry{
++ 										Name: "module",
++-									},
++-								},
+++									}),
+++								}),
++ 								Dir: map[string]*yang.Entry{
++ 									"l1": {Name: "l1", Type: &yang.YangType{Kind: yang.Ystring}},
++ 									"l2": {Name: "l2", Type: &yang.YangType{Kind: yang.Yint8}},
++@@ -1399,12 +1400,12 @@
++ 								Name:   "state",
++ 								Kind:   yang.DirectoryEntry,
++ 								Config: yang.TSFalse,
++-								Parent: &yang.Entry{
+++								Parent: sonicfixture.Entry(&yang.Entry{
++ 									Name: "s1",
++-									Parent: &yang.Entry{
+++									Parent: sonicfixture.Entry(&yang.Entry{
++ 										Name: "module",
++-									},
++-								},
+++									}),
+++								}),
++ 								Dir: map[string]*yang.Entry{
++ 									"l1": {Name: "l1", Type: &yang.YangType{Kind: yang.Yint8}}, // Deliberate type mismatch
++ 									"l2": {Name: "l2", Type: &yang.YangType{Kind: yang.Yint8}},
++@@ -1414,41 +1415,41 @@
++ 							"outer-container": {
++ 								Name: "outer-container",
++ 								Kind: yang.DirectoryEntry,
++-								Parent: &yang.Entry{
+++								Parent: sonicfixture.Entry(&yang.Entry{
++ 									Name: "s1",
++-									Parent: &yang.Entry{
+++									Parent: sonicfixture.Entry(&yang.Entry{
++ 										Name: "module",
++-									},
++-								},
+++									}),
+++								}),
++ 								Dir: map[string]*yang.Entry{
++ 									"inner-container": {
++ 										Name: "inner-container",
++ 										Kind: yang.DirectoryEntry,
++-										Parent: &yang.Entry{
+++										Parent: sonicfixture.Entry(&yang.Entry{
++ 											Name: "outer-container",
++-											Parent: &yang.Entry{
+++											Parent: sonicfixture.Entry(&yang.Entry{
++ 												Name: "s1",
++-												Parent: &yang.Entry{
+++												Parent: sonicfixture.Entry(&yang.Entry{
++ 													Name: "module",
++-												},
++-											},
++-										},
+++												}),
+++											}),
+++										}),
++ 										Dir: map[string]*yang.Entry{
++ 											"config": {
++ 												Name: "config",
++ 												Kind: yang.DirectoryEntry,
++-												Parent: &yang.Entry{
+++												Parent: sonicfixture.Entry(&yang.Entry{
++ 													Name: "inner-container",
++-													Parent: &yang.Entry{
+++													Parent: sonicfixture.Entry(&yang.Entry{
++ 														Name: "outer-container",
++-														Parent: &yang.Entry{
+++														Parent: sonicfixture.Entry(&yang.Entry{
++ 															Name: "s1",
++-															Parent: &yang.Entry{
+++															Parent: sonicfixture.Entry(&yang.Entry{
++ 																Name: "module",
++-															},
++-														},
++-													},
++-												},
+++															}),
+++														}),
+++													}),
+++												}),
++ 												Dir: map[string]*yang.Entry{
++ 													"inner-leaf": {Name: "inner-leaf", Type: &yang.YangType{Kind: yang.Ystring}},
++ 												},
++@@ -1457,18 +1458,18 @@
++ 												Name:   "state",
++ 												Kind:   yang.DirectoryEntry,
++ 												Config: yang.TSFalse,
++-												Parent: &yang.Entry{
+++												Parent: sonicfixture.Entry(&yang.Entry{
++ 													Name: "inner-container",
++-													Parent: &yang.Entry{
+++													Parent: sonicfixture.Entry(&yang.Entry{
++ 														Name: "outer-container",
++-														Parent: &yang.Entry{
+++														Parent: sonicfixture.Entry(&yang.Entry{
++ 															Name: "s1",
++-															Parent: &yang.Entry{
+++															Parent: sonicfixture.Entry(&yang.Entry{
++ 																Name: "module",
++-															},
++-														},
++-													},
++-												},
+++															}),
+++														}),
+++													}),
+++												}),
++ 												Dir: map[string]*yang.Entry{
++ 													"inner-leaf":       {Name: "inner-leaf", Type: &yang.YangType{Kind: yang.Ystring}},
++ 													"inner-state-leaf": {Name: "inner-state-leaf", Type: &yang.YangType{Kind: yang.Yint8}},
++@@ -1713,17 +1714,17 @@
++ 					"top-container": {
++ 						Name:   "top-container",
++ 						Kind:   yang.DirectoryEntry,
++-						Parent: &yang.Entry{Name: "module"},
+++						Parent: sonicfixture.Entry(&yang.Entry{Name: "module"}),
++ 						Dir: map[string]*yang.Entry{
++ 							"config": {
++ 								Name: "config",
++ 								Kind: yang.DirectoryEntry,
++-								Parent: &yang.Entry{
+++								Parent: sonicfixture.Entry(&yang.Entry{
++ 									Name: "top-container",
++-									Parent: &yang.Entry{
+++									Parent: sonicfixture.Entry(&yang.Entry{
++ 										Name: "module",
++-									},
++-								},
+++									}),
+++								}),
++ 								Dir: map[string]*yang.Entry{
++ 									"choice-node": {
++ 										Name: "choice-node",
++@@ -1732,19 +1733,19 @@
++ 											"case-one": {
++ 												Name: "case-one",
++ 												Kind: yang.CaseEntry,
++-												Parent: &yang.Entry{
+++												Parent: sonicfixture.Entry(&yang.Entry{
++ 													Name: "choice-node",
++ 													Kind: yang.ChoiceEntry,
++-													Parent: &yang.Entry{
+++													Parent: sonicfixture.Entry(&yang.Entry{
++ 														Name: "config",
++-														Parent: &yang.Entry{
+++														Parent: sonicfixture.Entry(&yang.Entry{
++ 															Name: "top-container",
++-															Parent: &yang.Entry{
+++															Parent: sonicfixture.Entry(&yang.Entry{
++ 																Name: "module",
++-															},
++-														},
++-													},
++-												},
+++															}),
+++														}),
+++													}),
+++												}),
++ 												Dir: map[string]*yang.Entry{
++ 													"leaf-one": {Name: "leaf-one", Type: &yang.YangType{Kind: yang.Yint8}},
++ 												},
++@@ -1752,19 +1753,19 @@
++ 											"case-two": {
++ 												Name: "case-two",
++ 												Kind: yang.CaseEntry,
++-												Parent: &yang.Entry{
+++												Parent: sonicfixture.Entry(&yang.Entry{
++ 													Name: "choice-node",
++ 													Kind: yang.ChoiceEntry,
++-													Parent: &yang.Entry{
+++													Parent: sonicfixture.Entry(&yang.Entry{
++ 														Name: "config",
++-														Parent: &yang.Entry{
+++														Parent: sonicfixture.Entry(&yang.Entry{
++ 															Name: "top-container",
++-															Parent: &yang.Entry{
+++															Parent: sonicfixture.Entry(&yang.Entry{
++ 																Name: "module",
++-															},
++-														},
++-													},
++-												},
+++															}),
+++														}),
+++													}),
+++												}),
++ 												Dir: map[string]*yang.Entry{
++ 													"leaf-two": {Name: "leaf-two", Type: &yang.YangType{Kind: yang.Yint8}},
++ 												},
++@@ -1776,12 +1777,12 @@
++ 							"state": {
++ 								Name: "state",
++ 								Kind: yang.DirectoryEntry,
++-								Parent: &yang.Entry{
+++								Parent: sonicfixture.Entry(&yang.Entry{
++ 									Name: "top-container",
++-									Parent: &yang.Entry{
+++									Parent: sonicfixture.Entry(&yang.Entry{
++ 										Name: "module",
++-									},
++-								},
+++									}),
+++								}),
++ 								Dir: map[string]*yang.Entry{
++ 									"choice-node": {
++ 										Name: "choice-node",
++@@ -1790,37 +1791,37 @@
++ 											"case-one": {
++ 												Name: "case-one",
++ 												Kind: yang.CaseEntry,
++-												Parent: &yang.Entry{
+++												Parent: sonicfixture.Entry(&yang.Entry{
++ 													Name: "choice-node",
++ 													Kind: yang.ChoiceEntry,
++-													Parent: &yang.Entry{
+++													Parent: sonicfixture.Entry(&yang.Entry{
++ 														Name: "state",
++-														Parent: &yang.Entry{
+++														Parent: sonicfixture.Entry(&yang.Entry{
++ 															Name: "top-container",
++-															Parent: &yang.Entry{
+++															Parent: sonicfixture.Entry(&yang.Entry{
++ 																Name: "module",
++-															},
++-														},
++-													},
++-												},
+++															}),
+++														}),
+++													}),
+++												}),
++ 												Dir: map[string]*yang.Entry{"leaf-one": {Name: "leaf-one"}},
++ 											},
++ 											"case-two": {
++ 												Name: "case-two",
++ 												Kind: yang.CaseEntry,
++-												Parent: &yang.Entry{
+++												Parent: sonicfixture.Entry(&yang.Entry{
++ 													Name: "choice-node",
++ 													Kind: yang.ChoiceEntry,
++-													Parent: &yang.Entry{
+++													Parent: sonicfixture.Entry(&yang.Entry{
++ 														Name: "state",
++-														Parent: &yang.Entry{
+++														Parent: sonicfixture.Entry(&yang.Entry{
++ 															Name: "top-container",
++-															Parent: &yang.Entry{
+++															Parent: sonicfixture.Entry(&yang.Entry{
++ 																Name: "module",
++-															},
++-														},
++-													},
++-												},
+++															}),
+++														}),
+++													}),
+++												}),
++ 												Dir: map[string]*yang.Entry{"leaf-two": {Name: "leaf-two"}},
++ 											},
++ 										},
++@@ -1886,7 +1887,7 @@
++ 			Dir: map[string]*yang.Entry{
++ 				"list": {
++ 					Name:     "list",
++-					Parent:   &yang.Entry{Name: "container", Parent: &yang.Entry{Name: "module"}},
+++					Parent:   sonicfixture.Entry(&yang.Entry{Name: "container", Parent: sonicfixture.Entry(&yang.Entry{Name: "module"})}),
++ 					Key:      "key",
++ 					Kind:     yang.DirectoryEntry,
++ 					ListAttr: &yang.ListAttr{},
++@@ -1894,66 +1895,66 @@
++ 						"key": {
++ 							Name: "key",
++ 							Type: &yang.YangType{Kind: yang.Yleafref, Path: "../config/key"},
++-							Parent: &yang.Entry{
+++							Parent: sonicfixture.Entry(&yang.Entry{
++ 								Name: "list",
++-								Parent: &yang.Entry{
+++								Parent: sonicfixture.Entry(&yang.Entry{
++ 									Name: "container",
++-									Parent: &yang.Entry{
+++									Parent: sonicfixture.Entry(&yang.Entry{
++ 										Name: "module",
++-									},
++-								},
++-							},
+++									}),
+++								}),
+++							}),
++ 						},
++ 						"config": {
++ 							Name:   "config",
++ 							Kind:   yang.DirectoryEntry,
++-							Parent: &yang.Entry{Name: "list", Parent: &yang.Entry{Name: "container", Parent: &yang.Entry{Name: "module"}}},
+++							Parent: sonicfixture.Entry(&yang.Entry{Name: "list", Parent: sonicfixture.Entry(&yang.Entry{Name: "container", Parent: sonicfixture.Entry(&yang.Entry{Name: "module"})})}),
++ 							Dir: map[string]*yang.Entry{
++ 								"key": {
++ 									Name: "key",
++ 									Type: &yang.YangType{Kind: yang.Ystring},
++-									Parent: &yang.Entry{
+++									Parent: sonicfixture.Entry(&yang.Entry{
++ 										Name: "config",
++-										Parent: &yang.Entry{
+++										Parent: sonicfixture.Entry(&yang.Entry{
++ 											Name: "list",
++-											Parent: &yang.Entry{
+++											Parent: sonicfixture.Entry(&yang.Entry{
++ 												Name: "container",
++-												Parent: &yang.Entry{
+++												Parent: sonicfixture.Entry(&yang.Entry{
++ 													Name: "module",
++-												},
++-											},
++-										},
++-									},
+++												}),
+++											}),
+++										}),
+++									}),
++ 								},
++ 							},
++ 						},
++ 						"state": {
++ 							Name:   "state",
++ 							Kind:   yang.DirectoryEntry,
++-							Parent: &yang.Entry{Name: "list", Parent: &yang.Entry{Name: "container", Parent: &yang.Entry{Name: "module"}}},
+++							Parent: sonicfixture.Entry(&yang.Entry{Name: "list", Parent: sonicfixture.Entry(&yang.Entry{Name: "container", Parent: sonicfixture.Entry(&yang.Entry{Name: "module"})})}),
++ 							Dir: map[string]*yang.Entry{
++ 								"key": {
++ 									Name: "key",
++ 									Type: &yang.YangType{Kind: yang.Ystring},
++-									Parent: &yang.Entry{
+++									Parent: sonicfixture.Entry(&yang.Entry{
++ 										Name: "config",
++-										Parent: &yang.Entry{
+++										Parent: sonicfixture.Entry(&yang.Entry{
++ 											Name: "list",
++-											Parent: &yang.Entry{
+++											Parent: sonicfixture.Entry(&yang.Entry{
++ 												Name: "container",
++-												Parent: &yang.Entry{
+++												Parent: sonicfixture.Entry(&yang.Entry{
++ 													Name: "module",
++-												},
++-											},
++-										},
++-									},
+++												}),
+++											}),
+++										}),
+++									}),
++ 								},
++ 							},
++ 						},
++ 					},
++ 				},
++ 			},
++-			Parent: &yang.Entry{Name: "module"},
+++			Parent: sonicfixture.Entry(&yang.Entry{Name: "module"}),
++ 		}},
++ 		wantGoCompress: map[string]*Directory{
++ 			"/module/container/list": {
++@@ -1995,65 +1996,65 @@
++ 					"container": {
++ 						Name:   "container",
++ 						Kind:   yang.DirectoryEntry,
++-						Parent: &yang.Entry{Name: "module"},
+++						Parent: sonicfixture.Entry(&yang.Entry{Name: "module"}),
++ 						Dir: map[string]*yang.Entry{
++ 							"choice-node": {
++ 								Name:   "choice-node",
++ 								Kind:   yang.ChoiceEntry,
++-								Parent: &yang.Entry{Name: "container"},
+++								Parent: sonicfixture.Entry(&yang.Entry{Name: "container"}),
++ 								Dir: map[string]*yang.Entry{
++ 									"case-one": {
++ 										Name: "case-one",
++ 										Kind: yang.CaseEntry,
++-										Parent: &yang.Entry{
+++										Parent: sonicfixture.Entry(&yang.Entry{
++ 											Name: "choice-node",
++ 											Kind: yang.ChoiceEntry,
++-											Parent: &yang.Entry{
+++											Parent: sonicfixture.Entry(&yang.Entry{
++ 												Name: "container",
++-												Parent: &yang.Entry{
+++												Parent: sonicfixture.Entry(&yang.Entry{
++ 													Name: "module",
++-												},
++-											},
++-										},
+++												}),
+++											}),
+++										}),
++ 										Dir: map[string]*yang.Entry{
++ 											"second-container": {
++ 												Name: "second-container",
++ 												Kind: yang.DirectoryEntry,
++-												Parent: &yang.Entry{
+++												Parent: sonicfixture.Entry(&yang.Entry{
++ 													Name: "case-one",
++ 													Kind: yang.CaseEntry,
++-													Parent: &yang.Entry{
+++													Parent: sonicfixture.Entry(&yang.Entry{
++ 														Name: "choice-node",
++ 														Kind: yang.ChoiceEntry,
++-														Parent: &yang.Entry{
+++														Parent: sonicfixture.Entry(&yang.Entry{
++ 															Name: "container",
++-															Parent: &yang.Entry{
+++															Parent: sonicfixture.Entry(&yang.Entry{
++ 																Name: "module",
++-															},
++-														},
++-													},
++-												},
+++															}),
+++														}),
+++													}),
+++												}),
++ 												Dir: map[string]*yang.Entry{
++ 													"config": {
++ 														Name: "config",
++ 														Kind: yang.DirectoryEntry,
++-														Parent: &yang.Entry{
+++														Parent: sonicfixture.Entry(&yang.Entry{
++ 															Name: "second-container",
++-															Parent: &yang.Entry{
+++															Parent: sonicfixture.Entry(&yang.Entry{
++ 																Name: "case-one",
++ 																Kind: yang.CaseEntry,
++-																Parent: &yang.Entry{
+++																Parent: sonicfixture.Entry(&yang.Entry{
++ 																	Name: "choice-node",
++ 																	Kind: yang.ChoiceEntry,
++-																	Parent: &yang.Entry{
+++																	Parent: sonicfixture.Entry(&yang.Entry{
++ 																		Name: "container",
++-																		Parent: &yang.Entry{
+++																		Parent: sonicfixture.Entry(&yang.Entry{
++ 																			Name: "module",
++-																		},
++-																	},
++-																},
++-															},
++-														},
+++																		}),
+++																	}),
+++																}),
+++															}),
+++														}),
++ 														Dir: map[string]*yang.Entry{"leaf-one": {Name: "leaf-one"}},
++ 													},
++ 												},
++@@ -2063,55 +2064,55 @@
++ 									"case-two": {
++ 										Name: "case-two",
++ 										Kind: yang.CaseEntry,
++-										Parent: &yang.Entry{
+++										Parent: sonicfixture.Entry(&yang.Entry{
++ 											Name: "choice-node",
++ 											Kind: yang.ChoiceEntry,
++-											Parent: &yang.Entry{
+++											Parent: sonicfixture.Entry(&yang.Entry{
++ 												Name: "container",
++-												Parent: &yang.Entry{
+++												Parent: sonicfixture.Entry(&yang.Entry{
++ 													Name: "module",
++-												},
++-											},
++-										},
+++												}),
+++											}),
+++										}),
++ 										Dir: map[string]*yang.Entry{
++ 											"third-container": {
++ 												Name: "third-container",
++ 												Kind: yang.DirectoryEntry,
++-												Parent: &yang.Entry{
+++												Parent: sonicfixture.Entry(&yang.Entry{
++ 													Name: "case-two",
++ 													Kind: yang.CaseEntry,
++-													Parent: &yang.Entry{
+++													Parent: sonicfixture.Entry(&yang.Entry{
++ 														Name: "choice-node",
++ 														Kind: yang.ChoiceEntry,
++-														Parent: &yang.Entry{
+++														Parent: sonicfixture.Entry(&yang.Entry{
++ 															Name: "container",
++-															Parent: &yang.Entry{
+++															Parent: sonicfixture.Entry(&yang.Entry{
++ 																Name: "module",
++-															},
++-														},
++-													},
++-												},
+++															}),
+++														}),
+++													}),
+++												}),
++ 												Dir: map[string]*yang.Entry{
++ 													"config": {
++ 														Name: "config",
++ 														Kind: yang.DirectoryEntry,
++-														Parent: &yang.Entry{
+++														Parent: sonicfixture.Entry(&yang.Entry{
++ 															Name: "third-container",
++-															Parent: &yang.Entry{
+++															Parent: sonicfixture.Entry(&yang.Entry{
++ 																Name: "case-two",
++ 																Kind: yang.CaseEntry,
++-																Parent: &yang.Entry{
+++																Parent: sonicfixture.Entry(&yang.Entry{
++ 																	Name: "choice-node",
++ 																	Kind: yang.ChoiceEntry,
++-																	Parent: &yang.Entry{
+++																	Parent: sonicfixture.Entry(&yang.Entry{
++ 																		Name: "container",
++-																		Parent: &yang.Entry{
+++																		Parent: sonicfixture.Entry(&yang.Entry{
++ 																			Name: "module",
++-																		},
++-																	},
++-																},
++-															},
++-														},
+++																		}),
+++																	}),
+++																}),
+++															}),
+++														}),
++ 														Dir: map[string]*yang.Entry{"leaf-two": {Name: "leaf-two"}},
++ 													},
++ 												},
++@@ -2367,20 +2368,20 @@
++ 	}{{
++ 		name:   "simple test with leafref with absolute leafref",
++ 		inPath: "/parent/child/a",
++-		inContextEntry: &yang.Entry{
+++		inContextEntry: sonicfixture.Entry(&yang.Entry{
++ 			Name: "b",
++ 			Type: &yang.YangType{
++ 				Kind: yang.Yleafref,
++ 				Path: "/parent/child/a",
++ 			},
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "child",
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name:   "parent",
++-					Parent: &yang.Entry{Name: "module"},
++-				},
++-			},
++-		},
+++					Parent: sonicfixture.Entry(&yang.Entry{Name: "module"}),
+++				}),
+++			}),
+++		}),
++ 		inEntries: []*yang.Entry{
++ 			{
++ 				Name: "parent",
++@@ -2393,13 +2394,13 @@
++ 								Type: &yang.YangType{
++ 									Kind: yang.Ystring,
++ 								},
++-								Parent: &yang.Entry{
+++								Parent: sonicfixture.Entry(&yang.Entry{
++ 									Name: "child",
++-									Parent: &yang.Entry{
+++									Parent: sonicfixture.Entry(&yang.Entry{
++ 										Name:   "parent",
++-										Parent: &yang.Entry{Name: "module"},
++-									},
++-								},
+++										Parent: sonicfixture.Entry(&yang.Entry{Name: "module"}),
+++									}),
+++								}),
++ 							},
++ 							"b": {
++ 								Name: "b",
++@@ -2407,42 +2408,47 @@
++ 									Kind: yang.Yleafref,
++ 									Path: "/parent/child/a",
++ 								},
++-								Parent: &yang.Entry{
+++								Parent: sonicfixture.Entry(&yang.Entry{
++ 									Name: "child",
++-									Parent: &yang.Entry{
+++									Parent: sonicfixture.Entry(&yang.Entry{
++ 										Name:   "parent",
++-										Parent: &yang.Entry{Name: "module"},
++-									},
++-								},
++-							},
++-						},
++-						Parent: &yang.Entry{
+++										Parent: sonicfixture.Entry(&yang.Entry{Name: "module"}),
+++									}),
+++								}),
+++							},
+++						},
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name:   "parent",
++-							Parent: &yang.Entry{Name: "module"},
++-						},
++-					},
++-				},
++-				Parent: &yang.Entry{Name: "module"},
++-			},
++-		},
++-		want: &yang.Entry{
+++							Parent: sonicfixture.Entry(&yang.Entry{Name: "module"}),
+++						}),
+++					},
+++				},
+++				Parent: sonicfixture.Entry(&yang.Entry{Name: "module"}),
+++			},
+++		},
+++		want: sonicfixture.Entry(&yang.Entry{
++ 			Name: "a",
++ 			Type: &yang.YangType{
++ 				Kind: yang.Ystring,
++ 			},
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "child",
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name:   "parent",
++-					Parent: &yang.Entry{Name: "module"},
++-				},
++-			},
++-		},
+++					Parent: sonicfixture.Entry(&yang.Entry{Name: "module"}),
+++				}),
+++			}),
+++		}),
++ 	}}
++ 
++ 	for _, tt := range tests {
++ 		// Since we are outside of the build of a module, need to initialise
++ 		// the schematree.
+++		for _, entry := range tt.inEntries {
+++			sonicfixture.Entry(entry)
+++		}
+++		sonicfixture.Entry(tt.inContextEntry)
+++		sonicfixture.Entry(tt.want)
++ 		st, err := buildSchemaTree(tt.inEntries)
++ 		if err != nil {
++ 			t.Errorf("%s: buildSchemaTree(%v): got unexpected error: %v", tt.name, tt.inEntries, err)
++diff --git a/ygen/goelements_test.go b/ygen/goelements_test.go
++--- a/ygen/goelements_test.go
+++++ b/ygen/goelements_test.go
++@@ -15,6 +15,7 @@
++ package ygen
++ 
++ import (
+++	"github.com/openconfig/ygot/internal/sonicfixture"
++ 	"testing"
++ 
++ 	"github.com/google/go-cmp/cmp"
++@@ -117,7 +118,7 @@
++ 				},
++ 			}},
++ 		},
++-		inCtxEntry: &yang.Entry{
+++		inCtxEntry: sonicfixture.Entry(&yang.Entry{
++ 			Name: "context-leaf",
++ 			Type: &yang.YangType{
++ 				Kind: yang.Yunion,
++@@ -139,7 +140,7 @@
++ 				Name:   "context-leaf",
++ 				Parent: &yang.Module{Name: "basemod"},
++ 			},
++-		},
+++		}),
++ 		want: []string{"E_Basemod_Id", "E_Basemod2_Id2"},
++ 		wantMtypes: map[int]*MappedType{
++ 			0: {"E_Basemod_Id", nil, true, "0", nil},
++@@ -162,7 +163,7 @@
++ 				},
++ 			}},
++ 		},
++-		inCtxEntry: &yang.Entry{
+++		inCtxEntry: sonicfixture.Entry(&yang.Entry{
++ 			Name: "union-leaf",
++ 			Kind: yang.LeafEntry,
++ 			Type: &yang.YangType{
++@@ -180,13 +181,13 @@
++ 					},
++ 				}},
++ 			},
++-			Parent: &yang.Entry{Name: "base-module"},
+++			Parent: sonicfixture.Entry(&yang.Entry{Name: "base-module"}),
++ 			Node: &yang.Leaf{
++ 				Parent: &yang.Module{
++ 					Name: "base-module",
++ 				},
++ 			},
++-		},
+++		}),
++ 		want: []string{"E_BaseModule_BaseIdentity"},
++ 		wantMtypes: map[int]*MappedType{
++ 			0: {
++@@ -324,15 +325,15 @@
++ 				{Kind: yang.Yint8, Name: "int8"},
++ 			},
++ 		},
++-		ctx: &yang.Entry{
+++		ctx: sonicfixture.Entry(&yang.Entry{
++ 			Name: "leaf",
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "container",
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "module",
++-				},
++-			},
++-		},
+++				}),
+++			}),
+++		}),
++ 		want: &MappedType{
++ 			NativeType: "Module_Container_Leaf_Union",
++ 			UnionTypes: map[string]int{"string": 0, "int8": 1},
++@@ -355,7 +356,7 @@
++ 	}, {
++ 		name: "derived identityref",
++ 		in:   &yang.YangType{Kind: yang.Yidentityref, Name: "derived-identityref"},
++-		ctx: &yang.Entry{
+++		ctx: sonicfixture.Entry(&yang.Entry{
++ 			Type: &yang.YangType{
++ 				Name: "derived-identityref",
++ 				IdentityBase: &yang.Identity{
++@@ -366,7 +367,7 @@
++ 			Node: &yang.Leaf{
++ 				Parent: &yang.Module{Name: "base-module"},
++ 			},
++-		},
+++		}),
++ 		want: &MappedType{
++ 			NativeType:        "E_BaseModule_DerivedIdentityref",
++ 			IsEnumeratedValue: true,
++@@ -375,7 +376,7 @@
++ 	}, {
++ 		name: "derived identityref",
++ 		in:   &yang.YangType{Kind: yang.Yidentityref, Name: "derived-identityref", Default: "AARDVARK"},
++-		ctx: &yang.Entry{
+++		ctx: sonicfixture.Entry(&yang.Entry{
++ 			Type: &yang.YangType{
++ 				Name: "derived-identityref",
++ 				IdentityBase: &yang.Identity{
++@@ -386,7 +387,7 @@
++ 			Node: &yang.Leaf{
++ 				Parent: &yang.Module{Name: "base-module"},
++ 			},
++-		},
+++		}),
++ 		want: &MappedType{
++ 			NativeType:        "E_BaseModule_DerivedIdentityref",
++ 			IsEnumeratedValue: true,
++@@ -396,17 +397,17 @@
++ 	}, {
++ 		name: "enumeration",
++ 		in:   &yang.YangType{Kind: yang.Yenum, Name: "enumeration"},
++-		ctx: &yang.Entry{
+++		ctx: sonicfixture.Entry(&yang.Entry{
++ 			Name: "enumeration-leaf",
++ 			Type: &yang.YangType{
++ 				Name: "enumeration",
++ 				Enum: &yang.EnumType{},
++ 			},
++-			Parent: &yang.Entry{Name: "base-module"},
+++			Parent: sonicfixture.Entry(&yang.Entry{Name: "base-module"}),
++ 			Node: &yang.Enum{
++ 				Parent: &yang.Module{Name: "base-module"},
++ 			},
++-		},
+++		}),
++ 		want: &MappedType{
++ 			NativeType:        "E_BaseModule_EnumerationLeaf",
++ 			IsEnumeratedValue: true,
++@@ -415,17 +416,17 @@
++ 	}, {
++ 		name: "enumeration with default",
++ 		in:   &yang.YangType{Kind: yang.Yenum, Name: "enumeration", Default: "prefix:BLUE"},
++-		ctx: &yang.Entry{
+++		ctx: sonicfixture.Entry(&yang.Entry{
++ 			Name: "enumeration-leaf",
++ 			Type: &yang.YangType{
++ 				Name: "enumeration",
++ 				Enum: &yang.EnumType{},
++ 			},
++-			Parent: &yang.Entry{Name: "base-module"},
+++			Parent: sonicfixture.Entry(&yang.Entry{Name: "base-module"}),
++ 			Node: &yang.Enum{
++ 				Parent: &yang.Module{Name: "base-module"},
++ 			},
++-		},
+++		}),
++ 		want: &MappedType{
++ 			NativeType:        "E_BaseModule_EnumerationLeaf",
++ 			IsEnumeratedValue: true,
++@@ -441,7 +442,7 @@
++ 				{Kind: yang.Yenum, Name: "enumeration", Default: "prefix:BLUE"},
++ 			},
++ 		},
++-		ctx: &yang.Entry{
+++		ctx: sonicfixture.Entry(&yang.Entry{
++ 			Name: "union-leaf",
++ 			Kind: yang.LeafEntry,
++ 			Type: &yang.YangType{
++@@ -451,11 +452,11 @@
++ 					{Kind: yang.Yenum, Name: "enumeration", Default: "prefix:BLUE"},
++ 				},
++ 			},
++-			Parent: &yang.Entry{Name: "base-module"},
+++			Parent: sonicfixture.Entry(&yang.Entry{Name: "base-module"}),
++ 			Node: &yang.Enum{
++ 				Parent: &yang.Module{Name: "base-module"},
++ 			},
++-		},
+++		}),
++ 		want: &MappedType{
++ 			NativeType:        "E_BaseModule_UnionLeaf",
++ 			UnionTypes:        map[string]int{"E_BaseModule_UnionLeaf": 0},
++@@ -466,7 +467,7 @@
++ 	}, {
++ 		name: "typedef enumeration",
++ 		in:   &yang.YangType{Kind: yang.Yenum, Name: "derived-enumeration"},
++-		ctx: &yang.Entry{
+++		ctx: sonicfixture.Entry(&yang.Entry{
++ 			Name: "enumeration-leaf",
++ 			Type: &yang.YangType{
++ 				Name: "derived-enumeration",
++@@ -477,7 +478,7 @@
++ 					Name: "base-module",
++ 				},
++ 			},
++-		},
+++		}),
++ 		want: &MappedType{
++ 			NativeType:        "E_BaseModule_DerivedEnumeration",
++ 			IsEnumeratedValue: true,
++@@ -492,7 +493,7 @@
++ 				{Kind: yang.Yenum, Name: "enumeration"},
++ 			},
++ 		},
++-		ctx: &yang.Entry{
+++		ctx: sonicfixture.Entry(&yang.Entry{
++ 			Name: "union-leaf",
++ 			Kind: yang.LeafEntry,
++ 			Type: &yang.YangType{
++@@ -502,13 +503,13 @@
++ 					{Kind: yang.Yenum, Name: "enumeration"},
++ 				},
++ 			},
++-			Parent: &yang.Entry{Name: "base-module"},
+++			Parent: sonicfixture.Entry(&yang.Entry{Name: "base-module"}),
++ 			Node: &yang.Enum{
++ 				Parent: &yang.Module{
++ 					Name: "base-module",
++ 				},
++ 			},
++-		},
+++		}),
++ 		want: &MappedType{
++ 			NativeType:        "E_BaseModule_UnionLeaf",
++ 			UnionTypes:        map[string]int{"E_BaseModule_UnionLeaf": 0},
++@@ -518,7 +519,7 @@
++ 	}, {
++ 		name: "typedef enumeration with default",
++ 		in:   &yang.YangType{Kind: yang.Yenum, Name: "derived-enumeration", Default: "FISH"},
++-		ctx: &yang.Entry{
+++		ctx: sonicfixture.Entry(&yang.Entry{
++ 			Name: "enumeration-leaf",
++ 			Type: &yang.YangType{
++ 				Name: "derived-enumeration",
++@@ -529,7 +530,7 @@
++ 					Name: "base-module",
++ 				},
++ 			},
++-		},
+++		}),
++ 		want: &MappedType{
++ 			NativeType:        "E_BaseModule_DerivedEnumeration",
++ 			IsEnumeratedValue: true,
++@@ -539,7 +540,7 @@
++ 	}, {
++ 		name: "identityref",
++ 		in:   &yang.YangType{Kind: yang.Yidentityref, Name: "identityref"},
++-		ctx: &yang.Entry{
+++		ctx: sonicfixture.Entry(&yang.Entry{
++ 			Name: "identityref",
++ 			Type: &yang.YangType{
++ 				Name: "identityref",
++@@ -555,7 +556,7 @@
++ 					Name: "test-module",
++ 				},
++ 			},
++-		},
+++		}),
++ 		want: &MappedType{
++ 			NativeType:        "E_TestModule_BaseIdentity",
++ 			IsEnumeratedValue: true,
++@@ -564,7 +565,7 @@
++ 	}, {
++ 		name: "identityref with default",
++ 		in:   &yang.YangType{Kind: yang.Yidentityref, Name: "identityref", Default: "CHIPS"},
++-		ctx: &yang.Entry{
+++		ctx: sonicfixture.Entry(&yang.Entry{
++ 			Name: "identityref",
++ 			Type: &yang.YangType{
++ 				Name: "identityref",
++@@ -580,7 +581,7 @@
++ 					Name: "test-module",
++ 				},
++ 			},
++-		},
+++		}),
++ 		want: &MappedType{
++ 			NativeType:        "E_TestModule_BaseIdentity",
++ 			IsEnumeratedValue: true,
++@@ -604,7 +605,7 @@
++ 				},
++ 			}},
++ 		},
++-		ctx: &yang.Entry{
+++		ctx: sonicfixture.Entry(&yang.Entry{
++ 			Name: "union-leaf",
++ 			Kind: yang.LeafEntry,
++ 			Type: &yang.YangType{
++@@ -622,13 +623,13 @@
++ 					},
++ 				}},
++ 			},
++-			Parent: &yang.Entry{Name: "base-module"},
+++			Parent: sonicfixture.Entry(&yang.Entry{Name: "base-module"}),
++ 			Node: &yang.Leaf{
++ 				Parent: &yang.Module{
++ 					Name: "base-module",
++ 				},
++ 			},
++-		},
+++		}),
++ 		want: &MappedType{
++ 			NativeType:        "E_BaseModule_BaseIdentity",
++ 			UnionTypes:        map[string]int{"E_BaseModule_BaseIdentity": 0},
++@@ -639,18 +640,18 @@
++ 	}, {
++ 		name: "enumeration with compress paths",
++ 		in:   &yang.YangType{Kind: yang.Yenum, Name: "enumeration"},
++-		ctx: &yang.Entry{
+++		ctx: sonicfixture.Entry(&yang.Entry{
++ 			Name: "eleaf",
++ 			Type: &yang.YangType{
++ 				Name: "enumeration",
++ 				Enum: &yang.EnumType{},
++ 			},
++-			Parent: &yang.Entry{
++-				Name: "config", Parent: &yang.Entry{Name: "container"}},
+++			Parent: sonicfixture.Entry(&yang.Entry{
+++				Name: "config", Parent: sonicfixture.Entry(&yang.Entry{Name: "container"})}),
++ 			Node: &yang.Enum{
++ 				Parent: &yang.Module{Name: "base-module"},
++ 			},
++-		},
+++		}),
++ 		compressPath: true,
++ 		want: &MappedType{
++ 			NativeType:        "E_BaseModule_Container_Eleaf",
++@@ -660,29 +661,29 @@
++ 	}, {
++ 		name: "enumeration in submodule",
++ 		in:   &yang.YangType{Kind: yang.Yenum, Name: "enumeration"},
++-		ctx: &yang.Entry{
+++		ctx: sonicfixture.Entry(&yang.Entry{
++ 			Name:   "eleaf",
++ 			Type:   &yang.YangType{Name: "enumeration", Enum: &yang.EnumType{}},
++-			Parent: &yang.Entry{Name: "config", Parent: &yang.Entry{Name: "container"}},
+++			Parent: sonicfixture.Entry(&yang.Entry{Name: "config", Parent: sonicfixture.Entry(&yang.Entry{Name: "container"})}),
++ 			Node: &yang.Enum{
++ 				Parent: &yang.Module{Name: "submodule", BelongsTo: &yang.BelongsTo{Name: "base-mod"}},
++ 			},
++-		},
+++		}),
++ 		compressPath: true,
++ 		want:         &MappedType{NativeType: "E_BaseMod_Container_Eleaf", IsEnumeratedValue: true, ZeroValue: "0"},
++ 	}, {
++ 		name: "leafref",
++ 		in:   &yang.YangType{Kind: yang.Yleafref, Name: "leafref", Path: "../c"},
++-		ctx: &yang.Entry{
+++		ctx: sonicfixture.Entry(&yang.Entry{
++ 			Name: "d",
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "b",
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name:   "a",
++-					Parent: &yang.Entry{Name: "module"},
++-				},
++-			},
++-		},
+++					Parent: sonicfixture.Entry(&yang.Entry{Name: "module"}),
+++				}),
+++			}),
+++		}),
++ 		inEntries: []*yang.Entry{
++ 			{
++ 				Name: "a",
++@@ -693,22 +694,22 @@
++ 							"c": {
++ 								Name: "c",
++ 								Type: &yang.YangType{Kind: yang.Yuint32},
++-								Parent: &yang.Entry{
+++								Parent: sonicfixture.Entry(&yang.Entry{
++ 									Name: "b",
++-									Parent: &yang.Entry{
+++									Parent: sonicfixture.Entry(&yang.Entry{
++ 										Name:   "a",
++-										Parent: &yang.Entry{Name: "module"},
++-									},
++-								},
+++										Parent: sonicfixture.Entry(&yang.Entry{Name: "module"}),
+++									}),
+++								}),
++ 							},
++ 						},
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name:   "a",
++-							Parent: &yang.Entry{Name: "module"},
++-						},
++-					},
++-				},
++-				Parent: &yang.Entry{Name: "module"},
+++							Parent: sonicfixture.Entry(&yang.Entry{Name: "module"}),
+++						}),
+++					},
+++				},
+++				Parent: sonicfixture.Entry(&yang.Entry{Name: "module"}),
++ 			},
++ 		},
++ 		want: &MappedType{NativeType: "uint32", ZeroValue: "0"},
++@@ -762,7 +763,7 @@
++ 		wantErr                 bool          // wantErr is a boolean indicating whether errors are expected from buildListKeys
++ 	}{{
++ 		name: "non-list",
++-		in: &yang.Entry{
+++		in: sonicfixture.Entry(&yang.Entry{
++ 			Name: "not-list",
++ 			Dir: map[string]*yang.Entry{
++ 				"keyleaf": {
++@@ -770,33 +771,33 @@
++ 					Type: &yang.YangType{Kind: yang.Ystring},
++ 				},
++ 			},
++-		},
+++		}),
++ 		wantErr: true,
++ 	}, {
++ 		name: "no key in config true list",
++-		in: &yang.Entry{
+++		in: sonicfixture.Entry(&yang.Entry{
++ 			Name:     "list",
++ 			ListAttr: &yang.ListAttr{},
++ 			Dir: map[string]*yang.Entry{
++ 				"keyleaf": {Type: &yang.YangType{Kind: yang.Ystring}},
++ 			},
++ 			Config: yang.TSTrue,
++-		},
+++		}),
++ 		wantErr: true,
++ 	}, {
++ 		name: "invalid key in config true list",
++-		in: &yang.Entry{
+++		in: sonicfixture.Entry(&yang.Entry{
++ 			Name:     "list",
++ 			ListAttr: &yang.ListAttr{},
++ 			Dir: map[string]*yang.Entry{
++ 				"keyleaf": {Type: &yang.YangType{Kind: yang.Yidentityref}},
++ 			},
++ 			Key: "keyleaf",
++-		},
+++		}),
++ 		wantErr: true,
++ 	}, {
++ 		name: "basic list key test",
++-		in: &yang.Entry{
+++		in: sonicfixture.Entry(&yang.Entry{
++ 			Name:     "list",
++ 			ListAttr: &yang.ListAttr{},
++ 			Key:      "keyleaf",
++@@ -806,7 +807,7 @@
++ 					Type: &yang.YangType{Kind: yang.Ystring},
++ 				},
++ 			},
++-		},
+++		}),
++ 		want: YangListAttr{
++ 			Keys: map[string]*MappedType{
++ 				"keyleaf": {NativeType: "string"},
++@@ -820,7 +821,7 @@
++ 		},
++ 	}, {
++ 		name: "basic list key test with nil resolve key name function",
++-		in: &yang.Entry{
+++		in: sonicfixture.Entry(&yang.Entry{
++ 			Name:     "list",
++ 			ListAttr: &yang.ListAttr{},
++ 			Key:      "keyleaf",
++@@ -830,7 +831,7 @@
++ 					Type: &yang.YangType{Kind: yang.Ystring},
++ 				},
++ 			},
++-		},
+++		}),
++ 		inResolveKeyNameFuncNil: true,
++ 		want: YangListAttr{
++ 			KeyElems: []*yang.Entry{
++@@ -842,7 +843,7 @@
++ 		},
++ 	}, {
++ 		name: "multiple list keys",
++-		in: &yang.Entry{
+++		in: sonicfixture.Entry(&yang.Entry{
++ 			Name:     "list",
++ 			ListAttr: &yang.ListAttr{},
++ 			Key:      "k1 k2",
++@@ -850,7 +851,7 @@
++ 				"k1": {Name: "k1", Type: &yang.YangType{Kind: yang.Ystring}},
++ 				"k2": {Name: "k2", Type: &yang.YangType{Kind: yang.Ystring}},
++ 			},
++-		},
+++		}),
++ 		want: YangListAttr{
++ 			Keys: map[string]*MappedType{
++ 				"k1": {NativeType: "string"},
++@@ -863,7 +864,7 @@
++ 		},
++ 	}, {
++ 		name: "multiple list keys - double spacing",
++-		in: &yang.Entry{
+++		in: sonicfixture.Entry(&yang.Entry{
++ 			Name:     "list",
++ 			ListAttr: &yang.ListAttr{},
++ 			Key:      "k1  k2",
++@@ -871,7 +872,7 @@
++ 				"k1": {Name: "k1", Type: &yang.YangType{Kind: yang.Ystring}},
++ 				"k2": {Name: "k2", Type: &yang.YangType{Kind: yang.Ystring}},
++ 			},
++-		},
+++		}),
++ 		want: YangListAttr{
++ 			Keys: map[string]*MappedType{
++ 				"k1": {NativeType: "string"},
++@@ -884,7 +885,7 @@
++ 		},
++ 	}, {
++ 		name: "multiple list keys - newlines",
++-		in: &yang.Entry{
+++		in: sonicfixture.Entry(&yang.Entry{
++ 			Name:     "list",
++ 			ListAttr: &yang.ListAttr{},
++ 			Key:      "k1  \nk2",
++@@ -892,7 +893,7 @@
++ 				"k1": {Name: "k1", Type: &yang.YangType{Kind: yang.Ystring}},
++ 				"k2": {Name: "k2", Type: &yang.YangType{Kind: yang.Ystring}},
++ 			},
++-		},
+++		}),
++ 		want: YangListAttr{
++ 			Keys: map[string]*MappedType{
++ 				"k1": {NativeType: "string"},
++@@ -905,25 +906,25 @@
++ 		},
++ 	}, {
++ 		name: "missing key list",
++-		in: &yang.Entry{
+++		in: sonicfixture.Entry(&yang.Entry{
++ 			Name:     "list",
++ 			ListAttr: &yang.ListAttr{},
++ 			Key:      "null",
++ 			Dir:      map[string]*yang.Entry{},
++-		},
+++		}),
++ 		wantErr: true,
++ 	}, {
++ 		name: "keyless list test",
++-		in: &yang.Entry{
+++		in: sonicfixture.Entry(&yang.Entry{
++ 			Name:     "list",
++ 			ListAttr: &yang.ListAttr{},
++ 			Config:   yang.TSFalse,
++ 			Dir:      map[string]*yang.Entry{},
++-		},
+++		}),
++ 		want: YangListAttr{},
++ 	}, {
++ 		name: "list with invalid leafref path",
++-		in: &yang.Entry{
+++		in: sonicfixture.Entry(&yang.Entry{
++ 			Name:     "list",
++ 			ListAttr: &yang.ListAttr{},
++ 			Key:      "keyleaf",
++@@ -936,12 +937,12 @@
++ 					},
++ 				},
++ 			},
++-		},
+++		}),
++ 		inCompress: true,
++ 		wantErr:    true,
++ 	}, {
++ 		name: "list with leafref in invalid container",
++-		in: &yang.Entry{
+++		in: sonicfixture.Entry(&yang.Entry{
++ 			Name:     "list",
++ 			ListAttr: &yang.ListAttr{},
++ 			Key:      "keyleaf",
++@@ -954,12 +955,12 @@
++ 					},
++ 				},
++ 			},
++-		},
+++		}),
++ 		inCompress: true,
++ 		wantErr:    true,
++ 	}, {
++ 		name: "list with leafref that does not exist",
++-		in: &yang.Entry{
+++		in: sonicfixture.Entry(&yang.Entry{
++ 			Name:     "list",
++ 			ListAttr: &yang.ListAttr{},
++ 			Key:      "invalid",
++@@ -976,12 +977,12 @@
++ 					Dir:  map[string]*yang.Entry{},
++ 				},
++ 			},
++-		},
+++		}),
++ 		inCompress: true,
++ 		wantErr:    true,
++ 	}, {
++ 		name: "single leafref key test",
++-		in: &yang.Entry{
+++		in: sonicfixture.Entry(&yang.Entry{
++ 			Name:     "list",
++ 			ListAttr: &yang.ListAttr{},
++ 			Key:      "keyleafref",
++@@ -1003,13 +1004,13 @@
++ 					},
++ 				},
++ 			},
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "container",
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "module",
++-				},
++-			},
++-		},
+++				}),
+++			}),
+++		}),
++ 		inCompress: true,
++ 		want: YangListAttr{
++ 			Keys: map[string]*MappedType{
++@@ -1024,7 +1025,7 @@
++ 		},
++ 	}, {
++ 		name: "multiple key list test",
++-		in: &yang.Entry{
+++		in: sonicfixture.Entry(&yang.Entry{
++ 			Name:     "list",
++ 			ListAttr: &yang.ListAttr{},
++ 			Key:      "key1 key2",
++@@ -1038,7 +1039,7 @@
++ 					Type: &yang.YangType{Kind: yang.Ystring},
++ 				},
++ 			},
++-		},
+++		}),
++ 		want: YangListAttr{
++ 			Keys: map[string]*MappedType{
++ 				"key1": {NativeType: "string"},
++@@ -1057,7 +1058,7 @@
++ 		},
++ 	}, {
++ 		name: "multiple leafref key",
++-		in: &yang.Entry{
+++		in: sonicfixture.Entry(&yang.Entry{
++ 			Name:     "list",
++ 			ListAttr: &yang.ListAttr{},
++ 			Key:      "key1 key2",
++@@ -1090,7 +1091,7 @@
++ 					},
++ 				},
++ 			},
++-		},
+++		}),
++ 		inCompress: true,
++ 		want: YangListAttr{
++ 			Keys: map[string]*MappedType{
++@@ -1110,7 +1111,7 @@
++ 		},
++ 	}, {
++ 		name: "single prefixed leafref key test",
++-		in: &yang.Entry{
+++		in: sonicfixture.Entry(&yang.Entry{
++ 			Name:     "list",
++ 			ListAttr: &yang.ListAttr{},
++ 			Key:      "keyleafref",
++@@ -1132,7 +1133,7 @@
++ 					},
++ 				},
++ 			},
++-		},
+++		}),
++ 		inCompress: true,
++ 		want: YangListAttr{
++ 			Keys: map[string]*MappedType{
++@@ -1147,7 +1148,7 @@
++ 		},
++ 	}, {
++ 		name: "uncompressed leafref",
++-		in: &yang.Entry{
+++		in: sonicfixture.Entry(&yang.Entry{
++ 			Name:     "list",
++ 			ListAttr: &yang.ListAttr{},
++ 			Key:      "keyleafref",
++@@ -1160,7 +1161,7 @@
++ 					},
++ 				},
++ 			},
++-		},
+++		}),
++ 		inEntries: []*yang.Entry{
++ 			{
++ 				Name: "a",
++@@ -1173,26 +1174,26 @@
++ 								Type: &yang.YangType{
++ 									Kind: yang.Ystring,
++ 								},
++-								Parent: &yang.Entry{
+++								Parent: sonicfixture.Entry(&yang.Entry{
++ 									Name: "b",
++-									Parent: &yang.Entry{
+++									Parent: sonicfixture.Entry(&yang.Entry{
++ 										Name: "a",
++-										Parent: &yang.Entry{
+++										Parent: sonicfixture.Entry(&yang.Entry{
++ 											Name: "module",
++-										},
++-									},
++-								},
+++										}),
+++									}),
+++								}),
++ 							},
++ 						},
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "a",
++-							Parent: &yang.Entry{
+++							Parent: sonicfixture.Entry(&yang.Entry{
++ 								Name: "module",
++-							},
++-						},
++-					},
++-				},
++-				Parent: &yang.Entry{Name: "module"},
+++							}),
+++						}),
+++					},
+++				},
+++				Parent: sonicfixture.Entry(&yang.Entry{Name: "module"}),
++ 			},
++ 		},
++ 		want: YangListAttr{
++@@ -1280,7 +1281,7 @@
++ 					},
++ 				},
++ 			},
++-			Parent: &yang.Entry{Name: "test-module"},
+++			Parent: sonicfixture.Entry(&yang.Entry{Name: "test-module"}),
++ 			Node: &yang.Leaf{
++ 				Parent: &yang.Module{
++ 					Name: "test-module",
++@@ -1298,7 +1299,7 @@
++ 					},
++ 				},
++ 			},
++-			Parent: &yang.Entry{Name: "test-module"},
+++			Parent: sonicfixture.Entry(&yang.Entry{Name: "test-module"}),
++ 			Node: &yang.Leaf{
++ 				Parent: &yang.Module{
++ 					Name: "test-module",
++@@ -1313,9 +1314,9 @@
++ 		name: "typedef with multiple references",
++ 		inLeaves: []*yang.Entry{{
++ 			Name: "leaf-one",
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "base-module",
++-			},
+++			}),
++ 			Type: &yang.YangType{
++ 				Name: "definedType",
++ 				Kind: yang.Yenum,
++@@ -1328,9 +1329,9 @@
++ 			},
++ 		}, {
++ 			Name: "leaf-two",
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "base-module",
++-			},
+++			}),
++ 			Type: &yang.YangType{
++ 				Name: "definedType",
++ 				Kind: yang.Yenum,
++diff --git a/ygen/gogen_test.go b/ygen/gogen_test.go
++--- a/ygen/gogen_test.go
+++++ b/ygen/gogen_test.go
++@@ -16,6 +16,7 @@
++ 
++ import (
++ 	"fmt"
+++	"github.com/openconfig/ygot/internal/sonicfixture"
++ 	"testing"
++ 
++ 	"github.com/google/go-cmp/cmp"
++@@ -60,15 +61,15 @@
++ 				"f1": {
++ 					Name: "f1",
++ 					Type: &yang.YangType{Kind: yang.Yint8},
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "tstruct",
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "root-module",
++ 							Node: &yang.Module{
++ 								Name: "exmod",
++ 							},
++-						},
++-					},
+++						}),
+++					}),
++ 					Node: &yang.Leaf{
++ 						Name: "f1",
++ 						Parent: &yang.Module{
++@@ -80,15 +81,15 @@
++ 					Name:     "f2",
++ 					Type:     &yang.YangType{Kind: yang.Ystring},
++ 					ListAttr: &yang.ListAttr{},
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "tstruct",
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "root-module",
++ 							Node: &yang.Module{
++ 								Name: "exmod",
++ 							},
++-						},
++-					},
+++						}),
+++					}),
++ 					Node: &yang.Leaf{
++ 						Name: "f2",
++ 						Parent: &yang.Module{
++@@ -160,15 +161,15 @@
++ 			Fields: map[string]*yang.Entry{
++ 				"u1": {
++ 					Name: "u1",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "input-struct",
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "module",
++ 							Node: &yang.Module{
++ 								Name: "exmod",
++ 							},
++-						},
++-					},
+++						}),
+++					}),
++ 					Node: &yang.Leaf{Parent: &yang.Module{Name: "exmod"}},
++ 					Type: &yang.YangType{
++ 						Kind: yang.Yunion,
++@@ -325,15 +326,15 @@
++ 					Name: "c1",
++ 					Dir:  map[string]*yang.Entry{},
++ 					Kind: yang.DirectoryEntry,
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "input-struct",
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "root-module",
++ 							Node: &yang.Module{
++ 								Name: "exmod",
++ 							},
++-						},
++-					},
+++						}),
+++					}),
++ 					Node: &yang.Leaf{Parent: &yang.Module{Name: "exmod"}},
++ 				},
++ 			},
++@@ -401,15 +402,15 @@
++ 					Name: "elem",
++ 					Dir:  map[string]*yang.Entry{},
++ 					Kind: yang.DirectoryEntry,
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "a-struct",
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "root-module",
++ 							Node: &yang.Module{
++ 								Name: "exmod",
++ 							},
++-						},
++-					},
+++						}),
+++					}),
++ 					Node: &yang.Leaf{Parent: &yang.Module{Name: "exmod"}},
++ 				},
++ 			},
++@@ -427,15 +428,15 @@
++ 					Kind:     yang.DirectoryEntry,
++ 					Dir:      map[string]*yang.Entry{},
++ 					ListAttr: &yang.ListAttr{},
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "b-struct",
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "root-module",
++ 							Node: &yang.Module{
++ 								Name: "exmod",
++ 							},
++-						},
++-					},
+++						}),
+++					}),
++ 					Node: &yang.Leaf{Parent: &yang.Module{Name: "exmod"}},
++ 				},
++ 			},
++@@ -453,15 +454,15 @@
++ 					ListAttr: &yang.ListAttr{},
++ 					Kind:     yang.DirectoryEntry,
++ 					Dir:      map[string]*yang.Entry{},
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "q-struct",
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "root-module",
++ 							Node: &yang.Module{
++ 								Name: "exmod",
++ 							},
++-						},
++-					},
+++						}),
+++					}),
++ 					Node: &yang.Leaf{Parent: &yang.Module{Name: "exmod"}},
++ 				},
++ 			},
++@@ -536,15 +537,15 @@
++ 					Name:     "listWithKey",
++ 					ListAttr: &yang.ListAttr{},
++ 					Key:      "keyLeaf",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "tstruct",
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "root-module",
++ 							Node: &yang.Module{
++ 								Name: "exmod",
++ 							},
++-						},
++-					},
+++						}),
+++					}),
++ 					Kind: yang.DirectoryEntry,
++ 					Dir: map[string]*yang.Entry{
++ 						"keyLeaf": {
++@@ -732,15 +733,15 @@
++ 					Name:     "listWithKey",
++ 					ListAttr: &yang.ListAttr{},
++ 					Key:      "keyLeaf",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "tstruct",
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "root-module",
++ 							Node: &yang.Module{
++ 								Name: "exmod",
++ 							},
++-						},
++-					},
+++						}),
+++					}),
++ 					Kind: yang.DirectoryEntry,
++ 					Dir: map[string]*yang.Entry{
++ 						"keyLeaf": {
++@@ -779,16 +780,16 @@
++ 				"idd": {
++ 					Name: "idd",
++ 					Type: &yang.YangType{Kind: yang.Yidentityref},
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "container",
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "container-two",
++-							Parent: &yang.Entry{
+++							Parent: sonicfixture.Entry(&yang.Entry{
++ 								Name: "mod",
++ 								Node: &yang.Module{},
++-							},
++-						},
++-					},
+++							}),
+++						}),
+++					}),
++ 				},
++ 			},
++ 			Path: []string{"", "mod", "container-two", "container"},
++@@ -804,15 +805,15 @@
++ 					Name:     "listWithKey",
++ 					ListAttr: &yang.ListAttr{},
++ 					Key:      "keyLeafOne keyLeafTwo",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "tstruct",
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "root-module",
++ 							Node: &yang.Module{
++ 								Name: "exmod",
++ 							},
++-						},
++-					},
+++						}),
+++					}),
++ 					Kind: yang.DirectoryEntry,
++ 					Dir: map[string]*yang.Entry{
++ 						"keyLeafOne": {
++@@ -1023,15 +1024,15 @@
++ 				"f1": {
++ 					Name: "f1",
++ 					Type: &yang.YangType{Kind: yang.Yint8},
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "tstruct",
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "root-module",
++ 							Node: &yang.Module{
++ 								Name: "exmod",
++ 							},
++-						},
++-					},
+++						}),
+++					}),
++ 					Node: &yang.Leaf{
++ 						Name: "f1",
++ 						Parent: &yang.Module{
++@@ -1111,15 +1112,15 @@
++ 					Name:     "listWithKey",
++ 					ListAttr: &yang.ListAttr{},
++ 					Key:      "keyLeafOne keyLeafTwo",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "tstruct",
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "root-module",
++ 							Node: &yang.Module{
++ 								Name: "exmod",
++ 							},
++-						},
++-					},
+++						}),
+++					}),
++ 					Kind: yang.DirectoryEntry,
++ 					Dir: map[string]*yang.Entry{
++ 						"keyLeafOne": {
++@@ -1307,15 +1308,15 @@
++ 					Name:     "listWithKey",
++ 					ListAttr: &yang.ListAttr{},
++ 					Key:      "keyLeaf",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "tstruct",
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "root-module",
++ 							Node: &yang.Module{
++ 								Name: "exmod",
++ 							},
++-						},
++-					},
+++						}),
+++					}),
++ 					Kind: yang.DirectoryEntry,
++ 					Dir: map[string]*yang.Entry{
++ 						"keyLeaf": {
++@@ -1482,15 +1483,15 @@
++ 					Name: "c1",
++ 					Dir:  map[string]*yang.Entry{},
++ 					Kind: yang.DirectoryEntry,
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "input-struct",
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "root-module",
++ 							Node: &yang.Module{
++ 								Name: "exmod",
++ 							},
++-						},
++-					},
+++						}),
+++					}),
++ 					Node: &yang.Leaf{Parent: &yang.Module{Name: "exmod"}},
++ 				},
++ 			},
++@@ -1558,18 +1559,18 @@
++ 					Type: &yang.YangType{
++ 						Kind: yang.Ystring,
++ 					},
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "bar",
++ 						Kind: yang.DirectoryEntry,
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "foo",
++ 							Kind: yang.DirectoryEntry,
++ 							Node: &yang.Container{
++ 								Name:   "foo",
++ 								Parent: &yang.Module{Name: "m1"},
++ 							},
++-						},
++-					},
+++						}),
+++					}),
++ 					Node: &yang.Leaf{
++ 						Name:   "leaf",
++ 						Parent: &yang.Module{Name: "m1"},
++@@ -1634,18 +1635,18 @@
++ 					Type: &yang.YangType{
++ 						Kind: yang.Ystring,
++ 					},
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "bar",
++ 						Kind: yang.DirectoryEntry,
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "foo",
++ 							Kind: yang.DirectoryEntry,
++ 							Node: &yang.Container{
++ 								Name:   "foo",
++ 								Parent: &yang.Module{Name: "m1"},
++ 							},
++-						},
++-					},
+++						}),
+++					}),
++ 					Node: &yang.Leaf{
++ 						Name:   "leaf",
++ 						Parent: &yang.Module{Name: "m1"},
++@@ -1794,7 +1795,7 @@
++ 		name: "enum from identityref",
++ 		in: &yangEnum{
++ 			name: "EnumeratedValue",
++-			entry: &yang.Entry{
+++			entry: sonicfixture.Entry(&yang.Entry{
++ 				Type: &yang.YangType{
++ 					IdentityBase: &yang.Identity{
++ 						Values: []*yang.Identity{
++@@ -1804,7 +1805,7 @@
++ 						},
++ 					},
++ 				},
++-			},
+++			}),
++ 		},
++ 		want: goEnumCodeSnippet{
++ 			constDef: `
++@@ -1845,9 +1846,9 @@
++ 		name: "enum from enumeration",
++ 		in: &yangEnum{
++ 			name: "EnumeratedValueTwo",
++-			entry: &yang.Entry{
+++			entry: sonicfixture.Entry(&yang.Entry{
++ 				Type: &yang.YangType{Enum: testYangEnums["enumOne"]},
++-			},
+++			}),
++ 		},
++ 		want: goEnumCodeSnippet{
++ 			constDef: `
++@@ -1885,9 +1886,9 @@
++ 		name: "enum from longer enumeration",
++ 		in: &yangEnum{
++ 			name: "BaseModule_Enumeration",
++-			entry: &yang.Entry{
+++			entry: sonicfixture.Entry(&yang.Entry{
++ 				Type: &yang.YangType{Enum: testYangEnums["enumTwo"]},
++-			},
+++			}),
++ 		},
++ 		want: goEnumCodeSnippet{
++ 			constDef: `
++@@ -1967,12 +1968,12 @@
++ 			Fields: map[string]*yang.Entry{
++ 				"field-a": {
++ 					Name: "field-a",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "a-container",
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "a-module",
++-						},
++-					},
+++						}),
+++					}),
++ 				},
++ 			},
++ 		},
++@@ -1986,9 +1987,9 @@
++ 			Fields: map[string]*yang.Entry{
++ 				"field-q": {
++ 					Name: "field-q",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "q-container",
++-					},
+++					}),
++ 				},
++ 			},
++ 		},
++@@ -2002,15 +2003,15 @@
++ 			Fields: map[string]*yang.Entry{
++ 				"field-b": {
++ 					Name: "field-b",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "config",
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "b-container",
++-							Parent: &yang.Entry{
+++							Parent: sonicfixture.Entry(&yang.Entry{
++ 								Name: "a-module",
++-							},
++-						},
++-					},
+++							}),
+++						}),
+++					}),
++ 				},
++ 			},
++ 		},
++@@ -2025,15 +2026,15 @@
++ 			Fields: map[string]*yang.Entry{
++ 				"field-d": {
++ 					Name: "field-d",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "c-container",
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "b-container",
++-							Parent: &yang.Entry{
+++							Parent: sonicfixture.Entry(&yang.Entry{
++ 								Name: "a-module",
++-							},
++-						},
++-					},
+++							}),
+++						}),
+++					}),
++ 				},
++ 			},
++ 		},
++@@ -2061,9 +2062,9 @@
++ 						Type: &yang.YangType{
++ 							Kind: yang.Yleafref,
++ 						},
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "config",
++-							Parent: &yang.Entry{
+++							Parent: sonicfixture.Entry(&yang.Entry{
++ 								Name: "d-list",
++ 								Kind: yang.DirectoryEntry,
++ 								Dir: map[string]*yang.Entry{
++@@ -2072,14 +2073,14 @@
++ 										Type: &yang.YangType{Kind: yang.Yleafref},
++ 									},
++ 								},
++-								Parent: &yang.Entry{
+++								Parent: sonicfixture.Entry(&yang.Entry{
++ 									Name: "d-container",
++-									Parent: &yang.Entry{
+++									Parent: sonicfixture.Entry(&yang.Entry{
++ 										Name: "d-module",
++-									},
++-								},
++-							},
++-						},
+++									}),
+++								}),
+++							}),
+++						}),
++ 					},
++ 				},
++ 			},
++@@ -2089,9 +2090,9 @@
++ 					Type: &yang.YangType{
++ 						Kind: yang.Yleafref,
++ 					},
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "config",
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "d-list",
++ 							Kind: yang.DirectoryEntry,
++ 							Dir: map[string]*yang.Entry{
++@@ -2100,14 +2101,14 @@
++ 									Type: &yang.YangType{Kind: yang.Yleafref},
++ 								},
++ 							},
++-							Parent: &yang.Entry{
+++							Parent: sonicfixture.Entry(&yang.Entry{
++ 								Name: "d-container",
++-								Parent: &yang.Entry{
+++								Parent: sonicfixture.Entry(&yang.Entry{
++ 									Name: "d-module",
++-								},
++-							},
++-						},
++-					},
+++								}),
+++							}),
+++						}),
+++					}),
++ 				},
++ 			},
++ 		},
++@@ -2221,30 +2222,30 @@
++ 		want   *string
++ 	}{{
++ 		name: "quoted default in leaf",
++-		inLeaf: &yang.Entry{
+++		inLeaf: sonicfixture.Entry(&yang.Entry{
++ 			Default: "a-default-value",
++-		},
+++		}),
++ 		inType: &MappedType{NativeType: "string"},
++ 		want:   ygot.String(`"a-default-value"`),
++ 	}, {
++ 		name: "unquoted default in leaf",
++-		inLeaf: &yang.Entry{
+++		inLeaf: sonicfixture.Entry(&yang.Entry{
++ 			Default: "42",
++-		},
+++		}),
++ 		inType: &MappedType{NativeType: "int32"},
++ 		want:   ygot.String("42"),
++ 	}, {
++ 		name:   "no default",
++-		inLeaf: &yang.Entry{},
+++		inLeaf: sonicfixture.Entry(&yang.Entry{}),
++ 		inType: &MappedType{NativeType: "int32"},
++ 	}, {
++ 		name:   "default in type",
++-		inLeaf: &yang.Entry{},
+++		inLeaf: sonicfixture.Entry(&yang.Entry{}),
++ 		inType: &MappedType{NativeType: "int32", DefaultValue: ygot.String("0")},
++ 		want:   ygot.String("0"),
++ 	}, {
++ 		name:   "enumerated default in leaf",
++-		inLeaf: &yang.Entry{Default: "FORTY_TWO"},
+++		inLeaf: sonicfixture.Entry(&yang.Entry{Default: "FORTY_TWO"}),
++ 		inType: &MappedType{
++ 			NativeType:        fmt.Sprintf("%sEnumType", goEnumPrefix),
++ 			IsEnumeratedValue: true,
++diff --git a/ygen/protoelements_test.go b/ygen/protoelements_test.go
++--- a/ygen/protoelements_test.go
+++++ b/ygen/protoelements_test.go
++@@ -15,6 +15,7 @@
++ package ygen
++ 
++ import (
+++	"github.com/openconfig/ygot/internal/sonicfixture"
++ 	"testing"
++ 
++ 	"github.com/kylelemons/godebug/pretty"
++@@ -139,7 +140,7 @@
++ 					{Kind: yang.Yenum, Name: "enumeration", Default: "prefix:BLUE"},
++ 				},
++ 			},
++-			contextEntry: &yang.Entry{
+++			contextEntry: sonicfixture.Entry(&yang.Entry{
++ 				Name: "union-leaf",
++ 				Kind: yang.LeafEntry,
++ 				Type: &yang.YangType{
++@@ -149,11 +150,11 @@
++ 						{Kind: yang.Yenum, Name: "enumeration", Default: "prefix:BLUE"},
++ 					},
++ 				},
++-				Parent: &yang.Entry{Name: "base-module"},
+++				Parent: sonicfixture.Entry(&yang.Entry{Name: "base-module"}),
++ 				Node: &yang.Enum{
++ 					Parent: &yang.Module{Name: "base-module"},
++ 				},
++-			},
+++			}),
++ 		}},
++ 		wantWrapper: &MappedType{
++ 			NativeType:        "UnionLeaf",
++@@ -170,7 +171,7 @@
++ 					{Kind: yang.Yenum, Name: "enumeration"},
++ 				},
++ 			},
++-			contextEntry: &yang.Entry{
+++			contextEntry: sonicfixture.Entry(&yang.Entry{
++ 				Name: "union-leaf",
++ 				Kind: yang.LeafEntry,
++ 				Type: &yang.YangType{
++@@ -180,13 +181,13 @@
++ 						{Kind: yang.Yenum, Name: "enumeration"},
++ 					},
++ 				},
++-				Parent: &yang.Entry{Name: "base-module"},
+++				Parent: sonicfixture.Entry(&yang.Entry{Name: "base-module"}),
++ 				Node: &yang.Enum{
++ 					Parent: &yang.Module{
++ 						Name: "base-module",
++ 					},
++ 				},
++-			},
+++			}),
++ 		}},
++ 		wantWrapper: &MappedType{
++ 			NativeType:        "UnionLeaf",
++@@ -200,7 +201,7 @@
++ 				Kind: yang.Yidentityref,
++ 				Name: "derived-identityref",
++ 			},
++-			contextEntry: &yang.Entry{
+++			contextEntry: sonicfixture.Entry(&yang.Entry{
++ 				Type: &yang.YangType{
++ 					Name: "derived-identityref",
++ 					IdentityBase: &yang.Identity{
++@@ -211,7 +212,7 @@
++ 				Node: &yang.Leaf{
++ 					Parent: &yang.Module{Name: "base-module"},
++ 				},
++-			},
+++			}),
++ 		}},
++ 		wantWrapper: &MappedType{
++ 			NativeType:        "basePackage.enumPackage.BaseModuleDerivedIdentityref",
++@@ -236,7 +237,7 @@
++ 					},
++ 				}},
++ 			},
++-			contextEntry: &yang.Entry{
+++			contextEntry: sonicfixture.Entry(&yang.Entry{
++ 				Name: "union-leaf",
++ 				Kind: yang.LeafEntry,
++ 				Type: &yang.YangType{
++@@ -254,13 +255,13 @@
++ 						},
++ 					}},
++ 				},
++-				Parent: &yang.Entry{Name: "base-module"},
+++				Parent: sonicfixture.Entry(&yang.Entry{Name: "base-module"}),
++ 				Node: &yang.Leaf{
++ 					Parent: &yang.Module{
++ 						Name: "base-module",
++ 					},
++ 				},
++-			},
+++			}),
++ 		}},
++ 		wantWrapper: &MappedType{
++ 			NativeType:        "basePackage.enumPackage.BaseModuleBaseIdentity",
++@@ -283,14 +284,14 @@
++ 				Kind: yang.Yenum,
++ 				Name: "enumeration",
++ 			},
++-			contextEntry: &yang.Entry{
+++			contextEntry: sonicfixture.Entry(&yang.Entry{
++ 				Name: "enumeration-leaf",
++ 				Type: &yang.YangType{
++ 					Name: "enumeration",
++ 					Enum: &yang.EnumType{},
++ 				},
++-				Parent: &yang.Entry{Name: "base-module"},
++-			},
+++				Parent: sonicfixture.Entry(&yang.Entry{Name: "base-module"}),
+++			}),
++ 		}},
++ 		wantWrapper: &MappedType{
++ 			NativeType:        "EnumerationLeaf",
++@@ -301,7 +302,7 @@
++ 		name: "typedef enumeration",
++ 		in: []resolveTypeArgs{{
++ 			yangType: &yang.YangType{Kind: yang.Yenum, Name: "derived-enumeration"},
++-			contextEntry: &yang.Entry{
+++			contextEntry: sonicfixture.Entry(&yang.Entry{
++ 				Name: "enumeration-leaf",
++ 				Type: &yang.YangType{
++ 					Name: "derived-enumeration",
++@@ -312,7 +313,7 @@
++ 						Name: "base-module",
++ 					},
++ 				},
++-			},
+++			}),
++ 		}},
++ 		wantWrapper: &MappedType{NativeType: "basePackage.enumPackage.BaseModuleDerivedEnumeration", IsEnumeratedValue: true},
++ 		wantSame:    true,
++@@ -320,7 +321,7 @@
++ 		name: "identityref",
++ 		in: []resolveTypeArgs{{
++ 			yangType: &yang.YangType{Kind: yang.Yidentityref, Name: "identityref"},
++-			contextEntry: &yang.Entry{
+++			contextEntry: sonicfixture.Entry(&yang.Entry{
++ 				Name: "identityref",
++ 				Type: &yang.YangType{
++ 					Name: "identityref",
++@@ -336,7 +337,7 @@
++ 						Name: "test-module",
++ 					},
++ 				},
++-			},
+++			}),
++ 		}},
++ 		wantWrapper: &MappedType{NativeType: "basePackage.enumPackage.TestModuleBaseIdentity", IsEnumeratedValue: true},
++ 		wantSame:    true,
++@@ -344,7 +345,7 @@
++ 		name: "identityref with underscore in identity name",
++ 		in: []resolveTypeArgs{{
++ 			yangType: &yang.YangType{Kind: yang.Yidentityref, Name: "identityref"},
++-			contextEntry: &yang.Entry{
+++			contextEntry: sonicfixture.Entry(&yang.Entry{
++ 				Name: "identityref",
++ 				Type: &yang.YangType{
++ 					Name: "identityref",
++@@ -360,7 +361,7 @@
++ 						Name: "test-module",
++ 					},
++ 				},
++-			},
+++			}),
++ 		}},
++ 		wantWrapper: &MappedType{NativeType: "basePackage.enumPackage.TestModuleBASEIDENTITY", IsEnumeratedValue: true},
++ 		wantSame:    true,
++@@ -392,9 +393,9 @@
++ 				Kind: yang.Yleafref,
++ 				Path: "/foo/bar",
++ 			},
++-			contextEntry: &yang.Entry{
+++			contextEntry: sonicfixture.Entry(&yang.Entry{
++ 				Name: "leaf",
++-			},
+++			}),
++ 		}},
++ 		wantErr: true,
++ 	}, {
++@@ -404,26 +405,26 @@
++ 				Kind: yang.Yleafref,
++ 				Path: "/foo/bar",
++ 			},
++-			contextEntry: &yang.Entry{
+++			contextEntry: sonicfixture.Entry(&yang.Entry{
++ 				Name: "leaf",
++-			},
+++			}),
++ 		}},
++ 		inEntries: []*yang.Entry{
++ 			{
++ 				Name: "foo",
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "module",
++-				},
+++				}),
++ 				Dir: map[string]*yang.Entry{
++ 					"bar": {
++ 						Name: "bar",
++ 						Type: &yang.YangType{Kind: yang.Ystring},
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "foo",
++-							Parent: &yang.Entry{
+++							Parent: sonicfixture.Entry(&yang.Entry{
++ 								Name: "module",
++-							},
++-						},
+++							}),
+++						}),
++ 					},
++ 				},
++ 			},
++@@ -437,16 +438,16 @@
++ 				Kind: yang.Yleafref,
++ 				Path: "/foo/bar",
++ 			},
++-			contextEntry: &yang.Entry{
+++			contextEntry: sonicfixture.Entry(&yang.Entry{
++ 				Name: "leaf",
++-			},
+++			}),
++ 		}},
++ 		inEntries: []*yang.Entry{
++ 			{
++ 				Name: "foo",
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "module",
++-				},
+++				}),
++ 				Dir: map[string]*yang.Entry{
++ 					"bar": {
++ 						Name: "bar",
++@@ -454,12 +455,12 @@
++ 							Kind: yang.Yleafref,
++ 							Path: "/foo/baz",
++ 						},
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "foo",
++-							Parent: &yang.Entry{
+++							Parent: sonicfixture.Entry(&yang.Entry{
++ 								Name: "module",
++-							},
++-						},
+++							}),
+++						}),
++ 					},
++ 					"baz": {
++ 						Name: "baz",
++@@ -467,12 +468,12 @@
++ 							Kind:         yang.Yidentityref,
++ 							IdentityBase: &yang.Identity{Name: "IDENTITY"},
++ 						},
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "foo",
++-							Parent: &yang.Entry{
+++							Parent: sonicfixture.Entry(&yang.Entry{
++ 								Name: "module",
++-							},
++-						},
+++							}),
+++						}),
++ 						Node: &yang.Leaf{
++ 							Name: "baz",
++ 							Parent: &yang.Module{
++@@ -492,16 +493,16 @@
++ 				Kind: yang.Yleafref,
++ 				Path: "/foo/bar",
++ 			},
++-			contextEntry: &yang.Entry{
+++			contextEntry: sonicfixture.Entry(&yang.Entry{
++ 				Name: "leaf",
++-			},
+++			}),
++ 		}},
++ 		inEntries: []*yang.Entry{
++ 			{
++ 				Name: "foo",
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "module",
++-				},
+++				}),
++ 				Dir: map[string]*yang.Entry{
++ 					"bar": {
++ 						Name: "bar",
++@@ -509,12 +510,12 @@
++ 							Kind: yang.Yleafref,
++ 							Path: "/foo/baz",
++ 						},
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "foo",
++-							Parent: &yang.Entry{
+++							Parent: sonicfixture.Entry(&yang.Entry{
++ 								Name: "module",
++-							},
++-						},
+++							}),
+++						}),
++ 					},
++ 					"baz": {
++ 						Name: "baz",
++@@ -526,12 +527,12 @@
++ 								Kind: yang.Ystring,
++ 							}},
++ 						},
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "foo",
++-							Parent: &yang.Entry{
+++							Parent: sonicfixture.Entry(&yang.Entry{
++ 								Name: "module",
++-							},
++-						},
+++							}),
+++						}),
++ 						Node: &yang.Leaf{
++ 							Name: "baz",
++ 							Parent: &yang.Module{
++@@ -602,49 +603,49 @@
++ 		wantUncompress         string
++ 	}{{
++ 		name: "simple message name",
++-		inEntry: &yang.Entry{
+++		inEntry: sonicfixture.Entry(&yang.Entry{
++ 			Name: "msg",
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "package",
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "module",
++-				},
++-			},
++-		},
+++				}),
+++			}),
+++		}),
++ 		wantCompress:   "Msg",
++ 		wantUncompress: "Msg",
++ 	}, {
++ 		name: "simple message name with compression",
++-		inEntry: &yang.Entry{
+++		inEntry: sonicfixture.Entry(&yang.Entry{
++ 			Name: "msg",
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "config",
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "container",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "module",
++-					},
++-				},
++-			},
++-		},
+++					}),
+++				}),
+++			}),
+++		}),
++ 		wantCompress:   "Msg",
++ 		wantUncompress: "Msg",
++ 	}, {
++ 		name: "simple message name with clash when compressing",
++-		inEntry: &yang.Entry{
+++		inEntry: sonicfixture.Entry(&yang.Entry{
++ 			Name: "msg",
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "config",
++ 				Kind: yang.DirectoryEntry,
++ 				Dir:  map[string]*yang.Entry{},
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "container",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "module",
++-					},
++-				},
++-			},
++-		},
+++					}),
+++				}),
+++			}),
+++		}),
++ 		inUniqueProtoMsgNames: map[string]map[string]bool{
++ 			"container": {
++ 				"Msg": true,
++@@ -654,18 +655,18 @@
++ 		wantUncompress: "Msg",
++ 	}, {
++ 		name: "cached name",
++-		inEntry: &yang.Entry{
+++		inEntry: sonicfixture.Entry(&yang.Entry{
++ 			Name: "leaf",
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "config",
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "container",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "module",
++-					},
++-				},
++-			},
++-		},
+++					}),
+++				}),
+++			}),
+++		}),
++ 		inUniqueDirectoryNames: map[string]string{"/module/container/config/leaf": "OverriddenName"},
++ 		wantCompress:           "OverriddenName",
++ 		wantUncompress:         "OverriddenName",
++@@ -700,66 +701,66 @@
++ 		wantUncompress        string
++ 	}{{
++ 		name: "simple package name",
++-		inEntry: &yang.Entry{
+++		inEntry: sonicfixture.Entry(&yang.Entry{
++ 			Name: "leaf",
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "child-container",
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "parent-container",
++ 					Kind: yang.DirectoryEntry,
++ 					Dir:  map[string]*yang.Entry{},
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "module",
++-					},
++-				},
++-			},
++-		},
+++					}),
+++				}),
+++			}),
+++		}),
++ 		wantCompress:   "parent_container.child_container",
++ 		wantUncompress: "module.parent_container.child_container",
++ 	}, {
++ 		name: "package name with choice and case",
++-		inEntry: &yang.Entry{
+++		inEntry: sonicfixture.Entry(&yang.Entry{
++ 			Name: "leaf",
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "child-container",
++ 				Dir:  map[string]*yang.Entry{},
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "case",
++ 					Kind: yang.CaseEntry,
++ 					Dir:  map[string]*yang.Entry{},
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "choice",
++ 						Kind: yang.ChoiceEntry,
++ 						Dir:  map[string]*yang.Entry{},
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "container",
++ 							Dir:  map[string]*yang.Entry{},
++-							Parent: &yang.Entry{
+++							Parent: sonicfixture.Entry(&yang.Entry{
++ 								Name: "module",
++-							},
++-						},
++-					},
++-				},
++-			},
++-		},
+++							}),
+++						}),
+++					}),
+++				}),
+++			}),
+++		}),
++ 		wantCompress:   "container.child_container",
++ 		wantUncompress: "module.container.child_container",
++ 	}, {
++ 		name: "clashing names",
++-		inEntry: &yang.Entry{
+++		inEntry: sonicfixture.Entry(&yang.Entry{
++ 			Name: "leaf",
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "baz-bat",
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "bar",
++ 					Dir:  map[string]*yang.Entry{},
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "foo",
++ 						Dir:  map[string]*yang.Entry{},
++-					},
++-				},
++-			},
++-		},
+++					}),
+++				}),
+++			}),
+++		}),
++ 		inDefinedGlobals: map[string]bool{
++ 			"foo.bar.baz_bat": true, // Clash for uncompressed.
++ 			"bar.baz_bat":     true, // Clash for compressed.
++@@ -768,19 +769,19 @@
++ 		wantUncompress: "foo.bar.baz_bat_",
++ 	}, {
++ 		name: "previously defined parent name",
++-		inEntry: &yang.Entry{
+++		inEntry: sonicfixture.Entry(&yang.Entry{
++ 			Name: "leaf",
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "parent",
++ 				Dir:  map[string]*yang.Entry{},
++ 				Kind: yang.DirectoryEntry,
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "module",
++ 					Kind: yang.DirectoryEntry,
++ 					Dir:  map[string]*yang.Entry{},
++-				},
++-			},
++-		},
+++				}),
+++			}),
+++		}),
++ 		inUniqueProtoPackages: map[string]string{
++ 			"/module/parent": "explicit.package.name",
++ 		},
++@@ -788,20 +789,20 @@
++ 		wantUncompress: "explicit.package.name",
++ 	}, {
++ 		name: "list entry within surrounding container with path compression",
++-		inEntry: &yang.Entry{
+++		inEntry: sonicfixture.Entry(&yang.Entry{
++ 			Name:     "list",
++ 			Kind:     yang.DirectoryEntry,
++ 			ListAttr: &yang.ListAttr{},
++ 			Dir:      map[string]*yang.Entry{},
++-			Parent: &yang.Entry{
+++			Parent: sonicfixture.Entry(&yang.Entry{
++ 				Name: "surrounding-container",
++ 				Kind: yang.DirectoryEntry,
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "module",
++ 					Kind: yang.DirectoryEntry,
++-				},
++-			},
++-		},
+++				}),
+++			}),
+++		}),
++ 		wantCompress:   "",
++ 		wantUncompress: "module.surrounding_container",
++ 	}}
++diff --git a/ygen/protogen_test.go b/ygen/protogen_test.go
++--- a/ygen/protogen_test.go
+++++ b/ygen/protogen_test.go
++@@ -15,6 +15,7 @@
++ package ygen
++ 
++ import (
+++	"github.com/openconfig/ygot/internal/sonicfixture"
++ 	"sort"
++ 	"testing"
++ 
++@@ -72,11 +73,11 @@
++ 		name: "simple message with only scalar fields",
++ 		inMsg: &Directory{
++ 			Name: "MessageName",
++-			Entry: &yang.Entry{
+++			Entry: sonicfixture.Entry(&yang.Entry{
++ 				Name: "message-name",
++ 				Dir:  map[string]*yang.Entry{},
++ 				Kind: yang.DirectoryEntry,
++-			},
+++			}),
++ 			Fields: map[string]*yang.Entry{
++ 				"field-one": {
++ 					Name: "field-one",
++@@ -110,11 +111,11 @@
++ 		name: "simple message with child messages, ensure no difference in logic",
++ 		inMsg: &Directory{
++ 			Name: "MessageName",
++-			Entry: &yang.Entry{
+++			Entry: sonicfixture.Entry(&yang.Entry{
++ 				Name: "message-name",
++ 				Dir:  map[string]*yang.Entry{},
++ 				Kind: yang.DirectoryEntry,
++-			},
+++			}),
++ 			Fields: map[string]*yang.Entry{
++ 				"field-one": {
++ 					Name: "field-one",
++@@ -146,11 +147,11 @@
++ 		name: "simple message with union leaf and leaf-list",
++ 		inMsg: &Directory{
++ 			Name: "MessageName",
++-			Entry: &yang.Entry{
+++			Entry: sonicfixture.Entry(&yang.Entry{
++ 				Name: "message-name",
++ 				Dir:  map[string]*yang.Entry{},
++ 				Kind: yang.DirectoryEntry,
++-			},
+++			}),
++ 			Fields: map[string]*yang.Entry{
++ 				"field-one": {
++ 					Name: "field-one",
++@@ -176,7 +177,7 @@
++ 							},
++ 						},
++ 					},
++-					Parent: &yang.Entry{Name: "parent"},
+++					Parent: sonicfixture.Entry(&yang.Entry{Name: "parent"}),
++ 					Node: &yang.Leaf{
++ 						Name: "leaf",
++ 						Parent: &yang.Module{
++@@ -233,11 +234,11 @@
++ 		name: "simple message with leaf-list and a message child, compression on",
++ 		inMsg: &Directory{
++ 			Name: "AMessage",
++-			Entry: &yang.Entry{
+++			Entry: sonicfixture.Entry(&yang.Entry{
++ 				Name: "a-message",
++ 				Dir:  map[string]*yang.Entry{},
++ 				Kind: yang.DirectoryEntry,
++-			},
+++			}),
++ 			Fields: map[string]*yang.Entry{
++ 				"leaf-list": {
++ 					Name:     "leaf-list",
++@@ -248,12 +249,12 @@
++ 					Name: "container-child",
++ 					Dir:  map[string]*yang.Entry{},
++ 					Kind: yang.DirectoryEntry,
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "a-message",
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "root",
++-						},
++-					},
+++						}),
+++					}),
++ 				},
++ 			},
++ 			Path: []string{"", "root", "a-message"},
++@@ -261,15 +262,15 @@
++ 		inMsgs: map[string]*Directory{
++ 			"/root/a-message/container-child": {
++ 				Name: "ContainerChild",
++-				Entry: &yang.Entry{
+++				Entry: sonicfixture.Entry(&yang.Entry{
++ 					Name: "container-child",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "a-message",
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "root",
++-						},
++-					},
++-				},
+++						}),
+++					}),
+++				}),
++ 			},
++ 		},
++ 		inCompressPaths: true,
++@@ -296,11 +297,11 @@
++ 		name: "simple message with leaf-list and a message child, compression off",
++ 		inMsg: &Directory{
++ 			Name: "AMessage",
++-			Entry: &yang.Entry{
+++			Entry: sonicfixture.Entry(&yang.Entry{
++ 				Name: "a-message",
++ 				Dir:  map[string]*yang.Entry{},
++ 				Kind: yang.DirectoryEntry,
++-			},
+++			}),
++ 			Fields: map[string]*yang.Entry{
++ 				"leaf-list": {
++ 					Name:     "leaf-list",
++@@ -311,12 +312,12 @@
++ 					Name: "container-child",
++ 					Dir:  map[string]*yang.Entry{},
++ 					Kind: yang.DirectoryEntry,
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "a-message",
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "root",
++-						},
++-					},
+++						}),
+++					}),
++ 				},
++ 			},
++ 			Path: []string{"", "root", "a-message"},
++@@ -324,15 +325,15 @@
++ 		inMsgs: map[string]*Directory{
++ 			"/root/a-message/container-child": {
++ 				Name: "ContainerChild",
++-				Entry: &yang.Entry{
+++				Entry: sonicfixture.Entry(&yang.Entry{
++ 					Name: "container-child",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "a-message",
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "root",
++-						},
++-					},
++-				},
+++						}),
+++					}),
+++				}),
++ 			},
++ 		},
++ 		inBasePackage: "base",
++@@ -358,17 +359,17 @@
++ 		name: "message with list",
++ 		inMsg: &Directory{
++ 			Name: "AMessageWithAList",
++-			Entry: &yang.Entry{
+++			Entry: sonicfixture.Entry(&yang.Entry{
++ 				Name: "a-message-with-a-list",
++ 				Dir:  map[string]*yang.Entry{},
++ 				Kind: yang.DirectoryEntry,
++-			},
+++			}),
++ 			Fields: map[string]*yang.Entry{
++ 				"list": {
++ 					Name: "list",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "a-message-with-a-list",
++-					},
+++					}),
++ 					Kind: yang.DirectoryEntry,
++ 					Dir: map[string]*yang.Entry{
++ 						"key": {
++@@ -390,11 +391,11 @@
++ 		inMsgs: map[string]*Directory{
++ 			"/a-message-with-a-list/list": {
++ 				Name: "List",
++-				Entry: &yang.Entry{
+++				Entry: sonicfixture.Entry(&yang.Entry{
++ 					Name: "list",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "a-message-with-a-list",
++-					},
+++					}),
++ 					Kind: yang.DirectoryEntry,
++ 					Dir: map[string]*yang.Entry{
++ 						"key": {
++@@ -404,7 +405,7 @@
++ 					},
++ 					Key:      "key",
++ 					ListAttr: &yang.ListAttr{},
++-				},
+++				}),
++ 				Fields: map[string]*yang.Entry{
++ 					"key": {
++ 						Name: "key",
++@@ -444,17 +445,17 @@
++ 		name: "message with list, where the key has the same name as list",
++ 		inMsg: &Directory{
++ 			Name: "AMessageWithAList",
++-			Entry: &yang.Entry{
+++			Entry: sonicfixture.Entry(&yang.Entry{
++ 				Name: "a-message-with-a-list",
++ 				Dir:  map[string]*yang.Entry{},
++ 				Kind: yang.DirectoryEntry,
++-			},
+++			}),
++ 			Fields: map[string]*yang.Entry{
++ 				"list": {
++ 					Name: "list",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "a-message-with-a-list",
++-					},
+++					}),
++ 					Kind: yang.DirectoryEntry,
++ 					Dir: map[string]*yang.Entry{
++ 						"list": {
++@@ -476,11 +477,11 @@
++ 		inMsgs: map[string]*Directory{
++ 			"/a-message-with-a-list/list": {
++ 				Name: "List",
++-				Entry: &yang.Entry{
+++				Entry: sonicfixture.Entry(&yang.Entry{
++ 					Name: "list",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "a-message-with-a-list",
++-					},
+++					}),
++ 					Kind: yang.DirectoryEntry,
++ 					Dir: map[string]*yang.Entry{
++ 						"key": {
++@@ -490,7 +491,7 @@
++ 					},
++ 					Key:      "list",
++ 					ListAttr: &yang.ListAttr{},
++-				},
+++				}),
++ 				Fields: map[string]*yang.Entry{
++ 					"list": {
++ 						Name: "list",
++@@ -530,7 +531,7 @@
++ 		name: "message with missing directory",
++ 		inMsg: &Directory{
++ 			Name:  "foo",
++-			Entry: &yang.Entry{Name: "foo"},
+++			Entry: sonicfixture.Entry(&yang.Entry{Name: "foo"}),
++ 			Fields: map[string]*yang.Entry{
++ 				"bar": {
++ 					Name: "bar",
++@@ -544,11 +545,11 @@
++ 		name: "message with an unimplemented mapping",
++ 		inMsg: &Directory{
++ 			Name: "MessageWithInvalidContents",
++-			Entry: &yang.Entry{
+++			Entry: sonicfixture.Entry(&yang.Entry{
++ 				Name: "message-with-invalid-contents",
++ 				Dir:  map[string]*yang.Entry{},
++ 				Kind: yang.DirectoryEntry,
++-			},
+++			}),
++ 			Fields: map[string]*yang.Entry{
++ 				"unimplemented": {
++ 					Name: "unimplemented",
++@@ -570,11 +571,11 @@
++ 		name: "message with any anydata field",
++ 		inMsg: &Directory{
++ 			Name: "MessageWithAnydata",
++-			Entry: &yang.Entry{
+++			Entry: sonicfixture.Entry(&yang.Entry{
++ 				Name: "message-with-anydata",
++ 				Kind: yang.DirectoryEntry,
++ 				Dir:  map[string]*yang.Entry{},
++-			},
+++			}),
++ 			Fields: map[string]*yang.Entry{
++ 				"any-data": {
++ 					Name: "any-data",
++@@ -610,28 +611,28 @@
++ 		name: "message with annotate schema paths enabled",
++ 		inMsg: &Directory{
++ 			Name: "MessageWithAnnotations",
++-			Entry: &yang.Entry{
+++			Entry: sonicfixture.Entry(&yang.Entry{
++ 				Name: "message-with-annotations",
++ 				Kind: yang.DirectoryEntry,
++ 				Dir:  map[string]*yang.Entry{},
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "two",
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "one",
++-					},
++-				},
++-			},
+++					}),
+++				}),
+++			}),
++ 			Fields: map[string]*yang.Entry{
++ 				"leaf": {
++ 					Name: "leaf",
++ 					Kind: yang.LeafEntry,
++ 					Type: &yang.YangType{Kind: yang.Ystring},
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "two",
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "one",
++-						},
++-					},
+++						}),
+++					}),
++ 				},
++ 			},
++ 			Path: []string{"", "one", "two"},
++@@ -767,22 +768,22 @@
++ 		name: "simple message with scalar fields",
++ 		inMsg: &Directory{
++ 			Name: "MessageName",
++-			Entry: &yang.Entry{
+++			Entry: sonicfixture.Entry(&yang.Entry{
++ 				Name: "message-name",
++ 				Kind: yang.DirectoryEntry,
++ 				Dir:  map[string]*yang.Entry{},
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "container",
++ 					Kind: yang.DirectoryEntry,
++ 					Dir:  map[string]*yang.Entry{},
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "module",
++ 						Kind: yang.DirectoryEntry,
++ 						Dir:  map[string]*yang.Entry{},
++-					},
++-				},
+++					}),
+++				}),
++ 				Node: &yang.Container{Name: "message-name"},
++-			},
+++			}),
++ 			Fields: map[string]*yang.Entry{
++ 				"field-one": {
++ 					Name: "field-one",
++@@ -813,27 +814,27 @@
++ 		name: "simple message with other messages embedded",
++ 		inMsg: &Directory{
++ 			Name: "MessageName",
++-			Entry: &yang.Entry{
+++			Entry: sonicfixture.Entry(&yang.Entry{
++ 				Name: "message-name",
++ 				Kind: yang.DirectoryEntry,
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "module",
++ 					Kind: yang.DirectoryEntry,
++-				},
++-			},
+++				}),
+++			}),
++ 			Fields: map[string]*yang.Entry{
++ 				"child": {
++ 					Name: "child",
++ 					Kind: yang.DirectoryEntry,
++ 					Dir:  map[string]*yang.Entry{},
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "message-name",
++ 						Kind: yang.DirectoryEntry,
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "module",
++ 							Kind: yang.DirectoryEntry,
++-						},
++-					},
+++						}),
+++					}),
++ 				},
++ 			},
++ 			Path: []string{"", "module", "message-name"},
++@@ -841,18 +842,18 @@
++ 		inMsgs: map[string]*Directory{
++ 			"/module/message-name/child": {
++ 				Name: "Child",
++-				Entry: &yang.Entry{
+++				Entry: sonicfixture.Entry(&yang.Entry{
++ 					Name: "child",
++ 					Kind: yang.DirectoryEntry,
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "message-name",
++ 						Kind: yang.DirectoryEntry,
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "module",
++ 							Kind: yang.DirectoryEntry,
++-						},
++-					},
++-				},
+++						}),
+++					}),
+++				}),
++ 			},
++ 		},
++ 		inBasePackageName: "base",
++@@ -879,27 +880,27 @@
++ 		name: "simple message with other messages embedded - with nested messages",
++ 		inMsg: &Directory{
++ 			Name: "MessageName",
++-			Entry: &yang.Entry{
+++			Entry: sonicfixture.Entry(&yang.Entry{
++ 				Name: "message-name",
++ 				Kind: yang.DirectoryEntry,
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "module",
++ 					Kind: yang.DirectoryEntry,
++-				},
++-			},
+++				}),
+++			}),
++ 			Fields: map[string]*yang.Entry{
++ 				"child": {
++ 					Name: "child",
++ 					Kind: yang.DirectoryEntry,
++ 					Dir:  map[string]*yang.Entry{},
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "message-name",
++ 						Kind: yang.DirectoryEntry,
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "module",
++ 							Kind: yang.DirectoryEntry,
++-						},
++-					},
+++						}),
+++					}),
++ 				},
++ 			},
++ 			Path: []string{"", "module", "message-name"},
++@@ -907,18 +908,18 @@
++ 		inMsgs: map[string]*Directory{
++ 			"/module/message-name/child": {
++ 				Name: "Child",
++-				Entry: &yang.Entry{
+++				Entry: sonicfixture.Entry(&yang.Entry{
++ 					Name: "child",
++ 					Kind: yang.DirectoryEntry,
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "message-name",
++ 						Kind: yang.DirectoryEntry,
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "module",
++ 							Kind: yang.DirectoryEntry,
++-						},
++-					},
++-				},
+++						}),
+++					}),
+++				}),
++ 				Path: []string{"", "module", "message-name", "child"},
++ 				Fields: map[string]*yang.Entry{
++ 					"leaf": {
++@@ -955,24 +956,24 @@
++ 		name: "simple message with an enumeration leaf",
++ 		inMsg: &Directory{
++ 			Name: "MessageName",
++-			Entry: &yang.Entry{
+++			Entry: sonicfixture.Entry(&yang.Entry{
++ 				Name: "message-name",
++ 				Kind: yang.DirectoryEntry,
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "module",
++ 					Kind: yang.DirectoryEntry,
++-				},
++-			},
+++				}),
+++			}),
++ 			Fields: map[string]*yang.Entry{
++ 				"enum": {
++ 					Name: "enum",
++ 					Kind: yang.LeafEntry,
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "message-name",
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "module",
++-						},
++-					},
+++						}),
+++					}),
++ 					Type: &yang.YangType{
++ 						Name: "enumeration",
++ 						Kind: yang.Yenum,
++@@ -1014,14 +1015,14 @@
++ 		name: "simple message with a list",
++ 		inMsg: &Directory{
++ 			Name: "AMessage",
++-			Entry: &yang.Entry{
+++			Entry: sonicfixture.Entry(&yang.Entry{
++ 				Name: "a-message",
++ 				Kind: yang.DirectoryEntry,
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "module",
++ 					Kind: yang.DirectoryEntry,
++-				},
++-			},
+++				}),
+++			}),
++ 			Fields: map[string]*yang.Entry{
++ 				"list": {
++ 					Name:     "list",
++@@ -1036,25 +1037,25 @@
++ 							},
++ 						},
++ 					},
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "surrounding-container",
++ 						Kind: yang.DirectoryEntry,
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "a-message",
++ 							Kind: yang.DirectoryEntry,
++-							Parent: &yang.Entry{
+++							Parent: sonicfixture.Entry(&yang.Entry{
++ 								Name: "module",
++ 								Kind: yang.DirectoryEntry,
++-							},
++-						},
++-					},
+++							}),
+++						}),
+++					}),
++ 				},
++ 			},
++ 		},
++ 		inMsgs: map[string]*Directory{
++ 			"/module/a-message/surrounding-container/list": {
++ 				Name: "List",
++-				Entry: &yang.Entry{
+++				Entry: sonicfixture.Entry(&yang.Entry{
++ 					Name:     "list",
++ 					Kind:     yang.DirectoryEntry,
++ 					ListAttr: &yang.ListAttr{},
++@@ -1067,19 +1068,19 @@
++ 							},
++ 						},
++ 					},
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "surrounding-container",
++ 						Kind: yang.DirectoryEntry,
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "a-message",
++ 							Kind: yang.DirectoryEntry,
++-							Parent: &yang.Entry{
+++							Parent: sonicfixture.Entry(&yang.Entry{
++ 								Name: "module",
++ 								Kind: yang.DirectoryEntry,
++-							},
++-						},
++-					},
++-				},
+++							}),
+++						}),
+++					}),
+++				}),
++ 				Fields: map[string]*yang.Entry{
++ 					"keyfield": {
++ 						Name: "keyfield",
++@@ -1127,14 +1128,14 @@
++ 		name: "simple message with a list - nested messages",
++ 		inMsg: &Directory{
++ 			Name: "AMessage",
++-			Entry: &yang.Entry{
+++			Entry: sonicfixture.Entry(&yang.Entry{
++ 				Name: "a-message",
++ 				Kind: yang.DirectoryEntry,
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "module",
++ 					Kind: yang.DirectoryEntry,
++-				},
++-			},
+++				}),
+++			}),
++ 			Fields: map[string]*yang.Entry{
++ 				"list": {
++ 					Name:     "list",
++@@ -1149,18 +1150,18 @@
++ 							},
++ 						},
++ 					},
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "surrounding-container",
++ 						Kind: yang.DirectoryEntry,
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "a-message",
++ 							Kind: yang.DirectoryEntry,
++-							Parent: &yang.Entry{
+++							Parent: sonicfixture.Entry(&yang.Entry{
++ 								Name: "module",
++ 								Kind: yang.DirectoryEntry,
++-							},
++-						},
++-					},
+++							}),
+++						}),
+++					}),
++ 				},
++ 			},
++ 			Path: []string{"", "module", "a-message"},
++@@ -1168,7 +1169,7 @@
++ 		inMsgs: map[string]*Directory{
++ 			"/module/a-message/surrounding-container/list": {
++ 				Name: "List",
++-				Entry: &yang.Entry{
+++				Entry: sonicfixture.Entry(&yang.Entry{
++ 					Name:     "list",
++ 					Kind:     yang.DirectoryEntry,
++ 					ListAttr: &yang.ListAttr{},
++@@ -1181,19 +1182,19 @@
++ 							},
++ 						},
++ 					},
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "surrounding-container",
++ 						Kind: yang.DirectoryEntry,
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "a-message",
++ 							Kind: yang.DirectoryEntry,
++-							Parent: &yang.Entry{
+++							Parent: sonicfixture.Entry(&yang.Entry{
++ 								Name: "module",
++ 								Kind: yang.DirectoryEntry,
++-							},
++-						},
++-					},
++-				},
+++							}),
+++						}),
+++					}),
+++				}),
++ 				Fields: map[string]*yang.Entry{
++ 					"keyfield": {
++ 						Name: "keyfield",
++@@ -1234,14 +1235,14 @@
++ 		name: "simple message with unkeyed list - nested messages",
++ 		inMsg: &Directory{
++ 			Name: "AMessage",
++-			Entry: &yang.Entry{
+++			Entry: sonicfixture.Entry(&yang.Entry{
++ 				Name: "a-message",
++ 				Kind: yang.DirectoryEntry,
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "module",
++ 					Kind: yang.DirectoryEntry,
++-				},
++-			},
+++				}),
+++			}),
++ 			Fields: map[string]*yang.Entry{
++ 				"list": {
++ 					Name:     "list",
++@@ -1255,18 +1256,18 @@
++ 							},
++ 						},
++ 					},
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "surrounding-container",
++ 						Kind: yang.DirectoryEntry,
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "a-message",
++ 							Kind: yang.DirectoryEntry,
++-							Parent: &yang.Entry{
+++							Parent: sonicfixture.Entry(&yang.Entry{
++ 								Name: "module",
++ 								Kind: yang.DirectoryEntry,
++-							},
++-						},
++-					},
+++							}),
+++						}),
+++					}),
++ 				},
++ 			},
++ 			Path: []string{"", "module", "a-message"},
++@@ -1274,7 +1275,7 @@
++ 		inMsgs: map[string]*Directory{
++ 			"/module/a-message/surrounding-container/list": {
++ 				Name: "List",
++-				Entry: &yang.Entry{
+++				Entry: sonicfixture.Entry(&yang.Entry{
++ 					Name:     "list",
++ 					Kind:     yang.DirectoryEntry,
++ 					ListAttr: &yang.ListAttr{},
++@@ -1286,19 +1287,19 @@
++ 							},
++ 						},
++ 					},
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "surrounding-container",
++ 						Kind: yang.DirectoryEntry,
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "a-message",
++ 							Kind: yang.DirectoryEntry,
++-							Parent: &yang.Entry{
+++							Parent: sonicfixture.Entry(&yang.Entry{
++ 								Name: "module",
++ 								Kind: yang.DirectoryEntry,
++-							},
++-						},
++-					},
++-				},
+++							}),
+++						}),
+++					}),
+++				}),
++ 				Fields: map[string]*yang.Entry{
++ 					"keyfield": {
++ 						Name: "keyfield",
++@@ -1332,7 +1333,7 @@
++ 		inMsg: &Directory{
++ 			Name:  "messagename",
++ 			Path:  []string{"one", "two"},
++-			Entry: &yang.Entry{},
+++			Entry: sonicfixture.Entry(&yang.Entry{}),
++ 		},
++ 		inBasePackageName: "base",
++ 		inEnumPackageName: "enums",
++@@ -1343,24 +1344,24 @@
++ 		name: "simple message with an identityref leaf",
++ 		inMsg: &Directory{
++ 			Name: "MessageName",
++-			Entry: &yang.Entry{
+++			Entry: sonicfixture.Entry(&yang.Entry{
++ 				Name: "message-name",
++ 				Kind: yang.DirectoryEntry,
++-				Parent: &yang.Entry{
+++				Parent: sonicfixture.Entry(&yang.Entry{
++ 					Name: "module",
++ 					Kind: yang.DirectoryEntry,
++-				},
++-			},
+++				}),
+++			}),
++ 			Fields: map[string]*yang.Entry{
++ 				"identityref": {
++ 					Name: "identityref",
++ 					Kind: yang.LeafEntry,
++-					Parent: &yang.Entry{
+++					Parent: sonicfixture.Entry(&yang.Entry{
++ 						Name: "message-name",
++-						Parent: &yang.Entry{
+++						Parent: sonicfixture.Entry(&yang.Entry{
++ 							Name: "module",
++-						},
++-					},
+++						}),
+++					}),
++ 					Type: &yang.YangType{
++ 						Name: "identityref",
++ 						Kind: yang.Yidentityref,
++@@ -1455,13 +1456,13 @@
++ 		inListPackage: "pkg",
++ 		inListName:    "list",
++ 		inArgs: &protoDefinitionArgs{
++-			field: &yang.Entry{
+++			field: sonicfixture.Entry(&yang.Entry{
++ 				Name:     "list",
++ 				Kind:     yang.DirectoryEntry,
++ 				ListAttr: &yang.ListAttr{},
++ 				Key:      "key",
++ 				Dir:      map[string]*yang.Entry{},
++-			},
+++			}),
++ 			directory: &Directory{
++ 				Name: "List",
++ 				Fields: map[string]*yang.Entry{
++@@ -1504,13 +1505,13 @@
++ 		inListPackage: "pkg",
++ 		inListName:    "list",
++ 		inArgs: &protoDefinitionArgs{
++-			field: &yang.Entry{
+++			field: sonicfixture.Entry(&yang.Entry{
++ 				Name:     "list",
++ 				Kind:     yang.DirectoryEntry,
++ 				ListAttr: &yang.ListAttr{},
++ 				Key:      "key",
++ 				Dir:      map[string]*yang.Entry{},
++-			},
+++			}),
++ 			directory: &Directory{
++ 				Name: "List",
++ 				Fields: map[string]*yang.Entry{
++@@ -1566,13 +1567,13 @@
++ 		inListPackage: "pkg",
++ 		inListName:    "list",
++ 		inArgs: &protoDefinitionArgs{
++-			field: &yang.Entry{
+++			field: sonicfixture.Entry(&yang.Entry{
++ 				Name:     "list",
++ 				Kind:     yang.DirectoryEntry,
++ 				ListAttr: &yang.ListAttr{},
++ 				Key:      "key",
++ 				Dir:      map[string]*yang.Entry{},
++-			},
+++			}),
++ 			directory: &Directory{
++ 				Name: "List",
++ 				Fields: map[string]*yang.Entry{
++@@ -1655,13 +1656,13 @@
++ 		inEnums: map[string]*yangEnum{
++ 			"e": {
++ 				name: "e",
++-				entry: &yang.Entry{
+++				entry: sonicfixture.Entry(&yang.Entry{
++ 					Name: "e",
++ 					Type: &yang.YangType{
++ 						Name: "enumeration",
++ 						Kind: yang.Yenum,
++ 					},
++-				},
+++				}),
++ 			},
++ 		},
++ 		wantEnums: []string{},
++@@ -1670,7 +1671,7 @@
++ 		inEnums: map[string]*yangEnum{
++ 			"EnumeratedValue": {
++ 				name: "EnumeratedValue",
++-				entry: &yang.Entry{
+++				entry: sonicfixture.Entry(&yang.Entry{
++ 					Type: &yang.YangType{
++ 						IdentityBase: &yang.Identity{
++ 							Name: "IdentityValue",
++@@ -1680,7 +1681,7 @@
++ 							},
++ 						},
++ 					},
++-				},
+++				}),
++ 			},
++ 		},
++ 		wantEnums: []string{
++@@ -1698,7 +1699,7 @@
++ 		inEnums: map[string]*yangEnum{
++ 			"e": {
++ 				name: "EnumName",
++-				entry: &yang.Entry{
+++				entry: sonicfixture.Entry(&yang.Entry{
++ 					Name: "e",
++ 					Type: &yang.YangType{
++ 						Name: "typedef",
++@@ -1708,11 +1709,11 @@
++ 					Annotation: map[string]interface{}{
++ 						"valuePrefix": []string{"enum-name"},
++ 					},
++-				},
+++				}),
++ 			},
++ 			"f": {
++ 				name: "SecondEnum",
++-				entry: &yang.Entry{
+++				entry: sonicfixture.Entry(&yang.Entry{
++ 					Name: "f",
++ 					Type: &yang.YangType{
++ 						Name: "derived",
++@@ -1722,7 +1723,7 @@
++ 					Annotation: map[string]interface{}{
++ 						"valuePrefix": []string{"secondenum"},
++ 					},
++-				},
+++				}),
++ 			},
++ 		},
++ 		inAnnotateEnumNames: true,
++@@ -1791,7 +1792,7 @@
++ 	}{{
++ 		name:   "simple string union",
++ 		inName: "FieldName",
++-		inEntry: &yang.Entry{
+++		inEntry: sonicfixture.Entry(&yang.Entry{
++ 			Name: "field-name",
++ 			Type: &yang.YangType{
++ 				Type: []*yang.YangType{
++@@ -1799,7 +1800,7 @@
++ 					{Kind: yang.Yint8},
++ 				},
++ 			},
++-		},
+++		}),
++ 		inMappedType: &MappedType{
++ 			UnionTypes: map[string]int{
++ 				"string": 0,
++@@ -1819,7 +1820,7 @@
++ 	}, {
++ 		name:   "decimal64 union",
++ 		inName: "FieldName",
++-		inEntry: &yang.Entry{
+++		inEntry: sonicfixture.Entry(&yang.Entry{
++ 			Name: "field-name",
++ 			Type: &yang.YangType{
++ 				Type: []*yang.YangType{
++@@ -1827,7 +1828,7 @@
++ 					{Kind: yang.Ydecimal64},
++ 				},
++ 			},
++-		},
+++		}),
++ 		inMappedType: &MappedType{
++ 			UnionTypes: map[string]int{
++ 				"string":             0,
++@@ -1847,7 +1848,7 @@
++ 	}, {
++ 		name:   "union with an enumeration",
++ 		inName: "FieldName",
++-		inEntry: &yang.Entry{
+++		inEntry: sonicfixture.Entry(&yang.Entry{
++ 			Name: "field-name",
++ 			Type: &yang.YangType{
++ 				Type: []*yang.YangType{
++@@ -1859,7 +1860,7 @@
++ 					{Kind: yang.Ystring},
++ 				},
++ 			},
++-		},
+++		}),
++ 		inMappedType: &MappedType{
++ 			UnionTypes: map[string]int{
++ 				"SomeEnumType": 0,
++@@ -1888,7 +1889,7 @@
++ 	}, {
++ 		name:   "leaflist of union",
++ 		inName: "FieldName",
++-		inEntry: &yang.Entry{
+++		inEntry: sonicfixture.Entry(&yang.Entry{
++ 			Name: "field-name",
++ 			Type: &yang.YangType{
++ 				Type: []*yang.YangType{
++@@ -1896,9 +1897,9 @@
++ 					{Kind: yang.Yuint8},
++ 				},
++ 			},
++-			Parent:   &yang.Entry{Name: "parent"},
+++			Parent:   sonicfixture.Entry(&yang.Entry{Name: "parent"}),
++ 			ListAttr: &yang.ListAttr{},
++-		},
+++		}),
++ 		inMappedType: &MappedType{
++ 			UnionTypes: map[string]int{
++ 				"string": 0,
++diff --git a/ygen/schemaparse_test.go b/ygen/schemaparse_test.go
++--- a/ygen/schemaparse_test.go
+++++ b/ygen/schemaparse_test.go
++@@ -16,6 +16,7 @@
++ 
++ import (
++ 	"encoding/json"
+++	"github.com/openconfig/ygot/internal/sonicfixture"
++ 	"reflect"
++ 	"strings"
++ 	"testing"
++@@ -29,33 +30,33 @@
++ 
++ func TestBuildJSONTree(t *testing.T) {
++ 	// Simple YANG hierarchy for test case.
++-	simpleModule := &yang.Entry{
+++	simpleModule := sonicfixture.Entry(&yang.Entry{
++ 		Name: "a-module",
++ 		Kind: yang.DirectoryEntry,
++-	}
++-	simpleContainer := &yang.Entry{
+++	})
+++	simpleContainer := sonicfixture.Entry(&yang.Entry{
++ 		Name:   "simple-container",
++ 		Kind:   yang.DirectoryEntry,
++ 		Parent: simpleModule,
++-	}
++-	simpleLeaf := &yang.Entry{
+++	})
+++	simpleLeaf := sonicfixture.Entry(&yang.Entry{
++ 		Name:   "simple-leaf",
++ 		Kind:   yang.LeafEntry,
++ 		Parent: simpleContainer,
++-	}
+++	})
++ 	simpleContainer.Dir = map[string]*yang.Entry{"simple-leaf": simpleLeaf}
++ 	simpleModule.Dir = map[string]*yang.Entry{"simple-container": simpleContainer}
++ 
++ 	// More complex YANG hierarchy with multiple modules, and children.
++-	moduleTwo := &yang.Entry{
+++	moduleTwo := sonicfixture.Entry(&yang.Entry{
++ 		Name: "a-module",
++ 		Kind: yang.DirectoryEntry,
++-	}
++-	moduleTwoContainerOne := &yang.Entry{
+++	})
+++	moduleTwoContainerOne := sonicfixture.Entry(&yang.Entry{
++ 		Name:   "container-one",
++ 		Kind:   yang.DirectoryEntry,
++ 		Parent: moduleTwo,
++-	}
+++	})
++ 	moduleTwoContainerOne.Dir = map[string]*yang.Entry{
++ 		"ch-one": {
++ 			Name:   "ch-one",
++@@ -70,11 +71,11 @@
++ 			Parent: moduleTwoContainerOne,
++ 		},
++ 	}
++-	moduleTwoContainerTwo := &yang.Entry{
+++	moduleTwoContainerTwo := sonicfixture.Entry(&yang.Entry{
++ 		Name:   "container-two",

@@ -1,0 +1,29 @@
+{
+  "pr": 199,
+  "baseline": "51de33d8d4eb949ed7e5a02578deee2eeab34e76",
+  "candidate": "2cd9a011b023c121f6283a3d6668a4eda11296f8",
+  "candidate_tree": "3ba45b7466e925a7fc8c5ed82af5d6abe1b5d07f",
+  "prepared_copy_tree": "fea7164938046a89158a52a017f1d0b167cab376",
+  "published_copies": [
+    {
+      "module": "sonic-build-infra",
+      "published_version": "0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568",
+      "candidate_version": "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e",
+      "source": "modules/sonic-build-infra/0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568",
+      "destination": "modules/sonic-build-infra/0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e"
+    },
+    {
+      "module": "sonic-swss-common",
+      "published_version": "0.0.8-a0450924719a9f706125cc44a07dc88934935003",
+      "candidate_version": "0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed",
+      "source": "modules/sonic-swss-common/0.0.8-a0450924719a9f706125cc44a07dc88934935003",
+      "destination": "modules/sonic-swss-common/0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed"
+    }
+  ],
+  "first_registrations": [],
+  "bytes": 243747,
+  "sha256": "3b938d020130e5e9ddfc3527a8c41978eedc6833ad58beb0974522c06c12466a",
+  "applied_full_tree_equals_candidate": true,
+  "modes_and_unchanged_entry_files_preserved": true,
+  "artifact_path": "comparisons/infra25-runtime-20261104/registry-199.patch"
+}

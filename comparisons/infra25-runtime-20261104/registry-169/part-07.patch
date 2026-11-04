@@ -1,0 +1,4837 @@
++/* Define to 1 if you have the <sys/dkstat.h> header file. */
++/* #undef HAVE_SYS_DKSTAT_H */
++
++/* Define to 1 if you have the <sys/dmap.h> header file. */
++/* #undef HAVE_SYS_DMAP_H */
++
++/* Define to 1 if you have the <sys/file.h> header file. */
++@HAVE_SYS_FILE_H@
++
++/* Define to 1 if you have the <sys/filio.h> header file. */
++/* #undef HAVE_SYS_FILIO_H */
++
++/* Define to 1 if you have the <sys/fixpoint.h> header file. */
++/* #undef HAVE_SYS_FIXPOINT_H */
++
++/* Define to 1 if you have the <sys/fs.h> header file. */
++/* #undef HAVE_SYS_FS_H */
++
++/* Define to 1 if you have the <sys/hashing.h> header file. */
++/* #undef HAVE_SYS_HASHING_H */
++
++/* Define to 1 if you have the <sys/ioctl.h> header file. */
++@HAVE_SYS_IOCTL_H@
++
++/* Define to 1 if you have the <sys/loadavg.h> header file. */
++/* #undef HAVE_SYS_LOADAVG_H */
++
++/* Define to 1 if you have the <sys/mbuf.h> header file. */
++/* #undef HAVE_SYS_MBUF_H */
++
++/* Define to 1 if you have the <sys/mntent.h> header file. */
++/* #undef HAVE_SYS_MNTENT_H */
++
++/* Define to 1 if you have the <sys/mnttab.h> header file. */
++/* #undef HAVE_SYS_MNTTAB_H */
++
++/* Define to 1 if you have the <sys/mount.h> header file. */
++@HAVE_SYS_MOUNT_H@
++
++/* Define to 1 if you have the <sys/ndir.h> header file, and it defines 'DIR'.
++   */
++/* #undef HAVE_SYS_NDIR_H */
++
++/* Define to 1 if you have the <sys/param.h> header file. */
++@HAVE_SYS_PARAM_H@
++
++/* Define to 1 if you have the <sys/poll.h> header file. */
++@HAVE_SYS_POLL_H@
++
++/* Define to 1 if you have the <sys/pool.h> header file. */
++/* #undef HAVE_SYS_POOL_H */
++
++/* Define to 1 if you have the <sys/proc.h> header file. */
++/* #undef HAVE_SYS_PROC_H */
++
++/* Define to 1 if you have the <sys/protosw.h> header file. */
++/* #undef HAVE_SYS_PROTOSW_H */
++
++/* Define to 1 if you have the <sys/pstat.h> header file. */
++/* #undef HAVE_SYS_PSTAT_H */
++
++/* Define to 1 if you have the <sys/queue.h> header file. */
++@HAVE_SYS_QUEUE_H@
++
++/* Define to 1 if you have the <sys/select.h> header file. */
++@HAVE_SYS_SELECT_H@
++
++/* Define to 1 if you have the <sys/sema.h> header file. */
++/* #undef HAVE_SYS_SEMA_H */
++
++/* Define to 1 if you have the <sys/socketvar.h> header file. */
++@HAVE_SYS_SOCKETVAR_H@
++
++/* Define to 1 if you have the <sys/socket.h> header file. */
++@HAVE_SYS_SOCKET_H@
++
++/* Define to 1 if you have the <sys/sockio.h> header file. */
++/* #undef HAVE_SYS_SOCKIO_H */
++
++/* Define to 1 if you have the <sys/statfs.h> header file. */
++@HAVE_SYS_STATFS_H@
++
++/* Define to 1 if you have the <sys/statvfs.h> header file. */
++@HAVE_SYS_STATVFS_H@
++
++/* Define to 1 if you have the <sys/stat.h> header file. */
++@HAVE_SYS_STAT_H@
++
++/* Define to 1 if you have the <sys/stream.h> header file. */
++/* #undef HAVE_SYS_STREAM_H */
++
++/* Define to 1 if you have the <sys/swap.h> header file. */
++@HAVE_SYS_SWAP_H@
++
++/* Define to 1 if you have the <sys/sysctl.h> header file. */
++/* #undef HAVE_SYS_SYSCTL_H */
++
++/* Define to 1 if you have the <sys/sysget.h> header file. */
++/* #undef HAVE_SYS_SYSGET_H */
++
++/* Define to 1 if you have the <sys/syslog.h> header file. */
++@HAVE_SYS_SYSLOG_H@
++
++/* Define to 1 if you have the <sys/sysmacros.h> header file. */
++@HAVE_SYS_SYSMACROS_H@
++
++/* Define to 1 if you have the <sys/sysmp.h> header file. */
++/* #undef HAVE_SYS_SYSMP_H */
++
++/* Define to 1 if you have the <sys/systemcfg.h> header file. */
++/* #undef HAVE_SYS_SYSTEMCFG_H */
++
++/* Define to 1 if you have the <sys/systeminfo.h> header file. */
++/* #undef HAVE_SYS_SYSTEMINFO_H */
++
++/* Define to 1 if you have the <sys/tcpipstats.h> header file. */
++/* #undef HAVE_SYS_TCPIPSTATS_H */
++
++/* Define to 1 if you have the <sys/timeb.h> header file. */
++@HAVE_SYS_TIMEB_H@
++
++/* Define to 1 if you have the <sys/timeout.h> header file. */
++/* #undef HAVE_SYS_TIMEOUT_H */
++
++/* Define to 1 if you have the <sys/times.h> header file. */
++@HAVE_SYS_TIMES_H@
++
++/* Define to 1 if you have the <sys/time.h> header file. */
++@HAVE_SYS_TIME_H@
++
++/* Define to 1 if you have the <sys/types.h> header file. */
++@HAVE_SYS_TYPES_H@
++
++/* Define to 1 if you have the <sys/uio.h> header file. */
++@HAVE_SYS_UIO_H@
++
++/* Define to 1 if you have the <sys/un.h> header file. */
++@HAVE_SYS_UN_H@
++
++/* Define to 1 if you have the <sys/user.h> header file. */
++@HAVE_SYS_USER_H@
++
++/* Define to 1 if you have the <sys/utsname.h> header file. */
++@HAVE_SYS_UTSNAME_H@
++
++/* Define to 1 if you have the <sys/vfs.h> header file. */
++@HAVE_SYS_VFS_H@
++
++/* Define to 1 if you have the <sys/vmmac.h> header file. */
++/* #undef HAVE_SYS_VMMAC_H */
++
++/* Define to 1 if you have the <sys/vmmeter.h> header file. */
++/* #undef HAVE_SYS_VMMETER_H */
++
++/* Define to 1 if you have the <sys/vmparam.h> header file. */
++/* #undef HAVE_SYS_VMPARAM_H */
++
++/* Define to 1 if you have the <sys/vmsystm.h> header file. */
++/* #undef HAVE_SYS_VMSYSTM_H */
++
++/* Define to 1 if you have the <sys/vm.h> header file. */
++/* #undef HAVE_SYS_VM_H */
++
++/* Define to 1 if you have the <sys/vnode.h> header file. */
++/* #undef HAVE_SYS_VNODE_H */
++
++/* Define to 1 if you have <sys/wait.h> that is POSIX.1 compatible. */
++@HAVE_SYS_WAIT_H@
++
++/* Define to 1 if you have the 'tcgetattr' function. */
++@HAVE_TCGETATTR@
++
++/* Define to 1 if you have the 'times' function. */
++@HAVE_TIMES@
++
++/* Define to 1 if you have the 'TLSv1_method' function. */
++@HAVE_TLSV1_METHOD@
++
++/* Define to 1 if you have the 'TLS_method' function. */
++@HAVE_TLS_METHOD@
++
++/* Define to 1 if you have the <ufs/ffs/fs.h> header file. */
++/* #undef HAVE_UFS_FFS_FS_H */
++
++/* Define to 1 if you have the <ufs/fs.h> header file. */
++/* #undef HAVE_UFS_FS_H */
++
++/* Define to 1 if you have the <ufs/ufs/dinode.h> header file. */
++/* #undef HAVE_UFS_UFS_DINODE_H */
++
++/* Define to 1 if you have the <ufs/ufs/inode.h> header file. */
++/* #undef HAVE_UFS_UFS_INODE_H */
++
++/* Define to 1 if you have the <ufs/ufs/quota.h> header file. */
++/* #undef HAVE_UFS_UFS_QUOTA_H */
++
++/* Define to 1 if the system has the type 'uintmax_t'. */
++@HAVE_UINTMAX_T@
++
++/* Define to 1 if the system has the type 'uintptr_t'. */
++@HAVE_UINTPTR_T@
++
++/* Define to 1 if you have the 'uname' function. */
++@HAVE_UNAME@
++
++/* Define to 1 if you have the <unistd.h> header file. */
++@HAVE_UNISTD_H@
++
++/* Define to 1 if the system has the type 'unsigned long long int'. */
++@HAVE_UNSIGNED_LONG_LONG_INT@
++
++/* Define to 1 if you have the 'usleep' function. */
++@HAVE_USLEEP@
++
++/* Define to 1 if you have the <utmpx.h> header file. */
++@HAVE_UTMPX_H@
++
++/* Define to 1 if you have the <utsname.h> header file. */
++/* #undef HAVE_UTSNAME_H */
++
++/* Define to 1 if you have the <uvm/uvm_extern.h> header file. */
++/* #undef HAVE_UVM_UVM_EXTERN_H */
++
++/* Define to 1 if you have the <uvm/uvm_param.h> header file. */
++/* #undef HAVE_UVM_UVM_PARAM_H */
++
++/* Define to 1 if you have the <valgrind/memcheck.h> header file. */
++/* #undef HAVE_VALGRIND_MEMCHECK_H */
++
++/* Define to 1 if you have the <valgrind/valgrind.h> header file. */
++/* #undef HAVE_VALGRIND_VALGRIND_H */
++
++/* Define to 1 if you have the <validator/validator-config.h> header file. */
++/* #undef HAVE_VALIDATOR_VALIDATOR_CONFIG_H */
++
++/* Define to 1 if you have the 'vm_region' function. */
++/* #undef HAVE_VM_REGION */
++
++/* Define to 1 if you have the 'vm_region_64' function. */
++/* #undef HAVE_VM_REGION_64 */
++
++/* Define to 1 if you have the <vm/swap_pager.h> header file. */
++/* #undef HAVE_VM_SWAP_PAGER_H */
++
++/* Define to 1 if you have the <vm/vm_extern.h> header file. */
++/* #undef HAVE_VM_VM_EXTERN_H */
++
++/* Define to 1 if you have the <vm/vm.h> header file. */
++/* #undef HAVE_VM_VM_H */
++
++/* Define to 1 if you have the <vm/vm_param.h> header file. */
++/* #undef HAVE_VM_VM_PARAM_H */
++
++/* Define to 1 if you have the 'vsnprintf' function. */
++@HAVE_VSNPRINTF@
++
++/* Define to 1 if you have the 'waitpid' function. */
++@HAVE_WAITPID@
++
++/* Define to 1 if you have the <wchar.h> header file. */
++@HAVE_WCHAR_H@
++
++/* Define to 1 if you have the <windows.h> header file. */
++/* #undef HAVE_WINDOWS_H */
++
++/* Define to 1 if you have the <winsock2.h> header file. */
++/* #undef HAVE_WINSOCK2_H */
++
++/* Define to 1 if you have the <winsock.h> header file. */
++/* #undef HAVE_WINSOCK_H */
++
++/* Define to 1 if you have the <ws2tcpip.h> header file. */
++/* #undef HAVE_WS2TCPIP_H */
++
++/* Define to 1 if you have the 'X509_get_signature_nid' function. */
++@HAVE_X509_GET_SIGNATURE_NID@
++
++/* Define to 1 if you have the 'X509_NAME_ENTRY_get_data' function. */
++@HAVE_X509_NAME_ENTRY_GET_DATA@
++
++/* Define to 1 if you have the 'X509_NAME_ENTRY_get_object' function. */
++@HAVE_X509_NAME_ENTRY_GET_OBJECT@
++
++/* Define to 1 if you have the <xti.h> header file. */
++/* #undef HAVE_XTI_H */
++
++/* Define if _beginthreadex() is defined in <process.h> */
++/* #undef HAVE__BEGINTHREADEX */
++
++/* Define if _cputs() is defined in <conio.h> */
++/* #undef HAVE__CPUTS */
++
++/* Define if _getch() is defined in <conio.h> */
++/* #undef HAVE__GETCH */
++
++/* Define if _get_osfhandle() is defined in <io.h> */
++/* #undef HAVE__GET_OSFHANDLE */
++
++/* Define to 1 if you have the `_NSGetArgv' function. */
++/* #undef HAVE__NSGETARGV */
++
++/* Define to 1 if you have the `_NSGetExecutablePath' function. */
++/* #undef HAVE__NSGETEXECUTABLEPATH */
++
++/* Define if _open_osfhandle() is defined in <io.h> */
++/* #undef HAVE__OPEN_OSFHANDLE */
++
++/* location of UNIX kernel */
++@KERNEL_LOC@
++
++/* Path to the lpstat command */
++/* #undef LPSTAT_PATH */
++
++/* Define to the sub-directory where libtool stores uninstalled libraries. */
++@LT_OBJDIR@
++
++/* define if agentx transport is to use domain sockets only */
++/* #undef NETSNMP_AGENTX_DOM_SOCK_ONLY */
++
++/* Unix domain socket for AgentX master-subagent communication */
++@NETSNMP_AGENTX_SOCKET@
++
++/* Used to make the compiler issue a warning about deprecated functions and
++   variables */
++@NETSNMP_ATTRIBUTE_DEPRECATED@
++
++/* Used to suppress compiler warnings about unused functions and variables */
++@NETSNMP_ATTRIBUTE_UNUSED@
++
++/* Define if static inline functions are unsupported */
++/* #undef NETSNMP_BROKEN_INLINE */
++
++/* "Define if crytography support is possible" */
++@NETSNMP_CAN_DO_CRYPTO@
++
++/* sysctl works to get boottime, etc... */
++/* #undef NETSNMP_CAN_USE_SYSCTL */
++
++/* configure options specified */
++@NETSNMP_CONFIGURE_OPTIONS@
++
++/* if defined daemons will use syslog when no log destination is defined */
++/* #undef NETSNMP_DAEMONS_DEFAULT_LOG_SYSLOG */
++
++/* default location to look for mibs to load using the above tokens and/or
++   those in the MIBS envrionment variable */
++@NETSNMP_DEFAULT_MIBDIRS@
++
++/* default mib files to load, specified by path. */
++/* #undef NETSNMP_DEFAULT_MIBFILES */
++
++/* Define if no agent is built */
++/* #undef NETSNMP_DISABLE_AGENT */
++
++/* Define if no apps are built */
++/* #undef NETSNMP_DISABLE_APPS */
++
++/* Define if DES encryption should not be supported */
++/* #undef NETSNMP_DISABLE_DES */
++
++/* Define if MD5 authentication should not be supported */
++/* #undef NETSNMP_DISABLE_MD5 */
++
++/* Define if mib loading and parsing code should not be included */
++/* #undef NETSNMP_DISABLE_MIB_LOADING */
++
++/* Define if SNMP SET support should be disabled */
++/* #undef NETSNMP_DISABLE_SET_SUPPORT */
++
++/* Define if SNMPv1 code should not be included */
++/* #undef NETSNMP_DISABLE_SNMPV1 */
++
++/* Define if SNMPv2c code should not be included */
++/* #undef NETSNMP_DISABLE_SNMPV2C */
++
++/* Define if AES-192/AES-256 encryption should be supported */
++@NETSNMP_DRAFT_BLUMENTHAL_AES_04@
++
++/* Define if you are embedding perl in the main agent. */
++@NETSNMP_EMBEDDED_PERL@
++
++/* define if you want to enable IPv6 support */
++@NETSNMP_ENABLE_IPV6@
++
++/* define if you want to restrict SMUX connections to localhost by default */
++/* #undef NETSNMP_ENABLE_LOCAL_SMUX */
++
++/* Define if you want to build MFD module rewrites */
++@NETSNMP_ENABLE_MFD_REWRITES@
++
++/* define if you want to compile support for both authentication and privacy
++   support. */
++@NETSNMP_ENABLE_SCAPI_AUTHPRIV@
++
++/* testing code sections. */
++/* #undef NETSNMP_ENABLE_TESTING_CODE */
++
++/* if defined always use default auth/priv protocol when creating usmUsers */
++/* #undef NETSNMP_FORCE_SYSTEM_V3_AUTHPRIV */
++
++/* Should evaluate to the name of the current function if defined */
++@NETSNMP_FUNCTION@
++
++/* ifnet needs to have _KERNEL defined */
++/* #undef NETSNMP_IFNET_NEEDS_KERNEL */
++
++/* ifnet needs to have _KERNEL_STRUCTURES defined */
++/* #undef NETSNMP_IFNET_NEEDS_KERNEL_STRUCTURES */
++
++/* Type of the third argument of ioctlsocket() */
++@NETSNMP_IOCTLSOCKET_ARG@
++
++/* Define if you want to remove all non-essential code features. */
++/* #undef NETSNMP_MINIMAL_CODE */
++
++/* Define if you want to only support sending notifications */
++/* #undef NETSNMP_NOTIFY_ONLY */
++
++/* Define to suppress inclusion of deprecated functions */
++/* #undef NETSNMP_NO_DEPRECATED_FUNCTIONS */
++
++/* If you don't want the agent to report on variables it doesn't have data for
++   */
++@NETSNMP_NO_DUMMY_VALUES@
++
++/* If we don't want to use kmem. */
++/* #undef NETSNMP_NO_KMEM_USAGE */
++
++/* Define if you want to remove all listening support from the code */
++/* #undef NETSNMP_NO_LISTEN_SUPPORT */
++
++/* If you don't have root access don't exit upon kmem errors */
++/* #undef NETSNMP_NO_ROOT_ACCESS */
++
++/* If you don't want to integrate with systemd. */
++/* #undef NETSNMP_NO_SYSTEMD */
++
++/* Define if you want to remove all SET/write access from the code */
++/* #undef NETSNMP_NO_WRITE_SUPPORT */
++
++/* umask permissions to set up persistent files with */
++@NETSNMP_PERSISTENT_MASK@
++
++/* Size prefix to use to printf a size_t or ssize_t */
++@NETSNMP_PRIz@
++
++/* Define to 1 if you want to build with reentrant/threaded code (incomplete).
++   */
++/* #undef NETSNMP_REENTRANT */
++
++/* Type of the fifth argument of select() */
++@NETSNMP_SELECT_TIMEVAL@
++
++/* define if you do not want snmptrapd to register as an AgentX subagent */
++/* #undef NETSNMP_SNMPTRAPD_DISABLE_AGENTX */
++
++/* Pattern of temporary files */
++@NETSNMP_TEMP_FILE_PATTERN@
++
++/* "Define if internal cryptography code should be used" */
++/* #undef NETSNMP_USE_INTERNAL_CRYPTO */
++
++/* define if you are using the MD5 code ... */
++/* #undef NETSNMP_USE_INTERNAL_MD5 */
++
++/* Define this if you're using Heimdal Kerberos */
++/* #undef NETSNMP_USE_KERBEROS_HEIMDAL */
++
++/* Define this if we're using the new MIT crypto API */
++/* #undef NETSNMP_USE_KERBEROS_MIT */
++
++/* define if you are using the mysql code for snmptrapd ... */
++@NETSNMP_USE_MYSQL@
++
++/* Define if you are using the codeS11 library ... */
++/* #undef NETSNMP_USE_PKCS11 */
++
++/* Define this if you have lm_sensors v3 or later */
++@NETSNMP_USE_SENSORS_V3@
++
++/* Should we compile to use special opaque types: float, double, counter64,
++   i64, ui64, union? */
++@NETSNMP_WITH_OPAQUE_SPECIAL_TYPES@
++
++/* Define to the address where bug reports for this package should be sent. */
++#ifndef PACKAGE_BUGREPORT
++@PACKAGE_BUGREPORT@
++#endif
++
++/* Define to the full name of this package. */
++#ifndef PACKAGE_NAME
++@PACKAGE_NAME@
++#endif
++
++/* Define to the full name and version of this package. */
++#ifndef PACKAGE_STRING
++@PACKAGE_STRING@
++#endif
++
++/* Define to the one symbol short name of this package. */
++#ifndef PACKAGE_TARNAME
++@PACKAGE_TARNAME@
++#endif
++
++/* Define to the home page for this package. */
++@PACKAGE_URL@
++
++/* Define to the version of this package. */
++#ifndef PACKAGE_VERSION
++@PACKAGE_VERSION@
++#endif
++
++/* Command to generate ps output, the final column must be the process name
++   withOUT arguments */
++@PSCMD@
++
++/* Define as the return type of signal handlers ('int' or 'void'). */
++@RETSIGTYPE@
++
++/* define rtentry to ortentry on SYSV machines (alphas) */
++@RTENTRY@
++
++/* Use BSD 4.4 routing table entries? */
++/* #undef RTENTRY_4_4 */
++
++/* Qualifier for second argument of the appverify_cookie_cb() callback
++   function */
++@SECOND_APPVERIFY_COOKIE_CB_ARG_QUALIFIER@
++
++/* The size of 'int', as computed by sizeof. */
++@SIZEOF_INT@
++
++/* The size of 'intmax_t', as computed by sizeof. */
++@SIZEOF_INTMAX_T@
++
++/* The size of 'long', as computed by sizeof. */
++@SIZEOF_LONG@
++
++/* The size of 'long long', as computed by sizeof. */
++@SIZEOF_LONG_LONG@
++
++/* The size of 'short', as computed by sizeof. */
++@SIZEOF_SHORT@
++
++/* The size of 'sockaddr_un.sun_path', as computed by sizeof. */
++@SIZEOF_SOCKADDR_UN_SUN_PATH@
++
++/* If using the C implementation of alloca, define if you know the
++   direction of stack growth for your system; otherwise it will be
++   automatically deduced at runtime.
++	STACK_DIRECTION > 0 => grows toward higher addresses
++	STACK_DIRECTION < 0 => grows toward lower addresses
++	STACK_DIRECTION = 0 => direction of growth unknown */
++/* #undef STACK_DIRECTION */
++
++/* Define if statfs takes 2 args and the second argument has type struct
++   fs_data. [Ultrix] */
++/* #undef STAT_STATFS_FS_DATA */
++
++/* Define to 1 if all of the C89 standard headers exist (not just the ones
++   required in a freestanding environment). This macro is provided for
++   backward compatibility; new code need not use it. */
++@STDC_HEADERS@
++
++/* define if SIOCGIFADDR exists in sys/ioctl.h */
++@SYS_IOCTL_H_HAS_SIOCGIFADDR@
++
++/* Define if the TCP timer constants in <netinet/tcp_timer.h> depend on the
++   integer variable 'hz'. [FreeBSD 4.x] */
++/* #undef TCPTV_NEEDS_HZ */
++
++/* Define to 1 if you can safely include both <sys/time.h> and <time.h>. This
++   macro is obsolete. */
++@TIME_WITH_SYS_TIME@
++
++/* Where is the uname command */
++@UNAMEPROG@
++
++/* Enable extensions on AIX, Interix, z/OS.  */
++#ifndef _ALL_SOURCE
++# define _ALL_SOURCE 1
++#endif
++/* Enable general extensions on macOS.  */
++#ifndef _DARWIN_C_SOURCE
++# define _DARWIN_C_SOURCE 1
++#endif
++/* Enable general extensions on Solaris.  */
++#ifndef __EXTENSIONS__
++# define __EXTENSIONS__ 1
++#endif
++/* Enable GNU extensions on systems that have them.  */
++#ifndef _GNU_SOURCE
++# define _GNU_SOURCE 1
++#endif
++/* Enable X/Open compliant socket functions that do not require linking
++   with -lxnet on HP-UX 11.11.  */
++#ifndef _HPUX_ALT_XOPEN_SOCKET_API
++# define _HPUX_ALT_XOPEN_SOCKET_API 1
++#endif
++/* Identify the host operating system as Minix.
++   This macro does not affect the system headers' behavior.
++   A future release of Autoconf may stop defining this macro.  */
++#ifndef _MINIX
++/* # undef _MINIX */
++#endif
++/* Enable general extensions on NetBSD.
++   Enable NetBSD compatibility extensions on Minix.  */
++#ifndef _NETBSD_SOURCE
++# define _NETBSD_SOURCE 1
++#endif
++/* Enable OpenBSD compatibility extensions on NetBSD.
++   Oddly enough, this does nothing on OpenBSD.  */
++#ifndef _OPENBSD_SOURCE
++# define _OPENBSD_SOURCE 1
++#endif
++/* Define to 1 if needed for POSIX-compatible behavior.  */
++#ifndef _POSIX_SOURCE
++/* # undef _POSIX_SOURCE */
++#endif
++/* Define to 2 if needed for POSIX-compatible behavior.  */
++#ifndef _POSIX_1_SOURCE
++/* # undef _POSIX_1_SOURCE */
++#endif
++/* Enable POSIX-compatible threading on Solaris.  */
++#ifndef _POSIX_PTHREAD_SEMANTICS
++# define _POSIX_PTHREAD_SEMANTICS 1
++#endif
++/* Enable extensions specified by ISO/IEC TS 18661-5:2014.  */
++#ifndef __STDC_WANT_IEC_60559_ATTRIBS_EXT__
++# define __STDC_WANT_IEC_60559_ATTRIBS_EXT__ 1
++#endif
++/* Enable extensions specified by ISO/IEC TS 18661-1:2014.  */
++#ifndef __STDC_WANT_IEC_60559_BFP_EXT__
++# define __STDC_WANT_IEC_60559_BFP_EXT__ 1
++#endif
++/* Enable extensions specified by ISO/IEC TS 18661-2:2015.  */
++#ifndef __STDC_WANT_IEC_60559_DFP_EXT__
++# define __STDC_WANT_IEC_60559_DFP_EXT__ 1
++#endif
++/* Enable extensions specified by C23 Annex F.  */
++#ifndef __STDC_WANT_IEC_60559_EXT__
++# define __STDC_WANT_IEC_60559_EXT__ 1
++#endif
++/* Enable extensions specified by ISO/IEC TS 18661-4:2015.  */
++#ifndef __STDC_WANT_IEC_60559_FUNCS_EXT__
++# define __STDC_WANT_IEC_60559_FUNCS_EXT__ 1
++#endif
++/* Enable extensions specified by C23 Annex H and ISO/IEC TS 18661-3:2015.  */
++#ifndef __STDC_WANT_IEC_60559_TYPES_EXT__
++# define __STDC_WANT_IEC_60559_TYPES_EXT__ 1
++#endif
++/* Enable extensions specified by ISO/IEC TR 24731-2:2010.  */
++#ifndef __STDC_WANT_LIB_EXT2__
++# define __STDC_WANT_LIB_EXT2__ 1
++#endif
++/* Enable extensions specified by ISO/IEC 24747:2009.  */
++#ifndef __STDC_WANT_MATH_SPEC_FUNCS__
++# define __STDC_WANT_MATH_SPEC_FUNCS__ 1
++#endif
++/* Enable extensions on HP NonStop.  */
++#ifndef _TANDEM_SOURCE
++# define _TANDEM_SOURCE 1
++#endif
++/* Enable X/Open extensions.  Define to 500 only if necessary
++   to make mbstate_t available.  */
++#ifndef _XOPEN_SOURCE
++/* # undef _XOPEN_SOURCE */
++#endif
++
++
++/* Define for Solaris 2.5.1 so the uint32_t typedef from <sys/synch.h>,
++   <pthread.h>, or <semaphore.h> is not used. If the typedef were allowed, the
++   #define below would cause a syntax error. */
++/* #undef _UINT32_T */
++
++/* Define for Solaris 2.5.1 so the uint64_t typedef from <sys/synch.h>,
++   <pthread.h>, or <semaphore.h> is not used. If the typedef were allowed, the
++   #define below would cause a syntax error. */
++/* #undef _UINT64_T */
++
++/* Define for Solaris 2.5.1 so the uint8_t typedef from <sys/synch.h>,
++   <pthread.h>, or <semaphore.h> is not used. If the typedef were allowed, the
++   #define below would cause a syntax error. */
++/* #undef _UINT8_T */
++
++/* Define to empty if 'const' does not conform to ANSI C. */
++/* #undef const */
++
++/* in_addr_t definition if not defined in <netinet/in.h>. Must match the type
++   of sockaddr_in::sin_addr */
++/* #undef in_addr_t */
++
++/* Define to '__inline__' or '__inline' if that's what the C compiler
++   calls it, or to nothing if 'inline' is not supported under any name.  */
++#ifndef __cplusplus
++/* #undef inline */
++#endif
++
++/* Define to the type of a signed integer type of width exactly 16 bits if
++   such a type exists and the standard includes do not define it. */
++/* #undef int16_t */
++
++/* Define to the type of a signed integer type of width exactly 32 bits if
++   such a type exists and the standard includes do not define it. */
++/* #undef int32_t */
++
++/* Define to the type of a signed integer type of width exactly 64 bits if
++   such a type exists and the standard includes do not define it. */
++/* #undef int64_t */
++
++/* Define to the type of a signed integer type of width exactly 8 bits if such
++   a type exists and the standard includes do not define it. */
++/* #undef int8_t */
++
++/* Define to the widest signed integer type if <stdint.h> and <inttypes.h> do
++   not define. */
++/* #undef intmax_t */
++
++/* Define to the type of a signed integer type wide enough to hold a pointer,
++   if such a type exists, and if the system does not define it. */
++/* #undef intptr_t */
++
++/* Define to 'long int' if <sys/types.h> does not define. */
++/* #undef off_t */
++
++/* Define as a signed integer type capable of holding a process identifier. */
++/* #undef pid_t */
++
++/* Define as 'unsigned int' if <stddef.h> doesn't define. */
++/* #undef size_t */
++
++/* Define to the type of an unsigned integer type of width exactly 16 bits if
++   such a type exists and the standard includes do not define it. */
++/* #undef uint16_t */
++
++/* Define to the type of an unsigned integer type of width exactly 32 bits if
++   such a type exists and the standard includes do not define it. */
++/* #undef uint32_t */
++
++/* Define to the type of an unsigned integer type of width exactly 64 bits if
++   such a type exists and the standard includes do not define it. */
++/* #undef uint64_t */
++
++/* Define to the type of an unsigned integer type of width exactly 8 bits if
++   such a type exists and the standard includes do not define it. */
++/* #undef uint8_t */
++
++/* Define to the widest unsigned integer type if <stdint.h> and <inttypes.h>
++   do not define. */
++/* #undef uintmax_t */
++
++/* Define to the type of an unsigned integer type wide enough to hold a
++   pointer, if such a type exists, and if the system does not define it. */
++/* #undef uintptr_t */
++
++/* end of definitions added by configure on-the-fly */
++
++/* If you have openssl 0.9.7 or above, you likely have AES support. */
++@NETSNMP_USE_OPENSSL@
++#if (defined(NETSNMP_USE_OPENSSL) && defined(HAVE_OPENSSL_AES_H) && defined(HAVE_AES_CFB128_ENCRYPT)) || defined(NETSNMP_USE_INTERNAL_CRYPTO)
++@HAVE_AES@
++#endif
++
++/* define signal if DNE */
++
++#ifndef HAVE_SIGNAL
++#ifdef HAVE_SIGSET
++@signal@
++#endif
++#endif
++
++#ifdef HAVE_DMALLOC_H
++@DMALLOC_FUNC_CHECK@
++#endif
++
++#endif /* NETSNMP_NO_AUTOCONF_DEFINITIONS */
++
++
++/* ********* NETSNMP_MARK_BEGIN_CLEAN_NAMESPACE ********* */
++/* 
++ * put all new net-snmp-specific definitions here
++ *
++ * all definitions MUST have a NETSNMP_ prefix
++ *
++ */
++
++/* Default (SNMP) version number for the tools to use */
++@NETSNMP_DEFAULT_SNMP_VERSION@
++
++/* don't change these values! */
++@NETSNMP_SNMPV1@
++@NETSNMP_SNMPV2ANY@
++@NETSNMP_SNMPV2AUTH@
++
++/* default list of mibs to load */
++@NETSNMP_DEFAULT_MIBS@
++
++/* debugging stuff */
++/* if defined, we optimize the code to exclude all debugging calls. */
++/* #undef NETSNMP_NO_DEBUGGING */
++/* ignore the -D flag and always print debugging information */
++@NETSNMP_ALWAYS_DEBUG@
++
++/* reverse encoding BER packets is both faster and more efficient in space. */
++@NETSNMP_USE_REVERSE_ASNENCODING@
++@NETSNMP_DEFAULT_ASNENCODING_DIRECTION@
++
++/* PERSISTENT_DIRECTORY: If defined, the library is capabile of saving
++   persisant information to this directory in the form of configuration
++   lines: PERSISTENT_DIRECTORY/NAME.persistent.conf */
++@NETSNMP_PERSISTENT_DIRECTORY@
++
++/* AGENT_DIRECTORY_MODE: the mode the agents should use to create
++   directories with. Since the data stored here is probably sensitive, it
++   probably should be read-only by root/administrator. */
++@NETSNMP_AGENT_DIRECTORY_MODE@
++
++/* MAX_PERSISTENT_BACKUPS:
++ *   The maximum number of persistent backups the library will try to
++ *   read from the persistent cache directory.  If an application fails to
++ *   close down successfully more than this number of times, data will be lost.
++ */
++@NETSNMP_MAX_PERSISTENT_BACKUPS@
++
++/* define the system type include file here */
++@NETSNMP_SYSTEM_INCLUDE_FILE@
++
++/* define the machine (cpu) type include file here */
++@NETSNMP_MACHINE_INCLUDE_FILE@
++
++/* define the UDP buffer defaults undefined means use the OS buffers
++ * by default */
++/* #undef NETSNMP_DEFAULT_SERVER_SEND_BUF */
++/* #undef NETSNMP_DEFAULT_SERVER_RECV_BUF */
++/* #undef NETSNMP_DEFAULT_CLIENT_SEND_BUF */
++/* #undef NETSNMP_DEFAULT_CLIENT_RECV_BUF */
++
++/* net-snmp's major path names */
++@SNMPLIBPATH@
++@SNMPSHAREPATH@
++@SNMPCONFPATH@
++@SNMPDLMODPATH@
++
++/* NETSNMP_LOGFILE:  If defined it closes stdout/err/in and opens this in 
++   out/err's place.  (stdin is closed so that sh scripts won't wait for it) */
++/* #undef NETSNMP_LOGFILE */
++
++/* default system contact */
++@NETSNMP_SYS_CONTACT@
++
++/* system location */
++@NETSNMP_SYS_LOC@
++
++/* Use libwrap to handle allow/deny hosts? */
++@NETSNMP_USE_LIBWRAP@
++
++/* Mib-2 tree Info */
++/* These are the system information variables. */
++
++@NETSNMP_VERS_DESC@
++@NETSNMP_SYS_NAME@
++
++/* comment out the second define to turn off functionality for any of
++   these: (See README for details) */
++
++/*   proc PROCESSNAME [MAX] [MIN] */
++@NETSNMP_PROCMIBNUM@
++
++/*   exec/shell NAME COMMAND      */
++@NETSNMP_SHELLMIBNUM@
++
++/*   swap MIN                     */
++@NETSNMP_MEMMIBNUM@
++
++/*   disk DISK MINSIZE            */
++@NETSNMP_DISKMIBNUM@
++
++/*   load 1 5 15                  */
++@NETSNMP_LOADAVEMIBNUM@
++
++/* which version are you using? This mibloc will tell you */
++@NETSNMP_VERSIONMIBNUM@
++
++/* Reports errors the agent runs into */
++/* (typically its "can't fork, no mem" problems) */
++@NETSNMP_ERRORMIBNUM@
++
++/* The sub id of EXTENSIBLEMIB returned to queries of
++   .iso.org.dod.internet.mgmt.mib-2.system.sysObjectID.0 */
++@NETSNMP_AGENTID@
++
++/* This ID is returned after the AGENTID above.  IE, the resulting
++   value returned by a query to sysObjectID is
++   EXTENSIBLEMIB.AGENTID.???, where ??? is defined below by OSTYPE */
++
++@NETSNMP_HPUX9ID@
++@NETSNMP_SUNOS4ID@
++@NETSNMP_SOLARISID@
++@NETSNMP_OSFID@
++@NETSNMP_ULTRIXID@
++@NETSNMP_HPUX10ID@
++@NETSNMP_NETBSD1ID@
++@NETSNMP_FREEBSDID@
++@NETSNMP_IRIXID@
++@NETSNMP_LINUXID@
++@NETSNMP_BSDIID@
++@NETSNMP_OPENBSDID@
++@NETSNMP_WIN32ID@
++@NETSNMP_HPUX11ID@
++@NETSNMP_AIXID@
++@NETSNMP_MACOSXID@
++@NETSNMP_DRAGONFLYID@
++@NETSNMP_UNKNOWNID@
++
++#ifdef hpux9
++@NETSNMP_OSTYPE@
++#endif
++#ifdef hpux10
++@NETSNMP_OSTYPE_2@
++#endif
++#ifdef hpux11
++@NETSNMP_OSTYPE_3@
++#endif
++#ifdef sunos4
++@NETSNMP_OSTYPE_4@
++#endif
++#ifdef solaris2
++@NETSNMP_OSTYPE_5@
++#endif
++#if defined(osf3) || defined(osf4) || defined(osf5)
++@NETSNMP_OSTYPE_6@
++#endif
++#ifdef ultrix4
++@NETSNMP_OSTYPE_7@
++#endif
++#if defined(netbsd1) || defined(netbsd2)
++@NETSNMP_OSTYPE_8@
++#endif
++#if defined(__FreeBSD__)
++@NETSNMP_OSTYPE_9@
++#endif
++#if defined(__DragonFly__)
++@NETSNMP_OSTYPE_10@
++#endif
++#if defined(irix6) || defined(irix5)
++@NETSNMP_OSTYPE_11@
++#endif
++#ifdef linux
++@NETSNMP_OSTYPE_12@
++#endif
++#if defined(bsdi2) || defined(bsdi3) || defined(bsdi4)
++@NETSNMP_OSTYPE_13@
++#endif
++#if defined(openbsd)
++@NETSNMP_OSTYPE_14@
++#endif
++#ifdef WIN32
++@NETSNMP_OSTYPE_15@
++#endif
++#if defined(aix3) || defined(aix4) || defined(aix5) || defined(aix6) || defined(aix7)
++@NETSNMP_OSTYPE_16@
++#endif
++#if defined(darwin) && (darwin >= 8)
++@NETSNMP_OSTYPE_17@
++#endif
++/* unknown */
++#ifndef NETSNMP_OSTYPE
++@NETSNMP_OSTYPE_18@
++#endif
++
++/* The enterprise number has been assigned by the IANA group.   */
++/* Optionally, this may point to the location in the tree your  */
++/* company/organization has been allocated.                     */
++/* The assigned enterprise number for the NET_SNMP MIB modules. */
++@NETSNMP_ENTERPRISE_OID@
++@NETSNMP_ENTERPRISE_MIB@
++@NETSNMP_ENTERPRISE_DOT_MIB@
++@NETSNMP_ENTERPRISE_DOT_MIB_LENGTH@
++
++/* The assigned enterprise number for sysObjectID. */
++@NETSNMP_SYSTEM_MIB@
++@NETSNMP_SYSTEM_DOT_MIB@
++@NETSNMP_SYSTEM_DOT_MIB_LENGTH@
++
++/* The assigned enterprise number for notifications. */
++@NETSNMP_NOTIFICATION_MIB@
++@NETSNMP_NOTIFICATION_DOT_MIB@
++@NETSNMP_NOTIFICATION_DOT_MIB_LENGTH@
++
++/* this is the location of the ucdavis mib tree.  It shouldn't be
++   changed, as the places it is used are expected to be constant
++   values or are directly tied to the UCD-SNMP-MIB. */
++@NETSNMP_UCDAVIS_OID@
++@NETSNMP_UCDAVIS_MIB@
++@NETSNMP_UCDAVIS_DOT_MIB@
++@NETSNMP_UCDAVIS_DOT_MIB_LENGTH@
++
++/* how long to wait (seconds) for error querys before reseting the error trap.*/
++@NETSNMP_ERRORTIMELENGTH@
++
++/* Exec command to fix PROC problems */
++/* %s will be replaced by the process name in error */
++
++/* #define NETSNMP_PROCFIXCMD "/usr/bin/perl /local/scripts/fixproc %s" */
++
++/* Exec command to fix EXEC problems */
++/* %s will be replaced by the exec/script name in error */
++
++/* #define NETSNMP_EXECFIXCMD "/usr/bin/perl /local/scripts/fixproc %s" */
++
++/* Should exec output Cashing be used (speeds up things greatly), and
++   if so, After how many seconds should the cache re-newed?  Note:
++   Don't define CASHETIME to disable cashing completely */
++
++@NETSNMP_EXCACHETIME@
++@NETSNMP_CACHEFILE@
++@NETSNMP_MAXCACHESIZE@
++
++/* misc defaults */
++
++/* default of 100 meg minimum if the minimum size is not specified in
++   the config file */
++@NETSNMP_DEFDISKMINIMUMSPACE@
++
++/* default maximum load average before error */
++@NETSNMP_DEFMAXLOADAVE@
++
++/* max times to loop reading output from execs. */
++/* Because of sleep(1)s, this will also be time to wait (in seconds) for exec
++   to finish */
++@NETSNMP_MAXREADCOUNT@
++
++/* Set if snmpgets should block and never timeout */
++/* The original CMU code had this hardcoded as = 1 */
++@NETSNMP_SNMPBLOCK@
++
++/* How long to wait before restarting the agent after a snmpset to
++   EXTENSIBLEMIB.VERSIONMIBNUM.VERRESTARTAGENT.  This is
++   necessary to finish the snmpset reply before restarting. */
++@NETSNMP_RESTARTSLEEP@
++
++/* UNdefine to allow specifying zero-length community string */
++/* #define NETSNMP_NO_ZEROLENGTH_COMMUNITY 1 */
++
++/* Number of community strings to store */
++@NETSNMP_NUM_COMMUNITIES@
++
++/* internal define */
++@NETSNMP_LASTFIELD@
++
++/*  Pluggable transports.  */
++
++/*  This is defined if support for the UDP/IP transport domain is
++    available.   */
++@NETSNMP_TRANSPORT_UDP_DOMAIN@
++
++/*  This is defined if support for the shared UDP/IP transport domain is
++    available.   */
++/* #undef NETSNMP_TRANSPORT_UDPSHARED_DOMAIN */
++
++/*  This is defined if support for the "callback" transport domain is
++    available.   */
++@NETSNMP_TRANSPORT_CALLBACK_DOMAIN@
++
++/*  This is defined if support for the TCP/IP transport domain is
++    available.  */
++@NETSNMP_TRANSPORT_TCP_DOMAIN@
++
++/*  This is defined if support for the Unix transport domain
++    (a.k.a. "local IPC") is available.  */
++@NETSNMP_TRANSPORT_UNIX_DOMAIN@
++
++/*  This is defined if support for the AAL5 PVC transport domain is
++    available.  */
++/* #undef NETSNMP_TRANSPORT_AAL5PVC_DOMAIN */
++
++/*  This is defined if support for the IPX transport domain is
++    available.  */
++/* #undef NETSNMP_TRANSPORT_IPX_DOMAIN */
++
++/*  This is defined if support for the UDP/IPv6 transport domain is
++    available.  */
++@NETSNMP_TRANSPORT_UDPIPV6_DOMAIN@
++
++/*  This is defined if support for the TCP/IPv6 transport domain is
++    available.  */
++@NETSNMP_TRANSPORT_TCPIPV6_DOMAIN@
++
++/*  This is defined if support for the TLS transport domain is
++    available.   */
++@NETSNMP_TRANSPORT_TLSBASE_DOMAIN@
++
++/*  This is defined if support for the Alias transport domain is
++    available.   */
++@NETSNMP_TRANSPORT_ALIAS_DOMAIN@
++
++/*  This is defined if support for the SSH transport domain is
++    available.   */
++/* #undef NETSNMP_TRANSPORT_SSH_DOMAIN */
++
++/*  This is defined if support for the DTLS/UDP transport domain is
++    available.   */
++@NETSNMP_TRANSPORT_DTLSUDP_DOMAIN@
++
++/*  This is defined if support for the TLS/TCP transport domain is
++    available.   */
++@NETSNMP_TRANSPORT_TLSTCP_DOMAIN@
++
++/*  This is defined if support for stdin/out transport domain is available.   */
++/* #undef NETSNMP_TRANSPORT_STD_DOMAIN */
++
++/*  This is defined if support for the IPv4Base transport domain is available.   */
++@NETSNMP_TRANSPORT_IPV4BASE_DOMAIN@
++
++/* define this if the USM security module is available */
++@NETSNMP_SECMOD_USM@
++
++/* define this if the KSM (kerberos based snmp) security module is available */
++/* #undef NETSNMP_SECMOD_KSM */
++
++/* define this if the local security module is available */
++/* #undef NETSNMP_SECMOD_LOCALSM */
++
++/* define if configured as a "mini-agent" */
++/* #undef NETSNMP_MINI_AGENT */
++
++/* this is the location of the net-snmp mib tree.  It shouldn't be
++   changed, as the places it is used are expected to be constant
++   values or are directly tied to the UCD-SNMP-MIB. */
++@NETSNMP_OID@
++@NETSNMP_MIB@
++@NETSNMP_DOT_MIB@
++@NETSNMP_DOT_MIB_LENGTH@
++
++/* pattern for temporary file names */
++@NETSNMP_TEMP_FILE_PATTERN_2@
++
++/*
++ * this must be before the system/machine includes, to allow them to
++ * override and turn off inlining. To do so, they should do the
++ * following:
++ *
++ *    #undef NETSNMP_ENABLE_INLINE
++ *    #define NETSNMP_ENABLE_INLINE 0
++ *
++ * A user having problems with their compiler can also turn off
++ * the use of inline by defining NETSNMP_NO_INLINE via their cflags:
++ *
++ *    -DNETSNMP_NO_INLINE
++ *
++ * Header and source files should only test against NETSNMP_USE_INLINE:
++ *
++ *   #ifdef NETSNMP_USE_INLINE
++ *   NETSNMP_INLINE function(int parm) { return parm -1; }
++ *   #endif
++ *
++ * Functions which should be static, regardless of whether or not inline
++ * is available or enabled should use the NETSNMP_STATIC_INLINE macro,
++ * like so:
++ *
++ *    NETSNMP_STATIC_INLINE function(int parm) { return parm -1; }
++ *
++ * NOT like this:
++ *
++ *    static NETSNMP_INLINE function(int parm) { return parm -1; }
++ *
++ */
++#ifdef NETSNMP_BROKEN_INLINE
++#   define NETSNMP_ENABLE_INLINE 0
++#else
++#   define NETSNMP_ENABLE_INLINE 1
++#endif
++
++#include NETSNMP_SYSTEM_INCLUDE_FILE
++#include NETSNMP_MACHINE_INCLUDE_FILE
++
++#if NETSNMP_ENABLE_INLINE && !defined(NETSNMP_NO_INLINE)
++#   define NETSNMP_USE_INLINE 1
++#   ifndef NETSNMP_INLINE
++#      define NETSNMP_INLINE __inline__
++#   endif
++#   ifndef NETSNMP_STATIC_INLINE
++#      define NETSNMP_STATIC_INLINE static __inline__
++#   endif
++#else
++#   define NETSNMP_INLINE 
++#   define NETSNMP_STATIC_INLINE static
++#endif
++
++#ifndef NETSNMP_IMPORT
++#  define NETSNMP_IMPORT extern
++#endif
++
++/* comment the next line if you are compiling with libsnmp.h 
++   and are not using the UC-Davis SNMP library. */
++@UCD_SNMP_LIBRARY@
++
++/* final conclusion on nlist usage */
++#if defined(HAVE_NLIST) && defined(HAVE_STRUCT_NLIST_N_VALUE) && !defined(NETSNMP_DONT_USE_NLIST) && !defined(NETSNMP_NO_KMEM_USAGE)
++@NETSNMP_CAN_USE_NLIST@
++#endif
++
++/*
++ * Note: GCC 4.6 added __BYTE_ORDER__, __ORDER_BIG_ENDIAN__,
++ * __ORDER_LITTLE_ENDIAN__ and __ORDER_PDP_ENDIAN__ in SVN r165881. For older
++ * gcc versions and also for other compilers, determine the endianness by
++ * calling a function that can be inlined.
++ */
++#if defined(__BYTE_ORDER__)
++# if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
++#  define NETSNMP_BIGENDIAN 1
++# elif __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
++#  define NETSNMP_BIGENDIAN 0
++# else
++#  error Unknown byte order
++# endif
++#else
++NETSNMP_STATIC_INLINE int netsnmp_bigendian(void)
++{
++    union { unsigned long l; unsigned char c; } u;
++
++    u.l = 1;
++
++    return u.c == 0;
++}
++# define NETSNMP_BIGENDIAN netsnmp_bigendian()
++#endif
++
++
++/* ********* NETSNMP_MARK_BEGIN_LEGACY_DEFINITIONS *********/
++/* 
++ * existing definitions prior to Net-SNMP 5.4
++ *
++ * do not add anything new here
++ *
++ */
++
++#ifndef NETSNMP_NO_LEGACY_DEFINITIONS
++
++#ifdef NETSNMP_DEFAULT_SNMP_VERSION
++# define DEFAULT_SNMP_VERSION NETSNMP_DEFAULT_SNMP_VERSION
++#endif
++
++#ifdef NETSNMP_SNMPV1
++# define SNMPV1 NETSNMP_SNMPV1
++#endif
++
++#ifdef NETSNMP_SNMPV2ANY
++# define SNMPV2ANY NETSNMP_SNMPV2ANY
++#endif
++
++#ifdef NETSNMP_SNMPV2AUTH
++# define SNMPV2AUTH NETSNMP_SNMPV2AUTH
++#endif
++
++#ifdef NETSNMP_DEFAULT_MIBS
++# define DEFAULT_MIBS NETSNMP_DEFAULT_MIBS
++#endif
++
++#ifdef NETSNMP_DEFAULT_MIBDIRS
++# define DEFAULT_MIBDIRS NETSNMP_DEFAULT_MIBDIRS
++#endif
++
++#ifdef NETSNMP_DEFAULT_MIBFILES
++# define DEFAULT_MIBFILES NETSNMP_DEFAULT_MIBFILES
++#endif
++
++#ifdef NETSNMP_WITH_OPAQUE_SPECIAL_TYPES
++# define OPAQUE_SPECIAL_TYPES NETSNMP_WITH_OPAQUE_SPECIAL_TYPES
++#endif
++
++#ifdef NETSNMP_ENABLE_SCAPI_AUTHPRIV
++# define SCAPI_AUTHPRIV NETSNMP_ENABLE_SCAPI_AUTHPRIV
++#endif
++
++#ifdef NETSNMP_USE_INTERNAL_MD5
++# define USE_INTERNAL_MD5 NETSNMP_USE_INTERNAL_MD5
++#endif
++
++#ifdef NETSNMP_USE_PKCS11
++# define USE_PKCS NETSNMP_USE_PKCS11
++#endif
++
++#ifdef NETSNMP_USE_OPENSSL
++# define USE_OPENSSL NETSNMP_USE_OPENSSL
++#endif
++
++#ifdef NETSNMP_NO_DEBUGGING
++# define SNMP_NO_DEBUGGING NETSNMP_NO_DEBUGGING
++#endif
++
++#ifdef NETSNMP_ALWAYS_DEBUG
++# define SNMP_ALWAYS_DEBUG NETSNMP_ALWAYS_DEBUG
++#endif
++
++#ifdef NETSNMP_USE_REVERSE_ASNENCODING
++# define USE_REVERSE_ASNENCODING NETSNMP_USE_REVERSE_ASNENCODING
++#endif
++#ifdef NETSNMP_DEFAULT_ASNENCODING_DIRECTION
++# define DEFAULT_ASNENCODING_DIRECTION NETSNMP_DEFAULT_ASNENCODING_DIRECTION
++#endif
++
++@PERSISTENT_DIRECTORY@
++@PERSISTENT_MASK@
++@AGENT_DIRECTORY_MODE@
++@MAX_PERSISTENT_BACKUPS@
++@SYSTEM_INCLUDE_FILE@
++@MACHINE_INCLUDE_FILE@
++
++#ifdef NETSNMP_DEFAULT_SERVER_SEND_BUF
++# define DEFAULT_SERVER_SEND_BUF NETSNMP_DEFAULT_SERVER_SEND_BUF
++#endif
++#ifdef NETSNMP_DEFAULT_SERVER_RECV_BUF
++# define DEFAULT_SERVER_RECV_BUF NETSNMP_DEFAULT_SERVER_RECV_BUF
++#endif
++#ifdef NETSNMP_DEFAULT_CLIENT_SEND_BUF
++# define DEFAULT_CLIENT_SEND_BUF NETSNMP_DEFAULT_CLIENT_SEND_BUF
++#endif
++#ifdef NETSNMP_DEFAULT_CLIENT_RECV_BUF
++# define DEFAULT_CLIENT_RECV_BUF NETSNMP_DEFAULT_CLIENT_RECV_BUF
++#endif
++
++#ifdef NETSNMP_LOGFILE
++# define LOGFILE NETSNMP_LOGFILE
++#endif
++
++#ifdef NETSNMP_SYS_CONTACT
++# define SYS_CONTACT NETSNMP_SYS_CONTACT
++#endif
++
++#ifdef NETSNMP_SYS_LOC
++# define SYS_LOC NETSNMP_SYS_LOC
++#endif
++
++#ifdef NETSNMP_USE_LIBWRAP
++# define USE_LIBWRAP NETSNMP_USE_LIBWRAP
++#endif
++
++#ifdef NETSNMP_ENABLE_TESTING_CODE 
++# define SNMP_TESTING_CODE NETSNMP_ENABLE_TESTING_CODE
++#endif
++
++#ifdef NETSNMP_NO_ROOT_ACCESS
++# define NO_ROOT_ACCESS NETSNMP_NO_ROOT_ACCESS
++#endif
++
++#ifdef NETSNMP_NO_KMEM_USAGE
++# define NO_KMEM_USAGE NETSNMP_NO_KMEM_USAGE
++#endif
++
++#ifdef NETSNMP_NO_DUMMY_VALUES
++# define NO_DUMMY_VALUES NETSNMP_NO_DUMMY_VALUES
++#endif
++
++@VERS_DESC@
++@SYS_NAME@
++
++@PROCMIBNUM@
++@SHELLMIBNUM@
++@MEMMIBNUM@
++@DISKMIBNUM@
++
++@LOADAVEMIBNUM@
++@VERSIONMIBNUM@
++@ERRORMIBNUM@
++@AGENTID@
++
++@HPUX9ID@
++@SUNOS4ID@
++@SOLARISID@
++@OSFID@
++@ULTRIXID@
++@HPUX10ID@
++@NETBSD1ID@
++@FREEBSDID@
++@IRIXID@
++@LINUXID@
++@BSDIID@
++@OPENBSDID@
++@WIN32ID@
++@HPUX11ID@
++@AIXID@
++@MACOSXID@
++@UNKNOWNID@
++
++@ENTERPRISE_OID@
++@ENTERPRISE_MIB@
++@ENTERPRISE_DOT_MIB@
++@ENTERPRISE_DOT_MIB_LENGTH@
++
++@SYSTEM_MIB@
++@SYSTEM_DOT_MIB@
++@SYSTEM_DOT_MIB_LENGTH@
++
++@NOTIFICATION_MIB@
++@NOTIFICATION_DOT_MIB@
++@NOTIFICATION_DOT_MIB_LENGTH@
++
++@UCDAVIS_OID@
++@UCDAVIS_MIB@
++@UCDAVIS_DOT_MIB@
++@UCDAVIS_DOT_MIB_LENGTH@
++
++@ERRORTIMELENGTH@
++
++#ifdef NETSNMP_PROCFIXCMD
++# define PROCFIXCMD NETSNMP_PROCFIXCMD
++#endif
++
++#ifdef NETSNMP_EXECFIXCMD
++# define EXECFIXCMD NETSNMP_EXECFIXCMD
++#endif
++
++@EXCACHETIME@
++@CACHEFILE@
++@MAXCACHESIZE@
++
++@DEFDISKMINIMUMSPACE@
++@DEFMAXLOADAVE@
++@MAXREADCOUNT@
++
++@SNMPBLOCK@
++@RESTARTSLEEP@
++
++@NUM_COMMUNITIES@
++
++#ifdef NETSNMP_NO_ZEROLENGTH_COMMUNITY
++# define NO_ZEROLENGTH_COMMUNITY NETSNMP_NO_ZEROLENGTH_COMMUNITY
++#endif
++
++@LASTFIELD@
++
++@CONFIGURE_OPTIONS@
++
++#ifdef NETSNMP_TRANSPORT_UDP_DOMAIN
++# define SNMP_TRANSPORT_UDP_DOMAIN NETSNMP_TRANSPORT_UDP_DOMAIN
++#endif
++
++#ifdef NETSNMP_TRANSPORT_CALLBACK_DOMAIN
++# define SNMP_TRANSPORT_CALLBACK_DOMAIN NETSNMP_TRANSPORT_CALLBACK_DOMAIN
++#endif
++
++#ifdef NETSNMP_TRANSPORT_TCP_DOMAIN
++# define SNMP_TRANSPORT_TCP_DOMAIN NETSNMP_TRANSPORT_TCP_DOMAIN
++#endif
++
++#ifdef NETSNMP_TRANSPORT_UNIX_DOMAIN
++# define SNMP_TRANSPORT_UNIX_DOMAIN NETSNMP_TRANSPORT_UNIX_DOMAIN
++#endif
++
++#ifdef NETSNMP_TRANSPORT_AAL5PVC_DOMAIN
++# define SNMP_TRANSPORT_AAL5PVC_DOMAIN NETSNMP_TRANSPORT_AAL5PVC_DOMAIN
++#endif
++
++#ifdef NETSNMP_TRANSPORT_IPX_DOMAIN
++# define SNMP_TRANSPORT_IPX_DOMAIN NETSNMP_TRANSPORT_IPX_DOMAIN
++#endif
++
++#ifdef NETSNMP_TRANSPORT_UDPIPV6_DOMAIN
++# define SNMP_TRANSPORT_UDPIPV6_DOMAIN NETSNMP_TRANSPORT_UDPIPV6_DOMAIN
++#endif
++
++#ifdef NETSNMP_TRANSPORT_TCPIPV6_DOMAIN
++# define SNMP_TRANSPORT_TCPIPV6_DOMAIN NETSNMP_TRANSPORT_TCPIPV6_DOMAIN
++#endif
++
++#ifdef NETSNMP_TRANSPORT_TLS_DOMAIN
++# define SNMP_TRANSPORT_TLS_DOMAIN NETSNMP_TRANSPORT_TLS_DOMAIN
++#endif
++
++#ifdef NETSNMP_TRANSPORT_STD_DOMAIN
++# define SNMP_TRANSPORT_STD_DOMAIN NETSNMP_TRANSPORT_STD_DOMAIN
++#endif
++
++#ifdef NETSNMP_SECMOD_USM
++# define SNMP_SECMOD_USM NETSNMP_SECMOD_USM
++#endif
++
++#ifdef NETSNMP_SECMOD_KSM
++# define SNMP_SECMOD_KSM NETSNMP_SECMOD_KSM
++#endif
++
++#ifdef NETSNMP_SECMOD_LOCALSM 
++# define SNMP_SECMOD_LOCALSM NETSNMP_SECMOD_LOCALSM
++#endif
++
++#ifdef NETSNMP_REENTRANT
++# define NS_REENTRANT NETSNMP_REENTRANT
++#endif
++
++#ifdef NETSNMP_ENABLE_IPV6
++# define INET6 NETSNMP_ENABLE_IPV6
++#endif
++
++#ifdef NETSNMP_ENABLE_LOCAL_SMUX
++# define LOCAL_SMUX NETSNMP_ENABLE_LOCAL_SMUX
++#endif
++
++#ifdef NETSNMP_AGENTX_DOM_SOCK_ONLY
++# define AGENTX_DOM_SOCK_ONLY NETSNMP_AGENTX_DOM_SOCK_ONLY
++#endif
++
++#ifdef NETSNMP_SNMPTRAPD_DISABLE_AGENTX
++# define SNMPTRAPD_DISABLE_AGENTX
++#endif
++
++#ifdef NETSNMP_USE_KERBEROS_MIT
++# define MIT_NEW_CRYPTO NETSNMP_USE_KERBEROS_MIT
++#endif
++
++#ifdef NETSNMP_USE_KERBEROS_HEIMDAL
++# define HEIMDAL NETSNMP_USE_KERBEROS_HEIMDAL
++#endif
++
++#ifdef NETSNMP_AGENTX_SOCKET
++# define AGENTX_SOCKET NETSNMP_AGENTX_SOCKET
++#endif
++
++#ifdef NETSNMP_DISABLE_MIB_LOADING
++# define DISABLE_MIB_LOADING NETSNMP_DISABLE_MIB_LOADING
++#endif
++
++#ifdef NETSNMP_DISABLE_SNMPV1
++# define DISABLE_SNMPV1 NETSNMP_DISABLE_SNMPV1
++#endif
++
++#ifdef NETSNMP_DISABLE_SNMPV2C
++# define DISABLE_SNMPV2C NETSNMP_DISABLE_SNMPV2C
++#endif
++
++#ifdef NETSNMP_DISABLE_SET_SUPPORT
++# define DISABLE_SET_SUPPORT NETSNMP_DISABLE_SET_SUPPORT
++#endif
++
++#ifdef NETSNMP_DISABLE_DES
++# define DISABLE_DES NETSNMP_DISABLE_DES
++#endif
++
++#ifdef NETSNMP_DISABLE_MD5
++# define DISABLE_MD5 NETSNMP_DISABLE_MD5
++#endif
++
++#ifdef NETSNMP_DONT_USE_NLIST
++# define DONT_USE_NLIST NETSNMP_DONT_USE_NLIST
++#endif
++
++#ifdef NETSNMP_CAN_USE_NLIST
++# define CAN_USE_NLIST NETSNMP_CAN_USE_NLIST
++#endif
++
++#ifdef NETSNMP_CAN_USE_SYSCTL
++# define CAN_USE_SYSCTL NETSNMP_CAN_USE_SYSCTL
++#endif
++
++#endif /* NETSNMP_NO_LEGACY_DEFINITIONS */
++
++
++#endif /* NET_SNMP_CONFIG_H */
+diff --git a/modules/net-snmp/5.9.3.sonic.1/presubmit.json b/modules/net-snmp/5.9.3.sonic.1/presubmit.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..9ac5a324443156031241174dcfea5bff33e3fe5d
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/presubmit.json
+@@ -0,0 +1,40 @@
++{
++  "architectures": [
++    "amd64",
++    "arm64"
++  ],
++  "consumer_deps": [
++    {
++      "name": "sonic-build-infra",
++      "version": "0.0.25-17a1e555291c64be1a6ff008f33352bffc4f8e5c",
++      "repo_name": "sonic_build_infra"
++    }
++  ],
++  "platforms": {
++    "amd64": "@sonic_build_infra//platforms:x86_64_bookworm",
++    "arm64": "@sonic_build_infra//platforms:aarch64_bookworm"
++  },
++  "build_targets": [
++    "@net-snmp//:snmpd_layout",
++    "@net-snmp//:snmptrapd_layout",
++    "@net-snmp//:snmp_layout",
++    "@net-snmp//:libsnmp_base_layout",
++    "@net-snmp//:libsnmp40_layout",
++    "@net-snmp//:libnetsnmptrapd40_layout",
++    "@net-snmp//:libsnmp_dev_layout",
++    "@net-snmp//:libsnmp_perl_layout",
++    "@net-snmp//:tkmib_layout",
++    "@net-snmp//:snmpd_elf.debug_symbols",
++    "@net-snmp//:snmptrapd_elf.debug_symbols",
++    "@net-snmp//:snmp_elf.debug_symbols",
++    "@net-snmp//:libsnmp40_elf.debug_symbols",
++    "@net-snmp//:libnetsnmptrapd40_elf.debug_symbols",
++    "@net-snmp//:libsnmp-dev_elf.debug_symbols",
++    "@net-snmp//:libsnmp-perl_elf.debug_symbols"
++  ],
++  "test_targets": [
++    "@net-snmp//:native_contract_test",
++    "@net-snmp//:package_contract_test"
++  ],
++  "generated_module_overlay": true
++}
+diff --git a/modules/net-snmp/5.9.3.sonic.1/source.json b/modules/net-snmp/5.9.3.sonic.1/source.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..2e19540639671dc0b30dc467b0765da0caf3a2b0
+--- /dev/null
++++ b/modules/net-snmp/5.9.3.sonic.1/source.json
+@@ -0,0 +1,73 @@
++{
++  "url": "https://packages.trafficmanager.net/public/debian/pool/main/n/net-snmp/net-snmp_5.9.3+dfsg.orig.tar.xz",
++  "strip_prefix": "net-snmp-5.9.3",
++  "integrity": "sha256-t4+TJ2qA1Acm2UlWqn0G/YdStcBiSvW78VXLwz/VIdE=",
++  "overlay": {
++    ".bazelrc": "sha256-bqY6IRC9+XT1Dr9Nk3d13o7/xwbyi+ZEex2vx/6hHe4=",
++    "BUILD.bazel": "sha256-uEuKNWr/1j6wQBxxXsjAM7wybNM6OqoEkfCny+oJo0w=",
++    "MODULE.bazel": "sha256-rx/00CpfJraoNzBT3qaeCTdGu0ugu/+qI0RepZtVqnY=",
++    "native_contract_test.py": "sha256-woV2+5coW4OsnQWPvx5S82P/wskOsf1hK4tLmn7rhMg=",
++    "package_sources/BUILD.bazel": "sha256-ECIJSnnFtZCAb9CYoKYs4sUfJxL1GG2WRw0lNa5RzK0=",
++    "package_sources/documentation.py": "sha256-CFInmA2ft12P58e7Y7f5xLhL9ckiYi15CLcQBym8L6s=",
++    "package_sources/generated_resources.py": "sha256-jmodK+Q7UQxF8EhSOOuJWSZNCl882fwQz/HoY3qn6Qc=",
++    "package_sources/perl_resources.py": "sha256-PlDlGE2m4w+kVFfSX0mC6PiM4XaLK6yqhIiYEReLNmY=",
++    "patches/01-pingmib_perl_path": "sha256-MkcSZXlSIRaDxudv1mR3FZsBxLvpQTe7TLs+phDo3H8=",
++    "patches/02-02_statistics.patch": "sha256-1veA7ICXAuBGkk2chdA7RAKJZeMOQQGaqeqV7nXc5MY=",
++    "patches/03-03_makefiles.patch": "sha256-AR4SeOtafft/WMCEF3oOXMFRLSNGs5CS0tTYvhXmkc4=",
++    "patches/04-05_searchdirs.patch": "sha256-FcGDrlXEaJpd/fNUsA9uP67lNoiCVjsWV53Dil9MIiY=",
++    "patches/05-06_extramibs.patch": "sha256-6AN8m8ulstgZaiBWgS5vLxuw49cfOHd9OnFMHdonDC4=",
++    "patches/06-07_docfiles.patch": "sha256-H5Pdj7zqt+cN+1bRfbfbrVPmDKset/FqY68xhUwPZyw=",
++    "patches/07-60_libsensors_api.patch": "sha256-xN9MoQLX6HF1sbfhPEXeeJRyLbT+88li1OH3t7MH1IA=",
++    "patches/08-62_add_lib_cflags.patch": "sha256-DYRE7OBjNUXulP8E+/yO6YEeh+kdYd7h5TRRgZU02qg=",
++    "patches/09-64_missing_lib.patch": "sha256-VTeucI5rVujy6F0Fo8ppbmGH5TRyovZWpy3y0Mea6Rk=",
++    "patches/10-fix_snmpcheck_perl_path.patch": "sha256-yu5PHHagipkxpOIFQ9j+mEirztYIfcdN6eW8yXHsDUs=",
++    "patches/11-snmptranslate.1.patch": "sha256-lsTWQehiRNpUxGfFo1fPw3/TocZr4msTrFGj2kackbU=",
++    "patches/12-fix_spelling_error.patch": "sha256-gDa2Ske+mdHQjeGEB5wy+M52qkOKPFpaL+UKWOB/DBI=",
++    "patches/13-fix_typo_in_snmpd.conf.patch": "sha256-nyF+du1n8KLdVQ20V0u8bWLKF77x5E5OQkMekrMTlDs=",
++    "patches/14-fix_manpage-has-errors_break_line.patch": "sha256-fMLEhroBrs9vjnnSXA/lZWDywWFeSYBH6DCsMkYrgsw=",
++    "patches/15-add_rocommunity6.patch": "sha256-/SiXYv7L/cIpTuoJ+1ac5AeWwN3AoATVmupYqi0Uf3M=",
++    "patches/16-fix-request-id-0.patch": "sha256-pP0mLI8yuDWbKIxipTNtNf1lcf4WJxJEQICd8rz6yeM=",
++    "patches/17-0026-fix-Bug-785380-incorrect-date-format.patch": "sha256-Xefz6oPGlo/sjUnrK+bnjnU6ywgtB07rumOgUOwTF5k=",
++    "patches/18-0027-fix-455707-traptoemail-use-FQDN.patch": "sha256-DF111Zmw1oZJemDbWya0Lg+BicVZTg8TNw9pRbggeR4=",
++    "patches/19-let_perl_access_engineid.diff": "sha256-duZYd2v29gvFuBu5sYIzBG2BGAy7PCQ3kcAX6Ivm86I=",
++    "patches/20-fix_perl_bulk_gets.diff": "sha256-lrqGl9fYEpvdZcSxyH2p/YP1dLax3HTvjoBLENxI3vc=",
++    "patches/21-do_not_callback_for_failed_reports.diff": "sha256-XtluZWAjcW+jy3nGPxHejQVZvz3Y5EqTu3Hy3DjOmQw=",
++    "patches/22-callback_print.diff": "sha256-T0c+nGRiIF3O+7ObK3HI+CVwkNECr9ixiMtSupAyIuc=",
++    "patches/23-fix_engineid_reprobe.diff": "sha256-DjGtnzA4+A1sDCTruKk1gk601B3prPZDYDE9uD2/ZsQ=",
++    "patches/24-snmpwalk_args_in_snmpcheck": "sha256-b94MQWbv/a+c4vUpzPr0LhyZA3Oeky/GLF+ZvrihumY=",
++    "patches/25-snmpd_pidfile_mode": "sha256-f9M7RTmXw6SpGwexvoyj/02YySPrSTzYMh0XEPJJiTc=",
++    "patches/26-snmpcmd_1_groff": "sha256-/TZXMYwoctrOIOk+kAt8xAc2hA07uE27zJyD0jJoFOM=",
++    "patches/27-netsnmp_mib_api_3_groff": "sha256-2xKA5OmvlGPy+hYn92/t9Wd20d9niX6dvl6LBzrTQ90=",
++    "patches/28-snmplib_error_subcontainer": "sha256-WhHSH0DgU9secmwAafj4/2dzUBo2Egqweku79/fcVVo=",
++    "patches/29-apps_makefile_use_ldflags": "sha256-CxWswi0cnRUlEiazWM1sVi+c16KxBo+GhbnRW/+5L0M=",
++    "patches/30-cross.patch": "sha256-gLgN00eb5JqlISUmdSLwxieTOn++8PNRmMOSTZc9FXI=",
++    "patches/31-agent_silent_eacces": "sha256-dxk5DSwQRRt5veGvBIbf0C4cYcDxaSR7i+5jAzhTES0=",
++    "patches/32-agent_swinst_dpkg_date": "sha256-Dx2lLdyg0Eaqf/CVNl/yx3jPNRabUrhQfdhyeB1bANs=",
++    "patches/33-snmpd_conf_5_ro_extend": "sha256-Jm/lU7V7mz67Lj49iwN+KHj4j7IN3+cRHgZDvDqAv+s=",
++    "patches/34-perl_makefile_man3pods": "sha256-2qR3v/gIz7FFk6nem+6FX2pyBsfjhuIulxIzParVy4U=",
++    "patches/35-ci_libmariadb-dev": "sha256-K8tkI9Tdxmm50Er4k9sDemhbZ9QsT1CT70zSfGrucms=",
++    "patches/36-mib2c_perl_error": "sha256-OkcAAdvuAt6Ad7EV+RzCSzybj0/R2lmxJK9vvikgbxM=",
++    "patches/37-net-snmp-create-v3-user_paths": "sha256-kOxE0KEKKjNKT/3MiU1HonRSACCABlVYqyTSEJLVs/M=",
++    "patches/38-snmptrapd_correct_mysql_includes": "sha256-67f0jMvMnO4fisIqHD6Nd87IxsvXvh8KIlcOOw1MRBw=",
++    "patches/39-makefile_trap_needs_agent": "sha256-t4DKEte2UMRvS0lyfH9bWVtpBaYCCb9hADaOfimqyjI=",
++    "patches/40-includes_fix_national_encoding": "sha256-Mu0HLReyIWkLHnggcL5Y8BPnbFtUCDKbVVR9xHXQxNA=",
++    "patches/41-agent_set_null_varbind": "sha256-Mt5ifNDxg4VkeDGBgbh33ZGiBSj8KnAVKgV4AQSRwdw=",
++    "patches/42-snmptrapd_trapoid_length": "sha256-Mn4eYcLU6BwAWp12Y+sL6JnfoBOa1IIByixLwCl6OXY=",
++    "patches/43-linux_systemstats": "sha256-n17e4+hV5fW0cNZjvcsmIxqSZBVXa2820ChvrW5R+Ds=",
++    "patches/44-0001-SNMP-Stop-spamming-logs-with-statfs-permission-denie.patch": "sha256-JcycCvDxCMesPFKfuUnrs+prQjAbY62Ksd4g7Z2xTII=",
++    "patches/45-0008-Enable-macro-DEB_BUILD_ARCH_OS-in-order-to-build-ipv.patch": "sha256-joCLvBUKHiOVcLqQcKewzsIEntKth0nP2E2cYUR8nL4=",
++    "patches/46-0012-agent-Makefile.in-Unbreak-the-enable-minimalist-buil.patch": "sha256-rhOFxLP/l5PRAMFESbpjUWwdLaMAgd1LazEnF+nZrrg=",
++    "patches/47-0013-enable-parallel-build-for-net-snmp.patch": "sha256-aR0c5/fQ3bC3t76zDzDHsriI0hR+GIYxfShrjYlx3+4=",
++    "patches/48-cross-compile-changes.patch": "sha256-/szcMkwLv1bUNa19VuxLYl6VSpO6H9UXB2lA3cENTAM=",
++    "perl_sources/BUILD.bazel": "sha256-siGh4uz6Qvkjp2Poj+iyHGd8Nhz9f6YfDfHYu9ZxV8I=",
++    "perl_xs.py": "sha256-SRFRPTuHCn7z/VdtbzW2boaMiJT8mmpj7qSLSDrzPkE=",
++    "source.BUILD.bazel": "sha256-WIxgD63hmRqAmMpwnc2jYyhk+4qpJDjmdgQwRuchUrI=",
++    "source_overrides/agent/mibgroup/mibII/interfaces.c": "sha256-gfuyFNNQCfeySqGTznC2220hvJ2jRB2rJI0gTqaaKT0=",
++    "source_overrides/agent/snmp_agent.c": "sha256-plAAP8BA4kZJaeluW7MKbpLQ7+LcCObYjgM1mtuwATU=",
++    "source_overrides/agent/snmpd.c": "sha256-lECrAgU8InZwZcw2ep9kMxW8pBqploC/8z4M7GxQi2I=",
++    "source_overrides/configure.ac": "sha256-TuPPSXfi7pWZAh/5doWqUq9uDFGBh6O8nFbw+tym4us=",
++    "source_overrides/snmplib/snmp_api.c": "sha256-Dyk67dmfYWFaIRJeumQ7IDa2cihkKrforaKJV/cHEEk=",
++    "templates/net-snmp-config.h.in": "sha256-4YmqEdi6cqYlTL7CBP/gUkXFKEyxUbZMQ4PDokQNC0c=",
++    "package_contract_test.py": "sha256-M9a36NkiqXzetzMJJPnqUUehtWVQvb3yFk9u7HmuQoY="
++  }
++}
+diff --git a/modules/net-snmp/metadata.json b/modules/net-snmp/metadata.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..8ea233e1aec8cd02c77f6f27b0bf4ce31bf2a383
+--- /dev/null
++++ b/modules/net-snmp/metadata.json
+@@ -0,0 +1,5 @@
++{
++    "versions": [
++        "5.9.3.sonic.1"
++    ]
++}
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/MODULE.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/MODULE.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..ca74d19821456fb32285b4de962c6750e8b66e2c
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/MODULE.bazel
+@@ -0,0 +1,28 @@
++module(
++    name = "openconfig_ygot",
++    version = "0.7.1.sonic.1",
++    bazel_compatibility = [">=8.5.1"],
++)
++
++bazel_dep(name = "gazelle", version = "0.54.0", repo_name = "bazel_gazelle")
++bazel_dep(name = "openconfig_goyang", version = "0.0.0.sonic.1-20200309174518-a00bece872fc", repo_name = "com_github_openconfig_goyang")
++bazel_dep(name = "protobuf", version = "29.0", repo_name = "com_google_protobuf")
++bazel_dep(name = "rules_go", version = "0.64.1-sonic.1", repo_name = "io_bazel_rules_go")
++
++go_sdk = use_extension("@io_bazel_rules_go//go:extensions.bzl", "go_sdk")
++go_sdk.download(version = "1.25.9")
++
++go_deps = use_extension("@bazel_gazelle//:extensions.bzl", "go_deps")
++go_deps.from_file(go_mod = "//:go.mod")
++use_repo(
++    go_deps,
++    "com_github_golang_glog",
++    "com_github_golang_protobuf",
++    "com_github_google_go_cmp",
++    "com_github_kylelemons_godebug",
++    "com_github_openconfig_gnmi",
++    "com_github_pmezard_go_difflib",
++    "org_golang_google_genproto_googleapis_rpc",
++    "org_golang_google_grpc",
++    "org_golang_google_protobuf",
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/README.md b/modules/openconfig_ygot/0.7.1.sonic.1/README.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..2022d0cb0e7102976e52efdf88d0e2f7d8b7ea71
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/README.md
+@@ -0,0 +1,110 @@
++# SONiC's shared ygot dependency
++
++Management-common's generator and runtime libraries use ygot 0.7.1 with the
++existing SONiC schema/validation changes. This entry retains that source and
++its SONiC patches while moving dependency ownership out of the consumer. `//generator:generator`, `//ygen`, `//ygot` and `//ytypes` are public
++targets. They depend on the shared `openconfig_goyang` target, so callers and
++generated bindings use the same Go `yang.Entry` type.
++
++The source is upstream `v0.7.1`. Its existing SONiC Make/vendor patch and union
++enumeration-order fix are copied unchanged from management-common's accepted
++`f5361ba8b88cde7ec59bdb4652a986c68d66da64` source. The old Bazel patch that added
++`@com_github_openconfig_gnmi//value` is represented directly in the maintained
++`ytypes/BUILD.bazel` dependency list. It no longer patches another repository's
++generated BUILD file during the consuming build.
++
++The component BUILD definitions reuse the accepted management-common dependency
++graph. They retain the original source/test lists and production protobuf rules;
++they are checked-in definitions that can be edited beside the corresponding
++components. Standard `proto_library` import prefixes match the upstream protobuf
++imports. Demo protobuf fixtures use the Go files shipped by v0.7.1, preserving
++their original package names instead of regenerating a different API. Declared
++generator actions reproduce the original `go:generate` preparation for the four
++demo/integration schema packages before their tests. Gazelle remains an optional
++maintenance command. Normal builds do not regenerate these BUILD files. Unused generated package-metadata helpers are
++not copied.
++
++The Go lock overlay declares the dependency versions already selected by the
++accepted SONiC build, including protobuf 1.36.11, gRPC 1.82.1, split genproto RPC
++and the selected 2020 gNMI/goyang revisions. It does not upgrade ygot's source.
++The ordinary registry integration consumer retains management-common's existing
++glog replacement and checked-in gNMI protobuf setting. It compiles and tests a
++direct goyang schema passed to ygot's public validator, including an invalid
++value rejection. Standard Gazelle module mapping supplies the shared Go type
++identity; no custom resolver is used.
++
++Native AMD64/Trixie acceptance with Go 1.25.9 passes all 26 targets and 1,545
++reported test cases without skips: all 24 original targets, the new union-order
++regression and the separate shared-type consumer. The actual generator is built
++and exercised. All 329 original test functions remain, with fixture adaptations
++described below. Build and test action audits contain no DEB outputs. Removing only the historical
++union-order patch makes the same regression fail: declared `ZULU, ALPHA` becomes
++`ALPHA, ZULU` in the generated reflection map; the complete candidate preserves
++the declared order.
++
++This entry depends on shared goyang [registry #212](https://github.com/securely1g/sonic-bazel-registry/pull/212).
++Management-common's actual 20-generation, CVL/translib and output-restoration
++checks remain pending. Registry #165 and active image pins stay unchanged until
++that consumer acceptance passes.
++
++The full original suite exposes compatibility gaps that the former consumer did
++not execute. Additional numbered patches keep their scope explicit:
++
++- `0003` backports upstream [PR 377](https://github.com/openconfig/ygot/pull/377)
++  only for `testcmp`/`testutil` and their tests. Standard `protocmp` handles the
++  already-selected protobuf API; the old exported `JSONIETFComparer` signature
++  remains. No Go dependency version changes are included.
++- `0004` checks actual Go assignability after the existing bool, binary and
++  pointer conversions. An incompatible `[]string` assigned to a derived
++  `[]byte` field now returns the original test's expected error instead of
++  panicking. Valid conversions and interface assignments remain covered.
++- `0005` initializes old handwritten/pre-generated test schemas with the
++  performance state created by the SONiC parser. It also tests the existing
++  enabled/disabled debug behavior and compares compact demo JSON against every
++  original expected token. The helper is a Bazel `testonly` dependency.
++
++The original two SONiC patches remain byte-identical. The cumulative runtime
++source includes the separately documented corrections below, so the full
++runtime tree is not claimed unchanged. Legacy Make/vendor inputs are unchanged
++at this stage and still contain the inherited defects described here. All 26
++test targets remain enabled; management-consumer validation is required before
++adoption.
++
++The full original tests also expose small inherited defects. These corrections
++are kept separate from the byte-identical historical SONiC patches:
++
++- `0006` records the existing SONiC schema metadata in the five JSON goldens.
++  Every original key/value remains; the additional ordering, performance and
++  module metadata comes from the unchanged accepted generator.
++- `0007` passes binary values into the existing length validator. The old
++  upstream branch left the value unset and accepted invalid lengths.
++- `0008` uses the existing nil/default predicate for unknown container fields,
++  avoiding `reflect.IsNil` on scalar values while retaining rejection of
++  non-default unknown fields and the SONiC readonly handling.
++- `0009` handles standalone leaf schemas with no parent. The existing parsed
++  leaf-list conversion remains unchanged.
++- `0010` preserves destination-only map entries during merges, as the retained
++  public API and management-common subscription coalescing require. It retains
++  SONiC's deep key matching and source-key choice, including equal-content
++  pointer keys, without duplicating those keys or changing conflict handling.
++
++- `0011` restores the existing annotation marshaler dispatch. RFC7952 metadata
++  continues to use `Annotation.MarshalJSON`, including its existing error
++  checks; normal fields retain SONiC's optimized tag-path cache.
++- `0012` lets annotation fields reach their existing setter without requiring
++  a YANG schema. Normal fields still reject missing schemas.
++
++- `0013` reuses upstream PR 377's original path-copy test adaptation to standard
++  `protocmp`, retaining comparison of private path state and every assertion.
++
++SONiC's historical performance patch intentionally emits compact JSON without
++calling `Validate`; `Indent`, `SkipValidation` and `ValidationOpts` do not change
++that behavior in this selected version. Fixture expectations preserve those
++existing defaults. Original invalid-value assertions call `Validate` explicitly,
++and JSON checks compact only whitespace while retaining every expected token.
++The leafref fixture prunes only empty branches created by `BuildEmptyTree`, so it
++does not introduce unrelated read-only containers into the tested configuration.
++
++- `0014` updates only the embedded gzip schema literals in the five generated-code
++  goldens. Decompression matches the already-verified additive SONiC JSON
++  metadata in `0006`; every byte outside those literals remains unchanged.
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/integration/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/integration/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..11bca370c6930dd7bd157fe9a8de80e925e86bcc
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/integration/BUILD.bazel
+@@ -0,0 +1,12 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_test")
++
++go_test(
++    name = "shared_types_test",
++    srcs = ["shared_types_test.go"],
++    args = ["-test.v"],
++    deps = [
++        "@openconfig_goyang//pkg/yang",
++        "@openconfig_ygot//ygot",
++        "@openconfig_ygot//ytypes",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/integration/MODULE.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/integration/MODULE.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..0077ca4fd157dbbb2969f22768d2a67e9d6d5fb1
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/integration/MODULE.bazel
+@@ -0,0 +1,19 @@
++module(name = "sonic_ygot_consumer")
++
++bazel_dep(name = "openconfig_ygot", version = "0.7.1.sonic.1")
++bazel_dep(name = "openconfig_goyang", version = "0.0.0.sonic.1-20200309174518-a00bece872fc")
++bazel_dep(name = "gazelle", version = "0.54.0")
++bazel_dep(name = "rules_go", version = "0.64.1-sonic.1", repo_name = "io_bazel_rules_go")
++bazel_dep(name = "sonic-build-infra", version = "0.0.25-34de7330abc72229dfc8dab88dec71b89c52aa88", repo_name = "sonic_build_infra")
++
++go_sdk = use_extension("@io_bazel_rules_go//go:extensions.bzl", "go_sdk")
++go_sdk.download(version = "1.25.9")
++
++go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
++go_deps.from_file(go_mod = "//:go.mod")
++
++# Preserve management-common's existing treatment of checked-in gNMI protobufs.
++go_deps.gazelle_override(
++    directives = ["gazelle:proto disable_global"],
++    path = "github.com/openconfig/gnmi",
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/integration/go.mod b/modules/openconfig_ygot/0.7.1.sonic.1/integration/go.mod
+new file mode 100644
+index 0000000000000000000000000000000000000000..e2c7790970b80b9c284601afddba89ff6f42a9ee
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/integration/go.mod
+@@ -0,0 +1,11 @@
++module sonic_ygot_consumer
++
++go 1.25.9
++
++require (
++ github.com/openconfig/goyang v0.0.0-20200309174518-a00bece872fc
++ github.com/openconfig/ygot v0.7.1
++)
++
++// Same selected logging revision as the accepted management-common consumer.
++replace github.com/golang/glog => github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/integration/go.sum b/modules/openconfig_ygot/0.7.1.sonic.1/integration/go.sum
+new file mode 100644
+index 0000000000000000000000000000000000000000..27702480955ba9f23f2b35fec34445ce7b48a442
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/integration/go.sum
+@@ -0,0 +1,111 @@
++cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
++github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
++github.com/cenkalti/backoff/v4 v4.0.0/go.mod h1:eEew/i+1Q6OrCDZh3WiXYv3+nJwBASZ8Bog/87DQnVg=
++github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
++github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=
++github.com/cespare/xxhash/v2 v2.3.0/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
++github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
++github.com/envoyproxy/go-control-plane v0.9.1-0.20191026205805-5f8ba28d4473/go.mod h1:YTl/9mNaCwkRvm6d1a2C3ymFceY/DCBVvsKhRF0iEA4=
++github.com/envoyproxy/protoc-gen-validate v0.1.0/go.mod h1:iSmxcyjqTsJpI2R4NaDN7+kN2VEUnK/pcBlmesArF7c=
++github.com/go-logr/logr v1.4.3 h1:CjnDlHq8ikf6E492q6eKboGOC0T8CDaOvkHCIg8idEI=
++github.com/go-logr/logr v1.4.3/go.mod h1:9T104GzyrTigFIr8wt5mBrctHMim0Nb2HLGrmQ40KvY=
++github.com/go-logr/stdr v1.2.2 h1:hSWxHoqTgW2S2qGc0LTAI563KZ5YKYRhT3MFKZMbjag=
++github.com/go-logr/stdr v1.2.2/go.mod h1:mMo/vtBO5dYbehREoey6XUKy/eSumjCCveDpRre4VKE=
++github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b h1:VKtxabqXZkF25pY9ekfRL6a582T4P37/31XEstQ5p58=
++github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b/go.mod h1:SBH7ygxi8pfUlaOkMMuAQtPIUF8ecWP5IEl/CR7VP2Q=
++github.com/golang/glog v1.2.5 h1:DrW6hGnjIhtvhOIiAKT6Psh/Kd/ldepEa81DKeiRJ5I=
++github.com/golang/glog v1.2.5/go.mod h1:6AhwSGph0fcJtXVM/PEHPqZlFeoLxhs7/t5UDAwmO+w=
++github.com/golang/mock v1.1.1/go.mod h1:oTYuIxOrZwtPieC+H1uAHpcLFnEyAGVDL/k47Jfbm0A=
++github.com/golang/protobuf v1.2.0/go.mod h1:6lQm79b+lXiMfvg/cZm0SGofjICqVBUtrP5yJMmIC1U=
++github.com/golang/protobuf v1.3.2/go.mod h1:6lQm79b+lXiMfvg/cZm0SGofjICqVBUtrP5yJMmIC1U=
++github.com/golang/protobuf v1.4.0-rc.1.0.20200221234624-67d41d38c208/go.mod h1:xKAWHe0F5eneWXFV3EuXVDTCmh+JuBKY0li0aMyXATA=
++github.com/golang/protobuf v1.4.0-rc.1/go.mod h1:ceaxUfeHdC40wWswd/P6IGgMaK3YpKi5j83Wpe3EHw8=
++github.com/golang/protobuf v1.4.0-rc.2/go.mod h1:LlEzMj4AhA7rCAGe4KMBDvJI+AwstrUpVNzEA03Pprs=
++github.com/golang/protobuf v1.4.0-rc.4.0.20200313231945-b860323f09d0/go.mod h1:WU3c8KckQ9AFe+yFwt9sWVRKCVIyN9cPHBJSNnbL67w=
++github.com/golang/protobuf v1.5.4 h1:i7eJL8qZTpSEXOPTxNKhASYpMn+8e5Q6AdndVa1dWek=
++github.com/golang/protobuf v1.5.4/go.mod h1:lnTiLA8Wa4RWRcIUkrtSVa5nRhsEGBg48fD6rSs7xps=
++github.com/google/go-cmp v0.2.0/go.mod h1:oXzfMopK8JAjlY9xF4vHSVASa0yLyX7SntLO5aqRK0M=
++github.com/google/go-cmp v0.3.0/go.mod h1:8QqcDgzrUqlUb/G2PQTWiueGozuR1884gddMywk6iLU=
++github.com/google/go-cmp v0.3.1/go.mod h1:8QqcDgzrUqlUb/G2PQTWiueGozuR1884gddMywk6iLU=
++github.com/google/go-cmp v0.4.0/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/gNBxE=
++github.com/google/go-cmp v0.7.0 h1:wk8382ETsv4JYUZwIsn6YpYiWiBsYLSJiTsyBybVuN8=
++github.com/google/go-cmp v0.7.0/go.mod h1:pXiqmnSA92OHEEa9HXL2W4E7lf9JzCmGVUdgjX3N/iU=
++github.com/google/protobuf v3.11.4+incompatible/go.mod h1:lUQ9D1ePzbH2PrIS7ob/bjm9HXyH5WHB0Akwh7URreM=
++github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
++github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
++github.com/kylelemons/godebug v1.1.0 h1:RPNrshWIDI6G2gRW9EHilWtl7Z6Sb1BR0xunSBf0SNc=
++github.com/kylelemons/godebug v1.1.0/go.mod h1:9/0rRGxNHcop5bhtWyNeEfOS8JIWk580+fNqagV/RAw=
++github.com/openconfig/gnmi v0.0.0-20200617225440-d2b4e6a45802 h1:WXFwJlWOJINlwlyAZuNo4GdYZS6qPX36+rRUncLmN8Q=
++github.com/openconfig/gnmi v0.0.0-20200617225440-d2b4e6a45802/go.mod h1:M/EcuapNQgvzxo1DDXHK4tx3QpYM/uG4l591v33jG2A=
++github.com/openconfig/goyang v0.0.0-20200115183954-d0a48929f0ea/go.mod h1:dhXaV0JgHJzdrHi2l+w0fZrwArtXL7jEFoiqLEdmkvU=
++github.com/openconfig/goyang v0.0.0-20200309174518-a00bece872fc h1:W6XYKuH3mxF5WFhsSQOPPN9DRDba1xz9lbUbQR3uHkg=
++github.com/openconfig/goyang v0.0.0-20200309174518-a00bece872fc/go.mod h1:dhXaV0JgHJzdrHi2l+w0fZrwArtXL7jEFoiqLEdmkvU=
++github.com/openconfig/ygot v0.6.0/go.mod h1:o30svNf7O0xK+R35tlx95odkDmZWS9JyWWQSmIhqwAs=
++github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
++github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
++github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4/go.mod h1:xMI15A0UPsDsEKsMN9yxemIoYk6Tm2C1GtYGdfGttqA=
++go.opentelemetry.io/auto/sdk v1.2.1 h1:jXsnJ4Lmnqd11kwkBV2LgLoFMZKizbCi5fNZ/ipaZ64=
++go.opentelemetry.io/auto/sdk v1.2.1/go.mod h1:KRTj+aOaElaLi+wW1kO/DZRXwkF4C5xPbEe3ZiIhN7Y=
++go.opentelemetry.io/otel v1.43.0 h1:mYIM03dnh5zfN7HautFE4ieIig9amkNANT+xcVxAj9I=
++go.opentelemetry.io/otel v1.43.0/go.mod h1:JuG+u74mvjvcm8vj8pI5XiHy1zDeoCS2LB1spIq7Ay0=
++go.opentelemetry.io/otel/metric v1.43.0 h1:d7638QeInOnuwOONPp4JAOGfbCEpYb+K6DVWvdxGzgM=
++go.opentelemetry.io/otel/metric v1.43.0/go.mod h1:RDnPtIxvqlgO8GRW18W6Z/4P462ldprJtfxHxyKd2PY=
++go.opentelemetry.io/otel/sdk v1.43.0 h1:pi5mE86i5rTeLXqoF/hhiBtUNcrAGHLKQdhg4h4V9Dg=
++go.opentelemetry.io/otel/sdk v1.43.0/go.mod h1:P+IkVU3iWukmiit/Yf9AWvpyRDlUeBaRg6Y+C58QHzg=
++go.opentelemetry.io/otel/sdk/metric v1.43.0 h1:S88dyqXjJkuBNLeMcVPRFXpRw2fuwdvfCGLEo89fDkw=
++go.opentelemetry.io/otel/sdk/metric v1.43.0/go.mod h1:C/RJtwSEJ5hzTiUz5pXF1kILHStzb9zFlIEe85bhj6A=
++go.opentelemetry.io/otel/trace v1.43.0 h1:BkNrHpup+4k4w+ZZ86CZoHHEkohws8AY+WTX09nk+3A=
++go.opentelemetry.io/otel/trace v1.43.0/go.mod h1:/QJhyVBUUswCphDVxq+8mld+AvhXZLhe+8WVFxiFff0=
++golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
++golang.org/x/crypto v0.0.0-20200302210943-78000ba7a073/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
++golang.org/x/exp v0.0.0-20190121172915-509febef88a4/go.mod h1:CJ0aWSM057203Lf6IL+f9T1iT9GByDxfZKAQTCR3kQA=
++golang.org/x/lint v0.0.0-20181026193005-c67002cb31c3/go.mod h1:UVdnD1Gm6xHRNCYTkRU2/jEulfH38KcIWyp/GAMgvoE=
++golang.org/x/lint v0.0.0-20190227174305-5b3e6a55c961/go.mod h1:wehouNa3lNwaWXcvxsM5YxQ5yQlVC4a0KAMCusXpPoU=
++golang.org/x/lint v0.0.0-20190313153728-d0100b6bd8b3/go.mod h1:6SW0HCj/g11FgYtHlgUYUwCkIfeOF89ocIRzGO/8vkc=
++golang.org/x/net v0.0.0-20180724234803-3673e40ba225/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=
++golang.org/x/net v0.0.0-20180826012351-8a410e7b638d/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=
++golang.org/x/net v0.0.0-20190213061140-3a22650c66bd/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=
++golang.org/x/net v0.0.0-20190311183353-d8887717615a/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
++golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
++golang.org/x/net v0.0.0-20200301022130-244492dfa37a/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
++golang.org/x/net v0.53.0 h1:d+qAbo5L0orcWAr0a9JweQpjXF19LMXJE8Ey7hwOdUA=
++golang.org/x/net v0.53.0/go.mod h1:JvMuJH7rrdiCfbeHoo3fCQU24Lf5JJwT9W3sJFulfgs=
++golang.org/x/oauth2 v0.0.0-20180821212333-d2e6202438be/go.mod h1:N/0e6XlmueqKjAGxoOufVs8QHGRruUQn6yWY3a++T0U=
++golang.org/x/sync v0.0.0-20180314180146-1d60e4601c6f/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
++golang.org/x/sync v0.0.0-20181108010431-42b317875d0f/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
++golang.org/x/sync v0.0.0-20190423024810-112230192c58/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
++golang.org/x/sys v0.0.0-20180830151530-49385e6e1522/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
++golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
++golang.org/x/sys v0.0.0-20190412213103-97732733099d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
++golang.org/x/sys v0.43.0 h1:Rlag2XtaFTxp19wS8MXlJwTvoh8ArU6ezoyFsMyCTNI=
++golang.org/x/sys v0.43.0/go.mod h1:4GL1E5IUh+htKOUEOaiffhrAeqysfVGipDYzABqnCmw=
++golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
++golang.org/x/text v0.36.0 h1:JfKh3XmcRPqZPKevfXVpI1wXPTqbkE5f7JA92a55Yxg=
++golang.org/x/text v0.36.0/go.mod h1:NIdBknypM8iqVmPiuco0Dh6P5Jcdk8lJL0CUebqK164=
++golang.org/x/tools v0.0.0-20190114222345-bf090417da8b/go.mod h1:n7NCudcB/nEzxVGmLbDWY5pfWTLqBcC2KZ6jyYvM4mQ=
++golang.org/x/tools v0.0.0-20190226205152-f727befe758c/go.mod h1:9Yl7xja0Znq3iFh3HoIrodX9oNMXvdceNzlUR8zjMvY=
++golang.org/x/tools v0.0.0-20190311212946-11955173bddd/go.mod h1:LCzVGOaR6xXOjkQ3onu1FJEFr0SW1gC7cKk1uF8kGRs=
++golang.org/x/tools v0.0.0-20190524140312-2c0ae7006135/go.mod h1:RgjU9mgBXZiqYHBnxXauZ1Gv1EHHAz9KjViQ78xBX0Q=
++golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
++gonum.org/v1/gonum v0.17.0 h1:VbpOemQlsSMrYmn7T2OUvQ4dqxQXU+ouZFQsZOx50z4=
++gonum.org/v1/gonum v0.17.0/go.mod h1:El3tOrEuMpv2UdMrbNlKEh9vd86bmQ6vqIcDwxEOc1E=
++google.golang.org/appengine v1.1.0/go.mod h1:EbEs0AVv82hx2wNQdGPgUI5lhzA/G0D9YwlJXL52JkM=
++google.golang.org/appengine v1.4.0/go.mod h1:xpcJRLb0r/rnEns0DIKYYv+WjYCduHsrkT7/EB5XEv4=
++google.golang.org/genproto v0.0.0-20180817151627-c66870c02cf8/go.mod h1:JiN7NxoALGmiZfu7CAH4rXhgtRTLTxftemlI0sWmxmc=
++google.golang.org/genproto v0.0.0-20190819201941-24fa4b261c55/go.mod h1:DMBHOl98Agz4BDEuKkezgsaosCRResVns1a3J2ZsMNc=
++google.golang.org/genproto/googleapis/rpc v0.0.0-20260414002931-afd174a4e478 h1:RmoJA1ujG+/lRGNfUnOMfhCy5EipVMyvUE+KNbPbTlw=
++google.golang.org/genproto/googleapis/rpc v0.0.0-20260414002931-afd174a4e478/go.mod h1:4Hqkh8ycfw05ld/3BWL7rJOSfebL2Q+DVDeRgYgxUU8=
++google.golang.org/grpc v1.19.0/go.mod h1:mqu4LbDTu4XGKhr4mRzUsmM4RtVoemTSY81AxZiDr8c=
++google.golang.org/grpc v1.23.0/go.mod h1:Y5yQAOtifL1yxbo5wqy6BxZv8vAUGQwXBOALyacEbxg=
++google.golang.org/grpc v1.27.1/go.mod h1:qbnxyOmOxrQa7FizSgH+ReBfzJrCY1pSN7KXBS8abTk=
++google.golang.org/grpc v1.82.1 h1:NnAxzGRA0677vCa4BUkOAnO5+FfQqVl9iUXeD0IqcGE=
++google.golang.org/grpc v1.82.1/go.mod h1:yzTZ1TB1Z3SG+LIYaI+WiE8D5+PZ3ArnrSp8zF3+/ZA=
++google.golang.org/protobuf v0.0.0-20200109180630-ec00e32a8dfd/go.mod h1:DFci5gLYBciE7Vtevhsrf46CRTquxDuWsQurQQe4oz8=
++google.golang.org/protobuf v0.0.0-20200221191635-4d8936d0db64/go.mod h1:kwYJMbMJ01Woi6D6+Kah6886xMZcty6N08ah7+eCXa0=
++google.golang.org/protobuf v0.0.0-20200228230310-ab0ca4ff8a60/go.mod h1:cfTl7dwQJ+fmap5saPgwCLgHXTUD7jkjRqWcaiX5VyM=
++google.golang.org/protobuf v1.20.1-0.20200309200217-e05f789c0967/go.mod h1:A+miEFZTKqfCUM6K7xSMQL9OKL/b6hQv+e19PK+JZNE=
++google.golang.org/protobuf v1.21.0/go.mod h1:47Nbq4nVaFHyn7ilMalzfO3qCViNmqZ2kzikPIcrTAo=
++google.golang.org/protobuf v1.36.11 h1:fV6ZwhNocDyBLK0dj+fg8ektcVegBBuEolpbTQyBNVE=
++google.golang.org/protobuf v1.36.11/go.mod h1:HTf+CrKn2C3g5S8VImy6tdcUvCska2kB7j23XfzDpco=
++honnef.co/go/tools v0.0.0-20190102054323-c2f93a96b099/go.mod h1:rf3lG4BRIbNafJWhAfAdb/ePZxsR/4RtNHQocxwk9r4=
++honnef.co/go/tools v0.0.0-20190523083050-ea95bdfd59fc/go.mod h1:rf3lG4BRIbNafJWhAfAdb/ePZxsR/4RtNHQocxwk9r4=
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/integration/shared_types_test.go b/modules/openconfig_ygot/0.7.1.sonic.1/integration/shared_types_test.go
+new file mode 100644
+index 0000000000000000000000000000000000000000..065edb1b08218b8c752e444de57555f548c44dcf
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/integration/shared_types_test.go
+@@ -0,0 +1,24 @@
++package consumer
++
++import (
++	"testing"
++
++	"github.com/openconfig/goyang/pkg/yang"
++	"github.com/openconfig/ygot/ygot"
++	"github.com/openconfig/ygot/ytypes"
++)
++
++func TestSourceOwnersShareTheSameYANGType(t *testing.T) {
++	// The direct shared goyang dependency must have exactly the Go type accepted
++	// by ygot's public validator, including SONiC's legacy performance fields.
++	schema := &yang.Entry{
++		Name: "selected", Kind: yang.LeafEntry,
++		Type: &yang.YangType{Kind: yang.Ystring}, PerfOpts: &yang.PerformanceOpts{},
++	}
++	if errors := ytypes.Validate(schema, ygot.String("selected")); len(errors) != 0 {
++		t.Fatalf("shared schema/string validation failed: %v", errors)
++	}
++	if errors := ytypes.Validate(schema, ygot.Uint64(42)); len(errors) == 0 {
++		t.Fatal("string schema accepted an integer")
++	}
++}
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..7ac9f284d1d1248dc24ea998c3fccdcbe6bd68eb
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/BUILD.bazel
+@@ -0,0 +1,11 @@
++load("@bazel_gazelle//:def.bzl", "gazelle")
++
++# gazelle:prefix github.com/openconfig/ygot
++# gazelle:go_naming_convention import_alias
++gazelle(name = "gazelle")
++
++filegroup(
++    name = "schema_testdata",
++    srcs = glob(["testdata/**"]),
++    visibility = ["//visibility:public"],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/MODULE.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/MODULE.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..978ec34a11d55886c63f7f011bd9a1afebb10b4c
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/MODULE.bazel
+@@ -0,0 +1,32 @@
++# AUTO-GENERATED. DO NOT EDIT MANUALLY.
++# Source: ../MODULE.bazel
++# Generator: python3 ci/registry_ci.py sync-module --module openconfig_ygot --version 0.7.1.sonic.1
++
++module(
++    name = "openconfig_ygot",
++    version = "0.7.1.sonic.1",
++    bazel_compatibility = [">=8.5.1"],
++)
++
++bazel_dep(name = "gazelle", version = "0.54.0", repo_name = "bazel_gazelle")
++bazel_dep(name = "openconfig_goyang", version = "0.0.0.sonic.1-20200309174518-a00bece872fc", repo_name = "com_github_openconfig_goyang")
++bazel_dep(name = "protobuf", version = "29.0", repo_name = "com_google_protobuf")
++bazel_dep(name = "rules_go", version = "0.64.1-sonic.1", repo_name = "io_bazel_rules_go")
++
++go_sdk = use_extension("@io_bazel_rules_go//go:extensions.bzl", "go_sdk")
++go_sdk.download(version = "1.25.9")
++
++go_deps = use_extension("@bazel_gazelle//:extensions.bzl", "go_deps")
++go_deps.from_file(go_mod = "//:go.mod")
++use_repo(
++    go_deps,
++    "com_github_golang_glog",
++    "com_github_golang_protobuf",
++    "com_github_google_go_cmp",
++    "com_github_kylelemons_godebug",
++    "com_github_openconfig_gnmi",
++    "com_github_pmezard_go_difflib",
++    "org_golang_google_genproto_googleapis_rpc",
++    "org_golang_google_grpc",
++    "org_golang_google_protobuf",
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/bgp/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/bgp/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..3f6aeebd2e11465dc00843ff3d3890bdc95b10b7
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/bgp/BUILD.bazel
+@@ -0,0 +1,31 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
++
++go_library(
++    name = "bgp_lib",
++    srcs = ["main.go"],
++    importpath = "github.com/openconfig/ygot/demo/bgp",
++    visibility = ["//visibility:private"],
++    deps = [
++        "//exampleoc",
++        "//ygot",
++        "@com_github_golang_glog//:glog",
++    ],
++)
++
++go_binary(
++    name = "bgp",
++    embed = [":bgp_lib"],
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "bgp_test",
++    srcs = ["main_test.go"],
++    args = ["-test.v"],
++    data = glob(["testdata/**"]),
++    embed = [":bgp_lib"],
++    deps = [
++        "//testutil",
++        "@com_github_kylelemons_godebug//pretty",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/device/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/device/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..e58b83cf85845cc25bf3e73e443e2ad26b370f95
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/device/BUILD.bazel
+@@ -0,0 +1,31 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
++
++go_library(
++    name = "device_lib",
++    srcs = ["devicedemo.go"],
++    importpath = "github.com/openconfig/ygot/demo/device",
++    visibility = ["//visibility:private"],
++    deps = [
++        "//exampleoc",
++        "//ygot",
++        "@com_github_golang_glog//:glog",
++    ],
++)
++
++go_binary(
++    name = "device",
++    embed = [":device_lib"],
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "device_test",
++    srcs = ["devicedemo_test.go"],
++    args = ["-test.v"],
++    data = glob(["testdata/**"]),
++    embed = [":device_lib"],
++    deps = [
++        "//testutil",
++        "@com_github_kylelemons_godebug//pretty",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/getting_started/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/getting_started/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..f42c746e6b733700b95504524ec7d90e0d1cf68e
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/getting_started/BUILD.bazel
+@@ -0,0 +1,40 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
++
++go_library(
++    name = "getting_started_lib",
++    srcs = ["interfaces.go"],
++    importpath = "github.com/openconfig/ygot/demo/getting_started",
++    visibility = ["//visibility:private"],
++    deps = [
++        "//demo/getting_started/pkg/ocdemo",
++        "//ygot",
++    ],
++)
++
++go_binary(
++    name = "getting_started",
++    embed = [":getting_started_lib"],
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "getting_started_test",
++    srcs = ["interfaces_test.go"],
++    args = ["-test.v"],
++    data = glob(["yang/**"]),
++    embed = [":getting_started_lib"],
++    deps = [
++        "//genutil",
++        "//ygen",
++    ],
++)
++
++# Match the original go:generate preparation required by upstream Make/CI.
++genrule(
++    name = "generated_oc",
++    srcs = glob(["yang/**"]),
++    outs = ["generated_oc.go"],
++    cmd = "$(execpath //generator:generator) -path=$$(dirname $(location yang/openconfig-interfaces.yang)) -output_file=$@ -package_name=ocdemo -generate_fakeroot -fakeroot_name=device -compress_paths=true -exclude_modules=ietf-interfaces $(location yang/openconfig-interfaces.yang) $(location yang/openconfig-if-ip.yang)",
++    tools = ["//generator"],
++    visibility = ["//visibility:public"],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/getting_started/pkg/ocdemo/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/getting_started/pkg/ocdemo/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..705f0e6567c0a56513b68e76d3b7ae946a8ec49a
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/getting_started/pkg/ocdemo/BUILD.bazel
+@@ -0,0 +1,22 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library")
++
++go_library(
++    name = "ocdemo",
++    srcs = [
++        "ocdemo.go",
++        "//demo/getting_started:generated_oc",
++    ],
++    importpath = "github.com/openconfig/ygot/demo/getting_started/pkg/ocdemo",
++    visibility = ["//visibility:public"],
++    deps = [
++        "//ygot",
++        "//ytypes",
++        "@com_github_openconfig_goyang//pkg/yang",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":ocdemo",
++    visibility = ["//visibility:public"],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/gnmi_telemetry/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/gnmi_telemetry/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..5bfdb12782a1bf26247f2dcd4d9b624101942051
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/gnmi_telemetry/BUILD.bazel
+@@ -0,0 +1,35 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
++
++go_library(
++    name = "gnmi_telemetry_lib",
++    srcs = ["gnmi.go"],
++    importpath = "github.com/openconfig/ygot/demo/gnmi_telemetry",
++    visibility = ["//visibility:private"],
++    deps = [
++        "//exampleoc",
++        "//ygot",
++        "@com_github_golang_glog//:glog",
++        "@com_github_golang_protobuf//proto",
++        "@com_github_openconfig_gnmi//proto/gnmi",
++    ],
++)
++
++go_binary(
++    name = "gnmi_telemetry",
++    embed = [":gnmi_telemetry_lib"],
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "gnmi_telemetry_test",
++    srcs = ["gnmi_test.go"],
++    args = ["-test.v"],
++    data = glob(["testdata/**"]),
++    embed = [":gnmi_telemetry_lib"],
++    deps = [
++        "//ygot",
++        "@com_github_golang_protobuf//proto",
++        "@com_github_google_go_cmp//cmp",
++        "@com_github_openconfig_gnmi//proto/gnmi",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/optical/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/optical/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..5ab35a75a6892f06d447822a3bfc42331b391b9b
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/optical/BUILD.bazel
+@@ -0,0 +1,31 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
++
++go_library(
++    name = "optical_lib",
++    srcs = ["opticaldemo.go"],
++    importpath = "github.com/openconfig/ygot/demo/optical",
++    visibility = ["//visibility:private"],
++    deps = [
++        "//exampleoc",
++        "//ygot",
++        "@com_github_golang_glog//:glog",
++    ],
++)
++
++go_binary(
++    name = "optical",
++    embed = [":optical_lib"],
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "optical_test",
++    srcs = ["opticaldemo_test.go"],
++    args = ["-test.v"],
++    data = glob(["testdata/**"]),
++    embed = [":optical_lib"],
++    deps = [
++        "//testutil",
++        "@com_github_kylelemons_godebug//pretty",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/protobuf_getting_started/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/protobuf_getting_started/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..6ea2fdf206097e917a95e883e7df7eea1ef4d228
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/protobuf_getting_started/BUILD.bazel
+@@ -0,0 +1,36 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
++
++go_library(
++    name = "protobuf_getting_started_lib",
++    srcs = ["demo.go"],
++    importpath = "github.com/openconfig/ygot/demo/protobuf_getting_started",
++    visibility = ["//visibility:private"],
++    deps = [
++        "//demo/protobuf_getting_started/ribproto/openconfig",
++        "//demo/protobuf_getting_started/ribproto/openconfig/enums",
++        "//demo/protobuf_getting_started/ribproto/openconfig/openconfig_rib_bgp",
++        "//proto/ywrapper",
++        "@com_github_golang_glog//:glog",
++        "@com_github_golang_protobuf//proto",
++    ],
++)
++
++go_binary(
++    name = "protobuf_getting_started",
++    embed = [":protobuf_getting_started_lib"],
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "protobuf_getting_started_test",
++    srcs = ["demo_test.go"],
++    args = ["-test.v"],
++    data = glob(["testdata/**"]),
++    embed = [":protobuf_getting_started_lib"],
++    deps = [
++        "//demo/protobuf_getting_started/ribproto/openconfig",
++        "//demo/protobuf_getting_started/ribproto/openconfig/enums",
++        "@com_github_golang_protobuf//proto",
++        "@com_github_kylelemons_godebug//pretty",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/protobuf_getting_started/ribproto/openconfig/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/protobuf_getting_started/ribproto/openconfig/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..2935f46e757b2beb8267ec71dbc18b2ece696022
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/protobuf_getting_started/ribproto/openconfig/BUILD.bazel
+@@ -0,0 +1,24 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library")
++
++# Preserve the generated Go fixtures shipped by upstream v0.7.1.
++go_library(
++    name = "openconfig",
++    srcs = [
++        "openconfig.pb.go",
++        "pkg.go",
++    ],
++    importpath = "github.com/openconfig/ygot/demo/protobuf_getting_started/ribproto/openconfig",
++    visibility = ["//visibility:public"],
++    deps = [
++        "//demo/protobuf_getting_started/ribproto/openconfig/openconfig_rib_bgp",
++        "//proto/yext",
++        "//proto/ywrapper",
++        "@com_github_golang_protobuf//proto",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":openconfig",
++    visibility = ["//visibility:public"],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/protobuf_getting_started/ribproto/openconfig/enums/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/protobuf_getting_started/ribproto/openconfig/enums/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..94cdae70d044d5bd5cba646c81912627328f0a74
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/protobuf_getting_started/ribproto/openconfig/enums/BUILD.bazel
+@@ -0,0 +1,23 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library")
++
++# Preserve the generated Go fixtures shipped by upstream v0.7.1.
++go_library(
++    name = "enums",
++    srcs = [
++        "enums.pb.go",
++        "pkg.go",
++    ],
++    importpath = "github.com/openconfig/ygot/demo/protobuf_getting_started/ribproto/openconfig/enums",
++    visibility = ["//visibility:public"],
++    deps = [
++        "//proto/yext",
++        "//proto/ywrapper",
++        "@com_github_golang_protobuf//proto",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":enums",
++    visibility = ["//visibility:public"],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/protobuf_getting_started/ribproto/openconfig/openconfig_rib_bgp/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/protobuf_getting_started/ribproto/openconfig/openconfig_rib_bgp/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..ce996e25c5831fca42c6250a4f0d08e87cfedcde
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/protobuf_getting_started/ribproto/openconfig/openconfig_rib_bgp/BUILD.bazel
+@@ -0,0 +1,24 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library")
++
++# Preserve the generated Go fixtures shipped by upstream v0.7.1.
++go_library(
++    name = "openconfig_rib_bgp",
++    srcs = [
++        "openconfig_rib_bgp.pb.go",
++        "pkg.go",
++    ],
++    importpath = "github.com/openconfig/ygot/demo/protobuf_getting_started/ribproto/openconfig/openconfig_rib_bgp",
++    visibility = ["//visibility:public"],
++    deps = [
++        "//demo/protobuf_getting_started/ribproto/openconfig/enums",
++        "//proto/yext",
++        "//proto/ywrapper",
++        "@com_github_golang_protobuf//proto",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":openconfig_rib_bgp",
++    visibility = ["//visibility:public"],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/uncompressed/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/uncompressed/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..36873a49297025778708b18b3a5cc4db30c2d214
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/uncompressed/BUILD.bazel
+@@ -0,0 +1,41 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
++
++go_library(
++    name = "uncompressed_lib",
++    srcs = ["uncompressed.go"],
++    importpath = "github.com/openconfig/ygot/demo/uncompressed",
++    visibility = ["//visibility:private"],
++    deps = [
++        "//demo/uncompressed/pkg/demo",
++        "//ygot",
++    ],
++)
++
++go_binary(
++    name = "uncompressed",
++    embed = [":uncompressed_lib"],
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "uncompressed_test",
++    srcs = ["uncompressed_test.go"],
++    args = ["-test.v"],
++    data = glob(["testdata/**"]),
++    embed = [":uncompressed_lib"],
++    deps = [
++        "//demo/uncompressed/pkg/demo",
++        "//testutil",
++        "@com_github_kylelemons_godebug//pretty",
++    ],
++)
++
++# Match the original go:generate preparation required by upstream Make/CI.
++genrule(
++    name = "generated_uncompressed",
++    srcs = glob(["yang/**"]),
++    outs = ["generated_uncompressed.go"],
++    cmd = "$(execpath //generator:generator) -path=$$(dirname $(location yang/example.yang)) -output_file=$@ -package_name=demo -generate_fakeroot -fakeroot_name=root  $(location yang/example.yang)",
++    tools = ["//generator"],
++    visibility = ["//visibility:public"],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/uncompressed/pkg/demo/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/uncompressed/pkg/demo/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..f37a156bbda01d2aebad7c24e8e608525791bebf
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/demo/uncompressed/pkg/demo/BUILD.bazel
+@@ -0,0 +1,22 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library")
++
++go_library(
++    name = "demo",
++    srcs = [
++        "demo.go",
++        "//demo/uncompressed:generated_uncompressed",
++    ],
++    importpath = "github.com/openconfig/ygot/demo/uncompressed/pkg/demo",
++    visibility = ["//visibility:public"],
++    deps = [
++        "//ygot",
++        "//ytypes",
++        "@com_github_openconfig_goyang//pkg/yang",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":demo",
++    visibility = ["//visibility:public"],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/exampleoc/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/exampleoc/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..3449810ae4af259357d4ac12a016ec8d034f1295
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/exampleoc/BUILD.bazel
+@@ -0,0 +1,19 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library")
++
++go_library(
++    name = "exampleoc",
++    srcs = ["oc.go"],
++    importpath = "github.com/openconfig/ygot/exampleoc",
++    visibility = ["//visibility:public"],
++    deps = [
++        "//ygot",
++        "//ytypes",
++        "@com_github_openconfig_goyang//pkg/yang",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":exampleoc",
++    visibility = ["//visibility:public"],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/exampleocpath/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/exampleocpath/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..1a1e5d3482e7e6f148a3d8d6856fdfe69a651216
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/exampleocpath/BUILD.bazel
+@@ -0,0 +1,22 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library")
++
++go_library(
++    name = "exampleocpath",
++    srcs = [
++        "ocpath.go",
++        "ocpath_augment.go",
++    ],
++    importpath = "github.com/openconfig/ygot/exampleocpath",
++    visibility = ["//visibility:public"],
++    deps = [
++        "//exampleoc",
++        "//ygot",
++        "@com_github_openconfig_gnmi//proto/gnmi",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":exampleocpath",
++    visibility = ["//visibility:public"],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/experimental/ygotutils/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/experimental/ygotutils/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..9b9b312d0af0bb8f12d3861e3ff5fd18be01f953
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/experimental/ygotutils/BUILD.bazel
+@@ -0,0 +1,42 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
++
++go_library(
++    name = "ygotutils",
++    srcs = [
++        "common.go",
++        "getnode.go",
++    ],
++    importpath = "github.com/openconfig/ygot/experimental/ygotutils",
++    visibility = ["//visibility:public"],
++    deps = [
++        "//util",
++        "//ygot",
++        "@com_github_golang_glog//:glog",
++        "@com_github_openconfig_gnmi//proto/gnmi",
++        "@com_github_openconfig_goyang//pkg/yang",
++        "@org_golang_google_genproto_googleapis_rpc//code",
++        "@org_golang_google_genproto_googleapis_rpc//status",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":ygotutils",
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "ygotutils_test",
++    srcs = ["getnode_test.go"],
++    args = ["-test.v"],
++    embed = [":ygotutils"],
++    deps = [
++        "//ygot",
++        "@com_github_golang_protobuf//proto",
++        "@com_github_google_go_cmp//cmp",
++        "@com_github_openconfig_gnmi//proto/gnmi",
++        "@com_github_openconfig_goyang//pkg/yang",
++        "@org_golang_google_genproto_googleapis_rpc//code",
++        "@org_golang_google_genproto_googleapis_rpc//status",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/generator/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/generator/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..5c99388ddaa3099c6702b9dc176d12f3a6bda0b9
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/generator/BUILD.bazel
+@@ -0,0 +1,31 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
++
++go_library(
++    name = "generator_lib",
++    srcs = ["generator.go"],
++    importpath = "github.com/openconfig/ygot/generator",
++    visibility = ["//visibility:private"],
++    deps = [
++        "//genutil",
++        "//ygen",
++        "@com_github_golang_glog//:glog",
++        "@com_github_openconfig_goyang//pkg/yang",
++    ],
++)
++
++go_binary(
++    name = "generator",
++    embed = [":generator_lib"],
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "generator_test",
++    srcs = ["generator_test.go"],
++    args = ["-test.v"],
++    embed = [":generator_lib"],
++    deps = [
++        "//ygen",
++        "@com_github_kylelemons_godebug//pretty",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/genutil/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/genutil/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..de3c1db6de33c516efa8f27fd5de0cd60e7fe6ac
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/genutil/BUILD.bazel
+@@ -0,0 +1,38 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
++
++go_library(
++    name = "genutil",
++    srcs = [
++        "common.go",
++        "file.go",
++        "names.go",
++    ],
++    importpath = "github.com/openconfig/ygot/genutil",
++    visibility = ["//visibility:public"],
++    deps = [
++        "//util",
++        "//ygot",
++        "@com_github_golang_glog//:glog",
++        "@com_github_openconfig_goyang//pkg/yang",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":genutil",
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "genutil_test",
++    srcs = [
++        "common_test.go",
++        "names_test.go",
++    ],
++    args = ["-test.v"],
++    embed = [":genutil"],
++    deps = [
++        "@com_github_google_go_cmp//cmp",
++        "@com_github_openconfig_goyang//pkg/yang",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/go.mod b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/go.mod
+new file mode 100644
+index 0000000000000000000000000000000000000000..36f9bf4d1125c73195d051d87488cfe8076d15bd
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/go.mod
+@@ -0,0 +1,22 @@
++module github.com/openconfig/ygot
++
++go 1.25.9
++
++require (
++	github.com/golang/glog v1.2.5
++	github.com/golang/protobuf v1.5.4
++	github.com/google/go-cmp v0.7.0
++	github.com/kylelemons/godebug v1.1.0
++	github.com/openconfig/gnmi v0.0.0-20200617225440-d2b4e6a45802
++	github.com/openconfig/goyang v0.0.0-20200309174518-a00bece872fc
++	github.com/pmezard/go-difflib v1.0.0
++	google.golang.org/genproto/googleapis/rpc v0.0.0-20260414002931-afd174a4e478
++	google.golang.org/grpc v1.82.1
++	google.golang.org/protobuf v1.36.11
++)
++
++require (
++	golang.org/x/net v0.53.0 // indirect
++	golang.org/x/sys v0.43.0 // indirect
++	golang.org/x/text v0.36.0 // indirect
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/go.sum b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/go.sum
+new file mode 100644
+index 0000000000000000000000000000000000000000..63daac3bfdc2c59d362945618970942a5c3f841b
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/go.sum
+@@ -0,0 +1,110 @@
++cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
++github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
++github.com/cenkalti/backoff/v4 v4.0.0/go.mod h1:eEew/i+1Q6OrCDZh3WiXYv3+nJwBASZ8Bog/87DQnVg=
++github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
++github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=
++github.com/cespare/xxhash/v2 v2.3.0/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
++github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
++github.com/envoyproxy/go-control-plane v0.9.1-0.20191026205805-5f8ba28d4473/go.mod h1:YTl/9mNaCwkRvm6d1a2C3ymFceY/DCBVvsKhRF0iEA4=
++github.com/envoyproxy/protoc-gen-validate v0.1.0/go.mod h1:iSmxcyjqTsJpI2R4NaDN7+kN2VEUnK/pcBlmesArF7c=
++github.com/go-logr/logr v1.4.3 h1:CjnDlHq8ikf6E492q6eKboGOC0T8CDaOvkHCIg8idEI=
++github.com/go-logr/logr v1.4.3/go.mod h1:9T104GzyrTigFIr8wt5mBrctHMim0Nb2HLGrmQ40KvY=
++github.com/go-logr/stdr v1.2.2 h1:hSWxHoqTgW2S2qGc0LTAI563KZ5YKYRhT3MFKZMbjag=
++github.com/go-logr/stdr v1.2.2/go.mod h1:mMo/vtBO5dYbehREoey6XUKy/eSumjCCveDpRre4VKE=
++github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b/go.mod h1:SBH7ygxi8pfUlaOkMMuAQtPIUF8ecWP5IEl/CR7VP2Q=
++github.com/golang/glog v1.2.5 h1:DrW6hGnjIhtvhOIiAKT6Psh/Kd/ldepEa81DKeiRJ5I=
++github.com/golang/glog v1.2.5/go.mod h1:6AhwSGph0fcJtXVM/PEHPqZlFeoLxhs7/t5UDAwmO+w=
++github.com/golang/mock v1.1.1/go.mod h1:oTYuIxOrZwtPieC+H1uAHpcLFnEyAGVDL/k47Jfbm0A=
++github.com/golang/protobuf v1.2.0/go.mod h1:6lQm79b+lXiMfvg/cZm0SGofjICqVBUtrP5yJMmIC1U=
++github.com/golang/protobuf v1.3.2/go.mod h1:6lQm79b+lXiMfvg/cZm0SGofjICqVBUtrP5yJMmIC1U=
++github.com/golang/protobuf v1.4.0-rc.1/go.mod h1:ceaxUfeHdC40wWswd/P6IGgMaK3YpKi5j83Wpe3EHw8=
++github.com/golang/protobuf v1.4.0-rc.1.0.20200221234624-67d41d38c208/go.mod h1:xKAWHe0F5eneWXFV3EuXVDTCmh+JuBKY0li0aMyXATA=
++github.com/golang/protobuf v1.4.0-rc.2/go.mod h1:LlEzMj4AhA7rCAGe4KMBDvJI+AwstrUpVNzEA03Pprs=
++github.com/golang/protobuf v1.4.0-rc.4.0.20200313231945-b860323f09d0/go.mod h1:WU3c8KckQ9AFe+yFwt9sWVRKCVIyN9cPHBJSNnbL67w=
++github.com/golang/protobuf v1.5.4 h1:i7eJL8qZTpSEXOPTxNKhASYpMn+8e5Q6AdndVa1dWek=
++github.com/golang/protobuf v1.5.4/go.mod h1:lnTiLA8Wa4RWRcIUkrtSVa5nRhsEGBg48fD6rSs7xps=
++github.com/google/go-cmp v0.2.0/go.mod h1:oXzfMopK8JAjlY9xF4vHSVASa0yLyX7SntLO5aqRK0M=
++github.com/google/go-cmp v0.3.0/go.mod h1:8QqcDgzrUqlUb/G2PQTWiueGozuR1884gddMywk6iLU=
++github.com/google/go-cmp v0.3.1/go.mod h1:8QqcDgzrUqlUb/G2PQTWiueGozuR1884gddMywk6iLU=
++github.com/google/go-cmp v0.4.0/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/gNBxE=
++github.com/google/go-cmp v0.7.0 h1:wk8382ETsv4JYUZwIsn6YpYiWiBsYLSJiTsyBybVuN8=
++github.com/google/go-cmp v0.7.0/go.mod h1:pXiqmnSA92OHEEa9HXL2W4E7lf9JzCmGVUdgjX3N/iU=
++github.com/google/protobuf v3.11.4+incompatible/go.mod h1:lUQ9D1ePzbH2PrIS7ob/bjm9HXyH5WHB0Akwh7URreM=
++github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
++github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
++github.com/kylelemons/godebug v1.1.0 h1:RPNrshWIDI6G2gRW9EHilWtl7Z6Sb1BR0xunSBf0SNc=
++github.com/kylelemons/godebug v1.1.0/go.mod h1:9/0rRGxNHcop5bhtWyNeEfOS8JIWk580+fNqagV/RAw=
++github.com/openconfig/gnmi v0.0.0-20200617225440-d2b4e6a45802 h1:WXFwJlWOJINlwlyAZuNo4GdYZS6qPX36+rRUncLmN8Q=
++github.com/openconfig/gnmi v0.0.0-20200617225440-d2b4e6a45802/go.mod h1:M/EcuapNQgvzxo1DDXHK4tx3QpYM/uG4l591v33jG2A=
++github.com/openconfig/goyang v0.0.0-20200115183954-d0a48929f0ea/go.mod h1:dhXaV0JgHJzdrHi2l+w0fZrwArtXL7jEFoiqLEdmkvU=
++github.com/openconfig/goyang v0.0.0-20200309174518-a00bece872fc h1:W6XYKuH3mxF5WFhsSQOPPN9DRDba1xz9lbUbQR3uHkg=
++github.com/openconfig/goyang v0.0.0-20200309174518-a00bece872fc/go.mod h1:dhXaV0JgHJzdrHi2l+w0fZrwArtXL7jEFoiqLEdmkvU=
++github.com/openconfig/ygot v0.6.0/go.mod h1:o30svNf7O0xK+R35tlx95odkDmZWS9JyWWQSmIhqwAs=
++github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
++github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
++github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4/go.mod h1:xMI15A0UPsDsEKsMN9yxemIoYk6Tm2C1GtYGdfGttqA=
++go.opentelemetry.io/auto/sdk v1.2.1 h1:jXsnJ4Lmnqd11kwkBV2LgLoFMZKizbCi5fNZ/ipaZ64=
++go.opentelemetry.io/auto/sdk v1.2.1/go.mod h1:KRTj+aOaElaLi+wW1kO/DZRXwkF4C5xPbEe3ZiIhN7Y=
++go.opentelemetry.io/otel v1.43.0 h1:mYIM03dnh5zfN7HautFE4ieIig9amkNANT+xcVxAj9I=
++go.opentelemetry.io/otel v1.43.0/go.mod h1:JuG+u74mvjvcm8vj8pI5XiHy1zDeoCS2LB1spIq7Ay0=
++go.opentelemetry.io/otel/metric v1.43.0 h1:d7638QeInOnuwOONPp4JAOGfbCEpYb+K6DVWvdxGzgM=
++go.opentelemetry.io/otel/metric v1.43.0/go.mod h1:RDnPtIxvqlgO8GRW18W6Z/4P462ldprJtfxHxyKd2PY=
++go.opentelemetry.io/otel/sdk v1.43.0 h1:pi5mE86i5rTeLXqoF/hhiBtUNcrAGHLKQdhg4h4V9Dg=
++go.opentelemetry.io/otel/sdk v1.43.0/go.mod h1:P+IkVU3iWukmiit/Yf9AWvpyRDlUeBaRg6Y+C58QHzg=
++go.opentelemetry.io/otel/sdk/metric v1.43.0 h1:S88dyqXjJkuBNLeMcVPRFXpRw2fuwdvfCGLEo89fDkw=
++go.opentelemetry.io/otel/sdk/metric v1.43.0/go.mod h1:C/RJtwSEJ5hzTiUz5pXF1kILHStzb9zFlIEe85bhj6A=
++go.opentelemetry.io/otel/trace v1.43.0 h1:BkNrHpup+4k4w+ZZ86CZoHHEkohws8AY+WTX09nk+3A=
++go.opentelemetry.io/otel/trace v1.43.0/go.mod h1:/QJhyVBUUswCphDVxq+8mld+AvhXZLhe+8WVFxiFff0=
++golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
++golang.org/x/crypto v0.0.0-20200302210943-78000ba7a073/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
++golang.org/x/exp v0.0.0-20190121172915-509febef88a4/go.mod h1:CJ0aWSM057203Lf6IL+f9T1iT9GByDxfZKAQTCR3kQA=
++golang.org/x/lint v0.0.0-20181026193005-c67002cb31c3/go.mod h1:UVdnD1Gm6xHRNCYTkRU2/jEulfH38KcIWyp/GAMgvoE=
++golang.org/x/lint v0.0.0-20190227174305-5b3e6a55c961/go.mod h1:wehouNa3lNwaWXcvxsM5YxQ5yQlVC4a0KAMCusXpPoU=
++golang.org/x/lint v0.0.0-20190313153728-d0100b6bd8b3/go.mod h1:6SW0HCj/g11FgYtHlgUYUwCkIfeOF89ocIRzGO/8vkc=
++golang.org/x/net v0.0.0-20180724234803-3673e40ba225/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=
++golang.org/x/net v0.0.0-20180826012351-8a410e7b638d/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=
++golang.org/x/net v0.0.0-20190213061140-3a22650c66bd/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=
++golang.org/x/net v0.0.0-20190311183353-d8887717615a/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
++golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
++golang.org/x/net v0.0.0-20200301022130-244492dfa37a/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
++golang.org/x/net v0.53.0 h1:d+qAbo5L0orcWAr0a9JweQpjXF19LMXJE8Ey7hwOdUA=
++golang.org/x/net v0.53.0/go.mod h1:JvMuJH7rrdiCfbeHoo3fCQU24Lf5JJwT9W3sJFulfgs=
++golang.org/x/oauth2 v0.0.0-20180821212333-d2e6202438be/go.mod h1:N/0e6XlmueqKjAGxoOufVs8QHGRruUQn6yWY3a++T0U=
++golang.org/x/sync v0.0.0-20180314180146-1d60e4601c6f/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
++golang.org/x/sync v0.0.0-20181108010431-42b317875d0f/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
++golang.org/x/sync v0.0.0-20190423024810-112230192c58/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
++golang.org/x/sys v0.0.0-20180830151530-49385e6e1522/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
++golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
++golang.org/x/sys v0.0.0-20190412213103-97732733099d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
++golang.org/x/sys v0.43.0 h1:Rlag2XtaFTxp19wS8MXlJwTvoh8ArU6ezoyFsMyCTNI=
++golang.org/x/sys v0.43.0/go.mod h1:4GL1E5IUh+htKOUEOaiffhrAeqysfVGipDYzABqnCmw=
++golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
++golang.org/x/text v0.36.0 h1:JfKh3XmcRPqZPKevfXVpI1wXPTqbkE5f7JA92a55Yxg=
++golang.org/x/text v0.36.0/go.mod h1:NIdBknypM8iqVmPiuco0Dh6P5Jcdk8lJL0CUebqK164=
++golang.org/x/tools v0.0.0-20190114222345-bf090417da8b/go.mod h1:n7NCudcB/nEzxVGmLbDWY5pfWTLqBcC2KZ6jyYvM4mQ=
++golang.org/x/tools v0.0.0-20190226205152-f727befe758c/go.mod h1:9Yl7xja0Znq3iFh3HoIrodX9oNMXvdceNzlUR8zjMvY=
++golang.org/x/tools v0.0.0-20190311212946-11955173bddd/go.mod h1:LCzVGOaR6xXOjkQ3onu1FJEFr0SW1gC7cKk1uF8kGRs=
++golang.org/x/tools v0.0.0-20190524140312-2c0ae7006135/go.mod h1:RgjU9mgBXZiqYHBnxXauZ1Gv1EHHAz9KjViQ78xBX0Q=
++golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
++gonum.org/v1/gonum v0.17.0 h1:VbpOemQlsSMrYmn7T2OUvQ4dqxQXU+ouZFQsZOx50z4=
++gonum.org/v1/gonum v0.17.0/go.mod h1:El3tOrEuMpv2UdMrbNlKEh9vd86bmQ6vqIcDwxEOc1E=
++google.golang.org/appengine v1.1.0/go.mod h1:EbEs0AVv82hx2wNQdGPgUI5lhzA/G0D9YwlJXL52JkM=
++google.golang.org/appengine v1.4.0/go.mod h1:xpcJRLb0r/rnEns0DIKYYv+WjYCduHsrkT7/EB5XEv4=
++google.golang.org/genproto v0.0.0-20180817151627-c66870c02cf8/go.mod h1:JiN7NxoALGmiZfu7CAH4rXhgtRTLTxftemlI0sWmxmc=
++google.golang.org/genproto v0.0.0-20190819201941-24fa4b261c55/go.mod h1:DMBHOl98Agz4BDEuKkezgsaosCRResVns1a3J2ZsMNc=
++google.golang.org/genproto/googleapis/rpc v0.0.0-20260414002931-afd174a4e478 h1:RmoJA1ujG+/lRGNfUnOMfhCy5EipVMyvUE+KNbPbTlw=
++google.golang.org/genproto/googleapis/rpc v0.0.0-20260414002931-afd174a4e478/go.mod h1:4Hqkh8ycfw05ld/3BWL7rJOSfebL2Q+DVDeRgYgxUU8=
++google.golang.org/grpc v1.19.0/go.mod h1:mqu4LbDTu4XGKhr4mRzUsmM4RtVoemTSY81AxZiDr8c=
++google.golang.org/grpc v1.23.0/go.mod h1:Y5yQAOtifL1yxbo5wqy6BxZv8vAUGQwXBOALyacEbxg=
++google.golang.org/grpc v1.27.1/go.mod h1:qbnxyOmOxrQa7FizSgH+ReBfzJrCY1pSN7KXBS8abTk=
++google.golang.org/grpc v1.82.1 h1:NnAxzGRA0677vCa4BUkOAnO5+FfQqVl9iUXeD0IqcGE=
++google.golang.org/grpc v1.82.1/go.mod h1:yzTZ1TB1Z3SG+LIYaI+WiE8D5+PZ3ArnrSp8zF3+/ZA=
++google.golang.org/protobuf v0.0.0-20200109180630-ec00e32a8dfd/go.mod h1:DFci5gLYBciE7Vtevhsrf46CRTquxDuWsQurQQe4oz8=
++google.golang.org/protobuf v0.0.0-20200221191635-4d8936d0db64/go.mod h1:kwYJMbMJ01Woi6D6+Kah6886xMZcty6N08ah7+eCXa0=
++google.golang.org/protobuf v0.0.0-20200228230310-ab0ca4ff8a60/go.mod h1:cfTl7dwQJ+fmap5saPgwCLgHXTUD7jkjRqWcaiX5VyM=
++google.golang.org/protobuf v1.20.1-0.20200309200217-e05f789c0967/go.mod h1:A+miEFZTKqfCUM6K7xSMQL9OKL/b6hQv+e19PK+JZNE=
++google.golang.org/protobuf v1.21.0/go.mod h1:47Nbq4nVaFHyn7ilMalzfO3qCViNmqZ2kzikPIcrTAo=
++google.golang.org/protobuf v1.36.11 h1:fV6ZwhNocDyBLK0dj+fg8ektcVegBBuEolpbTQyBNVE=
++google.golang.org/protobuf v1.36.11/go.mod h1:HTf+CrKn2C3g5S8VImy6tdcUvCska2kB7j23XfzDpco=
++honnef.co/go/tools v0.0.0-20190102054323-c2f93a96b099/go.mod h1:rf3lG4BRIbNafJWhAfAdb/ePZxsR/4RtNHQocxwk9r4=
++honnef.co/go/tools v0.0.0-20190523083050-ea95bdfd59fc/go.mod h1:rf3lG4BRIbNafJWhAfAdb/ePZxsR/4RtNHQocxwk9r4=
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/integration_tests/uncompressed/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/integration_tests/uncompressed/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..1d999f0609e98fd3ef885a44265d372aac96d542
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/integration_tests/uncompressed/BUILD.bazel
+@@ -0,0 +1,46 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
++
++go_library(
++    name = "uncompressed",
++    srcs = ["cp.go"],
++    importpath = "github.com/openconfig/ygot/integration_tests/uncompressed",
++    visibility = ["//visibility:public"],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":uncompressed",
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "uncompressed_test",
++    srcs = ["cp_test.go"],
++    args = ["-test.v"],
++    embed = [":uncompressed"],
++    deps = [
++        "//integration_tests/uncompressed/cschema",
++        "//integration_tests/uncompressed/uschema",
++        "//ygot",
++    ],
++)
++
++# Match the original go:generate preparation required by upstream Make/CI.
++genrule(
++    name = "generated_compressed",
++    srcs = glob(["yang/**"]),
++    outs = ["generated_compressed.go"],
++    cmd = "$(execpath //generator:generator) -path=$$(dirname $(location yang/uncompressed.yang)) -output_file=$@ -package_name=cschema -generate_fakeroot -fakeroot_name=root -generate_getters -compress_paths $(location yang/uncompressed.yang)",
++    tools = ["//generator"],
++    visibility = ["//visibility:public"],
++)
++
++# Match the original go:generate preparation required by upstream Make/CI.
++genrule(
++    name = "generated_uncompressed",
++    srcs = glob(["yang/**"]),
++    outs = ["generated_uncompressed.go"],
++    cmd = "$(execpath //generator:generator) -path=$$(dirname $(location yang/uncompressed.yang)) -output_file=$@ -package_name=uschema -generate_fakeroot -fakeroot_name=root -generate_getters $(location yang/uncompressed.yang)",
++    tools = ["//generator"],
++    visibility = ["//visibility:public"],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/integration_tests/uncompressed/cschema/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/integration_tests/uncompressed/cschema/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..430c8987793412d227e1b9a68b11b286397182f4
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/integration_tests/uncompressed/cschema/BUILD.bazel
+@@ -0,0 +1,22 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library")
++
++go_library(
++    name = "cschema",
++    srcs = [
++        "cschema.go",
++        "//integration_tests/uncompressed:generated_compressed",
++    ],
++    importpath = "github.com/openconfig/ygot/integration_tests/uncompressed/cschema",
++    visibility = ["//visibility:public"],
++    deps = [
++        "//ygot",
++        "//ytypes",
++        "@com_github_openconfig_goyang//pkg/yang",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":cschema",
++    visibility = ["//visibility:public"],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/integration_tests/uncompressed/uschema/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/integration_tests/uncompressed/uschema/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..d5109224e707dce82e4bd9021a82cd6017227901
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/integration_tests/uncompressed/uschema/BUILD.bazel
+@@ -0,0 +1,22 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library")
++
++go_library(
++    name = "uschema",
++    srcs = [
++        "uschema.go",
++        "//integration_tests/uncompressed:generated_uncompressed",
++    ],
++    importpath = "github.com/openconfig/ygot/integration_tests/uncompressed/uschema",
++    visibility = ["//visibility:public"],
++    deps = [
++        "//ygot",
++        "//ytypes",
++        "@com_github_openconfig_goyang//pkg/yang",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":uschema",
++    visibility = ["//visibility:public"],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/internal/sonicfixture/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/internal/sonicfixture/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..344405711477b2a3dad3e42ec4cc1f7750eafe7a
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/internal/sonicfixture/BUILD.bazel
+@@ -0,0 +1,10 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library")
++
++go_library(
++    name = "sonicfixture",
++    testonly = True,
++    srcs = ["schema.go"],
++    importpath = "github.com/openconfig/ygot/internal/sonicfixture",
++    visibility = ["//visibility:public"],
++    deps = ["@com_github_openconfig_goyang//pkg/yang"],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/internal/sonicfixture/schema.go b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/internal/sonicfixture/schema.go
+new file mode 100644
+index 0000000000000000000000000000000000000000..056243c248c00adf208fdfdb7fb0111df91e7769
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/internal/sonicfixture/schema.go
+@@ -0,0 +1,27 @@
++// Package sonicfixture initializes the performance state omitted from old,
++// handwritten and pre-generated upstream test schemas. It is test-only.
++package sonicfixture
++
++import "github.com/openconfig/goyang/pkg/yang"
++
++// Entry preserves every schema field and existing cache while supplying the
++// state that the actual SONiC parser/generator creates for each entry.
++func Entry(root *yang.Entry) *yang.Entry {
++	seen := map[*yang.Entry]bool{}
++	var visit func(*yang.Entry)
++	visit = func(entry *yang.Entry) {
++		if entry == nil || seen[entry] {
++			return
++		}
++		seen[entry] = true
++		if entry.PerfOpts == nil {
++			entry.PerfOpts = &yang.PerformanceOpts{}
++		}
++		for _, child := range entry.Dir {
++			visit(child)
++		}
++		visit(entry.Parent)
++	}
++	visit(root)
++	return root
++}
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/proto/yext/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/proto/yext/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..5062e67e2f0f86ef41ea3156fdbcde7730df5666
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/proto/yext/BUILD.bazel
+@@ -0,0 +1,32 @@
++load("@com_google_protobuf//bazel:proto_library.bzl", "proto_library")
++load("@io_bazel_rules_go//go:def.bzl", "go_library")
++load("@io_bazel_rules_go//proto:def.bzl", "go_proto_library")
++
++proto_library(
++    name = "yext_proto",
++    srcs = ["yext.proto"],
++    import_prefix = "github.com/openconfig/ygot",
++    visibility = ["//visibility:public"],
++    deps = ["@com_google_protobuf//:descriptor_proto"],
++)
++
++go_proto_library(
++    name = "yext_go_proto",
++    importpath = "github.com/openconfig/ygot/proto/yext",
++    proto = ":yext_proto",
++    visibility = ["//visibility:public"],
++)
++
++go_library(
++    name = "yext",
++    srcs = ["gen.go"],
++    embed = [":yext_go_proto"],
++    importpath = "github.com/openconfig/ygot/proto/yext",
++    visibility = ["//visibility:public"],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":yext",
++    visibility = ["//visibility:public"],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/proto/ywrapper/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/proto/ywrapper/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..8126b06e176c2a28b07cc6c00fe446e1bab6ce52
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/proto/ywrapper/BUILD.bazel
+@@ -0,0 +1,31 @@
++load("@com_google_protobuf//bazel:proto_library.bzl", "proto_library")
++load("@io_bazel_rules_go//go:def.bzl", "go_library")
++load("@io_bazel_rules_go//proto:def.bzl", "go_proto_library")
++
++proto_library(
++    name = "ywrapper_proto",
++    srcs = ["ywrapper.proto"],
++    import_prefix = "github.com/openconfig/ygot",
++    visibility = ["//visibility:public"],
++)
++
++go_proto_library(
++    name = "ywrapper_go_proto",
++    importpath = "github.com/openconfig/ygot/proto/ywrapper",
++    proto = ":ywrapper_proto",
++    visibility = ["//visibility:public"],
++)
++
++go_library(
++    name = "ywrapper",
++    srcs = ["gen.go"],
++    embed = [":ywrapper_go_proto"],
++    importpath = "github.com/openconfig/ygot/proto/ywrapper",
++    visibility = ["//visibility:public"],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":ywrapper",
++    visibility = ["//visibility:public"],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/proto_generator/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/proto_generator/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..14ff3b9b6ce99f1f5ec4a2838afdbbe3dccf3470
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/proto_generator/BUILD.bazel
+@@ -0,0 +1,20 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
++
++go_library(
++    name = "proto_generator_lib",
++    srcs = ["protogenerator.go"],
++    importpath = "github.com/openconfig/ygot/proto_generator",
++    visibility = ["//visibility:private"],
++    deps = [
++        "//genutil",
++        "//ygen",
++        "@com_github_golang_glog//:glog",
++        "@com_github_openconfig_goyang//pkg/yang",
++    ],
++)
++
++go_binary(
++    name = "proto_generator",
++    embed = [":proto_generator_lib"],
++    visibility = ["//visibility:public"],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/testcmp/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/testcmp/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..cfb3174c5f92ac72a8cf49e4bd948a7f36065d51
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/testcmp/BUILD.bazel
+@@ -0,0 +1,48 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
++
++go_library(
++    name = "testcmp",
++    srcs = ["cmp.go"],
++    importpath = "github.com/openconfig/ygot/testcmp",
++    visibility = ["//visibility:public"],
++    deps = [
++        "//testutil",
++        "//ygot",
++        "//ytypes",
++        "@com_github_golang_glog//:glog",
++        "@com_github_golang_protobuf//proto",
++        "@com_github_google_go_cmp//cmp",
++        "@com_github_google_go_cmp//cmp/cmpopts",
++        "@com_github_openconfig_gnmi//proto/gnmi",
++        "@org_golang_google_protobuf//testing/protocmp",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":testcmp",
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "testcmp_test",
++    srcs = [
++        "cmp_test.go",
++        "sonic_fixture_test.go",
++    ],
++    args = ["-test.v"],
++    embed = [":testcmp"],
++    deps = [
++        "//exampleoc",
++        "//internal/sonicfixture",
++        "//testutil",
++        "//uexampleoc",
++        "//ygot",
++        "//ytypes",
++        "@com_github_google_go_cmp//cmp",
++        "@com_github_kylelemons_godebug//pretty",
++        "@com_github_openconfig_gnmi//errdiff",
++        "@com_github_openconfig_gnmi//proto/gnmi",
++        "@org_golang_google_protobuf//testing/protocmp",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/testcmp/sonic_fixture_test.go b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/testcmp/sonic_fixture_test.go
+new file mode 100644
+index 0000000000000000000000000000000000000000..ea01b689c774463e0164e53b79ef3553991a2ab5
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/testcmp/sonic_fixture_test.go
+@@ -0,0 +1,30 @@
++package testcmp
++
++import (
++	"github.com/openconfig/ygot/exampleoc"
++	"github.com/openconfig/ygot/internal/sonicfixture"
++	"github.com/openconfig/ygot/uexampleoc"
++	"github.com/openconfig/ygot/ytypes"
++)
++
++func init() {
++	for _, entry := range exampleoc.SchemaTree {
++		sonicfixture.Entry(entry)
++	}
++	for _, entry := range uexampleoc.SchemaTree {
++		sonicfixture.Entry(entry)
++	}
++}
++
++// The legacy generated Schema callback returns a newly unzipped tree each time.
++func sonicFixtureSchema(fn func() (*ytypes.Schema, error)) func() (*ytypes.Schema, error) {
++	return func() (*ytypes.Schema, error) {
++		schema, err := fn()
++		if schema != nil {
++			for _, entry := range schema.SchemaTree {
++				sonicfixture.Entry(entry)
++			}
++		}
++		return schema, err
++	}
++}
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/testutil/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/testutil/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..9e993057259d79ba32af7dabc480cb34dcabe4ab
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/testutil/BUILD.bazel
+@@ -0,0 +1,43 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
++
++go_library(
++    name = "testutil",
++    srcs = [
++        "diff.go",
++        "testutil.go",
++    ],
++    importpath = "github.com/openconfig/ygot/testutil",
++    visibility = ["//visibility:public"],
++    deps = [
++        "@com_github_golang_protobuf//proto",
++        "@com_github_google_go_cmp//cmp",
++        "@com_github_google_go_cmp//cmp/cmpopts",
++        "@com_github_openconfig_gnmi//proto/gnmi",
++        "@com_github_openconfig_gnmi//value",
++        "@com_github_pmezard_go_difflib//difflib",
++        "@org_golang_google_protobuf//testing/protocmp",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":testutil",
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "testutil_test",
++    srcs = [
++        "diff_test.go",
++        "testutil_test.go",
++    ],
++    args = ["-test.v"],
++    embed = [":testutil"],
++    deps = [
++        "//ygot",
++        "@com_github_golang_protobuf//proto",
++        "@com_github_google_go_cmp//cmp",
++        "@com_github_openconfig_gnmi//proto/gnmi",
++        "@org_golang_google_protobuf//testing/protocmp",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/uexampleoc/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/uexampleoc/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..9ab54ffdd8aee648e1e4bba072f83fc9529d5ad2
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/uexampleoc/BUILD.bazel
+@@ -0,0 +1,19 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library")
++
++go_library(
++    name = "uexampleoc",
++    srcs = ["oc.go"],
++    importpath = "github.com/openconfig/ygot/uexampleoc",
++    visibility = ["//visibility:public"],
++    deps = [
++        "//ygot",
++        "//ytypes",
++        "@com_github_openconfig_goyang//pkg/yang",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":uexampleoc",
++    visibility = ["//visibility:public"],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/util/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/util/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..363c35d23975df4e298c079fc267a1efe384c7dc
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/util/BUILD.bazel
+@@ -0,0 +1,55 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
++
++go_library(
++    name = "util",
++    srcs = [
++        "debug.go",
++        "errs.go",
++        "gnmi.go",
++        "path.go",
++        "reflect.go",
++        "yang.go",
++    ],
++    importpath = "github.com/openconfig/ygot/util",
++    visibility = ["//visibility:public"],
++    deps = [
++        "@com_github_golang_glog//:glog",
++        "@com_github_golang_protobuf//proto",
++        "@com_github_google_go_cmp//cmp",
++        "@com_github_kylelemons_godebug//pretty",
++        "@com_github_openconfig_gnmi//proto/gnmi",
++        "@com_github_openconfig_goyang//pkg/yang",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":util",
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "util_test",
++    srcs = [
++        "debug_test.go",
++        "errs_test.go",
++        "gnmi_test.go",
++        "path_test.go",
++        "reflect_test.go",
++        "sonic_assignability_test.go",
++        "yang_test.go",
++    ],
++    args = ["-test.v"],
++    embed = [":util"],
++    deps = [
++        "//internal/sonicfixture",
++        "//testutil",
++        "@com_github_golang_protobuf//proto",
++        "@com_github_google_go_cmp//cmp",
++        "@com_github_google_go_cmp//cmp/cmpopts",
++        "@com_github_kylelemons_godebug//pretty",
++        "@com_github_openconfig_gnmi//errdiff",
++        "@com_github_openconfig_gnmi//proto/gnmi",
++        "@com_github_openconfig_goyang//pkg/yang",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/util/sonic_assignability_test.go b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/util/sonic_assignability_test.go
+new file mode 100644
+index 0000000000000000000000000000000000000000..8ca70ed21eacc11ff2161f9945cabaa0004c10d4
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/util/sonic_assignability_test.go
+@@ -0,0 +1,57 @@
++package util
++
++import (
++	"reflect"
++	"testing"
++)
++
++type sonicTestBool bool
++type sonicTestBytes []byte
++type sonicTestNamedInt int
++type sonicTestStringer struct{}
++
++func (sonicTestStringer) String() string { return "value" }
++
++func TestSONiCStructAssignmentCompatibility(t *testing.T) {
++	type fields struct {
++		Bool     sonicTestBool
++		Bytes    sonicTestBytes
++		Number   *int
++		Any      interface{}
++		Stringer interface{ String() string }
++		Named    sonicTestNamedInt
++		Map      map[string]string
++	}
++	number := 42
++	tests := []struct {
++		name, field string
++		value, want interface{}
++		fail        bool
++	}{
++		{"derived bool", "Bool", true, sonicTestBool(true), false},
++		{"derived binary", "Bytes", []byte("sonic"), sonicTestBytes("sonic"), false},
++		{"pointer adaptation", "Number", number, &number, false},
++		{"pointer identity", "Number", &number, &number, false},
++		{"nil pointer", "Number", nil, (*int)(nil), false},
++		{"empty interface", "Any", []string{"sonic"}, []string{"sonic"}, false},
++		{"implemented interface", "Stringer", sonicTestStringer{}, sonicTestStringer{}, false},
++		{"same named type", "Named", sonicTestNamedInt(42), sonicTestNamedInt(42), false},
++		{"incompatible slice", "Bytes", []string{"one", "two"}, nil, true},
++		{"incompatible pointer", "Number", new(string), nil, true},
++		{"incompatible map", "Map", map[string]int{"one": 1}, nil, true},
++		{"different named type", "Named", number, nil, true},
++		{"unimplemented interface", "Stringer", number, nil, true},
++	}
++	for _, tt := range tests {
++		t.Run(tt.name, func(t *testing.T) {
++			got := &fields{}
++			err := InsertIntoStruct(got, tt.field, tt.value)
++			if (err != nil) != tt.fail {
++				t.Fatalf("error=%v, want failure=%v", err, tt.fail)
++			}
++			if !tt.fail && !reflect.DeepEqual(reflect.ValueOf(got).Elem().FieldByName(tt.field).Interface(), tt.want) {
++				t.Fatalf("field=%v want=%v", reflect.ValueOf(got).Elem().FieldByName(tt.field).Interface(), tt.want)
++			}
++		})
++	}
++}
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygen/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygen/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..5e099a7bc9faad9f989bd15d86a42013fce293a1
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygen/BUILD.bazel
+@@ -0,0 +1,74 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
++
++go_library(
++    name = "ygen",
++    srcs = [
++        "codegen.go",
++        "directory.go",
++        "genstate.go",
++        "goelements.go",
++        "gogen.go",
++        "helpers.go",
++        "protoelements.go",
++        "protogen.go",
++        "schemaparse.go",
++        "schematree.go",
++    ],
++    importpath = "github.com/openconfig/ygot/ygen",
++    visibility = ["//visibility:public"],
++    deps = [
++        "//genutil",
++        "//util",
++        "//ygot",
++        "@com_github_golang_glog//:glog",
++        "@com_github_google_go_cmp//cmp",
++        "@com_github_openconfig_gnmi//ctree",
++        "@com_github_openconfig_gnmi//errlist",
++        "@com_github_openconfig_gnmi//proto/gnmi",
++        "@com_github_openconfig_goyang//pkg/yang",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":ygen",
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "ygen_test",
++    srcs = [
++        "codegen_test.go",
++        "directory_test.go",
++        "genstate_test.go",
++        "goelements_test.go",
++        "gogen_test.go",
++        "helpers_test.go",
++        "protoelements_test.go",
++        "protogen_test.go",
++        "schemaparse_test.go",
++        "schematree_test.go",
++    ],
++    args = ["-test.v"],
++    data = glob(["testdata/**"]) + ["//:schema_testdata"],
++    embed = [":ygen"],
++    deps = [
++        "//genutil",
++        "//internal/sonicfixture",
++        "//testutil",
++        "//ygot",
++        "@com_github_google_go_cmp//cmp",
++        "@com_github_google_go_cmp//cmp/cmpopts",
++        "@com_github_kylelemons_godebug//pretty",
++        "@com_github_openconfig_gnmi//errdiff",
++        "@com_github_openconfig_goyang//pkg/yang",
++    ],
++)
++
++go_test(
++    name = "sonic_union_order_test",
++    srcs = ["sonic_union_order_test.go"],
++    args = ["-test.v"],
++    data = ["sonic_union_order.yang"],
++    embed = [":ygen"],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygen/schema_tests/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygen/schema_tests/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..35ef5b1a5ce5dacf73fafc7413fdd4b267beb9f3
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygen/schema_tests/BUILD.bazel
+@@ -0,0 +1,26 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
++
++go_library(
++    name = "schema_tests",
++    srcs = ["schema.go"],
++    importpath = "github.com/openconfig/ygot/ygen/schema_tests",
++    visibility = ["//visibility:public"],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":schema_tests",
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "schema_tests_test",
++    srcs = ["schema_test.go"],
++    args = ["-test.v"],
++    embed = [":schema_tests"],
++    deps = [
++        "//exampleoc",
++        "//ygot",
++        "@com_github_google_go_cmp//cmp",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygen/sonic_union_order.yang b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygen/sonic_union_order.yang
+new file mode 100644
+index 0000000000000000000000000000000000000000..2a95763d3c85b3ca3f489dd69dcee69da832ccfc
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygen/sonic_union_order.yang
+@@ -0,0 +1,16 @@
++module sonic-ordering {
++  namespace "urn:sonic:ordering";
++  prefix ordering;
++  identity ZULU;
++  identity ZULU_CHILD { base ZULU; }
++  identity ALPHA;
++  identity ALPHA_CHILD { base ALPHA; }
++  container root {
++    leaf selected {
++      type union {
++        type identityref { base ZULU; }
++        type identityref { base ALPHA; }
++      }
++    }
++  }
++}
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygen/sonic_union_order_test.go b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygen/sonic_union_order_test.go
+new file mode 100644
+index 0000000000000000000000000000000000000000..fbeed0e64283f743e2353170f530a2a73562d820
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygen/sonic_union_order_test.go
+@@ -0,0 +1,30 @@
++package ygen
++
++import (
++	"strings"
++	"testing"
++)
++
++func TestSONiCUnionEnumReflectionOrder(t *testing.T) {
++	var first string
++	for round := 0; round < 64; round++ {
++		generator := NewYANGCodeGenerator(&GeneratorConfig{
++			PackageName: "ordering", Caller: "sonic-ordering-test",
++			GenerateJSONSchema: true,
++		})
++		generated, errors := generator.GenerateGoCode([]string{"sonic_union_order.yang"}, nil)
++		if len(errors) != 0 {
++			t.Fatal(errors)
++		}
++		reflection := strings.ToLower(generated.EnumTypeMap)
++		zulu, alpha := strings.Index(reflection, "zulu"), strings.Index(reflection, "alpha")
++		if zulu < 0 || alpha <= zulu || !strings.Contains(reflection, "/selected") {
++			t.Fatalf("declared union order lost in reflection map: %s", generated.EnumTypeMap)
++		}
++		if round == 0 {
++			first = generated.EnumTypeMap
++		} else if first != generated.EnumTypeMap {
++			t.Fatalf("round %d changed the union reflection output", round)
++		}
++	}
++}
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygot/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygot/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..db07405aadb1b0639f5172c58517c91ff0cf7559
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygot/BUILD.bazel
+@@ -0,0 +1,73 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
++
++go_library(
++    name = "ygot",
++    srcs = [
++        "diff.go",
++        "helpers.go",
++        "path_types.go",
++        "pathstrings.go",
++        "proto.go",
++        "render.go",
++        "schema.go",
++        "struct_validation_map.go",
++        "types.go",
++    ],
++    importpath = "github.com/openconfig/ygot/ygot",
++    visibility = ["//visibility:public"],
++    deps = [
++        "//proto/yext",
++        "//proto/ywrapper",
++        "//util",
++        "@com_github_golang_protobuf//proto",
++        "@com_github_google_go_cmp//cmp",
++        "@com_github_kylelemons_godebug//pretty",
++        "@com_github_openconfig_gnmi//errlist",
++        "@com_github_openconfig_gnmi//proto/gnmi",
++        "@com_github_openconfig_gnmi//value",
++        "@com_github_openconfig_goyang//pkg/yang",
++        "@org_golang_google_protobuf//proto",
++        "@org_golang_google_protobuf//reflect/protoreflect",
++        "@org_golang_google_protobuf//types/descriptorpb",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":ygot",
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "ygot_test",
++    srcs = [
++        "diff_test.go",
++        "helpers_test.go",
++        "path_types_test.go",
++        "pathstrings_test.go",
++        "proto_test.go",
++        "render_test.go",
++        "schema_test.go",
++        "sonic_json_test.go",
++        "sonic_map_merge_test.go",
++        "struct_validation_map_test.go",
++    ],
++    args = ["-test.v"],
++    data = glob(["testdata/*.json-txt"]),
++    embed = [":ygot"],
++    deps = [
++        "//proto/ywrapper",
++        "//testutil",
++        "//util",
++        "//ygot/testdata/exschemapath",
++        "@com_github_golang_protobuf//proto",
++        "@com_github_google_go_cmp//cmp",
++        "@com_github_google_go_cmp//cmp/cmpopts",
++        "@com_github_kylelemons_godebug//pretty",
++        "@com_github_openconfig_gnmi//errdiff",
++        "@com_github_openconfig_gnmi//proto/gnmi",
++        "@com_github_openconfig_goyang//pkg/yang",
++        "@org_golang_google_protobuf//proto",
++        "@org_golang_google_protobuf//testing/protocmp",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygot/pathtranslate/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygot/pathtranslate/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..5203cc2a7b166c4ed2abbba68957cd3368fd1757
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygot/pathtranslate/BUILD.bazel
+@@ -0,0 +1,32 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
++
++go_library(
++    name = "pathtranslate",
++    srcs = ["pathtranslate.go"],
++    importpath = "github.com/openconfig/ygot/ygot/pathtranslate",
++    visibility = ["//visibility:public"],
++    deps = [
++        "@com_github_openconfig_gnmi//proto/gnmi",
++        "@com_github_openconfig_goyang//pkg/yang",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":pathtranslate",
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "pathtranslate_test",
++    srcs = ["pathtranslate_test.go"],
++    args = ["-test.v"],
++    embed = [":pathtranslate"],
++    deps = [
++        "@com_github_golang_protobuf//proto",
++        "@com_github_google_go_cmp//cmp",
++        "@com_github_openconfig_gnmi//errdiff",
++        "@com_github_openconfig_gnmi//proto/gnmi",
++        "@com_github_openconfig_goyang//pkg/yang",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygot/schema_tests/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygot/schema_tests/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..705d2e9b56c5d2db55444e374cba4fc426fd42a8
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygot/schema_tests/BUILD.bazel
+@@ -0,0 +1,33 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
++
++go_library(
++    name = "schema_tests",
++    srcs = ["schema.go"],
++    importpath = "github.com/openconfig/ygot/ygot/schema_tests",
++    visibility = ["//visibility:public"],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":schema_tests",
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "schema_tests_test",
++    srcs = ["schema_test.go"],
++    args = ["-test.v"],
++    data = glob(["testdata/**"]),
++    embed = [":schema_tests"],
++    deps = [
++        "//exampleoc",
++        "//testutil",
++        "//uexampleoc",
++        "//ygot",
++        "@com_github_golang_protobuf//proto",
++        "@com_github_kylelemons_godebug//pretty",
++        "@com_github_openconfig_gnmi//errdiff",
++        "@com_github_openconfig_gnmi//proto/gnmi",
++        "@com_github_openconfig_gnmi//value",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygot/sonic_json_test.go b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygot/sonic_json_test.go
+new file mode 100644
+index 0000000000000000000000000000000000000000..54823f2eecceabdbe2efc6999d9979d9df500c90
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygot/sonic_json_test.go
+@@ -0,0 +1,17 @@
++package ygot
++
++import (
++	"bytes"
++	"encoding/json"
++	"testing"
++)
++
++// SONiC emits compact JSON. Preserve every original expected token and its order.
++func sonicCompactJSON(t *testing.T, data []byte) []byte {
++	t.Helper()
++	var out bytes.Buffer
++	if err := json.Compact(&out, data); err != nil {
++		t.Fatal(err)
++	}
++	return out.Bytes()
++}
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygot/testdata/exschemapath/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygot/testdata/exschemapath/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..6a13f1cc957b083283058a6b547f5cf5642863f3
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ygot/testdata/exschemapath/BUILD.bazel
+@@ -0,0 +1,25 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library")
++
++# Preserve the generated Go fixtures shipped by upstream v0.7.1.
++go_library(
++    name = "exschemapath",
++    srcs = [
++        "exschemapath.pb.go",
++        "gen.go",
++    ],
++    importpath = "github.com/openconfig/ygot/ygot/testdata/exschemapath",
++    visibility = ["//visibility:public"],
++    deps = [
++        "//proto/yext",
++        "//proto/ywrapper",
++        "@com_github_golang_protobuf//proto",
++        "@org_golang_google_protobuf//reflect/protoreflect",
++        "@org_golang_google_protobuf//runtime/protoimpl",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":exschemapath",
++    visibility = ["//visibility:public"],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ypathgen/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ypathgen/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..e03febf2d143cf5b54607c7e9e0a819b23115853
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ypathgen/BUILD.bazel
+@@ -0,0 +1,37 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
++
++go_library(
++    name = "ypathgen",
++    srcs = ["pathgen.go"],
++    importpath = "github.com/openconfig/ygot/ypathgen",
++    visibility = ["//visibility:public"],
++    deps = [
++        "//genutil",
++        "//util",
++        "//ygen",
++        "//ygot",
++        "@com_github_openconfig_goyang//pkg/yang",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":ypathgen",
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "ypathgen_test",
++    srcs = ["pathgen_test.go"],
++    args = ["-test.v"],
++    data = glob(["testdata/**"]) + ["//:schema_testdata"],
++    embed = [":ypathgen"],
++    deps = [
++        "//testutil",
++        "//ygen",
++        "@com_github_google_go_cmp//cmp",
++        "@com_github_google_go_cmp//cmp/cmpopts",
++        "@com_github_openconfig_gnmi//errdiff",
++        "@com_github_openconfig_goyang//pkg/yang",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ypathgen/generator/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ypathgen/generator/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..f3a4596c0cff612652a77dcdf45fc6ac54e1bfed
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ypathgen/generator/BUILD.bazel
+@@ -0,0 +1,31 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
++
++go_library(
++    name = "generator_lib",
++    srcs = ["generator.go"],
++    importpath = "github.com/openconfig/ygot/ypathgen/generator",
++    visibility = ["//visibility:private"],
++    deps = [
++        "//genutil",
++        "//ypathgen",
++        "@com_github_golang_glog//:glog",
++        "@com_github_openconfig_goyang//pkg/yang",
++    ],
++)
++
++go_binary(
++    name = "generator",
++    embed = [":generator_lib"],
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "generator_test",
++    srcs = ["generator_test.go"],
++    args = ["-test.v"],
++    embed = [":generator_lib"],
++    deps = [
++        "//ypathgen",
++        "@com_github_google_go_cmp//cmp",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ypathgen/path_tests/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ypathgen/path_tests/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..dfbdc9b2acff491c37268e4aa0c823e54127c93b
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ypathgen/path_tests/BUILD.bazel
+@@ -0,0 +1,29 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
++
++go_library(
++    name = "path_tests",
++    srcs = ["path.go"],
++    importpath = "github.com/openconfig/ygot/ypathgen/path_tests",
++    visibility = ["//visibility:public"],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":path_tests",
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "path_tests_test",
++    srcs = ["path_test.go"],
++    args = ["-test.v"],
++    embed = [":path_tests"],
++    deps = [
++        "//exampleoc",
++        "//exampleocpath",
++        "//ygot",
++        "//ypathgen",
++        "@com_github_golang_protobuf//proto",
++        "@com_github_google_go_cmp//cmp",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ytypes/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ytypes/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..aa52b9fd0639fc23f0dbe64061f9e87f933ebbff
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ytypes/BUILD.bazel
+@@ -0,0 +1,90 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
++
++go_library(
++    name = "ytypes",
++    srcs = [
++        "any_type.go",
++        "binary_type.go",
++        "bitset_type.go",
++        "bool_type.go",
++        "choice.go",
++        "common.go",
++        "container.go",
++        "decimal_type.go",
++        "empty_type.go",
++        "int_type.go",
++        "leaf.go",
++        "leaf_list.go",
++        "leafref.go",
++        "list.go",
++        "node.go",
++        "string_type.go",
++        "types.go",
++        "unmarshal.go",
++        "util_json.go",
++        "util_schema.go",
++        "util_types.go",
++        "validate.go",
++    ],
++    importpath = "github.com/openconfig/ygot/ytypes",
++    visibility = ["//visibility:public"],
++    deps = [
++        "//util",
++        "//ygot",
++        "@com_github_golang_glog//:glog",
++        "@com_github_golang_protobuf//proto",
++        "@com_github_google_go_cmp//cmp",
++        "@com_github_kylelemons_godebug//pretty",
++        "@com_github_openconfig_gnmi//proto/gnmi",
++        "@com_github_openconfig_gnmi//value",
++        "@com_github_openconfig_goyang//pkg/yang",
++        "@org_golang_google_grpc//codes",
++        "@org_golang_google_grpc//status",
++    ],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":ytypes",
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "ytypes_test",
++    srcs = [
++        "any_type_test.go",
++        "binary_type_test.go",
++        "bitset_type_test.go",
++        "bool_type_test.go",
++        "choice_test.go",
++        "common_test.go",
++        "container_test.go",
++        "decimal_type_test.go",
++        "empty_type_test.go",
++        "int_type_test.go",
++        "leaf_list_test.go",
++        "leaf_test.go",
++        "leafref_test.go",
++        "list_test.go",
++        "node_test.go",
++        "sonic_container_defaults_test.go",
++        "string_type_test.go",
++        "types_test.go",
++        "unmarshal_test.go",
++        "util_test.go",
++        "validate_test.go",
++    ],
++    args = ["-test.v"],
++    embed = [":ytypes"],
++    deps = [
++        "//internal/sonicfixture",
++        "//util",
++        "//ygot",
++        "@com_github_golang_protobuf//proto",
++        "@com_github_google_go_cmp//cmp",
++        "@com_github_kylelemons_godebug//pretty",
++        "@com_github_openconfig_gnmi//errdiff",
++        "@com_github_openconfig_gnmi//proto/gnmi",
++        "@com_github_openconfig_goyang//pkg/yang",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ytypes/schema_tests/BUILD.bazel b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ytypes/schema_tests/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..482998601a0d58ce625895225c6c4b7094c91e08
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ytypes/schema_tests/BUILD.bazel
+@@ -0,0 +1,48 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
++
++go_library(
++    name = "schema_tests",
++    srcs = ["validate.go"],
++    importpath = "github.com/openconfig/ygot/ytypes/schema_tests",
++    visibility = ["//visibility:public"],
++)
++
++alias(
++    name = "go_default_library",
++    actual = ":schema_tests",
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "schema_tests_test",
++    srcs = [
++        "diff_benchmark_test.go",
++        "get_test.go",
++        "leafref_benchmark_test.go",
++        "race_test.go",
++        "set_test.go",
++        "sonic_fixture_test.go",
++        "validate_test.go",
++    ],
++    args = ["-test.v"],
++    data = glob(["testdata/**"]),
++    embed = [":schema_tests"],
++    deps = [
++        "//exampleoc",
++        "//experimental/ygotutils",
++        "//internal/sonicfixture",
++        "//testutil",
++        "//uexampleoc",
++        "//util",
++        "//ygot",
++        "//ytypes",
++        "@com_github_golang_protobuf//proto",
++        "@com_github_google_go_cmp//cmp",
++        "@com_github_google_go_cmp//cmp/cmpopts",
++        "@com_github_openconfig_gnmi//errdiff",
++        "@com_github_openconfig_gnmi//proto/gnmi",
++        "@com_github_openconfig_goyang//pkg/yang",
++        "@org_golang_google_genproto_googleapis_rpc//code",
++        "@org_golang_google_genproto_googleapis_rpc//status",
++    ],
++)
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ytypes/schema_tests/sonic_fixture_test.go b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ytypes/schema_tests/sonic_fixture_test.go
+new file mode 100644
+index 0000000000000000000000000000000000000000..476c4323bbae2874e60e4cf71321993c0d9a7f45
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ytypes/schema_tests/sonic_fixture_test.go
+@@ -0,0 +1,16 @@
++package validate
++
++import (
++	"github.com/openconfig/ygot/exampleoc"
++	"github.com/openconfig/ygot/internal/sonicfixture"
++	"github.com/openconfig/ygot/uexampleoc"
++)
++
++func init() {
++	for _, entry := range exampleoc.SchemaTree {
++		sonicfixture.Entry(entry)
++	}
++	for _, entry := range uexampleoc.SchemaTree {
++		sonicfixture.Entry(entry)
++	}
++}
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ytypes/sonic_container_defaults_test.go b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ytypes/sonic_container_defaults_test.go
+new file mode 100644
+index 0000000000000000000000000000000000000000..5f1981949a609d51eebc5e55ffa80203a18de37d
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/overlay/ytypes/sonic_container_defaults_test.go
+@@ -0,0 +1,40 @@
++package ytypes
++
++import (
++	"github.com/openconfig/goyang/pkg/yang"
++	"testing"
++)
++
++type sonicUnknownFields struct {
++	Map     map[string]int `path:"map"`
++	Slice   []string       `path:"slice"`
++	Pointer *int           `path:"pointer"`
++	Bool    bool           `path:"bool"`
++	Enum    int64          `path:"enum"`
++}
++
++func (*sonicUnknownFields) IsYANGGoStruct() {}
++func TestSONiCUnknownContainerFieldDefaults(t *testing.T) {
++	zero := 0
++	tests := []struct {
++		name  string
++		input *sonicUnknownFields
++		fail  bool
++	}{
++		{"nil maps slices pointers and zero scalars", &sonicUnknownFields{}, false},
++		{"nonnil empty map", &sonicUnknownFields{Map: map[string]int{}}, true},
++		{"nonnil empty slice", &sonicUnknownFields{Slice: []string{}}, true},
++		{"nonnil zero pointer", &sonicUnknownFields{Pointer: &zero}, true},
++		{"nonzero bool", &sonicUnknownFields{Bool: true}, true},
++		{"nonzero enum", &sonicUnknownFields{Enum: 1}, true},
++	}
++	for _, tt := range tests {
++		t.Run(tt.name, func(t *testing.T) {
++			schema := &yang.Entry{Name: "root", Kind: yang.DirectoryEntry, Dir: map[string]*yang.Entry{}, PerfOpts: &yang.PerformanceOpts{}}
++			errs := validateContainer(schema, tt.input)
++			if (errs != nil) != tt.fail {
++				t.Fatalf("errors %v, want failure %v", errs, tt.fail)
++			}
++		})
++	}
++}
+diff --git a/modules/openconfig_ygot/0.7.1.sonic.1/patches/0001-preserve-sonic-behavior.patch b/modules/openconfig_ygot/0.7.1.sonic.1/patches/0001-preserve-sonic-behavior.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..0b3ccb42524e78f2ae1d8bf2d1345966cf4afb8e
+--- /dev/null
++++ b/modules/openconfig_ygot/0.7.1.sonic.1/patches/0001-preserve-sonic-behavior.patch
+@@ -0,0 +1,2017 @@
++diff --git a/generator/generator.go b/generator/generator.go
++index a1c7e5e..e191dc3 100644
++--- a/generator/generator.go
+++++ b/generator/generator.go
++@@ -109,7 +109,7 @@ func writeGoCodeSingleFile(w io.Writer, goCode *ygen.GeneratedGoCode) error {
++ }
++ 
++ // writeIfNotEmpty writes the string s to b if it has a non-zero length.
++-func writeIfNotEmpty(b io.StringWriter, s string) {
+++func writeIfNotEmpty(b *strings.Builder, s string) {
++ 	if len(s) != 0 {
++ 		b.WriteString(s)
++ 	}
++diff --git a/genutil/common.go b/genutil/common.go
++index 6b9f251..7caee4a 100644
++--- a/genutil/common.go
+++++ b/genutil/common.go
++@@ -18,9 +18,9 @@ package genutil
++ 
++ import (
++ 	"fmt"
++-	"io"
++ 	"sort"
++-
+++	"strings"
+++	
++ 	"github.com/openconfig/goyang/pkg/yang"
++ 	"github.com/openconfig/ygot/util"
++ 	"github.com/openconfig/ygot/ygot"
++@@ -42,7 +42,7 @@ const (
++ )
++ 
++ // WriteIfNotEmpty writes the string s to b if it has a non-zero length.
++-func WriteIfNotEmpty(b io.StringWriter, s string) {
+++func WriteIfNotEmpty(b *strings.Builder, s string) {
++ 	if len(s) != 0 {
++ 		b.WriteString(s)
++ 	}
++diff --git a/util/debug.go b/util/debug.go
++index 225468e..5c5ea23 100644
++--- a/util/debug.go
+++++ b/util/debug.go
++@@ -12,6 +12,9 @@
++ // See the License for the specific language governing permissions and
++ // limitations under the License.
++ 
+++// This file is changed by Broadcom.
+++// Modifications - Copyright 2019 Broadcom. The term Broadcom refers to Broadcom Inc. and/or its subsidiaries.
+++
++ package util
++ 
++ import (
++@@ -53,6 +56,14 @@ func DbgPrint(v ...interface{}) {
++ 	fmt.Println(globalIndent + out)
++ }
++ 
+++func IsDebugLibraryEnabled () bool {
+++	return debugLibrary
+++}
+++
+++func IsDebugSchemaEnabled () bool {
+++	return debugSchema
+++}
+++
++ // DbgSchema prints v if the package global variable debugSchema is set.
++ // v has the same format as Printf.
++ func DbgSchema(v ...interface{}) {
++@@ -177,6 +188,9 @@ func SchemaTypeStr(schema *yang.Entry) string {
++ 
++ // YangTypeToDebugString returns a debug string representation of a YangType.
++ func YangTypeToDebugString(yt *yang.YangType) string {
+++	if !debugLibrary {
+++		return ""
+++	}
++ 	out := fmt.Sprintf("(TypeKind: %s", yang.TypeKindToName[yt.Kind])
++ 	if len(yt.Pattern) != 0 {
++ 		out += fmt.Sprintf(", Pattern: %s", strings.Join(yt.Pattern, " or "))
++diff --git a/util/path.go b/util/path.go
++index c5709dc..decfc08 100644
++--- a/util/path.go
+++++ b/util/path.go
++@@ -12,6 +12,9 @@
++ // See the License for the specific language governing permissions and
++ // limitations under the License.
++ 
+++// This file is changed by Broadcom.
+++// Modifications - Copyright 2019 Broadcom. The term Broadcom refers to Broadcom Inc. and/or its subsidiaries.
+++
++ package util
++ 
++ import (
++@@ -19,10 +22,14 @@ import (
++ 	"fmt"
++ 	"reflect"
++ 	"strings"
+++	"sync"
++ 
++ 	"github.com/openconfig/goyang/pkg/yang"
++ )
++ 
+++var pathToSchemaCache map[reflect.StructTag][]string = make(map[reflect.StructTag][]string)
+++var pathToSchemaMutex sync.RWMutex
+++
++ // SchemaPaths returns all the paths in the path tag.
++ func SchemaPaths(f reflect.StructField) ([][]string, error) {
++ 	var out [][]string
++@@ -40,34 +47,52 @@ func SchemaPaths(f reflect.StructField) ([][]string, error) {
++ 
++ // RelativeSchemaPath returns a path to the schema for the struct field f.
++ // Paths are embedded in the "path" struct tag and can be either simple:
++-//   e.g. "path:a"
+++//
+++//	e.g. "path:a"
+++//
++ // or composite (if path compression is used) e.g.
++-//   e.g. "path:config/a|a"
+++//
+++//	e.g. "path:config/a|a"
+++//
++ // In the latter case, this function returns {"config", "a"}, because only the
++ // longer path exists in the data tree and we want the schema for that node.
++ // This case is found in OpenConfig leaf-ref cases where the key of a list is a
++ // leafref; the schema *yang.Entry for the field is given by
++ // schema.Dir["config"].Dir["a"].
++ func RelativeSchemaPath(f reflect.StructField) ([]string, error) {
++-	pathTag, ok := f.Tag.Lookup("path")
++-	if !ok || pathTag == "" {
++-		return nil, fmt.Errorf("field %s did not specify a path", f.Name)
++-	}
+++	pathToSchemaMutex.RLock()
+++	if pe, ok := pathToSchemaCache[f.Tag]; ok {
+++		pathToSchemaMutex.RUnlock()
+++		return pe, nil
+++	} else {
+++		pathToSchemaMutex.RUnlock()
+++		pathTag, ok := f.Tag.Lookup("path")
+++		if !ok || pathTag == "" {
+++			return nil, fmt.Errorf("field %s did not specify a path", f.Name)
+++		}
++ 
++-	paths := strings.Split(pathTag, "|")
++-	if len(paths) == 1 {
++-		pathTag = strings.TrimPrefix(pathTag, "/")
++-		return strings.Split(pathTag, "/"), nil
++-	}
++-	for _, pv := range paths {
++-		pv = strings.TrimPrefix(pv, "/")
++-		pe := strings.Split(pv, "/")
++-		if len(pe) > 1 {
++-			return pe, nil
+++		paths := strings.Split(pathTag, "|")
+++		if len(paths) == 1 {
+++			pathTag = strings.TrimPrefix(pathTag, "/")
+++			retPath := strings.Split(pathTag, "/")
+++			pathToSchemaMutex.Lock()
+++			pathToSchemaCache[f.Tag] = retPath
+++			pathToSchemaMutex.Unlock()
+++			return retPath, nil
+++		}
+++		for _, pv := range paths {
+++			pv = strings.TrimPrefix(pv, "/")
+++			pe := strings.Split(pv, "/")
+++			if len(pe) > 1 {
+++				pathToSchemaMutex.Lock()
+++				pathToSchemaCache[f.Tag] = pe
+++				pathToSchemaMutex.Unlock()
+++				return pe, nil
+++			}
++ 		}
++-	}
++ 
++-	return nil, fmt.Errorf("field %s had path tag %s with |, but no elements of form a/b", f.Name, pathTag)
+++		return nil, fmt.Errorf("field %s had path tag %s with |, but no elements of form a/b", f.Name, pathTag)
+++	}
++ }
++ 
++ // SchemaTreePath returns the schema tree path of the supplied yang.Entry
++@@ -174,10 +199,10 @@ func removeXPATHPredicates(s string) (string, error) {
++ // FindLeafRefSchema returns a schema Entry at the path pathStr relative to
++ // schema if it exists, or an error otherwise.
++ // pathStr has either:
++-//  - the relative form "../a/b/../b/c", where ".." indicates the parent of the
++-//    node, or
++-//  - the absolute form "/a/b/c", which indicates the absolute path from the
++-//    root of the schema tree.
+++//   - the relative form "../a/b/../b/c", where ".." indicates the parent of the
+++//     node, or
+++//   - the absolute form "/a/b/c", which indicates the absolute path from the
+++//     root of the schema tree.
++ func FindLeafRefSchema(schema *yang.Entry, pathStr string) (*yang.Entry, error) {
++ 	if pathStr == "" {
++ 		return nil, fmt.Errorf("leafref schema %s has empty path", schema.Name)
++@@ -215,6 +240,10 @@ func FindLeafRefSchema(schema *yang.Entry, pathStr string) (*yang.Entry, error)
++ 		refSchema = refSchema.Dir[pe]
++ 	}
++ 
+++	if refSchema.Type.Kind == yang.Yleafref {
+++		return FindLeafRefSchema(refSchema, refSchema.Type.Path)
+++	}
+++
++ 	return refSchema, nil
++ }
++ 
++@@ -271,7 +300,7 @@ func StripModulePrefix(name string) string {
++ // names. The path returned omits any leading or trailing empty elements when
++ // splitting on the / character.
++ func PathStringToElements(path string) []string {
++-	parts := SplitPath(path)
+++	parts := SplitPath2(path)
++ 	// Remove leading empty element
++ 	if len(parts) > 0 && parts[0] == "" {
++ 		parts = parts[1:]
++@@ -283,6 +312,44 @@ func PathStringToElements(path string) []string {
++ 	return parts
++ }
++ 
+++// SplitPath2 splits path across unescaped /.
+++// Any / inside square brackets are ignored.
+++func SplitPath2(path string) []string {
+++	var parts []string
+++	var buf bytes.Buffer
+++
+++	var inKey, inEscape bool
+++
+++	var ch rune
+++	for _, ch = range path {
+++		switch {
+++		case ch == '[' && !inEscape:
+++			inKey = true
+++		case ch == ']' && !inEscape:
+++			inKey = false
+++		case ch == '\\' && !inEscape:
+++			inEscape = true
+++			if inKey {
+++				buf.WriteRune(ch)
+++			}
+++			continue
+++		case ch == '/' && !inEscape && !inKey:
+++			parts = append(parts, buf.String())
+++			buf.Reset()
+++			continue
+++		}
+++
+++		buf.WriteRune(ch)
+++		inEscape = false
+++	}
+++
+++	if buf.Len() != 0 || (len(path) != 1 && ch == '/') {
+++		parts = append(parts, buf.String())
+++	}
+++
+++	return parts
+++}
+++
++ // SplitPath splits path across unescaped /.
++ // Any / inside square brackets are ignored.
++ func SplitPath(path string) []string {
++diff --git a/util/reflect.go b/util/reflect.go
++index 6f9f3ea..4ff75b6 100644
++--- a/util/reflect.go
+++++ b/util/reflect.go
++@@ -12,6 +12,9 @@
++ // See the License for the specific language governing permissions and
++ // limitations under the License.
++ 
+++// This file is changed by Broadcom.
+++// Modifications - Copyright 2019 Broadcom. The term Broadcom refers to Broadcom Inc. and/or its subsidiaries.
+++
++ package util
++ 
++ import (
++@@ -191,8 +194,10 @@ func InsertIntoSlice(parentSlice interface{}, value interface{}) error {
++ 
++ // InsertIntoMap inserts value with key into parent which must be a map.
++ func InsertIntoMap(parentMap interface{}, key interface{}, value interface{}) error {
++-	DbgPrint("InsertIntoMap into parent type %T with key %v(%T) value \n%s\n (%T)",
++-		parentMap, ValueStrDebug(key), key, pretty.Sprint(value), value)
+++	if debugLibrary {
+++		DbgPrint("InsertIntoMap into parent type %T with key %v(%T) value \n%s\n (%T)",
+++		         parentMap, ValueStrDebug(key), key, pretty.Sprint(value), value)
+++	}
++ 
++ 	v := reflect.ValueOf(parentMap)
++ 	t := reflect.TypeOf(parentMap)
++@@ -283,7 +288,7 @@ func InsertIntoStruct(parentStruct interface{}, fieldName string, fieldValue int
++ 		n = reflect.Zero(ft.Type)
++ 	}
++ 
++-	if !isFieldTypeCompatible(ft, n) {
+++	if !isFieldTypeCompatible(ft, n) && !IsValueTypeCompatible(ft.Type, v) {
++ 		return fmt.Errorf("cannot assign value %v (type %T) to struct field %s (type %v) in struct %T", fieldValue, fieldValue, fieldName, ft.Type, parentStruct)
++ 	}
++ 
++@@ -452,14 +457,46 @@ func DeepEqualDerefPtrs(a, b interface{}) bool {
++ 	return cmp.Equal(aa, bb)
++ }
++ 
+++func updateChildSchemaCache (schema *yang.Entry, tagStr reflect.StructTag, ygEntry *yang.Entry) {
+++	schema.PerfOpts.ChildSchemaMutex.Lock()
+++	schema.PerfOpts.ChildSchemaCache[tagStr] = ygEntry
+++	schema.PerfOpts.ChildSchemaMutex.Unlock()
+++}
+++
+++func childSchemaCache(schema *yang.Entry, tagStr reflect.StructTag) *yang.Entry {
+++	if schema.PerfOpts.ChildSchemaCache == nil {
+++		schema.PerfOpts.ChildSchemaMutex.Lock()
+++		if schema.PerfOpts.ChildSchemaCache == nil {
+++			schema.PerfOpts.ChildSchemaCache = make(map[reflect.StructTag]*yang.Entry)
+++			schema.PerfOpts.ChildSchemaMutex.Unlock()
+++			return nil
+++		}
+++		schema.PerfOpts.ChildSchemaMutex.Unlock()
+++	}
+++	schema.PerfOpts.ChildSchemaMutex.RLock()
+++	rv, ok := schema.PerfOpts.ChildSchemaCache[tagStr]
+++	schema.PerfOpts.ChildSchemaMutex.RUnlock()
+++	if ok {
+++		return rv
+++	}
+++	return nil
+++}
+++
++ // ChildSchema returns the schema for the struct field f, if f contains a valid
++ // path tag and the schema path is found in the schema tree. It returns an error
++ // if the struct tag is invalid, or nil if tag is valid but the schema is not
++ // found in the tree at the specified path.
++ // TODO(wenbli): need unit test
++ func ChildSchema(schema *yang.Entry, f reflect.StructField) (*yang.Entry, error) {
++-	pathTag, _ := f.Tag.Lookup("path")
++-	DbgSchema("childSchema for schema %s, field %s, tag %s\n", schema.Name, f.Name, pathTag)
+++	if cschema := childSchemaCache(schema, f.Tag); cschema != nil {
+++		return cschema, nil
+++	}
+++
+++	if IsDebugSchemaEnabled() {
+++		pathTag, _ := f.Tag.Lookup("path")
+++		DbgSchema("childSchema for schema %s, field %s, tag %s\n", schema.Name, f.Name, pathTag)	
+++	}
+++	
++ 	p, err := RelativeSchemaPath(f)
++ 	if err != nil {
++ 		return nil, err
++@@ -490,6 +527,7 @@ func ChildSchema(schema *yang.Entry, f reflect.StructField) (*yang.Entry, error)
++ 	}
++ 	if foundSchema {
++ 		DbgSchema(" - found\n")
+++		updateChildSchemaCache (schema, f.Tag, childSchema)
++ 		return childSchema, nil
++ 	}
++ 	DbgSchema(" - not found\n")
++@@ -505,11 +543,15 @@ func ChildSchema(schema *yang.Entry, f reflect.StructField) (*yang.Entry, error)
++ 		// path element i.e. choice1/case1/leaf1 path in the schema will have
++ 		// struct tag `path:"leaf1"`. This implies that only paths with length
++ 		// 1 are eligible for this matching.
+++		updateChildSchemaCache (schema, f.Tag, nil)
++ 		return nil, nil
++ 	}
++ 	entries := FindFirstNonChoiceOrCase(schema)
++ 
++-	DbgSchema("checking for %s against non choice/case entries: %v\n", p[0], stringMapKeys(entries))
+++	if IsDebugSchemaEnabled() {
+++		DbgSchema("checking for %s against non choice/case entries: %v\n", p[0], stringMapKeys(entries))
+++	}
+++
++ 	for path, entry := range entries {
++ 		splitPath := SplitPath(path)
++ 		name := splitPath[len(splitPath)-1]
++@@ -517,11 +559,13 @@ func ChildSchema(schema *yang.Entry, f reflect.StructField) (*yang.Entry, error)
++ 
++ 		if StripModulePrefix(name) == p[0] {
++ 			DbgSchema(" - match\n")
+++			updateChildSchemaCache (schema, f.Tag, entry)
++ 			return entry, nil
++ 		}
++ 	}
++ 
++ 	DbgSchema(" - no matches\n")
+++	updateChildSchemaCache (schema, f.Tag, nil)	
++ 	return nil, nil
++ }
++ 
++diff --git a/ygen/codegen.go b/ygen/codegen.go
++index 991705e..ca48c82 100644
++--- a/ygen/codegen.go
+++++ b/ygen/codegen.go
++@@ -15,6 +15,10 @@
++ // Package ygen contains a library to generate Go structs from a YANG model.
++ // The Goyang parsing library is used to parse YANG. The output can consider
++ // OpenConfig-specific conventions such that the schema is compressed.
+++
+++// This file is changed by Broadcom.
+++// Modifications - Copyright 2019 Broadcom. The term Broadcom refers to Broadcom Inc. and/or its subsidiaries.
+++
++ package ygen
++ 
++ import (
++@@ -946,7 +950,7 @@ func findMappableEntities(e *yang.Entry, dirs map[string]*yang.Entry, enums map[
++ 			dirs[ch.Path()] = ch
++ 			// Recurse down the tree.
++ 			errs = util.AppendErrs(errs, findMappableEntities(ch, dirs, enums, excludeModules, compressPaths, modules))
++-		case ch.Kind == yang.AnyDataEntry:
+++		case (ch.Kind == yang.AnyDataEntry), (ch.Kind == yang.NotificationEntry):	
++ 			continue
++ 		default:
++ 			errs = util.AppendErr(errs, fmt.Errorf("unknown type of entry %v in findMappableEntities for %s", e.Kind, e.Path()))
++@@ -999,6 +1003,7 @@ func MakeFakeRoot(rootName string) *yang.Entry {
++ 		Node: &yang.Value{
++ 			Name: rootElementNodeName,
++ 		},
+++		PerfOpts: &yang.PerformanceOpts{},
++ 	}
++ }
++ 
++diff --git a/ygen/genstate.go b/ygen/genstate.go
++index e39c478..b7766f0 100644
++--- a/ygen/genstate.go
+++++ b/ygen/genstate.go
++@@ -12,6 +12,9 @@
++ // See the License for the specific language governing permissions and
++ // limitations under the License.
++ 
+++// This file is changed by Broadcom.
+++// Modifications - Copyright 2019 Broadcom. The term Broadcom refers to Broadcom Inc. and/or its subsidiaries.
+++
++ package ygen
++ 
++ import (
++@@ -83,6 +86,7 @@ func newEnumGenState() *enumGenState {
++ // noUnderscores boolean.
++ func (s *enumGenState) enumeratedUnionEntry(e *yang.Entry, compressPaths, noUnderscores bool) ([]*yangEnum, error) {
++ 	var es []*yangEnum
+++	enumSet := make(map[string]*yangEnum)
++ 
++ 	for _, t := range util.EnumeratedUnionTypes(e.Type.Type) {
++ 		var en *yangEnum
++@@ -111,20 +115,36 @@ func (s *enumGenState) enumeratedUnionEntry(e *yang.Entry, compressPaths, noUnde
++ 				}
++ 			}
++ 
++-			en = &yangEnum{
++-				name: enumName,
++-				entry: &yang.Entry{
++-					Name: e.Name,
++-					Type: &yang.YangType{
++-						Name: e.Type.Name,
++-						Kind: yang.Yenum,
++-						Enum: t.Enum,
+++			if tmpEn, ok := enumSet[enumName]; ok {
+++				enumTmp := yang.NewEnumType()
+++				for eNm, eVal := range t.Enum.NameMap() {
+++					if err := enumTmp.Set(eNm, eVal); err != nil {
+++						return nil, fmt.Errorf("%v", err)
+++					}
+++				}
+++				for eNm, eVal := range tmpEn.entry.Type.Enum.NameMap() {
+++					if err := enumTmp.Set(eNm, eVal); err != nil {
+++						return nil, fmt.Errorf("%v", err)
+++					}
+++				}
+++				tmpEn.entry.Type.Enum = enumTmp
+++				continue
+++			} else {
+++				en = &yangEnum{
+++					name: enumName,
+++					entry: &yang.Entry{
+++						Name: e.Name,
+++						Type: &yang.YangType{
+++							Name: e.Type.Name,
+++							Kind: yang.Yenum,
+++							Enum: t.Enum,
+++						},
+++						Annotation: map[string]interface{}{"valuePrefix": util.SchemaPathNoChoiceCase(e)},
++ 					},
++-					Annotation: map[string]interface{}{"valuePrefix": util.SchemaPathNoChoiceCase(e)},
++-				},
+++				}
+++				enumSet[enumName] = en
++ 			}
++ 		}
++-
++ 		es = append(es, en)
++ 	}
++ 
++diff --git a/ygen/schemaparse.go b/ygen/schemaparse.go
++index f71e7e6..1183fb8 100644
++--- a/ygen/schemaparse.go
+++++ b/ygen/schemaparse.go
++@@ -40,13 +40,32 @@ func buildJSONTree(ms []*yang.Entry, dn map[string]string, fakeroot *yang.Entry,
++ 	rootEntry := &yang.Entry{
++ 		Dir:        map[string]*yang.Entry{},
++ 		Annotation: map[string]interface{}{},
+++		PerfOpts:   &yang.PerformanceOpts{},
++ 	}
++ 	for _, m := range ms {
++ 		annotateChildren(m, dn)
+++
+++		// a leaf with a different prefix
+++		if len(m.Dir) == 0 {
+++			if _, found := m.Annotation["modulename"]; found {
+++				rootEntry.Dir[m.Name] = m
+++			}
+++		}
+++
++ 		for _, ch := range util.Children(m) {
++ 			if _, ex := rootEntry.Dir[ch.Name]; ex {
++ 				return nil, fmt.Errorf("overlapping root children for key %s", ch.Name)
++ 			}
+++
+++			ch.Annotation["namespace"] = m.Namespace().Name
+++			ch.Annotation["modulename"] = m.Prefix.Parent.NName()
+++			ch.Annotation["revision"] = m.Prefix.Parent.(*yang.Module).Current()
+++			if m.Prefix.Parent.(*yang.Module).Organization != nil {
+++				ch.Annotation["organization"] = m.Prefix.Parent.(*yang.Module).Organization.Name
+++			} else {
+++				ch.Annotation["organization"] = ""
+++			}
+++
++ 			rootEntry.Dir[ch.Name] = ch
++ 		}
++ 	}
++@@ -101,6 +120,7 @@ func annotateChildren(e *yang.Entry, dn map[string]string) {
++ //    corresponds to a YANG directory.
++ func annotateEntry(e *yang.Entry, dn map[string]string) {
++ 	e.Description = ""
+++	e.Augmented = nil
++ 	if e.Annotation == nil {
++ 		e.Annotation = map[string]interface{}{}
++ 	}
++@@ -110,6 +130,11 @@ func annotateEntry(e *yang.Entry, dn map[string]string) {
++ 	if e.IsDir() {
++ 		e.Annotation["schemapath"] = e.Path()
++ 	}
+++	// add the modulename if the prefix is different from its parent
+++	// and it belong to "module" only, i.e. filter out submodule
+++	if e.Parent != nil && e.Namespace().Name != e.Parent.Namespace().Name && e.Prefix.Parent.Statement().Keyword == "module" {
+++		e.Annotation["modulename"] = e.Prefix.Parent.NName()
+++	}
++ }
++ 
++ // WriteGzippedByteSlice takes an input slice of bytes, gzips it
++diff --git a/ygot/render.go b/ygot/render.go
++index 0d649c3..393e7fa 100644
++--- a/ygot/render.go
+++++ b/ygot/render.go
++@@ -20,6 +20,7 @@ import (
++ 	"fmt"
++ 	"reflect"
++ 	"sort"
+++	"strconv"
++ 	"strings"
++ 
++ 	"github.com/golang/protobuf/proto"
++@@ -45,6 +46,11 @@ type path struct {
++ 	p *gnmiPath
++ }
++ 
+++type structTagInfo struct {
+++	gPathList []*gnmiPath
+++	chModName string
+++}
+++
++ func (p *path) String() string {
++ 	if p.p.isPathElemPath() {
++ 		return proto.MarshalTextString(&gnmipb.Path{Elem: p.p.pathElemPath})
++@@ -272,6 +278,8 @@ type GNMINotificationsConfig struct {
++ 	// of PathElem messages. This path format is used by gNMI 0.4.0 and
++ 	// above. Used if PathElem is set.
++ 	PathElemPrefix []*gnmipb.PathElem
+++	// Encoding to be used for atomic values - like keyless lists
+++	Encoding gnmipb.Encoding
++ }
++ 
++ // TogNMINotifications takes an input GoStruct and renders it to slice of
++@@ -297,7 +305,7 @@ func TogNMINotifications(s GoStruct, ts int64, cfg GNMINotificationsConfig) ([]*
++ 		return nil, err
++ 	}
++ 
++-	msgs, err := leavesToNotifications(leaves, ts, pfx)
+++	msgs, err := leavesToNotifications(leaves, ts, pfx, cfg.Encoding)
++ 	if err != nil {
++ 		return nil, err
++ 	}
++@@ -379,6 +387,13 @@ func findUpdatedLeaves(leaves map[*path]interface{}, s GoStruct, parent *gnmiPat
++ 			}
++ 		case reflect.Slice:
++ 			if fval.Type().Elem().Kind() == reflect.Ptr {
+++				// s is a container with single keyless list. Add the whole container
+++				if sval.NumField() == 1 {
+++					for _, p := range mapPaths {
+++						leaves[&path{p}] = s
+++					}
+++					continue
+++				}
++ 				// This is a keyless list - currently unsupported for mapping since there is
++ 				// not an explicit path that can be used.
++ 				errs.Add(fmt.Errorf("unimplemented: keyless list cannot be output: %v", mapPaths[0]))
++@@ -591,7 +606,7 @@ func sliceToScalarArray(v []interface{}) (*gnmipb.ScalarArray, error) {
++ // likely to be suboptimal since it results in very large Notifications for particular
++ // structs. There should be some fragmentation of Updates across Notification messages
++ // in a future implementation. We return a slice to keep the API stable.
++-func leavesToNotifications(leaves map[*path]interface{}, ts int64, pfx *gnmiPath) ([]*gnmipb.Notification, error) {
+++func leavesToNotifications(leaves map[*path]interface{}, ts int64, pfx *gnmiPath, enc gnmipb.Encoding) ([]*gnmipb.Notification, error) {
++ 	n := &gnmipb.Notification{
++ 		Timestamp: ts,
++ 	}
++@@ -613,7 +628,7 @@ func leavesToNotifications(leaves map[*path]interface{}, ts int64, pfx *gnmiPath
++ 			return nil, err
++ 		}
++ 
++-		val, err := EncodeTypedValue(v, gnmipb.Encoding_JSON)
+++		val, err := EncodeTypedValue(v, enc)
++ 		if err != nil {
++ 			return nil, err
++ 		}
++@@ -713,7 +728,7 @@ func marshalStruct(s GoStruct, enc gnmipb.Encoding) (*gnmipb.TypedValue, error)
++ 		return nil, err
++ 	}
++ 
++-	js, err := json.MarshalIndent(j, "", "  ")
+++	js, err := json.Marshal(j)
++ 	if err != nil {
++ 		return nil, fmt.Errorf("cannot encode JSON, %v", err)
++ 	}
++@@ -870,19 +885,21 @@ type RFC7951JSONConfig struct {
++ // the module name should be appended to entities that are defined in a different
++ // module to their parent.
++ func ConstructIETFJSON(s GoStruct, args *RFC7951JSONConfig) (map[string]interface{}, error) {
+++	tagPaths := map[reflect.StructTag]*structTagInfo{}
++ 	return structJSON(s, "", jsonOutputConfig{
++ 		jType:         RFC7951,
++ 		rfc7951Config: args,
++-	})
+++	}, tagPaths)
++ }
++ 
++ // ConstructInternalJSON marshals a supplied GoStruct to a map, suitable for handing
++-// to json.Marshal. It uses the loosely specified JSON format document in
+++// to json.Marshal. It usstres the loosely specified JSON format document in
++ // go/yang-internal-json.
++ func ConstructInternalJSON(s GoStruct) (map[string]interface{}, error) {
+++	tagPaths := map[reflect.StructTag]*structTagInfo{}
++ 	return structJSON(s, "", jsonOutputConfig{
++ 		jType: Internal,
++-	})
+++	}, tagPaths)
++ }
++ 
++ // jsonOutputConfig is used to determine how constructJSON should generate
++@@ -902,7 +919,7 @@ type jsonOutputConfig struct {
++ // be produced and whether such module names are appended is controlled through the
++ // supplied jsonOutputConfig. Returns an error if the GoStruct cannot be rendered
++ // to JSON.
++-func structJSON(s GoStruct, parentMod string, args jsonOutputConfig) (map[string]interface{}, error) {
+++func structJSON(s GoStruct, parentMod string, args jsonOutputConfig, tagPaths map[reflect.StructTag]*structTagInfo) (map[string]interface{}, error) {
++ 	var errs errlist.List
++ 
++ 	sval := reflect.ValueOf(s).Elem()
++@@ -916,20 +933,51 @@ func structJSON(s GoStruct, parentMod string, args jsonOutputConfig) (map[string
++ 		field := sval.Field(i)
++ 		fType := stype.Field(i)
++ 
+++		switch field.Kind() {
+++		case reflect.Map, reflect.Slice, reflect.Ptr, reflect.Interface:
+++			if field.IsNil() {
+++				continue
+++			}
+++		}
+++
++ 		// Determine whether we should append a module name to the path in RFC7951
++ 		// output mode.
++ 		var appmod string
+++
++ 		pmod := parentMod
++-		if chMod, ok := fType.Tag.Lookup("module"); ok {
++-			// If the child module isn't the same as the parent module,
++-			// then appmod stores the name of the module to prefix to paths
++-			// within this context.
++-			if chMod != parentMod {
++-				appmod = chMod
+++
+++		var mapPaths []*gnmiPath
+++		var err error
+++
+++		if tagInfo, ok := tagPaths[fType.Tag]; !ok {
+++			tagInfoObj := new(structTagInfo)
+++			tagInfoObj.gPathList, err = structTagToLibPaths(fType, newStringSliceGNMIPath([]string{}))
+++			if err != nil {
+++				errs.Add(fmt.Errorf("%s: %v", fType.Name, err))
+++				continue
+++			}
+++			if chMod, modOk := fType.Tag.Lookup("module"); modOk {
+++				// If the child module isn't the same as the parent module,
+++				// then appmod stores the name of the module to prefix to pathsmakejson
+++				// within this context.
+++				if chMod != parentMod {
+++					appmod = chMod
+++				}
+++				// Update the parent module name to be used for subsequent
+++				// children.
+++				pmod = chMod
+++				tagInfoObj.chModName = chMod
+++			} else {
+++				tagInfoObj.chModName = pmod
+++			}
+++			tagPaths[fType.Tag] = tagInfoObj
+++			mapPaths = tagInfoObj.gPathList
+++		} else {
+++			mapPaths = tagInfo.gPathList

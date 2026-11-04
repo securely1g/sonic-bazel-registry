@@ -1,0 +1,41 @@
+{
+  "pr": 210,
+  "baseline": "51de33d8d4eb949ed7e5a02578deee2eeab34e76",
+  "candidate": "b6f9a1f85057a45a1533a35d8dc043149eb4e9cd",
+  "candidate_tree": "63ca6a83539257d686afa3797237a4f972e40ed9",
+  "prepared_copy_tree": "d54e4113498ee4303fe00c32ed80bc5b6f9d7d74",
+  "published_copies": [
+    {
+      "module": "sonic-build-infra",
+      "published_version": "0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568",
+      "candidate_version": "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e",
+      "source": "modules/sonic-build-infra/0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568",
+      "destination": "modules/sonic-build-infra/0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e"
+    },
+    {
+      "module": "sonic-fips",
+      "published_version": "0.0.4-ef423363e8fd50358f0aa2a8a20d3e08d4450a56",
+      "candidate_version": "0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9",
+      "source": "modules/sonic-fips/0.0.4-ef423363e8fd50358f0aa2a8a20d3e08d4450a56",
+      "destination": "modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9"
+    },
+    {
+      "module": "sonic-swss-common",
+      "published_version": "0.0.8-a0450924719a9f706125cc44a07dc88934935003",
+      "candidate_version": "0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed",
+      "source": "modules/sonic-swss-common/0.0.8-a0450924719a9f706125cc44a07dc88934935003",
+      "destination": "modules/sonic-swss-common/0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed"
+    }
+  ],
+  "first_registrations": [
+    {
+      "module": "sonic-wpa-supplicant",
+      "candidate": "2.9.0.sonic.1"
+    }
+  ],
+  "bytes": 266498,
+  "sha256": "19228baf3a717ba13f15d7b976f5dde661f5ccfc7601a88e169c3a4498552058",
+  "applied_full_tree_equals_candidate": true,
+  "modes_and_unchanged_entry_files_preserved": true,
+  "artifact_path": "comparisons/infra25-runtime-20261104/registry-210.patch"
+}
