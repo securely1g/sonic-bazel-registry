@@ -60,7 +60,33 @@ repository fetches; they execute no compilation or package actions.
 The `codex/pigz-source-mirror` PR validates this CI fix with those fetch tests and
 the existing AMD64/ARM64 runner tests. Its path-checked exception retains the
 normal publication-policy plan but does not run the unrelated module build
-matrix. All other branches and pushes retain normal module selection.
+matrix. The separate version-pin exception below does not change this scope.
+
+## Version-pin validator PR scope
+
+The owned `codex/registry-integration-version-pins` pull request allows a normal
+registry version selection in checked-in consumers. The Framework consumer, for
+example, selects the reviewed build-infra version with `single_version_override`
+without replacing its source. This CI-only change is being validated without
+generating Debian packages.
+
+The normal publication-policy plan still checks every selected entry. Its latest
+module matrix also includes existing tests that create sample Debian packages:
+build-infra's `kernel_runtime_test` creates runtime and debug packages, and the
+kernel's `kernel_action_test` and `verify_cache_test` create package fixtures.
+The workflow defers those two module suites on both native architectures only
+for this exact same-repository PR branch. At the reviewed head, this retains 55
+of 59 native jobs plus both AMD64/ARM64 runner suites. It does not remove tests
+from published presubmits or claim acceptance of the deferred suites.
+
+The exception rejects any changed path outside the five exact workflow,
+validator, documentation and test files listed in the workflow. The original
+`plan.json` remains byte-for-byte unchanged; `plan-effective.json` records the
+scheduled jobs and `plan-scope.json` binds both plan hashes, changed files, PR
+identity and every excluded job with its reason. All three are retained with
+`plan.log`. Other PR branches, forks, main pushes and manual runs retain their
+existing selection. This temporary branch-specific exception keeps the PR in
+Draft until the exception is removed and its normal readiness gates are met.
 
 ## Kernel build-tool cache downloads
 
@@ -213,7 +239,15 @@ The configuration declares:
   separate test module, for example `tests/integration`. CI copies its ordinary
   `MODULE.bazel`, `BUILD.bazel`, tests and fixtures into the fresh consumer. The
   test module must directly select the tested module's exact name and version;
-  it cannot use source overrides or include other MODULE files. Keep
+  it cannot use source overrides or include other MODULE files. A standard
+  `single_version_override` may contain exactly the literal, nonempty
+  `module_name` and `version` arguments. This selects a registry version without
+  replacing its source; patches, registry redirects and other arguments are
+  rejected, and the tested module must retain its exact reviewed version. For
+  example, Framework's shared consumer pins the reviewed infrastructure
+  `0.0.26-2a6fc39c55be05e849b0e3a2d1808a4a59f123a6` while existing dependency
+  minima name an earlier, higher-sorting commit suffix. This matches the
+  generated consumer's existing version-pin behavior. Keep
   `consumer_deps` empty and omit the generated Go/Rust options in this mode:
   the checked-in test module owns its dependencies and toolchains. Explicit
   root targets such as `//:archive_contract_test` are then allowed alongside

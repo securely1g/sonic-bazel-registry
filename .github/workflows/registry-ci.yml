@@ -43,6 +43,7 @@ jobs:
           ALL_VERSIONS: ${{ inputs.all_versions }}
           HEAD_REF: ${{ github.head_ref }}
           HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
           POLICY_FLAGS=()
@@ -71,6 +72,7 @@ jobs:
               "${POLICY_FLAGS[@]}" --head "$HEAD_SHA" --latest --output plan.json 2>&1 | tee -a plan.log
           fi
           python3 - <<'PY'
+          import hashlib
           import json
           import os
           import subprocess
@@ -90,6 +92,45 @@ jobs:
                   raise SystemExit("Source-mirror test scope rejects unexpected files: " + repr(changed - allowed))
               print("Source-mirror CI fix: retain policy plan; run native runner and cold-fetch tests only.")
               matrix = {"include": []}
+          elif (os.environ["EVENT_NAME"] == "pull_request"
+                  and os.environ["HEAD_REF"] == "codex/registry-integration-version-pins"
+                  and os.environ["HEAD_REPOSITORY"] == os.environ["REPOSITORY"]
+                  == "securely1g/sonic-bazel-registry"):
+              # This validator-only PR does not authorize the sample Debian
+              # packages created inside these two modules' existing tests.
+              allowed = {".github/workflows/registry-ci.yml", "ci/registry_ci.py",
+                         "ci/README.md", "ci/tests/test_registry_ci.py",
+                         "ci/tests/test_workflow_scope.py"}
+              changed = set(filter(None, subprocess.check_output(
+                  ["git", "diff", "--no-renames", "--name-only", "-z",
+                   os.environ["BASE_SHA"] + "..." + os.environ["HEAD_SHA"]],
+                  text=True).split("\0")))
+              if not changed or not changed <= allowed:
+                  raise SystemExit("Version-pin test scope rejects unexpected files: " + repr(changed - allowed))
+              reasons = {
+                  "sonic-build-infra": "kernel_runtime_test builds runtime and debug Debian test packages",
+                  "sonic-linux-kernel": "kernel_action_test and verify_cache_test build Debian test packages",
+              }
+              original = matrix
+              excluded = [{"job": job, "reason": reasons[job["module"]]}
+                          for job in original["include"] if job["module"] in reasons]
+              matrix = {"include": [job for job in original["include"] if job["module"] not in reasons]}
+              effective = json.dumps(matrix, indent=2) + "\n"
+              Path("plan-effective.json").write_text(effective)
+              receipt = {
+                  "schema": 1, "scope": "validator PR without Debian package generation",
+                  "event": os.environ["EVENT_NAME"], "branch": os.environ["HEAD_REF"],
+                  "repository": os.environ["HEAD_REPOSITORY"],
+                  "base": os.environ["BASE_SHA"], "head": os.environ["HEAD_SHA"],
+                  "changed_files": sorted(changed),
+                  "original_plan_sha256": hashlib.sha256(Path("plan.json").read_bytes()).hexdigest(),
+                  "effective_plan_sha256": hashlib.sha256(effective.encode()).hexdigest(),
+                  "planned_jobs": len(original["include"]), "retained_jobs": len(matrix["include"]),
+                  "excluded_jobs": excluded,
+              }
+              Path("plan-scope.json").write_text(json.dumps(receipt, indent=2) + "\n")
+              print("Version-pin CI fix: retained", len(matrix["include"]), "native jobs; deferred",
+                    len(excluded), "jobs whose tests create Debian packages. See plan-scope.json.")
           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
               print("matrix=" + json.dumps(matrix, separators=(",", ":")), file=output)
               print("has_jobs=" + str(bool(matrix["include"])).lower(), file=output)
@@ -102,6 +143,8 @@ jobs:
           path: |
             plan.json
             plan.log
+            plan-effective.json
+            plan-scope.json
           if-no-files-found: warn
           retention-days: 14
 

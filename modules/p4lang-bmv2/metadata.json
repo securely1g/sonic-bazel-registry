@@ -1,18 +1,19 @@
 {
-  "homepage": "https://github.com/p4lang/behavioral-model",
-  "maintainers": [
-    {
-      "name": "Guohan Lu",
-      "github": "securely1g",
-      "email": "securely1g@gmail.com"
-    }
-  ],
-  "repository": [
-    "github:p4lang/behavioral-model"
-  ],
-  "versions": [
-    "1.15.0.sonic.1",
-    "1.15.0.sonic.2"
-  ],
-  "yanked_versions": {}
+    "homepage": "https://github.com/p4lang/behavioral-model",
+    "maintainers": [
+        {
+            "name": "Guohan Lu",
+            "github": "securely1g",
+            "email": "securely1g@gmail.com"
+        }
+    ],
+    "repository": [
+        "github:p4lang/behavioral-model"
+    ],
+    "versions": [
+        "1.15.0.sonic.1",
+        "1.15.0.sonic.2",
+        "1.15.0.sonic.3"
+    ],
+    "yanked_versions": {}
 }

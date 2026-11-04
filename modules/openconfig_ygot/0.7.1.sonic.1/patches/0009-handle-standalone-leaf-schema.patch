@@ -1,0 +1,16 @@
+diff --git a/ytypes/leaf.go b/ytypes/leaf.go
+--- a/ytypes/leaf.go
++++ b/ytypes/leaf.go
+@@ -860,7 +860,11 @@
+ 	ykind := schema.Type.Kind
+ 
+ 	//get the original schema of the node and check whether it is leaf-list
+-	if ygNode := schema.Parent.Dir[schema.Name]; ygNode != nil && ygNode.IsLeafList() {
++	var ygNode *yang.Entry
++	if schema.Parent != nil {
++		ygNode = schema.Parent.Dir[schema.Name]
++	}
++	if ygNode != nil && ygNode.IsLeafList() {
+ 		// convert the leaf-list's value only if its of type string(TypedValue_StringVal)
+ 		if len(tv.GetStringVal()) > 0 {
+ 			if goVal, err := yangTypeToGoTypeVal (parent, schema, fieldName, tv.GetStringVal()); err == nil {
