@@ -1173,12 +1173,15 @@ class RustPreparationTests(FixtureTestCase):
                 with self.assertRaises(registry_ci.RegistryError):
                     registry_ci.validate_entry(self.root, "alpha", "1.0.0")
 
-    def prepare(self, contents: str | None = None, expected_error: str | None = None):
+    def prepare(self, contents: str | None = None, expected_error: str | None = None,
+                startup_args: list[str] | None = None):
         work = self.root / "work"
         consumer = work / "consumer"
         artifacts = self.root / "artifacts"
         consumer.mkdir(parents=True, exist_ok=True)
         artifacts.mkdir(exist_ok=True)
+        prefix = ["bazel", "--ignore_all_rc_files", f"--output_user_root={work / 'bazel'}",
+                  *(startup_args or [])]
 
         def run(command, cwd, log):
             self.assertIn("--shared-only", command)
@@ -1197,10 +1200,10 @@ class RustPreparationTests(FixtureTestCase):
                 mock.patch.object(registry_ci, "run_logged", side_effect=run) as execute:
             if expected_error is not None:
                 with self.assertRaisesRegex(registry_ci.RegistryError, expected_error):
-                    registry_ci.prepare_rust(self.config, consumer, work, artifacts, "bazel", [])
+                    registry_ci.prepare_rust(self.config, consumer, work, artifacts, prefix, [])
                 execute.assert_not_called()
                 return
-            flags = registry_ci.prepare_rust(self.config, consumer, work, artifacts, "bazel", [
+            flags = registry_ci.prepare_rust(self.config, consumer, work, artifacts, prefix, [
                 "--registry=file:///registry", "--platforms=@alpha//:platform", "--@alpha//:feature=True",
                 "--experimental_downloader_config=/registry/ci/source_mirrors.cfg",
             ])
@@ -1216,6 +1219,16 @@ class RustPreparationTests(FixtureTestCase):
         execute.assert_called_once()
         self.assertEqual((artifacts / "shared-rust-Cargo.lock").read_text(), "Cargo.lock")
         self.assertEqual((artifacts / "shared-rust-source-resolution.json").read_text(), "source-resolution.json")
+
+    def test_shared_module_bazel_uses_the_same_startup_options(self) -> None:
+        startup = ["--host_jvm_args=-Xmx2g", "--host_jvm_args=-Dexample=value with spaces"]
+        _, execute, _ = self.prepare(startup_args=startup)
+        command = execute.call_args.args[0]
+        self.assertEqual(command[command.index("--bazel") + 1], "bazel")
+        self.assertEqual([arg.removeprefix("--bazel-startup-arg=") for arg in command
+                          if arg.startswith("--bazel-startup-arg=")],
+                         ["--ignore_all_rc_files", f"--output_user_root={self.root / 'work/bazel'}", *startup])
+        self.assertFalse(any(arg.startswith("--bazel-arg=--host_jvm_args=") for arg in command))
 
     def test_helper_cannot_change_other_modules_or_runner_options(self) -> None:
         with self.assertRaisesRegex(registry_ci.RegistryError, "exactly its declared module"):
@@ -1941,6 +1954,9 @@ class TestContainerTests(unittest.TestCase):
                 self.assertEqual(arguments[arguments.index("--test-container-image") + 1],
                                  direct_image if architecture == "amd64" else arm_image)
                 self.assertEqual(arguments[arguments.index("--bazel") + 1], "/usr/local/bin/bazel")
+                self.assertEqual([arg for arg in arguments if arg.startswith("--bazel-startup-arg=")],
+                                 ["--bazel-startup-arg=--host_jvm_args=-Xmx2g"]
+                                 if architecture == "amd64" else [])
                 self.assertEqual(arguments[arguments.index("--work-dir") + 1],
                                  str(root / "runner temp" / "registry-ci"))
                 if architecture == "amd64":
@@ -1949,6 +1965,19 @@ class TestContainerTests(unittest.TestCase):
                     self.assertEqual(len(sudo_log.read_text().splitlines()), 2)
                 else:
                     self.assertFalse(sudo_log.exists())
+
+
+class BazelStartupArgumentTests(unittest.TestCase):
+    def test_cli_forwards_repeated_startup_options_and_preserves_the_default(self) -> None:
+        for startup in ([], ["--host_jvm_args=-Xmx2g", "--host_jvm_args=-Dexample=value with spaces"]):
+            with self.subTest(startup=startup):
+                command = ["registry_ci.py", "run", "--module", "alpha", "--version", "1.0.0",
+                           "--architecture", "amd64", "--work-dir", "/tmp/work", "--artifacts", "/tmp/artifacts",
+                           *["--bazel-startup-arg=" + arg for arg in startup]]
+                with mock.patch.object(sys, "argv", command), mock.patch.object(registry_ci, "run") as execute:
+                    registry_ci.main()
+                execute.assert_called_once_with(registry_ci.ROOT, "alpha", "1.0.0", "amd64",
+                                                Path("/tmp/work"), Path("/tmp/artifacts"), "bazel", None, startup)
 
 
 class FetchedModuleTests(FixtureTestCase):
@@ -1983,6 +2012,7 @@ class FetchedModuleTests(FixtureTestCase):
             "from pathlib import Path\n"
             "import sys\n"
             "args = sys.argv[1:]\n"
+            "assert ('--test_env=HOME=' in args) == ('test' in args)\n"
             f"assert {str("--experimental_downloader_config=" + str(self.root / "ci/source_mirrors.cfg"))!r} in args\n"
             "assert ('--@alpha//bazel:yang_modules=False' in args) == ('info' not in args)\n"
             "if 'info' in args:\n"
@@ -2018,13 +2048,40 @@ class FetchedModuleTests(FixtureTestCase):
     def fetched_module(self, name: str) -> Path:
         return self.output_base / "external" / f"{name}+" / "MODULE.bazel"
 
-    def run_fixture(self, suffix: str, architecture: str | None = None, image: str | None = None) -> Path:
+    def run_fixture(self, suffix: str, architecture: str | None = None, image: str | None = None,
+                    startup_args: list[str] | None = None) -> Path:
         artifacts = self.root / f"artifacts-{suffix}"
         registry_ci.run(
             self.root, "alpha", "1.0.0", architecture or self.architecture,
-            self.root / f"work-{suffix}", artifacts, str(self.fake_bazel), image,
+            self.root / f"work-{suffix}", artifacts, str(self.fake_bazel), image, startup_args,
         )
         return artifacts
+
+    def test_startup_options_reach_all_bazel_commands_and_rust_preparation(self) -> None:
+        commands_path = self.root / "bazel-commands.jsonl"
+        self.fake_bazel.write_text(self.fake_bazel.read_text().replace(
+            "args = sys.argv[1:]\n",
+            "args = sys.argv[1:]\n"
+            + f"with Path({str(commands_path)!r}).open('a') as log:\n"
+            + "    log.write(json.dumps(args) + '\\n')\n"))
+        for suffix, startup in (("default-startup", []),
+                                ("custom-startup", ["--host_jvm_args=-Xmx2g",
+                                                    "--host_jvm_args=-Dexample=value with spaces"])):
+            with self.subTest(startup=startup):
+                commands_path.write_text("")
+                with mock.patch.object(registry_ci, "prepare_rust", wraps=registry_ci.prepare_rust) as prepare:
+                    artifacts = self.run_fixture(suffix, startup_args=startup)
+                expected = ["--ignore_all_rc_files", f"--output_user_root={self.root / ('work-' + suffix) / 'bazel'}",
+                            *startup]
+                commands = [json.loads(line) for line in commands_path.read_text().splitlines()]
+                self.assertEqual([command[len(expected)] for command in commands],
+                                 ["build", "cquery", "info", "info", "test"])
+                for command in commands:
+                    self.assertEqual(command[:len(expected)], expected)
+                    self.assertFalse(any(arg.startswith("--host_jvm_args=") for arg in command[len(expected):]))
+                prepare.assert_called_once()
+                self.assertEqual(prepare.call_args.args[4], [str(self.fake_bazel), *expected])
+                self.assertEqual(json.loads((artifacts / "validation.json").read_text())["bazel_startup_args"], startup)
 
     def test_checkout_owned_by_another_user_retains_source_head(self) -> None:
         config = self.root / "isolated-git-config"
@@ -2164,6 +2221,9 @@ a.output.write_text(json.dumps(r))
         flag = "--test_env=SONIC_TEST_RUNTIME_ID=" + receipt["SONIC_TEST_RUNTIME_ID"]
         self.assertIn(flag, commands[2])
         self.assertNotIn(flag, commands[0])
+        self.assertIn("--test_env=HOME=", commands[2])
+        self.assertNotIn("--test_env=HOME=", commands[0])
+        self.assertNotIn("--test_env=HOME=", commands[1])
         self.assertIn("--nocache_test_results", commands[2])
         self.assertTrue(set(self.config["test_targets"]).issubset(commands[2]))
         self.assertEqual((artifacts / "test-runtime-prepare.py").read_bytes(), helper.read_bytes())

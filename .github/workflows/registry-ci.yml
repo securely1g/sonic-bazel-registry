@@ -227,9 +227,13 @@ jobs:
         run: |
           set -euo pipefail
           ROOT=()
+          BAZEL_STARTUP_ARGS=()
           if [[ "$CI_ARCHITECTURE" == amd64 ]]; then
             TEST_CONTAINER_IMAGE="${SONIC_RUNNER_IMAGE_REFERENCE:?Missing runner image identity}"
             ROOT=(sudo -n)
+            # Bazel's default heap is too small for large dependency graphs
+            # inside the runner's 4 GiB memory limit.
+            BAZEL_STARTUP_ARGS=(--bazel-startup-arg=--host_jvm_args=-Xmx2g)
             "${ROOT[@]}" git config --global --add safe.directory "$GITHUB_WORKSPACE"
           fi
           "${ROOT[@]}" python3 ci/registry_ci.py run \
@@ -237,6 +241,7 @@ jobs:
             --version "$CI_VERSION" \
             --architecture "$CI_ARCHITECTURE" \
             --bazel /usr/local/bin/bazel \
+            "${BAZEL_STARTUP_ARGS[@]}" \
             --work-dir "$RUNNER_TEMP/registry-ci" \
             --artifacts "$GITHUB_WORKSPACE/ci-artifacts" \
             --test-container-image "$TEST_CONTAINER_IMAGE"

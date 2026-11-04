@@ -31,17 +31,54 @@ repository branch-protection settings.
 
 The runner passes Bazel's standard `--experimental_downloader_config` with
 [`source_mirrors.cfg`](source_mirrors.cfg) to dependency preparation, builds,
-tests and output queries. The only rewrite is the exact upstream URL for
-BCR `pigz@2.8.bcr.2`, used by build-infra's reproducible gzip tool when packaging
-WPA's debug TAR. The original URL now serves different bytes; a clean
+tests and output queries. Rewrites match only the archive and binary-package
+URLs described below; registry order, module versions, source recipes and
+integrity values stay unchanged.
+
+The three ARM-hosted BCR archives use verified copies in this repository's
+[source-mirror release](https://github.com/securely1g/sonic-bazel-registry/releases/tag/ci-source-mirrors-20261104)
+first, with each original GitLab release URL retained as the next candidate:
+
+| BCR module | Release asset |
+| --- | --- |
+| `ape@1.0.1` | `ape-v1.0.1.tar.gz` |
+| `rules_gzip@1.0.0` | `rules_gzip-v1.0.0.tar.gz` |
+| `toolchain_utils@1.0.2` | `toolchain_utils-v1.0.2.tar.gz` |
+
+Each copy must satisfy the original BCR SHA512 integrity. This avoids the
+[ARM GitLab release endpoint failures](https://github.com/bazelbuild/bazel-central-registry/issues/9973)
+without discarding the upstream source. Bazel 8.5.1's
+[URL rewriter](https://github.com/bazelbuild/bazel/blob/8.5.1/src/main/java/com/google/devtools/build/lib/bazel/repository/downloader/UrlRewriter.java)
+collects matching replacements in configuration order; its
+[downloader](https://github.com/bazelbuild/bazel/blob/8.5.1/src/main/java/com/google/devtools/build/lib/bazel/repository/downloader/HttpDownloader.java)
+tries the next candidate after a failed download or checksum mismatch. Other
+versions and URLs are unaffected; no global module mirror is enabled.
+
+The exact `gawk-5.3.2.tar.xz` URLs at `mirrors.kernel.org`, `ftp.gnu.org`, and
+`ftpmirror.gnu.org` likewise try MacPorts first and retain each original URL as
+a fallback. The published source recipe and SHA256
+`f8c3486509de705192138b00ef2c00bbbdd0e84c30d5c07d23fc73a9dc4cc9cc` remain unchanged.
+
+Timestamped `snapshot.debian.org/archive/debian/.../pool/*.deb` package downloads
+try the identical pool path on Debian's official `deb.debian.org/debian/` CDN
+first, then retain the exact timestamped snapshot URL as fallback. This avoids
+transient snapshot HTTP 503 failures for package versions still present in the
+current pool; older packages absent from the CDN continue through the snapshot.
+The locked filename, version and SHA256 remain unchanged. Indexes, metadata,
+source archives and other snapshot archives such as `debian-security` are not
+rewritten. The cold-fetch regression checks `libsframe1_2.44-3_amd64.deb` against
+its generated APT lock's SHA256
+`38f625dfdc582717029ac3a3e97c51d994ec2e7a0e9b230c6b44e40d1276311f`.
+
+BCR `pigz@2.8.bcr.2` is used by build-infra's reproducible gzip tool when packaging
+WPA's debug TAR. Its original URL now serves different bytes; a clean
 [WPA registry build](https://github.com/securely1g/sonic-bazel-registry/actions/runs/41587703074/job/125760920377)
 fails its BCR checksum before compiling any source.
 
 The MacPorts mirror retains the original archive with SHA256
 `eb872b4f0e1f0ebe59c9f7bd8c506c4204893ba6a8492de31df416f0d5170fd0`.
 Bazel still verifies BCR's unchanged integrity and applies its unchanged patches.
-Other versions, paths and hosts are not rewritten. No source/version override,
-custom pigz module, prebuilt pigz, or disabled integrity check is involved.
+No source/version override, custom module, or disabled integrity check is involved.
 
 This config applies automatically in this registry's validation runner. It does
 not change how standalone consumers download dependencies. Until BCR's upstream
@@ -52,10 +89,13 @@ path to a checkout of this config:
 bazel build --experimental_downloader_config=/path/to/sonic-bazel-registry/ci/source_mirrors.cfg //your:target
 ```
 
-The real Bazel runner tests fetch BCR's pigz into a new, empty repository cache
-without a distdir, verify its original archive hash and patched MODULE, and
-confirm that a mirror serving different bytes is still rejected. These are
-repository fetches; they execute no compilation or package actions.
+The real Bazel runner tests fetch the three ARM archives, gawk, BCR's pigz and the
+locked Debian package into new, empty repository caches without a distdir,
+checking original archive hashes and
+fetched MODULE files. Local HTTP fixtures verify candidate order, fallback after
+HTTP errors and checksum mismatches, and rejection when every candidate has the
+wrong bytes. These are repository fetches; they execute no compilation or package
+actions.
 
 The `codex/pigz-source-mirror` PR validates this CI fix with those fetch tests and
 the existing AMD64/ARM64 runner tests. Its path-checked exception retains the
@@ -532,6 +572,16 @@ all bazelrc files. The workflow verifies the binary's checksum again. ARM64
 downloads and verifies its native Bazel binary in the job container. GitHub
 actions are pinned to commit SHAs, checkout does not
 persist credentials, and the workflow uses read-only repository permissions.
+
+AMD64 module jobs pass `--bazel-startup-arg=--host_jvm_args=-Xmx2g` to bound
+Bazel's Java heap within each runner's 4 GiB memory limit. The runner accepts
+repeated startup arguments, forwards them to build, test, cquery, info and Rust
+preparation, and records them in `validation.json`. ARM64 keeps its default heap.
+
+Tests receive an explicitly exported empty `HOME`, which Bazel's test setup
+replaces with that test's writable `TEST_TMPDIR`. This lets Python and other
+subprocesses create user configuration inside the test sandbox; an absent
+`HOME` would otherwise fall back to the account's home directory.
 
 Runner tests execute on native AMD64 and ARM64 hosts with pinned Bazel 8.5.1.
 They build an actual directory-producing target and its public alias, including
