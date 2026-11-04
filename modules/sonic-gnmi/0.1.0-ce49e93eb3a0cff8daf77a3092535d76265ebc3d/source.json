@@ -1,0 +1,9 @@
+{
+  "url": "https://github.com/securely1g/sonic-gnmi/archive/ce49e93eb3a0cff8daf77a3092535d76265ebc3d.tar.gz",
+  "strip_prefix": "sonic-gnmi-ce49e93eb3a0cff8daf77a3092535d76265ebc3d",
+  "integrity": "sha256-5YnJwJL75ebUOPAOP1CRq/mOkYvAPt6dDLKS/wwGdv4=",
+  "patches": {
+    "module-version.patch": "sha256-TUY+1A5eXyQuG4ivcqLkYMVhuZYoh9dczvx35vXQA+4="
+  },
+  "patch_strip": 1
+}
