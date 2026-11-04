@@ -70,7 +70,7 @@ binaries and declared dependency packages, so version constraints come from
 the built artifacts and Debian tools. There is no handwritten JSON metadata
 file or new DEB producer.
 
-## Large native include lists
+## Large native include and linker lists
 
 Gearbox image PR #154 selects the complete PI/BMv2 dependency closure. Its
 native AMD64 debug action produced a 141,742-byte `CPPFLAGS` environment entry.
@@ -92,3 +92,26 @@ macros, spaces in include paths, header precedence, rejection of driver-only
 CPPFLAGS and exact equality of short/long executable bytes. This focused native
 Trixie test passed locally; complete package and downstream image acceptance are
 separate gates and are still pending for this candidate.
+
+
+The standalone DASH Engine image exposed the remaining linker limit: its
+136,826-byte `LDFLAGS` exceeded Linux's per-string limit before GCC started.
+The same configure prefix now stores its shell-parsed linker arguments in the
+private `.sonic-linker-arguments` vector. The existing shared compiler launcher
+expands only that exact vector before shortening absolute library searches for
+each recursive working directory. Every flag and library-search order remains
+intact; arbitrary GCC response files stay opaque.
+
+This requires the source launcher from
+[sonic-build-infra PR #82](https://github.com/securely1g/sonic-build-infra/pull/82),
+registered as `0.0.26-f6da55505437cb139fdf610db8c61cb9420b0fec`. Both the module
+minimum and the independent consumer select that version. No source archive,
+source patch, target ABI, configured feature or installed path changed.
+
+The extended original test covers both pre-exec failures and real C/C++ links
+through Autoconf and recursive Libtool, including quoted paths, competing
+libraries and exact short/long executable bytes. Local regression and the exact
+338-argument Engine-vector diagnostic pass. The earlier AMD64/ARM64 acceptance
+belongs to the previous candidate; updated registry CI and Engine acceptance
+remain pending. The original six build targets and two tests on both native
+architectures are preserved, with no DEB generation.

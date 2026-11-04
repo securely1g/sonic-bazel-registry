@@ -109,11 +109,13 @@ py_test(
         "$(rootpath bazel/configure_with_flags.sh)",
         "$(rootpath bazel/configure.sh)",
         "$(rootpath @sonic_build_infra//tools/build_tools:foreign_runtime)",
+        "$(rootpath @sonic_build_infra//tools/build_tools:configure_environment.sh)",
     ],
     data = [
         "bazel/configure.sh",
         "bazel/configure_with_flags.sh",
         "@sonic_build_infra//tools/build_tools:foreign_runtime",
+        "@sonic_build_infra//tools/build_tools:configure_environment.sh",
     ],
     main = "bazel/configure_flags_test.py",
     tags = ["local"],
