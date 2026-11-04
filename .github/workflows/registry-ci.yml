@@ -43,6 +43,7 @@ jobs:
           ALL_VERSIONS: ${{ inputs.all_versions }}
           HEAD_REF: ${{ github.head_ref }}
           HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
           POLICY_FLAGS=()
@@ -71,6 +72,7 @@ jobs:
               "${POLICY_FLAGS[@]}" --head "$HEAD_SHA" --latest --output plan.json 2>&1 | tee -a plan.log
           fi
           python3 - <<'PY'
+          import hashlib
           import json
           import os
           import subprocess
@@ -90,6 +92,39 @@ jobs:
                   raise SystemExit("Source-mirror test scope rejects unexpected files: " + repr(changed - allowed))
               print("Source-mirror CI fix: retain policy plan; run native runner and cold-fetch tests only.")
               matrix = {"include": []}
+          elif (os.environ["EVENT_NAME"] == "pull_request"
+                  and os.environ["HEAD_REF"] == "codex/registry-worker-provenance"
+                  and os.environ["HEAD_REPOSITORY"] == os.environ["REPOSITORY"]
+                  == "securely1g/sonic-bazel-registry"):
+              allowed = {".github/workflows/registry-ci.yml", "ci/registry_ci.py",
+                         "ci/container_provenance.py", "ci/README.md",
+                         "ci/tests/test_container_provenance.py",
+                         "ci/tests/test_typed_workflow_scope.py"}
+              changed = set(filter(None, subprocess.check_output(
+                  ["git", "diff", "--no-renames", "--name-only", "-z",
+                   os.environ["BASE_SHA"] + "..." + os.environ["HEAD_SHA"]],
+                  text=True).split("\0")))
+              if not changed or not changed <= allowed:
+                  raise SystemExit("Typed-provenance test scope rejects unexpected files: " + repr(changed - allowed))
+              original = matrix
+              matrix = {"include": []}
+              effective = json.dumps(matrix, indent=2) + "\n"
+              Path("plan-effective.json").write_text(effective)
+              receipt = {
+                  "schema": 1, "scope": "typed provenance CI feature: runner fixtures only, no module jobs",
+                  "event": os.environ["EVENT_NAME"], "branch": os.environ["HEAD_REF"],
+                  "repository": os.environ["HEAD_REPOSITORY"],
+                  "base": os.environ["BASE_SHA"], "head": os.environ["HEAD_SHA"],
+                  "changed_files": sorted(changed),
+                  "original_plan_sha256": hashlib.sha256(Path("plan.json").read_bytes()).hexdigest(),
+                  "effective_plan_sha256": hashlib.sha256(effective.encode()).hexdigest(),
+                  "planned_jobs": len(original["include"]), "retained_jobs": 0,
+                  "excluded_jobs": [{"job": job, "reason": "separate module acceptance is outside this CI-only PR"}
+                                    for job in original["include"]],
+              }
+              Path("plan-scope.json").write_text(json.dumps(receipt, indent=2) + "\n")
+              print("Typed-provenance CI feature: retain policy plan and both native runner fixture suites; "
+                    "module validation is separate. See plan-scope.json.")
           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
               print("matrix=" + json.dumps(matrix, separators=(",", ":")), file=output)
               print("has_jobs=" + str(bool(matrix["include"])).lower(), file=output)
@@ -102,6 +137,8 @@ jobs:
           path: |
             plan.json
             plan.log
+            plan-effective.json
+            plan-scope.json
           if-no-files-found: warn
           retention-days: 14
 
