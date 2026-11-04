@@ -106,49 +106,24 @@ jobs:
           retention-days: 14
 
   unit:
-    name: Registry runner tests (${{ matrix.architecture }})
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - architecture: amd64
-            runner: [self-hosted, Linux, X64, debian-trixie-container]
-            machine: x86_64
-            bazel_arch: x86_64
-            bazel_sha: 61d89402f0368e64b6c827be5de79d8e65382e8124c3cbb97325611a1851392e
-          - architecture: arm64
-            runner: [ubuntu-24.04-arm]
-            machine: aarch64
-            bazel_arch: arm64
-            bazel_sha: b7f2a85595e8a87d54843bc656c1e379fd9b8c1b5f783dc41717c1d7eb7cc49f
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: 10
+    name: Registry runner tests
+    runs-on: [self-hosted, Linux, X64, debian-trixie-container]
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
-      - name: Install Bazel for real runner integration tests
+      - name: Verify Bazel and ARM64 runtime for integration tests
         shell: bash
-        env:
-          EXPECTED_MACHINE: ${{ matrix.machine }}
-          BAZEL_ARCH: ${{ matrix.bazel_arch }}
-          BAZEL_SHA: ${{ matrix.bazel_sha }}
         run: |
           set -euo pipefail
-          [[ "$(uname -m)" == "$EXPECTED_MACHINE" ]]
-          if [[ "$BAZEL_ARCH" == x86_64 ]]; then
-            printf '%s  %s\n' "$BAZEL_SHA" /usr/local/lib/bazel-8.5.1 | sha256sum --check --strict
-            # The image wrapper passes its Java CA store as a startup option,
-            # including when tests use --ignore_all_rc_files.
-            echo "REGISTRY_CI_TEST_BAZEL=/usr/local/bin/bazel" >> "$GITHUB_ENV"
-          else
-            curl --fail --location --retry 3 --output "$RUNNER_TEMP/bazel-8.5.1" \
-              "https://releases.bazel.build/8.5.1/release/bazel-8.5.1-linux-${BAZEL_ARCH}"
-            printf '%s  %s\n' "$BAZEL_SHA" "$RUNNER_TEMP/bazel-8.5.1" | sha256sum --check --strict
-            chmod 0755 "$RUNNER_TEMP/bazel-8.5.1"
-            echo "REGISTRY_CI_TEST_BAZEL=$RUNNER_TEMP/bazel-8.5.1" >> "$GITHUB_ENV"
-          fi
+          [[ "$(uname -m)" == x86_64 ]]
+          printf '%s  %s\n' 61d89402f0368e64b6c827be5de79d8e65382e8124c3cbb97325611a1851392e \
+            /usr/local/lib/bazel-8.5.1 | sha256sum --check --strict
+          test -x /usr/local/bin/sonic-arm64
+          echo "REGISTRY_CI_TEST_BAZEL=/usr/local/bin/bazel" >> "$GITHUB_ENV"
+          echo "REGISTRY_CI_TEST_ARM_EXECUTOR=/usr/local/bin/sonic-arm64" >> "$GITHUB_ENV"
       - name: Test planning and validation runner
         shell: bash
         env:
@@ -160,7 +135,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: registry-ci-runner-tests-${{ matrix.architecture }}
+          name: registry-ci-runner-tests
           path: |
             runner-tests.log
             runner-bazel-artifacts/
@@ -173,12 +148,14 @@ jobs:
     if: needs.plan.outputs.has_jobs == 'true'
     strategy:
       fail-fast: false
+      # Keep the shared host's memory pressure bounded while retaining spare
+      # ephemeral runners for planning, unit tests and subsequent jobs.
+      max-parallel: 10
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 180
-    # AMD64 already runs inside a fresh Trixie runner container. An empty
-    # container string leaves steps in that container; ARM64 needs a job image.
-    container: ${{ matrix.architecture == 'arm64' && 'debian:trixie-20260918@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c' || '' }}
+    # Both targets use native AMD64 build tools in the disposable worker.
+    # ARM64 binaries and tests execute through its bundled QEMU runtime.
     defaults:
       run:
         shell: bash
@@ -187,61 +164,36 @@ jobs:
       CI_MODULE: ${{ matrix.module }}
       CI_VERSION: ${{ matrix.version }}
       CI_ARCHITECTURE: ${{ matrix.architecture }}
-      TEST_CONTAINER_IMAGE: ${{ matrix.architecture == 'arm64' && 'debian:trixie-20260918@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c' || '' }}
     steps:
-      - name: Install build and package test tools
-        if: matrix.architecture == 'arm64'
-        run: |
-          set -euo pipefail
-          apt-get update
-          # LLVM needs libxml2; installed SDK tests exercise their pkg-config metadata.
-          apt-get install -y --no-install-recommends binutils build-essential ca-certificates curl gdb git libxml2 libzstd-dev patch pkg-config python3 tar unzip xz-utils zlib1g-dev zstd
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
-      - name: Install Bazel 8.5.1
+      - name: Verify native Bazel 8.5.1
         run: |
           set -euo pipefail
-          case "$(uname -m)" in
-            x86_64)
-              [[ "$CI_ARCHITECTURE" == amd64 ]]
-              bazel_arch=x86_64
-              bazel_sha=61d89402f0368e64b6c827be5de79d8e65382e8124c3cbb97325611a1851392e
-              ;;
-            aarch64)
-              [[ "$CI_ARCHITECTURE" == arm64 ]]
-              bazel_arch=arm64
-              bazel_sha=b7f2a85595e8a87d54843bc656c1e379fd9b8c1b5f783dc41717c1d7eb7cc49f
-              ;;
-            *) echo "Unsupported native architecture" >&2; exit 1 ;;
-          esac
-          if [[ "$CI_ARCHITECTURE" == amd64 ]]; then
-            printf '%s  %s\n' "$bazel_sha" /usr/local/lib/bazel-8.5.1 | sha256sum --check --strict
-          else
-            curl --fail --location --retry 3 --output /tmp/bazel "https://releases.bazel.build/8.5.1/release/bazel-8.5.1-linux-${bazel_arch}"
-            printf '%s  %s\n' "$bazel_sha" /tmp/bazel | sha256sum --check --strict
-            install -m 0755 /tmp/bazel /usr/local/bin/bazel
-          fi
+          [[ "$(uname -m)" == x86_64 ]]
+          [[ "$CI_ARCHITECTURE" == amd64 || "$CI_ARCHITECTURE" == arm64 ]]
+          printf '%s  %s\n' 61d89402f0368e64b6c827be5de79d8e65382e8124c3cbb97325611a1851392e \
+            /usr/local/lib/bazel-8.5.1 | sha256sum --check --strict
       - name: Build and test through the registry
         run: |
           set -euo pipefail
-          ROOT=()
-          BAZEL_STARTUP_ARGS=()
-          if [[ "$CI_ARCHITECTURE" == amd64 ]]; then
-            TEST_CONTAINER_IMAGE="${SONIC_RUNNER_IMAGE_REFERENCE:?Missing runner image identity}"
-            ROOT=(sudo -n)
-            # Bazel's default heap is too small for large dependency graphs
-            # inside the runner's 4 GiB memory limit.
-            BAZEL_STARTUP_ARGS=(--bazel-startup-arg=--host_jvm_args=-Xmx2g)
-            "${ROOT[@]}" git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          TEST_CONTAINER_IMAGE="${SONIC_RUNNER_IMAGE_REFERENCE:?Missing runner image identity}"
+          CROSS_ARGS=()
+          if [[ "$CI_ARCHITECTURE" == arm64 ]]; then
+            CROSS_ARGS=(--cross-compile --test-executor /usr/local/bin/sonic-arm64)
           fi
-          "${ROOT[@]}" python3 ci/registry_ci.py run \
+          sudo -n git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          sudo -n python3 ci/registry_ci.py run \
             --module "$CI_MODULE" \
             --version "$CI_VERSION" \
             --architecture "$CI_ARCHITECTURE" \
             --bazel /usr/local/bin/bazel \
-            "${BAZEL_STARTUP_ARGS[@]}" \
+            --bazel-startup-arg=--host_jvm_args=-Xmx2g \
+            --bazel-build-arg=--jobs=1 \
+            --bazel-build-arg=--discard_analysis_cache \
+            "${CROSS_ARGS[@]}" \
             --work-dir "$RUNNER_TEMP/registry-ci" \
             --artifacts "$GITHUB_WORKSPACE/ci-artifacts" \
             --test-container-image "$TEST_CONTAINER_IMAGE"
@@ -250,13 +202,9 @@ jobs:
         if: always()
         run: |
           set -euo pipefail
-          ROOT=()
-          if [[ "$CI_ARCHITECTURE" == amd64 ]]; then
-            ROOT=(sudo -n)
-          fi
           archive="$RUNNER_TEMP/registry-ci-evidence.tar"
-          "${ROOT[@]}" bash ci/archive_artifacts.sh "$GITHUB_WORKSPACE/ci-artifacts" "$archive"
-          if [[ -f "$archive" && "$CI_ARCHITECTURE" == amd64 ]]; then
+          sudo -n bash ci/archive_artifacts.sh "$GITHUB_WORKSPACE/ci-artifacts" "$archive"
+          if [[ -f "$archive" ]]; then
             # Keep permissions inside the TAR intact while letting the
             # non-root upload action read the root-created archive.
             sudo -n chown "$(id -u):$(id -g)" "$archive"

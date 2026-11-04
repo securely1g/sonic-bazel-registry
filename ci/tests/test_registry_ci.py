@@ -238,7 +238,7 @@ class SelectionTests(FixtureTestCase):
         return {(job["module"], job["version"])
                 for job in registry_ci.plan(self.root, None, head, latest_versions=True, published=head)["include"]}
 
-    def test_latest_mode_selects_one_version_and_retains_native_architectures(self) -> None:
+    def test_latest_mode_selects_one_version_and_retains_target_architectures(self) -> None:
         self.entry("alpha", "1.0.0")
         latest = self.entry("alpha", "2.0.0")
         self.entry("beta", "1.0.0")
@@ -252,7 +252,7 @@ class SelectionTests(FixtureTestCase):
         self.assertEqual({(job["module"], job["version"], job["architecture"], tuple(job["runner"]))
                           for job in jobs}, {
             ("alpha", "2.0.0", "amd64", ("self-hosted", "Linux", "X64", "debian-trixie-container")),
-            ("alpha", "2.0.0", "arm64", ("ubuntu-24.04-arm",)),
+            ("alpha", "2.0.0", "arm64", ("self-hosted", "Linux", "X64", "debian-trixie-container")),
             ("beta", "1.0.0", "amd64", ("self-hosted", "Linux", "X64", "debian-trixie-container")),
         })
 
@@ -1174,7 +1174,7 @@ class RustPreparationTests(FixtureTestCase):
                     registry_ci.validate_entry(self.root, "alpha", "1.0.0")
 
     def prepare(self, contents: str | None = None, expected_error: str | None = None,
-                startup_args: list[str] | None = None):
+                startup_args: list[str] | None = None, build_args: list[str] | None = None):
         work = self.root / "work"
         consumer = work / "consumer"
         artifacts = self.root / "artifacts"
@@ -1188,6 +1188,8 @@ class RustPreparationTests(FixtureTestCase):
             self.assertIn("--bazel-arg=--registry=file:///registry", command)
             self.assertIn("--bazel-arg=--experimental_downloader_config=/registry/ci/source_mirrors.cfg", command)
             for flag in registry_ci.HTTP_DOWNLOAD_FLAGS:
+                self.assertIn("--bazel-arg=" + flag, command)
+            for flag in build_args or []:
                 self.assertIn("--bazel-arg=" + flag, command)
             self.assertNotIn("--bazel-arg=--platforms=@alpha//:platform", command)
             self.assertNotIn("--bazel-arg=--@alpha//:feature=True", command)
@@ -1209,6 +1211,7 @@ class RustPreparationTests(FixtureTestCase):
                 "--registry=file:///registry", "--platforms=@alpha//:platform", "--@alpha//:feature=True",
                 "--experimental_downloader_config=/registry/ci/source_mirrors.cfg",
                 *registry_ci.HTTP_DOWNLOAD_FLAGS,
+                *(build_args or []),
             ])
         return flags, execute, artifacts
 
@@ -1225,7 +1228,8 @@ class RustPreparationTests(FixtureTestCase):
 
     def test_shared_module_bazel_uses_the_same_startup_options(self) -> None:
         startup = ["--host_jvm_args=-Xmx2g", "--host_jvm_args=-Dexample=value with spaces"]
-        _, execute, _ = self.prepare(startup_args=startup)
+        _, execute, _ = self.prepare(startup_args=startup,
+                                    build_args=["--jobs=1", "--discard_analysis_cache"])
         command = execute.call_args.args[0]
         self.assertEqual(command[command.index("--bazel") + 1], "bazel")
         self.assertEqual([arg.removeprefix("--bazel-startup-arg=") for arg in command
@@ -1913,20 +1917,14 @@ class TestContainerTests(unittest.TestCase):
 
     def test_workflow_passes_the_actual_pinned_container_to_runtime_preparation(self):
         workflow = (registry_ci.ROOT / ".github/workflows/registry-ci.yml").read_text()
-        expression = next(line.split("container: ", 1)[1] for line in workflow.splitlines()
-                          if line.strip().startswith("container: "))
-        selection = re.fullmatch(
-            r"\$\{\{ matrix\.architecture == 'arm64' && '(\S+@sha256:[0-9a-f]{64})' \|\| '' \}\}",
-            expression)
-        self.assertIsNotNone(selection)
-        self.assertIn("TEST_CONTAINER_IMAGE: " + expression, workflow)
-        arm_image = selection[1]
+        self.assertIsNone(re.search(r"^\s+container:", workflow, re.MULTILINE))
         direct_image = "sonic-slave-runner@sha256:" + "c" * 64
         step = workflow.split("      - name: Build and test through the registry\n", 1)[1]
         step = step.split("\n      - ", 1)[0].split("        run: |\n", 1)[1]
         script = "\n".join(line[10:] for line in step.splitlines())
         for architecture, identity, succeeds in (
-                ("amd64", direct_image, True), ("arm64", "", True), ("amd64", "", False)):
+                ("amd64", direct_image, True), ("arm64", direct_image, True),
+                ("amd64", "", False), ("arm64", "", False)):
             with self.subTest(architecture=architecture, identity=identity), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 commands = root / "bin"
@@ -1944,7 +1942,6 @@ class TestContainerTests(unittest.TestCase):
                                "CAPTURE": str(capture), "SUDO_LOG": str(sudo_log), "GIT_LOG": str(git_log),
                                "CI_MODULE": "alpha", "CI_VERSION": "1.0.0", "CI_ARCHITECTURE": architecture,
                                "SONIC_RUNNER_IMAGE_REFERENCE": identity,
-                               "TEST_CONTAINER_IMAGE": arm_image if architecture == "arm64" else "",
                                "GITHUB_WORKSPACE": str(root / "workspace"), "RUNNER_TEMP": str(root / "runner temp")}
                 result = subprocess.run(["/bin/bash", "-c", script], env=environment, text=True, capture_output=True)
                 if not succeeds:
@@ -1955,32 +1952,47 @@ class TestContainerTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stderr)
                 arguments = capture.read_text().splitlines()
                 self.assertEqual(arguments[arguments.index("--test-container-image") + 1],
-                                 direct_image if architecture == "amd64" else arm_image)
+                                 direct_image)
                 self.assertEqual(arguments[arguments.index("--bazel") + 1], "/usr/local/bin/bazel")
                 self.assertEqual([arg for arg in arguments if arg.startswith("--bazel-startup-arg=")],
-                                 ["--bazel-startup-arg=--host_jvm_args=-Xmx2g"]
-                                 if architecture == "amd64" else [])
+                                 ["--bazel-startup-arg=--host_jvm_args=-Xmx2g"])
+                self.assertEqual([arg for arg in arguments if arg.startswith("--bazel-build-arg=")],
+                                 ["--bazel-build-arg=--jobs=1", "--bazel-build-arg=--discard_analysis_cache"])
+                self.assertEqual("--cross-compile" in arguments, architecture == "arm64")
+                if architecture == "arm64":
+                    self.assertEqual(arguments[arguments.index("--test-executor") + 1],
+                                     "/usr/local/bin/sonic-arm64")
                 self.assertEqual(arguments[arguments.index("--work-dir") + 1],
                                  str(root / "runner temp" / "registry-ci"))
-                if architecture == "amd64":
-                    self.assertEqual(git_log.read_text().splitlines(),
-                                     ["config", "--global", "--add", "safe.directory", str(root / "workspace")])
-                    self.assertEqual(len(sudo_log.read_text().splitlines()), 2)
-                else:
-                    self.assertFalse(sudo_log.exists())
+                self.assertEqual(git_log.read_text().splitlines(),
+                                 ["config", "--global", "--add", "safe.directory", str(root / "workspace")])
+                self.assertEqual(len(sudo_log.read_text().splitlines()), 2)
 
 
 class BazelStartupArgumentTests(unittest.TestCase):
     def test_cli_forwards_repeated_startup_options_and_preserves_the_default(self) -> None:
-        for startup in ([], ["--host_jvm_args=-Xmx2g", "--host_jvm_args=-Dexample=value with spaces"]):
+        for startup, build in (([], []),
+                               (["--host_jvm_args=-Xmx2g", "--host_jvm_args=-Dexample=value with spaces"],
+                                ["--jobs=1", "--discard_analysis_cache"])):
             with self.subTest(startup=startup):
                 command = ["registry_ci.py", "run", "--module", "alpha", "--version", "1.0.0",
                            "--architecture", "amd64", "--work-dir", "/tmp/work", "--artifacts", "/tmp/artifacts",
-                           *["--bazel-startup-arg=" + arg for arg in startup]]
+                           *["--bazel-startup-arg=" + arg for arg in startup],
+                           *["--bazel-build-arg=" + arg for arg in build]]
                 with mock.patch.object(sys, "argv", command), mock.patch.object(registry_ci, "run") as execute:
                     registry_ci.main()
                 execute.assert_called_once_with(registry_ci.ROOT, "alpha", "1.0.0", "amd64",
-                                                Path("/tmp/work"), Path("/tmp/artifacts"), "bazel", None, startup)
+                                                Path("/tmp/work"), Path("/tmp/artifacts"), "bazel", None,
+                                                startup, build, False, None)
+
+    def test_cli_keeps_cross_compilation_and_runtime_explicit(self) -> None:
+        command = ["registry_ci.py", "run", "--module", "alpha", "--version", "1.0.0",
+                   "--architecture", "arm64", "--work-dir", "/tmp/work", "--artifacts", "/tmp/artifacts",
+                   "--cross-compile", "--test-executor", "/opt/arm executor"]
+        with mock.patch.object(sys, "argv", command), mock.patch.object(registry_ci, "run") as execute:
+            registry_ci.main()
+        self.assertEqual(execute.call_args.args[3], "arm64")
+        self.assertEqual(execute.call_args.args[-2:], (True, Path("/opt/arm executor")))
 
 
 class FetchedModuleTests(FixtureTestCase):
@@ -2016,6 +2028,7 @@ class FetchedModuleTests(FixtureTestCase):
             "import sys\n"
             "args = sys.argv[1:]\n"
             "assert ('--test_env=HOME=' in args) == ('test' in args)\n"
+            f"assert ({'--strategy=TestRunner=' + registry_ci.TEST_SANDBOX_STRATEGY!r} in args) == ('test' in args)\n"
             f"for flag in {registry_ci.HTTP_DOWNLOAD_FLAGS!r}:\n"
             "    assert (flag in args) == ('info' not in args)\n"
             f"assert {str("--experimental_downloader_config=" + str(self.root / "ci/source_mirrors.cfg"))!r} in args\n"
@@ -2054,11 +2067,13 @@ class FetchedModuleTests(FixtureTestCase):
         return self.output_base / "external" / f"{name}+" / "MODULE.bazel"
 
     def run_fixture(self, suffix: str, architecture: str | None = None, image: str | None = None,
-                    startup_args: list[str] | None = None) -> Path:
+                    startup_args: list[str] | None = None, build_args: list[str] | None = None,
+                    cross_compile: bool = False, test_executor: Path | None = None) -> Path:
         artifacts = self.root / f"artifacts-{suffix}"
         registry_ci.run(
             self.root, "alpha", "1.0.0", architecture or self.architecture,
-            self.root / f"work-{suffix}", artifacts, str(self.fake_bazel), image, startup_args,
+            self.root / f"work-{suffix}", artifacts, str(self.fake_bazel), image, startup_args, build_args,
+            cross_compile, test_executor,
         )
         return artifacts
 
@@ -2074,8 +2089,9 @@ class FetchedModuleTests(FixtureTestCase):
                                                     "--host_jvm_args=-Dexample=value with spaces"])):
             with self.subTest(startup=startup):
                 commands_path.write_text("")
+                build = ["--jobs=1", "--discard_analysis_cache"] if startup else []
                 with mock.patch.object(registry_ci, "prepare_rust", wraps=registry_ci.prepare_rust) as prepare:
-                    artifacts = self.run_fixture(suffix, startup_args=startup)
+                    artifacts = self.run_fixture(suffix, startup_args=startup, build_args=build)
                 expected = ["--ignore_all_rc_files", f"--output_user_root={self.root / ('work-' + suffix) / 'bazel'}",
                             *startup]
                 commands = [json.loads(line) for line in commands_path.read_text().splitlines()]
@@ -2084,9 +2100,99 @@ class FetchedModuleTests(FixtureTestCase):
                 for command in commands:
                     self.assertEqual(command[:len(expected)], expected)
                     self.assertFalse(any(arg.startswith("--host_jvm_args=") for arg in command[len(expected):]))
+                    for flag in build:
+                        self.assertEqual(flag in command, command[len(expected)] != "info")
                 prepare.assert_called_once()
                 self.assertEqual(prepare.call_args.args[4], [str(self.fake_bazel), *expected])
+                for flag in build:
+                    self.assertIn(flag, prepare.call_args.args[5])
                 self.assertEqual(json.loads((artifacts / "validation.json").read_text())["bazel_startup_args"], startup)
+                self.assertEqual(json.loads((artifacts / "validation.json").read_text())["bazel_build_args"], build)
+                self.assertEqual(json.loads((artifacts / "validation.json").read_text())["test_sandbox_strategy"],
+                                 registry_ci.TEST_SANDBOX_STRATEGY)
+
+    def configure_cross_fixture(self, runtime: dict | None = None) -> Path:
+        self.config["architectures"] = ["amd64", "arm64"]
+        self.config["platforms"] = {"amd64": "@alpha//:amd64", "arm64": "@alpha//:arm64"}
+        write_json(self.config_path, self.config)
+        executor = self.root / "arm executor"
+        runtime = runtime or {"system": "Linux", "machine": "aarch64", "userspace": "arm64",
+                              "debian_codename": "trixie"}
+        executor.write_text(f"#!{sys.executable}\nimport json\nprint(json.dumps({runtime!r}))\n")
+        executor.chmod(0o755)
+        return executor
+
+    def test_cross_build_keeps_host_tools_native_and_binds_external_cache_for_tests(self) -> None:
+        executor = self.configure_cross_fixture()
+        commands_path = self.root / "cross-bazel-commands.jsonl"
+        self.fake_bazel.write_text(self.fake_bazel.read_text().replace(
+            "args = sys.argv[1:]\n", "args = sys.argv[1:]\n"
+            + f"with Path({str(commands_path)!r}).open('a') as log:\n"
+            + "    log.write(json.dumps(args) + '\\n')\n"))
+        image = "runner@sha256:" + "a" * 64
+        native = {"system": "Linux", "machine": "x86_64", "userspace": "amd64"}
+        for suffix, host_platform in (("default-cross", "@alpha//:amd64"),
+                                      ("explicit-cross", "@alpha//:exec_amd64")):
+            with self.subTest(host_platform=host_platform):
+                if suffix == "explicit-cross":
+                    self.config["host_platforms"] = {"amd64": host_platform, "arm64": "@alpha//:exec_arm64"}
+                    write_json(self.config_path, self.config)
+                commands_path.write_text("")
+                with mock.patch.object(registry_ci, "verify_native", return_value=native) as admission, \
+                        mock.patch.object(registry_ci, "require_test_container") as container:
+                    artifacts = self.run_fixture(suffix, architecture="arm64", image=image,
+                                                 cross_compile=True, test_executor=executor)
+                admission.assert_called_once_with("amd64")
+                container.assert_called_once_with(image)
+                commands = [json.loads(line) for line in commands_path.read_text().splitlines()]
+                for command in commands:
+                    if "info" not in command:
+                        self.assertIn("--host_platform=" + host_platform, command)
+                        self.assertIn("--platforms=@alpha//:arm64", command)
+                    wrappers = [arg for arg in command if arg.startswith("--run_under=")]
+                    self.assertEqual(bool(wrappers), "test" in command)
+                    if wrappers:
+                        self.assertEqual(registry_ci.shlex.split(wrappers[0].split("=", 1)[1]),
+                                         [str(executor), "--bind", str(self.root / ("work-" + suffix)),
+                                          "--bind", str(artifacts), "--bind", str(self.output_base), "--"])
+                evidence = json.loads((artifacts / "validation.json").read_text())
+                self.assertEqual(evidence["execution_architecture"], "amd64")
+                self.assertEqual(evidence["architecture"], "arm64")
+                self.assertTrue(evidence["cross_compile"])
+                self.assertEqual(evidence["test_execution"], "qemu-aarch64")
+                self.assertEqual(evidence["test_container_image"], image)
+                self.assertEqual(evidence["host_platform"], host_platform)
+                self.assertEqual(evidence["cross_runtime"]["executor_sha256"],
+                                 hashlib.sha256(executor.read_bytes()).hexdigest())
+                self.assertEqual(json.loads((artifacts / "source-validation.json").read_text())["native"], native)
+
+    def test_cross_runtime_must_match_target_architecture_and_distribution(self) -> None:
+        expected = {"system": "Linux", "machine": "aarch64", "userspace": "arm64", "debian_codename": "trixie"}
+        for field, value in (("system", "Darwin"), ("machine", "x86_64"),
+                             ("userspace", "amd64"), ("debian_codename", "bookworm")):
+            with self.subTest(field=field):
+                executor = self.configure_cross_fixture({**expected, field: value})
+                with mock.patch.object(registry_ci, "verify_native", return_value={"userspace": "amd64"}), \
+                        mock.patch.object(registry_ci, "require_test_container"), \
+                        mock.patch.object(registry_ci, "prepare_rust") as prepare:
+                    with self.assertRaisesRegex(registry_ci.RegistryError, "ARM64 Debian Trixie runtime"):
+                        self.run_fixture("wrong-runtime-" + field, architecture="arm64",
+                                         cross_compile=True, test_executor=executor)
+                prepare.assert_not_called()
+
+    def test_cross_compilation_rejects_other_directions_or_missing_executor(self) -> None:
+        executor = self.configure_cross_fixture()
+        for target, cross, selected, error in (
+                ("amd64", True, executor, "ARM64 targets on AMD64"),
+                ("amd64", False, executor, "requires explicit cross compilation"),
+                ("arm64", True, None, "absolute --test-executor"),
+                ("arm64", True, Path("relative-executor"), "absolute --test-executor")):
+            with self.subTest(target=target, cross=cross, executor=selected), \
+                    mock.patch.object(registry_ci, "verify_native", return_value={"userspace": "amd64"}), \
+                    mock.patch.object(registry_ci, "require_test_container"):
+                with self.assertRaisesRegex(registry_ci.RegistryError, error):
+                    self.run_fixture("invalid-cross", architecture=target, cross_compile=cross,
+                                     test_executor=selected)
 
     def test_checkout_owned_by_another_user_retains_source_head(self) -> None:
         config = self.root / "isolated-git-config"
@@ -2237,6 +2343,44 @@ a.output.write_text(json.dumps(r))
         validation = json.loads((artifacts / "validation.json").read_text())
         self.assertEqual(validation["test_runtime_flags"], [flag])
         self.assertEqual(validation["test_runtime_preparation"], self.config["test_runtime_preparation"])
+
+    def test_cross_runtime_preparation_executes_owner_helper_through_guest(self) -> None:
+        self.architecture = "arm64"
+        helper = self.runtime_fixture()
+        consumer = self.root / "cross runtime consumer"
+        consumer.mkdir()
+        (consumer / "MODULE.bazel").write_text('module(name = "registry_ci_consumer")\n')
+        write_json(consumer / "MODULE.bazel.lock", {"lockFileVersion": 13})
+        artifacts = self.root / "cross runtime artifacts"
+        artifacts.mkdir()
+        captured = artifacts / "guest-command.json"
+        executor = self.root / "guest executor"
+        executor.write_text(
+            "#!/usr/bin/python3 -IS\n"
+            "import json, os, sys\nfrom pathlib import Path\n"
+            "command = sys.argv[sys.argv.index('--') + 1:]\n"
+            "assert command[0] == '/usr/bin/python3'\n"
+            f"Path({str(captured)!r}).write_text(json.dumps(sys.argv[1:]))\n"
+            "os.execv(sys.executable, [sys.executable, '-I', '-S', *command[1:]])\n"
+        )
+        executor.chmod(0o755)
+        prefix = [str(executor), "--bind", str(self.output_base),
+                  "--bind", str(consumer), "--bind", str(artifacts), "--"]
+        image = "debian:trixie@sha256:" + "b" * 64
+        with mock.patch.object(registry_ci, "require_test_container") as guard:
+            flags = registry_ci.prepare_test_runtime(
+                self.config, self.fetched.parent, consumer, artifacts, "arm64", image, prefix)
+        guard.assert_called_once_with(image)
+        command = json.loads(captured.read_text())
+        self.assertEqual(command[:len(prefix) - 1], prefix[1:])
+        self.assertEqual(command[len(prefix) - 1:len(prefix) + 2],
+                         ["/usr/bin/python3", "-B", str(helper.resolve())])
+        receipt = json.loads((artifacts / "test-runtime.json").read_text())
+        self.assertEqual(receipt["architecture"], "arm64")
+        self.assertEqual(flags, ["--test_env=SONIC_TEST_RUNTIME_ID=" + receipt["SONIC_TEST_RUNTIME_ID"]])
+        self.assertEqual((artifacts / "test-runtime-prepare.py").read_bytes(), helper.read_bytes())
+        self.assertEqual((artifacts / "test-runtime.MODULE.bazel.lock").read_bytes(),
+                         (consumer / "MODULE.bazel.lock").read_bytes())
 
     def test_runtime_setup_refuses_changed_helpers_and_fetched_module_before_execution(self) -> None:
         helper = self.runtime_fixture()

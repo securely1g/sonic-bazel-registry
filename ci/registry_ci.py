@@ -15,6 +15,7 @@ from pathlib import Path, PurePosixPath
 import platform
 import posixpath
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -28,13 +29,14 @@ from urllib.request import urlopen
 ROOT = Path(__file__).resolve().parents[1]
 RUNNERS = {
     "amd64": ["self-hosted", "Linux", "X64", "debian-trixie-container"],
-    "arm64": ["ubuntu-24.04-arm"],
+    "arm64": ["self-hosted", "Linux", "X64", "debian-trixie-container"],
 }
 HTTP_DOWNLOAD_FLAGS = (
     "--http_connector_attempts=12",
     "--http_connector_retry_max_timeout=10s",
     "--http_max_parallel_downloads=4",
 )
+TEST_SANDBOX_STRATEGY = "processwrapper-sandbox,local"
 NAME = re.compile(r"[a-z][a-z0-9._-]*\Z")
 VERSION = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+-]*\Z")
 LABEL = re.compile(r"@[a-z][a-z0-9._-]*//[A-Za-z0-9_./+-]*:[A-Za-z0-9_./+-]+\Z")
@@ -303,7 +305,7 @@ def validate_entry(root: Path, module: str, version: str) -> dict:
     require(isinstance(architectures, list) and bool(architectures)
             and all(isinstance(a, str) and a in RUNNERS for a in architectures)
             and len(set(architectures)) == len(architectures),
-            "architectures must list supported, unique native architectures")
+            "architectures must list supported, unique target architectures")
     platforms = config["platforms"]
     require(isinstance(platforms, dict) and set(platforms) == set(architectures)
             and all(isinstance(label, str) and LABEL.fullmatch(label) for label in platforms.values()),
@@ -1051,7 +1053,8 @@ def prepare_rust(config: dict, consumer: Path, work_dir: Path, artifacts: Path,
     preparation_flags = [flag for flag in flags
                          if flag.startswith(("--registry=", "--lockfile_mode=", "--experimental_downloader_config=",
                                              "--http_connector_attempts=", "--http_connector_retry_max_timeout=",
-                                             "--http_max_parallel_downloads="))]
+                                             "--http_max_parallel_downloads=", "--jobs=",
+                                             "--discard_analysis_cache"))]
     command = [sys.executable, str(helper), "--workspace", str(consumer),
                "--shared-only", "--shared-dependency",
                f"{preparation['module']}={preparation['repo_name']}",
@@ -1134,7 +1137,8 @@ def require_test_container(image_reference: str | None) -> None:
 
 
 def prepare_test_runtime(config: dict, source: Path, consumer: Path, artifacts: Path,
-                         architecture: str, image_reference: str | None) -> list[str]:
+                         architecture: str, image_reference: str | None,
+                         executor_prefix: list[str] | None = None) -> list[str]:
     """Reuse the fetched owner's locked setup; retain its receipt and test identity."""
     preparation = config.get("test_runtime_preparation")
     if preparation is None:
@@ -1152,14 +1156,15 @@ def prepare_test_runtime(config: dict, source: Path, consumer: Path, artifacts: 
     shutil.copy2(lock, artifacts / "test-runtime.MODULE.bazel.lock")
     (artifacts / "test-runtime-prepare.py").write_bytes(content)
     receipt_path = artifacts / "test-runtime.json"
-    run_logged([sys.executable, "-B", str(helper), "--lock", str(lock),
+    interpreter = "/usr/bin/python3" if executor_prefix else sys.executable
+    run_logged([*(executor_prefix or []), interpreter, "-B", str(helper), "--lock", str(lock),
                 "--image-reference", image_reference, "--output", str(receipt_path)],
                consumer, artifacts / "test-runtime-preparation.log")
     receipt = read_json(receipt_path)
     require(receipt.get("architecture") == architecture and receipt.get("image_reference") == image_reference
             and receipt.get("lock_sha256") == lock_hash
             and hashlib.sha256(lock.read_bytes()).hexdigest() == lock_hash,
-            "Test runtime receipt must match the native architecture, container and consumer lock")
+            "Test runtime receipt must match the target architecture, container and consumer lock")
     runtime_id = receipt.get("SONIC_TEST_RUNTIME_ID")
     require(isinstance(runtime_id, str) and re.fullmatch(r"[0-9a-f]{64}", runtime_id) is not None,
             "Test runtime preparation must provide SONIC_TEST_RUNTIME_ID")
@@ -1171,15 +1176,94 @@ def prepare_test_runtime(config: dict, source: Path, consumer: Path, artifacts: 
     return [f"--test_env=SONIC_TEST_RUNTIME_ID={runtime_id}"]
 
 
+def python_runtime_identity(runtime: Path, consumer: Path, log: Path,
+                            executor_prefix: list[str] | None = None) -> dict:
+    """Inspect the real interpreter, including its architecture and exact ABI."""
+    executable = (runtime / "bin/python3").resolve(strict=True)
+    require(executable.is_relative_to(runtime.resolve()), "Python interpreter escapes its runtime")
+    with executable.open("rb") as stream:
+        header = stream.read(20)
+    require(header[:6] == b"\x7fELF\x02\x01", "Python runtime requires a 64-bit little-endian ELF interpreter")
+    machine = int.from_bytes(header[18:20], "little")
+    require(machine == (183 if executor_prefix else 62), "Python runtime has the wrong ELF architecture")
+    probe = (
+        "import json, platform, sys; "
+        "print(json.dumps(dict(machine=platform.machine(), version=list(sys.version_info), "
+        "implementation=sys.implementation.name, cache_tag=sys.implementation.cache_tag, abiflags=sys.abiflags)))"
+    )
+    run_logged([*(executor_prefix or []), str(executable), "-I", "-S", "-c", probe], consumer, log)
+    identity = read_json(log)
+    require(identity.get("machine") == ("aarch64" if executor_prefix else "x86_64"),
+            "Python runtime must execute with its actual architecture")
+    identity["elf_machine"] = machine
+    with executable.open("rb") as stream:
+        identity["interpreter_sha256"] = hashlib.file_digest(stream, "sha256").hexdigest()
+    identity["libraries"] = {}
+    for library in sorted((runtime / "lib").glob("libpython*.so.*")):
+        require(library.resolve().is_relative_to(runtime.resolve()), "Python library escapes its runtime")
+        with library.open("rb") as stream:
+            identity["libraries"][library.name] = hashlib.file_digest(stream, "sha256").hexdigest()
+    return identity
+
+
+def prepare_cross_python_runtimes(bazel_prefix: list[str], flags: list[str], test_targets: list[str],
+                                  output_base: Path, consumer: Path, artifacts: Path,
+                                  executor_prefix: list[str]) -> list[dict]:
+    """Use the locked ARM peers of exec-configured Python only inside tests.
+
+    Some unchanged test launchers embed the execution toolchain's Python even
+    while testing an ARM binary. Native build actions keep that AMD64 runtime;
+    PRoot maps its complete, matching ARM runtime into the test's filesystem.
+    """
+    run_logged([*bazel_prefix, "cquery", *flags, "set(" + " ".join(test_targets) + ")",
+                "--output=label"], consumer, artifacts / "cross-test-analysis.log")
+    external = output_base / "external"
+    runtimes = sorted(path for path in external.iterdir()
+                      if path.name.startswith("rules_python+") and "+python+python_" in path.name
+                      and path.name.endswith("_x86_64-unknown-linux-gnu") and path.is_dir())
+    fetch_flags = [flag for flag in flags if flag.startswith((
+        "--registry=", "--lockfile_mode=", "--experimental_downloader_config=", "--override_module=",
+        "--override_repository=", "--http_connector_attempts=", "--http_connector_retry_max_timeout=",
+        "--http_max_parallel_downloads="))]
+    mappings = []
+    for index, native in enumerate(runtimes):
+        require((native / "STANDALONE_INTERPRETER").is_file(), "Expected a declared standalone Python runtime")
+        arm_name = native.name.removesuffix("_x86_64-unknown-linux-gnu") + "_aarch64-unknown-linux-gnu"
+        run_logged([*bazel_prefix, "fetch", *fetch_flags, "--repo=@@" + arm_name], consumer,
+                   artifacts / f"cross-python-{index}-fetch.log")
+        arm = external / arm_name
+        require((arm / "STANDALONE_INTERPRETER").is_file(), "Missing declared ARM Python runtime")
+        native_identity = python_runtime_identity(native, consumer, artifacts / f"cross-python-{index}-native.json")
+        arm_identity = python_runtime_identity(arm, consumer, artifacts / f"cross-python-{index}-arm.json",
+                                               executor_prefix)
+        require(all(native_identity.get(key) == arm_identity.get(key)
+                    for key in ("version", "implementation", "cache_tag", "abiflags")),
+                "ARM test Python must match the locked native Python version and ABI")
+        mappings.append({"source": str(arm.resolve()), "destination": str(native.resolve()),
+                         "native_repository": native.name, "arm_repository": arm_name,
+                         "native": native_identity, "arm": arm_identity})
+    (artifacts / "cross-python-runtimes.json").write_text(json.dumps(mappings, indent=2) + "\n")
+    return mappings
+
+
 def run(root: Path, module: str, version: str, architecture: str,
         work_dir: Path, artifacts: Path, bazel: str = "bazel",
         test_container_image: str | None = None,
-        bazel_startup_args: list[str] | None = None) -> None:
+        bazel_startup_args: list[str] | None = None,
+        bazel_build_args: list[str] | None = None,
+        cross_compile: bool = False, test_executor: Path | None = None) -> None:
     config = validate_entry(root, module, version)
     require(architecture in config["architectures"], "Architecture is not configured for this version")
-    native = verify_native(architecture)
-    if config.get("test_runtime_preparation"):
+    require(not cross_compile or architecture == "arm64", "Cross compilation supports ARM64 targets on AMD64")
+    require(cross_compile or test_executor is None, "A test executor requires explicit cross compilation")
+    native = verify_native("amd64" if cross_compile else architecture)
+    if config.get("test_runtime_preparation") or cross_compile:
         require_test_container(test_container_image)
+    if cross_compile:
+        require(test_executor is not None and test_executor.is_absolute()
+                and test_executor.is_file() and os.access(test_executor, os.X_OK),
+                "ARM64 cross compilation requires an executable absolute --test-executor path")
+        require("amd64" in config["platforms"], "Cross compilation requires a declared AMD64 execution platform")
     work_dir, artifacts = work_dir.resolve(), artifacts.resolve()
     require(not work_dir.exists() or not any(work_dir.iterdir()), "work-dir must be fresh and empty")
     require(not artifacts.is_relative_to(work_dir), "artifacts must be outside work-dir")
@@ -1244,6 +1328,26 @@ def run(root: Path, module: str, version: str, architecture: str,
         (consumer / ".bazelversion").write_text("8.5.1\n")
         (consumer / ".gitignore").write_text("MODULE.bazel.lock\n")
         shutil.copy2(consumer / "MODULE.bazel", artifacts / "consumer.MODULE.bazel")
+        executor_prefix = []
+        cross_runtime = None
+        if cross_compile:
+            executor_prefix = [str(test_executor), "--bind", str(work_dir), "--bind", str(artifacts), "--"]
+            probe = (
+                "import json, pathlib, platform, subprocess; "
+                "release = dict(line.split('=', 1) for line in pathlib.Path('/etc/os-release').read_text().splitlines() "
+                "if '=' in line); "
+                "print(json.dumps(dict(system=platform.system(), machine=platform.machine(), "
+                "userspace=subprocess.check_output(['dpkg', '--print-architecture'], text=True).strip(), "
+                "debian_codename=release.get('VERSION_CODENAME', '').strip(chr(34)))))"
+            )
+            probe_log = artifacts / "cross-runtime-probe.json"
+            run_logged([*executor_prefix, "/usr/bin/python3", "-I", "-S", "-c", probe], consumer, probe_log)
+            cross_runtime = read_json(probe_log)
+            require(cross_runtime == {"system": "Linux", "machine": "aarch64", "userspace": "arm64",
+                                      "debian_codename": "trixie"},
+                    "Cross tests must execute in an ARM64 Debian Trixie runtime")
+            cross_runtime["executor_sha256"] = hashlib.sha256(test_executor.read_bytes()).hexdigest()
+            cross_runtime["executor_prefix"] = executor_prefix
         prefix = [bazel, "--ignore_all_rc_files", f"--output_user_root={work_dir / 'bazel'}",
                   *(bazel_startup_args or [])]
         flags = [f"--registry={root.resolve().as_uri()}", "--registry=https://bcr.bazel.build/",
@@ -1251,9 +1355,13 @@ def run(root: Path, module: str, version: str, architecture: str,
                  f"--experimental_downloader_config={root.resolve() / 'ci/source_mirrors.cfg'}",
                  *HTTP_DOWNLOAD_FLAGS,
                  "--remote_download_regex=(^|.*/)tools/build_tools/kernel_runtime_(amd64|arm64)(/.*)?$",
-                 *config.get("build_flags", [])]
-        if "host_platforms" in config:
-            flags.append(f"--host_platform={config['host_platforms'][architecture]}")
+                 *config.get("build_flags", []), *(bazel_build_args or [])]
+        execution_architecture = "amd64" if cross_compile else architecture
+        host_platform = config.get("host_platforms", {}).get(execution_architecture)
+        if cross_compile and host_platform is None:
+            host_platform = config["platforms"]["amd64"]
+        if host_platform is not None:
+            flags.append(f"--host_platform={host_platform}")
         if config.get("rust_toolchain", {}).get("mangled_allocator_libraries", False):
             flags.append("--@rules_rust//rust/settings:experimental_use_allocator_libraries_with_mangled_symbols=True")
         try:
@@ -1272,6 +1380,10 @@ def run(root: Path, module: str, version: str, architecture: str,
                             declared_trees, execution_root)
             output_base = Path(subprocess.check_output([*prefix, "info", *info_flags, "output_base"],
                                                       cwd=consumer, text=True).strip())
+            if executor_prefix and not output_base.resolve().is_relative_to(work_dir):
+                # Startup options may choose a cache outside the work directory.
+                # Runfiles symlinks and locked runtime packages still need it.
+                executor_prefix[-1:-1] = ["--bind", str(output_base.resolve())]
             fetched = fetched_modules(output_base, module)
             require(len(fetched) == 1, f"Expected one fetched repository for {module}, found {len(fetched)}")
             registry_module = root / "modules" / module / version / "MODULE.bazel"
@@ -1286,12 +1398,25 @@ def run(root: Path, module: str, version: str, architecture: str,
                     "Fetched MODULE.bazel differs from registry MODULE.bazel")
             shutil.copy2(fetched[0], artifacts / "fetched.MODULE.bazel")
             require((consumer / "MODULE.bazel.lock").is_file(), "Bazel did not generate MODULE.bazel.lock resolution evidence")
+            if executor_prefix:
+                mappings = prepare_cross_python_runtimes(prefix, flags, config["test_targets"], output_base,
+                                                         consumer, artifacts, executor_prefix)
+                cross_runtime["python_runtimes"] = mappings
+                for mapping in mappings:
+                    executor_prefix[-1:-1] = ["--bind-at", mapping["source"], mapping["destination"]]
             test_flags = prepare_test_runtime(config, fetched[0].parent, consumer, artifacts,
-                                              architecture, test_container_image)
+                                              architecture, test_container_image, executor_prefix or None)
+            if executor_prefix:
+                test_flags.append("--run_under=" + shlex.join(executor_prefix))
             # Export HOME before Bazel's test setup assigns TEST_TMPDIR. With
             # HOME absent, that shell assignment is invisible to Python and
             # expanduser() falls back to the account home outside the sandbox.
+            # Tests can hard-link declared runfiles into TEST_TMPDIR. Linux's
+            # separate bind mounts reject those links even on one filesystem.
+            # Keep input staging within the disposable container, and leave
+            # build action strategies unchanged.
             run_logged([*prefix, "test", *flags, *test_flags, "--test_env=HOME=",
+                        f"--strategy=TestRunner={TEST_SANDBOX_STRATEGY}",
                         "--nocache_test_results", "--test_output=errors",
                         f"--build_event_json_file={artifacts / 'test-events.jsonl'}", *config["test_targets"]],
                        consumer, artifacts / "test.log")
@@ -1305,11 +1430,18 @@ def run(root: Path, module: str, version: str, architecture: str,
                 shutil.copy2(selected[0], artifacts / f"consumer-dep-{name}.MODULE.bazel")
             (artifacts / "validation.json").write_text(json.dumps({
                 "module": module, "version": version, "architecture": architecture,
+                "execution_architecture": execution_architecture,
+                "cross_compile": cross_compile,
+                "test_execution": "qemu-aarch64" if cross_compile else "native",
+                "cross_runtime": cross_runtime,
+                "test_container_image": test_container_image,
                 "build_targets": config["build_targets"], "passed_tests": config["test_targets"],
                 "build_flags": config.get("build_flags", []),
                 "bazel_startup_args": bazel_startup_args or [],
+                "bazel_build_args": bazel_build_args or [],
+                "test_sandbox_strategy": TEST_SANDBOX_STRATEGY,
                 "platform": config["platforms"][architecture],
-                "host_platform": config.get("host_platforms", {}).get(architecture),
+                "host_platform": host_platform,
                 "consumer_deps": config["consumer_deps"],
                 "integration_test_module": config.get("integration_test_module"),
                 "go_sdk": config.get("go_sdk"),
@@ -1384,6 +1516,12 @@ def main() -> None:
     runner.add_argument("--bazel", default="bazel")
     runner.add_argument("--bazel-startup-arg", action="append", default=[],
                         help="repeatable Bazel startup option; use --bazel-startup-arg=--option=value")
+    runner.add_argument("--bazel-build-arg", action="append", default=[],
+                        help="repeatable Bazel build/test/query option; use --bazel-build-arg=--option=value")
+    runner.add_argument("--cross-compile", action="store_true",
+                        help="build ARM64 targets on AMD64 and execute tests with an explicit emulated runtime")
+    runner.add_argument("--test-executor", type=Path,
+                        help="absolute ARM64 runtime wrapper, supporting --bind PATH then -- COMMAND")
     runner.add_argument("--test-container-image",
                         help="opt into runtime preparation inside this disposable container, including its digest")
     args = parser.parse_args()
@@ -1394,12 +1532,13 @@ def main() -> None:
             args.output.parent.mkdir(parents=True, exist_ok=True)
             args.output.write_text(json.dumps(result, indent=2) + "\n")
             print(json.dumps(result, separators=(",", ":")))
-            print(f"Selected {len(result['include'])} native validation jobs", file=sys.stderr)
+            print(f"Selected {len(result['include'])} validation jobs", file=sys.stderr)
         elif args.command == "sync-module":
             sync_module(ROOT, args.module, args.version, args.check)
         else:
             run(ROOT, args.module, args.version, args.architecture, args.work_dir, args.artifacts,
-                args.bazel, args.test_container_image, args.bazel_startup_arg)
+                args.bazel, args.test_container_image, args.bazel_startup_arg, args.bazel_build_arg,
+                args.cross_compile, args.test_executor)
     except (RegistryError, OSError, subprocess.CalledProcessError) as error:
         parser.exit(1, f"Registry CI failed: {error}\n")
 
