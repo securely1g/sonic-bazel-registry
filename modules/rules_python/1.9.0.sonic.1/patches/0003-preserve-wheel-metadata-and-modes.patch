@@ -1,0 +1,246 @@
+diff --git a/python/private/py_wheel.bzl b/python/private/py_wheel.bzl
+--- a/python/private/py_wheel.bzl
++++ b/python/private/py_wheel.bzl
+@@ -178,6 +178,23 @@
+         doc = "A string specifying the email address of the package author.",
+         default = "",
+     ),
++    "maintainer": attr.string(
++        doc = "A string specifying the maintainer of the package.",
++        default = "",
++    ),
++    "maintainer_email": attr.string(
++        doc = "A string specifying the email address of the package maintainer.",
++        default = "",
++    ),
++    "keywords": attr.string(
++        doc = "A string specifying the package's search keywords.",
++        default = "",
++    ),
++    "regular_file_mode": attr.string(
++        doc = "Octal permissions for wheel members. Empty preserves the legacy 0777 mode.",
++        default = "",
++        values = ["", "0644", "0755"],
++    ),
+     "classifiers": attr.string_list(
+         doc = "A list of strings describing the categories for the package. For valid classifiers see https://pypi.org/classifiers",
+     ),
+@@ -206,6 +223,9 @@
+     "license": attr.string(
+         doc = "A string specifying the license of the package.",
+         default = "",
++    ),
++    "license_files": attr.string_list(
++        doc = "License-File paths for Core Metadata 2.4. Supply each file under licenses/ using extra_distinfo_files.",
+     ),
+     "project_urls": attr.string_dict(
+         doc = ("A string dict specifying additional browsable URLs for the project and corresponding labels, " +
+@@ -361,6 +381,8 @@
+     args.add("--platform", ctx.attr.platform)
+     args.add("--out", outfile)
+     args.add("--name_file", name_file)
++    if ctx.attr.regular_file_mode:
++        args.add("--regular_file_mode", ctx.attr.regular_file_mode)
+     args.add_all(ctx.attr.strip_path_prefixes, format_each = "--strip_path_prefix=%s")
+ 
+     # Pass workspace status files if stamping is enabled
+@@ -374,17 +396,30 @@
+     # Note: Description file and version are not embedded into metadata.txt yet,
+     # it will be done later by wheelmaker script.
+     metadata_file = ctx.actions.declare_file(ctx.attr.name + ".metadata.txt")
+-    metadata_contents = ["Metadata-Version: 2.1"]
++    metadata_version = "2.4" if ctx.attr.license_files else "2.1"
++    metadata_contents = ["Metadata-Version: %s" % metadata_version]
+     metadata_contents.append("Name: %s" % ctx.attr.distribution)
+ 
+     if ctx.attr.author:
+         metadata_contents.append("Author: %s" % ctx.attr.author)
+     if ctx.attr.author_email:
+         metadata_contents.append("Author-email: %s" % ctx.attr.author_email)
++    if ctx.attr.maintainer:
++        metadata_contents.append("Maintainer: %s" % ctx.attr.maintainer)
++    if ctx.attr.maintainer_email:
++        metadata_contents.append("Maintainer-email: %s" % ctx.attr.maintainer_email)
++    if ctx.attr.keywords:
++        metadata_contents.append("Keywords: %s" % ctx.attr.keywords)
+     if ctx.attr.homepage:
+         metadata_contents.append("Home-page: %s" % ctx.attr.homepage)
+     if ctx.attr.license:
+         metadata_contents.append("License: %s" % ctx.attr.license)
++    for license_file in ctx.attr.license_files:
++        if not license_file or license_file == "." or license_file.startswith("/") or "\\" in license_file or ".." in license_file.split("/"):
++            fail("license_files paths must be relative, use '/' separators and contain no '..': %r" % license_file)
++        if "licenses/" + license_file not in ctx.attr.extra_distinfo_files.values():
++            fail("license_files entry %r requires extra_distinfo_files destination %r" % (license_file, "licenses/" + license_file))
++        metadata_contents.append("License-File: %s" % license_file)
+     if ctx.attr.description_content_type:
+         metadata_contents.append("Description-Content-Type: %s" % ctx.attr.description_content_type)
+     elif ctx.attr.description_file:
+diff --git a/tools/wheelmaker.py b/tools/wheelmaker.py
+--- a/tools/wheelmaker.py
++++ b/tools/wheelmaker.py
+@@ -133,9 +133,11 @@
+         strip_path_prefixes=None,
+         compression=zipfile.ZIP_DEFLATED,
+         quote_all_filenames: bool = False,
++        regular_file_mode: str = "",
+         **kwargs,
+     ):
+         self._distribution_prefix = distribution_prefix
++        self._regular_file_mode = int(regular_file_mode, 8) if regular_file_mode else 0o777
+ 
+         self._strip_path_prefixes = strip_path_prefixes or []
+         # Entries for the RECORD file as (filename, digest, size) tuples.
+@@ -220,9 +222,7 @@
+         # executable bit to be preserved after extraction
+         # https://github.com/pypa/pip/blob/23.3.2/src/pip/_internal/utils/unpacking.py#L96-L100
+         # https://github.com/pypa/installer/blob/0.7.0/src/installer/sources.py#L310-L313
+-        zinfo.external_attr = (
+-            stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO | stat.S_IFREG
+-        ) << 16  # permissions: -rwxrwxrwx
++        zinfo.external_attr = (self._regular_file_mode | stat.S_IFREG) << 16
+         zinfo.compress_type = self.compression
+         return zinfo
+ 
+@@ -261,6 +261,7 @@
+         compress,
+         outfile=None,
+         strip_path_prefixes=None,
++        regular_file_mode="",
+     ):
+         self._name = name
+         self._version = normalize_pep440(version)
+@@ -271,6 +272,7 @@
+         self._outfile = outfile
+         self._strip_path_prefixes = strip_path_prefixes
+         self._compress = compress
++        self._regular_file_mode = regular_file_mode
+         self._wheelname_fragment_distribution_name = escape_filename_distribution_name(
+             self._name
+         )
+@@ -288,6 +290,7 @@
+             distribution_prefix=self._distribution_prefix,
+             strip_path_prefixes=self._strip_path_prefixes,
+             compression=zipfile.ZIP_DEFLATED if self._compress else zipfile.ZIP_STORED,
++            regular_file_mode=self._regular_file_mode,
+         )
+         return self
+ 
+@@ -452,6 +455,12 @@
+         help="Disable compression of the final archive",
+     )
+     output_group.add_argument(
++        "--regular_file_mode",
++        choices=["", "0644", "0755"],
++        default="",
++        help="Octal permissions for all regular wheel members; empty preserves 0777.",
++    )
++    output_group.add_argument(
+         "--name_file",
+         type=Path,
+         help="A file where the canonical name of the wheel will be written",
+@@ -580,6 +589,7 @@
+         outfile=arguments.out,
+         strip_path_prefixes=strip_prefixes,
+         compress=not arguments.no_compress,
++        regular_file_mode=arguments.regular_file_mode,
+     ) as maker:
+         for package_filename, real_filename in all_files:
+             maker.add_file(package_filename, real_filename)
+diff --git a/tests/tools/wheelmaker_test.py b/tests/tools/wheelmaker_test.py
+--- a/tests/tools/wheelmaker_test.py
++++ b/tests/tools/wheelmaker_test.py
+@@ -1,7 +1,39 @@
+ import io
++import stat
++import tempfile
++import zipfile
++from pathlib import Path
+ import unittest
+ 
+ import tools.wheelmaker as wheelmaker
++
++
++class RegularFileModeTest(unittest.TestCase):
++    """Wheel consumers observe declared modes for source and generated members."""
++
++    def test_declared_modes_and_legacy_default(self):
++        for declared, expected in [("", 0o777), ("0644", 0o644), ("0755", 0o755)]:
++            with self.subTest(mode=declared), tempfile.TemporaryDirectory() as temp:
++                source = Path(temp) / "source.py"
++                source.write_text("answer = 42\n")
++                # Archive permissions must follow the declaration, not source mode.
++                source.chmod(0o755 if expected == 0o644 else 0o644)
++                buf = io.BytesIO()
++                with wheelmaker._WhlFile(
++                    buf,
++                    mode="w",
++                    distribution_prefix="example-1.0",
++                    regular_file_mode=declared,
++                ) as whl:
++                    whl.add_file("example/source.py", source)
++                    whl.add_string(whl.distinfo_path("METADATA"), "Name: example\n")
++                    whl.add_recordfile()
++                with zipfile.ZipFile(buf) as archive:
++                    self.assertEqual(len(archive.infolist()), 3)
++                    for member in archive.infolist():
++                        mode = member.external_attr >> 16
++                        self.assertTrue(stat.S_ISREG(mode), member.filename)
++                        self.assertEqual(stat.S_IMODE(mode), expected, member.filename)
+ 
+ 
+ class QuoteAllFilenamesTest(unittest.TestCase):
+diff --git a/tests/py_wheel/py_wheel_tests.bzl b/tests/py_wheel/py_wheel_tests.bzl
+--- a/tests/py_wheel/py_wheel_tests.bzl
++++ b/tests/py_wheel/py_wheel_tests.bzl
+@@ -212,3 +212,50 @@
+         basic_tests = _basic_tests,
+         tests = _tests,
+     )
++
++
++def _test_missing_license_file(name):
++    rt_util.helper_target(
++        py_wheel,
++        name = name + "_subject",
++        distribution = "example",
++        version = "1.0",
++        license_files = ["LICENSE"],
++    )
++    analysis_test(
++        name = name,
++        impl = _test_missing_license_file_impl,
++        target = name + "_subject",
++        expect_failure = True,
++    )
++
++def _test_missing_license_file_impl(env, target):
++    env.expect.that_target(target).failures().contains_predicate(
++        matching.str_matches("requires extra_distinfo_files destination"),
++    )
++
++_tests.append(_test_missing_license_file)
++
++def _test_invalid_license_path(name):
++    for suffix, path in [("parent", "../LICENSE"), ("absolute", "/LICENSE"), ("backslash", "licenses\\LICENSE"), ("empty", ""), ("directory", ".")]:
++        rt_util.helper_target(
++            py_wheel,
++            name = name + "_" + suffix + "_subject",
++            distribution = "example",
++            version = "1.0",
++            license_files = [path],
++        )
++        analysis_test(
++            name = name + "_" + suffix,
++            impl = _test_invalid_license_path_impl,
++            target = name + "_" + suffix + "_subject",
++            expect_failure = True,
++        )
++    native.test_suite(name = name, tests = [name + "_" + s for s in ["parent", "absolute", "backslash", "empty", "directory"]])
++
++def _test_invalid_license_path_impl(env, target):
++    env.expect.that_target(target).failures().contains_predicate(
++        matching.str_matches("license_files paths must be relative"),
++    )
++
++_tests.append(_test_invalid_license_path)
