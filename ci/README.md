@@ -512,8 +512,10 @@ an ARM64 container-runner host is available. An AMD64 runner cannot provide
 native ARM64 validation. Both architectures retain the
 `debian:trixie-20260918` job container pinned to its multiarch image digest;
 runtime preparation requires Debian Trixie. The self-hosted runner installation
-must support these Docker job containers, including Docker access and matching
-workspace and runner-tool mount paths. The workflow installs the compiler and
+must start and health-check its isolated Docker daemon before launching the
+Actions listener: GitHub creates the job container before any workflow steps
+run. The daemon must see the runner workspace and tool paths used for mounts.
+The workflow installs the compiler and
 package-test tools in the container and downloads Bazel 8.5.1 with a pinned SHA256
 for the native CPU. GitHub actions are pinned to commit SHAs, checkout does not
 persist credentials, and the workflow uses read-only repository permissions.
