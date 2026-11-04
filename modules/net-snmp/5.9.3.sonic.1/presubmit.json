@@ -1,0 +1,40 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.25-17a1e555291c64be1a6ff008f33352bffc4f8e5c",
+      "repo_name": "sonic_build_infra"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_bookworm",
+    "arm64": "@sonic_build_infra//platforms:aarch64_bookworm"
+  },
+  "build_targets": [
+    "@net-snmp//:snmpd_layout",
+    "@net-snmp//:snmptrapd_layout",
+    "@net-snmp//:snmp_layout",
+    "@net-snmp//:libsnmp_base_layout",
+    "@net-snmp//:libsnmp40_layout",
+    "@net-snmp//:libnetsnmptrapd40_layout",
+    "@net-snmp//:libsnmp_dev_layout",
+    "@net-snmp//:libsnmp_perl_layout",
+    "@net-snmp//:tkmib_layout",
+    "@net-snmp//:snmpd_elf.debug_symbols",
+    "@net-snmp//:snmptrapd_elf.debug_symbols",
+    "@net-snmp//:snmp_elf.debug_symbols",
+    "@net-snmp//:libsnmp40_elf.debug_symbols",
+    "@net-snmp//:libnetsnmptrapd40_elf.debug_symbols",
+    "@net-snmp//:libsnmp-dev_elf.debug_symbols",
+    "@net-snmp//:libsnmp-perl_elf.debug_symbols"
+  ],
+  "test_targets": [
+    "@net-snmp//:native_contract_test",
+    "@net-snmp//:package_contract_test"
+  ],
+  "generated_module_overlay": true
+}

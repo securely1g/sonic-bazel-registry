@@ -1,0 +1,16 @@
+diff --git a/ygot/render.go b/ygot/render.go
+--- a/ygot/render.go
++++ b/ygot/render.go
+@@ -986,7 +986,11 @@
+ 		}
+ 
+ 		var value interface{}
+-		value, err = jsonValue(field, pmod, args, tagPaths)
++		if util.IsYgotAnnotation(fType) {
++			value, err = jsonAnnotationSlice(field)
++		} else {
++			value, err = jsonValue(field, pmod, args, tagPaths)
++		}
+ 
+ 		if err != nil {
+ 			errs.Add(err)

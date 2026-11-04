@@ -1,0 +1,106 @@
+diff --git a/ygot/struct_validation_map.go b/ygot/struct_validation_map.go
+--- a/ygot/struct_validation_map.go
++++ b/ygot/struct_validation_map.go
+@@ -667,6 +667,7 @@
+ 		{srcKeys, srcField},
+ 	}
+ 	existingKeys := map[interface{}]reflect.Value{}
++	emittedKeys := map[interface{}]reflect.Value{}
+ 
+ 	for _, dstKey := range dstField.MapKeys()  {
+ 		existingKeys[dstKey.Interface()] = dstField.MapIndex(dstKey)
+@@ -689,6 +690,14 @@
+ 				return err
+ 			}
+ 			nm.SetMapIndex(k, d)
++			emittedKeys[k.Interface()] = d
++		}
++	}
++	// Preserve destination-only entries. Use the same semantic key comparison
++	// as the source merge so equal pointer-containing keys are not duplicated.
++	for _, k := range dstField.MapKeys() {
++		if _, err := compareMapKeys(emittedKeys, k.Interface()); err != nil {
++			nm.SetMapIndex(k, dstField.MapIndex(k))
+ 		}
+ 	}
+ 	dstField.Set(nm)
+diff --git a/ygot/sonic_map_merge_test.go b/ygot/sonic_map_merge_test.go
+new file mode 100644
+--- /dev/null
++++ b/ygot/sonic_map_merge_test.go
+@@ -0,0 +1,75 @@
++package ygot
++
++import (
++	"reflect"
++	"testing"
++)
++
++func TestSONiCMapMergePreservesDestinationOnlyEntries(t *testing.T) {
++	for _, tt := range []struct {
++		name string
++		dst  map[string]*copyTest
++		src  map[string]*copyTest
++		want map[string]*copyTest
++	}{
++		{
++			name: "nil source retains destination",
++			dst:  map[string]*copyTest{"retained": {StringField: String("old")}},
++			want: map[string]*copyTest{"retained": {StringField: String("old")}},
++		},
++		{
++			name: "empty source retains destination",
++			dst:  map[string]*copyTest{"retained": {StringField: String("old")}},
++			src:  map[string]*copyTest{},
++			want: map[string]*copyTest{"retained": {StringField: String("old")}},
++		},
++		{
++			name: "disjoint source adds entry",
++			dst:  map[string]*copyTest{"retained": {StringField: String("old")}},
++			src:  map[string]*copyTest{"added": {StringField: String("new")}},
++			want: map[string]*copyTest{"retained": {StringField: String("old")}, "added": {StringField: String("new")}},
++		},
++		{
++			name: "matching source merges fields without dropping unrelated entry",
++			dst:  map[string]*copyTest{"retained": {StringField: String("old")}, "shared": {Uint32Field: Uint32(42)}},
++			src:  map[string]*copyTest{"shared": {StringField: String("new")}},
++			want: map[string]*copyTest{"retained": {StringField: String("old")}, "shared": {StringField: String("new"), Uint32Field: Uint32(42)}},
++		},
++	} {
++		t.Run(tt.name, func(t *testing.T) {
++			if err := copyMapField(reflect.ValueOf(&tt.dst).Elem(), reflect.ValueOf(tt.src)); err != nil {
++				t.Fatal(err)
++			}
++			if !reflect.DeepEqual(tt.dst, tt.want) {
++				t.Fatalf("merged map = %#v, want %#v", tt.dst, tt.want)
++			}
++		})
++	}
++}
++
++func TestSONiCMapMergePreservesSemanticKeyMatching(t *testing.T) {
++	dstKey, srcKey, retainedKey := String("same"), String("same"), String("retained")
++	if dstKey == srcKey {
++		t.Fatal("test requires distinct pointers with equal contents")
++	}
++	dst := map[*string]*copyTest{
++		dstKey:      {Uint32Field: Uint32(42)},
++		retainedKey: {StringField: String("old")},
++	}
++	src := map[*string]*copyTest{srcKey: {StringField: String("new")}}
++	if err := copyMapField(reflect.ValueOf(&dst).Elem(), reflect.ValueOf(src)); err != nil {
++		t.Fatal(err)
++	}
++	if len(dst) != 2 || dst[dstKey] != nil || dst[srcKey] == nil || dst[retainedKey] == nil {
++		t.Fatalf("expected source canonical key plus destination-only key, got %#v", dst)
++	}
++	if got := dst[srcKey]; got.StringField == nil || *got.StringField != "new" || got.Uint32Field == nil || *got.Uint32Field != 42 {
++		t.Fatalf("semantic key did not merge fields: %#v", got)
++	}
++	if got := dst[retainedKey]; got.StringField == nil || *got.StringField != "old" {
++		t.Fatalf("destination-only value changed: %#v", got)
++	}
++	if src[srcKey].Uint32Field != nil || *src[srcKey].StringField != "new" {
++		t.Fatal("source value was mutated")
++	}
++}

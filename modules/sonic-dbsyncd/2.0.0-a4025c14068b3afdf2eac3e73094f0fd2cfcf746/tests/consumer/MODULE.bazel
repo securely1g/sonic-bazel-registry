@@ -1,0 +1,24 @@
+module(name = "dbsyncd_registry_consumer")
+
+bazel_dep(name = "sonic-dbsyncd", version = "2.0.0-a4025c14068b3afdf2eac3e73094f0fd2cfcf746")
+bazel_dep(name = "rules_python", version = "1.9.0")
+bazel_dep(name = "rules_shell", version = "0.8.0")
+bazel_dep(name = "platforms", version = "1.1.0")
+bazel_dep(name = "sonic-build-infra", version = "0.0.25-17a1e555291c64be1a6ff008f33352bffc4f8e5c", repo_name = "sonic_build_infra")
+bazel_dep(name = "sonic-swss-common", version = "0.0.7-f7fda40c02b3a8b4bbbff3d17fca3dff83f4cbad", repo_name = "sonic_swss_common")
+
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(
+    is_default = True,
+    python_version = "3.13",
+)
+
+gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
+use_repo(gcc, "gcc_toolchains")
+
+register_toolchains("@gcc_toolchains//:all")
+
+bazel_dep(name = "rules_rs", version = "0.1.0")
+
+rust = use_extension("@rules_rs//rs:rules_rust_reexported_extensions.bzl", "rust")
+rust.toolchain(versions = [])
