@@ -1,0 +1,21 @@
+{
+  "url": "https://github.com/openconfig/goyang/archive/a00bece872fc729c37e32bc697c8f3e7eb019172.tar.gz",
+  "integrity": "sha256-xf155j7Ckqpw9NvsYYKtk1G3iqzPL84fq4lAmSMf17o=",
+  "strip_prefix": "goyang-a00bece872fc729c37e32bc697c8f3e7eb019172",
+  "patch_strip": 1,
+  "patches": {
+    "0001-preserve-sonic-api.patch": "sha256-hD/WBUF9svEdRBX6vSAsqFEFGOS1tYkWTRCnUr2Q+Bw=",
+    "0002-preserve-schema-order.patch": "sha256-1k0KpqEwSHouMHgNKgtK5hBnlB8GL/NgR6cfO57AFvg=",
+    "0003-align-tests-with-sonic-api.patch": "sha256-i9hKunLO6wCfXWljKGX19nhaefTBzFgIxaHvWZZnfYI="
+  },
+  "overlay": {
+    "BUILD.bazel": "sha256-tcV2VqGuISR+ms/1/KmQbEVJqt6afNLpSau2gfKs4es=",
+    "MODULE.bazel": "sha256-VzGgRzc6DjJRNws9QbcDIZqe1f6veQxSpqy+lWfvbx4=",
+    "go.mod": "sha256-q3xvDZAuy2YlS1qa/0k/guK0szyY6ifWK1eEn/xrSJM=",
+    "go.sum": "sha256-6EhqffGyLjHioNytWjRqlH4yJJemaVuHXLn6i1jBCzc=",
+    "pkg/indent/BUILD.bazel": "sha256-GEufrk7tfY4x1AIQcJWQho7v1OC7iFagsHQ1wW4+o40=",
+    "pkg/yang/BUILD.bazel": "sha256-H0/5V4VDSxPwNpo6iWHQcD7m3cNNAB8/ZHQqxkGHvKw=",
+    "pkg/yang/sonic_ordering_test.go": "sha256-2YC9GCPE9bCyi4EDshMxuRBXH+sFoKqdP8xiy3pbpuY=",
+    "sonic_annotation_test.go": "sha256-b8qr33/DFmFf8NzaAwXsLqmIZjMRG3yd5v+35dOPcd4="
+  }
+}
