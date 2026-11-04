@@ -1,0 +1,18 @@
+{
+  "integrity": "sha256-CYuhNXjnlsAMhTohYfOCZH8y65p3CZ4ciLxSmTM9DW4=",
+  "strip_prefix": "rules_python-1.9.0",
+  "url": "https://github.com/bazel-contrib/rules_python/releases/download/1.9.0/rules_python-1.9.0.tar.gz",
+  "patches": {
+    "0001-bcr-module-version.patch": "sha256-I1WjYcQJvEG9tig3fBKj8Hv/KocZzdVOOJ9MiNQcWMI=",
+    "0002-sonic-module-version.patch": "sha256-os33lOL1RNzSOb6s/8hZEgY14FzyapoMGQt7d0JXHJY=",
+    "0003-preserve-wheel-metadata-and-modes.patch": "sha256-B3xes4U3uYtyEg5wfc75ZYF0DwAY0YKH31Pq3cpJVbE="
+  },
+  "patch_strip": 1,
+  "overlay": {
+    "registry_ci/BUILD.bazel": "sha256-es5B5kMGvvQbZ9Z1bxsqHquGCejYXcpfGw3ySE4y3sE=",
+    "registry_ci/LICENSE": "sha256-dk6ZS48KSFAhPN5ZByE6CHWCzGeQDgCiYswSnT16zAk=",
+    "registry_ci/NOTICE": "sha256-yfuYwSXDZ/97G0P3TUg9YGyx3y6b3gBvGRT2AAimvqU=",
+    "registry_ci/fixture.py": "sha256-EEPvUuiyFFOCNorP4yRHIPMZ9TmlTxVCqcPIV+09IRE=",
+    "registry_ci/metadata_test.py": "sha256-YRH/JjiDuWLfhRbggJzZCUqOBS2OAdGv3nWHS/pWdt8="
+  }
+}

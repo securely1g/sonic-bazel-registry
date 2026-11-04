@@ -1,0 +1,47 @@
+load("//python:packaging.bzl", "py_wheel")
+load("//python:py_test.bzl", "py_test")
+package(default_visibility = ["//visibility:public"])
+
+py_wheel(
+    name = "legacy",
+    distribution = "legacy-fixture",
+    version = "1.0",
+    data_files = {"fixture.py": "data/fixture.py"},
+)
+
+py_wheel(
+    name = "readonly",
+    distribution = "readonly-fixture",
+    version = "1.0",
+    maintainer = "Ada Maintainer, Grace Maintainer",
+    maintainer_email = "Ada <ada@example.org>, grace@example.org",
+    keywords = "network, packets",
+    regular_file_mode = "0644",
+    license_files = ["LICENSE", "notices/NOTICE"],
+    extra_distinfo_files = {
+        "LICENSE": "licenses/LICENSE",
+        "NOTICE": "licenses/notices/NOTICE",
+    },
+    data_files = {"fixture.py": "data/fixture.py"},
+    entry_points = {"console_scripts": ["fixture = fixture:main"]},
+)
+
+py_wheel(
+    name = "executable",
+    distribution = "executable-fixture",
+    version = "1.0",
+    maintainer = "Changed Maintainer",
+    keywords = "alternative",
+    regular_file_mode = "0755",
+    data_files = {"fixture.py": "data/fixture.py"},
+)
+
+py_test(
+    name = "metadata_test",
+    srcs = ["metadata_test.py"],
+    args = ["$(location :legacy)", "$(location :readonly)", "$(location :executable)"],
+    data = [":legacy", ":readonly", ":executable"],
+)
+
+platform(name = "amd64", constraint_values = ["@platforms//os:linux", "@platforms//cpu:x86_64"])
+platform(name = "arm64", constraint_values = ["@platforms//os:linux", "@platforms//cpu:aarch64"])

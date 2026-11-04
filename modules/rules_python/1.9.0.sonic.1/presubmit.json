@@ -1,0 +1,19 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [],
+  "platforms": {
+    "amd64": "@rules_python//registry_ci:amd64",
+    "arm64": "@rules_python//registry_ci:arm64"
+  },
+  "build_targets": [
+    "@rules_python//registry_ci:legacy",
+    "@rules_python//registry_ci:readonly",
+    "@rules_python//registry_ci:executable"
+  ],
+  "test_targets": [
+    "@rules_python//registry_ci:metadata_test"
+  ]
+}
