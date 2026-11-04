@@ -259,8 +259,11 @@ The configuration declares:
   matching `platforms`. The runner passes the choice to build, test and output-query
   commands and records `platform` and `host_platform` in `validation.json`.
   Native validation preserves Bazel's host-platform default when the map is
-  omitted. ARM64 cross compilation selects the AMD64 entry in `host_platforms`,
-  falling back to `platforms.amd64`, while retaining `platforms.arm64` as its target.
+  omitted. ARM64 cross compilation uses the AMD64 entry in `host_platforms`,
+  falling back to `platforms.amd64`, as the execution-platform parent and uses
+  `platforms.arm64` as the target-platform parent. CI-generated child platforms
+  explicitly select native AMD64 execution and ARM64 targets with Linux/Trixie,
+  retaining other inherited constraints, including when a parent is a host alias.
 - `build_targets`: required output labels, including runtime and matching debug
   packages where the module provides them.
 - `test_targets`: explicit consumer and package test labels.
@@ -572,7 +575,22 @@ cancellation. Keep registration credentials in the manager, outside job
 containers, and retain runner diagnostics before removing a container.
 
 Both target architectures use native AMD64 Bazel and build-time tools. ARM64
-jobs select an AMD64 execution platform and the declared ARM64 target platform.
+jobs inherit their declared execution and target platforms, with explicit CPU,
+Linux and Trixie constraints. Host-derived aliases therefore cannot silently
+produce AMD64 output for an ARM64 matrix entry.
+
+Consumers using published Sonic Trixie platforms retain their registered cross
+toolchains. Generic consumers use a CI-local legacy C++ adapter compatible with
+their existing `rules_cc`, backed by the AMD64-to-ARM64 GCC 14.2 compiler and
+Trixie sysroot assembled by separately pinned
+`sonic-build-infra@0.0.25-34de7330abc72229dfc8dab88dec71b89c52aa88`.
+The provider resolves in an independent workspace and its JVM stops after fetch;
+its dependencies do not enter the tested consumer's graph. All compiler and
+sysroot files are declared action inputs. Generated consumers expose only
+already-selected dependency versions, and before/after module graphs must match.
+Artifacts retain both graphs, the provider lock and input manifests, generated
+adapter/platform definitions, and declared/effective platform identities.
+Copied integration-module files remain intact.
 Their unchanged tests execute with QEMU user-mode in a bundled ARM64 Trixie
 filesystem, entered through `/usr/local/bin/sonic-arm64` and PRoot. This validates
 ARM64 binaries under emulation; it does not provide native ARM64 hardware or
@@ -583,6 +601,13 @@ as UID 1000; module validation and runtime package preparation use passwordless
 `sudo` inside the disposable container. Evidence is archived as root, then only
 the resulting TAR is given to the action user, preserving the archived modes.
 
+Cross tests default to 180, 900, 2700 and 7200 seconds for Bazel's short, moderate,
+long and eternal timeout classes. Emulated Python can take over five minutes to
+stage a large declared runtime before its test starts. This applies only to the
+test command, preserves explicit caller timeout flags, and records
+the effective default in `validation.json`. Native defaults, source test
+declarations, uncached execution and the overall job deadline remain unchanged.
+
 Some published test launchers select Python from the execution platform, even
 when their binary under test targets ARM64. CI resolves the matching ARM64
 standalone Python repository through Bazel's pinned download metadata, checks
@@ -591,6 +616,17 @@ Only the test's PRoot filesystem maps that complete ARM runtime over the AMD64
 runtime path. Native build actions keep their original AMD64 files. The retained
 `cross-python-runtimes.json` records these mappings, interpreter and library
 hashes, versions, and architecture probes. Published recipes are unchanged.
+The test guest shares the disposable container's `/tmp`, so separate debug files
+retain paths that GDB can resolve.
+
+For simple pip hubs with a shared requirements lock, CI creates a target-aware
+hub in the generated consumer using the already selected `rules_python` version.
+It retains the original requirements file and enables index-based wheel selection,
+so native code generators receive AMD64 wheels and ARM tests receive ARM64 wheels.
+Development-only hubs and existing platform/index configurations are preserved.
+CI rejects unsupported simple hub arguments and any module-version change.
+`cross-pip-hubs.json` and `cross-pip-locks/` retain the original configuration,
+source module identity, and unchanged lock bytes and hashes.
 
 The manager supplies `SONIC_RUNNER_IMAGE_REFERENCE=sonic-slave-runner@sha256:...`
 from the actual derived image's inspected Docker image ID. This is a local
@@ -635,7 +671,9 @@ isolation boundary. Run this CI helper inside a disposable container. The ordere
 test strategy configuration is recorded in `validation.json`.
 
 Runner unit tests execute on AMD64 with pinned Bazel 8.5.1, including real ARM64
-cross-compilation and emulated-runtime regression coverage.
+cross-compilation and emulated-runtime regression coverage. Their 60-minute job
+budget includes cold compiler-provider and source-archive downloads; module jobs
+retain their 180-minute deadline.
 They build an actual directory-producing target and its public alias, including
 both target and execution configurations, then check collection and extraction.
 Transport and failure-log tests also cover rejected paths, partial archives,

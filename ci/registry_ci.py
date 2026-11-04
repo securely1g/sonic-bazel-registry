@@ -8,6 +8,7 @@ import ast
 import base64
 from contextlib import contextmanager
 import hashlib
+import importlib.util
 import io
 import json
 import os
@@ -27,6 +28,16 @@ from urllib.request import urlopen
 
 
 ROOT = Path(__file__).resolve().parents[1]
+# Load by file path so isolated host planning (`python3 -I -S`) does not depend
+# on the current directory or add the checkout to Python's import search path.
+_CROSS_SPEC = importlib.util.spec_from_file_location("registry_ci_cross_toolchain", Path(__file__).with_name("cross_toolchain.py"))
+assert _CROSS_SPEC is not None and _CROSS_SPEC.loader is not None
+cross_toolchain = importlib.util.module_from_spec(_CROSS_SPEC)
+_CROSS_SPEC.loader.exec_module(cross_toolchain)
+_PIP_SPEC = importlib.util.spec_from_file_location("registry_ci_cross_pip", Path(__file__).with_name("cross_pip.py"))
+assert _PIP_SPEC is not None and _PIP_SPEC.loader is not None
+cross_pip = importlib.util.module_from_spec(_PIP_SPEC)
+_PIP_SPEC.loader.exec_module(cross_pip)
 RUNNERS = {
     "amd64": ["self-hosted", "Linux", "X64", "debian-trixie-container"],
     "arm64": ["self-hosted", "Linux", "X64", "debian-trixie-container"],
@@ -1331,7 +1342,10 @@ def run(root: Path, module: str, version: str, architecture: str,
         executor_prefix = []
         cross_runtime = None
         if cross_compile:
-            executor_prefix = [str(test_executor), "--bind", str(work_dir), "--bind", str(artifacts), "--"]
+            # Debuggers resolve separate symbols through real paths. Keep /tmp
+            # consistent between the guest and this disposable runner container.
+            executor_prefix = [str(test_executor), "--bind", "/tmp", "--bind", str(work_dir),
+                               "--bind", str(artifacts), "--"]
             probe = (
                 "import json, pathlib, platform, subprocess; "
                 "release = dict(line.split('=', 1) for line in pathlib.Path('/etc/os-release').read_text().splitlines() "
@@ -1364,7 +1378,28 @@ def run(root: Path, module: str, version: str, architecture: str,
             flags.append(f"--host_platform={host_platform}")
         if config.get("rust_toolchain", {}).get("mangled_allocator_libraries", False):
             flags.append("--@rules_rust//rust/settings:experimental_use_allocator_libraries_with_mangled_symbols=True")
+        cross_platforms = None
+        pip_hubs = None
         try:
+            if cross_compile:
+                try:
+                    cross_platforms = cross_toolchain.prepare(
+                        root, consumer, work_dir, artifacts, prefix, flags,
+                        config["platforms"][architecture], host_platform, run_logged)
+                except ValueError as error:
+                    raise RegistryError(str(error)) from error
+                flags = [flag for flag in flags if not flag.startswith(("--platforms=", "--host_platform="))]
+                host_platform = cross_platforms["execution_platform"]
+                flags.extend([f"--platforms={cross_platforms['target_platform']}",
+                              f"--host_platform={host_platform}"])
+                try:
+                    pip_hubs = cross_pip.prepare(
+                        root, consumer, artifacts, prefix, flags,
+                        cross_platforms["selected_module_versions"], cross_toolchain)
+                except ValueError as error:
+                    raise RegistryError(str(error)) from error
+                cross_runtime["pip_hubs"] = pip_hubs
+                shutil.copy2(consumer / "MODULE.bazel", artifacts / "consumer.MODULE.bazel")
             flags.extend(prepare_rust(config, consumer, work_dir, artifacts, prefix, flags))
             run_logged([*prefix, "build", *flags, f"--build_event_json_file={artifacts / 'build-events.jsonl'}",
                         *config["build_targets"]], consumer, artifacts / "build.log")
@@ -1380,6 +1415,10 @@ def run(root: Path, module: str, version: str, architecture: str,
                             declared_trees, execution_root)
             output_base = Path(subprocess.check_output([*prefix, "info", *info_flags, "output_base"],
                                                       cwd=consumer, text=True).strip())
+            try:
+                cross_pip.record_locks(pip_hubs, output_base, artifacts, fetched_modules)
+            except ValueError as error:
+                raise RegistryError(str(error)) from error
             if executor_prefix and not output_base.resolve().is_relative_to(work_dir):
                 # Startup options may choose a cache outside the work directory.
                 # Runfiles symlinks and locked runtime packages still need it.
@@ -1408,6 +1447,13 @@ def run(root: Path, module: str, version: str, architecture: str,
                                               architecture, test_container_image, executor_prefix or None)
             if executor_prefix:
                 test_flags.append("--run_under=" + shlex.join(executor_prefix))
+            # Emulated Python can spend more than five minutes staging a large
+            # declared runtime before the test starts. Keep caller timeouts and
+            # native defaults; extend only the cross-test execution budgets.
+            if cross_compile and not any(
+                    flag == "--test_timeout" or flag.startswith("--test_timeout=")
+                    for flag in [*flags, *test_flags]):
+                test_flags.append("--test_timeout=180,900,2700,7200")
             # Export HOME before Bazel's test setup assigns TEST_TMPDIR. With
             # HOME absent, that shell assignment is invisible to Python and
             # expanduser() falls back to the account home outside the sandbox.
@@ -1440,7 +1486,8 @@ def run(root: Path, module: str, version: str, architecture: str,
                 "bazel_startup_args": bazel_startup_args or [],
                 "bazel_build_args": bazel_build_args or [],
                 "test_sandbox_strategy": TEST_SANDBOX_STRATEGY,
-                "platform": config["platforms"][architecture],
+                "platform": cross_platforms["target_platform"] if cross_platforms else config["platforms"][architecture],
+                "cross_platforms": cross_platforms,
                 "host_platform": host_platform,
                 "consumer_deps": config["consumer_deps"],
                 "integration_test_module": config.get("integration_test_module"),

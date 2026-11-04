@@ -35,6 +35,7 @@ apt.install(
 use_repo(apt, "cross_fixture_runtime")
 '''
 BUILD = '''load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_test")
+load(":objcopy.bzl", "copy_elf")
 load("@rules_python//python:defs.bzl", "py_binary", "py_test")
 load("@sonic_build_infra//testing:exec_test.bzl", "exec_test")
 load("@sonic_build_infra//cc:runtime_test.bzl", "native_runtime_test")
@@ -50,6 +51,7 @@ cc_test(
     srcs = ["probe.cc", ":generated_header"],
     linkopts = ["-pthread"],
 )
+copy_elf(name = "stripped_probe", src = ":arm_probe", testonly = True)
 py_test(
     name = "python_probe",
     srcs = ["python_probe.py"],
@@ -67,6 +69,28 @@ native_runtime_test(
 '''
 TEST_TARGETS = ["//:arm_probe", "//:python_probe", "//:exec_python_probe",
                 "//:native_python_probe"]
+OBJCOPY = '''load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cpp_toolchain")
+
+def _copy_impl(ctx):
+    cc = find_cpp_toolchain(ctx)
+    output = ctx.actions.declare_file(ctx.label.name)
+    ctx.actions.run(
+        executable = cc.objcopy_executable,
+        arguments = ["--strip-debug", ctx.file.src.path, output.path],
+        inputs = depset([ctx.file.src], transitive = [cc.all_files]),
+        outputs = [output],
+        mnemonic = "CrossObjcopy",
+    )
+    return [DefaultInfo(files = depset([output]))]
+
+copy_elf = rule(
+    implementation = _copy_impl,
+    attrs = {"src": attr.label(allow_single_file = True)},
+    fragments = ["cpp"],
+    toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],
+)
+'''
+
 GENERATOR = '''#include <stdio.h>
 #ifndef __x86_64__
 #error The source generator must run on the AMD64 execution platform.
@@ -172,7 +196,7 @@ class ArmCrossRuntimeIntegrationTest(unittest.TestCase):
             artifacts.mkdir()
             sources = {"MODULE.bazel": MODULE, "BUILD.bazel": BUILD,
                        "generator.c": GENERATOR, "probe.cc": CPP_PROBE, "python_probe.py": PYTHON_PROBE,
-                       "runtime_program.c": RUNTIME_PROGRAM}
+                       "runtime_program.c": RUNTIME_PROGRAM, "objcopy.bzl": OBJCOPY}
             for name, content in sources.items():
                 (consumer / name).write_text(content)
                 (artifacts / name).write_text(content)
@@ -203,11 +227,18 @@ class ArmCrossRuntimeIntegrationTest(unittest.TestCase):
                 flags = ["--registry=" + ROOT.as_uri(), "--registry=https://bcr.bazel.build/",
                          "--experimental_downloader_config=" + str(ROOT / "ci/source_mirrors.cfg"),
                          *registry_ci.HTTP_DOWNLOAD_FLAGS, "--lockfile_mode=update",
-                         "--host_platform=@sonic_build_infra//platforms:x86_64_trixie",
-                         "--platforms=@sonic_build_infra//platforms:aarch64_trixie",
                          "--jobs=1", "--discard_analysis_cache"]
+                # A host-derived parent on this machine is AMD64. The generated
+                # adapter must override it while preserving native build tools.
+                adapted = registry_ci.cross_toolchain.prepare(
+                    ROOT, consumer, work, artifacts, bazel_prefix, flags,
+                    "@platforms//host:host", "@platforms//host:host", registry_ci.run_logged)
+                self.assertTrue(adapted["module_versions_unchanged"])
+                self.assertIsNotNone(adapted["provider"])
+                flags.extend(["--host_platform=" + adapted["execution_platform"],
+                              "--platforms=" + adapted["target_platform"]])
                 command = [*bazel_prefix, "build", *flags,
-                           "--build_event_json_file=" + str(artifacts / "build-events.jsonl"), "//:arm_probe"]
+                           "--build_event_json_file=" + str(artifacts / "build-events.jsonl"), "//:arm_probe", "//:stripped_probe"]
                 execute("build", command, consumer, timeout=1200)
                 binary = (consumer / "bazel-bin/arm_probe").resolve(strict=True)
                 generators = [path.resolve() for path in (consumer / "bazel-out").glob("*/bin/generator")
@@ -216,6 +247,8 @@ class ArmCrossRuntimeIntegrationTest(unittest.TestCase):
                 generator = generators[0]
                 self.assertEqual(elf_machine(generator), 62, generator)
                 self.assertEqual(elf_machine(binary), 183, binary)
+                stripped = (consumer / "bazel-bin/stripped_probe").resolve(strict=True)
+                self.assertEqual(elf_machine(stripped), 183, stripped)
                 self.assertEqual(execute("native-generator", [str(generator)], consumer, timeout=30),
                                  "#define GENERATED_VALUE 42\n")
                 for name, path in (("generator", generator), ("arm_probe", binary)):
@@ -242,6 +275,8 @@ class ArmCrossRuntimeIntegrationTest(unittest.TestCase):
                 prefix = [str(executor), "--bind", str(output_root), "--bind", str(consumer),
                           "--bind", str(bound_data), "--"]
                 self.assertEqual(execute("arm-cpp", [*prefix, str(binary)], runtime_cwd,
+                                         environment=environment, timeout=60), CPP_OUTPUT)
+                self.assertEqual(execute("arm-objcopy", [*prefix, str(stripped)], runtime_cwd,
                                          environment=environment, timeout=60), CPP_OUTPUT)
                 runtime = json.loads(execute("arm-python", [*prefix, "/usr/bin/python3", "-I", "-S", str(probe)],
                                              runtime_cwd, environment=environment, timeout=60))
@@ -293,6 +328,7 @@ class ArmCrossRuntimeIntegrationTest(unittest.TestCase):
                     "target_sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
                     "executor_sha256": hashlib.sha256(executor.read_bytes()).hexdigest(), "runtime": runtime,
                     "bazel_test_summaries": summaries, "python_runtime_mappings": mappings,
+                    "cross_platforms": adapted,
                 }, indent=2) + "\n")
             finally:
                 try:

@@ -2138,22 +2138,29 @@ class FetchedModuleTests(FixtureTestCase):
                     self.config["host_platforms"] = {"amd64": host_platform, "arm64": "@alpha//:exec_arm64"}
                     write_json(self.config_path, self.config)
                 commands_path.write_text("")
+                adapted = {"target_platform": "//_registry_ci_cross:arm64",
+                           "execution_platform": "//_registry_ci_cross:amd64",
+                           "declared_execution_platform": host_platform,
+                           "selected_module_versions": {},
+                           "module_versions_unchanged": True}
                 with mock.patch.object(registry_ci, "verify_native", return_value=native) as admission, \
-                        mock.patch.object(registry_ci, "require_test_container") as container:
+                        mock.patch.object(registry_ci, "require_test_container") as container, \
+                        mock.patch.object(registry_ci.cross_toolchain, "prepare", return_value=adapted) as adapter:
                     artifacts = self.run_fixture(suffix, architecture="arm64", image=image,
                                                  cross_compile=True, test_executor=executor)
+                self.assertEqual(adapter.call_args.args[-3:-1], ("@alpha//:arm64", host_platform))
                 admission.assert_called_once_with("amd64")
                 container.assert_called_once_with(image)
                 commands = [json.loads(line) for line in commands_path.read_text().splitlines()]
                 for command in commands:
                     if "info" not in command:
-                        self.assertIn("--host_platform=" + host_platform, command)
-                        self.assertIn("--platforms=@alpha//:arm64", command)
+                        self.assertIn("--host_platform=//_registry_ci_cross:amd64", command)
+                        self.assertIn("--platforms=//_registry_ci_cross:arm64", command)
                     wrappers = [arg for arg in command if arg.startswith("--run_under=")]
                     self.assertEqual(bool(wrappers), "test" in command)
                     if wrappers:
                         self.assertEqual(registry_ci.shlex.split(wrappers[0].split("=", 1)[1]),
-                                         [str(executor), "--bind", str(self.root / ("work-" + suffix)),
+                                         [str(executor), "--bind", "/tmp", "--bind", str(self.root / ("work-" + suffix)),
                                           "--bind", str(artifacts), "--bind", str(self.output_base), "--"])
                 evidence = json.loads((artifacts / "validation.json").read_text())
                 self.assertEqual(evidence["execution_architecture"], "amd64")
@@ -2161,10 +2168,51 @@ class FetchedModuleTests(FixtureTestCase):
                 self.assertTrue(evidence["cross_compile"])
                 self.assertEqual(evidence["test_execution"], "qemu-aarch64")
                 self.assertEqual(evidence["test_container_image"], image)
-                self.assertEqual(evidence["host_platform"], host_platform)
+                self.assertEqual(evidence["host_platform"], "//_registry_ci_cross:amd64")
+                self.assertEqual(evidence["cross_platforms"], adapted)
                 self.assertEqual(evidence["cross_runtime"]["executor_sha256"],
                                  hashlib.sha256(executor.read_bytes()).hexdigest())
                 self.assertEqual(json.loads((artifacts / "source-validation.json").read_text())["native"], native)
+
+    def test_emulated_timeout_defaults_are_test_only_and_preserve_explicit_limits(self) -> None:
+        executor = self.configure_cross_fixture()
+        commands_path = self.root / "timeout-bazel-commands.jsonl"
+        self.fake_bazel.write_text(self.fake_bazel.read_text().replace(
+            "args = sys.argv[1:]\n", "args = sys.argv[1:]\n"
+            + f"with Path({str(commands_path)!r}).open('a') as log:\n"
+            + "    log.write(json.dumps(args) + '\\n')\n"))
+        default = "--test_timeout=180,900,2700,7200"
+        adapted = {"target_platform": "//_registry_ci_cross:arm64",
+                   "execution_platform": "//_registry_ci_cross:amd64",
+                   "selected_module_versions": {}}
+        for suffix, cross, caller in (
+                ("native", False, []),
+                ("native-explicit", False, ["--test_timeout=42"]),
+                ("emulated", True, []),
+                ("caller-scalar", True, ["--test_timeout=42"]),
+                ("caller-tiers", True, ["--test_timeout=10,20,30,40"]),
+                ("caller-separate", True, ["--test_timeout", "47"])):
+            with self.subTest(case=suffix):
+                commands_path.write_text("")
+                with mock.patch.object(registry_ci, "verify_native", return_value={"userspace": "amd64"}), \
+                        mock.patch.object(registry_ci, "require_test_container"), \
+                        mock.patch.object(registry_ci.cross_toolchain, "prepare", return_value=adapted):
+                    artifacts = self.run_fixture(suffix, architecture="arm64" if cross else "amd64",
+                                                 build_args=caller, cross_compile=cross,
+                                                 test_executor=executor if cross else None)
+                commands = [json.loads(line) for line in commands_path.read_text().splitlines()]
+                test_command, = [command for command in commands if "test" in command]
+                timeouts = [arg for arg in test_command
+                            if arg == "--test_timeout" or arg.startswith("--test_timeout=")]
+                expected = [caller[0]] if caller else ([default] if cross else [])
+                self.assertEqual(timeouts, expected)
+                if caller == ["--test_timeout", "47"]:
+                    self.assertEqual(test_command[test_command.index("--test_timeout") + 1], "47")
+                for command in commands:
+                    if "test" not in command:
+                        self.assertNotIn(default, command)
+                evidence = json.loads((artifacts / "validation.json").read_text())
+                self.assertEqual(default in evidence["test_runtime_flags"], cross and not caller)
 
     def test_cross_runtime_must_match_target_architecture_and_distribution(self) -> None:
         expected = {"system": "Linux", "machine": "aarch64", "userspace": "arm64", "debian_codename": "trixie"}
