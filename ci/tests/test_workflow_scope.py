@@ -117,9 +117,14 @@ class VersionPinWorkflowScopeTest(unittest.TestCase):
         result, files, _ = self.route({"include": rows})
         self.assertEqual(result.returncode, 0, result.stderr)
         excluded = [row for row in rows if row["module"] in ("sonic-build-infra", "sonic-linux-kernel")]
-        self.assertEqual(len(excluded), 4)
-        self.assertEqual(self.output_matrix(files)["include"], [row for row in rows if row not in excluded])
-        self.assertEqual(json.loads(files["plan-scope.json"])["planned_jobs"], len(rows))
+        self.assertEqual({row["module"] for row in excluded},
+                         {"sonic-build-infra", "sonic-linux-kernel"})
+        retained = [row for row in rows if row not in excluded]
+        self.assertEqual(self.output_matrix(files)["include"], retained)
+        receipt = json.loads(files["plan-scope.json"])
+        self.assertEqual([item["job"] for item in receipt["excluded_jobs"]], excluded)
+        self.assertEqual(receipt["planned_jobs"], len(rows))
+        self.assertEqual(receipt["retained_jobs"], len(retained))
 
     def test_empty_or_unexpected_diff_fails_before_publishing_matrix(self):
         for changed in ((), ("modules/sonic-linux-kernel/metadata.json",),
