@@ -13,6 +13,7 @@
   ],
   "test_targets": [
     "@gazelle//cmd/fetch_repo:module_zip_test",
+    "@gazelle//tests/go_proxy:go_proxy_test",
     "//:consumer_test"
   ],
   "integration_test_module": "tests/integration"

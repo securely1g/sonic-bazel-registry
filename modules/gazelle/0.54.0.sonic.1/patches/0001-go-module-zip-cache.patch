@@ -219,20 +219,69 @@ index 0000000..ecce071
 +		})
 +	}
 +}
+diff --git a/internal/BUILD.bazel b/internal/BUILD.bazel
+index fe24ef5..83cc86d 100644
+--- a/internal/BUILD.bazel
++++ b/internal/BUILD.bazel
+@@ -38,6 +38,7 @@ filegroup(
+         "gazelle.bash.in",
+         "gazelle_binary.bzl",
+         "gazelle_binary_test.bzl",
++        "go_proxy.bzl",
+         "go_repository.bzl",
+         "go_repository_cache.bzl",
+         "go_repository_tools.bzl",
+@@ -71,6 +72,7 @@ bzl_library(
+     visibility = ["//:__subpackages__"],
+     deps = [
+         ":common",
++        ":go_proxy",
+         "//internal:go_repository_cache",
+         "@bazel_tools//tools/build_defs/repo:utils.bzl",
+     ],
+@@ -92,6 +94,7 @@ bzl_library(
+     visibility = ["//:__subpackages__"],
+     deps = [
+         ":common",
++        ":go_proxy",
+         "//internal:go_repository_cache",
+         "//internal:go_repository_tools_srcs",
+     ],
+@@ -127,3 +130,9 @@ bzl_library(
+     srcs = ["overlay_repository.bzl"],
+     visibility = ["//:__subpackages__"],
+ )
++
++bzl_library(
++    name = "go_proxy",
++    srcs = ["go_proxy.bzl"],
++    visibility = ["//:__subpackages__"],
++)
+diff --git a/internal/bzlmod/BUILD.bazel b/internal/bzlmod/BUILD.bazel
+index 2bb07ae..e8c1657 100644
+--- a/internal/bzlmod/BUILD.bazel
++++ b/internal/bzlmod/BUILD.bazel
+@@ -29,6 +29,7 @@ bzl_library(
+         ":utils",
+         "//internal:env",
+         "//internal:go_repository",
++        "//internal:go_proxy",
+         "@bazel_gazelle_go_repository_cache//:def",
+     ],
+ )
 diff --git a/internal/bzlmod/go_deps.bzl b/internal/bzlmod/go_deps.bzl
-index b25e5a3..86f13e6 100644
+index b25e5a3..7a12f9e 100644
 --- a/internal/bzlmod/go_deps.bzl
 +++ b/internal/bzlmod/go_deps.bzl
-@@ -21,7 +21,7 @@ load(
-     "DEFAULT_BUILD_FILE_GENERATION_BY_PATH",
-     "DEFAULT_DIRECTIVES_BY_PATH",
- )
--load(":go_mod.bzl", "deps_from_go_mod", "go_work_from_label", "sums_from_go_mod", "sums_from_go_work")
-+load(":go_mod.bzl", "build_goproxy_zip_url", "deps_from_go_mod", "go_work_from_label", "sums_from_go_mod", "sums_from_go_work")
- load(":go_repository_config.bzl", "go_repository_config")
- load(":semver.bzl", "COMPARES_HIGHEST_SENTINEL", "semver")
+@@ -15,6 +15,7 @@
+ load("@bazel_gazelle_go_repository_cache//:def.bzl", "HOST_COMPATIBLE_SDK")
+ load("//internal:env.bzl", "compute_env")
+ load("//internal:go_repository.bzl", "go_repository")
++load("//internal:go_proxy.bzl", "build_goproxy_zip_url")
  load(
-@@ -380,6 +380,22 @@ def go_deps_impl(module_ctx):
+     ":default_gazelle_overrides.bzl",
+     "DEFAULT_BUILD_EXTRA_ARGS_BY_PATH",
+@@ -380,6 +381,22 @@ def go_deps_impl(module_ctx):
      bazel_go_modules = {}
      all_tools = []
  
@@ -255,7 +304,7 @@ index b25e5a3..86f13e6 100644
      gazelle_default_attributes = _process_gazelle_default_attributes(module_ctx)
      archive_overrides = {}
      gazelle_overrides = {}
-@@ -390,12 +406,12 @@ def go_deps_impl(module_ctx):
+@@ -390,12 +407,12 @@ def go_deps_impl(module_ctx):
      root_module_direct_dev_deps = {}
  
      first_module = module_ctx.modules[0]
@@ -270,7 +319,7 @@ index b25e5a3..86f13e6 100644
          root_module_direct_deps["bazel_gazelle_go_repository_config"] = None
  
      outdated_direct_dep_printer = print
-@@ -443,6 +459,19 @@ def go_deps_impl(module_ctx):
+@@ -443,6 +460,19 @@ def go_deps_impl(module_ctx):
          module_name_to_go_dot_mod_label = {}
  
          for from_file_tag in module.tags.from_file:
@@ -290,7 +339,7 @@ index b25e5a3..86f13e6 100644
              if bool(from_file_tag.go_work) == bool(from_file_tag.go_mod):
                  fail("go_deps.from_file tag must have either go_work or go_mod attribute, but not both.")
  
-@@ -752,6 +781,35 @@ Mismatch between versions requested for Go module {module}:
+@@ -752,6 +782,35 @@ Mismatch between versions requested for Go module {module}:
              )
          )
  
@@ -319,14 +368,14 @@ index b25e5a3..86f13e6 100644
 +        if (getattr(module, "replace", None) or path) + "@v" + module.raw_version in required
 +    }
 +    zip_urls = {
-+        key: build_goproxy_zip_url(go_env.get("GOPROXY", module_ctx.getenv("GOPROXY") or "https://proxy.golang.org"), path, version)
++        key: build_goproxy_zip_url(go_env.get("GOPROXY", module_ctx.getenv("GOPROXY") or ""), path, version)
 +        for key, (path, version) in required.items()
 +    }
 +
      repos_processed = {}
      for path, module in module_resolutions.items():
          if hasattr(module, "module_name") or (getattr(module_ctx, "is_isolated", False) and path in _SHARED_REPOS):
-@@ -809,6 +867,11 @@ Mismatch between versions requested for Go module {module}:
+@@ -809,6 +868,11 @@ Mismatch between versions requested for Go module {module}:
              if sum:
                  repo_args["sum"] = sum
  
@@ -338,7 +387,7 @@ index b25e5a3..86f13e6 100644
              go_repository_args.update(repo_args)
  
          module_ctx.declare_repo(go_repository, **go_repository_args)
-@@ -880,6 +943,10 @@ Mismatch between versions requested for Go module {module}:
+@@ -880,6 +944,10 @@ Mismatch between versions requested for Go module {module}:
          }),
          go_env = go_env,
          dep_files = dep_files,
@@ -349,7 +398,7 @@ index b25e5a3..86f13e6 100644
      )
  
      return extension_metadata(
-@@ -892,7 +959,7 @@ Mismatch between versions requested for Go module {module}:
+@@ -892,7 +960,7 @@ Mismatch between versions requested for Go module {module}:
              for repo_name in root_module_direct_dev_deps.keys()
              if repo_name not in root_module_direct_deps
          }.keys(),
@@ -358,7 +407,7 @@ index b25e5a3..86f13e6 100644
      )
  
  def _get_sum_from_module(path, module, sums):
-@@ -953,6 +1020,9 @@ _from_file_tag = tag_class(
+@@ -953,6 +1021,9 @@ _from_file_tag = tag_class(
      attrs = {
          "go_mod": attr.label(mandatory = False),
          "go_work": attr.label(mandatory = False),
@@ -368,43 +417,13 @@ index b25e5a3..86f13e6 100644
          "fail_on_version_conflict": attr.bool(
              default = True,
              doc = "Fail if duplicate modules have different versions",
-@@ -1082,5 +1152,6 @@ go_deps = module_extension(
+@@ -1082,5 +1153,6 @@ go_deps = module_extension(
          "gazelle_default_attributes": _gazelle_default_attributes_tag,
          "module": _module_tag,
          "module_override": _module_override_tag,
 +        "zip_lock": tag_class(attrs = {"file": attr.label(mandatory = True)}),
      },
  )
-diff --git a/internal/bzlmod/go_mod.bzl b/internal/bzlmod/go_mod.bzl
-index 8a91042..bfe4c94 100644
---- a/internal/bzlmod/go_mod.bzl
-+++ b/internal/bzlmod/go_mod.bzl
-@@ -485,6 +485,25 @@ Warning: go.sum file contained git conflict markers. Consider adding \
- automatically.""")
-     return hashes
- 
-+def escape_module_path(path):
-+    """Escape a Go module path for GOPROXY URLs (uppercase -> !lowercase)."""
-+    result = []
-+    for i in range(len(path)):
-+        c = path[i]
-+        if c >= "A" and c <= "Z":
-+            result.append("!" + c.lower())
-+        else:
-+            result.append(c)
-+    return "".join(result)
-+
-+def build_goproxy_zip_url(goproxy, module_path, version):
-+    """Construct the GOPROXY zip download URL for a Go module."""
-+    proxy = goproxy.strip()
-+    if not proxy.startswith(("https://", "http://")) or "," in proxy or "|" in proxy:
-+        fail("Bazel ZIP caching requires one explicit HTTP(S) GOPROXY; direct, off and proxy lists are not supported")
-+    escaped = escape_module_path(module_path)
-+    return proxy.rstrip("/") + "/" + escaped + "/@v/" + escape_module_path(version) + ".zip"
-+
- def _check_go_mod_name(name):
-     if name != "go.mod":
-         fail("go_deps.from_file requires a 'go.mod' file, not '{}'".format(name))
 diff --git a/internal/bzlmod/go_repository_config.bzl b/internal/bzlmod/go_repository_config.bzl
 index 97b69fa..59022b1 100644
 --- a/internal/bzlmod/go_repository_config.bzl
@@ -451,33 +470,66 @@ index 97b69fa..59022b1 100644
          "importpaths": attr.string_dict(
              mandatory = True,
              doc = "Map from repo name to Go module path",
+diff --git a/internal/go_proxy.bzl b/internal/go_proxy.bzl
+new file mode 100644
+index 0000000..f1e7dcd
+--- /dev/null
++++ b/internal/go_proxy.bzl
+@@ -0,0 +1,39 @@
++"""Resolve the first GOPROXY source and download reviewed module ZIPs."""
++
++_DEFAULT_GOPROXY = "https://proxy.golang.org,direct"
++
++def _first_proxy(goproxy):
++    return (goproxy or _DEFAULT_GOPROXY).replace("|", ",").split(",")[0].strip()
++
++def _escape(value):
++    return "".join(["!" + c.lower() if c >= "A" and c <= "Z" else c for c in value.elems()])
++
++def build_goproxy_zip_url(goproxy, module_path, version):
++    """Return the first proxy ZIP URL; direct/off have no proxy URL."""
++    proxy = _first_proxy(goproxy)
++    if proxy in ["direct", "off"]:
++        return ""
++    if not proxy.startswith(("https://", "http://")):
++        fail("Bazel module ZIP downloads require an HTTP(S) GOPROXY: {}".format(proxy))
++    return proxy.rstrip("/") + "/" + _escape(module_path) + "/@v/" + _escape(version) + ".zip"
++
++def download_module_zip(ctx, goproxy, module_path, version, sha256, output, auth):
++    """Use Bazel's downloader; report unsupported fallback only after failure."""
++    proxy = _first_proxy(goproxy)
++    if proxy == "off":
++        fail("GOPROXY=off: module downloads are disabled")
++    if proxy == "direct":
++        fail("GOPROXY reached direct: direct repository fallback is not implemented for Bazel module ZIP downloads")
++    url = build_goproxy_zip_url(goproxy, module_path, version)
++    result = ctx.download(
++        url = [url],
++        output = output,
++        sha256 = sha256,
++        canonical_id = "gomod|{}|{}".format(module_path, version),
++        auth = auth,
++        allow_fail = True,
++    )
++    if not result.success:
++        fail("Bazel module ZIP download failed for {}: {}. GOPROXY={}; later GOPROXY entries, if any, were not attempted (automatic fallback is not implemented).".format(
++            url, getattr(result, "error", "see the Bazel download warning above"), goproxy or _DEFAULT_GOPROXY,
++        ))
 diff --git a/internal/go_repository.bzl b/internal/go_repository.bzl
-index 540b7d4..2cacf18 100644
+index 540b7d4..ad84a38 100644
 --- a/internal/go_repository.bzl
 +++ b/internal/go_repository.bzl
-@@ -119,7 +119,48 @@ Authorization: Bearer RANDOM-TOKEN
- # We can't disable timeouts on Bazel, but we can set them to large values.
+@@ -15,6 +15,7 @@
+ load("@bazel_tools//tools/build_defs/repo:utils.bzl", "patch", "read_user_netrc", "use_netrc")
+ load("//internal:common.bzl", "env_execute", "executable_extension", "watch")
+ load("//internal:env.bzl", "read_go_env_file")
++load("//internal:go_proxy.bzl", "build_goproxy_zip_url", "download_module_zip")
+ 
+ _DOC = """
+ `go_repository` downloads a Go project and generates build files with Gazelle
+@@ -120,6 +121,28 @@ Authorization: Bearer RANDOM-TOKEN
  _GO_REPOSITORY_TIMEOUT = 86400
  
-+def _escape_module_path(path):
-+    """Escape a Go module path for use in GOPROXY URLs."""
-+    result = []
-+    for i in range(len(path)):
-+        c = path[i]
-+        if c >= "A" and c <= "Z":
-+            result.append("!" + c.lower())
-+        else:
-+            result.append(c)
-+    return "".join(result)
-+
-+def _build_goproxy_url(goproxy, module_path, version):
-+    """Construct the zip download URL from GOPROXY setting."""
-+    proxy = goproxy.strip()
-+    if not proxy.startswith(("https://", "http://")) or "," in proxy or "|" in proxy:
-+        fail("Bazel ZIP caching requires one explicit HTTP(S) GOPROXY; direct, off and proxy lists are not supported")
-+    escaped = _escape_module_path(module_path)
-+    return proxy.rstrip("/") + "/" + escaped + "/@v/" + _escape_module_path(version) + ".zip"
-+
  def _go_repository_impl(ctx):
 +    zip_sha256 = ctx.attr.zip_sha256
 +    if ctx.attr.zip_sums:
@@ -504,7 +556,7 @@ index 540b7d4..2cacf18 100644
      # TODO(#549): vcs repositories are not cached and still need to be fetched.
      # Download the repository or module.
      fetch_repo_args = None
-@@ -225,12 +266,39 @@ def _go_repository_impl(ctx):
+@@ -225,12 +248,36 @@ def _go_repository_impl(ctx):
          reproducible = True
  
          fetch_path = ctx.attr.replace if ctx.attr.replace else ctx.attr.importpath
@@ -523,15 +575,12 @@ index 540b7d4..2cacf18 100644
 +            bypass = _env.get("GONOPROXY", _env.get("GOPRIVATE", ""))
 +            if bypass and bypass != "none":
 +                fail("Bazel ZIP caching requires all modules through the managed GOPROXY; set GONOPROXY=none explicitly or use an archive override for private modules")
-+            goproxy = _env.get("GOPROXY", "https://proxy.golang.org")
-+            zip_url = _build_goproxy_url(goproxy, fetch_path, ctx.attr.version)
++            goproxy = _env.get("GOPROXY") or ""
++            zip_url = build_goproxy_zip_url(goproxy, fetch_path, ctx.attr.version)
 +            zip_path = ctx.path("_go_module.zip")
-+            ctx.download(
-+                url = [zip_url],
-+                output = zip_path,
-+                sha256 = zip_sha256,
-+                canonical_id = "gomod|{}|{}".format(fetch_path, ctx.attr.version),
-+                auth = use_netrc(read_user_netrc(ctx), [zip_url], ctx.attr.auth_patterns),
++            download_module_zip(
++                ctx, goproxy, fetch_path, ctx.attr.version, zip_sha256, zip_path,
++                use_netrc(read_user_netrc(ctx), [zip_url], ctx.attr.auth_patterns) if zip_url else {},
 +            )
 +            fetch_repo_args = [
 +                "-dest=" + str(ctx.path("")),
@@ -550,7 +599,7 @@ index 540b7d4..2cacf18 100644
      else:
          fail("one of urls, commit, tag, or version must be specified")
  
-@@ -602,6 +670,15 @@ go_repository = repository_rule(
+@@ -602,6 +649,15 @@ go_repository = repository_rule(
              A value for `sum` may be found in the `go.sum` file or by running
              `go mod download -json <module>@<version>`.""",
          ),
@@ -578,6 +627,39 @@ index 95787dc..fc32828 100644
      Label("//cmd/fetch_repo:vcs.go"),
      Label("//cmd/gazelle:BUILD.bazel"),
      Label("//cmd/gazelle:langs.go"),
+diff --git a/tests/go_proxy/BUILD.bazel b/tests/go_proxy/BUILD.bazel
+new file mode 100644
+index 0000000..426540c
+--- /dev/null
++++ b/tests/go_proxy/BUILD.bazel
+@@ -0,0 +1,3 @@
++load(":go_proxy_test.bzl", "go_proxy_test_suite")
++
++go_proxy_test_suite(name = "go_proxy_test")
+diff --git a/tests/go_proxy/go_proxy_test.bzl b/tests/go_proxy/go_proxy_test.bzl
+new file mode 100644
+index 0000000..50e43e7
+--- /dev/null
++++ b/tests/go_proxy/go_proxy_test.bzl
+@@ -0,0 +1,18 @@
++"""GOPROXY URL expectations follow go.dev/ref/mod#goproxy-protocol."""
++load("@bazel_skylib//lib:unittest.bzl", "asserts", "unittest")
++load("//internal:go_proxy.bzl", "build_goproxy_zip_url")
++
++def _proxy_url_test_impl(ctx):
++    env = unittest.begin(ctx)
++    for proxy in ["", "https://proxy.golang.org", "https://proxy.golang.org,direct"]:
++        asserts.equals(env, "https://proxy.golang.org/github.com/google/uuid/@v/v1.6.0.zip", build_goproxy_zip_url(proxy, "github.com/google/uuid", "v1.6.0"))
++    asserts.equals(env, "http://localhost:8080/mod/example.com/!acme/!repo/@v/v1.2.3-!r!c.zip", build_goproxy_zip_url("http://localhost:8080/mod/,direct", "example.com/Acme/Repo", "v1.2.3-RC"))
++    asserts.equals(env, "https://first.example/mod/example.com/a/@v/v2.0.0.zip", build_goproxy_zip_url("https://first.example/mod|https://second.example", "example.com/a", "v2.0.0"))
++    for proxy in ["direct", "off"]:
++        asserts.equals(env, "", build_goproxy_zip_url(proxy, "example.com/a", "v1.0.0"))
++    return unittest.end(env)
++
++proxy_url_test = unittest.make(_proxy_url_test_impl)
++
++def go_proxy_test_suite(name):
++    proxy_url_test(name = name)
 diff --git a/vendor/golang.org/x/mod/sumdb/dirhash/hash.go b/vendor/golang.org/x/mod/sumdb/dirhash/hash.go
 new file mode 100644
 index 0000000..51ec4db
