@@ -35,6 +35,36 @@ def routed_urls(url):
 
 
 class DebianPoolRoutingTest(unittest.TestCase):
+    def test_actual_bookworm_failure_uses_verified_content_before_prior_routes(self):
+        # Registry226 run41895100402 retained the actual failed lock. The
+        # repository still requires SHA256 ea265b1dff21ab2e4b22b38097031f8d63fb940ecb89427659655598860efc0f;
+        # this SHA1-derived URL changes delivery, not the checksum policy.
+        original = "https://snapshot.debian.org/archive/debian-security/20260726T121236Z/pool/updates/main/l/linux/linux-libc-dev_6.1.177-1_amd64.deb"
+        self.assertEqual(routed_urls(original), [
+            "https://snapshot.debian.org/file/aed472fca7f9b98fdb7103b974db264cb60c2248",
+            "https://deb.debian.org/debian-security/pool/updates/main/l/linux/linux-libc-dev_6.1.177-1_amd64.deb",
+            original,
+        ])
+
+    def test_historical_rule_cannot_redirect_other_package_identities(self):
+        original = "https://snapshot.debian.org/archive/debian-security/20260726T121236Z/pool/updates/main/l/linux/linux-libc-dev_6.1.177-1_amd64.deb"
+        for changed in (
+            original.replace("6.1.177-1", "6.1.178-1"),
+            original.replace("_amd64", "_arm64"),
+            original.replace("20260726T121236Z", "20260725T121236Z"),
+            original.replace("linux-libc-dev", "linux-headers"),
+        ):
+            with self.subTest(url=changed):
+                relative = changed.split("/pool/", 1)[1]
+                self.assertEqual(routed_urls(changed), [
+                    "https://deb.debian.org/debian-security/pool/" + relative,
+                    changed,
+                ])
+        for unchanged in (original + "?alternate=1", original + "#fragment",
+                          original.replace("snapshot.debian.org", "other.example")):
+            with self.subTest(url=unchanged):
+                self.assertEqual(routed_urls(unchanged), [unchanged])
+
     def test_actual_failed_payloads_keep_original_snapshot_second(self):
         for original in [TOMLI_URL,
             "https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/t/thrift/libthrift-dev_0.19.0-4+b1_armhf.deb",
