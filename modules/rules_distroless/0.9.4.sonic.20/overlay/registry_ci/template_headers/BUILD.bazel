@@ -26,6 +26,9 @@ cmake(
         "CMAKE_BUILD_TYPE": "Release",
         "DECLARED_BOOST_ROOT": "$$EXT_BUILD_DEPS$$",
     },
+    # Foreign builds change directories; retain the physical build root instead
+    # of inheriting the compiler-only /proc/self/cwd normalization.
+    env = {"PWD": "$$EXT_BUILD_ROOT"},
     lib_source = ":sources",
     out_static_libs = ["libtemplate_headers.a"],
     out_include_dir = "",

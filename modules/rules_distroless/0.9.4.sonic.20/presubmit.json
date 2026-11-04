@@ -53,7 +53,8 @@
     "@rules_distroless//distroless/tests/accounts:zstd_account_layer_test",
     "@rules_distroless//registry_ci:lua_single_library_test",
     "@rules_distroless//registry_ci:linux_headers_test",
-    "@rules_distroless//registry_ci:linux_headers_provider_test"
+    "@rules_distroless//registry_ci:linux_headers_provider_test",
+    "@rules_distroless//apt/private:relocate_pkgconfig_test"
   ],
   "integration_test_module": "tests/integration"
 }
