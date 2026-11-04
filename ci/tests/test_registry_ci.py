@@ -248,11 +248,11 @@ class SelectionTests(FixtureTestCase):
         write_json(latest / "presubmit.json", config)
         head = self.commit("published registry")
         jobs = registry_ci.plan(self.root, None, head, latest_versions=True, published=head)["include"]
-        self.assertEqual({(job["module"], job["version"], job["architecture"], job["runner"])
+        self.assertEqual({(job["module"], job["version"], job["architecture"], tuple(job["runner"]))
                           for job in jobs}, {
-            ("alpha", "2.0.0", "amd64", "ubuntu-24.04"),
-            ("alpha", "2.0.0", "arm64", "ubuntu-24.04-arm"),
-            ("beta", "1.0.0", "amd64", "ubuntu-24.04"),
+            ("alpha", "2.0.0", "amd64", ("self-hosted", "Linux", "X64", "ubuntu-24.04-container")),
+            ("alpha", "2.0.0", "arm64", ("ubuntu-24.04-arm",)),
+            ("beta", "1.0.0", "amd64", ("self-hosted", "Linux", "X64", "ubuntu-24.04-container")),
         })
 
     def test_latest_compares_release_and_sonic_patch_numbers_numerically(self) -> None:

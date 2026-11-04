@@ -499,9 +499,21 @@ original validation failure is still preserved.
 
 ## Environment and coverage
 
-The build matrix uses native GitHub-hosted `ubuntu-24.04` and `ubuntu-24.04-arm`
-servers with a `debian:trixie-20260918` container pinned to its multiarch image
-digest. It installs the compiler and
+Planning, the aggregate check, and AMD64 runner tests and module validation use
+self-hosted Ubuntu 24.04 Docker runners with the labels `self-hosted`, `Linux`,
+`X64`, and `ubuntu-24.04-container`. Register the runners as ephemeral so each
+accepts only one job; `sonic-slave-wrk-mgr` must remove the finished container
+and replace it with a fresh registered runner after success, failure, or
+cancellation. Keep registration credentials in the manager, outside job
+containers, and retain runner diagnostics before removing a container.
+
+ARM64 jobs continue to use native GitHub-hosted `ubuntu-24.04-arm` runners until
+an ARM64 container-runner host is available. An AMD64 runner cannot provide
+native ARM64 validation. Both architectures retain the
+`debian:trixie-20260918` job container pinned to its multiarch image digest;
+runtime preparation requires Debian Trixie. The self-hosted runner installation
+must support these Docker job containers, including Docker access and matching
+workspace and runner-tool mount paths. The workflow installs the compiler and
 package-test tools in the container and downloads Bazel 8.5.1 with a pinned SHA256
 for the native CPU. GitHub actions are pinned to commit SHAs, checkout does not
 persist credentials, and the workflow uses read-only repository permissions.
