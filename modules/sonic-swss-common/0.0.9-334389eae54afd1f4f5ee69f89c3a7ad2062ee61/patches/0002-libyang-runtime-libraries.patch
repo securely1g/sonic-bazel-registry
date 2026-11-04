@@ -1,0 +1,28 @@
+diff --git a/tools/bazel/runtime/BUILD.bazel b/tools/bazel/runtime/BUILD.bazel
+--- a/tools/bazel/runtime/BUILD.bazel
++++ b/tools/bazel/runtime/BUILD.bazel
+@@ -22,7 +22,11 @@
+         "@trixie//python3-dev",
+         "@trixie//uuid-dev",
+     ] + select({
+-        "//tools/bazel:yang_modules_enabled": ["@libyang//:libyang_pkg"],
++        "//tools/bazel:yang_modules_enabled": [
++            "@libyang//:libyang_pkg",
++            "@libyang//:sys_libpcre2-8-0_data",
++            "@libyang//:sys_libxxhash0_data",
++        ],
+         "//conditions:default": [],
+     }),
+ )
+diff --git a/MODULE.bazel b/MODULE.bazel
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -27,7 +27,7 @@
+ bazel_dep(name = "platforms", version = "1.1.0")
+ bazel_dep(name = "tar.bzl", version = "0.10.5-sonic.1")
+ bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.16")
+-bazel_dep(name = "libyang", version = "3.12.2.sonic.4")
++bazel_dep(name = "libyang", version = "3.12.2.sonic.6")
+ 
+ # Use the owner-exported native shared targets and matching runtime metadata.
+ # This retains the SONiC nexthop patch and the public Debian source URL.
