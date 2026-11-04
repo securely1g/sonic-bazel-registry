@@ -1,0 +1,30 @@
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,7 +1,7 @@
+ # Keep bazel_compatibility in sync with sonic-buildimage's .bazelversion.
+ module(
+     name = "sonic-swss-common",
+-    version = "0.0.8",
++    version = "0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
+@@ -32,15 +32,14 @@
+ # Use the owner-exported native shared targets and matching runtime metadata.
+ # This retains the SONiC nexthop patch and the public Debian source URL.
+ bazel_dep(name = "libnl3", version = "3.7.0.sonic.7")
+-bazel_dep(name = "sonic-build-infra", version = "0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568", repo_name = "sonic_build_infra")
++bazel_dep(name = "sonic-build-infra", version = "0.0.26-2cfc059c2cf1dc3b2f2b2ec1bcd70400b04ecb75", repo_name = "sonic_build_infra")
+ bazel_dep(name = "sonic-yang-mgmt", version = "1.0.0-9ab452d22773c41783092ae3bd6c206d6c257c8d", repo_name = "sonic_yang_mgmt")
+ bazel_dep(name = "sonic-yang-models", version = "1.0.0-9ab452d22773c41783092ae3bd6c206d6c257c8d", repo_name = "sonic_yang_models")
+ 
+-# Draft libnl .7 still declares the preceding unpublished infrastructure
+-# candidate. Select the complete current candidate for the standalone graph.
++# Keep the standalone source graph on the sole current infrastructure candidate.
+ single_version_override(
+     module_name = "sonic-build-infra",
+-    version = "0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568",
++    version = "0.0.26-2cfc059c2cf1dc3b2f2b2ec1bcd70400b04ecb75",
+ )
+ 
+ # Upstream 0.10.5 sorts above the patched prerelease. Keep transitive requests
