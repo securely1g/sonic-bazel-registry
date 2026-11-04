@@ -3,7 +3,8 @@
   "strip_prefix": "sonic-gnmi-ce49e93eb3a0cff8daf77a3092535d76265ebc3d",
   "integrity": "sha256-5YnJwJL75ebUOPAOP1CRq/mOkYvAPt6dDLKS/wwGdv4=",
   "patches": {
-    "module-version.patch": "sha256-TUY+1A5eXyQuG4ivcqLkYMVhuZYoh9dczvx35vXQA+4="
+    "module-version.patch": "sha256-TUY+1A5eXyQuG4ivcqLkYMVhuZYoh9dczvx35vXQA+4=",
+    "0002-shared-root-text-version.patch": "sha256-wtny14XjuFcpw5GrrZrii1eXo0K3bOvn9OhPdFzejfA="
   },
   "patch_strip": 1
 }
