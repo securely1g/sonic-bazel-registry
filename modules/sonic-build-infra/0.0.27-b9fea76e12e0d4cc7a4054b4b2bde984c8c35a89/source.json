@@ -1,0 +1,16 @@
+{
+  "url": "https://github.com/securely1g/sonic-build-infra/archive/b9fea76e12e0d4cc7a4054b4b2bde984c8c35a89.tar.gz",
+  "strip_prefix": "sonic-build-infra-b9fea76e12e0d4cc7a4054b4b2bde984c8c35a89",
+  "integrity": "sha256-d8VSNksVHfFG+DkzTxhVNO2AnjwcTVo81Dw73pRO6HU=",
+  "patch_strip": 1,
+  "patches": {
+    "0001-bump-version.patch": "sha256-TIt22fnTTXA6wuqQeDkIeAnNdvP+zkoDN8iSAHTd19Q=",
+    "0002-registry-cross-test-visibility.patch": "sha256-DU3U+LbEFVzNzrBQvZ//frEXTbyJE2v1AzPj8ucCSro="
+  },
+  "overlay": {
+    "registry_ci/BUILD.bazel": "sha256-7fwlYNYvWSfaNnKLiBz+5av6iWucc1ms7+SL09JbG4c=",
+    "registry_ci/kernel_tools_test.py": "sha256-Sc7uPv4ZgJxcUx1YjULES+OsclNgC6sh7NMGP9H5fqQ=",
+    "registry_ci/prefix_map.c": "sha256-2fTAaKxgA4m3vf/VQwcRc63QjZgq0m/ZbrhPEtVNmzI=",
+    "registry_ci/prefix_map_test.py": "sha256-tL/W5IwYk52E4XKgWZ8alih011f2qfKX5u8UGtY35ec="
+  }
+}

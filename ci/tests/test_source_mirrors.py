@@ -6,6 +6,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import tempfile
@@ -137,6 +138,45 @@ class SourceMirrorIntegrationTest(unittest.TestCase):
                     shutil.copytree(artifacts, Path(destination) / work.name)
 
 
+class DebianSnapshotMirrorScopeTest(unittest.TestCase):
+    def test_only_timestamped_regular_pool_paths_add_a_third_route(self):
+        rewrites = [line.split() for line in (ROOT / "ci/source_mirrors.cfg").read_text().splitlines()
+                    if line.startswith("rewrite ")]
+        prefix = "snapshot.debian.org/"
+        cases = {
+            "archive/debian/20260727T143429Z/pool/main/j/json-c/libjson-c5_0.18+ds-1_arm64.deb": True,
+            "archive/debian/20260727T143429Z/pool/main/p/package/package_1%7edfsg-2%2bb1_amd64.deb": True,
+            "archive/debian/20260727T143429Z/pool/contrib/p/package/package_1.orig.tar.xz": True,
+            "archive/debian/20260727T143429Z/pool/non-free/p/package/package_1.debian.tar.xz": True,
+            "archive/debian/20260727T143429Z/dists/trixie/InRelease": False,
+            "archive/debian/20260727T143429Z/dists/trixie/Release": False,
+            "archive/debian/20260727T143429Z/dists/trixie/main/binary-amd64/Packages.xz": False,
+            "archive/debian-security/20260727T143429Z/pool/updates/main/p/package/package_1_arm64.deb": False,
+            "archive/debian/20260727T143429Z/pool/": False,
+            "archive/debian/latest/pool/main/p/package/package_1.deb": False,
+            "archive/debian/20260727/pool/main/p/package/package_1.deb": False,
+            "archive/debian/20260727T143429Z/pool/main/p/package/package_1.deb?download=1": False,
+            "archive/debian/20260727T143429Z/pool/main/p/package/package_1.deb#fragment": False,
+            "file/1234567890/package_1.deb": False,
+        }
+        for path, pool in cases.items():
+            with self.subTest(path=path):
+                urls = []
+                for _, pattern, replacement in rewrites:
+                    match = re.fullmatch(pattern, prefix + path)
+                    if match:
+                        urls.append(re.sub(r"\$(\d+)", lambda group: match[int(group[1])], replacement))
+                expected = ["https://snapshot-cloudflare.debian.org/" + path,
+                            "https://snapshot.debian.org/" + path]
+                if pool:
+                    expected.append("https://deb.debian.org/debian/" + path.split("/", 3)[3])
+                self.assertEqual(urls, expected)
+        for host in ("snapshot.debian.org.example.com", "snapshot-cloudflare.debian.org", "deb.debian.org"):
+            with self.subTest(host=host):
+                url = host + "/archive/debian/20260727T143429Z/pool/main/p/package/package_1.deb"
+                self.assertFalse(any(re.fullmatch(pattern, url) for _, pattern, _ in rewrites))
+
+
 @unittest.skipUnless(os.environ.get("REGISTRY_CI_TEST_BAZEL"),
                      "set REGISTRY_CI_TEST_BAZEL to exercise real Bazel downloads")
 class DebianSnapshotMirrorIntegrationTest(unittest.TestCase):
@@ -149,12 +189,34 @@ class DebianSnapshotMirrorIntegrationTest(unittest.TestCase):
     def test_snapshot_checksum_rejection(self):
         self.exercise_snapshot("corrupt")
 
+    def test_pool_fallback_after_both_snapshot_routes_fail(self):
+        self.exercise_snapshot("pool")
+
+    def test_pool_fallback_rejects_incorrect_bytes(self):
+        self.exercise_snapshot("pool-corrupt")
+
+    def test_pool_is_not_used_when_security_or_metadata_routes_fail(self):
+        for name in ("security", "index", "inrelease"):
+            with self.subTest(name=name):
+                self.exercise_snapshot("excluded-" + name)
+
     def exercise_snapshot(self, scenario):
         paths = {
             "ordinary": "archive/debian/20260727T143429Z/pool/main/p/package/package_1_amd64.deb",
+            "ordinary_arm64": "archive/debian/20260727T143429Z/pool/main/p/package/package_1%7edfsg-2%2bb1_arm64.deb",
             "security": "archive/debian-security/20260727T143429Z/pool/updates/main/p/package/package_1_arm64.deb",
             "index": "archive/debian/20260727T143429Z/dists/trixie/main/binary-amd64/Packages.xz",
+            "inrelease": "archive/debian/20260727T143429Z/dists/trixie/InRelease",
         }
+        if scenario == "pool":
+            paths = {name: path for name, path in paths.items() if name.startswith("ordinary")}
+        elif scenario == "pool-corrupt":
+            paths = {"ordinary": paths["ordinary"]}
+        elif scenario.startswith("excluded-"):
+            name = scenario.removeprefix("excluded-")
+            paths = {name: paths[name]}
+        pool_paths = {path.split("/", 3)[3]: path for path in paths.values()
+                      if path.startswith("archive/debian/") and "/pool/" in path}
         # Distinct fixture payloads prevent one repository-cache hit from
         # concealing whether a different URL is routed correctly.
         payloads = {path: ("snapshot routing fixture: " + path).encode() for path in paths.values()}
@@ -164,13 +226,18 @@ class DebianSnapshotMirrorIntegrationTest(unittest.TestCase):
             def do_GET(self):
                 endpoint, path = self.path.lstrip("/").split("/", 1)
                 requests.append((endpoint, path))
+                if endpoint == "pool":
+                    path = pool_paths.get(path)
                 if path not in payloads:
                     self.send_error(404)
                     return
                 if scenario == "fallback" and endpoint == "mirror":
                     self.send_error(404)
                     return
-                payload = b"incorrect snapshot bytes" if scenario == "corrupt" else payloads[path]
+                if (scenario in ("pool", "pool-corrupt") or scenario.startswith("excluded-")) and endpoint in ("mirror", "original"):
+                    self.send_error(404)
+                    return
+                payload = b"incorrect snapshot bytes" if scenario in ("corrupt", "pool-corrupt") else payloads[path]
                 self.send_response(200)
                 self.send_header("Content-Length", str(len(payload)))
                 self.end_headers()
@@ -190,6 +257,8 @@ class DebianSnapshotMirrorIntegrationTest(unittest.TestCase):
                                     f"http://127.0.0.1:{server.server_port}/mirror/$1")
             config = config.replace("https://snapshot.debian.org/$1",
                                     f"http://127.0.0.1:{server.server_port}/original/$1")
+            config = config.replace("https://deb.debian.org/debian/$1",
+                                    f"http://127.0.0.1:{server.server_port}/pool/$1")
             (work / "downloader.cfg").write_text(config)
             (work / "archive.bzl").write_text(
                 'def _impl(ctx):\n'
@@ -219,10 +288,18 @@ class DebianSnapshotMirrorIntegrationTest(unittest.TestCase):
                     result = subprocess.run(command, cwd=work, stdout=log,
                                             stderr=subprocess.STDOUT, timeout=120)
                 transcript = (artifacts / "fetch.log").read_text()
-                if scenario == "corrupt":
+                if scenario.startswith("excluded-"):
+                    self.assertNotEqual(result.returncode, 0, transcript)
+                    path = next(iter(paths.values()))
+                    self.assertEqual(requests, [("mirror", path), ("original", path)])
+                elif scenario in ("corrupt", "pool-corrupt"):
                     self.assertNotEqual(result.returncode, 0, transcript)
                     self.assertIn("Checksum", transcript)
                     self.assertTrue(requests, "No snapshot requests were made")
+                    if scenario == "pool-corrupt":
+                        path = paths["ordinary"]
+                        self.assertEqual(requests, [("mirror", path), ("original", path),
+                                                    ("pool", path.split("/", 3)[3])])
                     for payload in payloads.values():
                         self.assertFalse((cache / "content_addressable/sha256" /
                                           hashlib.sha256(payload).hexdigest() / "file").exists())
@@ -231,10 +308,17 @@ class DebianSnapshotMirrorIntegrationTest(unittest.TestCase):
                     for name, path in paths.items():
                         self.assertEqual((work / "output/external" / name / "payload").read_bytes(), payloads[path])
                         self.assertIn(("mirror", path), requests)
-                        if scenario == "fallback":
+                        if scenario in ("fallback", "pool"):
                             self.assertLess(requests.index(("mirror", path)), requests.index(("original", path)))
                         else:
                             self.assertNotIn(("original", path), requests)
+                        if scenario == "pool":
+                            pool_request = ("pool", path.split("/", 3)[3])
+                            self.assertLess(requests.index(("original", path)), requests.index(pool_request))
+                            archive = cache / "content_addressable/sha256" / hashlib.sha256(payloads[path]).hexdigest() / "file"
+                            self.assertEqual(archive.read_bytes(), payloads[path])
+                    if scenario != "pool":
+                        self.assertFalse(any(endpoint == "pool" for endpoint, _ in requests))
                 (artifacts / "result.json").write_text(json.dumps({
                     "scenario": scenario, "requests": requests, "result": "passed",
                     "source_config_sha256": hashlib.sha256((ROOT / "ci/source_mirrors.cfg").read_bytes()).hexdigest(),

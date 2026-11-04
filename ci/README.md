@@ -51,6 +51,13 @@ while fetching pinned libpcap and libc debug packages, before source compilation
 Both download attempts remain subject to the original locked SHA256.
 No package version, snapshot date or checksum changes.
 
+If both snapshot routes fail for a regular Debian archive under a timestamped
+`archive/debian/<timestamp>/pool/` path, the runner also tries the same pool path
+at `deb.debian.org/debian/`. This third attempt uses the same locked SHA256;
+it cannot substitute a newer package. The pool may no longer carry old versions.
+Security snapshots and index metadata, including `InRelease`, retain only the
+two snapshot routes above.
+
 This config applies automatically in this registry's validation runner. It does
 not change how standalone consumers download dependencies. Until BCR's upstream
 source location is repaired, standalone callers can opt in using an absolute
@@ -67,7 +74,9 @@ repository fetches; they execute no compilation or package actions.
 
 Controlled snapshot endpoint tests also use real Bazel with empty caches to
 verify ordinary/security archive and index routing, original-URL fallback,
-and rejection of incorrect bytes. These fixtures test downloader behavior;
+third-route pool fallback, and rejection of incorrect bytes. Matching-scope
+checks exclude metadata, security and unpinned paths from the pool fallback.
+These fixtures test downloader behavior;
 they do not establish availability of an external mirror.
 
 The native AMD64/ARM64 runner tests retain these source-fetch checks. Every
@@ -101,8 +110,9 @@ is newer than both. Existing `-sonic.N` spellings remain supported; the dotted
 spelling wins when the release and patch revision match.
 
 For source versions with the same numeric release and SONiC patch, the last
-registration in `metadata.json` wins. This includes the published Go snapshot
-form, such as `0.0.0.sonic.1-20200309174518-a00bece872fc`. Git hashes do not indicate which commit is newer. Append
+registration in `metadata.json` wins. This includes published Go snapshots such
+as `0.0.0.sonic.1-20200309174518-a00bece872fc`. Git hashes do not indicate which
+commit is newer. Append
 new registrations without reordering existing entries. A later append of an
 older release cannot displace a higher release: build-infra `0.0.18-95cd3a9...`
 is selected ahead of any `0.0.8-...` registration. This is a CI selection rule,
@@ -222,6 +232,17 @@ The configuration declares:
 - `build_targets`: required output labels, including runtime and matching debug
   packages where the module provides them.
 - `test_targets`: explicit consumer and package test labels.
+- `build_targets_by_arch` and `test_targets_by_arch` (optional): add explicit
+  targets for selected architectures, for example
+  `"build_targets_by_arch": {"amd64": ["@example//docs:docbook"]}`. Each key must
+  appear in `architectures` and map to a nonempty list with the same label rules
+  as the corresponding common list. Common `build_targets` and `test_targets`
+  remain required and run on every architecture; these maps only append targets.
+  Duplicate targets within an architecture's effective list are rejected.
+  Build commands, output queries, retained artifacts, test execution and strict
+  uncached test verification all use the common list plus that architecture's
+  additions. `validation.json` records these effective lists in `build_targets`
+  and `passed_tests`. Omitting the maps preserves the existing behavior.
 - `integration_test_module` (optional): an entry-relative directory containing a
   separate test module, for example `tests/integration`. CI copies its ordinary
   `MODULE.bazel`, `BUILD.bazel`, tests and fixtures into the fresh consumer. The
