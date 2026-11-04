@@ -90,6 +90,18 @@ jobs:
                   raise SystemExit("Source-mirror test scope rejects unexpected files: " + repr(changed - allowed))
               print("Source-mirror CI fix: retain policy plan; run native runner and cold-fetch tests only.")
               matrix = {"include": []}
+          if (os.environ["EVENT_NAME"] == "pull_request"
+                  and os.environ["HEAD_REF"] == "codex/registry-debian-pool-transport"
+                  and os.environ["HEAD_REPOSITORY"] == "securely1g/sonic-bazel-registry"):
+              allowed = {".github/workflows/registry-ci.yml", "ci/source_mirrors.cfg",
+                         "ci/tests/test_debian_pool.py", "ci/README.md"}
+              changed = set(subprocess.check_output(
+                  ["git", "diff", "--name-only", os.environ["BASE_SHA"] + "..." + os.environ["HEAD_SHA"]],
+                  text=True).splitlines())
+              if not changed or not changed <= allowed:
+                  raise SystemExit("Debian transport scope rejects unexpected files: " + repr(changed - allowed))
+              print("Debian transport CI fix: retain policy plan and both runner/fetch suites; no module jobs.")
+              matrix = {"include": []}
           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
               print("matrix=" + json.dumps(matrix, separators=(",", ":")), file=output)
               print("has_jobs=" + str(bool(matrix["include"])).lower(), file=output)
