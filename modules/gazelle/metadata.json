@@ -1,0 +1,10 @@
+{
+  "versions": [
+    "0.54.0.sonic.1"
+  ],
+  "homepage": "https://github.com/bazel-contrib/bazel-gazelle",
+  "repository": [
+    "github:bazel-contrib/bazel-gazelle"
+  ],
+  "yanked_versions": {}
+}
