@@ -1,0 +1,13 @@
+{
+  "url": "https://codeload.github.com/nanomsg/nnpy/tar.gz/d8f260a176212bfe5f6626942c487b7d90842414",
+  "archive_type": "tar.gz",
+  "strip_prefix": "nnpy-d8f260a176212bfe5f6626942c487b7d90842414",
+  "integrity": "sha256-k3lyBwlwo9Uf3e1EvnBE4GlgaY/NLvNQsHVNCOCsxOY=",
+  "overlay": {
+    "BUILD.bazel": "sha256-6dbX9kQA/z8MOx31QT6z9B1j5Q+TJJtxEPRnwW7JwvI=",
+    "MODULE.bazel": "sha256-XdtXZz6aLcmsCRlxvZDJFrRPi8aV3ruIQWIliuNdC2E=",
+    "emit_cffi.py": "sha256-ZynORDhzqZlGOnXKvAaXB3211NJlGjuphxzO4HeKKNQ=",
+    "package_test.py": "sha256-Ko+TL5aDMvafhNlMcSrRiDyKHjcKETts3jHe3LDl3qw=",
+    "requirements_lock.txt": "sha256-kRUPNna4A13f1JwKpLGFJnHawlJIeKg95ob13UAIcWo="
+  }
+}
