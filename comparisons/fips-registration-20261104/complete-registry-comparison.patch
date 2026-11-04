@@ -1,0 +1,310 @@
+diff --git a/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/MODULE.bazel b/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/MODULE.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..9fc3b25a52734f77dbacb02bd3bc846a2ddd8847
+--- /dev/null
++++ b/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/MODULE.bazel
+@@ -0,0 +1,159 @@
++module(
++    name = "sonic-fips",
++    version = "0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9",
++    bazel_compatibility = [
++        ">=8.5.1",
++        "<=8.5.1",
++    ],
++)
++
++bazel_dep(name = "platforms", version = "1.1.0")
++bazel_dep(name = "bazel_skylib", version = "1.9.2")
++bazel_dep(name = "rules_cc", version = "0.2.20")
++bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.13")
++bazel_dep(name = "rules_foreign_cc", version = "0.16.0")
++bazel_dep(name = "rules_python", version = "1.9.0")
++bazel_dep(name = "sonic-build-infra", version = "0.0.22-a12bc826d6f811a157db5c7c02a2fe033896cc14", repo_name = "sonic_build_infra")
++bazel_dep(name = "tar.bzl", version = "0.10.5-sonic.1")
++
++single_version_override(
++    module_name = "rules_cc",
++    version = "0.2.20",
++)
++
++single_version_override(
++    module_name = "tar.bzl",
++    version = "0.10.5-sonic.1",
++)
++
++gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
++use_repo(gcc, "gcc-14.2.0-linux-target-aarch64-host-aarch64", "gcc-14.2.0-linux-target-x86_64-host-x86_64", "gcc_toolchains")
++
++register_toolchains("@gcc_toolchains//:all")
++
++register_toolchains(
++    "@sonic_build_infra//tools/build_tools:make_toolchain",
++    "@sonic_build_infra//tools/build_tools:m4_toolchain",
++    "@sonic_build_infra//tools/build_tools:pkgconfig_toolchain",
++)
++
++apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
++apt.install(
++    dependency_set = "openssl_deps",
++    packages = [
++        "libzstd-dev",
++        "libzstd1",
++        "zlib1g",
++        "zlib1g-dev",
++    ],
++    suites = [
++        "trixie",
++        "trixie-updates",
++        "trixie-security",
++    ],
++)
++use_repo(apt, "openssl_deps")
++
++openssl_source = use_repo_rule("//openssl:sources.bzl", "openssl_source")
++
++openssl_source(name = "openssl_src")
++
++apt.install(
++    dependency_set = "openssh_deps",
++    packages = [
++        "libaudit-dev",
++        "libaudit1",
++        "libcap-ng0",
++        "libcbor-dev",
++        "libcbor0.10",
++        "libcrypt-dev",
++        "libcrypt1",
++        "libedit-dev",
++        "libedit2",
++        "libfido2-1",
++        "libfido2-dev",
++        "libkrb5-dev",
++        "libpam0g",
++        "libpam0g-dev",
++        "libselinux1",
++        "libselinux1-dev",
++        "libtinfo6",
++        "libudev-dev",
++        "libudev1",
++        "libwrap0",
++        "libwrap0-dev",
++        "libwtmpdb-dev",
++        "libwtmpdb0",
++        "zlib1g",
++        "zlib1g-dev",
++    ],
++    suites = [
++        "trixie",
++        "trixie-updates",
++        "trixie-security",
++    ],
++)
++use_repo(apt, "openssh_deps")
++
++# Select the pinned package's direct CcInfo so source OpenSSL supplies crypto.
++use_repo(
++    apt,
++    fido2_amd64 = "trixie_libfido2-dev-amd64_1.15.0-1-b1",
++    fido2_arm64 = "trixie_libfido2-dev-arm64_1.15.0-1-b1",
++)
++
++openssh_source = use_repo_rule("//openssh:sources.bzl", "openssh_source")
++
++openssh_source(name = "openssh_src")
++
++bazel_dep(name = "toolchains_llvm", version = "1.11.2")
++
++sysroots = use_extension("@sonic_build_infra//toolchains/sysroot:extensions.bzl", "sysroots")
++use_repo(sysroots, "sonic_sysroot")
++
++# Core SymCrypt explicitly chooses Clang in the native recipe. Do not register
++# it globally: its cmake_variant target selects this toolchain locally.
++llvm = use_extension("//symcrypt:toolchain.bzl", "clang")
++use_repo(llvm, "symcrypt_llvm")
++
++symcrypt_source = use_repo_rule("//symcrypt:sources.bzl", "symcrypt_source")
++
++symcrypt_source(name = "symcrypt_src")
++
++symcrypt_openssl_source = use_repo_rule("//symcrypt:sources.bzl", "symcrypt_openssl_source")
++
++symcrypt_openssl_source(name = "symcrypt_openssl_src")
++
++pyelftools_source = use_repo_rule("//symcrypt:sources.bzl", "pyelftools_source")
++
++pyelftools_source(name = "symcrypt_pyelftools")
++
++# Extract the declared runtime TAR for the original OpenSSL vendor suite.
++tar_tools = use_extension("@tar.bzl//tar:extensions.bzl", "toolchains")
++use_repo(tar_tools, "bsd_tar_toolchains")
++
++apt.install(
++    dependency_set = "krb5_deps",
++    packages = [
++        "comerr-dev",
++        "libcmocka-dev",
++        "libcom-err2",
++        "libkeyutils-dev",
++        "libkeyutils1",
++        "libldap-dev",
++        "liblmdb-dev",
++        "libsasl2-dev",
++        "libverto-dev",
++        "ss-dev",
++    ],
++    suites = [
++        "trixie",
++        "trixie-updates",
++        "trixie-security",
++    ],
++)
++use_repo(apt, "krb5_deps")
++
++krb5_source = use_repo_rule("//krb5:sources.bzl", "krb5_source")
++
++krb5_source(name = "krb5_src")
+diff --git a/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/README.md b/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/README.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..e527c76814d215afff007c099450b41aa920661f
+--- /dev/null
++++ b/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/README.md
+@@ -0,0 +1,32 @@
++# Register the landed cumulative FIPS source
++
++This entry selects `sonic-fips` maintained `main` commit
++`15fcb926a302059ec379f0c2fd15eb3d88bda4c9`, the first-parent merge of
++[FIPS #12](https://github.com/securely1g/sonic-fips/pull/12).
++The complete source tree and all nine submodule revisions equal published
++`.4-ef423363`; that earlier pin names the merge's second parent rather than the
++landed integration commit. Published `.4` and every earlier entry are preserved.
++
++| Consumer input | Published `.4` | This `.5` registration |
++| --- | --- | --- |
++| Exact cumulative source | Review head `ef423363`, reachable through a merge's second parent | Landed first-parent commit `15fcb926`, with identical source files, modes and submodules |
++| Native build/test contract | 18 output targets and six tests on AMD64/ARM64 | The same complete presubmit, byte-for-byte |
++| Explicit FIPS selection in Teamd, Libteam and FRR | Earlier consumers pin `d1`/`e910`; current staging selects `.4` | A coordinated direct dependency and version override can select the landed cumulative source |
++
++The cumulative source retains the compiler response-file, OpenSSH source-SDK,
++SymCrypt build-path and deterministic timestamp repairs from FIPS #9–#15.
++The numeric revision is advanced because `.4` is already published; no source
++producer, dependency minimum, crypto behavior or packaging target changes.
++The only source patch changes the module's version string.
++
++The ordinary consumer continues to select published Distroless `.16` and its
++existing infrastructure contract. Teamd/Libteam/FRR and final image catalog
++adoption are separate validation boundaries: update both direct dependencies
++and explicit overrides, verify the fetched module and run the affected native
++checks. Live SDK and image inputs remain frozen until their current phases
++finish. No full image or sealed-crypto reproducibility claim follows from
++source-tree equality.
++
++Archive integrity, first-parent provenance and exact source/registration
++comparisons are required before publication. Fresh registry-fetched/native
++acceptance remains pending for this source identity. No DEB output is added.
+diff --git a/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/patches/0001-module-version.patch b/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/patches/0001-module-version.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..a03a26879ba011ac6699f6c388b503239b3c01a1
+--- /dev/null
++++ b/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/patches/0001-module-version.patch
+@@ -0,0 +1,10 @@
++--- a/MODULE.bazel
+++++ b/MODULE.bazel
++@@ -1,6 +1,6 @@
++ module(
++     name = "sonic-fips",
++-    version = "0.0.3",
+++    version = "0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9",
++     bazel_compatibility = [
++         ">=8.5.1",
++         "<=8.5.1",
+diff --git a/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/presubmit.json b/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/presubmit.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..a4af954de8a8c8fb179c9cbf301b698d92ded327
+--- /dev/null
++++ b/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/presubmit.json
+@@ -0,0 +1,57 @@
++{
++  "architectures": [
++    "amd64",
++    "arm64"
++  ],
++  "consumer_deps": [
++    {
++      "name": "sonic-build-infra",
++      "version": "0.0.22-a12bc826d6f811a157db5c7c02a2fe033896cc14",
++      "repo_name": "sonic_build_infra"
++    },
++    {
++      "name": "rules_distroless",
++      "version": "0.9.4.sonic.16"
++    },
++    {
++      "name": "tar.bzl",
++      "version": "0.10.5-sonic.1"
++    }
++  ],
++  "platforms": {
++    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
++    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
++  },
++  "build_targets": [
++    "@sonic-fips//openssl:libssl3t64_pkg",
++    "@sonic-fips//openssl:openssl_pkg",
++    "@sonic-fips//openssl:libssl3t64_pkg.debug_symbols",
++    "@sonic-fips//openssl:openssl_pkg.debug_symbols",
++    "@sonic-fips//openssl:libssl_dev_pkg",
++    "@sonic-fips//openssh:openssh_client_pkg",
++    "@sonic-fips//openssh:openssh_client_pkg.debug_symbols",
++    "@sonic-fips//krb5:libk5crypto3_pkg",
++    "@sonic-fips//krb5:libk5crypto3_pkg.debug_symbols",
++    "@sonic-fips//krb5:libkrb5support0_pkg",
++    "@sonic-fips//krb5:libkrb5support0_pkg.debug_symbols",
++    "@sonic-fips//krb5:libkrb5_3_pkg",
++    "@sonic-fips//krb5:libkrb5_3_pkg.debug_symbols",
++    "@sonic-fips//krb5:libgssapi_krb5_2_pkg",
++    "@sonic-fips//krb5:libgssapi_krb5_2_pkg.debug_symbols",
++    "@sonic-fips//symcrypt:runtime",
++    "@sonic-fips//symcrypt:runtime.debug_symbols",
++    "@sonic-fips//:runtime_packages.json"
++  ],
++  "test_targets": [
++    "@sonic-fips//openssl:package_test",
++    "@sonic-fips//openssh:package_test",
++    "@sonic-fips//krb5:package_test",
++    "@sonic-fips//symcrypt:package_test",
++    "@sonic-fips//symcrypt:timestamp_test",
++    "@sonic-fips//openssl/integration:openssl_symcrypt_test"
++  ],
++  "host_platforms": {
++    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
++    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
++  }
++}
+diff --git a/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/source.json b/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/source.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..d00a65824c64b4ef2bed3d2391aa966ed465e43f
+--- /dev/null
++++ b/modules/sonic-fips/0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9/source.json
+@@ -0,0 +1,9 @@
++{
++  "url": "https://github.com/securely1g/sonic-fips/archive/15fcb926a302059ec379f0c2fd15eb3d88bda4c9.tar.gz",
++  "strip_prefix": "sonic-fips-15fcb926a302059ec379f0c2fd15eb3d88bda4c9",
++  "integrity": "sha256-MCDEjRbcrn5nABA2SQ2JU0gd58/VGPlWISWIepSVT38=",
++  "patch_strip": 1,
++  "patches": {
++    "0001-module-version.patch": "sha256-xSh/ETCyZnmZFot/LsoQUigHuTi4fJsmPwXI9wyRTCA="
++  }
++}
+diff --git a/modules/sonic-fips/metadata.json b/modules/sonic-fips/metadata.json
+index 80b019fa38f5fa7cbf9a5540525d124ac909cc51..bf8676de2db864914ab5b9b4de8ad5142b5828a4 100644
+--- a/modules/sonic-fips/metadata.json
++++ b/modules/sonic-fips/metadata.json
+@@ -6,6 +6,7 @@
+     "0.0.3-d1a2c8f692d4197295269ed445022c3890b0f1a6",
+     "0.0.3-401a5d7ea7d741f405f4ccd8b7de94678d27ad4c",
+     "0.0.3-44d18af69f1b1868cebd41a93a76feb7c0b9a0f6",
+-    "0.0.4-ef423363e8fd50358f0aa2a8a20d3e08d4450a56"
++    "0.0.4-ef423363e8fd50358f0aa2a8a20d3e08d4450a56",
++    "0.0.5-15fcb926a302059ec379f0c2fd15eb3d88bda4c9"
+   ]
+ }
