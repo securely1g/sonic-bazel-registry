@@ -213,7 +213,15 @@ The configuration declares:
   separate test module, for example `tests/integration`. CI copies its ordinary
   `MODULE.bazel`, `BUILD.bazel`, tests and fixtures into the fresh consumer. The
   test module must directly select the tested module's exact name and version;
-  it cannot use source overrides or include other MODULE files. Keep
+  it cannot use source overrides or include other MODULE files. A standard
+  `single_version_override` may contain exactly the literal, nonempty
+  `module_name` and `version` arguments. This selects a registry version without
+  replacing its source; patches, registry redirects and other arguments are
+  rejected, and the tested module must retain its exact reviewed version. For
+  example, Framework's shared consumer pins the reviewed infrastructure
+  `0.0.26-2a6fc39c55be05e849b0e3a2d1808a4a59f123a6` while existing dependency
+  minima name an earlier, higher-sorting commit suffix. This matches the
+  generated consumer's existing version-pin behavior. Keep
   `consumer_deps` empty and omit the generated Go/Rust options in this mode:
   the checked-in test module owns its dependencies and toolchains. Explicit
   root targets such as `//:archive_contract_test` are then allowed alongside
