@@ -60,33 +60,7 @@ repository fetches; they execute no compilation or package actions.
 The `codex/pigz-source-mirror` PR validates this CI fix with those fetch tests and
 the existing AMD64/ARM64 runner tests. Its path-checked exception retains the
 normal publication-policy plan but does not run the unrelated module build
-matrix. The separate version-pin exception below does not change this scope.
-
-## Version-pin validator PR scope
-
-The owned `codex/registry-integration-version-pins` pull request allows a normal
-registry version selection in checked-in consumers. The Framework consumer, for
-example, selects the reviewed build-infra version with `single_version_override`
-without replacing its source. This CI-only change is being validated without
-generating Debian packages.
-
-The normal publication-policy plan still checks every selected entry. Its latest
-module matrix also includes existing tests that create sample Debian packages:
-build-infra's `kernel_runtime_test` creates runtime and debug packages, and the
-kernel's `kernel_action_test` and `verify_cache_test` create package fixtures.
-The workflow defers those two module suites on both native architectures only
-for this exact same-repository PR branch. At the reviewed head, this retains 55
-of 59 native jobs plus both AMD64/ARM64 runner suites. It does not remove tests
-from published presubmits or claim acceptance of the deferred suites.
-
-The exception rejects any changed path outside the five exact workflow,
-validator, documentation and test files listed in the workflow. The original
-`plan.json` remains byte-for-byte unchanged; `plan-effective.json` records the
-scheduled jobs and `plan-scope.json` binds both plan hashes, changed files, PR
-identity and every excluded job with its reason. All three are retained with
-`plan.log`. Other PR branches, forks, main pushes and manual runs retain their
-existing selection. This temporary branch-specific exception keeps the PR in
-Draft until the exception is removed and its normal readiness gates are met.
+matrix. All other branches and pushes retain normal module selection.
 
 ## Kernel build-tool cache downloads
 
@@ -587,3 +561,17 @@ clean reproduction.
 
 See the [Bazel registry format](https://bazel.build/external/registry) for module
 source, patch, and overlay metadata.
+
+### SONiC Go pseudo-version ordering
+
+Registered SONiC patches may retain a Go pseudo-version suffix, for example
+0.0.0.sonic.1-20200309174518-a00bece872fc. The planner accepts the exact
+14-digit timestamp and 12-lowercase-hex form while preserving numeric release,
+SONiC patch number and separator precedence. Equal release/patch snapshots
+continue to use metadata registration order; hashes/timestamps are not sorted.
+Malformed or unrelated suffixes remain rejected.
+
+The owned CI-only branch codex/registry-goyang-release-order retains the policy
+plan and both native runner fixture suites, with an empty module matrix after
+an exact owned repository/branch/four-file check. Other events and branches keep
+their existing routing. This does not claim native module acceptance.
