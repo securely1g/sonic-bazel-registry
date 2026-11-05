@@ -46,10 +46,14 @@ RUNNERS = {
     "amd64": ["self-hosted", "Linux", "X64", "debian-trixie-container"],
     "arm64": ["ubuntu-24.04-arm"],
 }
-# Temporary staged rollout only: add exact versions after their complete ARM
-# contract passes. Remove this map and the hosted ARM route when migration is
-# complete, so future ARM versions also receive cross validation automatically.
-ARM_CROSS_VERSIONS: dict[str, tuple[str, ...]] = {}
+# Temporary staged rollout: CI validates the complete original ARM contract for
+# these versions before the migration PR can land. Remove this map and the hosted
+# ARM route when migration is complete, including for future ARM versions.
+ARM_CROSS_VERSIONS: dict[str, tuple[str, ...]] = {
+    "gawk": ("5.3.2.sonic.1",),
+    "libnl3": ("3.7.0.sonic.7",),
+    "libyang-python": ("3.1.0.sonic.6",),
+}
 HTTP_DOWNLOAD_FLAGS = (
     "--http_connector_attempts=12",
     "--http_connector_retry_max_timeout=10s",

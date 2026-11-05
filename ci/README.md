@@ -582,10 +582,11 @@ and replace it with a fresh registered runner after success, failure, or
 cancellation. Keep registration credentials in the manager, outside job
 containers, and retain runner diagnostics before removing a container.
 
-The temporary `ARM_CROSS_VERSIONS` map in `registry_ci.py` is initially empty,
-so module jobs retain their native routes. During staged migration, only exact
-versions whose complete ARM contract has passed move to cross execution on the
-local AMD64 runners. Remaining ARM64 module jobs use native GitHub-hosted
+The temporary `ARM_CROSS_VERSIONS` map in `registry_ci.py` routes gawk
+`5.3.2.sonic.1`, libnl3 `3.7.0.sonic.7`, and libyang-python `3.1.0.sonic.6` to
+cross execution on the local AMD64 runners. CI must pass each version's complete
+original ARM build and test contract before its migration PR lands. Remaining
+ARM64 module jobs use native GitHub-hosted
 `ubuntu-24.04-arm` runners and retain the
 `debian:trixie-20260918` container pinned to its multiarch image digest. AMD64
 steps execute directly inside the disposable runner, built from that same
@@ -658,7 +659,7 @@ files exist and remain visible in the Actions job log.
 
 ARMHF, other operating systems, all historical registry entries, and the complete
 SONiC image are outside this matrix. Cross coverage is limited to the explicit
-fixture and any fully validated versions moved during the staged rollout.
+fixture and the exact versions selected during the staged rollout.
 Declaring an ARMHF layout in a module does not establish ARMHF build or execution coverage.
 
 ## Staged ARM64 cross validation
@@ -671,12 +672,18 @@ an ARM64 target, and an explicit disposable Debian Trixie container identity.
 The reusable workflow selects native Bazel, image, sudo and artifact handling by
 execution mode while preserving the target architecture and all original labels.
 
-The empty `ARM_CROSS_VERSIONS` map is a temporary rollout mechanism, not a
-permanent approval system. Published-entry immutability remains enforced. Add
-only exact versions after full cross validation; unlisted/new versions stay on
-hosted native ARM during this stage. Remove the map and hosted route when ARM
-migration is complete, so future ARM versions also receive cross CI. Native unit
+`ARM_CROSS_VERSIONS` is a temporary rollout mechanism. Published-entry
+immutability remains enforced. Each migration PR selects exact versions and
+must pass their full cross validation; unlisted/new versions stay on hosted
+native ARM during this stage. Remove the map and hosted route when ARM migration
+is complete, so future ARM versions also receive cross CI. Native unit
 architecture coverage remains unchanged throughout this stage.
+
+The first group preserves gawk's three build labels and one test, libnl3's five
+build labels and four tests, and libyang-python's four build labels and three
+tests. The gawk smoke test uses gawk as a native execution tool while the direct
+gawk build targets ARM64. The libnl3 and libyang-python tests execute with the
+ARM runtime and retain their existing package, library and Python checks.
 
 Inside a configured disposable runner with `/usr/local/bin/sonic-arm64`, use
 fresh work and artifact directories. This command is a local opt-in example,
