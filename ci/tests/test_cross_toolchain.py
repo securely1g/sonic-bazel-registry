@@ -3,6 +3,7 @@
 import importlib.util
 import json
 from pathlib import Path
+import shutil
 import tempfile
 import unittest
 from unittest import mock
@@ -26,6 +27,33 @@ class CrossToolchainTest(unittest.TestCase):
         (self.consumer / "BUILD.bazel").write_text('exports_files(["existing.data"])\n')
         (self.consumer / "existing.data").write_text("preserve copied integration inputs")
         self.versions = {"alpha": "1.2", "platforms": "1.0.0", "rules_cc": "0.2.4"}
+        self.case_count = 0
+
+    def prepare_case(self, versions, target_parent="@sonic_build_infra//platforms:aarch64_trixie",
+                     execution_parent="@sonic_build_infra//platforms:x86_64_trixie", after=None):
+        case = self.root / f"case-{self.case_count}"
+        self.case_count += 1
+        consumer, artifacts = case / "consumer", case / "artifacts"
+        shutil.copytree(self.consumer, consumer)
+        artifacts.mkdir()
+        if "sonic-build-infra" in versions:
+            # The selected version can differ from the consumer's minimum.
+            module = consumer / "MODULE.bazel"
+            module.write_text(module.read_text() + 'bazel_dep(name="sonic-build-infra", '
+                              'version="0.0.13-ff408bafc35ce0e3d7a0bd27803debdc2a921de6")\n')
+        compiler, sysroot = case / "compiler", case / "sysroot"
+        for name in ("bin", "usr", "aarch64-linux-gnu"):
+            (compiler / name).mkdir(parents=True)
+        (compiler / "inputs.json").write_text('{"compiler":"locked packages"}\n')
+        (sysroot / "usr/include").mkdir(parents=True)
+        (sysroot / "usr/include/features.h").write_text("/* locked sysroot header */\n")
+        provider_value = {"module": "sonic-build-infra", "version": cross.PROVIDER_VERSION,
+                          "compiler": str(compiler), "sysroot": str(sysroot)}
+        with mock.patch.object(cross, "module_graph", side_effect=[versions, versions if after is None else after]), \
+                mock.patch.object(cross, "prepare_provider", return_value=provider_value) as provider:
+            result = cross.prepare(self.root, consumer, case, artifacts, ["bazel"], [],
+                                   target_parent, execution_parent, mock.Mock())
+        return result, consumer, artifacts, provider
 
     def test_host_parent_gets_explicit_target_cpu_without_replacing_integration_files(self):
         original_build = (self.consumer / "BUILD.bazel").read_bytes()
@@ -54,24 +82,75 @@ class CrossToolchainTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "original module graph"):
             cross.expose_dependency(self.consumer, "missing", self.versions)
 
-    def test_rich_platform_keeps_published_compiler_and_inherited_constraints(self):
-        with mock.patch.object(cross, "module_graph", return_value=self.versions), \
-                mock.patch.object(cross, "prepare_provider") as provider:
-            result = cross.prepare(self.root, self.consumer, self.root, self.artifacts, ["bazel"], [],
-                                   "@sonic_build_infra//platforms:aarch64_trixie",
-                                   "@sonic_build_infra//platforms:x86_64_trixie", mock.Mock())
-        provider.assert_not_called()
-        self.assertIsNone(result["provider"])
-        self.assertEqual(result["distribution_constraint"], "@sonic_build_infra//platforms:trixie")
-        self.assertTrue(result["module_versions_unchanged"])
-        self.assertNotIn('register_toolchains', (self.consumer / "MODULE.bazel").read_text())
+    def test_proven_selected_versions_keep_published_compiler_and_inherited_constraints(self):
+        self.assertIn(cross.PROVIDER_VERSION, cross.VERIFIED_SONIC_CROSS_VERSIONS)
+        for version in sorted(cross.VERIFIED_SONIC_CROSS_VERSIONS):
+            for target in sorted(cross.SONIC_PLATFORMS):
+                with self.subTest(version=version, target=target):
+                    execution = target.replace(":aarch64_trixie", ":x86_64_trixie")
+                    versions = {**self.versions, "sonic-build-infra": version}
+                    result, consumer, artifacts, provider = self.prepare_case(versions, target, execution)
+                    provider.assert_not_called()
+                    self.assertIsNone(result["provider"])
+                    self.assertTrue(result["use_published_cross_toolchain"])
+                    self.assertEqual(result["selected_sonic_build_infra_version"], version)
+                    self.assertEqual(result["selected_module_versions"], versions)
+                    self.assertEqual(result["distribution_constraint"], target.rsplit(":", 1)[0] + ":trixie")
+                    self.assertTrue(result["module_versions_unchanged"])
+                    generated = (consumer / cross.PACKAGE / "BUILD.bazel").read_text()
+                    self.assertIn(f'parents=["{target}"]', generated)
+                    self.assertIn(f'parents=["{execution}"]', generated)
+                    self.assertNotIn("register_toolchains", (consumer / "MODULE.bazel").read_text())
+                    self.assertFalse((artifacts / "cross-adapter.BUILD.bazel").exists())
+
+    def test_native_only_and_unknown_selected_versions_use_provider_with_original_parents(self):
+        for version in ("0.0.6-553b2f70f9ba77b74befdf77674894166139ddcc",
+                        "0.0.13-ff408bafc35ce0e3d7a0bd27803debdc2a921de6",
+                        "0.0.25", "0.0.99-unverified", None):
+            with self.subTest(version=version):
+                versions = dict(self.versions)
+                if version is not None:
+                    versions["sonic-build-infra"] = version
+                result, consumer, artifacts, provider = self.prepare_case(versions)
+                provider.assert_called_once()
+                self.assertEqual(result["provider"]["version"], cross.PROVIDER_VERSION)
+                self.assertFalse(result["use_published_cross_toolchain"])
+                self.assertEqual(result["selected_sonic_build_infra_version"], version)
+                self.assertEqual(result["selected_module_versions"], versions)
+                self.assertTrue(result["module_versions_unchanged"])
+                generated = (consumer / cross.PACKAGE / "BUILD.bazel").read_text()
+                self.assertIn('parents=["@sonic_build_infra//platforms:aarch64_trixie"]', generated)
+                self.assertIn('parents=["@sonic_build_infra//platforms:x86_64_trixie"]', generated)
+                self.assertIn('"@platforms//cpu:aarch64"', generated)
+                self.assertIn('"@platforms//cpu:x86_64"', generated)
+                self.assertIn('"@registry_ci_cross_cc//:trixie"', generated)
+                adapter = (artifacts / "cross-adapter.BUILD.bazel").read_text()
+                self.assertIn('constraint_setting(name="distribution")', adapter)
+                self.assertIn('constraint_value(name="trixie", constraint_setting=":distribution")', adapter)
+                self.assertIn('register_toolchains("@registry_ci_cross_cc//:toolchain")',
+                              (consumer / "MODULE.bazel").read_text())
+                self.assertEqual((consumer / "BUILD.bazel").read_bytes(),
+                                 (self.consumer / "BUILD.bazel").read_bytes())
+                self.assertEqual((consumer / "existing.data").read_text(), "preserve copied integration inputs")
+                self.assertEqual(json.loads((artifacts / "cross-platforms.json").read_text()), result)
+
+    def test_proven_version_requires_recognized_parent_to_reuse_published_compiler(self):
+        versions = {**self.versions, "sonic-build-infra": cross.PROVIDER_VERSION}
+        target, execution = "//custom:arm_with_extra_constraints", "@platforms//host:host"
+        result, consumer, artifacts, provider = self.prepare_case(versions, target, execution)
+        provider.assert_called_once()
+        self.assertFalse(result["use_published_cross_toolchain"])
+        generated = (consumer / cross.PACKAGE / "BUILD.bazel").read_text()
+        self.assertIn(f'parents=["{target}"]', generated)
+        self.assertIn(f'parents=["{execution}"]', generated)
+        self.assertEqual(result["selected_module_versions"], versions)
 
     def test_dependency_graph_changes_fail_instead_of_silently_upgrading(self):
-        with mock.patch.object(cross, "module_graph", side_effect=[self.versions, {**self.versions, "rules_cc": "0.2.22"}]):
-            with self.assertRaisesRegex(ValueError, "changed the consumer"):
-                cross.prepare(self.root, self.consumer, self.root, self.artifacts, ["bazel"], [],
-                              "@sonic_build_infra//platforms:aarch64_trixie",
-                              "@sonic_build_infra//platforms:x86_64_trixie", mock.Mock())
+        for version in (cross.PROVIDER_VERSION, "0.0.13-ff408bafc35ce0e3d7a0bd27803debdc2a921de6"):
+            with self.subTest(version=version):
+                versions = {**self.versions, "sonic-build-infra": version}
+                with self.assertRaisesRegex(ValueError, "changed the consumer"):
+                    self.prepare_case(versions, after={**versions, "rules_cc": "0.2.22"})
 
     def test_provider_is_separately_pinned_retains_manifests_and_shuts_down(self):
         entry = self.root / "modules/sonic-build-infra" / cross.PROVIDER_VERSION

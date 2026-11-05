@@ -24,6 +24,17 @@ SONIC_PLATFORMS = {
     "@sonic_build_infra//platforms:aarch64_trixie",
     "@sonic-build-infra//platforms:aarch64_trixie",
 }
+# These immutable entries register a Trixie GCC toolchain with distinct
+# AMD64 execution and ARM64 target constraints. A platform label or a newer
+# version alone does not prove that registration; runtime acceptance is separate.
+VERIFIED_SONIC_CROSS_VERSIONS = {
+    "0.0.17-8baf1ad829c5095297d85148b042145b87d623a3",
+    "0.0.22-a12bc826d6f811a157db5c7c02a2fe033896cc14",
+    "0.0.23-5b224d7190d04f1b7b68429eedfc03b7b1565ed0",
+    "0.0.25-17a1e555291c64be1a6ff008f33352bffc4f8e5c",
+    "0.0.25-34de7330abc72229dfc8dab88dec71b89c52aa88",
+    "0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568",
+}
 
 
 def resolution_flags(flags: list[str]) -> list[str]:
@@ -209,21 +220,26 @@ def prepare(root: Path, consumer: Path, work: Path, artifacts: Path, prefix: lis
     platforms_repo = expose_dependency(consumer, "platforms", before)
     provider = None
     adapter = None
-    if target_parent not in SONIC_PLATFORMS:
+    sonic_version = before.get("sonic-build-infra")
+    use_published_toolchain = (target_parent in SONIC_PLATFORMS
+                               and sonic_version in VERIFIED_SONIC_CROSS_VERSIONS)
+    if not use_published_toolchain:
         rules_cc_repo = expose_dependency(consumer, "rules_cc", before)
         run_logged([*prefix, "shutdown"], consumer, artifacts / "cross-consumer-before-provider-shutdown.log")
         provider = prepare_provider(root, work, artifacts, prefix, flags, run_logged)
         adapter = write_adapter(consumer, work, provider, rules_cc_repo, platforms_repo)
         trixie = f"@{REPOSITORY}//:trixie"
     else:
-        # The published parent already registers a matching compiler. Retain
-        # its distro constraint and every other inherited platform constraint.
+        # Only the exact graph-selected entries above have proven registration.
+        # Retain their distro constraint and all inherited platform constraints.
         trixie = target_parent.rsplit(":", 1)[0] + ":trixie"
     result = write_platforms(consumer, target_parent, execution_parent, platforms_repo, trixie)
     after = module_graph(prefix, flags, consumer, artifacts, "cross-graph-after")
     if before != after:
         raise ValueError("Cross adapter changed the consumer's selected module versions")
-    result.update(provider=provider, selected_module_versions=before, module_versions_unchanged=True)
+    result.update(provider=provider, selected_module_versions=before, module_versions_unchanged=True,
+                  selected_sonic_build_infra_version=sonic_version,
+                  use_published_cross_toolchain=use_published_toolchain)
     shutil.copy2(consumer / PACKAGE / "BUILD.bazel", artifacts / "cross-platforms.BUILD.bazel")
     if adapter:
         shutil.copy2(adapter / "BUILD.bazel", artifacts / "cross-adapter.BUILD.bazel")

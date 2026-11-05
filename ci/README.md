@@ -676,16 +676,24 @@ sudo -n /usr/bin/python3 -I -S ci/registry_ci.py run \
 Cross mode creates explicit AMD64/Linux/Trixie execution and ARM64/Linux/Trixie
 target platforms, retaining other constraints from the declared parents. This
 also overrides host-derived aliases that would otherwise select AMD64 output
-for an ARM64 request. Published Sonic Trixie platforms keep their toolchains;
-generic platforms use a CI-local legacy C++ adapter compatible with the selected
-`rules_cc`, backed by the native-to-ARM GCC14.2 compiler and Trixie sysroot from
+for an ARM64 request. Published Sonic Trixie platforms keep their toolchains only
+when the exact graph-selected `sonic-build-infra` version is in
+`cross_toolchain.py`'s verified registration allowlist. Its six immutable entries
+declare AMD64 execution, ARM64 targets and Trixie; a familiar platform label or
+newer version alone does not establish that capability. All other consumers,
+including native-only infra 0.0.6 and SAI's 0.0.13, use a CI-local legacy C++
+adapter compatible with the selected `rules_cc`. Both declared platform parents
+remain inherited; the adapter's separate distribution constraint is additional.
+The adapter uses the native-to-ARM GCC14.2 compiler and Trixie sysroot from
 immutable `sonic-build-infra@0.0.25-34de7330abc72229dfc8dab88dec71b89c52aa88`.
 The provider resolves separately and its JVM stops after preparation. Its
 dependencies do not enter the consumer graph. Compiler/sysroot files are declared
 action inputs, and the consumer's selected module versions must remain equal
 before and after adaptation. Existing integration-module contents are preserved.
 Evidence retains both graphs, provider lock and manifests, generated adapter and
-platform definitions, and declared/effective platform identities.
+platform definitions, declared/effective platform identities, and the selected
+infra version and toolchain reuse decision. The registration allowlist is
+source-level evidence; actual toolchain and runtime acceptance remain separate.
 
 The supplied executor runs unchanged ARM tests with QEMU user-mode and PRoot in
 an ARM64 Trixie filesystem. This provides emulated userspace execution, not
@@ -728,9 +736,9 @@ REGISTRY_CI_TEST_ARM_EXECUTOR=/usr/local/bin/sonic-arm64 \
 
 This foundation is not acceptance of the full ARM matrix. Before routing changes,
 rerun the helper tests and the real native-generator/ARM-output fixture, then each
-module's complete original contract. Known gaps include SAI's missing registered
-cross toolchain despite its Sonic platform label, nested Bazel/sandbox execution
-in rules_go, SWSS self-reexecution under emulation, and full libyang/protobuf
+module's complete original contract. SAI now selects the isolated provider, but
+its full cross build and tests have not passed. Other known gaps include nested
+Bazel/sandbox execution in rules_go, SWSS self-reexecution under emulation, and full libyang/protobuf
 debugger/upstream coverage. P4C/PI source candidates and FIPS target-binutils work
 remain separate module changes; transitive consumers retain their published
 dependency pins. No source recipe or image change is included here.
