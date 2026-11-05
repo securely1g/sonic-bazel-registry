@@ -38,6 +38,10 @@ _PIP_SPEC = importlib.util.spec_from_file_location("registry_ci_cross_pip", Path
 assert _PIP_SPEC is not None and _PIP_SPEC.loader is not None
 cross_pip = importlib.util.module_from_spec(_PIP_SPEC)
 _PIP_SPEC.loader.exec_module(cross_pip)
+_AUTOCONF_SPEC = importlib.util.spec_from_file_location("registry_ci_cross_autoconf", Path(__file__).with_name("cross_autoconf.py"))
+assert _AUTOCONF_SPEC is not None and _AUTOCONF_SPEC.loader is not None
+cross_autoconf = importlib.util.module_from_spec(_AUTOCONF_SPEC)
+_AUTOCONF_SPEC.loader.exec_module(cross_autoconf)
 RUNNERS = {
     "amd64": ["self-hosted", "Linux", "X64", "debian-trixie-container"],
     "arm64": ["self-hosted", "Linux", "X64", "debian-trixie-container"],
@@ -1399,6 +1403,10 @@ def run(root: Path, module: str, version: str, architecture: str,
                 except ValueError as error:
                     raise RegistryError(str(error)) from error
                 cross_runtime["pip_hubs"] = pip_hubs
+                try:
+                    cross_runtime["autoconf"] = cross_autoconf.prepare(work_dir, artifacts, flags)
+                except ValueError as error:
+                    raise RegistryError(str(error)) from error
                 shutil.copy2(consumer / "MODULE.bazel", artifacts / "consumer.MODULE.bazel")
             flags.extend(prepare_rust(config, consumer, work_dir, artifacts, prefix, flags))
             run_logged([*prefix, "build", *flags, f"--build_event_json_file={artifacts / 'build-events.jsonl'}",

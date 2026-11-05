@@ -2100,6 +2100,7 @@ class FetchedModuleTests(FixtureTestCase):
                 for command in commands:
                     self.assertEqual(command[:len(expected)], expected)
                     self.assertFalse(any(arg.startswith("--host_jvm_args=") for arg in command[len(expected):]))
+                    self.assertFalse(any(arg.startswith("--action_env=CONFIG_SITE") for arg in command))
                     for flag in build:
                         self.assertEqual(flag in command, command[len(expected)] != "info")
                 prepare.assert_called_once()
@@ -2170,6 +2171,11 @@ class FetchedModuleTests(FixtureTestCase):
                 self.assertEqual(evidence["test_container_image"], image)
                 self.assertEqual(evidence["host_platform"], "//_registry_ci_cross:amd64")
                 self.assertEqual(evidence["cross_platforms"], adapted)
+                autoconf = evidence["cross_runtime"]["autoconf"]
+                self.assertTrue(autoconf["enabled"])
+                for command in commands:
+                    if "build" in command or "test" in command:
+                        self.assertTrue(set(autoconf["flags"]).issubset(command))
                 self.assertEqual(evidence["cross_runtime"]["executor_sha256"],
                                  hashlib.sha256(executor.read_bytes()).hexdigest())
                 self.assertEqual(json.loads((artifacts / "source-validation.json").read_text())["native"], native)

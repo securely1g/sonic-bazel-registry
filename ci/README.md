@@ -591,6 +591,16 @@ already-selected dependency versions, and before/after module graphs must match.
 Artifacts retain both graphs, the provider lock and input manifests, generated
 adapter/platform definitions, and declared/effective platform identities.
 Copied integration-module files remain intact.
+
+Cross builds also provide a readonly, content-addressed Autoconf `CONFIG_SITE`.
+When an AMD64 build action has selected an ARM64 GNU compiler and has no explicit
+configure host or build alias, the site identifies the host from that compiler
+and sets the native build identity and cross-compilation state. Native compiler
+actions, explicit configure aliases and caller-provided `CONFIG_SITE` action
+environment settings keep their behavior. It supplies no cached target probe
+answers. `cross-autoconf.json` and `cross-autoconf.site` retain the effective
+configuration and its hash; the original recipes and build sandbox stay intact.
+
 Their unchanged tests execute with QEMU user-mode in a bundled ARM64 Trixie
 filesystem, entered through `/usr/local/bin/sonic-arm64` and PRoot. This validates
 ARM64 binaries under emulation; it does not provide native ARM64 hardware or
