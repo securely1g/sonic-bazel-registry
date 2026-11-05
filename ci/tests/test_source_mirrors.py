@@ -190,6 +190,12 @@ class DebianSnapshotMirrorIntegrationTest(unittest.TestCase):
                                     f"http://127.0.0.1:{server.server_port}/mirror/$1")
             config = config.replace("https://snapshot.debian.org/$1",
                                     f"http://127.0.0.1:{server.server_port}/original/$1")
+            # Keep added pool attempts local too; unmatched fixture paths
+            # return 404 before the existing mirror/original assertions.
+            config = config.replace("https://deb.debian.org/debian/pool/$2",
+                                    f"http://127.0.0.1:{server.server_port}/pool/$2")
+            config = config.replace("https://deb.debian.org/debian-security/pool/$2",
+                                    f"http://127.0.0.1:{server.server_port}/pool/$2")
             (work / "downloader.cfg").write_text(config)
             (work / "archive.bzl").write_text(
                 'def _impl(ctx):\n'

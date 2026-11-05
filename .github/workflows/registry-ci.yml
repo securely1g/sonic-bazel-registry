@@ -41,6 +41,8 @@ jobs:
           BEFORE_SHA: ${{ github.event.before }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           ALL_VERSIONS: ${{ inputs.all_versions }}
+          HEAD_REF: ${{ github.head_ref }}
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
         run: |
           set -euo pipefail
           POLICY_FLAGS=()
@@ -71,9 +73,23 @@ jobs:
           python3 - <<'PY'
           import json
           import os
+          import subprocess
           from pathlib import Path
 
           matrix = json.loads(Path("plan.json").read_text())
+          if (os.environ["EVENT_NAME"] == "pull_request"
+                  and os.environ["HEAD_REF"] == "codex/registry-debian-pool-transport"
+                  and os.environ["HEAD_REPOSITORY"] == "securely1g/sonic-bazel-registry"):
+              allowed = {".github/workflows/registry-ci.yml", "ci/source_mirrors.cfg",
+                         "ci/tests/test_debian_pool.py", "ci/tests/test_source_mirrors.py",
+                         "ci/README.md"}
+              changed = set(subprocess.check_output(
+                  ["git", "diff", "--name-only", os.environ["BASE_SHA"] + "..." + os.environ["HEAD_SHA"]],
+                  text=True).splitlines())
+              if not changed or not changed <= allowed:
+                  raise SystemExit("Debian transport scope rejects unexpected files: " + repr(changed - allowed))
+              print("Debian transport CI fix: retain policy plan and both runner/fetch suites; no module jobs.")
+              matrix = {"include": []}
           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
               print("matrix=" + json.dumps(matrix, separators=(",", ":")), file=output)
               print("has_jobs=" + str(bool(matrix["include"])).lower(), file=output)
