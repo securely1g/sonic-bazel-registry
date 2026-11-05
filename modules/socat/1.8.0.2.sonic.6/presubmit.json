@@ -1,0 +1,30 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.22-a12bc826d6f811a157db5c7c02a2fe033896cc14"
+    },
+    {
+      "name": "tar.bzl",
+      "version": "0.10.5-sonic.1"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic-build-infra//platforms:x86_64_trixie",
+    "arm64": "@sonic-build-infra//platforms:aarch64_trixie"
+  },
+  "build_targets": [
+    "@socat//:socat_pkg",
+    "@socat//:socat_pkg.debug_symbols",
+    "@socat//:socat_config_log",
+    "@socat//:runtime_packages.json"
+  ],
+  "test_targets": [
+    "@socat//:socat_package_test"
+  ],
+  "generated_module_overlay": true
+}
