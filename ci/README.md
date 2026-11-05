@@ -30,17 +30,19 @@ repository branch-protection settings.
 ## Module CI downloader configuration
 
 Normal module jobs reuse the checksum-verified bootstrap from SONiC's FRR CI to
-select [reviewed downloader candidate `450659`](https://github.com/securely1g/sonic-bazel-registry/tree/45065949f5163bd5d99793026b076eafec213ef8)
+select [reviewed downloader candidate `5a870f`](https://github.com/securely1g/sonic-bazel-registry/tree/5a870fd0ac4b75e814a8901e19099262a213e05b)
 from [registry #228](https://github.com/securely1g/sonic-bazel-registry/pull/228).
 This selection remains unlanded. It includes the reviewed sibling-architecture
-routes and exact Redis content route from the reconciled owner candidate. No
-owner CI acceptance is implied.
+routes, the exact Redis content route, and five verified Krb5/PCRE package
+identities from the reconciled owner candidate. The new package routes retain
+their original fallbacks and locked checksums; they do not establish current
+configured-fetch or consumer acceptance.
 
 The libteam, SWSS and Socat AMD64 jobs selected the same locked
 `libc6-dev_2.41-12+deb13u3_amd64.deb`, whose pool and dated Snapshot URLs both
 returned 404. The reviewed configuration already supplies its exact official
 content route. The job verifies configuration SHA256
-`cea2192b4b562c4dd5c0a42535164560d910253a00a60c298bba7e6f12a5e186`
+`2308a3acc563ddde0f2dfed1b87e5728bb8a6828de88b0ab804172ea54b5169e`
 before Bazel starts, passes it through the existing build-argument interface,
 and retains the exact file with validation artifacts. It changes neither the
 module catalog nor any package checksum. It adds no persistent cache.

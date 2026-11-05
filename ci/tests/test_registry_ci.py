@@ -2128,10 +2128,10 @@ class ModuleDownloaderWorkflowTests(unittest.TestCase):
         script = "\n".join(line[10:] for line in script.splitlines())
         self.assertLess(workflow.index("Configure the verified source mirror"),
                         workflow.index("Build and test through the registry"))
-        source = (Path(__file__).parent / "fixtures/source_mirrors_450659.cfg").read_bytes()
-        self.assertEqual(len(source), 24138)
+        source = (Path(__file__).parent / "fixtures/source_mirrors_5a870f.cfg").read_bytes()
+        self.assertEqual(len(source), 25966)
         self.assertEqual(hashlib.sha256(source).hexdigest(),
-                         "cea2192b4b562c4dd5c0a42535164560d910253a00a60c298bba7e6f12a5e186")
+                         "2308a3acc563ddde0f2dfed1b87e5728bb8a6828de88b0ab804172ea54b5169e")
         for data, valid in ((source, True), (source + b"corrupt", False), (b"", False)):
             with self.subTest(valid=valid, size=len(data)), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
@@ -2159,7 +2159,7 @@ class ModuleDownloaderWorkflowTests(unittest.TestCase):
                     execute.assert_not_called()
                     download.assert_called_once_with(
                         "https://raw.githubusercontent.com/securely1g/sonic-bazel-registry/"
-                        "45065949f5163bd5d99793026b076eafec213ef8/ci/source_mirrors.cfg", timeout=60)
+                        "5a870fd0ac4b75e814a8901e19099262a213e05b/ci/source_mirrors.cfg", timeout=60)
                 self.assertEqual(sentinel.read_bytes(), b"preserved cache")
                 self.assertFalse((runner / "registry-ci").exists())
 
@@ -2169,7 +2169,7 @@ class ModuleDownloaderWorkflowTests(unittest.TestCase):
         script = "\n".join(line[10:] for line in script.splitlines())
         matrix = {"include": [{"module": "original", "architecture": arch} for arch in ("amd64", "arm64")]}
         allowed = [".github/workflows/registry-ci.yml", ".github/workflows/registry-module.yml",
-                   "ci/tests/test_registry_ci.py", "ci/tests/fixtures/source_mirrors_450659.cfg", "ci/README.md"]
+                   "ci/tests/test_registry_ci.py", "ci/tests/fixtures/source_mirrors_5a870f.cfg", "ci/README.md"]
         cases = [("pull_request", "codex/registry-module-downloader", "securely1g/sonic-bazel-registry", allowed, True)]
         cases += [(event, branch, repo, allowed, False) for event, branch, repo in (
             ("push", "codex/registry-module-downloader", "securely1g/sonic-bazel-registry"),

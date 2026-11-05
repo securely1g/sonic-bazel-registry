@@ -102,7 +102,7 @@ jobs:
               # Temporary Draft scope: retain policy planning and both runner
               # suites; defer the broader native module matrix until Ready.
               allowed = {".github/workflows/registry-ci.yml", ".github/workflows/registry-module.yml",
-                         "ci/tests/test_registry_ci.py", "ci/tests/fixtures/source_mirrors_450659.cfg",
+                         "ci/tests/test_registry_ci.py", "ci/tests/fixtures/source_mirrors_5a870f.cfg",
                          "ci/README.md"}
               changed = set(subprocess.check_output(
                   ["git", "diff", "--name-only", os.environ["BASE_SHA"] + "..." + os.environ["HEAD_SHA"]],
