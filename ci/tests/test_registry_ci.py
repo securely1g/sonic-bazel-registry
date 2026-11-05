@@ -1922,20 +1922,81 @@ class FailedActionLogTests(FixtureTestCase):
         self.assertFalse((artifacts / "failed-actions").exists())
 
 
+class StagedCrossRoutingTests(FixtureTestCase):
+    def setUp(self):
+        super().setUp()
+        for version in ("1.0.0", "2.0.0"):
+            entry = self.entry("alpha", version)
+            config = json.loads((entry / "presubmit.json").read_text())
+            config["architectures"].append("arm64")
+            config["platforms"]["arm64"] = "@platforms//host:host"
+            write_json(entry / "presubmit.json", config)
+        self.entry("beta", "1.0.0")
+        self.head = self.commit("published contracts")
+
+    def planned(self, routes, all_versions=True):
+        with mock.patch.object(registry_ci, "ARM_CROSS_VERSIONS", routes):
+            return registry_ci.plan(self.root, None, self.head, all_versions=all_versions,
+                                    latest_versions=not all_versions, published=self.head)["include"]
+
+    def test_empty_routes_preserve_every_native_job_and_original_contract(self):
+        jobs = self.planned({})
+        self.assertEqual(len(jobs), 5)
+        self.assertTrue(all(not job["cross_compile"] for job in jobs))
+        for job in jobs:
+            self.assertEqual(job["execution_architecture"], job["architecture"])
+            self.assertEqual(job["runner"], registry_ci.RUNNERS[job["architecture"]])
+
+    def test_exact_version_moves_only_declared_arm_row_without_mutating_inputs(self):
+        before = {str(path): path.read_bytes() for path in (self.root / "modules").rglob("*") if path.is_file()}
+        native = self.planned({})
+        routed = self.planned({"alpha": ("1.0.0",), "beta": ("1.0.0",)})
+        identity = lambda job: (job["module"], job["version"], job["architecture"])
+        self.assertCountEqual([identity(job) for job in native], [identity(job) for job in routed])
+        moved = [job for job in routed if job["cross_compile"]]
+        self.assertEqual([identity(job) for job in moved], [("alpha", "1.0.0", "arm64")])
+        self.assertEqual(moved[0]["execution_architecture"], "amd64")
+        self.assertEqual(moved[0]["runner"], registry_ci.RUNNERS["amd64"])
+        self.assertEqual([job for job in routed if not job["cross_compile"]],
+                         [job for job in native if identity(job) != identity(moved[0])])
+        self.assertEqual(before, {str(path): path.read_bytes() for path in (self.root / "modules").rglob("*") if path.is_file()})
+        self.assertFalse(any(job["cross_compile"] for job in self.planned({"alpha": ("1.0.0",)}, all_versions=False)))
+
+    def test_changed_published_source_is_still_rejected_with_cross_route(self):
+        path = self.root / "modules/alpha/1.0.0/MODULE.bazel"
+        path.write_text(path.read_text() + "# changed published input\n")
+        changed = self.commit("illegal published source edit")
+        with mock.patch.object(registry_ci, "ARM_CROSS_VERSIONS", {"alpha": ("1.0.0",)}), \
+                self.assertRaises(registry_ci.RegistryError):
+            registry_ci.plan(self.root, self.head, changed, published=self.head)
+
+    def test_malformed_temporary_routes_fail_instead_of_silently_changing_mode(self):
+        for routes in ([], {"alpha": "1.0.0"}, {"alpha": ()}, {"bad/name": ("1.0.0",)},
+                       {"alpha": ("../version",)}, {"alpha": ("1.0.0", "1.0.0")}):
+            with self.subTest(routes=routes), self.assertRaises(registry_ci.RegistryError):
+                self.planned(routes)
+
+
 class WorkflowMatrixTests(unittest.TestCase):
     def setUp(self):
         self.workflow = (registry_ci.ROOT / ".github/workflows/registry-ci.yml").read_text()
 
-    def test_split_plan_preserves_every_job_and_marks_each_empty_architecture(self):
+    def test_split_plan_preserves_native_and_cross_jobs_and_marks_empty_groups(self):
         script = self.workflow.split("          python3 - <<'PY'\n", 1)[1].split("\n          PY", 1)[0]
         script = "\n".join(line[10:] for line in script.splitlines())
         amd = {"module": "alpha", "version": "1.0.0", "architecture": "amd64",
+               "execution_architecture": "amd64", "cross_compile": False,
                "runner": registry_ci.RUNNERS["amd64"]}
-        arm = {**amd, "architecture": "arm64", "runner": registry_ci.RUNNERS["arm64"]}
+        arm = {**amd, "architecture": "arm64", "execution_architecture": "arm64", "runner": registry_ci.RUNNERS["arm64"]}
         second_amd = {**amd, "module": "beta"}
+        cross = {**second_amd, "architecture": "arm64", "cross_compile": True}
         for jobs, succeeds in (([], True), ([amd], True), ([arm], True),
-                               ([arm, amd, second_amd], True),
-                               ([{**arm, "architecture": "armhf"}], False)):
+                               ([arm, amd, second_amd, cross], True), ([cross], True),
+                               ([{**arm, "architecture": "armhf"}], False),
+                               ([{**arm, "cross_compile": True}], False),
+                               ([{**cross, "cross_compile": "true"}], False),
+                               ([{**cross, "runner": registry_ci.RUNNERS["arm64"]}], False),
+                               ([{**amd, "cross_compile": True}], False), ([arm, arm], False)):
             with self.subTest(jobs=jobs), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 matrix = {"include": jobs}
@@ -1946,7 +2007,7 @@ class WorkflowMatrixTests(unittest.TestCase):
                     text=True, capture_output=True)
                 if not succeeds:
                     self.assertNotEqual(result.returncode, 0)
-                    self.assertIn("Unsupported architecture", result.stderr)
+                    self.assertIn("validation", result.stderr)
                     self.assertFalse(output.exists())
                     continue
                 self.assertEqual(result.returncode, 0, result.stderr)
@@ -1954,16 +2015,16 @@ class WorkflowMatrixTests(unittest.TestCase):
                 self.assertEqual(json.loads(values["matrix"]), matrix)
                 self.assertEqual(values["has_jobs"], str(bool(jobs)).lower())
                 selected = []
-                for architecture in ("amd64", "arm64"):
-                    expected = [job for job in jobs if job["architecture"] == architecture]
-                    actual = json.loads(values[architecture + "_matrix"])["include"]
+                for group, execution in (("local", "amd64"), ("hosted_arm", "arm64")):
+                    expected = [job for job in jobs if job["execution_architecture"] == execution]
+                    actual = json.loads(values[group + "_matrix"])["include"]
                     self.assertEqual(actual, expected)
-                    self.assertEqual(values["has_" + architecture + "_jobs"], str(bool(expected)).lower())
+                    self.assertEqual(values["has_" + group + "_jobs"], str(bool(expected)).lower())
                     selected.extend(actual)
                 self.assertCountEqual(selected, jobs)
 
-    def test_architecture_matrices_have_independent_admission_and_one_validation_body(self):
-        for architecture in ("amd64", "arm64"):
+    def test_one_local_budget_and_separate_hosted_admission_share_validation_body(self):
+        for architecture in ("local", "hosted_arm"):
             # A job block ends at the next two-space job key, not a nested field.
             block = re.search(r"^  modules_" + architecture + r":\n(.*?)(?=^  \w+:|\Z)",
                               self.workflow, re.MULTILINE | re.DOTALL)[1]
@@ -1971,44 +2032,62 @@ class WorkflowMatrixTests(unittest.TestCase):
             self.assertIn("if: needs.plan.outputs.has_" + architecture + "_jobs == 'true'", block)
             self.assertIn("matrix: ${{ fromJSON(needs.plan.outputs." + architecture + "_matrix) }}", block)
             self.assertIn("uses: ./.github/workflows/registry-module.yml", block)
-            for name in ("module", "version", "architecture"):
+            for name in ("module", "version", "architecture", "execution_architecture", "cross_compile"):
                 self.assertIn(name + ": ${{ matrix." + name + " }}", block)
             self.assertIn("runner: ${{ toJSON(matrix.runner) }}", block)
-            self.assertEqual("max-parallel: 10" in block, architecture == "amd64")
+            self.assertEqual("max-parallel: 10" in block, architecture == "local")
             self.assertNotIn("steps:", block)
         shared = (registry_ci.ROOT / ".github/workflows/registry-module.yml").read_text()
         self.assertIn("workflow_call:", shared)
         self.assertIn("runs-on: ${{ fromJSON(inputs.runner) }}", shared)
         self.assertEqual(shared.count("name: Build and test through the registry"), 1)
         self.assertNotIn("name: Build and test through the registry", self.workflow)
-        self.assertIn("needs: [plan, unit, modules_amd64, modules_arm64]", self.workflow)
+        self.assertIn("needs: [plan, unit, cross_fixture, modules_local, modules_hosted_arm]", self.workflow)
 
-    def test_aggregate_accepts_only_success_or_an_explicitly_empty_architecture(self):
+    def test_aggregate_requires_cross_fixture_and_only_explicitly_empty_module_groups(self):
         block = self.workflow.split("  required:\n", 1)[1]
         script = block.split("        run: |\n", 1)[1]
         script = "\n".join(line[10:] for line in script.splitlines())
-        for architecture in ("amd64", "arm64"):
+        for architecture in ("local", "hosted_arm"):
             self.assertIn(architecture.upper() + "_RESULT: ${{ needs.modules_" + architecture + ".result }}", block)
             self.assertIn("HAS_" + architecture.upper() + "_JOBS: ${{ needs.plan.outputs.has_" + architecture + "_jobs }}", block)
-        base = {"PLAN_RESULT": "success", "UNIT_RESULT": "success", "AMD64_RESULT": "success",
-                "ARM64_RESULT": "success", "HAS_AMD64_JOBS": "true", "HAS_ARM64_JOBS": "true"}
+        base = {"PLAN_RESULT": "success", "UNIT_RESULT": "success", "CROSS_FIXTURE_RESULT": "success", "LOCAL_RESULT": "success",
+                "HOSTED_ARM_RESULT": "success", "HAS_LOCAL_JOBS": "true", "HAS_HOSTED_ARM_JOBS": "true"}
         cases = [(base, True)]
-        for architecture in ("AMD64", "ARM64"):
+        for architecture in ("LOCAL", "HOSTED_ARM"):
             flag, result = "HAS_" + architecture + "_JOBS", architecture + "_RESULT"
             cases.append(({**base, flag: "false", result: "skipped"}, True))
             for invalid in ("failure", "cancelled", "skipped", ""):
                 cases.append(({**base, result: invalid}, False))
             cases.append(({**base, flag: "false"}, False))
             cases.append(({**base, flag: "", result: "skipped"}, False))
-        cases.append(({**base, "HAS_AMD64_JOBS": "false", "HAS_ARM64_JOBS": "false",
-                       "AMD64_RESULT": "skipped", "ARM64_RESULT": "skipped"}, True))
-        for prerequisite in ("PLAN_RESULT", "UNIT_RESULT"):
-            cases.append(({**base, prerequisite: "failure"}, False))
+        cases.append(({**base, "HAS_LOCAL_JOBS": "false", "HAS_HOSTED_ARM_JOBS": "false",
+                       "LOCAL_RESULT": "skipped", "HOSTED_ARM_RESULT": "skipped"}, True))
+        self.assertIn("CROSS_FIXTURE_RESULT: ${{ needs.cross_fixture.result }}", block)
+        for prerequisite in ("PLAN_RESULT", "UNIT_RESULT", "CROSS_FIXTURE_RESULT"):
+            for invalid in ("failure", "cancelled", "skipped", ""):
+                cases.append(({**base, prerequisite: invalid}, False))
         for environment, succeeds in cases:
             with self.subTest(environment=environment):
                 result = subprocess.run(["/bin/bash", "-c", script], env={**os.environ, **environment},
                                         text=True, capture_output=True)
                 self.assertEqual(result.returncode == 0, succeeds, result.stderr)
+
+
+    def test_native_and_cross_jobs_run_distinct_explicit_suites(self):
+        unit = self.workflow.split("  unit:\n", 1)[1].split("  cross_fixture:\n", 1)[0]
+        cross = self.workflow.split("  cross_fixture:\n", 1)[1].split("  modules_local:\n", 1)[0]
+        self.assertIn("python3 ci/run_runner_tests.py --suite native", unit)
+        self.assertIn("architecture: amd64", unit)
+        self.assertIn("architecture: arm64", unit)
+        self.assertNotIn("REGISTRY_CI_TEST_ARM_EXECUTOR", unit)
+        self.assertIn("python3 ci/run_runner_tests.py --suite cross", cross)
+        self.assertIn("REGISTRY_CI_TEST_BAZEL: /usr/local/bin/bazel", cross)
+        self.assertIn("REGISTRY_CI_TEST_ARM_EXECUTOR: /usr/local/bin/sonic-arm64", cross)
+        self.assertIn("[[ -x \"$REGISTRY_CI_TEST_BAZEL\" && -x \"$REGISTRY_CI_TEST_ARM_EXECUTOR\" ]]", cross)
+        self.assertIn("timeout-minutes: 60", cross)
+        self.assertIn("name: registry-ci-arm-cross-fixture", cross)
+        self.assertNotIn("continue-on-error", cross)
 
 
 class TestContainerTests(unittest.TestCase):
@@ -2030,68 +2109,146 @@ class TestContainerTests(unittest.TestCase):
                     with self.assertRaises(registry_ci.RegistryError):
                         registry_ci.require_test_container(selected)
 
-    def test_workflow_passes_the_actual_pinned_container_to_runtime_preparation(self):
+    @staticmethod
+    def step(workflow, name):
+        block = workflow.split("      - name: " + name + "\n", 1)[1].split("\n      - ", 1)[0]
+        return "\n".join(line[10:] for line in block.split("        run: |\n", 1)[1].splitlines())
+
+    def shell_environment(self, root, architecture, execution, cross):
+        commands = root / "bin"
+        commands.mkdir()
+        for name, body in {
+            "sudo": 'printf "%s\\n" "$*" >> "$SUDO_LOG"\n[[ "$1" == -n ]]\nshift\nexec "$@"\n',
+            "git": 'printf "%s\\n" "$@" > "$GIT_LOG"\n',
+            "python3": 'printf "%s\\n" "$@" > "$CAPTURE"\n',
+            "uname": '[[ "$1" == -m ]]\nprintf "%s\\n" "$NATIVE_MACHINE"\n',
+            "sha256sum": 'cat > "$CHECKSUM_LOG"\nprintf "%s\\n" "$@" > "$CHECKSUM_ARGS"\n',
+            "curl": 'printf "%s\\n" "$@" > "$CURL_LOG"\n',
+            "install": 'printf "%s\\n" "$@" > "$INSTALL_LOG"\n',
+            "chown": 'printf "%s\\n" "$@" > "$CHOWN_LOG"\n',
+        }.items():
+            command = commands / name
+            command.write_text("#!/bin/bash\nset -euo pipefail\n" + body)
+            command.chmod(0o755)
+        executor = root / "ARM executor"
+        executor.write_text("#!/bin/sh\nexit 99\n")
+        executor.chmod(0o755)
+        (root / "workspace/ci-artifacts").mkdir(parents=True)
+        (root / "runner temp").mkdir()
+        environment = {**os.environ, "PATH": str(commands) + os.pathsep + os.environ["PATH"],
+                       "CI_MODULE": "alpha", "CI_VERSION": "1.0.0", "CI_ARCHITECTURE": architecture,
+                       "CI_EXECUTION_ARCHITECTURE": execution, "CI_CROSS_COMPILE": str(cross).lower(),
+                       "NATIVE_MACHINE": "x86_64" if execution == "amd64" else "aarch64",
+                       "SONIC_RUNNER_IMAGE_REFERENCE": "sonic-slave-runner@sha256:" + "c" * 64,
+                       "ARM_TEST_EXECUTOR": str(executor), "TEST_CONTAINER_IMAGE": "unused",
+                       "GITHUB_WORKSPACE": str(root / "workspace"), "RUNNER_TEMP": str(root / "runner temp")}
+        for variable in ("CAPTURE", "SUDO_LOG", "GIT_LOG", "CHECKSUM_LOG", "CHECKSUM_ARGS", "CURL_LOG",
+                         "INSTALL_LOG", "CHOWN_LOG"):
+            environment[variable] = str(root / variable)
+        return environment
+
+    def test_workflow_passes_native_and_cross_execution_inputs_without_changing_target(self):
         workflow = (registry_ci.ROOT / ".github/workflows/registry-module.yml").read_text()
         expression = next(line.split("container: ", 1)[1] for line in workflow.splitlines()
                           if line.strip().startswith("container: "))
         selection = re.fullmatch(
-            r"\$\{\{ inputs\.architecture == 'arm64' && '(\S+@sha256:[0-9a-f]{64})' \|\| '' \}\}",
+            r"\$\{\{ inputs\.architecture == 'arm64' && !inputs\.cross_compile && '(\S+@sha256:[0-9a-f]{64})' \|\| '' \}\}",
             expression)
         self.assertIsNotNone(selection)
         self.assertIn("TEST_CONTAINER_IMAGE: " + expression, workflow)
-        arm_image = selection[1]
-        direct_image = "sonic-slave-runner@sha256:" + "c" * 64
-        step = workflow.split("      - name: Build and test through the registry\n", 1)[1]
-        step = step.split("\n      - ", 1)[0].split("        run: |\n", 1)[1]
-        script = "\n".join(line[10:] for line in step.splitlines())
-        for architecture, identity, succeeds in (
-                ("amd64", direct_image, True), ("arm64", "", True), ("amd64", "", False)):
-            with self.subTest(architecture=architecture, identity=identity), tempfile.TemporaryDirectory() as temporary:
+        self.assertIn("if: inputs.architecture == 'arm64' && !inputs.cross_compile", workflow)
+        self.assertIn("CI_EXECUTION_ARCHITECTURE: ${{ inputs.execution_architecture || inputs.architecture }}", workflow)
+        self.assertRegex(workflow, r"cross_compile:\n\s+type: boolean\n\s+default: false")
+        for architecture, execution, cross in (("amd64", "amd64", False), ("arm64", "arm64", False),
+                                                ("arm64", "amd64", True)):
+            with self.subTest(architecture=architecture, cross=cross), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
-                commands = root / "bin"
-                commands.mkdir()
-                for name, body in {
-                    "sudo": 'printf "%s\\n" "$*" >> "$SUDO_LOG"\n[[ "$1" == -n ]]\nshift\nexec "$@"\n',
-                    "git": 'printf "%s\\n" "$@" > "$GIT_LOG"\n',
-                    "python3": 'printf "%s\\n" "$@" > "$CAPTURE"\n',
-                }.items():
-                    command = commands / name
-                    command.write_text("#!/bin/bash\nset -euo pipefail\n" + body)
-                    command.chmod(0o755)
-                capture, sudo_log, git_log = [root / name for name in ("args", "sudo", "git")]
-                environment = {**os.environ, "PATH": str(commands) + os.pathsep + os.environ["PATH"],
-                               "CAPTURE": str(capture), "SUDO_LOG": str(sudo_log), "GIT_LOG": str(git_log),
-                               "CI_MODULE": "alpha", "CI_VERSION": "1.0.0", "CI_ARCHITECTURE": architecture,
-                               "SONIC_RUNNER_IMAGE_REFERENCE": identity,
-                               "TEST_CONTAINER_IMAGE": arm_image if architecture == "arm64" else "",
-                               "GITHUB_WORKSPACE": str(root / "workspace"), "RUNNER_TEMP": str(root / "runner temp")}
-                result = subprocess.run(["/bin/bash", "-c", script], env=environment, text=True, capture_output=True)
-                if not succeeds:
-                    self.assertNotEqual(result.returncode, 0)
-                    self.assertIn("Missing runner image identity", result.stderr)
-                    self.assertFalse(capture.exists())
-                    continue
-                self.assertEqual(result.returncode, 0, result.stderr)
-                arguments = capture.read_text().splitlines()
+                environment = self.shell_environment(root, architecture, execution, cross)
+                environment["TEST_CONTAINER_IMAGE"] = selection[1] if execution == "arm64" else ""
+                for name in ("Validate execution route", "Install Bazel 8.5.1", "Build and test through the registry"):
+                    result = subprocess.run(["/bin/bash", "-c", self.step(workflow, name)], env=environment,
+                                            text=True, capture_output=True)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                checksum = (root / "CHECKSUM_LOG").read_text().split()
+                self.assertEqual((root / "CHECKSUM_ARGS").read_text().splitlines(), ["--check", "--strict"])
+                if execution == "amd64":
+                    self.assertEqual(checksum, ["61d89402f0368e64b6c827be5de79d8e65382e8124c3cbb97325611a1851392e",
+                                                "/usr/local/lib/bazel-8.5.1"])
+                    self.assertFalse((root / "CURL_LOG").exists())
+                    self.assertFalse((root / "INSTALL_LOG").exists())
+                else:
+                    self.assertEqual(checksum, ["b7f2a85595e8a87d54843bc656c1e379fd9b8c1b5f783dc41717c1d7eb7cc49f",
+                                                "/tmp/bazel"])
+                    self.assertIn("https://releases.bazel.build/8.5.1/release/bazel-8.5.1-linux-arm64",
+                                  (root / "CURL_LOG").read_text().splitlines())
+                    self.assertEqual((root / "INSTALL_LOG").read_text().splitlines(),
+                                     ["-m", "0755", "/tmp/bazel", "/usr/local/bin/bazel"])
+                arguments = (root / "CAPTURE").read_text().splitlines()
+                self.assertEqual(arguments[arguments.index("--architecture") + 1], architecture)
                 self.assertEqual(arguments[arguments.index("--test-container-image") + 1],
-                                 direct_image if architecture == "amd64" else arm_image)
+                                 environment["SONIC_RUNNER_IMAGE_REFERENCE"] if execution == "amd64" else selection[1])
                 self.assertEqual(arguments[arguments.index("--bazel") + 1], "/usr/local/bin/bazel")
                 self.assertEqual([arg for arg in arguments if arg.startswith("--bazel-startup-arg=")],
-                                 ["--bazel-startup-arg=--host_jvm_args=-Xmx2g"]
-                                 if architecture == "amd64" else [])
+                                 ["--bazel-startup-arg=--host_jvm_args=-Xmx2g"] if execution == "amd64" else [])
                 self.assertEqual([arg for arg in arguments if arg.startswith("--bazel-build-arg=")],
                                  ["--bazel-build-arg=--jobs=1", "--bazel-build-arg=--discard_analysis_cache"]
-                                 if architecture == "amd64" else [])
-                self.assertNotIn("--cross-compile", arguments)
-                self.assertNotIn("--test-executor", arguments)
-                self.assertEqual(arguments[arguments.index("--work-dir") + 1],
-                                 str(root / "runner temp" / "registry-ci"))
-                if architecture == "amd64":
-                    self.assertEqual(git_log.read_text().splitlines(),
+                                 if execution == "amd64" else [])
+                self.assertEqual("--cross-compile" in arguments, cross)
+                self.assertEqual("--test-executor" in arguments, cross)
+                if cross:
+                    self.assertEqual(arguments[arguments.index("--test-executor") + 1], environment["ARM_TEST_EXECUTOR"])
+                self.assertEqual(arguments[arguments.index("--work-dir") + 1], str(root / "runner temp/registry-ci"))
+                if execution == "amd64":
+                    self.assertEqual((root / "GIT_LOG").read_text().splitlines(),
                                      ["config", "--global", "--add", "safe.directory", str(root / "workspace")])
-                    self.assertEqual(len(sudo_log.read_text().splitlines()), 2)
+                    self.assertEqual(len((root / "SUDO_LOG").read_text().splitlines()), 2)
                 else:
-                    self.assertFalse(sudo_log.exists())
+                    self.assertFalse((root / "SUDO_LOG").exists())
+
+    def test_invalid_or_unprepared_routes_fail_before_invoking_the_helper(self):
+        workflow = (registry_ci.ROOT / ".github/workflows/registry-module.yml").read_text()
+        script = self.step(workflow, "Validate execution route") + "\n" + self.step(workflow, "Build and test through the registry")
+        cases = [("amd64", "amd64", True, {}), ("arm64", "arm64", True, {}),
+                 ("arm64", "amd64", False, {}), ("armhf", "arm64", False, {}),
+                 ("arm64", "amd64", True, {"NATIVE_MACHINE": "aarch64"}),
+                 ("arm64", "amd64", True, {"ARM_TEST_EXECUTOR": "/absent/executor"}),
+                 ("arm64", "amd64", True, {"CI_CROSS_COMPILE": "maybe"}),
+                 ("arm64", "amd64", True, {"SONIC_RUNNER_IMAGE_REFERENCE": ""}),
+                 ("amd64", "amd64", False, {"SONIC_RUNNER_IMAGE_REFERENCE": ""})]
+        for architecture, execution, cross, overrides in cases:
+            with self.subTest(route=(architecture, execution, cross), overrides=overrides), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                environment = {**self.shell_environment(root, architecture, execution, cross), **overrides}
+                result = subprocess.run(["/bin/bash", "-c", script], env=environment, text=True, capture_output=True)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertFalse((root / "CAPTURE").exists())
+
+    def test_module_archive_preserves_modes_and_uses_sudo_only_for_local_execution(self):
+        workflow = (registry_ci.ROOT / ".github/workflows/registry-module.yml").read_text()
+        script = self.step(workflow, "Archive module validation results")
+        for architecture, execution, cross in (("amd64", "amd64", False), ("arm64", "arm64", False),
+                                                ("arm64", "amd64", True)):
+            with self.subTest(architecture=architecture, cross=cross), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                environment = self.shell_environment(root, architecture, execution, cross)
+                payload = root / "workspace/ci-artifacts/payload"
+                payload.write_bytes(b"retained evidence\n")
+                payload.chmod(0o751)
+                result = subprocess.run(["/bin/bash", "-c", script], cwd=registry_ci.ROOT,
+                                        env=environment, text=True, capture_output=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                archive = root / "runner temp/registry-ci-evidence.tar"
+                with tarfile.open(archive) as transport:
+                    member = transport.getmember("./payload")
+                    self.assertEqual(member.mode, 0o751)
+                    self.assertEqual(transport.extractfile(member).read(), b"retained evidence\n")
+                if execution == "amd64":
+                    self.assertEqual(len((root / "SUDO_LOG").read_text().splitlines()), 2)
+                    self.assertEqual((root / "CHOWN_LOG").read_text().splitlines(),
+                                     [f"{os.getuid()}:{os.getgid()}", str(archive)])
+                else:
+                    self.assertFalse((root / "SUDO_LOG").exists())
+                    self.assertFalse((root / "CHOWN_LOG").exists())
 
 
 class BazelStartupArgumentTests(unittest.TestCase):

@@ -46,6 +46,10 @@ RUNNERS = {
     "amd64": ["self-hosted", "Linux", "X64", "debian-trixie-container"],
     "arm64": ["ubuntu-24.04-arm"],
 }
+# Temporary staged rollout only: add exact versions after their complete ARM
+# contract passes. Remove this map and the hosted ARM route when migration is
+# complete, so future ARM versions also receive cross validation automatically.
+ARM_CROSS_VERSIONS: dict[str, tuple[str, ...]] = {}
 HTTP_DOWNLOAD_FLAGS = (
     "--http_connector_attempts=12",
     "--http_connector_retry_max_timeout=10s",
@@ -660,12 +664,21 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
                         selected.add((module, parts[2]))
         if ci_changed:
             selected.update(latest_presubmits(root))
+    require(isinstance(ARM_CROSS_VERSIONS, dict), "ARM cross routes must be a module/version map")
+    for module, versions in ARM_CROSS_VERSIONS.items():
+        require(isinstance(module, str) and NAME.fullmatch(module) is not None
+                and isinstance(versions, tuple) and bool(versions)
+                and all(isinstance(version, str) and VERSION.fullmatch(version) for version in versions)
+                and len(versions) == len(set(versions)), "Invalid temporary ARM cross route")
     include = []
     for module, version in sorted(selected):
         config = validate_entry(root, module, version)
         for architecture in config["architectures"]:
+            cross_compile = architecture == "arm64" and version in ARM_CROSS_VERSIONS.get(module, ())
+            execution_architecture = "amd64" if cross_compile else architecture
             include.append({"module": module, "version": version, "architecture": architecture,
-                            "runner": RUNNERS[architecture]})
+                            "execution_architecture": execution_architecture,
+                            "cross_compile": cross_compile, "runner": RUNNERS[execution_architecture]})
     return {"include": include}
 
 
@@ -1590,7 +1603,7 @@ def main() -> None:
             args.output.parent.mkdir(parents=True, exist_ok=True)
             args.output.write_text(json.dumps(result, indent=2) + "\n")
             print(json.dumps(result, separators=(",", ":")))
-            print(f"Selected {len(result['include'])} native validation jobs", file=sys.stderr)
+            print(f"Selected {len(result['include'])} validation jobs", file=sys.stderr)
         elif args.command == "sync-module":
             sync_module(ROOT, args.module, args.version, args.check)
         else:
