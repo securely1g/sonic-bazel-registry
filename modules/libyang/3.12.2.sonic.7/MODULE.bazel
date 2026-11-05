@@ -25,15 +25,27 @@ bazel_dep(name = "tar.bzl", version = "0.10.5.sonic.2")
 
 bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.15")
 apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
-apt.install(
-    dependency_set = "libyang_system",
-    packages = ["libpcre2-dev", "libxxhash-dev", "libpcre2-8-0", "libxxhash0", "libc6", "libgcc-s1", "libcmocka-dev", "libcmocka0"],
-    suites = ["trixie", "trixie-updates", "trixie-security"],
-)
-use_repo(apt, "libyang_system")
+# Infra .28 imports its reviewed shared lock. The existing libyang collection
+# supplies PCRE2, xxHash, CMocka and their complete runtime/header closure.
+# Reuse those exact package identities without adding undeclared lock requests.
+use_repo(apt, libyang_system = "libyang_deps")
 
 # Isolate suites: Architecture:all packages can share versions across releases.
 bookworm_apt = use_extension("@sonic_build_infra//toolchains/bookworm:apt.bzl", "apt")
+# Infra .28 consumes its own Bookworm tools from its shared lock. This separate
+# namespace retains the exact sources previously supplied by infra .25.
+bookworm_apt.sources_list(
+    architectures = ["amd64", "arm64"],
+    components = ["main"],
+    suites = ["bookworm", "bookworm-updates"],
+    uris = ["https://snapshot.debian.org/archive/debian/20260727T143429Z"],
+)
+bookworm_apt.sources_list(
+    architectures = ["amd64", "arm64"],
+    components = ["main"],
+    suites = ["bookworm-security"],
+    uris = ["https://snapshot.debian.org/archive/debian-security/20260726T121236Z"],
+)
 bookworm_apt.install(
     dependency_set = "libyang_system_bookworm",
     packages = ["libpcre2-dev", "libxxhash-dev", "libpcre2-8-0", "libxxhash0", "libc6", "libgcc-s1", "libcmocka-dev", "libcmocka0"],
