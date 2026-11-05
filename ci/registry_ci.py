@@ -1479,6 +1479,21 @@ def run(root: Path, module: str, version: str, architecture: str,
                     executor_prefix[-1:-1] = ["--bind-at", mapping["source"], mapping["destination"]]
             test_flags = prepare_test_runtime(config, fetched[0].parent, consumer, artifacts,
                                               architecture, test_container_image, executor_prefix or None)
+            if executor_prefix and module == "rules_go":
+                adapter = work_dir / "cross-cc-repository"
+                with (adapter / "BUILD.bazel").open("a") as handle:
+                    for name, cpu in (("arm64", "aarch64"), ("amd64", "x86_64")):
+                        handle.write(f'platform(name="nested_{name}", constraint_values=['
+                                     f'"@platforms//os:linux", "@platforms//cpu:{cpu}", ":trixie"])\n')
+                nested = work_dir / "nested-bazel"
+                mirrors = work_dir / "nested-source-mirrors.cfg"
+                shutil.copy2(root / "ci/source_mirrors.cfg", mirrors)
+                template = (root / "ci/nested_bazel_probe.py").read_text()
+                nested.write_text(template.replace("__ADAPTER__", str(adapter)).replace("__MIRRORS__", str(mirrors)))
+                nested.chmod(0o755)
+                executor_prefix[-1:-1] = ["--bind-at", str(nested), "/usr/local/bin/bazel",
+                                           "--bind-at", str(nested), "/usr/bin/bazel", "--bind-at",
+                                           "/usr/local/lib/bazel-8.5.1", "/usr/local/lib/registry-ci-native-bazel"]
             if executor_prefix:
                 test_flags.append("--run_under=" + shlex.join(executor_prefix))
             # Emulated Python can spend more than five minutes staging a large
