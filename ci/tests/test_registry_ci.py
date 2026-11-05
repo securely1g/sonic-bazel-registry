@@ -282,6 +282,31 @@ class SelectionTests(FixtureTestCase):
         self.assertEqual(self.latest_selected(),
                          {("infra", current), ("short_hash", "1.0.0-1111111")})
 
+    def test_latest_handles_published_sonic_go_snapshot_versions(self) -> None:
+        # openconfig_goyang's published form previously prevented the entire
+        # latest-module matrix from being planned.
+        current = "0.0.0.sonic.1-20200309174518-a00bece872fc"
+        self.entry("goyang", current)
+        self.entry("numeric_patch", "0.0.0.sonic.10-20200309174518-a00bece872fc")
+        self.entry("numeric_patch", "0.0.0.sonic.9-20260309174518-ffffffffffff")
+        self.entry("registration_order", "0.0.0.sonic.1-20260309174518-ffffffffffff")
+        self.entry("registration_order", current)
+        self.assertEqual(self.latest_selected(), {
+            ("goyang", current),
+            ("numeric_patch", "0.0.0.sonic.10-20200309174518-a00bece872fc"),
+            ("registration_order", current),
+        })
+
+    def test_latest_rejects_malformed_sonic_go_snapshot_suffixes(self) -> None:
+        for version in (
+            "0.0.0.sonic.1-20200309-a00bece872fc",
+            "0.0.0.sonic.1-20200309174518-not-a-commit",
+            "0.0.0.sonic.1-20200309174518-a00bece872fc-extra",
+        ):
+            with self.subTest(version=version):
+                with self.assertRaisesRegex(registry_ci.RegistryError, "Unsupported registry version"):
+                    registry_ci.release_key(version)
+
     def test_latest_handles_legacy_registry_version_names(self) -> None:
         historical = {
             "old_buildimage": "3.7.0.sonic-buildimage",
