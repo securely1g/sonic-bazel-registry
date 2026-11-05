@@ -26,6 +26,13 @@ closing the controlling PTY. Closing at PTY EOF could otherwise send SIGHUP
 before Tcl completed. Test cases, assertions, exit-code checks and original
 five-second Expect timeouts are unchanged.
 
+Tcltest's child interpreter is explicitly bound to the same declared public
+`tclsh` launcher as the parent. Its default raw interpreter path bypassed the
+private loader and failed to find `libtcl8.6.so` in per-file subprocesses. A small
+bootstrap preserves the original suite path and arguments before sourcing each
+unchanged `all.tcl`; multi-process execution and strict nonzero test counts stay
+enabled. No loader environment is injected into target programs.
+
 A standalone regression exercises both the unchanged `.6` driver and this driver
 using real controlling terminals: successful exit, nonzero exit, failed Tcl
 summary, and a noninteractive control. Run it from the registry root with an
@@ -33,6 +40,15 @@ unused output directory:
 
 ```sh
 python3 modules/libyang/3.12.2.sonic.7/tests/pty_wait_test.py --output /tmp/libyang-pty-regression
+```
+
+The child-interpreter regression uses real Tcltest subprocesses, checks each
+declared launcher traversal and original arguments, reproduces raw-interpreter
+bypass, and rejects a missing declared interpreter. It requires an explicit
+interpreter, for example:
+
+```sh
+python3 modules/libyang/3.12.2.sonic.7/tests/tcl_interpreter_test.py --tclsh /absolute/path/to/declared/tclsh
 ```
 
 The earlier bounded real ARM replay passed the original `add_basic` assertions
