@@ -85,6 +85,7 @@ snapshot fallbacks:
 | `libuuid1` 2.41-5 (AMD64, ARM64, ARMHF) | Debian content-addressed file, then existing CDN fallback |
 | `libssl3t64` 3.5.6-1~deb13u2 (AMD64, ARM64, ARMHF) | Debian content-addressed file |
 | `libexpat1` 2.7.1-2 (AMD64, ARM64, ARMHF) | Debian content-addressed file, then existing CDN fallback |
+| `libfreetype6` 2.13.3+dfsg-1+deb13u1 (AMD64, ARM64) | Debian content-addressed file, then the official security CDN |
 
 These candidates preserve each original APT-lock SHA256. The SHA1 in Debian's
 content-addressed URL is only a locator; Bazel still checks the stronger locked
