@@ -604,12 +604,6 @@ all filesystem, BEP, target-versus-execution configuration and final TAR checks.
 Passing it does not establish that production remote tree transport is fixed;
 this change neither modifies the Bazel runtime nor changes production caches.
 
-The Draft `codex/registry-bep-unicode` PR runs policy planning and both existing
-runner test suites, including the real Bazel artifact fixture. A temporary
-same-repository, exact-branch and changed-path guard omits the broader native
-module matrix. Remove that guard before marking the PR Ready; broader native
-regression validation remains pending.
-
 For native libraries, download the runtime and detached-debug packages from the
 same module/version/architecture job. These packages come from the same build;
 symbols from another run are not guaranteed to match. Extract package archives
