@@ -30,19 +30,19 @@ repository branch-protection settings.
 ## Module CI downloader configuration
 
 Normal module jobs reuse the checksum-verified bootstrap from SONiC's FRR CI to
-select [reviewed downloader candidate `5a870f`](https://github.com/securely1g/sonic-bazel-registry/tree/5a870fd0ac4b75e814a8901e19099262a213e05b)
-from [registry #228](https://github.com/securely1g/sonic-bazel-registry/pull/228).
-This selection remains unlanded. It includes the reviewed sibling-architecture
-routes, the exact Redis content route, and five verified Krb5/PCRE package
-identities from the reconciled owner candidate. The new package routes retain
-their original fallbacks and locked checksums; they do not establish current
-configured-fetch or consumer acceptance.
+select [reviewed downloader candidate `7322bd`](https://github.com/securely1g/sonic-bazel-registry/tree/7322bdb16c2a4e0e2617986a1ea50004a29a1a08)
+prepared for [registry #228](https://github.com/securely1g/sonic-bazel-registry/pull/228).
+This immutable review configuration remains unlanded. It retains the reviewed
+content routes and adds byte-verified release fallbacks for the locked
+libcap development package on ARMHF and SQLite runtime package on AMD64.
+Original fallbacks and locked checksums remain intact; these exact routes do
+not establish current configured-fetch or consumer acceptance.
 
 The libteam, SWSS and Socat AMD64 jobs selected the same locked
 `libc6-dev_2.41-12+deb13u3_amd64.deb`, whose pool and dated Snapshot URLs both
 returned 404. The reviewed configuration already supplies its exact official
 content route. The job verifies configuration SHA256
-`2308a3acc563ddde0f2dfed1b87e5728bb8a6828de88b0ab804172ea54b5169e`
+`62e9d1004dedc09f6df66a1b70711a2d90da45b032b78275b46d6d4be1677e33`
 before Bazel starts, passes it through the existing build-argument interface,
 and retains the exact file with validation artifacts. It changes neither the
 module catalog nor any package checksum. It adds no persistent cache.
@@ -638,11 +638,23 @@ rejected. The TAR retains the actual filesystem name and bytes. This does not
 change Bazel's locale or repair arbitrary paths. The failed worker's effective
 JVM locale was not retained.
 
-The Draft `codex/registry-bep-unicode` PR runs policy planning and both existing
-runner test suites, including the real Bazel artifact fixture. A temporary
-same-repository, exact-branch and changed-path guard omits the broader native
-module matrix. Remove that guard before marking the PR Ready; broader native
-regression validation remains pending.
+The real Bazel collector fixture creates its certificate filename with ASCII
+shell octal escapes and checks its exact UTF-8 bytes before collection. Its two
+producer actions (target and execution configurations) use
+`execution_requirements = {"no-remote-cache": "1"}`. This prevents those actions
+from reading or uploading remote cache results while retaining sandboxing,
+reuse of existing local action outputs, analysis reuse and caching for the separate tool action and all
+module builds. The observed runner command configures a remote cache, not a
+remote executor; this action requirement does not disable remote execution.
+
+This isolates collector validation from an unresolved Bazel 8.5.1 remote tree
+transport defect. A retained AMD64 run materialized a double-encoded Unicode
+filename from cached output and failed the strict filesystem assertion before
+the collector ran. The earlier passing run also reported a Unicode runtime
+backport, so it is not a controlled cache-only comparison. The fixture keeps
+all filesystem, BEP, target-versus-execution configuration and final TAR checks.
+Passing it does not establish that production remote tree transport is fixed;
+this change neither modifies the Bazel runtime nor changes production caches.
 
 For native libraries, download the runtime and detached-debug packages from the
 same module/version/architecture job. These packages come from the same build;
