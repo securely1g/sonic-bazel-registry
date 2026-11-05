@@ -70,6 +70,8 @@ snapshot fallbacks:
 | `libaudit-dev_4.0.2-2+b2_amd64.deb` | Debian content-addressed file |
 | `libcap2_2.75-10+deb13u1+b1_arm64.deb` | Verified GitHub release copy |
 | `bash_5.2.37-2+b9_arm64.deb` | Verified GitHub release copy |
+| `libcap-dev_2.75-10+deb13u1+b1_armhf.deb` | Verified GitHub release copy |
+| `libsqlite3-0_3.46.1-7+deb13u1_amd64.deb` | Verified GitHub release copy |
 | `libc-bin_2.41-12+deb13u3_arm64.deb` | Debian content-addressed file, then existing CDN fallback |
 | `uuid-dev_2.41-5_amd64.deb` | Debian content-addressed file, then existing CDN fallback |
 | `libc-ares-dev_1.34.5-1+deb13u1_arm64.deb` | Debian content-addressed file, then the official security CDN |
@@ -90,6 +92,9 @@ snapshot fallbacks:
 These candidates preserve each original APT-lock SHA256. The SHA1 in Debian's
 content-addressed URL is only a locator; Bazel still checks the stronger locked
 SHA256. The GitHub copies have a [checksum and origin manifest](https://github.com/securely1g/sonic-bazel-registry/releases/download/ci-source-mirrors-20261104/debian-package-mirrors-20261105.json).
+
+The additional [libcap/SQLite origin manifest](https://github.com/securely1g/sonic-bazel-registry/releases/download/ci-source-mirrors-20261104/debian-package-mirrors-libcap-sqlite-20261105.json) records the exact retained `libcap-dev` ARMHF and `libsqlite3-0` AMD64 copies. Their complete public release downloads (408,140 and 914,268 bytes) match the original accepted APT-lock SHA256 and retained cache bytes. SQLite also matches the checked-in image locks; libcap uses retained accepted generated-lock evidence and the exact current failure URL, not a retrieved failed-run lock. The earlier upstream HTTP503/504 and alternate-host TLS failures were not retried. No package was generated or executed; the archive header check was only Debian ar magic, not a cryptographic package signature. The exact routes try the verified copy, then preserve the existing official CDN and original Snapshot fallbacks. Configured-fetch and native acceptance remain pending.
+
 Their rewrites match the exact timestamp, version, and architecture. Local HTTP
 fixtures exercise the added candidates, fallback to the original paths, and
 rejection of corrupt mirror bytes. Cold Bazel fetches verify the packages

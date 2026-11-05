@@ -46,6 +46,10 @@ DEBIAN_RELEASE_PACKAGES = (
      "https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/libc/libcap2/libcap2_2.75-10+deb13u1+b1_arm64.deb"),
     ("bash_5.2.37-2+b9_arm64.deb",
      "https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/b/bash/bash_5.2.37-2+b9_arm64.deb"),
+    ("libcap-dev_2.75-10+deb13u1+b1_armhf.deb",
+     "https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/libc/libcap2/libcap-dev_2.75-10+deb13u1+b1_armhf.deb"),
+    ("libsqlite3-0_3.46.1-7+deb13u1_amd64.deb",
+     "https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/s/sqlite3/libsqlite3-0_3.46.1-7+deb13u1_amd64.deb"),
 )
 # Generated APT locks from native ARM validation and the cross-build survey
 # preserve these exact bytes, including declared build-tool dependencies.
@@ -307,10 +311,12 @@ class DebianPoolMirrorScopeTest(unittest.TestCase):
             for other in (
                 upstream.replace("20260727T143429Z", "20260728T143429Z"),
                 upstream.replace("+", "+changed", 1),
-                upstream.replace("_arm64.deb", "_amd64.deb"),
+                re.sub(r"_(amd64|arm64|armhf)\.deb$",
+                       "_arm64.deb" if upstream.endswith("_amd64.deb") else "_amd64.deb", upstream),
                 upstream.replace("snapshot.debian.org", "another.example"),
                 upstream + "?query", upstream + ".sha256",
             ):
+                self.assertNotEqual(other, upstream)
                 self.assertNotIn(mirror, self.candidates(other), other)
 
     def test_content_candidates_are_limited_to_exact_locked_packages(self):
