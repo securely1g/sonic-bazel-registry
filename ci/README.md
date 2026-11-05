@@ -214,6 +214,21 @@ selected `libpython3.13-dev_3.13.5-2+deb13u4_amd64.deb` SHA256. This is byte
 identity evidence, not a new HTTP availability result; no duplicate route or
 package download was needed.
 
+The shared SWSS image [source-base AMD64 job](https://github.com/securely1g/sonic-buildimage/actions/runs/42104208737/job/127514624945)
+failed on `libkrb5-dev_1.21.3-5+deb13u1_amd64.deb` with Snapshot HTTP 503.
+Its [native AMD64 job](https://github.com/securely1g/sonic-buildimage/actions/runs/42104209054/job/127514625948)
+failed on `libpcre2-8-0_10.46-1~deb13u1_amd64.deb` after pool HTTP 404 and
+Snapshot HTTP 503; earlier warnings also identified `libpcre2-dev` at the same
+version for AMD64, ARM64 and ARMHF. Exact content routes cover these five
+inputs, retaining the original URL and existing pool fallbacks. All five
+cached payloads match the retained accepted lock's SHA256 and size. One direct
+official content GET each also matched Krb5 (16,204 bytes) and PCRE runtime
+(298,536 bytes); official `binfiles` metadata binds the three PCRE development
+content IDs to the cached bytes. The current failed URLs and unchanged selected
+inputs match that lock; a current failed-run lock was not retrieved. These
+routes do not change package selection or execute ARM workloads. Current
+configured-fetch and consumer acceptance remain pending.
+
 ## Exact Socat source archive fallback
 
 The [SWSS image source-base workflow at `6ab506bd`](https://github.com/securely1g/sonic-buildimage/actions/runs/42055651322/attempts/2)

@@ -145,6 +145,24 @@ DEBIAN_CONTENT_PACKAGES += (
      "c502f81818978156937bce72be28acac56cf8da6",
      "0edc72458f66c68f2d4ccd0c9959a85a81f4ec7de410a28861cde4a2059f245c", 66576, None),
 )
+# Exact five observed PR195 inputs; see retained lock and official metadata evidence.
+DEBIAN_CONTENT_PACKAGES += (
+    ('https://snapshot.debian.org/archive/debian-security/20260726T121236Z/pool/updates/main/k/krb5/libkrb5-dev_1.21.3-5+deb13u1_amd64.deb',
+     '4fef5fafa9bcf0df24e4cc6ad971283da129ffa7',
+     '62c3dbd746163878e73e22206d1dcc01f0f5296d3ca4ece5fb8cb7cb80396e4f', 16204, None),
+    ('https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/p/pcre2/libpcre2-8-0_10.46-1~deb13u1_amd64.deb',
+     '1594986c3db12e53c6d738df0926766b852e8e9d',
+     '6aa452af6a07e34498bf8e734e8789c9dd602fb34f12572e62dc1bba4889a60e', 298536, None),
+    ('https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/p/pcre2/libpcre2-dev_10.46-1~deb13u1_amd64.deb',
+     '648dd0b86870e854e02868553a2246b3470b96dd',
+     'b5cb023bfaad356053583af384f7b75caec3ac127a197f889164ef4d96397cef', 852668, None),
+    ('https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/p/pcre2/libpcre2-dev_10.46-1~deb13u1_arm64.deb',
+     'f114a29adbd36f6c0b136ab62613226f066e1fbf',
+     'cf70657d734060bad45def0c67208e2afb1e165a5640d53b3bfe2264a3ada932', 750500, None),
+    ('https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/p/pcre2/libpcre2-dev_10.46-1~deb13u1_armhf.deb',
+     'e4ad4f9737d3906da5f6cdbb819176ee0ac0ad57',
+     'a9210d107c63761a88847c0fdfcb7b15bcf7cd1fc443b91a25e58805a6f4f83d', 756112, None),
+)
 # BusyBox package inputs pinned by BCR rules_coreutils@1.0.1's MODULE.bazel.
 BUSYBOX_PACKAGES = (
     ("amd64", "d161cd711fcf0d21a53dd7b9665933463de9fa6a37718e78ffee4d7732e1e02a", 937460),
