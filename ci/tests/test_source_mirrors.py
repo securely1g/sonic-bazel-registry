@@ -220,6 +220,12 @@ DEBIAN_CONTENT_PACKAGES += (
      "9ba5541a96f7de01c0d343e78296b07e2672051f",
      "490511f32afe59303e1fa2b4c54fd174de0d98f5f3cf9702e0f2784b834792e4", 56944, None),
 )
+# Exact Framework analysis input; ARM64 package resolution is not ARM execution.
+DEBIAN_CONTENT_PACKAGES += (
+    ("https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/libc/libcap2/libcap-dev_2.75-10+deb13u1+b1_arm64.deb",
+     "a5c6a45aae0d443be8f13ebc6eddfb3e83e23b55",
+     "f1c0687bb0f6ad192b9cbe64429fc76029ce2a11939b155051139caf1683b447", 470800, None),
+)
 # BusyBox package inputs pinned by BCR rules_coreutils@1.0.1's MODULE.bazel.
 BUSYBOX_PACKAGES = (
     ("amd64", "d161cd711fcf0d21a53dd7b9665933463de9fa6a37718e78ffee4d7732e1e02a", 937460),
@@ -294,6 +300,45 @@ class DebianPoolMirrorScopeTest(unittest.TestCase):
             LIBSFRAME_SNAPSHOT + "?query", LIBSFRAME_SNAPSHOT + ".sha256",
         ):
             self.assertEqual(self.candidates(other), [], other)
+
+        # One verified index exception must not broaden the generic pool rules.
+        upstream = "https://snapshot.debian.org/archive/debian/20260727T143429Z/dists/trixie-updates/main/binary-arm64/Packages.xz"
+        content = "https://snapshot.debian.org/file/c9d85a145fcc34817defe65c818ded141ea2c95f"
+        self.assertEqual(self.candidates(upstream), [content, upstream])
+        for other in (
+            upstream.replace("20260727T143429Z", "20260728T143429Z"),
+            upstream.replace("trixie-updates", "trixie"),
+            upstream.replace("binary-arm64", "binary-amd64"),
+            upstream.replace("binary-arm64", "binary-armhf"),
+            upstream.replace("/main/", "/contrib/"),
+            upstream.replace("Packages.xz", "Packages.gz"),
+            upstream.replace("Packages.xz", "Packages.bz2"),
+            upstream.replace("Packages.xz", "Packages"),
+            upstream.replace("snapshot.debian.org", "snapshot-cloudflare.debian.org"),
+            upstream.replace("snapshot.debian.org", "another.example"),
+            upstream.replace("/archive/debian/", "/archive/debian-security/"),
+            upstream + "?query", upstream + "#fragment", upstream + ".sha256",
+        ):
+            self.assertEqual(self.candidates(other), [], other)
+
+        # One verified security CDN exception preserves the exact dated fallback.
+        for upstream, cdn in (
+            ("https://snapshot.debian.org/archive/debian-security/20260726T121236Z/pool/updates/main/libg/libgcrypt20/libgcrypt20_1.11.0-7+deb13u1_amd64.deb",
+             "https://deb.debian.org/debian-security/pool/updates/main/libg/libgcrypt20/libgcrypt20_1.11.0-7+deb13u1_amd64.deb"),
+        ):
+            self.assertEqual(self.candidates(upstream), [cdn, upstream])
+            for other in (
+                upstream.replace("20260726T121236Z", "20260727T121236Z"),
+                upstream.replace("1.11.0-7+deb13u1", "1.11.0-7+deb13u2"),
+                upstream.replace("_amd64.deb", "_arm64.deb"),
+                upstream.replace("_amd64.deb", "_armhf.deb"),
+                upstream.replace("libgcrypt20_", "libgcrypt20-dev_"),
+                upstream.replace("snapshot.debian.org", "snapshot-cloudflare.debian.org"),
+                upstream.replace("snapshot.debian.org", "another.example"),
+                upstream.replace("/archive/debian-security/", "/archive/debian/"),
+                upstream + "?query", upstream + "#fragment", upstream + ".sha256",
+            ):
+                self.assertNotIn(cdn, self.candidates(other), other)
 
     def test_socat_patch_archive_has_one_exact_content_exception(self):
         upstream = "https://snapshot.debian.org/archive/debian/20241222T205329Z/pool/main/s/socat/socat_1.8.0.2-1.debian.tar.xz"
