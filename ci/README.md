@@ -255,6 +255,29 @@ workspace could not establish Cloudflare availability for this plugin or
 does not establish a permanent endpoint failure; both maintained generic
 routes remain enabled.
 
+[FRR's native AMD64 check](https://github.com/securely1g/sonic-buildimage/actions/runs/42051339153/job/127327932746)
+and [later Sysmgr analysis in its OCI check](https://github.com/securely1g/sonic-buildimage/actions/runs/42051339203/job/127327935067)
+failed on `libpython3.13-stdlib_3.13.5-2+deb13u4_amd64.deb` after trying the
+pool and dated Snapshot. [Eventd's AMD64 check](https://github.com/securely1g/sonic-buildimage/actions/runs/42051339451/job/127327933410)
+failed similarly on `perl_5.40.1-6_amd64.deb`. The OCI archive build and its
+12 tests had already passed; its later failure does not invalidate that result.
+Each exact official content URL returned HTTP200 and bytes matching the accepted
+`c589d2e5` lock and existing cache:
+
+- [Python stdlib](https://snapshot.debian.org/file/34446b6d753038d30cc9dfb5bf17987ff56071da):
+  1,957,100 bytes, SHA256 `0def2d972310b59704ad119abee5a97f95409e14ff1359edd8cc7b8892cfd43f`.
+- [Perl](https://snapshot.debian.org/file/9c5005df956b8fa8a3f487c175499e6029669465):
+  267,336 bytes, SHA256 `11ec93d44649e9b37e3bddcf32a5f01d6e9dd3d0d79aac621b49473539c8f5b8`.
+
+The failed `f750ee5c` source retains the accepted module and download inputs;
+its generated lock was not used for this binding. The SHA1 in each content URL
+locates the payload; Bazel still enforces the original SHA256. These two exact
+AMD64 URLs gain the content route after the pool and before the unchanged
+Cloudflare/original fallbacks. The separate Cloudflare probes timed out during
+TLS from this workspace, which does not establish a permanent mirror failure.
+Standalone consumers still need an explicit immutable-config update; these
+successful payload requests are not new native acceptance.
+
 The exact owned `codex/registry-debian-pool-transport` branch retains the full
 publication-policy plan and AMD64/ARM64 runner suites, including real checksum
 rejection and cold-fetch tests, while selecting no unrelated module jobs.

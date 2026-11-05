@@ -196,6 +196,12 @@ class DebianPoolRoutingTest(unittest.TestCase):
              'a817f92905b030fcbca7d433db7dc4dcccf91c3d'),
             ('main/p/python3.13/libpython3.13-minimal_3.13.5-2+deb13u4_amd64.deb',
              'd63097e4bb174c04bfc29e38e6270b43c2db9c0b'),
+            # FRR163 jobs127327932746/127327935067/127327933410
+            # failed analysis on these unchanged Python/Perl inputs.
+            ('main/p/python3.13/libpython3.13-stdlib_3.13.5-2+deb13u4_amd64.deb',
+             '34446b6d753038d30cc9dfb5bf17987ff56071da'),
+            ('main/p/perl/perl_5.40.1-6_amd64.deb',
+             '9c5005df956b8fa8a3f487c175499e6029669465'),
             ('main/libs/libselinux/libselinux1_3.8.1-1_amd64.deb',
              '44b247687c034c8a4142204f0827f7286614b354'),
         ]:
