@@ -45,7 +45,7 @@ USE_BAZEL_VERSION=8.5.1 python3 \
 ```
 
 The complete contract fixture uses the production sonic-build-infra CcInfo
-adapter supplied by the caller. It builds thirteen two-level shared-library chains,
+adapter supplied by the caller. It builds twenty-one two-level shared-library chains,
 checks AS_NEEDED and constructor behavior, rejects conflicting SONAMEs, and runs
 both Bazel and installed executables without LD_LIBRARY_PATH or LD_PRELOAD.
 The build directory is hidden during installed execution. Before native links,
@@ -56,12 +56,11 @@ cyclic links and opaque non-ELF bytes are retained in the data archive; selectin
 their native targets reports an explicit error without blocking valid neighbors.
 Scripts retain GNU commands, comments and whitespace. The fixture covers quoted
 operands, SEARCH_DIR, INCLUDE with declared .ld inputs, PROVIDE, dependency-owned
-static archives and shared libraries without SONAMEs. Independent static-only
-pkg-config variants remain explicit opt-ins when the package has dynamic
-interfaces; static inputs listed by a dynamic .pc remain active. The fixture
-checks NOOPEN stays on the explicit constructor interface and never reaches the
-ordinary dynamic interface. Native validation also builds and imports a CPython
-extension after hiding the build directory. Optional Go CGo and
+static archives and shared libraries without SONAMEs. Module selection and Requires determine the flags. The fixture checks NOOPEN
+on explicit static and dynamic variants, isolated version/missing-module errors,
+cross-package and cyclic Requires, private flags, .pc aliases, variables and
+continuations, plus host PKG_CONFIG_PATH isolation. Native validation also
+builds and imports a CPython extension after hiding the build directory. Optional Go CGo and
 Rust executables consume the adapter's actual CcInfo flags and files.
 
 ```sh
@@ -79,6 +78,48 @@ these files in a declared Bazel cross toolchain, verifies AArch64 ELF headers,
 and executes the resulting programs through QEMU with the supplied sysroot.
 
 Requires Python 3 and its matching development headers, Bazel 8.5.1, gcc, ar,
-dpkg-deb, xz, file and readelf. All packages
+dpkg-deb, xz, file, readelf and pkg-config. All packages
 and locks are synthetic; the tests fetch no production package index and build
 no business component. Each run prints its retained evidence directory.
+
+## Select pkg-config modules
+
+With library imports enabled, each installed .pc module has architecture-selecting
+hub targets. The module name is the .pc filename without its suffix.
+
+```starlark
+cc_library(
+    name = "consumer",
+    srcs = ["consumer.cc"],
+    deps = ["@trixie//libbsd-dev:pkgconfig/libbsd"],
+)
+```
+
+Use `@trixie//libbsd-dev:pkgconfig/libbsd-ctor` to explicitly select automatic
+constructors. It follows `Requires: libbsd` and retains its forced-constructor
+and nodlopen options. Ordinary `pkgconfig/libbsd` does not select that module.
+A module's options apply regardless of whether its libraries are shared or static.
+
+`@trixie//libbsd-dev:pkgconfig/libbsd/static` performs the static query, includes
+Libs.private and Requires.private, and prefers declared .a inputs when available.
+The program's overall link mode remains controlled by its Bazel rule. Dynamic
+queries include Requires link flags and the compilation flags from both public
+and private requirements. Module compilation contexts expose resolved include
+directories and preprocessor definitions. These field semantics follow the
+[pkg-config guide](https://people.freedesktop.org/~dbn/pkg-config-guide.html).
+
+Requires names and version predicates are resolved by the host pkg-config tool
+against a private directory built from the locked package metadata. The host's
+PKG_CONFIG_PATH, PKG_CONFIG_LIBDIR and sysroot settings do not supply modules.
+This requires pkg-config on the build host. Metadata archives use the same URLs
+and checksums as their locked DEBs. No lock-format or request-file change is
+needed to adopt these interfaces.
+
+Existing package and per-library labels remain compatibility interfaces. Package
+labels keep the aggregate library inputs. Their flags come first from a module
+matching the package base name, then the name without a leading lib; when neither
+exists, the historical aggregate remains. Per-library aliases use an unambiguous
+matching module; ambiguous raw-library aliases do not choose a module implicitly.
+Use the explicit `pkgconfig/<module>` labels for exact module selection. Modules
+under usr/share/pkgconfig are also available. Modules that carry only flags
+without library files retain those flags across shared-library boundaries.

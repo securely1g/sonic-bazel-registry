@@ -32,7 +32,8 @@
     "0026-relative-linker-script-inputs.patch": "sha256-49FzPdLyHunRCd3omrnEpbnXOE3fI/gP68WeC/Caq+k=",
     "0027-classify-shared-library-basenames.patch": "sha256-CzUWQPCLpNb9v5BKwweUKpaCrLl4klNGaPfTOUIomJU=",
     "0028-isolate-native-library-analysis.patch": "sha256-9FOlCzj4IgA1C7cu7AtiWRyB7xvWXlEtOd7q1r1scaQ=",
-    "0029-isolate-static-pkgconfig-variants.patch": "sha256-HADeSgFWQAIgbIcwiFYazph79HgpQ0diHivM+YVGdds="
+    "0029-isolate-static-pkgconfig-variants.patch": "sha256-HADeSgFWQAIgbIcwiFYazph79HgpQ0diHivM+YVGdds=",
+    "0030-model-pkgconfig-modules.patch": "sha256-uc43hFs7hDGHGz12TDHGDOhI8/ds0/OF0OsGyp++XBE="
   },
   "patch_strip": 1,
   "overlay": {

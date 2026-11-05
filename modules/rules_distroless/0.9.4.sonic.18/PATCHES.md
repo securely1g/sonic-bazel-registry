@@ -357,3 +357,26 @@ leaking into ordinary libbsd consumers, while explicit constructor interfaces
 retain their contract. A synthetic CPython extension actually imports and returns
 44 after relocating the install and hiding the build tree. The fixture also
 checks explicit constructor output retains NOOPEN and ordinary DSOs exclude it.
+
+`0030-model-pkgconfig-modules.patch` replaces patch0029's dynamic/static
+classification with actual pkg-config module queries. Each module exports
+`pkgconfig/<module>` and `pkgconfig/<module>/static`. Queries use only .pc metadata
+from checksum-pinned DEBs in independent file-map repositories; Requires cycles
+therefore create no native repository cycles. pkg-config handles Requires,
+Requires.private, version predicates, variable expansion and line continuations.
+Native targets carry resolved library inputs and their selected module flags;
+unrelated modules do not contribute flags. Missing/version-incompatible modules
+produce selected-target diagnostics while package archive interfaces remain
+usable. Compatibility package targets retain their aggregate library interface
+and use a matching main module's flags, with historical aggregation when no main
+module is identifiable. Explicit module targets provide precise selection.
+
+The final module implementation also preserves flags-only modules without a
+physical library input, follows ordered -L lookup for compatibility targets,
+and exports metadata from usr/share/pkgconfig. The fixture's flags-only module
+defines an absolute linker symbol with value42; linked consumers return44 on
+both architectures. The comparison against songqing-sq/sonic_rules master
+(a9d618537d03f2d6da31e3a6a96d12541c361785) confirms its MODULE pins the same
+Distroless commit815b4b3. Its separate linker-script generation path does not
+merge all .pc link flags into libbsd; module-aware selection preserves that
+ordinary-library behavior while honoring explicitly selected ctor options.
