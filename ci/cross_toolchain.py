@@ -71,7 +71,7 @@ def module_graph(prefix: list[str], flags: list[str], consumer: Path, artifacts:
                  name: str) -> dict[str, str]:
     command = [*prefix, "mod", "graph", *resolution_flags(flags), "--output=json",
                "--extension_info=hidden", "--depth=-1", "--from=<root>", "--noinclude_unused",
-               "--color=no", "--curses=no"]
+               "--color=no", "--curses=no", "--noshow_progress"]
     (artifacts / (name + "-command.json")).write_text(json.dumps(command, indent=2) + "\n")
     with (artifacts / (name + ".json")).open("w") as output, (artifacts / (name + ".stderr")).open("w") as errors:
         result = subprocess.run(command, cwd=consumer, stdout=output, stderr=errors)

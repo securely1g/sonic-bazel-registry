@@ -214,6 +214,7 @@ class ModuleGraphStatusTest(unittest.TestCase):
             self.assertIn("--depth=-1", command)
             self.assertIn("--noinclude_unused", command)
             self.assertIn("--extension_info=hidden", command)
+            self.assertIn("--noshow_progress", command)
             kwargs["stdout"].write(json.dumps(self.graph if graph is None else graph))
             kwargs["stderr"].write(errors)
             return subprocess.CompletedProcess(command, code)
