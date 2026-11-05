@@ -1,0 +1,11 @@
+--- a/configure.ac
++++ b/configure.ac
+@@ -68,7 +68,7 @@
+ AM_COND_IF([WITH_GTEST], [
+     gtest_root=$ac_abs_confdir/third_party/googletest
+     gtest_check_f=$gtest_root/googletest/src/gtest.cc
+-    AC_CHECK_FILE([$gtest_check_f], [],
++    AS_IF([test -r "$gtest_check_f"], [],
+                   [AC_MSG_ERROR([Did you run 'git submodule update --init'?])])
+ ])
+ 
