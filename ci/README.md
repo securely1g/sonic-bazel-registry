@@ -183,6 +183,37 @@ and unexpected changes retain their normal checks or fail the guard. This
 remains a Draft readiness limitation. The successful 6e305 runner/fetch evidence
 is historical; refreshed-head CI and consumer pin adoption remain separate.
 
+FRR AMD64 analysis also needs the unchanged
+`libperl5.40_5.40.1-6_amd64.deb` and `uuid-dev_2.41-5_arm64.deb` inputs.
+Their pool and dated Snapshot URLs returned HTTP 404. Add their verified
+content URLs before the existing pool/original fallbacks: retained once-only
+GETs matched the accepted lock's SHA256 and sizes (4,341,332 and 49,472 bytes).
+UUID is imported during AMD64 analysis; this is not ARM execution. Existing
+scope tests distinguish UUID architectures, and the existing cold-fetch suite
+includes both package identities. Configured-fetch and consumer acceptance
+of this reconciled head remain pending.
+
+The existing `libssl3t64` AMD64 route and its sibling-architecture tests remain
+unchanged. Its content ID, locked SHA256 and 2,447,924-byte size match the
+retained successful filename-suffixed redirect. No second SSL rule or download
+is added; configured acceptance of the preserved bare content URL remains
+pending. Published review config `264002ba` and all consumer pins stay intact.
+
+Eventd AMD64 tests also import the exact private
+`redis-server_8.0.2-3+deb13u2_amd64.deb` input. Its security pool and dated
+Snapshot URLs returned HTTP 404 before any native action. The exact security
+Snapshot exception now tries the official content ID, then the original URL;
+one retained GET matched the locked SHA256 and 66,576-byte size. The existing
+scope and cold-fetch fixtures include this input; generic security and index
+URLs remain excluded. New-head configured fetch and Eventd acceptance remain
+pending.
+
+The inherited Python AMD64 development-package route is unchanged. Its
+`3cb20569` content ID matches retained cache bytes: 5,275,756 bytes with the
+selected `libpython3.13-dev_3.13.5-2+deb13u4_amd64.deb` SHA256. This is byte
+identity evidence, not a new HTTP availability result; no duplicate route or
+package download was needed.
+
 ## Exact Socat source archive fallback
 
 The [SWSS image source-base workflow at `6ab506bd`](https://github.com/securely1g/sonic-buildimage/actions/runs/42055651322/attempts/2)

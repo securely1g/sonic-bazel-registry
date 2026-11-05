@@ -130,6 +130,21 @@ SURVEY_CONTENT_PACKAGES += (
      "1a4b6e94cbc26e03e791f7a6e5ae714adc03ee5fe5b24c01651d1194d9de3a3c", 36408, None),
 )
 DEBIAN_CONTENT_PACKAGES += SURVEY_CONTENT_PACKAGES
+# FRR AMD64 jobs selected these unchanged package inputs.
+DEBIAN_CONTENT_PACKAGES += (
+    ("https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/p/perl/libperl5.40_5.40.1-6_amd64.deb",
+     "115f4cbe17c3706c068bab13e8659621c15591f2",
+     "f20aa427c3f56f430b7b58b73222edcb8cda40fa9c3b25365b20cd53eddd51a9", 4341332, None),
+    ("https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/u/util-linux/uuid-dev_2.41-5_arm64.deb",
+     "cb5244c39df10c7ce2573dbf21944fe03d8a436b",
+     "142f2c809a9c239b94a1a09dccc02a49cc4b20990da687b60f849cda84dd580a", 49472, None),
+)
+# Eventd AMD64 tests import the exact locked private Redis package.
+DEBIAN_CONTENT_PACKAGES += (
+    ("https://snapshot.debian.org/archive/debian-security/20260726T121236Z/pool/updates/main/r/redis/redis-server_8.0.2-3+deb13u2_amd64.deb",
+     "c502f81818978156937bce72be28acac56cf8da6",
+     "0edc72458f66c68f2d4ccd0c9959a85a81f4ec7de410a28861cde4a2059f245c", 66576, None),
+)
 # BusyBox package inputs pinned by BCR rules_coreutils@1.0.1's MODULE.bazel.
 BUSYBOX_PACKAGES = (
     ("amd64", "d161cd711fcf0d21a53dd7b9665933463de9fa6a37718e78ffee4d7732e1e02a", 937460),
@@ -268,6 +283,8 @@ class DebianPoolMirrorScopeTest(unittest.TestCase):
             for other in (
                 upstream.replace("202607", "202608"),
                 upstream.replace(".deb", "+changed.deb"),
+                re.sub(r"_(amd64|arm64|armhf)\.deb$",
+                       "_arm64.deb" if upstream.endswith("_amd64.deb") else "_amd64.deb", upstream),
                 re.sub(r"_(amd64|arm64|armhf)\.deb$", "_riscv64.deb", upstream),
                 upstream.replace("snapshot.debian.org", "another.example"),
                 upstream.replace("/pool/", "/different/"),

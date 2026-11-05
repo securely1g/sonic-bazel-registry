@@ -202,8 +202,16 @@ class DebianPoolRoutingTest(unittest.TestCase):
                     "https://deb.debian.org/debian/pool/" + relative,
                     *snapshot_fallbacks(original),
                 ])
+                other_arch = original.replace("_amd64", "_arm64")
+                # UUID's ARM64 input has its own independently verified bytes.
+                other_content = (["https://snapshot.debian.org/file/cb5244c39df10c7ce2573dbf21944fe03d8a436b"]
+                                 if relative == "main/u/util-linux/uuid-dev_2.41-5_amd64.deb" else [])
+                self.assertEqual(routed_urls(other_arch), [
+                    *other_content,
+                    "https://deb.debian.org/debian/pool/" + other_arch.split("/pool/", 1)[1],
+                    *snapshot_fallbacks(other_arch),
+                ])
                 for changed in (
-                    original.replace("_amd64", "_arm64"),
                     original.replace("20260727T143429Z", "20260726T143429Z"),
                     original.replace("_amd64.deb", "+different_amd64.deb"),
                     original.replace("/pool/main/", "/pool/contrib/"),
