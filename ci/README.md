@@ -29,6 +29,49 @@ repository branch-protection settings.
 
 ## Verified source mirrors
 
+### Cosmos inputs for libteam AMD64 validation
+
+The AMD64 `libteam@1.31.0.sonic.1` job supplies the two unchanged Cosmos 4.0.2
+inputs used by BCR `ape@1.0.1` through Bazel's standard `--distdir`. This addresses
+the [original endpoint connection resets](https://github.com/securely1g/sonic-bazel-registry/actions/runs/41989630213/job/127118582713)
+that stopped archive analysis before compilation. No module, tool version,
+integrity, build target or test changes are required.
+
+[`prepare_cosmos_distdir.py`](prepare_cosmos_distdir.py) first reuses valid files
+in its distdir or an explicitly supplied Bazel repository cache. On a miss it
+uses a cached release ZIP, or downloads the complete official
+[`cosmos-4.0.2.zip`](https://github.com/jart/cosmopolitan/releases/download/4.0.2/cosmos-4.0.2.zip)
+(asset 218247825, 402,711,738 bytes). It reads only `bin/assimilate` and
+`bin/ape-x86_64.elf` with standard Python ZIP tooling. Both members must match
+the sizes and SHA256 values pinned by APE's `ape/cosmos/4.0.2.json` before either
+is published under its exact URL basename. Members are never executed by this
+helper. Unexpected sizes, duplicate members, symlinks and checksum failures
+stop preparation; no unverified fallback is used. The ZIP has no upstream
+whole-file digest, so the member hashes are the integrity boundary.
+
+| Distdir basename | Bytes | Locked SHA256 |
+| --- | ---: | --- |
+| `assimilate` | 656101 | `93f63aac14046bc2530e4f98ff4dc7ade2e3a3aa3136ced3db598bf6b0026edc` |
+| `ape-x86_64.elf` | 9249 | `7c1cf8b24e1b6dd6ad7da3817045d582ada146b4d6ec0c6a45bea830e3a65f4d` |
+
+The workflow invokes the helper from the same checked-out revision as the
+validation runner. Its distdir and ZIP cache are siblings of the fresh Bazel
+work directory, and the JSON receipt is retained in the existing CI artifact.
+This workflow does not restore a persistent cache across jobs. Other module
+versions and architectures keep their existing setup; another caller can use
+the helper's CLI without introducing a new module-validation mechanism.
+
+While the helper PR is Draft, only the same-repository branch
+`codex/registry-cosmos-distdir` with its exact five-file transport scope suppresses
+the native module matrix after normal policy planning. Both existing runner
+test suites still run. The full planner otherwise selects 66 native module jobs
+for this shared CI change; those broad regressions remain unvalidated by the
+Draft guard. **Remove the guard before marking the PR Ready.** The stacked
+libteam registration will exercise the actual helper with its ordinary native
+outputs and tests; focused helper tests alone do not establish that acceptance.
+
+### Archive and package mirrors
+
 The runner passes Bazel's standard `--experimental_downloader_config` with
 [`source_mirrors.cfg`](source_mirrors.cfg) to dependency preparation, builds,
 tests and output queries. Rewrites match only the archive and binary-package
