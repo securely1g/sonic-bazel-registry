@@ -317,3 +317,12 @@ semantics and their declared file closure without being forwarded as runtime
 DSOs. ELF imports use SONAME aliases and co-located implementation/interface
 solib paths for clean loading. Conflicting SONAMEs fail explicitly. This patch
 supersedes the basename rewriting and aggregate script imports in 0024.
+
+`0026-relative-linker-script-inputs.patch` recognizes GNU text scripts even when
+they contain no absolute paths. Relative library filenames, `-lfoo` and
+`-l:filename` resolve against the script directory and then the declared package
+closure, retaining shared-before-static selection. Exact resolved files are
+rewritten and declared just like absolute references. Unresolved toolchain `-l`
+options remain linker-controlled. The regression includes Debian ncurses-style
+`INPUT(libncurses.so.6 -ltinfo)` syntax and exact-filename lookup, with real
+sandboxed links and clean installed execution on AMD64 and emulated ARM64.

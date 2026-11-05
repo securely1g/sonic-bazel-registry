@@ -87,6 +87,18 @@ def main():
         'usr/lib/libone.so.1': 'libone.so', 'usr/lib/pkgconfig/one.pc': pc('one'), 'usr/lib/pkgconfig/two.pc': pc('two')}, ['libmulti0'])
     cases.append(('multi', 'int one(void); int two(void);', 'one()+two()', 'libmulti-dev', ()))
 
+    # Debian ncurses ships INPUT(libncurses.so.6 -ltinfo), with no absolute
+    # filenames. Both relative filenames and -l forms must carry exact inputs.
+    for case, second in [('relative', '-lrelative_info'), ('exact', '-l:libexact_info.so.1')]:
+        package('lib' + case + '0', {
+            'usr/lib/lib' + case + '.so.6': library('lib' + case, case + '_value', 13, 'lib' + case + '.so.6'),
+            'usr/lib/lib' + case + '_info.so.1': library('lib' + case + '_info', case + '_info', 29)})
+        package('lib' + case + '-dev', {
+            'usr/lib/lib' + case + '.so': f'INPUT(lib{case}.so.6 {second})\n'.encode(),
+            'usr/lib/lib' + case + '_info.so': 'lib' + case + '_info.so.1',
+            'usr/lib/pkgconfig/' + case + '.pc': pc(case)}, ['lib' + case + '0'])
+        cases.append((case, f'int {case}_value(void); int {case}_info(void);', case + '_value()+' + case + '_info()', 'lib' + case + '-dev', ()))
+
     for case in ['mixed', 'nested']:
         package('lib' + case + '0', {'usr/lib/lib' + case + '.so.1': library('lib' + case, case + '_dynamic', 39)})
         inner = f'GROUP ( /usr/lib/lib{case}.so.1 /usr/lib/lib{case}_static.a /usr/lib/{case}_object.o )\n'.encode()

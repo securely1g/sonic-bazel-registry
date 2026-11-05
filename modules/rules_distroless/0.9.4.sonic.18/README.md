@@ -29,7 +29,8 @@ uses AMD64/ARM64 defaults while retaining explicit ARMHF cross inputs.
 
 APT library imports preserve installed-file ownership and GNU linker-script
 semantics through native shared-library boundaries. A script may refer to a
-shared object, static archive, object file or nested script. GROUP and AS_NEEDED
+shared object, static archive, object file or nested script through absolute
+paths, relative library names, `-lfoo` or `-l:filename`. GROUP and AS_NEEDED
 remain linker-controlled. Runtime exports contain ELF libraries using their
 SONAMEs; text scripts remain link inputs. Ambiguous runtime SONAMEs fail during
 analysis instead of silently choosing a library. Multiple pkg-config libraries
@@ -44,7 +45,7 @@ USE_BAZEL_VERSION=8.5.1 python3 \
 ```
 
 The complete contract fixture uses the production sonic-build-infra CcInfo
-adapter supplied by the caller. It builds six two-level shared-library chains,
+adapter supplied by the caller. It builds eight two-level shared-library chains,
 checks AS_NEEDED and constructor behavior, rejects conflicting SONAMEs, and runs
 both Bazel and installed executables without LD_LIBRARY_PATH or LD_PRELOAD.
 The build directory is hidden during installed execution. Optional Go CGo and
