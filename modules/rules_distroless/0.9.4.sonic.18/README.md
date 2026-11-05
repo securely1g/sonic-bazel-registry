@@ -48,7 +48,10 @@ The complete contract fixture uses the production sonic-build-infra CcInfo
 adapter supplied by the caller. It builds eight two-level shared-library chains,
 checks AS_NEEDED and constructor behavior, rejects conflicting SONAMEs, and runs
 both Bazel and installed executables without LD_LIBRARY_PATH or LD_PRELOAD.
-The build directory is hidden during installed execution. Optional Go CGo and
+The build directory is hidden during installed execution. Before native links,
+the fixture also builds public deb/data/control targets and verifies original
+DEB bytes, control metadata and unchanged configuration payloads. Ordinary
+files under directories such as `ld.so.conf.d` remain package data. Optional Go CGo and
 Rust executables consume the adapter's actual CcInfo flags and files.
 
 ```sh

@@ -326,3 +326,11 @@ rewritten and declared just like absolute references. Unresolved toolchain `-l`
 options remain linker-controlled. The regression includes Debian ncurses-style
 `INPUT(libncurses.so.6 -ltinfo)` syntax and exact-filename lookup, with real
 sandboxed links and clean installed execution on AMD64 and emulated ARM64.
+
+`0027-classify-shared-library-basenames.patch` applies shared-library suffix
+matching to the filename rather than its parent directories. Configuration
+paths such as `etc/ld.so.conf.d/libc.conf` stay ordinary package data and never
+enter ELF inspection. Public deb/data/control interfaces keep their bytes and
+metadata. The synthetic contract builds these interfaces before native targets
+for a configuration-only package and a package combining configuration with
+real libraries, then verifies their archives and native links on both CPUs.

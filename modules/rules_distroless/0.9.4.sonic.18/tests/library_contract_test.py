@@ -14,6 +14,7 @@ import shlex
 import shutil
 import subprocess
 import tempfile
+import tarfile
 
 
 def main():
@@ -83,8 +84,11 @@ def main():
 
     # libtwo is supplied by a dependency, after libone in a different .pc file.
     package('libmulti0', {'usr/lib/libtwo.so': library('libtwo', 'two', 29, 'libtwo.so.1'), 'usr/lib/libtwo.so.1': 'libtwo.so'})
-    package('libmulti-dev', {'usr/lib/libone.so': library('libone', 'one', 13, 'libone.so.1'),
-        'usr/lib/libone.so.1': 'libone.so', 'usr/lib/pkgconfig/one.pc': pc('one'), 'usr/lib/pkgconfig/two.pc': pc('two')}, ['libmulti0'])
+    config_files = {'etc/ld.so.conf.d/libc.conf': b'# libc default configuration\n/usr/local/lib\n',
+        'usr/lib/fixture.so.conf.d/settings.conf': b'fixture-setting=preserved\n'}
+    package('fixture-config', config_files)
+    package('libmulti-dev', dict(config_files, **{'usr/lib/libone.so': library('libone', 'one', 13, 'libone.so.1'),
+        'usr/lib/libone.so.1': 'libone.so', 'usr/lib/pkgconfig/one.pc': pc('one'), 'usr/lib/pkgconfig/two.pc': pc('two')}), ['libmulti0'])
     cases.append(('multi', 'int one(void); int two(void);', 'one()+two()', 'libmulti-dev', ()))
 
     # Debian ncurses ships INPUT(libncurses.so.6 -ltinfo), with no absolute
@@ -145,6 +149,7 @@ def main():
         'usr/lib/pkgconfig/conflict.pc': pc('conflict')}, ['libconflict0'])
 
     roots = {f'/fixture/{p}:{arch}': '1' for _, _, _, p, _ in cases}
+    roots[f'/fixture/fixture-config:{arch}'] = '1'
     (root / 'apt.lock.json').write_text(json.dumps(dict(version=2, sources={'fixture': {'uris': [root.as_uri()]}},
         packages=packages, dependency_sets={'locked': {'sets': {arch: roots}},
             'conflicting': {'sets': {arch: {f'/fixture/libconflict-dev:{arch}': '1'}}}})))
@@ -216,6 +221,7 @@ use_repo(apt,"locked","conflicting")
             f'shared_library_cc_info(name="{case}_downstream_link",shared_library=":{case}_downstream")',
             f'cc_binary(name="{case}_consumer",srcs=["{case}_main.c"],deps=[":{case}_downstream_link"],linkopts=["-Wl,-rpath,$$ORIGIN/../lib"])']
     build.append('link_context(name="language_context",dep=":multi_downstream_link")')
+    build.append('filegroup(name="package_inputs",srcs=[' + ','.join(f'"@locked//{pkg}/{arch}:{kind}"' for pkg in ['fixture-config', 'libmulti-dev'] for kind in ['deb', 'data', 'control']) + '])')
     if cross:
         version=run([cross['cc'],'-dumpversion']).stdout.strip()
         build += ['load(":cross_config.bzl","cross_config")', 'load("@rules_cc//cc:defs.bzl","cc_toolchain")',
@@ -236,6 +242,26 @@ use_repo(apt,"locked","conflicting")
     def execute(file, cwd):
         command=[str(args.qemu),'-L',cross['sysroot'],str(file)] if cross else [str(file)]
         return run(command,cwd=cwd).stdout.strip()
+    # Ordinary package interfaces must work before any native library is built.
+    result = run(bazel+['build']+flags+['//:package_inputs'],cwd=root)
+    (root/'package-inputs.log').write_text(result.stdout+result.stderr)
+    outputs = run(bazel+['cquery']+flags+['//:package_inputs','--output=files'],cwd=root).stdout.splitlines()
+    execroot = Path(run(bazel+['info']+flags+['execution_root'],cwd=root).stdout.strip())
+    archives = [execroot / file for file in outputs]
+    for pkg in ['fixture-config', 'libmulti-dev']:
+        selected = [file for file in archives if '_'+pkg+'-' in str(file)]
+        deb = next(file for file in selected if file.name == 'package.deb')
+        assert deb.read_bytes() == (root/(pkg+'.deb')).read_bytes(), pkg
+        data = next(file for file in selected if file.name == 'content.tar.gz')
+        with tarfile.open(data) as archive:
+            entries = {item.name.removeprefix('./'): item for item in archive.getmembers()}
+            for path, content in config_files.items():
+                assert archive.extractfile(entries[path]).read() == content, (pkg,path)
+        control = next(file for file in selected if file.name.startswith('control.tar'))
+        with tarfile.open(control) as archive:
+            member = next(item for item in archive.getmembers() if item.name.removeprefix('./') == 'control')
+            assert ('Package: '+pkg+'\n').encode() in archive.extractfile(member).read(),pkg
+    print('PASS deb/data/control preserve plain configuration files, alone and beside native libraries',flush=True)
     with (root / 'build.log').open('w') as log:
         result = subprocess.run(bazel+['build']+flags+['//:'+case+'_consumer' for case, *_ in cases]+['//:language_context'],cwd=root,env=env,stdout=log,stderr=subprocess.STDOUT)
     if result.returncode:
