@@ -1,0 +1,6 @@
+#!/bin/sh
+/bin/busybox uname -srvmo
+/test-program
+result=$?
+echo "REGISTRY_CI_GUEST_EXIT=$result"
+/bin/busybox poweroff -f

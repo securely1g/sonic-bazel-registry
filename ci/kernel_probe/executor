@@ -1,0 +1,30 @@
+#!/bin/bash
+set -euo pipefail
+original=("$@")
+while [[ $# -gt 0 && $1 != -- ]]; do shift; done
+[[ $# -gt 0 ]]
+shift
+# Every other entry point continues through the image's standard ARM executor.
+case "${TEST_TARGET:-}" in
+    @rules_distroless//registry_ci:linux_headers_test|@rules_distroless+//registry_ci:linux_headers_test|@@rules_distroless+//registry_ci:linux_headers_test) ;;
+    *) if [[ ${1:-} == */registry_ci/linux_headers_test || ${1:-} == registry_ci/linux_headers_test ]]; then
+           echo "ARM kernel test via ${TEST_TARGET:-$1}"
+       else
+           exec /usr/local/bin/sonic-arm64 "${original[@]}"
+       fi ;;
+esac
+[[ $# == 1 && -x $1 ]]
+program=$(realpath "$1")
+readelf -h "$program" | grep -Eq 'Machine: +AArch64$'
+sha256sum "$program"
+bundle=/opt/registry-ci-arm-kernel-probe
+scratch=$(mktemp -d "${TEST_TMPDIR:-/tmp}/arm64-kernel.XXXXXXXX")
+trap 'rm -rf "$scratch"' EXIT
+cd "$scratch"
+install -m 755 "$program" test-program
+cp "$bundle/base.cpio" guest.cpio
+printf 'test-program\0' | cpio --null --format=newc --quiet -o >> guest.cpio
+timeout -k 5 120 qemu-system-aarch64 -machine virt,accel=tcg -cpu cortex-a57 -smp 1 -m 448M \
+    -nographic -monitor none -nic none -no-reboot -kernel "$bundle/vmlinuz" -initrd guest.cpio \
+    -append 'console=ttyAMA0 rdinit=/init panic=1 loglevel=3' | tee console.log
+tr -d '\r' < console.log | grep -Fx 'REGISTRY_CI_GUEST_EXIT=0'

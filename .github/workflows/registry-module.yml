@@ -69,6 +69,10 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+      - name: Install the ARM kernel executor for the AIO syscall test
+        run: |
+          sudo -n bash ci/kernel_probe/install.sh
+          echo 'ARM_TEST_EXECUTOR=/opt/registry-ci-arm-kernel-probe/executor' >> "$GITHUB_ENV"
       - name: Install Bazel 8.5.1
         run: |
           set -euo pipefail
