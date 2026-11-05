@@ -24,7 +24,7 @@ import time
 
 
 ORIGINAL_SHA = '9531f7dd2f3d05038143e5e63672da143196d9679cd979c454a1fb1c5dfc1918'
-CANDIDATE_SHA = '19f9ce5c1b2e5a959816fb4b111185391ecd7ab659a8b7fc71c29576b8962944'
+CANDIDATE_SHA = '6747dcf18842f7a9c34e58dd392f7d76fbed1746616ddd3fd83fe98193687608'
 CHILD = r'''
 import os, signal, sys, time
 code, passed, close_early = map(int, sys.argv[1:])
