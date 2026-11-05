@@ -171,6 +171,24 @@ and unexpected changes retain their normal checks or fail the guard. This
 remains a Draft readiness limitation. The successful 6e305 runner/fetch evidence
 is historical; refreshed-head CI and consumer pin adoption remain separate.
 
+## Exact Socat source archive fallback
+
+The [SWSS image source-base workflow at `6ab506bd`](https://github.com/securely1g/sonic-buildimage/actions/runs/42055651322/attempts/2)
+failed fetching `socat_1.8.0.2-1.debian.tar.xz` from both declared Snapshot hosts.
+Its [selected Socat recipe](https://github.com/securely1g/sonic-bazel-registry/blob/ccd4d6c2a6e3551f40e0d973ef5756006eba7e9d/modules/socat/1.8.0.2.sonic.3/MODULE.bazel)
+pins SHA256 `04b361cd91884eda6ca9fe2890ca83a6abe73dd8ce75fe9927b2d8443af36123`.
+One official content GET returned the identical 15,148 bytes from
+`https://snapshot.debian.org/file/0475522901bd85478b944520b23e01e3f3c7d339`.
+The SHA1 path locates the file; the existing repository rule still verifies the
+unchanged SHA256 before extracting Debian's patches.
+
+Only that exact timestamped `snapshot.debian.org` source URL now tries the
+verified content address before its original URL. Other source archives,
+including Socat's distinct `orig.tar.bz2`, indexes, near-miss versions and dates,
+and the separately declared Cloudflare URL remain unchanged. Pure routing tests
+check the exception and those exclusions. The GET proves byte availability;
+new configured fetch and image acceptance remain pending.
+
 ## Kernel build-tool cache downloads
 
 The runner starts each consumer with `--ignore_all_rc_files`, so it explicitly

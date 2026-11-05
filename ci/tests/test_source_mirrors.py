@@ -142,6 +142,24 @@ class DebianPoolMirrorScopeTest(unittest.TestCase):
         ):
             self.assertEqual(self.candidates(other), [], other)
 
+    def test_socat_patch_archive_has_one_exact_content_exception(self):
+        upstream = "https://snapshot.debian.org/archive/debian/20241222T205329Z/pool/main/s/socat/socat_1.8.0.2-1.debian.tar.xz"
+        content = "https://snapshot.debian.org/file/0475522901bd85478b944520b23e01e3f3c7d339"
+        self.assertEqual(self.candidates(upstream), [content, upstream])
+        for other in (
+            upstream.replace("20241222T205329Z", "20241223T205329Z"),
+            upstream.replace("1.8.0.2-1.debian", "1.8.0.2-2.debian"),
+            upstream.replace("1.8.0.2-1.debian.tar.xz", "1.8.0.2.orig.tar.bz2"),
+            upstream.replace("snapshot.debian.org", "snapshot-cloudflare.debian.org"),
+            upstream.replace("snapshot.debian.org", "another.example"),
+            upstream.replace("/archive/debian/", "/archive/debian-security/"),
+            upstream.replace("/pool/main/s/socat/", "/pool/main/s/../"),
+            upstream.replace("pool/main/s/socat/socat_1.8.0.2-1.debian.tar.xz",
+                             "dists/trixie/main/source/Sources.xz"),
+            upstream + "?query", upstream + "#fragment", upstream + ".sha256",
+        ):
+            self.assertEqual(self.candidates(other), [], other)
+
     def test_libaudit_content_address_is_limited_to_the_exact_pinned_package(self):
         self.assertEqual(self.candidates(LIBAUDIT_SNAPSHOT), [
             LIBAUDIT_CONTENT_URL,
