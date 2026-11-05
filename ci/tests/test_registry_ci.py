@@ -2108,7 +2108,17 @@ class BazelStartupArgumentTests(unittest.TestCase):
                     registry_ci.main()
                 execute.assert_called_once_with(registry_ci.ROOT, "alpha", "1.0.0", "amd64",
                                                 Path("/tmp/work"), Path("/tmp/artifacts"), "bazel", None,
-                                                startup, build)
+                                                startup, build, False, None)
+
+
+    def test_cli_keeps_cross_compilation_and_runtime_explicit(self) -> None:
+        command = ["registry_ci.py", "run", "--module", "alpha", "--version", "1.0.0",
+                   "--architecture", "arm64", "--work-dir", "/tmp/work", "--artifacts", "/tmp/artifacts",
+                   "--cross-compile", "--test-executor", "/opt/arm executor"]
+        with mock.patch.object(sys, "argv", command), mock.patch.object(registry_ci, "run") as execute:
+            registry_ci.main()
+        self.assertEqual(execute.call_args.args[3], "arm64")
+        self.assertEqual(execute.call_args.args[-2:], (True, Path("/opt/arm executor")))
 
 
 class FetchedModuleTests(FixtureTestCase):
@@ -2183,11 +2193,13 @@ class FetchedModuleTests(FixtureTestCase):
         return self.output_base / "external" / f"{name}+" / "MODULE.bazel"
 
     def run_fixture(self, suffix: str, architecture: str | None = None, image: str | None = None,
-                    startup_args: list[str] | None = None, build_args: list[str] | None = None) -> Path:
+                    startup_args: list[str] | None = None, build_args: list[str] | None = None,
+                    cross_compile: bool = False, test_executor: Path | None = None) -> Path:
         artifacts = self.root / f"artifacts-{suffix}"
         registry_ci.run(
             self.root, "alpha", "1.0.0", architecture or self.architecture,
             self.root / f"work-{suffix}", artifacts, str(self.fake_bazel), image, startup_args, build_args,
+            cross_compile, test_executor,
         )
         return artifacts
 
@@ -2214,6 +2226,7 @@ class FetchedModuleTests(FixtureTestCase):
                 for command in commands:
                     self.assertEqual(command[:len(expected)], expected)
                     self.assertFalse(any(arg.startswith("--host_jvm_args=") for arg in command[len(expected):]))
+                    self.assertFalse(any(arg.startswith("--action_env=CONFIG_SITE") for arg in command))
                     for flag in build:
                         self.assertEqual(flag in command, command[len(expected)] != "info")
                 prepare.assert_called_once()
@@ -2757,6 +2770,181 @@ a.output.write_text(json.dumps(r))
                 self.fetched.write_text(contents)
                 with self.assertRaises(registry_ci.RegistryError):
                     self.run_fixture(f"wrong-module-{index}")
+
+
+    def configure_cross_fixture(self, runtime: dict | None = None) -> Path:
+        self.config["architectures"] = ["amd64", "arm64"]
+        self.config["platforms"] = {"amd64": "@alpha//:amd64", "arm64": "@alpha//:arm64"}
+        write_json(self.config_path, self.config)
+        executor = self.root / "arm executor"
+        runtime = runtime or {"system": "Linux", "machine": "aarch64", "userspace": "arm64",
+                              "debian_codename": "trixie"}
+        executor.write_text(f"#!{sys.executable}\nimport json\nprint(json.dumps({runtime!r}))\n")
+        executor.chmod(0o755)
+        return executor
+
+    def test_cross_build_keeps_host_tools_native_and_binds_external_cache_for_tests(self) -> None:
+        executor = self.configure_cross_fixture()
+        commands_path = self.root / "cross-bazel-commands.jsonl"
+        self.fake_bazel.write_text(self.fake_bazel.read_text().replace(
+            "args = sys.argv[1:]\n", "args = sys.argv[1:]\n"
+            + f"with Path({str(commands_path)!r}).open('a') as log:\n"
+            + "    log.write(json.dumps(args) + '\\n')\n"))
+        image = "runner@sha256:" + "a" * 64
+        native = {"system": "Linux", "machine": "x86_64", "userspace": "amd64"}
+        for suffix, host_platform in (("default-cross", "@alpha//:amd64"),
+                                      ("explicit-cross", "@alpha//:exec_amd64")):
+            with self.subTest(host_platform=host_platform):
+                if suffix == "explicit-cross":
+                    self.config["host_platforms"] = {"amd64": host_platform, "arm64": "@alpha//:exec_arm64"}
+                    write_json(self.config_path, self.config)
+                commands_path.write_text("")
+                adapted = {"target_platform": "//_registry_ci_cross:arm64",
+                           "execution_platform": "//_registry_ci_cross:amd64",
+                           "declared_execution_platform": host_platform,
+                           "selected_module_versions": {},
+                           "module_versions_unchanged": True}
+                with mock.patch.object(registry_ci, "verify_native", return_value=native) as admission, \
+                        mock.patch.object(registry_ci, "require_test_container") as container, \
+                        mock.patch.object(registry_ci.cross_toolchain, "prepare", return_value=adapted) as adapter:
+                    artifacts = self.run_fixture(suffix, architecture="arm64", image=image,
+                                                 cross_compile=True, test_executor=executor)
+                self.assertEqual(adapter.call_args.args[-3:-1], ("@alpha//:arm64", host_platform))
+                admission.assert_called_once_with("amd64")
+                container.assert_called_once_with(image)
+                commands = [json.loads(line) for line in commands_path.read_text().splitlines()]
+                for command in commands:
+                    if "info" not in command:
+                        self.assertIn("--host_platform=//_registry_ci_cross:amd64", command)
+                        self.assertIn("--platforms=//_registry_ci_cross:arm64", command)
+                    wrappers = [arg for arg in command if arg.startswith("--run_under=")]
+                    self.assertEqual(bool(wrappers), "test" in command)
+                    if wrappers:
+                        self.assertEqual(registry_ci.shlex.split(wrappers[0].split("=", 1)[1]),
+                                         [str(executor), "--bind", "/tmp", "--bind", str(self.root / ("work-" + suffix)),
+                                          "--bind", str(artifacts), "--bind", str(self.output_base), "--"])
+                evidence = json.loads((artifacts / "validation.json").read_text())
+                self.assertEqual(evidence["execution_architecture"], "amd64")
+                self.assertEqual(evidence["architecture"], "arm64")
+                self.assertTrue(evidence["cross_compile"])
+                self.assertEqual(evidence["test_execution"], "qemu-aarch64")
+                self.assertEqual(evidence["test_container_image"], image)
+                self.assertEqual(evidence["host_platform"], "//_registry_ci_cross:amd64")
+                self.assertEqual(evidence["cross_platforms"], adapted)
+                autoconf = evidence["cross_runtime"]["autoconf"]
+                self.assertTrue(autoconf["enabled"])
+                for command in commands:
+                    if "build" in command or "test" in command:
+                        self.assertTrue(set(autoconf["flags"]).issubset(command))
+                self.assertEqual(evidence["cross_runtime"]["executor_sha256"],
+                                 hashlib.sha256(executor.read_bytes()).hexdigest())
+                self.assertEqual(json.loads((artifacts / "source-validation.json").read_text())["native"], native)
+
+    def test_emulated_timeout_defaults_are_test_only_and_preserve_explicit_limits(self) -> None:
+        executor = self.configure_cross_fixture()
+        commands_path = self.root / "timeout-bazel-commands.jsonl"
+        self.fake_bazel.write_text(self.fake_bazel.read_text().replace(
+            "args = sys.argv[1:]\n", "args = sys.argv[1:]\n"
+            + f"with Path({str(commands_path)!r}).open('a') as log:\n"
+            + "    log.write(json.dumps(args) + '\\n')\n"))
+        default = "--test_timeout=180,900,2700,7200"
+        adapted = {"target_platform": "//_registry_ci_cross:arm64",
+                   "execution_platform": "//_registry_ci_cross:amd64",
+                   "selected_module_versions": {}}
+        for suffix, cross, caller in (
+                ("native", False, []),
+                ("native-explicit", False, ["--test_timeout=42"]),
+                ("emulated", True, []),
+                ("caller-scalar", True, ["--test_timeout=42"]),
+                ("caller-tiers", True, ["--test_timeout=10,20,30,40"]),
+                ("caller-separate", True, ["--test_timeout", "47"])):
+            with self.subTest(case=suffix):
+                commands_path.write_text("")
+                with mock.patch.object(registry_ci, "verify_native", return_value={"userspace": "amd64"}), \
+                        mock.patch.object(registry_ci, "require_test_container"), \
+                        mock.patch.object(registry_ci.cross_toolchain, "prepare", return_value=adapted):
+                    artifacts = self.run_fixture(suffix, architecture="arm64" if cross else "amd64",
+                                                 build_args=caller, cross_compile=cross,
+                                                 test_executor=executor if cross else None)
+                commands = [json.loads(line) for line in commands_path.read_text().splitlines()]
+                test_command, = [command for command in commands if "test" in command]
+                timeouts = [arg for arg in test_command
+                            if arg == "--test_timeout" or arg.startswith("--test_timeout=")]
+                expected = [caller[0]] if caller else ([default] if cross else [])
+                self.assertEqual(timeouts, expected)
+                if caller == ["--test_timeout", "47"]:
+                    self.assertEqual(test_command[test_command.index("--test_timeout") + 1], "47")
+                for command in commands:
+                    if "test" not in command:
+                        self.assertNotIn(default, command)
+                evidence = json.loads((artifacts / "validation.json").read_text())
+                self.assertEqual(default in evidence["test_runtime_flags"], cross and not caller)
+
+    def test_cross_runtime_must_match_target_architecture_and_distribution(self) -> None:
+        expected = {"system": "Linux", "machine": "aarch64", "userspace": "arm64", "debian_codename": "trixie"}
+        for field, value in (("system", "Darwin"), ("machine", "x86_64"),
+                             ("userspace", "amd64"), ("debian_codename", "bookworm")):
+            with self.subTest(field=field):
+                executor = self.configure_cross_fixture({**expected, field: value})
+                with mock.patch.object(registry_ci, "verify_native", return_value={"userspace": "amd64"}), \
+                        mock.patch.object(registry_ci, "require_test_container"), \
+                        mock.patch.object(registry_ci, "prepare_rust") as prepare:
+                    with self.assertRaisesRegex(registry_ci.RegistryError, "ARM64 Debian Trixie runtime"):
+                        self.run_fixture("wrong-runtime-" + field, architecture="arm64",
+                                         cross_compile=True, test_executor=executor)
+                prepare.assert_not_called()
+
+    def test_cross_compilation_rejects_other_directions_or_missing_executor(self) -> None:
+        executor = self.configure_cross_fixture()
+        for target, cross, selected, error in (
+                ("amd64", True, executor, "ARM64 targets on AMD64"),
+                ("amd64", False, executor, "requires explicit cross compilation"),
+                ("arm64", True, None, "absolute --test-executor"),
+                ("arm64", True, Path("relative-executor"), "absolute --test-executor")):
+            with self.subTest(target=target, cross=cross, executor=selected), \
+                    mock.patch.object(registry_ci, "verify_native", return_value={"userspace": "amd64"}), \
+                    mock.patch.object(registry_ci, "require_test_container"):
+                with self.assertRaisesRegex(registry_ci.RegistryError, error):
+                    self.run_fixture("invalid-cross", architecture=target, cross_compile=cross,
+                                     test_executor=selected)
+
+    def test_cross_runtime_preparation_executes_owner_helper_through_guest(self) -> None:
+        self.architecture = "arm64"
+        helper = self.runtime_fixture()
+        consumer = self.root / "cross runtime consumer"
+        consumer.mkdir()
+        (consumer / "MODULE.bazel").write_text('module(name = "registry_ci_consumer")\n')
+        write_json(consumer / "MODULE.bazel.lock", {"lockFileVersion": 13})
+        artifacts = self.root / "cross runtime artifacts"
+        artifacts.mkdir()
+        captured = artifacts / "guest-command.json"
+        executor = self.root / "guest executor"
+        executor.write_text(
+            "#!/usr/bin/python3 -IS\n"
+            "import json, os, sys\nfrom pathlib import Path\n"
+            "command = sys.argv[sys.argv.index('--') + 1:]\n"
+            "assert command[0] == '/usr/bin/python3'\n"
+            f"Path({str(captured)!r}).write_text(json.dumps(sys.argv[1:]))\n"
+            "os.execv(sys.executable, [sys.executable, '-I', '-S', *command[1:]])\n"
+        )
+        executor.chmod(0o755)
+        prefix = [str(executor), "--bind", str(self.output_base),
+                  "--bind", str(consumer), "--bind", str(artifacts), "--"]
+        image = "debian:trixie@sha256:" + "b" * 64
+        with mock.patch.object(registry_ci, "require_test_container") as guard:
+            flags = registry_ci.prepare_test_runtime(
+                self.config, self.fetched.parent, consumer, artifacts, "arm64", image, prefix)
+        guard.assert_called_once_with(image)
+        command = json.loads(captured.read_text())
+        self.assertEqual(command[:len(prefix) - 1], prefix[1:])
+        self.assertEqual(command[len(prefix) - 1:len(prefix) + 2],
+                         ["/usr/bin/python3", "-B", str(helper.resolve())])
+        receipt = json.loads((artifacts / "test-runtime.json").read_text())
+        self.assertEqual(receipt["architecture"], "arm64")
+        self.assertEqual(flags, ["--test_env=SONIC_TEST_RUNTIME_ID=" + receipt["SONIC_TEST_RUNTIME_ID"]])
+        self.assertEqual((artifacts / "test-runtime-prepare.py").read_bytes(), helper.read_bytes())
+        self.assertEqual((artifacts / "test-runtime.MODULE.bazel.lock").read_bytes(),
+                         (consumer / "MODULE.bazel.lock").read_bytes())
 
 
 if __name__ == "__main__":

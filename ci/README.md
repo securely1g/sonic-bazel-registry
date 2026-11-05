@@ -648,6 +648,93 @@ ARMHF, cross execution, other operating systems, all historical registry entries
 and the complete SONiC image are outside this matrix. Declaring an ARMHF layout
 in a module does not establish ARMHF build or execution coverage.
 
+## Opt-in ARM64 cross validation
+
+The shared helper also has an experimental local cross mode. It does not change
+the workflow or planner: all AMD64 jobs retain their Debian container runners,
+and all ARM64 jobs and runner tests retain native GitHub-hosted ARM runners.
+Cross execution requires both `--cross-compile` and an absolute executable
+`--test-executor`, an AMD64 host, an ARM64 target, and an explicit disposable
+Debian Trixie container identity. No workflow sets these options automatically.
+
+Inside a configured disposable runner with `/usr/local/bin/sonic-arm64`, use
+fresh work and artifact directories. This command is a local opt-in example,
+not a request to execute inside an active registered worker:
+
+```sh
+sudo -n /usr/bin/python3 -I -S ci/registry_ci.py run \
+  --module libnl3 --version 3.7.0.sonic.7 --architecture arm64 \
+  --cross-compile --test-executor /usr/local/bin/sonic-arm64 \
+  --test-container-image "$SONIC_RUNNER_IMAGE_REFERENCE" \
+  --bazel /usr/local/bin/bazel \
+  --bazel-startup-arg=--host_jvm_args=-Xmx2g \
+  --bazel-build-arg=--jobs=1 --bazel-build-arg=--discard_analysis_cache \
+  --work-dir /tmp/registry-ci-libnl3-cross \
+  --artifacts /tmp/registry-ci-libnl3-cross-artifacts
+```
+
+Cross mode creates explicit AMD64/Linux/Trixie execution and ARM64/Linux/Trixie
+target platforms, retaining other constraints from the declared parents. This
+also overrides host-derived aliases that would otherwise select AMD64 output
+for an ARM64 request. Published Sonic Trixie platforms keep their toolchains;
+generic platforms use a CI-local legacy C++ adapter compatible with the selected
+`rules_cc`, backed by the native-to-ARM GCC14.2 compiler and Trixie sysroot from
+immutable `sonic-build-infra@0.0.25-34de7330abc72229dfc8dab88dec71b89c52aa88`.
+The provider resolves separately and its JVM stops after preparation. Its
+dependencies do not enter the consumer graph. Compiler/sysroot files are declared
+action inputs, and the consumer's selected module versions must remain equal
+before and after adaptation. Existing integration-module contents are preserved.
+Evidence retains both graphs, provider lock and manifests, generated adapter and
+platform definitions, and declared/effective platform identities.
+
+The supplied executor runs unchanged ARM tests with QEMU user-mode and PRoot in
+an ARM64 Trixie filesystem. This provides emulated userspace execution, not
+native ARM hardware or kernel coverage. The helper probes the real guest CPU and
+userspace before building, records the executor hash, and binds the work and
+artifact paths plus container-local `/tmp`. An output base outside the work
+directory is bound explicitly too. Native Bazel and build tools stay on AMD64.
+
+Some existing test launchers embed exec-configured Python. For tests only, the
+helper resolves the matching locked ARM standalone runtime, verifies real
+ELF62/183 architectures and exact Python version/ABI, and passes complete-runtime
+`--bind-at` mappings to the executor. Native interpreter files stay unchanged.
+For simple shared-lock pip hubs, generated-consumer adapters select native wheels
+for generators and ARM wheels for target tests, using the already selected
+`rules_python` and original requirements bytes. Existing platform/index hubs and
+development-only hubs remain unchanged; unsupported simple hub arguments or
+changed module versions fail validation. Runtime mappings, hashes, original hub
+configuration and lockfiles are retained in the cross receipts.
+
+Cross builds may supply a readonly content-addressed Autoconf `CONFIG_SITE` that
+recognizes an ARM compiler selected by a native build action. It preserves
+explicit configure aliases, native compiler actions and caller-provided
+`CONFIG_SITE`; it invents no cached target-probe answers. The effective site and
+hash are retained. Source-owned runtime preparation executes through the guest
+wrapper, preserving its locked inputs and checking an ARM receipt. Cross test
+timeout defaults are 180/900/2700/7200 seconds for Bazel's four timeout classes;
+explicit caller values and native defaults remain unchanged. All original build
+and test labels, source checks and uncached-test requirements still apply.
+
+The real integration fixture is separately opt-in. Both
+`REGISTRY_CI_TEST_BAZEL` and `REGISTRY_CI_TEST_ARM_EXECUTOR` must be set; the current
+workflow deliberately does not set the latter. In a suitable disposable runner:
+
+```sh
+REGISTRY_CI_TEST_BAZEL=/usr/local/bin/bazel \
+REGISTRY_CI_TEST_ARM_EXECUTOR=/usr/local/bin/sonic-arm64 \
+  /usr/bin/python3 -I -S -m unittest discover -s ci/tests \
+  -p test_arm_cross_runtime.py -v
+```
+
+This foundation is not acceptance of the full ARM matrix. Before routing changes,
+rerun the helper tests and the real native-generator/ARM-output fixture, then each
+module's complete original contract. Known gaps include SAI's missing registered
+cross toolchain despite its Sonic platform label, nested Bazel/sandbox execution
+in rules_go, SWSS self-reexecution under emulation, and full libyang/protobuf
+debugger/upstream coverage. P4C/PI source candidates and FIPS target-binutils work
+remain separate module changes; transitive consumers retain their published
+dependency pins. No source recipe or image change is included here.
+
 ## Local reproduction
 
 Use a native AMD64 or ARM64 Debian trixie environment with Bazel 8.5.1 and
