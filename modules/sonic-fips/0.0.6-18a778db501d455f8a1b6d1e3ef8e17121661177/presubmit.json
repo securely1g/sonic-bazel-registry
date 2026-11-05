@@ -11,7 +11,7 @@
     },
     {
       "name": "rules_distroless",
-      "version": "0.9.4.sonic.13"
+      "version": "0.9.4.sonic.16"
     },
     {
       "name": "tar.bzl",
@@ -47,6 +47,7 @@
     "@sonic-fips//openssh:package_test",
     "@sonic-fips//krb5:package_test",
     "@sonic-fips//symcrypt:package_test",
+    "@sonic-fips//symcrypt:timestamp_test",
     "@sonic-fips//openssl/integration:openssl_symcrypt_test"
   ],
   "host_platforms": {
