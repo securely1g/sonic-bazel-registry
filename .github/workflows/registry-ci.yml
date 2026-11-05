@@ -94,6 +94,21 @@ jobs:
                   raise SystemExit("Debian transport scope rejects unexpected files: " + repr(changed - allowed))
               print("Debian transport CI fix: retain policy plan and both runner/fetch suites; no module jobs.")
               matrix = {"include": []}
+          if (os.environ["EVENT_NAME"] == "pull_request"
+                  and os.environ["HEAD_REF"] == "codex/registry-bep-unicode"
+                  and os.environ["HEAD_REPOSITORY"] == "securely1g/sonic-bazel-registry"):
+              # Temporary Draft scope: policy planning and both runner suites
+              # still run. Remove this guard before marking the PR Ready.
+              allowed = {".github/workflows/registry-ci.yml", "ci/registry_ci.py",
+                         "ci/tests/test_artifact_preservation.py", "ci/tests/test_bazel_artifacts.py",
+                         "ci/README.md"}
+              changed = set(subprocess.check_output(
+                  ["git", "diff", "--name-only", os.environ["BASE_SHA"] + "..." + os.environ["HEAD_SHA"]],
+                  text=True).splitlines())
+              if not changed or not changed <= allowed:
+                  raise SystemExit("BEP Unicode scope rejects unexpected files: " + repr(changed - allowed))
+              print("Draft BEP Unicode repair: retain policy plan and both runner suites; no module jobs.")
+              matrix = {"include": []}
           architectures = ("amd64", "arm64")
           if any(job["architecture"] not in architectures for job in matrix["include"]):
               raise SystemExit("Unsupported architecture in validation plan")
