@@ -249,7 +249,8 @@ class SelectionTests(FixtureTestCase):
         config["platforms"]["arm64"] = "@platforms//host:host"
         write_json(latest / "presubmit.json", config)
         head = self.commit("published registry")
-        jobs = registry_ci.plan(self.root, None, head, latest_versions=True, published=head)["include"]
+        with mock.patch.object(registry_ci, "ARM_CROSS_ALL", False):
+            jobs = registry_ci.plan(self.root, None, head, latest_versions=True, published=head)["include"]
         self.assertEqual({(job["module"], job["version"], job["architecture"], tuple(job["runner"]))
                           for job in jobs}, {
             ("alpha", "2.0.0", "amd64", ("self-hosted", "Linux", "X64", "debian-trixie-container")),
@@ -1934,10 +1935,30 @@ class StagedCrossRoutingTests(FixtureTestCase):
         self.entry("beta", "1.0.0")
         self.head = self.commit("published contracts")
 
-    def planned(self, routes, all_versions=True):
-        with mock.patch.object(registry_ci, "ARM_CROSS_VERSIONS", routes):
+    def planned(self, routes, all_versions=True, cross_all=False):
+        with mock.patch.object(registry_ci, "ARM_CROSS_VERSIONS", routes), \
+                mock.patch.object(registry_ci, "ARM_CROSS_ALL", cross_all):
             return registry_ci.plan(self.root, None, self.head, all_versions=all_versions,
                                     latest_versions=not all_versions, published=self.head)["include"]
+
+    def test_survey_cross_builds_every_arm_version_without_changing_native_jobs(self):
+        before = {str(path): path.read_bytes() for path in (self.root / "modules").rglob("*") if path.is_file()}
+        native = self.planned({})
+        survey = self.planned({}, cross_all=True)
+        self.assertEqual(len(survey), len(native))
+        for original, routed in zip(native, survey):
+            if original["architecture"] == "arm64":
+                self.assertEqual(routed, {**original, "execution_architecture": "amd64",
+                                         "cross_compile": True, "runner": registry_ci.RUNNERS["amd64"]})
+            else:
+                self.assertEqual(routed, original)
+        self.assertEqual([job["version"] for job in survey if job["cross_compile"]], ["1.0.0", "2.0.0"])
+        self.assertEqual(before, {str(path): path.read_bytes() for path in (self.root / "modules").rglob("*") if path.is_file()})
+
+    def test_survey_rejects_non_boolean_selection(self):
+        for value in (None, "true", 1, []):
+            with self.subTest(value=value), self.assertRaises(registry_ci.RegistryError):
+                self.planned({}, cross_all=value)
 
     def test_empty_routes_preserve_every_native_job_and_original_contract(self):
         jobs = self.planned({})
@@ -2079,7 +2100,8 @@ class WorkflowMatrixTests(unittest.TestCase):
         cross = self.workflow.split("  cross_fixture:\n", 1)[1].split("  modules_local:\n", 1)[0]
         self.assertIn("python3 ci/run_runner_tests.py --suite native", unit)
         self.assertIn("architecture: amd64", unit)
-        self.assertIn("architecture: arm64", unit)
+        self.assertNotIn("architecture: arm64", unit)
+        self.assertNotIn("ubuntu-24.04-arm", unit)
         self.assertNotIn("REGISTRY_CI_TEST_ARM_EXECUTOR", unit)
         self.assertIn("python3 ci/run_runner_tests.py --suite cross", cross)
         self.assertIn("REGISTRY_CI_TEST_BAZEL: /usr/local/bin/bazel", cross)

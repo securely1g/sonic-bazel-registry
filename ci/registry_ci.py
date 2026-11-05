@@ -46,6 +46,10 @@ RUNNERS = {
     "amd64": ["self-hosted", "Linux", "X64", "debian-trixie-container"],
     "arm64": ["ubuntu-24.04-arm"],
 }
+# The survey sends every selected ARM version through cross validation, including
+# historical/future versions. A separate passing-only PR disables this switch
+# and selects only versions whose complete original contract has passed.
+ARM_CROSS_ALL = True
 # Temporary staged rollout: CI validates the complete original ARM contract for
 # these versions before the migration PR can land. Remove this map and the hosted
 # ARM route when migration is complete, including for future ARM versions.
@@ -668,6 +672,7 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
                         selected.add((module, parts[2]))
         if ci_changed:
             selected.update(latest_presubmits(root))
+    require(type(ARM_CROSS_ALL) is bool, "ARM cross survey selection must be boolean")
     require(isinstance(ARM_CROSS_VERSIONS, dict), "ARM cross routes must be a module/version map")
     for module, versions in ARM_CROSS_VERSIONS.items():
         require(isinstance(module, str) and NAME.fullmatch(module) is not None
@@ -678,7 +683,8 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
     for module, version in sorted(selected):
         config = validate_entry(root, module, version)
         for architecture in config["architectures"]:
-            cross_compile = architecture == "arm64" and version in ARM_CROSS_VERSIONS.get(module, ())
+            cross_compile = architecture == "arm64" and (
+                ARM_CROSS_ALL or version in ARM_CROSS_VERSIONS.get(module, ()))
             execution_architecture = "amd64" if cross_compile else architecture
             include.append({"module": module, "version": version, "architecture": architecture,
                             "execution_architecture": execution_architecture,

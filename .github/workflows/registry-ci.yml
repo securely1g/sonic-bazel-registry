@@ -122,11 +122,6 @@ jobs:
             machine: x86_64
             bazel_arch: x86_64
             bazel_sha: 61d89402f0368e64b6c827be5de79d8e65382e8124c3cbb97325611a1851392e
-          - architecture: arm64
-            runner: [ubuntu-24.04-arm]
-            machine: aarch64
-            bazel_arch: arm64
-            bazel_sha: b7f2a85595e8a87d54843bc656c1e379fd9b8c1b5f783dc41717c1d7eb7cc49f
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     steps:
@@ -215,7 +210,7 @@ jobs:
     if: needs.plan.outputs.has_local_jobs == 'true'
     strategy:
       fail-fast: false
-      # One module budget per run covers native AMD64 and staged ARM cross jobs.
+      # One module budget per run covers native AMD64 and every ARM cross job.
       max-parallel: 10
       matrix: ${{ fromJSON(needs.plan.outputs.local_matrix) }}
     uses: ./.github/workflows/registry-module.yml

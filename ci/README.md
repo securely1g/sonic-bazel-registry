@@ -582,15 +582,16 @@ and replace it with a fresh registered runner after success, failure, or
 cancellation. Keep registration credentials in the manager, outside job
 containers, and retain runner diagnostics before removing a container.
 
-The temporary `ARM_CROSS_VERSIONS` map in `registry_ci.py` routes gawk
-`5.3.2.sonic.1`, libnl3 `3.7.0.sonic.7`, and libyang-python `3.1.0.sonic.6` to
-cross execution on the local AMD64 runners. CI must pass each version's complete
-original ARM build and test contract before its migration PR lands. Remaining
-ARM64 module jobs use native GitHub-hosted
-`ubuntu-24.04-arm` runners and retain the
-`debian:trixie-20260918` container pinned to its multiarch image digest. AMD64
-steps execute directly inside the disposable runner, built from that same
-pinned Trixie base with the compiler and package-test tools preinstalled.
+This exploratory branch sets `ARM_CROSS_ALL = True`: every selected ARM64
+module version uses native AMD64 cross-compilers and the ARM runtime executor
+inside the Trixie runner. The latest-version matrix contains 27 ARM64 and 39
+AMD64 module jobs. All original build labels, test labels, sources and dependency
+pins remain unchanged. Historical and future ARM versions also use cross mode
+when selected. Failures remain failures and do not cancel other matrix entries;
+the results determine a separate passing-only migration PR.
+
+Module steps execute directly inside the disposable runner, built from the
+pinned Trixie base with compiler and package-test tools preinstalled.
 AMD64 does not start a second container or require a Docker daemon. Actions run
 as UID 1000; module validation and runtime package preparation use passwordless
 `sudo` inside the disposable container. Evidence is archived as root, then only
@@ -607,8 +608,7 @@ also record the prepared package inventory and library hashes.
 The AMD64 image contains the checksum-verified Bazel 8.5.1 binary at
 `/usr/local/lib/bazel-8.5.1`. Its `/usr/local/bin/bazel` wrapper explicitly passes
 the image's Java CA trust store as a startup argument, including when CI ignores
-all bazelrc files. The workflow verifies the binary's checksum again. ARM64
-downloads and verifies its native Bazel binary in the job container. GitHub
+all bazelrc files. The workflow verifies the binary's checksum again. ARM cross jobs use that same native AMD64 Bazel binary. GitHub
 actions are pinned to commit SHAs, checkout does not
 persist credentials, and the workflow uses read-only repository permissions.
 
@@ -641,7 +641,10 @@ permissions on those private copies. Build actions keep their existing sandbox
 strategy. Local or exclusive tests retain the `local` fallback, and real Bazel
 regressions cover both paths without changing published tests.
 
-Runner tests retain native AMD64 and ARM64 coverage with pinned Bazel 8.5.1.
+The complete helper test suite runs once on AMD64 with pinned Bazel 8.5.1,
+matching the orchestration host for both native and cross module jobs. This
+survey replaces the former hosted native-ARM helper lane with the required
+cross fixture; it does not claim native ARM Bazel execution coverage.
 `run_runner_tests.py --suite native` discovers every test file except the ARM
 cross-runtime fixture. A separate local job runs `--suite cross` with a 60-minute
 bound, both executable prerequisites explicitly set and checked, and failure on
@@ -651,15 +654,14 @@ directory-producing target and its public alias, including both target and execu
 Transport and failure-log tests also cover rejected paths, partial archives,
 case-sensitive filenames, Unix modes, empty directories and symlink relocation.
 
-Each job uses a fresh consumer and Bazel output directory. There is no saved Bazel
-cache in this initial workflow. Logs, Bazel build-event files, available test
+Each job uses a fresh consumer and Bazel output directory. Logs, Bazel build-event files, available test
 logs, and validation metadata are retained as workflow artifacts for 14 days,
 including when module validation fails. Setup failures can occur before these
 files exist and remain visible in the Actions job log.
 
-ARMHF, other operating systems, all historical registry entries, and the complete
-SONiC image are outside this matrix. Cross coverage is limited to the explicit
-fixture and the exact versions selected during the staged rollout.
+ARMHF, other operating systems and the complete SONiC image are outside this
+matrix. Pull requests validate latest configured versions; the explicit
+`all_versions` dispatch also surveys configured historical versions.
 Declaring an ARMHF layout in a module does not establish ARMHF build or execution coverage.
 
 ## Staged ARM64 cross validation
@@ -672,18 +674,19 @@ an ARM64 target, and an explicit disposable Debian Trixie container identity.
 The reusable workflow selects native Bazel, image, sudo and artifact handling by
 execution mode while preserving the target architecture and all original labels.
 
-`ARM_CROSS_VERSIONS` is a temporary rollout mechanism. Published-entry
-immutability remains enforced. Each migration PR selects exact versions and
-must pass their full cross validation; unlisted/new versions stay on hosted
-native ARM during this stage. Remove the map and hosted route when ARM migration
-is complete, so future ARM versions also receive cross CI. Native unit
-architecture coverage remains unchanged throughout this stage.
+The exploratory PR keeps `ARM_CROSS_ALL` enabled until all selected ARM jobs
+have produced build/test outcomes. A separate migration PR disables that switch
+and uses the temporary `ARM_CROSS_VERSIONS` map for versions whose complete
+original contract passed. Published-entry immutability remains enforced.
+Failures are investigated individually, with infrastructure/setup failures
+reported separately from compilation, linking and test failures. A successful
+build alone is not a module pass: every declared test must also pass uncached.
 
-The first group preserves gawk's three build labels and one test, libnl3's five
-build labels and four tests, and libyang-python's four build labels and three
-tests. The gawk smoke test uses gawk as a native execution tool while the direct
-gawk build targets ARM64. The libnl3 and libyang-python tests execute with the
-ARM runtime and retain their existing package, library and Python checks.
+The gawk smoke test uses gawk as a native execution tool while the direct gawk
+build targets ARM64. Test execution follows the declared Bazel configuration;
+the ARM cross fixture independently verifies native execution tools, ARM ELF
+outputs and target Python compatibility. No test is replaced by a smaller smoke
+test to make a module pass.
 
 Inside a configured disposable runner with `/usr/local/bin/sonic-arm64`, use
 fresh work and artifact directories. This command is a local opt-in example,
