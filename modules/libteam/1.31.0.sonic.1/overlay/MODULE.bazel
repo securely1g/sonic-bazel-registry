@@ -1,0 +1,72 @@
+# AUTO-GENERATED. DO NOT EDIT MANUALLY.
+# Source: ../MODULE.bazel
+# Generator: python3 ci/registry_ci.py sync-module --module libteam --version 1.31.0.sonic.1
+
+module(
+    name = "libteam",
+    # Upstream spells this release 1.31; the registry normalizes it to 1.31.0.
+    version = "1.31.0.sonic.1",
+    bazel_compatibility = [">=8.5.1", "<=8.5.1"],
+)
+
+bazel_dep(name = "aspect_bazel_lib", version = "2.19.3")
+bazel_dep(name = "bazel_skylib", version = "1.9.2")
+bazel_dep(name = "platforms", version = "1.1.0")
+bazel_dep(name = "rules_cc", version = "0.2.22")
+bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.16")
+bazel_dep(name = "rules_gzip", version = "1.0.0")
+bazel_dep(name = "rules_python", version = "1.9.0")
+bazel_dep(name = "tar.bzl", version = "0.10.5.sonic.1")
+bazel_dep(name = "libnl3", version = "3.7.0.sonic.7")
+bazel_dep(name = "sonic-build-infra", version = "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e", repo_name = "sonic_build_infra")
+
+gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc", dev_dependency = True)
+use_repo(gcc, "gcc_toolchains")
+register_toolchains("@gcc_toolchains//:all", dev_dependency = True)
+
+tar_toolchains = use_extension("@tar.bzl//tar:extensions.bzl", "toolchains", dev_dependency = True)
+use_repo(tar_toolchains, "bsd_tar_toolchains")
+register_toolchains("@bsd_tar_toolchains//:all", dev_dependency = True)
+
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+http_archive(
+    name = "libteam_debian",
+    urls = ["https://deb.debian.org/debian/pool/main/libt/libteam/libteam_1.31-1.debian.tar.xz"],
+    sha256 = "e31d0f79ecc4cfa462d4fdfb4551792ba09b3b7c5aa2ab87c18777d95aec38ef",
+    build_file_content = 'exports_files(glob(["debian/**"]))',
+)
+
+apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
+apt.install(
+    dependency_set = "libteam_deps",
+    packages = [
+        # Export both compilation interfaces and the runtime metadata closure.
+        "libbsd0",
+        "libcap2",
+        "libcom-err2",
+        "libdaemon-dev",
+        "libdaemon0",
+        "libdbus-1-3",
+        "libdbus-1-dev",
+        "libgssapi-krb5-2",
+        "libjansson-dev",
+        "libjansson4",
+        "libk5crypto3",
+        "libkeyutils1",
+        "libkrb5-3",
+        "libkrb5support0",
+        "libmd0",
+        "libnorm1t64",
+        "libpgm-5.3-0t64",
+        "libsodium23",
+        "libssl3t64",
+        "libsystemd0",
+        "libzmq3-dev",
+        "libzmq5",
+        "libzstd1",
+        "openssl-provider-legacy",
+        "zlib1g",
+    ],
+    suites = ["trixie", "trixie-updates", "trixie-security"],
+)
+use_repo(apt, "libteam_deps", "sysroot")
