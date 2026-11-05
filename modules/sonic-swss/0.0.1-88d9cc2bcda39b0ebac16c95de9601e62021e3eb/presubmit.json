@@ -30,10 +30,6 @@
       "version": "3.7.0.sonic.7"
     },
     {
-      "name": "re2",
-      "version": "2024-07-02.bcr.1"
-    },
-    {
       "name": "patchelf",
       "version": "0.18.0.bcr.1"
     }
