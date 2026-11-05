@@ -1,0 +1,207 @@
+load("@rules_python//python:defs.bzl", "py_test")
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load(":architecture_test.bzl", "architecture_tests")
+load(":concrete_packages_test.bzl", "concrete_packages_test")
+load(":multiarch_test.bzl", "multiarch_test")
+load(":pkgconfig_fields_test.bzl", "pkgconfig_fields_test")
+load(":pkgconfig_quotes_test.bzl", "pkgconfig_quotes_test")
+load(":pkgconfig_selection_test.bzl", "pkgconfig_selection_test")
+load(":pkgconfig_test.bzl", "pkgconfig_test")
+
+package(default_visibility = ["//visibility:public"])
+
+platform(
+    name = "amd64",
+    constraint_values = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+)
+
+platform(
+    name = "arm64",
+    constraint_values = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+    ],
+)
+
+config_setting(
+    name = "linux_amd64",
+    constraint_values = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+)
+
+config_setting(
+    name = "linux_arm64",
+    constraint_values = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+    ],
+)
+
+# The package producer exports a compile-only public interface.
+# These programs compile real APIs and link without package runtime libraries.
+alias(
+    name = "protobuf_headers",
+    actual = select({
+        ":linux_amd64": "@registry_ci_protobuf_amd64//:libprotobuf_headers",
+        ":linux_arm64": "@registry_ci_protobuf_arm64//:libprotobuf_headers",
+    }),
+)
+
+cc_test(
+    name = "protobuf_headers_test",
+    srcs = ["protobuf_headers_test.cc"],
+    deps = [":protobuf_headers"],
+)
+
+architecture_tests()
+
+pkgconfig_test(name = "pkgconfig_test")
+
+pkgconfig_fields_test(name = "pkgconfig_fields_test")
+
+pkgconfig_selection_test(name = "pkgconfig_selection_test")
+
+concrete_packages_test(name = "concrete_packages_test")
+
+# Compile the actual Lua public headers, including Debian's CPU-specific file.
+alias(
+    name = "lua_headers",
+    actual = select({
+        ":linux_amd64": "@registry_ci_lua_amd64//:liblua5.1-0_headers",
+        ":linux_arm64": "@registry_ci_lua_arm64//:liblua5.1-0_headers",
+    }),
+)
+
+cc_test(
+    name = "lua_headers_test",
+    srcs = ["lua_headers_test.cc"],
+    deps = [":lua_headers"],
+)
+
+multiarch_test(name = "multiarch_test")
+
+alias(
+    name = "lua_pkgconfig_direct",
+    actual = select({
+        ":linux_amd64": "@registry_ci_lua_amd64//:pkgconfig",
+        ":linux_arm64": "@registry_ci_lua_arm64//:pkgconfig",
+    }),
+)
+
+alias(
+    name = "lua_package_archive",
+    actual = select({
+        ":linux_amd64": "@registry_ci_lua_amd64//:data",
+        ":linux_arm64": "@registry_ci_lua_arm64//:data",
+    }),
+)
+
+write_file(
+    name = "pkgconfig_test_runner",
+    out = "pkgconfig_files_test.sh",
+    content = [
+        "#!/bin/sh",
+        "set -eu",
+        'exec python3 "$@"',
+    ],
+    is_executable = True,
+)
+
+sh_test(
+    name = "pkgconfig_files_test",
+    srcs = [":pkgconfig_test_runner"],
+    args = [
+        "$(rootpath pkgconfig_files_test.py)",
+        "--archive",
+        "$(rootpath :lua_package_archive)",
+        "--triplet",
+    ] + select({
+        ":linux_amd64": ["x86_64-linux-gnu"],
+        ":linux_arm64": ["aarch64-linux-gnu"],
+    }) + [
+        "--direct",
+        "$(locations :lua_pkgconfig_direct)",
+        "--package",
+        "$(locations @registry_ci_pkgconfig//liblua5.1-0-dev:pkgconfig)",
+        "--root",
+        "$(locations @registry_ci_pkgconfig//:pkgconfig)",
+    ],
+    data = [
+        "pkgconfig_files_test.py",
+        ":lua_package_archive",
+        ":lua_pkgconfig_direct",
+        "@registry_ci_pkgconfig//:pkgconfig",
+        "@registry_ci_pkgconfig//liblua5.1-0-dev:pkgconfig",
+    ],
+)
+
+# xtables.pc uses tabs after its field colons. Its development import must
+# contribute the include directory, not only declare the header files.
+alias(
+    name = "xtables_headers",
+    actual = select({
+        ":linux_amd64": "@registry_ci_xtables_amd64//:libxtables_headers",
+        ":linux_arm64": "@registry_ci_xtables_arm64//:libxtables_headers",
+    }),
+)
+
+cc_test(
+    name = "xtables_headers_test",
+    srcs = ["xtables_headers_test.c"],
+    deps = [":xtables_headers"],
+)
+
+pkgconfig_quotes_test(name = "pkgconfig_quotes_test")
+
+# Real libpcap.pc has quoted variables that expand to nested quote pairs.
+alias(
+    name = "libpcap_headers",
+    actual = select({
+        ":linux_amd64": "@registry_ci_libpcap_amd64//:libpcap0.8_headers",
+        ":linux_arm64": "@registry_ci_libpcap_arm64//:libpcap0.8_headers",
+    }),
+)
+
+cc_test(
+    name = "libpcap_headers_test",
+    srcs = ["libpcap_headers_test.c"],
+    deps = [":libpcap_headers"],
+)
+
+alias(
+    name = "lua_original_deb",
+    actual = select({
+        ":linux_amd64": "@registry_ci_lua_amd64//:deb",
+        ":linux_arm64": "@registry_ci_lua_arm64//:deb",
+    }),
+)
+
+py_test(
+    name = "original_deb_test",
+    srcs = ["original_deb_test.py"],
+    args = [
+        "$(rootpath :lua_original_deb)",
+        "$(rootpath @registry_ci_pkgconfig//liblua5.1-0-dev:deb)",
+    ] + select({
+        ":linux_amd64": ["363759cbaccd47f06b972e578ea6112e50c833d728b7a11e15609764665dabbc"],
+        ":linux_arm64": ["f0bbb58d879faa5d3f4ce40f404ac266f4ad54d20915bcaabeb8a6bd118ef2b1"],
+    }),
+    data = [
+        ":lua_original_deb",
+        "@registry_ci_pkgconfig//liblua5.1-0-dev:deb",
+    ],
+)
+
+# The public hub selects a single Lua library and its target runtime closure.
+cc_test(
+    name = "lua_single_library_test",
+    srcs = ["lua_single_library_test.cc"],
+    deps = ["@registry_ci_pkgconfig//liblua5.1-0-dev:liblua5.1_cc"],
+)

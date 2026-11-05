@@ -1,0 +1,88 @@
+From: Guohan Lu <securely1g@gmail.com>
+Subject: [PATCH] Select Debian multiarch header paths for the target CPU
+
+Source: SONiC registry's published 0.9.4.sonic.15 native header exporter.
+Debian linux-libc-dev 6.12.96-1 is Architecture: all and contains 22 CPU
+header roots. Exporting every root puts ARM64 asm/unistd.h before AMD64,
+so OpenSSL AF_ALG compiles __NR_io_setup=0 instead of 206 and fails with
+EBADF on AMD64. Select the matching CPU's search roots, while preserving
+all declared headers, their symlink targets and ordinary include paths.
+The mapping retains the architectures supported by the existing APT hub.
+No syscall, crypto implementation or runtime package payload is changed.
+
+Upstream-Status: SONiC native-header-export adaptation
+Signed-off-by: Guohan Lu <securely1g@gmail.com>
+---
+diff --git a/MODULE.bazel b/MODULE.bazel
+index 4d471bc..93da17c 100644
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -58,3 +58,4 @@ use_repo(registry_ci, "registry_ci_libpcap_amd64")
+ use_repo(registry_ci, "registry_ci_libpcap_arm64")
+ use_repo(registry_ci, "registry_ci_boost_amd64")
+ use_repo(registry_ci, "registry_ci_boost_arm64")
++use_repo(registry_ci, "registry_ci_linux_headers")
+diff --git a/apt/private/deb_import.bzl b/apt/private/deb_import.bzl
+index 8fb7d84..e9f4697 100644
+--- a/apt/private/deb_import.bzl
++++ b/apt/private/deb_import.bzl
+@@ -3,7 +3,7 @@
+ load("//apt/private:headers.bzl", "is_include_fragment")
+ load(":linker_script.bzl", "linker_script")
+ load(":lockfile.bzl", "lockfile")
+-load(":multiarch.bzl", "default_include_dirs")
++load(":multiarch.bzl", "default_include_dirs", "select_include_dirs")
+ load(":pkgconfig.bzl", "pkgconfig")
+ load(":util.bzl", "util")
+ 
+@@ -576,7 +576,7 @@ cc_library(
+ """.format(
+         name = target_name,
+         hdrs = h_files + hpp_files + hpp_files_woext,
+-        includes = header_includes.keys(),
++        includes = select_include_dirs(header_includes.keys()),
+         deps = header_deps,
+     )
+ 
+diff --git a/apt/private/multiarch.bzl b/apt/private/multiarch.bzl
+index 7c5f685..2e99dc9 100644
+--- a/apt/private/multiarch.bzl
++++ b/apt/private/multiarch.bzl
+@@ -8,3 +8,37 @@ def default_include_dirs(headers):
+         if len(parts) > 3 and parts[:2] == ["usr", "include"] and "-linux-" in parts[2]:
+             includes["/" + "/".join(parts[:3])] = True
+     return sorted(includes.keys())
++
++# Match the Debian architectures supported by translate_dependency_set.bzl.
++# A single linux-libc-dev archive can contain all of these directories. Package
++# architecture (including "all") and the repository's host are not the target.
++_MULTIARCH_CPUS = {
++    "x86_64-linux-gnu": "x86_64",
++    "aarch64-linux-gnu": "arm64",
++    "powerpc64le-linux-gnu": "ppc64le",
++    "mips64el-linux-gnuabi64": "mips64",
++    "s390x-linux-gnu": "s390x",
++    "i386-linux-gnu": "x86_32",
++    "arm-linux-gnueabihf": "armv7e-mf",
++}
++
++def select_include_dirs(includes):
++    """Render common roots plus only the configured target's multiarch roots.
++
++    Keep all headers and their symlink targets declared. Only their search paths
++    are selected, including nested paths from pkg-config. Unknown architectures
++    must not accidentally compile against a different CPU's kernel ABI.
++    """
++    common = []
++    selected = {}
++    for include in includes:
++        parts = include.split("/")
++        if len(parts) < 3 or parts[:2] != ["usr", "include"] or "-linux-" not in parts[2]:
++            common.append(include)
++        elif parts[2] in _MULTIARCH_CPUS:
++            constraint = "@platforms//cpu:" + _MULTIARCH_CPUS[parts[2]]
++            selected.setdefault(constraint, []).append(include)
++    if not selected:
++        return repr(common)
++    selected["//conditions:default"] = []
++    return "{} + select({})".format(repr(common), repr(selected))

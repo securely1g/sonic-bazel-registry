@@ -1,0 +1,66 @@
+diff --git a/MODULE.bazel b/MODULE.bazel
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -9,7 +9,7 @@
+ bazel_dep(name = "bazel_features", version = "1.34.0")
+ bazel_dep(name = "bazel_lib", version = "3.0.0")
+ bazel_dep(name = "bazel_skylib", version = "1.4.1")
+-bazel_dep(name = "gawk", version = "5.3.2.bcr.3")
++bazel_dep(name = "gawk", version = "5.3.2.sonic.1")
+ bazel_dep(name = "platforms", version = "0.0.11")
+ 
+ bazel_dep(name = "bazelrc-preset.bzl", version = "1.2.0", dev_dependency = True)
+diff --git a/tar/private/tar.bzl b/tar/private/tar.bzl
+--- a/tar/private/tar.bzl
++++ b/tar/private/tar.bzl
+@@ -96,7 +96,7 @@
+         allow_single_file = True,
+     ),
+     "_default_mtime_tool": attr.label(
+-        default = "@gawk",
++        default = "@gawk//:resolved_toolchain",
+         cfg = "exec",
+         executable = True,
+     ),
+@@ -175,7 +175,7 @@
+         doc = "Specifies the path to the mtree file, which describes the directory structure and metadata for the tar file. Must be a single file.",
+     ),
+     "_awk": attr.label(
+-        default = "@gawk",
++        default = "@gawk//:resolved_toolchain",
+         cfg = "exec",
+         executable = True,
+     ),
+@@ -722,7 +722,7 @@
+             transitive = srcs_runfiles,
+         ),
+         outputs = [out_mtree],
+-        tools = [ctx.executable._awk],
++        tools = [ctx.attr._awk[DefaultInfo].files_to_run],
+     )
+ 
+     return [DefaultInfo(files = depset([out_mtree]))]
+diff --git a/tests/default_mtime/fixtures.bzl b/tests/default_mtime/fixtures.bzl
+--- a/tests/default_mtime/fixtures.bzl
++++ b/tests/default_mtime/fixtures.bzl
+@@ -54,7 +54,7 @@
+     test = True,
+     attrs = {
+         "archives": attr.string_keyed_label_dict(allow_files = True),
+-        "awk": attr.label(default = "@gawk", cfg = "exec", executable = True),
++        "awk": attr.label(default = "@gawk//:resolved_toolchain", cfg = "exec", executable = True),
+         "normalizer": attr.label(default = "//tar/private:default_mtime.awk", allow_single_file = True),
+         "script": attr.label(default = "test.py", allow_single_file = True),
+     },
+diff --git a/tests/default_mtime/test.py b/tests/default_mtime/test.py
+--- a/tests/default_mtime/test.py
++++ b/tests/default_mtime/test.py
+@@ -6,7 +6,7 @@
+ import tarfile
+ import tempfile
+ 
+-normalizer, awk, bsdtar = (str(Path(p).resolve()) for p in sys.argv[1:4])
++normalizer, awk, bsdtar = (str(Path(p).absolute()) for p in sys.argv[1:4])
+ archives = {name: Path(path) for name, path in zip(sys.argv[4::2], sys.argv[5::2])}
+ def members(name):
+     with tarfile.open(archives[name]) as archive:

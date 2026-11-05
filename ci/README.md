@@ -27,6 +27,41 @@ module job passes. A skipped module matrix is accepted only after successful
 planning explicitly selected no jobs. Adding the workflow does not itself change
 repository branch-protection settings.
 
+## Verified source mirrors
+
+The runner passes Bazel's standard `--experimental_downloader_config` with
+[`source_mirrors.cfg`](source_mirrors.cfg) to dependency preparation, builds,
+tests and output queries. The only rewrite is the exact upstream URL for
+BCR `pigz@2.8.bcr.2`, used by build-infra's reproducible gzip tool when packaging
+WPA's debug TAR. The original URL now serves different bytes; a clean
+[WPA registry build](https://github.com/securely1g/sonic-bazel-registry/actions/runs/41587703074/job/125760920377)
+fails its BCR checksum before compiling any source.
+
+The MacPorts mirror retains the original archive with SHA256
+`eb872b4f0e1f0ebe59c9f7bd8c506c4204893ba6a8492de31df416f0d5170fd0`.
+Bazel still verifies BCR's unchanged integrity and applies its unchanged patches.
+Other versions, paths and hosts are not rewritten. No source/version override,
+custom pigz module, prebuilt pigz, or disabled integrity check is involved.
+
+This config applies automatically in this registry's validation runner. It does
+not change how standalone consumers download dependencies. Until BCR's upstream
+source location is repaired, standalone callers can opt in using an absolute
+path to a checkout of this config:
+
+```sh
+bazel build --experimental_downloader_config=/path/to/sonic-bazel-registry/ci/source_mirrors.cfg //your:target
+```
+
+The real Bazel runner tests fetch BCR's pigz into a new, empty repository cache
+without a distdir, verify its original archive hash and patched MODULE, and
+confirm that a mirror serving different bytes is still rejected. These are
+repository fetches; they execute no compilation or package actions.
+
+The `codex/pigz-source-mirror` PR validates this CI fix with those fetch tests and
+the existing AMD64/ARM64 runner tests. Its path-checked exception retains the
+normal publication-policy plan but does not run the unrelated module build
+matrix. All other branches and pushes retain normal module selection.
+
 ## Kernel build-tool cache downloads
 
 The runner starts each consumer with `--ignore_all_rc_files`, so it explicitly
@@ -449,6 +484,18 @@ TAR is a reusable build output that can be downloaded and extracted separately.
 Existing runtime/debug TAR files are not repackaged internally. For example,
 `Text::CharWidth.3pm.gz`, `xt_CONNMARK.h`, and `xt_connmark.h` retain their names,
 and a directory's executable files and portable relative links remain usable.
+
+
+`test-results.json` indexes the `test.log` and `test.xml` files declared in each
+Bazel test-result event, with its label, configuration, run, shard and attempt.
+Files are retained under `test-results/` with SHA256 hashes and sizes. This also
+captures tests in transitioned configurations, such as DASH API's Python test,
+which are outside the default `bazel-testlogs` directory. The existing
+`testlogs/` snapshot remains available for compatibility. A collection error
+fails otherwise successful validation; after a build or test failure it is
+recorded in `test-results-error.json` without replacing the original failure.
+If that receipt cannot be written, the error is printed to stderr and the
+original validation failure is still preserved.
 
 ## Environment and coverage
 

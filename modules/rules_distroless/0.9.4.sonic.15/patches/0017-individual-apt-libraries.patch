@@ -1,0 +1,248 @@
+diff --git a/apt/README.md b/apt/README.md
+new file mode 100644
+index 0000000..4788651
+--- /dev/null
++++ b/apt/README.md
+@@ -0,0 +1,21 @@
++
++## Individual shared libraries
++
++`apt.install` exports each development package's unversioned `libNAME.so` as
++`@packages//package-dev:libNAME_cc`. This native C/C++ target supplies one shared
++library, the package's public headers, and declared runtime linker inputs. Other
++libraries from the same package are available to resolve runtime dependencies
++without being added as direct link libraries. The existing package-level library
++and `_headers` targets retain their interfaces.
++
++For link options requiring an explicitly ordered library filename,
++`@packages//package-dev:libNAME_shared` supplies that one file. Both targets select
++the requested target architecture. For transitional development packages, consume
++the development package that actually owns the library. Runtime-only locked
++imports continue to expose archive inputs without C/C++ exports.
++
++The runtime closure reuses each package's existing `_so_libs` interface. Its
++empty interface libraries keep runtime-only files out of direct `DT_NEEDED`
++entries, while their declared SONAME filenames enter Bazel's solib directories
++and runtime search paths. Plain `data` files and `additional_linker_inputs` do
++not provide that runtime linking interface.
+diff --git a/apt/extensions.bzl b/apt/extensions.bzl
+index 82b6798..3009f2b 100644
+--- a/apt/extensions.bzl
++++ b/apt/extensions.bzl
+@@ -433,6 +433,12 @@ def _distroless_extension(mctx):
+             name = depset_name,
+             depset_name = depset_name,
+             lock_content = lock_content,
++            cc_exports = {
++                "@%s//:cc_exports.json" % util.sanitize(package_key + "=" + version): package_key + "=" + version
++                for architecture_set in dependency_sets[depset_name]["sets"].values()
++                for package_key, version in architecture_set.items()
++                if lockfile.parse_package_key(package_key + "=" + version)[1].endswith("-dev")
++            },
+         )
+ 
+     # Generate a repo per package which will be aliased by hub repo.
+diff --git a/apt/private/deb_import.bzl b/apt/private/deb_import.bzl
+index 5086194..b66a8d7 100644
+--- a/apt/private/deb_import.bzl
++++ b/apt/private/deb_import.bzl
+@@ -47,6 +47,8 @@ filegroup(
+ 
+ _DEB_IMPORT_BUILD_TMPL = _DEB_ARCHIVES_BUILD_TMPL + '''
+ 
++exports_files(["cc_exports.json"], visibility = ["//visibility:public"])
++
+ deb_export(
+     name = "export",
+     srcs = glob(["data.tar*"]),
+@@ -133,6 +135,91 @@ cc_library(
+ )
+ """
+ 
++def _shared_library_exports(rctx, target_name, so_files, o_files, script_linker_inputs, rpaths, depends_on, options):
++    # depends_on already contains the resolved package closure. Use leaf inputs,
++    # as Debian package dependencies can cycle (for example libc6 and libgcc).
++    runtime_deps = [
++        "@%s%s//:_runtime_link_inputs_wodeps" % (rctx.attr.repo_prefix, util.sanitize(dep))
++        for dep in depends_on
++    ]
++    content = """
++filegroup(
++    name = "_runtime_files_wodeps",
++    srcs = {runtime_files},
++    visibility = ["//visibility:public"],
++)
++
++cc_library(
++    name = "_runtime_link_inputs_wodeps",
++    deps = [":_so_libs"],
++    additional_linker_inputs = [":_runtime_files_wodeps"] + {extra_inputs},
++    linkopts = {linkopts},
++    data = [":_runtime_files_wodeps"],
++    visibility = ["//visibility:public"],
++)
++
++cc_library(
++    name = "_runtime_link_inputs",
++    deps = [":_runtime_link_inputs_wodeps"] + {runtime_deps},
++    visibility = ["//visibility:public"],
++)
++""".format(
++        runtime_files = so_files,
++        extra_inputs = {path: None for path in o_files + script_linker_inputs}.keys(),
++        # GNU ld scripts resolve INPUT/GROUP library names through -L;
++        # -rpath-link is only sufficient for ELF DT_NEEDED dependencies.
++        linkopts = [
++            "-L$(BINDIR)/external/%s/%s" % (rctx.attr.name, path)
++            for path in rpaths
++        ] + [
++            "-Wl,-rpath-link=$(BINDIR)/external/%s/%s" % (rctx.attr.name, path)
++            for path in rpaths
++        ],
++        runtime_deps = runtime_deps,
++    )
++    exports = {}
++    libraries = {}
++    for path in so_files if rctx.attr.package_name.endswith("-dev") else []:
++        basename = path.rsplit("/", 1)[-1]
++        if not basename.startswith("lib") or not basename.endswith(".so"):
++            continue
++        name = basename.removesuffix(".so")
++        if name in libraries and libraries[name] != path:
++            fail("Ambiguous shared library %s in %s: %s and %s" % (name, target_name, libraries[name], path))
++        libraries[name] = path
++
++    for name, path in sorted(libraries.items()):
++        pkgc = options.get(name)
++        content += """
++cc_import(
++    name = "_{name}_native_import",
++    shared_library = "{path}",
++)
++
++filegroup(
++    name = "{name}_shared",
++    srcs = ["{path}"],
++    visibility = ["//visibility:public"],
++)
++
++cc_library(
++    name = "{name}_cc",
++    deps = [":_{name}_native_import", ":{package}_headers", ":_runtime_link_inputs"],
++    defines = {defines},
++    linkopts = {linkopts},
++    visibility = ["//visibility:public"],
++)
++""".format(
++            name = name,
++            path = path,
++            package = target_name,
++            defines = pkgc.defines if pkgc else [],
++            linkopts = pkgc.linkopts if pkgc else [],
++        )
++        exports[name + "_cc"] = name + "_cc"
++        exports[name + "_shared"] = name + "_shared"
++    return (content, exports)
++
+ def resolve_symlink(target_path, relative_symlink):
+     # Split paths into components
+     target_parts = target_path.split("/")
+@@ -347,6 +434,7 @@ so_library(
+         rpaths[rpath] = None
+ 
+     includes = []
++    shared_options = {}
+ 
+     # Package has a pkgconfig, use that as the source of truth.
+     if len(pkgconfigs):
+@@ -367,6 +455,7 @@ so_library(
+                 continue
+ 
+             for libname in pkgc.libnames:
++                shared_options.setdefault(libname, pkgc)
+                 if libname + "_import" in import_targets:
+                     continue
+ 
+@@ -491,7 +580,18 @@ cc_library(
+         deps = header_deps,
+     )
+ 
+-    return (build_file_content, outs, symlinks, linker_scripts, self_symlinks)
++    shared_content, shared_exports = _shared_library_exports(
++        rctx,
++        target_name,
++        so_files,
++        o_files,
++        script_linker_inputs,
++        rpaths,
++        depends_on,
++        shared_options,
++    )
++    build_file_content += shared_content
++    return (build_file_content, outs, symlinks, linker_scripts, self_symlinks, shared_exports)
+ 
+ def _deb_import_impl(rctx):
+     # Retain the verified original archive for real dpkg installation.
+@@ -521,7 +621,7 @@ def _deb_import_impl(rctx):
+                 provided_by[file] = dep_repo
+ 
+     # TODO: only do this if package is -dev or dependent of a -dev pkg.
+-    cc_import_targets, outs, symlinks, linker_scripts, self_symlinks = _discover_contents(
++    cc_import_targets, outs, symlinks, linker_scripts, self_symlinks, shared_exports = _discover_contents(
+         rctx,
+         rctx.attr.depends_on,
+         provided_by,
+@@ -539,6 +639,7 @@ def _deb_import_impl(rctx):
+         for (symlink, indices) in foreign_symlinks.items()
+     }
+ 
++    rctx.file("cc_exports.json", json.encode(shared_exports))
+     rctx.file("BUILD.bazel", _DEB_IMPORT_BUILD_TMPL.format(
+         mergedusr = rctx.attr.mergedusr,
+         depends_on = ["@" + util.sanitize(dep_key) + "//:data" for dep_key in rctx.attr.depends_on],
+diff --git a/apt/private/translate_dependency_set.bzl b/apt/private/translate_dependency_set.bzl
+index 011fe44..bb14495 100644
+--- a/apt/private/translate_dependency_set.bzl
++++ b/apt/private/translate_dependency_set.bzl
+@@ -172,6 +172,10 @@ def package_deps_for_architecture(packages, package, architecture, target = "dat
+ 
+ def _translate_dependency_set_impl(rctx):
+     package_template = rctx.read(rctx.attr.package_template)
++    cc_exports = {
++        package_key: (export_file, json.decode(rctx.read(export_file)))
++        for export_file, package_key in rctx.attr.cc_exports.items()
++    } if not rctx.attr.payload_only else {}
+     lockf = lockfile.from_json(rctx, rctx.attr.lock_content)
+ 
+     sources = lockf.sources()
+@@ -268,6 +272,22 @@ Please unify the versions manually, or use separate `apt.install` calls (with di
+                 }),
+             )
+ 
++        # Package importers describe the actual shared libraries in each DEB.
++        # Label attributes retain the extension's sibling-repository mapping.
++        library_targets = {}
++        if package_name.endswith("-dev") and not rctx.attr.payload_only:
++            for architecture, package_key in info.architectures.items():
++                if package_key not in cc_exports:
++                    continue
++                export_file, targets = cc_exports[package_key]
++                for public_name, target in targets.items():
++                    library_targets.setdefault(public_name, {})["//:linux_%s" % architecture] = str(export_file.same_package_label(target))
++        for target_name, selects in sorted(library_targets.items()):
++            extra += _DEB_CC_IMPORT.format(
++                target_name = target_name,
++                selects = starlark_codegen_utils.to_dict_attr(selects),
++            )
++
+         rctx.file(
+             "%s/BUILD.bazel" % package_name,
+             _PACKAGE_TEMPLATE.format(
+@@ -310,6 +330,7 @@ translate_dependency_set = repository_rule(
+     implementation = _translate_dependency_set_impl,
+     attrs = {
+         "payload_only": attr.bool(doc = "Expose archive inputs without native C++ targets."),
++        "cc_exports": attr.label_keyed_string_dict(doc = "Internal package-export metadata labels mapped to lockfile package keys."),
+         "repo_prefix": attr.string(doc = "Internal namespace for locked package repositories."),
+         "depset_name": attr.string(doc = "INTERNAL: DO NOT USE"),
+         "lock_content": attr.string(doc = "INTERNAL: DO NOT USE"),

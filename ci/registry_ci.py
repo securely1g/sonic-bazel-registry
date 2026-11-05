@@ -881,10 +881,36 @@ def collect_outputs(bep_path: Path, labels: list[str], work_dir: Path, artifacts
                     and "\\" not in name, f"Unsafe build output path: {name}")
             source = resolve_output(Path(unquote(uri.path)))
             require(source.is_relative_to(work_dir), f"Build output escapes work-dir: {source}")
-            if any(relative.is_relative_to(tree_path) for tree_path in tree_paths):
-                # Skip only expanded members of this exact declared directory.
-                require(source == (execution_root / relative).resolve(),
-                        f"Expanded tree member does not match its execution-root path: {name}")
+            matching_trees = [tree_path for tree_path in tree_paths
+                              if relative.is_relative_to(tree_path)]
+            if matching_trees:
+                # The declared tree has already been archived. Bazel 8.5.1 can
+                # corrupt a non-ASCII basename in an expanded member's URI while
+                # retaining its correct logical name, digest and length. Accept
+                # only that narrow case, using the real declared member's bytes.
+                expected = resolve_output(execution_root / relative)
+                require(expected.is_relative_to(work_dir),
+                        f"Expanded tree member escapes work-dir: {name}")
+                if source != expected:
+                    decoded = Path(unquote(uri.path))
+                    ascii_name = lambda value: "".join(c for c in value if c.isascii())
+                    require("\ufffd" in uri.path and not relative.name.isascii()
+                            and not re.search(r"%(?![0-9A-Fa-f]{2})", uri.path)
+                            and ".." not in decoded.parts and "\\" not in uri.path
+                            and decoded.parent.resolve() == (execution_root / relative).parent.resolve()
+                            and ascii_name(decoded.name) == ascii_name(relative.name),
+                            f"Expanded tree member does not match its execution-root path: {name}")
+                    require(any(expected.is_relative_to(resolve_output(execution_root / tree_path))
+                                for tree_path in matching_trees) and expected.is_file(),
+                            f"Expanded tree member is not a confined regular file: {name}")
+                    digest, length = output.get("digest"), output.get("length")
+                    require(isinstance(digest, str) and re.fullmatch(r"[0-9a-f]{64}", digest)
+                            and isinstance(length, str) and re.fullmatch(r"0|[1-9][0-9]*", length),
+                            f"Expanded tree member requires SHA256 and length: {name}")
+                    with expected.open("rb") as stream:
+                        actual_digest = hashlib.file_digest(stream, "sha256").hexdigest()
+                    require(expected.stat().st_size == int(length) and actual_digest == digest,
+                            f"Expanded tree member digest or length mismatch: {name}")
                 continue
             # Repository files have only a basename in BEP. Keep their private
             # workspace identity so different packages' control.tar.xz files
@@ -948,6 +974,45 @@ def collect_failed_action_logs(bep_path: Path, work_dir: Path, artifacts: Path) 
         (destination / "index.json").write_text(json.dumps(records, indent=2) + "\n")
 
 
+def collect_test_logs(bep_path: Path, work_dir: Path, artifacts: Path) -> None:
+    """Retain BEP-declared logs from every test configuration and attempt."""
+    index = []
+    work_dir = work_dir.resolve()
+    for line in bep_path.read_text().splitlines():
+        event = json.loads(line)
+        identity = event.get("id", {}).get("testResult")
+        if identity is None:
+            continue
+        result = event.get("testResult", {})
+        record = {"test": identity, "status": result.get("status"), "files": []}
+        for output in result.get("testActionOutput", []):
+            name = output.get("name")
+            if name not in ("test.log", "test.xml"):
+                continue
+            uri = urlparse(output.get("uri", ""))
+            require(uri.scheme == "file" and uri.netloc in ("", "localhost")
+                    and not uri.query and not uri.fragment,
+                    f"Test log must be a local file: {output.get('uri')}")
+            source = Path(unquote(uri.path)).resolve()
+            require(source.is_relative_to(work_dir), f"Test log escapes work-dir: {source}")
+            parts = source.relative_to(work_dir).parts
+            require(len(parts) >= 8 and parts[0] == "bazel" and parts[2] == "execroot"
+                    and parts[4] == "bazel-out" and parts[6] == "testlogs",
+                    f"Test log is outside Bazel's configuration testlogs: {source}")
+            require(source.is_file(), f"Missing test log: {source}")
+            relative = Path("test-results") / str(len(index)) / Path(*parts[5:])
+            destination = artifacts / relative
+            require(not destination.exists(), f"Duplicate test log: {relative}")
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, destination)
+            with destination.open("rb") as stream:
+                checksum = hashlib.file_digest(stream, "sha256").hexdigest()
+            record["files"].append({"path": relative.as_posix(), "sha256": checksum,
+                                    "size": destination.stat().st_size})
+        index.append(record)
+    (artifacts / "test-results.json").write_text(json.dumps(index, indent=2) + "\n")
+
+
 def run_logged(command: list[str], cwd: Path, log: Path) -> None:
     print(f"Running Bazel validation; log: {log}", flush=True)
     with log.open("w") as output:
@@ -976,7 +1041,7 @@ def prepare_rust(config: dict, consumer: Path, work_dir: Path, artifacts: Path,
     # The shared module has its own native toolchains. Consumer platform labels
     # and Starlark settings may name repositories that do not exist there.
     preparation_flags = [flag for flag in flags
-                         if flag.startswith(("--registry=", "--lockfile_mode="))]
+                         if flag.startswith(("--registry=", "--lockfile_mode=", "--experimental_downloader_config="))]
     command = [sys.executable, str(helper), "--workspace", str(consumer),
                "--shared-only", "--shared-dependency",
                f"{preparation['module']}={preparation['repo_name']}",
@@ -1171,6 +1236,7 @@ def run(root: Path, module: str, version: str, architecture: str,
         prefix = [bazel, "--ignore_all_rc_files", f"--output_user_root={work_dir / 'bazel'}"]
         flags = [f"--registry={root.resolve().as_uri()}", "--registry=https://bcr.bazel.build/",
                  f"--platforms={config['platforms'][architecture]}", "--lockfile_mode=update",
+                 f"--experimental_downloader_config={root.resolve() / 'ci/source_mirrors.cfg'}",
                  "--remote_download_regex=(^|.*/)tools/build_tools/kernel_runtime_(amd64|arm64)(/.*)?$",
                  *config.get("build_flags", [])]
         if "host_platforms" in config:
@@ -1185,7 +1251,8 @@ def run(root: Path, module: str, version: str, architecture: str,
             # Path queries need dependency resolution, but not target/host platform
             # flags whose apparent labels may be unresolved in a fresh info command.
             info_flags = [flag for flag in flags if flag.startswith(
-                ("--registry=", "--lockfile_mode=", "--override_module=", "--override_repository="))]
+                ("--registry=", "--lockfile_mode=", "--experimental_downloader_config=",
+                 "--override_module=", "--override_repository="))]
             execution_root = Path(subprocess.check_output([*prefix, "info", *info_flags, "execution_root"],
                                                          cwd=consumer, text=True).strip())
             collect_outputs(artifacts / "build-events.jsonl", config["build_targets"], work_dir, artifacts,
@@ -1241,6 +1308,7 @@ def run(root: Path, module: str, version: str, architecture: str,
                     if config.get("generated_module_overlay") else None),
             }, indent=2) + "\n")
         finally:
+            validation_failed = sys.exc_info()[0] is not None
             for phase in ("build", "test"):
                 try:
                     collect_failed_action_logs(artifacts / f"{phase}-events.jsonl", work_dir, artifacts)
@@ -1252,6 +1320,21 @@ def run(root: Path, module: str, version: str, architecture: str,
             testlogs = consumer / "bazel-testlogs"
             if testlogs.exists():
                 shutil.copytree(testlogs, artifacts / "testlogs", dirs_exist_ok=True)
+            test_events = artifacts / "test-events.jsonl"
+            if test_events.is_file():
+                try:
+                    collect_test_logs(test_events, work_dir, artifacts)
+                except (RegistryError, OSError, ValueError) as error:
+                    try:
+                        (artifacts / "test-results-error.json").write_text(
+                            json.dumps({"error": str(error)}, indent=2) + "\n")
+                    except OSError as receipt_error:
+                        print(f"Test log collection error receipt failed: {receipt_error}", file=sys.stderr)
+                    if not validation_failed:
+                        raise
+                    # Keep the original build/test failure while retaining the
+                    # separate collection error and any files already copied.
+                    print(f"Test log collection failed: {error}", file=sys.stderr)
 
 
 def main() -> None:

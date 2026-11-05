@@ -1,0 +1,149 @@
+load("@bazel_skylib//rules:select_file.bzl", "select_file")
+load("@rules_foreign_cc//foreign_cc:defs.bzl", "configure_make")
+load("@rules_gzip//gzip/compress:defs.bzl", "gzip_compress")
+load("@sonic_build_infra//binary:keep_debug_info.bzl", "keep_debug_info")
+load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
+
+package(default_visibility = ["//visibility:public"])
+
+_NATIVE = ["@platforms//cpu:x86_64", "@sonic_build_infra//platforms:trixie"]
+_CHECKS = ["marshal", "pattern", "bitmap", "fixedpoint", "lldp", "cdp", "sonmp", "edp", "snmp"]
+_DATA = [
+    "etc/lldpd.d/README.conf",
+    "lib/systemd/system/lldpd.service",
+    "usr/share/man/man8/lldpd.8",
+    "usr/share/man/man8/lldpcli.8",
+    "usr/share/man/man8/lldpctl.8",
+    "usr/share/bash-completion/completions/lldpcli",
+    "usr/share/zsh/vendor-completions/_lldpcli",
+]
+
+filegroup(name = "sources", srcs = glob(["**"], exclude = ["BUILD.bazel"]))
+exports_files(["debian/README.Debian", "debian/lldpd.lintian-overrides", "NEWS", "README.md", "CONTRIBUTE.md", "ChangeLog", "debian/lldpd.default", "debian/lldpd.init.d", "debian/copyright", "debian/changelog", "debian/control", "debian/lldpd.install", "src/lib/lldpctl.h", "src/lldp-const.h"])
+
+configure_make(
+    name = "lldpd_build",
+    lib_source = ":sources",
+    configure_in_place = True,
+    configure_command = "bazel/configure.sh",
+    configure_prefix = "/bin/sh",
+    configure_options = [
+        "--disable-silent-rules",
+        "--prefix=/usr", "--libdir=/usr/lib/x86_64-linux-gnu", "--sysconfdir=/etc",
+        "--localstatedir=/var", "--runstatedir=/run",
+        "--enable-pie", "--with-snmp", "--with-xml", "--with-readline", "--with-libbsd",
+        "--without-embedded-libevent", "--with-systemdsystemunitdir=/lib/systemd/system",
+        "--with-netlink-receive-bufsize=2097152", "--with-netlink-max-receive-bufsize=4194304",
+    ],
+    build_data = [
+        "@sonic_build_infra//tools/build_tools:foreign_runtime",
+        "@sonic_build_infra//tools/build_tools:configure_environment.sh",
+    ],
+    data = ["@lldpd//:target_libraries"],
+    env = {
+        "BAZEL_FOREIGN_TOOLS": "$(execpath @sonic_build_infra//tools/build_tools:foreign_runtime)",
+        "BAZEL_CONFIGURE_ENV": "$(execpath @sonic_build_infra//tools/build_tools:configure_environment.sh)",
+        "LLDPD_TARGET_ROOT": "$(execpath @lldpd//:target_libraries)",
+        "PATH": "$(execpath @sonic_build_infra//tools/build_tools:foreign_runtime)/bin:$$PATH",
+        "SOURCE_DATE_EPOCH": "0",
+        "LC_ALL": "C",
+        "TZ": "UTC",
+    },
+    features = ["-sanitize_pwd"],
+    set_file_prefix_map = True,
+    targets = [""],
+    postfix_script = "\n".join([
+        "$$BAZEL_FOREIGN_TOOLS/bin/make install DESTDIR=$$INSTALLDIR/stage",
+        "$$BAZEL_FOREIGN_TOOLS/bin/make -C tests " + " ".join(["check_" + name for name in _CHECKS]),
+        "mkdir -p $$INSTALLDIR/bin $$INSTALLDIR/lib $$INSTALLDIR/include $$INSTALLDIR/tests",
+        "cp $$INSTALLDIR/stage/usr/sbin/lldpd $$INSTALLDIR/stage/usr/sbin/lldpcli $$INSTALLDIR/bin/",
+        "cp -P $$INSTALLDIR/stage/usr/lib/x86_64-linux-gnu/liblldpctl.so* $$INSTALLDIR/lib/",
+        "cp $$INSTALLDIR/stage/usr/include/*.h $$INSTALLDIR/include/",
+        "cp config.h config.log $$INSTALLDIR/",
+    ] + [
+        "if test -f tests/.libs/check_" + name + "; then cp tests/.libs/check_" + name + " $$INSTALLDIR/tests/; else cp tests/check_" + name + " $$INSTALLDIR/tests/; fi"
+        for name in _CHECKS
+    ]),
+    out_binaries = ["lldpd", "lldpcli"],
+    out_shared_libs = ["liblldpctl.so.4.9.1"],
+    out_data_files = ["config.h", "config.log"] + ["stage/" + path for path in _DATA] + ["tests/check_" + name for name in _CHECKS],
+    target_compatible_with = _NATIVE,
+)
+
+[
+    select_file(name = name, srcs = ":lldpd_build", subpath = "lldpd_build/" + path)
+    for name, path in {
+        "lldpd": "bin/lldpd",
+        "lldpcli": "bin/lldpcli",
+        "liblldpctl": "lib/liblldpctl.so.4.9.1",
+        "configuration_raw": "config.h",
+        "configure_log": "config.log",
+    }.items()
+]
+[
+    select_file(name = "check_" + name + "_raw", srcs = ":lldpd_build", subpath = "lldpd_build/tests/check_" + name)
+    for name in _CHECKS
+]
+[keep_debug_info(name = "check_" + name, src = ":check_" + name + "_raw") for name in _CHECKS]
+filegroup(name = "upstream_tests", srcs = [":check_" + name for name in _CHECKS])
+keep_debug_info(name = "configuration", src = ":configuration_raw")
+[
+    select_file(name = "data_" + str(index) + "_raw", srcs = ":lldpd_build", subpath = "lldpd_build/stage/" + path)
+    for index, path in enumerate(_DATA)
+]
+[
+    keep_debug_info(name = "data_" + str(index), src = ":data_" + str(index) + "_raw")
+    for index in range(len(_DATA))
+]
+
+# Match Debian's installed documentation names with the shared deterministic
+# gzip toolchain; no packaging command or maintainer script is executed.
+_DOCS = {
+    "usr/share/doc/lldpd/NEWS.gz": "NEWS",
+    "usr/share/doc/lldpd/README.md.gz": "README.md",
+    "usr/share/doc/lldpd/changelog.gz": "ChangeLog",
+    "usr/share/doc/lldpd/changelog.Debian.gz": "debian/changelog",
+}
+[
+    gzip_compress(name = "doc_" + str(index), src = source, level = 9)
+    for index, source in enumerate(_DOCS.values())
+]
+[
+    gzip_compress(name = "manual_" + str(index), src = ":data_" + str(index), level = 9)
+    for index in [2, 3]
+]
+
+sonic_deploy_tar(
+    name = "runtime",
+    binaries = {
+        "usr/sbin/lldpd uid=0 gid=0 mode=0755 type=file": ":lldpd",
+        "usr/sbin/lldpcli uid=101 gid=4 mode=04750 type=file": ":lldpcli",
+        "usr/lib/x86_64-linux-gnu/liblldpctl.so.4.9.1 uid=0 gid=0 mode=0644 type=file": ":liblldpctl",
+    },
+    force_debug_build = True,
+    srcs = [":data_" + str(index) for index in [0, 1, 5, 6]] +
+           [":manual_" + str(index) for index in [2, 3]] +
+           [":doc_" + str(index) for index in range(len(_DOCS))] +
+           ["debian/copyright", "debian/lldpd.default", "debian/lldpd.init.d", "CONTRIBUTE.md", "debian/README.Debian", "debian/lldpd.lintian-overrides"],
+    mtree = [
+        path + " uid=0 gid=0 mode=0644 type=file content=$(location :data_" + str(index) + ")"
+        for index, path in enumerate(_DATA) if index not in [2, 3, 4]
+    ] + [
+        _DATA[index] + ".gz uid=0 gid=0 mode=0644 type=file content=$(location :manual_" + str(index) + ")"
+        for index in [2, 3]
+    ] + [
+        path + " uid=0 gid=0 mode=0644 type=file content=$(location :doc_" + str(index) + ")"
+        for index, path in enumerate(_DOCS)
+    ] + [
+        "usr/sbin/lldpctl uid=0 gid=0 mode=0777 type=link link=lldpcli",
+        "usr/share/man/man8/lldpctl.8.gz uid=0 gid=0 mode=0777 type=link link=lldpcli.8.gz",
+        "usr/share/doc/lldpd/README.Debian uid=0 gid=0 mode=0644 type=file content=$(location debian/README.Debian)",
+        "usr/share/lintian/overrides/lldpd uid=0 gid=0 mode=0644 type=file content=$(location debian/lldpd.lintian-overrides)",
+        "usr/lib/x86_64-linux-gnu/liblldpctl.so.4 uid=0 gid=0 mode=0777 type=link link=liblldpctl.so.4.9.1",
+        "usr/share/doc/lldpd/copyright uid=0 gid=0 mode=0644 type=file content=$(location debian/copyright)",
+        "usr/share/doc/lldpd/CONTRIBUTE.md uid=0 gid=0 mode=0644 type=file content=$(location CONTRIBUTE.md)",
+        "etc/default/lldpd uid=0 gid=0 mode=0644 type=file content=$(location debian/lldpd.default)",
+        "etc/init.d/lldpd uid=0 gid=0 mode=0755 type=file content=$(location debian/lldpd.init.d)",
+    ],
+    target_compatible_with = _NATIVE,
+)
