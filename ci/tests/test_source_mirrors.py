@@ -198,6 +198,15 @@ DEBIAN_CONTENT_PACKAGES += (
      "d718845c00344d7965787ca08877a6d1bc51ef71",
      "ac1e7f8ad81578b61bc7c54c725ec639b06684e560766eac278490a1b2064372", 160568, None),
 )
+# Exact warning identities; the ARM64 package is selected during AMD64 analysis.
+DEBIAN_CONTENT_PACKAGES += (
+    ("https://snapshot.debian.org/archive/debian-security/20260726T121236Z/pool/updates/main/k/krb5/libkrb5support0_1.21.3-5+deb13u1_amd64.deb",
+     "fdcbf424c12036172b67ed2d13d14fa441fb3736",
+     "3a0acd8b37955c0e102c756b52c97df2a31f67b96453c35dab70df218d309117", 33124, None),
+    ("https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/e/e2fsprogs/comerr-dev_2.1-1.47.2-3+b11_arm64.deb",
+     "9ba5541a96f7de01c0d343e78296b07e2672051f",
+     "490511f32afe59303e1fa2b4c54fd174de0d98f5f3cf9702e0f2784b834792e4", 56944, None),
+)
 # BusyBox package inputs pinned by BCR rules_coreutils@1.0.1's MODULE.bazel.
 BUSYBOX_PACKAGES = (
     ("amd64", "d161cd711fcf0d21a53dd7b9665933463de9fa6a37718e78ffee4d7732e1e02a", 937460),
