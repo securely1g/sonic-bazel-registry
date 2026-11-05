@@ -19,8 +19,8 @@ export PKG_CONFIG_LIBDIR="$pcdir"
 export PKG_CONFIG_PATH=
 export PKG_CONFIG_SYSTEM_INCLUDE_PATH="$EXT_BUILD_DEPS/include/usr/include"
 export PKG_CONFIG="$BAZEL_PKGCONF --define-variable=prefix=$EXT_BUILD_DEPS --define-variable=libdir=$EXT_BUILD_DEPS/lib --define-variable=includedir=$EXT_BUILD_DEPS/include/usr/include"
-CPPFLAGS="${CPPFLAGS:-} -isystem $EXT_BUILD_DEPS/include/usr/include"
-export CPPFLAGS
+# The configure prefix already appended this native include directory to the
+# ordered response file before starting a new process.
 
 # autoreconf follows AC_CONFIG_SUBDIRS to prepare simple_switch_grpc as well.
 "$BAZEL_P4_TOOLS/bin/autoreconf" -fi
