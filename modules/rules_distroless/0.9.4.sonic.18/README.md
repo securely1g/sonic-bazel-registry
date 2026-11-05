@@ -27,14 +27,21 @@ uses AMD64/ARM64 defaults while retaining explicit ARMHF cross inputs.
 
 ## Shared-library linker-script regression
 
-Patch 0023 keeps runtime files, cross-package linker-script inputs and search
-paths on the library-bearing CcInfo linker input. This preserves them when
-rules_cc filters metadata-only inputs while building a cc_shared_library.
+Patches 0023 and 0024 preserve linker-script inputs across shared-library
+boundaries. The first link retains the files on a library-bearing input.
+Script-referenced DSOs also have native cc_import dependencies, so they survive
+CcSharedLibraryInfo forwarding through dynamic_deps. DSO references use GNU ld's
+exact-filename search (`-l:filename`) against the declared _solib inputs instead
+of embedding extraction paths that disappear from downstream link actions.
+This follows the explicit native library dependencies used by sonic_rules.
 
 The standalone regression constructs two tiny DEBs, imports a development
 package whose GNU linker script refers to the runtime package, and links a
-shared-library consumer in a sandbox. It verifies the runtime SONAME in
-DT_NEEDED and executes the consumer, requiring the known result 43. It uses
+two-level shared-library consumer in a sandbox, with the second DSO using
+dynamic_deps on the first. It verifies runtime SONAMEs in DT_NEEDED, requires
+function results 43 and 44, and runs a final executable that must print 44.
+The executable declares indirect DSO search files using the same pattern as
+sonic_rules shared_link_search. It uses
 no production APT index or business component. Run from the registry root:
 
 ```sh

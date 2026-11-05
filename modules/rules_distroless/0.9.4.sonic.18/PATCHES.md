@@ -5,7 +5,9 @@ This candidate retains the published 0.9.4.sonic.17 inputs and adds
 selection, optional standalone fallback locks, compatibility-view validation,
 exact distributed-request checks and optional source default architectures.
 `0023-shared-linker-inputs.patch` preserves runtime and cross-package script
-inputs through cc_shared_library filtering. The upstream archive and patches
+inputs through cc_shared_library filtering. `0024-transitive-script-libraries.patch`
+represents script-referenced DSOs as native imports and rewrites their references
+for the downstream _solib layout across dynamic_deps. The upstream archive and patches
 0001 through 0021 remain unchanged.
 
 The provenance of the retained patches follows.
