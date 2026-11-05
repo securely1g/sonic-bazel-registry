@@ -94,6 +94,21 @@ jobs:
                   raise SystemExit("Debian transport scope rejects unexpected files: " + repr(changed - allowed))
               print("Debian transport CI fix: retain policy plan and both runner/fetch suites; no module jobs.")
               matrix = {"include": []}
+          if (os.environ["EVENT_NAME"] == "pull_request"
+                  and os.environ["HEAD_REF"] == "codex/registry-cosmos-distdir"
+                  and os.environ["HEAD_REPOSITORY"] == "securely1g/sonic-bazel-registry"):
+              # Temporary Draft scope: policy planning and both runner suites
+              # still run. Remove this guard before marking the PR Ready.
+              allowed = {".github/workflows/registry-ci.yml", ".github/workflows/registry-module.yml",
+                         "ci/prepare_cosmos_distdir.py", "ci/tests/test_prepare_cosmos_distdir.py",
+                         "ci/README.md"}
+              changed = set(subprocess.check_output(
+                  ["git", "diff", "--name-only", os.environ["BASE_SHA"] + "..." + os.environ["HEAD_SHA"]],
+                  text=True).splitlines())
+              if not changed or not changed <= allowed:
+                  raise SystemExit("Cosmos transport scope rejects unexpected files: " + repr(changed - allowed))
+              print("Draft Cosmos transport: retain policy plan and both runner suites; no module jobs.")
+              matrix = {"include": []}
           routes = {("amd64", "amd64", False), ("arm64", "arm64", False), ("arm64", "amd64", True)}
           runners = {"amd64": ["self-hosted", "Linux", "X64", "debian-trixie-container"],
                      "arm64": ["ubuntu-24.04-arm"]}

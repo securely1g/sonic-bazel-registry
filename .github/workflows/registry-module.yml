@@ -111,6 +111,15 @@ jobs:
           if [[ "$CI_CROSS_COMPILE" == true ]]; then
             CROSS_ARGS=(--cross-compile --test-executor "$ARM_TEST_EXECUTOR")
           fi
+          if [[ "$CI_ARCHITECTURE" == amd64 && "$CI_MODULE" == libteam && "$CI_VERSION" == 1.31.0.sonic.1 ]]; then
+            # Reuse the exact APE inputs whose original endpoints failed in
+            # libteam CI. Keep this outside the runner's fresh work directory.
+            "${ROOT[@]}" python3 ci/prepare_cosmos_distdir.py \
+              --distdir "$RUNNER_TEMP/registry-cosmos-distdir" \
+              --cache-dir "$RUNNER_TEMP/registry-cosmos-downloads" \
+              --receipt "$GITHUB_WORKSPACE/ci-artifacts/cosmos-distdir.json"
+            BAZEL_BUILD_ARGS+=("--bazel-build-arg=--distdir=$RUNNER_TEMP/registry-cosmos-distdir")
+          fi
           "${ROOT[@]}" python3 ci/registry_ci.py run \
             --module "$CI_MODULE" \
             --version "$CI_VERSION" \
