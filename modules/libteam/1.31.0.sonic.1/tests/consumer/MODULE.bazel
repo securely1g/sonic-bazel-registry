@@ -1,0 +1,12 @@
+module(name = "libteam_native_consumer")
+
+bazel_dep(name = "libteam", version = "1.31.0.sonic.1")
+bazel_dep(name = "sonic-build-infra", version = "0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568", repo_name = "sonic_build_infra")
+bazel_dep(name = "tar.bzl", version = "0.10.5.sonic.1")
+
+gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
+use_repo(gcc, "gcc_toolchains")
+register_toolchains("@gcc_toolchains//:all")
+tar_toolchains = use_extension("@tar.bzl//tar:extensions.bzl", "toolchains")
+use_repo(tar_toolchains, "bsd_tar_toolchains")
+register_toolchains("@bsd_tar_toolchains//:all")
