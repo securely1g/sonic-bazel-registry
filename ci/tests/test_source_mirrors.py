@@ -47,7 +47,8 @@ DEBIAN_RELEASE_PACKAGES = (
     ("bash_5.2.37-2+b9_arm64.deb",
      "https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/b/bash/bash_5.2.37-2+b9_arm64.deb"),
 )
-# Generated APT locks from the native ARM PI and SWSS jobs agree on these bytes.
+# Generated APT locks from native ARM PI/SWSS and the ARM cross-build survey
+# preserve these exact bytes, including native build-tool dependencies.
 # Each tuple is (original URL, content locator, locked SHA256, size, optional CDN).
 DEBIAN_CONTENT_PACKAGES = (
     ("https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/g/glibc/libc-bin_2.41-12+deb13u3_arm64.deb",
@@ -67,6 +68,24 @@ DEBIAN_CONTENT_PACKAGES = (
      "4b411e66ee3d3106570389d5d1e022b15c1975a8",
      "1ee735e2480519bd1fd5f6576a879243bc81b9773059e1fa1ec8b8943c84e77c", 1466984, None),
 )
+SURVEY_CONTENT_PACKAGES = (
+    ("https://snapshot.debian.org/archive/debian-security/20260726T121236Z/pool/updates/main/k/krb5/libgssrpc4t64_1.21.3-5+deb13u1_amd64.deb",
+     "3e0610e3b6f6d57539344d7a1f95da1ed442fd48",
+     "ff88e52a6b6599851f3d44f7223f15123d9e5a0b02ed9a308c05c31fa88f7d73", 60132, None),
+    ("https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/u/util-linux/libblkid1_2.41-5_amd64.deb",
+     "8413cb58799327072dd69a418e41fc05009cfd03",
+     "bed93f11942524e5338074c46cce376197740635bf0745ccb7d259e0f6ce7117", 171276, None),
+    ("https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/g/glibc/libc6_2.41-12+deb13u3_arm64.deb",
+     "8dd0cfbe0f5bd2c3923c8252c00c868bc6ac945e",
+     "ff529924782d3286181188fc265a6a92e7fe28975fb3a925dc0e05c0ca66e52f", 2489480, None),
+    ("https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/p/python3.13/libpython3.13-dev_3.13.5-2+deb13u4_arm64.deb",
+     "f0907e7116933f0437ac671e9946e4740fcef10b",
+     "fd62da71db387aba934e4bd17cceaf0db1454ae9e1eae378c4d8329fbe856883", 4924800, None),
+    ("https://snapshot.debian.org/archive/debian-security/20260726T121236Z/pool/updates/main/t/tiff/libtiff6_4.7.0-3+deb13u3_amd64.deb",
+     "faa5bddd33fff3675e7b76863c6ef140347fb3b2",
+     "6bb2038f36817ae1ee6d33df03917b21835dcc2e0f3e3e80a71390e83c171173", 345492, None),
+)
+DEBIAN_CONTENT_PACKAGES += SURVEY_CONTENT_PACKAGES
 # BusyBox package inputs pinned by BCR rules_coreutils@1.0.1's MODULE.bazel.
 BUSYBOX_PACKAGES = (
     ("amd64", "d161cd711fcf0d21a53dd7b9665933463de9fa6a37718e78ffee4d7732e1e02a", 937460),
@@ -372,6 +391,38 @@ class GawkSourceMirrorIntegrationTest(ArchiveFetchTestCase):
 
 
 class DebianPoolMirrorIntegrationTest(ArchiveFetchTestCase):
+    def test_survey_content_candidates_preserve_locked_bytes_without_other_fallbacks(self):
+        # Exercise only each production content candidate: an available original
+        # snapshot must not hide a broken alternative in this cold-download proof.
+        rules = (ROOT / "ci/source_mirrors.cfg").read_text().splitlines()
+        with tempfile.TemporaryDirectory(prefix="registry-survey-content-") as temporary:
+            work = Path(temporary)
+            module = ('module(name = "survey_content_consumer")\n'
+                      'http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")\n')
+            selected_rules, repos = [], []
+            for index, (upstream, locator, checksum, _size, _cdn) in enumerate(SURVEY_CONTENT_PACKAGES):
+                matching = []
+                for line in rules:
+                    if not line.startswith("rewrite "):
+                        continue
+                    _directive, pattern, replacement = line.split(None, 2)
+                    if (re.fullmatch(pattern, upstream.removeprefix("https://"))
+                            and replacement == "https://snapshot.debian.org/file/" + locator):
+                        matching.append(line)
+                self.assertEqual(len(matching), 1, upstream)
+                selected_rules.extend(matching)
+                repo = f"survey_package_{index}"
+                repos.append(repo)
+                module += f'http_file(name = {repo!r}, urls = [{upstream!r}], sha256 = {checksum!r})\n'
+            config = work / "content-only.cfg"
+            config.write_text("\n".join(selected_rules) + "\n")
+            result, transcript, cache = self.fetch(work, module, repos, config)
+            self.assertEqual(result.returncode, 0, transcript)
+            for _upstream, _locator, checksum, size, _cdn in SURVEY_CONTENT_PACKAGES:
+                package = cache / "content_addressable/sha256" / checksum / "file"
+                self.assertEqual(package.stat().st_size, size)
+                self.assertEqual(hashlib.sha256(package.read_bytes()).hexdigest(), checksum)
+
     def test_content_package_candidates_preserve_all_locked_hashes_with_empty_cache(self):
         with tempfile.TemporaryDirectory(prefix="registry-debian-content-") as temporary:
             work = Path(temporary)

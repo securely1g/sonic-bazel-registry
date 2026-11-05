@@ -75,15 +75,22 @@ snapshot fallbacks:
 | `libc-ares-dev_1.34.5-1+deb13u1_arm64.deb` | Debian content-addressed file, then the official security CDN |
 | `openssl-provider-legacy_3.5.6-1~deb13u2_arm64.deb` | Debian content-addressed file |
 | `openssl_3.5.6-1~deb13u2_arm64.deb` | Debian content-addressed file |
+| `libc6_2.41-12+deb13u3_arm64.deb` | Debian content-addressed file, then existing CDN fallback |
+| `libblkid1_2.41-5_amd64.deb` | Debian content-addressed file, then existing CDN fallback |
+| `libpython3.13-dev_3.13.5-2+deb13u4_arm64.deb` | Debian content-addressed file, then existing CDN fallback |
+| `libtiff6_4.7.0-3+deb13u3_amd64.deb` | Debian content-addressed file |
+| `libgssrpc4t64_1.21.3-5+deb13u1_amd64.deb` | Debian content-addressed file |
 
 These candidates preserve each original APT-lock SHA256. The SHA1 in Debian's
 content-addressed URL is only a locator; Bazel still checks the stronger locked
 SHA256. The GitHub copies have a [checksum and origin manifest](https://github.com/securely1g/sonic-bazel-registry/releases/download/ci-source-mirrors-20261104/debian-package-mirrors-20261105.json).
 Their rewrites match the exact timestamp, version, and architecture. Local HTTP
 fixtures exercise the added candidates, fallback to the original paths, and
-rejection of corrupt mirror bytes. Cold Bazel fetches verify the five packages
-selected by the hosted ARM jobs against their original locked hashes and sizes;
-neither architecture's package binaries are executed by these fetch tests.
+rejection of corrupt mirror bytes. Cold Bazel fetches verify the packages
+selected by hosted ARM jobs and the cross-build survey against their original
+locked hashes and sizes. The five survey failures also have a content-only
+fetch test, so an available original URL cannot mask an unusable alternative.
+Neither architecture's package binaries are executed by these fetch tests.
 
 Other timestamped `snapshot.debian.org/archive/debian/.../pool/*.deb` downloads
 try the identical pool path on Debian's official `deb.debian.org/debian/` CDN
