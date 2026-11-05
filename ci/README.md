@@ -181,6 +181,31 @@ and unexpected changes retain their normal checks or fail the guard. This
 remains a Draft readiness limitation. The successful 6e305 runner/fetch evidence
 is historical; refreshed-head CI and consumer pin adoption remain separate.
 
+FRR AMD64 validation later failed on the distinct
+`libperl5.40_5.40.1-6_amd64.deb` and `uuid-dev_2.41-5_arm64.deb` inputs:
+both their official pool and dated Snapshot URLs returned HTTP 404. The native
+FRR job already selected the shared `ebb539d1` config; the Rust job used the
+checked-in pool config. Neither config had these two exact content routes.
+One official Snapshot content GET per package returned the retained lock's exact
+SHA256 and size: 4,341,332 bytes for libperl and 49,472 bytes for UUID. The retained
+`c589d2e5` lock matches the failed repository identities; the failed jobs' generated
+locks were not retrieved. Their package inputs are unchanged by the later Socat
+adoption. The new routes keep the existing pool and original URL fallbacks.
+UUID is an ARM64 package imported during AMD64 analysis, not an ARM build.
+Existing pure scope tests distinguish the two UUID architectures; existing
+empty-cache fetch coverage includes both additions. New configured-fetch and
+consumer CI acceptance remain pending.
+
+Orchagent AMD64 image analysis also encountered pool/Snapshot HTTP 404 for
+`libssl3t64_3.5.6-1~deb13u2_amd64.deb`. A retained successful original-URL GET
+had followed the official content redirect and returned 2,447,924 bytes with
+SHA256 `b2dab3fe29c1fcb82ef58c2db0ff4bd830a442cf37b9a8b730b7b6ce87181349`,
+matching the selected source's checked-in Orchagent lock. This route reuses that
+exact observed content URL, including its filename, followed by the original
+Snapshot URL. It adds no generic security rewrite; existing scope and fetch
+tests cover this third input as well. No repeated GET or package execution was
+needed for the retained byte proof.
+
 ## Exact Socat source archive fallback
 
 The [SWSS image source-base workflow at `6ab506bd`](https://github.com/securely1g/sonic-buildimage/actions/runs/42055651322/attempts/2)
