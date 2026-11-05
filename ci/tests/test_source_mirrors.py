@@ -226,6 +226,12 @@ DEBIAN_CONTENT_PACKAGES += (
      "a5c6a45aae0d443be8f13ebc6eddfb3e83e23b55",
      "f1c0687bb0f6ad192b9cbe64429fc76029ce2a11939b155051139caf1683b447", 470800, None),
 )
+# Exact Sysmgr source-image runtime input; distinct from rsyslog-relp.
+DEBIAN_CONTENT_PACKAGES += (
+    ("https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/r/rsyslog/rsyslog_8.2504.0-1_amd64.deb",
+     "3745d404bae6227eb2142ce4aa8baeb8b0cad14d",
+     "815203243b9eb17c72c0229fe26afb525542b867719ab36413ab8e514159a26b", 758296, None),
+)
 # BusyBox package inputs pinned by BCR rules_coreutils@1.0.1's MODULE.bazel.
 BUSYBOX_PACKAGES = (
     ("amd64", "d161cd711fcf0d21a53dd7b9665933463de9fa6a37718e78ffee4d7732e1e02a", 937460),
