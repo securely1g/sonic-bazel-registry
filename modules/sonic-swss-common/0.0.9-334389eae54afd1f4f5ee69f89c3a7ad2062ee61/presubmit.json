@@ -6,7 +6,7 @@
   "consumer_deps": [
     {
       "name": "sonic-build-infra",
-      "version": "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e",
+      "version": "0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568",
       "repo_name": "sonic_build_infra"
     },
     {
@@ -92,7 +92,7 @@
     "--@sonic-swss-common//tools/bazel:yang_modules=True"
   ],
   "go_sdk": {
-    "version": "1.25.9"
+    "version": "1.25.0"
   },
   "rust_toolchain": {
     "version": "1.90.0",

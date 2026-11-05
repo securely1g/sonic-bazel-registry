@@ -1,7 +1,7 @@
 {
-    "homepage": "https://github.com/sonic-net/sonic-mgmt-common",
-    "versions": [
-        "1.0.0-f5361ba8b88cde7ec59bdb4652a986c68d66da64",
-        "1.0.0-71eb5f710b5347ca0510ee8e3f5294a7c64bb744"
-    ]
+  "homepage": "https://github.com/sonic-net/sonic-mgmt-common",
+  "versions": [
+    "1.0.0-f5361ba8b88cde7ec59bdb4652a986c68d66da64",
+    "1.0.1-24211db5e3f7e514246f60572169260a0b5f0589"
+  ]
 }

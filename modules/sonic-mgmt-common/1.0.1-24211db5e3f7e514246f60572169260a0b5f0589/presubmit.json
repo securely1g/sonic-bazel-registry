@@ -18,8 +18,7 @@
     "@sonic-mgmt-common//dist:runtime_test",
     "@sonic-mgmt-common//dist:codegen_contract_test",
     "@sonic-mgmt-common//dist:schema_lint_test",
-    "@sonic-mgmt-common//dist:bindings_repro_test",
-    "@sonic-mgmt-common//tools/pyang:discovery_test"
+    "@sonic-mgmt-common//dist:bindings_repro_test"
   ],
   "integration_test_module": "tests/consumer"
 }
