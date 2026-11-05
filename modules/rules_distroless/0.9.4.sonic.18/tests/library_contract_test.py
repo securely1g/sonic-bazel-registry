@@ -49,9 +49,12 @@ def main():
         source = root / (name + '.c')
         source.write_text(source_text or f'int {function}(void) {{ return {value}; }}\n')
         target = root / (name + '.so')
-        run(compiler + ['-shared', '-fPIC', '-Wl,-soname,' + (soname or name + '.so.1'), '-Wl,-rpath,$ORIGIN', str(source), '-o', str(target)])
+        soname_flags = [] if soname is False else ['-Wl,-soname,' + (soname or name + '.so.1')]
+        run(compiler + ['-shared', '-fPIC'] + soname_flags + ['-Wl,-rpath,$ORIGIN', str(source), '-o', str(target)])
         machine = run(['readelf','-h',str(target)]).stdout
         assert ('AArch64' if cross else 'X86-64') in machine, machine
+        if soname is False:
+            assert '(SONAME)' not in run(['readelf','-d',str(target)]).stdout
         return target.read_bytes()
 
     def archive(name, function, value, source_text=None):
@@ -90,6 +93,33 @@ def main():
     package('libmulti-dev', dict(config_files, **{'usr/lib/libone.so': library('libone', 'one', 13, 'libone.so.1'),
         'usr/lib/libone.so.1': 'libone.so', 'usr/lib/pkgconfig/one.pc': pc('one'), 'usr/lib/pkgconfig/two.pc': pc('two')}), ['libmulti0'])
     cases.append(('multi', 'int one(void); int two(void);', 'one()+two()', 'libmulti-dev', ()))
+
+    package('libboundary-dev', dict(config_files, **{
+        'usr/lib/libboundary.so.1': library('libboundary', 'boundary_value', 42),
+        'usr/lib/libboundary_link.so': 'libboundary.so.1',
+        'usr/lib/libboundary.so': 'libboundary_link.so',
+        'usr/lib/libbroken.so': 'libabsent.so.1',
+        'usr/lib/libcycle.so': 'libcycle_next.so',
+        'usr/lib/libcycle_next.so': 'libcycle.so',
+        'usr/lib/libopaque.so.1': b'\x00opaque package data',
+        'usr/lib/libopaque.so': 'libopaque.so.1',
+        'usr/lib/libnotes.so.1': b'ordinary text package data\n',
+        'usr/lib/pkgconfig/boundary.pc': pc('boundary')}))
+    cases.append(('boundary', 'int boundary_value(void);', 'boundary_value()', 'libboundary-dev', ()))
+    package('libnosoname-dev', {'usr/lib/libnosoname.so.1': library('libnosoname', 'nosoname_value', 42, soname=False),
+        'usr/lib/libnosoname.so': 'libnosoname.so.1', 'usr/lib/pkgconfig/nosoname.pc': pc('nosoname')})
+    cases.append(('nosoname', 'int nosoname_value(void);', 'nosoname_value()', 'libnosoname-dev', ()))
+    package('libarchive0', {'usr/lib/libexternal_archive.a': archive('external_archive', 'archive_value', 42)})
+    package('libarchivedep-dev', {'usr/lib/pkgconfig/archivedep.pc': pc('external_archive')}, ['libarchive0'])
+    cases.append(('archivedep', 'int archive_value(void);', 'archive_value()', 'libarchivedep-dev', ()))
+    # Other GNU commands remain intact; only declared file operands are rewritten.
+    package('libdirectives-dev', {
+        'usr/lib/choice/libdirective.so.1': library('libdirective', 'directive_value', 42),
+        'usr/lib/other/libdirective.so.1': library('libdirective_decoy', 'directive_value', 99, 'libdirective_decoy.so.1'),
+        'usr/lib/libdirectives.so': b'/* Do not interpret INPUT(/missing/comment.so). */\nSEARCH_DIR("/usr/lib/choice")\nINCLUDE "directives.ld"\nPROVIDE ( fixture_marker = 1 );\n',
+        'usr/lib/directives.ld': b'INPUT ( "libdirective.so.1" )\n',
+        'usr/lib/pkgconfig/directives.pc': pc('directives')})
+    cases.append(('directives', 'int directive_value(void);', 'directive_value()', 'libdirectives-dev', ()))
 
     # Debian ncurses ships INPUT(libncurses.so.6 -ltinfo), with no absolute
     # filenames. Both relative filenames and -l forms must carry exact inputs.
@@ -221,7 +251,8 @@ use_repo(apt,"locked","conflicting")
             f'shared_library_cc_info(name="{case}_downstream_link",shared_library=":{case}_downstream")',
             f'cc_binary(name="{case}_consumer",srcs=["{case}_main.c"],deps=[":{case}_downstream_link"],linkopts=["-Wl,-rpath,$$ORIGIN/../lib"])']
     build.append('link_context(name="language_context",dep=":multi_downstream_link")')
-    build.append('filegroup(name="package_inputs",srcs=[' + ','.join(f'"@locked//{pkg}/{arch}:{kind}"' for pkg in ['fixture-config', 'libmulti-dev'] for kind in ['deb', 'data', 'control']) + '])')
+    payload_packages = ['fixture-config', 'libmulti-dev', 'libboundary-dev']
+    build.append('filegroup(name="package_inputs",srcs=[' + ','.join(f'"@locked//{pkg}/{arch}:{kind}"' for pkg in payload_packages for kind in ['deb', 'data', 'control']) + '])')
     if cross:
         version=run([cross['cc'],'-dumpversion']).stdout.strip()
         build += ['load(":cross_config.bzl","cross_config")', 'load("@rules_cc//cc:defs.bzl","cc_toolchain")',
@@ -248,7 +279,7 @@ use_repo(apt,"locked","conflicting")
     outputs = run(bazel+['cquery']+flags+['//:package_inputs','--output=files'],cwd=root).stdout.splitlines()
     execroot = Path(run(bazel+['info']+flags+['execution_root'],cwd=root).stdout.strip())
     archives = [execroot / file for file in outputs]
-    for pkg in ['fixture-config', 'libmulti-dev']:
+    for pkg in payload_packages:
         selected = [file for file in archives if '_'+pkg+'-' in str(file)]
         deb = next(file for file in selected if file.name == 'package.deb')
         assert deb.read_bytes() == (root/(pkg+'.deb')).read_bytes(), pkg
@@ -257,11 +288,22 @@ use_repo(apt,"locked","conflicting")
             entries = {item.name.removeprefix('./'): item for item in archive.getmembers()}
             for path, content in config_files.items():
                 assert archive.extractfile(entries[path]).read() == content, (pkg,path)
+            if pkg == 'libboundary-dev':
+                for name, destination in [('libbroken.so', 'libabsent.so.1'), ('libcycle.so', 'libcycle_next.so'), ('libcycle_next.so', 'libcycle.so')]:
+                    member = entries['usr/lib/'+name]
+                    assert member.issym() and member.linkname == destination,(name,member.linkname)
+                assert archive.extractfile(entries['usr/lib/libopaque.so.1']).read() == b'\x00opaque package data'
+                assert archive.extractfile(entries['usr/lib/libnotes.so.1']).read() == b'ordinary text package data\n'
         control = next(file for file in selected if file.name.startswith('control.tar'))
         with tarfile.open(control) as archive:
             member = next(item for item in archive.getmembers() if item.name.removeprefix('./') == 'control')
             assert ('Package: '+pkg+'\n').encode() in archive.extractfile(member).read(),pkg
     print('PASS deb/data/control preserve plain configuration files, alone and beside native libraries',flush=True)
+    for name, message in [('libbroken_cc', 'Unresolved native symlink'), ('libcycle_cc', 'Cyclic native symlink'), ('libopaque_cc', 'Cannot inspect native shared library')]:
+        result = subprocess.run(bazel+['build']+flags+['@locked//libboundary-dev:'+name],cwd=root,env=env,text=True,capture_output=True)
+        (root/(name+'.log')).write_text(result.stdout+result.stderr)
+        assert result.returncode and message in result.stdout+result.stderr,(name,result.stdout+result.stderr)
+        print('PASS native-only error:',name,flush=True)
     with (root / 'build.log').open('w') as log:
         result = subprocess.run(bazel+['build']+flags+['//:'+case+'_consumer' for case, *_ in cases]+['//:language_context'],cwd=root,env=env,stdout=log,stderr=subprocess.STDOUT)
     if result.returncode:
@@ -292,6 +334,8 @@ use_repo(apt,"locked","conflicting")
             names = re.findall(r'\(SONAME\).*\[([^]]+)\]',dynamic)
             if names:
                 shutil.copy2(file,install/'lib'/names[0])
+            elif '.so' in file.name:
+                shutil.copy2(file,install/'lib'/file.name)
     for case, *_ in cases:
         for name in [case+'_bridge',case+'_downstream']:
             shutil.copy2(root/'bazel-bin'/('lib'+name+'.so'),install/'lib'/('lib'+name+'.so'))

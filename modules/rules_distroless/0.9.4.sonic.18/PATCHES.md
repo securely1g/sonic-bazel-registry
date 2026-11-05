@@ -334,3 +334,15 @@ enter ELF inspection. Public deb/data/control interfaces keep their bytes and
 metadata. The synthetic contract builds these interfaces before native targets
 for a configuration-only package and a package combining configuration with
 real libraries, then verifies their archives and native links on both CPUs.
+
+`0028-isolate-native-library-analysis.patch` preserves package archive/control
+imports when candidate libraries are text, opaque data or unresolved/cyclic
+symlinks. Native errors are analysis-time targets selected only by the native
+consumer; valid neighbors continue to link. Local symlink chains resolve to
+their terminal file. Text scripts preserve original GNU syntax, comments and
+layout; file operands from INPUT/GROUP/AS_NEEDED/STARTUP/INCLUDE are resolved,
+including quoted paths and SEARCH_DIR inheritance into included scripts. The
+GNU linker validates other commands. Exported .ld/.lds inputs support INCLUDE;
+static libraries named by pkg-config can come from dependency packages. The
+contract also verifies no-SONAME ELF loading through two DSO boundaries and a
+relocated install. No production component build is required by these fixtures.

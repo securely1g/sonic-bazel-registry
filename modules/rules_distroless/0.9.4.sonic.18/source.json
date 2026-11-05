@@ -30,7 +30,8 @@
     "0024-transitive-script-libraries.patch": "sha256-Q1tAcn5A0pfwW6HVEUmeRCk9PblcUui+0vCpSXbeNyQ=",
     "0025-complete-library-graphs.patch": "sha256-BjHlF8MbcVLQDJeowOwx6iZuZErZnb6jTnlYrvUz0mA=",
     "0026-relative-linker-script-inputs.patch": "sha256-49FzPdLyHunRCd3omrnEpbnXOE3fI/gP68WeC/Caq+k=",
-    "0027-classify-shared-library-basenames.patch": "sha256-CzUWQPCLpNb9v5BKwweUKpaCrLl4klNGaPfTOUIomJU="
+    "0027-classify-shared-library-basenames.patch": "sha256-CzUWQPCLpNb9v5BKwweUKpaCrLl4klNGaPfTOUIomJU=",
+    "0028-isolate-native-library-analysis.patch": "sha256-9FOlCzj4IgA1C7cu7AtiWRyB7xvWXlEtOd7q1r1scaQ="
   },
   "patch_strip": 1,
   "overlay": {
