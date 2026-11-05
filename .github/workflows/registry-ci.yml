@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   pty_regression:
-    name: Exact PTY exit-order regression
+    name: PTY and prepared-runtime regressions
     runs-on: [self-hosted, Linux, X64, debian-trixie-container]
     timeout-minutes: 5
     steps:
@@ -20,12 +20,14 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - name: Run all eight original and candidate terminal cases
+      - name: Run original terminal and prepared-runtime cases
         shell: bash
         run: |
           set -euo pipefail
           /usr/bin/python3 -I -S -B modules/libyang/3.12.2.sonic.7/tests/pty_wait_test.py \
             --output "$RUNNER_TEMP/libyang-pty-regression"
+          /usr/bin/python3 -I -S -B modules/libyang/3.12.2.sonic.7/tests/prepared_runtime_test.py -v \
+            2>&1 | tee "$RUNNER_TEMP/libyang-pty-regression/prepared-runtime.log"
       - name: Retain exact terminal regression evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
