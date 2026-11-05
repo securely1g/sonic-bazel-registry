@@ -12,6 +12,15 @@ Python while preserving target-CPU validation and real target binary execution.
 The direct `tar.bzl` request is aligned to `0.10.5.sonic.2`, already required by
 that infra source, so the declared consumer pin matches Bazel's selected version.
 
+The Trixie dependency alias consumes infra's existing reviewed `libyang_deps`
+collection. All eight directly required package identities and SHA256 values
+match the original `.6` graph on AMD64 and ARM64. The source lock has one
+transitive cleanup on AMD64: it retains security `linux-libc-dev` 6.12.96-1 and
+omits the redundant older 6.12.86-1 record. No package lock, archive checksum or
+source snapshot is edited. The separate Bookworm extension retains its original
+package requests and now declares the same two source records explicitly, since
+infra no longer supplies records in that historical namespace.
+
 The interactive upstream-test driver now waits for Tcl's actual exit before
 closing the controlling PTY. Closing at PTY EOF could otherwise send SIGHUP
 before Tcl completed. Test cases, assertions, exit-code checks and original
