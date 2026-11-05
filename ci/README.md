@@ -582,13 +582,13 @@ and replace it with a fresh registered runner after success, failure, or
 cancellation. Keep registration credentials in the manager, outside job
 containers, and retain runner diagnostics before removing a container.
 
-This exploratory branch sets `ARM_CROSS_ALL = True`: every selected ARM64
-module version uses native AMD64 cross-compilers and the ARM runtime executor
-inside the Trixie runner. The latest-version matrix contains 27 ARM64 and 39
-AMD64 module jobs. All original build labels, test labels, sources and dependency
-pins remain unchanged. Historical and future ARM versions also use cross mode
-when selected. Failures remain failures and do not cancel other matrix entries;
-the results determine a separate passing-only migration PR.
+This staged migration sets `ARM_CROSS_ALL = False`. Only the exact module
+versions in `ARM_CROSS_VERSIONS` use native AMD64 cross-compilers and the ARM
+runtime executor inside the Trixie runner. Every other ARM version retains its
+native GitHub-hosted ARM route, including newer versions of a migrated module.
+All original build labels, test labels, sources and dependency pins remain
+unchanged. The separate all-ARM survey supplies the acceptance evidence below;
+failed or incomplete contracts remain on native ARM while fixes are validated.
 
 Module steps execute directly inside the disposable runner, built from the
 pinned Trixie base with compiler and package-test tools preinstalled.
@@ -641,10 +641,11 @@ permissions on those private copies. Build actions keep their existing sandbox
 strategy. Local or exclusive tests retain the `local` fallback, and real Bazel
 regressions cover both paths without changing published tests.
 
-The complete helper test suite runs once on AMD64 with pinned Bazel 8.5.1,
-matching the orchestration host for both native and cross module jobs. This
-survey replaces the former hosted native-ARM helper lane with the required
-cross fixture; it does not claim native ARM Bazel execution coverage.
+The native helper suite runs on both AMD64 Trixie and GitHub-hosted native ARM64
+with the matching checksum-pinned Bazel 8.5.1 binary. Native ARM helper coverage
+remains required while any modules retain that route. The separate required
+cross fixture tests native execution tools, ARM compilation and ARM runtime
+behavior; it does not replace or claim native ARM Bazel execution coverage.
 `run_runner_tests.py --suite native` discovers every test file except the ARM
 cross-runtime fixture. A separate local job runs `--suite cross` with a 60-minute
 bound, both executable prerequisites explicitly set and checked, and failure on
@@ -674,13 +675,39 @@ an ARM64 target, and an explicit disposable Debian Trixie container identity.
 The reusable workflow selects native Bazel, image, sudo and artifact handling by
 execution mode while preserving the target architecture and all original labels.
 
-The exploratory PR keeps `ARM_CROSS_ALL` enabled until all selected ARM jobs
-have produced build/test outcomes. A separate migration PR disables that switch
-and uses the temporary `ARM_CROSS_VERSIONS` map for versions whose complete
-original contract passed. Published-entry immutability remains enforced.
-Failures are investigated individually, with infrastructure/setup failures
-reported separately from compilation, linking and test failures. A successful
-build alone is not a module pass: every declared test must also pass uncached.
+The temporary `ARM_CROSS_VERSIONS` map selects only complete original contracts
+qualified in [the all-ARM survey](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416)
+at `88d24c7010a5affd9deb1286e63c5a23e246879c`. The job artifacts bind the exact
+source inputs, unchanged selected dependency versions, native execution and ARM
+target platforms, produced output identities, and every original uncached test.
+A successful build alone is not a module pass. Source-fix probes and diagnostic
+replays do not count as survey acceptance. Published-entry immutability remains
+enforced; the routing map changes execution placement only.
+
+| Module | Exact version | Build / test labels | Survey evidence |
+| --- | --- | --- | --- |
+| `gawk` | `5.3.2.sonic.1` | 3 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127198380280) |
+| `gazelle` | `0.54.0.sonic.1` | 1 / 3 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127198380420) |
+| `libnl3` | `3.7.0.sonic.7` | 5 / 4 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127198380378) |
+| `libyang-python` | `3.1.0.sonic.6` | 4 / 3 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127205852291) |
+| `protobuf-legacy` | `3.21.12.sonic.2` | 8 / 4 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127218315473) |
+| `rules_foreign_cc` | `0.16.0.sonic.1` | 2 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127221268640) |
+| `rules_python` | `1.9.0.sonic.1` | 3 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127230792181) |
+| `sai` | `1.18.0-sonic.1` | 2 / 3 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127259342573) |
+| `socat` | `1.8.0.2.sonic.5` | 4 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127316394685) |
+| `sonic-dash-api` | `0.0.5-9b2893e890734a2db0c53a5e5c64b031ec0dcfbd` | 8 / 5 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127363604452) |
+| `sonic-linux-kernel` | `0.0.2-34a53faaecd325509e9d8f1016ed0108ab558a23` | 5 / 5 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127391886151) |
+| `sonic-rust-deps` | `0.0.4-6d9c70f708d7420e9e2b2cdc906b80cee6b140f1` | 6 / 4 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127417149111) |
+| `sonic-yang-mgmt` | `1.0.0-9ab452d22773c41783092ae3bd6c206d6c257c8d` | 2 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127454762848) |
+| `sonic-yang-models` | `1.0.1-b0a9362a7a1b4b5e1b7188c019d256f7c8aaff9f` | 3 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127456801062) |
+| `tar.bzl` | `0.10.5.sonic.2` | 8 / 7 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127457427548) |
+
+The `linux-kernel` contract validates its declared helpers; it does not build or
+boot a kernel image. Passing tests only establish each module's existing
+presubmit contract, not broader undeclared functionality. Yang-model package outputs and TAR
+regression archives are architecture-neutral; their original target-side runtime
+tests remain required, and native execution tools retain their configurations.
+The remaining module failures stay visible in the survey and retain native ARM validation here.
 
 The gawk smoke test uses gawk as a native execution tool while the direct gawk
 build targets ARM64. Test execution follows the declared Bazel configuration;

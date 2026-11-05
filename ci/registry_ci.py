@@ -46,18 +46,31 @@ RUNNERS = {
     "amd64": ["self-hosted", "Linux", "X64", "debian-trixie-container"],
     "arm64": ["ubuntu-24.04-arm"],
 }
-# The survey sends every selected ARM version through cross validation, including
-# historical/future versions. A separate passing-only PR disables this switch
-# and selects only versions whose complete original contract has passed.
-ARM_CROSS_ALL = True
-# Temporary staged rollout: CI validates the complete original ARM contract for
-# these versions before the migration PR can land. Remove this map and the hosted
-# ARM route when migration is complete, including for future ARM versions.
+# This staged migration keeps unverified and future ARM versions on native ARM.
+# The exploratory survey uses True in its separate branch; do not infer success
+# from a build-only result or an API-green job without the original test evidence.
+ARM_CROSS_ALL = False
+# Temporary exact-version routes qualified by the complete original ARM contract.
+# Remove this map and the hosted ARM route after the full migration, so future
+# ARM versions receive cross validation as well. See ci/README.md for CI evidence.
 ARM_CROSS_VERSIONS: dict[str, tuple[str, ...]] = {
     "gawk": ("5.3.2.sonic.1",),
+    "gazelle": ("0.54.0.sonic.1",),
     "libnl3": ("3.7.0.sonic.7",),
     "libyang-python": ("3.1.0.sonic.6",),
+    "protobuf-legacy": ("3.21.12.sonic.2",),
+    "rules_foreign_cc": ("0.16.0.sonic.1",),
+    "rules_python": ("1.9.0.sonic.1",),
+    "sai": ("1.18.0-sonic.1",),
+    "socat": ("1.8.0.2.sonic.5",),
+    "sonic-dash-api": ("0.0.5-9b2893e890734a2db0c53a5e5c64b031ec0dcfbd",),
+    "sonic-linux-kernel": ("0.0.2-34a53faaecd325509e9d8f1016ed0108ab558a23",),
+    "sonic-rust-deps": ("0.0.4-6d9c70f708d7420e9e2b2cdc906b80cee6b140f1",),
+    "sonic-yang-mgmt": ("1.0.0-9ab452d22773c41783092ae3bd6c206d6c257c8d",),
+    "sonic-yang-models": ("1.0.1-b0a9362a7a1b4b5e1b7188c019d256f7c8aaff9f",),
+    "tar.bzl": ("0.10.5.sonic.2",),
 }
+
 HTTP_DOWNLOAD_FLAGS = (
     "--http_connector_attempts=12",
     "--http_connector_retry_max_timeout=10s",

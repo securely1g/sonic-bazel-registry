@@ -1968,6 +1968,12 @@ class StagedCrossRoutingTests(FixtureTestCase):
             self.assertEqual(job["execution_architecture"], job["architecture"])
             self.assertEqual(job["runner"], registry_ci.RUNNERS[job["architecture"]])
 
+    def test_staged_default_keeps_unlisted_versions_on_native_arm(self):
+        self.assertIs(registry_ci.ARM_CROSS_ALL, False)
+        jobs = registry_ci.plan(self.root, None, self.head, all_versions=True,
+                                published=self.head)["include"]
+        self.assertEqual(jobs, self.planned({}))
+
     def test_exact_version_moves_only_declared_arm_row_without_mutating_inputs(self):
         before = {str(path): path.read_bytes() for path in (self.root / "modules").rglob("*") if path.is_file()}
         native = self.planned({})
@@ -2100,8 +2106,16 @@ class WorkflowMatrixTests(unittest.TestCase):
         cross = self.workflow.split("  cross_fixture:\n", 1)[1].split("  modules_local:\n", 1)[0]
         self.assertIn("python3 ci/run_runner_tests.py --suite native", unit)
         self.assertIn("architecture: amd64", unit)
-        self.assertNotIn("architecture: arm64", unit)
-        self.assertNotIn("ubuntu-24.04-arm", unit)
+        self.assertIn("architecture: arm64", unit)
+        self.assertIn("runner: [ubuntu-24.04-arm]", unit)
+        rows = re.findall(r"- architecture: (\w+)\n\s+runner: \[([^\]]+)\]\n"
+                          r"\s+machine: (\w+)\n\s+bazel_arch: (\w+)\n\s+bazel_sha: ([0-9a-f]+)", unit)
+        self.assertEqual(rows, [
+            ("amd64", "self-hosted, Linux, X64, debian-trixie-container", "x86_64", "x86_64",
+             "61d89402f0368e64b6c827be5de79d8e65382e8124c3cbb97325611a1851392e"),
+            ("arm64", "ubuntu-24.04-arm", "aarch64", "arm64",
+             "b7f2a85595e8a87d54843bc656c1e379fd9b8c1b5f783dc41717c1d7eb7cc49f"),
+        ])
         self.assertNotIn("REGISTRY_CI_TEST_ARM_EXECUTOR", unit)
         self.assertIn("python3 ci/run_runner_tests.py --suite cross", cross)
         self.assertIn("REGISTRY_CI_TEST_BAZEL: /usr/local/bin/bazel", cross)
@@ -2110,6 +2124,39 @@ class WorkflowMatrixTests(unittest.TestCase):
         self.assertIn("timeout-minutes: 60", cross)
         self.assertIn("name: registry-ci-arm-cross-fixture", cross)
         self.assertNotIn("continue-on-error", cross)
+
+    def test_native_unit_bazel_setup_uses_each_execution_architecture(self):
+        unit = self.workflow.split("  unit:\n", 1)[1].split("  cross_fixture:\n", 1)[0]
+        script = TestContainerTests.step(unit, "Install Bazel for real runner integration tests")
+        rows = re.findall(r"- architecture: (\w+)\n\s+runner: \[[^\]]+\]\n"
+                          r"\s+machine: (\w+)\n\s+bazel_arch: (\w+)\n\s+bazel_sha: ([0-9a-f]+)", unit)
+        for architecture, machine, bazel_arch, checksum in rows:
+            with self.subTest(architecture=architecture), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                environment = TestContainerTests.shell_environment(self, root, architecture, architecture, False)
+                environment.update(EXPECTED_MACHINE=machine, BAZEL_ARCH=bazel_arch, BAZEL_SHA=checksum,
+                                   GITHUB_ENV=str(root / "github-env"))
+                chmod = root / "bin/chmod"
+                chmod.write_text('#!/bin/bash\nprintf "%s\\n" "$@" > "$RUNNER_TEMP/chmod-args"\n')
+                chmod.chmod(0o755)
+                result = subprocess.run(["/bin/bash", "-c", script], env=environment,
+                                        text=True, capture_output=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual((root / "CHECKSUM_ARGS").read_text().splitlines(), ["--check", "--strict"])
+                binary = "/usr/local/lib/bazel-8.5.1" if architecture == "amd64" else environment["RUNNER_TEMP"] + "/bazel-8.5.1"
+                self.assertEqual((root / "CHECKSUM_LOG").read_text().strip(), checksum + "  " + binary)
+                selected = "/usr/local/bin/bazel" if architecture == "amd64" else binary
+                self.assertEqual((root / "github-env").read_text(), "REGISTRY_CI_TEST_BAZEL=" + selected + "\n")
+                if architecture == "amd64":
+                    self.assertFalse((root / "CURL_LOG").exists())
+                else:
+                    self.assertEqual((root / "CURL_LOG").read_text().splitlines(),
+                                     ["--fail", "--location", "--retry", "3", "--output", binary,
+                                      "https://releases.bazel.build/8.5.1/release/bazel-8.5.1-linux-arm64"])
+                    self.assertEqual((Path(environment["RUNNER_TEMP"]) / "chmod-args").read_text().splitlines(), ["0755", binary])
+                bad = subprocess.run(["/bin/bash", "-c", script],
+                                     env={**environment, "NATIVE_MACHINE": "unexpected"}, text=True, capture_output=True)
+                self.assertNotEqual(bad.returncode, 0)
 
 
 class TestContainerTests(unittest.TestCase):
