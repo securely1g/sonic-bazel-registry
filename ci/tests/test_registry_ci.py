@@ -1254,9 +1254,13 @@ class RustPreparationTests(FixtureTestCase):
 
     def test_shared_module_bazel_uses_the_same_startup_options(self) -> None:
         startup = ["--host_jvm_args=-Xmx2g", "--host_jvm_args=-Dexample=value with spaces"]
+        downloader = "--experimental_downloader_config=/runner temp/registry-source-mirrors.cfg"
         _, execute, _ = self.prepare(startup_args=startup,
-                                    build_args=["--jobs=1", "--discard_analysis_cache"])
+                                    build_args=["--jobs=1", "--discard_analysis_cache", downloader])
         command = execute.call_args.args[0]
+        self.assertEqual([arg for arg in command if arg.startswith("--bazel-arg=--experimental_downloader_config=")],
+                         ["--bazel-arg=--experimental_downloader_config=/registry/ci/source_mirrors.cfg",
+                          "--bazel-arg=" + downloader])
         self.assertEqual(command[command.index("--bazel") + 1], "bazel")
         self.assertEqual([arg.removeprefix("--bazel-startup-arg=") for arg in command
                           if arg.startswith("--bazel-startup-arg=")],
@@ -2080,8 +2084,10 @@ class TestContainerTests(unittest.TestCase):
                                  ["--bazel-startup-arg=--host_jvm_args=-Xmx2g"]
                                  if architecture == "amd64" else [])
                 self.assertEqual([arg for arg in arguments if arg.startswith("--bazel-build-arg=")],
-                                 ["--bazel-build-arg=--jobs=1", "--bazel-build-arg=--discard_analysis_cache"]
-                                 if architecture == "amd64" else [])
+                                 (["--bazel-build-arg=--jobs=1", "--bazel-build-arg=--discard_analysis_cache"]
+                                  if architecture == "amd64" else [])
+                                 + ["--bazel-build-arg=--experimental_downloader_config="
+                                    + str(root / "runner temp" / "registry-source-mirrors.cfg")])
                 self.assertNotIn("--cross-compile", arguments)
                 self.assertNotIn("--test-executor", arguments)
                 self.assertEqual(arguments[arguments.index("--work-dir") + 1],
@@ -2109,6 +2115,92 @@ class BazelStartupArgumentTests(unittest.TestCase):
                 execute.assert_called_once_with(registry_ci.ROOT, "alpha", "1.0.0", "amd64",
                                                 Path("/tmp/work"), Path("/tmp/artifacts"), "bazel", None,
                                                 startup, build)
+
+
+class ModuleDownloaderWorkflowTests(unittest.TestCase):
+    def test_bootstrap_checks_actual_config_before_writing_or_building(self) -> None:
+        from urllib import request
+
+        workflow = (registry_ci.ROOT / ".github/workflows/registry-module.yml").read_text()
+        step = workflow.split("      - name: Configure the verified source mirror\n", 1)[1]
+        step = step.split("      - name:", 1)[0]
+        script = step.split("          python3 - <<'PYCFG'\n", 1)[1].split("          PYCFG\n", 1)[0]
+        script = "\n".join(line[10:] for line in script.splitlines())
+        self.assertLess(workflow.index("Configure the verified source mirror"),
+                        workflow.index("Build and test through the registry"))
+        source = (Path(__file__).parent / "fixtures/source_mirrors_450659.cfg").read_bytes()
+        self.assertEqual(len(source), 24138)
+        self.assertEqual(hashlib.sha256(source).hexdigest(),
+                         "cea2192b4b562c4dd5c0a42535164560d910253a00a60c298bba7e6f12a5e186")
+        for data, valid in ((source, True), (source + b"corrupt", False), (b"", False)):
+            with self.subTest(valid=valid, size=len(data)), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                runner = root / "runner temp"
+                runner.mkdir()
+                workspace = root / "workspace"
+                workspace.mkdir()
+                sentinel = runner / "repository-cache"
+                sentinel.write_bytes(b"preserved cache")
+                config = runner / "registry-source-mirrors.cfg"
+                evidence = workspace / "ci-artifacts/source_mirrors.cfg"
+                env = {"RUNNER_TEMP": str(runner), "GITHUB_WORKSPACE": str(workspace)}
+                with mock.patch.dict(os.environ, env), \
+                        mock.patch.object(request, "urlopen", return_value=io.BytesIO(data)) as download, \
+                        mock.patch.object(subprocess, "run") as execute:
+                    if valid:
+                        exec(compile(script, "workflow-bootstrap", "exec"), {})
+                        self.assertEqual(config.read_bytes(), source)
+                        self.assertEqual(evidence.read_bytes(), source)
+                    else:
+                        with self.assertRaisesRegex(SystemExit, "checksum mismatch"):
+                            exec(compile(script, "workflow-bootstrap", "exec"), {})
+                        self.assertFalse(config.exists())
+                        self.assertFalse(evidence.exists())
+                    execute.assert_not_called()
+                    download.assert_called_once_with(
+                        "https://raw.githubusercontent.com/securely1g/sonic-bazel-registry/"
+                        "45065949f5163bd5d99793026b076eafec213ef8/ci/source_mirrors.cfg", timeout=60)
+                self.assertEqual(sentinel.read_bytes(), b"preserved cache")
+                self.assertFalse((runner / "registry-ci").exists())
+
+    def test_only_exact_owned_ci_scope_defers_native_matrix(self) -> None:
+        workflow = (registry_ci.ROOT / ".github/workflows/registry-ci.yml").read_text()
+        script = workflow.split("          python3 - <<'PY'\n", 1)[1].split("          PY\n", 1)[0]
+        script = "\n".join(line[10:] for line in script.splitlines())
+        matrix = {"include": [{"module": "original", "architecture": arch} for arch in ("amd64", "arm64")]}
+        allowed = [".github/workflows/registry-ci.yml", ".github/workflows/registry-module.yml",
+                   "ci/tests/test_registry_ci.py", "ci/tests/fixtures/source_mirrors_450659.cfg", "ci/README.md"]
+        cases = [("pull_request", "codex/registry-module-downloader", "securely1g/sonic-bazel-registry", allowed, True)]
+        cases += [(event, branch, repo, allowed, False) for event, branch, repo in (
+            ("push", "codex/registry-module-downloader", "securely1g/sonic-bazel-registry"),
+            ("workflow_dispatch", "codex/registry-module-downloader", "securely1g/sonic-bazel-registry"),
+            ("pull_request", "codex/registry-module-downloader-other", "securely1g/sonic-bazel-registry"),
+            ("pull_request", "codex/libteam-native", "securely1g/sonic-bazel-registry"),
+            ("pull_request", "codex/registry-module-downloader", "someone/fork"))]
+        cases += [("pull_request", "codex/registry-module-downloader", "securely1g/sonic-bazel-registry", paths, None)
+                  for paths in ([], [*allowed, "modules/libteam/metadata.json"],
+                                [*allowed, "ci/registry_ci.py"], ["ci/tests/fixtures/source_mirrors_other.cfg"])]
+        for event, branch, repo, paths, empty in cases:
+            with self.subTest(event=event, branch=branch, repo=repo, paths=paths), tempfile.TemporaryDirectory() as temporary:
+                output = Path(temporary) / "output"
+                env = {"EVENT_NAME": event, "HEAD_REF": branch, "HEAD_REPOSITORY": repo,
+                       "BASE_SHA": "base", "HEAD_SHA": "head", "GITHUB_OUTPUT": str(output)}
+                with mock.patch.dict(os.environ, env), \
+                        mock.patch.object(Path, "read_text", return_value=json.dumps(matrix)), \
+                        mock.patch.object(subprocess, "check_output", return_value="\n".join(paths)):
+                    if empty is None:
+                        with self.assertRaisesRegex(SystemExit, "scope rejects"):
+                            exec(compile(script, "workflow-matrix", "exec"), {})
+                        self.assertFalse(output.exists())
+                        continue
+                    exec(compile(script, "workflow-matrix", "exec"), {})
+                values = dict(line.split("=", 1) for line in output.read_text().splitlines())
+                self.assertEqual(json.loads(values["matrix"]), {"include": []} if empty else matrix)
+                self.assertEqual(values["has_jobs"], "false" if empty else "true")
+                for arch in ("amd64", "arm64"):
+                    self.assertEqual(values["has_" + arch + "_jobs"], "false" if empty else "true")
+                    self.assertEqual(json.loads(values[arch + "_matrix"]), {"include": [] if empty else
+                                     [row for row in matrix["include"] if row["architecture"] == arch]})
 
 
 class FetchedModuleTests(FixtureTestCase):
@@ -2203,7 +2295,8 @@ class FetchedModuleTests(FixtureTestCase):
                                                     "--host_jvm_args=-Dexample=value with spaces"])):
             with self.subTest(startup=startup):
                 commands_path.write_text("")
-                build = ["--jobs=1", "--discard_analysis_cache"] if startup else []
+                downloader = "--experimental_downloader_config=" + str(self.root / "runner temp/source_mirrors.cfg")
+                build = ["--jobs=1", "--discard_analysis_cache", downloader] if startup else []
                 with mock.patch.object(registry_ci, "prepare_rust", wraps=registry_ci.prepare_rust) as prepare:
                     artifacts = self.run_fixture(suffix, startup_args=startup, build_args=build)
                 expected = ["--ignore_all_rc_files", f"--output_user_root={self.root / ('work-' + suffix) / 'bazel'}",
@@ -2215,7 +2308,10 @@ class FetchedModuleTests(FixtureTestCase):
                     self.assertEqual(command[:len(expected)], expected)
                     self.assertFalse(any(arg.startswith("--host_jvm_args=") for arg in command[len(expected):]))
                     for flag in build:
-                        self.assertEqual(flag in command, command[len(expected)] != "info")
+                        self.assertEqual(flag in command, flag == downloader or command[len(expected)] != "info")
+                    configs = [arg for arg in command if arg.startswith("--experimental_downloader_config=")]
+                    self.assertEqual(configs, ["--experimental_downloader_config=" + str(self.root / "ci/source_mirrors.cfg")]
+                                     + ([downloader] if startup else []))
                 prepare.assert_called_once()
                 self.assertEqual(prepare.call_args.args[4], [str(self.fake_bazel), *expected])
                 for flag in build:

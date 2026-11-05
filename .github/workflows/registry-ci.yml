@@ -96,6 +96,21 @@ jobs:
                   raise SystemExit("BEP Unicode scope rejects unexpected files: " + repr(changed - allowed))
               print("Draft BEP Unicode repair: retain policy plan and both runner suites; no module jobs.")
               matrix = {"include": []}
+          if (os.environ["EVENT_NAME"] == "pull_request"
+                  and os.environ["HEAD_REF"] == "codex/registry-module-downloader"
+                  and os.environ["HEAD_REPOSITORY"] == "securely1g/sonic-bazel-registry"):
+              # Temporary Draft scope: retain policy planning and both runner
+              # suites; defer the broader native module matrix until Ready.
+              allowed = {".github/workflows/registry-ci.yml", ".github/workflows/registry-module.yml",
+                         "ci/tests/test_registry_ci.py", "ci/tests/fixtures/source_mirrors_450659.cfg",
+                         "ci/README.md"}
+              changed = set(subprocess.check_output(
+                  ["git", "diff", "--name-only", os.environ["BASE_SHA"] + "..." + os.environ["HEAD_SHA"]],
+                  text=True).splitlines())
+              if not changed or not changed <= allowed:
+                  raise SystemExit("Module downloader scope rejects unexpected files: " + repr(changed - allowed))
+              print("Draft module downloader integration: retain policy plan and both runner suites; no module jobs.")
+              matrix = {"include": []}
           architectures = ("amd64", "arm64")
           if any(job["architecture"] not in architectures for job in matrix["include"]):
               raise SystemExit("Unsupported architecture in validation plan")

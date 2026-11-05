@@ -27,6 +27,38 @@ module job passes. A skipped module matrix is accepted only after successful
 planning explicitly selected no jobs. Adding the workflow does not itself change
 repository branch-protection settings.
 
+## Module CI downloader configuration
+
+Normal module jobs reuse the checksum-verified bootstrap from SONiC's FRR CI to
+select [reviewed downloader candidate `450659`](https://github.com/securely1g/sonic-bazel-registry/tree/45065949f5163bd5d99793026b076eafec213ef8)
+from [registry #228](https://github.com/securely1g/sonic-bazel-registry/pull/228).
+This selection remains unlanded. It includes the reviewed sibling-architecture
+routes and exact Redis content route from the reconciled owner candidate. No
+owner CI acceptance is implied.
+
+The libteam, SWSS and Socat AMD64 jobs selected the same locked
+`libc6-dev_2.41-12+deb13u3_amd64.deb`, whose pool and dated Snapshot URLs both
+returned 404. The reviewed configuration already supplies its exact official
+content route. The job verifies configuration SHA256
+`cea2192b4b562c4dd5c0a42535164560d910253a00a60c298bba7e6f12a5e186`
+before Bazel starts, passes it through the existing build-argument interface,
+and retains the exact file with validation artifacts. It changes neither the
+module catalog nor any package checksum. It adds no persistent cache.
+
+The caller's downloader flag follows the runner's checked-in default. Bazel
+8.5.1 declares a [scalar downloader option](https://github.com/bazelbuild/bazel/blob/8.5.1/src/main/java/com/google/devtools/build/lib/bazel/repository/RepositoryOptions.java)
+and its [parser uses the last value](https://github.com/bazelbuild/bazel/blob/8.5.1/src/main/java/com/google/devtools/common/options/OptionsParserImpl.java); build, test,
+query, Rust preparation and info commands retain that selection. Local runner
+invocations without the workflow keep their existing checked-in default below.
+The existing work-directory, cache, runner, sudo and resource settings remain.
+
+The exact `codex/registry-module-downloader` Draft branch defers the broader
+native module matrix only when its changes stay within the five CI integration
+paths. Policy planning and both real Bazel runner suites remain enabled. Other
+branches and module validation plans retain their normal jobs. Remove the guard
+and validate the broader matrix before marking this integration Ready. Pure
+command and bootstrap checks do not establish a successful native fetch/build.
+
 ## Verified source mirrors
 
 The runner passes Bazel's standard `--experimental_downloader_config` with
