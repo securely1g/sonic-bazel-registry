@@ -4,7 +4,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-binary = "/usr/local/lib/bazel-8.5.1"
+# Use the runner launcher for its Bazel JVM trust store and remote-cache policy.
+binary = "/usr/local/bin/bazel"
 args = sys.argv[1:]
 if not any(command in args for command in ("build", "cquery")):
     raise SystemExit(subprocess.call([binary, *args]))
