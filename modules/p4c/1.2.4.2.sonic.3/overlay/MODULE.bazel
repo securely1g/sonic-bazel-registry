@@ -66,6 +66,7 @@ p4c_source(
         "//:bazel/runtime.bzl": "bazel/runtime.bzl",
         "//:bazel/python.py": "bazel/python.py",
         "//:bazel/tool.bzl": "bazel/tool.bzl",
+        "//:bazel/codegen.bzl": "bazel/codegen.bzl",
         "//:bazel/foreign.cmake": "bazel/foreign.cmake",
         "//:bazel/package_test.py": "bazel/package_test.py",
     },
@@ -77,5 +78,6 @@ p4c_source(
         "//:bazel/0005-remove-protobuf-from-debian-dependency.patch",
         "//:bazel/0006-remove-scapy-from-debian-dependency.patch",
         "//:bazel/0007-cross-kernel-version.patch",
+        "//:bazel/0008-execution-platform-ir-generator.patch",
     ],
 )
