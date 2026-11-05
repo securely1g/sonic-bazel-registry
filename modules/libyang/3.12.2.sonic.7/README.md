@@ -55,3 +55,11 @@ The earlier bounded real ARM replay passed the original `add_basic` assertions
 with native preparation and the corrected PTY order. Full seven-build/five-test
 acceptance and before/after selected-graph evidence are still required for this
 draft; the focused replay alone is not full module acceptance.
+
+### Prepared CLI test runtimes
+
+The `test_yanglint` and `test_yangre` wrappers prepare their runtime closure once as declared native build actions. They call the selected infra runtime validator with the explicit target CPU, original target binary/runfiles and original payloads. The existing instrumentation boundary captures the already-validated loader, libraries and debug files into a declared runtime tree; it never executes a target during preparation. Target ELF, payload architecture, SONAME, debug-link and transitive RPATH checks still run. A relocatable manifest records the validator and target hashes plus every captured runtime file.
+
+Each test invocation still executes the genuine target loader and original binary. Its original binary path/runfiles, working directory, arguments and caller environment are preserved, with the same three loader environment variables removed. A small statically linked execution-platform path resolver preserves the original binary symlink/RPATH semantics without starting Python or consuming its startup environment. This removes repeated archive/ELF preparation from the original five-second interactive startup deadline. Other runtime wrappers and arbitrary Python tests are unchanged. The full seven-build/five-test native and cross contracts remain the acceptance gate.
+
+`tests/prepared_runtime_test.py` exercises capture architecture/command guards and a clearly labelled launcher surrogate for cwd/argument/environment preservation; it does not substitute for real target execution.
