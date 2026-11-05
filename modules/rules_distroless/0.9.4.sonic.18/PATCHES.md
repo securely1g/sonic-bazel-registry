@@ -380,3 +380,12 @@ both architectures. The comparison against songqing-sq/sonic_rules master
 Distroless commit815b4b3. Its separate linker-script generation path does not
 merge all .pc link flags into libbsd; module-aware selection preserves that
 ordinary-library behavior while honoring explicitly selected ctor options.
+
+## 0031: Deduplicate resolved pkg-config dependency labels
+
+A module's Libs and Libs.private can both reference the same installed library.
+Keep the first resolved dependency label and omit later duplicates when generating
+Bazel deps. Preserve link option order. The regression fixture puts the same
+library in public and private linker declarations; it must analyze, link and run
+through the existing two-shared-library contract. Actual Trixie libzmq3-dev
+4.3.5-1+b3 provides the production static-module input.

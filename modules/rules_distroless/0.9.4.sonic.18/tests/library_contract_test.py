@@ -171,7 +171,7 @@ def main():
         'usr/lib/libdirectives.so': b'/* Do not interpret INPUT(/missing/comment.so). */\nSEARCH_DIR("/usr/lib/choice")\nINCLUDE "directives.ld"\nPROVIDE ( fixture_marker = 1 );\n',
         'usr/lib/directives.ld': b'INPUT ( "libdirective.so.1" )\n',
         'usr/lib/pkgconfig/directives.pc': pc('directives'),
-        'usr/lib/pkgconfig/pc-ordered.pc': pc('pcordered').replace(b'-L${libdir}', b'-L${libdir}/choice -L${libdir}/other')}, ['libordered-first', 'libordered-second'])
+        'usr/lib/pkgconfig/pc-ordered.pc': pc('pcordered').replace(b'-L${libdir}', b'-L${libdir}/choice -L${libdir}/other').replace(b'-lpcordered', b'-lpcordered\nLibs.private: -lm -lpcordered')}, ['libordered-first', 'libordered-second'])
     cases.append(('directives', 'int directive_value(void);', 'directive_value()', 'libdirectives-dev', ()))
     cases.append(('pcordered', 'int pc_ordered_value(void);', 'pc_ordered_value()', 'libdirectives-dev', ()))
     module_cases['pcordered'] = '@locked//libdirectives-dev:pkgconfig/pc-ordered'
