@@ -1,17 +1,29 @@
-# Large native header lists with the retained build tools
+# Compiler launcher with private linker arguments
 
-This replaces registry #195's sole unpublished infrastructure `0.0.26` candidate with its existing inputs plus [infra #80](https://github.com/securely1g/sonic-build-infra/pull/80). The source is `2cfc059c2cf1dc3b2f2b2ec1bcd70400b04ecb75`: accepted metadata/tools source `51c838da6ff57295fde6e0bc3807841cb31a8568` plus the standalone header-option fix `29ff728553da66e3f07bcc3b4a27fdb02458a62a`, adapting only CI guards to preserve the existing package-free tool tests. The compiler adapter and its actual C/C++ regression match the standalone feature exactly. Every published module version remains unchanged.
+This entry registers source commit
+`08e0956f80574b27a9b68e72fe855cc0089058e5` from
+[sonic-build-infra PR #82](https://github.com/securely1g/sonic-build-infra/pull/82).
+The DASH Engine image build passed a 136,826-byte `LDFLAGS` value to the compiler,
+exceeding Linux's per-string process limit before GCC could start.
 
-The concrete consumer is [AMD64 gearbox image #154](https://github.com/securely1g/sonic-buildimage/pull/154), whose `@p4lang_pi//:sdk` uses 132 quote roots and 272 system roots. GCC copies those header and library arguments into one environment string. Its exact retained configure command exceeds Linux's 131,072-byte string limit and cannot spawn `cc1`, despite no individual argument exceeding 394 bytes. The existing launcher now forwards quote/system options as well as ordinary includes, preserving their original order and warning classes.
+The existing compiler launcher recognizes only its owner's private sibling
+`.sonic-linker-arguments` vector, expands its ordered literal arguments and then
+performs its existing per-working-directory library-path shortening. Ordinary
+GCC response files remain opaque. The BMv2 producer change is tracked in
+[registry PR #211](https://github.com/securely1g/sonic-bazel-registry/pull/211).
 
-| Input or action | Before | After |
-| --- | --- | --- |
-| Exact PI compiler command | Collected options reach 136,783 bytes; `cc1` fails with `Argument list too long` | Same options occupy 53,415 bytes; configure-style program compiles |
-| Quote-only and system-header roots | Distinct search and warning behavior | Preserved, including ordinary-header rejection under `-Werror` |
-| Response files and linker/output operands | Passed through without reinterpretation | Preserved |
+The source is based on maintained master `c47081689ed841191bf9531b46dad3430ed2e761`.
+It includes the native interfaces previously backported onto
+`0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568`, plus the maintained APT layer,
+large system-include and shared tool fixes. That now-redundant interface patch
+is removed; its existing 37 build and 43 test targets and every registry overlay
+are retained. The source's own updated Libtool regression runs through the same
+existing test label. The unchanged registry visibility patch remains applied.
+Published versions and source recipes remain unchanged.
 
-All prior features remain: finalized-control metadata from [infra #77](https://github.com/securely1g/sonic-build-infra/pull/77), the native component interfaces, CLI/XML/BFD and DocBook tools, kernel-tool subset, deterministic TAR metadata and debug-file permissions. Finalized controls still use actual ELF dependency analysis; source templates still require their real debhelper compatibility metadata. The existing native-interface and registry-visibility patches are unchanged.
-
-Presubmit retains all 37 prior build targets and 43 test labels, and adds five retained Libtool outputs: the installed program, its two libraries, configure log and compiler-argument receipt. Kernel tests remain tools-only. The ordinary consumer preserves published Distroless `.15` and the owner's inherited `.13` minimum. Source AMD64/Trixie C/C++, Autoconf, recursive Libtool and installed-consumer checks pass; ordinary registry acceptance and the full PI SDK/image rebuild remain pending. No DEB output is introduced.
-
-The PR remains stacked on registry #195 and consumes combined unlanded source, so it stays Draft. Existing frozen consumer catalogs remain available until the replacement passes acceptance. The complete comparison patch must include all cumulative changes from published `.25`, including the retained tools and metadata features.
+Local validation covers the actual 338-argument Engine vector, real GCC14 C/C++
+links, recursive Autoconf/Libtool builds and byte-identical short/long executables.
+Registry native acceptance and the full Engine image rebuild remain pending.
+This presubmit uses the existing tools-only kernel checks and produces no DEBs.
+The consumer must select this exact version explicitly; commit suffix ordering
+does not establish the intended source selection.

@@ -5,11 +5,11 @@
   "consumer_deps": [
     {
       "name": "tar.bzl",
-      "version": "0.10.5-sonic.1"
+      "version": "0.10.5.sonic.2"
     },
     {
       "name": "rules_distroless",
-      "version": "0.9.4.sonic.15"
+      "version": "0.9.4.sonic.17"
     }
   ],
   "platforms": {
