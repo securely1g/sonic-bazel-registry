@@ -42,6 +42,10 @@ LIBAUDIT_CONTENT_URL = "https://snapshot.debian.org/file/930f8fe502ed2d1b79243a0
 # The libyang-python@3.1.0.sonic.6 generated APT lock pins these exact package bytes.
 LIBSFRAME_SHA256 = "38f625dfdc582717029ac3a3e97c51d994ec2e7a0e9b230c6b44e40d1276311f"
 DEBIAN_RELEASE_PACKAGES = (
+    ("libcap2_2.75-10+deb13u1+b1_amd64.deb",
+     "https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/libc/libcap2/libcap2_2.75-10+deb13u1+b1_amd64.deb"),
+    ("libpcre2-8-0_10.46-1.deb13u1_armhf.deb",
+     "https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/p/pcre2/libpcre2-8-0_10.46-1~deb13u1_armhf.deb"),
     ("libcap2_2.75-10+deb13u1+b1_arm64.deb",
      "https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/libc/libcap2/libcap2_2.75-10+deb13u1+b1_arm64.deb"),
     ("bash_5.2.37-2+b9_arm64.deb",
@@ -334,7 +338,7 @@ class DebianPoolMirrorScopeTest(unittest.TestCase):
             ])
             for other in (
                 upstream.replace("20260727T143429Z", "20260728T143429Z"),
-                upstream.replace("+", "+changed", 1),
+                re.sub(r"([+~])", r"\1changed", upstream, count=1),
                 re.sub(r"_(amd64|arm64|armhf)\.deb$",
                        "_arm64.deb" if upstream.endswith("_amd64.deb") else "_amd64.deb", upstream),
                 upstream.replace("snapshot.debian.org", "another.example"),
