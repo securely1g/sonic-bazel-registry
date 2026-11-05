@@ -1,0 +1,8 @@
+{
+  "url": "https://github.com/yxieca/sonic-fips/archive/429b0668a80fabc3d05b3fb67ccda900d863ae3c.tar.gz",
+  "strip_prefix": "sonic-fips-429b0668a80fabc3d05b3fb67ccda900d863ae3c",
+  "integrity": "sha256-BRxvdxAny386z0tWIQ3YvUAuTTrbw5I5hAe0PwGRqHA=",
+  "overlay": {
+    "MODULE.bazel": "sha256-plNT/BbHX4rdftq2p4pSiPT3Odsk/jy50I89RNYFAHQ="
+  }
+}
