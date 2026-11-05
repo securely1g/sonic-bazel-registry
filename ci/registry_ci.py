@@ -59,6 +59,7 @@ ARM_CROSS_VERSIONS: dict[str, tuple[str, ...]] = {
     "libnl3": ("3.7.0.sonic.7",),
     "libyang-python": ("3.1.0.sonic.6",),
     "protobuf-legacy": ("3.21.12.sonic.2",),
+    "rules_distroless": ("0.9.4.sonic.17",),
     "rules_foreign_cc": ("0.16.0.sonic.1",),
     "rules_python": ("1.9.0.sonic.1",),
     "sai": ("1.18.0-sonic.1",),

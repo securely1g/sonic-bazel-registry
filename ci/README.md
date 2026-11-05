@@ -851,7 +851,7 @@ an ARM64 target, and an explicit disposable Debian Trixie container identity.
 The reusable workflow selects native Bazel, image, sudo and artifact handling by
 execution mode while preserving the target architecture and all original labels.
 
-The temporary `ARM_CROSS_VERSIONS` map selects only complete original contracts
+The temporary `ARM_CROSS_VERSIONS` map initially selected the complete original contracts
 qualified in [the all-ARM survey](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416)
 at `88d24c7010a5affd9deb1286e63c5a23e246879c`. The job artifacts bind the exact
 source inputs, unchanged selected dependency versions, native execution and ARM
@@ -883,7 +883,12 @@ boot a kernel image. Passing tests only establish each module's existing
 presubmit contract, not broader undeclared functionality. Yang-model package outputs and TAR
 regression archives are architecture-neutral; their original target-side runtime
 tests remain required, and native execution tools retain their configurations.
-The remaining module failures stay visible in the survey and retain native ARM validation here.
+The initial survey also found that QEMU user-mode returns `ENOSYS` to Linux
+AIO in `rules_distroless@0.9.4.sonic.17`. Its ARM job runs the original
+`linux_headers_test` executable under a Debian ARM64 kernel using QEMU system
+emulation. The other 35 tests use the image's standard executor. The guest
+includes the runner's ARM loader and libc. Its console reports the test exit
+status to Bazel. [Full ARM validation](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42089131813/job/127462206254)
 
 The gawk smoke test uses gawk as a native execution tool while the direct gawk
 build targets ARM64. Test execution follows the declared Bazel configuration;
