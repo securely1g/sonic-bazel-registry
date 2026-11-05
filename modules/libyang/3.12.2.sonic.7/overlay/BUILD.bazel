@@ -1,3 +1,4 @@
+load(":prepared_test_runtime.bzl", "prepared_test_runtime")
 load("@sonic_build_infra//binary:strip_binary.bzl", "strip_binary")
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("@sonic_build_infra//cc:runtime_test.bzl", "native_runtime_binary")
@@ -766,8 +767,15 @@ native_runtime_binary(name = "fuzz_regression_test", binary = ":fuzz_regression_
     for name in ["lys_parse_mem", "lyd_parse_mem_xml", "lyd_parse_mem_json"]
 ]
 
+cc_binary(
+    name = "test_runtime_realpath",
+    srcs = ["test_runtime_realpath.c"],
+    linkopts = ["-static"],
+    visibility = ["//visibility:private"],
+)
+
 [
-    native_runtime_binary(name = "test_" + name, binary = ":" + name, runtime_payloads = _UPSTREAM_PAYLOADS)
+    prepared_test_runtime(name = "test_" + name, binary = ":" + name, runtime_payloads = _UPSTREAM_PAYLOADS)
     for name in ["yanglint", "yangre"]
 ]
 
