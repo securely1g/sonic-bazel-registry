@@ -26,7 +26,16 @@ from urllib.request import urlopen
 
 
 ROOT = Path(__file__).resolve().parents[1]
-RUNNERS = {"amd64": "ubuntu-24.04", "arm64": "ubuntu-24.04-arm"}
+RUNNERS = {
+    "amd64": ["self-hosted", "Linux", "X64", "debian-trixie-container"],
+    "arm64": ["ubuntu-24.04-arm"],
+}
+HTTP_DOWNLOAD_FLAGS = (
+    "--http_connector_attempts=12",
+    "--http_connector_retry_max_timeout=10s",
+    "--http_max_parallel_downloads=4",
+)
+TEST_SANDBOX_STRATEGY = "processwrapper-sandbox,local"
 NAME = re.compile(r"[a-z][a-z0-9._-]*\Z")
 VERSION = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+-]*\Z")
 LABEL = re.compile(r"@[a-z][a-z0-9._-]*//[A-Za-z0-9_./+-]*:[A-Za-z0-9_./+-]+\Z")
@@ -1043,7 +1052,7 @@ def run_logged(command: list[str], cwd: Path, log: Path) -> None:
 
 
 def prepare_rust(config: dict, consumer: Path, work_dir: Path, artifacts: Path,
-                 bazel: str, flags: list[str]) -> list[str]:
+                 bazel_prefix: list[str], flags: list[str]) -> list[str]:
     """Prepare the registry-fetched Rust graph before its extension is evaluated."""
     preparation = config.get("rust_preparation")
     if preparation is None:
@@ -1061,15 +1070,18 @@ def prepare_rust(config: dict, consumer: Path, work_dir: Path, artifacts: Path,
     # The shared module has its own native toolchains. Consumer platform labels
     # and Starlark settings may name repositories that do not exist there.
     preparation_flags = [flag for flag in flags
-                         if flag.startswith(("--registry=", "--lockfile_mode=", "--experimental_downloader_config="))]
+                         if flag.startswith(("--registry=", "--lockfile_mode=", "--experimental_downloader_config=",
+                                             "--http_connector_attempts=", "--http_connector_retry_max_timeout=",
+                                             "--http_max_parallel_downloads=", "--jobs=",
+                                             "--discard_analysis_cache"))]
     command = [sys.executable, str(helper), "--workspace", str(consumer),
                "--shared-only", "--shared-dependency",
                f"{preparation['module']}={preparation['repo_name']}",
                "--staging-dir", str(work_dir / "rust-deps"),
                "--overrides-rc", str(overrides),
                "--receipt", str(artifacts / "rust-preparation.json"),
-               "--bazel", bazel, "--bazel-startup-arg=--ignore_all_rc_files",
-               f"--bazel-startup-arg=--output_user_root={work_dir / 'bazel'}",
+               "--bazel", bazel_prefix[0],
+               *["--bazel-startup-arg=" + flag for flag in bazel_prefix[1:]],
                *["--bazel-arg=" + flag for flag in preparation_flags]]
     run_logged(command, consumer, artifacts / "rust-preparation.log")
     # Keep all other runner settings fixed. Only the verified private copy of
@@ -1183,7 +1195,9 @@ def prepare_test_runtime(config: dict, source: Path, consumer: Path, artifacts: 
 
 def run(root: Path, module: str, version: str, architecture: str,
         work_dir: Path, artifacts: Path, bazel: str = "bazel",
-        test_container_image: str | None = None) -> None:
+        test_container_image: str | None = None,
+        bazel_startup_args: list[str] | None = None,
+        bazel_build_args: list[str] | None = None) -> None:
     config = validate_entry(root, module, version)
     require(architecture in config["architectures"], "Architecture is not configured for this version")
     build_targets = selected_targets(config, "build_targets", architecture)
@@ -1255,18 +1269,20 @@ def run(root: Path, module: str, version: str, architecture: str,
         (consumer / ".bazelversion").write_text("8.5.1\n")
         (consumer / ".gitignore").write_text("MODULE.bazel.lock\n")
         shutil.copy2(consumer / "MODULE.bazel", artifacts / "consumer.MODULE.bazel")
-        prefix = [bazel, "--ignore_all_rc_files", f"--output_user_root={work_dir / 'bazel'}"]
+        prefix = [bazel, "--ignore_all_rc_files", f"--output_user_root={work_dir / 'bazel'}",
+                  *(bazel_startup_args or [])]
         flags = [f"--registry={root.resolve().as_uri()}", "--registry=https://bcr.bazel.build/",
                  f"--platforms={config['platforms'][architecture]}", "--lockfile_mode=update",
                  f"--experimental_downloader_config={root.resolve() / 'ci/source_mirrors.cfg'}",
+                 *HTTP_DOWNLOAD_FLAGS,
                  "--remote_download_regex=(^|.*/)tools/build_tools/kernel_runtime_(amd64|arm64)(/.*)?$",
-                 *config.get("build_flags", [])]
+                 *config.get("build_flags", []), *(bazel_build_args or [])]
         if "host_platforms" in config:
             flags.append(f"--host_platform={config['host_platforms'][architecture]}")
         if config.get("rust_toolchain", {}).get("mangled_allocator_libraries", False):
             flags.append("--@rules_rust//rust/settings:experimental_use_allocator_libraries_with_mangled_symbols=True")
         try:
-            flags.extend(prepare_rust(config, consumer, work_dir, artifacts, bazel, flags))
+            flags.extend(prepare_rust(config, consumer, work_dir, artifacts, prefix, flags))
             run_logged([*prefix, "build", *flags, f"--build_event_json_file={artifacts / 'build-events.jsonl'}",
                         *build_targets], consumer, artifacts / "build.log")
             declared_trees = query_output_trees(prefix, flags, build_targets, consumer, artifacts)
@@ -1297,7 +1313,16 @@ def run(root: Path, module: str, version: str, architecture: str,
             require((consumer / "MODULE.bazel.lock").is_file(), "Bazel did not generate MODULE.bazel.lock resolution evidence")
             test_flags = prepare_test_runtime(config, fetched[0].parent, consumer, artifacts,
                                               architecture, test_container_image)
-            run_logged([*prefix, "test", *flags, *test_flags, "--nocache_test_results", "--test_output=errors",
+            # Export HOME before Bazel's test setup assigns TEST_TMPDIR. With
+            # HOME absent, that shell assignment is invisible to Python and
+            # expanduser() falls back to the account home outside the sandbox.
+            # Tests can hard-link declared runfiles into TEST_TMPDIR. Linux's
+            # separate bind mounts reject those links even on one filesystem.
+            # Keep input staging within the disposable container, and leave
+            # build action strategies unchanged.
+            run_logged([*prefix, "test", *flags, *test_flags, "--test_env=HOME=",
+                        f"--strategy=TestRunner={TEST_SANDBOX_STRATEGY}",
+                        "--nocache_test_results", "--test_output=errors",
                         f"--build_event_json_file={artifacts / 'test-events.jsonl'}", *test_targets],
                        consumer, artifacts / "test.log")
             verify_tests(artifacts / "test-events.jsonl", test_targets)
@@ -1310,8 +1335,12 @@ def run(root: Path, module: str, version: str, architecture: str,
                 shutil.copy2(selected[0], artifacts / f"consumer-dep-{name}.MODULE.bazel")
             (artifacts / "validation.json").write_text(json.dumps({
                 "module": module, "version": version, "architecture": architecture,
+                "test_container_image": test_container_image,
                 "build_targets": build_targets, "passed_tests": test_targets,
                 "build_flags": config.get("build_flags", []),
+                "bazel_startup_args": bazel_startup_args or [],
+                "bazel_build_args": bazel_build_args or [],
+                "test_sandbox_strategy": TEST_SANDBOX_STRATEGY,
                 "platform": config["platforms"][architecture],
                 "host_platform": config.get("host_platforms", {}).get(architecture),
                 "consumer_deps": config["consumer_deps"],
@@ -1386,6 +1415,10 @@ def main() -> None:
     runner.add_argument("--work-dir", required=True, type=Path)
     runner.add_argument("--artifacts", required=True, type=Path)
     runner.add_argument("--bazel", default="bazel")
+    runner.add_argument("--bazel-startup-arg", action="append", default=[],
+                        help="repeatable Bazel startup option; use --bazel-startup-arg=--option=value")
+    runner.add_argument("--bazel-build-arg", action="append", default=[],
+                        help="repeatable Bazel build/test/query option; use --bazel-build-arg=--option=value")
     runner.add_argument("--test-container-image",
                         help="opt into runtime preparation inside this disposable container, including its digest")
     args = parser.parse_args()
@@ -1401,7 +1434,7 @@ def main() -> None:
             sync_module(ROOT, args.module, args.version, args.check)
         else:
             run(ROOT, args.module, args.version, args.architecture, args.work_dir, args.artifacts,
-                args.bazel, args.test_container_image)
+                args.bazel, args.test_container_image, args.bazel_startup_arg, args.bazel_build_arg)
     except (RegistryError, OSError, subprocess.CalledProcessError) as error:
         parser.exit(1, f"Registry CI failed: {error}\n")
 
