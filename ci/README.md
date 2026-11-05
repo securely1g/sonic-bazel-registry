@@ -929,6 +929,17 @@ platform definitions, declared/effective platform identities, and the selected
 infra version and toolchain reuse decision. The registration allowlist is
 source-level evidence; actual toolchain and runtime acceptance remain separate.
 
+The selected-version check uses the complete module-only JSON from pinned
+Bazel 8.5.1. Its [`mod graph` implementation](https://github.com/bazelbuild/bazel/blob/8.5.1/src/main/java/com/google/devtools/build/lib/bazel/commands/ModCommand.java)
+also inspects every extension, including unused extensions. A failure solely in
+that later inspection does not invalidate the already resolved module versions.
+CI accepts only its exact exit-2 inspection diagnostic together with a complete,
+unfiltered graph; every reference must have an expanded node. It retains the
+original graph, stderr and `*-status.json`, marking extension inspection
+incomplete. Resolution failures, malformed/truncated graphs and changed selected
+versions still fail. The original build and test commands independently evaluate
+all extensions they actually need; their failures are never suppressed.
+
 The supplied executor runs unchanged ARM tests with QEMU user-mode and PRoot in
 an ARM64 Trixie filesystem. This provides emulated userspace execution, not
 native ARM hardware or kernel coverage. The helper probes the real guest CPU and
@@ -972,10 +983,9 @@ REGISTRY_CI_TEST_ARM_EXECUTOR=/usr/local/bin/sonic-arm64 \
 This foundation is not acceptance of the full ARM matrix. Before moving a module
 row, validate its complete original build and uncached-test contract with the
 native-generator/ARM-output foundation, unchanged source pins and resolution
-receipts. SAI now selects the isolated provider, but
-its full cross build and tests have not passed. Other known gaps include nested
-Bazel/sandbox execution in rules_go, SWSS self-reexecution under emulation, and full libyang/protobuf
-debugger/upstream coverage. P4C/PI source candidates and FIPS target-binutils work
+receipts. The table above records the completed contracts, including SAI and
+protobuf. Remaining gaps include nested Bazel execution in rules_go, SWSS
+resolution/runtime behavior, and libyang's full upstream suite. P4C/PI source candidates and FIPS cross-tool work
 remain separate module changes; transitive consumers retain their published
 dependency pins. No source recipe or image change is included here.
 

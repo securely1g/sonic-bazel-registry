@@ -11,8 +11,10 @@ import ast
 import hashlib
 import json
 from pathlib import Path
+import re
 import shutil
 import subprocess
+import sys
 
 
 PROVIDER_VERSION = "0.0.25-34de7330abc72229dfc8dab88dec71b89c52aa88"
@@ -67,11 +69,64 @@ def selected_versions(graph: dict) -> dict[str, str]:
 
 def module_graph(prefix: list[str], flags: list[str], consumer: Path, artifacts: Path,
                  name: str) -> dict[str, str]:
-    command = [*prefix, "mod", "graph", *resolution_flags(flags), "--output=json"]
+    command = [*prefix, "mod", "graph", *resolution_flags(flags), "--output=json",
+               "--extension_info=hidden", "--depth=-1", "--from=<root>", "--noinclude_unused",
+               "--color=no", "--curses=no"]
     (artifacts / (name + "-command.json")).write_text(json.dumps(command, indent=2) + "\n")
     with (artifacts / (name + ".json")).open("w") as output, (artifacts / (name + ".stderr")).open("w") as errors:
-        subprocess.run(command, cwd=consumer, stdout=output, stderr=errors, check=True)
-    return selected_versions(json.loads((artifacts / (name + ".json")).read_text()))
+        result = subprocess.run(command, cwd=consumer, stdout=output, stderr=errors)
+    receipt = {"returncode": result.returncode, "module_resolution_complete": False,
+               "extension_inspection_complete": result.returncode == 0}
+    try:
+        if result.returncode:
+            # In pinned Bazel 8.5.1, ModCommand emits the resolved module graph
+            # before returning ERROR_DURING_GRAPH_INSPECTION for failed extension
+            # inspection. BazelModuleInspectorFunction evaluates *all* extensions,
+            # including ones no build target uses. Other command/resolution errors
+            # must still fail; build/test retain their ordinary extension checks.
+            # https://github.com/bazelbuild/bazel/blob/8.5.1/src/main/java/com/google/devtools/build/lib/bazel/commands/ModCommand.java
+            errors = (artifacts / (name + ".stderr")).read_text().rstrip().splitlines()
+            if (result.returncode != 2 or not errors or not re.fullmatch(
+                    r"ERROR: Results may be incomplete as [1-9][0-9]* extensions? failed\.", errors[-1])):
+                result.check_returncode()
+        graph = json.loads((artifacts / (name + ".json")).read_text())
+        validate_module_graph(graph)
+        versions = selected_versions(graph)
+        receipt.update(module_resolution_complete=True, selected_module_versions=versions)
+        if result.returncode:
+            print(f"Module versions resolved; extension inspection reported errors (see {name}.stderr).",
+                  file=sys.stderr)
+        return versions
+    finally:
+        (artifacts / (name + "-status.json")).write_text(json.dumps(receipt, indent=2) + "\n")
+
+
+def validate_module_graph(graph: dict) -> None:
+    """Require the complete, unfiltered module-only JSON from the pinned CLI."""
+    if not isinstance(graph, dict) or graph.get("key") != "<root>" or graph.get("root") is not True:
+        raise ValueError("Expected a complete root module graph")
+    references, expanded = set(), set()
+
+    def visit(node):
+        if not isinstance(node, dict) or not all(isinstance(node.get(k), str)
+                                               for k in ("key", "name", "version")):
+            raise ValueError("Malformed module graph node")
+        key = node["key"]
+        if key != "<root>" and key not in {node["name"] + "@" + node["version"], node["name"] + "@_"}:
+            raise ValueError("Module graph key does not match its selected version")
+        references.add(key)
+        if node.get("unexpanded") is True:
+            return
+        expanded.add(key)
+        for edge in ("dependencies", "indirectDependencies", "cycles"):
+            if not isinstance(node.get(edge), list):
+                raise ValueError("Incomplete module graph expansion")
+            for child in node[edge]:
+                visit(child)
+
+    visit(graph)
+    if references != expanded:
+        raise ValueError("Module graph contains unexpanded-only references")
 
 
 def expose_dependency(consumer: Path, name: str, versions: dict[str, str]) -> str:
