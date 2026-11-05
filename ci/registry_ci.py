@@ -897,12 +897,29 @@ def collect_outputs(bep_path: Path, labels: list[str], work_dir: Path, artifacts
                               if relative.is_relative_to(tree_path)]
             if matching_trees:
                 # The declared tree has already been archived. Bazel 8.5.1 can
-                # corrupt a non-ASCII basename in an expanded member's URI while
-                # retaining its correct logical name, digest and length. Accept
-                # only that narrow case, using the real declared member's bytes.
-                expected = resolve_output(execution_root / relative)
+                # corrupt a non-ASCII basename in an expanded member's URI.
+                # Its logical name can also retain UTF-8 bytes as Latin-1.
+                # Recover only a missing literal basename inside this declared
+                # tree; the URI, digest and length checks below still apply.
+                literal = execution_root / relative
+                expected = resolve_output(literal)
                 require(expected.is_relative_to(work_dir),
                         f"Expanded tree member escapes work-dir: {name}")
+                if "\ufffd" in uri.path and not literal.exists() and not literal.is_symlink():
+                    try:
+                        basename = relative.name.encode("latin-1").decode("utf-8")
+                    except UnicodeError:
+                        pass
+                    else:
+                        if basename != relative.name:
+                            candidate = literal.with_name(basename)
+                            recovered = resolve_output(candidate)
+                            require(not candidate.is_symlink() and recovered.is_file()
+                                    and any(recovered.is_relative_to(resolve_output(execution_root / tree_path))
+                                            for tree_path in matching_trees),
+                                    f"Recovered tree member is not a confined regular file: {name}")
+                            relative = relative.with_name(basename)
+                            expected = recovered
                 if source != expected:
                     decoded = Path(unquote(uri.path))
                     ascii_name = lambda value: "".join(c for c in value if c.isascii())

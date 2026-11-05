@@ -139,7 +139,12 @@ class BazelArtifactIntegrationTest(unittest.TestCase):
                 # This is the production failure: Bazel reports children rather
                 # than a directory URI. A fabricated directory event misses it.
                 self.assertIn(tree_root + "/Text::CharWidth.3pm.gz", reported)
-                self.assertIn(tree_root + "/NetLock_Arany_=Class_Gold=_Főtanúsítvány.crt", reported)
+                unicode_path = tree_root + "/NetLock_Arany_=Class_Gold=_Főtanúsítvány.crt"
+                # Bazel 8.5.1 emits either Unicode or its internal UTF-8 bytes
+                # represented as Latin-1. Require the real filename in the
+                # collected TAR below, rather than one platform's BEP spelling.
+                self.assertTrue(any(path in reported for path in
+                                    (unicode_path, unicode_path.encode("utf-8").decode("latin-1"))), reported)
                 self.assertNotIn(tree_root, reported)
                 registry_ci.collect_outputs(bep, labels, work, artifacts,
                                             declared_trees=declared, execution_root=execution_root)
@@ -163,6 +168,7 @@ class BazelArtifactIntegrationTest(unittest.TestCase):
                 source_mode = (execution_root / tree_root / "tool").stat().st_mode & 0o777
                 with tarfile.open(artifacts / tree["path"]) as archive:
                     self.assertEqual(archive.getmember(tree_root + "/tool").mode, source_mode)
+                    self.assertEqual(archive.extractfile(unicode_path).read(), b"certificate fixture\n")
                     archive.extractall(restored, filter="data")
                 payload = restored / tree_root
                 self.assertEqual((payload / "configuration-mode").read_bytes(), b"fastbuild\n")
