@@ -230,6 +230,32 @@ inputs match that lock; a current failed-run lock was not retrieved. These
 routes do not change package selection or execute ARM workloads. Current
 configured-fetch and consumer acceptance remain pending.
 
+The [FRR source-base AMD64 job at `a4166f88`](https://github.com/securely1g/sonic-buildimage/actions/runs/42105759505/job/127520018713)
+failed its first query on `rsyslog-relp_8.2504.0-1_amd64.deb`: the official
+pool returned HTTP 404 and the dated Snapshot URL returned HTTP 503. One exact
+content route now precedes the existing pool and original URL fallbacks. A
+retained official GET returned 316,252 bytes matching the checked-in
+`docker-base-trixie/bazel/apt.lock.json` record and the complete cached payload's
+SHA256. The package version and hash remain unchanged; the content URL's SHA1
+is only a locator. Existing parameterized scope and configured-fetch tests
+include this identity. New configured-fetch and consumer CI acceptance remain
+pending, and this route does not claim to repair other Snapshot outages.
+
+The [SWSS AMD64 archive job](https://github.com/securely1g/sonic-buildimage/actions/runs/42104208903/job/127514637058)
+then failed on `libjq1_1.7.1-6+deb13u2_amd64.deb` after earlier phases completed
+5,780 processes. Its later query reported zero processes. The same log and
+[FRR image AMD64 job](https://github.com/securely1g/sonic-buildimage/actions/runs/42104634546/job/127516099742)
+identified `ss-dev_2.0-1.47.2-3+b11_armhf.deb`; each input's pool returned
+HTTP 404 and dated Snapshot returned HTTP 503. Two exact content routes now
+precede their existing pool/original fallbacks. One retained official GET each
+matched the locked/cache SHA256 and size: JQ 164,336 bytes and ss-dev 34,996 bytes.
+JQ also matches the current checked-in source-base APT lock. The ss-dev record
+comes from retained accepted generated-lock evidence with the exact current
+failure URL, not a newly retrieved failed-run lock. These are declared inputs
+during AMD64 analysis; no ARM execution or package-version change is added.
+Configured-fetch and native acceptance remain pending. Separate libcap and
+SQLite backend failures remain unresolved.
+
 ## Exact Socat source archive fallback
 
 The [SWSS image source-base workflow at `6ab506bd`](https://github.com/securely1g/sonic-buildimage/actions/runs/42055651322/attempts/2)
