@@ -229,6 +229,17 @@ inputs match that lock; a current failed-run lock was not retrieved. These
 routes do not change package selection or execute ARM workloads. Current
 configured-fetch and consumer acceptance remain pending.
 
+The [FRR source-base AMD64 job at `a4166f88`](https://github.com/securely1g/sonic-buildimage/actions/runs/42105759505/job/127520018713)
+failed its first query on `rsyslog-relp_8.2504.0-1_amd64.deb`: the official
+pool returned HTTP 404 and the dated Snapshot URL returned HTTP 503. One exact
+content route now precedes the existing pool and original URL fallbacks. A
+retained official GET returned 316,252 bytes matching the checked-in
+`docker-base-trixie/bazel/apt.lock.json` record and the complete cached payload's
+SHA256. The package version and hash remain unchanged; the content URL's SHA1
+is only a locator. Existing parameterized scope and configured-fetch tests
+include this identity. New configured-fetch and consumer CI acceptance remain
+pending, and this route does not claim to repair other Snapshot outages.
+
 ## Exact Socat source archive fallback
 
 The [SWSS image source-base workflow at `6ab506bd`](https://github.com/securely1g/sonic-buildimage/actions/runs/42055651322/attempts/2)

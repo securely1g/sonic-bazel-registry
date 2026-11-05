@@ -163,6 +163,12 @@ DEBIAN_CONTENT_PACKAGES += (
      'e4ad4f9737d3906da5f6cdbb819176ee0ac0ad57',
      'a9210d107c63761a88847c0fdfcb7b15bcf7cd1fc443b91a25e58805a6f4f83d', 756112, None),
 )
+# Source-base AMD64 analysis selects this unchanged rsyslog RELP package.
+DEBIAN_CONTENT_PACKAGES += (
+    ("https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/r/rsyslog/rsyslog-relp_8.2504.0-1_amd64.deb",
+     "c16b59f13516c30140c256c1127b3be80899aff7",
+     "8b58d38a801e33182b5bf66382f012830e8cd8b234358f76657eb946741a87ae", 316252, None),
+)
 # BusyBox package inputs pinned by BCR rules_coreutils@1.0.1's MODULE.bazel.
 BUSYBOX_PACKAGES = (
     ("amd64", "d161cd711fcf0d21a53dd7b9665933463de9fa6a37718e78ffee4d7732e1e02a", 937460),
