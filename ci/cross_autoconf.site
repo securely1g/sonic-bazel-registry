@@ -14,3 +14,37 @@ if test -z "${host_alias-}" && test -z "${build_alias-}" \
     esac
     unset registry_ci_cc_target
 fi
+
+# Run MIT Kerberos's own constructor/destructor probe for this cross-build
+# experiment. Autoconf normally aborts before running the probe on a cross host.
+if test "${cross_compiling-}" = yes && test -z "${krb5_cv_attr_constructor_destructor+x}" \
+    && test -f "$0" && grep -Fq 'Cannot test for constructor/destructor support when cross compiling' "$0"; then
+    case "$host_alias" in
+        aarch64*-linux-gnu*)
+            registry_ci_krb5_probe=$(mktemp -d "$PWD/krb5-cross-attrs.XXXXXXXX") || exit 1
+            cat > "$registry_ci_krb5_probe/conftest.c" <<'C'
+#include <unistd.h>
+void foo1(void) __attribute__((constructor));
+void foo1(void) { unlink("conftest.1"); }
+void foo2(void) __attribute__((destructor));
+void foo2(void) { unlink("conftest.2"); }
+int main(void) { return 0; }
+C
+            $CC ${CFLAGS-} ${CPPFLAGS-} "$registry_ci_krb5_probe/conftest.c" ${LDFLAGS-} \
+                -o "$registry_ci_krb5_probe/conftest" || exit 1
+            readelf -h "$registry_ci_krb5_probe/conftest" | grep -Eq 'Machine: +AArch64$' || exit 1
+            krb5_cv_attr_constructor_destructor=$(
+                cd "$registry_ci_krb5_probe" || exit 1
+                touch conftest.1 conftest.2 || exit 1
+                /usr/bin/qemu-aarch64 -L /opt/sonic-arm64-rootfs ./conftest || exit 1
+                constructor=no; destructor=no
+                test -e conftest.1 || constructor=yes
+                test -e conftest.2 || destructor=yes
+                printf '%s,%s\n' "$constructor" "$destructor"
+            ) || exit 1
+            printf 'Kerberos ARM constructor/destructor probe returned %s\n' "$krb5_cv_attr_constructor_destructor" >&2
+            rm -rf "$registry_ci_krb5_probe"
+            unset registry_ci_krb5_probe
+            ;;
+    esac
+fi
