@@ -1,0 +1,11 @@
+# AUTO-GENERATED. DO NOT EDIT MANUALLY.
+# Source: ../MODULE.bazel
+# Generator: python3 ci/registry_ci.py sync-module --module sonic-utilities --version 1.2.0-53d6b36411c83207ed185a7ed9fb977b2372296c
+
+module(name = "sonic-utilities", version = "1.2.0-53d6b36411c83207ed185a7ed9fb977b2372296c", bazel_compatibility = [">=8.5.1", "<=8.5.1"])
+bazel_dep(name = "rules_python", version = "1.9.0")
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(python_version = "3.13", is_default = True)
+pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+pip.parse(hub_name = "utilities_test_pip", python_version = "3.13", requirements_lock = "//bazel:requirements_test_lock.txt")
+use_repo(pip, "utilities_test_pip")
