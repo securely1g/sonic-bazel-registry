@@ -3,15 +3,51 @@ on: workflow_dispatch
 permissions:
   contents: read
 jobs:
+  cross_fixture:
+    name: ARM cross compiler and runtime fixture
+    runs-on: [self-hosted, Linux, X64, debian-trixie-container]
+    timeout-minutes: 60
+    env:
+      REGISTRY_CI_TEST_BAZEL: /usr/local/bin/bazel
+      REGISTRY_CI_TEST_ARM_EXECUTOR: /usr/local/bin/sonic-arm64
+      REGISTRY_CI_TEST_ARTIFACTS: cross-fixture-artifacts
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Verify cross fixture prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(uname -m)" == x86_64 ]]
+          printf '%s  %s\n' 61d89402f0368e64b6c827be5de79d8e65382e8124c3cbb97325611a1851392e /usr/local/lib/bazel-8.5.1 | sha256sum --check --strict
+          [[ -x "$REGISTRY_CI_TEST_BAZEL" && -x "$REGISTRY_CI_TEST_ARM_EXECUTOR" ]]
+      - name: Test the cross compiler and ARM runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 ci/run_runner_tests.py --suite cross 2>&1 | tee cross-fixture.log
+      - name: Retain cross fixture results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: registry-ci-arm-cross-fixture
+          path: |
+            cross-fixture.log
+            cross-fixture-artifacts/
+          if-no-files-found: warn
+          retention-days: 14
+
   validate:
+    needs: cross_fixture
+    if: ${{ !cancelled() }}
     name: ${{ matrix.module }} (${{ matrix.arch }})
     strategy:
       fail-fast: false
       max-parallel: 1
       matrix:
         include:
-          - {module: gawk, version: "5.3.2.sonic.1", arch: arm64}
-          - {module: libpsample, version: "1.1.0.sonic.1", arch: amd64}
           - {module: libnl3, version: "3.7.0.sonic.7", arch: arm64}
     uses: ./.github/workflows/registry-module.yml
     with:
