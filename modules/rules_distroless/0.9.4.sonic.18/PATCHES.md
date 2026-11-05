@@ -346,3 +346,14 @@ GNU linker validates other commands. Exported .ld/.lds inputs support INCLUDE;
 static libraries named by pkg-config can come from dependency packages. The
 contract also verifies no-SONAME ELF loading through two DSO boundaries and a
 relocated install. No production component build is required by these fixtures.
+
+`0029-isolate-static-pkgconfig-variants.patch` keeps independent static-only
+pkg-config interfaces out of a package's default dynamic interface when dynamic
+interfaces exist. A dynamic .pc that explicitly lists both shared and static
+libraries keeps all its inputs; static-only packages retain their defaults.
+Explicit per-library static targets carry their own .pc flags on library-bearing
+inputs. This prevents libbsd-ctor's -z nodlopen and forced constructor flags from
+leaking into ordinary libbsd consumers, while explicit constructor interfaces
+retain their contract. A synthetic CPython extension actually imports and returns
+44 after relocating the install and hiding the build tree. The fixture also
+checks explicit constructor output retains NOOPEN and ordinary DSOs exclude it.

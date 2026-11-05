@@ -15,6 +15,8 @@ import shutil
 import subprocess
 import tempfile
 import tarfile
+import sys
+import sysconfig
 
 
 def main():
@@ -94,6 +96,14 @@ def main():
         'usr/lib/libone.so.1': 'libone.so', 'usr/lib/pkgconfig/one.pc': pc('one'), 'usr/lib/pkgconfig/two.pc': pc('two')}), ['libmulti0'])
     cases.append(('multi', 'int one(void); int two(void);', 'one()+two()', 'libmulti-dev', ()))
 
+    package('liboptional-dev', {
+        'usr/lib/liboptional.so.1': library('liboptional', 'optional_value', 42),
+        'usr/lib/liboptional.so': 'liboptional.so.1',
+        'usr/lib/liboptional_ctor.a': archive('liboptional_ctor', 'optional_ctor_anchor', 0),
+        'usr/lib/pkgconfig/liboptional.pc': pc('optional'),
+        'usr/lib/pkgconfig/liboptional-ctor.pc': pc('optional_ctor').replace(b'-loptional_ctor\n', b'-loptional_ctor -Wl,-z,nodlopen -Wl,-u,optional_ctor_anchor\n')})
+    cases.append(('optional', 'int optional_value(void);', 'optional_value()', 'liboptional-dev', ()))
+
     package('libboundary-dev', dict(config_files, **{
         'usr/lib/libboundary.so.1': library('libboundary', 'boundary_value', 42),
         'usr/lib/libboundary_link.so': 'libboundary.so.1',
@@ -170,6 +180,7 @@ def main():
     package('libconstructor-dev', {'usr/lib/libctor.so': 'libctor.so.1',
         'usr/lib/libctor-init.a': archive('libctor-init', 'ctor_anchor', 0,
             source_text='extern int ctor_state; void ctor_anchor(void){} __attribute__((constructor)) static void init(void){ctor_state=42;}\n'),
+        'usr/lib/pkgconfig/base.pc': pc('ctor'),
         'usr/lib/pkgconfig/constructor.pc': pc('ctor').replace(b'-lctor\n',b'-lctor -lctor-init -Wl,-u,ctor_anchor\n')}, ['libctor0'])
     cases.append(('constructor', 'int ctor_value(void);', 'ctor_value()', 'libconstructor-dev', ()))
 
@@ -251,6 +262,21 @@ use_repo(apt,"locked","conflicting")
             f'shared_library_cc_info(name="{case}_downstream_link",shared_library=":{case}_downstream")',
             f'cc_binary(name="{case}_consumer",srcs=["{case}_main.c"],deps=[":{case}_downstream_link"],linkopts=["-Wl,-rpath,$$ORIGIN/../lib"])']
     build.append('link_context(name="language_context",dep=":multi_downstream_link")')
+    (root/'explicit_ctor.c').write_text('int optional_value(void); int ctor_selected(void){return optional_value();}\n')
+    build += ['cc_library(name="explicit_ctor_objects",srcs=["explicit_ctor.c"],deps=["@locked//liboptional-dev:liboptional_cc","@locked//liboptional-dev:liboptional_ctor_static"])',
+        'cc_shared_library(name="explicit_ctor",deps=[":explicit_ctor_objects"])']
+    if not cross:
+        headers = root/'python_headers'
+        shutil.copytree(sysconfig.get_paths()['include'],headers)
+        (root/'optional_python.c').write_text('''#include <Python.h>
+extern int optional_downstream(void);
+static PyObject *answer(PyObject *self, PyObject *args){return PyLong_FromLong(optional_downstream());}
+static PyMethodDef methods[]={{"answer",answer,METH_NOARGS,"answer"},{NULL,NULL,0,NULL}};
+static struct PyModuleDef module={PyModuleDef_HEAD_INIT,"optional_python",NULL,-1,methods};
+PyMODINIT_FUNC PyInit_optional_python(void){return PyModule_Create(&module);}
+''')
+        build += ['cc_library(name="python_headers",hdrs=glob(["python_headers/**"]),includes=["python_headers"])',
+            'cc_binary(name="optional_python.so",srcs=["optional_python.c"],linkshared=True,deps=[":python_headers",":optional_downstream_link"],linkopts=["-Wl,-rpath,$$ORIGIN/../lib"])']
     payload_packages = ['fixture-config', 'libmulti-dev', 'libboundary-dev']
     build.append('filegroup(name="package_inputs",srcs=[' + ','.join(f'"@locked//{pkg}/{arch}:{kind}"' for pkg in payload_packages for kind in ['deb', 'data', 'control']) + '])')
     if cross:
@@ -305,9 +331,14 @@ use_repo(apt,"locked","conflicting")
         assert result.returncode and message in result.stdout+result.stderr,(name,result.stdout+result.stderr)
         print('PASS native-only error:',name,flush=True)
     with (root / 'build.log').open('w') as log:
-        result = subprocess.run(bazel+['build']+flags+['//:'+case+'_consumer' for case, *_ in cases]+['//:language_context'],cwd=root,env=env,stdout=log,stderr=subprocess.STDOUT)
+        result = subprocess.run(bazel+['build']+flags+['//:'+case+'_consumer' for case, *_ in cases]+['//:language_context','//:explicit_ctor']+(['//:optional_python.so'] if not cross else []),cwd=root,env=env,stdout=log,stderr=subprocess.STDOUT)
     if result.returncode:
         raise SystemExit('Fixture build failed: '+str(root/'build.log'))
+    ordinary_dynamic = run(['readelf','-d',str(root/'bazel-bin/liboptional_bridge.so')]).stdout
+    assert 'NOOPEN' not in ordinary_dynamic, 'Optional static pkg-config flags leaked into the default dynamic interface:\n'+ordinary_dynamic
+    selected_dynamic = run(['readelf','-d',str(root/'bazel-bin/libexplicit_ctor.so')]).stdout
+    assert 'NOOPEN' in selected_dynamic, selected_dynamic
+    print('PASS explicit constructor interface retains NOOPEN',flush=True)
     result = subprocess.run(bazel+['build']+flags+['//:conflict_consumer'],cwd=root,env=env,text=True,capture_output=True)
     (root/'conflict.log').write_text(result.stdout+result.stderr)
     assert result.returncode and 'Ambiguous native shared library libduplicate.so.1' in result.stdout+result.stderr,result.stdout+result.stderr
@@ -315,6 +346,7 @@ use_repo(apt,"locked","conflicting")
     for case, _, _, _, forbidden in cases:
         for target in [case+'_bridge',case+'_downstream']:
             dynamic = run(['readelf','-d',str(root/'bazel-bin'/('lib'+target+'.so'))]).stdout
+            assert 'NOOPEN' not in dynamic,(target,dynamic)
             for name in forbidden:
                 assert '['+name+']' not in dynamic,(target,dynamic)
         output = execute(root/'bazel-bin'/(case+'_consumer'),root)
@@ -340,6 +372,8 @@ use_repo(apt,"locked","conflicting")
         for name in [case+'_bridge',case+'_downstream']:
             shutil.copy2(root/'bazel-bin'/('lib'+name+'.so'),install/'lib'/('lib'+name+'.so'))
         shutil.copy2(root/'bazel-bin'/(case+'_consumer'),install/'bin'/(case+'_consumer'))
+    if not cross:
+        shutil.copy2(root/'bazel-bin/optional_python.so',install/'bin/optional_python.so')
     context=json.loads((root/'bazel-bin/language_context.json').read_text())
     execroot=Path(run(bazel+['info']+flags+['execution_root'],cwd=root).stdout.strip())
     foreign_flags=context['flags']+['-Wl,-rpath,$ORIGIN/../lib']
@@ -359,9 +393,15 @@ use_repo(apt,"locked","conflicting")
     root.rename(hidden)
     try:
         for executable in sorted((install/'bin').iterdir()):
+            if executable.suffix == '.so':
+                continue
             output=execute(executable,install)
             assert output=='44',(executable,output)
             print('PASS installed clean loading',executable.name,'=',output,flush=True)
+        if not cross:
+            result=run([sys.executable,'-I','-c','import sys; sys.path.insert(0,sys.argv[1]); import optional_python; print(optional_python.answer())',str(install/'bin')],cwd=install)
+            assert result.stdout.strip()=='44',result.stdout
+            print('PASS installed CPython extension import = 44',flush=True)
     finally:
         hidden.rename(root)
     print('PASS all native library contracts; installed evidence:',install,flush=True)
