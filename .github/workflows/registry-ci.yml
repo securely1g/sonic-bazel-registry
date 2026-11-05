@@ -1,4 +1,4 @@
-name: Libyang native-preparation ARM cross acceptance
+name: Libyang native-preparation native acceptance
 
 on:
   workflow_dispatch:
@@ -7,42 +7,28 @@ permissions:
   contents: read
 
 concurrency:
-  group: libyang-7-cross-${{ github.ref }}
+  group: libyang-7-native-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  pty_regression:
-    name: Exact PTY exit-order regression
-    runs-on: [self-hosted, Linux, X64, debian-trixie-container]
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          ref: ${{ github.sha }}
-          persist-credentials: false
-      - name: Run all eight original and candidate terminal cases
-        shell: bash
-        run: |
-          set -euo pipefail
-          /usr/bin/python3 -I -S -B modules/libyang/3.12.2.sonic.7/tests/pty_wait_test.py \
-            --output "$RUNNER_TEMP/libyang-pty-regression"
-      - name: Retain exact terminal regression evidence
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: libyang-7-pty-regression
-          path: ${{ runner.temp }}/libyang-pty-regression
-          if-no-files-found: error
-          retention-days: 14
+  libyang_amd64:
+    name: libyang 3.12.2.sonic.7 (native AMD64, full 7-build/5-test contract)
+    uses: ./.github/workflows/registry-module.yml
+    with:
+      module: libyang
+      version: 3.12.2.sonic.7
+      architecture: amd64
+      execution_architecture: amd64
+      cross_compile: false
+      runner: '["self-hosted","Linux","X64","debian-trixie-container"]'
 
   libyang_arm64:
-    name: libyang 3.12.2.sonic.7 (ARM64 cross, full 7-build/5-test contract)
-    needs: pty_regression
+    name: libyang 3.12.2.sonic.7 (native ARM64, full 7-build/5-test contract)
     uses: ./.github/workflows/registry-module.yml
     with:
       module: libyang
       version: 3.12.2.sonic.7
       architecture: arm64
-      execution_architecture: amd64
-      cross_compile: true
-      runner: '["self-hosted","Linux","X64","debian-trixie-container"]'
+      execution_architecture: arm64
+      cross_compile: false
+      runner: '["ubuntu-24.04-arm"]'
