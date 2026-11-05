@@ -1485,15 +1485,17 @@ def run(root: Path, module: str, version: str, architecture: str,
                     for name, cpu in (("arm64", "aarch64"), ("amd64", "x86_64")):
                         handle.write(f'platform(name="nested_{name}", constraint_values=['
                                      f'"@platforms//os:linux", "@platforms//cpu:{cpu}", ":trixie"])\n')
-                nested = work_dir / "nested-bazel"
+                nested_tools = work_dir / "nested-tools"
+                nested_tools.mkdir()
+                nested = nested_tools / "bazel"
                 mirrors = work_dir / "nested-source-mirrors.cfg"
                 shutil.copy2(root / "ci/source_mirrors.cfg", mirrors)
                 template = (root / "ci/nested_bazel_probe.py").read_text()
                 nested.write_text(template.replace("__ADAPTER__", str(adapter)).replace("__MIRRORS__", str(mirrors)))
                 nested.chmod(0o755)
-                executor_prefix[-1:-1] = ["--bind-at", str(nested), "/usr/local/bin/bazel",
-                                           "--bind-at", str(nested), "/usr/bin/bazel", "--bind-at",
-                                           "/usr/local/lib/bazel-8.5.1", "/usr/local/lib/registry-ci-native-bazel"]
+                direct_executor = nested_tools / "arm-go-executor"
+                shutil.copy2(root / "ci/nested_go_test_executor", direct_executor)
+                executor_prefix = [str(direct_executor), "--"]
             if executor_prefix:
                 test_flags.append("--run_under=" + shlex.join(executor_prefix))
             # Emulated Python can spend more than five minutes staging a large

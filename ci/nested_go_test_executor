@@ -1,0 +1,12 @@
+#!/bin/bash
+# Run the original static ARM Go test in the same file namespace as its nested
+# native Bazel processes. The host binfmt handler also runs Go's ARM children.
+set -euo pipefail
+while [[ $# -gt 0 && $1 != -- ]]; do shift; done
+[[ $# -ge 2 ]]
+shift
+readelf -h "$1" | grep -Eq 'Machine: +AArch64$'
+export QEMU_LD_PREFIX=/opt/sonic-arm64-rootfs
+export PATH="$(cd "$(dirname "$0")" && pwd):$PATH"
+echo "Starting ARM Go test with native nested Bazel: $1"
+exec /usr/bin/qemu-aarch64 -L "$QEMU_LD_PREFIX" "$@"

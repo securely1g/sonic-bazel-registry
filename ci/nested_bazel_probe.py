@@ -4,13 +4,14 @@ import subprocess
 import sys
 from pathlib import Path
 
-binary = "/usr/local/lib/registry-ci-native-bazel"
+binary = "/usr/local/lib/bazel-8.5.1"
 args = sys.argv[1:]
 if not any(command in args for command in ("build", "cquery")):
     raise SystemExit(subprocess.call([binary, *args]))
 index = next(i for i, argument in enumerate(args) if argument in ("build", "cquery"))
 prefix = [binary, "--batch", "--host_jvm_args=-Xmx1024m", *args[:index]]
 command, rest = args[index], args[index+1:]
+print(f"Nested {command} in {Path.cwd()}", file=sys.stderr)
 options = [
     "--inject_repository=registry_ci_cross_cc=__ADAPTER__",
     "--extra_toolchains=@registry_ci_cross_cc//:toolchain",
