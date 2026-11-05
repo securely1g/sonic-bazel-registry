@@ -16,6 +16,19 @@ import time
 from python.runfiles import runfiles as runfiles_lib
 
 
+TCL_TEST_BOOTSTRAP = '''package require tcltest
+# Tcltest otherwise re-executes the raw interpreter named by Tcl, bypassing
+# the declared launcher's private loader and libraries for each test file.
+if {![file executable $env(LIBYANG_TCL_INTERPRETER)]} {
+    error "declared Tcl interpreter is not executable"
+}
+tcltest::interpreter $env(LIBYANG_TCL_INTERPRETER)
+set argv0 $env(LIBYANG_TCL_TEST_SCRIPT)
+unset env(LIBYANG_TCL_INTERPRETER) env(LIBYANG_TCL_TEST_SCRIPT)
+source $argv0
+'''
+
+
 def header_check(source):
     script = (source / 'compat/check_includes.sh').read_text()
     failures = []
@@ -126,6 +139,8 @@ def main():
         for tool in ['yanglint', 'yangre']:
             (build / tool).symlink_to(binaries[tool])
         tclsh = runfiles / request['tclsh']
+        tcl_bootstrap = build / 'run_original_tcl.tcl'
+        tcl_bootstrap.write_text(TCL_TEST_BOOTSTRAP)
         for name, directory, script in [
             ('yanglint_interactive', 'yanglint', 'interactive/all.tcl'),
             ('yanglint_non-interactive', 'yanglint', 'non-interactive/all.tcl'),
@@ -135,8 +150,8 @@ def main():
             # Original Tcl helpers support relative fixture paths. Keep echoed
             # commands independent of the sandbox's absolute path length;
             # upstream interactive tests set a fixed 720-column terminal.
-            env = dict(environment, TESTS_DIR=os.path.relpath(test_source, build), YANG_MODULES_DIR=os.path.relpath(test_source / 'modules', build), YANGLINT=str(build), YANGRE=str(build))
-            execute(name, [tclsh, test_source / script], cwd=build, env=env, tcl=True)
+            env = dict(environment, TESTS_DIR=os.path.relpath(test_source, build), YANG_MODULES_DIR=os.path.relpath(test_source / 'modules', build), YANGLINT=str(build), YANGRE=str(build), LIBYANG_TCL_INTERPRETER=str(tclsh), LIBYANG_TCL_TEST_SCRIPT=str(test_source / script))
+            execute(name, [tclsh, tcl_bootstrap], cwd=build, env=env, tcl=True)
     output = Path(os.environ.get('TEST_UNDECLARED_OUTPUTS_DIR', tempfile.gettempdir())) / 'upstream-results.json'
     output.write_text(json.dumps(results, indent=2) + '\n')
     print(json.dumps(results, indent=2), flush=True)
