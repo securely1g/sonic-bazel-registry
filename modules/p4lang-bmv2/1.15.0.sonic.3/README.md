@@ -104,7 +104,7 @@ intact; arbitrary GCC response files stay opaque.
 
 This requires the source launcher from
 [sonic-build-infra PR #82](https://github.com/securely1g/sonic-build-infra/pull/82),
-registered as `0.0.26-f6da55505437cb139fdf610db8c61cb9420b0fec`. Both the module
+registered as `0.0.27-08e0956f80574b27a9b68e72fe855cc0089058e5`. Both the module
 minimum and the independent consumer select that version. No source archive,
 source patch, target ABI, configured feature or installed path changed.
 

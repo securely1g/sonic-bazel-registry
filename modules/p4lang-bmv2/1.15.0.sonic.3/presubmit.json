@@ -6,15 +6,15 @@
   "consumer_deps": [
     {
       "name": "sonic-build-infra",
-      "version": "0.0.26-f6da55505437cb139fdf610db8c61cb9420b0fec"
+      "version": "0.0.27-08e0956f80574b27a9b68e72fe855cc0089058e5"
     },
     {
       "name": "tar.bzl",
-      "version": "0.10.5-sonic.1"
+      "version": "0.10.5.sonic.2"
     },
     {
       "name": "rules_distroless",
-      "version": "0.9.4.sonic.16"
+      "version": "0.9.4.sonic.17"
     }
   ],
   "platforms": {
