@@ -31,25 +31,93 @@ repository branch-protection settings.
 
 The runner passes Bazel's standard `--experimental_downloader_config` with
 [`source_mirrors.cfg`](source_mirrors.cfg) to dependency preparation, builds,
-tests and output queries. One rewrite is the exact upstream URL for
-BCR `pigz@2.8.bcr.2`, used by build-infra's reproducible gzip tool when packaging
-WPA's debug TAR. The original URL now serves different bytes; a clean
+tests and output queries. Rewrites match only the archive and binary-package
+URLs described below; registry order, module versions, source recipes and
+integrity values stay unchanged.
+
+The five ARM-hosted BCR archives use verified copies in this repository's
+[source-mirror release](https://github.com/securely1g/sonic-bazel-registry/releases/tag/ci-source-mirrors-20261104)
+first, with each original GitLab release URL retained as the next candidate:
+
+| BCR module | Release asset |
+| --- | --- |
+| `ape@1.0.1` | `ape-v1.0.1.tar.gz` |
+| `download_utils@1.0.1` | `download_utils-v1.0.1.tar.gz` |
+| `rules_coreutils@1.0.1` | `rules_coreutils-v1.0.1.tar.gz` |
+| `rules_gzip@1.0.0` | `rules_gzip-v1.0.0.tar.gz` |
+| `toolchain_utils@1.0.2` | `toolchain_utils-v1.0.2.tar.gz` |
+
+Each copy must satisfy the original BCR SHA512 integrity. This avoids the
+[ARM GitLab release endpoint failures](https://github.com/bazelbuild/bazel-central-registry/issues/9973)
+without discarding the upstream source. Bazel 8.5.1's
+[URL rewriter](https://github.com/bazelbuild/bazel/blob/8.5.1/src/main/java/com/google/devtools/build/lib/bazel/repository/downloader/UrlRewriter.java)
+collects matching replacements in configuration order; its
+[downloader](https://github.com/bazelbuild/bazel/blob/8.5.1/src/main/java/com/google/devtools/build/lib/bazel/repository/downloader/HttpDownloader.java)
+tries the next candidate after a failed download or checksum mismatch. Other
+versions and URLs are unaffected; no global module mirror is enabled.
+
+The exact `gawk-5.3.2.tar.xz` URLs at `mirrors.kernel.org`, `ftp.gnu.org`, and
+`ftpmirror.gnu.org` likewise try MacPorts first and retain each original URL as
+a fallback. The published source recipe and SHA256
+`f8c3486509de705192138b00ef2c00bbbdd0e84c30d5c07d23fc73a9dc4cc9cc` remain unchanged.
+
+Some packages have additional exact-URL candidates before their timestamped
+snapshot fallbacks:
+
+| Locked package | Additional candidate |
+| --- | --- |
+| `libcap-dev_2.75-10+deb13u1+b1_amd64.deb` | Debian content-addressed file |
+| `libaudit-dev_4.0.2-2+b2_amd64.deb` | Debian content-addressed file |
+| `libcap2_2.75-10+deb13u1+b1_arm64.deb` | Verified GitHub release copy |
+| `bash_5.2.37-2+b9_arm64.deb` | Verified GitHub release copy |
+| `libc-bin_2.41-12+deb13u3_arm64.deb` | Debian content-addressed file, then existing CDN fallback |
+| `uuid-dev_2.41-5_amd64.deb` | Debian content-addressed file, then existing CDN fallback |
+| `libc-ares-dev_1.34.5-1+deb13u1_arm64.deb` | Debian content-addressed file, then the official security CDN |
+| `openssl-provider-legacy_3.5.6-1~deb13u2_arm64.deb` | Debian content-addressed file |
+| `openssl_3.5.6-1~deb13u2_arm64.deb` | Debian content-addressed file |
+
+These candidates preserve each original APT-lock SHA256. The SHA1 in Debian's
+content-addressed URL is only a locator; Bazel still checks the stronger locked
+SHA256. The GitHub copies have a [checksum and origin manifest](https://github.com/securely1g/sonic-bazel-registry/releases/download/ci-source-mirrors-20261104/debian-package-mirrors-20261105.json).
+Their rewrites match the exact timestamp, version, and architecture. Local HTTP
+fixtures exercise the added candidates, fallback to the original paths, and
+rejection of corrupt mirror bytes. Cold Bazel fetches verify the five packages
+selected by the hosted ARM jobs against their original locked hashes and sizes;
+neither architecture's package binaries are executed by these fetch tests.
+
+Other timestamped `snapshot.debian.org/archive/debian/.../pool/*.deb` downloads
+try the identical pool path on Debian's official `deb.debian.org/debian/` CDN
+first, then retain the exact timestamped snapshot URL as fallback. This avoids
+transient snapshot HTTP 503 failures for package versions still present in the
+current pool; older packages absent from the CDN continue through the snapshot.
+Binary-package inputs on `snapshot-cloudflare.debian.org` try the identical CDN
+pool path, then the identical timestamp/path on `snapshot.debian.org`, then the
+original Cloudflare snapshot URL. The native AMD64 and ARM64 BusyBox 1.36.1-6
+packages declared by `rules_coreutils@1.0.1` retain all three candidates, with
+cold-fetch regressions checking both original SHA256 hashes without executing
+either package.
+The locked filename, version and SHA256 remain unchanged. The generic rules do
+not rewrite indexes, metadata, source archives, or `debian-security`; only the
+three exact security-package exceptions listed above are added. The cold-fetch
+regression checks `libsframe1_2.44-3_amd64.deb` against
+its generated APT lock's SHA256
+`38f625dfdc582717029ac3a3e97c51d994ec2e7a0e9b230c6b44e40d1276311f`.
+
+Repository downloads allow 12 HTTP connection attempts with a nominal 10-second
+retry-delay cap and at most four parallel downloads per Bazel process. These flags
+apply to both architectures, repository-dependent commands and Rust preparation;
+the cold-fetch regressions use the same policy. This allows transient HTTP
+503/504 responses to recover without changing package inputs or retrying tests.
+
+BCR `pigz@2.8.bcr.2` is used by build-infra's reproducible gzip tool when packaging
+WPA's debug TAR. Its original URL now serves different bytes; a clean
 [WPA registry build](https://github.com/securely1g/sonic-bazel-registry/actions/runs/41587703074/job/125760920377)
 fails its BCR checksum before compiling any source.
 
 The MacPorts mirror retains the original archive with SHA256
 `eb872b4f0e1f0ebe59c9f7bd8c506c4204893ba6a8492de31df416f0d5170fd0`.
 Bazel still verifies BCR's unchanged integrity and applies its unchanged patches.
-Other pigz versions and paths are not rewritten. No source/version override,
-custom pigz module, prebuilt pigz, or disabled integrity check is involved.
-
-Debian snapshot downloads first try `snapshot-cloudflare.debian.org`, then
-the original `snapshot.debian.org` URL. This preserves the complete path,
-including the snapshot date, for ordinary and security archives and indexes.
-Registry validation encountered HTTP 503 responses from the original endpoint
-while fetching pinned libpcap and libc debug packages, before source compilation.
-Both download attempts remain subject to the original locked SHA256.
-No package version, snapshot date or checksum changes.
+No source/version override, custom module, or disabled integrity check is involved.
 
 This config applies automatically in this registry's validation runner. It does
 not change how standalone consumers download dependencies. Until BCR's upstream
@@ -60,19 +128,13 @@ path to a checkout of this config:
 bazel build --experimental_downloader_config=/path/to/sonic-bazel-registry/ci/source_mirrors.cfg //your:target
 ```
 
-The real Bazel runner tests fetch BCR's pigz into a new, empty repository cache
-without a distdir, verify its original archive hash and patched MODULE, and
-confirm that a mirror serving different bytes is still rejected. These are
-repository fetches; they execute no compilation or package actions.
-
-Controlled snapshot endpoint tests also use real Bazel with empty caches to
-verify ordinary/security archive and index routing, original-URL fallback,
-and rejection of incorrect bytes. These fixtures test downloader behavior;
-they do not establish availability of an external mirror.
-
-The native AMD64/ARM64 runner tests retain these source-fetch checks. Every
-branch uses the normal publication-policy plan and module matrix; source-mirror
-changes have no branch-specific test exception.
+The real Bazel runner tests fetch the five ARM archives, gawk, BCR's pigz and the
+locked Debian package into new, empty repository caches without a distdir,
+checking original archive hashes and
+fetched MODULE files. Local HTTP fixtures verify candidate order, fallback after
+HTTP errors and checksum mismatches, and rejection when every candidate has the
+wrong bytes. These are repository fetches; they execute no compilation or package
+actions.
 
 ## Kernel build-tool cache downloads
 
@@ -100,9 +162,8 @@ example, `0.9.4.sonic.10` is newer than `0.9.4.sonic.9`, and `0.9.5.sonic.1`
 is newer than both. Existing `-sonic.N` spellings remain supported; the dotted
 spelling wins when the release and patch revision match.
 
-For source versions with the same numeric release and SONiC patch, the last
-registration in `metadata.json` wins. This includes the published Go snapshot
-form, such as `0.0.0.sonic.1-20200309174518-a00bece872fc`. Git hashes do not indicate which commit is newer. Append
+For source versions with the same numeric release, the last registration in
+`metadata.json` wins. Git hashes do not indicate which commit is newer. Append
 new registrations without reordering existing entries. A later append of an
 older release cannot displace a higher release: build-infra `0.0.18-95cd3a9...`
 is selected ahead of any `0.0.8-...` registration. This is a CI selection rule,
@@ -512,12 +573,64 @@ original validation failure is still preserved.
 
 ## Environment and coverage
 
-The build matrix uses native GitHub-hosted `ubuntu-24.04` and `ubuntu-24.04-arm`
-servers with a `debian:trixie-20260918` container pinned to its multiarch image
-digest. It installs the compiler and
-package-test tools in the container and downloads Bazel 8.5.1 with a pinned SHA256
-for the native CPU. GitHub actions are pinned to commit SHAs, checkout does not
+Planning, the aggregate check, and AMD64 runner tests and module validation use
+self-hosted Debian Trixie Docker runners with the labels `self-hosted`, `Linux`,
+`X64`, and `debian-trixie-container`. Register the runners as ephemeral so each
+accepts only one job; `sonic-slave-wrk-mgr` must remove the finished container
+and replace it with a fresh registered runner after success, failure, or
+cancellation. Keep registration credentials in the manager, outside job
+containers, and retain runner diagnostics before removing a container.
+
+ARM64 jobs continue to use native GitHub-hosted `ubuntu-24.04-arm` runners.
+Moving them to AMD64 containers with cross compilation is a separate change.
+ARM64 module jobs retain the
+`debian:trixie-20260918` container pinned to its multiarch image digest. AMD64
+steps execute directly inside the disposable runner, built from that same
+pinned Trixie base with the compiler and package-test tools preinstalled.
+AMD64 does not start a second container or require a Docker daemon. Actions run
+as UID 1000; module validation and runtime package preparation use passwordless
+`sudo` inside the disposable container. Evidence is archived as root, then only
+the resulting TAR is given to the action user, preserving the archived modes.
+
+The manager supplies `SONIC_RUNNER_IMAGE_REFERENCE=sonic-slave-runner@sha256:...`
+from the actual derived image's inspected Docker image ID. This is a local
+content identity, not a registry pull reference or the upstream base digest.
+`validation.json` records that AMD64 identity or the ARM64 pinned job image
+reference. Missing AMD64 identity fails validation. Runtime preparation receipts
+also record the prepared package inventory and library hashes.
+
+The AMD64 image contains the checksum-verified Bazel 8.5.1 binary at
+`/usr/local/lib/bazel-8.5.1`. Its `/usr/local/bin/bazel` wrapper explicitly passes
+the image's Java CA trust store as a startup argument, including when CI ignores
+all bazelrc files. The workflow verifies the binary's checksum again. ARM64
+downloads and verifies its native Bazel binary in the job container. GitHub
+actions are pinned to commit SHAs, checkout does not
 persist credentials, and the workflow uses read-only repository permissions.
+
+AMD64 module jobs pass `--bazel-startup-arg=--host_jvm_args=-Xmx2g` to bound
+Bazel's Java heap within each runner's 16 GiB memory limit. The runner accepts
+repeated startup arguments, forwards them to build, test, cquery, info and Rust
+preparation, and records them in `validation.json`. ARM64 keeps its default heap.
+Repeated `--bazel-build-arg` options reach build, test and output queries.
+AMD64 jobs use `--jobs=1` and `--discard_analysis_cache` to reduce concurrent
+compiler memory; Rust preparation receives those settings too. This limits
+concurrent Bazel actions; recipes may still request parallel compilation inside
+an action. The declared targets and published recipes stay unchanged. The AMD64 module matrix runs at most
+ten jobs concurrently; the sixteen registered workers also serve planning, unit
+tests and subsequent jobs. Native ARM64 validation has its own matrix, so queued
+hosted jobs do not consume AMD64 matrix slots. Both matrices are required by the
+aggregate check.
+
+Tests receive an explicitly exported empty `HOME`, which Bazel's test setup
+replaces with that test's writable `TEST_TMPDIR`. This lets Python and other
+subprocesses create user configuration inside the test sandbox; an absent
+`HOME` would otherwise fall back to the account's home directory.
+
+`TestRunner` actions prefer `processwrapper-sandbox`. This lets tests hard-link
+their declared runfiles into writable temporary directories and set executable
+permissions on those private copies. Build actions keep their existing sandbox
+strategy. Local or exclusive tests retain the `local` fallback, and real Bazel
+regressions cover both paths without changing published tests.
 
 Runner tests execute on native AMD64 and ARM64 hosts with pinned Bazel 8.5.1.
 They build an actual directory-producing target and its public alias, including
@@ -566,3 +679,12 @@ clean reproduction.
 
 See the [Bazel registry format](https://bazel.build/external/registry) for module
 source, patch, and overlay metadata.
+
+### SONiC Go pseudo-version ordering
+
+Registered SONiC patches may retain a Go pseudo-version suffix, for example
+0.0.0.sonic.1-20200309174518-a00bece872fc. The planner accepts the exact
+14-digit timestamp and 12-lowercase-hex form while preserving numeric release,
+SONiC patch number and separator precedence. Equal release/patch snapshots
+continue to use metadata registration order; hashes/timestamps are not sorted.
+Malformed or unrelated suffixes remain rejected.
