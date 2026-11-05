@@ -50,12 +50,10 @@ its standard `configure_xcompile` option, which supplies Autoconf's host/build
 triplets when target and execution platforms differ. Native invocations retain
 their normal configure behavior.
 
-The declared [source patch](overlay/bazel/cross-configure.patch) checks the
-readability of the vendored `googletest/src/gtest.cc` directly. This is a build
-source check; Autoconf's `AC_CHECK_FILE` instead models a target filesystem
-probe and refuses to run during cross compilation. The replacement retains
-the missing-submodule error and requires the real file to exist. It does not
-supply cached probe answers or disable gtest, CLI, or protobuf features.
+The source patch checks both vendored inputs on the build machine. Top-level
+configure reads the gtest source, and proto configure reads
+`p4/v1/p4runtime.proto`. Both keep their existing missing-submodule errors.
+[Patch](overlay/bazel/cross-configure.patch)
 
 `.sonic.2` and its consumer inputs remain unchanged. See [PATCHES.md](PATCHES.md)
 for the patch scope. This candidate is stacked on the separate P4C registration

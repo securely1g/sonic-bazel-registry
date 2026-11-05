@@ -13,6 +13,6 @@
     "bazel/source.bzl": "sha256-L2gXKCvkq/aiAhjSlTgupXWqIArraPFuTpMaZIm7rz8=",
     "bazel/pi.BUILD.bazel": "sha256-iDg6IEeyH3DHTQjTIRLUE8G01CgrEvF7vlNCQr8253k=",
     "runtime_packages.md": "sha256-qAWXsYsO8tj5EjkQ+FkG+k1eZ/anv43cFJJHKv4F5b8=",
-    "bazel/cross-configure.patch": "sha256-OR2nwVXnIce+jI3/ReGwz+JGUiTF3wwIKM/KEEz7cpc="
+    "bazel/cross-configure.patch": "sha256-YDTzrgL238tQCaGbp9ofzPefap9REoC5s5q76WFk10s="
   }
 }

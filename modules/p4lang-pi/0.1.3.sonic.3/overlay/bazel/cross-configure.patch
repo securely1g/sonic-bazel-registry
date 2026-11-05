@@ -9,3 +9,14 @@
                    [AC_MSG_ERROR([Did you run 'git submodule update --init'?])])
  ])
  
+--- a/proto/configure.ac
++++ b/proto/configure.ac
+@@ -93,7 +93,7 @@
+ ])
+ 
+ p4runtime_check_f=$ac_abs_confdir/p4/v1/p4runtime.proto
+-AC_CHECK_FILE([$p4runtime_check_f], [],
++AS_IF([test -r "$p4runtime_check_f"], [],
+               [AC_MSG_ERROR([Cannot find p4runtime; did you run 'git submodule update --init'?])])
+ 
+ AC_ARG_ENABLE([Werror],
