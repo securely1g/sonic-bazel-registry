@@ -143,6 +143,15 @@ SURVEY_CONTENT_PACKAGES += (
      '0c426e83f1af816b9a4df9056fd2238463d1cd07969ee640965da9fb6ecaf107', 422284,
      'https://deb.debian.org/debian-security/pool/updates/main/f/freetype/libfreetype6_2.13.3+dfsg-1+deb13u1_arm64.deb'),
 )
+SURVEY_CONTENT_PACKAGES += (
+    ("https://snapshot.debian.org/archive/debian-security/20260726T121236Z/pool/updates/main/t/tiff/libtiff6_4.7.0-3+deb13u3_arm64.deb",
+     "5e4fec5c53e730725b92a01b3e6663878562fa79",
+     "208e9fdc14ed88a30f31fdfb993d1e8ab19f9ab29f3cd8546ffb4ea3f74f5a3f", 325232,
+     "https://deb.debian.org/debian-security/pool/updates/main/t/tiff/libtiff6_4.7.0-3+deb13u3_arm64.deb"),
+    ("https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/u/util-linux/libmount1_2.41-5_arm64.deb",
+     "81aee071e0a7fff9504c0ec2cbf6acf665ebf0bb",
+     "2e791f8faf7bbbc94d354cf7b6c3728dc303b7aa327dfe7a2aa6954320977c8f", 198880, None),
+)
 DEBIAN_CONTENT_PACKAGES += SURVEY_CONTENT_PACKAGES
 # FRR AMD64 jobs selected these unchanged package inputs.
 DEBIAN_CONTENT_PACKAGES += (

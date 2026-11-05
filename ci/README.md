@@ -81,6 +81,8 @@ snapshot fallbacks:
 | `libblkid1_2.41-5_amd64.deb` | Debian content-addressed file, then existing CDN fallback |
 | `libpython3.13-dev` 3.13.5-2+deb13u4 (AMD64, ARM64) | Debian content-addressed file, then existing CDN fallback |
 | `libtiff6_4.7.0-3+deb13u3_amd64.deb` | Debian content-addressed file |
+| `libtiff6_4.7.0-3+deb13u3_arm64.deb` | Debian content-addressed file, then the official security CDN |
+| `libmount1_2.41-5_arm64.deb` | Debian content-addressed file, then existing CDN fallback |
 | `libgssrpc4t64_1.21.3-5+deb13u1_amd64.deb` | Debian content-addressed file |
 | `libxapian30_1.4.29-3_arm64.deb` | Debian content-addressed file, then existing CDN fallback |
 | `libssl-dev` 3.5.6-1~deb13u2 (AMD64, ARM64, ARMHF) | Debian content-addressed file |
