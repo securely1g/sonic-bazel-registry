@@ -101,6 +101,8 @@ def main():
         for name in ("filan", "procan"):
             assert command(*prefix, str(root / "usr/bin" / name), "-h", env=environment)
         process_metadata = command(*prefix, str(root / "usr/bin/procan"), env=environment)
+        namespace = re.search(r"^Network namespace: (.*)$", process_metadata, re.M)
+        assert namespace and namespace[1] == os.readlink("/proc/self/ns/net"), process_metadata
         compiler = re.search(r"^// CC:\s+(.+)$", process_metadata, re.M)
         assert compiler and compiler[1].startswith("./external/"), process_metadata
         assert "/execroot/" not in compiler[1], compiler[1]

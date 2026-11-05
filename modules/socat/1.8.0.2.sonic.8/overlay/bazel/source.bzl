@@ -27,6 +27,8 @@ def _socat_source_impl(ctx):
     # procan reports the compiler command as literal text; compiler prefix maps
     # cannot rewrite that metadata. Keep the real compile command unchanged.
     ctx.patch(ctx.path(ctx.attr.compiler_metadata_patch), strip = 1)
+    # readlink() does not terminate the namespace path printed by procan.
+    ctx.patch(ctx.path(ctx.attr.namespace_patch), strip = 1)
     ctx.symlink(ctx.attr.build_file, "BUILD.bazel")
 
 socat_source = repository_rule(
@@ -37,7 +39,8 @@ socat_source = repository_rule(
         "debian_url": attr.string(mandatory = True),
         "debian_sha256": attr.string(mandatory = True),
         "readline_patch": attr.label(mandatory = True, allow_single_file = True),
-        "compiler_metadata_patch": attr.label(default = "//:bazel/compiler_metadata.patch", allow_single_file = True),
+        "compiler_metadata_patch": attr.label(default = "//:bazel/0002-compiler-metadata.patch", allow_single_file = True),
+        "namespace_patch": attr.label(default = "//:bazel/0003-procan-namespace-nul.patch", allow_single_file = True),
         "build_file": attr.label(mandatory = True, allow_single_file = True),
     },
 )

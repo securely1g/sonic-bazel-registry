@@ -15,6 +15,13 @@ normalized for Bazel's patch reader; the changes to Debian files are unchanged. 
 `debian/rules`. The Bazel configure target also explicitly selects
 `--enable-readline`; OpenSSL and TCP-wrapper support remain enabled.
 
+The three local patches run after Debian's series: `0001-enable-readline.patch`,
+`0002-compiler-metadata.patch`, then `0003-procan-namespace-nul.patch`. The last
+patch terminates the namespace path returned by `readlink()` before `procan`
+prints it. Without that terminator, process diagnostics can include uninitialized
+stack bytes. The installed-program test requires the exact network namespace
+link and retains strict UTF-8 decoding and compiler-metadata checks.
+
 The Bazel Central Registry has no socat module. This integration reuses the
 upstream `rules_foreign_cc` configure/Make rule and SONiC's declared GCC,
 Make and pkgconf tools. It builds the original source with its existing

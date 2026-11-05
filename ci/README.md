@@ -31,7 +31,7 @@ repository branch-protection settings.
 
 The runner passes Bazel's standard `--experimental_downloader_config` with
 [`source_mirrors.cfg`](source_mirrors.cfg) to dependency preparation, builds,
-tests and output queries. The only rewrite is the exact upstream URL for
+tests and output queries. One rewrite is the exact upstream URL for
 BCR `pigz@2.8.bcr.2`, used by build-infra's reproducible gzip tool when packaging
 WPA's debug TAR. The original URL now serves different bytes; a clean
 [WPA registry build](https://github.com/securely1g/sonic-bazel-registry/actions/runs/41587703074/job/125760920377)
@@ -40,8 +40,16 @@ fails its BCR checksum before compiling any source.
 The MacPorts mirror retains the original archive with SHA256
 `eb872b4f0e1f0ebe59c9f7bd8c506c4204893ba6a8492de31df416f0d5170fd0`.
 Bazel still verifies BCR's unchanged integrity and applies its unchanged patches.
-Other versions, paths and hosts are not rewritten. No source/version override,
+Other pigz versions and paths are not rewritten. No source/version override,
 custom pigz module, prebuilt pigz, or disabled integrity check is involved.
+
+Debian snapshot downloads first try `snapshot-cloudflare.debian.org`, then
+the original `snapshot.debian.org` URL. This preserves the complete path,
+including the snapshot date, for ordinary and security archives and indexes.
+Registry validation encountered HTTP 503 responses from the original endpoint
+while fetching pinned libpcap and libc debug packages, before source compilation.
+Both download attempts remain subject to the original locked SHA256.
+No package version, snapshot date or checksum changes.
 
 This config applies automatically in this registry's validation runner. It does
 not change how standalone consumers download dependencies. Until BCR's upstream
@@ -57,10 +65,14 @@ without a distdir, verify its original archive hash and patched MODULE, and
 confirm that a mirror serving different bytes is still rejected. These are
 repository fetches; they execute no compilation or package actions.
 
-The `codex/pigz-source-mirror` PR validates this CI fix with those fetch tests and
-the existing AMD64/ARM64 runner tests. Its path-checked exception retains the
-normal publication-policy plan but does not run the unrelated module build
-matrix. All other branches and pushes retain normal module selection.
+Controlled snapshot endpoint tests also use real Bazel with empty caches to
+verify ordinary/security archive and index routing, original-URL fallback,
+and rejection of incorrect bytes. These fixtures test downloader behavior;
+they do not establish availability of an external mirror.
+
+The native AMD64/ARM64 runner tests retain these source-fetch checks. Every
+branch uses the normal publication-policy plan and module matrix; source-mirror
+changes have no branch-specific test exception.
 
 ## Kernel build-tool cache downloads
 
@@ -88,8 +100,9 @@ example, `0.9.4.sonic.10` is newer than `0.9.4.sonic.9`, and `0.9.5.sonic.1`
 is newer than both. Existing `-sonic.N` spellings remain supported; the dotted
 spelling wins when the release and patch revision match.
 
-For source versions with the same numeric release, the last registration in
-`metadata.json` wins. Git hashes do not indicate which commit is newer. Append
+For source versions with the same numeric release and SONiC patch, the last
+registration in `metadata.json` wins. This includes the published Go snapshot
+form, such as `0.0.0.sonic.1-20200309174518-a00bece872fc`. Git hashes do not indicate which commit is newer. Append
 new registrations without reordering existing entries. A later append of an
 older release cannot displace a higher release: build-infra `0.0.18-95cd3a9...`
 is selected ahead of any `0.0.8-...` registration. This is a CI selection rule,
