@@ -1,0 +1,55 @@
+load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
+
+package(default_visibility = ["//visibility:public"])
+
+[
+    alias(
+        name = name,
+        actual = "@p4c_source//:" + name,
+    )
+    for name in [
+        "p4c_pkg",
+        "p4c_pkg.debug_symbols",
+        "p4c_bm2_ss",
+        "configuration",
+    ]
+]
+
+# Command-line test aliases are not executed by Bazel; expose a real suite.
+test_suite(
+    name = "package_test",
+    tests = ["@p4c_source//:package_test"],
+)
+
+# Package fields come from the existing Debian recipe. This mapping only
+# identifies the Bazel-built TAR for each Debian binary package.
+runtime_packages(
+    name = "runtime_packages.json",
+    apt_packages = {
+        "@p4c_deps//" + package + ":data": "@p4c_deps//" + package + ":control"
+        for package in [
+            "libboost-iostreams1.83.0",
+            "libboost-regex1.83.0",
+            "libboost-serialization1.83.0",
+            "libgc1",
+            "libgmp10",
+            "libgmpxx4ldbl",
+            "libfl2",
+            "liblzma5",
+            "libbz2-1.0",
+            "libzstd1",
+            "zlib1g",
+        ]
+    },
+    changelog = "@p4c_source//:debian/changelog",
+    control = "@p4c_source//:debian/control",
+    packages = {
+        "p4lang-p4c": "//:p4c_pkg",
+    },
+    visibility = ["//visibility:public"],
+)
+
+exports_files(
+    ["runtime_packages.md"],
+    visibility = ["//visibility:public"],
+)
