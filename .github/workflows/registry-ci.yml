@@ -21,11 +21,15 @@ concurrency:
 jobs:
   plan:
     name: Plan module validation
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, Linux, X64, debian-trixie-container]
     timeout-minutes: 10
     outputs:
       matrix: ${{ steps.plan.outputs.matrix }}
       has_jobs: ${{ steps.plan.outputs.has_jobs }}
+      amd64_matrix: ${{ steps.plan.outputs.amd64_matrix }}
+      has_amd64_jobs: ${{ steps.plan.outputs.has_amd64_jobs }}
+      arm64_matrix: ${{ steps.plan.outputs.arm64_matrix }}
+      has_arm64_jobs: ${{ steps.plan.outputs.has_arm64_jobs }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -74,9 +78,17 @@ jobs:
           from pathlib import Path
 
           matrix = json.loads(Path("plan.json").read_text())
+          architectures = ("amd64", "arm64")
+          if any(job["architecture"] not in architectures for job in matrix["include"]):
+              raise SystemExit("Unsupported architecture in validation plan")
           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
               print("matrix=" + json.dumps(matrix, separators=(",", ":")), file=output)
               print("has_jobs=" + str(bool(matrix["include"])).lower(), file=output)
+              for architecture in architectures:
+                  selected = {"include": [job for job in matrix["include"]
+                                          if job["architecture"] == architecture]}
+                  print(architecture + "_matrix=" + json.dumps(selected, separators=(",", ":")), file=output)
+                  print("has_" + architecture + "_jobs=" + str(bool(selected["include"])).lower(), file=output)
           PY
       - name: Retain validation plan
         if: always()
@@ -96,17 +108,17 @@ jobs:
       matrix:
         include:
           - architecture: amd64
-            runner: ubuntu-24.04
+            runner: [self-hosted, Linux, X64, debian-trixie-container]
             machine: x86_64
             bazel_arch: x86_64
             bazel_sha: 61d89402f0368e64b6c827be5de79d8e65382e8124c3cbb97325611a1851392e
           - architecture: arm64
-            runner: ubuntu-24.04-arm
+            runner: [ubuntu-24.04-arm]
             machine: aarch64
             bazel_arch: arm64
             bazel_sha: b7f2a85595e8a87d54843bc656c1e379fd9b8c1b5f783dc41717c1d7eb7cc49f
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 10
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -121,11 +133,18 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$(uname -m)" == "$EXPECTED_MACHINE" ]]
-          curl --fail --location --retry 3 --output "$RUNNER_TEMP/bazel-8.5.1" \
-            "https://releases.bazel.build/8.5.1/release/bazel-8.5.1-linux-${BAZEL_ARCH}"
-          printf '%s  %s\n' "$BAZEL_SHA" "$RUNNER_TEMP/bazel-8.5.1" | sha256sum --check --strict
-          chmod 0755 "$RUNNER_TEMP/bazel-8.5.1"
-          echo "REGISTRY_CI_TEST_BAZEL=$RUNNER_TEMP/bazel-8.5.1" >> "$GITHUB_ENV"
+          if [[ "$BAZEL_ARCH" == x86_64 ]]; then
+            printf '%s  %s\n' "$BAZEL_SHA" /usr/local/lib/bazel-8.5.1 | sha256sum --check --strict
+            # The image wrapper passes its Java CA store as a startup option,
+            # including when tests use --ignore_all_rc_files.
+            echo "REGISTRY_CI_TEST_BAZEL=/usr/local/bin/bazel" >> "$GITHUB_ENV"
+          else
+            curl --fail --location --retry 3 --output "$RUNNER_TEMP/bazel-8.5.1" \
+              "https://releases.bazel.build/8.5.1/release/bazel-8.5.1-linux-${BAZEL_ARCH}"
+            printf '%s  %s\n' "$BAZEL_SHA" "$RUNNER_TEMP/bazel-8.5.1" | sha256sum --check --strict
+            chmod 0755 "$RUNNER_TEMP/bazel-8.5.1"
+            echo "REGISTRY_CI_TEST_BAZEL=$RUNNER_TEMP/bazel-8.5.1" >> "$GITHUB_ENV"
+          fi
       - name: Test planning and validation runner
         shell: bash
         env:
@@ -144,82 +163,41 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-  modules:
+  modules_amd64:
     name: ${{ matrix.module }} ${{ matrix.version }} (${{ matrix.architecture }})
     needs: plan
-    if: needs.plan.outputs.has_jobs == 'true'
+    if: needs.plan.outputs.has_amd64_jobs == 'true'
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: 180
-    container: debian:trixie-20260918@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c
-    defaults:
-      run:
-        shell: bash
-    env:
-      DEBIAN_FRONTEND: noninteractive
-      CI_MODULE: ${{ matrix.module }}
-      CI_VERSION: ${{ matrix.version }}
-      CI_ARCHITECTURE: ${{ matrix.architecture }}
-    steps:
-      - name: Install build and package test tools
-        run: |
-          set -euo pipefail
-          apt-get update
-          # LLVM needs libxml2; installed SDK tests exercise their pkg-config metadata.
-          apt-get install -y --no-install-recommends binutils build-essential ca-certificates curl gdb git libxml2 libzstd-dev patch pkg-config python3 tar unzip xz-utils zlib1g-dev zstd
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          persist-credentials: false
-      - name: Install Bazel 8.5.1
-        run: |
-          set -euo pipefail
-          case "$(uname -m)" in
-            x86_64)
-              [[ "$CI_ARCHITECTURE" == amd64 ]]
-              bazel_arch=x86_64
-              bazel_sha=61d89402f0368e64b6c827be5de79d8e65382e8124c3cbb97325611a1851392e
-              ;;
-            aarch64)
-              [[ "$CI_ARCHITECTURE" == arm64 ]]
-              bazel_arch=arm64
-              bazel_sha=b7f2a85595e8a87d54843bc656c1e379fd9b8c1b5f783dc41717c1d7eb7cc49f
-              ;;
-            *) echo "Unsupported native architecture" >&2; exit 1 ;;
-          esac
-          curl --fail --location --retry 3 --output /tmp/bazel "https://releases.bazel.build/8.5.1/release/bazel-8.5.1-linux-${bazel_arch}"
-          printf '%s  %s\n' "$bazel_sha" /tmp/bazel | sha256sum --check --strict
-          install -m 0755 /tmp/bazel /usr/local/bin/bazel
-      - name: Build and test through the registry
-        run: |
-          set -euo pipefail
-          python3 ci/registry_ci.py run \
-            --module "$CI_MODULE" \
-            --version "$CI_VERSION" \
-            --architecture "$CI_ARCHITECTURE" \
-            --work-dir "$RUNNER_TEMP/registry-ci" \
-            --artifacts "$GITHUB_WORKSPACE/ci-artifacts" \
-            --test-container-image debian:trixie-20260918@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c
-      - name: Archive module validation results
-        id: archive
-        if: always()
-        run: bash ci/archive_artifacts.sh "$GITHUB_WORKSPACE/ci-artifacts" "$RUNNER_TEMP/registry-ci-evidence.tar"
-      - name: Retain module validation results
-        if: always() && steps.archive.outcome == 'success'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: registry-ci-${{ matrix.module }}-${{ matrix.version }}-${{ matrix.architecture }}
-          path: ${{ runner.temp }}/registry-ci-evidence.tar
-          if-no-files-found: warn
-          retention-days: 14
+      # Only local compiler jobs share the host memory budget.
+      max-parallel: 10
+      matrix: ${{ fromJSON(needs.plan.outputs.amd64_matrix) }}
+    uses: ./.github/workflows/registry-module.yml
+    with:
+      module: ${{ matrix.module }}
+      version: ${{ matrix.version }}
+      architecture: ${{ matrix.architecture }}
+      runner: ${{ toJSON(matrix.runner) }}
+
+  modules_arm64:
+    name: ${{ matrix.module }} ${{ matrix.version }} (${{ matrix.architecture }})
+    needs: plan
+    if: needs.plan.outputs.has_arm64_jobs == 'true'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.arm64_matrix) }}
+    uses: ./.github/workflows/registry-module.yml
+    with:
+      module: ${{ matrix.module }}
+      version: ${{ matrix.version }}
+      architecture: ${{ matrix.architecture }}
+      runner: ${{ toJSON(matrix.runner) }}
 
   required:
     name: Registry CI
     if: always()
-    needs: [plan, unit, modules]
-    runs-on: ubuntu-24.04
+    needs: [plan, unit, modules_amd64, modules_arm64]
+    runs-on: [self-hosted, Linux, X64, debian-trixie-container]
     timeout-minutes: 5
     steps:
       - name: Require successful planning, runner tests, and module validation
@@ -227,14 +205,20 @@ jobs:
         env:
           PLAN_RESULT: ${{ needs.plan.result }}
           UNIT_RESULT: ${{ needs.unit.result }}
-          MODULE_RESULT: ${{ needs.modules.result }}
-          HAS_JOBS: ${{ needs.plan.outputs.has_jobs }}
+          AMD64_RESULT: ${{ needs.modules_amd64.result }}
+          ARM64_RESULT: ${{ needs.modules_arm64.result }}
+          HAS_AMD64_JOBS: ${{ needs.plan.outputs.has_amd64_jobs }}
+          HAS_ARM64_JOBS: ${{ needs.plan.outputs.has_arm64_jobs }}
         run: |
           set -euo pipefail
           [[ "$PLAN_RESULT" == success ]]
           [[ "$UNIT_RESULT" == success ]]
-          if [[ "$HAS_JOBS" == true ]]; then
-            [[ "$MODULE_RESULT" == success ]]
-          else
-            [[ "$HAS_JOBS" == false && "$MODULE_RESULT" == skipped ]]
-          fi
+          require_modules() {
+            if [[ "$1" == true ]]; then
+              [[ "$2" == success ]]
+            else
+              [[ "$1" == false && "$2" == skipped ]]
+            fi
+          }
+          require_modules "$HAS_AMD64_JOBS" "$AMD64_RESULT"
+          require_modules "$HAS_ARM64_JOBS" "$ARM64_RESULT"
