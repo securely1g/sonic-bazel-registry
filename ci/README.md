@@ -77,12 +77,14 @@ snapshot fallbacks:
 | `openssl_3.5.6-1~deb13u2_arm64.deb` | Debian content-addressed file |
 | `libc6_2.41-12+deb13u3_arm64.deb` | Debian content-addressed file, then existing CDN fallback |
 | `libblkid1_2.41-5_amd64.deb` | Debian content-addressed file, then existing CDN fallback |
-| `libpython3.13-dev_3.13.5-2+deb13u4_arm64.deb` | Debian content-addressed file, then existing CDN fallback |
+| `libpython3.13-dev` 3.13.5-2+deb13u4 (AMD64, ARM64) | Debian content-addressed file, then existing CDN fallback |
 | `libtiff6_4.7.0-3+deb13u3_amd64.deb` | Debian content-addressed file |
 | `libgssrpc4t64_1.21.3-5+deb13u1_amd64.deb` | Debian content-addressed file |
 | `libxapian30_1.4.29-3_arm64.deb` | Debian content-addressed file, then existing CDN fallback |
-| `libssl-dev_3.5.6-1~deb13u2_armhf.deb` | Debian content-addressed file |
-| `libuuid1_2.41-5_amd64.deb` | Debian content-addressed file, then existing CDN fallback |
+| `libssl-dev` 3.5.6-1~deb13u2 (AMD64, ARM64, ARMHF) | Debian content-addressed file |
+| `libuuid1` 2.41-5 (AMD64, ARM64, ARMHF) | Debian content-addressed file, then existing CDN fallback |
+| `libssl3t64` 3.5.6-1~deb13u2 (AMD64, ARM64, ARMHF) | Debian content-addressed file |
+| `libexpat1` 2.7.1-2 (AMD64, ARM64, ARMHF) | Debian content-addressed file, then existing CDN fallback |
 
 These candidates preserve each original APT-lock SHA256. The SHA1 in Debian's
 content-addressed URL is only a locator; Bazel still checks the stronger locked
@@ -91,8 +93,8 @@ Their rewrites match the exact timestamp, version, and architecture. Local HTTP
 fixtures exercise the added candidates, fallback to the original paths, and
 rejection of corrupt mirror bytes. Cold Bazel fetches verify the packages
 selected by hosted ARM jobs and the cross-build survey against their original
-locked hashes and sizes. The eight validation download failures also have a content-only
-fetch test, so an available original URL cannot mask an unusable alternative.
+locked hashes and sizes. These validation inputs and their listed locked sibling architectures also
+have a content-only fetch test, so an available original URL cannot mask an unusable alternative.
 Neither architecture's package binaries are executed by these fetch tests.
 
 Other timestamped `snapshot.debian.org/archive/debian/.../pool/*.deb` downloads
@@ -108,7 +110,7 @@ cold-fetch regressions checking both original SHA256 hashes without executing
 either package.
 The locked filename, version and SHA256 remain unchanged. The generic rules do
 not rewrite indexes, metadata, source archives, or `debian-security`; only the
-three exact security-package exceptions listed above are added. The cold-fetch
+exact security-package exceptions listed above are added. The cold-fetch
 regression checks `libsframe1_2.44-3_amd64.deb` against
 its generated APT lock's SHA256
 `38f625dfdc582717029ac3a3e97c51d994ec2e7a0e9b230c6b44e40d1276311f`.
