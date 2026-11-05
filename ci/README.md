@@ -271,7 +271,22 @@ cache payload (SHA256 `ac1e7f8ad81578b61bc7c54c725ec639b06684e560766eac278490a1b
 The content SHA1 is only a locator; package selection, integrity, runtime
 libexpat routes and other architectures are unchanged. The existing exact-input
 tuple checks cover this route; configured-fetch and consumer acceptance remain
-pending. No new package download or execution was performed for this follow-up.
+pending. No package generation or execution was needed.
+
+The same AMD64 analysis log also warned about
+`libkrb5support0_1.21.3-5+deb13u1_amd64.deb` and
+`comerr-dev_2.1-1.47.2-3+b11_arm64.deb`; their Snapshot requests returned
+HTTP 504, and the comerr pool request returned HTTP 404. These were warnings;
+libexpat-dev remained the final fatal input. Two exact content routes retain
+the original URL fallback, with the existing generic CDN fallback for comerr.
+Retained official HTTP 200 responses match complete cache bytes and locked
+SHA256/size: Krb5 support 33,124 bytes, comerr development 56,944 bytes.
+Krb5 support binds to the current checked-in syncd APT lock. Comerr binds to
+the accepted `e84f45e6` generated lock in 22 dependency sets and the exact
+current warning URL; no newly retrieved failed-run generated lock is claimed.
+The ARM64 package is an input of AMD64 analysis, not an ARM execution request.
+Existing exact-input tuple checks cover both; package selection and checksums
+are unchanged, and configured-fetch/consumer acceptance remain pending.
 
 ## Exact Socat source archive fallback
 
