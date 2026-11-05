@@ -4,7 +4,7 @@ Only compiler/sysroot repository files are used. No host compiler, headers, or
 libraries are substituted for the separately pinned Debian provider inputs.
 """
 
-load("@bazel_tools//tools/cpp:cc_toolchain_config_lib.bzl", "feature", "flag_group", "flag_set", "tool_path")
+load("@bazel_tools//tools/cpp:cc_toolchain_config_lib.bzl", "action_config", "feature", "flag_group", "flag_set", "tool", "tool_path")
 
 def _impl(ctx):
     compiler = ctx.file.compiler_anchor.path[:-len("/inputs.json")]
@@ -20,6 +20,30 @@ def _impl(ctx):
         sysroot + "/usr/include/c++/14",
         sysroot + "/usr/include/aarch64-linux-gnu/c++/14",
         sysroot + "/usr/include/c++/14/backward",
+    ]
+    link_actions = [
+        "c++-link-executable",
+        "c++-link-dynamic-library",
+        "c++-link-nodeps-dynamic-library",
+        "lto-index-for-executable",
+        "lto-index-for-dynamic-library",
+        "lto-index-for-nodeps-dynamic-library",
+    ]
+    # Bazel 8.5.1's generated legacy link actions imply strip_debug_symbols,
+    # preventing callers such as foreign_cc from disabling it. Preserve the
+    # other CppActionConfigs link implications, but make stripping an ordinary
+    # default-enabled feature that honors the caller's disabled features.
+    link_implications = [
+        "linkstamps",
+        "output_execpath_flags",
+        "runtime_library_search_directories",
+        "library_search_directories",
+        "libraries_to_link",
+        "user_link_flags",
+        "legacy_link_flags",
+        "linker_param_file",
+        "fission_support",
+        "sysroot",
     ]
     return cc_common.create_cc_toolchain_config_info(
         ctx = ctx,
@@ -38,9 +62,25 @@ def _impl(ctx):
                                            ("nm", "nm"), ("objcopy", "objcopy"), ("objdump", "objdump"), ("strip", "strip")]] + [
             tool_path(name = "gcov", path = "compiler/usr/bin/aarch64-linux-gnu-gcov-14"),
         ],
+        action_configs = [
+            action_config(
+                action_name = action,
+                enabled = True,
+                tools = [tool(path = "compiler/bin/aarch64-linux-gnu-gcc")],
+                implies = link_implications + (
+                    ["build_interface_libraries", "dynamic_library_linker_tool", "shared_flag"]
+                    if "dynamic-library" in action else ["force_pic_flags"]
+                ),
+            )
+            for action in link_actions
+        ],
         features = [
             feature(name = "supports_pic", enabled = True),
             feature(name = "supports_dynamic_linker", enabled = True),
+            feature(name = "strip_debug_symbols", enabled = True, flag_sets = [flag_set(
+                actions = link_actions,
+                flag_groups = [flag_group(flags = ["-Wl,-S"], expand_if_available = "strip_debug_symbols")],
+            )]),
             # C++ headers use include_next to find the C headers, so they must
             # precede the target libc include directories.
             feature(name = "ci_cxx", enabled = True, flag_sets = [flag_set(
