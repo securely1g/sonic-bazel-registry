@@ -47,8 +47,8 @@ DEBIAN_RELEASE_PACKAGES = (
     ("bash_5.2.37-2+b9_arm64.deb",
      "https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/b/bash/bash_5.2.37-2+b9_arm64.deb"),
 )
-# Generated APT locks from native ARM PI/SWSS and the ARM cross-build survey
-# preserve these exact bytes, including native build-tool dependencies.
+# Generated APT locks from native ARM validation and the cross-build survey
+# preserve these exact bytes, including declared build-tool dependencies.
 # Each tuple is (original URL, content locator, locked SHA256, size, optional CDN).
 DEBIAN_CONTENT_PACKAGES = (
     ("https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/g/glibc/libc-bin_2.41-12+deb13u3_arm64.deb",
@@ -69,6 +69,15 @@ DEBIAN_CONTENT_PACKAGES = (
      "1ee735e2480519bd1fd5f6576a879243bc81b9773059e1fa1ec8b8943c84e77c", 1466984, None),
 )
 SURVEY_CONTENT_PACKAGES = (
+    ("https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/u/util-linux/libuuid1_2.41-5_amd64.deb",
+     "69561687e45ee4833a59400e51976ff05cf71c0d",
+     "10247744737c1bb574f9667b3f06a3b43a5055c67bdfcc1945803451cc036db3", 37612, None),
+    ("https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/x/xapian-core/libxapian30_1.4.29-3_arm64.deb",
+     "b3cef6d6dfd6511f04a77442026f81811313012e",
+     "1652525c1c605b2169b3b27beecd01cbaa0e5abd7ec4d2029cbae2084dbde012", 1055832, None),
+    ("https://snapshot.debian.org/archive/debian-security/20260726T121236Z/pool/updates/main/o/openssl/libssl-dev_3.5.6-1~deb13u2_armhf.deb",
+     "a6e3b3b45aaf7799d6ab6ad71e09218a813866c8",
+     "fc167d04049dfcf91ccff8687222a186be681cac2298ae89cf8523518ad04c88", 2570728, None),
     ("https://snapshot.debian.org/archive/debian-security/20260726T121236Z/pool/updates/main/k/krb5/libgssrpc4t64_1.21.3-5+deb13u1_amd64.deb",
      "3e0610e3b6f6d57539344d7a1f95da1ed442fd48",
      "ff88e52a6b6599851f3d44f7223f15123d9e5a0b02ed9a308c05c31fa88f7d73", 60132, None),
@@ -224,11 +233,12 @@ class DebianPoolMirrorScopeTest(unittest.TestCase):
             for other in (
                 upstream.replace("202607", "202608"),
                 upstream.replace(".deb", "+changed.deb"),
-                re.sub(r"_(amd64|arm64)\.deb$", "_riscv64.deb", upstream),
+                re.sub(r"_(amd64|arm64|armhf)\.deb$", "_riscv64.deb", upstream),
                 upstream.replace("snapshot.debian.org", "another.example"),
                 upstream.replace("/pool/", "/different/"),
                 upstream + "?query", upstream + ".sha256",
             ):
+                self.assertNotEqual(other, upstream)
                 self.assertNotIn(content, self.candidates(other), other)
                 if security_cdn:
                     self.assertNotIn(security_cdn, self.candidates(other), other)

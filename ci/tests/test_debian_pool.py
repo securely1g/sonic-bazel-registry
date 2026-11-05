@@ -227,6 +227,8 @@ class DebianPoolRoutingTest(unittest.TestCase):
                 pool = relative.split("/pool/", 1)[1]
                 expected = [original] if archive == "debian-security" else [
                     f"https://deb.debian.org/{archive}/pool/{pool}", original]
+                if original == "https://snapshot.debian.org/archive/debian-security/20260726T121236Z/pool/updates/main/o/openssl/libssl-dev_3.5.6-1~deb13u2_armhf.deb":
+                    expected.insert(0, "https://snapshot.debian.org/file/a6e3b3b45aaf7799d6ab6ad71e09218a813866c8")
                 self.assertEqual(routed_urls(original), expected)
 
     def test_indexes_sources_and_other_hosts_keep_maintained_routes(self):
