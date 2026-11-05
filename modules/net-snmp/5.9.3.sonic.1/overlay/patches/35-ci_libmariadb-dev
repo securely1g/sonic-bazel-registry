@@ -1,0 +1,12 @@
+diff --git a/ci/net-snmp-configure b/ci/net-snmp-configure
+--- a/ci/net-snmp-configure
++++ b/ci/net-snmp-configure
+@@ -71,7 +71,7 @@
+ echo "libatmver=$libatmver"
+ 
+ libmysqlver="$(rpm_version libmariadb-devel;
+-	      for p in libmariadbclient-dev libmariadb-client-lgpl-dev; do
++	      for p in libmariadb-dev-compat; do
+ 	        dpkg_version "$p";
+               done;
+               pacman_version mingw-w64-x86_64-libmariadbclient)"
