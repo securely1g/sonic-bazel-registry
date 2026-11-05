@@ -147,7 +147,7 @@ configure_make(
         "BAZEL_P4_TOOLS": "$(execpath @sonic_build_infra//tools/build_tools:foreign_runtime)",
         "BAZEL_PKGCONF": "$(execpath @sonic_build_infra//tools/build_tools:pkgconf)",
         "BAZEL_PKGCONFIG_FILES": "$(locations @bmv2_deps//:pkgconfig)",
-        "LDFLAGS": "-Wl,-z,relro,-z,now -Wl,-rpath-link=$$EXT_BUILD_DEPS/lib",
+        "LDFLAGS": "-Wl,-z,relro,-z,now -Wl,-rpath-link=$$EXT_BUILD_DEPS/lib -Wl,-rpath-link=$$EXT_BUILD_DEPS/sdk/lib",
     },
     features = [
         "-sanitize_pwd",

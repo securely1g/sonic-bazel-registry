@@ -115,3 +115,14 @@ libraries and exact short/long executable bytes. Local regression and the exact
 belongs to the previous candidate; updated registry CI and Engine acceptance
 remain pending. The original six build targets and two tests on both native
 architectures are preserved, with no DEB generation.
+
+Both native registry builds at `29f27a3` reached the `simple_switch_grpc` link,
+then could not locate four libraries required by PI's `libpifeproto` and
+`libpigrpcserver`. PI already exports their SONAME files in the declared SDK.
+BMv2 now includes that SDK's `lib` directory in its existing link-time
+`rpath-link` search, in addition to the imported-library directory. This does
+not add a runtime search path or change PI's library declarations. Source
+archives, patches and both architecture target inventories are unchanged.
+The failed build retained the configured flags and linker diagnostics, but
+upstream `V=0` omitted the expanded final link command. Corrected native
+registry and downstream Engine acceptance remain pending.

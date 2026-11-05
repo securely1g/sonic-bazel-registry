@@ -6,7 +6,7 @@
     "MODULE.bazel": "sha256-WNfgKPdVY8xIIdkflqrnkxjEIlUFY0Ekl5++FCeh4n0=",
     "bazel/0001-use-boost-1.83.patch": "sha256-RuXpjeTrP7ec/sPAvmGhQszRdDGQLkZFgEHYXfMkzto=",
     "bazel/0002-remove-unnecessary-dependencies.patch": "sha256-ptIQahFQYXUDzr1mDt8jZi/zUxYpFqTMCunacnNfWjY=",
-    "bazel/bmv2.BUILD.bazel": "sha256-OVhROA3mZNRFROIQbhO9JGAQ0Zbcxhv7CzGy5PFA7BY=",
+    "bazel/bmv2.BUILD.bazel": "sha256-I4bSsT/V2qf21ZfPHhGj+2inGXmSkQhZdyKl9ydyPUs=",
     "bazel/configure.sh": "sha256-XMzcje8pDYoHg9/ZNHXIAawuq9YXnknjP3vyicuiBbg=",
     "bazel/configure_flags_test.py": "sha256-y1Lq8BmrgBL2nRfLdXdYHLbXb+q9Utm/MssaQAJDCQA=",
     "bazel/configure_with_flags.sh": "sha256-bRYW+hrR88aCWR2FI1QjVCOHhP22kPG8jd1nYRJs2/g=",
