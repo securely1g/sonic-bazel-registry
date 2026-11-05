@@ -1,7 +1,7 @@
 # Compiler launcher with private linker arguments
 
 This entry registers source commit
-`f6da55505437cb139fdf610db8c61cb9420b0fec` from
+`08e0956f80574b27a9b68e72fe855cc0089058e5` from
 [sonic-build-infra PR #82](https://github.com/securely1g/sonic-build-infra/pull/82).
 The DASH Engine image build passed a 136,826-byte `LDFLAGS` value to the compiler,
 exceeding Linux's per-string process limit before GCC could start.
