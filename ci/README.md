@@ -540,6 +540,36 @@ Only files within those declared boundaries belong to a tree TAR; adjacent runti
 and debug TAR outputs retain their original bytes. The artifact includes
 `declared-output-trees.jsonl` and the genuine build events for verification.
 
+Bazel 8.5.1 can report a Unicode tree member using UTF-8 bytes interpreted as
+Latin-1, together with a damaged file URI. For example, registry CI's real
+artifact fixture reported `Főtanúsítvány.crt` as `FÅ\x91tanÃºsÃ\xadtvÃ¡ny.crt`
+on its AMD64 worker. When that literal basename is absent, the runner tries
+one strict Latin-1-to-UTF-8 conversion of the basename. The result must be a
+regular file inside the declared tree, with the build event's exact SHA256 and
+size; URI-parent, ASCII-name and path-safety checks still apply. Existing
+literal names are never reinterpreted, and recovery through a symlink is
+rejected. The TAR retains the actual filesystem name and bytes. This does not
+change Bazel's locale or repair arbitrary paths. The failed worker's effective
+JVM locale was not retained.
+
+The real Bazel collector fixture creates its certificate filename with ASCII
+shell octal escapes and checks its exact UTF-8 bytes before collection. Its two
+producer actions (target and execution configurations) use
+`execution_requirements = {"no-remote-cache": "1"}`. This prevents those actions
+from reading or uploading remote cache results while retaining sandboxing,
+reuse of existing local action outputs, analysis reuse and caching for the separate tool action and all
+module builds. The observed runner command configures a remote cache, not a
+remote executor; this action requirement does not disable remote execution.
+
+This isolates collector validation from an unresolved Bazel 8.5.1 remote tree
+transport defect. A retained AMD64 run materialized a double-encoded Unicode
+filename from cached output and failed the strict filesystem assertion before
+the collector ran. The earlier passing run also reported a Unicode runtime
+backport, so it is not a controlled cache-only comparison. The fixture keeps
+all filesystem, BEP, target-versus-execution configuration and final TAR checks.
+Passing it does not establish that production remote tree transport is fixed;
+this change neither modifies the Bazel runtime nor changes production caches.
+
 For native libraries, download the runtime and detached-debug packages from the
 same module/version/architecture job. These packages come from the same build;
 symbols from another run are not guaranteed to match. Extract package archives
