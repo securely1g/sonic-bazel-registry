@@ -4,7 +4,9 @@ This candidate retains the published 0.9.4.sonic.17 inputs and adds
 `0022-distributed-requests.patch`: evaluated request export, root production-lock
 selection, optional standalone fallback locks, compatibility-view validation,
 exact distributed-request checks and optional source default architectures.
-The upstream archive and patches 0001 through 0021 remain unchanged.
+`0023-shared-linker-inputs.patch` preserves runtime and cross-package script
+inputs through cc_shared_library filtering. The upstream archive and patches
+0001 through 0021 remain unchanged.
 
 The provenance of the retained patches follows.
 

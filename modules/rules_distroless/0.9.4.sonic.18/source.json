@@ -25,7 +25,8 @@
     "0019-target-multiarch-headers.patch": "sha256-Hh7GolQOH3aufgXVUS4/kb+/lKfCqFzTuxxsY92+mes=",
     "0020-unified-apt-inputs.patch": "sha256-mlGpxlpinCCix2dvusFLRVpJY6l/V+9LkuoDsjsqEcI=",
     "0021-complete-shared-package-dependencies.patch": "sha256-6ZmSB0VxVRHq6bbBNNFPv78SsIkHuIq0c5Aqni0mcWw=",
-    "0022-distributed-requests.patch": "sha256-UOC75ranrz0xwAwwTGpZJkANo024Y4x7YeN4Y49BH8c="
+    "0022-distributed-requests.patch": "sha256-UOC75ranrz0xwAwwTGpZJkANo024Y4x7YeN4Y49BH8c=",
+    "0023-shared-linker-inputs.patch": "sha256-XV9JuzQeqWE/pSZ2bcmEGjT0TD3wdN6Smx6j55IRxw4="
   },
   "patch_strip": 1,
   "overlay": {
