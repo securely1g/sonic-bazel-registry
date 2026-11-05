@@ -192,6 +192,12 @@ DEBIAN_CONTENT_PACKAGES += (
      'e2267362c7557b71bcdc844929316ebfe8256dc3',
      '6792fc1b77c4335e780cf93fe5830a7930b392af2be0577cf25cb583bb4c1d48', 34996, None),
 )
+# Exact libexpat development identity from SWSS AMD64 analysis.
+DEBIAN_CONTENT_PACKAGES += (
+    ("https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/e/expat/libexpat1-dev_2.7.1-2_amd64.deb",
+     "d718845c00344d7965787ca08877a6d1bc51ef71",
+     "ac1e7f8ad81578b61bc7c54c725ec639b06684e560766eac278490a1b2064372", 160568, None),
+)
 # BusyBox package inputs pinned by BCR rules_coreutils@1.0.1's MODULE.bazel.
 BUSYBOX_PACKAGES = (
     ("amd64", "d161cd711fcf0d21a53dd7b9665933463de9fa6a37718e78ffee4d7732e1e02a", 937460),

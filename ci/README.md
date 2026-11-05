@@ -261,6 +261,18 @@ during AMD64 analysis; no ARM execution or package-version change is added.
 Configured-fetch and native acceptance remain pending. Separate libcap and
 SQLite backend failures remain unresolved.
 
+The SWSS AMD64 archive [job at `44c6f256`](https://github.com/securely1g/sonic-buildimage/actions/runs/42115421331/job/127553658046)
+failed Python-target analysis on `libexpat1-dev_2.7.1-2_amd64.deb`: the
+official pool returned HTTP 404 and the dated Snapshot returned HTTP 504.
+One exact content route now precedes the unchanged CDN and original Snapshot
+fallbacks. A retained official GET returned 160,568 bytes matching the current
+checked-in `platform/vs/docker-syncd-vs/bazel/apt.lock.json` record and complete
+cache payload (SHA256 `ac1e7f8ad81578b61bc7c54c725ec639b06684e560766eac278490a1b2064372`).
+The content SHA1 is only a locator; package selection, integrity, runtime
+libexpat routes and other architectures are unchanged. The existing exact-input
+tuple checks cover this route; configured-fetch and consumer acceptance remain
+pending. No new package download or execution was performed for this follow-up.
+
 ## Exact Socat source archive fallback
 
 The [SWSS image source-base workflow at `6ab506bd`](https://github.com/securely1g/sonic-buildimage/actions/runs/42055651322/attempts/2)
