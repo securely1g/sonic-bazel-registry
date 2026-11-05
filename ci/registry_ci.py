@@ -401,6 +401,9 @@ def release_key(version: str) -> tuple[tuple[int, ...], int, int]:
     # Equivalent numeric releases must still use registration order for snapshots.
     while len(numbers) > 1 and numbers[-1] == 0:
         numbers = numbers[:-1]
+    # Published Go integrations retain the upstream timestamp/hash after the
+    # SONiC patch number. Like other source snapshots, metadata registration
+    # order breaks ties within the same numeric release and SONiC patch.
     patch = re.fullmatch(r"([.-])sonic\.([0-9]+)(?:-[0-9]{14}-[0-9a-f]{12})?", suffix)
     if patch:
         return numbers, int(patch[2]), int(patch[1] == ".")
