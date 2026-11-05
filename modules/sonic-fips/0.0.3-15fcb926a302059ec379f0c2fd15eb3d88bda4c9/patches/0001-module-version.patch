@@ -1,0 +1,22 @@
+Subject: Match the registry identity to the landed FIPS source
+
+Bazel requires the fetched MODULE.bazel version to match the registry entry.
+Keep the source module's 0.0.3 base version and append its full landed commit,
+so SONiC image consumers can select that exact OpenSSL/SymCrypt source through
+the registry. Only module identity changes; build rules and dependencies do not.
+
+Provenance: registry-local metadata adjustment to the source declaration at
+https://github.com/securely1g/sonic-fips/blob/15fcb926a302059ec379f0c2fd15eb3d88bda4c9/MODULE.bazel#L1-L4
+The source commit is the maintained-branch merge of FIPS PR #12, not a new
+crypto implementation or an upstream source patch.
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-fips",
+-    version = "0.0.3",
++    version = "0.0.3-15fcb926a302059ec379f0c2fd15eb3d88bda4c9",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",

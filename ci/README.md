@@ -31,27 +31,93 @@ repository branch-protection settings.
 
 The runner passes Bazel's standard `--experimental_downloader_config` with
 [`source_mirrors.cfg`](source_mirrors.cfg) to dependency preparation, builds,
-tests and output queries. One rewrite is the exact upstream URL for
-BCR `pigz@2.8.bcr.2`, used by build-infra's reproducible gzip tool when packaging
-WPA's debug TAR. The original URL now serves different bytes; a clean
+tests and output queries. Rewrites match only the archive and binary-package
+URLs described below; registry order, module versions, source recipes and
+integrity values stay unchanged.
+
+The five ARM-hosted BCR archives use verified copies in this repository's
+[source-mirror release](https://github.com/securely1g/sonic-bazel-registry/releases/tag/ci-source-mirrors-20261104)
+first, with each original GitLab release URL retained as the next candidate:
+
+| BCR module | Release asset |
+| --- | --- |
+| `ape@1.0.1` | `ape-v1.0.1.tar.gz` |
+| `download_utils@1.0.1` | `download_utils-v1.0.1.tar.gz` |
+| `rules_coreutils@1.0.1` | `rules_coreutils-v1.0.1.tar.gz` |
+| `rules_gzip@1.0.0` | `rules_gzip-v1.0.0.tar.gz` |
+| `toolchain_utils@1.0.2` | `toolchain_utils-v1.0.2.tar.gz` |
+
+Each copy must satisfy the original BCR SHA512 integrity. This avoids the
+[ARM GitLab release endpoint failures](https://github.com/bazelbuild/bazel-central-registry/issues/9973)
+without discarding the upstream source. Bazel 8.5.1's
+[URL rewriter](https://github.com/bazelbuild/bazel/blob/8.5.1/src/main/java/com/google/devtools/build/lib/bazel/repository/downloader/UrlRewriter.java)
+collects matching replacements in configuration order; its
+[downloader](https://github.com/bazelbuild/bazel/blob/8.5.1/src/main/java/com/google/devtools/build/lib/bazel/repository/downloader/HttpDownloader.java)
+tries the next candidate after a failed download or checksum mismatch. Other
+versions and URLs are unaffected; no global module mirror is enabled.
+
+The exact `gawk-5.3.2.tar.xz` URLs at `mirrors.kernel.org`, `ftp.gnu.org`, and
+`ftpmirror.gnu.org` likewise try MacPorts first and retain each original URL as
+a fallback. The published source recipe and SHA256
+`f8c3486509de705192138b00ef2c00bbbdd0e84c30d5c07d23fc73a9dc4cc9cc` remain unchanged.
+
+Some packages have additional exact-URL candidates before their timestamped
+snapshot fallbacks:
+
+| Locked package | Additional candidate |
+| --- | --- |
+| `libcap-dev_2.75-10+deb13u1+b1_amd64.deb` | Debian content-addressed file |
+| `libaudit-dev_4.0.2-2+b2_amd64.deb` | Debian content-addressed file |
+| `libcap2_2.75-10+deb13u1+b1_arm64.deb` | Verified GitHub release copy |
+| `bash_5.2.37-2+b9_arm64.deb` | Verified GitHub release copy |
+| `libc-bin_2.41-12+deb13u3_arm64.deb` | Debian content-addressed file, then existing CDN fallback |
+| `uuid-dev_2.41-5_amd64.deb` | Debian content-addressed file, then existing CDN fallback |
+| `libc-ares-dev_1.34.5-1+deb13u1_arm64.deb` | Debian content-addressed file, then the official security CDN |
+| `openssl-provider-legacy_3.5.6-1~deb13u2_arm64.deb` | Debian content-addressed file |
+| `openssl_3.5.6-1~deb13u2_arm64.deb` | Debian content-addressed file |
+
+These candidates preserve each original APT-lock SHA256. The SHA1 in Debian's
+content-addressed URL is only a locator; Bazel still checks the stronger locked
+SHA256. The GitHub copies have a [checksum and origin manifest](https://github.com/securely1g/sonic-bazel-registry/releases/download/ci-source-mirrors-20261104/debian-package-mirrors-20261105.json).
+Their rewrites match the exact timestamp, version, and architecture. Local HTTP
+fixtures exercise the added candidates, fallback to the original paths, and
+rejection of corrupt mirror bytes. Cold Bazel fetches verify the five packages
+selected by the hosted ARM jobs against their original locked hashes and sizes;
+neither architecture's package binaries are executed by these fetch tests.
+
+Other timestamped `snapshot.debian.org/archive/debian/.../pool/*.deb` downloads
+try the identical pool path on Debian's official `deb.debian.org/debian/` CDN
+first, then retain the exact timestamped snapshot URL as fallback. This avoids
+transient snapshot HTTP 503 failures for package versions still present in the
+current pool; older packages absent from the CDN continue through the snapshot.
+Binary-package inputs on `snapshot-cloudflare.debian.org` try the identical CDN
+pool path, then the identical timestamp/path on `snapshot.debian.org`, then the
+original Cloudflare snapshot URL. The native AMD64 and ARM64 BusyBox 1.36.1-6
+packages declared by `rules_coreutils@1.0.1` retain all three candidates, with
+cold-fetch regressions checking both original SHA256 hashes without executing
+either package.
+The locked filename, version and SHA256 remain unchanged. The generic rules do
+not rewrite indexes, metadata, source archives, or `debian-security`; only the
+three exact security-package exceptions listed above are added. The cold-fetch
+regression checks `libsframe1_2.44-3_amd64.deb` against
+its generated APT lock's SHA256
+`38f625dfdc582717029ac3a3e97c51d994ec2e7a0e9b230c6b44e40d1276311f`.
+
+Repository downloads allow 12 HTTP connection attempts with a nominal 10-second
+retry-delay cap and at most four parallel downloads per Bazel process. These flags
+apply to both architectures, repository-dependent commands and Rust preparation;
+the cold-fetch regressions use the same policy. This allows transient HTTP
+503/504 responses to recover without changing package inputs or retrying tests.
+
+BCR `pigz@2.8.bcr.2` is used by build-infra's reproducible gzip tool when packaging
+WPA's debug TAR. Its original URL now serves different bytes; a clean
 [WPA registry build](https://github.com/securely1g/sonic-bazel-registry/actions/runs/41587703074/job/125760920377)
 fails its BCR checksum before compiling any source.
 
 The MacPorts mirror retains the original archive with SHA256
 `eb872b4f0e1f0ebe59c9f7bd8c506c4204893ba6a8492de31df416f0d5170fd0`.
 Bazel still verifies BCR's unchanged integrity and applies its unchanged patches.
-Other pigz versions and paths are not rewritten. No source/version override,
-custom pigz module, prebuilt pigz, or disabled integrity check is involved.
-
-Debian snapshot downloads retain `snapshot-cloudflare.debian.org` and the
-original `snapshot.debian.org` URL as fallbacks. Pinned binary packages first
-try the official Debian pool and, for the verified historical inputs below,
-an exact content URL. This preserves the complete path,
-including the snapshot date, for ordinary and security archives and indexes.
-Registry validation encountered HTTP 503 responses from the original endpoint
-while fetching pinned libpcap and libc debug packages, before source compilation.
-Both download attempts remain subject to the original locked SHA256.
-No package version, snapshot date or checksum changes.
+No source/version override, custom module, or disabled integrity check is involved.
 
 This config applies automatically in this registry's validation runner. It does
 not change how standalone consumers download dependencies. Until BCR's upstream
@@ -62,229 +128,48 @@ path to a checkout of this config:
 bazel build --experimental_downloader_config=/path/to/sonic-bazel-registry/ci/source_mirrors.cfg //your:target
 ```
 
-The real Bazel runner tests fetch BCR's pigz into a new, empty repository cache
-without a distdir, verify its original archive hash and patched MODULE, and
-confirm that a mirror serving different bytes is still rejected. These are
-repository fetches; they execute no compilation or package actions.
+The real Bazel runner tests fetch the five ARM archives, gawk, BCR's pigz and the
+locked Debian package into new, empty repository caches without a distdir,
+checking original archive hashes and
+fetched MODULE files. Local HTTP fixtures verify candidate order, fallback after
+HTTP errors and checksum mismatches, and rejection when every candidate has the
+wrong bytes. These are repository fetches; they execute no compilation or package
+actions.
 
-Controlled snapshot endpoint tests also use real Bazel with empty caches to
-verify ordinary/security archive and index routing, original-URL fallback,
-and rejection of incorrect bytes. These fixtures test downloader behavior;
-they do not establish availability of an external mirror.
+## Additional historical Debian payloads
 
-The native AMD64/ARM64 runner tests retain these source-fetch checks. The old
-pigz branch has no exception. The temporary Debian-transport branch exception
-below preserves the publication-policy plan and runner/fetch suites; all other
-branches retain normal module selection.
+PR228 retains the verified content alternatives for 17 exact historical package
+URLs not already covered by the maintained routing. The prior 19 content IDs
+remain available; main already supplies the same `libaudit-dev` and `uuid-dev`
+IDs. Each exact content URL is tried before the maintained pool/original
+fallbacks. The two security-header exceptions retain only their exact official
+security-pool and original URLs; they do not add generic security routing.
+All 35 maintained rules and their ordering remain unchanged. The superseded
+broad Snapshot-to-Cloudflare/index rewrite is not restored.
 
-## Pinned Debian package downloads
+The [earlier 228 documentation](https://github.com/securely1g/sonic-bazel-registry/blob/a743fea46c18cf5d45e8895f3a823ee148a55a3e/ci/README.md#pinned-debian-package-downloads)
+retains the original package hashes, observed failures and provenance. Those
+cases cover declared tools and Libteam, FRR, MACsec and source-image analysis.
+The existing ARM64 `libc6` record is read during AMD64 multiarch sysroot analysis;
+retaining its route does not request ARM execution or change package selection.
 
-The downloader tries official Debian pools before the maintained Cloudflare
-mirror and original Snapshot fallback for pinned binary packages. Two pool
-match rules reuse [buildimage PR181](https://github.com/securely1g/sonic-buildimage/pull/181).
-Exact historical content routes add alternatives for the verified inputs below.
-The pool/content rules do not match indexes or source archives; those keep
-main's Cloudflare/original routing. Pigz, package versions and hashes stay intact.
+The latest [FRR native failure](https://github.com/securely1g/sonic-buildimage/actions/runs/42051339153/job/127327932746)
+and [OCI Sysmgr analysis](https://github.com/securely1g/sonic-buildimage/actions/runs/42051339203/job/127327935067)
+needed `libpython3.13-stdlib_3.13.5-2+deb13u4_amd64.deb`; [Eventd](https://github.com/securely1g/sonic-buildimage/actions/runs/42051339451/job/127327933410)
+needed `perl_5.40.1-6_amd64.deb`. One official content GET per payload returned
+HTTP 200: Python 1,957,100 bytes and Perl 267,336 bytes, matching the accepted
+`c589d2e5` lock and local cache. The failed `f750ee5c` retains those module and
+download inputs; its generated lock was not used. Config comments retain the
+full authoritative SHA256; the URL's SHA1 only locates the file. OCI's earlier
+archive build and 12 tests had passed. Separate Cloudflare probes timed out
+from this workspace, without proving a permanent mirror failure.
 
-For example, [BMv2 PR211](https://github.com/securely1g/sonic-bazel-registry/pull/211)
-failed during AMD64 analysis while fetching the declared ARMHF
-`libthrift-dev_0.19.0-4+b1_armhf.deb` (SHA256
-`feef88038da4c689aa4e46f4bf2d39c90b7d4971c0ae5ab0f9568fa671b1d4c3`).
-Its APT hub reads compiler metadata for all declared architectures before
-selecting native targets; this request does not imply ARMHF compilation.
-
-| Input or action | Before | After |
-| --- | --- | --- |
-| The pinned BMv2 libthrift package | Cloudflare mirror, then dated Snapshot | Official pool, then the same two fallbacks; unchanged SHA256 required |
-| `debian-security` binary package | Cloudflare mirror, then dated security Snapshot | Official security pool first, preserving `pool/updates` and both fallbacks |
-| Package mirror serves different bytes | Checksum failure | Checksum failure |
-| Dated package index or source archive | Cloudflare mirror, then original URL | Same two routes |
-| Existing pigz source | Verified MacPorts mirror | Same verified MacPorts mirror |
-
-The historical failures below describe the configurations at their linked runs.
-This addresses the same transport failure affecting
-[build-infra registration226](https://github.com/securely1g/sonic-bazel-registry/pull/226)
-and the declared tools in
-[source PR82](https://github.com/securely1g/sonic-build-infra/pull/82).
-The registry runner already passes this config to all preparation, build, test
-and output-query commands. Standalone source CI ignores dependency RC files;
-it needs a separate explicit opt-in to an immutable, checksum-verified copy of
-this combined config. This change does not update those PR heads or imply their
-native checks have passed.
-
-Historical packages can disappear from the current official pool. Four exact
-AMD64 payloads already used by the source-image worker have verified Snapshot
-content-ID routes: `libpython3.13-minimal`, `libpython3.13`, `libdebconfclient0`
-and `libselinux1`. These routes follow the official pool and precede the dated
-Cloudflare/original fallbacks. Each matches one timestamp, version, architecture and path;
-the declared package SHA256 still verifies the bytes. The existing Bookworm
-security-header content route is retained.
-
-[Source PR83's AMD64 run](https://github.com/securely1g/sonic-build-infra/actions/runs/41909259565/job/126852139994)
-built all 15 tools and passed its initial 12 tests, then failed analysis for a
-fresh three-test run: the selected `libpython3.13-minimal` returned 404 from the
-pool and 503 from its dated Snapshot URL. The content-ID route reuses the same
-locked bytes. Other historical packages still depend on an available download
-route; this does not repair snapshot index outages or change package selection.
-
-The same ordered fallback covers three more exact historical payloads:
-`libheif1_1.19.8-1_amd64.deb`, selected through Graphviz by
-[libteam's AMD64 retry](https://github.com/securely1g/sonic-buildimage/actions/runs/41900723985/job/126883238634).
-Its pool returned 404 and its dated Snapshot URL returned 503 during analysis.
-The existing 520,256-byte package matches the same URL's retained source-CI
-recipe and SHA256 `06460065e7768d7a4a72cb02a0eddd386936756a33596bb23901faeb72dc8f68`.
-The libteam artifact did not retain its generated lock; this is not a claim
-that its missing lock was inspected. No package version changes.
-
-FRR's inherited image checks failed on
-[`libaudit-dev_4.0.2-2+b2_amd64.deb`](https://github.com/securely1g/sonic-buildimage/actions/runs/41900888844/job/126822668186)
-and [`uuid-dev_2.41-5_amd64.deb`](https://github.com/securely1g/sonic-buildimage/actions/runs/41900888825/job/126822668789)
-with the same pool-404/Snapshot-503 sequence. Their exact content-ID routes use
-the existing 89,348-byte and 48,836-byte packages, independently checked against
-the matching immutable source-image recipes. The failed-run FRR generated locks
-were not used for this binding; the matching source-image recipes supply the
-integrity proof. Both packages are AMD64, including the execution
-dependency used by the ARM64 image check. These routes do not change the
-requested package versions, architectures or integrity checks.
-
-[FRR's YANG AMD64 check](https://github.com/securely1g/sonic-buildimage/actions/runs/41931851590/job/126930441231)
-also stopped during its initial image-root query on
-`libc6-dev_2.41-12+deb13u3_amd64.deb`: pool 404, then dated Snapshot 503.
-Its exact content route retains SHA256
-`53a9b789bb02415d758f652ef5ac913d89fed29782610e9fe0fd2488e4f2e465`.
-The 1,992,332-byte payload matches the generated lock from the successful native
-FRR job at the same source `7cf59340` and catalog `cfd42fb5`; the failed YANG
-job's lock was not used. YANG's initial query used only the generic shared
-default, so that workflow needs its own verified opt-in to this configuration.
-
-[FRR's Eventd AMD64 check](https://github.com/securely1g/sonic-buildimage/actions/runs/41942880383/job/126967800467)
-failed its initial action query on `linux-libc-dev_6.12.96-1_all.deb`, after
-the official security pool returned 404 and the dated Snapshot URL returned 503.
-Its exact [content URL](https://snapshot.debian.org/file/66b33fe93d5d572e06cdabdd49d01c7b4947cfc7)
-returned the same 2,859,420 bytes with SHA256
-`c514b81492fc01c573ecfc809f9b460023d50e5006848c4caf78997bf1f776a5`.
-The payload matches the existing cache and accepted FRR native lock; the failed
-Eventd job did not retain a lock. Only this dated package URL gains a content
-fallback between its official pool and original Snapshot URL. Package selection
-and checksum verification stay unchanged; consumers must explicitly update their
-immutable config pin before using the route.
-
-[Libteam's AMD64 native check](https://github.com/securely1g/sonic-buildimage/actions/runs/41946663549/job/126980465955)
-also failed during analysis on Graphviz's `libmount1_2.41-5_amd64.deb`
-dependency: pool 404, then dated Snapshot 504. Its exact
-[content URL](https://snapshot.debian.org/file/a82622f9dbedc5d438d8791f4e3a59f6f9976d88)
-returned 208,788 bytes matching SHA256
-`cd9efc7addd2556062f6d148b502e38a64e08c0ab220806219cfffd865f0f6f6`
-and the existing cache. The accepted `78a2189c` native lock binds that package;
-its source and APT inputs are unchanged at failed head `4b610cf6`. This is not
-a failed-run lock claim. The route is limited to that exact AMD64 package URL
-and preserves the original checksum, pool-first order and dated fallback.
-
-[FRR's OCI AMD64 check](https://github.com/securely1g/sonic-buildimage/actions/runs/41942880224/job/126967800025)
-failed during Sysmgr image analysis on the inherited base-image input
-`jq_1.7.1-6+deb13u2_amd64.deb`, after pool 404 and dated Snapshot 503.
-Its exact [content URL](https://snapshot.debian.org/file/5556211154d1adb33a69780c9b9385f7cf79fda9)
-returned 77,760 bytes with SHA256
-`c6464bdc20086222fa9295481367e9a52f3fb78120a14089bae5f0d36f1b8a74`,
-matching the existing cache and checked-in base APT lock. The accepted FRR
-`7cf59340` generated recipe has the same URL and checksum; the relevant package
-and workflow inputs are unchanged at failed head `ce01ca5f`. The failed OCI
-generated lock was not used. This exact package gains a content fallback;
-other package versions, architectures and dates retain their existing routes.
-
-[MACsec's AMD64 check](https://github.com/securely1g/sonic-buildimage/actions/runs/41940005503/job/126958076273)
-failed its initial action query on the declared `gzip_1.13-1_amd64.deb` build
-tool: pool 404, then dated Snapshot 503. Its exact
-[content URL](https://snapshot.debian.org/file/17e2275e726dad554ab38aa3f3d240f5270923cb)
-returned 138,408 bytes with SHA256
-`c98b1130f08ef6ac3932972c56be84cfc308ce1afa37105cb06aaf47ced2d078`,
-matching the existing cache and a retained source-image recipe for the same
-dated URL. The failed MACsec generated lock was not used for this binding;
-its selected immutable infra recipe declares the same package and snapshot. Only that exact
-AMD64 URL gains a content fallback between the pool and dated Snapshot URL.
-Package selection, hashes and other URLs remain unchanged; consumers must opt
-in to the updated immutable config before using this route.
-
-MACsec's other AMD64 checks failed on the exact locked `libc6` version
-`2.41-12+deb13u3`: [SWSS](https://github.com/securely1g/sonic-buildimage/actions/runs/41940005660/job/126958076493)
-requested the AMD64 package, while
-[OCI](https://github.com/securely1g/sonic-buildimage/actions/runs/41940005578/job/126958077370)
-and [libteam](https://github.com/securely1g/sonic-buildimage/actions/runs/41940005648/job/126958076632)
-requested the ARM64 record during multiarch sysroot analysis. These were AMD64
-jobs, not ARM64 compilation. Both requests reached a failing dated Snapshot
-after the official pool. The two exact content URLs returned the locked bytes:
-
-- AMD64: 2,849,576 bytes, SHA256
-  `8ffd13165b9ee3f067e2ee670df718e48c1bdaa18676ac93d1de761dbbb3913c`.
-- ARM64 analysis input: 2,489,480 bytes, SHA256
-  `ff529924782d3286181188fc265a6a92e7fe28975fb3a925dc0e05c0ca66e52f`.
-
-Both payloads match the checked-in base APT lock at failed source `e9cfdb54`
-and the existing cache. The additional routes match only that date, version,
-architecture and path; they do not select new packages or run ARM64 targets.
-
-[MACsec's native libteam AMD64 check](https://github.com/securely1g/sonic-buildimage/actions/runs/41958919046/job/127020338914)
-then failed on `ss-dev`'s `libss2_1.47.2-3+b11_amd64.deb` dependency:
-pool 404, followed by dated Snapshot 503. It already used config `27b16008`;
-this exact package needs an additional fallback. The official
-[content URL](https://snapshot.debian.org/file/458f436ed67e7f80aed736c6665c6b725301024c)
-returned 29,740 bytes matching SHA256
-`879e8477dc20006e59788831e4f3a436d15afe3c055ae0e93beb96696f0e5eb1`
-and the existing cache. The retained AMD64 Packages index and generated recipe
-from accepted libteam source `78a2189c` bind that checksum to the same immutable
-Snapshot selected by failed source `d2bd7e18`; the failed job's generated lock
-was not used. The route adds only this content URL between the existing pool
-and dated fallback. Other versions, architectures and dates retain their routes;
-package checksums and source inputs remain unchanged.
-
-[MACsec's shared SWSS AMD64 check](https://github.com/securely1g/sonic-buildimage/actions/runs/41970601688/job/127057690672)
-then failed before compilation on Graphviz's
-`libheif-plugin-dav1d_1.19.8-1_amd64.deb` dependency: pool 404, followed by
-dated Snapshot 503. Config `cecadbe6` already covered `libheif1`, but not this
-separate plugin. Its official
-[content URL](https://snapshot.debian.org/file/4db82883543536a32eb80350a3ac4149d85009de)
-returned the same 11,688 bytes as the existing cache, with SHA256
-`fed7de7d14f7df765bb6ef1a79bd55b90475808793a5c41dc9ccb9deacf639ae`.
-The retained libteam `78a2189c` generated recipe and immutable AMD64 Packages
-index bind the same dated package selected by failed source `eea299b0`; this
-is not a claim about the failed job's generated lock. The exact AMD64 mapping
-adds this content URL between the existing pool and dated fallback, preserving
-package selection, checksums and other routes. A bounded check from this
-workspace could not establish Cloudflare availability for this plugin or
-`libss2`: each TLS connection timed out once, without an HTTP response. This
-does not establish a permanent endpoint failure; both maintained generic
-routes remain enabled.
-
-[FRR's native AMD64 check](https://github.com/securely1g/sonic-buildimage/actions/runs/42051339153/job/127327932746)
-and [later Sysmgr analysis in its OCI check](https://github.com/securely1g/sonic-buildimage/actions/runs/42051339203/job/127327935067)
-failed on `libpython3.13-stdlib_3.13.5-2+deb13u4_amd64.deb` after trying the
-pool and dated Snapshot. [Eventd's AMD64 check](https://github.com/securely1g/sonic-buildimage/actions/runs/42051339451/job/127327933410)
-failed similarly on `perl_5.40.1-6_amd64.deb`. The OCI archive build and its
-12 tests had already passed; its later failure does not invalidate that result.
-Each exact official content URL returned HTTP200 and bytes matching the accepted
-`c589d2e5` lock and existing cache:
-
-- [Python stdlib](https://snapshot.debian.org/file/34446b6d753038d30cc9dfb5bf17987ff56071da):
-  1,957,100 bytes, SHA256 `0def2d972310b59704ad119abee5a97f95409e14ff1359edd8cc7b8892cfd43f`.
-- [Perl](https://snapshot.debian.org/file/9c5005df956b8fa8a3f487c175499e6029669465):
-  267,336 bytes, SHA256 `11ec93d44649e9b37e3bddcf32a5f01d6e9dd3d0d79aac621b49473539c8f5b8`.
-
-The failed `f750ee5c` source retains the accepted module and download inputs;
-its generated lock was not used for this binding. The SHA1 in each content URL
-locates the payload; Bazel still enforces the original SHA256. These two exact
-AMD64 URLs gain the content route after the pool and before the unchanged
-Cloudflare/original fallbacks. The separate Cloudflare probes timed out during
-TLS from this workspace, which does not establish a permanent mirror failure.
-Standalone consumers still need an explicit immutable-config update; these
-successful payload requests are not new native acceptance.
-
-The exact owned `codex/registry-debian-pool-transport` branch retains the full
-publication-policy plan and AMD64/ARM64 runner suites, including real checksum
-rejection and cold-fetch tests, while selecting no unrelated module jobs.
-Unexpected files fail this exception; other branches and pushes retain normal
-selection. The branch exception remains a Draft readiness limitation and must
-be removed before Ready. The real download tests only fetch existing payloads
-and execute no package producer or compilation.
+The exact owned `codex/registry-debian-pool-transport` branch retains normal
+publication-policy planning and both runner/fetch suites. Its existing narrow
+branch/repository/path guard empties both native module matrices. Other branches
+and unexpected changes retain their normal checks or fail the guard. This
+remains a Draft readiness limitation. The successful 6e305 runner/fetch evidence
+is historical; refreshed-head CI and consumer pin adoption remain separate.
 
 ## Kernel build-tool cache downloads
 
@@ -312,9 +197,8 @@ example, `0.9.4.sonic.10` is newer than `0.9.4.sonic.9`, and `0.9.5.sonic.1`
 is newer than both. Existing `-sonic.N` spellings remain supported; the dotted
 spelling wins when the release and patch revision match.
 
-For source versions with the same numeric release and SONiC patch, the last
-registration in `metadata.json` wins. This includes the published Go snapshot
-form, such as `0.0.0.sonic.1-20200309174518-a00bece872fc`. Git hashes do not indicate which commit is newer. Append
+For source versions with the same numeric release, the last registration in
+`metadata.json` wins. Git hashes do not indicate which commit is newer. Append
 new registrations without reordering existing entries. A later append of an
 older release cannot displace a higher release: build-infra `0.0.18-95cd3a9...`
 is selected ahead of any `0.0.8-...` registration. This is a CI selection rule,
@@ -724,12 +608,64 @@ original validation failure is still preserved.
 
 ## Environment and coverage
 
-The build matrix uses native GitHub-hosted `ubuntu-24.04` and `ubuntu-24.04-arm`
-servers with a `debian:trixie-20260918` container pinned to its multiarch image
-digest. It installs the compiler and
-package-test tools in the container and downloads Bazel 8.5.1 with a pinned SHA256
-for the native CPU. GitHub actions are pinned to commit SHAs, checkout does not
+Planning, the aggregate check, and AMD64 runner tests and module validation use
+self-hosted Debian Trixie Docker runners with the labels `self-hosted`, `Linux`,
+`X64`, and `debian-trixie-container`. Register the runners as ephemeral so each
+accepts only one job; `sonic-slave-wrk-mgr` must remove the finished container
+and replace it with a fresh registered runner after success, failure, or
+cancellation. Keep registration credentials in the manager, outside job
+containers, and retain runner diagnostics before removing a container.
+
+ARM64 jobs continue to use native GitHub-hosted `ubuntu-24.04-arm` runners.
+Moving them to AMD64 containers with cross compilation is a separate change.
+ARM64 module jobs retain the
+`debian:trixie-20260918` container pinned to its multiarch image digest. AMD64
+steps execute directly inside the disposable runner, built from that same
+pinned Trixie base with the compiler and package-test tools preinstalled.
+AMD64 does not start a second container or require a Docker daemon. Actions run
+as UID 1000; module validation and runtime package preparation use passwordless
+`sudo` inside the disposable container. Evidence is archived as root, then only
+the resulting TAR is given to the action user, preserving the archived modes.
+
+The manager supplies `SONIC_RUNNER_IMAGE_REFERENCE=sonic-slave-runner@sha256:...`
+from the actual derived image's inspected Docker image ID. This is a local
+content identity, not a registry pull reference or the upstream base digest.
+`validation.json` records that AMD64 identity or the ARM64 pinned job image
+reference. Missing AMD64 identity fails validation. Runtime preparation receipts
+also record the prepared package inventory and library hashes.
+
+The AMD64 image contains the checksum-verified Bazel 8.5.1 binary at
+`/usr/local/lib/bazel-8.5.1`. Its `/usr/local/bin/bazel` wrapper explicitly passes
+the image's Java CA trust store as a startup argument, including when CI ignores
+all bazelrc files. The workflow verifies the binary's checksum again. ARM64
+downloads and verifies its native Bazel binary in the job container. GitHub
+actions are pinned to commit SHAs, checkout does not
 persist credentials, and the workflow uses read-only repository permissions.
+
+AMD64 module jobs pass `--bazel-startup-arg=--host_jvm_args=-Xmx2g` to bound
+Bazel's Java heap within each runner's 16 GiB memory limit. The runner accepts
+repeated startup arguments, forwards them to build, test, cquery, info and Rust
+preparation, and records them in `validation.json`. ARM64 keeps its default heap.
+Repeated `--bazel-build-arg` options reach build, test and output queries.
+AMD64 jobs use `--jobs=1` and `--discard_analysis_cache` to reduce concurrent
+compiler memory; Rust preparation receives those settings too. This limits
+concurrent Bazel actions; recipes may still request parallel compilation inside
+an action. The declared targets and published recipes stay unchanged. The AMD64 module matrix runs at most
+ten jobs concurrently; the sixteen registered workers also serve planning, unit
+tests and subsequent jobs. Native ARM64 validation has its own matrix, so queued
+hosted jobs do not consume AMD64 matrix slots. Both matrices are required by the
+aggregate check.
+
+Tests receive an explicitly exported empty `HOME`, which Bazel's test setup
+replaces with that test's writable `TEST_TMPDIR`. This lets Python and other
+subprocesses create user configuration inside the test sandbox; an absent
+`HOME` would otherwise fall back to the account's home directory.
+
+`TestRunner` actions prefer `processwrapper-sandbox`. This lets tests hard-link
+their declared runfiles into writable temporary directories and set executable
+permissions on those private copies. Build actions keep their existing sandbox
+strategy. Local or exclusive tests retain the `local` fallback, and real Bazel
+regressions cover both paths without changing published tests.
 
 Runner tests execute on native AMD64 and ARM64 hosts with pinned Bazel 8.5.1.
 They build an actual directory-producing target and its public alias, including
@@ -778,3 +714,12 @@ clean reproduction.
 
 See the [Bazel registry format](https://bazel.build/external/registry) for module
 source, patch, and overlay metadata.
+
+### SONiC Go pseudo-version ordering
+
+Registered SONiC patches may retain a Go pseudo-version suffix, for example
+0.0.0.sonic.1-20200309174518-a00bece872fc. The planner accepts the exact
+14-digit timestamp and 12-lowercase-hex form while preserving numeric release,
+SONiC patch number and separator precedence. Equal release/patch snapshots
+continue to use metadata registration order; hashes/timestamps are not sorted.
+Malformed or unrelated suffixes remain rejected.

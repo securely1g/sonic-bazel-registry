@@ -35,10 +35,7 @@ def routed_urls(url):
 
 
 def snapshot_fallbacks(url):
-    """Expected maintained-main routes, including non-package Snapshot paths."""
-    prefix = "https://snapshot.debian.org/"
-    if url.startswith(prefix):
-        return [url.replace(prefix, "https://snapshot-cloudflare.debian.org/", 1), url]
+    """The maintained baseline keeps the exact original URL as fallback."""
     return [url]
 
 
@@ -48,8 +45,8 @@ class DebianPoolRoutingTest(unittest.TestCase):
         # opting in to the previous shared config; pool404/Snapshot503 failed.
         original = "https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/e/e2fsprogs/libss2_1.47.2-3+b11_amd64.deb"
         self.assertEqual(routed_urls(original), [
-            "https://deb.debian.org/debian/pool/main/e/e2fsprogs/libss2_1.47.2-3+b11_amd64.deb",
             "https://snapshot.debian.org/file/458f436ed67e7f80aed736c6665c6b725301024c",
+            "https://deb.debian.org/debian/pool/main/e/e2fsprogs/libss2_1.47.2-3+b11_amd64.deb",
             *snapshot_fallbacks(original),
         ])
         for changed in (
@@ -82,8 +79,8 @@ class DebianPoolRoutingTest(unittest.TestCase):
             original = "https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/" + relative
             with self.subTest(architecture=architecture):
                 self.assertEqual(routed_urls(original), [
-                    "https://deb.debian.org/debian/pool/" + relative,
                     "https://snapshot.debian.org/file/" + content_id,
+                    "https://deb.debian.org/debian/pool/" + relative,
                     *snapshot_fallbacks(original),
                 ])
                 for changed in (
@@ -109,8 +106,8 @@ class DebianPoolRoutingTest(unittest.TestCase):
         # c514b81492fc01c573ecfc809f9b460023d50e5006848c4caf78997bf1f776a5.
         original = "https://snapshot.debian.org/archive/debian-security/20260726T121236Z/pool/updates/main/l/linux/linux-libc-dev_6.12.96-1_all.deb"
         self.assertEqual(routed_urls(original), [
-            "https://deb.debian.org/debian-security/pool/updates/main/l/linux/linux-libc-dev_6.12.96-1_all.deb",
             "https://snapshot.debian.org/file/66b33fe93d5d572e06cdabdd49d01c7b4947cfc7",
+            "https://deb.debian.org/debian-security/pool/updates/main/l/linux/linux-libc-dev_6.12.96-1_all.deb",
             *snapshot_fallbacks(original),
         ])
         for changed in (
@@ -122,10 +119,7 @@ class DebianPoolRoutingTest(unittest.TestCase):
             original.replace("/updates/main/", "/updates/contrib/"),
         ):
             with self.subTest(url=changed):
-                self.assertEqual(routed_urls(changed), [
-                    "https://deb.debian.org/debian-security/pool/" + changed.split("/pool/", 1)[1],
-                    *snapshot_fallbacks(changed),
-                ])
+                self.assertEqual(routed_urls(changed), [changed])
         for unchanged in (original + "?alternate=1", original + "#fragment",
                           original.replace("snapshot.debian.org", "other.example")):
             with self.subTest(url=unchanged):
@@ -151,11 +145,7 @@ class DebianPoolRoutingTest(unittest.TestCase):
             original.replace("linux-libc-dev", "linux-headers"),
         ):
             with self.subTest(url=changed):
-                relative = changed.split("/pool/", 1)[1]
-                self.assertEqual(routed_urls(changed), [
-                    "https://deb.debian.org/debian-security/pool/" + relative,
-                    *snapshot_fallbacks(changed),
-                ])
+                self.assertEqual(routed_urls(changed), [changed])
         for unchanged in (original + "?alternate=1", original + "#fragment",
                           original.replace("snapshot.debian.org", "other.example")):
             with self.subTest(url=unchanged):
@@ -208,8 +198,8 @@ class DebianPoolRoutingTest(unittest.TestCase):
             original = "https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/" + relative
             with self.subTest(url=original):
                 self.assertEqual(routed_urls(original), [
-                    "https://deb.debian.org/debian/pool/" + relative,
                     "https://snapshot.debian.org/file/" + content_id,
+                    "https://deb.debian.org/debian/pool/" + relative,
                     *snapshot_fallbacks(original),
                 ])
                 for changed in (
@@ -235,8 +225,9 @@ class DebianPoolRoutingTest(unittest.TestCase):
             with self.subTest(url=original):
                 archive, relative = original.split("/archive/", 1)[1].split("/", 1)
                 pool = relative.split("/pool/", 1)[1]
-                self.assertEqual(routed_urls(original),
-                    [f"https://deb.debian.org/{archive}/pool/{pool}", *snapshot_fallbacks(original)])
+                expected = [original] if archive == "debian-security" else [
+                    f"https://deb.debian.org/{archive}/pool/{pool}", original]
+                self.assertEqual(routed_urls(original), expected)
 
     def test_indexes_sources_and_other_hosts_keep_maintained_routes(self):
         for url in [
@@ -260,7 +251,7 @@ class DebianPoolRoutingTest(unittest.TestCase):
         workflow = (ROOT / ".github/workflows/registry-ci.yml").read_text()
         script = workflow.split("          python3 - <<'PY'\n", 1)[1].split("          PY\n", 1)[0]
         script = "\n".join(line[10:] for line in script.splitlines())
-        original = {"include": [{"module": "original"}]}
+        original = {"include": [{"module": "original", "architecture": "amd64"}]}
         cases = [
             ("pull_request", BRANCH, "securely1g/sonic-bazel-registry", "ci/source_mirrors.cfg", []),
             ("pull_request", BRANCH, "securely1g/sonic-bazel-registry", "ci/tests/test_source_mirrors.py", []),
@@ -289,6 +280,11 @@ class DebianPoolRoutingTest(unittest.TestCase):
                         exec(compile(script, "registry-workflow", "exec"), {})
                     actual = json.loads(output.read_text().splitlines()[0].removeprefix("matrix="))
                     self.assertEqual(actual["include"], expected)
+                    outputs = dict(line.split("=", 1) for line in output.read_text().splitlines())
+                    self.assertEqual(json.loads(outputs["amd64_matrix"])["include"], expected)
+                    self.assertEqual(json.loads(outputs["arm64_matrix"])["include"], [])
+                    self.assertEqual(outputs["has_amd64_jobs"], str(bool(expected)).lower())
+                    self.assertEqual(outputs["has_arm64_jobs"], "false")
 
 
 @unittest.skipUnless(os.environ.get("REGISTRY_CI_TEST_BAZEL"),
