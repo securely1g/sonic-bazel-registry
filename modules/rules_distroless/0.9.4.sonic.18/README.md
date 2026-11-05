@@ -25,24 +25,17 @@ qualifiers can still select other configured architectures. Omitting the field
 preserves the previous all-configured-architectures behavior. Infrastructure
 uses AMD64/ARM64 defaults while retaining explicit ARMHF cross inputs.
 
-## Shared-library linker-script regression
+## Native library contracts
 
-Patches 0023 and 0024 preserve linker-script inputs across shared-library
-boundaries. The first link retains the files on a library-bearing input.
-Script-referenced DSOs also have native cc_import dependencies, so they survive
-CcSharedLibraryInfo forwarding through dynamic_deps. DSO references use GNU ld's
-exact-filename search (`-l:filename`) against the declared _solib inputs instead
-of embedding extraction paths that disappear from downstream link actions.
-This follows the explicit native library dependencies used by sonic_rules.
+APT library imports preserve installed-file ownership and GNU linker-script
+semantics through native shared-library boundaries. A script may refer to a
+shared object, static archive, object file or nested script. GROUP and AS_NEEDED
+remain linker-controlled. Runtime exports contain ELF libraries using their
+SONAMEs; text scripts remain link inputs. Ambiguous runtime SONAMEs fail during
+analysis instead of silently choosing a library. Multiple pkg-config libraries
+resolve independently, including libraries supplied by dependency packages.
 
-The standalone regression constructs two tiny DEBs, imports a development
-package whose GNU linker script refers to the runtime package, and links a
-two-level shared-library consumer in a sandbox, with the second DSO using
-dynamic_deps on the first. It verifies runtime SONAMEs in DT_NEEDED, requires
-function results 43 and 44, and runs a final executable that must print 44.
-The executable declares indirect DSO search files using the same pattern as
-sonic_rules shared_link_search. It uses
-no production APT index or business component. Run from the registry root:
+Run the original cross-package script regression from the registry root:
 
 ```sh
 USE_BAZEL_VERSION=8.5.1 python3 \
@@ -50,5 +43,27 @@ USE_BAZEL_VERSION=8.5.1 python3 \
   --registry .
 ```
 
-Requires gcc, dpkg-deb, xz, readelf and Python 3 on the native platform. Evidence
-is retained in the printed temporary directory.
+The complete contract fixture uses the production sonic-build-infra CcInfo
+adapter supplied by the caller. It builds six two-level shared-library chains,
+checks AS_NEEDED and constructor behavior, rejects conflicting SONAMEs, and runs
+both Bazel and installed executables without LD_LIBRARY_PATH or LD_PRELOAD.
+The build directory is hidden during installed execution. Optional Go CGo and
+Rust executables consume the adapter's actual CcInfo flags and files.
+
+```sh
+USE_BAZEL_VERSION=8.5.1 python3 \
+  modules/rules_distroless/0.9.4.sonic.18/tests/library_contract_test.py \
+  --registry . --adapter /path/to/sonic-build-infra/cc/shared_library.bzl \
+  --go /path/to/go --rustc /path/to/rustc
+```
+
+For an ARM64 execution check on an AMD64 host, supply `--cross-info compiler.json`
+and `--qemu /path/to/qemu-aarch64-static` instead of the language options. The
+JSON contains `cc` (absolute aarch64-linux-gnu-gcc path), `sysroot` (absolute
+root), and `flags` (compiler argument array for that sysroot). The fixture uses
+these files in a declared Bazel cross toolchain, verifies AArch64 ELF headers,
+and executes the resulting programs through QEMU with the supplied sysroot.
+
+Requires Python 3, Bazel 8.5.1, gcc, ar, dpkg-deb, xz and readelf. All packages
+and locks are synthetic; the tests fetch no production package index and build
+no business component. Each run prints its retained evidence directory.
