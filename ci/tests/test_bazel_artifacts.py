@@ -30,6 +30,8 @@ def _artifact_impl(ctx):
     runtime = ctx.actions.declare_file("runtime.tar")
     debug = ctx.actions.declare_file("runtime.debug.tar")
     ctx.actions.run_shell(
+        # Test collection of local UTF-8 names, not Bazel 8.5.1's remote tree transport.
+        execution_requirements = {"no-remote-cache": "1"},
         outputs = [tree, runtime, debug],
         arguments = [tree.path, runtime.path, debug.path, ctx.var["COMPILATION_MODE"]],
         command = """

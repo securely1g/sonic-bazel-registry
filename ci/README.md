@@ -586,6 +586,24 @@ rejected. The TAR retains the actual filesystem name and bytes. This does not
 change Bazel's locale or repair arbitrary paths. The failed worker's effective
 JVM locale was not retained.
 
+The real Bazel collector fixture creates its certificate filename with ASCII
+shell octal escapes and checks its exact UTF-8 bytes before collection. Its two
+producer actions (target and execution configurations) use
+`execution_requirements = {"no-remote-cache": "1"}`. This prevents those actions
+from reading or uploading remote cache results while retaining sandboxing,
+reuse of existing local action outputs, analysis reuse and caching for the separate tool action and all
+module builds. The observed runner command configures a remote cache, not a
+remote executor; this action requirement does not disable remote execution.
+
+This isolates collector validation from an unresolved Bazel 8.5.1 remote tree
+transport defect. A retained AMD64 run materialized a double-encoded Unicode
+filename from cached output and failed the strict filesystem assertion before
+the collector ran. The earlier passing run also reported a Unicode runtime
+backport, so it is not a controlled cache-only comparison. The fixture keeps
+all filesystem, BEP, target-versus-execution configuration and final TAR checks.
+Passing it does not establish that production remote tree transport is fixed;
+this change neither modifies the Bazel runtime nor changes production caches.
+
 The Draft `codex/registry-bep-unicode` PR runs policy planning and both existing
 runner test suites, including the real Bazel artifact fixture. A temporary
 same-repository, exact-branch and changed-path guard omits the broader native
