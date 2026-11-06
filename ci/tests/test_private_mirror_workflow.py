@@ -19,7 +19,7 @@ TRIXIE = ["self-hosted", "Linux", "X64", "debian-trixie-container"]
 
 def expression_value(expression, context):
     """Evaluate the workflow's small Boolean/context expression subset."""
-    expression = re.sub(r"\b(?:github|matrix|inputs|secrets|steps)(?:\.[A-Za-z_][A-Za-z_0-9]*)+",
+    expression = re.sub(r"\b(?:github|matrix|inputs|secrets|steps|runner)(?:\.[A-Za-z_][A-Za-z_0-9]*)+",
                         lambda match: f"lookup({match[0]!r})", expression)
     expression = expression.replace("&&", " and ").replace("||", " or ")
     expression = re.sub(r"!(?!=)", "not ", expression)
@@ -46,8 +46,8 @@ class PrivateMirrorSecretBoundaryTest(unittest.TestCase):
         self.assertRegex(workflow, r"private_mirror_probe:\n\s+description: [^\n]+\n"
                                    r"\s+type: boolean\n\s+default: false")
         content = step(workflow, "Validate private Debian mirrors from the Trixie runner")
-        self.assertIn("sudo -n --preserve-env=" + ",".join((*SECRETS, "GITHUB_ACTIONS")) + " \\\n"
-                      "            python3 ci/private_mirrors.py probe", content)
+        self.assertIn("python3 ci/private_mirrors.py probe", content)
+        self.assertNotIn("sudo", content)  # The final privacy scan reads mode-0600 receipts as the runner.
         expression = re.search(r"^        if: \$\{\{ (.*) \}\}$", content, re.M)[1]
         for event, requested, runner, expected in (
             ("pull_request", True, TRIXIE, False),
@@ -82,12 +82,18 @@ class PrivateMirrorSecretBoundaryTest(unittest.TestCase):
                         ("push", "", "maintainer", ["self-hosted", "Linux", "X64"], ""),
                         ("push", "", "maintainer", ["debian-trixie-container"], ""),
                     ):
+                        # The cross fixture has a fixed Trixie label set in
+                        # runs-on. Only that worker and hosted isolation apply.
+                        fixed = "runner.environment" in expression
+                        if fixed and "self-hosted" in runner and runner != TRIXIE:
+                            continue
                         context = {
                             "github.event_name": event,
                             "github.actor": actor,
                             "github.repository": "owner/repo",
                             "github.event.pull_request.head.repo.full_name": head,
                             "matrix.runner": runner,
+                            "runner.environment": "self-hosted" if "self-hosted" in runner else "github-hosted",
                             "inputs.runner": json.dumps(runner),
                             f"secrets.{secret}": "fixture-value",
                         }
@@ -102,8 +108,9 @@ class PrivateMirrorSecretBoundaryTest(unittest.TestCase):
         arm_job = workflow.split("  modules_hosted_arm:\n", 1)[1].split("  required:\n", 1)[0]
         self.assertNotIn("secrets:", arm_job)
         cross_fixture = workflow.split("  cross_fixture:\n", 1)[1].split("  modules_local:\n", 1)[0]
+        self.assertIn("runs-on: [self-hosted, Linux, X64, debian-trixie-container]", cross_fixture)
         for secret in SECRETS:
-            self.assertNotIn(secret, cross_fixture)
+            self.assertIn(f"secrets.{secret}", cross_fixture)
         reusable = (WORKFLOWS / "registry-module.yml").read_text()
         declarations = reusable.split("    secrets:\n", 1)[1].split("\npermissions:", 1)[0]
         for secret in SECRETS:
@@ -130,6 +137,7 @@ class PrivateMirrorSecretBoundaryTest(unittest.TestCase):
     def test_failed_privacy_check_blocks_each_upload(self):
         for filename, name, check in (
             ("registry-ci.yml", "Retain runner test results", "privacy"),
+            ("registry-ci.yml", "Retain cross fixture results", "privacy"),
             ("registry-module.yml", "Retain module validation results", "archive"),
         ):
             content = step((WORKFLOWS / filename).read_text(), name)
