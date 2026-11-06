@@ -14,7 +14,7 @@ jobs:
     uses: ./.github/workflows/registry-module.yml
     with:
       module: sonic-fips
-      version: 0.0.4-symcrypt-cross.2
+      version: 0.0.4-symcrypt-cross.3
       architecture: ${{ inputs.mode == 'native-amd64' && 'amd64' || 'arm64' }}
       execution_architecture: ${{ inputs.mode == 'native-arm64' && 'arm64' || 'amd64' }}
       cross_compile: ${{ inputs.mode == 'cross-arm64' }}
