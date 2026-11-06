@@ -752,22 +752,24 @@ class DebianPoolMirrorIntegrationTest(ArchiveFetchTestCase):
                     self.assertEqual(hashlib.sha256(package.read_bytes()).hexdigest(), checksum)
 
     def test_exact_content_candidates_satisfy_original_snapshot_requests(self):
-        for upstream, locator, _checksum, _size, _cdn in DEBIAN_CONTENT_PACKAGES:
-            with self.subTest(package=upstream):
-                self.exercise_snapshot_fallback(upstream, ["/content/" + locator])
+        self.exercise_snapshot_fallback([
+            (upstream, ["/content/" + locator])
+            for upstream, locator, _checksum, _size, _cdn in DEBIAN_CONTENT_PACKAGES
+        ])
 
     def test_exact_content_candidates_keep_all_original_fallbacks(self):
+        cases = []
         for upstream, locator, _checksum, _size, security_cdn in DEBIAN_CONTENT_PACKAGES:
-            with self.subTest(package=upstream):
-                expected = ["/content/" + locator]
-                if "/archive/debian/" in upstream:
-                    expected.append("/cdn/pool/" + upstream.split("/pool/", 1)[1])
-                    expected.append("/snapshot/" + upstream.split("/archive/debian/", 1)[1])
-                else:
-                    if security_cdn:
-                        expected.append("/security-cdn/pool/" + upstream.split("/pool/", 1)[1])
-                    expected.append("/snapshot-security/" + upstream.split("/archive/debian-security/", 1)[1])
-                self.exercise_snapshot_fallback(upstream, expected)
+            expected = ["/content/" + locator]
+            if "/archive/debian/" in upstream:
+                expected.append("/cdn/pool/" + upstream.split("/pool/", 1)[1])
+                expected.append("/snapshot/" + upstream.split("/archive/debian/", 1)[1])
+            else:
+                if security_cdn:
+                    expected.append("/security-cdn/pool/" + upstream.split("/pool/", 1)[1])
+                expected.append("/snapshot-security/" + upstream.split("/archive/debian-security/", 1)[1])
+            cases.append((upstream, expected))
+        self.exercise_snapshot_fallback(cases)
 
     def test_corrupt_security_content_candidate_falls_back_with_original_integrity(self):
         security_packages = [package for package in DEBIAN_CONTENT_PACKAGES
@@ -851,19 +853,37 @@ class DebianPoolMirrorIntegrationTest(ArchiveFetchTestCase):
                 "/cloudflare/20260727T143429Z/pool/main/b/binutils/libsframe1_2.44-3_amd64.deb",
             ])
 
-    def exercise_snapshot_fallback(self, upstream, expected_requests, *, corrupt_primary=False):
-        payload = b"locked Debian package fixture\n"
-        checksum = hashlib.sha256(payload).hexdigest()
-        requests = []
+    def exercise_snapshot_fallback(self, upstream, expected_requests=None, *, corrupt_primary=False):
+        cases = [(upstream, expected_requests)] if isinstance(upstream, str) else upstream
+        self.assertTrue(cases)
+        self.assertTrue(not corrupt_primary or len(cases) == 1)
+        fixtures, routes, unexpected_requests = [], {}, []
+        for index, (url, expected) in enumerate(cases):
+            self.assertTrue(expected)
+            # Distinct bytes prevent one repository cache hit from bypassing another URL.
+            payload = (b"locked Debian package fixture\n" if len(cases) == 1
+                       else ("locked Debian package fixture " + url + "\n").encode())
+            fixture = {"upstream": url, "expected": expected, "requests": [], "payload": payload,
+                       "checksum": hashlib.sha256(payload).hexdigest(),
+                       "repo": "package_fixture" if len(cases) == 1 else f"package_fixture_{index}"}
+            fixtures.append(fixture)
+            for path in expected:
+                self.assertNotIn(path, routes)
+                routes[path] = fixture
 
         class PackageSource(BaseHTTPRequestHandler):
             def do_GET(self):
-                requests.append(self.path)
-                corrupt = corrupt_primary and self.path == expected_requests[0]
-                if self.path != expected_requests[-1] and not corrupt:
+                fixture = routes.get(self.path)
+                if fixture is None:
+                    unexpected_requests.append(self.path)
                     self.send_error(404)
                     return
-                body = b"corrupt package bytes\n" if corrupt else payload
+                fixture["requests"].append(self.path)
+                corrupt = corrupt_primary and self.path == fixture["expected"][0]
+                if self.path != fixture["expected"][-1] and not corrupt:
+                    self.send_error(404)
+                    return
+                body = b"corrupt package bytes\n" if corrupt else fixture["payload"]
                 self.send_response(200)
                 self.send_header("Content-Length", str(len(body)))
                 self.end_headers()
@@ -899,14 +919,20 @@ class DebianPoolMirrorIntegrationTest(ArchiveFetchTestCase):
                         config_text = config_text.replace(cdn,
                             f"http://127.0.0.1:{server.server_port}/security-cdn/pool/" + cdn.split("/pool/", 1)[1])
                 config.write_text(config_text)
-                result, transcript, cache = self.fetch(work,
-                    'module(name = "debian_fallback_consumer")\n'
-                    'http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")\n'
-                    f'http_file(name = "package_fixture", urls = [{upstream!r}], sha256 = {checksum!r})\n',
-                    "package_fixture", config)
+                module = ('module(name = "debian_fallback_consumer")\n'
+                          'http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")\n')
+                for fixture in fixtures:
+                    module += (f'http_file(name = {fixture["repo"]!r}, urls = [{fixture["upstream"]!r}], '
+                               f'sha256 = {fixture["checksum"]!r})\n')
+                result, transcript, cache = self.fetch(work, module,
+                    [fixture["repo"] for fixture in fixtures], config)
                 self.assertEqual(result.returncode, 0, transcript)
-                self.assertEqual(list(dict.fromkeys(requests)), expected_requests)
-                self.assertEqual((cache / "content_addressable/sha256" / checksum / "file").read_bytes(), payload)
+                self.assertEqual(unexpected_requests, [])
+                for fixture in fixtures:
+                    with self.subTest(package=fixture["upstream"]):
+                        self.assertEqual(list(dict.fromkeys(fixture["requests"])), fixture["expected"])
+                        self.assertEqual((cache / "content_addressable/sha256" / fixture["checksum"] / "file").read_bytes(),
+                                         fixture["payload"])
                 if corrupt_primary:
                     self.assertIn("Checksum", transcript)
         finally:
