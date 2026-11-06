@@ -234,6 +234,7 @@ class ArchiveFetchTestCase(unittest.TestCase):
                    "--experimental_downloader_config=" + str(config)]
         artifacts = work / "artifacts"
         artifacts.mkdir()
+        command.append("--build_event_json_file=" + str(artifacts / "build-events.jsonl"))
         (artifacts / "command.json").write_text(json.dumps(command, indent=2) + "\n")
         try:
             with (artifacts / "fetch.log").open("w") as log:

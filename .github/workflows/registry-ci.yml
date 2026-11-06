@@ -163,10 +163,14 @@ jobs:
         shell: bash
         env:
           REGISTRY_CI_TEST_ARTIFACTS: runner-ci-artifacts/runner-bazel-artifacts
+          DEBIAN_MIRROR_BASE_URL: ${{ contains(matrix.runner, 'self-hosted') && contains(matrix.runner, 'debian-trixie-container') && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && secrets.DEBIAN_MIRROR_BASE_URL || '' }}
+          DEBIAN_SECURITY_MIRROR_BASE_URL: ${{ contains(matrix.runner, 'self-hosted') && contains(matrix.runner, 'debian-trixie-container') && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && secrets.DEBIAN_SECURITY_MIRROR_BASE_URL || '' }}
         run: |
           set -euo pipefail
           mkdir -p runner-ci-artifacts
-          python3 ci/run_runner_tests.py --suite native 2>&1 | tee runner-ci-artifacts/runner-tests.log
+          python3 ci/private_mirrors.py suite \
+            --artifacts runner-ci-artifacts --private-dir "$RUNNER_TEMP/private-mirrors-unit" \
+            --public-config ci/source_mirrors.cfg -- python3 ci/run_runner_tests.py --suite native
       - name: Validate private Debian mirrors from the Trixie runner
         if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' && inputs.private_mirror_probe && contains(matrix.runner, 'self-hosted') && contains(matrix.runner, 'debian-trixie-container') && github.actor != 'dependabot[bot]' }}
         shell: bash
@@ -176,8 +180,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$GITHUB_WORKSPACE/runner-ci-artifacts/private-mirror-probe"
-          sudo -n --preserve-env=DEBIAN_MIRROR_BASE_URL,DEBIAN_SECURITY_MIRROR_BASE_URL,GITHUB_ACTIONS \
-            python3 ci/private_mirrors.py probe \
+          python3 ci/private_mirrors.py probe \
             --artifacts "$GITHUB_WORKSPACE/runner-ci-artifacts/private-mirror-probe" \
             --private-dir "$RUNNER_TEMP/private-mirrors-unit" \
             --public-config ci/source_mirrors.cfg \
@@ -223,17 +226,27 @@ jobs:
           [[ -x "$REGISTRY_CI_TEST_BAZEL" && -x "$REGISTRY_CI_TEST_ARM_EXECUTOR" ]]
       - name: Test the cross compiler and ARM runtime
         shell: bash
+        env:
+          DEBIAN_MIRROR_BASE_URL: ${{ runner.environment == 'self-hosted' && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && secrets.DEBIAN_MIRROR_BASE_URL || '' }}
+          DEBIAN_SECURITY_MIRROR_BASE_URL: ${{ runner.environment == 'self-hosted' && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && secrets.DEBIAN_SECURITY_MIRROR_BASE_URL || '' }}
         run: |
           set -euo pipefail
-          python3 ci/run_runner_tests.py --suite cross 2>&1 | tee cross-fixture.log
-      - name: Retain cross fixture results
+          python3 ci/private_mirrors.py suite \
+            --artifacts cross-fixture-artifacts --private-dir "$RUNNER_TEMP/private-mirrors-cross" \
+            --public-config ci/source_mirrors.cfg -- python3 ci/run_runner_tests.py --suite cross
+      - name: Check cross fixture evidence for private mirror URLs
+        id: privacy
         if: always()
+        env:
+          DEBIAN_MIRROR_BASE_URL: ${{ runner.environment == 'self-hosted' && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && secrets.DEBIAN_MIRROR_BASE_URL || '' }}
+          DEBIAN_SECURITY_MIRROR_BASE_URL: ${{ runner.environment == 'self-hosted' && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && secrets.DEBIAN_SECURITY_MIRROR_BASE_URL || '' }}
+        run: python3 ci/private_mirrors.py check-artifacts --artifacts cross-fixture-artifacts
+      - name: Retain cross fixture results
+        if: always() && steps.privacy.outcome == 'success'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: registry-ci-arm-cross-fixture
-          path: |
-            cross-fixture.log
-            cross-fixture-artifacts/
+          path: cross-fixture-artifacts/
           if-no-files-found: warn
           retention-days: 14
 
