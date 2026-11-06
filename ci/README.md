@@ -707,6 +707,11 @@ boot a kernel image. Passing tests only establish each module's existing
 presubmit contract, not broader undeclared functionality. Yang-model package outputs and TAR
 regression archives are architecture-neutral; their original target-side runtime
 tests remain required, and native execution tools retain their configurations.
+
+PI `0.1.3.sonic.3` also uses the Debian cross runners. Its runtime test builds
+and runs a consumer of the installed ARM64 SDK and converts P4Info using the
+installed tools. All four original builds and the uncached test passed.
+[Full ARM64 validation](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42180002707/job/127767164854)
 The remaining module failures stay visible in the survey and retain native ARM validation here.
 
 The gawk smoke test uses gawk as a native execution tool while the direct gawk
