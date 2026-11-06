@@ -553,6 +553,24 @@ PCRE32 route remains separate. Package versions, integrity checks and all
 other routes are unchanged. No package generation or execution was needed;
 configured-fetch and consumer acceptance for this successor remain pending.
 
+The [PR196 AMD64 archive job at `903ae944`](https://github.com/securely1g/sonic-buildimage/actions/runs/42199590365/job/127831288490)
+built and validated Orchagent, then its separate owner-source query failed on
+`libpcre2-16-0_10.46-1~deb13u1_armhf.deb` after HTTP 404 from the official pool
+and HTTP 503 from the dated Snapshot. The unchanged selected libyang module's
+ARMHF `libpcre2-dev` closure includes this exact tuple in the retained accepted
+lock; this is not a retrieved lock from the failed run.
+
+One [filename-bearing content GET](https://snapshot.debian.org/file/1f7cf11c8d38946c74712ee3b3ed0e69e222f396/libpcre2-16-0_10.46-1~deb13u1_armhf.deb)
+returned HTTP 200 and matched all 243,332 locked/cache bytes and SHA256
+`6f3ed32007e36e2cf1644a0959cfb55a8960dd8837488571900c426a7db4caff`.
+The preceding content-index metadata request returned HTTP 503 and was not
+retried. Only the exact original ARMHF URL gains this verified candidate before
+the retained pool and original Snapshot fallbacks. Existing PCRE32 and other
+architectures remain separate. The existing tuple-driven routing and fallback
+tests cover the new input and reject near-miss dates, versions, architectures,
+hosts, paths, queries and suffixes. No package was generated or executed;
+configured-fetch and consumer acceptance for this successor remain pending.
+
 The [PR195 ARM64 archive job at `314d872c`](https://github.com/securely1g/sonic-buildimage/actions/runs/42182694599/job/127775737269)
 failed its initial 24-target Python/startup no-DEB query on
 `libexpat1-dev_2.7.1-2_arm64.deb`: the official pool returned HTTP 404
