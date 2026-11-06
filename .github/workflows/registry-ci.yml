@@ -1,26 +1,14 @@
-name: Cross-build candidate validation
+name: Validate P4C execution-platform generators
 on: workflow_dispatch
 permissions:
   contents: read
-
 jobs:
   validate:
-    name: ${{ matrix.candidate.module }} (${{ matrix.architecture }})
-    strategy:
-      fail-fast: false
-      max-parallel: 4
-      matrix:
-        architecture: [arm64, amd64]
-        candidate:
-          - {module: iproute2, version: "6.15.0.sonic.6"}
-          - {module: p4c, version: "1.2.4.2.sonic.3"}
-          - {module: p4lang-pi, version: "0.1.3.sonic.3"}
-          - {module: p4lang-bmv2, version: "1.15.0.sonic.3"}
     uses: ./.github/workflows/registry-module.yml
     with:
-      module: ${{ matrix.candidate.module }}
-      version: ${{ matrix.candidate.version }}
-      architecture: ${{ matrix.architecture }}
+      module: p4c
+      version: 1.2.4.2.sonic.3
+      architecture: amd64
       execution_architecture: amd64
-      cross_compile: ${{ matrix.architecture == 'arm64' }}
+      cross_compile: false
       runner: '["self-hosted","Linux","X64","debian-trixie-container"]'
