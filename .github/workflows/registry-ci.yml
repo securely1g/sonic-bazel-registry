@@ -1,4 +1,4 @@
-name: Validate BMv2 against cross-configurable PI
+name: Diagnose the original BMv2 configure-flags test
 on: workflow_dispatch
 permissions:
   contents: read

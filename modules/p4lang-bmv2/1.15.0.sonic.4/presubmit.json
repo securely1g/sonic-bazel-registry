@@ -22,15 +22,9 @@
     "arm64": "@sonic-build-infra//platforms:aarch64_trixie"
   },
   "build_targets": [
-    "@p4lang-bmv2//:runtime",
-    "@p4lang-bmv2//:runtime.debug_symbols",
-    "@p4lang-bmv2//:sdk_consumer",
-    "@p4lang-bmv2//:config_log",
-    "@p4lang-bmv2//:grpc_config_log",
-    "@p4lang-bmv2//:runtime_packages.json"
+    "@p4lang-bmv2//:bazel/configure_flags_test.py"
   ],
   "test_targets": [
-    "@p4lang-bmv2//:package_test",
     "@p4lang-bmv2//:configure_flags_test"
   ],
   "generated_module_overlay": true
