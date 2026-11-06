@@ -534,6 +534,25 @@ indexes, near-miss versions and dates, paths, hosts, queries and fragments.
 The separately declared Cloudflare URLs remain unchanged. These GETs prove
 byte availability; configured-fetch and new consumer acceptance remain pending.
 
+The [PR196 AMD64 archive job at `08d51ffe`](https://github.com/securely1g/sonic-buildimage/actions/runs/42171557768/job/127740337397)
+built and validated Orchagent with 106 ELF/debug pairs and 370 Scapy files,
+then a separate source-closure query failed on
+`libpcre2-32-0_10.46-1~deb13u1_armhf.deb`: the official pool returned HTTP 404
+and the dated Snapshot returned HTTP 503. The query failed before that step's
+owner tests ran. Its unchanged selected libyang module requests ARMHF
+`libpcre2-dev`, whose accepted generated-lock closure includes this exact PCRE32
+package; no current failed-run lock or complete graph equivalence is claimed.
+
+One [official metadata response](https://snapshot.debian.org/mr/file/9eb28eee9a02941c85af546838293851576cdfa7/info)
+binds the filename, size and content SHA1. One [filename-bearing content response](https://snapshot.debian.org/file/9eb28eee9a02941c85af546838293851576cdfa7/libpcre2-32-0_10.46-1~deb13u1_armhf.deb)
+returned HTTP 200 and matched all 235,052 locked/cache bytes and SHA256
+`ab7a0ed7616e15eb569d4df827b6aceb3f6d810959a8970a426614400d92c7e6`.
+Only that exact dated URL gains the verified content candidate before the
+unchanged official-pool and original Snapshot fallbacks. The existing AMD64
+PCRE32 route remains separate. Package versions, integrity checks and all
+other routes are unchanged. No package generation or execution was needed;
+configured-fetch and consumer acceptance for this successor remain pending.
+
 ## Kernel build-tool cache downloads
 
 The runner starts each consumer with `--ignore_all_rc_files`, so it explicitly
