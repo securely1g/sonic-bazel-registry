@@ -1494,7 +1494,7 @@ def run(root: Path, module: str, version: str, architecture: str,
                     text=True, cwd=consumer))
                 require("aarch64" in identity["archname"], "OpenSSL TAP recipes must use AArch64 Perl")
                 (artifacts / "fips-recipe-perl.json").write_text(json.dumps(identity, indent=2) + "\n")
-                recipe_runner.write_text("#!/bin/sh\nunset PERL5LIB\nexec " + shlex.join(guest_perl) + ' "$@"\n')
+                recipe_runner.write_text("#!/bin/sh\nunset PERLLIB PERL5LIB PERL5OPT\nexec " + shlex.join(guest_perl) + ' "$@"\n')
                 recipe_runner.chmod(0o755)
                 test_flags.append("--@sonic-fips//openssl/integration:recipe_perl=//fips_recipe_runtime:run")
             if executor_prefix:
