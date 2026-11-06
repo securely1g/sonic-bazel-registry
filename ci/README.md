@@ -174,7 +174,9 @@ in the signed Debian Release files, including `Contents.gz` for each target
 architecture. Public fallback remains available for every published format.
 For the two pinned July snapshots, probes of formats absent from the signed
 manifests stay on the private endpoint. The format table is scoped to those
-dates, suites, the `main` component, and AMD64/ARM64/ARMHF.
+dates, the Bookworm and Trixie release, updates and security suites, the
+`main` component, and AMD64/ARM64/ARMHF. A Trixie build can evaluate a
+component's Bookworm extension while resolving its module graph.
 
 Temporary configuration lives outside the artifact directory. The wrapper
 removes mirror values from the child process environment and registers them
