@@ -10,6 +10,10 @@ on:
         description: Test every configured historical version instead of only the latest
         type: boolean
         default: false
+      private_mirror_probe:
+        description: Verify private Debian mirror availability with fresh Bazel downloads
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -158,18 +162,42 @@ jobs:
       - name: Test planning and validation runner
         shell: bash
         env:
-          REGISTRY_CI_TEST_ARTIFACTS: runner-bazel-artifacts
+          REGISTRY_CI_TEST_ARTIFACTS: runner-ci-artifacts/runner-bazel-artifacts
         run: |
           set -euo pipefail
-          python3 ci/run_runner_tests.py --suite native 2>&1 | tee runner-tests.log
-      - name: Retain runner test results
+          mkdir -p runner-ci-artifacts
+          python3 ci/run_runner_tests.py --suite native 2>&1 | tee runner-ci-artifacts/runner-tests.log
+      - name: Validate private Debian mirrors from the Trixie runner
+        if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' && inputs.private_mirror_probe && contains(matrix.runner, 'self-hosted') && contains(matrix.runner, 'debian-trixie-container') && github.actor != 'dependabot[bot]' }}
+        shell: bash
+        env:
+          DEBIAN_MIRROR_BASE_URL: ${{ contains(matrix.runner, 'self-hosted') && contains(matrix.runner, 'debian-trixie-container') && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && secrets.DEBIAN_MIRROR_BASE_URL || '' }}
+          DEBIAN_SECURITY_MIRROR_BASE_URL: ${{ contains(matrix.runner, 'self-hosted') && contains(matrix.runner, 'debian-trixie-container') && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && secrets.DEBIAN_SECURITY_MIRROR_BASE_URL || '' }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$GITHUB_WORKSPACE/runner-ci-artifacts/private-mirror-probe"
+          sudo -n --preserve-env=DEBIAN_MIRROR_BASE_URL,DEBIAN_SECURITY_MIRROR_BASE_URL,GITHUB_ACTIONS \
+            python3 ci/private_mirrors.py probe \
+            --artifacts "$GITHUB_WORKSPACE/runner-ci-artifacts/private-mirror-probe" \
+            --private-dir "$RUNNER_TEMP/private-mirrors-unit" \
+            --public-config ci/source_mirrors.cfg \
+            --bazel /usr/local/bin/bazel
+      - name: Check runner evidence for private mirror URLs
+        id: privacy
         if: always()
+        shell: bash
+        env:
+          DEBIAN_MIRROR_BASE_URL: ${{ contains(matrix.runner, 'self-hosted') && contains(matrix.runner, 'debian-trixie-container') && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && secrets.DEBIAN_MIRROR_BASE_URL || '' }}
+          DEBIAN_SECURITY_MIRROR_BASE_URL: ${{ contains(matrix.runner, 'self-hosted') && contains(matrix.runner, 'debian-trixie-container') && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && secrets.DEBIAN_SECURITY_MIRROR_BASE_URL || '' }}
+        run: |
+          set -euo pipefail
+          python3 ci/private_mirrors.py check-artifacts --artifacts "$GITHUB_WORKSPACE/runner-ci-artifacts"
+      - name: Retain runner test results
+        if: always() && steps.privacy.outcome == 'success'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: registry-ci-runner-tests-${{ matrix.architecture }}
-          path: |
-            runner-tests.log
-            runner-bazel-artifacts/
+          path: runner-ci-artifacts/
           if-no-files-found: warn
           retention-days: 14
 
@@ -226,6 +254,10 @@ jobs:
       execution_architecture: ${{ matrix.execution_architecture }}
       cross_compile: ${{ matrix.cross_compile }}
       runner: ${{ toJSON(matrix.runner) }}
+    # Public/fork runs keep the existing download candidates without these secrets.
+    secrets:
+      DEBIAN_MIRROR_BASE_URL: ${{ contains(matrix.runner, 'self-hosted') && contains(matrix.runner, 'debian-trixie-container') && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && secrets.DEBIAN_MIRROR_BASE_URL || '' }}
+      DEBIAN_SECURITY_MIRROR_BASE_URL: ${{ contains(matrix.runner, 'self-hosted') && contains(matrix.runner, 'debian-trixie-container') && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && secrets.DEBIAN_SECURITY_MIRROR_BASE_URL || '' }}
 
   modules_hosted_arm:
     name: ${{ matrix.module }} ${{ matrix.version }} (${{ matrix.architecture }})
