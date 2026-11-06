@@ -1,0 +1,815 @@
+# Keep bazel_compatibility in sync with sonic-buildimage's .bazelversion.
+module(
+    name = "sonic-build-infra",
+    version = "0.0.28-6f48ad4e60916f004d6498d9cc1d228cf0af7134",
+    bazel_compatibility = [
+        ">=8.5.1",
+        "<=8.5.1",
+    ],
+)
+
+bazel_dep(name = "swig", version = "4.3.0.bcr.2")
+bazel_dep(name = "rules_cc", version = "0.2.20")
+bazel_dep(name = "rules_foreign_cc", version = "0.15.1")
+# Preserve complete source-install/wheel metadata and explicit payload modes.
+bazel_dep(name = "rules_python", version = "1.9.0.sonic.1")
+bazel_dep(name = "platforms", version = "1.0.0")
+bazel_dep(name = "tar.bzl", version = "0.10.5.sonic.2")
+
+sysroot_tar = use_extension("@tar.bzl//tar:extensions.bzl", "toolchains")
+use_repo(sysroot_tar, "bsd_tar_toolchains_linux_amd64", "bsd_tar_toolchains_linux_arm64")
+
+# Root builds must select the patch even when another dependency requests the
+# upstream release, which sorts above its SONiC prerelease version.
+single_version_override(
+    module_name = "tar.bzl",
+    version = "0.10.5.sonic.2",
+)
+
+bazel_dep(name = "bazel_skylib", version = "1.9.0")
+bazel_dep(name = "bazel_lib", version = "3.1.1")
+bazel_dep(name = "aspect_rules_py", version = "1.11.2")
+bazel_dep(name = "patchelf", version = "0.18.0.bcr.1")
+bazel_dep(name = "gawk", version = "5.3.2.sonic.1")
+
+# A local module providing a cc_binary in a separate module, used only by our
+# tests to prove that we correctly package binaries from another module.
+bazel_dep(name = "deploy_tar_external_binary", version = "0.0.0", dev_dependency = True)
+local_path_override(
+    module_name = "deploy_tar_external_binary",
+    path = "tests/external_binary_module",
+)
+
+bazel_dep(name = "buildifier_prebuilt", version = "8.5.1.3", dev_dependency = True)
+
+# The SONiC patch sorts above upstream 0.9.4 without a root override.
+bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.17")
+
+# One multiarch directory shared by GCC and Clang on both architectures.
+# Consumers import this same repository through use_extension/use_repo.
+sysroots = use_extension("//toolchains/sysroot:extensions.bzl", "sysroots")
+sysroots.debian(name = "sonic_sysroot")
+use_repo(sysroots, "sonic_sysroot")
+
+gcc = use_extension("//toolchains/gcc:extensions.bzl", "gcc")
+use_repo(
+    gcc,
+    "gcc-14.2.0-linux-target-aarch64-host-aarch64",
+    "gcc-14.2.0-linux-target-aarch64-host-x86_64",
+    "gcc-14.2.0-linux-target-x86_64-host-x86_64",
+    "gcc_toolchains",
+)
+
+# Architectures with native build tools and general C/C++ toolchain setup.
+NATIVE_ARCHITECTURES = [
+    "amd64",
+    "arm64",
+]
+
+# Kernel builds also target ARMHF using the AMD64 cross tools.
+KERNEL_TARGET_ARCHITECTURES = NATIVE_ARCHITECTURES + ["armhf"]
+
+# Every toolchain the gcc.debian_toolchain() tags below declare,
+# one cc and one binutils toolchain per tag.
+register_toolchains("@gcc_toolchains//:all")
+
+apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
+
+# One immutable reviewed package graph serves payloads, libraries and exec tools.
+apt.sources_file(file = "//apt:sources.json")
+apt.import_lock(
+    libraries = True,
+    lock = "//apt:apt.lock.json",
+    requests = "//apt:requests.json",
+    sources = "//apt:sources.json",
+)
+
+# Preserve historical raw-archive interfaces from the same locked packages.
+use_repo(
+    apt,
+    build_make_amd64 = "trixie_make-amd64_4.4.1-2",
+    build_make_arm64 = "trixie_make-arm64_4.4.1-2",
+    vim_amd64 = "trixie_vim-amd64_2-9.1.1230-2",
+    vim_arm64 = "trixie_vim-arm64_2-9.1.1230-2",
+    vim_runtime = "trixie_vim-runtime-amd64_2-9.1.1230-2",
+)
+
+# Shared collection requests and source inputs are declared in apt/requests.json.
+use_repo(
+    apt,
+    # Re-export the hub repo, so that dependents on sonic-build-infra can get the whole central list
+    # without having to declare their own dependencies.
+    #
+    # Dependents can use it by importing `sonic-build-infra` and loading it:
+    #     apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
+    #     use_repo(apt, "trixie")
+    "trixie",
+
+    # The cc toolchains' sysroot, resolved per architecture.
+    "sysroot",
+
+    # Build tools and their runtime dependencies, resolved per architecture.
+    "build_tools",
+    "image_tools",
+    "initramfs_runtime",
+    "manual_tools",
+    "base_debug_debian",
+    "frr_deps",
+)
+
+# The installer worker selects its own closure from the same locked set. These
+# names include the worker's Debian requests and Docker CE's nftables dependency.
+apt_inputs = use_repo_rule("//apt:inputs_repository.bzl", "apt_inputs")
+
+apt_inputs(
+    name = "installer_worker_apt_inputs",
+    architecture = "amd64",
+    dependency_set = "build_tools",
+    lock = "//apt:apt.lock.json",
+    root_packages = [
+        "acl",
+        "autoconf",
+        "automake",
+        "binutils",
+        "build-essential",
+        "busybox",
+        "ca-certificates",
+        "curl",
+        "diffutils",
+        "file",
+        "findutils",
+        "gawk",
+        "git",
+        "grep",
+        "gzip",
+        "iproute2",
+        "iptables",
+        "j2cli",
+        "jq",
+        "kmod",
+        "libtool",
+        "make",
+        "mount",
+        "nftables",
+        "passwd",
+        "pigz",
+        "pkg-config",
+        "procps",
+        "psmisc",
+        "python3",
+        "sed",
+        "squashfs-tools",
+        "sudo",
+        "tar",
+        "unzip",
+        "util-linux",
+        "wget",
+        "xz-utils",
+        "zip",
+        "zstd",
+    ],
+)
+
+# Raw APT source archives used to assemble the shared compiler sysroots.
+#
+# Import these repositories for //toolchains/sysroot:packages.bzl; compilers
+# consume the combined sysroot rather than individual package directories.
+#
+# Will fail loudly if the versions get out of sync.
+SYSROOT_PACKAGE_REPO_TEMPLATES = [
+    "trixie-security_linux-libc-dev-{arch}_6.12.96-1",
+    "trixie_libc6-{arch}_2.41-12-deb13u3",
+    "trixie_libc6-dev-{arch}_2.41-12-deb13u3",
+    "trixie_libgcc-14-dev-{arch}_14.2.0-19",
+    "trixie_libgcc-s1-{arch}_14.2.0-19",
+    "trixie_libstdc---14-dev-{arch}_14.2.0-19",
+    "trixie_libstdc--6-{arch}_14.2.0-19",
+] + [
+    "trixie_" + package + "-{arch}_14.2.0-19"
+    for package in [
+        "gcc-14-base",
+        "libasan8",
+        "libatomic1",
+        "libgomp1",
+        "libhwasan0",
+        "libitm1",
+        "liblsan0",
+        "libtsan2",
+        "libubsan1",
+    ]
+]
+
+[
+    [
+        use_repo(apt, repo_template.format(arch = arch))
+        for repo_template in SYSROOT_PACKAGE_REPO_TEMPLATES
+    ]
+    for arch in NATIVE_ARCHITECTURES
+]
+
+use_repo(apt, "trixie_libquadmath0-amd64_14.2.0-19")
+
+# Check is a development package without the conventional -dev suffix. Export
+# its pkg-config-selected archive through //apt/check:check from the shared lock.
+use_repo(
+    apt,
+    check_amd64 = "trixie_check-amd64_0.15.2-3",
+    check_arm64 = "trixie_check-arm64_0.15.2-3",
+)
+
+# Debian compiler executables and the libraries needed to run them. Native
+# AMD64, native ARM64 and AMD64-to-ARM64 builds use the same package snapshot.
+# Target headers and libraries remain in the shared sonic_sysroot repository.
+GCC_RUNTIME_PACKAGES = {
+    "binutils-common": "2.44-3",
+    "gcc-14-base": "14.2.0-19",
+    "libc6": "2.41-12+deb13u3",
+    "libgcc-s1": "14.2.0-19",
+    "libstdc++6": "14.2.0-19",
+    "libcc1-0": "14.2.0-19",
+    "libgmp10": "2:6.3.0+dfsg-3",
+    "libmpfr6": "4.2.2-1",
+    "libmpc3": "1.3.1-1+b3",
+    "libisl23": "0.27-1",
+    "libzstd1": "1.5.7+dfsg-1",
+    "zlib1g": "1:1.3.dfsg+really1.3.1-1+b1",
+    "libjansson4": "2.14-2+b3",
+    "libsframe1": "2.44-3",
+}
+
+GCC_RUNTIME_REPOS = {
+    arch: {
+        name: "trixie_" + name.replace("+", "-") + "-" + arch + "_" + version.replace("+", "-").replace(":", "-")
+        for name, version in GCC_RUNTIME_PACKAGES.items()
+    }
+    for arch in NATIVE_ARCHITECTURES
+}
+
+[
+    use_repo(apt, repo)
+    for repos in GCC_RUNTIME_REPOS.values()
+    for name, repo in repos.items()
+    # These packages were already imported for the shared sysroot above.
+    if name not in [
+        "gcc-14-base",
+        "libc6",
+        "libgcc-s1",
+        "libstdc++6",
+    ]
+]
+
+NATIVE_GCC_PLATFORMS = {
+    "amd64": {
+        "cpu": "x86_64",
+        # Debian package names use x86-64; executable names use x86_64.
+        "package_prefix": "x86-64-linux-gnu",
+        "tool_prefix": "x86_64-linux-gnu",
+    },
+    "arm64": {
+        "cpu": "aarch64",
+        "package_prefix": "aarch64-linux-gnu",
+        "tool_prefix": "aarch64-linux-gnu",
+    },
+}
+
+NATIVE_GCC_PACKAGES = {
+    arch: {
+        "gcc-14-" + platform["package_prefix"]: "14.2.0-19",
+        "g++-14-" + platform["package_prefix"]: "14.2.0-19",
+        "cpp-14-" + platform["package_prefix"]: "14.2.0-19",
+        "binutils-" + platform["package_prefix"]: "2.44-3",
+        # Native binutils keep these libraries in separate packages; the
+        # cross binutils package carries its own copies for its target.
+        "libbinutils": "2.44-3",
+        "libctf0": "2.44-3",
+        "libctf-nobfd0": "2.44-3",
+    }
+    for arch, platform in NATIVE_GCC_PLATFORMS.items()
+}
+
+NATIVE_GCC_REPOS = {
+    arch: [
+        "trixie_" + name.replace("+", "-") + "-" + arch + "_" + version
+        for name, version in packages.items()
+    ]
+    for arch, packages in NATIVE_GCC_PACKAGES.items()
+}
+
+[
+    use_repo(apt, repo)
+    for repos in NATIVE_GCC_REPOS.values()
+    for repo in repos
+]
+
+[
+    gcc.debian_toolchain(
+        arch = platform["cpu"],
+        debian_packages = [
+            "@" + repo + "//:data.tar.xz"
+            for repo in NATIVE_GCC_REPOS[arch] + GCC_RUNTIME_REPOS[arch].values()
+        ],
+        suite = "trixie",
+        sysroot = "@sonic_sysroot//root:sysroot",
+        target_platform = "//platforms:trixie",
+        tool_prefix = platform["tool_prefix"],
+        version = "14.2.0",
+    )
+    for arch, platform in NATIVE_GCC_PLATFORMS.items()
+]
+
+CROSS_GCC_PACKAGES = {
+    "gcc-14-aarch64-linux-gnu": "14.2.0-19cross1",
+    "g++-14-aarch64-linux-gnu": "14.2.0-19cross1",
+    "cpp-14-aarch64-linux-gnu": "14.2.0-19cross1",
+    "gcc-14-aarch64-linux-gnu-base": "14.2.0-19cross1",
+    "binutils-aarch64-linux-gnu": "2.44-3",
+}
+
+CROSS_GCC_REPOS = [
+    "trixie_" + name.replace("+", "-") + "-amd64_" + version
+    for name, version in CROSS_GCC_PACKAGES.items()
+]
+
+[use_repo(apt, repo) for repo in CROSS_GCC_REPOS]
+
+gcc.debian_toolchain(
+    arch = "aarch64",
+    debian_packages = [
+        "@" + repo + "//:data.tar.xz"
+        for repo in CROSS_GCC_REPOS + GCC_RUNTIME_REPOS["amd64"].values()
+    ],
+    exec_arch = "x86_64",
+    suite = "trixie",
+    sysroot = "@sonic_sysroot//root:sysroot",
+    target_platform = "//platforms:trixie",
+    tool_prefix = "aarch64-linux-gnu",
+    version = "14.2.0",
+)
+
+uv = use_extension("@aspect_rules_py//uv/unstable:extension.bzl", "uv")
+uv.declare_hub(
+    hub_name = "pypi",
+)
+uv.project(
+    default_build_dependencies = [
+        "build",
+        "setuptools",
+    ],
+    hub_name = "pypi",
+    lock = "//deps:uv.lock",
+    pyproject = "//deps:pyproject.toml",
+)
+use_repo(uv, "pypi")
+
+# Provision both pip runtimes. This default applies only when infrastructure is
+# the root module; image consumers keep the Python version chosen by their root.
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.defaults(python_version = "3.11")
+python.toolchain(python_version = "3.11")
+python.toolchain(python_version = "3.13")
+
+# Installation tools run on the execution platform. The installer wheel is pure
+# Python; its resolver version does not select the target image's Python ABI.
+wheel_pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+wheel_pip.parse(
+    hub_name = "sonic_wheel_pip",
+    python_version = "3.11",
+    requirements_lock = "//python:wheel_requirements_lock.txt",
+)
+use_repo(wheel_pip, "sonic_wheel_pip")
+
+# Share Debian parsing across the infrastructure and image Python runtimes.
+[
+    wheel_pip.parse(
+        hub_name = "sonic_apt_pip",
+        python_version = version,
+        requirements_lock = "//apt:requirements_lock.txt",
+    )
+    for version in [
+        "3.11",
+        "3.13",
+    ]
+]
+
+use_repo(wheel_pip, "sonic_apt_pip")
+
+# Declared execution tools for upstream configure/Make source builds.
+register_toolchains(
+    "//tools/build_tools:make_toolchain",
+    "//tools/build_tools:m4_toolchain",
+    "//tools/build_tools:pkgconfig_toolchain",
+    "//tools/build_tools:autoconf_toolchain",
+)
+
+# Tests use the consuming root's selected Go SDK. The development SDK below
+# registers the same reviewed version for standalone infrastructure tests.
+bazel_dep(name = "rules_go", version = "0.64.1", repo_name = "io_bazel_rules_go")
+
+go_sdk = use_extension("@io_bazel_rules_go//go:extensions.bzl", "go_sdk", dev_dependency = True)
+go_sdk.download(
+    name = "go_sdk",
+    version = "1.26.7",
+)
+use_repo(go_sdk, "go_sdk")
+
+# Cargo is selected from the execution platform's Rust SDK. Consumers register
+# their own SDK; this development toolchain serves standalone infrastructure tests.
+bazel_dep(name = "rules_rs", version = "0.1.0")
+
+rust_rules = use_extension("@rules_rs//rs:rules_rust.bzl", "rules_rust")
+use_repo(rust_rules, "rules_rust")
+
+rust = use_extension("@rules_rs//rs:rules_rust_reexported_extensions.bzl", "rust", dev_dependency = True)
+rust.toolchain(
+    edition = "2021",
+    extra_target_triples = [
+        "aarch64-unknown-linux-gnu",
+        "x86_64-unknown-linux-gnu",
+    ],
+    versions = ["1.90.0"],
+)
+use_repo(rust, "rust_toolchains")
+
+register_toolchains(
+    "@rust_toolchains//:all",
+    dev_dependency = True,
+)
+
+# Bazel 8.5.1 uses the compatible rules_cc API also selected by buildimage.
+single_version_override(
+    module_name = "rules_cc",
+    version = "0.2.20",
+)
+
+register_toolchains("//tools/build_tools:gawk_toolchain")
+
+bookworm_bazel_lib_tools = use_extension("@bazel_lib//lib:extensions.bzl", "toolchains")
+use_repo(bookworm_bazel_lib_tools, "coreutils_toolchains", "zstd_toolchains")
+
+use_repo(sysroot_tar, "bsd_tar_toolchains")
+
+# Bookworm archives and native library exports use the same reviewed APT lock.
+use_repo(
+    apt,
+    "bookworm-security_libgssapi-krb5-2-amd64_1.20.1-2-deb12u5",
+    "bookworm-security_libgssapi-krb5-2-arm64_1.20.1-2-deb12u5",
+    "bookworm-security_libk5crypto3-amd64_1.20.1-2-deb12u5",
+    "bookworm-security_libk5crypto3-arm64_1.20.1-2-deb12u5",
+    "bookworm-security_libkrb5-3-amd64_1.20.1-2-deb12u5",
+    "bookworm-security_libkrb5-3-arm64_1.20.1-2-deb12u5",
+    "bookworm-security_libkrb5support0-amd64_1.20.1-2-deb12u5",
+    "bookworm-security_libkrb5support0-arm64_1.20.1-2-deb12u5",
+    "bookworm-security_libssl3-amd64_3.0.20-1_deb12u2",
+    "bookworm-security_libssl3-arm64_3.0.20-1_deb12u2",
+    "bookworm-security_linux-libc-dev-amd64_6.1.177-1",
+    "bookworm-security_linux-libc-dev-arm64_6.1.177-1",
+    "bookworm_binutils-aarch64-linux-gnu-amd64_2.40-2",
+    "bookworm_binutils-aarch64-linux-gnu-arm64_2.40-2",
+    "bookworm_binutils-amd64_2.40-2",
+    "bookworm_binutils-arm64_2.40-2",
+    "bookworm_binutils-common-amd64_2.40-2",
+    "bookworm_binutils-common-arm64_2.40-2",
+    "bookworm_binutils-x86-64-linux-gnu-amd64_2.40-2",
+    "bookworm_cpp-12-aarch64-linux-gnu-amd64_12.2.0-14cross1",
+    "bookworm_cpp-12-amd64_12.2.0-14-deb12u1",
+    "bookworm_cpp-12-arm64_12.2.0-14-deb12u1",
+    "bookworm_g---12-aarch64-linux-gnu-amd64_12.2.0-14cross1",
+    "bookworm_g---12-amd64_12.2.0-14-deb12u1",
+    "bookworm_g---12-arm64_12.2.0-14-deb12u1",
+    "bookworm_gcc-12-aarch64-linux-gnu-amd64_12.2.0-14cross1",
+    "bookworm_gcc-12-aarch64-linux-gnu-base-amd64_12.2.0-14cross1",
+    "bookworm_gcc-12-amd64_12.2.0-14-deb12u1",
+    "bookworm_gcc-12-arm64_12.2.0-14-deb12u1",
+    "bookworm_gcc-12-base-amd64_12.2.0-14-deb12u1",
+    "bookworm_gcc-12-base-arm64_12.2.0-14-deb12u1",
+    "bookworm_gcc-12-cross-base-amd64_12.2.0-14cross1",
+    "bookworm_libasan8-amd64_12.2.0-14-deb12u1",
+    "bookworm_libasan8-arm64-cross-amd64_12.2.0-14cross1",
+    "bookworm_libasan8-arm64_12.2.0-14-deb12u1",
+    "bookworm_libatomic1-amd64_12.2.0-14-deb12u1",
+    "bookworm_libatomic1-arm64-cross-amd64_12.2.0-14cross1",
+    "bookworm_libatomic1-arm64_12.2.0-14-deb12u1",
+    "bookworm_libbinutils-amd64_2.40-2",
+    "bookworm_libbinutils-arm64_2.40-2",
+    "bookworm_libc-dev-bin-amd64_2.36-9-deb12u14",
+    "bookworm_libc-dev-bin-arm64_2.36-9-deb12u14",
+    "bookworm_libc6-amd64_2.36-9-deb12u14",
+    "bookworm_libc6-arm64-cross-amd64_2.36-8cross1",
+    "bookworm_libc6-arm64_2.36-9-deb12u14",
+    "bookworm_libc6-dev-amd64_2.36-9-deb12u14",
+    "bookworm_libc6-dev-arm64-cross-amd64_2.36-8cross1",
+    "bookworm_libc6-dev-arm64_2.36-9-deb12u14",
+    "bookworm_libcc1-0-amd64_12.2.0-14-deb12u1",
+    "bookworm_libcc1-0-arm64_12.2.0-14-deb12u1",
+    "bookworm_libcom-err2-amd64_1.47.0-2-b2",
+    "bookworm_libcom-err2-arm64_1.47.0-2-b2",
+    "bookworm_libcrypt-dev-amd64_1-4.4.33-2",
+    "bookworm_libcrypt-dev-arm64_1-4.4.33-2",
+    "bookworm_libcrypt1-amd64_1-4.4.33-2",
+    "bookworm_libcrypt1-arm64_1-4.4.33-2",
+    "bookworm_libctf-nobfd0-amd64_2.40-2",
+    "bookworm_libctf-nobfd0-arm64_2.40-2",
+    "bookworm_libctf0-amd64_2.40-2",
+    "bookworm_libctf0-arm64_2.40-2",
+    "bookworm_libgcc-12-dev-amd64_12.2.0-14-deb12u1",
+    "bookworm_libgcc-12-dev-arm64-cross-amd64_12.2.0-14cross1",
+    "bookworm_libgcc-12-dev-arm64_12.2.0-14-deb12u1",
+    "bookworm_libgcc-s1-amd64_12.2.0-14-deb12u1",
+    "bookworm_libgcc-s1-arm64-cross-amd64_12.2.0-14cross1",
+    "bookworm_libgcc-s1-arm64_12.2.0-14-deb12u1",
+    "bookworm_libgmp10-amd64_2-6.2.1-dfsg1-1.1",
+    "bookworm_libgmp10-arm64_2-6.2.1-dfsg1-1.1",
+    "bookworm_libgomp1-amd64_12.2.0-14-deb12u1",
+    "bookworm_libgomp1-arm64-cross-amd64_12.2.0-14cross1",
+    "bookworm_libgomp1-arm64_12.2.0-14-deb12u1",
+    "bookworm_libgprofng0-amd64_2.40-2",
+    "bookworm_libgprofng0-arm64_2.40-2",
+    "bookworm_libhwasan0-arm64-cross-amd64_12.2.0-14cross1",
+    "bookworm_libhwasan0-arm64_12.2.0-14-deb12u1",
+    "bookworm_libisl23-amd64_0.25-1.1",
+    "bookworm_libisl23-arm64_0.25-1.1",
+    "bookworm_libitm1-amd64_12.2.0-14-deb12u1",
+    "bookworm_libitm1-arm64-cross-amd64_12.2.0-14cross1",
+    "bookworm_libitm1-arm64_12.2.0-14-deb12u1",
+    "bookworm_libjansson4-amd64_2.14-2",
+    "bookworm_libjansson4-arm64_2.14-2",
+    "bookworm_libkeyutils1-amd64_1.6.3-2",
+    "bookworm_libkeyutils1-arm64_1.6.3-2",
+    "bookworm_liblsan0-amd64_12.2.0-14-deb12u1",
+    "bookworm_liblsan0-arm64-cross-amd64_12.2.0-14cross1",
+    "bookworm_liblsan0-arm64_12.2.0-14-deb12u1",
+    "bookworm_libmpc3-amd64_1.3.1-1",
+    "bookworm_libmpc3-arm64_1.3.1-1",
+    "bookworm_libmpfr6-amd64_4.2.0-1",
+    "bookworm_libmpfr6-arm64_4.2.0-1",
+    "bookworm_libnsl-dev-amd64_1.3.0-2",
+    "bookworm_libnsl-dev-arm64_1.3.0-2",
+    "bookworm_libnsl2-amd64_1.3.0-2",
+    "bookworm_libnsl2-arm64_1.3.0-2",
+    "bookworm_libquadmath0-amd64_12.2.0-14-deb12u1",
+    "bookworm_libstdc---12-dev-amd64_12.2.0-14-deb12u1",
+    "bookworm_libstdc---12-dev-arm64-cross-amd64_12.2.0-14cross1",
+    "bookworm_libstdc---12-dev-arm64_12.2.0-14-deb12u1",
+    "bookworm_libstdc--6-amd64_12.2.0-14-deb12u1",
+    "bookworm_libstdc--6-arm64-cross-amd64_12.2.0-14cross1",
+    "bookworm_libstdc--6-arm64_12.2.0-14-deb12u1",
+    "bookworm_libtirpc-common-amd64_1.3.3-ds-1",
+    "bookworm_libtirpc-common-arm64_1.3.3-ds-1",
+    "bookworm_libtirpc-dev-amd64_1.3.3-ds-1",
+    "bookworm_libtirpc-dev-arm64_1.3.3-ds-1",
+    "bookworm_libtirpc3-amd64_1.3.3-ds-1",
+    "bookworm_libtirpc3-arm64_1.3.3-ds-1",
+    "bookworm_libtsan2-amd64_12.2.0-14-deb12u1",
+    "bookworm_libtsan2-arm64-cross-amd64_12.2.0-14cross1",
+    "bookworm_libtsan2-arm64_12.2.0-14-deb12u1",
+    "bookworm_libubsan1-amd64_12.2.0-14-deb12u1",
+    "bookworm_libubsan1-arm64-cross-amd64_12.2.0-14cross1",
+    "bookworm_libubsan1-arm64_12.2.0-14-deb12u1",
+    "bookworm_libzstd1-amd64_1.5.4-dfsg2-5",
+    "bookworm_libzstd1-arm64_1.5.4-dfsg2-5",
+    "bookworm_linux-libc-dev-arm64-cross-amd64_6.1.4-1cross1",
+    "bookworm_rpcsvc-proto-amd64_1.4.3-1",
+    "bookworm_rpcsvc-proto-arm64_1.4.3-1",
+    "bookworm_toolchains",
+    "bookworm_zlib1g-amd64_1-1.2.13.dfsg-1",
+    "bookworm_zlib1g-arm64_1-1.2.13.dfsg-1",
+)
+
+sysroots.debian(
+    name = "bookworm_sysroot_amd64",
+    architectures = ["amd64"],
+    suite = "bookworm",
+)
+sysroots.debian(
+    name = "bookworm_sysroot_arm64",
+    architectures = ["arm64"],
+    suite = "bookworm",
+)
+use_repo(sysroots, "bookworm_sysroot_amd64", "bookworm_sysroot_arm64")
+
+gcc.debian_toolchain(
+    arch = "x86_64",
+    debian_packages = [
+        "@bookworm_binutils-amd64_2.40-2//:data.tar.xz",
+        "@bookworm_binutils-common-amd64_2.40-2//:data.tar.xz",
+        "@bookworm_binutils-x86-64-linux-gnu-amd64_2.40-2//:data.tar.xz",
+        "@bookworm_cpp-12-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+        "@bookworm_g---12-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+        "@bookworm_gcc-12-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+        "@bookworm_gcc-12-base-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+        "@bookworm_libasan8-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+        "@bookworm_libatomic1-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+        "@bookworm_libbinutils-amd64_2.40-2//:data.tar.xz",
+        "@bookworm_libc-dev-bin-amd64_2.36-9-deb12u14//:data.tar.xz",
+        "@bookworm_libc6-amd64_2.36-9-deb12u14//:data.tar.xz",
+        "@bookworm_libc6-dev-amd64_2.36-9-deb12u14//:data.tar.xz",
+        "@bookworm_libcc1-0-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+        "@bookworm_libcom-err2-amd64_1.47.0-2-b2//:data.tar.xz",
+        "@bookworm_libcrypt-dev-amd64_1-4.4.33-2//:data.tar.xz",
+        "@bookworm_libcrypt1-amd64_1-4.4.33-2//:data.tar.xz",
+        "@bookworm_libctf-nobfd0-amd64_2.40-2//:data.tar.xz",
+        "@bookworm_libctf0-amd64_2.40-2//:data.tar.xz",
+        "@bookworm_libgcc-12-dev-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+        "@bookworm_libgcc-s1-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+        "@bookworm_libgmp10-amd64_2-6.2.1-dfsg1-1.1//:data.tar.xz",
+        "@bookworm_libgomp1-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+        "@bookworm_libgprofng0-amd64_2.40-2//:data.tar.xz",
+        "@bookworm-security_libgssapi-krb5-2-amd64_1.20.1-2-deb12u5//:data.tar.xz",
+        "@bookworm_libisl23-amd64_0.25-1.1//:data.tar.xz",
+        "@bookworm_libitm1-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+        "@bookworm_libjansson4-amd64_2.14-2//:data.tar.xz",
+        "@bookworm-security_libk5crypto3-amd64_1.20.1-2-deb12u5//:data.tar.xz",
+        "@bookworm_libkeyutils1-amd64_1.6.3-2//:data.tar.xz",
+        "@bookworm-security_libkrb5-3-amd64_1.20.1-2-deb12u5//:data.tar.xz",
+        "@bookworm-security_libkrb5support0-amd64_1.20.1-2-deb12u5//:data.tar.xz",
+        "@bookworm_liblsan0-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+        "@bookworm_libmpc3-amd64_1.3.1-1//:data.tar.xz",
+        "@bookworm_libmpfr6-amd64_4.2.0-1//:data.tar.xz",
+        "@bookworm_libnsl-dev-amd64_1.3.0-2//:data.tar.xz",
+        "@bookworm_libnsl2-amd64_1.3.0-2//:data.tar.xz",
+        "@bookworm_libquadmath0-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+        "@bookworm-security_libssl3-amd64_3.0.20-1_deb12u2//:data.tar.xz",
+        "@bookworm_libstdc---12-dev-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+        "@bookworm_libstdc--6-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+        "@bookworm_libtirpc-common-amd64_1.3.3-ds-1//:data.tar.xz",
+        "@bookworm_libtirpc-dev-amd64_1.3.3-ds-1//:data.tar.xz",
+        "@bookworm_libtirpc3-amd64_1.3.3-ds-1//:data.tar.xz",
+        "@bookworm_libtsan2-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+        "@bookworm_libubsan1-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+        "@bookworm_libzstd1-amd64_1.5.4-dfsg2-5//:data.tar.xz",
+        "@bookworm-security_linux-libc-dev-amd64_6.1.177-1//:data.tar.xz",
+        "@bookworm_rpcsvc-proto-amd64_1.4.3-1//:data.tar.xz",
+        "@bookworm_zlib1g-amd64_1-1.2.13.dfsg-1//:data.tar.xz",
+    ],
+    exec_arch = "x86_64",
+    # Share the declared Trixie linker runtime; retain GCC12 and its Bookworm sysroot.
+    linker = "@gcc-14.2.0-linux-target-x86_64-host-x86_64//:bin/x86_64-linux-gnu-ld",
+    linker_files = "@gcc-14.2.0-linux-target-x86_64-host-x86_64//:multicall_support_files",
+    suite = "bookworm",
+    sysroot = "@bookworm_sysroot_amd64//root:sysroot",
+    target_platform = "//platforms:bookworm",
+    version = "12.2.0",
+)
+gcc.debian_toolchain(
+    arch = "aarch64",
+    debian_packages = [
+        "@bookworm_binutils-arm64_2.40-2//:data.tar.xz",
+        "@bookworm_binutils-aarch64-linux-gnu-arm64_2.40-2//:data.tar.xz",
+        "@bookworm_binutils-common-arm64_2.40-2//:data.tar.xz",
+        "@bookworm_cpp-12-arm64_12.2.0-14-deb12u1//:data.tar.xz",
+        "@bookworm_g---12-arm64_12.2.0-14-deb12u1//:data.tar.xz",
+        "@bookworm_gcc-12-arm64_12.2.0-14-deb12u1//:data.tar.xz",
+        "@bookworm_gcc-12-base-arm64_12.2.0-14-deb12u1//:data.tar.xz",
+        "@bookworm_libasan8-arm64_12.2.0-14-deb12u1//:data.tar.xz",
+        "@bookworm_libatomic1-arm64_12.2.0-14-deb12u1//:data.tar.xz",
+        "@bookworm_libbinutils-arm64_2.40-2//:data.tar.xz",
+        "@bookworm_libc-dev-bin-arm64_2.36-9-deb12u14//:data.tar.xz",
+        "@bookworm_libc6-arm64_2.36-9-deb12u14//:data.tar.xz",
+        "@bookworm_libc6-dev-arm64_2.36-9-deb12u14//:data.tar.xz",
+        "@bookworm_libcc1-0-arm64_12.2.0-14-deb12u1//:data.tar.xz",
+        "@bookworm_libcom-err2-arm64_1.47.0-2-b2//:data.tar.xz",
+        "@bookworm_libcrypt-dev-arm64_1-4.4.33-2//:data.tar.xz",
+        "@bookworm_libcrypt1-arm64_1-4.4.33-2//:data.tar.xz",
+        "@bookworm_libctf-nobfd0-arm64_2.40-2//:data.tar.xz",
+        "@bookworm_libctf0-arm64_2.40-2//:data.tar.xz",
+        "@bookworm_libgcc-12-dev-arm64_12.2.0-14-deb12u1//:data.tar.xz",
+        "@bookworm_libgcc-s1-arm64_12.2.0-14-deb12u1//:data.tar.xz",
+        "@bookworm_libgmp10-arm64_2-6.2.1-dfsg1-1.1//:data.tar.xz",
+        "@bookworm_libgomp1-arm64_12.2.0-14-deb12u1//:data.tar.xz",
+        "@bookworm_libgprofng0-arm64_2.40-2//:data.tar.xz",
+        "@bookworm-security_libgssapi-krb5-2-arm64_1.20.1-2-deb12u5//:data.tar.xz",
+        "@bookworm_libhwasan0-arm64_12.2.0-14-deb12u1//:data.tar.xz",
+        "@bookworm_libisl23-arm64_0.25-1.1//:data.tar.xz",
+        "@bookworm_libitm1-arm64_12.2.0-14-deb12u1//:data.tar.xz",
+        "@bookworm_libjansson4-arm64_2.14-2//:data.tar.xz",
+        "@bookworm-security_libk5crypto3-arm64_1.20.1-2-deb12u5//:data.tar.xz",
+        "@bookworm_libkeyutils1-arm64_1.6.3-2//:data.tar.xz",
+        "@bookworm-security_libkrb5-3-arm64_1.20.1-2-deb12u5//:data.tar.xz",
+        "@bookworm-security_libkrb5support0-arm64_1.20.1-2-deb12u5//:data.tar.xz",
+        "@bookworm_liblsan0-arm64_12.2.0-14-deb12u1//:data.tar.xz",
+        "@bookworm_libmpc3-arm64_1.3.1-1//:data.tar.xz",
+        "@bookworm_libmpfr6-arm64_4.2.0-1//:data.tar.xz",
+        "@bookworm_libnsl-dev-arm64_1.3.0-2//:data.tar.xz",
+        "@bookworm_libnsl2-arm64_1.3.0-2//:data.tar.xz",
+        "@bookworm-security_libssl3-arm64_3.0.20-1_deb12u2//:data.tar.xz",
+        "@bookworm_libstdc---12-dev-arm64_12.2.0-14-deb12u1//:data.tar.xz",
+        "@bookworm_libstdc--6-arm64_12.2.0-14-deb12u1//:data.tar.xz",
+        "@bookworm_libtirpc-common-arm64_1.3.3-ds-1//:data.tar.xz",
+        "@bookworm_libtirpc-dev-arm64_1.3.3-ds-1//:data.tar.xz",
+        "@bookworm_libtirpc3-arm64_1.3.3-ds-1//:data.tar.xz",
+        "@bookworm_libtsan2-arm64_12.2.0-14-deb12u1//:data.tar.xz",
+        "@bookworm_libubsan1-arm64_12.2.0-14-deb12u1//:data.tar.xz",
+        "@bookworm_libzstd1-arm64_1.5.4-dfsg2-5//:data.tar.xz",
+        "@bookworm-security_linux-libc-dev-arm64_6.1.177-1//:data.tar.xz",
+        "@bookworm_rpcsvc-proto-arm64_1.4.3-1//:data.tar.xz",
+        "@bookworm_zlib1g-arm64_1-1.2.13.dfsg-1//:data.tar.xz",
+    ],
+    exec_arch = "aarch64",
+    # Share the declared Trixie linker runtime; retain GCC12 and its Bookworm sysroot.
+    linker = "@gcc-14.2.0-linux-target-aarch64-host-aarch64//:bin/aarch64-linux-gnu-ld",
+    linker_files = "@gcc-14.2.0-linux-target-aarch64-host-aarch64//:multicall_support_files",
+    suite = "bookworm",
+    sysroot = "@bookworm_sysroot_arm64//root:sysroot",
+    target_platform = "//platforms:bookworm",
+    version = "12.2.0",
+)
+gcc.debian_toolchain(
+    arch = "aarch64",
+    debian_packages = [
+        "@bookworm_binutils-aarch64-linux-gnu-amd64_2.40-2//:data.tar.xz",
+        "@bookworm_binutils-common-amd64_2.40-2//:data.tar.xz",
+        "@bookworm_cpp-12-aarch64-linux-gnu-amd64_12.2.0-14cross1//:data.tar.xz",
+        "@bookworm_g---12-aarch64-linux-gnu-amd64_12.2.0-14cross1//:data.tar.xz",
+        "@bookworm_gcc-12-aarch64-linux-gnu-amd64_12.2.0-14cross1//:data.tar.xz",
+        "@bookworm_gcc-12-aarch64-linux-gnu-base-amd64_12.2.0-14cross1//:data.tar.xz",
+        "@bookworm_gcc-12-base-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+        "@bookworm_gcc-12-cross-base-amd64_12.2.0-14cross1//:data.tar.xz",
+        "@bookworm_libasan8-arm64-cross-amd64_12.2.0-14cross1//:data.tar.xz",
+        "@bookworm_libatomic1-arm64-cross-amd64_12.2.0-14cross1//:data.tar.xz",
+        "@bookworm_libbinutils-amd64_2.40-2//:data.tar.xz",
+        "@bookworm_libc6-amd64_2.36-9-deb12u14//:data.tar.xz",
+        "@bookworm_libc6-arm64-cross-amd64_2.36-8cross1//:data.tar.xz",
+        "@bookworm_libc6-dev-arm64-cross-amd64_2.36-8cross1//:data.tar.xz",
+        "@bookworm_libcc1-0-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+        "@bookworm_libgcc-12-dev-arm64-cross-amd64_12.2.0-14cross1//:data.tar.xz",
+        "@bookworm_libgcc-s1-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+        "@bookworm_libgcc-s1-arm64-cross-amd64_12.2.0-14cross1//:data.tar.xz",
+        "@bookworm_libgmp10-amd64_2-6.2.1-dfsg1-1.1//:data.tar.xz",
+        "@bookworm_libgomp1-arm64-cross-amd64_12.2.0-14cross1//:data.tar.xz",
+        "@bookworm_libhwasan0-arm64-cross-amd64_12.2.0-14cross1//:data.tar.xz",
+        "@bookworm_libisl23-amd64_0.25-1.1//:data.tar.xz",
+        "@bookworm_libitm1-arm64-cross-amd64_12.2.0-14cross1//:data.tar.xz",
+        "@bookworm_libjansson4-amd64_2.14-2//:data.tar.xz",
+        "@bookworm_liblsan0-arm64-cross-amd64_12.2.0-14cross1//:data.tar.xz",
+        "@bookworm_libmpc3-amd64_1.3.1-1//:data.tar.xz",
+        "@bookworm_libmpfr6-amd64_4.2.0-1//:data.tar.xz",
+        "@bookworm_libstdc---12-dev-arm64-cross-amd64_12.2.0-14cross1//:data.tar.xz",
+        "@bookworm_libstdc--6-amd64_12.2.0-14-deb12u1//:data.tar.xz",
+        "@bookworm_libstdc--6-arm64-cross-amd64_12.2.0-14cross1//:data.tar.xz",
+        "@bookworm_libtsan2-arm64-cross-amd64_12.2.0-14cross1//:data.tar.xz",
+        "@bookworm_libubsan1-arm64-cross-amd64_12.2.0-14cross1//:data.tar.xz",
+        "@bookworm_libzstd1-amd64_1.5.4-dfsg2-5//:data.tar.xz",
+        "@bookworm_linux-libc-dev-arm64-cross-amd64_6.1.4-1cross1//:data.tar.xz",
+        "@bookworm_zlib1g-amd64_1-1.2.13.dfsg-1//:data.tar.xz",
+    ],
+    exec_arch = "x86_64",
+    # Share the declared Trixie linker runtime; retain GCC12 and its Bookworm sysroot.
+    linker = "@gcc-14.2.0-linux-target-aarch64-host-x86_64//:bin/aarch64-linux-gnu-ld",
+    linker_files = "@gcc-14.2.0-linux-target-aarch64-host-x86_64//:multicall_support_files",
+    suite = "bookworm",
+    sysroot = "@bookworm_sysroot_arm64//root:sysroot",
+    target_platform = "//platforms:bookworm",
+    version = "12.2.0",
+)
+
+# Target-side debug symbols must match the selected target loader, not exec tools.
+use_repo(apt, "bookworm_target_debug")
+
+# One shared Bookworm execution set preserves Perl's XS ABI and the original
+# instrumentation versions. Consumers select runtime subsets from this set;
+# Trixie execution tools remain in the existing build_tools dependency set.
+use_repo(apt, "bookworm_build_tools")
+
+# Deterministic compression uses the existing native BCR pigz toolchain.
+bazel_dep(name = "pigz", version = "2.8.bcr.2")
+bazel_dep(name = "rules_gzip", version = "1.0.0")
+bazel_dep(name = "rules_multirun", version = "0.14.0")
+bazel_dep(name = "toolchain_utils", version = "1.0.2")
+
+# Real SONiC manuals exercise the declared SGML compiler without building WPA.
+http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
+
+http_file(
+    name = "wpa_man_wpa_background",
+    urls = ["https://raw.githubusercontent.com/securely1g/sonic-wpa-supplicant/6ca19c73b9c868782b59a0d7adc6ff34de5bbdba/wpa_supplicant/doc/docbook/wpa_background.sgml"],
+    sha256 = "418d8ba990695b7f05611ecb1a8e2e08db66c12f09d7b3e62465ac9561b6afb2",
+    downloaded_file_path = "wpa_background.sgml",
+)
+
+http_file(
+    name = "wpa_man_wpa_cli",
+    urls = ["https://raw.githubusercontent.com/securely1g/sonic-wpa-supplicant/6ca19c73b9c868782b59a0d7adc6ff34de5bbdba/wpa_supplicant/doc/docbook/wpa_cli.sgml"],
+    sha256 = "d1a73abc52acd3f3d7ff25ab232d66bb5bc6f4bd936486350ae0d0866c9dd586",
+    downloaded_file_path = "wpa_cli.sgml",
+)
+
+http_file(
+    name = "wpa_man_wpa_passphrase",
+    urls = ["https://raw.githubusercontent.com/securely1g/sonic-wpa-supplicant/6ca19c73b9c868782b59a0d7adc6ff34de5bbdba/wpa_supplicant/doc/docbook/wpa_passphrase.sgml"],
+    sha256 = "ac5bc057c20dfacbf9d276c682d6cd800d5cce2fd4b002c4b9cdb2e5e8539480",
+    downloaded_file_path = "wpa_passphrase.sgml",
+)
+
+http_file(
+    name = "wpa_man_wpa_supplicant",
+    urls = ["https://raw.githubusercontent.com/securely1g/sonic-wpa-supplicant/6ca19c73b9c868782b59a0d7adc6ff34de5bbdba/wpa_supplicant/doc/docbook/wpa_supplicant.sgml"],
+    sha256 = "c9a7c4e58d2565dc7fe9051dab19b49feef1ef1cb66a4d3b734fb590e691d501",
+    downloaded_file_path = "wpa_supplicant.sgml",
+)
+
+http_file(
+    name = "wpa_man_wpa_supplicant_conf",
+    urls = ["https://raw.githubusercontent.com/securely1g/sonic-wpa-supplicant/6ca19c73b9c868782b59a0d7adc6ff34de5bbdba/wpa_supplicant/doc/docbook/wpa_supplicant.conf.sgml"],
+    sha256 = "beaaa9115d9e26080ea3a4405748276d9c65a307fcd21147352133e58b6b9829",
+    downloaded_file_path = "wpa_supplicant.conf.sgml",
+)
