@@ -60,6 +60,9 @@ DEBIAN_RELEASE_PACKAGES = (
 # Each tuple is (original URL, content locator, locked SHA256, size, optional CDN).
 # A locator may include the optional filename after the content SHA1.
 DEBIAN_CONTENT_PACKAGES = (
+    ('https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/g/glibc/libc6_2.41-12+deb13u3_armhf.deb',
+     '2511d1ea4cdf37ca307cc3336cbc16ff23c323ef/libc6_2.41-12%2Bdeb13u3_armhf.deb',
+     '8aea0a08cefceb212303a738105ed5befc8fe95a32f465345ab5eec305f21d09', 2249772, None),
     ('https://snapshot.debian.org/archive/debian-security/20260726T121236Z/pool/updates/main/libs/libsodium/libsodium23_1.0.18-1+deb13u1_armhf.deb',
      '60d6945b3aefe2f3abc15790ccddff1ade45376d',
      '239ef2d400974ae787c098aadef7c3bc2c81339c36159705010cad6d5e1ed3e3', 138788, None),
@@ -428,10 +431,30 @@ class DebianPoolMirrorScopeTest(unittest.TestCase):
         upstream = "https://snapshot.debian.org/archive/debian/20241222T205329Z/pool/main/s/socat/socat_1.8.0.2-1.debian.tar.xz"
         content = "https://snapshot.debian.org/file/0475522901bd85478b944520b23e01e3f3c7d339"
         self.assertEqual(self.candidates(upstream), [content, upstream])
+        original = upstream.replace("1.8.0.2-1.debian.tar.xz", "1.8.0.2.orig.tar.bz2")
+        original_content = "https://snapshot.debian.org/file/5a4a6a0e9819a6279e733c6cffd64ac150df93df/socat_1.8.0.2.orig.tar.bz2"
+        self.assertEqual(self.candidates(original), [original_content, original])
+        # The source rule infers archive type from this filename; Debian's
+        # patch tarball is a separate input with its own required checksum.
+        self.assertTrue(original_content.endswith(".tar.bz2"))
+        self.assertNotIn(content, self.candidates(original))
+        self.assertNotIn(original_content, self.candidates(upstream))
+        for other in (
+            original.replace("20241222T205329Z", "20241223T205329Z"),
+            original.replace("1.8.0.2.orig", "1.8.0.3.orig"),
+            original.replace(".tar.bz2", ".tar.xz"),
+            original.replace("snapshot.debian.org", "snapshot-cloudflare.debian.org"),
+            original.replace("snapshot.debian.org", "another.example"),
+            original.replace("/archive/debian/", "/archive/debian-security/"),
+            original.replace("/pool/main/s/socat/", "/pool/main/s/../"),
+            original.replace("pool/main/s/socat/socat_1.8.0.2.orig.tar.bz2", "dists/trixie/main/source/Sources.xz"),
+            original + "?query", original + "#fragment", original + ".sha256",
+        ):
+            self.assertEqual(self.candidates(other), [], other)
         for other in (
             upstream.replace("20241222T205329Z", "20241223T205329Z"),
             upstream.replace("1.8.0.2-1.debian", "1.8.0.2-2.debian"),
-            upstream.replace("1.8.0.2-1.debian.tar.xz", "1.8.0.2.orig.tar.bz2"),
+            upstream.replace("1.8.0.2-1.debian.tar.xz", "1.8.0.3.orig.tar.bz2"),
             upstream.replace("snapshot.debian.org", "snapshot-cloudflare.debian.org"),
             upstream.replace("snapshot.debian.org", "another.example"),
             upstream.replace("/archive/debian/", "/archive/debian-security/"),

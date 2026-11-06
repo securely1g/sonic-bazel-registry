@@ -71,9 +71,11 @@ class DebianPoolRoutingTest(unittest.TestCase):
     def test_macsec_amd64_analysis_libc6_inputs_use_verified_content(self):
         # AMD64 jobs126958076493/126958077370/126958076632 fetch these
         # two locked package records while preparing the multiarch sysroot.
+        # SWSS195 AMD64 job127730414526 also selects the exact ARMHF sibling.
         for architecture, content_id in (
             ("amd64", "11449623c6859d9164dff8aedbcf023edaddc513"),
             ("arm64", "8dd0cfbe0f5bd2c3923c8252c00c868bc6ac945e"),
+            ("armhf", "2511d1ea4cdf37ca307cc3336cbc16ff23c323ef/libc6_2.41-12%2Bdeb13u3_armhf.deb"),
         ):
             relative = f"main/g/glibc/libc6_2.41-12+deb13u3_{architecture}.deb"
             original = "https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/" + relative
@@ -85,7 +87,7 @@ class DebianPoolRoutingTest(unittest.TestCase):
                 ])
                 for changed in (
                     original.replace("deb13u3", "deb13u4"),
-                    original.replace("_" + architecture, "_armhf"),
+                    original.replace("_" + architecture, "_riscv64"),
                     original.replace("20260727T143429Z", "20260726T143429Z"),
                     original.replace("libc6_", "libc6-dbg_"),
                     original.replace("/pool/main/", "/pool/contrib/"),

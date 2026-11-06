@@ -483,6 +483,26 @@ locates content; the unchanged SHA256 remains the package integrity check.
 Existing ordered routes, package versions, source recipes and module files
 remain unchanged. Configured-fetch and consumer acceptance remain pending.
 
+## Exact libc6 ARMHF input for SWSS native analysis
+
+The [SWSS AMD64 analysis job at `ff0f5881`](https://github.com/securely1g/sonic-buildimage/actions/runs/42164696960/job/127730414526)
+failed while resolving `libc6_2.41-12+deb13u3_armhf.deb` for the declared
+multiarch sysroot. Its official pool and dated Snapshot fallbacks failed.
+Two separately recorded bare content requests returned HTTP 503 and the
+Cloudflare content endpoint was unavailable. No ARM execution was involved.
+
+The exact dated URL now first tries the verified filename-bearing official
+content URL, then retains the existing official pool and original fallbacks:
+`https://snapshot.debian.org/file/2511d1ea4cdf37ca307cc3336cbc16ff23c323ef/libc6_2.41-12%2Bdeb13u3_armhf.deb`.
+That response returned HTTP 200 and matched all 2,249,772 locked/cache bytes
+and SHA256 `8aea0a08cefceb212303a738105ed5befc8fe95a32f465345ab5eec305f21d09`.
+The filename-bearing form follows the already verified curl route. Its SHA1
+locates content; the unchanged SHA256 remains the package integrity check.
+Current selected infra declarations bind this tuple to the accepted lock;
+no failed-run lock or full graph equivalence is claimed. Package versions,
+recipes, other routes and module entries are unchanged. Configured-fetch
+and consumer acceptance for this addition remain pending.
+
 ## Exact Socat source archive fallback
 
 The [SWSS image source-base workflow at `6ab506bd`](https://github.com/securely1g/sonic-buildimage/actions/runs/42055651322/attempts/2)
@@ -494,12 +514,25 @@ One official content GET returned the identical 15,148 bytes from
 The SHA1 path locates the file; the existing repository rule still verifies the
 unchanged SHA256 before extracting Debian's patches.
 
-Only that exact timestamped `snapshot.debian.org` source URL now tries the
-verified content address before its original URL. Other source archives,
-including Socat's distinct `orig.tar.bz2`, indexes, near-miss versions and dates,
-and the separately declared Cloudflare URL remain unchanged. Pure routing tests
-check the exception and those exclusions. The GET proves byte availability;
-new configured fetch and image acceptance remain pending.
+The Debian-patch exception tries only that exact verified content address
+before its original URL. It does not match the separate original-source input.
+
+The [MUX AMD64 source-image job at `08d51ffe`](https://github.com/securely1g/sonic-buildimage/actions/runs/42171557668/job/127740336754)
+later failed fetching `socat_1.8.0.2.orig.tar.bz2` with dated Snapshot HTTP 503;
+the official Debian pool returned HTTP 404. Its selected `socat@1.8.0.2.sonic.6`
+recipe and source SRI bind the original archive to SHA256
+`adc07a9c2723527cf6568d2fb96559794cf9c254a4bc2edd36f7f3789e9f7625`.
+One [filename-bearing official content response](https://snapshot.debian.org/file/5a4a6a0e9819a6279e733c6cffd64ac150df93df/socat_1.8.0.2.orig.tar.bz2)
+returned HTTP 200 and matched all 579,370 retained cache bytes. That exact dated
+original-source URL now tries the verified content URL before its unchanged
+original fallback. The `.tar.bz2` filename is retained because this source rule
+infers the extraction type from the URL; no archive type, source version or
+integrity changes. The original archive and Debian patches remain distinct.
+
+Pure routing tests check both exceptions and reject other source archives,
+indexes, near-miss versions and dates, paths, hosts, queries and fragments.
+The separately declared Cloudflare URLs remain unchanged. These GETs prove
+byte availability; configured-fetch and new consumer acceptance remain pending.
 
 ## Kernel build-tool cache downloads
 
