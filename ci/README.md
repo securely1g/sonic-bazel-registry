@@ -111,6 +111,17 @@ The additional [libcap2 AMD64 origin manifest](https://github.com/securely1g/son
 
 [PR163's AMD64 archive job](https://github.com/securely1g/sonic-buildimage/actions/runs/42127461726/job/127595197988) later failed in Sysmgr source-image dependency analysis on `rsyslog_8.2504.0-1_amd64.deb`, with pool HTTP 404 and dated Snapshot HTTP 503. This is distinct from the earlier `rsyslog-relp` input. Its exact dated URL now tries the [verified official content address](https://snapshot.debian.org/file/3745d404bae6227eb2142ce4aa8baeb8b0cad14d), retaining the existing CDN and original Snapshot fallbacks. One complete official HTTP 200 download matches the current checked-in base-image lock and retained cache: 758,296 bytes, SHA256 `815203243b9eb17c72c0229fe26afb525542b867719ab36413ab8e514159a26b`. Package versions, checksums and source-image targets are unchanged; configured-fetch and consumer acceptance remain pending. No package was generated or executed.
 
+[PR151's AMD64 archive validation](https://github.com/securely1g/sonic-buildimage/actions/runs/42121419709/job/127574455212) built the Orchagent variants and validated installed sources before its source-file dependency query failed on `libkadm5clnt-mit12_1.21.3-5+deb13u1_armhf.deb` with dated security Snapshot HTTP 504. The same query warned that `krb5-multidev`, `libkrb5-3` and `libgssapi-krb5-2` at that version and architecture returned HTTP 503, timed out, or returned HTTP 504. Only these four exact dated URLs gain official content alternatives, each retaining its original Snapshot fallback. One complete HTTP 200 content response per input matches the accepted earlier generated lock and full cache bytes. The current source-owned libteam dependency recipe has the same `apt.install` declaration as the accepted recipe; this binds the historical lock without claiming a retrieved failed-run lock or current use of the old registry libteam entry.
+
+| Package (ARMHF, `1.21.3-5+deb13u1`) | Observed role | Bytes | SHA256 |
+| --- | --- | ---: | --- |
+| [libkadm5clnt-mit12](https://snapshot.debian.org/file/79a0f5873bc04d427cd972471105e1fcf64dd089) | Fatal fetch | 37,844 | `166c0b71c91257d725d624ac8bbf345104dce0038451fb6104a0e7eea89278bb` |
+| [krb5-multidev](https://snapshot.debian.org/file/20d0dda5ff37855ff607673ee54c7c9608bd9d7b) | Sibling warning | 126,412 | `1e9476397e2ee8a749286e60d42fe08abfa0cc4b59703567821fff3d40b66559` |
+| [libkrb5-3](https://snapshot.debian.org/file/c05801948acf5d6932a3ba59a52413725b1ead42) | Sibling warning | 284,480 | `988151350dfb736c7bb461ffb24bf136aeae72842838270f44d482b7f70d8167` |
+| [libgssapi-krb5-2](https://snapshot.debian.org/file/b52a9657c1c4c021218236cd2c58c2db7b85d55c) | Sibling warning | 115,712 | `df4ca163a4d682caac2e1fca14d83b6fac3899829856f62fe81f45dc578c7c70` |
+
+Package identities and hashes are unchanged. ARMHF input resolution during the AMD64 query does not execute ARM code. Configured-fetch and consumer acceptance remain pending; no package was generated or executed.
+
 Their rewrites match the exact timestamp, version, and architecture. Local HTTP
 fixtures exercise the added candidates, fallback to the original paths, and
 rejection of corrupt mirror bytes. Cold Bazel fetches verify the packages

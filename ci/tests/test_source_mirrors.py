@@ -232,6 +232,21 @@ DEBIAN_CONTENT_PACKAGES += (
      "3745d404bae6227eb2142ce4aa8baeb8b0cad14d",
      "815203243b9eb17c72c0229fe26afb525542b867719ab36413ab8e514159a26b", 758296, None),
 )
+# Exact four observed ARMHF inputs; only libkadm5clnt-mit12 was the fatal fetch.
+DEBIAN_CONTENT_PACKAGES += (
+    ('https://snapshot.debian.org/archive/debian-security/20260726T121236Z/pool/updates/main/k/krb5/libkadm5clnt-mit12_1.21.3-5+deb13u1_armhf.deb',
+     '79a0f5873bc04d427cd972471105e1fcf64dd089',
+     '166c0b71c91257d725d624ac8bbf345104dce0038451fb6104a0e7eea89278bb', 37844, None),
+    ('https://snapshot.debian.org/archive/debian-security/20260726T121236Z/pool/updates/main/k/krb5/krb5-multidev_1.21.3-5+deb13u1_armhf.deb',
+     '20d0dda5ff37855ff607673ee54c7c9608bd9d7b',
+     '1e9476397e2ee8a749286e60d42fe08abfa0cc4b59703567821fff3d40b66559', 126412, None),
+    ('https://snapshot.debian.org/archive/debian-security/20260726T121236Z/pool/updates/main/k/krb5/libkrb5-3_1.21.3-5+deb13u1_armhf.deb',
+     'c05801948acf5d6932a3ba59a52413725b1ead42',
+     '988151350dfb736c7bb461ffb24bf136aeae72842838270f44d482b7f70d8167', 284480, None),
+    ('https://snapshot.debian.org/archive/debian-security/20260726T121236Z/pool/updates/main/k/krb5/libgssapi-krb5-2_1.21.3-5+deb13u1_armhf.deb',
+     'b52a9657c1c4c021218236cd2c58c2db7b85d55c',
+     'df4ca163a4d682caac2e1fca14d83b6fac3899829856f62fe81f45dc578c7c70', 115712, None),
+)
 # BusyBox package inputs pinned by BCR rules_coreutils@1.0.1's MODULE.bazel.
 BUSYBOX_PACKAGES = (
     ("amd64", "d161cd711fcf0d21a53dd7b9665933463de9fa6a37718e78ffee4d7732e1e02a", 937460),
