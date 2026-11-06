@@ -45,6 +45,22 @@ def _impl(ctx):
         "fission_support",
         "sysroot",
     ]
+    # foreign_cc uses the C++ compile action's driver as CXX when it configures
+    # and links. G++ adds its runtime after the input objects, including when
+    # Autoconf puts LDFLAGS before a probe source. Keep Bazel 8's compile flags.
+    cxx_compile = action_config(
+        action_name = "c++-compile",
+        enabled = True,
+        tools = [tool(path = "aarch64-linux-gnu-g++")],
+        implies = [
+            "legacy_compile_flags",
+            "user_compile_flags",
+            "sysroot",
+            "unfiltered_compile_flags",
+            "compiler_input_flags",
+            "compiler_output_flags",
+        ],
+    )
     return cc_common.create_cc_toolchain_config_info(
         ctx = ctx,
         toolchain_identifier = "registry-ci-aarch64-gcc14",
@@ -64,7 +80,7 @@ def _impl(ctx):
              for name in ["ld", "ar", "nm", "objcopy", "objdump", "strip"]] + [
             tool_path(name = "gcov", path = "compiler/usr/bin/aarch64-linux-gnu-gcov-14"),
         ],
-        action_configs = [
+        action_configs = [cxx_compile] + [
             action_config(
                 action_name = action,
                 enabled = True,

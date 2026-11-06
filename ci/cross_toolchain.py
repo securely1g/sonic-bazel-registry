@@ -183,14 +183,15 @@ def write_adapter(consumer: Path, work: Path, provider: dict, rules_cc_repo: str
             (adapter / "sysroot" / source.name).symlink_to(source)
     (adapter / "WORKSPACE").write_text(f'workspace(name="{REPOSITORY}")\n')
     shutil.copy2(Path(__file__).with_name("cross_cc_toolchain.bzl"), adapter / "config.bzl")
-    shutil.copy2(Path(__file__).with_name("cross_gcc"), adapter / "aarch64-linux-gnu-gcc")
+    for name in ("aarch64-linux-gnu-gcc", "aarch64-linux-gnu-g++"):
+        shutil.copy2(Path(__file__).with_name("cross_gcc"), adapter / name)
     (adapter / "BUILD.bazel").write_text(f'''load("@{rules_cc_repo}//cc:defs.bzl", "cc_toolchain")
 load(":config.bzl", "linux_aarch64_gcc")
 package(default_visibility=["//visibility:public"])
 constraint_setting(name="distribution")
 constraint_value(name="trixie", constraint_setting=":distribution")
 filegroup(name="all_files", srcs=glob([
-    "aarch64-linux-gnu-gcc", "compiler/bin/**", "compiler/usr/bin/**", "compiler/usr/lib/**", "compiler/usr/libexec/**",
+    "aarch64-linux-gnu-gcc", "aarch64-linux-gnu-g++", "compiler/bin/**", "compiler/usr/bin/**", "compiler/usr/lib/**", "compiler/usr/libexec/**",
     "compiler/aarch64-linux-gnu/**", "compiler/inputs.json", "sysroot/**",
 ]))
 filegroup(name="empty")
