@@ -289,7 +289,9 @@ class DebianPoolRoutingTest(unittest.TestCase):
         workflow = (ROOT / ".github/workflows/registry-ci.yml").read_text()
         script = workflow.split("          python3 - <<'PY'\n", 1)[1].split("          PY\n", 1)[0]
         script = "\n".join(line[10:] for line in script.splitlines())
-        original = {"include": [{"module": "original", "architecture": "amd64"}]}
+        original = {"include": [{"module": "original", "version": "1.0.0", "architecture": "amd64",
+                                  "execution_architecture": "amd64", "cross_compile": False,
+                                  "runner": ["self-hosted", "Linux", "X64", "debian-trixie-container"]}]}
         cases = [
             ("pull_request", BRANCH, "securely1g/sonic-bazel-registry", "ci/source_mirrors.cfg", []),
             ("pull_request", BRANCH, "securely1g/sonic-bazel-registry", "ci/tests/test_source_mirrors.py", []),
@@ -319,10 +321,10 @@ class DebianPoolRoutingTest(unittest.TestCase):
                     actual = json.loads(output.read_text().splitlines()[0].removeprefix("matrix="))
                     self.assertEqual(actual["include"], expected)
                     outputs = dict(line.split("=", 1) for line in output.read_text().splitlines())
-                    self.assertEqual(json.loads(outputs["amd64_matrix"])["include"], expected)
-                    self.assertEqual(json.loads(outputs["arm64_matrix"])["include"], [])
-                    self.assertEqual(outputs["has_amd64_jobs"], str(bool(expected)).lower())
-                    self.assertEqual(outputs["has_arm64_jobs"], "false")
+                    self.assertEqual(json.loads(outputs["local_matrix"])["include"], expected)
+                    self.assertEqual(json.loads(outputs["hosted_arm_matrix"])["include"], [])
+                    self.assertEqual(outputs["has_local_jobs"], str(bool(expected)).lower())
+                    self.assertEqual(outputs["has_hosted_arm_jobs"], "false")
 
 
 @unittest.skipUnless(os.environ.get("REGISTRY_CI_TEST_BAZEL"),

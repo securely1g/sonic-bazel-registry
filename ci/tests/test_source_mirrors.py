@@ -60,6 +60,12 @@ DEBIAN_RELEASE_PACKAGES = (
 # Each tuple is (original URL, content locator, locked SHA256, size, optional CDN).
 # A locator may include the optional filename after the content SHA1.
 DEBIAN_CONTENT_PACKAGES = (
+    ("https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/e/expat/libexpat1-dev_2.7.1-2_arm64.deb",
+     "b0fd006c705d3b52a70b6378819d3478dec226f1/libexpat1-dev_2.7.1-2_arm64.deb",
+     "b219482f10e9a0e52474db2a6f239057ea27fea0db0071e3ddb41e8a8a06064c", 144948, None),
+    ("https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/p/pcre2/libpcre2-32-0_10.46-1~deb13u1_armhf.deb",
+     "9eb28eee9a02941c85af546838293851576cdfa7/libpcre2-32-0_10.46-1~deb13u1_armhf.deb",
+     "ab7a0ed7616e15eb569d4df827b6aceb3f6d810959a8970a426614400d92c7e6", 235052, None),
     ('https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/g/glibc/libc6_2.41-12+deb13u3_armhf.deb',
      '2511d1ea4cdf37ca307cc3336cbc16ff23c323ef/libc6_2.41-12%2Bdeb13u3_armhf.deb',
      '8aea0a08cefceb212303a738105ed5befc8fe95a32f465345ab5eec305f21d09', 2249772, None),
@@ -904,8 +910,13 @@ class SourceMirrorWorkflowScopeTest(unittest.TestCase):
         workflow = (ROOT / ".github/workflows/registry-ci.yml").read_text()
         script = workflow.split("          python3 - <<'PY'\n", 1)[1].split("          PY\n", 1)[0]
         script = "\n".join(line[10:] for line in script.splitlines())
-        matrix = {"include": [{"module": "original", "architecture": architecture}
+        matrix = {"include": [{"module": "original", "version": "1.0.0", "architecture": architecture,
+                               "execution_architecture": architecture, "cross_compile": False,
+                               "runner": REGISTRY_CI.RUNNERS[architecture]}
                               for architecture in ("amd64", "arm64")]}
+        matrix["include"].append({"module": "cross", "version": "1.0.0", "architecture": "arm64",
+                                  "execution_architecture": "amd64", "cross_compile": True,
+                                  "runner": REGISTRY_CI.RUNNERS["amd64"]})
         for branch, repository in (
             ("codex/pigz-source-mirror", "securely1g/sonic-bazel-registry"),
             ("codex/debian-container-runners", "securely1g/sonic-bazel-registry"),
@@ -923,8 +934,8 @@ class SourceMirrorWorkflowScopeTest(unittest.TestCase):
                     lines = output.read_text().splitlines()
                     self.assertEqual(json.loads(lines[0].removeprefix("matrix=")), matrix)
                     self.assertIn("has_jobs=true", lines)
-                    self.assertIn("has_amd64_jobs=true", lines)
-                    self.assertIn("has_arm64_jobs=true", lines)
+                    self.assertIn("has_local_jobs=true", lines)
+                    self.assertIn("has_hosted_arm_jobs=true", lines)
 
 
 @unittest.skipUnless(os.environ.get("REGISTRY_CI_TEST_BAZEL"),
