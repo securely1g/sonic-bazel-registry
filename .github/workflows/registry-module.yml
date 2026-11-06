@@ -3,6 +3,9 @@ name: Registry module validation
 on:
   workflow_call:
     inputs:
+      diagnostic_scope:
+        type: string
+        required: true
       module:
         required: true
         type: string
@@ -69,6 +72,8 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+      - name: Build the job-local manager PR 92 ARM executor
+        run: bash ci/diagnostics/arm-92.sh
       - name: Install Bazel 8.5.1
         run: |
           set -euo pipefail
@@ -111,7 +116,7 @@ jobs:
           if [[ "$CI_CROSS_COMPILE" == true ]]; then
             CROSS_ARGS=(--cross-compile --test-executor "$ARM_TEST_EXECUTOR")
           fi
-          "${ROOT[@]}" python3 ci/registry_ci.py run \
+          "${ROOT[@]}" python3 ci/diagnostics/swss_common_run.py "${{ inputs.diagnostic_scope }}" run \
             --module "$CI_MODULE" \
             --version "$CI_VERSION" \
             --architecture "$CI_ARCHITECTURE" \
