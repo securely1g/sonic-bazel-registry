@@ -1,13 +1,6 @@
 #!/bin/sh
 # Preserve the packages' original metadata; relocate only pkgconf's path variables.
 set -eu
-# Stage the declared native executables before the original netem Makefile
-# runs them to produce normal, pareto, paretonormal and experimental.dist.
-while [ "$#" -gt 0 ] && [ "${1%%=*}" = "--netem-generator" ]; do
-    generator=${1#*=}
-    install -m 755 "$generator" "netem/${generator##*/}"
-    shift
-done
 pcdir="$PWD/.bazel-pkgconfig"
 mkdir -p "$pcdir"
 for metadata in $BAZEL_PKGCONFIG_FILES; do

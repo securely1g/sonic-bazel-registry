@@ -77,6 +77,7 @@ iproute2_source(
     overlays = {
         "//:bazel/iproute2.BUILD.bazel": "BUILD.bazel",
         "//:bazel/configure.sh": "bazel/configure.sh",
+        "//:bazel/configure_netem.sh": "bazel/configure_netem.sh",
         "//:bazel/runtime.bzl": "bazel/runtime.bzl",
     },
     sonic_patch = "//:bazel/0001-bridge-fdb-protocol.patch",

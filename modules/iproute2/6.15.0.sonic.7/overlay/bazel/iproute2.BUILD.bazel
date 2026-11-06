@@ -62,7 +62,7 @@ _INSTALLED_PATHS.update({
 
 filegroup(
     name = "sources",
-    srcs = ["bazel/configure.sh"] + glob(
+    srcs = ["bazel/configure.sh", "bazel/configure_netem.sh"] + glob(
         ["**"],
         exclude = [
             "BUILD.bazel",
@@ -97,9 +97,9 @@ configure_make(
         "@sonic_build_infra//tools/build_tools:bison",
         "@sonic_build_infra//tools/build_tools:flex",
     ],
-    configure_command = "bazel/configure.sh",
+    configure_command = "bazel/configure_netem.sh",
     configure_in_place = True,
-    configure_options = ['--netem-generator="$(execpath :%s)"' % tool for tool in _NETEM_GENERATORS] + [
+    configure_options = [
         "--prefix=/usr",
         "--color=auto",
     ] + select({
@@ -125,6 +125,10 @@ configure_make(
     # pkgconf runs on the execution platform; its metadata describes the target.
     data = ["@iproute2_deps//:pkgconfig"],
     env = {
+        "NETEM_MAKETABLE": "$(execpath :maketable)",
+        "NETEM_NORMAL": "$(execpath :normal)",
+        "NETEM_PARETO": "$(execpath :pareto)",
+        "NETEM_PARETONORMAL": "$(execpath :paretonormal)",
         "BAZEL_PKGCONF": "$(execpath @sonic_build_infra//tools/build_tools:pkgconf)",
         "BAZEL_PKGCONFIG_FILES": "$(locations @iproute2_deps//:pkgconfig)",
         "YACC": "$(execpath @sonic_build_infra//tools/build_tools:bison)",
