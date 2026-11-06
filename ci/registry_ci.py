@@ -1301,26 +1301,41 @@ def prepare_cross_python_runtimes(bazel_prefix: list[str], flags: list[str], tes
     return mappings
 
 
-def prepare_go_test_executor(root: Path, work_dir: Path, nested_bazel: str | None = None) -> Path:
-    """Run recursive ARM Go processes, with a native Bazel tool for rules_go."""
-    source = root / "ci" / "rules_go_cross"
-    tools = work_dir / "nested-go-tools"
-    tools.mkdir()
-    executor = tools / "executor"
-    shutil.copy2(source / "executor", executor)
-    if nested_bazel is None:
-        return executor
+def prepare_nested_go_tests(root: Path, work_dir: Path, bazel: str) -> Path:
+    """Expose native Bazel and the outer ARM toolchain to the original Go tests."""
     adapter = work_dir / "cross-cc-repository"
     require((adapter / "BUILD.bazel").is_file(), "Nested rules_go tests require the isolated ARM toolchain")
-    host_bazel = shutil.which(nested_bazel)
-    require(host_bazel is not None, f"Could not locate the native Bazel launcher: {nested_bazel}")
+    host_bazel = shutil.which(bazel)
+    require(host_bazel is not None, f"Could not locate the native Bazel launcher: {bazel}")
+    source = root / "ci" / "rules_go_cross"
     platforms = adapter / "nested"
     platforms.mkdir()
     shutil.copy2(source / "platforms.BUILD.bazel", platforms / "BUILD.bazel")
+    tools = work_dir / "nested-go-tools"
+    tools.mkdir()
     shutil.copy2(source / "bazel", tools / "bazel")
+    shutil.copy2(source / "executor", tools / "executor")
     (tools / "host-bazel").symlink_to(Path(host_bazel).absolute())
     shutil.copy2(root / "ci" / "source_mirrors.cfg", tools / "source_mirrors.cfg")
-    return executor
+    return tools / "executor"
+
+
+def prepare_gazelle_tests(root: Path, work_dir: Path, script_executor: list[str]) -> Path:
+    """Run Go test binaries directly and preserve the target runtime for shell tests."""
+    tools = work_dir / "gazelle-test-tools"
+    tools.mkdir()
+    go = tools / "arm-go-test"
+    shutil.copy2(root / "ci" / "rules_go_cross" / "executor", go)
+    runner = tools / "executor"
+    runner.write_text(
+        '#!/bin/sh\nset -eu\n'
+        'if [ "$(head -c 2 -- "$1")" = "#!" ]; then\n'
+        f'    exec {shlex.join(script_executor)} "$@"\n'
+        'fi\n'
+        f'exec {shlex.quote(str(go))} "$@"\n'
+    )
+    runner.chmod(0o755)
+    return runner
 
 
 def run(root: Path, module: str, version: str, architecture: str,
@@ -1516,7 +1531,10 @@ def run(root: Path, module: str, version: str, architecture: str,
             test_flags = prepare_test_runtime(config, fetched[0].parent, consumer, artifacts,
                                               architecture, test_container_image, executor_prefix or None)
             if cross_compile and module in {"rules_go", "gazelle"}:
-                go_executor = prepare_go_test_executor(root, work_dir, bazel if module == "rules_go" else None)
+                if module == "rules_go":
+                    go_executor = prepare_nested_go_tests(root, work_dir, bazel)
+                else:
+                    go_executor = prepare_gazelle_tests(root, work_dir, executor_prefix)
                 executor_prefix = [str(go_executor)]
                 cross_runtime["test_executor_prefix"] = executor_prefix
                 cross_runtime["test_executor_sha256"] = hashlib.sha256(go_executor.read_bytes()).hexdigest()

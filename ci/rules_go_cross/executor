@@ -1,6 +1,6 @@
 #!/bin/bash
-# Run ARM Go tests in the same filesystem namespace as their child processes.
-# The registered ARM binfmt interpreter handles recursive execution.
+# Run the ARM Go test where its child processes can also execute native Bazel.
+# The registered ARM binfmt interpreter handles recursively launched ARM tools.
 set -euo pipefail
 export LC_ALL=C
 readelf -h "$1" | grep -Eq 'Machine: +AArch64$'

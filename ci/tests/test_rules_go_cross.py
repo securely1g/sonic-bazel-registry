@@ -31,7 +31,7 @@ class NestedGoBuildTest(unittest.TestCase):
             "if 'version' in sys.argv: sys.exit(17)\n"
         )
         host_bazel.chmod(0o755)
-        executor = registry_ci.prepare_go_test_executor(ROOT, self.work, str(host_bazel))
+        executor = registry_ci.prepare_nested_go_tests(ROOT, self.work, str(host_bazel))
         self.nested = executor.with_name("bazel")
         self.assertEqual(self.nested.with_name("source_mirrors.cfg").read_bytes(),
                          (ROOT / "ci/source_mirrors.cfg").read_bytes())
@@ -51,12 +51,28 @@ class NestedGoBuildTest(unittest.TestCase):
                     self.assertIn("--extra_toolchains=@registry_ci_cross_cc//:toolchain", args)
                     self.assertIn("//:go", args)
 
-    def test_recursive_go_executor_without_nested_bazel(self):
+    def test_gazelle_preserves_script_runtime_and_isolates_recursive_go(self):
         with tempfile.TemporaryDirectory() as tmp:
-            executor = registry_ci.prepare_go_test_executor(ROOT, Path(tmp))
-            self.assertEqual(executor.read_bytes(), (ROOT / "ci/rules_go_cross/executor").read_bytes())
-            self.assertEqual(list(executor.parent.iterdir()), [executor])
-            self.assertTrue(executor.stat().st_mode & 0o111)
+            work = Path(tmp) / "work with spaces"
+            work.mkdir()
+            script = work / "proxy test.sh"
+            script.write_text("#!/bin/sh\n")
+            fallback = work / "original executor"
+            fallback.write_text("#!/bin/sh\nprintf '%s\\n' \"$@\"\nexit 23\n")
+            fallback.chmod(0o755)
+            runner = registry_ci.prepare_gazelle_tests(ROOT, work, [str(fallback), "--bind", "path with spaces", "--"])
+            command = subprocess.run([runner, script, "original argument"], capture_output=True, text=True)
+            self.assertEqual(command.returncode, 23)
+            self.assertEqual(command.stdout.splitlines(),
+                             ["--bind", "path with spaces", "--", str(script), "original argument"])
+            direct = runner.parent / "arm-go-test"
+            self.assertEqual(direct.read_bytes(), (ROOT / "ci/rules_go_cross/executor").read_bytes())
+            self.assertFalse((runner.parent / "bazel").exists())
+            direct.write_text("#!/bin/sh\nprintf '%s\\n' \"$@\"\n")
+            binary = work / "go test"
+            binary.write_bytes(b"\x7fELF")
+            self.assertEqual(subprocess.check_output([runner, binary, "self-exec"], text=True).splitlines(),
+                             [str(binary), "self-exec"])
 
     def test_non_build_commands_keep_original_arguments_and_status(self):
         cmd = ["--output_user_root", "/path with spaces", "version"]
