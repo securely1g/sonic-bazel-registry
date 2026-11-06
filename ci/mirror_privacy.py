@@ -1,0 +1,395 @@
+"""Keep private download locations out of published CI diagnostics and artifacts.
+
+This is an accidental-disclosure guard, not isolation from code executing in a
+job which receives the mirror configuration. Payloads are inspected, never
+rewritten; only the documented diagnostic text formats may be redacted.
+"""
+from __future__ import annotations
+
+import base64
+import bz2
+import gzip
+import hashlib
+import io
+import json
+import lzma
+import os
+from pathlib import Path
+import re
+import shutil
+import stat
+import subprocess
+import tarfile
+import tempfile
+from urllib.parse import quote, quote_plus, urlsplit
+import zipfile
+import zlib
+
+
+CHUNK_SIZE = 1024 * 1024
+MAX_ARCHIVE_DEPTH = 8
+MARKER = "[private-mirror]"
+# Cross-toolchain graph preparation and runtime probes retain command streams
+# separately; these are diagnostics just like build.log and test.log.
+TEXT_SUFFIXES = {".log", ".stderr", ".stdout", ".json", ".jsonl", ".xml"}
+BEP_FILES = {"build-events.jsonl", "test-events.jsonl"}
+
+
+class PrivacyError(ValueError):
+    """A generic error deliberately containing no private input or filename."""
+
+
+class _MemberReader:
+    """Limit reads to one ar member without loading its contents into memory."""
+
+    def __init__(self, stream, size: int):
+        self.stream, self.remaining = stream, size
+
+    def read(self, size: int = -1) -> bytes:
+        size = self.remaining if size < 0 else min(size, self.remaining)
+        value = self.stream.read(size)
+        self.remaining -= len(value)
+        return value
+
+
+class Redactor:
+    def __init__(self, urls: list[str]):
+        values = set()
+        for url in urls:
+            if not url:
+                continue
+            try:
+                parsed = urlsplit(url)
+                if not parsed.hostname:
+                    raise ValueError
+                seeds = {url, url.rstrip("/"), parsed.netloc, parsed.hostname,
+                         parsed.hostname.encode("idna").decode()}
+            except (ValueError, UnicodeError):
+                raise PrivacyError("Invalid private mirror location") from None
+            for value in seeds:
+                if not value:
+                    continue
+                values.update((value, quote(value, safe=""), quote_plus(value, safe=""),
+                               value.replace("/", r"\/"), re.escape(value)))
+        values.update(json.dumps(value, ensure_ascii=True)[1:-1] for value in tuple(values))
+        self.patterns = tuple(sorted(values, key=lambda value: (-len(value), value)))
+        self.max_pattern_length = max((len(value.encode()) for value in values), default=1)
+        self._text = re.compile("|".join(re.escape(value) for value in self.patterns), re.I) if values else None
+        self._bytes = re.compile(b"|".join(re.escape(value.encode()) for value in self.patterns), re.I) if values else None
+
+    def redact(self, text: str) -> str:
+        return self._text.sub(MARKER, text) if self._text else text
+
+    def redact_bytes(self, data: bytes) -> bytes:
+        return self._bytes.sub(MARKER.encode(), data) if self._bytes else data
+
+    def mask_github(self) -> None:
+        if os.environ.get("GITHUB_ACTIONS") != "true":
+            return
+        for value in self.patterns:
+            # Workflow commands require escaping their data rather than shell
+            # interpolation. These commands register values; they are not logs.
+            escaped = value.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+            print("::add-mask::" + escaped, flush=True)
+
+    def _check_text(self, value: str) -> None:
+        if self._text and self._text.search(value):
+            raise PrivacyError("Private mirror location remains in validation evidence")
+
+    def _scan_raw(self, stream, first: bytes = b"", copy=None) -> None:
+        tail = b""
+        part = first
+        while part:
+            data = tail + part
+            if self._bytes.search(data):
+                raise PrivacyError("Private mirror location remains in validation evidence")
+            if copy is not None:
+                copy.write(part)
+            tail = data[-(self.max_pattern_length - 1):] if self.max_pattern_length > 1 else b""
+            part = stream.read(CHUNK_SIZE)
+
+    @staticmethod
+    def _format(prefix: bytes, name: str) -> str | None:
+        if prefix.startswith(b"\x1f\x8b"):
+            return "gzip"
+        if prefix.startswith(b"BZh"):
+            return "bz2"
+        if prefix.startswith(b"\xfd7zXZ\x00"):
+            return "xz"
+        if prefix.startswith(b"\x28\xb5\x2f\xfd"):
+            return "zstd"
+        if prefix.startswith((b"PK\x03\x04", b"PK\x05\x06", b"PK\x07\x08")):
+            return "zip"
+        if prefix.startswith(b"!<arch>\n"):
+            return "ar"
+        if prefix[257:262] == b"ustar" or name.endswith(".tar"):
+            return "tar"
+        if prefix.startswith((b"7z\xbc\xaf\x27\x1c", b"Rar!", b"!<thin>\n", b"\x04\x22\x4d\x18")):
+            raise PrivacyError("Unsupported archive in private-mirror validation evidence")
+        if name.lower().endswith((".gz", ".tgz", ".bz2", ".xz", ".zst", ".zip", ".7z", ".rar", ".lz4", ".lz", ".lzma")):
+            raise PrivacyError("Unrecognized archive in private-mirror validation evidence")
+        return None
+
+    def _scan_stream(self, stream, name: str = "", depth: int = 0) -> None:
+        if depth > MAX_ARCHIVE_DEPTH:
+            raise PrivacyError("Validation evidence exceeds the archive nesting limit")
+        prefix = stream.read(512)
+        kind = self._format(prefix, name)
+        if kind is None:
+            self._scan_raw(stream, prefix)
+            return
+        # Archive readers may need seeking. Spool only container formats, on
+        # disk; regular ELF/debug files are scanned directly in bounded chunks.
+        with tempfile.TemporaryFile() as data:
+            self._scan_raw(stream, prefix, data)
+            data.seek(0)
+            if kind in ("gzip", "bz2", "xz"):
+                decoded = (gzip.GzipFile(fileobj=data, mode="rb") if kind == "gzip" else
+                           {"bz2": bz2.BZ2File, "xz": lzma.LZMAFile}[kind](data, "rb"))
+                with decoded:
+                    self._scan_stream(decoded, depth=depth + 1)
+            elif kind == "zstd":
+                executable = shutil.which("zstd")
+                if not executable:
+                    raise PrivacyError("A required archive scanner is unavailable")
+                process = subprocess.Popen([executable, "--quiet", "--decompress", "--stdout"],
+                                           stdin=data, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+                try:
+                    self._scan_stream(process.stdout, depth=depth + 1)
+                    if process.wait(timeout=30):
+                        raise PrivacyError("Cannot inspect compressed validation evidence")
+                finally:
+                    process.stdout.close()
+                    if process.poll() is None:
+                        process.kill()
+                        process.wait()
+            elif kind == "tar":
+                with tarfile.open(fileobj=data, mode="r:") as archive:
+                    for member in archive:
+                        self._check_text(member.name)
+                        self._check_text(member.linkname)
+                        if member.isfile():
+                            with archive.extractfile(member) as contents:
+                                self._scan_stream(contents, member.name, depth + 1)
+            elif kind == "zip":
+                with zipfile.ZipFile(data) as archive:
+                    for member in archive.infolist():
+                        self._check_text(member.filename)
+                        if member.flag_bits & 1:
+                            raise PrivacyError("Encrypted validation evidence cannot be inspected")
+                        if not member.is_dir():
+                            with archive.open(member) as contents:
+                                self._scan_stream(contents, member.filename, depth + 1)
+            else:
+                data.seek(8)
+                while header := data.read(60):
+                    if len(header) != 60 or header[58:] != b"`\n":
+                        raise PrivacyError("Invalid ar archive in validation evidence")
+                    size = int(header[48:58])
+                    if size < 0:
+                        raise PrivacyError("Invalid ar archive in validation evidence")
+                    start = data.tell()
+                    member_name = header[:16].decode("ascii").strip().rstrip("/")
+                    if member_name.startswith("#1/"):
+                        length = int(member_name[3:])
+                        if length > size or length < 0:
+                            raise PrivacyError("Invalid ar archive in validation evidence")
+                        member_name = data.read(length).decode("utf-8")
+                        size -= length
+                    self._check_text(member_name)
+                    self._scan_stream(_MemberReader(data, size), member_name, depth + 1)
+                    data.seek(start + int(header[48:58]) + int(header[48:58]) % 2)
+
+    def _scrub(self, path: Path) -> dict | None:
+        before, after = hashlib.sha256(), hashlib.sha256()
+        changed = False
+        with tempfile.NamedTemporaryFile(dir=path.parent, prefix=".mirror-redaction-", delete=False) as output:
+            temporary = Path(output.name)
+            try:
+                pending = b""
+                with path.open("rb") as source:
+                    while True:
+                        part = source.read(CHUNK_SIZE)
+                        before.update(part)
+                        pending += part
+                        boundary = len(pending) if not part else max(0, len(pending) - self.max_pattern_length + 1)
+                        # A complete match beginning in the safe prefix may
+                        # extend into the overlap; retain no partial secret.
+                        end = boundary
+                        for match in self._bytes.finditer(pending):
+                            if match.start() >= boundary:
+                                break
+                            end = max(end, match.end())
+                        raw = pending[:end]
+                        clean = self.redact_bytes(raw)
+                        changed |= clean != raw
+                        output.write(clean)
+                        after.update(clean)
+                        pending = pending[end:]
+                        if not part:
+                            break
+                output.flush()
+                if changed:
+                    os.chmod(temporary, stat.S_IMODE(path.stat().st_mode))
+                    os.replace(temporary, path)
+                    return {"original_sha256": before.hexdigest(), "sanitized_sha256": after.hexdigest()}
+                return None
+            finally:
+                temporary.unlink(missing_ok=True)
+
+    def _scan_bep_files(self, value) -> None:
+        """Inspect protobuf File.contents bytes, which JSON encodes as base64."""
+        if isinstance(value, list):
+            for child in value:
+                self._scan_bep_files(child)
+        elif isinstance(value, dict):
+            if "contents" in value:
+                encoded = value["contents"]
+                if not isinstance(encoded, str):
+                    raise PrivacyError("Cannot inspect inline Bazel file contents")
+                # Protobuf JSON accepts standard and URL-safe base64, with or
+                # without padding. File.name may be omitted from the event.
+                decoded = base64.b64decode(encoded + "=" * (-len(encoded) % 4),
+                                           altchars=b"-_", validate=True)
+                name = value.get("name", "")
+                self._scan_stream(io.BytesIO(decoded), name if isinstance(name, str) else "")
+            for child in value.values():
+                self._scan_bep_files(child)
+
+    def _scrub_bep(self, path: Path) -> dict | None:
+        """Remove fragmented Progress output, retaining the useful event graph."""
+        before, after = hashlib.sha256(), hashlib.sha256()
+        removed = 0
+        with tempfile.NamedTemporaryFile(dir=path.parent, prefix=".mirror-redaction-", delete=False) as output:
+            temporary = Path(output.name)
+            try:
+                with path.open("rb") as source:
+                    for raw in source:
+                        before.update(raw)
+                        event = json.loads(raw)
+                        if not isinstance(event, dict):
+                            raise PrivacyError("Invalid Bazel event evidence")
+                        progress = event.get("progress")
+                        changed = False
+                        if isinstance(progress, dict):
+                            for field in ("stdout", "stderr"):
+                                if field in progress:
+                                    del progress[field]
+                                    changed = True
+                                    removed += 1
+                        self._scan_bep_files(event)
+                        # Full sanitized build.log/test.log remains available;
+                        # concatenating BEP Progress fragments must not recover
+                        # a URL split across independent event records.
+                        clean = (json.dumps(event, ensure_ascii=False, separators=(",", ":")) + "\n").encode() if changed else raw
+                        output.write(clean)
+                        after.update(clean)
+                output.flush()
+                if removed:
+                    os.chmod(temporary, stat.S_IMODE(path.stat().st_mode))
+                    os.replace(temporary, path)
+                    return {"original_sha256": before.hexdigest(), "sanitized_sha256": after.hexdigest(),
+                            "bep_progress_fields_removed": removed}
+                return None
+            finally:
+                temporary.unlink(missing_ok=True)
+
+    @staticmethod
+    def _write_bytes(path: Path, payload: bytes) -> None:
+        # Replacing the directory entry avoids mutating hard-linked source
+        # diagnostics or following an existing receipt symlink.
+        with tempfile.NamedTemporaryFile(dir=path.parent, prefix=".mirror-redaction-", delete=False) as output:
+            temporary = Path(output.name)
+            try:
+                output.write(payload)
+                output.flush()
+                if path.exists():
+                    os.chmod(temporary, stat.S_IMODE(path.stat().st_mode))
+                os.replace(temporary, path)
+            finally:
+                temporary.unlink(missing_ok=True)
+
+    def _update_test_index(self, root: Path, changes: list[dict]) -> None:
+        path = root / "test-results.json"
+        if not path.is_file():
+            return
+        original = path.read_bytes()
+        index = json.loads(original)
+        if not isinstance(index, list):
+            return
+        changed = {item["path"]: item for item in changes}
+        updated = False
+        for test in index:
+            for record in test.get("files", []) if isinstance(test, dict) else []:
+                relative = record.get("path") if isinstance(record, dict) else None
+                if isinstance(relative, str) and relative in changed:
+                    record["sha256"] = changed[relative]["sanitized_sha256"]
+                    record["size"] = (root / relative).stat().st_size
+                    updated = True
+        if updated:
+            payload = (json.dumps(index, indent=2) + "\n").encode()
+            self._write_bytes(path, payload)
+            record = changed.get("test-results.json")
+            if record is None:
+                record = {"path": "test-results.json", "original_sha256": hashlib.sha256(original).hexdigest()}
+                changes.append(record)
+            record["sanitized_sha256"] = hashlib.sha256(payload).hexdigest()
+
+    def scrub_and_scan(self, artifacts: Path) -> None:
+        """Redact diagnostic text, then refuse publication if any location remains."""
+        if not self.patterns or not artifacts.exists():
+            return
+        try:
+            if artifacts.is_symlink() or not artifacts.is_dir():
+                raise PrivacyError("Unsafe validation evidence directory")
+            root = artifacts.resolve()
+            regular = []
+            directories = [root]
+            while directories:
+                directory = directories.pop()
+                for path in directory.iterdir():
+                    self._check_text(path.relative_to(root).as_posix())
+                    mode = path.lstat().st_mode
+                    if stat.S_ISLNK(mode):
+                        self._check_text(os.readlink(path))
+                        if not path.resolve().is_relative_to(root):
+                            raise PrivacyError("Validation evidence symlink escapes its directory")
+                    elif stat.S_ISDIR(mode):
+                        directories.append(path)
+                    elif stat.S_ISREG(mode):
+                        regular.append(path)
+                    else:
+                        raise PrivacyError("Unsupported validation evidence file type")
+            changes = []
+            for path in regular:
+                relative = path.relative_to(root).as_posix()
+                try:
+                    receipt = self._scrub_bep(path) if path.name in BEP_FILES else None
+                    if path.suffix in TEXT_SUFFIXES or path.name.endswith("MODULE.bazel.lock"):
+                        text_receipt = self._scrub(path)
+                        if text_receipt:
+                            receipt = ({**receipt, "sanitized_sha256": text_receipt["sanitized_sha256"]}
+                                       if receipt else text_receipt)
+                    if receipt:
+                        changes.append({"path": relative, **receipt})
+                    with path.open("rb") as stream:
+                        self._scan_stream(stream, path.name)
+                except PrivacyError as error:
+                    # The outer relative name passed _check_text above. Never
+                    # include an untrusted archive member or raw OS exception;
+                    # JSON quoting keeps control characters on one log line.
+                    raise PrivacyError(f"{error} (artifact {json.dumps(relative)})") from None
+            if changes:
+                self._update_test_index(root, changes)
+                self._write_bytes(root / "mirror-redaction.json", (json.dumps({
+                    "diagnostics_sanitized": True,
+                    "payloads_modified": False,
+                    "files": changes,
+                }, indent=2) + "\n").encode())
+        except PrivacyError:
+            raise
+        except (OSError, ValueError, EOFError, RuntimeError, tarfile.TarError, zipfile.BadZipFile,
+                lzma.LZMAError, zlib.error,
+                subprocess.SubprocessError):
+            # Archive readers and OS exceptions can embed filenames and URLs.
+            raise PrivacyError("Could not inspect private-mirror validation evidence") from None

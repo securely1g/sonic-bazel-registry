@@ -136,6 +136,77 @@ HTTP errors and checksum mismatches, and rejection when every candidate has the
 wrong bytes. These are repository fetches; they execute no compilation or package
 actions.
 
+## Private Debian snapshot mirrors
+
+Trusted jobs on the self-hosted `debian-trixie-container` runners can prefer
+private Debian mirrors while keeping the published package URLs and checksums.
+Configure these optional **Actions repository secrets** under **Settings →
+Secrets and variables → Actions**:
+
+| Secret | HTTPS snapshot root |
+| --- | --- |
+| `DEBIAN_MIRROR_BASE_URL` | Mirror of Debian snapshot `20260727T143429Z` |
+| `DEBIAN_SECURITY_MIRROR_BASE_URL` | Mirror of Debian security snapshot `20260726T121236Z` |
+
+Each value is the complete snapshot-root URL, including its trailing slash.
+Do not put the values in registry files, workflow variables, container images,
+PR descriptions, or reproduction commands. The public workflow refers only to
+the secret names. It passes them explicitly to the reusable module workflow
+for same-repository pull requests, maintained-branch pushes, and manual runs,
+excluding Dependabot. The receiving workflow also checks the self-hosted and
+Trixie runner labels. This includes native AMD64 builds and ARM64 cross builds
+executing on the same trusted Trixie runners. Native hosted ARM64 jobs and fork
+pull requests receive no mirror secrets and retain the public download
+configuration. The separate cross-runtime fixture job receives no secrets.
+
+[`private_mirrors.py`](private_mirrors.py) generates a private temporary Bazel
+downloader configuration with the configured mirror first, followed by the
+existing public candidates. Dated snapshot routes preserve the original path
+and match only the two dates above. Binary `.deb`/`.udeb` pool URLs under
+`deb.debian.org/debian/` also try the configured Debian snapshot first; security
+pool URLs under `deb.debian.org/debian-security/` and
+`security.debian.org/debian-security/` try the configured security snapshot.
+These additional routes exclude mutable CDN indexes and source archives, and
+retain the original package URL as a fallback. For example, the locked
+`libaudit-dev_4.0.2-2+b2_amd64.deb` first tries its private Debian mirror; a missing
+file or wrong checksum falls back through the existing public candidates. Its
+original SHA256 stays
+`4104cf1149947db1a3450b2a13aab23000a695aa6981f515216129ad8b884423`.
+Changing the download location does not repin packages or change module recipes.
+
+The wrapper passes the combined configuration explicitly because the registry
+runner ignores Bazel RC files. Secret values are removed from the environment
+of the child validation command. The temporary configuration stays outside the
+artifact directory and is cleaned up after use. Console output is redacted;
+the full URL and hostname are also registered for GitHub log masking.
+
+GitHub console masking does not sanitize the bytes of uploaded artifacts.
+Before archiving, the wrapper redacts saved text diagnostics and scans evidence,
+including archive contents, for private URL and hostname forms. A remaining
+leak blocks the upload; binary build outputs are not rewritten. The module
+archive and runner-test upload both require a successful final privacy check,
+including when the build or tests fail. Public original URLs and package hashes
+remain available in the retained evidence.
+
+To prove private mirror availability, manually run **Registry CI** with
+**private_mirror_probe** selected. This optional check runs only on the trusted
+self-hosted Trixie runner and requires both mirror secrets to be configured.
+It uses the same `sudo` environment as local module validation, so it cannot
+depend on proxy settings available only to the runner user. It performs
+fresh-cache Bazel downloads of the locked
+Debian `libaudit-dev` and security `libc-ares-dev` packages, checks their original
+hashes without executing either package, and retains a sanitized receipt.
+Ordinary pull-request and push CI use public fallback and do not require the
+private mirrors to be available. The manual probe defaults to off and does not
+change the module validation matrix. Local regression tests cover mirror
+preference, public fallback, checksum rejection, and console/artifact redaction.
+The explicit probe fails when either secret is missing; ordinary builds still
+use public sources.
+
+This protects the URLs from public source and normal published evidence. Code
+executing in a job that receives the secrets can read them; the profile is for
+trusted code, not an isolation boundary against a malicious workflow or build.
+
 ## Kernel build-tool cache downloads
 
 The runner starts each consumer with `--ignore_all_rc_files`, so it explicitly
