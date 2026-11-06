@@ -705,8 +705,7 @@ an ARM64 target, and an explicit disposable Debian Trixie container identity.
 The reusable workflow selects native Bazel, image, sudo and artifact handling by
 execution mode while preserving the target architecture and all original labels.
 
-The temporary `ARM_CROSS_VERSIONS` map selects only complete original contracts
-qualified in [the all-ARM survey](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416)
+The first 15 entries in the `ARM_CROSS_VERSIONS` map qualified in [the all-ARM survey](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416)
 at `88d24c7010a5affd9deb1286e63c5a23e246879c`. The job artifacts bind the exact
 source inputs, unchanged selected dependency versions, native execution and ARM
 target platforms, produced output identities, and every original uncached test.
@@ -738,6 +737,13 @@ presubmit contract, not broader undeclared functionality. Yang-model package out
 regression archives are architecture-neutral; their original target-side runtime
 tests remain required, and native execution tools retain their configurations.
 The remaining module failures stay visible in the survey and retain native ARM validation here.
+
+The iproute2 6.15.0.sonic.7 cross route builds all four original targets and
+executes both original tests. Its runtime test checks the package, and the
+configure test invokes ARM GCC and recursive Make. The runner image needs the
+PRoot fixes for guest GCC discovery and Linux exec argument limits. Roll out
+that image before enabling this route in production.
+[Qualified ARM job](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42200862212/job/127848280179) · [Runner image change](https://github.com/securely1g/agi-projects/pull/92)
 
 The gawk smoke test uses gawk as a native execution tool while the direct gawk
 build targets ARM64. Test execution follows the declared Bazel configuration;
