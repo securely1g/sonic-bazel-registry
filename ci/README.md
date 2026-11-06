@@ -675,8 +675,8 @@ an ARM64 target, and an explicit disposable Debian Trixie container identity.
 The reusable workflow selects native Bazel, image, sudo and artifact handling by
 execution mode while preserving the target architecture and all original labels.
 
-The temporary `ARM_CROSS_VERSIONS` map selects only complete original contracts
-qualified in [the all-ARM survey](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416)
+The temporary `ARM_CROSS_VERSIONS` map selects versions with complete validation
+of their original contracts. The following versions were qualified in [the all-ARM survey](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416)
 at `88d24c7010a5affd9deb1286e63c5a23e246879c`. The job artifacts bind the exact
 source inputs, unchanged selected dependency versions, native execution and ARM
 target platforms, produced output identities, and every original uncached test.
@@ -701,6 +701,11 @@ enforced; the routing map changes execution placement only.
 | `sonic-yang-mgmt` | `1.0.0-9ab452d22773c41783092ae3bd6c206d6c257c8d` | 2 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127454762848) |
 | `sonic-yang-models` | `1.0.1-b0a9362a7a1b4b5e1b7188c019d256f7c8aaff9f` | 3 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127456801062) |
 | `tar.bzl` | `0.10.5.sonic.2` | 8 / 7 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127457427548) |
+
+Libyang `3.12.2.sonic.7` was qualified separately on the Trixie runners. Its
+seven builds and five uncached tests passed, including all 56 C suites, three fuzz
+drivers and 225 Tcl cases. Earlier versions, including `3.12.2.sonic.6`, use
+hosted ARM64. [Full ARM64 run](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42113794646/job/127548050588)
 
 The `linux-kernel` contract validates its declared helpers; it does not build or
 boot a kernel image. Passing tests only establish each module's existing
