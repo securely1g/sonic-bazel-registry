@@ -48,6 +48,28 @@ jobs:
       ARM_TEST_EXECUTOR: /usr/local/bin/sonic-arm64
       TEST_CONTAINER_IMAGE: ${{ inputs.architecture == 'arm64' && !inputs.cross_compile && 'debian:trixie-20260918@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c' || '' }}
     steps:
+      - name: Verify PRoot 5.5.0 for this ARM guest diagnostic
+        if: inputs.cross_compile
+        shell: bash
+        run: |
+          set -euo pipefail
+          stage="$RUNNER_TEMP/arm64-executor-5.5.0"
+          mkdir -p "$stage"
+          curl -fsSL --retry 4 https://github.com/proot-me/proot/releases/download/v5.5.0/proot -o "$stage/proot"
+          printf '%s  %s\n' db185300a9daabbce86aca7632d8c7fdc4249f6f153171954013b70c5f491ec0 "$stage/proot" | sha256sum -c -
+          chmod 755 "$stage/proot"
+          python3 -IS - "$stage" <<'PYTHON'
+          from pathlib import Path
+          import sys
+          stage = Path(sys.argv[1])
+          helper = Path("/usr/local/bin/sonic-arm64").read_text()
+          original = 'PROOT = "/usr/bin/proot"'
+          assert helper.count(original) == 1
+          output = stage / "sonic-arm64"
+          output.write_text(helper.replace(original, "PROOT = " + repr(str(stage / "proot"))))
+          output.chmod(0o755)
+          PYTHON
+          printf 'ARM_TEST_EXECUTOR=%s/sonic-arm64\n' "$stage" >> "$GITHUB_ENV"
       - name: Validate execution route
         run: |
           set -euo pipefail
