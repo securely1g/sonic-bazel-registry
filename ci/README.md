@@ -878,6 +878,8 @@ enforced; the routing map changes execution placement only.
 | `sonic-linux-kernel` | `0.0.2-34a53faaecd325509e9d8f1016ed0108ab558a23` | 5 / 5 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127391886151) |
 | `sonic-rust-deps` | `0.0.4-6d9c70f708d7420e9e2b2cdc906b80cee6b140f1` | 6 / 4 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127417149111) |
 | `sonic-swss-common` | `0.0.9-334389eae54afd1f4f5ee69f89c3a7ad2062ee61` | 16 / 24 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42098955941/job/127496374815) |
+
+| `sonic-sairedis` | `0.0.5-a1568983582654314c43aab421b32ab563ed860c` | 19 / 7 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42216775484/job/127888668575) |
 | `sonic-yang-mgmt` | `1.0.0-9ab452d22773c41783092ae3bd6c206d6c257c8d` | 2 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127454762848) |
 | `sonic-yang-models` | `1.0.1-b0a9362a7a1b4b5e1b7188c019d256f7c8aaff9f` | 3 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127456801062) |
 | `tar.bzl` | `0.10.5.sonic.2` | 8 / 7 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127457427548) |
@@ -933,6 +935,11 @@ and runs a consumer of the installed ARM64 SDK and converts P4Info using the
 installed tools. All four original builds and the uncached test passed.
 [Full ARM64 validation](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42180002707/job/127767164854)
 The remaining module failures stay visible in the survey and retain native ARM validation here.
+
+Sairedis stages its declared ARM loader and libraries using the original test
+wrappers. Its ASIC comparison and ZeroMQ signal fixtures run those wrappers
+with native shell and Python, then execute the AArch64 payload through kernel
+binfmt. The other five original tests use the ARM userspace executor.
 
 The gawk smoke test uses gawk as a native execution tool while the direct gawk
 build targets ARM64. Test execution follows the declared Bazel configuration;
