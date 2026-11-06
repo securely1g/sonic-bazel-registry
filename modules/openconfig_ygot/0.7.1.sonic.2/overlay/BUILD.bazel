@@ -1,0 +1,11 @@
+load("@bazel_gazelle//:def.bzl", "gazelle")
+
+# gazelle:prefix github.com/openconfig/ygot
+# gazelle:go_naming_convention import_alias
+gazelle(name = "gazelle")
+
+filegroup(
+    name = "schema_testdata",
+    srcs = glob(["testdata/**"]),
+    visibility = ["//visibility:public"],
+)
