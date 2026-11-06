@@ -675,7 +675,7 @@ an ARM64 target, and an explicit disposable Debian Trixie container identity.
 The reusable workflow selects native Bazel, image, sudo and artifact handling by
 execution mode while preserving the target architecture and all original labels.
 
-The temporary `ARM_CROSS_VERSIONS` map selects only complete original contracts
+The initial 15 entries in the temporary `ARM_CROSS_VERSIONS` map were
 qualified in [the all-ARM survey](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416)
 at `88d24c7010a5affd9deb1286e63c5a23e246879c`. The job artifacts bind the exact
 source inputs, unchanged selected dependency versions, native execution and ARM
@@ -707,6 +707,13 @@ boot a kernel image. Passing tests only establish each module's existing
 presubmit contract, not broader undeclared functionality. Yang-model package outputs and TAR
 regression archives are architecture-neutral; their original target-side runtime
 tests remain required, and native execution tools retain their configurations.
+The `rules_go` `0.65.0.sonic.1` follow-up moves both original test targets to
+the cross runners. Their ARM test processes invoke the native Bazel launcher
+inside fresh workspaces. Nested builds use the same cross compiler and sysroot
+as the outer build and check the architecture of each produced executable.
+All four original Go cases passed, including Cgo header propagation and build ID
+changes. [Full ARM64 validation](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42094050308/job/127479337371)
+
 The remaining module failures stay visible in the survey and retain native ARM validation here.
 
 The gawk smoke test uses gawk as a native execution tool while the direct gawk
