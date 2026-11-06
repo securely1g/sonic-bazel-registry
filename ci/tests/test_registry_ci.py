@@ -2187,7 +2187,9 @@ class TestContainerTests(unittest.TestCase):
         commands = root / "bin"
         commands.mkdir()
         for name, body in {
-            "sudo": 'printf "%s\\n" "$*" >> "$SUDO_LOG"\n[[ "$1" == -n ]]\nshift\nexec "$@"\n',
+            "sudo": ('printf "%s\\n" "$*" >> "$SUDO_LOG"\n[[ "$1" == -n ]]\nshift\n'
+                     'if [[ "$1" == --preserve-env=DEBIAN_MIRROR_BASE_URL,DEBIAN_SECURITY_MIRROR_BASE_URL,GITHUB_ACTIONS ]]; then shift; fi\n'
+                     'exec "$@"\n'),
             "git": 'printf "%s\\n" "$@" > "$GIT_LOG"\n',
             "python3": 'printf "%s\\n" "$@" > "$CAPTURE"\n',
             "uname": '[[ "$1" == -m ]]\nprintf "%s\\n" "$NATIVE_MACHINE"\n',
@@ -2306,13 +2308,16 @@ class TestContainerTests(unittest.TestCase):
                 result = subprocess.run(["/bin/bash", "-c", script], cwd=registry_ci.ROOT,
                                         env=environment, text=True, capture_output=True)
                 self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual((root / "CAPTURE").read_text().splitlines(),
+                                 ["ci/private_mirrors.py", "check-artifacts", "--artifacts",
+                                  str(root / "workspace/ci-artifacts")])
                 archive = root / "runner temp/registry-ci-evidence.tar"
                 with tarfile.open(archive) as transport:
                     member = transport.getmember("./payload")
                     self.assertEqual(member.mode, 0o751)
                     self.assertEqual(transport.extractfile(member).read(), b"retained evidence\n")
                 if execution == "amd64":
-                    self.assertEqual(len((root / "SUDO_LOG").read_text().splitlines()), 2)
+                    self.assertEqual(len((root / "SUDO_LOG").read_text().splitlines()), 3)
                     self.assertEqual((root / "CHOWN_LOG").read_text().splitlines(),
                                      [f"{os.getuid()}:{os.getgid()}", str(archive)])
                 else:
