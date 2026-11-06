@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check SDK timestamps and isolated GDB lookup without native execution."""
+"""Check SDK timestamps, gzip headers and GDB lookup without native execution."""
 
 import contextlib
 import importlib.util
@@ -51,6 +51,69 @@ class DevelopmentTimestampTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             with self.assertRaisesRegex(ValueError, "empty development archive"):
                 VERIFY.verify_development_timestamps(self.archive(directory, empty=True))
+
+
+class GzipHeaderTest(unittest.TestCase):
+    # A fixed empty gzip stream; tests edit bytes, never invoke compression.
+    GZIP = bytes.fromhex('1f8b080000000000020303000000000000000000')
+    PATH = 'usr/share/man/man5/teamd.conf.5.gz'
+
+    def archive(self, directory, rows):
+        path = Path(directory) / 'runtime.tar'
+        with tarfile.open(path, 'w') as archive:
+            for name, data, kind in rows:
+                member = tarfile.TarInfo(name)
+                member.type = kind
+                if kind == tarfile.REGTYPE:
+                    member.size = len(data)
+                    archive.addfile(member, io.BytesIO(data))
+                else:
+                    member.linkname = 'elsewhere.gz'
+                    archive.addfile(member)
+        return path
+
+    def test_records_zero_time_and_no_optional_header_fields(self):
+        other = 'usr/share/doc/libteam-utils/changelog.Debian.gz'
+        with tempfile.TemporaryDirectory() as directory:
+            archive = self.archive(directory, [(self.PATH, self.GZIP, tarfile.REGTYPE),
+                                                (other, self.GZIP, tarfile.REGTYPE),
+                                                ('usr/share/doc/libteam-utils/copyright', b'notice', tarfile.REGTYPE)])
+            self.assertEqual(VERIFY.verify_gzip_headers(archive, [self.PATH, other]),
+                             [{'path': name, 'flags': 0, 'mtime': 0} for name in sorted([self.PATH, other])])
+
+    def test_rejects_source_or_build_timestamp(self):
+        for mtime in (1595757494, 1793877384):
+            data = self.GZIP[:4] + mtime.to_bytes(4, 'little') + self.GZIP[8:]
+            with self.subTest(mtime=mtime), tempfile.TemporaryDirectory() as directory:
+                archive = self.archive(directory, [(self.PATH, data, tarfile.REGTYPE)])
+                with self.assertRaisesRegex(ValueError, 'non-reproducible gzip header'):
+                    VERIFY.verify_gzip_headers(archive, [self.PATH])
+
+    def test_rejects_filename_comment_extra_and_other_flags(self):
+        for flags in (1, 2, 4, 8, 16, 32, 64, 128):
+            data = self.GZIP[:3] + bytes([flags]) + self.GZIP[4:]
+            with self.subTest(flags=flags), tempfile.TemporaryDirectory() as directory:
+                archive = self.archive(directory, [(self.PATH, data, tarfile.REGTYPE)])
+                with self.assertRaisesRegex(ValueError, 'non-reproducible gzip header'):
+                    VERIFY.verify_gzip_headers(archive, [self.PATH])
+
+    def test_rejects_truncation_magic_and_compression_method(self):
+        for data in (self.GZIP[:9], self.GZIP[:17], b'bad' + self.GZIP[3:],
+                     self.GZIP[:2] + b'\x00' + self.GZIP[3:]):
+            with self.subTest(data=data), tempfile.TemporaryDirectory() as directory:
+                archive = self.archive(directory, [(self.PATH, data, tarfile.REGTYPE)])
+                with self.assertRaisesRegex(ValueError, 'invalid gzip (member|header)'):
+                    VERIFY.verify_gzip_headers(archive, [self.PATH])
+
+    def test_rejects_missing_extra_duplicate_and_link_members(self):
+        row = (self.PATH, self.GZIP, tarfile.REGTYPE)
+        cases = [[], [row, ('unexpected.gz', self.GZIP, tarfile.REGTYPE)], [row, row],
+                 [(self.PATH, b'', tarfile.SYMTYPE)], [(self.PATH, b'', tarfile.LNKTYPE)]]
+        for rows in cases:
+            with self.subTest(rows=rows), tempfile.TemporaryDirectory() as directory:
+                archive = self.archive(directory, rows)
+                with self.assertRaisesRegex(ValueError, '(unexpected gzip member set|invalid gzip member)'):
+                    VERIFY.verify_gzip_headers(archive, [self.PATH])
 
 
 class DebugLookupTest(unittest.TestCase):
