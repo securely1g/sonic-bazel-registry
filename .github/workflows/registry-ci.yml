@@ -1,4 +1,4 @@
-name: Sairedis and SWSS ARM graph validation
+name: Sairedis and SWSS ARM generator validation
 
 on:
   workflow_dispatch:
@@ -54,7 +54,7 @@ jobs:
       matrix:
         include:
           - module: sonic-sairedis
-            version: 0.0.4-ee19458a7d1b417317aaf34fe48969da7293d670
+            version: 0.0.5-a1568983582654314c43aab421b32ab563ed860c
           - module: sonic-swss
             version: 0.0.1-88d9cc2bcda39b0ebac16c95de9601e62021e3eb
     uses: ./.github/workflows/registry-module.yml

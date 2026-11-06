@@ -1377,6 +1377,9 @@ def run(root: Path, module: str, version: str, architecture: str,
                         'use_repo(bindgen, "rules_rust_bindgen")',
                         'register_toolchains("@rules_rust_bindgen//:all")',
                     ])
+            # Exercise normal Bzlmod version selection by a downstream application.
+            if module == "sonic-swss" and version == "0.0.1-88d9cc2bcda39b0ebac16c95de9601e62021e3eb":
+                declarations.append('bazel_dep(name = "sonic-sairedis", version = "0.0.5-a1568983582654314c43aab421b32ab563ed860c", repo_name = "sonic_sairedis")')
             (consumer / "MODULE.bazel").write_text("\n\n".join(declarations) + "\n")
             (consumer / "BUILD.bazel").write_text("# Explicit external targets are built from this consumer.\n")
         (consumer / ".bazelversion").write_text("8.5.1\n")
