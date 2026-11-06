@@ -1,37 +1,14 @@
-name: Validate the original iproute2 contract with native netem generators
-on:
-  workflow_dispatch:
-    inputs:
-      hosted_arm:
-        type: boolean
-        description: Run the native ARM64 contract on a hosted ARM64 machine
-        default: false
+name: Validate iproute2's two original ARM tests with guest Linux exec semantics
+on: workflow_dispatch
 permissions:
   contents: read
 jobs:
-  local:
-    if: ${{ !inputs.hosted_arm }}
-    strategy:
-      fail-fast: false
-      matrix:
-        architecture: [amd64, arm64]
-    name: iproute2 6.15.0.sonic.7 (${{ matrix.architecture }})
-    uses: ./.github/workflows/registry-module.yml
-    with:
-      module: iproute2
-      version: 6.15.0.sonic.7
-      architecture: ${{ matrix.architecture }}
-      execution_architecture: amd64
-      cross_compile: ${{ matrix.architecture == 'arm64' }}
-      runner: '["self-hosted","Linux","X64","debian-trixie-container"]'
-  native-arm:
-    if: ${{ inputs.hosted_arm }}
-    name: iproute2 6.15.0.sonic.7 (native ARM64)
+  validate:
     uses: ./.github/workflows/registry-module.yml
     with:
       module: iproute2
       version: 6.15.0.sonic.7
       architecture: arm64
-      execution_architecture: arm64
-      cross_compile: false
-      runner: '["ubuntu-24.04-arm"]'
+      execution_architecture: amd64
+      cross_compile: true
+      runner: '["self-hosted","Linux","X64","debian-trixie-container"]'

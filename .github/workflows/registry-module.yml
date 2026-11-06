@@ -69,6 +69,8 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+      - name: Build the job-local ARM executor
+        run: bash ci/diagnostics/iproute2-arm-executor.sh
       - name: Install Bazel 8.5.1
         run: |
           set -euo pipefail
