@@ -19,7 +19,7 @@ TRIXIE = ["self-hosted", "Linux", "X64", "debian-trixie-container"]
 
 def expression_value(expression, context):
     """Evaluate the workflow's small Boolean/context expression subset."""
-    expression = re.sub(r"\b(?:github|matrix|inputs|secrets|steps|runner)(?:\.[A-Za-z_][A-Za-z_0-9]*)+",
+    expression = re.sub(r"\b(?:github|matrix|inputs|secrets|steps|runner|needs)(?:\.[A-Za-z_][A-Za-z_0-9]*)+",
                         lambda match: f"lookup({match[0]!r})", expression)
     expression = expression.replace("&&", " and ").replace("||", " or ")
     expression = re.sub(r"!(?!=)", "not ", expression)
@@ -28,7 +28,7 @@ def expression_value(expression, context):
         "contains": lambda values, value: value in values,
         "fromJSON": json.loads,
         "always": lambda: True,
-        "cancelled": lambda: False,
+        "cancelled": lambda: context.get("_cancelled", False),
     })
 
 
@@ -41,6 +41,80 @@ def script(text, name):
 
 
 class PrivateMirrorSecretBoundaryTest(unittest.TestCase):
+    def test_agent_compiles_once_without_secrets_or_tool_installation(self):
+        workflow = (WORKFLOWS / "registry-ci.yml").read_text()
+        self.assertNotIn("\n  http_audit:\n", workflow)
+        producer = workflow.split("  plan:\n", 1)[1].split("  unit:\n", 1)[0]
+        self.assertIn("runs-on: [self-hosted, Linux, X64, debian-trixie-container]", producer)
+        compile_step = step(producer, "Compile the maintained audit source once")
+        upload_step = step(producer, "Publish the same-run audit agent")
+        self.assertIn("continue-on-error: true", compile_step)
+        self.assertIn("continue-on-error: true", upload_step)
+        self.assertIn("timeout-minutes: 2", compile_step)
+        self.assertIn("timeout-minutes: 2", upload_step)
+        self.assertIn("if: steps.http_audit_build.outcome == 'success'", upload_step)
+        self.assertIn("http_audit_artifact_id: ${{ steps.http_audit_upload.outputs.artifact-id }}", producer)
+        self.assertLess(producer.index("Compile the maintained audit source once"), producer.index("Select module versions"))
+        self.assertNotIn("secrets.", producer)
+        self.assertNotIn("apt-get", producer)
+        self.assertNotIn("setup-java", producer)
+        self.assertNotIn("curl", producer)
+        self.assertEqual(workflow.count("python3 ci/build_http_audit.py"), 1)
+        self.assertNotIn("build_http_audit.py", (WORKFLOWS / "registry-module.yml").read_text())
+        self.assertIn("${{ github.run_attempt }}", producer)
+        self.assertIn("retention-days: 30", producer)
+        self.assertIn("${{ github.event.pull_request.head.sha || github.sha }}", producer)
+        expression = re.search(r"^        if: \$\{\{ (.*) \}\}$", compile_step, re.M)[1]
+        for event, head, actor, expected in (
+            ("pull_request", "owner/repo", "maintainer", True),
+            ("pull_request", "fork/repo", "contributor", False),
+            ("pull_request", "owner/repo", "dependabot[bot]", False),
+            ("pull_request_target", "owner/repo", "maintainer", False),
+            ("push", "", "maintainer", True),
+            ("workflow_dispatch", "", "maintainer", True),
+        ):
+            context = {"github.event_name": event, "github.actor": actor, "github.repository": "owner/repo",
+                       "github.event.pull_request.head.repo.full_name": head}
+            self.assertEqual(bool(expression_value(expression, context)), expected)
+
+    def test_optional_agent_does_not_skip_public_test_jobs(self):
+        workflow = (WORKFLOWS / "registry-ci.yml").read_text()
+        for name in ("unit", "cross_fixture", "modules_local"):
+            job = re.split(r"\n  [A-Za-z_]+:\n", workflow.split(f"  {name}:\n", 1)[1], maxsplit=1)[0]
+            condition = re.search(r"^    if: \$\{\{ (.*) \}\}$", job, re.M)[1]
+            self.assertIn("needs: plan", job)
+            for plan_result in ("success", "failure", "skipped"):
+                self.assertEqual(bool(expression_value(condition, {"needs.plan.result": plan_result,
+                                                                   "needs.plan.outputs.has_local_jobs": "true"})),
+                                 name != "modules_local" or plan_result == "success")
+                self.assertFalse(expression_value(condition, {"needs.plan.result": plan_result,
+                                                               "needs.plan.outputs.has_local_jobs": "true",
+                                                               "_cancelled": True}))
+        hosted = workflow.split("  modules_hosted_arm:\n", 1)[1].split("  required:\n", 1)[0]
+        self.assertNotIn("http_audit", hosted)
+        reusable = (WORKFLOWS / "registry-module.yml").read_text()
+        self.assertRegex(reusable, r"http_audit_artifact_id:\n\s+description: [^\n]+\n\s+type: string\n\s+default: ''")
+
+    def test_agent_downloads_are_same_run_and_exclude_hosted_arm(self):
+        for filename in ("registry-ci.yml", "registry-module.yml"):
+            workflow = (WORKFLOWS / filename).read_text()
+            chunks = workflow.split("      - name: Download the optional same-run HTTP audit agent\n")[1:]
+            self.assertTrue(chunks)
+            for chunk in chunks:
+                download = chunk.split("      - ", 1)[0]
+                self.assertIn("continue-on-error: true", download)
+                self.assertIn("artifact-ids:", download)
+                self.assertIn("merge-multiple: true", download)
+                self.assertNotIn("github-token:", download)
+                self.assertNotIn("run-id:", download)
+                self.assertNotIn("repository:", download)
+        workflow = (WORKFLOWS / "registry-ci.yml").read_text()
+        unit = workflow.split("  unit:\n", 1)[1].split("  cross_fixture:\n", 1)[0]
+        download = step(unit, "Download the optional same-run HTTP audit agent")
+        condition = re.search(r"^        if: \$\{\{ (.*) \}\}$", download, re.M)[1]
+        for runner, expected in ((TRIXIE, True), (["ubuntu-24.04-arm"], False)):
+            self.assertEqual(expression_value(condition, {"matrix.runner": runner,
+                                                         "needs.plan.outputs.http_audit_artifact_id": "123"}), expected)
     def test_live_mirror_probe_requires_an_explicit_manual_request(self):
         workflow = (WORKFLOWS / "registry-ci.yml").read_text()
         self.assertRegex(workflow, r"private_mirror_probe:\n\s+description: [^\n]+\n"
@@ -222,6 +296,39 @@ class PrivateMirrorWorkflowCommandTest(unittest.TestCase):
                 if cross:
                     self.assertEqual(command["args"][command["args"].index("--test-executor") + 1],
                                      self.environment["ARM_TEST_EXECUTOR"])
+
+    def test_only_successful_artifact_download_adds_absolute_agent_path(self):
+        for status in ("success", "failure", "skipped", ""):
+            with self.subTest(status=status):
+                self.capture.unlink(missing_ok=True)
+                self.environment["HTTP_AUDIT_READY"] = status
+                result = self.run_step("Build and test through the registry")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                args = json.loads(self.capture.read_text())["args"]
+                self.assertEqual("--http-audit-jar" in args, status == "success")
+                if status == "success":
+                    self.assertEqual(args[args.index("--http-audit-jar") + 1],
+                                     str(self.directory / "tmp/debian-http-audit/debian-http-audit.jar"))
+                    self.assertLess(args.index("--http-audit-jar"), args.index("--"))
+
+    def test_native_and_cross_suites_receive_the_optional_agent(self):
+        workflow = (WORKFLOWS / "registry-ci.yml").read_text()
+        for name, suite in (("Test planning and validation runner", "native"),
+                            ("Test the cross compiler and ARM runtime", "cross")):
+            for status in ("success", "skipped"):
+                with self.subTest(suite=suite, status=status):
+                    self.capture.unlink(missing_ok=True)
+                    self.environment["HTTP_AUDIT_READY"] = status
+                    result = subprocess.run(["bash", "-c", script(workflow, name)], cwd=self.directory,
+                                            env=self.environment, capture_output=True, text=True)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    args = json.loads(self.capture.read_text())["args"]
+                    self.assertEqual(args[:2], ["ci/private_mirrors.py", "suite"])
+                    self.assertEqual(args[-2:], ["--suite", suite])
+                    self.assertEqual("--http-audit-jar" in args, status == "success")
+                    if status == "success":
+                        self.assertEqual(args[args.index("--http-audit-jar") + 1],
+                                         str(self.directory / "tmp/debian-http-audit/debian-http-audit.jar"))
 
     def test_module_evidence_is_not_archived_after_failed_privacy_scan(self):
         for architecture, cross in (("amd64", False), ("arm64", True)):

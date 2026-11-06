@@ -189,9 +189,26 @@ redacted fetch events alongside the usual build/test event streams. Before
 upload, CI scans diagnostics and nested artifacts for private locations. On a
 trusted job, `debian-downloads.json` identifies the evidence files, successful
 and failed candidates, APT Get activity, and any public or unattributed transfers.
-A warning points to this report if there are exceptions. A Bazel fetch event
-identifies the requested candidate. Cache hits and HTTP redirects need separate
-evidence when proving where bytes were served.
+A warning points to this report if there are exceptions. A Bazel fetch event identifies the selected candidate.
+Bazel 8.5.1 omits the entire build event stream for `mod` and `info`;
+`mod graph` can still download packages while evaluating module extensions.
+
+The Trixie planning job compiles the checked-in observer with its existing Java compiler.
+Validation jobs download the JAR by its artifact ID from the same workflow run
+and compare its embedded source SHA256 with their checkout before loading it.
+For trusted runs, this observer delegates to the JVM's existing HTTP
+cookie handler and records the actual Debian request and response origins.
+It captures fast requests, public fallback and redirects in those commands.
+The observer records the origin class, safe object path and HTTP status. It
+omits private hosts, queries, user information, cookies and authentication
+headers. A missing or unhealthy JVM receipt is flagged as incomplete. Retained
+event files are under `download-traces/http/`.
+
+Read the evidence by type. An HTTP 200 means a server responded; the returned
+bytes can still fail integrity verification. Bazel's successful fetch events,
+the checked package digests, and APT's verified installation receipts provide
+separate evidence. A repository cache hit can complete without an HTTP request.
+
 
 To prove private mirror availability, manually run **Registry CI** with
 **private_mirror_probe** selected. This optional check runs only on the trusted

@@ -12,6 +12,9 @@ import tempfile
 from urllib.parse import urlsplit
 from uuid import uuid4
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import http_audit
+
 MARKER = "[private-mirror]"
 COMMANDS = {"fetch", "mod", "info", "query", "cquery", "aquery", "build", "test", "run"}
 # Bazel 8.5.1 accepts these startup options as either --name=value or
@@ -67,6 +70,12 @@ def trace(bazel: str, artifacts: Path, workspace: Path, map_file: Path, args: li
         elif not arg.startswith("-"):
             command = arg
             break
+    jar = workspace / "http-audit.jar"
+    observe_http = command is not None and jar.is_file()
+    if observe_http:
+        # Keep this startup option identical across commands so Bazel reuses
+        # its server. The JAR path and properties filename contain no endpoints.
+        args = [f"--host_jvm_args=-javaagent:{jar}={workspace / 'http.properties'}", *args]
     if command not in COMMANDS:
         os.execvp(bazel, [bazel, *args])
     boundary = args.index("--") if "--" in args else len(args)
@@ -100,16 +109,17 @@ def trace(bazel: str, artifacts: Path, workspace: Path, map_file: Path, args: li
         argv.insert(len(options), f"--build_event_json_file={raw}")
         result = subprocess.run([bazel, *argv])
         with (evidence / f"{command}-{uuid4().hex}-events.jsonl").open("w") as out:
-            finished = False
+            finished = malformed = False
             if raw.exists():
                 with raw.open("rb") as inp:
                     for line in inp:
                         try:
                             event = json.loads(line)
                         except ValueError:
+                            malformed = True
                             continue  # The final record can be truncated on a failed action.
                         identifier = event.get("id", {})
-                        finished |= "buildFinished" in identifier
+                        finished |= "buildFinished" in identifier or bool(event.get("lastMessage"))
                         url = identifier.get("fetch", {}).get("url", "")
                         obj = location(url, private_roots) if url else None
                         if obj:
@@ -119,7 +129,8 @@ def trace(bazel: str, artifacts: Path, workspace: Path, map_file: Path, args: li
                                       "fetch": {"success": event.get("fetch", {}).get("success", False)}}
                             out.write(json.dumps(record) + "\n")
             out.write(json.dumps({"registryFetchCoverage": {"command": command, "exit": result.returncode,
-                                                            "finished_event": finished}}) + "\n")
+                                                            "finished_event": finished, "malformed": malformed,
+                                                            "http_observer": observe_http}}) + "\n")
     return result.returncode if result.returncode >= 0 else 128 - result.returncode
 
 
@@ -129,7 +140,10 @@ def report(root: Path) -> dict:
     exceptions = set()
     incomplete = set()
     public_probes = set()
-    inputs = []
+    http = http_audit.summarize(root, counts, exceptions, public_probes)
+    incomplete.update(http["gaps"])
+    inputs = list(http["inputs"])
+    without_bep = []
     for path in sorted(root.rglob("*")):
         if path.is_symlink() or not path.is_file():
             continue
@@ -148,7 +162,14 @@ def report(root: Path) -> dict:
                         incomplete.add(name)
                         continue
                     coverage = event.get("registryFetchCoverage")
-                    finished |= bool(coverage and coverage["finished_event"]) or "buildFinished" in event.get("id", {})
+                    finished |= "buildFinished" in event.get("id", {}) or bool(event.get("lastMessage"))
+                    if coverage:
+                        finished |= coverage["finished_event"]
+                        if coverage.get("malformed"):
+                            incomplete.add(name)
+                        if coverage["command"] in ("info", "mod") and not finished:
+                            without_bep.append(name)
+                            finished = bool(coverage.get("http_observer") and http["complete"] and coverage["exit"] == 0)
                     url = event.get("id", {}).get("fetch", {}).get("url", "")
                     item = location(url) if url else None
                     if item is None:
@@ -183,6 +204,7 @@ def report(root: Path) -> dict:
         if bep and not finished:
             incomplete.add(name)
     return {"inputs": inputs, "incomplete_traces": sorted(incomplete),
+            "http_observer": http, "commands_without_bep": sorted(without_bep),
             "failed_public_candidates": [{"kind": k, "object": obj, "evidence": evidence}
                                          for k, obj, evidence in sorted(public_probes)],
             "counts": [{"origin": a, "kind": b, "outcome": c, "count": n}
