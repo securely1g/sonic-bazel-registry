@@ -60,6 +60,12 @@ DEBIAN_RELEASE_PACKAGES = (
 # Each tuple is (original URL, content locator, locked SHA256, size, optional CDN).
 # A locator may include the optional filename after the content SHA1.
 DEBIAN_CONTENT_PACKAGES = (
+    ('https://snapshot.debian.org/archive/debian-security/20260726T121236Z/pool/updates/main/k/krb5/libkadm5srv-mit12_1.21.3-5+deb13u1_arm64.deb',
+     '5545c41ec7e7c983b9b966ba46680f4b6954f5ad/libkadm5srv-mit12_1.21.3-5%2Bdeb13u1_arm64.deb',
+     '9e25c202e883de84c2c37d8cc10cadc8fd5538cd4227a1b9f4f160ece94756d6', 53308, None),
+    ('https://snapshot.debian.org/archive/debian-security/20260726T121236Z/pool/updates/main/libs/libsodium/libsodium23_1.0.18-1+deb13u1_arm64.deb',
+     '283449abed3611000399635e3d5dc333b29c4c08/libsodium23_1.0.18-1%2Bdeb13u1_arm64.deb',
+     'd94fc46204b65a965e356ebc19f9f88aeb20a9c777cb9a6569e75f75d0ae5523', 120444, None),
     ("https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/e/expat/libexpat1-dev_2.7.1-2_arm64.deb",
      "b0fd006c705d3b52a70b6378819d3478dec226f1/libexpat1-dev_2.7.1-2_arm64.deb",
      "b219482f10e9a0e52474db2a6f239057ea27fea0db0071e3ddb41e8a8a06064c", 144948, None),

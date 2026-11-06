@@ -1307,3 +1307,35 @@ Registered SONiC patches may retain a Go pseudo-version suffix, for example
 SONiC patch number and separator precedence. Equal release/patch snapshots
 continue to use metadata registration order; hashes/timestamps are not sorted.
 Malformed or unrelated suffixes remain rejected.
+
+## Exact ARM64 security inputs for PR151 owner-source analysis
+
+[PR151 archive validation at `0a789dead`](https://github.com/securely1g/sonic-buildimage/actions/runs/42174896441/job/127750984306)
+built the runtime and Orchagent artifacts before its unconfigured 32-root
+owner/Scapy source-closure query failed on `libkadm5srv-mit12` ARM64. Its sole
+selected security Snapshot URL returned HTTP 503. The same query reported
+HTTP 503 for the sole selected `libsodium23` ARM64 URL; that is an observed
+required-input warning, not the first fatal or proof of a separate query failure.
+The already-covered libsodium ARMHF route is unchanged.
+
+The current source-owned libteam `apt.install` declaration equals the accepted
+recipe: libsodium ARM64 is directly requested, and the selected libzmq3-dev
+expanded closure contains the exact libkadm5srv ARM64 package. The selected
+infrastructure MODULE and source hashes also match the accepted lock. These
+static bindings do not claim a retrieved failed-run lock, a direct Debian
+dependency edge for libkadm5srv, or full current graph equivalence.
+
+| Exact input | Role | Bytes | Original locked SHA256 |
+| --- | --- | ---: | --- |
+| [libkadm5srv-mit12_1.21.3-5+deb13u1_arm64.deb](https://snapshot.debian.org/file/5545c41ec7e7c983b9b966ba46680f4b6954f5ad/libkadm5srv-mit12_1.21.3-5%2Bdeb13u1_arm64.deb) | First fatal fetch | 53,308 | `9e25c202e883de84c2c37d8cc10cadc8fd5538cd4227a1b9f4f160ece94756d6` |
+| [libsodium23_1.0.18-1+deb13u1_arm64.deb](https://snapshot.debian.org/file/283449abed3611000399635e3d5dc333b29c4c08/libsodium23_1.0.18-1%2Bdeb13u1_arm64.deb) | Required-input warning | 120,444 | `d94fc46204b65a965e356ebc19f9f88aeb20a9c777cb9a6569e75f75d0ae5523` |
+
+One bounded filename-bearing official Snapshot request per input returned
+HTTP 200 and matched the complete retained cache bytes and original SHA256.
+There were no redirects, retries, metadata requests, package execution, or
+manual ARM execution. Content SHA1 values locate the bytes; the original
+package SHA256 remains authoritative. Only these exact dated security URLs
+gain content-first routes, each followed by its exact original URL. Existing
+scope tests cover changed dates, filenames, architectures, paths, hosts and
+query suffixes; all previous routes and negative controls remain intact.
+Configured-fetch and consumer acceptance for these additions remain pending.
