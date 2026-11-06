@@ -52,10 +52,16 @@ socat_source(
     name = "socat_source",
     build_file = "//:bazel/socat.BUILD.bazel",
     debian_sha256 = "04b361cd91884eda6ca9fe2890ca83a6abe73dd8ce75fe9927b2d8443af36123",
-    debian_url = "https://snapshot.debian.org/archive/debian/20241222T205329Z/pool/main/s/socat/socat_1.8.0.2-1.debian.tar.xz",
+    debian_urls = [
+        "https://packages.trafficmanager.net/public/debian/socat_1.8.0.2-1.debian.tar.xz",
+        "https://snapshot.debian.org/archive/debian/20241222T205329Z/pool/main/s/socat/socat_1.8.0.2-1.debian.tar.xz",
+    ],
     readline_patch = "//:bazel/0001-enable-readline.patch",
     upstream_sha256 = "adc07a9c2723527cf6568d2fb96559794cf9c254a4bc2edd36f7f3789e9f7625",
-    upstream_url = "https://snapshot.debian.org/archive/debian/20241222T205329Z/pool/main/s/socat/socat_1.8.0.2.orig.tar.bz2",
+    upstream_urls = [
+        "https://packages.trafficmanager.net/public/debian/socat_1.8.0.2.orig.tar.bz2",
+        "https://snapshot.debian.org/archive/debian/20241222T205329Z/pool/main/s/socat/socat_1.8.0.2.orig.tar.bz2",
+    ],
 )
 
 register_toolchains(

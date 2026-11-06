@@ -3,6 +3,12 @@
 This module compiles socat 1.8.0.2 from Debian's source package:
 `socat_1.8.0.2.orig.tar.bz2` plus `socat_1.8.0.2-1.debian.tar.xz`.
 Both archives are checksum-pinned to the values in `socat_1.8.0.2-1.dsc`.
+Downloads try SONiC's `packages.trafficmanager.net/public/debian/` source mirror
+first and retain the original Debian Snapshot URLs as fallbacks. This applies
+both to the registry's root archive and to the two archives used by the source
+repository; no consumer downloader configuration is required. Every candidate
+must match the original archive checksum. Extraction formats are explicit so
+fallback redirects to extensionless content URLs remain supported.
 The source repository applies `debian/patches/series` in order, directly from
 the Debian archive. Debian's control files, build rules, copyright and patches
 remain together; the registry does not keep copies of Debian-maintained patches
@@ -42,6 +48,20 @@ no file is installed on the build host. The manuals remain plain `.1` files,
 which the man command supports, instead of Debian packaging's gzip copies.
 
 ## Build and validation
+
+From the registry checkout, run the source-contract tests with:
+
+```sh
+python3 -B -m unittest discover -s modules/socat/1.8.0.2.sonic.6/tests -v
+```
+
+To also exercise real Bazel downloads, set `REGISTRY_CI_TEST_BAZEL` to the Bazel
+8.5.1 executable and `SOCAT_SOURCE_ARCHIVES` to a directory containing the two
+original archives named above. The tests verify those fixtures against the
+pinned hashes before use. They check live mirror downloads and patch application,
+mirror-first ordering, HTTP-error and checksum-error fallback, and rejection
+when all candidates have invalid checksums. Every case uses a fresh output base
+with the repository cache disabled.
 
 Use native AMD64 or ARM64 with the corresponding SONiC Trixie platform:
 

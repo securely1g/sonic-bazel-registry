@@ -1,16 +1,19 @@
 {
-  "url": "https://snapshot.debian.org/archive/debian/20241222T205329Z/pool/main/s/socat/socat_1.8.0.2.orig.tar.bz2",
+  "url": "https://packages.trafficmanager.net/public/debian/socat_1.8.0.2.orig.tar.bz2",
+  "mirror_urls": [
+    "https://snapshot.debian.org/archive/debian/20241222T205329Z/pool/main/s/socat/socat_1.8.0.2.orig.tar.bz2"
+  ],
   "integrity": "sha256-rcB6nCcjUnz2Vo0vuWVZeUz5wlSkvC7dNvfzeJ6fdiU=",
   "strip_prefix": "socat-1.8.0.2",
   "overlay": {
     "BUILD.bazel": "sha256-r2fyCrDt8eZh66OYzj4AlITcH458u9LeESR11QU8ca4=",
-    "MODULE.bazel": "sha256-AoCSEdWwq8vOEJ8Nh+NiZDLW3sgyHBFYQHy4h/YTLAs=",
-    "README.bazel.md": "sha256-oYWChTAcvlZz/h/hwpq7ZC179J6a2HqT+XXN4tk/s4Y=",
+    "MODULE.bazel": "sha256-B2vcAbd3oeJ1H5acZnPjEcSS4ajS/7h8dpFQ79QNN3c=",
+    "README.bazel.md": "sha256-MZVz5Y2zeh/4bb6218iJiAYbQjeJmoZVBIB6dJ3rZL4=",
     "bazel/0001-enable-readline.patch": "sha256-5glrKB+C18vMa7W8FRXTyEfo5AIDVouydfTxzZf7RaQ=",
     "bazel/0002-compiler-metadata.patch": "sha256-sv1gwJ2iXCDIjMdvcrcCdt/lUPUpvxQjGkAK5anlRcE=",
     "bazel/0003-procan-namespace-nul.patch": "sha256-N3LNqgqQSI0+ygpR0HqN3E59DcICFZtgLHh1Vbf7Tcg=",
     "bazel/socat.BUILD.bazel": "sha256-09JRXXBOByTRvVOs+ur1Lgf2maZVkmvCf7cAnUHjLxE=",
-    "bazel/source.bzl": "sha256-8Qk/8ik/ArbZxfyXadm6eO3bHZQSc+MGYiwXsOElFYs=",
+    "bazel/source.bzl": "sha256-6/PMrVfFBsXX+l2SkHbRSddP7902vBi1uRJFELdiUes=",
     "runtime_packages.md": "sha256-pcAPU9KpYouH5brGxYGV6zaRxRhCDQwi74BBbjCBbs4=",
     "socat_package_test.py": "sha256-uWhzgvHfBrB7KMYLvWA9qax6ZGHxEw6H4HQQFjPGhMQ="
   }

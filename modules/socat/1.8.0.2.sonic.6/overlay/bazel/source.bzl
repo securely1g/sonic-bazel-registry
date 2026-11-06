@@ -2,12 +2,13 @@
 
 def _socat_source_impl(ctx):
     ctx.download_and_extract(
-        url = ctx.attr.upstream_url,
+        url = ctx.attr.upstream_urls,
         sha256 = ctx.attr.upstream_sha256,
         stripPrefix = "socat-1.8.0.2",
+        type = "tar.bz2",
     )
     ctx.download_and_extract(
-        url = ctx.attr.debian_url,
+        url = ctx.attr.debian_urls,
         sha256 = ctx.attr.debian_sha256,
         type = "tar.xz",
     )
@@ -35,9 +36,9 @@ def _socat_source_impl(ctx):
 socat_source = repository_rule(
     implementation = _socat_source_impl,
     attrs = {
-        "upstream_url": attr.string(mandatory = True),
+        "upstream_urls": attr.string_list(mandatory = True),
         "upstream_sha256": attr.string(mandatory = True),
-        "debian_url": attr.string(mandatory = True),
+        "debian_urls": attr.string_list(mandatory = True),
         "debian_sha256": attr.string(mandatory = True),
         "readline_patch": attr.label(mandatory = True, allow_single_file = True),
         "compiler_metadata_patch": attr.label(default = "//:bazel/0002-compiler-metadata.patch", allow_single_file = True),
