@@ -450,6 +450,20 @@ records; this is not a retrieved failed-run lock or full graph acceptance.
 No manual ARM execution was used. Configured-fetch and consumer acceptance
 for these four new input routes remain pending.
 
+[PR196's existing automatic Eventd ARM64 job](https://github.com/securely1g/sonic-buildimage/actions/runs/42156655260/job/127692301423)
+failed during dependency analysis when the dated security Snapshot could not
+serve `krb5-multidev_1.21.3-5+deb13u1_arm64.deb`. Its exact route now tries
+[verified official content](https://snapshot.debian.org/file/a7f775b5c78d9d5e769349d980b05b9f13e891d2) before the same original dated URL.
+The sole HTTP 200 response matched all 126,404 bytes, SHA256
+`9f5d65a069269b0960418f9d5a3110158234a1efbe9a9feb3650c57422fe41ef`, and the complete retained cache.
+The selected current infra APT declaration, source list and architectures match
+the accepted historical lock inputs for this tuple; no failed-run generated
+lock or full current graph equivalence is claimed. All earlier ordered rules
+remain unchanged, including the separate ARMHF Kerberos route. Package versions,
+required hashes, source recipes and module files are unchanged. No manual ARM
+execution or package generation was needed; configured-fetch and consumer
+acceptance for this addition remain pending.
+
 ## Exact Socat source archive fallback
 
 The [SWSS image source-base workflow at `6ab506bd`](https://github.com/securely1g/sonic-buildimage/actions/runs/42055651322/attempts/2)
