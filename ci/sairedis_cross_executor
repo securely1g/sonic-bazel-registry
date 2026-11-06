@@ -1,0 +1,21 @@
+#!/bin/bash
+set -euo pipefail
+
+# These original shell wrappers use native Python to stage their declared ARM
+# loader and libraries. The kernel's binfmt handler runs the target payload.
+original=("$@")
+while [[ "$1" != -- ]]; do shift; done
+shift
+case "$1" in
+    */saiasiccmp/tests.sh) target=saiasiccmp/saiasiccmp ;;
+    */tests/tests_test.sh) target=tests/tests ;;
+    *) exec "${original[@]}" ;;
+esac
+payload="${TEST_SRCDIR:?}/${TEST_WORKSPACE:?}/../sonic-sairedis+/$target"
+if ! LC_ALL=C readelf -h -- "$payload" | grep -Eq 'Machine: +AArch64$'; then
+    echo "Expected the declared AArch64 payload $target" >&2
+    exit 1
+fi
+export QEMU_LD_PREFIX=/opt/sonic-arm64-rootfs
+echo "Running original Sairedis fixture through binfmt with AArch64 $target" >&2
+exec "$@"

@@ -1496,6 +1496,8 @@ def run(root: Path, module: str, version: str, architecture: str,
             test_flags = prepare_test_runtime(config, fetched[0].parent, consumer, artifacts,
                                               architecture, test_container_image, executor_prefix or None)
             if executor_prefix:
+                if (module, version) == ("sonic-sairedis", "0.0.5-a1568983582654314c43aab421b32ab563ed860c"):
+                    executor_prefix = [str(root / "ci" / "sairedis_cross_executor"), *executor_prefix]
                 test_flags.append("--run_under=" + shlex.join(executor_prefix))
             # Emulated Python can spend more than five minutes staging a large
             # declared runtime before the test starts. Keep caller timeouts and
