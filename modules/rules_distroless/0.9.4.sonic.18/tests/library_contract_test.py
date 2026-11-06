@@ -358,6 +358,28 @@ def main():
         cases.append((case, 'int private_boundary_value(void);', 'private_boundary_value()', 'libprivateboundary-dev', ()))
     module_cases['privatemodule'] = '@locked//libprivateboundary-dev:pkgconfig/privateboundary'
 
+    # A package owning the libc ABI belongs to the selected toolchain at
+    # execution time. Its archive stays complete, while transitive SDK CcInfo
+    # must not override the executable's interpreter with a second C runtime.
+    fixture_c_runtime = library('fixture-libc', 'fixture_c_marker', 0, 'libc.so.6')
+    fixture_c_peer = library('fixture-c-peer', 'fixture_c_peer', 0, 'libfixture_c_peer.so.1')
+    package('fixture-c-runtime', dict(config_files, **{
+        'usr/lib/libc.so.6': fixture_c_runtime,
+        'usr/lib/libfixture_c_peer.so.1': fixture_c_peer}))
+    source = root/'systemboundary.c'
+    source.write_text('int system_boundary_value(void){return 42;}\n')
+    boundary = root/'libsystemboundary.so'
+    run(compiler+['-shared','-fPIC',str(source),'-Wl,-soname,libsystemboundary.so.1',
+        '-Wl,--no-as-needed',str(root/'fixture-libc.so'),'-Wl,--as-needed','-o',str(boundary)])
+    assert '[libc.so.6]' in run(['readelf','-d',str(boundary)]).stdout
+    package('libsystemboundary-dev', {
+        'usr/lib/libsystemboundary.so.1': boundary.read_bytes(),
+        'usr/lib/libsystemboundary.so': 'libsystemboundary.so.1',
+        'usr/lib/pkgconfig/systemboundary.pc': pc('systemboundary')}, ['fixture-c-runtime'])
+    for case in ['systemlegacy', 'systemmodule']:
+        cases.append((case, 'int system_boundary_value(void);', 'system_boundary_value()', 'libsystemboundary-dev', ()))
+    module_cases['systemmodule'] = '@locked//libsystemboundary-dev:pkgconfig/systemboundary'
+
     package('libplain-dev', {
         'usr/lib/libplain.so.1': library('libplain', 'plain_value', 42, 'libplain.so.1'),
         'usr/lib/libplain.so': 'libplain.so.1'})
@@ -450,6 +472,7 @@ use_repo(apt,"locked","conflicting","providers")
     build.append('link_context(name="language_context",dep=":multi_downstream_link")')
     build.append('link_context(name="foreign_context",dep="@locked//libprivateboundary-dev:libprivateboundary")')
     build.append('link_context(name="foreign_plain_context",dep="@locked//libplain-dev:libplain")')
+    build.append('link_context(name="system_runtime_context",dep="@locked//libsystemboundary-dev:libsystemboundary")')
     (root/'explicit_ctor.c').write_text('int optional_value(void); int ctor_selected(void){return optional_value();}\n')
     build += ['cc_library(name="explicit_ctor_objects",srcs=["explicit_ctor.c"],deps=["@locked//liboptional-dev:liboptional_cc","@locked//liboptional-dev:liboptional_ctor_static"])',
         'cc_shared_library(name="explicit_ctor",deps=[":explicit_ctor_objects"])']
@@ -469,7 +492,7 @@ PyMODINIT_FUNC PyInit_optional_python(void){return PyModule_Create(&module);}
 ''')
         build += ['cc_library(name="python_headers",hdrs=glob(["python_headers/**"]),includes=["python_headers"])',
             'cc_binary(name="optional_python.so",srcs=["optional_python.c"],linkshared=True,deps=[":python_headers",":optional_downstream_link"],linkopts=["-Wl,-rpath,$$ORIGIN/../lib"])']
-    payload_packages = ["libnames-dev", "libliteral-dev", "libcompatmissing-dev", 'fixture-config', 'libmulti-dev', 'libboundary-dev', 'libpcgraph-dev']
+    payload_packages = ["libnames-dev", "libliteral-dev", "libcompatmissing-dev", 'fixture-config', 'libmulti-dev', 'libboundary-dev', 'libpcgraph-dev', 'fixture-c-runtime']
     build.append('filegroup(name="package_inputs",srcs=[' + ','.join(f'"@locked//{pkg}/{arch}:{kind}"' for pkg in payload_packages for kind in ['deb', 'data', 'control']) + '])')
     if cross:
         version=run([cross['cc'],'-dumpversion']).stdout.strip()
@@ -507,6 +530,9 @@ PyMODINIT_FUNC PyInit_optional_python(void){return PyModule_Create(&module);}
             entries = {item.name.removeprefix('./'): item for item in archive.getmembers()}
             for path, content in config_files.items():
                 assert archive.extractfile(entries[path]).read() == content, (pkg,path)
+            if pkg == 'fixture-c-runtime':
+                assert archive.extractfile(entries['usr/lib/libc.so.6']).read() == fixture_c_runtime
+                assert archive.extractfile(entries['usr/lib/libfixture_c_peer.so.1']).read() == fixture_c_peer
             if pkg == 'libboundary-dev':
                 for name, destination in [('libbroken.so', 'libabsent.so.1'), ('libcycle.so', 'libcycle_next.so'), ('libcycle_next.so', 'libcycle.so')]:
                     member = entries['usr/lib/'+name]
@@ -539,7 +565,7 @@ PyMODINIT_FUNC PyInit_optional_python(void){return PyModule_Create(&module);}
         assert result.returncode and message in result.stdout+result.stderr,(name,result.stdout+result.stderr)
         print('PASS native-only error:',name,flush=True)
     with (root / 'build.log').open('w') as log:
-        result = subprocess.run(bazel+['build']+flags+['//:'+case+'_consumer' for case, *_ in cases]+['//:language_context','//:legacy_header_context','//:strict_header_context','//:foreign_context','//:foreign_plain_context','//:plugin_context','//:explicit_ctor','//:explicit_plugin','//:graph_static']+(['//:optional_python.so'] if not cross else []),cwd=root,env=env,stdout=log,stderr=subprocess.STDOUT)
+        result = subprocess.run(bazel+['build']+flags+['//:'+case+'_consumer' for case, *_ in cases]+['//:language_context','//:legacy_header_context','//:strict_header_context','//:foreign_context','//:foreign_plain_context','//:system_runtime_context','//:plugin_context','//:explicit_ctor','//:explicit_plugin','//:graph_static']+(['//:optional_python.so'] if not cross else []),cwd=root,env=env,stdout=log,stderr=subprocess.STDOUT)
     if result.returncode:
         raise SystemExit('Fixture build failed: '+str(root/'build.log'))
     # Legacy SDK headers remain system headers, so a source -I can override
@@ -568,6 +594,7 @@ PyMODINIT_FUNC PyInit_optional_python(void){return PyModule_Create(&module);}
     for label, libname, declaration, expression in [
         ('foreign_context', 'privateboundary', 'int private_boundary_value(void);', 'private_boundary_value()'),
         ('foreign_plain_context', 'plain', 'int plain_value(void);', 'plain_value()'),
+        ('system_runtime_context', 'systemboundary', 'int system_boundary_value(void);', 'system_boundary_value()'),
     ]:
         foreign_prefix = root/label
         (foreign_prefix/'lib').mkdir(parents=True)
@@ -584,6 +611,9 @@ PyMODINIT_FUNC PyInit_optional_python(void){return PyModule_Create(&module);}
         run(compiler+[str(source), '-L'+str(foreign_prefix/'lib'), '-l'+libname, '-Wl,-rpath,$ORIGIN/lib', '-o', str(foreign_prefix/'consumer')])
         assert execute(foreign_prefix/'consumer', foreign_prefix) == ''
         print('PASS foreign dependency-prefix consumer resolves the original -l alias:', label, flush=True)
+    runtime_context=json.loads((root/'bazel-bin/system_runtime_context.json').read_text())
+    assert not any('libc.so.6' in path or 'fixture_c_peer' in path for path in runtime_context['dynamic_files']),runtime_context
+    print('PASS toolchain C runtime excluded from transitive SDK runtime; complete libc archive retained',flush=True)
     plugin_context=json.loads((root/'bazel-bin/plugin_context.json').read_text())
     assert not any('module.so' in value or '/plugins/one/' in value or '/plugins/two/' in value for value in plugin_context['flags']+plugin_context['files']),plugin_context
     ordinary_dynamic = run(['readelf','-d',str(root/'bazel-bin/liboptional_bridge.so')]).stdout
@@ -614,6 +644,10 @@ PyMODINIT_FUNC PyInit_optional_python(void){return PyModule_Create(&module);}
     (install/'lib').mkdir()
     (install/'bin').mkdir()
     for tree in root.glob('pkg-*'):
+        # The deliberately incomplete libc ABI is a metadata sentinel. Installed
+        # consumers use the real compiler/emulator C runtime, as native builds do.
+        if tree.name == 'pkg-fixture-c-runtime':
+            continue
         for file in tree.rglob('*'):
             if not file.is_file() or file.read_bytes()[:4] != b'\x7fELF':
                 continue

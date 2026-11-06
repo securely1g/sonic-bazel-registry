@@ -37,7 +37,8 @@
     "0031-deduplicate-pkgconfig-dependencies.patch": "sha256-zEddkl1haBwoWhgJPm5IZH9wn5i7UspV4Q+HSlQg1+0=",
     "0032-complete-apt-contract-boundaries.patch": "sha256-Q4zu+g1xMk6iJbro1Ag3iP+3ZMsdCYuNdFFD40QcOg0=",
     "0033-reuse-module-runtime-libraries.patch": "sha256-4Ij45li1i2ZqO926+jEyLn4hnRQxW7JWa4ebxU3hBBM=",
-    "0034-isolate-static-private-library-dependencies.patch": "sha256-+4uMUWCzxh4T1g0xfFM72nErMJl8nTCM1bXxyVRHmYE="
+    "0034-isolate-static-private-library-dependencies.patch": "sha256-+4uMUWCzxh4T1g0xfFM72nErMJl8nTCM1bXxyVRHmYE=",
+    "0035-keep-glibc-runtime-with-the-toolchain.patch": "sha256-Efo+lzEpnrjBeKSxhVJvHpmn16pxbI5qhOxEyb1F61c="
   },
   "patch_strip": 1,
   "overlay": {

@@ -414,7 +414,7 @@ other compiler options explicitly rather than dropping them; legacy labels keep
 their former behavior and original metadata remains available. New rule-file
 loads have declared bzl_library dependencies.
 
-The fixture has 40 two-DSO chains, independent SDK/GNU controls, raw-archive
+The fixture has 42 two-DSO chains, independent SDK/GNU controls, raw-archive
 checks and negative selections. It covers the contracts above and the original
 native/Python/Go/Rust boundaries. ARM64 uses target compilation and QEMU; native
 host and emulated target results are reported separately. The updater's relative
@@ -463,3 +463,21 @@ package wrappers and header-bearing _wodeps rules remain unchanged.
 Legacy package defaults preserve SDK header paths as system include directories.
 Explicit `pkgconfig/...` modules retain the original ordinary `-I` classification.
 The contract fixture checks source-header precedence against both interfaces.
+
+## 0035-keep-glibc-runtime-with-the-toolchain.patch
+
+Identify the package owning the libc.so.6 ABI from ELF SONAME metadata. Keep
+that package's companion DSOs out of transitive CcInfo runtime-library lists,
+including package defaults, selected-module closures and foreign dependency
+prefixes. The compiler toolchain and execution environment select the C runtime;
+an incidental Debian dependency must not override the ELF interpreter with a
+second glibc. Explicit selected library/script inputs and deb/data/control
+payloads retain their files.
+
+P4C's irgenerator reproduced a startup SIGSEGV when the Ubuntu glibc 2.43 loader
+picked up Debian glibc 2.41 from its CMake dependency-prefix RUNPATH. The same
+binary and input definitions succeeded with a matching 2.41 runtime. The
+synthetic fixture uses an intentionally incomplete libc ABI and a companion
+DSO to detect leaks, verifies both legacy and explicit dynamic consumers, and
+checks that the original package archives remain complete. Its installed
+consumers use the actual compiler/emulator C runtime.

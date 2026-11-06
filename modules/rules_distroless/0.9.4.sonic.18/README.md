@@ -180,3 +180,10 @@ their existing search paths.
 Legacy package defaults preserve SDK header paths as system include directories.
 Explicit `pkgconfig/...` modules retain the original ordinary `-I` classification.
 The contract fixture checks source-header precedence against both interfaces.
+
+Transitive SDK CcInfo leaves glibc runtime selection to the compiler toolchain
+and execution environment. The package identified by the libc.so.6 ELF SONAME
+keeps its complete archive payload, while its DSOs do not become incidental
+solib or foreign-prefix runtime libraries. Explicit selected library and linker
+script inputs remain available. This prevents a foreign build-time generator
+from mixing the host ELF loader with a different transitive glibc.
