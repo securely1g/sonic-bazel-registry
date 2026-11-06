@@ -61,6 +61,7 @@ ARM_CROSS_VERSIONS: dict[str, tuple[str, ...]] = {
     "protobuf-legacy": ("3.21.12.sonic.2",),
     "rules_distroless": ("0.9.4.sonic.17",),
     "rules_foreign_cc": ("0.16.0.sonic.1",),
+    "rules_go": ("0.65.0.sonic.1",),
     "rules_python": ("1.9.0.sonic.1",),
     "sai": ("1.18.0-sonic.1",),
     "socat": ("1.8.0.2.sonic.5",),
@@ -1341,6 +1342,25 @@ def prepare_cross_python_runtimes(bazel_prefix: list[str], flags: list[str], tes
     return mappings
 
 
+def prepare_nested_go_tests(root: Path, work_dir: Path, bazel: str) -> Path:
+    """Expose native Bazel and the outer ARM toolchain to the original Go tests."""
+    adapter = work_dir / "cross-cc-repository"
+    require((adapter / "BUILD.bazel").is_file(), "Nested rules_go tests require the isolated ARM toolchain")
+    host_bazel = shutil.which(bazel)
+    require(host_bazel is not None, f"Could not locate the native Bazel launcher: {bazel}")
+    source = root / "ci" / "rules_go_cross"
+    platforms = adapter / "nested"
+    platforms.mkdir()
+    shutil.copy2(source / "platforms.BUILD.bazel", platforms / "BUILD.bazel")
+    tools = work_dir / "nested-go-tools"
+    tools.mkdir()
+    shutil.copy2(source / "bazel", tools / "bazel")
+    shutil.copy2(source / "executor", tools / "executor")
+    (tools / "host-bazel").symlink_to(Path(host_bazel).absolute())
+    shutil.copy2(root / "ci" / "source_mirrors.cfg", tools / "source_mirrors.cfg")
+    return tools / "executor"
+
+
 def run(root: Path, module: str, version: str, architecture: str,
         work_dir: Path, artifacts: Path, bazel: str = "bazel",
         test_container_image: str | None = None,
@@ -1533,6 +1553,11 @@ def run(root: Path, module: str, version: str, architecture: str,
                     executor_prefix[-1:-1] = ["--bind-at", mapping["source"], mapping["destination"]]
             test_flags = prepare_test_runtime(config, fetched[0].parent, consumer, artifacts,
                                               architecture, test_container_image, executor_prefix or None)
+            if cross_compile and module == "rules_go":
+                go_executor = prepare_nested_go_tests(root, work_dir, bazel)
+                executor_prefix = [str(go_executor)]
+                cross_runtime["test_executor_prefix"] = executor_prefix
+                cross_runtime["test_executor_sha256"] = hashlib.sha256(go_executor.read_bytes()).hexdigest()
             if executor_prefix:
                 test_flags.append("--run_under=" + shlex.join(executor_prefix))
             # Emulated Python can spend more than five minutes staging a large

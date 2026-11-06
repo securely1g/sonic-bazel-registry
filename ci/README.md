@@ -901,6 +901,15 @@ executor, including its Go self-execution and package/debug-symbol checks.
 The Trixie runner supplies the corrected PRoot for this path.
 [Runner implementation](https://github.com/securely1g/agi-projects/pull/92)
 
+The `rules_go` `0.65.0.sonic.1` follow-up moves both original test targets to
+the cross runners. Their ARM test processes invoke the native Bazel launcher
+inside fresh workspaces. Nested builds use the same cross compiler and sysroot
+as the outer build and check the architecture of each produced executable.
+All four original Go cases passed, including Cgo header propagation and build ID
+changes. [Full ARM64 validation](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42094050308/job/127479337371)
+
+The remaining module failures stay visible in the survey and retain native ARM validation here.
+
 The gawk smoke test uses gawk as a native execution tool while the direct gawk
 build targets ARM64. Test execution follows the declared Bazel configuration;
 the ARM cross fixture independently verifies native execution tools, ARM ELF
