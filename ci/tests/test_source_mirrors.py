@@ -60,6 +60,9 @@ DEBIAN_RELEASE_PACKAGES = (
 # Each tuple is (original URL, content locator, locked SHA256, size, optional CDN).
 # A locator may include the optional filename after the content SHA1.
 DEBIAN_CONTENT_PACKAGES = (
+    ('https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/g/glibc/libc-dev-bin_2.41-12+deb13u3_armhf.deb',
+     '7ea08392e98a52327fbe68d853f0444e1f8f676d/libc-dev-bin_2.41-12%2Bdeb13u3_armhf.deb',
+     'f9797e3c0b091a540c1d33b630ba965aab9b128cb73c3c28ed4271c9e83b9354', 58444, None),
     ('https://snapshot.debian.org/archive/debian-security/20260726T121236Z/pool/updates/main/k/krb5/libkadm5srv-mit12_1.21.3-5+deb13u1_arm64.deb',
      '5545c41ec7e7c983b9b966ba46680f4b6954f5ad/libkadm5srv-mit12_1.21.3-5%2Bdeb13u1_arm64.deb',
      '9e25c202e883de84c2c37d8cc10cadc8fd5538cd4227a1b9f4f160ece94756d6', 53308, None),
