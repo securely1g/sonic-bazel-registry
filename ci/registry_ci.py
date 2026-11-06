@@ -66,9 +66,18 @@ ARM_CROSS_VERSIONS: dict[str, tuple[str, ...]] = {
     "sonic-dash-api": ("0.0.5-9b2893e890734a2db0c53a5e5c64b031ec0dcfbd",),
     "sonic-linux-kernel": ("0.0.2-34a53faaecd325509e9d8f1016ed0108ab558a23",),
     "sonic-rust-deps": ("0.0.4-6d9c70f708d7420e9e2b2cdc906b80cee6b140f1",),
+    "sonic-sairedis": ("0.0.5-a1568983582654314c43aab421b32ab563ed860c",),
     "sonic-yang-mgmt": ("1.0.0-9ab452d22773c41783092ae3bd6c206d6c257c8d",),
     "sonic-yang-models": ("1.0.1-b0a9362a7a1b4b5e1b7188c019d256f7c8aaff9f",),
     "tar.bzl": ("0.10.5.sonic.2",),
+}
+
+# The original wrappers stage a private target executable, loader and libraries.
+ARM_DECLARED_RUNTIME_FIXTURES = {
+    ("sonic-sairedis", "0.0.5-a1568983582654314c43aab421b32ab563ed860c"): {
+        "saiasiccmp/tests.sh": "sonic-sairedis+/saiasiccmp/saiasiccmp",
+        "tests/tests_test.sh": "sonic-sairedis+/tests/tests",
+    },
 }
 
 HTTP_DOWNLOAD_FLAGS = (
@@ -1493,6 +1502,9 @@ def run(root: Path, module: str, version: str, architecture: str,
             test_flags = prepare_test_runtime(config, fetched[0].parent, consumer, artifacts,
                                               architecture, test_container_image, executor_prefix or None)
             if executor_prefix:
+                fixtures = ARM_DECLARED_RUNTIME_FIXTURES.get((module, version))
+                if fixtures:
+                    executor_prefix = [str(root / "ci" / "declared_arm_runtime.py"), json.dumps(fixtures), *executor_prefix]
                 test_flags.append("--run_under=" + shlex.join(executor_prefix))
             # Emulated Python can spend more than five minutes staging a large
             # declared runtime before the test starts. Keep caller timeouts and
