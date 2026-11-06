@@ -851,16 +851,19 @@ an ARM64 target, and an explicit disposable Debian Trixie container identity.
 The reusable workflow selects native Bazel, image, sudo and artifact handling by
 execution mode while preserving the target architecture and all original labels.
 
-The temporary `ARM_CROSS_VERSIONS` map initially selected the complete original contracts
-qualified in [the all-ARM survey](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416)
-at `88d24c7010a5affd9deb1286e63c5a23e246879c`. The job artifacts bind the exact
+The temporary `ARM_CROSS_VERSIONS` map selects exact versions whose complete
+original contracts passed in the all-ARM survey or a subsequent full run.
+The initial 15 versions were validated at `88d24c7010a5affd9deb1286e63c5a23e246879c`.
+[Survey run](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416)
+
+The job artifacts bind the exact
 source inputs, unchanged selected dependency versions, native execution and ARM
 target platforms, produced output identities, and every original uncached test.
 A successful build alone is not a module pass. Source-fix probes and diagnostic
 replays do not count as survey acceptance. Published-entry immutability remains
 enforced; the routing map changes execution placement only.
 
-| Module | Exact version | Build / test labels | Survey evidence |
+| Module | Exact version | Build / test labels | ARM64 validation |
 | --- | --- | --- | --- |
 | `gawk` | `5.3.2.sonic.1` | 3 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127198380280) |
 | `gazelle` | `0.54.0.sonic.1` | 1 / 3 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127198380420) |
@@ -874,6 +877,7 @@ enforced; the routing map changes execution placement only.
 | `sonic-dash-api` | `0.0.5-9b2893e890734a2db0c53a5e5c64b031ec0dcfbd` | 8 / 5 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127363604452) |
 | `sonic-linux-kernel` | `0.0.2-34a53faaecd325509e9d8f1016ed0108ab558a23` | 5 / 5 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127391886151) |
 | `sonic-rust-deps` | `0.0.4-6d9c70f708d7420e9e2b2cdc906b80cee6b140f1` | 6 / 4 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127417149111) |
+| `sonic-swss-common` | `0.0.9-334389eae54afd1f4f5ee69f89c3a7ad2062ee61` | 16 / 24 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42098955941/job/127496374815) |
 | `sonic-yang-mgmt` | `1.0.0-9ab452d22773c41783092ae3bd6c206d6c257c8d` | 2 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127454762848) |
 | `sonic-yang-models` | `1.0.1-b0a9362a7a1b4b5e1b7188c019d256f7c8aaff9f` | 3 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127456801062) |
 | `tar.bzl` | `0.10.5.sonic.2` | 8 / 7 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127457427548) |
@@ -883,6 +887,8 @@ boot a kernel image. Passing tests only establish each module's existing
 presubmit contract, not broader undeclared functionality. Yang-model package outputs and TAR
 regression archives are architecture-neutral; their original target-side runtime
 tests remain required, and native execution tools retain their configurations.
+Versions awaiting a qualifying run use native ARM validation.
+
 The initial survey also found that QEMU user-mode returns `ENOSYS` to Linux
 AIO in `rules_distroless@0.9.4.sonic.17`. Its ARM job runs the original
 `linux_headers_test` executable under a Debian ARM64 kernel using QEMU system
