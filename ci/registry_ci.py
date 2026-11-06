@@ -330,8 +330,12 @@ def validate_entry(root: Path, module: str, version: str) -> dict:
        "build_flags/rust_preparation/go_sdk/rust_toolchain/generated_module_overlay/test_runtime_preparation/integration_test_module/host_platforms")
     if "test_runtime_preparation" in config:
         preparation = config["test_runtime_preparation"]
-        require(isinstance(preparation, dict) and set(preparation) == {"script", "sha256"},
-                "test_runtime_preparation requires only script and sha256")
+        require(isinstance(preparation, dict) and {"script", "sha256"} <= set(preparation)
+                and set(preparation) <= {"script", "sha256", "apt_mirror_protocol"},
+                "test_runtime_preparation requires script and sha256, with optional apt_mirror_protocol")
+        if "apt_mirror_protocol" in preparation:
+            require(preparation["apt_mirror_protocol"] == "locked-runtime-v1",
+                    "Unsupported APT runtime preparation protocol")
         script = preparation["script"]
         require(isinstance(script, str) and re.fullmatch(r"[A-Za-z0-9_./-]+\.py", script) is not None
                 and not script.startswith("/") and ".." not in PurePosixPath(script).parts,
@@ -950,13 +954,33 @@ def collect_outputs(bep_path: Path, labels: list[str], work_dir: Path, artifacts
                               if relative.is_relative_to(tree_path)]
             if matching_trees:
                 # The declared tree has already been archived. Bazel 8.5.1 can
-                # corrupt a non-ASCII basename in an expanded member's URI while
-                # retaining its correct logical name, digest and length. Accept
-                # only that narrow case, using the real declared member's bytes.
-                expected = resolve_output(execution_root / relative)
+                # corrupt a non-ASCII basename in an expanded member's URI.
+                # Its logical name can also retain UTF-8 bytes as Latin-1.
+                # Recover only a missing literal basename inside this declared
+                # tree; the URI, digest and length checks below still apply.
+                literal = execution_root / relative
+                expected = resolve_output(literal)
                 require(expected.is_relative_to(work_dir),
                         f"Expanded tree member escapes work-dir: {name}")
-                if source != expected:
+                if "\ufffd" in uri.path and not literal.exists() and not literal.is_symlink():
+                    try:
+                        basename = relative.name.encode("latin-1").decode("utf-8")
+                    except UnicodeError:
+                        pass
+                    else:
+                        if basename != relative.name:
+                            candidate = literal.with_name(basename)
+                            recovered = resolve_output(candidate)
+                            require(not candidate.is_symlink() and recovered.is_file()
+                                    and any(recovered.is_relative_to(resolve_output(execution_root / tree_path))
+                                            for tree_path in matching_trees),
+                                    f"Recovered tree member is not a confined regular file: {name}")
+                            relative = relative.with_name(basename)
+                            expected = recovered
+                # A damaged URI basename may alias the expected file through a
+                # symlink. Equal resolved paths must not bypass its byte checks.
+                if source != expected or (
+                        "\ufffd" in uri.path and Path(unquote(uri.path)).name != relative.name):
                     decoded = Path(unquote(uri.path))
                     ascii_name = lambda value: "".join(c for c in value if c.isascii())
                     require("\ufffd" in uri.path and not relative.name.isascii()
@@ -1212,6 +1236,21 @@ def prepare_test_runtime(config: dict, source: Path, consumer: Path, artifacts: 
     (artifacts / "test-runtime-prepare.py").write_bytes(content)
     receipt_path = artifacts / "test-runtime.json"
     interpreter = "/usr/bin/python3" if executor_prefix else sys.executable
+    mirror_config = os.environ.get("SONIC_APT_MIRROR_CONFIG")
+    if mirror_config and preparation.get("apt_mirror_protocol") == "locked-runtime-v1":
+        mirror_path = Path(mirror_config).resolve()
+        require(mirror_path.is_file() and not mirror_path.is_relative_to(artifacts.resolve()),
+                "Private APT mirror configuration must be a file outside retained artifacts")
+        preparer = Path(__file__).resolve().with_name("apt_runtime_mirrors.py")
+        preparation_prefix = list(executor_prefix or [])
+        if preparation_prefix:
+            require(preparation_prefix[-1] == "--", "Expected the ARM runtime command separator")
+            preparation_prefix[-1:-1] = ["--bind", str(preparer.parent), "--bind", str(mirror_path)]
+        run_logged([*preparation_prefix, interpreter, "-B", str(preparer),
+                    "--owner-script", str(helper), "--owner-sha256", preparation["sha256"],
+                    "--lock", str(lock), "--mirror-config", str(mirror_path),
+                    "--output", str(artifacts / "test-runtime-mirrors.json")],
+                   consumer, artifacts / "test-runtime-mirror-preparation.log")
     run_logged([*(executor_prefix or []), interpreter, "-B", str(helper), "--lock", str(lock),
                 "--image-reference", image_reference, "--output", str(receipt_path)],
                consumer, artifacts / "test-runtime-preparation.log")

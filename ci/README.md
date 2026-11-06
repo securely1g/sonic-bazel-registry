@@ -56,6 +56,12 @@ collects matching replacements in configuration order; its
 tries the next candidate after a failed download or checksum mismatch. Other
 versions and URLs are unaffected; no global module mirror is enabled.
 
+Historical Common builds use GNU Bison 3.3.2 and GNU M4 1.4.18 through
+libnl3. Registry CI tries the MacPorts copy of Bison and Debian's byte-identical
+upstream M4 TAR, then the declared GNU locations. Trusted Trixie jobs take the
+M4 TAR from the private Debian source pool first. Both archives must match the
+original rule's SHA256. [Bison release pin](https://github.com/jmillikin/rules_bison/blob/v0.4/bison/internal/versions.bzl#L17-L30) · [M4 release pin](https://github.com/jmillikin/rules_m4/blob/v0.3.1/m4/internal/versions.bzl)
+
 The exact `gawk-5.3.2.tar.xz` URLs at `mirrors.kernel.org`, `ftp.gnu.org`, and
 `ftpmirror.gnu.org` likewise try MacPorts first and retain each original URL as
 a fallback. The published source recipe and SHA256
@@ -135,6 +141,99 @@ fetched MODULE files. Local HTTP fixtures verify candidate order, fallback after
 HTTP errors and checksum mismatches, and rejection when every candidate has the
 wrong bytes. These are repository fetches; they execute no compilation or package
 actions.
+
+## Private Debian snapshot mirrors
+
+Trusted jobs on the self-hosted `debian-trixie-container` runners can prefer
+private Debian mirrors while keeping the published package URLs and checksums.
+Configure these optional **Actions repository secrets** under **Settings →
+Secrets and variables → Actions**:
+
+| Secret | HTTPS snapshot root |
+| --- | --- |
+| `DEBIAN_MIRROR_BASE_URL` | Mirror of Debian snapshot `20260727T143429Z` |
+| `DEBIAN_SECURITY_MIRROR_BASE_URL` | Mirror of Debian security snapshot `20260726T121236Z` |
+
+Each value is the complete snapshot-root URL, including its trailing slash.
+Do not put the values in registry files, workflow variables, container images,
+PR descriptions, or reproduction commands. The public workflow refers only to
+the secret names. It passes them explicitly to the reusable module workflow
+for same-repository pull requests, maintained-branch pushes, and manual runs,
+excluding Dependabot. The receiving workflow also checks its runner and event before forwarding secrets.
+Trusted AMD64 module builds, ARM64 cross builds, native runner tests and the
+cross-compiler fixture share the same routing. Hosted ARM64 and fork runs use
+the public configuration.
+
+The downloader maps each Debian input according to its published identity:
+
+| Input | First private candidate |
+| --- | --- |
+| Dated Debian or security snapshot | The same archive, original timestamp and path. This includes the December 2024 Socat sources and February 2024 BusyBox packages. |
+| Official CDN binary pool URL | The matching configured July snapshot and original pool path. |
+| Official CDN source archive or source descriptor | The matching undated CDN pool path, such as `/debian/pool/...`. |
+| Snapshot content address | The same `/file/<SHA1>` object, verified against the caller's independent integrity pin. |
+
+For example, the Trixie APT resolver starts several compressed versions of
+`Packages` and `Contents` in parallel. A private `Packages.xz` success does
+not cancel an already running `Packages.gz` request. Mirror the formats listed
+in the signed Debian Release files, including `Contents.gz` for each target
+architecture. Public fallback remains available for every published format.
+For the two pinned July snapshots, probes of formats absent from the signed
+manifests stay on the private endpoint. The format table is scoped to those
+dates, the Bookworm and Trixie release, updates and security suites, the
+`main` component, and AMD64/ARM64/ARMHF. A Trixie build can evaluate a
+component's Bookworm extension while resolving its module graph.
+
+Temporary configuration lives outside the artifact directory. The wrapper
+removes mirror values from the child process environment and registers them
+for GitHub masking. Module validation supplies an ephemeral APT mirror map
+to runtime preparation because direct APT calls use a separate transport.
+The checked preparer and package locks still verify the selected runtime.
+
+Bazel preparation commands such as the ARM toolchain provider's `fetch` retain
+redacted fetch events alongside the usual build/test event streams. Before
+upload, CI scans diagnostics and nested artifacts for private locations. On a
+trusted job, `debian-downloads.json` identifies the evidence files, successful
+and failed candidates, APT Get activity, and any public or unattributed transfers.
+A warning points to this report if there are exceptions. A Bazel fetch event identifies the selected candidate.
+Bazel 8.5.1 omits the entire build event stream for `mod` and `info`;
+`mod graph` can still download packages while evaluating module extensions.
+
+The Trixie planning job compiles the checked-in observer with its existing Java compiler.
+Validation jobs download the JAR by its artifact ID from the same workflow run
+and compare its embedded source SHA256 with their checkout before loading it.
+For trusted runs, this observer delegates to the JVM's existing HTTP
+cookie handler and records the actual Debian request and response origins.
+It captures fast requests, public fallback and redirects in those commands.
+The observer records the origin class, safe object path and HTTP status. It
+omits private hosts, queries, user information, cookies and authentication
+headers. A missing or unhealthy JVM receipt is flagged as incomplete. Retained
+event files are under `download-traces/http/`.
+
+Read the evidence by type. An HTTP 200 means a server responded; the returned
+bytes can still fail integrity verification. Bazel's successful fetch events,
+the checked package digests, and APT's verified installation receipts provide
+separate evidence. A repository cache hit can complete without an HTTP request.
+
+
+To prove private mirror availability, manually run **Registry CI** with
+**private_mirror_probe** selected. This optional check runs only on the trusted
+self-hosted Trixie runner and requires both mirror secrets to be configured.
+It uses the same `sudo` environment as local module validation, so it cannot
+depend on proxy settings available only to the runner user. It performs
+fresh-cache Bazel downloads of the locked
+Debian `libaudit-dev` and security `libc-ares-dev` packages, checks their original
+hashes without executing either package, and retains a sanitized receipt.
+Ordinary pull-request and push CI use public fallback and do not require the
+private mirrors to be available. The manual probe defaults to off and does not
+change the module validation matrix. Local regression tests cover mirror
+preference, public fallback, checksum rejection, and console/artifact redaction.
+The explicit probe fails when either secret is missing; ordinary builds still
+use public sources.
+
+This protects the URLs from public source and normal published evidence. Code
+executing in a job that receives the secrets can read them; the profile is for
+trusted code, not an isolation boundary against a malicious workflow or build.
 
 ## Kernel build-tool cache downloads
 
@@ -419,6 +518,53 @@ Artifacts retain `test-runtime-prepare.py`, `test-runtime.MODULE.bazel.lock`,
 adjacent logs, including on failure. `validation.json` records the opt-in and
 test environment flag after every declared test passes.
 
+### Route source-owned runtime preparation through private APT mirrors
+
+Compatible preparers can opt into this CI-only presubmit field:
+
+```json
+"test_runtime_preparation": {
+  "script": "tools/bazel/runtime/prepare.py",
+  "sha256": "<unchanged source helper SHA256>",
+  "apt_mirror_protocol": "locked-runtime-v1"
+}
+```
+
+The protocol requires the verified helper's existing `select_runtime(lock,
+architecture)`, `snapshot_sources(selected, architecture)`, `inventory()`,
+`missing_packages(selected, before)`, and `verify_inventory(selected, before,
+after)` functions. All five current Common entries use the same compatible
+helper. Other helpers retain their normal execution path; a mirror secret alone
+does not opt them into this protocol.
+
+For trusted Trixie jobs the mirror wrapper supplies `SONIC_APT_MIRROR_CONFIG`,
+the path to a temporary mode-0600 JSON file outside artifacts. Its schema is
+`{"schema_version": 1, "mirrors": {"<canonical HTTPS snapshot base>":
+"<preferred HTTPS mirror base>"}}`; canonical keys have no trailing slash.
+The CI adapter first uses the owner's exact resolved package selection and
+provenance check. Standard APT then uses local `mirror+file` lists with the private
+endpoint at priority 1 and the canonical public endpoint at priority 2. APT
+handles fallback for each file. The lists are mode 0400 and owned by `_apt`,
+so its normal sandbox can read them without making private endpoints readable
+by other unprivileged container users. No system APT configuration is changed.
+
+Signature checks, simulated dependency planning, refusal to change prepared-base
+packages, selected version/architecture/SHA256 checks, and installation without
+further downloads remain enforced. The original source helper then executes
+unchanged and performs its normal runtime validation and receipt generation.
+The additional step runs in the same target environment, including the ARM
+executor when selected. Without a private map, normal public preparation remains
+available.
+
+`test-runtime-mirrors.json` records selected and verified packages, the before/after
+inventory, and configured snapshot mappings without private endpoints. The
+configured mappings alone do not establish where bytes came from: the adjacent
+`test-runtime-mirrors.apt.log` contains actual APT acquisition evidence. Ignore
+local `file:... Mirrorlist` reads when counting network transfers. The existing
+mirror wrapper scrubs and scans these files before upload. Common's normal
+`test-runtime.apt.log` is empty after successful pre-provisioning because the
+unchanged helper finds no missing packages and makes no second APT download.
+
 ## Maintain one MODULE declaration
 
 For an entry whose source archive needs a MODULE overlay, opt in with
@@ -540,6 +686,36 @@ its execution configuration must not replace or duplicate the requested output.
 Only files within those declared boundaries belong to a tree TAR; adjacent runtime
 and debug TAR outputs retain their original bytes. The artifact includes
 `declared-output-trees.jsonl` and the genuine build events for verification.
+
+Bazel 8.5.1 can report a Unicode tree member using UTF-8 bytes interpreted as
+Latin-1, together with a damaged file URI. For example, registry CI's real
+artifact fixture reported `Főtanúsítvány.crt` as `FÅ\x91tanÃºsÃ\xadtvÃ¡ny.crt`
+on its AMD64 worker. When that literal basename is absent, the runner tries
+one strict Latin-1-to-UTF-8 conversion of the basename. The result must be a
+regular file inside the declared tree, with the build event's exact SHA256 and
+size; URI-parent, ASCII-name and path-safety checks still apply. Existing
+literal names are never reinterpreted, and recovery through a symlink is
+rejected. The TAR retains the actual filesystem name and bytes. This does not
+change Bazel's locale or repair arbitrary paths. The failed worker's effective
+JVM locale was not retained.
+
+The real Bazel collector fixture creates its certificate filename with ASCII
+shell octal escapes and checks its exact UTF-8 bytes before collection. Its two
+producer actions (target and execution configurations) use
+`execution_requirements = {"no-remote-cache": "1"}`. This prevents those actions
+from reading or uploading remote cache results while retaining sandboxing,
+reuse of existing local action outputs, analysis reuse and caching for the separate tool action and all
+module builds. The observed runner command configures a remote cache, not a
+remote executor; this action requirement does not disable remote execution.
+
+This isolates collector validation from an unresolved Bazel 8.5.1 remote tree
+transport defect. A retained AMD64 run materialized a double-encoded Unicode
+filename from cached output and failed the strict filesystem assertion before
+the collector ran. The earlier passing run also reported a Unicode runtime
+backport, so it is not a controlled cache-only comparison. The fixture keeps
+all filesystem, BEP, target-versus-execution configuration and final TAR checks.
+Passing it does not establish that production remote tree transport is fixed;
+this change neither modifies the Bazel runtime nor changes production caches.
 
 For native libraries, download the runtime and detached-debug packages from the
 same module/version/architecture job. These packages come from the same build;

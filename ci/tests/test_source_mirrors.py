@@ -99,6 +99,16 @@ class ArmSourceMirrorScopeTest(unittest.TestCase):
                 self.assertFalse(any(re.fullmatch(pattern, other.removeprefix("https://"))
                                      for pattern, _replacement in rewrites), other)
 
+    def test_bison_candidates_only_match_the_two_pinned_source_urls(self):
+        rewrites = [line.split()[1:] for line in (ROOT / "ci/source_mirrors.cfg").read_text().splitlines()
+                    if line.startswith("rewrite ")]
+        for host in ("ftp.gnu.org", "mirrors.kernel.org"):
+            source = f"{host}/gnu/bison/bison-3.3.2.tar.xz"
+            matched = [replacement for pattern, replacement in rewrites if re.fullmatch(pattern, source)]
+            self.assertEqual(matched, ["https://distfiles.macports.org/bison/bison-3.3.2.tar.xz", "https://$1"])
+            for other in (source + ".sig", source.replace("3.3.2", "3.3.1"), source.replace(host, "example.org")):
+                self.assertFalse(any(re.fullmatch(pattern, other) for pattern, _ in rewrites))
+
     def test_gawk_candidates_preserve_each_original_url_and_exact_version(self):
         rewrites = [line.split()[1:] for line in (ROOT / "ci/source_mirrors.cfg").read_text().splitlines()
                     if line.startswith("rewrite ")]
@@ -234,6 +244,7 @@ class ArchiveFetchTestCase(unittest.TestCase):
                    "--experimental_downloader_config=" + str(config)]
         artifacts = work / "artifacts"
         artifacts.mkdir()
+        command.append("--build_event_json_file=" + str(artifacts / "build-events.jsonl"))
         (artifacts / "command.json").write_text(json.dumps(command, indent=2) + "\n")
         try:
             with (artifacts / "fetch.log").open("w") as log:
