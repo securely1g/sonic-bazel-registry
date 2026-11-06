@@ -97,13 +97,15 @@ GENERATOR = '''#include <stdio.h>
 #endif
 int main(void) { puts("#define GENERATED_VALUE 42"); return 0; }
 '''
-RUNTIME_PROGRAM = '''#include <stdio.h>
+RUNTIME_PROGRAM = '''#include <stddef.h>
+#include <stdio.h>
 #ifndef __aarch64__
 #error The native-runtime fixture must use an ARM64 binary and target libc.
 #endif
 int main(void) { puts("native runtime ARM64"); return 0; }
 '''
 CPP_PROBE = '''#include "generated_value.h"
+#include <climits>
 #include <iostream>
 #include <stdexcept>
 #include <thread>
