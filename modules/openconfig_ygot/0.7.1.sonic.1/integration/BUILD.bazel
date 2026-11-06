@@ -1,0 +1,12 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_test")
+
+go_test(
+    name = "shared_types_test",
+    srcs = ["shared_types_test.go"],
+    args = ["-test.v"],
+    deps = [
+        "@openconfig_goyang//pkg/yang",
+        "@openconfig_ygot//ygot",
+        "@openconfig_ygot//ytypes",
+    ],
+)

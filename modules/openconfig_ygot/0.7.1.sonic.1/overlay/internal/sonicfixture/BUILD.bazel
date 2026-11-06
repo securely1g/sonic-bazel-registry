@@ -1,0 +1,10 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "sonicfixture",
+    testonly = True,
+    srcs = ["schema.go"],
+    importpath = "github.com/openconfig/ygot/internal/sonicfixture",
+    visibility = ["//visibility:public"],
+    deps = ["@com_github_openconfig_goyang//pkg/yang"],
+)
