@@ -1,3 +1,4 @@
+load(":bazel/configure_test_tools.bzl", "configure_test_tools")
 load("@rules_cc//cc:defs.bzl", "cc_binary")
 load("@rules_python//python:py_test.bzl", "py_test")
 load("@sonic_build_infra//binary:keep_debug_info.bzl", "keep_debug_info")
@@ -102,19 +103,25 @@ exports_files(
 )
 
 # Run on the native Trixie CI worker with its real GCC14/Autoconf/Make tools.
+configure_test_tools(
+    name = "configure_tools",
+    testonly = True,
+    runtime = "@sonic_build_infra//tools/build_tools:foreign_runtime",
+)
+
 py_test(
     name = "configure_flags_test",
     srcs = ["bazel/configure_flags_test.py"],
     args = [
         "$(rootpath bazel/configure_with_flags.sh)",
         "$(rootpath bazel/configure.sh)",
-        "$(rootpath @sonic_build_infra//tools/build_tools:foreign_runtime)",
+        "$(rootpath :configure_tools)",
         "$(rootpath @sonic_build_infra//tools/build_tools:configure_environment.sh)",
     ],
     data = [
         "bazel/configure.sh",
         "bazel/configure_with_flags.sh",
-        "@sonic_build_infra//tools/build_tools:foreign_runtime",
+        ":configure_tools",
         "@sonic_build_infra//tools/build_tools:configure_environment.sh",
     ],
     main = "bazel/configure_flags_test.py",
