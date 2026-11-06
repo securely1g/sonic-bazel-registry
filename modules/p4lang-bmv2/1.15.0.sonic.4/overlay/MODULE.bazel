@@ -77,6 +77,7 @@ bmv2_source(
     sonic_patches = [
         "//:bazel/0001-use-boost-1.83.patch",
         "//:bazel/0002-remove-unnecessary-dependencies.patch",
+        "//:bazel/0003-read-target-thrift-version.patch",
     ],
     upstream_sha256 = "083bb907e45597af8e29ef3b0a92d33d282ba23840ddd5cfb8372d2f030ab415",
     upstream_url = "https://github.com/securely1g/sonic-bazel-registry/releases/download/p4-source-inputs-20261021/p4lang-bmv2_1.15.0.orig.tar.gz",

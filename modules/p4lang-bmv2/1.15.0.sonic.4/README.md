@@ -7,6 +7,9 @@ and `0002-remove-unnecessary-dependencies.patch` in that order. It invokes
 upstream Autotools/Make through
 `rules_foreign_cc.configure_make`. It does not build Debian packages or change
 SONiC's existing Make recipes.
+The registry also patches the Thrift version check to read the target
+`thrift/config.h` with the C++ compiler. Native builds and ARM64 cross-builds
+use the header version to select the same Thrift interfaces.
 
 The configured features match the maintained recipe: PDFixed, Thrift, nanomsg,
 PI and `simple_switch_grpc`. PI headers/libraries come from the independently
