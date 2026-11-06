@@ -73,23 +73,6 @@ ARM_CROSS_VERSIONS: dict[str, tuple[str, ...]] = {
     "tar.bzl": ("0.10.5.sonic.2",),
 }
 
-# These original fixtures either stage a private target executable and loader
-# or inspect target packages with ARM Bash and its binutils.
-ARM_DECLARED_RUNTIME_FIXTURES = {
-    ("sonic-swss-common", "0.0.9-334389eae54afd1f4f5ee69f89c3a7ad2062ee61"): {
-        "dist/libswsscommon_package_test": {"arm_shell": "bash"},
-        "goext/swsscommon_runtime_test": (
-            "sonic-swss-common+/goext/swsscommon_runtime_test_binary_/swsscommon_runtime_test_binary"
-        ),
-        "goext/tests/hiredis/hiredis_cgo_test": (
-            "sonic-swss-common+/goext/tests/hiredis/hiredis_cgo_test_binary_/hiredis_cgo_test_binary"
-        ),
-        "goext/tests/gnmi/alias_test": (
-            "sonic-swss-common+/goext/tests/gnmi/alias_test_binary_/alias_test_binary"
-        ),
-    },
-}
-
 HTTP_DOWNLOAD_FLAGS = (
     "--http_connector_attempts=12",
     "--http_connector_retry_max_timeout=10s",
@@ -1551,9 +1534,6 @@ def run(root: Path, module: str, version: str, architecture: str,
             test_flags = prepare_test_runtime(config, fetched[0].parent, consumer, artifacts,
                                               architecture, test_container_image, executor_prefix or None)
             if executor_prefix:
-                fixtures = ARM_DECLARED_RUNTIME_FIXTURES.get((module, version))
-                if fixtures:
-                    executor_prefix = [str(root / "ci" / "declared_arm_runtime.py"), json.dumps(fixtures), *executor_prefix]
                 test_flags.append("--run_under=" + shlex.join(executor_prefix))
             # Emulated Python can spend more than five minutes staging a large
             # declared runtime before the test starts. Keep caller timeouts and
