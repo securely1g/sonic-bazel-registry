@@ -758,13 +758,14 @@ and replace it with a fresh registered runner after success, failure, or
 cancellation. Keep registration credentials in the manager, outside job
 containers, and retain runner diagnostics before removing a container.
 
-This staged migration sets `ARM_CROSS_ALL = False`. Only the exact module
-versions in `ARM_CROSS_VERSIONS` use native AMD64 cross-compilers and the ARM
-runtime executor inside the Trixie runner. Every other ARM version retains its
-native GitHub-hosted ARM route, including newer versions of a migrated module.
-All original build labels, test labels, sources and dependency pins remain
-unchanged. The separate all-ARM survey supplies the acceptance evidence below;
-failed or incomplete contracts remain on native ARM while fixes are validated.
+The latest plan cross-compiles all 27 current ARM64 module jobs on the AMD64
+Trixie pool. `ARM_CROSS_VERSIONS` lists each qualified module version.
+Historical and new versions outside the list use hosted ARM64 workers. The
+native ARM64 CI helper suite also runs on a hosted worker.
+
+Published versions keep their original registry contents. The new versions
+below include the recipe and dependency changes needed for cross-compilation.
+The initial survey and later per-module jobs record the build and test evidence.
 
 Module steps execute directly inside the disposable runner, built from the
 pinned Trixie base with compiler and package-test tools preinstalled.
@@ -872,7 +873,7 @@ Historical versions outside the map use hosted ARM64.
 | `sonic-dash-api` | `0.0.5-9b2893e890734a2db0c53a5e5c64b031ec0dcfbd` | 8 / 5 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127363604452) |
 | `sonic-linux-kernel` | `0.0.2-34a53faaecd325509e9d8f1016ed0108ab558a23` | 5 / 5 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127391886151) |
 | `sonic-rust-deps` | `0.0.4-6d9c70f708d7420e9e2b2cdc906b80cee6b140f1` | 6 / 4 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127417149111) |
-| `sonic-swss-common` | `0.0.9-334389eae54afd1f4f5ee69f89c3a7ad2062ee61` | 16 / 24 | [Default-executor validation](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42267892192) |
+| `sonic-swss-common` | `0.0.9-334389eae54afd1f4f5ee69f89c3a7ad2062ee61` | 16 / 24 | [Full default-executor validation](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42271692127/job/128103790571) |
 | `sonic-sairedis` | `0.0.5-a1568983582654314c43aab421b32ab563ed860c` | 19 / 7 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42237091438) |
 | `sonic-swss` | `0.0.3-42df8c74af53427be97609a7b11e9aec59d2d454` | 7 / 3 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42238852494/job/127963546293) |
 | `sonic-yang-mgmt` | `1.0.0-9ab452d22773c41783092ae3bd6c206d6c257c8d` | 2 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127454762848) |
