@@ -1,0 +1,24 @@
+{
+  "status": "PASS",
+  "baseline": "e3f311112387394e42cfead34716896724e3a719",
+  "candidate": "a5829f922eb7bedb27a79786daeae260dfa71098",
+  "candidate_tree": "2a784858981688247882fd76f549d734ece454bc",
+  "first_registration": true,
+  "published_predecessor": null,
+  "complete_patch_sha256": "8041f300298efe1f831e7b7d3569178db78966246c42fa3417d1792cb8d8a1e6",
+  "bytes": 21659,
+  "fresh_baseline_application_exact_tree": true,
+  "main_relative_paths": [
+    "modules/sonic-gnmi/0.1.0-83a7de8d7760f7cac9690f5e304d94a9171f2366/MODULE.bazel",
+    "modules/sonic-gnmi/0.1.0-83a7de8d7760f7cac9690f5e304d94a9171f2366/README.md",
+    "modules/sonic-gnmi/0.1.0-83a7de8d7760f7cac9690f5e304d94a9171f2366/patches/0001-module-version.patch",
+    "modules/sonic-gnmi/0.1.0-83a7de8d7760f7cac9690f5e304d94a9171f2366/presubmit.json",
+    "modules/sonic-gnmi/0.1.0-83a7de8d7760f7cac9690f5e304d94a9171f2366/source.json",
+    "modules/sonic-gnmi/0.1.0-83a7de8d7760f7cac9690f5e304d94a9171f2366/tests/consumer/BUILD.bazel",
+    "modules/sonic-gnmi/0.1.0-83a7de8d7760f7cac9690f5e304d94a9171f2366/tests/consumer/MODULE.bazel",
+    "modules/sonic-gnmi/0.1.0-83a7de8d7760f7cac9690f5e304d94a9171f2366/tests/consumer/main.go",
+    "modules/sonic-gnmi/metadata.json"
+  ],
+  "static_proof": "/home/dev-user/code/sonic-public/docker-migration-plan-pr64-20261102/implementation/final23-integration/mgmt99-landed-consumers-20261106T2121/registry182/adoption/verified.json",
+  "limits": "No local native execution; source native execution blocked by server422; new registry CI pending"
+}
