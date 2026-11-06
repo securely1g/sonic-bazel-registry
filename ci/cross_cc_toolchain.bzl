@@ -4,7 +4,7 @@ Only compiler/sysroot repository files are used. No host compiler, headers, or
 libraries are substituted for the separately pinned Debian provider inputs.
 """
 
-load("@bazel_tools//tools/cpp:cc_toolchain_config_lib.bzl", "feature", "flag_group", "flag_set", "tool_path")
+load("@bazel_tools//tools/cpp:cc_toolchain_config_lib.bzl", "action_config", "feature", "flag_group", "flag_set", "tool", "tool_path")
 
 def _impl(ctx):
     compiler = ctx.file.compiler_anchor.path[:-len("/inputs.json")]
@@ -21,6 +21,22 @@ def _impl(ctx):
         sysroot + "/usr/include/aarch64-linux-gnu/c++/14",
         sysroot + "/usr/include/c++/14/backward",
     ]
+    # foreign_cc uses the C++ compile action's driver as CXX when it configures
+    # and links. G++ adds its runtime after the input objects, including when
+    # Autoconf puts LDFLAGS before a probe source. Keep Bazel 8's compile flags.
+    cxx_compile = action_config(
+        action_name = "c++-compile",
+        enabled = True,
+        tools = [tool(path = "aarch64-linux-gnu-g++")],
+        implies = [
+            "legacy_compile_flags",
+            "user_compile_flags",
+            "sysroot",
+            "unfiltered_compile_flags",
+            "compiler_input_flags",
+            "compiler_output_flags",
+        ],
+    )
     return cc_common.create_cc_toolchain_config_info(
         ctx = ctx,
         toolchain_identifier = "registry-ci-aarch64-gcc14",
@@ -40,6 +56,7 @@ def _impl(ctx):
              for name in ["ld", "ar", "nm", "objcopy", "objdump", "strip"]] + [
             tool_path(name = "gcov", path = "compiler/usr/bin/aarch64-linux-gnu-gcov-14"),
         ],
+        action_configs = [cxx_compile],
         features = [
             feature(name = "supports_pic", enabled = True),
             feature(name = "supports_dynamic_linker", enabled = True),
