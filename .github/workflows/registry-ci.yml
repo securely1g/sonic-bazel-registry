@@ -1,5 +1,12 @@
-name: Validate SymCrypt target binutils during the FIPS ARM cross-build
-on: workflow_dispatch
+name: Validate SymCrypt target binutils in the full FIPS build
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Execution and target architecture
+        type: choice
+        options: [cross-arm64, native-arm64, native-amd64]
+        default: cross-arm64
 permissions:
   contents: read
 jobs:
@@ -8,7 +15,7 @@ jobs:
     with:
       module: sonic-fips
       version: 0.0.4-symcrypt-cross.1
-      architecture: arm64
-      execution_architecture: amd64
-      cross_compile: true
-      runner: '["self-hosted","Linux","X64","debian-trixie-container"]'
+      architecture: ${{ inputs.mode == 'native-amd64' && 'amd64' || 'arm64' }}
+      execution_architecture: ${{ inputs.mode == 'native-arm64' && 'arm64' || 'amd64' }}
+      cross_compile: ${{ inputs.mode == 'cross-arm64' }}
+      runner: ${{ inputs.mode == 'native-arm64' && '"ubuntu-24.04-arm"' || '["self-hosted","Linux","X64","debian-trixie-container"]' }}
