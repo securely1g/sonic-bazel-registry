@@ -887,6 +887,11 @@ seven builds and five uncached tests passed, including all 56 C suites, three fu
 drivers and 225 Tcl cases. Earlier versions, including `3.12.2.sonic.6`, use
 hosted ARM64. [Full ARM64 run](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42113794646/job/127548050588)
 
+DASH `0.0.3-5c9305403585a7ae54f86918219acb8ed39f740a` qualified in a follow-up run.
+Its four ARM64 builds and original uncached runtime test passed on the AMD64 Trixie pool.
+The test exercised the installed SDK, generated pipeline and detached debug symbols.
+[Validation evidence](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42180204936/job/127767804802)
+
 The `linux-kernel` contract validates its declared helpers; it does not build or
 boot a kernel image. Passing tests only establish each module's existing
 presubmit contract, not broader undeclared functionality. Yang-model package outputs and TAR
