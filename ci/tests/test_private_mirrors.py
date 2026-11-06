@@ -17,10 +17,16 @@ ROOT = Path(__file__).resolve().parents[2]
 SPEC = importlib.util.spec_from_file_location("private_mirrors", ROOT / "ci/private_mirrors.py")
 MIRRORS = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MIRRORS)
+MANIFEST = MIRRORS.load_manifest()
 ENVIRONMENT = {
-    key: f"https://private-mirror.example.test/archive/{archive}/{snapshot}/"
-    for key, archive, snapshot in MIRRORS.SNAPSHOTS
+    key: f"https://private-mirror.example.test/archive/{archive}/"
+    for key, archive in MIRRORS.MIRROR_ROOTS
 }
+
+
+def current_snapshots():
+    return [(key, archive, MANIFEST[archive]["current"])
+            for key, archive in MIRRORS.MIRROR_ROOTS]
 
 
 def candidates(config, url):
@@ -41,19 +47,22 @@ class PrivateMirrorConfigTest(unittest.TestCase):
     def test_preference_preserves_existing_public_routes_and_originals(self):
         public = (ROOT / "ci/source_mirrors.cfg").read_text()
         combined = MIRRORS.configuration(public, ENVIRONMENT)
-        for key, archive, snapshot, suffix, _sha in MIRRORS.PACKAGES:
+        for key, archive, snapshot, suffix, _sha in MIRRORS.probe_packages():
             for host in ("snapshot.debian.org", "snapshot-cloudflare.debian.org"):
                 original = f"https://{host}/archive/{archive}/{snapshot}/{suffix}"
-                expected = [ENVIRONMENT[key] + suffix, *candidates(public, original), original]
+                expected = [ENVIRONMENT[key] + snapshot + "/" + suffix,
+                            *candidates(public, original), original]
                 self.assertEqual(candidates(combined, original), list(dict.fromkeys(expected)))
 
     def test_dated_indexes_and_pool_paths_preserve_snapshot_identity(self):
-        for key, archive, snapshot in MIRRORS.SNAPSHOTS:
+        for key, archive, snapshot in current_snapshots():
             config = MIRRORS.configuration("", ENVIRONMENT)
-            for suffix in ("dists/trixie/InRelease", "dists/trixie/main/binary-amd64/Packages.xz",
+            for suffix in ("dists/trixie/InRelease",
+                           "dists/trixie/main/binary-amd64/by-hash/SHA256/" + "a" * 64,
                            "pool/main/x/example/example_1%3a2+3~rc1_amd64.deb"):
                 original = f"https://snapshot.debian.org/archive/{archive}/{snapshot}/{suffix}"
-                self.assertEqual(candidates(config, original), [ENVIRONMENT[key] + suffix, original])
+                self.assertEqual(candidates(config, original),
+                                 [ENVIRONMENT[key] + snapshot + "/" + suffix, original])
                 for changed in (original.replace(snapshot, "latest"), original + "?q=1",
                                 original.replace("snapshot.debian.org", "another.example"),
                                 original.replace(suffix, "pool/../secret"),
@@ -65,9 +74,9 @@ class PrivateMirrorConfigTest(unittest.TestCase):
         public = (ROOT / "ci/source_mirrors.cfg").read_text()
         config = MIRRORS.configuration(public, ENVIRONMENT)
         routes = (
-            ("DEBIAN_MIRROR_BASE_URL", "deb.debian.org/debian", "pool/main"),
-            ("DEBIAN_SECURITY_MIRROR_BASE_URL", "deb.debian.org/debian-security", "pool/updates/main"),
-            ("DEBIAN_SECURITY_MIRROR_BASE_URL", "security.debian.org/debian-security", "pool/updates/main"),
+            ("DEBIAN_MIRROR_ROOT", "deb.debian.org/debian", "pool/main"),
+            ("DEBIAN_SECURITY_MIRROR_ROOT", "deb.debian.org/debian-security", "pool/updates/main"),
+            ("DEBIAN_SECURITY_MIRROR_ROOT", "security.debian.org/debian-security", "pool/updates/main"),
         )
         for key, origin, pool in routes:
             for scheme in ("https", "http"):
@@ -76,9 +85,9 @@ class PrivateMirrorConfigTest(unittest.TestCase):
                     suffix = f"{pool}/e/example/{package}"
                     original = f"{scheme}://{origin}/{suffix}"
                     with self.subTest(original=original):
-                        base = ENVIRONMENT[key]
+                        archive = origin.split("/", 1)[1]
+                        base = ENVIRONMENT[key] + MANIFEST[archive]["current"] + "/"
                         if not package.endswith((".deb", ".udeb")):
-                            archive = origin.split("/", 1)[1]
                             base = base.split("archive/", 1)[0] + archive + "/"
                         self.assertEqual(candidates(config, original), [base + suffix, original])
                         self.assertEqual(candidates(MIRRORS.configuration(public, {}), original), [])
@@ -109,7 +118,7 @@ class PrivateMirrorConfigTest(unittest.TestCase):
     def test_historical_snapshot_inputs_keep_their_dates_and_public_fallbacks(self):
         public = (ROOT / "ci/source_mirrors.cfg").read_text()
         config = MIRRORS.configuration(public, ENVIRONMENT)
-        archive = ENVIRONMENT["DEBIAN_MIRROR_BASE_URL"].removesuffix("20260727T143429Z/")
+        archive = ENVIRONMENT["DEBIAN_MIRROR_ROOT"]
         for host, path in (
             ("snapshot.debian.org", "20241222T205329Z/pool/main/s/socat/socat_1.8.0.2.orig.tar.bz2"),
             ("snapshot-cloudflare.debian.org", "20240210T223313Z/pool/main/b/busybox/busybox-static_1.36.1-6_amd64.deb"),
@@ -120,20 +129,17 @@ class PrivateMirrorConfigTest(unittest.TestCase):
 
     def test_public_index_fallback_only_for_published_probe_formats(self):
         public = (ROOT / "ci/source_mirrors.cfg").read_text()
-        for key, archive, date in MIRRORS.SNAPSHOTS:
+        for key, archive, date in current_snapshots():
             cfg = MIRRORS.configuration(public, ENVIRONMENT)
-            suites = (["bookworm", "bookworm-updates", "trixie", "trixie-updates"] if archive == "debian"
-                      else ["bookworm-security", "trixie-security"])
-            for suite in suites:
+            for suite, formats in MANIFEST[archive]["snapshots"][date].items():
                 for arch in ("amd64", "arm64", "armhf"):
                     for index in (f"binary-{arch}/Packages", f"Contents-{arch}"):
                         for ext in ("", ".xz", ".gz", ".bz2"):
                             path = f"dists/{suite}/main/{index}{ext}"
                             origin = f"https://snapshot.debian.org/archive/{archive}/{date}/{path}"
                             routes = candidates(cfg, origin)
-                            self.assertEqual(routes[0], ENVIRONMENT[key] + path)
-                            listed = (ext in ("", ".gz") if index.startswith("Contents")
-                                      else ext in ("", ".xz") or (suite in ("bookworm", "trixie") and ext == ".gz"))
+                            self.assertEqual(routes[0], ENVIRONMENT[key] + date + "/" + path)
+                            listed = ext in formats["Contents" if index.startswith("Contents") else "Packages"]
                             self.assertEqual(origin in routes, listed, origin)
 
     def test_gnu_m4_alias_prefers_the_identical_private_debian_source(self):
@@ -156,11 +162,12 @@ class PrivateMirrorConfigTest(unittest.TestCase):
             self.assertEqual(candidates(cfg, url), [])
 
     def test_invalid_secret_values_are_rejected_without_echo(self):
-        key = "DEBIAN_MIRROR_BASE_URL"
+        key = "DEBIAN_MIRROR_ROOT"
         for value in (ENVIRONMENT[key].replace("https:", "http:"),
                       ENVIRONMENT[key].replace("https://", "https://user:password@"),
                       ENVIRONMENT[key] + "?query", ENVIRONMENT[key] + "\nblock *",
-                      ENVIRONMENT[key].replace("20260727T143429Z", "20260728T143429Z")):
+                      ENVIRONMENT[key] + "20200102T030405Z/",
+                      ENVIRONMENT[key].replace("/debian/", "/debian-security/")):
             with self.subTest(value=value), self.assertRaises(ValueError) as error:
                 MIRRORS.selected_mirrors({key: value})
             self.assertNotIn(value, str(error.exception))
@@ -173,7 +180,7 @@ class PrivateMirrorConfigTest(unittest.TestCase):
 
     def test_explicit_probe_cannot_pass_without_both_secrets(self):
         with tempfile.TemporaryDirectory() as temporary:
-            with self.assertRaisesRegex(ValueError, "Both snapshot secrets"):
+            with self.assertRaisesRegex(ValueError, "Both.*secrets"):
                 MIRRORS.probe(SimpleNamespace(artifacts=Path(temporary)), {}, MIRRORS.Redactor([]))
 
 
@@ -186,8 +193,8 @@ class PrivateMirrorWrapperTest(unittest.TestCase):
             child = work / "child.py"
             child.write_text(
                 "import json,os,pathlib,re,sys\n"
-                "assert 'DEBIAN_MIRROR_BASE_URL' not in os.environ\n"
-                "assert 'DEBIAN_SECURITY_MIRROR_BASE_URL' not in os.environ\n"
+                "assert 'DEBIAN_MIRROR_ROOT' not in os.environ\n"
+                "assert 'DEBIAN_SECURITY_MIRROR_ROOT' not in os.environ\n"
                 f"artifacts=pathlib.Path({str(artifacts)!r})\n"
                 "flags=[a for a in sys.argv if a.startswith('--bazel-build-arg=--experimental_downloader_config=')]\n"
                 "if flags:\n"
@@ -247,7 +254,8 @@ class PrivateMirrorBazelTest(unittest.TestCase):
 
     def test_first_choice_missing_corrupt_and_unrecoverable_packages(self):
         self.exercise_downloads(
-            "https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/f/foo/foo_1_amd64.deb",
+            "https://snapshot.debian.org/archive/debian/" + MANIFEST["debian"]["current"] +
+            "/pool/main/f/foo/foo_1_amd64.deb",
             (("valid", "valid"), ("missing", "valid"), ("corrupt", "valid"), ("corrupt", "corrupt")))
 
     def test_cdn_origin_uses_private_before_public_fallback(self):
@@ -293,7 +301,7 @@ class PrivateMirrorBazelTest(unittest.TestCase):
                     public = f"rewrite {re.escape(original.removeprefix('https://'))} {local}/public/package\n"
                     public += (ROOT / "ci/source_mirrors.cfg").read_text()
                     config = work / "downloader.cfg"
-                    config.write_text(MIRRORS.configuration(public, {"DEBIAN_MIRROR_BASE_URL": local + "/private/archive/debian/20260727T143429Z/"})
+                    config.write_text(MIRRORS.configuration(public, {"DEBIAN_MIRROR_ROOT": local + "/private/archive/debian/"})
                                       + "block *\nallow 127.0.0.1\n")
                     module = (
                         'module(name="mirror_test")\n'
