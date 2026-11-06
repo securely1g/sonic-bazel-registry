@@ -56,6 +56,7 @@ ARM_CROSS_ALL = False
 ARM_CROSS_VERSIONS: dict[str, tuple[str, ...]] = {
     "gawk": ("5.3.2.sonic.1",),
     "gazelle": ("0.54.0.sonic.1",),
+    "iproute2": ("6.15.0.sonic.7",),
     "libnl3": ("3.7.0.sonic.7",),
     "libyang": ("3.12.2.sonic.7",),
     "libyang-python": ("3.1.0.sonic.6",),

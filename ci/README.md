@@ -857,6 +857,9 @@ The initial 15 versions were validated at `88d24c7010a5affd9deb1286e63c5a23e2468
 [Survey run](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416)
 
 The job artifacts bind the exact
+
+The first 15 entries in the `ARM_CROSS_VERSIONS` map qualified in [the all-ARM survey](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416)
+at `88d24c7010a5affd9deb1286e63c5a23e246879c`. The job artifacts bind the exact
 source inputs, unchanged selected dependency versions, native execution and ARM
 target platforms, produced output identities, and every original uncached test.
 A successful build alone is not a module pass. Source-fix probes and diagnostic
@@ -947,6 +950,13 @@ Sairedis stages its declared ARM loader and libraries using the original test
 wrappers. Its ASIC comparison and ZeroMQ signal fixtures run those wrappers
 with native shell and Python, then execute the AArch64 payload through kernel
 binfmt. The other five original tests use the ARM userspace executor.
+
+The iproute2 6.15.0.sonic.7 cross route builds all four original targets and
+executes both original tests. Its runtime test checks the package, and the
+configure test invokes ARM GCC and recursive Make. The runner image needs the
+PRoot fixes for guest GCC discovery and Linux exec argument limits. Roll out
+that image before enabling this route in production.
+[Qualified ARM job](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42200862212/job/127848280179) · [Runner image change](https://github.com/securely1g/agi-projects/pull/92)
 
 The gawk smoke test uses gawk as a native execution tool while the direct gawk
 build targets ARM64. Test execution follows the declared Bazel configuration;
