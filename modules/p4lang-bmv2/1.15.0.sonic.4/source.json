@@ -1,0 +1,20 @@
+{
+  "url": "https://github.com/securely1g/sonic-bazel-registry/releases/download/p4-source-inputs-20261021/p4lang-bmv2_1.15.0.orig.tar.gz",
+  "integrity": "sha256-CDu5B+RVl6+OKe87CpLTPSgrojhA3dXPuDctLwMKtBU=",
+  "overlay": {
+    "BUILD.bazel": "sha256-OO433YMdcSCHVEWj7S3sy2F4hhm9B4WQGXp0Z6PY7yo=",
+    "MODULE.bazel": "sha256-67LpU1ZxtCQYgFd6loDiEy51zskxv4SjcwSins2MAF4=",
+    "bazel/0001-use-boost-1.83.patch": "sha256-RuXpjeTrP7ec/sPAvmGhQszRdDGQLkZFgEHYXfMkzto=",
+    "bazel/0002-remove-unnecessary-dependencies.patch": "sha256-ptIQahFQYXUDzr1mDt8jZi/zUxYpFqTMCunacnNfWjY=",
+    "bazel/0003-read-target-thrift-version.patch": "sha256-Ur9Kumjo2mZsIriXUXbeu/LDAcq11/ZUB1UWL22eo8s=",
+    "bazel/bmv2.BUILD.bazel": "sha256-I4bSsT/V2qf21ZfPHhGj+2inGXmSkQhZdyKl9ydyPUs=",
+    "bazel/configure.sh": "sha256-XMzcje8pDYoHg9/ZNHXIAawuq9YXnknjP3vyicuiBbg=",
+    "bazel/configure_flags_test.py": "sha256-y1Lq8BmrgBL2nRfLdXdYHLbXb+q9Utm/MssaQAJDCQA=",
+    "bazel/configure_with_flags.sh": "sha256-bRYW+hrR88aCWR2FI1QjVCOHhP22kPG8jd1nYRJs2/g=",
+    "bazel/package_test.py": "sha256-4Ckjg6fkpgaYfBu0AAgi0E4NZM6uI6RxilvnZp245bE=",
+    "bazel/runtime.bzl": "sha256-wc0BVPAcJxHHigJU9Cbw3/xOPa0S5wEhRzmC1RLOkxQ=",
+    "bazel/sdk_consumer.cpp": "sha256-Spe7KIpaZ6z4DKK7NvyCkRlESdXR10ZEkXXepZaiUpo=",
+    "bazel/source.bzl": "sha256-G8Z0i9CAg9rAXeGjOakIE46eIH7h0IQMKT+QJ5A/kt0=",
+    "runtime_packages.md": "sha256-pcAPU9KpYouH5brGxYGV6zaRxRhCDQwi74BBbjCBbs4="
+  }
+}
