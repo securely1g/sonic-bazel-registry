@@ -89,6 +89,9 @@ jobs:
           artifact-ids: ${{ inputs.http_audit_artifact_id }}
           path: ${{ runner.temp }}/debian-http-audit
           merge-multiple: true
+      - name: Install the reviewed ARM runtime into this disposable proof worker
+        if: inputs.cross_compile && inputs.module == 'sonic-fips'
+        run: bash ci/fips_release_probe.sh
       - name: Install Bazel 8.5.1
         run: |
           set -euo pipefail
