@@ -1,0 +1,14 @@
+# Purpose: select the compatible public-owner-label alias fix for reviewed image roots.
+# Provenance: sonic-build-infra PR89, backport commit 8e6664401169f8a40e43b443f0bc7f295a98ff83.
+# Only the registry module version changes; production source is unmodified.
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,7 +1,7 @@
+ # Keep bazel_compatibility in sync with sonic-buildimage's .bazelversion.
+ module(
+     name = "sonic-build-infra",
+-    version = "0.0.26",
++    version = "0.0.26-8e6664401169f8a40e43b443f0bc7f295a98ff83",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
