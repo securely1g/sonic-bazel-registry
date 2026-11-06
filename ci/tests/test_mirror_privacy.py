@@ -231,6 +231,23 @@ class PrivacyTest(unittest.TestCase):
             self.assert_rejected_without_disclosure()
         self.assertEqual(path.read_bytes(), payload)
 
+    def test_raw_scan_finds_all_encoded_forms_across_chunks(self):
+        redactor = privacy.Redactor([URL, "https://mïrror.example.invalid/a path/"])
+        path = self.artifacts / "payload.bin"
+        with mock.patch.object(privacy, "CHUNK_SIZE", 7):
+            for pattern in redactor.patterns:
+                with self.subTest(pattern=pattern):
+                    payload = b"\xff" * 511 + pattern.encode().swapcase() + b"\x00"
+                    path.write_bytes(payload)
+                    with self.assertRaises(privacy.PrivacyError):
+                        redactor.scrub_and_scan(self.artifacts)
+                    self.assertEqual(path.read_bytes(), payload)
+
+            safe = b"\xff" * 511 + b"PRIVATE-MIRRORxEXAMPLExINVALID\x00"
+            path.write_bytes(safe)
+            redactor.scrub_and_scan(self.artifacts)
+            self.assertEqual(path.read_bytes(), safe)
+
     def test_payload_errors_identify_only_the_validated_outer_artifact(self):
         (self.artifacts / "outputs").mkdir()
         for name, payload in (
