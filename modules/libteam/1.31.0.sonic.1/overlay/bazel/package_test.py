@@ -84,9 +84,8 @@ def build_id(path):
     return match[1]
 
 
-# Preserve the accepted sonic-buildimage 233bde22 structured lookup: a stripped
-# executable may lack even a minimal symbol, making `info line main` a GDB
-# command error. Missing debug symbols are a result, not a failed GDB process.
+# A stripped executable may have no symbol entry. Use GDB's explicit absent
+# result before decoding; unexpected API errors must reach the error record.
 GDB_SCRIPT = r'''python
 import gdb, json, re
 result = {"found": False}
@@ -101,26 +100,25 @@ try:
         if re.fullmatch(r"[A-Za-z_~][\w:<>~]*", name):
             candidates.append(name)
     for name in candidates[:200]:
-        try:
-            locations = gdb.decode_line(name)[1] or []
-            for location in locations:
-                if not location.symtab or location.line <= 0:
-                    continue
-                block = gdb.block_for_pc(location.pc)
-                while block is not None and block.function is None:
-                    block = block.superblock
-                symbol = block.function if block is not None else None
-                if symbol is None or symbol.type.code != gdb.TYPE_CODE_FUNC:
-                    continue
-                result = {"found": True, "function": symbol.name,
-                          "source": location.symtab.filename, "line": location.line,
-                          "type": str(symbol.type),
-                          "parameters": [str(field.type) for field in symbol.type.fields()]}
-                break
-            if result["found"]:
-                break
-        except Exception:
+        if gdb.lookup_global_symbol(name) is None and gdb.lookup_static_symbol(name) is None:
             continue
+        locations = gdb.decode_line(name)[1] or []
+        for location in locations:
+            if not location.symtab or location.line <= 0:
+                continue
+            block = gdb.block_for_pc(location.pc)
+            while block is not None and block.function is None:
+                block = block.superblock
+            symbol = block.function if block is not None else None
+            if symbol is None or symbol.type.code != gdb.TYPE_CODE_FUNC:
+                continue
+            result = {"found": True, "function": symbol.name,
+                      "source": location.symtab.filename, "line": location.line,
+                      "type": str(symbol.type),
+                      "parameters": [str(field.type) for field in symbol.type.fields()]}
+            break
+        if result["found"]:
+            break
 except Exception as error:
     result["error"] = str(error)
 print("SONIC_DEBUG_LOOKUP=" + json.dumps(result))
