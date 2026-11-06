@@ -17,6 +17,7 @@ from urllib.parse import urlsplit
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mirror_privacy import PrivacyError, Redactor
 import debian_downloads
+import http_audit
 
 SNAPSHOTS = (
     ("DEBIAN_MIRROR_BASE_URL", "debian", "20260727T143429Z"),
@@ -214,9 +215,6 @@ def run(args, mirrors: dict[str, str], redactor: Redactor) -> int:
         with private_directory(args.private_dir, artifacts) as temporary:
             config = Path(temporary) / "downloader.cfg"
             write_config(config, configuration(public, mirrors))
-            receipt(artifacts, {"enabled": True, "archives": [archive for key, archive, _ in SNAPSHOTS
-                                                               if key in mirrors],
-                                "public_fallback": True, "package_integrity_unchanged": True})
             # APT and nested Bazel invocations cannot use the parent process's
             # environment secrets. Keep their configuration in this private
             # directory and retain transfer evidence from preparation commands.
@@ -231,19 +229,36 @@ def run(args, mirrors: dict[str, str], redactor: Redactor) -> int:
             if not suite and "--bazel" in command:
                 bazel_index = command.index("--bazel") + 1
                 real_bazel = command[bazel_index]
+            receipt(artifacts, {"enabled": True, "archives": [archive for key, archive, _ in SNAPSHOTS
+                                                               if key in mirrors],
+                                "public_fallback": True, "package_integrity_unchanged": True,
+                                "http_observer_expected": bool(real_bazel)})
             if real_bazel:
+                if getattr(args, "http_audit_jar", None):
+                    try:
+                        http_audit.prepare(Path(temporary), args.http_audit_jar, mirrors)
+                    except (OSError, ValueError) as error:
+                        print(redactor.redact(f"::warning::Debian HTTP observer unavailable: {error}"))
                 launcher = Path(temporary) / "bazel"
                 trace = [sys.executable, str(Path(debian_downloads.__file__).resolve()), real_bazel,
                          str(artifacts), temporary, str(apt_map)]
                 launcher.write_text("#!/bin/sh\nexec " + shlex.join(trace) + ' "$@"\n')
                 launcher.chmod(0o700)
                 if bazel_index is None:
+                    # The sealed observer regression installs its own agent and
+                    # uses loopback servers to exercise intentional public paths.
+                    environment["REGISTRY_CI_HTTP_AUDIT_FIXTURE_BAZEL"] = real_bazel
+                    if getattr(args, "http_audit_jar", None):
+                        environment["REGISTRY_CI_HTTP_AUDIT_FIXTURE_JAR"] = str(Path(temporary) / "http-audit.jar")
                     environment["REGISTRY_CI_TEST_BAZEL"] = str(launcher)
                 else:
                     command[bazel_index] = str(launcher)
             if not suite:
                 command.append(DOWNLOADER_ARG + str(config))
-            return execute(command, redactor, log=log, extra_environment=environment)
+            try:
+                return execute(command, redactor, log=log, extra_environment=environment)
+            finally:
+                http_audit.retain(Path(temporary), artifacts)
     finally:
         redactor.scrub_and_scan(artifacts)
 
@@ -307,6 +322,7 @@ def main() -> int:
             command.add_argument("--private-dir", required=True, type=Path)
             command.add_argument("--public-config", required=True, type=Path)
         if name in ("run", "suite"):
+            command.add_argument("--http-audit-jar", type=Path)
             command.add_argument("child", nargs=argparse.REMAINDER)
         if name == "probe":
             command.add_argument("--bazel", default="bazel")
@@ -327,6 +343,8 @@ def main() -> int:
                 redactor.write_checked_text(artifacts / "debian-downloads.json", data)
                 if report["incomplete_traces"] or not report["inputs"]:
                     print("::warning::Debian download evidence is incomplete; see debian-downloads.json")
+                if report["http_observer"]["public_requests"]:
+                    print("::warning::Bazel made public Debian HTTP requests; see debian-downloads.json")
                 if report["exceptions"]:
                     print(f"::warning::{len(report['exceptions'])} public or unattributed Debian "
                           "download records; see debian-downloads.json")

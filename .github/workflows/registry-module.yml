@@ -23,6 +23,10 @@ on:
         description: JSON array of runner labels from the validated plan
         required: true
         type: string
+      http_audit_artifact_id:
+        description: Optional audit agent artifact produced from this source in the same workflow run
+        type: string
+        default: ''
     secrets:
       DEBIAN_MIRROR_BASE_URL:
         description: Optional private mirror for the pinned Debian snapshot
@@ -76,6 +80,15 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+      - name: Download the optional same-run HTTP audit agent
+        id: http_audit_download
+        if: ${{ inputs.http_audit_artifact_id != '' && contains(fromJSON(inputs.runner), 'self-hosted') && contains(fromJSON(inputs.runner), 'debian-trixie-container') && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) }}
+        continue-on-error: true
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ inputs.http_audit_artifact_id }}
+          path: ${{ runner.temp }}/debian-http-audit
+          merge-multiple: true
       - name: Install Bazel 8.5.1
         run: |
           set -euo pipefail
@@ -101,6 +114,7 @@ jobs:
           fi
       - name: Build and test through the registry
         env:
+          HTTP_AUDIT_READY: ${{ steps.http_audit_download.outcome }}
           DEBIAN_MIRROR_BASE_URL: ${{ contains(fromJSON(inputs.runner), 'self-hosted') && contains(fromJSON(inputs.runner), 'debian-trixie-container') && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && secrets.DEBIAN_MIRROR_BASE_URL || '' }}
           DEBIAN_SECURITY_MIRROR_BASE_URL: ${{ contains(fromJSON(inputs.runner), 'self-hosted') && contains(fromJSON(inputs.runner), 'debian-trixie-container') && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && secrets.DEBIAN_SECURITY_MIRROR_BASE_URL || '' }}
         run: |
@@ -110,6 +124,10 @@ jobs:
           BAZEL_STARTUP_ARGS=()
           BAZEL_BUILD_ARGS=()
           CROSS_ARGS=()
+          HTTP_AUDIT_ARGS=()
+          if [[ "${HTTP_AUDIT_READY:-}" == success ]]; then
+            HTTP_AUDIT_ARGS=(--http-audit-jar "$RUNNER_TEMP/debian-http-audit/debian-http-audit.jar")
+          fi
           if [[ "$CI_EXECUTION_ARCHITECTURE" == amd64 ]]; then
             TEST_CONTAINER_IMAGE="${SONIC_RUNNER_IMAGE_REFERENCE:?Missing runner image identity}"
             ROOT=(sudo -n)
@@ -127,6 +145,7 @@ jobs:
             --artifacts "$GITHUB_WORKSPACE/ci-artifacts" \
             --private-dir "$RUNNER_TEMP/private-mirrors-module" \
             --public-config ci/source_mirrors.cfg \
+            "${HTTP_AUDIT_ARGS[@]}" \
             -- python3 ci/registry_ci.py run \
             --module "$CI_MODULE" \
             --version "$CI_VERSION" \
