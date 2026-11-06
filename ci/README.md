@@ -880,6 +880,8 @@ enforced; the routing map changes execution placement only.
 | `sonic-swss-common` | `0.0.9-334389eae54afd1f4f5ee69f89c3a7ad2062ee61` | 16 / 24 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42098955941/job/127496374815) |
 
 | `sonic-sairedis` | `0.0.5-a1568983582654314c43aab421b32ab563ed860c` | 19 / 7 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42216775484/job/127888668575) |
+
+| `sonic-swss` | `0.0.3-42df8c74af53427be97609a7b11e9aec59d2d454` | 7 / 3 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42221251592/job/127903572671) |
 | `sonic-yang-mgmt` | `1.0.0-9ab452d22773c41783092ae3bd6c206d6c257c8d` | 2 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127454762848) |
 | `sonic-yang-models` | `1.0.1-b0a9362a7a1b4b5e1b7188c019d256f7c8aaff9f` | 3 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127456801062) |
 | `tar.bzl` | `0.10.5.sonic.2` | 8 / 7 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127457427548) |
@@ -935,6 +937,11 @@ and runs a consumer of the installed ARM64 SDK and converts P4Info using the
 installed tools. All four original builds and the uncached test passed.
 [Full ARM64 validation](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42180002707/job/127767164854)
 The remaining module failures stay visible in the survey and retain native ARM validation here.
+
+SWSS 0.0.3 selects its Sairedis and libteam dependencies directly. Its cross
+job allows six hours for a cold serial C++ build and keeps the three original
+runtime tests. The version-specific route applies once the registry contains
+the 0.0.3 entry. [Registration](https://github.com/securely1g/sonic-bazel-registry/pull/263)
 
 Sairedis stages its declared ARM loader and libraries using the original test
 wrappers. Its ASIC comparison and ZeroMQ signal fixtures run those wrappers
