@@ -161,3 +161,22 @@ shared dependency retains the same solib directory. Module-specific search
 paths pass directly to the linker through `-Xlinker`; their order is preserved
 without expanding GCC's `COLLECT_GCC_OPTIONS` environment string. The contract
 fixture includes 640 distinct modules meeting in one consumer of a shared DSO.
+
+
+Legacy dynamic defaults derive additional library references from the dynamic
+pkg-config query. `Libs.private` dependencies belong to explicit static module
+queries and do not become extra dependencies of the dynamic package default.
+
+Selected unversioned dynamic link aliases remain available in CcInfo's dynamic
+library files. Foreign build systems can collect these into a dependency prefix
+and resolve the original `.pc` file's `-l` names. Native consumers retain the
+module's explicit ordered selection and the shared SONAME runtime identity.
+
+Packages without declared headers contribute empty compile-only header stubs.
+They add no nonexistent include roots or implicit repository-root quote search
+directories to foreign build probes. Header-bearing package interfaces retain
+their existing search paths.
+
+Legacy package defaults preserve SDK header paths as system include directories.
+Explicit `pkgconfig/...` modules retain the original ordinary `-I` classification.
+The contract fixture checks source-header precedence against both interfaces.

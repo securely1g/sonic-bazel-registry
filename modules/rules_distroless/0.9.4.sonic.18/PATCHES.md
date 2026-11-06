@@ -414,7 +414,7 @@ other compiler options explicitly rather than dropping them; legacy labels keep
 their former behavior and original metadata remains available. New rule-file
 loads have declared bzl_library dependencies.
 
-The fixture has 38 two-DSO chains, independent SDK/GNU controls, raw-archive
+The fixture has 40 two-DSO chains, independent SDK/GNU controls, raw-archive
 checks and negative selections. It covers the contracts above and the original
 native/Python/Go/Rust boundaries. ARM64 uses target compilation and QEMU; native
 host and emulated target results are reported separately. The updater's relative
@@ -431,3 +431,35 @@ response files do not avoid the Linux per-string environment limit.
 The fixture joins 640 distinct modules sharing one DSO and checks two-level
 linking plus clean installed execution. The pre-fix source fails with collect2
 posix_spawn: Argument list too long on this input.
+
+## 0034-isolate-static-private-library-dependencies.patch
+
+Build legacy dynamic package extras from the dynamic pkg-config query only.
+The union of dynamic and static query libraries incorrectly injected Libs.private
+from hiredis_ssl and libxml2 into ordinary SWSS Common Python-extension links,
+requiring -lssl, -lcrypto and -llzma even when those static inputs were not selected.
+Explicit static module queries retain their private dependencies.
+
+Two additional native contracts use an unavailable static-only library and
+verify that both the legacy default and explicit dynamic module still link and
+run. The independent whole-archive controls retain distinct dynamic and static
+constructor results.
+
+Also retain the selected unversioned link aliases as runtime-only LibraryToLink
+files. configure_make collects these files into its dependency prefix and then
+queries the original .pc, whose -l names require libname.so. Ordered native
+selection still uses the explicit sequence and SONAME identity; the additional
+aliases carry empty interfaces and do not introduce another native link choice.
+The fixture reproduces this prefix collection and links/runs a plain -l consumer.
+
+Packages with no declared headers expose empty compile-only header stubs via
+cc_deb_library. These stubs add neither nonexistent usr/include search paths nor
+native cc_library's implicit repository-root quote directories. Packages with
+headers keep their existing header rules and paths. The previous empty-header
+stubs inflated foreign configure probe commands until GCC could not spawn cc1;
+iproute2 consequently recorded its real setns API as unavailable. The public
+package wrappers and header-bearing _wodeps rules remain unchanged.
+
+Legacy package defaults preserve SDK header paths as system include directories.
+Explicit `pkgconfig/...` modules retain the original ordinary `-I` classification.
+The contract fixture checks source-header precedence against both interfaces.

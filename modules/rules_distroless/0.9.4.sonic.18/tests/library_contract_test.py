@@ -119,7 +119,8 @@ def main():
         'usr/lib/libpcpublic.so': 'libpcpublic.so.1',
         'usr/lib/libpcpublic.a': archive('pcpublic_static','pc_public_value',29),
         'usr/include/pcpublic.h': b'int pc_public_value(void);\n',
-        'usr/lib/pkgconfig/pc-public.pc': pc('pcpublic')})
+        'usr/include/sdk-priority/pcpublic.h': b'int pc_public_value(void);\n',
+        'usr/lib/pkgconfig/pc-public.pc': pc('pcpublic').replace(b'Cflags: -I${includedir}', b'Cflags: -I${includedir}/sdk-priority')})
     package('libpcprivate-dev', {'usr/lib/libpcprivate.a': archive('pcprivate','pc_private_anchor',0),'usr/lib/pkgconfig/pc-private.pc': pc('pcprivate').replace(b'-lpcprivate\n',b'-lpcprivate -Wl,-z,nodlopen -Wl,-u,pc_private_anchor\n') + b'Cflags: -DPC_PRIVATE_HEADER=1\n'})
     package('libpcgraph-dev', dict(config_files, **{
         'usr/lib/libpcbase.so.1': library('libpcbase','pc_base_value',13),
@@ -347,8 +348,23 @@ def main():
     cases.append(('scale', 'int scale_value(void);', 'scale_value()', 'libscale-dev', ()))
     module_cases['scale'] = ':scale_modules'
 
+    # pkg-config's dynamic contract excludes Libs.private. An unavailable
+    # static-only dependency must not poison either dynamic public interface.
+    package('libprivateboundary-dev', {
+        'usr/lib/libprivateboundary.so.1': library('libprivateboundary', 'private_boundary_value', 42, 'libprivateboundary.so.1'),
+        'usr/lib/libprivateboundary.so': 'libprivateboundary.so.1',
+        'usr/lib/pkgconfig/privateboundary.pc': pc('privateboundary') + b'Libs.private: -lfixture_static_only_unavailable\n'})
+    for case in ['privatelegacy', 'privatemodule']:
+        cases.append((case, 'int private_boundary_value(void);', 'private_boundary_value()', 'libprivateboundary-dev', ()))
+    module_cases['privatemodule'] = '@locked//libprivateboundary-dev:pkgconfig/privateboundary'
+
+    package('libplain-dev', {
+        'usr/lib/libplain.so.1': library('libplain', 'plain_value', 42, 'libplain.so.1'),
+        'usr/lib/libplain.so': 'libplain.so.1'})
+
     roots = {f'/fixture/{p}:{arch}': '1' for _, _, _, p, _ in cases}
     roots[f'/fixture/fixture-config:{arch}'] = '1'
+    roots[f'/fixture/libplain-dev:{arch}'] = '1'
     (root / 'apt.lock.json').write_text(json.dumps(dict(version=2, sources={'fixture': {'uris': [root.as_uri()]},'other':{'uris':[root.as_uri()]}},
         packages=packages, dependency_sets={'locked': {'sets': {arch: roots}},
             'providers': {'sets': {arch: {f'/fixture/libpcpublic-dev:{arch}': '1',f'/fixture/libpcprivate-dev:{arch}':'1'}}},
@@ -364,6 +380,7 @@ def main():
 def _impl(ctx):
     flags=[]
     files=[]
+    dynamic_files=[]
     for item in ctx.attr.dep[CcInfo].linking_context.linker_inputs.to_list():
         flags.extend(item.user_link_flags)
         files.extend(item.additional_inputs)
@@ -374,8 +391,11 @@ def _impl(ctx):
                 files.append(selected)
             if lib.dynamic_library:
                 files.append(lib.dynamic_library)
+                dynamic_files.append(lib.dynamic_library.path)
+    compilation=ctx.attr.dep[CcInfo].compilation_context
+    files.extend(compilation.headers.to_list())
     out=ctx.actions.declare_file(ctx.label.name+".json")
-    ctx.actions.write(out,json.encode({"flags":flags,"files":[file.path for file in files]}))
+    ctx.actions.write(out,json.encode({"flags":flags,"files":[file.path for file in files],"dynamic_files":dynamic_files,"normal_includes":compilation.includes.to_list(),"system_includes":compilation.system_includes.to_list(),"quote_includes":compilation.quote_includes.to_list()}))
     return [DefaultInfo(files=depset([out]+files))]
 link_context=rule(implementation=_impl,attrs={"dep":attr.label(providers=[CcInfo])})
 ''')
@@ -386,7 +406,7 @@ bazel_dep(name="fixture_adapter",version="1")
 local_path_override(module_name="fixture_adapter",path="{adapter}")
 apt=use_extension("@rules_distroless//apt:extensions.bzl","apt")
 apt.import_lock(lock="//:apt.lock.json",libraries=True)
-use_repo(apt,"locked","conflicting")
+use_repo(apt,"locked","conflicting","providers")
 ''')
     if cross:
         for name, directory in [('fixture_cc',Path(cross['cc']).parent.parent),('fixture_sysroot',Path(cross['sysroot']))]:
@@ -425,7 +445,11 @@ use_repo(apt,"locked","conflicting")
             f'cc_shared_library(name="{case}_downstream",deps=[":{case}_leaf"],dynamic_deps=[":{case}_bridge"],user_link_flags=["-Wl,-z,defs","-Wl,--as-needed","-Wl,-rpath,$ORIGIN","-Wl,-soname,lib{case}_downstream.so"])',
             f'shared_library_cc_info(name="{case}_downstream_link",shared_library=":{case}_downstream")',
             f'cc_binary(name="{case}_consumer",srcs=["{case}_main.c"],deps=[":{case}_downstream_link"],linkopts=["-Wl,-rpath,$$ORIGIN/../lib"])']
+    build.append('link_context(name="legacy_header_context",dep="@providers//libpcpublic-dev:libpcpublic")')
+    build.append('link_context(name="strict_header_context",dep="@providers//libpcpublic-dev:pkgconfig/pc-public")')
     build.append('link_context(name="language_context",dep=":multi_downstream_link")')
+    build.append('link_context(name="foreign_context",dep="@locked//libprivateboundary-dev:libprivateboundary")')
+    build.append('link_context(name="foreign_plain_context",dep="@locked//libplain-dev:libplain")')
     (root/'explicit_ctor.c').write_text('int optional_value(void); int ctor_selected(void){return optional_value();}\n')
     build += ['cc_library(name="explicit_ctor_objects",srcs=["explicit_ctor.c"],deps=["@locked//liboptional-dev:liboptional_cc","@locked//liboptional-dev:liboptional_ctor_static"])',
         'cc_shared_library(name="explicit_ctor",deps=[":explicit_ctor_objects"])']
@@ -515,9 +539,51 @@ PyMODINIT_FUNC PyInit_optional_python(void){return PyModule_Create(&module);}
         assert result.returncode and message in result.stdout+result.stderr,(name,result.stdout+result.stderr)
         print('PASS native-only error:',name,flush=True)
     with (root / 'build.log').open('w') as log:
-        result = subprocess.run(bazel+['build']+flags+['//:'+case+'_consumer' for case, *_ in cases]+['//:language_context','//:plugin_context','//:explicit_ctor','//:explicit_plugin','//:graph_static']+(['//:optional_python.so'] if not cross else []),cwd=root,env=env,stdout=log,stderr=subprocess.STDOUT)
+        result = subprocess.run(bazel+['build']+flags+['//:'+case+'_consumer' for case, *_ in cases]+['//:language_context','//:legacy_header_context','//:strict_header_context','//:foreign_context','//:foreign_plain_context','//:plugin_context','//:explicit_ctor','//:explicit_plugin','//:graph_static']+(['//:optional_python.so'] if not cross else []),cwd=root,env=env,stdout=log,stderr=subprocess.STDOUT)
     if result.returncode:
         raise SystemExit('Fixture build failed: '+str(root/'build.log'))
+    # Legacy SDK headers remain system headers, so a source -I can override
+    # them even when a foreign build forwards dependency flags directly to cc1.
+    source_headers=root/'source-header-priority'
+    source_headers.mkdir()
+    (source_headers/'pcpublic.h').write_text('#define SOURCE_HEADER_SELECTED 1\n')
+    priority_source=root/'header-priority.c'
+    priority_source.write_text('#include <pcpublic.h>\n#ifndef SOURCE_HEADER_SELECTED\n#error SDK_overrode_source_header\n#endif\n')
+    for label, succeeds in [('legacy_header_context', True), ('strict_header_context', False)]:
+        context=json.loads((root/('bazel-bin/'+label+'.json')).read_text())
+        operands=[]
+        for option,key in [('-I','normal_includes'),('-isystem','system_includes'),('-iquote','quote_includes')]:
+            for directory in context[key]:
+                operands.extend([option, str(execroot/directory)])
+        response=root/(label+'.rsp')
+        operands.extend(['-I',str(source_headers)])
+        response.write_text(shlex.join(operands))
+        result=subprocess.run(compiler+['-Wp,@'+str(response),'-fsyntax-only',str(priority_source)],cwd=root,env=env,text=True,capture_output=True)
+        assert (result.returncode==0)==succeeds,(label,result.stderr)
+        if not succeeds:
+            assert 'SDK_overrode_source_header' in result.stderr,result.stderr
+    print('PASS legacy SDK header precedence and strict module include category',flush=True)
+    # configure_make collects LibraryToLink dynamic files into a flat prefix;
+    # its original .pc then resolves an ordinary -l name against that prefix.
+    for label, libname, declaration, expression in [
+        ('foreign_context', 'privateboundary', 'int private_boundary_value(void);', 'private_boundary_value()'),
+        ('foreign_plain_context', 'plain', 'int plain_value(void);', 'plain_value()'),
+    ]:
+        foreign_prefix = root/label
+        (foreign_prefix/'lib').mkdir(parents=True)
+        foreign_context = json.loads((root/('bazel-bin/'+label+'.json')).read_text())
+        for path in foreign_context['dynamic_files']:
+            source = execroot/path
+            destination = foreign_prefix/'lib'/source.name
+            if destination.exists():
+                assert destination.read_bytes() == source.read_bytes(), source.name
+                continue
+            shutil.copy2(source, destination)
+        source = foreign_prefix/'consumer.c'
+        source.write_text(declaration+' int main(void){return ('+expression+')==42?0:1;}\n')
+        run(compiler+[str(source), '-L'+str(foreign_prefix/'lib'), '-l'+libname, '-Wl,-rpath,$ORIGIN/lib', '-o', str(foreign_prefix/'consumer')])
+        assert execute(foreign_prefix/'consumer', foreign_prefix) == ''
+        print('PASS foreign dependency-prefix consumer resolves the original -l alias:', label, flush=True)
     plugin_context=json.loads((root/'bazel-bin/plugin_context.json').read_text())
     assert not any('module.so' in value or '/plugins/one/' in value or '/plugins/two/' in value for value in plugin_context['flags']+plugin_context['files']),plugin_context
     ordinary_dynamic = run(['readelf','-d',str(root/'bazel-bin/liboptional_bridge.so')]).stdout
