@@ -389,3 +389,33 @@ Bazel deps. Preserve link option order. The regression fixture puts the same
 library in public and private linker declarations; it must analyze, link and run
 through the existing two-shared-library contract. Actual Trixie libzmq3-dev
 4.3.5-1+b3 provides the production static-module input.
+
+
+## 0032: Preserve APT compatibility and selected module contracts
+
+Add a generated, shared catalog of active reviewed pkg-config providers,
+isolated by target architecture and dependency-connected source suites. Resolve
+Requires/private through lazy, cycle-free package metadata repositories. Keep
+strict module errors separate from the legacy direct-field fallback, including
+metadata accepted by the former parser but rejected by SDK-required fields.
+Provider headers are compilation inputs; their package-default link options
+are not implicit edges of the consumer.
+
+Native runtime edges follow selected files and ELF DT_NEEDED. Packages retain
+plugins in their original archives. Ordered link arguments preserve whole-archive,
+group and push/pop semantics; static/dynamic state affects exact file selection.
+Search directories outrank suffix preference. Exact filenames and declared
+literal archives carry their inputs. Internal targets use distinguishable names;
+ambiguous public shorthand fails only on selection. Script dependency labels
+are deduplicated, and usr/share/pkgconfig metadata has the ordinary file export.
+
+The native CcInfo module supports include categories and definitions. It reports
+other compiler options explicitly rather than dropping them; legacy labels keep
+their former behavior and original metadata remains available. New rule-file
+loads have declared bzl_library dependencies.
+
+The fixture has 37 two-DSO chains, independent SDK/GNU controls, raw-archive
+checks and negative selections. It covers the contracts above and the original
+native/Python/Go/Rust boundaries. ARM64 uses target compilation and QEMU; native
+host and emulated target results are reported separately. The updater's relative
+MODULE/rc-path correction belongs to sonic-build-infra, not this registry patch.

@@ -34,7 +34,8 @@
     "0028-isolate-native-library-analysis.patch": "sha256-9FOlCzj4IgA1C7cu7AtiWRyB7xvWXlEtOd7q1r1scaQ=",
     "0029-isolate-static-pkgconfig-variants.patch": "sha256-HADeSgFWQAIgbIcwiFYazph79HgpQ0diHivM+YVGdds=",
     "0030-model-pkgconfig-modules.patch": "sha256-uc43hFs7hDGHGz12TDHGDOhI8/ds0/OF0OsGyp++XBE=",
-    "0031-deduplicate-pkgconfig-dependencies.patch": "sha256-zEddkl1haBwoWhgJPm5IZH9wn5i7UspV4Q+HSlQg1+0="
+    "0031-deduplicate-pkgconfig-dependencies.patch": "sha256-zEddkl1haBwoWhgJPm5IZH9wn5i7UspV4Q+HSlQg1+0=",
+    "0032-complete-apt-contract-boundaries.patch": "sha256-Q4zu+g1xMk6iJbro1Ag3iP+3ZMsdCYuNdFFD40QcOg0="
   },
   "patch_strip": 1,
   "overlay": {

@@ -45,7 +45,7 @@ USE_BAZEL_VERSION=8.5.1 python3 \
 ```
 
 The complete contract fixture uses the production sonic-build-infra CcInfo
-adapter supplied by the caller. It builds twenty-one two-level shared-library chains,
+adapter supplied by the caller. It builds thirty-seven two-level shared-library chains,
 checks AS_NEEDED and constructor behavior, rejects conflicting SONAMEs, and runs
 both Bazel and installed executables without LD_LIBRARY_PATH or LD_PRELOAD.
 The build directory is hidden during installed execution. Before native links,
@@ -104,12 +104,20 @@ A module's options apply regardless of whether its libraries are shared or stati
 Libs.private and Requires.private, and prefers declared .a inputs when available.
 The program's overall link mode remains controlled by its Bazel rule. Dynamic
 queries include Requires link flags and the compilation flags from both public
-and private requirements. Module compilation contexts expose resolved include
-directories and preprocessor definitions. These field semantics follow the
+and private requirements. Module compilation contexts preserve `-I`, `-isystem`, `-iquote` and `-D`.
+An explicit module reports compiler options that CcInfo cannot propagate, such
+as `-pthread`, `-fopenmp` or `-U`; use its original `:pkgconfig` files with a
+consumer that accepts those compiler flags. The flags remain in the metadata.
+Legacy labels retain their existing compiler-option compatibility behavior. These field semantics follow the
 [pkg-config guide](https://people.freedesktop.org/~dbn/pkg-config-guide.html).
 
 Requires names and version predicates are resolved by the host pkg-config tool
-against a private directory built from the locked package metadata. The host's
+against a private directory built from the locked package metadata. Providers
+can belong to another reviewed collection without being Debian package
+dependencies. The generated catalog separates target architectures and source
+families connected by reviewed dependency edges. Multiple unresolved providers
+produce an explicit ambiguity diagnostic. Missing providers stay errors on the
+explicit module interface; they do not trigger package resolution or lock writes. The host's
 PKG_CONFIG_PATH, PKG_CONFIG_LIBDIR and sysroot settings do not supply modules.
 This requires pkg-config on the build host. Metadata archives use the same URLs
 and checksums as their locked DEBs. No lock-format or request-file change is
@@ -119,7 +127,30 @@ Existing package and per-library labels remain compatibility interfaces. Package
 labels keep the aggregate library inputs. Their flags come first from a module
 matching the package base name, then the name without a leading lib; when neither
 exists, the historical aggregate remains. Per-library aliases use an unambiguous
-matching module; ambiguous raw-library aliases do not choose a module implicitly.
+matching module. A missing private requirement or SDK-required metadata field
+falls back to the compatibility module's direct fields. Explicit module targets
+remain strict. Ambiguous unqualified raw-library aliases fail when selected;
+raw archives and precisely selected modules remain usable.
 Use the explicit `pkgconfig/<module>` labels for exact module selection. Modules
 under usr/share/pkgconfig are also available. Modules that carry only flags
 without library files retain those flags across shared-library boundaries.
+
+
+The ordered link contract retains groups, whole-archive switches and repeated
+options. `-Bstatic`, `-Bdynamic` and push/pop state also control file selection.
+Library directories take precedence over suffix preference: each directory is
+searched in order. Exact `-l:filename` and declared literal archive inputs are
+supported. Static queries prefer `.a` within each directory, with the existing
+shared-library fallback; an explicit `-Bstatic` requires an archive.
+
+Runtime metadata follows the selected files, GNU script inputs and ELF
+DT_NEEDED edges. Plugins carried in the same package are preserved in its data
+archive and do not become unrelated module link inputs. The metadata comes from
+cycle-free leaf repositories and uses the locked DEB hashes. Temporary archive
+inspection trees are removed after indexing.
+
+The contract fixture includes independent SDK/GNU link controls, providers
+outside the Debian dependency graph, foreign-suite/architecture exclusions,
+legacy versus strict errors, compiler-option diagnostics, duplicate script
+references, exact filenames, mixed archive/DSO search order, link state,
+internal-name collisions and original metadata under `usr/share/pkgconfig`.

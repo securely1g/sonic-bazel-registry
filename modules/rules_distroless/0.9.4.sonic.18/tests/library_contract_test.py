@@ -68,10 +68,11 @@ def main():
         run([ar, 'rcs', str(target), str(obj)])
         return target.read_bytes()
 
-    def package(name, files, dependencies=()):
+    def package(name, files, dependencies=(), suite="fixture", target_arch=None):
+        package_arch = target_arch or arch
         tree = root / ('pkg-' + name)
         (tree / 'DEBIAN').mkdir(parents=True)
-        (tree / 'DEBIAN/control').write_text(f'Package: {name}\nVersion: 1\nArchitecture: {arch}\nMaintainer: Fixture <fixture@example.invalid>\nDescription: independent library contract\n')
+        (tree / 'DEBIAN/control').write_text(f'Package: {name}\nVersion: 1\nArchitecture: {package_arch}\nMaintainer: Fixture <fixture@example.invalid>\nDescription: independent library contract\n')
         for path, content in files.items():
             p = tree / path
             p.parent.mkdir(parents=True, exist_ok=True)
@@ -81,7 +82,7 @@ def main():
                 p.write_bytes(content)
         deb = root / (name + '.deb')
         run(['dpkg-deb', '--root-owner-group', '-Zxz', '--build', str(tree), str(deb)])
-        packages[f'/fixture/{name}:{arch}=1'] = dict(name=name, version='1', suite='fixture', architecture=arch,
+        packages[f'/{suite}/{name}:{package_arch}=1'] = dict(name=name, version='1', suite=suite, architecture=package_arch,
             filename=deb.name, sha256=hashlib.sha256(deb.read_bytes()).hexdigest(), files=sorted(files),
             depends_on=[f'/fixture/{dep}:{arch}=1' for dep in dependencies])
 
@@ -119,27 +120,29 @@ def main():
         'usr/lib/libpcpublic.a': archive('pcpublic_static','pc_public_value',29),
         'usr/include/pcpublic.h': b'int pc_public_value(void);\n',
         'usr/lib/pkgconfig/pc-public.pc': pc('pcpublic')})
+    package('libpcprivate-dev', {'usr/lib/libpcprivate.a': archive('pcprivate','pc_private_anchor',0),'usr/lib/pkgconfig/pc-private.pc': pc('pcprivate').replace(b'-lpcprivate\n',b'-lpcprivate -Wl,-z,nodlopen -Wl,-u,pc_private_anchor\n') + b'Cflags: -DPC_PRIVATE_HEADER=1\n'})
     package('libpcgraph-dev', dict(config_files, **{
         'usr/lib/libpcbase.so.1': library('libpcbase','pc_base_value',13),
         'usr/lib/libpcbase.so': 'libpcbase.so.1',
         'usr/lib/libpcbase.a': archive('pcbase_static','pc_base_value',13),
-        'usr/lib/libpcprivate.a': archive('pcprivate','pc_private_anchor',0),
         'usr/lib/pkgconfig/libpcgraph.pc': pc('pcbase').replace(b'prefix=/usr\n',b'prefix=${pcfiledir}/../..\n').replace(b'-lpcbase\n', b'\\\n  -lpcbase\n') + b'Requires: pc-public >= 1\nRequires.private: pc-private >= 1\n',
         'usr/lib/pkgconfig/graph-alias.pc': 'libpcgraph.pc',
-        'usr/lib/pkgconfig/pc-private.pc': pc('pcprivate').replace(b'-lpcprivate\n',b'-lpcprivate -Wl,-z,nodlopen -Wl,-u,pc_private_anchor\n') + b'Cflags: -DPC_PRIVATE_HEADER=1\n',
         'usr/lib/pkgconfig/cycle-a.pc': pc('pcbase') + b'Requires: cycle-b\n',
         'usr/lib/pkgconfig/cycle-b.pc': pc('pcpublic') + b'Requires: cycle-a\n',
         'usr/lib/pkgconfig/bad-version.pc': pc('pcbase') + b'Requires: pc-public > 99\n',
-        'usr/lib/pkgconfig/missing-dep.pc': pc('pcbase') + b'Requires: missing-module\n'}), ['libpcpublic-dev'])
-    cases.append(('pcgraph', '#include <pcpublic.h>\n#ifndef PC_PRIVATE_HEADER\n#error private Requires Cflags missing\n#endif\nint pc_base_value(void);', 'pc_base_value()+pc_public_value()', 'libpcgraph-dev', ()))
+        'usr/lib/pkgconfig/missing-dep.pc': pc('pcbase') + b'Requires: missing-module\n'}))
+    cases.append(('pcgraph', '#ifdef WRONG_PC_PROVIDER\n#error foreign provider selected\n#endif\n#include <pcpublic.h>\n#ifndef PC_PRIVATE_HEADER\n#error private Requires Cflags missing\n#endif\nint pc_base_value(void);', 'pc_base_value()+pc_public_value()', 'libpcgraph-dev', ()))
     module_cases['pcgraph'] = '@locked//libpcgraph-dev:pkgconfig/libpcgraph'
+    package('foreign-pc-provider', {'usr/share/pkgconfig/pc-public.pc': pc('wrong') + b'Cflags: -DWRONG_PC_PROVIDER=1\n'}, suite='other')
+    foreign_arch = 'arm64' if arch == 'amd64' else 'amd64'
+    package('foreign-arch-provider', {'usr/share/pkgconfig/pc-public.pc': pc('wrong') + b'Cflags: -DWRONG_PC_PROVIDER=1\n'}, target_arch=foreign_arch)
     package('libpconly-dev', {
         'usr/include/pconly.h': b'extern char pc_only_marker;\n',
         'usr/share/pkgconfig/pconly.pc': b'Name: pconly\nDescription: flags without a library\nVersion: 1\nCflags: -I/usr/include -DPC_ONLY_HEADER=1\nLibs: -Wl,--defsym,pc_only_marker=42\n'})
     cases.append(('pconly', '#include <pconly.h>\n#ifndef PC_ONLY_HEADER\n#error module Cflags missing\n#endif', '(int)(long)&pc_only_marker', 'libpconly-dev', ()))
     module_cases['pconly'] = '@locked//libpconly-dev:pkgconfig/pconly'
     for case in ['pcalias', 'pccompat']:
-        cases.append((case, '#include <pcpublic.h>\n#ifndef PC_PRIVATE_HEADER\n#error private Requires Cflags missing\n#endif\nint pc_base_value(void);', 'pc_base_value()+pc_public_value()', 'libpcgraph-dev', ()))
+        cases.append((case, '#ifdef WRONG_PC_PROVIDER\n#error foreign provider selected\n#endif\n#include <pcpublic.h>\n#ifndef PC_PRIVATE_HEADER\n#error private Requires Cflags missing\n#endif\nint pc_base_value(void);', 'pc_base_value()+pc_public_value()', 'libpcgraph-dev', ()))
     module_cases['pcalias'] = '@locked//libpcgraph-dev:pkgconfig/graph-alias'
     cases.append(('pccycle', 'int pc_base_value(void); int pc_public_value(void);', 'pc_base_value()+pc_public_value()', 'libpcgraph-dev', ()))
     module_cases['pccycle'] = '@locked//libpcgraph-dev:pkgconfig/cycle-a'
@@ -239,10 +242,107 @@ def main():
     package('libconflict-dev', {'usr/lib/libconflict.so': b'GROUP ( /usr/lib/left/libfirst.so.1 /usr/lib/right/libsecond.so.1 )\n',
         'usr/lib/pkgconfig/conflict.pc': pc('conflict')}, ['libconflict0'])
 
+
+    # An unavailable private module must affect the explicit contract only.
+    package('libcompatmissing-dev', dict(config_files, **{
+        'usr/lib/libcompatmissing.so': library('compatmissing','compat_missing_value',42),
+        'usr/lib/pkgconfig/compatmissing.pc': pc('compatmissing') + b'Requires.private: absent-private-provider >= 1\n'}))
+    cases.append(('compatmissing','int compat_missing_value(void);','compat_missing_value()','libcompatmissing-dev',()))
+
+    # Plugins with the same basename are data/runtime plugins, not link inputs
+    # of the unrelated library selected by this module.
+    package('libcompatformat-dev', {'usr/lib/libcompatformat.so': library('compatformat','compat_format_value',42),'usr/lib/pkgconfig/compatformat.pc': b'Libs: -L/usr/lib -lcompatformat\nCflags: -I/usr/include\n'})
+    cases.append(('compatformat','int compat_format_value(void);','compat_format_value()','libcompatformat-dev',()))
+
+    package('libplugins-dev', {
+        'usr/lib/libplugins.so': library('plugins','plugin_main_value',42),
+        'usr/lib/plugins/one/module.so': library('plugin_one','plugin_one_value',99,'module.so'),
+        'usr/lib/plugins/two/module.so': library('plugin_two','plugin_two_value',77,'module.so'),
+        'usr/lib/pkgconfig/plugins.pc': pc('plugins')})
+    for case in ['plugins','pluginslegacy']:
+        cases.append((case,'int plugin_main_value(void);','plugin_main_value()','libplugins-dev',('module.so',)))
+    module_cases['plugins']='@locked//libplugins-dev:pkgconfig/plugins'
+
+    package('libsystemflags-dev', {
+        'usr/include/fixture-system/pc_system_value.h': b'#define PC_SYSTEM_VALUE 42\n',
+        'usr/share/pkgconfig/systemflags.pc': b'Name: systemflags\nDescription: compiler contract\nVersion: 1\nCflags: -isystem /usr/include/fixture-system -DPC_SYSTEM_DEFINE=1\n',
+        'usr/share/pkgconfig/unsupported.pc': b'Name: unsupported\nDescription: unsupported compile contract\nVersion: 1\nCflags: -pthread\n'})
+    cases.append(('pcsystem','#include <pc_system_value.h>\n#ifndef PC_SYSTEM_DEFINE\n#error compiler define missing\n#endif','PC_SYSTEM_VALUE','libsystemflags-dev',()))
+    module_cases['pcsystem']='@locked//libsystemflags-dev:pkgconfig/systemflags'
+
+    package('libwhole-dev', {
+        'usr/lib/libwhole.so': library('whole','whole_value',0,source_text='int whole_state=0; int whole_value(void){return whole_state;}\n'),
+        'usr/lib/libwhole_first.a': archive('whole_first','whole_first_anchor',0,source_text='extern int whole_state; void whole_first_anchor(void){} __attribute__((constructor)) static void init(void){whole_state+=19;}\n'),
+        'usr/lib/libwhole_second.a': archive('whole_second','whole_second_anchor',0,source_text='extern int whole_state; void whole_second_anchor(void){} __attribute__((constructor)) static void init(void){whole_state+=23;}\n'),
+        'usr/lib/pkgconfig/whole.pc': pc('whole').replace(b'-lwhole\n',b'-lwhole -Wl,--whole-archive -lwhole_first -Wl,--no-whole-archive\nLibs.private: -Wl,--whole-archive -lwhole_second -Wl,--no-whole-archive\n')})
+    cases.append(('pcwhole','int whole_value(void);','whole_value()','libwhole-dev',()))
+    cases.append(('wholelegacy','int whole_value(void);','whole_value()+23','libwhole-dev',()))
+    module_cases['pcwhole']='@locked//libwhole-dev:pkgconfig/whole/static'
+
+    # Independent SDK+GNU controls establish the dynamic/private expectations.
+    reference_runtime = root/'reference-runtime'
+    reference_runtime.mkdir()
+    shutil.copy2(root/'pkg-libwhole-dev/usr/lib/libwhole.so',reference_runtime/'whole.so.1')
+    reference_source=root/'whole-reference.c'
+    reference_source.write_text('#include <stdio.h>\nint whole_value(void); int main(void){printf("%d\\n",whole_value());}\n')
+    pcenv=dict(env,PKG_CONFIG_PATH='',PKG_CONFIG_LIBDIR=str(root/'pkg-libwhole-dev/usr/lib/pkgconfig'))
+    for mode,expected_value in [('dynamic','19'),('static','42')]:
+        command=['pkg-config','--define-variable=prefix='+str(root/'pkg-libwhole-dev/usr'),'--libs']+(['--static'] if mode=='static' else [])+['whole']
+        reference_flags=shlex.split(run(command,env=pcenv).stdout)
+        executable=root/('whole-reference-'+mode)
+        run(compiler+[str(reference_source)]+reference_flags+['-Wl,-rpath,'+str(reference_runtime),'-o',str(executable)])
+        command=([str(args.qemu),'-L',cross['sysroot'],str(executable)] if cross else [str(executable)])
+        assert run(command).stdout.strip()==expected_value,(mode,reference_flags)
+    print('PASS independent pkg-config/GNU public=19 static=42 controls',flush=True)
+
+    package('libmixed-first', {'usr/lib/first/libmixed.a': archive('mixed_first','mixed_value',42)})
+    package('libmixed-second', {'usr/lib/second/libmixed.so': library('mixed_second','mixed_value',99,'libmixed_decoy.so.1')})
+    package('libsearchorder-dev', {'usr/lib/pkgconfig/mixed.pc': pc('mixed').replace(b'-L${libdir}',b'-L ${libdir}/first -L${libdir}/second')}, ['libmixed-first','libmixed-second'])
+    cases.append(('pcmixed','int mixed_value(void);','mixed_value()','libsearchorder-dev',()))
+    module_cases['pcmixed']='@locked//libsearchorder-dev:pkgconfig/mixed'
+
+    package('libswitch-dev', {
+        'usr/lib/libswitch.a': archive('switch_archive','switch_value',42),
+        'usr/lib/libswitch.so': library('switch_shared','switch_value',99),
+        'usr/lib/pkgconfig/switch.pc': pc('switch').replace(b'-lswitch',b'-Wl,--push-state,-Bstatic -lswitch -Wl,--pop-state'),
+        'usr/lib/pkgconfig/switch-dynamic.pc': pc('switch').replace(b'-lswitch',b'-Wl,--push-state,-Bdynamic -lswitch -Wl,--pop-state')})
+    cases.append(('pcswitchstatic','int switch_value(void);','switch_value()','libswitch-dev',('switch_shared.so.1',)))
+    module_cases['pcswitchstatic']='@locked//libswitch-dev:pkgconfig/switch'
+    cases.append(('pcswitchdynamic','int switch_value(void);','switch_value()-57','libswitch-dev',()))
+    module_cases['pcswitchdynamic']='@locked//libswitch-dev:pkgconfig/switch-dynamic/static'
+
+    package('libliteral-dev', dict(config_files, **{
+        'usr/lib/libliteral.a': archive('literal','literal_value',42),
+        'usr/lib/pkgconfig/literal.pc': pc('literal').replace(b'-lliteral',b'-l:libliteral.a'),
+        'usr/lib/pkgconfig/literal-file.pc': pc('literal').replace(b'-lliteral',b'libliteral.a')}))
+    for case in ['literal','literallegacy']:
+        cases.append((case,'int literal_value(void);','literal_value()','libliteral-dev',()))
+    module_cases['literal']='@locked//libliteral-dev:pkgconfig/literal'
+    cases.append(('literalfile','int literal_value(void);','literal_value()','libliteral-dev',()))
+    module_cases['literalfile']='@locked//libliteral-dev:pkgconfig/literal-file'
+
+    package('libscriptchild0', {'usr/lib/libscriptchild.so': library('scriptchild','script_child_value',42)})
+    package('libscriptdup-dev', {'usr/lib/libscriptdup.so': b'GROUP ( -lscriptchild /usr/lib/libscriptchild.so )\n','usr/lib/pkgconfig/scriptdup.pc': pc('scriptdup')}, ['libscriptchild0'])
+    cases.append(('pcscriptdup','int script_child_value(void);','script_child_value()','libscriptdup-dev',()))
+    module_cases['pcscriptdup']='@locked//libscriptdup-dev:pkgconfig/scriptdup'
+
+    package('libnames-dev', dict(config_files, **{
+        'usr/lib/a_b/libx.so': library('name_plus','name_plus_value',42),
+        'usr/lib/a/b_libx.so': library('name_minus','name_minus_value',42),
+        'usr/lib/duplicate/libx.so': library('name_other','name_other_value',99),
+        'usr/lib/pkgconfig/foo+bar.pc': pc('x').replace(b'-L${libdir}',b'-L${libdir}/a_b'),
+        'usr/lib/pkgconfig/foo-bar.pc': pc('x').replace(b'-L${libdir} -lx',b'-L${libdir}/a -l:b_libx.so')}))
+    for case,function,module in [('pcnameplus','name_plus_value','foo+bar'),('pcnameminus','name_minus_value','foo-bar')]:
+        cases.append((case,'int '+function+'(void);',function+'()','libnames-dev',()))
+        module_cases[case]='@locked//libnames-dev:pkgconfig/'+module
+
     roots = {f'/fixture/{p}:{arch}': '1' for _, _, _, p, _ in cases}
     roots[f'/fixture/fixture-config:{arch}'] = '1'
-    (root / 'apt.lock.json').write_text(json.dumps(dict(version=2, sources={'fixture': {'uris': [root.as_uri()]}},
+    (root / 'apt.lock.json').write_text(json.dumps(dict(version=2, sources={'fixture': {'uris': [root.as_uri()]},'other':{'uris':[root.as_uri()]}},
         packages=packages, dependency_sets={'locked': {'sets': {arch: roots}},
+            'providers': {'sets': {arch: {f'/fixture/libpcpublic-dev:{arch}': '1',f'/fixture/libpcprivate-dev:{arch}':'1'}}},
+            'foreign': {'sets': {arch: {f'/other/foreign-pc-provider:{arch}': '1'}}},
+            'foreign_arch': {'sets': {foreign_arch: {f'/fixture/foreign-arch-provider:{foreign_arch}': '1'}}},
             'conflicting': {'sets': {arch: {f'/fixture/libconflict-dev:{arch}': '1'}}}})))
     adapter = root / 'adapter'
     adapter.mkdir()
@@ -264,7 +364,7 @@ def _impl(ctx):
             if lib.dynamic_library:
                 files.append(lib.dynamic_library)
     out=ctx.actions.declare_file(ctx.label.name+".json")
-    ctx.actions.write(out,json.encode({"flags":flags}))
+    ctx.actions.write(out,json.encode({"flags":flags,"files":[file.path for file in files]}))
     return [DefaultInfo(files=depset([out]+files))]
 link_context=rule(implementation=_impl,attrs={"dep":attr.label(providers=[CcInfo])})
 ''')
@@ -332,7 +432,7 @@ PyMODINIT_FUNC PyInit_optional_python(void){return PyModule_Create(&module);}
 ''')
         build += ['cc_library(name="python_headers",hdrs=glob(["python_headers/**"]),includes=["python_headers"])',
             'cc_binary(name="optional_python.so",srcs=["optional_python.c"],linkshared=True,deps=[":python_headers",":optional_downstream_link"],linkopts=["-Wl,-rpath,$$ORIGIN/../lib"])']
-    payload_packages = ['fixture-config', 'libmulti-dev', 'libboundary-dev', 'libpcgraph-dev']
+    payload_packages = ["libnames-dev", "libliteral-dev", "libcompatmissing-dev", 'fixture-config', 'libmulti-dev', 'libboundary-dev', 'libpcgraph-dev']
     build.append('filegroup(name="package_inputs",srcs=[' + ','.join(f'"@locked//{pkg}/{arch}:{kind}"' for pkg in payload_packages for kind in ['deb', 'data', 'control']) + '])')
     if cross:
         version=run([cross['cc'],'-dumpversion']).stdout.strip()
@@ -344,6 +444,7 @@ PyMODINIT_FUNC PyInit_optional_python(void){return PyModule_Create(&module);}
             'toolchain(name="cross_toolchain",toolchain=":cross_cc",toolchain_type="@bazel_tools//tools/cpp:toolchain_type",exec_compatible_with=["@platforms//cpu:x86_64","@platforms//os:linux"],target_compatible_with=["@platforms//cpu:arm64","@platforms//os:linux"])']
     (root/'conflict.c').write_text('int conflict_first(void); int conflict_second(void); int main(void){return conflict_first()+conflict_second();}\n')
     build.append('cc_binary(name="conflict_consumer",srcs=["conflict.c"],deps=["@conflicting//libconflict-dev:libconflict"])')
+    build.append('link_context(name="plugin_context",dep="@locked//libplugins-dev:pkgconfig/plugins")')
     (root / 'BUILD.bazel').write_text('\n'.join(build)+'\n')
     (root / 'sandbox').mkdir()
     bazel = ['bazel','--nohome_rc','--nosystem_rc','--max_idle_secs=60']
@@ -380,7 +481,17 @@ PyMODINIT_FUNC PyInit_optional_python(void){return PyModule_Create(&module);}
             member = next(item for item in archive.getmembers() if item.name.removeprefix('./') == 'control')
             assert ('Package: '+pkg+'\n').encode() in archive.extractfile(member).read(),pkg
     print('PASS deb/data/control preserve plain configuration files, alone and beside native libraries',flush=True)
+    metadata = run(bazel+['build']+flags+['@locked//libpconly-dev:pkgconfig'],cwd=root)
+    pc_outputs = run(bazel+['cquery']+flags+['@locked//libpconly-dev:pkgconfig','--output=files'],cwd=root).stdout.splitlines()
+    assert len(pc_outputs)==1 and pc_outputs[0].endswith('/usr/share/pkgconfig/pconly.pc'),pc_outputs
+    assert (execroot/pc_outputs[0]).read_bytes()==(root/'pkg-libpconly-dev/usr/share/pkgconfig/pconly.pc').read_bytes()
+    print('PASS usr/share original pkgconfig export',flush=True)
+    for label, message in [('@locked//libcompatmissing-dev:pkgconfig/compatmissing','absent-private-provider'),('@locked//libsystemflags-dev:pkgconfig/unsupported','CcInfo cannot propagate'),('@locked//libnames-dev:libx_cc','Ambiguous shared library'),('@locked//libcompatformat-dev:pkgconfig/compatformat','pkg-config module compatformat')]:
+        result=subprocess.run(bazel+['build']+flags+[label],cwd=root,env=env,text=True,capture_output=True)
+        assert result.returncode and message in result.stdout+result.stderr,(label,result.stdout+result.stderr)
+        print('PASS explicit compiler/dependency diagnostic isolated:',label,flush=True)
     for module in ['bad-version', 'missing-dep']:
+
         result = subprocess.run(bazel+['build']+flags+['@locked//libpcgraph-dev:pkgconfig/'+module],cwd=root,env=env,text=True,capture_output=True)
         (root/(module+'.log')).write_text(result.stdout+result.stderr)
         assert result.returncode and 'pkg-config module '+module in result.stdout+result.stderr,(module,result.stdout+result.stderr)
@@ -391,9 +502,11 @@ PyMODINIT_FUNC PyInit_optional_python(void){return PyModule_Create(&module);}
         assert result.returncode and message in result.stdout+result.stderr,(name,result.stdout+result.stderr)
         print('PASS native-only error:',name,flush=True)
     with (root / 'build.log').open('w') as log:
-        result = subprocess.run(bazel+['build']+flags+['//:'+case+'_consumer' for case, *_ in cases]+['//:language_context','//:explicit_ctor','//:explicit_plugin','//:graph_static']+(['//:optional_python.so'] if not cross else []),cwd=root,env=env,stdout=log,stderr=subprocess.STDOUT)
+        result = subprocess.run(bazel+['build']+flags+['//:'+case+'_consumer' for case, *_ in cases]+['//:language_context','//:plugin_context','//:explicit_ctor','//:explicit_plugin','//:graph_static']+(['//:optional_python.so'] if not cross else []),cwd=root,env=env,stdout=log,stderr=subprocess.STDOUT)
     if result.returncode:
         raise SystemExit('Fixture build failed: '+str(root/'build.log'))
+    plugin_context=json.loads((root/'bazel-bin/plugin_context.json').read_text())
+    assert not any('module.so' in value or '/plugins/one/' in value or '/plugins/two/' in value for value in plugin_context['flags']+plugin_context['files']),plugin_context
     ordinary_dynamic = run(['readelf','-d',str(root/'bazel-bin/liboptional_bridge.so')]).stdout
     assert 'NOOPEN' not in ordinary_dynamic, 'Optional static pkg-config flags leaked into the default dynamic interface:\n'+ordinary_dynamic
     selected_dynamic = run(['readelf','-d',str(root/'bazel-bin/libexplicit_ctor.so')]).stdout
