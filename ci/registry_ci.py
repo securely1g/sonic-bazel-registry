@@ -1494,6 +1494,8 @@ def run(root: Path, module: str, version: str, architecture: str,
             test_flags = prepare_test_runtime(config, fetched[0].parent, consumer, artifacts,
                                               architecture, test_container_image, executor_prefix or None)
             if executor_prefix:
+                if (module, version) == ("sonic-swss-common", "0.0.9-334389eae54afd1f4f5ee69f89c3a7ad2062ee61"):
+                    executor_prefix = [str(root / "ci" / "arm_declared_runtime_executor"), *executor_prefix]
                 test_flags.append("--run_under=" + shlex.join(executor_prefix))
             # Emulated Python can spend more than five minutes staging a large
             # declared runtime before the test starts. Keep caller timeouts and

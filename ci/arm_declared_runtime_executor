@@ -1,0 +1,23 @@
+#!/bin/bash
+set -euo pipefail
+
+# Keep the full ARM userspace executor for ordinary tests. The declared-runtime
+# wrapper stages a private ARM loader and binary with native Python. Linux
+# binfmt handles the Go payload and its self-exec in the same filesystem.
+original=("$@")
+while [[ "$1" != -- ]]; do shift; done
+shift
+case "$1" in
+    */goext/swsscommon_runtime_test)
+        target=sonic-swss-common+/goext/swsscommon_runtime_test_binary_/swsscommon_runtime_test_binary
+        ;;
+    *) exec "${original[@]}" ;;
+esac
+payload="${TEST_SRCDIR:?}/${TEST_WORKSPACE:?}/../$target"
+if ! LC_ALL=C readelf -h -- "$payload" | grep -Eq 'Machine: +AArch64$'; then
+    echo "Expected the declared AArch64 payload $target" >&2
+    exit 1
+fi
+export QEMU_LD_PREFIX=/opt/sonic-arm64-rootfs
+echo "Running original declared runtime fixture through binfmt with AArch64 $target" >&2
+exec "$@"
