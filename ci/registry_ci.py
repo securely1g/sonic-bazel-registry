@@ -1320,6 +1320,24 @@ def prepare_nested_go_tests(root: Path, work_dir: Path, bazel: str) -> Path:
     return tools / "executor"
 
 
+def prepare_gazelle_tests(root: Path, work_dir: Path, script_executor: list[str]) -> Path:
+    """Run Go test binaries directly and preserve the target runtime for shell tests."""
+    tools = work_dir / "gazelle-test-tools"
+    tools.mkdir()
+    go = tools / "arm-go-test"
+    shutil.copy2(root / "ci" / "rules_go_cross" / "executor", go)
+    runner = tools / "executor"
+    runner.write_text(
+        '#!/bin/sh\nset -eu\n'
+        'if [ "$(head -c 2 -- "$1")" = "#!" ]; then\n'
+        f'    exec {shlex.join(script_executor)} "$@"\n'
+        'fi\n'
+        f'exec {shlex.quote(str(go))} "$@"\n'
+    )
+    runner.chmod(0o755)
+    return runner
+
+
 def run(root: Path, module: str, version: str, architecture: str,
         work_dir: Path, artifacts: Path, bazel: str = "bazel",
         test_container_image: str | None = None,
@@ -1512,8 +1530,11 @@ def run(root: Path, module: str, version: str, architecture: str,
                     executor_prefix[-1:-1] = ["--bind-at", mapping["source"], mapping["destination"]]
             test_flags = prepare_test_runtime(config, fetched[0].parent, consumer, artifacts,
                                               architecture, test_container_image, executor_prefix or None)
-            if cross_compile and module == "rules_go":
-                go_executor = prepare_nested_go_tests(root, work_dir, bazel)
+            if cross_compile and module in {"rules_go", "gazelle"}:
+                if module == "rules_go":
+                    go_executor = prepare_nested_go_tests(root, work_dir, bazel)
+                else:
+                    go_executor = prepare_gazelle_tests(root, work_dir, executor_prefix)
                 executor_prefix = [str(go_executor)]
                 cross_runtime["test_executor_prefix"] = executor_prefix
                 cross_runtime["test_executor_sha256"] = hashlib.sha256(go_executor.read_bytes()).hexdigest()

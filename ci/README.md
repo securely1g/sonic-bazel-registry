@@ -711,6 +711,11 @@ The `rules_go` `0.65.0.sonic.1` follow-up moves both original test targets to
 the cross runners. Their ARM test processes invoke the native Bazel launcher
 inside fresh workspaces. Nested builds use the same cross compiler and sysroot
 as the outer build and check the architecture of each produced executable.
+
+Gazelle’s ARM Go test binaries use the same direct QEMU executor so a Go test
+can execute itself again through the kernel’s ARM interpreter. Its shell-based
+`go_proxy_test` uses the normal ARM runtime and its original mounts. All three
+tests run with the published integration module. [ARM64 validation](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42186480262/job/127787942313)
 All four original Go cases passed, including Cgo header propagation and build ID
 changes. [Full ARM64 validation](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42094050308/job/127479337371)
 
