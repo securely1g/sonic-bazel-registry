@@ -1,6 +1,6 @@
 {
-    "homepage": "https://github.com/sonic-net/sonic-mgmt-framework",
-    "versions": [
-        "1.0.0-4036a01aa4648913ce44a0b4db52556a55cb2911"
-    ]
+  "homepage": "https://github.com/sonic-net/sonic-mgmt-framework",
+  "versions": [
+    "1.0.0-2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5"
+  ]
 }
