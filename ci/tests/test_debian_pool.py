@@ -205,6 +205,8 @@ class DebianPoolRoutingTest(unittest.TestCase):
                 other_arch = original.replace("_amd64", "_arm64")
                 # These ARM64 siblings have independently verified locked bytes.
                 other_content = {
+                    "main/g/gzip/gzip_1.13-1_amd64.deb":
+                        ["https://snapshot.debian.org/file/12136dd88ce463df2f49cdfa4a33666076228318"],
                     "main/u/util-linux/uuid-dev_2.41-5_amd64.deb":
                         ["https://snapshot.debian.org/file/cb5244c39df10c7ce2573dbf21944fe03d8a436b"],
                     "main/u/util-linux/libmount1_2.41-5_amd64.deb":
@@ -255,9 +257,16 @@ class DebianPoolRoutingTest(unittest.TestCase):
                 self.assertEqual(routed_urls(original), expected)
 
     def test_indexes_sources_and_other_hosts_keep_maintained_routes(self):
+        security_index = "https://snapshot.debian.org/archive/debian-security/20260726T121236Z/dists/trixie-security/main/binary-amd64/Packages.xz"
+        self.assertEqual(routed_urls(security_index), [
+            "https://snapshot.debian.org/file/8c7898c09763411a9bff9e68bab2c6f08a6b14b4",
+            *snapshot_fallbacks(security_index),
+        ])
         for url in [
             "https://snapshot.debian.org/archive/debian/20260727T143429Z/dists/trixie/Release",
-            "https://snapshot.debian.org/archive/debian-security/20260726T121236Z/dists/trixie-security/main/binary-amd64/Packages.xz",
+            security_index.replace("20260726T121236Z", "20260727T121236Z"),
+            security_index.replace("binary-amd64", "binary-arm64"),
+            security_index.replace("Packages.xz", "Packages.gz"),
             TOMLI_URL.replace(".deb", ".dsc"), TOMLI_URL.replace(".deb", ".orig.tar.gz"),
             TOMLI_URL.replace("snapshot.debian.org", "other.example"),
             TOMLI_URL + "?alternate=1", TOMLI_URL + "#fragment",

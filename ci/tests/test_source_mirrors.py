@@ -58,7 +58,32 @@ DEBIAN_RELEASE_PACKAGES = (
 # Generated APT locks from native ARM validation and the cross-build survey
 # preserve these exact bytes, including declared build-tool dependencies.
 # Each tuple is (original URL, content locator, locked SHA256, size, optional CDN).
+# A locator may include the optional filename after the content SHA1.
 DEBIAN_CONTENT_PACKAGES = (
+    ("https://snapshot.debian.org/archive/debian-security/20260726T121236Z/pool/updates/main/k/krb5/libkrb5-3_1.21.3-5+deb13u1_amd64.deb",
+     "53d94056269d541890f7e1bc61b4face03061af6",
+     "47d71d6a7f2e59b9bae5f89602397594805113b95889ad18fa703cd53abafc97", 326056, None),
+    ("https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/p/pcre2/libpcre2-32-0_10.46-1~deb13u1_amd64.deb",
+     "1d5504c88eac3e34bd38523ed6986c68ab5e205b",
+     "db210bcfa7853c59b1a68863ca7d499122d413d4d368ffcc72c08b26203c3c15", 268056, None),
+    ("https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/t/tzdata/tzdata_2026b-0+deb13u1_all.deb",
+     "47cec4da0609fa1ba1b38b6705c07b8578027cb6",
+     "306013b77311e875620e89f43c447765a6c72b7b398e0baa8e5721bcbbdf66cf", 264316, None),
+    ("https://snapshot.debian.org/archive/debian-security/20260726T121236Z/pool/updates/main/k/krb5/libk5crypto3_1.21.3-5+deb13u1_arm64.deb",
+     "d747ad6e5b95660c1ca90228b55886aa814a51db",
+     "2453e8d4fa3b91b868d5bc10e84a15ad9c7bc4e4cb49379cb1f560bdce50db4a", 81416, None),
+    ("https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/u/util-linux/util-linux_2.41-5_arm64.deb",
+     "e76be3e653327f16f37ab2c460e45d19b04e79dd",
+     "d336901e4c1aedf268837d41a4e1004faa9b7ad4f1e6763f01711b487a4c18ce", 1191312, None),
+    ("https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/g/gzip/gzip_1.13-1_arm64.deb",
+     "12136dd88ce463df2f49cdfa4a33666076228318",
+     "cd46c9482fd3b96d4ecf282b01185ef9341b0ffcd40816372141f73037ce2c36", 135008, None),
+    ("https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/c/curl/curl_8.14.1-2+deb13u4_amd64.deb",
+     "7ba41bdcd2ca506a7d43c424db9cde0662a868ca/curl_8.14.1-2%2Bdeb13u4_amd64.deb",
+     "7bd23df36e65ca32a5bbd81f67ca311b9e0c122212c70d0733f4e45d745789d2", 269904, None),
+    ("https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/a/aom/libaom3_3.12.1-1_amd64.deb",
+     "d8cd6332973da7765c8210e657882014f2c4914d",
+     "16321210c4a3e27bf5ad1d56c1f09c9f7958f0c8ec3b8ae894ea1be322c5d055", 1871136, None),
     ("https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/g/glibc/libc-dev-bin_2.41-12+deb13u3_amd64.deb",
      "4a63880454e8cdb1c0fb13d23f472d8244039aad",
      "2eb5db4cb16a42850ed9d3ca8b2b1aeda91dd00d248f6068f49d641321748308", 59836, None),
@@ -331,25 +356,36 @@ class DebianPoolMirrorScopeTest(unittest.TestCase):
         ):
             self.assertEqual(self.candidates(other), [], other)
 
-        # One verified index exception must not broaden the generic pool rules.
-        upstream = "https://snapshot.debian.org/archive/debian/20260727T143429Z/dists/trixie-updates/main/binary-arm64/Packages.xz"
-        content = "https://snapshot.debian.org/file/c9d85a145fcc34817defe65c818ded141ea2c95f"
-        self.assertEqual(self.candidates(upstream), [content, upstream])
-        for other in (
-            upstream.replace("20260727T143429Z", "20260728T143429Z"),
-            upstream.replace("trixie-updates", "trixie"),
-            upstream.replace("binary-arm64", "binary-amd64"),
-            upstream.replace("binary-arm64", "binary-armhf"),
-            upstream.replace("/main/", "/contrib/"),
-            upstream.replace("Packages.xz", "Packages.gz"),
-            upstream.replace("Packages.xz", "Packages.bz2"),
-            upstream.replace("Packages.xz", "Packages"),
-            upstream.replace("snapshot.debian.org", "snapshot-cloudflare.debian.org"),
-            upstream.replace("snapshot.debian.org", "another.example"),
-            upstream.replace("/archive/debian/", "/archive/debian-security/"),
-            upstream + "?query", upstream + "#fragment", upstream + ".sha256",
-        ):
-            self.assertEqual(self.candidates(other), [], other)
+        # Exact verified indexes must not broaden the generic pool rules.
+        indexes = {
+            "https://snapshot.debian.org/archive/debian/20260727T143429Z/dists/trixie-updates/main/binary-arm64/Packages.xz":
+                "https://snapshot.debian.org/file/c9d85a145fcc34817defe65c818ded141ea2c95f",
+            "https://snapshot.debian.org/archive/debian/20260727T143429Z/dists/trixie-updates/main/binary-armhf/Packages.xz":
+                "https://snapshot.debian.org/file/ba24766d03291a7cbebe54ae2238ccec3c7861ea",
+            "https://snapshot.debian.org/archive/debian-security/20260726T121236Z/dists/trixie-security/main/binary-amd64/Packages.xz":
+                "https://snapshot.debian.org/file/8c7898c09763411a9bff9e68bab2c6f08a6b14b4",
+        }
+        for upstream, content in indexes.items():
+            self.assertEqual(self.candidates(upstream), [content, upstream])
+            for architecture in ("amd64", "arm64", "armhf", "riscv64"):
+                sibling = re.sub(r"binary-(amd64|arm64|armhf)", "binary-" + architecture, upstream)
+                expected = [indexes[sibling], sibling] if sibling in indexes else []
+                self.assertEqual(self.candidates(sibling), expected, sibling)
+            for other in (
+                upstream.replace("202607", "202608"),
+                upstream.replace("trixie-updates", "trixie").replace("trixie-security", "trixie"),
+                upstream.replace("/main/", "/contrib/"),
+                upstream.replace("Packages.xz", "Packages.gz"),
+                upstream.replace("Packages.xz", "Packages.bz2"),
+                upstream.replace("Packages.xz", "Packages"),
+                upstream.replace("snapshot.debian.org", "snapshot-cloudflare.debian.org"),
+                upstream.replace("snapshot.debian.org", "another.example"),
+                upstream.replace("/archive/debian/", "/archive/debian-security/") if "/archive/debian/" in upstream
+                else upstream.replace("/archive/debian-security/", "/archive/debian/"),
+                upstream + "?query", upstream + "#fragment", upstream + ".sha256",
+            ):
+                self.assertNotEqual(other, upstream)
+                self.assertEqual(self.candidates(other), [], other)
 
         # One verified security CDN exception preserves the exact dated fallback.
         for upstream, cdn in (
@@ -435,9 +471,9 @@ class DebianPoolMirrorScopeTest(unittest.TestCase):
             for other in (
                 upstream.replace("202607", "202608"),
                 upstream.replace(".deb", "+changed.deb"),
-                re.sub(r"_(amd64|arm64|armhf)\.deb$",
+                re.sub(r"_(amd64|arm64|armhf|all)\.deb$",
                        "_arm64.deb" if upstream.endswith("_amd64.deb") else "_amd64.deb", upstream),
-                re.sub(r"_(amd64|arm64|armhf)\.deb$", "_riscv64.deb", upstream),
+                re.sub(r"_(amd64|arm64|armhf|all)\.deb$", "_riscv64.deb", upstream),
                 upstream.replace("snapshot.debian.org", "another.example"),
                 upstream.replace("/pool/", "/different/"),
                 upstream + "?query", upstream + ".sha256",

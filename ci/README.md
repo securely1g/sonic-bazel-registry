@@ -32,7 +32,7 @@ repository branch-protection settings.
 The runner passes Bazel's standard `--experimental_downloader_config` with
 [`source_mirrors.cfg`](source_mirrors.cfg) to dependency preparation, builds,
 tests and output queries. Rewrites match only the archive and binary-package
-URLs and one exact dated package index described below; registry order, module versions, source recipes and
+URLs and the exact dated package indexes described below; registry order, module versions, source recipes and
 integrity values stay unchanged.
 
 The five ARM-hosted BCR archives use verified copies in this repository's
@@ -103,7 +103,7 @@ The [PCRE ARMHF origin manifest](https://github.com/securely1g/sonic-bazel-regis
 
 The additional [libcap2 AMD64 origin manifest](https://github.com/securely1g/sonic-bazel-registry/releases/download/ci-source-mirrors-20261104/debian-package-mirror-libcap2-amd64-20261105.json) binds the 28,988-byte release copy to PR163’s current checked-in image lock and full cache SHA256. [Sysmgr analysis in its AMD64 archive job](https://github.com/securely1g/sonic-buildimage/actions/runs/42117110267/job/127559563902) reached this package after earlier successful build phases, then failed with pool HTTP404 and dated Snapshot HTTP503; the one official content request also returned HTTP503. The complete public copy matches the original locked bytes. The exact route retains the official CDN and original Snapshot fallbacks, with package identity and SHA256 unchanged. Configured-fetch and consumer acceptance remain pending; no package was generated or executed.
 
-[PR196 native FRR analysis](https://github.com/securely1g/sonic-buildimage/actions/runs/42127542383/job/127595462127) could not obtain any format of the dated `trixie-updates/main/binary-arm64/Packages` index: xz/gz/bz2 returned HTTP 503 and plain Packages returned HTTP 404. One later original-xz request returned HTTP 504. The exact xz URL now tries the [official content address](https://snapshot.debian.org/file/c9d85a145fcc34817defe65c818ded141ea2c95f), then its unchanged original URL. One complete HTTP 200 content download matched the retained 4,424-byte cache and same-URL index fact (SHA256 `fe771d58d4af39dbb94142d6f3ce578d340c6b1364c172d9e87f2287bdc4994b`) in an accepted earlier native artifact. This is not a failed-run lock or signed Release verification: the selected Distroless resolver does not verify Release/InRelease, and supplies fact integrity only when available. No other suite, architecture, date or index format is rewritten; all generic index exclusions remain. Configured-fetch and current consumer acceptance are pending. No package was generated or executed.
+[PR196 native FRR analysis](https://github.com/securely1g/sonic-buildimage/actions/runs/42127542383/job/127595462127) could not obtain any format of the dated `trixie-updates/main/binary-arm64/Packages` index: xz/gz/bz2 returned HTTP 503 and plain Packages returned HTTP 404. One later original-xz request returned HTTP 504. The exact xz URL now tries the [official content address](https://snapshot.debian.org/file/c9d85a145fcc34817defe65c818ded141ea2c95f), then its unchanged original URL. One complete HTTP 200 content download matched the retained 4,424-byte cache and same-URL index fact (SHA256 `fe771d58d4af39dbb94142d6f3ce578d340c6b1364c172d9e87f2287bdc4994b`) in an accepted earlier native artifact. This is not a failed-run lock or signed Release verification: the selected Distroless resolver does not verify Release/InRelease, and supplies fact integrity only when available. That original exception left other suites, architectures, dates and index formats unchanged; the two later exact index additions are documented below. All generic index exclusions remain. Configured-fetch and current consumer acceptance are pending. No package was generated or executed.
 
 [PR163 native FRR](https://github.com/securely1g/sonic-buildimage/actions/runs/42127461594/job/127595197367) executed 538 processes before its build-tool input `libgcrypt20_1.11.0-7+deb13u1_amd64.deb` failed with dated security Snapshot HTTP 503. Only that exact URL now tries the official Debian security CDN first and retains its original Snapshot fallback. One complete CDN HTTP 200 download matched the accepted earlier generated lock and retained package-index record: 843,104 bytes, SHA256 `f0eb41f8cb40896e0822e9ab65611e8383c12b721c76c54764f744abb4a8c247`. The current failure URL and unchanged selected APT inputs bind this identity; no failed-run generated lock was retrieved. Other dates, versions, architectures and packages retain their previous routing. Configured-fetch and current consumer acceptance are pending. No package was generated or executed.
 
@@ -337,6 +337,89 @@ GET matched all 56,184 bytes and the accepted lock/cache SHA256. The identical
 current OpenSSH dependency selection reaches this input through the retained
 `libkrb5-dev` closure. One exact route retains its existing pool/original
 fallbacks. Other warnings remain outside this change.
+
+[PR196 MUX AMD64 analysis](https://github.com/securely1g/sonic-buildimage/actions/runs/42146497352/job/127659127798)
+failed on `libaom3_3.12.1-1_amd64.deb` in the Graphviz build-tool dependency
+closure. Its exact dated URL now tries verified official content before the
+unchanged pool and original Snapshot fallbacks. A first bounded content request
+timed out; a separately authorized second request returned HTTP 200 and matched
+all 1,871,136 bytes, the accepted lock SHA256 and full retained cache bytes.
+The current build-tool/source-list declarations and constants match the accepted
+record; no failed-run lock, direct Graphviz dependency edge or whole-graph
+equivalence is claimed. The content SHA1 is only a locator, and the locked
+SHA256 remains unchanged. Existing tuple controls cover neighboring versions,
+architectures, dates and paths. Configured-fetch and consumer acceptance remain
+pending; no package was generated or executed.
+
+[PR196 Eventd](https://github.com/securely1g/sonic-buildimage/actions/runs/42146497593/job/127659129066)
+and [MACsec AMD64 analysis](https://github.com/securely1g/sonic-buildimage/actions/runs/42146497396/job/127659127961)
+also stopped on
+`curl_8.14.1-2+deb13u4_amd64.deb`. Two requests to its bare content URL
+returned HTTP 503, and the alternate official Snapshot host failed during TLS.
+Official file metadata identified a July 1 dated alias; one request to that
+alias followed a single redirect to the named content URL and returned all
+269,904 bytes matching the current checked-in lock and cache SHA256. Only the
+original July 27 URL gains that verified final content URL before its existing
+CDN/original fallbacks. The optional encoded filename is part of the content
+URL; the SHA1 locator remains `7ba41bdcd2ca506a7d43c424db9cde0662a868ca`.
+Package version, checksum and architecture selection are unchanged. The existing
+tuple tests cover this URL spelling; configured-fetch and consumer acceptance
+remain pending.
+
+[PR196's automatic native ARM64 job](https://github.com/securely1g/sonic-buildimage/actions/runs/42146497565/job/127659129030)
+also failed on the declared `gzip_1.13-1_arm64.deb` build tool. One official
+content response matched all 135,008 bytes and the accepted lock/cache SHA256.
+The selected build-tool/source declarations bind that historical record without
+claiming a failed-run lock or whole-graph equivalence. One exact dated route
+retains the existing CDN/original fallbacks; the independently verified ARM64
+sibling is reflected in the existing AMD64 route test. No manual ARM job or
+package execution was requested.
+
+[PR196 gNMI AMD64 analysis](https://github.com/securely1g/sonic-buildimage/actions/runs/42146497362/job/127659128419)
+could not retrieve all four formats of the dated trixie-updates ARMHF index.
+This is the only observed Debian group consistent with the final abbreviated
+failure; the separately observed complete trixie-security AMD64 index failure
+is a possible additional blocker. The resolver starts downloads concurrently,
+so completion order alone does not identify the fatal group. Only these two
+exact `Packages.xz` URLs gain content/original alternatives. Each first content
+request returned HTTP 503; each separately authorized second request returned
+HTTP 200 matching accepted same-URL facts and complete cache bytes (4,408 and
+226,940 bytes). The selected resolver and input URLs bind the retained records;
+no failed-run facts or signed Release/InRelease verification is claimed.
+Existing ARM64 routing and generic index exclusions remain; other dates,
+suites, architectures, formats and Contents/Release paths are unchanged.
+Configured-fetch and consumer acceptance for these new routes remain pending.
+
+[PR195's existing automatic native ARM64 analysis](https://github.com/securely1g/sonic-buildimage/actions/runs/42149240794/job/127668133152)
+stopped on
+`util-linux_2.41-5_arm64.deb`. One official content response matched all
+1,191,312 bytes and the accepted lock/cache SHA256 under the unchanged selected
+build-tool declarations. Its exact dated URL now retains content, CDN and
+original Snapshot in that order. The same failed query also included gzip's
+already verified ARM64 input. These are static findings from an automatic job;
+no manual ARM validation or package execution was requested.
+
+That same query warned that `tzdata_2026b-0+deb13u1_all.deb` failed at both
+pool and Snapshot URLs, and the selected security Snapshot for
+`libk5crypto3_1.21.3-5+deb13u1_arm64.deb` returned HTTP 503. These were warnings,
+not the first fatal input. One official content GET per package matched all
+264,316 and 81,416 bytes respectively, the accepted lock and retained cache
+SHA256 under the same selected build-tool inputs. Their exact URLs gain content
+alternatives while retaining the existing fallbacks; the security input keeps
+its exact original Snapshot URL. Other pool-only warnings are not broadened
+into new routes. Configured-fetch and consumer acceptance remain pending.
+
+[PR195's AMD64 archive analysis](https://github.com/securely1g/sonic-buildimage/actions/runs/42149240699/job/127668133187)
+subsequently stopped on the security input
+`libkrb5-3_1.21.3-5+deb13u1_amd64.deb`; the same query warned that
+`libpcre2-32-0_10.46-1~deb13u1_amd64.deb` failed at both pool and Snapshot
+locations. Only libkrb5 was the final fatal input. One official content GET
+per package matched all 326,056 and 268,056 bytes respectively, the selected
+lock records and full cache SHA256. Each exact URL gains its verified content
+alternative; the security input retains its original Snapshot fallback, and
+PCRE retains its CDN/original fallbacks. Current checked-in base-lock records
+corroborate the historical generated APT identity. No package version or source
+selection changes, package execution or native acceptance are claimed.
 
 ## Exact Socat source archive fallback
 
