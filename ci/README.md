@@ -715,6 +715,11 @@ the ARM cross fixture independently verifies native execution tools, ARM ELF
 outputs and target Python compatibility. No test is replaced by a smaller smoke
 test to make a module pass.
 
+BMv2 `1.15.0.sonic.4` qualified in a follow-up ARM64 cross-build on Trixie.
+Its original six builds and two uncached package and configure tests passed
+with the pinned GCC/G++ adapter and the corrected ARM guest executor.
+[Full validation](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42253892877/job/128015806637)
+
 Inside a configured disposable runner with `/usr/local/bin/sonic-arm64`, use
 fresh work and artifact directories. This command is a local opt-in example,
 not a request to execute inside an active registered worker:
