@@ -154,3 +154,10 @@ outside the Debian dependency graph, foreign-suite/architecture exclusions,
 legacy versus strict errors, compiler-option diagnostics, duplicate script
 references, exact filenames, mixed archive/DSO search order, link state,
 internal-name collisions and original metadata under `usr/share/pkgconfig`.
+
+
+Runtime DSO identities are shared across module and package contexts, so a
+shared dependency retains the same solib directory. Module-specific search
+paths pass directly to the linker through `-Xlinker`; their order is preserved
+without expanding GCC's `COLLECT_GCC_OPTIONS` environment string. The contract
+fixture includes 640 distinct modules meeting in one consumer of a shared DSO.

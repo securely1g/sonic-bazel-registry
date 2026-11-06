@@ -414,8 +414,20 @@ other compiler options explicitly rather than dropping them; legacy labels keep
 their former behavior and original metadata remains available. New rule-file
 loads have declared bzl_library dependencies.
 
-The fixture has 37 two-DSO chains, independent SDK/GNU controls, raw-archive
+The fixture has 38 two-DSO chains, independent SDK/GNU controls, raw-archive
 checks and negative selections. It covers the contracts above and the original
 native/Python/Go/Rust boundaries. ARM64 uses target compilation and QEMU; native
 host and emulated target results are reported separately. The updater's relative
 MODULE/rc-path correction belongs to sonic-build-infra, not this registry patch.
+
+## 0033-reuse-module-runtime-libraries.patch
+
+Give each installed DSO one runtime identity across package and module contexts.
+Use a shared source interface script so identical solib actions can be reused.
+Preserve module-specific ordered arguments and forward their search directories
+with -Xlinker. GCC otherwise copies every driver -L into COLLECT_GCC_OPTIONS;
+response files do not avoid the Linux per-string environment limit.
+
+The fixture joins 640 distinct modules sharing one DSO and checks two-level
+linking plus clean installed execution. The pre-fix source fails with collect2
+posix_spawn: Argument list too long on this input.

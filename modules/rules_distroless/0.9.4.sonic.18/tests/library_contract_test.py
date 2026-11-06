@@ -336,6 +336,17 @@ def main():
         cases.append((case,'int '+function+'(void);',function+'()','libnames-dev',()))
         module_cases[case]='@locked//libnames-dev:pkgconfig/'+module
 
+    # Independent module identities may share the same runtime DSO. Their
+    # consumer must still link and run after their old per-module search paths
+    # would exceed Linux's single argument/environment-string limit.
+    scale_modules = ["scale_" + str(i) + "_" + "long_module_name_" * 8 for i in range(640)]
+    scale_files = {'usr/lib/libscale.so.1': library('libscale', 'scale_value', 42, 'libscale.so.1'),
+        'usr/lib/libscale.so': 'libscale.so.1'}
+    scale_files.update({'usr/lib/pkgconfig/' + name + '.pc': pc('scale') for name in scale_modules})
+    package('libscale-dev', scale_files)
+    cases.append(('scale', 'int scale_value(void);', 'scale_value()', 'libscale-dev', ()))
+    module_cases['scale'] = ':scale_modules'
+
     roots = {f'/fixture/{p}:{arch}': '1' for _, _, _, p, _ in cases}
     roots[f'/fixture/fixture-config:{arch}'] = '1'
     (root / 'apt.lock.json').write_text(json.dumps(dict(version=2, sources={'fixture': {'uris': [root.as_uri()]},'other':{'uris':[root.as_uri()]}},
@@ -400,6 +411,8 @@ use_repo(apt,"locked","conflicting")
         (root/'cross_config.bzl').symlink_to(Path(__file__).with_name('cross_toolchain_fixture.bzl').resolve())
     build = ['load("@rules_cc//cc:defs.bzl","cc_library","cc_shared_library","cc_binary")',
         'load("@fixture_adapter//:shared_library.bzl","shared_library_cc_info")', 'load(":context.bzl","link_context")', 'exports_files(["apt.lock.json"])']
+    build.append('cc_library(name="scale_modules",deps=' + repr([
+        '@locked//libscale-dev:pkgconfig/' + name for name in scale_modules]) + ')')
     for case, declarations, expression, pkg, _ in cases:
         (root / (case + '.c')).write_text(declarations + f'\nint {case}_answer(void) {{ return {expression}; }}\n')
         (root / (case + '_leaf.c')).write_text(f'int {case}_answer(void); int {case}_downstream(void) {{ return {case}_answer()+2; }}\n')
