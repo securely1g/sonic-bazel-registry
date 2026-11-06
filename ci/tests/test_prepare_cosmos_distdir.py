@@ -193,7 +193,8 @@ class CosmosWorkflowTest(unittest.TestCase):
             recorder = root / "python3"
             recorder.write_text("#!/usr/bin/python3\nimport json, os, sys\n"
                                 "with open(os.environ['CALLS'], 'a') as f: f.write(json.dumps(sys.argv[1:]) + '\\n')\n")
-            (root / "sudo").write_text('#!/bin/sh\n[ "$1" = -n ] || exit 1\nshift\nexec "$@"\n')
+            (root / "sudo").write_text('#!/bin/sh\n[ "$1" = -n ] || exit 1\nshift\n'
+                                       'case "$1" in --preserve-env=*) shift;; esac\nexec "$@"\n')
             (root / "git").write_text("#!/bin/sh\nexit 0\n")
             for name in ("python3", "sudo", "git"):
                 (root / name).chmod(0o755)
@@ -216,7 +217,12 @@ class CosmosWorkflowTest(unittest.TestCase):
                     subprocess.run(["bash", "-c", block], env=env, check=True, capture_output=True)
                     calls = [json.loads(line) for line in calls_path.read_text().splitlines()]
                     self.assertEqual(len(calls), 2 if enabled else 1)
-                    self.assertEqual(calls[-1][:2], ["ci/registry_ci.py", "run"])
+                    self.assertEqual(calls[-1][:2], ["ci/private_mirrors.py", "run"])
+                    separator = calls[-1].index("--")
+                    self.assertEqual(calls[-1][separator + 1:separator + 4],
+                                     ["python3", "ci/registry_ci.py", "run"])
+                    self.assertEqual(calls[-1][calls[-1].index("--public-config") + 1],
+                                     "ci/source_mirrors.cfg")
                     self.assertEqual("--cross-compile" in calls[-1], cross)
                     flags = [arg for arg in calls[-1] if arg.startswith("--bazel-build-arg=--distdir=")]
                     self.assertEqual(bool(flags), enabled)

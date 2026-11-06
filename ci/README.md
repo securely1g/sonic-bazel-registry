@@ -109,6 +109,12 @@ collects matching replacements in configuration order; its
 tries the next candidate after a failed download or checksum mismatch. Other
 versions and URLs are unaffected; no global module mirror is enabled.
 
+Historical Common builds use GNU Bison 3.3.2 and GNU M4 1.4.18 through
+libnl3. Registry CI tries the MacPorts copy of Bison and Debian's byte-identical
+upstream M4 TAR, then the declared GNU locations. Trusted Trixie jobs take the
+M4 TAR from the private Debian source pool first. Both archives must match the
+original rule's SHA256. [Bison release pin](https://github.com/jmillikin/rules_bison/blob/v0.4/bison/internal/versions.bzl#L17-L30) · [M4 release pin](https://github.com/jmillikin/rules_m4/blob/v0.3.1/m4/internal/versions.bzl)
+
 The exact `gawk-5.3.2.tar.xz` URLs at `mirrors.kernel.org`, `ftp.gnu.org`, and
 `ftpmirror.gnu.org` likewise try MacPorts first and retain each original URL as
 a fallback. The published source recipe and SHA256
@@ -606,6 +612,24 @@ PCRE32 route remains separate. Package versions, integrity checks and all
 other routes are unchanged. No package generation or execution was needed;
 configured-fetch and consumer acceptance for this successor remain pending.
 
+The [PR196 AMD64 archive job at `903ae944`](https://github.com/securely1g/sonic-buildimage/actions/runs/42199590365/job/127831288490)
+built and validated Orchagent, then its separate owner-source query failed on
+`libpcre2-16-0_10.46-1~deb13u1_armhf.deb` after HTTP 404 from the official pool
+and HTTP 503 from the dated Snapshot. The unchanged selected libyang module's
+ARMHF `libpcre2-dev` closure includes this exact tuple in the retained accepted
+lock; this is not a retrieved lock from the failed run.
+
+One [filename-bearing content GET](https://snapshot.debian.org/file/1f7cf11c8d38946c74712ee3b3ed0e69e222f396/libpcre2-16-0_10.46-1~deb13u1_armhf.deb)
+returned HTTP 200 and matched all 243,332 locked/cache bytes and SHA256
+`6f3ed32007e36e2cf1644a0959cfb55a8960dd8837488571900c426a7db4caff`.
+The preceding content-index metadata request returned HTTP 503 and was not
+retried. Only the exact original ARMHF URL gains this verified candidate before
+the retained pool and original Snapshot fallbacks. Existing PCRE32 and other
+architectures remain separate. The existing tuple-driven routing and fallback
+tests cover the new input and reject near-miss dates, versions, architectures,
+hosts, paths, queries and suffixes. No package was generated or executed;
+configured-fetch and consumer acceptance for this successor remain pending.
+
 The [PR195 ARM64 archive job at `314d872c`](https://github.com/securely1g/sonic-buildimage/actions/runs/42182694599/job/127775737269)
 failed its initial 24-target Python/startup no-DEB query on
 `libexpat1-dev_2.7.1-2_arm64.deb`: the official pool returned HTTP 404
@@ -622,6 +646,98 @@ Only this exact dated URL gains that content candidate before the unchanged
 official-pool and original Snapshot fallbacks; the prior AMD64 development
 route remains separate. No package generation or execution was needed.
 Configured-fetch and new consumer acceptance remain pending.
+## Private Debian snapshot mirrors
+
+Trusted jobs on the self-hosted `debian-trixie-container` runners can prefer
+private Debian mirrors while keeping the published package URLs and checksums.
+Configure these optional **Actions repository secrets** under **Settings →
+Secrets and variables → Actions**:
+
+| Secret | HTTPS snapshot root |
+| --- | --- |
+| `DEBIAN_MIRROR_BASE_URL` | Mirror of Debian snapshot `20260727T143429Z` |
+| `DEBIAN_SECURITY_MIRROR_BASE_URL` | Mirror of Debian security snapshot `20260726T121236Z` |
+
+Each value is the complete snapshot-root URL, including its trailing slash.
+Do not put the values in registry files, workflow variables, container images,
+PR descriptions, or reproduction commands. The public workflow refers only to
+the secret names. It passes them explicitly to the reusable module workflow
+for same-repository pull requests, maintained-branch pushes, and manual runs,
+excluding Dependabot. The receiving workflow also checks its runner and event before forwarding secrets.
+Trusted AMD64 module builds, ARM64 cross builds, native runner tests and the
+cross-compiler fixture share the same routing. Hosted ARM64 and fork runs use
+the public configuration.
+
+The downloader maps each Debian input according to its published identity:
+
+| Input | First private candidate |
+| --- | --- |
+| Dated Debian or security snapshot | The same archive, original timestamp and path. This includes the December 2024 Socat sources and February 2024 BusyBox packages. |
+| Official CDN binary pool URL | The matching configured July snapshot and original pool path. |
+| Official CDN source archive or source descriptor | The matching undated CDN pool path, such as `/debian/pool/...`. |
+| Snapshot content address | The same `/file/<SHA1>` object, verified against the caller's independent integrity pin. |
+
+For example, the Trixie APT resolver starts several compressed versions of
+`Packages` and `Contents` in parallel. A private `Packages.xz` success does
+not cancel an already running `Packages.gz` request. Mirror the formats listed
+in the signed Debian Release files, including `Contents.gz` for each target
+architecture. Public fallback remains available for every published format.
+For the two pinned July snapshots, probes of formats absent from the signed
+manifests stay on the private endpoint. The format table is scoped to those
+dates, the Bookworm and Trixie release, updates and security suites, the
+`main` component, and AMD64/ARM64/ARMHF. A Trixie build can evaluate a
+component's Bookworm extension while resolving its module graph.
+
+Temporary configuration lives outside the artifact directory. The wrapper
+removes mirror values from the child process environment and registers them
+for GitHub masking. Module validation supplies an ephemeral APT mirror map
+to runtime preparation because direct APT calls use a separate transport.
+The checked preparer and package locks still verify the selected runtime.
+
+Bazel preparation commands such as the ARM toolchain provider's `fetch` retain
+redacted fetch events alongside the usual build/test event streams. Before
+upload, CI scans diagnostics and nested artifacts for private locations. On a
+trusted job, `debian-downloads.json` identifies the evidence files, successful
+and failed candidates, APT Get activity, and any public or unattributed transfers.
+A warning points to this report if there are exceptions. A Bazel fetch event identifies the selected candidate.
+Bazel 8.5.1 omits the entire build event stream for `mod` and `info`;
+`mod graph` can still download packages while evaluating module extensions.
+
+The Trixie planning job compiles the checked-in observer with its existing Java compiler.
+Validation jobs download the JAR by its artifact ID from the same workflow run
+and compare its embedded source SHA256 with their checkout before loading it.
+For trusted runs, this observer delegates to the JVM's existing HTTP
+cookie handler and records the actual Debian request and response origins.
+It captures fast requests, public fallback and redirects in those commands.
+The observer records the origin class, safe object path and HTTP status. It
+omits private hosts, queries, user information, cookies and authentication
+headers. A missing or unhealthy JVM receipt is flagged as incomplete. Retained
+event files are under `download-traces/http/`.
+
+Read the evidence by type. An HTTP 200 means a server responded; the returned
+bytes can still fail integrity verification. Bazel's successful fetch events,
+the checked package digests, and APT's verified installation receipts provide
+separate evidence. A repository cache hit can complete without an HTTP request.
+
+
+To prove private mirror availability, manually run **Registry CI** with
+**private_mirror_probe** selected. This optional check runs only on the trusted
+self-hosted Trixie runner and requires both mirror secrets to be configured.
+It uses the same `sudo` environment as local module validation, so it cannot
+depend on proxy settings available only to the runner user. It performs
+fresh-cache Bazel downloads of the locked
+Debian `libaudit-dev` and security `libc-ares-dev` packages, checks their original
+hashes without executing either package, and retains a sanitized receipt.
+Ordinary pull-request and push CI use public fallback and do not require the
+private mirrors to be available. The manual probe defaults to off and does not
+change the module validation matrix. Local regression tests cover mirror
+preference, public fallback, checksum rejection, and console/artifact redaction.
+The explicit probe fails when either secret is missing; ordinary builds still
+use public sources.
+
+This protects the URLs from public source and normal published evidence. Code
+executing in a job that receives the secrets can read them; the profile is for
+trusted code, not an isolation boundary against a malicious workflow or build.
 
 ## Kernel build-tool cache downloads
 
@@ -905,6 +1021,53 @@ Artifacts retain `test-runtime-prepare.py`, `test-runtime.MODULE.bazel.lock`,
 `test-runtime-preparation.log`, the helper's `test-runtime.json` receipt and any
 adjacent logs, including on failure. `validation.json` records the opt-in and
 test environment flag after every declared test passes.
+
+### Route source-owned runtime preparation through private APT mirrors
+
+Compatible preparers can opt into this CI-only presubmit field:
+
+```json
+"test_runtime_preparation": {
+  "script": "tools/bazel/runtime/prepare.py",
+  "sha256": "<unchanged source helper SHA256>",
+  "apt_mirror_protocol": "locked-runtime-v1"
+}
+```
+
+The protocol requires the verified helper's existing `select_runtime(lock,
+architecture)`, `snapshot_sources(selected, architecture)`, `inventory()`,
+`missing_packages(selected, before)`, and `verify_inventory(selected, before,
+after)` functions. All five current Common entries use the same compatible
+helper. Other helpers retain their normal execution path; a mirror secret alone
+does not opt them into this protocol.
+
+For trusted Trixie jobs the mirror wrapper supplies `SONIC_APT_MIRROR_CONFIG`,
+the path to a temporary mode-0600 JSON file outside artifacts. Its schema is
+`{"schema_version": 1, "mirrors": {"<canonical HTTPS snapshot base>":
+"<preferred HTTPS mirror base>"}}`; canonical keys have no trailing slash.
+The CI adapter first uses the owner's exact resolved package selection and
+provenance check. Standard APT then uses local `mirror+file` lists with the private
+endpoint at priority 1 and the canonical public endpoint at priority 2. APT
+handles fallback for each file. The lists are mode 0400 and owned by `_apt`,
+so its normal sandbox can read them without making private endpoints readable
+by other unprivileged container users. No system APT configuration is changed.
+
+Signature checks, simulated dependency planning, refusal to change prepared-base
+packages, selected version/architecture/SHA256 checks, and installation without
+further downloads remain enforced. The original source helper then executes
+unchanged and performs its normal runtime validation and receipt generation.
+The additional step runs in the same target environment, including the ARM
+executor when selected. Without a private map, normal public preparation remains
+available.
+
+`test-runtime-mirrors.json` records selected and verified packages, the before/after
+inventory, and configured snapshot mappings without private endpoints. The
+configured mappings alone do not establish where bytes came from: the adjacent
+`test-runtime-mirrors.apt.log` contains actual APT acquisition evidence. Ignore
+local `file:... Mirrorlist` reads when counting network transfers. The existing
+mirror wrapper scrubs and scans these files before upload. Common's normal
+`test-runtime.apt.log` is empty after successful pre-provisioning because the
+unchanged helper finds no missing packages and makes no second APT download.
 
 ## Maintain one MODULE declaration
 
@@ -1412,3 +1575,30 @@ No metadata request, redirect, retry, package extraction or execution was used.
 The historical accepted lock is provenance, not a failed-run generated lock
 or a full current graph. Existing routing tests exercise this exact tuple
 and retain date, package, architecture, host and path negative controls.
+
+## Exact P4RT XZ source fallback
+
+The [P4RT worker](https://github.com/securely1g/sonic-buildimage/actions/runs/42239690738/job/127966396342)
+completed its Common SDK preparation, then its Bazel 6.4 owner query failed
+fetching `org_lzma_lzma` before compiling the owner. The pinned
+[rules_boost recipe](https://github.com/nelhage/rules_boost/blob/5160325dbdc8c9e499f9d9917d913f35f1785d52/boost/boost.bzl)
+selects `xz-5.4.6.tar.gz` for `@boost//:iostreams`; the Fedora lookaside
+connection reset. The owner's separate launcher already uses this downloader
+configuration.
+
+| Input | Before | After |
+| --- | --- | --- |
+| Exact Fedora XZ 5.4.6 URL and SHA512 path | Only the reset connection | Official XZ GitHub release first, then the exact original URL |
+| Different version, digest path, host or suffix | No XZ rewrite | Still no XZ rewrite |
+
+The [official release archive](https://github.com/tukaani-project/xz/releases/download/v5.4.6/xz-5.4.6.tar.gz)
+was retained from prior owner validation. Its 2,889,306 bytes match the recipe's
+SHA256 `aeba3e03bf8140ddedf62a0a367158340520f6b384f75ca6045ccc6c0d43fd5c`
+and the original URL's full SHA512. This change preserves owner revision
+`4a5f8875e47c7dd4bf853672de1d7700bfaae56e`, archive version and checksum.
+
+The existing batched fallback tests include this source alongside all retained
+Debian tuples, checking separate bytes, hashes and request order. Pure mocked
+checks validate routing and fallback without Bazel, a server or network access.
+Current configured worker success remains pending; the failed job supplies no
+owner test or runtime acceptance. No new archive request was needed.
