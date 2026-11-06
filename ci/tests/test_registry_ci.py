@@ -2060,7 +2060,11 @@ class WorkflowMatrixTests(unittest.TestCase):
             block = re.search(r"^  modules_" + architecture + r":\n(.*?)(?=^  \w+:|\Z)",
                               self.workflow, re.MULTILINE | re.DOTALL)[1]
             self.assertIn("needs: plan", block)
-            self.assertIn("if: needs.plan.outputs.has_" + architecture + "_jobs == 'true'", block)
+            if architecture == "local":
+                self.assertIn("if: ${{ always() && !cancelled() && needs.plan.result == 'success' && "
+                              "needs.plan.outputs.has_local_jobs == 'true' }}", block)
+            else:
+                self.assertIn("if: needs.plan.outputs.has_hosted_arm_jobs == 'true'", block)
             self.assertIn("matrix: ${{ fromJSON(needs.plan.outputs." + architecture + "_matrix) }}", block)
             self.assertIn("uses: ./.github/workflows/registry-module.yml", block)
             for name in ("module", "version", "architecture", "execution_architecture", "cross_compile"):
@@ -2127,7 +2131,14 @@ class WorkflowMatrixTests(unittest.TestCase):
         self.assertIn("[[ -x \"$REGISTRY_CI_TEST_BAZEL\" && -x \"$REGISTRY_CI_TEST_ARM_EXECUTOR\" ]]", cross)
         self.assertIn("timeout-minutes: 60", cross)
         self.assertIn("name: registry-ci-arm-cross-fixture", cross)
-        self.assertNotIn("continue-on-error", cross)
+        # Only the optional audit-artifact transfer may continue on error. The
+        # source/compiler/runtime suite and the containing job remain required.
+        self.assertNotIn("continue-on-error", cross.split("    steps:\n", 1)[0])
+        suite = cross.split("      - name: Test the cross compiler and ARM runtime\n", 1)[1].split("      - ", 1)[0]
+        self.assertNotIn("continue-on-error", suite)
+        for block in (unit, cross):
+            self.assertIn("needs: plan", block)
+            self.assertIn("if: ${{ always() && !cancelled() }}", block)
 
     def test_native_unit_bazel_setup_uses_each_execution_architecture(self):
         unit = self.workflow.split("  unit:\n", 1)[1].split("  cross_fixture:\n", 1)[0]
