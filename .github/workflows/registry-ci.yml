@@ -26,10 +26,10 @@ jobs:
     outputs:
       matrix: ${{ steps.plan.outputs.matrix }}
       has_jobs: ${{ steps.plan.outputs.has_jobs }}
-      amd64_matrix: ${{ steps.plan.outputs.amd64_matrix }}
-      has_amd64_jobs: ${{ steps.plan.outputs.has_amd64_jobs }}
-      arm64_matrix: ${{ steps.plan.outputs.arm64_matrix }}
-      has_arm64_jobs: ${{ steps.plan.outputs.has_arm64_jobs }}
+      local_matrix: ${{ steps.plan.outputs.local_matrix }}
+      has_local_jobs: ${{ steps.plan.outputs.has_local_jobs }}
+      hosted_arm_matrix: ${{ steps.plan.outputs.hosted_arm_matrix }}
+      has_hosted_arm_jobs: ${{ steps.plan.outputs.has_hosted_arm_jobs }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -78,17 +78,27 @@ jobs:
           from pathlib import Path
 
           matrix = json.loads(Path("plan.json").read_text())
-          architectures = ("amd64", "arm64")
-          if any(job["architecture"] not in architectures for job in matrix["include"]):
-              raise SystemExit("Unsupported architecture in validation plan")
+          routes = {("amd64", "amd64", False), ("arm64", "arm64", False), ("arm64", "amd64", True)}
+          runners = {"amd64": ["self-hosted", "Linux", "X64", "debian-trixie-container"],
+                     "arm64": ["ubuntu-24.04-arm"]}
+          identities = set()
+          for job in matrix["include"]:
+              route = (job.get("architecture"), job.get("execution_architecture"), job.get("cross_compile"))
+              if (type(job.get("cross_compile")) is not bool or route not in routes
+                      or job.get("runner") != runners[job["execution_architecture"]]):
+                  raise SystemExit("Unsupported execution route in validation plan")
+              identity = (job["module"], job["version"], job["architecture"])
+              if identity in identities:
+                  raise SystemExit("Duplicate module validation job")
+              identities.add(identity)
           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
               print("matrix=" + json.dumps(matrix, separators=(",", ":")), file=output)
               print("has_jobs=" + str(bool(matrix["include"])).lower(), file=output)
-              for architecture in architectures:
+              for group, execution in (("local", "amd64"), ("hosted_arm", "arm64")):
                   selected = {"include": [job for job in matrix["include"]
-                                          if job["architecture"] == architecture]}
-                  print(architecture + "_matrix=" + json.dumps(selected, separators=(",", ":")), file=output)
-                  print("has_" + architecture + "_jobs=" + str(bool(selected["include"])).lower(), file=output)
+                                          if job["execution_architecture"] == execution]}
+                  print(group + "_matrix=" + json.dumps(selected, separators=(",", ":")), file=output)
+                  print("has_" + group + "_jobs=" + str(bool(selected["include"])).lower(), file=output)
           PY
       - name: Retain validation plan
         if: always()
@@ -151,7 +161,7 @@ jobs:
           REGISTRY_CI_TEST_ARTIFACTS: runner-bazel-artifacts
         run: |
           set -euo pipefail
-          python3 -m unittest discover -s ci/tests -v 2>&1 | tee runner-tests.log
+          python3 ci/run_runner_tests.py --suite native 2>&1 | tee runner-tests.log
       - name: Retain runner test results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -163,40 +173,80 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-  modules_amd64:
+  cross_fixture:
+    name: ARM cross compiler and runtime fixture
+    runs-on: [self-hosted, Linux, X64, debian-trixie-container]
+    timeout-minutes: 60
+    env:
+      REGISTRY_CI_TEST_BAZEL: /usr/local/bin/bazel
+      REGISTRY_CI_TEST_ARM_EXECUTOR: /usr/local/bin/sonic-arm64
+      REGISTRY_CI_TEST_ARTIFACTS: cross-fixture-artifacts
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Verify cross fixture prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(uname -m)" == x86_64 ]]
+          printf '%s  %s\n' 61d89402f0368e64b6c827be5de79d8e65382e8124c3cbb97325611a1851392e /usr/local/lib/bazel-8.5.1 | sha256sum --check --strict
+          [[ -x "$REGISTRY_CI_TEST_BAZEL" && -x "$REGISTRY_CI_TEST_ARM_EXECUTOR" ]]
+      - name: Test the cross compiler and ARM runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 ci/run_runner_tests.py --suite cross 2>&1 | tee cross-fixture.log
+      - name: Retain cross fixture results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: registry-ci-arm-cross-fixture
+          path: |
+            cross-fixture.log
+            cross-fixture-artifacts/
+          if-no-files-found: warn
+          retention-days: 14
+
+  modules_local:
     name: ${{ matrix.module }} ${{ matrix.version }} (${{ matrix.architecture }})
     needs: plan
-    if: needs.plan.outputs.has_amd64_jobs == 'true'
+    if: needs.plan.outputs.has_local_jobs == 'true'
     strategy:
       fail-fast: false
-      # Only local compiler jobs share the host memory budget.
+      # One module budget per run covers native AMD64 and every ARM cross job.
       max-parallel: 10
-      matrix: ${{ fromJSON(needs.plan.outputs.amd64_matrix) }}
+      matrix: ${{ fromJSON(needs.plan.outputs.local_matrix) }}
     uses: ./.github/workflows/registry-module.yml
     with:
       module: ${{ matrix.module }}
       version: ${{ matrix.version }}
       architecture: ${{ matrix.architecture }}
+      execution_architecture: ${{ matrix.execution_architecture }}
+      cross_compile: ${{ matrix.cross_compile }}
       runner: ${{ toJSON(matrix.runner) }}
 
-  modules_arm64:
+  modules_hosted_arm:
     name: ${{ matrix.module }} ${{ matrix.version }} (${{ matrix.architecture }})
     needs: plan
-    if: needs.plan.outputs.has_arm64_jobs == 'true'
+    if: needs.plan.outputs.has_hosted_arm_jobs == 'true'
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.plan.outputs.arm64_matrix) }}
+      matrix: ${{ fromJSON(needs.plan.outputs.hosted_arm_matrix) }}
     uses: ./.github/workflows/registry-module.yml
     with:
       module: ${{ matrix.module }}
       version: ${{ matrix.version }}
       architecture: ${{ matrix.architecture }}
+      execution_architecture: ${{ matrix.execution_architecture }}
+      cross_compile: ${{ matrix.cross_compile }}
       runner: ${{ toJSON(matrix.runner) }}
 
   required:
     name: Registry CI
     if: always()
-    needs: [plan, unit, modules_amd64, modules_arm64]
+    needs: [plan, unit, cross_fixture, modules_local, modules_hosted_arm]
     runs-on: [self-hosted, Linux, X64, debian-trixie-container]
     timeout-minutes: 5
     steps:
@@ -205,14 +255,16 @@ jobs:
         env:
           PLAN_RESULT: ${{ needs.plan.result }}
           UNIT_RESULT: ${{ needs.unit.result }}
-          AMD64_RESULT: ${{ needs.modules_amd64.result }}
-          ARM64_RESULT: ${{ needs.modules_arm64.result }}
-          HAS_AMD64_JOBS: ${{ needs.plan.outputs.has_amd64_jobs }}
-          HAS_ARM64_JOBS: ${{ needs.plan.outputs.has_arm64_jobs }}
+          CROSS_FIXTURE_RESULT: ${{ needs.cross_fixture.result }}
+          LOCAL_RESULT: ${{ needs.modules_local.result }}
+          HOSTED_ARM_RESULT: ${{ needs.modules_hosted_arm.result }}
+          HAS_LOCAL_JOBS: ${{ needs.plan.outputs.has_local_jobs }}
+          HAS_HOSTED_ARM_JOBS: ${{ needs.plan.outputs.has_hosted_arm_jobs }}
         run: |
           set -euo pipefail
           [[ "$PLAN_RESULT" == success ]]
           [[ "$UNIT_RESULT" == success ]]
+          [[ "$CROSS_FIXTURE_RESULT" == success ]]
           require_modules() {
             if [[ "$1" == true ]]; then
               [[ "$2" == success ]]
@@ -220,5 +272,5 @@ jobs:
               [[ "$1" == false && "$2" == skipped ]]
             fi
           }
-          require_modules "$HAS_AMD64_JOBS" "$AMD64_RESULT"
-          require_modules "$HAS_ARM64_JOBS" "$ARM64_RESULT"
+          require_modules "$HAS_LOCAL_JOBS" "$LOCAL_RESULT"
+          require_modules "$HAS_HOSTED_ARM_JOBS" "$HOSTED_ARM_RESULT"
