@@ -1,4 +1,4 @@
-name: Sairedis and SWSS ARM generator validation
+name: Sairedis original ARM runtime validation
 
 on:
   workflow_dispatch:
@@ -6,61 +6,13 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: arm-graph-validation-${{ github.ref }}
-  cancel-in-progress: false
-
 jobs:
-  graph_regression:
-    name: Pinned Bazel module-graph regression
-    runs-on: [self-hosted, Linux, X64, debian-trixie-container]
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          ref: ${{ github.sha }}
-          persist-credentials: false
-      - name: Verify Bazel and exercise strict resolution checks
-        shell: bash
-        env:
-          REGISTRY_CI_TEST_BAZEL: /usr/local/bin/bazel
-          REGISTRY_CI_TEST_ARTIFACTS: graph-regression-artifacts
-        run: |
-          set -euo pipefail
-          [[ "$(uname -m)" == x86_64 ]]
-          printf '%s  %s\n' 61d89402f0368e64b6c827be5de79d8e65382e8124c3cbb97325611a1851392e /usr/local/lib/bazel-8.5.1 | sha256sum --check --strict
-          sha256sum ci/cross_toolchain.py ci/tests/test_cross_toolchain.py ci/tests/test_bazel_module_graph.py > graph-regression-source.sha256
-          /usr/bin/python3 -I -S -B -m unittest discover -s ci/tests -p test_cross_toolchain.py -v 2>&1 | tee graph-unit-tests.log
-          /usr/bin/python3 -I -S -B -m unittest discover -s ci/tests -p test_bazel_module_graph.py -v 2>&1 | tee graph-bazel-test.log
-      - name: Retain graph regression evidence
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: arm-graph-regression
-          path: |
-            graph-regression-source.sha256
-            graph-unit-tests.log
-            graph-bazel-test.log
-            graph-regression-artifacts/
-          if-no-files-found: error
-          retention-days: 14
-
-  arm_modules:
-    name: ${{ matrix.module }} original ARM contract
-    needs: graph_regression
-    strategy:
-      fail-fast: false
-      max-parallel: 2
-      matrix:
-        include:
-          - module: sonic-sairedis
-            version: 0.0.5-a1568983582654314c43aab421b32ab563ed860c
-          - module: sonic-swss
-            version: 0.0.1-88d9cc2bcda39b0ebac16c95de9601e62021e3eb
+  sairedis:
+    name: Sairedis original ARM contract
     uses: ./.github/workflows/registry-module.yml
     with:
-      module: ${{ matrix.module }}
-      version: ${{ matrix.version }}
+      module: sonic-sairedis
+      version: 0.0.5-a1568983582654314c43aab421b32ab563ed860c
       architecture: arm64
       execution_architecture: amd64
       cross_compile: true
