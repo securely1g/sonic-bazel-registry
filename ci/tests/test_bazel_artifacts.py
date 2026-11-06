@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import gzip
 import hashlib
 import importlib.util
 import json
@@ -38,7 +39,7 @@ def _artifact_impl(ctx):
 set -eu
 mkdir -p "$1/empty"
 printf '%s\\n' "$4" > "$1/configuration-mode"
-printf 'perl manual\\n' > "$1/Text::CharWidth.3pm.gz"
+printf 'perl manual\\n' | gzip -n > "$1/Text::CharWidth.3pm.gz"
 printf 'UPPER header\\n' > "$1/xt_CONNMARK.h"
 printf 'lower header\\n' > "$1/xt_connmark.h"
 # Keep the command ASCII while creating the exact UTF-8 filename bytes.
@@ -181,7 +182,8 @@ class BazelArtifactIntegrationTest(unittest.TestCase):
                     archive.extractall(restored, filter="data")
                 payload = restored / tree_root
                 self.assertEqual((payload / "configuration-mode").read_bytes(), b"fastbuild\n")
-                self.assertEqual((payload / "Text::CharWidth.3pm.gz").read_bytes(), b"perl manual\n")
+                self.assertEqual(gzip.decompress((payload / "Text::CharWidth.3pm.gz").read_bytes()),
+                                 b"perl manual\n")
                 self.assertEqual((payload / "xt_CONNMARK.h").read_bytes(), b"UPPER header\n")
                 self.assertEqual((payload / "xt_connmark.h").read_bytes(), b"lower header\n")
                 self.assertEqual((payload / "NetLock_Arany_=Class_Gold=_Főtanúsítvány.crt").read_bytes(),

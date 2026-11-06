@@ -843,7 +843,11 @@ class EntryValidationTests(FixtureTestCase):
         valid = {"script": "tools/runtime/prepare.py", "sha256": "a" * 64}
         write_json(path, {**config, "test_runtime_preparation": valid})
         self.assertEqual(registry_ci.validate_entry(self.root, "alpha", "1.0.0")["test_runtime_preparation"], valid)
+        with_mirrors = {**valid, "apt_mirror_protocol": "locked-runtime-v1"}
+        write_json(path, {**config, "test_runtime_preparation": with_mirrors})
+        self.assertEqual(registry_ci.validate_entry(self.root, "alpha", "1.0.0")["test_runtime_preparation"], with_mirrors)
         for invalid in (None, {}, {**valid, "args": ["--skip-tests"]},
+                        {**valid, "apt_mirror_protocol": "unknown"}, {**valid, "apt_mirror_protocol": True},
                         {**valid, "sha256": "bad"}, {**valid, "script": "/tmp/prepare.py"},
                         {**valid, "script": "../prepare.py"}, {**valid, "script": "https://example.org/prepare.py"}):
             with self.subTest(invalid=invalid):
@@ -2056,7 +2060,11 @@ class WorkflowMatrixTests(unittest.TestCase):
             block = re.search(r"^  modules_" + architecture + r":\n(.*?)(?=^  \w+:|\Z)",
                               self.workflow, re.MULTILINE | re.DOTALL)[1]
             self.assertIn("needs: plan", block)
-            self.assertIn("if: needs.plan.outputs.has_" + architecture + "_jobs == 'true'", block)
+            if architecture == "local":
+                self.assertIn("if: ${{ always() && !cancelled() && needs.plan.result == 'success' && "
+                              "needs.plan.outputs.has_local_jobs == 'true' }}", block)
+            else:
+                self.assertIn("if: needs.plan.outputs.has_hosted_arm_jobs == 'true'", block)
             self.assertIn("matrix: ${{ fromJSON(needs.plan.outputs." + architecture + "_matrix) }}", block)
             self.assertIn("uses: ./.github/workflows/registry-module.yml", block)
             for name in ("module", "version", "architecture", "execution_architecture", "cross_compile"):
@@ -2123,7 +2131,14 @@ class WorkflowMatrixTests(unittest.TestCase):
         self.assertIn("[[ -x \"$REGISTRY_CI_TEST_BAZEL\" && -x \"$REGISTRY_CI_TEST_ARM_EXECUTOR\" ]]", cross)
         self.assertIn("timeout-minutes: 60", cross)
         self.assertIn("name: registry-ci-arm-cross-fixture", cross)
-        self.assertNotIn("continue-on-error", cross)
+        # Only the optional audit-artifact transfer may continue on error. The
+        # source/compiler/runtime suite and the containing job remain required.
+        self.assertNotIn("continue-on-error", cross.split("    steps:\n", 1)[0])
+        suite = cross.split("      - name: Test the cross compiler and ARM runtime\n", 1)[1].split("      - ", 1)[0]
+        self.assertNotIn("continue-on-error", suite)
+        for block in (unit, cross):
+            self.assertIn("needs: plan", block)
+            self.assertIn("if: ${{ always() && !cancelled() }}", block)
 
     def test_native_unit_bazel_setup_uses_each_execution_architecture(self):
         unit = self.workflow.split("  unit:\n", 1)[1].split("  cross_fixture:\n", 1)[0]
@@ -2187,7 +2202,9 @@ class TestContainerTests(unittest.TestCase):
         commands = root / "bin"
         commands.mkdir()
         for name, body in {
-            "sudo": 'printf "%s\\n" "$*" >> "$SUDO_LOG"\n[[ "$1" == -n ]]\nshift\nexec "$@"\n',
+            "sudo": ('printf "%s\\n" "$*" >> "$SUDO_LOG"\n[[ "$1" == -n ]]\nshift\n'
+                     'if [[ "$1" == --preserve-env=DEBIAN_MIRROR_BASE_URL,DEBIAN_SECURITY_MIRROR_BASE_URL,GITHUB_ACTIONS ]]; then shift; fi\n'
+                     'exec "$@"\n'),
             "git": 'printf "%s\\n" "$@" > "$GIT_LOG"\n',
             "python3": 'printf "%s\\n" "$@" > "$CAPTURE"\n',
             "uname": '[[ "$1" == -m ]]\nprintf "%s\\n" "$NATIVE_MACHINE"\n',
@@ -2306,13 +2323,16 @@ class TestContainerTests(unittest.TestCase):
                 result = subprocess.run(["/bin/bash", "-c", script], cwd=registry_ci.ROOT,
                                         env=environment, text=True, capture_output=True)
                 self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual((root / "CAPTURE").read_text().splitlines(),
+                                 ["ci/private_mirrors.py", "check-artifacts", "--artifacts",
+                                  str(root / "workspace/ci-artifacts")])
                 archive = root / "runner temp/registry-ci-evidence.tar"
                 with tarfile.open(archive) as transport:
                     member = transport.getmember("./payload")
                     self.assertEqual(member.mode, 0o751)
                     self.assertEqual(transport.extractfile(member).read(), b"retained evidence\n")
                 if execution == "amd64":
-                    self.assertEqual(len((root / "SUDO_LOG").read_text().splitlines()), 2)
+                    self.assertEqual(len((root / "SUDO_LOG").read_text().splitlines()), 3)
                     self.assertEqual((root / "CHOWN_LOG").read_text().splitlines(),
                                      [f"{os.getuid()}:{os.getgid()}", str(archive)])
                 else:
