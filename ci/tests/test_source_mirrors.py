@@ -35,6 +35,11 @@ ARM_ARCHIVES = (
 ARM_RELEASE = "https://github.com/securely1g/sonic-bazel-registry/releases/download/ci-source-mirrors-20261104"
 GAWK_SHA256 = "f8c3486509de705192138b00ef2c00bbbdd0e84c30d5c07d23fc73a9dc4cc9cc"
 GAWK_MIRROR = "https://distfiles.macports.org/gawk/gawk-5.3.2.tar.xz"
+XZ_ARCHIVE = (
+    'https://src.fedoraproject.org/lookaside/extras/xz/xz-5.4.6.tar.gz/sha512/b08a61d8d478d3b4675cb1ddacdbbd98dc6941a55bcdd81a28679e54e9367d3a595fa123ac97874a17da571c1b712e2a3e901c2737099a9d268616a1ba3de497/xz-5.4.6.tar.gz',
+    'https://github.com/tukaani-project/xz/releases/download/v5.4.6/xz-5.4.6.tar.gz',
+    'aeba3e03bf8140ddedf62a0a367158340520f6b384f75ca6045ccc6c0d43fd5c', 2889306,
+)
 GAWK_HOSTS = ("mirrors.kernel.org", "ftp.gnu.org", "ftpmirror.gnu.org")
 LIBSFRAME_SNAPSHOT = "https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/b/binutils/libsframe1_2.44-3_amd64.deb"
 LIBAUDIT_SNAPSHOT = "https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/a/audit/libaudit-dev_4.0.2-2+b2_amd64.deb"
@@ -367,6 +372,20 @@ class ArmSourceMirrorScopeTest(unittest.TestCase):
             for other in (upstream.replace("5.3.2", "5.3.3"), upstream + "?query", upstream + ".sig"):
                 self.assertFalse(any(re.fullmatch(pattern, other.removeprefix("https://"))
                                      for pattern, _replacement in rewrites), other)
+
+
+    def test_xz_release_candidates_preserve_the_exact_owner_source(self):
+        upstream, release, _checksum, _size = XZ_ARCHIVE
+        rewrites = [line.split()[1:] for line in (ROOT / "ci/source_mirrors.cfg").read_text().splitlines()
+                    if line.startswith("rewrite ")]
+        self.assertEqual([replacement for pattern, replacement in rewrites
+                          if re.fullmatch(pattern, upstream.removeprefix("https://"))], [release, upstream])
+        for other in (upstream.replace("5.4.6", "5.4.7"), upstream + "?query", upstream + ".sig",
+                      upstream.replace("src.fedoraproject.org", "another.example"),
+                      upstream.replace("/sha512/", "/sha256/"),
+                      upstream.replace("/b08a61", "/c08a61")):
+            self.assertFalse(any(re.fullmatch(pattern, other.removeprefix("https://"))
+                                 for pattern, _replacement in rewrites), other)
 
 
 class DebianPoolMirrorScopeTest(unittest.TestCase):
@@ -758,7 +777,7 @@ class DebianPoolMirrorIntegrationTest(ArchiveFetchTestCase):
         self.exercise_snapshot_fallback([
             (upstream, ["/content/" + locator])
             for upstream, locator, _checksum, _size, _cdn in DEBIAN_CONTENT_PACKAGES
-        ])
+        ] + [(XZ_ARCHIVE[0], ["/xz-release/xz-5.4.6.tar.gz"])])
 
     def test_exact_content_candidates_keep_all_original_fallbacks(self):
         cases = []
@@ -772,6 +791,7 @@ class DebianPoolMirrorIntegrationTest(ArchiveFetchTestCase):
                     expected.append("/security-cdn/pool/" + upstream.split("/pool/", 1)[1])
                 expected.append("/snapshot-security/" + upstream.split("/archive/debian-security/", 1)[1])
             cases.append((upstream, expected))
+        cases.append((XZ_ARCHIVE[0], ["/xz-release/xz-5.4.6.tar.gz", "/xz-original/xz-5.4.6.tar.gz"]))
         self.exercise_snapshot_fallback(cases)
 
     def test_corrupt_security_content_candidate_falls_back_with_original_integrity(self):
@@ -921,6 +941,10 @@ class DebianPoolMirrorIntegrationTest(ArchiveFetchTestCase):
                     if cdn:
                         config_text = config_text.replace(cdn,
                             f"http://127.0.0.1:{server.server_port}/security-cdn/pool/" + cdn.split("/pool/", 1)[1])
+                config_text = config_text.replace(XZ_ARCHIVE[1],
+                    f"http://127.0.0.1:{server.server_port}/xz-release/xz-5.4.6.tar.gz")
+                config_text = config_text.replace(XZ_ARCHIVE[0],
+                    f"http://127.0.0.1:{server.server_port}/xz-original/xz-5.4.6.tar.gz")
                 config.write_text(config_text)
                 module = ('module(name = "debian_fallback_consumer")\n'
                           'http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")\n')

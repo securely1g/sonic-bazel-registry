@@ -1377,3 +1377,30 @@ No metadata request, redirect, retry, package extraction or execution was used.
 The historical accepted lock is provenance, not a failed-run generated lock
 or a full current graph. Existing routing tests exercise this exact tuple
 and retain date, package, architecture, host and path negative controls.
+
+## Exact P4RT XZ source fallback
+
+The [P4RT worker](https://github.com/securely1g/sonic-buildimage/actions/runs/42239690738/job/127966396342)
+completed its Common SDK preparation, then its Bazel 6.4 owner query failed
+fetching `org_lzma_lzma` before compiling the owner. The pinned
+[rules_boost recipe](https://github.com/nelhage/rules_boost/blob/5160325dbdc8c9e499f9d9917d913f35f1785d52/boost/boost.bzl)
+selects `xz-5.4.6.tar.gz` for `@boost//:iostreams`; the Fedora lookaside
+connection reset. The owner's separate launcher already uses this downloader
+configuration.
+
+| Input | Before | After |
+| --- | --- | --- |
+| Exact Fedora XZ 5.4.6 URL and SHA512 path | Only the reset connection | Official XZ GitHub release first, then the exact original URL |
+| Different version, digest path, host or suffix | No XZ rewrite | Still no XZ rewrite |
+
+The [official release archive](https://github.com/tukaani-project/xz/releases/download/v5.4.6/xz-5.4.6.tar.gz)
+was retained from prior owner validation. Its 2,889,306 bytes match the recipe's
+SHA256 `aeba3e03bf8140ddedf62a0a367158340520f6b384f75ca6045ccc6c0d43fd5c`
+and the original URL's full SHA512. This change preserves owner revision
+`4a5f8875e47c7dd4bf853672de1d7700bfaae56e`, archive version and checksum.
+
+The existing batched fallback tests include this source alongside all retained
+Debian tuples, checking separate bytes, hashes and request order. Pure mocked
+checks validate routing and fallback without Bazel, a server or network access.
+Current configured worker success remains pending; the failed job supplies no
+owner test or runtime acceptance. No new archive request was needed.
