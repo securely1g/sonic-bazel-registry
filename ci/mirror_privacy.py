@@ -32,7 +32,6 @@ MARKER = "[private-mirror]"
 # Cross-toolchain graph preparation and runtime probes retain command streams
 # separately; these are diagnostics just like build.log and test.log.
 TEXT_SUFFIXES = {".log", ".stderr", ".stdout", ".json", ".jsonl", ".xml"}
-BEP_FILES = {"build-events.jsonl", "test-events.jsonl"}
 
 
 class PrivacyError(ValueError):
@@ -335,6 +334,11 @@ class Redactor:
                 changes.append(record)
             record["sanitized_sha256"] = hashlib.sha256(payload).hexdigest()
 
+    def write_checked_text(self, path: Path, value: str) -> None:
+        """Atomically publish a sanitized report after checking it for private values."""
+        self._check_text(value)
+        self._write_bytes(path, value.encode())
+
     def scrub_and_scan(self, artifacts: Path) -> None:
         """Redact diagnostic text, then refuse publication if any location remains."""
         if not self.patterns or not artifacts.exists():
@@ -364,7 +368,7 @@ class Redactor:
             for path in regular:
                 relative = path.relative_to(root).as_posix()
                 try:
-                    receipt = self._scrub_bep(path) if path.name in BEP_FILES else None
+                    receipt = self._scrub_bep(path) if path.name.endswith("-events.jsonl") else None
                     if path.suffix in TEXT_SUFFIXES or path.name.endswith("MODULE.bazel.lock"):
                         text_receipt = self._scrub(path)
                         if text_receipt:
