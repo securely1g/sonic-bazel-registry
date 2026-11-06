@@ -1479,6 +1479,14 @@ def run(root: Path, module: str, version: str, architecture: str,
                     executor_prefix[-1:-1] = ["--bind-at", mapping["source"], mapping["destination"]]
             test_flags = prepare_test_runtime(config, fetched[0].parent, consumer, artifacts,
                                               architecture, test_container_image, executor_prefix or None)
+            if executor_prefix and module == "sonic-fips" and version == "0.0.4-symcrypt-cross.4":
+                recipe_runtime = consumer / "fips_recipe_runtime"
+                recipe_runtime.mkdir(exist_ok=True)
+                (recipe_runtime / "BUILD.bazel").write_text('exports_files(["run"])\n')
+                recipe_runner = recipe_runtime / "run"
+                recipe_runner.write_text("#!/bin/sh\nexec " + shlex.join(executor_prefix) + ' "$@"\n')
+                recipe_runner.chmod(0o755)
+                test_flags.append("--@sonic-fips//openssl/integration:recipe_runner=//fips_recipe_runtime:run")
             if executor_prefix:
                 test_flags.append("--run_under=" + shlex.join(executor_prefix))
             # Emulated Python can spend more than five minutes staging a large
