@@ -918,6 +918,11 @@ tests run with the published integration module. [ARM64 validation](https://gith
 All four original Go cases passed, including Cgo header propagation and build ID
 changes. [Full ARM64 validation](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42094050308/job/127479337371)
 
+P4C `1.2.4.2.sonic.3` also runs on the Debian cross runners. Its build uses
+native code generators, and its uncached package test uses the resulting ARM64
+compiler to translate P4 source to BMv2. All five original build targets passed.
+[Full ARM64 validation](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42087404563/job/127456109251)
+
 The remaining module failures stay visible in the survey and retain native ARM validation here.
 
 The gawk smoke test uses gawk as a native execution tool while the direct gawk
