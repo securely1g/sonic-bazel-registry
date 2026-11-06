@@ -1,4 +1,4 @@
-name: Validate Kerberos configure during the FIPS ARM cross-build
+name: Validate SymCrypt target binutils during the FIPS ARM cross-build
 on: workflow_dispatch
 permissions:
   contents: read
@@ -7,7 +7,7 @@ jobs:
     uses: ./.github/workflows/registry-module.yml
     with:
       module: sonic-fips
-      version: 0.0.4-ef423363e8fd50358f0aa2a8a20d3e08d4450a56
+      version: 0.0.4-symcrypt-cross.1
       architecture: arm64
       execution_architecture: amd64
       cross_compile: true
