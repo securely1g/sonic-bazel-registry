@@ -116,6 +116,7 @@ def configuration(public: str, mirrors: dict[str, str], *, fallback: bool = True
     component = r"(?:main|contrib|non-free|non-free-firmware)"
     directory = r"[A-Za-z0-9][A-Za-z0-9_+.-]*"
     package_name = r"[A-Za-z0-9]" + rest
+    source_pool_rules = []
     snapshot_roots = {key: (archive, snapshot) for key, archive, snapshot in SNAPSHOTS}
     for key, origin, pool in CDN_POOL_ORIGINS:
         if key not in mirrors:
@@ -128,8 +129,21 @@ def configuration(public: str, mirrors: dict[str, str], *, fallback: bool = True
             suffix = rf"({pool}/{component}/{directory}/{directory}/{package_name}\.(?:{extensions}))"
             pattern = rf"({origin}/{suffix})"
             preferred.append(f"rewrite {pattern} {base}$2")
+            if base == source_pool:
+                source_pool_rules.append((re.compile(pattern), base))
             # A scheme-less replacement preserves the original HTTP/HTTPS.
             originals.append(f"rewrite {pattern} $1")
+    # Bazel rewrites only the original URL. If a public rule offers a fixed
+    # Debian source TAR (for example GNU M4), give the original URL the
+    # corresponding private candidate before its public alternatives.
+    for line in public.splitlines():
+        fields = line.split()
+        if len(fields) != 3 or fields[0] != "rewrite" or not fields[2].startswith(("http://", "https://")):
+            continue
+        for source_pattern, base in source_pool_rules:
+            match = source_pattern.fullmatch(fields[2].split("://", 1)[1])
+            if match:
+                preferred.append(f"rewrite {fields[1]} {base}{match.group(2)}")
     # snapshot.debian.org/file/ uses the SHA1 as an object locator. The
     # caller's independent archive integrity is still checked by Bazel.
     content_pattern = r"(snapshot(?:-cloudflare)?\.debian\.org/(file/[0-9a-fA-F]{40}))"

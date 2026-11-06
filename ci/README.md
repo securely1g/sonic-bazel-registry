@@ -56,6 +56,12 @@ collects matching replacements in configuration order; its
 tries the next candidate after a failed download or checksum mismatch. Other
 versions and URLs are unaffected; no global module mirror is enabled.
 
+Historical Common builds use GNU Bison 3.3.2 and GNU M4 1.4.18 through
+libnl3. Registry CI tries the MacPorts copy of Bison and Debian's byte-identical
+upstream M4 TAR, then the declared GNU locations. Trusted Trixie jobs take the
+M4 TAR from the private Debian source pool first. Both archives must match the
+original rule's SHA256. [Bison release pin](https://github.com/jmillikin/rules_bison/blob/v0.4/bison/internal/versions.bzl#L17-L30) · [M4 release pin](https://github.com/jmillikin/rules_m4/blob/v0.3.1/m4/internal/versions.bzl)
+
 The exact `gawk-5.3.2.tar.xz` URLs at `mirrors.kernel.org`, `ftp.gnu.org`, and
 `ftpmirror.gnu.org` likewise try MacPorts first and retain each original URL as
 a fallback. The published source recipe and SHA256
