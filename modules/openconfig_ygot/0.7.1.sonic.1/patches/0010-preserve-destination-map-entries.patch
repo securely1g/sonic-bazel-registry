@@ -1,3 +1,16 @@
+Subject: Retain destination-only entries when merging YANG maps
+
+Management-common's translib/subscribe_notify.go coalesces subscription
+updates through mergeYgotAtPath, which calls MergeStructInto. The map merge
+drops destination
+entries absent from the incoming update. Retain those entries while using
+SONiC's existing deep key comparison, including equal-content pointer keys.
+Keep the source key for matching entries, avoid duplicates and preserve
+conflict errors. Add regressions for nil, empty, disjoint and shared maps.
+
+Origin: SONiC shared-module correction with a verified translib consumer:
+https://github.com/securely1g/sonic-mgmt-common/blob/f5361ba8b88cde7ec59bdb4652a986c68d66da64/translib/subscribe_utils.go#L81
+
 diff --git a/ygot/struct_validation_map.go b/ygot/struct_validation_map.go
 --- a/ygot/struct_validation_map.go
 +++ b/ygot/struct_validation_map.go

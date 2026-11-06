@@ -1,3 +1,15 @@
+Subject: Record existing SONiC metadata in JSON schema goldens
+
+Management-common's generator consumes SONiC's ordering, module and
+performance metadata. Its existing generator emits these fields, but the
+five original JSON schema goldens omit them. Add that metadata to the
+expected files so the original generator tests check the selected SONiC
+contract. Preserve every pre-existing key/value; do not change generation.
+
+Origin: SONiC shared-module golden update for the generator retained in
+0001, verified against the existing generated JSON schema output.
+https://github.com/securely1g/sonic-bazel-registry/pull/214
+
 diff --git a/ygen/testdata/schema/openconfig-options-compress-schema.json b/ygen/testdata/schema/openconfig-options-compress-schema.json
 --- a/ygen/testdata/schema/openconfig-options-compress-schema.json
 +++ b/ygen/testdata/schema/openconfig-options-compress-schema.json

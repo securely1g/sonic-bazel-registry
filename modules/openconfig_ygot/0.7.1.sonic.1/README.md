@@ -7,11 +7,13 @@ targets. They depend on the shared `openconfig_goyang` target, so callers and
 generated bindings use the same Go `yang.Entry` type.
 
 The source is upstream `v0.7.1`. Its existing SONiC Make/vendor patch and union
-enumeration-order fix are copied unchanged from management-common's accepted
+enumeration-order fix retain their original diff hunks from management-common's accepted
 `f5361ba8b88cde7ec59bdb4652a986c68d66da64` source. The old Bazel patch that added
 `@com_github_openconfig_gnmi//value` is represented directly in the maintained
 `ytypes/BUILD.bazel` dependency list. It no longer patches another repository's
-generated BUILD file during the consuming build.
+generated BUILD file during the consuming build. Each numbered patch includes
+a description of its purpose, SONiC use case and provenance before the diff.
+These explanatory headers do not change any applied source or test code.
 
 The component BUILD definitions reuse the accepted management-common dependency
 graph. They retain the original source/test lists and production protobuf rules;
@@ -43,9 +45,11 @@ union-order patch makes the same regression fail: declared `ZULU, ALPHA` becomes
 the declared order.
 
 This entry depends on shared goyang [registry #212](https://github.com/securely1g/sonic-bazel-registry/pull/212).
-Management-common's actual 20-generation, CVL/translib and output-restoration
-checks remain pending. Registry #165 and active image pins stay unchanged until
-that consumer acceptance passes.
+Management-common [source #3](https://github.com/securely1g/sonic-mgmt-common/pull/3)
+has passed its AMD64 20-generation, CVL/translib, public-consumer and
+output-restoration checks. That adoption remains unmerged; source landing and
+registry-pin cleanup remain tracked by [buildimage #99](https://github.com/securely1g/sonic-buildimage/issues/99).
+Registry #165 and active image pins are unchanged by this entry.
 
 The full original suite exposes compatibility gaps that the former consumer did
 not execute. Additional numbered patches keep their scope explicit:
@@ -63,15 +67,16 @@ not execute. Additional numbered patches keep their scope explicit:
   enabled/disabled debug behavior and compares compact demo JSON against every
   original expected token. The helper is a Bazel `testonly` dependency.
 
-The original two SONiC patches remain byte-identical. The cumulative runtime
+The original two SONiC diff bodies remain byte-identical; only descriptive
+headers precede them. The cumulative runtime
 source includes the separately documented corrections below, so the full
 runtime tree is not claimed unchanged. Legacy Make/vendor inputs are unchanged
 at this stage and still contain the inherited defects described here. All 26
-test targets remain enabled; management-consumer validation is required before
-adoption.
+test targets remain enabled. The consumer results above cover the unmerged
+adoption, not Docker or full-VS acceptance.
 
 The full original tests also expose small inherited defects. These corrections
-are kept separate from the byte-identical historical SONiC patches:
+are kept separate from the preserved historical SONiC diff bodies:
 
 - `0006` records the existing SONiC schema metadata in the five JSON goldens.
   Every original key/value remains; the additional ordering, performance and
@@ -100,10 +105,13 @@ are kept separate from the byte-identical historical SONiC patches:
 SONiC's historical performance patch intentionally emits compact JSON without
 calling `Validate`; `Indent`, `SkipValidation` and `ValidationOpts` do not change
 that behavior in this selected version. Fixture expectations preserve those
-existing defaults. Original invalid-value assertions call `Validate` explicitly,
-and JSON checks compact only whitespace while retaining every expected token.
-The leafref fixture prunes only empty branches created by `BuildEmptyTree`, so it
-does not introduce unrelated read-only containers into the tested configuration.
+existing defaults. In `TestInsertAndGetKey`, the empty-key case checks the `(nil, nil)`
+sentinel and returns before the original error-substring assertion, while a separate
+`{"unrelated": "x"}` input checks that an error exists. Remaining original invalid-value
+assertions call `Validate` explicitly, and JSON checks compact only whitespace while
+retaining every expected token. The leafref fixture prunes only empty branches created
+by `BuildEmptyTree`, so it does not introduce unrelated read-only containers into the
+tested configuration.
 
 - `0014` updates only the embedded gzip schema literals in the five generated-code
   goldens. Decompression matches the already-verified additive SONiC JSON

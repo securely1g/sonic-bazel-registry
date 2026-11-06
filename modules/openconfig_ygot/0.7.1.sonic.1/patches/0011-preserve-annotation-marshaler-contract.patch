@@ -1,3 +1,15 @@
+Subject: Preserve the annotation JSON marshaler contract
+
+Management-common's shared ygot runtime must retain the original RFC7952
+annotation API while using SONiC's optimized JSON renderer. The optimized
+path bypasses Annotation.MarshalJSON. Route annotation fields through the
+existing annotation helper so custom output and marshaler errors remain
+observable; ordinary fields keep the optimized tag-path cache.
+
+Origin: SONiC shared-module compatibility correction exposed by the
+original annotation-rendering tests; not an upstream backport claim.
+https://github.com/securely1g/sonic-bazel-registry/pull/214
+
 diff --git a/ygot/render.go b/ygot/render.go
 --- a/ygot/render.go
 +++ b/ygot/render.go

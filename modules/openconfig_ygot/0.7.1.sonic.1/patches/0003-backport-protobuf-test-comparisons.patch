@@ -1,3 +1,16 @@
+Subject: Compare protobuf messages through their supported test API
+
+SONiC already selects protobuf 1.36.11. The old ygot test comparers inspect
+protobuf implementation state, which prevents the shared owner's original
+suite from testing that dependency combination. Use standard protocmp for
+gNMI messages and adapt custom JSON comparisons to its message form.
+Preserve the exported JSONIETFComparer signature and verify that JSON-IETF
+and string oneofs remain distinct. No dependency version changes are made.
+
+Origin: Backport of openconfig/ygot PR #377's testcmp/testutil changes,
+with SONiC adaptations and regressions preserving the v0.7.1 public API:
+https://github.com/openconfig/ygot/pull/377
+
 diff --git a/testcmp/cmp.go b/testcmp/cmp.go
 --- a/testcmp/cmp.go
 +++ b/testcmp/cmp.go

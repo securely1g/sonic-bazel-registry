@@ -70,7 +70,7 @@ binaries and declared dependency packages, so version constraints come from
 the built artifacts and Debian tools. There is no handwritten JSON metadata
 file or new DEB producer.
 
-## Large native include lists
+## Large native include and linker lists
 
 Gearbox image PR #154 selects the complete PI/BMv2 dependency closure. Its
 native AMD64 debug action produced a 141,742-byte `CPPFLAGS` environment entry.
@@ -92,3 +92,37 @@ macros, spaces in include paths, header precedence, rejection of driver-only
 CPPFLAGS and exact equality of short/long executable bytes. This focused native
 Trixie test passed locally; complete package and downstream image acceptance are
 separate gates and are still pending for this candidate.
+
+
+The standalone DASH Engine image exposed the remaining linker limit: its
+136,826-byte `LDFLAGS` exceeded Linux's per-string limit before GCC started.
+The same configure prefix now stores its shell-parsed linker arguments in the
+private `.sonic-linker-arguments` vector. The existing shared compiler launcher
+expands only that exact vector before shortening absolute library searches for
+each recursive working directory. Every flag and library-search order remains
+intact; arbitrary GCC response files stay opaque.
+
+This requires the source launcher from
+[sonic-build-infra PR #82](https://github.com/securely1g/sonic-build-infra/pull/82),
+registered as `0.0.27-08e0956f80574b27a9b68e72fe855cc0089058e5`. Both the module
+minimum and the independent consumer select that version. No source archive,
+source patch, target ABI, configured feature or installed path changed.
+
+The extended original test covers both pre-exec failures and real C/C++ links
+through Autoconf and recursive Libtool, including quoted paths, competing
+libraries and exact short/long executable bytes. Local regression and the exact
+338-argument Engine-vector diagnostic pass. The earlier AMD64/ARM64 acceptance
+belongs to the previous candidate; updated registry CI and Engine acceptance
+remain pending. The original six build targets and two tests on both native
+architectures are preserved, with no DEB generation.
+
+Both native registry builds at `29f27a3` reached the `simple_switch_grpc` link,
+then could not locate four libraries required by PI's `libpifeproto` and
+`libpigrpcserver`. PI already exports their SONAME files in the declared SDK.
+BMv2 now includes that SDK's `lib` directory in its existing link-time
+`rpath-link` search, in addition to the imported-library directory. This does
+not add a runtime search path or change PI's library declarations. Source
+archives, patches and both architecture target inventories are unchanged.
+The failed build retained the configured flags and linker diagnostics, but
+upstream `V=0` omitted the expanded final link command. Corrected native
+registry and downstream Engine acceptance remain pending.

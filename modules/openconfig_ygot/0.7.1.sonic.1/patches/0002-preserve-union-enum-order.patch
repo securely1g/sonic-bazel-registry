@@ -1,3 +1,16 @@
+Subject: Preserve the declared order of union enumeration types
+
+Management-common's generated bindings must keep the YANG union's declared
+subtype order. Iterating a Go map can reorder the generated reflection map,
+for example from declared ZULU, ALPHA to ALPHA, ZULU. Sort by the recorded
+declaration index, using names only to break equal indices.
+The shared owner's union-order regression exercises this generator output.
+
+Origin: Unmodified diff from sonic-mgmt-common's
+patches/0003-ygot-preserve-union-enum-order.patch at merged commit
+f5361ba8b88cde7ec59bdb4652a986c68d66da64:
+https://github.com/securely1g/sonic-mgmt-common/blob/f5361ba8b88cde7ec59bdb4652a986c68d66da64/patches/0003-ygot-preserve-union-enum-order.patch
+
 --- a/ygen/gogen.go
 +++ b/ygen/gogen.go
 @@ -1321,7 +1321,20 @@
