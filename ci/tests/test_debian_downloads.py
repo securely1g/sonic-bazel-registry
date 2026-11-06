@@ -1,14 +1,17 @@
 """Regression evidence for downloads outside Bazel's main build/test events."""
+import hashlib
 import json
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import unittest
+import zipfile
 
 CI = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(CI))
 import debian_downloads
+import http_audit
 
 
 class DownloadEvidenceTest(unittest.TestCase):
@@ -35,6 +38,58 @@ class DownloadEvidenceTest(unittest.TestCase):
                 self.assertEqual(f"--experimental_downloader_config={root / 'downloader.cfg'}" in args, managed)
                 self.assertEqual(args[-2:], command[-2:])
                 self.assertEqual(args.count("--build_event_json_file=existing"), 1)
+
+    def test_prepare_checks_source_and_protects_private_properties(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            jar = root / "other-name.jar"
+            checksum = hashlib.sha256((CI / "DebianHttpAudit.java").read_bytes()).hexdigest()
+            with zipfile.ZipFile(jar, "w") as archive:
+                archive.writestr("META-INF/sonic-debian-http-audit.sha256", checksum)
+            http_audit.prepare(root, jar, {"debian": "https://private.example/archive/debian/date"})
+            self.assertEqual((root / "http.properties").stat().st_mode & 0o777, 0o600)
+            self.assertTrue((root / "http-audit.jar").is_file())
+            with zipfile.ZipFile(jar, "w") as archive:
+                archive.writestr("META-INF/sonic-debian-http-audit.sha256", "0" * 64)
+            with self.assertRaisesRegex(ValueError, "another source revision"):
+                http_audit.prepare(root, jar, {})
+
+    def test_http_responses_cover_opaque_commands_and_flag_public_hops(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            traces = root / "download-traces"
+            wire = traces / "http"
+            wire.mkdir(parents=True)
+            opaque = traces / "mod-test-events.jsonl"
+            opaque.write_text(json.dumps({"registryFetchCoverage": {"command": "mod", "exit": 0,
+                              "finished_event": False, "http_observer": True}}) + "\n")
+            log = wire / "http-7.jsonl"
+            health = {"handler_still_installed": True, "recording_failed": False}
+            rows = [{"event": "installed", **health},
+                    {"event": "request", "origin": "private", "type": "binary", "path": "/pool/x.deb"},
+                    {"event": "response", "origin": "private", "type": "binary", "path": "/pool/x.deb", "status": 302},
+                    {"event": "request", "origin": "public", "type": "redirect", "object": "/pool/x.deb"},
+                    {"event": "response", "origin": "public", "type": "redirect", "object": "/pool/x.deb", "status": 200}]
+            header = {"schema_version": 1, "pid": 7}
+            log.write_text("".join(json.dumps(header | row) + "\n" for row in rows))
+            self.assertIn("download-traces/mod-test-events.jsonl", debian_downloads.report(root)["incomplete_traces"])
+            with log.open("a") as out:
+                out.write(json.dumps({**header, "event": "health", **health}) + "\n")
+            data = debian_downloads.report(root)
+            self.assertEqual(data["commands_without_bep"], ["download-traces/mod-test-events.jsonl"])
+            self.assertEqual(data["incomplete_traces"], [])
+            self.assertEqual([(r["outcome"], r["object"]) for r in data["exceptions"]], [("HTTP 200 response", "/pool/x.deb")])
+            self.assertEqual(data["http_observer"]["public_requests"][0]["object"], "/pool/x.deb")
+            with log.open("a") as out:
+                out.write(json.dumps({**header, "event": "shutdown", "handler_still_installed": False,
+                                      "recording_failed": True}) + "\n")
+            self.assertFalse(debian_downloads.report(root)["http_observer"]["complete"])
+
+    def test_missing_optional_observer_is_visible_in_private_validation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "private-mirrors.json").write_text('{"http_observer_expected":true}')
+            self.assertIn("Debian HTTP observer was unavailable", debian_downloads.report(root)["incomplete_traces"])
 
     def test_preparation_failure_retains_debian_fetches_and_original_status(self):
         with tempfile.TemporaryDirectory() as directory:
