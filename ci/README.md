@@ -1392,3 +1392,23 @@ gain content-first routes, each followed by its exact original URL. Existing
 scope tests cover changed dates, filenames, architectures, paths, hosts and
 query suffixes; all previous routes and negative controls remain intact.
 Configured-fetch and consumer acceptance for these additions remain pending.
+
+### PR151 ARMHF libc-dev-bin source-query input
+
+PR151 AMD64 archive job 127811197110 (OCI attempt 2 at `0a789dead`) passed
+Orchagent validation with 106 ELF/debug pairs and 370 Scapy files, then its
+32-root owner/Scapy source query stopped on
+`libc-dev-bin_2.41-12+deb13u3_armhf.deb`: the official pool returned 404 and
+the unchanged dated Snapshot URL returned 504. The selected infrastructure
+sysroot recipe and accepted lock bind this exact ARMHF input; this is an
+import during AMD64 analysis, with no manual ARM execution.
+
+The exact dated URL now tries its verified filename-bearing Snapshot content
+URL before the unchanged official-pool and original Snapshot fallbacks. One
+content request returned 200 and matched all 58,444 locked/cache bytes and
+SHA256 `f9797e3c0b091a540c1d33b630ba965aab9b128cb73c3c28ed4271c9e83b9354`.
+The SHA1 locates the file; the original package SHA256 remains authoritative.
+No metadata request, redirect, retry, package extraction or execution was used.
+The historical accepted lock is provenance, not a failed-run generated lock
+or a full current graph. Existing routing tests exercise this exact tuple
+and retain date, package, architecture, host and path negative controls.
