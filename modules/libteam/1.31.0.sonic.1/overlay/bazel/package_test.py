@@ -40,6 +40,27 @@ def verify_development_timestamps(development):
     return len(members)
 
 
+def verify_gzip_headers(path, expected):
+    """Check the actual packaged gzip headers, without executing their contents."""
+    records = []
+    with tarfile.open(path) as archive:
+        members = [member for member in archive.getmembers() if member.name.endswith('.gz')]
+        names = [member.name for member in members]
+        require(len(names) == len(set(names)) and set(names) == set(expected),
+                "unexpected gzip member set: " + str(path))
+        for member in sorted(members, key=lambda item: item.name):
+            require(member.isfile() and member.size >= 18,
+                    "invalid gzip member: " + member.name)
+            with archive.extractfile(member) as contents:
+                header = contents.read(10)
+            require(len(header) == 10 and header[:3] == b'\x1f\x8b\x08',
+                    "invalid gzip header: " + member.name)
+            require(header[3] == 0 and int.from_bytes(header[4:8], 'little') == 0,
+                    "non-reproducible gzip header: " + member.name)
+            records.append({'path': member.name, 'flags': header[3], 'mtime': 0})
+    return records
+
+
 def files(archive):
     with tarfile.open(archive) as payload:
         members = payload.getmembers()
@@ -143,6 +164,22 @@ def verify(args):
                           ('usr/bin/teamdctl', 'main', 'teamdctl.c')],
     }
     sdk_members = verify_development_timestamps(args.development)
+    gzip_headers = {
+        name: verify_gzip_headers(getattr(args, name), paths)
+        for name, paths in {
+            'libteam': ['usr/share/doc/libteam5/changelog.Debian.gz'],
+            'libteamdctl': ['usr/share/doc/libteamdctl0/changelog.Debian.gz'],
+            'libteam_utils': [
+                'usr/share/doc/libteam-utils/changelog.Debian.gz',
+                'usr/share/man/man1/bond2team.1.gz',
+                'usr/share/man/man5/teamd.conf.5.gz',
+                'usr/share/man/man8/teamd.8.gz',
+                'usr/share/man/man8/teamdctl.8.gz',
+                'usr/share/man/man8/teamnl.8.gz',
+            ],
+            'development': ['usr/share/doc/libteam-dev/changelog.Debian.gz'],
+        }.items()
+    }
     full = json.loads(args.metadata.read_text())
     libraries = json.loads(args.library_metadata.read_text())
     require(full['module'] == libraries['module'] == 'libteam', 'metadata has the wrong source owner')
@@ -230,7 +267,8 @@ def verify(args):
         require(struct.unpack_from('<H', (root/'consumer.o').read_bytes(), 18)[0] == machine, 'SDK compiler is not native')
 
     return {'scope':'Installed native SDK and five symbol pairs; daemon networking and OCI are separate acceptance',
-            'development_timestamps':{'mtime':0, 'members':sdk_members}, 'pairs':pairs}
+            'development_timestamps':{'mtime':0, 'members':sdk_members},
+            'gzip_headers':gzip_headers, 'pairs':pairs}
 
 
 def main():

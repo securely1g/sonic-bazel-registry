@@ -15,6 +15,7 @@ version `1.31-1`, or the `libteam.so.5`/`libteamdctl.so.0` ABI.
 | SWSS installs only the two libraries | Full metadata would also advertise absent utilities | `:library_runtime_packages.json` describes exactly `libteam5` and `libteamdctl0` |
 | Teamd installs daemon, utilities and libraries | Image owns their source recipe | Existing runtime/debug TAR labels and full `:runtime_packages.json` remain available |
 | Exported development TAR | Generated pkg-config files can carry build-time timestamps | The accepted `/set time=0` fix preserves zero timestamps for every SDK member |
+| Compressed manuals and changelog | Gzip stores source filenames and mtimes inside otherwise normalized TARs | The same upstream gzip executable uses `-n` at level 9; the package test checks all nine delivered gzip headers |
 
 ## Sources and patches
 
@@ -68,12 +69,22 @@ TAR/metadata outputs, and four tests:
 - `package_test` checks the installed SDK, pkg-config/header compilation,
   native architecture and SONAMEs, all five runtime/debug build IDs and CRCs,
   isolated missing-symbol rejection, positive GDB source lookup, and the exact
-  full/library-only metadata boundary.
+  full/library-only metadata boundary. It also records zero mtimes and absent
+  optional header fields for the nine gzip members in the four runtime/SDK TARs.
 - `sdk_timestamp_test` retains the accepted zero-time, nonzero-time, PAX
-  override and empty-archive cases.
+  override and empty-archive cases, and rejects timestamped, named, malformed,
+  missing, unexpected, duplicate or linked gzip members using pure fixtures.
 - `verify_rebuild_test` records simulated Bazel commands to check the incremental
   driver's input selection, flags, output/evidence checks and restoration on
   failure. It never launches Bazel or compiles a native fixture.
+
+The six compression actions use the existing public
+`@rules_gzip//gzip/toolchain/gzip:resolved` executable through native genrules,
+with the same inputs, output names and compression level. `-n` suppresses the
+input filename and mtime; no replacement compressor or module is introduced.
+The local header tests use synthetic bytes only. Actual AMD64 CI must confirm
+the selected upstream tool accepts this option and that all delivered headers
+pass. This does not yet establish equality across independent clean builds.
 
 Consumers run the exported `@libteam//:bazel/verify_rebuild.py` source using their
 existing Bazel entry point: `python3 <selected-script> --bazel <entry-point>
