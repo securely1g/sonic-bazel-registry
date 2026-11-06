@@ -7,7 +7,6 @@ load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_shared_library")
 load("@sonic_build_infra//cc:shared_library.bzl", "shared_library_cc_info")
 load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
 load("@tar.bzl//tar:tar.bzl", "tar")
-load("@rules_gzip//gzip/compress:defs.bzl", "gzip_compress")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -92,9 +91,23 @@ cc_binary(name = "teamdctl", srcs = ["utils/teamdctl.c"], copts = COPTS, deps = 
 # Debian's multiarch ABI layout; the toolchain selects the corresponding ELF.
 # Exact dist_man*_MANS from man/Makefile.am.
 MAN_PAGES = ["man/bond2team.1", "man/teamd.conf.5", "man/teamd.8", "man/teamdctl.8", "man/teamnl.8"]
-gzip_compress(name = "changelog_gz", src = "@libteam_debian//:debian/changelog", level = 9)
+# Use the existing gzip tool directly: its compression rule has no option to
+# suppress the input filename and mtime stored inside the gzip header.
+genrule(
+    name = "changelog_gz",
+    srcs = ["@libteam_debian//:debian/changelog"],
+    outs = ["changelog.gz"],
+    tools = ["@rules_gzip//gzip/toolchain/gzip:resolved"],
+    cmd = '"$(execpath @rules_gzip//gzip/toolchain/gzip:resolved)" -ncfk -9 "$(location @libteam_debian//:debian/changelog)" > "$@"',
+)
 [
-    gzip_compress(name = f.split("/")[-1] + "_gz", src = f, level = 9)
+    genrule(
+        name = f.split("/")[-1] + "_gz",
+        srcs = [f],
+        outs = [f.split("/")[-1] + ".gz"],
+        tools = ["@rules_gzip//gzip/toolchain/gzip:resolved"],
+        cmd = '"$(execpath @rules_gzip//gzip/toolchain/gzip:resolved)" -ncfk -9 "$(location %s)" > "$@"' % f,
+    )
     for f in MAN_PAGES
 ]
 DOC_SRCS = [":changelog_gz", "@libteam_debian//:debian/copyright"]

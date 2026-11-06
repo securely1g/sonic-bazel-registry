@@ -3,12 +3,12 @@
   "integrity": "sha256-o5xjanHDDGManc8fF1WX2rsZWU5PtKMSnrWljRcB1IY=",
   "strip_prefix": "libteam-1.31",
   "overlay": {
-    "BUILD.bazel": "sha256-kT3XeHrWY5m63RpkMmM2E99G5tDSXvWe+UhgBhpUSV8=",
+    "BUILD.bazel": "sha256-/PJRvBoIO+I+t0e6ZJSlqavgiCjJMX87uo0SqOa4Kqs=",
     "MODULE.bazel": "sha256-eHrZ7KU8P6H9C4dpNv4ImQfngZigWtQmGDMiJTJZlLI=",
     "bazel/config.h.in": "sha256-6KKxJ1wSXmVs6StcX7vBmZfA2V5N9lzx+p94c0xWB5o=",
     "bazel/consumer_test.c": "sha256-o5VfXTZHGW5LYHIzF9A78/cJSRRHZEZoM3AtBmffCTw=",
-    "bazel/package_test.py": "sha256-KL/a8Im7U8stCDdb7IzI4e8QwmVzKo4fCQpHi5Is5/4=",
-    "bazel/sdk_timestamp_test.py": "sha256-8U8erltM79UO0omPdiaco4zHJRRbsWLSBcoYkASHJC0=",
+    "bazel/package_test.py": "sha256-HVZPHZ2RWbwfYkfS8mGTQF7YPDAC4ylP+T0LJnM1n+M=",
+    "bazel/sdk_timestamp_test.py": "sha256-ucicJaOCcvR4qoInaiBUbiF+MGTx17L822yLZaeKVm0=",
     "bazel/verify_rebuild.py": "sha256-l74SqvWB9sOEMEB8vlxF4GBYdt43L3IGEqK3vTGehvY=",
     "bazel/verify_rebuild_test.py": "sha256-R38XFBAdX3kuZmycXf8m1SFt4faUn0u9nRQ8u/+2V4Y="
   },
