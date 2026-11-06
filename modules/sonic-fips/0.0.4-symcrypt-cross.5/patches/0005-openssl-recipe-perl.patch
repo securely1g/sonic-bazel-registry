@@ -1,0 +1,65 @@
+diff --git a/openssl/integration/BUILD.bazel b/openssl/integration/BUILD.bazel
+index 62e02cf..79fbfc4 100644
+--- a/openssl/integration/BUILD.bazel
++++ b/openssl/integration/BUILD.bazel
+@@ -34,6 +34,12 @@ genrule(
+     tools = ["@bsd_tar_toolchains//:resolved_toolchain"],
+ )
+ 
++# A cross consumer can supply the guest interpreter that runs its target ELFs.
++label_flag(
++    name = "recipe_perl",
++    build_setting_default = ":native-recipe-perl.sh",
++)
++
+ # This downstream test build can depend on both OpenSSL and its plugins;
+ # the production core build cannot depend on a plugin that links that core.
+ openssl_build(
+@@ -42,6 +48,7 @@ openssl_build(
+     data = [
+         ":plugin_inputs",
+         ":plugins/libsymcrypt.so.103",
++        ":recipe_perl",
+     ],
+     out_data_files = ["evidence/suite.log"],
+     postfix_script = """set -euo pipefail
+@@ -51,6 +58,7 @@ plugin_dir="$${plugin_core%/*}"
+ # The declared Perl launcher deliberately clears ambient PERL5LIB. TAP's
+ # interpreter hook supplies OpenSSL's declared source modules as explicit -I.
+ export SONIC_TEST_PERL="$$EXT_BUILD_ROOT/$(execpath @sonic_build_infra//tools/build_tools:configure_runtime)/bin/perl"
++export SONIC_TEST_RECIPE_PERL="$$EXT_BUILD_ROOT/$(execpath :recipe_perl)"
+ export SONIC_TEST_PERL_LIB="$$BUILD_TMPDIR/util/perl"
+ export HARNESS_PERL="$$BUILD_TMPDIR/sonic-test-perl"
+ export HARNESS_JOBS=4
+@@ -58,7 +66,7 @@ cat > "$$HARNESS_PERL" <<'SONIC_PERL'
+ #!/bin/sh
+ # AUTO-GENERATED. DO NOT EDIT MANUALLY.
+ # Generator: openssl/integration/BUILD.bazel
+-exec "$$SONIC_TEST_PERL" -I"$$SONIC_TEST_PERL_LIB" "$$@"
++exec "$$SONIC_TEST_RECIPE_PERL" -I"$$SONIC_TEST_PERL_LIB" "$$@"
+ SONIC_PERL
+ chmod +x "$$HARNESS_PERL"
+ # OpenSSL's own test wrapper exposes the build directory to its loader.
+diff --git a/openssl/integration/README.md b/openssl/integration/README.md
+index 9433f4e..ec96a39 100644
+--- a/openssl/integration/README.md
++++ b/openssl/integration/README.md
+@@ -42,3 +42,10 @@ own integration validation.
+ 
+ The suite extracts its plugin inputs directly from the SymCrypt runtime TAR with
+ the declared BSD tar toolchain. It does not build or install Debian packages.
++
++
++A cross-testing consumer can set
++`--@sonic-fips//openssl/integration:recipe_perl=//path:target-perl` to an
++executable that runs Perl in its target runtime. TAP passes the original
++recipe and arguments, including OpenSSL's source modules. Native builds use
++the Perl supplied by the declared configure toolchain.
+diff --git a/openssl/integration/native-recipe-perl.sh b/openssl/integration/native-recipe-perl.sh
+new file mode 100755
+index 0000000..aec3d82
+--- /dev/null
++++ b/openssl/integration/native-recipe-perl.sh
+@@ -0,0 +1,2 @@
++#!/bin/sh
++exec "$SONIC_TEST_PERL" "$@"

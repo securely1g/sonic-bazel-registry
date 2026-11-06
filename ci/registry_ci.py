@@ -1435,6 +1435,9 @@ def run(root: Path, module: str, version: str, architecture: str,
                     raise RegistryError(str(error)) from error
                 shutil.copy2(consumer / "MODULE.bazel", artifacts / "consumer.MODULE.bazel")
             flags.extend(prepare_rust(config, consumer, work_dir, artifacts, prefix, flags))
+            if executor_prefix and module == "sonic-fips" and version == "0.0.4-symcrypt-cross.5":
+                run_logged([*prefix, "cquery", *flags, "set(" + " ".join(config["test_targets"]) + ")",
+                            "--output=label"], consumer, artifacts / "fips-early-test-analysis.log")
             run_logged([*prefix, "build", *flags, f"--build_event_json_file={artifacts / 'build-events.jsonl'}",
                         *config["build_targets"]], consumer, artifacts / "build.log")
             declared_trees = query_output_trees(prefix, flags, config["build_targets"], consumer, artifacts)
@@ -1479,14 +1482,21 @@ def run(root: Path, module: str, version: str, architecture: str,
                     executor_prefix[-1:-1] = ["--bind-at", mapping["source"], mapping["destination"]]
             test_flags = prepare_test_runtime(config, fetched[0].parent, consumer, artifacts,
                                               architecture, test_container_image, executor_prefix or None)
-            if executor_prefix and module == "sonic-fips" and version == "0.0.4-symcrypt-cross.4":
+            if executor_prefix and module == "sonic-fips" and version == "0.0.4-symcrypt-cross.5":
                 recipe_runtime = consumer / "fips_recipe_runtime"
                 recipe_runtime.mkdir(exist_ok=True)
                 (recipe_runtime / "BUILD.bazel").write_text('exports_files(["run"])\n')
                 recipe_runner = recipe_runtime / "run"
-                recipe_runner.write_text("#!/bin/sh\nexec " + shlex.join(executor_prefix) + ' "$@"\n')
+                guest_perl = [*executor_prefix, "/usr/bin/perl"]
+                identity = json.loads(subprocess.check_output(
+                    [*guest_perl, "-MConfig", "-MJSON::PP", "-e",
+                     'print encode_json({version => $Config{version}, archname => $Config{archname}})'],
+                    text=True, cwd=consumer))
+                require("aarch64" in identity["archname"], "OpenSSL TAP recipes must use AArch64 Perl")
+                (artifacts / "fips-recipe-perl.json").write_text(json.dumps(identity, indent=2) + "\n")
+                recipe_runner.write_text("#!/bin/sh\nunset PERL5LIB\nexec " + shlex.join(guest_perl) + ' "$@"\n')
                 recipe_runner.chmod(0o755)
-                test_flags.append("--@sonic-fips//openssl/integration:recipe_runner=//fips_recipe_runtime:run")
+                test_flags.append("--@sonic-fips//openssl/integration:recipe_perl=//fips_recipe_runtime:run")
             if executor_prefix:
                 test_flags.append("--run_under=" + shlex.join(executor_prefix))
             # Emulated Python can spend more than five minutes staging a large
