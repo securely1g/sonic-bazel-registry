@@ -217,7 +217,8 @@ class ArmCrossRuntimeIntegrationTest(unittest.TestCase):
                             os.killpg(process.pid, signal.SIGKILL)
                             process.wait()
                         self.fail(f"{case} exceeded {timeout}s; see preserved command/output artifacts")
-                self.assertEqual(process.returncode, 0, (stdout.read_text() + stderr.read_text())[-12000:])
+                self.assertEqual(process.returncode, 0,
+                                 registry_ci.read_log_tail(stdout, 6000) + registry_ci.read_log_tail(stderr, 6000))
                 return stdout.read_text()
 
             try:

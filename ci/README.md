@@ -149,12 +149,15 @@ private Debian mirrors while keeping the published package URLs and checksums.
 Configure these optional **Actions repository secrets** under **Settings →
 Secrets and variables → Actions**:
 
-| Secret | HTTPS snapshot root |
+| Secret | Stable HTTPS archive root |
 | --- | --- |
-| `DEBIAN_MIRROR_BASE_URL` | Mirror of Debian snapshot `20260727T143429Z` |
-| `DEBIAN_SECURITY_MIRROR_BASE_URL` | Mirror of Debian security snapshot `20260726T121236Z` |
+| `DEBIAN_MIRROR_ROOT` | Private URL ending in `/archive/debian/` |
+| `DEBIAN_SECURITY_MIRROR_ROOT` | Private URL ending in `/archive/debian-security/` |
 
-Each value is the complete snapshot-root URL, including its trailing slash.
+CI appends the snapshot timestamp from [debian_snapshots.json](debian_snapshots.json).
+Set these two secrets once. Trusted jobs select the secret pair after checkout.
+A pre-manifest helper uses the existing dated secrets, including when it runs
+under a newer workflow.
 Do not put the values in registry files, workflow variables, container images,
 PR descriptions, or reproduction commands. The public workflow refers only to
 the secret names. It passes them explicitly to the reusable module workflow
@@ -169,7 +172,7 @@ The downloader maps each Debian input according to its published identity:
 | Input | First private candidate |
 | --- | --- |
 | Dated Debian or security snapshot | The same archive, original timestamp and path. This includes the December 2024 Socat sources and February 2024 BusyBox packages. |
-| Official CDN binary pool URL | The matching configured July snapshot and original pool path. |
+| Official CDN binary pool URL | The archive's current snapshot from the manifest and the original pool path. |
 | Official CDN source archive or source descriptor | The matching undated CDN pool path, such as `/debian/pool/...`. |
 | Snapshot content address | The same `/file/<SHA1>` object, verified against the caller's independent integrity pin. |
 
@@ -178,11 +181,34 @@ For example, the Trixie APT resolver starts several compressed versions of
 not cancel an already running `Packages.gz` request. Mirror the formats listed
 in the signed Debian Release files, including `Contents.gz` for each target
 architecture. Public fallback remains available for every published format.
-For the two pinned July snapshots, probes of formats absent from the signed
-manifests stay on the private endpoint. The format table is scoped to those
-dates, the Bookworm and Trixie release, updates and security suites, the
-`main` component, and AMD64/ARM64/ARMHF. A Trixie build can evaluate a
-component's Bookworm extension while resolving its module graph.
+For each retained timestamp, the manifest records the signed formats for
+`Packages` and `Contents` by suite. Probes for unpublished encodings stay
+on the private endpoint. This covers the `main` indexes for AMD64, ARM64 and
+ARMHF. A Trixie build can evaluate a component's Bookworm extension while
+resolving its module graph.
+
+### Roll the CI mirror to a new snapshot
+
+1. Stage the new dated directory on the private mirror. Verify the signed
+   Release metadata and the index and package files that consumers use.
+2. Edit **only [debian_snapshots.json](debian_snapshots.json)**. For each archive
+   being rolled, add its timestamp under `snapshots`, record the signed
+   `Packages` and `Contents` suffixes for each supported suite, and set
+   `current` to that timestamp. An empty suffix represents the raw index.
+   Verify the archive's `probe` package path and SHA256 against the new
+   snapshot. Update them if its package changed.
+3. Keep previous entries and their mirrored files while consumers still pin
+   those releases. Bazel preserves timestamps on dated URLs. Direct APT
+   preparation uses the per-date mapping for every retained entry.
+4. Run `python3 -m unittest discover -s ci/tests -p test_debian_snapshot_rollover.py`
+   to exercise old and new routing with the same roots. Run **Registry CI**
+   with **private_mirror_probe** and check the evidence for
+   both archives. The probes fetch from the current dates with a fresh cache
+   and public fallback disabled.
+
+This procedure changes CI mirror routing. To upgrade the Debian packages a
+component selects, publish the corresponding dependency pins in the owning
+module and update its consumers separately.
 
 Temporary configuration lives outside the artifact directory. The wrapper
 removes mirror values from the child process environment and registers them
@@ -221,9 +247,8 @@ To prove private mirror availability, manually run **Registry CI** with
 self-hosted Trixie runner and requires both mirror secrets to be configured.
 It uses the same `sudo` environment as local module validation, so it cannot
 depend on proxy settings available only to the runner user. It performs
-fresh-cache Bazel downloads of the locked
-Debian `libaudit-dev` and security `libc-ares-dev` packages, checks their original
-hashes without executing either package, and retains a sanitized receipt.
+fresh-cache Bazel downloads of each archive's manifest-selected probe package,
+checks its SHA256 and retains a sanitized receipt.
 Ordinary pull-request and push CI use public fallback and do not require the
 private mirrors to be available. The manual probe defaults to off and does not
 change the module validation matrix. Local regression tests cover mirror
