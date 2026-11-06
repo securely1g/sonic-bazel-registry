@@ -117,7 +117,7 @@ class BazelArtifactIntegrationTest(unittest.TestCase):
                         prefix + ["build", *flags, "--build_event_json_file=" + str(bep), *labels],
                         cwd=consumer, stdout=log, stderr=subprocess.STDOUT, timeout=180,
                     )
-                self.assertEqual(build.returncode, 0, (artifacts / "build.log").read_text()[-10000:])
+                self.assertEqual(build.returncode, 0, registry_ci.read_log_tail(artifacts / "build.log", 10000))
                 execution_root = Path(subprocess.check_output(
                     prefix + ["info", *flags, "execution_root"], cwd=consumer, text=True,
                     stderr=subprocess.PIPE, timeout=120,
