@@ -843,7 +843,11 @@ class EntryValidationTests(FixtureTestCase):
         valid = {"script": "tools/runtime/prepare.py", "sha256": "a" * 64}
         write_json(path, {**config, "test_runtime_preparation": valid})
         self.assertEqual(registry_ci.validate_entry(self.root, "alpha", "1.0.0")["test_runtime_preparation"], valid)
+        with_mirrors = {**valid, "apt_mirror_protocol": "locked-runtime-v1"}
+        write_json(path, {**config, "test_runtime_preparation": with_mirrors})
+        self.assertEqual(registry_ci.validate_entry(self.root, "alpha", "1.0.0")["test_runtime_preparation"], with_mirrors)
         for invalid in (None, {}, {**valid, "args": ["--skip-tests"]},
+                        {**valid, "apt_mirror_protocol": "unknown"}, {**valid, "apt_mirror_protocol": True},
                         {**valid, "sha256": "bad"}, {**valid, "script": "/tmp/prepare.py"},
                         {**valid, "script": "../prepare.py"}, {**valid, "script": "https://example.org/prepare.py"}):
             with self.subTest(invalid=invalid):

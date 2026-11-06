@@ -153,40 +153,43 @@ Do not put the values in registry files, workflow variables, container images,
 PR descriptions, or reproduction commands. The public workflow refers only to
 the secret names. It passes them explicitly to the reusable module workflow
 for same-repository pull requests, maintained-branch pushes, and manual runs,
-excluding Dependabot. The receiving workflow also checks the self-hosted and
-Trixie runner labels. This includes native AMD64 builds and ARM64 cross builds
-executing on the same trusted Trixie runners. Native hosted ARM64 jobs and fork
-pull requests receive no mirror secrets and retain the public download
-configuration. The separate cross-runtime fixture job receives no secrets.
+excluding Dependabot. The receiving workflow also checks its runner and event before forwarding secrets.
+Trusted AMD64 module builds, ARM64 cross builds, native runner tests and the
+cross-compiler fixture share the same routing. Hosted ARM64 and fork runs use
+the public configuration.
 
-[`private_mirrors.py`](private_mirrors.py) generates a private temporary Bazel
-downloader configuration with the configured mirror first, followed by the
-existing public candidates. Dated snapshot routes preserve the original path
-and match only the two dates above. Binary `.deb`/`.udeb` pool URLs under
-`deb.debian.org/debian/` also try the configured Debian snapshot first; security
-pool URLs under `deb.debian.org/debian-security/` and
-`security.debian.org/debian-security/` try the configured security snapshot.
-These additional routes exclude mutable CDN indexes and source archives, and
-retain the original package URL as a fallback. For example, the locked
-`libaudit-dev_4.0.2-2+b2_amd64.deb` first tries its private Debian mirror; a missing
-file or wrong checksum falls back through the existing public candidates. Its
-original SHA256 stays
-`4104cf1149947db1a3450b2a13aab23000a695aa6981f515216129ad8b884423`.
-Changing the download location does not repin packages or change module recipes.
+The downloader maps each Debian input according to its published identity:
 
-The wrapper passes the combined configuration explicitly because the registry
-runner ignores Bazel RC files. Secret values are removed from the environment
-of the child validation command. The temporary configuration stays outside the
-artifact directory and is cleaned up after use. Console output is redacted;
-the full URL and hostname are also registered for GitHub log masking.
+| Input | First private candidate |
+| --- | --- |
+| Dated Debian or security snapshot | The same archive, original timestamp and path. This includes the December 2024 Socat sources and February 2024 BusyBox packages. |
+| Official CDN binary pool URL | The matching configured July snapshot and original pool path. |
+| Official CDN source archive or source descriptor | The matching undated CDN pool path, such as `/debian/pool/...`. |
+| Snapshot content address | The same `/file/<SHA1>` object, verified against the caller's independent integrity pin. |
 
-GitHub console masking does not sanitize the bytes of uploaded artifacts.
-Before archiving, the wrapper redacts saved text diagnostics and scans evidence,
-including archive contents, for private URL and hostname forms. A remaining
-leak blocks the upload; binary build outputs are not rewritten. The module
-archive and runner-test upload both require a successful final privacy check,
-including when the build or tests fail. Public original URLs and package hashes
-remain available in the retained evidence.
+For example, the Trixie APT resolver starts several compressed versions of
+`Packages` and `Contents` in parallel. A private `Packages.xz` success does
+not cancel an already running `Packages.gz` request. Mirror the formats listed
+in the signed Debian Release files, including `Contents.gz` for each target
+architecture. Public fallback remains available for every published format.
+For the two pinned July snapshots, probes of formats absent from the signed
+manifests stay on the private endpoint. The format table is scoped to those
+dates, suites, the `main` component, and AMD64/ARM64/ARMHF.
+
+Temporary configuration lives outside the artifact directory. The wrapper
+removes mirror values from the child process environment and registers them
+for GitHub masking. Module validation supplies an ephemeral APT mirror map
+to runtime preparation because direct APT calls use a separate transport.
+The checked preparer and package locks still verify the selected runtime.
+
+Bazel preparation commands such as the ARM toolchain provider's `fetch` retain
+redacted fetch events alongside the usual build/test event streams. Before
+upload, CI scans diagnostics and nested artifacts for private locations. On a
+trusted job, `debian-downloads.json` identifies the evidence files, successful
+and failed candidates, APT Get activity, and any public or unattributed transfers.
+A warning points to this report if there are exceptions. A Bazel fetch event
+identifies the requested candidate. Cache hits and HTTP redirects need separate
+evidence when proving where bytes were served.
 
 To prove private mirror availability, manually run **Registry CI** with
 **private_mirror_probe** selected. This optional check runs only on the trusted
@@ -489,6 +492,53 @@ Artifacts retain `test-runtime-prepare.py`, `test-runtime.MODULE.bazel.lock`,
 `test-runtime-preparation.log`, the helper's `test-runtime.json` receipt and any
 adjacent logs, including on failure. `validation.json` records the opt-in and
 test environment flag after every declared test passes.
+
+### Route source-owned runtime preparation through private APT mirrors
+
+Compatible preparers can opt into this CI-only presubmit field:
+
+```json
+"test_runtime_preparation": {
+  "script": "tools/bazel/runtime/prepare.py",
+  "sha256": "<unchanged source helper SHA256>",
+  "apt_mirror_protocol": "locked-runtime-v1"
+}
+```
+
+The protocol requires the verified helper's existing `select_runtime(lock,
+architecture)`, `snapshot_sources(selected, architecture)`, `inventory()`,
+`missing_packages(selected, before)`, and `verify_inventory(selected, before,
+after)` functions. All five current Common entries use the same compatible
+helper. Other helpers retain their normal execution path; a mirror secret alone
+does not opt them into this protocol.
+
+For trusted Trixie jobs the mirror wrapper supplies `SONIC_APT_MIRROR_CONFIG`,
+the path to a temporary mode-0600 JSON file outside artifacts. Its schema is
+`{"schema_version": 1, "mirrors": {"<canonical HTTPS snapshot base>":
+"<preferred HTTPS mirror base>"}}`; canonical keys have no trailing slash.
+The CI adapter first uses the owner's exact resolved package selection and
+provenance check. Standard APT then uses local `mirror+file` lists with the private
+endpoint at priority 1 and the canonical public endpoint at priority 2. APT
+handles fallback for each file. The lists are mode 0400 and owned by `_apt`,
+so its normal sandbox can read them without making private endpoints readable
+by other unprivileged container users. No system APT configuration is changed.
+
+Signature checks, simulated dependency planning, refusal to change prepared-base
+packages, selected version/architecture/SHA256 checks, and installation without
+further downloads remain enforced. The original source helper then executes
+unchanged and performs its normal runtime validation and receipt generation.
+The additional step runs in the same target environment, including the ARM
+executor when selected. Without a private map, normal public preparation remains
+available.
+
+`test-runtime-mirrors.json` records selected and verified packages, the before/after
+inventory, and configured snapshot mappings without private endpoints. The
+configured mappings alone do not establish where bytes came from: the adjacent
+`test-runtime-mirrors.apt.log` contains actual APT acquisition evidence. Ignore
+local `file:... Mirrorlist` reads when counting network transfers. The existing
+mirror wrapper scrubs and scans these files before upload. Common's normal
+`test-runtime.apt.log` is empty after successful pre-provisioning because the
+unchanged helper finds no missing packages and makes no second APT download.
 
 ## Maintain one MODULE declaration
 
