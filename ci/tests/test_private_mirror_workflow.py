@@ -13,7 +13,20 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = ROOT / ".github/workflows"
-SECRETS = ("DEBIAN_MIRROR_BASE_URL", "DEBIAN_SECURITY_MIRROR_BASE_URL")
+ROOT_SECRETS = {
+    "DEBIAN_MIRROR_ROOT": "https://debian-fixture.example.invalid/archive/debian/",
+    "DEBIAN_SECURITY_MIRROR_ROOT": "https://security-fixture.example.invalid/archive/debian-security/",
+}
+DATED_SECRETS = {
+    "DEBIAN_MIRROR_BASE_URL": ROOT_SECRETS["DEBIAN_MIRROR_ROOT"] + "20200101T000000Z/",
+    "DEBIAN_SECURITY_MIRROR_BASE_URL": ROOT_SECRETS["DEBIAN_SECURITY_MIRROR_ROOT"] + "20200102T000000Z/",
+}
+SECRETS = ROOT_SECRETS | DATED_SECRETS
+CHECKOUT_FILES = {
+    "roots": ("ci/private_mirrors.py", "ci/debian_snapshots.json"),
+    "dated": ("ci/private_mirrors.py",),
+    "": (),
+}
 TRIXIE = ["self-hosted", "Linux", "X64", "debian-trixie-container"]
 
 
@@ -27,6 +40,7 @@ def expression_value(expression, context):
         "lookup": lambda key: context.get(key, ""),
         "contains": lambda values, value: value in values,
         "fromJSON": json.loads,
+        "hashFiles": lambda path: "fixture-hash" if path in context.get("_files", ()) else "",
         "always": lambda: True,
         "cancelled": lambda: context.get("_cancelled", False),
     })
@@ -38,6 +52,18 @@ def step(text, name):
 
 def script(text, name):
     return textwrap.dedent(step(text, name).split("        run: |\n", 1)[1])
+
+
+def workflow_job(text, name):
+    body = text.split(f"\n  {name}:\n", 1)[1]
+    return re.split(r"^  [a-z_]+:\n", body, maxsplit=1, flags=re.M)[0]
+
+
+def mirror_kind(job, context):
+    chooser = step(job, "Identify the checked-out mirror configuration")
+    guard = re.search(r"if: \$\{\{ (.*) \}\}", chooser)[1]
+    choice = re.search(r'echo "kind=\$\{\{ (.*) \}\}"', chooser)[1]
+    return expression_value(choice, context) if expression_value(guard, context) else ""
 
 
 class PrivateMirrorSecretBoundaryTest(unittest.TestCase):
@@ -138,44 +164,48 @@ class PrivateMirrorSecretBoundaryTest(unittest.TestCase):
                 self.assertEqual(bool(expression_value(expression, context)), expected)
 
     def test_secret_expressions_reject_forks_bots_and_untrusted_runner_labels(self):
-        for filename in ("registry-ci.yml", "registry-module.yml"):
-            workflow = (WORKFLOWS / filename).read_text()
-            for secret in SECRETS:
-                expressions = re.findall(rf"^\s+{secret}: \$\{{\{{ (.*) \}}\}}$", workflow, re.M)
-                self.assertTrue(expressions, filename)
-                for expression in expressions:
-                    for event, head, actor, runner, expected in (
-                        ("pull_request", "owner/repo", "maintainer", TRIXIE, "fixture-value"),
-                        ("push", "", "maintainer", TRIXIE, "fixture-value"),
-                        ("workflow_dispatch", "", "maintainer", TRIXIE, "fixture-value"),
-                        ("pull_request", "fork/repo", "contributor", TRIXIE, ""),
-                        ("pull_request", "owner/repo", "dependabot[bot]", TRIXIE, ""),
-                        ("pull_request_target", "owner/repo", "maintainer", TRIXIE, ""),
-                        ("workflow_run", "owner/repo", "maintainer", TRIXIE, ""),
-                        ("push", "", "maintainer", ["ubuntu-24.04-arm"], ""),
-                        ("push", "", "maintainer", ["self-hosted", "Linux", "X64"], ""),
-                        ("push", "", "maintainer", ["debian-trixie-container"], ""),
-                    ):
-                        # The cross fixture has a fixed Trixie label set in
-                        # runs-on. Only that worker and hosted isolation apply.
-                        fixed = "runner.environment" in expression
-                        if fixed and "self-hosted" in runner and runner != TRIXIE:
-                            continue
-                        context = {
-                            "github.event_name": event,
-                            "github.actor": actor,
-                            "github.repository": "owner/repo",
-                            "github.event.pull_request.head.repo.full_name": head,
-                            "matrix.runner": runner,
-                            "runner.environment": "self-hosted" if "self-hosted" in runner else "github-hosted",
-                            "inputs.runner": json.dumps(runner),
-                            f"secrets.{secret}": "fixture-value",
-                        }
-                        with self.subTest(filename=filename, event=event, head=head,
-                                          actor=actor, runner=runner, secret=secret):
-                            self.assertEqual(expression_value(expression, context), expected)
-                            context[f"secrets.{secret}"] = ""
-                            self.assertEqual(expression_value(expression, context), "")
+        main = (WORKFLOWS / "registry-ci.yml").read_text()
+        reusable = (WORKFLOWS / "registry-module.yml").read_text()
+        plan = workflow_job(main, "plan")
+        jobs = {name: workflow_job(main, name) for name in ("unit", "cross_fixture", "modules_local")}
+        jobs["validate"] = workflow_job(reusable, "validate")
+        for name, job in jobs.items():
+            bindings = re.findall(r"^\s+(DEBIAN_[A-Z_]+): \$\{\{ (.*) \}\}$", job, re.M)
+            self.assertEqual({key for key, _ in bindings}, set(SECRETS), name)
+            chooser = plan if name == "modules_local" else job
+            self.assertLess(chooser.index("uses: actions/checkout@"), chooser.index("id: mirror_config"))
+            self.assertNotIn("secrets.", step(chooser, "Identify the checked-out mirror configuration"))
+            for event, head, actor, runner, trusted in (
+                ("pull_request", "owner/repo", "maintainer", TRIXIE, True),
+                ("push", "", "maintainer", TRIXIE, True),
+                ("workflow_dispatch", "", "maintainer", TRIXIE, True),
+                ("pull_request", "fork/repo", "contributor", TRIXIE, False),
+                ("pull_request", "owner/repo", "dependabot[bot]", TRIXIE, False),
+                ("pull_request_target", "owner/repo", "maintainer", TRIXIE, False),
+                ("workflow_run", "owner/repo", "maintainer", TRIXIE, False),
+                ("push", "", "maintainer", ["ubuntu-24.04-arm"], False),
+                ("push", "", "maintainer", ["self-hosted", "Linux", "X64"], False),
+                ("push", "", "maintainer", ["debian-trixie-container"], False),
+            ):
+                # The cross fixture has a fixed Trixie label set in runs-on.
+                if name == "cross_fixture" and "self-hosted" in runner and runner != TRIXIE:
+                    continue
+                ctx = {"github.event_name": event, "github.actor": actor, "github.repository": "owner/repo",
+                       "github.event.pull_request.head.repo.full_name": head, "matrix.runner": runner,
+                       "runner.environment": "self-hosted" if "self-hosted" in runner else "github-hosted",
+                       "inputs.runner": json.dumps(runner), **{f"secrets.{key}": value for key, value in SECRETS.items()}}
+                for kind, files in (*CHECKOUT_FILES.items(), ("", ("ci/debian_snapshots.json",))):
+                    ctx["_files"] = files
+                    if name == "modules_local":
+                        # The plan always runs on Trixie, independently of the target matrix runner.
+                        ctx["needs.plan.outputs.mirror_config"] = mirror_kind(plan, ctx | {"runner.environment": "self-hosted"})
+                    else:
+                        ctx["steps.mirror_config.outputs.kind"] = mirror_kind(job, ctx)
+                    pair = {"roots": ROOT_SECRETS, "dated": DATED_SECRETS, "": {}}[kind] if trusted else {}
+                    for key, expression in bindings:
+                        with self.subTest(job=name, event=event, runner=runner, head=head, kind=kind, secret=key):
+                            self.assertEqual(expression_value(expression, ctx), pair.get(key, ""))
+                            self.assertEqual(expression_value(expression, ctx | {f"secrets.{key}": ""}), "")
 
     def test_hosted_arm_call_does_not_forward_secrets(self):
         workflow = (WORKFLOWS / "registry-ci.yml").read_text()
@@ -192,7 +222,9 @@ class PrivateMirrorSecretBoundaryTest(unittest.TestCase):
 
     def test_local_native_and_cross_calls_forward_secrets_only_for_trusted_runs(self):
         workflow = (WORKFLOWS / "registry-ci.yml").read_text()
-        local_job = workflow.split("  modules_local:\n", 1)[1].split("  modules_hosted_arm:\n", 1)[0]
+        local_job = workflow_job(workflow, "modules_local")
+        plan = workflow_job(workflow, "plan")
+        self.assertIn("mirror_config: ${{ steps.mirror_config.outputs.kind }}", plan)
         for secret in SECRETS:
             expression = re.search(rf"^\s+{secret}: \$\{{\{{ (.*) \}}\}}$", local_job, re.M)[1]
             for architecture, cross in (("amd64", False), ("arm64", True)):
@@ -204,7 +236,10 @@ class PrivateMirrorSecretBoundaryTest(unittest.TestCase):
                                "github.event.pull_request.head.repo.full_name": head,
                                "matrix.runner": TRIXIE, "matrix.architecture": architecture,
                                "matrix.execution_architecture": "amd64", "matrix.cross_compile": cross,
+                               "runner.environment": "self-hosted",
+                               "_files": CHECKOUT_FILES["roots" if secret in ROOT_SECRETS else "dated"],
                                f"secrets.{secret}": "fixture-value"}
+                    context["needs.plan.outputs.mirror_config"] = mirror_kind(plan, context)
                     with self.subTest(secret=secret, architecture=architecture, head=head, actor=actor):
                         self.assertEqual(expression_value(expression, context), expected)
 
@@ -235,9 +270,9 @@ class PrivateMirrorWorkflowCommandTest(unittest.TestCase):
                                 CI_EXECUTION_ARCHITECTURE="amd64", CI_CROSS_COMPILE="false",
                                 ARM_TEST_EXECUTOR="/usr/local/bin/sonic-arm64",
                                 TEST_CONTAINER_IMAGE="", SONIC_RUNNER_IMAGE_REFERENCE="fixture@sha256:" + "a" * 64,
-                                CAPTURE=str(self.capture), FAIL_CHECK="0", GITHUB_ACTIONS="true",
-                                DEBIAN_MIRROR_BASE_URL="debian-fixture",
-                                DEBIAN_SECURITY_MIRROR_BASE_URL="security-fixture")
+                                CAPTURE=str(self.capture), FAIL_CHECK="0", GITHUB_ACTIONS="true", **ROOT_SECRETS)
+        for name in DATED_SECRETS:
+            self.environment.pop(name, None)
         self.executable("git", "#!/bin/sh\nexit 0\n")
         self.executable("sudo", textwrap.dedent("""\
             #!/bin/sh
@@ -246,7 +281,7 @@ class PrivateMirrorWorkflowCommandTest(unittest.TestCase):
                 case "$1" in --preserve-env=*) preserved=${1#--preserve-env=};; esac
                 shift
             done
-            for name in DEBIAN_MIRROR_BASE_URL DEBIAN_SECURITY_MIRROR_BASE_URL GITHUB_ACTIONS; do
+            for name in DEBIAN_MIRROR_ROOT DEBIAN_SECURITY_MIRROR_ROOT DEBIAN_MIRROR_BASE_URL DEBIAN_SECURITY_MIRROR_BASE_URL GITHUB_ACTIONS; do
                 case ",$preserved," in *,$name,*) ;; *) unset "$name";; esac
             done
             exec "$@"
@@ -256,7 +291,8 @@ class PrivateMirrorWorkflowCommandTest(unittest.TestCase):
             with open(os.environ['CAPTURE'], 'a') as log:
                 log.write(json.dumps({'args': sys.argv[1:], 'github_actions': os.environ.get('GITHUB_ACTIONS'),
                     'secrets': [os.environ.get(name) for name in
-                    ('DEBIAN_MIRROR_BASE_URL', 'DEBIAN_SECURITY_MIRROR_BASE_URL')]}) + '\\n')
+                    ('DEBIAN_MIRROR_ROOT', 'DEBIAN_SECURITY_MIRROR_ROOT', 'DEBIAN_MIRROR_BASE_URL',
+                     'DEBIAN_SECURITY_MIRROR_BASE_URL') if os.environ.get(name)]}) + '\\n')
             if 'check-artifacts' in sys.argv:
                 raise SystemExit(int(os.environ['FAIL_CHECK']))
             """))
@@ -283,7 +319,7 @@ class PrivateMirrorWorkflowCommandTest(unittest.TestCase):
                 self.assertIn("ci/registry_ci.py", command["args"])
                 self.assertIn("--bazel-build-arg=--jobs=1", command["args"])
                 self.assertIn("--bazel-startup-arg=--host_jvm_args=-Xmx2g", command["args"])
-                self.assertEqual(command["secrets"], ["debian-fixture", "security-fixture"])
+                self.assertEqual(command["secrets"], list(ROOT_SECRETS.values()))
                 self.assertEqual(command["github_actions"], "true")
                 self.assertNotIn("debian-fixture", " ".join(command["args"]))
                 self.assertNotIn("security-fixture", " ".join(command["args"]))
@@ -296,6 +332,16 @@ class PrivateMirrorWorkflowCommandTest(unittest.TestCase):
                 if cross:
                     self.assertEqual(command["args"][command["args"].index("--test-executor") + 1],
                                      self.environment["ARM_TEST_EXECUTOR"])
+
+    def test_legacy_module_helper_receives_only_dated_mirrors_through_sudo(self):
+        self.environment.update(dict.fromkeys(ROOT_SECRETS, ""))
+        self.environment.update(DATED_SECRETS)
+        result = self.run_step("Build and test through the registry")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        command = json.loads(self.capture.read_text())
+        self.assertEqual(command["secrets"], list(DATED_SECRETS.values()))
+        for value in DATED_SECRETS.values():
+            self.assertNotIn(value, " ".join(command["args"]))
 
     def test_only_successful_artifact_download_adds_absolute_agent_path(self):
         for status in ("success", "failure", "skipped", ""):
@@ -343,7 +389,7 @@ class PrivateMirrorWorkflowCommandTest(unittest.TestCase):
                 self.assertFalse((self.directory / "archive-was-called").exists())
                 command = json.loads(self.capture.read_text())
                 self.assertEqual(command["args"][:2], ["ci/private_mirrors.py", "check-artifacts"])
-                self.assertEqual(command["secrets"], ["debian-fixture", "security-fixture"])
+                self.assertEqual(command["secrets"], list(ROOT_SECRETS.values()))
                 self.assertEqual(command["github_actions"], "true")
 
     def test_manual_probe_preserves_production_environment_and_user_owned_evidence_directory(self):
@@ -353,7 +399,7 @@ class PrivateMirrorWorkflowCommandTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         command = json.loads(self.capture.read_text())
         self.assertEqual(command["args"][:2], ["ci/private_mirrors.py", "probe"])
-        self.assertEqual(command["secrets"], ["debian-fixture", "security-fixture"])
+        self.assertEqual(command["secrets"], list(ROOT_SECRETS.values()))
         self.assertEqual(command["github_actions"], "true")
         artifact_path = Path(command["args"][command["args"].index("--artifacts") + 1])
         self.assertEqual(artifact_path, self.directory / "runner-ci-artifacts/private-mirror-probe")

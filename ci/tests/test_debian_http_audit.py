@@ -114,12 +114,13 @@ class DebianHttpAuditTest(unittest.TestCase):
             threading.Thread(target=server.serve_forever, daemon=True).start()
             self.addCleanup(server.server_close)
             self.addCleanup(server.shutdown)
-        self.base = f"https://{PRIVATE_HOST}:{self.private.server_port}/private-mount/archive/debian/{STAMP}/"
+        self.archive_root = f"https://{PRIVATE_HOST}:{self.private.server_port}/private-mount/archive/debian/"
+        self.base = f"{self.archive_root}{STAMP}/"
         self.url = self.base + "pool/main/f/fixture/fixture_1_amd64.deb?sentinel-query"
         self.output = self.work / "evidence-ü"
         self.output.mkdir()
         self.properties = self.work / "private.properties"
-        self.properties.write_text(f"output={self.output}\nmirror.0={self.base}\n", encoding="utf-8")
+        self.properties.write_text(f"output={self.output}\nmirror.0={self.archive_root}\n", encoding="utf-8")
         self.properties.chmod(0o600)
 
     def records(self):
@@ -197,7 +198,7 @@ class DebianHttpAuditTest(unittest.TestCase):
         self.assert_private()
 
     def test_explicitly_configured_loopback_origin_is_observed(self):
-        base = self.base.replace(PRIVATE_HOST, "127.0.0.1")
+        base = self.archive_root.replace(PRIVATE_HOST, "127.0.0.1")
         self.properties.write_text(f"output={self.output}\nmirror.0={base}\n", encoding="utf-8")
         result = self.run_probe("fetch", self.url.replace(PRIVATE_HOST, "127.0.0.1"))
         self.assertEqual(result.returncode, 0, result.stderr)

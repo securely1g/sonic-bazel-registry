@@ -1449,6 +1449,26 @@ class RequiredTestResultTests(FixtureTestCase):
 
 
 class TestLogCollectionTests(FixtureTestCase):
+    def test_failure_tail_starts_on_a_line_boundary_before_redaction(self):
+        host = "build-private-mirror.example.invalid"
+        suffix = host[len("build-"):] + "/archive/debian/package.deb\n"
+        error = "last compiler error\n"
+        following = "x" * (16000 - len(suffix) - len(error) - 1) + "\n" + error
+        cases = [
+            ("Downloading https://build-" + suffix + following, following),
+            ("older line\n" + "x" * 15999 + "\n", "x" * 15999 + "\n"),
+            (error, error),
+            ("a" * 16001, ""),
+        ]
+        for original, expected in cases:
+            log = self.root / "build.log"
+            command = [sys.executable, "-c", "import sys; sys.stdout.write(sys.argv[1]); sys.exit(1)", original]
+            with self.subTest(length=len(original)), mock.patch.object(sys, "stderr", io.StringIO()) as console:
+                with self.assertRaises(registry_ci.RegistryError):
+                    registry_ci.run_logged(command, self.root, log)
+                self.assertEqual(console.getvalue(), expected + "\n")
+                self.assertEqual(log.read_text(), original)
+
     def events(self) -> list[dict]:
         self.work = self.root / "work"
         self.bazel_out = self.work / "bazel/hash/execroot/_main/bazel-out"
@@ -2203,7 +2223,7 @@ class TestContainerTests(unittest.TestCase):
         commands.mkdir()
         for name, body in {
             "sudo": ('printf "%s\\n" "$*" >> "$SUDO_LOG"\n[[ "$1" == -n ]]\nshift\n'
-                     'if [[ "$1" == --preserve-env=DEBIAN_MIRROR_BASE_URL,DEBIAN_SECURITY_MIRROR_BASE_URL,GITHUB_ACTIONS ]]; then shift; fi\n'
+                     'if [[ "$1" == --preserve-env=DEBIAN_MIRROR_ROOT,DEBIAN_SECURITY_MIRROR_ROOT,DEBIAN_MIRROR_BASE_URL,DEBIAN_SECURITY_MIRROR_BASE_URL,GITHUB_ACTIONS ]]; then shift; fi\n'
                      'exec "$@"\n'),
             "git": 'printf "%s\\n" "$@" > "$GIT_LOG"\n',
             "python3": 'printf "%s\\n" "$@" > "$CAPTURE"\n',
