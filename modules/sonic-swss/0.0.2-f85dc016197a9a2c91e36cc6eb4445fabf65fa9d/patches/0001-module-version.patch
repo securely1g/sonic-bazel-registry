@@ -1,0 +1,20 @@
+Register the source module's declared 0.0.2 base with its exact source revision.
+
+This registry-only identity patch lets external consumers select SWSS's native
+libteam providers and separate runtime/debug TAR exports without changing
+program versions, native build inputs, SONAMEs or Debian packaging.
+
+Source: https://github.com/securely1g/sonic-swss/commit/f85dc016197a9a2c91e36cc6eb4445fabf65fa9d
+Scope: Registry version metadata; maintained with this registration.
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,7 +1,7 @@
+ # Keep bazel_compatibility aligned with sonic-buildimage and sonic-swss-common.
+ module(
+     name = "sonic-swss",
+-    version = "0.0.2",
++    version = "0.0.2-f85dc016197a9a2c91e36cc6eb4445fabf65fa9d",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",

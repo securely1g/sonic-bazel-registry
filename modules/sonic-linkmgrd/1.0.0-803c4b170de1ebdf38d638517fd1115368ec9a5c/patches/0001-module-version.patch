@@ -1,0 +1,36 @@
+Subject: Select registry identity and published SONiC dependency versions
+
+Purpose: Preserve this candidate's existing registry version and dependency
+adjustments while selecting published SWSS Common 0.0.9 instead of the removed
+Common 0.0.8 draft. Only MODULE.bazel changes; compiled sources, targets and
+runtime behavior remain owned by the selected upstream snapshot.
+
+Origin: SONiC registry integration for sonic-linkmgrd 803c4b170de1ebdf38d638517fd1115368ec9a5c
+Source: https://github.com/securely1g/sonic-linkmgrd/tree/803c4b170de1ebdf38d638517fd1115368ec9a5c
+Upstream-Status: Inappropriate [registry-specific module metadata]
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-linkmgrd",
+-    version = "1.0.0",
++    version = "1.0.0-803c4b170de1ebdf38d638517fd1115368ec9a5c",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
+@@ -17,12 +17,12 @@
+ bazel_dep(name = "libnl3", version = "3.7.0.sonic.7")
+ bazel_dep(
+     name = "sonic-build-infra",
+-    version = "0.0.26-0378d53824b18b253ecbd6faadba00e505ff4ccf",
++    version = "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e",
+     repo_name = "sonic_build_infra",
+ )
+ bazel_dep(
+     name = "sonic-swss-common",
+-    version = "0.0.8-33d2790e5f954496c2b79e38854a2b5e2dfa7a3a",
++    version = "0.0.9-334389eae54afd1f4f5ee69f89c3a7ad2062ee61",
+     repo_name = "sonic_swss_common",
+ )
+ 

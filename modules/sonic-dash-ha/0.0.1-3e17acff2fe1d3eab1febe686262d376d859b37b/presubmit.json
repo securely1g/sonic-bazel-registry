@@ -1,0 +1,82 @@
+{
+  "architectures": [
+    "amd64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e",
+      "repo_name": "sonic_build_infra"
+    },
+    {
+      "name": "tar.bzl",
+      "version": "0.10.5-sonic.1"
+    },
+    {
+      "name": "rules_distroless",
+      "version": "0.9.4.sonic.15"
+    },
+    {
+      "name": "rules_rs",
+      "version": "0.1.0"
+    },
+    {
+      "name": "rules_go",
+      "version": "0.64.1-sonic.1"
+    },
+    {
+      "name": "sonic-rust-deps",
+      "version": "0.0.5-c53741eb56e55e4f1c9b48c577ed5de986e62192",
+      "repo_name": "sonic_rust_deps"
+    },
+    {
+      "name": "sonic-swss-common",
+      "version": "0.0.9-334389eae54afd1f4f5ee69f89c3a7ad2062ee61",
+      "repo_name": "sonic_swss_common"
+    },
+    {
+      "name": "sonic-dash-api",
+      "version": "0.0.5-9b2893e890734a2db0c53a5e5c64b031ec0dcfbd",
+      "repo_name": "sonic_dash_api"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
+  },
+  "host_platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
+  },
+  "build_targets": [
+    "@sonic-dash-ha//:dash_ha_pkg",
+    "@sonic-dash-ha//:dash_ha_pkg.debug_symbols",
+    "@sonic-dash-ha//:runtime_packages.json",
+    "@sonic-dash-ha//crates/container:container"
+  ],
+  "test_targets": [
+    "@sonic-dash-ha//crates/container:unit_test",
+    "@sonic-dash-ha//crates/hamgrd:unit_test",
+    "@sonic-dash-ha//crates/sonic-common:unit_test",
+    "@sonic-dash-ha//crates/sonic-dash-api-proto:unit_test",
+    "@sonic-dash-ha//crates/sonicdb-derive:basic_test",
+    "@sonic-dash-ha//crates/swbus-actor:echo_test",
+    "@sonic-dash-ha//crates/swbus-actor:kvstore_test",
+    "@sonic-dash-ha//crates/swbus-actor:test_executor_test",
+    "@sonic-dash-ha//crates/swbus-actor:unit_test",
+    "@sonic-dash-ha//crates/swbus-cli:unit_test",
+    "@sonic-dash-ha//crates/swbus-config:unit_test",
+    "@sonic-dash-ha//crates/swbus-core:basic_tests_test",
+    "@sonic-dash-ha//crates/swbus-core:inter_cluster_tests_test",
+    "@sonic-dash-ha//crates/swbus-core:unit_test",
+    "@sonic-dash-ha//crates/swbus-edge:unit_test",
+    "@sonic-dash-ha//crates/swbus-proto:unit_test",
+    "@sonic-dash-ha//crates/swbusd:unit_test",
+    "@sonic-dash-ha//crates/swss-common-bridge:unit_test",
+    "@sonic-dash-ha//crates/swss-serde:unit_test",
+    "@sonic-dash-ha//bazel:installed_package_test"
+  ],
+  "rust_toolchain": {
+    "version": "1.90.0",
+    "mangled_allocator_libraries": true,
+    "bindgen": true
+  }
+}

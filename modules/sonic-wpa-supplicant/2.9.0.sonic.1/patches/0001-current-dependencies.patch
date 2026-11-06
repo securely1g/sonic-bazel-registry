@@ -1,0 +1,22 @@
+Subject: [PATCH] Align standalone registry dependency declarations
+
+Adapt MODULE.bazel from sonic-wpa-supplicant commit
+d14bf3ac61597273e8940f9b14c8034568cccff7 to the catalog's published
+Common and FIPS source owners, retaining the selected infrastructure version.
+Only dependency declarations change; WPA production source files are untouched.
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -9,9 +9,9 @@
+ bazel_dep(name = "rules_foreign_cc", version = "0.16.0.sonic.1")
+ bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.16")
+ bazel_dep(name = "tar.bzl", version = "0.10.5.sonic.1")
+-bazel_dep(name = "sonic-build-infra", version = "0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568", repo_name = "sonic_build_infra")
++bazel_dep(name = "sonic-build-infra", version = "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e", repo_name = "sonic_build_infra")
+-bazel_dep(name = "sonic-swss-common", version = "0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed", repo_name = "sonic_swss_common")
++bazel_dep(name = "sonic-swss-common", version = "0.0.9-334389eae54afd1f4f5ee69f89c3a7ad2062ee61", repo_name = "sonic_swss_common")
+-bazel_dep(name = "sonic-fips", version = "0.0.3-e910ec2217bc42aae8a185a398b23a329f482fef", repo_name = "sonic_fips")
++bazel_dep(name = "sonic-fips", version = "0.0.3-15fcb926a302059ec379f0c2fd15eb3d88bda4c9", repo_name = "sonic_fips")
+ bazel_dep(name = "libnl3", version = "3.7.0.sonic.7")
+ 
+ single_version_override(module_name = "rules_foreign_cc", version = "0.16.0.sonic.1")
