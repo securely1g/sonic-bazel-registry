@@ -1,6 +1,6 @@
 {
-    "homepage": "https://github.com/sonic-net/sonic-gnmi",
-    "versions": [
-        "0.1.0-6a854f16f9a63a4357b5f2db6969f5c9c00cbdde"
-    ]
+  "homepage": "https://github.com/sonic-net/sonic-gnmi",
+  "versions": [
+    "0.1.0-83a7de8d7760f7cac9690f5e304d94a9171f2366"
+  ]
 }
