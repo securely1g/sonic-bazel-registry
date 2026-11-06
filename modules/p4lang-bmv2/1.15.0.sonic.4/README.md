@@ -10,6 +10,9 @@ SONiC's existing Make recipes.
 The registry also patches the Thrift version check to read the target
 `thrift/config.h` with the C++ compiler. Native builds and ARM64 cross-builds
 use the header version to select the same Thrift interfaces.
+The configure-flags test uses the foreign build tools for the execution platform,
+as the configure action does. The package test loads and exercises the target
+programs and libraries.
 
 The configured features match the maintained recipe: PDFixed, Thrift, nanomsg,
 PI and `simple_switch_grpc`. PI headers/libraries come from the independently
