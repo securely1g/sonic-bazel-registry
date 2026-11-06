@@ -1,3 +1,16 @@
+Subject: Match embedded schema goldens to SONiC's existing metadata
+
+The five generated-code goldens embed gzip-compressed schema JSON. Update
+only those byte literals to match the additional existing SONiC metadata
+recorded by 0006, so the original generator tests validate the bindings
+used by management-common. The decompressed payloads match those JSON
+goldens; every byte outside the literals remains unchanged. This does
+not change the generator or generated Go APIs.
+
+Origin: SONiC shared-module golden update for the existing generator
+output; paired with 0006's additive JSON schema metadata.
+https://github.com/securely1g/sonic-bazel-registry/pull/214
+
 diff --git a/ygen/testdata/schema/openconfig-options-compress.formatted-txt b/ygen/testdata/schema/openconfig-options-compress.formatted-txt
 --- a/ygen/testdata/schema/openconfig-options-compress.formatted-txt
 +++ b/ygen/testdata/schema/openconfig-options-compress.formatted-txt

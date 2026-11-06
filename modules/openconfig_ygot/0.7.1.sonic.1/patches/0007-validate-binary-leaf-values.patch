@@ -1,3 +1,15 @@
+Subject: Pass binary leaf values to the existing length validator
+
+Management-common uses ytypes to validate generated YANG structs. The
+binary branch leaves the value for validation unset, allowing invalid
+binary lengths through. Forward the actual byte slice to the existing
+binary validator so its original length checks run; retain the schema-type
+rejection and all other leaf conversions.
+
+Origin: SONiC shared-module correction exposed by the original ytypes
+validation tests, not a change to the selected YANG length constraints.
+https://github.com/securely1g/sonic-bazel-registry/pull/214
+
 diff --git a/ytypes/leaf.go b/ytypes/leaf.go
 --- a/ytypes/leaf.go
 +++ b/ytypes/leaf.go

@@ -1,3 +1,22 @@
+Subject: Match test fixtures to the existing SONiC schema contract
+
+The original ygot tests use handwritten or pre-generated schemas without
+the performance state that SONiC's parser supplies to management-common.
+Initialize those fixtures through the test-only sonicfixture helper, and
+record the existing parser metadata in explicit expected schemas. In
+TestInsertAndGetKey, the empty-key case checks the (nil, nil) sentinel and
+returns before the original error-substring assertion, while a separate
+{"unrelated": "x"} input checks that an error exists. Retain the remaining
+original assertions while adapting debug expectations and compact JSON
+whitespace; call Validate explicitly for invalid-value checks because the
+selected SONiC EmitJSON deliberately skips implicit validation. Prune only
+empty BuildEmptyTree branches in the leafref fixture. Runtime code and the
+generator are unchanged by this test-fixture patch.
+
+Origin: SONiC shared-module test adaptations for the behavior retained in
+0001; the helper is provided by overlay/internal/sonicfixture/schema.go.
+https://github.com/securely1g/sonic-bazel-registry/pull/214
+
 diff --git a/demo/bgp/main_test.go b/demo/bgp/main_test.go
 --- a/demo/bgp/main_test.go
 +++ b/demo/bgp/main_test.go

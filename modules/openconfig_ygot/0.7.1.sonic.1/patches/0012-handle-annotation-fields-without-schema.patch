@@ -1,3 +1,15 @@
+Subject: Let annotation fields reach their existing schema-free setter
+
+Annotation fields deliberately have no YANG child schema. SONiC's node
+handling dereferences that missing schema before reaching the existing
+annotation setter. Guard only the leaf/leaf-list inspection so the shared
+ytypes API used by management-common keeps its original annotation
+behavior. Ordinary data fields still require a schema.
+
+Origin: SONiC shared-module compatibility correction exposed by the
+original ytypes node tests; the existing annotation setter is unchanged.
+https://github.com/securely1g/sonic-bazel-registry/pull/214
+
 diff --git a/ytypes/node.go b/ytypes/node.go
 --- a/ytypes/node.go
 +++ b/ytypes/node.go

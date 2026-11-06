@@ -1,3 +1,16 @@
+Subject: Preserve SONiC's existing ygot generator and runtime behavior
+
+Management-common's YANG generator and translib already use these changes
+with ygot v0.7.1. Carry them into the shared owner so moving the dependency
+does not discard SONiC's schema ordering and performance caches, JSON and
+gNMI handling, list/node operations, or validation and unmarshal behavior.
+This includes the existing compact JSON output without implicit Validate.
+Later numbered patches describe the separate compatibility corrections.
+
+Origin: Unmodified diff from sonic-mgmt-common's patches/ygot/ygot.patch
+at merged commit f5361ba8b88cde7ec59bdb4652a986c68d66da64:
+https://github.com/securely1g/sonic-mgmt-common/blob/f5361ba8b88cde7ec59bdb4652a986c68d66da64/patches/ygot/ygot.patch
+
 diff --git a/generator/generator.go b/generator/generator.go
 index a1c7e5e..e191dc3 100644
 --- a/generator/generator.go

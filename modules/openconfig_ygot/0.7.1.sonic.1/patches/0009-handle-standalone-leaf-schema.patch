@@ -1,3 +1,16 @@
+Subject: Allow standalone leaf schemas without dereferencing a nil parent
+
+The shared ytypes leaf conversion API also accepts standalone schemas,
+as exercised by its original tests. SONiC's leaf-list lookup assumes a
+parent exists and panics for those inputs. Guard the parent lookup while
+retaining the existing string-to-leaf-list conversion for parsed schemas.
+This keeps the validator dependency used by management-common compatible
+with both standalone and parser-produced entries.
+
+Origin: SONiC shared-module correction for the leaf-list handling retained
+in 0001, exposed by the original ytypes tests.
+https://github.com/securely1g/sonic-bazel-registry/pull/214
+
 diff --git a/ytypes/leaf.go b/ytypes/leaf.go
 --- a/ytypes/leaf.go
 +++ b/ytypes/leaf.go

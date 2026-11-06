@@ -1,3 +1,16 @@
+Subject: Reject incompatible struct assignments before reflection panics
+
+The shared validator used by management-common inserts values into generated
+Go structs. Equal reflect.Kind values do not make their types assignable:
+for example, []string cannot be assigned to a named []byte field. Check the
+converted value's actual assignability before Set, returning the existing
+API error instead of panicking. Keep the preceding bool, binary and pointer
+conversions and valid interface assignments.
+
+Origin: SONiC shared-module correction exposed by the original util tests;
+covered by those tests and overlay/util/sonic_assignability_test.go.
+https://github.com/securely1g/sonic-bazel-registry/pull/214
+
 --- a/util/reflect.go
 +++ b/util/reflect.go
 @@ -288,7 +288,9 @@
