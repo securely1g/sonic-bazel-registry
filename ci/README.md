@@ -22,9 +22,9 @@ inside a published version do not select a version. Documentation changes in an
 unpublished candidate still validate that candidate.
 
 `Registry CI` is the stable aggregate check intended for branch protection. It
-passes only when planning and the runner's unit tests pass, and every selected
-module job passes. A skipped module matrix is accepted only after successful
-planning explicitly selected no jobs. Adding the workflow does not itself change
+passes only when planning, both native unit jobs, the explicit cross fixture,
+and every selected module job pass. A skipped module matrix is accepted only
+after successful planning explicitly selected no jobs. Adding the workflow does not itself change
 repository branch-protection settings.
 
 ## Verified source mirrors
@@ -263,8 +263,9 @@ support before onboarding.
 
 The configuration declares:
 
-- `architectures`: native execution and target architectures to validate,
-  currently `amd64` and/or `arm64`.
+- `architectures`: target architectures to validate, currently `amd64` and/or
+  `arm64`. Execution remains native unless an exact ARM version is selected for
+  staged cross validation.
 - `consumer_deps`: additional direct dependencies required by the test consumer,
   each with `name`, an exact `version` to test, and optional `repo_name`. CI pins
   every entry to its declared version using `single_version_override`; no
@@ -581,12 +582,16 @@ and replace it with a fresh registered runner after success, failure, or
 cancellation. Keep registration credentials in the manager, outside job
 containers, and retain runner diagnostics before removing a container.
 
-ARM64 jobs continue to use native GitHub-hosted `ubuntu-24.04-arm` runners.
-Moving them to AMD64 containers with cross compilation is a separate change.
-ARM64 module jobs retain the
-`debian:trixie-20260918` container pinned to its multiarch image digest. AMD64
-steps execute directly inside the disposable runner, built from that same
-pinned Trixie base with the compiler and package-test tools preinstalled.
+This staged migration sets `ARM_CROSS_ALL = False`. Only the exact module
+versions in `ARM_CROSS_VERSIONS` use native AMD64 cross-compilers and the ARM
+runtime executor inside the Trixie runner. Every other ARM version retains its
+native GitHub-hosted ARM route, including newer versions of a migrated module.
+All original build labels, test labels, sources and dependency pins remain
+unchanged. The separate all-ARM survey supplies the acceptance evidence below;
+failed or incomplete contracts remain on native ARM while fixes are validated.
+
+Module steps execute directly inside the disposable runner, built from the
+pinned Trixie base with compiler and package-test tools preinstalled.
 AMD64 does not start a second container or require a Docker daemon. Actions run
 as UID 1000; module validation and runtime package preparation use passwordless
 `sudo` inside the disposable container. Evidence is archived as root, then only
@@ -595,31 +600,35 @@ the resulting TAR is given to the action user, preserving the archived modes.
 The manager supplies `SONIC_RUNNER_IMAGE_REFERENCE=sonic-slave-runner@sha256:...`
 from the actual derived image's inspected Docker image ID. This is a local
 content identity, not a registry pull reference or the upstream base digest.
-`validation.json` records that AMD64 identity or the ARM64 pinned job image
-reference. Missing AMD64 identity fails validation. Runtime preparation receipts
+`validation.json` records the actual local runner identity for native AMD64 and
+cross ARM jobs, or the pinned job image for hosted native ARM. Missing local
+runner identity fails validation. Runtime preparation receipts
 also record the prepared package inventory and library hashes.
 
 The AMD64 image contains the checksum-verified Bazel 8.5.1 binary at
 `/usr/local/lib/bazel-8.5.1`. Its `/usr/local/bin/bazel` wrapper explicitly passes
 the image's Java CA trust store as a startup argument, including when CI ignores
-all bazelrc files. The workflow verifies the binary's checksum again. ARM64
-downloads and verifies its native Bazel binary in the job container. GitHub
+all bazelrc files. The workflow verifies the binary's checksum again. ARM cross jobs use that same native AMD64 Bazel binary. GitHub
 actions are pinned to commit SHAs, checkout does not
 persist credentials, and the workflow uses read-only repository permissions.
 
-AMD64 module jobs pass `--bazel-startup-arg=--host_jvm_args=-Xmx2g` to bound
+Local native AMD64 and cross ARM module jobs pass
+`--bazel-startup-arg=--host_jvm_args=-Xmx2g` to bound
 Bazel's Java heap within each runner's 16 GiB memory limit. The runner accepts
 repeated startup arguments, forwards them to build, test, cquery, info and Rust
-preparation, and records them in `validation.json`. ARM64 keeps its default heap.
+preparation, and records them in `validation.json`. Hosted native ARM keeps its
+default heap.
 Repeated `--bazel-build-arg` options reach build, test and output queries.
-AMD64 jobs use `--jobs=1` and `--discard_analysis_cache` to reduce concurrent
+Local module jobs use `--jobs=1` and `--discard_analysis_cache` to reduce concurrent
 compiler memory; Rust preparation receives those settings too. This limits
 concurrent Bazel actions; recipes may still request parallel compilation inside
-an action. The declared targets and published recipes stay unchanged. The AMD64 module matrix runs at most
-ten jobs concurrently; the sixteen registered workers also serve planning, unit
-tests and subsequent jobs. Native ARM64 validation has its own matrix, so queued
-hosted jobs do not consume AMD64 matrix slots. Both matrices are required by the
-aggregate check.
+an action. The declared targets and published recipes stay unchanged. A single
+local module matrix combines native AMD64 and staged cross ARM jobs, with at most ten running
+per workflow run. Hosted native ARM has its own matrix. This is a module limit
+per run, not a host-wide limit across runs; planning, native unit tests, the cross
+fixture and the aggregate also use workers. Both module groups and both test
+suites are required by the aggregate `Registry CI` check. Empty module groups are
+accepted only when planning explicitly reports them empty.
 
 Tests receive an explicitly exported empty `HOME`, which Bazel's test setup
 replaces with that test's writable `TEST_TMPDIR`. This lets Python and other
@@ -632,21 +641,167 @@ permissions on those private copies. Build actions keep their existing sandbox
 strategy. Local or exclusive tests retain the `local` fallback, and real Bazel
 regressions cover both paths without changing published tests.
 
-Runner tests execute on native AMD64 and ARM64 hosts with pinned Bazel 8.5.1.
-They build an actual directory-producing target and its public alias, including
-both target and execution configurations, then check collection and extraction.
+The native helper suite runs on both AMD64 Trixie and GitHub-hosted native ARM64
+with the matching checksum-pinned Bazel 8.5.1 binary. Native ARM helper coverage
+remains required while any modules retain that route. The separate required
+cross fixture tests native execution tools, ARM compilation and ARM runtime
+behavior; it does not replace or claim native ARM Bazel execution coverage.
+`run_runner_tests.py --suite native` discovers every test file except the ARM
+cross-runtime fixture. A separate local job runs `--suite cross` with a 60-minute
+bound, both executable prerequisites explicitly set and checked, and failure on
+any skipped cross test. A regression verifies that these suites partition full
+discovery without overlap or omissions. The native tests build an actual
+directory-producing target and its public alias, including both target and execution configurations, then check collection and extraction.
 Transport and failure-log tests also cover rejected paths, partial archives,
 case-sensitive filenames, Unix modes, empty directories and symlink relocation.
 
-Each job uses a fresh consumer and Bazel output directory. There is no saved Bazel
-cache in this initial workflow. Logs, Bazel build-event files, available test
+Each job uses a fresh consumer and Bazel output directory. Logs, Bazel build-event files, available test
 logs, and validation metadata are retained as workflow artifacts for 14 days,
 including when module validation fails. Setup failures can occur before these
 files exist and remain visible in the Actions job log.
 
-ARMHF, cross execution, other operating systems, all historical registry entries,
-and the complete SONiC image are outside this matrix. Declaring an ARMHF layout
-in a module does not establish ARMHF build or execution coverage.
+ARMHF, other operating systems and the complete SONiC image are outside this
+matrix. Pull requests validate latest configured versions; the explicit
+`all_versions` dispatch also surveys configured historical versions.
+Declaring an ARMHF layout in a module does not establish ARMHF build or execution coverage.
+
+## Staged ARM64 cross validation
+
+The shared helper has an explicit cross mode. Each planned row records target
+`architecture`, native `execution_architecture`, and a boolean `cross_compile`.
+Native callers retain their defaults; cross execution requires both
+`--cross-compile` and an absolute executable `--test-executor`, an AMD64 host,
+an ARM64 target, and an explicit disposable Debian Trixie container identity.
+The reusable workflow selects native Bazel, image, sudo and artifact handling by
+execution mode while preserving the target architecture and all original labels.
+
+The temporary `ARM_CROSS_VERSIONS` map selects only complete original contracts
+qualified in [the all-ARM survey](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416)
+at `88d24c7010a5affd9deb1286e63c5a23e246879c`. The job artifacts bind the exact
+source inputs, unchanged selected dependency versions, native execution and ARM
+target platforms, produced output identities, and every original uncached test.
+A successful build alone is not a module pass. Source-fix probes and diagnostic
+replays do not count as survey acceptance. Published-entry immutability remains
+enforced; the routing map changes execution placement only.
+
+| Module | Exact version | Build / test labels | Survey evidence |
+| --- | --- | --- | --- |
+| `gawk` | `5.3.2.sonic.1` | 3 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127198380280) |
+| `gazelle` | `0.54.0.sonic.1` | 1 / 3 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127198380420) |
+| `libnl3` | `3.7.0.sonic.7` | 5 / 4 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127198380378) |
+| `libyang-python` | `3.1.0.sonic.6` | 4 / 3 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127205852291) |
+| `protobuf-legacy` | `3.21.12.sonic.2` | 8 / 4 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127218315473) |
+| `rules_foreign_cc` | `0.16.0.sonic.1` | 2 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127221268640) |
+| `rules_python` | `1.9.0.sonic.1` | 3 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127230792181) |
+| `sai` | `1.18.0-sonic.1` | 2 / 3 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127259342573) |
+| `socat` | `1.8.0.2.sonic.5` | 4 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127316394685) |
+| `sonic-dash-api` | `0.0.5-9b2893e890734a2db0c53a5e5c64b031ec0dcfbd` | 8 / 5 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127363604452) |
+| `sonic-linux-kernel` | `0.0.2-34a53faaecd325509e9d8f1016ed0108ab558a23` | 5 / 5 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127391886151) |
+| `sonic-rust-deps` | `0.0.4-6d9c70f708d7420e9e2b2cdc906b80cee6b140f1` | 6 / 4 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127417149111) |
+| `sonic-yang-mgmt` | `1.0.0-9ab452d22773c41783092ae3bd6c206d6c257c8d` | 2 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127454762848) |
+| `sonic-yang-models` | `1.0.1-b0a9362a7a1b4b5e1b7188c019d256f7c8aaff9f` | 3 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127456801062) |
+| `tar.bzl` | `0.10.5.sonic.2` | 8 / 7 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127457427548) |
+
+The `linux-kernel` contract validates its declared helpers; it does not build or
+boot a kernel image. Passing tests only establish each module's existing
+presubmit contract, not broader undeclared functionality. Yang-model package outputs and TAR
+regression archives are architecture-neutral; their original target-side runtime
+tests remain required, and native execution tools retain their configurations.
+The remaining module failures stay visible in the survey and retain native ARM validation here.
+
+The gawk smoke test uses gawk as a native execution tool while the direct gawk
+build targets ARM64. Test execution follows the declared Bazel configuration;
+the ARM cross fixture independently verifies native execution tools, ARM ELF
+outputs and target Python compatibility. No test is replaced by a smaller smoke
+test to make a module pass.
+
+Inside a configured disposable runner with `/usr/local/bin/sonic-arm64`, use
+fresh work and artifact directories. This command is a local opt-in example,
+not a request to execute inside an active registered worker:
+
+```sh
+sudo -n /usr/bin/python3 -I -S ci/registry_ci.py run \
+  --module libnl3 --version 3.7.0.sonic.7 --architecture arm64 \
+  --cross-compile --test-executor /usr/local/bin/sonic-arm64 \
+  --test-container-image "$SONIC_RUNNER_IMAGE_REFERENCE" \
+  --bazel /usr/local/bin/bazel \
+  --bazel-startup-arg=--host_jvm_args=-Xmx2g \
+  --bazel-build-arg=--jobs=1 --bazel-build-arg=--discard_analysis_cache \
+  --work-dir /tmp/registry-ci-libnl3-cross \
+  --artifacts /tmp/registry-ci-libnl3-cross-artifacts
+```
+
+Cross mode creates explicit AMD64/Linux/Trixie execution and ARM64/Linux/Trixie
+target platforms, retaining other constraints from the declared parents. This
+also overrides host-derived aliases that would otherwise select AMD64 output
+for an ARM64 request. Published Sonic Trixie platforms keep their toolchains only
+when the exact graph-selected `sonic-build-infra` version is in
+`cross_toolchain.py`'s verified registration allowlist. Its six immutable entries
+declare AMD64 execution, ARM64 targets and Trixie; a familiar platform label or
+newer version alone does not establish that capability. All other consumers,
+including native-only infra 0.0.6 and SAI's 0.0.13, use a CI-local legacy C++
+adapter compatible with the selected `rules_cc`. Both declared platform parents
+remain inherited; the adapter's separate distribution constraint is additional.
+The adapter uses the native-to-ARM GCC14.2 compiler and Trixie sysroot from
+immutable `sonic-build-infra@0.0.25-34de7330abc72229dfc8dab88dec71b89c52aa88`.
+The provider resolves separately and its JVM stops after preparation. Its
+dependencies do not enter the consumer graph. Compiler/sysroot files are declared
+action inputs, and the consumer's selected module versions must remain equal
+before and after adaptation. Existing integration-module contents are preserved.
+Evidence retains both graphs, provider lock and manifests, generated adapter and
+platform definitions, declared/effective platform identities, and the selected
+infra version and toolchain reuse decision. The registration allowlist is
+source-level evidence; actual toolchain and runtime acceptance remain separate.
+
+The supplied executor runs unchanged ARM tests with QEMU user-mode and PRoot in
+an ARM64 Trixie filesystem. This provides emulated userspace execution, not
+native ARM hardware or kernel coverage. The helper probes the real guest CPU and
+userspace before building, records the executor hash, and binds the work and
+artifact paths plus container-local `/tmp`. An output base outside the work
+directory is bound explicitly too. Native Bazel and build tools stay on AMD64.
+
+Some existing test launchers embed exec-configured Python. For tests only, the
+helper resolves the matching locked ARM standalone runtime, verifies real
+ELF62/183 architectures and exact Python version/ABI, and passes complete-runtime
+`--bind-at` mappings to the executor. Native interpreter files stay unchanged.
+For simple shared-lock pip hubs, generated-consumer adapters select native wheels
+for generators and ARM wheels for target tests, using the already selected
+`rules_python` and original requirements bytes. Existing platform/index hubs and
+development-only hubs remain unchanged; unsupported simple hub arguments or
+changed module versions fail validation. Runtime mappings, hashes, original hub
+configuration and lockfiles are retained in the cross receipts.
+
+Cross builds may supply a readonly content-addressed Autoconf `CONFIG_SITE` that
+recognizes an ARM compiler selected by a native build action. It preserves
+explicit configure aliases, native compiler actions and caller-provided
+`CONFIG_SITE`; it invents no cached target-probe answers. The effective site and
+hash are retained. Source-owned runtime preparation executes through the guest
+wrapper, preserving its locked inputs and checking an ARM receipt. Cross test
+timeout defaults are 180/900/2700/7200 seconds for Bazel's four timeout classes;
+explicit caller values and native defaults remain unchanged. All original build
+and test labels, source checks and uncached-test requirements still apply.
+
+The dedicated CI cross-fixture job runs all tests in `test_arm_cross_runtime.py`
+with pinned native Bazel and the installed executor. Missing prerequisites or a
+skipped cross test fail that job. Native unit jobs exclude this file explicitly,
+so it is not counted twice or hidden among optional skips. For the same explicit
+suite in a suitable disposable runner:
+
+```sh
+REGISTRY_CI_TEST_BAZEL=/usr/local/bin/bazel \
+REGISTRY_CI_TEST_ARM_EXECUTOR=/usr/local/bin/sonic-arm64 \
+  /usr/bin/python3 -I -S ci/run_runner_tests.py --suite cross
+```
+
+This foundation is not acceptance of the full ARM matrix. Before moving a module
+row, validate its complete original build and uncached-test contract with the
+native-generator/ARM-output foundation, unchanged source pins and resolution
+receipts. SAI now selects the isolated provider, but
+its full cross build and tests have not passed. Other known gaps include nested
+Bazel/sandbox execution in rules_go, SWSS self-reexecution under emulation, and full libyang/protobuf
+debugger/upstream coverage. P4C/PI source candidates and FIPS target-binutils work
+remain separate module changes; transitive consumers retain their published
+dependency pins. No source recipe or image change is included here.
 
 ## Local reproduction
 
