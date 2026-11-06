@@ -31,7 +31,7 @@ class NestedGoBuildTest(unittest.TestCase):
             "if 'version' in sys.argv: sys.exit(17)\n"
         )
         host_bazel.chmod(0o755)
-        executor = registry_ci.prepare_nested_go_tests(ROOT, self.work, str(host_bazel))
+        executor = registry_ci.prepare_go_test_executor(ROOT, self.work, str(host_bazel))
         self.nested = executor.with_name("bazel")
         self.assertEqual(self.nested.with_name("source_mirrors.cfg").read_bytes(),
                          (ROOT / "ci/source_mirrors.cfg").read_bytes())
@@ -50,6 +50,13 @@ class NestedGoBuildTest(unittest.TestCase):
                     self.assertIn("--host_platform=@registry_ci_cross_cc//nested:amd64", args)
                     self.assertIn("--extra_toolchains=@registry_ci_cross_cc//:toolchain", args)
                     self.assertIn("//:go", args)
+
+    def test_recursive_go_executor_without_nested_bazel(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            executor = registry_ci.prepare_go_test_executor(ROOT, Path(tmp))
+            self.assertEqual(executor.read_bytes(), (ROOT / "ci/rules_go_cross/executor").read_bytes())
+            self.assertEqual(list(executor.parent.iterdir()), [executor])
+            self.assertTrue(executor.stat().st_mode & 0o111)
 
     def test_non_build_commands_keep_original_arguments_and_status(self):
         cmd = ["--output_user_root", "/path with spaces", "version"]
