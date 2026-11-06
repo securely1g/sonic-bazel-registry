@@ -939,6 +939,12 @@ wrappers. Its ASIC comparison and ZeroMQ signal fixtures run those wrappers
 with native shell and Python, then execute the AArch64 payload through kernel
 binfmt. The other five original tests use the ARM userspace executor.
 
+SWSS depends on libteam. Its native AMD64 archive build uses the APE loader,
+assimilator and gzip tool pinned by Cosmos 4.0.2. CI fetches the official
+release archive when these files are absent, verifies each member against its
+locked SHA256, and supplies them to Bazel through `--distdir`.
+[Official release](https://github.com/jart/cosmopolitan/releases/tag/4.0.2)
+
 The iproute2 6.15.0.sonic.7 cross route builds all four original targets and
 executes both original tests. Its runtime test checks the package, and the
 configure test invokes ARM GCC and recursive Make. The runner image needs the
