@@ -464,6 +464,25 @@ required hashes, source recipes and module files are unchanged. No manual ARM
 execution or package generation was needed; configured-fetch and consumer
 acceptance for this addition remain pending.
 
+## Exact libsodium input for the Orchagent source-closure query
+
+The [engine archive job at `efea4965`](https://github.com/securely1g/sonic-buildimage/actions/runs/42156655356/job/127692302891)
+failed its post-build Orchagent declared-source query when the locked
+`libsodium23_1.0.18-1+deb13u1_armhf.deb` security URL returned HTTP 503.
+The query already loaded the selected downloader through the common rc flag;
+that configuration had no exact rule for this security input.
+
+Only that exact original URL now tries the official content address
+`https://snapshot.debian.org/file/60d6945b3aefe2f3abc15790ccddff1ade45376d`
+before its original fallback. The complete official response matched all
+138,788 retained locked/cache bytes and SHA256
+`239ef2d400974ae787c098aadef7c3bc2c81339c36159705010cad6d5e1ed3e3`.
+Current source declarations bind this tuple to the accepted generated lock;
+no failed-run lock or full current graph equivalence is claimed. The SHA1
+locates content; the unchanged SHA256 remains the package integrity check.
+Existing ordered routes, package versions, source recipes and module files
+remain unchanged. Configured-fetch and consumer acceptance remain pending.
+
 ## Exact Socat source archive fallback
 
 The [SWSS image source-base workflow at `6ab506bd`](https://github.com/securely1g/sonic-buildimage/actions/runs/42055651322/attempts/2)

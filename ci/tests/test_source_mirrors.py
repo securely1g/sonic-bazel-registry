@@ -60,6 +60,9 @@ DEBIAN_RELEASE_PACKAGES = (
 # Each tuple is (original URL, content locator, locked SHA256, size, optional CDN).
 # A locator may include the optional filename after the content SHA1.
 DEBIAN_CONTENT_PACKAGES = (
+    ('https://snapshot.debian.org/archive/debian-security/20260726T121236Z/pool/updates/main/libs/libsodium/libsodium23_1.0.18-1+deb13u1_armhf.deb',
+     '60d6945b3aefe2f3abc15790ccddff1ade45376d',
+     '239ef2d400974ae787c098aadef7c3bc2c81339c36159705010cad6d5e1ed3e3', 138788, None),
     ('https://snapshot.debian.org/archive/debian-security/20260726T121236Z/pool/updates/main/k/krb5/krb5-multidev_1.21.3-5+deb13u1_arm64.deb',
      'a7f775b5c78d9d5e769349d980b05b9f13e891d2',
      '9f5d65a069269b0960418f9d5a3110158234a1efbe9a9feb3650c57422fe41ef', 126404, None),
