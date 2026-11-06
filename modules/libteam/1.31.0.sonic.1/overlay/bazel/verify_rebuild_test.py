@@ -226,13 +226,29 @@ class RebuildTest(unittest.TestCase):
         self.assert_restored()
 
     def test_rejects_commented_duplicated_or_already_edited_input(self):
+        self.output.mkdir(parents=True, exist_ok=True)
+        receipt = self.output / "rebuild.json"
         for contents in (self.original.replace(VERIFY.NEEDLE, b"// " + VERIFY.NEEDLE),
                          VERIFY.NEEDLE + b"\n" + self.original,
                          self.original.replace(VERIFY.NEEDLE, VERIFY.EDIT)):
+            receipt.write_text('{"status": "passed"}\n')
             self.config.write_bytes(contents)
             with self.assertRaisesRegex(ValueError, "reviewed PACKAGE_VERSION input"):
                 self.run_probe()
             self.assertEqual(self.config.read_bytes(), contents)
+            self.assertFalse(receipt.exists())
+        self.config.write_bytes(self.original)
+        for path in (self.config, self.owner / "MODULE.bazel", self.owner / "BUILD.bazel", self.script):
+            with self.subTest(missing=path):
+                contents = path.read_bytes()
+                receipt.write_text('{"status": "passed"}\n')
+                path.unlink()
+                try:
+                    with self.assertRaises(FileNotFoundError):
+                        self.run_probe()
+                finally:
+                    path.write_bytes(contents)
+                self.assertFalse(receipt.exists())
         self.assertEqual(self.calls, [])
 
     def test_rejects_inert_and_unrelated_edits(self):

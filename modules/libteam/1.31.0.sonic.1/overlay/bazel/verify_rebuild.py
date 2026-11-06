@@ -56,6 +56,8 @@ def main(argv=None):
     args = parser.parse_args(argv)
     args.output = args.output.resolve()
     args.output.mkdir(parents=True, exist_ok=True)
+    # Preflight failures must not leave a previous invocation's passed receipt.
+    (args.output / "rebuild.json").unlink(missing_ok=True)
     script = Path(__file__).resolve()
     owner = script.parent.parent
     config = script.parent / "config.h.in"
