@@ -34,7 +34,7 @@ def kernel_perl(config, args, env):
                 "-cpu", "cortex-a72", "-smp", "1", "-m", "512", "-nographic", "-no-reboot",
                 "-nodefaults", "-serial", "stdio", "-nic", "none", "-kernel", str(kernel / "kernel"),
                 "-initrd", str(kernel / "initrd.gz"), "-append", "console=ttyAMA0 rdinit=/init panic=-1 loglevel=4"]
-        share(qemu, "armroot", "/opt/sonic-arm64-rootfs", readonly=True)
+        share(qemu, "armroot", config["guest_root"], readonly=True)
         share(qemu, "control", control)
         for index, path in enumerate(mounts):
             share(qemu, f"bind{index}", path)

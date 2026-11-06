@@ -76,6 +76,7 @@ jobs:
           sudo -n apt-get update
           sudo -n apt-get install -y --no-install-recommends qemu-system-arm kmod cpio
           bash ci/fips_kernel_probe/prepare.sh "$RUNNER_TEMP/fips-arm-kernel"
+          bash ci/fips_kernel_probe/user-executor.sh
       - name: Install Bazel 8.5.1
         run: |
           set -euo pipefail

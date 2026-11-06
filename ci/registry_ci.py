@@ -1498,6 +1498,7 @@ def run(root: Path, module: str, version: str, architecture: str,
                 settings.write_text(json.dumps({
                     "guest_perl": guest_perl,
                     "kernel_dir": str(work_dir.parent / "fips-arm-kernel"),
+                    "guest_root": str(work_dir.parent / "fips-arm-executor/rootfs"),
                     "mounts": [str(work_dir), str(artifacts)],
                 }))
                 adapter = root.resolve() / "ci/fips_kernel_probe/recipe_perl.py"
