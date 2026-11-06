@@ -60,6 +60,9 @@ DEBIAN_RELEASE_PACKAGES = (
 # Each tuple is (original URL, content locator, locked SHA256, size, optional CDN).
 # A locator may include the optional filename after the content SHA1.
 DEBIAN_CONTENT_PACKAGES = (
+    ("https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/e/expat/libexpat1-dev_2.7.1-2_arm64.deb",
+     "b0fd006c705d3b52a70b6378819d3478dec226f1/libexpat1-dev_2.7.1-2_arm64.deb",
+     "b219482f10e9a0e52474db2a6f239057ea27fea0db0071e3ddb41e8a8a06064c", 144948, None),
     ("https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/p/pcre2/libpcre2-32-0_10.46-1~deb13u1_armhf.deb",
      "9eb28eee9a02941c85af546838293851576cdfa7/libpcre2-32-0_10.46-1~deb13u1_armhf.deb",
      "ab7a0ed7616e15eb569d4df827b6aceb3f6d810959a8970a426614400d92c7e6", 235052, None),

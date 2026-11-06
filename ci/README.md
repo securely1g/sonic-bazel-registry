@@ -553,6 +553,23 @@ PCRE32 route remains separate. Package versions, integrity checks and all
 other routes are unchanged. No package generation or execution was needed;
 configured-fetch and consumer acceptance for this successor remain pending.
 
+The [PR195 ARM64 archive job at `314d872c`](https://github.com/securely1g/sonic-buildimage/actions/runs/42182694599/job/127775737269)
+failed its initial 24-target Python/startup no-DEB query on
+`libexpat1-dev_2.7.1-2_arm64.deb`: the official pool returned HTTP 404
+and the dated Snapshot returned HTTP 503, with zero action processes.
+The unchanged current infrastructure declaration and registry hashes bind the
+accepted generated-lock tuple and retained cache; no failed-run lock or
+complete graph equivalence is claimed.
+
+The one official metadata request returned HTTP 504 and did not confirm the
+identity. A separately authorized [filename-bearing content response](https://snapshot.debian.org/file/b0fd006c705d3b52a70b6378819d3478dec226f1/libexpat1-dev_2.7.1-2_arm64.deb)
+returned HTTP 200 and matched all 144,948 locked/cache bytes and SHA256
+`b219482f10e9a0e52474db2a6f239057ea27fea0db0071e3ddb41e8a8a06064c`.
+Only this exact dated URL gains that content candidate before the unchanged
+official-pool and original Snapshot fallbacks; the prior AMD64 development
+route remains separate. No package generation or execution was needed.
+Configured-fetch and new consumer acceptance remain pending.
+
 ## Kernel build-tool cache downloads
 
 The runner starts each consumer with `--ignore_all_rc_files`, so it explicitly
