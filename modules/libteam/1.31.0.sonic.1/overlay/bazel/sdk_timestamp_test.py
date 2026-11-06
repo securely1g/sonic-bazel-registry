@@ -127,31 +127,79 @@ class DebugLookupTest(unittest.TestCase):
         return json.loads(output.getvalue().removeprefix('SONIC_DEBUG_LOOKUP='))
 
     def test_stripped_main_is_a_missing_symbol_result(self):
-        class MissingSymbolError(Exception):
-            pass
-
-        gdb = types.SimpleNamespace(decode_line=mock.Mock(side_effect=MissingSymbolError('No symbol table is loaded.')))
+        gdb = types.SimpleNamespace(
+            lookup_global_symbol=mock.Mock(return_value=None),
+            lookup_static_symbol=mock.Mock(return_value=None),
+            decode_line=mock.Mock(side_effect=AssertionError('absent symbols must not be decoded')))
         self.assertEqual(self.run_script(gdb), {'found': False})
-        gdb.decode_line.assert_called_once_with('main')
+        gdb.lookup_global_symbol.assert_called_once_with('main')
+        gdb.lookup_static_symbol.assert_called_once_with('main')
+        gdb.decode_line.assert_not_called()
 
     def test_packaged_debug_data_retains_function_source_and_line(self):
         function_type = mock.Mock(code=42)
         function_type.fields.return_value = []
         function = types.SimpleNamespace(name='main', type=function_type)
         location = types.SimpleNamespace(symtab=types.SimpleNamespace(filename='teamd/teamd.c'), line=1784, pc=256)
-        gdb = types.SimpleNamespace(
-            decode_line=mock.Mock(return_value=(None, [location])), TYPE_CODE_FUNC=42,
-            block_for_pc=mock.Mock(return_value=types.SimpleNamespace(function=function)))
-        result = self.run_script(gdb)
-        self.assertTrue(result['found'])
-        self.assertEqual((result['function'], result['source'], result['line']), ('main', 'teamd/teamd.c', 1784))
+        for linkage in ('global', 'static'):
+            with self.subTest(linkage=linkage):
+                gdb = types.SimpleNamespace(
+                    lookup_global_symbol=mock.Mock(return_value=function if linkage == 'global' else None),
+                    lookup_static_symbol=mock.Mock(return_value=function),
+                    decode_line=mock.Mock(return_value=(None, [location])), TYPE_CODE_FUNC=42,
+                    block_for_pc=mock.Mock(return_value=types.SimpleNamespace(function=function)))
+                result = self.run_script(gdb)
+                self.assertTrue(result['found'])
+                self.assertEqual((result['function'], result['source'], result['line']), ('main', 'teamd/teamd.c', 1784))
+                if linkage == 'global':
+                    gdb.lookup_static_symbol.assert_not_called()
+                else:
+                    gdb.lookup_static_symbol.assert_called_once_with('main')
 
     def test_symbol_without_source_line_is_not_debug_acceptance(self):
         for location in (types.SimpleNamespace(symtab=None, line=0),
                          types.SimpleNamespace(symtab=object(), line=0)):
             with self.subTest(location=location):
-                gdb = types.SimpleNamespace(decode_line=mock.Mock(return_value=(None, [location])))
+                gdb = types.SimpleNamespace(lookup_global_symbol=mock.Mock(return_value=object()),
+                                            decode_line=mock.Mock(return_value=(None, [location])))
                 self.assertEqual(self.run_script(gdb), {'found': False})
+
+    def test_unexpected_lookup_decode_block_and_type_errors_are_not_absence(self):
+        for stage in ('global', 'static', 'decode', 'block', 'type', 'fields'):
+            with self.subTest(stage=stage):
+                error = RuntimeError('unexpected ' + stage + ' failure')
+                function_type = mock.Mock(code=42)
+                function_type.fields.return_value = []
+                function = types.SimpleNamespace(name='main', type=function_type)
+                location = types.SimpleNamespace(symtab=types.SimpleNamespace(filename='teamd/teamd.c'), line=1784, pc=256)
+                gdb = types.SimpleNamespace(
+                    lookup_global_symbol=mock.Mock(return_value=function),
+                    lookup_static_symbol=mock.Mock(return_value=function),
+                    decode_line=mock.Mock(return_value=(None, [location])), TYPE_CODE_FUNC=42,
+                    block_for_pc=mock.Mock(return_value=types.SimpleNamespace(function=function)))
+                if stage == 'global':
+                    gdb.lookup_global_symbol.side_effect = error
+                elif stage == 'static':
+                    gdb.lookup_global_symbol.return_value = None
+                    gdb.lookup_static_symbol.side_effect = error
+                elif stage == 'decode':
+                    gdb.decode_line.side_effect = error
+                elif stage == 'block':
+                    gdb.block_for_pc.side_effect = error
+                elif stage == 'type':
+                    class BrokenType:
+                        @property
+                        def code(self):
+                            raise error
+                    function.type = BrokenType()
+                else:
+                    function_type.fields.side_effect = error
+                result = self.run_script(gdb)
+                self.assertEqual(result, {'found': False, 'error': str(error)})
+                with mock.patch.object(VERIFY.subprocess, 'run', return_value=subprocess.CompletedProcess(
+                        [], 0, 'SONIC_DEBUG_LOOKUP=' + json.dumps(result) + '\n', '')):
+                    with self.assertRaisesRegex(ValueError, 'invalid lookup result'):
+                        VERIFY.gdb_lookup(Path('/tmp/teamd'), Path('/tmp/empty'), 'main')
 
     def test_lookup_requires_success_and_one_record_and_disables_external_sources(self):
         for found in (False, True):

@@ -7,8 +7,8 @@
     "MODULE.bazel": "sha256-eHrZ7KU8P6H9C4dpNv4ImQfngZigWtQmGDMiJTJZlLI=",
     "bazel/config.h.in": "sha256-6KKxJ1wSXmVs6StcX7vBmZfA2V5N9lzx+p94c0xWB5o=",
     "bazel/consumer_test.c": "sha256-o5VfXTZHGW5LYHIzF9A78/cJSRRHZEZoM3AtBmffCTw=",
-    "bazel/package_test.py": "sha256-HVZPHZ2RWbwfYkfS8mGTQF7YPDAC4ylP+T0LJnM1n+M=",
-    "bazel/sdk_timestamp_test.py": "sha256-ucicJaOCcvR4qoInaiBUbiF+MGTx17L822yLZaeKVm0=",
+    "bazel/package_test.py": "sha256-BCOzQcMFKaDqdcJLpgyiXYUPmAFLF9kLE+h18PJXV1A=",
+    "bazel/sdk_timestamp_test.py": "sha256-H57qRgfFSyhcWcybmoyAzIliSR7xQyCRyuH4Ho7/eyc=",
     "bazel/verify_rebuild.py": "sha256-8BC/mP30TK3mChgTdurKmYV/4eaDCsjsS7e5e/4o/pc=",
     "bazel/verify_rebuild_test.py": "sha256-IsQy3QYsm6Dp3fQ8VcUkRE4IqJMahYbWVBppVnz3kDo="
   },

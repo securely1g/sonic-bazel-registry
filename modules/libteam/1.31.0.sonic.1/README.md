@@ -86,6 +86,13 @@ The local header tests use synthetic bytes only. Actual AMD64 CI must confirm
 the selected upstream tool accepts this option and that all delivered headers
 pass. This does not yet establish equality across independent clean builds.
 
+GDB's global/static symbol lookup APIs identify expected absence before line
+decoding. Unexpected lookup, decode, block or type errors are recorded and
+rejected, rather than treated as a successful missing-symbol check. The
+incremental driver removes only its prior `rebuild.json` before input preflight,
+so invalid or missing owner inputs cannot leave a stale passed receipt. Pure
+mocks cover both cases; actual positive and negative GDB checks remain in CI.
+
 Consumers run the exported `@libteam//:bazel/verify_rebuild.py` source using their
 existing Bazel entry point: `python3 <selected-script> --bazel <entry-point>
 --bazel-arg=<flag> --output artifacts/rebuild`. Repeat `--bazel-arg` to preserve
