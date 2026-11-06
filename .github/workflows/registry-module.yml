@@ -12,6 +12,13 @@ on:
       architecture:
         required: true
         type: string
+      execution_architecture:
+        description: Native host architecture; defaults to the target for native callers
+        type: string
+        default: ''
+      cross_compile:
+        type: boolean
+        default: false
       runner:
         description: JSON array of runner labels from the validated plan
         required: true
@@ -25,9 +32,9 @@ jobs:
     name: Validate module
     runs-on: ${{ fromJSON(inputs.runner) }}
     timeout-minutes: 180
-    # AMD64 already runs inside a fresh Trixie runner container. An empty
-    # container string leaves steps in that container; ARM64 needs a job image.
-    container: ${{ inputs.architecture == 'arm64' && 'debian:trixie-20260918@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c' || '' }}
+    # Local native/cross jobs execute directly in the fresh Trixie runner.
+    # Only native hosted ARM needs the separate pinned job image.
+    container: ${{ inputs.architecture == 'arm64' && !inputs.cross_compile && 'debian:trixie-20260918@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c' || '' }}
     defaults:
       run:
         shell: bash
@@ -36,10 +43,23 @@ jobs:
       CI_MODULE: ${{ inputs.module }}
       CI_VERSION: ${{ inputs.version }}
       CI_ARCHITECTURE: ${{ inputs.architecture }}
-      TEST_CONTAINER_IMAGE: ${{ inputs.architecture == 'arm64' && 'debian:trixie-20260918@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c' || '' }}
+      CI_EXECUTION_ARCHITECTURE: ${{ inputs.execution_architecture || inputs.architecture }}
+      CI_CROSS_COMPILE: ${{ inputs.cross_compile }}
+      ARM_TEST_EXECUTOR: /usr/local/bin/sonic-arm64
+      TEST_CONTAINER_IMAGE: ${{ inputs.architecture == 'arm64' && !inputs.cross_compile && 'debian:trixie-20260918@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c' || '' }}
     steps:
+      - name: Validate execution route
+        run: |
+          set -euo pipefail
+          case "$CI_ARCHITECTURE:$CI_EXECUTION_ARCHITECTURE:$CI_CROSS_COMPILE:$(uname -m)" in
+            amd64:amd64:false:x86_64|arm64:arm64:false:aarch64|arm64:amd64:true:x86_64) ;;
+            *) echo "Unsupported target/native execution route" >&2; exit 1 ;;
+          esac
+          if [[ "$CI_CROSS_COMPILE" == true ]]; then
+            [[ -x "$ARM_TEST_EXECUTOR" ]] || { echo "Missing ARM test executor" >&2; exit 1; }
+          fi
       - name: Install build and package test tools
-        if: inputs.architecture == 'arm64'
+        if: inputs.architecture == 'arm64' && !inputs.cross_compile
         run: |
           set -euo pipefail
           apt-get update
@@ -54,18 +74,18 @@ jobs:
           set -euo pipefail
           case "$(uname -m)" in
             x86_64)
-              [[ "$CI_ARCHITECTURE" == amd64 ]]
+              [[ "$CI_EXECUTION_ARCHITECTURE" == amd64 ]]
               bazel_arch=x86_64
               bazel_sha=61d89402f0368e64b6c827be5de79d8e65382e8124c3cbb97325611a1851392e
               ;;
             aarch64)
-              [[ "$CI_ARCHITECTURE" == arm64 ]]
+              [[ "$CI_EXECUTION_ARCHITECTURE" == arm64 ]]
               bazel_arch=arm64
               bazel_sha=b7f2a85595e8a87d54843bc656c1e379fd9b8c1b5f783dc41717c1d7eb7cc49f
               ;;
             *) echo "Unsupported native architecture" >&2; exit 1 ;;
           esac
-          if [[ "$CI_ARCHITECTURE" == amd64 ]]; then
+          if [[ "$CI_EXECUTION_ARCHITECTURE" == amd64 ]]; then
             printf '%s  %s\n' "$bazel_sha" /usr/local/lib/bazel-8.5.1 | sha256sum --check --strict
           else
             curl --fail --location --retry 3 --output /tmp/bazel "https://releases.bazel.build/8.5.1/release/bazel-8.5.1-linux-${bazel_arch}"
@@ -78,7 +98,8 @@ jobs:
           ROOT=()
           BAZEL_STARTUP_ARGS=()
           BAZEL_BUILD_ARGS=()
-          if [[ "$CI_ARCHITECTURE" == amd64 ]]; then
+          CROSS_ARGS=()
+          if [[ "$CI_EXECUTION_ARCHITECTURE" == amd64 ]]; then
             TEST_CONTAINER_IMAGE="${SONIC_RUNNER_IMAGE_REFERENCE:?Missing runner image identity}"
             ROOT=(sudo -n)
             # Bazel's default heap is too small for large dependency graphs
@@ -87,6 +108,9 @@ jobs:
             BAZEL_BUILD_ARGS=(--bazel-build-arg=--jobs=1 --bazel-build-arg=--discard_analysis_cache)
             "${ROOT[@]}" git config --global --add safe.directory "$GITHUB_WORKSPACE"
           fi
+          if [[ "$CI_CROSS_COMPILE" == true ]]; then
+            CROSS_ARGS=(--cross-compile --test-executor "$ARM_TEST_EXECUTOR")
+          fi
           "${ROOT[@]}" python3 ci/registry_ci.py run \
             --module "$CI_MODULE" \
             --version "$CI_VERSION" \
@@ -94,6 +118,7 @@ jobs:
             --bazel /usr/local/bin/bazel \
             "${BAZEL_STARTUP_ARGS[@]}" \
             "${BAZEL_BUILD_ARGS[@]}" \
+            "${CROSS_ARGS[@]}" \
             --work-dir "$RUNNER_TEMP/registry-ci" \
             --artifacts "$GITHUB_WORKSPACE/ci-artifacts" \
             --test-container-image "$TEST_CONTAINER_IMAGE"
@@ -103,12 +128,12 @@ jobs:
         run: |
           set -euo pipefail
           ROOT=()
-          if [[ "$CI_ARCHITECTURE" == amd64 ]]; then
+          if [[ "$CI_EXECUTION_ARCHITECTURE" == amd64 ]]; then
             ROOT=(sudo -n)
           fi
           archive="$RUNNER_TEMP/registry-ci-evidence.tar"
           "${ROOT[@]}" bash ci/archive_artifacts.sh "$GITHUB_WORKSPACE/ci-artifacts" "$archive"
-          if [[ -f "$archive" && "$CI_ARCHITECTURE" == amd64 ]]; then
+          if [[ -f "$archive" && "$CI_EXECUTION_ARCHITECTURE" == amd64 ]]; then
             # Keep permissions inside the TAR intact while letting the
             # non-root upload action read the root-created archive.
             sudo -n chown "$(id -u):$(id -g)" "$archive"
