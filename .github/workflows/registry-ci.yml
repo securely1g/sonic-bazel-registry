@@ -1,19 +1,24 @@
-name: SWSS original ARM runtime validation
+name: SWSS 0.0.3 three-route validation
 
 on:
   workflow_dispatch:
+    inputs:
+      route:
+        type: choice
+        required: true
+        options: [cross-arm64, native-amd64, native-arm64]
 
 permissions:
   contents: read
 
 jobs:
   swss:
-    name: SWSS original ARM contract
+    name: SWSS 0.0.3 seven builds and three tests on ${{ inputs.route }}
     uses: ./.github/workflows/registry-module.yml
     with:
       module: sonic-swss
-      version: 0.0.1-88d9cc2bcda39b0ebac16c95de9601e62021e3eb
-      architecture: arm64
-      execution_architecture: amd64
-      cross_compile: true
-      runner: '["self-hosted","Linux","X64","debian-trixie-container"]'
+      version: 0.0.3-42df8c74af53427be97609a7b11e9aec59d2d454
+      architecture: ${{ inputs.route == 'native-amd64' && 'amd64' || 'arm64' }}
+      execution_architecture: ${{ inputs.route == 'native-arm64' && 'arm64' || 'amd64' }}
+      cross_compile: ${{ inputs.route == 'cross-arm64' }}
+      runner: ${{ inputs.route == 'native-arm64' && '["ubuntu-24.04-arm"]' || '["self-hosted","Linux","X64","debian-trixie-container"]' }}
