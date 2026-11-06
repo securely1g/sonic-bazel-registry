@@ -882,6 +882,11 @@ enforced; the routing map changes execution placement only.
 | `sonic-yang-models` | `1.0.1-b0a9362a7a1b4b5e1b7188c019d256f7c8aaff9f` | 3 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127456801062) |
 | `tar.bzl` | `0.10.5.sonic.2` | 8 / 7 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127457427548) |
 
+Libyang `3.12.2.sonic.7` was qualified separately on the Trixie runners. Its
+seven builds and five uncached tests passed, including all 56 C suites, three fuzz
+drivers and 225 Tcl cases. Earlier versions, including `3.12.2.sonic.6`, use
+hosted ARM64. [Full ARM64 run](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42113794646/job/127548050588)
+
 The `linux-kernel` contract validates its declared helpers; it does not build or
 boot a kernel image. Passing tests only establish each module's existing
 presubmit contract, not broader undeclared functionality. Yang-model package outputs and TAR
