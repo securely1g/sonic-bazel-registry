@@ -72,7 +72,8 @@ class Redactor:
                                value.replace("/", r"\/"), re.escape(value)))
         values.update(json.dumps(value, ensure_ascii=True)[1:-1] for value in tuple(values))
         self.patterns = tuple(sorted(values, key=lambda value: (-len(value), value)))
-        self.max_pattern_length = max((len(value.encode()) for value in values), default=1)
+        self._raw_patterns = frozenset(value.encode().lower() for value in values)
+        self.max_pattern_length = max(map(len, self._raw_patterns), default=1)
         self._text = re.compile("|".join(re.escape(value) for value in self.patterns), re.I) if values else None
         self._bytes = re.compile(b"|".join(re.escape(value.encode()) for value in self.patterns), re.I) if values else None
 
@@ -99,12 +100,14 @@ class Redactor:
         tail = b""
         part = first
         while part:
-            data = tail + part
-            if self._bytes.search(data):
+            # bytes.lower() uses the same ASCII case folding as bytes re.I.
+            # Literal searches avoid running the regex alternation on large binaries.
+            folded = tail + part.lower()
+            if any(pattern in folded for pattern in self._raw_patterns):
                 raise PrivacyError("Private mirror location remains in validation evidence")
             if copy is not None:
                 copy.write(part)
-            tail = data[-(self.max_pattern_length - 1):] if self.max_pattern_length > 1 else b""
+            tail = folded[-(self.max_pattern_length - 1):] if self.max_pattern_length > 1 else b""
             part = stream.read(CHUNK_SIZE)
 
     @staticmethod
