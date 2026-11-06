@@ -421,6 +421,35 @@ PCRE retains its CDN/original fallbacks. Current checked-in base-lock records
 corroborate the historical generated APT identity. No package version or source
 selection changes, package execution or native acceptance are claimed.
 
+[PR195's existing AMD64 native libteam/SWSS retry](https://github.com/securely1g/sonic-buildimage/actions/runs/42149240794/job/127674102673)
+failed during initial analysis because the Graphviz build-tool closure could
+not obtain `libgd3_2.3.3-13_amd64.deb`: the pool returned HTTP 404 and the
+dated Snapshot returned HTTP 503. Seven internal processes were reported;
+this failure does not establish native source compilation. One exact dated
+route now tries the [verified official content URL](https://snapshot.debian.org/file/4c4f480af52f60a63e0b8219b4ec8f2fc31b8bd3)
+before the unchanged CDN/original fallbacks. Its sole complete HTTP 200 response
+matched all 126,224 bytes, SHA256
+`79ba1a3ceb098236c7fca7d896964eb478b0c3f368d5ec4fd2c1713788033af8`,
+and the retained cache. The current selected infra entry matches the accepted
+historical lock registration; no failed-run generated lock or complete current
+graph acceptance is claimed. Package versions, checksums, source recipes and
+unrelated routes are unchanged. Configured-fetch and consumer acceptance remain
+pending; no package was generated or executed.
+
+[PR196's AMD64 archive analysis](https://github.com/securely1g/sonic-buildimage/actions/runs/42146497362/job/127659128395)
+also stopped on `libaudit-dev_4.0.2-2+b2_arm64.deb` while resolving imported
+OpenSSH metadata. The same query recorded exhausted fallbacks for
+`libsmartcols1_2.41-5_amd64.deb` and a security Snapshot warning for
+`libssh2-1t64_1.11.1-1+deb13u1_amd64.deb`; these warnings are not the first
+fatal error. Three exact official content alternatives now preserve those
+locked inputs. Each complete HTTP 200 response matched its selected SHA256,
+size and retained cache. The security rule retains its exact original dated
+URL, without broadening the generic CDN rule. Current checked-in locks and
+matching selected FIPS/infra declarations bind the historical generated-lock
+records; this is not a retrieved failed-run lock or full graph acceptance.
+No manual ARM execution was used. Configured-fetch and consumer acceptance
+for these four new input routes remain pending.
+
 ## Exact Socat source archive fallback
 
 The [SWSS image source-base workflow at `6ab506bd`](https://github.com/securely1g/sonic-buildimage/actions/runs/42055651322/attempts/2)

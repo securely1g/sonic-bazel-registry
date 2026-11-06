@@ -60,6 +60,18 @@ DEBIAN_RELEASE_PACKAGES = (
 # Each tuple is (original URL, content locator, locked SHA256, size, optional CDN).
 # A locator may include the optional filename after the content SHA1.
 DEBIAN_CONTENT_PACKAGES = (
+    ('https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/a/audit/libaudit-dev_4.0.2-2+b2_arm64.deb',
+     '803c06af36da6b65f1c5641dd9259e28eb2c79d1',
+     '949459289e2056f526363caf48e741c96ca7706ba3ec359d131160e13c89ef6b', 89868, None),
+    ('https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/u/util-linux/libsmartcols1_2.41-5_amd64.deb',
+     '7d770da5d5618391bd3e0d7faa03d1ece944a393',
+     '22ac8bd618c11827e69d710da8b663e07777d3b09969bda0adb968c886e51a97', 142692, None),
+    ('https://snapshot.debian.org/archive/debian-security/20260726T121236Z/pool/updates/main/libs/libssh2/libssh2-1t64_1.11.1-1+deb13u1_amd64.deb',
+     '06d870a39f89af810dc74cc6c54947ee57c91374',
+     '915c4ec450a369d430e0151f9e10e25044ea2f0d6e41901e00a9317e232e5683', 245088, None),
+    ("https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/libg/libgd2/libgd3_2.3.3-13_amd64.deb",
+     "4c4f480af52f60a63e0b8219b4ec8f2fc31b8bd3",
+     "79ba1a3ceb098236c7fca7d896964eb478b0c3f368d5ec4fd2c1713788033af8", 126224, None),
     ("https://snapshot.debian.org/archive/debian-security/20260726T121236Z/pool/updates/main/k/krb5/libkrb5-3_1.21.3-5+deb13u1_amd64.deb",
      "53d94056269d541890f7e1bc61b4face03061af6",
      "47d71d6a7f2e59b9bae5f89602397594805113b95889ad18fa703cd53abafc97", 326056, None),

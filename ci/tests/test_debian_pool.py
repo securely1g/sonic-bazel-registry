@@ -205,6 +205,8 @@ class DebianPoolRoutingTest(unittest.TestCase):
                 other_arch = original.replace("_amd64", "_arm64")
                 # These ARM64 siblings have independently verified locked bytes.
                 other_content = {
+                    "main/a/audit/libaudit-dev_4.0.2-2+b2_amd64.deb":
+                        ["https://snapshot.debian.org/file/803c06af36da6b65f1c5641dd9259e28eb2c79d1"],
                     "main/g/gzip/gzip_1.13-1_amd64.deb":
                         ["https://snapshot.debian.org/file/12136dd88ce463df2f49cdfa4a33666076228318"],
                     "main/u/util-linux/uuid-dev_2.41-5_amd64.deb":
