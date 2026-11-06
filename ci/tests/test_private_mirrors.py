@@ -136,6 +136,17 @@ class PrivateMirrorConfigTest(unittest.TestCase):
                                       else ext in ("", ".xz") or (suite in ("bookworm", "trixie") and ext == ".gz"))
                             self.assertEqual(origin in routes, listed, origin)
 
+    def test_gnu_m4_alias_prefers_the_identical_private_debian_source(self):
+        public = (ROOT / "ci/source_mirrors.cfg").read_text()
+        combined = MIRRORS.configuration(public, ENVIRONMENT)
+        path = "/debian/pool/main/m/m4/m4_1.4.18.orig.tar.xz"
+        for prefix in ("mirrors.kernel.org/gnu", "ftp.gnu.org/gnu", "ftpmirror.gnu.org"):
+            origin = f"https://{prefix}/m4/m4-1.4.18.tar.xz"
+            self.assertEqual(candidates(public, origin), ["https://deb.debian.org" + path, origin])
+            self.assertEqual(candidates(combined, origin),
+                             ["https://private-mirror.example.test" + path, *candidates(public, origin)])
+            self.assertEqual(candidates(combined, origin.replace("1.4.18", "1.4.19")), [])
+
     def test_snapshot_file_objects_use_the_private_content_address(self):
         cfg = MIRRORS.configuration("", ENVIRONMENT)
         digest = "3e383bbe88cbed56bdad4ba655c40abf0e961cf7"
