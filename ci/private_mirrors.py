@@ -69,8 +69,13 @@ def selected_mirrors(environment: dict[str, str]) -> dict[str, str]:
 # resolver also probes other encodings in parallel. A public retry for an
 # unpublished encoding cannot recover a valid signed index.
 INDEX_FORMATS = {
-    ("debian", "20260727T143429Z"): {"trixie": ("", ".gz", ".xz"), "trixie-updates": ("", ".xz")},
-    ("debian-security", "20260726T121236Z"): {"trixie-security": ("", ".xz")},
+    ("debian", "20260727T143429Z"): {
+        "bookworm": ("", ".gz", ".xz"), "bookworm-updates": ("", ".xz"),
+        "trixie": ("", ".gz", ".xz"), "trixie-updates": ("", ".xz"),
+    },
+    ("debian-security", "20260726T121236Z"): {
+        "bookworm-security": ("", ".xz"), "trixie-security": ("", ".xz"),
+    },
 }
 
 

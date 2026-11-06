@@ -122,7 +122,8 @@ class PrivateMirrorConfigTest(unittest.TestCase):
         public = (ROOT / "ci/source_mirrors.cfg").read_text()
         for key, archive, date in MIRRORS.SNAPSHOTS:
             cfg = MIRRORS.configuration(public, ENVIRONMENT)
-            suites = ["trixie", "trixie-updates"] if archive == "debian" else ["trixie-security"]
+            suites = (["bookworm", "bookworm-updates", "trixie", "trixie-updates"] if archive == "debian"
+                      else ["bookworm-security", "trixie-security"])
             for suite in suites:
                 for arch in ("amd64", "arm64", "armhf"):
                     for index in (f"binary-{arch}/Packages", f"Contents-{arch}"):
@@ -132,7 +133,7 @@ class PrivateMirrorConfigTest(unittest.TestCase):
                             routes = candidates(cfg, origin)
                             self.assertEqual(routes[0], ENVIRONMENT[key] + path)
                             listed = (ext in ("", ".gz") if index.startswith("Contents")
-                                      else ext in ("", ".xz") or (suite == "trixie" and ext == ".gz"))
+                                      else ext in ("", ".xz") or (suite in ("bookworm", "trixie") and ext == ".gz"))
                             self.assertEqual(origin in routes, listed, origin)
 
     def test_snapshot_file_objects_use_the_private_content_address(self):
