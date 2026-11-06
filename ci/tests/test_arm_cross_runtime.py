@@ -236,6 +236,13 @@ class ArmCrossRuntimeIntegrationTest(unittest.TestCase):
                     "@platforms//host:host", "@platforms//host:host", registry_ci.run_logged)
                 self.assertTrue(adapted["module_versions_unchanged"])
                 self.assertIsNotNone(adapted["provider"])
+                # Libtool can drop GCC's -B flags from a foreign shared link.
+                # Exercise that invocation with only the adapter driver and its declared inputs.
+                driver = work / "cross-cc-repository" / "aarch64-linux-gnu-gcc"
+                shared = artifacts / "foreign-link.so"
+                subprocess.run([str(driver), "-x", "c", "-fPIC", "-shared", "-o", str(shared), "-"],
+                               input=b"int foreign_link_probe(void) { return 42; }\n", check=True)
+                self.assertEqual(elf_machine(shared), 183)
                 flags.extend(["--host_platform=" + adapted["execution_platform"],
                               "--platforms=" + adapted["target_platform"]])
                 command = [*bazel_prefix, "build", *flags,

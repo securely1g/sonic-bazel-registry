@@ -33,9 +33,11 @@ def _impl(ctx):
         abi_libc_version = "glibc",
         builtin_sysroot = sysroot,
         cxx_builtin_include_directories = cxx_includes + includes,
-        tool_paths = [tool_path(name = name, path = "compiler/bin/aarch64-linux-gnu-" + binary)
-                      for name, binary in [("gcc", "gcc"), ("cpp", "gcc"), ("ld", "ld"), ("ar", "ar"),
-                                           ("nm", "nm"), ("objcopy", "objcopy"), ("objdump", "objdump"), ("strip", "strip")]] + [
+        tool_paths = [
+            tool_path(name = "gcc", path = "aarch64-linux-gnu-gcc"),
+            tool_path(name = "cpp", path = "aarch64-linux-gnu-gcc"),
+        ] + [tool_path(name = name, path = "compiler/bin/aarch64-linux-gnu-" + name)
+             for name in ["ld", "ar", "nm", "objcopy", "objdump", "strip"]] + [
             tool_path(name = "gcov", path = "compiler/usr/bin/aarch64-linux-gnu-gcov-14"),
         ],
         features = [
