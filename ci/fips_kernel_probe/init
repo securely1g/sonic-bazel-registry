@@ -1,0 +1,33 @@
+#!/init-tools/busybox sh
+set -eu
+b=/init-tools/busybox
+$b mkdir -p /proc /sys /dev /tmp /control /system /home /run
+$b chmod 1777 /tmp
+$b mount -t proc proc /proc
+$b mount -t sysfs sysfs /sys
+$b mount -t devtmpfs devtmpfs /dev
+while IFS= read -r name; do "$b" insmod "/modules/$name"; done < /modules/order
+mount_share() {
+    "$b" mount -t 9p -o "trans=virtio,version=9p2000.L,msize=262144,$3" "$1" "$2"
+}
+mount_share armroot /system ro
+mount_share control /control rw
+for dir in usr etc bin sbin lib lib64 var opt; do
+    if [ -e "/system/$dir" ]; then "$b" ln -s "/system/$dir" "/$dir"; fi
+done
+i=0
+while IFS= read -r guest_path; do
+    "$b" mkdir -p "$guest_path"
+    mount_share "bind$i" "$guest_path" rw
+    i=$((i+1))
+done < /control/mounts
+uid=$("$b" cat /control/uid)
+gid=$("$b" cat /control/gid)
+"$b" uname -r > /control/kernel
+"$b" uname -m > /control/machine
+set +e
+/usr/bin/setpriv --reuid="$uid" --regid="$gid" --clear-groups /bin/sh /control/run > /control/stdout 2> /control/stderr
+status=$?
+printf '%s\n' "$status" > /control/status
+"$b" sync
+"$b" poweroff -f

@@ -69,6 +69,13 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+      - name: Prepare the ARM kernel for the original OpenSSL AF_ALG recipe
+        if: inputs.cross_compile && inputs.module == 'sonic-fips' && inputs.version == '0.0.4-symcrypt-cross.5'
+        run: |
+          set -euo pipefail
+          sudo -n apt-get update
+          sudo -n apt-get install -y --no-install-recommends qemu-system-arm kmod cpio
+          bash ci/fips_kernel_probe/prepare.sh "$RUNNER_TEMP/fips-arm-kernel"
       - name: Install Bazel 8.5.1
         run: |
           set -euo pipefail
