@@ -243,6 +243,14 @@ class ArmCrossRuntimeIntegrationTest(unittest.TestCase):
                 subprocess.run([str(driver), "-x", "c", "-fPIC", "-shared", "-o", str(shared), "-"],
                                input=b"int foreign_link_probe(void) { return 42; }\n", check=True)
                 self.assertEqual(elf_machine(shared), 183)
+                # Autoconf places link flags before a C++ probe. The C++ driver
+                # supplies the target runtime after the object in this order.
+                cxx = driver.with_name("aarch64-linux-gnu-g++")
+                foreign_exe = artifacts / "foreign-cxx"
+                subprocess.run([str(cxx), "-lstdc++", "-x", "c++", "-", "-o", str(foreign_exe)],
+                               input=b"int main() { auto p = new int(7); delete p; }\n", check=True)
+                self.assertEqual(elf_machine(foreign_exe), 183)
+                self.assertIn(b"libstdc++.so.6", foreign_exe.read_bytes())
                 flags.extend(["--host_platform=" + adapted["execution_platform"],
                               "--platforms=" + adapted["target_platform"]])
                 command = [*bazel_prefix, "build", *flags,
