@@ -154,7 +154,7 @@ class CrossToolchainFeatureIntegrationTest(unittest.TestCase):
                         with self.subTest(case=case, action=link["action"]):
                             self.assertTrue(link["enabled"])
                             self.assertEqual(link["strip"], case != "disabled")
-                            self.assertTrue(link["tool"].endswith("compiler/bin/aarch64-linux-gnu-gcc"))
+                            self.assertTrue(link["tool"].endswith("aarch64-linux-gnu-gcc"))
                             self.assertEqual("-Wl,-S" in link["flags"], case == "default")
                             for flag in ("-o", "sentinel-output", "-L/sentinel/lib", "-Wl,--as-needed", "--sysroot=sysroot"):
                                 self.assertIn(flag, link["flags"])
@@ -166,7 +166,7 @@ class CrossToolchainFeatureIntegrationTest(unittest.TestCase):
                 actions = [action for action in json.loads(output.read_text())["actions"]
                            if action.get("mnemonic") == "FeatureLinkProbe"]
                 self.assertEqual(len(actions), 3 * len(LINK_ACTIONS))
-                self.assertTrue(all(action["arguments"][0].endswith("compiler/bin/aarch64-linux-gnu-gcc")
+                self.assertTrue(all(action["arguments"][0].endswith("aarch64-linux-gnu-gcc")
                                     for action in actions))
                 self.assertFalse((consumer / "compiler/bin").exists())
                 (artifacts / "result.json").write_text(json.dumps({
