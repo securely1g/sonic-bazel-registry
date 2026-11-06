@@ -674,7 +674,12 @@ class DebianPoolMirrorIntegrationTest(ArchiveFetchTestCase):
                 self.exercise_snapshot_fallback(upstream, expected)
 
     def test_corrupt_security_content_candidate_falls_back_with_original_integrity(self):
-        upstream, locator, _checksum, _size, _cdn = DEBIAN_CONTENT_PACKAGES[2]
+        security_packages = [package for package in DEBIAN_CONTENT_PACKAGES
+                             if package[0] == (
+                                 "https://snapshot.debian.org/archive/debian-security/20260726T121236Z/"
+                                 "pool/updates/main/c/c-ares/libc-ares-dev_1.34.5-1+deb13u1_arm64.deb")]
+        self.assertEqual(len(security_packages), 1)
+        upstream, locator, _checksum, _size, _cdn = security_packages[0]
         self.exercise_snapshot_fallback(upstream, [
             "/content/" + locator,
             "/security-cdn/pool/" + upstream.split("/pool/", 1)[1],

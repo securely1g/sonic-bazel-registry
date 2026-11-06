@@ -215,8 +215,18 @@ class DebianPoolRoutingTest(unittest.TestCase):
                     "https://deb.debian.org/debian/pool/" + other_arch.split("/pool/", 1)[1],
                     *snapshot_fallbacks(other_arch),
                 ])
+                armhf = original.replace("_amd64", "_armhf")
+                # The libaudit ARMHF sibling has independently verified locked bytes.
+                armhf_content = {
+                    "main/a/audit/libaudit-dev_4.0.2-2+b2_amd64.deb":
+                        ["https://snapshot.debian.org/file/dc490b3ef1fd8c6f403b161ae66e52dcf3eb0302"],
+                }.get(relative, [])
+                self.assertEqual(routed_urls(armhf), [
+                    *armhf_content,
+                    "https://deb.debian.org/debian/pool/" + armhf.split("/pool/", 1)[1],
+                    *snapshot_fallbacks(armhf),
+                ])
                 for changed in (
-                    original.replace("_amd64", "_armhf"),
                     original.replace("20260727T143429Z", "20260726T143429Z"),
                     original.replace("_amd64.deb", "+different_amd64.deb"),
                     original.replace("/pool/main/", "/pool/contrib/"),
