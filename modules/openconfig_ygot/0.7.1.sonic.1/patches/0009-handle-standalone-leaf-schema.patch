@@ -1,0 +1,29 @@
+Subject: Allow standalone leaf schemas without dereferencing a nil parent
+
+The shared ytypes leaf conversion API also accepts standalone schemas,
+as exercised by its original tests. SONiC's leaf-list lookup assumes a
+parent exists and panics for those inputs. Guard the parent lookup while
+retaining the existing string-to-leaf-list conversion for parsed schemas.
+This keeps the validator dependency used by management-common compatible
+with both standalone and parser-produced entries.
+
+Origin: SONiC shared-module correction for the leaf-list handling retained
+in 0001, exposed by the original ytypes tests.
+https://github.com/securely1g/sonic-bazel-registry/pull/214
+
+diff --git a/ytypes/leaf.go b/ytypes/leaf.go
+--- a/ytypes/leaf.go
++++ b/ytypes/leaf.go
+@@ -860,7 +860,11 @@
+ 	ykind := schema.Type.Kind
+ 
+ 	//get the original schema of the node and check whether it is leaf-list
+-	if ygNode := schema.Parent.Dir[schema.Name]; ygNode != nil && ygNode.IsLeafList() {
++	var ygNode *yang.Entry
++	if schema.Parent != nil {
++		ygNode = schema.Parent.Dir[schema.Name]
++	}
++	if ygNode != nil && ygNode.IsLeafList() {
+ 		// convert the leaf-list's value only if its of type string(TypedValue_StringVal)
+ 		if len(tv.GetStringVal()) > 0 {
+ 			if goVal, err := yangTypeToGoTypeVal (parent, schema, fieldName, tv.GetStringVal()); err == nil {
