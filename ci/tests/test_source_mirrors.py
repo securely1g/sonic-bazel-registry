@@ -59,6 +59,15 @@ DEBIAN_RELEASE_PACKAGES = (
 # preserve these exact bytes, including declared build-tool dependencies.
 # Each tuple is (original URL, content locator, locked SHA256, size, optional CDN).
 DEBIAN_CONTENT_PACKAGES = (
+    ("https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/g/glibc/libc-dev-bin_2.41-12+deb13u3_amd64.deb",
+     "4a63880454e8cdb1c0fb13d23f472d8244039aad",
+     "2eb5db4cb16a42850ed9d3ca8b2b1aeda91dd00d248f6068f49d641321748308", 59836, None),
+    ("https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/a/audit/libaudit-dev_4.0.2-2+b2_armhf.deb",
+     "dc490b3ef1fd8c6f403b161ae66e52dcf3eb0302",
+     "3a5d421b22e2e0495ceaa5ed130dd6f4a35578fbf333873a7f79e2e115c11f61", 84264, None),
+    ("https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/e/e2fsprogs/comerr-dev_2.1-1.47.2-3+b11_armhf.deb",
+     "c2d2e96220996d61738dcc91ebdf879e9ee2e046",
+     "76c50d945fc5dd8d79fdfd6b63d03149689327f4385840deb7d7491c2826c41c", 56184, None),
     ("https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/g/glibc/libc-bin_2.41-12+deb13u3_arm64.deb",
      "2f97c88e63e698b86775350598dea8efb421df45",
      "02f366115bea79b87fe26c7dec4dc444f9fdcc76440905d88cc26dbef075511b", 551364, None),

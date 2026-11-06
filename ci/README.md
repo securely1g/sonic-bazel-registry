@@ -315,6 +315,29 @@ The ARM64 package is an input of AMD64 analysis, not an ARM execution request.
 Existing exact-input tuple checks cover both; package selection and checksums
 are unchanged, and configured-fetch/consumer acceptance remain pending.
 
+[PR151 Rust analysis](https://github.com/securely1g/sonic-buildimage/actions/runs/42139057262/job/127634451598)
+stopped on `libc-dev-bin_2.41-12+deb13u3_amd64.deb`, and its
+[source-base analysis](https://github.com/securely1g/sonic-buildimage/actions/runs/42139057197/job/127634451053)
+stopped on `libaudit-dev_4.0.2-2+b2_armhf.deb`. Both pool URLs returned HTTP 404
+and dated Snapshot URLs returned HTTP 503 before any action processes ran.
+Two exact content routes now precede the existing pool/original fallbacks.
+One official GET per input matched the accepted generated-lock SHA256, size
+and complete retained cache bytes: libc development tools 59,836 bytes and
+audit development files 84,264 bytes. The current infra recipe and FIPS
+OpenSSH dependency selection bind those inputs; no failed-run lock or whole
+graph equivalence is claimed. The ARMHF input was requested during AMD64
+analysis, not ARM execution. Package versions and hashes remain unchanged;
+the content SHA1 is only a locator.
+Configured-fetch and native acceptance are pending; no package was executed.
+
+The same source-base log warned that
+`comerr-dev_2.1-1.47.2-3+b11_armhf.deb` returned pool HTTP 404 and dated
+Snapshot HTTP 503. It was not the first fatal input. Its one official content
+GET matched all 56,184 bytes and the accepted lock/cache SHA256. The identical
+current OpenSSH dependency selection reaches this input through the retained
+`libkrb5-dev` closure. One exact route retains its existing pool/original
+fallbacks. Other warnings remain outside this change.
+
 ## Exact Socat source archive fallback
 
 The [SWSS image source-base workflow at `6ab506bd`](https://github.com/securely1g/sonic-buildimage/actions/runs/42055651322/attempts/2)
