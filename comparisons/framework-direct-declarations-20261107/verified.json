@@ -1,0 +1,24 @@
+{
+  "at": "2026-11-07T02:27:36.082534+00:00",
+  "baseline": "48031b6f71a1f48f81cb4692698943703954d510",
+  "candidate": "faa85cc9c7e0df118d1db25dd75f5f03be09d233",
+  "candidate_tree": "9f357de9218080eaebd0a212b3afdb2f4ad8826c",
+  "patch_sha256": "7963798300f5a243cec90ccec0fb4053db96addeea6003fe07cdb45dd2af7923",
+  "bytes": 20969,
+  "paths": [
+    "modules/sonic-mgmt-framework/1.0.0-2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5/MODULE.bazel",
+    "modules/sonic-mgmt-framework/1.0.0-2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5/README.md",
+    "modules/sonic-mgmt-framework/1.0.0-2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5/patches/0001-module-version.patch",
+    "modules/sonic-mgmt-framework/1.0.0-2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5/patches/0002-share-management-go-owners.patch",
+    "modules/sonic-mgmt-framework/1.0.0-2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5/presubmit.json",
+    "modules/sonic-mgmt-framework/1.0.0-2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5/source.json",
+    "modules/sonic-mgmt-framework/1.0.0-2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5/tests/consumer/BUILD.bazel",
+    "modules/sonic-mgmt-framework/1.0.0-2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5/tests/consumer/MODULE.bazel",
+    "modules/sonic-mgmt-framework/metadata.json"
+  ],
+  "scope": "nine Framework registration paths; existing seven build and ten test targets preserved",
+  "status": "PASS_STATIC_COMPLETE_PATCH",
+  "applied_tree": "9f357de9218080eaebd0a212b3afdb2f4ad8826c",
+  "complete_files_and_modes_exact": true,
+  "no_native_or_resolved_graph_acceptance": true
+}
