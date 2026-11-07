@@ -65,7 +65,7 @@ class TemporaryBudget:
     def preflight(self, artifacts: Path):
         if artifacts.stat().st_dev != self.device:
             raise PrivacyError("Scanner evidence and temporaries use different filesystems")
-        self._free(self.maximum_bytes)
+        self._free()
 
     def _open(self, stream):
         if os.fstat(stream.fileno()).st_dev != self.device:

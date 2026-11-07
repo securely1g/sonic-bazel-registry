@@ -459,6 +459,33 @@ class PrivacyTest(unittest.TestCase):
         self.assertEqual(budget.live_bytes, 0)
         self.assertEqual(budget.open_files, 0)
 
+    def test_budget_checks_actual_growth_below_maximum_headroom(self):
+        # A small spool may fit while the configured maximum would not.
+        # Each actual write still preserves the separate filesystem floor.
+        for free_blocks, succeeds in ((4, True), (3, False)):
+            with self.subTest(free_blocks=free_blocks):
+                redactor, budget, block = self.budgeted(16)
+                path = self.artifacts / "runtime.tar"
+                original = tar_bytes("file", b"safe")
+                path.write_bytes(original)
+                self.assertEqual(len(original), 10240)
+                self.assertEqual(budget.maximum_bytes, 16 * block)
+                self.assertEqual(budget.minimum_free_bytes, block)
+                def available(_):
+                    return mock.Mock(f_bavail=free_blocks - budget.live_bytes // block,
+                                     f_frsize=block)
+                with mock.patch.object(privacy.os, "statvfs", side_effect=available):
+                    if succeeds:
+                        redactor.scrub_and_scan(self.artifacts)
+                        self.assertEqual(budget.peak_bytes, 3 * block)
+                    else:
+                        with self.assertRaisesRegex(privacy.PrivacyError, "headroom is insufficient"):
+                            redactor.scrub_and_scan(self.artifacts)
+                        self.assertLess(budget.peak_bytes, budget.maximum_bytes)
+                self.assertEqual(path.read_bytes(), original)
+                self.assertEqual(budget.live_bytes, 0)
+                self.assertEqual(budget.open_files, 0)
+
     def test_budget_checks_fresh_headroom_before_scan_and_each_write(self):
         redactor, budget, block = self.budgeted(16)
         path = self.artifacts / "runtime.tar"
