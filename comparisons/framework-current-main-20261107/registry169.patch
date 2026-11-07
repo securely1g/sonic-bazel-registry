@@ -1,0 +1,442 @@
+diff --git a/modules/sonic-mgmt-framework/1.0.0-2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5/MODULE.bazel b/modules/sonic-mgmt-framework/1.0.0-2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5/MODULE.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..63b92ae7f7d2ddc3f7848d05e9625ef819fc2315
+--- /dev/null
++++ b/modules/sonic-mgmt-framework/1.0.0-2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5/MODULE.bazel
+@@ -0,0 +1,110 @@
++module(
++    name = "sonic-mgmt-framework",
++    version = "1.0.0-2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5",
++    bazel_compatibility = [
++        ">=8.5.1",
++        "<=8.5.1",
++    ],
++)
++
++bazel_dep(name = "sonic-mgmt-common", version = "1.0.1-05f83dcab8fe2e1a0e0fc37ac172b289d6968e2b", repo_name = "sonic_mgmt_common")
++bazel_dep(name = "gazelle", version = "0.54.0")
++bazel_dep(name = "openconfig_goyang", version = "0.0.0.sonic.1-20200309174518-a00bece872fc", repo_name = "com_github_openconfig_goyang")
++bazel_dep(name = "openconfig_ygot", version = "0.7.1.sonic.1", repo_name = "com_github_openconfig_ygot")
++bazel_dep(name = "rules_go", version = "0.65.0.sonic.1", repo_name = "io_bazel_rules_go")
++bazel_dep(name = "sonic-build-infra", version = "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e", repo_name = "sonic_build_infra")
++
++single_version_override(
++    module_name = "rules_go",
++    version = "0.65.0.sonic.1",
++)
++
++single_version_override(
++    module_name = "tar.bzl",
++    version = "0.10.5-sonic.1",
++)
++
++go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
++
++# The consuming root owns the single Go work-file selection. This module
++# contributes its requirements through standard non-root go.mod discovery.
++go_deps.from_file(go_mod = "//:go.mod")
++
++# Root-only patch selection, matching the management-common owner.
++go_patches = use_extension("@gazelle//:extensions.bzl", "go_deps", dev_dependency = True)
++
++# The consuming root selects the owner's existing SONiC Go patches. Public
++# libraries and their consumers share one Go graph and the same Go types.
++go_patches.gazelle_override(
++    directives = ["gazelle:proto disable_global"],
++    path = "github.com/openconfig/gnmi",
++)
++
++# These are the existing Make/vendor patches, applied to isolated dependency
++# repositories. Build actions never modify go.mod, vendor, or the checkout.
++go_patches.module_override(
++    patch_strip = 1,
++    patches = ["@sonic_mgmt_common//patches:jsonquery.patch"],
++    path = "github.com/antchfx/jsonquery",
++)
++go_patches.module_override(
++    patch_strip = 1,
++    patches = ["@sonic_mgmt_common//patches:xmlquery.patch"],
++    path = "github.com/antchfx/xmlquery",
++)
++go_patches.module_override(
++    patch_strip = 1,
++    patches = ["@sonic_mgmt_common//patches:xpath.patch"],
++    path = "github.com/antchfx/xpath",
++)
++go_patches.module_override(
++    patch_strip = 1,
++    patches = ["@sonic_mgmt_common//patches:glog.patch"],
++    path = "github.com/golang/glog",
++)
++
++# Match the owner generators and source toolchain in this consuming root.
++bazel_dep(name = "rules_python", version = "1.9.0")
++
++python = use_extension("@rules_python//python/extensions:python.bzl", "python")
++python.toolchain(
++    is_default = True,
++    python_version = "3.13",
++)
++
++go_sdk = use_extension("@io_bazel_rules_go//go:extensions.bzl", "go_sdk")
++go_sdk.download(version = "1.25.9")
++
++bazel_dep(name = "bazel_skylib", version = "1.9.2")
++bazel_dep(name = "platforms", version = "1.1.0")
++bazel_dep(name = "rules_foreign_cc", version = "0.16.0")
++bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.16")
++bazel_dep(name = "tar.bzl", version = "0.10.5-sonic.1")
++
++gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
++use_repo(gcc, "gcc_toolchains")
++
++register_toolchains("@gcc_toolchains//:all")
++
++use_repo(go_deps, "com_github_golang_glog", "com_github_gorilla_mux", "com_github_pkg_profile", "in_gopkg_go_playground_validator_v9", "org_golang_x_crypto")
++
++pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
++pip.parse(
++    hub_name = "framework_pip",
++    python_version = "3.13",
++    requirements_lock = "//:requirements_lock.txt",
++)
++use_repo(pip, "framework_pip")
++
++tar_toolchains = use_extension("@tar.bzl//tar:extensions.bzl", "toolchains")
++use_repo(tar_toolchains, "bsd_tar_toolchains")
++
++register_toolchains("@bsd_tar_toolchains//:all")
++
++bazel_dep(name = "rules_pkg", version = "1.1.0")
++
++apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
++apt.import_lock(lock = "//CLI/bazel:apt.lock.json")
++use_repo(apt, "framework_cli_target_debian")
++
++bazel_dep(name = "rules_cc", version = "0.2.18")
+diff --git a/modules/sonic-mgmt-framework/1.0.0-2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5/README.md b/modules/sonic-mgmt-framework/1.0.0-2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5/README.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..085d8e72fbedacf9dcc45b49971dc38ed9648444
+--- /dev/null
++++ b/modules/sonic-mgmt-framework/1.0.0-2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5/README.md
+@@ -0,0 +1,16 @@
++# Management Framework runtime and CLI TARs
++
++Register public Framework commit `2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5` from [source #1](https://github.com/securely1g/sonic-mgmt-framework/pull/1) for [buildimage #138](https://github.com/securely1g/sonic-buildimage/pull/138). The existing REST server, UI, generated models and klish CLI remain source-built with runtime/debug TAR interfaces; no DEB producer is selected.
++
++| Consumer input | Before | After |
++| --- | --- | --- |
++| Management Common | Unlanded `1.0.0-71eb5f71...` | Maintained `1.0.1-05f83dcab8fe2e1a0e0fc37ac172b289d6968e2b` from [registry #216](https://github.com/securely1g/sonic-bazel-registry/pull/216) |
++| gNMI Go workspace and public libraries | Superseded `ce49e93e...` candidate | The single `3cc2cba2...` candidate from [registry #182](https://github.com/securely1g/sonic-bazel-registry/pull/182) |
++| SWSS Common override | Unlanded `43598143...` | Published `0.0.9-334389eae54afd1f4f5ee69f89c3a7ad2062ee61` |
++| Framework source | `4036a01a...` | Verified `2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5`, whose source root selects the landed shared owners |
++
++The producer registration retains its existing infrastructure `.25-3ee15ec9` recipe. The separate consumer selects maintained Common9 and infrastructure `.26-51c838da` to match the current gNMI source graph, while retaining `rules_go@0.65.0.sonic.1`, Distroless `.16`, Go 1.25.9 and the consuming gNMI Go workspace. The adapted MODULE-only patch keeps non-root `go.mod` discovery and the existing published infrastructure selection. It no longer duplicates source changes that already adopt Management Common, goyang and ygot. The source root's separate CLI override remains part of source #1; this registry patch continues using its existing maintained infrastructure entry.
++
++All seven build targets and ten tests are unchanged, including REST runtime, package contracts, installed CLI, model/codegen reproducibility, server/OpenAPI fixtures and CLI/TLS tests. The source archive's 276 Git blobs and modes were checked in full. Source `2e6` normal CI passed, including native Framework and CodeQL; this does not establish acceptance of the registry consumer's distinct non-root graph. Current registry and downstream-image validation are pending. gNMI's Actions workflows resumed after enablement. gNMI source `3cc2cba2` is landed with exactly the tree that passed native AMD64, CodeQL and subscription CI at `82e60964`. Its official archive matches all 576 Git blobs and modes. This registry consumer and the downstream image still require their own validation.
++
++Keep Draft until the exact source and gNMI prerequisite registrations land and current consumer validation passes. This native AMD64 Trixie registration does not claim ARM or VS installer acceptance.
+diff --git a/modules/sonic-mgmt-framework/1.0.0-2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5/patches/0001-module-version.patch b/modules/sonic-mgmt-framework/1.0.0-2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5/patches/0001-module-version.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..7b909324d4c96d5cf720c64c90eb02a062988f19
+--- /dev/null
++++ b/modules/sonic-mgmt-framework/1.0.0-2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5/patches/0001-module-version.patch
+@@ -0,0 +1,15 @@
++From: Guohan Lu <securely1g@gmail.com>
++Subject: [PATCH 1/2] Record the immutable Framework registry version
++
++Pin the module declaration to the verified public source commit.
++
++--- a/MODULE.bazel
+++++ b/MODULE.bazel
++@@ -1,6 +1,6 @@
++ module(
++     name = "sonic-mgmt-framework",
++-    version = "1.0.0",
+++    version = "1.0.0-2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5",
++     bazel_compatibility = [
++         ">=8.5.1",
++         "<=8.5.1",
+diff --git a/modules/sonic-mgmt-framework/1.0.0-2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5/patches/0002-share-management-go-owners.patch b/modules/sonic-mgmt-framework/1.0.0-2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5/patches/0002-share-management-go-owners.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..db70d601fbae7de6538a0bd0808faf9e841d0fd2
+--- /dev/null
++++ b/modules/sonic-mgmt-framework/1.0.0-2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5/patches/0002-share-management-go-owners.patch
+@@ -0,0 +1,59 @@
++From: Guohan Lu <securely1g@gmail.com>
++Subject: [PATCH 2/2] Preserve Framework non-root Go and tool selection
++
++The source already uses the landed Management Common and shared YANG owners.
++Retain the existing registry consumer rules_go, Distroless and maintained
++infrastructure selections, and use go.mod discovery beneath the consuming
++root Go workspace. The source root keeps its separate CLI archive override.
++
++--- a/MODULE.bazel
+++++ b/MODULE.bazel
++@@ -11,12 +11,12 @@
++ bazel_dep(name = "gazelle", version = "0.54.0")
++ bazel_dep(name = "openconfig_goyang", version = "0.0.0.sonic.1-20200309174518-a00bece872fc", repo_name = "com_github_openconfig_goyang")
++ bazel_dep(name = "openconfig_ygot", version = "0.7.1.sonic.1", repo_name = "com_github_openconfig_ygot")
++-bazel_dep(name = "rules_go", version = "0.64.1-sonic.1", repo_name = "io_bazel_rules_go")
++-bazel_dep(name = "sonic-build-infra", version = "0.0.25-17a1e555291c64be1a6ff008f33352bffc4f8e5c", repo_name = "sonic_build_infra")
+++bazel_dep(name = "rules_go", version = "0.65.0.sonic.1", repo_name = "io_bazel_rules_go")
+++bazel_dep(name = "sonic-build-infra", version = "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e", repo_name = "sonic_build_infra")
++ 
++ single_version_override(
++     module_name = "rules_go",
++-    version = "0.64.1-sonic.1",
+++    version = "0.65.0.sonic.1",
++ )
++ 
++ single_version_override(
++@@ -25,7 +25,10 @@
++ )
++ 
++ go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
++-go_deps.from_file(go_work = "//:go.bazel.work")
+++
+++# The consuming root owns the single Go work-file selection. This module
+++# contributes its requirements through standard non-root go.mod discovery.
+++go_deps.from_file(go_mod = "//:go.mod")
++ 
++ # Root-only patch selection, matching the management-common owner.
++ go_patches = use_extension("@gazelle//:extensions.bzl", "go_deps", dev_dependency = True)
++@@ -75,7 +78,7 @@
++ bazel_dep(name = "bazel_skylib", version = "1.9.2")
++ bazel_dep(name = "platforms", version = "1.1.0")
++ bazel_dep(name = "rules_foreign_cc", version = "0.16.0")
++-bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.13")
+++bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.16")
++ bazel_dep(name = "tar.bzl", version = "0.10.5-sonic.1")
++ 
++ gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
++@@ -105,11 +108,3 @@
++ use_repo(apt, "framework_cli_target_debian")
++ 
++ bazel_dep(name = "rules_cc", version = "0.2.18")
++-
++-# Temporary immutable selection for the shared CLI execution-tool extension.
++-archive_override(
++-    module_name = "sonic-build-infra",
++-    integrity = "sha256-U6b0szFANCQXXbl3MmLYjjn8YVze4e8AJ3a5iJS4OSg=",
++-    strip_prefix = "sonic-build-infra-f2015163598aee7e8e3df7ee1b2a13969a353236",
++-    urls = ["https://github.com/securely1g/sonic-build-infra/archive/f2015163598aee7e8e3df7ee1b2a13969a353236.tar.gz"],
++-)
+diff --git a/modules/sonic-mgmt-framework/1.0.0-2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5/presubmit.json b/modules/sonic-mgmt-framework/1.0.0-2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5/presubmit.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..d8eb77bf9e720b473db5baa0e73dfcbc247ed3b9
+--- /dev/null
++++ b/modules/sonic-mgmt-framework/1.0.0-2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5/presubmit.json
+@@ -0,0 +1,31 @@
++{
++  "architectures": [
++    "amd64"
++  ],
++  "consumer_deps": [],
++  "platforms": {
++    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
++  },
++  "build_targets": [
++    "//:image_payload",
++    "@sonic-mgmt-framework//dist:runtime",
++    "@sonic-mgmt-framework//dist:runtime.debug_symbols",
++    "@sonic-mgmt-framework//dist:rest_binaries",
++    "@sonic-mgmt-framework//dist:ui",
++    "@sonic-mgmt-framework//CLI:runtime",
++    "@sonic-mgmt-framework//CLI:runtime.debug_symbols"
++  ],
++  "test_targets": [
++    "@sonic-mgmt-framework//dist:package_test",
++    "@sonic-mgmt-framework//dist:rest_runtime_test",
++    "@sonic-mgmt-framework//CLI:installed_runtime_test",
++    "@sonic-mgmt-framework//tools/bazel:models_repro_test",
++    "@sonic-mgmt-framework//tools/bazel:codegen_config_test",
++    "@sonic-mgmt-framework//rest/server:server_test",
++    "@sonic-mgmt-framework//tools/openapi_tests:generator_test",
++    "@sonic-mgmt-framework//CLI:cli_client_test",
++    "@sonic-mgmt-framework//CLI:generator_order_test",
++    "@sonic-mgmt-framework//CLI:rest_tls_test"
++  ],
++  "integration_test_module": "tests/consumer"
++}
+diff --git a/modules/sonic-mgmt-framework/1.0.0-2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5/source.json b/modules/sonic-mgmt-framework/1.0.0-2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5/source.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..ab5640375b3ddcdd1ed3ec139ca8bc14868263ce
+--- /dev/null
++++ b/modules/sonic-mgmt-framework/1.0.0-2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5/source.json
+@@ -0,0 +1,10 @@
++{
++  "url": "https://github.com/securely1g/sonic-mgmt-framework/archive/2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5.tar.gz",
++  "strip_prefix": "sonic-mgmt-framework-2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5",
++  "integrity": "sha256-JPfXGmDTK3N3r0jYNaOa69bvOClUbxaZhCDljl39lEA=",
++  "patches": {
++    "0001-module-version.patch": "sha256-ko5KRTrXwbPHF38c9mhxo0NQbiHZ5Dywtnn43zd4zkE=",
++    "0002-share-management-go-owners.patch": "sha256-dKz4Vhcg1eYfqRaPenUxdNDkWa7E2zySnal6EPp/yu8="
++  },
++  "patch_strip": 1
++}
+diff --git a/modules/sonic-mgmt-framework/1.0.0-2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5/tests/consumer/BUILD.bazel b/modules/sonic-mgmt-framework/1.0.0-2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5/tests/consumer/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..fd707c43e3577f74219c38b34060348e25034c0f
+--- /dev/null
++++ b/modules/sonic-mgmt-framework/1.0.0-2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5/tests/consumer/BUILD.bazel
+@@ -0,0 +1,11 @@
++load("@rules_distroless//distroless:defs.bzl", "flatten")
++
++# Docker management installs both owners into one runtime filesystem.
++flatten(
++    name = "image_payload",
++    deduplicate = True,
++    tars = [
++        "@sonic-mgmt-common//dist:runtime",
++        "@sonic-mgmt-framework//dist:runtime",
++    ],
++)
+diff --git a/modules/sonic-mgmt-framework/1.0.0-2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5/tests/consumer/MODULE.bazel b/modules/sonic-mgmt-framework/1.0.0-2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5/tests/consumer/MODULE.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..c31e5a83ba857a4ef2038caeccb71336cf9409f8
+--- /dev/null
++++ b/modules/sonic-mgmt-framework/1.0.0-2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5/tests/consumer/MODULE.bazel
+@@ -0,0 +1,130 @@
++module(name = "management_framework_consumer")
++
++bazel_dep(name = "sonic-mgmt-framework", version = "1.0.0-2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5")
++bazel_dep(name = "sonic-mgmt-common", version = "1.0.1-05f83dcab8fe2e1a0e0fc37ac172b289d6968e2b")
++bazel_dep(name = "sonic-gnmi", version = "0.1.0-3cc2cba22ba980128518aafe4ddae14aeebebb08", repo_name = "sonic_gnmi")
++bazel_dep(name = "gazelle", version = "0.54.0")
++bazel_dep(name = "openconfig_goyang", version = "0.0.0.sonic.1-20200309174518-a00bece872fc", repo_name = "com_github_openconfig_goyang")
++bazel_dep(name = "openconfig_ygot", version = "0.7.1.sonic.1", repo_name = "com_github_openconfig_ygot")
++bazel_dep(name = "rules_go", version = "0.65.0.sonic.1", repo_name = "io_bazel_rules_go")
++bazel_dep(name = "sonic-build-infra", version = "0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568", repo_name = "sonic_build_infra")
++bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.16")
++bazel_dep(name = "tar.bzl", version = "0.10.5-sonic.1")
++bazel_dep(name = "rules_python", version = "1.9.0")
++bazel_dep(name = "rules_rs", version = "0.1.0")
++
++single_version_override(
++    module_name = "sonic-mgmt-common",
++    version = "1.0.1-05f83dcab8fe2e1a0e0fc37ac172b289d6968e2b",
++)
++
++single_version_override(
++    module_name = "sonic-build-infra",
++    version = "0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568",
++)
++
++single_version_override(
++    module_name = "sonic-swss-common",
++    version = "0.0.9-334389eae54afd1f4f5ee69f89c3a7ad2062ee61",
++)
++
++single_version_override(
++    module_name = "libnl3",
++    version = "3.7.0.sonic.7",
++)
++
++single_version_override(
++    module_name = "rules_go",
++    version = "0.65.0.sonic.1",
++)
++
++rules_rust = use_extension("@rules_rs//rs:rules_rust.bzl", "rules_rust")
++use_repo(rules_rust, "rules_rust")
++
++rust = use_extension("@rules_rs//rs:rules_rust_reexported_extensions.bzl", "rust")
++rust.toolchain(
++    edition = "2021",
++    versions = ["1.90.0"],
++)
++use_repo(rust, "rust_toolchains")
++
++register_toolchains("@rust_toolchains//:all")
++
++go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
++go_deps.from_file(go_work = "@sonic_gnmi//:go.bazel.work")
++
++go_patches = use_extension("@gazelle//:extensions.bzl", "go_deps", dev_dependency = True)
++
++# The public goyang/ygot owners supply the same Go types as Management
++# Common. Keep the remaining upstream Go dependency settings unchanged.
++go_patches.gazelle_override(
++    directives = ["gazelle:proto disable_global"],
++    path = "github.com/openconfig/gnmi",
++)
++
++# These modules ship C++/proto Bazel files for their own workspace. Generate
++# their checked-in Go bindings as native Go packages for this consuming graph.
++[go_patches.gazelle_override(
++    build_file_generation = "clean",
++    directives = ["gazelle:proto disable_global"],
++    path = path,
++) for path in [
++    "github.com/openconfig/gnoi",
++    "github.com/openconfig/gnsi",
++]]
++
++# These are the existing Make/vendor patches, applied to isolated dependency
++# repositories. Build actions never modify go.mod, vendor, or the checkout.
++go_patches.module_override(
++    patch_strip = 1,
++    patches = ["@sonic-mgmt-common//patches:jsonquery.patch"],
++    path = "github.com/antchfx/jsonquery",
++)
++go_patches.module_override(
++    patch_strip = 1,
++    patches = ["@sonic-mgmt-common//patches:xmlquery.patch"],
++    path = "github.com/antchfx/xmlquery",
++)
++go_patches.module_override(
++    patch_strip = 1,
++    patches = ["@sonic-mgmt-common//patches:xpath.patch"],
++    path = "github.com/antchfx/xpath",
++)
++
++[go_patches.module_override(
++    patch_strip = 1,
++    patches = ["@sonic_gnmi//patches/bazel:" + patch] + (["@sonic_gnmi//patches/bazel:" + {
++        "0001-gnxi.patch": "0005-gnxi-build.patch",
++        "0002-gnmi.patch": "0006-gnmi-build.patch",
++    }[patch]] if path in [
++        "github.com/google/gnxi",
++        "github.com/openconfig/gnmi",
++    ] else []),
++    path = path,
++) for path, patch in [
++    ("github.com/google/gnxi", "0001-gnxi.patch"),
++    ("github.com/openconfig/gnmi", "0002-gnmi.patch"),
++    ("github.com/fsnotify/fsnotify", "0003-fsnotify.patch"),
++    ("google.golang.org/grpc/security/advancedtls", "0004-advancedtls.patch"),
++]]
++# Native gNMI deliberately omits Common's glog.patch for glog v1.2.4.
++
++go_patches.module_override(
++    patch_strip = 1,
++    patches = ["@sonic_gnmi//patches/bazel:0007-gnoi-build.patch"],
++    path = "github.com/openconfig/gnoi",
++)
++go_patches.module_override(
++    patch_strip = 1,
++    patches = ["@sonic_gnmi//patches/bazel:0008-pam-build.patch"],
++    path = "github.com/msteinert/pam",
++)
++
++python = use_extension("@rules_python//python/extensions:python.bzl", "python")
++python.toolchain(
++    is_default = True,
++    python_version = "3.13",
++)
++
++go_sdk = use_extension("@io_bazel_rules_go//go:extensions.bzl", "go_sdk")
++go_sdk.download(version = "1.25.9")
+diff --git a/modules/sonic-mgmt-framework/metadata.json b/modules/sonic-mgmt-framework/metadata.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..98264ece31b2f563bc52c62d4b1eabfbd1977690
+--- /dev/null
++++ b/modules/sonic-mgmt-framework/metadata.json
+@@ -0,0 +1,6 @@
++{
++  "homepage": "https://github.com/sonic-net/sonic-mgmt-framework",
++  "versions": [
++    "1.0.0-2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5"
++  ]
++}
