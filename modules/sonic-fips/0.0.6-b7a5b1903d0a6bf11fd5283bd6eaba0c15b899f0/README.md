@@ -1,18 +1,20 @@
 # FIPS cross-build and test support
 
 This entry pins the single unpublished `0.0.6` candidate to commit
-`d8bd02ba7705980a414bfab2bb62f756f7c63fb2`, an ordinary continuation of
+`b7a5b1903d0a6bf11fd5283bd6eaba0c15b899f0`, an ordinary continuation of
 [source release PR #20](https://github.com/securely1g/sonic-fips/pull/20)
-and [Draft source PR #21](https://github.com/securely1g/sonic-fips/pull/21).
-OpenSSH queries declared libedit pkg-config metadata through a private executable
-launcher, matching upstream's quoted executable-path interface. The launcher
-preserves declared prefix arguments and keeps metadata isolated from host paths.
-Libedit and its real link probe, source OpenSSL, target loaders, other features
-and all build outputs remain enabled. The earlier metadata revision failed on
-both source-base architectures because a command string was used as a filename;
-realistic quoted-call controls cover this correction. Exact native validation
-remains pending. [Selected source](https://github.com/securely1g/sonic-fips/commit/d8bd02ba7705980a414bfab2bb62f756f7c63fb2).
-This registry candidate remains Draft until its source prerequisite lands.
+and [source PR #21](https://github.com/securely1g/sonic-fips/pull/21).
+OpenSSH queries its declared libedit metadata through an executable pkgconf
+launcher. The launcher filters the redundant generic shared SDK include root,
+retains `/editline` and all library flags, and isolates inherited pkgconf settings.
+This prevents the imported SDK headers from outranking source OpenSSL; the strict
+header/library check, source OpenSSL 3.5.7, libedit feature/link probes and target
+loader order remain unchanged. The observed Framework failure passed libedit
+and rejected headers 3.5.6 paired with library 3.5.7. Nine guarded methods across
+19 shell/metadata fixtures passed; current source CI and exact Framework native
+acceptance remain pending. [Selected source](https://github.com/securely1g/sonic-fips/commit/b7a5b1903d0a6bf11fd5283bd6eaba0c15b899f0).
+This registry candidate remains Draft until its source prerequisite lands and
+its temporary CI coverage gap is resolved.
 
 The registry patch only adds the commit suffix to the declared version.
 The cumulative source retains the Kerberos/OpenSSH target loader, SymCrypt
