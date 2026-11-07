@@ -2374,11 +2374,12 @@ class TestContainerTests(unittest.TestCase):
         self.assertLess(unlock, platform_threads)
         self.assertLess(platform_threads, flags.index("build"))
 
-    def test_pilot_limits_nested_p4c_compilers_for_targets_and_tools(self):
+    def test_pilot_limits_nested_compilers_for_targets_and_tools(self):
         workflow = (registry_ci.ROOT / ".github/workflows/registry-module.yml").read_text()
         script = self.step(workflow, "Build and test through the registry")
         for module, pilot, limited in (("p4c", True, True), ("sonic-dash", True, True),
-                                       ("libyang", True, False), ("p4c", False, False)):
+                                       ("p4lang-bmv2", True, True), ("libyang", True, False),
+                                       ("p4c", False, False), ("p4lang-bmv2", False, False)):
             with self.subTest(module=module, pilot=pilot), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 env = self.shell_environment(root, "amd64", "amd64", False)

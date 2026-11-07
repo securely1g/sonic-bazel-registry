@@ -54,13 +54,13 @@ jobs:
     runs-on: ${{ fromJSON(inputs.runner) }}
     # P4C took three hours to compile serially on AMD64. A single emulated
     # C++ compiler can take 8–14 times as long, before DASH builds its own SDK.
-    # BMv2 takes over an hour on native ARM before accounting for emulation.
+    # BMv2 also builds its simulator and SDK serially in the 6 GiB pilot slot.
     timeout-minutes: >-
-      ${{ inputs.emulated_arm && contains(fromJSON('["p4c","sonic-dash"]'), inputs.module) && 4320
-          || inputs.emulated_arm && contains(fromJSON('["p4lang-bmv2","sonic-swss","sonic-sairedis","sonic-swss-common"]'), inputs.module) && 1440
+      ${{ inputs.emulated_arm && contains(fromJSON('["p4c","p4lang-bmv2","sonic-dash"]'), inputs.module) && 4320
+          || inputs.emulated_arm && contains(fromJSON('["sonic-swss","sonic-sairedis","sonic-swss-common"]'), inputs.module) && 1440
           || inputs.emulated_arm && 720
           || contains(fromJSON(inputs.runner), 'debian-trixie-k3s-fleet-pilot') &&
-             contains(fromJSON('["p4c","sonic-dash"]'), inputs.module) && 360
+             contains(fromJSON('["p4c","p4lang-bmv2","sonic-dash"]'), inputs.module) && 360
           || 180 }}
     # Local native/cross jobs execute directly in the fresh Trixie runner.
     # Only native hosted ARM needs the separate pinned job image.
@@ -182,11 +182,15 @@ jobs:
                               --bazel-build-arg=--experimental_worker_for_repo_fetching=off)
             git config --global --add safe.directory "$GITHUB_WORKSPACE"
           fi
-          if [[ "${PILOT_POOL:-false}" == true && ( "$CI_MODULE" == p4c || "$CI_MODULE" == sonic-dash ) ]]; then
-            # P4C invokes make -j4 inside a single Bazel action. Serialise its
-            # C++ compilations in 6 GiB, including when DASH builds P4C as a tool.
-            BAZEL_BUILD_ARGS+=(--bazel-build-arg=--action_env=GNUMAKEFLAGS=--eval=.NOTPARALLEL:
-                               --bazel-build-arg=--host_action_env=GNUMAKEFLAGS=--eval=.NOTPARALLEL:)
+          if [[ "${PILOT_POOL:-false}" == true ]]; then
+            case "$CI_MODULE" in
+              p4c|p4lang-bmv2|sonic-dash)
+                # Both P4C and BMv2 invoke make -j4 inside a single Bazel
+                # action. DASH also builds P4C as an executable tool.
+                BAZEL_BUILD_ARGS+=(--bazel-build-arg=--action_env=GNUMAKEFLAGS=--eval=.NOTPARALLEL:
+                                   --bazel-build-arg=--host_action_env=GNUMAKEFLAGS=--eval=.NOTPARALLEL:)
+                ;;
+            esac
           fi
           if [[ "$CI_CROSS_COMPILE" == true ]]; then
             CROSS_ARGS=(--cross-compile --test-executor "$ARM_TEST_EXECUTOR")
