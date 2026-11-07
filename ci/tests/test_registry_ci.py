@@ -2339,9 +2339,10 @@ class TestContainerTests(unittest.TestCase):
                 self.assertEqual(arguments[arguments.index("--bazel") + 1], "/usr/local/bin/bazel")
                 self.assertEqual([arg for arg in arguments if arg.startswith("--bazel-startup-arg=")],
                                  ["--bazel-startup-arg=--host_jvm_args=-Xmx2g"] if on_worker else [])
-                self.assertEqual([arg for arg in arguments if arg.startswith("--bazel-build-arg=")],
-                                 ["--bazel-build-arg=--jobs=1", "--bazel-build-arg=--discard_analysis_cache"]
-                                 if on_worker else [])
+                expected_flags = ["--bazel-build-arg=--jobs=1", "--bazel-build-arg=--discard_analysis_cache"] if on_worker else []
+                if emulated:
+                    expected_flags.append("--bazel-build-arg=--experimental_worker_for_repo_fetching=off")
+                self.assertEqual([arg for arg in arguments if arg.startswith("--bazel-build-arg=")], expected_flags)
                 self.assertEqual("--cross-compile" in arguments, cross)
                 self.assertEqual("--test-executor" in arguments, cross)
                 if cross:

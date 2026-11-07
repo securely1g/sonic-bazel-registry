@@ -1143,7 +1143,7 @@ def prepare_rust(config: dict, consumer: Path, work_dir: Path, artifacts: Path,
     preparation_flags = [flag for flag in flags
                          if flag.startswith(("--registry=", "--lockfile_mode=", "--experimental_downloader_config=",
                                              "--http_connector_attempts=", "--http_connector_retry_max_timeout=",
-                                             "--http_max_parallel_downloads=", "--jobs=",
+                                             "--http_max_parallel_downloads=", "--experimental_worker_for_repo_fetching=", "--jobs=",
                                              "--discard_analysis_cache"))]
     command = [sys.executable, str(helper), "--workspace", str(consumer),
                "--shared-only", "--shared-dependency",
@@ -1329,7 +1329,7 @@ def prepare_cross_python_runtimes(bazel_prefix: list[str], flags: list[str], tes
     fetch_flags = [flag for flag in flags if flag.startswith((
         "--registry=", "--lockfile_mode=", "--experimental_downloader_config=", "--override_module=",
         "--override_repository=", "--http_connector_attempts=", "--http_connector_retry_max_timeout=",
-        "--http_max_parallel_downloads="))]
+        "--http_max_parallel_downloads=", "--experimental_worker_for_repo_fetching="))]
     mappings = []
     for index, native in enumerate(runtimes):
         require((native / "STANDALONE_INTERPRETER").is_file(), "Expected a declared standalone Python runtime")
@@ -1506,7 +1506,7 @@ def run(root: Path, module: str, version: str, architecture: str,
             # flags whose apparent labels may be unresolved in a fresh info command.
             info_flags = [flag for flag in flags if flag.startswith(
                 ("--registry=", "--lockfile_mode=", "--experimental_downloader_config=",
-                 "--override_module=", "--override_repository="))]
+                 "--override_module=", "--override_repository=", "--experimental_worker_for_repo_fetching="))]
             execution_root = Path(subprocess.check_output([*prefix, "info", *info_flags, "execution_root"],
                                                          cwd=consumer, text=True).strip())
             collect_outputs(artifacts / "build-events.jsonl", config["build_targets"], work_dir, artifacts,
