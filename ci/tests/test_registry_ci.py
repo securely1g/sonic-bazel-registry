@@ -3181,22 +3181,27 @@ a.output.write_text(json.dumps(r))
                 ("native", False, []),
                 ("native-explicit", False, ["--test_timeout=42"]),
                 ("emulated", True, []),
+                ("guest", False, []),
+                ("guest-explicit", False, ["--test_timeout=42"]),
                 ("caller-scalar", True, ["--test_timeout=42"]),
                 ("caller-tiers", True, ["--test_timeout=10,20,30,40"]),
                 ("caller-separate", True, ["--test_timeout", "47"])):
             with self.subTest(case=suffix):
+                guest = suffix.startswith("guest")
+                emulated = guest or cross
                 commands_path.write_text("")
-                with mock.patch.object(registry_ci, "verify_native", return_value={"userspace": "amd64"}), \
+                with mock.patch.dict(os.environ, {"PILOT_EMULATED_ARM": str(guest).lower()}), \
+                        mock.patch.object(registry_ci, "verify_native", return_value={"userspace": "amd64"}), \
                         mock.patch.object(registry_ci, "require_test_container"), \
                         mock.patch.object(registry_ci.cross_toolchain, "prepare", return_value=adapted):
-                    artifacts = self.run_fixture(suffix, architecture="arm64" if cross else "amd64",
+                    artifacts = self.run_fixture(suffix, architecture="arm64" if emulated else "amd64",
                                                  build_args=caller, cross_compile=cross,
                                                  test_executor=executor if cross else None)
                 commands = [json.loads(line) for line in commands_path.read_text().splitlines()]
                 test_command, = [command for command in commands if "test" in command]
                 timeouts = [arg for arg in test_command
                             if arg == "--test_timeout" or arg.startswith("--test_timeout=")]
-                expected = [caller[0]] if caller else ([default] if cross else [])
+                expected = [caller[0]] if caller else ([default] if emulated else [])
                 self.assertEqual(timeouts, expected)
                 if caller == ["--test_timeout", "47"]:
                     self.assertEqual(test_command[test_command.index("--test_timeout") + 1], "47")
@@ -3204,7 +3209,7 @@ a.output.write_text(json.dumps(r))
                     if "test" not in command:
                         self.assertNotIn(default, command)
                 evidence = json.loads((artifacts / "validation.json").read_text())
-                self.assertEqual(default in evidence["test_runtime_flags"], cross and not caller)
+                self.assertEqual(default in evidence["test_runtime_flags"], emulated and not caller)
 
     def test_cross_runtime_must_match_target_architecture_and_distribution(self) -> None:
         expected = {"system": "Linux", "machine": "aarch64", "userspace": "arm64", "debian_codename": "trixie"}
