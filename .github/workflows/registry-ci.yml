@@ -137,6 +137,9 @@ jobs:
                   raise SystemExit("Full pool validation selected no modules")
               for job in matrix["include"]:
                   job["runner"] = ["self-hosted", "Linux", "X64", "debian-trixie-k3s-fleet-pilot"]
+                  # P4C used 49.21 GiB while archiving its runtime and debug packages.
+                  if job["module"] == "p4c":
+                      job["runner"].append("debian-trixie-k3s-fleet-pilot-large-disk")
                   job["physical_architecture"] = "amd64"
                   job["emulated_arm"] = job["execution_architecture"] == "arm64"
               Path("plan.json").write_text(json.dumps(matrix, indent=2) + "\n")

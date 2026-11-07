@@ -2041,7 +2041,7 @@ class WorkflowMatrixTests(unittest.TestCase):
                                    "GITHUB_OUTPUT": str(root / "outputs")}, text=True, capture_output=True)
 
     def test_split_plan_preserves_native_and_cross_jobs_and_marks_empty_groups(self):
-        amd = {"module": "alpha", "version": "1.0.0", "architecture": "amd64",
+        amd = {"module": "p4c", "version": "1.0.0", "architecture": "amd64",
                "execution_architecture": "amd64", "cross_compile": False,
                "runner": registry_ci.RUNNERS["amd64"]}
         arm = {**amd, "architecture": "arm64", "execution_architecture": "arm64", "runner": registry_ci.RUNNERS["arm64"]}
@@ -2078,10 +2078,10 @@ class WorkflowMatrixTests(unittest.TestCase):
                 self.assertCountEqual(selected, jobs)
 
     def test_full_pilot_preserves_every_module_and_emulates_only_hosted_arm(self):
-        amd = {"module": "alpha", "version": "1.0.0", "architecture": "amd64",
+        amd = {"module": "p4c", "version": "1.0.0", "architecture": "amd64",
                "execution_architecture": "amd64", "cross_compile": False, "runner": registry_ci.RUNNERS["amd64"]}
-        cross = {**amd, "architecture": "arm64", "cross_compile": True}
-        hosted = {**amd, "module": "beta", "architecture": "arm64",
+        cross = {**amd, "module": "alpha", "architecture": "arm64", "cross_compile": True}
+        hosted = {**amd, "architecture": "arm64",
                   "execution_architecture": "arm64", "runner": registry_ci.RUNNERS["arm64"]}
         for jobs, valid in (([amd, cross, hosted], True), ([], False),
                             ([{**hosted, "runner": registry_ci.RUNNERS["amd64"]}], False)):
@@ -2095,8 +2095,12 @@ class WorkflowMatrixTests(unittest.TestCase):
                 outputs = dict(line.split("=", 1) for line in (root / "outputs").read_text().splitlines())
                 self.assertEqual(outputs["pilot"], "true")
                 pilot = ["self-hosted", "Linux", "X64", "debian-trixie-k3s-fleet-pilot"]
-                expected = [{**row, "runner": pilot, "physical_architecture": "amd64", "emulated_arm": row == hosted}
-                            for row in jobs]
+                large = [*pilot, "debian-trixie-k3s-fleet-pilot-large-disk"]
+                expected = [
+                    {**amd, "runner": large, "physical_architecture": "amd64", "emulated_arm": False},
+                    {**cross, "runner": pilot, "physical_architecture": "amd64", "emulated_arm": False},
+                    {**hosted, "runner": large, "physical_architecture": "amd64", "emulated_arm": True},
+                ]
                 self.assertEqual(json.loads((root / "plan.json").read_text())["include"], expected)
                 self.assertEqual(json.loads(outputs["matrix"])["include"], expected)
                 self.assertEqual(json.loads(outputs["local_matrix"])["include"], expected[:2])
