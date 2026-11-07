@@ -1,0 +1,20 @@
+From: glaziermag <glaziermag@users.noreply.github.com>
+Subject: [PATCH] tls: send the second request once in the post-handshake auth test
+
+Upstream: https://github.com/secdev/scapy/commit/c5e9a5b0cd25f4d0bb87c3b208db342edea7da38
+
+The test called send() and then sr1() for the same request. The server can
+reply to the first copy and close while the client is still sending. The
+client then misses the queued response. Let sr1() send the request once
+and wait for the response. The test still requires the body "Welcome".
+
+--- a/test/scapy/layers/tls/tlsclientserver.uts
++++ b/test/scapy/layers/tls/tlsclientserver.uts
+@@ -525,7 +525,6 @@
+     pkt = a.sr1(REQS[0], timeout=1, verbose=0)
+     assert pkt.load == b"Please login"
+     # Second request
+-    a.send(REQS[1])
+     pkt = a.sr1(REQS[1], timeout=1, verbose=0)
+     assert pkt.load == b"Welcome"
+     # Close
