@@ -34,7 +34,8 @@ ARM_ARCHIVES = (
 )
 ARM_RELEASE = "https://github.com/securely1g/sonic-bazel-registry/releases/download/ci-source-mirrors-20261104"
 GAWK_SHA256 = "f8c3486509de705192138b00ef2c00bbbdd0e84c30d5c07d23fc73a9dc4cc9cc"
-GAWK_MIRROR = "https://distfiles.macports.org/gawk/gawk-5.3.2.tar.xz"
+GAWK_BAZEL_MIRROR = "https://mirror.bazel.build/ftp.gnu.org/gnu/gawk/gawk-5.3.2.tar.xz"
+GAWK_MACPORTS_MIRROR = "https://distfiles.macports.org/gawk/gawk-5.3.2.tar.xz"
 GAWK_HOSTS = ("mirrors.kernel.org", "ftp.gnu.org", "ftpmirror.gnu.org")
 LIBSFRAME_SNAPSHOT = "https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/b/binutils/libsframe1_2.44-3_amd64.deb"
 LIBAUDIT_SNAPSHOT = "https://snapshot.debian.org/archive/debian/20260727T143429Z/pool/main/a/audit/libaudit-dev_4.0.2-2+b2_amd64.deb"
@@ -116,7 +117,7 @@ class ArmSourceMirrorScopeTest(unittest.TestCase):
             upstream = f"https://{host}/gnu/gawk/gawk-5.3.2.tar.xz"
             candidates = [replacement for pattern, replacement in rewrites
                           if re.fullmatch(pattern, upstream.removeprefix("https://"))]
-            self.assertEqual(candidates, [GAWK_MIRROR, upstream])
+            self.assertEqual(candidates, [GAWK_BAZEL_MIRROR, GAWK_MACPORTS_MIRROR, upstream])
             for other in (upstream.replace("5.3.2", "5.3.3"), upstream + "?query", upstream + ".sig"):
                 self.assertFalse(any(re.fullmatch(pattern, other.removeprefix("https://"))
                                      for pattern, _replacement in rewrites), other)
@@ -350,10 +351,10 @@ class GawkSourceMirrorIntegrationTest(ArchiveFetchTestCase):
         self.assertEqual(urls, [f"https://{host}/gnu/gawk/gawk-5.3.2.tar.xz" for host in GAWK_HOSTS])
         with tempfile.TemporaryDirectory(prefix="registry-gawk-mirror-") as temporary:
             work = Path(temporary)
-            config = work / "macports-only.cfg"
-            # The regression must fetch the mirror, not silently succeed upstream.
+            config = work / "bazel-mirror-only.cfg"
+            blocked = (*GAWK_HOSTS, "distfiles.macports.org")
             config.write_text((ROOT / "ci/source_mirrors.cfg").read_text()
-                              + "\n" + "\n".join("block " + host for host in GAWK_HOSTS) + "\n")
+                              + "\n" + "\n".join("block " + host for host in blocked) + "\n")
             result, transcript, cache = self.fetch(work,
                 'module(name = "gawk_mirror_consumer")\n'
                 'http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")\n'
