@@ -219,7 +219,7 @@ jobs:
             # including when tests use --ignore_all_rc_files.
             echo "REGISTRY_CI_TEST_BAZEL=/usr/local/bin/bazel" >> "$GITHUB_ENV"
           elif [[ "${PILOT_EMULATED_ARM:-false}" == true ]]; then
-            printf '%s  %s\n' "$BAZEL_SHA" /usr/local/bin/bazel | sha256sum --check --strict
+            printf '%s  %s\n' "$BAZEL_SHA" /usr/local/lib/bazel-8.5.1 | sha256sum --check --strict
             echo "REGISTRY_CI_TEST_BAZEL=/usr/local/bin/bazel" >> "$GITHUB_ENV"
           else
             curl --fail --location --retry 3 --output "$RUNNER_TEMP/bazel-8.5.1" \

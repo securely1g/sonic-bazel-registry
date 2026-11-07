@@ -2197,12 +2197,14 @@ class WorkflowMatrixTests(unittest.TestCase):
         script = TestContainerTests.step(unit, "Install Bazel for real runner integration tests")
         rows = re.findall(r"- architecture: (\w+)\n\s+runner: \[[^\]]+\]\n"
                           r"\s+machine: (\w+)\n\s+bazel_arch: (\w+)\n\s+bazel_sha: ([0-9a-f]+)", unit)
-        for architecture, machine, bazel_arch, checksum in rows:
-            with self.subTest(architecture=architecture), tempfile.TemporaryDirectory() as temporary:
+        cases = [(row, False) for row in rows] + [(row, True) for row in rows if row[0] == "arm64"]
+        for (architecture, machine, bazel_arch, checksum), emulated in cases:
+            on_worker = architecture == "amd64" or emulated
+            with self.subTest(architecture=architecture, emulated=emulated), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 environment = TestContainerTests.shell_environment(self, root, architecture, architecture, False)
                 environment.update(EXPECTED_MACHINE=machine, BAZEL_ARCH=bazel_arch, BAZEL_SHA=checksum,
-                                   GITHUB_ENV=str(root / "github-env"))
+                                   GITHUB_ENV=str(root / "github-env"), PILOT_EMULATED_ARM=str(emulated).lower())
                 chmod = root / "bin/chmod"
                 chmod.write_text('#!/bin/bash\nprintf "%s\\n" "$@" > "$RUNNER_TEMP/chmod-args"\n')
                 chmod.chmod(0o755)
@@ -2210,11 +2212,11 @@ class WorkflowMatrixTests(unittest.TestCase):
                                         text=True, capture_output=True)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual((root / "CHECKSUM_ARGS").read_text().splitlines(), ["--check", "--strict"])
-                binary = "/usr/local/lib/bazel-8.5.1" if architecture == "amd64" else environment["RUNNER_TEMP"] + "/bazel-8.5.1"
+                binary = "/usr/local/lib/bazel-8.5.1" if on_worker else environment["RUNNER_TEMP"] + "/bazel-8.5.1"
                 self.assertEqual((root / "CHECKSUM_LOG").read_text().strip(), checksum + "  " + binary)
-                selected = "/usr/local/bin/bazel" if architecture == "amd64" else binary
+                selected = "/usr/local/bin/bazel" if on_worker else binary
                 self.assertEqual((root / "github-env").read_text(), "REGISTRY_CI_TEST_BAZEL=" + selected + "\n")
-                if architecture == "amd64":
+                if on_worker:
                     self.assertFalse((root / "CURL_LOG").exists())
                 else:
                     self.assertEqual((root / "CURL_LOG").read_text().splitlines(),
@@ -2320,7 +2322,7 @@ class TestContainerTests(unittest.TestCase):
                     self.assertFalse((root / "INSTALL_LOG").exists())
                 elif emulated:
                     self.assertEqual(checksum, ["b7f2a85595e8a87d54843bc656c1e379fd9b8c1b5f783dc41717c1d7eb7cc49f",
-                                                "/usr/local/bin/bazel"])
+                                                "/usr/local/lib/bazel-8.5.1"])
                     self.assertFalse((root / "CURL_LOG").exists())
                     self.assertFalse((root / "INSTALL_LOG").exists())
                 else:

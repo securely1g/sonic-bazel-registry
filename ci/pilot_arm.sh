@@ -21,13 +21,25 @@ case "${1:-}" in
             curl --fail --location --retry 3 --output "$bazel" \
                 https://releases.bazel.build/8.5.1/release/bazel-8.5.1-linux-arm64
             printf '%s  %s\n' b7f2a85595e8a87d54843bc656c1e379fd9b8c1b5f783dc41717c1d7eb7cc49f "$bazel" | sha256sum --check --strict
-            install -m 0755 "$bazel" "$guest/usr/local/bin/bazel"
+            install -m 0755 "$bazel" "$guest/usr/local/lib/bazel-8.5.1"
+            # The embedded JDK otherwise misses the worker's CA, including in
+            # registry tests that deliberately ignore every Bazel RC file.
+            cat > "$guest/usr/local/bin/bazel" <<'LAUNCHER'
+#!/bin/sh
+if [ "$#" -eq 1 ] && [ "$1" = "--version" ]; then
+    exec /usr/local/lib/bazel-8.5.1 --version
+fi
+exec /usr/local/lib/bazel-8.5.1 \
+    --host_jvm_args=-Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts \
+    --host_jvm_args=-Xmx2g "$@"
+LAUNCHER
+            chmod 0755 "$guest/usr/local/bin/bazel"
             set -- run bash -ec '
                 test "$(dpkg --print-architecture)" = arm64
                 test "$(uname -m)" = aarch64
                 # Actions checks out files as the runner account. The Debian
                 # module job executes as root, so trust this checkout only.
-                git config --global --add safe.directory "$GITHUB_WORKSPACE"
+                git -C / config --global --add safe.directory "$GITHUB_WORKSPACE"
                 apt-get -o APT::Update::Error-Mode=any update
                 apt-get install -y --no-install-recommends libxml2 libzstd-dev zlib1g-dev
                 bazel --version
@@ -79,7 +91,7 @@ case "${1:-}" in
         # paths in both environments. All inherited build flags remain visible.
         exec chroot "$guest" /usr/bin/env HOME=/root \
             PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
-            /bin/bash -c 'cd "$1"; shift; exec "$@"' bash "$PWD" "$@"
+            /bin/bash -c 'cd -- "$1" || exit; shift; exec "$@"' bash "$PWD" "$@"
         ;;
     *) echo "Usage: $0 prepare | run COMMAND [ARG ...] | shell FILE" >&2; exit 2 ;;
 esac

@@ -128,7 +128,7 @@ jobs:
           if [[ "$CI_EXECUTION_ARCHITECTURE" == amd64 ]]; then
             printf '%s  %s\n' "$bazel_sha" /usr/local/lib/bazel-8.5.1 | sha256sum --check --strict
           elif [[ "${PILOT_EMULATED_ARM:-false}" == true ]]; then
-            printf '%s  %s\n' "$bazel_sha" /usr/local/bin/bazel | sha256sum --check --strict
+            printf '%s  %s\n' "$bazel_sha" /usr/local/lib/bazel-8.5.1 | sha256sum --check --strict
           else
             curl --fail --location --retry 3 --output /tmp/bazel "https://releases.bazel.build/8.5.1/release/bazel-8.5.1-linux-${bazel_arch}"
             printf '%s  %s\n' "$bazel_sha" /tmp/bazel | sha256sum --check --strict
