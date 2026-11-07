@@ -1,0 +1,9 @@
+{
+  "url": "https://github.com/securely1g/sonic-mgmt-common/archive/05f83dcab8fe2e1a0e0fc37ac172b289d6968e2b.tar.gz",
+  "strip_prefix": "sonic-mgmt-common-05f83dcab8fe2e1a0e0fc37ac172b289d6968e2b",
+  "integrity": "sha256-owzdCSRX7HV5wKbAdjKlX2/KjnSYd/q7No2ft15B2Y4=",
+  "patches": {
+    "0001-module-version.patch": "sha256-SUPKYT2sU62hYNfrHczwM5cevmTYOtMZYuTiiNPaDbI="
+  },
+  "patch_strip": 1
+}

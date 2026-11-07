@@ -33,6 +33,8 @@ ARM_ARCHIVES = (
     ("toolchain_utils", "1.0.2", "sha512-AXqtA9CzczVUdS5dw0dX332eaXZQhFcEZmf1iKALwsoKoT9Mboah7/j1JN9hZpzq6B5X7gpe83TPpya6yJZ6Lw=="),
 )
 ARM_RELEASE = "https://github.com/securely1g/sonic-bazel-registry/releases/download/ci-source-mirrors-20261104"
+PIGZ_GITHUB = f"{ARM_RELEASE}/pigz-2.8.tar.gz"
+PIGZ_MACPORTS = "https://distfiles.macports.org/pigz/pigz-2.8.tar.gz"
 GAWK_SHA256 = "f8c3486509de705192138b00ef2c00bbbdd0e84c30d5c07d23fc73a9dc4cc9cc"
 GAWK_MIRROR = "https://distfiles.macports.org/gawk/gawk-5.3.2.tar.xz"
 GAWK_HOSTS = ("mirrors.kernel.org", "ftp.gnu.org", "ftpmirror.gnu.org")
@@ -84,6 +86,19 @@ def debian_release_url(filename):
     return f"{ARM_RELEASE}/{quote(filename, safe='')}"
 
 
+class PigzSourceMirrorScopeTest(unittest.TestCase):
+    def test_only_the_pinned_archive_gets_release_then_macports_candidates(self):
+        """Share one exact pigz mirror without rewriting other versions or hosts."""
+        rewrites = [line.split()[1:] for line in (ROOT / "ci/source_mirrors.cfg").read_text().splitlines()
+                    if line.startswith("rewrite ")]
+        upstream = "zlib.net/pigz/pigz-2.8.tar.gz"
+        self.assertEqual([replacement for pattern, replacement in rewrites
+                          if re.fullmatch(pattern, upstream)], [PIGZ_GITHUB, PIGZ_MACPORTS])
+        for other in (upstream.replace("2.8", "2.9"), upstream + "?query", upstream + ".sig",
+                      upstream.replace("zlib.net", "example.org")):
+            self.assertFalse(any(re.fullmatch(pattern, other) for pattern, _ in rewrites), other)
+
+
 class ArmSourceMirrorScopeTest(unittest.TestCase):
     def test_only_exact_pinned_arm_urls_get_github_then_upstream_candidates(self):
         rewrites = [line.split()[1:] for line in (ROOT / "ci/source_mirrors.cfg").read_text().splitlines()
@@ -98,6 +113,16 @@ class ArmSourceMirrorScopeTest(unittest.TestCase):
                           upstream.replace("/downloads/", "/different/")):
                 self.assertFalse(any(re.fullmatch(pattern, other.removeprefix("https://"))
                                      for pattern, _replacement in rewrites), other)
+
+    def test_bison_candidates_only_match_the_two_pinned_source_urls(self):
+        rewrites = [line.split()[1:] for line in (ROOT / "ci/source_mirrors.cfg").read_text().splitlines()
+                    if line.startswith("rewrite ")]
+        for host in ("ftp.gnu.org", "mirrors.kernel.org"):
+            source = f"{host}/gnu/bison/bison-3.3.2.tar.xz"
+            matched = [replacement for pattern, replacement in rewrites if re.fullmatch(pattern, source)]
+            self.assertEqual(matched, ["https://distfiles.macports.org/bison/bison-3.3.2.tar.xz", "https://$1"])
+            for other in (source + ".sig", source.replace("3.3.2", "3.3.1"), source.replace(host, "example.org")):
+                self.assertFalse(any(re.fullmatch(pattern, other) for pattern, _ in rewrites))
 
     def test_gawk_candidates_preserve_each_original_url_and_exact_version(self):
         rewrites = [line.split()[1:] for line in (ROOT / "ci/source_mirrors.cfg").read_text().splitlines()
@@ -234,6 +259,7 @@ class ArchiveFetchTestCase(unittest.TestCase):
                    "--experimental_downloader_config=" + str(config)]
         artifacts = work / "artifacts"
         artifacts.mkdir()
+        command.append("--build_event_json_file=" + str(artifacts / "build-events.jsonl"))
         (artifacts / "command.json").write_text(json.dumps(command, indent=2) + "\n")
         try:
             with (artifacts / "fetch.log").open("w") as log:
@@ -567,12 +593,22 @@ class SourceMirrorWorkflowScopeTest(unittest.TestCase):
                      "set REGISTRY_CI_TEST_BAZEL to exercise real Bazel downloads")
 class SourceMirrorIntegrationTest(unittest.TestCase):
     def test_original_bcr_archive_and_patches_with_empty_cache(self):
-        self.exercise_mirror(corrupt=False)
+        """Fetch the real GitHub copy and apply BCR's unchanged source patches."""
+        self.exercise_mirror()
 
-    def test_mirror_cannot_replace_original_bcr_archive(self):
-        self.exercise_mirror(corrupt=True)
+    def test_unavailable_release_falls_back_to_verified_macports_bytes(self):
+        """A missing first candidate must not prevent a valid fallback download."""
+        self.exercise_mirror(primary="missing", fallback="valid")
 
-    def exercise_mirror(self, *, corrupt):
+    def test_corrupt_release_falls_back_to_verified_macports_bytes(self):
+        """Reject a changed first response and retain the original BCR digest."""
+        self.exercise_mirror(primary="corrupt", fallback="valid")
+
+    def test_mirrors_cannot_replace_original_bcr_archive(self):
+        """Reject both corrupt candidates without caching either response."""
+        self.exercise_mirror(primary="corrupt", fallback="corrupt")
+
+    def exercise_mirror(self, *, primary="live", fallback=None):
         with tempfile.TemporaryDirectory(prefix="registry-source-mirror-") as temporary:
             work = Path(temporary)
             consumer = work / "consumer"
@@ -583,14 +619,28 @@ class SourceMirrorIntegrationTest(unittest.TestCase):
                 'module(name = "pigz_mirror_consumer")\n'
                 'bazel_dep(name = "pigz", version = "2.8.bcr.2")\n')
             (consumer / "BUILD.bazel").write_text("")
-            config = ROOT / "ci/source_mirrors.cfg"
+            config = work / "mirror.cfg"
+            config_text = (ROOT / "ci/source_mirrors.cfg").read_text()
             server = None
             requests = []
-            if corrupt:
-                class WrongArchive(BaseHTTPRequestHandler):
+            if primary == "live":
+                # Require the real release asset; MacPorts cannot hide its failure.
+                config.write_text(config_text + "\nblock distfiles.macports.org\n")
+            else:
+                original = b""
+                if fallback == "valid":
+                    with urlopen(PIGZ_GITHUB, timeout=60) as response:
+                        original = response.read()
+                    self.assertEqual(hashlib.sha256(original).hexdigest(), PIGZ_SHA256)
+
+                class ArchiveSource(BaseHTTPRequestHandler):
                     def do_GET(self):
                         requests.append(self.path)
-                        payload = b"not the original pigz source archive\n"
+                        behavior = primary if self.path == "/release/pigz-2.8.tar.gz" else fallback
+                        if behavior == "missing":
+                            self.send_error(404)
+                            return
+                        payload = original if behavior == "valid" else b"not the original pigz source archive\n"
                         self.send_response(200)
                         self.send_header("Content-Length", str(len(payload)))
                         self.end_headers()
@@ -599,12 +649,11 @@ class SourceMirrorIntegrationTest(unittest.TestCase):
                     def log_message(self, *_args):
                         pass
 
-                server = ThreadingHTTPServer(("127.0.0.1", 0), WrongArchive)
+                server = ThreadingHTTPServer(("127.0.0.1", 0), ArchiveSource)
                 threading.Thread(target=server.serve_forever, daemon=True).start()
-                config = work / "corrupt.cfg"
-                config.write_text((ROOT / "ci/source_mirrors.cfg").read_text().replace(
-                    "https://distfiles.macports.org/pigz/pigz-2.8.tar.gz",
-                    f"http://127.0.0.1:{server.server_port}/pigz-2.8.tar.gz"))
+                config.write_text(config_text
+                                  .replace(PIGZ_GITHUB, f"http://127.0.0.1:{server.server_port}/release/pigz-2.8.tar.gz")
+                                  .replace(PIGZ_MACPORTS, f"http://127.0.0.1:{server.server_port}/macports/pigz-2.8.tar.gz"))
             cache = work / "repository-cache"
             cache.mkdir()
             self.assertEqual(list(cache.iterdir()), [])
@@ -622,11 +671,12 @@ class SourceMirrorIntegrationTest(unittest.TestCase):
                                             stderr=subprocess.STDOUT, timeout=300)
                 transcript = (artifacts / "fetch.log").read_text()
                 archive = cache / "content_addressable/sha256" / PIGZ_SHA256 / "file"
-                if corrupt:
-                    self.assertNotEqual(result.returncode, 0, transcript)
+                if primary != "live":
+                    self.assertEqual(list(dict.fromkeys(requests)), ["/release/pigz-2.8.tar.gz", "/macports/pigz-2.8.tar.gz"])
+                if primary == "corrupt":
                     self.assertIn("Checksum", transcript)
-                    self.assertTrue(requests, "Bazel did not request the corrupt mirror")
-                    self.assertEqual(set(requests), {"/pigz-2.8.tar.gz"})
+                if fallback == "corrupt":
+                    self.assertNotEqual(result.returncode, 0, transcript)
                     self.assertFalse(archive.exists(), "Corrupt archive entered the verified cache")
                 else:
                     self.assertEqual(result.returncode, 0, transcript)
@@ -642,7 +692,7 @@ class SourceMirrorIntegrationTest(unittest.TestCase):
                     shutil.copy2(fetched[0], artifacts / "fetched.MODULE.bazel")
                     shutil.copy2(consumer / "MODULE.bazel.lock", artifacts / "MODULE.bazel.lock")
                 (artifacts / "result.json").write_text(json.dumps({
-                    "corrupt_mirror": corrupt, "status": "passed",
+                    "primary": primary, "fallback": fallback, "status": "passed",
                     "module": "pigz@2.8.bcr.2", "original_archive_sha256": PIGZ_SHA256,
                     "empty_repository_cache": True, "distdir": None,
                     "package_actions_executed": False,

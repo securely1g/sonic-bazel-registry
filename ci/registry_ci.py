@@ -329,8 +329,12 @@ def validate_entry(root: Path, module: str, version: str) -> dict:
        "build_flags/rust_preparation/go_sdk/rust_toolchain/generated_module_overlay/test_runtime_preparation/integration_test_module/host_platforms")
     if "test_runtime_preparation" in config:
         preparation = config["test_runtime_preparation"]
-        require(isinstance(preparation, dict) and set(preparation) == {"script", "sha256"},
-                "test_runtime_preparation requires only script and sha256")
+        require(isinstance(preparation, dict) and {"script", "sha256"} <= set(preparation)
+                and set(preparation) <= {"script", "sha256", "apt_mirror_protocol"},
+                "test_runtime_preparation requires script and sha256, with optional apt_mirror_protocol")
+        if "apt_mirror_protocol" in preparation:
+            require(preparation["apt_mirror_protocol"] == "locked-runtime-v1",
+                    "Unsupported APT runtime preparation protocol")
         script = preparation["script"]
         require(isinstance(script, str) and re.fullmatch(r"[A-Za-z0-9_./-]+\.py", script) is not None
                 and not script.startswith("/") and ".." not in PurePosixPath(script).parts,
@@ -1097,12 +1101,24 @@ def collect_test_logs(bep_path: Path, work_dir: Path, artifacts: Path) -> None:
     (artifacts / "test-results.json").write_text(json.dumps(index, indent=2) + "\n")
 
 
+def read_log_tail(path: Path, max_bytes: int) -> str:
+    """Start at a line boundary so the outer mirror redactor sees complete URLs."""
+    with path.open("rb") as stream:
+        size = stream.seek(0, os.SEEK_END)
+        if size > max_bytes:
+            stream.seek(-(max_bytes + 1), os.SEEK_END)
+            stream.readline()
+        else:
+            stream.seek(0)
+        return stream.read().decode(errors="replace")
+
+
 def run_logged(command: list[str], cwd: Path, log: Path) -> None:
     print(f"Running Bazel validation; log: {log}", flush=True)
     with log.open("w") as output:
         result = subprocess.run(command, cwd=cwd, stdout=output, stderr=subprocess.STDOUT)
     if result.returncode:
-        print(log.read_text()[-16000:], file=sys.stderr)
+        print(read_log_tail(log, 16000), file=sys.stderr)
         raise RegistryError(f"Command failed with status {result.returncode}; see {log}")
 
 
@@ -1231,6 +1247,21 @@ def prepare_test_runtime(config: dict, source: Path, consumer: Path, artifacts: 
     (artifacts / "test-runtime-prepare.py").write_bytes(content)
     receipt_path = artifacts / "test-runtime.json"
     interpreter = "/usr/bin/python3" if executor_prefix else sys.executable
+    mirror_config = os.environ.get("SONIC_APT_MIRROR_CONFIG")
+    if mirror_config and preparation.get("apt_mirror_protocol") == "locked-runtime-v1":
+        mirror_path = Path(mirror_config).resolve()
+        require(mirror_path.is_file() and not mirror_path.is_relative_to(artifacts.resolve()),
+                "Private APT mirror configuration must be a file outside retained artifacts")
+        preparer = Path(__file__).resolve().with_name("apt_runtime_mirrors.py")
+        preparation_prefix = list(executor_prefix or [])
+        if preparation_prefix:
+            require(preparation_prefix[-1] == "--", "Expected the ARM runtime command separator")
+            preparation_prefix[-1:-1] = ["--bind", str(preparer.parent), "--bind", str(mirror_path)]
+        run_logged([*preparation_prefix, interpreter, "-B", str(preparer),
+                    "--owner-script", str(helper), "--owner-sha256", preparation["sha256"],
+                    "--lock", str(lock), "--mirror-config", str(mirror_path),
+                    "--output", str(artifacts / "test-runtime-mirrors.json")],
+                   consumer, artifacts / "test-runtime-mirror-preparation.log")
     run_logged([*(executor_prefix or []), interpreter, "-B", str(helper), "--lock", str(lock),
                 "--image-reference", image_reference, "--output", str(receipt_path)],
                consumer, artifacts / "test-runtime-preparation.log")

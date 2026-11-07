@@ -10,6 +10,10 @@ on:
         description: Test every configured historical version instead of only the latest
         type: boolean
         default: false
+      private_mirror_probe:
+        description: Verify private Debian mirror availability with fresh Bazel downloads
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -30,12 +34,41 @@ jobs:
       has_local_jobs: ${{ steps.plan.outputs.has_local_jobs }}
       hosted_arm_matrix: ${{ steps.plan.outputs.hosted_arm_matrix }}
       has_hosted_arm_jobs: ${{ steps.plan.outputs.has_hosted_arm_jobs }}
+      http_audit_artifact_id: ${{ steps.http_audit_upload.outputs.artifact-id }}
+      mirror_config: ${{ steps.mirror_config.outputs.kind }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
+      # A pull request can run this workflow against a head with the older mirror helper.
+      - name: Identify the checked-out mirror configuration
+        id: mirror_config
+        if: ${{ runner.environment == 'self-hosted' && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && hashFiles('ci/private_mirrors.py') != '' }}
+        run: echo "kind=${{ hashFiles('ci/debian_snapshots.json') != '' && 'roots' || 'dated' }}" >> "$GITHUB_OUTPUT"
+      # The existing Trixie JDK includes jdk.compiler even without a javac CLI.
+      # Optional compile/transfer failures cannot invalidate ordinary planning;
+      # the mirror wrapper reports missing telemetry instead of claiming coverage.
+      - name: Compile the maintained audit source once
+        id: http_audit_build
+        if: ${{ github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) }}
+        continue-on-error: true
+        timeout-minutes: 2
+        run: |
+          set -euo pipefail
+          python3 ci/build_http_audit.py --output "$RUNNER_TEMP/debian-http-audit/debian-http-audit.jar"
+      - name: Publish the same-run audit agent
+        id: http_audit_upload
+        if: steps.http_audit_build.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 2
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: debian-http-audit-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/debian-http-audit/debian-http-audit.jar
+          if-no-files-found: error
+          retention-days: 30
       - name: Select module versions
         id: plan
         shell: bash
@@ -113,6 +146,8 @@ jobs:
 
   unit:
     name: Registry runner tests (${{ matrix.architecture }})
+    needs: plan
+    if: ${{ always() && !cancelled() }}
     strategy:
       fail-fast: false
       matrix:
@@ -134,6 +169,19 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+      - name: Identify the checked-out mirror configuration
+        id: mirror_config
+        if: ${{ contains(matrix.runner, 'self-hosted') && contains(matrix.runner, 'debian-trixie-container') && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && hashFiles('ci/private_mirrors.py') != '' }}
+        run: echo "kind=${{ hashFiles('ci/debian_snapshots.json') != '' && 'roots' || 'dated' }}" >> "$GITHUB_OUTPUT"
+      - name: Download the optional same-run HTTP audit agent
+        id: http_audit_download
+        if: ${{ needs.plan.outputs.http_audit_artifact_id != '' && contains(matrix.runner, 'self-hosted') && contains(matrix.runner, 'debian-trixie-container') }}
+        continue-on-error: true
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ needs.plan.outputs.http_audit_artifact_id }}
+          path: ${{ runner.temp }}/debian-http-audit
+          merge-multiple: true
       - name: Install Bazel for real runner integration tests
         shell: bash
         env:
@@ -158,23 +206,64 @@ jobs:
       - name: Test planning and validation runner
         shell: bash
         env:
-          REGISTRY_CI_TEST_ARTIFACTS: runner-bazel-artifacts
+          REGISTRY_CI_TEST_ARTIFACTS: runner-ci-artifacts/runner-bazel-artifacts
+          HTTP_AUDIT_READY: ${{ steps.http_audit_download.outcome }}
+          DEBIAN_MIRROR_ROOT: ${{ steps.mirror_config.outputs.kind == 'roots' && secrets.DEBIAN_MIRROR_ROOT || '' }}
+          DEBIAN_MIRROR_BASE_URL: ${{ steps.mirror_config.outputs.kind == 'dated' && secrets.DEBIAN_MIRROR_BASE_URL || '' }}
+          DEBIAN_SECURITY_MIRROR_ROOT: ${{ steps.mirror_config.outputs.kind == 'roots' && secrets.DEBIAN_SECURITY_MIRROR_ROOT || '' }}
+          DEBIAN_SECURITY_MIRROR_BASE_URL: ${{ steps.mirror_config.outputs.kind == 'dated' && secrets.DEBIAN_SECURITY_MIRROR_BASE_URL || '' }}
         run: |
           set -euo pipefail
-          python3 ci/run_runner_tests.py --suite native 2>&1 | tee runner-tests.log
-      - name: Retain runner test results
+          mkdir -p runner-ci-artifacts
+          HTTP_AUDIT_ARGS=()
+          if [[ "${HTTP_AUDIT_READY:-}" == success ]]; then
+            HTTP_AUDIT_ARGS=(--http-audit-jar "$RUNNER_TEMP/debian-http-audit/debian-http-audit.jar")
+          fi
+          python3 ci/private_mirrors.py suite \
+            --artifacts runner-ci-artifacts --private-dir "$RUNNER_TEMP/private-mirrors-unit" \
+            --public-config ci/source_mirrors.cfg "${HTTP_AUDIT_ARGS[@]}" \
+            -- python3 ci/run_runner_tests.py --suite native
+      - name: Validate private Debian mirrors from the Trixie runner
+        if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' && inputs.private_mirror_probe && contains(matrix.runner, 'self-hosted') && contains(matrix.runner, 'debian-trixie-container') && github.actor != 'dependabot[bot]' }}
+        shell: bash
+        env:
+          DEBIAN_MIRROR_ROOT: ${{ steps.mirror_config.outputs.kind == 'roots' && secrets.DEBIAN_MIRROR_ROOT || '' }}
+          DEBIAN_MIRROR_BASE_URL: ${{ steps.mirror_config.outputs.kind == 'dated' && secrets.DEBIAN_MIRROR_BASE_URL || '' }}
+          DEBIAN_SECURITY_MIRROR_ROOT: ${{ steps.mirror_config.outputs.kind == 'roots' && secrets.DEBIAN_SECURITY_MIRROR_ROOT || '' }}
+          DEBIAN_SECURITY_MIRROR_BASE_URL: ${{ steps.mirror_config.outputs.kind == 'dated' && secrets.DEBIAN_SECURITY_MIRROR_BASE_URL || '' }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$GITHUB_WORKSPACE/runner-ci-artifacts/private-mirror-probe"
+          python3 ci/private_mirrors.py probe \
+            --artifacts "$GITHUB_WORKSPACE/runner-ci-artifacts/private-mirror-probe" \
+            --private-dir "$RUNNER_TEMP/private-mirrors-unit" \
+            --public-config ci/source_mirrors.cfg \
+            --bazel /usr/local/bin/bazel
+      - name: Check runner evidence for private mirror URLs
+        id: privacy
         if: always()
+        shell: bash
+        env:
+          DEBIAN_MIRROR_ROOT: ${{ steps.mirror_config.outputs.kind == 'roots' && secrets.DEBIAN_MIRROR_ROOT || '' }}
+          DEBIAN_MIRROR_BASE_URL: ${{ steps.mirror_config.outputs.kind == 'dated' && secrets.DEBIAN_MIRROR_BASE_URL || '' }}
+          DEBIAN_SECURITY_MIRROR_ROOT: ${{ steps.mirror_config.outputs.kind == 'roots' && secrets.DEBIAN_SECURITY_MIRROR_ROOT || '' }}
+          DEBIAN_SECURITY_MIRROR_BASE_URL: ${{ steps.mirror_config.outputs.kind == 'dated' && secrets.DEBIAN_SECURITY_MIRROR_BASE_URL || '' }}
+        run: |
+          set -euo pipefail
+          python3 ci/private_mirrors.py check-artifacts --artifacts "$GITHUB_WORKSPACE/runner-ci-artifacts"
+      - name: Retain runner test results
+        if: always() && steps.privacy.outcome == 'success'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: registry-ci-runner-tests-${{ matrix.architecture }}
-          path: |
-            runner-tests.log
-            runner-bazel-artifacts/
+          path: runner-ci-artifacts/
           if-no-files-found: warn
           retention-days: 14
 
   cross_fixture:
     name: ARM cross compiler and runtime fixture
+    needs: plan
+    if: ${{ always() && !cancelled() }}
     runs-on: [self-hosted, Linux, X64, debian-trixie-container]
     timeout-minutes: 60
     env:
@@ -186,6 +275,19 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+      - name: Identify the checked-out mirror configuration
+        id: mirror_config
+        if: ${{ runner.environment == 'self-hosted' && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && hashFiles('ci/private_mirrors.py') != '' }}
+        run: echo "kind=${{ hashFiles('ci/debian_snapshots.json') != '' && 'roots' || 'dated' }}" >> "$GITHUB_OUTPUT"
+      - name: Download the optional same-run HTTP audit agent
+        id: http_audit_download
+        if: ${{ needs.plan.outputs.http_audit_artifact_id != '' }}
+        continue-on-error: true
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ needs.plan.outputs.http_audit_artifact_id }}
+          path: ${{ runner.temp }}/debian-http-audit
+          merge-multiple: true
       - name: Verify cross fixture prerequisites
         shell: bash
         run: |
@@ -195,24 +297,44 @@ jobs:
           [[ -x "$REGISTRY_CI_TEST_BAZEL" && -x "$REGISTRY_CI_TEST_ARM_EXECUTOR" ]]
       - name: Test the cross compiler and ARM runtime
         shell: bash
+        env:
+          HTTP_AUDIT_READY: ${{ steps.http_audit_download.outcome }}
+          DEBIAN_MIRROR_ROOT: ${{ steps.mirror_config.outputs.kind == 'roots' && secrets.DEBIAN_MIRROR_ROOT || '' }}
+          DEBIAN_MIRROR_BASE_URL: ${{ steps.mirror_config.outputs.kind == 'dated' && secrets.DEBIAN_MIRROR_BASE_URL || '' }}
+          DEBIAN_SECURITY_MIRROR_ROOT: ${{ steps.mirror_config.outputs.kind == 'roots' && secrets.DEBIAN_SECURITY_MIRROR_ROOT || '' }}
+          DEBIAN_SECURITY_MIRROR_BASE_URL: ${{ steps.mirror_config.outputs.kind == 'dated' && secrets.DEBIAN_SECURITY_MIRROR_BASE_URL || '' }}
         run: |
           set -euo pipefail
-          python3 ci/run_runner_tests.py --suite cross 2>&1 | tee cross-fixture.log
-      - name: Retain cross fixture results
+          HTTP_AUDIT_ARGS=()
+          if [[ "${HTTP_AUDIT_READY:-}" == success ]]; then
+            HTTP_AUDIT_ARGS=(--http-audit-jar "$RUNNER_TEMP/debian-http-audit/debian-http-audit.jar")
+          fi
+          python3 ci/private_mirrors.py suite \
+            --artifacts cross-fixture-artifacts --private-dir "$RUNNER_TEMP/private-mirrors-cross" \
+            --public-config ci/source_mirrors.cfg "${HTTP_AUDIT_ARGS[@]}" \
+            -- python3 ci/run_runner_tests.py --suite cross
+      - name: Check cross fixture evidence for private mirror URLs
+        id: privacy
         if: always()
+        env:
+          DEBIAN_MIRROR_ROOT: ${{ steps.mirror_config.outputs.kind == 'roots' && secrets.DEBIAN_MIRROR_ROOT || '' }}
+          DEBIAN_MIRROR_BASE_URL: ${{ steps.mirror_config.outputs.kind == 'dated' && secrets.DEBIAN_MIRROR_BASE_URL || '' }}
+          DEBIAN_SECURITY_MIRROR_ROOT: ${{ steps.mirror_config.outputs.kind == 'roots' && secrets.DEBIAN_SECURITY_MIRROR_ROOT || '' }}
+          DEBIAN_SECURITY_MIRROR_BASE_URL: ${{ steps.mirror_config.outputs.kind == 'dated' && secrets.DEBIAN_SECURITY_MIRROR_BASE_URL || '' }}
+        run: python3 ci/private_mirrors.py check-artifacts --artifacts cross-fixture-artifacts
+      - name: Retain cross fixture results
+        if: always() && steps.privacy.outcome == 'success'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: registry-ci-arm-cross-fixture
-          path: |
-            cross-fixture.log
-            cross-fixture-artifacts/
+          path: cross-fixture-artifacts/
           if-no-files-found: warn
           retention-days: 14
 
   modules_local:
     name: ${{ matrix.module }} ${{ matrix.version }} (${{ matrix.architecture }})
     needs: plan
-    if: needs.plan.outputs.has_local_jobs == 'true'
+    if: ${{ always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.has_local_jobs == 'true' }}
     strategy:
       fail-fast: false
       # One module budget per run covers native AMD64 and every ARM cross job.
@@ -226,6 +348,13 @@ jobs:
       execution_architecture: ${{ matrix.execution_architecture }}
       cross_compile: ${{ matrix.cross_compile }}
       runner: ${{ toJSON(matrix.runner) }}
+      http_audit_artifact_id: ${{ needs.plan.outputs.http_audit_artifact_id }}
+    # Public/fork runs keep the existing download candidates without these secrets.
+    secrets:
+      DEBIAN_MIRROR_ROOT: ${{ contains(matrix.runner, 'self-hosted') && contains(matrix.runner, 'debian-trixie-container') && needs.plan.outputs.mirror_config == 'roots' && secrets.DEBIAN_MIRROR_ROOT || '' }}
+      DEBIAN_MIRROR_BASE_URL: ${{ contains(matrix.runner, 'self-hosted') && contains(matrix.runner, 'debian-trixie-container') && needs.plan.outputs.mirror_config == 'dated' && secrets.DEBIAN_MIRROR_BASE_URL || '' }}
+      DEBIAN_SECURITY_MIRROR_ROOT: ${{ contains(matrix.runner, 'self-hosted') && contains(matrix.runner, 'debian-trixie-container') && needs.plan.outputs.mirror_config == 'roots' && secrets.DEBIAN_SECURITY_MIRROR_ROOT || '' }}
+      DEBIAN_SECURITY_MIRROR_BASE_URL: ${{ contains(matrix.runner, 'self-hosted') && contains(matrix.runner, 'debian-trixie-container') && needs.plan.outputs.mirror_config == 'dated' && secrets.DEBIAN_SECURITY_MIRROR_BASE_URL || '' }}
 
   modules_hosted_arm:
     name: ${{ matrix.module }} ${{ matrix.version }} (${{ matrix.architecture }})

@@ -1,0 +1,36 @@
+Subject: Preserve the declared order of union enumeration types
+
+Management-common's generated bindings must keep the YANG union's declared
+subtype order. Iterating a Go map can reorder the generated reflection map,
+for example from declared ZULU, ALPHA to ALPHA, ZULU. Sort by the recorded
+declaration index, using names only to break equal indices.
+The shared owner's union-order regression exercises this generator output.
+
+Origin: Unmodified diff from sonic-mgmt-common's
+patches/0003-ygot-preserve-union-enum-order.patch at merged commit
+f5361ba8b88cde7ec59bdb4652a986c68d66da64:
+https://github.com/securely1g/sonic-mgmt-common/blob/f5361ba8b88cde7ec59bdb4652a986c68d66da64/patches/0003-ygot-preserve-union-enum-order.patch
+
+--- a/ygen/gogen.go
++++ b/ygen/gogen.go
+@@ -1321,7 +1321,20 @@
+ 					ParentReceiver: targetStruct.Name,
+ 				}
+ 
++				// UnionTypes records the declared subtype order as map values.
++				// Keep that order in the enum reflection candidates as well.
++				orderedTypes := make([]string, 0, len(mtype.UnionTypes))
+ 				for t := range mtype.UnionTypes {
++					orderedTypes = append(orderedTypes, t)
++				}
++				sort.Slice(orderedTypes, func(i, j int) bool {
++					left, right := mtype.UnionTypes[orderedTypes[i]], mtype.UnionTypes[orderedTypes[j]]
++					if left != right {
++						return left < right
++					}
++					return orderedTypes[i] < orderedTypes[j]
++				})
++				for _, t := range orderedTypes {
+ 					// If the type within the union is not a builtin type then we store
+ 					// it within the enumMap, since it is an enumerated type.
+ 					if _, builtin := validGoBuiltinTypes[t]; !builtin {
