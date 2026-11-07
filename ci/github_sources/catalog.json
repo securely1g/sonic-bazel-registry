@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "inputs": [
+    {
+      "module": "libteam",
+      "version": "1.31.0.sonic.1",
+      "execution_architecture": "amd64",
+      "manifests": ["cosmos-4.0.2.json"]
+    },
+    {
+      "module": "libteam",
+      "version": "1.31.0.sonic.1",
+      "execution_architecture": "arm64",
+      "manifests": ["cosmos-4.0.2.json"]
+    }
+  ]
+}
