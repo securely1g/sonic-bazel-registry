@@ -122,9 +122,32 @@ jobs:
             printf '%s  %s\n' "$bazel_sha" /tmp/bazel | sha256sum --check --strict
             install -m 0755 /tmp/bazel /usr/local/bin/bazel
           fi
+      - name: Record module validation storage
+        env:
+          STORAGE_PHASE: before-validation
+        run: |
+          python3 - <<'PY_STORAGE'
+          import json, os
+          from pathlib import Path
+          rows = {}
+          for label, variable in (("workspace", "GITHUB_WORKSPACE"), ("scratch", "RUNNER_TEMP")):
+              path = Path(os.environ[variable])
+              try:
+                  usage = os.statvfs(path)
+                  rows[label] = {"device": path.stat().st_dev,
+                                 "free_bytes": usage.f_bavail * usage.f_frsize,
+                                 "total_bytes": usage.f_blocks * usage.f_frsize,
+                                 "free_inodes": usage.f_favail,
+                                 "total_inodes": usage.f_files}
+              except OSError as error:
+                  rows[label] = {"measurement_error_errno": error.errno}
+          print(json.dumps({"phase": os.environ["STORAGE_PHASE"], "storage": rows}, sort_keys=True))
+          PY_STORAGE
       - name: Build and test through the registry
         env:
           HTTP_AUDIT_READY: ${{ steps.http_audit_download.outcome }}
+          # Temporary no-DEB scope for the evidence diagnostics; remove before Ready.
+          SOURCE_ONLY_NO_DEBS: ${{ (github.head_ref || github.ref_name) == 'codex/registry-evidence-diagnostics' }}
           DEBIAN_MIRROR_ROOT: ${{ steps.mirror_config.outputs.kind == 'roots' && secrets.DEBIAN_MIRROR_ROOT || '' }}
           DEBIAN_MIRROR_BASE_URL: ${{ steps.mirror_config.outputs.kind == 'dated' && secrets.DEBIAN_MIRROR_BASE_URL || '' }}
           DEBIAN_SECURITY_MIRROR_ROOT: ${{ steps.mirror_config.outputs.kind == 'roots' && secrets.DEBIAN_SECURITY_MIRROR_ROOT || '' }}
@@ -143,7 +166,7 @@ jobs:
           if [[ "$CI_EXECUTION_ARCHITECTURE" == amd64 ]]; then
             TEST_CONTAINER_IMAGE="${SONIC_RUNNER_IMAGE_REFERENCE:?Missing runner image identity}"
             ROOT=(sudo -n)
-            SECRET_ENV=(--preserve-env=DEBIAN_MIRROR_ROOT,DEBIAN_SECURITY_MIRROR_ROOT,DEBIAN_MIRROR_BASE_URL,DEBIAN_SECURITY_MIRROR_BASE_URL,GITHUB_ACTIONS)
+            SECRET_ENV=(--preserve-env=DEBIAN_MIRROR_ROOT,DEBIAN_SECURITY_MIRROR_ROOT,DEBIAN_MIRROR_BASE_URL,DEBIAN_SECURITY_MIRROR_BASE_URL,GITHUB_ACTIONS,SOURCE_ONLY_NO_DEBS)
             # Bazel's default heap is too small for large dependency graphs
             # inside the runner's 16 GiB memory limit.
             BAZEL_STARTUP_ARGS=(--bazel-startup-arg=--host_jvm_args=-Xmx2g)
@@ -169,6 +192,28 @@ jobs:
             --work-dir "$RUNNER_TEMP/registry-ci" \
             --artifacts "$GITHUB_WORKSPACE/ci-artifacts" \
             --test-container-image "$TEST_CONTAINER_IMAGE"
+      - name: Record storage after failed module validation
+        if: failure()
+        env:
+          STORAGE_PHASE: failed-validation
+        run: |
+          python3 - <<'PY_STORAGE'
+          import json, os
+          from pathlib import Path
+          rows = {}
+          for label, variable in (("workspace", "GITHUB_WORKSPACE"), ("scratch", "RUNNER_TEMP")):
+              path = Path(os.environ[variable])
+              try:
+                  usage = os.statvfs(path)
+                  rows[label] = {"device": path.stat().st_dev,
+                                 "free_bytes": usage.f_bavail * usage.f_frsize,
+                                 "total_bytes": usage.f_blocks * usage.f_frsize,
+                                 "free_inodes": usage.f_favail,
+                                 "total_inodes": usage.f_files}
+              except OSError as error:
+                  rows[label] = {"measurement_error_errno": error.errno}
+          print(json.dumps({"phase": os.environ["STORAGE_PHASE"], "storage": rows}, sort_keys=True))
+          PY_STORAGE
       - name: Archive module validation results
         id: archive
         if: always()
