@@ -29,7 +29,11 @@ case "${1:-}" in
 if [ "$#" -eq 1 ] && [ "$1" = "--version" ]; then
     exec /usr/local/lib/bazel-8.5.1 --version
 fi
+# With the bundled JDK under QEMU, Bazel can leave downloads queued while
+# every virtual-thread carrier is parked. Let the OS schedule each thread.
 exec /usr/local/lib/bazel-8.5.1 \
+    --host_jvm_args=-XX:+UnlockExperimentalVMOptions \
+    --host_jvm_args=-XX:-VMContinuations \
     --host_jvm_args=-Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts \
     --host_jvm_args=-Xmx2g "$@"
 LAUNCHER

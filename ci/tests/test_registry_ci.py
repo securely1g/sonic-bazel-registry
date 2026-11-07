@@ -2356,6 +2356,24 @@ class TestContainerTests(unittest.TestCase):
                 else:
                     self.assertFalse((root / "SUDO_LOG").exists())
 
+    def test_pilot_arm_launcher_uses_platform_threads_for_bazel(self):
+        helper = (registry_ci.ROOT / "ci/pilot_arm.sh").read_text()
+        launcher = helper.split("<<'LAUNCHER'\n", 1)[1].split("\nLAUNCHER", 1)[0]
+        # Use printf as Bazel to inspect exactly which arguments the launcher passes.
+        launcher = launcher.replace("/usr/local/lib/bazel-8.5.1", "/usr/bin/printf '%s\\n'")
+
+        def arguments(*args):
+            return subprocess.check_output(["sh", "-c", launcher, "bazel", *args],
+                                           text=True).splitlines()
+
+        self.assertEqual(arguments("--version"), ["--version"])
+        flags = arguments("build", "//:data")
+        self.assertEqual(flags[-2:], ["build", "//:data"])
+        unlock = flags.index("--host_jvm_args=-XX:+UnlockExperimentalVMOptions")
+        platform_threads = flags.index("--host_jvm_args=-XX:-VMContinuations")
+        self.assertLess(unlock, platform_threads)
+        self.assertLess(platform_threads, flags.index("build"))
+
     def test_pilot_limits_nested_p4c_compilers_for_targets_and_tools(self):
         workflow = (registry_ci.ROOT / ".github/workflows/registry-module.yml").read_text()
         script = self.step(workflow, "Build and test through the registry")
