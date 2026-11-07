@@ -37,6 +37,9 @@ LAUNCHER
             set -- run bash -ec '
                 test "$(dpkg --print-architecture)" = arm64
                 test "$(uname -m)" = aarch64
+                # rules_distroless runs zstd with argv[0]=gzip when it writes
+                # content.tar.gz from a Debian package. Verify the same pipeline.
+                test "$(printf pilot | (exec -a gzip /usr/bin/zstd -n) | gzip -dc)" = pilot
                 # Actions checks out files as the runner account. The Debian
                 # module job executes as root, so trust this checkout only.
                 git -C / config --global --add safe.directory "$GITHUB_WORKSPACE"
@@ -81,10 +84,11 @@ LAUNCHER
         mount -t binfmt_misc binfmt_misc "$binfmt"
         [[ $(stat -c %d "$binfmt") != "$parent_device" ]]
         # ELF64, little-endian, ET_EXEC/ET_DYN, EM_AARCH64. F opens the
-        # static QEMU interpreter before chroot so nested ARM execve works.
+        # static QEMU interpreter before chroot. P and the packaged -binfmt-P
+        # alias preserve argv[0] for programs that select behavior by name.
         magic='\x7fELF\x02\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\xb7\x00'
         mask='\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff'
-        printf ':pilot-aarch64:M::%s:%s:/usr/bin/qemu-aarch64:F\n' "$magic" "$mask" > "$binfmt/register"
+        printf ':pilot-aarch64:M::%s:%s:/usr/libexec/qemu-binfmt/aarch64-binfmt-P:PF\n' "$magic" "$mask" > "$binfmt/register"
         mount --bind /proc "$guest/proc"
         mkdir -p "$guest/root"
         # The Actions temporary script and repository have the same absolute

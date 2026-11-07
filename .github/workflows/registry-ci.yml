@@ -231,6 +231,7 @@ jobs:
       - name: Test planning and validation runner
         shell: *unit_shell
         env:
+          REGISTRY_CI_EMULATED_ARM: ${{ needs.plan.outputs.pilot == 'true' && matrix.architecture == 'arm64' }}
           REGISTRY_CI_TEST_ARTIFACTS: runner-ci-artifacts/runner-bazel-artifacts
           HTTP_AUDIT_READY: ${{ steps.http_audit_download.outcome }}
           DEBIAN_MIRROR_ROOT: ${{ steps.mirror_config.outputs.kind == 'roots' && secrets.DEBIAN_MIRROR_ROOT || '' }}
