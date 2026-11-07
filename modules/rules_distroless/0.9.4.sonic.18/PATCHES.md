@@ -516,3 +516,31 @@ libyang consumer's 62-module graph also passes with the original 2 GiB Java heap
 its lock shrank from 679,113,658 to 46,814,311 bytes. The independent registry
 fixture passes eight focused tests for AMD64 and ARM64 package selection.
 These are local results; normal PR CI must pass on the newly published head.
+
+## Declared runtime-library link search (0038)
+
+Before this change, the native provider declared runtime DSOs and interface
+files but omitted their link-time search directories. SONiC's sysrooted GCC
+linker could select `libzmq.so.5` yet fail to locate its private `DT_NEEDED`
+libraries: `libbsd.so.0`, `libsodium.so.23`, `libpgm-5.3.so.0`, `libnorm.so.1`
+and `libgssapi_krb5.so.2`. This affected both the Rust listener test and the
+C++ eventd test; adding the compiler host's native inspection tools alone
+does not resolve it.
+
+Patch 0038 attaches explicit `-rpath-link` directories to the library-bearing
+inputs produced by `so_library` and the ordered `native_link_sequence`. The
+source DSOs remain declared inputs, and generated SONAME symlinks are explicit
+link-action inputs even when the linker otherwise consumes only an interface
+file. Repeated `-Xlinker` arguments remain in an ordered list. The change adds
+no direct library selection or runtime RPATH, and preserves the existing
+static/dynamic link sequence and prepared-lock transport.
+
+The separate `tests/integration/native_runtime:indirect_dependency_test`
+constructs a parent DSO and two private DSOs in different directories. Two
+compiler invocations consume the real direct/ordered `CcInfo` flags and link
+inputs without inferred runtime search paths. The test fails to link on the
+previous candidate and passes with the correction. It checks that both
+executables retain only the parent as a direct fixture `DT_NEEDED` dependency,
+contain no RPATH/RUNPATH, and run with eager relocation against the declared
+fixture DSOs. The fixture exposes interface files as link inputs, so runtime
+symlink paths must come from the provider's explicit action inputs.
