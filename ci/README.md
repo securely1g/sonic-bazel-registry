@@ -909,6 +909,8 @@ Historical versions outside the map use hosted ARM64.
 | `sonic-dash-api` | `0.0.5-9b2893e890734a2db0c53a5e5c64b031ec0dcfbd` | 8 / 5 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127363604452) |
 | `sonic-linux-kernel` | `0.0.2-34a53faaecd325509e9d8f1016ed0108ab558a23` | 5 / 5 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127391886151) |
 | `sonic-rust-deps` | `0.0.4-6d9c70f708d7420e9e2b2cdc906b80cee6b140f1` | 6 / 4 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127417149111) |
+| `sonic-sairedis` | `0.0.5-a1568983582654314c43aab421b32ab563ed860c` | 19 / 7 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42237091438) |
+| `sonic-swss` | `0.0.3-42df8c74af53427be97609a7b11e9aec59d2d454` | 7 / 3 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42238852494/job/127963546293) |
 | `sonic-yang-mgmt` | `1.0.0-9ab452d22773c41783092ae3bd6c206d6c257c8d` | 2 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127454762848) |
 | `sonic-yang-models` | `1.0.1-b0a9362a7a1b4b5e1b7188c019d256f7c8aaff9f` | 3 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127456801062) |
 | `tar.bzl` | `0.10.5.sonic.2` | 8 / 7 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127457427548) |
@@ -953,6 +955,21 @@ PI `0.1.3.sonic.3` also uses the Debian cross runners. Its runtime test builds
 and runs a consumer of the installed ARM64 SDK and converts P4Info using the
 installed tools. All four original builds and the uncached test passed.
 [Full ARM64 validation](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42180002707/job/127767164854)
+
+SWSS 0.0.3 selects its Sairedis and libteam dependencies directly. Its cross
+job allows six hours for a cold serial C++ build and keeps the three original
+runtime tests. [Cross-build and runtime tests](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42238852494/job/127963546293)
+
+Sairedis stages its declared ARM loader and libraries using the original test
+wrappers. Its ASIC comparison and ZeroMQ signal fixtures run those wrappers
+with native shell and Python, then execute the AArch64 payload through kernel
+binfmt. The other five original tests use the ARM userspace executor.
+
+SWSS depends on libteam. Its native AMD64 archive build uses the APE loader,
+assimilator and gzip tool pinned by Cosmos 4.0.2. CI fetches the official
+release archive when these files are absent, verifies each member against its
+locked SHA256, and supplies them to Bazel through `--distdir`.
+[Official release](https://github.com/jart/cosmopolitan/releases/tag/4.0.2)
 
 The iproute2 6.15.0.sonic.7 cross route builds all four original targets and
 executes both original tests. Its runtime test checks the package, and the
@@ -1009,6 +1026,17 @@ Evidence retains both graphs, provider lock and manifests, generated adapter and
 platform definitions, declared/effective platform identities, and the selected
 infra version and toolchain reuse decision. The registration allowlist is
 source-level evidence; actual toolchain and runtime acceptance remain separate.
+
+The selected-version check uses the complete module-only JSON from pinned
+Bazel 8.5.1. Its [`mod graph` implementation](https://github.com/bazelbuild/bazel/blob/8.5.1/src/main/java/com/google/devtools/build/lib/bazel/commands/ModCommand.java)
+also inspects every extension, including unused extensions. A failure solely in
+that later inspection does not invalidate the already resolved module versions.
+CI accepts only its exact exit-2 inspection diagnostic together with a complete,
+unfiltered graph; every reference must have an expanded node. It retains the
+original graph, stderr and `*-status.json`, marking extension inspection
+incomplete. Resolution failures, malformed/truncated graphs and changed selected
+versions still fail. The original build and test commands independently evaluate
+all extensions they actually need; their failures are never suppressed.
 
 The supplied executor runs unchanged ARM tests with QEMU user-mode and PRoot in
 an ARM64 Trixie filesystem. This provides emulated userspace execution, not
