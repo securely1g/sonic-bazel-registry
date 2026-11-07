@@ -52,11 +52,13 @@ jobs:
   validate:
     name: Validate module
     runs-on: ${{ fromJSON(inputs.runner) }}
-    # BMv2 takes over an hour on native ARM. Its compiler and tests run under
-    # QEMU in the pilot. P4C and its DASH consumer also compile C++ serially.
+    # P4C took three hours to compile serially on AMD64. A single emulated
+    # C++ compiler can take 8–14 times as long, before DASH builds its own SDK.
+    # BMv2 takes over an hour on native ARM before accounting for emulation.
     timeout-minutes: >-
-      ${{ inputs.emulated_arm &&
-          (contains(fromJSON('["p4c","p4lang-bmv2","sonic-dash","sonic-swss","sonic-sairedis","sonic-swss-common"]'), inputs.module) && 1440 || 720)
+      ${{ inputs.emulated_arm && contains(fromJSON('["p4c","sonic-dash"]'), inputs.module) && 4320
+          || inputs.emulated_arm && contains(fromJSON('["p4lang-bmv2","sonic-swss","sonic-sairedis","sonic-swss-common"]'), inputs.module) && 1440
+          || inputs.emulated_arm && 720
           || contains(fromJSON(inputs.runner), 'debian-trixie-k3s-fleet-pilot') &&
              contains(fromJSON('["p4c","sonic-dash"]'), inputs.module) && 360
           || 180 }}
