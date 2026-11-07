@@ -1099,14 +1099,14 @@ REGISTRY_CI_TEST_ARM_EXECUTOR=/usr/local/bin/sonic-arm64 \
   /usr/bin/python3 -I -S ci/run_runner_tests.py --suite cross
 ```
 
-This foundation is not acceptance of the full ARM matrix. Before moving a module
-row, validate its complete original build and uncached-test contract with the
-native-generator/ARM-output foundation, unchanged source pins and resolution
-receipts. The table above records the completed contracts, including SAI and
-protobuf. Remaining gaps include nested Bazel execution in rules_go, SWSS
-resolution/runtime behavior, and libyang's full upstream suite. P4C/PI source candidates and FIPS cross-tool work
-remain separate module changes; transitive consumers retain their published
-dependency pins. No source recipe or image change is included here.
+Validate an ARM64 cross build by building all declared targets and running all
+original tests uncached. Check the source pins, resolved dependencies, native
+build tools and ARM64 outputs in the job artifacts.
+
+At `6a6cc51`, all 27 then-current ARM64 module jobs passed on the Trixie cross
+runners, along with all 40 native AMD64 module jobs. Socat `1.8.0.2.sonic.6`
+subsequently passed all four declared builds and its original ARM64 package test.
+[Full registry run](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42346990641) · [Socat ARM64 run](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42357769679/job/128359533126)
 
 ## Local reproduction
 
