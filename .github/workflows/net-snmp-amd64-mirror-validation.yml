@@ -1,0 +1,73 @@
+name: Isolated Net-SNMP AMD64 validation
+
+on:
+  create:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: net-snmp-amd64-mirror-validation-${{ github.ref }}-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    name: Prepare the existing optional HTTP audit agent
+    if: ${{ (github.event_name == 'create' && github.repository == 'securely1g/sonic-bazel-registry' && github.event.ref_type == 'branch' && github.ref == 'refs/heads/codex/net-snmp-amd64-mirror-validation') }}
+    runs-on: [self-hosted, Linux, X64, debian-trixie-container]
+    timeout-minutes: 10
+    outputs:
+      http_audit_artifact_id: ${{ steps.http_audit_upload.outputs.artifact-id }}
+      mirror_config: ${{ steps.mirror_config.outputs.kind }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      # Classify the mirror helper checked out from this created branch.
+      - name: Identify the checked-out mirror configuration
+        id: mirror_config
+        if: ${{ runner.environment == 'self-hosted' && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name == 'create' && github.repository == 'securely1g/sonic-bazel-registry' && github.event.ref_type == 'branch' && github.ref == 'refs/heads/codex/net-snmp-amd64-mirror-validation')) && hashFiles('ci/private_mirrors.py') != '' }}
+        run: echo "kind=${{ hashFiles('ci/debian_snapshots.json') != '' && 'roots' || 'dated' }}" >> "$GITHUB_OUTPUT"
+      # The existing Trixie JDK includes jdk.compiler even without a javac CLI.
+      # Optional compile/transfer failures cannot invalidate ordinary planning;
+      # the mirror wrapper reports missing telemetry instead of claiming coverage.
+      - name: Compile the maintained audit source once
+        id: http_audit_build
+        if: ${{ github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name == 'create' && github.repository == 'securely1g/sonic-bazel-registry' && github.event.ref_type == 'branch' && github.ref == 'refs/heads/codex/net-snmp-amd64-mirror-validation')) }}
+        continue-on-error: true
+        timeout-minutes: 2
+        run: |
+          set -euo pipefail
+          python3 ci/build_http_audit.py --output "$RUNNER_TEMP/debian-http-audit/debian-http-audit.jar"
+      - name: Publish the same-run audit agent
+        id: http_audit_upload
+        if: steps.http_audit_build.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 2
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: debian-http-audit-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/debian-http-audit/debian-http-audit.jar
+          if-no-files-found: error
+          retention-days: 30
+
+  net_snmp_amd64:
+    name: net-snmp 5.9.3.sonic.1 (amd64)
+    needs: audit
+    if: ${{ !cancelled() && needs.audit.result == 'success' && (github.event_name == 'create' && github.repository == 'securely1g/sonic-bazel-registry' && github.event.ref_type == 'branch' && github.ref == 'refs/heads/codex/net-snmp-amd64-mirror-validation') }}
+    uses: ./.github/workflows/registry-module.yml
+    with:
+      module: net-snmp
+      version: 5.9.3.sonic.1
+      architecture: amd64
+      execution_architecture: amd64
+      cross_compile: false
+      runner: '["self-hosted","Linux","X64","debian-trixie-container"]'
+      http_audit_artifact_id: ${{ needs.audit.outputs.http_audit_artifact_id }}
+    secrets:
+      DEBIAN_MIRROR_ROOT: ${{ needs.audit.outputs.mirror_config == 'roots' && secrets.DEBIAN_MIRROR_ROOT || '' }}
+      DEBIAN_MIRROR_BASE_URL: ${{ needs.audit.outputs.mirror_config == 'dated' && secrets.DEBIAN_MIRROR_BASE_URL || '' }}
+      DEBIAN_SECURITY_MIRROR_ROOT: ${{ needs.audit.outputs.mirror_config == 'roots' && secrets.DEBIAN_SECURITY_MIRROR_ROOT || '' }}
+      DEBIAN_SECURITY_MIRROR_BASE_URL: ${{ needs.audit.outputs.mirror_config == 'dated' && secrets.DEBIAN_SECURITY_MIRROR_BASE_URL || '' }}
