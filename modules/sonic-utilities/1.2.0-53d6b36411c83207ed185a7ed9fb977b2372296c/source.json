@@ -1,0 +1,8 @@
+{
+  "url": "https://github.com/yxieca/sonic-utilities/archive/53d6b36411c83207ed185a7ed9fb977b2372296c.tar.gz",
+  "strip_prefix": "sonic-utilities-53d6b36411c83207ed185a7ed9fb977b2372296c",
+  "integrity": "sha256-0l7rkkEmeC1rAi7XcnIvDqsC0Av5UXhmmg6k7YGxUyw=",
+  "overlay": {
+    "MODULE.bazel": "sha256-XXUezJkkK3bJHJsn+SgF2jjwEdefuJUO//vrHTO1qPM="
+  }
+}
