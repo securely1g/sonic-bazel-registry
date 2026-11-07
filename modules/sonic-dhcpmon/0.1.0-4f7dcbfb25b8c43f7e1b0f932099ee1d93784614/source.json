@@ -1,0 +1,8 @@
+{
+  "url": "https://github.com/yxieca/sonic-dhcpmon/archive/4f7dcbfb25b8c43f7e1b0f932099ee1d93784614.tar.gz",
+  "strip_prefix": "sonic-dhcpmon-4f7dcbfb25b8c43f7e1b0f932099ee1d93784614",
+  "integrity": "sha256-IA3MooI9kRDD2TrGlGMe8CVUOnj8FrR7VuCPdqTIgeg=",
+  "overlay": {
+    "MODULE.bazel": "sha256-/Iw/aNaDtRJksk3dnMGfBv3ziLRcAsPxV2REguvH7QU="
+  }
+}
