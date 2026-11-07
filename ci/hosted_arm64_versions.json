@@ -1,0 +1,150 @@
+{
+  "iproute2": [
+    "6.15.0.sonic.1",
+    "6.15.0.sonic.2",
+    "6.15.0.sonic.3",
+    "6.15.0.sonic.4",
+    "6.15.0.sonic.5"
+  ],
+  "libnl3": [
+    "3.7.0.sonic.3",
+    "3.7.0.sonic.4",
+    "3.7.0.sonic.5",
+    "3.7.0.sonic.6"
+  ],
+  "libyang-python": [
+    "3.1.0-sonic.1",
+    "3.1.0.sonic.2",
+    "3.1.0.sonic.3",
+    "3.1.0.sonic.4",
+    "3.1.0.sonic.5"
+  ],
+  "libyang": [
+    "3.12.2.sonic.1",
+    "3.12.2.sonic.2",
+    "3.12.2.sonic.3",
+    "3.12.2.sonic.4",
+    "3.12.2.sonic.5",
+    "3.12.2.sonic.6"
+  ],
+  "p4c": [
+    "1.2.4.2.sonic.1",
+    "1.2.4.2.sonic.2"
+  ],
+  "p4lang-bmv2": [
+    "1.15.0.sonic.1",
+    "1.15.0.sonic.2",
+    "1.15.0.sonic.3"
+  ],
+  "p4lang-pi": [
+    "0.1.3.sonic.1",
+    "0.1.3.sonic.2"
+  ],
+  "protobuf-legacy": [
+    "3.21.12-sonic.1"
+  ],
+  "rules_distroless": [
+    "0.9.4-sonic.1",
+    "0.9.4.sonic.1",
+    "0.9.4.sonic.10",
+    "0.9.4.sonic.11",
+    "0.9.4.sonic.12",
+    "0.9.4.sonic.13",
+    "0.9.4.sonic.14",
+    "0.9.4.sonic.15",
+    "0.9.4.sonic.16",
+    "0.9.4.sonic.5",
+    "0.9.4.sonic.6",
+    "0.9.4.sonic.7",
+    "0.9.4.sonic.8",
+    "0.9.4.sonic.9"
+  ],
+  "rules_go": [
+    "0.64.1-sonic.1"
+  ],
+  "socat": [
+    "1.8.0.2.sonic.1",
+    "1.8.0.2.sonic.2",
+    "1.8.0.2.sonic.3",
+    "1.8.0.2.sonic.4"
+  ],
+  "sonic-build-infra": [
+    "0.0.13-ff408bafc35ce0e3d7a0bd27803debdc2a921de6",
+    "0.0.14-5859f7e63b6bff0f601a9b8d00853fa3ae7f216e",
+    "0.0.14-f9876051703da05af745ffc781706e29fed7dd4b",
+    "0.0.15-199a3d5aa97a6c5260cb7ca4bb5eb36cafb1a57a",
+    "0.0.15-62a7892228a72a1a98b9659432d67842172a9266",
+    "0.0.15-6653ac1a0b15488a4b54f69ca78440b52be3ccf8",
+    "0.0.15-8043a299756436464a8b58662921dfd50172a3ff",
+    "0.0.16-07a777db629f29ef17c2e65ee30455e2df13fe93",
+    "0.0.16-1d6990a2ba2980315f086a461a08312bbc3f217c",
+    "0.0.16-4429ada56a20a9d9cb01369271766991974472bb",
+    "0.0.17-306286c253b22b6bf2a75732c82bbf3d00e77cb7",
+    "0.0.17-8baf1ad829c5095297d85148b042145b87d623a3",
+    "0.0.18-95cd3a9050551247063ef31eea4a48269dc50866",
+    "0.0.20-b2aee6e323cf193fc7a034e2c5f71a3fd04e4160",
+    "0.0.21-b541569502affaf04befe9596969f3d74b979ad6",
+    "0.0.22-a12bc826d6f811a157db5c7c02a2fe033896cc14",
+    "0.0.23-5b224d7190d04f1b7b68429eedfc03b7b1565ed0",
+    "0.0.24-1edc72338fc6c79b737fc37d86ebd727969809c4",
+    "0.0.25-17a1e555291c64be1a6ff008f33352bffc4f8e5c",
+    "0.0.25-34de7330abc72229dfc8dab88dec71b89c52aa88",
+    "0.0.6-553b2f70f9ba77b74befdf77674894166139ddcc",
+    "0.0.8-e8b05b109187345586a18628ad01626e69c02fbe"
+  ],
+  "sonic-dash-api": [
+    "0.0.4-2a6e390b96a4fc17c191fa0da4b7ed1f40aed069"
+  ],
+  "sonic-dash": [
+    "0.0.1-97c07d05193e346bc990e816e30a7e3d72e8f4c0",
+    "0.0.2-5c9305403585a7ae54f86918219acb8ed39f740a"
+  ],
+  "sonic-fips": [
+    "0.0.2-da444a14aea8483fcb8df84d0a049bf9db0fb15a",
+    "0.0.2-df34b541eb08d1a6a4b039e69c4d716c84566061",
+    "0.0.3-0565bc0426dde6a1e7c495de17707c9557f843a9",
+    "0.0.3-15fcb926a302059ec379f0c2fd15eb3d88bda4c9",
+    "0.0.3-401a5d7ea7d741f405f4ccd8b7de94678d27ad4c",
+    "0.0.3-44d18af69f1b1868cebd41a93a76feb7c0b9a0f6",
+    "0.0.3-d1a2c8f692d4197295269ed445022c3890b0f1a6",
+    "0.0.4-ef423363e8fd50358f0aa2a8a20d3e08d4450a56"
+  ],
+  "sonic-linux-kernel": [
+    "0.0.1-1e74fb590397a3abb289a45e5a1a9d3690379f9f",
+    "0.0.1-fbfb9d6bb89705ad2c49fd48cfc608061cf0d83a"
+  ],
+  "sonic-rust-deps": [
+    "0.0.1-7707c0f4ab0a624941924fb02e5d908d86962277",
+    "0.0.2-127e89b9396824166caa6a300872398c6896bfec"
+  ],
+  "sonic-sairedis": [
+    "0.0.0-e9402b77ba43aee6323665921598ef67e66293f9",
+    "0.0.1-1a6eb685de84d73b5939d269af1dc3e1fa71ff50",
+    "0.0.1-befd501a41549c9fedea9a116d081a6ad542cbe3",
+    "0.0.2-54233eede3bb2eb319f6041bc8329586483012d0",
+    "0.0.3-5e765149371aeca207254641873791db76a95f5f",
+    "0.0.4-ee19458a7d1b417317aaf34fe48969da7293d670"
+  ],
+  "sonic-swss-common": [
+    "0.0.0-120a955096bb18413d170d42b30668dc7a9b7f68",
+    "0.0.0-5ee19a9375e667c0d507239927745de8fa29be07",
+    "0.0.0-99572f5a34e7f408dee49eaf2a3ba60c5d443fb6",
+    "0.0.1-6e0204634f2f78605abdd94ea2b013a46e0660ac",
+    "0.0.2-cec18aae143f8b0338703ca0ab2683a60ef2465d",
+    "0.0.4-db8f451c76fdc1135cd40f585c218e7d589a7223",
+    "0.0.5-326ca764197ac788dfd55aa935ff728180745bde",
+    "0.0.6-be3495e6958310cb3dd02d6a290a6564efd9aa95",
+    "0.0.7-f7fda40c02b3a8b4bbbff3d17fca3dff83f4cbad",
+    "0.0.8-a0450924719a9f706125cc44a07dc88934935003"
+  ],
+  "sonic-swss": [
+    "0.0.1-88d9cc2bcda39b0ebac16c95de9601e62021e3eb"
+  ],
+  "sonic-yang-models": [
+    "1.0.0-9ab452d22773c41783092ae3bd6c206d6c257c8d"
+  ],
+  "tar.bzl": [
+    "0.10.5-sonic.1",
+    "0.10.5.sonic.1"
+  ]
+}
