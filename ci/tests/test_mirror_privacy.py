@@ -375,6 +375,178 @@ class PrivacyTest(unittest.TestCase):
         privacy.Redactor([]).scrub_and_scan(self.artifacts)
         self.assertEqual(path.read_text(), URL)
 
+    def budgeted(self, blocks):
+        block = os.statvfs(self.artifacts).f_frsize
+        budget = privacy.TemporaryBudget(self.root, maximum_bytes=blocks * block,
+                                         minimum_free_bytes=block)
+        return privacy.Redactor([URL], temporary_budget=budget), budget, block
+
+    def test_budget_releases_sequential_archives_without_counting_plain_elf(self):
+        redactor, budget, block = self.budgeted(3)
+        payload = tar_bytes("file", b"safe")
+        self.assertLessEqual(len(payload), budget.maximum_bytes)
+        for name in ("first.tar", "second.tar"):
+            (self.artifacts / name).write_bytes(payload)
+        (self.artifacts / "plain.so").write_bytes(b"\x7fELF" + b"x" * (10 * block))
+        redactor.scrub_and_scan(self.artifacts)
+        self.assertEqual(budget.usage(), {"maximum_bytes": 3 * block,
+            "minimum_free_bytes": block, "live_bytes": 0, "peak_bytes": 3 * block,
+            "open_files": 0, "peak_open_files": 1})
+        self.assertEqual((self.artifacts / "first.tar").read_bytes(), payload)
+
+    def test_budget_counts_nested_parent_spools_and_fails_closed(self):
+        redactor, budget, block = self.budgeted(3)
+        payload = gzip.compress(tar_bytes("file", b"safe"))
+        path = self.artifacts / "nested.tar.gz"
+        path.write_bytes(payload)
+        with self.assertRaisesRegex(privacy.PrivacyError, "temporary-space budget exceeded"):
+            redactor.scrub_and_scan(self.artifacts)
+        self.assertEqual(path.read_bytes(), payload)
+        self.assertEqual(budget.live_bytes, 0)
+        self.assertEqual(budget.open_files, 0)
+        self.assertEqual(budget.peak_open_files, 2)
+        self.assertLessEqual(budget.peak_bytes, 3 * block)
+        redactor, budget, block = self.budgeted(4)
+        redactor.scrub_and_scan(self.artifacts)
+        self.assertEqual(budget.peak_bytes, 4 * block)
+        self.assertEqual(budget.live_bytes, 0)
+        self.assertEqual(budget.open_files, 0)
+        self.assertEqual(path.read_bytes(), payload)
+
+    def test_budget_includes_bep_replacement_while_inline_archive_is_scanned(self):
+        redactor, budget, block = self.budgeted(4)
+        payload = gzip.compress(tar_bytes("file", b"safe"))
+        records = [{"id": {"progress": {"opaqueCount": 1}}, "progress": {"stdout": "safe"}},
+                   {"testResult": {"files": [{"name": "inline.tar.gz",
+                       "contents": base64.b64encode(payload).decode()}]}}]
+        original = ("\n".join(json.dumps(item) for item in records) + "\n").encode()
+        path = self.artifacts / "test-events.jsonl"
+        path.write_bytes(original)
+        with self.assertRaisesRegex(privacy.PrivacyError, "temporary-space budget exceeded"):
+            redactor.scrub_and_scan(self.artifacts)
+        self.assertEqual(budget.peak_open_files, 3)
+        self.assertEqual(budget.live_bytes, 0)
+        self.assertEqual(budget.open_files, 0)
+        self.assertEqual(path.read_bytes(), original)
+        self.assertEqual(list(self.artifacts.glob(".mirror-redaction-*")), [])
+
+    def test_budget_success_preserves_scrubbing_and_index_linkage(self):
+        redactor, budget, _ = self.budgeted(64)
+        path = self.artifacts / "test.log"
+        original = (URL + "\n").encode()
+        path.write_bytes(original)
+        (self.artifacts / "test-results.json").write_text(json.dumps([{
+            "files": [{"path": "test.log", "sha256": hashlib.sha256(original).hexdigest(),
+                       "size": len(original)}]}]))
+        redactor.scrub_and_scan(self.artifacts)
+        self.assertEqual(path.read_bytes(), (privacy.MARKER + "\n").encode())
+        index = json.loads((self.artifacts / "test-results.json").read_text())
+        self.assertEqual(index[0]["files"][0]["sha256"], hashlib.sha256(path.read_bytes()).hexdigest())
+        self.assertEqual(budget.live_bytes, 0)
+        self.assertEqual(budget.open_files, 0)
+        self.assertGreater(budget.peak_bytes, 0)
+        self.assertEqual(list(self.artifacts.glob(".mirror-redaction-*")), [])
+
+    def test_budget_preserves_nested_privacy_rejection_and_closes_spools(self):
+        redactor, budget, _ = self.budgeted(64)
+        payload = gzip.compress(tar_bytes("file", HOST.encode()))
+        path = self.artifacts / "nested.tar.gz"
+        path.write_bytes(payload)
+        with self.assertRaises(privacy.PrivacyError) as error:
+            redactor.scrub_and_scan(self.artifacts)
+        self.assertNotIn(HOST, str(error.exception))
+        self.assertEqual(path.read_bytes(), payload)
+        self.assertEqual(budget.live_bytes, 0)
+        self.assertEqual(budget.open_files, 0)
+
+    def test_budget_checks_fresh_headroom_before_scan_and_each_write(self):
+        redactor, budget, block = self.budgeted(16)
+        path = self.artifacts / "runtime.tar"
+        original = tar_bytes("file", b"safe")
+        path.write_bytes(original)
+        low = mock.Mock(f_bavail=0, f_frsize=block)
+        high = mock.Mock(f_bavail=1000, f_frsize=block)
+        for readings in ([low], [high, high, low]):
+            with self.subTest(readings=len(readings)), mock.patch.object(
+                    privacy.os, "statvfs", side_effect=readings):
+                with self.assertRaisesRegex(privacy.PrivacyError, "headroom is insufficient"):
+                    redactor.scrub_and_scan(self.artifacts)
+            self.assertEqual(budget.live_bytes, 0)
+            self.assertEqual(budget.open_files, 0)
+            self.assertEqual(path.read_bytes(), original)
+
+    def test_budget_releases_reserved_bytes_after_write_error(self):
+        redactor, budget, _ = self.budgeted(16)
+        (self.artifacts / "runtime.tar").write_bytes(tar_bytes("file", b"safe"))
+        original_factory = tempfile.TemporaryFile
+
+        class FailedWrite:
+            def __init__(self, **options):
+                self.raw = original_factory(**options)
+
+            def write(self, value):
+                raise OSError("private transport " + URL)
+
+            def __getattr__(self, name):
+                return getattr(self.raw, name)
+
+        with mock.patch.object(privacy.tempfile, "TemporaryFile", side_effect=FailedWrite):
+            with self.assertRaises(privacy.PrivacyError) as error:
+                redactor.scrub_and_scan(self.artifacts)
+        self.assertNotIn(HOST, str(error.exception))
+        self.assertGreater(budget.peak_bytes, 0)
+        self.assertEqual(budget.live_bytes, 0)
+        self.assertEqual(budget.open_files, 0)
+
+    def test_budget_partial_write_and_closed_file_error_release_accounting(self):
+        original_factory = tempfile.TemporaryFile
+        path = self.artifacts / "runtime.tar"
+        original = tar_bytes("file", b"safe")
+        path.write_bytes(original)
+
+        class FailedFile:
+            def __init__(self, failure, **options):
+                self.raw, self.failure = original_factory(**options), failure
+
+            def write(self, value):
+                return self.raw.write(value[:-1] if self.failure == "partial" else value)
+
+            def close(self):
+                self.raw.close()
+                if self.failure == "close":
+                    raise OSError("private transport " + URL)
+
+            def __getattr__(self, name):
+                return getattr(self.raw, name)
+
+        for failure in ("partial", "close"):
+            redactor, budget, _ = self.budgeted(16)
+            with self.subTest(failure=failure), mock.patch.object(
+                    privacy.tempfile, "TemporaryFile",
+                    side_effect=lambda **options: FailedFile(failure, **options)):
+                with self.assertRaises(privacy.PrivacyError) as error:
+                    redactor.scrub_and_scan(self.artifacts)
+            self.assertNotIn(HOST, str(error.exception))
+            self.assertGreater(budget.peak_bytes, 0)
+            self.assertEqual(budget.live_bytes, 0)
+            self.assertEqual(budget.open_files, 0)
+            self.assertEqual(path.read_bytes(), original)
+
+    def test_budget_rejects_invalid_limits_and_temporary_filesystems(self):
+        for maximum, minimum in ((True, 0), (0, 0), (-1, 0), (4096, -1), (4096, False)):
+            with self.subTest(maximum=maximum, minimum=minimum):
+                with self.assertRaises(privacy.PrivacyError):
+                    privacy.TemporaryBudget(self.root, maximum_bytes=maximum, minimum_free_bytes=minimum)
+        link = self.root / "linked"
+        link.symlink_to(self.artifacts, target_is_directory=True)
+        with self.assertRaises(privacy.PrivacyError):
+            privacy.TemporaryBudget(link, maximum_bytes=4096, minimum_free_bytes=0)
+        redactor, budget, _ = self.budgeted(16)
+        budget.device += 1
+        with self.assertRaisesRegex(privacy.PrivacyError, "different filesystems"):
+            redactor.scrub_and_scan(self.artifacts)
+        self.assertEqual(budget.open_files, 0)
+
     def test_mask_commands_are_only_emitted_inside_github_actions(self):
         output = io.StringIO()
         with mock.patch.dict(os.environ, {"GITHUB_ACTIONS": "false"}), contextlib.redirect_stdout(output):
