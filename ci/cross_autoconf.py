@@ -8,7 +8,7 @@ from pathlib import Path
 import shutil
 
 
-def prepare(work: Path, artifacts: Path, flags: list[str]) -> dict:
+def prepare(work: Path, artifacts: Path, flags: list[str], *, fips_krb5: bool = False) -> dict:
     """Add a readonly site file for cross builds, preserving explicit action env."""
     for index, flag in enumerate(flags):
         value = None
@@ -21,6 +21,8 @@ def prepare(work: Path, artifacts: Path, flags: list[str]) -> dict:
             break
     else:
         content = Path(__file__).with_suffix(".site").read_bytes()
+        if fips_krb5:
+            content += b"\n" + Path(__file__).with_name("fips_krb5.site").read_bytes()
         digest = hashlib.sha256(content).hexdigest()
         directory = work.resolve() / "cross-autoconf" / digest
         directory.mkdir(parents=True, exist_ok=True)
