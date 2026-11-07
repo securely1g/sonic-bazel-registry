@@ -1,0 +1,9 @@
+{
+  "url": "https://github.com/securely1g/sonic-dbsyncd/archive/8a3830704d3f6067823f7c10b3b31913965add81.tar.gz",
+  "strip_prefix": "sonic-dbsyncd-8a3830704d3f6067823f7c10b3b31913965add81",
+  "integrity": "sha256-2pYUzQQvdfijbtik8eYxCj8eRnOhe+dykr6jdbcPttk=",
+  "patches": {
+    "0001-module-version.patch": "sha256-7qLye1/j9feMlxfRsdlzwdfkZ+YT5lMV8d/nz3Kur6I="
+  },
+  "patch_strip": 1
+}

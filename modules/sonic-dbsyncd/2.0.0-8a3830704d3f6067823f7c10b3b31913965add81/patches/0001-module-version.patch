@@ -1,0 +1,19 @@
+Subject: [PATCH] Match the Bazel module version to the landed source commit
+
+Origin: SONiC registry registration for securely1g/sonic-dbsyncd.
+Source: https://github.com/securely1g/sonic-dbsyncd/commit/8a3830704d3f6067823f7c10b3b31913965add81
+
+Bazel requires the fetched module version to match its registry version.
+Append the landed source commit to the module's base version; leave the
+sonic-d wheel version and all build and runtime behavior unchanged.
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-dbsyncd",
+-    version = "2.0.0",
++    version = "2.0.0-8a3830704d3f6067823f7c10b3b31913965add81",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
