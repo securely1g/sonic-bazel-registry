@@ -2,7 +2,7 @@
   "url": "https://github.com/securely1g/sonic-bazel-registry/releases/download/p4-source-inputs-20261021/p4lang-bmv2_1.15.0.orig.tar.gz",
   "integrity": "sha256-CDu5B+RVl6+OKe87CpLTPSgrojhA3dXPuDctLwMKtBU=",
   "overlay": {
-    "BUILD.bazel": "sha256-C+e3q88fbKJZCeP0l8GDznkgfsVph5aPA5ZzwoE7Ej0=",
+    "BUILD.bazel": "sha256-uMthEvXVNnbAHRy15bMJAMUQg6BLQCs813aBROHeTBQ=",
     "MODULE.bazel": "sha256-67LpU1ZxtCQYgFd6loDiEy51zskxv4SjcwSins2MAF4=",
     "bazel/0001-use-boost-1.83.patch": "sha256-RuXpjeTrP7ec/sPAvmGhQszRdDGQLkZFgEHYXfMkzto=",
     "bazel/0002-remove-unnecessary-dependencies.patch": "sha256-ptIQahFQYXUDzr1mDt8jZi/zUxYpFqTMCunacnNfWjY=",

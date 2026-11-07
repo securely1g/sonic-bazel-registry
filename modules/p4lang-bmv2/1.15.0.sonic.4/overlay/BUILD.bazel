@@ -38,6 +38,7 @@ keep_debug_info(
 
 py_test(
     name = "package_test",
+    timeout = "long",
     srcs = ["bazel/package_test.py"],
     args = [
         "$(rootpath :runtime)",
@@ -111,6 +112,7 @@ configure_test_tools(
 
 py_test(
     name = "configure_flags_test",
+    timeout = "long",
     srcs = ["bazel/configure_flags_test.py"],
     args = [
         "$(rootpath bazel/configure_with_flags.sh)",
