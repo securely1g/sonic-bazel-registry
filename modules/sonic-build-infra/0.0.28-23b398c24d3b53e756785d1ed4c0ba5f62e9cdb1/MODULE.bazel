@@ -1,7 +1,7 @@
 # Keep bazel_compatibility in sync with sonic-buildimage's .bazelversion.
 module(
     name = "sonic-build-infra",
-    version = "0.0.28-6f48ad4e60916f004d6498d9cc1d228cf0af7134",
+    version = "0.0.28-23b398c24d3b53e756785d1ed4c0ba5f62e9cdb1",
     bazel_compatibility = [
         ">=8.5.1",
         "<=8.5.1",
@@ -83,6 +83,18 @@ apt.import_lock(
     requests = "//apt:requests.json",
     sources = "//apt:sources.json",
 )
+
+# Registered native owners still use this historical Bookworm namespace. Bind
+# their library views to the same production lock rather than resolving again.
+bookworm_apt = use_extension("//toolchains/bookworm:apt.bzl", "apt")
+bookworm_apt.import_lock(
+    dependency_sets = ["libnl_bookworm_system", "libyang_system_bookworm"],
+    libraries = True,
+    lock = "//apt:apt.lock.json",
+    requests = "//apt:requests.json",
+    sources = "//apt:sources.json",
+)
+use_repo(bookworm_apt, "libnl_bookworm_system", "libyang_system_bookworm")
 
 # Preserve historical raw-archive interfaces from the same locked packages.
 use_repo(
