@@ -1,14 +1,17 @@
 # FIPS cross-build and test support
 
-This entry pins the `0.0.6` diagnostic candidate to commit
-`279477ccf5eacbe51607f3acd521bd044acaac6d`, an ordinary child of merged
-[source release PR #20](https://github.com/securely1g/sonic-fips/pull/20).
-The source adds a bounded excerpt of the failed OpenSSH libedit link check
-while preserving configure's original failure status, `--with-libedit`,
-source OpenSSL, declared target loaders and all build outputs.
-It diagnoses the observed Framework failure; it does not claim to fix it.
-[Selected source](https://github.com/securely1g/sonic-fips/commit/279477ccf5eacbe51607f3acd521bd044acaac6d).
-The diagnostic source remains in [Draft PR #21](https://github.com/securely1g/sonic-fips/pull/21); this registry candidate remains Draft until that prerequisite lands.
+This entry pins the single unpublished `0.0.6` candidate to commit
+`97e639585eceb1974a056fdcb560c8a9d23e5ea9`, an ordinary continuation of
+[source release PR #20](https://github.com/securely1g/sonic-fips/pull/20)
+and [Draft source PR #21](https://github.com/securely1g/sonic-fips/pull/21).
+OpenSSH now queries the declared libedit pkg-config metadata instead of
+falling back to the guessed `-lcurses` link input. The package metadata
+closure is isolated from host paths, following the existing Kerberos
+adapter. Libedit and its real link probe, source OpenSSL, target loaders,
+other features and all build outputs remain enabled. The bounded link
+failure diagnostic remains available; exact native validation is pending.
+[Selected source](https://github.com/securely1g/sonic-fips/commit/97e639585eceb1974a056fdcb560c8a9d23e5ea9).
+This registry candidate remains Draft until its source prerequisite lands.
 
 The registry patch only adds the commit suffix to the declared version.
 The cumulative source retains the Kerberos/OpenSSH target loader, SymCrypt

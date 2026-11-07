@@ -50,7 +50,7 @@ RUNNERS = {
 # The exploratory survey uses True in its separate branch; do not infer success
 # from a build-only result or an API-green job without the original test evidence.
 ARM_CROSS_ALL = False
-FIPS_CROSS_VERSION = "0.0.6-279477ccf5eacbe51607f3acd521bd044acaac6d"
+FIPS_CROSS_VERSION = "0.0.6-97e639585eceb1974a056fdcb560c8a9d23e5ea9"
 # Temporary exact-version routes qualified by the complete original ARM contract.
 # Remove this map and the hosted ARM route after the full migration, so future
 # ARM versions receive cross validation as well. See ci/README.md for CI evidence.
@@ -1455,6 +1455,18 @@ def run(root: Path, module: str, version: str, architecture: str,
         bazel_build_args: list[str] | None = None,
         cross_compile: bool = False, test_executor: Path | None = None) -> None:
     config = validate_entry(root, module, version)
+    excluded_package_tests = []
+    if os.environ.get("SOURCE_ONLY_NO_DEBS") == "true" and module == "sonic-linux-kernel":
+        require(version == "0.0.2-34a53faaecd325509e9d8f1016ed0108ab558a23",
+                "The temporary no-DEB audit covers only the reviewed kernel version")
+        excluded_package_tests = [
+            "@sonic-linux-kernel//tools/bazel:kernel_action_test",
+            "@sonic-linux-kernel//tools/bazel:verify_cache_test",
+        ]
+        require(all(label in config["test_targets"] for label in excluded_package_tests),
+                "The reviewed package-generating test roots changed")
+        config = {**config, "test_targets": [label for label in config["test_targets"]
+                                           if label not in excluded_package_tests]}
     require(architecture in config["architectures"], "Architecture is not configured for this version")
     require(not cross_compile or architecture == "arm64", "Cross compilation supports ARM64 targets on AMD64")
     require(cross_compile or test_executor is None, "A test executor requires explicit cross compilation")
@@ -1690,6 +1702,9 @@ def run(root: Path, module: str, version: str, architecture: str,
                 "cross_runtime": cross_runtime,
                 "test_container_image": test_container_image,
                 "build_targets": config["build_targets"], "passed_tests": config["test_targets"],
+                **({"excluded_tests": excluded_package_tests,
+                    "test_scope": "temporary FIPS-branch no-DEB scope; not full kernel test acceptance"}
+                   if excluded_package_tests else {}),
                 "build_flags": config.get("build_flags", []),
                 "bazel_startup_args": bazel_startup_args or [],
                 "bazel_build_args": bazel_build_args or [],
