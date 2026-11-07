@@ -244,6 +244,17 @@ class Redactor:
         try:
             kind = self._format(prefix, name)
         except PrivacyError as error:
+            # A nested .gz name can contain plain text. Accept
+            # only a complete ASCII payload within this existing 512-byte read,
+            # confirmed by EOF, and still run the ordinary private-text scan.
+            # Magic-based formats, outer artifacts, binary and larger members
+            # retain their existing decoding or fail-closed behavior.
+            if (depth > 0 and name.lower().endswith(".gz")
+                    and str(error) == "Unrecognized archive in private-mirror validation evidence"
+                    and all(value in (9, 10, 13) or 32 <= value <= 126 for value in prefix)
+                    and not stream.read(1)):
+                self._scan_raw(stream, prefix)
+                return
             # Retain only controlled categories and a full-name digest. Even
             # checked archive names and raw content stay out of public errors.
             suffix = next((value for value in (".gz", ".tgz", ".bz2", ".xz", ".zst", ".zip",

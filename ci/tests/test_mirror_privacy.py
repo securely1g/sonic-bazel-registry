@@ -393,10 +393,81 @@ class PrivacyTest(unittest.TestCase):
         for name in ("fake.gz", ".wh.changelog.gz"):
             for kind in (None, "tar", "tar.gz", "zip"):
                 with self.subTest(file=name, container=kind):
-                    payload = b"not compressed"
+                    # Nontext payloads must never use the tiny ASCII exception.
+                    payload = b"not compressed\x00"
                     path = self.artifacts / ("layer." + kind if kind else name)
                     if kind:
                         payload = container_bytes(kind, [(name, payload)])
+                    path.write_bytes(payload)
+                    self.assert_rejected_without_disclosure()
+                    self.assertEqual(path.read_bytes(), payload)
+                    path.unlink()
+
+    def test_nested_tiny_ascii_gz_members_are_scanned_without_rewriting(self):
+        # Match the observed shape, not the unidentified member name or text.
+        for size in (83, 512):
+            prefix = b"public fixture\ttext\r\n"
+            text = prefix + b"x" * (size - len(prefix))
+            self.assertEqual(len(text), size)
+            for kind in ("tar", "tar.gz", "zip"):
+                with self.subTest(size=size, container=kind):
+                    payload = container_bytes(kind, [("fixtures/example.gz", text)])
+                    path = self.artifacts / ("layer." + kind)
+                    path.write_bytes(payload)
+                    self.redactor.scrub_and_scan(self.artifacts)
+                    self.assertEqual(path.read_bytes(), payload)
+                    path.unlink()
+
+    def test_tiny_ascii_exception_preserves_outer_suffix_and_size_guards(self):
+        cases = (("example.gz", b"x" * 83, False),
+                 ("example.gz", b"x" * 513, True),
+                 ("example.gz", b"x" * 512 + b"\x00", True),
+                 ("example.gz", b"x" * 82 + b"\x7f", True),
+                 ("example.gz", b"x" * 82 + b"\x80", True),
+                 ("example.zip", b"x" * 83, True),
+                 ("example.tgz", b"x" * 83, True),
+                 ("example.gz", b"Rar!" + b"x" * 79, True))
+        for name, contents, nested in cases:
+            with self.subTest(name=name, bytes=len(contents), nested=nested):
+                path = self.artifacts / ("layer.tar" if nested else name)
+                payload = tar_bytes(name, contents) if nested else contents
+                path.write_bytes(payload)
+                self.assert_rejected_without_disclosure()
+                self.assertEqual(path.read_bytes(), payload)
+                path.unlink()
+
+    def test_tiny_ascii_exception_requires_actual_eof_after_short_read(self):
+        class ShortReader(io.BytesIO):
+            def read(self, size=-1):
+                return super().read(min(size, 83) if size >= 0 else size)
+        for payload in (b"x" * 84, b"x" * 83 + b"\x00", b"x" * 83 + HOST.encode()):
+            with self.subTest(bytes=len(payload)):
+                with self.assertRaisesRegex(privacy.PrivacyError, "Unrecognized archive"):
+                    self.redactor._scan_stream(ShortReader(payload), "fixture.gz", 1)
+
+    def test_tiny_ascii_members_keep_private_name_content_and_adjacent_checks(self):
+        for kind in ("tar", "tar.gz", "zip"):
+            for members in ([(HOST + ".gz", b"public text")],
+                            [("fixture.gz", ("before " + HOST + " after").encode())],
+                            [("fixture.gz", quote(URL, safe="").encode())],
+                            [("fixture.gz", b"public text"),
+                             ("next.gz", gzip.compress(URL.encode()))]):
+                with self.subTest(container=kind, members=len(members)):
+                    path = self.artifacts / ("layer." + kind)
+                    payload = container_bytes(kind, members)
+                    path.write_bytes(payload)
+                    self.assert_rejected_without_disclosure()
+                    self.assertEqual(path.read_bytes(), payload)
+                    path.unlink()
+
+    def test_tiny_ascii_exception_does_not_bypass_gzip_crc_or_truncation(self):
+        valid = gzip.compress(b"ordinary payload")
+        corrupt_crc = valid[:-8] + bytes([valid[-8] ^ 1]) + valid[-7:]
+        for contents in (b"\x1f\x8b", valid[:-1], corrupt_crc):
+            for kind in ("tar", "tar.gz", "zip"):
+                with self.subTest(bytes=len(contents), container=kind):
+                    path = self.artifacts / ("layer." + kind)
+                    payload = container_bytes(kind, [("fixture.gz", contents)])
                     path.write_bytes(payload)
                     self.assert_rejected_without_disclosure()
                     self.assertEqual(path.read_bytes(), payload)
