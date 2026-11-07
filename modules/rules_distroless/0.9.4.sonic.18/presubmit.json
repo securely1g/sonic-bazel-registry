@@ -58,7 +58,12 @@
     "@rules_distroless//registry_ci:linux_headers_test",
     "@rules_distroless//registry_ci:linux_headers_provider_test",
     "@rules_distroless//apt/private:relocate_pkgconfig_test",
-    "//native_runtime:indirect_dependency_test"
+    "//native_runtime:indirect_dependency_test",
+    "//native_headers:default_test",
+    "//native_headers:transitive_test",
+    "//native_headers:overlay_test",
+    "//native_headers:without_pkgconfig_test",
+    "//native_headers:unmatched_modules_test"
   ],
   "integration_test_module": "tests/integration"
 }
