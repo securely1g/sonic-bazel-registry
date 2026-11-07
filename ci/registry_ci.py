@@ -50,7 +50,7 @@ RUNNERS = {
 # The exploratory survey uses True in its separate branch; do not infer success
 # from a build-only result or an API-green job without the original test evidence.
 ARM_CROSS_ALL = False
-FIPS_CROSS_VERSION = "0.0.6-1ea828e13ac9c62d2007dbbf2ef3d72417e3d009"
+FIPS_CROSS_VERSION = "0.0.6-279477ccf5eacbe51607f3acd521bd044acaac6d"
 # Temporary exact-version routes qualified by the complete original ARM contract.
 # Remove this map and the hosted ARM route after the full migration, so future
 # ARM versions receive cross validation as well. See ci/README.md for CI evidence.

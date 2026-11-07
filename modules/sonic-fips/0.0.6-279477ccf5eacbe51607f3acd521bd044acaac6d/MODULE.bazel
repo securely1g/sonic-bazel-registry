@@ -1,6 +1,6 @@
 module(
     name = "sonic-fips",
-    version = "0.0.6-1ea828e13ac9c62d2007dbbf2ef3d72417e3d009",
+    version = "0.0.6-279477ccf5eacbe51607f3acd521bd044acaac6d",
     bazel_compatibility = [
         ">=8.5.1",
         "<=8.5.1",
