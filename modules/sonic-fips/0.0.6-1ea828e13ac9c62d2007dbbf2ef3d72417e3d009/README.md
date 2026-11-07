@@ -1,10 +1,10 @@
 # FIPS cross-build and test support
 
-This entry pins the cumulative `0.0.6` source to commit
-`3bc71df81cb112787baa4a81d091c2020801856b`. The registry patch adds the
+This entry pins the merged `0.0.6` release to commit
+`1ea828e13ac9c62d2007dbbf2ef3d72417e3d009`. The registry patch adds the
 commit suffix to the declared version. The source combines the declared
 Kerberos/OpenSSH loader, target SymCrypt tools and the OpenSSL TAP interpreter
-selection. [Cumulative source](https://github.com/securely1g/sonic-fips/commit/3bc71df81cb112787baa4a81d091c2020801856b) and [source release PR #20](https://github.com/securely1g/sonic-fips/pull/20).
+selection. [Cumulative source](https://github.com/securely1g/sonic-fips/commit/1ea828e13ac9c62d2007dbbf2ef3d72417e3d009) and [source release PR #20](https://github.com/securely1g/sonic-fips/pull/20).
 
 The presubmit retains the prior 18 build targets and six package tests.
 On AMD64-to-ARM64 runs, Kerberos measures its three configure answers with
