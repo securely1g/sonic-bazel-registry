@@ -51,7 +51,7 @@ jobs:
     # Allow time for cold serial SWSS builds and the FIPS vendor suites under emulation.
     timeout-minutes: >-
       ${{ inputs.cross_compile && inputs.module == 'sonic-swss' && inputs.version == '0.0.3-42df8c74af53427be97609a7b11e9aec59d2d454' && 360 ||
-          inputs.cross_compile && inputs.module == 'sonic-fips' && inputs.version == '0.0.6-1ea828e13ac9c62d2007dbbf2ef3d72417e3d009' && 240 ||
+          inputs.cross_compile && inputs.module == 'sonic-fips' && inputs.version == '0.0.6-279477ccf5eacbe51607f3acd521bd044acaac6d' && 240 ||
           180 }}
     # Local native/cross jobs execute directly in the fresh Trixie runner.
     # Only native hosted ARM needs the separate pinned job image.
