@@ -29,6 +29,14 @@ repository branch-protection settings.
 
 ## Verified source mirrors
 
+For new GitHub-backed input sets, use the [shared manifest reader](github_sources/README.md)
+rather than adding a package-specific downloader. It retains the approved private
+Debian mirror path, checks GitHub redirects and verifies the selected bytes before
+starting Bazel. Its first data manifest generalizes registry #238's three Cosmos
+inputs without changing their versions or checksums. Other new download locations
+require explicit user approval; the existing transports below are not broadened
+or rewritten by this reader.
+
 The runner passes Bazel's standard `--experimental_downloader_config` with
 [`source_mirrors.cfg`](source_mirrors.cfg) to dependency preparation, builds,
 tests and output queries. Rewrites match only the archive and binary-package
