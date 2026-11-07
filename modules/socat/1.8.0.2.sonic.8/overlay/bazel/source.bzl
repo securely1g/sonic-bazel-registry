@@ -9,6 +9,7 @@ def _socat_source_impl(ctx):
     ctx.download_and_extract(
         url = ctx.attr.debian_url,
         sha256 = ctx.attr.debian_sha256,
+        type = "tar.xz",
     )
 
     # Debian owns both the patches and their application order. This release

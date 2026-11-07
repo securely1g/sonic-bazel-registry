@@ -1,3 +1,12 @@
+Description: Retain SONiC's readline-enabled Socat packaging inputs
+ Add libreadline-dev to Debian's build dependencies and remove the Debian
+ --disable-readline override. The Bazel build separately selects
+ --enable-readline; this patch preserves SONiC's Debian-file customization.
+Origin: https://github.com/securely1g/sonic-buildimage/blob/af35f605975215872e69dba5a291cb52fd5faafa/src/socat/patch/enable_readline.patch
+ The registry normalizes only file headers for its patch reader; the hunks
+ are unchanged from that SONiC patch and run after Debian 1.8.0.2-1's series.
+Status: Retained downstream SONiC customization; no upstream inclusion is asserted.
+
 diff --git a/debian/rules b/debian/rules
 --- a/debian/rules
 +++ b/debian/rules
