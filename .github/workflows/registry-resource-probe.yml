@@ -1,0 +1,84 @@
+name: Registry runner storage diagnostic
+
+on: create
+
+permissions:
+  contents: read
+
+concurrency:
+  group: registry-resource-diagnostics-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  storage:
+    name: Measure registry runner storage (no build)
+    if: github.repository == 'securely1g/sonic-bazel-registry' && github.event.ref_type == 'branch' && github.event.ref == 'codex/registry-resource-diagnostics'
+    runs-on: [self-hosted, Linux, X64, debian-trixie-container]
+    timeout-minutes: 5
+    steps:
+      - name: Record workspace and scratch capacity
+        shell: bash
+        run: |
+          python3 -I -S - <<'PY_RESOURCE'
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          runner = {
+              "name": os.environ["RUNNER_NAME"],
+              "os": os.environ["RUNNER_OS"],
+              "architecture": os.environ["RUNNER_ARCH"],
+          }
+          matching_runner = (
+              runner["name"].startswith("sonic-slave-lgh111-")
+              and runner["os"] == "Linux"
+              and runner["architecture"] == "X64"
+          )
+          storage = {}
+          for label, variable in (
+              ("workspace", "GITHUB_WORKSPACE"),
+              ("scratch", "RUNNER_TEMP"),
+          ):
+              try:
+                  path = Path(os.environ[variable])
+                  usage = os.statvfs(path)
+                  storage[label] = {
+                      "device": path.stat().st_dev,
+                      "free_bytes": usage.f_bavail * usage.f_frsize,
+                      "total_bytes": usage.f_blocks * usage.f_frsize,
+                      "free_inodes": usage.f_favail,
+                      "total_inodes": usage.f_files,
+                  }
+              except OSError as error:
+                  storage[label] = {"measurement_error_errno": error.errno}
+          measured = all("free_bytes" in value for value in storage.values())
+          result = {
+              "schema": 1,
+              "measured_at": datetime.now(timezone.utc).isoformat(),
+              "source": os.environ["GITHUB_SHA"],
+              "run_id": os.environ["GITHUB_RUN_ID"],
+              "run_attempt": os.environ["GITHUB_RUN_ATTEMPT"],
+              "runner": runner,
+              "matches_expected_runner_family": matching_runner,
+              "status": "measured" if measured else "measurement_failed",
+              "storage": storage,
+              "build_executed": False,
+              "tests_executed": False,
+              "deb_generation_executed": False,
+              "cache_changes": False,
+              "capacity_admission": False,
+          }
+          text = json.dumps(result, indent=2, sort_keys=True) + "\n"
+          print(text, end="", flush=True)
+          (Path(os.environ["RUNNER_TEMP"]) / "registry-resource.json").write_text(text)
+          raise SystemExit(0 if measured and matching_runner else 1)
+          PY_RESOURCE
+      - name: Retain resource measurements
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: registry-runner-resource-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/registry-resource.json
+          if-no-files-found: error
+          retention-days: 14
