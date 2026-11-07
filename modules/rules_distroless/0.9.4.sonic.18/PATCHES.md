@@ -544,3 +544,17 @@ executables retain only the parent as a direct fixture `DT_NEEDED` dependency,
 contain no RPATH/RUNPATH, and run with eager relocation against the declared
 fixture DSOs. The fixture exposes interface files as link inputs, so runtime
 symlink paths must come from the provider's explicit action inputs.
+
+## Default pkg-config header namespaces
+
+`0039-default-pkgconfig-header-exports.patch` restricts the package-wide header
+include list to the already selected `default_names`. It does not change that
+selection policy, explicit module includes/defines, fallback roots, or any
+library/linker behavior. This fixes ordinary libbsd headers accidentally opting
+into libbsd-overlay when a foreign build stages dependency include roots.
+
+The regression lives in the separate `tests/integration/native_headers` module,
+not in an upstream test patch. Against the unchanged candidate, direct and
+transitive ordinary consumers fail with recursive `stdio.h` inclusion; explicit
+overlay and both fallback consumers pass. With patch0039, all five compile and
+run. The same tests are added to the normal presubmit for both architectures.

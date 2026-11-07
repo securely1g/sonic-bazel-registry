@@ -7,6 +7,7 @@ bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.18")
 bazel_dep(name = "rules_cc", version = "0.2.22")
 bazel_dep(name = "bazel_skylib", version = "1.9.2")
 bazel_dep(name = "rules_shell", version = "0.6.1")
+bazel_dep(name = "rules_foreign_cc", version = "0.16.0")
 
 # Both namespaces import the same reviewed archive graph independently.
 apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
@@ -25,4 +26,37 @@ use_repo(
     unified_locked_import_ci = "locked_import_ci",
     unified_locked_import_ci_copy = "locked_import_ci_copy",
     unified_netbase_only = "apt_internal_package_catalog_0",
+)
+
+# Generated DEBs exercise real native repository/header exports and staging.
+header_fixtures = use_repo_rule("//native_headers:fixtures.bzl", "fixtures")
+header_fixtures(name = "native_header_fixtures")
+header_imports = use_extension("//native_headers:fixtures.bzl", "imports")
+header_imports.package(
+    package = "libvariant-dev",
+    archive = "@native_header_fixtures//:libvariant-dev.deb",
+    digest = "@native_header_fixtures//:libvariant-dev.sha256",
+)
+header_imports.package(
+    package = "libmiddle-dev",
+    archive = "@native_header_fixtures//:libmiddle-dev.deb",
+    digest = "@native_header_fixtures//:libmiddle-dev.sha256",
+    dependencies = ["libvariant-dev"],
+)
+header_imports.package(
+    package = "plain-dev",
+    archive = "@native_header_fixtures//:plain-dev.deb",
+    digest = "@native_header_fixtures//:plain-dev.sha256",
+)
+header_imports.package(
+    package = "unmatched-dev",
+    archive = "@native_header_fixtures//:unmatched-dev.deb",
+    digest = "@native_header_fixtures//:unmatched-dev.sha256",
+)
+use_repo(
+    header_imports,
+    header_variant = "header-fixture_libvariant-dev-all_1",
+    header_middle = "header-fixture_libmiddle-dev-all_1",
+    header_plain = "header-fixture_plain-dev-all_1",
+    header_unmatched = "header-fixture_unmatched-dev-all_1",
 )
