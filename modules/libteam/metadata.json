@@ -1,0 +1,17 @@
+{
+  "homepage": "https://github.com/jpirko/libteam",
+  "maintainers": [
+    {
+      "name": "Guohan Lu",
+      "email": "securely1g@gmail.com",
+      "github": "securely1g"
+    }
+  ],
+  "repository": [
+    "github:jpirko/libteam"
+  ],
+  "versions": [
+    "1.31.0.sonic.1"
+  ],
+  "yanked_versions": {}
+}
