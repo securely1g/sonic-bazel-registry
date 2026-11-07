@@ -12,8 +12,8 @@ concurrency:
 jobs:
   storage:
     name: Measure registry runner storage (no build)
-    if: github.repository == 'securely1g/sonic-bazel-registry' && github.event.ref_type == 'branch' && github.event.ref == 'codex/registry-resource-diagnostics'
-    runs-on: [self-hosted, Linux, X64, debian-trixie-container]
+    if: github.repository == 'securely1g/sonic-bazel-registry' && github.event.ref_type == 'branch' && github.event.ref == 'codex/registry-resource-lgh111'
+    runs-on: [self-hosted, Linux, X64, debian-trixie-container, registry-storage-lgh111-20261107t1417]
     timeout-minutes: 5
     steps:
       - name: Record workspace and scratch capacity
