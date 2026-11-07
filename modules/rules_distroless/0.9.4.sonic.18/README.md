@@ -57,6 +57,36 @@ pure fixtures. It joins the existing 36 presubmit tests. Actual Framework
 image validation remains a separate consumer check; pure routing tests do not
 establish a successful image build.
 
+## Resolve declared runtime dependencies during links
+
+[SONiC Eventd in Framework PR138](https://github.com/securely1g/sonic-buildimage/pull/138)
+selects Common `334389ea` and `@trixie//libzmq3-dev:libzmq_cc`. Its
+[AMD64 test link](https://github.com/securely1g/sonic-buildimage/actions/runs/42359633142/job/128365058878)
+failed before running tests: `libzmq.so.5` needs `libbsd.so.0`,
+`libsodium.so.23`, `libpgm-5.3.so.0`, `libnorm.so.1` and
+`libgssapi_krb5.so.2`. All five were declared through runtime interface
+inputs, but their directories had no `-rpath-link` option. Runtime RPATH
+and ordinary `-L` flags did not supply that link-time dependency search.
+
+| Input or action | Before | After |
+| --- | --- | --- |
+| Select `libzmq_cc` with its declared runtime closure | Linker cannot find the five dependent SONAMEs | Add link-time searches for the existing dynamic library directories |
+| Ordered pkg-config direct link inputs | Direct `-l:libzmq.so.5` and original option order | Same direct link line; no additional transitive `-l` inputs |
+| Ambiguous SONAME or unresolved symbol | Rejected | Still rejected |
+
+The existing per-library and ordered-module interfaces share this directory
+selection. `-Xlinker` passes each option without splitting commas in paths;
+list-valued flags preserve repeated `-Xlinker` tokens. Runtime interface
+scripts, declared inputs, runtime paths and strict linker checks remain intact.
+No unrelated inherited flags are forwarded.
+
+The pure `@rules_distroless//apt/tests:linker_script/runtime_search` regression
+joins the existing 37 presubmit tests. Seven guarded callback checks exercise
+both interfaces and the five observed dependency directories, preserve direct
+argument order and ambiguity rejection, and confirm the original interfaces
+omit the searches. These checks do not run Bazel or native code. Registry CI
+and the actual Eventd test link remain required consumer validation.
+
 ## Native library contracts
 
 APT library imports preserve installed-file ownership and GNU linker-script
