@@ -1,0 +1,49 @@
+package(default_visibility = ["//visibility:public"])
+
+alias(
+    name = "otelcol-contrib",
+    actual = "//distributions/otelcol-contrib:otelcol-contrib",
+)
+
+exports_files(["LICENSE"])
+
+alias(
+    name = "runtime",
+    actual = "//distributions/otelcol-contrib:runtime",
+)
+
+alias(
+    name = "runtime.debug_symbols",
+    actual = "//distributions/otelcol-contrib:runtime.debug_symbols",
+)
+
+alias(
+    name = "runtime_packages.json",
+    actual = "//distributions/otelcol-contrib:runtime_packages.json",
+)
+
+alias(
+    name = "sources",
+    actual = "//distributions/otelcol-contrib:sources",
+)
+
+test_suite(
+    name = "source_contract_test",
+    tests = [
+        "//bazel:components_output_test",
+        "//distributions/otelcol-contrib:source_contract_test",
+    ],
+)
+
+# Original release acceptance inputs remain owned by the pinned source archive.
+exports_files([
+    "tests/docker-tests/default-config.yaml",
+    "tests/golden/config.yaml",
+    "tests/golden/docker-compose.yaml",
+    "tests/golden/data/expected.yaml",
+])
+
+test_suite(
+    name = "package_test",
+    tests = ["//distributions/otelcol-contrib:package_test"],
+)

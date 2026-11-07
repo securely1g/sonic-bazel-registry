@@ -1,0 +1,37 @@
+load("@rules_python//python:py_binary.bzl", "py_binary")
+load("@rules_python//python:py_library.bzl", "py_library")
+load("@rules_python//python:py_test.bzl", "py_test")
+
+package(default_visibility = ["//visibility:public"])
+
+py_library(
+    name = "openconfig_linter",
+    srcs = [
+        "openconfig_pyang/plugins/openconfig.py",
+        "openconfig_pyang/plugins/util/__init__.py",
+        "openconfig_pyang/plugins/util/yangpath.py",
+    ],
+    imports = ["openconfig_pyang/plugins"],
+    deps = [
+        "@oc_pyang_pip//pyang",
+        "@oc_pyang_pip//setuptools",
+    ],
+)
+
+py_binary(
+    name = "oclint",
+    srcs = ["oclint.py"],
+    data = ["@oc_pyang_pip//pyang:whl"],
+    deps = [":openconfig_linter"],
+)
+
+py_test(
+    name = "upstream_linter_test",
+    size = "medium",
+    srcs = ["upstream_linter_test.py"],
+    args = [
+        "$(location :oclint)",
+        "$(location tests/oclinter/run.sh)",
+    ],
+    data = [":oclint"] + glob(["tests/oclinter/**"]),
+)

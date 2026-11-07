@@ -1,0 +1,33 @@
+Subject: Compare copied gNMI paths with protocmp in the original test
+
+The original gnmiPath.Copy test compares embedded protobuf messages through
+their private implementation fields. Under SONiC's already-selected
+protobuf dependency, use protocmp.Transform for those messages so the
+owner's suite can validate the runtime supplied to management-common.
+Retain comparison of the wrapper's private state and every assertion;
+this changes only the test, not path copying or dependency versions.
+
+Origin: Backport of the path-copy test adaptation from openconfig/ygot
+PR #377, retaining the existing cmp.AllowUnexported(gnmiPath{}) option:
+https://github.com/openconfig/ygot/pull/377
+
+diff --git a/ygot/render_test.go b/ygot/render_test.go
+--- a/ygot/render_test.go
++++ b/ygot/render_test.go
+@@ -26,6 +26,7 @@
+ 	"github.com/kylelemons/godebug/pretty"
+ 	"github.com/openconfig/gnmi/errdiff"
+ 	"github.com/openconfig/ygot/testutil"
++	"google.golang.org/protobuf/testing/protocmp"
+ 
+ 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
+ )
+@@ -169,7 +170,7 @@
+ 	}}
+ 
+ 	for _, tt := range tests {
+-		if got := tt.inPath.Copy(); !cmp.Equal(got, tt.inPath, cmp.AllowUnexported(gnmiPath{})) {
++		if got := tt.inPath.Copy(); !cmp.Equal(got, tt.inPath, cmp.AllowUnexported(gnmiPath{}), protocmp.Transform()) {
+ 			t.Errorf("%s: (gnmiPath).Copy(): did not get expected result, got: %v, want: %v", tt.name, got, tt.inPath)
+ 		}
+ 	}

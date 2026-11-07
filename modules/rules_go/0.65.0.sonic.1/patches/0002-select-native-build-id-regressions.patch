@@ -1,0 +1,16 @@
+--- a/tests/core/go_binary/BUILD.bazel
++++ b/tests/core/go_binary/BUILD.bazel
+@@ -339,3 +339,13 @@
+     data = [":stamp_override_bin"],
+     deps = ["//go/tools/bazel"],
+ )
++
++# Preserve upstream native ELF assertions without cross-building Darwin/ARM64.
++go_bazel_test(
++    name = "sonic_linux_buildid_test",
++    srcs = ["buildid_test.go"],
++    args = ["-test.v", "-test.run=^(TestContentBuildID|TestNativeChangeChangesBuildID)$$"],
++    env = {"USE_BAZEL_VERSION": "8.5.1"},
++    target_compatible_with = ["@platforms//os:linux"],
++    timeout = "long",
++)

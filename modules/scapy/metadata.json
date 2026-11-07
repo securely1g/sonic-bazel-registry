@@ -1,0 +1,18 @@
+{
+  "homepage": "https://scapy.net",
+  "maintainers": [
+    {
+      "name": "Guohan Lu",
+      "email": "securely1g@gmail.com",
+      "github": "securely1g"
+    }
+  ],
+  "repository": [
+    "github:secdev/scapy"
+  ],
+  "versions": [
+    "2.6.1.sonic.1",
+    "2.6.1.sonic.2"
+  ],
+  "yanked_versions": {}
+}

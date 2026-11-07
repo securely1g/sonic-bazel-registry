@@ -88,7 +88,8 @@
   },
   "test_runtime_preparation": {
     "script": "tools/bazel/runtime/prepare.py",
-    "sha256": "8302de9c34064c4256e881d5ffd32ea8cd2d0efbdda9a78a11da6444055b899d"
+    "sha256": "8302de9c34064c4256e881d5ffd32ea8cd2d0efbdda9a78a11da6444055b899d",
+    "apt_mirror_protocol": "locked-runtime-v1"
   },
   "host_platforms": {
     "amd64": "@sonic_build_infra//platforms:x86_64_trixie",

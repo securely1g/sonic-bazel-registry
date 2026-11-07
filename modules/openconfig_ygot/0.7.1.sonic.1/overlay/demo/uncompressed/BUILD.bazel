@@ -1,0 +1,41 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
+
+go_library(
+    name = "uncompressed_lib",
+    srcs = ["uncompressed.go"],
+    importpath = "github.com/openconfig/ygot/demo/uncompressed",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//demo/uncompressed/pkg/demo",
+        "//ygot",
+    ],
+)
+
+go_binary(
+    name = "uncompressed",
+    embed = [":uncompressed_lib"],
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "uncompressed_test",
+    srcs = ["uncompressed_test.go"],
+    args = ["-test.v"],
+    data = glob(["testdata/**"]),
+    embed = [":uncompressed_lib"],
+    deps = [
+        "//demo/uncompressed/pkg/demo",
+        "//testutil",
+        "@com_github_kylelemons_godebug//pretty",
+    ],
+)
+
+# Match the original go:generate preparation required by upstream Make/CI.
+genrule(
+    name = "generated_uncompressed",
+    srcs = glob(["yang/**"]),
+    outs = ["generated_uncompressed.go"],
+    cmd = "$(execpath //generator:generator) -path=$$(dirname $(location yang/example.yang)) -output_file=$@ -package_name=demo -generate_fakeroot -fakeroot_name=root  $(location yang/example.yang)",
+    tools = ["//generator"],
+    visibility = ["//visibility:public"],
+)

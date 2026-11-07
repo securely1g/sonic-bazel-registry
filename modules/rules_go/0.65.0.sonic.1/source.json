@@ -1,0 +1,15 @@
+{
+    "integrity": "sha256-1KbpPcY5RBcrw7kVoRv6jXORyfH9wR1+Q3JPSXYX8OU=",
+    "strip_prefix": "",
+    "url": "https://github.com/bazel-contrib/rules_go/releases/download/v0.65.0/rules_go-v0.65.0.zip",
+    "patches": {
+        "0001-resolve-relative-cgo-header-paths.patch": "sha256-BgKoiBB484u4wZyuzk+QGgSLF87wPTef/JuqqD+cB6w=",
+        "0002-select-native-build-id-regressions.patch": "sha256-ChAFZ24XwTVlf2Kb5URKVVGuc+SMy4wx0Lde5DM1ux4="
+    },
+    "patch_strip": 1,
+    "overlay": {
+        "tests/sonic_4583/BUILD.bazel": "sha256-GuKOBkJ7HYru1CiM4vU3yF36g/JC4AzJu/yWwOqsadg=",
+        "tests/sonic_4583/cc_header_inputs_test.go": "sha256-EE80WVRgnK10Rg6Fjl7bQDBNdZp2yacTIXg5/ad35fM=",
+        "MODULE.bazel": "sha256-afP2v3K2RyC1rM1f7dksPBapEWMqgw4prXBj6VjzUOU="
+    }
+}

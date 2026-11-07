@@ -1,0 +1,1 @@
+/* Header identity used to verify CcInfo propagation. */

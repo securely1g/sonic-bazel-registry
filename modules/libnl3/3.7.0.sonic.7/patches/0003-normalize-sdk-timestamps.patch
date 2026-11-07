@@ -1,0 +1,48 @@
+diff --git a/libnl3.BUILD b/libnl3.BUILD
+--- a/libnl3.BUILD
++++ b/libnl3.BUILD
+@@ -661,4 +661,5 @@
+     name = "libnl3-dev_headers",
+     srcs = glob(["include/netlink/**/*.h"]),
++    default_mtime = "1672560000",
+     mtree = [
+         "usr/include/libnl3/{} uid=0 gid=0 mode=0644 type=file content=$(location {})".format(
+@@ -729,4 +730,6 @@
+         ],
+         mutate = mutate(
++            owner = "0",
++            group = "0",
+             package_dir = "./usr/lib/" + multiarch + "/pkgconfig",
+             strip_prefix = package_name(),
+@@ -832,4 +835,5 @@
+             pc,
+         ],
++        default_mtime = "1672560000",
+         mtree = [
+             "usr/lib/{}/{}.a uid=0 gid=0 mode=0644 type=file content=$(location {})".format(multiarch, stem, archive),
+diff --git a/tar_contract_test.py b/tar_contract_test.py
+--- a/tar_contract_test.py
++++ b/tar_contract_test.py
+@@ -68,6 +68,8 @@
+             if name.endswith('.so'):
+                 assert entry.issym() and entry.linkname == stem + '.so.200', name
++                assert entry.mtime == 0, (name, entry.mtime)
+             else:
+                 assert entry.isfile() and entry.mode == 0o644, (name, entry.mode)
++                assert entry.mtime == 1672560000, (name, entry.mtime)
+             if name.endswith('.a'):
+                 assert payload.startswith(b'!<arch>\n'), name
+@@ -107,4 +109,6 @@
+     for path in paths:
+         with tarfile.open(path) as archive:
++            for entry in archive.getmembers():
++                assert entry.uid == entry.gid == 0, (path, entry.name, entry.uid, entry.gid)
+             files = {entry.name.removeprefix('./'): (entry, archive.extractfile(entry).read() if entry.isfile() else None) for entry in archive if not entry.isdir()}
+         assert files
+@@ -112,4 +116,6 @@
+             assert entry.uid == entry.gid == 0
+             assert 'linux-private/' not in name and 'netlink-private/' not in name
++            if name.startswith('usr/include/libnl3/netlink/'):
++                assert entry.mtime == 1672560000, (name, entry.mtime)
+             if entry.issym():
+                 assert not entry.linkname.startswith('/')

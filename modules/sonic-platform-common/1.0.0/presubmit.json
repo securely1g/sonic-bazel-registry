@@ -1,0 +1,16 @@
+{
+  "architectures": [
+    "amd64"
+  ],
+  "consumer_deps": [],
+  "platforms": {
+    "amd64": "@platforms//host:host"
+  },
+  "integration_test_module": "tests/integration",
+  "build_targets": [
+    "@sonic-platform-common//:sonic_platform_common_wheel"
+  ],
+  "test_targets": [
+    "//:installed_wheel_test"
+  ]
+}

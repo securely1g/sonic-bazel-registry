@@ -1,0 +1,32 @@
+{
+  "architectures": [
+    "amd64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.25-34de7330abc72229dfc8dab88dec71b89c52aa88",
+      "repo_name": "sonic_build_infra"
+    },
+    {
+      "name": "tar.bzl",
+      "version": "0.10.5-sonic.1"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
+  },
+  "host_platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
+  },
+  "build_targets": [
+    "@nnpy//:runtime",
+    "@nnpy//:runtime.debug_symbols",
+    "@nnpy//:source",
+    "@nnpy//:generation.json"
+  ],
+  "test_targets": [
+    "@nnpy//:package_test"
+  ],
+  "generated_module_overlay": true
+}

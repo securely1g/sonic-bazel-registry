@@ -1,0 +1,37 @@
+From: Ben Gardiner <ben.l.gardiner@gmail.com>
+Subject: [PATCH] Allow five seconds for the native TLS test on busy runners
+
+Upstream: https://github.com/secdev/scapy/commit/49b03612d33d9d0d52300ab651e9a02e017de738
+
+Backport the TLS test changes from upstream PR #5234. A one-second wait
+can expire before a busy runner schedules the peer. Allow five seconds
+for accept and each request. Check for a response before checking its
+body, so a missed reply reports an assertion instead of an attribute error.
+
+--- a/test/scapy/layers/tls/tlsclientserver.uts
++++ b/test/scapy/layers/tls/tlsclientserver.uts
+@@ -466,7 +466,7 @@
+     
+     def ssl_server():
+         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+-        server.settimeout(1)
++        server.settimeout(5)
+         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+         server.bind(("127.0.0.1", 0))
+         native_port.append(server.getsockname()[1])
+@@ -522,11 +522,11 @@
+         # debug=4,
+     )
+     # First request
+-    pkt = a.sr1(REQS[0], timeout=1, verbose=0)
+-    assert pkt.load == b"Please login"
++    pkt = a.sr1(REQS[0], timeout=5, verbose=0)
++    assert pkt is not None and pkt.load == b"Please login"
+     # Second request
+-    pkt = a.sr1(REQS[1], timeout=1, verbose=0)
+-    assert pkt.load == b"Welcome"
++    pkt = a.sr1(REQS[1], timeout=5, verbose=0)
++    assert pkt is not None and pkt.load == b"Welcome"
+     # Close
+     a.close()
+     # Wait for server to close
