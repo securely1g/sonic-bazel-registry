@@ -239,7 +239,7 @@ class SelectionTests(FixtureTestCase):
         return {(job["module"], job["version"])
                 for job in registry_ci.plan(self.root, None, head, latest_versions=True, published=head)["include"]}
 
-    def test_latest_mode_selects_one_version_and_retains_native_architectures(self) -> None:
+    def test_latest_mode_selects_one_version_and_each_declared_architecture(self) -> None:
         self.entry("alpha", "1.0.0")
         latest = self.entry("alpha", "2.0.0")
         self.entry("beta", "1.0.0")
@@ -249,12 +249,11 @@ class SelectionTests(FixtureTestCase):
         config["platforms"]["arm64"] = "@platforms//host:host"
         write_json(latest / "presubmit.json", config)
         head = self.commit("published registry")
-        with mock.patch.object(registry_ci, "ARM_CROSS_ALL", False):
-            jobs = registry_ci.plan(self.root, None, head, latest_versions=True, published=head)["include"]
+        jobs = registry_ci.plan(self.root, None, head, latest_versions=True, published=head)["include"]
         self.assertEqual({(job["module"], job["version"], job["architecture"], tuple(job["runner"]))
                           for job in jobs}, {
             ("alpha", "2.0.0", "amd64", ("self-hosted", "Linux", "X64", "debian-trixie-container")),
-            ("alpha", "2.0.0", "arm64", ("ubuntu-24.04-arm",)),
+            ("alpha", "2.0.0", "arm64", ("self-hosted", "Linux", "X64", "debian-trixie-container")),
             ("beta", "1.0.0", "amd64", ("self-hosted", "Linux", "X64", "debian-trixie-container")),
         })
 
@@ -1947,85 +1946,95 @@ class FailedActionLogTests(FixtureTestCase):
         self.assertFalse((artifacts / "failed-actions").exists())
 
 
-class StagedCrossRoutingTests(FixtureTestCase):
+class HostedArm64InventoryTests(unittest.TestCase):
+    def test_each_historical_assignment_names_a_registered_arm64_job(self):
+        for module, versions in registry_ci.read_json(registry_ci.HOSTED_ARM64_VERSIONS_FILE).items():
+            for version in versions:
+                with self.subTest(module=module, version=version):
+                    entry = registry_ci.ROOT / "modules" / module / version
+                    config = registry_ci.read_json(entry / "presubmit.json")
+                    self.assertIn("arm64", config["architectures"])
+
+
+class Arm64RoutingTests(FixtureTestCase):
     def setUp(self):
         super().setUp()
-        for version in ("1.0.0", "2.0.0"):
-            entry = self.entry("alpha", version)
-            config = json.loads((entry / "presubmit.json").read_text())
-            config["architectures"].append("arm64")
-            config["platforms"]["arm64"] = "@platforms//host:host"
-            write_json(entry / "presubmit.json", config)
+        self.inventory = self.root / "ci" / "hosted_arm64_versions.json"
+        write_json(self.inventory, {"alpha": ["1.0.0"]})
+        patch = mock.patch.object(registry_ci, "HOSTED_ARM64_VERSIONS_FILE", self.inventory)
+        patch.start()
+        self.addCleanup(patch.stop)
+        self.arm_entry("alpha", "1.0.0")
+        self.arm_entry("alpha", "2.0.0")
         self.entry("beta", "1.0.0")
-        self.head = self.commit("published contracts")
+        self.base = self.commit("publish original contracts")
 
-    def planned(self, routes, all_versions=True, cross_all=False):
-        with mock.patch.object(registry_ci, "ARM_CROSS_VERSIONS", routes), \
-                mock.patch.object(registry_ci, "ARM_CROSS_ALL", cross_all):
-            return registry_ci.plan(self.root, None, self.head, all_versions=all_versions,
-                                    latest_versions=not all_versions, published=self.head)["include"]
+    def arm_entry(self, module, version):
+        path = self.entry(module, version) / "presubmit.json"
+        config = json.loads(path.read_text())
+        config["architectures"].append("arm64")
+        config["platforms"]["arm64"] = "@platforms//host:host"
+        write_json(path, config)
 
-    def test_survey_cross_builds_every_arm_version_without_changing_native_jobs(self):
-        before = {str(path): path.read_bytes() for path in (self.root / "modules").rglob("*") if path.is_file()}
-        native = self.planned({})
-        survey = self.planned({}, cross_all=True)
-        self.assertEqual(len(survey), len(native))
-        for original, routed in zip(native, survey):
-            if original["architecture"] == "arm64":
-                self.assertEqual(routed, {**original, "execution_architecture": "amd64",
-                                         "cross_compile": True, "runner": registry_ci.RUNNERS["amd64"]})
-            else:
-                self.assertEqual(routed, original)
-        self.assertEqual([job["version"] for job in survey if job["cross_compile"]], ["1.0.0", "2.0.0"])
-        self.assertEqual(before, {str(path): path.read_bytes() for path in (self.root / "modules").rglob("*") if path.is_file()})
-
-    def test_survey_rejects_non_boolean_selection(self):
-        for value in (None, "true", 1, []):
-            with self.subTest(value=value), self.assertRaises(registry_ci.RegistryError):
-                self.planned({}, cross_all=value)
-
-    def test_empty_routes_preserve_every_native_job_and_original_contract(self):
-        jobs = self.planned({})
-        self.assertEqual(len(jobs), 5)
-        self.assertTrue(all(not job["cross_compile"] for job in jobs))
+    def arm_routes(self, base, head, **options):
+        jobs = registry_ci.plan(self.root, base, head, **options)["include"]
+        routes = {}
         for job in jobs:
-            self.assertEqual(job["execution_architecture"], job["architecture"])
-            self.assertEqual(job["runner"], registry_ci.RUNNERS[job["architecture"]])
+            if job["architecture"] == "arm64":
+                routes[job["module"], job["version"]] = job["cross_compile"]
+            else:
+                self.assertFalse(job["cross_compile"])
+            execution = "amd64" if job["cross_compile"] else job["architecture"]
+            self.assertEqual(job["execution_architecture"], execution)
+            self.assertEqual(job["runner"], registry_ci.RUNNERS[execution])
+        return routes
 
-    def test_staged_default_keeps_unlisted_versions_on_native_arm(self):
-        self.assertIs(registry_ci.ARM_CROSS_ALL, False)
-        jobs = registry_ci.plan(self.root, None, self.head, all_versions=True,
-                                published=self.head)["include"]
-        self.assertEqual(jobs, self.planned({}))
+    def test_new_releases_and_families_default_to_cross_on_pr_push_and_dispatch(self):
+        self.arm_entry("alpha", "3.0.0")
+        self.arm_entry("gamma", "1.0.0")
+        historical_test = self.root / "modules/alpha/1.0.0/tests/check.sh"
+        historical_test.parent.mkdir()
+        historical_test.write_text("#!/bin/sh\nexit 0\n")
+        head = self.commit("add release, module and historical presubmit maintenance")
+        current = {("alpha", "3.0.0"): True, ("gamma", "1.0.0"): True}
+        changed = {**current, ("alpha", "1.0.0"): False}
+        for push in (False, True):
+            with self.subTest(push=push):
+                self.assertEqual(self.arm_routes(self.base, head, published=self.base, push=push), changed)
+        self.assertEqual(self.arm_routes(None, head, published=self.base, latest_versions=True), current)
+        self.assertEqual(self.arm_routes(None, head, published=self.base, all_versions=True),
+                         {**changed, ("alpha", "2.0.0"): True})
+        self.assertEqual(self.git("status", "--porcelain"), "")
 
-    def test_exact_version_moves_only_declared_arm_row_without_mutating_inputs(self):
-        before = {str(path): path.read_bytes() for path in (self.root / "modules").rglob("*") if path.is_file()}
-        native = self.planned({})
-        routed = self.planned({"alpha": ("1.0.0",), "beta": ("1.0.0",)})
-        identity = lambda job: (job["module"], job["version"], job["architecture"])
-        self.assertCountEqual([identity(job) for job in native], [identity(job) for job in routed])
-        moved = [job for job in routed if job["cross_compile"]]
-        self.assertEqual([identity(job) for job in moved], [("alpha", "1.0.0", "arm64")])
-        self.assertEqual(moved[0]["execution_architecture"], "amd64")
-        self.assertEqual(moved[0]["runner"], registry_ci.RUNNERS["amd64"])
-        self.assertEqual([job for job in routed if not job["cross_compile"]],
-                         [job for job in native if identity(job) != identity(moved[0])])
-        self.assertEqual(before, {str(path): path.read_bytes() for path in (self.root / "modules").rglob("*") if path.is_file()})
-        self.assertFalse(any(job["cross_compile"] for job in self.planned({"alpha": ("1.0.0",)}, all_versions=False)))
+    def test_backport_defaults_to_cross_without_moving_the_older_hosted_entry(self):
+        self.arm_entry("alpha", "0.9.0")
+        head = self.commit("add a backport")
+        self.assertEqual(self.arm_routes(self.base, head, published=self.base), {("alpha", "0.9.0"): True})
+        self.assertEqual(self.arm_routes(None, head, published=self.base, all_versions=True),
+                         {("alpha", "0.9.0"): True, ("alpha", "1.0.0"): False, ("alpha", "2.0.0"): True})
 
-    def test_changed_published_source_is_still_rejected_with_cross_route(self):
-        path = self.root / "modules/alpha/1.0.0/MODULE.bazel"
+    def test_yanking_a_release_selects_its_predecessors_existing_route(self):
+        path = self.root / "modules/alpha/metadata.json"
+        metadata = json.loads(path.read_text())
+        metadata["yanked_versions"] = {"2.0.0": "regression"}
+        write_json(path, metadata)
+        head = self.commit("yank a release")
+        self.assertEqual(self.arm_routes(None, head, published=self.base, latest_versions=True),
+                         {("alpha", "1.0.0"): False})
+
+    def test_changed_published_source_is_still_rejected(self):
+        path = self.root / "modules/alpha/2.0.0/MODULE.bazel"
         path.write_text(path.read_text() + "# changed published input\n")
-        changed = self.commit("illegal published source edit")
-        with mock.patch.object(registry_ci, "ARM_CROSS_VERSIONS", {"alpha": ("1.0.0",)}), \
-                self.assertRaises(registry_ci.RegistryError):
-            registry_ci.plan(self.root, self.head, changed, published=self.head)
+        head = self.commit("edit a published source")
+        with self.assertRaises(registry_ci.RegistryError):
+            registry_ci.plan(self.root, self.base, head, published=self.base)
 
-    def test_malformed_temporary_routes_fail_instead_of_silently_changing_mode(self):
-        for routes in ([], {"alpha": "1.0.0"}, {"alpha": ()}, {"bad/name": ("1.0.0",)},
-                       {"alpha": ("../version",)}, {"alpha": ("1.0.0", "1.0.0")}):
-            with self.subTest(routes=routes), self.assertRaises(registry_ci.RegistryError):
-                self.planned(routes)
+    def test_rejects_malformed_historical_inventory(self):
+        for inventory in ([], {"alpha": "1.0.0"}, {"alpha": []}, {"bad/name": ["1.0.0"]},
+                          {"alpha": ["../version"]}, {"alpha": ["1.0.0", "1.0.0"]}):
+            with self.subTest(inventory=inventory), self.assertRaises(registry_ci.RegistryError):
+                write_json(self.inventory, inventory)
+                self.arm_routes(None, self.base, published=self.base, all_versions=True)
 
 
 class WorkflowMatrixTests(unittest.TestCase):
@@ -2136,12 +2145,13 @@ class WorkflowMatrixTests(unittest.TestCase):
         self.assertIn("architecture: amd64", unit)
         self.assertIn("architecture: arm64", unit)
         self.assertIn("runner: [ubuntu-24.04-arm]", unit)
-        rows = re.findall(r"- architecture: (\w+)\n\s+runner: \[([^\]]+)\]\n"
+        self.assertIn("timeout-minutes: ${{ matrix.timeout_minutes }}", unit)
+        rows = re.findall(r"- architecture: (\w+)\n\s+timeout_minutes: (\d+)\n\s+runner: \[([^\]]+)\]\n"
                           r"\s+machine: (\w+)\n\s+bazel_arch: (\w+)\n\s+bazel_sha: ([0-9a-f]+)", unit)
         self.assertEqual(rows, [
-            ("amd64", "self-hosted, Linux, X64, debian-trixie-container", "x86_64", "x86_64",
+            ("amd64", "45", "self-hosted, Linux, X64, debian-trixie-container", "x86_64", "x86_64",
              "61d89402f0368e64b6c827be5de79d8e65382e8124c3cbb97325611a1851392e"),
-            ("arm64", "ubuntu-24.04-arm", "aarch64", "arm64",
+            ("arm64", "30", "ubuntu-24.04-arm", "aarch64", "arm64",
              "b7f2a85595e8a87d54843bc656c1e379fd9b8c1b5f783dc41717c1d7eb7cc49f"),
         ])
         self.assertNotIn("REGISTRY_CI_TEST_ARM_EXECUTOR", unit)

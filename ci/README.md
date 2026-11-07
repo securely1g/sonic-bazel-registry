@@ -75,9 +75,9 @@ M4 TAR from the private Debian source pool first. Both archives must match the
 original rule's SHA256. [Bison release pin](https://github.com/jmillikin/rules_bison/blob/v0.4/bison/internal/versions.bzl#L17-L30) · [M4 release pin](https://github.com/jmillikin/rules_m4/blob/v0.3.1/m4/internal/versions.bzl)
 
 The exact `gawk-5.3.2.tar.xz` URLs at `mirrors.kernel.org`, `ftp.gnu.org`, and
-`ftpmirror.gnu.org` likewise try MacPorts first and retain each original URL as
-a fallback. The published source recipe and SHA256
-`f8c3486509de705192138b00ef2c00bbbdd0e84c30d5c07d23fc73a9dc4cc9cc` remain unchanged.
+`ftpmirror.gnu.org` try the Bazel mirror, then MacPorts, then the original URL.
+Bazel checks each download against the published SHA256
+`f8c3486509de705192138b00ef2c00bbbdd0e84c30d5c07d23fc73a9dc4cc9cc`.
 
 Some packages have additional exact-URL candidates before their timestamped
 snapshot fallbacks:
@@ -795,13 +795,15 @@ and replace it with a fresh registered runner after success, failure, or
 cancellation. Keep registration credentials in the manager, outside job
 containers, and retain runner diagnostics before removing a container.
 
-This staged migration sets `ARM_CROSS_ALL = False`. Only the exact module
-versions in `ARM_CROSS_VERSIONS` use native AMD64 cross-compilers and the ARM
-runtime executor inside the Trixie runner. Every other ARM version retains its
-native GitHub-hosted ARM route, including newer versions of a migrated module.
-All original build labels, test labels, sources and dependency pins remain
-unchanged. The separate all-ARM survey supplies the acceptance evidence below;
-failed or incomplete contracts remain on native ARM while fixes are validated.
+Module versions that declare ARM64 cross-compile on the AMD64 Trixie pool by
+default, including new modules and backports. The 104 historical module
+versions listed in [hosted_arm64_versions.json](hosted_arm64_versions.json)
+use hosted ARM64 workers for their ARM64 jobs. The native ARM64 CI helper
+suite also runs on a hosted worker.
+
+Published versions keep their original registry contents. The new versions
+below include the recipe and dependency changes needed for cross-compilation.
+The initial survey and later per-module jobs record the build and test evidence.
 
 Module steps execute directly inside the disposable runner, built from the
 pinned Trixie base with compiler and package-test tools preinstalled.
@@ -888,12 +890,12 @@ an ARM64 target, and an explicit disposable Debian Trixie container identity.
 The reusable workflow selects native Bazel, image, sudo and artifact handling by
 execution mode while preserving the target architecture and all original labels.
 
-The `ARM_CROSS_VERSIONS` map selects exact module versions for the Trixie
-cross-build pool. The initial 15 versions were validated in the [all-ARM
+The initial 15 versions were validated in the [all-ARM
 survey](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416).
 Job artifacts record the selected dependency versions, native execution and ARM
 target platforms, output identities, and results of the original uncached tests.
-Historical versions outside the map use hosted ARM64.
+The planner uses the same placement for a version in a pull request, a push,
+and a latest or historical workflow dispatch.
 
 | Module | Exact version | Build / test labels | ARM64 validation |
 | --- | --- | --- | --- |
@@ -915,6 +917,11 @@ Historical versions outside the map use hosted ARM64.
 | `sonic-yang-mgmt` | `1.0.0-9ab452d22773c41783092ae3bd6c206d6c257c8d` | 2 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127454762848) |
 | `sonic-yang-models` | `1.0.1-b0a9362a7a1b4b5e1b7188c019d256f7c8aaff9f` | 3 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127456801062) |
 | `tar.bzl` | `0.10.5.sonic.2` | 8 / 7 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127457427548) |
+
+Libyang `3.12.2.sonic.7` was qualified separately on the Trixie runners. Its
+seven builds and five uncached tests passed, including all 56 C suites, three fuzz
+drivers and 225 Tcl cases. Earlier versions, including `3.12.2.sonic.6`, use
+hosted ARM64. [Full ARM64 run](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42113794646/job/127548050588)
 
 DASH `0.0.3-5c9305403585a7ae54f86918219acb8ed39f740a` qualified in a follow-up run.
 Its four ARM64 builds and original uncached runtime test passed on the AMD64 Trixie pool.
@@ -1092,15 +1099,14 @@ REGISTRY_CI_TEST_ARM_EXECUTOR=/usr/local/bin/sonic-arm64 \
   /usr/bin/python3 -I -S ci/run_runner_tests.py --suite cross
 ```
 
-This foundation is not acceptance of the full ARM matrix. Before moving a module
-row, validate its complete original build and uncached-test contract with the
-native-generator/ARM-output foundation, unchanged source pins and resolution
-receipts. SAI now selects the isolated provider, but
-its full cross build and tests have not passed. Other known gaps include nested
-Bazel/sandbox execution in rules_go, SWSS self-reexecution under emulation, and full libyang/protobuf
-debugger/upstream coverage. P4C/PI source candidates and FIPS target-binutils work
-remain separate module changes; transitive consumers retain their published
-dependency pins. No source recipe or image change is included here.
+Validate an ARM64 cross build by building all declared targets and running all
+original tests uncached. Check the source pins, resolved dependencies, native
+build tools and ARM64 outputs in the job artifacts.
+
+At `6a6cc51`, all 27 then-current ARM64 module jobs passed on the Trixie cross
+runners, along with all 40 native AMD64 module jobs. Socat `1.8.0.2.sonic.6`
+subsequently passed all four declared builds and its original ARM64 package test.
+[Full registry run](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42346990641) · [Socat ARM64 run](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42357769679/job/128359533126)
 
 ## Local reproduction
 
