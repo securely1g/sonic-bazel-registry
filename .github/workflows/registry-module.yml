@@ -48,7 +48,8 @@ jobs:
   validate:
     name: Validate module
     runs-on: ${{ fromJSON(inputs.runner) }}
-    timeout-minutes: 180
+    # Cold serial SWSS builds can exceed the ordinary three-hour limit.
+    timeout-minutes: ${{ inputs.cross_compile && inputs.module == 'sonic-swss' && inputs.version == '0.0.3-42df8c74af53427be97609a7b11e9aec59d2d454' && 360 || 180 }}
     # Local native/cross jobs execute directly in the fresh Trixie runner.
     # Only native hosted ARM needs the separate pinned job image.
     container: ${{ inputs.architecture == 'arm64' && !inputs.cross_compile && 'debian:trixie-20260918@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c' || '' }}
@@ -160,6 +161,15 @@ jobs:
           fi
           if [[ "$CI_CROSS_COMPILE" == true ]]; then
             CROSS_ARGS=(--cross-compile --test-executor "$ARM_TEST_EXECUTOR")
+          fi
+          if [[ "$CI_ARCHITECTURE" == amd64 && "$CI_MODULE" == libteam && "$CI_VERSION" == 1.31.0.sonic.1 ]]; then
+            # Reuse the exact APE inputs whose original endpoints failed in
+            # libteam CI. Keep this outside the runner's fresh work directory.
+            "${ROOT[@]}" python3 ci/prepare_cosmos_distdir.py \
+              --distdir "$RUNNER_TEMP/registry-cosmos-distdir" \
+              --cache-dir "$RUNNER_TEMP/registry-cosmos-downloads" \
+              --receipt "$GITHUB_WORKSPACE/ci-artifacts/cosmos-distdir.json"
+            BAZEL_BUILD_ARGS+=("--bazel-build-arg=--distdir=$RUNNER_TEMP/registry-cosmos-distdir")
           fi
           "${ROOT[@]}" "${SECRET_ENV[@]}" python3 ci/private_mirrors.py run \
             --artifacts "$GITHUB_WORKSPACE/ci-artifacts" \
