@@ -48,6 +48,22 @@ def ar_bytes(name, payload):
     return b"!<arch>\n" + header + payload + (b"\n" if len(payload) % 2 else b"")
 
 
+def container_bytes(kind, members):
+    result = io.BytesIO()
+    if kind == "zip":
+        with zipfile.ZipFile(result, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            for name, payload in members:
+                archive.writestr(name, payload)
+    else:
+        with tarfile.open(fileobj=result, mode="w") as archive:
+            for name, payload in members:
+                member = tarfile.TarInfo(name)
+                member.size = len(payload)
+                archive.addfile(member, io.BytesIO(payload))
+    payload = result.getvalue()
+    return gzip.compress(payload) if kind == "tar.gz" else payload
+
+
 class PrivacyTest(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
@@ -353,6 +369,59 @@ class PrivacyTest(unittest.TestCase):
                 path = self.artifacts / name
                 path.write_bytes(payload)
                 self.assert_rejected_without_disclosure()
+                path.unlink()
+
+    def test_empty_archive_suffixes_and_whiteouts_are_payload_free(self):
+        names = (".wh.changelog.gz", "empty.gz", "empty.zip", "empty.xz")
+        for name in names:
+            with self.subTest(file=name):
+                path = self.artifacts / name
+                path.write_bytes(b"")
+                self.redactor.scrub_and_scan(self.artifacts)
+                self.assertEqual(path.read_bytes(), b"")
+                path.unlink()
+        for kind in ("tar", "tar.gz", "zip"):
+            with self.subTest(container=kind):
+                path = self.artifacts / ("layer." + kind)
+                payload = container_bytes(kind, [(name, b"") for name in names])
+                path.write_bytes(payload)
+                self.redactor.scrub_and_scan(self.artifacts)
+                self.assertEqual(path.read_bytes(), payload)
+                path.unlink()
+
+    def test_nonempty_archive_suffixes_still_fail_closed(self):
+        for name in ("fake.gz", ".wh.changelog.gz"):
+            for kind in (None, "tar", "tar.gz", "zip"):
+                with self.subTest(file=name, container=kind):
+                    payload = b"not compressed"
+                    path = self.artifacts / ("layer." + kind if kind else name)
+                    if kind:
+                        payload = container_bytes(kind, [(name, payload)])
+                    path.write_bytes(payload)
+                    self.assert_rejected_without_disclosure()
+                    self.assertEqual(path.read_bytes(), payload)
+                    path.unlink()
+
+    def test_empty_members_do_not_bypass_private_names(self):
+        for kind in (None, "tar", "tar.gz", "zip"):
+            with self.subTest(container=kind):
+                name = HOST + ".gz"
+                path = self.artifacts / ("layer." + kind if kind else name)
+                payload = container_bytes(kind, [(name, b"")]) if kind else b""
+                path.write_bytes(payload)
+                self.assert_rejected_without_disclosure()
+                self.assertEqual(path.read_bytes(), payload)
+                path.unlink()
+
+    def test_empty_member_does_not_hide_adjacent_compressed_private_content(self):
+        members = [(".wh.changelog.gz", b""), ("payload.gz", gzip.compress(HOST.encode()))]
+        for kind in ("tar", "tar.gz", "zip"):
+            with self.subTest(container=kind):
+                path = self.artifacts / ("layer." + kind)
+                payload = container_bytes(kind, members)
+                path.write_bytes(payload)
+                self.assert_rejected_without_disclosure()
+                self.assertEqual(path.read_bytes(), payload)
                 path.unlink()
 
     def test_missing_zstd_scanner_fails_closed(self):

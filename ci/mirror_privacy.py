@@ -213,6 +213,10 @@ class Redactor:
 
     @staticmethod
     def _format(prefix: bytes, name: str) -> str | None:
+        # Empty OCI whiteouts and placeholders have no payload to decode,
+        # even when their names retain a deleted file's archive extension.
+        if not prefix:
+            return None
         if prefix.startswith(b"\x1f\x8b"):
             return "gzip"
         if prefix.startswith(b"BZh"):
