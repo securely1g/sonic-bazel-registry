@@ -153,6 +153,54 @@ class PrivateMirrorConfigTest(unittest.TestCase):
                              ["https://private-mirror.example.test" + path, *candidates(public, origin)])
             self.assertEqual(candidates(combined, origin.replace("1.4.18", "1.4.19")), [])
 
+    def test_net_snmp_alias_preserves_exact_source_and_ordered_fallbacks(self):
+        public = (ROOT / "ci/source_mirrors.cfg").read_text()
+        source = json.loads((ROOT / "modules/net-snmp/5.9.3.sonic.1/source.json").read_text())
+        path = "/debian/pool/main/n/net-snmp/net-snmp_5.9.3+dfsg.orig.tar.xz"
+        origin = "https://packages.trafficmanager.net/public" + path
+        cdn = "https://deb.debian.org" + path
+        self.assertEqual(source["url"], origin)
+        self.assertEqual(source["integrity"], "sha256-t4+TJ2qA1Acm2UlWqn0G/YdStcBiSvW78VXLwz/VIdE=")
+        self.assertEqual(candidates(public, origin), [cdn, origin])
+        combined = MIRRORS.configuration(public, ENVIRONMENT)
+        self.assertEqual(candidates(combined, origin),
+                         ["https://private-mirror.example.test" + path, cdn, origin])
+        for environment in ({}, {"DEBIAN_SECURITY_MIRROR_ROOT": ENVIRONMENT["DEBIAN_SECURITY_MIRROR_ROOT"]}):
+            with self.subTest(environment=sorted(environment)):
+                self.assertEqual(candidates(MIRRORS.configuration(public, environment), origin), [cdn, origin])
+        for other in (origin.replace("5.9.3", "5.9.4"), origin.replace("+dfsg", "dfsg"),
+                      origin.replace("+dfsg", "3dfsg"), origin + "?query", origin + ".sig",
+                      origin.replace("packages.trafficmanager.net", "another.example.test")):
+            with self.subTest(other=other):
+                self.assertEqual(candidates(public, other), [])
+                self.assertEqual(candidates(combined, other), [])
+
+    def test_net_snmp_packaging_alias_preserves_exact_checksum_and_fallbacks(self):
+        public = (ROOT / "ci/source_mirrors.cfg").read_text()
+        path = "/debian/pool/main/n/net-snmp/net-snmp_5.9.3+dfsg-2+deb12u1.debian.tar.xz"
+        origin = "https://packages.trafficmanager.net/public" + path
+        cdn = "https://deb.debian.org" + path
+        checksum = "42bfdc8dff259be56735b0d48a4cbd85f45ff40d0bea86fceaf88ba7a6dc735f"
+        for relative in ("MODULE.bazel", "overlay/MODULE.bazel"):
+            module = (ROOT / "modules/net-snmp/5.9.3.sonic.1" / relative).read_text()
+            self.assertIn('urls = ["' + origin + '"]', module)
+            self.assertIn('sha256 = "' + checksum + '"', module)
+        self.assertEqual(candidates(public, origin), [cdn, origin])
+        combined = MIRRORS.configuration(public, ENVIRONMENT)
+        self.assertEqual(candidates(combined, origin),
+                         ["https://private-mirror.example.test" + path, cdn, origin])
+        for environment in ({}, {"DEBIAN_SECURITY_MIRROR_ROOT": ENVIRONMENT["DEBIAN_SECURITY_MIRROR_ROOT"]}):
+            with self.subTest(environment=sorted(environment)):
+                self.assertEqual(candidates(MIRRORS.configuration(public, environment), origin), [cdn, origin])
+        for other in (origin.replace("5.9.3", "5.9.4"), origin.replace("deb12u1", "deb12u2"),
+                      origin.replace("+dfsg", "dfsg"), origin.replace("+dfsg", "3dfsg"),
+                      origin.replace("+deb12", "deb12"), origin.replace("+deb12", "2deb12"),
+                      origin + "?query", origin + ".sig", origin.replace(".debian.tar", ".orig.tar"),
+                      origin.replace("packages.trafficmanager.net", "another.example.test")):
+            with self.subTest(other=other):
+                self.assertEqual(candidates(public, other), [])
+                self.assertEqual(candidates(combined, other), [])
+
     def test_snapshot_file_objects_use_the_private_content_address(self):
         cfg = MIRRORS.configuration("", ENVIRONMENT)
         digest = "3e383bbe88cbed56bdad4ba655c40abf0e961cf7"
