@@ -1,0 +1,8 @@
+{
+  "url": "https://github.com/yxieca/sonic-dhcp-relay/archive/4a224dccc2b3b55f1140dd5072008f8f8079695c.tar.gz",
+  "strip_prefix": "sonic-dhcp-relay-4a224dccc2b3b55f1140dd5072008f8f8079695c",
+  "integrity": "sha256-fibFtvwsuu9Xslp8WKm4Khxn2dT9+eZXvDuEVxCcia4=",
+  "overlay": {
+    "MODULE.bazel": "sha256-67Fw25Qi7kcclEWFQ76o6pbwYBke2SaT0tDgPORQdnI="
+  }
+}
