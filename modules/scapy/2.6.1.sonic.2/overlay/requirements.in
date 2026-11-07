@@ -1,0 +1,12 @@
+# Validation tools and upstream test dependencies; not Scapy runtime requirements.
+build==1.2.2.post1
+setuptools==80.9.0
+wheel==0.45.1
+installer==0.7.0
+packaging==25.0
+cryptography==44.0.3
+ipython==9.0.2
+python-can==4.5.0
+# Upstream excludes the broken 1.1.0; 1.2.0 provides Python 3.13 wheels.
+brotli==1.2.0
+zstandard==0.23.0
