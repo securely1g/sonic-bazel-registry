@@ -934,6 +934,11 @@ Historical versions outside the map use hosted ARM64.
 | `sonic-yang-models` | `1.0.1-b0a9362a7a1b4b5e1b7188c019d256f7c8aaff9f` | 3 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127456801062) |
 | `tar.bzl` | `0.10.5.sonic.2` | 8 / 7 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127457427548) |
 
+DASH `0.0.3-5c9305403585a7ae54f86918219acb8ed39f740a` qualified in a follow-up run.
+Its four ARM64 builds and original uncached runtime test passed on the AMD64 Trixie pool.
+The test exercised the installed SDK, generated pipeline and detached debug symbols.
+[Validation evidence](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42180204936/job/127767804802)
+
 The `linux-kernel` contract validates its declared helpers; it does not build or
 boot a kernel image. Passing tests only establish each module's existing
 presubmit contract, not broader undeclared functionality. Yang-model package outputs and TAR
@@ -976,6 +981,11 @@ build targets ARM64. Test execution follows the declared Bazel configuration;
 the ARM cross fixture independently verifies native execution tools, ARM ELF
 outputs and target Python compatibility. No test is replaced by a smaller smoke
 test to make a module pass.
+
+BMv2 `1.15.0.sonic.4` qualified in a follow-up ARM64 cross-build on Trixie.
+Its original six builds and two uncached package and configure tests passed
+with the pinned GCC/G++ adapter and the corrected ARM guest executor.
+[Full validation](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42253892877/job/128015806637)
 
 Inside a configured disposable runner with `/usr/local/bin/sonic-arm64`, use
 fresh work and artifact directories. This command is a local opt-in example,
