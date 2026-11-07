@@ -2511,6 +2511,123 @@ class BazelStartupArgumentTests(unittest.TestCase):
         self.assertEqual(execute.call_args.args[-2:], (True, Path("/opt/arm executor")))
 
 
+class EvidenceCopyFailureTests(unittest.TestCase):
+    VERSION = "0.0.2-34a53faaecd325509e9d8f1016ed0108ab558a23"
+    NAMES = ("kernel_action_test", "verify_cache_test", "build_test",
+             "collect_ci_artifacts_test", "stage_kernel_test")
+
+    def fixture(self, failed=False):
+        # Exercise the real runner and BEP verification with recorded commands.
+        # No Bazel, subprocess, downloaded input or Debian package is executed.
+        import contextlib
+        module = "sonic-linux-kernel"
+        version = self.VERSION
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            entry = root / "modules" / module / version
+            entry.mkdir(parents=True)
+            (entry / "MODULE.bazel").write_text(
+                f'module(name = "{module}", version = "{version}")\n')
+            labels = [f"@{module}//tools/bazel:{name}" for name in self.NAMES]
+            config = {"architectures": ["amd64"], "consumer_deps": [],
+                      "platforms": {"amd64": "@platforms//host:host"},
+                      "build_targets": list(labels),
+                      "test_targets": list(labels)}
+            original = copy.deepcopy(config)
+            work, artifacts = root / "work", root / "artifacts"
+            commands = []
+
+            def record(command, consumer, log):
+                commands.append(command)
+                log.write_text("mocked command; no process executed\n")
+                (consumer / "MODULE.bazel.lock").write_text('{"lockFileVersion": 13}\n')
+                phase = "test" if "test" in command else "build"
+                events = []
+                if phase == "test":
+                    for label in (x for x in command if x in labels):
+                        status = "FAILED" if failed and label == labels[-1] else "PASSED"
+                        events.extend([
+                            {"id": {"testResult": {"label": label}},
+                             "testResult": {"status": status, "cachedLocally": False}},
+                            {"id": {"testSummary": {"label": label}},
+                             "testSummary": {"overallStatus": status,
+                                             "totalRunCount": 1, "totalNumCached": 0}},
+                        ])
+                (artifacts / (phase + "-events.jsonl")).write_text(
+                    "".join(json.dumps(event) + "\n" for event in events))
+
+            with contextlib.ExitStack() as patches:
+                patches.enter_context(mock.patch.dict(os.environ, {}, clear=True))
+                for name, value in {
+                    "validate_entry": config,
+                    "verify_native": {"architecture": "amd64"},
+                    "preserve_source_inputs": contextlib.nullcontext(),
+                    "prepare_rust": [], "query_output_trees": {},
+                    "collect_outputs": None, "fetched_modules": [entry / "MODULE.bazel"],
+                    "prepare_test_runtime": [], "collect_failed_action_logs": None,
+                }.items():
+                    patches.enter_context(mock.patch.object(registry_ci, name, return_value=value))
+                patches.enter_context(mock.patch.object(registry_ci, "run_logged", side_effect=record))
+                patches.enter_context(mock.patch.object(registry_ci.subprocess, "check_output",
+                                                        return_value=str(work) + "\n"))
+                patches.enter_context(mock.patch.object(registry_ci.cross_pip, "record_locks"))
+                try:
+                    registry_ci.run(root, module, version, "amd64", work, artifacts)
+                except registry_ci.RegistryError:
+                    self.assertFalse((artifacts / "validation.json").exists())
+                    self.assertEqual(config, original)
+                    raise
+            self.assertEqual(config, original, "selection must not mutate the declared manifest")
+            data = (artifacts / "validation.json").read_bytes()
+            return config, commands, data
+
+    def check_copy_failure(self, phase, prior_failure):
+        import errno
+        calls = []
+        exists = Path.exists
+
+        def present(path):
+            return path.name == "bazel-testlogs" or exists(path)
+
+        def copy_lock(source, destination, *args, **kwargs):
+            if Path(destination).name == "MODULE.bazel.lock":
+                calls.append("lock")
+                if phase == "lock":
+                    raise OSError(errno.ENOSPC, "synthetic copy failure")
+
+        def copy_logs(*args, **kwargs):
+            calls.append("testlogs")
+            if phase == "testlogs":
+                raise OSError(errno.ENOSPC, "synthetic copy failure")
+
+        error = registry_ci.RegistryError if prior_failure else OSError
+        with mock.patch.object(registry_ci.shutil, "copy2", side_effect=copy_lock), \
+                mock.patch.object(registry_ci.shutil, "copytree", side_effect=copy_logs), \
+                mock.patch.object(Path, "exists", present), \
+                mock.patch.object(sys, "stderr", io.StringIO()) as stderr, \
+                self.assertRaises(error) as caught:
+            self.fixture(failed=prior_failure)
+        self.assertIn("errno=28", stderr.getvalue())
+        if prior_failure:
+            self.assertIn("test attempt did not pass", str(caught.exception))
+            self.assertEqual(calls, ["lock", "testlogs"])
+        else:
+            self.assertEqual(caught.exception.errno, errno.ENOSPC)
+            self.assertEqual(calls, ["lock"] if phase == "lock" else ["lock", "testlogs"])
+
+    def test_lock_copy_does_not_mask_original_validation_failure(self):
+        self.check_copy_failure("lock", True)
+
+    def test_testlogs_copy_does_not_mask_original_validation_failure(self):
+        self.check_copy_failure("testlogs", True)
+
+    def test_lock_copy_still_fails_otherwise_successful_validation(self):
+        self.check_copy_failure("lock", False)
+
+    def test_testlogs_copy_still_fails_otherwise_successful_validation(self):
+        self.check_copy_failure("testlogs", False)
+
+
 class FetchedModuleTests(FixtureTestCase):
     def test_verified_distdir_reaches_build_test_queries_and_rust_preparation(self) -> None:
         with mock.patch.object(registry_ci, "prepare_github_sources", return_value=["--distdir=/verified/inputs"]) as prepare, \
