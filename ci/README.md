@@ -35,6 +35,18 @@ tests and output queries. Rewrites match only the archive and binary-package
 URLs described below; registry order, module versions, source recipes and
 integrity values stay unchanged.
 
+BCR `pigz@2.8.bcr.2` requests `https://zlib.net/pigz/pigz-2.8.tar.gz`.
+That exact URL now tries the verified
+[`pigz-2.8.tar.gz` release asset](https://github.com/securely1g/sonic-bazel-registry/releases/download/ci-source-mirrors-20261104/pigz-2.8.tar.gz)
+first, followed by the existing MacPorts mirror. Both must match BCR's unchanged
+SHA256 `eb872b4f0e1f0ebe59c9f7bd8c506c4204893ba6a8492de31df416f0d5170fd0`;
+BCR still applies its original source patches. For example,
+[buildimage #133](https://github.com/securely1g/sonic-buildimage/pull/133)
+can pass this shared downloader configuration for its source-base and OCI builds instead
+of downloading pigz with a separate `prepare_pigz.py` helper. An unavailable or
+corrupt release asset falls back to MacPorts; corrupt bytes from both candidates
+fail the fetch and cannot enter Bazel's verified repository cache.
+
 The five ARM-hosted BCR archives use verified copies in this repository's
 [source-mirror release](https://github.com/securely1g/sonic-bazel-registry/releases/tag/ci-source-mirrors-20261104)
 first, with each original GitLab release URL retained as the next candidate:
