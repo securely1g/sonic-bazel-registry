@@ -65,7 +65,7 @@ class TemporaryBudget:
     def preflight(self, artifacts: Path):
         if artifacts.stat().st_dev != self.device:
             raise PrivacyError("Scanner evidence and temporaries use different filesystems")
-        self._free(self.maximum_bytes)
+        self._free()
 
     def _open(self, stream):
         if os.fstat(stream.fileno()).st_dev != self.device:
@@ -213,6 +213,10 @@ class Redactor:
 
     @staticmethod
     def _format(prefix: bytes, name: str) -> str | None:
+        # Empty OCI whiteouts and placeholders have no payload to decode,
+        # even when their names retain a deleted file's archive extension.
+        if not prefix:
+            return None
         if prefix.startswith(b"\x1f\x8b"):
             return "gzip"
         if prefix.startswith(b"BZh"):
@@ -237,7 +241,32 @@ class Redactor:
         if depth > MAX_ARCHIVE_DEPTH:
             raise PrivacyError("Validation evidence exceeds the archive nesting limit")
         prefix = stream.read(512)
-        kind = self._format(prefix, name)
+        try:
+            kind = self._format(prefix, name)
+        except PrivacyError as error:
+            # A nested .gz name can contain plain text. Accept
+            # only a complete ASCII payload within this existing 512-byte read,
+            # confirmed by EOF, and still run the ordinary private-text scan.
+            # Magic-based formats, outer artifacts, binary and larger members
+            # retain their existing decoding or fail-closed behavior.
+            if (depth > 0 and name.lower().endswith(".gz")
+                    and str(error) == "Unrecognized archive in private-mirror validation evidence"
+                    and all(value in (9, 10, 13) or 32 <= value <= 126 for value in prefix)
+                    and not stream.read(1)):
+                self._scan_raw(stream, prefix)
+                return
+            # Retain only controlled categories and a full-name digest. Even
+            # checked archive names and raw content stay out of public errors.
+            suffix = next((value for value in (".gz", ".tgz", ".bz2", ".xz", ".zst", ".zip",
+                                               ".7z", ".rar", ".lz4", ".lz", ".lzma")
+                           if name.lower().endswith(value)), "none")
+            prefix_class = ("zero-filled" if not any(prefix) else
+                            "ascii-text" if all(value in (9, 10, 13) or 32 <= value <= 126
+                                                for value in prefix) else "other")
+            detail = {"depth": depth, "suffix": suffix, "prefix_bytes": len(prefix),
+                      "prefix_class": prefix_class,
+                      "member_sha256": hashlib.sha256(name.encode("utf-8", "surrogatepass")).hexdigest()}
+            raise PrivacyError(f"{error}; archive-format {json.dumps(detail, sort_keys=True)}") from None
         if kind is None:
             self._scan_raw(stream, prefix)
             return

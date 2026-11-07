@@ -48,6 +48,22 @@ def ar_bytes(name, payload):
     return b"!<arch>\n" + header + payload + (b"\n" if len(payload) % 2 else b"")
 
 
+def container_bytes(kind, members):
+    result = io.BytesIO()
+    if kind == "zip":
+        with zipfile.ZipFile(result, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            for name, payload in members:
+                archive.writestr(name, payload)
+    else:
+        with tarfile.open(fileobj=result, mode="w") as archive:
+            for name, payload in members:
+                member = tarfile.TarInfo(name)
+                member.size = len(payload)
+                archive.addfile(member, io.BytesIO(payload))
+    payload = result.getvalue()
+    return gzip.compress(payload) if kind == "tar.gz" else payload
+
+
 class PrivacyTest(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
@@ -355,6 +371,186 @@ class PrivacyTest(unittest.TestCase):
                 self.assert_rejected_without_disclosure()
                 path.unlink()
 
+    def test_empty_archive_suffixes_and_whiteouts_are_payload_free(self):
+        names = (".wh.changelog.gz", "empty.gz", "empty.zip", "empty.xz")
+        for name in names:
+            with self.subTest(file=name):
+                path = self.artifacts / name
+                path.write_bytes(b"")
+                self.redactor.scrub_and_scan(self.artifacts)
+                self.assertEqual(path.read_bytes(), b"")
+                path.unlink()
+        for kind in ("tar", "tar.gz", "zip"):
+            with self.subTest(container=kind):
+                path = self.artifacts / ("layer." + kind)
+                payload = container_bytes(kind, [(name, b"") for name in names])
+                path.write_bytes(payload)
+                self.redactor.scrub_and_scan(self.artifacts)
+                self.assertEqual(path.read_bytes(), payload)
+                path.unlink()
+
+    def test_nonempty_archive_suffixes_still_fail_closed(self):
+        for name in ("fake.gz", ".wh.changelog.gz"):
+            for kind in (None, "tar", "tar.gz", "zip"):
+                with self.subTest(file=name, container=kind):
+                    # Nontext payloads must never use the tiny ASCII exception.
+                    payload = b"not compressed\x00"
+                    path = self.artifacts / ("layer." + kind if kind else name)
+                    if kind:
+                        payload = container_bytes(kind, [(name, payload)])
+                    path.write_bytes(payload)
+                    self.assert_rejected_without_disclosure()
+                    self.assertEqual(path.read_bytes(), payload)
+                    path.unlink()
+
+    def test_nested_tiny_ascii_gz_members_are_scanned_without_rewriting(self):
+        # Match the observed shape, not the unidentified member name or text.
+        for size in (83, 512):
+            prefix = b"public fixture\ttext\r\n"
+            text = prefix + b"x" * (size - len(prefix))
+            self.assertEqual(len(text), size)
+            for kind in ("tar", "tar.gz", "zip"):
+                with self.subTest(size=size, container=kind):
+                    payload = container_bytes(kind, [("fixtures/example.gz", text)])
+                    path = self.artifacts / ("layer." + kind)
+                    path.write_bytes(payload)
+                    self.redactor.scrub_and_scan(self.artifacts)
+                    self.assertEqual(path.read_bytes(), payload)
+                    path.unlink()
+
+    def test_tiny_ascii_exception_preserves_outer_suffix_and_size_guards(self):
+        cases = (("example.gz", b"x" * 83, False),
+                 ("example.gz", b"x" * 513, True),
+                 ("example.gz", b"x" * 512 + b"\x00", True),
+                 ("example.gz", b"x" * 82 + b"\x7f", True),
+                 ("example.gz", b"x" * 82 + b"\x80", True),
+                 ("example.zip", b"x" * 83, True),
+                 ("example.tgz", b"x" * 83, True),
+                 ("example.gz", b"Rar!" + b"x" * 79, True))
+        for name, contents, nested in cases:
+            with self.subTest(name=name, bytes=len(contents), nested=nested):
+                path = self.artifacts / ("layer.tar" if nested else name)
+                payload = tar_bytes(name, contents) if nested else contents
+                path.write_bytes(payload)
+                self.assert_rejected_without_disclosure()
+                self.assertEqual(path.read_bytes(), payload)
+                path.unlink()
+
+    def test_tiny_ascii_exception_requires_actual_eof_after_short_read(self):
+        class ShortReader(io.BytesIO):
+            def read(self, size=-1):
+                return super().read(min(size, 83) if size >= 0 else size)
+        for payload in (b"x" * 84, b"x" * 83 + b"\x00", b"x" * 83 + HOST.encode()):
+            with self.subTest(bytes=len(payload)):
+                with self.assertRaisesRegex(privacy.PrivacyError, "Unrecognized archive"):
+                    self.redactor._scan_stream(ShortReader(payload), "fixture.gz", 1)
+
+    def test_tiny_ascii_members_keep_private_name_content_and_adjacent_checks(self):
+        for kind in ("tar", "tar.gz", "zip"):
+            for members in ([(HOST + ".gz", b"public text")],
+                            [("fixture.gz", ("before " + HOST + " after").encode())],
+                            [("fixture.gz", quote(URL, safe="").encode())],
+                            [("fixture.gz", b"public text"),
+                             ("next.gz", gzip.compress(URL.encode()))]):
+                with self.subTest(container=kind, members=len(members)):
+                    path = self.artifacts / ("layer." + kind)
+                    payload = container_bytes(kind, members)
+                    path.write_bytes(payload)
+                    self.assert_rejected_without_disclosure()
+                    self.assertEqual(path.read_bytes(), payload)
+                    path.unlink()
+
+    def test_tiny_ascii_exception_does_not_bypass_gzip_crc_or_truncation(self):
+        valid = gzip.compress(b"ordinary payload")
+        corrupt_crc = valid[:-8] + bytes([valid[-8] ^ 1]) + valid[-7:]
+        for contents in (b"\x1f\x8b", valid[:-1], corrupt_crc):
+            for kind in ("tar", "tar.gz", "zip"):
+                with self.subTest(bytes=len(contents), container=kind):
+                    path = self.artifacts / ("layer." + kind)
+                    payload = container_bytes(kind, [("fixture.gz", contents)])
+                    path.write_bytes(payload)
+                    self.assert_rejected_without_disclosure()
+                    self.assertEqual(path.read_bytes(), payload)
+                    path.unlink()
+
+    def test_empty_members_do_not_bypass_private_names(self):
+        for kind in (None, "tar", "tar.gz", "zip"):
+            with self.subTest(container=kind):
+                name = HOST + ".gz"
+                path = self.artifacts / ("layer." + kind if kind else name)
+                payload = container_bytes(kind, [(name, b"")]) if kind else b""
+                path.write_bytes(payload)
+                self.assert_rejected_without_disclosure()
+                self.assertEqual(path.read_bytes(), payload)
+                path.unlink()
+
+    def test_empty_member_does_not_hide_adjacent_compressed_private_content(self):
+        members = [(".wh.changelog.gz", b""), ("payload.gz", gzip.compress(HOST.encode()))]
+        for kind in ("tar", "tar.gz", "zip"):
+            with self.subTest(container=kind):
+                path = self.artifacts / ("layer." + kind)
+                payload = container_bytes(kind, members)
+                path.write_bytes(payload)
+                self.assert_rejected_without_disclosure()
+                self.assertEqual(path.read_bytes(), payload)
+                path.unlink()
+
+    def test_unknown_archive_diagnostics_are_bounded_and_content_free(self):
+        name = "usr/share/never-report-this-name\n" + "x" * 2048 + ".gz"
+        cases = ((b"never-report-this-content" * 40, "ascii-text"),
+                 (b"\0" * 700, "zero-filled"), (b"\xff\0binary-content", "other"))
+        for kind, depth in (("tar", 1), ("tar.gz", 2), ("zip", 1)):
+            for contents, prefix_class in cases:
+                with self.subTest(container=kind, prefix_class=prefix_class):
+                    path = self.artifacts / ("layer." + kind)
+                    payload = container_bytes(kind, [(name, contents)])
+                    path.write_bytes(payload)
+                    with self.assertRaises(privacy.PrivacyError) as error:
+                        self.redactor.scrub_and_scan(self.artifacts)
+                    message = str(error.exception)
+                    self.assertIn("Unrecognized archive", message)
+                    detail, _ = json.JSONDecoder().raw_decode(message.split("archive-format ", 1)[1])
+                    self.assertEqual(detail, {
+                        "depth": depth, "suffix": ".gz", "prefix_bytes": min(512, len(contents)),
+                        "prefix_class": prefix_class,
+                        "member_sha256": hashlib.sha256(name.encode()).hexdigest(),
+                    })
+                    self.assertLess(len(message), 512)
+                    self.assertNotIn("never-report", message)
+                    self.assertNotIn("binary-content", message)
+                    self.assertNotIn("\n", message)
+                    self.assertEqual(path.read_bytes(), payload)
+                    path.unlink()
+
+    def test_unsupported_archive_diagnostics_keep_rejection(self):
+        name = "usr/share/never-report.7z"
+        payload = container_bytes("tar.gz", [(name, b"7z\xbc\xaf\x27\x1c")])
+        path = self.artifacts / "layer.tar.gz"
+        path.write_bytes(payload)
+        with self.assertRaises(privacy.PrivacyError) as error:
+            self.redactor.scrub_and_scan(self.artifacts)
+        message = str(error.exception)
+        self.assertIn("Unsupported archive", message)
+        detail, _ = json.JSONDecoder().raw_decode(message.split("archive-format ", 1)[1])
+        self.assertEqual(detail, {"depth": 2, "suffix": ".7z", "prefix_bytes": 6,
+                                 "prefix_class": "other",
+                                 "member_sha256": hashlib.sha256(name.encode()).hexdigest()})
+        self.assertNotIn(name, message)
+        self.assertEqual(path.read_bytes(), payload)
+
+    def test_format_diagnostics_do_not_expose_private_names_or_payloads(self):
+        for name, contents in ((HOST + ".gz", b"not compressed"),
+                               (quote(URL, safe="") + ".gz", b"not compressed"),
+                               ("payload.gz", gzip.compress(URL.encode()))):
+            for kind in ("tar", "tar.gz", "zip"):
+                with self.subTest(container=kind, name=name):
+                    path = self.artifacts / ("layer." + kind)
+                    payload = container_bytes(kind, [(name, contents)])
+                    path.write_bytes(payload)
+                    self.assert_rejected_without_disclosure()
+                    self.assertEqual(path.read_bytes(), payload)
+                    path.unlink()
+
     def test_missing_zstd_scanner_fails_closed(self):
         (self.artifacts / "archive.zst").write_bytes(b"\x28\xb5\x2f\xfd")
         with mock.patch.object(privacy.shutil, "which", return_value=None):
@@ -458,6 +654,33 @@ class PrivacyTest(unittest.TestCase):
         self.assertEqual(path.read_bytes(), payload)
         self.assertEqual(budget.live_bytes, 0)
         self.assertEqual(budget.open_files, 0)
+
+    def test_budget_checks_actual_growth_below_maximum_headroom(self):
+        # A small spool may fit while the configured maximum would not.
+        # Each actual write still preserves the separate filesystem floor.
+        for free_blocks, succeeds in ((4, True), (3, False)):
+            with self.subTest(free_blocks=free_blocks):
+                redactor, budget, block = self.budgeted(16)
+                path = self.artifacts / "runtime.tar"
+                original = tar_bytes("file", b"safe")
+                path.write_bytes(original)
+                self.assertEqual(len(original), 10240)
+                self.assertEqual(budget.maximum_bytes, 16 * block)
+                self.assertEqual(budget.minimum_free_bytes, block)
+                def available(_):
+                    return mock.Mock(f_bavail=free_blocks - budget.live_bytes // block,
+                                     f_frsize=block)
+                with mock.patch.object(privacy.os, "statvfs", side_effect=available):
+                    if succeeds:
+                        redactor.scrub_and_scan(self.artifacts)
+                        self.assertEqual(budget.peak_bytes, 3 * block)
+                    else:
+                        with self.assertRaisesRegex(privacy.PrivacyError, "headroom is insufficient"):
+                            redactor.scrub_and_scan(self.artifacts)
+                        self.assertLess(budget.peak_bytes, budget.maximum_bytes)
+                self.assertEqual(path.read_bytes(), original)
+                self.assertEqual(budget.live_bytes, 0)
+                self.assertEqual(budget.open_files, 0)
 
     def test_budget_checks_fresh_headroom_before_scan_and_each_write(self):
         redactor, budget, block = self.budgeted(16)
