@@ -180,6 +180,13 @@ jobs:
             # worker waits for Skyframe. Run the original repository rules directly.
             BAZEL_BUILD_ARGS=(--bazel-build-arg=--jobs=1 --bazel-build-arg=--discard_analysis_cache
                               --bazel-build-arg=--experimental_worker_for_repo_fetching=off)
+            if [[ "$CI_MODULE" == sonic-fips ]]; then
+              # Make invokes OpenSSL's original TAP harness. Preserve caller flags
+              # and use the same action environment for the build and test commands.
+              fips_makeflags="${GNUMAKEFLAGS:+$GNUMAKEFLAGS }HARNESS_PERL=/usr/local/bin/sonic-pilot-fips-recipe"
+              BAZEL_BUILD_ARGS+=("--bazel-build-arg=--action_env=GNUMAKEFLAGS=$fips_makeflags"
+                                "--bazel-build-arg=--action_env=SONIC_PILOT_FIPS_WORK=$RUNNER_TEMP/registry-ci")
+            fi
             git config --global --add safe.directory "$GITHUB_WORKSPACE"
           fi
           if [[ "${PILOT_POOL:-false}" == true ]]; then

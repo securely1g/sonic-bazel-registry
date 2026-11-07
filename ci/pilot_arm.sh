@@ -42,6 +42,24 @@ LAUNCHER
             if [[ ${CI_MODULE:-} == rules_distroless ]]; then
                 bash "$(dirname "$script")/pilot_arm_kernel.sh" --prepare "$guest"
             fi
+            if [[ ${CI_MODULE:-} == sonic-fips ]]; then
+                # #94 already ships the kernel, initrd and executor in this worker.
+                # Run its AMD64 system emulator directly from the ARM chroot.
+                host_usr=/usr/local/lib/sonic-pilot-host-usr
+                install -d "$guest$host_usr" "$guest/usr/local/share" "$guest/opt"
+                ln -sfn "$host_usr/local/bin/sonic-arm64-kernel" "$guest/usr/local/bin/sonic-arm64-kernel"
+                ln -sfn "$host_usr/local/share/sonic-arm64-kernel" "$guest/usr/local/share/sonic-arm64-kernel"
+                ln -sfn / "$guest/opt/sonic-arm64-rootfs"
+                install -m 0755 "$(dirname "$script")/pilot_fips_recipe.sh" "$guest/usr/local/bin/sonic-pilot-fips-recipe"
+                cat > "$guest/usr/bin/qemu-system-aarch64" <<'EMULATOR'
+#!/bin/sh
+host_usr=/usr/local/lib/sonic-pilot-host-usr
+lib=$host_usr/lib/x86_64-linux-gnu
+export QEMU_MODULE_DIR=$lib/qemu
+exec "$lib/ld-linux-x86-64.so.2" --library-path "$lib" "$host_usr/bin/qemu-system-aarch64" -L "$host_usr/share/qemu" "$@"
+EMULATOR
+                chmod 0755 "$guest/usr/bin/qemu-system-aarch64"
+            fi
             set -- run bash -ec '
                 test "$(dpkg --print-architecture)" = arm64
                 test "$(uname -m)" = aarch64
@@ -82,6 +100,11 @@ LAUNCHER
             fi
             mount --rbind "$path" "$guest$path"
         done
+        if [[ ${CI_MODULE:-} == sonic-fips ]]; then
+            host_usr="$guest/usr/local/lib/sonic-pilot-host-usr"
+            mount --bind /usr "$host_usr"
+            mount -o remount,bind,ro "$host_usr"
+        fi
         touch "$guest/.dockerenv"
         # Compare the superblocks before writing any emulator registration. An
         # old kernel without per-user-namespace binfmt_misc must fail closed.

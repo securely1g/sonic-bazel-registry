@@ -2394,6 +2394,37 @@ class TestContainerTests(unittest.TestCase):
                 self.assertEqual(result.stdout, "argument with spaces")
                 self.assertEqual(result.returncode, 29)
 
+    def test_pilot_overrides_the_openssl_recipe_interpreter_only_on_emulated_fips(self):
+        workflow = (registry_ci.ROOT / ".github/workflows/registry-module.yml").read_text()
+        script = self.step(workflow, "Build and test through the registry")
+        for module, arch, emulated in (("sonic-fips", "amd64", False), ("sonic-fips", "arm64", False),
+                                       ("libyang", "arm64", True), ("sonic-fips", "arm64", True)):
+            with self.subTest(module=module, arch=arch, emulated=emulated), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                env = self.shell_environment(root, arch, arch, False)
+                env.update(CI_MODULE=module, PILOT_POOL="true", PILOT_EMULATED_ARM=str(emulated).lower(),
+                           GNUMAKEFLAGS="-r --warn-undefined-variables")
+                subprocess.run(["bash", "-c", script], env=env, check=True, capture_output=True)
+                arguments = (root / "CAPTURE").read_text().splitlines()
+                make_flags = [arg for arg in arguments if "GNUMAKEFLAGS=" in arg]
+                if module == "sonic-fips" and emulated:
+                    self.assertEqual(make_flags, ["--bazel-build-arg=--action_env=GNUMAKEFLAGS=-r "
+                                                  "--warn-undefined-variables HARNESS_PERL=/usr/local/bin/sonic-pilot-fips-recipe"])
+                else:
+                    self.assertEqual(make_flags, [])
+
+    def test_pilot_fips_runs_the_cmp_http_recipe_with_the_declared_perl(self):
+        wrapper = registry_ci.ROOT / "ci/pilot_fips_recipe.sh"
+        with tempfile.TemporaryDirectory() as tmp:
+            perl = Path(tmp) / "declared perl"
+            perl.write_text('#!/bin/sh\nprintf "%s\\n" "$@"\nexit 37\n')
+            perl.chmod(0o755)
+            args = ["test/recipes/80-test_cmp_http.t", "argument with spaces"]
+            env = {**os.environ, "SONIC_TEST_PERL": str(perl), "SONIC_TEST_PERL_LIB": "vendor modules"}
+            result = subprocess.run([str(wrapper), *args], env=env, capture_output=True, text=True)
+        self.assertEqual(result.stdout.splitlines(), ["-Ivendor modules", *args])
+        self.assertEqual(result.returncode, 37)
+
     def test_pilot_limits_nested_compilers_for_targets_and_tools(self):
         workflow = (registry_ci.ROOT / ".github/workflows/registry-module.yml").read_text()
         script = self.step(workflow, "Build and test through the registry")
