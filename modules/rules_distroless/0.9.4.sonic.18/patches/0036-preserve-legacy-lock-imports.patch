@@ -1,0 +1,222 @@
+Subject: Preserve independent legacy APT lock imports
+
+Legacy import_lock callers may select separate payload locks alongside apt.install.
+Keep their existing per-lock repositories while retaining strict root-authoritative
+production-lock validation for explicit unified inputs and canonical _inputs locks.
+This fixes the Framework/Common graph without changing published .17 or its inputs.
+
+--- a/apt/extensions.bzl
++++ b/apt/extensions.bzl
+@@ -3,10 +3,10 @@
+ load("@bazel_tools//tools/build_defs/repo:utils.bzl", "read_netrc", "read_user_netrc", "use_netrc")
+ load("//apt/private:apt_deb_repository.bzl", "deb_repository")
+ load("//apt/private:apt_dep_resolver.bzl", "dependency_resolver")
+-load("//apt/private:configuration.bzl", "export_lock_repository", "export_requests", "install_requests", "read_sources", "requests_document", "selected_lock_tags")
++load("//apt/private:configuration.bzl", "export_lock_repository", "export_requests", "install_requests", "read_sources", "requests_document", "selected_lock_tags", "uses_unified_lock")
+ load("//apt/private:deb_filemap.bzl", "deb_filemap", "package_catalog", "package_catalog_name", "package_catalog_repository")
+ load("//apt/private:deb_import.bzl", "deb_import")
+-load("//apt/private:locked_import.bzl", "declare_locked_imports")
++load("//apt/private:locked_import.bzl", "declare_legacy_locked_imports", "declare_locked_imports")
+ load("//apt/private:lockfile.bzl", "lockfile")
+ load("//apt/private:translate_dependency_set.bzl", "translate_dependency_set")
+ load("//apt/private:util.bzl", "util")
+@@ -241,8 +241,9 @@
+             export_requests(mctx, installs, source_document, tag.name)
+         return
+     updates = [tag for module in mctx.modules if module.is_root for tag in module.tags.export_lock]
+-    imports, _ = selected_lock_tags(mctx)
+-    if imports and not updates:
++    unified = uses_unified_lock(mctx, source_document)
++    imports, _ = selected_lock_tags(mctx, require_one_root_lock = unified)
++    if imports and not updates and unified:
+         declare_locked_imports(mctx, [], installs, source_document)
+         return
+     previous = {}
+@@ -510,7 +511,10 @@
+     # Locked runtime inputs use the same package importer and hub generator.
+     # They do not participate in package-index resolution or rewrite their locks.
+     if not updates:
+-        declare_locked_imports(mctx, dependency_sets.keys())
++        if unified:
++            declare_locked_imports(mctx, dependency_sets.keys())
++        else:
++            declare_legacy_locked_imports(mctx, dependency_sets.keys())
+ 
+     if not use_facts:
+         for mod in mctx.modules:
+--- a/apt/private/configuration.bzl
++++ b/apt/private/configuration.bzl
+@@ -98,7 +98,7 @@
+ )
+ 
+ 
+-def selected_lock_tags(mctx):
++def selected_lock_tags(mctx, require_one_root_lock = True):
+     """A root lock is authoritative; dependency locks remain standalone defaults."""
+     imports = [(module, tag) for module in mctx.modules for tag in module.tags.import_lock if not tag.fallback]
+     roots = [(module, tag) for module, tag in imports if module.is_root]
+@@ -107,9 +107,29 @@
+         roots = defaults
+         imports.extend(defaults)
+     selected = roots or imports
+-    if roots and len({str(tag.lock): True for _, tag in roots}) != 1:
++    if require_one_root_lock and roots and len({str(tag.lock): True for _, tag in roots}) != 1:
+         fail("select one production lock in the root module")
+     return (imports, selected)
++
++def uses_unified_lock(mctx, source_document = None):
++    """Keep legacy per-lock imports unless the workspace selects unified inputs."""
++    imports, selected = selected_lock_tags(mctx, require_one_root_lock = False)
++    if source_document != None:
++        return True
++    for module in mctx.modules:
++        if module.tags.install_file:
++            return True
++        if module.is_root and (module.tags.lock_view or module.tags.export_lock or module.tags.export_requests):
++            return True
++    # Use effective tags: an ignored dependency fallback must not change modes.
++    for _, tag in imports:
++        if tag.libraries or tag.sources or tag.requests or tag.fallback:
++            return True
++    # Canonical locks already carry their reviewed unified input identity.
++    for _, tag in selected:
++        if "_inputs" in json.decode(mctx.read(tag.lock)):
++            return True
++    return False
+ 
+ def _export_requests_impl(rctx):
+     rctx.file("requests.json", rctx.attr.content)
+--- a/apt/private/locked_import.bzl
++++ b/apt/private/locked_import.bzl
+@@ -260,3 +260,55 @@
+                 if group in library_groups and imported[key + "=" + version]["name"].endswith("-dev")
+             },
+         )
++
++def declare_legacy_locked_imports(mctx, existing_sets):
++    """Reuse deb_import/deb_postfix and the hub generator without index resolution.
++
++    Runtime imports intentionally do not publish C++ compilation targets: a
++    version-2 lock contains archive identities, not Debian Contents-index maps.
++    Ordinary apt.install keeps its existing compiler/header exports.
++    """
++    declared = {name: True for name in existing_sets}
++    imports, _ = selected_lock_tags(mctx, require_one_root_lock = False)
++    for module, tag in imports:
++        document = json.decode(mctx.read(tag.lock))
++        for group, definition in expanded_sets(document, tag.dependency_sets).items():
++            if group in declared:
++                fail("APT dependency set is already declared: " + group)
++            declared[group] = True
++            prefix = "locked_import_" + group + "_"
++            selected = {key + "=" + version: True for roots in definition["sets"].values() for key, version in roots.items()}
++            imported_packages = {
++                key: dict(document["packages"][key], depends_on = [
++                    dependency
++                    for dependency in reachable_packages(document["packages"], [key])
++                    if dependency != key
++                ])
++                for key in selected
++            }
++            package_repositories = {}
++            for key in selected:
++                name = prefix + util.sanitize(key)
++                if name in package_repositories:
++                    fail("locked APT package repository names collide: " + key)
++                package_repositories[name] = True
++                package = imported_packages[key]
++                deb_import(
++                    name = name,
++                    target_name = name,
++                    urls = [uri.rstrip("/") + "/" + package["filename"] for uri in document["sources"][package["suite"]]["uris"]],
++                    sha256 = package["sha256"],
++                    package_name = package["name"],
++                    depends_on = package["depends_on"],
++                    repo_prefix = prefix,
++                    payload_only = True,
++                    mergedusr = False,
++                )
++            locked = dict(document, packages = imported_packages, dependency_sets = {group: definition})
++            translate_dependency_set(
++                name = group,
++                depset_name = group,
++                lock_content = json.encode(locked),
++                repo_prefix = prefix,
++                payload_only = True,
++            )
+--- a/apt/tests/locked_import_test.bzl
++++ b/apt/tests/locked_import_test.bzl
+@@ -1,6 +1,7 @@
+ """Test locked runtime imports before network access or repository declarations."""
+ 
+ load("@bazel_skylib//lib:unittest.bzl", "asserts", "unittest")
++load("//apt/private:configuration.bzl", "selected_lock_tags", "uses_unified_lock")
+ load("//apt/private:locked_import.bzl", "expanded_sets", "reachable_packages", "validation_error")
+ 
+ _ROOT = "/trixie/app:amd64=1.0"
+@@ -91,7 +92,65 @@
+ 
+ selection_test = unittest.make(_selection_test)
+ 
++def _import_tag(lock, libraries = False, sources = None, requests = None, fallback = False):
++    return struct(lock = lock, dependency_sets = [], libraries = libraries, sources = sources, requests = requests, fallback = fallback)
++
++def _module(root, imports, install_file = [], lock_view = []):
++    return struct(is_root = root, tags = struct(
++        import_lock = imports,
++        install_file = install_file,
++        lock_view = lock_view,
++        export_lock = [],
++        export_requests = [],
++    ))
++
++def _read_lock_fixture(label):
++    document = _fixture()
++    if label == "canonical":
++        document["_inputs"] = {}
++    elif label == "cli":
++        document["dependency_sets"] = {"cli": document["dependency_sets"]["image"]}
++    return json.encode(document)
++
++def _routing_test(ctx):
++    env = unittest.begin(ctx)
++    root = _module(True, [_import_tag("image"), _import_tag("cli")])
++    child = _module(False, [_import_tag("cli")])
++    mctx = struct(modules = [root, child], read = _read_lock_fixture)
++    imports, selected = selected_lock_tags(mctx, require_one_root_lock = False)
++    asserts.equals(env, 3, len(imports))
++    asserts.equals(env, ["image", "cli"], [tag.lock for _, tag in selected])
++    asserts.false(env, uses_unified_lock(mctx))
++
++    # An ignored dependency fallback cannot opt a legacy root into unified mode.
++    ignored = _module(False, [_import_tag("canonical", libraries = True, fallback = True)])
++    asserts.false(env, uses_unified_lock(struct(modules = [root, ignored], read = _read_lock_fixture)))
++    for tag in [
++        _import_tag("canonical"),
++        _import_tag("image", libraries = True),
++        _import_tag("image", sources = "sources.json"),
++        _import_tag("image", requests = "requests.json"),
++        _import_tag("image", fallback = True),
++    ]:
++        asserts.true(env, uses_unified_lock(struct(modules = [_module(True, [tag])], read = _read_lock_fixture)))
++    for module in [
++        _module(True, [_import_tag("image")], lock_view = ["view"]),
++        _module(False, [_import_tag("image")], install_file = ["requests"]),
++    ]:
++        asserts.true(env, uses_unified_lock(struct(modules = [module], read = _read_lock_fixture)))
++    asserts.true(env, uses_unified_lock(mctx, {"sources": []}))
++
++    # Explicit root selection still overrides a root fallback and dependency lock.
++    root = _module(True, [_import_tag("canonical"), _import_tag("image", fallback = True)])
++    imports, selected = selected_lock_tags(struct(modules = [root, child]))
++    asserts.equals(env, ["canonical", "cli"], [tag.lock for _, tag in imports])
++    asserts.equals(env, ["canonical"], [tag.lock for _, tag in selected])
++    return unittest.end(env)
++
++routing_test = unittest.make(_routing_test)
++
+ def locked_import_tests():
+     closure_test(name = "locked_import/closure")
+     invalid_lock_test(name = "locked_import/invalid_lock")
+     selection_test(name = "locked_import/selection")
++    routing_test(name = "locked_import/routing")

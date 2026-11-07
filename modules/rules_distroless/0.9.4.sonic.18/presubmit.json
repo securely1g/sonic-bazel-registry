@@ -42,6 +42,7 @@
     "@rules_distroless//apt/tests:locked_import/closure",
     "@rules_distroless//apt/tests:locked_import/invalid_lock",
     "@rules_distroless//apt/tests:locked_import/selection",
+    "@rules_distroless//apt/tests:locked_import/routing",
     "//:archive_contract_test",
     "//:fixture_regeneration_test",
     "@rules_distroless//apt/private:install_test",

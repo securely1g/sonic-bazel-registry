@@ -1,8 +1,9 @@
 # Distributed APT requests and workspace locks
 
-Components keep their `apt.install` and `apt.install_file` declarations. A root
-`apt.import_lock` selects the production graph for the shared extension;
-dependency locks remain standalone defaults. Sources still use `sources_file`.
+Components keep their `apt.install` and `apt.install_file` declarations. In unified
+mode, a root `apt.import_lock` selects the production graph for the shared
+extension; dependency locks remain standalone defaults. Sources still use
+`sources_file`. Legacy imports retain their independent payload locks.
 
 `apt.export_requests(name = "apt_request_export")` creates the public
 `@apt_request_export//:requests` JSON export without fetching package indexes.
@@ -24,6 +25,37 @@ Optional source-record `default_architectures` selects the nonempty subset of
 qualifiers can still select other configured architectures. Omitting the field
 preserves the previous all-configured-architectures behavior. Infrastructure
 uses AMD64/ARM64 defaults while retaining explicit ARMHF cross inputs.
+
+## Preserve legacy image locks
+
+Legacy `apt.import_lock(lock = ..., dependency_sets = ...)` calls keep the
+per-lock payload repositories from `.16`, alongside ordinary `apt.install`
+resolution. They do not opt into a single production lock merely because a
+transitive dependency selects this newer ruleset.
+
+This matters for [SONiC Framework image PR138](https://github.com/securely1g/sonic-buildimage/pull/138).
+Its `7567bbd9` source uses separate base, orchagent, Syncd and Framework image
+locks, plus Framework `2e6bb6b7`'s CLI lock. BMv2 `.3` selects Distroless `.17`
+through module version selection. The [worker analysis](https://github.com/securely1g/sonic-buildimage/actions/runs/42346751048/job/128326066532)
+then rejected those distinct documents before any native build action.
+
+| Input | Before this correction | After |
+| --- | --- | --- |
+| Separate legacy image and CLI locks | Treated as one production lock and rejected | Imported independently with their original group namespaces and checksums |
+| Explicit unified inputs or a canonical lock containing `_inputs` | Root-authoritative production graph | Same strict input, request and lock-view checks |
+| Duplicate legacy dependency-set names | Rejected | Still rejected |
+
+Unified mode is selected by source/request files, library imports, effective
+root fallbacks, root update/export/view tags, or the selected lock's `_inputs`
+record. An ignored dependency fallback cannot select this mode. The root's
+single-lock check and dependency fallback rules remain unchanged in unified
+mode. New mixed graphs must satisfy that mode's production-lock contract;
+this compatibility path does not relax it.
+
+`@rules_distroless//apt/tests:locked_import/routing` checks this selection using
+pure fixtures. It joins the existing 36 presubmit tests. Actual Framework
+image validation remains a separate consumer check; pure routing tests do not
+establish a successful image build.
 
 ## Native library contracts
 
