@@ -1,7 +1,7 @@
-Subject: Pin the registered FIPS diagnostic source revision
+Subject: Pin the registered FIPS libedit metadata source revision
 
 Add the exact source commit to the module version so registry consumers
-select the reviewed OpenSSH link-diagnostic snapshot without changing
+select the reviewed OpenSSH declared-metadata snapshot without changing
 its build declarations, dependencies or public targets.
 
 --- a/MODULE.bazel
@@ -10,7 +10,7 @@ its build declarations, dependencies or public targets.
  module(
      name = "sonic-fips",
 -    version = "0.0.6",
-+    version = "0.0.6-279477ccf5eacbe51607f3acd521bd044acaac6d",
++    version = "0.0.6-97e639585eceb1974a056fdcb560c8a9d23e5ea9",
      bazel_compatibility = [
          ">=8.5.1",
          "<=8.5.1",

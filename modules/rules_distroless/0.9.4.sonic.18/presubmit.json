@@ -55,7 +55,8 @@
     "@rules_distroless//registry_ci:lua_single_library_test",
     "@rules_distroless//registry_ci:linux_headers_test",
     "@rules_distroless//registry_ci:linux_headers_provider_test",
-    "@rules_distroless//apt/private:relocate_pkgconfig_test"
+    "@rules_distroless//apt/private:relocate_pkgconfig_test",
+    "@rules_distroless//apt/tests:linker_script/runtime_search"
   ],
   "integration_test_module": "tests/integration"
 }

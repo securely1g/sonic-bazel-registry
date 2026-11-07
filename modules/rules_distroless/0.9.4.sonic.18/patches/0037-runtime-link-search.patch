@@ -1,0 +1,114 @@
+Subject: [PATCH] Make declared runtime DSOs searchable during native links
+
+SONiC Eventd's libzmq_cc link declares libbsd, libsodium, libpgm, libnorm
+and libgssapi_krb5 as runtime libraries, but ld cannot find their DT_NEEDED
+SONAMEs through the dummy interface inputs. Runtime RPATH and ordinary -L
+options do not supply this dependency search. Add -rpath-link directories
+from those existing LibraryToLink inputs, keeping the ordered pkg-config
+link line and interface scripts intact. Do not link extra libraries or
+forward unrelated inherited flags. Use -Xlinker to preserve commas in paths.
+
+The pure regression checks runtime-only searches, stable deduplication,
+static-only/empty inputs and comma-safe options. Native Eventd validation
+is required separately; this patch does not suppress unresolved symbols.
+
+diff --git a/apt/private/so_library.bzl b/apt/private/so_library.bzl
+--- a/apt/private/so_library.bzl
++++ b/apt/private/so_library.bzl
+@@ -15,6 +15,21 @@
+         dynamic_library_symlink_path = directory + "/" + file.basename,
+         interface_library_symlink_path = directory + "/rpath.ifso",
+     )
++
++def runtime_linkopts(libraries):
++    # Runtime interface scripts deliberately do not link the DSOs directly.
++    # ld still needs their declared directories to resolve DT_NEEDED entries
++    # of a selected DSO (for example libzmq's libbsd/libsodium dependencies).
++    # Keep these link-time searches separate from runtime RPATH and .pc order.
++    directories = {}
++    for library in libraries:
++        if library.dynamic_library:
++            directories[library.dynamic_library.dirname] = True
++    args = []
++    for directory in directories:
++        # Pass one option and its value together, preserving commas in paths.
++        args.extend(["-Xlinker", "-rpath-link=" + directory])
++    return args
+ 
+ def _so_library_impl(ctx):
+     cc_toolchain = find_cpp_toolchain(ctx)
+@@ -42,7 +57,8 @@
+         # runtime files and linker-script references on this library-bearing
+         # input so they remain declared inputs of sandboxed shared links.
+         additional_inputs = depset(ctx.files.dynamic_libs + ctx.files.additional_linker_inputs),
+-        user_link_flags = depset([ctx.expand_make_variables("linkopts", opt, {}) for opt in ctx.attr.linkopts]),
++        # Preserve repeated -Xlinker tokens: a depset would discard them.
++        user_link_flags = [ctx.expand_make_variables("linkopts", opt, {}) for opt in ctx.attr.linkopts] + runtime_linkopts(libraries),
+     )
+ 
+     linking_context = cc_common.create_linking_context(
+diff --git a/apt/private/cc_deb_library.bzl b/apt/private/cc_deb_library.bzl
+--- a/apt/private/cc_deb_library.bzl
++++ b/apt/private/cc_deb_library.bzl
+@@ -1,4 +1,4 @@
+-load(":so_library.bzl", "runtime_library")
++load(":so_library.bzl", "runtime_library", "runtime_linkopts")
+ load("@rules_cc//cc:defs.bzl", "CcInfo", "cc_common")
+ load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cpp_toolchain", "use_cc_toolchain")
+ 
+@@ -229,7 +229,7 @@
+         if argument.startswith("-L"):
+             driver_args.append("-Xlinker")
+         driver_args.append(argument)
+-    linker = cc_common.create_linker_input(owner = ctx.label, libraries = depset(libraries), additional_inputs = depset(files.keys()), user_link_flags = driver_args)
++    linker = cc_common.create_linker_input(owner = ctx.label, libraries = depset(libraries), additional_inputs = depset(files.keys()), user_link_flags = driver_args + runtime_linkopts(libraries))
+     runfiles = ctx.runfiles(files = runtime.values())
+     for dep in ctx.attr.deps:
+         runfiles = runfiles.merge(dep[DefaultInfo].default_runfiles)
+diff --git a/apt/tests/linker_script_test.bzl b/apt/tests/linker_script_test.bzl
+--- a/apt/tests/linker_script_test.bzl
++++ b/apt/tests/linker_script_test.bzl
+@@ -2,6 +2,7 @@
+ 
+ load("@bazel_skylib//lib:unittest.bzl", "asserts", "unittest")
+ load("//apt/private:linker_script.bzl", "linker_script")
++load("//apt/private:so_library.bzl", "runtime_linkopts")
+ 
+ _TEST_SUITE_PREFIX = "linker_script/"
+ 
+@@ -174,7 +175,35 @@
+ 
+ declared_paths_test = unittest.make(_declared_paths_test)
+ 
++def _runtime_search_test(ctx):
++    env = unittest.begin(ctx)
++    asserts.equals(env, [], runtime_linkopts([]))
++    asserts.equals(env, [], runtime_linkopts([struct(dynamic_library = None)]))
++    # These SONAME directories are the five missing DT_NEEDED dependencies in
++    # SONiC Eventd's libzmq link. They are searches, never additional -l inputs.
++    directories = [
++        "declared/libbsd.so.0",
++        "declared/libsodium.so.23",
++        "declared/libpgm-5.3.so.0",
++        "declared/libnorm.so.1",
++        "declared/libgssapi_krb5.so.2",
++    ]
++    libraries = [struct(dynamic_library = struct(dirname = directory)) for directory in directories]
++    expected = []
++    for directory in directories:
++        expected.extend(["-Xlinker", "-rpath-link=" + directory])
++    asserts.equals(env, expected, runtime_linkopts(libraries))
++    asserts.equals(env, expected, runtime_linkopts(libraries + libraries + [struct(dynamic_library = None)]))
++    # GCC's -Wl comma splitting must not reinterpret the directory name.
++    asserts.equals(env, ["-Xlinker", "-rpath-link=declared/with,comma and space"], runtime_linkopts([
++        struct(dynamic_library = struct(dirname = "declared/with,comma and space")),
++    ]))
++    return unittest.end(env)
++
++runtime_search_test = unittest.make(_runtime_search_test)
++
+ def linker_script_tests():
++    runtime_search_test(name = _TEST_SUITE_PREFIX + "runtime_search")
+     declared_paths_test(name = _TEST_SUITE_PREFIX + "declared_paths")
+     files_to_remap_test(name = _TEST_SUITE_PREFIX + "files_to_remap")
+     remap_linkopts_test(name = _TEST_SUITE_PREFIX + "remap_linkopts")
