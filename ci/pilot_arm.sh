@@ -44,7 +44,7 @@ LAUNCHER
                 # module job executes as root, so trust this checkout only.
                 git -C / config --global --add safe.directory "$GITHUB_WORKSPACE"
                 apt-get -o APT::Update::Error-Mode=any update
-                apt-get install -y --no-install-recommends libxml2 libzstd-dev zlib1g-dev
+                apt-get install -y --no-install-recommends libxml2 libzstd-dev zlib1g-dev tini
                 bazel --version
             '
         fi
@@ -93,7 +93,13 @@ LAUNCHER
         mkdir -p "$guest/root"
         # The Actions temporary script and repository have the same absolute
         # paths in both environments. All inherited build flags remain visible.
-        exec chroot "$guest" /usr/bin/env HOME=/root \
+        # After prepare installs tini, it becomes PID 1 and reaps detached
+        # Bazel servers. A zombie server otherwise looks alive to bazel shutdown.
+        init=()
+        if [[ -x "$guest/usr/bin/tini" ]]; then
+            init=(/usr/bin/tini -g --)
+        fi
+        exec chroot "$guest" "${init[@]}" /usr/bin/env HOME=/root \
             PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
             /bin/bash -c 'cd -- "$1" || exit; shift; exec "$@"' bash "$PWD" "$@"
         ;;
