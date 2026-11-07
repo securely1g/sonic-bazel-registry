@@ -47,7 +47,7 @@ RUNNERS = {
     "arm64": ["ubuntu-24.04-arm"],
 }
 HOSTED_ARM64_VERSIONS_FILE = Path(__file__).with_name("hosted_arm64_versions.json")
-FIPS_CROSS_VERSION = "0.0.6-1ea828e13ac9c62d2007dbbf2ef3d72417e3d009"
+FIPS_CROSS_VERSION = "0.0.6-279477ccf5eacbe51607f3acd521bd044acaac6d"
 
 # The original wrappers stage a private target executable, loader and libraries.
 ARM_DECLARED_RUNTIME_FIXTURES = {
