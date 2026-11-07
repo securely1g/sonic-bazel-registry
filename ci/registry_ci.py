@@ -1101,12 +1101,24 @@ def collect_test_logs(bep_path: Path, work_dir: Path, artifacts: Path) -> None:
     (artifacts / "test-results.json").write_text(json.dumps(index, indent=2) + "\n")
 
 
+def read_log_tail(path: Path, max_bytes: int) -> str:
+    """Start at a line boundary so the outer mirror redactor sees complete URLs."""
+    with path.open("rb") as stream:
+        size = stream.seek(0, os.SEEK_END)
+        if size > max_bytes:
+            stream.seek(-(max_bytes + 1), os.SEEK_END)
+            stream.readline()
+        else:
+            stream.seek(0)
+        return stream.read().decode(errors="replace")
+
+
 def run_logged(command: list[str], cwd: Path, log: Path) -> None:
     print(f"Running Bazel validation; log: {log}", flush=True)
     with log.open("w") as output:
         result = subprocess.run(command, cwd=cwd, stdout=output, stderr=subprocess.STDOUT)
     if result.returncode:
-        print(log.read_text()[-16000:], file=sys.stderr)
+        print(read_log_tail(log, 16000), file=sys.stderr)
         raise RegistryError(f"Command failed with status {result.returncode}; see {log}")
 
 

@@ -28,11 +28,17 @@ on:
         type: string
         default: ''
     secrets:
+      DEBIAN_MIRROR_ROOT:
+        description: Optional private Debian archive root ending in /archive/debian/
+        required: false
+      DEBIAN_SECURITY_MIRROR_ROOT:
+        description: Optional private Debian security archive root ending in /archive/debian-security/
+        required: false
       DEBIAN_MIRROR_BASE_URL:
-        description: Optional private mirror for the pinned Debian snapshot
+        description: Optional dated Debian mirror for checkouts predating the snapshot manifest
         required: false
       DEBIAN_SECURITY_MIRROR_BASE_URL:
-        description: Optional private mirror for the pinned Debian security snapshot
+        description: Optional dated Debian security mirror for checkouts predating the snapshot manifest
         required: false
 
 permissions:
@@ -80,6 +86,10 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+      - name: Identify the checked-out mirror configuration
+        id: mirror_config
+        if: ${{ contains(fromJSON(inputs.runner), 'self-hosted') && contains(fromJSON(inputs.runner), 'debian-trixie-container') && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && hashFiles('ci/private_mirrors.py') != '' }}
+        run: echo "kind=${{ hashFiles('ci/debian_snapshots.json') != '' && 'roots' || 'dated' }}" >> "$GITHUB_OUTPUT"
       - name: Download the optional same-run HTTP audit agent
         id: http_audit_download
         if: ${{ inputs.http_audit_artifact_id != '' && contains(fromJSON(inputs.runner), 'self-hosted') && contains(fromJSON(inputs.runner), 'debian-trixie-container') && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) }}
@@ -115,8 +125,10 @@ jobs:
       - name: Build and test through the registry
         env:
           HTTP_AUDIT_READY: ${{ steps.http_audit_download.outcome }}
-          DEBIAN_MIRROR_BASE_URL: ${{ contains(fromJSON(inputs.runner), 'self-hosted') && contains(fromJSON(inputs.runner), 'debian-trixie-container') && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && secrets.DEBIAN_MIRROR_BASE_URL || '' }}
-          DEBIAN_SECURITY_MIRROR_BASE_URL: ${{ contains(fromJSON(inputs.runner), 'self-hosted') && contains(fromJSON(inputs.runner), 'debian-trixie-container') && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && secrets.DEBIAN_SECURITY_MIRROR_BASE_URL || '' }}
+          DEBIAN_MIRROR_ROOT: ${{ steps.mirror_config.outputs.kind == 'roots' && secrets.DEBIAN_MIRROR_ROOT || '' }}
+          DEBIAN_MIRROR_BASE_URL: ${{ steps.mirror_config.outputs.kind == 'dated' && secrets.DEBIAN_MIRROR_BASE_URL || '' }}
+          DEBIAN_SECURITY_MIRROR_ROOT: ${{ steps.mirror_config.outputs.kind == 'roots' && secrets.DEBIAN_SECURITY_MIRROR_ROOT || '' }}
+          DEBIAN_SECURITY_MIRROR_BASE_URL: ${{ steps.mirror_config.outputs.kind == 'dated' && secrets.DEBIAN_SECURITY_MIRROR_BASE_URL || '' }}
         run: |
           set -euo pipefail
           ROOT=()
@@ -131,7 +143,7 @@ jobs:
           if [[ "$CI_EXECUTION_ARCHITECTURE" == amd64 ]]; then
             TEST_CONTAINER_IMAGE="${SONIC_RUNNER_IMAGE_REFERENCE:?Missing runner image identity}"
             ROOT=(sudo -n)
-            SECRET_ENV=(--preserve-env=DEBIAN_MIRROR_BASE_URL,DEBIAN_SECURITY_MIRROR_BASE_URL,GITHUB_ACTIONS)
+            SECRET_ENV=(--preserve-env=DEBIAN_MIRROR_ROOT,DEBIAN_SECURITY_MIRROR_ROOT,DEBIAN_MIRROR_BASE_URL,DEBIAN_SECURITY_MIRROR_BASE_URL,GITHUB_ACTIONS)
             # Bazel's default heap is too small for large dependency graphs
             # inside the runner's 16 GiB memory limit.
             BAZEL_STARTUP_ARGS=(--bazel-startup-arg=--host_jvm_args=-Xmx2g)
@@ -161,15 +173,17 @@ jobs:
         id: archive
         if: always()
         env:
-          DEBIAN_MIRROR_BASE_URL: ${{ contains(fromJSON(inputs.runner), 'self-hosted') && contains(fromJSON(inputs.runner), 'debian-trixie-container') && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && secrets.DEBIAN_MIRROR_BASE_URL || '' }}
-          DEBIAN_SECURITY_MIRROR_BASE_URL: ${{ contains(fromJSON(inputs.runner), 'self-hosted') && contains(fromJSON(inputs.runner), 'debian-trixie-container') && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && secrets.DEBIAN_SECURITY_MIRROR_BASE_URL || '' }}
+          DEBIAN_MIRROR_ROOT: ${{ steps.mirror_config.outputs.kind == 'roots' && secrets.DEBIAN_MIRROR_ROOT || '' }}
+          DEBIAN_MIRROR_BASE_URL: ${{ steps.mirror_config.outputs.kind == 'dated' && secrets.DEBIAN_MIRROR_BASE_URL || '' }}
+          DEBIAN_SECURITY_MIRROR_ROOT: ${{ steps.mirror_config.outputs.kind == 'roots' && secrets.DEBIAN_SECURITY_MIRROR_ROOT || '' }}
+          DEBIAN_SECURITY_MIRROR_BASE_URL: ${{ steps.mirror_config.outputs.kind == 'dated' && secrets.DEBIAN_SECURITY_MIRROR_BASE_URL || '' }}
         run: |
           set -euo pipefail
           ROOT=()
           SECRET_ENV=()
           if [[ "$CI_EXECUTION_ARCHITECTURE" == amd64 ]]; then
             ROOT=(sudo -n)
-            SECRET_ENV=(--preserve-env=DEBIAN_MIRROR_BASE_URL,DEBIAN_SECURITY_MIRROR_BASE_URL,GITHUB_ACTIONS)
+            SECRET_ENV=(--preserve-env=DEBIAN_MIRROR_ROOT,DEBIAN_SECURITY_MIRROR_ROOT,DEBIAN_MIRROR_BASE_URL,DEBIAN_SECURITY_MIRROR_BASE_URL,GITHUB_ACTIONS)
           fi
           archive="$RUNNER_TEMP/registry-ci-evidence.tar"
           "${ROOT[@]}" "${SECRET_ENV[@]}" python3 ci/private_mirrors.py check-artifacts \
