@@ -219,3 +219,27 @@ keeps its complete archive payload, while its DSOs do not become incidental
 solib or foreign-prefix runtime libraries. Explicit selected library and linker
 script inputs remain available. This prevents a foreign build-time generator
 from mixing the host ELF loader with a different transitive glibc.
+
+## Keep alternative header namespaces explicit
+
+Package-wide header exports now follow the same default pkg-config module as
+its ordinary library alias. For example, `libbsd-dev` contains both `libbsd.pc`
+and `libbsd-overlay.pc`. Before this correction, the ordinary `libbsd_headers`
+export included the overlay-only `usr/include/<triplet>/bsd` directory too.
+A foreign build staged its `stdio.h` wrapper into the generic SDK include root;
+OpenSSH then recursively included that wrapper until the compiler's depth limit.
+
+The ordinary alias now exports only the default module's include roots plus the
+existing declared package roots. Explicit `pkgconfig/libbsd-overlay` still keeps
+its overlay include directory and `LIBBSD_OVERLAY` definition. Packages without
+pkg-config metadata and the existing aggregate fallback when no primary module
+matches retain their previous behavior. Header files, package payloads, linker
+inputs, and all explicit module interfaces remain unchanged.
+
+Five tests in the separate `tests/integration/native_headers` module create
+small deterministic DEBs, import them through the production native importer,
+and compile/run consumers through real foreign-CC staging. They cover direct
+and transitive ordinary exports, explicit overlay selection, metadata-free
+headers, and the no-primary-match aggregate fallback. All five are selected
+unconditionally by the normal AMD64 and ARM64 presubmit configuration, alongside
+the existing forty tests.

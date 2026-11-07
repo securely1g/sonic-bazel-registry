@@ -41,7 +41,8 @@
     "0035-keep-glibc-runtime-with-the-toolchain.patch": "sha256-Efo+lzEpnrjBeKSxhVJvHpmn16pxbI5qhOxEyb1F61c=",
     "0036-preserve-legacy-lock-imports.patch": "sha256-2pdP27zYewqYK2cbF0Xu0bjl6FAApjPdRFcEZ1wgNAo=",
     "0037-share-prepared-lock-transport.patch": "sha256-HU7fk3UCNx02aTEi26Ae64ldnaWPAnW2CxCIq2zFmU8=",
-    "0038-declare-native-runtime-link-search.patch": "sha256-PMVLjyUH9EKCqstdFaMwaqVFYxFDUtmomoQAH600Cwc="
+    "0038-declare-native-runtime-link-search.patch": "sha256-PMVLjyUH9EKCqstdFaMwaqVFYxFDUtmomoQAH600Cwc=",
+    "0039-default-pkgconfig-header-exports.patch": "sha256-ZvtDW9uGtbeOpJtmkywPVnJ5Dq3eQ1HcBPrUqSWWf2Y="
   },
   "patch_strip": 1,
   "overlay": {
