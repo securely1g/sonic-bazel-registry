@@ -1,0 +1,15 @@
+From: Guohan Lu <securely1g@gmail.com>
+Subject: [PATCH 1/2] Record the immutable Framework registry version
+
+Pin the module declaration to the verified public source commit.
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-mgmt-framework",
+-    version = "1.0.0",
++    version = "1.0.0-2e6bb6b7ef3327094e4f5e02f2273f3c7e2838a5",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
