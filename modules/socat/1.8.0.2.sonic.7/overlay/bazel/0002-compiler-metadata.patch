@@ -1,3 +1,12 @@
+Description: Normalize the compiler path printed by procan
+ Remove EXT_BUILD_ROOT only from the literal CC diagnostic string embedded
+ in procan. This patch does not change the actual compiler invocation;
+ the separate configure_make prefix-map option handles debug paths.
+ Ordinary Make without EXT_BUILD_ROOT retains the original diagnostic value.
+Origin: https://github.com/securely1g/sonic-bazel-registry/blob/f1272b2465b9beee06123e4982e1177a82c8c8c1/modules/socat/1.8.0.2.sonic.4/overlay/bazel/compiler_metadata.patch
+ Introduced in registry PR171 for Socat 1.8.0.2 after Debian's pinned series.
+Status: Registry-specific downstream adaptation; no upstream inclusion is asserted.
+
 --- a/Makefile.in
 +++ b/Makefile.in
 @@ -110,7 +110,7 @@
