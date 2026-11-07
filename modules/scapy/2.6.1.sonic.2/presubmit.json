@@ -1,0 +1,20 @@
+{
+  "architectures": [
+    "amd64"
+  ],
+  "consumer_deps": [],
+  "platforms": {
+    "amd64": "@scapy//:linux_amd64"
+  },
+  "host_platforms": {
+    "amd64": "@scapy//:linux_amd64"
+  },
+  "build_targets": [
+    "@scapy//:wheel"
+  ],
+  "test_targets": [
+    "@scapy//:wheel_test",
+    "@scapy//:upstream_test"
+  ],
+  "generated_module_overlay": true
+}
