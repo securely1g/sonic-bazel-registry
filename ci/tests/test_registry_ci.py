@@ -2355,6 +2355,21 @@ class TestContainerTests(unittest.TestCase):
                 else:
                     self.assertFalse((root / "SUDO_LOG").exists())
 
+    def test_pilot_limits_nested_p4c_compilers_for_targets_and_tools(self):
+        workflow = (registry_ci.ROOT / ".github/workflows/registry-module.yml").read_text()
+        script = self.step(workflow, "Build and test through the registry")
+        for module, pilot, limited in (("p4c", True, True), ("sonic-dash", True, True),
+                                       ("libyang", True, False), ("p4c", False, False)):
+            with self.subTest(module=module, pilot=pilot), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                env = self.shell_environment(root, "amd64", "amd64", False)
+                env.update(CI_MODULE=module, PILOT_POOL=str(pilot).lower())
+                subprocess.run(["bash", "-c", script], env=env, check=True, capture_output=True)
+                arguments = (root / "CAPTURE").read_text().splitlines()
+                for flag in ("--action_env", "--host_action_env"):
+                    self.assertEqual(f"--bazel-build-arg={flag}=GNUMAKEFLAGS=--eval=.NOTPARALLEL:" in arguments,
+                                     limited)
+
     def test_invalid_or_unprepared_routes_fail_before_invoking_the_helper(self):
         workflow = (registry_ci.ROOT / ".github/workflows/registry-module.yml").read_text()
         script = self.step(workflow, "Validate execution route") + "\n" + self.step(workflow, "Build and test through the registry")
