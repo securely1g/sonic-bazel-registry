@@ -23,7 +23,7 @@ bazel_dep(name = "rules_python", version = "1.8.0")
 bazel_dep(name = "rules_gzip", version = "1.0.0")
 bazel_dep(name = "tar.bzl", version = "0.10.5.sonic.2")
 
-bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.15")
+bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.18")
 apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
 # Infra .28 imports its reviewed shared lock. The existing libyang collection
 # supplies PCRE2, xxHash, CMocka and their complete runtime/header closure.

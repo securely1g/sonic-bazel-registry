@@ -12,6 +12,12 @@ Python while preserving target-CPU validation and real target binary execution.
 The direct `tar.bzl` request is aligned to `0.10.5.sonic.2`, already required by
 that infra source, so the declared consumer pin matches Bazel's selected version.
 
+It also selects `rules_distroless@0.9.4.sonic.18` explicitly in the module and
+CI consumer. Its APT extension writes each transformed package catalog once and
+passes file labels to dependency groups, preserving the reviewed package sets
+while avoiding repeated catalog serialization in `MODULE.bazel.lock`. The normal
+2 GiB Java heap and every build/test target remain unchanged.
+
 The Trixie dependency alias consumes infra's existing reviewed `libyang_deps`
 collection. All eight directly required package identities and SHA256 values
 match the original `.6` graph on AMD64 and ARM64. The source lock has one
