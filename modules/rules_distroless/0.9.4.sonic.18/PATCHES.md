@@ -481,3 +481,38 @@ synthetic fixture uses an intentionally incomplete libc ABI and a companion
 DSO to detect leaks, verifies both legacy and explicit dynamic consumers, and
 checks that the original package archives remain complete. Its installed
 consumers use the actual compiler/emulator C runtime.
+
+## Shared prepared-lock transport (0037)
+
+Before this change, each imported dependency set serialized the entire expanded
+package catalog into its repository attributes. A 44-group, two-namespace image
+graph wrote a 679 MB `MODULE.bazel.lock`, exceeding the existing 64 MiB public
+evidence limit and exhausting the registry graph check's 2 GiB Java heap.
+
+Patch 0037 keeps one prepared expanded lock in each unified extension namespace
+and passes its file label to every group translator. The catalog retains expanded
+roots and transitive package dependencies; the incoming raw lock cannot replace
+that preparation. Resolver and independent legacy imports keep the inline API.
+The translator rejects missing or ambiguous input. Published `.sonic.17` is
+unchanged.
+
+`shared_lock_archive_contract_test` runs from the independent integration module
+on both architectures. It checks original archive bytes, metadata and complete
+payload closures across two groups sharing the prepared lock, alongside the
+unchanged legacy `archive_contract_test`.
+
+`shared_lock_group_selection_test` adds a netbase-only group from the same
+reviewed fixture and confirms that sharing the catalog does not leak the other
+groups' Lua/libc closure. Its public group name occupies the first internal
+catalog-name candidate, exercising collision-safe allocation.
+
+Local validation of this prepared-lock change keeps the production policies
+unchanged. The actual image consumer's lock shrank from **679,395,253 bytes to
+47,094,358 bytes**. Its 89 selected modules and dependency edges (apart from the
+intended Distroless version), all 88 group definitions and both 2,203-package
+catalogs match the prior graph. The unchanged 64 MiB public-evidence gate passes,
+as do 27 APT integration cases and 20 runtime-preparation cases. The registry
+libyang consumer's 62-module graph also passes with the original 2 GiB Java heap;
+its lock shrank from 679,113,658 to 46,814,311 bytes. The independent registry
+fixture passes eight focused tests for AMD64 and ARM64 package selection.
+These are local results; normal PR CI must pass on the newly published head.

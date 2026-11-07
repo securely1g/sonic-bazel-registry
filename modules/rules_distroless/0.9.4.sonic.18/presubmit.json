@@ -44,6 +44,8 @@
     "@rules_distroless//apt/tests:locked_import/selection",
     "@rules_distroless//apt/tests:locked_import/routing",
     "//:archive_contract_test",
+    "//:shared_lock_archive_contract_test",
+    "//:shared_lock_group_selection_test",
     "//:fixture_regeneration_test",
     "@rules_distroless//apt/private:install_test",
     "@rules_distroless//registry_ci:original_deb_test",

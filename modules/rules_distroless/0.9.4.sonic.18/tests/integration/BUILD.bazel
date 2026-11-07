@@ -88,3 +88,66 @@ sh_test(
         "tools/select_lock_fixture.py",
     ],
 )
+
+# A shared prepared lock must preserve complete transitive payload/control
+# closures, architecture selection and original DEB bytes for both groups.
+sh_test(
+    name = "shared_lock_archive_contract_test",
+    srcs = [":run_test"],
+    args = [
+        "$(location archive_contract_test.py)",
+        "--lock",
+        "$(location apt.lock.json)",
+        "--arch",
+    ] + select({
+        "@rules_distroless//registry_ci:linux_amd64": ["amd64"],
+        "@rules_distroless//registry_ci:linux_arm64": ["arm64"],
+    }) + [
+        "--data",
+        "$(locations @unified_locked_import_ci//:packages)",
+        "--copy",
+        "$(locations @unified_locked_import_ci_copy//:packages)",
+        "--libc-data",
+        "$(locations @unified_locked_import_ci//libc6:data)",
+        "--libc-control",
+        "$(locations @unified_locked_import_ci//libc6:control)",
+        "--lua-control",
+        "$(locations @unified_locked_import_ci//liblua5.1-0:control)",
+        "--all-control",
+        "$(locations @unified_locked_import_ci//netbase:control)",
+        "--libc-deb",
+        "$(location @unified_locked_import_ci//libc6:deb)",
+        "--copy-libc-deb",
+        "$(location @unified_locked_import_ci_copy//libc6:deb)",
+        "--lua-closure",
+        "$(locations @unified_locked_import_ci//liblua5.1-0)",
+    ],
+    data = [
+        "apt.lock.json",
+        "archive_contract_test.py",
+        "@unified_locked_import_ci//:packages",
+        "@unified_locked_import_ci//libc6:control",
+        "@unified_locked_import_ci//libc6:deb",
+        "@unified_locked_import_ci_copy//libc6:deb",
+        "@unified_locked_import_ci//libc6:data",
+        "@unified_locked_import_ci//liblua5.1-0",
+        "@unified_locked_import_ci//liblua5.1-0:control",
+        "@unified_locked_import_ci//netbase:control",
+        "@unified_locked_import_ci_copy//:packages",
+    ],
+)
+
+# Reject cross-group package leakage, including a public group whose name
+# collides with the first internal-catalog allocation candidate.
+sh_test(
+    name = "shared_lock_group_selection_test",
+    srcs = [":run_test"],
+    args = [
+        "$(location shared_lock_group_selection_test.py)",
+        "$(locations @unified_netbase_only//:packages)",
+    ],
+    data = [
+        "shared_lock_group_selection_test.py",
+        "@unified_netbase_only//:packages",
+    ],
+)

@@ -39,7 +39,8 @@
     "0033-reuse-module-runtime-libraries.patch": "sha256-4Ij45li1i2ZqO926+jEyLn4hnRQxW7JWa4ebxU3hBBM=",
     "0034-isolate-static-private-library-dependencies.patch": "sha256-+4uMUWCzxh4T1g0xfFM72nErMJl8nTCM1bXxyVRHmYE=",
     "0035-keep-glibc-runtime-with-the-toolchain.patch": "sha256-Efo+lzEpnrjBeKSxhVJvHpmn16pxbI5qhOxEyb1F61c=",
-    "0036-preserve-legacy-lock-imports.patch": "sha256-2pdP27zYewqYK2cbF0Xu0bjl6FAApjPdRFcEZ1wgNAo="
+    "0036-preserve-legacy-lock-imports.patch": "sha256-2pdP27zYewqYK2cbF0Xu0bjl6FAApjPdRFcEZ1wgNAo=",
+    "0037-share-prepared-lock-transport.patch": "sha256-HU7fk3UCNx02aTEi26Ae64ldnaWPAnW2CxCIq2zFmU8="
   },
   "patch_strip": 1,
   "overlay": {
@@ -77,6 +78,7 @@
     "registry_ci/xtables_headers_test.c": "sha256-Ff3IJ87nRUWBGXyWEo74poQLv1iqbDKVy5jAuymCZpM=",
     "apt/private/configuration.bzl": "sha256-o0GZSdHyUo8RYh1ph7V7ycWHjNbR3m+buRbd39otHc8=",
     "apt/private/relocate_pkgconfig.py": "sha256-GrAq6RT5FHxW/jd+tfStPSaj9bxzaEkBFtrD+MDqFrc=",
-    "apt/private/relocate_pkgconfig_test.py": "sha256-VvEJvsXHwQ/S5DFGJ1vbgOZb50A30qVmHYSMTZKCkdU="
+    "apt/private/relocate_pkgconfig_test.py": "sha256-VvEJvsXHwQ/S5DFGJ1vbgOZb50A30qVmHYSMTZKCkdU=",
+    "registry_ci/locked_imports.bzl": "sha256-Xrt/ctRcTkfjMB63ORLbfVpBA6Oq+vIPoAwnHt1exjw="
   }
 }
