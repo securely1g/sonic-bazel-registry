@@ -5,7 +5,7 @@ builds and installed-runtime/package checks as `.sonic.6`. All seven build label
 and five test labels remain unchanged on AMD64 and ARM64. Published entries stay
 unchanged.
 
-It selects `sonic-build-infra@0.0.28-6f48ad4e60916f004d6498d9cc1d228cf0af7134`
+It selects `sonic-build-infra@0.0.28-23b398c24d3b53e756785d1ed4c0ba5f62e9cdb1`
 ([source PR #88](https://github.com/securely1g/sonic-build-infra/pull/88)) so
 `native_runtime_binary` prepares runtime files with a declared execution-platform
 Python while preserving target-CPU validation and real target binary execution.
@@ -16,10 +16,14 @@ The Trixie dependency alias consumes infra's existing reviewed `libyang_deps`
 collection. All eight directly required package identities and SHA256 values
 match the original `.6` graph on AMD64 and ARM64. The source lock has one
 transitive cleanup on AMD64: it retains security `linux-libc-dev` 6.12.96-1 and
-omits the redundant older 6.12.86-1 record. No package lock, archive checksum or
-source snapshot is edited. The separate Bookworm extension retains its original
-package requests and now declares the same two source records explicitly, since
-infra no longer supplies records in that historical namespace.
+omits the redundant older 6.12.86-1 record. No upstream archive checksum or
+source snapshot is edited. The Bookworm namespace now imports the same shared
+lock through the selected infra source.
+This entry retains its existing exact package requests and two source
+declarations; they agree with the locked Bookworm records. The source includes
+[infra #90](https://github.com/securely1g/sonic-build-infra/pull/90) alongside
+#88's runtime preparation, so existing image and historical library consumers
+can select that one reviewed package graph.
 
 The interactive upstream-test driver now waits for Tcl's actual exit before
 closing the controlling PTY. Closing at PTY EOF could otherwise send SIGHUP

@@ -5,7 +5,7 @@ module(
 
 bazel_dep(name = "bazel_skylib", version = "1.9.0")
 bazel_dep(name = "rules_cc", version = "0.2.16")
-bazel_dep(name = "sonic-build-infra", version = "0.0.28-6f48ad4e60916f004d6498d9cc1d228cf0af7134", repo_name = "sonic_build_infra")
+bazel_dep(name = "sonic-build-infra", version = "0.0.28-23b398c24d3b53e756785d1ed4c0ba5f62e9cdb1", repo_name = "sonic_build_infra")
 bazel_dep(name = "platforms", version = "1.0.0")
 
 # Debian 3.12.2-1 has no source patch series. Use its maintained notices
@@ -32,8 +32,9 @@ use_repo(apt, libyang_system = "libyang_deps")
 
 # Isolate suites: Architecture:all packages can share versions across releases.
 bookworm_apt = use_extension("@sonic_build_infra//toolchains/bookworm:apt.bzl", "apt")
-# Infra .28 consumes its own Bookworm tools from its shared lock. This separate
-# namespace retains the exact sources previously supplied by infra .25.
+# Infra .28 imports the same reviewed lock through this historical namespace.
+# Retain the existing exact source declarations and package requests; they agree
+# with its locked Bookworm records.
 bookworm_apt.sources_list(
     architectures = ["amd64", "arm64"],
     components = ["main"],
