@@ -1611,10 +1611,22 @@ def run(root: Path, module: str, version: str, architecture: str,
                     print(f"Could not retain {phase} action logs: {error}", file=sys.stderr)
             lockfile = consumer / "MODULE.bazel.lock"
             if lockfile.is_file():
-                shutil.copy2(lockfile, artifacts / "MODULE.bazel.lock")
+                try:
+                    shutil.copy2(lockfile, artifacts / "MODULE.bazel.lock")
+                except OSError as error:
+                    # Preserve an earlier native failure; missing mandatory
+                    # evidence still fails an otherwise successful validation.
+                    print(f"Could not retain validation lock: errno={error.errno}", file=sys.stderr)
+                    if not validation_failed:
+                        raise
             testlogs = consumer / "bazel-testlogs"
             if testlogs.exists():
-                shutil.copytree(testlogs, artifacts / "testlogs", dirs_exist_ok=True)
+                try:
+                    shutil.copytree(testlogs, artifacts / "testlogs", dirs_exist_ok=True)
+                except OSError as error:
+                    print(f"Could not retain validation testlogs: errno={error.errno}", file=sys.stderr)
+                    if not validation_failed:
+                        raise
             test_events = artifacts / "test-events.jsonl"
             if test_events.is_file():
                 try:
