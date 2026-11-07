@@ -2223,7 +2223,7 @@ class TestContainerTests(unittest.TestCase):
         commands.mkdir()
         for name, body in {
             "sudo": ('printf "%s\\n" "$*" >> "$SUDO_LOG"\n[[ "$1" == -n ]]\nshift\n'
-                     'if [[ "$1" == --preserve-env=DEBIAN_MIRROR_ROOT,DEBIAN_SECURITY_MIRROR_ROOT,DEBIAN_MIRROR_BASE_URL,DEBIAN_SECURITY_MIRROR_BASE_URL,GITHUB_ACTIONS ]]; then shift; fi\n'
+                     'if [[ "$1" == --preserve-env=DEBIAN_MIRROR_ROOT,DEBIAN_SECURITY_MIRROR_ROOT,DEBIAN_MIRROR_BASE_URL,DEBIAN_SECURITY_MIRROR_BASE_URL,GITHUB_ACTIONS || "$1" == --preserve-env=DEBIAN_MIRROR_ROOT,DEBIAN_SECURITY_MIRROR_ROOT,DEBIAN_MIRROR_BASE_URL,DEBIAN_SECURITY_MIRROR_BASE_URL,GITHUB_ACTIONS,SOURCE_ONLY_NO_DEBS ]]; then shift; fi\n'
                      'exec "$@"\n'),
             "git": 'printf "%s\\n" "$@" > "$GIT_LOG"\n',
             "python3": 'printf "%s\\n" "$@" > "$CAPTURE"\n',
