@@ -1553,6 +1553,10 @@ def run(root: Path, module: str, version: str, architecture: str,
                     flag == "--test_timeout" or flag.startswith("--test_timeout=")
                     for flag in [*flags, *test_flags]):
                 test_flags.append("--test_timeout=180,900,2700,7200")
+            if arm_guest and module == "rules_distroless":
+                # ARM Linux AIO is unavailable in QEMU user mode. The wrapper
+                # boots only linux_headers_test on a real ARM guest kernel.
+                test_flags.append("--run_under=/usr/local/bin/sonic-pilot-arm-kernel-test")
             # Export HOME before Bazel's test setup assigns TEST_TMPDIR. With
             # HOME absent, that shell assignment is invisible to Python and
             # expanduser() falls back to the account home outside the sandbox.

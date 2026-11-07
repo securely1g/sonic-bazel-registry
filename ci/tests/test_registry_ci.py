@@ -2374,6 +2374,18 @@ class TestContainerTests(unittest.TestCase):
         self.assertLess(unlock, platform_threads)
         self.assertLess(platform_threads, flags.index("build"))
 
+    def test_pilot_kernel_wrapper_preserves_other_test_arguments_and_status(self):
+        wrapper = registry_ci.ROOT / "ci/pilot_arm_kernel.sh"
+        for target in ("@rules_distroless//registry_ci:other_test", "@other//registry_ci:linux_headers_test"):
+            with self.subTest(target=target):
+                result = subprocess.run(
+                    ["bash", str(wrapper), "/bin/sh", "-c", 'printf "%s" "$1"; exit 29',
+                     "other-test", "argument with spaces"],
+                    env={**os.environ, "TEST_TARGET": target}, capture_output=True, text=True,
+                )
+                self.assertEqual(result.stdout, "argument with spaces")
+                self.assertEqual(result.returncode, 29)
+
     def test_pilot_limits_nested_compilers_for_targets_and_tools(self):
         workflow = (registry_ci.ROOT / ".github/workflows/registry-module.yml").read_text()
         script = self.step(workflow, "Build and test through the registry")

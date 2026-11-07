@@ -38,6 +38,9 @@ exec /usr/local/lib/bazel-8.5.1 \
     --host_jvm_args=-Xmx2g "$@"
 LAUNCHER
             chmod 0755 "$guest/usr/local/bin/bazel"
+            if [[ ${CI_MODULE:-} == rules_distroless ]]; then
+                bash "$(dirname "$script")/pilot_arm_kernel.sh" --prepare "$guest"
+            fi
             set -- run bash -ec '
                 test "$(dpkg --print-architecture)" = arm64
                 test "$(uname -m)" = aarch64
@@ -49,6 +52,14 @@ LAUNCHER
                 git -C / config --global --add safe.directory "$GITHUB_WORKSPACE"
                 apt-get -o APT::Update::Error-Mode=any update
                 apt-get install -y --no-install-recommends libxml2 libzstd-dev zlib1g-dev tini
+                if [[ ${CI_MODULE:-} == rules_distroless ]]; then
+                    apt-get install -y --no-install-recommends busybox-static cpio
+                    # A failed test must reach Bazel even when QEMU powers off cleanly.
+                    result=0
+                    TEST_TARGET=@rules_distroless//registry_ci:linux_headers_test \
+                        sonic-pilot-arm-kernel-test /bin/dash -c "exit 37" || result=$?
+                    test "$result" -eq 37
+                fi
                 bazel --version
             '
         fi
