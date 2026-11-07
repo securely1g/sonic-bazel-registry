@@ -2116,12 +2116,13 @@ class WorkflowMatrixTests(unittest.TestCase):
         self.assertIn("architecture: amd64", unit)
         self.assertIn("architecture: arm64", unit)
         self.assertIn("runner: [ubuntu-24.04-arm]", unit)
-        rows = re.findall(r"- architecture: (\w+)\n\s+runner: \[([^\]]+)\]\n"
+        self.assertIn("timeout-minutes: ${{ matrix.timeout_minutes }}", unit)
+        rows = re.findall(r"- architecture: (\w+)\n\s+timeout_minutes: (\d+)\n\s+runner: \[([^\]]+)\]\n"
                           r"\s+machine: (\w+)\n\s+bazel_arch: (\w+)\n\s+bazel_sha: ([0-9a-f]+)", unit)
         self.assertEqual(rows, [
-            ("amd64", "self-hosted, Linux, X64, debian-trixie-container", "x86_64", "x86_64",
+            ("amd64", "45", "self-hosted, Linux, X64, debian-trixie-container", "x86_64", "x86_64",
              "61d89402f0368e64b6c827be5de79d8e65382e8124c3cbb97325611a1851392e"),
-            ("arm64", "ubuntu-24.04-arm", "aarch64", "arm64",
+            ("arm64", "30", "ubuntu-24.04-arm", "aarch64", "arm64",
              "b7f2a85595e8a87d54843bc656c1e379fd9b8c1b5f783dc41717c1d7eb7cc49f"),
         ])
         self.assertNotIn("REGISTRY_CI_TEST_ARM_EXECUTOR", unit)
