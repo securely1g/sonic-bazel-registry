@@ -946,6 +946,18 @@ can execute itself again through the kernel’s ARM interpreter. Its shell-based
 `go_proxy_test` uses the normal ARM runtime and its original mounts. All three
 tests run with the published integration module. [ARM64 validation](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42186480262/job/127787942313)
 
+
+P4C `1.2.4.2.sonic.3` also runs on the Debian cross runners. Its build uses
+native code generators, and its uncached package test uses the resulting ARM64
+compiler to translate P4 source to BMv2. All five original build targets passed.
+[Full ARM64 validation](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42087404563/job/127456109251)
+
+PI `0.1.3.sonic.3` also uses the Debian cross runners. Its runtime test builds
+and runs a consumer of the installed ARM64 SDK and converts P4Info using the
+installed tools. All four original builds and the uncached test passed.
+[Full ARM64 validation](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42180002707/job/127767164854)
+
+
 The gawk smoke test uses gawk as a native execution tool while the direct gawk
 build targets ARM64. Test execution follows the declared Bazel configuration;
 the ARM cross fixture independently verifies native execution tools, ARM ELF
