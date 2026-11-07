@@ -14,6 +14,20 @@ SPEC.loader.exec_module(registry_ci)
 
 
 class FipsCrossRecipeTests(unittest.TestCase):
+    def test_only_the_qualified_cross_route_extends_long_tests(self):
+        version = registry_ci.FIPS_CROSS_VERSION
+        default = ["--test_timeout=180,900,2700,7200"]
+        for module, release, cross, flags, expected in [
+            ("sonic-fips", version, True, [], ["--test_timeout=180,900,5400,7200"]),
+            ("sonic-fips", "other-version", True, [], default),
+            ("other-module", version, True, [], default),
+            ("sonic-fips", version, False, [], []),
+            ("sonic-fips", version, True, ["--test_timeout=42"], []),
+            ("sonic-fips", version, True, ["--test_timeout", "47"], []),
+        ]:
+            with self.subTest(module=module, version=release, cross=cross, flags=flags):
+                self.assertEqual(registry_ci.cross_test_timeout_flags(module, release, cross, flags), expected)
+
     def test_original_recipe_argv_and_backend_status_are_preserved(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
