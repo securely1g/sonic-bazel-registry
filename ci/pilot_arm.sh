@@ -22,16 +22,17 @@ case "${1:-}" in
                 https://releases.bazel.build/8.5.1/release/bazel-8.5.1-linux-arm64
             printf '%s  %s\n' b7f2a85595e8a87d54843bc656c1e379fd9b8c1b5f783dc41717c1d7eb7cc49f "$bazel" | sha256sum --check --strict
             install -m 0755 "$bazel" "$guest/usr/local/lib/bazel-8.5.1"
-            # The embedded JDK otherwise misses the worker's CA, including in
-            # registry tests that deliberately ignore every Bazel RC file.
+            # Trust the worker's CA even when a registry test deliberately
+            # ignores every Bazel RC file.
             cat > "$guest/usr/local/bin/bazel" <<'LAUNCHER'
 #!/bin/sh
 if [ "$#" -eq 1 ] && [ "$1" = "--version" ]; then
     exec /usr/local/lib/bazel-8.5.1 --version
 fi
-# With the bundled JDK under QEMU, Bazel can leave downloads queued while
-# every virtual-thread carrier is parked. Let the OS schedule each thread.
+# Under QEMU the bundled JDK 24 can hang while stopping a Bazel thread pool.
+# Use Debian's ARM64 JDK from the pinned runner image and OS-backed threads.
 exec /usr/local/lib/bazel-8.5.1 \
+    --server_javabase=/usr/lib/jvm/java-21-openjdk-arm64 \
     --host_jvm_args=-XX:+UnlockExperimentalVMOptions \
     --host_jvm_args=-XX:-VMContinuations \
     --host_jvm_args=-Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts \
@@ -44,6 +45,7 @@ LAUNCHER
             set -- run bash -ec '
                 test "$(dpkg --print-architecture)" = arm64
                 test "$(uname -m)" = aarch64
+                /usr/lib/jvm/java-21-openjdk-arm64/bin/java -version
                 # rules_distroless runs zstd with argv[0]=gzip when it writes
                 # content.tar.gz from a Debian package. Verify the same pipeline.
                 test "$(printf pilot | (exec -a gzip /usr/bin/zstd -n) | gzip -dc)" = pilot

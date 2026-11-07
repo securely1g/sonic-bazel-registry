@@ -866,6 +866,23 @@ matrix. Pull requests validate latest configured versions; the explicit
 `all_versions` dispatch also surveys configured historical versions.
 Declaring an ARMHF layout in a module does not establish ARMHF build or execution coverage.
 
+### ARM64 builds on the K3s pilot runners
+
+For registry modules that require ARM64 build tools, the pilot runs the ARM64
+Bazel client, server, compilers and tests in the worker image's Debian ARM64
+filesystem with QEMU. The Bazel launcher selects that image's ARM64 OpenJDK 21
+with `--server_javabase`, uses OS-backed Java threads and limits the heap to
+2 GiB. The **Prepare the ARM64 build environment** step prints the Java version.
+
+| Example | Bundled OpenJDK 24 in the ARM guest | Worker image's OpenJDK 21 in the ARM guest |
+| --- | --- | --- |
+| Query the declared outputs of `@rules_distroless//registry_ci:protobuf_headers_test` | The build finished. The first `cquery` then waited for six idle worker threads to stop and returned no metadata. | An isolated replay returned the output metadata in all 12 invocations of the same query and the Bazel server shut down. |
+
+The Linux headers test needs ARM kernel system calls. For that test the worker
+boots a Debian ARM64 kernel, runs the Bazel-built executable, and returns its
+exit code to Bazel. Its test log records the kernel version and the result of
+creating and destroying a Linux AIO context.
+
 ## Staged ARM64 cross validation
 
 The shared helper has an explicit cross mode. Each planned row records target

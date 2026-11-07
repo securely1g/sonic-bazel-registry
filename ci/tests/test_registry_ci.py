@@ -2369,6 +2369,10 @@ class TestContainerTests(unittest.TestCase):
         self.assertEqual(arguments("--version"), ["--version"])
         flags = arguments("build", "//:data")
         self.assertEqual(flags[-2:], ["build", "//:data"])
+        startup = flags[:flags.index("build")]
+        self.assertIn("--server_javabase=/usr/lib/jvm/java-21-openjdk-arm64", startup)
+        self.assertIn("--host_jvm_args=-Xmx2g", startup)
+        self.assertIn("--host_jvm_args=-Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts", startup)
         unlock = flags.index("--host_jvm_args=-XX:+UnlockExperimentalVMOptions")
         platform_threads = flags.index("--host_jvm_args=-XX:-VMContinuations")
         self.assertLess(unlock, platform_threads)
