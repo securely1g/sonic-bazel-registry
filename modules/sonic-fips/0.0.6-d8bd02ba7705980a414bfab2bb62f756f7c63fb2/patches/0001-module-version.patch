@@ -10,7 +10,7 @@ its build declarations, dependencies or public targets.
  module(
      name = "sonic-fips",
 -    version = "0.0.6",
-+    version = "0.0.6-97e639585eceb1974a056fdcb560c8a9d23e5ea9",
++    version = "0.0.6-d8bd02ba7705980a414bfab2bb62f756f7c63fb2",
      bazel_compatibility = [
          ">=8.5.1",
          "<=8.5.1",
