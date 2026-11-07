@@ -1,16 +1,17 @@
 # FIPS cross-build and test support
 
 This entry pins the single unpublished `0.0.6` candidate to commit
-`97e639585eceb1974a056fdcb560c8a9d23e5ea9`, an ordinary continuation of
+`d8bd02ba7705980a414bfab2bb62f756f7c63fb2`, an ordinary continuation of
 [source release PR #20](https://github.com/securely1g/sonic-fips/pull/20)
 and [Draft source PR #21](https://github.com/securely1g/sonic-fips/pull/21).
-OpenSSH now queries the declared libedit pkg-config metadata instead of
-falling back to the guessed `-lcurses` link input. The package metadata
-closure is isolated from host paths, following the existing Kerberos
-adapter. Libedit and its real link probe, source OpenSSL, target loaders,
-other features and all build outputs remain enabled. The bounded link
-failure diagnostic remains available; exact native validation is pending.
-[Selected source](https://github.com/securely1g/sonic-fips/commit/97e639585eceb1974a056fdcb560c8a9d23e5ea9).
+OpenSSH queries declared libedit pkg-config metadata through a private executable
+launcher, matching upstream's quoted executable-path interface. The launcher
+preserves declared prefix arguments and keeps metadata isolated from host paths.
+Libedit and its real link probe, source OpenSSL, target loaders, other features
+and all build outputs remain enabled. The earlier metadata revision failed on
+both source-base architectures because a command string was used as a filename;
+realistic quoted-call controls cover this correction. Exact native validation
+remains pending. [Selected source](https://github.com/securely1g/sonic-fips/commit/d8bd02ba7705980a414bfab2bb62f756f7c63fb2).
 This registry candidate remains Draft until its source prerequisite lands.
 
 The registry patch only adds the commit suffix to the declared version.
