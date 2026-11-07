@@ -1042,9 +1042,11 @@ recognizes an ARM compiler selected by a native build action. It preserves
 explicit configure aliases, native compiler actions and caller-provided
 `CONFIG_SITE`; it invents no cached target-probe answers. The effective site and
 hash are retained. Source-owned runtime preparation executes through the guest
-wrapper, preserving its locked inputs and checking an ARM receipt. Cross test
-timeout defaults are 180/900/2700/7200 seconds for Bazel's four timeout classes;
-explicit caller values and native defaults remain unchanged. All original build
+wrapper, preserving its locked inputs and checking an ARM receipt. Cross tests
+default to 180/900/2700/7200 seconds for Bazel's four timeout classes. The FIPS
+0.0.6 ARM cross job allows 5,400 seconds for long tests and four hours for the
+job, which runs the OpenSSL vendor suite and the SymCrypt unittest. Explicit
+caller timeouts take precedence. All original build
 and test labels, source checks and uncached-test requirements still apply.
 
 The dedicated CI cross-fixture job runs all tests in `test_arm_cross_runtime.py`

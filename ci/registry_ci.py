@@ -50,6 +50,7 @@ RUNNERS = {
 # The exploratory survey uses True in its separate branch; do not infer success
 # from a build-only result or an API-green job without the original test evidence.
 ARM_CROSS_ALL = False
+FIPS_CROSS_VERSION = "0.0.6-1ea828e13ac9c62d2007dbbf2ef3d72417e3d009"
 # Temporary exact-version routes qualified by the complete original ARM contract.
 # Remove this map and the hosted ARM route after the full migration, so future
 # ARM versions receive cross validation as well. See ci/README.md for CI evidence.
@@ -72,7 +73,7 @@ ARM_CROSS_VERSIONS: dict[str, tuple[str, ...]] = {
     "socat": ("1.8.0.2.sonic.5",),
     "sonic-dash": ("0.0.3-5c9305403585a7ae54f86918219acb8ed39f740a",),
     "sonic-dash-api": ("0.0.5-9b2893e890734a2db0c53a5e5c64b031ec0dcfbd",),
-    "sonic-fips": ("0.0.6-1ea828e13ac9c62d2007dbbf2ef3d72417e3d009",),
+    "sonic-fips": (FIPS_CROSS_VERSION,),
     "sonic-linux-kernel": ("0.0.2-34a53faaecd325509e9d8f1016ed0108ab558a23",),
     "sonic-rust-deps": ("0.0.4-6d9c70f708d7420e9e2b2cdc906b80cee6b140f1",),
     "sonic-sairedis": ("0.0.5-a1568983582654314c43aab421b32ab563ed860c",),
@@ -1427,6 +1428,15 @@ def prepare_gazelle_tests(root: Path, work_dir: Path, script_executor: list[str]
     return runner
 
 
+def cross_test_timeout_flags(module: str, version: str, cross_compile: bool, flags: list[str]) -> list[str]:
+    """Supply emulation budgets for short, moderate, long and eternal tests."""
+    if not cross_compile or any(flag == "--test_timeout" or flag.startswith("--test_timeout=") for flag in flags):
+        return []
+    # The FIPS package test runs the complete SymCrypt unittest under QEMU.
+    long_seconds = 5400 if (module, version) == ("sonic-fips", FIPS_CROSS_VERSION) else 2700
+    return [f"--test_timeout=180,900,{long_seconds},7200"]
+
+
 def run(root: Path, module: str, version: str, architecture: str,
         work_dir: Path, artifacts: Path, bazel: str = "bazel",
         test_container_image: str | None = None,
@@ -1640,13 +1650,7 @@ def run(root: Path, module: str, version: str, architecture: str,
                 if fixtures:
                     executor_prefix = [str(root / "ci" / "declared_arm_runtime.py"), json.dumps(fixtures), *executor_prefix]
                 test_flags.append("--run_under=" + shlex.join(executor_prefix))
-            # Emulated Python can spend more than five minutes staging a large
-            # declared runtime before the test starts. Keep caller timeouts and
-            # native defaults; extend only the cross-test execution budgets.
-            if cross_compile and not any(
-                    flag == "--test_timeout" or flag.startswith("--test_timeout=")
-                    for flag in [*flags, *test_flags]):
-                test_flags.append("--test_timeout=180,900,2700,7200")
+            test_flags.extend(cross_test_timeout_flags(module, version, cross_compile, [*flags, *test_flags]))
             # Export HOME before Bazel's test setup assigns TEST_TMPDIR. With
             # HOME absent, that shell assignment is invisible to Python and
             # expanduser() falls back to the account home outside the sandbox.
