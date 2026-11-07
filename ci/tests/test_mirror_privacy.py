@@ -424,6 +424,62 @@ class PrivacyTest(unittest.TestCase):
                 self.assertEqual(path.read_bytes(), payload)
                 path.unlink()
 
+    def test_unknown_archive_diagnostics_are_bounded_and_content_free(self):
+        name = "usr/share/never-report-this-name\n" + "x" * 2048 + ".gz"
+        cases = ((b"never-report-this-content" * 40, "ascii-text"),
+                 (b"\0" * 700, "zero-filled"), (b"\xff\0binary-content", "other"))
+        for kind, depth in (("tar", 1), ("tar.gz", 2), ("zip", 1)):
+            for contents, prefix_class in cases:
+                with self.subTest(container=kind, prefix_class=prefix_class):
+                    path = self.artifacts / ("layer." + kind)
+                    payload = container_bytes(kind, [(name, contents)])
+                    path.write_bytes(payload)
+                    with self.assertRaises(privacy.PrivacyError) as error:
+                        self.redactor.scrub_and_scan(self.artifacts)
+                    message = str(error.exception)
+                    self.assertIn("Unrecognized archive", message)
+                    detail, _ = json.JSONDecoder().raw_decode(message.split("archive-format ", 1)[1])
+                    self.assertEqual(detail, {
+                        "depth": depth, "suffix": ".gz", "prefix_bytes": min(512, len(contents)),
+                        "prefix_class": prefix_class,
+                        "member_sha256": hashlib.sha256(name.encode()).hexdigest(),
+                    })
+                    self.assertLess(len(message), 512)
+                    self.assertNotIn("never-report", message)
+                    self.assertNotIn("binary-content", message)
+                    self.assertNotIn("\n", message)
+                    self.assertEqual(path.read_bytes(), payload)
+                    path.unlink()
+
+    def test_unsupported_archive_diagnostics_keep_rejection(self):
+        name = "usr/share/never-report.7z"
+        payload = container_bytes("tar.gz", [(name, b"7z\xbc\xaf\x27\x1c")])
+        path = self.artifacts / "layer.tar.gz"
+        path.write_bytes(payload)
+        with self.assertRaises(privacy.PrivacyError) as error:
+            self.redactor.scrub_and_scan(self.artifacts)
+        message = str(error.exception)
+        self.assertIn("Unsupported archive", message)
+        detail, _ = json.JSONDecoder().raw_decode(message.split("archive-format ", 1)[1])
+        self.assertEqual(detail, {"depth": 2, "suffix": ".7z", "prefix_bytes": 6,
+                                 "prefix_class": "other",
+                                 "member_sha256": hashlib.sha256(name.encode()).hexdigest()})
+        self.assertNotIn(name, message)
+        self.assertEqual(path.read_bytes(), payload)
+
+    def test_format_diagnostics_do_not_expose_private_names_or_payloads(self):
+        for name, contents in ((HOST + ".gz", b"not compressed"),
+                               (quote(URL, safe="") + ".gz", b"not compressed"),
+                               ("payload.gz", gzip.compress(URL.encode()))):
+            for kind in ("tar", "tar.gz", "zip"):
+                with self.subTest(container=kind, name=name):
+                    path = self.artifacts / ("layer." + kind)
+                    payload = container_bytes(kind, [(name, contents)])
+                    path.write_bytes(payload)
+                    self.assert_rejected_without_disclosure()
+                    self.assertEqual(path.read_bytes(), payload)
+                    path.unlink()
+
     def test_missing_zstd_scanner_fails_closed(self):
         (self.artifacts / "archive.zst").write_bytes(b"\x28\xb5\x2f\xfd")
         with mock.patch.object(privacy.shutil, "which", return_value=None):

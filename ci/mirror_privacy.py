@@ -241,7 +241,21 @@ class Redactor:
         if depth > MAX_ARCHIVE_DEPTH:
             raise PrivacyError("Validation evidence exceeds the archive nesting limit")
         prefix = stream.read(512)
-        kind = self._format(prefix, name)
+        try:
+            kind = self._format(prefix, name)
+        except PrivacyError as error:
+            # Retain only controlled categories and a full-name digest. Even
+            # checked archive names and raw content stay out of public errors.
+            suffix = next((value for value in (".gz", ".tgz", ".bz2", ".xz", ".zst", ".zip",
+                                               ".7z", ".rar", ".lz4", ".lz", ".lzma")
+                           if name.lower().endswith(value)), "none")
+            prefix_class = ("zero-filled" if not any(prefix) else
+                            "ascii-text" if all(value in (9, 10, 13) or 32 <= value <= 126
+                                                for value in prefix) else "other")
+            detail = {"depth": depth, "suffix": suffix, "prefix_bytes": len(prefix),
+                      "prefix_class": prefix_class,
+                      "member_sha256": hashlib.sha256(name.encode("utf-8", "surrogatepass")).hexdigest()}
+            raise PrivacyError(f"{error}; archive-format {json.dumps(detail, sort_keys=True)}") from None
         if kind is None:
             self._scan_raw(stream, prefix)
             return
