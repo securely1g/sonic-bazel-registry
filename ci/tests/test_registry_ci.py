@@ -2204,7 +2204,7 @@ class TestContainerTests(unittest.TestCase):
         commands.mkdir()
         for name, body in {
             "sudo": ('printf "%s\\n" "$*" >> "$SUDO_LOG"\n[[ "$1" == -n ]]\nshift\n'
-                     'if [[ "$1" == --preserve-env=DEBIAN_MIRROR_BASE_URL,DEBIAN_SECURITY_MIRROR_BASE_URL,GITHUB_ACTIONS ]]; then shift; fi\n'
+                     'if [[ "$1" == --preserve-env=DEBIAN_MIRROR_BASE_URL,DEBIAN_SECURITY_MIRROR_BASE_URL,GITHUB_ACTIONS || "$1" == --preserve-env=DEBIAN_MIRROR_BASE_URL,DEBIAN_SECURITY_MIRROR_BASE_URL,GITHUB_ACTIONS,SOURCE_ONLY_NO_DEBS ]]; then shift; fi\n'
                      'exec "$@"\n'),
             "git": 'printf "%s\\n" "$@" > "$GIT_LOG"\n',
             "python3": 'printf "%s\\n" "$@" > "$CAPTURE"\n',
@@ -2366,6 +2366,128 @@ class BazelStartupArgumentTests(unittest.TestCase):
             registry_ci.main()
         self.assertEqual(execute.call_args.args[3], "arm64")
         self.assertEqual(execute.call_args.args[-2:], (True, Path("/opt/arm executor")))
+
+
+class FipsDiagnosticNoDebScopeTests(unittest.TestCase):
+    VERSION = "0.0.2-34a53faaecd325509e9d8f1016ed0108ab558a23"
+    NAMES = ("kernel_action_test", "verify_cache_test", "build_test",
+             "collect_ci_artifacts_test", "stage_kernel_test")
+
+    def fixture(self, scope, module="sonic-linux-kernel", version=None,
+                missing=False, failed=False):
+        # Exercise the real runner and BEP verification with recorded commands.
+        # No Bazel, subprocess, downloaded input or Debian package is executed.
+        import contextlib
+        version = version or self.VERSION
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            entry = root / "modules" / module / version
+            entry.mkdir(parents=True)
+            (entry / "MODULE.bazel").write_text(
+                f'module(name = "{module}", version = "{version}")\n')
+            labels = [f"@{module}//tools/bazel:{name}" for name in self.NAMES]
+            config = {"architectures": ["amd64"], "consumer_deps": [],
+                      "platforms": {"amd64": "@platforms//host:host"},
+                      "build_targets": list(labels),
+                      "test_targets": labels[1:] if missing else list(labels)}
+            original = copy.deepcopy(config)
+            work, artifacts = root / "work", root / "artifacts"
+            commands = []
+
+            def record(command, consumer, log):
+                commands.append(command)
+                log.write_text("mocked command; no process executed\n")
+                (consumer / "MODULE.bazel.lock").write_text('{"lockFileVersion": 13}\n')
+                phase = "test" if "test" in command else "build"
+                events = []
+                if phase == "test":
+                    for label in (x for x in command if x in labels):
+                        status = "FAILED" if failed and label == labels[-1] else "PASSED"
+                        events.extend([
+                            {"id": {"testResult": {"label": label}},
+                             "testResult": {"status": status, "cachedLocally": False}},
+                            {"id": {"testSummary": {"label": label}},
+                             "testSummary": {"overallStatus": status,
+                                             "totalRunCount": 1, "totalNumCached": 0}},
+                        ])
+                (artifacts / (phase + "-events.jsonl")).write_text(
+                    "".join(json.dumps(event) + "\n" for event in events))
+
+            with contextlib.ExitStack() as patches:
+                patches.enter_context(mock.patch.dict(os.environ, {}, clear=True))
+                if scope is not None:
+                    os.environ["SOURCE_ONLY_NO_DEBS"] = scope
+                for name, value in {
+                    "validate_entry": config,
+                    "verify_native": {"architecture": "amd64"},
+                    "preserve_source_inputs": contextlib.nullcontext(),
+                    "prepare_rust": [], "query_output_trees": {},
+                    "collect_outputs": None, "fetched_modules": [entry / "MODULE.bazel"],
+                    "prepare_test_runtime": [], "collect_failed_action_logs": None,
+                }.items():
+                    patches.enter_context(mock.patch.object(registry_ci, name, return_value=value))
+                patches.enter_context(mock.patch.object(registry_ci, "run_logged", side_effect=record))
+                patches.enter_context(mock.patch.object(registry_ci.subprocess, "check_output",
+                                                        return_value=str(work) + "\n"))
+                patches.enter_context(mock.patch.object(registry_ci.cross_pip, "record_locks"))
+                try:
+                    registry_ci.run(root, module, version, "amd64", work, artifacts)
+                except registry_ci.RegistryError:
+                    self.assertFalse((artifacts / "validation.json").exists())
+                    self.assertEqual(config, original)
+                    raise
+            self.assertEqual(config, original, "selection must not mutate the declared manifest")
+            data = (artifacts / "validation.json").read_bytes()
+            return config, commands, data
+
+    def test_exact_scope_keeps_all_builds_and_records_only_executed_tests(self):
+        config, commands, data = self.fixture("true")
+        receipt = json.loads(data)
+        self.assertEqual([x for x in commands[0] if x in config["build_targets"]],
+                         config["build_targets"])
+        self.assertEqual([x for x in commands[1] if x in config["test_targets"]],
+                         config["test_targets"][2:])
+        self.assertEqual(receipt["build_targets"], config["build_targets"])
+        self.assertEqual(receipt["passed_tests"], config["test_targets"][2:])
+        self.assertEqual(receipt["excluded_tests"], config["test_targets"][:2])
+        self.assertIn("not full kernel test acceptance", receipt["test_scope"])
+
+    def test_default_and_other_module_keep_all_tests_and_default_receipt(self):
+        baseline = None
+        for scope in (None, "false", "", "TRUE"):
+            with self.subTest(scope=scope):
+                config, commands, data = self.fixture(scope)
+                receipt = json.loads(data)
+                self.assertEqual(receipt["passed_tests"], config["test_targets"])
+                self.assertNotIn("excluded_tests", receipt)
+                self.assertNotIn("test_scope", receipt)
+                if baseline is None:
+                    baseline = data
+                self.assertEqual(data, baseline)
+        config, _, data = self.fixture("true", module="other-owner")
+        self.assertEqual(json.loads(data)["passed_tests"], config["test_targets"])
+        self.assertNotIn("excluded_tests", json.loads(data))
+
+    def test_changed_kernel_version_or_missing_root_fails_before_commands(self):
+        for changes in ({"version": "0.0.3-other"}, {"missing": True}):
+            with self.subTest(changes=changes), self.assertRaises(registry_ci.RegistryError):
+                self.fixture("true", **changes)
+
+    def test_remaining_test_failure_still_rejects_validation(self):
+        with self.assertRaisesRegex(registry_ci.RegistryError, "test attempt did not pass"):
+            self.fixture("true", failed=True)
+
+    def test_workflow_selector_is_only_exact_fips_branch_and_survives_sudo(self):
+        workflow = (registry_ci.ROOT / ".github/workflows/registry-module.yml").read_text()
+        selector = "SOURCE_ONLY_NO_DEBS: ${{ (github.head_ref || github.ref_name) == 'codex/arm64-trixie-cross-builds' }}"
+        self.assertEqual(workflow.count(selector), 1)
+        self.assertIn("GITHUB_ACTIONS,SOURCE_ONLY_NO_DEBS)", workflow)
+        for head, ref, expected in (("codex/arm64-trixie-cross-builds", "42/merge", True),
+                                    ("", "codex/arm64-trixie-cross-builds", True),
+                                    ("", "main", False), ("other", "42/merge", False),
+                                    ("codex/arm64-trixie-cross-builds-other", "42/merge", False)):
+            with self.subTest(head=head, ref=ref):
+                self.assertEqual((head or ref) == "codex/arm64-trixie-cross-builds", expected)
 
 
 class FetchedModuleTests(FixtureTestCase):

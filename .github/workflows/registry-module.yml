@@ -45,7 +45,7 @@ jobs:
     # Allow time for cold serial SWSS builds and the FIPS vendor suites under emulation.
     timeout-minutes: >-
       ${{ inputs.cross_compile && inputs.module == 'sonic-swss' && inputs.version == '0.0.3-42df8c74af53427be97609a7b11e9aec59d2d454' && 360 ||
-          inputs.cross_compile && inputs.module == 'sonic-fips' && inputs.version == '0.0.6-1ea828e13ac9c62d2007dbbf2ef3d72417e3d009' && 240 ||
+          inputs.cross_compile && inputs.module == 'sonic-fips' && inputs.version == '0.0.6-279477ccf5eacbe51607f3acd521bd044acaac6d' && 240 ||
           180 }}
     # Local native/cross jobs execute directly in the fresh Trixie runner.
     # Only native hosted ARM needs the separate pinned job image.
@@ -127,6 +127,8 @@ jobs:
       - name: Build and test through the registry
         env:
           HTTP_AUDIT_READY: ${{ steps.http_audit_download.outcome }}
+          # Temporary no-DEB scope for FIPS diagnostic adoption; remove before Ready.
+          SOURCE_ONLY_NO_DEBS: ${{ (github.head_ref || github.ref_name) == 'codex/arm64-trixie-cross-builds' }}
           DEBIAN_MIRROR_BASE_URL: ${{ contains(fromJSON(inputs.runner), 'self-hosted') && contains(fromJSON(inputs.runner), 'debian-trixie-container') && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && secrets.DEBIAN_MIRROR_BASE_URL || '' }}
           DEBIAN_SECURITY_MIRROR_BASE_URL: ${{ contains(fromJSON(inputs.runner), 'self-hosted') && contains(fromJSON(inputs.runner), 'debian-trixie-container') && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && secrets.DEBIAN_SECURITY_MIRROR_BASE_URL || '' }}
         run: |
@@ -143,7 +145,7 @@ jobs:
           if [[ "$CI_EXECUTION_ARCHITECTURE" == amd64 ]]; then
             TEST_CONTAINER_IMAGE="${SONIC_RUNNER_IMAGE_REFERENCE:?Missing runner image identity}"
             ROOT=(sudo -n)
-            SECRET_ENV=(--preserve-env=DEBIAN_MIRROR_BASE_URL,DEBIAN_SECURITY_MIRROR_BASE_URL,GITHUB_ACTIONS)
+            SECRET_ENV=(--preserve-env=DEBIAN_MIRROR_BASE_URL,DEBIAN_SECURITY_MIRROR_BASE_URL,GITHUB_ACTIONS,SOURCE_ONLY_NO_DEBS)
             # Bazel's default heap is too small for large dependency graphs
             # inside the runner's 16 GiB memory limit.
             BAZEL_STARTUP_ARGS=(--bazel-startup-arg=--host_jvm_args=-Xmx2g)
