@@ -877,6 +877,49 @@ class EntryValidationTests(FixtureTestCase):
         config = registry_ci.validate_entry(self.root, "alpha", "1.0.0")
         self.assertEqual(config["test_targets"], ["@alpha//:consumer_test"])
 
+    def test_architecture_targets_are_additive_and_keep_unmodified_common_lists(self) -> None:
+        entry = self.entry("alpha", "1.0.0")
+        config = json.loads((entry / "presubmit.json").read_text())
+        config["architectures"].append("arm64")
+        config["platforms"]["arm64"] = "@platforms//host:host"
+        for field in ("build_targets", "test_targets"):
+            config[field + "_by_arch"] = {"amd64": ["@alpha//:docbook"]}
+        write_json(entry / "presubmit.json", config)
+        validated = registry_ci.validate_entry(self.root, "alpha", "1.0.0")
+        for field in ("build_targets", "test_targets"):
+            self.assertEqual(registry_ci.selected_targets(validated, field, "amd64"),
+                             [*config[field], "@alpha//:docbook"])
+            self.assertEqual(registry_ci.selected_targets(validated, field, "arm64"), config[field])
+        self.assertEqual(validated, config)
+
+    def test_architecture_target_maps_reject_unknown_architectures_and_invalid_targets(self) -> None:
+        entry = self.entry("alpha", "1.0.0")
+        path = entry / "presubmit.json"
+        config = json.loads(path.read_text())
+        for field in ("build_targets", "test_targets"):
+            for invalid in (None, [], "amd64", {"armhf": ["@alpha//:extra"]},
+                            {"arm64": ["@alpha//:extra"]}, {"amd64": None}, {"amd64": []},
+                            {"amd64": "@alpha//:extra"}, {"amd64": [42]},
+                            {"amd64": ["@alpha//:extra", "@alpha//:extra"]},
+                            {"amd64": config[field]}, {"amd64": ["@other//:extra"]},
+                            {"amd64": ["//:extra"]}, {"amd64": ["@alpha//..."]},
+                            {"amd64": ["@alpha//:all"]}, {"amd64": ["@alpha//:all-targets"]},
+                            {"amd64": ["@alpha//:extra --skip-tests"]}):
+                with self.subTest(field=field, invalid=invalid):
+                    write_json(path, {**config, field + "_by_arch": invalid})
+                    with self.assertRaises(registry_ci.RegistryError):
+                        registry_ci.validate_entry(self.root, "alpha", "1.0.0")
+
+    def test_architecture_targets_cannot_replace_required_common_coverage(self) -> None:
+        entry = self.entry("alpha", "1.0.0")
+        path = entry / "presubmit.json"
+        config = json.loads(path.read_text())
+        for field in ("build_targets", "test_targets"):
+            with self.subTest(field=field):
+                write_json(path, {**config, field: [], field + "_by_arch": {"amd64": ["@alpha//:extra"]}})
+                with self.assertRaisesRegex(registry_ci.RegistryError, "nonempty list"):
+                    registry_ci.validate_entry(self.root, "alpha", "1.0.0")
+
     def test_module_feature_settings_are_optional_and_explicit(self) -> None:
         entry = self.entry("alpha", "1.0.0")
         path = entry / "presubmit.json"
@@ -1301,6 +1344,22 @@ class IntegrationTestModuleTests(FixtureTestCase):
         self.config["build_targets"].append("//:archives")
         self.config["test_targets"].append("//:archive_contract_test")
         self.validate()
+        del self.config["integration_test_module"]
+        with self.assertRaisesRegex(registry_ci.RegistryError, "explicit targets"):
+            self.validate()
+
+    def test_architecture_root_labels_use_the_same_integration_module_validation(self) -> None:
+        self.config["build_targets_by_arch"] = {"amd64": ["//:archives"]}
+        self.config["test_targets_by_arch"] = {"amd64": ["//:archive_contract_test"]}
+        self.validate()
+        for field in ("build_targets_by_arch", "test_targets_by_arch"):
+            original = self.config[field]
+            for label in ("//...", "//:all", "//:all-targets", "@another//:test"):
+                with self.subTest(field=field, label=label):
+                    self.config[field] = {"amd64": [label]}
+                    with self.assertRaisesRegex(registry_ci.RegistryError, "explicit targets"):
+                        self.validate()
+            self.config[field] = original
         del self.config["integration_test_module"]
         with self.assertRaisesRegex(registry_ci.RegistryError, "explicit targets"):
             self.validate()
@@ -2468,6 +2527,94 @@ class FetchedModuleTests(FixtureTestCase):
             cross_compile, test_executor,
         )
         return artifacts
+
+    def architecture_targets_fixture(self, failure: str = "") -> None:
+        self.config["architectures"] = ["amd64", "arm64"]
+        self.config["platforms"] = {arch: "@platforms//host:host" for arch in self.config["architectures"]}
+        self.config["build_targets_by_arch"] = {
+            arch: [f"@alpha//:{arch}_package"] for arch in self.config["architectures"]}
+        self.config["test_targets_by_arch"] = {
+            arch: [f"@alpha//:{arch}_test"] for arch in self.config["architectures"]}
+        write_json(self.config_path, self.config)
+        self.fake_bazel.write_text(
+            "#!/usr/bin/env python3\n"
+            f"OUTPUT_BASE = {str(self.output_base)!r}\nFAILURE = {failure!r}\n" + '''
+import json
+from pathlib import Path
+import sys
+args = sys.argv[1:]
+with Path('commands.jsonl').open('a') as commands:
+    commands.write(json.dumps(args) + '\\n')
+if 'info' in args:
+    print(str(Path.cwd()) if 'execution_root' in args else OUTPUT_BASE)
+elif 'cquery' in args:
+    assert args[-1].startswith('config(') and args[-1].endswith(', target)')
+    print(json.dumps({'label': args[-1][7:-9], 'trees': []}))
+else:
+    phase = 'build' if 'build' in args else 'test'
+    targets = [arg for arg in args if arg.startswith('@alpha//:')]
+    events = []
+    Path('MODULE.bazel.lock').write_text('{"lockFileVersion": 13}\\n')
+    for index, label in enumerate(targets):
+        if index and FAILURE == phase:
+            continue
+        canonical = label.replace('@alpha//', '@@alpha+//')
+        if phase == 'build':
+            output = Path.cwd() / (label.rsplit(':', 1)[1] + '.tar')
+            output.write_bytes(b'package')
+            events.extend([
+                {'id': {'namedSet': {'id': str(index)}}, 'namedSetOfFiles': {'files': [
+                    {'name': output.name, 'uri': output.as_uri()}]}},
+                {'id': {'targetCompleted': {'label': canonical}}, 'completed': {'success': True,
+                    'outputGroup': [{'name': 'default', 'fileSets': [{'id': str(index)}]}]}}])
+        else:
+            cached = bool(index and FAILURE == 'cached')
+            events.extend([
+                {'id': {'testResult': {'label': canonical}},
+                 'testResult': {'status': 'PASSED', 'cachedLocally': cached}},
+                {'id': {'testSummary': {'label': canonical}},
+                 'testSummary': {'overallStatus': 'PASSED', 'totalRunCount': 1,
+                                 'totalNumCached': int(cached)}}])
+    path = next(arg.split('=', 1)[1] for arg in args if arg.startswith('--build_event_json_file='))
+    Path(path).write_text(''.join(json.dumps(event) + '\\n' for event in events))
+''')
+
+    def test_architecture_targets_reach_commands_artifacts_and_validation_receipts(self) -> None:
+        self.architecture_targets_fixture()
+        for architecture in ("amd64", "arm64"):
+            with self.subTest(architecture=architecture), \
+                    mock.patch.object(registry_ci, "verify_native", return_value={"architecture": architecture}):
+                artifacts = self.run_fixture(architecture, architecture)
+                expected_build = ["@alpha//:library", f"@alpha//:{architecture}_package"]
+                expected_test = ["@alpha//:consumer_test", f"@alpha//:{architecture}_test"]
+                consumer = self.root / f"work-{architecture}" / "consumer"
+                commands = [json.loads(line) for line in (consumer / "commands.jsonl").read_text().splitlines()]
+                for phase, expected in (("build", expected_build), ("test", expected_test)):
+                    command = next(args for args in commands if phase in args)
+                    self.assertEqual([arg for arg in command if arg.startswith("@alpha//:")], expected)
+                self.assertIn("--nocache_test_results", next(args for args in commands if "test" in args))
+                self.assertEqual([args[-1] for args in commands if "cquery" in args],
+                                 [f"config({label}, target)" for label in expected_build])
+                outputs = json.loads((artifacts / "outputs.json").read_text())
+                self.assertEqual(list(outputs), expected_build)
+                for label in expected_build:
+                    self.assertEqual((artifacts / outputs[label][0]["path"]).read_bytes(), b"package")
+                validation = json.loads((artifacts / "validation.json").read_text())
+                self.assertEqual(validation["build_targets"], expected_build)
+                self.assertEqual(validation["passed_tests"], expected_test)
+
+    def test_architecture_targets_keep_required_outputs_and_uncached_test_checks(self) -> None:
+        for failure, error in (("build", "Required build target did not complete"),
+                               ("test", "Required test did not execute"),
+                               ("cached", "test result was cached")):
+            self.architecture_targets_fixture(failure)
+            for architecture in ("amd64", "arm64"):
+                with self.subTest(failure=failure, architecture=architecture), \
+                        mock.patch.object(registry_ci, "verify_native", return_value={"architecture": architecture}):
+                    suffix = failure + architecture
+                    with self.assertRaisesRegex(registry_ci.RegistryError, error):
+                        self.run_fixture(suffix, architecture)
+                    self.assertFalse((self.root / f"artifacts-{suffix}" / "validation.json").exists())
 
     def test_startup_options_reach_all_bazel_commands_and_rust_preparation(self) -> None:
         commands_path = self.root / "bazel-commands.jsonl"

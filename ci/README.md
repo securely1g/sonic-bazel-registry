@@ -420,6 +420,17 @@ The configuration declares:
 - `build_targets`: required output labels, including runtime and matching debug
   packages where the module provides them.
 - `test_targets`: explicit consumer and package test labels.
+- `build_targets_by_arch` and `test_targets_by_arch` (optional): add explicit
+  targets for selected architectures, for example
+  `"build_targets_by_arch": {"amd64": ["@example//docs:docbook"]}`. Each key must
+  appear in `architectures` and map to a nonempty list with the same label rules
+  as the corresponding common list. Common `build_targets` and `test_targets`
+  remain required and run on every architecture; these maps only append targets.
+  Duplicate targets within an architecture's effective list are rejected.
+  Build commands, output queries, retained artifacts, test execution and strict
+  uncached test verification all use the common list plus that architecture's
+  additions. `validation.json` records these effective lists in `build_targets`
+  and `passed_tests`. Omitting the maps preserves the existing behavior.
 - `integration_test_module` (optional): an entry-relative directory containing a
   separate test module, for example `tests/integration`. CI copies its ordinary
   `MODULE.bazel`, `BUILD.bazel`, tests and fixtures into the fresh consumer. The
