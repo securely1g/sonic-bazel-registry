@@ -1576,7 +1576,9 @@ def run(root: Path, module: str, version: str, architecture: str,
                 "module": module, "version": version, "architecture": architecture,
                 "execution_architecture": execution_architecture,
                 "cross_compile": cross_compile,
-                "test_execution": "qemu-aarch64" if cross_compile else "native",
+                "test_execution": ("qemu-aarch64" if cross_compile else
+                                   "arm64-guest-on-amd64" if os.environ.get("PILOT_EMULATED_ARM") == "true" else
+                                   "native"),
                 "cross_runtime": cross_runtime,
                 "test_container_image": test_container_image,
                 "build_targets": config["build_targets"], "passed_tests": config["test_targets"],

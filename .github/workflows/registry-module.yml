@@ -16,6 +16,10 @@ on:
         description: Native host architecture; defaults to the target for native callers
         type: string
         default: ''
+      emulated_arm:
+        description: Run the native ARM64 toolchain and tests in an ARM64 guest on the pilot AMD64 worker
+        type: boolean
+        default: false
       cross_compile:
         type: boolean
         default: false
@@ -51,21 +55,30 @@ jobs:
     timeout-minutes: 180
     # Local native/cross jobs execute directly in the fresh Trixie runner.
     # Only native hosted ARM needs the separate pinned job image.
-    container: ${{ inputs.architecture == 'arm64' && !inputs.cross_compile && 'debian:trixie-20260918@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c' || '' }}
+    container: ${{ inputs.architecture == 'arm64' && !inputs.cross_compile && !inputs.emulated_arm && 'debian:trixie-20260918@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c' || '' }}
     defaults:
       run:
         shell: bash
     env:
       DEBIAN_FRONTEND: noninteractive
+      PILOT_EMULATED_ARM: ${{ inputs.emulated_arm }}
       CI_MODULE: ${{ inputs.module }}
       CI_VERSION: ${{ inputs.version }}
       CI_ARCHITECTURE: ${{ inputs.architecture }}
       CI_EXECUTION_ARCHITECTURE: ${{ inputs.execution_architecture || inputs.architecture }}
       CI_CROSS_COMPILE: ${{ inputs.cross_compile }}
       ARM_TEST_EXECUTOR: /usr/local/bin/sonic-arm64
-      TEST_CONTAINER_IMAGE: ${{ inputs.architecture == 'arm64' && !inputs.cross_compile && 'debian:trixie-20260918@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c' || '' }}
+      TEST_CONTAINER_IMAGE: ${{ inputs.architecture == 'arm64' && !inputs.cross_compile && !inputs.emulated_arm && 'debian:trixie-20260918@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c' || '' }}
     steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Prepare the ARM64 build environment on the pilot worker
+        if: inputs.emulated_arm
+        run: ci/pilot_arm.sh prepare
       - name: Validate execution route
+        shell: &build_shell bash ci/pilot_arm.sh shell {0}
         run: |
           set -euo pipefail
           case "$CI_ARCHITECTURE:$CI_EXECUTION_ARCHITECTURE:$CI_CROSS_COMPILE:$(uname -m)" in
@@ -76,23 +89,19 @@ jobs:
             [[ -x "$ARM_TEST_EXECUTOR" ]] || { echo "Missing ARM test executor" >&2; exit 1; }
           fi
       - name: Install build and package test tools
-        if: inputs.architecture == 'arm64' && !inputs.cross_compile
+        if: inputs.architecture == 'arm64' && !inputs.cross_compile && !inputs.emulated_arm
         run: |
           set -euo pipefail
           apt-get update
           # LLVM needs libxml2; installed SDK tests exercise their pkg-config metadata.
           apt-get install -y --no-install-recommends binutils build-essential ca-certificates curl gdb git libxml2 libzstd-dev patch pkg-config python3 tar unzip xz-utils zlib1g-dev zstd
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          persist-credentials: false
       - name: Identify the checked-out mirror configuration
         id: mirror_config
-        if: ${{ contains(fromJSON(inputs.runner), 'self-hosted') && contains(fromJSON(inputs.runner), 'debian-trixie-container') && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && hashFiles('ci/private_mirrors.py') != '' }}
+        if: ${{ contains(fromJSON(inputs.runner), 'self-hosted') && (contains(fromJSON(inputs.runner), 'debian-trixie-container') || contains(fromJSON(inputs.runner), 'debian-trixie-k3s-fleet-pilot')) && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && hashFiles('ci/private_mirrors.py') != '' }}
         run: echo "kind=${{ hashFiles('ci/debian_snapshots.json') != '' && 'roots' || 'dated' }}" >> "$GITHUB_OUTPUT"
       - name: Download the optional same-run HTTP audit agent
         id: http_audit_download
-        if: ${{ inputs.http_audit_artifact_id != '' && contains(fromJSON(inputs.runner), 'self-hosted') && contains(fromJSON(inputs.runner), 'debian-trixie-container') && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) }}
+        if: ${{ inputs.http_audit_artifact_id != '' && contains(fromJSON(inputs.runner), 'self-hosted') && (contains(fromJSON(inputs.runner), 'debian-trixie-container') || contains(fromJSON(inputs.runner), 'debian-trixie-k3s-fleet-pilot')) && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) }}
         continue-on-error: true
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
@@ -100,6 +109,7 @@ jobs:
           path: ${{ runner.temp }}/debian-http-audit
           merge-multiple: true
       - name: Install Bazel 8.5.1
+        shell: *build_shell
         run: |
           set -euo pipefail
           case "$(uname -m)" in
@@ -117,12 +127,15 @@ jobs:
           esac
           if [[ "$CI_EXECUTION_ARCHITECTURE" == amd64 ]]; then
             printf '%s  %s\n' "$bazel_sha" /usr/local/lib/bazel-8.5.1 | sha256sum --check --strict
+          elif [[ "${PILOT_EMULATED_ARM:-false}" == true ]]; then
+            printf '%s  %s\n' "$bazel_sha" /usr/local/bin/bazel | sha256sum --check --strict
           else
             curl --fail --location --retry 3 --output /tmp/bazel "https://releases.bazel.build/8.5.1/release/bazel-8.5.1-linux-${bazel_arch}"
             printf '%s  %s\n' "$bazel_sha" /tmp/bazel | sha256sum --check --strict
             install -m 0755 /tmp/bazel /usr/local/bin/bazel
           fi
       - name: Build and test through the registry
+        shell: *build_shell
         env:
           HTTP_AUDIT_READY: ${{ steps.http_audit_download.outcome }}
           DEBIAN_MIRROR_ROOT: ${{ steps.mirror_config.outputs.kind == 'roots' && secrets.DEBIAN_MIRROR_ROOT || '' }}
@@ -149,6 +162,12 @@ jobs:
             BAZEL_STARTUP_ARGS=(--bazel-startup-arg=--host_jvm_args=-Xmx2g)
             BAZEL_BUILD_ARGS=(--bazel-build-arg=--jobs=1 --bazel-build-arg=--discard_analysis_cache)
             "${ROOT[@]}" git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          fi
+          if [[ "${PILOT_EMULATED_ARM:-false}" == true ]]; then
+            TEST_CONTAINER_IMAGE="${SONIC_RUNNER_IMAGE_REFERENCE:?Missing pilot runner image identity}"
+            BAZEL_STARTUP_ARGS=(--bazel-startup-arg=--host_jvm_args=-Xmx2g)
+            BAZEL_BUILD_ARGS=(--bazel-build-arg=--jobs=1 --bazel-build-arg=--discard_analysis_cache)
+            git config --global --add safe.directory "$GITHUB_WORKSPACE"
           fi
           if [[ "$CI_CROSS_COMPILE" == true ]]; then
             CROSS_ARGS=(--cross-compile --test-executor "$ARM_TEST_EXECUTOR")
@@ -181,7 +200,7 @@ jobs:
           set -euo pipefail
           ROOT=()
           SECRET_ENV=()
-          if [[ "$CI_EXECUTION_ARCHITECTURE" == amd64 ]]; then
+          if [[ "$CI_EXECUTION_ARCHITECTURE" == amd64 || "${PILOT_EMULATED_ARM:-false}" == true ]]; then
             ROOT=(sudo -n)
             SECRET_ENV=(--preserve-env=DEBIAN_MIRROR_ROOT,DEBIAN_SECURITY_MIRROR_ROOT,DEBIAN_MIRROR_BASE_URL,DEBIAN_SECURITY_MIRROR_BASE_URL,GITHUB_ACTIONS)
           fi
@@ -189,7 +208,7 @@ jobs:
           "${ROOT[@]}" "${SECRET_ENV[@]}" python3 ci/private_mirrors.py check-artifacts \
             --artifacts "$GITHUB_WORKSPACE/ci-artifacts"
           "${ROOT[@]}" bash ci/archive_artifacts.sh "$GITHUB_WORKSPACE/ci-artifacts" "$archive"
-          if [[ -f "$archive" && "$CI_EXECUTION_ARCHITECTURE" == amd64 ]]; then
+          if [[ -f "$archive" && ( "$CI_EXECUTION_ARCHITECTURE" == amd64 || "${PILOT_EMULATED_ARM:-false}" == true ) ]]; then
             # Keep permissions inside the TAR intact while letting the
             # non-root upload action read the root-created archive.
             sudo -n chown "$(id -u):$(id -g)" "$archive"

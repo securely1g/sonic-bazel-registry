@@ -2032,9 +2032,15 @@ class WorkflowMatrixTests(unittest.TestCase):
     def setUp(self):
         self.workflow = (registry_ci.ROOT / ".github/workflows/registry-ci.yml").read_text()
 
-    def test_split_plan_preserves_native_and_cross_jobs_and_marks_empty_groups(self):
+    def run_workflow_planner(self, root, jobs, *, pilot):
         script = self.workflow.split("          python3 - <<'PY'\n", 1)[1].split("\n          PY", 1)[0]
         script = "\n".join(line[10:] for line in script.splitlines())
+        (root / "plan.json").write_text(json.dumps({"include": jobs}))
+        return subprocess.run([sys.executable, "-I", "-S", "-c", script], cwd=root,
+                              env={**os.environ, "EVENT_NAME": "pull_request", "PILOT_POOL": str(pilot).lower(),
+                                   "GITHUB_OUTPUT": str(root / "outputs")}, text=True, capture_output=True)
+
+    def test_split_plan_preserves_native_and_cross_jobs_and_marks_empty_groups(self):
         amd = {"module": "alpha", "version": "1.0.0", "architecture": "amd64",
                "execution_architecture": "amd64", "cross_compile": False,
                "runner": registry_ci.RUNNERS["amd64"]}
@@ -2051,11 +2057,8 @@ class WorkflowMatrixTests(unittest.TestCase):
             with self.subTest(jobs=jobs), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 matrix = {"include": jobs}
-                (root / "plan.json").write_text(json.dumps(matrix))
                 output = root / "outputs"
-                result = subprocess.run([sys.executable, "-I", "-S", "-c", script], cwd=root,
-                    env={**os.environ, "EVENT_NAME": "workflow_dispatch", "GITHUB_OUTPUT": str(output)},
-                    text=True, capture_output=True)
+                result = self.run_workflow_planner(root, jobs, pilot=False)
                 if not succeeds:
                     self.assertNotEqual(result.returncode, 0)
                     self.assertIn("validation", result.stderr)
@@ -2074,6 +2077,31 @@ class WorkflowMatrixTests(unittest.TestCase):
                     selected.extend(actual)
                 self.assertCountEqual(selected, jobs)
 
+    def test_full_pilot_preserves_every_module_and_emulates_only_hosted_arm(self):
+        amd = {"module": "alpha", "version": "1.0.0", "architecture": "amd64",
+               "execution_architecture": "amd64", "cross_compile": False, "runner": registry_ci.RUNNERS["amd64"]}
+        cross = {**amd, "architecture": "arm64", "cross_compile": True}
+        hosted = {**amd, "module": "beta", "architecture": "arm64",
+                  "execution_architecture": "arm64", "runner": registry_ci.RUNNERS["arm64"]}
+        for jobs, valid in (([amd, cross, hosted], True), ([], False),
+                            ([{**hosted, "runner": registry_ci.RUNNERS["amd64"]}], False)):
+            with self.subTest(jobs=jobs), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                result = self.run_workflow_planner(root, jobs, pilot=True)
+                self.assertEqual(result.returncode == 0, valid, result.stderr)
+                if not valid:
+                    self.assertFalse((root / "outputs").exists())
+                    continue
+                outputs = dict(line.split("=", 1) for line in (root / "outputs").read_text().splitlines())
+                self.assertEqual(outputs["pilot"], "true")
+                pilot = ["self-hosted", "Linux", "X64", "debian-trixie-k3s-fleet-pilot"]
+                expected = [{**row, "runner": pilot, "physical_architecture": "amd64", "emulated_arm": row == hosted}
+                            for row in jobs]
+                self.assertEqual(json.loads((root / "plan.json").read_text())["include"], expected)
+                self.assertEqual(json.loads(outputs["matrix"])["include"], expected)
+                self.assertEqual(json.loads(outputs["local_matrix"])["include"], expected[:2])
+                self.assertEqual(json.loads(outputs["hosted_arm_matrix"])["include"], expected[2:])
+
     def test_one_local_budget_and_separate_hosted_admission_share_validation_body(self):
         for architecture in ("local", "hosted_arm"):
             # A job block ends at the next two-space job key, not a nested field.
@@ -2090,7 +2118,11 @@ class WorkflowMatrixTests(unittest.TestCase):
             for name in ("module", "version", "architecture", "execution_architecture", "cross_compile"):
                 self.assertIn(name + ": ${{ matrix." + name + " }}", block)
             self.assertIn("runner: ${{ toJSON(matrix.runner) }}", block)
-            self.assertEqual("max-parallel: 10" in block, architecture == "local")
+            if architecture == "local":
+                self.assertIn("max-parallel: ${{ needs.plan.outputs.pilot == 'true' && 64 || 10 }}", block)
+            else:
+                self.assertNotIn("max-parallel:", block)
+            self.assertIn("emulated_arm: ${{ matrix.emulated_arm == true }}", block)
             self.assertNotIn("steps:", block)
         shared = (registry_ci.ROOT / ".github/workflows/registry-module.yml").read_text()
         self.assertIn("workflow_call:", shared)
@@ -2258,19 +2290,23 @@ class TestContainerTests(unittest.TestCase):
         expression = next(line.split("container: ", 1)[1] for line in workflow.splitlines()
                           if line.strip().startswith("container: "))
         selection = re.fullmatch(
-            r"\$\{\{ inputs\.architecture == 'arm64' && !inputs\.cross_compile && '(\S+@sha256:[0-9a-f]{64})' \|\| '' \}\}",
+            r"\$\{\{ inputs\.architecture == 'arm64' && !inputs\.cross_compile && !inputs\.emulated_arm && '(\S+@sha256:[0-9a-f]{64})' \|\| '' \}\}",
             expression)
         self.assertIsNotNone(selection)
         self.assertIn("TEST_CONTAINER_IMAGE: " + expression, workflow)
-        self.assertIn("if: inputs.architecture == 'arm64' && !inputs.cross_compile", workflow)
+        self.assertIn("if: inputs.architecture == 'arm64' && !inputs.cross_compile && !inputs.emulated_arm", workflow)
         self.assertIn("CI_EXECUTION_ARCHITECTURE: ${{ inputs.execution_architecture || inputs.architecture }}", workflow)
         self.assertRegex(workflow, r"cross_compile:\n\s+type: boolean\n\s+default: false")
-        for architecture, execution, cross in (("amd64", "amd64", False), ("arm64", "arm64", False),
-                                                ("arm64", "amd64", True)):
-            with self.subTest(architecture=architecture, cross=cross), tempfile.TemporaryDirectory() as temporary:
+        self.assertRegex(workflow, r"emulated_arm:\n\s+description: [^\n]+\n\s+type: boolean\n\s+default: false")
+        for architecture, execution, cross, emulated in (
+                ("amd64", "amd64", False, False), ("arm64", "arm64", False, False),
+                ("arm64", "amd64", True, False), ("arm64", "arm64", False, True)):
+            with self.subTest(architecture=architecture, cross=cross, emulated=emulated), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 environment = self.shell_environment(root, architecture, execution, cross)
-                environment["TEST_CONTAINER_IMAGE"] = selection[1] if execution == "arm64" else ""
+                environment["PILOT_EMULATED_ARM"] = str(emulated).lower()
+                environment["TEST_CONTAINER_IMAGE"] = selection[1] if execution == "arm64" and not emulated else ""
+                on_worker = execution == "amd64" or emulated
                 for name in ("Validate execution route", "Install Bazel 8.5.1", "Build and test through the registry"):
                     result = subprocess.run(["/bin/bash", "-c", self.step(workflow, name)], env=environment,
                                             text=True, capture_output=True)
@@ -2280,6 +2316,11 @@ class TestContainerTests(unittest.TestCase):
                 if execution == "amd64":
                     self.assertEqual(checksum, ["61d89402f0368e64b6c827be5de79d8e65382e8124c3cbb97325611a1851392e",
                                                 "/usr/local/lib/bazel-8.5.1"])
+                    self.assertFalse((root / "CURL_LOG").exists())
+                    self.assertFalse((root / "INSTALL_LOG").exists())
+                elif emulated:
+                    self.assertEqual(checksum, ["b7f2a85595e8a87d54843bc656c1e379fd9b8c1b5f783dc41717c1d7eb7cc49f",
+                                                "/usr/local/bin/bazel"])
                     self.assertFalse((root / "CURL_LOG").exists())
                     self.assertFalse((root / "INSTALL_LOG").exists())
                 else:
@@ -2292,21 +2333,22 @@ class TestContainerTests(unittest.TestCase):
                 arguments = (root / "CAPTURE").read_text().splitlines()
                 self.assertEqual(arguments[arguments.index("--architecture") + 1], architecture)
                 self.assertEqual(arguments[arguments.index("--test-container-image") + 1],
-                                 environment["SONIC_RUNNER_IMAGE_REFERENCE"] if execution == "amd64" else selection[1])
+                                 environment["SONIC_RUNNER_IMAGE_REFERENCE"] if on_worker else selection[1])
                 self.assertEqual(arguments[arguments.index("--bazel") + 1], "/usr/local/bin/bazel")
                 self.assertEqual([arg for arg in arguments if arg.startswith("--bazel-startup-arg=")],
-                                 ["--bazel-startup-arg=--host_jvm_args=-Xmx2g"] if execution == "amd64" else [])
+                                 ["--bazel-startup-arg=--host_jvm_args=-Xmx2g"] if on_worker else [])
                 self.assertEqual([arg for arg in arguments if arg.startswith("--bazel-build-arg=")],
                                  ["--bazel-build-arg=--jobs=1", "--bazel-build-arg=--discard_analysis_cache"]
-                                 if execution == "amd64" else [])
+                                 if on_worker else [])
                 self.assertEqual("--cross-compile" in arguments, cross)
                 self.assertEqual("--test-executor" in arguments, cross)
                 if cross:
                     self.assertEqual(arguments[arguments.index("--test-executor") + 1], environment["ARM_TEST_EXECUTOR"])
                 self.assertEqual(arguments[arguments.index("--work-dir") + 1], str(root / "runner temp/registry-ci"))
-                if execution == "amd64":
+                if on_worker:
                     self.assertEqual((root / "GIT_LOG").read_text().splitlines(),
                                      ["config", "--global", "--add", "safe.directory", str(root / "workspace")])
+                if execution == "amd64":
                     self.assertEqual(len((root / "SUDO_LOG").read_text().splitlines()), 2)
                 else:
                     self.assertFalse((root / "SUDO_LOG").exists())
