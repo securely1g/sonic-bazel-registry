@@ -46,42 +46,8 @@ RUNNERS = {
     "amd64": ["self-hosted", "Linux", "X64", "debian-trixie-container"],
     "arm64": ["ubuntu-24.04-arm"],
 }
-# This staged migration keeps unverified and future ARM versions on native ARM.
-# The exploratory survey uses True in its separate branch; do not infer success
-# from a build-only result or an API-green job without the original test evidence.
-ARM_CROSS_ALL = False
+HOSTED_ARM64_VERSIONS_FILE = Path(__file__).with_name("hosted_arm64_versions.json")
 FIPS_CROSS_VERSION = "0.0.6-1ea828e13ac9c62d2007dbbf2ef3d72417e3d009"
-# Temporary exact-version routes qualified by the complete original ARM contract.
-# Remove this map and the hosted ARM route after the full migration, so future
-# ARM versions receive cross validation as well. See ci/README.md for CI evidence.
-ARM_CROSS_VERSIONS: dict[str, tuple[str, ...]] = {
-    "gawk": ("5.3.2.sonic.1",),
-    "gazelle": ("0.54.0.sonic.1",),
-    "iproute2": ("6.15.0.sonic.7",),
-    "libnl3": ("3.7.0.sonic.7",),
-    "libyang-python": ("3.1.0.sonic.6",),
-    "p4c": ("1.2.4.2.sonic.3",),
-    "p4lang-bmv2": ("1.15.0.sonic.4",),
-    "p4lang-pi": ("0.1.3.sonic.3",),
-    "protobuf-legacy": ("3.21.12.sonic.2",),
-    "rules_distroless": ("0.9.4.sonic.17",),
-    "rules_foreign_cc": ("0.16.0.sonic.1",),
-    "rules_go": ("0.65.0.sonic.1",),
-    "rules_python": ("1.9.0.sonic.1",),
-    "sai": ("1.18.0-sonic.1",),
-    "socat": ("1.8.0.2.sonic.5",),
-    "sonic-dash": ("0.0.3-5c9305403585a7ae54f86918219acb8ed39f740a",),
-    "sonic-dash-api": ("0.0.5-9b2893e890734a2db0c53a5e5c64b031ec0dcfbd",),
-    "sonic-fips": (FIPS_CROSS_VERSION,),
-    "sonic-linux-kernel": ("0.0.2-34a53faaecd325509e9d8f1016ed0108ab558a23",),
-    "sonic-rust-deps": ("0.0.4-6d9c70f708d7420e9e2b2cdc906b80cee6b140f1",),
-    "sonic-sairedis": ("0.0.5-a1568983582654314c43aab421b32ab563ed860c",),
-    "sonic-swss": ("0.0.3-42df8c74af53427be97609a7b11e9aec59d2d454",),
-    "sonic-swss-common": ("0.0.9-334389eae54afd1f4f5ee69f89c3a7ad2062ee61",),
-    "sonic-yang-mgmt": ("1.0.0-9ab452d22773c41783092ae3bd6c206d6c257c8d",),
-    "sonic-yang-models": ("1.0.1-b0a9362a7a1b4b5e1b7188c019d256f7c8aaff9f",),
-    "tar.bzl": ("0.10.5.sonic.2",),
-}
 
 # The original wrappers stage a private target executable, loader and libraries.
 ARM_DECLARED_RUNTIME_FIXTURES = {
@@ -709,19 +675,16 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
                         selected.add((module, parts[2]))
         if ci_changed:
             selected.update(latest_presubmits(root))
-    require(type(ARM_CROSS_ALL) is bool, "ARM cross survey selection must be boolean")
-    require(isinstance(ARM_CROSS_VERSIONS, dict), "ARM cross routes must be a module/version map")
-    for module, versions in ARM_CROSS_VERSIONS.items():
-        require(isinstance(module, str) and NAME.fullmatch(module) is not None
-                and isinstance(versions, tuple) and bool(versions)
+    hosted_arm = read_json(HOSTED_ARM64_VERSIONS_FILE)
+    for module, versions in hosted_arm.items():
+        require(NAME.fullmatch(module) is not None and isinstance(versions, list) and bool(versions)
                 and all(isinstance(version, str) and VERSION.fullmatch(version) for version in versions)
-                and len(versions) == len(set(versions)), "Invalid temporary ARM cross route")
+                and len(versions) == len(set(versions)), "Invalid historical ARM64 runner assignment")
     include = []
     for module, version in sorted(selected):
         config = validate_entry(root, module, version)
         for architecture in config["architectures"]:
-            cross_compile = architecture == "arm64" and (
-                ARM_CROSS_ALL or version in ARM_CROSS_VERSIONS.get(module, ()))
+            cross_compile = architecture == "arm64" and version not in hosted_arm.get(module, ())
             execution_architecture = "amd64" if cross_compile else architecture
             include.append({"module": module, "version": version, "architecture": architecture,
                             "execution_architecture": execution_architecture,
@@ -1459,7 +1422,7 @@ def run(root: Path, module: str, version: str, architecture: str,
     require(not cross_compile or architecture == "arm64", "Cross compilation supports ARM64 targets on AMD64")
     require(cross_compile or test_executor is None, "A test executor requires explicit cross compilation")
     native = verify_native("amd64" if cross_compile else architecture)
-    fips_cross = cross_compile and module == "sonic-fips" and version in ARM_CROSS_VERSIONS.get(module, ())
+    fips_cross = cross_compile and (module, version) == ("sonic-fips", FIPS_CROSS_VERSION)
     kernel_executor = Path("/usr/local/bin/sonic-arm64-kernel")
     if fips_cross:
         require(kernel_executor.is_file() and os.access(kernel_executor, os.X_OK),
