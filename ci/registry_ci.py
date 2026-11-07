@@ -1143,7 +1143,7 @@ def prepare_rust(config: dict, consumer: Path, work_dir: Path, artifacts: Path,
     preparation_flags = [flag for flag in flags
                          if flag.startswith(("--registry=", "--lockfile_mode=", "--experimental_downloader_config=",
                                              "--http_connector_attempts=", "--http_connector_retry_max_timeout=",
-                                             "--http_max_parallel_downloads=", "--jobs=",
+                                             "--http_max_parallel_downloads=", "--experimental_worker_for_repo_fetching=", "--jobs=",
                                              "--discard_analysis_cache"))]
     command = [sys.executable, str(helper), "--workspace", str(consumer),
                "--shared-only", "--shared-dependency",
@@ -1329,7 +1329,7 @@ def prepare_cross_python_runtimes(bazel_prefix: list[str], flags: list[str], tes
     fetch_flags = [flag for flag in flags if flag.startswith((
         "--registry=", "--lockfile_mode=", "--experimental_downloader_config=", "--override_module=",
         "--override_repository=", "--http_connector_attempts=", "--http_connector_retry_max_timeout=",
-        "--http_max_parallel_downloads="))]
+        "--http_max_parallel_downloads=", "--experimental_worker_for_repo_fetching="))]
     mappings = []
     for index, native in enumerate(runtimes):
         require((native / "STANDALONE_INTERPRETER").is_file(), "Expected a declared standalone Python runtime")
@@ -1361,6 +1361,7 @@ def run(root: Path, module: str, version: str, architecture: str,
     require(architecture in config["architectures"], "Architecture is not configured for this version")
     require(not cross_compile or architecture == "arm64", "Cross compilation supports ARM64 targets on AMD64")
     require(cross_compile or test_executor is None, "A test executor requires explicit cross compilation")
+    arm_guest = architecture == "arm64" and os.environ.get("PILOT_EMULATED_ARM") == "true"
     native = verify_native("amd64" if cross_compile else architecture)
     if config.get("test_runtime_preparation") or cross_compile:
         require_test_container(test_container_image)
@@ -1506,7 +1507,7 @@ def run(root: Path, module: str, version: str, architecture: str,
             # flags whose apparent labels may be unresolved in a fresh info command.
             info_flags = [flag for flag in flags if flag.startswith(
                 ("--registry=", "--lockfile_mode=", "--experimental_downloader_config=",
-                 "--override_module=", "--override_repository="))]
+                 "--override_module=", "--override_repository=", "--experimental_worker_for_repo_fetching="))]
             execution_root = Path(subprocess.check_output([*prefix, "info", *info_flags, "execution_root"],
                                                          cwd=consumer, text=True).strip())
             collect_outputs(artifacts / "build-events.jsonl", config["build_targets"], work_dir, artifacts,
@@ -1546,12 +1547,16 @@ def run(root: Path, module: str, version: str, architecture: str,
             if executor_prefix:
                 test_flags.append("--run_under=" + shlex.join(executor_prefix))
             # Emulated Python can spend more than five minutes staging a large
-            # declared runtime before the test starts. Keep caller timeouts and
-            # native defaults; extend only the cross-test execution budgets.
-            if cross_compile and not any(
+            # declared runtime before the test starts. Both ARM emulation routes
+            # use the same default budgets. Explicit timeouts take precedence.
+            if (cross_compile or arm_guest) and not any(
                     flag == "--test_timeout" or flag.startswith("--test_timeout=")
                     for flag in [*flags, *test_flags]):
                 test_flags.append("--test_timeout=180,900,2700,7200")
+            if arm_guest and module == "rules_distroless":
+                # ARM Linux AIO is unavailable in QEMU user mode. The wrapper
+                # boots only linux_headers_test on a real ARM guest kernel.
+                test_flags.append("--run_under=/usr/local/bin/sonic-pilot-arm-kernel-test")
             # Export HOME before Bazel's test setup assigns TEST_TMPDIR. With
             # HOME absent, that shell assignment is invisible to Python and
             # expanduser() falls back to the account home outside the sandbox.
@@ -1576,7 +1581,9 @@ def run(root: Path, module: str, version: str, architecture: str,
                 "module": module, "version": version, "architecture": architecture,
                 "execution_architecture": execution_architecture,
                 "cross_compile": cross_compile,
-                "test_execution": "qemu-aarch64" if cross_compile else "native",
+                "test_execution": ("qemu-aarch64" if cross_compile else
+                                   "arm64-guest-on-amd64" if arm_guest else
+                                   "native"),
                 "cross_runtime": cross_runtime,
                 "test_container_image": test_container_image,
                 "build_targets": config["build_targets"], "passed_tests": config["test_targets"],

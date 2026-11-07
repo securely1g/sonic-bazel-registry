@@ -78,6 +78,7 @@ use_tool = rule(
                      "set REGISTRY_CI_TEST_BAZEL to run the real Bazel artifact fixture")
 class BazelArtifactIntegrationTest(unittest.TestCase):
     def test_genuine_bep_preserves_target_configuration_outputs(self):
+        bazel_timeout = 600 if os.environ.get("REGISTRY_CI_EMULATED_ARM") == "true" else 180
         with tempfile.TemporaryDirectory(prefix="registry-bazel-artifacts-") as temporary:
             work = Path(temporary)
             consumer, artifacts = work / "consumer", work / "artifacts"
@@ -115,7 +116,7 @@ class BazelArtifactIntegrationTest(unittest.TestCase):
                 with (artifacts / "build.log").open("w") as log:
                     build = subprocess.run(
                         prefix + ["build", *flags, "--build_event_json_file=" + str(bep), *labels],
-                        cwd=consumer, stdout=log, stderr=subprocess.STDOUT, timeout=180,
+                        cwd=consumer, stdout=log, stderr=subprocess.STDOUT, timeout=bazel_timeout,
                     )
                 self.assertEqual(build.returncode, 0, registry_ci.read_log_tail(artifacts / "build.log", 10000))
                 execution_root = Path(subprocess.check_output(

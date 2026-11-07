@@ -28,6 +28,7 @@ CHECKOUT_FILES = {
     "": (),
 }
 TRIXIE = ["self-hosted", "Linux", "X64", "debian-trixie-container"]
+PILOT = ["self-hosted", "Linux", "X64", "debian-trixie-k3s-fleet-pilot"]
 
 
 def expression_value(expression, context):
@@ -67,11 +68,39 @@ def mirror_kind(job, context):
 
 
 class PrivateMirrorSecretBoundaryTest(unittest.TestCase):
+    def test_only_the_same_repository_pilot_pr_selects_privileged_fleet_jobs(self):
+        workflow = (WORKFLOWS / "registry-ci.yml").read_text()
+        plan = workflow_job(workflow, "plan")
+        expression = re.search(r"runs-on: &trixie_runner >-\n\s+\$\{\{ (.*?) \}\}", plan, re.S)[1]
+        selector = " ".join(expression.splitlines())
+        pilot_flag = re.search(r"^          PILOT_POOL: \$\{\{ (.*) \}\}$", plan, re.M)[1]
+        repo = "securely1g/sonic-bazel-registry"
+        trusted = {"github.repository": repo, "github.event.pull_request.head.repo.full_name": repo,
+                   "github.event_name": "pull_request", "github.event.pull_request.number": 270,
+                   "github.base_ref": "codex/k3s-runner-fleet-sample-base"}
+        unit = workflow_job(workflow, "unit")
+        unit_selector = re.search(r"^    runs-on: \$\{\{ (.*) \}\}$", unit, re.M)[1]
+        for changes, expected in (({}, True), ({"github.event_name": "push"}, False),
+                                  ({"github.event.pull_request.number": 271}, False),
+                                  ({"github.base_ref": "main"}, False),
+                                  ({"github.event.pull_request.head.repo.full_name": "fork/registry"}, False),
+                                  ({"github.repository": "fork/registry",
+                                    "github.event.pull_request.head.repo.full_name": "fork/registry"}, False)):
+            with self.subTest(changes=changes):
+                ctx = trusted | changes
+                self.assertEqual(bool(expression_value(pilot_flag, ctx)), expected)
+                self.assertEqual(expression_value(selector, ctx), PILOT if expected else TRIXIE)
+                for default in (TRIXIE, ["ubuntu-24.04-arm"]):
+                    unit_ctx = {"needs.plan.outputs.pilot": str(expected).lower(), "matrix.runner": default}
+                    self.assertEqual(expression_value(unit_selector, unit_ctx), PILOT if expected else default)
+        for job in ("cross_fixture", "required"):
+            self.assertIn("runs-on: *trixie_runner", workflow_job(workflow, job))
+
     def test_agent_compiles_once_without_secrets_or_tool_installation(self):
         workflow = (WORKFLOWS / "registry-ci.yml").read_text()
         self.assertNotIn("\n  http_audit:\n", workflow)
         producer = workflow.split("  plan:\n", 1)[1].split("  unit:\n", 1)[0]
-        self.assertIn("runs-on: [self-hosted, Linux, X64, debian-trixie-container]", producer)
+        self.assertIn("runs-on: &trixie_runner", producer)
         compile_step = step(producer, "Compile the maintained audit source once")
         upload_step = step(producer, "Publish the same-run audit agent")
         self.assertIn("continue-on-error: true", compile_step)
@@ -138,7 +167,7 @@ class PrivateMirrorSecretBoundaryTest(unittest.TestCase):
         unit = workflow.split("  unit:\n", 1)[1].split("  cross_fixture:\n", 1)[0]
         download = step(unit, "Download the optional same-run HTTP audit agent")
         condition = re.search(r"^        if: \$\{\{ (.*) \}\}$", download, re.M)[1]
-        for runner, expected in ((TRIXIE, True), (["ubuntu-24.04-arm"], False)):
+        for runner, expected in ((TRIXIE, True), (PILOT, True), (["ubuntu-24.04-arm"], False)):
             self.assertEqual(expression_value(condition, {"matrix.runner": runner,
                                                          "needs.plan.outputs.http_audit_artifact_id": "123"}), expected)
     def test_live_mirror_probe_requires_an_explicit_manual_request(self):
@@ -177,6 +206,13 @@ class PrivateMirrorSecretBoundaryTest(unittest.TestCase):
             self.assertNotIn("secrets.", step(chooser, "Identify the checked-out mirror configuration"))
             for event, head, actor, runner, trusted in (
                 ("pull_request", "owner/repo", "maintainer", TRIXIE, True),
+                ("pull_request", "owner/repo", "maintainer", PILOT, True),
+                ("pull_request", "fork/repo", "contributor", PILOT, False),
+                ("pull_request", "owner/repo", "dependabot[bot]", PILOT, False),
+                ("pull_request_target", "owner/repo", "maintainer", PILOT, False),
+                ("pull_request", "owner/repo", "maintainer", ["debian-trixie-k3s-fleet-pilot"], False),
+                ("pull_request", "owner/repo", "maintainer",
+                 ["self-hosted", "debian-trixie-k3s-fleet-pilot-other"], False),
                 ("push", "", "maintainer", TRIXIE, True),
                 ("workflow_dispatch", "", "maintainer", TRIXIE, True),
                 ("pull_request", "fork/repo", "contributor", TRIXIE, False),
@@ -188,7 +224,7 @@ class PrivateMirrorSecretBoundaryTest(unittest.TestCase):
                 ("push", "", "maintainer", ["debian-trixie-container"], False),
             ):
                 # The cross fixture has a fixed Trixie label set in runs-on.
-                if name == "cross_fixture" and "self-hosted" in runner and runner != TRIXIE:
+                if name == "cross_fixture" and "self-hosted" in runner and runner not in (TRIXIE, PILOT):
                     continue
                 ctx = {"github.event_name": event, "github.actor": actor, "github.repository": "owner/repo",
                        "github.event.pull_request.head.repo.full_name": head, "matrix.runner": runner,
@@ -212,7 +248,7 @@ class PrivateMirrorSecretBoundaryTest(unittest.TestCase):
         arm_job = workflow.split("  modules_hosted_arm:\n", 1)[1].split("  required:\n", 1)[0]
         self.assertNotIn("secrets:", arm_job)
         cross_fixture = workflow.split("  cross_fixture:\n", 1)[1].split("  modules_local:\n", 1)[0]
-        self.assertIn("runs-on: [self-hosted, Linux, X64, debian-trixie-container]", cross_fixture)
+        self.assertIn("runs-on: *trixie_runner", cross_fixture)
         for secret in SECRETS:
             self.assertIn(f"secrets.{secret}", cross_fixture)
         reusable = (WORKFLOWS / "registry-module.yml").read_text()
