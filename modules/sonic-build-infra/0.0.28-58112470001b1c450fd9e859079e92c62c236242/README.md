@@ -1,7 +1,7 @@
 # Runtime preparation, shared APT inputs and linker argument transport
 
-This entry registers `sonic-build-infra@0.0.28-8e15b3341e4665f7bf6ed9be0aaaf1c92dcf9175` from the
-[combined source commit](https://github.com/securely1g/sonic-build-infra/commit/8e15b3341e4665f7bf6ed9be0aaaf1c92dcf9175).
+This entry registers `sonic-build-infra@0.0.28-58112470001b1c450fd9e859079e92c62c236242` from the
+[combined source commit](https://github.com/securely1g/sonic-build-infra/commit/58112470001b1c450fd9e859079e92c62c236242).
 It preserves [source #88](https://github.com/securely1g/sonic-build-infra/pull/88)'s
 original native-runtime preparation commit and closed-standard-descriptor fix,
 [source #90](https://github.com/securely1g/sonic-build-infra/pull/90)'s shared APT
@@ -52,17 +52,30 @@ native runtime-search adapter fix. It retains joined `-Xlinker` search-option
 pairs and repeated transport tokens. Existing legacy search flags, declared
 linker inputs, original native libraries and dynamic dependencies remain intact.
 
-The current shared-lock refresh supports the declared consumers selected by
+The current shared-lock refresh covers the known selected APT namespaces for
 [buildimage #196](https://github.com/securely1g/sonic-buildimage/pull/196).
-The previous 45-group lock could not supply every original consumer request.
-The [metadata-only update](https://github.com/securely1g/sonic-build-infra/actions/runs/42458722765)
-produced 2,269 package records and 53 groups across 119 architecture contexts.
-All 2,210 previous package records, versions, hashes and existing architecture
-sets are preserved. The new roots and closures match the reviewed owner
-requests; the exact Distroless18 consumer model accepts the resulting lock.
-This is metadata validation: current registry, PI and image validation against
-this source remain pending. The updater preserves configured architecture
-metadata; it does not add ARM build or test coverage to this AMD64 migration.
+The preceding 53-group lock omitted requests declared by FRR's recursive MODULE
+include and the Infra Bookworm namespace. The strict consumer check therefore
+rejected `frr_deps` at `libc-ares-dev` before compilation. This source adds the
+22 shared FRR request forms, 11 FRR Bookworm requests and 31 Net-SNMP Bookworm
+requests while preserving existing qualified roots, checksum pins and policies.
+
+The [metadata-only update](https://github.com/securely1g/sonic-build-infra/actions/runs/42463700970)
+produced 2,425 package records and 55 groups across 124 architecture contexts.
+All 2,269 prior package identities, versions and checksums remain; 2,267 full
+records are unchanged. Two Bookworm `libstdc++6` records gain six dependency
+edges to existing same-architecture records when requested transitively by
+Net-SNMP. No old root's reachable package set changes. The 171 declared checksum
+pins and all 52 unrelated group definitions remain exact. Only `frr_deps` gains
+an ARMHF metadata context under the unchanged source-architecture policy.
+
+The exact Distroless18 pure consumer model accepts the actual lock across the
+known shared, Infra Bookworm and two legacy namespaces, including the recursive
+FRR declarations; the 22 legacy image locks remain separate. This is bounded
+metadata validation, not full module-resolution or native image acceptance.
+Current registry, PI and image validation against this new source remains
+pending. The metadata context does not add ARM builds or tests to the AMD64
+migration.
 
 ## Concrete consumer examples
 
