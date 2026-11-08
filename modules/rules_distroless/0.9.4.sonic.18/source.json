@@ -43,7 +43,8 @@
     "0037-share-prepared-lock-transport.patch": "sha256-HU7fk3UCNx02aTEi26Ae64ldnaWPAnW2CxCIq2zFmU8=",
     "0038-declare-native-runtime-link-search.patch": "sha256-PMVLjyUH9EKCqstdFaMwaqVFYxFDUtmomoQAH600Cwc=",
     "0039-default-pkgconfig-header-exports.patch": "sha256-ZvtDW9uGtbeOpJtmkywPVnJ5Dq3eQ1HcBPrUqSWWf2Y=",
-    "0040-owner-scoped-archive-tools.patch": "sha256-JIX+1rRVPPp3yA0kHZuUFl2dY3/TpFRZuTVnAbqaJ0c="
+    "0040-owner-scoped-archive-tools.patch": "sha256-JIX+1rRVPPp3yA0kHZuUFl2dY3/TpFRZuTVnAbqaJ0c=",
+    "0041-preserve-shared-pkgconfig-ownership.patch": "sha256-5xtx5YE4qVuIcD8Umt4D+2FoeaB2Zo7aJ3/rHXHv410="
   },
   "patch_strip": 1,
   "overlay": {
