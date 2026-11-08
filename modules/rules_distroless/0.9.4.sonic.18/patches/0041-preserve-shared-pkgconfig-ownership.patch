@@ -8,6 +8,7 @@ for default, static/private, object, script and unresolved sequences.
 
 Origin: SONiC rules_distroless .sonic.18 adaptation; not submitted upstream.
 
+diff --git a/apt/private/cc_deb_library.bzl b/apt/private/cc_deb_library.bzl
 --- a/apt/private/cc_deb_library.bzl
 +++ b/apt/private/cc_deb_library.bzl
 @@ -171,11 +171,14 @@
@@ -59,6 +60,7 @@ Origin: SONiC rules_distroless .sonic.18 adaptation; not submitted upstream.
      },
      fragments = ["cpp"],
      toolchains = use_cc_toolchain(),
+diff --git a/apt/private/deb_import.bzl b/apt/private/deb_import.bzl
 --- a/apt/private/deb_import.bzl
 +++ b/apt/private/deb_import.bzl
 @@ -659,6 +659,7 @@
