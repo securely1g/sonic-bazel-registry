@@ -5,7 +5,7 @@ builds and installed-runtime/package checks as `.sonic.6`. All seven build label
 and five test labels remain unchanged on AMD64 and ARM64. Published entries stay
 unchanged.
 
-It selects `sonic-build-infra@0.0.28-23b398c24d3b53e756785d1ed4c0ba5f62e9cdb1`
+It selects `sonic-build-infra@0.0.28-b5a6094d703f6cf8132edc7ceb0326a464e3c5d1`
 ([source PR #88](https://github.com/securely1g/sonic-build-infra/pull/88)) so
 `native_runtime_binary` prepares runtime files with a declared execution-platform
 Python while preserving target-CPU validation and real target binary execution.
@@ -29,7 +29,10 @@ This entry retains its existing exact package requests and two source
 declarations; they agree with the locked Bookworm records. The source includes
 [infra #90](https://github.com/securely1g/sonic-build-infra/pull/90) alongside
 #88's runtime preparation, so existing image and historical library consumers
-can select that one reviewed package graph.
+can select that one reviewed package graph. The source also preserves #88's
+fix for closed standard file descriptors and the shared configure/Make linker adapter
+from [infra #91](https://github.com/securely1g/sonic-build-infra/pull/91).
+Libyang continues to use its existing native C build targets.
 
 The interactive upstream-test driver now waits for Tcl's actual exit before
 closing the controlling PTY. Closing at PTY EOF could otherwise send SIGHUP
