@@ -45,6 +45,9 @@ initial API request, never on redirects. Authentication is off by default, and
 the reader does not discover credentials or add fallback download locations.
 The [Bazelisk AMD64 manifest](github_sources/bazelisk-1.29.0-linux-amd64.json)
 pins the complete asset's size and SHA256 and publishes the verified file as `bazel`.
+The [rules_cc 0.2.22 manifest](github_sources/rules-cc-0.2.22.json) retains the
+original TAR bytes and basename for the standard Bazel distdir; its BCR checksum
+and module version are unchanged.
 
 The runner passes Bazel's standard `--experimental_downloader_config` with
 [`source_mirrors.cfg`](source_mirrors.cfg) to dependency preparation, builds,
