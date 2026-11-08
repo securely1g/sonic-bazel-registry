@@ -2,7 +2,7 @@
   "schema_version": 1,
   "sources": [
     {
-      "url": "https://github.com/jart/cosmopolitan/releases/download/4.0.2/cosmos-4.0.2.zip",
+      "url": "https://api.github.com/repos/jart/cosmopolitan/releases/assets/218247825",
       "size": 402711738,
       "format": "zip",
       "files": [

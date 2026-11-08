@@ -45,6 +45,12 @@ initial API request, never on redirects. Authentication is off by default, and
 the reader does not discover credentials or add fallback download locations.
 The [Bazelisk AMD64 manifest](github_sources/bazelisk-1.29.0-linux-amd64.json)
 pins the complete asset's size and SHA256 and publishes the verified file as `bazel`.
+The [Cosmos 4.0.2 manifest](github_sources/cosmos-4.0.2.json) retains its five
+locked members and uses the exact release-asset API URL. Pass the restored
+`--repository-cache` to reuse verified member files before accessing the ZIP;
+cache misses retain the existing size-bounded ZIP/member verification path.
+This changes transport only, including both existing ARM-named aliases, and
+adds no target architecture or execution scope.
 The [rules_cc 0.2.22 manifest](github_sources/rules-cc-0.2.22.json) retains the
 original TAR bytes and basename for the standard Bazel distdir; its BCR checksum
 and module version are unchanged.
