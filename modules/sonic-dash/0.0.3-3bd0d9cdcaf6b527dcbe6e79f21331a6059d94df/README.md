@@ -1,6 +1,6 @@
 # DASH recursive Make compiler and linker flags
 
-Register [DASH #4](https://github.com/securely1g/DASH/pull/4) at `1c56e8a12e91ec69add6fa98caccced92d216005` as `0.0.3-1c56e8a12e91ec69add6fa98caccced92d216005`. The source owns the flag adapter and regression tests. Published DASH `.1` and `.2` entries remain unchanged; the registry patch only sets the module version and removes root-only review overrides.
+Register [DASH #4](https://github.com/securely1g/DASH/pull/4) at `3bd0d9cdcaf6b527dcbe6e79f21331a6059d94df` as `0.0.3-3bd0d9cdcaf6b527dcbe6e79f21331a6059d94df`. The source owns the flag adapter and regression tests. Published DASH `.1` and `.2` entries remain unchanged; the registry patch only sets the module version and removes root-only review overrides.
 
 For example, the [full VS build for buildimage #133](https://github.com/securely1g/sonic-buildimage/actions/runs/42457158787/job/128659011067) could not start DASH's declared Make executable: `Argument list too long` stopped `docker-syncd-vs.gz`. The new source runs its flag adapter before that first Make invocation, then reuses the shared infrastructure helpers inside the original recursive compile and link recipes.
 
@@ -15,7 +15,7 @@ The separate registry reproducer retains 492 library search arguments in a 130,6
 
 This extends the original compiler-response fix for [Gearbox buildimage #154](https://github.com/securely1g/sonic-buildimage/pull/154), preserving its source commits and regression. Its prior [registry #209](https://github.com/securely1g/sonic-bazel-registry/pull/209) and [registry #218](https://github.com/securely1g/sonic-bazel-registry/pull/218) dependency receipts describe historical inputs, not acceptance of this updated graph.
 
-The current graph selects infrastructure `0.0.28-8e15b3341e4665f7bf6ed9be0aaaf1c92dcf9175`, PI `0.1.3.sonic.3`, P4C `1.2.4.2.sonic.3`, Distroless `0.9.4.sonic.18` and TAR `0.10.5.sonic.2`. The source-owned root overrides allow standalone review; the registry removes those includes and resolves the complete candidate recipes normally. [PATCHES.md](PATCHES.md) describes the registry-only patch.
+The current graph selects infrastructure `0.0.28-58112470001b1c450fd9e859079e92c62c236242`, PI `0.1.3.sonic.3`, P4C `1.2.4.2.sonic.3`, Distroless `0.9.4.sonic.18` and TAR `0.10.5.sonic.2`. The source-owned root overrides allow standalone review; the registry removes those includes and resolves the complete candidate recipes normally. [PATCHES.md](PATCHES.md) describes the registry-only patch.
 
 Local validation of the unchanged production files passes the real GNU Make/GCC14 argument-vector regression, the normal Bazel `//bazel:make_flags_test`, and analysis of the actual DASH Make action. The analysis confirms both public helpers and their declared Python runtime are inputs and that the adapter runs before Make. These are flag-transport and action-wiring results, not a completed SDK or VS build.
 
