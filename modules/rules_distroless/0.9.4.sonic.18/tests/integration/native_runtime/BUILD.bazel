@@ -1,5 +1,5 @@
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_import", "cc_library", "cc_shared_library")
-load("@rules_distroless//apt/private:cc_deb_library.bzl", "native_link_sequence")
+load("@rules_distroless//apt/private:cc_deb_library.bzl", "cc_deb_library", "native_link_sequence")
 load("@rules_distroless//apt/private:so_library.bzl", "so_library")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load(":link_inputs.bzl", "link_inputs")
@@ -67,10 +67,23 @@ native_link_sequence(
     dynamic_only = True,
 )
 
+# Header-only .pc modules still have an empty compiler-owned linker input.
+# Repeating that compile context must not claim private static code ownership.
+cc_deb_library(
+    name = "header_compile_contract",
+    defines = ["APT_HEADER_ONLY_CONTRACT=1"],
+)
+
+native_link_sequence(
+    name = "header_only_contract",
+    deps = [":header_compile_contract"],
+    dynamic_only = True,
+)
+
 cc_library(
     name = "first_shared_objects",
     srcs = ["other.c"],
-    deps = [":shared_ordered_contract"],
+    deps = [":header_only_contract", ":shared_ordered_contract"],
 )
 
 cc_shared_library(
@@ -81,7 +94,7 @@ cc_shared_library(
 cc_library(
     name = "second_shared_objects",
     srcs = ["leaf.c"],
-    deps = [":first_shared_objects", ":shared_ordered_contract"],
+    deps = [":first_shared_objects", ":header_only_contract", ":shared_ordered_contract"],
 )
 
 cc_shared_library(

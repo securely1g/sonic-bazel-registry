@@ -44,7 +44,8 @@
     "0038-declare-native-runtime-link-search.patch": "sha256-PMVLjyUH9EKCqstdFaMwaqVFYxFDUtmomoQAH600Cwc=",
     "0039-default-pkgconfig-header-exports.patch": "sha256-ZvtDW9uGtbeOpJtmkywPVnJ5Dq3eQ1HcBPrUqSWWf2Y=",
     "0040-owner-scoped-archive-tools.patch": "sha256-JIX+1rRVPPp3yA0kHZuUFl2dY3/TpFRZuTVnAbqaJ0c=",
-    "0041-preserve-shared-pkgconfig-ownership.patch": "sha256-/ogKWawlxB942d0SnLFOAMyQn+mZCbQAsE6yCSPUINY="
+    "0041-preserve-shared-pkgconfig-ownership.patch": "sha256-/ogKWawlxB942d0SnLFOAMyQn+mZCbQAsE6yCSPUINY=",
+    "0042-preserve-header-only-pkgconfig-ownership.patch": "sha256-zmAsDQW2bGvm6yDwHMRDFiCoCTyYzXz+040VKbA8ZgY="
   },
   "patch_strip": 1,
   "overlay": {
