@@ -101,9 +101,7 @@ class PrivacyTest(unittest.TestCase):
                    "class java.io.FileNotFoundException GET returned 404 Not Found\n")
 
         def emit_graph(command, **kwargs):
-            graph = {"key": "<root>", "root": True, "name": "example", "version": "1",
-                     "dependencies": [], "indirectDependencies": [], "cycles": []}
-            json.dump(graph, kwargs["stdout"])
+            kwargs["stdout"].write('{"name":"example","version":"1"}\n')
             kwargs["stderr"].write(warning)
             return subprocess.CompletedProcess(command, 0)
 

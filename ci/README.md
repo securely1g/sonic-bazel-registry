@@ -29,6 +29,14 @@ repository branch-protection settings.
 
 ## Verified source mirrors
 
+For new GitHub-backed input sets, use the [shared manifest reader](github_sources/README.md)
+rather than adding a package-specific downloader. It retains the approved private
+Debian mirror path, checks GitHub redirects and verifies the selected bytes before
+starting Bazel. Its first data manifest generalizes registry #238's three Cosmos
+inputs without changing their versions or checksums. Other new download locations
+require explicit user approval; the existing transports below are not broadened
+or rewritten by this reader.
+
 The runner passes Bazel's standard `--experimental_downloader_config` with
 [`source_mirrors.cfg`](source_mirrors.cfg) to dependency preparation, builds,
 tests and output queries. Rewrites match only the archive and binary-package
@@ -922,17 +930,9 @@ Historical versions outside the map use hosted ARM64.
 | `sonic-dash-api` | `0.0.5-9b2893e890734a2db0c53a5e5c64b031ec0dcfbd` | 8 / 5 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127363604452) |
 | `sonic-linux-kernel` | `0.0.2-34a53faaecd325509e9d8f1016ed0108ab558a23` | 5 / 5 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127391886151) |
 | `sonic-rust-deps` | `0.0.4-6d9c70f708d7420e9e2b2cdc906b80cee6b140f1` | 6 / 4 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127417149111) |
-| `sonic-swss-common` | `0.0.9-334389eae54afd1f4f5ee69f89c3a7ad2062ee61` | 16 / 24 | [Full default-executor validation](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42271692127/job/128103790571) |
-| `sonic-sairedis` | `0.0.5-a1568983582654314c43aab421b32ab563ed860c` | 19 / 7 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42237091438) |
-| `sonic-swss` | `0.0.3-42df8c74af53427be97609a7b11e9aec59d2d454` | 7 / 3 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42238852494/job/127963546293) |
 | `sonic-yang-mgmt` | `1.0.0-9ab452d22773c41783092ae3bd6c206d6c257c8d` | 2 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127454762848) |
 | `sonic-yang-models` | `1.0.1-b0a9362a7a1b4b5e1b7188c019d256f7c8aaff9f` | 3 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127456801062) |
 | `tar.bzl` | `0.10.5.sonic.2` | 8 / 7 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127457427548) |
-
-DASH `0.0.3-5c9305403585a7ae54f86918219acb8ed39f740a` qualified in a follow-up run.
-Its four ARM64 builds and original uncached runtime test passed on the AMD64 Trixie pool.
-The test exercised the installed SDK, generated pipeline and detached debug symbols.
-[Validation evidence](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42180204936/job/127767804802)
 
 The `linux-kernel` contract validates its declared helpers; it does not build or
 boot a kernel image. Passing tests only establish each module's existing
@@ -946,11 +946,6 @@ AIO in `rules_distroless@0.9.4.sonic.17`. Its ARM job runs the original
 emulation. The other 35 tests use the image's standard executor. The guest
 includes the runner's ARM loader and libc. Its console reports the test exit
 status to Bazel. [Full ARM validation](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42089131813/job/127462206254)
-
-SWSS-common runs every original ARM test through the runner-provided guest
-executor, including its Go self-execution and package/debug-symbol checks.
-The Trixie runner supplies the corrected PRoot for this path.
-[Runner implementation](https://github.com/securely1g/agi-projects/pull/92)
 
 The `rules_go` `0.65.0.sonic.1` follow-up moves both original test targets to
 the cross runners. Their ARM test processes invoke the native Bazel launcher
@@ -975,44 +970,12 @@ and runs a consumer of the installed ARM64 SDK and converts P4Info using the
 installed tools. All four original builds and the uncached test passed.
 [Full ARM64 validation](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42180002707/job/127767164854)
 
-SWSS 0.0.3 selects its Sairedis and libteam dependencies directly. Its cross
-job allows six hours for a cold serial C++ build and keeps the three original
-runtime tests. [Cross-build and runtime tests](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42238852494/job/127963546293)
-
-Sairedis stages its declared ARM loader and libraries using the original test
-wrappers. Its ASIC comparison and ZeroMQ signal fixtures run those wrappers
-with native shell and Python, then execute the AArch64 payload through kernel
-binfmt. The other five original tests use the ARM userspace executor.
-
-SWSS depends on libteam. Its native AMD64 archive build uses the APE loader,
-assimilator and gzip tool pinned by Cosmos 4.0.2. CI fetches the official
-release archive when these files are absent, verifies each member against its
-locked SHA256, and supplies them to Bazel through `--distdir`.
-[Official release](https://github.com/jart/cosmopolitan/releases/tag/4.0.2)
-
-The iproute2 6.15.0.sonic.7 cross route builds all four original targets and
-executes both original tests. Its runtime test checks the package, and the
-configure test invokes ARM GCC and recursive Make. The runner image needs the
-PRoot fixes for guest GCC discovery and Linux exec argument limits. Roll out
-that image before enabling this route in production.
-[Qualified ARM job](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42200862212/job/127848280179) · [Runner image change](https://github.com/securely1g/agi-projects/pull/92)
 
 The gawk smoke test uses gawk as a native execution tool while the direct gawk
 build targets ARM64. Test execution follows the declared Bazel configuration;
 the ARM cross fixture independently verifies native execution tools, ARM ELF
 outputs and target Python compatibility. No test is replaced by a smaller smoke
 test to make a module pass.
-
-BMv2 `1.15.0.sonic.4` qualified in a follow-up ARM64 cross-build on Trixie.
-Its original six builds and two uncached package and configure tests passed
-with the pinned GCC/G++ adapter and the corrected ARM guest executor.
-[Full validation](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42253892877/job/128015806637)
-
-The FIPS 0.0.6 cross job uses the ARM64 compression development libraries
-for the OpenSSL SDK test and a guest kernel for the vendor AF_ALG recipe.
-The other vendor recipes use the userspace executor. These capabilities come
-from [runner change #93](https://github.com/securely1g/agi-projects/pull/93)
-and [runner change #94](https://github.com/securely1g/agi-projects/pull/94).
 
 Inside a configured disposable runner with `/usr/local/bin/sonic-arm64`, use
 fresh work and artifact directories. This command is a local opt-in example,
@@ -1052,17 +1015,6 @@ platform definitions, declared/effective platform identities, and the selected
 infra version and toolchain reuse decision. The registration allowlist is
 source-level evidence; actual toolchain and runtime acceptance remain separate.
 
-The selected-version check uses the complete module-only JSON from pinned
-Bazel 8.5.1. Its [`mod graph` implementation](https://github.com/bazelbuild/bazel/blob/8.5.1/src/main/java/com/google/devtools/build/lib/bazel/commands/ModCommand.java)
-also inspects every extension, including unused extensions. A failure solely in
-that later inspection does not invalidate the already resolved module versions.
-CI accepts only its exact exit-2 inspection diagnostic together with a complete,
-unfiltered graph; every reference must have an expanded node. It retains the
-original graph, stderr and `*-status.json`, marking extension inspection
-incomplete. Resolution failures, malformed/truncated graphs and changed selected
-versions still fail. The original build and test commands independently evaluate
-all extensions they actually need; their failures are never suppressed.
-
 The supplied executor runs unchanged ARM tests with QEMU user-mode and PRoot in
 an ARM64 Trixie filesystem. This provides emulated userspace execution, not
 native ARM hardware or kernel coverage. The helper probes the real guest CPU and
@@ -1086,11 +1038,9 @@ recognizes an ARM compiler selected by a native build action. It preserves
 explicit configure aliases, native compiler actions and caller-provided
 `CONFIG_SITE`; it invents no cached target-probe answers. The effective site and
 hash are retained. Source-owned runtime preparation executes through the guest
-wrapper, preserving its locked inputs and checking an ARM receipt. Cross tests
-default to 180/900/2700/7200 seconds for Bazel's four timeout classes. The FIPS
-0.0.6 ARM cross job allows 5,400 seconds for long tests and four hours for the
-job, which runs the OpenSSL vendor suite and the SymCrypt unittest. Explicit
-caller timeouts take precedence. All original build
+wrapper, preserving its locked inputs and checking an ARM receipt. Cross test
+timeout defaults are 180/900/2700/7200 seconds for Bazel's four timeout classes;
+explicit caller values and native defaults remain unchanged. All original build
 and test labels, source checks and uncached-test requirements still apply.
 
 The dedicated CI cross-fixture job runs all tests in `test_arm_cross_runtime.py`
