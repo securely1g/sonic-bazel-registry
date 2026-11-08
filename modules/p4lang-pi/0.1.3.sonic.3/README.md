@@ -44,8 +44,9 @@ the same installed runtime and declared target-library closure.
 
 ## Cross compilation
 
-Revision `0.1.3.sonic.3` keeps the source archives, dependency versions, public
-outputs, and presubmit target list from `.sonic.2`. The foreign C++ rule enables
+Revision `0.1.3.sonic.3` keeps the source archives, public outputs, and presubmit
+target list from `.sonic.2`. Its shared infrastructure requirement also includes
+the linker-environment adapter described below. The foreign C++ rule enables
 its standard `configure_xcompile` option, which supplies Autoconf's host/build
 triplets when target and execution platforms differ. Native invocations retain
 their normal configure behavior.
@@ -56,9 +57,37 @@ configure reads the gtest source, and proto configure reads
 [Patch](overlay/bazel/cross-configure.patch)
 
 `.sonic.2` and its consumer inputs remain unchanged. See [PATCHES.md](PATCHES.md)
-for the patch scope. This candidate is stacked on the separate P4C registration
-PR only to support the runner migration's review order; PI's dependency graph
-has no new P4C dependency.
+for the source patch scope. PI's dependency graph has no new P4C dependency.
+
+## Large linker environments
+
+In [buildimage #133's full VS build](https://github.com/securely1g/sonic-buildimage/actions/runs/42405527456/job/128508038265),
+PI's SDK received a 160,581-byte `LDFLAGS` value containing 573 `-L` library
+search paths. That single environment value exceeded the runner's process
+limit, so `/bin/sh` failed with `Argument list too long` before PI's configure
+script could start.
+
+| Input or action | Before | After |
+| --- | --- | --- |
+| Start PI configure with that library closure | The first shell cannot start with the large exported `LDFLAGS` value. | The shared `configure_linker_flags.sh` adapter is sourced first, saves the flags, and exports a short reference to `.sonic-linker-arguments`. |
+| Compile and link through Autoconf and recursive Libtool | Configuration never reaches these commands. | The existing shared compiler adapter restores the ordered arguments and shortens absolute `-L` paths relative to each command's working directory. |
+
+The adapter uses the already declared `foreign_runtime` Python interpreter.
+PI declares its shared helper as build data; it does not copy BMv2's adapter or
+add a dependency on BMv2. Compiler options, `CPPFLAGS`, library search order,
+linker hardening flags, and the native/cross configure settings are preserved.
+
+The shared adapter is implemented in
+[build-infra #91](https://github.com/securely1g/sonic-build-infra/pull/91).
+This recipe requires
+`sonic-build-infra 0.0.28-b5a6094d703f6cf8132edc7ceb0326a464e3c5d1`, whose
+[source includes the adapter](https://github.com/securely1g/sonic-build-infra/blob/b5a6094d703f6cf8132edc7ceb0326a464e3c5d1/tools/build_tools/configure_linker_flags.sh)
+alongside the existing native-runtime and APT compatibility changes.
+
+The shared `//tools/build_tools:libtool_test` covers the argument transport and
+recursive working directories. PI's existing AMD64 and ARM64 consumer checks
+remain required. Those component checks alone do not establish that the full VS
+dependency closure builds; the downstream VS workflow must pass separately.
 
 ## Generated runtime package metadata
 
