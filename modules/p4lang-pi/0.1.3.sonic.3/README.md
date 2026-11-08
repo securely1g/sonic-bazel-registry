@@ -42,6 +42,21 @@ validation checks that forwarding relationship and GDB source-line lookup in
 the library's matching debug file. The compiled C++ SDK consumer runs against
 the same installed runtime and declared target-library closure.
 
+## Compiler path normalization
+
+The [DASH Engine baseline check](https://github.com/securely1g/sonic-buildimage/actions/runs/42485206470/job/128745481003)
+rebuilt PI with changed runtime bytes. The inspected `libpifegeneric` and
+`pi_gen_native_json` samples differed only in their build IDs and debug links;
+their remaining bytes, including the program's dynamic strings, matched.
+
+PI enables the existing `rules_foreign_cc` `set_file_prefix_map` option to map
+the execution-root prefix in C and C++ compiler output. This also covers sibling
+source and dependency paths outside a compiler's current working directory.
+It is a targeted reproducibility hypothesis, pending the Engine's strict
+baseline, no-op, startup-edit and restored-archive checks. Build IDs, matching
+debug symbols, installed output contracts and byte-equality checks remain
+required; the observed identifier changes alone do not establish their cause.
+
 ## Cross compilation
 
 Revision `0.1.3.sonic.3` keeps the source archives, public outputs, and presubmit
@@ -83,6 +98,10 @@ This recipe requires
 `sonic-build-infra 0.0.28-58112470001b1c450fd9e859079e92c62c236242`, whose
 [source includes the adapter](https://github.com/securely1g/sonic-build-infra/blob/b5a6094d703f6cf8132edc7ceb0326a464e3c5d1/tools/build_tools/configure_linker_flags.sh)
 alongside the existing native-runtime and APT compatibility changes.
+This refresh follows the current unpublished shared lock, including the
+additional FRR and isolated Bookworm request coverage. Native, cross-build,
+and downstream VS validation of this combined graph remains pending; the
+existing component checks below remain required.
 
 The shared `//tools/build_tools:libtool_test` covers the argument transport and
 recursive working directories. PI's existing AMD64 and ARM64 consumer checks

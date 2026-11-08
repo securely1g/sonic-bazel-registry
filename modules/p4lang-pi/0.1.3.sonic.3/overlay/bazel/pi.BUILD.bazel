@@ -124,6 +124,8 @@ configure_make(
     # CcInfo consumers load the same SONAME that the installed runtime provides.
     out_shared_libs = ["lib" + name + ".so.0" for name in _LIBRARIES],
     postfix_script = "cp config.log $$INSTALLDIR/config.log; cp proto/config.log $$INSTALLDIR/proto.config.log",
+    # Normalize sibling source/dependency paths below the foreign execution root.
+    set_file_prefix_map = True,
     targets = [
         "",
         "install DESTDIR=$$BUILD_TMPDIR$$",
