@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "project": "astral-sh/python-build-standalone",
+  "purpose": "Exact upstream release checksum text for the unchanged aspect_rules_py interpreter extension. The extension does not recheck the index checksum.",
+  "sources": [
+    {
+      "release": "20260303",
+      "file": "20260303/SHA256SUMS",
+      "original_url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260303/SHA256SUMS",
+      "asset_api_url": "https://api.github.com/repos/astral-sh/python-build-standalone/releases/assets/366171981",
+      "asset_id": 366171981,
+      "size": 103368,
+      "sha256": "ad1f7355b9779577a4f860d895383d155fb546af9e63392efc07150644229b67",
+      "upstream_digest": "sha256:ad1f7355b9779577a4f860d895383d155fb546af9e63392efc07150644229b67",
+      "verification": "upstream_digest_matched",
+      "entries": 732
+    },
+    {
+      "release": "20251031",
+      "file": "20251031/SHA256SUMS",
+      "original_url": "https://github.com/astral-sh/python-build-standalone/releases/download/20251031/SHA256SUMS",
+      "asset_api_url": "https://api.github.com/repos/astral-sh/python-build-standalone/releases/assets/311185763",
+      "asset_id": 311185763,
+      "size": 116506,
+      "sha256": "6e62d9f3f4e47f152326d052324c65b73ea2ea4991b1b815f7d71bf6faddb5f6",
+      "upstream_digest": "sha256:6e62d9f3f4e47f152326d052324c65b73ea2ea4991b1b815f7d71bf6faddb5f6",
+      "verification": "upstream_digest_matched",
+      "entries": 828
+    },
+    {
+      "release": "20241002",
+      "file": "20241002/SHA256SUMS",
+      "original_url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241002/SHA256SUMS",
+      "asset_api_url": "https://api.github.com/repos/astral-sh/python-build-standalone/releases/assets/196486069",
+      "asset_id": 196486069,
+      "size": 65226,
+      "sha256": "e1b2d14f2f1f69165b6e70675fe62bb3849b36c17bbec8b9381ff73fde9bf18d",
+      "upstream_digest": null,
+      "verification": "observed_hash_exact_metadata_asset",
+      "entries": 472
+    }
+  ]
+}
