@@ -558,3 +558,20 @@ not in an upstream test patch. Against the unchanged candidate, direct and
 transitive ordinary consumers fail with recursive `stdio.h` inclusion; explicit
 overlay and both fallback consumers pass. With patch0039, all five compile and
 run. The same tests are added to the normal presubmit for both architectures.
+
+## Owner-scoped archive tools
+
+`0040-owner-scoped-archive-tools.patch` is an unreleased `.sonic.18` fix for
+root-created APT repositories. The `deb_postfix` macro now resolves the existing
+zstd, BSD tar and gawk labels in the Distroless module instead of forwarding
+apparent names into each generated caller. Its gawk location expansion uses
+the same bound label. Tool versions, archive commands, inputs and outputs are
+unchanged; no root repository import or package-lock update is needed.
+
+Origin: the Database and MACsec image analysis failure on the shared production
+lock (`@zstd_toolchains` was not visible from a generated `locked_import` repo).
+This SONiC-maintained adaptation is not yet submitted upstream. It follows all
+39 existing patches without modifying their bytes or order. Eight pure
+actual-macro/template controls cover absent and shadowed caller mappings, both
+normalization branches and unchanged commands/targets. They supplement the
+existing native Database/MACsec regression; no native acceptance is claimed.
