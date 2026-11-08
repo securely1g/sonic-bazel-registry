@@ -35,7 +35,7 @@ programs have compile-only coverage because their external fixtures are absent.
 
 The previous entry is [registration #185](https://github.com/securely1g/sonic-bazel-registry/pull/185).
 This separate fix updates its sole unpublished WPA version to source commit
-`d14bf3ac61597273e8940f9b14c8034568cccff7`. In
+`e26d9ae89f3f81464f6c738cc5d8969f8fbce85f`. In
 [MACsec image #149](https://github.com/securely1g/sonic-buildimage/pull/149),
 133,110 bytes of ordered preprocessing flags exceeded Linux's limit before Make
 could start. The owner now sources a Bash adapter through `rules_foreign_cc`'s
@@ -43,6 +43,13 @@ public tool-prefix hook and passes the same flags in GCC's response file.
 The added test reproduces the original exec failure, verifies recursive C/C++
 compilation with quoted values and include paths, and rejects driver options in
 preprocessing flags. No validation or runtime features are removed.
+
+A later MACsec source build reached `wpa_cli` but could not find the unversioned
+ncurses linker script. This source keeps `CONFIG_READLINE` and the ordinary
+`-lncurses` default, while the existing Bazel frontend selects the same locked
+`libncurses.so.6` and `-ltinfo` inputs directly. Dependency declarations, locks,
+installed payloads and test inventories remain unchanged; exact-source native
+and runtime acceptance is pending.
 
 The isolated review catalog starts from maintained main and preserves published
 [libnl #181](https://github.com/securely1g/sonic-bazel-registry/pull/181),
@@ -52,9 +59,9 @@ It retains the exact Common `.8-43598143` review entry and its runtime backport
 from [Common #199](https://github.com/securely1g/sonic-bazel-registry/pull/199),
 alongside the newer published Common entry, and carries the corrected
 [FIPS #221](https://github.com/securely1g/sonic-bazel-registry/pull/221) candidate.
-The source MODULE patch and registry MODULE match byte-for-byte. The source
-archive, runtime code, compiler-response-file fix, three build targets and four
-tests are unchanged. Current-candidate ordinary-consumer and MACsec acceptance remains pending on
+The source MODULE patch and registry MODULE match byte-for-byte. Runtime
+code, compiler-response-file handling, three build targets and four tests remain
+unchanged by the ncurses link-input repair. Current-candidate ordinary-consumer and MACsec acceptance remains pending on
 this exact dependency graph; earlier source/registry and selected-image receipts
 retain their original FIPS version and catalog attribution. Keep Draft
 until relevant prerequisites land, this registration targets maintained main and
