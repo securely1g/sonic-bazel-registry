@@ -71,7 +71,7 @@ configure_make(
     args = [
         "-j4",
         "V=0",
-        "pythondir=$$INSTALLDIR$$/python",
+        "pythondir=/usr/python",
     ],
     build_data = [
         "@sonic_build_infra//tools/build_tools:foreign_runtime",
@@ -81,6 +81,7 @@ configure_make(
     configure_command = "bazel/configure.sh",
     configure_in_place = True,
     configure_options = [
+        "--prefix=/usr",
         "--with-proto",
         "--with-cli",
     ],
@@ -110,6 +111,10 @@ configure_make(
         "-sanitize_pwd",
         "-strip_debug_symbols",
     ],
+    # Keep the logical install prefix stable, then copy the staged /usr subtree
+    # into the existing flat SDK. This keeps sandbox paths out of its libdir
+    # without changing the declared bin/lib/include/python output layout.
+    install_prefix = "usr",
     lib_source = ":sources",
     out_binaries = _PROGRAMS,
     out_data_files = ["lib/lib" + name + ".so.0.0.0" for name in _LIBRARIES] + ["python/" + name for name in _PYTHON_FILES] + [
@@ -119,6 +124,10 @@ configure_make(
     # CcInfo consumers load the same SONAME that the installed runtime provides.
     out_shared_libs = ["lib" + name + ".so.0" for name in _LIBRARIES],
     postfix_script = "cp config.log $$INSTALLDIR/config.log; cp proto/config.log $$INSTALLDIR/proto.config.log",
+    targets = [
+        "",
+        "install DESTDIR=$$BUILD_TMPDIR$$",
+    ],
     deps = [
         "@pi_deps//libboost-system-dev:libboost-system",
         "@pi_deps//libboost-thread-dev:libboost-thread",
