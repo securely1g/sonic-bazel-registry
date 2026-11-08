@@ -43,7 +43,7 @@ def resolution_flags(flags: list[str]) -> list[str]:
     return [flag for flag in flags if flag.startswith((
         "--registry=", "--lockfile_mode=", "--experimental_downloader_config=",
         "--downloader_config=", "--http_connector_", "--http_max_parallel_downloads=",
-        "--repository_cache=", "--override_module=", "--override_repository=",
+        "--repository_cache=", "--override_module=", "--override_repository=", "--distdir=",
     ))]
 
 

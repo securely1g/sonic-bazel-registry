@@ -108,11 +108,16 @@ expands only that exact vector before shortening absolute library searches for
 each recursive working directory. Every flag and library-search order remains
 intact; arbitrary GCC response files stay opaque.
 
-This requires the source launcher from
-[sonic-build-infra PR #82](https://github.com/securely1g/sonic-build-infra/pull/82),
-registered as `0.0.27-08e0956f80574b27a9b68e72fe855cc0089058e5`. Both the module
-minimum and the independent consumer select that version. No source archive,
-source patch, target ABI, configured feature or installed path changed.
+The source launcher was introduced in
+[sonic-build-infra PR #82](https://github.com/securely1g/sonic-build-infra/pull/82)
+and registered as `0.0.27-08e0956f80574b27a9b68e72fe855cc0089058e5`.
+This candidate selects the complete shared recipe from
+[registry PR #287](https://github.com/securely1g/sonic-bazel-registry/pull/287):
+`0.0.28-58112470001b1c450fd9e859079e92c62c236242`, matching PI's current
+`.sonic.3` prerequisite. The direct module minimum rises from `.27`; standalone
+CI replaces its older `.28-91047b9d` override. The existing Distroless `.18`
+and TAR `.sonic.2` CI selections stay unchanged. No source archive, source patch,
+target ABI, configured feature, installed path or test implementation changes.
 
 The extended original test covers both pre-exec failures and real C/C++ links
 through Autoconf and recursive Libtool, including quoted paths, competing
@@ -132,3 +137,8 @@ archives, patches and both architecture target inventories are unchanged.
 The failed build retained the configured flags and linker diagnostics, but
 upstream `V=0` omitted the expanded final link command. Corrected native
 registry and downstream Engine acceptance remain pending.
+
+The dependency refresh retains all six build targets and both original tests.
+The existing registry routing selects native AMD64 and ARM64 cross validation;
+new normal CI and downstream image acceptance remain required for the refreshed
+graph. Earlier results above apply only to their recorded inputs.

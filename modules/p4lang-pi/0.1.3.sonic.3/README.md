@@ -80,9 +80,13 @@ linker hardening flags, and the native/cross configure settings are preserved.
 The shared adapter is implemented in
 [build-infra #91](https://github.com/securely1g/sonic-build-infra/pull/91).
 This recipe requires
-`sonic-build-infra 0.0.28-91047b9df85b8172e60084fd2722a62c39d79be0`, whose
+`sonic-build-infra 0.0.28-58112470001b1c450fd9e859079e92c62c236242`, whose
 [source includes the adapter](https://github.com/securely1g/sonic-build-infra/blob/b5a6094d703f6cf8132edc7ceb0326a464e3c5d1/tools/build_tools/configure_linker_flags.sh)
 alongside the existing native-runtime and APT compatibility changes.
+This refresh follows the current unpublished shared lock, including the
+additional FRR and isolated Bookworm request coverage. Native, cross-build,
+and downstream VS validation of this combined graph remains pending; the
+existing component checks below remain required.
 
 The shared `//tools/build_tools:libtool_test` covers the argument transport and
 recursive working directories. PI's existing AMD64 and ARM64 consumer checks
