@@ -89,6 +89,22 @@ recursive working directories. PI's existing AMD64 and ARM64 consumer checks
 remain required. Those component checks alone do not establish that the full VS
 dependency closure builds; the downstream VS workflow must pass separately.
 
+## APT lock input transport
+
+PI's standalone ARM64 CI selected `rules_distroless 0.9.4.sonic.17` and
+exhausted the existing 2 GiB Bazel heap while serializing module-extension
+metadata into the lockfile, before the SDK build could start. The consumer's
+selected graph and the lockfile serialization stack trace are retained in the
+[failed CI run](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42434823648/job/128591369164).
+
+This recipe and its standalone CI consumer both require
+`rules_distroless 0.9.4.sonic.18`, which reuses
+[registry #237's APT lock input transport fix](https://github.com/securely1g/sonic-bazel-registry/pull/237).
+The fixed entry must be present in the registry alongside the build-infra
+candidate. The shared transport avoids repeatedly embedding lock input contents
+in generated repository attributes. This does not change PI's selected APT
+packages, increase the CI heap, or remove any native or cross-build checks.
+
 ## Generated runtime package metadata
 
 `//:runtime_packages.json` is a generated target. The existing Debian
