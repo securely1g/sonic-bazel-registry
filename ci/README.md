@@ -807,6 +807,19 @@ The initial survey and later per-module jobs record the build and test evidence.
 
 Module steps execute directly inside the disposable runner, built from the
 pinned Trixie base with compiler and package-test tools preinstalled.
+Before Bazel runs, module validation and native/cross runner tests invoke
+[`prepare_repository_tools.sh`](prepare_repository_tools.sh). APT repository
+evaluation needs the host's `file` command and magic database to distinguish
+GNU linker scripts from ELF libraries. For example, ncurses' `libncursesw.so`
+contains `INPUT(libncursesw.so.6 -ltinfo)`; it must be classified as text rather
+than passed to `readelf` as an ELF file. The helper installs Debian package
+`file` when the command is missing, using sudo only for a non-root runner, and
+always checks this MIME classification. Failed package installation or an
+unusable magic database fails the job before repository evaluation. Hosted
+ARM module jobs also include `file` in their normal build-tool package list.
+The helper works with existing ephemeral images; preinstalling the package
+in the registry runner image avoids the bootstrap download.
+
 AMD64 does not start a second container or require a Docker daemon. Actions run
 as UID 1000; module validation and runtime package preparation use passwordless
 `sudo` inside the disposable container. Evidence is archived as root, then only

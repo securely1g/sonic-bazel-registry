@@ -5,7 +5,7 @@ builds and installed-runtime/package checks as `.sonic.6`. All seven build label
 and five test labels remain unchanged on AMD64 and ARM64. Published entries stay
 unchanged.
 
-It selects `sonic-build-infra@0.0.28-b5a6094d703f6cf8132edc7ceb0326a464e3c5d1`
+It selects `sonic-build-infra@0.0.28-b55ad3322094b87a682b6ef22ec500696a183b6d`
 ([source PR #88](https://github.com/securely1g/sonic-build-infra/pull/88)) so
 `native_runtime_binary` prepares runtime files with a declared execution-platform
 Python while preserving target-CPU validation and real target binary execution.
