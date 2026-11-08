@@ -1,0 +1,60 @@
+Subject: Keep header-only pkg-config inputs free of synthetic static code
+
+MUX analysis repeats nlohmann_json through a shared-library dependency. Its
+pkg-config file supplies headers without any link flags or libraries, but
+our synthetic archive falsely assigns it private static code ownership.
+Recognize only generated dynamic-mode empty contracts, including empty
+compiler-owned linker inputs. Preserve anchors for default callers and all
+inherited libraries, flags, additional inputs, static and opaque contracts.
+
+Origin: SONiC rules_distroless .sonic.18 adaptation; not submitted upstream.
+
+diff --git a/apt/private/cc_deb_library.bzl b/apt/private/cc_deb_library.bzl
+--- a/apt/private/cc_deb_library.bzl
++++ b/apt/private/cc_deb_library.bzl
+@@ -172,8 +172,11 @@
+     features = cc_common.configure_features(ctx = ctx, cc_toolchain = toolchain, requested_features = ctx.features, unsupported_features = ctx.disabled_features)
+     runtime = {}
+     has_static_inputs = False
++    has_inherited_link_inputs = False
+     files = {file: True for file in ctx.files.link_files}
+     for item in merged.linking_context.linker_inputs.to_list():
++        if item.libraries or item.additional_inputs or item.user_link_flags:
++            has_inherited_link_inputs = True
+         for file in item.additional_inputs:
+             files[file] = True
+         for library in item.libraries:
+@@ -232,7 +235,20 @@
+         len(ctx.attr.link_files) == len(ctx.attr.link_sonames) and
+         all([soname and soname in runtime_links for soname in ctx.attr.link_sonames])
+     )
+-    if not shared_only:
++    # Generated header-only modules have compilation metadata but no link
++    # contract. Empty compiler-owned linker inputs do not need an anchor.
++    # Inspect inherited inputs as well: flags, files and interface-only
++    # libraries must keep the conservative path even without runtime DSOs.
++    empty_dynamic = (
++        ctx.attr.dynamic_only and
++        not ctx.attr.arguments and
++        not ctx.attr.link_files and
++        not ctx.attr.link_sonames and
++        not has_inherited_link_inputs and
++        not libraries and
++        not files
++    )
++    if not shared_only and not empty_dynamic:
+         anchor = ctx.actions.declare_file(ctx.label.name + "/linkopts.a")
+         ctx.actions.write(anchor, "/* Ordered pkg-config link contract. */\n")
+         libraries.append(cc_common.create_library_to_link(actions = ctx.actions, static_library = anchor))
+diff --git a/apt/private/deb_import.bzl b/apt/private/deb_import.bzl
+--- a/apt/private/deb_import.bzl
++++ b/apt/private/deb_import.bzl
+@@ -702,7 +702,7 @@
+                     # Only resolved shared files and mapped search paths opt in.
+                     dynamic_only = False
+                     arguments.append(token)
+-                dynamic_only = dynamic_only and not pending and bool(link_files) and all(sonames)
++                dynamic_only = dynamic_only and not pending and (not arguments or (bool(link_files) and all(sonames)))
+                 if error:
+                     content += 'invalid_native_library(name=%r, message=%r, visibility=["//visibility:public"])\n' % (target, error)
+                     continue
