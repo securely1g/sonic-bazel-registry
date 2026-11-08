@@ -201,6 +201,18 @@ class OwnerArchiveMirrorScopeTest(unittest.TestCase):
             with self.subTest(url=other):
                 self.assertEqual(self.candidates(other), [])
 
+    def test_only_exact_swig_tag_uses_original_then_codeload(self):
+        upstream = "https://github.com/swig/swig/archive/refs/tags/v4.3.0.tar.gz"
+        direct = "https://codeload.github.com/swig/swig/tar.gz/refs/tags/v4.3.0"
+        self.assertEqual(self.candidates(upstream), [upstream, direct])
+        for other in (upstream.replace("4.3.0", "4.3.1"), upstream.replace("swig/swig", "other/swig"),
+                      upstream.replace("swig/swig", "swig/other"), upstream.replace(".tar.gz", ".zip"),
+                      upstream.replace("refs/tags/v4.3.0", "refs/heads/main"),
+                      upstream.replace("github.com/", "github.com.evil/"),
+                      upstream + "?query", upstream + "#fragment", upstream + ".sig", direct):
+            with self.subTest(url=other):
+                self.assertEqual(self.candidates(other), [])
+
     def test_untyped_archive_and_cache_destinations_keep_tar_gz_suffix(self):
         # Bazel 8.5.1 DownloadManager.getDownloadDestination derives basename
         # from rewrittenUrls[0], before cache lookup or fallback downloads.
@@ -216,6 +228,7 @@ class OwnerArchiveMirrorScopeTest(unittest.TestCase):
         upstreams = [f"https://github.com/{owner}/{repo}/archive/{commit}.tar.gz"
                      for owner, repo, commit in [*self.SOURCES, *sources]]
         upstreams.append("https://github.com/google/zopfli/archive/refs/tags/zopfli-1.0.3.tar.gz")
+        upstreams.append("https://github.com/swig/swig/archive/refs/tags/v4.3.0.tar.gz")
         for upstream in upstreams:
             with self.subTest(url=upstream):
                 candidates = self.candidates(upstream)

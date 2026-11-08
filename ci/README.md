@@ -88,9 +88,11 @@ try the exact original URL, then the same owner's official
 `codeload.github.com/OWNER/REPO/tar.gz/<commit>` endpoint. This covers the observed DASH API,
 OpenTelemetry, management-common and FIPS commit-archive failures. The rule
 excludes branches, short SHAs, tags, API tarballs, other formats and query strings.
-The only separate tag exception is the exact `google/zopfli` `zopfli-1.0.3`
-archive selected by BCR `zopfli@1.0.3.bcr.2` through `pigz@2.8.bcr.2`; it also
-tries the original URL and then official codeload.
+Separate tag exceptions cover the exact `google/zopfli` `zopfli-1.0.3` archive
+selected by BCR `zopfli@1.0.3.bcr.2` through `pigz@2.8.bcr.2`, and `swig/swig`
+`v4.3.0` selected by `swig@4.3.0.bcr.2`. Framework's source analysis timed out
+fetching the latter through Infra's declared SWIG tool. Both try the original
+URL and then official codeload, retaining their pinned integrity and prefix.
 
 Bazel 8.5.1 chooses the downloaded filename from the first rewritten URL even
 when the bytes come from its verified cache or a later mirror. Codeload's bare
