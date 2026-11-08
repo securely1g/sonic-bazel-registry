@@ -597,3 +597,24 @@ one shared-only sequence across a `dynamic_deps` edge. Bounded actual-function
 mock controls cover ownership and the conservative fallback paths; these do
 not establish native/runtime acceptance. The native fixture is retained for
 normal validation and was not executed during this scoped repair.
+
+## Header-only pkg-config ownership
+
+`0042-preserve-header-only-pkgconfig-ownership.patch` addresses MUX analysis
+when `nlohmann_json` is reached through multiple shared-library consumers.
+Its selected `.pc` has only an include path, but the ordered provider's
+synthetic archive previously claimed private static code for that owner.
+
+Generated dynamic-mode modules may omit the anchor only with no arguments,
+selected files, SONAMEs, runtime libraries or inherited libraries, user link
+flags and additional inputs. Empty compiler-owned linker inputs are allowed;
+compilation metadata and runfiles remain unchanged. Default callers,
+static/private, interface-only, script, object and flag-bearing contracts
+retain the conservative behavior. The existing shared-only case is unchanged.
+Origin: SONiC's current MUX image; not yet submitted upstream.
+
+The existing native runtime fixture repeats a compile-only contract across
+its two shared consumers. No new package fixture or lock is introduced.
+Bounded controls use the locked 92-byte `nlohmann_json.pc`, actual generator
+and provider functions, and Bazel 8.5.1 ownership filtering with mocked
+providers. They supplement native validation; no native result is claimed.
