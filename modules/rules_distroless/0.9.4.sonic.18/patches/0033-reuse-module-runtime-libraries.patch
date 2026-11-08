@@ -1,0 +1,152 @@
+diff --git a/apt/private/cc_deb_library.bzl b/apt/private/cc_deb_library.bzl
+--- a/apt/private/cc_deb_library.bzl
++++ b/apt/private/cc_deb_library.bzl
+@@ -1,3 +1,4 @@
++load(":so_library.bzl", "runtime_library")
+ load("@rules_cc//cc:defs.bzl", "CcInfo", "cc_common")
+ load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cpp_toolchain", "use_cc_toolchain")
+ 
+@@ -185,19 +186,7 @@
+     libraries = []
+     runtime_links = {}
+     for name, file in runtime.items():
+-        directory = ctx.label.name + "/_runtime/" + file.path
+-        interface = ctx.actions.declare_file(directory + "/rpath.ifso")
+-        ctx.actions.write(interface, "/* Runtime metadata; link selection follows the pkg-config sequence. */\n")
+-        solib = "apt/" + ctx.label.repo_name + "/_module/" + directory
+-        library = cc_common.create_library_to_link(
+-            actions = ctx.actions,
+-            cc_toolchain = toolchain,
+-            feature_configuration = features,
+-            dynamic_library = file,
+-            interface_library = interface,
+-            dynamic_library_symlink_path = solib + "/" + name,
+-            interface_library_symlink_path = solib + "/rpath.ifso",
+-        )
++        library = runtime_library(ctx, toolchain, features, file)
+         libraries.append(library)
+         runtime_links[name] = library.dynamic_library
+         files[library.dynamic_library] = True
+@@ -217,7 +206,16 @@
+     anchor = ctx.actions.declare_file(ctx.label.name + "/linkopts.a")
+     ctx.actions.write(anchor, "/* Ordered pkg-config link contract. */\n")
+     libraries.append(cc_common.create_library_to_link(actions = ctx.actions, static_library = anchor))
+-    linker = cc_common.create_linker_input(owner = ctx.label, libraries = depset(libraries), additional_inputs = depset(files.keys()), user_link_flags = args)
++    # GCC copies driver -L options into COLLECT_GCC_OPTIONS. Even an @response
++    # file cannot prevent its single environment string from exceeding Linux's
++    # limit. These are linker search paths: pass them directly to the linker,
++    # retaining order and supporting commas in directory names.
++    driver_args = []
++    for argument in args:
++        if argument.startswith("-L"):
++            driver_args.append("-Xlinker")
++        driver_args.append(argument)
++    linker = cc_common.create_linker_input(owner = ctx.label, libraries = depset(libraries), additional_inputs = depset(files.keys()), user_link_flags = driver_args)
+     runfiles = ctx.runfiles(files = runtime.values())
+     for dep in ctx.attr.deps:
+         runfiles = runfiles.merge(dep[DefaultInfo].default_runfiles)
+@@ -228,6 +226,7 @@
+     provides = [CcInfo],
+     attrs = {
+         "deps": attr.label_list(providers = [CcInfo]),
++        "_runtime_interface": attr.label(default = Label("//apt/private:runtime.ifso"), allow_single_file = True),
+         "link_files": attr.label_list(allow_files = True),
+         "link_sonames": attr.string_list(),
+         "arguments": attr.string_list(),
+diff --git a/apt/private/so_library.bzl b/apt/private/so_library.bzl
+--- a/apt/private/so_library.bzl
++++ b/apt/private/so_library.bzl
+@@ -1,5 +1,20 @@
+ load("@rules_cc//cc:defs.bzl", "CcInfo", "cc_common")
+ load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cpp_toolchain", "use_cc_toolchain")
++
++def runtime_library(ctx, toolchain, features, file):
++    # All consumers of the same installed DSO share one runtime identity. The
++    # source interface script makes identical symlink actions reusable across
++    # package and module targets without changing ordered link selection.
++    directory = "apt/runtime/" + file.short_path.removeprefix("../").rsplit("/", 1)[0]
++    return cc_common.create_library_to_link(
++        actions = ctx.actions,
++        cc_toolchain = toolchain,
++        feature_configuration = features,
++        dynamic_library = file,
++        interface_library = ctx.file._runtime_interface,
++        dynamic_library_symlink_path = directory + "/" + file.basename,
++        interface_library_symlink_path = directory + "/rpath.ifso",
++    )
+ 
+ def _so_library_impl(ctx):
+     cc_toolchain = find_cpp_toolchain(ctx)
+@@ -14,37 +29,10 @@
+ 
+     libraries = []
+ 
+-    ifsos = {}
+-
+     for dyn_lib in ctx.files.dynamic_libs:
+         if dyn_lib.owner.package != ctx.label.package:
+             fail(".so libraries must reside in current package. %s != %s" % (dyn_lib.owner.package, ctx.label.package))
+-        short_path = dyn_lib.short_path
+-        repo_relative_path = short_path[short_path.find(dyn_lib.owner.repo_name) + len(dyn_lib.owner.repo_name) + 1:]
+-        ifso_name = repo_relative_path[:repo_relative_path.rfind("/")]
+-        if ifso_name in ifsos:
+-            ifso = ifsos[ifso_name]
+-        else:
+-            # TODO: this potentially wasterful, symlink all so libraries into a directory
+-            # and create one ifso in the folder.
+-            ifso = ctx.actions.declare_file(ifso_name + "/rpath.ifso")
+-            ifsos[ifso_name] = ifso
+-            ctx.actions.write(ifso, content = """
+-    /* GNU LD script
+-    * Empty linker script for empty interface library */
+-    """)
+-        lib = cc_common.create_library_to_link(
+-            actions = ctx.actions,
+-            cc_toolchain = cc_toolchain,
+-            interface_library = ifso,
+-            dynamic_library = dyn_lib,
+-            # Source ELF aliases and generated interface files otherwise get
+-            # different mangled directories. Keep their runtime and link-time
+-            # names together so RUNPATH resolves without environment overrides.
+-            dynamic_library_symlink_path = "apt/" + ctx.label.repo_name + "/" + ctx.label.name + "/" + ifso_name + "/" + dyn_lib.basename,
+-            interface_library_symlink_path = "apt/" + ctx.label.repo_name + "/" + ctx.label.name + "/" + ifso_name + "/rpath.ifso",
+-            feature_configuration = feature_configuration,
+-        )
++        lib = runtime_library(ctx, cc_toolchain, feature_configuration, dyn_lib)
+         libraries.append(lib)
+ 
+     linker_input = cc_common.create_linker_input(
+@@ -69,6 +57,7 @@
+     implementation = _so_library_impl,
+     provides = [CcInfo],
+     attrs = {
++        "_runtime_interface": attr.label(default = Label("//apt/private:runtime.ifso"), allow_single_file = True),
+         "dynamic_libs": attr.label_list(allow_files = True),
+         "additional_linker_inputs": attr.label_list(allow_files = True),
+         "linkopts": attr.string_list(),
+diff --git a/apt/private/BUILD.bazel b/apt/private/BUILD.bazel
+--- a/apt/private/BUILD.bazel
++++ b/apt/private/BUILD.bazel
+@@ -121,7 +121,10 @@
+     name = "cc_deb_library",
+     srcs = ["cc_deb_library.bzl"],
+     visibility = ["//apt:__subpackages__"],
+-    deps = ["@rules_cc//cc:find_cc_toolchain_bzl"],
++    deps = [
++        ":so_library",
++        "@rules_cc//cc:find_cc_toolchain_bzl",
++    ],
+ )
+ 
+ bzl_library(
+@@ -187,3 +190,5 @@
+     imports = ["."],
+     python_version = "PY3",
+ )
++
++exports_files(["runtime.ifso"])
+diff --git a/apt/private/runtime.ifso b/apt/private/runtime.ifso
+--- /dev/null
++++ b/apt/private/runtime.ifso
+@@ -0,0 +1 @@
++/* Runtime metadata only; actual link inputs follow the selected library sequence. */
