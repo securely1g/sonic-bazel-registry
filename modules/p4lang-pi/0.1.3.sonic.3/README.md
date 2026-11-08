@@ -80,7 +80,7 @@ linker hardening flags, and the native/cross configure settings are preserved.
 The shared adapter is implemented in
 [build-infra #91](https://github.com/securely1g/sonic-build-infra/pull/91).
 This recipe requires
-`sonic-build-infra 0.0.28-b55ad3322094b87a682b6ef22ec500696a183b6d`, whose
+`sonic-build-infra 0.0.28-91047b9df85b8172e60084fd2722a62c39d79be0`, whose
 [source includes the adapter](https://github.com/securely1g/sonic-build-infra/blob/b5a6094d703f6cf8132edc7ceb0326a464e3c5d1/tools/build_tools/configure_linker_flags.sh)
 alongside the existing native-runtime and APT compatibility changes.
 
