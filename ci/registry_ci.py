@@ -887,6 +887,9 @@ def collect_outputs(bep_path: Path, labels: list[str], work_dir: Path, artifacts
                       "type": "tree_archive", "root": relative.as_posix()}
             require(name not in retained or retained[name] == record, f"Conflicting build outputs: {name}")
             if name not in retained:
+                # The collector and uploader may run as different users. Make
+                # only the transport TAR readable; its member modes stay intact.
+                temporary.chmod(0o644)
                 temporary.replace(destination)
                 retained[name] = record
             return record

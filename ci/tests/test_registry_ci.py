@@ -1694,6 +1694,7 @@ class BuildOutputTests(FixtureTestCase):
         self.assertRegex(record["path"], r"^outputs/trees/[a-f0-9]{64}\.tar$")
         self.assertEqual(record["root"], "tools:POSIX")
         self.assertEqual(record["size"], archive_path.stat().st_size)
+        self.assertEqual(archive_path.stat().st_mode & 0o777, 0o644)
         digest = hashlib.sha256(archive_path.read_bytes()).hexdigest()
         self.assertEqual(record["sha256"], digest)
         with tarfile.open(archive_path) as archive:
@@ -1714,6 +1715,40 @@ class BuildOutputTests(FixtureTestCase):
         os.utime(tree / "tool", (1000, 1000))
         shutil.rmtree(self.root / "artifacts")
         self.assertEqual(self.collect(events)[self.labels[0]][0], record)
+
+    def test_tree_archive_is_readable_before_atomic_publication(self) -> None:
+        events, tree, trees = self.expanded_tree_events()
+        replace = Path.replace
+        published = []
+
+        def inspect_replace(temporary: Path, destination: Path) -> Path:
+            self.assertEqual(temporary.suffix, ".tmp")
+            self.assertEqual(temporary.stat().st_mode & 0o777, 0o644)
+            self.assertFalse(destination.exists())
+            published.append((destination, temporary.read_bytes()))
+            return replace(temporary, destination)
+
+        previous_umask = os.umask(0o077)
+        try:
+            with mock.patch.object(Path, "replace", autospec=True, side_effect=inspect_replace):
+                index = self.collect(events, declared_trees=trees, execution_root=self.work)
+        finally:
+            os.umask(previous_umask)
+        self.assertEqual(len(published), 1)
+        destination, data = published[0]
+        record = next(item for item in index[self.labels[0]] if item.get("type") == "tree_archive")
+        self.assertEqual(destination.read_bytes(), data)
+        self.assertEqual(record["sha256"], hashlib.sha256(data).hexdigest())
+        self.assertEqual(record["size"], len(data))
+        self.assertEqual(list(destination.parent.glob("*.tmp")), [])
+
+    def test_tree_archive_mode_failure_leaves_no_published_archive(self) -> None:
+        events, tree, trees = self.expanded_tree_events()
+        with mock.patch.object(Path, "chmod", side_effect=PermissionError("transport mode denied")):
+            with self.assertRaisesRegex(PermissionError, "transport mode denied"):
+                self.collect(events, declared_trees=trees, execution_root=self.work)
+        self.assertEqual(list((self.root / "artifacts/outputs/trees").iterdir()), [])
+        self.assertFalse((self.root / "artifacts/outputs.json").exists())
 
     def test_tree_links_cannot_escape_work_dir_or_cycle(self) -> None:
         events = self.events()
