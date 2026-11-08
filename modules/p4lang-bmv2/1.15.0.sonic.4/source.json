@@ -7,7 +7,7 @@
     "bazel/0001-use-boost-1.83.patch": "sha256-RuXpjeTrP7ec/sPAvmGhQszRdDGQLkZFgEHYXfMkzto=",
     "bazel/0002-remove-unnecessary-dependencies.patch": "sha256-ptIQahFQYXUDzr1mDt8jZi/zUxYpFqTMCunacnNfWjY=",
     "bazel/0003-read-target-thrift-version.patch": "sha256-Ur9Kumjo2mZsIriXUXbeu/LDAcq11/ZUB1UWL22eo8s=",
-    "bazel/bmv2.BUILD.bazel": "sha256-I4bSsT/V2qf21ZfPHhGj+2inGXmSkQhZdyKl9ydyPUs=",
+    "bazel/bmv2.BUILD.bazel": "sha256-3hF3gc6X/FxVj18kz4r8j4g2YcqAllKs5PmfrZnMY4I=",
     "bazel/configure.sh": "sha256-XMzcje8pDYoHg9/ZNHXIAawuq9YXnknjP3vyicuiBbg=",
     "bazel/configure_flags_test.py": "sha256-y1Lq8BmrgBL2nRfLdXdYHLbXb+q9Utm/MssaQAJDCQA=",
     "bazel/configure_test_tools.bzl": "sha256-67kR6MccPwVdxbX+iNJwVEpT+tGjg0phERRLubynU8g=",
