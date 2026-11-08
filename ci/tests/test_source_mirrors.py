@@ -15,7 +15,7 @@ import tempfile
 import threading
 import unittest
 from unittest import mock
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 from urllib.request import urlopen
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -164,12 +164,12 @@ class OwnerArchiveMirrorScopeTest(unittest.TestCase):
                 results.append(re.sub(r"\$(\d+)", lambda group: match.group(int(group[1])), replacement))
         return results
 
-    def test_exact_locked_sources_try_codeload_then_original(self):
+    def test_exact_locked_sources_try_original_then_codeload(self):
         for owner, repository, commit in self.SOURCES:
             with self.subTest(owner=owner, repository=repository, commit=commit):
                 upstream = f"https://github.com/{owner}/{repository}/archive/{commit}.tar.gz"
                 direct = f"https://codeload.github.com/{owner}/{repository}/tar.gz/{commit}"
-                self.assertEqual(self.candidates(upstream), [direct, upstream])
+                self.assertEqual(self.candidates(upstream), [upstream, direct])
                 self.assertEqual(self.candidates(direct), [])
 
     def test_other_sources_and_archive_formats_are_not_rewritten(self):
@@ -194,12 +194,40 @@ class OwnerArchiveMirrorScopeTest(unittest.TestCase):
     def test_only_exact_zopfli_tag_uses_codeload_and_original(self):
         upstream = "https://github.com/google/zopfli/archive/refs/tags/zopfli-1.0.3.tar.gz"
         direct = "https://codeload.github.com/google/zopfli/tar.gz/refs/tags/zopfli-1.0.3"
-        self.assertEqual(self.candidates(upstream), [direct, upstream])
+        self.assertEqual(self.candidates(upstream), [upstream, direct])
         for other in (upstream.replace("1.0.3", "1.0.4"), upstream.replace("google/", "another-owner/"),
                       upstream.replace("zopfli/", "another-repo/"), upstream.replace(".tar.gz", ".zip"),
                       upstream + "?query", upstream + "#fragment", upstream + ".sig", direct):
             with self.subTest(url=other):
                 self.assertEqual(self.candidates(other), [])
+
+    def test_untyped_archive_and_cache_destinations_keep_tar_gz_suffix(self):
+        # Bazel 8.5.1 DownloadManager.getDownloadDestination derives basename
+        # from rewrittenUrls[0], before cache lookup or fallback downloads.
+        # A nonempty explicit type adds a suffix; an inferred type does not.
+        def destination(urls, archive_type):
+            basename = urlparse(urls[0]).path.rsplit("/", 1)[-1] or "temp"
+            if archive_type and not basename.endswith("." + archive_type):
+                basename += "." + archive_type
+            return basename
+
+        sources = [("securely1g", "sonic-swss-common", "43598143ef4a46431eae0859915cd7d951dad1ed"),
+                   ("securely1g", "sonic-build-infra", "3ee15ec9b4d99d7f8eae3e324cead79b203b451e")]
+        upstreams = [f"https://github.com/{owner}/{repo}/archive/{commit}.tar.gz"
+                     for owner, repo, commit in [*self.SOURCES, *sources]]
+        upstreams.append("https://github.com/google/zopfli/archive/refs/tags/zopfli-1.0.3.tar.gz")
+        for upstream in upstreams:
+            with self.subTest(url=upstream):
+                candidates = self.candidates(upstream)
+                self.assertEqual(len(candidates), 2)
+                expected = upstream.rsplit("/", 1)[-1]
+                self.assertEqual(destination(candidates, ""), expected)
+                self.assertEqual(destination(candidates, "tar.gz"), expected)
+                # Reproduce the old codeload-first inference failure, while
+                # preserving the existing explicit-type behavior.
+                old_order = list(reversed(candidates))
+                self.assertFalse(destination(old_order, "").endswith(".tar.gz"))
+                self.assertTrue(destination(old_order, "tar.gz").endswith(".tar.gz"))
 
 
 class ArmSourceMirrorScopeTest(unittest.TestCase):

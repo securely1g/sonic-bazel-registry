@@ -84,14 +84,21 @@ satisfy that request; the rewrite uses HTTPS rather than a new downloader.
 Interpreter archives continue to use the checksums from the unchanged index.
 
 Standard GitHub `/OWNER/REPO/archive/<40-lowercase-hex>.tar.gz` source URLs
-try the same owner's official `codeload.github.com/OWNER/REPO/tar.gz/<commit>`
-endpoint before the exact original URL. This preserves the earlier Infra `.28`
-and Rust-deps `.5` candidate order and covers the observed DASH API,
+try the exact original URL, then the same owner's official
+`codeload.github.com/OWNER/REPO/tar.gz/<commit>` endpoint. This covers the observed DASH API,
 OpenTelemetry, management-common and FIPS commit-archive failures. The rule
 excludes branches, short SHAs, tags, API tarballs, other formats and query strings.
 The only separate tag exception is the exact `google/zopfli` `zopfli-1.0.3`
 archive selected by BCR `zopfli@1.0.3.bcr.2` through `pigz@2.8.bcr.2`; it also
-tries official codeload and then the original URL.
+tries the original URL and then official codeload.
+
+Bazel 8.5.1 chooses the downloaded filename from the first rewritten URL even
+when the bytes come from its verified cache or a later mirror. Codeload's bare
+commit/tag path therefore broke archive-type inference for SWSS-common and
+Sysmgr's build-infra input. Keeping the original `.tar.gz` URL first preserves
+that filename without changing registry metadata. A failed original download
+still falls back to codeload with the same checksum and destination; it can add
+the original endpoint's retry latency before the fallback succeeds.
 
 Source IDs, versions, registry integrity, patches and `strip_prefix` values stay
 unchanged. HEAD responses establish routing or availability only, not archive
