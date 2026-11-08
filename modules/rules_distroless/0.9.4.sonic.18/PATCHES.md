@@ -575,3 +575,25 @@ This SONiC-maintained adaptation is not yet submitted upstream. It follows all
 actual-macro/template controls cover absent and shadowed caller mappings, both
 normalization branches and unchanged commands/targets. They supplement the
 existing native Database/MACsec regression; no native acceptance is claimed.
+
+## Shared-only pkg-config ownership
+
+`0041-preserve-shared-pkgconfig-ownership.patch` fixes FRR's `bgpd_bmp`
+analysis against `libfrrcares`. The ordered pkg-config provider previously
+attached a comment-only static archive even when every selected library was
+a shared ELF input. Bazel treated that anchor as static code and rejected a
+second shared-library consumer of the same external libraries.
+
+The existing generator now identifies only proven dynamic-mode sequences.
+The provider omits the anchor only with matching nonempty SONAME/runtime
+inputs and no static archives or objects in its dependencies. Static/private,
+script, object, unresolved, opaque and default callers retain the anchor.
+Ordered flags, declared files, aliases, runtime libraries and APT identities
+are unchanged. This does not add export filters or permit repeated static
+linkage. Origin: SONiC's current FRR image; not yet submitted upstream.
+
+The existing `native_runtime` fixture adds two shared-library consumers of
+one shared-only sequence across a `dynamic_deps` edge. Bounded actual-function
+mock controls cover ownership and the conservative fallback paths; these do
+not establish native/runtime acceptance. The native fixture is retained for
+normal validation and was not executed during this scoped repair.

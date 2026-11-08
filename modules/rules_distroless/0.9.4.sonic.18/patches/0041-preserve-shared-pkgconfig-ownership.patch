@@ -1,0 +1,90 @@
+Subject: Keep shared-only pkg-config inputs out of static ownership
+
+FRR's libfrrcares and bgpd_bmp both use imported shared libraries. The
+ordered pkg-config provider's comment-only archive falsely registered
+those owners as static code in Bazel 8.5 cc_shared_library. Omit that
+anchor only for positively classified dynamic-only inputs; retain it
+for default, static/private, object, script and unresolved sequences.
+
+Origin: SONiC rules_distroless .sonic.18 adaptation; not submitted upstream.
+
+--- a/apt/private/cc_deb_library.bzl
++++ b/apt/private/cc_deb_library.bzl
+@@ -171,11 +171,14 @@
+     toolchain = find_cpp_toolchain(ctx)
+     features = cc_common.configure_features(ctx = ctx, cc_toolchain = toolchain, requested_features = ctx.features, unsupported_features = ctx.disabled_features)
+     runtime = {}
++    has_static_inputs = False
+     files = {file: True for file in ctx.files.link_files}
+     for item in merged.linking_context.linker_inputs.to_list():
+         for file in item.additional_inputs:
+             files[file] = True
+         for library in item.libraries:
++            if library.static_library or library.pic_static_library or library.objects or library.pic_objects:
++                has_static_inputs = True
+             if not library.dynamic_library:
+                 continue
+             file = library.resolved_symlink_dynamic_library or library.dynamic_library
+@@ -217,9 +220,22 @@
+                 args.append(file.path)
+         else:
+             args.append(token.replace("$(BINDIR)", ctx.bin_dir.path))
+-    anchor = ctx.actions.declare_file(ctx.label.name + "/linkopts.a")
+-    ctx.actions.write(anchor, "/* Ordered pkg-config link contract. */\n")
+-    libraries.append(cc_common.create_library_to_link(actions = ctx.actions, static_library = anchor))
++    # A shared-only input already keeps the ordered flags through
++    # cc_shared_library. A synthetic static anchor would falsely give this
++    # pkg-config owner code that may be linked into only one shared library.
++    # Retain the anchor for default callers and every unproven/static sequence.
++    shared_only = (
++        ctx.attr.dynamic_only and
++        not has_static_inputs and
++        libraries and
++        ctx.attr.link_files and
++        len(ctx.attr.link_files) == len(ctx.attr.link_sonames) and
++        all([soname and soname in runtime_links for soname in ctx.attr.link_sonames])
++    )
++    if not shared_only:
++        anchor = ctx.actions.declare_file(ctx.label.name + "/linkopts.a")
++        ctx.actions.write(anchor, "/* Ordered pkg-config link contract. */\n")
++        libraries.append(cc_common.create_library_to_link(actions = ctx.actions, static_library = anchor))
+     # GCC copies driver -L options into COLLECT_GCC_OPTIONS. Even an @response
+     # file cannot prevent its single environment string from exceeding Linux's
+     # limit. These are linker search paths: pass them directly to the linker,
+@@ -244,6 +260,7 @@
+         "link_files": attr.label_list(allow_files = True),
+         "link_sonames": attr.string_list(),
+         "arguments": attr.string_list(),
++        "dynamic_only": attr.bool(default = False),
+     },
+     fragments = ["cpp"],
+     toolchains = use_cc_toolchain(),
+--- a/apt/private/deb_import.bzl
++++ b/apt/private/deb_import.bzl
+@@ -659,6 +659,7 @@
+                 sonames = []
+                 arguments = []
+                 pending = False
++                dynamic_only = mode == "dynamic"
+                 selection = (mode, False)
+                 selection_stack = []
+                 for token in flags.get("libs", []):
+@@ -697,13 +698,17 @@
+                                 sonames.append(record.get("soname", identity[1].rsplit("/", 1)[-1]) if identity and "needed" in record else "")
+                             arguments.append("$FILE:" + str(link_files.index(result.file)))
+                             continue
++                    # Opaque/unresolved flags may introduce real static code.
++                    # Only resolved shared files and mapped search paths opt in.
++                    dynamic_only = False
+                     arguments.append(token)
++                dynamic_only = dynamic_only and not pending and bool(link_files) and all(sonames)
+                 if error:
+                     content += 'invalid_native_library(name=%r, message=%r, visibility=["//visibility:public"])\n' % (target, error)
+                     continue
+                 compiler = "_pkgconfig_compile_" + util.encode_target(target)
+                 content += 'cc_deb_library(name=%r, hdrs=%r, deps=%r, includes=%r, include_dirs=%r, quote_includes=%r, defines=%r)\n' % (compiler, hdrs, header_deps, [] if compatible else compile.normal, compile.system + compile.normal if compatible else compile.system, compile.quote, compile.defines)
+-                content += 'native_link_sequence(name=%r, deps=%r, link_files=%r, link_sonames=%r, arguments=%r, visibility=["//visibility:public"])\n' % (target, deps + [":" + compiler], link_files, sonames, arguments)
++                content += 'native_link_sequence(name=%r, deps=%r, link_files=%r, link_sonames=%r, arguments=%r, dynamic_only=%r, visibility=["//visibility:public"])\n' % (target, deps + [":" + compiler], link_files, sonames, arguments, dynamic_only)
+     return content, exports
+ 
+ def _discover_contents(rctx, depends_on, depends_file_map, target_name, state):
