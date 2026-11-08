@@ -1,19 +1,19 @@
 {
-    "homepage": "https://github.com/securely1g/DASH",
-    "maintainers": [
-        {
-            "name": "Guohan Lu",
-            "email": "securely1g@gmail.com",
-            "github": "securely1g"
-        }
-    ],
-    "repository": [
-        "github:securely1g/DASH"
-    ],
-    "versions": [
-        "0.0.1-97c07d05193e346bc990e816e30a7e3d72e8f4c0",
-        "0.0.2-5c9305403585a7ae54f86918219acb8ed39f740a",
-        "0.0.3-53e524a348589e2b2e0585a8c148bd9b2f8bc686"
-    ],
-    "yanked_versions": {}
+  "homepage": "https://github.com/securely1g/DASH",
+  "maintainers": [
+    {
+      "name": "Guohan Lu",
+      "email": "securely1g@gmail.com",
+      "github": "securely1g"
+    }
+  ],
+  "repository": [
+    "github:securely1g/DASH"
+  ],
+  "versions": [
+    "0.0.1-97c07d05193e346bc990e816e30a7e3d72e8f4c0",
+    "0.0.2-5c9305403585a7ae54f86918219acb8ed39f740a",
+    "0.0.3-1c56e8a12e91ec69add6fa98caccced92d216005"
+  ],
+  "yanked_versions": {}
 }
