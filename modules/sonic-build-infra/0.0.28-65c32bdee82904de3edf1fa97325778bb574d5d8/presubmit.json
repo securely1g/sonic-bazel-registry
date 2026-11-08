@@ -103,7 +103,8 @@
     "@sonic-build-infra//tools/build_tools:bookworm_test_runtime_test",
     "@sonic-build-infra//tools/build_tools:docbook_runtime_test",
     "@sonic-build-infra//tar:debug_symbols_modes_test",
-    "@sonic-build-infra//tests:deploy_tar_timestamps_test"
+    "@sonic-build-infra//tests:deploy_tar_timestamps_test",
+    "@sonic-build-infra//oci/tests:installed_packages_alias_test"
   ],
   "host_platforms": {
     "amd64": "@sonic-build-infra//platforms:x86_64_trixie"
