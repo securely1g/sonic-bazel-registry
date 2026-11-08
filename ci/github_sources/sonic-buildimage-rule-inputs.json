@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "sources": [
+    {
+      "url": "https://api.github.com/repos/bazelbuild/rules_cc/releases/assets/469359398",
+      "format": "file",
+      "size": 471597,
+      "sha256": "81c10a95a5c22d838276ee90d712635d6042419fdfca5ef88328226b6321e53b",
+      "files": [
+        {
+          "name": "rules_cc-0.2.22.tar.gz",
+          "size": 471597,
+          "sha256": "81c10a95a5c22d838276ee90d712635d6042419fdfca5ef88328226b6321e53b",
+          "provenance": "https://github.com/bazelbuild/rules_cc/releases/download/0.2.22/rules_cc-0.2.22.tar.gz"
+        }
+      ]
+    },
+    {
+      "url": "https://api.github.com/repos/bazel-contrib/bazel-lib/releases/assets/263919201",
+      "format": "file",
+      "size": 171991,
+      "sha256": "db7da732db4dece80cd6d368220930950c9306ff356ebba46498fe64e65a3945",
+      "files": [
+        {
+          "name": "bazel-lib-v2.19.3.tar.gz",
+          "size": 171991,
+          "sha256": "db7da732db4dece80cd6d368220930950c9306ff356ebba46498fe64e65a3945",
+          "provenance": "https://github.com/bazel-contrib/bazel-lib/releases/download/v2.19.3/bazel-lib-v2.19.3.tar.gz"
+        }
+      ]
+    },
+    {
+      "url": "https://api.github.com/repos/bazel-contrib/rules_shell/releases/assets/397135610",
+      "format": "file",
+      "size": 24556,
+      "sha256": "20721f63908879c083f94869e618ea8d4ff5edb91ff9a72a2ebee357fdbc352d",
+      "files": [
+        {
+          "name": "rules_shell-v0.8.0.tar.gz",
+          "size": 24556,
+          "sha256": "20721f63908879c083f94869e618ea8d4ff5edb91ff9a72a2ebee357fdbc352d",
+          "provenance": "https://github.com/bazel-contrib/rules_shell/releases/download/v0.8.0/rules_shell-v0.8.0.tar.gz"
+        }
+      ]
+    },
+    {
+      "url": "https://api.github.com/repos/bazelbuild/bazel-skylib/releases/assets/480693316",
+      "format": "file",
+      "size": 44716,
+      "sha256": "37cdfbc6faefea94f7b37760a305c98c08981116c2bc9e821e3b423221fad8c8",
+      "files": [
+        {
+          "name": "bazel-skylib-1.9.2.tar.gz",
+          "size": 44716,
+          "sha256": "37cdfbc6faefea94f7b37760a305c98c08981116c2bc9e821e3b423221fad8c8",
+          "provenance": "https://github.com/bazelbuild/bazel-skylib/releases/download/1.9.2/bazel-skylib-1.9.2.tar.gz"
+        }
+      ]
+    },
+    {
+      "url": "https://api.github.com/repos/bazel-contrib/tar.bzl/releases/assets/421154009",
+      "format": "file",
+      "size": 78784,
+      "sha256": "2799dfd43131e872c8f9fed41a547a8c5afd571c5df6b809eab6219d44403872",
+      "files": [
+        {
+          "name": "tar.bzl-v0.10.5.tar.gz",
+          "size": 78784,
+          "sha256": "2799dfd43131e872c8f9fed41a547a8c5afd571c5df6b809eab6219d44403872",
+          "provenance": "https://github.com/bazel-contrib/tar.bzl/releases/download/v0.10.5/tar.bzl-v0.10.5.tar.gz"
+        }
+      ]
+    }
+  ]
+}
