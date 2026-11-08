@@ -83,16 +83,19 @@ The unchanged extension does not hash the index download, so distdir cannot
 satisfy that request; the rewrite uses HTTPS rather than a new downloader.
 Interpreter archives continue to use the checksums from the unchanged index.
 
-The exact `sonic-build-infra` source archives at commits
-`58112470001b1c450fd9e859079e92c62c236242` and
-`c53741eb56e55e4f1c9b48c577ed5de986e62192` try GitHub's direct
-`codeload.github.com/securely1g/sonic-build-infra/tar.gz/<commit>` endpoint
-before the original `github.com/.../archive/<commit>.tar.gz` URL. These serve
-Infra `.28` and Rust-deps `.5` respectively; source IDs, registry integrity,
-patches and `strip_prefix` values stay unchanged. A bounded HEAD observed the
-first URL's official redirect and HTTP 200 at both direct endpoints. The Rust
-origin returned HTTP 504, so its redirect was not observed. HEAD responses do
-not verify archive bytes; Bazel must still enforce each original locked hash.
+Standard GitHub `/OWNER/REPO/archive/<40-lowercase-hex>.tar.gz` source URLs
+try the same owner's official `codeload.github.com/OWNER/REPO/tar.gz/<commit>`
+endpoint before the exact original URL. This preserves the earlier Infra `.28`
+and Rust-deps `.5` candidate order and covers the observed DASH API,
+OpenTelemetry, management-common and FIPS commit-archive failures. The rule
+excludes branches, short SHAs, tags, API tarballs, other formats and query strings.
+The only separate tag exception is the exact `google/zopfli` `zopfli-1.0.3`
+archive selected by BCR `zopfli@1.0.3.bcr.2` through `pigz@2.8.bcr.2`; it also
+tries official codeload and then the original URL.
+
+Source IDs, versions, registry integrity, patches and `strip_prefix` values stay
+unchanged. HEAD responses establish routing or availability only, not archive
+byte equality; Bazel must still enforce each caller's original locked hash.
 
 BCR `pigz@2.8.bcr.2` requests `https://zlib.net/pigz/pigz-2.8.tar.gz`.
 That exact URL now tries the verified

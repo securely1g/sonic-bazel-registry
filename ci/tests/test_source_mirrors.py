@@ -145,42 +145,61 @@ class PythonReleaseIndexMirrorTest(unittest.TestCase):
 
 
 class OwnerArchiveMirrorScopeTest(unittest.TestCase):
-    COMMITS = (
-        "58112470001b1c450fd9e859079e92c62c236242",
-        "c53741eb56e55e4f1c9b48c577ed5de986e62192",
+    SOURCES = (
+        ("securely1g", "sonic-build-infra", "58112470001b1c450fd9e859079e92c62c236242"),
+        ("securely1g", "sonic-build-infra", "c53741eb56e55e4f1c9b48c577ed5de986e62192"),
+        ("securely1g", "sonic-dash-api", "9b2893e890734a2db0c53a5e5c64b031ec0dcfbd"),
+        ("open-telemetry", "opentelemetry-collector-releases", "9e444f54f4033bf6b7c254f0a8797ffd3917b6de"),
+        ("securely1g", "sonic-mgmt-common", "71eb5f710b5347ca0510ee8e3f5294a7c64bb744"),
+        ("securely1g", "sonic-fips", "15fcb926a302059ec379f0c2fd15eb3d88bda4c9"),
     )
 
     def candidates(self, url):
         rewrites = [line.split()[1:] for line in (ROOT / "ci/source_mirrors.cfg").read_text().splitlines()
                     if line.startswith("rewrite ")]
-        return [replacement for pattern, replacement in rewrites
-                if re.fullmatch(pattern, url.removeprefix("https://"))]
+        results = []
+        for pattern, replacement in rewrites:
+            match = re.fullmatch(pattern, url.removeprefix("https://"))
+            if match:
+                results.append(re.sub(r"\$(\d+)", lambda group: match.group(int(group[1])), replacement))
+        return results
 
     def test_exact_locked_sources_try_codeload_then_original(self):
-        for commit in self.COMMITS:
-            with self.subTest(commit=commit):
-                upstream = f"https://github.com/securely1g/sonic-build-infra/archive/{commit}.tar.gz"
-                direct = f"https://codeload.github.com/securely1g/sonic-build-infra/tar.gz/{commit}"
+        for owner, repository, commit in self.SOURCES:
+            with self.subTest(owner=owner, repository=repository, commit=commit):
+                upstream = f"https://github.com/{owner}/{repository}/archive/{commit}.tar.gz"
+                direct = f"https://codeload.github.com/{owner}/{repository}/tar.gz/{commit}"
                 self.assertEqual(self.candidates(upstream), [direct, upstream])
                 self.assertEqual(self.candidates(direct), [])
 
     def test_other_sources_and_archive_formats_are_not_rewritten(self):
-        for commit in self.COMMITS:
-            upstream = f"https://github.com/securely1g/sonic-build-infra/archive/{commit}.tar.gz"
+        for owner, repository, commit in self.SOURCES:
+            upstream = f"https://github.com/{owner}/{repository}/archive/{commit}.tar.gz"
             for other in (
-                upstream.replace(commit, "0" * 40),
                 upstream.replace(commit, "main"),
                 upstream.replace(commit, commit[:12]),
-                upstream.replace("securely1g/", "another-owner/"),
-                upstream.replace("sonic-build-infra/", "another-repository/"),
+                upstream.replace(commit, commit + "0"),
+                upstream.replace(f"/{owner}/", "/../"),
+                upstream.replace(f"/{repository}/", "/../"),
                 upstream.replace("github.com/", "another.example/"),
+                upstream.replace("github.com/", "github.com.evil/"),
                 upstream.replace(".tar.gz", ".zip"),
                 upstream.replace("/archive/", "/archive/refs/tags/"),
-                upstream + "?query", upstream + ".sig", upstream + "/",
-                f"https://api.github.com/repos/securely1g/sonic-build-infra/tarball/{commit}",
+                upstream + "?query", upstream + "#fragment", upstream + ".sig", upstream + "/",
+                f"https://api.github.com/repos/{owner}/{repository}/tarball/{commit}",
             ):
                 with self.subTest(url=other):
                     self.assertEqual(self.candidates(other), [])
+
+    def test_only_exact_zopfli_tag_uses_codeload_and_original(self):
+        upstream = "https://github.com/google/zopfli/archive/refs/tags/zopfli-1.0.3.tar.gz"
+        direct = "https://codeload.github.com/google/zopfli/tar.gz/refs/tags/zopfli-1.0.3"
+        self.assertEqual(self.candidates(upstream), [direct, upstream])
+        for other in (upstream.replace("1.0.3", "1.0.4"), upstream.replace("google/", "another-owner/"),
+                      upstream.replace("zopfli/", "another-repo/"), upstream.replace(".tar.gz", ".zip"),
+                      upstream + "?query", upstream + "#fragment", upstream + ".sig", direct):
+            with self.subTest(url=other):
+                self.assertEqual(self.candidates(other), [])
 
 
 class ArmSourceMirrorScopeTest(unittest.TestCase):
