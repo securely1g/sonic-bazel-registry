@@ -180,6 +180,16 @@ jobs:
             # worker waits for Skyframe. Run the original repository rules directly.
             BAZEL_BUILD_ARGS=(--bazel-build-arg=--jobs=1 --bazel-build-arg=--discard_analysis_cache
                               --bazel-build-arg=--experimental_worker_for_repo_fetching=off)
+            if [[ "$CI_MODULE" == sonic-dash ]]; then
+              # Bazel needs up to 2 GiB to resolve the Debian indexes. Release unused
+              # heap while P4C compiles dash_pipeline.p4 in the same 6 GiB slot.
+              BAZEL_STARTUP_ARGS+=(--bazel-startup-arg=--host_jvm_args=-XX:G1PeriodicGCInterval=30000
+                                   --bazel-startup-arg=--host_jvm_args=-XX:MinHeapFreeRatio=20
+                                   --bazel-startup-arg=--host_jvm_args=-XX:MaxHeapFreeRatio=35)
+              # Set P4C's existing garbage-collector option when compiling it as a
+              # build-time C++ tool so it collects more often during the pipeline build.
+              BAZEL_BUILD_ARGS+=(--bazel-build-arg=--host_cxxopt=-DGC_FREE_SPACE_DIVISOR=16)
+            fi
             if [[ "$CI_MODULE" == sonic-fips ]]; then
               # Make invokes OpenSSL's original TAP harness. Preserve caller flags
               # and use the same action environment for the build and test commands.

@@ -343,6 +343,35 @@ class PrivateMirrorWorkflowCommandTest(unittest.TestCase):
         return subprocess.run(["bash", "-c", script(workflow, name)], cwd=self.directory,
                               env=self.environment, capture_output=True, text=True)
 
+    def test_only_emulated_dash_tunes_bazel_and_p4c_memory(self):
+        standard = ["-Xmx2g"]
+        dash = standard + ["-XX:G1PeriodicGCInterval=30000", "-XX:MinHeapFreeRatio=20", "-XX:MaxHeapFreeRatio=35"]
+        for module, target, execution, emulated, expected in (
+            ("sonic-dash", "arm64", "arm64", True, dash),
+            ("p4c", "arm64", "arm64", True, standard),
+            ("p4lang-bmv2", "arm64", "arm64", True, standard),
+            ("sonic-swss-common", "arm64", "arm64", True, standard),
+            ("sonic-dash", "amd64", "amd64", False, standard),
+            ("sonic-dash", "arm64", "amd64", False, standard),
+            ("sonic-dash", "arm64", "arm64", False, []),
+        ):
+            with self.subTest(module=module, target=target, execution=execution, emulated=emulated):
+                self.capture.unlink(missing_ok=True)
+                self.environment.update(CI_MODULE=module, CI_ARCHITECTURE=target, CI_EXECUTION_ARCHITECTURE=execution,
+                                        CI_CROSS_COMPILE=str(target != execution).lower(),
+                                        PILOT_EMULATED_ARM=str(emulated).lower())
+                result = self.run_step("Build and test through the registry")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                args = json.loads(self.capture.read_text())["args"]
+                prefix = "--bazel-startup-arg=--host_jvm_args="
+                self.assertEqual([arg.removeprefix(prefix) for arg in args if arg.startswith(prefix)], expected)
+                compiler_flags = [arg for arg in args if "GC_FREE_SPACE_DIVISOR" in arg]
+                expected_compiler_flags = (
+                    ["--bazel-build-arg=--host_cxxopt=-DGC_FREE_SPACE_DIVISOR=16"]
+                    if emulated and module == "sonic-dash" else []
+                )
+                self.assertEqual(compiler_flags, expected_compiler_flags)
+
     def test_module_build_uses_private_wrapper_without_secret_command_arguments(self):
         for architecture, cross in (("amd64", False), ("arm64", True)):
             with self.subTest(architecture=architecture, cross=cross):
