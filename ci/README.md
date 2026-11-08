@@ -949,7 +949,7 @@ Its four ARM64 builds and original uncached runtime test passed on the AMD64 Tri
 The test exercised the installed SDK, generated pipeline and detached debug symbols.
 [Validation evidence](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42180204936/job/127767804802)
 
-The current DASH route selects `0.0.3-3bd0d9cdcaf6b527dcbe6e79f21331a6059d94df`
+The current DASH route selects `0.0.3-1980c10e0d06380177d6dc411064e4d5d02724d0`
 from registry PR #215, including its compiler and linker argument transport fix.
 It retains all four builds and adds the declared `make_flags_test` beside the
 runtime test. The qualification above is historical; validation of the current
