@@ -9,7 +9,7 @@
   "overlay": {
     ".bazelrc": "sha256-62p0YxTC6qq2Q8Zpnj07nArW6f4a0pOzywpbGeOFCIo=",
     "BUILD.bazel": "sha256-9scI7hKfSQmi4lyPm72ljCchJenM0JEYEI/9m+FCMRU=",
-    "MODULE.bazel": "sha256-NJIGXYMhLuwZzS7cQepy2uzbkMDl21obJNd6XPKuprM=",
+    "MODULE.bazel": "sha256-tjcWjnCGWwIrBINhf4ft3EhBEJSBS6vUtKf7eqLv2IM=",
     "README.bazel.md": "sha256-qdPohVuUFFX9JrFimrgcEsESI/a26H76qfWPLzWx5/E=",
     "capture_test_runtime.py": "sha256-VcCaHbdOq8fL9rMYEgeNFNzzy7fjp/i6f/sTVvDZyfI=",
     "docs_permissions.awk": "sha256-v/fRLKNaROWRRZVTWIbeO5OJz6t0aMXAneIXP+x+EHk=",
