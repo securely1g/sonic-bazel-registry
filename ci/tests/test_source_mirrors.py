@@ -3,18 +3,23 @@ from __future__ import annotations
 
 import base64
 import hashlib
+from http.client import IncompleteRead
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import importlib.util
+import io
 import json
 import os
 from pathlib import Path
 import re
 import shutil
+import socket
 import subprocess
 import tempfile
 import threading
+import time
 import unittest
 from unittest import mock
+from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import urlopen
 
@@ -84,6 +89,150 @@ def arm_urls(name, version):
 
 def debian_release_url(filename):
     return f"{ARM_RELEASE}/{quote(filename, safe='')}"
+
+
+def read_fixture_url(url):
+    """Retry transient fixture transport failures; callers still validate bytes.
+
+    Use the same URL for at most three attempts, with 1s/2s backoff. This does
+    not seed Bazel's empty caches or replace its live mirror fetches.
+    """
+    for attempt in range(3):
+        try:
+            with urlopen(url, timeout=60) as response:
+                return response.read()
+        except (HTTPError, URLError, TimeoutError, ConnectionError, IncompleteRead) as error:
+            if isinstance(error, HTTPError):
+                transient = error.code in (408, 429, 502, 503, 504)
+            else:
+                reason = error.reason if isinstance(error, URLError) else error
+                transient = isinstance(reason, (TimeoutError, ConnectionError, IncompleteRead)) or (
+                    isinstance(reason, socket.gaierror) and reason.errno == socket.EAI_AGAIN)
+            if not transient or attempt == 2:
+                raise
+            time.sleep(2 ** attempt)
+
+
+class FixtureDownloadTest(unittest.TestCase):
+    def test_transient_errors_recover_at_the_same_url_with_bounded_backoff(self):
+        """A temporary transport failure cannot change the selected source."""
+        cases = (
+            (HTTPError(PIGZ_GITHUB, 503, "unavailable", {}, None), TimeoutError("read timeout")),
+            (URLError(TimeoutError("read timeout")),),
+            (URLError(socket.gaierror(socket.EAI_AGAIN, "temporary DNS failure")),),
+            (ConnectionResetError("connection reset"),),
+        )
+        for errors in cases:
+            with self.subTest(errors=errors), \
+                    mock.patch(__name__ + ".urlopen", side_effect=[*errors, io.BytesIO(b"complete")]) as fetch, \
+                    mock.patch(__name__ + ".time.sleep") as sleep:
+                self.assertEqual(read_fixture_url(PIGZ_GITHUB), b"complete")
+                self.assertEqual(fetch.call_args_list, [mock.call(PIGZ_GITHUB, timeout=60)] * (len(errors) + 1))
+                self.assertEqual(sleep.call_args_list, [mock.call(2 ** i) for i in range(len(errors))])
+
+    def test_partial_read_is_closed_and_discarded_before_retry(self):
+        """Never combine a truncated response with bytes from the next attempt."""
+        partial = mock.MagicMock()
+        partial.__enter__.return_value = partial
+        partial.read.side_effect = IncompleteRead(b"discard these bytes")
+        with mock.patch(__name__ + ".urlopen", side_effect=[partial, io.BytesIO(b"complete")]), \
+                mock.patch(__name__ + ".time.sleep"):
+            self.assertEqual(read_fixture_url(PIGZ_GITHUB), b"complete")
+        partial.__exit__.assert_called_once()
+
+    def test_exhausted_retries_raise_the_last_failure(self):
+        """Transient errors still fail the test after three total attempts."""
+        errors = [TimeoutError(str(i)) for i in range(3)]
+        with mock.patch(__name__ + ".urlopen", side_effect=errors) as fetch, \
+                mock.patch(__name__ + ".time.sleep") as sleep:
+            with self.assertRaises(TimeoutError) as caught:
+                read_fixture_url(PIGZ_GITHUB)
+        self.assertIs(caught.exception, errors[-1])
+        self.assertEqual(fetch.call_count, 3)
+        self.assertEqual(sleep.call_args_list, [mock.call(1), mock.call(2)])
+
+    def test_permanent_errors_are_not_retried(self):
+        """Missing assets, permanent DNS errors and invalid inputs stay failures."""
+        errors = (
+            HTTPError(PIGZ_GITHUB, 404, "not found", {}, None),
+            HTTPError(PIGZ_GITHUB, 403, "forbidden", {}, None),
+            URLError(socket.gaierror(socket.EAI_NONAME, "name not found")),
+            URLError("certificate verification failed"),
+            ValueError("invalid input"),
+        )
+        for error in errors:
+            with self.subTest(error=error), mock.patch(__name__ + ".urlopen", side_effect=error) as fetch, \
+                    mock.patch(__name__ + ".time.sleep") as sleep:
+                with self.assertRaises(type(error)) as caught:
+                    read_fixture_url(PIGZ_GITHUB)
+                self.assertIs(caught.exception, error)
+                fetch.assert_called_once_with(PIGZ_GITHUB, timeout=60)
+                sleep.assert_not_called()
+
+    def test_bad_metadata_still_fails_before_bazel_fetch(self):
+        """Transport retries must not retry malformed or changed BCR metadata."""
+        name, version, _ = ARM_ARCHIVES[0]
+        _, upstream = arm_urls(name, version)
+        for payload, error in ((b"not JSON", json.JSONDecodeError),
+                               (json.dumps({"url": upstream, "integrity": "changed"}).encode(), AssertionError)):
+            with self.subTest(payload=payload), \
+                    mock.patch(__name__ + ".urlopen", return_value=io.BytesIO(payload)) as fetch, \
+                    mock.patch(__name__ + ".time.sleep") as sleep, \
+                    mock.patch.object(ArchiveFetchTestCase, "fetch") as bazel:
+                case = ArmSourceMirrorIntegrationTest("test_github_archives_match_original_bcr_recipes_with_empty_cache")
+                with self.assertRaises(error):
+                    case.test_github_archives_match_original_bcr_recipes_with_empty_cache()
+                fetch.assert_called_once()
+                sleep.assert_not_called()
+                bazel.assert_not_called()
+
+    def test_corrupt_pigz_seed_never_reaches_bazel_or_the_local_server(self):
+        """Only checksum-verified bytes may seed the controlled fallback server."""
+        with mock.patch(__name__ + ".urlopen", return_value=io.BytesIO(b"corrupt archive")) as fetch, \
+                mock.patch(__name__ + ".time.sleep") as sleep, \
+                mock.patch(__name__ + ".ThreadingHTTPServer") as server, \
+                mock.patch(__name__ + ".subprocess.run") as bazel:
+            case = SourceMirrorIntegrationTest("test_unavailable_release_falls_back_to_verified_macports_bytes")
+            with self.assertRaises(AssertionError):
+                case.exercise_mirror(primary="missing", fallback="valid")
+            fetch.assert_called_once_with(PIGZ_GITHUB, timeout=60)
+            sleep.assert_not_called()
+            server.assert_not_called()
+            bazel.assert_not_called()
+
+    def test_live_arm_archive_is_fetched_by_bazel_and_independently_rehashed(self):
+        """Removing the duplicate GET must preserve the actual archive check."""
+        original, module = b"verified archive", b'module(name = "ape")\n'
+        checksum = hashlib.sha512(original).hexdigest()
+        integrity = "sha512-" + base64.b64encode(hashlib.sha512(original).digest()).decode()
+        metadata = "https://bcr.bazel.build/modules/ape/1.0.1"
+        source = json.dumps({"url": arm_urls("ape", "1.0.1")[1], "integrity": integrity}).encode()
+        for payload in (original, b"corrupt cached bytes"):
+            def fake_bazel(work, module_text, repo, config):
+                self.assertEqual(repo, "ape")
+                self.assertIn("\nblock gitlab.arm.com\n", config.read_text())
+                cache = work / "cache"
+                archive = cache / "content_addressable/sha512" / checksum / "file"
+                archive.parent.mkdir(parents=True)
+                archive.write_bytes(payload)
+                extracted = work / "output/external/ape+/MODULE.bazel"
+                extracted.parent.mkdir(parents=True)
+                extracted.write_bytes(module)
+                return subprocess.CompletedProcess([], 0), "", cache
+
+            with self.subTest(payload=payload), mock.patch(__name__ + ".ARM_ARCHIVES", (("ape", "1.0.1", integrity),)), \
+                    mock.patch(__name__ + ".urlopen", side_effect=[io.BytesIO(source), io.BytesIO(module)]) as fetch, \
+                    mock.patch.object(ArchiveFetchTestCase, "fetch", side_effect=fake_bazel) as bazel:
+                case = ArmSourceMirrorIntegrationTest("test_github_archives_match_original_bcr_recipes_with_empty_cache")
+                if payload == original:
+                    case.test_github_archives_match_original_bcr_recipes_with_empty_cache()
+                    self.assertEqual(fetch.call_args_list, [mock.call(metadata + suffix, timeout=60)
+                                                          for suffix in ("/source.json", "/MODULE.bazel")])
+                else:
+                    with self.assertRaises(AssertionError):
+                        case.test_github_archives_match_original_bcr_recipes_with_empty_cache()
+                    fetch.assert_called_once_with(metadata + "/source.json", timeout=60)
+                bazel.assert_called_once()
 
 
 class PigzSourceMirrorScopeTest(unittest.TestCase):
@@ -277,15 +426,12 @@ class ArmSourceMirrorIntegrationTest(ArchiveFetchTestCase):
         for name, version, integrity in ARM_ARCHIVES:
             with self.subTest(module=name), tempfile.TemporaryDirectory(prefix="registry-arm-mirror-") as temporary:
                 work = Path(temporary)
-                github, upstream = arm_urls(name, version)
+                _, upstream = arm_urls(name, version)
                 metadata = f"https://bcr.bazel.build/modules/{name}/{version}"
-                with urlopen(metadata + "/source.json", timeout=60) as response:
-                    source = json.load(response)
+                source = json.loads(read_fixture_url(metadata + "/source.json"))
                 self.assertEqual(source["url"], upstream)
                 self.assertEqual(source["integrity"], integrity)
                 checksum = base64.b64decode(integrity.removeprefix("sha512-")).hex()
-                with urlopen(github, timeout=60) as response:
-                    self.assertEqual(hashlib.sha512(response.read()).hexdigest(), checksum)
                 # Exercise the real release asset, never silently pass via upstream.
                 config = work / "github-only.cfg"
                 config.write_text((ROOT / "ci/source_mirrors.cfg").read_text() + "\nblock gitlab.arm.com\n")
@@ -297,8 +443,7 @@ class ArmSourceMirrorIntegrationTest(ArchiveFetchTestCase):
                 self.assertEqual(hashlib.sha512(archive.read_bytes()).hexdigest(), checksum)
                 fetched = list((work / "output/external").glob(name + "+*/MODULE.bazel"))
                 self.assertEqual(len(fetched), 1, fetched)
-                with urlopen(metadata + "/MODULE.bazel", timeout=60) as response:
-                    self.assertEqual(fetched[0].read_bytes(), response.read())
+                self.assertEqual(fetched[0].read_bytes(), read_fixture_url(metadata + "/MODULE.bazel"))
 
     def test_rewrite_order_fallback_and_integrity_with_local_sources(self):
         original = b"original fixture bytes\n"
@@ -629,8 +774,7 @@ class SourceMirrorIntegrationTest(unittest.TestCase):
             else:
                 original = b""
                 if fallback == "valid":
-                    with urlopen(PIGZ_GITHUB, timeout=60) as response:
-                        original = response.read()
+                    original = read_fixture_url(PIGZ_GITHUB)
                     self.assertEqual(hashlib.sha256(original).hexdigest(), PIGZ_SHA256)
 
                 class ArchiveSource(BaseHTTPRequestHandler):
@@ -683,8 +827,7 @@ class SourceMirrorIntegrationTest(unittest.TestCase):
                     self.assertEqual(hashlib.sha256(archive.read_bytes()).hexdigest(), PIGZ_SHA256)
                     fetched = list((work / "output/external").glob("pigz*/MODULE.bazel"))
                     self.assertEqual(len(fetched), 1, fetched)
-                    with urlopen(PIGZ_MODULE, timeout=60) as response:
-                        expected_module = response.read()
+                    expected_module = read_fixture_url(PIGZ_MODULE)
                     self.assertEqual(fetched[0].read_bytes(), expected_module)
                     # Successful extraction applies all unchanged BCR patches,
                     # including the upstream BUILD and module declarations.
