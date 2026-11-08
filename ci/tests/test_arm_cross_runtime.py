@@ -97,13 +97,15 @@ GENERATOR = '''#include <stdio.h>
 #endif
 int main(void) { puts("#define GENERATED_VALUE 42"); return 0; }
 '''
-RUNTIME_PROGRAM = '''#include <stdio.h>
+RUNTIME_PROGRAM = '''#include <stddef.h>
+#include <stdio.h>
 #ifndef __aarch64__
 #error The native-runtime fixture must use an ARM64 binary and target libc.
 #endif
 int main(void) { puts("native runtime ARM64"); return 0; }
 '''
 CPP_PROBE = '''#include "generated_value.h"
+#include <climits>
 #include <iostream>
 #include <stdexcept>
 #include <thread>
@@ -236,6 +238,21 @@ class ArmCrossRuntimeIntegrationTest(unittest.TestCase):
                     "@platforms//host:host", "@platforms//host:host", registry_ci.run_logged)
                 self.assertTrue(adapted["module_versions_unchanged"])
                 self.assertIsNotNone(adapted["provider"])
+                # Libtool can drop GCC's -B flags from a foreign shared link.
+                # Exercise that invocation with only the adapter driver and its declared inputs.
+                driver = work / "cross-cc-repository" / "aarch64-linux-gnu-gcc"
+                shared = artifacts / "foreign-link.so"
+                subprocess.run([str(driver), "-x", "c", "-fPIC", "-shared", "-o", str(shared), "-"],
+                               input=b"int foreign_link_probe(void) { return 42; }\n", check=True)
+                self.assertEqual(elf_machine(shared), 183)
+                # Autoconf places link flags before a C++ probe. The C++ driver
+                # supplies the target runtime after the object in this order.
+                cxx = driver.with_name("aarch64-linux-gnu-g++")
+                foreign_exe = artifacts / "foreign-cxx"
+                subprocess.run([str(cxx), "-lstdc++", "-x", "c++", "-", "-o", str(foreign_exe)],
+                               input=b"int main() { auto p = new int(7); delete p; }\n", check=True)
+                self.assertEqual(elf_machine(foreign_exe), 183)
+                self.assertIn(b"libstdc++.so.6", foreign_exe.read_bytes())
                 flags.extend(["--host_platform=" + adapted["execution_platform"],
                               "--platforms=" + adapted["target_platform"]])
                 command = [*bazel_prefix, "build", *flags,

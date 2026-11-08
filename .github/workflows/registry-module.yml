@@ -102,6 +102,14 @@ jobs:
           artifact-ids: ${{ inputs.http_audit_artifact_id }}
           path: ${{ runner.temp }}/debian-http-audit
           merge-multiple: true
+      - name: Prepare a Debian ARM kernel for the Linux AIO test
+        if: inputs.cross_compile && inputs.module == 'rules_distroless'
+        run: |
+          sudo -n apt-get -q update
+          sudo -n apt-get -q -y --no-install-recommends install qemu-system-arm cpio
+          bundle="$RUNNER_TEMP/arm-kernel"
+          ci/arm_kernel_test/prepare.sh "$bundle"
+          echo "ARM_TEST_EXECUTOR=$bundle/executor" >> "$GITHUB_ENV"
       - name: Install Bazel 8.5.1
         run: |
           set -euo pipefail
