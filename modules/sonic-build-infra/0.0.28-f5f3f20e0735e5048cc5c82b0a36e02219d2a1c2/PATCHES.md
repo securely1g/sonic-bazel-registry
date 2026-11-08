@@ -1,15 +1,15 @@
 # Registry patches for build-infra .28
 
-The raw source is [sonic-build-infra 65c32bde](https://github.com/securely1g/sonic-build-infra/commit/65c32bdee82904de3edf1fa97325778bb574d5d8).
+The raw source is [sonic-build-infra f5f3f20e](https://github.com/securely1g/sonic-build-infra/commit/f5f3f20e0735e5048cc5c82b0a36e02219d2a1c2).
 Apply the complete patch set below in order with strip level 1, then the four
 registry overlays declared in `source.json`. The source archive's 439 files were
 checked byte-for-byte and mode-for-mode against that Git tree; its SHA-256 is
-`b386024a4a2e1d46041c2e74c827984e6975f5b087bdc2cb32b513279d8ffaa2`.
+`01905bbe18b91f319db83629cc0f90b8a6e297fd1e9cffb28cae320ebcf3f854`.
 
 ## 0001-bump-version.patch
 
 Purpose: align the distributed `MODULE.bazel` identity from `0.0.28` to this
-registry version, `0.0.28-65c32bdee82904de3edf1fa97325778bb574d5d8`, without
+registry version, `0.0.28-f5f3f20e0735e5048cc5c82b0a36e02219d2a1c2`, without
 changing dependencies or build behavior.
 
 Origin/reference: retain the version-alignment patch from the existing
@@ -21,7 +21,7 @@ source declares `0.0.28`; the commit-qualified registry identity is supplied by
 this patch. No upstream feature fix or upstream merge is claimed.
 
 Validation: the retained ordered-patch check applied this exact patch to the
-verified 65c Git preimage and compared the result with the registered MODULE.
+verified f5 Git preimage and compared the result with the registered MODULE.
 The patch integrity in `source.json` matches its bytes. No native validation was
 run as part of this registration refresh.
 
@@ -35,10 +35,10 @@ platform restrictions.
 Origin/reference: preserve the existing
 [PR287 visibility patch at 4b427f63](https://github.com/securely1g/sonic-bazel-registry/blob/4b427f63cc7493b20af9a95c0c77ca0d365e7f12/modules/sonic-build-infra/0.0.28-b55ad3322094b87a682b6ef22ec500696a183b6d/patches/0002-registry-cross-test-visibility.patch)
 byte-for-byte. Its preimage is
-[the pinned source's build-tool declarations](https://github.com/securely1g/sonic-build-infra/blob/65c32bdee82904de3edf1fa97325778bb574d5d8/tools/build_tools/BUILD.bazel).
+[the pinned source's build-tool declarations](https://github.com/securely1g/sonic-build-infra/blob/f5f3f20e0735e5048cc5c82b0a36e02219d2a1c2/tools/build_tools/BUILD.bazel).
 
 Upstream status: those two public-visibility additions are absent from the
-pinned 65c source and remain an external registry patch. No upstream submission
+pinned f5 source and remain an external registry patch. No upstream submission
 or merge evidence is recorded here.
 
 Validation: the retained ordered-patch check applied this unchanged patch after
