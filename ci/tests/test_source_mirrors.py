@@ -144,6 +144,45 @@ class PythonReleaseIndexMirrorTest(unittest.TestCase):
                 self.assertFalse(any(re.fullmatch(pattern, other) for pattern, _ in rewrites), other)
 
 
+class OwnerArchiveMirrorScopeTest(unittest.TestCase):
+    COMMITS = (
+        "58112470001b1c450fd9e859079e92c62c236242",
+        "c53741eb56e55e4f1c9b48c577ed5de986e62192",
+    )
+
+    def candidates(self, url):
+        rewrites = [line.split()[1:] for line in (ROOT / "ci/source_mirrors.cfg").read_text().splitlines()
+                    if line.startswith("rewrite ")]
+        return [replacement for pattern, replacement in rewrites
+                if re.fullmatch(pattern, url.removeprefix("https://"))]
+
+    def test_exact_locked_sources_try_codeload_then_original(self):
+        for commit in self.COMMITS:
+            with self.subTest(commit=commit):
+                upstream = f"https://github.com/securely1g/sonic-build-infra/archive/{commit}.tar.gz"
+                direct = f"https://codeload.github.com/securely1g/sonic-build-infra/tar.gz/{commit}"
+                self.assertEqual(self.candidates(upstream), [direct, upstream])
+                self.assertEqual(self.candidates(direct), [])
+
+    def test_other_sources_and_archive_formats_are_not_rewritten(self):
+        for commit in self.COMMITS:
+            upstream = f"https://github.com/securely1g/sonic-build-infra/archive/{commit}.tar.gz"
+            for other in (
+                upstream.replace(commit, "0" * 40),
+                upstream.replace(commit, "main"),
+                upstream.replace(commit, commit[:12]),
+                upstream.replace("securely1g/", "another-owner/"),
+                upstream.replace("sonic-build-infra/", "another-repository/"),
+                upstream.replace("github.com/", "another.example/"),
+                upstream.replace(".tar.gz", ".zip"),
+                upstream.replace("/archive/", "/archive/refs/tags/"),
+                upstream + "?query", upstream + ".sig", upstream + "/",
+                f"https://api.github.com/repos/securely1g/sonic-build-infra/tarball/{commit}",
+            ):
+                with self.subTest(url=other):
+                    self.assertEqual(self.candidates(other), [])
+
+
 class ArmSourceMirrorScopeTest(unittest.TestCase):
     def test_only_exact_pinned_arm_urls_get_github_then_upstream_candidates(self):
         rewrites = [line.split()[1:] for line in (ROOT / "ci/source_mirrors.cfg").read_text().splitlines()
