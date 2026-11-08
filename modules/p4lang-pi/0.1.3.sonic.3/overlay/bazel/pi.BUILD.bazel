@@ -76,6 +76,7 @@ configure_make(
     build_data = [
         "@sonic_build_infra//tools/build_tools:foreign_runtime",
         "@sonic_build_infra//tools/build_tools:configure_environment.sh",
+        "@sonic_build_infra//tools/build_tools:configure_linker_flags.sh",
     ],
     configure_command = "bazel/configure.sh",
     configure_in_place = True,
@@ -83,7 +84,8 @@ configure_make(
         "--with-proto",
         "--with-cli",
     ],
-    configure_prefix = "/bin/sh",
+    # Save large linker environments before starting configure's first process.
+    configure_prefix = 'source "$$EXT_BUILD_ROOT$$/$(execpath @sonic_build_infra//tools/build_tools:configure_linker_flags.sh)" "$${BAZEL_FOREIGN_TOOLS}/bin/python3" /bin/sh',
     configure_xcompile = True,
     # The server uses -Werror; keep the toolchain's extra unused-RPC-parameter
     # diagnostics as warnings, as in the legacy build without -Wextra.
