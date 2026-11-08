@@ -37,6 +37,15 @@ inputs without changing their versions or checksums. Other new download location
 require explicit user approval; the existing transports below are not broadened
 or rewritten by this reader.
 
+Numeric GitHub release-asset API URLs (`https://api.github.com/repos/OWNER/REPO/releases/assets/ID`)
+can also supply pinned files. Pass `--github-token-env GITHUB_TOKEN` when the API
+requires authentication; the option names an explicitly provided environment
+variable. Tokens never belong in manifests or receipts and are sent only on the
+initial API request, never on redirects. Authentication is off by default, and
+the reader does not discover credentials or add fallback download locations.
+The [Bazelisk AMD64 manifest](github_sources/bazelisk-1.29.0-linux-amd64.json)
+pins the complete asset's size and SHA256 and publishes the verified file as `bazel`.
+
 The runner passes Bazel's standard `--experimental_downloader_config` with
 [`source_mirrors.cfg`](source_mirrors.cfg) to dependency preparation, builds,
 tests and output queries. Rewrites match only the archive and binary-package

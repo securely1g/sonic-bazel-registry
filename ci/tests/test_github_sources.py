@@ -498,5 +498,125 @@ class ArchiveTest(Fixture):
         self.assertFalse((self.root / "outside").exists())
 
 
+class ReleaseAssetAPITest(Fixture):
+    API = "https://api.github.com/repos/example/tools/releases/assets/123"
+    TOKEN = "fixture_github_token_do_not_log"
+
+    def api_source(self):
+        return {**direct(), "url": self.API}
+
+    def test_exact_asset_api_paths_and_redirects_only(self):
+        for initial in (True, False):
+            GITHUB.validate_url(self.API, initial=initial)
+            for url in (self.API + "?download=1", self.API + "#fragment",
+                        self.API.replace("/123", "/0"), self.API.replace("/123", "/latest"),
+                        self.API.replace("/assets/123", "/tags/v1"),
+                        self.API.replace("/example/", "/%65xample/"),
+                        self.API.replace("/tools/", "/../"),
+                        self.API.replace("api.github.com", "api.github.com.evil.test"),
+                        self.API.replace("api.github.com", "user:pass@api.github.com"),
+                        self.API.replace("api.github.com", "api.github.com:443")):
+                with self.subTest(url=url, initial=initial), self.assertRaises(GITHUB.SourceError):
+                    GITHUB.validate_url(url, initial=initial)
+
+    def test_api_authentication_never_follows_redirects(self):
+        opener = mock.Mock()
+        opener.open.return_value = FakeResponse(b"locked tool bytes", url=self.API)
+        with mock.patch.object(GITHUB, "build_opener", return_value=opener):
+            GITHUB.download(self.api_source(), self.root / "asset", github_token=self.TOKEN)
+        request = opener.open.call_args.args[0]
+        self.assertEqual(request.get_header("Accept"), "application/octet-stream")
+        self.assertEqual(request.get_header("Authorization"), "Bearer " + self.TOKEN)
+        self.assertNotIn("Authorization", request.headers)
+        handler = GITHUB.GitHubRedirectHandler()
+        for url in ("https://release-assets.githubusercontent.com/asset?signature=fixture",
+                    "https://objects.githubusercontent.com/asset?signature=fixture"):
+            request = handler.redirect_request(request, None, 302, "Found", {}, url)
+            self.assertIsNone(request.get_header("Authorization"))
+        with self.assertRaises(GITHUB.SourceError):
+            handler.redirect_request(request, None, 302, "Found", {}, "https://other.example/asset")
+
+    def test_no_implicit_credentials_or_authentication_on_non_api_sources(self):
+        for source, token in ((self.api_source(), None), (direct(), self.TOKEN)):
+            opener = mock.Mock()
+            opener.open.return_value = FakeResponse(b"locked tool bytes", url=source["url"])
+            with mock.patch.object(GITHUB, "build_opener", return_value=opener), \
+                    mock.patch.object(GITHUB.os.environ, "get", side_effect=AssertionError("No token lookup")):
+                GITHUB.download(source, self.root / "asset", github_token=token)
+            request = opener.open.call_args.args[0]
+            self.assertIsNone(request.get_header("Authorization"))
+            self.assertEqual(request.get_header("Accept"),
+                             "application/octet-stream" if source["url"] == self.API else None)
+
+    def test_api_binary_is_verified_before_publication_without_secret_receipt(self):
+        self.write_manifest(self.api_source())
+        opener = mock.Mock()
+        opener.open.return_value = FakeResponse(b"locked tool bytes", length="17",
+            url="https://release-assets.githubusercontent.com/asset?signature=fixture")
+        with mock.patch.object(GITHUB, "build_opener", return_value=opener):
+            result = GITHUB.prepare(self.manifest, self.distdir, self.cache, self.receipt,
+                                    github_token=self.TOKEN)
+        self.assertEqual((self.distdir / "tool.bin").read_bytes(), b"locked tool bytes")
+        self.assertEqual(result["files"][0]["sha256"], sha(b"locked tool bytes"))
+        self.assertNotIn(self.TOKEN, self.receipt.read_text())
+        self.assertNotIn("signature=", self.receipt.read_text())
+        self.assertEqual(opener.open.call_count, 1)
+
+    def test_api_unverified_response_is_not_published(self):
+        self.write_manifest(self.api_source())
+        opener = mock.Mock()
+        opener.open.return_value = FakeResponse(b"!" * 17, length="17", url=self.API)
+        with mock.patch.object(GITHUB, "build_opener", return_value=opener):
+            with self.assertRaisesRegex(GITHUB.SourceError, "SHA256"):
+                GITHUB.prepare(self.manifest, self.distdir, self.cache, self.receipt,
+                               github_token=self.TOKEN)
+        self.assertFalse(self.distdir.exists())
+        self.assertFalse(self.receipt.exists())
+
+    def test_api_errors_and_invalid_tokens_do_not_leak_or_retry(self):
+        for token in ("", "bad\nheader", "non-ascii-\u2603", "a" * 4097):
+            opener = mock.Mock()
+            with mock.patch.object(GITHUB, "build_opener", return_value=opener):
+                with self.assertRaises(GITHUB.SourceError) as caught:
+                    GITHUB.download(self.api_source(), self.root / "asset", github_token=token)
+            self.assertNotIn(token or "bad header", str(caught.exception))
+            opener.open.assert_not_called()
+        opener = mock.Mock()
+        opener.open.side_effect = HTTPError(self.API, 403, self.TOKEN, {}, None)
+        with mock.patch.object(GITHUB, "build_opener", return_value=opener):
+            with self.assertRaises(GITHUB.SourceError) as caught:
+                GITHUB.download(self.api_source(), self.root / "asset", github_token=self.TOKEN)
+        self.assertNotIn(self.TOKEN, str(caught.exception))
+        self.assertEqual(opener.open.call_count, 1)
+
+    def cli(self, *args):
+        return ["--manifest", str(self.manifest), "--distdir", str(self.distdir),
+                "--cache-dir", str(self.cache), "--receipt", str(self.receipt), *args]
+
+    def test_cli_reads_only_explicit_token_environment(self):
+        with mock.patch.object(GITHUB.os.environ, "get", wraps=GITHUB.os.environ.get) as lookup, \
+                mock.patch.object(GITHUB, "prepare") as prepare:
+            self.assertEqual(GITHUB.main(self.cli()), 0)
+        self.assertFalse(any(call.args[0] in ("GITHUB_TOKEN", "GH_TOKEN") for call in lookup.call_args_list))
+        self.assertIsNone(prepare.call_args.kwargs["github_token"])
+        with mock.patch.dict(GITHUB.os.environ, {"GITHUB_TOKEN": self.TOKEN}), \
+                mock.patch.object(GITHUB, "prepare") as prepare:
+            self.assertEqual(GITHUB.main(self.cli("--github-token-env", "GITHUB_TOKEN")), 0)
+        self.assertEqual(prepare.call_args.kwargs["github_token"], self.TOKEN)
+
+    def test_cli_invalid_or_missing_token_fails_before_preparation(self):
+        for name, value in (("BAD=NAME", self.TOKEN), ("GITHUB_TOKEN", None),
+                            ("GITHUB_TOKEN", ""), ("GITHUB_TOKEN", "bad\rheader")):
+            env = {} if value is None or name == "BAD=NAME" else {name: value}
+            errors = io.StringIO()
+            with mock.patch.dict(GITHUB.os.environ, env, clear=True), \
+                    mock.patch.object(GITHUB, "prepare") as prepare, \
+                    mock.patch.object(GITHUB.sys, "stderr", errors):
+                self.assertEqual(GITHUB.main(self.cli("--github-token-env", name)), 1)
+            prepare.assert_not_called()
+            if value:
+                self.assertNotIn(value, errors.getvalue())
+
+
 if __name__ == "__main__":
     unittest.main()

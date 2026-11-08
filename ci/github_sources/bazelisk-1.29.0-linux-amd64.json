@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "sources": [
+    {
+      "url": "https://api.github.com/repos/bazelbuild/bazelisk/releases/assets/406879103",
+      "format": "file",
+      "size": 6914232,
+      "sha256": "5a408715e932c0250d28bd84555f12edbf70117de42f9181691c736eacc4a992",
+      "files": [
+        {
+          "name": "bazel",
+          "size": 6914232,
+          "sha256": "5a408715e932c0250d28bd84555f12edbf70117de42f9181691c736eacc4a992",
+          "provenance": "https://github.com/bazelbuild/bazelisk/releases/download/v1.29.0/bazelisk-linux-amd64"
+        }
+      ]
+    }
+  ]
+}

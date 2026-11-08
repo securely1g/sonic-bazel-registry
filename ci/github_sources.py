@@ -59,12 +59,17 @@ def validate_url(url: str, *, initial: bool = True) -> None:
         port = parsed.port
     except ValueError:
         raise SourceError("Invalid download URL") from None
-    require(parsed.scheme == "https" and parsed.hostname in DELIVERY_HOSTS,
+    require(parsed.scheme == "https" and parsed.hostname in DELIVERY_HOSTS | {"api.github.com"},
             "Downloads must use an approved GitHub HTTPS host")
     require(parsed.username is None and parsed.password is None and port is None
             and parsed.netloc.lower() == parsed.hostname,
             "Download URL must not contain credentials or a port")
     require(not parsed.fragment, "Download URL must not contain a fragment")
+    if parsed.hostname == "api.github.com":
+        require(not parsed.query and re.fullmatch(
+            r"/repos/[A-Za-z0-9][A-Za-z0-9-]*/[A-Za-z0-9][A-Za-z0-9._-]*/releases/assets/[1-9][0-9]*",
+            parsed.path), "GitHub API inputs must name an exact release asset ID")
+        return
     if not initial:
         require(not parsed.query or parsed.hostname in
                 ("objects.githubusercontent.com", "release-assets.githubusercontent.com"),
@@ -216,12 +221,20 @@ def cached_file(path: Path, destination: Path, entry: dict) -> bool:
         return False
 
 
-def download(source: dict, destination: Path) -> None:
+def download(source: dict, destination: Path, *, github_token: str | None = None) -> None:
     """Bound bytes/time and sanitize errors, including signed CDN URL failures."""
     validate_url(source["url"])
     opener = build_opener(GitHubRedirectHandler())
     request = Request(source["url"], headers={"Accept-Encoding": "identity",
                                               "User-Agent": "sonic-github-sources/1"})
+    if urlsplit(source["url"]).hostname == "api.github.com":
+        request.add_header("Accept", "application/octet-stream")
+        if github_token is not None:
+            require(isinstance(github_token, str) and 0 < len(github_token) <= 4096
+                    and all(33 <= ord(c) <= 126 for c in github_token),
+                    "Invalid GitHub token environment value")
+            # urllib excludes unredirected headers when creating a redirect request.
+            request.add_unredirected_header("Authorization", "Bearer " + github_token)
     deadline = time.monotonic() + TRANSFER_SECONDS
     try:
         with opener.open(request, timeout=READ_TIMEOUT_SECONDS) as response:
@@ -324,7 +337,7 @@ def atomic_copy(source: Path, destination: Path) -> None:
 
 
 def prepare(manifest_path: Path, distdir: Path, cache_dir: Path, receipt: Path,
-            repository_cache: Path | None = None) -> dict:
+            repository_cache: Path | None = None, *, github_token: str | None = None) -> dict:
     manifest, manifest_sha256 = load_manifest(manifest_path)
     distdir, cache_dir, receipt = Path(distdir), Path(cache_dir), Path(receipt)
     require(receipt.resolve() != Path(manifest_path).resolve()
@@ -362,7 +375,10 @@ def prepare(manifest_path: Path, distdir: Path, cache_dir: Path, receipt: Path,
                 origin = "asset-cache"
             except (SourceError, OSError):
                 fetched = stage / "download.asset"
-                download(source, fetched)
+                if github_token is None:
+                    download(source, fetched)
+                else:
+                    download(source, fetched, github_token=github_token)
                 source_files(fetched, source, source_stage)
                 fetched.chmod(0o644)
                 fetched.replace(cached)
@@ -398,9 +414,19 @@ def main(argv=None) -> int:
     parser.add_argument("--cache-dir", required=True, type=Path)
     parser.add_argument("--receipt", required=True, type=Path)
     parser.add_argument("--repository-cache", type=Path)
+    parser.add_argument("--github-token-env", help="Explicit environment variable for GitHub release-asset API authentication")
     args = parser.parse_args(argv)
     try:
-        prepare(args.manifest, args.distdir, args.cache_dir, args.receipt, args.repository_cache)
+        github_token = None
+        if args.github_token_env is not None:
+            require(re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]{0,254}", args.github_token_env),
+                    "Invalid GitHub token environment variable name")
+            github_token = os.environ.get(args.github_token_env)
+            require(github_token is not None and 0 < len(github_token) <= 4096
+                    and all(33 <= ord(c) <= 126 for c in github_token),
+                    "GitHub token environment variable is missing or invalid")
+        prepare(args.manifest, args.distdir, args.cache_dir, args.receipt, args.repository_cache,
+                github_token=github_token)
     except (SourceError, OSError) as error:
         print(f"github_sources: {error}", file=sys.stderr)
         return 1
