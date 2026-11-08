@@ -1,6 +1,6 @@
 # DASH recursive Make compiler and linker flags
 
-Register [DASH #4](https://github.com/securely1g/DASH/pull/4) at `3bd0d9cdcaf6b527dcbe6e79f21331a6059d94df` as `0.0.3-3bd0d9cdcaf6b527dcbe6e79f21331a6059d94df`. The source owns the flag adapter and regression tests. Published DASH `.1` and `.2` entries remain unchanged; the registry patch only sets the module version and removes root-only review overrides.
+Register [DASH #4](https://github.com/securely1g/DASH/pull/4) at `1980c10e0d06380177d6dc411064e4d5d02724d0` as `0.0.3-1980c10e0d06380177d6dc411064e4d5d02724d0`. The source owns the flag adapter and regression tests. Published DASH `.1` and `.2` entries remain unchanged; the registry patch only sets the module version and removes root-only review overrides.
 
 For example, the [full VS build for buildimage #133](https://github.com/securely1g/sonic-buildimage/actions/runs/42457158787/job/128659011067) could not start DASH's declared Make executable: `Argument list too long` stopped `docker-syncd-vs.gz`. The new source runs its flag adapter before that first Make invocation, then reuses the shared infrastructure helpers inside the original recursive compile and link recipes.
 
@@ -18,5 +18,7 @@ This extends the original compiler-response fix for [Gearbox buildimage #154](ht
 The current graph selects infrastructure `0.0.28-58112470001b1c450fd9e859079e92c62c236242`, PI `0.1.3.sonic.3`, P4C `1.2.4.2.sonic.3`, Distroless `0.9.4.sonic.18` and TAR `0.10.5.sonic.2`. The source-owned root overrides allow standalone review; the registry removes those includes and resolves the complete candidate recipes normally. [PATCHES.md](PATCHES.md) describes the registry-only patch.
 
 Local validation of the unchanged production files passes the real GNU Make/GCC14 argument-vector regression, the normal Bazel `//bazel:make_flags_test`, and analysis of the actual DASH Make action. The analysis confirms both public helpers and their declared Python runtime are inputs and that the adapter runs before Make. These are flag-transport and action-wiring results, not a completed SDK or VS build.
+
+The source regression now checks the actual `E2BIG` errno from the captured oversized `MAKEFLAGS` export. Native Make prints `Argument list too long`, while the verified ARM emulator can report only child status 127. Small `/bin/true` controls establish executable availability first; an arbitrary status 127 is not accepted. The complete fixture passed on native AMD64 and the pinned ARM emulator, with all existing positive compiler/linker checks retained. Production helpers, BUILD rules, MODULE dependencies and workflows are unchanged from the previous candidate. Normal registry build/test acceptance is still required for this new source.
 
 Normal registry CI retains four public build targets and both tests (`runtime_test` and `make_flags_test`) on native AMD64 and ARM64, including the installed runtime/SDK/pipeline/GDB checks. Full package builds and image acceptance remain required on this exact source and dependency graph.
