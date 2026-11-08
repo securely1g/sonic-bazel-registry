@@ -1,7 +1,7 @@
 # Runtime preparation, shared APT inputs and configure argument transport
 
-This entry registers `sonic-build-infra@0.0.28-b5a6094d703f6cf8132edc7ceb0326a464e3c5d1` from the
-[combined source commit](https://github.com/securely1g/sonic-build-infra/commit/b5a6094d703f6cf8132edc7ceb0326a464e3c5d1).
+This entry registers `sonic-build-infra@0.0.28-b55ad3322094b87a682b6ef22ec500696a183b6d` from the
+[combined source commit](https://github.com/securely1g/sonic-build-infra/commit/b55ad3322094b87a682b6ef22ec500696a183b6d).
 It preserves [source #88](https://github.com/securely1g/sonic-build-infra/pull/88)'s
 original native-runtime preparation commit and closed-standard-descriptor fix,
 [source #90](https://github.com/securely1g/sonic-build-infra/pull/90)'s shared APT
@@ -27,6 +27,14 @@ requests now include the missing groups and a distinct
 set. All 2,184 previously shared package identities and checksums are retained;
 the canonical Orchagent closure additionally contains `lsb-base` metadata and
 documentation. Bookworm consumers can import the declared native-build inputs.
+
+The canonical catalog also declares the `libteam_deps` collection requested
+by the registered libteam owner. Without that collection, #133 cannot resolve
+libteam against the shared lock. This refresh preserves all 2,203 existing
+package records and all 44 existing collections unchanged, and adds the
+libteam collection with seven additional ARMHF package records. AMD64 and
+ARM64 reuse already locked records; existing consumers keep their versions
+and checksums.
 
 ## Concrete consumer examples
 
