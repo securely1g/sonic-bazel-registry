@@ -99,6 +99,51 @@ class PigzSourceMirrorScopeTest(unittest.TestCase):
             self.assertFalse(any(re.fullmatch(pattern, other) for pattern, _ in rewrites), other)
 
 
+class PythonReleaseIndexMirrorTest(unittest.TestCase):
+    def test_original_index_bytes_and_upstream_digest_provenance(self):
+        root = ROOT / "ci/python-build-standalone"
+        sources = json.loads((root / "provenance.json").read_text())["sources"]
+        self.assertEqual([source["release"] for source in sources],
+                         ["20260303", "20251031", "20241002"])
+        for source in sources:
+            with self.subTest(release=source["release"]):
+                data = (root / source["file"]).read_bytes()
+                self.assertEqual(len(data), source["size"])
+                self.assertEqual(hashlib.sha256(data).hexdigest(), source["sha256"])
+                lines = data.decode("ascii").splitlines()
+                self.assertEqual(len(lines), source["entries"])
+                self.assertTrue(all(re.fullmatch(r"[0-9a-f]{64}  [A-Za-z0-9][A-Za-z0-9._+/-]*", line)
+                                    for line in lines))
+                self.assertEqual(len({line.split("  ", 1)[1] for line in lines}), len(lines))
+                if source["release"] == "20241002":
+                    self.assertIsNone(source["upstream_digest"])
+                    self.assertEqual(source["verification"], "observed_hash_exact_metadata_asset")
+                else:
+                    self.assertEqual(source["upstream_digest"], "sha256:" + source["sha256"])
+                    self.assertEqual(source["verification"], "upstream_digest_matched")
+
+    def test_only_three_exact_indexes_use_immutable_github_text(self):
+        rewrites = [line.split()[1:] for line in (ROOT / "ci/source_mirrors.cfg").read_text().splitlines()
+                    if line.startswith("rewrite ")]
+        root = ROOT / "ci/python-build-standalone"
+        sources = json.loads((root / "provenance.json").read_text())["sources"]
+        data_commit = "40eb7f0224c73940cf3c1badb0f451dacf17365a"
+        for source in sources:
+            upstream = source["original_url"].removeprefix("https://")
+            mirror = ("https://raw.githubusercontent.com/securely1g/sonic-bazel-registry/" +
+                      data_commit + "/ci/python-build-standalone/" + source["file"])
+            self.assertEqual([replacement for pattern, replacement in rewrites
+                              if re.fullmatch(pattern, upstream)], [mirror])
+            archive = next(line.split("  ", 1)[1] for line in
+                           (root / source["file"]).read_text().splitlines()
+                           if line.split("  ", 1)[1].startswith("cpython-"))
+            for other in (upstream + "?query", upstream + ".sig", upstream + "/",
+                          upstream.replace(source["release"], "20200101"),
+                          upstream.replace("github.com", "another.example"),
+                          upstream.replace("SHA256SUMS", archive)):
+                self.assertFalse(any(re.fullmatch(pattern, other) for pattern, _ in rewrites), other)
+
+
 class ArmSourceMirrorScopeTest(unittest.TestCase):
     def test_only_exact_pinned_arm_urls_get_github_then_upstream_candidates(self):
         rewrites = [line.split()[1:] for line in (ROOT / "ci/source_mirrors.cfg").read_text().splitlines()

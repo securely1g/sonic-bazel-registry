@@ -67,9 +67,19 @@ graph. Individual manifests remain available.
 
 The runner passes Bazel's standard `--experimental_downloader_config` with
 [`source_mirrors.cfg`](source_mirrors.cfg) to dependency preparation, builds,
-tests and output queries. Rewrites match only the archive and binary-package
+tests and output queries. Rewrites match only the metadata, archive and binary-package
 URLs described below; registry order, module versions, source recipes and
 integrity values stay unchanged.
+
+The three Python-build-standalone `SHA256SUMS` indexes for `20260303`, `20251031`,
+and `20241002` use exact text retained at an immutable GitHub commit. Their
+[provenance](python-build-standalone/provenance.json) records official asset IDs,
+byte sizes and SHA256 values. The historical `20241002` asset has no upstream API
+digest; its recorded hash was observed during bounded acquisition. This preserves
+aspect_rules_py's existing release dates, parser and interpreter archive URLs.
+The unchanged extension does not hash the index download, so distdir cannot
+satisfy that request; the rewrite uses HTTPS rather than a new downloader.
+Interpreter archives continue to use the checksums from the unchanged index.
 
 BCR `pigz@2.8.bcr.2` requests `https://zlib.net/pigz/pigz-2.8.tar.gz`.
 That exact URL now tries the verified
