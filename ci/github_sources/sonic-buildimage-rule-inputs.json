@@ -70,6 +70,48 @@
           "provenance": "https://github.com/bazel-contrib/tar.bzl/releases/download/v0.10.5/tar.bzl-v0.10.5.tar.gz"
         }
       ]
+    },
+    {
+      "url": "https://api.github.com/repos/bazel-contrib/rules_oci/releases/assets/248251403",
+      "format": "file",
+      "size": 4103189,
+      "sha256": "5994ec0e8df92c319ef5da5e1f9b514628ceb8fc5824b4234f2fe635abb8cc2e",
+      "files": [
+        {
+          "name": "rules_oci-v2.2.6.tar.gz",
+          "size": 4103189,
+          "sha256": "5994ec0e8df92c319ef5da5e1f9b514628ceb8fc5824b4234f2fe635abb8cc2e",
+          "provenance": "https://github.com/bazel-contrib/rules_oci/releases/download/v2.2.6/rules_oci-v2.2.6.tar.gz"
+        }
+      ]
+    },
+    {
+      "url": "https://api.github.com/repos/bazel-contrib/rules_fuzzing/releases/assets/167789811",
+      "format": "file",
+      "size": 131113,
+      "sha256": "e6bc219bfac9e1f83b327dd090f728a9f973ee99b9b5d8e5a184a2732ef08623",
+      "files": [
+        {
+          "name": "rules_fuzzing-0.5.2.zip",
+          "size": 131113,
+          "sha256": "e6bc219bfac9e1f83b327dd090f728a9f973ee99b9b5d8e5a184a2732ef08623",
+          "provenance": "https://github.com/bazelbuild/rules_fuzzing/releases/download/v0.5.2/rules_fuzzing-0.5.2.zip"
+        }
+      ]
+    },
+    {
+      "url": "https://api.github.com/repos/bazel-contrib/jq.bzl/releases/assets/255753042",
+      "format": "file",
+      "size": 44874,
+      "sha256": "7b63435aa19cc6a0cfd1a82fbdf2c7a2f0a94db1a79ff7a4469ffa94286261ab",
+      "files": [
+        {
+          "name": "jq.bzl-v0.1.0.tar.gz",
+          "size": 44874,
+          "sha256": "7b63435aa19cc6a0cfd1a82fbdf2c7a2f0a94db1a79ff7a4469ffa94286261ab",
+          "provenance": "https://github.com/bazel-contrib/jq.bzl/releases/download/v0.1.0/jq.bzl-v0.1.0.tar.gz"
+        }
+      ]
     }
   ]
 }

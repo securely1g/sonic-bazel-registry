@@ -49,11 +49,15 @@ The [rules_cc 0.2.22 manifest](github_sources/rules-cc-0.2.22.json) retains the
 original TAR bytes and basename for the standard Bazel distdir; its BCR checksum
 and module version are unchanged.
 The [SONiC buildimage rule inputs](github_sources/sonic-buildimage-rule-inputs.json)
-prepare the already-pinned rules_cc 0.2.22, aspect_bazel_lib 2.19.3, rules_shell
-0.8.0, bazel_skylib 1.9.2 and tar.bzl 0.10.5 archives as unchanged files through
-this reader. The tar.bzl `.sonic.2` recipe uses the same upstream archive. This
-manifest adds no module dependencies, changes no versions or checksums, and does
-not claim a complete resolved module graph. Individual manifests remain available.
+prepare eight already-pinned archives: rules_cc 0.2.22, aspect_bazel_lib 2.19.3,
+rules_shell 0.8.0, bazel_skylib 1.9.2, tar.bzl 0.10.5, rules_oci 2.2.6,
+rules_fuzzing 0.5.2 and jq.bzl 0.1.0, as unchanged files through this reader.
+ZIP inputs also use `format: file`; Bazel receives the original archive bytes.
+The rules_fuzzing provenance retains BCR's bazelbuild URL; its release asset API
+uses the observed canonical bazel-contrib owner. The tar.bzl `.sonic.2` recipe
+uses the same upstream archive. This manifest adds no module dependencies,
+changes no versions or checksums, and does not claim a complete resolved module
+graph. Individual manifests remain available.
 
 The runner passes Bazel's standard `--experimental_downloader_config` with
 [`source_mirrors.cfg`](source_mirrors.cfg) to dependency preparation, builds,
