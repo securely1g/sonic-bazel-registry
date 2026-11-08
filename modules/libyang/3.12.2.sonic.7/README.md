@@ -5,12 +5,16 @@ builds and installed-runtime/package checks as `.sonic.6`. All seven build label
 and five test labels remain unchanged on AMD64 and ARM64. Published entries stay
 unchanged.
 
-It selects `sonic-build-infra@0.0.28-91047b9df85b8172e60084fd2722a62c39d79be0`
+It selects `sonic-build-infra@0.0.28-58112470001b1c450fd9e859079e92c62c236242`
 ([source PR #88](https://github.com/securely1g/sonic-build-infra/pull/88)) so
 `native_runtime_binary` prepares runtime files with a declared execution-platform
 Python while preserving target-CPU validation and real target binary execution.
 The direct `tar.bzl` request is aligned to `0.10.5.sonic.2`, already required by
 that infra source, so the declared consumer pin matches Bazel's selected version.
+
+This dependency refresh preserves the source, SDK and test implementations and
+the seven-build/five-test contract. Normal CI on the refreshed graph remains
+pending; the historical and focused results below keep their original scope.
 
 It also selects `rules_distroless@0.9.4.sonic.18` explicitly in the module and
 CI consumer. Its APT extension writes each transformed package catalog once and

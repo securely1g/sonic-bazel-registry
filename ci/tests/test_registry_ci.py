@@ -2398,6 +2398,25 @@ class BazelStartupArgumentTests(unittest.TestCase):
 
 
 class FetchedModuleTests(FixtureTestCase):
+    def test_verified_distdir_reaches_build_test_queries_and_rust_preparation(self) -> None:
+        with mock.patch.object(registry_ci, "prepare_github_sources", return_value=["--distdir=/verified/inputs"]) as prepare, \
+             mock.patch.object(registry_ci, "prepare_rust", wraps=registry_ci.prepare_rust) as rust, \
+             mock.patch.object(registry_ci, "run_logged", wraps=registry_ci.run_logged) as execute:
+            self.run_fixture("github-inputs", build_args=["--experimental_downloader_config=/private/config"])
+        self.assertEqual(prepare.call_args.args[1:4], ("alpha", "1.0.0", self.architecture))
+        self.assertIn("--distdir=/verified/inputs", rust.call_args.args[-1])
+        for call in execute.call_args_list:
+            if call.args[0][0] == str(self.fake_bazel):
+                self.assertIn("--distdir=/verified/inputs", call.args[0])
+                self.assertIn("--experimental_downloader_config=/private/config", call.args[0])
+
+    def test_github_input_failure_prevents_bazel_startup(self) -> None:
+        with mock.patch.object(registry_ci, "prepare_github_sources", side_effect=registry_ci.RegistryError("unverified GitHub input")), \
+             mock.patch.object(registry_ci, "run_logged") as execute:
+            with self.assertRaisesRegex(registry_ci.RegistryError, "unverified GitHub input"):
+                self.run_fixture("github-rejected")
+        execute.assert_not_called()
+
     def setUp(self) -> None:
         super().setUp()
         self.registry_entry = self.entry("alpha", "1.0.0")

@@ -29,6 +29,14 @@ repository branch-protection settings.
 
 ## Verified source mirrors
 
+For new GitHub-backed input sets, use the [shared manifest reader](github_sources/README.md)
+rather than adding a package-specific downloader. It retains the approved private
+Debian mirror path, checks GitHub redirects and verifies the selected bytes before
+starting Bazel. Its first data manifest generalizes registry #238's three Cosmos
+inputs without changing their versions or checksums. Other new download locations
+require explicit user approval; the existing transports below are not broadened
+or rewritten by this reader.
+
 The runner passes Bazel's standard `--experimental_downloader_config` with
 [`source_mirrors.cfg`](source_mirrors.cfg) to dependency preparation, builds,
 tests and output queries. Rewrites match only the archive and binary-package
@@ -941,6 +949,12 @@ Its four ARM64 builds and original uncached runtime test passed on the AMD64 Tri
 The test exercised the installed SDK, generated pipeline and detached debug symbols.
 [Validation evidence](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42180204936/job/127767804802)
 
+The current DASH route selects `0.0.3-3bd0d9cdcaf6b527dcbe6e79f21331a6059d94df`
+from registry PR #215, including its compiler and linker argument transport fix.
+It retains all four builds and adds the declared `make_flags_test` beside the
+runtime test. The qualification above is historical; validation of the current
+source and shared dependency selection is pending normal CI.
+
 The `linux-kernel` contract validates its declared helpers; it does not build or
 boot a kernel image. Passing tests only establish each module's existing
 presubmit contract, not broader undeclared functionality. Yang-model package outputs and TAR
@@ -1014,6 +1028,9 @@ BMv2 `1.15.0.sonic.4` qualified in a follow-up ARM64 cross-build on Trixie.
 Its original six builds and two uncached package and configure tests passed
 with the pinned GCC/G++ adapter and the corrected ARM guest executor.
 [Full validation](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42253892877/job/128015806637)
+
+This result is historical and used earlier dependency pins. The refreshed
+Infra `.28-5811247` and PI `.3` recipe selection still requires normal CI.
 
 The FIPS 0.0.6 cross job uses the ARM64 compression development libraries
 for the OpenSSL SDK test and a guest kernel for the vendor AF_ALG recipe.
