@@ -59,7 +59,7 @@ jobs:
       ${{ inputs.emulated_arm && contains(fromJSON('["p4c","p4lang-bmv2","sonic-dash"]'), inputs.module) && 4320
           || inputs.emulated_arm && contains(fromJSON('["sonic-swss","sonic-sairedis","sonic-swss-common"]'), inputs.module) && 1440
           || inputs.emulated_arm && 720
-          || contains(fromJSON(inputs.runner), 'debian-trixie-k3s-fleet-pilot') &&
+          || contains(fromJSON(inputs.runner), 'debian-trixie-container') &&
              contains(fromJSON('["p4c","p4lang-bmv2","sonic-dash"]'), inputs.module) && 360
           || 180 }}
     # Local native/cross jobs execute directly in the fresh Trixie runner.
@@ -71,7 +71,6 @@ jobs:
     env:
       DEBIAN_FRONTEND: noninteractive
       PILOT_EMULATED_ARM: ${{ inputs.emulated_arm }}
-      PILOT_POOL: ${{ contains(fromJSON(inputs.runner), 'debian-trixie-k3s-fleet-pilot') }}
       CI_MODULE: ${{ inputs.module }}
       CI_VERSION: ${{ inputs.version }}
       CI_ARCHITECTURE: ${{ inputs.architecture }}
@@ -107,11 +106,11 @@ jobs:
           apt-get install -y --no-install-recommends binutils build-essential ca-certificates curl gdb git libxml2 libzstd-dev patch pkg-config python3 tar unzip xz-utils zlib1g-dev zstd
       - name: Identify the checked-out mirror configuration
         id: mirror_config
-        if: ${{ contains(fromJSON(inputs.runner), 'self-hosted') && (contains(fromJSON(inputs.runner), 'debian-trixie-container') || contains(fromJSON(inputs.runner), 'debian-trixie-k3s-fleet-pilot')) && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && hashFiles('ci/private_mirrors.py') != '' }}
+        if: ${{ contains(fromJSON(inputs.runner), 'self-hosted') && contains(fromJSON(inputs.runner), 'debian-trixie-container') && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && hashFiles('ci/private_mirrors.py') != '' }}
         run: echo "kind=${{ hashFiles('ci/debian_snapshots.json') != '' && 'roots' || 'dated' }}" >> "$GITHUB_OUTPUT"
       - name: Download the optional same-run HTTP audit agent
         id: http_audit_download
-        if: ${{ inputs.http_audit_artifact_id != '' && contains(fromJSON(inputs.runner), 'self-hosted') && (contains(fromJSON(inputs.runner), 'debian-trixie-container') || contains(fromJSON(inputs.runner), 'debian-trixie-k3s-fleet-pilot')) && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) }}
+        if: ${{ inputs.http_audit_artifact_id != '' && contains(fromJSON(inputs.runner), 'self-hosted') && contains(fromJSON(inputs.runner), 'debian-trixie-container') && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) }}
         continue-on-error: true
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
@@ -199,7 +198,7 @@ jobs:
             fi
             git config --global --add safe.directory "$GITHUB_WORKSPACE"
           fi
-          if [[ "${PILOT_POOL:-false}" == true ]]; then
+          if [[ "$CI_EXECUTION_ARCHITECTURE" == amd64 || "${PILOT_EMULATED_ARM:-false}" == true ]]; then
             case "$CI_MODULE" in
               p4c|p4lang-bmv2|sonic-dash)
                 # Both P4C and BMv2 invoke make -j4 inside a single Bazel

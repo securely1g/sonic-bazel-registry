@@ -866,9 +866,13 @@ matrix. Pull requests validate latest configured versions; the explicit
 `all_versions` dispatch also surveys configured historical versions.
 Declaring an ARMHF layout in a module does not establish ARMHF build or execution coverage.
 
-### ARM64 builds on the K3s pilot runners
+### Full registry validation on the K3s runners
 
-For registry modules that require ARM64 build tools, the pilot runs the ARM64
+PR #270 runs every latest module validation on `debian-trixie-container`,
+including P4C on either architecture. Other pull requests select changed
+module rows and keep native ARM64 jobs on `ubuntu-24.04-arm`.
+
+For registry modules that require ARM64 build tools, the fleet validation runs the ARM64
 Bazel client, server, compilers and tests in the worker image's Debian ARM64
 filesystem with QEMU. The Bazel launcher selects that image's ARM64 OpenJDK 21
 with `--server_javabase`, uses OS-backed Java threads and limits the heap to

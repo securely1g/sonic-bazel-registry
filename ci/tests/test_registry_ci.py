@@ -2037,7 +2037,7 @@ class WorkflowMatrixTests(unittest.TestCase):
         script = "\n".join(line[10:] for line in script.splitlines())
         (root / "plan.json").write_text(json.dumps({"include": jobs}))
         return subprocess.run([sys.executable, "-I", "-S", "-c", script], cwd=root,
-                              env={**os.environ, "EVENT_NAME": "pull_request", "PILOT_POOL": str(pilot).lower(),
+                              env={**os.environ, "EVENT_NAME": "pull_request", "FLEET_VALIDATION": str(pilot).lower(),
                                    "GITHUB_OUTPUT": str(root / "outputs")}, text=True, capture_output=True)
 
     def test_split_plan_preserves_native_and_cross_jobs_and_marks_empty_groups(self):
@@ -2093,13 +2093,12 @@ class WorkflowMatrixTests(unittest.TestCase):
                     self.assertFalse((root / "outputs").exists())
                     continue
                 outputs = dict(line.split("=", 1) for line in (root / "outputs").read_text().splitlines())
-                self.assertEqual(outputs["pilot"], "true")
-                pilot = ["self-hosted", "Linux", "X64", "debian-trixie-k3s-fleet-pilot"]
-                large = [*pilot, "debian-trixie-k3s-fleet-pilot-large-disk"]
+                self.assertEqual(outputs["fleet_validation"], "true")
+                runner = registry_ci.RUNNERS["amd64"]
                 expected = [
-                    {**amd, "runner": large, "physical_architecture": "amd64", "emulated_arm": False},
-                    {**cross, "runner": pilot, "physical_architecture": "amd64", "emulated_arm": False},
-                    {**hosted, "runner": large, "physical_architecture": "amd64", "emulated_arm": True},
+                    {**amd, "runner": runner, "physical_architecture": "amd64", "emulated_arm": False},
+                    {**cross, "runner": runner, "physical_architecture": "amd64", "emulated_arm": False},
+                    {**hosted, "runner": runner, "physical_architecture": "amd64", "emulated_arm": True},
                 ]
                 self.assertEqual(json.loads((root / "plan.json").read_text())["include"], expected)
                 self.assertEqual(json.loads(outputs["matrix"])["include"], expected)
@@ -2123,7 +2122,7 @@ class WorkflowMatrixTests(unittest.TestCase):
                 self.assertIn(name + ": ${{ matrix." + name + " }}", block)
             self.assertIn("runner: ${{ toJSON(matrix.runner) }}", block)
             if architecture == "local":
-                self.assertIn("max-parallel: ${{ needs.plan.outputs.pilot == 'true' && 64 || 10 }}", block)
+                self.assertIn("max-parallel: ${{ needs.plan.outputs.fleet_validation == 'true' && 64 || 10 }}", block)
             else:
                 self.assertNotIn("max-parallel:", block)
             self.assertIn("emulated_arm: ${{ matrix.emulated_arm == true }}", block)
@@ -2402,7 +2401,7 @@ class TestContainerTests(unittest.TestCase):
             with self.subTest(module=module, arch=arch, emulated=emulated), tempfile.TemporaryDirectory() as tmp:
                 root = Path(tmp)
                 env = self.shell_environment(root, arch, arch, False)
-                env.update(CI_MODULE=module, PILOT_POOL="true", PILOT_EMULATED_ARM=str(emulated).lower(),
+                env.update(CI_MODULE=module, PILOT_EMULATED_ARM=str(emulated).lower(),
                            GNUMAKEFLAGS="-r --warn-undefined-variables")
                 subprocess.run(["bash", "-c", script], env=env, check=True, capture_output=True)
                 arguments = (root / "CAPTURE").read_text().splitlines()
@@ -2428,13 +2427,14 @@ class TestContainerTests(unittest.TestCase):
     def test_pilot_limits_nested_compilers_for_targets_and_tools(self):
         workflow = (registry_ci.ROOT / ".github/workflows/registry-module.yml").read_text()
         script = self.step(workflow, "Build and test through the registry")
-        for module, pilot, limited in (("p4c", True, True), ("sonic-dash", True, True),
-                                       ("p4lang-bmv2", True, True), ("libyang", True, False),
-                                       ("p4c", False, False), ("p4lang-bmv2", False, False)):
-            with self.subTest(module=module, pilot=pilot), tempfile.TemporaryDirectory() as temporary:
+        for module, arch, guest, limited in (("p4c", "amd64", False, True), ("sonic-dash", "amd64", False, True),
+                                             ("p4lang-bmv2", "amd64", False, True), ("libyang", "amd64", False, False),
+                                             ("p4c", "arm64", True, True), ("p4c", "arm64", False, False),
+                                             ("p4lang-bmv2", "arm64", False, False)):
+            with self.subTest(module=module, arch=arch, guest=guest), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
-                env = self.shell_environment(root, "amd64", "amd64", False)
-                env.update(CI_MODULE=module, PILOT_POOL=str(pilot).lower())
+                env = self.shell_environment(root, arch, arch, False)
+                env.update(CI_MODULE=module, PILOT_EMULATED_ARM=str(guest).lower())
                 subprocess.run(["bash", "-c", script], env=env, check=True, capture_output=True)
                 arguments = (root / "CAPTURE").read_text().splitlines()
                 for flag in ("--action_env", "--host_action_env"):

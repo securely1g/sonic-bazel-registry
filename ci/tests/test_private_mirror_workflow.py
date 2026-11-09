@@ -28,7 +28,6 @@ CHECKOUT_FILES = {
     "": (),
 }
 TRIXIE = ["self-hosted", "Linux", "X64", "debian-trixie-container"]
-PILOT = ["self-hosted", "Linux", "X64", "debian-trixie-k3s-fleet-pilot"]
 
 
 def expression_value(expression, context):
@@ -68,12 +67,11 @@ def mirror_kind(job, context):
 
 
 class PrivateMirrorSecretBoundaryTest(unittest.TestCase):
-    def test_only_the_same_repository_pilot_pr_selects_privileged_fleet_jobs(self):
+    def test_only_the_same_repository_validation_pr_selects_the_full_fleet_matrix(self):
         workflow = (WORKFLOWS / "registry-ci.yml").read_text()
         plan = workflow_job(workflow, "plan")
-        expression = re.search(r"runs-on: &trixie_runner >-\n\s+\$\{\{ (.*?) \}\}", plan, re.S)[1]
-        selector = " ".join(expression.splitlines())
-        pilot_flag = re.search(r"^          PILOT_POOL: \$\{\{ (.*) \}\}$", plan, re.M)[1]
+        self.assertIn("runs-on: &trixie_runner [" + ", ".join(TRIXIE) + "]", plan)
+        fleet_flag = re.search(r"^          FLEET_VALIDATION: \$\{\{ (.*) \}\}$", plan, re.M)[1]
         repo = "securely1g/sonic-bazel-registry"
         trusted = {"github.repository": repo, "github.event.pull_request.head.repo.full_name": repo,
                    "github.event_name": "pull_request", "github.event.pull_request.number": 270,
@@ -88,11 +86,10 @@ class PrivateMirrorSecretBoundaryTest(unittest.TestCase):
                                     "github.event.pull_request.head.repo.full_name": "fork/registry"}, False)):
             with self.subTest(changes=changes):
                 ctx = trusted | changes
-                self.assertEqual(bool(expression_value(pilot_flag, ctx)), expected)
-                self.assertEqual(expression_value(selector, ctx), PILOT if expected else TRIXIE)
+                self.assertEqual(bool(expression_value(fleet_flag, ctx)), expected)
                 for default in (TRIXIE, ["ubuntu-24.04-arm"]):
-                    unit_ctx = {"needs.plan.outputs.pilot": str(expected).lower(), "matrix.runner": default}
-                    self.assertEqual(expression_value(unit_selector, unit_ctx), PILOT if expected else default)
+                    unit_ctx = {"needs.plan.outputs.fleet_validation": str(expected).lower(), "matrix.runner": default}
+                    self.assertEqual(expression_value(unit_selector, unit_ctx), TRIXIE if expected else default)
         for job in ("cross_fixture", "required"):
             self.assertIn("runs-on: *trixie_runner", workflow_job(workflow, job))
 
@@ -167,7 +164,7 @@ class PrivateMirrorSecretBoundaryTest(unittest.TestCase):
         unit = workflow.split("  unit:\n", 1)[1].split("  cross_fixture:\n", 1)[0]
         download = step(unit, "Download the optional same-run HTTP audit agent")
         condition = re.search(r"^        if: \$\{\{ (.*) \}\}$", download, re.M)[1]
-        for runner, expected in ((TRIXIE, True), (PILOT, True), (["ubuntu-24.04-arm"], False)):
+        for runner, expected in ((TRIXIE, True), (["ubuntu-24.04-arm"], False)):
             self.assertEqual(expression_value(condition, {"matrix.runner": runner,
                                                          "needs.plan.outputs.http_audit_artifact_id": "123"}), expected)
     def test_live_mirror_probe_requires_an_explicit_manual_request(self):
@@ -206,13 +203,9 @@ class PrivateMirrorSecretBoundaryTest(unittest.TestCase):
             self.assertNotIn("secrets.", step(chooser, "Identify the checked-out mirror configuration"))
             for event, head, actor, runner, trusted in (
                 ("pull_request", "owner/repo", "maintainer", TRIXIE, True),
-                ("pull_request", "owner/repo", "maintainer", PILOT, True),
-                ("pull_request", "fork/repo", "contributor", PILOT, False),
-                ("pull_request", "owner/repo", "dependabot[bot]", PILOT, False),
-                ("pull_request_target", "owner/repo", "maintainer", PILOT, False),
-                ("pull_request", "owner/repo", "maintainer", ["debian-trixie-k3s-fleet-pilot"], False),
+                ("pull_request", "owner/repo", "maintainer", ["debian-trixie-container"], False),
                 ("pull_request", "owner/repo", "maintainer",
-                 ["self-hosted", "debian-trixie-k3s-fleet-pilot-other"], False),
+                 ["self-hosted", "debian-trixie-container-other"], False),
                 ("push", "", "maintainer", TRIXIE, True),
                 ("workflow_dispatch", "", "maintainer", TRIXIE, True),
                 ("pull_request", "fork/repo", "contributor", TRIXIE, False),
@@ -224,7 +217,7 @@ class PrivateMirrorSecretBoundaryTest(unittest.TestCase):
                 ("push", "", "maintainer", ["debian-trixie-container"], False),
             ):
                 # The cross fixture has a fixed Trixie label set in runs-on.
-                if name == "cross_fixture" and "self-hosted" in runner and runner not in (TRIXIE, PILOT):
+                if name == "cross_fixture" and "self-hosted" in runner and runner != TRIXIE:
                     continue
                 ctx = {"github.event_name": event, "github.actor": actor, "github.repository": "owner/repo",
                        "github.event.pull_request.head.repo.full_name": head, "matrix.runner": runner,
