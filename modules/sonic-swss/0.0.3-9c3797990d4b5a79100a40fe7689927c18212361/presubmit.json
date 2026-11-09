@@ -6,7 +6,7 @@
   "consumer_deps": [
     {
       "name": "sonic-build-infra",
-      "version": "0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568",
+      "version": "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e",
       "repo_name": "sonic_build_infra"
     },
     {
@@ -43,7 +43,9 @@
     "@sonic-swss//dist:swss_pkg",
     "@sonic-swss//dist:swss_pkg.debug_symbols",
     "@sonic-swss//dist:runtime_packages.json",
-    "@sonic-swss//crates/countersyncd:countersyncd"
+    "@sonic-swss//crates/countersyncd:countersyncd",
+    "@sonic-swss//dist:libteam_runtime",
+    "@sonic-swss//dist:libteam_debug"
   ],
   "test_targets": [
     "@sonic-swss//gcovpreload:gcovpreload_test",
