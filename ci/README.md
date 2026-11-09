@@ -428,6 +428,22 @@ The configuration declares:
 - `build_targets`: required output labels, including runtime and matching debug
   packages where the module provides them.
 - `test_targets`: explicit consumer and package test labels.
+- `additional_targets` (optional): append build or test labels for a declared
+  target architecture. The nonempty top-level lists run on every architecture.
+  For example, the DocBook runtime and its test require AMD64 execution tools.
+  A native AMD64 registration can add those labels under `amd64` while ARM64
+  runs the common targets. Cross jobs select by target architecture. Commands,
+  required output artifacts, verified tests and the receipt use that same list.
+
+  ```json
+  "additional_targets": {
+    "amd64": {
+      "build_targets": ["@sonic-build-infra//tools/build_tools:docbook_runtime"],
+      "test_targets": ["@sonic-build-infra//tools/build_tools:docbook_runtime_test"]
+    }
+  }
+  ```
+
 - `integration_test_module` (optional): an entry-relative directory containing a
   separate test module, for example `tests/integration`. CI copies its ordinary
   `MODULE.bazel`, `BUILD.bazel`, tests and fixtures into the fresh consumer. The
