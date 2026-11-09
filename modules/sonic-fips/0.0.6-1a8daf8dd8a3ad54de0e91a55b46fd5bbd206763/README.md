@@ -1,29 +1,30 @@
-# SONiC FIPS cumulative candidate `0.0.4`
+# SONiC FIPS runtime and debug TARs
 
-Registers landed source commit `ef423363e8fd50358f0aa2a8a20d3e08d4450a56`
-from [FIPS #12](https://github.com/securely1g/sonic-fips/pull/12). Its tree
-is identical to `sonic-fips` `main@15fcb926a302` (the merge commit of #12),
-so this one entry carries every fix landed on FIPS `main`:
+This version registers the merged OpenSSH libedit metadata fix from
+[sonic-fips #21](https://github.com/securely1g/sonic-fips/pull/21).
+The OpenSSH configure step queries the declared libedit pkg-config metadata
+while keeping the source-built OpenSSL 3.5.7 headers ahead of the SDK's generic
+include directory. Libedit's own include and library flags remain available
+to the feature and link probes.
 
-| FIPS PR | Change |
-| --- | --- |
-| [#9](https://github.com/securely1g/sonic-fips/pull/9), [#10](https://github.com/securely1g/sonic-fips/pull/10) | Kerberos/OpenSSH debug paths and OpenSSL compiler metadata normalization (published through `0.0.3-401a5d7e…`) |
-| [#11](https://github.com/securely1g/sonic-fips/pull/11) | SymCrypt provider/engine build-path RPATH padding (published as `0.0.3-44d18af6…` by registry #184) |
-| [#13](https://github.com/securely1g/sonic-fips/pull/13) | Declared source paths in SymCrypt assembly debug data (not registered before this entry) |
-| [#14](https://github.com/securely1g/sonic-fips/pull/14) | Ordered response files for large OpenSSH and Kerberos compiler flag lists (previously proposed by closed registry #194) |
-| [#15](https://github.com/securely1g/sonic-fips/pull/15) | OpenSSH selects the source OpenSSL SDK with `--with-ssl-dir`, so Debian 3.5.6 headers are no longer mixed with the source 3.5.7 library |
-| [#12](https://github.com/securely1g/sonic-fips/pull/12) | SymCrypt build metadata uses the pinned source timestamp |
+The source archive is pinned to
+[18a778db](https://github.com/securely1g/sonic-fips/commit/18a778db501d455f8a1b6d1e3ef8e17121661177).
+The registry patch appends this commit to the upstream module version. The
+registered build and test targets are listed in [presubmit.json](presubmit.json).
+Both native AMD64 and ARM64 consumers build the OpenSSL, OpenSSH, Kerberos and
+SymCrypt outputs and run the package, timestamp and OpenSSL integration tests.
 
-The minor version is bumped to `0.0.4` so Bzlmod selects this entry over
-every published `0.0.3-<sha>` without relying on SHA-suffix ordering.
+## ARM64 cross-validation
 
-The ordinary native AMD64/ARM64 consumer selects published Distroless
-`0.9.4.sonic.16` (registry #200, which fixes target-CPU header selection);
-the owner's module minimum remains `.13`. All 18 runtime/debug/SDK/metadata
-outputs and the installed/integration tests are retained, and SymCrypt's new
-`timestamp_test` from #12 is added to the validation targets.
+The registry presubmit retains all 18 build targets and six package tests.
+On AMD64-to-ARM64 runs, Kerberos measures its three configure answers with
+the selected target compiler and ARM runtime. All original OpenSSL recipes
+use target Perl. Only `30-test_afalg.t` invokes the worker's ARM64 kernel
+executor for Linux native asynchronous I/O. The guest's development packages
+supply zlib and Zstandard for the original static SDK consumer.
 
-No crypto, entropy, integrity sealing or DEB output is changed. Sealed-core
-and whole-image reproducibility remain separate, unproven claims. Consumers
-with an explicit FIPS `single_version_override` must update it to this direct
-pin and verify the fetched MODULE.
+This route uses the worker's corrected userspace executor, ARM compression
+development packages and explicit kernel executor. See
+[worker #92](https://github.com/securely1g/agi-projects/pull/92),
+[worker #93](https://github.com/securely1g/agi-projects/pull/93) and
+[worker #94](https://github.com/securely1g/agi-projects/pull/94).
