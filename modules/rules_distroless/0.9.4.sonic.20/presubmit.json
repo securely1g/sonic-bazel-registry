@@ -42,7 +42,11 @@
     "@rules_distroless//apt/tests:locked_import/closure",
     "@rules_distroless//apt/tests:locked_import/invalid_lock",
     "@rules_distroless//apt/tests:locked_import/selection",
+    "@rules_distroless//apt/tests:locked_import/routing",
+    "//:mixed_lock_routing_test",
     "//:archive_contract_test",
+    "//:shared_lock_archive_contract_test",
+    "//:shared_lock_group_selection_test",
     "//:fixture_regeneration_test",
     "@rules_distroless//apt/private:install_test",
     "@rules_distroless//registry_ci:original_deb_test",
@@ -54,7 +58,14 @@
     "@rules_distroless//registry_ci:lua_single_library_test",
     "@rules_distroless//registry_ci:linux_headers_test",
     "@rules_distroless//registry_ci:linux_headers_provider_test",
-    "@rules_distroless//apt/private:relocate_pkgconfig_test"
+    "@rules_distroless//apt/private:relocate_pkgconfig_test",
+    "//native_runtime:indirect_dependency_test",
+    "//native_headers:default_test",
+    "//native_headers:transitive_test",
+    "//native_headers:overlay_test",
+    "//native_headers:without_pkgconfig_test",
+    "//native_headers:unmatched_modules_test",
+    "//native_catalog:declared_tools_test"
   ],
   "integration_test_module": "tests/integration"
 }
