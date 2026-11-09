@@ -1,6 +1,6 @@
 # SWSS with the shared libteam owner
 
-This entry registers [SWSS source f85dc016](https://github.com/securely1g/sonic-swss/commit/f85dc016197a9a2c91e36cc6eb4445fabf65fa9d), proposed in [source PR #10](https://github.com/securely1g/sonic-swss/pull/10). Its declared module base is `0.0.2`; the registry version appends that exact source commit. The only source patch changes this module identity. Program versions, SONAMEs and existing Make/DEB recipes are unchanged.
+This entry registers [SWSS source ee5a197a](https://github.com/securely1g/sonic-swss/commit/ee5a197adb6ae19c891a8844017d590969a10e4c), the landed squash of [source PR #10](https://github.com/securely1g/sonic-swss/pull/10) on SWSS `master`. Its declared module base is `0.0.2`; the registry version appends that exact source commit. The only source patch changes this module identity. Program versions, SONAMEs and existing Make/DEB recipes are unchanged.
 
 | Consumer input | Published `0.0.1-88d9cc2b...` | This entry |
 | --- | --- | --- |

@@ -4,7 +4,7 @@ This registry-only identity patch lets external consumers select SWSS's native
 libteam providers and separate runtime/debug TAR exports without changing
 program versions, native build inputs, SONAMEs or Debian packaging.
 
-Source: https://github.com/securely1g/sonic-swss/commit/f85dc016197a9a2c91e36cc6eb4445fabf65fa9d
+Source: https://github.com/securely1g/sonic-swss/commit/ee5a197adb6ae19c891a8844017d590969a10e4c
 Scope: Registry version metadata; maintained with this registration.
 
 --- a/MODULE.bazel
@@ -14,7 +14,7 @@ Scope: Registry version metadata; maintained with this registration.
  module(
      name = "sonic-swss",
 -    version = "0.0.2",
-+    version = "0.0.2-f85dc016197a9a2c91e36cc6eb4445fabf65fa9d",
++    version = "0.0.2-ee5a197adb6ae19c891a8844017d590969a10e4c",
      bazel_compatibility = [
          ">=8.5.1",
          "<=8.5.1",
