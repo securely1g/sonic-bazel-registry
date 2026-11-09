@@ -957,6 +957,12 @@ and runs a consumer of the installed ARM64 SDK and converts P4Info using the
 installed tools. All four original builds and the uncached test passed.
 [Full ARM64 validation](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42180002707/job/127767164854)
 
+The iproute2 6.15.0.sonic.7 cross route builds all four original targets and
+executes both original tests. Its runtime test checks the package, and the
+configure test invokes ARM GCC and recursive Make. The runner image needs the
+PRoot fixes for guest GCC discovery and Linux exec argument limits. Roll out
+that image before enabling this route in production.
+[Qualified ARM job](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42200862212/job/127848280179) · [Runner image change](https://github.com/securely1g/agi-projects/pull/92)
 
 The gawk smoke test uses gawk as a native execution tool while the direct gawk
 build targets ARM64. Test execution follows the declared Bazel configuration;
