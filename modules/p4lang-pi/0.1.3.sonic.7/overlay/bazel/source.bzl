@@ -5,6 +5,8 @@ def _impl(ctx):
     # This source package has no Debian patches. Do not silently ignore a series.
     if ctx.path("debian/patches/series").exists:
         fail("Unexpected Debian patch series in pinned PI source")
+    # Check the vendored build source directly during cross configuration.
+    ctx.patch(ctx.attr.cross_configure_patch, strip = 1)
     # Mirror the source adjustment in the exact Debian rules used by SONiC.
     proto = "proto/p4runtime/proto/p4/config/v1/p4info.proto"
     ctx.file(proto, ctx.read(proto).replace("optional ", ""), executable = False)
@@ -23,5 +25,6 @@ pi_source = repository_rule(implementation = _impl, attrs = {
     "debian_url": attr.string(mandatory = True), "debian_sha256": attr.string(mandatory = True),
     "build_file": attr.label(mandatory = True, allow_single_file = True),
     "configure_file": attr.label(mandatory = True, allow_single_file = True),
+    "cross_configure_patch": attr.label(mandatory = True, allow_single_file = True),
     "runtime_file": attr.label(mandatory = True, allow_single_file = True),
 })
