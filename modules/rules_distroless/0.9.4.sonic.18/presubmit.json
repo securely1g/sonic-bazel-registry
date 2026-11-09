@@ -64,7 +64,8 @@
     "//native_headers:transitive_test",
     "//native_headers:overlay_test",
     "//native_headers:without_pkgconfig_test",
-    "//native_headers:unmatched_modules_test"
+    "//native_headers:unmatched_modules_test",
+    "//native_catalog:declared_tools_test"
   ],
   "integration_test_module": "tests/integration"
 }

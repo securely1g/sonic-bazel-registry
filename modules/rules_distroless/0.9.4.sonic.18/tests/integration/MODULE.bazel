@@ -69,3 +69,6 @@ use_repo(
     header_plain = "header-fixture_plain-dev-all_1",
     header_unmatched = "header-fixture_unmatched-dev-all_1",
 )
+
+check_catalog_tools = use_repo_rule("//native_catalog:fixtures.bzl", "check_catalog_tools")
+check_catalog_tools(name = "checked_native_catalog_tools")

@@ -144,7 +144,7 @@ consumer that accepts those compiler flags. The flags remain in the metadata.
 Legacy labels retain their existing compiler-option compatibility behavior. These field semantics follow the
 [pkg-config guide](https://people.freedesktop.org/~dbn/pkg-config-guide.html).
 
-Requires names and version predicates are resolved by the host pkg-config tool
+Requires names and version predicates are resolved by the locked pkgconf executable
 against a private directory built from the locked package metadata. Providers
 can belong to another reviewed collection without being Debian package
 dependencies. The generated catalog separates target architectures and source
@@ -152,7 +152,12 @@ families connected by reviewed dependency edges. Multiple unresolved providers
 produce an explicit ambiguity diagnostic. Missing providers stay errors on the
 explicit module interface; they do not trigger package resolution or lock writes. The host's
 PKG_CONFIG_PATH, PKG_CONFIG_LIBDIR and sysroot settings do not supply modules.
-This requires pkg-config on the build host. Metadata archives use the same URLs
+On Linux AMD64 and ARM64, the importer bootstraps pkgconf, file, readelf,
+their runtime libraries and the magic database from the checksummed
+[build-infra tools lock](https://github.com/securely1g/sonic-build-infra/blob/08e0956f80574b27a9b68e72fe855cc0089058e5/apt/apt.lock.json).
+Bazel downloads these exact archives through its configured downloader. It uses
+the host architecture for the tools even when inspecting target packages for
+another architecture. Metadata archives use the same URLs
 and checksums as their locked DEBs. No lock-format or request-file change is
 needed to adopt these interfaces.
 
