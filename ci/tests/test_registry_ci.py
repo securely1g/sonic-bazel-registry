@@ -2330,6 +2330,32 @@ class TestContainerTests(unittest.TestCase):
                 self.assertNotEqual(result.returncode, 0)
                 self.assertFalse((root / "CAPTURE").exists())
 
+    def test_local_p4_builds_limit_make_for_targets_and_tools(self):
+        workflow = (registry_ci.ROOT / ".github/workflows/registry-module.yml").read_text()
+        script = self.step(workflow, "Build and test through the registry")
+        for module, target, execution, prior, expected in (
+            ("p4c", "amd64", "amd64", None, "--eval=.NOTPARALLEL:"),
+            ("p4c", "arm64", "amd64", "-r --warn-undefined-variables", "-r --warn-undefined-variables --eval=.NOTPARALLEL:"),
+            ("p4lang-bmv2", "amd64", "amd64", "", "--eval=.NOTPARALLEL:"),
+            ("sonic-dash", "arm64", "amd64", "-r", "-r --eval=.NOTPARALLEL:"),
+            ("p4c", "arm64", "arm64", "-r", None),
+            ("libyang", "amd64", "amd64", "-r", None),
+        ):
+            with self.subTest(module=module, target=target, execution=execution), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                env = self.shell_environment(root, target, execution, target != execution)
+                env["CI_MODULE"] = module
+                env.pop("GNUMAKEFLAGS", None)
+                if prior is not None:
+                    env["GNUMAKEFLAGS"] = prior
+                result = subprocess.run(["bash", "-c", script], env=env, capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                args = (root / "CAPTURE").read_text().splitlines()
+                self.assertEqual([arg for arg in args if "GNUMAKEFLAGS=" in arg], [] if expected is None else [
+                    "--bazel-build-arg=--action_env=GNUMAKEFLAGS=" + expected,
+                    "--bazel-build-arg=--host_action_env=GNUMAKEFLAGS=" + expected,
+                ])
+
     def test_module_archive_preserves_modes_and_uses_sudo_only_for_local_execution(self):
         workflow = (registry_ci.ROOT / ".github/workflows/registry-module.yml").read_text()
         script = self.step(workflow, "Archive module validation results")
