@@ -11,12 +11,16 @@ identical.
   and gawk labels in the Distroless module, including the gawk location expansion.
 - `0043-preserve-shared-pkgconfig-ownership.patch` removes the static anchor
   only for positively classified shared-only pkg-config inputs.
+- `0044-preserve-header-only-pkgconfig-ownership.patch` also permits generated
+  empty dynamic contracts without inherited linking inputs; all other contracts
+  retain the conservative anchor.
 
-These are the reviewed archive-tool and shared-only fixes from quiet integration
-`df58904`, also preserved in `4d4f688c`. Their code hunks are unchanged.
-The native-runtime fixture repeats a shared contract across two shared-library
-consumers. Landed 0040 (active-lock routing) and 0041 (locked catalog inspection
-tools) remain. New-version native validation is pending.
+These are the three reviewed fixes from quiet integration `df58904`, also
+preserved in `4d4f688c`. The archive-tools header now records the successor
+position; all three code hunks are unchanged. The native-runtime fixture retains
+the two shared-library consumers covering shared and header-only ownership.
+They do not replace landed 0040 (active-lock routing) or 0041 (locked catalog
+inspection tools). New-version native owner validation is pending.
 
 The following retained provenance describes the published `.18` predecessor.
 

@@ -46,7 +46,8 @@
     "0040-route-active-canonical-locks.patch": "sha256-BhNO8jIVt5dfh+nOU4NnT7N5VUqhzd6UgtcDyviAsH8=",
     "0041-declare-native-catalog-tools.patch": "sha256-hiqKP7Fo0QGlmAJWDze+WAOxKFHDhmLvfol8xkXqqas=",
     "0042-owner-scoped-archive-tools.patch": "sha256-F8SL4ErGDucu7y0iqWLTAbKPLZeyUS5C02Vq+Zcd/pI=",
-    "0043-preserve-shared-pkgconfig-ownership.patch": "sha256-/ogKWawlxB942d0SnLFOAMyQn+mZCbQAsE6yCSPUINY="
+    "0043-preserve-shared-pkgconfig-ownership.patch": "sha256-/ogKWawlxB942d0SnLFOAMyQn+mZCbQAsE6yCSPUINY=",
+    "0044-preserve-header-only-pkgconfig-ownership.patch": "sha256-zmAsDQW2bGvm6yDwHMRDFiCoCTyYzXz+040VKbA8ZgY="
   },
   "patch_strip": 1,
   "overlay": {

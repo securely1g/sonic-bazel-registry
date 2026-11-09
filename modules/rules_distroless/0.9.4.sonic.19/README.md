@@ -1,12 +1,13 @@
 # Distributed APT requests and workspace locks
 
 Version `0.9.4.sonic.19` preserves published `.18` and adds module-owned
-archive tool resolution plus conservative shared-only pkg-config ownership.
-The 41 landed behaviors, locked catalog tools and lock-routing tests remain.
-Positively classified shared-only inputs omit synthetic static-code ownership;
-unresolved/static inputs keep the existing conservative anchor.
+archive tool resolution plus conservative shared-only and header-only
+pkg-config ownership. The 41 landed behaviors, locked catalog tools and
+lock-routing tests remain. Shared/header-only inputs no longer acquire
+synthetic static-code ownership; unresolved/static inputs keep the existing
+conservative anchor.
 
-The native-runtime regression repeats a shared contract across two shared
+The native-runtime regression repeats both contracts across two shared
 libraries. New-version owner validation is pending; earlier consumer passes
 used the quiet `.18` recipe and are not `.19` acceptance.
 
