@@ -2,6 +2,7 @@ load("@rules_foreign_cc//foreign_cc:defs.bzl", "cmake")
 load("@rules_python//python:defs.bzl", "py_binary", "py_test")
 load("@sonic_build_infra//binary:keep_debug_info.bzl", "keep_debug_info")
 load("@sonic_build_infra//toolchains/gcc:defs.bzl", "bin")
+load(":bazel/codegen.bzl", "p4c_codegen")
 load(":bazel/runtime.bzl", "p4c_runtime")
 load(":bazel/tool.bzl", "p4c_tool")
 
@@ -97,10 +98,90 @@ py_binary(
     main = "bazel/python.py",
 )
 
+_BUILD_DEPS = [
+    "@p4c_deps//libboost-graph1.83-dev:libboost-graph1.83",
+    "@p4c_deps//libboost-iostreams1.83-dev:libboost-iostreams1.83",
+    "@p4c_deps//libfl-dev:libfl",
+    "@p4c_deps//libgc-dev:libgc",
+    "@p4c_deps//libgmp-dev:libgmp",
+    "@p4c_deps//zlib1g-dev:zlib1g",
+]
+
+# Consumed through build_data below, so this subset and its dependencies use
+# Bazel's execution platform even when the installed compiler targets ARM64.
+cmake(
+    name = "codegen_build",
+    build_args = ["-j2"],
+    build_data = [
+        ":python",
+        ":bazel/foreign.cmake",
+        "@sonic_build_infra//tools/build_tools:flex",
+        "@sonic_build_infra//tools/build_tools:bison",
+    ],
+    cache_entries = {
+        "CCACHE_PROGRAM": "OFF",
+        "BUILD_LINK_WITH_GOLD": "OFF",
+        "BUILD_LINK_WITH_LLD": "OFF",
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_PROJECT_P4C_INCLUDE": "$(execpath :bazel/foreign.cmake)",
+        "CMAKE_EXE_LINKER_FLAGS": "-Wl,-rpath-link,$$EXT_BUILD_DEPS$$/lib",
+        "PYTHON_EXECUTABLE": "$(execpath :python)",
+        "FLEX_EXECUTABLE": "$(execpath @sonic_build_infra//tools/build_tools:flex)",
+        "BISON_EXECUTABLE": "$(execpath @sonic_build_infra//tools/build_tools:bison)",
+        "Boost_NO_BOOST_CMAKE": "ON",
+        "ENABLE_BMV2": "OFF",
+        "ENABLE_EBPF": "OFF",
+        "ENABLE_UBPF": "OFF",
+        "ENABLE_DPDK": "OFF",
+        "ENABLE_P4C_GRAPHS": "OFF",
+        "ENABLE_P4TEST": "OFF",
+        "ENABLE_DOCS": "OFF",
+        "ENABLE_GC": "ON",
+        "ENABLE_GTESTS": "OFF",
+        "ENABLE_TEST_TOOLS": "OFF",
+        "ENABLE_PROTOBUF_STATIC": "ON",
+        "ENABLE_MULTITHREAD": "OFF",
+        "ENABLE_GMP": "ON",
+        "FETCHCONTENT_FULLY_DISCONNECTED": "ON",
+    },
+    configuration = "Release",
+    deps = _BUILD_DEPS,
+    env = {"P4C_VERSION": "1.2.4.2"},
+    features = ["-sanitize_pwd"],
+    generate_args = ["-GUnix Makefiles"],
+    install = False,
+    lib_name = "p4c-codegen",
+    lib_source = ":sources",
+    out_binaries = ["irgenerator", "protoc"],
+    postfix_script = "mkdir -p $$INSTALLDIR/bin $$INSTALLDIR/include; cp tools/ir-generator/irgenerator $$INSTALLDIR/bin/; cp _deps/protobuf-build/protoc $$INSTALLDIR/bin/",
+    targets = ["irgenerator", "protoc"],
+)
+
+[
+    filegroup(
+        name = "codegen_" + program + "_binary",
+        srcs = [":codegen_build"],
+        output_group = program,
+    )
+    for program in ["irgenerator", "protoc"]
+]
+
+[
+    p4c_codegen(
+        name = "codegen_" + program,
+        binary = ":codegen_" + program + "_binary",
+        runtime = [":gcc_runtime"],
+        deps = _BUILD_DEPS,
+    )
+    for program in ["irgenerator", "protoc"]
+]
+
 cmake(
     name = "build",
     build_args = ["-j4"],
     build_data = [
+        ":codegen_irgenerator",
+        ":codegen_protoc",
         ":python",
         ":bazel/foreign.cmake",
         "@sonic_build_infra//tools/build_tools:flex",
@@ -123,6 +204,8 @@ cmake(
         "PYTHON_EXECUTABLE": "$(execpath :python)",
         "FLEX_EXECUTABLE": "$(execpath @sonic_build_infra//tools/build_tools:flex)",
         "BISON_EXECUTABLE": "$(execpath @sonic_build_infra//tools/build_tools:bison)",
+        "P4C_IRGENERATOR_EXECUTABLE": "$(execpath :codegen_irgenerator)",
+        "PROTOBUF_PROTOC_EXECUTABLE": "$(execpath :codegen_protoc)",
         "Boost_NO_BOOST_CMAKE": "ON",
         "ENABLE_BMV2": "ON",
         "ENABLE_EBPF": "ON",
@@ -164,14 +247,7 @@ cmake(
     ],
     out_include_dir = "include",
     postfix_script = "mkdir -p $$INSTALLDIR/include $$INSTALLDIR/evidence; cp compile_commands.json CMakeCache.txt $$INSTALLDIR/evidence/",
-    deps = [
-        "@p4c_deps//libboost-graph1.83-dev:libboost-graph1.83",
-        "@p4c_deps//libboost-iostreams1.83-dev:libboost-iostreams1.83",
-        "@p4c_deps//libfl-dev:libfl",
-        "@p4c_deps//libgc-dev:libgc",
-        "@p4c_deps//libgmp-dev:libgmp",
-        "@p4c_deps//zlib1g-dev:zlib1g",
-    ],
+    deps = _BUILD_DEPS,
 )
 
 p4c_runtime(

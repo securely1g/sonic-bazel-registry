@@ -41,6 +41,21 @@ with host `ld.gold` installed can silently select it and fail to link
 `libc.so` and `libm.so` linker scripts. The native package test checks these
 persisted options and rejects an injected Gold/LLD selection.
 
+The eBPF kernel-version check parses the release already returned by `uname -r`.
+Cross-compilation leaves CMake's target system version unset, so parsing
+`CMAKE_SYSTEM` could produce an empty operand and fail configuration before any
+compiler build. The kernel feature check now uses the same detected release it
+reports, for both native and cross builds. Build targets and package tests are
+unchanged.
+
+The IR generator and Protobuf compiler run during the build. A separate CMake
+subset builds both with Bazel's execution-platform compiler and dependencies;
+`rules_foreign_cc` selects that configuration through its `build_data`
+transition. Their launchers include the declared dynamic loader and shared
+libraries. The main CMake build consumes those tools while retaining its target
+compiler, libraries and installed outputs. The IR-generator patch also keeps
+the original in-tree generator available when no external tool is supplied.
+
 ## Source provenance
 
 The compiler comes directly from upstream P4C commit
