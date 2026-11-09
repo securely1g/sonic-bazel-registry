@@ -43,6 +43,7 @@
     "@rules_distroless//apt/tests:locked_import/invalid_lock",
     "@rules_distroless//apt/tests:locked_import/selection",
     "@rules_distroless//apt/tests:locked_import/routing",
+    "//:mixed_lock_routing_test",
     "//:archive_contract_test",
     "//:shared_lock_archive_contract_test",
     "//:shared_lock_group_selection_test",

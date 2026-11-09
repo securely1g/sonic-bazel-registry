@@ -1,9 +1,12 @@
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load(":lock_routing_test.bzl", "mixed_lock_routing_test")
 
 package(default_visibility = ["//visibility:public"])
 
 exports_files(["apt.lock.json"])
+
+mixed_lock_routing_test(name = "mixed_lock_routing_test")
 
 filegroup(
     name = "archives",

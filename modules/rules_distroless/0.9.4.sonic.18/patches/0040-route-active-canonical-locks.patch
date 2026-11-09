@@ -1,0 +1,32 @@
+Subject: Check every active APT lock before choosing the legacy importer
+
+A root lock selects the package graph. A dependency's active canonical lock
+still requires the unified importer to validate requests against that graph.
+Ignored fallback imports remain outside both mode selection and file reads.
+
+diff --git a/apt/private/configuration.bzl b/apt/private/configuration.bzl
+--- a/apt/private/configuration.bzl
++++ b/apt/private/configuration.bzl
+@@ -113,7 +113,7 @@
+ 
+ def uses_unified_lock(mctx, source_document = None):
+     """Keep legacy per-lock imports unless the workspace selects unified inputs."""
+-    imports, selected = selected_lock_tags(mctx, require_one_root_lock = False)
++    imports, _ = selected_lock_tags(mctx, require_one_root_lock = False)
+     if source_document != None:
+         return True
+     for module in mctx.modules:
+@@ -125,9 +125,10 @@
+     for _, tag in imports:
+         if tag.libraries or tag.sources or tag.requests or tag.fallback:
+             return True
+-    # Canonical locks already carry their reviewed unified input identity.
+-    for _, tag in selected:
+-        if "_inputs" in json.decode(mctx.read(tag.lock)):
++    # A canonical dependency activates unified validation even under a legacy root.
++    # Read each effective document once when several tags request the same lock.
++    for lock in {tag.lock: True for _, tag in imports}:
++        if "_inputs" in json.decode(mctx.read(lock)):
+             return True
+     return False
+ 

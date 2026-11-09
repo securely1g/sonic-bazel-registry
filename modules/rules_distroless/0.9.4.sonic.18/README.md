@@ -46,8 +46,9 @@ then rejected those distinct documents before any native build action.
 | Duplicate legacy dependency-set names | Rejected | Still rejected |
 
 Unified mode is selected by source/request files, library imports, effective
-root fallbacks, root update/export/view tags, or the selected lock's `_inputs`
-record. An ignored dependency fallback cannot select this mode. The root's
+root fallbacks, root update/export/view tags, or an `_inputs` record in any
+active lock. A canonical dependency under a legacy root selects unified mode.
+Ignored dependency fallbacks are skipped before reading lock documents. The root's
 single-lock check and dependency fallback rules remain unchanged in unified
 mode. New mixed graphs must satisfy that mode's production-lock contract;
 this compatibility path does not relax it.
