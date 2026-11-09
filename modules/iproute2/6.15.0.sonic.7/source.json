@@ -3,13 +3,18 @@
   "strip_prefix": "iproute2-6.15.0",
   "integrity": "sha256-gEGFSoglg61SY0ZnNsnIxox0saNXVKt3DSM0P5R1KPs=",
   "overlay": {
-    "BUILD.bazel": "sha256-8HNqv8UUfS4Xdq8MPRiv4IqxzT5d6qPldPCX++lJW1w=",
-    "MODULE.bazel": "sha256-ATj8Ov/bZgnKdnR6nLqucriqh0LNlnLdXfC9IIGiVeI=",
-    "README.bazel.md": "sha256-f575zkJLWNzF7Mj9YCtw3rgYWFN1eKlzmfZdelfeFzU=",
+    "BUILD.bazel": "sha256-kJhsSpKEfggJZirTGp+C2OAR/fQX+3YozNjDq+BITYc=",
+    "MODULE.bazel": "sha256-/0QUSw8DwxjJbTU6PmAbLwtAoNpUjoh1eqN+VzQU7ko=",
+    "README.bazel.md": "sha256-yuelWWvFSFJXK/yEk63n7Lp/S9hdyMxcGHo+mYz1Sdk=",
     "bazel/0001-bridge-fdb-protocol.patch": "sha256-qdyXQnLw6BEAVws6m0r56Of6ShvXgavipuWe8i+ONUw=",
+    "bazel/configure.sh": "sha256-Nx0iISMVO9+86iOPsA4pBLtS3DqynH2F1+HWFewIPSA=",
+    "bazel/configure_flags_test.py": "sha256-e2szjQpvxqSJ+4iWIjBfLSEdHRTmD3ShQbVmR33o4D4=",
     "bazel/ematch_config_redirect.c": "sha256-xmLG3/bHzWnTmNFLWrTiWiXLT6j6XQOvgFW34IErXSQ=",
-    "bazel/iproute2.BUILD.bazel": "sha256-6Ae+4So6Z89owfZLVxiRiORF+dC2Lp02lS1hyUN0O6g=",
+    "bazel/iproute2.BUILD.bazel": "sha256-zWTwDMBYyGZoDyoQAT7iMYQMIdSQe2WzH5dqPSDNtq8=",
     "bazel/package_test.py": "sha256-Fgcw8eLXjM8miP/5MZwUwU4M4Xyrt7XdzGmDBlaKNAo=",
-    "runtime_packages.md": "sha256-eeebCpJHsmlx7C2cJk5j5HM7hSP5OGweGrNTWvbkxI0="
+    "bazel/runtime.bzl": "sha256-4PLUIsUruUoCRZ8fBYtqGJ4oP1gGIKCVsrWbQlDCGGE=",
+    "bazel/source.bzl": "sha256-6nhdqmYvf9lb+Tp49ITJ/e61n4PS8il1If3rbVCm7lo=",
+    "runtime_packages.md": "sha256-LtS1dgAhyjBMBtAJcf97+Kr64cC935yQJ9yx47P7YY8=",
+    "bazel/configure_netem.sh": "sha256-Y6K9FOkJiexryTOfBEVCNTaMcPizB2U9PdE/fiJ7UUQ="
   }
 }
