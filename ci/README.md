@@ -29,6 +29,14 @@ repository branch-protection settings.
 
 ## Verified source mirrors
 
+For new GitHub-backed input sets, use the [shared manifest reader](github_sources/README.md)
+rather than adding a package-specific downloader. It retains the approved private
+Debian mirror path, checks GitHub redirects and verifies the selected bytes before
+starting Bazel. Its first data manifest generalizes registry #238's three Cosmos
+inputs without changing their versions or checksums. Other new download locations
+require explicit user approval; the existing transports below are not broadened
+or rewritten by this reader.
+
 The runner passes Bazel's standard `--experimental_downloader_config` with
 [`source_mirrors.cfg`](source_mirrors.cfg) to dependency preparation, builds,
 tests and output queries. Rewrites match only the archive and binary-package
@@ -805,6 +813,19 @@ failed or incomplete contracts remain on native ARM while fixes are validated.
 
 Module steps execute directly inside the disposable runner, built from the
 pinned Trixie base with compiler and package-test tools preinstalled.
+Before Bazel runs, module validation and native/cross runner tests invoke
+[`prepare_repository_tools.sh`](prepare_repository_tools.sh). APT repository
+evaluation needs the host's `file` command and magic database to distinguish
+GNU linker scripts from ELF libraries. For example, ncurses' `libncursesw.so`
+contains `INPUT(libncursesw.so.6 -ltinfo)`; it must be classified as text rather
+than passed to `readelf` as an ELF file. The helper installs Debian package
+`file` when the command is missing, using sudo only for a non-root runner, and
+always checks this MIME classification. Failed package installation or an
+unusable magic database fails the job before repository evaluation. Hosted
+ARM module jobs also include `file` in their normal build-tool package list.
+The helper works with existing ephemeral images; preinstalling the package
+in the registry runner image avoids the bootstrap download.
+
 AMD64 does not start a second container or require a Docker daemon. Actions run
 as UID 1000; module validation and runtime package preparation use passwordless
 `sudo` inside the disposable container. Evidence is archived as root, then only
@@ -888,16 +909,14 @@ an ARM64 target, and an explicit disposable Debian Trixie container identity.
 The reusable workflow selects native Bazel, image, sudo and artifact handling by
 execution mode while preserving the target architecture and all original labels.
 
-The temporary `ARM_CROSS_VERSIONS` map selects only complete original contracts
-qualified in [the all-ARM survey](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416)
-at `88d24c7010a5affd9deb1286e63c5a23e246879c`. The job artifacts bind the exact
-source inputs, unchanged selected dependency versions, native execution and ARM
-target platforms, produced output identities, and every original uncached test.
-A successful build alone is not a module pass. Source-fix probes and diagnostic
-replays do not count as survey acceptance. Published-entry immutability remains
-enforced; the routing map changes execution placement only.
+The `ARM_CROSS_VERSIONS` map selects exact module versions for the Trixie
+cross-build pool. The initial 15 versions were validated in the [all-ARM
+survey](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416).
+Job artifacts record the selected dependency versions, native execution and ARM
+target platforms, output identities, and results of the original uncached tests.
+Historical versions outside the map use hosted ARM64.
 
-| Module | Exact version | Build / test labels | Survey evidence |
+| Module | Exact version | Build / test labels | ARM64 validation |
 | --- | --- | --- | --- |
 | `gawk` | `5.3.2.sonic.1` | 3 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127198380280) |
 | `gazelle` | `0.54.0.sonic.1` | 1 / 3 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127198380420) |
@@ -920,7 +939,43 @@ boot a kernel image. Passing tests only establish each module's existing
 presubmit contract, not broader undeclared functionality. Yang-model package outputs and TAR
 regression archives are architecture-neutral; their original target-side runtime
 tests remain required, and native execution tools retain their configurations.
-The remaining module failures stay visible in the survey and retain native ARM validation here.
+
+The initial survey also found that QEMU user-mode returns `ENOSYS` to Linux
+AIO in `rules_distroless@0.9.4.sonic.17`. Its ARM job runs the original
+`linux_headers_test` executable under a Debian ARM64 kernel using QEMU system
+emulation. The other 35 tests use the image's standard executor. The guest
+includes the runner's ARM loader and libc. Its console reports the test exit
+status to Bazel. [Full ARM validation](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42089131813/job/127462206254)
+
+The `rules_go` `0.65.0.sonic.1` follow-up moves both original test targets to
+the cross runners. Their ARM test processes invoke the native Bazel launcher
+inside fresh workspaces. Nested builds use the same cross compiler and sysroot
+as the outer build and check the architecture of each produced executable.
+All four original Go cases passed, including Cgo header propagation and build ID
+changes. [Full ARM64 validation](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42094050308/job/127479337371)
+
+Gazelle’s ARM Go test binaries use the same direct QEMU executor so a Go test
+can execute itself again through the kernel’s ARM interpreter. Its shell-based
+`go_proxy_test` uses the normal ARM runtime and its original mounts. All three
+tests run with the published integration module. [ARM64 validation](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42186480262/job/127787942313)
+
+
+P4C `1.2.4.2.sonic.3` also runs on the Debian cross runners. Its build uses
+native code generators, and its uncached package test uses the resulting ARM64
+compiler to translate P4 source to BMv2. All five original build targets passed.
+[Full ARM64 validation](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42087404563/job/127456109251)
+
+PI `0.1.3.sonic.3` also uses the Debian cross runners. Its runtime test builds
+and runs a consumer of the installed ARM64 SDK and converts P4Info using the
+installed tools. All four original builds and the uncached test passed.
+[Full ARM64 validation](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42180002707/job/127767164854)
+
+The iproute2 6.15.0.sonic.7 cross route builds all four original targets and
+executes both original tests. Its runtime test checks the package, and the
+configure test invokes ARM GCC and recursive Make. The runner image needs the
+PRoot fixes for guest GCC discovery and Linux exec argument limits. Roll out
+that image before enabling this route in production.
+[Qualified ARM job](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42200862212/job/127848280179) · [Runner image change](https://github.com/securely1g/agi-projects/pull/92)
 
 The gawk smoke test uses gawk as a native execution tool while the direct gawk
 build targets ARM64. Test execution follows the declared Bazel configuration;

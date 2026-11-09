@@ -2136,12 +2136,13 @@ class WorkflowMatrixTests(unittest.TestCase):
         self.assertIn("architecture: amd64", unit)
         self.assertIn("architecture: arm64", unit)
         self.assertIn("runner: [ubuntu-24.04-arm]", unit)
-        rows = re.findall(r"- architecture: (\w+)\n\s+runner: \[([^\]]+)\]\n"
+        self.assertIn("timeout-minutes: ${{ matrix.timeout_minutes }}", unit)
+        rows = re.findall(r"- architecture: (\w+)\n\s+timeout_minutes: (\d+)\n\s+runner: \[([^\]]+)\]\n"
                           r"\s+machine: (\w+)\n\s+bazel_arch: (\w+)\n\s+bazel_sha: ([0-9a-f]+)", unit)
         self.assertEqual(rows, [
-            ("amd64", "self-hosted, Linux, X64, debian-trixie-container", "x86_64", "x86_64",
+            ("amd64", "45", "self-hosted, Linux, X64, debian-trixie-container", "x86_64", "x86_64",
              "61d89402f0368e64b6c827be5de79d8e65382e8124c3cbb97325611a1851392e"),
-            ("arm64", "ubuntu-24.04-arm", "aarch64", "arm64",
+            ("arm64", "30", "ubuntu-24.04-arm", "aarch64", "arm64",
              "b7f2a85595e8a87d54843bc656c1e379fd9b8c1b5f783dc41717c1d7eb7cc49f"),
         ])
         self.assertNotIn("REGISTRY_CI_TEST_ARM_EXECUTOR", unit)
@@ -2388,6 +2389,25 @@ class BazelStartupArgumentTests(unittest.TestCase):
 
 
 class FetchedModuleTests(FixtureTestCase):
+    def test_verified_distdir_reaches_build_test_queries_and_rust_preparation(self) -> None:
+        with mock.patch.object(registry_ci, "prepare_github_sources", return_value=["--distdir=/verified/inputs"]) as prepare, \
+             mock.patch.object(registry_ci, "prepare_rust", wraps=registry_ci.prepare_rust) as rust, \
+             mock.patch.object(registry_ci, "run_logged", wraps=registry_ci.run_logged) as execute:
+            self.run_fixture("github-inputs", build_args=["--experimental_downloader_config=/private/config"])
+        self.assertEqual(prepare.call_args.args[1:4], ("alpha", "1.0.0", self.architecture))
+        self.assertIn("--distdir=/verified/inputs", rust.call_args.args[-1])
+        for call in execute.call_args_list:
+            if call.args[0][0] == str(self.fake_bazel):
+                self.assertIn("--distdir=/verified/inputs", call.args[0])
+                self.assertIn("--experimental_downloader_config=/private/config", call.args[0])
+
+    def test_github_input_failure_prevents_bazel_startup(self) -> None:
+        with mock.patch.object(registry_ci, "prepare_github_sources", side_effect=registry_ci.RegistryError("unverified GitHub input")), \
+             mock.patch.object(registry_ci, "run_logged") as execute:
+            with self.assertRaisesRegex(registry_ci.RegistryError, "unverified GitHub input"):
+                self.run_fixture("github-rejected")
+        execute.assert_not_called()
+
     def setUp(self) -> None:
         super().setUp()
         self.registry_entry = self.entry("alpha", "1.0.0")

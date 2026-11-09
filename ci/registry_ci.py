@@ -42,6 +42,10 @@ _AUTOCONF_SPEC = importlib.util.spec_from_file_location("registry_ci_cross_autoc
 assert _AUTOCONF_SPEC is not None and _AUTOCONF_SPEC.loader is not None
 cross_autoconf = importlib.util.module_from_spec(_AUTOCONF_SPEC)
 _AUTOCONF_SPEC.loader.exec_module(cross_autoconf)
+_GITHUB_SPEC = importlib.util.spec_from_file_location("registry_github_sources", Path(__file__).with_name("github_sources.py"))
+assert _GITHUB_SPEC is not None and _GITHUB_SPEC.loader is not None
+github_sources = importlib.util.module_from_spec(_GITHUB_SPEC)
+_GITHUB_SPEC.loader.exec_module(github_sources)
 RUNNERS = {
     "amd64": ["self-hosted", "Linux", "X64", "debian-trixie-container"],
     "arm64": ["ubuntu-24.04-arm"],
@@ -56,10 +60,15 @@ ARM_CROSS_ALL = False
 ARM_CROSS_VERSIONS: dict[str, tuple[str, ...]] = {
     "gawk": ("5.3.2.sonic.1",),
     "gazelle": ("0.54.0.sonic.1",),
+    "iproute2": ("6.15.0.sonic.7",),
     "libnl3": ("3.7.0.sonic.7",),
     "libyang-python": ("3.1.0.sonic.6",),
+    "p4c": ("1.2.4.2.sonic.3",),
+    "p4lang-pi": ("0.1.3.sonic.3",),
     "protobuf-legacy": ("3.21.12.sonic.2",),
+    "rules_distroless": ("0.9.4.sonic.17",),
     "rules_foreign_cc": ("0.16.0.sonic.1",),
+    "rules_go": ("0.65.0.sonic.1",),
     "rules_python": ("1.9.0.sonic.1",),
     "sai": ("1.18.0-sonic.1",),
     "socat": ("1.8.0.2.sonic.5",),
@@ -1144,7 +1153,7 @@ def prepare_rust(config: dict, consumer: Path, work_dir: Path, artifacts: Path,
                          if flag.startswith(("--registry=", "--lockfile_mode=", "--experimental_downloader_config=",
                                              "--http_connector_attempts=", "--http_connector_retry_max_timeout=",
                                              "--http_max_parallel_downloads=", "--jobs=",
-                                             "--discard_analysis_cache"))]
+                                             "--discard_analysis_cache", "--distdir="))]
     command = [sys.executable, str(helper), "--workspace", str(consumer),
                "--shared-only", "--shared-dependency",
                f"{preparation['module']}={preparation['repo_name']}",
@@ -1329,7 +1338,7 @@ def prepare_cross_python_runtimes(bazel_prefix: list[str], flags: list[str], tes
     fetch_flags = [flag for flag in flags if flag.startswith((
         "--registry=", "--lockfile_mode=", "--experimental_downloader_config=", "--override_module=",
         "--override_repository=", "--http_connector_attempts=", "--http_connector_retry_max_timeout=",
-        "--http_max_parallel_downloads="))]
+        "--http_max_parallel_downloads=", "--distdir="))]
     mappings = []
     for index, native in enumerate(runtimes):
         require((native / "STANDALONE_INTERPRETER").is_file(), "Expected a declared standalone Python runtime")
@@ -1349,6 +1358,93 @@ def prepare_cross_python_runtimes(bazel_prefix: list[str], flags: list[str], tes
                          "native": native_identity, "arm": arm_identity})
     (artifacts / "cross-python-runtimes.json").write_text(json.dumps(mappings, indent=2) + "\n")
     return mappings
+
+
+def github_source_manifests(root: Path, module: str, version: str,
+                            execution_architecture: str) -> list[Path]:
+    """Select exact transport inputs without changing a published module recipe."""
+    directory = root / "ci/github_sources"
+    catalog = directory / "catalog.json"
+    if not catalog.exists():
+        return []  # Older/fixture catalogs have no opt-in source sets.
+    value = read_json(catalog)
+    require(set(value) == {"schema_version", "inputs"} and type(value["schema_version"]) is int
+            and value["schema_version"] == 1 and isinstance(value["inputs"], list),
+            "Invalid GitHub source catalog")
+    seen, selected = set(), []
+    for item in value["inputs"]:
+        require(isinstance(item, dict) and set(item) == {
+            "module", "version", "execution_architecture", "manifests"}, "Invalid GitHub source selector")
+        require(isinstance(item["module"], str) and NAME.fullmatch(item["module"])
+                and isinstance(item["version"], str) and VERSION.fullmatch(item["version"])
+                and item["execution_architecture"] in ("amd64", "arm64"), "Invalid GitHub source identity")
+        identity = (item["module"], item["version"], item["execution_architecture"])
+        require(identity not in seen, "Duplicate GitHub source selector")
+        seen.add(identity)
+        manifests = item["manifests"]
+        require(isinstance(manifests, list) and bool(manifests)
+                and all(isinstance(name, str) and re.fullmatch(r"[a-z0-9][a-z0-9._-]*\.json", name)
+                        and name != "catalog.json" for name in manifests)
+                and len(manifests) == len(set(manifests)), "Invalid GitHub source manifest list")
+        if identity == (module, version, execution_architecture):
+            for name in manifests:
+                path = directory / name
+                require(path.is_file() and not path.is_symlink(), "Selected GitHub source manifest is missing or linked")
+                selected.append(path)
+    return selected
+
+
+def prepare_github_sources(root: Path, module: str, version: str, execution_architecture: str,
+                           work_dir: Path, artifacts: Path) -> list[str]:
+    flags = []
+    for manifest in github_source_manifests(root, module, version, execution_architecture):
+        # Separate generations let different versions reuse a URL basename.
+        generation = hashlib.sha256(manifest.read_bytes()).hexdigest()
+        distdir = work_dir / "github-inputs" / generation
+        try:
+            github_sources.prepare(manifest, distdir, work_dir / "github-downloads",
+                                   artifacts / "github-sources" / (generation + ".json"))
+        except (ValueError, OSError) as error:
+            raise RegistryError(f"GitHub source preparation failed: {error}") from error
+        flags.append(f"--distdir={distdir}")
+    return flags
+
+
+def prepare_nested_go_tests(root: Path, work_dir: Path, bazel: str) -> Path:
+    """Expose native Bazel and the outer ARM toolchain to the original Go tests."""
+    adapter = work_dir / "cross-cc-repository"
+    require((adapter / "BUILD.bazel").is_file(), "Nested rules_go tests require the isolated ARM toolchain")
+    host_bazel = shutil.which(bazel)
+    require(host_bazel is not None, f"Could not locate the native Bazel launcher: {bazel}")
+    source = root / "ci" / "rules_go_cross"
+    platforms = adapter / "nested"
+    platforms.mkdir()
+    shutil.copy2(source / "platforms.BUILD.bazel", platforms / "BUILD.bazel")
+    tools = work_dir / "nested-go-tools"
+    tools.mkdir()
+    shutil.copy2(source / "bazel", tools / "bazel")
+    shutil.copy2(source / "executor", tools / "executor")
+    (tools / "host-bazel").symlink_to(Path(host_bazel).absolute())
+    shutil.copy2(root / "ci" / "source_mirrors.cfg", tools / "source_mirrors.cfg")
+    return tools / "executor"
+
+
+def prepare_gazelle_tests(root: Path, work_dir: Path, script_executor: list[str]) -> Path:
+    """Run Go test binaries directly and preserve the target runtime for shell tests."""
+    tools = work_dir / "gazelle-test-tools"
+    tools.mkdir()
+    go = tools / "arm-go-test"
+    shutil.copy2(root / "ci" / "rules_go_cross" / "executor", go)
+    runner = tools / "executor"
+    runner.write_text(
+        '#!/bin/sh\nset -eu\n'
+        'if [ "$(head -c 2 -- "$1")" = "#!" ]; then\n'
+        f'    exec {shlex.join(script_executor)} "$@"\n'
+        'fi\n'
+        f'exec {shlex.quote(str(go))} "$@"\n'
+    )
+    runner.chmod(0o755)
+    return runner
 
 
 def run(root: Path, module: str, version: str, architecture: str,
@@ -1465,6 +1561,8 @@ def run(root: Path, module: str, version: str, architecture: str,
                  "--remote_download_regex=(^|.*/)tools/build_tools/kernel_runtime_(amd64|arm64)(/.*)?$",
                  *config.get("build_flags", []), *(bazel_build_args or [])]
         execution_architecture = "amd64" if cross_compile else architecture
+        flags.extend(prepare_github_sources(root, module, version, execution_architecture,
+                                            work_dir, artifacts))
         host_platform = config.get("host_platforms", {}).get(execution_architecture)
         if cross_compile and host_platform is None:
             host_platform = config["platforms"]["amd64"]
@@ -1506,7 +1604,7 @@ def run(root: Path, module: str, version: str, architecture: str,
             # flags whose apparent labels may be unresolved in a fresh info command.
             info_flags = [flag for flag in flags if flag.startswith(
                 ("--registry=", "--lockfile_mode=", "--experimental_downloader_config=",
-                 "--override_module=", "--override_repository="))]
+                 "--override_module=", "--override_repository=", "--distdir="))]
             execution_root = Path(subprocess.check_output([*prefix, "info", *info_flags, "execution_root"],
                                                          cwd=consumer, text=True).strip())
             collect_outputs(artifacts / "build-events.jsonl", config["build_targets"], work_dir, artifacts,
@@ -1543,6 +1641,14 @@ def run(root: Path, module: str, version: str, architecture: str,
                     executor_prefix[-1:-1] = ["--bind-at", mapping["source"], mapping["destination"]]
             test_flags = prepare_test_runtime(config, fetched[0].parent, consumer, artifacts,
                                               architecture, test_container_image, executor_prefix or None)
+            if cross_compile and module in {"rules_go", "gazelle"}:
+                if module == "rules_go":
+                    go_executor = prepare_nested_go_tests(root, work_dir, bazel)
+                else:
+                    go_executor = prepare_gazelle_tests(root, work_dir, executor_prefix)
+                executor_prefix = [str(go_executor)]
+                cross_runtime["test_executor_prefix"] = executor_prefix
+                cross_runtime["test_executor_sha256"] = hashlib.sha256(go_executor.read_bytes()).hexdigest()
             if executor_prefix:
                 test_flags.append("--run_under=" + shlex.join(executor_prefix))
             # Emulated Python can spend more than five minutes staging a large
