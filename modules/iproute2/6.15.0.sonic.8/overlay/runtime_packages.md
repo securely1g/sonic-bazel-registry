@@ -10,11 +10,11 @@ declared library metadata. It does not build Debian packages. The generated JSON
 and its staged dependency metadata can be consumed by other source packages and
 OCI inventory checks. No handwritten package-control JSON is maintained here.
 
-The native BUILD expands the fixed Debian changelog input from `6.15.0-1`
-to `6.15.0-1+sonic.0`, matching the version assignment in SONiC's
-`rules/iproute2.mk` and the wrapper's first-line substitution. The original
-Debian source changelog stays unchanged; the metadata action consumes the
-expanded changelog target. The Bazel module version is independent.
+Source preparation applies the existing SONiC `rules/iproute2.mk` version
+assignments to the first Debian changelog entry, matching `src/iproute2/Makefile`.
+Both recipe files are owned by buildimage; the version input is pinned by
+its source commit and checksum in `MODULE.bazel`. For the selected recipe this produces
+`6.15.0-1+sonic.0`, without another maintained version string here.
 
 The action reads the original `iproute2.templates` and `iproute2.config` and
 runs Debian's dependency helper. Its debconf requirement is therefore included
