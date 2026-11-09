@@ -848,15 +848,17 @@ persist credentials, and the workflow uses read-only repository permissions.
 
 Local native AMD64 and cross ARM module jobs pass
 `--bazel-startup-arg=--host_jvm_args=-Xmx2g` to bound
-Bazel's Java heap within each runner's 16 GiB memory limit. The runner accepts
+Bazel's Java heap within the worker's memory limit. The runner accepts
 repeated startup arguments, forwards them to build, test, cquery, info and Rust
 preparation, and records them in `validation.json`. Hosted native ARM keeps its
 default heap.
 Repeated `--bazel-build-arg` options reach build, test and output queries.
 Local module jobs use `--jobs=1` and `--discard_analysis_cache` to reduce concurrent
-compiler memory; Rust preparation receives those settings too. This limits
-concurrent Bazel actions; recipes may still request parallel compilation inside
-an action. The declared targets and published recipes stay unchanged. A single
+compiler memory; Rust preparation receives those settings too. For P4C, BMv2
+and DASH, the Trixie workflow also appends `--eval=.NOTPARALLEL:` to
+`GNUMAKEFLAGS` for target and execution-platform actions. This serializes
+compilers even when the recipe invokes Make with `-j4` in a 6 GiB slot.
+These three local jobs have a six-hour deadline. A single
 local module matrix combines native AMD64 and staged cross ARM jobs, with at most ten running
 per workflow run. Hosted native ARM has its own matrix. This is a module limit
 per run, not a host-wide limit across runs; planning, native unit tests, the cross
