@@ -4,14 +4,17 @@ load("@rules_distroless//apt/private:deb_import.bzl", "deb_import")
 load("@rules_distroless//apt/private:util.bzl", "util")
 
 def _fixtures_impl(ctx):
-    result = ctx.execute(["python3", ctx.path(ctx.attr.generator)])
+    result = ctx.execute([ctx.path(ctx.attr.interpreter), "-I", ctx.path(ctx.attr.generator)])
     if result.return_code:
         fail(result.stderr)
     ctx.file("BUILD.bazel", 'exports_files(glob(["*.deb", "*.sha256"]))\n')
 
 fixtures = repository_rule(
     implementation = _fixtures_impl,
-    attrs = {"generator": attr.label(default = "//native_headers:make_fixtures.py", allow_single_file = True)},
+    attrs = {
+        "generator": attr.label(default = "//native_headers:make_fixtures.py", allow_single_file = True),
+        "interpreter": attr.label(mandatory = True, allow_single_file = True),
+    },
 )
 
 def _imports_impl(ctx):
