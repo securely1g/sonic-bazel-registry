@@ -1,0 +1,342 @@
+diff --git a/apt/private/deb_import.bzl b/apt/private/deb_import.bzl
+--- a/apt/private/deb_import.bzl
++++ b/apt/private/deb_import.bzl
+@@ -14,7 +14,7 @@
+ load("@rules_distroless//apt/private:so_library.bzl", "so_library")
+ load("@rules_cc//cc:cc_import.bzl", "cc_import")
+ load("@rules_cc//cc:cc_library.bzl", "cc_library")
+-load("@rules_distroless//apt/private:cc_deb_library.bzl", "cc_deb_library")
++load("@rules_distroless//apt/private:cc_deb_library.bzl", "cc_deb_library", "native_library_group", "native_linker_script")
+ load("@bazel_skylib//rules/directory:directory.bzl", "directory")
+ 
+ exports_files(glob(["data.tar*"]), visibility = ["//visibility:public"])
+@@ -137,7 +137,49 @@
+ )
+ """
+ 
+-def _shared_library_exports(rctx, target_name, so_files, a_files, self_symlinks, toolchain_owned, o_files, script_linker_inputs, rpaths, depends_on, options):
++def _file_library_name(path):
++    return "_installed_library_" + util.sanitize(path)
++
++def _file_libraries(rctx, so_files, a_files, o_files, symlinks, self_symlinks, scripts, depends_file_map):
++    """Represent script and symlink references with exact native library edges."""
++    content = ""
++    targets = {}
++    runtime_paths = []
++    for path in so_files + a_files + o_files:
++        name = _file_library_name(path)
++        targets[path] = ":" + name
++        if path in scripts:
++            record = json.decode(scripts[path])
++            if record["unresolved"]:
++                fail("Unresolved linker-script inputs: " + str(record["unresolved"]))
++            deps = []
++            for repo, installed in record["paths"].values():
++                deps.append(":" + _file_library_name(installed) if repo == rctx.attr.name else "@@%s//:%s" % (repo, _file_library_name(installed)))
++            inputs = [installed if repo == rctx.attr.name else "@@%s//:%s" % (repo, installed) for repo, installed in record["paths"].values()]
++            content += 'native_linker_script(name=%r, src=%r, deps=%r, inputs=%r, visibility=["//visibility:public"])\n' % (name, path, deps, inputs)
++        elif path in self_symlinks:
++            content += 'alias(name=%r, actual=%r, visibility=["//visibility:public"])\n' % (name, ":" + _file_library_name(self_symlinks[path]))
++        elif path in symlinks and symlinks[path].startswith("@@"):
++            repo, installed = symlinks[path][2:].split("//:", 1)
++            content += 'alias(name=%r, actual=%r, visibility=["//visibility:public"])\n' % (name, "@@%s//:%s" % (repo, _file_library_name(installed)))
++        elif path.endswith(".o"):
++            content += 'cc_library(name=%r, srcs=[%r], linkstatic=True, visibility=["//visibility:public"])\n' % (name, path)
++        else:
++            kind = "static_library" if path.endswith(".a") else "shared_library"
++            native_path = path
++            if kind == "shared_library":
++                result = rctx.execute(["readelf", "-dW", _EXTRACT_DIR + "/" + path], environment = {"LC_ALL": "C"})
++                if result.return_code:
++                    fail("Cannot inspect native shared library " + path + ": " + result.stderr)
++                sonames = [line.split("[", 1)[1].split("]", 1)[0] for line in result.stdout.splitlines() if "(SONAME)" in line]
++                soname = sonames[0] if sonames else path.rsplit("/", 1)[-1]
++                native_path = "_native/" + util.sanitize(path) + "/" + soname
++                rctx.symlink(rctx.path(_EXTRACT_DIR + "/" + path), native_path)
++                runtime_paths.append(native_path)
++            content += 'cc_import(name=%r, %s=%r, visibility=["//visibility:public"])\n' % (name, kind, native_path)
++    return content, targets, runtime_paths
++
++def _shared_library_exports(rctx, target_name, so_files, a_files, self_symlinks, toolchain_owned, o_files, script_linker_inputs, rpaths, depends_on, options, file_targets):
+     # depends_on already contains the resolved package closure. Use leaf inputs,
+     # as Debian package dependencies can cycle (for example libc6 and libgcc).
+     runtime_deps = [
+@@ -208,9 +250,9 @@
+     for name, path in sorted(libraries.items()):
+         pkgc = options.get(name)
+         content += """
+-cc_import(
++alias(
+     name = "_{name}_native_import",
+-    shared_library = "{path}",
++    actual = "{file_target}",
+ )
+ 
+ filegroup(
+@@ -229,6 +271,7 @@
+ """.format(
+             name = name,
+             path = path,
++            file_target = file_targets[path],
+             package = target_name,
+             defines = pkgc.defines if pkgc else [],
+             linkopts = pkgc.linkopts if pkgc else [],
+@@ -253,9 +296,9 @@
+         static_libraries[name] = canonical
+     for name, path in sorted(static_libraries.items()):
+         content += """
+-cc_import(
++alias(
+     name = "_{name}_static_import",
+-    static_library = "{path}",
++    actual = "{file_target}",
+ )
+ cc_library(
+     name = "{name}_static",
+@@ -263,7 +306,7 @@
+     additional_linker_inputs = {inputs},
+     visibility = ["//visibility:public"],
+ )
+-""".format(name = name, path = path, package = target_name, dependencies = static_dependencies, inputs = static_inputs)
++""".format(name = name, file_target = file_targets[path], package = target_name, dependencies = static_dependencies, inputs = static_inputs)
+         exports[name + "_static"] = name + "_static"
+     return (content, exports)
+ 
+@@ -477,8 +520,8 @@
+ 
+     # Real DSO references must survive CcSharedLibraryInfo, which forwards
+     # LibraryToLink objects but not arbitrary additional linker inputs.
+-    script_libraries = [path for path in script_linker_inputs if path.endswith(".so") or ".so." in path]
+-    build_file_content = """
++    native_content, file_targets, runtime_paths = _file_libraries(rctx, so_files, a_files, o_files, symlinks, self_symlinks, linker_scripts, depends_file_map)
++    build_file_content = native_content + """
+ filegroup(
+     name = "pkgconfig",
+     srcs = {},
+@@ -486,16 +529,15 @@
+ )
+ 
+ so_library(
+-    name = "{}",
++    name = "_so_libs",
+     dynamic_libs = {},
+     additional_linker_inputs = {},
+     linkopts = {},
+ )
+ """.format(
+         pc_files,
+-        "_so_libs_direct" if script_libraries else "_so_libs",
+-        so_files,
+-        {path: None for path in o_files + script_linker_inputs}.keys(),
++        runtime_paths,
++        {path: None for path in so_files + o_files + script_linker_inputs}.keys(),
+         [
+             flag + "$(BINDIR)/external/" + rctx.attr.name + "/" + directory
+             for directory in {path[:path.rfind("/")]: True for path in so_files}
+@@ -503,24 +545,6 @@
+         ],
+     )
+ 
+-    if script_libraries:
+-        targets = []
+-        for i, path in enumerate(script_libraries):
+-            name = "_script_library_" + str(i)
+-            targets.append(":" + name)
+-            build_file_content += """
+-cc_import(
+-    name = "{name}",
+-    shared_library = "{path}",
+-)
+-""".format(name = name, path = path)
+-        build_file_content += """
+-cc_library(
+-    name = "_so_libs",
+-    deps = [":_so_libs_direct"] + {targets},
+-)
+-""".format(targets = targets)
+-
+     rpaths = {}
+     for so in so_files + a_files:
+         rpath = so[:so.rfind("/")]
+@@ -553,6 +577,8 @@
+                 continue
+ 
+             for libname in pkgc.libnames:
++                shared_lib = None
++                static_lib = None
+                 shared_options.setdefault(libname, pkgc)
+                 if libname + "_import" in import_targets:
+                     continue
+@@ -573,6 +599,31 @@
+                         shared_lib = '":%s"' % so_lib
+                         break
+ 
++                if shared_lib == None:
++                    # A .pc file may name a library owned by another package.
++                    candidates = [(path, repo) for path, repo in depends_file_map.items() if path.rsplit("/", 1)[-1] == libname + ".so"]
++                    if len(candidates) > 1:
++                        candidates = [(path, repo) for path, repo in candidates if "/" + path.rsplit("/", 1)[0] in pkgc.link_paths]
++                    if len(candidates) > 1:
++                        fail("Ambiguous pkg-config library " + libname + ": " + str(candidates))
++                    if candidates:
++                        path, repo = candidates[0]
++                        shared_lib = '"@@%s//:%s"' % (repo, path)
++                if shared_lib == None:
++                    archives = [path for path in a_files if path.rsplit("/", 1)[-1] == libname + ".a"]
++                    if len(archives) == 1:
++                        static_lib = '":%s"' % archives[0]
++                selected = None
++                if shared_lib and shared_lib.startswith('":'):
++                    selected = file_targets[shared_lib[2:-1]]
++                elif shared_lib and shared_lib.startswith('"@@'):
++                    repo, installed = shared_lib[3:-1].split("//:", 1)
++                    selected = "@@%s//:%s" % (repo, _file_library_name(installed))
++                elif static_lib:
++                    selected = file_targets[static_lib[2:-1]]
++                if selected:
++                    build_file_content += 'native_library_group(name=%r, deps=[%r], linkopts=%r)\n' % (subtarget, selected, pkgc.linkopts)
++                    continue
+                 build_file_content += _CC_IMPORT_TMPL.format(
+                     name = subtarget,
+                     shared_lib = shared_lib,
+@@ -691,6 +742,7 @@
+         rpaths,
+         depends_on,
+         shared_options,
++        file_targets,
+     )
+     build_file_content += shared_content
+     return (build_file_content, outs, symlinks, linker_scripts, self_symlinks, shared_exports)
+diff --git a/apt/private/deb_export.bzl b/apt/private/deb_export.bzl
+--- a/apt/private/deb_export.bzl
++++ b/apt/private/deb_export.bzl
+@@ -60,11 +60,7 @@
+         if script.get("unresolved"):
+             fail("Unresolved linker-script inputs for %s: %s" % (installed, script["unresolved"]))
+         replacements = {
+-            # A dependent cc_shared_library forwards DSOs through _solib;
+-            # original extraction paths are no longer link-action inputs.
+-            # Refer to the declared native DSO imports by exact filename so
+-            # the linker's generated _solib search paths remain authoritative.
+-            source: ("-l:" + destination[1].rsplit("/", 1)[-1]) if (destination[1].endswith(".so") or ".so." in destination[1]) else ctx.bin_dir.path + "/external/" + destination[0] + "/" + destination[1]
++            source: ctx.bin_dir.path + "/external/" + destination[0] + "/" + destination[1]
+             for source, destination in script["paths"].items()
+         }
+         ctx.actions.write(output, linker_script.rewrite(script["content"], replacements))
+diff --git a/apt/private/linker_script.bzl b/apt/private/linker_script.bzl
+--- a/apt/private/linker_script.bzl
++++ b/apt/private/linker_script.bzl
+@@ -38,7 +38,7 @@
+ 
+ def _is_library(token):
+     base = token.rsplit("/", 1)[-1]
+-    return base.endswith(".a") or ".so" in base
++    return base.endswith(".a") or base.endswith(".o") or ".so" in base
+ 
+ def _is_file_to_remap(token):
+     return token.startswith("/") and _is_library(token)
+diff --git a/apt/private/so_library.bzl b/apt/private/so_library.bzl
+--- a/apt/private/so_library.bzl
++++ b/apt/private/so_library.bzl
+@@ -38,6 +38,11 @@
+             cc_toolchain = cc_toolchain,
+             interface_library = ifso,
+             dynamic_library = dyn_lib,
++            # Source ELF aliases and generated interface files otherwise get
++            # different mangled directories. Keep their runtime and link-time
++            # names together so RUNPATH resolves without environment overrides.
++            dynamic_library_symlink_path = "apt/" + ctx.label.repo_name + "/" + ctx.label.name + "/" + ifso_name + "/" + dyn_lib.basename,
++            interface_library_symlink_path = "apt/" + ctx.label.repo_name + "/" + ctx.label.name + "/" + ifso_name + "/rpath.ifso",
+             feature_configuration = feature_configuration,
+         )
+         libraries.append(lib)
+diff --git a/apt/private/cc_deb_library.bzl b/apt/private/cc_deb_library.bzl
+--- a/apt/private/cc_deb_library.bzl
++++ b/apt/private/cc_deb_library.bzl
+@@ -50,3 +50,86 @@
+         "additional_linker_inputs": attr.label_list(allow_files = True),
+     },
+ )
++
++
++def _native_library_group_impl(ctx):
++    infos = [dep[CcInfo] for dep in ctx.attr.deps]
++    merged = cc_common.merge_cc_infos(cc_infos = infos)
++    inputs = []
++    names = {}
++    for item in merged.linking_context.linker_inputs.to_list():
++        for library in item.libraries:
++            if library.dynamic_library:
++                file = library.resolved_symlink_dynamic_library or library.dynamic_library
++                name = library.dynamic_library.basename
++                if name in names and names[name] != file:
++                    fail("Ambiguous native shared library " + name + ": " + str(names[name]) + " and " + str(file))
++                names[name] = file
++        inputs.append(cc_common.create_linker_input(
++            owner = item.owner,
++            libraries = depset(item.libraries),
++            additional_inputs = depset(item.additional_inputs),
++            user_link_flags = depset(item.user_link_flags + ctx.attr.linkopts),
++        ))
++    runfiles = ctx.runfiles()
++    for dep in ctx.attr.deps:
++        runfiles = runfiles.merge(dep[DefaultInfo].default_runfiles)
++    return [
++        CcInfo(compilation_context = merged.compilation_context, linking_context = cc_common.create_linking_context(linker_inputs = depset(inputs))),
++        DefaultInfo(runfiles = runfiles),
++    ]
++
++native_library_group = rule(
++    implementation = _native_library_group_impl,
++    attrs = {
++        "deps": attr.label_list(providers = [CcInfo]),
++        "linkopts": attr.string_list(),
++    },
++    provides = [CcInfo],
++)
++
++
++def _native_linker_script_impl(ctx):
++    # GNU ld accepts text scripts as archive inputs. A static LibraryToLink
++    # keeps the script and its declared files in this link, while dynamic_deps
++    # forwards only the resulting DSO instead of replaying the script.
++    script = ctx.actions.declare_file(ctx.label.name + ".a")
++    ctx.actions.symlink(output = script, target_file = ctx.file.src)
++    files = {file: True for file in ctx.files.inputs}
++    names = {}
++    runfiles = ctx.runfiles()
++    for dep in ctx.attr.deps:
++        for file in dep[DefaultInfo].files.to_list():
++            files[file] = True
++            if "/_native/" in file.path:
++                if file.basename in names and names[file.basename] != file:
++                    fail("Ambiguous native shared library " + file.basename)
++                names[file.basename] = file
++        for item in dep[CcInfo].linking_context.linker_inputs.to_list():
++            for file in item.additional_inputs:
++                files[file] = True
++            for library in item.libraries:
++                if library.dynamic_library:
++                    file = library.resolved_symlink_dynamic_library or library.dynamic_library
++                    name = library.dynamic_library.basename
++                    if name in names and names[name] != file:
++                        fail("Ambiguous native shared library " + name)
++                    names[name] = file
++                    files[file] = True
++        runfiles = runfiles.merge(dep[DefaultInfo].default_runfiles)
++    library = cc_common.create_library_to_link(actions = ctx.actions, static_library = script)
++    linker = cc_common.create_linker_input(owner = ctx.label, libraries = depset([library]), additional_inputs = depset(files.keys()))
++    return [
++        CcInfo(linking_context = cc_common.create_linking_context(linker_inputs = depset([linker]))),
++        DefaultInfo(files = depset([script] + files.keys()), runfiles = runfiles),
++    ]
++
++native_linker_script = rule(
++    implementation = _native_linker_script_impl,
++    attrs = {
++        "src": attr.label(allow_single_file = True, mandatory = True),
++        "inputs": attr.label_list(allow_files = True),
++        "deps": attr.label_list(providers = [CcInfo]),
++    },
++    provides = [CcInfo],
++)

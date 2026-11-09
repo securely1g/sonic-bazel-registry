@@ -1,0 +1,253 @@
+Subject: [PATCH] Run native APT metadata inspection with locked host tools
+
+Prepare the native Linux tools from the published build-infra APT lock without
+a recursive dependency on the APT importer. Use Bazel's checksum-verifying
+downloader and the locked interpreter, shared libraries and magic database.
+Both AMD64 and ARM64 execute the host tools against the selected target inputs.
+
+Origin: SONiC APT catalog reproducibility review (registry #237).
+Upstream status: SONiC-specific APT extension.
+
+diff --git a/MODULE.bazel b/MODULE.bazel
+index f1413d54e..c9c0606a2 100644
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -34,6 +34,9 @@ use_repo(bazel_lib_toolchains, "coreutils_toolchains")
+ tar_toolchains = use_extension("@tar.bzl//tar:extensions.bzl", "toolchains")
+ use_repo(tar_toolchains, "bsd_tar_toolchains")
+ 
++native_tools = use_repo_rule("//apt/private:native_tools.bzl", "native_tools_repository")
++native_tools(name = "distroless_native_tools")
++
+ # The account merger runs on the execution platform, never in the base image.
+ python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+ python.toolchain(python_version = "3.11")
+diff --git a/apt/private/BUILD.bazel b/apt/private/BUILD.bazel
+index dfdfba2d5..1b9b4c7de 100644
+--- a/apt/private/BUILD.bazel
++++ b/apt/private/BUILD.bazel
+@@ -64,6 +64,7 @@ bzl_library(
+     deps = [
+         ":linker_script",
+         ":pkgconfig",
++        ":native_tools",
+     ],
+ )
+ 
+@@ -71,7 +72,7 @@ bzl_library(
+     name = "deb_filemap",
+     srcs = ["deb_filemap.bzl"],
+     visibility = ["//apt:__subpackages__"],
+-    deps = [":util"],
++    deps = [":native_tools", ":util"],
+ )
+ 
+ bzl_library(
+@@ -133,10 +134,17 @@ bzl_library(
+     visibility = ["//apt:__subpackages__"],
+ )
+ 
++bzl_library(
++    name = "native_tools",
++    srcs = ["native_tools.bzl"],
++    visibility = ["//apt:__subpackages__"],
++)
++
+ bzl_library(
+     name = "pkgconfig",
+     srcs = ["pkgconfig.bzl"],
+     visibility = ["//apt:__subpackages__"],
++    deps = [":native_tools"],
+ )
+ 
+ bzl_library(
+diff --git a/apt/private/deb_filemap.bzl b/apt/private/deb_filemap.bzl
+index 8fe2b76d6..8614e64f6 100644
+--- a/apt/private/deb_filemap.bzl
++++ b/apt/private/deb_filemap.bzl
+@@ -1,5 +1,7 @@
+ """Cycle-free package inventories, pkg-config documents and native ELF metadata."""
+ 
++load(":native_tools.bzl", "catalog_execute")
++
+ load(":util.bzl", "util")
+ 
+ def _native_path(path):
+@@ -61,11 +63,11 @@ def _deb_filemap_impl(rctx):
+             if path not in native_files:
+                 continue
+             extracted = "_inspect/" + path
+-            kind = rctx.execute(["file", "--mime-type", "-b", extracted])
++            kind = catalog_execute(rctx, "file", ["--mime-type", "-b", extracted])
+             if kind.stdout.strip().startswith("text/"):
+                 native[path] = {"script": rctx.read(extracted)}
+             elif not path.endswith(".a"):
+-                result = rctx.execute(["readelf", "-dW", extracted], environment = {"LC_ALL": "C"})
++                result = catalog_execute(rctx, "readelf", ["-dW", extracted])
+                 if result.return_code:
+                     native[path] = {"error": result.stderr}
+                     continue
+diff --git a/apt/private/deb_import.bzl b/apt/private/deb_import.bzl
+index b3eba3921..7bf993a18 100644
+--- a/apt/private/deb_import.bzl
++++ b/apt/private/deb_import.bzl
+@@ -1,5 +1,7 @@
+ "deb_import"
+ 
++load(":native_tools.bzl", "catalog_execute")
++
+ load("//apt/private:headers.bzl", "is_include_fragment")
+ load(":linker_script.bzl", "linker_script")
+ load(":lockfile.bzl", "lockfile")
+@@ -173,7 +175,7 @@ def _expand_module_metadata(rctx, state):
+         for name in pending:
+             visited[name] = True
+             for option in ["--print-requires", "--print-requires-private"]:
+-                result = rctx.execute(["pkg-config", option, name], environment = pkgconfig_environment(rctx, "_pc_requirements"))
++                result = catalog_execute(rctx, "pkg-config", [option, name], environment = pkgconfig_environment(rctx, "_pc_requirements"))
+                 for requirement in result.stdout.splitlines():
+                     required = requirement.strip().split(" ")[0] if requirement.strip() else ""
+                     if not required or required in records:
+@@ -288,7 +290,7 @@ def _file_libraries(rctx, so_files, a_files, o_files, symlinks, self_symlinks, s
+         if path in scripts or path in self_symlinks or path in symlinks or path in invalid_files:
+             continue
+         if "needed" not in own_metadata.get(path, {}):
+-            result = rctx.execute(["readelf", "-dW", _EXTRACT_DIR + "/" + path], environment = {"LC_ALL": "C"})
++            result = catalog_execute(rctx, "readelf", ["-dW", _EXTRACT_DIR + "/" + path])
+             if result.return_code:
+                 invalid_files[path] = "Cannot inspect native shared library " + path + ": " + result.stderr
+                 continue
+@@ -537,7 +539,7 @@ def _linker_scripts(rctx, extract_dir, so_regular_files, self_files, depends_fil
+     search_dirs = {}
+     for installed in so_regular_files:
+         script_path = extract_dir + "/" + installed
+-        kind = rctx.execute(["file", "--mime-type", "-b", script_path])
++        kind = catalog_execute(rctx, "file", ["--mime-type", "-b", script_path])
+         if not kind.stdout.strip().startswith("text/"):
+             continue
+         content = rctx.read(script_path)
+diff --git a/apt/private/pkgconfig.bzl b/apt/private/pkgconfig.bzl
+index ac82b52ae..e9395e34d 100644
+--- a/apt/private/pkgconfig.bzl
++++ b/apt/private/pkgconfig.bzl
+@@ -1,5 +1,7 @@
+ # Copyright thesayyn 2025
+ # Taken from https://github.com/thesayyn/pkgconfig/blob/main/extensions.bzl
++load(":native_tools.bzl", "catalog_execute")
++
+ def _expand_value(value, variables):
+     # fast path
+     if value.find("$") == -1:
+@@ -298,8 +300,8 @@ def _link_tokens(tokens):
+ def _query_module(rctx, name, directory, mode):
+     options = ["--static"] if mode == "static" else []
+     environment = pkgconfig_environment(rctx, directory)
+-    libs = rctx.execute(["pkg-config"] + options + ["--libs", name], environment = environment)
+-    cflags = rctx.execute(["pkg-config"] + options + ["--cflags", name], environment = environment)
++    libs = catalog_execute(rctx, "pkg-config", options + ["--libs", name], environment = environment)
++    cflags = catalog_execute(rctx, "pkg-config", options + ["--cflags", name], environment = environment)
+     if libs.return_code or cflags.return_code:
+         return {"error": "pkg-config module %s (%s): %s%s" % (name, mode, libs.stderr, cflags.stderr)}
+     # The SDK can retain split option operands. Quote tokens when passing them
+diff --git a/apt/private/native_tools.bzl b/apt/private/native_tools.bzl
+new file mode 100644
+index 000000000..3811852c7
+--- /dev/null
++++ b/apt/private/native_tools.bzl
+@@ -0,0 +1,96 @@
++"""Bootstrap the APT catalog's native inspection tools without importing APT."""
++
++# Import data from a landed build-infra revision. Making this rule depend on the
++# generated APT repositories would require these tools to fetch themselves.
++_LOCK_URL = "https://raw.githubusercontent.com/securely1g/sonic-build-infra/08e0956f80574b27a9b68e72fe855cc0089058e5/apt/apt.lock.json"
++_LOCK_SHA256 = "10c93aded0d9123c052a8e02c40264e8138da881122136affdf4db0d6647ad31"
++_HOSTS = {
++    "amd64": ("amd64", "x86_64-linux-gnu", "ld-linux-x86-64.so.2"),
++    "x86_64": ("amd64", "x86_64-linux-gnu", "ld-linux-x86-64.so.2"),
++    "arm64": ("arm64", "aarch64-linux-gnu", "ld-linux-aarch64.so.1"),
++    "aarch64": ("arm64", "aarch64-linux-gnu", "ld-linux-aarch64.so.1"),
++}
++
++def unlocked_library(listing, root):
++    """Return the first dependency the host loader selected outside the tool root."""
++    for entry in listing.splitlines():
++        entry = entry.strip()
++        # Linux supplies the vDSO directly to every process.
++        if entry.startswith("linux-vdso.so.1 ("):
++            continue
++        # Explicit preload paths can lack the usual "SONAME => " prefix.
++        resolved = entry.split(" => ", 1)[-1]
++        if not resolved.startswith(root + "/"):
++            return entry
++    return None
++
++def _native_tools_impl(ctx):
++    if ctx.os.name != "linux" or ctx.os.arch not in _HOSTS:
++        fail("The SONiC native APT catalog requires an AMD64 or ARM64 Linux host, got %s %s" % (ctx.os.name, ctx.os.arch))
++    arch, triplet, loader = _HOSTS[ctx.os.arch]
++    ctx.download(_LOCK_URL, "apt.lock.json", sha256 = _LOCK_SHA256)
++    lock = json.decode(ctx.read("apt.lock.json"))
++    packages = lock["packages"]
++    roots = ["pkgconf-bin", "file", "binutils-" + triplet.replace("_", "-")]
++    selected = {k: True for k, p in packages.items() if p["suite"] == "trixie" and p["architecture"] == arch and p["name"] in roots}
++    if len(selected) != len(roots):
++        fail("Incomplete catalog tool roots for %s" % arch)
++    pending = selected.keys()
++    for _ in range(len(packages)):
++        if not pending:
++            break
++        children = {}
++        for key in pending:
++            for dep in packages[key]["depends_on"]:
++                if dep not in selected:
++                    children[dep] = True
++        selected.update(children)
++        pending = children.keys()
++
++    for key in sorted(selected):
++        package = packages[key]
++        urls = [uri.rstrip("/") + "/" + package["filename"] for uri in lock["sources"][package["suite"]]["uris"]]
++        # Use the ordinary Bazel downloader so trusted builds retain their
++        # configured snapshot mirror preference and public fallback.
++        ctx.download_and_extract(urls, "unpack", sha256 = package["sha256"], type = "deb")
++        data = [f for f in ctx.path("unpack").readdir() if f.basename.startswith("data.tar")]
++        if len(data) != 1:
++            fail("Expected one data archive in %s" % key)
++        ctx.extract(data[0], "sysroot")
++        ctx.delete("unpack")
++
++    lib = "sysroot/usr/lib/" + triplet
++    ctx.symlink(lib, "lib")
++    ctx.symlink(lib + "/" + loader, "loader")
++    ctx.symlink("sysroot/usr/lib/file/magic.mgc", "magic.mgc")
++    programs = {"file": "file", "pkg-config": "pkgconf", "readelf": triplet + "-readelf"}
++    for name, program in programs.items():
++        ctx.symlink("sysroot/usr/bin/" + program, name)
++        # glibc may fall back to system directories after --library-path.
++        # Reject any such resolution before making the tools available.
++        check = ctx.execute(
++            [ctx.path("loader"), "--inhibit-cache", "--library-path", ctx.path("lib"), "--list", ctx.path(name)],
++            environment = _tool_environment(),
++        )
++        if check.return_code:
++            fail("Cannot resolve %s dependencies: %s" % (name, check.stderr))
++        outside = unlocked_library(check.stdout, str(ctx.path(".")))
++        if outside != None:
++            fail("%s resolved outside its locked execution root: %s" % (name, outside))
++    ctx.file("ROOT", "", executable = False)
++    ctx.file("BUILD.bazel", 'exports_files(["ROOT"])\n')
++
++native_tools_repository = repository_rule(implementation = _native_tools_impl)
++
++def _tool_environment():
++    return {"GLIBC_TUNABLES": "", "LC_ALL": "C", "LD_AUDIT": "", "LD_LIBRARY_PATH": "", "LD_PRELOAD": "", "PATH": ""}
++
++def catalog_execute(ctx, name, args, environment = {}):
++    """Run a catalog tool using the locked loader, libraries and magic database."""
++    root = ctx.path(Label("@distroless_native_tools//:ROOT")).dirname
++    argv = [root.get_child("loader"), "--inhibit-cache", "--library-path", root.get_child("lib"), root.get_child(name)]
++    if name == "file":
++        argv.extend(["-m", root.get_child("magic.mgc")])
++    env = dict(environment)
++    env.update(_tool_environment())
++    return ctx.execute(argv + args, environment = env)
