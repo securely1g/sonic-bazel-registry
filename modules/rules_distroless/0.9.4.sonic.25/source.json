@@ -24,7 +24,27 @@
     "0018-public-cc-import.patch": "sha256-HQNENBz+9QFA86VVpBtiVucEr8qTPymgkPTjBvScF4o=",
     "0019-target-multiarch-headers.patch": "sha256-Hh7GolQOH3aufgXVUS4/kb+/lKfCqFzTuxxsY92+mes=",
     "0020-unified-apt-inputs.patch": "sha256-mlGpxlpinCCix2dvusFLRVpJY6l/V+9LkuoDsjsqEcI=",
-    "0021-complete-shared-package-dependencies.patch": "sha256-6ZmSB0VxVRHq6bbBNNFPv78SsIkHuIq0c5Aqni0mcWw="
+    "0021-complete-shared-package-dependencies.patch": "sha256-6ZmSB0VxVRHq6bbBNNFPv78SsIkHuIq0c5Aqni0mcWw=",
+    "0022-distributed-requests.patch": "sha256-UOC75ranrz0xwAwwTGpZJkANo024Y4x7YeN4Y49BH8c=",
+    "0023-shared-linker-inputs.patch": "sha256-XV9JuzQeqWE/pSZ2bcmEGjT0TD3wdN6Smx6j55IRxw4=",
+    "0024-transitive-script-libraries.patch": "sha256-Q1tAcn5A0pfwW6HVEUmeRCk9PblcUui+0vCpSXbeNyQ=",
+    "0025-complete-library-graphs.patch": "sha256-BjHlF8MbcVLQDJeowOwx6iZuZErZnb6jTnlYrvUz0mA=",
+    "0026-relative-linker-script-inputs.patch": "sha256-49FzPdLyHunRCd3omrnEpbnXOE3fI/gP68WeC/Caq+k=",
+    "0027-classify-shared-library-basenames.patch": "sha256-CzUWQPCLpNb9v5BKwweUKpaCrLl4klNGaPfTOUIomJU=",
+    "0028-isolate-native-library-analysis.patch": "sha256-9FOlCzj4IgA1C7cu7AtiWRyB7xvWXlEtOd7q1r1scaQ=",
+    "0029-isolate-static-pkgconfig-variants.patch": "sha256-HADeSgFWQAIgbIcwiFYazph79HgpQ0diHivM+YVGdds=",
+    "0030-model-pkgconfig-modules.patch": "sha256-uc43hFs7hDGHGz12TDHGDOhI8/ds0/OF0OsGyp++XBE=",
+    "0031-deduplicate-pkgconfig-dependencies.patch": "sha256-zEddkl1haBwoWhgJPm5IZH9wn5i7UspV4Q+HSlQg1+0=",
+    "0032-complete-apt-contract-boundaries.patch": "sha256-Q4zu+g1xMk6iJbro1Ag3iP+3ZMsdCYuNdFFD40QcOg0=",
+    "0033-reuse-module-runtime-libraries.patch": "sha256-4Ij45li1i2ZqO926+jEyLn4hnRQxW7JWa4ebxU3hBBM=",
+    "0034-isolate-static-private-library-dependencies.patch": "sha256-+4uMUWCzxh4T1g0xfFM72nErMJl8nTCM1bXxyVRHmYE=",
+    "0035-keep-glibc-runtime-with-the-toolchain.patch": "sha256-Efo+lzEpnrjBeKSxhVJvHpmn16pxbI5qhOxEyb1F61c=",
+    "0036-preserve-legacy-lock-imports.patch": "sha256-2pdP27zYewqYK2cbF0Xu0bjl6FAApjPdRFcEZ1wgNAo=",
+    "0037-share-prepared-lock-transport.patch": "sha256-HU7fk3UCNx02aTEi26Ae64ldnaWPAnW2CxCIq2zFmU8=",
+    "0038-declare-native-runtime-link-search.patch": "sha256-PMVLjyUH9EKCqstdFaMwaqVFYxFDUtmomoQAH600Cwc=",
+    "0039-default-pkgconfig-header-exports.patch": "sha256-ZvtDW9uGtbeOpJtmkywPVnJ5Dq3eQ1HcBPrUqSWWf2Y=",
+    "0040-route-active-canonical-locks.patch": "sha256-BhNO8jIVt5dfh+nOU4NnT7N5VUqhzd6UgtcDyviAsH8=",
+    "0041-declare-native-catalog-tools.patch": "sha256-hiqKP7Fo0QGlmAJWDze+WAOxKFHDhmLvfol8xkXqqas="
   },
   "patch_strip": 1,
   "overlay": {
@@ -62,6 +82,7 @@
     "registry_ci/xtables_headers_test.c": "sha256-Ff3IJ87nRUWBGXyWEo74poQLv1iqbDKVy5jAuymCZpM=",
     "apt/private/configuration.bzl": "sha256-o0GZSdHyUo8RYh1ph7V7ycWHjNbR3m+buRbd39otHc8=",
     "apt/private/relocate_pkgconfig.py": "sha256-GrAq6RT5FHxW/jd+tfStPSaj9bxzaEkBFtrD+MDqFrc=",
-    "apt/private/relocate_pkgconfig_test.py": "sha256-VvEJvsXHwQ/S5DFGJ1vbgOZb50A30qVmHYSMTZKCkdU="
+    "apt/private/relocate_pkgconfig_test.py": "sha256-VvEJvsXHwQ/S5DFGJ1vbgOZb50A30qVmHYSMTZKCkdU=",
+    "registry_ci/locked_imports.bzl": "sha256-Xrt/ctRcTkfjMB63ORLbfVpBA6Oq+vIPoAwnHt1exjw="
   }
 }
