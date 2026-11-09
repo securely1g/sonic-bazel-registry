@@ -43,7 +43,7 @@
     "0037-share-prepared-lock-transport.patch": "sha256-HU7fk3UCNx02aTEi26Ae64ldnaWPAnW2CxCIq2zFmU8=",
     "0038-declare-native-runtime-link-search.patch": "sha256-PMVLjyUH9EKCqstdFaMwaqVFYxFDUtmomoQAH600Cwc=",
     "0039-default-pkgconfig-header-exports.patch": "sha256-ZvtDW9uGtbeOpJtmkywPVnJ5Dq3eQ1HcBPrUqSWWf2Y=",
-    "0040-route-active-canonical-locks.patch": "sha256-y+xP8Ug8xY62KEV50rYYuYShQp9zmBlEXyTpxeC7hUw=",
+    "0040-route-active-canonical-locks.patch": "sha256-BhNO8jIVt5dfh+nOU4NnT7N5VUqhzd6UgtcDyviAsH8=",
     "0041-declare-native-catalog-tools.patch": "sha256-hiqKP7Fo0QGlmAJWDze+WAOxKFHDhmLvfol8xkXqqas="
   },
   "patch_strip": 1,

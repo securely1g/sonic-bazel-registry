@@ -7,17 +7,42 @@ Ignored fallback imports remain outside both mode selection and file reads.
 diff --git a/apt/private/configuration.bzl b/apt/private/configuration.bzl
 --- a/apt/private/configuration.bzl
 +++ b/apt/private/configuration.bzl
-@@ -113,7 +113,7 @@
+@@ -57,4 +57,9 @@
+     return (sources, selected)
  
++def _active_imports(module):
++    """Only a root without an explicit import uses its standalone defaults."""
++    explicit = [tag for tag in module.tags.import_lock if not tag.fallback]
++    return explicit or (module.tags.import_lock if module.is_root else [])
++
+ def install_requests(mctx):
+     """Read and normalize all source-owned package requests in the module graph."""
+@@ -65,4 +70,4 @@
+         # A root export reads the same reviewed central requests used by imports.
+-        for tag in module.tags.import_lock:
++        for tag in _active_imports(module):
+             if tag.requests:
+                 document = json.decode(mctx.read(tag.requests))
+@@ -102,9 +107,6 @@
+     """A root lock is authoritative; dependency locks remain standalone defaults."""
+     imports = [(module, tag) for module in mctx.modules for tag in module.tags.import_lock if not tag.fallback]
+-    roots = [(module, tag) for module, tag in imports if module.is_root]
+-    if not roots:
+-        defaults = [(module, tag) for module in mctx.modules if module.is_root for tag in module.tags.import_lock if tag.fallback]
+-        roots = defaults
+-        imports.extend(defaults)
++    roots = [(module, tag) for module in mctx.modules if module.is_root for tag in _active_imports(module)]
++    imports.extend([(module, tag) for module, tag in roots if tag.fallback])
+     selected = roots or imports
+     if require_one_root_lock and roots and len({str(tag.lock): True for _, tag in roots}) != 1:
+@@ -114,5 +116,5 @@
  def uses_unified_lock(mctx, source_document = None):
      """Keep legacy per-lock imports unless the workspace selects unified inputs."""
 -    imports, selected = selected_lock_tags(mctx, require_one_root_lock = False)
 +    imports, _ = selected_lock_tags(mctx, require_one_root_lock = False)
      if source_document != None:
          return True
-     for module in mctx.modules:
-@@ -125,9 +125,10 @@
-     for _, tag in imports:
+@@ -126,7 +128,8 @@
          if tag.libraries or tag.sources or tag.requests or tag.fallback:
              return True
 -    # Canonical locks already carry their reviewed unified input identity.
@@ -29,4 +54,17 @@ diff --git a/apt/private/configuration.bzl b/apt/private/configuration.bzl
 +        if "_inputs" in json.decode(mctx.read(lock)):
              return True
      return False
- 
+@@ -151,5 +154,5 @@
+     names = {install.dependency_set: True for install in installs if install.dependency_set}
+     for module in mctx.modules:
+-        for tag in module.tags.import_lock:
++        for tag in _active_imports(module):
+             if mctx.path(tag.lock).exists:
+                 document = json.decode(mctx.read(tag.lock))
+@@ -185,5 +188,5 @@
+     for owner in mctx.modules:
+         files = [tag.file for tag in owner.tags.install_file]
+-        files.extend([tag.requests for tag in owner.tags.import_lock if tag.requests])
++        files.extend([tag.requests for tag in _active_imports(owner) if tag.requests])
+         for file in files:
+             for package in json.decode(mctx.read(file)).get("pinned_packages", []):
