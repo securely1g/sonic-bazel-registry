@@ -54,6 +54,7 @@ RUNNERS = {
 # The exploratory survey uses True in its separate branch; do not infer success
 # from a build-only result or an API-green job without the original test evidence.
 ARM_CROSS_ALL = False
+FIPS_CROSS_VERSION = "0.0.6-18a778db501d455f8a1b6d1e3ef8e17121661177"
 # Temporary exact-version routes qualified by the complete original ARM contract.
 # Remove this map and the hosted ARM route after the full migration, so future
 # ARM versions receive cross validation as well. See ci/README.md for CI evidence.
@@ -73,6 +74,7 @@ ARM_CROSS_VERSIONS: dict[str, tuple[str, ...]] = {
     "sai": ("1.18.0-sonic.1",),
     "socat": ("1.8.0.2.sonic.5",),
     "sonic-dash-api": ("0.0.5-9b2893e890734a2db0c53a5e5c64b031ec0dcfbd",),
+    "sonic-fips": (FIPS_CROSS_VERSION,),
     "sonic-linux-kernel": ("0.0.2-34a53faaecd325509e9d8f1016ed0108ab558a23",),
     "sonic-rust-deps": ("0.0.4-6d9c70f708d7420e9e2b2cdc906b80cee6b140f1",),
     "sonic-yang-mgmt": ("1.0.0-9ab452d22773c41783092ae3bd6c206d6c257c8d",),
@@ -1320,6 +1322,37 @@ def python_runtime_identity(runtime: Path, consumer: Path, log: Path,
     return identity
 
 
+def prepare_fips_recipe_perl(consumer: Path, work_dir: Path, artifacts: Path,
+                             executor_prefix: list[str], kernel_executor: Path) -> str:
+    """Use the target Perl for every original recipe, with native AIO for AF_ALG."""
+    runtime = consumer / "fips_recipe_runtime"
+    runtime.mkdir(exist_ok=True)
+    (runtime / "BUILD.bazel").write_text('exports_files(["run"])\n')
+    guest_perl = [*executor_prefix, "/usr/bin/perl"]
+    identity = json.loads(subprocess.check_output(
+        [*guest_perl, "-MConfig", "-MJSON::PP", "-e",
+         'print encode_json({version => $Config{version}, archname => $Config{archname}})'],
+        text=True, cwd=consumer))
+    require("aarch64" in identity["archname"], "OpenSSL TAP recipes must use AArch64 Perl")
+    identity["kernel_executor"] = str(kernel_executor)
+    identity["kernel_recipes"] = ["30-test_afalg.t"]
+    (artifacts / "fips-recipe-perl.json").write_text(json.dumps(identity, indent=2) + "\n")
+
+    # Embed the complete launcher in the Bazel input copied by rules_foreign_cc.
+    # OpenSSL's global EXE_SHELL would cause its CMP/HTTP recipe to skip.
+    kernel = shlex.join([str(kernel_executor), "--bind", str(work_dir), "--bind", str(artifacts)])
+    target_path = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+    runner = runtime / "run"
+    runner.write_text(
+        "#!/bin/sh\nunset PERLLIB PERL5LIB PERL5OPT\n"
+        'for arg do\n    case "${arg##*/}" in\n        30-test_afalg.t)\n'
+        f'            exec {kernel} --cwd "$PWD" --timeout 180 -- /usr/bin/env PATH={target_path} /usr/bin/perl "$@" ;;\n'
+        "    esac\ndone\n"
+        + 'exec ' + shlex.join(guest_perl) + ' "$@"\n')
+    runner.chmod(0o755)
+    return "--@sonic-fips//openssl/integration:recipe_perl=//fips_recipe_runtime:run"
+
+
 def prepare_cross_python_runtimes(bazel_prefix: list[str], flags: list[str], test_targets: list[str],
                                   output_base: Path, consumer: Path, artifacts: Path,
                                   executor_prefix: list[str]) -> list[dict]:
@@ -1447,6 +1480,15 @@ def prepare_gazelle_tests(root: Path, work_dir: Path, script_executor: list[str]
     return runner
 
 
+def cross_test_timeout_flags(module: str, version: str, cross_compile: bool, flags: list[str]) -> list[str]:
+    """Supply emulation budgets for short, moderate, long and eternal tests."""
+    if not cross_compile or any(flag == "--test_timeout" or flag.startswith("--test_timeout=") for flag in flags):
+        return []
+    # The FIPS package test runs the complete SymCrypt unittest under QEMU.
+    long_seconds = 5400 if (module, version) == ("sonic-fips", FIPS_CROSS_VERSION) else 2700
+    return [f"--test_timeout=180,900,{long_seconds},7200"]
+
+
 def run(root: Path, module: str, version: str, architecture: str,
         work_dir: Path, artifacts: Path, bazel: str = "bazel",
         test_container_image: str | None = None,
@@ -1458,6 +1500,11 @@ def run(root: Path, module: str, version: str, architecture: str,
     require(not cross_compile or architecture == "arm64", "Cross compilation supports ARM64 targets on AMD64")
     require(cross_compile or test_executor is None, "A test executor requires explicit cross compilation")
     native = verify_native("amd64" if cross_compile else architecture)
+    fips_cross = cross_compile and module == "sonic-fips" and version in ARM_CROSS_VERSIONS.get(module, ())
+    kernel_executor = Path("/usr/local/bin/sonic-arm64-kernel")
+    if fips_cross:
+        require(kernel_executor.is_file() and os.access(kernel_executor, os.X_OK),
+                "FIPS ARM cross tests require the worker image with sonic-arm64-kernel")
     if config.get("test_runtime_preparation") or cross_compile:
         require_test_container(test_container_image)
     if cross_compile:
@@ -1592,7 +1639,7 @@ def run(root: Path, module: str, version: str, architecture: str,
                     raise RegistryError(str(error)) from error
                 cross_runtime["pip_hubs"] = pip_hubs
                 try:
-                    cross_runtime["autoconf"] = cross_autoconf.prepare(work_dir, artifacts, flags)
+                    cross_runtime["autoconf"] = cross_autoconf.prepare(work_dir, artifacts, flags, fips_krb5=fips_cross)
                 except ValueError as error:
                     raise RegistryError(str(error)) from error
                 shutil.copy2(consumer / "MODULE.bazel", artifacts / "consumer.MODULE.bazel")
@@ -1649,15 +1696,12 @@ def run(root: Path, module: str, version: str, architecture: str,
                 executor_prefix = [str(go_executor)]
                 cross_runtime["test_executor_prefix"] = executor_prefix
                 cross_runtime["test_executor_sha256"] = hashlib.sha256(go_executor.read_bytes()).hexdigest()
+            if fips_cross:
+                test_flags.extend(["--keep_going", prepare_fips_recipe_perl(
+                    consumer, work_dir, artifacts, executor_prefix, kernel_executor)])
             if executor_prefix:
                 test_flags.append("--run_under=" + shlex.join(executor_prefix))
-            # Emulated Python can spend more than five minutes staging a large
-            # declared runtime before the test starts. Keep caller timeouts and
-            # native defaults; extend only the cross-test execution budgets.
-            if cross_compile and not any(
-                    flag == "--test_timeout" or flag.startswith("--test_timeout=")
-                    for flag in [*flags, *test_flags]):
-                test_flags.append("--test_timeout=180,900,2700,7200")
+            test_flags.extend(cross_test_timeout_flags(module, version, cross_compile, [*flags, *test_flags]))
             # Export HOME before Bazel's test setup assigns TEST_TMPDIR. With
             # HOME absent, that shell assignment is invisible to Python and
             # expanduser() falls back to the account home outside the sandbox.
