@@ -1,0 +1,270 @@
+diff --git a/MODULE.bazel b/MODULE.bazel
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "rules_distroless",
+-    version = "0.9.4.sonic.17",
++    version = "0.9.4.sonic.19",
+     compatibility_level = 1,
+ )
+ 
+diff --git a/apt/extensions.bzl b/apt/extensions.bzl
+--- a/apt/extensions.bzl
++++ b/apt/extensions.bzl
+@@ -3,7 +3,7 @@
+ load("@bazel_tools//tools/build_defs/repo:utils.bzl", "read_netrc", "read_user_netrc", "use_netrc")
+ load("//apt/private:apt_deb_repository.bzl", "deb_repository")
+ load("//apt/private:apt_dep_resolver.bzl", "dependency_resolver")
+-load("//apt/private:configuration.bzl", "export_lock_repository", "install_requests", "read_sources", "requests_document")
++load("//apt/private:configuration.bzl", "export_lock_repository", "export_requests", "install_requests", "read_sources", "requests_document", "selected_lock_tags")
+ load("//apt/private:deb_filemap.bzl", "deb_filemap")
+ load("//apt/private:deb_import.bzl", "deb_import")
+ load("//apt/private:locked_import.bzl", "declare_locked_imports")
+@@ -235,8 +235,13 @@
+ def _distroless_extension(mctx):
+     (source_records, source_document) = read_sources(mctx)
+     installs = install_requests(mctx)
++    collectors = [tag for module in mctx.modules if module.is_root for tag in module.tags.export_requests]
++    if collectors:
++        for tag in collectors:
++            export_requests(mctx, installs, source_document, tag.name)
++        return
+     updates = [tag for module in mctx.modules if module.is_root for tag in module.tags.export_lock]
+-    imports = [tag for module in mctx.modules for tag in module.tags.import_lock]
++    imports, _ = selected_lock_tags(mctx)
+     if imports and not updates:
+         declare_locked_imports(mctx, [], installs, source_document)
+         return
+@@ -335,6 +340,11 @@
+ 
+                 source = sources[package["Dist"]]
+                 architectures = source["architectures"]
++                if source_document != None:
++                    for record in source_document["sources"]:
++                        if package["Dist"] in record["suites"]:
++                            architectures = record.get("default_architectures", architectures)
++                            break
+ 
+             for arch in architectures:
+                 resolution_queue.append((
+@@ -656,6 +666,7 @@
+         "lock": attr.label(mandatory = True, doc = "Reviewed version-2 APT lock to import without resolving packages."),
+         "dependency_sets": attr.string_list(doc = "Named sets to expose; empty imports every set in the lock."),
+         "libraries": attr.bool(default = False, doc = "Export CcInfo using locked package files, without package indices."),
++        "fallback": attr.bool(default = False, doc = "Standalone default, used only when its module is root and no explicit root lock is selected."),
+         "sources": attr.label(allow_single_file = [".json"]),
+         "requests": attr.label(allow_single_file = [".json"]),
+     },
+@@ -671,6 +682,12 @@
+     "previous_lock": attr.label(allow_single_file = [".json"]),
+ })
+ 
++export_requests_tag = tag_class(attrs = {"name": attr.string(mandatory = True)})
++lock_view = tag_class(attrs = {
++    "file": attr.label(mandatory = True, allow_single_file = [".json"]),
++    "dependency_sets": attr.string_list(mandatory = True),
++})
++
+ lock = tag_class(
+     attrs = {
+         "into": attr.label(
+@@ -687,6 +704,8 @@
+         "install_file": install_file,
+         "sources_file": sources_file,
+         "export_lock": export_lock,
++        "export_requests": export_requests_tag,
++        "lock_view": lock_view,
+         "import_lock": import_lock,
+         "sources_list": sources_list,
+         "lock": lock,
+diff --git a/apt/private/configuration.bzl b/apt/private/configuration.bzl
+--- a/apt/private/configuration.bzl
++++ b/apt/private/configuration.bzl
+@@ -1,4 +1,7 @@
+ """Central source/request documents and explicit production-lock export."""
++
++load(":util.bzl", "util")
++load(":version_constraint.bzl", "version_constraint")
+ 
+ def read_sources(mctx):
+     """Select the root override or one shared source document, checking conflicts."""
+@@ -22,6 +25,11 @@
+         for document in files:
+             if document != selected:
+                 fail("conflicting global APT source documents")
++    if selected:
++        for record in selected["sources"]:
++            defaults = record.get("default_architectures", record["architectures"])
++            if type(defaults) != "list" or not defaults or any([arch not in record["architectures"] for arch in defaults]):
++                fail("APT default_architectures must be a nonempty subset of architectures")
+     records = []
+     if selected:
+         records.extend(selected["sources"])
+@@ -88,3 +96,94 @@
+     implementation = _export_lock_impl,
+     attrs = {"content": attr.string(mandatory = True)},
+ )
++
++
++def selected_lock_tags(mctx):
++    """A root lock is authoritative; dependency locks remain standalone defaults."""
++    imports = [(module, tag) for module in mctx.modules for tag in module.tags.import_lock if not tag.fallback]
++    roots = [(module, tag) for module, tag in imports if module.is_root]
++    if not roots:
++        defaults = [(module, tag) for module in mctx.modules if module.is_root for tag in module.tags.import_lock if tag.fallback]
++        roots = defaults
++        imports.extend(defaults)
++    selected = roots or imports
++    if roots and len({str(tag.lock): True for _, tag in roots}) != 1:
++        fail("select one production lock in the root module")
++    return (imports, selected)
++
++def _export_requests_impl(rctx):
++    rctx.file("requests.json", rctx.attr.content)
++    rctx.file("BUILD.bazel", 'exports_files(["requests.json"])\nfilegroup(name="requests", srcs=["requests.json"], visibility=["//visibility:public"])\n')
++
++_export_requests = repository_rule(
++    implementation = _export_requests_impl,
++    attrs = {"content": attr.string(mandatory = True)},
++)
++
++def _placeholder_impl(rctx):
++    rctx.file("BUILD.bazel", "# Request collection only; package repositories are not fetched.\n")
++
++_placeholder = repository_rule(implementation = _placeholder_impl)
++
++def _collection_repositories(mctx, installs, source_document):
++    # Bazel validates use_repo names even when only the request export is built.
++    # Declare their namespaces, without creating or downloading package inputs.
++    names = {install.dependency_set: True for install in installs if install.dependency_set}
++    for module in mctx.modules:
++        for tag in module.tags.import_lock:
++            if mctx.path(tag.lock).exists:
++                document = json.decode(mctx.read(tag.lock))
++                names.update({group: True for group in document.get("dependency_sets", {})})
++                names.update({util.sanitize(key): True for key in document.get("packages", {})})
++    for install in installs:
++        for request in install.packages:
++            constraint = version_constraint.parse_dep(request)
++            version = constraint["version"]
++            if not version or version[0] != "=":
++                continue
++            for source in source_document["sources"]:
++                for suite in source["suites"]:
++                    if install.suites and suite not in install.suites:
++                        continue
++                    for arch in constraint["arch"] or source["architectures"]:
++                        names[util.sanitize("/" + suite + "/" + constraint["name"] + ":" + arch + "=" + version[1])] = True
++    for name in names:
++        _placeholder(name = name)
++
++def export_requests(mctx, installs, source_document, name):
++    if source_document == None:
++        fail("request collection requires apt.sources_file")
++    _, selected = selected_lock_tags(mctx)
++    if not selected or not selected[0][0].is_root:
++        fail("workspace updates require apt.import_lock in the root module")
++    module, tag = selected[0]
++    if tag.lock.repo_name:
++        fail("workspace production lock must belong to the root module")
++    _collection_repositories(mctx, installs, source_document)
++    requests = requests_document(installs)
++    pinned = {}
++    for owner in mctx.modules:
++        files = [tag.file for tag in owner.tags.install_file]
++        files.extend([tag.requests for tag in owner.tags.import_lock if tag.requests])
++        for file in files:
++            for package in json.decode(mctx.read(file)).get("pinned_packages", []):
++                key = (package["suite"], package["name"], package["architecture"], package["version"])
++                if key in pinned and pinned[key] != package:
++                    fail("conflicting fixed package identity: " + str(key))
++                pinned[key] = package
++    if pinned:
++        requests["pinned_packages"] = [pinned[key] for key in sorted(pinned)]
++    views = []
++    for owner in mctx.modules:
++        if owner.is_root:
++            views.extend([{"file": str(mctx.path(view.file)), "dependency_sets": view.dependency_sets} for view in owner.tags.lock_view])
++    _export_requests(
++        name = name,
++        content = json.encode_indent({
++            "version": 1,
++            "sources": source_document,
++            "requests": requests,
++            "lock": str(mctx.path(tag.lock)),
++            "views": views,
++        }),
++    )
+diff --git a/apt/private/locked_import.bzl b/apt/private/locked_import.bzl
+--- a/apt/private/locked_import.bzl
++++ b/apt/private/locked_import.bzl
+@@ -1,6 +1,6 @@
+ """Import reviewed runtime package graphs through the existing APT repositories."""
+ 
+-load(":configuration.bzl", "requests_document")
++load(":configuration.bzl", "requests_document", "selected_lock_tags")
+ load(":deb_filemap.bzl", "deb_filemap")
+ load(":deb_import.bzl", "deb_import")
+ load(":translate_dependency_set.bzl", "translate_dependency_set")
+@@ -114,6 +114,8 @@
+     recorded = inputs.get("module_requests_document", inputs.get("requests_document", {})).get("dependency_sets", {})
+     file_requests = inputs.get("requests_document", {}).get("dependency_sets", {})
+     requested = requests_document(installs)["dependency_sets"]
++    if inputs.get("distributed", False) and requested != recorded:
++        fail("APT lock requests are stale; run apt/lock.py update --workspace .")
+     for group, value in requested.items():
+         records = [item for item in [recorded.get(group), file_requests.get(group)] if item]
+         for package in value["packages"]:
+@@ -152,26 +154,39 @@
+ 
+ def declare_locked_imports(mctx, existing_sets, installs = [], source_document = None):
+     """Import one package graph once, exporting requested payload/library views."""
+-    document = None
++    imports, selected = selected_lock_tags(mctx)
++    if not selected:
++        return
++    document = json.decode(mctx.read(selected[0][1].lock))
++    root_selected = selected[0][0].is_root
+     groups = {}
+     library_groups = {}
+-    for module in mctx.modules:
+-        for tag in module.tags.import_lock:
++    for module, tag in imports:
++        if not root_selected:
+             current = json.decode(mctx.read(tag.lock))
+-            if document != None and current != document:
+-                fail("all APT imports must use the same production lock")
+-            document = current
++            if current != document:
++                fail("all APT imports must use the same production lock or select a root lock")
++        if module.is_root or not root_selected:
+             _check_input_document(mctx, document, "source_document", tag.sources)
+             _check_input_document(mctx, document, "requests_document", tag.requests)
+-            for group, definition in expanded_sets(document, tag.dependency_sets).items():
+-                groups[group] = definition
+-                if tag.libraries:
+-                    library_groups[group] = True
+-    if document == None:
+-        return
++        for group, definition in expanded_sets(document, tag.dependency_sets).items():
++            groups[group] = definition
++            if tag.libraries:
++                library_groups[group] = True
+     if source_document != None and document.get("_inputs", {}).get("source_document") != source_document:
+         fail("APT source configuration differs from the production lock; run the unified APT lock updater")
+     _check_requests(document, installs)
++    for module in mctx.modules:
++        if not module.is_root:
++            continue
++        for view in module.tags.lock_view:
++            current = json.decode(mctx.read(view.file))
++            definitions = {group: document["dependency_sets"][group] for group in view.dependency_sets}
++            roots = [key + "=" + version for definition in definitions.values() for packages in definition["sets"].values() for key, version in packages.items()]
++            packages = {key: document["packages"][key] for key in reachable_packages(document["packages"], roots)}
++            if (current.get("dependency_sets") != definitions or current.get("packages") != packages or
++                current.get("sources") != document["sources"] or current.get("_inputs") != document.get("_inputs")):
++                fail("generated APT lock view is stale: " + str(view.file) + "; run apt/lock.py update --workspace .")
+     requested = _requested_sets(document, installs)
+     for group, definition in requested.items():
+         if group not in groups:
