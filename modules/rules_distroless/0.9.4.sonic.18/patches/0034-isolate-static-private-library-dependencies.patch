@@ -1,0 +1,86 @@
+diff --git a/apt/private/deb_import.bzl b/apt/private/deb_import.bzl
+--- a/apt/private/deb_import.bzl
++++ b/apt/private/deb_import.bzl
+@@ -298,6 +298,13 @@
+                     record["runpath"].extend(value.split(":"))
+             own_metadata[path] = record
+     for path in so_files + a_files + o_files:
++        if path.endswith(".so") and _public_runtime_path(path):
++            identity = _native_canonical(rctx.attr.name, path, state)
++            if identity and "needed" in state["native"].get(identity[0], {}).get(identity[1], {}):
++                # Foreign builds query the package's original -l names even
++                # without a .pc module. Preserve the declared link alias as
++                # well as the canonical SONAME runtime file.
++                runtime_paths.append(path)
+         name = _file_library_name(path)
+         targets[path] = ":" + name
+         if path in invalid_files:
+@@ -688,7 +695,7 @@
+                     content += 'invalid_native_library(name=%r, message=%r, visibility=["//visibility:public"])\n' % (target, error)
+                     continue
+                 compiler = "_pkgconfig_compile_" + util.encode_target(target)
+-                content += 'cc_deb_library(name=%r, hdrs=%r, deps=%r, includes=%r, include_dirs=%r, quote_includes=%r, defines=%r)\n' % (compiler, hdrs, header_deps, compile.normal, compile.system, compile.quote, compile.defines)
++                content += 'cc_deb_library(name=%r, hdrs=%r, deps=%r, includes=%r, include_dirs=%r, quote_includes=%r, defines=%r)\n' % (compiler, hdrs, header_deps, [] if compatible else compile.normal, compile.system + compile.normal if compatible else compile.system, compile.quote, compile.defines)
+                 content += 'native_link_sequence(name=%r, deps=%r, link_files=%r, link_sonames=%r, arguments=%r, visibility=["//visibility:public"])\n' % (target, deps + [":" + compiler], link_files, sonames, arguments)
+     return content, exports
+ 
+@@ -946,7 +953,7 @@
+         default_libraries = {libname: True for name in default_names for libname in pc_modules[name]["compat_modes"]["dynamic"].get("libnames", [])}
+         for module_name, definition in pc_modules.items():
+             modes = definition["compat_modes"]
+-            pkgc = struct(libnames = definition["own_libnames"], includes = [include for flags in modes.values() for include in flags.get("includes", [])], link_paths = [path for flags in modes.values() for path in flags.get("link_paths", [])], defines = [], linkopts = [])
++            pkgc = struct(libnames = modes["dynamic"].get("libnames", []), includes = [include for flags in modes.values() for include in flags.get("includes", [])], link_paths = [path for flags in modes.values() for path in flags.get("link_paths", [])], defines = [], linkopts = [])
+             includes += pkgc.includes
+             link_paths += pkgc.link_paths
+             for libname in pkgc.libnames:
+@@ -1028,22 +1035,23 @@
+         if header.endswith("/CORE/perl.h"):
+             header_includes[header.rsplit("/", 1)[0]] = True
+     build_file_content += """
+-cc_library(
++{header_rule}(
+     name = "{name}_headers_wodeps",
+     hdrs = {hdrs},
+     includes = {includes},
+     visibility = ["//visibility:public"],
+ )
+ 
+-cc_library(
++{header_rule}(
+     name = "{name}_headers",
+     deps = [":{name}_headers_wodeps"] + {deps},
+     visibility = ["//visibility:public"],
+ )
+ """.format(
++        header_rule = "cc_library" if h_files + hpp_files + hpp_files_woext else "cc_deb_library",
+         name = target_name,
+         hdrs = h_files + hpp_files + hpp_files_woext,
+-        includes = select_include_dirs(header_includes.keys()),
++        includes = select_include_dirs(header_includes.keys()) if h_files + hpp_files + hpp_files_woext else "[]",
+         deps = header_deps,
+     )
+ 
+diff --git a/apt/private/cc_deb_library.bzl b/apt/private/cc_deb_library.bzl
+--- a/apt/private/cc_deb_library.bzl
++++ b/apt/private/cc_deb_library.bzl
+@@ -191,6 +191,20 @@
+         runtime_links[name] = library.dynamic_library
+         files[library.dynamic_library] = True
+         files[file] = True
++    # Foreign build systems consume original .pc -l names and collect dynamic
++    # LibraryToLink files into their dependency prefix. Preserve the reviewed
++    # link aliases in addition to SONAME runtime files, without selecting them
++    # a second time on the ordered native link line.
++    aliases = {}
++    for index, target in enumerate(ctx.attr.link_files):
++        file = target[DefaultInfo].files.to_list()[0]
++        if ctx.attr.link_sonames[index] and file.basename != ctx.attr.link_sonames[index]:
++            aliases[file] = True
++    for file in aliases:
++        library = runtime_library(ctx, toolchain, features, file)
++        libraries.append(library)
++        files[library.dynamic_library] = True
++        files[file] = True
+     args = []
+     for token in ctx.attr.arguments:
+         if token.startswith("$FILE:"):

@@ -1,0 +1,58 @@
+From: Guohan Lu <securely1g@gmail.com>
+Subject: [PATCH] Resolve archive tools in the Distroless module context
+
+Generated root APT repositories do not inherit the Distroless module's
+zstd_toolchains, bsd_tar_toolchains and gawk apparent repository names.
+Resolve those existing declared tools using Label in the owning macro and
+use the same gawk label in its location expansion. This preserves archive
+commands and targets while avoiding caller mapping failures or shadowing.
+
+Origin: SONiC Database/MACsec analysis failure with rules_distroless
+0.9.4.sonic.18. Applies after the 39 existing ordered patches; upstream
+archive and all APT source/request/lock bytes are unchanged.
+Upstream status: local adaptation, not submitted.
+
+Signed-off-by: Guohan Lu <securely1g@gmail.com>
+
+--- a/apt/private/deb_postfix.bzl
++++ b/apt/private/deb_postfix.bzl
+@@ -21,7 +21,8 @@
+         ;;
+     esac
+ """
+-    toolchains = ["@zstd_toolchains//:resolved_toolchain"]
++    # Resolve tools in this module, not in generated APT caller repositories.
++    toolchains = [Label("@zstd_toolchains//:resolved_toolchain")]
+     tools = []
+ 
+     # If mergedusr, then rewrite paths to hoist bins/libs from / of the fs to /usr counterpart.
+@@ -34,8 +35,9 @@
+     # Mapping taken from https://github.com/floppym/merge-usr/blob/15dd02207bdee7ca6720d7024e8c0ffdc166ed23/merge-usr#L17-L25
+     # https://salsa.debian.org/md/usrmerge/-/tree/master/debian?ref_type=heads
+     if mergedusr:
+-        toolchains = ["@bsd_tar_toolchains//:resolved_toolchain"]
+-        tools.append("@gawk//:resolved_toolchain")
++        toolchains = [Label("@bsd_tar_toolchains//:resolved_toolchain")]
++        gawk = Label("@gawk//:resolved_toolchain")
++        tools.append(gawk)
+         apply = """\
+             $(BSDTAR_BIN) --confirmation --gzip --options 'gzip:!timestamp' -cf "$$layer" \
+             -s "#^\\./bin/\\(.\\)#./usr/bin/\\1#" \
+@@ -45,7 +47,7 @@
+             -s "#^\\./lib64/\\(.\\)#./usr/lib64/\\1#" \
+             -s "#^\\./libx32/\\(.\\)#./usr/libx32/\\1#" \
+             "@$$data_file" 2< <(
+-                $(BSDTAR_BIN) -tvf "$$data_file" | $(location @gawk//:resolved_toolchain) '{
++                $(BSDTAR_BIN) -tvf "$$data_file" | $(location %s) '{
+                     ORS=""
+                     keep="y"
+                     if (substr($$1, 1, 1) == "d" && (\\
+@@ -62,7 +64,7 @@
+                     fflush()
+                 }'
+             )
+-        """
++        """ % gawk
+ 
+     native.genrule(
+         name = name,
