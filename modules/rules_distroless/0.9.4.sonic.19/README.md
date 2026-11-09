@@ -1,9 +1,14 @@
 # Distributed APT requests and workspace locks
 
-Version `0.9.4.sonic.19` preserves published `.18` and resolves existing
-archive tools in the Distroless module. The 41 landed behaviors, locked
-catalog tools and lock-routing tests remain. New-version owner validation
-is pending; earlier quiet `.18` evidence is not `.19` acceptance.
+Version `0.9.4.sonic.19` preserves published `.18` and adds module-owned
+archive tool resolution plus conservative shared-only pkg-config ownership.
+The 41 landed behaviors, locked catalog tools and lock-routing tests remain.
+Positively classified shared-only inputs omit synthetic static-code ownership;
+unresolved/static inputs keep the existing conservative anchor.
+
+The native-runtime regression repeats a shared contract across two shared
+libraries. New-version owner validation is pending; earlier consumer passes
+used the quiet `.18` recipe and are not `.19` acceptance.
 
 
 Components keep their `apt.install` and `apt.install_file` declarations. In unified

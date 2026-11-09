@@ -9,11 +9,14 @@ identical.
 
 - `0042-owner-scoped-archive-tools.patch` resolves the existing zstd, bsdtar
   and gawk labels in the Distroless module, including the gawk location expansion.
+- `0043-preserve-shared-pkgconfig-ownership.patch` removes the static anchor
+  only for positively classified shared-only pkg-config inputs.
 
-This is the reviewed archive-tool fix from quiet integration `df58904`, also
-preserved in `4d4f688c`. Its header records the successor position and its
-code hunks are unchanged. Landed 0040 (active-lock routing) and 0041 (locked
-catalog inspection tools) remain. New-version native validation is pending.
+These are the reviewed archive-tool and shared-only fixes from quiet integration
+`df58904`, also preserved in `4d4f688c`. Their code hunks are unchanged.
+The native-runtime fixture repeats a shared contract across two shared-library
+consumers. Landed 0040 (active-lock routing) and 0041 (locked catalog inspection
+tools) remain. New-version native validation is pending.
 
 The following retained provenance describes the published `.18` predecessor.
 

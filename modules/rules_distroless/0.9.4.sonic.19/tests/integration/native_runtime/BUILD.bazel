@@ -1,4 +1,4 @@
-load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_import", "cc_library")
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_import", "cc_library", "cc_shared_library")
 load("@rules_distroless//apt/private:cc_deb_library.bzl", "native_link_sequence")
 load("@rules_distroless//apt/private:so_library.bzl", "so_library")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
@@ -56,6 +56,40 @@ native_link_sequence(
     deps = [":direct_contract"],
 )
 
+# Repeating a packaged DSO across dynamic_deps must not make the ordered
+# pkg-config contract appear to contain private static code in the first DSO.
+native_link_sequence(
+    name = "shared_ordered_contract",
+    arguments = ["$FILE:0"],
+    link_files = [":parent/libapt_runtime_parent.so.1"],
+    link_sonames = ["libapt_runtime_parent.so.1"],
+    deps = [":direct_contract"],
+    dynamic_only = True,
+)
+
+cc_library(
+    name = "first_shared_objects",
+    srcs = ["other.c"],
+    deps = [":shared_ordered_contract"],
+)
+
+cc_shared_library(
+    name = "first_shared_consumer",
+    deps = [":first_shared_objects"],
+)
+
+cc_library(
+    name = "second_shared_objects",
+    srcs = ["leaf.c"],
+    deps = [":first_shared_objects", ":shared_ordered_contract"],
+)
+
+cc_shared_library(
+    name = "second_shared_consumer",
+    deps = [":second_shared_objects"],
+    dynamic_deps = [":first_shared_consumer"],
+)
+
 link_inputs(name = "direct_inputs", dep = ":direct_contract")
 link_inputs(name = "ordered_inputs", dep = ":ordered_contract")
 
@@ -90,6 +124,8 @@ sh_test(
         "$(rootpath :other/libapt_runtime_other.so.1)",
     ],
     data = [
+        ":first_shared_consumer",
+        ":second_shared_consumer",
         ":direct_consumer",
         ":ordered_consumer",
         ":parent/libapt_runtime_parent.so.1",
