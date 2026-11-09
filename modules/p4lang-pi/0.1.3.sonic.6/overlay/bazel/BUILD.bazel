@@ -4,6 +4,7 @@ package(default_visibility = ["//visibility:public"])
 # and export only the overlay inputs used by the producer and its tests.
 exports_files([
     "configure.sh",
+    "cross-configure.patch",
     "pi.BUILD.bazel",
     "runtime.bzl",
     "runtime_test.py",

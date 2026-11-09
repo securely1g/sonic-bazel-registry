@@ -84,6 +84,7 @@ configure_make(
         "--with-cli",
     ],
     configure_prefix = "/bin/sh",
+    configure_xcompile = True,
     # The server uses -Werror; keep the toolchain's extra unused-RPC-parameter
     # diagnostics as warnings, as in the legacy build without -Wextra.
     copts = [
