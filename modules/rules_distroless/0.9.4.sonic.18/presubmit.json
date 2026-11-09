@@ -43,6 +43,7 @@
     "@rules_distroless//apt/tests:locked_import/invalid_lock",
     "@rules_distroless//apt/tests:locked_import/selection",
     "@rules_distroless//apt/tests:locked_import/routing",
+    "//:mixed_lock_routing_test",
     "//:archive_contract_test",
     "//:shared_lock_archive_contract_test",
     "//:shared_lock_group_selection_test",
@@ -63,7 +64,8 @@
     "//native_headers:transitive_test",
     "//native_headers:overlay_test",
     "//native_headers:without_pkgconfig_test",
-    "//native_headers:unmatched_modules_test"
+    "//native_headers:unmatched_modules_test",
+    "//native_catalog:declared_tools_test"
   ],
   "integration_test_module": "tests/integration"
 }

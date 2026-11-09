@@ -34,6 +34,9 @@ use_repo(bazel_lib_toolchains, "coreutils_toolchains")
 tar_toolchains = use_extension("@tar.bzl//tar:extensions.bzl", "toolchains")
 use_repo(tar_toolchains, "bsd_tar_toolchains")
 
+native_tools = use_repo_rule("//apt/private:native_tools.bzl", "native_tools_repository")
+native_tools(name = "distroless_native_tools")
+
 # The account merger runs on the execution platform, never in the base image.
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
 python.toolchain(python_version = "3.11")

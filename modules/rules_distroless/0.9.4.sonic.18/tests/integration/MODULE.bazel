@@ -8,6 +8,12 @@ bazel_dep(name = "rules_cc", version = "0.2.22")
 bazel_dep(name = "bazel_skylib", version = "1.9.2")
 bazel_dep(name = "rules_shell", version = "0.6.1")
 bazel_dep(name = "rules_foreign_cc", version = "0.16.0")
+bazel_dep(name = "rules_python", version = "1.9.0")
+
+# Repository rules run on the Bazel host, including when the targets are cross-built.
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(python_version = "3.11")
+use_repo(python, "python_3_11_host")
 
 # Both namespaces import the same reviewed archive graph independently.
 apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
@@ -30,7 +36,10 @@ use_repo(
 
 # Generated DEBs exercise real native repository/header exports and staging.
 header_fixtures = use_repo_rule("//native_headers:fixtures.bzl", "fixtures")
-header_fixtures(name = "native_header_fixtures")
+header_fixtures(
+    name = "native_header_fixtures",
+    interpreter = "@python_3_11_host//:python",
+)
 header_imports = use_extension("//native_headers:fixtures.bzl", "imports")
 header_imports.package(
     package = "libvariant-dev",
@@ -60,3 +69,6 @@ use_repo(
     header_plain = "header-fixture_plain-dev-all_1",
     header_unmatched = "header-fixture_unmatched-dev-all_1",
 )
+
+check_catalog_tools = use_repo_rule("//native_catalog:fixtures.bzl", "check_catalog_tools")
+check_catalog_tools(name = "checked_native_catalog_tools")

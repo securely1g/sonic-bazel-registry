@@ -558,3 +558,17 @@ not in an upstream test patch. Against the unchanged candidate, direct and
 transitive ordinary consumers fail with recursive `stdio.h` inclusion; explicit
 overlay and both fallback consumers pass. With patch0039, all five compile and
 run. The same tests are added to the normal presubmit for both architectures.
+
+## Active locks and declared catalog tools
+
+Patch 0040 selects unified validation when any active root or dependency lock
+has canonical input metadata. An ignored fallback contributes neither lock
+bytes, package requests nor pinned versions. The integration routing test
+covers active imports, standalone requests and ignored fallback metadata.
+
+Patch 0041 bootstraps the catalog's Linux AMD64 or ARM64 tools from the
+checksum-pinned build-infra APT lock. The repository rule passes the declared
+loader, libraries and magic database to pkgconf, file and readelf. The catalog
+regression disables host executable lookup and checks that loader mappings
+resolve within the downloaded runtime. The four synthetic native-header DEBs
+are generated with rules_python's host Python 3.11 in isolated mode.
