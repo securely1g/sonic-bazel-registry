@@ -1,6 +1,7 @@
 {
   "architectures": [
-    "amd64"
+    "amd64",
+    "arm64"
   ],
   "consumer_deps": [
     {
@@ -13,7 +14,8 @@
     }
   ],
   "platforms": {
-    "amd64": "@sonic-build-infra//platforms:x86_64_trixie"
+    "amd64": "@sonic-build-infra//platforms:x86_64_trixie",
+    "arm64": "@sonic-build-infra//platforms:aarch64_trixie"
   },
   "build_targets": [
     "@sonic-build-infra//tools/build_tools:make",
@@ -106,9 +108,12 @@
     "@sonic-build-infra//tests:deploy_tar_timestamps_test",
     "@sonic-build-infra//oci/tests:installed_packages_alias_test",
     "@sonic-build-infra//cc/tests/runtime_context:paired_layout_test",
-    "@sonic-build-infra//cc/tests/runtime_context:paired_flags_test"
+    "@sonic-build-infra//cc/tests/runtime_context:paired_flags_test",
+    "@sonic-build-infra//apt:lock_test",
+    "@sonic-build-infra//apt:bookworm_lock_test"
   ],
   "host_platforms": {
-    "amd64": "@sonic-build-infra//platforms:x86_64_trixie"
+    "amd64": "@sonic-build-infra//platforms:x86_64_trixie",
+    "arm64": "@sonic-build-infra//platforms:aarch64_trixie"
   }
 }
