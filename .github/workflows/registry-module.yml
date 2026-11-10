@@ -48,10 +48,13 @@ jobs:
   validate:
     name: Validate module
     runs-on: ${{ fromJSON(inputs.runner) }}
-    # Serial P4C took over three hours on a 6 GiB Trixie worker.
+    # Serial P4 builds and the cold SWSS cross-build can take over three hours.
     timeout-minutes: >-
-      ${{ (contains(fromJSON(inputs.runner), 'debian-trixie-container') || contains(fromJSON(inputs.runner), 'debian-trixie-container-large')) &&
-          contains(fromJSON('["p4c","p4lang-bmv2","sonic-dash"]'), inputs.module) && 360 || 180 }}
+      ${{ (((contains(fromJSON(inputs.runner), 'debian-trixie-container') ||
+             contains(fromJSON(inputs.runner), 'debian-trixie-container-large')) &&
+            contains(fromJSON('["p4c","p4lang-bmv2","sonic-dash"]'), inputs.module)) ||
+           (inputs.cross_compile && inputs.module == 'sonic-swss' &&
+            inputs.version == '0.0.3-9c3797990d4b5a79100a40fe7689927c18212361')) && 360 || 180 }}
     # Local native/cross jobs execute directly in the fresh Trixie runner.
     # Only native hosted ARM needs the separate pinned job image.
     container: ${{ inputs.architecture == 'arm64' && !inputs.cross_compile && 'debian:trixie-20260918@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c' || '' }}

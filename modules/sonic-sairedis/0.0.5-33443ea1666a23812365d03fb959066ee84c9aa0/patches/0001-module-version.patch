@@ -1,27 +1,29 @@
-diff --git a/MODULE.bazel b/MODULE.bazel
+Register the landed Sairedis source with its exact revision.
+
+Retain the published registry gzip toolchain registration for external
+package consumers. The landed source now owns the Common and infrastructure
+dependency selections, so no registry dependency substitution is needed.
+This patch does not change program versions, native sources, ABI or packaging.
+
+Source: https://github.com/securely1g/sonic-sairedis/commit/33443ea1666a23812365d03fb959066ee84c9aa0
+Scope: Registry module identity and inherited gzip toolchain registration.
+
 --- a/MODULE.bazel
 +++ b/MODULE.bazel
 @@ -1,7 +1,7 @@
  # Keep bazel_compatibility in sync with sonic-buildimage's .bazelversion.
  module(
      name = "sonic-sairedis",
--    version = "0.0.4",
-+    version = "0.0.4-ee19458a7d1b417317aaf34fe48969da7293d670",
+-    version = "0.0.5",
++    version = "0.0.5-33443ea1666a23812365d03fb959066ee84c9aa0",
      bazel_compatibility = [
          ">=8.5.1",
          "<=8.5.1",
-@@ -26,11 +26,12 @@
- 
- bazel_dep(name = "swig", version = "4.3.0.bcr.2")
- bazel_dep(name = "tar.bzl", version = "0.10.5-sonic.1")
--bazel_dep(name = "sonic-build-infra", version = "0.0.26-2cfc059c2cf1dc3b2f2b2ec1bcd70400b04ecb75", repo_name = "sonic_build_infra")
--bazel_dep(name = "sonic-swss-common", version = "0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed", repo_name = "sonic_swss_common")
-+bazel_dep(name = "sonic-build-infra", version = "0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568", repo_name = "sonic_build_infra")
-+bazel_dep(name = "sonic-swss-common", version = "0.0.9-334389eae54afd1f4f5ee69f89c3a7ad2062ee61", repo_name = "sonic_swss_common")
- bazel_dep(name = "sai", version = "1.18.0-sonic.1", repo_name = "sai_source")
- 
- gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
+@@ -41,6 +41,7 @@
  use_repo(gcc, "gcc_toolchains")
- 
+
  register_toolchains("@gcc_toolchains//:all")
 +register_toolchains("@sonic_build_infra//tools/gzip:toolchain")
+
+ # Native libraries and headers use the shared, pinned Trixie dependency set.
+ apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
