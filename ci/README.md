@@ -886,8 +886,16 @@ On a large runner, the P4 recipes can use their own `make -j4` within one
 Bazel action. The job verifies an effective 8-CPU cgroup quota, at least 8 CPUs
 in its affinity, and a 16 GiB memory limit before starting validation. Its
 `p4-runner-resources.json` artifact records these limits, the command exit code,
-the peak observed number of active GCC frontends sampled every three seconds,
-and the job cgroup's available memory peak and OOM counters before and after Bazel. A cache hit can complete without starting a compiler.
+and the job cgroup's available memory peak and OOM counters before and after
+Bazel. For locally executed CMake and Make actions, it also reads Bazel's
+existing build and test event files. For each reported action mnemonic, it
+divides the accumulated user and system CPU seconds by the wall time between
+its first start and last finish. With multiple actions this gives average cores
+over the group's span, including gaps. Bazel's action count can include cache
+hits, which add no local CPU time. Missing CPU metrics and phases with remote
+execution are reported without a cores estimate. This measurement records CPU
+consumption of the whole recipe, including its child processes.
+[Bazel build metrics](https://github.com/bazelbuild/bazel/blob/8.5.1/src/main/java/com/google/devtools/build/lib/buildeventstream/proto/build_event_stream.proto#L847-L873).
 
 The default repository Actions variable setting is
 `REGISTRY_P4_RUNNER_PROFILE=large` (also selected when the variable is unset).

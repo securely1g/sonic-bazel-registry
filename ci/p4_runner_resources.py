@@ -1,4 +1,4 @@
-"""Verify the large runner's cgroup limits and record observed GCC parallelism."""
+"""Verify the large runner's cgroup limits and record local foreign-build CPU usage."""
 
 import argparse
 from fractions import Fraction
@@ -8,7 +8,7 @@ from pathlib import Path
 import subprocess
 import sys
 
-SAMPLE_SECONDS = 3
+FOREIGN_MAKE_ACTIONS = {"CcCmakeMakeRule", "CcConfigureMakeRule", "CcMakeRule"}
 
 
 def unified_cgroup(path: Path) -> str:
@@ -60,22 +60,49 @@ def memory_usage(cgroup: Path) -> dict:
     return usage
 
 
-def gcc_frontends(proc: Path, group: str) -> int:
-    count = 0
-    prefix = group.rstrip("/") + "/"
-    for comm in proc.glob("[0-9]*/comm"):
-        try:
-            if comm.read_text().strip() in ("cc1", "cc1plus"):
-                child = unified_cgroup(comm.with_name("cgroup"))
-                if child == group or child.startswith(prefix):
-                    count += 1
-        except (FileNotFoundError, ProcessLookupError, PermissionError):
-            # A compiler can exit while /proc is being read.
+def local_foreign_cpu(summary: dict) -> dict:
+    """Bazel aggregates spawned CPU by mnemonic; its action counts include cache hits."""
+    runners = [runner for runner in summary.get("runnerCount", []) if int(runner.get("count", 0)) > 0]
+    if not any(runner.get("execKind") == "Local" for runner in runners):
+        return {"status": "no_local_execution"}
+    for runner in runners:
+        if runner["name"] == "deduplicated" or (
+                runner.get("execKind") != "Local" and runner["name"] not in ("total", "internal")
+                and not runner["name"].endswith(" cache hit")):
+            return {"status": "unattributed_execution"}
+
+    groups = []
+    for action in summary.get("actionData", []):
+        if action["mnemonic"] not in FOREIGN_MAKE_ACTIONS:
             continue
-    return count
+        group = {"mnemonic": action["mnemonic"], "reported_actions": int(action.get("actionsExecuted", 0))}
+        # Cache hits do not report local spawn CPU. Bazel can also omit a mnemonic from its top-N summary.
+        cpu = sum(float(action.get(key, "0s").removesuffix("s")) for key in ("userTime", "systemTime"))
+        start_ms = int(action.get("firstStartedMs", 0))
+        elapsed_ms = int(action.get("lastEndedMs", 0)) - start_ms
+        if cpu > 0 and start_ms > 0 and elapsed_ms > 0:
+            group.update(cpu_seconds=round(cpu, 6), elapsed_span_seconds=elapsed_ms / 1000,
+                         average_cores=round(cpu * 1000 / elapsed_ms, 3))
+        groups.append(group)
+    return {"status": "reported" if any("average_cores" in group for group in groups) else "no_cpu_measurement",
+            "groups": groups}
 
 
-def monitor(output: Path, command: list[str]) -> int:
+def foreign_cpu(events: Path) -> dict:
+    try:
+        with events.open("rb") as stream:
+            for line in stream:
+                if b'"buildMetrics"' in line:
+                    metrics = json.loads(line).get("buildMetrics")
+                    if metrics and "actionSummary" in metrics:
+                        return local_foreign_cpu(metrics["actionSummary"])
+    except (OSError, AttributeError, KeyError, TypeError, ValueError):
+        # A failed or interrupted Bazel command may have only partial build events.
+        pass
+    return {"status": "missing_metrics"}
+
+
+def run(output: Path, command: list[str]) -> int:
     proc = Path("/proc")
     group = unified_cgroup(proc / "self/cgroup")
     cgroup_root = Path("/sys/fs/cgroup")
@@ -83,23 +110,15 @@ def monitor(output: Path, command: list[str]) -> int:
     cgroup = cgroup_root / group.lstrip("/")
     receipt = {"runner_label": "debian-trixie-container-large",
                **limits, "memory_before": memory_usage(cgroup),
-               "bazel_jobs": 1, "recipe_make_jobs": 4, "sample_interval_seconds": SAMPLE_SECONDS,
-               "samples": 0, "peak_observed_gcc_frontends": 0}
+               "bazel_jobs": 1, "recipe_make_jobs": 4}
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(receipt, indent=2) + "\n")
     if (receipt["cpu_quota_cores"] != 8 or receipt["cpu_affinity_count"] < 8
             or receipt["memory_limit_bytes"] != 16 * 1024**3):
         raise ValueError(f"Expected an 8 CPU / 16 GiB large runner; measured {receipt}")
-    with subprocess.Popen(command) as process:
-        while True:
-            receipt["samples"] += 1
-            receipt["peak_observed_gcc_frontends"] = max(receipt["peak_observed_gcc_frontends"],
-                                                         gcc_frontends(proc, group))
-            try:
-                status = process.wait(timeout=SAMPLE_SECONDS)
-                break
-            except subprocess.TimeoutExpired:
-                continue
+    status = subprocess.run(command).returncode
+    receipt["foreign_build_cpu"] = {phase: foreign_cpu(output.parent / f"{phase}-events.jsonl")
+                                    for phase in ("build", "test")}
     receipt["exit_code"] = status
     receipt["memory_after"] = memory_usage(cgroup)
     output.write_text(json.dumps(receipt, indent=2) + "\n")
@@ -115,6 +134,6 @@ if __name__ == "__main__":
     if not args.command:
         parser.error("a command to monitor is required")
     try:
-        sys.exit(monitor(args.output, args.command))
+        sys.exit(run(args.output, args.command))
     except (OSError, ValueError) as error:
         parser.exit(1, f"Large runner resource check failed: {error}\n")

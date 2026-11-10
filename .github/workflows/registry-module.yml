@@ -155,7 +155,7 @@ jobs:
           if [[ "${HTTP_AUDIT_READY:-}" == success ]]; then
             HTTP_AUDIT_ARGS=(--http-audit-jar "$RUNNER_TEMP/debian-http-audit/debian-http-audit.jar")
           fi
-          CAPACITY_MONITOR=()
+          RESOURCE_RECEIPT=()
           if [[ "$CI_EXECUTION_ARCHITECTURE" == amd64 ]]; then
             TEST_CONTAINER_IMAGE="${SONIC_RUNNER_IMAGE_REFERENCE:?Missing runner image identity}"
             ROOT=(sudo -n)
@@ -170,7 +170,7 @@ jobs:
                 # compiles P4C for the execution platform.
                 if [[ "${CI_LARGE_RUNNER:-false}" == true ]]; then
                   # One Bazel action may run the recipe's four parallel Make compilers.
-                  CAPACITY_MONITOR=(python3 ci/p4_runner_resources.py "$GITHUB_WORKSPACE/ci-artifacts/p4-runner-resources.json")
+                  RESOURCE_RECEIPT=(python3 ci/p4_runner_resources.py "$GITHUB_WORKSPACE/ci-artifacts/p4-runner-resources.json")
                 else
                   make_flags="${GNUMAKEFLAGS:+$GNUMAKEFLAGS }--eval=.NOTPARALLEL:"
                   BAZEL_BUILD_ARGS+=("--bazel-build-arg=--action_env=GNUMAKEFLAGS=$make_flags"
@@ -183,7 +183,7 @@ jobs:
           if [[ "$CI_CROSS_COMPILE" == true ]]; then
             CROSS_ARGS=(--cross-compile --test-executor "$ARM_TEST_EXECUTOR")
           fi
-          "${CAPACITY_MONITOR[@]}" "${ROOT[@]}" "${SECRET_ENV[@]}" python3 ci/private_mirrors.py run \
+          "${ROOT[@]}" "${SECRET_ENV[@]}" "${RESOURCE_RECEIPT[@]}" python3 ci/private_mirrors.py run \
             --artifacts "$GITHUB_WORKSPACE/ci-artifacts" \
             --private-dir "$RUNNER_TEMP/private-mirrors-module" \
             --public-config ci/source_mirrors.cfg \
