@@ -11,6 +11,7 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import threading
 import unittest
@@ -578,8 +579,9 @@ class SourceMirrorWorkflowScopeTest(unittest.TestCase):
                 with tempfile.TemporaryDirectory(prefix="mirror-workflow-") as temporary:
                     output = Path(temporary) / "output"
                     env = {"EVENT_NAME": "pull_request", "HEAD_REF": branch,
-                           "HEAD_REPOSITORY": repository, "GITHUB_OUTPUT": str(output)}
-                    with mock.patch.dict(os.environ, env), \
+                           "HEAD_REPOSITORY": repository, "GITHUB_OUTPUT": str(output), "P4_RUNNER_PROFILE": "large",
+                           "GITHUB_WORKSPACE": str(ROOT)}
+                    with mock.patch.dict(os.environ, env), mock.patch.object(sys, "path", list(sys.path)), \
                             mock.patch.object(Path, "read_text", return_value=json.dumps(matrix)):
                         exec(compile(script, "registry-ci-workflow", "exec"), {})
                     lines = output.read_text().splitlines()

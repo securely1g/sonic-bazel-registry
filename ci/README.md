@@ -164,7 +164,8 @@ actions.
 
 ## Private Debian snapshot mirrors
 
-Trusted jobs on the self-hosted `debian-trixie-container` runners can prefer
+Trusted jobs on the self-hosted `debian-trixie-container` and
+`debian-trixie-container-large` runners can prefer
 private Debian mirrors while keeping the published package URLs and checksums.
 Configure these optional **Actions repository secrets** under **Settings →
 Secrets and variables → Actions**:
@@ -811,9 +812,19 @@ original validation failure is still preserved.
 
 ## Environment and coverage
 
-Planning, the aggregate check, and AMD64 runner tests and module validation use
-self-hosted Debian Trixie Docker runners with the labels `self-hosted`, `Linux`,
-`X64`, and `debian-trixie-container`. Register the runners as ephemeral so each
+Planning, the aggregate check, AMD64 runner tests, and ordinary local module
+validation use `self-hosted`, `Linux`, `X64`, and `debian-trixie-container`.
+P4C (`p4c`), BMv2 (`p4lang-bmv2`), and DASH (`sonic-dash`) use
+`debian-trixie-container-large` as their fourth label whenever their execution
+architecture is AMD64. This includes qualified ARM64 cross jobs and the P4C host
+tool built inside DASH. An ARM64 version that requires native execution still
+uses its usual GitHub-hosted ARM runner. Both Trixie pools use the same source
+mirrors, private-mirror trust checks, HTTP audit, and package tools.
+
+The large pool on `lgh108` provides four concurrent jobs, each limited to 8
+CPUs and 16 GiB. These limits may be overcommitted on the node. The ordinary
+pool retains its existing 16-slot, 6 GiB-per-slot configuration. Register both
+pools as ephemeral so each runner
 accepts only one job; `sonic-slave-wrk-mgr` must remove the finished container
 and replace it with a fresh registered runner after success, failure, or
 cancellation. Keep registration credentials in the manager, outside job
@@ -869,11 +880,25 @@ repeated startup arguments, forwards them to build, test, cquery, info and Rust
 preparation, and records them in `validation.json`. Hosted native ARM keeps its
 default heap.
 Repeated `--bazel-build-arg` options reach build, test and output queries.
-Local module jobs use `--jobs=1` and `--discard_analysis_cache` to reduce concurrent
-compiler memory; Rust preparation receives those settings too. For P4C, BMv2
-and DASH, the Trixie workflow also appends `--eval=.NOTPARALLEL:` to
-`GNUMAKEFLAGS` for target and execution-platform actions. This serializes
-compilers even when the recipe invokes Make with `-j4` in a 6 GiB slot.
+Local module jobs use `--jobs=1` and `--discard_analysis_cache` to reduce
+concurrent compiler memory. Rust preparation receives those settings too.
+On a large runner, the P4 recipes can use their own `make -j4` within one
+Bazel action. The job verifies an effective 8-CPU cgroup quota, at least 8 CPUs
+in its affinity, and a 16 GiB memory limit before starting validation. Its
+`p4-runner-resources.json` artifact records these limits, the command exit code,
+the peak observed number of active GCC frontends sampled every three seconds,
+and the job cgroup's available memory peak and OOM counters before and after Bazel. A cache hit can complete without starting a compiler.
+
+The default repository Actions variable setting is
+`REGISTRY_P4_RUNNER_PROFILE=large` (also selected when the variable is unset).
+GitHub waits for an available runner matching the plan's exact labels. If
+large workers are offline, set the variable to `standard` and **start a new
+run that executes planning**. The resulting jobs use the ordinary pool and
+append `--eval=.NOTPARALLEL:` to target and execution-platform `GNUMAKEFLAGS`
+to fit 6 GiB. Retrying only an already-planned job retains its previous label.
+Restore the variable to `large` or remove it to resume the large route. Check
+the P4 jobs' resource artifacts after enabling a new pool.
+
 These three local jobs have a six-hour deadline. A single
 local module matrix combines native AMD64 and staged cross ARM jobs, with at most ten running
 per workflow run. Hosted native ARM has its own matrix. This is a module limit
