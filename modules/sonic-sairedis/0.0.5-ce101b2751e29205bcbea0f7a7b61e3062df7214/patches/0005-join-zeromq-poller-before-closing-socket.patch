@@ -1,0 +1,113 @@
+From 44e1e7f1709fbab4052419a207d92b370a9da67a Mon Sep 17 00:00:00 2001
+From: Guohan Lu <securely1g@gmail.com>
+Date: Tue, 10 Nov 2026 09:10:16 +0000
+Subject: [PATCH] Wait for the ZeroMQ poll thread before closing its socket
+
+The ARM64 registry run aborted in ZeroMQSelectableChannel.pop when the destructor closed a socket that the background thread could still be polling. Libzmq reported an assertion in own.cpp.
+
+Use atomic stop and polling flags. Shut down the context to interrupt a blocking poll, join the thread, then close its socket and release the context. Exercise teardown with an unread request and use the same endpoint for a second request and reply.
+
+Source: https://github.com/securely1g/sonic-sairedis/commit/44e1e7f1709fbab4052419a207d92b370a9da67a
+Source-PR: https://github.com/securely1g/sonic-sairedis/pull/13
+Signed-off-by: Guohan Lu <securely1g@gmail.com>
+---
+ meta/ZeroMQSelectableChannel.cpp              |  7 ++--
+ meta/ZeroMQSelectableChannel.h                |  5 +--
+ unittest/meta/TestZeroMQSelectableChannel.cpp | 33 +++++++++++++++++++
+ 3 files changed, 41 insertions(+), 4 deletions(-)
+
+diff --git a/meta/ZeroMQSelectableChannel.cpp b/meta/ZeroMQSelectableChannel.cpp
+index e0d5b99c5..5bd69a731 100644
+--- a/meta/ZeroMQSelectableChannel.cpp
++++ b/meta/ZeroMQSelectableChannel.cpp
+@@ -71,13 +71,16 @@ ZeroMQSelectableChannel::~ZeroMQSelectableChannel()
+     m_runThread = false;
+     m_allowZmqPoll = true;
+ 
+-    zmq_close(m_socket);
+-    zmq_ctx_destroy(m_context);
++    // Wake a blocking zmq_poll and keep its socket open until the thread exits.
++    zmq_ctx_shutdown(m_context);
+ 
+     SWSS_LOG_NOTICE("ending zmq poll thread for channel %s", m_endpoint.c_str());
+ 
+     m_zmlPollThread->join();
+ 
++    zmq_close(m_socket);
++    zmq_ctx_destroy(m_context);
++
+     SWSS_LOG_NOTICE("ended zmq poll thread for channel %s", m_endpoint.c_str());
+ }
+ 
+diff --git a/meta/ZeroMQSelectableChannel.h b/meta/ZeroMQSelectableChannel.h
+index 952e8f389..4ea55b96b 100644
+--- a/meta/ZeroMQSelectableChannel.h
++++ b/meta/ZeroMQSelectableChannel.h
+@@ -5,6 +5,7 @@
+ #include "swss/table.h"
+ #include "swss/selectableevent.h"
+ 
++#include <atomic>
+ #include <deque>
+ #include <thread>
+ #include <memory>
+@@ -71,9 +72,9 @@ namespace sairedis
+ 
+             std::vector<uint8_t> m_buffer;
+ 
+-            volatile bool m_allowZmqPoll;
++            std::atomic<bool> m_allowZmqPoll;
+ 
+-            volatile bool m_runThread;
++            std::atomic<bool> m_runThread;
+ 
+             std::shared_ptr<std::thread> m_zmlPollThread;
+ 
+diff --git a/unittest/meta/TestZeroMQSelectableChannel.cpp b/unittest/meta/TestZeroMQSelectableChannel.cpp
+index 443b6dc4b..1a4c82611 100644
+--- a/unittest/meta/TestZeroMQSelectableChannel.cpp
++++ b/unittest/meta/TestZeroMQSelectableChannel.cpp
+@@ -4,6 +4,8 @@
+ #include "swss/select.h"
+ 
+ #include <gtest/gtest.h>
++#include <poll.h>
++#include <unistd.h>
+ 
+ using namespace sairedis;
+ 
+@@ -87,3 +89,34 @@ TEST(ZeroMQSelectableChannel, readData)
+     c.pop(kco, false);
+ }
+ 
++TEST(ZeroMQSelectableChannel, shutdownWithPendingRequest)
++{
++    // Linux abstract IPC endpoints are private to this test and leave no file.
++    const std::string endpoint = "ipc://@sairedis-shutdown-" + std::to_string(getpid());
++    const std::string notifications = endpoint + "-notifications";
++    {
++        ZeroMQChannel peer(endpoint, notifications, cb);
++        ZeroMQSelectableChannel channel(endpoint);
++        peer.set("first", {}, "request");
++        pollfd ready = {channel.getFd(), POLLIN, 0};
++        ASSERT_EQ(poll(&ready, 1, 10000), 1);
++        ASSERT_TRUE(ready.revents & POLLIN);
++        // Leave the request unread while the poll thread waits for the consumer.
++    }
++
++    ZeroMQChannel peer(endpoint, notifications, cb);
++    peer.setResponseTimeout(10000);
++    ZeroMQSelectableChannel channel(endpoint);
++    peer.set("second", {}, "request");
++    swss::Select select;
++    select.addSelectable(&channel);
++    swss::Selectable *selected = nullptr;
++    ASSERT_EQ(select.select(&selected, 10000), swss::Select::OBJECT);
++    ASSERT_EQ(selected, &channel);
++    swss::KeyOpFieldsValuesTuple message;
++    channel.pop(message, false);
++    EXPECT_EQ(kfvKey(message), "second");
++    channel.set("SAI_STATUS_SUCCESS", {}, "reply");
++    EXPECT_EQ(peer.wait("reply", message), SAI_STATUS_SUCCESS);
++}
++

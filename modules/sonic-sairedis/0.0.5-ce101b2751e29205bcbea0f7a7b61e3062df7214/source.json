@@ -6,7 +6,8 @@
     "0001-module-version.patch": "sha256-bddCYBLB0Aav7o5dceACpmD1W4qZqWOp6vZMz378qds=",
     "0002-match-zeromq-buffer-log-formats.patch": "sha256-xUgOOHaePb8ABxEryIqyebTVEHAs3GopHq0puGpXPyU=",
     "0003-pass-c-strings-to-macsec-status-logs.patch": "sha256-q4/ZfWTvoHEduf5yyApCR/BtBbCdXrQH1zVSBpjLNOE=",
-    "0004-match-printf-formats-to-counter-and-rdb-sizes.patch": "sha256-rHjrvB1wDLjWAqWaMkQSc3cZEyIJoYEh9jJul5rZQz4="
+    "0004-match-printf-formats-to-counter-and-rdb-sizes.patch": "sha256-rHjrvB1wDLjWAqWaMkQSc3cZEyIJoYEh9jJul5rZQz4=",
+    "0005-join-zeromq-poller-before-closing-socket.patch": "sha256-7cPIv75lwNIfrC/fpQz7mdVhExMhKeexRh+iD7CYV80="
   },
   "patch_strip": 1
 }
