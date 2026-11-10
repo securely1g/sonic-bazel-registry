@@ -818,6 +818,34 @@ class VersionPolicyTests(FixtureTestCase):
 
 
 class EntryValidationTests(FixtureTestCase):
+    def test_additions_only_accept_explicit_new_targets_for_declared_architectures(self) -> None:
+        directory = self.entry("alpha", "1.0.0")
+        path = directory / "presubmit.json"
+        config = json.loads(path.read_text())
+        config["architectures"] = ["amd64"]
+        config["platforms"] = {"amd64": "@platforms//host:host"}
+        for additions in [
+            {"arm64": {"test_targets": ["@alpha//:extra"]}},
+            {"amd64": {"skip_targets": ["@alpha//:consumer_test"]}},
+            {"amd64": {"test_targets": ["@alpha//:consumer_test"]}},
+            {"amd64": {"build_targets": ["@alpha//:x", "@alpha//:x"]}},
+            {"amd64": {"build_targets": ["@other//:x"]}},
+            {"amd64": {"test_targets": ["@alpha//:all"]}},
+            {"amd64": {"test_targets": ["//:local_without_integration"]}},
+            {"amd64": {}}, {"amd64": {"build_targets": []}}, [],
+        ]:
+            with self.subTest(additions=additions):
+                write_json(path, {**config, "additional_targets": additions})
+                with self.assertRaises(registry_ci.RegistryError):
+                    registry_ci.validate_entry(self.root, "alpha", "1.0.0")
+        additions = {"amd64": {"test_targets": ["@alpha//:extra"]}}
+        write_json(path, {**config, "additional_targets": additions})
+        self.assertEqual(registry_ci.validate_entry(self.root, "alpha", "1.0.0")["additional_targets"], additions)
+        path.write_text(path.read_text().replace('"additional_targets": {', '"additional_targets": {"amd64": {},', 1))
+        with self.assertRaisesRegex(registry_ci.RegistryError, "Duplicate field"):
+            registry_ci.validate_entry(self.root, "alpha", "1.0.0")
+
+
     def test_optional_host_platforms_require_complete_explicit_architecture_map(self) -> None:
         entry = self.entry("alpha", "1.0.0")
         path = entry / "presubmit.json"
@@ -2838,6 +2866,43 @@ a.output.write_text(json.dumps(r))
             with self.assertRaisesRegex(registry_ci.RegistryError, "test-container-image"):
                 self.run_fixture("no-container")
             execute.assert_not_called()
+
+    def test_architecture_additions_reach_argv_verified_outputs_and_receipt(self) -> None:
+        self.config["architectures"] = ["amd64", "arm64"]
+        self.config["platforms"] = {arch: "@alpha//:" + arch for arch in self.config["architectures"]}
+        self.config["additional_targets"] = {
+            "amd64": {"build_targets": ["@alpha//:extra_library"], "test_targets": ["@alpha//:extra_test"]},
+        }
+        write_json(self.config_path, self.config)
+        # The fake Bazel emits evidence for each extra target only when the command requests it.
+        script = self.fake_bazel.read_text().replace(
+            "    print(json.dumps({'label': '@@alpha+//:library', 'trees': []}))",
+            "    requested = args[-1].removeprefix('config(').split(',')[0]\n"
+            "    print(json.dumps({'label': requested, 'trees': []}))")
+        script = script.replace(
+            "    Path(path).write_text",
+            "    if '@alpha//:extra_library' in args:\n"
+            "        extra = json.loads(json.dumps(events[-1]).replace('//:library', '//:extra_library'))\n"
+            "        events.append(extra)\n"
+            "    if '@alpha//:extra_test' in args:\n"
+            "        events.extend(json.loads(json.dumps(events).replace('//:consumer_test', '//:extra_test')))\n"
+            "    Path(path).write_text")
+        self.fake_bazel.write_text(script)
+        for arch in self.config["architectures"]:
+            with self.subTest(arch=arch), mock.patch.object(registry_ci, "verify_native", return_value={}), \
+                    mock.patch.object(registry_ci, "run_logged", wraps=registry_ci.run_logged) as execute:
+                artifacts = self.run_fixture("extras-" + arch, arch)
+                extra = self.config["additional_targets"].get(arch, {})
+                builds = self.config["build_targets"] + extra.get("build_targets", [])
+                tests = self.config["test_targets"] + extra.get("test_targets", [])
+                commands = [call.args[0] for call in execute.call_args_list]
+                for subcommand, expected in (("build", builds), ("test", tests)):
+                    args = next(cmd for cmd in commands if subcommand in cmd)
+                    self.assertEqual([a for a in args if a.startswith("@alpha//:")], expected)
+                receipt = json.loads((artifacts / "validation.json").read_text())
+                self.assertEqual(receipt["build_targets"], builds)
+                self.assertEqual(receipt["passed_tests"], tests)
+                self.assertEqual(set(json.loads((artifacts / "outputs.json").read_text())), set(builds))
 
     def test_every_consumer_dependency_is_pinned_by_module_name_and_recorded(self) -> None:
         artifacts = self.run_fixture("control")

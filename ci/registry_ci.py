@@ -93,8 +93,13 @@ def require(condition: bool, message: str) -> None:
 
 
 def read_json(path: Path) -> dict:
+    def presubmit_object(pairs: list[tuple[str, object]]) -> dict:
+        fields = dict(pairs)
+        require(len(fields) == len(pairs), "Duplicate field in presubmit.json")
+        return fields
+
     try:
-        value = json.loads(path.read_text())
+        value = json.loads(path.read_text(), object_pairs_hook=presubmit_object if path.name == "presubmit.json" else None)
     except (OSError, ValueError) as error:
         raise RegistryError(f"Cannot read {path}: {error}") from error
     require(isinstance(value, dict), f"{path}: expected a JSON object")
@@ -287,6 +292,17 @@ def sync_module(root: Path, module: str, version: str, check: bool = False) -> N
         source_path.write_text(json.dumps(source, indent=2) + "\n")
 
 
+def validate_targets(labels: list, field: str, module: str, config: dict) -> None:
+    require(isinstance(labels, list) and bool(labels) and all(isinstance(label, str) for label in labels),
+            f"{field} must be a nonempty list")
+    require(len(set(labels)) == len(labels), f"{field} must have unique targets")
+    for label in labels:
+        external = LABEL.fullmatch(label) is not None and label.startswith(f"@{module}//")
+        integration = "integration_test_module" in config and ROOT_LABEL.fullmatch(label) is not None
+        require((external or integration) and label.rsplit(":", 1)[1] not in ("all", "all-targets"),
+                f"{field} requires explicit targets in @{module} or the configured integration module: {label}")
+
+
 def validate_entry(root: Path, module: str, version: str) -> dict:
     entry = entry_directory(root, module, version)
     metadata = read_json(entry.parent / "metadata.json")
@@ -324,9 +340,9 @@ def validate_entry(root: Path, module: str, version: str) -> dict:
     required = {"architectures", "consumer_deps", "platforms", "build_targets", "test_targets"}
     require(required <= set(config) <= required | {
         "build_flags", "rust_preparation", "go_sdk", "rust_toolchain", "generated_module_overlay",
-        "test_runtime_preparation", "integration_test_module", "host_platforms",
+        "test_runtime_preparation", "integration_test_module", "host_platforms", "additional_targets",
     }, f"presubmit.json requires {sorted(required)} and optionally "
-       "build_flags/rust_preparation/go_sdk/rust_toolchain/generated_module_overlay/test_runtime_preparation/integration_test_module/host_platforms")
+       "build_flags/rust_preparation/go_sdk/rust_toolchain/generated_module_overlay/test_runtime_preparation/integration_test_module/host_platforms/additional_targets")
     if "test_runtime_preparation" in config:
         preparation = config["test_runtime_preparation"]
         require(isinstance(preparation, dict) and {"script", "sha256"} <= set(preparation)
@@ -398,17 +414,20 @@ def validate_entry(root: Path, module: str, version: str) -> dict:
                 "rust_toolchain requires rules_rs as the tested module or a declared consumer dependency")
         for option in ("mangled_allocator_libraries", "bindgen"):
             require(type(toolchain.get(option, False)) is bool, f"rust_toolchain {option} must be a boolean")
-    for field in ("build_targets", "test_targets"):
-        labels = config[field]
-        require(isinstance(labels, list) and bool(labels) and all(isinstance(label, str) for label in labels),
-                f"{field} must be a nonempty list")
-        require(len(set(labels)) == len(labels), f"{field} must have unique targets")
-        for label in labels:
-            external = LABEL.fullmatch(label) is not None and label.startswith(f"@{module}//")
-            integration = "integration_test_module" in config and ROOT_LABEL.fullmatch(label) is not None
-            require((external or integration)
-                    and label.rsplit(":", 1)[1] not in ("all", "all-targets"),
-                    f"{field} requires explicit targets in @{module} or the configured integration module: {label}")
+    target_fields = ("build_targets", "test_targets")
+    for field in target_fields:
+        validate_targets(config[field], field, module, config)
+    if "additional_targets" in config:
+        additions = config["additional_targets"]
+        require(isinstance(additions, dict) and bool(additions) and set(additions) <= set(architectures),
+                "additional_targets must map configured architectures to target lists")
+        for arch, extra in additions.items():
+            require(isinstance(extra, dict) and bool(extra) and set(extra) <= set(target_fields),
+                    f"additional_targets.{arch} requires build_targets or test_targets")
+            for field, labels in extra.items():
+                validate_targets(labels, f"additional_targets.{arch}.{field}", module, config)
+                require(not set(config[field]).intersection(labels),
+                        f"additional_targets.{arch}.{field} repeats a common target")
     build_flags = config.get("build_flags", [])
     require(isinstance(build_flags, list), "build_flags must be a list")
     settings = set()
@@ -1359,6 +1378,9 @@ def run(root: Path, module: str, version: str, architecture: str,
         cross_compile: bool = False, test_executor: Path | None = None) -> None:
     config = validate_entry(root, module, version)
     require(architecture in config["architectures"], "Architecture is not configured for this version")
+    additional = config.get("additional_targets", {}).get(architecture, {})
+    build_targets = config["build_targets"] + additional.get("build_targets", [])
+    test_targets = config["test_targets"] + additional.get("test_targets", [])
     require(not cross_compile or architecture == "arm64", "Cross compilation supports ARM64 targets on AMD64")
     require(cross_compile or test_executor is None, "A test executor requires explicit cross compilation")
     arm_guest = architecture == "arm64" and os.environ.get("PILOT_EMULATED_ARM") == "true"
@@ -1501,8 +1523,8 @@ def run(root: Path, module: str, version: str, architecture: str,
                 shutil.copy2(consumer / "MODULE.bazel", artifacts / "consumer.MODULE.bazel")
             flags.extend(prepare_rust(config, consumer, work_dir, artifacts, prefix, flags))
             run_logged([*prefix, "build", *flags, f"--build_event_json_file={artifacts / 'build-events.jsonl'}",
-                        *config["build_targets"]], consumer, artifacts / "build.log")
-            declared_trees = query_output_trees(prefix, flags, config["build_targets"], consumer, artifacts)
+                        *build_targets], consumer, artifacts / "build.log")
+            declared_trees = query_output_trees(prefix, flags, build_targets, consumer, artifacts)
             # Path queries need dependency resolution, but not target/host platform
             # flags whose apparent labels may be unresolved in a fresh info command.
             info_flags = [flag for flag in flags if flag.startswith(
@@ -1510,7 +1532,7 @@ def run(root: Path, module: str, version: str, architecture: str,
                  "--override_module=", "--override_repository=", "--experimental_worker_for_repo_fetching="))]
             execution_root = Path(subprocess.check_output([*prefix, "info", *info_flags, "execution_root"],
                                                          cwd=consumer, text=True).strip())
-            collect_outputs(artifacts / "build-events.jsonl", config["build_targets"], work_dir, artifacts,
+            collect_outputs(artifacts / "build-events.jsonl", build_targets, work_dir, artifacts,
                             declared_trees, execution_root)
             output_base = Path(subprocess.check_output([*prefix, "info", *info_flags, "output_base"],
                                                       cwd=consumer, text=True).strip())
@@ -1537,7 +1559,7 @@ def run(root: Path, module: str, version: str, architecture: str,
             shutil.copy2(fetched[0], artifacts / "fetched.MODULE.bazel")
             require((consumer / "MODULE.bazel.lock").is_file(), "Bazel did not generate MODULE.bazel.lock resolution evidence")
             if executor_prefix:
-                mappings = prepare_cross_python_runtimes(prefix, flags, config["test_targets"], output_base,
+                mappings = prepare_cross_python_runtimes(prefix, flags, test_targets, output_base,
                                                          consumer, artifacts, executor_prefix)
                 cross_runtime["python_runtimes"] = mappings
                 for mapping in mappings:
@@ -1567,9 +1589,9 @@ def run(root: Path, module: str, version: str, architecture: str,
             run_logged([*prefix, "test", *flags, *test_flags, "--test_env=HOME=",
                         f"--strategy=TestRunner={TEST_SANDBOX_STRATEGY}",
                         "--nocache_test_results", "--test_output=errors",
-                        f"--build_event_json_file={artifacts / 'test-events.jsonl'}", *config["test_targets"]],
+                        f"--build_event_json_file={artifacts / 'test-events.jsonl'}", *test_targets],
                        consumer, artifacts / "test.log")
-            verify_tests(artifacts / "test-events.jsonl", config["test_targets"])
+            verify_tests(artifacts / "test-events.jsonl", test_targets)
             for dependency in config["consumer_deps"]:
                 name, selected_version = dependency["name"], dependency["version"]
                 selected = fetched_modules(output_base, name)
@@ -1586,7 +1608,7 @@ def run(root: Path, module: str, version: str, architecture: str,
                                    "native"),
                 "cross_runtime": cross_runtime,
                 "test_container_image": test_container_image,
-                "build_targets": config["build_targets"], "passed_tests": config["test_targets"],
+                "build_targets": build_targets, "passed_tests": test_targets,
                 "build_flags": config.get("build_flags", []),
                 "bazel_startup_args": bazel_startup_args or [],
                 "bazel_build_args": bazel_build_args or [],
