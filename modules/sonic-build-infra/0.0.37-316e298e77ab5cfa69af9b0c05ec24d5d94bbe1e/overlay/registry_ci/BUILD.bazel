@@ -33,40 +33,24 @@ genrule(
     visibility = ["//visibility:public"],
 )
 
-config_setting(
-    name = "amd64",
-    constraint_values = ["@platforms//cpu:x86_64"],
-)
-
-# Keep the original AMD64-to-ARM compiler checks. On native ARM64, reuse the
-# native kernel runtime regression, since AMD64 cross tools cannot run there.
+# These tests run the AMD64-hosted cross compilers and inspect ARM binaries.
+# Each native architecture runs the producer's kernel_runtime_tools_test.
 [
     py_test(
         name = "kernel_" + architecture + "_tools_test",
         srcs = ["kernel_tools_test.py"],
-        args = select({
-            ":amd64": [
-                "$(location //tools/build_tools:kernel_cross_runtime_" + architecture + "_test)",
-                "$(location //tools/build_tools:kernel_build_tools_" + architecture + ")",
-                architecture,
-            ],
-            "//conditions:default": [
-                "$(location //tools/build_tools:kernel_runtime_tools_test)",
-                "$(location //tools/build_tools:kernel_runtime)",
-            ],
-        }),
-        data = select({
-            ":amd64": [
-                "//tools/build_tools:kernel_cross_runtime_" + architecture + "_test",
-                "//tools/build_tools:kernel_build_tools_" + architecture,
-            ],
-            "//conditions:default": [
-                "//tools/build_tools:kernel_runtime_tools_test",
-                "//tools/build_tools:kernel_runtime",
-            ],
-        }),
+        args = [
+            "$(location //tools/build_tools:kernel_cross_runtime_" + architecture + "_test)",
+            "$(location //tools/build_tools:kernel_build_tools_" + architecture + ")",
+            architecture,
+        ],
+        data = [
+            "//tools/build_tools:kernel_cross_runtime_" + architecture + "_test",
+            "//tools/build_tools:kernel_build_tools_" + architecture,
+        ],
         main = "kernel_tools_test.py",
         size = "large",
+        target_compatible_with = ["@platforms//cpu:x86_64"],
         visibility = ["//visibility:public"],
     )
     for architecture in ["arm64", "armhf"]
