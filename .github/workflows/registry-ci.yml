@@ -205,10 +205,6 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
-      - name: Prepare APT repository tools
-        shell: bash
-        run: |
-          bash ci/prepare_repository_tools.sh
       - name: Identify the checked-out mirror configuration
         id: mirror_config
         if: ${{ contains(matrix.runner, 'self-hosted') && contains(matrix.runner, 'debian-trixie-container') && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && hashFiles('ci/private_mirrors.py') != '' }}
@@ -225,8 +221,11 @@ jobs:
       - name: Prepare the ARM64 build environment on the pilot worker
         if: needs.plan.outputs.fleet_validation == 'true' && matrix.architecture == 'arm64'
         run: ci/pilot_arm.sh prepare
-      - name: Install Bazel for real runner integration tests
+      - name: Prepare APT repository tools
         shell: &unit_shell bash ci/pilot_arm.sh shell {0}
+        run: bash ci/prepare_repository_tools.sh
+      - name: Install Bazel for real runner integration tests
+        shell: *unit_shell
         env:
           EXPECTED_MACHINE: ${{ matrix.machine }}
           BAZEL_ARCH: ${{ matrix.bazel_arch }}
