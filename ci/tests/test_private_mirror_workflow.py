@@ -364,11 +364,15 @@ class PrivateMirrorWorkflowCommandTest(unittest.TestCase):
         return subprocess.run(["bash", "-c", script(workflow, name)], cwd=self.directory,
                               env=self.environment, capture_output=True, text=True)
 
-    def test_only_emulated_dash_tunes_bazel_and_p4c_memory(self):
+    def test_emulated_dash_and_sairedis_release_idle_bazel_heap(self):
         standard = ["-Xmx2g"]
-        dash = standard + ["-XX:G1PeriodicGCInterval=30000", "-XX:MinHeapFreeRatio=20", "-XX:MaxHeapFreeRatio=35"]
+        periodic_gc = standard + ["-XX:G1PeriodicGCInterval=30000", "-XX:MinHeapFreeRatio=20", "-XX:MaxHeapFreeRatio=35"]
         for module, target, execution, emulated, expected in (
-            ("sonic-dash", "arm64", "arm64", True, dash),
+            ("sonic-dash", "arm64", "arm64", True, periodic_gc),
+            ("sonic-sairedis", "arm64", "arm64", True, periodic_gc),
+            ("sonic-sairedis", "amd64", "amd64", False, standard),
+            ("sonic-sairedis", "arm64", "amd64", False, standard),
+            ("sonic-sairedis", "arm64", "arm64", False, []),
             ("p4c", "arm64", "arm64", True, standard),
             ("p4lang-bmv2", "arm64", "arm64", True, standard),
             ("sonic-swss-common", "arm64", "arm64", True, standard),
