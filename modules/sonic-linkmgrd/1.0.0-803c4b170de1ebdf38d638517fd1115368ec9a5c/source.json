@@ -1,0 +1,9 @@
+{
+  "url": "https://github.com/securely1g/sonic-linkmgrd/archive/803c4b170de1ebdf38d638517fd1115368ec9a5c.tar.gz",
+  "integrity": "sha256-28fN6uaxdHFm6tUYhRm/7oeuWDndwtwtHApzMAUpOiw=",
+  "strip_prefix": "sonic-linkmgrd-803c4b170de1ebdf38d638517fd1115368ec9a5c",
+  "patch_strip": 1,
+  "patches": {
+    "0001-module-version.patch": "sha256-0b+FDIC/wC27t0JiCTN4VoEkUlYdOdkswAVvly8ULdE="
+  }
+}

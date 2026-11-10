@@ -1,0 +1,63 @@
+Subject: Share prepared APT lock files across imported dependency sets
+
+Preserve the expanded package graph once per extension namespace instead of
+embedding its JSON in every group repository attribute. Retain the inline
+transport for resolver and independent legacy imports.
+
+diff --git a/apt/private/locked_import.bzl b/apt/private/locked_import.bzl
+--- a/apt/private/locked_import.bzl
++++ b/apt/private/locked_import.bzl
+@@ -1,6 +1,6 @@
+ """Import reviewed runtime package graphs through the existing APT repositories."""
+ 
+-load(":configuration.bzl", "requests_document", "selected_lock_tags")
++load(":configuration.bzl", "export_lock_repository", "requests_document", "selected_lock_tags")
+ load(":deb_filemap.bzl", "deb_filemap", "package_catalog", "package_catalog_name", "package_catalog_repository")
+ load(":deb_import.bzl", "deb_import")
+ load(":translate_dependency_set.bzl", "translate_dependency_set")
+@@ -246,12 +246,18 @@
+             payload_only = key not in libraries,
+             mergedusr = False,
+         )
++    # Keep the expanded catalog once in the module lock, not once per group.
++    # Use the same collision-aware allocator as the native package catalog.
++    prepared_lock_name = package_catalog_name(imported, groups.keys() + [catalog_name] + existing_sets)
++    export_lock_repository(
++        name = prepared_lock_name,
++        content = json.encode(dict(document, packages = imported, dependency_sets = groups)),
++    )
+     for group, definition in groups.items():
+-        locked = dict(document, packages = imported, dependency_sets = {group: definition})
+         translate_dependency_set(
+             name = group,
+             depset_name = group,
+-            lock_content = json.encode(locked),
++            lock_file = "@%s//:apt.lock.json" % prepared_lock_name,
+             payload_only = group not in library_groups,
+             cc_exports = {
+                 "@%s//:cc_exports.json" % util.sanitize(key + "=" + version): key + "=" + version
+diff --git a/apt/private/translate_dependency_set.bzl b/apt/private/translate_dependency_set.bzl
+--- a/apt/private/translate_dependency_set.bzl
++++ b/apt/private/translate_dependency_set.bzl
+@@ -176,7 +176,10 @@
+         package_key: (export_file, json.decode(rctx.read(export_file)))
+         for export_file, package_key in rctx.attr.cc_exports.items()
+     } if not rctx.attr.payload_only else {}
+-    lockf = lockfile.from_json(rctx, rctx.attr.lock_content)
++    if bool(rctx.attr.lock_file) == bool(rctx.attr.lock_content):
++        fail("provide exactly one of lock_file or lock_content")
++    content = rctx.read(rctx.attr.lock_file) if rctx.attr.lock_file else rctx.attr.lock_content
++    lockf = lockfile.from_json(rctx, content)
+ 
+     sources = lockf.sources()
+     packages = lockf.packages()
+@@ -333,7 +336,8 @@
+         "cc_exports": attr.label_keyed_string_dict(doc = "Internal package-export metadata labels mapped to lockfile package keys."),
+         "repo_prefix": attr.string(doc = "Internal namespace for locked package repositories."),
+         "depset_name": attr.string(doc = "INTERNAL: DO NOT USE"),
+-        "lock_content": attr.string(doc = "INTERNAL: DO NOT USE"),
++        "lock_file": attr.label(allow_single_file = [".json"], doc = "Internal prepared lock shared by imported dependency sets."),
++        "lock_content": attr.string(doc = "Internal inline lock for resolver and legacy import callers; mutually exclusive with lock_file."),
+         "package_template": attr.label(default = "//apt/private:package.BUILD.tmpl"),
+     },
+ )

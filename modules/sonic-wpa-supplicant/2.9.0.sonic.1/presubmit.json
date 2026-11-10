@@ -1,0 +1,24 @@
+{
+  "architectures": [
+    "amd64"
+  ],
+  "consumer_deps": [],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
+  },
+  "host_platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
+  },
+  "integration_test_module": "tests/consumer",
+  "build_targets": [
+    "@sonic-wpa-supplicant//:wpasupplicant_pkg",
+    "@sonic-wpa-supplicant//:wpasupplicant_pkg.debug_symbols",
+    "@sonic-wpa-supplicant//:runtime_packages.json"
+  ],
+  "test_targets": [
+    "@sonic-wpa-supplicant//:package_test",
+    "@sonic-wpa-supplicant//:upstream_test",
+    "@sonic-wpa-supplicant//:build_flags_test",
+    "@sonic-wpa-supplicant//:make_flags_test"
+  ]
+}
