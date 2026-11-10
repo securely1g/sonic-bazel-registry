@@ -7,6 +7,10 @@ resolution, archive integrity, patch and overlay application, compilation, and
 the behavior covered by each module's tests.
 
 The workflow runs on every pull request, pushes to `main`, and manual dispatches.
+Each push to `main` and each manual dispatch gets its own run. A new PR revision
+cancels the previous automatic run for that PR. Retrying a job on an older
+revision leaves other runs in progress.
+
 Pull requests select affected module versions. Changes to the CI implementation
 or workflow also test the latest version of each module covered by CI. Pushes and
 manual runs test those latest versions by default. To test every configured
