@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import platform
 import re
 import shutil
 import struct
@@ -19,6 +20,10 @@ def main():
     for name in ("runtime", "debug", "fixture", "sdk", "copyright", "readelf", "objcopy", "mnl", "manual", "metadata"):
         parser.add_argument("--" + name, type=Path, required=True)
     args = parser.parse_args()
+    expected_arch, multiarch_libdir, expected_machine, libc_needed = {
+        "x86_64": ("amd64", "usr/lib/x86_64-linux-gnu", "Advanced Micro Devices X86-64", {"libc.so.6"}),
+        "aarch64": ("arm64", "usr/lib/aarch64-linux-gnu", "AArch64", {"libc.so.6", "ld-linux-aarch64.so.1"}),
+    }[platform.machine()]
     env = {key: value for key, value in os.environ.items() if key not in ("LD_LIBRARY_PATH", "LD_PRELOAD", "LD_AUDIT")}
     env.update(LC_ALL="C", TZ="UTC", DEBUGINFOD_URLS="")
     with tempfile.TemporaryDirectory(prefix="psample-installed-", dir=os.environ.get("TEST_TMPDIR")) as temporary:
@@ -28,9 +33,9 @@ def main():
             directory.mkdir()
         expected = {
             "usr/bin/psample": 0o755,
-            "usr/lib/x86_64-linux-gnu/libpsample.so.1.0": 0o644,
-            "usr/lib/x86_64-linux-gnu/libpsample.so.1": "libpsample.so.1.0",
-            "usr/lib/x86_64-linux-gnu/libpsample.so": "libpsample.so.1",
+            multiarch_libdir + "/libpsample.so.1.0": 0o644,
+            multiarch_libdir + "/libpsample.so.1": "libpsample.so.1.0",
+            multiarch_libdir + "/libpsample.so": "libpsample.so.1",
             "usr/share/man/man8/psample.8.gz": 0o644,
             "usr/share/doc/psample/copyright": 0o644,
         }
@@ -53,12 +58,12 @@ def main():
         assert manual[3] == 0 and manual[4:8] == b"\0" * 4, "gzip filename/timestamp must be omitted"
         assert gzip.decompress(manual) == args.manual.read_bytes()
         metadata = json.loads(args.metadata.read_text())
-        assert metadata["schema"] == 1 and metadata["architecture"] == "amd64"
+        assert metadata["schema"] == 1 and metadata["architecture"] == expected_arch, metadata
         assert set(metadata["packages"]) == {"psample"}
         fields = metadata["packages"]["psample"]["control_fields"]
         assert fields["Package"] == "psample" and fields["Version"] == "1.1-1"
         assert "libmnl0" in fields["Depends"] and "libc6" in fields["Depends"]
-        library_dir = runtime / "usr/lib/x86_64-linux-gnu"
+        library_dir = runtime / multiarch_libdir
         env["LD_LIBRARY_PATH"] = str(library_dir)
         binary = runtime / "usr/bin/psample"
         library = library_dir / "libpsample.so.1.0"
@@ -70,12 +75,14 @@ def main():
             inspection_env = {key: value for key, value in env.items() if key != "LD_LIBRARY_PATH"}
             return subprocess.check_output([args.readelf.absolute(), *flags, path], text=True, env=inspection_env)
 
-        for installed, function, needed in ((binary, "main", {"libpsample.so.1", "libc.so.6"}),
-                                            (library, "psample_dispatch", {"libmnl.so.0", "libc.so.6"})):
-            assert "Advanced Micro Devices X86-64" in elf(installed, "-h")
+        for installed, function, needed in ((binary, "main", {"libpsample.so.1"} | libc_needed),
+                                            (library, "psample_dispatch", {"libmnl.so.0"} | libc_needed)):
+            assert expected_machine in elf(installed, "-h")
             dynamic = elf(installed, "-d")
             assert set(re.findall(r"\(NEEDED\).*\[(.*?)\]", dynamic)) == needed, dynamic
             assert not re.search(r"\((?:RPATH|RUNPATH)\)", dynamic), dynamic
+            assert "BIND_NOW" in dynamic, dynamic
+            assert "GNU_RELRO" in elf(installed, "-lW")
             if installed == library:
                 assert "Library soname: [libpsample.so.1]" in dynamic
             build_id = re.search(r"Build ID: ([0-9a-f]+)", elf(installed, "-n")).group(1)
@@ -100,6 +107,7 @@ def main():
         # Copy the linked SDK consumer away from Bazel's library symlinks, then use installed libpsample.
         sdk = root / "sdk-probe"
         shutil.copy2(args.sdk, sdk)
+        assert not re.search(r"\((?:RPATH|RUNPATH)\)", elf(sdk, "-d"))
         subprocess.run([sdk], check=True, env=env, timeout=10)
         help_result = subprocess.run([binary, "--help"], capture_output=True, text=True, env=env, check=True, timeout=10)
         assert "Tool for monitoring psample packets" in help_result.stdout
@@ -117,7 +125,7 @@ def main():
         assert re.search(r"(?m)^7\s+2\s+42\s*$", listed), listed
         unavailable = subprocess.run([binary], capture_output=True, text=True, env=dict(fixture_env, PSAMPLE_FIXTURE_OPEN_FAIL="1"), timeout=10)
         assert unavailable.returncode != 0 and "Could not open netlink socket" in unavailable.stderr
-        evidence = {"status": "passed", "build_ids": build_ids,
+        evidence = {"status": "passed", "architecture": expected_arch, "build_ids": build_ids,
                     "runtime_sha256": {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in (binary, library)},
                     "sample": {"group": 7, "iif": 11, "oif": 12, "original_size": 64, "rate": 1000, "sequence": 42, "payload_hex": "00010203534f4e6943"},
                     "config": ["new_group:7:43", "del_group:7:44"], "open_failure": "rejected",
