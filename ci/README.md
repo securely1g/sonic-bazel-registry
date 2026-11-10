@@ -985,6 +985,8 @@ Historical versions outside the map use hosted ARM64.
 | `sonic-dash-api` | `0.0.5-9b2893e890734a2db0c53a5e5c64b031ec0dcfbd` | 8 / 5 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127363604452) |
 | `sonic-linux-kernel` | `0.0.2-34a53faaecd325509e9d8f1016ed0108ab558a23` | 5 / 5 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127391886151) |
 | `sonic-rust-deps` | `0.0.4-6d9c70f708d7420e9e2b2cdc906b80cee6b140f1` | 6 / 4 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127417149111) |
+| `sonic-sairedis` | `0.0.5-33443ea1666a23812365d03fb959066ee84c9aa0` | 19 / 7 | Pending current registration validation; [historical generator run](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42237091438) |
+| `sonic-swss` | `0.0.3-9c3797990d4b5a79100a40fe7689927c18212361` | 7 / 3 | Pending current registration validation; [historical generator run](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42238852494/job/127963546293) |
 | `sonic-yang-mgmt` | `1.0.0-9ab452d22773c41783092ae3bd6c206d6c257c8d` | 2 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127454762848) |
 | `sonic-yang-models` | `1.0.1-b0a9362a7a1b4b5e1b7188c019d256f7c8aaff9f` | 3 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127456801062) |
 | `tar.bzl` | `0.10.5.sonic.2` | 8 / 7 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127457427548) |
@@ -1032,6 +1034,24 @@ PRoot fixes for guest GCC discovery and Linux exec argument limits. Roll out
 that image before enabling this route in production.
 [Qualified ARM job](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42200862212/job/127848280179) · [Runner image change](https://github.com/securely1g/agi-projects/pull/92)
 
+SWSS 0.0.3 selects its Sairedis and libteam dependencies directly. Its cross
+job allows six hours for a cold serial C++ build and keeps the three original
+runtime tests. [Historical cross-build and runtime tests](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42238852494/job/127963546293)
+
+Sairedis stages its declared ARM loader and libraries using the original test
+wrappers. Its ASIC comparison and ZeroMQ signal fixtures run those wrappers
+with native shell and Python, then execute the AArch64 payload through kernel
+binfmt. The other five original tests use the ARM userspace executor.
+
+Sairedis and SWSS registry jobs select the shared Cosmos 4.0.2 manifest by
+module, version and execution architecture. Native AMD64, native ARM64 and
+AMD64-to-ARM64 jobs receive the five pinned inputs, including both ARM loader
+names, before Bazel starts. The shared reader fetches the official release
+archive when needed, verifies every selected member against its locked SHA256,
+and supplies the files through `--distdir`.
+[Official release](https://github.com/jart/cosmopolitan/releases/tag/4.0.2)
+
+
 The gawk smoke test uses gawk as a native execution tool while the direct gawk
 build targets ARM64. Test execution follows the declared Bazel configuration;
 the ARM cross fixture independently verifies native execution tools, ARM ELF
@@ -1075,6 +1095,17 @@ Evidence retains both graphs, provider lock and manifests, generated adapter and
 platform definitions, declared/effective platform identities, and the selected
 infra version and toolchain reuse decision. The registration allowlist is
 source-level evidence; actual toolchain and runtime acceptance remain separate.
+
+The selected-version check uses the complete module-only JSON from pinned
+Bazel 8.5.1. Its [`mod graph` implementation](https://github.com/bazelbuild/bazel/blob/8.5.1/src/main/java/com/google/devtools/build/lib/bazel/commands/ModCommand.java)
+also inspects every extension, including unused extensions. A failure solely in
+that later inspection does not invalidate the already resolved module versions.
+CI accepts only its exact exit-2 inspection diagnostic together with a complete,
+unfiltered graph; every reference must have an expanded node. It retains the
+original graph, stderr and `*-status.json`, marking extension inspection
+incomplete. Resolution failures, malformed/truncated graphs and changed selected
+versions still fail. The original build and test commands independently evaluate
+all extensions they actually need; their failures are never suppressed.
 
 The supplied executor runs unchanged ARM tests with QEMU user-mode and PRoot in
 an ARM64 Trixie filesystem. This provides emulated userspace execution, not
