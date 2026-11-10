@@ -1,0 +1,36 @@
+From c97f9d0ad590092e2b5c045c07625cbc4e93f351 Mon Sep 17 00:00:00 2001
+From: Guohan Lu <securely1g@gmail.com>
+Date: Tue, 10 Nov 2026 06:22:41 +0000
+Subject: [PATCH] Pass MACsec status text to the Syncd notification logger
+
+The two MACsec status serializers return std::string. Passing that object to a printf-style %s argument gives the logger the wrong type and fails builds that enable -Werror=format. Pass the string data with c_str() while the temporary is still alive.
+
+For example, the switch notification now prints SAI_SWITCH_MACSEC_POST_STATUS_PASS. The notification sent to subscribers is unchanged.
+
+Signed-off-by: Guohan Lu <securely1g@gmail.com>
+---
+ syncd/NotificationProcessor.cpp | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/syncd/NotificationProcessor.cpp b/syncd/NotificationProcessor.cpp
+index 35c88707c..e87656e96 100644
+--- a/syncd/NotificationProcessor.cpp
++++ b/syncd/NotificationProcessor.cpp
+@@ -1011,7 +1011,7 @@ void NotificationProcessor::handle_switch_macsec_post_status(
+     sendNotification(SAI_SWITCH_NOTIFICATION_NAME_SWITCH_MACSEC_POST_STATUS, s);
+ 
+     SWSS_LOG_NOTICE("Sent switch MACSec POST status notificaiton: %s",
+-                    sai_serialize_switch_macsec_post_status(switch_macsec_post_status));
++                    sai_serialize_switch_macsec_post_status(switch_macsec_post_status).c_str());
+ }
+ 
+ void NotificationProcessor::handle_macsec_post_status(
+@@ -1034,7 +1034,7 @@ void NotificationProcessor::handle_macsec_post_status(
+ 
+     SWSS_LOG_NOTICE("Sent MACSec POST status notification: macsec oid %s, status %s",
+                     sai_serialize_object_id(macsec_id).c_str(),
+-                    sai_serialize_macsec_post_status(macsec_post_status));
++                    sai_serialize_macsec_post_status(macsec_post_status).c_str());
+ }
+ 
+ void NotificationProcessor::processNotification(

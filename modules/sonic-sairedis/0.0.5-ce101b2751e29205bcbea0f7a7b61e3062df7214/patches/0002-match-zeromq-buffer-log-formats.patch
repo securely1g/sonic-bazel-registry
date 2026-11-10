@@ -1,0 +1,68 @@
+From 7b65ec8dd62062836db84ae7f0babcfd26488b44 Mon Sep 17 00:00:00 2001
+From: Guohan Lu <securely1g@gmail.com>
+Date: Tue, 10 Nov 2026 04:55:26 +0000
+Subject: [PATCH] Match ZeroMQ buffer size log formats to their argument types
+
+The default 4 MiB buffer is an int constant. Use %d when logging it. The configured buffer size is a long, so log it with %ld in both receive paths and the notification thread. Keep %d for the int returned by zmq_recv.
+
+This lets GCC check the calls with -Werror=format while preserving the full configured size in truncation diagnostics.
+
+Origin: https://github.com/securely1g/sonic-sairedis/commit/7b65ec8dd62062836db84ae7f0babcfd26488b44
+---
+ lib/ZeroMQChannel.cpp            | 6 +++---
+ meta/ZeroMQSelectableChannel.cpp | 4 ++--
+ 2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/lib/ZeroMQChannel.cpp b/lib/ZeroMQChannel.cpp
+index e3770ebb9..67fb6de84 100644
+--- a/lib/ZeroMQChannel.cpp
++++ b/lib/ZeroMQChannel.cpp
+@@ -35,7 +35,7 @@ ZeroMQChannel::ZeroMQChannel(
+     }
+     else
+     {
+-        SWSS_LOG_NOTICE("using default zmq response buffer size of %ld bytes", ZMQ_RESPONSE_DEFAULT_BUFFER_SIZE);
++        SWSS_LOG_NOTICE("using default zmq response buffer size of %d bytes", ZMQ_RESPONSE_DEFAULT_BUFFER_SIZE);
+     }
+ 
+     m_buffer.resize(m_zmqResponseBufferSize);
+@@ -167,7 +167,7 @@ void ZeroMQChannel::notificationThreadFunction()
+ 
+         if (rc >= m_zmqResponseBufferSize)
+         {
+-            SWSS_LOG_WARN("zmq_recv message was truncated (over %d bytes, received %d), increase buffer size, message DROPPED",
++            SWSS_LOG_WARN("zmq_recv message was truncated (over %ld bytes, received %d), increase buffer size, message DROPPED",
+                     m_zmqResponseBufferSize,
+                     rc);
+ 
+@@ -326,7 +326,7 @@ sai_status_t ZeroMQChannel::wait(
+         }
+         if (rc >= m_zmqResponseBufferSize)
+         {
+-            SWSS_LOG_THROW("zmq_recv message was truncated (over %d bytes, received %d), increase buffer size, message DROPPED",
++            SWSS_LOG_THROW("zmq_recv message was truncated (over %ld bytes, received %d), increase buffer size, message DROPPED",
+                     m_zmqResponseBufferSize,
+                     rc);
+         }
+diff --git a/meta/ZeroMQSelectableChannel.cpp b/meta/ZeroMQSelectableChannel.cpp
+index 344992fb3..e0d5b99c5 100644
+--- a/meta/ZeroMQSelectableChannel.cpp
++++ b/meta/ZeroMQSelectableChannel.cpp
+@@ -32,7 +32,7 @@ ZeroMQSelectableChannel::ZeroMQSelectableChannel(
+     }
+     else
+     {
+-        SWSS_LOG_NOTICE("using default zmq response buffer size of %ld bytes", ZMQ_RESPONSE_DEFAULT_BUFFER_SIZE);
++        SWSS_LOG_NOTICE("using default zmq response buffer size of %d bytes", ZMQ_RESPONSE_DEFAULT_BUFFER_SIZE);
+     }
+ 
+     m_buffer.resize(m_zmqResponseBufferSize);
+@@ -248,7 +248,7 @@ uint64_t ZeroMQSelectableChannel::readData()
+ 
+     if (rc >= m_zmqResponseBufferSize)
+     {
+-        SWSS_LOG_THROW("zmq_recv message was truncated (over %d bytes, received %d), increase buffer size, message DROPPED",
++        SWSS_LOG_THROW("zmq_recv message was truncated (over %ld bytes, received %d), increase buffer size, message DROPPED",
+                 m_zmqResponseBufferSize,
+                 rc);
+     }

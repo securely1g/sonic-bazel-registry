@@ -1,0 +1,12 @@
+{
+  "url": "https://github.com/securely1g/sonic-sairedis/archive/ce101b2751e29205bcbea0f7a7b61e3062df7214.tar.gz",
+  "strip_prefix": "sonic-sairedis-ce101b2751e29205bcbea0f7a7b61e3062df7214",
+  "integrity": "sha256-2oyuscNT5KkxhkidQQo+uAILOxKwES6kMpmqL/xy/Ag=",
+  "patches": {
+    "0001-module-version.patch": "sha256-bddCYBLB0Aav7o5dceACpmD1W4qZqWOp6vZMz378qds=",
+    "0002-match-zeromq-buffer-log-formats.patch": "sha256-xUgOOHaePb8ABxEryIqyebTVEHAs3GopHq0puGpXPyU=",
+    "0003-pass-c-strings-to-macsec-status-logs.patch": "sha256-q4/ZfWTvoHEduf5yyApCR/BtBbCdXrQH1zVSBpjLNOE=",
+    "0004-match-printf-formats-to-counter-and-rdb-sizes.patch": "sha256-rHjrvB1wDLjWAqWaMkQSc3cZEyIJoYEh9jJul5rZQz4="
+  },
+  "patch_strip": 1
+}
