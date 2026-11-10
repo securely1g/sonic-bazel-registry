@@ -42,7 +42,7 @@ LAUNCHER
             if [[ ${CI_MODULE:-} == rules_distroless ]]; then
                 bash "$(dirname "$script")/pilot_arm_kernel.sh" --prepare "$guest"
             fi
-            if [[ ${CI_MODULE:-} == sonic-fips ]]; then
+            if [[ ${CI_MODULE:-} == sonic-fips || ${CI_MODULE:-} == sonic-build-infra ]]; then
                 # #94 already ships the kernel, initrd and executor in this worker.
                 # Run its AMD64 system emulator directly from the ARM chroot.
                 host_usr=/usr/local/lib/sonic-pilot-host-usr
@@ -50,7 +50,12 @@ LAUNCHER
                 ln -sfn "$host_usr/local/bin/sonic-arm64-kernel" "$guest/usr/local/bin/sonic-arm64-kernel"
                 ln -sfn "$host_usr/local/share/sonic-arm64-kernel" "$guest/usr/local/share/sonic-arm64-kernel"
                 ln -sfn / "$guest/opt/sonic-arm64-rootfs"
-                install -m 0755 "$(dirname "$script")/pilot_fips_recipe.sh" "$guest/usr/local/bin/sonic-pilot-fips-recipe"
+                if [[ $CI_MODULE == sonic-fips ]]; then
+                    install -m 0755 "$(dirname "$script")/pilot_fips_recipe.sh" "$guest/usr/local/bin/sonic-pilot-fips-recipe"
+                else
+                    install -m 0755 "$(dirname "$script")/pilot_build_shell.sh" "$guest/usr/local/bin/sonic-pilot-build-shell"
+                    install -m 0755 "$(dirname "$script")/pilot_compiler.py" "$guest/usr/local/bin/sonic-pilot-compiler"
+                fi
                 cat > "$guest/usr/bin/qemu-system-aarch64" <<'EMULATOR'
 #!/bin/sh
 host_usr=/usr/local/lib/sonic-pilot-host-usr
@@ -100,7 +105,7 @@ EMULATOR
             fi
             mount --rbind "$path" "$guest$path"
         done
-        if [[ ${CI_MODULE:-} == sonic-fips ]]; then
+        if [[ ${CI_MODULE:-} == sonic-fips || ${CI_MODULE:-} == sonic-build-infra ]]; then
             host_usr="$guest/usr/local/lib/sonic-pilot-host-usr"
             mount --bind /usr "$host_usr"
             mount -o remount,bind,ro "$host_usr"

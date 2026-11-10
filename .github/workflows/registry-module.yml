@@ -189,6 +189,12 @@ jobs:
               # build-time C++ tool so it collects more often during the pipeline build.
               BAZEL_BUILD_ARGS+=(--bazel-build-arg=--host_cxxopt=-DGC_FREE_SPACE_DIVISOR=16)
             fi
+            if [[ "$CI_MODULE" == sonic-build-infra ]]; then
+              # The libtool build checks that GCC reports E2BIG when it launches
+              # cc1 or collect2. User-mode QEMU loses this posix_spawn error.
+              BAZEL_BUILD_ARGS+=(--bazel-build-arg=--shell_executable=/usr/local/bin/sonic-pilot-build-shell
+                                 "--bazel-build-arg=--action_env=SONIC_PILOT_INFRA_WORK=$RUNNER_TEMP/registry-ci")
+            fi
             if [[ "$CI_MODULE" == sonic-fips ]]; then
               # Make invokes OpenSSL's original TAP harness. Preserve caller flags
               # and use the same action environment for the build and test commands.

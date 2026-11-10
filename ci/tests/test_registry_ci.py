@@ -2421,6 +2421,103 @@ class TestContainerTests(unittest.TestCase):
                 self.assertEqual(result.stdout, "argument with spaces")
                 self.assertEqual(result.returncode, 29)
 
+    def test_only_emulated_build_infra_sets_the_kernel_build_shell(self):
+        workflow = (registry_ci.ROOT / ".github/workflows/registry-module.yml").read_text()
+        step = self.step(workflow, "Build and test through the registry")
+        for module, arch, execution, guest in (("sonic-build-infra", "arm64", "arm64", True),
+                                              ("sonic-build-infra", "arm64", "arm64", False),
+                                              ("sonic-build-infra", "arm64", "amd64", False),
+                                              ("sonic-build-infra", "amd64", "amd64", False),
+                                              ("libyang", "arm64", "arm64", True)):
+            with self.subTest(module=module, arch=arch, execution=execution, guest=guest), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                env = self.shell_environment(root, arch, execution, arch != execution)
+                env.update(CI_MODULE=module, PILOT_EMULATED_ARM=str(guest).lower())
+                subprocess.run(["bash", "-c", step], env=env, capture_output=True, check=True)
+                arguments = (root / "CAPTURE").read_text().splitlines()
+                flags = [arg for arg in arguments if "--shell_executable=" in arg or "SONIC_PILOT_INFRA_WORK=" in arg]
+                expected = ["--bazel-build-arg=--shell_executable=/usr/local/bin/sonic-pilot-build-shell",
+                            f"--bazel-build-arg=--action_env=SONIC_PILOT_INFRA_WORK={env['RUNNER_TEMP']}/registry-ci"]
+                self.assertEqual(flags, expected if module == "sonic-build-infra" and guest else [])
+
+    def test_pilot_build_shell_routes_the_libtool_action_inside_its_workspace(self):
+        action = ("bazel-out/aarch64-fastbuild/bin/external/sonic-build-infra+/"
+                  "tools/build_tools/libtool_fixture_foreign_cc/wrapper_build_script.sh")
+        with tempfile.TemporaryDirectory() as tmp:
+            work = Path(tmp) / "registry work"
+            cwd = work / "sandbox"
+            cwd.mkdir(parents=True)
+            unshare = Path(tmp) / "unshare"
+            unshare.write_text('#!/bin/sh\nprintf "%s\\n" "$@"\nexit 31\n')
+            unshare.chmod(0o755)
+            env = {**os.environ, "SONIC_PILOT_INFRA_WORK": str(work), "PATH": tmp + os.pathsep + os.environ["PATH"]}
+            shell = [str(registry_ci.ROOT / "ci/pilot_build_shell.sh")]
+            routed = subprocess.run(shell + ["-c", action], cwd=cwd, env=env, capture_output=True, text=True)
+            self.assertEqual(routed.returncode, 31)
+            self.assertEqual(routed.stdout.splitlines(), ["--mount", "--propagation", "unchanged", "--", *shell, "--fixture", action, os.readlink("/proc/self/ns/mnt")])
+            outside = Path(tmp) / "registry work-other"
+            outside.mkdir()
+            rejected = subprocess.run(shell + ["-c", action], cwd=outside, env=env, capture_output=True, text=True)
+            self.assertNotEqual(rejected.returncode, 0)
+            self.assertIn("outside its registry work directory", rejected.stderr)
+            ordinary = subprocess.run(shell + ["-c", 'printf "%s" "$1"; exit 29', "other", "argument with spaces"],
+                                      cwd=outside, env=env, capture_output=True, text=True)
+            self.assertEqual((ordinary.returncode, ordinary.stdout), (29, "argument with spaces"))
+
+    def test_pilot_compiler_routes_only_oversized_gcc_environments(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            work = Path(tmp)
+            originals = work / "original GCC wrappers"
+            originals.mkdir()
+            wrapper = work / "aarch64-linux-gnu-gcc"
+            kernel = work / "kernel"
+            kernel.write_text("""#!/bin/sh
+set -eu
+test "$1" = --bind && test "$2" = "$SONIC_PILOT_INFRA_WORK"
+test "$3" = --cwd && test "$4" = "$PWD" && test "$5" = --
+shift 5
+if [ "${TERMINATE_KERNEL:-}" = yes ]; then kill -KILL $$; fi
+export TEST_IN_KERNEL=yes
+exec "$@"
+""")
+            kernel.chmod(0o755)
+            script = (registry_ci.ROOT / "ci/pilot_compiler.py").read_text()
+            wrapper.write_text(script.replace('"/usr/local/bin/sonic-arm64-kernel"', repr(str(kernel))))
+            wrapper.chmod(0o755)
+            original = originals / wrapper.name
+            original.write_text("""#!/bin/sh
+if [ "$1" = '-###' ]; then
+    echo preview >> "$SONIC_PILOT_INFRA_WORK/calls"
+    if [ "$2" = overflow ]; then
+        python3 -c 'import os,sys; print("COLLECT_GCC_OPTIONS=" + "x" * (32 * os.sysconf("SC_PAGE_SIZE")), file=sys.stderr)'
+    else
+        echo 'COLLECT_GCC_OPTIONS=-Wl,@response-file' >&2
+    fi
+    exit 0
+fi
+test "$2" = "spaces and 'quote'" && test -z "$3" || exit 1
+printf '%s\\n' "$0" "${TEST_IN_KERNEL:-no}" >&2
+cat
+exit 37
+""")
+            env = {**os.environ, "SONIC_PILOT_INFRA_WORK": tmp, "SONIC_PILOT_GCC_ORIGINALS": str(originals)}
+            stdin = b"\0input with a newline\n\xff"
+            for mode, size, kernel_expected, terminate in (
+                    ("small", 1, False, False), ("adapted", 66000, False, False),
+                    ("overflow", 66000, True, False), ("overflow", 66000, True, True)):
+                with self.subTest(mode=mode, terminate=terminate):
+                    calls = work / "calls"
+                    calls.unlink(missing_ok=True)
+                    result = subprocess.run([str(wrapper), mode, "spaces and 'quote'", "", "x" * size],
+                                            cwd=work, env={**env, "TERMINATE_KERNEL": "yes" if terminate else "no"},
+                                            input=stdin, capture_output=True)
+                    self.assertEqual(calls.exists(), size > 65536)
+                    self.assertEqual(result.returncode, -9 if terminate else 37, result.stderr)
+                    if not terminate:
+                        self.assertEqual(result.stdout, stdin)
+                        self.assertEqual(result.stderr.decode().splitlines(), [str(wrapper), "yes" if kernel_expected else "no"])
+                    self.assertEqual(list(originals.iterdir()), [original])
+
     def test_pilot_overrides_the_openssl_recipe_interpreter_only_on_emulated_fips(self):
         workflow = (registry_ci.ROOT / ".github/workflows/registry-module.yml").read_text()
         script = self.step(workflow, "Build and test through the registry")
