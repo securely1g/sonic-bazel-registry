@@ -22,6 +22,7 @@ diff --git a/proto/configure.ac b/proto/configure.ac
                [AC_MSG_ERROR([Cannot find p4runtime; did you run 'git submodule update --init'?])])
  
  AC_ARG_ENABLE([Werror],
+diff --git a/src/config_readers/bmv2_json_reader.c b/src/config_readers/bmv2_json_reader.c
 --- a/src/config_readers/bmv2_json_reader.c
 +++ b/src/config_readers/bmv2_json_reader.c
 @@ -26,7 +26,11 @@
@@ -36,6 +37,7 @@ diff --git a/proto/configure.ac b/proto/configure.ac
  #include <uthash.h>
  
  #include <assert.h>
+diff --git a/src/config_readers/native_json_reader.c b/src/config_readers/native_json_reader.c
 --- a/src/config_readers/native_json_reader.c
 +++ b/src/config_readers/native_json_reader.c
 @@ -23,7 +23,11 @@
@@ -50,6 +52,7 @@ diff --git a/proto/configure.ac b/proto/configure.ac
  
  #include <assert.h>
  
+diff --git a/src/p4info/act_profs.c b/src/p4info/act_profs.c
 --- a/src/p4info/act_profs.c
 +++ b/src/p4info/act_profs.c
 @@ -26,7 +26,11 @@
@@ -64,6 +67,7 @@ diff --git a/proto/configure.ac b/proto/configure.ac
  
  #include <assert.h>
  #include <stdlib.h>
+diff --git a/src/p4info/actions.c b/src/p4info/actions.c
 --- a/src/p4info/actions.c
 +++ b/src/p4info/actions.c
 @@ -25,7 +25,11 @@
@@ -78,6 +82,7 @@ diff --git a/proto/configure.ac b/proto/configure.ac
  
  #include <assert.h>
  #include <stdlib.h>
+diff --git a/src/p4info/counters.c b/src/p4info/counters.c
 --- a/src/p4info/counters.c
 +++ b/src/p4info/counters.c
 @@ -25,7 +25,11 @@
@@ -92,6 +97,7 @@ diff --git a/proto/configure.ac b/proto/configure.ac
  
  #include <assert.h>
  #include <stdlib.h>
+diff --git a/src/p4info/digests.c b/src/p4info/digests.c
 --- a/src/p4info/digests.c
 +++ b/src/p4info/digests.c
 @@ -25,7 +25,11 @@
@@ -106,6 +112,7 @@ diff --git a/proto/configure.ac b/proto/configure.ac
  
  #include <assert.h>
  #include <stdlib.h>
+diff --git a/src/p4info/meters.c b/src/p4info/meters.c
 --- a/src/p4info/meters.c
 +++ b/src/p4info/meters.c
 @@ -25,7 +25,11 @@
@@ -120,6 +127,7 @@ diff --git a/proto/configure.ac b/proto/configure.ac
  
  #include <assert.h>
  #include <stdlib.h>
+diff --git a/src/p4info/p4info.c b/src/p4info/p4info.c
 --- a/src/p4info/p4info.c
 +++ b/src/p4info/p4info.c
 @@ -25,7 +25,11 @@
@@ -149,6 +157,7 @@ diff --git a/proto/configure.ac b/proto/configure.ac
  
  int pi_serialize_config_to_fd(const pi_p4info_t *p4info, int fd, int fmt) {
    char *config = pi_serialize_config(p4info, fmt);
+diff --git a/src/p4info/p4info_common.c b/src/p4info/p4info_common.c
 --- a/src/p4info/p4info_common.c
 +++ b/src/p4info/p4info_common.c
 @@ -24,7 +24,11 @@
@@ -163,6 +172,7 @@ diff --git a/proto/configure.ac b/proto/configure.ac
  
  #include <stdlib.h>
  #include <string.h>
+diff --git a/src/p4info/tables.c b/src/p4info/tables.c
 --- a/src/p4info/tables.c
 +++ b/src/p4info/tables.c
 @@ -26,7 +26,11 @@
