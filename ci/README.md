@@ -954,6 +954,31 @@ matrix. Pull requests validate latest configured versions; the explicit
 `all_versions` dispatch also surveys configured historical versions.
 Declaring an ARMHF layout in a module does not establish ARMHF build or execution coverage.
 
+### Full registry validation on the K3s runners
+
+PR #270 runs every latest module validation on `debian-trixie-container`,
+including P4C on either architecture. The plan archive contains the primary matrix in
+`plan.json` and any checks that would lose a compiler route or build output in
+`fleet-supplemental.json`. For example, the main Sairedis ARM64 job cross-compiles
+on AMD64. The supplemental `arm-guest` job runs the same package and tests with
+the ARM64 compiler. Its artifact ends in `-fleet-arm-guest`. Other pull requests select changed
+module rows and keep native ARM64 jobs on `ubuntu-24.04-arm`.
+
+For registry modules that require ARM64 build tools, the fleet validation runs the ARM64
+Bazel client, server, compilers and tests in the worker image's Debian ARM64
+filesystem with QEMU. The Bazel launcher selects that image's ARM64 OpenJDK 21
+with `--server_javabase`, uses OS-backed Java threads and limits the heap to
+2 GiB. The **Prepare the ARM64 build environment** step prints the Java version.
+
+| Example | Bundled OpenJDK 24 in the ARM guest | Worker image's OpenJDK 21 in the ARM guest |
+| --- | --- | --- |
+| Query the declared outputs of `@rules_distroless//registry_ci:protobuf_headers_test` | The build finished. The first `cquery` then waited for six idle worker threads to stop and returned no metadata. | An isolated replay returned the output metadata in all 12 invocations of the same query and the Bazel server shut down. |
+
+The Linux headers test needs ARM kernel system calls. For that test the worker
+boots a Debian ARM64 kernel, runs the Bazel-built executable, and returns its
+exit code to Bazel. Its test log records the kernel version and the result of
+creating and destroying a Linux AIO context.
+
 ## Staged ARM64 cross validation
 
 The shared helper has an explicit cross mode. Each planned row records target

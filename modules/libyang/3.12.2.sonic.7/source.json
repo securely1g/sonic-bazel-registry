@@ -1,0 +1,28 @@
+{
+  "url": "https://deb.debian.org/debian/pool/main/liby/libyang/libyang_3.12.2.orig.tar.xz",
+  "strip_prefix": "libyang-3.12.2",
+  "integrity": "sha256-17NaX586W5KbnJ7gwrG2P773vniNiPdOE2K4WZAALbM=",
+  "patches": {
+    "0001-pr2362-lyd_validate_noextdeps.patch": "sha256-PafSCuECsAtBgQbRU/ydMFn++r+mSk43cEyfD2XceHo="
+  },
+  "patch_strip": 1,
+  "overlay": {
+    ".bazelrc": "sha256-62p0YxTC6qq2Q8Zpnj07nArW6f4a0pOzywpbGeOFCIo=",
+    "BUILD.bazel": "sha256-9scI7hKfSQmi4lyPm72ljCchJenM0JEYEI/9m+FCMRU=",
+    "MODULE.bazel": "sha256-UScuKFka2MGJEShe+S6CWrnRBpQwoxIm3XpVYLsXyIs=",
+    "README.bazel.md": "sha256-qdPohVuUFFX9JrFimrgcEsESI/a26H76qfWPLzWx5/E=",
+    "capture_test_runtime.py": "sha256-VcCaHbdOq8fL9rMYEgeNFNzzy7fjp/i6f/sTVvDZyfI=",
+    "docs_permissions.awk": "sha256-v/fRLKNaROWRRZVTWIbeO5OJz6t0aMXAneIXP+x+EHk=",
+    "documentation.py": "sha256-jQ9odFa1OWrCD4ZU++BfiimtAkMi+V5FWgY63AKIk4M=",
+    "libyang_package_test.py": "sha256-iLSN4p1FxJf6QOkceDZwOYXyx9KRSm3H+h/zKHiZkhA=",
+    "libyang_test.c": "sha256-PvL3aPjkBdZRdJCfuEX7c0aVHcHtpSk/xxdqvekqKVw=",
+    "prepared_test_runtime.bzl": "sha256-rOfLbKjyriZNNrxAWBLrQ1UxGciaSFpY9dEbfrpzI34=",
+    "prepared_test_runtime.sh.in": "sha256-lKMlsoTUvCtTCCrv8Rc0ichmVCHyZBWYWgrgYRJlqM8=",
+    "relocate_test_paths.py": "sha256-a9rsQvfOsCJhYhjXs7jn4Eoj1/pUSZcK+3XHMgLreqk=",
+    "runtime_metadata_test.py": "sha256-oxPg75PZ7+majjcpxwqQN8fnqSmaU9ucJAZx+PT+gTc=",
+    "runtime_packages.md": "sha256-4ZIU++/CDtdfUFIEqtgwjFMhRszHBM2FX0MziArTA9M=",
+    "test_runtime_realpath.c": "sha256-Aynq9Ls6p2EZgGBsI4+/KtRQeMXnhEpxMVeBvUIkgpE=",
+    "upstream_tests.py": "sha256-Z0fc8YhC96nDTljdOS99dvvtF0Zhbd0/2D/pgZNodgg=",
+    "upstream_tests_config.h": "sha256-uv9Y8blvozW4k1HTUcQET4o3DrfSfYckaIdTWNXBz7E="
+  }
+}

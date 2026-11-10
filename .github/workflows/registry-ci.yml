@@ -26,10 +26,13 @@ concurrency:
 jobs:
   plan:
     name: Plan module validation
-    runs-on: [self-hosted, Linux, X64, debian-trixie-container]
+    runs-on: &trixie_runner [self-hosted, Linux, X64, debian-trixie-container]
     timeout-minutes: 10
     outputs:
+      fleet_validation: ${{ steps.plan.outputs.fleet_validation }}
       matrix: ${{ steps.plan.outputs.matrix }}
+      supplemental_matrix: ${{ steps.supplemental.outputs.matrix }}
+      has_supplemental_jobs: ${{ steps.supplemental.outputs.has_jobs || 'false' }}
       has_jobs: ${{ steps.plan.outputs.has_jobs }}
       local_matrix: ${{ steps.plan.outputs.local_matrix }}
       has_local_jobs: ${{ steps.plan.outputs.has_local_jobs }}
@@ -80,6 +83,7 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           ALL_VERSIONS: ${{ inputs.all_versions }}
           P4_RUNNER_PROFILE: ${{ vars.REGISTRY_P4_RUNNER_PROFILE || 'large' }}
+          FLEET_VALIDATION: ${{ github.event_name == 'pull_request' && github.event.pull_request.number == 270 && github.event.pull_request.head.repo.full_name == github.repository && github.repository == 'securely1g/sonic-bazel-registry' && github.base_ref == 'codex/k3s-runner-fleet-sample-base' }}
         run: |
           set -euo pipefail
           POLICY_FLAGS=()
@@ -97,7 +101,10 @@ jobs:
           fi
           printf 'Event: %s\nPublished baseline: %s\nPR base: %s\nHead: %s\n' \
             "$EVENT_NAME" "$PUBLISHED_SHA" "$BASE_SHA" "$HEAD_SHA" | tee plan.log
-          if [[ "$EVENT_NAME" == pull_request ]]; then
+          if [[ "$FLEET_VALIDATION" == true ]]; then
+            python3 ci/registry_ci.py plan --p4-runner-profile="$P4_RUNNER_PROFILE" --published "$PUBLISHED_SHA" --head "$HEAD_SHA" \
+              --latest --output plan.json 2>&1 | tee -a plan.log
+          elif [[ "$EVENT_NAME" == pull_request ]]; then
             python3 ci/registry_ci.py plan --p4-runner-profile="$P4_RUNNER_PROFILE" --published "$PUBLISHED_SHA" \
               --base "$BASE_SHA" --head "$HEAD_SHA" --output plan.json 2>&1 | tee -a plan.log
           elif [[ "$EVENT_NAME" == workflow_dispatch && "$ALL_VERSIONS" == true ]]; then
@@ -114,7 +121,7 @@ jobs:
           import sys
 
           sys.path.insert(0, str(Path(os.environ["GITHUB_WORKSPACE"]) / "ci"))
-          from registry_ci import module_runner
+          from registry_ci import RUNNERS, module_runner
 
           matrix = json.loads(Path("plan.json").read_text())
           routes = {("amd64", "amd64", False), ("arm64", "arm64", False), ("arm64", "amd64", True)}
@@ -128,8 +135,18 @@ jobs:
               if identity in identities:
                   raise SystemExit("Duplicate module validation job")
               identities.add(identity)
+          fleet_validation = os.environ.get("FLEET_VALIDATION") == "true"
+          if fleet_validation:
+              if not matrix["include"]:
+                  raise SystemExit("Full pool validation selected no modules")
+              for job in matrix["include"]:
+                  job["runner"] = RUNNERS["amd64"]
+                  job["physical_architecture"] = "amd64"
+                  job["emulated_arm"] = job["execution_architecture"] == "arm64"
+              Path("plan.json").write_text(json.dumps(matrix, indent=2) + "\n")
           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
               print("matrix=" + json.dumps(matrix, separators=(",", ":")), file=output)
+              print("fleet_validation=" + str(fleet_validation).lower(), file=output)
               print("has_jobs=" + str(bool(matrix["include"])).lower(), file=output)
               for group, execution in (("local", "amd64"), ("hosted_arm", "arm64")):
                   selected = {"include": [job for job in matrix["include"]
@@ -137,6 +154,10 @@ jobs:
                   print(group + "_matrix=" + json.dumps(selected, separators=(",", ":")), file=output)
                   print("has_" + group + "_jobs=" + str(bool(selected["include"])).lower(), file=output)
           PY
+      - name: Select previous fleet checks missing from the latest matrix
+        id: supplemental
+        if: steps.plan.outputs.fleet_validation == 'true'
+        run: python3 ci/pilot_supplemental.py
       - name: Retain validation plan
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -144,12 +165,15 @@ jobs:
           name: registry-ci-plan
           path: |
             plan.json
+            fleet-supplemental.json
             plan.log
           if-no-files-found: warn
           retention-days: 14
 
   unit:
     name: Registry runner tests (${{ matrix.architecture }})
+    env:
+      PILOT_EMULATED_ARM: ${{ needs.plan.outputs.fleet_validation == 'true' && matrix.architecture == 'arm64' }}
     needs: plan
     if: ${{ always() && !cancelled() }}
     strategy:
@@ -168,8 +192,8 @@ jobs:
             machine: aarch64
             bazel_arch: arm64
             bazel_sha: b7f2a85595e8a87d54843bc656c1e379fd9b8c1b5f783dc41717c1d7eb7cc49f
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: ${{ matrix.timeout_minutes }}
+    runs-on: ${{ needs.plan.outputs.fleet_validation == 'true' && fromJSON('["self-hosted","Linux","X64","debian-trixie-container"]') || matrix.runner }}
+    timeout-minutes: ${{ needs.plan.outputs.fleet_validation == 'true' && matrix.architecture == 'arm64' && 120 || matrix.timeout_minutes }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -192,8 +216,11 @@ jobs:
           artifact-ids: ${{ needs.plan.outputs.http_audit_artifact_id }}
           path: ${{ runner.temp }}/debian-http-audit
           merge-multiple: true
+      - name: Prepare the ARM64 build environment on the pilot worker
+        if: needs.plan.outputs.fleet_validation == 'true' && matrix.architecture == 'arm64'
+        run: ci/pilot_arm.sh prepare
       - name: Install Bazel for real runner integration tests
-        shell: bash
+        shell: &unit_shell bash ci/pilot_arm.sh shell {0}
         env:
           EXPECTED_MACHINE: ${{ matrix.machine }}
           BAZEL_ARCH: ${{ matrix.bazel_arch }}
@@ -206,6 +233,9 @@ jobs:
             # The image wrapper passes its Java CA store as a startup option,
             # including when tests use --ignore_all_rc_files.
             echo "REGISTRY_CI_TEST_BAZEL=/usr/local/bin/bazel" >> "$GITHUB_ENV"
+          elif [[ "${PILOT_EMULATED_ARM:-false}" == true ]]; then
+            printf '%s  %s\n' "$BAZEL_SHA" /usr/local/lib/bazel-8.5.1 | sha256sum --check --strict
+            echo "REGISTRY_CI_TEST_BAZEL=/usr/local/bin/bazel" >> "$GITHUB_ENV"
           else
             curl --fail --location --retry 3 --output "$RUNNER_TEMP/bazel-8.5.1" \
               "https://releases.bazel.build/8.5.1/release/bazel-8.5.1-linux-${BAZEL_ARCH}"
@@ -214,8 +244,9 @@ jobs:
             echo "REGISTRY_CI_TEST_BAZEL=$RUNNER_TEMP/bazel-8.5.1" >> "$GITHUB_ENV"
           fi
       - name: Test planning and validation runner
-        shell: bash
+        shell: *unit_shell
         env:
+          REGISTRY_CI_EMULATED_ARM: ${{ needs.plan.outputs.fleet_validation == 'true' && matrix.architecture == 'arm64' }}
           REGISTRY_CI_TEST_ARTIFACTS: runner-ci-artifacts/runner-bazel-artifacts
           HTTP_AUDIT_READY: ${{ steps.http_audit_download.outcome }}
           DEBIAN_MIRROR_ROOT: ${{ steps.mirror_config.outputs.kind == 'roots' && secrets.DEBIAN_MIRROR_ROOT || '' }}
@@ -224,6 +255,7 @@ jobs:
           DEBIAN_SECURITY_MIRROR_BASE_URL: ${{ steps.mirror_config.outputs.kind == 'dated' && secrets.DEBIAN_SECURITY_MIRROR_BASE_URL || '' }}
         run: |
           set -euo pipefail
+          unset PILOT_EMULATED_ARM
           mkdir -p runner-ci-artifacts
           HTTP_AUDIT_ARGS=()
           if [[ "${HTTP_AUDIT_READY:-}" == success ]]; then
@@ -233,6 +265,12 @@ jobs:
             --artifacts runner-ci-artifacts --private-dir "$RUNNER_TEMP/private-mirrors-unit" \
             --public-config ci/source_mirrors.cfg "${HTTP_AUDIT_ARGS[@]}" \
             -- python3 ci/run_runner_tests.py --suite native
+      - name: Give the runner access to the ARM guest test evidence
+        if: ${{ always() && needs.plan.outputs.fleet_validation == 'true' && matrix.architecture == 'arm64' }}
+        run: |
+          if [[ -d runner-ci-artifacts ]]; then
+            sudo -n chown -R "$(id -u):$(id -g)" runner-ci-artifacts
+          fi
       - name: Validate private Debian mirrors from the Trixie runner
         if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' && inputs.private_mirror_probe && contains(matrix.runner, 'self-hosted') && contains(matrix.runner, 'debian-trixie-container') && github.actor != 'dependabot[bot]' }}
         shell: bash
@@ -274,7 +312,7 @@ jobs:
     name: ARM cross compiler and runtime fixture
     needs: plan
     if: ${{ always() && !cancelled() }}
-    runs-on: [self-hosted, Linux, X64, debian-trixie-container]
+    runs-on: *trixie_runner
     timeout-minutes: 60
     env:
       REGISTRY_CI_TEST_BAZEL: /usr/local/bin/bazel
@@ -352,23 +390,45 @@ jobs:
     strategy:
       fail-fast: false
       # One module budget per run covers native AMD64 and every ARM cross job.
-      max-parallel: 10
+      max-parallel: ${{ needs.plan.outputs.fleet_validation == 'true' && 64 || 10 }}
       matrix: ${{ fromJSON(needs.plan.outputs.local_matrix) }}
     uses: ./.github/workflows/registry-module.yml
     with:
       module: ${{ matrix.module }}
       version: ${{ matrix.version }}
       architecture: ${{ matrix.architecture }}
+      emulated_arm: ${{ matrix.emulated_arm == true }}
       execution_architecture: ${{ matrix.execution_architecture }}
       cross_compile: ${{ matrix.cross_compile }}
       runner: ${{ toJSON(matrix.runner) }}
       http_audit_artifact_id: ${{ needs.plan.outputs.http_audit_artifact_id }}
     # Public/fork runs keep the existing download candidates without these secrets.
-    secrets:
+    secrets: &local_module_mirrors
       DEBIAN_MIRROR_ROOT: ${{ contains(matrix.runner, 'self-hosted') && (contains(matrix.runner, 'debian-trixie-container') || contains(matrix.runner, 'debian-trixie-container-large')) && needs.plan.outputs.mirror_config == 'roots' && secrets.DEBIAN_MIRROR_ROOT || '' }}
       DEBIAN_MIRROR_BASE_URL: ${{ contains(matrix.runner, 'self-hosted') && (contains(matrix.runner, 'debian-trixie-container') || contains(matrix.runner, 'debian-trixie-container-large')) && needs.plan.outputs.mirror_config == 'dated' && secrets.DEBIAN_MIRROR_BASE_URL || '' }}
       DEBIAN_SECURITY_MIRROR_ROOT: ${{ contains(matrix.runner, 'self-hosted') && (contains(matrix.runner, 'debian-trixie-container') || contains(matrix.runner, 'debian-trixie-container-large')) && needs.plan.outputs.mirror_config == 'roots' && secrets.DEBIAN_SECURITY_MIRROR_ROOT || '' }}
       DEBIAN_SECURITY_MIRROR_BASE_URL: ${{ contains(matrix.runner, 'self-hosted') && (contains(matrix.runner, 'debian-trixie-container') || contains(matrix.runner, 'debian-trixie-container-large')) && needs.plan.outputs.mirror_config == 'dated' && secrets.DEBIAN_SECURITY_MIRROR_BASE_URL || '' }}
+
+  modules_supplemental:
+    name: Fleet ${{ matrix.case }} / ${{ matrix.module }} ${{ matrix.version }} (${{ matrix.architecture }})
+    needs: plan
+    if: needs.plan.outputs.has_supplemental_jobs == 'true'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.supplemental_matrix) }}
+    uses: ./.github/workflows/registry-module.yml
+    with:
+      supplemental_case: ${{ matrix.case }}
+      module: ${{ matrix.module }}
+      version: ${{ matrix.version }}
+      architecture: ${{ matrix.architecture }}
+      emulated_arm: ${{ matrix.emulated_arm == true }}
+      execution_architecture: ${{ matrix.execution_architecture }}
+      cross_compile: ${{ matrix.cross_compile }}
+      runner: ${{ toJSON(matrix.runner) }}
+      http_audit_artifact_id: ${{ needs.plan.outputs.http_audit_artifact_id }}
+
+    secrets: *local_module_mirrors
 
   modules_hosted_arm:
     name: ${{ matrix.module }} ${{ matrix.version }} (${{ matrix.architecture }})
@@ -382,6 +442,7 @@ jobs:
       module: ${{ matrix.module }}
       version: ${{ matrix.version }}
       architecture: ${{ matrix.architecture }}
+      emulated_arm: ${{ matrix.emulated_arm == true }}
       execution_architecture: ${{ matrix.execution_architecture }}
       cross_compile: ${{ matrix.cross_compile }}
       runner: ${{ toJSON(matrix.runner) }}
@@ -389,8 +450,8 @@ jobs:
   required:
     name: Registry CI
     if: always()
-    needs: [plan, unit, cross_fixture, modules_local, modules_hosted_arm]
-    runs-on: [self-hosted, Linux, X64, debian-trixie-container]
+    needs: [plan, unit, cross_fixture, modules_local, modules_hosted_arm, modules_supplemental]
+    runs-on: *trixie_runner
     timeout-minutes: 5
     steps:
       - name: Require successful planning, runner tests, and module validation
@@ -400,6 +461,8 @@ jobs:
           UNIT_RESULT: ${{ needs.unit.result }}
           CROSS_FIXTURE_RESULT: ${{ needs.cross_fixture.result }}
           LOCAL_RESULT: ${{ needs.modules_local.result }}
+          SUPPLEMENTAL_RESULT: ${{ needs.modules_supplemental.result }}
+          HAS_SUPPLEMENTAL_JOBS: ${{ needs.plan.outputs.has_supplemental_jobs }}
           HOSTED_ARM_RESULT: ${{ needs.modules_hosted_arm.result }}
           HAS_LOCAL_JOBS: ${{ needs.plan.outputs.has_local_jobs }}
           HAS_HOSTED_ARM_JOBS: ${{ needs.plan.outputs.has_hosted_arm_jobs }}
@@ -417,3 +480,4 @@ jobs:
           }
           require_modules "$HAS_LOCAL_JOBS" "$LOCAL_RESULT"
           require_modules "$HAS_HOSTED_ARM_JOBS" "$HOSTED_ARM_RESULT"
+          require_modules "$HAS_SUPPLEMENTAL_JOBS" "$SUPPLEMENTAL_RESULT"

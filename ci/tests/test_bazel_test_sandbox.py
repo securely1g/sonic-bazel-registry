@@ -61,6 +61,7 @@ def execution_records(path: Path) -> list[dict]:
                      "set REGISTRY_CI_TEST_BAZEL to run the real Bazel hard-link fixture")
 class BazelTestSandboxIntegrationTest(unittest.TestCase):
     def test_hardlinked_runfile_and_local_test_preserve_build_action_strategy(self):
+        bazel_timeout = 600 if os.environ.get("REGISTRY_CI_EMULATED_ARM") == "true" else 180
         with tempfile.TemporaryDirectory(prefix="registry-bazel-hardlink-") as temporary:
             work = Path(temporary)
             consumer, artifacts = work / "consumer", work / "artifacts"
@@ -112,7 +113,7 @@ class BazelTestSandboxIntegrationTest(unittest.TestCase):
                 log_path = artifacts / (case + ".log")
                 with log_path.open("w") as log:
                     result = subprocess.run(command, cwd=consumer, stdout=log,
-                                            stderr=subprocess.STDOUT, timeout=180)
+                                            stderr=subprocess.STDOUT, timeout=bazel_timeout)
                 return result.returncode, log_path.read_text(), execution_log
 
             try:

@@ -30,6 +30,7 @@ SPEC.loader.exec_module(registry_ci)
                      "set REGISTRY_CI_TEST_BAZEL to run the real Bazel HTTP retry fixture")
 class BazelHttpRetryIntegrationTest(unittest.TestCase):
     def test_transient_503_recovery_preserves_source_integrity(self):
+        bazel_timeout = 600 if os.environ.get("REGISTRY_CI_EMULATED_ARM") == "true" else 120
         original = b"verified repository fixture\n"
         checksum = hashlib.sha256(original).hexdigest()
         for case, flags, transient_errors, corrupt, succeeds, expected_requests in (
@@ -75,7 +76,7 @@ class BazelHttpRetryIntegrationTest(unittest.TestCase):
                     log_path = artifacts / "fetch.log"
                     with log_path.open("w") as log:
                         result = subprocess.run(command, cwd=consumer, stdout=log,
-                                                stderr=subprocess.STDOUT, timeout=120)
+                                                stderr=subprocess.STDOUT, timeout=bazel_timeout)
                     transcript = log_path.read_text()
                     self.assertEqual(len(requests), expected_requests, transcript)
                     self.assertEqual({request["path"] for request in requests}, {"/source"})

@@ -35,6 +35,7 @@ assert startup.read_text() == "test configuration"
                      "set REGISTRY_CI_TEST_BAZEL to run the real Bazel test HOME fixture")
 class BazelTestHomeIntegrationTest(unittest.TestCase):
     def test_explicit_empty_home_exports_writable_test_directory(self):
+        bazel_timeout = 600 if os.environ.get("REGISTRY_CI_EMULATED_ARM") == "true" else 180
         with tempfile.TemporaryDirectory(prefix="registry-bazel-home-") as temporary:
             work = Path(temporary)
             consumer, artifacts = work / "consumer", work / "artifacts"
@@ -71,7 +72,7 @@ class BazelTestHomeIntegrationTest(unittest.TestCase):
                         log_path = artifacts / (case + ".log")
                         with log_path.open("w") as log:
                             result = subprocess.run(command, cwd=consumer, env=environment, stdout=log,
-                                                    stderr=subprocess.STDOUT, timeout=180)
+                                                    stderr=subprocess.STDOUT, timeout=bazel_timeout)
                         transcript = log_path.read_text()
                         if succeeds:
                             self.assertEqual(result.returncode, 0, transcript)
