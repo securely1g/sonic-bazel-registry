@@ -1,24 +1,33 @@
 {
   "generated_module_overlay": true,
   "architectures": [
-    "amd64"
+    "amd64",
+    "arm64"
   ],
   "consumer_deps": [
     {
       "name": "sonic-build-infra",
-      "version": "0.0.25-17a1e555291c64be1a6ff008f33352bffc4f8e5c",
+      "version": "0.0.28-9965823498ab54816de5addb6084638470dd04d7",
       "repo_name": "sonic_build_infra"
+    },
+    {
+      "name": "rules_distroless",
+      "version": "0.9.4.sonic.18"
+    },
+    {
+      "name": "tar.bzl",
+      "version": "0.10.5.sonic.2"
     }
   ],
   "platforms": {
-    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
   },
   "build_targets": [
     "@sflowtool//:runtime",
     "@sflowtool//:runtime.debug_symbols",
     "@sflowtool//:sflowtool",
     "@sflowtool//:configuration",
-    "@sflowtool//:configure_log",
     "@sflowtool//:runtime_packages.json"
   ],
   "test_targets": [

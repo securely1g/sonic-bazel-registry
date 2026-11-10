@@ -5,6 +5,7 @@ import ipaddress
 import json
 import os
 from pathlib import Path
+import platform
 import re
 import socket
 import struct
@@ -42,6 +43,10 @@ def main():
     for key in ("runtime", "debug", "unstripped", "copyright", "readelf", "objcopy", "metadata"):
         parser.add_argument("--" + key, type=Path, required=True)
     args = parser.parse_args()
+    expected_arch, expected_machine, expected_needed = {
+        "x86_64": ("amd64", "Advanced Micro Devices X86-64", {"libc.so.6"}),
+        "aarch64": ("arm64", "AArch64", {"libc.so.6", "ld-linux-aarch64.so.1"}),
+    }[platform.machine()]
     env = {key: value for key, value in os.environ.items() if key not in ("LD_LIBRARY_PATH", "LD_PRELOAD", "LD_AUDIT")}
     env.update(LC_ALL="C", TZ="UTC", DEBUGINFOD_URLS="")
     with tempfile.TemporaryDirectory(prefix="sflowtool-installed-", dir=os.environ.get("TEST_TMPDIR")) as temporary:
@@ -60,7 +65,7 @@ def main():
             archive.extractall(debug, filter="data")
         assert (runtime / "usr/share/doc/sflowtool/copyright").read_bytes() == args.copyright.read_bytes()
         metadata = json.loads(args.metadata.read_text())
-        assert metadata["schema"] == 1 and metadata["architecture"] == "amd64"
+        assert metadata["schema"] == 1 and metadata["architecture"] == expected_arch, metadata
         assert set(metadata["packages"]) == {"sflowtool"}
         fields = metadata["packages"]["sflowtool"]["control_fields"]
         assert fields["Package"] == "sflowtool" and fields["Version"] == "6.11"
@@ -71,10 +76,12 @@ def main():
         def elf(path, *flags):
             return subprocess.check_output([args.readelf.absolute(), *flags, path], text=True, env=env)
 
-        assert "Advanced Micro Devices X86-64" in elf(binary, "-h")
+        assert expected_machine in elf(binary, "-h")
         dynamic = elf(binary, "-d")
-        assert set(re.findall(r"\(NEEDED\).*\[(.*?)\]", dynamic)) == {"libc.so.6"}, dynamic
+        assert set(re.findall(r"\(NEEDED\).*\[(.*?)\]", dynamic)) == expected_needed, dynamic
         assert not re.search(r"\((?:RPATH|RUNPATH)\)", dynamic), dynamic
+        assert "BIND_NOW" in dynamic, dynamic
+        assert "GNU_RELRO" in elf(binary, "-lW")
         build_id = re.search(r"Build ID: ([0-9a-f]+)", elf(binary, "-n")).group(1)
         symbols = debug / "usr/lib/debug/.build-id" / build_id[:2] / (build_id[2:] + ".debug")
         assert re.search(r"Build ID: ([0-9a-f]+)", elf(symbols, "-n")).group(1) == build_id
@@ -123,7 +130,8 @@ def main():
         malformed.write_bytes(pcap([struct.pack("!I", 99) + packets[0][4:]]))
         rejected = subprocess.run([binary, "-j", "-r", malformed], capture_output=True, text=True, env=env, timeout=10)
         assert "unexpected datagram version" in rejected.stderr, rejected.stdout + rejected.stderr
-        evidence = {"status": "passed", "build_id": build_id, "runtime_sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
+        evidence = {"status": "passed", "architecture": expected_arch, "build_id": build_id,
+                    "runtime_sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
                     "agents": agents, "counter_fields": ["ifIndex", "ifSpeed", "ifInOctets", "ifOutOctets", "ifInUcastPkts"],
                     "forwarded_datagrams": 2, "unsupported_version": "rejected", "gdb": "source/type with negative control"}
         print(json.dumps(evidence, sort_keys=True))
