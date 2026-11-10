@@ -1,0 +1,235 @@
+# Linkmgrd initial registration
+
+The maintained registry had no Linkmgrd entry at `b83d6569a46a1a7130754dceb40578f324291cd8`. The full addition below reproduces [candidate `ea27a5ae0b`](https://github.com/securely1g/sonic-bazel-registry/commit/ea27a5ae0b6df05bf6b2281b10bae79f6d3da86c) for version `1.0.0-e0f9f94901c30ed30f5fe82af6dafca38f8b35d7`.
+
+Download `registry-183.patch` and run these commands from a clean checkout of the baseline with no `modules/sonic-linkmgrd` directory.
+
+```sh
+git checkout --detach b83d6569a46a1a7130754dceb40578f324291cd8
+git apply --check registry-183.patch
+git apply --index registry-183.patch
+git write-tree
+```
+
+The expected tree is `852a180370baf4a658cbf1c506371b9a1d3bda6e`. Git includes every file mode in the tree hash.
+
+```diff
+diff --git a/modules/sonic-linkmgrd/1.0.0-e0f9f94901c30ed30f5fe82af6dafca38f8b35d7/MODULE.bazel b/modules/sonic-linkmgrd/1.0.0-e0f9f94901c30ed30f5fe82af6dafca38f8b35d7/MODULE.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..29fb1a4070d511e7f915512b0df6c4f6cac6cd7e
+--- /dev/null
++++ b/modules/sonic-linkmgrd/1.0.0-e0f9f94901c30ed30f5fe82af6dafca38f8b35d7/MODULE.bazel
+@@ -0,0 +1,71 @@
++module(
++    name = "sonic-linkmgrd",
++    version = "1.0.0-e0f9f94901c30ed30f5fe82af6dafca38f8b35d7",
++    bazel_compatibility = [
++        ">=8.5.1",
++        "<=8.5.1",
++    ],
++)
++
++bazel_dep(name = "rules_cc", version = "0.2.22")
++bazel_dep(name = "rules_python", version = "1.9.0")
++bazel_dep(name = "rules_gzip", version = "1.0.0")
++bazel_dep(name = "platforms", version = "1.1.0")
++bazel_dep(name = "googletest", version = "1.17.0")
++bazel_dep(name = "tar.bzl", version = "0.10.5.sonic.1")
++bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.18")
++bazel_dep(name = "libnl3", version = "3.7.0.sonic.7")
++bazel_dep(
++    name = "sonic-build-infra",
++    version = "0.0.28-9965823498ab54816de5addb6084638470dd04d7",
++    repo_name = "sonic_build_infra",
++)
++bazel_dep(
++    name = "sonic-swss-common",
++    version = "0.0.9-334389eae54afd1f4f5ee69f89c3a7ad2062ee61",
++    repo_name = "sonic_swss_common",
++)
++
++# Reuse the shared, snapshot-pinned target APT set for Boost's native ABI.
++apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
++apt.import_lock(lock = "@sonic_build_infra//apt:apt.lock.json")
++apt.install(
++    dependency_set = "trixie",
++    packages = [
++        "libboost-date-time1.83.0:amd64",
++        "libboost-date-time1.83-dev:amd64",
++        "libboost-filesystem1.83.0:amd64",
++        "libboost-filesystem1.83-dev:amd64",
++        "libboost-log1.83.0:amd64",
++        "libboost-log1.83-dev:amd64",
++        "libboost-program-options1.83.0:amd64",
++        "libboost-program-options1.83-dev:amd64",
++        "libboost-thread1.83.0:amd64",
++        "libboost-thread1.83-dev:amd64",
++    ],
++    suites = [
++        "trixie",
++        "trixie-updates",
++        "trixie-security",
++    ],
++)
++use_repo(apt, "trixie")
++
++gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
++use_repo(gcc, "gcc_toolchains")
++
++register_toolchains("@gcc_toolchains//:all")
++
++register_toolchains("@sonic_build_infra//tools/gzip:toolchain")
++
++python = use_extension("@rules_python//python/extensions:python.bzl", "python")
++python.toolchain(
++    is_default = True,
++    python_version = "3.13",
++)
++
++# Common declares this extension; this C++ producer needs no Rust toolchain.
++bazel_dep(name = "rules_rs", version = "0.1.0")
++
++rust = use_extension("@rules_rs//rs:rules_rust_reexported_extensions.bzl", "rust")
++rust.toolchain(versions = [])
+diff --git a/modules/sonic-linkmgrd/1.0.0-e0f9f94901c30ed30f5fe82af6dafca38f8b35d7/README.md b/modules/sonic-linkmgrd/1.0.0-e0f9f94901c30ed30f5fe82af6dafca38f8b35d7/README.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..f9a6a941f1ccc38c4427a0665321b136b5e83316
+--- /dev/null
++++ b/modules/sonic-linkmgrd/1.0.0-e0f9f94901c30ed30f5fe82af6dafca38f8b35d7/README.md
+@@ -0,0 +1,30 @@
++# Native AMD64 Linkmgrd for docker-mux
++
++This entry registers merged [Linkmgrd PR #1](https://github.com/securely1g/sonic-linkmgrd/pull/1)
++at `e0f9f94901c30ed30f5fe82af6dafca38f8b35d7`. Its source owner builds the daemon and matching runtime/debug TARs
++for [docker-mux integration #123](https://github.com/securely1g/sonic-buildimage/issues/123).
++No DEB is generated or imported as a substitute for the project source.
++
++The runtime installs `/usr/sbin/linkmgrd` and its existing compressed Debian
++changelog. The debug TAR contains the matching Build-ID symbols with `0644`
++permissions. Common and libnl remain separately owned dependencies; the MUX
++config-engine parent supplies their runtime TARs. Boost 1.83 comes from the
++existing pinned target APT set.
++
++The ordinary external consumer has no source overrides. Native AMD64/Trixie CI
++builds the daemon (including its core libraries), two TARs and package metadata,
++runs all 189 original C++ test cases and source-contract checks, then validates installed
++ELF dependencies, real CLI behavior and GDB symbol discovery. Source CI
++separately checks no-op/edit/restore behavior and traced C++ CodeQL coverage.
++The output checks list file-producing targets. `linkmgrd_core` groups its C++
++libraries through `CcInfo` and has no standalone default file; the daemon and
++original tests compile and link those libraries.
++
++The registration patch sets only the source module version. The producer
++and independent consumer use the maintained infrastructure 0.0.28.
++Linkmgrd consumes Common 0.0.9 and the libnl 3.7.0.sonic.7 shared
++interfaces through their declared CcInfo providers. Its installed-package
++tests require all three expected native SONAMEs. The root selects the
++reviewed build-infra Trixie APT lock and Distroless 0.9.4.sonic.18.
++The native source and the registry consumer each exercise the exported
++TARs. Image-level validation belongs to buildimage #147.
+diff --git a/modules/sonic-linkmgrd/1.0.0-e0f9f94901c30ed30f5fe82af6dafca38f8b35d7/patches/0001-module-version.patch b/modules/sonic-linkmgrd/1.0.0-e0f9f94901c30ed30f5fe82af6dafca38f8b35d7/patches/0001-module-version.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..7cffee97118c5c1199304ac04c3c681f68d2d9c9
+--- /dev/null
++++ b/modules/sonic-linkmgrd/1.0.0-e0f9f94901c30ed30f5fe82af6dafca38f8b35d7/patches/0001-module-version.patch
+@@ -0,0 +1,10 @@
++--- a/MODULE.bazel
+++++ b/MODULE.bazel
++@@ -1,6 +1,6 @@
++ module(
++     name = "sonic-linkmgrd",
++-    version = "1.0.0",
+++    version = "1.0.0-e0f9f94901c30ed30f5fe82af6dafca38f8b35d7",
++     bazel_compatibility = [
++         ">=8.5.1",
++         "<=8.5.1",
+diff --git a/modules/sonic-linkmgrd/1.0.0-e0f9f94901c30ed30f5fe82af6dafca38f8b35d7/presubmit.json b/modules/sonic-linkmgrd/1.0.0-e0f9f94901c30ed30f5fe82af6dafca38f8b35d7/presubmit.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..25a941617c4f71782f4671fc7bee1b6cc9c46043
+--- /dev/null
++++ b/modules/sonic-linkmgrd/1.0.0-e0f9f94901c30ed30f5fe82af6dafca38f8b35d7/presubmit.json
+@@ -0,0 +1,24 @@
++{
++  "architectures": [
++    "amd64"
++  ],
++  "consumer_deps": [],
++  "platforms": {
++    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
++  },
++  "host_platforms": {
++    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
++  },
++  "build_targets": [
++    "@sonic-linkmgrd//:linkmgrd",
++    "@sonic-linkmgrd//:sonic_linkmgrd_runtime",
++    "@sonic-linkmgrd//:sonic_linkmgrd_debug",
++    "@sonic-linkmgrd//:runtime_packages.json"
++  ],
++  "test_targets": [
++    "@sonic-linkmgrd//:linkmgrd_test",
++    "@sonic-linkmgrd//:source_contract_test",
++    "@sonic-linkmgrd//:package_test"
++  ],
++  "integration_test_module": "tests/consumer"
++}
+diff --git a/modules/sonic-linkmgrd/1.0.0-e0f9f94901c30ed30f5fe82af6dafca38f8b35d7/source.json b/modules/sonic-linkmgrd/1.0.0-e0f9f94901c30ed30f5fe82af6dafca38f8b35d7/source.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..fb47ab95bbcd81e03d18afd2d87b6b05aff30156
+--- /dev/null
++++ b/modules/sonic-linkmgrd/1.0.0-e0f9f94901c30ed30f5fe82af6dafca38f8b35d7/source.json
+@@ -0,0 +1,9 @@
++{
++  "url": "https://github.com/securely1g/sonic-linkmgrd/archive/e0f9f94901c30ed30f5fe82af6dafca38f8b35d7.tar.gz",
++  "integrity": "sha256-08dSiyqtgU/eADoDNH+bK4akJnj9e9c5fw4RgYaFojw=",
++  "strip_prefix": "sonic-linkmgrd-e0f9f94901c30ed30f5fe82af6dafca38f8b35d7",
++  "patch_strip": 1,
++  "patches": {
++    "0001-module-version.patch": "sha256-NCOmIfI6EqDVU/EP3TCvrARivTL9snAFtU629LnXGfA="
++  }
++}
+diff --git a/modules/sonic-linkmgrd/1.0.0-e0f9f94901c30ed30f5fe82af6dafca38f8b35d7/tests/consumer/BUILD.bazel b/modules/sonic-linkmgrd/1.0.0-e0f9f94901c30ed30f5fe82af6dafca38f8b35d7/tests/consumer/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..ffd0fb0cdc5bc3ecb62d3cbb5b502b353073615f
+--- /dev/null
++++ b/modules/sonic-linkmgrd/1.0.0-e0f9f94901c30ed30f5fe82af6dafca38f8b35d7/tests/consumer/BUILD.bazel
+@@ -0,0 +1 @@
++package(default_visibility = ["//visibility:public"])
+diff --git a/modules/sonic-linkmgrd/1.0.0-e0f9f94901c30ed30f5fe82af6dafca38f8b35d7/tests/consumer/MODULE.bazel b/modules/sonic-linkmgrd/1.0.0-e0f9f94901c30ed30f5fe82af6dafca38f8b35d7/tests/consumer/MODULE.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..1ca97c88f9be331ea57fff092e4052cc108fcfc7
+--- /dev/null
++++ b/modules/sonic-linkmgrd/1.0.0-e0f9f94901c30ed30f5fe82af6dafca38f8b35d7/tests/consumer/MODULE.bazel
+@@ -0,0 +1,19 @@
++module(
++    name = "linkmgrd_external_consumer",
++    version = "1.0.0",
++)
++
++bazel_dep(name = "sonic-linkmgrd", version = "1.0.0-e0f9f94901c30ed30f5fe82af6dafca38f8b35d7")
++bazel_dep(name = "sonic-build-infra", version = "0.0.28-9965823498ab54816de5addb6084638470dd04d7", repo_name = "sonic_build_infra")
++bazel_dep(name = "rules_python", version = "1.9.0")
++bazel_dep(name = "rules_rs", version = "0.1.0")
++
++python = use_extension("@rules_python//python/extensions:python.bzl", "python")
++python.toolchain(
++    is_default = True,
++    python_version = "3.13",
++)
++
++# The consumer selects C++ and TAR targets, with no Rust compilation.
++rust = use_extension("@rules_rs//rs:rules_rust_reexported_extensions.bzl", "rust")
++rust.toolchain(versions = [])
+diff --git a/modules/sonic-linkmgrd/metadata.json b/modules/sonic-linkmgrd/metadata.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..aa5ca8321952fc23e1cf5a5c6a70c449261ff59b
+--- /dev/null
++++ b/modules/sonic-linkmgrd/metadata.json
+@@ -0,0 +1,6 @@
++{
++    "homepage": "https://github.com/sonic-net/sonic-linkmgrd",
++    "versions": [
++        "1.0.0-e0f9f94901c30ed30f5fe82af6dafca38f8b35d7"
++    ]
++}
+```
