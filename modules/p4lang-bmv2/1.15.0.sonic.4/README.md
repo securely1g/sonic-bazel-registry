@@ -141,3 +141,19 @@ The dependency refresh retains all six build targets and both original tests.
 The existing registry routing selects native AMD64 and ARM64 cross validation;
 new normal CI and downstream image acceptance remain required for the refreshed
 graph. Earlier results above apply only to their recorded inputs.
+
+## Execution-root path mapping
+
+The [DASH Engine image at buildimage `c80034d`](https://github.com/securely1g/sonic-buildimage/actions/runs/42485206470/job/128745481003)
+passed its initial build and installed-payload checks, then its baseline rebuild changed PI and BMv2 runtime
+TAR contents. The two inspected PI files differed only in build IDs and debug
+links; those samples do not establish the cause or cover all BMv2 outputs.
+
+The existing BMv2 build now enables `set_file_prefix_map`, which appends
+`-ffile-prefix-map=$EXT_BUILD_ROOT=.` to its C and C++ flags. This maps paths
+under the execution root, including paths outside the compiler's current
+directory already covered by the toolchain launcher. The mapping is a scoped
+reproducibility hypothesis; source archives, dependencies, build targets,
+debug symbols and build-ID/debuglink checks remain unchanged. The exact
+composed graph still requires the existing strict baseline, no-op, edit and
+restored-output checks before reproducibility can be claimed.

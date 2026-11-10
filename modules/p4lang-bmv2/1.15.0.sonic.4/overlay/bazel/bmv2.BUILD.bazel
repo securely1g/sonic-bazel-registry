@@ -168,6 +168,7 @@ configure_make(
     out_lib_dir = select({platform: "usr/lib/" + triplet for platform, triplet in _TRIPLETS.items()}),
     out_shared_libs = [name + ".so.0" for name in _LIBRARIES],
     postfix_script = "cp config.log config.h $$INSTALLDIR/; cp targets/simple_switch_grpc/config.log $$INSTALLDIR/grpc-config.log",
+    set_file_prefix_map = True,
     targets = [
         "",
         "install DESTDIR=$$BUILD_TMPDIR$$/$$INSTALL_PREFIX$$",
