@@ -1,0 +1,70 @@
+diff --git a/apt/private/deb_import.bzl b/apt/private/deb_import.bzl
+--- a/apt/private/deb_import.bzl
++++ b/apt/private/deb_import.bzl
+@@ -475,6 +475,9 @@
+         if pc not in pc_aliases and rctx.path(_EXTRACT_DIR + "/" + pc).exists:
+             pkgconfigs.append(pc)
+ 
++    # Real DSO references must survive CcSharedLibraryInfo, which forwards
++    # LibraryToLink objects but not arbitrary additional linker inputs.
++    script_libraries = [path for path in script_linker_inputs if path.endswith(".so") or ".so." in path]
+     build_file_content = """
+ filegroup(
+     name = "pkgconfig",
+@@ -483,13 +486,14 @@
+ )
+ 
+ so_library(
+-    name = "_so_libs",
++    name = "{}",
+     dynamic_libs = {},
+     additional_linker_inputs = {},
+     linkopts = {},
+ )
+ """.format(
+         pc_files,
++        "_so_libs_direct" if script_libraries else "_so_libs",
+         so_files,
+         {path: None for path in o_files + script_linker_inputs}.keys(),
+         [
+@@ -498,6 +502,24 @@
+             for flag in ["-L", "-Wl,-rpath-link="]
+         ],
+     )
++
++    if script_libraries:
++        targets = []
++        for i, path in enumerate(script_libraries):
++            name = "_script_library_" + str(i)
++            targets.append(":" + name)
++            build_file_content += """
++cc_import(
++    name = "{name}",
++    shared_library = "{path}",
++)
++""".format(name = name, path = path)
++        build_file_content += """
++cc_library(
++    name = "_so_libs",
++    deps = [":_so_libs_direct"] + {targets},
++)
++""".format(targets = targets)
+ 
+     rpaths = {}
+     for so in so_files + a_files:
+diff --git a/apt/private/deb_export.bzl b/apt/private/deb_export.bzl
+--- a/apt/private/deb_export.bzl
++++ b/apt/private/deb_export.bzl
+@@ -60,7 +60,11 @@
+         if script.get("unresolved"):
+             fail("Unresolved linker-script inputs for %s: %s" % (installed, script["unresolved"]))
+         replacements = {
+-            source: ctx.bin_dir.path + "/external/" + destination[0] + "/" + destination[1]
++            # A dependent cc_shared_library forwards DSOs through _solib;
++            # original extraction paths are no longer link-action inputs.
++            # Refer to the declared native DSO imports by exact filename so
++            # the linker's generated _solib search paths remain authoritative.
++            source: ("-l:" + destination[1].rsplit("/", 1)[-1]) if (destination[1].endswith(".so") or ".so." in destination[1]) else ctx.bin_dir.path + "/external/" + destination[0] + "/" + destination[1]
+             for source, destination in script["paths"].items()
+         }
+         ctx.actions.write(output, linker_script.rewrite(script["content"], replacements))
