@@ -1,29 +1,14 @@
-# Compiler launcher with private linker arguments
+# Shared build-infra 0.0.28
 
-This entry registers source commit
-`08e0956f80574b27a9b68e72fe855cc0089058e5` from
-[sonic-build-infra PR #82](https://github.com/securely1g/sonic-build-infra/pull/82).
-The DASH Engine image build passed a 136,826-byte `LDFLAGS` value to the compiler,
-exceeding Linux's per-string process limit before GCC could start.
+This entry registers `sonic-build-infra@0.0.28-9965823498ab54816de5addb6084638470dd04d7` from [build-infra master](https://github.com/securely1g/sonic-build-infra/commit/9965823498ab54816de5addb6084638470dd04d7).
 
-The existing compiler launcher recognizes only its owner's private sibling
-`.sonic-linker-arguments` vector, expands its ordered literal arguments and then
-performs its existing per-working-directory library-path shortening. Ordinary
-GCC response files remain opaque. The BMv2 producer change is tracked in
-[registry PR #211](https://github.com/securely1g/sonic-bazel-registry/pull/211).
+| Consumer | Change since 0.0.27 |
+| --- | --- |
+| ARM64 target runtimes | The execution-platform Python prepares target payloads, checks their ELF architecture and passes control to the target loader. This fixes the original libyang interactive prompt timeout. [Source #88](https://github.com/securely1g/sonic-build-infra/pull/88) |
+| Sysmgr package inventory | A public metadata alias keeps its own repository identity when the underlying JSON comes from another repository. [Source #89](https://github.com/securely1g/sonic-build-infra/pull/89) |
+| Shared APT lock | The production lock covers the image and component request groups, including libteam, FRR, and the FRR and Net-SNMP Bookworm dependencies. Trixie and Bookworm keep their separate package selections. [Source #90](https://github.com/securely1g/sonic-build-infra/pull/90) · [APT lock reconciliation](https://github.com/securely1g/sonic-build-infra/pull/93) |
+| PI and native library consumers | Configure can transport long linker flags through a response file. Native GCC links retain ordered `-Xlinker` search pairs and use parameter files for long commands. [Source #91](https://github.com/securely1g/sonic-build-infra/pull/91) · [Source #92](https://github.com/securely1g/sonic-build-infra/pull/92) |
 
-The source is based on maintained master `c47081689ed841191bf9531b46dad3430ed2e761`.
-It includes the native interfaces previously backported onto
-`0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568`, plus the maintained APT layer,
-large system-include and shared tool fixes. That now-redundant interface patch
-is removed; its existing 37 build and 43 test targets and every registry overlay
-are retained. The source's own updated Libtool regression runs through the same
-existing test label. The unchanged registry visibility patch remains applied.
-Published versions and source recipes remain unchanged.
+The registry presubmit selects 40 build targets and 46 tests on both native Trixie architectures. AMD64 also builds the two DocBook targets and runs the DocBook test and its two kernel cross-compiler tests, for 42 builds and 49 tests. The source declares DocBook for AMD64 only. Both architectures exercise the native kernel tools. Two of those tests validate the lock updater and the packaged Bookworm lock. The other tests cover the runtime launcher, public metadata aliases, paired linker flags, runtime and debug TARs, and the declared tools. Bookworm library imports run in the source repository's Bookworm validation. The image repositories validate their own installation paths and inventory.
 
-Local validation covers the actual 338-argument Engine vector, real GCC14 C/C++
-links, recursive Autoconf/Libtool builds and byte-identical short/long executables.
-Registry native acceptance and the full Engine image rebuild remain pending.
-This presubmit uses the existing tools-only kernel checks and produces no DEBs.
-The consumer must select this exact version explicitly; commit suffix ordering
-does not establish the intended source selection.
+The archive, version patch, visibility patch and registry-only fixtures are pinned in [source.json](source.json). [Patch details](PATCHES.md)
