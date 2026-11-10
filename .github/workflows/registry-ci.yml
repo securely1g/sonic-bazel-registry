@@ -20,7 +20,13 @@ permissions:
 
 concurrency:
   # Only automatic runs for the same pull request supersede each other.
-  group: registry-ci-${{ github.run_attempt == '1' && github.event.pull_request.number || format('run-{0}', github.run_id) }}
+  # Give the expanded #270 matrix its own group so the earlier ARM builds can finish.
+  group: >-
+    registry-ci-${{ github.run_attempt == '1' && github.event_name == 'pull_request' &&
+    github.event.pull_request.number == 270 && github.repository == 'securely1g/sonic-bazel-registry' &&
+    github.event.pull_request.head.repo.full_name == github.repository &&
+    github.base_ref == 'codex/k3s-runner-fleet-sample-base' && '270-production-fleet' ||
+    github.run_attempt == '1' && github.event.pull_request.number || format('run-{0}', github.run_id) }}
   cancel-in-progress: true
 
 jobs:
