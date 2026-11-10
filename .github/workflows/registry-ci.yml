@@ -78,6 +78,7 @@ jobs:
           BEFORE_SHA: ${{ github.event.before }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           ALL_VERSIONS: ${{ inputs.all_versions }}
+          P4_RUNNER_PROFILE: ${{ vars.REGISTRY_P4_RUNNER_PROFILE || 'large' }}
         run: |
           set -euo pipefail
           POLICY_FLAGS=()
@@ -96,29 +97,31 @@ jobs:
           printf 'Event: %s\nPublished baseline: %s\nPR base: %s\nHead: %s\n' \
             "$EVENT_NAME" "$PUBLISHED_SHA" "$BASE_SHA" "$HEAD_SHA" | tee plan.log
           if [[ "$EVENT_NAME" == pull_request ]]; then
-            python3 ci/registry_ci.py plan --published "$PUBLISHED_SHA" \
+            python3 ci/registry_ci.py plan --p4-runner-profile="$P4_RUNNER_PROFILE" --published "$PUBLISHED_SHA" \
               --base "$BASE_SHA" --head "$HEAD_SHA" --output plan.json 2>&1 | tee -a plan.log
           elif [[ "$EVENT_NAME" == workflow_dispatch && "$ALL_VERSIONS" == true ]]; then
-            python3 ci/registry_ci.py plan --published "$PUBLISHED_SHA" \
+            python3 ci/registry_ci.py plan --p4-runner-profile="$P4_RUNNER_PROFILE" --published "$PUBLISHED_SHA" \
               --head "$HEAD_SHA" --all --output plan.json 2>&1 | tee -a plan.log
           else
-            python3 ci/registry_ci.py plan --published "$PUBLISHED_SHA" \
+            python3 ci/registry_ci.py plan --p4-runner-profile="$P4_RUNNER_PROFILE" --published "$PUBLISHED_SHA" \
               "${POLICY_FLAGS[@]}" --head "$HEAD_SHA" --latest --output plan.json 2>&1 | tee -a plan.log
           fi
           python3 - <<'PY'
           import json
           import os
           from pathlib import Path
+          import sys
+
+          sys.path.insert(0, str(Path(os.environ["GITHUB_WORKSPACE"]) / "ci"))
+          from registry_ci import module_runner
 
           matrix = json.loads(Path("plan.json").read_text())
           routes = {("amd64", "amd64", False), ("arm64", "arm64", False), ("arm64", "amd64", True)}
-          runners = {"amd64": ["self-hosted", "Linux", "X64", "debian-trixie-container"],
-                     "arm64": ["ubuntu-24.04-arm"]}
           identities = set()
           for job in matrix["include"]:
               route = (job.get("architecture"), job.get("execution_architecture"), job.get("cross_compile"))
               if (type(job.get("cross_compile")) is not bool or route not in routes
-                      or job.get("runner") != runners[job["execution_architecture"]]):
+                      or job.get("runner") != module_runner(job["module"], route[1], os.environ["P4_RUNNER_PROFILE"])):
                   raise SystemExit("Unsupported execution route in validation plan")
               identity = (job["module"], job["version"], job["architecture"])
               if identity in identities:
@@ -361,10 +364,10 @@ jobs:
       http_audit_artifact_id: ${{ needs.plan.outputs.http_audit_artifact_id }}
     # Public/fork runs keep the existing download candidates without these secrets.
     secrets:
-      DEBIAN_MIRROR_ROOT: ${{ contains(matrix.runner, 'self-hosted') && contains(matrix.runner, 'debian-trixie-container') && needs.plan.outputs.mirror_config == 'roots' && secrets.DEBIAN_MIRROR_ROOT || '' }}
-      DEBIAN_MIRROR_BASE_URL: ${{ contains(matrix.runner, 'self-hosted') && contains(matrix.runner, 'debian-trixie-container') && needs.plan.outputs.mirror_config == 'dated' && secrets.DEBIAN_MIRROR_BASE_URL || '' }}
-      DEBIAN_SECURITY_MIRROR_ROOT: ${{ contains(matrix.runner, 'self-hosted') && contains(matrix.runner, 'debian-trixie-container') && needs.plan.outputs.mirror_config == 'roots' && secrets.DEBIAN_SECURITY_MIRROR_ROOT || '' }}
-      DEBIAN_SECURITY_MIRROR_BASE_URL: ${{ contains(matrix.runner, 'self-hosted') && contains(matrix.runner, 'debian-trixie-container') && needs.plan.outputs.mirror_config == 'dated' && secrets.DEBIAN_SECURITY_MIRROR_BASE_URL || '' }}
+      DEBIAN_MIRROR_ROOT: ${{ contains(matrix.runner, 'self-hosted') && (contains(matrix.runner, 'debian-trixie-container') || contains(matrix.runner, 'debian-trixie-container-large')) && needs.plan.outputs.mirror_config == 'roots' && secrets.DEBIAN_MIRROR_ROOT || '' }}
+      DEBIAN_MIRROR_BASE_URL: ${{ contains(matrix.runner, 'self-hosted') && (contains(matrix.runner, 'debian-trixie-container') || contains(matrix.runner, 'debian-trixie-container-large')) && needs.plan.outputs.mirror_config == 'dated' && secrets.DEBIAN_MIRROR_BASE_URL || '' }}
+      DEBIAN_SECURITY_MIRROR_ROOT: ${{ contains(matrix.runner, 'self-hosted') && (contains(matrix.runner, 'debian-trixie-container') || contains(matrix.runner, 'debian-trixie-container-large')) && needs.plan.outputs.mirror_config == 'roots' && secrets.DEBIAN_SECURITY_MIRROR_ROOT || '' }}
+      DEBIAN_SECURITY_MIRROR_BASE_URL: ${{ contains(matrix.runner, 'self-hosted') && (contains(matrix.runner, 'debian-trixie-container') || contains(matrix.runner, 'debian-trixie-container-large')) && needs.plan.outputs.mirror_config == 'dated' && secrets.DEBIAN_SECURITY_MIRROR_BASE_URL || '' }}
 
   modules_hosted_arm:
     name: ${{ matrix.module }} ${{ matrix.version }} (${{ matrix.architecture }})

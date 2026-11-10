@@ -46,6 +46,7 @@ _GITHUB_SPEC = importlib.util.spec_from_file_location("registry_github_sources",
 assert _GITHUB_SPEC is not None and _GITHUB_SPEC.loader is not None
 github_sources = importlib.util.module_from_spec(_GITHUB_SPEC)
 _GITHUB_SPEC.loader.exec_module(github_sources)
+P4_MODULES = {"p4c", "p4lang-bmv2", "sonic-dash"}
 RUNNERS = {
     "amd64": ["self-hosted", "Linux", "X64", "debian-trixie-container"],
     "arm64": ["ubuntu-24.04-arm"],
@@ -638,9 +639,17 @@ def check_version_policy(root: Path, published: str, head: str,
     return published_entries
 
 
+def module_runner(module: str, execution_architecture: str, p4_runner_profile: str) -> list[str]:
+    """Choose capacity after the target's native/cross route has been determined."""
+    if p4_runner_profile == "large" and execution_architecture == "amd64" and module in P4_MODULES:
+        return ["self-hosted", "Linux", "X64", "debian-trixie-container-large"]
+    return RUNNERS[execution_architecture]
+
+
 def plan(root: Path, base: str | None, head: str | None, all_versions: bool = False,
          latest_versions: bool = False, published: str | None = None,
-         push: bool = False) -> dict:
+         push: bool = False, p4_runner_profile: str = "large") -> dict:
+    require(p4_runner_profile in ("standard", "large"), "Invalid P4 runner profile")
     require(not (all_versions and latest_versions), "Choose either --all or --latest")
     require(not ((all_versions or latest_versions) and base),
             "Do not combine --all/--latest with --base")
@@ -733,7 +742,8 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
             execution_architecture = "amd64" if cross_compile else architecture
             include.append({"module": module, "version": version, "architecture": architecture,
                             "execution_architecture": execution_architecture,
-                            "cross_compile": cross_compile, "runner": RUNNERS[execution_architecture]})
+                            "cross_compile": cross_compile,
+                            "runner": module_runner(module, execution_architecture, p4_runner_profile)})
     return {"include": include}
 
 
@@ -1775,6 +1785,8 @@ def main() -> None:
                        help="test every configured version, including historical versions")
     scope.add_argument("--latest", action="store_true", dest="latest_versions",
                        help="test the latest non-yanked version of each configured module")
+    planner.add_argument("--p4-runner-profile", choices=("standard", "large"), default="large",
+                         help="AMD64 execution pool for P4C, BMv2 and DASH")
     planner.add_argument("--output", required=True, type=Path)
     synchronizer = subparsers.add_parser("sync-module", help="generate or check an opted-in MODULE overlay")
     synchronizer.add_argument("--module", required=True)
@@ -1801,7 +1813,7 @@ def main() -> None:
     try:
         if args.command == "plan":
             result = plan(ROOT, args.base, args.head, args.all_versions, args.latest_versions,
-                          published=args.published, push=args.push)
+                          published=args.published, push=args.push, p4_runner_profile=args.p4_runner_profile)
             args.output.parent.mkdir(parents=True, exist_ok=True)
             args.output.write_text(json.dumps(result, indent=2) + "\n")
             print(json.dumps(result, separators=(",", ":")))
