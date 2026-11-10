@@ -8,6 +8,7 @@ exports_files([
     "pi.BUILD.bazel",
     "runtime.bzl",
     "runtime_test.py",
+    "native_generators_test.py",
     "sdk_test.cc",
     "source.bzl",
 ])

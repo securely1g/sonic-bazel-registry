@@ -1,3 +1,5 @@
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@bazel_skylib//rules:select_file.bzl", "select_file")
 load("@rules_foreign_cc//foreign_cc:defs.bzl", "configure_make")
 load(":bazel/runtime.bzl", "installed_file", "runtime_for_arch")
@@ -118,6 +120,7 @@ configure_make(
     lib_source = ":sources",
     out_binaries = _PROGRAMS,
     out_data_files = ["lib/lib" + name + ".so.0.0.0" for name in _LIBRARIES] + ["python/" + name for name in _PYTHON_FILES] + [
+        "bin/pi_gen_fe_defines",
         "config.log",
         "proto.config.log",
     ],
@@ -193,3 +196,171 @@ exports_files([
     "LICENSE",
     "debian/copyright",
 ])
+
+# First native compile slice. These targets reuse the pinned upstream BUILD
+# source graph and the original Make generator definitions. The complete
+# foreign SDK and its runtime/debug packaging stay selected until the native
+# ABI, generator closure and full installed-file inventory are validated.
+# SPDX-FileCopyrightText: 2018 Barefoot Networks, Inc.
+# SPDX-FileCopyrightText: 2018, 2021 Antonin Bas
+# Adapted upstream BUILD rules: SPDX-License-Identifier: Apache-2.0.
+# Vendored cJSON source retains its original MIT license.
+_NATIVE_COPTS = [
+    "-O2",
+    "-g",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-D_FORTIFY_SOURCE=2",
+    "-Wno-error=unused-parameter",
+]
+
+filegroup(
+    name = "native_pihdrs",
+    srcs = glob(["include/**/*.h"]),
+    visibility = ["//:__subpackages__"],
+)
+
+cc_library(
+    name = "native_piutils",
+    copts = _NATIVE_COPTS,
+    srcs = glob(["src/utils/*.c"]) + [":native_pihdrs"],
+    hdrs = glob(["src/utils/*.h"]),
+    includes = [
+        "include",
+        "src/utils",
+    ],
+    visibility = ["//:__subpackages__"],
+)
+
+cc_library(
+    name = "native_pip4info",
+    srcs = [
+        "src/p4info_int.h",
+        ":native_pihdrs",
+    ] + glob([
+        "src/p4info/*.c",
+        "src/p4info/*.h",
+    ]) + glob([
+        "src/config_readers/*.c",
+        "src/config_readers/*.h",
+    ]),
+    hdrs = glob(["include/PI/p4info/*.h"]),
+    copts = _NATIVE_COPTS + ["-DPI_LOG_ON", "-DPI_NATIVE_PUBLIC_CJSON"],
+    includes = [
+        "include",
+        "src",
+    ],
+    deps = [
+        ":native_piutils",
+        ":native_pitoolkit",
+        "@uthash//:uthash",
+        "@cjson//:cjson",
+    ],
+)
+
+# Preserve the upstream source glob and disabled internal-RPC exclusions.
+# Registry AMD64 CI builds this native core; aquery evidence is collected separately.
+cc_library(
+    name = "native_pi",
+    copts = _NATIVE_COPTS,
+    srcs = [":native_pihdrs"] +
+           glob(
+               ["src/*.c"],
+               exclude = [
+                   "src/pi_notifications_pub.c",
+                   "src/pi_rpc_server.c",
+               ],
+           ) + glob(
+        ["src/*.h"],
+        exclude = [
+            "src/p4info_int.h",
+            "src/pi_notifications_pub.h",
+        ],
+    ),
+    hdrs = glob([
+        "include/PI/*.h",
+        "include/PI/target/*.h",
+    ]) + [
+        "include/PI/int/pi_int.h",
+        "include/PI/int/serialize.h",
+    ],
+    includes = ["include"],
+    deps = [":native_pip4info"],
+)
+
+cc_library(
+    name = "native_pifegeneric",
+    srcs = ["src/frontends/generic/pi.c"],
+    hdrs = ["include/PI/frontends/generic/pi.h"],
+    copts = _NATIVE_COPTS + ["-DPI_LOG_ON"],
+    includes = ["include"],
+    deps = [":native_pi"],
+)
+
+# Source patterns and include roots below are the pinned upstream lib/BUILD,
+# third_party/BUILD, third_party/cJSON/BUILD and frontends_extra/cpp/BUILD.
+# Package-relative paths and target names use the existing flattened
+# pi_source repository. cJSON also retains its original Make libm dependency.
+cc_library(
+    name = "native_pitoolkit",
+    srcs = glob(["lib/*.c"]),
+    hdrs = glob(["lib/*.h"]),
+    includes = ["lib"],
+    copts = _NATIVE_COPTS,
+)
+
+cc_library(
+    name = "native_pifecpp",
+    srcs = ["frontends_extra/cpp/src/tables.cpp"],
+    hdrs = ["frontends_extra/cpp/PI/frontends/cpp/tables.h"],
+    includes = ["frontends_extra/cpp"],
+    copts = _NATIVE_COPTS + ["-std=c++17"],
+    deps = [":native_pi"],
+)
+
+# The source and link dependencies are the original bin/Makefile.am and
+# generators/Makefile.am. These outputs are not substituted into the SDK/TAR.
+cc_binary(
+    name = "native_pi_gen_native_json",
+    srcs = ["bin/gen_pi_json.c"],
+    copts = _NATIVE_COPTS,
+    linkopts = ["-Wl,-z,relro,-z,now"],
+    deps = [":native_pip4info"],
+)
+
+cc_binary(
+    name = "native_pi_gen_fe_defines",
+    srcs = ["generators/fe_defines.c"],
+    copts = _NATIVE_COPTS,
+    linkopts = ["-Wl,-z,relro,-z,now"],
+    deps = [":native_pip4info", ":native_piutils", ":native_pitoolkit"],
+)
+
+filegroup(
+    name = "native_core",
+    srcs = [
+        ":native_pi",
+        ":native_pip4info",
+        ":native_pifegeneric",
+        ":native_pifecpp",
+        ":native_pi_gen_native_json",
+        ":native_pi_gen_fe_defines",
+    ],
+)
+
+# Existing installed SDK generator, retained for an old/new behavior comparison.
+installed_file(
+    name = "baseline_pi_gen_fe_defines",
+    subpath = "sdk/bin/pi_gen_fe_defines",
+)
+
+filegroup(
+    name = "native_fixture_act_prof",
+    srcs = ["tests/testdata/act_prof.json"],
+)
+
+filegroup(
+    name = "native_fixture_valid",
+    srcs = ["tests/testdata/valid.json"],
+)

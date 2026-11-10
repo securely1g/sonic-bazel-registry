@@ -30,5 +30,17 @@
   "test_targets": [
     "@p4lang-pi//:runtime_test"
   ],
-  "generated_module_overlay": true
+  "generated_module_overlay": true,
+  "additional_targets": {
+    "amd64": {
+      "build_targets": [
+        "@p4lang-pi//:native_core",
+        "@p4lang-pi//:native_pi_gen_native_json",
+        "@p4lang-pi//:native_pi_gen_fe_defines"
+      ],
+      "test_targets": [
+        "@p4lang-pi//:native_generators_test"
+      ]
+    }
+  }
 }

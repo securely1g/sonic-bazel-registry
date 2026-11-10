@@ -83,3 +83,38 @@ exports_files(
     ["runtime_packages.md"],
     visibility = ["//visibility:public"],
 )
+
+# Additive source-conversion validation targets; existing SDK/runtime aliases
+# continue to select the complete installed foreign baseline.
+[alias(
+    name = name,
+    actual = "@pi_source//:" + name,
+) for name in [
+    "native_core",
+    "native_pi_gen_native_json",
+    "native_pi_gen_fe_defines",
+]]
+
+py_test(
+    name = "native_generators_test",
+    srcs = ["//bazel:native_generators_test.py"],
+    args = [
+        "$(rootpath :native_pi_gen_native_json)",
+        "$(rootpath :native_pi_gen_fe_defines)",
+        "$(rootpath @pi_source//:built_pi_gen_native_json)",
+        "$(rootpath @pi_source//:baseline_pi_gen_fe_defines)",
+        "$(rootpath :runtime)",
+        "$(rootpath @pi_source//:native_fixture_act_prof)",
+        "$(rootpath @pi_source//:native_fixture_valid)",
+    ] + ["$(locations @pi_deps//:packages)"],
+    data = [
+        ":native_pi_gen_native_json",
+        ":native_pi_gen_fe_defines",
+        "@pi_source//:built_pi_gen_native_json",
+        "@pi_source//:baseline_pi_gen_fe_defines",
+        ":runtime",
+        "@pi_source//:native_fixture_act_prof",
+        "@pi_source//:native_fixture_valid",
+        "@pi_deps//:packages",
+    ],
+)
