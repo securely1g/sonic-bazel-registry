@@ -28,6 +28,7 @@ CHECKOUT_FILES = {
     "": (),
 }
 TRIXIE = ["self-hosted", "Linux", "X64", "debian-trixie-container"]
+LARGE_TRIXIE = ["self-hosted", "Linux", "X64", "debian-trixie-container-large"]
 
 
 def expression_value(expression, context):
@@ -175,7 +176,17 @@ class PrivateMirrorSecretBoundaryTest(unittest.TestCase):
             chooser = plan if name == "modules_local" else job
             self.assertLess(chooser.index("uses: actions/checkout@"), chooser.index("id: mirror_config"))
             self.assertNotIn("secrets.", step(chooser, "Identify the checked-out mirror configuration"))
+            large_module_cases = (
+                ("pull_request", "owner/repo", "maintainer", LARGE_TRIXIE, True),
+                ("pull_request", "fork/repo", "contributor", LARGE_TRIXIE, False),
+                ("pull_request", "owner/repo", "dependabot[bot]", LARGE_TRIXIE, False),
+                ("push", "", "maintainer", LARGE_TRIXIE, True),
+                ("workflow_dispatch", "", "maintainer", LARGE_TRIXIE, True),
+                ("push", "", "maintainer", ["debian-trixie-container-large"], False),
+                ("push", "", "maintainer", [*TRIXIE[:-1], "debian-trixie-container-larger"], False),
+            ) if name in ("modules_local", "validate") else ()
             for event, head, actor, runner, trusted in (
+                *large_module_cases,
                 ("pull_request", "owner/repo", "maintainer", TRIXIE, True),
                 ("push", "", "maintainer", TRIXIE, True),
                 ("workflow_dispatch", "", "maintainer", TRIXIE, True),
@@ -242,6 +253,23 @@ class PrivateMirrorSecretBoundaryTest(unittest.TestCase):
                     context["needs.plan.outputs.mirror_config"] = mirror_kind(plan, context)
                     with self.subTest(secret=secret, architecture=architecture, head=head, actor=actor):
                         self.assertEqual(expression_value(expression, context), expected)
+
+    def test_large_module_audit_download_uses_same_trust_gate_and_matching_artifact(self):
+        reusable = (WORKFLOWS / "registry-module.yml").read_text()
+        download = step(reusable, "Download the optional same-run HTTP audit agent")
+        guard = re.search(r"if: \$\{\{ (.*) \}\}", download)[1]
+        for runner, head, actor, artifact, allowed in (
+            (LARGE_TRIXIE, "owner/repo", "maintainer", "123", True),
+            (LARGE_TRIXIE, "fork/repo", "contributor", "123", False),
+            (LARGE_TRIXIE, "owner/repo", "dependabot[bot]", "123", False),
+            (LARGE_TRIXIE, "owner/repo", "maintainer", "", False),
+            (["ubuntu-24.04-arm"], "owner/repo", "maintainer", "123", False),
+        ):
+            context = {"inputs.runner": json.dumps(runner), "inputs.http_audit_artifact_id": artifact,
+                       "github.event_name": "pull_request", "github.actor": actor,
+                       "github.repository": "owner/repo", "github.event.pull_request.head.repo.full_name": head}
+            with self.subTest(runner=runner, head=head, actor=actor, artifact=artifact):
+                self.assertEqual(bool(expression_value(guard, context)), allowed)
 
     def test_failed_privacy_check_blocks_each_upload(self):
         for filename, name, check in (

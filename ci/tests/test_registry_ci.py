@@ -2012,6 +2012,33 @@ class StagedCrossRoutingTests(FixtureTestCase):
             with self.subTest(value=value), self.assertRaises(registry_ci.RegistryError):
                 self.planned({}, cross_all=value)
 
+    def test_p4_profile_changes_only_jobs_executing_on_amd64(self):
+        p4_modules = ("p4c", "p4lang-bmv2", "sonic-dash")
+        for module in p4_modules:
+            entry = self.entry(module, "1.0.0")
+            path = entry / "presubmit.json"
+            manifest = json.loads(path.read_text())
+            manifest["architectures"] = ["amd64", "arm64"]
+            manifest["platforms"]["arm64"] = "@alpha//:arm"
+            write_json(path, manifest)
+        head = self.commit("Add heavy native and cross cases")
+        large = ["self-hosted", "Linux", "X64", "debian-trixie-container-large"]
+        with mock.patch.object(registry_ci, "ARM_CROSS_VERSIONS", {"p4c": ("1.0.0",)}):
+            for profile in ("large", "standard"):
+                rows = registry_ci.plan(self.root, None, head, all_versions=True, published=head,
+                                        p4_runner_profile=profile)["include"]
+                for row in rows:
+                    expected = registry_ci.RUNNERS[row["execution_architecture"]]
+                    if profile == "large" and row["module"] in p4_modules and row["execution_architecture"] == "amd64":
+                        expected = large
+                    self.assertEqual(row["runner"], expected, row)
+                heavy = {(row["module"], row["architecture"]) for row in rows if row["runner"] == large}
+                expected = {(module, "amd64") for module in p4_modules} | {("p4c", "arm64")}
+                self.assertEqual(heavy, expected if profile == "large" else set())
+            with self.assertRaisesRegex(registry_ci.RegistryError, "P4 runner profile"):
+                registry_ci.plan(self.root, None, head, all_versions=True, published=head,
+                                 p4_runner_profile="other")
+
     def test_empty_routes_preserve_every_native_job_and_original_contract(self):
         jobs = self.planned({})
         self.assertEqual(len(jobs), 5)
@@ -2068,9 +2095,11 @@ class WorkflowMatrixTests(unittest.TestCase):
                "runner": registry_ci.RUNNERS["amd64"]}
         arm = {**amd, "architecture": "arm64", "execution_architecture": "arm64", "runner": registry_ci.RUNNERS["arm64"]}
         second_amd = {**amd, "module": "beta"}
+        large = {**amd, "module": "sonic-dash", "runner": ["self-hosted", "Linux", "X64", "debian-trixie-container-large"]}
         cross = {**second_amd, "architecture": "arm64", "cross_compile": True}
         for jobs, succeeds in (([], True), ([amd], True), ([arm], True),
-                               ([arm, amd, second_amd, cross], True), ([cross], True),
+                               ([arm, amd, second_amd, cross, large], True), ([cross], True),
+                               ([{**large, "module": "beta"}], False), ([{**amd, "module": "sonic-dash"}], False),
                                ([{**arm, "architecture": "armhf"}], False),
                                ([{**arm, "cross_compile": True}], False),
                                ([{**cross, "cross_compile": "true"}], False),
@@ -2082,7 +2111,8 @@ class WorkflowMatrixTests(unittest.TestCase):
                 (root / "plan.json").write_text(json.dumps(matrix))
                 output = root / "outputs"
                 result = subprocess.run([sys.executable, "-I", "-S", "-c", script], cwd=root,
-                    env={**os.environ, "EVENT_NAME": "workflow_dispatch", "GITHUB_OUTPUT": str(output)},
+                    env={**os.environ, "EVENT_NAME": "workflow_dispatch", "GITHUB_OUTPUT": str(output),
+                         "P4_RUNNER_PROFILE": "large", "GITHUB_WORKSPACE": str(registry_ci.ROOT)},
                     text=True, capture_output=True)
                 if not succeeds:
                     self.assertNotEqual(result.returncode, 0)
@@ -2361,24 +2391,32 @@ class TestContainerTests(unittest.TestCase):
     def test_local_p4_builds_limit_make_for_targets_and_tools(self):
         workflow = (registry_ci.ROOT / ".github/workflows/registry-module.yml").read_text()
         script = self.step(workflow, "Build and test through the registry")
-        for module, target, execution, prior, expected in (
-            ("p4c", "amd64", "amd64", None, "--eval=.NOTPARALLEL:"),
-            ("p4c", "arm64", "amd64", "-r --warn-undefined-variables", "-r --warn-undefined-variables --eval=.NOTPARALLEL:"),
-            ("p4lang-bmv2", "amd64", "amd64", "", "--eval=.NOTPARALLEL:"),
-            ("sonic-dash", "arm64", "amd64", "-r", "-r --eval=.NOTPARALLEL:"),
-            ("p4c", "arm64", "arm64", "-r", None),
-            ("libyang", "amd64", "amd64", "-r", None),
+        for module, target, execution, prior, expected, large in (
+            ("p4c", "amd64", "amd64", None, "--eval=.NOTPARALLEL:", False),
+            ("p4c", "arm64", "amd64", "-r --warn-undefined-variables", "-r --warn-undefined-variables --eval=.NOTPARALLEL:", False),
+            ("p4lang-bmv2", "amd64", "amd64", "", "--eval=.NOTPARALLEL:", False),
+            ("sonic-dash", "arm64", "amd64", "-r", "-r --eval=.NOTPARALLEL:", False),
+            ("p4c", "arm64", "arm64", "-r", None, False),
+            ("libyang", "amd64", "amd64", "-r", None, False),
+            ("p4c", "amd64", "amd64", None, None, True),
+            ("p4c", "arm64", "amd64", None, None, True),
+            ("p4lang-bmv2", "amd64", "amd64", None, None, True),
+            ("sonic-dash", "amd64", "amd64", None, None, True),
         ):
             with self.subTest(module=module, target=target, execution=execution), tempfile.TemporaryDirectory() as tmp:
                 root = Path(tmp)
                 env = self.shell_environment(root, target, execution, target != execution)
                 env["CI_MODULE"] = module
+                env["CI_LARGE_RUNNER"] = str(large).lower()
                 env.pop("GNUMAKEFLAGS", None)
                 if prior is not None:
                     env["GNUMAKEFLAGS"] = prior
                 result = subprocess.run(["bash", "-c", script], env=env, capture_output=True, text=True)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 args = (root / "CAPTURE").read_text().splitlines()
+                self.assertEqual("ci/p4_runner_resources.py" in args, large)
+                if large:
+                    self.assertIn("--bazel-build-arg=--jobs=1", args)
                 self.assertEqual([arg for arg in args if "GNUMAKEFLAGS=" in arg], [] if expected is None else [
                     "--bazel-build-arg=--action_env=GNUMAKEFLAGS=" + expected,
                     "--bazel-build-arg=--host_action_env=GNUMAKEFLAGS=" + expected,
