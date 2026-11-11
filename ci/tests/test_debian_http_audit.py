@@ -311,8 +311,10 @@ class DebianHttpAuditTest(unittest.TestCase):
                     self.mode = mode
                     source.write_text(extension + "# " + mode + "\n")
                     before = len(self.records())
+                    # The first graph starts a fresh Bazel JVM on the emulated ARM runner.
+                    timeout = 600 if mode == "success" and os.environ.get("REGISTRY_CI_EMULATED_ARM") == "true" else 90
                     result = subprocess.run([*prefix, *common, "--repository_cache="], cwd=self.work,
-                                            capture_output=True, text=True, env=self.env, timeout=90)
+                                            capture_output=True, text=True, env=self.env, timeout=timeout)
                     if mode == "all-bad":
                         self.assertNotEqual(result.returncode, 0)
                     else:
