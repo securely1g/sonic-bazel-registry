@@ -1,0 +1,22 @@
+module(name = "wpa_registry_consumer")
+
+bazel_dep(name = "sonic-wpa-supplicant", version = "2.9.0.sonic.1")
+bazel_dep(name = "rules_cc", version = "0.2.22")
+bazel_dep(name = "rules_rs", version = "0.1.0")
+bazel_dep(name = "sonic-build-infra", version = "0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e", repo_name = "sonic_build_infra")
+bazel_dep(name = "sonic-swss-common", version = "0.0.8-43598143ef4a46431eae0859915cd7d951dad1ed", repo_name = "sonic_swss_common")
+
+# Select the reviewed native dependencies for the MACsec producer. FIPS uses
+# its source-declared .3 version; this candidate needs its own native validation.
+# Source archives and production targets remain owned by their registered modules.
+bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.16")
+bazel_dep(name = "sonic-fips", version = "0.0.3-15fcb926a302059ec379f0c2fd15eb3d88bda4c9", repo_name = "sonic_fips")
+
+gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
+use_repo(gcc, "gcc_toolchains")
+
+register_toolchains("@gcc_toolchains//:all")
+
+# This consumer selects the C++ interface, with no Rust artifacts of its own.
+rust = use_extension("@rules_rs//rs:rules_rust_reexported_extensions.bzl", "rust")
+rust.toolchain(versions = [])
