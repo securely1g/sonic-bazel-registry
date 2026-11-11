@@ -1,0 +1,104 @@
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("@rules_python//python:py_binary.bzl", "py_binary")
+load("@rules_python//python:py_library.bzl", "py_library")
+load("@rules_python//python:py_test.bzl", "py_test")
+load("@scapy_test_pip//:requirements.bzl", "requirement")
+
+package(default_visibility = ["//visibility:public"])
+
+# Keep the Python library and installed wheel on Make's explicit version.
+write_file(
+    name = "version_file",
+    out = "scapy/VERSION",
+    content = ["2.6.1.dev0"],
+)
+
+py_library(
+    name = "scapy",
+    srcs = glob(["scapy/**/*.py"]),
+    data = [":version_file", "scapy/py.typed"],
+    imports = ["."],
+)
+
+filegroup(
+    name = "distribution_sources",
+    srcs = glob(["scapy/**"], exclude = ["**/__pycache__/**", "**/*.pyc"])
+        + ["setup.py", "pyproject.toml", "MANIFEST.in", "README.md", "LICENSE", "run_scapy", "doc/scapy.1"],
+)
+
+py_binary(
+    name = "wheel_builder",
+    srcs = ["build_wheel.py"],
+    main = "build_wheel.py",
+    python_version = "3.13",
+    deps = [
+        requirement("build"),
+        requirement("setuptools"),
+        requirement("wheel"),
+    ],
+    visibility = ["//visibility:private"],
+)
+
+# Delegate packaging to Scapy's existing pyproject backend. The selected
+# version, source, frontend/backend tools and outputs are all declared.
+genrule(
+    name = "wheel",
+    srcs = [":distribution_sources", "setup.py"],
+    tools = [":wheel_builder"],
+    outs = ["scapy-2.6.1.dev0-py3-none-any.whl"],
+    cmd = "$(location :wheel_builder) $(location setup.py) $@",
+)
+
+filegroup(
+    name = "upstream_sources",
+    srcs = [
+        ":distribution_sources",
+        "doc/notebooks/tls/raw_data/tls_nss_example.keys.txt",
+        "doc/notebooks/tls/raw_data/tls_nss_example.pcap",
+    ] + glob(
+        ["test/**", ".config/**"],
+        exclude = ["**/__pycache__/**", "**/*.pyc"],
+    ),
+)
+
+py_test(
+    name = "wheel_test",
+    srcs = ["validation.py"],
+    main = "validation.py",
+    args = ["wheel", "$(rootpath :wheel)", "$(rootpath setup.py)"],
+    data = [":wheel", ":upstream_sources", "setup.py"],
+    python_version = "3.13",
+    deps = [
+        requirement("setuptools"),
+        requirement("wheel"),
+        requirement("installer"),
+        requirement("packaging"),
+    ],
+)
+
+py_test(
+    name = "upstream_test",
+    srcs = ["validation.py"],
+    main = "validation.py",
+    args = ["upstream", "$(rootpath :wheel)", "$(rootpath setup.py)"],
+    data = [":wheel", ":upstream_sources", "setup.py"],
+    python_version = "3.13",
+    size = "large",
+    timeout = "long",
+    deps = [
+        requirement("installer"),
+        requirement("packaging"),
+        requirement("ipython"),
+        requirement("cryptography"),
+        requirement("python-can"),
+        requirement("brotli"),
+        requirement("zstandard"),
+    ],
+)
+
+platform(
+    name = "linux_amd64",
+    constraint_values = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+)
+
+exports_files(["setup.py", "requirements.in", "requirements_lock.txt"])

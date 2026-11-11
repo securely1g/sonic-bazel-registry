@@ -1,0 +1,25 @@
+{
+  "url": "https://deb.debian.org/debian/pool/main/p/protobuf/protobuf_3.21.12-11+deb13u1.debian.tar.xz",
+  "integrity": "sha256-UsfJN3osuTZJ+3eLr0/nbUSJiT7wS61nWs+psW5jE9U=",
+  "overlay": {
+    "BUILD.bazel": "sha256-tLtryGarIyWwyNw8mV8fSx9Eg0gUnUlj2Jv/iYX47dM=",
+    "MODULE.bazel": "sha256-yUbJ5jEdmy/WlUIer+GbA+6CMJphZHlWLn4L7ju6LwU=",
+    "bazel/0001-bazel8-shared-runtime.patch": "sha256-PGeLgmerYUc0j/EG/rnqMy3XYy+4UGNLBcFYe7668fM=",
+    "bazel/BUILD.bazel": "sha256-Zk/MX3jY/BWdylkUd1TQxGF+PSJgB2n7iKixBzAJJdw=",
+    "bazel/generated_python_test.py": "sha256-7zTWxwBCX4ewuw5G+hVeTPi00wgwj/GoP62HqoyOEf0=",
+    "bazel/generated_runtime_consumer.cc": "sha256-U6YARMZYUrPKSq6Sa5dKDELauL+MrRxGr6e3s+orUvQ=",
+    "bazel/generated_runtime_test.py": "sha256-L23CIgrEFc/8PUYS/bn450cJIaDIxeu4+PxlapN4Ge0=",
+    "bazel/source.bzl": "sha256-oBUTAvNJQkPOtY/vCQ+5XUYjCFiPmX+c+LNCFr+MqM4=",
+    "bazel/source_package_test.py": "sha256-lWa/pA85W45R24ehF3Vl516zuufP4AsxkrVVGm+hrzU=",
+    "bazel/source_preparation_test.py": "sha256-Imwx3//oH69BUHagdGN1ZR4Kj936lj39mdslfUQvRJs=",
+    "defs.bzl": "sha256-BarKerbg2AI+3BrKwIeo1iBEQSIY9SMeRgFn1tLIcdE=",
+    "probe.proto": "sha256-W/nMRcaoFa2rCPJzD61a57k/EBge9RMRBxFZpq4i7Zw=",
+    "protobuf.bzl": "sha256-osMe+dzAgjanXt86Lct+hlF5GuGBlW4ppCbJ41FI3TA=",
+    "protobuf_deps.bzl": "sha256-x9wfgmXv5B5t64PvYc2UKoN/nZgz/zVI6w7KGgtTrGQ=",
+    "protobuf_release.bzl": "sha256-PG5wr4YZDqA7jQyq0QHDS+wjm+E7A0SdZLw55O4fXqE=",
+    "protobuf_version.bzl": "sha256-j6uV40I/IWNR17yp248ZNvx85XpqCpthR1FlsDvqb7s=",
+    "sonic/BUILD.bazel": "sha256-El8IWIz0MhcHeuZUuO/Yir13f/PFw54ETNmJFI/3CYU=",
+    "sonic/source_defs.bzl": "sha256-20eV/nX2G52FUHocXLZi0MQRQfE0SqtlzafoRD/mBJY=",
+    "sonic/targets.bzl": "sha256-mOKvM2otTGK46ybLqcHy03tZWbDMqeKeAoAE9DQDAJU="
+  }
+}

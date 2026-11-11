@@ -11,7 +11,9 @@
     "https://github.com/sflow/sflowtool"
   ],
   "versions": [
-    "6.11.0.sonic.1"
+    "6.11.0.sonic.1",
+    "6.11.0.sonic.2",
+    "6.11.0.sonic.3"
   ],
   "yanked_versions": {}
 }

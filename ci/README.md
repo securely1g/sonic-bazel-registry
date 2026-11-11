@@ -7,6 +7,10 @@ resolution, archive integrity, patch and overlay application, compilation, and
 the behavior covered by each module's tests.
 
 The workflow runs on every pull request, pushes to `main`, and manual dispatches.
+Each push to `main` and each manual dispatch gets its own run. A new PR revision
+cancels the previous automatic run for that PR. Retrying a job on an older
+revision leaves other runs in progress.
+
 Pull requests select affected module versions. Changes to the CI implementation
 or workflow also test the latest version of each module covered by CI. Pushes and
 manual runs test those latest versions by default. To test every configured
@@ -22,26 +26,128 @@ inside a published version do not select a version. Documentation changes in an
 unpublished candidate still validate that candidate.
 
 `Registry CI` is the stable aggregate check intended for branch protection. It
-passes only when planning and the runner's unit tests pass, and every selected
-module job passes. A skipped module matrix is accepted only after successful
-planning explicitly selected no jobs. Adding the workflow does not itself change
+passes only when planning, both native unit jobs, the explicit cross fixture,
+and every selected module job pass. A skipped module matrix is accepted only
+after successful planning explicitly selected no jobs. Adding the workflow does not itself change
 repository branch-protection settings.
 
 ## Verified source mirrors
 
+For new GitHub-backed input sets, use the [shared manifest reader](github_sources/README.md)
+rather than adding a package-specific downloader. It retains the approved private
+Debian mirror path, checks GitHub redirects and verifies the selected bytes before
+starting Bazel. Its first data manifest generalizes registry #238's three Cosmos
+inputs without changing their versions or checksums. Other new download locations
+require explicit user approval; the existing transports below are not broadened
+or rewritten by this reader.
+
 The runner passes Bazel's standard `--experimental_downloader_config` with
 [`source_mirrors.cfg`](source_mirrors.cfg) to dependency preparation, builds,
-tests and output queries. The only rewrite is the exact upstream URL for
-BCR `pigz@2.8.bcr.2`, used by build-infra's reproducible gzip tool when packaging
-WPA's debug TAR. The original URL now serves different bytes; a clean
+tests and output queries. Rewrites match only the archive and binary-package
+URLs described below; registry order, module versions, source recipes and
+integrity values stay unchanged.
+
+BCR `pigz@2.8.bcr.2` requests `https://zlib.net/pigz/pigz-2.8.tar.gz`.
+That exact URL now tries the verified
+[`pigz-2.8.tar.gz` release asset](https://github.com/securely1g/sonic-bazel-registry/releases/download/ci-source-mirrors-20261104/pigz-2.8.tar.gz)
+first, followed by the existing MacPorts mirror. Both must match BCR's unchanged
+SHA256 `eb872b4f0e1f0ebe59c9f7bd8c506c4204893ba6a8492de31df416f0d5170fd0`;
+BCR still applies its original source patches. For example,
+[buildimage #133](https://github.com/securely1g/sonic-buildimage/pull/133)
+can pass this shared downloader configuration for its source-base and OCI builds instead
+of downloading pigz with a separate `prepare_pigz.py` helper. An unavailable or
+corrupt release asset falls back to MacPorts; corrupt bytes from both candidates
+fail the fetch and cannot enter Bazel's verified repository cache.
+
+The five ARM-hosted BCR archives use verified copies in this repository's
+[source-mirror release](https://github.com/securely1g/sonic-bazel-registry/releases/tag/ci-source-mirrors-20261104)
+first, with each original GitLab release URL retained as the next candidate:
+
+| BCR module | Release asset |
+| --- | --- |
+| `ape@1.0.1` | `ape-v1.0.1.tar.gz` |
+| `download_utils@1.0.1` | `download_utils-v1.0.1.tar.gz` |
+| `rules_coreutils@1.0.1` | `rules_coreutils-v1.0.1.tar.gz` |
+| `rules_gzip@1.0.0` | `rules_gzip-v1.0.0.tar.gz` |
+| `toolchain_utils@1.0.2` | `toolchain_utils-v1.0.2.tar.gz` |
+
+Each copy must satisfy the original BCR SHA512 integrity. This avoids the
+[ARM GitLab release endpoint failures](https://github.com/bazelbuild/bazel-central-registry/issues/9973)
+without discarding the upstream source. Bazel 8.5.1's
+[URL rewriter](https://github.com/bazelbuild/bazel/blob/8.5.1/src/main/java/com/google/devtools/build/lib/bazel/repository/downloader/UrlRewriter.java)
+collects matching replacements in configuration order; its
+[downloader](https://github.com/bazelbuild/bazel/blob/8.5.1/src/main/java/com/google/devtools/build/lib/bazel/repository/downloader/HttpDownloader.java)
+tries the next candidate after a failed download or checksum mismatch. Other
+versions and URLs are unaffected; no global module mirror is enabled.
+
+Historical Common builds use GNU Bison 3.3.2 and GNU M4 1.4.18 through
+libnl3. Registry CI tries the MacPorts copy of Bison and Debian's byte-identical
+upstream M4 TAR, then the declared GNU locations. Trusted Trixie jobs take the
+M4 TAR from the private Debian source pool first. Both archives must match the
+original rule's SHA256. [Bison release pin](https://github.com/jmillikin/rules_bison/blob/v0.4/bison/internal/versions.bzl#L17-L30) · [M4 release pin](https://github.com/jmillikin/rules_m4/blob/v0.3.1/m4/internal/versions.bzl)
+
+The exact `gawk-5.3.2.tar.xz` URLs at `mirrors.kernel.org`, `ftp.gnu.org`, and
+`ftpmirror.gnu.org` likewise try MacPorts first and retain each original URL as
+a fallback. The published source recipe and SHA256
+`f8c3486509de705192138b00ef2c00bbbdd0e84c30d5c07d23fc73a9dc4cc9cc` remain unchanged.
+
+Some packages have additional exact-URL candidates before their timestamped
+snapshot fallbacks:
+
+| Locked package | Additional candidate |
+| --- | --- |
+| `libcap-dev_2.75-10+deb13u1+b1_amd64.deb` | Debian content-addressed file |
+| `libaudit-dev_4.0.2-2+b2_amd64.deb` | Debian content-addressed file |
+| `libcap2_2.75-10+deb13u1+b1_arm64.deb` | Verified GitHub release copy |
+| `bash_5.2.37-2+b9_arm64.deb` | Verified GitHub release copy |
+| `libc-bin_2.41-12+deb13u3_arm64.deb` | Debian content-addressed file, then existing CDN fallback |
+| `uuid-dev_2.41-5_amd64.deb` | Debian content-addressed file, then existing CDN fallback |
+| `libc-ares-dev_1.34.5-1+deb13u1_arm64.deb` | Debian content-addressed file, then the official security CDN |
+| `openssl-provider-legacy_3.5.6-1~deb13u2_arm64.deb` | Debian content-addressed file |
+| `openssl_3.5.6-1~deb13u2_arm64.deb` | Debian content-addressed file |
+
+These candidates preserve each original APT-lock SHA256. The SHA1 in Debian's
+content-addressed URL is only a locator; Bazel still checks the stronger locked
+SHA256. The GitHub copies have a [checksum and origin manifest](https://github.com/securely1g/sonic-bazel-registry/releases/download/ci-source-mirrors-20261104/debian-package-mirrors-20261105.json).
+Their rewrites match the exact timestamp, version, and architecture. Local HTTP
+fixtures exercise the added candidates, fallback to the original paths, and
+rejection of corrupt mirror bytes. Cold Bazel fetches verify the five packages
+selected by the hosted ARM jobs against their original locked hashes and sizes;
+neither architecture's package binaries are executed by these fetch tests.
+
+Other timestamped `snapshot.debian.org/archive/debian/.../pool/*.deb` downloads
+try the identical pool path on Debian's official `deb.debian.org/debian/` CDN
+first, then retain the exact timestamped snapshot URL as fallback. This avoids
+transient snapshot HTTP 503 failures for package versions still present in the
+current pool; older packages absent from the CDN continue through the snapshot.
+Binary-package inputs on `snapshot-cloudflare.debian.org` try the identical CDN
+pool path, then the identical timestamp/path on `snapshot.debian.org`, then the
+original Cloudflare snapshot URL. The native AMD64 and ARM64 BusyBox 1.36.1-6
+packages declared by `rules_coreutils@1.0.1` retain all three candidates, with
+cold-fetch regressions checking both original SHA256 hashes without executing
+either package.
+The locked filename, version and SHA256 remain unchanged. The generic rules do
+not rewrite indexes, metadata, source archives, or `debian-security`; only the
+three exact security-package exceptions listed above are added. The cold-fetch
+regression checks `libsframe1_2.44-3_amd64.deb` against
+its generated APT lock's SHA256
+`38f625dfdc582717029ac3a3e97c51d994ec2e7a0e9b230c6b44e40d1276311f`.
+
+Repository downloads allow 12 HTTP connection attempts with a nominal 10-second
+retry-delay cap and at most four parallel downloads per Bazel process. These flags
+apply to both architectures, repository-dependent commands and Rust preparation;
+the cold-fetch regressions use the same policy. This allows transient HTTP
+503/504 responses to recover without changing package inputs or retrying tests.
+
+BCR `pigz@2.8.bcr.2` is used by build-infra's reproducible gzip tool when packaging
+WPA's debug TAR. Its original URL now serves different bytes; a clean
 [WPA registry build](https://github.com/securely1g/sonic-bazel-registry/actions/runs/41587703074/job/125760920377)
 fails its BCR checksum before compiling any source.
 
 The MacPorts mirror retains the original archive with SHA256
 `eb872b4f0e1f0ebe59c9f7bd8c506c4204893ba6a8492de31df416f0d5170fd0`.
 Bazel still verifies BCR's unchanged integrity and applies its unchanged patches.
-Other versions, paths and hosts are not rewritten. No source/version override,
-custom pigz module, prebuilt pigz, or disabled integrity check is involved.
+No source/version override, custom module, or disabled integrity check is involved.
 
 This config applies automatically in this registry's validation runner. It does
 not change how standalone consumers download dependencies. Until BCR's upstream
@@ -52,15 +158,132 @@ path to a checkout of this config:
 bazel build --experimental_downloader_config=/path/to/sonic-bazel-registry/ci/source_mirrors.cfg //your:target
 ```
 
-The real Bazel runner tests fetch BCR's pigz into a new, empty repository cache
-without a distdir, verify its original archive hash and patched MODULE, and
-confirm that a mirror serving different bytes is still rejected. These are
-repository fetches; they execute no compilation or package actions.
+The real Bazel runner tests fetch the five ARM archives, gawk, BCR's pigz and the
+locked Debian package into new, empty repository caches without a distdir,
+checking original archive hashes and
+fetched MODULE files. Local HTTP fixtures verify candidate order, fallback after
+HTTP errors and checksum mismatches, and rejection when every candidate has the
+wrong bytes. These are repository fetches; they execute no compilation or package
+actions.
 
-The `codex/pigz-source-mirror` PR validates this CI fix with those fetch tests and
-the existing AMD64/ARM64 runner tests. Its path-checked exception retains the
-normal publication-policy plan but does not run the unrelated module build
-matrix. All other branches and pushes retain normal module selection.
+## Private Debian snapshot mirrors
+
+Trusted jobs on the self-hosted `debian-trixie-container` and
+`debian-trixie-container-large` runners can prefer
+private Debian mirrors while keeping the published package URLs and checksums.
+Configure these optional **Actions repository secrets** under **Settings →
+Secrets and variables → Actions**:
+
+| Secret | Stable HTTPS archive root |
+| --- | --- |
+| `DEBIAN_MIRROR_ROOT` | Private URL ending in `/archive/debian/` |
+| `DEBIAN_SECURITY_MIRROR_ROOT` | Private URL ending in `/archive/debian-security/` |
+
+CI appends the snapshot timestamp from [debian_snapshots.json](debian_snapshots.json).
+Set these two secrets once. Trusted jobs select the secret pair after checkout.
+A pre-manifest helper uses the existing dated secrets, including when it runs
+under a newer workflow.
+Do not put the values in registry files, workflow variables, container images,
+PR descriptions, or reproduction commands. The public workflow refers only to
+the secret names. It passes them explicitly to the reusable module workflow
+for same-repository pull requests, maintained-branch pushes, and manual runs,
+excluding Dependabot. The receiving workflow also checks its runner and event before forwarding secrets.
+Trusted AMD64 module builds, ARM64 cross builds, native runner tests and the
+cross-compiler fixture share the same routing. Hosted ARM64 and fork runs use
+the public configuration.
+
+The downloader maps each Debian input according to its published identity:
+
+| Input | First private candidate |
+| --- | --- |
+| Dated Debian or security snapshot | The same archive, original timestamp and path. This includes the December 2024 Socat sources and February 2024 BusyBox packages. |
+| Official CDN binary pool URL | The archive's current snapshot from the manifest and the original pool path. |
+| Official CDN source archive or source descriptor | The matching undated CDN pool path, such as `/debian/pool/...`. |
+| Snapshot content address | The same `/file/<SHA1>` object, verified against the caller's independent integrity pin. |
+
+For example, the Trixie APT resolver starts several compressed versions of
+`Packages` and `Contents` in parallel. A private `Packages.xz` success does
+not cancel an already running `Packages.gz` request. Mirror the formats listed
+in the signed Debian Release files, including `Contents.gz` for each target
+architecture. Public fallback remains available for every published format.
+For each retained timestamp, the manifest records the signed formats for
+`Packages` and `Contents` by suite. Probes for unpublished encodings stay
+on the private endpoint. This covers the `main` indexes for AMD64, ARM64 and
+ARMHF. A Trixie build can evaluate a component's Bookworm extension while
+resolving its module graph.
+
+### Roll the CI mirror to a new snapshot
+
+1. Stage the new dated directory on the private mirror. Verify the signed
+   Release metadata and the index and package files that consumers use.
+2. Edit **only [debian_snapshots.json](debian_snapshots.json)**. For each archive
+   being rolled, add its timestamp under `snapshots`, record the signed
+   `Packages` and `Contents` suffixes for each supported suite, and set
+   `current` to that timestamp. An empty suffix represents the raw index.
+   Verify the archive's `probe` package path and SHA256 against the new
+   snapshot. Update them if its package changed.
+3. Keep previous entries and their mirrored files while consumers still pin
+   those releases. Bazel preserves timestamps on dated URLs. Direct APT
+   preparation uses the per-date mapping for every retained entry.
+4. Run `python3 -m unittest discover -s ci/tests -p test_debian_snapshot_rollover.py`
+   to exercise old and new routing with the same roots. Run **Registry CI**
+   with **private_mirror_probe** and check the evidence for
+   both archives. The probes fetch from the current dates with a fresh cache
+   and public fallback disabled.
+
+This procedure changes CI mirror routing. To upgrade the Debian packages a
+component selects, publish the corresponding dependency pins in the owning
+module and update its consumers separately.
+
+Temporary configuration lives outside the artifact directory. The wrapper
+removes mirror values from the child process environment and registers them
+for GitHub masking. Module validation supplies an ephemeral APT mirror map
+to runtime preparation because direct APT calls use a separate transport.
+The checked preparer and package locks still verify the selected runtime.
+
+Bazel preparation commands such as the ARM toolchain provider's `fetch` retain
+redacted fetch events alongside the usual build/test event streams. Before
+upload, CI scans diagnostics and nested artifacts for private locations. On a
+trusted job, `debian-downloads.json` identifies the evidence files, successful
+and failed candidates, APT Get activity, and any public or unattributed transfers.
+A warning points to this report if there are exceptions. A Bazel fetch event identifies the selected candidate.
+Bazel 8.5.1 omits the entire build event stream for `mod` and `info`;
+`mod graph` can still download packages while evaluating module extensions.
+
+The Trixie planning job compiles the checked-in observer with its existing Java compiler.
+Validation jobs download the JAR by its artifact ID from the same workflow run
+and compare its embedded source SHA256 with their checkout before loading it.
+For trusted runs, this observer delegates to the JVM's existing HTTP
+cookie handler and records the actual Debian request and response origins.
+It captures fast requests, public fallback and redirects in those commands.
+The observer records the origin class, safe object path and HTTP status. It
+omits private hosts, queries, user information, cookies and authentication
+headers. A missing or unhealthy JVM receipt is flagged as incomplete. Retained
+event files are under `download-traces/http/`.
+
+Read the evidence by type. An HTTP 200 means a server responded; the returned
+bytes can still fail integrity verification. Bazel's successful fetch events,
+the checked package digests, and APT's verified installation receipts provide
+separate evidence. A repository cache hit can complete without an HTTP request.
+
+
+To prove private mirror availability, manually run **Registry CI** with
+**private_mirror_probe** selected. This optional check runs only on the trusted
+self-hosted Trixie runner and requires both mirror secrets to be configured.
+It uses the same `sudo` environment as local module validation, so it cannot
+depend on proxy settings available only to the runner user. It performs
+fresh-cache Bazel downloads of each archive's manifest-selected probe package,
+checks its SHA256 and retains a sanitized receipt.
+Ordinary pull-request and push CI use public fallback and do not require the
+private mirrors to be available. The manual probe defaults to off and does not
+change the module validation matrix. Local regression tests cover mirror
+preference, public fallback, checksum rejection, and console/artifact redaction.
+The explicit probe fails when either secret is missing; ordinary builds still
+use public sources.
+
+This protects the URLs from public source and normal published evidence. Code
+executing in a job that receives the secrets can read them; the profile is for
+trusted code, not an isolation boundary against a malicious workflow or build.
 
 ## Kernel build-tool cache downloads
 
@@ -189,8 +412,9 @@ support before onboarding.
 
 The configuration declares:
 
-- `architectures`: native execution and target architectures to validate,
-  currently `amd64` and/or `arm64`.
+- `architectures`: target architectures to validate, currently `amd64` and/or
+  `arm64`. Execution remains native unless an exact ARM version is selected for
+  staged cross validation.
 - `consumer_deps`: additional direct dependencies required by the test consumer,
   each with `name`, an exact `version` to test, and optional `repo_name`. CI pins
   every entry to its declared version using `single_version_override`; no
@@ -209,6 +433,22 @@ The configuration declares:
 - `build_targets`: required output labels, including runtime and matching debug
   packages where the module provides them.
 - `test_targets`: explicit consumer and package test labels.
+- `additional_targets` (optional): append build or test labels for a declared
+  target architecture. The nonempty top-level lists run on every architecture.
+  For example, the DocBook runtime and its test require AMD64 execution tools.
+  A native AMD64 registration can add those labels under `amd64` while ARM64
+  runs the common targets. Cross jobs select by target architecture. Commands,
+  required output artifacts, verified tests and the receipt use that same list.
+
+  ```json
+  "additional_targets": {
+    "amd64": {
+      "build_targets": ["@sonic-build-infra//tools/build_tools:docbook_runtime"],
+      "test_targets": ["@sonic-build-infra//tools/build_tools:docbook_runtime_test"]
+    }
+  }
+  ```
+
 - `integration_test_module` (optional): an entry-relative directory containing a
   separate test module, for example `tests/integration`. CI copies its ordinary
   `MODULE.bazel`, `BUILD.bazel`, tests and fixtures into the fresh consumer. The
@@ -344,6 +584,53 @@ Artifacts retain `test-runtime-prepare.py`, `test-runtime.MODULE.bazel.lock`,
 adjacent logs, including on failure. `validation.json` records the opt-in and
 test environment flag after every declared test passes.
 
+### Route source-owned runtime preparation through private APT mirrors
+
+Compatible preparers can opt into this CI-only presubmit field:
+
+```json
+"test_runtime_preparation": {
+  "script": "tools/bazel/runtime/prepare.py",
+  "sha256": "<unchanged source helper SHA256>",
+  "apt_mirror_protocol": "locked-runtime-v1"
+}
+```
+
+The protocol requires the verified helper's existing `select_runtime(lock,
+architecture)`, `snapshot_sources(selected, architecture)`, `inventory()`,
+`missing_packages(selected, before)`, and `verify_inventory(selected, before,
+after)` functions. All five current Common entries use the same compatible
+helper. Other helpers retain their normal execution path; a mirror secret alone
+does not opt them into this protocol.
+
+For trusted Trixie jobs the mirror wrapper supplies `SONIC_APT_MIRROR_CONFIG`,
+the path to a temporary mode-0600 JSON file outside artifacts. Its schema is
+`{"schema_version": 1, "mirrors": {"<canonical HTTPS snapshot base>":
+"<preferred HTTPS mirror base>"}}`; canonical keys have no trailing slash.
+The CI adapter first uses the owner's exact resolved package selection and
+provenance check. Standard APT then uses local `mirror+file` lists with the private
+endpoint at priority 1 and the canonical public endpoint at priority 2. APT
+handles fallback for each file. The lists are mode 0400 and owned by `_apt`,
+so its normal sandbox can read them without making private endpoints readable
+by other unprivileged container users. No system APT configuration is changed.
+
+Signature checks, simulated dependency planning, refusal to change prepared-base
+packages, selected version/architecture/SHA256 checks, and installation without
+further downloads remain enforced. The original source helper then executes
+unchanged and performs its normal runtime validation and receipt generation.
+The additional step runs in the same target environment, including the ARM
+executor when selected. Without a private map, normal public preparation remains
+available.
+
+`test-runtime-mirrors.json` records selected and verified packages, the before/after
+inventory, and configured snapshot mappings without private endpoints. The
+configured mappings alone do not establish where bytes came from: the adjacent
+`test-runtime-mirrors.apt.log` contains actual APT acquisition evidence. Ignore
+local `file:... Mirrorlist` reads when counting network transfers. The existing
+mirror wrapper scrubs and scans these files before upload. Common's normal
+`test-runtime.apt.log` is empty after successful pre-provisioning because the
+unchanged helper finds no missing packages and makes no second APT download.
+
 ## Maintain one MODULE declaration
 
 For an entry whose source archive needs a MODULE overlay, opt in with
@@ -466,6 +753,36 @@ Only files within those declared boundaries belong to a tree TAR; adjacent runti
 and debug TAR outputs retain their original bytes. The artifact includes
 `declared-output-trees.jsonl` and the genuine build events for verification.
 
+Bazel 8.5.1 can report a Unicode tree member using UTF-8 bytes interpreted as
+Latin-1, together with a damaged file URI. For example, registry CI's real
+artifact fixture reported `Főtanúsítvány.crt` as `FÅ\x91tanÃºsÃ\xadtvÃ¡ny.crt`
+on its AMD64 worker. When that literal basename is absent, the runner tries
+one strict Latin-1-to-UTF-8 conversion of the basename. The result must be a
+regular file inside the declared tree, with the build event's exact SHA256 and
+size; URI-parent, ASCII-name and path-safety checks still apply. Existing
+literal names are never reinterpreted, and recovery through a symlink is
+rejected. The TAR retains the actual filesystem name and bytes. This does not
+change Bazel's locale or repair arbitrary paths. The failed worker's effective
+JVM locale was not retained.
+
+The real Bazel collector fixture creates its certificate filename with ASCII
+shell octal escapes and checks its exact UTF-8 bytes before collection. Its two
+producer actions (target and execution configurations) use
+`execution_requirements = {"no-remote-cache": "1"}`. This prevents those actions
+from reading or uploading remote cache results while retaining sandboxing,
+reuse of existing local action outputs, analysis reuse and caching for the separate tool action and all
+module builds. The observed runner command configures a remote cache, not a
+remote executor; this action requirement does not disable remote execution.
+
+This isolates collector validation from an unresolved Bazel 8.5.1 remote tree
+transport defect. A retained AMD64 run materialized a double-encoded Unicode
+filename from cached output and failed the strict filesystem assertion before
+the collector ran. The earlier passing run also reported a Unicode runtime
+backport, so it is not a controlled cache-only comparison. The fixture keeps
+all filesystem, BEP, target-versus-execution configuration and final TAR checks.
+Passing it does not establish that production remote tree transport is fixed;
+this change neither modifies the Bazel runtime nor changes production caches.
+
 For native libraries, download the runtime and detached-debug packages from the
 same module/version/architecture job. These packages come from the same build;
 symbols from another run are not guaranteed to match. Extract package archives
@@ -485,30 +802,360 @@ Existing runtime/debug TAR files are not repackaged internally. For example,
 `Text::CharWidth.3pm.gz`, `xt_CONNMARK.h`, and `xt_connmark.h` retain their names,
 and a directory's executable files and portable relative links remain usable.
 
+
+`test-results.json` indexes the `test.log` and `test.xml` files declared in each
+Bazel test-result event, with its label, configuration, run, shard and attempt.
+Files are retained under `test-results/` with SHA256 hashes and sizes. This also
+captures tests in transitioned configurations, such as DASH API's Python test,
+which are outside the default `bazel-testlogs` directory. The existing
+`testlogs/` snapshot remains available for compatibility. A collection error
+fails otherwise successful validation; after a build or test failure it is
+recorded in `test-results-error.json` without replacing the original failure.
+If that receipt cannot be written, the error is printed to stderr and the
+original validation failure is still preserved.
+
 ## Environment and coverage
 
-The build matrix uses native GitHub-hosted `ubuntu-24.04` and `ubuntu-24.04-arm`
-servers with a `debian:trixie-20260918` container pinned to its multiarch image
-digest. It installs the compiler and
-package-test tools in the container and downloads Bazel 8.5.1 with a pinned SHA256
-for the native CPU. GitHub actions are pinned to commit SHAs, checkout does not
+Planning, the aggregate check, AMD64 runner tests, and ordinary local module
+validation use `self-hosted`, `Linux`, `X64`, and `debian-trixie-container`.
+P4C (`p4c`), BMv2 (`p4lang-bmv2`), and DASH (`sonic-dash`) use
+`debian-trixie-container-large` as their fourth label whenever their execution
+architecture is AMD64. This includes qualified ARM64 cross jobs and the P4C host
+tool built inside DASH. An ARM64 version that requires native execution still
+uses its usual GitHub-hosted ARM runner. Both Trixie pools use the same source
+mirrors, private-mirror trust checks, HTTP audit, and package tools.
+
+The large pool on `lgh108` provides four concurrent jobs, each limited to 8
+CPUs and 16 GiB. These limits may be overcommitted on the node. The ordinary
+pool retains its existing 16-slot, 6 GiB-per-slot configuration. Register both
+pools as ephemeral so each runner
+accepts only one job; `sonic-slave-wrk-mgr` must remove the finished container
+and replace it with a fresh registered runner after success, failure, or
+cancellation. Keep registration credentials in the manager, outside job
+containers, and retain runner diagnostics before removing a container.
+
+This staged migration sets `ARM_CROSS_ALL = False`. Only the exact module
+versions in `ARM_CROSS_VERSIONS` use native AMD64 cross-compilers and the ARM
+runtime executor inside the Trixie runner. Every other ARM version retains its
+native GitHub-hosted ARM route, including newer versions of a migrated module.
+All original build labels, test labels, sources and dependency pins remain
+unchanged. The separate all-ARM survey supplies the acceptance evidence below;
+failed or incomplete contracts remain on native ARM while fixes are validated.
+
+Module steps execute directly inside the disposable runner, built from the
+pinned Trixie base with compiler and package-test tools preinstalled.
+Before Bazel runs, module validation and native/cross runner tests invoke
+[`prepare_repository_tools.sh`](prepare_repository_tools.sh). APT repository
+evaluation needs the host's `file` command and magic database to distinguish
+GNU linker scripts from ELF libraries. For example, ncurses' `libncursesw.so`
+contains `INPUT(libncursesw.so.6 -ltinfo)`; it must be classified as text rather
+than passed to `readelf` as an ELF file. The helper installs Debian package
+`file` when the command is missing, using sudo only for a non-root runner, and
+always checks this MIME classification. Failed package installation or an
+unusable magic database fails the job before repository evaluation. Hosted
+ARM module jobs also include `file` in their normal build-tool package list.
+The helper works with existing ephemeral images; preinstalling the package
+in the registry runner image avoids the bootstrap download.
+
+AMD64 does not start a second container or require a Docker daemon. Actions run
+as UID 1000; module validation and runtime package preparation use passwordless
+`sudo` inside the disposable container. Evidence is archived as root, then only
+the resulting TAR is given to the action user, preserving the archived modes.
+
+The manager supplies `SONIC_RUNNER_IMAGE_REFERENCE=sonic-slave-runner@sha256:...`
+from the actual derived image's inspected Docker image ID. This is a local
+content identity, not a registry pull reference or the upstream base digest.
+`validation.json` records the actual local runner identity for native AMD64 and
+cross ARM jobs, or the pinned job image for hosted native ARM. Missing local
+runner identity fails validation. Runtime preparation receipts
+also record the prepared package inventory and library hashes.
+
+The AMD64 image contains the checksum-verified Bazel 8.5.1 binary at
+`/usr/local/lib/bazel-8.5.1`. Its `/usr/local/bin/bazel` wrapper explicitly passes
+the image's Java CA trust store as a startup argument, including when CI ignores
+all bazelrc files. The workflow verifies the binary's checksum again. ARM cross jobs use that same native AMD64 Bazel binary. GitHub
+actions are pinned to commit SHAs, checkout does not
 persist credentials, and the workflow uses read-only repository permissions.
 
-Runner tests execute on native AMD64 and ARM64 hosts with pinned Bazel 8.5.1.
-They build an actual directory-producing target and its public alias, including
-both target and execution configurations, then check collection and extraction.
+Local native AMD64 and cross ARM module jobs pass
+`--bazel-startup-arg=--host_jvm_args=-Xmx2g` to bound
+Bazel's Java heap within the worker's memory limit. The runner accepts
+repeated startup arguments, forwards them to build, test, cquery, info and Rust
+preparation, and records them in `validation.json`. Hosted native ARM keeps its
+default heap.
+Repeated `--bazel-build-arg` options reach build, test and output queries.
+Local module jobs use `--jobs=1` and `--discard_analysis_cache` to reduce
+concurrent compiler memory. Rust preparation receives those settings too.
+On a large runner, the P4 recipes can use their own `make -j4` within one
+Bazel action. The job verifies an effective 8-CPU cgroup quota, at least 8 CPUs
+in its affinity, and a 16 GiB memory limit before starting validation. Its
+`p4-runner-resources.json` artifact records these limits, the command exit code,
+and the job cgroup's available memory peak and OOM counters before and after
+Bazel. For locally executed CMake and Make actions, it also reads Bazel's
+existing build and test event files. For each reported action mnemonic, it
+divides the accumulated user and system CPU seconds by the wall time between
+its first start and last finish. With multiple actions this gives average cores
+over the group's span, including gaps. Bazel's action count can include cache
+hits, which add no local CPU time. Missing CPU metrics and phases with remote
+execution are reported without a cores estimate. This measurement records CPU
+consumption of the whole recipe, including its child processes.
+[Bazel build metrics](https://github.com/bazelbuild/bazel/blob/8.5.1/src/main/java/com/google/devtools/build/lib/buildeventstream/proto/build_event_stream.proto#L847-L873).
+
+The default repository Actions variable setting is
+`REGISTRY_P4_RUNNER_PROFILE=large` (also selected when the variable is unset).
+GitHub waits for an available runner matching the plan's exact labels. If
+large workers are offline, set the variable to `standard` and **start a new
+run that executes planning**. The resulting jobs use the ordinary pool and
+append `--eval=.NOTPARALLEL:` to target and execution-platform `GNUMAKEFLAGS`
+to fit 6 GiB. Retrying only an already-planned job retains its previous label.
+Restore the variable to `large` or remove it to resume the large route. Check
+the P4 jobs' resource artifacts after enabling a new pool.
+
+These three local jobs have a six-hour deadline. A single
+local module matrix combines native AMD64 and staged cross ARM jobs, with at most ten running
+per workflow run. Hosted native ARM has its own matrix. This is a module limit
+per run, not a host-wide limit across runs; planning, native unit tests, the cross
+fixture and the aggregate also use workers. Both module groups and both test
+suites are required by the aggregate `Registry CI` check. Empty module groups are
+accepted only when planning explicitly reports them empty.
+
+Tests receive an explicitly exported empty `HOME`, which Bazel's test setup
+replaces with that test's writable `TEST_TMPDIR`. This lets Python and other
+subprocesses create user configuration inside the test sandbox; an absent
+`HOME` would otherwise fall back to the account's home directory.
+
+`TestRunner` actions prefer `processwrapper-sandbox`. This lets tests hard-link
+their declared runfiles into writable temporary directories and set executable
+permissions on those private copies. Build actions keep their existing sandbox
+strategy. Local or exclusive tests retain the `local` fallback, and real Bazel
+regressions cover both paths without changing published tests.
+
+The native helper suite runs on both AMD64 Trixie and GitHub-hosted native ARM64
+with the matching checksum-pinned Bazel 8.5.1 binary. Native ARM helper coverage
+remains required while any modules retain that route. The separate required
+cross fixture tests native execution tools, ARM compilation and ARM runtime
+behavior; it does not replace or claim native ARM Bazel execution coverage.
+`run_runner_tests.py --suite native` discovers every test file except the ARM
+cross-runtime fixture. A separate local job runs `--suite cross` with a 60-minute
+bound, both executable prerequisites explicitly set and checked, and failure on
+any skipped cross test. A regression verifies that these suites partition full
+discovery without overlap or omissions. The native tests build an actual
+directory-producing target and its public alias, including both target and execution configurations, then check collection and extraction.
 Transport and failure-log tests also cover rejected paths, partial archives,
 case-sensitive filenames, Unix modes, empty directories and symlink relocation.
 
-Each job uses a fresh consumer and Bazel output directory. There is no saved Bazel
-cache in this initial workflow. Logs, Bazel build-event files, available test
+Each job uses a fresh consumer and Bazel output directory. Logs, Bazel build-event files, available test
 logs, and validation metadata are retained as workflow artifacts for 14 days,
 including when module validation fails. Setup failures can occur before these
 files exist and remain visible in the Actions job log.
 
-ARMHF, cross execution, other operating systems, all historical registry entries,
-and the complete SONiC image are outside this matrix. Declaring an ARMHF layout
-in a module does not establish ARMHF build or execution coverage.
+ARMHF, other operating systems and the complete SONiC image are outside this
+matrix. Pull requests validate latest configured versions; the explicit
+`all_versions` dispatch also surveys configured historical versions.
+Declaring an ARMHF layout in a module does not establish ARMHF build or execution coverage.
+
+## Staged ARM64 cross validation
+
+The shared helper has an explicit cross mode. Each planned row records target
+`architecture`, native `execution_architecture`, and a boolean `cross_compile`.
+Native callers retain their defaults; cross execution requires both
+`--cross-compile` and an absolute executable `--test-executor`, an AMD64 host,
+an ARM64 target, and an explicit disposable Debian Trixie container identity.
+The reusable workflow selects native Bazel, image, sudo and artifact handling by
+execution mode while preserving the target architecture and all original labels.
+
+The `ARM_CROSS_VERSIONS` map selects exact module versions for the Trixie
+cross-build pool. The initial 15 versions were validated in the [all-ARM
+survey](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416).
+Job artifacts record the selected dependency versions, native execution and ARM
+target platforms, output identities, and results of the original uncached tests.
+Historical versions outside the map use hosted ARM64.
+
+| Module | Exact version | Build / test labels | ARM64 validation |
+| --- | --- | --- | --- |
+| `gawk` | `5.3.2.sonic.1` | 3 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127198380280) |
+| `gazelle` | `0.54.0.sonic.1` | 1 / 3 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127198380420) |
+| `libnl3` | `3.7.0.sonic.7` | 5 / 4 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127198380378) |
+| `libyang-python` | `3.1.0.sonic.6` | 4 / 3 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127205852291) |
+| `protobuf-legacy` | `3.21.12.sonic.2` | 8 / 4 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127218315473) |
+| `rules_foreign_cc` | `0.16.0.sonic.1` | 2 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127221268640) |
+| `rules_python` | `1.9.0.sonic.1` | 3 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127230792181) |
+| `sai` | `1.18.0-sonic.1` | 2 / 3 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127259342573) |
+| `socat` | `1.8.0.2.sonic.5` | 4 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127316394685) |
+| `sonic-dash-api` | `0.0.5-9b2893e890734a2db0c53a5e5c64b031ec0dcfbd` | 8 / 5 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127363604452) |
+| `sonic-linux-kernel` | `0.0.2-34a53faaecd325509e9d8f1016ed0108ab558a23` | 5 / 5 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127391886151) |
+| `sonic-rust-deps` | `0.0.4-6d9c70f708d7420e9e2b2cdc906b80cee6b140f1` | 6 / 4 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127417149111) |
+| `sonic-sairedis` | `0.0.5-33443ea1666a23812365d03fb959066ee84c9aa0` | 19 / 7 | Pending current registration validation; [historical generator run](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42237091438) |
+| `sonic-swss` | `0.0.3-9c3797990d4b5a79100a40fe7689927c18212361` | 7 / 3 | Pending current registration validation; [historical generator run](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42238852494/job/127963546293) |
+| `sonic-yang-mgmt` | `1.0.0-9ab452d22773c41783092ae3bd6c206d6c257c8d` | 2 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127454762848) |
+| `sonic-yang-models` | `1.0.1-b0a9362a7a1b4b5e1b7188c019d256f7c8aaff9f` | 3 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127456801062) |
+| `tar.bzl` | `0.10.5.sonic.2` | 8 / 7 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127457427548) |
+
+The `linux-kernel` contract validates its declared helpers; it does not build or
+boot a kernel image. Passing tests only establish each module's existing
+presubmit contract, not broader undeclared functionality. Yang-model package outputs and TAR
+regression archives are architecture-neutral; their original target-side runtime
+tests remain required, and native execution tools retain their configurations.
+
+The initial survey also found that QEMU user-mode returns `ENOSYS` to Linux
+AIO in `rules_distroless@0.9.4.sonic.17`. Its ARM job runs the original
+`linux_headers_test` executable under a Debian ARM64 kernel using QEMU system
+emulation. The other 35 tests use the image's standard executor. The guest
+includes the runner's ARM loader and libc. Its console reports the test exit
+status to Bazel. [Full ARM validation](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42089131813/job/127462206254)
+
+The `rules_go` `0.65.0.sonic.1` follow-up moves both original test targets to
+the cross runners. Their ARM test processes invoke the native Bazel launcher
+inside fresh workspaces. Nested builds use the same cross compiler and sysroot
+as the outer build and check the architecture of each produced executable.
+All four original Go cases passed, including Cgo header propagation and build ID
+changes. [Full ARM64 validation](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42094050308/job/127479337371)
+
+Gazelle’s ARM Go test binaries use the same direct QEMU executor so a Go test
+can execute itself again through the kernel’s ARM interpreter. Its shell-based
+`go_proxy_test` uses the normal ARM runtime and its original mounts. All three
+tests run with the published integration module. [ARM64 validation](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42186480262/job/127787942313)
+
+
+P4C `1.2.4.2.sonic.3` also runs on the Debian cross runners. Its build uses
+native code generators, and its uncached package test uses the resulting ARM64
+compiler to translate P4 source to BMv2. All five original build targets passed.
+[Full ARM64 validation](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42087404563/job/127456109251)
+
+PI `0.1.3.sonic.3` also uses the Debian cross runners. Its runtime test builds
+and runs a consumer of the installed ARM64 SDK and converts P4Info using the
+installed tools. All four original builds and the uncached test passed.
+[Full ARM64 validation](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42180002707/job/127767164854)
+
+The iproute2 6.15.0.sonic.7 cross route builds all four original targets and
+executes both original tests. Its runtime test checks the package, and the
+configure test invokes ARM GCC and recursive Make. The runner image needs the
+PRoot fixes for guest GCC discovery and Linux exec argument limits. Roll out
+that image before enabling this route in production.
+[Qualified ARM job](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42200862212/job/127848280179) · [Runner image change](https://github.com/securely1g/agi-projects/pull/92)
+
+SWSS 0.0.3 selects its Sairedis and libteam dependencies directly. Its cross
+job allows six hours for a cold serial C++ build and keeps the three original
+runtime tests. [Historical cross-build and runtime tests](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42238852494/job/127963546293)
+
+Sairedis stages its declared ARM loader and libraries using the original test
+wrappers. Its ASIC comparison and ZeroMQ signal fixtures run those wrappers
+with native shell and Python, then execute the AArch64 payload through kernel
+binfmt. The other five original tests use the ARM userspace executor.
+
+Sairedis and SWSS registry jobs select the shared Cosmos 4.0.2 manifest by
+module, version and execution architecture. Native AMD64, native ARM64 and
+AMD64-to-ARM64 jobs receive the five pinned inputs, including both ARM loader
+names, before Bazel starts. The shared reader fetches the official release
+archive when needed, verifies every selected member against its locked SHA256,
+and supplies the files through `--distdir`.
+[Official release](https://github.com/jart/cosmopolitan/releases/tag/4.0.2)
+
+
+The gawk smoke test uses gawk as a native execution tool while the direct gawk
+build targets ARM64. Test execution follows the declared Bazel configuration;
+the ARM cross fixture independently verifies native execution tools, ARM ELF
+outputs and target Python compatibility. No test is replaced by a smaller smoke
+test to make a module pass.
+
+Inside a configured disposable runner with `/usr/local/bin/sonic-arm64`, use
+fresh work and artifact directories. This command is a local opt-in example,
+not a request to execute inside an active registered worker:
+
+```sh
+sudo -n /usr/bin/python3 -I -S ci/registry_ci.py run \
+  --module libnl3 --version 3.7.0.sonic.7 --architecture arm64 \
+  --cross-compile --test-executor /usr/local/bin/sonic-arm64 \
+  --test-container-image "$SONIC_RUNNER_IMAGE_REFERENCE" \
+  --bazel /usr/local/bin/bazel \
+  --bazel-startup-arg=--host_jvm_args=-Xmx2g \
+  --bazel-build-arg=--jobs=1 --bazel-build-arg=--discard_analysis_cache \
+  --work-dir /tmp/registry-ci-libnl3-cross \
+  --artifacts /tmp/registry-ci-libnl3-cross-artifacts
+```
+
+Cross mode creates explicit AMD64/Linux/Trixie execution and ARM64/Linux/Trixie
+target platforms, retaining other constraints from the declared parents. This
+also overrides host-derived aliases that would otherwise select AMD64 output
+for an ARM64 request. Published Sonic Trixie platforms keep their toolchains only
+when the exact graph-selected `sonic-build-infra` version is in
+`cross_toolchain.py`'s verified registration allowlist. Its six immutable entries
+declare AMD64 execution, ARM64 targets and Trixie; a familiar platform label or
+newer version alone does not establish that capability. All other consumers,
+including native-only infra 0.0.6 and SAI's 0.0.13, use a CI-local legacy C++
+adapter compatible with the selected `rules_cc`. Both declared platform parents
+remain inherited; the adapter's separate distribution constraint is additional.
+The adapter uses the native-to-ARM GCC14.2 compiler and Trixie sysroot from
+immutable `sonic-build-infra@0.0.25-34de7330abc72229dfc8dab88dec71b89c52aa88`.
+The provider resolves separately and its JVM stops after preparation. Its
+dependencies do not enter the consumer graph. Compiler/sysroot files are declared
+action inputs, and the consumer's selected module versions must remain equal
+before and after adaptation. Existing integration-module contents are preserved.
+Evidence retains both graphs, provider lock and manifests, generated adapter and
+platform definitions, declared/effective platform identities, and the selected
+infra version and toolchain reuse decision. The registration allowlist is
+source-level evidence; actual toolchain and runtime acceptance remain separate.
+
+The selected-version check uses the complete module-only JSON from pinned
+Bazel 8.5.1. Its [`mod graph` implementation](https://github.com/bazelbuild/bazel/blob/8.5.1/src/main/java/com/google/devtools/build/lib/bazel/commands/ModCommand.java)
+also inspects every extension, including unused extensions. A failure solely in
+that later inspection does not invalidate the already resolved module versions.
+CI accepts only its exact exit-2 inspection diagnostic together with a complete,
+unfiltered graph; every reference must have an expanded node. It retains the
+original graph, stderr and `*-status.json`, marking extension inspection
+incomplete. Resolution failures, malformed/truncated graphs and changed selected
+versions still fail. The original build and test commands independently evaluate
+all extensions they actually need; their failures are never suppressed.
+
+The supplied executor runs unchanged ARM tests with QEMU user-mode and PRoot in
+an ARM64 Trixie filesystem. This provides emulated userspace execution, not
+native ARM hardware or kernel coverage. The helper probes the real guest CPU and
+userspace before building, records the executor hash, and binds the work and
+artifact paths plus container-local `/tmp`. An output base outside the work
+directory is bound explicitly too. Native Bazel and build tools stay on AMD64.
+
+Some existing test launchers embed exec-configured Python. For tests only, the
+helper resolves the matching locked ARM standalone runtime, verifies real
+ELF62/183 architectures and exact Python version/ABI, and passes complete-runtime
+`--bind-at` mappings to the executor. Native interpreter files stay unchanged.
+For simple shared-lock pip hubs, generated-consumer adapters select native wheels
+for generators and ARM wheels for target tests, using the already selected
+`rules_python` and original requirements bytes. Existing platform/index hubs and
+development-only hubs remain unchanged; unsupported simple hub arguments or
+changed module versions fail validation. Runtime mappings, hashes, original hub
+configuration and lockfiles are retained in the cross receipts.
+
+Cross builds may supply a readonly content-addressed Autoconf `CONFIG_SITE` that
+recognizes an ARM compiler selected by a native build action. It preserves
+explicit configure aliases, native compiler actions and caller-provided
+`CONFIG_SITE`; it invents no cached target-probe answers. The effective site and
+hash are retained. Source-owned runtime preparation executes through the guest
+wrapper, preserving its locked inputs and checking an ARM receipt. Cross test
+timeout defaults are 180/900/2700/7200 seconds for Bazel's four timeout classes;
+explicit caller values and native defaults remain unchanged. All original build
+and test labels, source checks and uncached-test requirements still apply.
+
+The dedicated CI cross-fixture job runs all tests in `test_arm_cross_runtime.py`
+with pinned native Bazel and the installed executor. Missing prerequisites or a
+skipped cross test fail that job. Native unit jobs exclude this file explicitly,
+so it is not counted twice or hidden among optional skips. For the same explicit
+suite in a suitable disposable runner:
+
+```sh
+REGISTRY_CI_TEST_BAZEL=/usr/local/bin/bazel \
+REGISTRY_CI_TEST_ARM_EXECUTOR=/usr/local/bin/sonic-arm64 \
+  /usr/bin/python3 -I -S ci/run_runner_tests.py --suite cross
+```
+
+This foundation is not acceptance of the full ARM matrix. Before moving a module
+row, validate its complete original build and uncached-test contract with the
+native-generator/ARM-output foundation, unchanged source pins and resolution
+receipts. SAI now selects the isolated provider, but
+its full cross build and tests have not passed. Other known gaps include nested
+Bazel/sandbox execution in rules_go, SWSS self-reexecution under emulation, and full libyang/protobuf
+debugger/upstream coverage. P4C/PI source candidates and FIPS target-binutils work
+remain separate module changes; transitive consumers retain their published
+dependency pins. No source recipe or image change is included here.
 
 ## Local reproduction
 
@@ -541,3 +1188,12 @@ clean reproduction.
 
 See the [Bazel registry format](https://bazel.build/external/registry) for module
 source, patch, and overlay metadata.
+
+### SONiC Go pseudo-version ordering
+
+Registered SONiC patches may retain a Go pseudo-version suffix, for example
+0.0.0.sonic.1-20200309174518-a00bece872fc. The planner accepts the exact
+14-digit timestamp and 12-lowercase-hex form while preserving numeric release,
+SONiC patch number and separator precedence. Equal release/patch snapshots
+continue to use metadata registration order; hashes/timestamps are not sorted.
+Malformed or unrelated suffixes remain rejected.
