@@ -2,6 +2,7 @@
 
 The upstream apps/Makefile.in enables snmppcap whenever the declared libpcap
 headers and library are available; this applies to both supported CPUs.
+The same Makefile installs snmptop -> snmpps when curses is enabled.
 """
 import argparse
 from pathlib import PurePosixPath
@@ -37,6 +38,12 @@ def contents(path):
     return files
 
 
+def check_command_aliases(files):
+    for alias, target in (("snmpinform", "snmptrap"), ("snmptop", "snmpps")):
+        link, _ = files["usr/bin/" + alias]
+        assert link.issym() and link.linkname == target and link.uid == link.gid == 0, alias
+
+
 def check(machine, runtime, debug):
     assert machine in (62, 183), machine
     multiarch = "x86_64-linux-gnu" if machine == 62 else "aarch64-linux-gnu"
@@ -56,8 +63,7 @@ def check(machine, runtime, debug):
         elfs = {name for name, (_, payload) in files.items() if payload and payload.startswith(b"\x7fELF")}
         assert elfs == paths, (group, "missing or extra ELF files", elfs ^ paths)
         if group == "snmp":
-            link, _ = files["usr/bin/snmpinform"]
-            assert link.issym() and link.linkname == "snmptrap" and link.uid == link.gid == 0, "snmpinform"
+            check_command_aliases(files)
         for name in sorted(paths):
             member, payload = files[name]
             mode = 0o755 if name.startswith(("usr/bin/", "usr/sbin/")) else 0o644

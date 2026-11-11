@@ -4,7 +4,7 @@
   "integrity": "sha256-t4+TJ2qA1Acm2UlWqn0G/YdStcBiSvW78VXLwz/VIdE=",
   "overlay": {
     ".bazelrc": "sha256-bqY6IRC9+XT1Dr9Nk3d13o7/xwbyi+ZEex2vx/6hHe4=",
-    "BUILD.bazel": "sha256-uEuKNWr/1j6wQBxxXsjAM7wybNM6OqoEkfCny+oJo0w=",
+    "BUILD.bazel": "sha256-quZJBeBr8tCD73taNhjqnmszK0CYwOs/T5/VHxELCi8=",
     "MODULE.bazel": "sha256-TjL2F7MCf8iIEFHk3vVYtsBOu1xh4s9mdYsjNOWKdAY=",
     "native_contract_test.py": "sha256-woV2+5coW4OsnQWPvx5S82P/wskOsf1hK4tLmn7rhMg=",
     "package_sources/BUILD.bazel": "sha256-ECIJSnnFtZCAb9CYoKYs4sUfJxL1GG2WRw0lNa5RzK0=",
@@ -68,6 +68,6 @@
     "source_overrides/configure.ac": "sha256-TuPPSXfi7pWZAh/5doWqUq9uDFGBh6O8nFbw+tym4us=",
     "source_overrides/snmplib/snmp_api.c": "sha256-Dyk67dmfYWFaIRJeumQ7IDa2cihkKrforaKJV/cHEEk=",
     "templates/net-snmp-config.h.in": "sha256-4YmqEdi6cqYlTL7CBP/gUkXFKEyxUbZMQ4PDokQNC0c=",
-    "package_contract_test.py": "sha256-M9a36NkiqXzetzMJJPnqUUehtWVQvb3yFk9u7HmuQoY="
+    "package_contract_test.py": "sha256-yvx3qh6HQRWGHIrVrcCBlLy5QfidFVjH5B0oRsN0U9g="
   }
 }

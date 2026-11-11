@@ -1875,7 +1875,10 @@ sonic_deploy_tar(
         "usr/bin/snmpnetstat type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmpnetstat",
         "usr/bin/snmppcap type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmppcap",
     },
-    mtree = ["usr/bin/snmpinform type=link uid=0 gid=0 mode=0777 link=snmptrap"],
+    mtree = [
+        "usr/bin/snmpinform type=link uid=0 gid=0 mode=0777 link=snmptrap",
+        "usr/bin/snmptop type=link uid=0 gid=0 mode=0777 link=snmpps",
+    ],
     force_debug_build = True,
     debug_symlinks = {
         "usr/share/doc/snmp-dbgsym": "snmp",
@@ -2025,7 +2028,10 @@ sonic_deploy_tar(
         "usr/bin/snmpnetstat type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmpnetstat",
         "usr/bin/snmppcap type=file uid=0 gid=0 mode=0755 time=0": "@net_snmp_source//:snmppcap",
     },
-    mtree = ["usr/bin/snmpinform type=link uid=0 gid=0 mode=0777 link=snmptrap"],
+    mtree = [
+        "usr/bin/snmpinform type=link uid=0 gid=0 mode=0777 link=snmptrap",
+        "usr/bin/snmptop type=link uid=0 gid=0 mode=0777 link=snmpps",
+    ],
     force_debug_build = True,
     debug_symlinks = {
         "usr/share/doc/snmp-dbgsym": "snmp",
