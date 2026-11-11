@@ -24,9 +24,8 @@ reuse Bazel's checked cache, but this design still performs two extractions;
 it does not claim to remove duplicate source preparation. Compilation and
 installation consume only the patched prepared repository.
 
-This native build requires sonic-build-infra at fixed source commit
-`dbe3c97d99e6ca2ef86bffcb96696664aa65377c`, requested as
-`0.0.27-dbe3c97d99e6ca2ef86bffcb96696664aa65377c`.
+This native build consumes the published sonic-build-infra registration
+`0.0.28-9965823498ab54816de5addb6084638470dd04d7`, selecting source commit
+`9965823498ab54816de5addb6084638470dd04d7`.
 The registered recipe fixes the source archive and module-version patch.
-For an unpublished source commit, provide its exact checked archive through
-Bazel's `--distdir` during local registration validation.
+All required dependency entries are available on registry main.

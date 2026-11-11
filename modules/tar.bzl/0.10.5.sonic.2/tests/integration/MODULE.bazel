@@ -1,0 +1,5 @@
+module(name = "tar_mvs_consumer")
+
+bazel_dep(name = "tar.bzl", version = "0.10.5.sonic.2")
+# This published declaration requests unpatched tar.bzl 0.10.5.
+bazel_dep(name = "sonic-build-infra", version = "0.0.4-83b4e9d963f7f268d06983a8c954fc5d6d93ce2b")

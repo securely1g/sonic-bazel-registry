@@ -4,8 +4,8 @@
   "integrity": "sha256-gEGFSoglg61SY0ZnNsnIxox0saNXVKt3DSM0P5R1KPs=",
   "overlay": {
     "BUILD.bazel": "sha256-8HNqv8UUfS4Xdq8MPRiv4IqxzT5d6qPldPCX++lJW1w=",
-    "MODULE.bazel": "sha256-PQPXkGc+YBrUYtjzIKekHFHEwFnbIV6Fdq31OepMlgk=",
-    "README.bazel.md": "sha256-0J26MzmJB9QaeAws/Xpcqrn8yIIGmO29jS5lagN9YiE=",
+    "MODULE.bazel": "sha256-ATj8Ov/bZgnKdnR6nLqucriqh0LNlnLdXfC9IIGiVeI=",
+    "README.bazel.md": "sha256-f575zkJLWNzF7Mj9YCtw3rgYWFN1eKlzmfZdelfeFzU=",
     "bazel/0001-bridge-fdb-protocol.patch": "sha256-qdyXQnLw6BEAVws6m0r56Of6ShvXgavipuWe8i+ONUw=",
     "bazel/ematch_config_redirect.c": "sha256-xmLG3/bHzWnTmNFLWrTiWiXLT6j6XQOvgFW34IErXSQ=",
     "bazel/iproute2.BUILD.bazel": "sha256-6Ae+4So6Z89owfZLVxiRiORF+dC2Lp02lS1hyUN0O6g=",

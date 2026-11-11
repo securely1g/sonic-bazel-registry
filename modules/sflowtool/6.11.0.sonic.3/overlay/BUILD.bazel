@@ -1,0 +1,113 @@
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
+load("@rules_python//python:py_test.bzl", "py_test")
+load("@sonic_build_infra//binary:drop_build_rpath.bzl", "drop_build_rpath")
+load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
+load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
+
+package(default_visibility = ["//visibility:public"])
+
+_NATIVE = [
+    "@platforms//os:linux",
+    "@sonic_build_infra//platforms:trixie",
+]
+
+exports_files([
+    "COPYING",
+    "src/sflowtool.c",
+])
+
+# sflowtool.c includes "config.h" and checks only HAVE_BYTESWAP_H and VERSION.
+write_file(
+    name = "configuration",
+    out = "config.h",
+    content = [
+        "#define HAVE_BYTESWAP_H 1",
+        '#define VERSION "6.11"',
+        "",
+    ],
+)
+
+cc_library(
+    name = "config_h",
+    hdrs = [":configuration"],
+    includes = ["."],
+    target_compatible_with = _NATIVE,
+)
+
+cc_binary(
+    name = "sflowtool_bin",
+    srcs = [
+        "src/sflow.h",
+        "src/sflow_drop.h",
+        "src/sflow_v2v4.h",
+        "src/sflow_xdr.h",
+        "src/sflowtool.c",
+    ],
+    copts = [
+        "-O2",
+        "-g",
+        "-Wall",
+    ],
+    features = ["-strip_debug_symbols"],
+    linkopts = ["-Wl,--build-id"],
+    target_compatible_with = _NATIVE,
+    deps = [":config_h"],
+)
+
+drop_build_rpath(
+    name = "sflowtool",
+    src = ":sflowtool_bin",
+    target_compatible_with = _NATIVE,
+)
+
+sonic_deploy_tar(
+    name = "runtime",
+    srcs = ["COPYING"],
+    binaries = {"usr/bin/sflowtool uid=0 gid=0 mode=0755 type=file": ":sflowtool"},
+    # Retain the single debug-compiled ELF so :sflowtool, :runtime, and
+    # :runtime.debug_symbols share identical Build IDs without recompiling.
+    force_debug_build = False,
+    mtree = ["usr/share/doc/sflowtool/copyright uid=0 gid=0 mode=0644 type=file content=$(location COPYING)"],
+    target_compatible_with = _NATIVE,
+    visibility = ["//visibility:public"],
+)
+
+# Derive the installed package identity and libc dependency without a DEB.
+runtime_packages(
+    name = "runtime_packages.json",
+    changelog = "bazel/debian/changelog",
+    control = "bazel/debian/control",
+    packages = {"sflowtool": "//:runtime"},
+)
+
+py_test(
+    name = "package_test",
+    srcs = ["bazel/package_test.py"],
+    args = [
+        "--runtime",
+        "$(location :runtime)",
+        "--debug",
+        "$(location :runtime.debug_symbols)",
+        "--unstripped",
+        "$(location :sflowtool)",
+        "--copyright",
+        "$(location COPYING)",
+        "--metadata",
+        "$(location :runtime_packages.json)",
+        "--readelf",
+        "$(location @sonic_build_infra//toolchains/binutils:readelf)",
+        "--objcopy",
+        "$(location @sonic_build_infra//toolchains/binutils:objcopy)",
+    ],
+    data = [
+        "COPYING",
+        ":runtime",
+        ":runtime.debug_symbols",
+        ":runtime_packages.json",
+        ":sflowtool",
+        "@sonic_build_infra//toolchains/binutils:objcopy",
+        "@sonic_build_infra//toolchains/binutils:readelf",
+    ],
+    target_compatible_with = _NATIVE,
+)

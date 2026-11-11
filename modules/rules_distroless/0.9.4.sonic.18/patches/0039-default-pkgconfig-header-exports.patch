@@ -1,0 +1,15 @@
+--- a/apt/private/deb_import.bzl
++++ b/apt/private/deb_import.bzl
+@@ -961,7 +961,11 @@
+         for module_name, definition in pc_modules.items():
+             modes = definition["compat_modes"]
+             pkgc = struct(libnames = modes["dynamic"].get("libnames", []), includes = [include for flags in modes.values() for include in flags.get("includes", [])], link_paths = [path for flags in modes.values() for path in flags.get("link_paths", [])], defines = [], linkopts = [])
+-            includes += pkgc.includes
++            # Package headers follow the same default-module policy as the
++            # legacy alias. Variant-only namespaces belong to explicit .pc
++            # targets, which also carry their matching compiler definitions.
++            if module_name in default_names:
++                includes += pkgc.includes
+             link_paths += pkgc.link_paths
+             for libname in pkgc.libnames:
+                 shared_options.setdefault(libname, pkgc)
