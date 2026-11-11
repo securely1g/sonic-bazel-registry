@@ -1,0 +1,189 @@
+diff --git a/configure.ac b/configure.ac
+--- a/configure.ac
++++ b/configure.ac
+@@ -67,7 +67,7 @@
+ AM_COND_IF([WITH_GTEST], [
+     gtest_root=$ac_abs_confdir/third_party/googletest
+     gtest_check_f=$gtest_root/googletest/src/gtest.cc
+-    AC_CHECK_FILE([$gtest_check_f], [],
++    AS_IF([test -r "$gtest_check_f"], [],
+                   [AC_MSG_ERROR([Did you run 'git submodule update --init'?])])
+ ])
+ 
+diff --git a/proto/configure.ac b/proto/configure.ac
+--- a/proto/configure.ac
++++ b/proto/configure.ac
+@@ -93,7 +93,7 @@
+ ])
+ 
+ p4runtime_check_f=$ac_abs_confdir/p4/v1/p4runtime.proto
+-AC_CHECK_FILE([$p4runtime_check_f], [],
++AS_IF([test -r "$p4runtime_check_f"], [],
+               [AC_MSG_ERROR([Cannot find p4runtime; did you run 'git submodule update --init'?])])
+ 
+ AC_ARG_ENABLE([Werror],
+diff --git a/src/config_readers/bmv2_json_reader.c b/src/config_readers/bmv2_json_reader.c
+--- a/src/config_readers/bmv2_json_reader.c
++++ b/src/config_readers/bmv2_json_reader.c
+@@ -26,7 +26,11 @@
+ #include "utils/logging.h"
+ #include "vector.h"
+ 
++#ifdef PI_NATIVE_PUBLIC_CJSON
++#include <cJSON.h>
++#else
+ #include <cJSON/cJSON.h>
++#endif
+ #include <uthash.h>
+ 
+ #include <assert.h>
+diff --git a/src/config_readers/native_json_reader.c b/src/config_readers/native_json_reader.c
+--- a/src/config_readers/native_json_reader.c
++++ b/src/config_readers/native_json_reader.c
+@@ -23,7 +23,11 @@
+ #include "PI/pi_base.h"
+ #include "p4info_int.h"
+ 
++#ifdef PI_NATIVE_PUBLIC_CJSON
++#include <cJSON.h>
++#else
+ #include <cJSON/cJSON.h>
++#endif
+ 
+ #include <assert.h>
+ 
+diff --git a/src/p4info/act_profs.c b/src/p4info/act_profs.c
+--- a/src/p4info/act_profs.c
++++ b/src/p4info/act_profs.c
+@@ -26,7 +26,11 @@
+ #include "fast_id_vector.h"
+ #include "p4info/p4info_struct.h"
+ 
++#ifdef PI_NATIVE_PUBLIC_CJSON
++#include <cJSON.h>
++#else
+ #include <cJSON/cJSON.h>
++#endif
+ 
+ #include <assert.h>
+ #include <stdlib.h>
+diff --git a/src/p4info/actions.c b/src/p4info/actions.c
+--- a/src/p4info/actions.c
++++ b/src/p4info/actions.c
+@@ -25,7 +25,11 @@
+ #include "actions_int.h"
+ #include "p4info/p4info_struct.h"
+ 
++#ifdef PI_NATIVE_PUBLIC_CJSON
++#include <cJSON.h>
++#else
+ #include <cJSON/cJSON.h>
++#endif
+ 
+ #include <assert.h>
+ #include <stdlib.h>
+diff --git a/src/p4info/counters.c b/src/p4info/counters.c
+--- a/src/p4info/counters.c
++++ b/src/p4info/counters.c
+@@ -25,7 +25,11 @@
+ #include "counters_int.h"
+ #include "p4info/p4info_struct.h"
+ 
++#ifdef PI_NATIVE_PUBLIC_CJSON
++#include <cJSON.h>
++#else
+ #include <cJSON/cJSON.h>
++#endif
+ 
+ #include <assert.h>
+ #include <stdlib.h>
+diff --git a/src/p4info/digests.c b/src/p4info/digests.c
+--- a/src/p4info/digests.c
++++ b/src/p4info/digests.c
+@@ -25,7 +25,11 @@
+ #include "digests_int.h"
+ #include "p4info/p4info_struct.h"
+ 
++#ifdef PI_NATIVE_PUBLIC_CJSON
++#include <cJSON.h>
++#else
+ #include <cJSON/cJSON.h>
++#endif
+ 
+ #include <assert.h>
+ #include <stdlib.h>
+diff --git a/src/p4info/meters.c b/src/p4info/meters.c
+--- a/src/p4info/meters.c
++++ b/src/p4info/meters.c
+@@ -25,7 +25,11 @@
+ #include "meters_int.h"
+ #include "p4info/p4info_struct.h"
+ 
++#ifdef PI_NATIVE_PUBLIC_CJSON
++#include <cJSON.h>
++#else
+ #include <cJSON/cJSON.h>
++#endif
+ 
+ #include <assert.h>
+ #include <stdlib.h>
+diff --git a/src/p4info/p4info.c b/src/p4info/p4info.c
+--- a/src/p4info/p4info.c
++++ b/src/p4info/p4info.c
+@@ -25,7 +25,11 @@
+ #include "read_file.h"
+ #include "tables_int.h"
+ 
++#ifdef PI_NATIVE_PUBLIC_CJSON
++#include <cJSON.h>
++#else
+ #include <cJSON/cJSON.h>
++#endif
+ 
+ #include <stdio.h>
+ #include <stdlib.h>
+@@ -110,7 +114,13 @@
+   return str;
+ }
+ 
+-void pi_free_serialized_config(char *config) { cJSON_Delete_char(config); }
++void pi_free_serialized_config(char *config) {
++#ifdef PI_NATIVE_PUBLIC_CJSON
++  cJSON_free(config);
++#else
++  cJSON_Delete_char(config);
++#endif
++}
+ 
+ int pi_serialize_config_to_fd(const pi_p4info_t *p4info, int fd, int fmt) {
+   char *config = pi_serialize_config(p4info, fmt);
+diff --git a/src/p4info/p4info_common.c b/src/p4info/p4info_common.c
+--- a/src/p4info/p4info_common.c
++++ b/src/p4info/p4info_common.c
+@@ -24,7 +24,11 @@
+ #include "p4info_common.h"
+ #include "p4info_struct.h"
+ 
++#ifdef PI_NATIVE_PUBLIC_CJSON
++#include <cJSON.h>
++#else
+ #include <cJSON/cJSON.h>
++#endif
+ 
+ #include <stdlib.h>
+ #include <string.h>
+diff --git a/src/p4info/tables.c b/src/p4info/tables.c
+--- a/src/p4info/tables.c
++++ b/src/p4info/tables.c
+@@ -26,7 +26,11 @@
+ #include "p4info/p4info_struct.h"
+ #include "tables_int.h"
+ 
++#ifdef PI_NATIVE_PUBLIC_CJSON
++#include <cJSON.h>
++#else
+ #include <cJSON/cJSON.h>
++#endif
+ 
+ #include <assert.h>
+ #include <stdlib.h>
