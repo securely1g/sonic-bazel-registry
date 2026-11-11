@@ -10,7 +10,7 @@
     },
     {
       "name": "rules_distroless",
-      "version": "0.9.4.sonic.17"
+      "version": "0.9.4.sonic.18"
     }
   ],
   "platforms": {
