@@ -44,6 +44,9 @@ class FixtureTestCase(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
+        additional = mock.patch.object(registry_ci, "ADDITIONAL_PRESUBMITS", set())
+        additional.start()
+        self.addCleanup(additional.stop)
 
     def entry(self, module: str, version: str, configured: bool = True) -> Path:
         entry = self.root / "modules" / module / version
@@ -231,6 +234,21 @@ class SelectionTests(FixtureTestCase):
         self.entry("legacy", "1.0.0", configured=False)
         head = self.commit("published registry")
         jobs = registry_ci.plan(self.root, None, head, all_versions=True, published=head)["include"]
+        self.assertEqual({(job["module"], job["version"]) for job in jobs},
+                         {("alpha", "1.0.0"), ("alpha", "2.0.0")})
+
+    def test_routine_plans_include_additional_version_without_replacing_latest(self) -> None:
+        self.entry("alpha", "1.0.0")
+        self.entry("alpha", "2.0.0")
+        path = self.root / "ci" / "registry_ci.py"
+        path.parent.mkdir()
+        path.write_text("initial\n")
+        base = self.commit("initial registry and CI")
+        path.write_text("changed\n")
+        head = self.commit("change CI")
+        with mock.patch.object(registry_ci, "ADDITIONAL_PRESUBMITS", {("alpha", "1.0.0")}):
+            self.assertEqual(self.selected(base, head), {("alpha", "1.0.0"), ("alpha", "2.0.0")})
+            jobs = registry_ci.plan(self.root, None, head, latest_versions=True, published=base)["include"]
         self.assertEqual({(job["module"], job["version"]) for job in jobs},
                          {("alpha", "1.0.0"), ("alpha", "2.0.0")})
 

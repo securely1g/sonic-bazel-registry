@@ -7,6 +7,12 @@ and `0002-remove-unnecessary-dependencies.patch` in that order. It invokes
 upstream Autotools/Make through
 `rules_foreign_cc.configure_make`. It does not build Debian packages or change
 SONiC's existing Make recipes.
+The registry also patches the Thrift version check to read the target
+`thrift/config.h` with the C++ compiler. Native builds and ARM64 cross-builds
+use the header version to select the same Thrift interfaces.
+The configure-flags test uses the foreign build tools for the execution platform,
+as the configure action does. The package test loads and exercises the target
+programs and libraries.
 
 The configured features match the maintained recipe: PDFixed, Thrift, nanomsg,
 PI and `simple_switch_grpc`. PI headers/libraries come from the independently
@@ -37,7 +43,7 @@ debuglink CRCs for every deployed ELF and GDB source-line lookup after adding th
 debug TAR. Native AMD64 and ARM64 jobs run the independent registry consumer.
 
 ```sh
-python3 ci/registry_ci.py run --module p4lang-bmv2 --version 1.15.0.sonic.3 \
+python3 ci/registry_ci.py run --module p4lang-bmv2 --version 1.15.0.sonic.4 \
   --architecture amd64 --work-dir /tmp/bmv2-amd64 --artifacts /tmp/bmv2-artifacts
 ```
 
@@ -102,11 +108,15 @@ expands only that exact vector before shortening absolute library searches for
 each recursive working directory. Every flag and library-search order remains
 intact; arbitrary GCC response files stay opaque.
 
-This requires the source launcher from
-[sonic-build-infra PR #82](https://github.com/securely1g/sonic-build-infra/pull/82),
-registered as `0.0.27-08e0956f80574b27a9b68e72fe855cc0089058e5`. Both the module
-minimum and the independent consumer select that version. No source archive,
-source patch, target ABI, configured feature or installed path changed.
+The source launcher was introduced in
+[sonic-build-infra PR #82](https://github.com/securely1g/sonic-build-infra/pull/82)
+and registered as `0.0.27-08e0956f80574b27a9b68e72fe855cc0089058e5`.
+This candidate selects published Infra
+`0.0.28-9965823498ab54816de5addb6084638470dd04d7`, matching published PI
+`0.1.3.sonic.4`. The direct module and standalone CI select the same Infra
+version and Distroless `.18`; the TAR `.sonic.2` CI selection stays unchanged.
+No source archive, source patch,
+target ABI, configured feature, installed path or test implementation changes.
 
 The extended original test covers both pre-exec failures and real C/C++ links
 through Autoconf and recursive Libtool, including quoted paths, competing
@@ -126,3 +136,8 @@ archives, patches and both architecture target inventories are unchanged.
 The failed build retained the configured flags and linker diagnostics, but
 upstream `V=0` omitted the expanded final link command. Corrected native
 registry and downstream Engine acceptance remain pending.
+
+The dependency refresh retains all six build targets and both original tests.
+The existing registry routing selects native AMD64 and ARM64 cross validation;
+new normal CI and downstream image acceptance remain required for the refreshed
+graph. Earlier results above apply only to their recorded inputs.
