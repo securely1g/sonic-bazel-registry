@@ -12,8 +12,9 @@ cancels the previous automatic run for that PR. Retrying a job on an older
 revision leaves other runs in progress.
 
 Pull requests select affected module versions. Changes to the CI implementation
-or workflow also test the latest version of each module covered by CI. Pushes and
-manual runs test those latest versions by default. To test every configured
+or workflow also test the latest version of each module covered by CI and the
+exact entries in `ADDITIONAL_PRESUBMITS`. Pushes and manual runs use that same
+selection by default. To test every configured
 historical version, select **all_versions** when manually running the workflow,
 or use `plan --all` locally.
 Revised unreleased candidates require a validation configuration too.
@@ -317,6 +318,12 @@ new registrations without reordering existing entries. A later append of an
 older release cannot displace a higher release: build-infra `0.0.18-95cd3a9...`
 is selected ahead of any `0.0.8-...` registration. This is a CI selection rule,
 not a change to Bazel's dependency resolution.
+
+For routine latest selection, `ADDITIONAL_PRESUBMITS` also selects the coherent DASH
+`0.0.1-2cbfdfa1205c0d03003444e5c80f89adb8c3df59` entry. The published `.3`
+entry remains the numeric latest and keeps its native ARM64 job; the additional
+`.1` entry uses its explicit ARM64 cross route. This applies to CI edits and
+`plan --latest`, including default push and manual runs.
 
 Latest selection skips versions listed in `yanked_versions`; a module with all
 versions yanked contributes no routine jobs and is reported in the plan log.
@@ -991,6 +998,18 @@ Historical versions outside the map use hosted ARM64.
 | `sonic-yang-models` | `1.0.1-b0a9362a7a1b4b5e1b7188c019d256f7c8aaff9f` | 3 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127456801062) |
 | `tar.bzl` | `0.10.5.sonic.2` | 8 / 7 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127457427548) |
 
+DASH `0.0.3-5c9305403585a7ae54f86918219acb8ed39f740a` qualified in a follow-up run.
+Its four ARM64 builds and original uncached runtime test passed on the AMD64 Trixie pool.
+The test exercised the installed SDK, generated pipeline and detached debug symbols.
+[Validation evidence](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42180204936/job/127767804802)
+
+The current DASH route selects `0.0.1-2cbfdfa1205c0d03003444e5c80f89adb8c3df59`,
+published on `main` at `553a6d1d4f8294a43b68314adfc266e64de35ce5` with the source's
+base version and the same compiler and linker argument transport fix.
+It retains all four builds and adds the declared `make_flags_test` beside the
+runtime test. The qualification above is historical; validation of the current
+source and shared dependency selection is pending normal CI.
+
 The `linux-kernel` contract validates its declared helpers; it does not build or
 boot a kernel image. Passing tests only establish each module's existing
 presubmit contract, not broader undeclared functionality. Yang-model package outputs and TAR
@@ -1057,6 +1076,14 @@ build targets ARM64. Test execution follows the declared Bazel configuration;
 the ARM cross fixture independently verifies native execution tools, ARM ELF
 outputs and target Python compatibility. No test is replaced by a smaller smoke
 test to make a module pass.
+
+BMv2 `1.15.0.sonic.4` qualified in a follow-up ARM64 cross-build on Trixie.
+Its original six builds and two uncached package and configure tests passed
+with the pinned GCC/G++ adapter and the corrected ARM guest executor.
+[Full validation](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42253892877/job/128015806637)
+
+This result is historical and used earlier dependency pins. The refreshed
+Infra `.28-9965823`, PI `.4` and Distroless `.18` selection still requires normal CI.
 
 Inside a configured disposable runner with `/usr/local/bin/sonic-arm64`, use
 fresh work and artifact directories. This command is a local opt-in example,

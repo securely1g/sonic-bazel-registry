@@ -65,6 +65,7 @@ ARM_CROSS_VERSIONS: dict[str, tuple[str, ...]] = {
     "libnl3": ("3.7.0.sonic.7",),
     "libyang-python": ("3.1.0.sonic.6",),
     "p4c": ("1.2.4.2.sonic.3",),
+    "p4lang-bmv2": ("1.15.0.sonic.4",),
     "p4lang-pi": ("0.1.3.sonic.3",),
     "protobuf-legacy": ("3.21.12.sonic.2",),
     "rules_distroless": ("0.9.4.sonic.17",),
@@ -73,6 +74,7 @@ ARM_CROSS_VERSIONS: dict[str, tuple[str, ...]] = {
     "rules_python": ("1.9.0.sonic.1",),
     "sai": ("1.18.0-sonic.1",),
     "socat": ("1.8.0.2.sonic.5",),
+    "sonic-dash": ("0.0.1-2cbfdfa1205c0d03003444e5c80f89adb8c3df59",),
     "sonic-dash-api": ("0.0.5-9b2893e890734a2db0c53a5e5c64b031ec0dcfbd",),
     "sonic-linux-kernel": ("0.0.2-34a53faaecd325509e9d8f1016ed0108ab558a23",),
     "sonic-rust-deps": ("0.0.4-6d9c70f708d7420e9e2b2cdc906b80cee6b140f1",),
@@ -81,6 +83,12 @@ ARM_CROSS_VERSIONS: dict[str, tuple[str, ...]] = {
     "sonic-yang-mgmt": ("1.0.0-9ab452d22773c41783092ae3bd6c206d6c257c8d",),
     "sonic-yang-models": ("1.0.1-b0a9362a7a1b4b5e1b7188c019d256f7c8aaff9f",),
     "tar.bzl": ("0.10.5.sonic.2",),
+}
+
+# Keep the coherent DASH registration in routine plans. The published
+# .3 registration remains the numeric latest version and keeps its usual jobs.
+ADDITIONAL_PRESUBMITS: set[tuple[str, str]] = {
+    ("sonic-dash", "0.0.1-2cbfdfa1205c0d03003444e5c80f89adb8c3df59"),
 }
 
 # The original wrappers stage a private target executable, loader and libraries.
@@ -672,6 +680,7 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
                         for path in (root / "modules").glob("*/*/presubmit.json"))
     elif latest_versions:
         selected.update(latest_presubmits(root))
+        selected.update(ADDITIONAL_PRESUBMITS)
     else:
         require(bool(base) and bool(head), "plan requires --base/--head, --latest or --all")
         require(re.fullmatch(r"[0-9a-fA-F]{40,64}", base) is not None
@@ -736,6 +745,7 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
                         selected.add((module, parts[2]))
         if ci_changed:
             selected.update(latest_presubmits(root))
+            selected.update(ADDITIONAL_PRESUBMITS)
     require(type(ARM_CROSS_ALL) is bool, "ARM cross survey selection must be boolean")
     require(isinstance(ARM_CROSS_VERSIONS, dict), "ARM cross routes must be a module/version map")
     for module, versions in ARM_CROSS_VERSIONS.items():
@@ -1797,7 +1807,7 @@ def main() -> None:
     scope.add_argument("--all", action="store_true", dest="all_versions",
                        help="test every configured version, including historical versions")
     scope.add_argument("--latest", action="store_true", dest="latest_versions",
-                       help="test the latest non-yanked version of each configured module")
+                       help="test latest non-yanked versions and explicit additional presubmits")
     planner.add_argument("--p4-runner-profile", choices=("standard", "large"), default="large",
                          help="AMD64 execution pool for P4C, BMv2 and DASH")
     planner.add_argument("--output", required=True, type=Path)
