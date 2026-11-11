@@ -1,5 +1,5 @@
-# Native FRR/libFIB infrastructure dependency
+# Native sFlow runtime infrastructure dependency
 
-Register maintained-master commit `c8e5486df0147c5652d015bb5ddd49b6dce6b655`, the merge of [infra #97](https://github.com/securely1g/sonic-build-infra/pull/97), for [buildimage #51](https://github.com/securely1g/sonic-buildimage/pull/51). It adds `fib_deps` and `fib_bookworm_deps` to the unified APT lock, preserving all 2,426 prior package records. Existing native tools, archive rules, target runtimes and installation RPATH support remain available.
+Register maintained-master commit `65cb1f78851582c7ad0a0412258dc6ab7effa91e`, the merge of [sonic-build-infra#98](https://github.com/securely1g/sonic-build-infra/pull/98), for [sonic-buildimage#152](https://github.com/securely1g/sonic-buildimage/pull/152). It adds `sflow_debian` (`dmidecode:amd64=3.6-2`, `libhiredis1.1.0:amd64=1.2.0-6+b3`, `libmnl0:amd64=1.0.5-3`, `lsb-base:amd64=11.6`) to the unified APT lock, preserving all 2,429 prior package records and 58 prior dependency sets. Existing native tools, archive rules, target runtimes and installation RPATH support remain available.
 
-The source archive is fetched from the maintained repository and verified by SHA-256. Its complete Git tree equals the reviewed contributor candidate. This replaces the unpublished contributor snapshot; published versions remain unchanged.
+The source archive is fetched from the maintained repository and verified by SHA-256. Published versions remain unchanged.
