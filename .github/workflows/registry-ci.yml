@@ -2,7 +2,6 @@ name: Measure the ARM64 Bazel HTTP test startup
 on: workflow_dispatch
 permissions:
   contents: read
-  actions: read
 jobs:
   http:
     name: Compare the original and updated tests on one emulated ARM64 worker
@@ -17,14 +16,6 @@ jobs:
         with:
           fetch-depth: 3
           persist-credentials: false
-      - name: Download the Java agent used by the failing PR job
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
-        with:
-          artifact-ids: '13885188402'
-          run-id: '43084315571'
-          github-token: ${{ github.token }}
-          path: ${{ runner.temp }}/http-agent
-          merge-multiple: true
       - name: Prepare the same ARM64 runner as the PR
         run: ci/pilot_arm.sh prepare
       - name: Prepare both test versions and a timer
@@ -68,13 +59,12 @@ jobs:
         run: |
           set -euo pipefail
           test "$(uname -m)" = aarch64
-          export REGISTRY_CI_HTTP_AUDIT_FIXTURE_JAR="$RUNNER_TEMP/http-agent/debian-http-audit.jar"
-          test -f "$REGISTRY_CI_HTTP_AUDIT_FIXTURE_JAR"
+          unset REGISTRY_CI_HTTP_AUDIT_FIXTURE_JAR
           python3 -B "$RUNNER_TEMP/time-http-case.py" test_debian_http_audit
       - name: Measure the original test with another fresh workspace on the same worker
         if: ${{ !cancelled() }}
         shell: bash ci/pilot_arm.sh shell {0}
         run: |
           set -euo pipefail
-          export REGISTRY_CI_HTTP_AUDIT_FIXTURE_JAR="$RUNNER_TEMP/http-agent/debian-http-audit.jar"
+          unset REGISTRY_CI_HTTP_AUDIT_FIXTURE_JAR
           python3 -B "$RUNNER_TEMP/time-http-case.py" diagnostic_original
