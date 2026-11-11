@@ -1,9 +1,9 @@
 {
-    "url": "https://github.com/securely1g/sonic-build-infra/archive/c8e5486df0147c5652d015bb5ddd49b6dce6b655.tar.gz",
-    "strip_prefix": "sonic-build-infra-c8e5486df0147c5652d015bb5ddd49b6dce6b655",
-    "integrity": "sha256-+/W4SaEnF0JSqF8gltvvYWk+moSvADnt1BKyz5lKCeY=",
+    "url": "https://github.com/securely1g/sonic-build-infra/archive/65cb1f78851582c7ad0a0412258dc6ab7effa91e.tar.gz",
+    "strip_prefix": "sonic-build-infra-65cb1f78851582c7ad0a0412258dc6ab7effa91e",
+    "integrity": "sha256-lCYYWIQoYrXZzOvPj6gVa2oINt7CxuboMWan5iik06A=",
     "patches": {
-        "0001-bump-version.patch": "sha256-U1VI/JSX5L8dZjsRV8tMinkaDvvYgCsK3omWFtqtiEk=",
+        "0001-bump-version.patch": "sha256-/kdGxJXMHbOCVVN7N9axeqkx0MxEqGb9TumY5xtl+o8=",
         "0002-registry-cross-test-visibility.patch": "sha256-2+0NUZ9mcSHEHa+PIU3NVGG8uFBEgaA8LC9wDkg+GrY="
     },
     "patch_strip": 1,
