@@ -1,7 +1,7 @@
 # Keep bazel_compatibility in sync with sonic-buildimage's .bazelversion.
 module(
     name = "sonic-build-infra",
-    version = "0.0.32-8c215eb52016c5c3d749aff61cf6e13bb93f77cb",
+    version = "0.0.32-27d53eb7f701b9da3807e574b80f61bf9a3b2ce4",
     bazel_compatibility = [
         ">=8.5.1",
         "<=8.5.1",
@@ -43,7 +43,8 @@ local_path_override(
 bazel_dep(name = "buildifier_prebuilt", version = "8.5.1.3", dev_dependency = True)
 
 # The SONiC patch sorts above upstream 0.9.4 without a root override.
-bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.17")
+# Share the prepared APT graph across dependency sets in the module lock.
+bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.18")
 
 # One multiarch directory shared by GCC and Clang on both architectures.
 # Consumers import this same repository through use_extension/use_repo.
