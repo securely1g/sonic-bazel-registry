@@ -1,10 +1,10 @@
 # AUTO-GENERATED. DO NOT EDIT MANUALLY.
 # Source: ../MODULE.bazel
-# Generator: python3 ci/registry_ci.py sync-module --module p4lang-pi --version 0.1.3.sonic.4
+# Generator: python3 ci/registry_ci.py sync-module --module p4lang-pi --version 0.1.3.sonic.5
 
 module(
     name = "p4lang-pi",
-    version = "0.1.3.sonic.4",
+    version = "0.1.3.sonic.5",
 )
 
 bazel_dep(name = "platforms", version = "1.0.0")
