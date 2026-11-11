@@ -12,7 +12,7 @@ and HA protocol/state/cancellation interfaces. All thirty added public crate
 interfaces are explicit build targets on both existing architectures. Source CI
 also retains its full-LTO panic test and verifies unchanged canonical Cargo.lock.
 
-The deliberate compatibility change selects HA's original tokio-util 0.7.11 in
+The deliberate compatibility change selects HA's original tokio-util 0.7.14 in
 place of 0.7.17. HA enables `rt`; the latter version imports newer Tokio APIs when
 that feature is active, while retained OpenTelemetry 0.25 requires Tokio ~1.38.0.
 Tokio remains 1.38.2. Every other prior package identity/checksum is preserved;
