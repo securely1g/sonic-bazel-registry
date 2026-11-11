@@ -178,6 +178,13 @@ jobs:
                   make_flags="${GNUMAKEFLAGS:+$GNUMAKEFLAGS }--eval=.NOTPARALLEL:"
                   BAZEL_BUILD_ARGS+=("--bazel-build-arg=--action_env=GNUMAKEFLAGS=$make_flags"
                                      "--bazel-build-arg=--host_action_env=GNUMAKEFLAGS=$make_flags")
+                  if [[ "$CI_MODULE" == sonic-dash && "$CI_ARCHITECTURE" == amd64 ]]; then
+                    # The host P4C compiler and Bazel share 6 GiB while compiling dash_pipeline.p4.
+                    BAZEL_BUILD_ARGS+=(--bazel-build-arg=--host_cxxopt=-DGC_FREE_SPACE_DIVISOR=16)
+                    BAZEL_STARTUP_ARGS+=(--bazel-startup-arg=--host_jvm_args=-XX:G1PeriodicGCInterval=30000
+                                         --bazel-startup-arg=--host_jvm_args=-XX:MinHeapFreeRatio=20
+                                         --bazel-startup-arg=--host_jvm_args=-XX:MaxHeapFreeRatio=35)
+                  fi
                 fi
                 ;;
             esac
