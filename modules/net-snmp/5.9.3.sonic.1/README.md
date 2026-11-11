@@ -4,14 +4,16 @@ Builds Net-SNMP libraries, agents, tools and Perl bindings with native Bazel rul
 
 Both architectures include `snmppcap`, using the declared libpcap dependency. Upstream enables this command when libpcap is available; it has no CPU restriction. `package_contract_test` checks all 22 commands, two daemons, six shared libraries and seven Perl bindings in the delivered TARs, including permissions, architecture and matching build IDs/debug-link checksums. These archive checks complement the feature/ABI test; they do not establish live SNMP service behavior.
 
-## Native Draft validation prerequisites
+## Published dependencies
 
-The net-snmp candidate uses infrastructure `0.0.25-17a1e555291c64be1a6ff008f33352bffc4f8e5c` from [registry #147](https://github.com/securely1g/sonic-bazel-registry/pull/147) and the `.13` library exports from [#146](https://github.com/securely1g/sonic-bazel-registry/pull/146). The user-requested in-place registry patch retains the published infrastructure source archive and supplies the shared Bookworm execution-tool set and corrected packaged Python extension lookup.
+The module selects infrastructure `0.0.25-34de7330abc72229dfc8dab88dec71b89c52aa88`
+landed by [registry #147](https://github.com/securely1g/sonic-bazel-registry/pull/147),
+which selects Distroless `0.9.4.sonic.15`, and published libnl3 `3.7.0.sonic.7`.
+These maintained registry entries replace the old Draft dependency catalog.
+Registry CI uses the maintained reusable native AMD64 and ARM64 workflow without
+staging prerequisite recipes. Published dependency entries remain unchanged.
 
-Its native CI stages only those exact prerequisite recipes and libnl3 from #148 from the immutable Draft catalog pinned by [this PR’s workflow](../../../.github/workflows/registry-ci.yml); the PR's own `net-snmp@5.9.3.sonic.1` recipe stays under test. The runner uses that single local catalog plus BCR, and retains `draft-prerequisites.json` with the exact entry trees. This is temporary validation, not a published dependency or a Ready criterion. Remove the staging step and verify maintained-main resolution after the prerequisites land.
-
-| Input or action | Before | After |
-| --- | --- | --- |
-| Native net-snmp registry validation for FRR's libraries and installation TARs | Older Draft infrastructure omits the reviewed execution-tool fixes | The reviewed `0.0.25-17a1e555…` recipe supplies the shared Bookworm tools and Python extension lookup; `.13` provides the required APT library targets |
-
-For local reproduction, stage the same entry trees from the pinned catalog into a disposable registry worktree, preserving this candidate, then run its existing `ci/registry_ci.py run --module net-snmp --version 5.9.3.sonic.1` command for the native architecture. Published module entries in the PR remain unchanged; historical cross-build results do not establish native ARM64 execution.
+Run `python3 ci/registry_ci.py run --module net-snmp --version 5.9.3.sonic.1
+--architecture amd64 --work-dir /tmp/net-snmp-work --artifacts /tmp/net-snmp-results`
+from the registry checkout to validate an independent consumer; use `arm64` on a
+native ARM64 host.

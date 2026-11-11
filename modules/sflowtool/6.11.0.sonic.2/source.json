@@ -1,0 +1,13 @@
+{
+  "url": "https://github.com/sflow/sflowtool/archive/c953cfe8991286457080938a29fc72019f64718a.tar.gz",
+  "strip_prefix": "sflowtool-c953cfe8991286457080938a29fc72019f64718a",
+  "integrity": "sha256-4TeEIUXQWwfuu3euDZ2alqdPHTw3HH9PZl/8w3g4ZiI=",
+  "overlay": {
+    "BUILD.bazel": "sha256-idXRx5/pq/PwgSdjW1EXUVoaelTGzP54PRoxZCT9axE=",
+    "MODULE.bazel": "sha256-Vf1llCgF12aiWTUck7CrUrDeznxixdq1U6QNa0T70CQ=",
+    "bazel/configure.sh": "sha256-nml9BPcXk+Dg7rXxNLhH6UPkGpvv+hcSfq4A3/oPhF8=",
+    "bazel/package_test.py": "sha256-6Pznls0dDar/XKAo5jNELfu4KqOxOAUmR9kVjaB6sNM=",
+    "bazel/debian/changelog": "sha256-uLzKQSeaUfb5iPJf2fVHu31jgZ6KU6UImsy58M0HP+c=",
+    "bazel/debian/control": "sha256-ra13pCAKGMjQOz673Ut1dsWaz5mJ8G1j81/uI71XOdQ="
+  }
+}

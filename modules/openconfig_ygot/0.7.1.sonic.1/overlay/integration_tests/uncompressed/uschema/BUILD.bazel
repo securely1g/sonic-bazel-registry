@@ -1,0 +1,22 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "uschema",
+    srcs = [
+        "uschema.go",
+        "//integration_tests/uncompressed:generated_uncompressed",
+    ],
+    importpath = "github.com/openconfig/ygot/integration_tests/uncompressed/uschema",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//ygot",
+        "//ytypes",
+        "@com_github_openconfig_goyang//pkg/yang",
+    ],
+)
+
+alias(
+    name = "go_default_library",
+    actual = ":uschema",
+    visibility = ["//visibility:public"],
+)

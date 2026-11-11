@@ -1,0 +1,17 @@
+{
+  "homepage": "https://github.com/openconfig/goyang",
+  "maintainers": [
+    {
+      "name": "Guohan Lu",
+      "email": "securely1g@gmail.com",
+      "github": "securely1g"
+    }
+  ],
+  "repository": [
+    "https://github.com/openconfig/goyang"
+  ],
+  "versions": [
+    "0.0.0.sonic.1-20200309174518-a00bece872fc"
+  ],
+  "yanked_versions": {}
+}

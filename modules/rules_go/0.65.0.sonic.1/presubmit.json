@@ -1,0 +1,23 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [],
+  "platforms": {
+    "amd64": "@rules_go//tests/sonic_4583:linux_amd64",
+    "arm64": "@rules_go//tests/sonic_4583:linux_arm64"
+  },
+  "build_targets": [
+    "@rules_go//tests/sonic_4583:cc_header_inputs_test",
+    "@rules_go//tests/core/go_binary:sonic_linux_buildid_test"
+  ],
+  "test_targets": [
+    "@rules_go//tests/sonic_4583:cc_header_inputs_test",
+    "@rules_go//tests/core/go_binary:sonic_linux_buildid_test"
+  ],
+  "go_sdk": {
+    "version": "1.25.6"
+  },
+  "generated_module_overlay": true
+}

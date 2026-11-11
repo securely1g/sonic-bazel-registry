@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 from pathlib import Path
+import shutil
 import sys
 import tarfile
 import tempfile
 import unittest
+from urllib.parse import unquote, urlparse
 
 
 SPEC = importlib.util.spec_from_file_location(
@@ -60,6 +63,159 @@ class ArtifactPreservationTests(unittest.TestCase):
         with tarfile.open(archive_path) as archive:
             archive.extractall(restored, filter="data")
         return restored / self.tree_path
+
+    def unicode_member(self) -> tuple[Path, dict]:
+        name = "NetLock_Arany_=Class_Gold=_Főtanúsítvány.crt"
+        member = self.tree / name
+        member.write_bytes(b"certificate fixture\n")
+        # Exact malformed basename observed in Bazel 8.5.1's real BEP.
+        uri = member.parent.as_uri() + "/" + name.replace("ő", "\ufffd%C2%91")
+        return member, {"name": "tree/" + name, "pathPrefix": ["bazel-out", "bin"],
+                        "uri": uri, "digest": hashlib.sha256(member.read_bytes()).hexdigest(),
+                        "length": str(member.stat().st_size)}
+
+    def test_lossy_unicode_tree_uri_uses_verified_declared_file(self) -> None:
+        member, output = self.unicode_member()
+        _, archive = self.collect([output])
+        restored = self.restore(archive)
+        self.assertEqual((restored / member.name).read_bytes(), member.read_bytes())
+
+    def raw_byte_unicode_member(self) -> tuple[Path, dict]:
+        member, output = self.unicode_member()
+        # Actual AMD64 Bazel 8.5.1 named-set entry from registry job
+        # 127202444521: both the logical basename and URI are misencoded.
+        output["name"] = "tree/NetLock_Arany_=Class_Gold=_F\u00c5\u0091tan\u00c3\u00bas\u00c3\u00adtv\u00c3\u00a1ny.crt"
+        output["uri"] = (self.tree.as_uri() + "/NetLock_Arany_=Class_Gold=_F\ufffd%C2%85\ufffd%C2%91"
+                         "tan\ufffd%C2%83\u00bas\ufffd%C2%83\u00adtv\ufffd%C2%83\u00a1ny.crt")
+        return member, output
+
+    def test_raw_byte_unicode_tree_name_keeps_actual_filename_and_bytes(self) -> None:
+        member, output = self.raw_byte_unicode_member()
+        _, archive = self.collect([output])
+        with tarfile.open(archive) as tree:
+            self.assertEqual(tree.extractfile(self.tree_path + "/" + member.name).read(), member.read_bytes())
+            self.assertNotIn(self.tree_path + "/" + Path(output["name"]).name, tree.getnames())
+        self.assertEqual((self.restore(archive) / member.name).read_bytes(), member.read_bytes())
+
+    def test_existing_literal_unicode_name_is_not_reinterpreted(self) -> None:
+        member, output = self.raw_byte_unicode_member()
+        literal = self.tree / Path(output["name"]).name
+        member.rename(literal)
+        _, archive = self.collect([output])
+        restored = self.restore(archive)
+        self.assertEqual((restored / literal.name).read_bytes(), b"certificate fixture\n")
+        self.assertFalse((restored / member.name).exists())
+
+    def test_raw_byte_unicode_name_collision_does_not_bypass_literal_identity(self) -> None:
+        _, output = self.raw_byte_unicode_member()
+        (self.tree / Path(output["name"]).name).write_bytes(b"different literal file\n")
+        with self.assertRaisesRegex(registry_ci.RegistryError, "digest or length mismatch"):
+            self.collect([output])
+        self.assertFalse((self.artifacts / "outputs.json").exists())
+
+    def test_raw_byte_unicode_name_requires_original_identity_and_safe_uri(self) -> None:
+        _, output = self.raw_byte_unicode_member()
+        changes = [
+            {"digest": None}, {"digest": "0" * 64}, {"length": None}, {"length": "999"},
+            {"uri": output["uri"].replace("NetLock", "Wrong")},
+            {"uri": output["uri"].replace("/tree/", "/other/")},
+            {"uri": output["uri"].replace("/tree/", "/tree/../tree/")},
+            {"uri": output["uri"] + "%ZZ"},
+            {"name": "tree/../" + Path(output["name"]).name},
+        ]
+        for change in changes:
+            with self.subTest(change=change), self.assertRaises(registry_ci.RegistryError):
+                self.collect([dict(output, **change)])
+            self.assertFalse((self.artifacts / "outputs.json").exists())
+            shutil.rmtree(self.artifacts)
+
+    def test_raw_byte_unicode_name_cannot_recover_through_a_symlink(self) -> None:
+        member, output = self.raw_byte_unicode_member()
+        target = self.tree / "target"
+        member.rename(target)
+        member.symlink_to(target.name)
+        with self.assertRaisesRegex(registry_ci.RegistryError, "confined regular file"):
+            self.collect([output])
+        self.assertFalse((self.artifacts / "outputs.json").exists())
+
+    def test_damaged_uri_alias_still_requires_matching_identity(self) -> None:
+        for raw_name in (False, True):
+            with self.subTest(raw_name=raw_name):
+                member, output = (self.raw_byte_unicode_member() if raw_name
+                                  else self.unicode_member())
+                alias = Path(unquote(urlparse(output["uri"]).path))
+                alias.symlink_to(member.name)
+                self.assertEqual(alias.resolve(), member.resolve())
+                _, archive = self.collect([output])
+                with tarfile.open(archive) as tree:
+                    self.assertEqual(tree.extractfile(self.tree_path + "/" + member.name).read(),
+                                     member.read_bytes())
+                shutil.rmtree(self.artifacts)
+                for change in ({"digest": None}, {"digest": "0" * 64},
+                               {"length": None}, {"length": "999"}):
+                    with self.subTest(change=change):
+                        with self.assertRaises(registry_ci.RegistryError):
+                            self.collect([dict(output, **change)])
+                        self.assertFalse((self.artifacts / "outputs.json").exists())
+                    shutil.rmtree(self.artifacts)
+                alias.unlink()
+
+    def test_literal_replacement_character_name_is_not_a_damaged_uri(self) -> None:
+        name = "literal-\ufffd.crt"
+        member = self.tree / name
+        member.write_bytes(b"literal filename\n")
+        _, archive = self.collect([{
+            "name": "tree/" + name, "pathPrefix": ["bazel-out", "bin"],
+            "uri": self.tree.as_uri() + "/" + name,
+        }])
+        with tarfile.open(archive) as tree:
+            self.assertEqual(tree.extractfile(self.tree_path + "/" + name).read(),
+                             member.read_bytes())
+
+    def test_lossy_unicode_tree_uri_rejects_bad_identity_metadata(self) -> None:
+        _, output = self.unicode_member()
+        for field, value in [("digest", None), ("digest", "bad"), ("digest", "0" * 64),
+                             ("length", None), ("length", True), ("length", "-1"),
+                             ("length", "01"), ("length", "999")]:
+            with self.subTest(field=field, value=value):
+                changed = dict(output, **{field: value})
+                with self.assertRaises(registry_ci.RegistryError):
+                    self.collect([changed])
+                shutil.rmtree(self.artifacts)
+
+    def test_lossy_unicode_tree_uri_rejects_path_mismatches(self) -> None:
+        member, output = self.unicode_member()
+        for uri in [output["uri"].replace("NetLock", "Wrong"),
+                    output["uri"].replace("/tree/", "/other/"),
+                    output["uri"].replace("/tree/", "/tree/../tree/"),
+                    output["uri"] + "%ZZ", member.parent.as_uri() + "/wrong.crt",
+                    self.root.as_uri() + "/" + Path(output["uri"]).name]:
+            with self.subTest(uri=uri):
+                with self.assertRaises(registry_ci.RegistryError):
+                    self.collect([dict(output, uri=uri)])
+                shutil.rmtree(self.artifacts)
+
+    def test_ascii_tree_uri_mismatch_is_not_recovered(self) -> None:
+        member = self.tree / "certificate.crt"
+        member.write_bytes(b"certificate fixture\n")
+        with self.assertRaisesRegex(registry_ci.RegistryError, "does not match"):
+            self.collect([{"name": "tree/certificate.crt", "pathPrefix": ["bazel-out", "bin"],
+                           "uri": self.tree.as_uri() + "/certifi\ufffdcate.crt",
+                           "digest": hashlib.sha256(member.read_bytes()).hexdigest(),
+                           "length": str(member.stat().st_size)}])
+
+    def test_lossy_unicode_tree_uri_cannot_select_file_outside_declared_tree(self) -> None:
+        member, output = self.unicode_member()
+        outside_tree = self.work / "certificate.crt"
+        member.replace(outside_tree)
+        member.symlink_to(outside_tree)
+        with self.assertRaisesRegex(registry_ci.RegistryError, "confined regular file"):
+            self.collect([output])
+
+    def test_lossy_unicode_tree_uri_rejects_logical_escape(self) -> None:
+        _, output = self.unicode_member()
+        with self.assertRaisesRegex(registry_ci.RegistryError, "Unsafe build output path"):
+            self.collect([dict(output, name="tree/../" + Path(output["name"]).name)])
 
     def test_directory_modes_names_and_internal_file_and_directory_links(self) -> None:
         self.tree.chmod(0o750)

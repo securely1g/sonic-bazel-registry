@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import gzip
 import hashlib
 import importlib.util
 import json
@@ -30,15 +31,20 @@ def _artifact_impl(ctx):
     runtime = ctx.actions.declare_file("runtime.tar")
     debug = ctx.actions.declare_file("runtime.debug.tar")
     ctx.actions.run_shell(
+        # Test collection of local UTF-8 names, not Bazel 8.5.1's remote tree transport.
+        execution_requirements = {"no-remote-cache": "1"},
         outputs = [tree, runtime, debug],
         arguments = [tree.path, runtime.path, debug.path, ctx.var["COMPILATION_MODE"]],
         command = """
 set -eu
 mkdir -p "$1/empty"
 printf '%s\\n' "$4" > "$1/configuration-mode"
-printf 'perl manual\\n' > "$1/Text::CharWidth.3pm.gz"
+printf 'perl manual\\n' | gzip -n > "$1/Text::CharWidth.3pm.gz"
 printf 'UPPER header\\n' > "$1/xt_CONNMARK.h"
 printf 'lower header\\n' > "$1/xt_connmark.h"
+# Keep the command ASCII while creating the exact UTF-8 filename bytes.
+certificate=$(printf 'NetLock_Arany_=Class_Gold=_F\\\\305\\\\221tan\\\\303\\\\272s\\\\303\\\\255tv\\\\303\\\\241ny.crt')
+printf 'certificate fixture\\n' > "$1/$certificate"
 printf '#!/bin/sh\\nprintf fixture\\\\n\\n' > "$1/tool"
 chmod 751 "$1/tool"
 ln -s tool "$1/alias"
@@ -111,7 +117,7 @@ class BazelArtifactIntegrationTest(unittest.TestCase):
                         prefix + ["build", *flags, "--build_event_json_file=" + str(bep), *labels],
                         cwd=consumer, stdout=log, stderr=subprocess.STDOUT, timeout=180,
                     )
-                self.assertEqual(build.returncode, 0, (artifacts / "build.log").read_text()[-10000:])
+                self.assertEqual(build.returncode, 0, registry_ci.read_log_tail(artifacts / "build.log", 10000))
                 execution_root = Path(subprocess.check_output(
                     prefix + ["info", *flags, "execution_root"], cwd=consumer, text=True,
                     stderr=subprocess.PIPE, timeout=120,
@@ -132,12 +138,23 @@ class BazelArtifactIntegrationTest(unittest.TestCase):
                 self.assertEqual(declared[labels[3]], [])
                 self.assertEqual(declared[labels[4]], [])
                 tree_root = declared[labels[0]][0]
+                unicode_name = "NetLock_Arany_=Class_Gold=_Főtanúsítvány.crt"
+                unicode_path = tree_root + "/" + unicode_name
+                tree_source = execution_root / tree_root
+                self.assertIn(unicode_name.encode("utf-8"),
+                              {os.fsencode(path.name) for path in tree_source.iterdir()})
+                self.assertEqual((tree_source / unicode_name).read_bytes(), b"certificate fixture\n")
                 events = [json.loads(line) for line in bep.read_text().splitlines()]
                 reported = ["/".join([*item.get("pathPrefix", []), item["name"]])
                             for event in events for item in event.get("namedSetOfFiles", {}).get("files", [])]
                 # This is the production failure: Bazel reports children rather
                 # than a directory URI. A fabricated directory event misses it.
                 self.assertIn(tree_root + "/Text::CharWidth.3pm.gz", reported)
+                # Bazel 8.5.1 emits either Unicode or its internal UTF-8 bytes
+                # represented as Latin-1. Require the real filename in the
+                # collected TAR below, rather than one platform's BEP spelling.
+                self.assertTrue(any(path in reported for path in
+                                    (unicode_path, unicode_path.encode("utf-8").decode("latin-1"))), reported)
                 self.assertNotIn(tree_root, reported)
                 registry_ci.collect_outputs(bep, labels, work, artifacts,
                                             declared_trees=declared, execution_root=execution_root)
@@ -161,12 +178,16 @@ class BazelArtifactIntegrationTest(unittest.TestCase):
                 source_mode = (execution_root / tree_root / "tool").stat().st_mode & 0o777
                 with tarfile.open(artifacts / tree["path"]) as archive:
                     self.assertEqual(archive.getmember(tree_root + "/tool").mode, source_mode)
+                    self.assertEqual(archive.extractfile(unicode_path).read(), b"certificate fixture\n")
                     archive.extractall(restored, filter="data")
                 payload = restored / tree_root
                 self.assertEqual((payload / "configuration-mode").read_bytes(), b"fastbuild\n")
-                self.assertEqual((payload / "Text::CharWidth.3pm.gz").read_bytes(), b"perl manual\n")
+                self.assertEqual(gzip.decompress((payload / "Text::CharWidth.3pm.gz").read_bytes()),
+                                 b"perl manual\n")
                 self.assertEqual((payload / "xt_CONNMARK.h").read_bytes(), b"UPPER header\n")
                 self.assertEqual((payload / "xt_connmark.h").read_bytes(), b"lower header\n")
+                self.assertEqual((payload / "NetLock_Arany_=Class_Gold=_Főtanúsítvány.crt").read_bytes(),
+                                 b"certificate fixture\n")
                 # Bazel makes outputs read-only, and Python's safe extraction
                 # filter restores owner write access. Check exact archive modes
                 # above and retained executability after safe extraction here.

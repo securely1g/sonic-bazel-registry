@@ -1,0 +1,17 @@
+{
+  "homepage": "https://github.com/open-telemetry/opentelemetry-collector-releases",
+  "maintainers": [
+    {
+      "email": "securely1g@gmail.com",
+      "github": "securely1g",
+      "name": "Guohan Lu"
+    }
+  ],
+  "repository": [
+    "github:open-telemetry/opentelemetry-collector-releases"
+  ],
+  "versions": [
+    "0.144.0.sonic.1"
+  ],
+  "yanked_versions": {}
+}

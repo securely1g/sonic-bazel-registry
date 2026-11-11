@@ -1,0 +1,10 @@
+{
+  "url": "https://github.com/securely1g/sonic-swss-common/archive/334389eae54afd1f4f5ee69f89c3a7ad2062ee61.tar.gz",
+  "strip_prefix": "sonic-swss-common-334389eae54afd1f4f5ee69f89c3a7ad2062ee61",
+  "integrity": "sha256-MX76U2Z8y01QmyNoO2ZVqIXvpWySdJuyovJ/unKqzuc=",
+  "patches": {
+    "0001-module-version.patch": "sha256-rtKC3DnWYReYfZVnJ5l0k9z3OZ07e+JwKBxSTGo+Pxc=",
+    "0002-libyang-runtime-libraries.patch": "sha256-XJ9r6BqJPoG5zz/t2DHwl49KDee/BcyLjl6thy00EPI="
+  },
+  "patch_strip": 1
+}
