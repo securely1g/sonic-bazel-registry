@@ -301,7 +301,16 @@ class DebianHttpAuditTest(unittest.TestCase):
                   "--http_connector_attempts=1", "--lockfile_mode=update", "--color=no", "--curses=no",
                   f"--build_event_json_file={self.work / 'absent-events.jsonl'}"]
         try:
-            first_pid = None
+            # Start the real server before timing a download. On emulated ARM64,
+            # extracting Bazel and starting its JVM share the runner's CPU budget.
+            source.write_text(extension)
+            startup_timeout = 600 if os.environ.get("REGISTRY_CI_EMULATED_ARM") == "true" else 90
+            server = subprocess.run([*prefix, "info", "server_pid", *network], cwd=self.work,
+                                    capture_output=True, text=True, env=self.env, timeout=startup_timeout)
+            self.assertEqual(server.returncode, 0, server.stderr)
+            first_pid = server.stdout.strip()
+            self.assertRegex(first_pid, r"^[1-9][0-9]*$")
+            self.assertEqual(self.requests, [])
             for mode, expected in (("success", [("private", 200)]),
                                    ("missing", [("private", 404), ("public", 200)]),
                                    ("corrupt", [("private", 200), ("public", 200)]),
@@ -321,9 +330,6 @@ class DebianHttpAuditTest(unittest.TestCase):
                     self.assertFalse((self.work / "absent-events.jsonl").exists())
                     responses = [r for r in self.records()[before:] if r["event"] == "response"]
                     self.assertEqual([(r["origin"], r["status"]) for r in responses], expected)
-                    if first_pid is None:
-                        first_pid = subprocess.run([*prefix, "info", "server_pid", *network], cwd=self.work,
-                                                   capture_output=True, text=True, env=self.env, timeout=30).stdout.strip()
             self.mode = "success"
             for revision in ("cache-fill", "cache-read"):
                 source.write_text(extension + "# " + revision + "\n")
@@ -337,7 +343,6 @@ class DebianHttpAuditTest(unittest.TestCase):
                     self.assertEqual(self.records()[before:], [])
             final_pid = subprocess.run([*prefix, "info", "server_pid", *network], cwd=self.work,
                                        capture_output=True, text=True, env=self.env, timeout=30).stdout.strip()
-            self.assertTrue(first_pid)
             self.assertEqual(first_pid, final_pid)
             (self.output / "flush").touch()
             deadline = time.monotonic() + 5
