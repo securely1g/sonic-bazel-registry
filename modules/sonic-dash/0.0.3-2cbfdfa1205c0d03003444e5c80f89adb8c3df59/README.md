@@ -1,9 +1,22 @@
-# DASH BMv2 source runtime and debug TARs
+# DASH recursive Make compiler and linker flags
 
-Register the landed source implementation from [DASH #1](https://github.com/securely1g/DASH/pull/1), commit `97c07d05193e346bc990e816e30a7e3d72e8f4c0`. The module runs the source-built P4 compiler and DASH generator, then wraps the upstream SAI metadata/library Make targets. It exports runtime/debug TARs and an installed SDK for [buildimage #13](https://github.com/securely1g/sonic-buildimage/pull/13), without a Debian package producer or legacy Make changes.
+The [DASH source](https://github.com/securely1g/DASH/commit/2cbfdfa1205c0d03003444e5c80f89adb8c3df59) builds
+the SAI API through its existing Makefile. Its launch adapter carries long
+compiler and linker argument vectors across recursive Make without exceeding
+Linux's per-string argument limit. It preserves flag ordering and the generator
+and linker options used by [Syncd VS](https://github.com/securely1g/sonic-buildimage/pull/133)
+and [Gearbox](https://github.com/securely1g/sonic-buildimage/pull/154).
 
-The source uses declared Make/M4/pkg-config/Aspell tools, preserved system-header classes, and explicit PI/gRPC/protobuf/Abseil link dependencies. Its PI, P4C, foreign-build adapter and shared infrastructure recipes are published on the maintained registry `main` branch. The registry applies only a module-version suffix patch; the source owns all build and runtime behavior.
+This entry registers the source module's `0.0.1` base version as
+`0.0.1-2cbfdfa1205c0d03003444e5c80f89adb8c3df59`. The published
+`0.0.3-2cbfdfa1205c0d03003444e5c80f89adb8c3df59` entry remains unchanged.
 
-Native AMD64 and ARM64 presubmits build `@sonic-dash//:runtime`, `:runtime.debug_symbols` and `:sdk`, then run `@sonic-dash//bazel:runtime_test`. They cover the installed SDK, generated pipeline files, an independent runtime loader, dependency closure, build IDs, debuglink checksums, DWARF and GDB source lookup. Both host and target use the declared Trixie toolchain.
+The registry applies one version patch to the source module. Consumers resolve
+the PI `0.1.3.sonic.4` SDK and the shared build-infra `.28` implementation
+through their registry. The candidate uses the same published P4C
+`1.2.4.2.sonic.3` and Distroless `0.9.4.sonic.18` recipes as its source.
 
-The shared registry runner retains source, resolution, build/test and complete output-tree evidence. Full Syncd OCI integration and the later generated package metadata registration remain separate consumer work.
+Native AMD64 and ARM64 checks build `//:sdk`, `//:runtime`,
+`//:runtime.debug_symbols` and `//:runtime_packages.json`. The runtime test
+checks the installed TARs and debug data. The recursive Make test exercises
+ordered compilation/linking and the original oversized environment failure.
