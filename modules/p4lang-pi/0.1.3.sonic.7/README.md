@@ -42,9 +42,24 @@ validation checks that forwarding relationship and GDB source-line lookup in
 the library's matching debug file. The compiled C++ SDK consumer runs against
 the same installed runtime and declared target-library closure.
 
+## Compiler path normalization
+
+The [DASH Engine baseline check](https://github.com/securely1g/sonic-buildimage/actions/runs/42485206470/job/128745481003)
+rebuilt PI with changed runtime bytes. The inspected `libpifegeneric` and
+`pi_gen_native_json` samples differed only in their build IDs and debug links;
+their remaining bytes, including the program's dynamic strings, matched.
+
+PI enables the existing `rules_foreign_cc` `set_file_prefix_map` option to map
+the execution-root prefix in C and C++ compiler output. This also covers sibling
+source and dependency paths outside a compiler's current working directory.
+It is a targeted reproducibility hypothesis, pending the Engine's strict
+baseline, no-op, startup-edit and restored-archive checks. Build IDs, matching
+debug symbols, installed output contracts and byte-equality checks remain
+required; the observed identifier changes alone do not establish their cause.
+
 ## Cross compilation
 
-Revision `0.1.3.sonic.4` uses the source archive, public outputs and presubmit
+Revision `0.1.3.sonic.5` uses the source archive, public outputs and presubmit
 targets from the published `.sonic.3` entry. The foreign C++ rule enables
 `configure_xcompile`, which supplies Autoconf's host/build triplets when the
 target and execution platforms differ.
