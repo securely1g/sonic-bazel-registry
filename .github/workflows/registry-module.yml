@@ -59,9 +59,11 @@ jobs:
     # P4C took three hours to compile serially on AMD64. A single emulated
     # C++ compiler can take 8–14 times as long, before DASH builds its own SDK.
     # BMv2 also builds its simulator and SDK serially in the 6 GiB pilot slot.
+    # One full emulated SWSS build and test run took 23 hours 44 minutes.
     timeout-minutes: >-
       ${{ inputs.emulated_arm && contains(fromJSON('["p4c","p4lang-bmv2","sonic-dash"]'), inputs.module) && 4320
-          || inputs.emulated_arm && contains(fromJSON('["p4lang-pi","sonic-swss","sonic-sairedis","sonic-swss-common"]'), inputs.module) && 1440
+          || inputs.emulated_arm && inputs.module == 'sonic-swss' && 1680
+          || inputs.emulated_arm && contains(fromJSON('["p4lang-pi","sonic-sairedis","sonic-swss-common"]'), inputs.module) && 1440
           || inputs.emulated_arm && 720
           || (((contains(fromJSON(inputs.runner), 'debian-trixie-container') ||
              contains(fromJSON(inputs.runner), 'debian-trixie-container-large')) &&
