@@ -182,6 +182,7 @@ jobs:
             HTTP_AUDIT_ARGS=(--http-audit-jar "$RUNNER_TEMP/debian-http-audit/debian-http-audit.jar")
           fi
           RESOURCE_RECEIPT=()
+          release_bazel_heap=false
           if [[ "$CI_EXECUTION_ARCHITECTURE" == amd64 ]]; then
             TEST_CONTAINER_IMAGE="${SONIC_RUNNER_IMAGE_REFERENCE:?Missing runner image identity}"
             ROOT=(sudo -n)
@@ -213,17 +214,9 @@ jobs:
             # worker waits for Skyframe. Run the original repository rules directly.
             BAZEL_BUILD_ARGS=(--bazel-build-arg=--jobs=1 --bazel-build-arg=--discard_analysis_cache
                               --bazel-build-arg=--experimental_worker_for_repo_fetching=off)
-            if [[ "$CI_MODULE" == sonic-dash || "$CI_MODULE" == sonic-sairedis ]]; then
-              # Release unused Bazel heap while GCC compiles FlexCounter.cpp or
-              # P4C compiles dash_pipeline.p4 in the same 6 GiB slot.
-              BAZEL_STARTUP_ARGS+=(--bazel-startup-arg=--host_jvm_args=-XX:G1PeriodicGCInterval=30000
-                                   --bazel-startup-arg=--host_jvm_args=-XX:MinHeapFreeRatio=20
-                                   --bazel-startup-arg=--host_jvm_args=-XX:MaxHeapFreeRatio=35)
-            fi
-            if [[ "$CI_MODULE" == sonic-dash ]]; then
-              # Set P4C's existing garbage-collector option when compiling it as a
-              # build-time C++ tool so it collects more often during the pipeline build.
-              BAZEL_BUILD_ARGS+=(--bazel-build-arg=--host_cxxopt=-DGC_FREE_SPACE_DIVISOR=16)
+            if [[ "$CI_MODULE" == sonic-sairedis ]]; then
+              # GCC needs the available memory while compiling FlexCounter.cpp.
+              release_bazel_heap=true
             fi
             if [[ "$CI_MODULE" == sonic-build-infra ]]; then
               # The libtool build checks that GCC reports E2BIG when it launches
@@ -239,6 +232,18 @@ jobs:
                                 "--bazel-build-arg=--action_env=SONIC_PILOT_FIPS_WORK=$RUNNER_TEMP/registry-ci")
             fi
             git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          fi
+          if [[ "$CI_MODULE" == sonic-dash && ( "${PILOT_EMULATED_ARM:-false}" == true ||
+                ( "$CI_ARCHITECTURE" == amd64 && "${CI_LARGE_RUNNER:-false}" != true ) ) ]]; then
+            # DashGenerate runs P4C and the Bazel JVM together in one 6 GiB slot.
+            # Make the host P4C collect more often when compiling dash_pipeline.p4.
+            BAZEL_BUILD_ARGS+=(--bazel-build-arg=--host_cxxopt=-DGC_FREE_SPACE_DIVISOR=16)
+            release_bazel_heap=true
+          fi
+          if [[ "$release_bazel_heap" == true ]]; then
+            BAZEL_STARTUP_ARGS+=(--bazel-startup-arg=--host_jvm_args=-XX:G1PeriodicGCInterval=30000
+                                 --bazel-startup-arg=--host_jvm_args=-XX:MinHeapFreeRatio=20
+                                 --bazel-startup-arg=--host_jvm_args=-XX:MaxHeapFreeRatio=35)
           fi
           if [[ "${PILOT_EMULATED_ARM:-false}" == true ]]; then
             case "$CI_MODULE" in

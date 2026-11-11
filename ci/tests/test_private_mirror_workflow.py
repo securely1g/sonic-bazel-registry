@@ -367,24 +367,25 @@ class PrivateMirrorWorkflowCommandTest(unittest.TestCase):
     def test_emulated_dash_and_sairedis_release_idle_bazel_heap(self):
         standard = ["-Xmx2g"]
         periodic_gc = standard + ["-XX:G1PeriodicGCInterval=30000", "-XX:MinHeapFreeRatio=20", "-XX:MaxHeapFreeRatio=35"]
-        for module, target, execution, emulated, expected in (
-            ("sonic-dash", "arm64", "arm64", True, periodic_gc),
-            ("sonic-sairedis", "arm64", "arm64", True, periodic_gc),
-            ("sonic-sairedis", "amd64", "amd64", False, standard),
-            ("sonic-sairedis", "arm64", "amd64", False, standard),
-            ("sonic-sairedis", "arm64", "arm64", False, []),
-            ("p4c", "arm64", "arm64", True, standard),
-            ("p4lang-bmv2", "arm64", "arm64", True, standard),
-            ("sonic-swss-common", "arm64", "arm64", True, standard),
-            ("sonic-dash", "amd64", "amd64", False, standard),
-            ("sonic-dash", "arm64", "amd64", False, standard),
-            ("sonic-dash", "arm64", "arm64", False, []),
+        for module, target, execution, emulated, large, expected in (
+            ("sonic-dash", "arm64", "arm64", True, False, periodic_gc),
+            ("sonic-sairedis", "arm64", "arm64", True, False, periodic_gc),
+            ("sonic-sairedis", "amd64", "amd64", False, False, standard),
+            ("sonic-sairedis", "arm64", "amd64", False, False, standard),
+            ("sonic-sairedis", "arm64", "arm64", False, False, []),
+            ("p4c", "arm64", "arm64", True, False, standard),
+            ("p4lang-bmv2", "arm64", "arm64", True, False, standard),
+            ("sonic-swss-common", "arm64", "arm64", True, False, standard),
+            ("sonic-dash", "amd64", "amd64", False, False, periodic_gc),
+            ("sonic-dash", "amd64", "amd64", False, True, standard),
+            ("sonic-dash", "arm64", "amd64", False, False, standard),
+            ("sonic-dash", "arm64", "arm64", False, False, []),
         ):
-            with self.subTest(module=module, target=target, execution=execution, emulated=emulated):
+            with self.subTest(module=module, target=target, execution=execution, emulated=emulated, large=large):
                 self.capture.unlink(missing_ok=True)
                 self.environment.update(CI_MODULE=module, CI_ARCHITECTURE=target, CI_EXECUTION_ARCHITECTURE=execution,
                                         CI_CROSS_COMPILE=str(target != execution).lower(),
-                                        PILOT_EMULATED_ARM=str(emulated).lower())
+                                        PILOT_EMULATED_ARM=str(emulated).lower(), CI_LARGE_RUNNER=str(large).lower())
                 result = self.run_step("Build and test through the registry")
                 self.assertEqual(result.returncode, 0, result.stderr)
                 args = json.loads(self.capture.read_text())["args"]
@@ -393,7 +394,7 @@ class PrivateMirrorWorkflowCommandTest(unittest.TestCase):
                 compiler_flags = [arg for arg in args if "GC_FREE_SPACE_DIVISOR" in arg]
                 expected_compiler_flags = (
                     ["--bazel-build-arg=--host_cxxopt=-DGC_FREE_SPACE_DIVISOR=16"]
-                    if emulated and module == "sonic-dash" else []
+                    if module == "sonic-dash" and expected == periodic_gc else []
                 )
                 self.assertEqual(compiler_flags, expected_compiler_flags)
 
