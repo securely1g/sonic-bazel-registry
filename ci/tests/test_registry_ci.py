@@ -2395,15 +2395,18 @@ class TestContainerTests(unittest.TestCase):
             ("p4c", "amd64", "amd64", None, "--eval=.NOTPARALLEL:", False),
             ("p4c", "arm64", "amd64", "-r --warn-undefined-variables", "-r --warn-undefined-variables --eval=.NOTPARALLEL:", False),
             ("p4lang-bmv2", "amd64", "amd64", "", "--eval=.NOTPARALLEL:", False),
+            ("sonic-dash", "amd64", "amd64", None, "--eval=.NOTPARALLEL:", False),
             ("sonic-dash", "arm64", "amd64", "-r", "-r --eval=.NOTPARALLEL:", False),
+            ("sonic-dash", "arm64", "arm64", None, None, False),
             ("p4c", "arm64", "arm64", "-r", None, False),
             ("libyang", "amd64", "amd64", "-r", None, False),
             ("p4c", "amd64", "amd64", None, None, True),
             ("p4c", "arm64", "amd64", None, None, True),
             ("p4lang-bmv2", "amd64", "amd64", None, None, True),
             ("sonic-dash", "amd64", "amd64", None, None, True),
+            ("sonic-dash", "arm64", "amd64", None, None, True),
         ):
-            with self.subTest(module=module, target=target, execution=execution), tempfile.TemporaryDirectory() as tmp:
+            with self.subTest(module=module, target=target, execution=execution, large=large), tempfile.TemporaryDirectory() as tmp:
                 root = Path(tmp)
                 env = self.shell_environment(root, target, execution, target != execution)
                 env["CI_MODULE"] = module
@@ -2421,6 +2424,16 @@ class TestContainerTests(unittest.TestCase):
                     "--bazel-build-arg=--action_env=GNUMAKEFLAGS=" + expected,
                     "--bazel-build-arg=--host_action_env=GNUMAKEFLAGS=" + expected,
                 ])
+                standard_amd64_dash = (module, target, execution, large) == ("sonic-dash", "amd64", "amd64", False)
+                jvm_flags = ["-Xmx2g"] if execution == "amd64" else []
+                if standard_amd64_dash:
+                    jvm_flags.extend(["-XX:G1PeriodicGCInterval=30000", "-XX:MinHeapFreeRatio=20",
+                                      "-XX:MaxHeapFreeRatio=35"])
+                self.assertEqual([arg for arg in args if arg.startswith("--bazel-startup-arg=")],
+                                 ["--bazel-startup-arg=--host_jvm_args=" + flag for flag in jvm_flags])
+                self.assertEqual([arg for arg in args if "GC_FREE_SPACE_DIVISOR" in arg],
+                                 ["--bazel-build-arg=--host_cxxopt=-DGC_FREE_SPACE_DIVISOR=16"]
+                                 if standard_amd64_dash else [])
 
     def test_module_archive_preserves_modes_and_uses_sudo_only_for_local_execution(self):
         workflow = (registry_ci.ROOT / ".github/workflows/registry-module.yml").read_text()
