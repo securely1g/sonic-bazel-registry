@@ -101,6 +101,7 @@ feature_probe(name = "keep_debug", keep_debug = True)
                      "set REGISTRY_CI_TEST_BAZEL for the real Bazel feature analysis")
 class CrossToolchainFeatureIntegrationTest(unittest.TestCase):
     def test_disabled_stripping_preserves_all_link_actions_and_default_flags(self):
+        bazel_timeout = 600 if os.environ.get("REGISTRY_CI_EMULATED_ARM") == "true" else 180
         with tempfile.TemporaryDirectory(prefix="registry-cross-features-") as temporary:
             work = Path(temporary)
             consumer, artifacts = work / "consumer", work / "artifacts"
@@ -130,7 +131,7 @@ class CrossToolchainFeatureIntegrationTest(unittest.TestCase):
                 output_path, log_path = artifacts / (case + "-aquery.json"), artifacts / (case + ".log")
                 with output_path.open("w") as output, log_path.open("w") as log:
                     result = subprocess.run(command, cwd=consumer, stdout=output,
-                                            stderr=log, timeout=180)
+                                            stderr=log, timeout=bazel_timeout)
                 return result.returncode, log_path.read_text(), output_path
 
             try:
