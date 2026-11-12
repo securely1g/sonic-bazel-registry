@@ -1,0 +1,68 @@
+{
+  "architectures": [
+    "amd64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.33-0d2435b572eca4a6f1db6e003b04956c09fb1a39",
+      "repo_name": "sonic_build_infra"
+    },
+    {
+      "name": "tar.bzl",
+      "version": "0.10.5.sonic.2"
+    },
+    {
+      "name": "rules_cc",
+      "version": "0.2.20"
+    },
+    {
+      "name": "rules_go",
+      "version": "0.64.1"
+    },
+    {
+      "name": "rules_rs",
+      "version": "0.1.0"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
+  },
+  "host_platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
+  },
+  "build_targets": [
+    "@sonic-dash-ha//:dash_ha_pkg",
+    "@sonic-dash-ha//:dash_ha_pkg.debug_symbols",
+    "@sonic-dash-ha//:runtime_packages.json",
+    "@sonic-dash-ha//crates/container:container"
+  ],
+  "test_targets": [
+    "@sonic-dash-ha//crates/container:unit_test",
+    "@sonic-dash-ha//crates/hamgrd:unit_test",
+    "@sonic-dash-ha//crates/sonic-common:unit_test",
+    "@sonic-dash-ha//crates/sonic-dash-api-proto:unit_test",
+    "@sonic-dash-ha//crates/sonicdb-derive:basic_test",
+    "@sonic-dash-ha//crates/swbus-actor:echo_test",
+    "@sonic-dash-ha//crates/swbus-actor:kvstore_test",
+    "@sonic-dash-ha//crates/swbus-actor:test_executor_test",
+    "@sonic-dash-ha//crates/swbus-actor:unit_test",
+    "@sonic-dash-ha//crates/swbus-cli:unit_test",
+    "@sonic-dash-ha//crates/swbus-config:unit_test",
+    "@sonic-dash-ha//crates/swbus-core:basic_tests_test",
+    "@sonic-dash-ha//crates/swbus-core:inter_cluster_tests_test",
+    "@sonic-dash-ha//crates/swbus-core:unit_test",
+    "@sonic-dash-ha//crates/swbus-edge:unit_test",
+    "@sonic-dash-ha//crates/swbus-proto:unit_test",
+    "@sonic-dash-ha//crates/swbusd:unit_test",
+    "@sonic-dash-ha//crates/swss-common-bridge:unit_test",
+    "@sonic-dash-ha//crates/swss-serde:unit_test",
+    "@sonic-dash-ha//bazel:installed_package_test",
+    "@sonic-dash-ha//crates/swbus-actor:doc_test"
+  ],
+  "rust_toolchain": {
+    "version": "1.90.0",
+    "mangled_allocator_libraries": true,
+    "bindgen": true
+  }
+}
