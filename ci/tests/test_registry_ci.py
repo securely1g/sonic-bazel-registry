@@ -818,6 +818,34 @@ class VersionPolicyTests(FixtureTestCase):
 
 
 class EntryValidationTests(FixtureTestCase):
+    def test_additions_only_accept_explicit_new_targets_for_declared_architectures(self) -> None:
+        directory = self.entry("alpha", "1.0.0")
+        path = directory / "presubmit.json"
+        config = json.loads(path.read_text())
+        config["architectures"] = ["amd64"]
+        config["platforms"] = {"amd64": "@platforms//host:host"}
+        for additions in [
+            {"arm64": {"test_targets": ["@alpha//:extra"]}},
+            {"amd64": {"skip_targets": ["@alpha//:consumer_test"]}},
+            {"amd64": {"test_targets": ["@alpha//:consumer_test"]}},
+            {"amd64": {"build_targets": ["@alpha//:x", "@alpha//:x"]}},
+            {"amd64": {"build_targets": ["@other//:x"]}},
+            {"amd64": {"test_targets": ["@alpha//:all"]}},
+            {"amd64": {"test_targets": ["//:local_without_integration"]}},
+            {"amd64": {}}, {"amd64": {"build_targets": []}}, [],
+        ]:
+            with self.subTest(additions=additions):
+                write_json(path, {**config, "additional_targets": additions})
+                with self.assertRaises(registry_ci.RegistryError):
+                    registry_ci.validate_entry(self.root, "alpha", "1.0.0")
+        additions = {"amd64": {"test_targets": ["@alpha//:extra"]}}
+        write_json(path, {**config, "additional_targets": additions})
+        self.assertEqual(registry_ci.validate_entry(self.root, "alpha", "1.0.0")["additional_targets"], additions)
+        path.write_text(path.read_text().replace('"additional_targets": {', '"additional_targets": {"amd64": {},', 1))
+        with self.assertRaisesRegex(registry_ci.RegistryError, "Duplicate field"):
+            registry_ci.validate_entry(self.root, "alpha", "1.0.0")
+
+
     def test_optional_host_platforms_require_complete_explicit_architecture_map(self) -> None:
         entry = self.entry("alpha", "1.0.0")
         path = entry / "presubmit.json"
@@ -1984,6 +2012,33 @@ class StagedCrossRoutingTests(FixtureTestCase):
             with self.subTest(value=value), self.assertRaises(registry_ci.RegistryError):
                 self.planned({}, cross_all=value)
 
+    def test_p4_profile_changes_only_jobs_executing_on_amd64(self):
+        p4_modules = ("p4c", "p4lang-bmv2", "sonic-dash")
+        for module in p4_modules:
+            entry = self.entry(module, "1.0.0")
+            path = entry / "presubmit.json"
+            manifest = json.loads(path.read_text())
+            manifest["architectures"] = ["amd64", "arm64"]
+            manifest["platforms"]["arm64"] = "@alpha//:arm"
+            write_json(path, manifest)
+        head = self.commit("Add heavy native and cross cases")
+        large = ["self-hosted", "Linux", "X64", "debian-trixie-container-large"]
+        with mock.patch.object(registry_ci, "ARM_CROSS_VERSIONS", {"p4c": ("1.0.0",)}):
+            for profile in ("large", "standard"):
+                rows = registry_ci.plan(self.root, None, head, all_versions=True, published=head,
+                                        p4_runner_profile=profile)["include"]
+                for row in rows:
+                    expected = registry_ci.RUNNERS[row["execution_architecture"]]
+                    if profile == "large" and row["module"] in p4_modules and row["execution_architecture"] == "amd64":
+                        expected = large
+                    self.assertEqual(row["runner"], expected, row)
+                heavy = {(row["module"], row["architecture"]) for row in rows if row["runner"] == large}
+                expected = {(module, "amd64") for module in p4_modules} | {("p4c", "arm64")}
+                self.assertEqual(heavy, expected if profile == "large" else set())
+            with self.assertRaisesRegex(registry_ci.RegistryError, "P4 runner profile"):
+                registry_ci.plan(self.root, None, head, all_versions=True, published=head,
+                                 p4_runner_profile="other")
+
     def test_empty_routes_preserve_every_native_job_and_original_contract(self):
         jobs = self.planned({})
         self.assertEqual(len(jobs), 5)
@@ -2032,17 +2087,26 @@ class WorkflowMatrixTests(unittest.TestCase):
     def setUp(self):
         self.workflow = (registry_ci.ROOT / ".github/workflows/registry-ci.yml").read_text()
 
-    def test_split_plan_preserves_native_and_cross_jobs_and_marks_empty_groups(self):
+    def run_workflow_planner(self, root, jobs, *, pilot):
         script = self.workflow.split("          python3 - <<'PY'\n", 1)[1].split("\n          PY", 1)[0]
         script = "\n".join(line[10:] for line in script.splitlines())
+        (root / "plan.json").write_text(json.dumps({"include": jobs}))
+        return subprocess.run([sys.executable, "-I", "-S", "-c", script], cwd=root,
+                              env={**os.environ, "EVENT_NAME": "pull_request", "FLEET_VALIDATION": str(pilot).lower(),
+                                   "P4_RUNNER_PROFILE": "standard" if pilot else "large", "GITHUB_WORKSPACE": str(registry_ci.ROOT),
+                                   "GITHUB_OUTPUT": str(root / "outputs")}, text=True, capture_output=True)
+
+    def test_split_plan_preserves_native_and_cross_jobs_and_marks_empty_groups(self):
         amd = {"module": "alpha", "version": "1.0.0", "architecture": "amd64",
                "execution_architecture": "amd64", "cross_compile": False,
                "runner": registry_ci.RUNNERS["amd64"]}
         arm = {**amd, "architecture": "arm64", "execution_architecture": "arm64", "runner": registry_ci.RUNNERS["arm64"]}
         second_amd = {**amd, "module": "beta"}
+        large = {**amd, "module": "sonic-dash", "runner": ["self-hosted", "Linux", "X64", "debian-trixie-container-large"]}
         cross = {**second_amd, "architecture": "arm64", "cross_compile": True}
         for jobs, succeeds in (([], True), ([amd], True), ([arm], True),
-                               ([arm, amd, second_amd, cross], True), ([cross], True),
+                               ([arm, amd, second_amd, cross, large], True), ([cross], True),
+                               ([{**large, "module": "beta"}], False), ([{**amd, "module": "sonic-dash"}], False),
                                ([{**arm, "architecture": "armhf"}], False),
                                ([{**arm, "cross_compile": True}], False),
                                ([{**cross, "cross_compile": "true"}], False),
@@ -2051,11 +2115,8 @@ class WorkflowMatrixTests(unittest.TestCase):
             with self.subTest(jobs=jobs), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 matrix = {"include": jobs}
-                (root / "plan.json").write_text(json.dumps(matrix))
                 output = root / "outputs"
-                result = subprocess.run([sys.executable, "-I", "-S", "-c", script], cwd=root,
-                    env={**os.environ, "EVENT_NAME": "workflow_dispatch", "GITHUB_OUTPUT": str(output)},
-                    text=True, capture_output=True)
+                result = self.run_workflow_planner(root, jobs, pilot=False)
                 if not succeeds:
                     self.assertNotEqual(result.returncode, 0)
                     self.assertIn("validation", result.stderr)
@@ -2074,6 +2135,34 @@ class WorkflowMatrixTests(unittest.TestCase):
                     selected.extend(actual)
                 self.assertCountEqual(selected, jobs)
 
+    def test_full_pilot_preserves_every_module_and_emulates_only_hosted_arm(self):
+        amd = {"module": "p4c", "version": "1.0.0", "architecture": "amd64",
+               "execution_architecture": "amd64", "cross_compile": False, "runner": registry_ci.RUNNERS["amd64"]}
+        cross = {**amd, "module": "alpha", "architecture": "arm64", "cross_compile": True}
+        hosted = {**amd, "architecture": "arm64",
+                  "execution_architecture": "arm64", "runner": registry_ci.RUNNERS["arm64"]}
+        for jobs, valid in (([amd, cross, hosted], True), ([], False),
+                            ([{**hosted, "runner": registry_ci.RUNNERS["amd64"]}], False)):
+            with self.subTest(jobs=jobs), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                result = self.run_workflow_planner(root, jobs, pilot=True)
+                self.assertEqual(result.returncode == 0, valid, result.stderr)
+                if not valid:
+                    self.assertFalse((root / "outputs").exists())
+                    continue
+                outputs = dict(line.split("=", 1) for line in (root / "outputs").read_text().splitlines())
+                self.assertEqual(outputs["fleet_validation"], "true")
+                runner = registry_ci.RUNNERS["amd64"]
+                expected = [
+                    {**amd, "runner": runner, "physical_architecture": "amd64", "emulated_arm": False},
+                    {**cross, "runner": runner, "physical_architecture": "amd64", "emulated_arm": False},
+                    {**hosted, "runner": runner, "physical_architecture": "amd64", "emulated_arm": True},
+                ]
+                self.assertEqual(json.loads((root / "plan.json").read_text())["include"], expected)
+                self.assertEqual(json.loads(outputs["matrix"])["include"], expected)
+                self.assertEqual(json.loads(outputs["local_matrix"])["include"], expected[:2])
+                self.assertEqual(json.loads(outputs["hosted_arm_matrix"])["include"], expected[2:])
+
     def test_one_local_budget_and_separate_hosted_admission_share_validation_body(self):
         for architecture in ("local", "hosted_arm"):
             # A job block ends at the next two-space job key, not a nested field.
@@ -2090,14 +2179,18 @@ class WorkflowMatrixTests(unittest.TestCase):
             for name in ("module", "version", "architecture", "execution_architecture", "cross_compile"):
                 self.assertIn(name + ": ${{ matrix." + name + " }}", block)
             self.assertIn("runner: ${{ toJSON(matrix.runner) }}", block)
-            self.assertEqual("max-parallel: 10" in block, architecture == "local")
+            if architecture == "local":
+                self.assertIn("max-parallel: ${{ needs.plan.outputs.fleet_validation == 'true' && 64 || 10 }}", block)
+            else:
+                self.assertNotIn("max-parallel:", block)
+            self.assertIn("emulated_arm: ${{ matrix.emulated_arm == true }}", block)
             self.assertNotIn("steps:", block)
         shared = (registry_ci.ROOT / ".github/workflows/registry-module.yml").read_text()
         self.assertIn("workflow_call:", shared)
         self.assertIn("runs-on: ${{ fromJSON(inputs.runner) }}", shared)
         self.assertEqual(shared.count("name: Build and test through the registry"), 1)
         self.assertNotIn("name: Build and test through the registry", self.workflow)
-        self.assertIn("needs: [plan, unit, cross_fixture, modules_local, modules_hosted_arm]", self.workflow)
+        self.assertIn("needs: [plan, unit, cross_fixture, modules_local, modules_hosted_arm, modules_supplemental]", self.workflow)
 
     def test_aggregate_requires_cross_fixture_and_only_explicitly_empty_module_groups(self):
         block = self.workflow.split("  required:\n", 1)[1]
@@ -2107,9 +2200,10 @@ class WorkflowMatrixTests(unittest.TestCase):
             self.assertIn(architecture.upper() + "_RESULT: ${{ needs.modules_" + architecture + ".result }}", block)
             self.assertIn("HAS_" + architecture.upper() + "_JOBS: ${{ needs.plan.outputs.has_" + architecture + "_jobs }}", block)
         base = {"PLAN_RESULT": "success", "UNIT_RESULT": "success", "CROSS_FIXTURE_RESULT": "success", "LOCAL_RESULT": "success",
-                "HOSTED_ARM_RESULT": "success", "HAS_LOCAL_JOBS": "true", "HAS_HOSTED_ARM_JOBS": "true"}
+                "HOSTED_ARM_RESULT": "success", "HAS_LOCAL_JOBS": "true", "HAS_HOSTED_ARM_JOBS": "true",
+                "SUPPLEMENTAL_RESULT": "success", "HAS_SUPPLEMENTAL_JOBS": "true"}
         cases = [(base, True)]
-        for architecture in ("LOCAL", "HOSTED_ARM"):
+        for architecture in ("LOCAL", "HOSTED_ARM", "SUPPLEMENTAL"):
             flag, result = "HAS_" + architecture + "_JOBS", architecture + "_RESULT"
             cases.append(({**base, flag: "false", result: "skipped"}, True))
             for invalid in ("failure", "cancelled", "skipped", ""):
@@ -2136,12 +2230,13 @@ class WorkflowMatrixTests(unittest.TestCase):
         self.assertIn("architecture: amd64", unit)
         self.assertIn("architecture: arm64", unit)
         self.assertIn("runner: [ubuntu-24.04-arm]", unit)
-        rows = re.findall(r"- architecture: (\w+)\n\s+runner: \[([^\]]+)\]\n"
+        self.assertIn("&& 180 || matrix.timeout_minutes }}", unit)
+        rows = re.findall(r"- architecture: (\w+)\n\s+timeout_minutes: (\d+)\n\s+runner: \[([^\]]+)\]\n"
                           r"\s+machine: (\w+)\n\s+bazel_arch: (\w+)\n\s+bazel_sha: ([0-9a-f]+)", unit)
         self.assertEqual(rows, [
-            ("amd64", "self-hosted, Linux, X64, debian-trixie-container", "x86_64", "x86_64",
+            ("amd64", "45", "self-hosted, Linux, X64, debian-trixie-container", "x86_64", "x86_64",
              "61d89402f0368e64b6c827be5de79d8e65382e8124c3cbb97325611a1851392e"),
-            ("arm64", "ubuntu-24.04-arm", "aarch64", "arm64",
+            ("arm64", "30", "ubuntu-24.04-arm", "aarch64", "arm64",
              "b7f2a85595e8a87d54843bc656c1e379fd9b8c1b5f783dc41717c1d7eb7cc49f"),
         ])
         self.assertNotIn("REGISTRY_CI_TEST_ARM_EXECUTOR", unit)
@@ -2163,14 +2258,16 @@ class WorkflowMatrixTests(unittest.TestCase):
     def test_native_unit_bazel_setup_uses_each_execution_architecture(self):
         unit = self.workflow.split("  unit:\n", 1)[1].split("  cross_fixture:\n", 1)[0]
         script = TestContainerTests.step(unit, "Install Bazel for real runner integration tests")
-        rows = re.findall(r"- architecture: (\w+)\n\s+runner: \[[^\]]+\]\n"
+        rows = re.findall(r"- architecture: (\w+)\n\s+timeout_minutes: \d+\n\s+runner: \[[^\]]+\]\n"
                           r"\s+machine: (\w+)\n\s+bazel_arch: (\w+)\n\s+bazel_sha: ([0-9a-f]+)", unit)
-        for architecture, machine, bazel_arch, checksum in rows:
-            with self.subTest(architecture=architecture), tempfile.TemporaryDirectory() as temporary:
+        cases = [(row, False) for row in rows] + [(row, True) for row in rows if row[0] == "arm64"]
+        for (architecture, machine, bazel_arch, checksum), emulated in cases:
+            on_worker = architecture == "amd64" or emulated
+            with self.subTest(architecture=architecture, emulated=emulated), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 environment = TestContainerTests.shell_environment(self, root, architecture, architecture, False)
                 environment.update(EXPECTED_MACHINE=machine, BAZEL_ARCH=bazel_arch, BAZEL_SHA=checksum,
-                                   GITHUB_ENV=str(root / "github-env"))
+                                   GITHUB_ENV=str(root / "github-env"), PILOT_EMULATED_ARM=str(emulated).lower())
                 chmod = root / "bin/chmod"
                 chmod.write_text('#!/bin/bash\nprintf "%s\\n" "$@" > "$RUNNER_TEMP/chmod-args"\n')
                 chmod.chmod(0o755)
@@ -2178,11 +2275,11 @@ class WorkflowMatrixTests(unittest.TestCase):
                                         text=True, capture_output=True)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual((root / "CHECKSUM_ARGS").read_text().splitlines(), ["--check", "--strict"])
-                binary = "/usr/local/lib/bazel-8.5.1" if architecture == "amd64" else environment["RUNNER_TEMP"] + "/bazel-8.5.1"
+                binary = "/usr/local/lib/bazel-8.5.1" if on_worker else environment["RUNNER_TEMP"] + "/bazel-8.5.1"
                 self.assertEqual((root / "CHECKSUM_LOG").read_text().strip(), checksum + "  " + binary)
-                selected = "/usr/local/bin/bazel" if architecture == "amd64" else binary
+                selected = "/usr/local/bin/bazel" if on_worker else binary
                 self.assertEqual((root / "github-env").read_text(), "REGISTRY_CI_TEST_BAZEL=" + selected + "\n")
-                if architecture == "amd64":
+                if on_worker:
                     self.assertFalse((root / "CURL_LOG").exists())
                 else:
                     self.assertEqual((root / "CURL_LOG").read_text().splitlines(),
@@ -2258,19 +2355,23 @@ class TestContainerTests(unittest.TestCase):
         expression = next(line.split("container: ", 1)[1] for line in workflow.splitlines()
                           if line.strip().startswith("container: "))
         selection = re.fullmatch(
-            r"\$\{\{ inputs\.architecture == 'arm64' && !inputs\.cross_compile && '(\S+@sha256:[0-9a-f]{64})' \|\| '' \}\}",
+            r"\$\{\{ inputs\.architecture == 'arm64' && !inputs\.cross_compile && !inputs\.emulated_arm && '(\S+@sha256:[0-9a-f]{64})' \|\| '' \}\}",
             expression)
         self.assertIsNotNone(selection)
         self.assertIn("TEST_CONTAINER_IMAGE: " + expression, workflow)
-        self.assertIn("if: inputs.architecture == 'arm64' && !inputs.cross_compile", workflow)
+        self.assertIn("if: inputs.architecture == 'arm64' && !inputs.cross_compile && !inputs.emulated_arm", workflow)
         self.assertIn("CI_EXECUTION_ARCHITECTURE: ${{ inputs.execution_architecture || inputs.architecture }}", workflow)
         self.assertRegex(workflow, r"cross_compile:\n\s+type: boolean\n\s+default: false")
-        for architecture, execution, cross in (("amd64", "amd64", False), ("arm64", "arm64", False),
-                                                ("arm64", "amd64", True)):
-            with self.subTest(architecture=architecture, cross=cross), tempfile.TemporaryDirectory() as temporary:
+        self.assertRegex(workflow, r"emulated_arm:\n\s+description: [^\n]+\n\s+type: boolean\n\s+default: false")
+        for architecture, execution, cross, emulated in (
+                ("amd64", "amd64", False, False), ("arm64", "arm64", False, False),
+                ("arm64", "amd64", True, False), ("arm64", "arm64", False, True)):
+            with self.subTest(architecture=architecture, cross=cross, emulated=emulated), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 environment = self.shell_environment(root, architecture, execution, cross)
-                environment["TEST_CONTAINER_IMAGE"] = selection[1] if execution == "arm64" else ""
+                environment["PILOT_EMULATED_ARM"] = str(emulated).lower()
+                environment["TEST_CONTAINER_IMAGE"] = selection[1] if execution == "arm64" and not emulated else ""
+                on_worker = execution == "amd64" or emulated
                 for name in ("Validate execution route", "Install Bazel 8.5.1", "Build and test through the registry"):
                     result = subprocess.run(["/bin/bash", "-c", self.step(workflow, name)], env=environment,
                                             text=True, capture_output=True)
@@ -2279,6 +2380,11 @@ class TestContainerTests(unittest.TestCase):
                 self.assertEqual((root / "CHECKSUM_ARGS").read_text().splitlines(), ["--check", "--strict"])
                 if execution == "amd64":
                     self.assertEqual(checksum, ["61d89402f0368e64b6c827be5de79d8e65382e8124c3cbb97325611a1851392e",
+                                                "/usr/local/lib/bazel-8.5.1"])
+                    self.assertFalse((root / "CURL_LOG").exists())
+                    self.assertFalse((root / "INSTALL_LOG").exists())
+                elif emulated:
+                    self.assertEqual(checksum, ["b7f2a85595e8a87d54843bc656c1e379fd9b8c1b5f783dc41717c1d7eb7cc49f",
                                                 "/usr/local/lib/bazel-8.5.1"])
                     self.assertFalse((root / "CURL_LOG").exists())
                     self.assertFalse((root / "INSTALL_LOG").exists())
@@ -2292,24 +2398,205 @@ class TestContainerTests(unittest.TestCase):
                 arguments = (root / "CAPTURE").read_text().splitlines()
                 self.assertEqual(arguments[arguments.index("--architecture") + 1], architecture)
                 self.assertEqual(arguments[arguments.index("--test-container-image") + 1],
-                                 environment["SONIC_RUNNER_IMAGE_REFERENCE"] if execution == "amd64" else selection[1])
+                                 environment["SONIC_RUNNER_IMAGE_REFERENCE"] if on_worker else selection[1])
                 self.assertEqual(arguments[arguments.index("--bazel") + 1], "/usr/local/bin/bazel")
                 self.assertEqual([arg for arg in arguments if arg.startswith("--bazel-startup-arg=")],
-                                 ["--bazel-startup-arg=--host_jvm_args=-Xmx2g"] if execution == "amd64" else [])
-                self.assertEqual([arg for arg in arguments if arg.startswith("--bazel-build-arg=")],
-                                 ["--bazel-build-arg=--jobs=1", "--bazel-build-arg=--discard_analysis_cache"]
-                                 if execution == "amd64" else [])
+                                 ["--bazel-startup-arg=--host_jvm_args=-Xmx2g"] if on_worker else [])
+                expected_flags = ["--bazel-build-arg=--jobs=1", "--bazel-build-arg=--discard_analysis_cache"] if on_worker else []
+                if emulated:
+                    expected_flags.append("--bazel-build-arg=--experimental_worker_for_repo_fetching=off")
+                self.assertEqual([arg for arg in arguments if arg.startswith("--bazel-build-arg=")], expected_flags)
                 self.assertEqual("--cross-compile" in arguments, cross)
                 self.assertEqual("--test-executor" in arguments, cross)
                 if cross:
                     self.assertEqual(arguments[arguments.index("--test-executor") + 1], environment["ARM_TEST_EXECUTOR"])
                 self.assertEqual(arguments[arguments.index("--work-dir") + 1], str(root / "runner temp/registry-ci"))
-                if execution == "amd64":
+                if on_worker:
                     self.assertEqual((root / "GIT_LOG").read_text().splitlines(),
                                      ["config", "--global", "--add", "safe.directory", str(root / "workspace")])
+                if execution == "amd64":
                     self.assertEqual(len((root / "SUDO_LOG").read_text().splitlines()), 2)
                 else:
                     self.assertFalse((root / "SUDO_LOG").exists())
+
+    def test_pilot_arm_launcher_uses_platform_threads_for_bazel(self):
+        helper = (registry_ci.ROOT / "ci/pilot_arm.sh").read_text()
+        launcher = helper.split("<<'LAUNCHER'\n", 1)[1].split("\nLAUNCHER", 1)[0]
+        # Use printf as Bazel to inspect exactly which arguments the launcher passes.
+        launcher = launcher.replace("/usr/local/lib/bazel-8.5.1", "/usr/bin/printf '%s\\n'")
+
+        def arguments(*args):
+            return subprocess.check_output(["sh", "-c", launcher, "bazel", *args],
+                                           text=True).splitlines()
+
+        self.assertEqual(arguments("--version"), ["--version"])
+        flags = arguments("build", "//:data")
+        self.assertEqual(flags[-2:], ["build", "//:data"])
+        startup = flags[:flags.index("build")]
+        self.assertIn("--server_javabase=/usr/lib/jvm/java-21-openjdk-arm64", startup)
+        self.assertIn("--host_jvm_args=-Xmx2g", startup)
+        self.assertIn("--host_jvm_args=-Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts", startup)
+        unlock = flags.index("--host_jvm_args=-XX:+UnlockExperimentalVMOptions")
+        platform_threads = flags.index("--host_jvm_args=-XX:-VMContinuations")
+        self.assertLess(unlock, platform_threads)
+        self.assertLess(platform_threads, flags.index("build"))
+
+    def test_pilot_kernel_wrapper_preserves_other_test_arguments_and_status(self):
+        wrapper = registry_ci.ROOT / "ci/pilot_arm_kernel.sh"
+        for target in ("@rules_distroless//registry_ci:other_test", "@other//registry_ci:linux_headers_test"):
+            with self.subTest(target=target):
+                result = subprocess.run(
+                    ["bash", str(wrapper), "/bin/sh", "-c", 'printf "%s" "$1"; exit 29',
+                     "other-test", "argument with spaces"],
+                    env={**os.environ, "TEST_TARGET": target}, capture_output=True, text=True,
+                )
+                self.assertEqual(result.stdout, "argument with spaces")
+                self.assertEqual(result.returncode, 29)
+
+    def test_only_emulated_build_infra_sets_the_kernel_build_shell(self):
+        workflow = (registry_ci.ROOT / ".github/workflows/registry-module.yml").read_text()
+        step = self.step(workflow, "Build and test through the registry")
+        for module, arch, execution, guest in (("sonic-build-infra", "arm64", "arm64", True),
+                                              ("sonic-build-infra", "arm64", "arm64", False),
+                                              ("sonic-build-infra", "arm64", "amd64", False),
+                                              ("sonic-build-infra", "amd64", "amd64", False),
+                                              ("libyang", "arm64", "arm64", True)):
+            with self.subTest(module=module, arch=arch, execution=execution, guest=guest), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                env = self.shell_environment(root, arch, execution, arch != execution)
+                env.update(CI_MODULE=module, PILOT_EMULATED_ARM=str(guest).lower())
+                subprocess.run(["bash", "-c", step], env=env, capture_output=True, check=True)
+                arguments = (root / "CAPTURE").read_text().splitlines()
+                flags = [arg for arg in arguments if "--shell_executable=" in arg or "SONIC_PILOT_INFRA_WORK=" in arg]
+                expected = ["--bazel-build-arg=--shell_executable=/usr/local/bin/sonic-pilot-build-shell",
+                            f"--bazel-build-arg=--action_env=SONIC_PILOT_INFRA_WORK={env['RUNNER_TEMP']}/registry-ci"]
+                self.assertEqual(flags, expected if module == "sonic-build-infra" and guest else [])
+
+    def test_pilot_build_shell_routes_the_libtool_action_inside_its_workspace(self):
+        action = ("bazel-out/aarch64-fastbuild/bin/external/sonic-build-infra+/"
+                  "tools/build_tools/libtool_fixture_foreign_cc/wrapper_build_script.sh")
+        with tempfile.TemporaryDirectory() as tmp:
+            work = Path(tmp) / "registry work"
+            cwd = work / "sandbox"
+            cwd.mkdir(parents=True)
+            unshare = Path(tmp) / "unshare"
+            unshare.write_text('#!/bin/sh\nprintf "%s\\n" "$@"\nexit 31\n')
+            unshare.chmod(0o755)
+            env = {**os.environ, "SONIC_PILOT_INFRA_WORK": str(work), "PATH": tmp + os.pathsep + os.environ["PATH"]}
+            shell = [str(registry_ci.ROOT / "ci/pilot_build_shell.sh")]
+            routed = subprocess.run(shell + ["-c", action], cwd=cwd, env=env, capture_output=True, text=True)
+            self.assertEqual(routed.returncode, 31)
+            self.assertEqual(routed.stdout.splitlines(), ["--mount", "--propagation", "unchanged", "--", *shell, "--fixture", action, os.readlink("/proc/self/ns/mnt")])
+            outside = Path(tmp) / "registry work-other"
+            outside.mkdir()
+            rejected = subprocess.run(shell + ["-c", action], cwd=outside, env=env, capture_output=True, text=True)
+            self.assertNotEqual(rejected.returncode, 0)
+            self.assertIn("outside its registry work directory", rejected.stderr)
+            ordinary = subprocess.run(shell + ["-c", 'printf "%s" "$1"; exit 29', "other", "argument with spaces"],
+                                      cwd=outside, env=env, capture_output=True, text=True)
+            self.assertEqual((ordinary.returncode, ordinary.stdout), (29, "argument with spaces"))
+
+    def test_pilot_compiler_routes_only_oversized_gcc_environments(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            work = Path(tmp)
+            originals = work / "original GCC wrappers"
+            originals.mkdir()
+            wrapper = work / "aarch64-linux-gnu-gcc"
+            kernel = work / "kernel"
+            kernel.write_text("""#!/bin/sh
+set -eu
+test "$1" = --bind && test "$2" = "$SONIC_PILOT_INFRA_WORK"
+test "$3" = --cwd && test "$4" = "$PWD" && test "$5" = --
+shift 5
+if [ "${TERMINATE_KERNEL:-}" = yes ]; then kill -KILL $$; fi
+export TEST_IN_KERNEL=yes
+exec "$@"
+""")
+            kernel.chmod(0o755)
+            script = (registry_ci.ROOT / "ci/pilot_compiler.py").read_text()
+            wrapper.write_text(script.replace('"/usr/local/bin/sonic-arm64-kernel"', repr(str(kernel))))
+            wrapper.chmod(0o755)
+            original = originals / wrapper.name
+            original.write_text("""#!/bin/sh
+if [ "$1" = '-###' ]; then
+    echo preview >> "$SONIC_PILOT_INFRA_WORK/calls"
+    if [ "$2" = overflow ]; then
+        python3 -c 'import os,sys; print("COLLECT_GCC_OPTIONS=" + "x" * (32 * os.sysconf("SC_PAGE_SIZE")), file=sys.stderr)'
+    else
+        echo 'COLLECT_GCC_OPTIONS=-Wl,@response-file' >&2
+    fi
+    exit 0
+fi
+test "$2" = "spaces and 'quote'" && test -z "$3" || exit 1
+printf '%s\\n' "$0" "${TEST_IN_KERNEL:-no}" >&2
+cat
+exit 37
+""")
+            env = {**os.environ, "SONIC_PILOT_INFRA_WORK": tmp, "SONIC_PILOT_GCC_ORIGINALS": str(originals)}
+            stdin = b"\0input with a newline\n\xff"
+            for mode, size, kernel_expected, terminate in (
+                    ("small", 1, False, False), ("adapted", 66000, False, False),
+                    ("overflow", 66000, True, False), ("overflow", 66000, True, True)):
+                with self.subTest(mode=mode, terminate=terminate):
+                    calls = work / "calls"
+                    calls.unlink(missing_ok=True)
+                    result = subprocess.run([str(wrapper), mode, "spaces and 'quote'", "", "x" * size],
+                                            cwd=work, env={**env, "TERMINATE_KERNEL": "yes" if terminate else "no"},
+                                            input=stdin, capture_output=True)
+                    self.assertEqual(calls.exists(), size > 65536)
+                    self.assertEqual(result.returncode, -9 if terminate else 37, result.stderr)
+                    if not terminate:
+                        self.assertEqual(result.stdout, stdin)
+                        self.assertEqual(result.stderr.decode().splitlines(), [str(wrapper), "yes" if kernel_expected else "no"])
+                    self.assertEqual(list(originals.iterdir()), [original])
+
+    def test_pilot_overrides_the_openssl_recipe_interpreter_only_on_emulated_fips(self):
+        workflow = (registry_ci.ROOT / ".github/workflows/registry-module.yml").read_text()
+        script = self.step(workflow, "Build and test through the registry")
+        for module, arch, emulated in (("sonic-fips", "amd64", False), ("sonic-fips", "arm64", False),
+                                       ("libyang", "arm64", True), ("sonic-fips", "arm64", True)):
+            with self.subTest(module=module, arch=arch, emulated=emulated), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                env = self.shell_environment(root, arch, arch, False)
+                env.update(CI_MODULE=module, PILOT_EMULATED_ARM=str(emulated).lower(),
+                           GNUMAKEFLAGS="-r --warn-undefined-variables")
+                subprocess.run(["bash", "-c", script], env=env, check=True, capture_output=True)
+                arguments = (root / "CAPTURE").read_text().splitlines()
+                make_flags = [arg for arg in arguments if "GNUMAKEFLAGS=" in arg]
+                if module == "sonic-fips" and emulated:
+                    self.assertEqual(make_flags, ["--bazel-build-arg=--action_env=GNUMAKEFLAGS=-r "
+                                                  "--warn-undefined-variables HARNESS_PERL=/usr/local/bin/sonic-pilot-fips-recipe"])
+                else:
+                    self.assertEqual(make_flags, [])
+
+    def test_pilot_fips_runs_the_cmp_http_recipe_with_the_declared_perl(self):
+        wrapper = registry_ci.ROOT / "ci/pilot_fips_recipe.sh"
+        with tempfile.TemporaryDirectory() as tmp:
+            perl = Path(tmp) / "declared perl"
+            perl.write_text('#!/bin/sh\nprintf "%s\\n" "$@"\nexit 37\n')
+            perl.chmod(0o755)
+            args = ["test/recipes/80-test_cmp_http.t", "argument with spaces"]
+            env = {**os.environ, "SONIC_TEST_PERL": str(perl), "SONIC_TEST_PERL_LIB": "vendor modules"}
+            result = subprocess.run([str(wrapper), *args], env=env, capture_output=True, text=True)
+        self.assertEqual(result.stdout.splitlines(), ["-Ivendor modules", *args])
+        self.assertEqual(result.returncode, 37)
+
+    def test_pilot_limits_nested_compilers_for_targets_and_tools(self):
+        workflow = (registry_ci.ROOT / ".github/workflows/registry-module.yml").read_text()
+        script = self.step(workflow, "Build and test through the registry")
+        for module, arch, guest, limited in (("p4c", "amd64", False, True), ("sonic-dash", "amd64", False, True),
+                                             ("p4lang-bmv2", "amd64", False, True), ("libyang", "amd64", False, False),
+                                             ("p4c", "arm64", True, True), ("p4c", "arm64", False, False),
+                                             ("p4lang-bmv2", "arm64", False, False)):
+            with self.subTest(module=module, arch=arch, guest=guest), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                env = self.shell_environment(root, arch, arch, False)
+                env.update(CI_MODULE=module, PILOT_EMULATED_ARM=str(guest).lower())
+                subprocess.run(["bash", "-c", script], env=env, check=True, capture_output=True)
+                arguments = (root / "CAPTURE").read_text().splitlines()
+                for flag in ("--action_env", "--host_action_env"):
+                    self.assertEqual(f"--bazel-build-arg={flag}=GNUMAKEFLAGS=--eval=.NOTPARALLEL:" in arguments,
+                                     limited)
 
     def test_invalid_or_unprepared_routes_fail_before_invoking_the_helper(self):
         workflow = (registry_ci.ROOT / ".github/workflows/registry-module.yml").read_text()
@@ -2328,6 +2615,40 @@ class TestContainerTests(unittest.TestCase):
                 result = subprocess.run(["/bin/bash", "-c", script], env=environment, text=True, capture_output=True)
                 self.assertNotEqual(result.returncode, 0)
                 self.assertFalse((root / "CAPTURE").exists())
+
+    def test_local_p4_builds_limit_make_for_targets_and_tools(self):
+        workflow = (registry_ci.ROOT / ".github/workflows/registry-module.yml").read_text()
+        script = self.step(workflow, "Build and test through the registry")
+        for module, target, execution, prior, expected, large in (
+            ("p4c", "amd64", "amd64", None, "--eval=.NOTPARALLEL:", False),
+            ("p4c", "arm64", "amd64", "-r --warn-undefined-variables", "-r --warn-undefined-variables --eval=.NOTPARALLEL:", False),
+            ("p4lang-bmv2", "amd64", "amd64", "", "--eval=.NOTPARALLEL:", False),
+            ("sonic-dash", "arm64", "amd64", "-r", "-r --eval=.NOTPARALLEL:", False),
+            ("p4c", "arm64", "arm64", "-r", None, False),
+            ("libyang", "amd64", "amd64", "-r", None, False),
+            ("p4c", "amd64", "amd64", None, None, True),
+            ("p4c", "arm64", "amd64", None, None, True),
+            ("p4lang-bmv2", "amd64", "amd64", None, None, True),
+            ("sonic-dash", "amd64", "amd64", None, None, True),
+        ):
+            with self.subTest(module=module, target=target, execution=execution), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                env = self.shell_environment(root, target, execution, target != execution)
+                env["CI_MODULE"] = module
+                env["CI_LARGE_RUNNER"] = str(large).lower()
+                env.pop("GNUMAKEFLAGS", None)
+                if prior is not None:
+                    env["GNUMAKEFLAGS"] = prior
+                result = subprocess.run(["bash", "-c", script], env=env, capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                args = (root / "CAPTURE").read_text().splitlines()
+                self.assertEqual("ci/p4_runner_resources.py" in args, large)
+                if large:
+                    self.assertIn("--bazel-build-arg=--jobs=1", args)
+                self.assertEqual([arg for arg in args if "GNUMAKEFLAGS=" in arg], [] if expected is None else [
+                    "--bazel-build-arg=--action_env=GNUMAKEFLAGS=" + expected,
+                    "--bazel-build-arg=--host_action_env=GNUMAKEFLAGS=" + expected,
+                ])
 
     def test_module_archive_preserves_modes_and_uses_sudo_only_for_local_execution(self):
         workflow = (registry_ci.ROOT / ".github/workflows/registry-module.yml").read_text()
@@ -2388,6 +2709,25 @@ class BazelStartupArgumentTests(unittest.TestCase):
 
 
 class FetchedModuleTests(FixtureTestCase):
+    def test_verified_distdir_reaches_build_test_queries_and_rust_preparation(self) -> None:
+        with mock.patch.object(registry_ci, "prepare_github_sources", return_value=["--distdir=/verified/inputs"]) as prepare, \
+             mock.patch.object(registry_ci, "prepare_rust", wraps=registry_ci.prepare_rust) as rust, \
+             mock.patch.object(registry_ci, "run_logged", wraps=registry_ci.run_logged) as execute:
+            self.run_fixture("github-inputs", build_args=["--experimental_downloader_config=/private/config"])
+        self.assertEqual(prepare.call_args.args[1:4], ("alpha", "1.0.0", self.architecture))
+        self.assertIn("--distdir=/verified/inputs", rust.call_args.args[-1])
+        for call in execute.call_args_list:
+            if call.args[0][0] == str(self.fake_bazel):
+                self.assertIn("--distdir=/verified/inputs", call.args[0])
+                self.assertIn("--experimental_downloader_config=/private/config", call.args[0])
+
+    def test_github_input_failure_prevents_bazel_startup(self) -> None:
+        with mock.patch.object(registry_ci, "prepare_github_sources", side_effect=registry_ci.RegistryError("unverified GitHub input")), \
+             mock.patch.object(registry_ci, "run_logged") as execute:
+            with self.assertRaisesRegex(registry_ci.RegistryError, "unverified GitHub input"):
+                self.run_fixture("github-rejected")
+        execute.assert_not_called()
+
     def setUp(self) -> None:
         super().setUp()
         self.registry_entry = self.entry("alpha", "1.0.0")
@@ -2708,6 +3048,43 @@ a.output.write_text(json.dumps(r))
             with self.assertRaisesRegex(registry_ci.RegistryError, "test-container-image"):
                 self.run_fixture("no-container")
             execute.assert_not_called()
+
+    def test_architecture_additions_reach_argv_verified_outputs_and_receipt(self) -> None:
+        self.config["architectures"] = ["amd64", "arm64"]
+        self.config["platforms"] = {arch: "@alpha//:" + arch for arch in self.config["architectures"]}
+        self.config["additional_targets"] = {
+            "amd64": {"build_targets": ["@alpha//:extra_library"], "test_targets": ["@alpha//:extra_test"]},
+        }
+        write_json(self.config_path, self.config)
+        # The fake Bazel emits evidence for each extra target only when the command requests it.
+        script = self.fake_bazel.read_text().replace(
+            "    print(json.dumps({'label': '@@alpha+//:library', 'trees': []}))",
+            "    requested = args[-1].removeprefix('config(').split(',')[0]\n"
+            "    print(json.dumps({'label': requested, 'trees': []}))")
+        script = script.replace(
+            "    Path(path).write_text",
+            "    if '@alpha//:extra_library' in args:\n"
+            "        extra = json.loads(json.dumps(events[-1]).replace('//:library', '//:extra_library'))\n"
+            "        events.append(extra)\n"
+            "    if '@alpha//:extra_test' in args:\n"
+            "        events.extend(json.loads(json.dumps(events).replace('//:consumer_test', '//:extra_test')))\n"
+            "    Path(path).write_text")
+        self.fake_bazel.write_text(script)
+        for arch in self.config["architectures"]:
+            with self.subTest(arch=arch), mock.patch.object(registry_ci, "verify_native", return_value={}), \
+                    mock.patch.object(registry_ci, "run_logged", wraps=registry_ci.run_logged) as execute:
+                artifacts = self.run_fixture("extras-" + arch, arch)
+                extra = self.config["additional_targets"].get(arch, {})
+                builds = self.config["build_targets"] + extra.get("build_targets", [])
+                tests = self.config["test_targets"] + extra.get("test_targets", [])
+                commands = [call.args[0] for call in execute.call_args_list]
+                for subcommand, expected in (("build", builds), ("test", tests)):
+                    args = next(cmd for cmd in commands if subcommand in cmd)
+                    self.assertEqual([a for a in args if a.startswith("@alpha//:")], expected)
+                receipt = json.loads((artifacts / "validation.json").read_text())
+                self.assertEqual(receipt["build_targets"], builds)
+                self.assertEqual(receipt["passed_tests"], tests)
+                self.assertEqual(set(json.loads((artifacts / "outputs.json").read_text())), set(builds))
 
     def test_every_consumer_dependency_is_pinned_by_module_name_and_recorded(self) -> None:
         artifacts = self.run_fixture("control")
@@ -3121,22 +3498,27 @@ a.output.write_text(json.dumps(r))
                 ("native", False, []),
                 ("native-explicit", False, ["--test_timeout=42"]),
                 ("emulated", True, []),
+                ("guest", False, []),
+                ("guest-explicit", False, ["--test_timeout=42"]),
                 ("caller-scalar", True, ["--test_timeout=42"]),
                 ("caller-tiers", True, ["--test_timeout=10,20,30,40"]),
                 ("caller-separate", True, ["--test_timeout", "47"])):
             with self.subTest(case=suffix):
+                guest = suffix.startswith("guest")
+                emulated = guest or cross
                 commands_path.write_text("")
-                with mock.patch.object(registry_ci, "verify_native", return_value={"userspace": "amd64"}), \
+                with mock.patch.dict(os.environ, {"PILOT_EMULATED_ARM": str(guest).lower()}), \
+                        mock.patch.object(registry_ci, "verify_native", return_value={"userspace": "amd64"}), \
                         mock.patch.object(registry_ci, "require_test_container"), \
                         mock.patch.object(registry_ci.cross_toolchain, "prepare", return_value=adapted):
-                    artifacts = self.run_fixture(suffix, architecture="arm64" if cross else "amd64",
+                    artifacts = self.run_fixture(suffix, architecture="arm64" if emulated else "amd64",
                                                  build_args=caller, cross_compile=cross,
                                                  test_executor=executor if cross else None)
                 commands = [json.loads(line) for line in commands_path.read_text().splitlines()]
                 test_command, = [command for command in commands if "test" in command]
                 timeouts = [arg for arg in test_command
                             if arg == "--test_timeout" or arg.startswith("--test_timeout=")]
-                expected = [caller[0]] if caller else ([default] if cross else [])
+                expected = [caller[0]] if caller else ([default] if emulated else [])
                 self.assertEqual(timeouts, expected)
                 if caller == ["--test_timeout", "47"]:
                     self.assertEqual(test_command[test_command.index("--test_timeout") + 1], "47")
@@ -3144,7 +3526,7 @@ a.output.write_text(json.dumps(r))
                     if "test" not in command:
                         self.assertNotIn(default, command)
                 evidence = json.loads((artifacts / "validation.json").read_text())
-                self.assertEqual(default in evidence["test_runtime_flags"], cross and not caller)
+                self.assertEqual(default in evidence["test_runtime_flags"], emulated and not caller)
 
     def test_cross_runtime_must_match_target_architecture_and_distribution(self) -> None:
         expected = {"system": "Linux", "machine": "aarch64", "userspace": "arm64", "debian_codename": "trixie"}

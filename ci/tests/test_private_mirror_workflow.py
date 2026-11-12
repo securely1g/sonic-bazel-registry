@@ -28,6 +28,7 @@ CHECKOUT_FILES = {
     "": (),
 }
 TRIXIE = ["self-hosted", "Linux", "X64", "debian-trixie-container"]
+LARGE_TRIXIE = ["self-hosted", "Linux", "X64", "debian-trixie-container-large"]
 
 
 def expression_value(expression, context):
@@ -67,11 +68,37 @@ def mirror_kind(job, context):
 
 
 class PrivateMirrorSecretBoundaryTest(unittest.TestCase):
+    def test_only_the_same_repository_validation_pr_selects_the_full_fleet_matrix(self):
+        workflow = (WORKFLOWS / "registry-ci.yml").read_text()
+        plan = workflow_job(workflow, "plan")
+        self.assertIn("runs-on: &trixie_runner [" + ", ".join(TRIXIE) + "]", plan)
+        fleet_flag = re.search(r"^          FLEET_VALIDATION: \$\{\{ (.*) \}\}$", plan, re.M)[1]
+        repo = "securely1g/sonic-bazel-registry"
+        trusted = {"github.repository": repo, "github.event.pull_request.head.repo.full_name": repo,
+                   "github.event_name": "pull_request", "github.event.pull_request.number": 270,
+                   "github.base_ref": "codex/k3s-runner-fleet-sample-base"}
+        unit = workflow_job(workflow, "unit")
+        unit_selector = re.search(r"^    runs-on: \$\{\{ (.*) \}\}$", unit, re.M)[1]
+        for changes, expected in (({}, True), ({"github.event_name": "push"}, False),
+                                  ({"github.event.pull_request.number": 271}, False),
+                                  ({"github.base_ref": "main"}, False),
+                                  ({"github.event.pull_request.head.repo.full_name": "fork/registry"}, False),
+                                  ({"github.repository": "fork/registry",
+                                    "github.event.pull_request.head.repo.full_name": "fork/registry"}, False)):
+            with self.subTest(changes=changes):
+                ctx = trusted | changes
+                self.assertEqual(bool(expression_value(fleet_flag, ctx)), expected)
+                for default in (TRIXIE, ["ubuntu-24.04-arm"]):
+                    unit_ctx = {"needs.plan.outputs.fleet_validation": str(expected).lower(), "matrix.runner": default}
+                    self.assertEqual(expression_value(unit_selector, unit_ctx), TRIXIE if expected else default)
+        for job in ("cross_fixture", "required"):
+            self.assertIn("runs-on: *trixie_runner", workflow_job(workflow, job))
+
     def test_agent_compiles_once_without_secrets_or_tool_installation(self):
         workflow = (WORKFLOWS / "registry-ci.yml").read_text()
         self.assertNotIn("\n  http_audit:\n", workflow)
         producer = workflow.split("  plan:\n", 1)[1].split("  unit:\n", 1)[0]
-        self.assertIn("runs-on: [self-hosted, Linux, X64, debian-trixie-container]", producer)
+        self.assertIn("runs-on: &trixie_runner", producer)
         compile_step = step(producer, "Compile the maintained audit source once")
         upload_step = step(producer, "Publish the same-run audit agent")
         self.assertIn("continue-on-error: true", compile_step)
@@ -175,8 +202,21 @@ class PrivateMirrorSecretBoundaryTest(unittest.TestCase):
             chooser = plan if name == "modules_local" else job
             self.assertLess(chooser.index("uses: actions/checkout@"), chooser.index("id: mirror_config"))
             self.assertNotIn("secrets.", step(chooser, "Identify the checked-out mirror configuration"))
+            large_module_cases = (
+                ("pull_request", "owner/repo", "maintainer", LARGE_TRIXIE, True),
+                ("pull_request", "fork/repo", "contributor", LARGE_TRIXIE, False),
+                ("pull_request", "owner/repo", "dependabot[bot]", LARGE_TRIXIE, False),
+                ("push", "", "maintainer", LARGE_TRIXIE, True),
+                ("workflow_dispatch", "", "maintainer", LARGE_TRIXIE, True),
+                ("push", "", "maintainer", ["debian-trixie-container-large"], False),
+                ("push", "", "maintainer", [*TRIXIE[:-1], "debian-trixie-container-larger"], False),
+            ) if name in ("modules_local", "validate") else ()
             for event, head, actor, runner, trusted in (
+                *large_module_cases,
                 ("pull_request", "owner/repo", "maintainer", TRIXIE, True),
+                ("pull_request", "owner/repo", "maintainer", ["debian-trixie-container"], False),
+                ("pull_request", "owner/repo", "maintainer",
+                 ["self-hosted", "debian-trixie-container-other"], False),
                 ("push", "", "maintainer", TRIXIE, True),
                 ("workflow_dispatch", "", "maintainer", TRIXIE, True),
                 ("pull_request", "fork/repo", "contributor", TRIXIE, False),
@@ -212,7 +252,7 @@ class PrivateMirrorSecretBoundaryTest(unittest.TestCase):
         arm_job = workflow.split("  modules_hosted_arm:\n", 1)[1].split("  required:\n", 1)[0]
         self.assertNotIn("secrets:", arm_job)
         cross_fixture = workflow.split("  cross_fixture:\n", 1)[1].split("  modules_local:\n", 1)[0]
-        self.assertIn("runs-on: [self-hosted, Linux, X64, debian-trixie-container]", cross_fixture)
+        self.assertIn("runs-on: *trixie_runner", cross_fixture)
         for secret in SECRETS:
             self.assertIn(f"secrets.{secret}", cross_fixture)
         reusable = (WORKFLOWS / "registry-module.yml").read_text()
@@ -242,6 +282,23 @@ class PrivateMirrorSecretBoundaryTest(unittest.TestCase):
                     context["needs.plan.outputs.mirror_config"] = mirror_kind(plan, context)
                     with self.subTest(secret=secret, architecture=architecture, head=head, actor=actor):
                         self.assertEqual(expression_value(expression, context), expected)
+
+    def test_large_module_audit_download_uses_same_trust_gate_and_matching_artifact(self):
+        reusable = (WORKFLOWS / "registry-module.yml").read_text()
+        download = step(reusable, "Download the optional same-run HTTP audit agent")
+        guard = re.search(r"if: \$\{\{ (.*) \}\}", download)[1]
+        for runner, head, actor, artifact, allowed in (
+            (LARGE_TRIXIE, "owner/repo", "maintainer", "123", True),
+            (LARGE_TRIXIE, "fork/repo", "contributor", "123", False),
+            (LARGE_TRIXIE, "owner/repo", "dependabot[bot]", "123", False),
+            (LARGE_TRIXIE, "owner/repo", "maintainer", "", False),
+            (["ubuntu-24.04-arm"], "owner/repo", "maintainer", "123", False),
+        ):
+            context = {"inputs.runner": json.dumps(runner), "inputs.http_audit_artifact_id": artifact,
+                       "github.event_name": "pull_request", "github.actor": actor,
+                       "github.repository": "owner/repo", "github.event.pull_request.head.repo.full_name": head}
+            with self.subTest(runner=runner, head=head, actor=actor, artifact=artifact):
+                self.assertEqual(bool(expression_value(guard, context)), allowed)
 
     def test_failed_privacy_check_blocks_each_upload(self):
         for filename, name, check in (
@@ -306,6 +363,40 @@ class PrivateMirrorWorkflowCommandTest(unittest.TestCase):
         workflow = (WORKFLOWS / "registry-module.yml").read_text()
         return subprocess.run(["bash", "-c", script(workflow, name)], cwd=self.directory,
                               env=self.environment, capture_output=True, text=True)
+
+    def test_emulated_dash_and_sairedis_release_idle_bazel_heap(self):
+        standard = ["-Xmx2g"]
+        periodic_gc = standard + ["-XX:G1PeriodicGCInterval=30000", "-XX:MinHeapFreeRatio=20", "-XX:MaxHeapFreeRatio=35"]
+        for module, target, execution, emulated, large, expected in (
+            ("sonic-dash", "arm64", "arm64", True, False, periodic_gc),
+            ("sonic-sairedis", "arm64", "arm64", True, False, periodic_gc),
+            ("sonic-sairedis", "amd64", "amd64", False, False, standard),
+            ("sonic-sairedis", "arm64", "amd64", False, False, standard),
+            ("sonic-sairedis", "arm64", "arm64", False, False, []),
+            ("p4c", "arm64", "arm64", True, False, standard),
+            ("p4lang-bmv2", "arm64", "arm64", True, False, standard),
+            ("sonic-swss-common", "arm64", "arm64", True, False, standard),
+            ("sonic-dash", "amd64", "amd64", False, False, periodic_gc),
+            ("sonic-dash", "amd64", "amd64", False, True, standard),
+            ("sonic-dash", "arm64", "amd64", False, False, standard),
+            ("sonic-dash", "arm64", "arm64", False, False, []),
+        ):
+            with self.subTest(module=module, target=target, execution=execution, emulated=emulated, large=large):
+                self.capture.unlink(missing_ok=True)
+                self.environment.update(CI_MODULE=module, CI_ARCHITECTURE=target, CI_EXECUTION_ARCHITECTURE=execution,
+                                        CI_CROSS_COMPILE=str(target != execution).lower(),
+                                        PILOT_EMULATED_ARM=str(emulated).lower(), CI_LARGE_RUNNER=str(large).lower())
+                result = self.run_step("Build and test through the registry")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                args = json.loads(self.capture.read_text())["args"]
+                prefix = "--bazel-startup-arg=--host_jvm_args="
+                self.assertEqual([arg.removeprefix(prefix) for arg in args if arg.startswith(prefix)], expected)
+                compiler_flags = [arg for arg in args if "GC_FREE_SPACE_DIVISOR" in arg]
+                expected_compiler_flags = (
+                    ["--bazel-build-arg=--host_cxxopt=-DGC_FREE_SPACE_DIVISOR=16"]
+                    if module == "sonic-dash" and expected == periodic_gc else []
+                )
+                self.assertEqual(compiler_flags, expected_compiler_flags)
 
     def test_module_build_uses_private_wrapper_without_secret_command_arguments(self):
         for architecture, cross in (("amd64", False), ("arm64", True)):
