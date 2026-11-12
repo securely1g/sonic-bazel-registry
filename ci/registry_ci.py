@@ -42,6 +42,11 @@ _AUTOCONF_SPEC = importlib.util.spec_from_file_location("registry_ci_cross_autoc
 assert _AUTOCONF_SPEC is not None and _AUTOCONF_SPEC.loader is not None
 cross_autoconf = importlib.util.module_from_spec(_AUTOCONF_SPEC)
 _AUTOCONF_SPEC.loader.exec_module(cross_autoconf)
+_GITHUB_SPEC = importlib.util.spec_from_file_location("registry_github_sources", Path(__file__).with_name("github_sources.py"))
+assert _GITHUB_SPEC is not None and _GITHUB_SPEC.loader is not None
+github_sources = importlib.util.module_from_spec(_GITHUB_SPEC)
+_GITHUB_SPEC.loader.exec_module(github_sources)
+P4_MODULES = {"p4c", "p4lang-bmv2", "sonic-dash"}
 RUNNERS = {
     "amd64": ["self-hosted", "Linux", "X64", "debian-trixie-container"],
     "arm64": ["ubuntu-24.04-arm"],
@@ -56,19 +61,42 @@ ARM_CROSS_ALL = False
 ARM_CROSS_VERSIONS: dict[str, tuple[str, ...]] = {
     "gawk": ("5.3.2.sonic.1",),
     "gazelle": ("0.54.0.sonic.1",),
+    "iproute2": ("6.15.0.sonic.7",),
     "libnl3": ("3.7.0.sonic.7",),
     "libyang-python": ("3.1.0.sonic.6",),
+    "p4c": ("1.2.4.2.sonic.3",),
+    "p4lang-bmv2": ("1.15.0.sonic.4",),
+    "p4lang-pi": ("0.1.3.sonic.3",),
     "protobuf-legacy": ("3.21.12.sonic.2",),
+    "rules_distroless": ("0.9.4.sonic.17",),
     "rules_foreign_cc": ("0.16.0.sonic.1",),
+    "rules_go": ("0.65.0.sonic.1",),
     "rules_python": ("1.9.0.sonic.1",),
     "sai": ("1.18.0-sonic.1",),
     "socat": ("1.8.0.2.sonic.5",),
+    "sonic-dash": ("0.0.1-2cbfdfa1205c0d03003444e5c80f89adb8c3df59",),
     "sonic-dash-api": ("0.0.5-9b2893e890734a2db0c53a5e5c64b031ec0dcfbd",),
     "sonic-linux-kernel": ("0.0.2-34a53faaecd325509e9d8f1016ed0108ab558a23",),
     "sonic-rust-deps": ("0.0.4-6d9c70f708d7420e9e2b2cdc906b80cee6b140f1",),
+    "sonic-sairedis": ("0.0.5-33443ea1666a23812365d03fb959066ee84c9aa0",),
+    "sonic-swss": ("0.0.3-9c3797990d4b5a79100a40fe7689927c18212361",),
     "sonic-yang-mgmt": ("1.0.0-9ab452d22773c41783092ae3bd6c206d6c257c8d",),
     "sonic-yang-models": ("1.0.1-b0a9362a7a1b4b5e1b7188c019d256f7c8aaff9f",),
     "tar.bzl": ("0.10.5.sonic.2",),
+}
+
+# Keep the coherent DASH registration in routine plans. The published
+# .3 registration remains the numeric latest version and keeps its usual jobs.
+ADDITIONAL_PRESUBMITS: set[tuple[str, str]] = {
+    ("sonic-dash", "0.0.1-2cbfdfa1205c0d03003444e5c80f89adb8c3df59"),
+}
+
+# The original wrappers stage a private target executable, loader and libraries.
+ARM_DECLARED_RUNTIME_FIXTURES = {
+    ("sonic-sairedis", "0.0.5-33443ea1666a23812365d03fb959066ee84c9aa0"): {
+        "saiasiccmp/tests.sh": "sonic-sairedis+/saiasiccmp/saiasiccmp",
+        "tests/tests_test.sh": "sonic-sairedis+/tests/tests",
+    },
 }
 
 HTTP_DOWNLOAD_FLAGS = (
@@ -93,8 +121,13 @@ def require(condition: bool, message: str) -> None:
 
 
 def read_json(path: Path) -> dict:
+    def presubmit_object(pairs: list[tuple[str, object]]) -> dict:
+        fields = dict(pairs)
+        require(len(fields) == len(pairs), "Duplicate field in presubmit.json")
+        return fields
+
     try:
-        value = json.loads(path.read_text())
+        value = json.loads(path.read_text(), object_pairs_hook=presubmit_object if path.name == "presubmit.json" else None)
     except (OSError, ValueError) as error:
         raise RegistryError(f"Cannot read {path}: {error}") from error
     require(isinstance(value, dict), f"{path}: expected a JSON object")
@@ -287,6 +320,17 @@ def sync_module(root: Path, module: str, version: str, check: bool = False) -> N
         source_path.write_text(json.dumps(source, indent=2) + "\n")
 
 
+def validate_targets(labels: list, field: str, module: str, config: dict) -> None:
+    require(isinstance(labels, list) and bool(labels) and all(isinstance(label, str) for label in labels),
+            f"{field} must be a nonempty list")
+    require(len(set(labels)) == len(labels), f"{field} must have unique targets")
+    for label in labels:
+        external = LABEL.fullmatch(label) is not None and label.startswith(f"@{module}//")
+        integration = "integration_test_module" in config and ROOT_LABEL.fullmatch(label) is not None
+        require((external or integration) and label.rsplit(":", 1)[1] not in ("all", "all-targets"),
+                f"{field} requires explicit targets in @{module} or the configured integration module: {label}")
+
+
 def validate_entry(root: Path, module: str, version: str) -> dict:
     entry = entry_directory(root, module, version)
     metadata = read_json(entry.parent / "metadata.json")
@@ -324,9 +368,9 @@ def validate_entry(root: Path, module: str, version: str) -> dict:
     required = {"architectures", "consumer_deps", "platforms", "build_targets", "test_targets"}
     require(required <= set(config) <= required | {
         "build_flags", "rust_preparation", "go_sdk", "rust_toolchain", "generated_module_overlay",
-        "test_runtime_preparation", "integration_test_module", "host_platforms",
+        "test_runtime_preparation", "integration_test_module", "host_platforms", "additional_targets",
     }, f"presubmit.json requires {sorted(required)} and optionally "
-       "build_flags/rust_preparation/go_sdk/rust_toolchain/generated_module_overlay/test_runtime_preparation/integration_test_module/host_platforms")
+       "build_flags/rust_preparation/go_sdk/rust_toolchain/generated_module_overlay/test_runtime_preparation/integration_test_module/host_platforms/additional_targets")
     if "test_runtime_preparation" in config:
         preparation = config["test_runtime_preparation"]
         require(isinstance(preparation, dict) and {"script", "sha256"} <= set(preparation)
@@ -398,17 +442,20 @@ def validate_entry(root: Path, module: str, version: str) -> dict:
                 "rust_toolchain requires rules_rs as the tested module or a declared consumer dependency")
         for option in ("mangled_allocator_libraries", "bindgen"):
             require(type(toolchain.get(option, False)) is bool, f"rust_toolchain {option} must be a boolean")
-    for field in ("build_targets", "test_targets"):
-        labels = config[field]
-        require(isinstance(labels, list) and bool(labels) and all(isinstance(label, str) for label in labels),
-                f"{field} must be a nonempty list")
-        require(len(set(labels)) == len(labels), f"{field} must have unique targets")
-        for label in labels:
-            external = LABEL.fullmatch(label) is not None and label.startswith(f"@{module}//")
-            integration = "integration_test_module" in config and ROOT_LABEL.fullmatch(label) is not None
-            require((external or integration)
-                    and label.rsplit(":", 1)[1] not in ("all", "all-targets"),
-                    f"{field} requires explicit targets in @{module} or the configured integration module: {label}")
+    target_fields = ("build_targets", "test_targets")
+    for field in target_fields:
+        validate_targets(config[field], field, module, config)
+    if "additional_targets" in config:
+        additions = config["additional_targets"]
+        require(isinstance(additions, dict) and bool(additions) and set(additions) <= set(architectures),
+                "additional_targets must map configured architectures to target lists")
+        for arch, extra in additions.items():
+            require(isinstance(extra, dict) and bool(extra) and set(extra) <= set(target_fields),
+                    f"additional_targets.{arch} requires build_targets or test_targets")
+            for field, labels in extra.items():
+                validate_targets(labels, f"additional_targets.{arch}.{field}", module, config)
+                require(not set(config[field]).intersection(labels),
+                        f"additional_targets.{arch}.{field} repeats a common target")
     build_flags = config.get("build_flags", [])
     require(isinstance(build_flags, list), "build_flags must be a list")
     settings = set()
@@ -610,9 +657,17 @@ def check_version_policy(root: Path, published: str, head: str,
     return published_entries
 
 
+def module_runner(module: str, execution_architecture: str, p4_runner_profile: str) -> list[str]:
+    """Choose capacity after the target's native/cross route has been determined."""
+    if p4_runner_profile == "large" and execution_architecture == "amd64" and module in P4_MODULES:
+        return ["self-hosted", "Linux", "X64", "debian-trixie-container-large"]
+    return RUNNERS[execution_architecture]
+
+
 def plan(root: Path, base: str | None, head: str | None, all_versions: bool = False,
          latest_versions: bool = False, published: str | None = None,
-         push: bool = False) -> dict:
+         push: bool = False, p4_runner_profile: str = "large") -> dict:
+    require(p4_runner_profile in ("standard", "large"), "Invalid P4 runner profile")
     require(not (all_versions and latest_versions), "Choose either --all or --latest")
     require(not ((all_versions or latest_versions) and base),
             "Do not combine --all/--latest with --base")
@@ -625,6 +680,7 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
                         for path in (root / "modules").glob("*/*/presubmit.json"))
     elif latest_versions:
         selected.update(latest_presubmits(root))
+        selected.update(ADDITIONAL_PRESUBMITS)
     else:
         require(bool(base) and bool(head), "plan requires --base/--head, --latest or --all")
         require(re.fullmatch(r"[0-9a-fA-F]{40,64}", base) is not None
@@ -689,6 +745,7 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
                         selected.add((module, parts[2]))
         if ci_changed:
             selected.update(latest_presubmits(root))
+            selected.update(ADDITIONAL_PRESUBMITS)
     require(type(ARM_CROSS_ALL) is bool, "ARM cross survey selection must be boolean")
     require(isinstance(ARM_CROSS_VERSIONS, dict), "ARM cross routes must be a module/version map")
     for module, versions in ARM_CROSS_VERSIONS.items():
@@ -705,7 +762,8 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
             execution_architecture = "amd64" if cross_compile else architecture
             include.append({"module": module, "version": version, "architecture": architecture,
                             "execution_architecture": execution_architecture,
-                            "cross_compile": cross_compile, "runner": RUNNERS[execution_architecture]})
+                            "cross_compile": cross_compile,
+                            "runner": module_runner(module, execution_architecture, p4_runner_profile)})
     return {"include": include}
 
 
@@ -1144,7 +1202,7 @@ def prepare_rust(config: dict, consumer: Path, work_dir: Path, artifacts: Path,
                          if flag.startswith(("--registry=", "--lockfile_mode=", "--experimental_downloader_config=",
                                              "--http_connector_attempts=", "--http_connector_retry_max_timeout=",
                                              "--http_max_parallel_downloads=", "--jobs=",
-                                             "--discard_analysis_cache"))]
+                                             "--discard_analysis_cache", "--distdir="))]
     command = [sys.executable, str(helper), "--workspace", str(consumer),
                "--shared-only", "--shared-dependency",
                f"{preparation['module']}={preparation['repo_name']}",
@@ -1329,7 +1387,7 @@ def prepare_cross_python_runtimes(bazel_prefix: list[str], flags: list[str], tes
     fetch_flags = [flag for flag in flags if flag.startswith((
         "--registry=", "--lockfile_mode=", "--experimental_downloader_config=", "--override_module=",
         "--override_repository=", "--http_connector_attempts=", "--http_connector_retry_max_timeout=",
-        "--http_max_parallel_downloads="))]
+        "--http_max_parallel_downloads=", "--distdir="))]
     mappings = []
     for index, native in enumerate(runtimes):
         require((native / "STANDALONE_INTERPRETER").is_file(), "Expected a declared standalone Python runtime")
@@ -1351,6 +1409,93 @@ def prepare_cross_python_runtimes(bazel_prefix: list[str], flags: list[str], tes
     return mappings
 
 
+def github_source_manifests(root: Path, module: str, version: str,
+                            execution_architecture: str) -> list[Path]:
+    """Select exact transport inputs without changing a published module recipe."""
+    directory = root / "ci/github_sources"
+    catalog = directory / "catalog.json"
+    if not catalog.exists():
+        return []  # Older/fixture catalogs have no opt-in source sets.
+    value = read_json(catalog)
+    require(set(value) == {"schema_version", "inputs"} and type(value["schema_version"]) is int
+            and value["schema_version"] == 1 and isinstance(value["inputs"], list),
+            "Invalid GitHub source catalog")
+    seen, selected = set(), []
+    for item in value["inputs"]:
+        require(isinstance(item, dict) and set(item) == {
+            "module", "version", "execution_architecture", "manifests"}, "Invalid GitHub source selector")
+        require(isinstance(item["module"], str) and NAME.fullmatch(item["module"])
+                and isinstance(item["version"], str) and VERSION.fullmatch(item["version"])
+                and item["execution_architecture"] in ("amd64", "arm64"), "Invalid GitHub source identity")
+        identity = (item["module"], item["version"], item["execution_architecture"])
+        require(identity not in seen, "Duplicate GitHub source selector")
+        seen.add(identity)
+        manifests = item["manifests"]
+        require(isinstance(manifests, list) and bool(manifests)
+                and all(isinstance(name, str) and re.fullmatch(r"[a-z0-9][a-z0-9._-]*\.json", name)
+                        and name != "catalog.json" for name in manifests)
+                and len(manifests) == len(set(manifests)), "Invalid GitHub source manifest list")
+        if identity == (module, version, execution_architecture):
+            for name in manifests:
+                path = directory / name
+                require(path.is_file() and not path.is_symlink(), "Selected GitHub source manifest is missing or linked")
+                selected.append(path)
+    return selected
+
+
+def prepare_github_sources(root: Path, module: str, version: str, execution_architecture: str,
+                           work_dir: Path, artifacts: Path) -> list[str]:
+    flags = []
+    for manifest in github_source_manifests(root, module, version, execution_architecture):
+        # Separate generations let different versions reuse a URL basename.
+        generation = hashlib.sha256(manifest.read_bytes()).hexdigest()
+        distdir = work_dir / "github-inputs" / generation
+        try:
+            github_sources.prepare(manifest, distdir, work_dir / "github-downloads",
+                                   artifacts / "github-sources" / (generation + ".json"))
+        except (ValueError, OSError) as error:
+            raise RegistryError(f"GitHub source preparation failed: {error}") from error
+        flags.append(f"--distdir={distdir}")
+    return flags
+
+
+def prepare_nested_go_tests(root: Path, work_dir: Path, bazel: str) -> Path:
+    """Expose native Bazel and the outer ARM toolchain to the original Go tests."""
+    adapter = work_dir / "cross-cc-repository"
+    require((adapter / "BUILD.bazel").is_file(), "Nested rules_go tests require the isolated ARM toolchain")
+    host_bazel = shutil.which(bazel)
+    require(host_bazel is not None, f"Could not locate the native Bazel launcher: {bazel}")
+    source = root / "ci" / "rules_go_cross"
+    platforms = adapter / "nested"
+    platforms.mkdir()
+    shutil.copy2(source / "platforms.BUILD.bazel", platforms / "BUILD.bazel")
+    tools = work_dir / "nested-go-tools"
+    tools.mkdir()
+    shutil.copy2(source / "bazel", tools / "bazel")
+    shutil.copy2(source / "executor", tools / "executor")
+    (tools / "host-bazel").symlink_to(Path(host_bazel).absolute())
+    shutil.copy2(root / "ci" / "source_mirrors.cfg", tools / "source_mirrors.cfg")
+    return tools / "executor"
+
+
+def prepare_gazelle_tests(root: Path, work_dir: Path, script_executor: list[str]) -> Path:
+    """Run Go test binaries directly and preserve the target runtime for shell tests."""
+    tools = work_dir / "gazelle-test-tools"
+    tools.mkdir()
+    go = tools / "arm-go-test"
+    shutil.copy2(root / "ci" / "rules_go_cross" / "executor", go)
+    runner = tools / "executor"
+    runner.write_text(
+        '#!/bin/sh\nset -eu\n'
+        'if [ "$(head -c 2 -- "$1")" = "#!" ]; then\n'
+        f'    exec {shlex.join(script_executor)} "$@"\n'
+        'fi\n'
+        f'exec {shlex.quote(str(go))} "$@"\n'
+    )
+    runner.chmod(0o755)
+    return runner
+
+
 def run(root: Path, module: str, version: str, architecture: str,
         work_dir: Path, artifacts: Path, bazel: str = "bazel",
         test_container_image: str | None = None,
@@ -1359,6 +1504,9 @@ def run(root: Path, module: str, version: str, architecture: str,
         cross_compile: bool = False, test_executor: Path | None = None) -> None:
     config = validate_entry(root, module, version)
     require(architecture in config["architectures"], "Architecture is not configured for this version")
+    additional = config.get("additional_targets", {}).get(architecture, {})
+    build_targets = config["build_targets"] + additional.get("build_targets", [])
+    test_targets = config["test_targets"] + additional.get("test_targets", [])
     require(not cross_compile or architecture == "arm64", "Cross compilation supports ARM64 targets on AMD64")
     require(cross_compile or test_executor is None, "A test executor requires explicit cross compilation")
     native = verify_native("amd64" if cross_compile else architecture)
@@ -1465,6 +1613,8 @@ def run(root: Path, module: str, version: str, architecture: str,
                  "--remote_download_regex=(^|.*/)tools/build_tools/kernel_runtime_(amd64|arm64)(/.*)?$",
                  *config.get("build_flags", []), *(bazel_build_args or [])]
         execution_architecture = "amd64" if cross_compile else architecture
+        flags.extend(prepare_github_sources(root, module, version, execution_architecture,
+                                            work_dir, artifacts))
         host_platform = config.get("host_platforms", {}).get(execution_architecture)
         if cross_compile and host_platform is None:
             host_platform = config["platforms"]["amd64"]
@@ -1500,16 +1650,16 @@ def run(root: Path, module: str, version: str, architecture: str,
                 shutil.copy2(consumer / "MODULE.bazel", artifacts / "consumer.MODULE.bazel")
             flags.extend(prepare_rust(config, consumer, work_dir, artifacts, prefix, flags))
             run_logged([*prefix, "build", *flags, f"--build_event_json_file={artifacts / 'build-events.jsonl'}",
-                        *config["build_targets"]], consumer, artifacts / "build.log")
-            declared_trees = query_output_trees(prefix, flags, config["build_targets"], consumer, artifacts)
+                        *build_targets], consumer, artifacts / "build.log")
+            declared_trees = query_output_trees(prefix, flags, build_targets, consumer, artifacts)
             # Path queries need dependency resolution, but not target/host platform
             # flags whose apparent labels may be unresolved in a fresh info command.
             info_flags = [flag for flag in flags if flag.startswith(
                 ("--registry=", "--lockfile_mode=", "--experimental_downloader_config=",
-                 "--override_module=", "--override_repository="))]
+                 "--override_module=", "--override_repository=", "--distdir="))]
             execution_root = Path(subprocess.check_output([*prefix, "info", *info_flags, "execution_root"],
                                                          cwd=consumer, text=True).strip())
-            collect_outputs(artifacts / "build-events.jsonl", config["build_targets"], work_dir, artifacts,
+            collect_outputs(artifacts / "build-events.jsonl", build_targets, work_dir, artifacts,
                             declared_trees, execution_root)
             output_base = Path(subprocess.check_output([*prefix, "info", *info_flags, "output_base"],
                                                       cwd=consumer, text=True).strip())
@@ -1536,14 +1686,25 @@ def run(root: Path, module: str, version: str, architecture: str,
             shutil.copy2(fetched[0], artifacts / "fetched.MODULE.bazel")
             require((consumer / "MODULE.bazel.lock").is_file(), "Bazel did not generate MODULE.bazel.lock resolution evidence")
             if executor_prefix:
-                mappings = prepare_cross_python_runtimes(prefix, flags, config["test_targets"], output_base,
+                mappings = prepare_cross_python_runtimes(prefix, flags, test_targets, output_base,
                                                          consumer, artifacts, executor_prefix)
                 cross_runtime["python_runtimes"] = mappings
                 for mapping in mappings:
                     executor_prefix[-1:-1] = ["--bind-at", mapping["source"], mapping["destination"]]
             test_flags = prepare_test_runtime(config, fetched[0].parent, consumer, artifacts,
                                               architecture, test_container_image, executor_prefix or None)
+            if cross_compile and module in {"rules_go", "gazelle"}:
+                if module == "rules_go":
+                    go_executor = prepare_nested_go_tests(root, work_dir, bazel)
+                else:
+                    go_executor = prepare_gazelle_tests(root, work_dir, executor_prefix)
+                executor_prefix = [str(go_executor)]
+                cross_runtime["test_executor_prefix"] = executor_prefix
+                cross_runtime["test_executor_sha256"] = hashlib.sha256(go_executor.read_bytes()).hexdigest()
             if executor_prefix:
+                fixtures = ARM_DECLARED_RUNTIME_FIXTURES.get((module, version))
+                if fixtures:
+                    executor_prefix = [str(root / "ci" / "declared_arm_runtime.py"), json.dumps(fixtures), *executor_prefix]
                 test_flags.append("--run_under=" + shlex.join(executor_prefix))
             # Emulated Python can spend more than five minutes staging a large
             # declared runtime before the test starts. Keep caller timeouts and
@@ -1562,9 +1723,9 @@ def run(root: Path, module: str, version: str, architecture: str,
             run_logged([*prefix, "test", *flags, *test_flags, "--test_env=HOME=",
                         f"--strategy=TestRunner={TEST_SANDBOX_STRATEGY}",
                         "--nocache_test_results", "--test_output=errors",
-                        f"--build_event_json_file={artifacts / 'test-events.jsonl'}", *config["test_targets"]],
+                        f"--build_event_json_file={artifacts / 'test-events.jsonl'}", *test_targets],
                        consumer, artifacts / "test.log")
-            verify_tests(artifacts / "test-events.jsonl", config["test_targets"])
+            verify_tests(artifacts / "test-events.jsonl", test_targets)
             for dependency in config["consumer_deps"]:
                 name, selected_version = dependency["name"], dependency["version"]
                 selected = fetched_modules(output_base, name)
@@ -1579,7 +1740,7 @@ def run(root: Path, module: str, version: str, architecture: str,
                 "test_execution": "qemu-aarch64" if cross_compile else "native",
                 "cross_runtime": cross_runtime,
                 "test_container_image": test_container_image,
-                "build_targets": config["build_targets"], "passed_tests": config["test_targets"],
+                "build_targets": build_targets, "passed_tests": test_targets,
                 "build_flags": config.get("build_flags", []),
                 "bazel_startup_args": bazel_startup_args or [],
                 "bazel_build_args": bazel_build_args or [],
@@ -1646,7 +1807,9 @@ def main() -> None:
     scope.add_argument("--all", action="store_true", dest="all_versions",
                        help="test every configured version, including historical versions")
     scope.add_argument("--latest", action="store_true", dest="latest_versions",
-                       help="test the latest non-yanked version of each configured module")
+                       help="test latest non-yanked versions and explicit additional presubmits")
+    planner.add_argument("--p4-runner-profile", choices=("standard", "large"), default="large",
+                         help="AMD64 execution pool for P4C, BMv2 and DASH")
     planner.add_argument("--output", required=True, type=Path)
     synchronizer = subparsers.add_parser("sync-module", help="generate or check an opted-in MODULE overlay")
     synchronizer.add_argument("--module", required=True)
@@ -1673,7 +1836,7 @@ def main() -> None:
     try:
         if args.command == "plan":
             result = plan(ROOT, args.base, args.head, args.all_versions, args.latest_versions,
-                          published=args.published, push=args.push)
+                          published=args.published, push=args.push, p4_runner_profile=args.p4_runner_profile)
             args.output.parent.mkdir(parents=True, exist_ok=True)
             args.output.write_text(json.dumps(result, indent=2) + "\n")
             print(json.dumps(result, separators=(",", ":")))
