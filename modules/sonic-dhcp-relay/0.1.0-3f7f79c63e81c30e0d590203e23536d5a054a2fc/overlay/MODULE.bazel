@@ -1,8 +1,8 @@
 # AUTO-GENERATED. DO NOT EDIT MANUALLY.
 # Source: ../MODULE.bazel
-# Generator: python3 ci/registry_ci.py sync-module --module sonic-dhcp-relay --version 0.1.0-4a224dccc2b3b55f1140dd5072008f8f8079695c
+# Generator: python3 ci/registry_ci.py sync-module --module sonic-dhcp-relay --version 0.1.0-3f7f79c63e81c30e0d590203e23536d5a054a2fc
 
-module(name = "sonic-dhcp-relay", version = "0.1.0-4a224dccc2b3b55f1140dd5072008f8f8079695c", bazel_compatibility = [">=8.5.1", "<=8.5.1"])
+module(name = "sonic-dhcp-relay", version = "0.1.0-3f7f79c63e81c30e0d590203e23536d5a054a2fc", bazel_compatibility = [">=8.5.1", "<=8.5.1"])
 bazel_dep(name = "sonic-build-infra", version = "0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568", repo_name = "sonic_build_infra")
 bazel_dep(name = "sonic-swss-common", version = "0.0.9-334389eae54afd1f4f5ee69f89c3a7ad2062ee61", repo_name = "sonic_swss_common")
 bazel_dep(name = "rules_cc", version = "0.2.20")
@@ -34,6 +34,9 @@ register_toolchains("@rust_toolchains//:all", dev_dependency = True)
 
 # Existing source module used by installed-runtime validation.
 bazel_dep(name = "libyang", version = "3.12.2.sonic.6")
+# Direct runtime TAR references require a root-visible repository mapping.
+# Match Common's selected source owner; do not substitute distro libnl.
+bazel_dep(name = "libnl3", version = "3.7.0.sonic.7")
 
 # apt.lock.json is the canonical reviewed acceptance contract, not an input
 # consumed by the facts-mode resolver. validate-apt-lock.py forces fresh

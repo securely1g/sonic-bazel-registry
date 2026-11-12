@@ -1,6 +1,6 @@
 # DHCP relay source registration — Draft, limited consumer validation
 
-Direct source prerequisite: https://github.com/securely1g/sonic-dhcp-relay/pull/3, immutable 4a224dccc2b3b55f1140dd5072008f8f8079695c. Source includes attributed private-Redis fixture content from relay#1, not a second fixture-only ownership claim.
+Direct source prerequisite: https://github.com/securely1g/sonic-dhcp-relay/pull/3, immutable 3f7f79c63e81c30e0d590203e23536d5a054a2fc. Source includes attributed private-Redis fixture content from relay#1, not a second fixture-only ownership claim.
 
 ## Explicit coverage and root patch obligations
 
@@ -18,12 +18,12 @@ Preserve the source README's tar/rules_cc and root Rust toolchain selections as 
 
 ## Evidence and order
 
-Archive integrity and representative source bytes verified; generated overlay and entry/planner validation checked. Source fresh private-Redis/Make fixture tests 4/4 passed twice; four synthetic APT freshness gate controls and parser-patch byte equivalence passed. Current full C++ graph/build/test validation remains blocked by bounded pinned snapshot503/504 downloads. Historical Nov1 full suites/image results cover the frozen candidate only. No native AMD64/ARM64 release or full image claim.
+Archive integrity and all 98 tracked source blobs match the published reviewed source. The registry MODULE changes only the source version; its generated overlay is maintained through `sync-module`. Source review and scoped validation passed: two earlier uncached Bazel full-suite runs (47 DHCP6 / 62 DHCP4), original Make-built binaries (47/47 and 62/62, no skips) in a NET_RAW-only isolated runtime, matched runtime/debug artifacts and measured loader closure. The authoritative source APT lock contains 1122 packages; it is not replaced by a downstream consumer resolution. These are source receipts, not registry CI results. Literal DHCP4 `make all` dependency bootstrap/global installation remains NOT VERIFIED; native full LSan, default-host libyang, ARM, image/live forwarding and arbitrary future dlopen are not claimed. Successful configured source validation uses the documented trixie host platform. Fresh external-consumer validation of this exact registration must be recorded separately.
 
 Merge source#3 → this registration → image. No monitor source dependency. Reuse published Common .9 (including Common45 overlay), infra .26 and distroless .16. Canonical default remains securely1g main; explicit reviewed candidate checkout only for premerge validation.
 
 ```sh
-python3 ci/registry_ci.py run --module sonic-dhcp-relay --version 0.1.0-4a224dccc2b3b55f1140dd5072008f8f8079695c --architecture amd64 --work-dir /tmp/relay-registry-consumer --artifacts /tmp/relay-registry-evidence --bazel bazel
+python3 ci/registry_ci.py run --module sonic-dhcp-relay --version 0.1.0-3f7f79c63e81c30e0d590203e23536d5a054a2fc --architecture amd64 --work-dir /tmp/relay-registry-consumer --artifacts /tmp/relay-registry-evidence --bazel bazel
 ```
 
 Use new empty directories; audit scoped configured actions before execution. No DEB-producing rule or fixture is selected. Keep Draft pending fresh graph/actions, complete parser-boundary coverage and native runtime/image acceptance.
