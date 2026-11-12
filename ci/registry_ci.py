@@ -80,6 +80,7 @@ ARM_CROSS_VERSIONS: dict[str, tuple[str, ...]] = {
     "sonic-rust-deps": ("0.0.4-6d9c70f708d7420e9e2b2cdc906b80cee6b140f1",),
     "sonic-sairedis": ("0.0.5-33443ea1666a23812365d03fb959066ee84c9aa0",),
     "sonic-swss": ("0.0.3-9c3797990d4b5a79100a40fe7689927c18212361",),
+    "sonic-swss-common": ("0.0.9-334389eae54afd1f4f5ee69f89c3a7ad2062ee61",),
     "sonic-yang-mgmt": ("1.0.0-9ab452d22773c41783092ae3bd6c206d6c257c8d",),
     "sonic-yang-models": ("1.0.1-b0a9362a7a1b4b5e1b7188c019d256f7c8aaff9f",),
     "tar.bzl": ("0.10.5.sonic.2",),
