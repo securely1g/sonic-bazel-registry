@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import base64
 import bz2
+import contextlib
 import gzip
 import hashlib
 import io
@@ -38,6 +39,81 @@ class PrivacyError(ValueError):
     """A generic error deliberately containing no private input or filename."""
 
 
+class TemporaryBudget:
+    """Cap block-rounded live file extents, with separate filesystem headroom."""
+
+    def __init__(self, directory: Path, *, maximum_bytes: int, minimum_free_bytes: int):
+        if (type(maximum_bytes) is not int or maximum_bytes <= 0 or
+                type(minimum_free_bytes) is not int or minimum_free_bytes < 0):
+            raise PrivacyError("Invalid scanner temporary-space budget")
+        self.directory = Path(directory)
+        try:
+            if (not self.directory.is_dir() or self.directory.is_symlink() or
+                    self.directory.resolve() != self.directory.absolute()):
+                raise PrivacyError("Unsafe scanner temporary directory")
+            self.device = self.directory.stat().st_dev
+        except OSError:
+            raise PrivacyError("Cannot inspect scanner temporary filesystem") from None
+        self.maximum_bytes, self.minimum_free_bytes = maximum_bytes, minimum_free_bytes
+        self.live_bytes = self.peak_bytes = self.open_files = self.peak_open_files = 0
+
+    def _free(self, additional=0):
+        usage = os.statvfs(self.directory)
+        if usage.f_bavail * usage.f_frsize < self.minimum_free_bytes + additional:
+            raise PrivacyError("Scanner filesystem headroom is insufficient")
+
+    def preflight(self, artifacts: Path):
+        if artifacts.stat().st_dev != self.device:
+            raise PrivacyError("Scanner evidence and temporaries use different filesystems")
+        self._free(self.maximum_bytes)
+
+    def _open(self, stream):
+        if os.fstat(stream.fileno()).st_dev != self.device:
+            raise PrivacyError("Scanner temporary uses an unexpected filesystem")
+        self._free()
+        counted = _BudgetedFile(stream, self)
+        self.open_files += 1
+        self.peak_open_files = max(self.peak_open_files, self.open_files)
+        return counted
+
+    def _reserve(self, growth):
+        if self.live_bytes + growth > self.maximum_bytes:
+            raise PrivacyError("Scanner temporary-space budget exceeded")
+        self._free(growth)
+        self.live_bytes += growth
+        self.peak_bytes = max(self.peak_bytes, self.live_bytes)
+
+    def _closed(self, stream):
+        self.live_bytes -= stream.accounted_bytes
+        self.open_files -= 1
+
+    def usage(self):
+        return {"maximum_bytes": self.maximum_bytes, "minimum_free_bytes": self.minimum_free_bytes,
+                "live_bytes": self.live_bytes, "peak_bytes": self.peak_bytes,
+                "open_files": self.open_files, "peak_open_files": self.peak_open_files}
+
+
+class _BudgetedFile:
+    def __init__(self, stream, budget):
+        self.stream, self.budget = stream, budget
+        self.accounted_bytes = 0
+        self.block_size = os.fstatvfs(stream.fileno()).f_frsize
+
+    def write(self, value):
+        end = self.stream.tell() + len(value)
+        rounded = ((end + self.block_size - 1) // self.block_size) * self.block_size
+        growth = max(0, rounded - self.accounted_bytes)
+        self.budget._reserve(growth)
+        self.accounted_bytes += growth
+        written = self.stream.write(value)
+        if written != len(value):
+            raise PrivacyError("Scanner temporary write was incomplete")
+        return written
+
+    def __getattr__(self, name):
+        return getattr(self.stream, name)
+
+
 class _MemberReader:
     """Limit reads to one ar member without loading its contents into memory."""
 
@@ -52,7 +128,8 @@ class _MemberReader:
 
 
 class Redactor:
-    def __init__(self, urls: list[str]):
+    def __init__(self, urls: list[str], *, temporary_budget: TemporaryBudget | None = None):
+        self.temporary_budget = temporary_budget
         values = set()
         for url in urls:
             if not url:
@@ -76,6 +153,30 @@ class Redactor:
         self.max_pattern_length = max(map(len, self._raw_patterns), default=1)
         self._text = re.compile("|".join(re.escape(value) for value in self.patterns), re.I) if values else None
         self._bytes = re.compile(b"|".join(re.escape(value.encode()) for value in self.patterns), re.I) if values else None
+
+    @contextlib.contextmanager
+    def _temporary_file(self, *, directory=None, named=False):
+        budget = self.temporary_budget
+        options = {"dir": directory or (budget.directory if budget else None)}
+        if budget:
+            # Writes are accounted before reaching the filesystem, not delayed
+            # in a buffered file whose flush could outlive a nested spool.
+            options["buffering"] = 0
+        if named:
+            options.update(prefix=".mirror-redaction-", delete=False)
+        raw = (tempfile.NamedTemporaryFile if named else tempfile.TemporaryFile)(**options)
+        counted = None
+        try:
+            counted = budget._open(raw) if budget else None
+            yield counted or raw
+        finally:
+            try:
+                raw.close()
+            finally:
+                if named:
+                    Path(raw.name).unlink(missing_ok=True)
+                if counted is not None and raw.closed:
+                    budget._closed(counted)
 
     def redact(self, text: str) -> str:
         return self._text.sub(MARKER, text) if self._text else text
@@ -142,7 +243,7 @@ class Redactor:
             return
         # Archive readers may need seeking. Spool only container formats, on
         # disk; regular ELF/debug files are scanned directly in bounded chunks.
-        with tempfile.TemporaryFile() as data:
+        with self._temporary_file() as data:
             self._scan_raw(stream, prefix, data)
             data.seek(0)
             if kind in ("gzip", "bz2", "xz"):
@@ -205,7 +306,7 @@ class Redactor:
     def _scrub(self, path: Path) -> dict | None:
         before, after = hashlib.sha256(), hashlib.sha256()
         changed = False
-        with tempfile.NamedTemporaryFile(dir=path.parent, prefix=".mirror-redaction-", delete=False) as output:
+        with self._temporary_file(directory=path.parent, named=True) as output:
             temporary = Path(output.name)
             try:
                 pending = b""
@@ -262,7 +363,7 @@ class Redactor:
         """Remove fragmented Progress output, retaining the useful event graph."""
         before, after = hashlib.sha256(), hashlib.sha256()
         removed = 0
-        with tempfile.NamedTemporaryFile(dir=path.parent, prefix=".mirror-redaction-", delete=False) as output:
+        with self._temporary_file(directory=path.parent, named=True) as output:
             temporary = Path(output.name)
             try:
                 with path.open("rb") as source:
@@ -296,11 +397,10 @@ class Redactor:
             finally:
                 temporary.unlink(missing_ok=True)
 
-    @staticmethod
-    def _write_bytes(path: Path, payload: bytes) -> None:
+    def _write_bytes(self, path: Path, payload: bytes) -> None:
         # Replacing the directory entry avoids mutating hard-linked source
         # diagnostics or following an existing receipt symlink.
-        with tempfile.NamedTemporaryFile(dir=path.parent, prefix=".mirror-redaction-", delete=False) as output:
+        with self._temporary_file(directory=path.parent, named=True) as output:
             temporary = Path(output.name)
             try:
                 output.write(payload)
@@ -350,6 +450,8 @@ class Redactor:
             if artifacts.is_symlink() or not artifacts.is_dir():
                 raise PrivacyError("Unsafe validation evidence directory")
             root = artifacts.resolve()
+            if self.temporary_budget:
+                self.temporary_budget.preflight(root)
             regular = []
             directories = [root]
             while directories:
