@@ -4,6 +4,7 @@ import importlib.util
 import json
 from pathlib import Path
 import shutil
+import subprocess
 import tempfile
 import unittest
 from unittest import mock
@@ -195,6 +196,61 @@ class CrossToolchainTest(unittest.TestCase):
                                                   {"key": "cc@2", "name": "cc", "version": "2"}]}
         with self.assertRaisesRegex(ValueError, "multiple selected versions"):
             cross.selected_versions(graph)
+
+
+class ModuleGraphStatusTest(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name)
+        self.graph = {"key": "<root>", "name": "consumer", "version": "", "root": True,
+                      "dependencies": [{"key": "alpha@2", "name": "alpha", "version": "2",
+                                        "dependencies": [], "indirectDependencies": [], "cycles": []}],
+                      "indirectDependencies": [], "cycles": []}
+
+    def resolve(self, code=0, errors="", graph=None):
+        def run(command, **kwargs):
+            self.assertIn("--from=<root>", command)
+            self.assertIn("--depth=-1", command)
+            self.assertIn("--noinclude_unused", command)
+            self.assertIn("--extension_info=hidden", command)
+            self.assertIn("--noshow_progress", command)
+            kwargs["stdout"].write(json.dumps(self.graph if graph is None else graph))
+            kwargs["stderr"].write(errors)
+            return subprocess.CompletedProcess(command, code)
+        with mock.patch.object(cross.subprocess, "run", side_effect=run):
+            return cross.module_graph(["bazel"], [], self.root, self.root, "graph")
+
+    def test_complete_versions_survive_only_extension_inspection_failure(self):
+        for code, errors in ((0, ""), (2, "ERROR: unused extension failed\n"
+                                     "ERROR: Results may be incomplete as 1 extension failed.\n")):
+            self.assertEqual(self.resolve(code, errors), {"alpha": "2"})
+            receipt = json.loads((self.root / "graph-status.json").read_text())
+            self.assertEqual(receipt["returncode"], code)
+            self.assertTrue(receipt["module_resolution_complete"])
+            self.assertEqual(receipt["extension_inspection_complete"], code == 0)
+            self.assertEqual((self.root / "graph.stderr").read_text(), errors)
+
+    def test_resolution_and_other_command_failures_remain_fatal(self):
+        marker = "ERROR: Results may be incomplete as 1 extension failed.\n"
+        for code, errors in ((37, "resolution failed"), (1, marker), (2, "bad option"),
+                             (2, marker + "ERROR: another failure\n"), (2, "")):
+            with self.subTest(code=code, errors=errors), self.assertRaises(subprocess.CalledProcessError):
+                self.resolve(code, errors)
+            receipt = json.loads((self.root / "graph-status.json").read_text())
+            self.assertFalse(receipt["module_resolution_complete"])
+
+    def test_partial_or_inconsistent_graphs_are_never_accepted(self):
+        for graph in ({}, {**self.graph, "root": False},
+                      {**self.graph, "dependencies": [{"key": "alpha@2", "name": "alpha",
+                                                       "version": "2", "unexpanded": True}]},
+                      {**self.graph, "dependencies": [{"key": "alpha@1", "name": "alpha",
+                                                       "version": "2"}]}):
+            for code in (0, 2):
+                with self.subTest(graph=graph, code=code), self.assertRaises(ValueError):
+                    self.resolve(code, "ERROR: Results may be incomplete as 2 extensions failed.\n", graph)
+                self.assertFalse(json.loads((self.root / "graph-status.json").read_text())[
+                    "module_resolution_complete"])
 
 
 if __name__ == "__main__":
