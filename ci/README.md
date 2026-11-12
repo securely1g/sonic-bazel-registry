@@ -88,9 +88,9 @@ M4 TAR from the private Debian source pool first. Both archives must match the
 original rule's SHA256. [Bison release pin](https://github.com/jmillikin/rules_bison/blob/v0.4/bison/internal/versions.bzl#L17-L30) · [M4 release pin](https://github.com/jmillikin/rules_m4/blob/v0.3.1/m4/internal/versions.bzl)
 
 The exact `gawk-5.3.2.tar.xz` URLs at `mirrors.kernel.org`, `ftp.gnu.org`, and
-`ftpmirror.gnu.org` likewise try MacPorts first and retain each original URL as
-a fallback. The published source recipe and SHA256
-`f8c3486509de705192138b00ef2c00bbbdd0e84c30d5c07d23fc73a9dc4cc9cc` remain unchanged.
+`ftpmirror.gnu.org` try the Bazel mirror, then MacPorts, then the original URL.
+Bazel checks each download against the published SHA256
+`f8c3486509de705192138b00ef2c00bbbdd0e84c30d5c07d23fc73a9dc4cc9cc`.
 
 Some packages have additional exact-URL candidates before their timestamped
 snapshot fallbacks:
