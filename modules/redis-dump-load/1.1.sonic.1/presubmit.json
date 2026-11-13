@@ -1,0 +1,22 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
+  },
+  "build_targets": [
+    "@redis-dump-load//:redisdl",
+    "@redis-dump-load//:wheel",
+    "@redis-dump-load//:install",
+    "@redis-dump-load//:runtime_metadata"
+  ],
+  "test_targets": [
+    "//:distribution_test"
+  ],
+  "generated_module_overlay": true,
+  "integration_test_module": "tests/integration"
+}

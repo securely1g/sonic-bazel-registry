@@ -994,6 +994,7 @@ Historical versions outside the map use hosted ARM64.
 | `sonic-rust-deps` | `0.0.4-6d9c70f708d7420e9e2b2cdc906b80cee6b140f1` | 6 / 4 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127417149111) |
 | `sonic-sairedis` | `0.0.5-33443ea1666a23812365d03fb959066ee84c9aa0` | 19 / 7 | Pending current registration validation; [historical generator run](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42237091438) |
 | `sonic-swss` | `0.0.3-9c3797990d4b5a79100a40fe7689927c18212361` | 7 / 3 | Pending current registration validation; [historical generator run](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42238852494/job/127963546293) |
+| `sonic-swss-common` | `0.0.9-334389eae54afd1f4f5ee69f89c3a7ad2062ee61` | 16 / 24 | [Full default-executor validation](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42271692127/job/128103790571) |
 | `sonic-yang-mgmt` | `1.0.0-9ab452d22773c41783092ae3bd6c206d6c257c8d` | 2 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127454762848) |
 | `sonic-yang-models` | `1.0.1-b0a9362a7a1b4b5e1b7188c019d256f7c8aaff9f` | 3 / 1 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127456801062) |
 | `tar.bzl` | `0.10.5.sonic.2` | 8 / 7 | [Passed](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42013547416/job/127457427548) |
@@ -1022,6 +1023,11 @@ AIO in `rules_distroless@0.9.4.sonic.17`. Its ARM job runs the original
 emulation. The other 35 tests use the image's standard executor. The guest
 includes the runner's ARM loader and libc. Its console reports the test exit
 status to Bazel. [Full ARM validation](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42089131813/job/127462206254)
+
+SWSS-common runs every original ARM test through the runner-provided guest
+executor, including its Go self-execution and package/debug-symbol checks.
+The Trixie runner supplies the corrected PRoot for this path.
+[Runner implementation](https://github.com/securely1g/agi-projects/pull/92)
 
 The `rules_go` `0.65.0.sonic.1` follow-up moves both original test targets to
 the cross runners. Their ARM test processes invoke the native Bazel launcher
