@@ -1,0 +1,24 @@
+{
+  "architectures": [
+    "amd64"
+  ],
+  "build_targets": [
+    "@bitarray//:whl",
+    "@bitarray//:pkg",
+    "//:installed_layer"
+  ],
+  "consumer_deps": [],
+  "generated_module_overlay": true,
+  "host_platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
+  },
+  "integration_test_module": "tests/integration",
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
+  },
+  "test_targets": [
+    "@bitarray//:upstream_test",
+    "@bitarray//:wheel_contract_test",
+    "//:installed_wheel_test"
+  ]
+}

@@ -2679,7 +2679,7 @@ class FetchedModuleTests(FixtureTestCase):
             "from pathlib import Path\n"
             "import sys\n"
             "args = sys.argv[1:]\n"
-            "assert ('--test_env=HOME=' in args) == ('test' in args)\n"
+            "assert ('--test_env=HOME' in args) == ('test' in args)\n"
             f"assert ({'--strategy=TestRunner=' + registry_ci.TEST_SANDBOX_STRATEGY!r} in args) == ('test' in args)\n"
             f"for flag in {registry_ci.HTTP_DOWNLOAD_FLAGS!r}:\n"
             "    assert (flag in args) == ('info' not in args)\n"
@@ -2885,6 +2885,56 @@ a.output.write_text(json.dumps(r))
         write_json(self.config_path, self.config)
         return helper
 
+    def test_path_queries_preserve_disabled_repository_cache_and_resolution_flags(self) -> None:
+        commands_path = self.root / "info-cache-commands.jsonl"
+        self.fake_bazel.write_text(self.fake_bazel.read_text().replace(
+            "args = sys.argv[1:]\n", "args = sys.argv[1:]\n"
+            + f"with Path({str(commands_path)!r}).open('a') as log:\n"
+            + "    log.write(json.dumps(args) + '\\n')\n"))
+        supplied = ["--repository_cache=", "--distdir=" + str(self.root / "distdir"),
+                    "--override_module=example=" + str(self.root / "module"),
+                    "--override_repository=example=" + str(self.root / "repository")]
+        self.run_fixture("info-cache-preserved", build_args=supplied)
+        commands = [json.loads(line) for line in commands_path.read_text().splitlines()]
+        queries = [args for args in commands if "info" in args]
+        self.assertEqual([args[-1] for args in queries], ["execution_root", "output_base"])
+        build, = [args for args in commands if "build" in args]
+        for args in queries:
+            for flag in supplied:
+                self.assertIn(flag, args)
+            self.assertIn("--lockfile_mode=update", args)
+            self.assertIn("--experimental_downloader_config=" + str(self.root / "ci/source_mirrors.cfg"), args)
+            self.assertEqual([flag for flag in args if flag.startswith("--registry=")],
+                             [flag for flag in build if flag.startswith("--registry=")])
+            self.assertFalse(any(flag.startswith(("--platforms=", "--host_platform=", "--@alpha//"))
+                                 for flag in args))
+            self.assertNotIn("--test_env=HOME", args)
+        self.assertEqual(sum("--repository_cache=" in args for args in commands), len(commands))
+
+    def test_test_command_preserves_actual_home_and_runtime_flags(self) -> None:
+        original_home = ("HOME" in os.environ, os.environ.get("HOME"))
+        commands_path = self.root / "home-environment-commands.jsonl"
+        self.fake_bazel.write_text(self.fake_bazel.read_text().replace(
+            "args = sys.argv[1:]\n", "args = sys.argv[1:]\nimport os\n"
+            + f"with Path({str(commands_path)!r}).open('a') as log:\n"
+            + "    log.write(json.dumps({'args': args, 'home_present': 'HOME' in os.environ, "
+            + "'home': os.environ.get('HOME')}) + '\\n')\n"))
+        marker = "--test_env=REGISTRY_CI_HOME_MARKER=preserved"
+        self.run_fixture("home-preserved", build_args=[marker])
+        commands = [json.loads(line) for line in commands_path.read_text().splitlines()]
+        self.assertTrue(commands)
+        self.assertEqual(("HOME" in os.environ, os.environ.get("HOME")), original_home)
+        for command in commands:
+            self.assertEqual((command["home_present"], command["home"]), original_home)
+        test_command, = [command["args"] for command in commands if "test" in command["args"]]
+        self.assertEqual([flag for flag in test_command
+                          if flag == "--test_env=HOME" or flag.startswith("--test_env=HOME=")],
+                         ["--test_env=HOME"])
+        self.assertGreater(test_command.index("--test_env=HOME"), test_command.index(marker))
+        for command in commands:
+            if "test" not in command["args"]:
+                self.assertNotIn("--test_env=HOME", command["args"])
+
     def test_owner_runtime_preparation_uses_consumer_lock_and_only_affects_test_flags(self) -> None:
         helper = self.runtime_fixture()
         image = "debian:trixie@sha256:" + "b" * 64
@@ -2902,9 +2952,9 @@ a.output.write_text(json.dumps(r))
         flag = "--test_env=SONIC_TEST_RUNTIME_ID=" + receipt["SONIC_TEST_RUNTIME_ID"]
         self.assertIn(flag, commands[2])
         self.assertNotIn(flag, commands[0])
-        self.assertIn("--test_env=HOME=", commands[2])
-        self.assertNotIn("--test_env=HOME=", commands[0])
-        self.assertNotIn("--test_env=HOME=", commands[1])
+        self.assertIn("--test_env=HOME", commands[2])
+        self.assertNotIn("--test_env=HOME", commands[0])
+        self.assertNotIn("--test_env=HOME", commands[1])
         self.assertIn("--nocache_test_results", commands[2])
         self.assertTrue(set(self.config["test_targets"]).issubset(commands[2]))
         self.assertEqual((artifacts / "test-runtime-prepare.py").read_bytes(), helper.read_bytes())
