@@ -140,6 +140,27 @@ jobs:
             printf '%s  %s\n' "$bazel_sha" /tmp/bazel | sha256sum --check --strict
             install -m 0755 /tmp/bazel /usr/local/bin/bazel
           fi
+      - name: Record module validation storage
+        env:
+          STORAGE_PHASE: before-validation
+        run: |
+          python3 - <<'PY_STORAGE'
+          import json, os
+          from pathlib import Path
+          rows = {}
+          for label, variable in (("workspace", "GITHUB_WORKSPACE"), ("scratch", "RUNNER_TEMP")):
+              path = Path(os.environ[variable])
+              try:
+                  usage = os.statvfs(path)
+                  rows[label] = {"device": path.stat().st_dev,
+                                 "free_bytes": usage.f_bavail * usage.f_frsize,
+                                 "total_bytes": usage.f_blocks * usage.f_frsize,
+                                 "free_inodes": usage.f_favail,
+                                 "total_inodes": usage.f_files}
+              except OSError as error:
+                  rows[label] = {"measurement_error_errno": error.errno}
+          print(json.dumps({"phase": os.environ["STORAGE_PHASE"], "storage": rows}, sort_keys=True))
+          PY_STORAGE
       - name: Build and test through the registry
         env:
           HTTP_AUDIT_READY: ${{ steps.http_audit_download.outcome }}
@@ -209,6 +230,28 @@ jobs:
             --work-dir "$RUNNER_TEMP/registry-ci" \
             --artifacts "$GITHUB_WORKSPACE/ci-artifacts" \
             --test-container-image "$TEST_CONTAINER_IMAGE"
+      - name: Record storage after failed module validation
+        if: failure()
+        env:
+          STORAGE_PHASE: failed-validation
+        run: |
+          python3 - <<'PY_STORAGE'
+          import json, os
+          from pathlib import Path
+          rows = {}
+          for label, variable in (("workspace", "GITHUB_WORKSPACE"), ("scratch", "RUNNER_TEMP")):
+              path = Path(os.environ[variable])
+              try:
+                  usage = os.statvfs(path)
+                  rows[label] = {"device": path.stat().st_dev,
+                                 "free_bytes": usage.f_bavail * usage.f_frsize,
+                                 "total_bytes": usage.f_blocks * usage.f_frsize,
+                                 "free_inodes": usage.f_favail,
+                                 "total_inodes": usage.f_files}
+              except OSError as error:
+                  rows[label] = {"measurement_error_errno": error.errno}
+          print(json.dumps({"phase": os.environ["STORAGE_PHASE"], "storage": rows}, sort_keys=True))
+          PY_STORAGE
       - name: Archive module validation results
         id: archive
         if: always()
