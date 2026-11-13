@@ -1386,14 +1386,51 @@ class IntegrationTestModuleTests(FixtureTestCase):
         original = self.module.read_text()
         for declaration in (
             'local_path_override(module_name = "alpha", path = "/tmp/alpha")',
-            'single_version_override(module_name = "alpha", version = "1.0.0")',
+            'archive_override(module_name = "alpha", urls = ["https://example.invalid/source.tar.gz"])',
+            'git_override(module_name = "alpha", remote = "https://example.invalid/source.git", commit = "abc")',
             'include("//:other.MODULE.bazel")',
             'redirect = local_path_override\nredirect(module_name = "alpha", path = "/tmp/alpha")',
+            'redirect = single_version_override\nredirect(module_name = "alpha", version = "1.0.0")',
         ):
             with self.subTest(declaration=declaration):
                 self.module.write_text(original + declaration + "\n")
                 with self.assertRaisesRegex(registry_ci.RegistryError, "cannot include files or override"):
                     self.validate()
+
+    def test_version_only_pins_keep_registry_resolution(self) -> None:
+        self.module.write_text(self.module.read_text() +
+                               'single_version_override(module_name = "alpha", version = "1.0.0")\n'
+                               'single_version_override(module_name = "infra", version = "0.0.26-2a6")\n')
+        self.validate()
+
+    def test_version_pins_reject_source_options_and_nonliteral_or_missing_arguments(self) -> None:
+        original = self.module.read_text()
+        for arguments in (
+            '"alpha", "1.0.0"',
+            '*["alpha"], version = "1.0.0"',
+            '**{"module_name": "alpha", "version": "1.0.0"}',
+            'module_name = "alpha"',
+            'module_name = "alpha", module_name = "infra"',
+            'module_name = "alpha", version = "1.0.0", version = "2.0.0"',
+            'module_name = "alpha", version = "1.0.0", patches = ["//:source.patch"]',
+            'module_name = "alpha", version = "1.0.0", patch_cmds = ["touch source"]',
+            'module_name = "alpha", version = "1.0.0", registry = "https://example.invalid"',
+            'module_name = "alpha", version = chosen_version',
+            'module_name = "alpha", version = "1." + "0.0"',
+            'module_name = "alpha", version = 1',
+            'module_name = "alpha", version = " "',
+            'module_name = "", version = "1.0.0"',
+        ):
+            with self.subTest(arguments=arguments):
+                self.module.write_text(original + 'single_version_override(' + arguments + ')\n')
+                with self.assertRaisesRegex(registry_ci.RegistryError, "requires only literal nonempty"):
+                    self.validate()
+
+    def test_version_pin_cannot_replace_the_tested_entry_version(self) -> None:
+        self.module.write_text(self.module.read_text() +
+                               'single_version_override(module_name = "alpha", version = "2.0.0")\n')
+        with self.assertRaisesRegex(registry_ci.RegistryError, "exact reviewed module version"):
+            self.validate()
 
     def test_test_module_requires_the_exact_reviewed_dependency(self) -> None:
         for declaration in (
@@ -2921,7 +2958,8 @@ a.output.write_text(json.dumps(r))
         directory.mkdir(parents=True)
         (directory / "MODULE.bazel").write_text(
             'module(name = "integration_tests")\n'
-            'bazel_dep(name = "alpha", version = "1.0.0")\n')
+            'bazel_dep(name = "alpha", version = "1.0.0")\n'
+            'single_version_override(module_name = "alpha", version = "1.0.0")\n')
         (directory / "BUILD.bazel").write_text('# Consumer test targets\n')
         (directory / "fixture.json").write_text('reviewed fixture\n')
         before = {path.name: path.read_bytes() for path in directory.iterdir()}
