@@ -1,0 +1,13 @@
+{
+  "url": "https://github.com/sonic-net/sonic-py-swsssdk/archive/5878f93779df1bfdfe58ea00c8d34fe8261d362e.tar.gz",
+  "strip_prefix": "sonic-py-swsssdk-5878f93779df1bfdfe58ea00c8d34fe8261d362e",
+  "integrity": "sha256-hr7TJ962szt+HpV3Vo6Xltt9yvqaKF/et1PMGbMoHKM=",
+  "overlay": {
+    "BUILD.bazel": "sha256-gRUPYgMOtLmiRisXQq9y9jhOlNf1jr9aeulnd1KTaHY=",
+    "metadata.bzl": "sha256-WSdjThQTNTbapqpx9fjWbUcTy8QpbsYWELI9ch45KeI=",
+    "pytest_runner.py": "sha256-1kXXIjHen4fVAwtQXxd5WHMNTHDSCiRVZVfRd//LRE4=",
+    "requirements-test.in": "sha256-WsLeGwH16I2yx8VDRUEX0GlsBsvRle67q6Cim6L2Aak=",
+    "requirements-test.lock": "sha256-ATxKWctZ7545sWY/AitJ6qIJTGKa6YFkEpw4rh5jgzI=",
+    "MODULE.bazel": "sha256-X2nmAoJ4JDH8QhlwLL9gGGMIq0vwtS2fu7peEReT1gk="
+  }
+}
