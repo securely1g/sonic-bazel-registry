@@ -1,0 +1,75 @@
+diff --git a/apt/private/deb_import.bzl b/apt/private/deb_import.bzl
+--- a/apt/private/deb_import.bzl
++++ b/apt/private/deb_import.bzl
+@@ -298,10 +298,12 @@
+             fail("Ambiguous static library %s in %s: %s and %s" % (name, target_name, static_libraries[name], canonical))
+         static_libraries[name] = canonical
+     for name, path in sorted(static_libraries.items()):
++        pkgc = options.get(name)
+         content += """
+-alias(
++native_library_group(
+     name = "_{name}_static_import",
+-    actual = "{file_target}",
++    deps = ["{file_target}"],
++    linkopts = {linkopts},
+ )
+ cc_library(
+     name = "{name}_static",
+@@ -309,7 +311,7 @@
+     additional_linker_inputs = {inputs},
+     visibility = ["//visibility:public"],
+ )
+-""".format(name = name, file_target = file_targets[path], package = target_name, dependencies = static_dependencies, inputs = static_inputs)
++""".format(name = name, file_target = file_targets[path], package = target_name, dependencies = static_dependencies, inputs = static_inputs, linkopts = pkgc.linkopts if pkgc else [])
+         exports[name + "_static"] = name + "_static"
+     return (content, exports)
+ 
+@@ -617,9 +619,13 @@
+         shared_lib = None
+ 
+         import_targets = []
++        pc_imports = []
++        shared_imports = {}
+ 
+         for pc_file in pkgconfigs:
+             pkgc = pkgconfig(rctx, _EXTRACT_DIR + "/" + pc_file)
++            pc_targets = [libname + "_import" for libname in pkgc.libnames]
++            pc_has_shared = False
+             includes += pkgc.includes
+             link_paths += pkgc.link_paths
+ 
+@@ -631,6 +637,8 @@
+                 static_lib = None
+                 shared_options.setdefault(libname, pkgc)
+                 if libname + "_import" in import_targets:
++                    if libname in shared_imports:
++                        pc_has_shared = True
+                     continue
+ 
+                 subtarget = libname + "_import"
+@@ -673,6 +681,9 @@
+                         path, repo = candidates[0]
+                         static_lib = '"@@%s//:%s"' % (repo, path)
+                 selected = None
++                if shared_lib:
++                    pc_has_shared = True
++                    shared_imports[libname] = True
+                 if shared_lib and shared_lib.startswith('":'):
+                     selected = file_targets[shared_lib[2:-1]]
+                 elif shared_lib and shared_lib.startswith('"@@'):
+@@ -693,6 +704,14 @@
+                     hdrs = [],
+                     linkopts = pkgc.linkopts,
+                 )
++
++            pc_imports.append((pc_has_shared, pc_targets))
++
++        # A separate static-only .pc is an opt-in interface (e.g. libbsd-ctor).
++        # Keep static inputs explicitly required by a dynamic .pc, and retain
++        # all interfaces for packages that only provide static libraries.
++        if any([has_shared for has_shared, _targets in pc_imports]):
++            import_targets = {target: None for has_shared, targets in pc_imports if has_shared for target in targets}.keys()
+ 
+         build_file_content += _CC_LIBRARY_TMPL.format(
+             name = target_name,
