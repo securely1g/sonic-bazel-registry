@@ -44,6 +44,9 @@ class FixtureTestCase(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
+        additional = mock.patch.object(registry_ci, "ADDITIONAL_PRESUBMITS", set())
+        additional.start()
+        self.addCleanup(additional.stop)
 
     def entry(self, module: str, version: str, configured: bool = True) -> Path:
         entry = self.root / "modules" / module / version
@@ -231,6 +234,21 @@ class SelectionTests(FixtureTestCase):
         self.entry("legacy", "1.0.0", configured=False)
         head = self.commit("published registry")
         jobs = registry_ci.plan(self.root, None, head, all_versions=True, published=head)["include"]
+        self.assertEqual({(job["module"], job["version"]) for job in jobs},
+                         {("alpha", "1.0.0"), ("alpha", "2.0.0")})
+
+    def test_routine_plans_include_additional_version_without_replacing_latest(self) -> None:
+        self.entry("alpha", "1.0.0")
+        self.entry("alpha", "2.0.0")
+        path = self.root / "ci" / "registry_ci.py"
+        path.parent.mkdir()
+        path.write_text("initial\n")
+        base = self.commit("initial registry and CI")
+        path.write_text("changed\n")
+        head = self.commit("change CI")
+        with mock.patch.object(registry_ci, "ADDITIONAL_PRESUBMITS", {("alpha", "1.0.0")}):
+            self.assertEqual(self.selected(base, head), {("alpha", "1.0.0"), ("alpha", "2.0.0")})
+            jobs = registry_ci.plan(self.root, None, head, latest_versions=True, published=base)["include"]
         self.assertEqual({(job["module"], job["version"]) for job in jobs},
                          {("alpha", "1.0.0"), ("alpha", "2.0.0")})
 
@@ -818,6 +836,34 @@ class VersionPolicyTests(FixtureTestCase):
 
 
 class EntryValidationTests(FixtureTestCase):
+    def test_additions_only_accept_explicit_new_targets_for_declared_architectures(self) -> None:
+        directory = self.entry("alpha", "1.0.0")
+        path = directory / "presubmit.json"
+        config = json.loads(path.read_text())
+        config["architectures"] = ["amd64"]
+        config["platforms"] = {"amd64": "@platforms//host:host"}
+        for additions in [
+            {"arm64": {"test_targets": ["@alpha//:extra"]}},
+            {"amd64": {"skip_targets": ["@alpha//:consumer_test"]}},
+            {"amd64": {"test_targets": ["@alpha//:consumer_test"]}},
+            {"amd64": {"build_targets": ["@alpha//:x", "@alpha//:x"]}},
+            {"amd64": {"build_targets": ["@other//:x"]}},
+            {"amd64": {"test_targets": ["@alpha//:all"]}},
+            {"amd64": {"test_targets": ["//:local_without_integration"]}},
+            {"amd64": {}}, {"amd64": {"build_targets": []}}, [],
+        ]:
+            with self.subTest(additions=additions):
+                write_json(path, {**config, "additional_targets": additions})
+                with self.assertRaises(registry_ci.RegistryError):
+                    registry_ci.validate_entry(self.root, "alpha", "1.0.0")
+        additions = {"amd64": {"test_targets": ["@alpha//:extra"]}}
+        write_json(path, {**config, "additional_targets": additions})
+        self.assertEqual(registry_ci.validate_entry(self.root, "alpha", "1.0.0")["additional_targets"], additions)
+        path.write_text(path.read_text().replace('"additional_targets": {', '"additional_targets": {"amd64": {},', 1))
+        with self.assertRaisesRegex(registry_ci.RegistryError, "Duplicate field"):
+            registry_ci.validate_entry(self.root, "alpha", "1.0.0")
+
+
     def test_optional_host_platforms_require_complete_explicit_architecture_map(self) -> None:
         entry = self.entry("alpha", "1.0.0")
         path = entry / "presubmit.json"
@@ -1984,6 +2030,33 @@ class StagedCrossRoutingTests(FixtureTestCase):
             with self.subTest(value=value), self.assertRaises(registry_ci.RegistryError):
                 self.planned({}, cross_all=value)
 
+    def test_p4_profile_changes_only_jobs_executing_on_amd64(self):
+        p4_modules = ("p4c", "p4lang-bmv2", "sonic-dash")
+        for module in p4_modules:
+            entry = self.entry(module, "1.0.0")
+            path = entry / "presubmit.json"
+            manifest = json.loads(path.read_text())
+            manifest["architectures"] = ["amd64", "arm64"]
+            manifest["platforms"]["arm64"] = "@alpha//:arm"
+            write_json(path, manifest)
+        head = self.commit("Add heavy native and cross cases")
+        large = ["self-hosted", "Linux", "X64", "debian-trixie-container-large"]
+        with mock.patch.object(registry_ci, "ARM_CROSS_VERSIONS", {"p4c": ("1.0.0",)}):
+            for profile in ("large", "standard"):
+                rows = registry_ci.plan(self.root, None, head, all_versions=True, published=head,
+                                        p4_runner_profile=profile)["include"]
+                for row in rows:
+                    expected = registry_ci.RUNNERS[row["execution_architecture"]]
+                    if profile == "large" and row["module"] in p4_modules and row["execution_architecture"] == "amd64":
+                        expected = large
+                    self.assertEqual(row["runner"], expected, row)
+                heavy = {(row["module"], row["architecture"]) for row in rows if row["runner"] == large}
+                expected = {(module, "amd64") for module in p4_modules} | {("p4c", "arm64")}
+                self.assertEqual(heavy, expected if profile == "large" else set())
+            with self.assertRaisesRegex(registry_ci.RegistryError, "P4 runner profile"):
+                registry_ci.plan(self.root, None, head, all_versions=True, published=head,
+                                 p4_runner_profile="other")
+
     def test_empty_routes_preserve_every_native_job_and_original_contract(self):
         jobs = self.planned({})
         self.assertEqual(len(jobs), 5)
@@ -2040,9 +2113,11 @@ class WorkflowMatrixTests(unittest.TestCase):
                "runner": registry_ci.RUNNERS["amd64"]}
         arm = {**amd, "architecture": "arm64", "execution_architecture": "arm64", "runner": registry_ci.RUNNERS["arm64"]}
         second_amd = {**amd, "module": "beta"}
+        large = {**amd, "module": "sonic-dash", "runner": ["self-hosted", "Linux", "X64", "debian-trixie-container-large"]}
         cross = {**second_amd, "architecture": "arm64", "cross_compile": True}
         for jobs, succeeds in (([], True), ([amd], True), ([arm], True),
-                               ([arm, amd, second_amd, cross], True), ([cross], True),
+                               ([arm, amd, second_amd, cross, large], True), ([cross], True),
+                               ([{**large, "module": "beta"}], False), ([{**amd, "module": "sonic-dash"}], False),
                                ([{**arm, "architecture": "armhf"}], False),
                                ([{**arm, "cross_compile": True}], False),
                                ([{**cross, "cross_compile": "true"}], False),
@@ -2054,7 +2129,8 @@ class WorkflowMatrixTests(unittest.TestCase):
                 (root / "plan.json").write_text(json.dumps(matrix))
                 output = root / "outputs"
                 result = subprocess.run([sys.executable, "-I", "-S", "-c", script], cwd=root,
-                    env={**os.environ, "EVENT_NAME": "workflow_dispatch", "GITHUB_OUTPUT": str(output)},
+                    env={**os.environ, "EVENT_NAME": "workflow_dispatch", "GITHUB_OUTPUT": str(output),
+                         "P4_RUNNER_PROFILE": "large", "GITHUB_WORKSPACE": str(registry_ci.ROOT)},
                     text=True, capture_output=True)
                 if not succeeds:
                     self.assertNotEqual(result.returncode, 0)
@@ -2136,12 +2212,13 @@ class WorkflowMatrixTests(unittest.TestCase):
         self.assertIn("architecture: amd64", unit)
         self.assertIn("architecture: arm64", unit)
         self.assertIn("runner: [ubuntu-24.04-arm]", unit)
-        rows = re.findall(r"- architecture: (\w+)\n\s+runner: \[([^\]]+)\]\n"
+        self.assertIn("timeout-minutes: ${{ matrix.timeout_minutes }}", unit)
+        rows = re.findall(r"- architecture: (\w+)\n\s+timeout_minutes: (\d+)\n\s+runner: \[([^\]]+)\]\n"
                           r"\s+machine: (\w+)\n\s+bazel_arch: (\w+)\n\s+bazel_sha: ([0-9a-f]+)", unit)
         self.assertEqual(rows, [
-            ("amd64", "self-hosted, Linux, X64, debian-trixie-container", "x86_64", "x86_64",
+            ("amd64", "45", "self-hosted, Linux, X64, debian-trixie-container", "x86_64", "x86_64",
              "61d89402f0368e64b6c827be5de79d8e65382e8124c3cbb97325611a1851392e"),
-            ("arm64", "ubuntu-24.04-arm", "aarch64", "arm64",
+            ("arm64", "30", "ubuntu-24.04-arm", "aarch64", "arm64",
              "b7f2a85595e8a87d54843bc656c1e379fd9b8c1b5f783dc41717c1d7eb7cc49f"),
         ])
         self.assertNotIn("REGISTRY_CI_TEST_ARM_EXECUTOR", unit)
@@ -2329,6 +2406,53 @@ class TestContainerTests(unittest.TestCase):
                 self.assertNotEqual(result.returncode, 0)
                 self.assertFalse((root / "CAPTURE").exists())
 
+    def test_local_p4_builds_limit_make_for_targets_and_tools(self):
+        workflow = (registry_ci.ROOT / ".github/workflows/registry-module.yml").read_text()
+        script = self.step(workflow, "Build and test through the registry")
+        for module, target, execution, prior, expected, large in (
+            ("p4c", "amd64", "amd64", None, "--eval=.NOTPARALLEL:", False),
+            ("p4c", "arm64", "amd64", "-r --warn-undefined-variables", "-r --warn-undefined-variables --eval=.NOTPARALLEL:", False),
+            ("p4lang-bmv2", "amd64", "amd64", "", "--eval=.NOTPARALLEL:", False),
+            ("sonic-dash", "amd64", "amd64", None, "--eval=.NOTPARALLEL:", False),
+            ("sonic-dash", "arm64", "amd64", "-r", "-r --eval=.NOTPARALLEL:", False),
+            ("sonic-dash", "arm64", "arm64", None, None, False),
+            ("p4c", "arm64", "arm64", "-r", None, False),
+            ("libyang", "amd64", "amd64", "-r", None, False),
+            ("p4c", "amd64", "amd64", None, None, True),
+            ("p4c", "arm64", "amd64", None, None, True),
+            ("p4lang-bmv2", "amd64", "amd64", None, None, True),
+            ("sonic-dash", "amd64", "amd64", None, None, True),
+            ("sonic-dash", "arm64", "amd64", None, None, True),
+        ):
+            with self.subTest(module=module, target=target, execution=execution, large=large), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                env = self.shell_environment(root, target, execution, target != execution)
+                env["CI_MODULE"] = module
+                env["CI_LARGE_RUNNER"] = str(large).lower()
+                env.pop("GNUMAKEFLAGS", None)
+                if prior is not None:
+                    env["GNUMAKEFLAGS"] = prior
+                result = subprocess.run(["bash", "-c", script], env=env, capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                args = (root / "CAPTURE").read_text().splitlines()
+                self.assertEqual("ci/p4_runner_resources.py" in args, large)
+                if large:
+                    self.assertIn("--bazel-build-arg=--jobs=1", args)
+                self.assertEqual([arg for arg in args if "GNUMAKEFLAGS=" in arg], [] if expected is None else [
+                    "--bazel-build-arg=--action_env=GNUMAKEFLAGS=" + expected,
+                    "--bazel-build-arg=--host_action_env=GNUMAKEFLAGS=" + expected,
+                ])
+                standard_amd64_dash = (module, target, execution, large) == ("sonic-dash", "amd64", "amd64", False)
+                jvm_flags = ["-Xmx2g"] if execution == "amd64" else []
+                if standard_amd64_dash:
+                    jvm_flags.extend(["-XX:G1PeriodicGCInterval=30000", "-XX:MinHeapFreeRatio=20",
+                                      "-XX:MaxHeapFreeRatio=35"])
+                self.assertEqual([arg for arg in args if arg.startswith("--bazel-startup-arg=")],
+                                 ["--bazel-startup-arg=--host_jvm_args=" + flag for flag in jvm_flags])
+                self.assertEqual([arg for arg in args if "GC_FREE_SPACE_DIVISOR" in arg],
+                                 ["--bazel-build-arg=--host_cxxopt=-DGC_FREE_SPACE_DIVISOR=16"]
+                                 if standard_amd64_dash else [])
+
     def test_module_archive_preserves_modes_and_uses_sudo_only_for_local_execution(self):
         workflow = (registry_ci.ROOT / ".github/workflows/registry-module.yml").read_text()
         script = self.step(workflow, "Archive module validation results")
@@ -2505,6 +2629,25 @@ class EvidenceCopyFailureTests(unittest.TestCase):
 
 
 class FetchedModuleTests(FixtureTestCase):
+    def test_verified_distdir_reaches_build_test_queries_and_rust_preparation(self) -> None:
+        with mock.patch.object(registry_ci, "prepare_github_sources", return_value=["--distdir=/verified/inputs"]) as prepare, \
+             mock.patch.object(registry_ci, "prepare_rust", wraps=registry_ci.prepare_rust) as rust, \
+             mock.patch.object(registry_ci, "run_logged", wraps=registry_ci.run_logged) as execute:
+            self.run_fixture("github-inputs", build_args=["--experimental_downloader_config=/private/config"])
+        self.assertEqual(prepare.call_args.args[1:4], ("alpha", "1.0.0", self.architecture))
+        self.assertIn("--distdir=/verified/inputs", rust.call_args.args[-1])
+        for call in execute.call_args_list:
+            if call.args[0][0] == str(self.fake_bazel):
+                self.assertIn("--distdir=/verified/inputs", call.args[0])
+                self.assertIn("--experimental_downloader_config=/private/config", call.args[0])
+
+    def test_github_input_failure_prevents_bazel_startup(self) -> None:
+        with mock.patch.object(registry_ci, "prepare_github_sources", side_effect=registry_ci.RegistryError("unverified GitHub input")), \
+             mock.patch.object(registry_ci, "run_logged") as execute:
+            with self.assertRaisesRegex(registry_ci.RegistryError, "unverified GitHub input"):
+                self.run_fixture("github-rejected")
+        execute.assert_not_called()
+
     def setUp(self) -> None:
         super().setUp()
         self.registry_entry = self.entry("alpha", "1.0.0")
@@ -2825,6 +2968,43 @@ a.output.write_text(json.dumps(r))
             with self.assertRaisesRegex(registry_ci.RegistryError, "test-container-image"):
                 self.run_fixture("no-container")
             execute.assert_not_called()
+
+    def test_architecture_additions_reach_argv_verified_outputs_and_receipt(self) -> None:
+        self.config["architectures"] = ["amd64", "arm64"]
+        self.config["platforms"] = {arch: "@alpha//:" + arch for arch in self.config["architectures"]}
+        self.config["additional_targets"] = {
+            "amd64": {"build_targets": ["@alpha//:extra_library"], "test_targets": ["@alpha//:extra_test"]},
+        }
+        write_json(self.config_path, self.config)
+        # The fake Bazel emits evidence for each extra target only when the command requests it.
+        script = self.fake_bazel.read_text().replace(
+            "    print(json.dumps({'label': '@@alpha+//:library', 'trees': []}))",
+            "    requested = args[-1].removeprefix('config(').split(',')[0]\n"
+            "    print(json.dumps({'label': requested, 'trees': []}))")
+        script = script.replace(
+            "    Path(path).write_text",
+            "    if '@alpha//:extra_library' in args:\n"
+            "        extra = json.loads(json.dumps(events[-1]).replace('//:library', '//:extra_library'))\n"
+            "        events.append(extra)\n"
+            "    if '@alpha//:extra_test' in args:\n"
+            "        events.extend(json.loads(json.dumps(events).replace('//:consumer_test', '//:extra_test')))\n"
+            "    Path(path).write_text")
+        self.fake_bazel.write_text(script)
+        for arch in self.config["architectures"]:
+            with self.subTest(arch=arch), mock.patch.object(registry_ci, "verify_native", return_value={}), \
+                    mock.patch.object(registry_ci, "run_logged", wraps=registry_ci.run_logged) as execute:
+                artifacts = self.run_fixture("extras-" + arch, arch)
+                extra = self.config["additional_targets"].get(arch, {})
+                builds = self.config["build_targets"] + extra.get("build_targets", [])
+                tests = self.config["test_targets"] + extra.get("test_targets", [])
+                commands = [call.args[0] for call in execute.call_args_list]
+                for subcommand, expected in (("build", builds), ("test", tests)):
+                    args = next(cmd for cmd in commands if subcommand in cmd)
+                    self.assertEqual([a for a in args if a.startswith("@alpha//:")], expected)
+                receipt = json.loads((artifacts / "validation.json").read_text())
+                self.assertEqual(receipt["build_targets"], builds)
+                self.assertEqual(receipt["passed_tests"], tests)
+                self.assertEqual(set(json.loads((artifacts / "outputs.json").read_text())), set(builds))
 
     def test_every_consumer_dependency_is_pinned_by_module_name_and_recorded(self) -> None:
         artifacts = self.run_fixture("control")

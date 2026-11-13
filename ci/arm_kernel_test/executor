@@ -1,0 +1,26 @@
+#!/bin/bash
+set -euo pipefail
+# QEMU user-mode implements the other tests' system calls.
+case "${TEST_TARGET:-}" in
+    @rules_distroless//registry_ci:linux_headers_test|@rules_distroless+//registry_ci:linux_headers_test|@@rules_distroless+//registry_ci:linux_headers_test) ;;
+    *) exec /usr/local/bin/sonic-arm64 "$@" ;;
+esac
+# The standard executor accepts PRoot bind options before '--'. This standalone
+# ELF only uses the ARM dynamic loader and libc in the guest archive.
+while [[ $# -gt 0 && $1 != -- ]]; do shift; done
+[[ $# == 2 && -x $2 ]]
+program=$(realpath "$2")
+readelf -h "$program" | grep -Eq 'Machine: +AArch64$'
+sha256sum "$program"
+bundle=$(cd "$(dirname "$0")" && pwd)
+scratch=$(mktemp -d "${TEST_TMPDIR:-/tmp}/arm64-kernel.XXXXXXXX")
+trap 'rm -rf "$scratch"' EXIT
+cd "$scratch"
+install -m755 "$program" test-program
+cp "$bundle/base.cpio" guest.cpio
+printf 'test-program\0' | cpio --null --format=newc --quiet -o >> guest.cpio
+timeout -k 5 120 qemu-system-aarch64 -machine virt,accel=tcg -cpu cortex-a57 -smp 1 -m 448M \
+    -nographic -monitor none -nic none -no-reboot -kernel "$bundle/vmlinuz" -initrd guest.cpio \
+    -append 'console=ttyAMA0 rdinit=/init panic=1 loglevel=3' | tee console.log
+status=$(tr -d '\r' < console.log | sed -n 's/^REGISTRY_CI_GUEST_EXIT=//p')
+[[ $status == 0 ]]

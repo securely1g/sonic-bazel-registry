@@ -48,7 +48,13 @@ jobs:
   validate:
     name: Validate module
     runs-on: ${{ fromJSON(inputs.runner) }}
-    timeout-minutes: 180
+    # Serial P4 builds and the cold SWSS cross-build can take over three hours.
+    timeout-minutes: >-
+      ${{ (((contains(fromJSON(inputs.runner), 'debian-trixie-container') ||
+             contains(fromJSON(inputs.runner), 'debian-trixie-container-large')) &&
+            contains(fromJSON('["p4c","p4lang-bmv2","sonic-dash"]'), inputs.module)) ||
+           (inputs.cross_compile && inputs.module == 'sonic-swss' &&
+            inputs.version == '0.0.3-9c3797990d4b5a79100a40fe7689927c18212361')) && 360 || 180 }}
     # Local native/cross jobs execute directly in the fresh Trixie runner.
     # Only native hosted ARM needs the separate pinned job image.
     container: ${{ inputs.architecture == 'arm64' && !inputs.cross_compile && 'debian:trixie-20260918@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c' || '' }}
@@ -59,6 +65,7 @@ jobs:
       DEBIAN_FRONTEND: noninteractive
       CI_MODULE: ${{ inputs.module }}
       CI_VERSION: ${{ inputs.version }}
+      CI_LARGE_RUNNER: ${{ contains(fromJSON(inputs.runner), 'debian-trixie-container-large') }}
       CI_ARCHITECTURE: ${{ inputs.architecture }}
       CI_EXECUTION_ARCHITECTURE: ${{ inputs.execution_architecture || inputs.architecture }}
       CI_CROSS_COMPILE: ${{ inputs.cross_compile }}
@@ -81,24 +88,35 @@ jobs:
           set -euo pipefail
           apt-get update
           # LLVM needs libxml2; installed SDK tests exercise their pkg-config metadata.
-          apt-get install -y --no-install-recommends binutils build-essential ca-certificates curl gdb git libxml2 libzstd-dev patch pkg-config python3 tar unzip xz-utils zlib1g-dev zstd
+          apt-get install -y --no-install-recommends binutils build-essential ca-certificates curl file gdb git libxml2 libzstd-dev patch pkg-config python3 tar unzip xz-utils zlib1g-dev zstd
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+      - name: Prepare APT repository tools
+        run: |
+          bash ci/prepare_repository_tools.sh
       - name: Identify the checked-out mirror configuration
         id: mirror_config
-        if: ${{ contains(fromJSON(inputs.runner), 'self-hosted') && contains(fromJSON(inputs.runner), 'debian-trixie-container') && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && hashFiles('ci/private_mirrors.py') != '' }}
+        if: ${{ contains(fromJSON(inputs.runner), 'self-hosted') && (contains(fromJSON(inputs.runner), 'debian-trixie-container') || contains(fromJSON(inputs.runner), 'debian-trixie-container-large')) && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && hashFiles('ci/private_mirrors.py') != '' }}
         run: echo "kind=${{ hashFiles('ci/debian_snapshots.json') != '' && 'roots' || 'dated' }}" >> "$GITHUB_OUTPUT"
       - name: Download the optional same-run HTTP audit agent
         id: http_audit_download
-        if: ${{ inputs.http_audit_artifact_id != '' && contains(fromJSON(inputs.runner), 'self-hosted') && contains(fromJSON(inputs.runner), 'debian-trixie-container') && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) }}
+        if: ${{ inputs.http_audit_artifact_id != '' && contains(fromJSON(inputs.runner), 'self-hosted') && (contains(fromJSON(inputs.runner), 'debian-trixie-container') || contains(fromJSON(inputs.runner), 'debian-trixie-container-large')) && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) }}
         continue-on-error: true
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           artifact-ids: ${{ inputs.http_audit_artifact_id }}
           path: ${{ runner.temp }}/debian-http-audit
           merge-multiple: true
+      - name: Prepare a Debian ARM kernel for the Linux AIO test
+        if: inputs.cross_compile && inputs.module == 'rules_distroless'
+        run: |
+          sudo -n apt-get -q update
+          sudo -n apt-get -q -y --no-install-recommends install qemu-system-arm cpio
+          bundle="$RUNNER_TEMP/arm-kernel"
+          ci/arm_kernel_test/prepare.sh "$bundle"
+          echo "ARM_TEST_EXECUTOR=$bundle/executor" >> "$GITHUB_ENV"
       - name: Install Bazel 8.5.1
         run: |
           set -euo pipefail
@@ -161,20 +179,42 @@ jobs:
           if [[ "${HTTP_AUDIT_READY:-}" == success ]]; then
             HTTP_AUDIT_ARGS=(--http-audit-jar "$RUNNER_TEMP/debian-http-audit/debian-http-audit.jar")
           fi
+          RESOURCE_RECEIPT=()
           if [[ "$CI_EXECUTION_ARCHITECTURE" == amd64 ]]; then
             TEST_CONTAINER_IMAGE="${SONIC_RUNNER_IMAGE_REFERENCE:?Missing runner image identity}"
             ROOT=(sudo -n)
             SECRET_ENV=(--preserve-env=DEBIAN_MIRROR_ROOT,DEBIAN_SECURITY_MIRROR_ROOT,DEBIAN_MIRROR_BASE_URL,DEBIAN_SECURITY_MIRROR_BASE_URL,GITHUB_ACTIONS)
             # Bazel's default heap is too small for large dependency graphs
-            # inside the runner's 16 GiB memory limit.
+            # inside the runner's memory limit.
             BAZEL_STARTUP_ARGS=(--bazel-startup-arg=--host_jvm_args=-Xmx2g)
             BAZEL_BUILD_ARGS=(--bazel-build-arg=--jobs=1 --bazel-build-arg=--discard_analysis_cache)
+            case "$CI_MODULE" in
+              p4c|p4lang-bmv2|sonic-dash)
+                # These recipes run make -j4 inside one Bazel action. DASH also
+                # compiles P4C for the execution platform.
+                if [[ "${CI_LARGE_RUNNER:-false}" == true ]]; then
+                  # One Bazel action may run the recipe's four parallel Make compilers.
+                  RESOURCE_RECEIPT=(python3 ci/p4_runner_resources.py "$GITHUB_WORKSPACE/ci-artifacts/p4-runner-resources.json")
+                else
+                  make_flags="${GNUMAKEFLAGS:+$GNUMAKEFLAGS }--eval=.NOTPARALLEL:"
+                  BAZEL_BUILD_ARGS+=("--bazel-build-arg=--action_env=GNUMAKEFLAGS=$make_flags"
+                                     "--bazel-build-arg=--host_action_env=GNUMAKEFLAGS=$make_flags")
+                  if [[ "$CI_MODULE" == sonic-dash && "$CI_ARCHITECTURE" == amd64 ]]; then
+                    # The host P4C compiler and Bazel share 6 GiB while compiling dash_pipeline.p4.
+                    BAZEL_BUILD_ARGS+=(--bazel-build-arg=--host_cxxopt=-DGC_FREE_SPACE_DIVISOR=16)
+                    BAZEL_STARTUP_ARGS+=(--bazel-startup-arg=--host_jvm_args=-XX:G1PeriodicGCInterval=30000
+                                         --bazel-startup-arg=--host_jvm_args=-XX:MinHeapFreeRatio=20
+                                         --bazel-startup-arg=--host_jvm_args=-XX:MaxHeapFreeRatio=35)
+                  fi
+                fi
+                ;;
+            esac
             "${ROOT[@]}" git config --global --add safe.directory "$GITHUB_WORKSPACE"
           fi
           if [[ "$CI_CROSS_COMPILE" == true ]]; then
             CROSS_ARGS=(--cross-compile --test-executor "$ARM_TEST_EXECUTOR")
           fi
-          "${ROOT[@]}" "${SECRET_ENV[@]}" python3 ci/private_mirrors.py run \
+          "${ROOT[@]}" "${SECRET_ENV[@]}" "${RESOURCE_RECEIPT[@]}" python3 ci/private_mirrors.py run \
             --artifacts "$GITHUB_WORKSPACE/ci-artifacts" \
             --private-dir "$RUNNER_TEMP/private-mirrors-module" \
             --public-config ci/source_mirrors.cfg \

@@ -1,0 +1,23 @@
+# AUTO-GENERATED. DO NOT EDIT MANUALLY.
+# Source: ../MODULE.bazel
+# Generator: python3 ci/registry_ci.py sync-module --module scapy --version 2.6.1.sonic.2
+
+module(name = "scapy", version = "2.6.1.sonic.2")
+
+bazel_dep(name = "bazel_skylib", version = "1.9.2")
+bazel_dep(name = "platforms", version = "1.0.0")
+bazel_dep(name = "rules_python", version = "1.9.0")
+
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(python_version = "3.13")
+use_repo(python, "python_3_13")
+
+# Build and test tools only; these packages do not enter Scapy's wheel.
+pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+pip.parse(
+    hub_name = "scapy_test_pip",
+    python_version = "3.13",
+    requirements_lock = "//:requirements_lock.txt",
+    extra_pip_args = ["--only-binary=:all:"],
+)
+use_repo(pip, "scapy_test_pip")

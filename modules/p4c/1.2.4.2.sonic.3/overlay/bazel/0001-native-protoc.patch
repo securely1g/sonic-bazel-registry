@@ -1,0 +1,73 @@
+# Recovered native-protoc adaptation from the retained P4C source bundle.
+# Primary upstream commit: 624c6be8076881e9af1e2f7d7691bc6c4416f4b1.
+# Retained bundle SHA-256: a41d616add63924a098edaab446809f543ffadfc2e40356f9b73986f324c668a.
+# Build protoc from the declared Protobuf sources on each native architecture
+# and declare the Protobuf include path for P4Runtime generation.
+diff --git a/cmake/Protobuf.cmake b/cmake/Protobuf.cmake
+index 943cf37b0..fcfaf9be7 100644
+--- a/cmake/Protobuf.cmake
++++ b/cmake/Protobuf.cmake
+@@ -26,7 +26,7 @@ macro(p4c_obtain_protobuf)
+     set(FETCHCONTENT_QUIET_PREV ${FETCHCONTENT_QUIET})
+     set(FETCHCONTENT_QUIET OFF)
+     set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests.")
+-    set(protobuf_BUILD_PROTOC_BINARIES OFF CACHE BOOL "Build libprotoc and protoc compiler.")
++    set(protobuf_BUILD_PROTOC_BINARIES ON CACHE BOOL "Build libprotoc and protoc compiler.")
+     # Only ever build the static library. It is not safe to link with a local dynamic version.
+     set(protobuf_BUILD_SHARED_LIBS OFF CACHE BOOL "Build Shared Libraries")
+     # Unity builds do not work for Protobuf...
+@@ -39,26 +39,6 @@ macro(p4c_obtain_protobuf)
+       USES_TERMINAL_DOWNLOAD TRUE
+       GIT_PROGRESS TRUE
+     )
+-    # Pull a different protoc binary for MacOS.
+-    # TODO: Should we build from scratch?
+-    if(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+-      fetchcontent_declare(
+-        protoc
+-        URL https://github.com/protocolbuffers/protobuf/releases/download/v${P4C_PROTOBUF_VERSION}/protoc-${P4C_PROTOBUF_VERSION}-osx-x86_64.zip
+-        USES_TERMINAL_DOWNLOAD TRUE
+-        GIT_PROGRESS TRUE
+-      )
+-    else()
+-      fetchcontent_declare(
+-        protoc
+-        URL https://github.com/protocolbuffers/protobuf/releases/download/v${P4C_PROTOBUF_VERSION}/protoc-${P4C_PROTOBUF_VERSION}-linux-x86_64.zip
+-        URL_HASH SHA256=3a4c1e5f2516c639d3079b1586e703fc7bcfa2136d58bda24d1d54f949c315e8
+-        USES_TERMINAL_DOWNLOAD TRUE
+-        GIT_PROGRESS TRUE
+-      )
+-    endif()
+-
+-    fetchcontent_makeavailable(protoc)
+     # Exclude Protobuf from the main make install step. We only want to use it locally.
+     fetchcontent_makeavailable_but_exclude_install(protobuf)
+ 
+@@ -66,8 +46,12 @@ macro(p4c_obtain_protobuf)
+     set(CMAKE_UNITY_BUILD ${SAVED_CMAKE_UNITY_BUILD})
+     set(FETCHCONTENT_QUIET ${FETCHCONTENT_QUIET_PREV})
+ 
+-    set(PROTOBUF_PROTOC_EXECUTABLE ${protoc_SOURCE_DIR}/bin/protoc CACHE STRING
+-                                                                         "Protoc executable."
++    # protobuf_BUILD_PROTOC_BINARIES=ON (above) makes the Protobuf build produce a
++    # native protoc target. $<TARGET_FILE:protoc> resolves to that binary and makes
++    # any custom command using it depend on protoc being built first -- the
++    # p4runtime codegen command's DEPENDS lists only the .proto files.
++    set(PROTOBUF_PROTOC_EXECUTABLE $<TARGET_FILE:protoc> CACHE STRING
++                                                               "Protoc executable."
+     )
+     set(Protobuf_INCLUDE_DIR ${protobuf_SOURCE_DIR}/src/ CACHE STRING "Protobuf include directory.")
+     set(PROTOBUF_LIBRARY libprotobuf)
+diff --git a/control-plane/CMakeLists.txt b/control-plane/CMakeLists.txt
+index b3c40ba2c..d88a568fd 100644
+--- a/control-plane/CMakeLists.txt
++++ b/control-plane/CMakeLists.txt
+@@ -52,7 +52,7 @@ add_custom_target (mkP4configdir
+   ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/p4/config)
+ add_custom_command(OUTPUT ${P4RUNTIME_GEN_SRCS} ${P4RUNTIME_GEN_HDRS}
+   COMMAND ${PROTOBUF_PROTOC_EXECUTABLE}
+-          -I ${P4RUNTIME_STD_DIR} -I${CMAKE_CURRENT_SOURCE_DIR}
++          -I ${P4RUNTIME_STD_DIR} -I${CMAKE_CURRENT_SOURCE_DIR} -I ${Protobuf_INCLUDE_DIR}
+           --cpp_out ${CMAKE_CURRENT_BINARY_DIR}
+           --python_out ${CMAKE_CURRENT_BINARY_DIR}
+           --experimental_allow_proto3_optional

@@ -1,0 +1,570 @@
+diff --git a/apt/private/deb_import.bzl b/apt/private/deb_import.bzl
+--- a/apt/private/deb_import.bzl
++++ b/apt/private/deb_import.bzl
+@@ -4,7 +4,7 @@
+ load(":linker_script.bzl", "linker_script")
+ load(":lockfile.bzl", "lockfile")
+ load(":multiarch.bzl", "default_include_dirs", "select_include_dirs")
+-load(":pkgconfig.bzl", "pkgconfig")
++load(":pkgconfig.bzl", "resolve_modules")
+ load(":util.bzl", "util")
+ 
+ # BUILD.bazel template
+@@ -274,7 +274,7 @@
+ """.format(
+             name = name,
+             path = path,
+-            file_target = file_targets[path],
++            file_target = getattr(pkgc, "module_target", file_targets[path]) if pkgc else file_targets[path],
+             package = target_name,
+             defines = pkgc.defines if pkgc else [],
+             linkopts = pkgc.linkopts if pkgc else [],
+@@ -311,7 +311,7 @@
+     additional_linker_inputs = {inputs},
+     visibility = ["//visibility:public"],
+ )
+-""".format(name = name, file_target = file_targets[path], package = target_name, dependencies = static_dependencies, inputs = static_inputs, linkopts = pkgc.linkopts if pkgc else [])
++""".format(name = name, file_target = getattr(pkgc, "static_module_target", file_targets[path]) if pkgc else file_targets[path], package = target_name, dependencies = static_dependencies, inputs = static_inputs, linkopts = pkgc.linkopts if pkgc else [])
+         exports[name + "_static"] = name + "_static"
+     return (content, exports)
+ 
+@@ -387,7 +387,77 @@
+         scripts[installed] = json.encode({"content": content, "paths": resolved.paths, "search_paths": {directory: [rctx.attr.name, directory.strip("/")] for directory in search_dirs[installed]}, "unresolved": resolved.unresolved})
+     return scripts
+ 
+-def _discover_contents(rctx, depends_on, depends_file_map, target_name):
++def _pc_installed_path(path):
++    parts = []
++    for part in path.split("/"):
++        if part == "..":
++            if parts:
++                parts.pop()
++        elif part not in ["", "."]:
++            parts.append(part)
++    return "/".join(parts)
++
++def _pc_library(rctx, libname, mode, paths, own_files, depends_file_map):
++    if libname.startswith("lib:"):
++        names = [libname[4:]]
++    else:
++        names = [libname + suffix for suffix in ([".a", ".so"] if mode == "static" else [".so", ".a"])]
++    for name in names:
++        candidates = {path: rctx.attr.name for path in own_files if path.rsplit("/", 1)[-1] == name}
++        for path, repo in depends_file_map.items():
++            if path.rsplit("/", 1)[-1] == name:
++                candidates.setdefault(path, repo)
++        for directory in paths:
++            path = _pc_installed_path(directory) + "/" + name
++            if path in candidates:
++                return struct(target = "@@%s//:%s" % (candidates[path], _file_library_name(path)), error = "")
++        if len(candidates) == 1:
++            path = candidates.keys()[0]
++            return struct(target = "@@%s//:%s" % (candidates[path], _file_library_name(path)), error = "")
++        if len(candidates) > 1:
++            return struct(target = None, error = "Ambiguous pkg-config library %s: %s" % (libname, candidates.keys()))
++    # Standard libraries can be supplied by the declared compiler toolchain.
++    return struct(target = None, error = "")
++
++def _pc_include_dirs(rctx, includes, own_files, depends_file_map):
++    directories = {}
++    for include in includes:
++        installed = _pc_installed_path(include)
++        owners = {rctx.attr.name: True for path in own_files if path.startswith(installed + "/")}
++        for path, repo in depends_file_map.items():
++            if path.startswith(installed + "/"):
++                owners[repo] = True
++        for repo in owners:
++            directories["$(BINDIR)/external/" + repo + "/" + installed] = True
++    return directories.keys()
++
++def _pc_module_content(rctx, modules, own_files, hdrs, header_deps, depends_file_map):
++    content = ""
++    exports = {}
++    for name, definition in modules.items():
++        for mode, flags in definition["modes"].items():
++            target = "pkgconfig/" + name + ("/static" if mode == "static" else "")
++            exports[target] = target
++            error = flags.get("error", "")
++            deps = []
++            linkopts = list(flags.get("linkopts", []))
++            for libname in flags.get("libnames", []):
++                result = _pc_library(rctx, libname, mode, flags["link_paths"], own_files, depends_file_map)
++                if result.error:
++                    error = result.error
++                elif result.target:
++                    deps.append(result.target)
++                else:
++                    linkopts.append("-l" + libname.removeprefix("lib"))
++            if error:
++                content += 'invalid_native_library(name=%r, message=%r, visibility=["//visibility:public"])\n' % (target, error)
++                continue
++            compiler = "_pkgconfig_compile_" + util.sanitize(target)
++            content += 'cc_deb_library(name=%r, hdrs=%r, deps=%r, include_dirs=%r, defines=%r)\n' % (compiler, hdrs, header_deps, _pc_include_dirs(rctx, flags["includes"], own_files, depends_file_map), flags["defines"])
++            content += 'native_library_group(name=%r, deps=%r, linkopts=%r, visibility=["//visibility:public"])\n' % (target, deps + [":" + compiler, ":_runtime_link_inputs"], linkopts)
++    return content, exports
++
++def _discover_contents(rctx, depends_on, depends_file_map, target_name, pc_documents):
+     archives = [path for path in rctx.path(".").readdir() if path.basename.startswith("data.tar")]
+     if len(archives) != 1:
+         fail("DEB must contain exactly one data archive: " + str(archives))
+@@ -610,22 +680,35 @@
+     # static libc into an otherwise dynamic program creates two C runtimes.
+     toolchain_owned = not pkgconfigs and (len(hpp_files) or len(h_files)) and ((target_name.find("libc") != -1 or target_name.find("libstdc") != -1 or target_name.find("libgcc") != -1))
+ 
++    # Own archive metadata also supports legacy index file maps that omit .pc.
++    for pc_file in pkgconfigs:
++        pc_documents.append({"path": pc_file, "repo": rctx.attr.name, "own": True, "content": rctx.read(_EXTRACT_DIR + "/" + pc_file)})
++    pc_modules = resolve_modules(rctx, pc_documents)
++    primary_names = [name for name in [target_name, target_name.removeprefix("lib")] if name in pc_modules]
++    default_names = primary_names[:1] if primary_names else pc_modules.keys()
++    default_linkopts = {flag: True for name in default_names for flag in pc_modules[name]["modes"]["dynamic"].get("linkopts", [])}.keys()
++    default_error = "\n".join([pc_modules[name]["modes"]["dynamic"]["error"] for name in default_names if "error" in pc_modules[name]["modes"]["dynamic"]])
++    default_includes = [include for name in default_names for include in pc_modules[name]["modes"]["dynamic"].get("includes", [])]
++    default_defines = {define: True for name in default_names for define in pc_modules[name]["modes"]["dynamic"].get("defines", [])}.keys()
++    build_file_content += 'cc_deb_library(name="_pkgconfig_default_compile", hdrs=%r, deps=%r, include_dirs=%r, defines=%r)\n' % (h_files + hpp_files + hpp_files_woext, header_deps, _pc_include_dirs(rctx, default_includes, self_files, depends_file_map), default_defines)
++
+     # Package has a pkgconfig, use that as the source of truth.
+     if len(pkgconfigs):
+         link_paths = []
+         includes = []
+ 
+-        static_lib = None
+-        shared_lib = None
+-
+         import_targets = []
+-        pc_imports = []
+-        shared_imports = {}
+ 
+         for pc_file in pkgconfigs:
+-            pkgc = pkgconfig(rctx, _EXTRACT_DIR + "/" + pc_file)
+-            pc_targets = [libname + "_import" for libname in pkgc.libnames]
+-            pc_has_shared = False
++            module_name = pc_file.rsplit("/", 1)[-1].removesuffix(".pc")
++            modes = pc_modules[module_name]["modes"]
++            pkgc = struct(
++                libnames = pc_modules[module_name]["own_libnames"],
++                includes = [include for flags in modes.values() for include in flags.get("includes", [])],
++                link_paths = [path for flags in modes.values() for path in flags.get("link_paths", [])],
++                defines = [],
++                linkopts = [],
++            )
+             includes += pkgc.includes
+             link_paths += pkgc.link_paths
+ 
+@@ -633,85 +716,30 @@
+                 continue
+ 
+             for libname in pkgc.libnames:
+-                shared_lib = None
+-                static_lib = None
+                 shared_options.setdefault(libname, pkgc)
+                 if libname + "_import" in import_targets:
+-                    if libname in shared_imports:
+-                        pc_has_shared = True
+                     continue
+ 
+                 subtarget = libname + "_import"
+                 import_targets.append(subtarget)
+ 
+-                # Look for a static archive
+-                # for ar in a_files:
+-                #     if ar.endswith(pkgc.libname + ".a"):
+-                #         static_lib = '":%s"' % ar
+-                #         break
+-
+-                # Look for a dynamic library
+-                IGNORE = ["libfl"]
+-                for so_lib in so_files:
+-                    if libname and libname not in IGNORE and so_lib.endswith(libname + ".so"):
+-                        shared_lib = '":%s"' % so_lib
+-                        break
+-
+-                if shared_lib == None:
+-                    # A .pc file may name a library owned by another package.
+-                    candidates = [(path, repo) for path, repo in depends_file_map.items() if path.rsplit("/", 1)[-1] == libname + ".so"]
+-                    if len(candidates) > 1:
+-                        candidates = [(path, repo) for path, repo in candidates if "/" + path.rsplit("/", 1)[0] in pkgc.link_paths]
+-                    if len(candidates) > 1:
+-                        fail("Ambiguous pkg-config library " + libname + ": " + str(candidates))
+-                    if candidates:
+-                        path, repo = candidates[0]
+-                        shared_lib = '"@@%s//:%s"' % (repo, path)
+-                if shared_lib == None:
+-                    archives = [path for path in a_files if path.rsplit("/", 1)[-1] == libname + ".a"]
+-                    if len(archives) == 1:
+-                        static_lib = '":%s"' % archives[0]
+-                if shared_lib == None and static_lib == None:
+-                    candidates = [(path, repo) for path, repo in depends_file_map.items() if path.rsplit("/", 1)[-1] == libname + ".a"]
+-                    if len(candidates) > 1:
+-                        candidates = [(path, repo) for path, repo in candidates if "/" + path.rsplit("/", 1)[0] in pkgc.link_paths]
+-                    if len(candidates) > 1:
+-                        fail("Ambiguous pkg-config static library " + libname + ": " + str(candidates))
+-                    if candidates:
+-                        path, repo = candidates[0]
+-                        static_lib = '"@@%s//:%s"' % (repo, path)
+-                selected = None
+-                if shared_lib:
+-                    pc_has_shared = True
+-                    shared_imports[libname] = True
+-                if shared_lib and shared_lib.startswith('":'):
+-                    selected = file_targets[shared_lib[2:-1]]
+-                elif shared_lib and shared_lib.startswith('"@@'):
+-                    repo, installed = shared_lib[3:-1].split("//:", 1)
+-                    selected = "@@%s//:%s" % (repo, _file_library_name(installed))
+-                elif static_lib and static_lib.startswith('"@@'):
+-                    repo, installed = static_lib[3:-1].split("//:", 1)
+-                    selected = "@@%s//:%s" % (repo, _file_library_name(installed))
+-                elif static_lib:
+-                    selected = file_targets[static_lib[2:-1]]
+-                if selected:
+-                    build_file_content += 'native_library_group(name=%r, deps=[%r], linkopts=%r)\n' % (subtarget, selected, pkgc.linkopts)
+-                    continue
+-                build_file_content += _CC_IMPORT_TMPL.format(
+-                    name = subtarget,
+-                    shared_lib = shared_lib,
+-                    static_lib = static_lib,
+-                    hdrs = [],
+-                    linkopts = pkgc.linkopts,
+-                )
+-
+-            pc_imports.append((pc_has_shared, pc_targets))
+-
+-        # A separate static-only .pc is an opt-in interface (e.g. libbsd-ctor).
+-        # Keep static inputs explicitly required by a dynamic .pc, and retain
+-        # all interfaces for packages that only provide static libraries.
+-        if any([has_shared for has_shared, _targets in pc_imports]):
+-            import_targets = {target: None for has_shared, targets in pc_imports if has_shared for target in targets}.keys()
++                result = _pc_library(rctx, libname, "dynamic", pkgc.link_paths, self_files, depends_file_map)
++                if result.error:
++                    build_file_content += 'invalid_native_library(name=%r, message=%r, visibility=["//visibility:public"])\n' % (subtarget, result.error)
++                elif result.target:
++                    build_file_content += 'native_library_group(name=%r, deps=[%r], linkopts=%r)\n' % (subtarget, result.target, default_linkopts)
++                else:
++                    build_file_content += _CC_IMPORT_TMPL.format(
++                        name = subtarget,
++                        shared_lib = None,
++                        static_lib = None,
++                        hdrs = [],
++                        linkopts = default_linkopts + ["-l" + libname.removeprefix("lib")],
++                    )
++
++        if default_error:
++            build_file_content += 'invalid_native_library(name="_pkgconfig_default_error", message=%r)\n' % default_error
++            import_targets.append(":_pkgconfig_default_error")
+ 
+         build_file_content += _CC_LIBRARY_TMPL.format(
+             name = target_name,
+@@ -736,7 +764,7 @@
+                     for rp in rpaths
+                 ]
+             }.keys(),
+-            direct_deps = import_targets + [":_so_libs"],
++            direct_deps = import_targets + [":_pkgconfig_default_compile", ":_so_libs"],
+             deps = deps,
+             strip_include_prefix = None,
+         )
+@@ -811,6 +839,16 @@
+         deps = header_deps,
+     )
+ 
++    for libname in shared_options.keys():
++        candidates = [name for name in pc_modules if libname in pc_modules[name]["own_libnames"]]
++        preferred = [name for name in [libname, libname.removeprefix("lib")] if name in candidates]
++        if preferred or len(candidates) == 1:
++            module = preferred[0] if preferred else candidates[0]
++            flags = pc_modules[module]["modes"]["dynamic"]
++            shared_options[libname] = struct(defines = flags.get("defines", []), linkopts = [], module_target = ":pkgconfig/" + module, static_module_target = ":pkgconfig/" + module + "/static")
++        else:
++            shared_options[libname] = None
++
+     shared_content, shared_exports = _shared_library_exports(
+         rctx,
+         target_name,
+@@ -827,6 +865,9 @@
+         runtime_paths,
+     )
+     build_file_content += shared_content
++    module_content, module_exports = _pc_module_content(rctx, pc_modules, self_files, h_files + hpp_files + hpp_files_woext, header_deps, depends_file_map)
++    build_file_content += module_content
++    shared_exports.update(module_exports)
+     return (build_file_content, outs, symlinks, linker_scripts, self_symlinks, shared_exports)
+ 
+ def _deb_import_impl(rctx):
+@@ -849,6 +890,13 @@
+     # Rebuild the {file: canonical_name(dependency_repo)} index from each dependency's own filemap.
+     # The first dependency that provides a path wins.
+     provided_by = {}
++    pc_documents = []
++    filemaps = [rctx.attr.own_filemap] + rctx.attr.dep_filemaps if rctx.attr.own_filemap else rctx.attr.dep_filemaps
++    for filemap in filemaps:
++        path = rctx.path(filemap)
++        owner = path.dirname.basename.removesuffix("_filemap")
++        for installed, record in json.decode(rctx.read(path.dirname.get_child("pkgconfig.json"))).items():
++            pc_documents.append(dict(record, path = installed, repo = owner, own = owner == rctx.attr.name))
+     for i in range(len(rctx.attr.dep_filemaps)):
+         filemap_path = rctx.path(rctx.attr.dep_filemaps[i])
+         dep_repo = filemap_path.dirname.basename.removesuffix("_filemap")
+@@ -862,6 +910,7 @@
+         rctx.attr.depends_on,
+         provided_by,
+         rctx.attr.package_name.removesuffix("-dev"),
++        pc_documents,
+     )
+ 
+     foreign_symlinks = {}
+@@ -891,6 +940,7 @@
+ deb_import = repository_rule(
+     implementation = _deb_import_impl,
+     attrs = {
++        "own_filemap": attr.label(doc = "Leaf package and pkg-config metadata."),
+         "payload_only": attr.bool(doc = "Import runtime/control archives without C++ discovery or index filemaps."),
+         "repo_prefix": attr.string(doc = "Internal namespace for locked package repositories."),
+         "urls": attr.string_list(mandatory = True, allow_empty = False),
+diff --git a/apt/private/pkgconfig.bzl b/apt/private/pkgconfig.bzl
+--- a/apt/private/pkgconfig.bzl
++++ b/apt/private/pkgconfig.bzl
+@@ -112,7 +112,7 @@
+         tokens.append(token)
+     return tokens
+ 
+-def process_pcconfig(pc):
++def process_pcconfig(pc, infer_includes = True):
+     (directives, variables) = pc
+     includedir = ""
+     libdir = ""
+@@ -178,15 +178,15 @@
+                 # If the include is direct include eg $includedir (/usr/include/hiredis)
+                 # equals to  -I/usr/include/hiredis then we need to add /usr/include into
+                 # includes array to satify imports as `#include <hiredis/hiredis.h>`
+-                if include == includedir:
++                if infer_includes and include == includedir:
+                     includes.append(include.removesuffix("/" + directives["Name"]))
+-                elif include.startswith(includedir):
++                elif infer_includes and include.startswith(includedir):
+                     includes.append(include.removesuffix("/" + directives["Name"]))
+             elif flag.startswith("-D"):
+                 define = flag.removeprefix("-D")
+                 defines.append(define)
+ 
+-    if len(includes) == 0:
++    if len(includes) == 0 and infer_includes:
+         includes = [
+             # Standard include path if the package does not specify includes
+             "/usr/include",
+@@ -207,3 +207,55 @@
+         includes = includes,
+         defines = defines,
+     )
++
++def resolve_modules(rctx, documents):
++    """Use pkg-config on pinned leaf metadata, never on host-installed modules."""
++    by_path = {}
++    for document in documents:
++        by_path.setdefault(document["path"], document)
++    records = {}
++    for document in documents:
++        source = document
++        seen = {}
++        for _ in range(len(by_path) + 1):
++            if "content" in source:
++                break
++            path = source.get("alias")
++            if not path or path in seen or path not in by_path:
++                source = {}
++                break
++            seen[path] = True
++            source = by_path[path]
++        if "content" not in source:
++            continue
++        name = document["path"].rsplit("/", 1)[-1].removesuffix(".pc")
++        if name not in records or document["own"]:
++            records[name] = dict(document, content = source["content"])
++    for name, record in records.items():
++        installed_dir = "/" + record["path"].rsplit("/", 1)[0]
++        rctx.file("_pkgconfig_modules/" + name + ".pc", record["content"].replace("${pcfiledir}", installed_dir))
++    environment = {
++        "PKG_CONFIG_LIBDIR": str(rctx.path("_pkgconfig_modules")),
++        "PKG_CONFIG_PATH": "",
++        "PKG_CONFIG_SYSROOT_DIR": "",
++        "PKG_CONFIG_ALLOW_SYSTEM_CFLAGS": "1",
++        "PKG_CONFIG_ALLOW_SYSTEM_LIBS": "1",
++        "PKG_CONFIG_DISABLE_UNINSTALLED": "1",
++    }
++    resolved = {}
++    for name, record in sorted(records.items()):
++        if not record["own"]:
++            continue
++        modes = {}
++        for mode in ["dynamic", "static"]:
++            options = ["--static"] if mode == "static" else []
++            libs = rctx.execute(["pkg-config"] + options + ["--libs", name], environment = environment)
++            cflags = rctx.execute(["pkg-config"] + options + ["--cflags", name], environment = environment)
++            if libs.return_code or cflags.return_code:
++                modes[mode] = {"error": "pkg-config module %s (%s): %s%s" % (name, mode, libs.stderr, cflags.stderr)}
++            else:
++                parsed = process_pcconfig(({"Libs": libs.stdout, "Cflags": cflags.stdout}, {}), infer_includes = False)
++                modes[mode] = {"libnames": parsed[0], "linkopts": parsed[3], "link_paths": parsed[4], "includes": parsed[5], "defines": parsed[6]}
++        libraries = {libname: True for flags in modes.values() for libname in flags.get("libnames", [])}.keys()
++        resolved[name] = {"modes": modes, "own_libnames": libraries}
++    return resolved
+diff --git a/apt/private/deb_filemap.bzl b/apt/private/deb_filemap.bzl
+--- a/apt/private/deb_filemap.bzl
++++ b/apt/private/deb_filemap.bzl
+@@ -8,13 +8,53 @@
+ def _deb_filemap_impl(rctx):
+     # `files` is a JSON-encoded list of the paths this package installs.
+     rctx.file("filemap.json", rctx.attr.files)
+-    rctx.file("BUILD.bazel", 'exports_files(["filemap.json"], visibility = ["//visibility:public"])\n')
++    metadata = {}
++    pc_files = [path for path in json.decode(rctx.attr.files) if path.endswith(".pc")]
++    if pc_files and rctx.attr.urls:
++        # Leaf metadata repositories never depend on native import repositories.
++        # Debian and pkg-config cycles therefore do not create Bazel repo cycles.
++        rctx.download(url = rctx.attr.urls, sha256 = rctx.attr.sha256, output = "package.deb")
++        rctx.extract("package.deb")
++        archives = [path for path in rctx.path(".").readdir() if path.basename.startswith("data.tar")]
++        if len(archives) != 1:
++            fail("DEB must contain exactly one data archive")
++        listing = rctx.execute(["tar", "-tvf", str(archives[0])])
++        if listing.return_code:
++            fail(listing.stderr)
++        members = {}
++        links = {}
++        for entry in listing.stdout.splitlines():
++            if " ./" not in entry:
++                continue
++            entry = entry.split(" ./", 1)[1]
++            if " -> " in entry:
++                path, target = entry.split(" -> ", 1)
++                if path in pc_files:
++                    parts = [] if target.startswith("/") else path.split("/")[:-1]
++                    for part in target.split("/"):
++                        if part == "..":
++                            if parts:
++                                parts.pop()
++                        elif part not in ["", "."]:
++                            parts.append(part)
++                    links[path] = "/".join(parts)
++            elif entry in pc_files:
++                members[entry] = "./" + entry
++        for path, member in members.items():
++            result = rctx.execute(["tar", "-xOf", str(archives[0]), member])
++            if result.return_code:
++                fail(result.stderr)
++            metadata[path] = {"content": result.stdout}
++        for path, target in links.items():
++            metadata[path] = {"alias": target}
++    rctx.file("pkgconfig.json", json.encode(metadata))
++    rctx.file("BUILD.bazel", 'exports_files(["filemap.json", "pkgconfig.json"], visibility=["//visibility:public"])\n')
+ 
+ deb_filemap = repository_rule(
+     implementation = _deb_filemap_impl,
+     attrs = {
+-        "files": attr.string(
+-            doc = "JSON-encoded list of file paths this package installs.",
+-        ),
++        "files": attr.string(doc = "JSON-encoded package file list."),
++        "urls": attr.string_list(),
++        "sha256": attr.string(),
+     },
+ )
+diff --git a/apt/private/locked_import.bzl b/apt/private/locked_import.bzl
+--- a/apt/private/locked_import.bzl
++++ b/apt/private/locked_import.bzl
+@@ -214,7 +214,7 @@
+         package = imported[key]
+         if type(package.get("files")) != "list" or any([type(path) != "string" or path.startswith("/") or ".." in path.split("/") for path in package["files"]]):
+             fail("library import requires a locked package file map: " + key)
+-        deb_filemap(name = util.sanitize(key) + "_filemap", files = json.encode(package["files"]))
++        deb_filemap(name = util.sanitize(key) + "_filemap", files = json.encode(package["files"]), urls = [uri.rstrip("/") + "/" + package["filename"] for uri in document["sources"][package["suite"]]["uris"]], sha256 = package["sha256"])
+     names = {}
+     for key, package in imported.items():
+         name = util.sanitize(key)
+@@ -227,6 +227,7 @@
+             urls = [uri.rstrip("/") + "/" + package["filename"] for uri in document["sources"][package["suite"]]["uris"]],
+             sha256 = package["sha256"],
+             package_name = package["name"],
++            own_filemap = "@" + name + "_filemap//:filemap.json" if key in libraries else None,
+             depends_on = package["depends_on"],
+             dep_filemaps = ["@" + util.sanitize(dependency) + "_filemap//:filemap.json" for dependency in package["depends_on"]] if key in libraries else [],
+             payload_only = key not in libraries,
+diff --git a/apt/private/translate_dependency_set.bzl b/apt/private/translate_dependency_set.bzl
+--- a/apt/private/translate_dependency_set.bzl
++++ b/apt/private/translate_dependency_set.bzl
+@@ -275,7 +275,7 @@
+         # Package importers describe the actual shared libraries in each DEB.
+         # Label attributes retain the extension's sibling-repository mapping.
+         library_targets = {}
+-        if package_name.endswith("-dev") and not rctx.attr.payload_only:
++        if not rctx.attr.payload_only:
+             for architecture, package_key in info.architectures.items():
+                 if package_key not in cc_exports:
+                     continue
+diff --git a/apt/private/cc_deb_library.bzl b/apt/private/cc_deb_library.bzl
+--- a/apt/private/cc_deb_library.bzl
++++ b/apt/private/cc_deb_library.bzl
+@@ -10,7 +10,8 @@
+     compiler_inputs = ctx.files.hdrs + ctx.files.additional_compiler_inputs
+     compilation_context = cc_common.create_compilation_context(
+         headers = depset(compiler_inputs),
+-        system_includes = depset([system_include_path] if compiler_inputs else []),
++        system_includes = depset(([system_include_path] if compiler_inputs else []) + [ctx.expand_make_variables("include_dirs", path, {}) for path in ctx.attr.include_dirs]),
++        defines = depset(ctx.attr.defines),
+     )
+ 
+     expanded_linkopts = [ctx.expand_make_variables("linkopts", opt, {}) for opt in ctx.attr.linkopts]
+@@ -48,6 +49,8 @@
+         "linkopts": attr.string_list(),
+         "additional_compiler_inputs": attr.label_list(allow_files = True),
+         "additional_linker_inputs": attr.label_list(allow_files = True),
++        "include_dirs": attr.string_list(),
++        "defines": attr.string_list(),
+     },
+ )
+ 
+@@ -57,7 +60,10 @@
+     merged = cc_common.merge_cc_infos(cc_infos = infos)
+     inputs = []
+     names = {}
++    has_libraries = False
+     for item in merged.linking_context.linker_inputs.to_list():
++        if item.libraries:
++            has_libraries = True
+         for library in item.libraries:
+             if library.dynamic_library:
+                 file = library.resolved_symlink_dynamic_library or library.dynamic_library
+@@ -71,6 +77,14 @@
+             additional_inputs = depset(item.additional_inputs),
+             user_link_flags = depset(item.user_link_flags + ctx.attr.linkopts),
+         ))
++    if ctx.attr.linkopts and not has_libraries:
++        # A header/flags-only .pc still has a real link contract. An empty GNU
++        # input script keeps its options on a library-bearing input through
++        # cc_shared_library, without introducing code or runtime dependencies.
++        anchor = ctx.actions.declare_file(ctx.label.name + ".linkopts.a")
++        ctx.actions.write(anchor, "/* pkg-config link options */\n")
++        library = cc_common.create_library_to_link(actions = ctx.actions, static_library = anchor)
++        inputs.append(cc_common.create_linker_input(owner = ctx.label, libraries = depset([library]), user_link_flags = depset(ctx.attr.linkopts)))
+     runfiles = ctx.runfiles()
+     for dep in ctx.attr.deps:
+         runfiles = runfiles.merge(dep[DefaultInfo].default_runfiles)
+diff --git a/apt/extensions.bzl b/apt/extensions.bzl
+--- a/apt/extensions.bzl
++++ b/apt/extensions.bzl
+@@ -478,6 +478,8 @@
+         deb_filemap(
+             name = util.sanitize(package_key) + "_filemap",
+             files = json.encode(repo.filemap(name = name, arch = arch) or []),
++            urls = [uri + "/" + package["filename"] for uri in sources[package["suite"]]["uris"]],
++            sha256 = package["sha256"],
+         )
+ 
+         deb_import(
+@@ -489,6 +491,7 @@
+             ],
+             sha256 = package["sha256"],
+             mergedusr = False,
++            own_filemap = "@" + util.sanitize(package_key) + "_filemap//:filemap.json",
+             depends_on = package["depends_on"],
+             # Label of each dependency's own filemap, in depends_on order,
+             # so deb_import can rebuild the {file: dependency} index by lookup.
