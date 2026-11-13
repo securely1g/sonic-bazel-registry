@@ -9,4 +9,5 @@ Both native Debian Trixie presubmits build the runtime and detached debug symbol
 (`//:monitor_metadata`), and run the production utility test (`//:util_behavior_test`).
 The module imports the `dhcpmon_debian` package set from sonic-build-infra's shared
 APT lock. The consumer selects the same build infrastructure, toolchains, and packaging
-rules as the source build.
+rules as the source build. Each native runner obtains the test launcher from the existing
+checksum-verified Cosmos manifest.
