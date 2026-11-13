@@ -6,10 +6,6 @@ bazel_dep(name = "rules_cc", version = "0.2.22")
 bazel_dep(name = "rules_python", version = "1.9.0.sonic.1")
 bazel_dep(name = "sonic-build-infra", version = "0.0.28-9965823498ab54816de5addb6084638470dd04d7", repo_name = "sonic_build_infra")
 
-single_version_override(module_name = "platforms", version = "1.1.0")
-single_version_override(module_name = "rules_cc", version = "0.2.22")
-single_version_override(module_name = "rules_python", version = "1.9.0.sonic.1")
-single_version_override(module_name = "sonic-build-infra", version = "0.0.28-9965823498ab54816de5addb6084638470dd04d7")
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
 python.defaults(python_version = "3.13")
