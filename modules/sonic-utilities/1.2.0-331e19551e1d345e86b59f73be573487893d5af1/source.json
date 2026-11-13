@@ -1,0 +1,8 @@
+{
+  "url": "https://github.com/securely1g/sonic-utilities/archive/331e19551e1d345e86b59f73be573487893d5af1.tar.gz",
+  "strip_prefix": "sonic-utilities-331e19551e1d345e86b59f73be573487893d5af1",
+  "integrity": "sha256-Tsov0cIT53FyfCB5XlBgarj/vUSUAiN6TZrJZUSP4GY=",
+  "overlay": {
+    "MODULE.bazel": "sha256-qaLafk0LmJNnenFHEGF3gcReCLPFn4fRrTUg6UUEHtE="
+  }
+}

@@ -1,6 +1,6 @@
 module(name = "utilities_registry_consumer")
-bazel_dep(name = "sonic-utilities", version = "1.2.0-53d6b36411c83207ed185a7ed9fb977b2372296c")
-bazel_dep(name = "rules_python", version = "1.9.0")
+bazel_dep(name = "sonic-utilities", version = "1.2.0-331e19551e1d345e86b59f73be573487893d5af1")
+bazel_dep(name = "rules_python", version = "1.9.0.sonic.1")
 bazel_dep(name = "platforms", version = "1.0.0")
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
 python.toolchain(python_version = "3.13", is_default = True)
