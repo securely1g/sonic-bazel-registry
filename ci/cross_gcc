@@ -1,0 +1,16 @@
+#!/bin/sh
+# A foreign build may invoke the selected target compiler without Bazel's link
+# flags. In particular, libtool filters -B when linking a shared library.
+set -eu
+# Bazel invokes tools relative to the execroot. Keep that spelling in GCC's
+# depfiles. Foreign builds pass an absolute executable when they change cwd.
+case "$0" in
+    */*) adapter=${0%/*} ;;
+    *) adapter=. ;;
+esac
+sysroot="$adapter/sysroot"
+compiler_name=${0##*/}
+exec "$adapter/compiler/bin/$compiler_name" \
+    --sysroot="$sysroot" \
+    -B"$sysroot/usr/lib/gcc/aarch64-linux-gnu/14/" \
+    -B"$sysroot/usr/lib/aarch64-linux-gnu/" "$@"

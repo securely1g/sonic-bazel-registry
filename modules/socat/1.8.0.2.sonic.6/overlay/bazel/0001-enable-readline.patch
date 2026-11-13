@@ -1,0 +1,41 @@
+Description: Retain SONiC's readline-enabled Socat packaging inputs
+ Add libreadline-dev to Debian's build dependencies and remove the Debian
+ --disable-readline override. The Bazel build separately selects
+ --enable-readline; this patch preserves SONiC's Debian-file customization.
+Origin: https://github.com/securely1g/sonic-buildimage/blob/af35f605975215872e69dba5a291cb52fd5faafa/src/socat/patch/enable_readline.patch
+ The registry normalizes only file headers for its patch reader; the hunks
+ are unchanged from that SONiC patch and run after Debian 1.8.0.2-1's series.
+Status: Retained downstream SONiC customization; no upstream inclusion is asserted.
+
+diff --git a/debian/rules b/debian/rules
+--- a/debian/rules
++++ b/debian/rules
+@@ -11,9 +11,6 @@
+ # upsteram maintains config.h.in manually
+ export AUTOHEADER = true
+ 
+-override_dh_auto_configure:
+-	dh_auto_configure -- --disable-readline
+-
+ override_dh_auto_test:
+ ifneq (,$(filter $(DEB_HOST_ARCH_OS), linux))
+ 	dh_auto_test
+@@ -24,4 +21,4 @@
+ %:
+ 	dh $@ --with=autoreconf
+ 
+-.PHONY: override_dh_auto_configure override_dh_auto_test
++.PHONY: override_dh_auto_test
+diff --git a/debian/control b/debian/control
+--- a/debian/control
++++ b/debian/control
+@@ -2,7 +2,7 @@
+ Section: net
+ Priority: optional
+ Maintainer: Laszlo Boszormenyi (GCS) <gcs@debian.org>
+-Build-Depends: debhelper-compat (= 13), libssl-dev, libwrap0-dev, openssl <!nocheck>, net-tools <!nocheck>, iproute2 [linux-any] <!nocheck>, netbase <!nocheck>, procps <!nocheck>
++Build-Depends: debhelper-compat (= 13), libssl-dev, libwrap0-dev, libreadline-dev, openssl <!nocheck>, net-tools <!nocheck>, iproute2 [linux-any] <!nocheck>, netbase <!nocheck>, procps <!nocheck>
+ Standards-Version: 4.6.2
+ Rules-Requires-Root: no
+ Homepage: https://www.dest-unreach.org/socat/
+

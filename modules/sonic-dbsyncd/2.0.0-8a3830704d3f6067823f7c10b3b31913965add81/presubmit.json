@@ -1,0 +1,23 @@
+{
+  "architectures": [
+    "amd64"
+  ],
+  "consumer_deps": [],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
+  },
+  "host_platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
+  },
+  "integration_test_module": "tests/consumer",
+  "build_targets": [
+    "@sonic-dbsyncd//:lldp_syncd",
+    "@sonic-dbsyncd//:sonic_syncd",
+    "@sonic-dbsyncd//:sonic_dbsyncd_wheel",
+    "@sonic-dbsyncd//:sonic_dbsyncd_runtime"
+  ],
+  "test_targets": [
+    "//:archive_contract_test",
+    "//:library_test"
+  ]
+}

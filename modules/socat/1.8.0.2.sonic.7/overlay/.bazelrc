@@ -1,0 +1,5 @@
+common --registry=https://raw.githubusercontent.com/securely1g/sonic-bazel-registry/main
+common --registry=https://bcr.bazel.build/
+try-import %workspace%/.bazelrc.user
+build --platforms=@sonic_build_infra//platforms:x86_64_trixie
+build --host_platform=@sonic_build_infra//platforms:x86_64_trixie

@@ -1,0 +1,287 @@
+name: Registry module validation
+
+on:
+  workflow_call:
+    inputs:
+      module:
+        required: true
+        type: string
+      version:
+        required: true
+        type: string
+      architecture:
+        required: true
+        type: string
+      execution_architecture:
+        description: Native host architecture; defaults to the target for native callers
+        type: string
+        default: ''
+      cross_compile:
+        type: boolean
+        default: false
+      runner:
+        description: JSON array of runner labels from the validated plan
+        required: true
+        type: string
+      http_audit_artifact_id:
+        description: Optional audit agent artifact produced from this source in the same workflow run
+        type: string
+        default: ''
+    secrets:
+      DEBIAN_MIRROR_ROOT:
+        description: Optional private Debian archive root ending in /archive/debian/
+        required: false
+      DEBIAN_SECURITY_MIRROR_ROOT:
+        description: Optional private Debian security archive root ending in /archive/debian-security/
+        required: false
+      DEBIAN_MIRROR_BASE_URL:
+        description: Optional dated Debian mirror for checkouts predating the snapshot manifest
+        required: false
+      DEBIAN_SECURITY_MIRROR_BASE_URL:
+        description: Optional dated Debian security mirror for checkouts predating the snapshot manifest
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate module
+    runs-on: ${{ fromJSON(inputs.runner) }}
+    # Serial P4 builds and the cold SWSS cross-build can take over three hours.
+    timeout-minutes: >-
+      ${{ (((contains(fromJSON(inputs.runner), 'debian-trixie-container') ||
+             contains(fromJSON(inputs.runner), 'debian-trixie-container-large')) &&
+            contains(fromJSON('["p4c","p4lang-bmv2","sonic-dash"]'), inputs.module)) ||
+           (inputs.cross_compile && inputs.module == 'sonic-swss' &&
+            inputs.version == '0.0.3-9c3797990d4b5a79100a40fe7689927c18212361')) && 360 || 180 }}
+    # Local native/cross jobs execute directly in the fresh Trixie runner.
+    # Only native hosted ARM needs the separate pinned job image.
+    container: ${{ inputs.architecture == 'arm64' && !inputs.cross_compile && 'debian:trixie-20260918@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c' || '' }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      CI_MODULE: ${{ inputs.module }}
+      CI_VERSION: ${{ inputs.version }}
+      CI_LARGE_RUNNER: ${{ contains(fromJSON(inputs.runner), 'debian-trixie-container-large') }}
+      CI_ARCHITECTURE: ${{ inputs.architecture }}
+      CI_EXECUTION_ARCHITECTURE: ${{ inputs.execution_architecture || inputs.architecture }}
+      CI_CROSS_COMPILE: ${{ inputs.cross_compile }}
+      ARM_TEST_EXECUTOR: /usr/local/bin/sonic-arm64
+      TEST_CONTAINER_IMAGE: ${{ inputs.architecture == 'arm64' && !inputs.cross_compile && 'debian:trixie-20260918@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c' || '' }}
+    steps:
+      - name: Validate execution route
+        run: |
+          set -euo pipefail
+          case "$CI_ARCHITECTURE:$CI_EXECUTION_ARCHITECTURE:$CI_CROSS_COMPILE:$(uname -m)" in
+            amd64:amd64:false:x86_64|arm64:arm64:false:aarch64|arm64:amd64:true:x86_64) ;;
+            *) echo "Unsupported target/native execution route" >&2; exit 1 ;;
+          esac
+          if [[ "$CI_CROSS_COMPILE" == true ]]; then
+            [[ -x "$ARM_TEST_EXECUTOR" ]] || { echo "Missing ARM test executor" >&2; exit 1; }
+          fi
+      - name: Install build and package test tools
+        if: inputs.architecture == 'arm64' && !inputs.cross_compile
+        run: |
+          set -euo pipefail
+          apt-get update
+          # LLVM needs libxml2; installed SDK tests exercise their pkg-config metadata.
+          apt-get install -y --no-install-recommends binutils build-essential ca-certificates curl file gdb git libxml2 libzstd-dev patch pkg-config python3 tar unzip xz-utils zlib1g-dev zstd
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Prepare APT repository tools
+        run: |
+          bash ci/prepare_repository_tools.sh
+      - name: Identify the checked-out mirror configuration
+        id: mirror_config
+        if: ${{ contains(fromJSON(inputs.runner), 'self-hosted') && (contains(fromJSON(inputs.runner), 'debian-trixie-container') || contains(fromJSON(inputs.runner), 'debian-trixie-container-large')) && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && hashFiles('ci/private_mirrors.py') != '' }}
+        run: echo "kind=${{ hashFiles('ci/debian_snapshots.json') != '' && 'roots' || 'dated' }}" >> "$GITHUB_OUTPUT"
+      - name: Download the optional same-run HTTP audit agent
+        id: http_audit_download
+        if: ${{ inputs.http_audit_artifact_id != '' && contains(fromJSON(inputs.runner), 'self-hosted') && (contains(fromJSON(inputs.runner), 'debian-trixie-container') || contains(fromJSON(inputs.runner), 'debian-trixie-container-large')) && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) }}
+        continue-on-error: true
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ inputs.http_audit_artifact_id }}
+          path: ${{ runner.temp }}/debian-http-audit
+          merge-multiple: true
+      - name: Prepare a Debian ARM kernel for the Linux AIO test
+        if: inputs.cross_compile && inputs.module == 'rules_distroless'
+        run: |
+          sudo -n apt-get -q update
+          sudo -n apt-get -q -y --no-install-recommends install qemu-system-arm cpio
+          bundle="$RUNNER_TEMP/arm-kernel"
+          ci/arm_kernel_test/prepare.sh "$bundle"
+          echo "ARM_TEST_EXECUTOR=$bundle/executor" >> "$GITHUB_ENV"
+      - name: Install Bazel 8.5.1
+        run: |
+          set -euo pipefail
+          case "$(uname -m)" in
+            x86_64)
+              [[ "$CI_EXECUTION_ARCHITECTURE" == amd64 ]]
+              bazel_arch=x86_64
+              bazel_sha=61d89402f0368e64b6c827be5de79d8e65382e8124c3cbb97325611a1851392e
+              ;;
+            aarch64)
+              [[ "$CI_EXECUTION_ARCHITECTURE" == arm64 ]]
+              bazel_arch=arm64
+              bazel_sha=b7f2a85595e8a87d54843bc656c1e379fd9b8c1b5f783dc41717c1d7eb7cc49f
+              ;;
+            *) echo "Unsupported native architecture" >&2; exit 1 ;;
+          esac
+          if [[ "$CI_EXECUTION_ARCHITECTURE" == amd64 ]]; then
+            printf '%s  %s\n' "$bazel_sha" /usr/local/lib/bazel-8.5.1 | sha256sum --check --strict
+          else
+            curl --fail --location --retry 3 --output /tmp/bazel "https://releases.bazel.build/8.5.1/release/bazel-8.5.1-linux-${bazel_arch}"
+            printf '%s  %s\n' "$bazel_sha" /tmp/bazel | sha256sum --check --strict
+            install -m 0755 /tmp/bazel /usr/local/bin/bazel
+          fi
+      - name: Record module validation storage
+        env:
+          STORAGE_PHASE: before-validation
+        run: |
+          python3 - <<'PY_STORAGE'
+          import json, os
+          from pathlib import Path
+          rows = {}
+          for label, variable in (("workspace", "GITHUB_WORKSPACE"), ("scratch", "RUNNER_TEMP")):
+              path = Path(os.environ[variable])
+              try:
+                  usage = os.statvfs(path)
+                  rows[label] = {"device": path.stat().st_dev,
+                                 "free_bytes": usage.f_bavail * usage.f_frsize,
+                                 "total_bytes": usage.f_blocks * usage.f_frsize,
+                                 "free_inodes": usage.f_favail,
+                                 "total_inodes": usage.f_files}
+              except OSError as error:
+                  rows[label] = {"measurement_error_errno": error.errno}
+          print(json.dumps({"phase": os.environ["STORAGE_PHASE"], "storage": rows}, sort_keys=True))
+          PY_STORAGE
+      - name: Build and test through the registry
+        env:
+          HTTP_AUDIT_READY: ${{ steps.http_audit_download.outcome }}
+          DEBIAN_MIRROR_ROOT: ${{ steps.mirror_config.outputs.kind == 'roots' && secrets.DEBIAN_MIRROR_ROOT || '' }}
+          DEBIAN_MIRROR_BASE_URL: ${{ steps.mirror_config.outputs.kind == 'dated' && secrets.DEBIAN_MIRROR_BASE_URL || '' }}
+          DEBIAN_SECURITY_MIRROR_ROOT: ${{ steps.mirror_config.outputs.kind == 'roots' && secrets.DEBIAN_SECURITY_MIRROR_ROOT || '' }}
+          DEBIAN_SECURITY_MIRROR_BASE_URL: ${{ steps.mirror_config.outputs.kind == 'dated' && secrets.DEBIAN_SECURITY_MIRROR_BASE_URL || '' }}
+        run: |
+          set -euo pipefail
+          ROOT=()
+          SECRET_ENV=()
+          BAZEL_STARTUP_ARGS=()
+          BAZEL_BUILD_ARGS=()
+          CROSS_ARGS=()
+          HTTP_AUDIT_ARGS=()
+          if [[ "${HTTP_AUDIT_READY:-}" == success ]]; then
+            HTTP_AUDIT_ARGS=(--http-audit-jar "$RUNNER_TEMP/debian-http-audit/debian-http-audit.jar")
+          fi
+          RESOURCE_RECEIPT=()
+          if [[ "$CI_EXECUTION_ARCHITECTURE" == amd64 ]]; then
+            TEST_CONTAINER_IMAGE="${SONIC_RUNNER_IMAGE_REFERENCE:?Missing runner image identity}"
+            ROOT=(sudo -n)
+            SECRET_ENV=(--preserve-env=DEBIAN_MIRROR_ROOT,DEBIAN_SECURITY_MIRROR_ROOT,DEBIAN_MIRROR_BASE_URL,DEBIAN_SECURITY_MIRROR_BASE_URL,GITHUB_ACTIONS)
+            # Bazel's default heap is too small for large dependency graphs
+            # inside the runner's memory limit.
+            BAZEL_STARTUP_ARGS=(--bazel-startup-arg=--host_jvm_args=-Xmx2g)
+            BAZEL_BUILD_ARGS=(--bazel-build-arg=--jobs=1 --bazel-build-arg=--discard_analysis_cache)
+            case "$CI_MODULE" in
+              p4c|p4lang-bmv2|sonic-dash)
+                # These recipes run make -j4 inside one Bazel action. DASH also
+                # compiles P4C for the execution platform.
+                if [[ "${CI_LARGE_RUNNER:-false}" == true ]]; then
+                  # One Bazel action may run the recipe's four parallel Make compilers.
+                  RESOURCE_RECEIPT=(python3 ci/p4_runner_resources.py "$GITHUB_WORKSPACE/ci-artifacts/p4-runner-resources.json")
+                else
+                  make_flags="${GNUMAKEFLAGS:+$GNUMAKEFLAGS }--eval=.NOTPARALLEL:"
+                  BAZEL_BUILD_ARGS+=("--bazel-build-arg=--action_env=GNUMAKEFLAGS=$make_flags"
+                                     "--bazel-build-arg=--host_action_env=GNUMAKEFLAGS=$make_flags")
+                  if [[ "$CI_MODULE" == sonic-dash && "$CI_ARCHITECTURE" == amd64 ]]; then
+                    # The host P4C compiler and Bazel share 6 GiB while compiling dash_pipeline.p4.
+                    BAZEL_BUILD_ARGS+=(--bazel-build-arg=--host_cxxopt=-DGC_FREE_SPACE_DIVISOR=16)
+                    BAZEL_STARTUP_ARGS+=(--bazel-startup-arg=--host_jvm_args=-XX:G1PeriodicGCInterval=30000
+                                         --bazel-startup-arg=--host_jvm_args=-XX:MinHeapFreeRatio=20
+                                         --bazel-startup-arg=--host_jvm_args=-XX:MaxHeapFreeRatio=35)
+                  fi
+                fi
+                ;;
+            esac
+            "${ROOT[@]}" git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          fi
+          if [[ "$CI_CROSS_COMPILE" == true ]]; then
+            CROSS_ARGS=(--cross-compile --test-executor "$ARM_TEST_EXECUTOR")
+          fi
+          "${ROOT[@]}" "${SECRET_ENV[@]}" "${RESOURCE_RECEIPT[@]}" python3 ci/private_mirrors.py run \
+            --artifacts "$GITHUB_WORKSPACE/ci-artifacts" \
+            --private-dir "$RUNNER_TEMP/private-mirrors-module" \
+            --public-config ci/source_mirrors.cfg \
+            "${HTTP_AUDIT_ARGS[@]}" \
+            -- python3 ci/registry_ci.py run \
+            --module "$CI_MODULE" \
+            --version "$CI_VERSION" \
+            --architecture "$CI_ARCHITECTURE" \
+            --bazel /usr/local/bin/bazel \
+            "${BAZEL_STARTUP_ARGS[@]}" \
+            "${BAZEL_BUILD_ARGS[@]}" \
+            "${CROSS_ARGS[@]}" \
+            --work-dir "$RUNNER_TEMP/registry-ci" \
+            --artifacts "$GITHUB_WORKSPACE/ci-artifacts" \
+            --test-container-image "$TEST_CONTAINER_IMAGE"
+      - name: Record storage after failed module validation
+        if: failure()
+        env:
+          STORAGE_PHASE: failed-validation
+        run: |
+          python3 - <<'PY_STORAGE'
+          import json, os
+          from pathlib import Path
+          rows = {}
+          for label, variable in (("workspace", "GITHUB_WORKSPACE"), ("scratch", "RUNNER_TEMP")):
+              path = Path(os.environ[variable])
+              try:
+                  usage = os.statvfs(path)
+                  rows[label] = {"device": path.stat().st_dev,
+                                 "free_bytes": usage.f_bavail * usage.f_frsize,
+                                 "total_bytes": usage.f_blocks * usage.f_frsize,
+                                 "free_inodes": usage.f_favail,
+                                 "total_inodes": usage.f_files}
+              except OSError as error:
+                  rows[label] = {"measurement_error_errno": error.errno}
+          print(json.dumps({"phase": os.environ["STORAGE_PHASE"], "storage": rows}, sort_keys=True))
+          PY_STORAGE
+      - name: Archive module validation results
+        id: archive
+        if: always()
+        env:
+          DEBIAN_MIRROR_ROOT: ${{ steps.mirror_config.outputs.kind == 'roots' && secrets.DEBIAN_MIRROR_ROOT || '' }}
+          DEBIAN_MIRROR_BASE_URL: ${{ steps.mirror_config.outputs.kind == 'dated' && secrets.DEBIAN_MIRROR_BASE_URL || '' }}
+          DEBIAN_SECURITY_MIRROR_ROOT: ${{ steps.mirror_config.outputs.kind == 'roots' && secrets.DEBIAN_SECURITY_MIRROR_ROOT || '' }}
+          DEBIAN_SECURITY_MIRROR_BASE_URL: ${{ steps.mirror_config.outputs.kind == 'dated' && secrets.DEBIAN_SECURITY_MIRROR_BASE_URL || '' }}
+        run: |
+          set -euo pipefail
+          ROOT=()
+          SECRET_ENV=()
+          if [[ "$CI_EXECUTION_ARCHITECTURE" == amd64 ]]; then
+            ROOT=(sudo -n)
+            SECRET_ENV=(--preserve-env=DEBIAN_MIRROR_ROOT,DEBIAN_SECURITY_MIRROR_ROOT,DEBIAN_MIRROR_BASE_URL,DEBIAN_SECURITY_MIRROR_BASE_URL,GITHUB_ACTIONS)
+          fi
+          archive="$RUNNER_TEMP/registry-ci-evidence.tar"
+          "${ROOT[@]}" "${SECRET_ENV[@]}" python3 ci/private_mirrors.py check-artifacts \
+            --artifacts "$GITHUB_WORKSPACE/ci-artifacts"
+          "${ROOT[@]}" bash ci/archive_artifacts.sh "$GITHUB_WORKSPACE/ci-artifacts" "$archive"
+          if [[ -f "$archive" && "$CI_EXECUTION_ARCHITECTURE" == amd64 ]]; then
+            # Keep permissions inside the TAR intact while letting the
+            # non-root upload action read the root-created archive.
+            sudo -n chown "$(id -u):$(id -g)" "$archive"
+          fi
+      - name: Retain module validation results
+        if: always() && steps.archive.outcome == 'success'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: registry-ci-${{ inputs.module }}-${{ inputs.version }}-${{ inputs.architecture }}
+          path: ${{ runner.temp }}/registry-ci-evidence.tar
+          if-no-files-found: warn
+          retention-days: 14

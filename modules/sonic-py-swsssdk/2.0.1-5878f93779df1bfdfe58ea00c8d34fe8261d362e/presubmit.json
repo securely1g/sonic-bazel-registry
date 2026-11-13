@@ -1,0 +1,20 @@
+{
+  "architectures": [
+    "amd64"
+  ],
+  "consumer_deps": [],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
+  },
+  "build_targets": [
+    "@sonic-py-swsssdk//:swsssdk",
+    "@sonic-py-swsssdk//:swsssdk.wheel",
+    "@sonic-py-swsssdk//:swsssdk.runtime",
+    "@sonic-py-swsssdk//:swsssdk.runtime_metadata"
+  ],
+  "test_targets": [
+    "//:distribution_test"
+  ],
+  "generated_module_overlay": true,
+  "integration_test_module": "tests/integration"
+}

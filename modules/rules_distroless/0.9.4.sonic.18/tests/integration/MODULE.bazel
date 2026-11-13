@@ -1,0 +1,74 @@
+"""Exercise locked APT imports from an independent consumer module."""
+
+module(name = "locked_import_integration")
+
+bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.18")
+# Exercise the version selected by the gNMI consumer on Bazel 8.
+bazel_dep(name = "rules_cc", version = "0.2.22")
+bazel_dep(name = "bazel_skylib", version = "1.9.2")
+bazel_dep(name = "rules_shell", version = "0.6.1")
+bazel_dep(name = "rules_foreign_cc", version = "0.16.0")
+bazel_dep(name = "rules_python", version = "1.9.0")
+
+# Repository rules run on the Bazel host, including when the targets are cross-built.
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(python_version = "3.11")
+use_repo(python, "python_3_11_host")
+
+# Both namespaces import the same reviewed archive graph independently.
+apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
+apt.import_lock(lock = "//:apt.lock.json")
+use_repo(apt, "locked_import_ci", "locked_import_ci_copy")
+
+# Retain the legacy import above, and exercise the same archive graph through
+# the root fallback path that selects one unified prepared lock for both groups.
+shared_lock_fixture = use_repo_rule("//:shared_lock_fixture.bzl", "shared_lock_fixture")
+shared_lock_fixture(name = "shared_lock_fixture", lock = "//:apt.lock.json")
+
+unified_apt = use_extension("@rules_distroless//registry_ci:locked_imports.bzl", "apt")
+unified_apt.import_lock(lock = "@shared_lock_fixture//:apt.lock.json", fallback = True)
+use_repo(
+    unified_apt,
+    unified_locked_import_ci = "locked_import_ci",
+    unified_locked_import_ci_copy = "locked_import_ci_copy",
+    unified_netbase_only = "apt_internal_package_catalog_0",
+)
+
+# Generated DEBs exercise real native repository/header exports and staging.
+header_fixtures = use_repo_rule("//native_headers:fixtures.bzl", "fixtures")
+header_fixtures(
+    name = "native_header_fixtures",
+    interpreter = "@python_3_11_host//:python",
+)
+header_imports = use_extension("//native_headers:fixtures.bzl", "imports")
+header_imports.package(
+    package = "libvariant-dev",
+    archive = "@native_header_fixtures//:libvariant-dev.deb",
+    digest = "@native_header_fixtures//:libvariant-dev.sha256",
+)
+header_imports.package(
+    package = "libmiddle-dev",
+    archive = "@native_header_fixtures//:libmiddle-dev.deb",
+    digest = "@native_header_fixtures//:libmiddle-dev.sha256",
+    dependencies = ["libvariant-dev"],
+)
+header_imports.package(
+    package = "plain-dev",
+    archive = "@native_header_fixtures//:plain-dev.deb",
+    digest = "@native_header_fixtures//:plain-dev.sha256",
+)
+header_imports.package(
+    package = "unmatched-dev",
+    archive = "@native_header_fixtures//:unmatched-dev.deb",
+    digest = "@native_header_fixtures//:unmatched-dev.sha256",
+)
+use_repo(
+    header_imports,
+    header_variant = "header-fixture_libvariant-dev-all_1",
+    header_middle = "header-fixture_libmiddle-dev-all_1",
+    header_plain = "header-fixture_plain-dev-all_1",
+    header_unmatched = "header-fixture_unmatched-dev-all_1",
+)
+
+check_catalog_tools = use_repo_rule("//native_catalog:fixtures.bzl", "check_catalog_tools")
+check_catalog_tools(name = "checked_native_catalog_tools")

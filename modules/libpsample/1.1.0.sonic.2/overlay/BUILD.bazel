@@ -1,0 +1,255 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_shared_library")
+load("@rules_gzip//gzip/compress:defs.bzl", "gzip_compress")
+load("@rules_multirun//:defs.bzl", "command")
+load("@rules_python//python:py_test.bzl", "py_test")
+load("@sonic_build_infra//binary:drop_build_rpath.bzl", "drop_build_rpath")
+load("@sonic_build_infra//cc:shared_library.bzl", "shared_library_cc_info")
+load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
+load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
+load("@toolchain_utils//toolchain/info:defs.bzl", "toolchain_info")
+
+package(default_visibility = ["//visibility:public"])
+
+_NATIVE = [
+    "@platforms//os:linux",
+    "@sonic_build_infra//platforms:trixie",
+]
+
+_COPTS = [
+    "-O2",
+    "-g",
+    "-Wall",
+]
+
+_KEEP_SYMBOLS = ["-strip_debug_symbols"]
+
+exports_files([
+    "include/psample.h",
+    "src/mnlg.h",
+    "bazel/copyright",
+])
+
+cc_library(
+    name = "libpsample_headers",
+    hdrs = [
+        "include/linux/psample.h",
+        "include/psample.h",
+    ],
+    strip_include_prefix = "include",
+    target_compatible_with = _NATIVE,
+)
+
+cc_library(
+    name = "libpsample_objects",
+    srcs = [
+        "src/mnlg.c",
+        "src/mnlg.h",
+        "src/psample.c",
+    ],
+    copts = _COPTS + ["-fPIC"],
+    features = _KEEP_SYMBOLS,
+    target_compatible_with = _NATIVE,
+    deps = [
+        ":libpsample_headers",
+        "@psample_deps//libmnl-dev:libmnl",
+    ],
+)
+
+# Preserve upstream's libpsample.so.1.0 filename and libpsample.so.1 SONAME.
+cc_shared_library(
+    name = "libpsample_shared",
+    features = _KEEP_SYMBOLS,
+    shared_lib_name = "libpsample.so.1.0",
+    target_compatible_with = _NATIVE,
+    user_link_flags = [
+        "-Wl,-soname,libpsample.so.1",
+        "-Wl,--build-id",
+    ],
+    deps = [":libpsample_objects"],
+)
+
+drop_build_rpath(
+    name = "library",
+    src = ":libpsample_shared",
+    target_compatible_with = _NATIVE,
+)
+
+shared_library_cc_info(
+    name = "libpsample_link",
+    shared_library = ":libpsample_shared",
+    target_compatible_with = _NATIVE,
+    runtime_deps = ["@psample_deps//libmnl-dev:libmnl"],
+)
+
+# Public SDK target exporting installed headers and shared-library CcInfo.
+cc_library(
+    name = "libpsample",
+    target_compatible_with = _NATIVE,
+    deps = [
+        ":libpsample_headers",
+        ":libpsample_link",
+    ],
+)
+
+cc_binary(
+    name = "psample_bin",
+    srcs = ["psample_tool/psample.c"],
+    copts = _COPTS,
+    features = _KEEP_SYMBOLS,
+    linkopts = ["-Wl,--build-id"],
+    target_compatible_with = _NATIVE,
+    deps = [":libpsample"],
+)
+
+drop_build_rpath(
+    name = "psample",
+    src = ":psample_bin",
+    target_compatible_with = _NATIVE,
+)
+
+# Standard gzip rules preserve the legacy compressed manual without timestamps.
+command(
+    name = "gzip_without_name",
+    arguments = ["--no-name"],
+    command = "@pigz",
+)
+
+toolchain_info(
+    name = "gzip_info",
+    target = ":gzip_without_name",
+)
+
+toolchain(
+    name = "gzip_toolchain",
+    toolchain = ":gzip_info",
+    toolchain_type = "@rules_gzip//gzip/toolchain/gzip:type",
+)
+
+gzip_compress(
+    name = "manual",
+    src = "man/psample.8",
+    level = 9,
+)
+
+[
+    sonic_deploy_tar(
+        name = "runtime_" + arch,
+        srcs = [
+            "bazel/copyright",
+            ":manual",
+        ],
+        binaries = {
+            "usr/bin/psample uid=0 gid=0 mode=0755 type=file": ":psample",
+            libdir + "/libpsample.so.1.0 uid=0 gid=0 mode=0644 type=file": ":library",
+        },
+        # Retain the single debug-compiled ELFs so public targets, runtime,
+        # and detached debug symbols share identical Build IDs.
+        force_debug_build = False,
+        mtree = [
+            libdir + "/libpsample.so uid=0 gid=0 mode=0777 type=link link=libpsample.so.1",
+            libdir + "/libpsample.so.1 uid=0 gid=0 mode=0777 type=link link=libpsample.so.1.0",
+            "usr/share/man/man8/psample.8.gz uid=0 gid=0 mode=0644 type=file content=$(location :manual)",
+            "usr/share/doc/psample/copyright uid=0 gid=0 mode=0644 type=file content=$(location bazel/copyright)",
+        ],
+        target_compatible_with = _NATIVE,
+        visibility = ["//visibility:public"],
+    )
+    for arch, libdir in [
+        ("amd64", "usr/lib/x86_64-linux-gnu"),
+        ("arm64", "usr/lib/aarch64-linux-gnu"),
+    ]
+]
+
+[
+    alias(
+        name = "runtime" + suffix,
+        actual = select({
+            "@platforms//cpu:x86_64": ":runtime_amd64" + suffix,
+            "@platforms//cpu:aarch64": ":runtime_arm64" + suffix,
+        }),
+    )
+    for suffix in [
+        "",
+        ".debug_symbols",
+    ]
+]
+
+runtime_packages(
+    name = "runtime_packages.json",
+    apt_packages = {"@psample_deps//libmnl0:data": "@psample_deps//libmnl0:control"},
+    changelog = "bazel/debian/changelog",
+    control = "bazel/debian/control",
+    packages = {"psample": "//:runtime"},
+)
+
+cc_binary(
+    name = "netlink_fixture.so",
+    testonly = True,
+    srcs = [
+        "bazel/netlink_fixture.c",
+        "include/linux/psample.h",
+        "src/mnlg.h",
+    ],
+    includes = [
+        "include",
+        "src",
+    ],
+    linkshared = True,
+    target_compatible_with = _NATIVE,
+    deps = ["@psample_deps//libmnl-dev:libmnl"],
+)
+
+cc_binary(
+    name = "sdk_probe_bin",
+    testonly = True,
+    srcs = ["bazel/sdk_probe.c"],
+    target_compatible_with = _NATIVE,
+    deps = [":libpsample"],
+)
+
+drop_build_rpath(
+    name = "sdk_probe",
+    testonly = True,
+    src = ":sdk_probe_bin",
+    target_compatible_with = _NATIVE,
+)
+
+py_test(
+    name = "package_test",
+    srcs = ["bazel/package_test.py"],
+    args = [
+        "--runtime",
+        "$(location :runtime)",
+        "--debug",
+        "$(location :runtime.debug_symbols)",
+        "--fixture",
+        "$(location :netlink_fixture.so)",
+        "--sdk",
+        "$(location :sdk_probe)",
+        "--copyright",
+        "$(location bazel/copyright)",
+        "--readelf",
+        "$(location @sonic_build_infra//toolchains/binutils:readelf)",
+        "--objcopy",
+        "$(location @sonic_build_infra//toolchains/binutils:objcopy)",
+        "--mnl",
+        "$(location @psample_deps//libmnl0:data)",
+        "--manual",
+        "$(location man/psample.8)",
+        "--metadata",
+        "$(location :runtime_packages.json)",
+    ],
+    data = [
+        "bazel/copyright",
+        "man/psample.8",
+        ":netlink_fixture.so",
+        ":runtime",
+        ":runtime.debug_symbols",
+        ":runtime_packages.json",
+        ":sdk_probe",
+        "@psample_deps//libmnl0:data",
+        "@sonic_build_infra//toolchains/binutils:objcopy",
+        "@sonic_build_infra//toolchains/binutils:readelf",
+    ],
+    target_compatible_with = _NATIVE,
+)

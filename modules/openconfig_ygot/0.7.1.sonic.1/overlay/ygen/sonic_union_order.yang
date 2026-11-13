@@ -1,0 +1,16 @@
+module sonic-ordering {
+  namespace "urn:sonic:ordering";
+  prefix ordering;
+  identity ZULU;
+  identity ZULU_CHILD { base ZULU; }
+  identity ALPHA;
+  identity ALPHA_CHILD { base ALPHA; }
+  container root {
+    leaf selected {
+      type union {
+        type identityref { base ZULU; }
+        type identityref { base ALPHA; }
+      }
+    }
+  }
+}

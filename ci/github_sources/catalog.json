@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "inputs": [
+    {
+      "module": "libteam",
+      "version": "1.31.0.sonic.1",
+      "execution_architecture": "amd64",
+      "manifests": [
+        "cosmos-4.0.2.json"
+      ]
+    },
+    {
+      "module": "libteam",
+      "version": "1.31.0.sonic.1",
+      "execution_architecture": "arm64",
+      "manifests": [
+        "cosmos-4.0.2.json"
+      ]
+    },
+    {
+      "module": "sonic-sairedis",
+      "version": "0.0.5-33443ea1666a23812365d03fb959066ee84c9aa0",
+      "execution_architecture": "amd64",
+      "manifests": [
+        "cosmos-4.0.2.json"
+      ]
+    },
+    {
+      "module": "sonic-sairedis",
+      "version": "0.0.5-33443ea1666a23812365d03fb959066ee84c9aa0",
+      "execution_architecture": "arm64",
+      "manifests": [
+        "cosmos-4.0.2.json"
+      ]
+    },
+    {
+      "module": "sonic-swss",
+      "version": "0.0.3-9c3797990d4b5a79100a40fe7689927c18212361",
+      "execution_architecture": "amd64",
+      "manifests": [
+        "cosmos-4.0.2.json"
+      ]
+    },
+    {
+      "module": "sonic-swss",
+      "version": "0.0.3-9c3797990d4b5a79100a40fe7689927c18212361",
+      "execution_architecture": "arm64",
+      "manifests": [
+        "cosmos-4.0.2.json"
+      ]
+    }
+  ]
+}
