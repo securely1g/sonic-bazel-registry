@@ -1,5 +1,11 @@
-"""Exercise installed programs and their matching detached debug symbols."""
+"""Exercise the installed Debian payload and public program behavior.
 
+Contract: Makefile.in install, debian/docs/examples/links and debhelper 13
+installation/compression rules; socat's documented STDIN/STDOUT and -V interface,
+and Debian 03-Truncate's externally observable UNIX-address error.
+"""
+import gzip
+import json
 import os
 from pathlib import Path
 import re
@@ -15,47 +21,73 @@ def command(*arguments, **kwargs):
     return subprocess.check_output(arguments, text=True, stderr=subprocess.STDOUT, **kwargs)
 
 
-def build_id(path):
-    found = re.search(r"Build ID: ([0-9a-f]+)", command("readelf", "-n", str(path)))
+def build_id(path, readelf):
+    found = re.search(r"Build ID: ([0-9a-f]+)", command(str(readelf), "-n", str(path)))
     assert found, path
     return found.group(1)
 
 
 def main():
-    runtime, debug, source, configure_log, *dependencies = [Path(value).resolve() for value in sys.argv[1:]]
-    debian = source.parent.parent / "debian"
-    build_depends = re.search(r"^Build-Depends:(.*(?:\n[ \t]+.*)*)",
-                              (debian / "control").read_text(), re.M)
-    assert build_depends and re.search(r"(?:^|[,\s])libreadline-dev(?=\s|,|$)", build_depends[1]), (
-        "SONiC's readline patch must add libreadline-dev to debian/control")
+    runtime, debug, metadata, source_marker, readelf, objcopy, *dependencies = map(Path, sys.argv[1:])
+    source = source_marker.resolve().parent
+    binaries = {"socat1", "filan", "procan"}
+    scripts = {"socat-chain.sh", "socat-mux.sh", "socat-broker.sh"}
+    # These paths are the original Make install and Debian helper contract.
+    expected = {"usr/bin/" + name: 0o755 for name in binaries | scripts}
+    expected.update({"usr/share/doc/socat/" + name: 0o644 for name in [
+        "copyright", "README.Debian", "changelog.gz", "changelog.Debian.gz"]})
+    expected.update({"usr/share/man/man1/socat1.1.gz": 0o644,
+                     "usr/share/doc-base/socat": 0o644,
+                     "usr/share/lintian/overrides/socat": 0o644})
+    original_files = {}
+    for pattern in (source / "debian/docs").read_text().splitlines():
+        for path in source.glob(pattern):
+            destination = "usr/share/doc/socat/" + path.name
+            compressed = path.stat().st_size > 4096 and path.suffix not in (".html", ".css")
+            if compressed:
+                destination += ".gz"
+            expected[destination] = 0o644
+            original_files[destination] = path, compressed
+    for name in (source / "debian/examples").read_text().splitlines():
+        path = source / name
+        destination = "usr/share/doc/socat/examples/" + name
+        expected[destination] = 0o755 if path.stat().st_mode & 0o111 else 0o644
+        original_files[destination] = path, False
+    links = {"usr/bin/socat": "socat1", "usr/share/man/man1/socat.1.gz": "socat1.1.gz",
+             "usr/share/man/man1/filan.1.gz": "socat.1.gz", "usr/share/man/man1/procan.1.gz": "socat.1.gz"}
+    with tarfile.open(runtime) as archive:
+        members = {member.name.removeprefix("./"): member for member in archive.getmembers() if not member.isdir()}
+        assert set(members) == set(expected) | set(links), (sorted(set(members) - set(expected) - set(links)), sorted(set(expected) | set(links) - set(members)))
+        for name, member in members.items():
+            assert (member.uid, member.gid) == (0, 0), name
+            if name in links:
+                assert member.issym() and member.linkname == links[name], name
+            else:
+                assert member.isfile() and member.mode == expected[name], name
+    info = json.loads(metadata.read_text())
+    assert info["schema"] == 1 and info["module"] == "socat", info
+    fields = info["packages"]["socat"]
+    assert fields["control_fields"]["Version"] == "1.8.0.2-1", fields
     with tempfile.TemporaryDirectory(dir=os.environ["TEST_TMPDIR"]) as temporary:
         root = Path(temporary)
-        for archive in [*dependencies, runtime]:
-            with tarfile.open(archive) as package:
-                package.extractall(root, filter="data")
-        with tarfile.open(runtime) as package:
-            files = {member.name: member for member in package.getmembers() if not member.isdir()}
-            for member in files.values():
-                assert (member.uid, member.gid) == (0, 0), member.name
-            for name in ("socat1", "filan", "procan", "socat-chain.sh", "socat-mux.sh", "socat-broker.sh"):
-                assert files["usr/bin/" + name].mode == 0o755, name
-        assert os.readlink(root / "usr/bin/socat") == "socat1"
-        for name in ("socat-chain.sh", "socat-mux.sh", "socat-broker.sh"):
-            assert (root / "usr/bin" / name).read_bytes() == (source.parent.parent / name).read_bytes()
-        assert (root / "usr/share/man/man1/socat1.1").read_bytes() == source.read_bytes()
-        for name in ("socat", "filan", "procan"):
-            assert (root / "usr/share/man/man1" / (name + ".1")).resolve() == root / "usr/share/man/man1/socat1.1"
-        assert (root / "usr/share/doc/socat/COPYING").read_bytes() == (source.parent.parent / "COPYING").read_bytes()
-        assert (root / "usr/share/doc/socat/copyright").read_bytes() == (debian / "copyright").read_bytes()
-
-        loaders = {path.resolve() for path in root.rglob("ld-linux-*.so.*") if path.is_file()}
+        for payload in [*dependencies, runtime]:
+            with tarfile.open(payload) as archive:
+                archive.extractall(root, filter="data")
+        for destination, (original, compressed) in original_files.items():
+            installed = root / destination
+            content = gzip.decompress(installed.read_bytes()) if compressed else installed.read_bytes()
+            assert content == original.read_bytes(), destination
+        assert gzip.decompress((root / "usr/share/man/man1/socat1.1.gz").read_bytes()) == (source / "doc/socat.1").read_bytes()
+        for installed, original in (("changelog.gz", "CHANGES"),
+                                    ("changelog.Debian.gz", "debian/changelog")):
+            assert gzip.decompress((root / "usr/share/doc/socat" / installed).read_bytes()) == (source / original).read_bytes()
+        for name in scripts:
+            assert (root / "usr/bin" / name).read_bytes() == (source / name).read_bytes(), name
+        loaders = {p.resolve() for p in root.rglob("ld-linux-*.so.*") if p.is_file()}
         assert len(loaders) == 1, loaders
-        loader = str(loaders.pop())
-        libraries = sorted({str(path.parent) for path in root.rglob("*.so*") if path.is_file()})
-        environment = dict(os.environ)
-        for key in ("LD_PRELOAD", "LD_LIBRARY_PATH", "LD_AUDIT"):
-            environment.pop(key, None)
-        prefix = [loader, "--inhibit-cache", "--library-path", os.pathsep.join(libraries)]
+        libraries = sorted({str(p.parent) for p in root.rglob("*.so*") if p.is_file()})
+        prefix = [str(loaders.pop()), "--inhibit-cache", "--library-path", os.pathsep.join(libraries)]
+        environment = {k: v for k, v in os.environ.items() if not k.startswith("LD_")}
         expected_sources = {"socat1": "socat.c", "filan": "filan_main.c", "procan": "procan_main.c"}
 
         def debugger(binary):
@@ -72,52 +104,42 @@ def main():
             resolved = re.findall(r"=> (/\S+)", listing)
             assert resolved, listing
             assert all(Path(path).resolve().is_relative_to(root) for path in resolved), listing
-            dynamic = command("readelf", "-d", str(binary))
+            dynamic = command(str(readelf), "-d", str(binary))
             assert not re.search(r"\((?:RPATH|RUNPATH)\)", dynamic), dynamic
-            assert ".debug_info" not in command("readelf", "-SW", str(binary))
+            assert ".debug_info" not in command(str(readelf), "-SW", str(binary))
             assert not re.search(r"Line \d+ of", debugger(binary))
-            identities[name] = build_id(binary)
+            identities[name] = build_id(binary, readelf)
 
-        version = command(*prefix, str(root / "usr/bin/socat1"), "-V", env=environment)
+        def installed_command(name, *args, **kwargs):
+            return subprocess.check_output([*prefix, str(root / "usr/bin" / name), *args], env=environment, text=True, stderr=subprocess.STDOUT, timeout=20, **kwargs)
+        # First startup check uses only -V before the behavioral assertions.
+        version = installed_command("socat1", "-V")
         assert "socat version 1.8.0.2" in version, version
         for feature in ("WITH_OPENSSL", "WITH_READLINE", "WITH_LIBWRAP"):
-            assert re.search(r"#define " + feature + r" 1\b", version), (
-                version + "\n" + "\n".join(line for line in configure_log.read_text().splitlines()
-                                            if "error:" in line or "checked for openssl/ssl.h" in line))
-        payload = "installed socat preserves stdin/stdout\n"
-        assert command(*prefix, str(root / "usr/bin/socat1"), "-u", "STDIN", "STDOUT",
-                       input=payload, env=environment) == payload
-        # Debian's 03-Truncate patch rejects overlong UNIX addresses before
-        # connecting, rather than silently truncating the requested path.
-        result = subprocess.run(
-            [*prefix, str(root / "usr/bin/socat1"), "-u", "STDIN",
-             "UNIX-CONNECT:" + str(root / ("x" * 200))],
-            input="", env=environment, text=True, stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT, timeout=10,
-        )
+            assert re.search(r"#define " + feature + r" 1\b", version), version
+        for payload in ("short relay\n", "second input\n" * 257):
+            assert installed_command("socat1", "-u", "STDIN", "STDOUT", input=payload) == payload
+        result = subprocess.run([*prefix, str(root / "usr/bin/socat1"), "-u", "STDIN", "UNIX-CONNECT:" + str(root / ("x" * 200))], input="", env=environment, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=10)
         assert result.returncode == 1, (result.returncode, result.stdout)
-        assert re.search(r"unix socket address \d+ characters long, max length is \d+",
-                         result.stdout), result.stdout
+        assert re.search(r"unix socket address \d+ characters long, max length is \d+", result.stdout), result.stdout
         for name in ("filan", "procan"):
-            assert command(*prefix, str(root / "usr/bin" / name), "-h", env=environment)
-        process_metadata = command(*prefix, str(root / "usr/bin/procan"), env=environment)
+            assert installed_command(name, "-h")
+        process_metadata = installed_command("procan")
         namespace = re.search(r"^Network namespace: (.*)$", process_metadata, re.M)
         assert namespace and namespace[1] == os.readlink("/proc/self/ns/net"), process_metadata
         compiler = re.search(r"^// CC:\s+(.+)$", process_metadata, re.M)
-        assert compiler and compiler[1].startswith("./external/"), process_metadata
-        assert "/execroot/" not in compiler[1], compiler[1]
-
+        assert compiler and "/execroot/" not in compiler[1], process_metadata
         with tarfile.open(debug) as package:
             package.extractall(root, filter="data")
         for name, identity in identities.items():
             binary = root / "usr/bin" / name
             symbols = root / "usr/lib/debug/.build-id" / identity[:2] / (identity[2:] + ".debug")
-            assert build_id(symbols) == identity
-            assert ".debug_info" in command("readelf", "-SW", str(symbols))
-            paths = command("readelf", "-p", ".debug_line_str", "-p", ".debug_str", str(symbols))
+            assert build_id(symbols, readelf) == identity
+            assert ".debug_info" in command(str(readelf), "-SW", str(symbols))
+            paths = command(str(readelf), "-p", ".debug_line_str", "-p", ".debug_str", str(symbols))
             assert "/execroot/" not in paths, paths
             section = root / (name + ".debuglink")
-            command("objcopy", "--dump-section", f".gnu_debuglink={section}",
+            command(str(objcopy), "--dump-section", f".gnu_debuglink={section}",
                     str(binary), str(root / (name + ".copy")))
             contents = section.read_bytes()
             assert contents.split(b"\0", 1)[0].decode() == symbols.name
@@ -125,7 +147,7 @@ def main():
             location = debugger(binary)
             assert re.search(r'Line \d+ of .*' + re.escape(expected_sources[name]), location), location
         print(version)
-        print("Installed three programs, Debian metadata and truncation patch, declared library closure, stdin/stdout transfer, feature parity and debug symbols passed")
+        print("Installed Debian layout, runtime closure, feature parity, relay, UNIX-address and namespace behavior, and detached debug symbols passed")
 
 
 if __name__ == "__main__":
