@@ -1,20 +1,21 @@
 {
   "architectures": [
-    "amd64"
+    "amd64",
+    "arm64"
   ],
   "consumer_deps": [
     {
       "name": "sonic-build-infra",
-      "version": "0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568",
+      "version": "0.0.35-4016babb62e9eb97a71398b4d77ec9cfa5c62062",
       "repo_name": "sonic_build_infra"
     },
     {
       "name": "tar.bzl",
-      "version": "0.10.5-sonic.1"
+      "version": "0.10.5.sonic.2"
     },
     {
       "name": "rules_distroless",
-      "version": "0.9.4.sonic.16"
+      "version": "0.9.4.sonic.18"
     },
     {
       "name": "rules_cc",
@@ -26,12 +27,13 @@
     }
   ],
   "platforms": {
-    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
   },
   "host_platforms": {
-    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
   },
-  "generated_module_overlay": true,
   "build_targets": [
     "@sonic-dhcpmon//:runtime",
     "@sonic-dhcpmon//:runtime.debug_symbols",

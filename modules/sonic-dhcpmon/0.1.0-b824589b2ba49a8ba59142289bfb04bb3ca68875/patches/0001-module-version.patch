@@ -1,0 +1,12 @@
+Align the landed DHCP monitor module with its immutable registry version.
+
+Source: https://github.com/securely1g/sonic-dhcpmon/commit/b824589b2ba49a8ba59142289bfb04bb3ca68875
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,4 +1,4 @@
+-module(name = "sonic-dhcpmon", version = "0.1.0")
++module(name = "sonic-dhcpmon", version = "0.1.0-b824589b2ba49a8ba59142289bfb04bb3ca68875")
+ bazel_dep(name = "rules_cc", version = "0.2.20")
+ bazel_dep(name = "sonic-build-infra", version = "0.0.35-4016babb62e9eb97a71398b4d77ec9cfa5c62062", repo_name = "sonic_build_infra")
+ bazel_dep(name = "sonic-swss-common", version = "0.0.9-334389eae54afd1f4f5ee69f89c3a7ad2062ee61", repo_name = "sonic_swss_common")
