@@ -1,6 +1,7 @@
 {
     "homepage": "https://github.com/sonic-net/sonic-linkmgrd",
     "versions": [
-        "1.0.0-e0f9f94901c30ed30f5fe82af6dafca38f8b35d7"
+        "1.0.0-e0f9f94901c30ed30f5fe82af6dafca38f8b35d7",
+        "1.0.0-7b724e626cdb2232b8b323f31e5f8a7b48ad7a22"
     ]
 }
