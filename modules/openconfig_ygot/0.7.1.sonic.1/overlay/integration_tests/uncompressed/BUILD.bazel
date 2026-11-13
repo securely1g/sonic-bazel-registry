@@ -1,0 +1,46 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "uncompressed",
+    srcs = ["cp.go"],
+    importpath = "github.com/openconfig/ygot/integration_tests/uncompressed",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "go_default_library",
+    actual = ":uncompressed",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "uncompressed_test",
+    srcs = ["cp_test.go"],
+    args = ["-test.v"],
+    embed = [":uncompressed"],
+    deps = [
+        "//integration_tests/uncompressed/cschema",
+        "//integration_tests/uncompressed/uschema",
+        "//ygot",
+    ],
+)
+
+# Match the original go:generate preparation required by upstream Make/CI.
+genrule(
+    name = "generated_compressed",
+    srcs = glob(["yang/**"]),
+    outs = ["generated_compressed.go"],
+    cmd = "$(execpath //generator:generator) -path=$$(dirname $(location yang/uncompressed.yang)) -output_file=$@ -package_name=cschema -generate_fakeroot -fakeroot_name=root -generate_getters -compress_paths $(location yang/uncompressed.yang)",
+    tools = ["//generator"],
+    visibility = ["//visibility:public"],
+)
+
+# Match the original go:generate preparation required by upstream Make/CI.
+genrule(
+    name = "generated_uncompressed",
+    srcs = glob(["yang/**"]),
+    outs = ["generated_uncompressed.go"],
+    cmd = "$(execpath //generator:generator) -path=$$(dirname $(location yang/uncompressed.yang)) -output_file=$@ -package_name=uschema -generate_fakeroot -fakeroot_name=root -generate_getters $(location yang/uncompressed.yang)",
+    tools = ["//generator"],
+    visibility = ["//visibility:public"],
+)

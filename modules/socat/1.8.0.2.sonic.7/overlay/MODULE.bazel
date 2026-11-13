@@ -1,0 +1,53 @@
+# AUTO-GENERATED. DO NOT EDIT MANUALLY.
+# Source: ../MODULE.bazel
+# Generator: python3 ci/registry_ci.py sync-module --module socat --version 1.8.0.2.sonic.7
+
+module(
+    name = "socat",
+    version = "1.8.0.2.sonic.7",
+)
+
+bazel_dep(name = "platforms", version = "1.1.0")
+bazel_dep(name = "bazel_skylib", version = "1.9.2")
+bazel_dep(name = "rules_cc", version = "0.2.20")
+bazel_dep(name = "rules_gzip", version = "1.0.0")
+bazel_dep(name = "rules_python", version = "1.9.0.sonic.1")
+bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.18")
+bazel_dep(name = "sonic-build-infra", version = "0.0.33-0d2435b572eca4a6f1db6e003b04956c09fb1a39", repo_name = "sonic_build_infra")
+
+# Select the pinned compiler ahead of Bazel's auto-configured host compiler.
+gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
+use_repo(gcc, "gcc_toolchains")
+register_toolchains("@gcc_toolchains//:all")
+
+# Infrastructure registers the shared archive tools.
+register_toolchains("@sonic_build_infra//tools/gzip:toolchain")
+
+apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
+use_repo(apt, "socat_deps")
+
+# The registry root is the immutable upstream archive. The prepared tree owns
+# the Debian archive merge and ordered Debian/SONiC patch stages exactly once.
+prepared_source = use_repo_rule("@sonic_build_infra//source:prepared_source.bzl", "prepared_source")
+
+prepared_source(
+    name = "socat_source",
+    build_file = "//:bazel/socat.BUILD.bazel",
+    inputs = {
+        "sonic/enable_readline.patch": "//:bazel/enable_readline.patch",
+        "sonic/namespace.patch": "//:bazel/0003-procan-namespace-nul.patch",
+    },
+    steps = [
+        '{"op":"archive","urls":["https://snapshot.debian.org/archive/debian/20241222T205329Z/pool/main/s/socat/socat_1.8.0.2.orig.tar.bz2"],"sha256":"adc07a9c2723527cf6568d2fb96559794cf9c254a4bc2edd36f7f3789e9f7625","strip_prefix":"socat-1.8.0.2"}',
+        '{"op":"archive","urls":["https://snapshot.debian.org/archive/debian/20241222T205329Z/pool/main/s/socat/socat_1.8.0.2-1.debian.tar.xz"],"sha256":"04b361cd91884eda6ca9fe2890ca83a6abe73dd8ce75fe9927b2d8443af36123"}',
+        '{"op":"patch_series","series":"debian/patches/series","strip":1}',
+        '{"op":"patch","input":"sonic/enable_readline.patch","strip":0,"format":"unified"}',
+        '{"op":"patch","input":"sonic/namespace.patch","strip":1}',
+    ],
+)
+
+# Keep the Bazel 8.5.1-compatible C/C++ rule API for standalone builds.
+single_version_override(
+    module_name = "rules_cc",
+    version = "0.2.20",
+)
