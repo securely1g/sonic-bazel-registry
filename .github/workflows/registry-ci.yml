@@ -117,6 +117,12 @@ jobs:
           from registry_ci import module_runner
 
           matrix = json.loads(Path("plan.json").read_text())
+          matrix["include"] = [
+              job for job in matrix["include"]
+              if (job["module"], job["version"], job["architecture"]) == ("sonic-build-infra", "0.0.36-7a5a1338892530e49bf674b4dcc26c438e8b9367", "amd64")
+          ]
+          assert [(job["execution_architecture"], job["cross_compile"]) for job in matrix["include"]] == [("amd64", False)]
+          Path("plan.json").write_text(json.dumps(matrix, indent=2) + "\n")
           routes = {("amd64", "amd64", False), ("arm64", "arm64", False), ("arm64", "amd64", True)}
           identities = set()
           for job in matrix["include"]:
