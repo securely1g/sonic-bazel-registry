@@ -1657,7 +1657,7 @@ def run(root: Path, module: str, version: str, architecture: str,
             # flags whose apparent labels may be unresolved in a fresh info command.
             info_flags = [flag for flag in flags if flag.startswith(
                 ("--registry=", "--lockfile_mode=", "--experimental_downloader_config=",
-                 "--override_module=", "--override_repository=", "--distdir="))]
+                 "--override_module=", "--override_repository=", "--distdir=", "--repository_cache="))]
             execution_root = Path(subprocess.check_output([*prefix, "info", *info_flags, "execution_root"],
                                                          cwd=consumer, text=True).strip())
             collect_outputs(artifacts / "build-events.jsonl", build_targets, work_dir, artifacts,
@@ -1714,14 +1714,13 @@ def run(root: Path, module: str, version: str, architecture: str,
                     flag == "--test_timeout" or flag.startswith("--test_timeout=")
                     for flag in [*flags, *test_flags]):
                 test_flags.append("--test_timeout=180,900,2700,7200")
-            # Export HOME before Bazel's test setup assigns TEST_TMPDIR. With
-            # HOME absent, that shell assignment is invisible to Python and
-            # expanduser() falls back to the account home outside the sandbox.
+            # Inherit the caller's HOME without replacing it. Tests should use
+            # TEST_TMPDIR for their own writable files.
             # Tests can hard-link declared runfiles into TEST_TMPDIR. Linux's
             # separate bind mounts reject those links even on one filesystem.
             # Keep input staging within the disposable container, and leave
             # build action strategies unchanged.
-            run_logged([*prefix, "test", *flags, *test_flags, "--test_env=HOME=",
+            run_logged([*prefix, "test", *flags, *test_flags, "--test_env=HOME",
                         f"--strategy=TestRunner={TEST_SANDBOX_STRATEGY}",
                         "--nocache_test_results", "--test_output=errors",
                         f"--build_event_json_file={artifacts / 'test-events.jsonl'}", *test_targets],
