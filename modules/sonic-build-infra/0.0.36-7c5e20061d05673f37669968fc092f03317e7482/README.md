@@ -1,0 +1,9 @@
+# Shared Trixie APT collections for MACsec and DASH HA
+
+Extend [registry #316](https://github.com/securely1g/sonic-bazel-registry/pull/316)'s single unpublished infrastructure candidate with `macsec_debian` for [docker-macsec #149](https://github.com/securely1g/sonic-buildimage/pull/149). Preserve the three DASH HA collections used by [buildimage #155](https://github.com/securely1g/sonic-buildimage/pull/155). The registered version is `0.0.36-7c5e20061d05673f37669968fc092f03317e7482`.
+
+The archive is a temporary source integration at `7c5e20061d05673f37669968fc092f03317e7482`, with the exact reviewed heads of [source #103](https://github.com/securely1g/sonic-build-infra/pull/103) (`a24e2a9bbed3bad9f61bcc0e159bd47a2211a0e9`) and [source #104](https://github.com/securely1g/sonic-build-infra/pull/104) (`4073097bfeddcaf2bd48ddcdefc371e2214f7680`) as its two parents. Their source PRs remain separate. The actual resolver regenerated the union of 73 collections while preserving all 2,453 package records and every source definition.
+
+The module declaration and version-alignment patch are generated from the exact source archive. The cross-test visibility patch, registry overlays and complete native AMD64/ARM64 presubmit matrix are unchanged. The AMD64 image collections have 3 runtime, 103 debug and 40 installed-test packages for DASH HA, plus 36 runtime packages for MACsec. Registry presubmits retain the existing infrastructure targets; image-specific collection consumption is covered by the respective image PRs.
+
+This registration remains Draft while it is stacked and the source integration is unlanded. After source #103 and #104 merge, repin to the maintained source branch's landed integration commit and refresh the archive integrity, module identity, comparison patch and checks before publication. Published version 0.0.35-4016babb62e9eb97a71398b4d77ec9cfa5c62062 remains unchanged.
