@@ -1,0 +1,154 @@
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_python//python:packaging.bzl", "py_package", "py_wheel")
+load("@rules_python//python:py_library.bzl", "py_library")
+load("@rules_python//python:py_test.bzl", "py_test")
+
+package(default_visibility = ["//visibility:public"])
+
+# The wheel promises CPython 3.13's ordinary AMD64 Linux/glibc ABI only.
+# Versioned public headers do not depend on an unset root python_version flag.
+config_setting(
+    name = "_supported_platform",
+    constraint_values = ["@platforms//cpu:x86_64", "@platforms//os:linux"],
+    flag_values = {
+        "@rules_python//python/config_settings:py_freethreaded": "no",
+        "@rules_python//python/config_settings:py_linux_libc": "glibc",
+    },
+)
+
+SUPPORTED = select({
+    ":_supported_platform": [],
+    "//conditions:default": ["@platforms//:incompatible"],
+})
+
+cc_library(
+    name = "_headers",
+    hdrs = ["bitarray/bitarray.h", "bitarray/pythoncapi_compat.h"],
+    target_compatible_with = SUPPORTED,
+)
+
+cc_binary(
+    name = "bitarray/_bitarray.cpython-313-x86_64-linux-gnu.so",
+    srcs = ["bitarray/_bitarray.c"],
+    deps = [":_headers", "@python_3_13//:python_headers"],
+    linkshared = True,
+    stamp = 0,
+    linkstatic = True,
+    target_compatible_with = SUPPORTED,
+)
+
+cc_binary(
+    name = "bitarray/_util.cpython-313-x86_64-linux-gnu.so",
+    srcs = ["bitarray/_util.c"],
+    deps = [":_headers", "@python_3_13//:python_headers"],
+    linkshared = True,
+    stamp = 0,
+    linkstatic = True,
+    target_compatible_with = SUPPORTED,
+)
+
+py_library(
+    name = "pkg",
+    srcs = [
+        "bitarray/__init__.py",
+        "bitarray/test_bitarray.py",
+        "bitarray/test_util.py",
+        "bitarray/util.py",
+    ],
+    data = [
+        "bitarray/__init__.pyi",
+        "bitarray/bitarray.h",
+        "bitarray/py.typed",
+        "bitarray/pythoncapi_compat.h",
+        "bitarray/test_150.pickle",
+        "bitarray/test_281.pickle",
+        "bitarray/util.pyi",
+        ":bitarray/_bitarray.cpython-313-x86_64-linux-gnu.so",
+        ":bitarray/_util.cpython-313-x86_64-linux-gnu.so",
+    ],
+    imports = ["."],
+    precompile = "disabled",
+    target_compatible_with = SUPPORTED,
+)
+
+py_package(
+    name = "_wheel_payload",
+    packages = ["bitarray"],
+    deps = [":pkg"],
+    target_compatible_with = SUPPORTED,
+)
+
+# Use the selected upstream writer. Shared extensions need read access, not an
+# execute bit; all regular wheel files are deliberately 0644 rather than 0777.
+py_wheel(
+    name = "whl",
+    distribution = "bitarray",
+    version = "2.8.1",
+    python_tag = "cp313",
+    abi = "cp313",
+    platform = "linux_x86_64",
+    author = "Ilan Schnell",
+    author_email = "ilanschnell@gmail.com",
+    homepage = "https://github.com/ilanschnell/bitarray",
+    license = "PSF",
+    summary = "efficient arrays of booleans -- C extension",
+    description_file = "README.rst",
+    classifiers = [
+        "License :: OSI Approved :: Python Software Foundation License",
+        "Development Status :: 6 - Mature",
+        "Intended Audience :: Developers",
+        "Operating System :: OS Independent",
+        "Programming Language :: C",
+        "Programming Language :: Python :: 2",
+        "Programming Language :: Python :: 2.7",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.5",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Topic :: Utilities"
+],
+    license_files = ["LICENSE"],
+    extra_distinfo_files = {"LICENSE": "licenses/LICENSE"},
+    regular_file_mode = "0644",
+    stamp = 0,
+    deps = [":_wheel_payload"],
+    target_compatible_with = SUPPORTED,
+)
+
+py_library(
+    name = "upstream_test_support",
+    testonly = True,
+    srcs = ["tests/upstream_test.py"],
+    imports = ["tests"],
+    precompile = "disabled",
+)
+
+py_test(
+    name = "upstream_test",
+    srcs = ["tests/upstream_test.py"],
+    main = "tests/upstream_test.py",
+    deps = [":pkg"],
+    python_version = "3.13",
+    target_compatible_with = SUPPORTED,
+)
+
+py_test(
+    name = "wheel_contract_test",
+    srcs = ["tests/wheel_contract_test.py"],
+    main = "tests/wheel_contract_test.py",
+    data = [":whl", "tests/upstream_contract.json", "README.rst", "LICENSE"],
+    args = [
+        "--wheel", "$(location :whl)",
+        "--contract", "$(location tests/upstream_contract.json)",
+        "--readme", "$(location README.rst)",
+        "--license", "$(location LICENSE)",
+    ],
+    python_version = "3.13",
+    target_compatible_with = SUPPORTED,
+)
