@@ -1,0 +1,16 @@
+Purpose: Align the source-owned MODULE identity with this immutable registry snapshot.
+Source: securely1g/sonic-build-infra commit 5ca4451fcba7feb968ac429f55aa1d20b5569e60 (MODULE.bazel).
+Origin: https://github.com/securely1g/sonic-build-infra/commit/5ca4451fcba7feb968ac429f55aa1d20b5569e60
+Upstream-Status: Inappropriate [registry-only snapshot version suffix]
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,7 +1,7 @@
+ # Keep bazel_compatibility in sync with sonic-buildimage's .bazelversion.
+ module(
+     name = "sonic-build-infra",
+-    version = "0.0.35",
++    version = "0.0.35-5ca4451fcba7feb968ac429f55aa1d20b5569e60",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
