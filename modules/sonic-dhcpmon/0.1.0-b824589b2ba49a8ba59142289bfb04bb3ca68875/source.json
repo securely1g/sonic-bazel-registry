@@ -1,0 +1,9 @@
+{
+  "url": "https://github.com/securely1g/sonic-dhcpmon/archive/b824589b2ba49a8ba59142289bfb04bb3ca68875.tar.gz",
+  "strip_prefix": "sonic-dhcpmon-b824589b2ba49a8ba59142289bfb04bb3ca68875",
+  "integrity": "sha256-YN6KRlHBiukYgTgA+msvxdrXnyzwUXTzHP+rWMx2WIs=",
+  "patches": {
+    "0001-module-version.patch": "sha256-4kLFlkbaXHqaj5SDKNJpU3X/tLd+EAjP4XiAi7dfgcA="
+  },
+  "patch_strip": 1
+}
