@@ -18,6 +18,22 @@
       ]
     },
     {
+      "module": "sonic-dhcpmon",
+      "version": "0.1.0-b824589b2ba49a8ba59142289bfb04bb3ca68875",
+      "execution_architecture": "amd64",
+      "manifests": [
+        "cosmos-4.0.2.json"
+      ]
+    },
+    {
+      "module": "sonic-dhcpmon",
+      "version": "0.1.0-b824589b2ba49a8ba59142289bfb04bb3ca68875",
+      "execution_architecture": "arm64",
+      "manifests": [
+        "cosmos-4.0.2.json"
+      ]
+    },
+    {
       "module": "sonic-sairedis",
       "version": "0.0.5-33443ea1666a23812365d03fb959066ee84c9aa0",
       "execution_architecture": "amd64",
