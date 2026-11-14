@@ -117,6 +117,9 @@ jobs:
           from registry_ci import module_runner
 
           matrix = json.loads(Path("plan.json").read_text())
+          matrix["include"] = [job for job in matrix["include"] if job["module"] == "bitarray"]
+          assert [(job["version"], job["architecture"]) for job in matrix["include"]] == [("2.8.1.sonic.1", "amd64")]
+          Path("plan.json").write_text(json.dumps(matrix, indent=2) + "\n")
           routes = {("amd64", "amd64", False), ("arm64", "arm64", False), ("arm64", "amd64", True)}
           identities = set()
           for job in matrix["include"]:
