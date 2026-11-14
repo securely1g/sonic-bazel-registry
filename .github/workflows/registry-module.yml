@@ -188,6 +188,9 @@ jobs:
             # inside the runner's memory limit.
             BAZEL_STARTUP_ARGS=(--bazel-startup-arg=--host_jvm_args=-Xmx2g)
             BAZEL_BUILD_ARGS=(--bazel-build-arg=--jobs=1 --bazel-build-arg=--discard_analysis_cache)
+            # Isolated pip uses its bundled CAs unless Requests receives the
+            # system bundle that the registry runner provisions for its proxy.
+            BAZEL_BUILD_ARGS+=(--bazel-build-arg=--repo_env=REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt)
             case "$CI_MODULE" in
               p4c|p4lang-bmv2|sonic-dash)
                 # These recipes run make -j4 inside one Bazel action. DASH also
