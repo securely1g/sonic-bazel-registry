@@ -2374,7 +2374,8 @@ class TestContainerTests(unittest.TestCase):
                 self.assertEqual([arg for arg in arguments if arg.startswith("--bazel-startup-arg=")],
                                  ["--bazel-startup-arg=--host_jvm_args=-Xmx2g"] if execution == "amd64" else [])
                 self.assertEqual([arg for arg in arguments if arg.startswith("--bazel-build-arg=")],
-                                 ["--bazel-build-arg=--jobs=1", "--bazel-build-arg=--discard_analysis_cache"]
+                                 ["--bazel-build-arg=--jobs=1", "--bazel-build-arg=--discard_analysis_cache",
+                                  "--bazel-build-arg=--repo_env=REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt"]
                                  if execution == "amd64" else [])
                 self.assertEqual("--cross-compile" in arguments, cross)
                 self.assertEqual("--test-executor" in arguments, cross)
