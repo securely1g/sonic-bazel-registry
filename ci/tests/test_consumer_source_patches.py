@@ -16,7 +16,8 @@ class ConsumerSourcePatchTests(FixtureTestCase):
         registry_ci.validate_entry(self.root,'alpha','1.0.0')
         source=pathlib.Path(registry_ci.__file__).read_text()
         start=source.index('            declarations =');end=source.index('            (consumer / "MODULE.bazel").write_text',start)
-        env={'config':cfg,'module':'alpha','version':'1.0.0','json':json}
+        env={'config':cfg,'module':'alpha','version':'1.0.0','json':json,
+             'staged_patches': {'@alpha//patches:tool.patch': '//_registry_source_patches:000.patch'}}
         exec(compile(textwrap.dedent(source[start:end]),'declaration-only','exec'),env)
         text='\n'.join(env['declarations']);tree=ast.parse(text)
         for statement in tree.body:
@@ -24,7 +25,7 @@ class ConsumerSourcePatchTests(FixtureTestCase):
                 call=statement.value
                 if isinstance(call.func,ast.Name) and call.func.id=='bazel_dep':
                     self.assertFalse(any(k.arg in ('source_patches','patch_strip','patches') for k in call.keywords))
-        self.assertIn('patches = ["@alpha//patches:tool.patch"], patch_strip = 1',text)
+        self.assertIn('patches = ["//_registry_source_patches:000.patch"], patch_strip = 1',text)
 
     def test_invalid_or_foreign_sources_rejected(self):
         path,cfg=self.config()

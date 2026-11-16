@@ -1512,6 +1512,93 @@ def prepare_gazelle_tests(root: Path, work_dir: Path, script_executor: list[str]
     return runner
 
 
+
+def stage_consumer_source_patches(root: Path, module: str, version: str,
+                                  config: dict, consumer: Path, artifacts: Path) -> dict:
+    """Materialize owner-bound patch bytes in the fresh consuming main repository.
+
+    Never extract or execute an archive. Only regular selected members are read
+    after whole-archive integrity verification. Fetch overlays are supported;
+    arbitrary source patches are rejected because they could alter owner bytes.
+    """
+    labels = [label for dep in config["consumer_deps"] for label in dep.get("source_patches", [])]
+    if not labels:
+        return {}
+    require(consumer.is_dir() and not consumer.is_symlink()
+            and consumer.resolve() == consumer.absolute(),
+            "Patch consumer root must have no symlink components")
+    entry = entry_directory(root, module, version)
+    source = read_json(local_input(entry, "source.json"))
+    require(not source.get("patches"), "Owner source_patches require an unpatched archive or explicit overlay inputs")
+    url = source.get("url", "")
+    require(urlparse(url).scheme == "https", "Owner archive must use HTTPS")
+    prefix = source.get("strip_prefix", "")
+    require(isinstance(prefix, str) and prefix and not prefix.startswith("/")
+            and ".." not in prefix.split("/") and "\\" not in prefix,
+            "Owner patch staging requires a safe strip_prefix")
+    with urlopen(url, timeout=60) as response:
+        archive = response.read(64 * 1024 * 1024 + 1)
+    require(len(archive) <= 64 * 1024 * 1024, "Owner patch archive exceeds bounded staging limit")
+    sri(source.get("integrity"), archive)
+    wanted = {}
+    for label in labels:
+        require(isinstance(label, str) and label.startswith(f"@{module}//") and LABEL.fullmatch(label),
+                "Patch label must belong to tested owner")
+        package, name = label.split("//", 1)[1].split(":", 1)
+        path = (package + "/" if package else "") + name
+        require(path.endswith(".patch") and all(part not in ("", ".", "..") for part in path.split("/")),
+                "Unsafe owner patch path")
+        wanted[label] = path
+    selected = {}; seen = set(); nonregular = set()
+    try:
+        with tarfile.open(fileobj=io.BytesIO(archive), mode="r:*") as tar:
+            for member in tar:
+                path = member.name.removeprefix("./").rstrip("/")
+                require(path and not path.startswith("/") and "\\" not in path
+                        and all(part not in ("", ".", "..") for part in path.split("/")),
+                        "Unsafe owner archive member")
+                require(path not in seen, "Duplicate owner archive member")
+                seen.add(path)
+                if not member.isdir() and not member.isfile():
+                    nonregular.add(path)
+                for label, relative in wanted.items():
+                    if path == prefix + "/" + relative:
+                        require(member.isfile() and member.size <= 1024 * 1024,
+                                "Owner patch must be a bounded regular archive member")
+                        selected[label] = tar.extractfile(member).read()
+    except tarfile.TarError as error:
+        raise RegistryError("Owner patch archive is not a supported TAR") from error
+    for label, relative in wanted.items():
+        parts = (prefix + "/" + relative).split("/")
+        require(not any("/".join(parts[:end]) in nonregular for end in range(1, len(parts))),
+                "Owner patch parent must not be a symlink or special member")
+        if relative in source.get("overlay", {}):
+            overlay = local_input(entry / "overlay", relative)
+            require(not (entry / "overlay").is_symlink()
+                    and not any(parent.is_symlink() for parent in overlay.parents if parent.is_relative_to(entry)),
+                    "Owner overlay patch parents must not be symlinks")
+            require(overlay.stat().st_size <= 1024 * 1024, "Owner overlay patch exceeds staging limit")
+            selected[label] = overlay.read_bytes()
+            sri(source["overlay"][relative], selected[label])
+        require(label in selected, "Owner patch not present in verified source")
+    directory = consumer / "_registry_source_patches"
+    require(not directory.exists() and not directory.is_symlink(), "Patch staging directory must be fresh")
+    directory.mkdir()
+    result = {}; receipt = []
+    for index, label in enumerate(dict.fromkeys(labels)):
+        name = f"{index:03d}.patch"
+        (directory / name).write_bytes(selected[label])
+        result[label] = f"//_registry_source_patches:{name}"
+        receipt.append({"source_label": label, "root_label": result[label],
+                        "sha256": hashlib.sha256(selected[label]).hexdigest()})
+    (directory / "BUILD.bazel").write_text("exports_files(" + json.dumps([f"{i:03d}.patch" for i in range(len(result))]) + ")\n")
+    (artifacts / "consumer-source-patches.json").write_text(json.dumps({
+        "owner": module, "version": version, "archive_integrity": source["integrity"],
+        "archive_sha256": hashlib.sha256(archive).hexdigest(), "patches": receipt,
+    }, indent=2) + "\n")
+    return result
+
+
 def run(root: Path, module: str, version: str, architecture: str,
         work_dir: Path, artifacts: Path, bazel: str = "bazel",
         test_container_image: str | None = None,
@@ -1547,6 +1634,7 @@ def run(root: Path, module: str, version: str, architecture: str,
             source = integration_test_directory(entry_directory(root, module, version), config, module, version)
             shutil.copytree(source, consumer, dirs_exist_ok=True)
         else:
+            staged_patches = stage_consumer_source_patches(root, module, version, config, consumer, artifacts)
             declarations = ['module(name = "registry_ci_consumer")']
             for dependency in [{"name": module, "version": version}, *config["consumer_deps"]]:
                 declarations.append("bazel_dep(" + ", ".join(f"{key} = {json.dumps(value)}"
@@ -1556,7 +1644,7 @@ def run(root: Path, module: str, version: str, architecture: str,
                 name, selected_version = dependency["name"], dependency["version"]
                 patch_args = ""
                 if "source_patches" in dependency:
-                    patch_args = (f", patches = {json.dumps(dependency['source_patches'])}, "
+                    patch_args = (f", patches = {json.dumps([staged_patches[label] for label in dependency['source_patches']])}, "
                                   f"patch_strip = {dependency.get('patch_strip', 0)}")
                 declarations.append(f"single_version_override(module_name = {json.dumps(name)}, "
                                     f"version = {json.dumps(selected_version)}{patch_args})")

@@ -1234,12 +1234,20 @@ Malformed or unrelated suffixes remain rejected.
 ### Source-owned root dependency patches
 
 A generated consumer may declare `source_patches` and nonnegative `patch_strip`
-on a `consumer_deps` item. These become `single_version_override` patch arguments
-at the real consumer root, not invalid `bazel_dep` arguments. Every patch must be
+on a `consumer_deps` item. The harness verifies the entire immutable tested source archive against its SRI,
+reads only bounded regular selected patch members (never extracts or executes
+archive code), and copies their exact bytes into a fresh root package with an
+exports_files BUILD file. Root-local labels, not external repository labels,
+become `single_version_override` patch arguments; Bazel8.5.1 rejects external
+patch labels during MODULE evaluation. Patch arguments never enter `bazel_dep`. Every patch must be
 a unique `.patch` label in the exact tested module (`@<module>//...`); external
 URLs, other repositories, traversal, arbitrary override commands and self-version
 overrides remain rejected. The tested module's immutable archive/recipe integrity
-pins the patch bytes. Existing dependencies without this opt-in generate identical
+pins the patch bytes. Traversal, duplicate archive members, symlink patch members
+or parents, missing members, stale staging directories and unknown source patch
+transformations fail closed. Declared overlays are accepted only after their
+individual integrity checks. Staging receipts retain owner/archive digest,
+source-to-root label mapping and each patch hash in original order. Existing dependencies without this opt-in generate identical
 root declarations. An integration-test MODULE still cannot override sources.
 This supports source-maintained execution-tool compatibility patches whose
 root-only declarations otherwise do not propagate to external consumers. It does
