@@ -1,4 +1,4 @@
-# Patch provenance for 0.9.4.sonic.18
+# Patch provenance for 0.9.4.sonic.19
 
 This candidate retains the published 0.9.4.sonic.17 inputs and adds
 `0022-distributed-requests.patch`: evaluated request export, root production-lock
@@ -572,3 +572,81 @@ loader, libraries and magic database to pkgconf, file and readelf. The catalog
 regression disables host executable lookup and checks that loader mappings
 resolve within the downloaded runtime. The four synthetic native-header DEBs
 are generated with rules_python's host Python 3.11 in isolated mode.
+
+## 0042: retain dynamic-module ownership
+
+Pure-DSO pkg-config sequences use their existing dynamic LibraryToLink entries
+to retain ordered flags. They no longer advertise the empty linkopts.a as a
+static library, allowing two shared objects to directly use the same module.
+Flags-only sequences and sequences containing an archive, object or linker
+script retain the carrier and existing static ownership checks. The decision
+uses the installed ELF identities already supplied in link_sonames.
+
+This is a downstream fix, not submitted upstream. Package selection, ordered
+arguments, runtime files and the APT lock are unchanged.
+
+## 0043: bootstrap locked pkg-config providers
+
+Provider discovery queries only the current module's direct requirements with
+`--maximum-traverse-depth=1`. Locked pkgconf 1.8.1 otherwise traverses missing
+providers before discovery and returns no requirements. The existing loop loads
+the providers from the reviewed catalog until closure; full dynamic/static SDK
+queries still validate all version constraints and produce compile/link flags.
+
+This preserves providers from other collections without Debian dependency
+edges, architecture/suite isolation, aliases, cycles and strict missing/version
+diagnostics. No package versions, sources or lock entries change. This is a
+downstream fix, not submitted upstream.
+
+## 0044: distinguish empty compatibility archives from static object code
+
+The locked file/readelf tools identify empty archives. Only a recognized
+archive with successful, empty header output and no diagnostics is marked
+empty_archive. The module generator forwards those exact declared files to
+native_link_sequence. Dynamic sequences containing only DSOs and verified empty
+archives need no static carrier; real static code, scripts, unknown inputs and
+flags-only sequences retain the existing checks. Ordered arguments and every
+archive input remain unchanged. This handles glibc compatibility archives
+without package-name exceptions or blanket multiple-link tags.
+
+The dynamic ownership regression now contains a real ar-created empty archive.
+Its two direct DSO consumers must still return 84, while real static/mixed
+ownership regressions continue to fail analysis. Downstream fix, not submitted
+upstream.
+
+`0045-adopt-sonic-rules-implementations.patch` reuses the sonic_rules implementation for equivalent functionality while retaining the current public interfaces and defaults. Individual shared-library interfaces retain their original unversioned link aliases without replaying a complete pkg-config module.
+
+## 0046: reuse pkg-config metadata across library-export changes
+
+Direct requirements are indexed once per fixed package file map. A private
+metadata repository resolves complete flags independently of `deb_import.bzl`.
+Context-local successful SDK queries are reused with conservative private-field
+guards. Alias and legacy error fallbacks retain the SDK path. This downstream
+performance fix preserves public targets, dynamic/static ordering and the APT
+lock. Native AMD64/ARM64 library contracts and full generated-output comparison
+validate the change.
+
+## 0047: include dependency-only pkg-config contexts
+
+Packages with no own `.pc` file can still require alias discovery from their
+locked dependencies. Give those contexts metadata repositories too, appending
+them after existing own-module contexts to preserve existing repository names
+and cached flags. Full-project export edit and restore both execute zero SDK
+queries and retain identical generated BUILD, exports and module metadata.
+This is a downstream completion of 0046, not submitted upstream.
+
+## 0048: parse module metadata directly without executing pkg-config
+
+Reuse the sonic_rules Starlark parsing foundation and resolve dependency graphs,
+versions, variables and ordered flag fragments directly. Remove the external
+pkg-config calls from leaf requirement discovery, provider expansion and module
+flag resolution. Keep the existing strict/compatibility interfaces and mode
+selection. Memoized graph programs retain link-group ordering and repeated
+private fragments without materializing every shared dependency path.
+
+The production catalog tool bootstrap now contains only file and readelf. Its
+existing test still rejects ambient tool/library lookup and also resolves a
+three-module metadata graph with a context that permits files but exposes no
+execute operation. A locked pkgconf control is used only for development
+comparison, outside the production rules. This downstream fix supersedes the
+external-query implementation in earlier patches; it is not submitted upstream.
