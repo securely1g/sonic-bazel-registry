@@ -74,6 +74,7 @@ jobs:
         id: plan
         shell: bash
         env:
+          REGISTRY_READINESS_PR: ${{ github.event_name == 'pull_request' && github.repository == 'securely1g/sonic-bazel-registry' && (github.event.pull_request.number == 234 || github.event.pull_request.number == 235) && format('{0}', github.event.pull_request.number) || '' }}
           EVENT_NAME: ${{ github.event_name }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           BEFORE_SHA: ${{ github.event.before }}

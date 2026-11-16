@@ -698,13 +698,27 @@ def planning_only_change(root: Path, base: str, head: str, paths: list[str]) -> 
             for tree in trees:
                 tree.body = [node for node in tree.body
                              if not (isinstance(node, ast.FunctionDef) and node.name in functions)]
-            # CLI, imports, constants and every executor must stay equal.
+            # Only the literal trusted-context plumbing keyword is normalized.
+            # Any different expression or any other main/CLI/executor change
+            # remains visible in the complete AST comparison.
+            expected_context = ast.dump(ast.parse(
+                'os.environ.get("REGISTRY_READINESS_PR", "")', mode="eval").body,
+                include_attributes=False)
+            for tree in trees:
+                for node in ast.walk(tree):
+                    if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "plan":
+                        node.keywords = [kw for kw in node.keywords if not (
+                            kw.arg == "readiness_pr" and ast.dump(kw.value, include_attributes=False) == expected_context)]
+            # CLI, imports, constants and every executor otherwise stay equal.
             if ast.dump(trees[0], include_attributes=False) != ast.dump(trees[1], include_attributes=False):
                 return False
         else:
             # Admit only the two fail-closed dependency guards. Any runner,
             # command, token, target or aggregate change needs broad validation.
-            if old.count(old_guard) != 2 or new != old.replace(old_guard, new_guard):
+            context_line = "          REGISTRY_READINESS_PR: ${{ github.event_name == 'pull_request' && github.repository == 'securely1g/sonic-bazel-registry' && (github.event.pull_request.number == 234 || github.event.pull_request.number == 235) && format('{0}', github.event.pull_request.number) || '' }}\n"
+            if new.count(context_line) != 1:
+                return False
+            if old.count(old_guard) != 2 or new.replace(context_line, "", 1) != old.replace(old_guard, new_guard):
                 return False
     return True
 
@@ -712,9 +726,10 @@ def planning_only_change(root: Path, base: str, head: str, paths: list[str]) -> 
 def plan(root: Path, base: str | None, head: str | None, all_versions: bool = False,
          latest_versions: bool = False, published: str | None = None,
          push: bool = False, p4_runner_profile: str = "large",
-         max_jobs: int | None = None) -> dict:
-    if max_jobs is None and base and not push:
-        max_jobs = 2  # One module's two native architectures; never truncate.
+         max_jobs: int | None = None, readiness_pr: str = "") -> dict:
+    require(readiness_pr in ("", "234", "235"), "Unknown bounded readiness policy")
+    require(not readiness_pr or (base and not push and not all_versions and not latest_versions),
+            "Bounded readiness policy requires a pull-request comparison")
     require(max_jobs is None or (type(max_jobs) is int and max_jobs > 0),
             "max_jobs must be a positive integer")
     require(p4_runner_profile in ("standard", "large"), "Invalid P4 runner profile")
@@ -824,6 +839,18 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
             f"Predispatch scope exceeded: {len(include)} required jobs > {max_jobs}; "
             "no jobs selected for dispatch. Preserve required coverage and obtain "
             "an explicit broad-validation disposition before publication.")
+    if readiness_pr:
+        expected = {
+            "235": {("sonic-dhcp-relay", "0.1.0-3c5fb7b55b2f2a93bbe493f8ed3eb670e8663622", "amd64", "amd64", False)},
+            "234": {("sonic-fips", "0.0.5-15d00ac1f675a946ba17d4dba115dd576ead7316", arch, arch, False)
+                    for arch in ("amd64", "arm64")},
+        }[readiness_pr]
+        actual = {(j["module"], j["version"], j["architecture"],
+                   j["execution_architecture"], j["cross_compile"]) for j in include}
+        require(actual == expected and len(include) == len(expected),
+                f"Predispatch scope mismatch for PR{readiness_pr}: required matrix "
+                "differs from its exact reviewed module/version/native-architecture scope; "
+                "no plan outputs published and no required jobs truncated")
     return {"include": include}
 
 
@@ -1908,7 +1935,8 @@ def main() -> None:
     try:
         if args.command == "plan":
             result = plan(ROOT, args.base, args.head, args.all_versions, args.latest_versions,
-                          published=args.published, push=args.push, p4_runner_profile=args.p4_runner_profile)
+                          published=args.published, push=args.push, p4_runner_profile=args.p4_runner_profile,
+                          readiness_pr=os.environ.get("REGISTRY_READINESS_PR", ""))
             args.output.parent.mkdir(parents=True, exist_ok=True)
             args.output.write_text(json.dumps(result, indent=2) + "\n")
             print(json.dumps(result, separators=(",", ":")))
