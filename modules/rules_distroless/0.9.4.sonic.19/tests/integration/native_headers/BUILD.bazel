@@ -1,0 +1,45 @@
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
+load("@rules_foreign_cc//foreign_cc:defs.bzl", "cmake")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["make_fixtures.py"])
+
+filegroup(
+    name = "sources",
+    srcs = ["CMakeLists.txt", "probe.c"],
+)
+
+# Ordinary aliases must not export an alternate .pc header namespace; Debian
+# transitive header_deps must preserve that boundary too. Explicit overlay
+# selection must keep both its include root and its compiler definition.
+[
+    cmake(
+        name = name + "_probe",
+        cache_entries = {
+            "DECLARED_SDK": "$$EXT_BUILD_DEPS$$",
+            "HEADER_CASE": str(case),
+        },
+        env = {"PWD": "$$EXT_BUILD_ROOT"},
+        lib_source = ":sources",
+        out_static_libs = ["libheader_probe.a"],
+        out_include_dir = "",
+        deps = [dependency],
+    )
+    for name, case, dependency in [
+        ("default", 1, "@header_variant//:libvariant"),
+        ("transitive", 2, "@header_middle//:libmiddle_headers"),
+        ("overlay", 3, "@header_variant//:pkgconfig/libvariant-overlay"),
+        ("without_pkgconfig", 4, "@header_plain//:plain_headers"),
+        ("unmatched_modules", 5, "@header_unmatched//:unmatched_headers"),
+    ]
+]
+
+[
+    cc_test(
+        name = name + "_test",
+        srcs = ["test.c"],
+        deps = [":" + name + "_probe"],
+    )
+    for name in ["default", "transitive", "overlay", "without_pkgconfig", "unmatched_modules"]
+]
