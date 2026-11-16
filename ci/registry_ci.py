@@ -687,9 +687,11 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
         require(re.fullmatch(r"[0-9a-fA-F]{40,64}", base) is not None
                 and re.fullmatch(r"[0-9a-fA-F]{40,64}", head) is not None,
                 "base and head must be full commit SHAs")
-        # A PR compares its own changes with the common ancestor. Releases
-        # added only to its target branch are not deletions from this checkout.
-        comparison_base = base if push else git(root, "merge-base", base, head).strip()
+        # Compare the complete proposed stack with the maintained publication
+        # merge base, just like check_version_policy. The event base can predate
+        # a main integration and incorrectly classify inherited CI as PR edits.
+        # Genuine CI/planner edits still select every required consumer below.
+        comparison_base = base if push else git(root, "merge-base", published, head).strip()
         changed = git(root, "diff", "--name-only", "--no-renames", "-z", comparison_base, head).split("\0")
         ci_changed = False
         for name in filter(None, changed):
