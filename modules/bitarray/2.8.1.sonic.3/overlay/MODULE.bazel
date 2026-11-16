@@ -1,0 +1,14 @@
+# AUTO-GENERATED. DO NOT EDIT MANUALLY.
+# Source: ../MODULE.bazel
+# Generator: python3 ci/registry_ci.py sync-module --module bitarray --version 2.8.1.sonic.1
+
+module(name = "bitarray", version = "2.8.1.sonic.1", bazel_compatibility = [">=8.5.1", "<=8.5.1"])
+
+bazel_dep(name = "platforms", version = "1.1.0")
+bazel_dep(name = "rules_cc", version = "0.2.22")
+bazel_dep(name = "rules_python", version = "1.9.0.sonic.1")
+
+# This dependency adds the explicit header repository without changing the root default.
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(python_version = "3.13")
+use_repo(python, "python_3_13")
