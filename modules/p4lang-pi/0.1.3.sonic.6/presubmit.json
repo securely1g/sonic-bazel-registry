@@ -1,0 +1,62 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.33-0d2435b572eca4a6f1db6e003b04956c09fb1a39",
+      "repo_name": "sonic_build_infra"
+    },
+    {
+      "name": "rules_cc",
+      "version": "0.2.20"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
+  },
+  "build_targets": [
+    "@p4lang-pi//:p4lang-pi.runtime",
+    "@p4lang-pi//:p4lang-pi.runtime.debug_symbols",
+    "@p4lang-pi//:development",
+    "@p4lang-pi//:sdk_consumer",
+    "@p4lang-pi//:p4lang-pi.runtime_metadata",
+    "@p4lang-pi//:check_programs",
+    "@p4lang-pi//:runtime",
+    "@p4lang-pi//:runtime.debug_symbols",
+    "@p4lang-pi//:runtime_packages.json"
+  ],
+  "test_targets": [
+    "@p4lang-pi//:test_bmv2_json_reader",
+    "@p4lang-pi//:test_read_file",
+    "@p4lang-pi//:test_getnetv",
+    "@p4lang-pi//:test_p4info",
+    "@p4lang-pi//:test_frontends_generic",
+    "@p4lang-pi//:test_p4info_convert",
+    "@p4lang-pi//:test_proto_fe",
+    "@p4lang-pi//:test_proto_fe_bytestrings",
+    "@p4lang-pi//:test_proto_fe_digest",
+    "@p4lang-pi//:test_proto_fe_packet_io",
+    "@p4lang-pi//:test_proto_fe_set_pipeline_config",
+    "@p4lang-pi//:test_proto_fe_access_arbitration",
+    "@p4lang-pi//:test_proto_fe_watch_port_enforcer",
+    "@p4lang-pi//:test_server_no_pipeline_config",
+    "@p4lang-pi//:test_server_gnmi",
+    "@p4lang-pi//:test_server_arbitration",
+    "@p4lang-pi//:test_pi_server",
+    "@p4lang-pi//:test_task_queue"
+  ],
+  "generated_module_overlay": true,
+  "host_platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
+  },
+  "test_runtime_preparation": {
+    "script": "tools/bazel/runtime/prepare.py",
+    "sha256": "1cd2cdc42f7b3158579d91d96380f6d06a9142bb7a663e5c36243b158b080654",
+    "apt_mirror_protocol": "locked-runtime-v1"
+  }
+}

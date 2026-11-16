@@ -1,0 +1,3741 @@
+load("@sonic_build_infra//tools/build_tools:defs.bzl", "source_build_tool")
+load("@rules_python//python:py_library.bzl", "py_library")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
+load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
+load("@rules_cc//cc:cc_static_library.bzl", "cc_static_library")
+load("@sonic_build_infra//cc:shared_library.bzl", "shared_library_cc_info")
+load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
+load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
+
+package(default_visibility = ["//visibility:public"])
+
+# Fixed SONiC entry: --with-proto --with-cli (C++ frontend enabled).
+# Source lists and installation maps follow the pinned Automake recipe.
+cc_library(
+    name = "pi_headers",
+    hdrs = [
+    "include/PI/pi.h",
+    "include/PI/pi_base.h",
+    "include/PI/p4info.h",
+    "include/PI/pi_tables.h",
+    "include/PI/pi_value.h",
+    "include/PI/pi_act_prof.h",
+    "include/PI/pi_counter.h",
+    "include/PI/pi_meter.h",
+    "include/PI/pi_learn.h",
+    "include/PI/pi_mc.h",
+    "include/PI/pi_clone.h",
+    "include/PI/frontends/generic/pi.h",
+    "include/PI/p4info/actions.h",
+    "include/PI/p4info/tables.h",
+    "include/PI/p4info/act_profs.h",
+    "include/PI/p4info/counters.h",
+    "include/PI/p4info/meters.h",
+    "include/PI/p4info/digests.h",
+    "include/PI/int/pi_int.h",
+    "include/PI/int/serialize.h",
+    "include/PI/int/rpc_common.h",
+    "include/PI/target/pi_imp.h",
+    "include/PI/target/pi_tables_imp.h",
+    "include/PI/target/pi_act_prof_imp.h",
+    "include/PI/target/pi_counter_imp.h",
+    "include/PI/target/pi_meter_imp.h",
+    "include/PI/target/pi_learn_imp.h",
+    "include/PI/target/pi_mc_imp.h",
+    "include/PI/target/pi_clone_imp.h"
+],
+    strip_include_prefix = "include",
+)
+
+cc_library(
+    name = "uthash_headers",
+    hdrs = [
+    "third_party/uthash/src/utarray.h",
+    "third_party/uthash/src/uthash.h",
+    "third_party/uthash/src/utlist.h",
+    "third_party/uthash/src/utringbuffer.h",
+    "third_party/uthash/src/utstack.h",
+    "third_party/uthash/src/utstring.h"
+],
+    includes = [
+    "third_party/uthash/src"
+],
+)
+
+cc_library(
+    name = "cjson",
+    tags = ["LINKABLE_MORE_THAN_ONCE"],
+    alwayslink = True,
+    local_defines = [
+    "_FORTIFY_SOURCE=2"
+],
+    copts = [
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time",
+    "-Werror=implicit-function-declaration"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    srcs = [
+    "third_party/cJSON/src/cJSON.c"
+],
+    hdrs = [
+    "third_party/cJSON/include/cJSON/cJSON.h"
+],
+    includes = [
+    "third_party/cJSON/include",
+    "third_party/cJSON/include/cJSON"
+],
+    linkopts = [
+    "-lm"
+],
+    linkstatic = True,
+)
+
+cc_library(
+    name = "toolkit",
+    tags = ["LINKABLE_MORE_THAN_ONCE"],
+    alwayslink = True,
+    srcs = [
+    "lib/_assert.h",
+    "lib/_assert.c",
+    "lib/vector.h",
+    "lib/vector.c",
+    "lib/read_file.c",
+    "lib/read_file.h"
+],
+    includes = [
+    "lib"
+],
+    copts = [
+        "-pthread",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-Wall",
+    "-Wextra",
+    "-fstack-clash-protection",
+    "-Wdate-time",
+    "-Werror=implicit-function-declaration"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    local_defines = [
+    "_FORTIFY_SOURCE=2",
+    "PI_LOG_ON"
+],
+    deps = [
+    ":pi_headers"
+],
+    linkstatic = True,
+)
+
+cc_library(
+    name = "piutils",
+    tags = ["LINKABLE_MORE_THAN_ONCE"],
+    alwayslink = True,
+    srcs = [
+    "src/utils/logging.h",
+    "src/utils/logging.c",
+    "src/utils/utils.h",
+    "src/utils/serialize.c"
+],
+    includes = [
+    "src",
+    "src/utils"
+],
+    copts = [
+        "-pthread",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-Wall",
+    "-Wextra",
+    "-fstack-clash-protection",
+    "-Wdate-time",
+    "-Werror=implicit-function-declaration"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    local_defines = [
+    "_FORTIFY_SOURCE=2",
+    "PI_LOG_ON"
+],
+    deps = [
+    ":pi_headers"
+],
+    linkstatic = True,
+)
+
+cc_library(
+    name = "fmt",
+    alwayslink = True,
+    hdrs = [
+    "proto/third_party/fmt/container.h",
+    "proto/third_party/fmt/format.h",
+    "proto/third_party/fmt/ostream.h",
+    "proto/third_party/fmt/posix.h",
+    "proto/third_party/fmt/printf.h",
+    "proto/third_party/fmt/string.h",
+    "proto/third_party/fmt/time.h",
+    "proto/third_party/fmt/_assert.h"
+],
+    strip_include_prefix = "proto/third_party",
+    srcs = [
+    "proto/third_party/fmt/format.cc",
+    "proto/third_party/fmt/ostream.cc",
+    "proto/third_party/fmt/posix.cc",
+    "proto/third_party/fmt/printf.cc",
+    "proto/third_party/fmt/_assert.cc"
+],
+    includes = [
+    "proto/third_party"
+],
+    copts = [
+        "-pthread",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-Wall",
+    "-Wextra",
+    "-std=c++17",
+    "-fstack-clash-protection",
+    "-Wdate-time"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    local_defines = [
+    "_FORTIFY_SOURCE=2"
+],
+    deps = [
+    ":pi_headers"
+],
+    linkstatic = True,
+)
+
+cc_library(
+    name = "serverconfig",
+    alwayslink = True,
+    srcs = [
+    "proto/server_config/server_config.cpp",
+    "proto/server_config/server_config.h"
+],
+    includes = [
+    "proto"
+],
+    copts = [
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-Wall",
+    "-Wextra",
+    "-std=c++17",
+    "-fstack-clash-protection",
+    "-Wdate-time"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    local_defines = [
+    "_FORTIFY_SOURCE=2"
+],
+    deps = [
+    ":pi_headers",
+    ":protobuf_headers",
+    ":server_config_headers"
+],
+    linkstatic = True,
+)
+
+filegroup(
+    name = "proto_inputs",
+    srcs = [
+    "proto/p4/v1/p4data.proto",
+    "proto/p4/v1/p4runtime.proto",
+    "proto/p4/config/v1/p4info.proto",
+    "proto/p4/config/v1/p4types.proto",
+    "proto/google/rpc/status.proto",
+    "proto/google/rpc/code.proto",
+    "proto/p4/tmp/p4config.proto",
+    "proto/gnmi/gnmi.proto",
+    "proto/p4/server/v1/config.proto"
+],
+)
+
+genrule(
+    name = "generate_cpp",
+    srcs = [
+    ":proto_inputs", "proto/p4/tmp/p4config.proto"
+],
+    outs = [
+    "generated/p4/v1/p4data.pb.cc",
+    "generated/p4/v1/p4data.pb.h",
+    "generated/p4/v1/p4runtime.pb.cc",
+    "generated/p4/v1/p4runtime.pb.h",
+    "generated/p4/config/v1/p4info.pb.cc",
+    "generated/p4/config/v1/p4info.pb.h",
+    "generated/p4/config/v1/p4types.pb.cc",
+    "generated/p4/config/v1/p4types.pb.h",
+    "generated/google/rpc/status.pb.cc",
+    "generated/google/rpc/status.pb.h",
+    "generated/google/rpc/code.pb.cc",
+    "generated/google/rpc/code.pb.h",
+    "generated/p4/tmp/p4config.pb.cc",
+    "generated/p4/tmp/p4config.pb.h",
+    "generated/gnmi/gnmi.pb.cc",
+    "generated/gnmi/gnmi.pb.h",
+    "generated/p4/server/v1/config.pb.cc",
+    "generated/p4/server/v1/config.pb.h"
+],
+    tools = [
+    "@sonic_build_infra//proto:protoc"
+],
+    cmd = "proto_root=\"$(location proto/p4/tmp/p4config.proto)\"; proto_root=\"$${proto_root%/p4/tmp/p4config.proto}\"; mkdir -p $(RULEDIR)/generated && $(location @sonic_build_infra//proto:protoc) -I\"$$proto_root\" --cpp_out=$(RULEDIR)/generated $(locations :proto_inputs)",
+)
+
+genrule(
+    name = "generate_grpc",
+    srcs = [
+    ":proto_inputs", "proto/p4/tmp/p4config.proto"
+],
+    outs = [
+    "generated/p4/v1/p4data.grpc.pb.cc",
+    "generated/p4/v1/p4data.grpc.pb.h",
+    "generated/p4/v1/p4runtime.grpc.pb.cc",
+    "generated/p4/v1/p4runtime.grpc.pb.h",
+    "generated/p4/config/v1/p4info.grpc.pb.cc",
+    "generated/p4/config/v1/p4info.grpc.pb.h",
+    "generated/p4/config/v1/p4types.grpc.pb.cc",
+    "generated/p4/config/v1/p4types.grpc.pb.h",
+    "generated/google/rpc/status.grpc.pb.cc",
+    "generated/google/rpc/status.grpc.pb.h",
+    "generated/google/rpc/code.grpc.pb.cc",
+    "generated/google/rpc/code.grpc.pb.h",
+    "generated/p4/tmp/p4config.grpc.pb.cc",
+    "generated/p4/tmp/p4config.grpc.pb.h",
+    "generated/gnmi/gnmi.grpc.pb.cc",
+    "generated/gnmi/gnmi.grpc.pb.h",
+    "generated/p4/server/v1/config.grpc.pb.cc",
+    "generated/p4/server/v1/config.grpc.pb.h"
+],
+    tools = [
+    "@sonic_build_infra//proto:protoc",
+    "@sonic_build_infra//tools/build_tools:grpc_cpp_plugin"
+],
+    cmd = "proto_root=\"$(location proto/p4/tmp/p4config.proto)\"; proto_root=\"$${proto_root%/p4/tmp/p4config.proto}\"; mkdir -p $(RULEDIR)/generated && $(location @sonic_build_infra//proto:protoc) -I\"$$proto_root\" --grpc_out=$(RULEDIR)/generated --plugin=protoc-gen-grpc=$(location @sonic_build_infra//tools/build_tools:grpc_cpp_plugin) $(locations :proto_inputs)",
+)
+
+genrule(
+    name = "generate_python",
+    srcs = [
+    ":proto_inputs", "proto/p4/tmp/p4config.proto"
+],
+    outs = [
+    "generated_python/p4/v1/p4data_pb2.py",
+    "generated_python/p4/v1/p4data_pb2_grpc.py",
+    "generated_python/p4/v1/p4runtime_pb2.py",
+    "generated_python/p4/v1/p4runtime_pb2_grpc.py",
+    "generated_python/p4/config/v1/p4info_pb2.py",
+    "generated_python/p4/config/v1/p4info_pb2_grpc.py",
+    "generated_python/p4/config/v1/p4types_pb2.py",
+    "generated_python/p4/config/v1/p4types_pb2_grpc.py",
+    "generated_python/google/rpc/status_pb2.py",
+    "generated_python/google/rpc/status_pb2_grpc.py",
+    "generated_python/google/rpc/code_pb2.py",
+    "generated_python/google/rpc/code_pb2_grpc.py",
+    "generated_python/p4/tmp/p4config_pb2.py",
+    "generated_python/p4/tmp/p4config_pb2_grpc.py",
+    "generated_python/gnmi/gnmi_pb2.py",
+    "generated_python/gnmi/gnmi_pb2_grpc.py",
+    "generated_python/p4/server/v1/config_pb2.py",
+    "generated_python/p4/server/v1/config_pb2_grpc.py"
+],
+    tools = [
+    "@sonic_build_infra//proto:protoc",
+    "@sonic_build_infra//tools/build_tools:grpc_python_plugin"
+],
+    cmd = "proto_root=\"$(location proto/p4/tmp/p4config.proto)\"; proto_root=\"$${proto_root%/p4/tmp/p4config.proto}\"; mkdir -p $(RULEDIR)/generated_python && $(location @sonic_build_infra//proto:protoc) -I\"$$proto_root\" --python_out=$(RULEDIR)/generated_python --grpc_out=$(RULEDIR)/generated_python --plugin=protoc-gen-grpc=$(location @sonic_build_infra//tools/build_tools:grpc_python_plugin) $(locations :proto_inputs)",
+)
+
+genrule(
+    name = "python_initializers",
+    outs = [
+    "generated_python/p4/__init__.py",
+    "generated_python/p4/v1/__init__.py",
+    "generated_python/p4/config/__init__.py",
+    "generated_python/p4/config/v1/__init__.py",
+    "generated_python/p4/tmp/__init__.py",
+    "generated_python/p4/server/__init__.py",
+    "generated_python/p4/server/v1/__init__.py",
+    "generated_python/google/rpc/__init__.py",
+    "generated_python/gnmi/__init__.py"
+],
+    cmd = "touch $(OUTS)",
+)
+
+cc_library(
+    name = "protobuf_headers",
+    hdrs = [
+    "generated/p4/v1/p4data.pb.h",
+    "generated/p4/v1/p4runtime.pb.h",
+    "generated/p4/config/v1/p4info.pb.h",
+    "generated/p4/config/v1/p4types.pb.h",
+    "generated/google/rpc/status.pb.h",
+    "generated/google/rpc/code.pb.h",
+    "generated/p4/tmp/p4config.pb.h",
+    "generated/gnmi/gnmi.pb.h",
+    "generated/p4/server/v1/config.pb.h"
+],
+    strip_include_prefix = "generated",
+    deps = [
+    "@pi_deps//libprotobuf-dev:libprotobuf_cc"
+],
+)
+
+cc_library(
+    name = "grpc_headers",
+    hdrs = [
+    "generated/p4/v1/p4data.grpc.pb.h",
+    "generated/p4/v1/p4runtime.grpc.pb.h",
+    "generated/p4/config/v1/p4info.grpc.pb.h",
+    "generated/p4/config/v1/p4types.grpc.pb.h",
+    "generated/google/rpc/status.grpc.pb.h",
+    "generated/google/rpc/code.grpc.pb.h",
+    "generated/p4/tmp/p4config.grpc.pb.h",
+    "generated/gnmi/gnmi.grpc.pb.h",
+    "generated/p4/server/v1/config.grpc.pb.h"
+],
+    strip_include_prefix = "generated",
+    deps = [
+    ":protobuf_headers",
+    "@pi_deps//libgrpc++-dev:libgrpc++_cc",
+    "@pi_deps//libgrpc-dev:libgrpc_cc",
+    "@pi_deps//libgrpc-dev:libaddress_sorting_cc",
+    "@pi_deps//libre2-dev:libre2_cc",
+    "@pi_deps//libgrpc-dev:libupb_cc",
+    "@pi_deps//libc-ares-dev:libcares_cc",
+    "@pi_deps//zlib1g-dev:libz_cc",
+    "@pi_deps//libgrpc-dev:libgpr_cc",
+    "@pi_deps//libabsl-dev:libabsl_throw_delegate_cc",
+    "@pi_deps//libabsl-dev:libabsl_raw_logging_internal_cc",
+    "@pi_deps//libssl-dev:libssl_cc",
+    "@pi_deps//libssl-dev:libcrypto_cc",
+    "@pi_deps//libabsl-dev:libabsl_raw_hash_set_cc",
+    "@pi_deps//libabsl-dev:libabsl_hashtablez_sampler_cc",
+    "@pi_deps//libabsl-dev:libabsl_hash_cc",
+    "@pi_deps//libabsl-dev:libabsl_city_cc",
+    "@pi_deps//libabsl-dev:libabsl_low_level_hash_cc",
+    "@pi_deps//libabsl-dev:libabsl_random_distributions_cc",
+    "@pi_deps//libabsl-dev:libabsl_random_seed_sequences_cc",
+    "@pi_deps//libabsl-dev:libabsl_random_internal_pool_urbg_cc",
+    "@pi_deps//libabsl-dev:libabsl_random_internal_randen_cc",
+    "@pi_deps//libabsl-dev:libabsl_random_internal_randen_hwaes_cc",
+    "@pi_deps//libabsl-dev:libabsl_random_internal_randen_hwaes_impl_cc",
+    "@pi_deps//libabsl-dev:libabsl_random_internal_randen_slow_cc",
+    "@pi_deps//libabsl-dev:libabsl_random_internal_platform_cc",
+    "@pi_deps//libabsl-dev:libabsl_random_internal_seed_material_cc",
+    "@pi_deps//libabsl-dev:libabsl_random_seed_gen_exception_cc",
+    "@pi_deps//libabsl-dev:libabsl_statusor_cc",
+    "@pi_deps//libabsl-dev:libabsl_status_cc",
+    "@pi_deps//libabsl-dev:libabsl_cord_cc",
+    "@pi_deps//libabsl-dev:libabsl_cordz_info_cc",
+    "@pi_deps//libabsl-dev:libabsl_cord_internal_cc",
+    "@pi_deps//libabsl-dev:libabsl_cordz_functions_cc",
+    "@pi_deps//libabsl-dev:libabsl_exponential_biased_cc",
+    "@pi_deps//libabsl-dev:libabsl_cordz_handle_cc",
+    "@pi_deps//libabsl-dev:libabsl_crc_cord_state_cc",
+    "@pi_deps//libabsl-dev:libabsl_crc32c_cc",
+    "@pi_deps//libabsl-dev:libabsl_crc_internal_cc",
+    "@pi_deps//libabsl-dev:libabsl_crc_cpu_detect_cc",
+    "@pi_deps//libabsl-dev:libabsl_bad_optional_access_cc",
+    "@pi_deps//libabsl-dev:libabsl_strerror_cc",
+    "@pi_deps//libabsl-dev:libabsl_str_format_internal_cc",
+    "@pi_deps//libabsl-dev:libabsl_synchronization_cc",
+    "@pi_deps//libabsl-dev:libabsl_graphcycles_internal_cc",
+    "@pi_deps//libabsl-dev:libabsl_kernel_timeout_internal_cc",
+    "@pi_deps//libabsl-dev:libabsl_stacktrace_cc",
+    "@pi_deps//libabsl-dev:libabsl_symbolize_cc",
+    "@pi_deps//libabsl-dev:libabsl_debugging_internal_cc",
+    "@pi_deps//libabsl-dev:libabsl_demangle_internal_cc",
+    "@pi_deps//libabsl-dev:libabsl_demangle_rust_cc",
+    "@pi_deps//libabsl-dev:libabsl_decode_rust_punycode_cc",
+    "@pi_deps//libabsl-dev:libabsl_utf8_for_code_point_cc",
+    "@pi_deps//libabsl-dev:libabsl_malloc_internal_cc",
+    "@pi_deps//libabsl-dev:libabsl_time_cc",
+    "@pi_deps//libabsl-dev:libabsl_civil_time_cc",
+    "@pi_deps//libabsl-dev:libabsl_strings_cc",
+    "@pi_deps//libabsl-dev:libabsl_strings_internal_cc",
+    "@pi_deps//libabsl-dev:libabsl_string_view_cc",
+    "@pi_deps//libabsl-dev:libabsl_base_cc",
+    "@pi_deps//libabsl-dev:libabsl_spinlock_wait_cc",
+    "@pi_deps//libabsl-dev:libabsl_int128_cc",
+    "@pi_deps//libabsl-dev:libabsl_time_zone_cc",
+    "@pi_deps//libabsl-dev:libabsl_bad_variant_access_cc",
+    "@pi_deps//libabsl-dev:libabsl_log_severity_cc"
+],
+    linkopts = ["-Wl,--push-state,--as-needed", "-latomic", "-Wl,--pop-state", "-lrt"],
+)
+
+cc_library(
+    name = "cpp_headers",
+    hdrs = [
+    "frontends_extra/cpp/PI/frontends/cpp/tables.h"
+],
+    strip_include_prefix = "frontends_extra/cpp",
+    deps = [":pi_headers"],
+)
+
+cc_library(
+    name = "proto_api_headers",
+    hdrs = [
+    "proto/PI/proto/util.h"
+],
+    strip_include_prefix = "proto",
+    deps = [
+    ":pi_headers",
+    ":protobuf_headers"
+],
+)
+
+cc_library(
+    name = "convert_headers",
+    hdrs = [
+    "proto/p4info/PI/proto/p4info_to_and_from_proto.h"
+],
+    strip_include_prefix = "proto/p4info",
+    deps = [
+    ":pi_headers",
+    ":protobuf_headers"
+],
+)
+
+cc_library(
+    name = "frontend_headers",
+    hdrs = [
+    "proto/frontend/PI/frontends/proto/device_mgr.h",
+    "proto/frontend/PI/frontends/proto/logging.h"
+],
+    strip_include_prefix = "proto/frontend",
+    deps = [
+    ":pi_headers",
+    ":protobuf_headers"
+],
+)
+
+cc_library(
+    name = "server_headers",
+    hdrs = [
+    "proto/server/PI/proto/pi_server.h"
+],
+    strip_include_prefix = "proto/server",
+    deps = [":pi_headers"],
+)
+
+cc_library(
+    name = "pip4info_objects",
+    srcs = [
+    "src/p4info/actions.c",
+    "src/p4info/actions_int.h",
+    "src/p4info/p4info_struct.h",
+    "src/p4info/p4info_struct.c",
+    "src/p4info/tables.c",
+    "src/p4info/tables_int.h",
+    "src/p4info/act_profs.c",
+    "src/p4info/act_profs_int.h",
+    "src/p4info/counters.c",
+    "src/p4info/counters_int.h",
+    "src/p4info/meters.c",
+    "src/p4info/meters_int.h",
+    "src/p4info/digests.c",
+    "src/p4info/digests_int.h",
+    "src/config_readers/bmv2_json_reader.c",
+    "src/config_readers/native_json_reader.c",
+    "src/config_readers/readers.h",
+    "src/p4info/p4info.c",
+    "src/p4info/p4info_name_map.h",
+    "src/p4info/p4info_name_map.c",
+    "src/p4info/p4info_common.h",
+    "src/p4info/p4info_common.c",
+    "src/p4info_int.h",
+    "src/p4info/fast_id_vector.h",
+    "src/p4info/fast_id_vector.c"
+],
+    deps = [
+    ":pi_headers",
+    ":uthash_headers",
+    ":toolkit",
+    ":piutils",
+    ":cjson",
+    ":core_private_headers"
+],
+    includes = [
+    "src",
+    "lib"
+],
+    copts = [
+        "-pthread",
+    "-Wall",
+    "-Wextra",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time",
+    "-Werror=implicit-function-declaration"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    local_defines = [
+    "PI_LOG_ON",
+    "_FORTIFY_SOURCE=2"
+],
+    linkstatic = True,
+)
+
+cc_shared_library(
+    name = "pip4info_shared",
+    features = ["-strip_debug_symbols"],
+    deps = [
+    ":pip4info_objects"
+],
+    dynamic_deps = [],
+    shared_lib_name = "libpip4info.so.0",
+    user_link_flags = [
+    "-Wl,-soname,libpip4info.so.0",
+    "-Wl,-z,relro", "-Wl,-z,now"
+],
+)
+
+shared_library_cc_info(
+    name = "pip4info_link",
+    shared_library = ":pip4info_shared",
+)
+
+cc_library(
+    name = "pip4info",
+    deps = [
+    ":pi_headers",
+    ":pip4info_link"
+],
+)
+
+cc_static_library(
+    name = "pip4info_archive",
+    deps = [":pip4info_objects"],
+)
+
+cc_library(
+    name = "pi_objects",
+    srcs = [
+    "src/pi.c",
+    "src/pi_tables.c",
+    "src/pi_act_prof.c",
+    "src/pi_counter.c",
+    "src/pi_meter.c",
+    "src/pi_learn.c",
+    "src/pi_value.c",
+    "src/pi_mc.c",
+    "src/pi_clone.c",
+    "src/device_map.c",
+    "src/device_map.h",
+    "src/cb_mgr.c",
+    "src/cb_mgr.h",
+    "src/pi_tables_int.h",
+    "src/pi_learn_int.h"
+],
+    deps = [
+    ":pi_headers",
+    ":uthash_headers",
+    ":pip4info",
+    ":toolkit",
+    ":piutils",
+    ":core_private_headers"
+],
+    includes = [
+    "src",
+    "lib"
+],
+    copts = [
+        "-pthread",
+    "-Wall",
+    "-Wextra",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time",
+    "-Werror=implicit-function-declaration"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    local_defines = [
+    "PI_LOG_ON",
+    "_FORTIFY_SOURCE=2"
+],
+    linkstatic = True,
+)
+
+cc_shared_library(
+    name = "pi_shared",
+    features = ["-strip_debug_symbols"],
+    deps = [
+    ":pi_objects"
+],
+    dynamic_deps = [
+    ":pip4info_shared"
+],
+    shared_lib_name = "libpi.so.0",
+    user_link_flags = [
+    "-Wl,-soname,libpi.so.0",
+    "-Wl,-z,relro", "-Wl,-z,now"
+],
+)
+
+shared_library_cc_info(
+    name = "pi_link",
+    shared_library = ":pi_shared",
+)
+
+cc_library(
+    name = "pi",
+    deps = [
+    ":pi_headers",
+    ":pi_link"
+],
+)
+
+cc_static_library(
+    name = "pi_archive",
+    deps = [":pi_objects"],
+)
+
+cc_library(
+    name = "pifegeneric_objects",
+    srcs = [
+    "src/frontends/generic/pi.c"
+],
+    deps = [
+    ":pi_headers",
+    ":toolkit_headers"
+],
+    includes = [
+    "src"
+],
+    copts = [
+        "-pthread",
+    "-Wall",
+    "-Wextra",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time",
+    "-Werror=implicit-function-declaration"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    local_defines = [
+    "PI_LOG_ON",
+    "_FORTIFY_SOURCE=2"
+],
+    linkstatic = True,
+)
+
+cc_shared_library(
+    name = "pifegeneric_shared",
+    features = ["-strip_debug_symbols"],
+    deps = [
+    ":pifegeneric_objects"
+],
+    dynamic_deps = [],
+    shared_lib_name = "libpifegeneric.so.0",
+    user_link_flags = [
+    "-Wl,-soname,libpifegeneric.so.0",
+    "-Wl,-z,relro", "-Wl,-z,now"
+],
+)
+
+shared_library_cc_info(
+    name = "pifegeneric_link",
+    shared_library = ":pifegeneric_shared",
+)
+
+cc_library(
+    name = "pifegeneric",
+    deps = [
+    ":pi_headers",
+    ":pifegeneric_link"
+],
+)
+
+cc_static_library(
+    name = "pifegeneric_archive",
+    deps = [":pifegeneric_objects"],
+)
+
+cc_library(
+    name = "piall_objects",
+    srcs = [
+    "src/p4info/actions.c",
+    "src/p4info/actions_int.h",
+    "src/p4info/p4info_struct.h",
+    "src/p4info/p4info_struct.c",
+    "src/p4info/tables.c",
+    "src/p4info/tables_int.h",
+    "src/p4info/act_profs.c",
+    "src/p4info/act_profs_int.h",
+    "src/p4info/counters.c",
+    "src/p4info/counters_int.h",
+    "src/p4info/meters.c",
+    "src/p4info/meters_int.h",
+    "src/p4info/digests.c",
+    "src/p4info/digests_int.h",
+    "src/config_readers/bmv2_json_reader.c",
+    "src/config_readers/native_json_reader.c",
+    "src/config_readers/readers.h",
+    "src/p4info/p4info.c",
+    "src/p4info/p4info_name_map.h",
+    "src/p4info/p4info_name_map.c",
+    "src/p4info/p4info_common.h",
+    "src/p4info/p4info_common.c",
+    "src/p4info_int.h",
+    "src/p4info/fast_id_vector.h",
+    "src/p4info/fast_id_vector.c",
+    "src/pi.c",
+    "src/pi_tables.c",
+    "src/pi_act_prof.c",
+    "src/pi_counter.c",
+    "src/pi_meter.c",
+    "src/pi_learn.c",
+    "src/pi_value.c",
+    "src/pi_mc.c",
+    "src/pi_clone.c",
+    "src/device_map.c",
+    "src/device_map.h",
+    "src/cb_mgr.c",
+    "src/cb_mgr.h",
+    "src/pi_tables_int.h",
+    "src/pi_learn_int.h",
+    "src/frontends/generic/pi.c"
+],
+    deps = [
+    ":pi_headers",
+    ":uthash_headers",
+    ":toolkit",
+    ":piutils",
+    ":cjson",
+    ":core_private_headers"
+],
+    includes = [
+    "src",
+    "lib"
+],
+    copts = [
+        "-pthread",
+    "-Wall",
+    "-Wextra",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time",
+    "-Werror=implicit-function-declaration"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    local_defines = [
+    "PI_LOG_ON",
+    "_FORTIFY_SOURCE=2"
+],
+    linkstatic = True,
+)
+
+cc_shared_library(
+    name = "piall_shared",
+    features = ["-strip_debug_symbols"],
+    deps = [
+    ":piall_objects"
+],
+    dynamic_deps = [],
+    shared_lib_name = "libpiall.so.0",
+    user_link_flags = [
+    "-Wl,-soname,libpiall.so.0",
+    "-Wl,-z,relro", "-Wl,-z,now"
+],
+)
+
+shared_library_cc_info(
+    name = "piall_link",
+    shared_library = ":piall_shared",
+)
+
+cc_library(
+    name = "piall",
+    deps = [
+    ":pi_headers",
+    ":piall_link"
+],
+)
+
+cc_static_library(
+    name = "piall_archive",
+    deps = [":piall_objects"],
+)
+
+cc_library(
+    name = "picli_objects",
+    srcs = [
+    "CLI/commands.h",
+    "CLI/add_p4.c",
+    "CLI/counter_commands.c",
+    "CLI/device_commands.c",
+    "CLI/meter_commands.c",
+    "CLI/table_add.c",
+    "CLI/table_delete.c",
+    "CLI/table_dump.c",
+    "CLI/table_modify.c",
+    "CLI/table_set_default.c",
+    "CLI/table_reset_default.c",
+    "CLI/error_codes.h",
+    "CLI/error_codes.c",
+    "CLI/utils.h",
+    "CLI/utils.c",
+    "CLI/table_common.h",
+    "CLI/table_common.c",
+    "CLI/p4_config_repo.h",
+    "CLI/p4_config_repo.c",
+    "CLI/direct_res_reset.c",
+    "CLI/main.c",
+    "CLI/act_profs/act_prof_create_member.c",
+    "CLI/act_profs/act_prof_dump.c",
+    "CLI/act_profs/act_prof_groups.c",
+    "CLI/act_profs/act_prof_common.h",
+    "CLI/act_profs/act_prof_common.c"
+],
+    deps = [
+    ":pi_headers",
+    ":uthash_headers",
+    ":toolkit_headers",
+    "@pi_deps//libreadline-dev:libreadline_cc",
+    "@pi_deps//libncurses-dev:libtinfo_cc"
+],
+    includes = [
+    "CLI",
+    "lib"
+],
+    copts = [
+        "-pthread",
+    "-Wall",
+    "-Wextra",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time",
+    "-Werror=implicit-function-declaration"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    local_defines = [
+    "_FORTIFY_SOURCE=2"
+],
+    linkstatic = True,
+)
+
+cc_shared_library(
+    name = "picli_shared",
+    features = ["-strip_debug_symbols"],
+    deps = [
+    ":picli_objects"
+],
+    dynamic_deps = [],
+    shared_lib_name = "libpicli.so.0",
+    user_link_flags = [
+    "-Wl,-soname,libpicli.so.0",
+    "-Wl,-z,relro", "-Wl,-z,now"
+],
+)
+
+shared_library_cc_info(
+    name = "picli_link",
+    shared_library = ":picli_shared",
+    runtime_deps = [":picli_objects"],
+)
+
+cc_library(
+    name = "picli",
+    deps = [
+    ":pi_headers",
+    ":picli_link"
+],
+)
+
+cc_static_library(
+    name = "picli_archive",
+    deps = [":picli_objects"],
+)
+
+cc_library(
+    name = "pi_dummy_objects",
+    srcs = [
+    "targets/dummy/pi_imp.c",
+    "targets/dummy/pi_tables_imp.c",
+    "targets/dummy/pi_act_prof_imp.c",
+    "targets/dummy/pi_counter_imp.c",
+    "targets/dummy/pi_meter_imp.c",
+    "targets/dummy/pi_learn_imp.c",
+    "targets/dummy/pi_mc_imp.c",
+    "targets/dummy/pi_clone_imp.c",
+    "targets/dummy/func_counter.c",
+    "targets/dummy/func_counter.h"
+],
+    deps = [
+    ":pi_headers",
+    ":uthash_headers",
+    ":toolkit_headers"
+],
+    includes = [
+    "targets/dummy",
+    "lib"
+],
+    copts = [
+        "-pthread",
+    "-Wall",
+    "-Wextra",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time",
+    "-Werror=implicit-function-declaration"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    local_defines = [
+    "_FORTIFY_SOURCE=2"
+],
+    linkstatic = True,
+)
+
+cc_shared_library(
+    name = "pi_dummy_shared",
+    features = ["-strip_debug_symbols"],
+    deps = [
+    ":pi_dummy_objects"
+],
+    dynamic_deps = [],
+    shared_lib_name = "libpi_dummy.so.0",
+    user_link_flags = [
+    "-Wl,-soname,libpi_dummy.so.0",
+    "-Wl,-z,relro", "-Wl,-z,now"
+],
+)
+
+shared_library_cc_info(
+    name = "pi_dummy_link",
+    shared_library = ":pi_dummy_shared",
+)
+
+cc_library(
+    name = "pi_dummy",
+    deps = [
+    ":pi_headers",
+    ":pi_dummy_link"
+],
+)
+
+cc_static_library(
+    name = "pi_dummy_archive",
+    deps = [":pi_dummy_objects"],
+)
+
+cc_library(
+    name = "pifecpp_objects",
+    srcs = [
+    "frontends_extra/cpp/src/tables.cpp"
+],
+    deps = [
+    ":pi_headers",
+    ":cpp_headers"
+],
+    includes = [
+    "frontends_extra/cpp"
+],
+    copts = [
+        "-pthread",
+    "-Wall",
+    "-Wextra",
+    "-std=c++17",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    local_defines = [
+    "_FORTIFY_SOURCE=2"
+],
+    linkstatic = True,
+)
+
+cc_shared_library(
+    name = "pifecpp_shared",
+    features = ["-strip_debug_symbols"],
+    deps = [
+    ":pifecpp_objects"
+],
+    dynamic_deps = [],
+    shared_lib_name = "libpifecpp.so.0",
+    user_link_flags = [
+    "-Wl,-soname,libpifecpp.so.0",
+    "-Wl,-z,relro", "-Wl,-z,now"
+],
+)
+
+shared_library_cc_info(
+    name = "pifecpp_link",
+    shared_library = ":pifecpp_shared",
+)
+
+cc_library(
+    name = "pifecpp",
+    deps = [
+    ":pi_headers",
+    ":cpp_headers",
+    ":pifecpp_link"
+],
+)
+
+cc_static_library(
+    name = "pifecpp_archive",
+    deps = [":pifecpp_objects"],
+)
+
+cc_library(
+    name = "piprotobuf_objects",
+    srcs = [
+    "proto/src/util.cpp",
+    "generated/p4/v1/p4data.pb.cc",
+    "generated/p4/v1/p4runtime.pb.cc",
+    "generated/p4/config/v1/p4info.pb.cc",
+    "generated/p4/config/v1/p4types.pb.cc",
+    "generated/google/rpc/status.pb.cc",
+    "generated/google/rpc/code.pb.cc",
+    "generated/p4/tmp/p4config.pb.cc",
+    "generated/gnmi/gnmi.pb.cc",
+    "generated/p4/server/v1/config.pb.cc"
+],
+    deps = [
+    ":protobuf_headers",
+    ":pi_headers",
+    ":proto_api_headers",
+    "@pi_deps//libprotobuf-dev:libprotobuf_cc"
+],
+    includes = [
+    "proto"
+],
+    copts = [
+    "-std=c++17",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    local_defines = [
+    "_FORTIFY_SOURCE=2"
+],
+    linkstatic = True,
+)
+
+cc_shared_library(
+    name = "piprotobuf_shared",
+    features = ["-strip_debug_symbols"],
+    deps = [
+    ":piprotobuf_objects"
+],
+    dynamic_deps = [],
+    shared_lib_name = "libpiprotobuf.so.0",
+    user_link_flags = [
+    "-Wl,-soname,libpiprotobuf.so.0",
+    "-Wl,-z,relro", "-Wl,-z,now"
+],
+)
+
+shared_library_cc_info(
+    name = "piprotobuf_link",
+    shared_library = ":piprotobuf_shared",
+)
+
+cc_library(
+    name = "piprotobuf",
+    deps = [
+    ":pi_headers",
+    ":protobuf_headers",
+    ":proto_api_headers",
+    ":piprotobuf_link"
+],
+)
+
+cc_static_library(
+    name = "piprotobuf_archive",
+    deps = [":piprotobuf_objects"],
+)
+
+cc_library(
+    name = "piprotogrpc_objects",
+    srcs = [
+    "generated/p4/v1/p4data.grpc.pb.cc",
+    "generated/p4/v1/p4runtime.grpc.pb.cc",
+    "generated/p4/config/v1/p4info.grpc.pb.cc",
+    "generated/p4/config/v1/p4types.grpc.pb.cc",
+    "generated/google/rpc/status.grpc.pb.cc",
+    "generated/google/rpc/code.grpc.pb.cc",
+    "generated/p4/tmp/p4config.grpc.pb.cc",
+    "generated/gnmi/gnmi.grpc.pb.cc",
+    "generated/p4/server/v1/config.grpc.pb.cc"
+],
+    deps = [
+    ":grpc_headers",
+    ":piprotobuf"
+],
+    includes = [
+    "proto"
+],
+    copts = [
+    "-std=c++17",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    local_defines = [
+    "_FORTIFY_SOURCE=2"
+],
+    linkstatic = True,
+)
+
+cc_shared_library(
+    name = "piprotogrpc_shared",
+    features = ["-strip_debug_symbols"],
+    deps = [
+    ":piprotogrpc_objects"
+],
+    dynamic_deps = [
+    ":piprotobuf_shared"
+],
+    shared_lib_name = "libpiprotogrpc.so.0",
+    user_link_flags = [
+    "-Wl,-soname,libpiprotogrpc.so.0",
+    "-Wl,-z,relro", "-Wl,-z,now"
+],
+)
+
+shared_library_cc_info(
+    name = "piprotogrpc_link",
+    shared_library = ":piprotogrpc_shared",
+)
+
+cc_library(
+    name = "piprotogrpc",
+    deps = [
+    ":pi_headers",
+    ":grpc_headers",
+    ":piprotogrpc_link"
+],
+)
+
+cc_static_library(
+    name = "piprotogrpc_archive",
+    deps = [":piprotogrpc_objects"],
+)
+
+cc_library(
+    name = "piconvertproto_objects",
+    srcs = [
+    "proto/p4info/p4info_to_and_from_proto.cpp"
+],
+    deps = [
+    ":pi_headers",
+    ":convert_headers",
+    ":piprotobuf",
+    ":core_private_headers"
+],
+    includes = [
+    "proto/p4info",
+    "src"
+],
+    copts = [
+        "-pthread",
+    "-Wall",
+    "-Wextra",
+    "-std=c++17",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    local_defines = [
+    "_FORTIFY_SOURCE=2"
+],
+    linkstatic = True,
+)
+
+cc_shared_library(
+    name = "piconvertproto_shared",
+    features = ["-strip_debug_symbols"],
+    deps = [
+    ":piconvertproto_objects"
+],
+    dynamic_deps = [
+    ":piprotobuf_shared"
+],
+    shared_lib_name = "libpiconvertproto.so.0",
+    user_link_flags = [
+    "-Wl,-soname,libpiconvertproto.so.0",
+    "-Wl,-z,relro", "-Wl,-z,now"
+],
+)
+
+shared_library_cc_info(
+    name = "piconvertproto_link",
+    shared_library = ":piconvertproto_shared",
+)
+
+cc_library(
+    name = "piconvertproto",
+    deps = [
+    ":pi_headers",
+    ":convert_headers",
+    ":piconvertproto_link"
+],
+)
+
+cc_static_library(
+    name = "piconvertproto_archive",
+    deps = [":piconvertproto_objects"],
+)
+
+cc_library(
+    name = "pifeproto_objects",
+    srcs = [
+    "proto/frontend/src/bimap.h",
+    "proto/frontend/src/device_mgr.cpp",
+    "proto/frontend/src/access_arbitration.h",
+    "proto/frontend/src/access_arbitration.cpp",
+    "proto/frontend/src/action_prof_mgr.h",
+    "proto/frontend/src/action_prof_mgr.cpp",
+    "proto/frontend/src/table_info_store.h",
+    "proto/frontend/src/table_info_store.cpp",
+    "proto/frontend/src/action_helpers.h",
+    "proto/frontend/src/action_helpers.cpp",
+    "proto/frontend/src/match_key_helpers.h",
+    "proto/frontend/src/match_key_helpers.cpp",
+    "proto/frontend/src/packet_io_mgr.h",
+    "proto/frontend/src/packet_io_mgr.cpp",
+    "proto/frontend/src/common.h",
+    "proto/frontend/src/common.cpp",
+    "proto/frontend/src/logger.h",
+    "proto/frontend/src/logging.cpp",
+    "proto/frontend/src/report_error.h",
+    "proto/frontend/src/pre_mc_mgr.h",
+    "proto/frontend/src/pre_mc_mgr.cpp",
+    "proto/frontend/src/pre_clone_mgr.h",
+    "proto/frontend/src/pre_clone_mgr.cpp",
+    "proto/frontend/src/task_queue.h",
+    "proto/frontend/src/digest_mgr.h",
+    "proto/frontend/src/digest_mgr.cpp",
+    "proto/frontend/src/status_macros.h",
+    "proto/frontend/src/statusor.h",
+    "proto/frontend/src/idle_timeout_buffer.h",
+    "proto/frontend/src/idle_timeout_buffer.cpp",
+    "proto/frontend/src/watch_port_enforcer.h",
+    "proto/frontend/src/watch_port_enforcer.cpp"
+],
+    deps = [
+    ":pi_headers",
+    ":frontend_headers",
+    ":cpp_headers",
+    ":proto_api_headers",
+    ":convert_headers",
+    ":pifecpp",
+    ":piconvertproto",
+    ":serverconfig",
+    ":piprotobuf",
+    ":pip4info",
+    ":fmt",
+    ":server_config_headers"
+],
+    includes = [
+    "proto/frontend",
+    "proto",
+    "proto/p4info",
+    "proto/third_party"
+],
+    copts = [
+        "-pthread",
+    "-Wall",
+    "-Wextra",
+    "-std=c++17",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-Wno-error=deprecated-declarations",
+    "-fstack-clash-protection",
+    "-Wdate-time"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    local_defines = [
+    "_FORTIFY_SOURCE=2"
+],
+    linkstatic = True,
+)
+
+cc_shared_library(
+    name = "pifeproto_shared",
+    features = ["-strip_debug_symbols"],
+    deps = [
+    ":pifeproto_objects"
+],
+    dynamic_deps = [
+    ":pifecpp_shared",
+    ":piconvertproto_shared",
+    ":piprotobuf_shared",
+    ":pip4info_shared"
+],
+    shared_lib_name = "libpifeproto.so.0",
+    user_link_flags = [
+    "-Wl,-soname,libpifeproto.so.0",
+    "-Wl,-z,relro", "-Wl,-z,now"
+],
+)
+
+shared_library_cc_info(
+    name = "pifeproto_link",
+    shared_library = ":pifeproto_shared",
+)
+
+cc_library(
+    name = "pifeproto",
+    deps = [
+    ":pi_headers",
+    ":frontend_headers",
+    ":cpp_headers",
+    ":convert_headers",
+    ":proto_api_headers",
+    ":pifeproto_link"
+],
+)
+
+cc_static_library(
+    name = "pifeproto_archive",
+    deps = [":pifeproto_objects"],
+)
+
+cc_library(
+    name = "pigrpcserver_objects",
+    srcs = [
+    "proto/server/gnmi.h",
+    "proto/server/gnmi_dummy.cpp",
+    "proto/server/log.h",
+    "proto/server/pi_server.cpp",
+    "proto/server/uint128.h",
+    "proto/server/uint128.cpp",
+    "proto/server/pi_server_testing.h"
+],
+    deps = [
+    ":pi_headers",
+    ":server_headers",
+    ":frontend_headers",
+    ":pifeproto",
+    ":piprotogrpc",
+    ":piprotobuf",
+    ":grpc_headers",
+    "@pi_deps//libboost-system1.83-dev:libboost_system_cc",
+    ":server_config_headers"
+],
+    includes = [
+    "proto/server",
+    "proto",
+    "proto/frontend"
+],
+    # Original server AM_CXXFLAGS is -Wall -Werror; cancel the toolchain-only -Wextra.
+    copts = [
+        "-Wno-extra",
+    "-Wall",
+    "-Werror",
+    "-std=c++17",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    local_defines = [
+    "_FORTIFY_SOURCE=2"
+],
+    linkstatic = True,
+)
+
+cc_shared_library(
+    name = "pigrpcserver_shared",
+    features = ["-strip_debug_symbols"],
+    deps = [
+    ":pigrpcserver_objects"
+],
+    dynamic_deps = [
+    ":pifeproto_shared",
+    ":piprotogrpc_shared",
+    ":piprotobuf_shared"
+],
+    shared_lib_name = "libpigrpcserver.so.0",
+    user_link_flags = [
+    "-Wl,-soname,libpigrpcserver.so.0",
+    "-Wl,-z,relro", "-Wl,-z,now"
+],
+)
+
+shared_library_cc_info(
+    name = "pigrpcserver_link",
+    shared_library = ":pigrpcserver_shared",
+)
+
+cc_library(
+    name = "pigrpcserver",
+    deps = [
+    ":pi_headers",
+    ":server_headers",
+    ":frontend_headers",
+    ":pigrpcserver_link"
+],
+)
+
+cc_static_library(
+    name = "pigrpcserver_archive",
+    deps = [":pigrpcserver_objects"],
+)
+
+cc_binary(
+    name = "pi_CLI_dummy",
+    features = ["-strip_debug_symbols"],
+    srcs = [],
+    deps = [
+    ":picli",
+    ":pi",
+    ":pifegeneric",
+    ":pip4info",
+    ":toolkit",
+    ":pi_dummy"
+],
+    copts = [
+        "-pthread",
+    "-Wall",
+    "-Wextra",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security"
+],
+    local_defines = [
+    "_FORTIFY_SOURCE=2"
+],
+    linkstatic = False,
+    linkopts = [
+    "-Wl,-z,relro", "-Wl,-z,now"
+],
+)
+
+cc_binary(
+    name = "pi_gen_native_json",
+    features = ["-strip_debug_symbols"],
+    srcs = [
+    "bin/gen_pi_json.c"
+],
+    deps = [
+    ":pip4info"
+],
+    copts = [
+        "-pthread",
+    "-Wall",
+    "-Wextra",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time",
+    "-Werror=implicit-function-declaration"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    local_defines = [
+    "_FORTIFY_SOURCE=2"
+],
+    linkstatic = False,
+    linkopts = [
+    "-Wl,-z,relro", "-Wl,-z,now"
+],
+)
+
+cc_binary(
+    name = "pi_gen_fe_defines",
+    features = ["-strip_debug_symbols"],
+    srcs = [
+    "generators/fe_defines.c"
+],
+    deps = [
+    ":pip4info",
+    ":piutils",
+    ":toolkit"
+],
+    copts = [
+        "-pthread",
+    "-Wall",
+    "-Wextra",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time",
+    "-Werror=implicit-function-declaration"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    local_defines = [
+    "_FORTIFY_SOURCE=2"
+],
+    linkstatic = False,
+    linkopts = [
+    "-Wl,-z,relro", "-Wl,-z,now"
+],
+)
+
+cc_binary(
+    name = "pi_convert_p4info",
+    features = ["-strip_debug_symbols"],
+    srcs = [
+    "proto/p4info/convert_p4info.cpp"
+],
+    deps = [
+    ":piconvertproto",
+    ":piprotobuf",
+    ":pip4info"
+],
+    copts = [
+        "-std=c++17",
+        "-pthread",
+    "-Wall",
+    "-Wextra",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    local_defines = [
+    "_FORTIFY_SOURCE=2"
+],
+    linkstatic = False,
+    linkopts = [
+    "-Wl,-z,relro", "-Wl,-z,now"
+],
+)
+
+cc_library(
+    name = "sdk",
+    deps = [
+    ":pip4info",
+    ":pi",
+    ":pifegeneric",
+    ":piall",
+    ":picli",
+    ":pi_dummy",
+    ":pifecpp",
+    ":piprotobuf",
+    ":piprotogrpc",
+    ":piconvertproto",
+    ":pifeproto",
+    ":pigrpcserver"
+],
+)
+
+cc_binary(
+    name = "sdk_consumer",
+    features = ["-strip_debug_symbols"],
+    linkopts = ["-Wl,-z,relro", "-Wl,-z,now"],
+    local_defines = ["_FORTIFY_SOURCE=2"],
+    copts = [
+        "-std=c++17",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-fstack-clash-protection",
+    "-Wformat",
+    "-Werror=format-security",
+    "-Wdate-time"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    srcs = [
+    "//bazel:sdk_test.cc"
+],
+    deps = [
+    ":sdk"
+],
+    linkstatic = False,
+)
+
+cc_library(
+    name = "unity",
+    hdrs = [
+    "third_party/unity/include/unity/unity.h",
+    "third_party/unity/include/unity/unity_fixture.h",
+    "third_party/unity/include/unity/unity_fixture_internals.h",
+    "third_party/unity/include/unity/unity_fixture_malloc_overrides.h",
+    "third_party/unity/include/unity/unity_internals.h"
+],
+    strip_include_prefix = "third_party/unity/include",
+    local_defines = ["_FORTIFY_SOURCE=2"],
+    copts = [
+        "-pthread",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-fstack-clash-protection",
+    "-Wformat",
+    "-Werror=format-security",
+    "-Wdate-time",
+    "-Werror=implicit-function-declaration"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    srcs = [
+    "third_party/unity/src/unity.c",
+    "third_party/unity/src/unity_fixture.c"
+],
+    includes = [
+    "third_party/unity/include/unity"
+],
+    linkstatic = True,
+)
+
+cc_test(
+    name = "test_bmv2_json_reader",
+    features = ["-strip_debug_symbols"],
+    linkopts = ["-Wl,-z,relro", "-Wl,-z,now"],
+    linkstatic = False,
+    srcs = [
+    "tests/main.c",
+    "tests/utils.c",
+    "tests/utils.h",
+    "tests/test_bmv2_json_reader.c"
+],
+    deps = [
+    ":pi",
+    ":pifegeneric",
+    ":pi_dummy",
+    ":pip4info",
+    ":unity",
+    ":cjson",
+    ":toolkit",
+    ":core_private_headers"
+],
+    includes = [
+    "tests",
+    "src",
+    "lib"
+],
+    local_defines = [
+        "PI_LOG_ON",
+        "TESTDATADIR=\\\"" + ("../" + repository_name().lstrip("@") + "/" if repository_name() != "@" else "") + "tests/testdata\\\"",
+        "TEST_BMV2_JSON_READER",
+        "_FORTIFY_SOURCE=2"
+    ],
+    data = glob(["tests/testdata/**"]),
+    copts = [
+        "-pthread",
+    "-Wall",
+    "-Wextra",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-fstack-clash-protection",
+    "-Wformat",
+    "-Werror=format-security",
+    "-Wdate-time",
+    "-Werror=implicit-function-declaration"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    tags = [],
+)
+
+cc_test(
+    name = "test_read_file",
+    features = ["-strip_debug_symbols"],
+    linkopts = ["-Wl,-z,relro", "-Wl,-z,now"],
+    linkstatic = False,
+    srcs = [
+    "tests/main.c",
+    "tests/utils.c",
+    "tests/utils.h",
+    "tests/test_read_file.c"
+],
+    deps = [
+    ":pi",
+    ":pifegeneric",
+    ":pi_dummy",
+    ":pip4info",
+    ":unity",
+    ":cjson",
+    ":toolkit",
+    ":core_private_headers"
+],
+    includes = [
+    "tests",
+    "src",
+    "lib"
+],
+    local_defines = [
+        "PI_LOG_ON",
+        "TESTDATADIR=\\\"" + ("../" + repository_name().lstrip("@") + "/" if repository_name() != "@" else "") + "tests/testdata\\\"",
+        "TEST_READ_FILE",
+        "_FORTIFY_SOURCE=2"
+    ],
+    data = glob(["tests/testdata/**"]),
+    copts = [
+        "-pthread",
+    "-Wall",
+    "-Wextra",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-fstack-clash-protection",
+    "-Wformat",
+    "-Werror=format-security",
+    "-Wdate-time",
+    "-Werror=implicit-function-declaration"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    tags = [],
+)
+
+cc_test(
+    name = "test_getnetv",
+    features = ["-strip_debug_symbols"],
+    linkopts = ["-Wl,-z,relro", "-Wl,-z,now"],
+    linkstatic = False,
+    srcs = [
+    "tests/main.c",
+    "tests/utils.c",
+    "tests/utils.h",
+    "tests/test_getnetv.c"
+],
+    deps = [
+    ":pi",
+    ":pifegeneric",
+    ":pi_dummy",
+    ":pip4info",
+    ":unity",
+    ":cjson",
+    ":toolkit",
+    ":core_private_headers"
+],
+    includes = [
+    "tests",
+    "src",
+    "lib"
+],
+    local_defines = [
+        "PI_LOG_ON",
+        "TESTDATADIR=\\\"" + ("../" + repository_name().lstrip("@") + "/" if repository_name() != "@" else "") + "tests/testdata\\\"",
+        "TEST_GETNETV",
+        "_FORTIFY_SOURCE=2"
+    ],
+    data = glob(["tests/testdata/**"]),
+    copts = [
+        "-pthread",
+    "-Wall",
+    "-Wextra",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-fstack-clash-protection",
+    "-Wformat",
+    "-Werror=format-security",
+    "-Wdate-time",
+    "-Werror=implicit-function-declaration"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    tags = [],
+)
+
+cc_test(
+    name = "test_p4info",
+    features = ["-strip_debug_symbols"],
+    linkopts = ["-Wl,-z,relro", "-Wl,-z,now"],
+    linkstatic = False,
+    srcs = [
+    "tests/main.c",
+    "tests/utils.c",
+    "tests/utils.h",
+    "tests/test_p4info.c"
+],
+    deps = [
+    ":pi",
+    ":pifegeneric",
+    ":pi_dummy",
+    ":pip4info",
+    ":unity",
+    ":cjson",
+    ":toolkit",
+    ":core_private_headers"
+],
+    includes = [
+    "tests",
+    "src",
+    "lib"
+],
+    local_defines = [
+        "PI_LOG_ON",
+        "TESTDATADIR=\\\"" + ("../" + repository_name().lstrip("@") + "/" if repository_name() != "@" else "") + "tests/testdata\\\"",
+        "TEST_P4INFO",
+        "_FORTIFY_SOURCE=2"
+    ],
+    data = glob(["tests/testdata/**"]),
+    copts = [
+        "-pthread",
+    "-Wall",
+    "-Wextra",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-fstack-clash-protection",
+    "-Wformat",
+    "-Werror=format-security",
+    "-Wdate-time",
+    "-Werror=implicit-function-declaration"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    tags = [],
+)
+
+cc_test(
+    name = "test_frontends_generic",
+    features = ["-strip_debug_symbols"],
+    linkopts = ["-Wl,-z,relro", "-Wl,-z,now"],
+    linkstatic = False,
+    srcs = [
+    "tests/main.c",
+    "tests/utils.c",
+    "tests/utils.h",
+    "tests/frontends/generic/test.c"
+],
+    deps = [
+    ":pi",
+    ":pifegeneric",
+    ":pi_dummy",
+    ":pip4info",
+    ":unity",
+    ":cjson",
+    ":toolkit",
+    ":core_private_headers"
+],
+    includes = [
+    "tests",
+    "src",
+    "lib"
+],
+    local_defines = [
+        "PI_LOG_ON",
+        "TESTDATADIR=\\\"" + ("../" + repository_name().lstrip("@") + "/" if repository_name() != "@" else "") + "tests/testdata\\\"",
+        "TEST_FRONTENDS_GENERIC",
+        "_FORTIFY_SOURCE=2"
+    ],
+    data = glob(["tests/testdata/**"]),
+    copts = [
+        "-pthread",
+    "-Wall",
+    "-Wextra",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-fstack-clash-protection",
+    "-Wformat",
+    "-Werror=format-security",
+    "-Wdate-time",
+    "-Werror=implicit-function-declaration"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    tags = [],
+)
+
+cc_test(
+    name = "test_all",
+    features = ["-strip_debug_symbols"],
+    linkopts = ["-Wl,-z,relro", "-Wl,-z,now"],
+    linkstatic = False,
+    srcs = [
+    "tests/main.c",
+    "tests/utils.c",
+    "tests/utils.h",
+    "tests/test_bmv2_json_reader.c",
+    "tests/test_read_file.c",
+    "tests/test_getnetv.c",
+    "tests/test_p4info.c",
+    "tests/frontends/generic/test.c"
+],
+    deps = [
+    ":pi",
+    ":pifegeneric",
+    ":pi_dummy",
+    ":pip4info",
+    ":unity",
+    ":cjson",
+    ":toolkit",
+    ":core_private_headers"
+],
+    includes = [
+    "tests",
+    "src",
+    "lib"
+],
+    local_defines = [
+        "PI_LOG_ON",
+        "TESTDATADIR=\\\"" + ("../" + repository_name().lstrip("@") + "/" if repository_name() != "@" else "") + "tests/testdata\\\"",
+        "TEST_BMV2_JSON_READER",
+        "TEST_READ_FILE",
+        "TEST_GETNETV",
+        "TEST_P4INFO",
+        "TEST_FRONTENDS_GENERIC",
+        "_FORTIFY_SOURCE=2"
+    ],
+    data = glob(["tests/testdata/**"]),
+    copts = [
+        "-pthread",
+    "-Wall",
+    "-Wextra",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-fstack-clash-protection",
+    "-Wformat",
+    "-Werror=format-security",
+    "-Wdate-time",
+    "-Werror=implicit-function-declaration"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    tags = [
+    "manual"
+],
+)
+
+cc_library(
+    name = "gtest",
+    local_defines = ["_FORTIFY_SOURCE=2"],
+    srcs = [
+    "third_party/googletest/googletest/src/gtest-all.cc"
+],
+    hdrs = glob(["third_party/googletest/googletest/include/**/*.h", "third_party/googletest/googletest/src/**/*.h", "third_party/googletest/googletest/src/**/*.cc"]),
+    includes = [
+    "third_party/googletest/googletest/include",
+    "third_party/googletest/googletest"
+],
+    deps = [],
+    copts = [
+    "-std=c++17",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-fstack-clash-protection",
+    "-Wformat",
+    "-Werror=format-security",
+    "-Wdate-time"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    linkstatic = True,
+)
+
+cc_library(
+    name = "gmock",
+    local_defines = ["_FORTIFY_SOURCE=2"],
+    srcs = [
+    "third_party/googletest/googlemock/src/gmock-all.cc"
+],
+    hdrs = glob(["third_party/googletest/googlemock/include/**/*.h", "third_party/googletest/googlemock/src/**/*.cc"]),
+    includes = [
+    "third_party/googletest/googlemock/include",
+    "third_party/googletest/googlemock"
+],
+    deps = [
+    ":gtest"
+],
+    copts = [
+    "-std=c++17",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-fstack-clash-protection",
+    "-Wformat",
+    "-Werror=format-security",
+    "-Wdate-time"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    linkstatic = True,
+)
+
+cc_test(
+    name = "test_p4info_convert",
+    features = ["-strip_debug_symbols"],
+    linkopts = ["-Wl,-z,relro", "-Wl,-z,now"],
+    linkstatic = False,
+    srcs = [
+    "proto/tests/main.cpp",
+    "proto/tests/test_p4info_convert.cpp"
+],
+    deps = [
+    ":piconvertproto",
+    ":piprotobuf",
+    ":pip4info",
+    ":gmock",
+    ":gtest",
+    ":frontend_internal_headers",
+    ":server_internal_headers",
+    ":server_config_headers"
+],
+    includes = [
+    "proto/tests",
+    "proto/frontend",
+    "proto/third_party",
+    "frontends_extra/cpp",
+    "proto",
+    "proto/p4info",
+    "proto/server"
+],
+    local_defines = [
+        "TESTDATADIR=\\\"" + ("../" + repository_name().lstrip("@") + "/" if repository_name() != "@" else "") + "tests/testdata\\\"",
+        "_FORTIFY_SOURCE=2"
+    ],
+    data = glob(["tests/testdata/**"]),
+    copts = [
+        "-pthread",
+    "-std=c++17",
+    "-Wall",
+    "-Wextra",
+    "-Wno-error=deprecated-declarations",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-fstack-clash-protection",
+    "-Wformat",
+    "-Werror=format-security",
+    "-Wdate-time"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    tags = [],
+)
+
+cc_test(
+    name = "test_proto_fe",
+    features = ["-strip_debug_symbols"],
+    linkopts = ["-Wl,-z,relro", "-Wl,-z,now"],
+    linkstatic = False,
+    srcs = [
+    "proto/tests/main.cpp",
+    "proto/tests/mock_switch.h",
+    "proto/tests/mock_switch.cpp",
+    "proto/tests/matchers.h",
+    "proto/tests/matchers.cpp",
+    "proto/tests/test_proto_fe_base.h",
+    "proto/tests/test_proto_fe_base.cpp",
+    "proto/tests/stream_receiver.h",
+    "proto/tests/test_proto_fe.cpp"
+],
+    deps = [
+    ":piconvertproto",
+    ":piprotobuf",
+    ":pip4info",
+    ":gmock",
+    ":gtest",
+    ":pifeproto",
+    ":pifecpp",
+    ":piall",
+    ":frontend_internal_headers",
+    ":server_internal_headers",
+    ":server_config_headers",
+    "@pi_deps//libboost1.83-dev:libboost1.83_headers"
+],
+    includes = [
+    "proto/tests",
+    "proto/frontend",
+    "proto/third_party",
+    "frontends_extra/cpp",
+    "proto",
+    "proto/p4info",
+    "proto/server"
+],
+    local_defines = [
+        "TESTDATADIR=\\\"" + ("../" + repository_name().lstrip("@") + "/" if repository_name() != "@" else "") + "tests/testdata\\\"",
+        "_FORTIFY_SOURCE=2"
+    ],
+    data = glob(["tests/testdata/**"]),
+    copts = [
+        "-pthread",
+    "-std=c++17",
+    "-Wall",
+    "-Wextra",
+    "-Wno-error=deprecated-declarations",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-fstack-clash-protection",
+    "-Wformat",
+    "-Werror=format-security",
+    "-Wdate-time"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    tags = [],
+)
+
+cc_test(
+    name = "test_proto_fe_bytestrings",
+    features = ["-strip_debug_symbols"],
+    linkopts = ["-Wl,-z,relro", "-Wl,-z,now"],
+    linkstatic = False,
+    srcs = [
+    "proto/tests/main.cpp",
+    "proto/tests/mock_switch.h",
+    "proto/tests/mock_switch.cpp",
+    "proto/tests/matchers.h",
+    "proto/tests/matchers.cpp",
+    "proto/tests/test_proto_fe_base.h",
+    "proto/tests/test_proto_fe_base.cpp",
+    "proto/tests/stream_receiver.h",
+    "proto/tests/test_proto_fe_bytestrings.cpp"
+],
+    deps = [
+    ":piconvertproto",
+    ":piprotobuf",
+    ":pip4info",
+    ":gmock",
+    ":gtest",
+    ":pifeproto",
+    ":pifecpp",
+    ":piall",
+    ":frontend_internal_headers",
+    ":server_internal_headers",
+    ":server_config_headers",
+    "@pi_deps//libboost1.83-dev:libboost1.83_headers"
+],
+    includes = [
+    "proto/tests",
+    "proto/frontend",
+    "proto/third_party",
+    "frontends_extra/cpp",
+    "proto",
+    "proto/p4info",
+    "proto/server"
+],
+    local_defines = [
+        "TESTDATADIR=\\\"" + ("../" + repository_name().lstrip("@") + "/" if repository_name() != "@" else "") + "tests/testdata\\\"",
+        "_FORTIFY_SOURCE=2"
+    ],
+    data = glob(["tests/testdata/**"]),
+    copts = [
+        "-pthread",
+    "-std=c++17",
+    "-Wall",
+    "-Wextra",
+    "-Wno-error=deprecated-declarations",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-fstack-clash-protection",
+    "-Wformat",
+    "-Werror=format-security",
+    "-Wdate-time"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    tags = [],
+)
+
+cc_test(
+    name = "test_proto_fe_digest",
+    features = ["-strip_debug_symbols"],
+    linkopts = ["-Wl,-z,relro", "-Wl,-z,now"],
+    linkstatic = False,
+    srcs = [
+    "proto/tests/main.cpp",
+    "proto/tests/mock_switch.h",
+    "proto/tests/mock_switch.cpp",
+    "proto/tests/matchers.h",
+    "proto/tests/matchers.cpp",
+    "proto/tests/test_proto_fe_base.h",
+    "proto/tests/test_proto_fe_base.cpp",
+    "proto/tests/stream_receiver.h",
+    "proto/tests/test_proto_fe_digest.cpp"
+],
+    deps = [
+    ":piconvertproto",
+    ":piprotobuf",
+    ":pip4info",
+    ":gmock",
+    ":gtest",
+    ":pifeproto",
+    ":pifecpp",
+    ":piall",
+    ":frontend_internal_headers",
+    ":server_internal_headers",
+    ":server_config_headers",
+    "@pi_deps//libboost1.83-dev:libboost1.83_headers"
+],
+    includes = [
+    "proto/tests",
+    "proto/frontend",
+    "proto/third_party",
+    "frontends_extra/cpp",
+    "proto",
+    "proto/p4info",
+    "proto/server"
+],
+    local_defines = [
+        "TESTDATADIR=\\\"" + ("../" + repository_name().lstrip("@") + "/" if repository_name() != "@" else "") + "tests/testdata\\\"",
+        "_FORTIFY_SOURCE=2"
+    ],
+    data = glob(["tests/testdata/**"]),
+    copts = [
+        "-pthread",
+    "-std=c++17",
+    "-Wall",
+    "-Wextra",
+    "-Wno-error=deprecated-declarations",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-fstack-clash-protection",
+    "-Wformat",
+    "-Werror=format-security",
+    "-Wdate-time"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    tags = [],
+)
+
+cc_test(
+    name = "test_proto_fe_packet_io",
+    features = ["-strip_debug_symbols"],
+    linkopts = ["-Wl,-z,relro", "-Wl,-z,now"],
+    linkstatic = False,
+    srcs = [
+    "proto/tests/main.cpp",
+    "proto/tests/mock_switch.h",
+    "proto/tests/mock_switch.cpp",
+    "proto/tests/matchers.h",
+    "proto/tests/matchers.cpp",
+    "proto/tests/test_proto_fe_base.h",
+    "proto/tests/test_proto_fe_base.cpp",
+    "proto/tests/stream_receiver.h",
+    "proto/tests/test_proto_fe_packet_io.cpp"
+],
+    deps = [
+    ":piconvertproto",
+    ":piprotobuf",
+    ":pip4info",
+    ":gmock",
+    ":gtest",
+    ":pifeproto",
+    ":pifecpp",
+    ":piall",
+    ":frontend_internal_headers",
+    ":server_internal_headers",
+    ":server_config_headers",
+    "@pi_deps//libboost1.83-dev:libboost1.83_headers"
+],
+    includes = [
+    "proto/tests",
+    "proto/frontend",
+    "proto/third_party",
+    "frontends_extra/cpp",
+    "proto",
+    "proto/p4info",
+    "proto/server"
+],
+    local_defines = [
+        "TESTDATADIR=\\\"" + ("../" + repository_name().lstrip("@") + "/" if repository_name() != "@" else "") + "tests/testdata\\\"",
+        "_FORTIFY_SOURCE=2"
+    ],
+    data = glob(["tests/testdata/**"]),
+    copts = [
+        "-pthread",
+    "-std=c++17",
+    "-Wall",
+    "-Wextra",
+    "-Wno-error=deprecated-declarations",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-fstack-clash-protection",
+    "-Wformat",
+    "-Werror=format-security",
+    "-Wdate-time"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    tags = [],
+)
+
+cc_test(
+    name = "test_proto_fe_set_pipeline_config",
+    features = ["-strip_debug_symbols"],
+    linkopts = ["-Wl,-z,relro", "-Wl,-z,now"],
+    linkstatic = False,
+    srcs = [
+    "proto/tests/main.cpp",
+    "proto/tests/mock_switch.h",
+    "proto/tests/mock_switch.cpp",
+    "proto/tests/matchers.h",
+    "proto/tests/matchers.cpp",
+    "proto/tests/test_proto_fe_base.h",
+    "proto/tests/test_proto_fe_base.cpp",
+    "proto/tests/stream_receiver.h",
+    "proto/tests/test_proto_fe_set_pipeline_config.cpp"
+],
+    deps = [
+    ":piconvertproto",
+    ":piprotobuf",
+    ":pip4info",
+    ":gmock",
+    ":gtest",
+    ":pifeproto",
+    ":pifecpp",
+    ":piall",
+    ":frontend_internal_headers",
+    ":server_internal_headers",
+    ":server_config_headers",
+    "@pi_deps//libboost1.83-dev:libboost1.83_headers"
+],
+    includes = [
+    "proto/tests",
+    "proto/frontend",
+    "proto/third_party",
+    "frontends_extra/cpp",
+    "proto",
+    "proto/p4info",
+    "proto/server"
+],
+    local_defines = [
+        "TESTDATADIR=\\\"" + ("../" + repository_name().lstrip("@") + "/" if repository_name() != "@" else "") + "tests/testdata\\\"",
+        "_FORTIFY_SOURCE=2"
+    ],
+    data = glob(["tests/testdata/**"]),
+    copts = [
+        "-pthread",
+    "-std=c++17",
+    "-Wall",
+    "-Wextra",
+    "-Wno-error=deprecated-declarations",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-fstack-clash-protection",
+    "-Wformat",
+    "-Werror=format-security",
+    "-Wdate-time"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    tags = [],
+)
+
+cc_test(
+    name = "test_server_no_pipeline_config",
+    features = ["-strip_debug_symbols"],
+    linkopts = ["-Wl,-z,relro", "-Wl,-z,now"],
+    linkstatic = False,
+    srcs = [
+    "proto/tests/main.cpp",
+    "proto/tests/mock_switch.h",
+    "proto/tests/mock_switch.cpp",
+    "proto/tests/matchers.h",
+    "proto/tests/matchers.cpp",
+    "proto/tests/test_proto_fe_base.h",
+    "proto/tests/test_proto_fe_base.cpp",
+    "proto/tests/stream_receiver.h",
+    "proto/tests/server/utils.h",
+    "proto/tests/server/utils.cpp",
+    "proto/tests/server/test_no_pipeline_config.cpp"
+],
+    deps = [
+    ":piconvertproto",
+    ":piprotobuf",
+    ":pip4info",
+    ":gmock",
+    ":gtest",
+    ":pifeproto",
+    ":pifecpp",
+    ":piall",
+    ":pigrpcserver",
+    ":piprotogrpc",
+    ":frontend_internal_headers",
+    ":server_internal_headers",
+    ":server_config_headers",
+    "@pi_deps//libboost1.83-dev:libboost1.83_headers"
+],
+    includes = [
+    "proto/tests",
+    "proto/frontend",
+    "proto/third_party",
+    "frontends_extra/cpp",
+    "proto",
+    "proto/p4info",
+    "proto/server"
+],
+    local_defines = [
+        "TESTDATADIR=\\\"" + ("../" + repository_name().lstrip("@") + "/" if repository_name() != "@" else "") + "tests/testdata\\\"",
+        "_FORTIFY_SOURCE=2"
+    ],
+    data = glob(["tests/testdata/**"]),
+    copts = [
+        "-pthread",
+    "-std=c++17",
+    "-Wall",
+    "-Wextra",
+    "-Wno-error=deprecated-declarations",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-fstack-clash-protection",
+    "-Wformat",
+    "-Werror=format-security",
+    "-Wdate-time"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    tags = [],
+)
+
+cc_test(
+    name = "test_proto_fe_access_arbitration",
+    features = ["-strip_debug_symbols"],
+    linkopts = ["-Wl,-z,relro", "-Wl,-z,now"],
+    linkstatic = False,
+    srcs = [
+    "proto/tests/main.cpp",
+    "proto/tests/mock_switch.h",
+    "proto/tests/mock_switch.cpp",
+    "proto/tests/matchers.h",
+    "proto/tests/matchers.cpp",
+    "proto/tests/test_proto_fe_base.h",
+    "proto/tests/test_proto_fe_base.cpp",
+    "proto/tests/stream_receiver.h",
+    "proto/tests/test_proto_fe_access_arbitration.cpp"
+],
+    deps = [
+    ":piconvertproto",
+    ":piprotobuf",
+    ":pip4info",
+    ":gmock",
+    ":gtest",
+    ":pifeproto",
+    ":pifecpp",
+    ":piall",
+    ":frontend_internal_headers",
+    ":server_internal_headers",
+    ":server_config_headers",
+    "@pi_deps//libboost1.83-dev:libboost1.83_headers"
+],
+    includes = [
+    "proto/tests",
+    "proto/frontend",
+    "proto/third_party",
+    "frontends_extra/cpp",
+    "proto",
+    "proto/p4info",
+    "proto/server"
+],
+    local_defines = [
+        "TESTDATADIR=\\\"" + ("../" + repository_name().lstrip("@") + "/" if repository_name() != "@" else "") + "tests/testdata\\\"",
+        "_FORTIFY_SOURCE=2"
+    ],
+    data = glob(["tests/testdata/**"]),
+    copts = [
+        "-pthread",
+    "-std=c++17",
+    "-Wall",
+    "-Wextra",
+    "-Wno-error=deprecated-declarations",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-fstack-clash-protection",
+    "-Wformat",
+    "-Werror=format-security",
+    "-Wdate-time"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    tags = [],
+)
+
+cc_test(
+    name = "test_proto_fe_watch_port_enforcer",
+    features = ["-strip_debug_symbols"],
+    linkopts = ["-Wl,-z,relro", "-Wl,-z,now"],
+    linkstatic = False,
+    srcs = [
+    "proto/tests/main.cpp",
+    "proto/tests/mock_switch.h",
+    "proto/tests/mock_switch.cpp",
+    "proto/tests/matchers.h",
+    "proto/tests/matchers.cpp",
+    "proto/tests/test_proto_fe_base.h",
+    "proto/tests/test_proto_fe_base.cpp",
+    "proto/tests/stream_receiver.h",
+    "proto/tests/test_proto_fe_watch_port_enforcer.cpp"
+],
+    deps = [
+    ":piconvertproto",
+    ":piprotobuf",
+    ":pip4info",
+    ":gmock",
+    ":gtest",
+    ":pifeproto",
+    ":pifecpp",
+    ":piall",
+    ":frontend_internal_headers",
+    ":server_internal_headers",
+    ":server_config_headers",
+    "@pi_deps//libboost1.83-dev:libboost1.83_headers"
+],
+    includes = [
+    "proto/tests",
+    "proto/frontend",
+    "proto/third_party",
+    "frontends_extra/cpp",
+    "proto",
+    "proto/p4info",
+    "proto/server"
+],
+    local_defines = [
+        "TESTDATADIR=\\\"" + ("../" + repository_name().lstrip("@") + "/" if repository_name() != "@" else "") + "tests/testdata\\\"",
+        "_FORTIFY_SOURCE=2"
+    ],
+    data = glob(["tests/testdata/**"]),
+    copts = [
+        "-pthread",
+    "-std=c++17",
+    "-Wall",
+    "-Wextra",
+    "-Wno-error=deprecated-declarations",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-fstack-clash-protection",
+    "-Wformat",
+    "-Werror=format-security",
+    "-Wdate-time"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    tags = [],
+)
+
+cc_test(
+    name = "test_server_gnmi",
+    features = ["-strip_debug_symbols"],
+    linkopts = ["-Wl,-z,relro", "-Wl,-z,now"],
+    linkstatic = False,
+    srcs = [
+    "proto/tests/main.cpp",
+    "proto/tests/mock_switch.h",
+    "proto/tests/mock_switch.cpp",
+    "proto/tests/matchers.h",
+    "proto/tests/matchers.cpp",
+    "proto/tests/test_proto_fe_base.h",
+    "proto/tests/test_proto_fe_base.cpp",
+    "proto/tests/stream_receiver.h",
+    "proto/tests/server/utils.h",
+    "proto/tests/server/utils.cpp",
+    "proto/tests/server/test_gnmi.cpp"
+],
+    deps = [
+    ":piconvertproto",
+    ":piprotobuf",
+    ":pip4info",
+    ":gmock",
+    ":gtest",
+    ":pifeproto",
+    ":pifecpp",
+    ":piall",
+    ":pigrpcserver",
+    ":piprotogrpc",
+    ":frontend_internal_headers",
+    ":server_internal_headers",
+    ":server_config_headers",
+    "@pi_deps//libboost1.83-dev:libboost1.83_headers"
+],
+    includes = [
+    "proto/tests",
+    "proto/frontend",
+    "proto/third_party",
+    "frontends_extra/cpp",
+    "proto",
+    "proto/p4info",
+    "proto/server"
+],
+    local_defines = [
+        "TESTDATADIR=\\\"" + ("../" + repository_name().lstrip("@") + "/" if repository_name() != "@" else "") + "tests/testdata\\\"",
+        "_FORTIFY_SOURCE=2"
+    ],
+    data = glob(["tests/testdata/**"]),
+    copts = [
+        "-pthread",
+    "-std=c++17",
+    "-Wall",
+    "-Wextra",
+    "-Wno-error=deprecated-declarations",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-fstack-clash-protection",
+    "-Wformat",
+    "-Werror=format-security",
+    "-Wdate-time"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    tags = [],
+)
+
+cc_test(
+    name = "test_server_arbitration",
+    features = ["-strip_debug_symbols"],
+    linkopts = ["-Wl,-z,relro", "-Wl,-z,now"],
+    linkstatic = False,
+    srcs = [
+    "proto/tests/main.cpp",
+    "proto/tests/mock_switch.h",
+    "proto/tests/mock_switch.cpp",
+    "proto/tests/matchers.h",
+    "proto/tests/matchers.cpp",
+    "proto/tests/test_proto_fe_base.h",
+    "proto/tests/test_proto_fe_base.cpp",
+    "proto/tests/stream_receiver.h",
+    "proto/tests/server/utils.h",
+    "proto/tests/server/utils.cpp",
+    "proto/tests/server/test_arbitration.cpp"
+],
+    deps = [
+    ":piconvertproto",
+    ":piprotobuf",
+    ":pip4info",
+    ":gmock",
+    ":gtest",
+    ":pifeproto",
+    ":pifecpp",
+    ":piall",
+    ":pigrpcserver",
+    ":piprotogrpc",
+    ":frontend_internal_headers",
+    ":server_internal_headers",
+    ":server_config_headers",
+    "@pi_deps//libboost1.83-dev:libboost1.83_headers"
+],
+    includes = [
+    "proto/tests",
+    "proto/frontend",
+    "proto/third_party",
+    "frontends_extra/cpp",
+    "proto",
+    "proto/p4info",
+    "proto/server"
+],
+    local_defines = [
+        "TESTDATADIR=\\\"" + ("../" + repository_name().lstrip("@") + "/" if repository_name() != "@" else "") + "tests/testdata\\\"",
+        "_FORTIFY_SOURCE=2"
+    ],
+    data = glob(["tests/testdata/**"]),
+    copts = [
+        "-pthread",
+    "-std=c++17",
+    "-Wall",
+    "-Wextra",
+    "-Wno-error=deprecated-declarations",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-fstack-clash-protection",
+    "-Wformat",
+    "-Werror=format-security",
+    "-Wdate-time"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    tags = [],
+)
+
+cc_test(
+    name = "test_pi_server",
+    features = ["-strip_debug_symbols"],
+    linkopts = ["-Wl,-z,relro", "-Wl,-z,now"],
+    linkstatic = False,
+    srcs = [
+    "proto/tests/main.cpp",
+    "proto/tests/mock_switch.h",
+    "proto/tests/mock_switch.cpp",
+    "proto/tests/matchers.h",
+    "proto/tests/matchers.cpp",
+    "proto/tests/test_proto_fe_base.h",
+    "proto/tests/test_proto_fe_base.cpp",
+    "proto/tests/stream_receiver.h",
+    "proto/tests/server/utils.h",
+    "proto/tests/server/utils.cpp",
+    "proto/tests/server/test_pi_server.cpp"
+],
+    deps = [
+    ":piconvertproto",
+    ":piprotobuf",
+    ":pip4info",
+    ":gmock",
+    ":gtest",
+    ":pifeproto",
+    ":pifecpp",
+    ":piall",
+    ":pigrpcserver",
+    ":piprotogrpc",
+    ":frontend_internal_headers",
+    ":server_internal_headers",
+    ":server_config_headers",
+    "@pi_deps//libboost1.83-dev:libboost1.83_headers"
+],
+    includes = [
+    "proto/tests",
+    "proto/frontend",
+    "proto/third_party",
+    "frontends_extra/cpp",
+    "proto",
+    "proto/p4info",
+    "proto/server"
+],
+    local_defines = [
+        "TESTDATADIR=\\\"" + ("../" + repository_name().lstrip("@") + "/" if repository_name() != "@" else "") + "tests/testdata\\\"",
+        "_FORTIFY_SOURCE=2"
+    ],
+    data = glob(["tests/testdata/**"]),
+    copts = [
+        "-pthread",
+    "-std=c++17",
+    "-Wall",
+    "-Wextra",
+    "-Wno-error=deprecated-declarations",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-fstack-clash-protection",
+    "-Wformat",
+    "-Werror=format-security",
+    "-Wdate-time"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    tags = [],
+)
+
+cc_test(
+    name = "test_task_queue",
+    features = ["-strip_debug_symbols"],
+    linkopts = ["-Wl,-z,relro", "-Wl,-z,now"],
+    linkstatic = False,
+    srcs = [
+    "proto/tests/main.cpp",
+    "proto/tests/mock_switch.h",
+    "proto/tests/mock_switch.cpp",
+    "proto/tests/matchers.h",
+    "proto/tests/matchers.cpp",
+    "proto/tests/test_proto_fe_base.h",
+    "proto/tests/test_proto_fe_base.cpp",
+    "proto/tests/stream_receiver.h",
+    "proto/tests/test_task_queue.cpp"
+],
+    deps = [
+    ":piconvertproto",
+    ":piprotobuf",
+    ":pip4info",
+    ":gmock",
+    ":gtest",
+    ":pifeproto",
+    ":pifecpp",
+    ":piall",
+    ":frontend_internal_headers",
+    ":server_internal_headers",
+    ":server_config_headers",
+    "@pi_deps//libboost1.83-dev:libboost1.83_headers"
+],
+    includes = [
+    "proto/tests",
+    "proto/frontend",
+    "proto/third_party",
+    "frontends_extra/cpp",
+    "proto",
+    "proto/p4info",
+    "proto/server"
+],
+    local_defines = [
+        "TESTDATADIR=\\\"" + ("../" + repository_name().lstrip("@") + "/" if repository_name() != "@" else "") + "tests/testdata\\\"",
+        "_FORTIFY_SOURCE=2"
+    ],
+    data = glob(["tests/testdata/**"]),
+    copts = [
+        "-pthread",
+    "-std=c++17",
+    "-Wall",
+    "-Wextra",
+    "-Wno-error=deprecated-declarations",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-fstack-clash-protection",
+    "-Wformat",
+    "-Werror=format-security",
+    "-Wdate-time"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    tags = [],
+)
+
+cc_test(
+    name = "test_server_config",
+    features = ["-strip_debug_symbols"],
+    linkopts = ["-Wl,-z,relro", "-Wl,-z,now"],
+    linkstatic = False,
+    srcs = [
+    "proto/tests/main.cpp",
+    "proto/tests/mock_switch.h",
+    "proto/tests/mock_switch.cpp",
+    "proto/tests/matchers.h",
+    "proto/tests/matchers.cpp",
+    "proto/tests/test_proto_fe_base.h",
+    "proto/tests/test_proto_fe_base.cpp",
+    "proto/tests/stream_receiver.h",
+    "proto/tests/server/utils.h",
+    "proto/tests/server/utils.cpp",
+    "proto/tests/server/test_server_config.cpp"
+],
+    deps = [
+    ":piconvertproto",
+    ":piprotobuf",
+    ":pip4info",
+    ":gmock",
+    ":gtest",
+    ":pifeproto",
+    ":pifecpp",
+    ":piall",
+    ":pigrpcserver",
+    ":piprotogrpc",
+    ":frontend_internal_headers",
+    ":server_internal_headers",
+    ":server_config_headers",
+    "@pi_deps//libboost1.83-dev:libboost1.83_headers"
+],
+    includes = [
+    "proto/tests",
+    "proto/frontend",
+    "proto/third_party",
+    "frontends_extra/cpp",
+    "proto",
+    "proto/p4info",
+    "proto/server"
+],
+    local_defines = [
+        "TESTDATADIR=\\\"" + ("../" + repository_name().lstrip("@") + "/" if repository_name() != "@" else "") + "tests/testdata\\\"",
+        "_FORTIFY_SOURCE=2"
+    ],
+    data = glob(["tests/testdata/**"]),
+    copts = [
+        "-pthread",
+    "-std=c++17",
+    "-Wall",
+    "-Wextra",
+    "-Wno-error=deprecated-declarations",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-fstack-clash-protection",
+    "-Wformat",
+    "-Werror=format-security",
+    "-Wdate-time"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    tags = [
+    "manual"
+],
+)
+
+test_suite(
+    name = "upstream_tests",
+    tests = [
+    ":test_bmv2_json_reader",
+    ":test_read_file",
+    ":test_getnetv",
+    ":test_p4info",
+    ":test_frontends_generic",
+    ":test_p4info_convert",
+    ":test_proto_fe",
+    ":test_proto_fe_bytestrings",
+    ":test_proto_fe_digest",
+    ":test_proto_fe_packet_io",
+    ":test_proto_fe_set_pipeline_config",
+    ":test_proto_fe_access_arbitration",
+    ":test_proto_fe_watch_port_enforcer",
+    ":test_server_no_pipeline_config",
+    ":test_server_gnmi",
+    ":test_server_arbitration",
+    ":test_pi_server",
+    ":test_task_queue"
+],
+)
+
+sonic_deploy_tar(
+    name = "p4lang-pi.runtime_amd64",
+    binaries = {
+    "usr/bin/pi_CLI_dummy uid=0 gid=0 type=file mode=0755": ":pi_CLI_dummy",
+    "usr/bin/pi_gen_native_json uid=0 gid=0 type=file mode=0755": ":pi_gen_native_json",
+    "usr/bin/pi_gen_fe_defines uid=0 gid=0 type=file mode=0755": ":pi_gen_fe_defines",
+    "usr/bin/pi_convert_p4info uid=0 gid=0 type=file mode=0755": ":pi_convert_p4info",
+    "usr/lib/x86_64-linux-gnu/libpip4info.so.0.0.0 uid=0 gid=0 type=file mode=0644": ":pip4info_shared",
+    "usr/lib/x86_64-linux-gnu/libpi.so.0.0.0 uid=0 gid=0 type=file mode=0644": ":pi_shared",
+    "usr/lib/x86_64-linux-gnu/libpifegeneric.so.0.0.0 uid=0 gid=0 type=file mode=0644": ":pifegeneric_shared",
+    "usr/lib/x86_64-linux-gnu/libpiall.so.0.0.0 uid=0 gid=0 type=file mode=0644": ":piall_shared",
+    "usr/lib/x86_64-linux-gnu/libpicli.so.0.0.0 uid=0 gid=0 type=file mode=0644": ":picli_shared",
+    "usr/lib/x86_64-linux-gnu/libpi_dummy.so.0.0.0 uid=0 gid=0 type=file mode=0644": ":pi_dummy_shared",
+    "usr/lib/x86_64-linux-gnu/libpifecpp.so.0.0.0 uid=0 gid=0 type=file mode=0644": ":pifecpp_shared",
+    "usr/lib/x86_64-linux-gnu/libpiprotobuf.so.0.0.0 uid=0 gid=0 type=file mode=0644": ":piprotobuf_shared",
+    "usr/lib/x86_64-linux-gnu/libpiprotogrpc.so.0.0.0 uid=0 gid=0 type=file mode=0644": ":piprotogrpc_shared",
+    "usr/lib/x86_64-linux-gnu/libpiconvertproto.so.0.0.0 uid=0 gid=0 type=file mode=0644": ":piconvertproto_shared",
+    "usr/lib/x86_64-linux-gnu/libpifeproto.so.0.0.0 uid=0 gid=0 type=file mode=0644": ":pifeproto_shared",
+    "usr/lib/x86_64-linux-gnu/libpigrpcserver.so.0.0.0 uid=0 gid=0 type=file mode=0644": ":pigrpcserver_shared"
+},
+    srcs = [
+    "generated_python/p4/v1/p4data_pb2.py",
+    "generated_python/p4/v1/p4data_pb2_grpc.py",
+    "generated_python/p4/v1/p4runtime_pb2.py",
+    "generated_python/p4/v1/p4runtime_pb2_grpc.py",
+    "generated_python/p4/config/v1/p4info_pb2.py",
+    "generated_python/p4/config/v1/p4info_pb2_grpc.py",
+    "generated_python/p4/config/v1/p4types_pb2.py",
+    "generated_python/p4/config/v1/p4types_pb2_grpc.py",
+    "generated_python/google/rpc/status_pb2.py",
+    "generated_python/google/rpc/status_pb2_grpc.py",
+    "generated_python/google/rpc/code_pb2.py",
+    "generated_python/google/rpc/code_pb2_grpc.py",
+    "generated_python/p4/tmp/p4config_pb2.py",
+    "generated_python/p4/tmp/p4config_pb2_grpc.py",
+    "generated_python/gnmi/gnmi_pb2.py",
+    "generated_python/gnmi/gnmi_pb2_grpc.py",
+    "generated_python/p4/server/v1/config_pb2.py",
+    "generated_python/p4/server/v1/config_pb2_grpc.py",
+    "generated_python/p4/__init__.py",
+    "generated_python/p4/v1/__init__.py",
+    "generated_python/p4/config/__init__.py",
+    "generated_python/p4/config/v1/__init__.py",
+    "generated_python/p4/tmp/__init__.py",
+    "generated_python/p4/server/__init__.py",
+    "generated_python/p4/server/v1/__init__.py",
+    "generated_python/google/rpc/__init__.py",
+    "generated_python/gnmi/__init__.py",
+    "LICENSE",
+    "@pi_debian//:debian/copyright"
+],
+    mtree = [
+    "usr/lib/x86_64-linux-gnu/libpip4info.so.0 uid=0 gid=0 type=link link=libpip4info.so.0.0.0",
+    "usr/lib/x86_64-linux-gnu/libpi.so.0 uid=0 gid=0 type=link link=libpi.so.0.0.0",
+    "usr/lib/x86_64-linux-gnu/libpifegeneric.so.0 uid=0 gid=0 type=link link=libpifegeneric.so.0.0.0",
+    "usr/lib/x86_64-linux-gnu/libpiall.so.0 uid=0 gid=0 type=link link=libpiall.so.0.0.0",
+    "usr/lib/x86_64-linux-gnu/libpicli.so.0 uid=0 gid=0 type=link link=libpicli.so.0.0.0",
+    "usr/lib/x86_64-linux-gnu/libpi_dummy.so.0 uid=0 gid=0 type=link link=libpi_dummy.so.0.0.0",
+    "usr/lib/x86_64-linux-gnu/libpifecpp.so.0 uid=0 gid=0 type=link link=libpifecpp.so.0.0.0",
+    "usr/lib/x86_64-linux-gnu/libpiprotobuf.so.0 uid=0 gid=0 type=link link=libpiprotobuf.so.0.0.0",
+    "usr/lib/x86_64-linux-gnu/libpiprotogrpc.so.0 uid=0 gid=0 type=link link=libpiprotogrpc.so.0.0.0",
+    "usr/lib/x86_64-linux-gnu/libpiconvertproto.so.0 uid=0 gid=0 type=link link=libpiconvertproto.so.0.0.0",
+    "usr/lib/x86_64-linux-gnu/libpifeproto.so.0 uid=0 gid=0 type=link link=libpifeproto.so.0.0.0",
+    "usr/lib/x86_64-linux-gnu/libpigrpcserver.so.0 uid=0 gid=0 type=link link=libpigrpcserver.so.0.0.0",
+    "usr/lib/python3/dist-packages/p4/v1/p4data_pb2.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/p4/v1/p4data_pb2.py)",
+    "usr/lib/python3/dist-packages/p4/v1/p4data_pb2_grpc.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/p4/v1/p4data_pb2_grpc.py)",
+    "usr/lib/python3/dist-packages/p4/v1/p4runtime_pb2.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/p4/v1/p4runtime_pb2.py)",
+    "usr/lib/python3/dist-packages/p4/v1/p4runtime_pb2_grpc.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/p4/v1/p4runtime_pb2_grpc.py)",
+    "usr/lib/python3/dist-packages/p4/config/v1/p4info_pb2.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/p4/config/v1/p4info_pb2.py)",
+    "usr/lib/python3/dist-packages/p4/config/v1/p4info_pb2_grpc.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/p4/config/v1/p4info_pb2_grpc.py)",
+    "usr/lib/python3/dist-packages/p4/config/v1/p4types_pb2.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/p4/config/v1/p4types_pb2.py)",
+    "usr/lib/python3/dist-packages/p4/config/v1/p4types_pb2_grpc.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/p4/config/v1/p4types_pb2_grpc.py)",
+    "usr/lib/python3/dist-packages/google/rpc/status_pb2.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/google/rpc/status_pb2.py)",
+    "usr/lib/python3/dist-packages/google/rpc/status_pb2_grpc.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/google/rpc/status_pb2_grpc.py)",
+    "usr/lib/python3/dist-packages/google/rpc/code_pb2.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/google/rpc/code_pb2.py)",
+    "usr/lib/python3/dist-packages/google/rpc/code_pb2_grpc.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/google/rpc/code_pb2_grpc.py)",
+    "usr/lib/python3/dist-packages/p4/tmp/p4config_pb2.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/p4/tmp/p4config_pb2.py)",
+    "usr/lib/python3/dist-packages/p4/tmp/p4config_pb2_grpc.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/p4/tmp/p4config_pb2_grpc.py)",
+    "usr/lib/python3/dist-packages/gnmi/gnmi_pb2.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/gnmi/gnmi_pb2.py)",
+    "usr/lib/python3/dist-packages/gnmi/gnmi_pb2_grpc.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/gnmi/gnmi_pb2_grpc.py)",
+    "usr/lib/python3/dist-packages/p4/server/v1/config_pb2.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/p4/server/v1/config_pb2.py)",
+    "usr/lib/python3/dist-packages/p4/server/v1/config_pb2_grpc.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/p4/server/v1/config_pb2_grpc.py)",
+    "usr/lib/python3/dist-packages/p4/__init__.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/p4/__init__.py)",
+    "usr/lib/python3/dist-packages/p4/v1/__init__.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/p4/v1/__init__.py)",
+    "usr/lib/python3/dist-packages/p4/config/__init__.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/p4/config/__init__.py)",
+    "usr/lib/python3/dist-packages/p4/config/v1/__init__.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/p4/config/v1/__init__.py)",
+    "usr/lib/python3/dist-packages/p4/tmp/__init__.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/p4/tmp/__init__.py)",
+    "usr/lib/python3/dist-packages/p4/server/__init__.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/p4/server/__init__.py)",
+    "usr/lib/python3/dist-packages/p4/server/v1/__init__.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/p4/server/v1/__init__.py)",
+    "usr/lib/python3/dist-packages/google/rpc/__init__.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/google/rpc/__init__.py)",
+    "usr/lib/python3/dist-packages/gnmi/__init__.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/gnmi/__init__.py)",
+    "usr/share/doc/p4lang-pi/LICENSE uid=0 gid=0 type=file mode=0644 content=$(location LICENSE)",
+    "usr/share/doc/p4lang-pi/copyright uid=0 gid=0 type=file mode=0644 content=$(location @pi_debian//:debian/copyright)"
+],
+    force_debug_build = False,
+)
+
+sonic_deploy_tar(
+    name = "development_amd64",
+    srcs = [
+    "include/PI/pi.h",
+    "include/PI/pi_base.h",
+    "include/PI/p4info.h",
+    "include/PI/pi_tables.h",
+    "include/PI/pi_value.h",
+    "include/PI/pi_act_prof.h",
+    "include/PI/pi_counter.h",
+    "include/PI/pi_meter.h",
+    "include/PI/pi_learn.h",
+    "include/PI/pi_mc.h",
+    "include/PI/pi_clone.h",
+    "include/PI/frontends/generic/pi.h",
+    "include/PI/p4info/actions.h",
+    "include/PI/p4info/tables.h",
+    "include/PI/p4info/act_profs.h",
+    "include/PI/p4info/counters.h",
+    "include/PI/p4info/meters.h",
+    "include/PI/p4info/digests.h",
+    "include/PI/int/pi_int.h",
+    "include/PI/int/serialize.h",
+    "include/PI/int/rpc_common.h",
+    "include/PI/target/pi_imp.h",
+    "include/PI/target/pi_tables_imp.h",
+    "include/PI/target/pi_act_prof_imp.h",
+    "include/PI/target/pi_counter_imp.h",
+    "include/PI/target/pi_meter_imp.h",
+    "include/PI/target/pi_learn_imp.h",
+    "include/PI/target/pi_mc_imp.h",
+    "include/PI/target/pi_clone_imp.h",
+    "frontends_extra/cpp/PI/frontends/cpp/tables.h",
+    "proto/PI/proto/util.h",
+    "proto/p4info/PI/proto/p4info_to_and_from_proto.h",
+    "proto/frontend/PI/frontends/proto/device_mgr.h",
+    "proto/frontend/PI/frontends/proto/logging.h",
+    "proto/server/PI/proto/pi_server.h",
+    "generated/p4/v1/p4data.pb.h",
+    "generated/p4/v1/p4data.grpc.pb.h",
+    "generated/p4/v1/p4runtime.pb.h",
+    "generated/p4/v1/p4runtime.grpc.pb.h",
+    "generated/p4/config/v1/p4info.pb.h",
+    "generated/p4/config/v1/p4info.grpc.pb.h",
+    "generated/p4/config/v1/p4types.pb.h",
+    "generated/p4/config/v1/p4types.grpc.pb.h",
+    "generated/google/rpc/status.pb.h",
+    "generated/google/rpc/status.grpc.pb.h",
+    "generated/google/rpc/code.pb.h",
+    "generated/google/rpc/code.grpc.pb.h",
+    "generated/p4/tmp/p4config.pb.h",
+    "generated/p4/tmp/p4config.grpc.pb.h",
+    "generated/gnmi/gnmi.pb.h",
+    "generated/gnmi/gnmi.grpc.pb.h",
+    "generated/p4/server/v1/config.pb.h",
+    "generated/p4/server/v1/config.grpc.pb.h",
+    ":pip4info_archive",
+    ":pi_archive",
+    ":pifegeneric_archive",
+    ":piall_archive",
+    ":picli_archive",
+    ":pi_dummy_archive",
+    ":pifecpp_archive",
+    ":piprotobuf_archive",
+    ":piprotogrpc_archive",
+    ":piconvertproto_archive",
+    ":pifeproto_archive",
+    ":pigrpcserver_archive"
+],
+    mtree = [
+    "usr/include/PI/pi.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/pi.h)",
+    "usr/include/PI/pi_base.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/pi_base.h)",
+    "usr/include/PI/p4info.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/p4info.h)",
+    "usr/include/PI/pi_tables.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/pi_tables.h)",
+    "usr/include/PI/pi_value.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/pi_value.h)",
+    "usr/include/PI/pi_act_prof.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/pi_act_prof.h)",
+    "usr/include/PI/pi_counter.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/pi_counter.h)",
+    "usr/include/PI/pi_meter.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/pi_meter.h)",
+    "usr/include/PI/pi_learn.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/pi_learn.h)",
+    "usr/include/PI/pi_mc.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/pi_mc.h)",
+    "usr/include/PI/pi_clone.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/pi_clone.h)",
+    "usr/include/PI/frontends/generic/pi.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/frontends/generic/pi.h)",
+    "usr/include/PI/p4info/actions.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/p4info/actions.h)",
+    "usr/include/PI/p4info/tables.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/p4info/tables.h)",
+    "usr/include/PI/p4info/act_profs.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/p4info/act_profs.h)",
+    "usr/include/PI/p4info/counters.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/p4info/counters.h)",
+    "usr/include/PI/p4info/meters.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/p4info/meters.h)",
+    "usr/include/PI/p4info/digests.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/p4info/digests.h)",
+    "usr/include/PI/int/pi_int.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/int/pi_int.h)",
+    "usr/include/PI/int/serialize.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/int/serialize.h)",
+    "usr/include/PI/int/rpc_common.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/int/rpc_common.h)",
+    "usr/include/PI/target/pi_imp.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/target/pi_imp.h)",
+    "usr/include/PI/target/pi_tables_imp.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/target/pi_tables_imp.h)",
+    "usr/include/PI/target/pi_act_prof_imp.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/target/pi_act_prof_imp.h)",
+    "usr/include/PI/target/pi_counter_imp.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/target/pi_counter_imp.h)",
+    "usr/include/PI/target/pi_meter_imp.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/target/pi_meter_imp.h)",
+    "usr/include/PI/target/pi_learn_imp.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/target/pi_learn_imp.h)",
+    "usr/include/PI/target/pi_mc_imp.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/target/pi_mc_imp.h)",
+    "usr/include/PI/target/pi_clone_imp.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/target/pi_clone_imp.h)",
+    "usr/include/PI/frontends/cpp/tables.h uid=0 gid=0 type=file mode=0644 content=$(location frontends_extra/cpp/PI/frontends/cpp/tables.h)",
+    "usr/include/PI/proto/util.h uid=0 gid=0 type=file mode=0644 content=$(location proto/PI/proto/util.h)",
+    "usr/include/PI/proto/p4info_to_and_from_proto.h uid=0 gid=0 type=file mode=0644 content=$(location proto/p4info/PI/proto/p4info_to_and_from_proto.h)",
+    "usr/include/PI/frontends/proto/device_mgr.h uid=0 gid=0 type=file mode=0644 content=$(location proto/frontend/PI/frontends/proto/device_mgr.h)",
+    "usr/include/PI/frontends/proto/logging.h uid=0 gid=0 type=file mode=0644 content=$(location proto/frontend/PI/frontends/proto/logging.h)",
+    "usr/include/PI/proto/pi_server.h uid=0 gid=0 type=file mode=0644 content=$(location proto/server/PI/proto/pi_server.h)",
+    "usr/include/p4/v1/p4data.pb.h uid=0 gid=0 type=file mode=0644 content=$(location generated/p4/v1/p4data.pb.h)",
+    "usr/include/p4/v1/p4data.grpc.pb.h uid=0 gid=0 type=file mode=0644 content=$(location generated/p4/v1/p4data.grpc.pb.h)",
+    "usr/include/p4/v1/p4runtime.pb.h uid=0 gid=0 type=file mode=0644 content=$(location generated/p4/v1/p4runtime.pb.h)",
+    "usr/include/p4/v1/p4runtime.grpc.pb.h uid=0 gid=0 type=file mode=0644 content=$(location generated/p4/v1/p4runtime.grpc.pb.h)",
+    "usr/include/p4/config/v1/p4info.pb.h uid=0 gid=0 type=file mode=0644 content=$(location generated/p4/config/v1/p4info.pb.h)",
+    "usr/include/p4/config/v1/p4info.grpc.pb.h uid=0 gid=0 type=file mode=0644 content=$(location generated/p4/config/v1/p4info.grpc.pb.h)",
+    "usr/include/p4/config/v1/p4types.pb.h uid=0 gid=0 type=file mode=0644 content=$(location generated/p4/config/v1/p4types.pb.h)",
+    "usr/include/p4/config/v1/p4types.grpc.pb.h uid=0 gid=0 type=file mode=0644 content=$(location generated/p4/config/v1/p4types.grpc.pb.h)",
+    "usr/include/google/rpc/status.pb.h uid=0 gid=0 type=file mode=0644 content=$(location generated/google/rpc/status.pb.h)",
+    "usr/include/google/rpc/status.grpc.pb.h uid=0 gid=0 type=file mode=0644 content=$(location generated/google/rpc/status.grpc.pb.h)",
+    "usr/include/google/rpc/code.pb.h uid=0 gid=0 type=file mode=0644 content=$(location generated/google/rpc/code.pb.h)",
+    "usr/include/google/rpc/code.grpc.pb.h uid=0 gid=0 type=file mode=0644 content=$(location generated/google/rpc/code.grpc.pb.h)",
+    "usr/include/p4/tmp/p4config.pb.h uid=0 gid=0 type=file mode=0644 content=$(location generated/p4/tmp/p4config.pb.h)",
+    "usr/include/p4/tmp/p4config.grpc.pb.h uid=0 gid=0 type=file mode=0644 content=$(location generated/p4/tmp/p4config.grpc.pb.h)",
+    "usr/include/gnmi/gnmi.pb.h uid=0 gid=0 type=file mode=0644 content=$(location generated/gnmi/gnmi.pb.h)",
+    "usr/include/gnmi/gnmi.grpc.pb.h uid=0 gid=0 type=file mode=0644 content=$(location generated/gnmi/gnmi.grpc.pb.h)",
+    "usr/include/p4/server/v1/config.pb.h uid=0 gid=0 type=file mode=0644 content=$(location generated/p4/server/v1/config.pb.h)",
+    "usr/include/p4/server/v1/config.grpc.pb.h uid=0 gid=0 type=file mode=0644 content=$(location generated/p4/server/v1/config.grpc.pb.h)",
+    "usr/lib/x86_64-linux-gnu/libpip4info.a uid=0 gid=0 type=file mode=0644 content=$(location :pip4info_archive)",
+    "usr/lib/x86_64-linux-gnu/libpi.a uid=0 gid=0 type=file mode=0644 content=$(location :pi_archive)",
+    "usr/lib/x86_64-linux-gnu/libpifegeneric.a uid=0 gid=0 type=file mode=0644 content=$(location :pifegeneric_archive)",
+    "usr/lib/x86_64-linux-gnu/libpiall.a uid=0 gid=0 type=file mode=0644 content=$(location :piall_archive)",
+    "usr/lib/x86_64-linux-gnu/libpicli.a uid=0 gid=0 type=file mode=0644 content=$(location :picli_archive)",
+    "usr/lib/x86_64-linux-gnu/libpi_dummy.a uid=0 gid=0 type=file mode=0644 content=$(location :pi_dummy_archive)",
+    "usr/lib/x86_64-linux-gnu/libpifecpp.a uid=0 gid=0 type=file mode=0644 content=$(location :pifecpp_archive)",
+    "usr/lib/x86_64-linux-gnu/libpiprotobuf.a uid=0 gid=0 type=file mode=0644 content=$(location :piprotobuf_archive)",
+    "usr/lib/x86_64-linux-gnu/libpiprotogrpc.a uid=0 gid=0 type=file mode=0644 content=$(location :piprotogrpc_archive)",
+    "usr/lib/x86_64-linux-gnu/libpiconvertproto.a uid=0 gid=0 type=file mode=0644 content=$(location :piconvertproto_archive)",
+    "usr/lib/x86_64-linux-gnu/libpifeproto.a uid=0 gid=0 type=file mode=0644 content=$(location :pifeproto_archive)",
+    "usr/lib/x86_64-linux-gnu/libpigrpcserver.a uid=0 gid=0 type=file mode=0644 content=$(location :pigrpcserver_archive)",
+    "usr/lib/x86_64-linux-gnu/libpip4info.so uid=0 gid=0 type=link link=libpip4info.so.0.0.0",
+    "usr/lib/x86_64-linux-gnu/libpi.so uid=0 gid=0 type=link link=libpi.so.0.0.0",
+    "usr/lib/x86_64-linux-gnu/libpifegeneric.so uid=0 gid=0 type=link link=libpifegeneric.so.0.0.0",
+    "usr/lib/x86_64-linux-gnu/libpiall.so uid=0 gid=0 type=link link=libpiall.so.0.0.0",
+    "usr/lib/x86_64-linux-gnu/libpicli.so uid=0 gid=0 type=link link=libpicli.so.0.0.0",
+    "usr/lib/x86_64-linux-gnu/libpi_dummy.so uid=0 gid=0 type=link link=libpi_dummy.so.0.0.0",
+    "usr/lib/x86_64-linux-gnu/libpifecpp.so uid=0 gid=0 type=link link=libpifecpp.so.0.0.0",
+    "usr/lib/x86_64-linux-gnu/libpiprotobuf.so uid=0 gid=0 type=link link=libpiprotobuf.so.0.0.0",
+    "usr/lib/x86_64-linux-gnu/libpiprotogrpc.so uid=0 gid=0 type=link link=libpiprotogrpc.so.0.0.0",
+    "usr/lib/x86_64-linux-gnu/libpiconvertproto.so uid=0 gid=0 type=link link=libpiconvertproto.so.0.0.0",
+    "usr/lib/x86_64-linux-gnu/libpifeproto.so uid=0 gid=0 type=link link=libpifeproto.so.0.0.0",
+    "usr/lib/x86_64-linux-gnu/libpigrpcserver.so uid=0 gid=0 type=link link=libpigrpcserver.so.0.0.0"
+],
+)
+
+sonic_deploy_tar(
+    name = "p4lang-pi.runtime_arm64",
+    binaries = {
+    "usr/bin/pi_CLI_dummy uid=0 gid=0 type=file mode=0755": ":pi_CLI_dummy",
+    "usr/bin/pi_gen_native_json uid=0 gid=0 type=file mode=0755": ":pi_gen_native_json",
+    "usr/bin/pi_gen_fe_defines uid=0 gid=0 type=file mode=0755": ":pi_gen_fe_defines",
+    "usr/bin/pi_convert_p4info uid=0 gid=0 type=file mode=0755": ":pi_convert_p4info",
+    "usr/lib/aarch64-linux-gnu/libpip4info.so.0.0.0 uid=0 gid=0 type=file mode=0644": ":pip4info_shared",
+    "usr/lib/aarch64-linux-gnu/libpi.so.0.0.0 uid=0 gid=0 type=file mode=0644": ":pi_shared",
+    "usr/lib/aarch64-linux-gnu/libpifegeneric.so.0.0.0 uid=0 gid=0 type=file mode=0644": ":pifegeneric_shared",
+    "usr/lib/aarch64-linux-gnu/libpiall.so.0.0.0 uid=0 gid=0 type=file mode=0644": ":piall_shared",
+    "usr/lib/aarch64-linux-gnu/libpicli.so.0.0.0 uid=0 gid=0 type=file mode=0644": ":picli_shared",
+    "usr/lib/aarch64-linux-gnu/libpi_dummy.so.0.0.0 uid=0 gid=0 type=file mode=0644": ":pi_dummy_shared",
+    "usr/lib/aarch64-linux-gnu/libpifecpp.so.0.0.0 uid=0 gid=0 type=file mode=0644": ":pifecpp_shared",
+    "usr/lib/aarch64-linux-gnu/libpiprotobuf.so.0.0.0 uid=0 gid=0 type=file mode=0644": ":piprotobuf_shared",
+    "usr/lib/aarch64-linux-gnu/libpiprotogrpc.so.0.0.0 uid=0 gid=0 type=file mode=0644": ":piprotogrpc_shared",
+    "usr/lib/aarch64-linux-gnu/libpiconvertproto.so.0.0.0 uid=0 gid=0 type=file mode=0644": ":piconvertproto_shared",
+    "usr/lib/aarch64-linux-gnu/libpifeproto.so.0.0.0 uid=0 gid=0 type=file mode=0644": ":pifeproto_shared",
+    "usr/lib/aarch64-linux-gnu/libpigrpcserver.so.0.0.0 uid=0 gid=0 type=file mode=0644": ":pigrpcserver_shared"
+},
+    srcs = [
+    "generated_python/p4/v1/p4data_pb2.py",
+    "generated_python/p4/v1/p4data_pb2_grpc.py",
+    "generated_python/p4/v1/p4runtime_pb2.py",
+    "generated_python/p4/v1/p4runtime_pb2_grpc.py",
+    "generated_python/p4/config/v1/p4info_pb2.py",
+    "generated_python/p4/config/v1/p4info_pb2_grpc.py",
+    "generated_python/p4/config/v1/p4types_pb2.py",
+    "generated_python/p4/config/v1/p4types_pb2_grpc.py",
+    "generated_python/google/rpc/status_pb2.py",
+    "generated_python/google/rpc/status_pb2_grpc.py",
+    "generated_python/google/rpc/code_pb2.py",
+    "generated_python/google/rpc/code_pb2_grpc.py",
+    "generated_python/p4/tmp/p4config_pb2.py",
+    "generated_python/p4/tmp/p4config_pb2_grpc.py",
+    "generated_python/gnmi/gnmi_pb2.py",
+    "generated_python/gnmi/gnmi_pb2_grpc.py",
+    "generated_python/p4/server/v1/config_pb2.py",
+    "generated_python/p4/server/v1/config_pb2_grpc.py",
+    "generated_python/p4/__init__.py",
+    "generated_python/p4/v1/__init__.py",
+    "generated_python/p4/config/__init__.py",
+    "generated_python/p4/config/v1/__init__.py",
+    "generated_python/p4/tmp/__init__.py",
+    "generated_python/p4/server/__init__.py",
+    "generated_python/p4/server/v1/__init__.py",
+    "generated_python/google/rpc/__init__.py",
+    "generated_python/gnmi/__init__.py",
+    "LICENSE",
+    "@pi_debian//:debian/copyright"
+],
+    mtree = [
+    "usr/lib/aarch64-linux-gnu/libpip4info.so.0 uid=0 gid=0 type=link link=libpip4info.so.0.0.0",
+    "usr/lib/aarch64-linux-gnu/libpi.so.0 uid=0 gid=0 type=link link=libpi.so.0.0.0",
+    "usr/lib/aarch64-linux-gnu/libpifegeneric.so.0 uid=0 gid=0 type=link link=libpifegeneric.so.0.0.0",
+    "usr/lib/aarch64-linux-gnu/libpiall.so.0 uid=0 gid=0 type=link link=libpiall.so.0.0.0",
+    "usr/lib/aarch64-linux-gnu/libpicli.so.0 uid=0 gid=0 type=link link=libpicli.so.0.0.0",
+    "usr/lib/aarch64-linux-gnu/libpi_dummy.so.0 uid=0 gid=0 type=link link=libpi_dummy.so.0.0.0",
+    "usr/lib/aarch64-linux-gnu/libpifecpp.so.0 uid=0 gid=0 type=link link=libpifecpp.so.0.0.0",
+    "usr/lib/aarch64-linux-gnu/libpiprotobuf.so.0 uid=0 gid=0 type=link link=libpiprotobuf.so.0.0.0",
+    "usr/lib/aarch64-linux-gnu/libpiprotogrpc.so.0 uid=0 gid=0 type=link link=libpiprotogrpc.so.0.0.0",
+    "usr/lib/aarch64-linux-gnu/libpiconvertproto.so.0 uid=0 gid=0 type=link link=libpiconvertproto.so.0.0.0",
+    "usr/lib/aarch64-linux-gnu/libpifeproto.so.0 uid=0 gid=0 type=link link=libpifeproto.so.0.0.0",
+    "usr/lib/aarch64-linux-gnu/libpigrpcserver.so.0 uid=0 gid=0 type=link link=libpigrpcserver.so.0.0.0",
+    "usr/lib/python3/dist-packages/p4/v1/p4data_pb2.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/p4/v1/p4data_pb2.py)",
+    "usr/lib/python3/dist-packages/p4/v1/p4data_pb2_grpc.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/p4/v1/p4data_pb2_grpc.py)",
+    "usr/lib/python3/dist-packages/p4/v1/p4runtime_pb2.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/p4/v1/p4runtime_pb2.py)",
+    "usr/lib/python3/dist-packages/p4/v1/p4runtime_pb2_grpc.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/p4/v1/p4runtime_pb2_grpc.py)",
+    "usr/lib/python3/dist-packages/p4/config/v1/p4info_pb2.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/p4/config/v1/p4info_pb2.py)",
+    "usr/lib/python3/dist-packages/p4/config/v1/p4info_pb2_grpc.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/p4/config/v1/p4info_pb2_grpc.py)",
+    "usr/lib/python3/dist-packages/p4/config/v1/p4types_pb2.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/p4/config/v1/p4types_pb2.py)",
+    "usr/lib/python3/dist-packages/p4/config/v1/p4types_pb2_grpc.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/p4/config/v1/p4types_pb2_grpc.py)",
+    "usr/lib/python3/dist-packages/google/rpc/status_pb2.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/google/rpc/status_pb2.py)",
+    "usr/lib/python3/dist-packages/google/rpc/status_pb2_grpc.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/google/rpc/status_pb2_grpc.py)",
+    "usr/lib/python3/dist-packages/google/rpc/code_pb2.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/google/rpc/code_pb2.py)",
+    "usr/lib/python3/dist-packages/google/rpc/code_pb2_grpc.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/google/rpc/code_pb2_grpc.py)",
+    "usr/lib/python3/dist-packages/p4/tmp/p4config_pb2.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/p4/tmp/p4config_pb2.py)",
+    "usr/lib/python3/dist-packages/p4/tmp/p4config_pb2_grpc.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/p4/tmp/p4config_pb2_grpc.py)",
+    "usr/lib/python3/dist-packages/gnmi/gnmi_pb2.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/gnmi/gnmi_pb2.py)",
+    "usr/lib/python3/dist-packages/gnmi/gnmi_pb2_grpc.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/gnmi/gnmi_pb2_grpc.py)",
+    "usr/lib/python3/dist-packages/p4/server/v1/config_pb2.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/p4/server/v1/config_pb2.py)",
+    "usr/lib/python3/dist-packages/p4/server/v1/config_pb2_grpc.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/p4/server/v1/config_pb2_grpc.py)",
+    "usr/lib/python3/dist-packages/p4/__init__.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/p4/__init__.py)",
+    "usr/lib/python3/dist-packages/p4/v1/__init__.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/p4/v1/__init__.py)",
+    "usr/lib/python3/dist-packages/p4/config/__init__.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/p4/config/__init__.py)",
+    "usr/lib/python3/dist-packages/p4/config/v1/__init__.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/p4/config/v1/__init__.py)",
+    "usr/lib/python3/dist-packages/p4/tmp/__init__.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/p4/tmp/__init__.py)",
+    "usr/lib/python3/dist-packages/p4/server/__init__.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/p4/server/__init__.py)",
+    "usr/lib/python3/dist-packages/p4/server/v1/__init__.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/p4/server/v1/__init__.py)",
+    "usr/lib/python3/dist-packages/google/rpc/__init__.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/google/rpc/__init__.py)",
+    "usr/lib/python3/dist-packages/gnmi/__init__.py uid=0 gid=0 type=file mode=0644 content=$(location generated_python/gnmi/__init__.py)",
+    "usr/share/doc/p4lang-pi/LICENSE uid=0 gid=0 type=file mode=0644 content=$(location LICENSE)",
+    "usr/share/doc/p4lang-pi/copyright uid=0 gid=0 type=file mode=0644 content=$(location @pi_debian//:debian/copyright)"
+],
+    force_debug_build = False,
+)
+
+sonic_deploy_tar(
+    name = "development_arm64",
+    srcs = [
+    "include/PI/pi.h",
+    "include/PI/pi_base.h",
+    "include/PI/p4info.h",
+    "include/PI/pi_tables.h",
+    "include/PI/pi_value.h",
+    "include/PI/pi_act_prof.h",
+    "include/PI/pi_counter.h",
+    "include/PI/pi_meter.h",
+    "include/PI/pi_learn.h",
+    "include/PI/pi_mc.h",
+    "include/PI/pi_clone.h",
+    "include/PI/frontends/generic/pi.h",
+    "include/PI/p4info/actions.h",
+    "include/PI/p4info/tables.h",
+    "include/PI/p4info/act_profs.h",
+    "include/PI/p4info/counters.h",
+    "include/PI/p4info/meters.h",
+    "include/PI/p4info/digests.h",
+    "include/PI/int/pi_int.h",
+    "include/PI/int/serialize.h",
+    "include/PI/int/rpc_common.h",
+    "include/PI/target/pi_imp.h",
+    "include/PI/target/pi_tables_imp.h",
+    "include/PI/target/pi_act_prof_imp.h",
+    "include/PI/target/pi_counter_imp.h",
+    "include/PI/target/pi_meter_imp.h",
+    "include/PI/target/pi_learn_imp.h",
+    "include/PI/target/pi_mc_imp.h",
+    "include/PI/target/pi_clone_imp.h",
+    "frontends_extra/cpp/PI/frontends/cpp/tables.h",
+    "proto/PI/proto/util.h",
+    "proto/p4info/PI/proto/p4info_to_and_from_proto.h",
+    "proto/frontend/PI/frontends/proto/device_mgr.h",
+    "proto/frontend/PI/frontends/proto/logging.h",
+    "proto/server/PI/proto/pi_server.h",
+    "generated/p4/v1/p4data.pb.h",
+    "generated/p4/v1/p4data.grpc.pb.h",
+    "generated/p4/v1/p4runtime.pb.h",
+    "generated/p4/v1/p4runtime.grpc.pb.h",
+    "generated/p4/config/v1/p4info.pb.h",
+    "generated/p4/config/v1/p4info.grpc.pb.h",
+    "generated/p4/config/v1/p4types.pb.h",
+    "generated/p4/config/v1/p4types.grpc.pb.h",
+    "generated/google/rpc/status.pb.h",
+    "generated/google/rpc/status.grpc.pb.h",
+    "generated/google/rpc/code.pb.h",
+    "generated/google/rpc/code.grpc.pb.h",
+    "generated/p4/tmp/p4config.pb.h",
+    "generated/p4/tmp/p4config.grpc.pb.h",
+    "generated/gnmi/gnmi.pb.h",
+    "generated/gnmi/gnmi.grpc.pb.h",
+    "generated/p4/server/v1/config.pb.h",
+    "generated/p4/server/v1/config.grpc.pb.h",
+    ":pip4info_archive",
+    ":pi_archive",
+    ":pifegeneric_archive",
+    ":piall_archive",
+    ":picli_archive",
+    ":pi_dummy_archive",
+    ":pifecpp_archive",
+    ":piprotobuf_archive",
+    ":piprotogrpc_archive",
+    ":piconvertproto_archive",
+    ":pifeproto_archive",
+    ":pigrpcserver_archive"
+],
+    mtree = [
+    "usr/include/PI/pi.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/pi.h)",
+    "usr/include/PI/pi_base.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/pi_base.h)",
+    "usr/include/PI/p4info.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/p4info.h)",
+    "usr/include/PI/pi_tables.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/pi_tables.h)",
+    "usr/include/PI/pi_value.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/pi_value.h)",
+    "usr/include/PI/pi_act_prof.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/pi_act_prof.h)",
+    "usr/include/PI/pi_counter.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/pi_counter.h)",
+    "usr/include/PI/pi_meter.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/pi_meter.h)",
+    "usr/include/PI/pi_learn.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/pi_learn.h)",
+    "usr/include/PI/pi_mc.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/pi_mc.h)",
+    "usr/include/PI/pi_clone.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/pi_clone.h)",
+    "usr/include/PI/frontends/generic/pi.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/frontends/generic/pi.h)",
+    "usr/include/PI/p4info/actions.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/p4info/actions.h)",
+    "usr/include/PI/p4info/tables.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/p4info/tables.h)",
+    "usr/include/PI/p4info/act_profs.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/p4info/act_profs.h)",
+    "usr/include/PI/p4info/counters.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/p4info/counters.h)",
+    "usr/include/PI/p4info/meters.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/p4info/meters.h)",
+    "usr/include/PI/p4info/digests.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/p4info/digests.h)",
+    "usr/include/PI/int/pi_int.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/int/pi_int.h)",
+    "usr/include/PI/int/serialize.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/int/serialize.h)",
+    "usr/include/PI/int/rpc_common.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/int/rpc_common.h)",
+    "usr/include/PI/target/pi_imp.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/target/pi_imp.h)",
+    "usr/include/PI/target/pi_tables_imp.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/target/pi_tables_imp.h)",
+    "usr/include/PI/target/pi_act_prof_imp.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/target/pi_act_prof_imp.h)",
+    "usr/include/PI/target/pi_counter_imp.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/target/pi_counter_imp.h)",
+    "usr/include/PI/target/pi_meter_imp.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/target/pi_meter_imp.h)",
+    "usr/include/PI/target/pi_learn_imp.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/target/pi_learn_imp.h)",
+    "usr/include/PI/target/pi_mc_imp.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/target/pi_mc_imp.h)",
+    "usr/include/PI/target/pi_clone_imp.h uid=0 gid=0 type=file mode=0644 content=$(location include/PI/target/pi_clone_imp.h)",
+    "usr/include/PI/frontends/cpp/tables.h uid=0 gid=0 type=file mode=0644 content=$(location frontends_extra/cpp/PI/frontends/cpp/tables.h)",
+    "usr/include/PI/proto/util.h uid=0 gid=0 type=file mode=0644 content=$(location proto/PI/proto/util.h)",
+    "usr/include/PI/proto/p4info_to_and_from_proto.h uid=0 gid=0 type=file mode=0644 content=$(location proto/p4info/PI/proto/p4info_to_and_from_proto.h)",
+    "usr/include/PI/frontends/proto/device_mgr.h uid=0 gid=0 type=file mode=0644 content=$(location proto/frontend/PI/frontends/proto/device_mgr.h)",
+    "usr/include/PI/frontends/proto/logging.h uid=0 gid=0 type=file mode=0644 content=$(location proto/frontend/PI/frontends/proto/logging.h)",
+    "usr/include/PI/proto/pi_server.h uid=0 gid=0 type=file mode=0644 content=$(location proto/server/PI/proto/pi_server.h)",
+    "usr/include/p4/v1/p4data.pb.h uid=0 gid=0 type=file mode=0644 content=$(location generated/p4/v1/p4data.pb.h)",
+    "usr/include/p4/v1/p4data.grpc.pb.h uid=0 gid=0 type=file mode=0644 content=$(location generated/p4/v1/p4data.grpc.pb.h)",
+    "usr/include/p4/v1/p4runtime.pb.h uid=0 gid=0 type=file mode=0644 content=$(location generated/p4/v1/p4runtime.pb.h)",
+    "usr/include/p4/v1/p4runtime.grpc.pb.h uid=0 gid=0 type=file mode=0644 content=$(location generated/p4/v1/p4runtime.grpc.pb.h)",
+    "usr/include/p4/config/v1/p4info.pb.h uid=0 gid=0 type=file mode=0644 content=$(location generated/p4/config/v1/p4info.pb.h)",
+    "usr/include/p4/config/v1/p4info.grpc.pb.h uid=0 gid=0 type=file mode=0644 content=$(location generated/p4/config/v1/p4info.grpc.pb.h)",
+    "usr/include/p4/config/v1/p4types.pb.h uid=0 gid=0 type=file mode=0644 content=$(location generated/p4/config/v1/p4types.pb.h)",
+    "usr/include/p4/config/v1/p4types.grpc.pb.h uid=0 gid=0 type=file mode=0644 content=$(location generated/p4/config/v1/p4types.grpc.pb.h)",
+    "usr/include/google/rpc/status.pb.h uid=0 gid=0 type=file mode=0644 content=$(location generated/google/rpc/status.pb.h)",
+    "usr/include/google/rpc/status.grpc.pb.h uid=0 gid=0 type=file mode=0644 content=$(location generated/google/rpc/status.grpc.pb.h)",
+    "usr/include/google/rpc/code.pb.h uid=0 gid=0 type=file mode=0644 content=$(location generated/google/rpc/code.pb.h)",
+    "usr/include/google/rpc/code.grpc.pb.h uid=0 gid=0 type=file mode=0644 content=$(location generated/google/rpc/code.grpc.pb.h)",
+    "usr/include/p4/tmp/p4config.pb.h uid=0 gid=0 type=file mode=0644 content=$(location generated/p4/tmp/p4config.pb.h)",
+    "usr/include/p4/tmp/p4config.grpc.pb.h uid=0 gid=0 type=file mode=0644 content=$(location generated/p4/tmp/p4config.grpc.pb.h)",
+    "usr/include/gnmi/gnmi.pb.h uid=0 gid=0 type=file mode=0644 content=$(location generated/gnmi/gnmi.pb.h)",
+    "usr/include/gnmi/gnmi.grpc.pb.h uid=0 gid=0 type=file mode=0644 content=$(location generated/gnmi/gnmi.grpc.pb.h)",
+    "usr/include/p4/server/v1/config.pb.h uid=0 gid=0 type=file mode=0644 content=$(location generated/p4/server/v1/config.pb.h)",
+    "usr/include/p4/server/v1/config.grpc.pb.h uid=0 gid=0 type=file mode=0644 content=$(location generated/p4/server/v1/config.grpc.pb.h)",
+    "usr/lib/aarch64-linux-gnu/libpip4info.a uid=0 gid=0 type=file mode=0644 content=$(location :pip4info_archive)",
+    "usr/lib/aarch64-linux-gnu/libpi.a uid=0 gid=0 type=file mode=0644 content=$(location :pi_archive)",
+    "usr/lib/aarch64-linux-gnu/libpifegeneric.a uid=0 gid=0 type=file mode=0644 content=$(location :pifegeneric_archive)",
+    "usr/lib/aarch64-linux-gnu/libpiall.a uid=0 gid=0 type=file mode=0644 content=$(location :piall_archive)",
+    "usr/lib/aarch64-linux-gnu/libpicli.a uid=0 gid=0 type=file mode=0644 content=$(location :picli_archive)",
+    "usr/lib/aarch64-linux-gnu/libpi_dummy.a uid=0 gid=0 type=file mode=0644 content=$(location :pi_dummy_archive)",
+    "usr/lib/aarch64-linux-gnu/libpifecpp.a uid=0 gid=0 type=file mode=0644 content=$(location :pifecpp_archive)",
+    "usr/lib/aarch64-linux-gnu/libpiprotobuf.a uid=0 gid=0 type=file mode=0644 content=$(location :piprotobuf_archive)",
+    "usr/lib/aarch64-linux-gnu/libpiprotogrpc.a uid=0 gid=0 type=file mode=0644 content=$(location :piprotogrpc_archive)",
+    "usr/lib/aarch64-linux-gnu/libpiconvertproto.a uid=0 gid=0 type=file mode=0644 content=$(location :piconvertproto_archive)",
+    "usr/lib/aarch64-linux-gnu/libpifeproto.a uid=0 gid=0 type=file mode=0644 content=$(location :pifeproto_archive)",
+    "usr/lib/aarch64-linux-gnu/libpigrpcserver.a uid=0 gid=0 type=file mode=0644 content=$(location :pigrpcserver_archive)",
+    "usr/lib/aarch64-linux-gnu/libpip4info.so uid=0 gid=0 type=link link=libpip4info.so.0.0.0",
+    "usr/lib/aarch64-linux-gnu/libpi.so uid=0 gid=0 type=link link=libpi.so.0.0.0",
+    "usr/lib/aarch64-linux-gnu/libpifegeneric.so uid=0 gid=0 type=link link=libpifegeneric.so.0.0.0",
+    "usr/lib/aarch64-linux-gnu/libpiall.so uid=0 gid=0 type=link link=libpiall.so.0.0.0",
+    "usr/lib/aarch64-linux-gnu/libpicli.so uid=0 gid=0 type=link link=libpicli.so.0.0.0",
+    "usr/lib/aarch64-linux-gnu/libpi_dummy.so uid=0 gid=0 type=link link=libpi_dummy.so.0.0.0",
+    "usr/lib/aarch64-linux-gnu/libpifecpp.so uid=0 gid=0 type=link link=libpifecpp.so.0.0.0",
+    "usr/lib/aarch64-linux-gnu/libpiprotobuf.so uid=0 gid=0 type=link link=libpiprotobuf.so.0.0.0",
+    "usr/lib/aarch64-linux-gnu/libpiprotogrpc.so uid=0 gid=0 type=link link=libpiprotogrpc.so.0.0.0",
+    "usr/lib/aarch64-linux-gnu/libpiconvertproto.so uid=0 gid=0 type=link link=libpiconvertproto.so.0.0.0",
+    "usr/lib/aarch64-linux-gnu/libpifeproto.so uid=0 gid=0 type=link link=libpifeproto.so.0.0.0",
+    "usr/lib/aarch64-linux-gnu/libpigrpcserver.so uid=0 gid=0 type=link link=libpigrpcserver.so.0.0.0"
+],
+)
+
+alias(
+    name = "p4lang-pi.runtime",
+    actual = select({"@platforms//cpu:x86_64": ":p4lang-pi.runtime_amd64", "@platforms//cpu:aarch64": ":p4lang-pi.runtime_arm64"}),
+)
+
+alias(
+    name = "p4lang-pi.runtime.debug_symbols",
+    actual = select({"@platforms//cpu:x86_64": ":p4lang-pi.runtime_amd64.debug_symbols", "@platforms//cpu:aarch64": ":p4lang-pi.runtime_arm64.debug_symbols"}),
+)
+
+alias(
+    name = "development",
+    actual = select({"@platforms//cpu:x86_64": ":development_amd64", "@platforms//cpu:aarch64": ":development_arm64"}),
+)
+
+alias(
+    name = "runtime_libraries",
+    actual = "@pi_deps//:packages",
+)
+
+runtime_packages(
+    name = "p4lang-pi.runtime_metadata",
+    # dh_python3 supplies substvars and snippets; finalize their original scripts.
+    control_file_helpers = [["dh_installdeb"]],
+    debian_files = {"compat": "@pi_debian//:debian/compat"},
+    changelog = "@pi_debian//:debian/changelog",
+    control = "@pi_debian//:debian/control",
+    packages = {
+    "p4lang-pi": ":p4lang-pi.runtime"
+},
+    apt_packages = {
+    "@pi_deps//libabsl20240722:data": "@pi_deps//libabsl20240722:control",
+    "@pi_deps//libgrpc++1.51t64:data": "@pi_deps//libgrpc++1.51t64:control",
+    "@pi_deps//libgrpc29t64:data": "@pi_deps//libgrpc29t64:control",
+    "@pi_deps//libprotobuf32t64:data": "@pi_deps//libprotobuf32t64:control",
+    "@pi_deps//libreadline8t64:data": "@pi_deps//libreadline8t64:control",
+    "@pi_deps//libtinfo6:data": "@pi_deps//libtinfo6:control",
+    "@pi_deps//libssl3t64:data": "@pi_deps//libssl3t64:control",
+    "@pi_deps//libc-ares2:data": "@pi_deps//libc-ares2:control",
+    "@pi_deps//libre2-11:data": "@pi_deps//libre2-11:control",
+    "@pi_deps//zlib1g:data": "@pi_deps//zlib1g:control"
+},
+)
+
+exports_files(["LICENSE"])
+
+py_library(
+    name = "python",
+    srcs = [":generate_python", ":python_initializers"],
+    imports = ["generated_python"],
+)
+
+alias(name = "sdk_test", actual = ":upstream_tests")
+
+# `make check` builds these three examples even though they are not TESTS.
+source_build_tool(name = "pi_gen_fe_defines_tool", binary = ":pi_gen_fe_defines")
+genrule(
+    name = "router_defines",
+    srcs = ["examples/testdata/simple_router.json"],
+    outs = ["pi_fe_defines_router.h"],
+    tools = [":pi_gen_fe_defines_tool"],
+    cmd = '$(location :pi_gen_fe_defines_tool) -c $(location examples/testdata/simple_router.json) -d $(RULEDIR) -n router',
+)
+genrule(
+    name = "p4_defines",
+    srcs = ["examples/testdata/simple_router.json"],
+    outs = ["pi_fe_defines_p4.h"],
+    tools = [":pi_gen_fe_defines_tool"],
+    cmd = '$(location :pi_gen_fe_defines_tool) -c $(location examples/testdata/simple_router.json) -d $(RULEDIR) -n p4',
+)
+cc_binary(
+    name = "example_1",
+    features = ["-strip_debug_symbols"],
+    linkopts = ["-Wl,-z,relro", "-Wl,-z,now"],
+    copts = [
+        "-pthread",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-fstack-clash-protection",
+    "-Wformat",
+    "-Werror=format-security",
+    "-Wdate-time",
+    "-Werror=implicit-function-declaration"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    srcs = ["examples/example_1.c"],
+    deps = [":toolkit_headers", ":pi", ":pifegeneric", ":pip4info", ":pi_dummy"],
+    local_defines = [
+        "TESTDATADIR=\\\"" + ("../" + repository_name().lstrip("@") + "/" if repository_name() != "@" else "") + "examples/testdata\\\"",
+        "_FORTIFY_SOURCE=2"
+    ],
+    data = glob(["examples/testdata/**"]),
+    linkstatic = False,
+)
+cc_binary(
+    name = "example_2",
+    features = ["-strip_debug_symbols"],
+    linkopts = ["-Wl,-z,relro", "-Wl,-z,now"],
+    copts = [
+        "-pthread",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-fstack-clash-protection",
+    "-Wformat",
+    "-Werror=format-security",
+    "-Wdate-time",
+    "-Werror=implicit-function-declaration"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    srcs = ["examples/example_2.c", ":router_defines"],
+    deps = [":toolkit_headers", ":pi", ":pifegeneric", ":pip4info", ":pi_dummy"],
+    local_defines = [
+        "TESTDATADIR=\\\"" + ("../" + repository_name().lstrip("@") + "/" if repository_name() != "@" else "") + "examples/testdata\\\"",
+        "_FORTIFY_SOURCE=2"
+    ],
+    data = glob(["examples/testdata/**"]),
+    linkstatic = False,
+)
+cc_binary(
+    name = "cpp_example",
+    features = ["-strip_debug_symbols"],
+    linkopts = ["-Wl,-z,relro", "-Wl,-z,now"],
+    srcs = ["frontends_extra/cpp/example/example.cpp", ":p4_defines"],
+    deps = [":toolkit_headers", ":pi", ":pifecpp", ":pip4info", ":pi_dummy"],
+    local_defines = [
+        "TESTDATADIR=\\\"" + ("../" + repository_name().lstrip("@") + "/" if repository_name() != "@" else "") + "examples/testdata\\\"",
+        "_FORTIFY_SOURCE=2"
+    ],
+    data = glob(["examples/testdata/**"]),
+    copts = [
+        "-pthread",
+    "-std=c++17",
+    "-g",
+    "-O2",
+    "-fstack-protector-strong",
+    "-fstack-clash-protection",
+    "-Wformat",
+    "-Werror=format-security",
+    "-Wdate-time"
+] + ["-ffile-prefix-map=" + ("external/" + repository_name().lstrip("@") if repository_name() != "@" else ".") + "=."] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    linkstatic = False,
+)
+
+filegroup(
+    name = "check_programs",
+    testonly = True,
+    srcs = [
+    ":test_bmv2_json_reader",
+    ":test_read_file",
+    ":test_getnetv",
+    ":test_p4info",
+    ":test_frontends_generic",
+    ":test_all",
+    ":test_p4info_convert",
+    ":test_proto_fe",
+    ":test_proto_fe_bytestrings",
+    ":test_proto_fe_digest",
+    ":test_proto_fe_packet_io",
+    ":test_proto_fe_set_pipeline_config",
+    ":test_server_no_pipeline_config",
+    ":test_proto_fe_access_arbitration",
+    ":test_proto_fe_watch_port_enforcer",
+    ":test_server_gnmi",
+    ":test_server_arbitration",
+    ":test_pi_server",
+    ":test_task_queue",
+    ":test_server_config",
+    ":example_1",
+    ":example_2",
+    ":cpp_example"
+],
+)
+
+cc_library(
+    name = "toolkit_headers",
+    hdrs = [
+    "lib/_assert.h",
+    "lib/vector.h",
+    "lib/read_file.h"
+],
+    strip_include_prefix = "lib",
+    deps = [],
+    visibility = ["//:__pkg__"],
+)
+
+cc_library(
+    name = "core_private_headers",
+    hdrs = [
+    "src/p4info/actions_int.h",
+    "src/p4info/p4info_struct.h",
+    "src/p4info/tables_int.h",
+    "src/p4info/act_profs_int.h",
+    "src/p4info/counters_int.h",
+    "src/p4info/meters_int.h",
+    "src/p4info/digests_int.h",
+    "src/config_readers/readers.h",
+    "src/p4info/p4info_name_map.h",
+    "src/p4info/p4info_common.h",
+    "src/p4info_int.h",
+    "src/p4info/fast_id_vector.h",
+    "src/device_map.h",
+    "src/cb_mgr.h",
+    "src/pi_tables_int.h",
+    "src/pi_learn_int.h",
+    "src/utils/logging.h",
+    "src/utils/utils.h"
+],
+    strip_include_prefix = "src",
+    deps = [":pi_headers", ":uthash_headers", ":toolkit_headers"],
+    visibility = ["//:__pkg__"],
+)
+
+cc_library(
+    name = "server_config_headers",
+    hdrs = [
+    "proto/server_config/server_config.h"
+],
+    strip_include_prefix = "proto",
+    deps = [":protobuf_headers"],
+    visibility = ["//:__pkg__"],
+)
+
+cc_library(
+    name = "frontend_internal_headers",
+    hdrs = [
+    "proto/frontend/src/bimap.h",
+    "proto/frontend/src/access_arbitration.h",
+    "proto/frontend/src/action_prof_mgr.h",
+    "proto/frontend/src/table_info_store.h",
+    "proto/frontend/src/action_helpers.h",
+    "proto/frontend/src/match_key_helpers.h",
+    "proto/frontend/src/packet_io_mgr.h",
+    "proto/frontend/src/common.h",
+    "proto/frontend/src/logger.h",
+    "proto/frontend/src/report_error.h",
+    "proto/frontend/src/pre_mc_mgr.h",
+    "proto/frontend/src/pre_clone_mgr.h",
+    "proto/frontend/src/task_queue.h",
+    "proto/frontend/src/digest_mgr.h",
+    "proto/frontend/src/status_macros.h",
+    "proto/frontend/src/statusor.h",
+    "proto/frontend/src/idle_timeout_buffer.h",
+    "proto/frontend/src/watch_port_enforcer.h"
+],
+    strip_include_prefix = "proto/frontend",
+    deps = [":frontend_headers", ":cpp_headers", ":fmt", ":server_config_headers"],
+    visibility = ["//:__pkg__"],
+)
+
+cc_library(
+    name = "server_internal_headers",
+    hdrs = [
+    "proto/server/gnmi.h",
+    "proto/server/log.h",
+    "proto/server/uint128.h",
+    "proto/server/pi_server_testing.h"
+],
+    strip_include_prefix = "proto/server",
+    deps = [":grpc_headers"],
+    visibility = ["//:__pkg__"],
+)
+
+# Published BMv2 and DASH modules still consume these PI interfaces.
+alias(name = "runtime", actual = ":p4lang-pi.runtime")
+alias(name = "runtime.debug_symbols", actual = ":p4lang-pi.runtime.debug_symbols")
+alias(name = "runtime_packages.json", actual = ":p4lang-pi.runtime_metadata")
