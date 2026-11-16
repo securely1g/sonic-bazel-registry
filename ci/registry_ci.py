@@ -665,9 +665,73 @@ def module_runner(module: str, execution_architecture: str, p4_runner_profile: s
     return RUNNERS[execution_architecture]
 
 
+def planning_only_change(root: Path, base: str, head: str, paths: list[str]) -> bool:
+    """Classify selection-only CI changes; never exempt consumer execution code.
+
+    This is an impact classifier, not a sandbox or review substitute. Full
+    native runner tests and the ARM cross fixture still run after planning.
+    Unknown changes retain the full consumer matrix (and its dispatch cap).
+    """
+    functions = {"plan", "planning_only_change"}
+    old_guard = "if: ${{ always() && !cancelled() }}"
+    new_guard = "if: ${{ !cancelled() && needs.plan.result == 'success' }}"
+    for path in paths:
+        parts = PurePosixPath(path).parts
+        if (len(parts) == 3 and parts[:2] == ("ci", "tests")
+                and parts[2].startswith("test_") and parts[2].endswith(".py")):
+            record = git(root, "ls-tree", head, "--", path).split()
+            if not record or record[0] not in ("100644", "100755"):
+                return False  # Deleted/symlinked tests are not covered by discovery.
+            continue  # The unchanged runner discovers these tests, including new ones.
+        if path not in ("ci/registry_ci.py", ".github/workflows/registry-ci.yml"):
+            return False
+        try:
+            old = git(root, "show", f"{base}:{path}")
+            new = git(root, "show", f"{head}:{path}")
+        except subprocess.CalledProcessError:
+            return False  # Added/deleted CI executors cannot be proven unchanged.
+        if path == "ci/registry_ci.py":
+            try:
+                trees = [ast.parse(text) for text in (old, new)]
+            except SyntaxError:
+                return False
+            for tree in trees:
+                tree.body = [node for node in tree.body
+                             if not (isinstance(node, ast.FunctionDef) and node.name in functions)]
+            # Only the literal trusted-context plumbing keyword is normalized.
+            # Any different expression or any other main/CLI/executor change
+            # remains visible in the complete AST comparison.
+            expected_context = ast.dump(ast.parse(
+                'os.environ.get("REGISTRY_READINESS_PR", "")', mode="eval").body,
+                include_attributes=False)
+            for tree in trees:
+                for node in ast.walk(tree):
+                    if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "plan":
+                        node.keywords = [kw for kw in node.keywords if not (
+                            kw.arg == "readiness_pr" and ast.dump(kw.value, include_attributes=False) == expected_context)]
+            # CLI, imports, constants and every executor otherwise stay equal.
+            if ast.dump(trees[0], include_attributes=False) != ast.dump(trees[1], include_attributes=False):
+                return False
+        else:
+            # Admit only the two fail-closed dependency guards. Any runner,
+            # command, token, target or aggregate change needs broad validation.
+            context_line = "          REGISTRY_READINESS_PR: ${{ github.event_name == 'pull_request' && github.repository == 'securely1g/sonic-bazel-registry' && (github.event.pull_request.number == 234 || github.event.pull_request.number == 235) && format('{0}', github.event.pull_request.number) || '' }}\n"
+            if new.count(context_line) != 1:
+                return False
+            if old.count(old_guard) != 2 or new.replace(context_line, "", 1) != old.replace(old_guard, new_guard):
+                return False
+    return True
+
+
 def plan(root: Path, base: str | None, head: str | None, all_versions: bool = False,
          latest_versions: bool = False, published: str | None = None,
-         push: bool = False, p4_runner_profile: str = "large") -> dict:
+         push: bool = False, p4_runner_profile: str = "large",
+         max_jobs: int | None = None, readiness_pr: str = "") -> dict:
+    require(readiness_pr in ("", "234", "235"), "Unknown bounded readiness policy")
+    require(not readiness_pr or (base and not push and not all_versions and not latest_versions),
+            "Bounded readiness policy requires a pull-request comparison")
+    require(max_jobs is None or (type(max_jobs) is int and max_jobs > 0),
+            "max_jobs must be a positive integer")
     require(p4_runner_profile in ("standard", "large"), "Invalid P4 runner profile")
     require(not (all_versions and latest_versions), "Choose either --all or --latest")
     require(not ((all_versions or latest_versions) and base),
@@ -687,9 +751,11 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
         require(re.fullmatch(r"[0-9a-fA-F]{40,64}", base) is not None
                 and re.fullmatch(r"[0-9a-fA-F]{40,64}", head) is not None,
                 "base and head must be full commit SHAs")
-        # A PR compares its own changes with the common ancestor. Releases
-        # added only to its target branch are not deletions from this checkout.
-        comparison_base = base if push else git(root, "merge-base", base, head).strip()
+        # The event base may predate a maintained-main integration. Compare the
+        # complete proposed stack against maintained publication history, just
+        # like check_version_policy; inherited main changes are not PR changes.
+        # Do not use HEAD as baseline: that would hide actual edits/deletions.
+        comparison_base = base if push else git(root, "merge-base", published, head).strip()
         changed = git(root, "diff", "--name-only", "--no-renames", "-z", comparison_base, head).split("\0")
         ci_changed = False
         for name in filter(None, changed):
@@ -744,7 +810,9 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
                     # deletion already failed check_version_policy above.
                     if (root / "modules" / module / parts[2]).exists():
                         selected.add((module, parts[2]))
-        if ci_changed:
+        ci_paths = [name for name in changed if name and (
+            name.startswith(("ci/", ".github/")) or name == "bazel_registry.json")]
+        if ci_changed and not planning_only_change(root, comparison_base, head, ci_paths):
             selected.update(latest_presubmits(root))
             selected.update(ADDITIONAL_PRESUBMITS)
     require(type(ARM_CROSS_ALL) is bool, "ARM cross survey selection must be boolean")
@@ -765,6 +833,24 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
                             "execution_architecture": execution_architecture,
                             "cross_compile": cross_compile,
                             "runner": module_runner(module, execution_architecture, p4_runner_profile)})
+    # Fail before writing plan.json or publishing matrix outputs. Never truncate
+    # the required matrix: that would misrepresent coverage as successful.
+    require(max_jobs is None or len(include) <= max_jobs,
+            f"Predispatch scope exceeded: {len(include)} required jobs > {max_jobs}; "
+            "no jobs selected for dispatch. Preserve required coverage and obtain "
+            "an explicit broad-validation disposition before publication.")
+    if readiness_pr:
+        expected = {
+            "235": {("sonic-dhcp-relay", "0.1.0-3c5fb7b55b2f2a93bbe493f8ed3eb670e8663622", "amd64", "amd64", False)},
+            "234": {("sonic-fips", "0.0.5-429b0668a80fabc3d05b3fb67ccda900d863ae3c", arch, arch, False)
+                    for arch in ("amd64", "arm64")},
+        }[readiness_pr]
+        actual = {(j["module"], j["version"], j["architecture"],
+                   j["execution_architecture"], j["cross_compile"]) for j in include}
+        require(actual == expected and len(include) == len(expected),
+                f"Predispatch scope mismatch for PR{readiness_pr}: required matrix "
+                "differs from its exact reviewed module/version/native-architecture scope; "
+                "no plan outputs published and no required jobs truncated")
     return {"include": include}
 
 
@@ -1849,7 +1935,8 @@ def main() -> None:
     try:
         if args.command == "plan":
             result = plan(ROOT, args.base, args.head, args.all_versions, args.latest_versions,
-                          published=args.published, push=args.push, p4_runner_profile=args.p4_runner_profile)
+                          published=args.published, push=args.push, p4_runner_profile=args.p4_runner_profile,
+                          readiness_pr=os.environ.get("REGISTRY_READINESS_PR", ""))
             args.output.parent.mkdir(parents=True, exist_ok=True)
             args.output.write_text(json.dumps(result, indent=2) + "\n")
             print(json.dumps(result, separators=(",", ":")))
