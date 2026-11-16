@@ -1,0 +1,43 @@
+diff --git a/apt/private/deb_import.bzl b/apt/private/deb_import.bzl
+--- a/apt/private/deb_import.bzl
++++ b/apt/private/deb_import.bzl
+@@ -1,5 +1,6 @@
+ "deb_import"
+ 
++load("//apt/private:headers.bzl", "is_include_fragment")
+ load(":lockfile.bzl", "lockfile")
+ load(":linker_script.bzl", "linker_script")
+ load(":pkgconfig.bzl", "pkgconfig")
+@@ -235,7 +236,7 @@
+             a_files.append(line)
+         elif line.endswith(".pc") and line.find("pkgconfig"):
+             pc_files.append(line)
+-        elif line.endswith(".h") or (line.startswith("usr/include/") and line.endswith(".inc")):
++        elif line.endswith(".h") or is_include_fragment(line):
+             h_files.append(line)
+         elif line.endswith(".hpp"):
+             hpp_files.append(line)
+diff --git a/apt/private/headers.bzl b/apt/private/headers.bzl
+new file mode 100644
+--- /dev/null
++++ b/apt/private/headers.bzl
+@@ -0,0 +1,9 @@
++"""Recognize installed C/C++ include fragments in Debian SDK imports."""
++
++# Match the C/C++ header suffixes supported by rules_cc 0.2.16. The caller
++# handles .h/.hpp separately; these extra forms must also reach CcInfo.
++_FRAGMENT_SUFFIXES = [".hh", ".ipp", ".hxx", ".h++", ".inc", ".inl", ".tlh", ".tli", ".H", ".tcc"]
++
++def is_include_fragment(path):
++    """Whether an installed include file has a supported fragment suffix."""
++    return path.startswith("usr/include/") and any([path.endswith(suffix) for suffix in _FRAGMENT_SUFFIXES])
+diff --git a/MODULE.bazel b/MODULE.bazel
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -14,5 +14,6 @@
+ bazel_dep(name = "platforms", version = "0.0.10")
+ bazel_dep(name = "rules_cc", version = "0.2.8")
++bazel_dep(name = "rules_foreign_cc", version = "0.16.0")
+ bazel_dep(name = "rules_java", version = "8.8.0")
+ bazel_dep(name = "rules_shell", version = "0.4.1")
+ bazel_dep(name = "gawk", version = "5.3.2.bcr.3")

@@ -1,0 +1,73 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "ygot",
+    srcs = [
+        "diff.go",
+        "helpers.go",
+        "path_types.go",
+        "pathstrings.go",
+        "proto.go",
+        "render.go",
+        "schema.go",
+        "struct_validation_map.go",
+        "types.go",
+    ],
+    importpath = "github.com/openconfig/ygot/ygot",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//proto/yext",
+        "//proto/ywrapper",
+        "//util",
+        "@com_github_golang_protobuf//proto",
+        "@com_github_google_go_cmp//cmp",
+        "@com_github_kylelemons_godebug//pretty",
+        "@com_github_openconfig_gnmi//errlist",
+        "@com_github_openconfig_gnmi//proto/gnmi",
+        "@com_github_openconfig_gnmi//value",
+        "@com_github_openconfig_goyang//pkg/yang",
+        "@org_golang_google_protobuf//proto",
+        "@org_golang_google_protobuf//reflect/protoreflect",
+        "@org_golang_google_protobuf//types/descriptorpb",
+    ],
+)
+
+alias(
+    name = "go_default_library",
+    actual = ":ygot",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "ygot_test",
+    srcs = [
+        "diff_test.go",
+        "helpers_test.go",
+        "path_types_test.go",
+        "pathstrings_test.go",
+        "proto_test.go",
+        "render_test.go",
+        "schema_test.go",
+        "sonic_json_test.go",
+        "sonic_map_merge_test.go",
+        "struct_validation_map_test.go",
+    ],
+    args = ["-test.v"],
+    data = glob(["testdata/*.json-txt"]),
+    embed = [":ygot"],
+    deps = [
+        "//proto/ywrapper",
+        "//testutil",
+        "//util",
+        "//ygot/testdata/exschemapath",
+        "@com_github_golang_protobuf//proto",
+        "@com_github_google_go_cmp//cmp",
+        "@com_github_google_go_cmp//cmp/cmpopts",
+        "@com_github_kylelemons_godebug//pretty",
+        "@com_github_openconfig_gnmi//errdiff",
+        "@com_github_openconfig_gnmi//proto/gnmi",
+        "@com_github_openconfig_goyang//pkg/yang",
+        "@org_golang_google_protobuf//proto",
+        "@org_golang_google_protobuf//testing/protocmp",
+    ],
+)

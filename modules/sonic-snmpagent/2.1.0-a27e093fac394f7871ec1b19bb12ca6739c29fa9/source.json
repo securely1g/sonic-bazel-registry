@@ -1,0 +1,8 @@
+{
+  "url": "https://github.com/securely1g/sonic-snmpagent/archive/a27e093fac394f7871ec1b19bb12ca6739c29fa9.tar.gz",
+  "integrity": "sha256-ekmRGRR5DeuTknUNVE80w7Mc6Q5FQlJ/C88UB0UNh/E=",
+  "strip_prefix": "sonic-snmpagent-a27e093fac394f7871ec1b19bb12ca6739c29fa9",
+  "overlay": {
+    "MODULE.bazel": "sha256-Sdyb17nNEe6FkeqHk7DHaIcaHzZiXaUwIW6AL4L6M0M="
+  }
+}

@@ -1,0 +1,22 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "ocdemo",
+    srcs = [
+        "ocdemo.go",
+        "//demo/getting_started:generated_oc",
+    ],
+    importpath = "github.com/openconfig/ygot/demo/getting_started/pkg/ocdemo",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//ygot",
+        "//ytypes",
+        "@com_github_openconfig_goyang//pkg/yang",
+    ],
+)
+
+alias(
+    name = "go_default_library",
+    actual = ":ocdemo",
+    visibility = ["//visibility:public"],
+)

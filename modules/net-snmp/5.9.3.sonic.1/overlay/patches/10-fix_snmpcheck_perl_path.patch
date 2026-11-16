@@ -1,0 +1,9 @@
+diff --git a/local/snmpcheck.def b/local/snmpcheck.def
+--- a/local/snmpcheck.def
++++ b/local/snmpcheck.def
+@@ -1,4 +1,4 @@
+-#!/usr/local/bin/perl -w
++#!/usr/bin/perl 
+ 
+ use strict 'refs';
+ require Net::Ping;

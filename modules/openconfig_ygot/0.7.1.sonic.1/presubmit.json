@@ -1,0 +1,43 @@
+{
+  "generated_module_overlay": true,
+  "architectures": [
+    "amd64"
+  ],
+  "consumer_deps": [],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
+  },
+  "build_targets": [
+    "@openconfig_ygot//generator:generator",
+    "//:shared_types_test"
+  ],
+  "test_targets": [
+    "@openconfig_ygot//demo/bgp:bgp_test",
+    "@openconfig_ygot//demo/device:device_test",
+    "@openconfig_ygot//demo/getting_started:getting_started_test",
+    "@openconfig_ygot//demo/gnmi_telemetry:gnmi_telemetry_test",
+    "@openconfig_ygot//demo/optical:optical_test",
+    "@openconfig_ygot//demo/protobuf_getting_started:protobuf_getting_started_test",
+    "@openconfig_ygot//demo/uncompressed:uncompressed_test",
+    "@openconfig_ygot//experimental/ygotutils:ygotutils_test",
+    "@openconfig_ygot//generator:generator_test",
+    "@openconfig_ygot//genutil:genutil_test",
+    "@openconfig_ygot//integration_tests/uncompressed:uncompressed_test",
+    "@openconfig_ygot//testcmp:testcmp_test",
+    "@openconfig_ygot//testutil:testutil_test",
+    "@openconfig_ygot//util:util_test",
+    "@openconfig_ygot//ygen/schema_tests:schema_tests_test",
+    "@openconfig_ygot//ygen:ygen_test",
+    "@openconfig_ygot//ygot/pathtranslate:pathtranslate_test",
+    "@openconfig_ygot//ygot/schema_tests:schema_tests_test",
+    "@openconfig_ygot//ygot:ygot_test",
+    "@openconfig_ygot//ypathgen/generator:generator_test",
+    "@openconfig_ygot//ypathgen/path_tests:path_tests_test",
+    "@openconfig_ygot//ypathgen:ypathgen_test",
+    "@openconfig_ygot//ytypes/schema_tests:schema_tests_test",
+    "@openconfig_ygot//ytypes:ytypes_test",
+    "@openconfig_ygot//ygen:sonic_union_order_test",
+    "//:shared_types_test"
+  ],
+  "integration_test_module": "integration"
+}

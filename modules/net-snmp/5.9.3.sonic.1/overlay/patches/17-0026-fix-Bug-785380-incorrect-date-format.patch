@@ -1,0 +1,13 @@
+diff --git a/local/traptoemail b/local/traptoemail
+--- a/local/traptoemail
++++ b/local/traptoemail
+@@ -12,6 +12,9 @@
+ use Net::SMTP;
+ use Getopt::Std;
+ use POSIX qw(strftime);
++
++# for sane timestamp format
++$ENV{LANG} = 'C';
+ 
+ $opts{'s'} = "localhost";
+ $opts{'f'} = 'root@' . `hostname`;

@@ -1,0 +1,48 @@
+{
+  "debian": {
+    "current": "20260727T143429Z",
+    "probe": {
+      "path": "pool/main/a/audit/libaudit-dev_4.0.2-2+b2_amd64.deb",
+      "sha256": "4104cf1149947db1a3450b2a13aab23000a695aa6981f515216129ad8b884423"
+    },
+    "snapshots": {
+      "20260727T143429Z": {
+        "bookworm": {
+          "Packages": ["", ".gz", ".xz"],
+          "Contents": ["", ".gz"]
+        },
+        "bookworm-updates": {
+          "Packages": ["", ".xz"],
+          "Contents": ["", ".gz"]
+        },
+        "trixie": {
+          "Packages": ["", ".gz", ".xz"],
+          "Contents": ["", ".gz"]
+        },
+        "trixie-updates": {
+          "Packages": ["", ".xz"],
+          "Contents": ["", ".gz"]
+        }
+      }
+    }
+  },
+  "debian-security": {
+    "current": "20260726T121236Z",
+    "probe": {
+      "path": "pool/updates/main/c/c-ares/libc-ares-dev_1.34.5-1+deb13u1_arm64.deb",
+      "sha256": "40d2336fb01e4b707ad8a6bfbad522fc7ddff3b057d16ee981237fb7cef5d95c"
+    },
+    "snapshots": {
+      "20260726T121236Z": {
+        "bookworm-security": {
+          "Packages": ["", ".xz"],
+          "Contents": ["", ".gz"]
+        },
+        "trixie-security": {
+          "Packages": ["", ".xz"],
+          "Contents": ["", ".gz"]
+        }
+      }
+    }
+  }
+}

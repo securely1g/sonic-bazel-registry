@@ -1,0 +1,53 @@
+From: Guohan Lu <securely1g@gmail.com>
+Subject: [PATCH] Isolate the native TLS fixture on a loopback ephemeral port
+
+The complete installed-wheel suite also exercises Scapy TLS automatons on
+59000. Let the operating system select a distinct port for each native SSL
+fixture instead of colliding with that fixed port. Preserve every handshake,
+packet, post-handshake authentication, Hello-Retry and shutdown assertion.
+This changes only the test server/client fixture, never Scapy production code.
+
+--- a/test/scapy/layers/tls/tlsclientserver.uts
++++ b/test/scapy/layers/tls/tlsclientserver.uts
+@@ -460,6 +460,7 @@
+     context.verify_mode = ssl.CERT_REQUIRED
+     context.load_cert_chain(certfile=certfile, keyfile=keyfile)
+     
++    native_port = []
+     lock = threading.Lock()
+     lock.acquire()
+     
+@@ -467,7 +468,8 @@
+         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+         server.settimeout(1)
+         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+-        server.bind(("0.0.0.0", 59000))
++        server.bind(("127.0.0.1", 0))
++        native_port.append(server.getsockname()[1])
+         server.listen(5)
+         # Sync
+         lock.release()
+@@ -498,12 +500,12 @@
+     server = threading.Thread(target=ssl_server)
+     server.start()
+     assert lock.acquire(timeout=5), "Server failed to start in time !"
+-    return server
++    return server, native_port[0]
+ 
+ 
+ def test_tls_client_native(post_handshake_auth=False,
+                            with_hello_retry=False):
+-    server = run_tls_native_test_server(
++    server, server_port = run_tls_native_test_server(
+         post_handshake_auth=post_handshake_auth,
+         with_hello_retry=with_hello_retry,
+     )
+@@ -511,7 +513,7 @@
+     a = TLSClientAutomaton.tlslink(
+         HTTP,
+         server="127.0.0.1",
+-        dport=59000,
++        dport=server_port,
+         version="tls13",
+         mycert=certfile,
+         mykey=keyfile,

@@ -1,0 +1,15 @@
+diff --git a/snmplib/snmpusm.c b/snmplib/snmpusm.c
+--- a/snmplib/snmpusm.c
++++ b/snmplib/snmpusm.c
+@@ -3693,6 +3693,11 @@
+     netsnmp_pdu    *pdu = NULL, *response = NULL;
+     int status, i;
+ 
++    if (slp->session->securityEngineIDLen != 0) {
++        DEBUGMSGTL(("snmp_api", "engineID already known, skipping probe\n"));
++        return SNMPERR_SUCCESS;
++    }
++
+     if (usm_build_probe_pdu(&pdu) != 0) {
+         DEBUGMSGTL(("snmp_api", "unable to create probe PDU\n"));
+         return SNMP_ERR_GENERR;

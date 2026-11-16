@@ -1,0 +1,48 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.35-4016babb62e9eb97a71398b4d77ec9cfa5c62062",
+      "repo_name": "sonic_build_infra"
+    },
+    {
+      "name": "tar.bzl",
+      "version": "0.10.5.sonic.2"
+    },
+    {
+      "name": "rules_distroless",
+      "version": "0.9.4.sonic.18"
+    },
+    {
+      "name": "rules_cc",
+      "version": "0.2.20"
+    },
+    {
+      "name": "rules_rs",
+      "version": "0.1.0"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
+  },
+  "host_platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
+  },
+  "build_targets": [
+    "@sonic-dhcpmon//:runtime",
+    "@sonic-dhcpmon//:runtime.debug_symbols",
+    "@sonic-dhcpmon//:monitor_metadata"
+  ],
+  "test_targets": [
+    "@sonic-dhcpmon//:util_behavior_test"
+  ],
+  "rust_toolchain": {
+    "version": "1.90.0"
+  }
+}

@@ -1,0 +1,7 @@
+# FRR image APT collections
+
+Register published source commit `ba2bcb7275e187909a57b5a14a361f759f77c199` from [infrastructure #99](https://github.com/securely1g/sonic-build-infra/pull/99) for [buildimage #137](https://github.com/securely1g/sonic-buildimage/pull/137). This source contains AMD64 `frr_image_debian`, `frr_image_debug_debian` and `frr_image_test_debian` selections in the shared APT production lock. FRR, libFIB and the FIPS OpenSSH client remain source-owned installation TARs.
+
+The source integrates maintained infrastructure master `65cb1f78851582c7ad0a0412258dc6ab7effa91e`, including the hermetic Python updater and sFlow package collection. All 2,430 maintained package records and 59 maintained collections retain their contents; the five additional FRR package records and three image collections preserve their reviewed versions and hashes. The source PR must land before this registration's dependency chain is ready.
+
+`source.json` pins the actual downloaded GitHub commit archive and its SHA-256 integrity. The version patch binds source module `0.0.32` to this registered revision; the complete registered MODULE matches the fetched source after that patch. The second patch, overlays and native AMD64/ARM64 presubmit configuration retain the previous published entry's contracts, including the shared APT lock tests. The FRR consumer separately builds and validates the resulting runtime/debug images and their installed services.
