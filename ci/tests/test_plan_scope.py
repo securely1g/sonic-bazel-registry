@@ -2,6 +2,7 @@
 from pathlib import Path
 import unittest
 from unittest import mock
+import json
 from test_registry_ci import FixtureTestCase, registry_ci
 
 
@@ -106,6 +107,26 @@ class PredispatchScopeTests(FixtureTestCase):
             self.entry(module, "1.0.0")
         head = self.commit("legitimate three-job unrelated PR")
         self.assertEqual(len(registry_ci.plan(self.root, base, head, published=base)["include"]), 3)
+
+    def test_exact_assigned_pairs_and_wrong_architecture(self):
+        self.entry("alpha", "1.0.0")
+        base = self.commit("published")
+        version = "0.0.5-15d00ac1f675a946ba17d4dba115dd576ead7316"
+        entry = self.entry("sonic-fips", version)
+        path = entry / "presubmit.json"
+        cfg = json.loads(path.read_text())
+        cfg["architectures"] = ["amd64", "arm64"]
+        cfg["platforms"]["arm64"] = "@platforms//host:host"
+        path.write_text(json.dumps(cfg))
+        head = self.commit("exact FIPS native pair")
+        result = registry_ci.plan(self.root, base, head, published=base, readiness_pr="234")
+        self.assertEqual(len(result["include"]), 2)
+        cfg["architectures"] = ["amd64"]
+        del cfg["platforms"]["arm64"]
+        path.write_text(json.dumps(cfg))
+        head = self.commit("missing required native ARM lane")
+        with self.assertRaisesRegex(registry_ci.RegistryError, "scope mismatch"):
+            registry_ci.plan(self.root, base, head, published=base, readiness_pr="234")
 
     def test_rejected_scope_writes_no_plan_file(self):
         output = self.root / "plan.json"
