@@ -667,7 +667,10 @@ def module_runner(module: str, execution_architecture: str, p4_runner_profile: s
 
 def plan(root: Path, base: str | None, head: str | None, all_versions: bool = False,
          latest_versions: bool = False, published: str | None = None,
-         push: bool = False, p4_runner_profile: str = "large") -> dict:
+         push: bool = False, p4_runner_profile: str = "large",
+         max_jobs: int | None = None) -> dict:
+    require(max_jobs is None or (type(max_jobs) is int and max_jobs > 0),
+            "max_jobs must be a positive integer")
     require(p4_runner_profile in ("standard", "large"), "Invalid P4 runner profile")
     require(not (all_versions and latest_versions), "Choose either --all or --latest")
     require(not ((all_versions or latest_versions) and base),
@@ -687,9 +690,11 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
         require(re.fullmatch(r"[0-9a-fA-F]{40,64}", base) is not None
                 and re.fullmatch(r"[0-9a-fA-F]{40,64}", head) is not None,
                 "base and head must be full commit SHAs")
-        # A PR compares its own changes with the common ancestor. Releases
-        # added only to its target branch are not deletions from this checkout.
-        comparison_base = base if push else git(root, "merge-base", base, head).strip()
+        # The event base may predate a maintained-main integration. Compare the
+        # complete proposed stack against maintained publication history, just
+        # like check_version_policy; inherited main changes are not PR changes.
+        # Do not use HEAD as baseline: that would hide actual edits/deletions.
+        comparison_base = base if push else git(root, "merge-base", published, head).strip()
         changed = git(root, "diff", "--name-only", "--no-renames", "-z", comparison_base, head).split("\0")
         ci_changed = False
         for name in filter(None, changed):
@@ -765,6 +770,12 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
                             "execution_architecture": execution_architecture,
                             "cross_compile": cross_compile,
                             "runner": module_runner(module, execution_architecture, p4_runner_profile)})
+    # Fail before writing plan.json or publishing matrix outputs. Never truncate
+    # the required matrix: that would misrepresent coverage as successful.
+    require(max_jobs is None or len(include) <= max_jobs,
+            f"Predispatch scope exceeded: {len(include)} required jobs > {max_jobs}; "
+            "no jobs selected for dispatch. Preserve required coverage and obtain "
+            "an explicit broad-validation disposition before publication.")
     return {"include": include}
 
 
@@ -1823,6 +1834,8 @@ def main() -> None:
                        help="test latest non-yanked versions and explicit additional presubmits")
     planner.add_argument("--p4-runner-profile", choices=("standard", "large"), default="large",
                          help="AMD64 execution pool for P4C, BMv2 and DASH")
+    planner.add_argument("--max-jobs", type=int,
+                         help="fail closed rather than dispatch or truncate a larger required matrix")
     planner.add_argument("--output", required=True, type=Path)
     synchronizer = subparsers.add_parser("sync-module", help="generate or check an opted-in MODULE overlay")
     synchronizer.add_argument("--module", required=True)
@@ -1849,7 +1862,8 @@ def main() -> None:
     try:
         if args.command == "plan":
             result = plan(ROOT, args.base, args.head, args.all_versions, args.latest_versions,
-                          published=args.published, push=args.push, p4_runner_profile=args.p4_runner_profile)
+                          published=args.published, push=args.push, p4_runner_profile=args.p4_runner_profile,
+                          max_jobs=args.max_jobs)
             args.output.parent.mkdir(parents=True, exist_ok=True)
             args.output.write_text(json.dumps(result, indent=2) + "\n")
             print(json.dumps(result, separators=(",", ":")))

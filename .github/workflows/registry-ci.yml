@@ -98,8 +98,10 @@ jobs:
           printf 'Event: %s\nPublished baseline: %s\nPR base: %s\nHead: %s\n' \
             "$EVENT_NAME" "$PUBLISHED_SHA" "$BASE_SHA" "$HEAD_SHA" | tee plan.log
           if [[ "$EVENT_NAME" == pull_request ]]; then
+            # One-module registration scope: at most the two declared native
+            # architectures. Fail closed; never truncate a broader required plan.
             python3 ci/registry_ci.py plan --p4-runner-profile="$P4_RUNNER_PROFILE" --published "$PUBLISHED_SHA" \
-              --base "$BASE_SHA" --head "$HEAD_SHA" --output plan.json 2>&1 | tee -a plan.log
+              --max-jobs=2 --base "$BASE_SHA" --head "$HEAD_SHA" --output plan.json 2>&1 | tee -a plan.log
           elif [[ "$EVENT_NAME" == workflow_dispatch && "$ALL_VERSIONS" == true ]]; then
             python3 ci/registry_ci.py plan --p4-runner-profile="$P4_RUNNER_PROFILE" --published "$PUBLISHED_SHA" \
               --head "$HEAD_SHA" --all --output plan.json 2>&1 | tee -a plan.log
@@ -151,7 +153,7 @@ jobs:
   unit:
     name: Registry runner tests (${{ matrix.architecture }})
     needs: plan
-    if: ${{ always() && !cancelled() }}
+    if: ${{ !cancelled() && needs.plan.result == 'success' }}
     strategy:
       fail-fast: false
       matrix:
@@ -273,7 +275,7 @@ jobs:
   cross_fixture:
     name: ARM cross compiler and runtime fixture
     needs: plan
-    if: ${{ always() && !cancelled() }}
+    if: ${{ !cancelled() && needs.plan.result == 'success' }}
     runs-on: [self-hosted, Linux, X64, debian-trixie-container]
     timeout-minutes: 60
     env:
