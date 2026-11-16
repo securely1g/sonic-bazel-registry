@@ -1,0 +1,6 @@
+exports_files([
+    "0002-use-boost-1.83.patch",
+    "0003-remove-protobuf-from-debian-dependency.patch",
+    "0004-remove-init-file.patch",
+    "sdk_test.cc"
+])
