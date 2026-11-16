@@ -1230,3 +1230,18 @@ Registered SONiC patches may retain a Go pseudo-version suffix, for example
 SONiC patch number and separator precedence. Equal release/patch snapshots
 continue to use metadata registration order; hashes/timestamps are not sorted.
 Malformed or unrelated suffixes remain rejected.
+
+### Source-owned root dependency patches
+
+A generated consumer may declare `source_patches` and nonnegative `patch_strip`
+on a `consumer_deps` item. These become `single_version_override` patch arguments
+at the real consumer root, not invalid `bazel_dep` arguments. Every patch must be
+a unique `.patch` label in the exact tested module (`@<module>//...`); external
+URLs, other repositories, traversal, arbitrary override commands and self-version
+overrides remain rejected. The tested module's immutable archive/recipe integrity
+pins the patch bytes. Existing dependencies without this opt-in generate identical
+root declarations. An integration-test MODULE still cannot override sources.
+This supports source-maintained execution-tool compatibility patches whose
+root-only declarations otherwise do not propagate to external consumers. It does
+not change source archive integrity, relax published-entry immutability or exempt
+this shared runner change from any consumer presubmit coverage.
