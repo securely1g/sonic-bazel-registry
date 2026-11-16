@@ -92,7 +92,10 @@ class FixtureTestCase(unittest.TestCase):
     def selected(self, base: str, head: str, published: str | None = None) -> set[tuple[str, str]]:
         return {
             (job["module"], job["version"])
-            for job in registry_ci.plan(self.root, base, head, published=published or base)["include"]
+            # Inspect the complete required set independently of the PR dispatch
+            # cap, whose rejection controls live in test_plan_scope.py.
+            for job in registry_ci.plan(self.root, base, head, published=published or base,
+                                        max_jobs=100)["include"]
         }
 
 
