@@ -1,0 +1,791 @@
+diff --git a/replacement-source/.aspect/workflows/config.yaml b/.aspect/workflows/config.yaml
+new file mode 100644
+index 0000000..cc733e4
+--- /dev/null
++++ b/.aspect/workflows/config.yaml
+@@ -0,0 +1,13 @@
++# See https://docs.aspect.build/workflows/configuration
++workspaces:
++  - .
++  - e2e/smoke:
++      tasks:
++        - buildifier:
++            without: true
++tasks:
++  - buildifier:
++  - test:
++      queue: aspect-large
++notifications:
++  github: {}
+diff --git a/.bcr/presubmit.yml b/.bcr/presubmit.yml
+index 17ad62c..17f88e8 100644
+--- a/.bcr/presubmit.yml
++++ b/.bcr/presubmit.yml
+@@ -1,7 +1,7 @@
+ bcr_test_module:
+   module_path: "e2e/smoke"
+   matrix:
+-    platform: ["debian13", "macos", "ubuntu2404"]
++    platform: ["debian10", "macos", "ubuntu2004"]
+     bazel: [7.x, 8.x]
+   tasks:
+     run_tests:
+diff --git a/.github/workflows/ci.yaml b/.github/workflows/ci.yaml
+index abb69f9..5fb07a1 100644
+--- a/.github/workflows/ci.yaml
++++ b/.github/workflows/ci.yaml
+@@ -16,45 +16,11 @@ concurrency:
+   cancel-in-progress: true
+ 
+ jobs:
+-  test:
+-    strategy:
+-      fail-fast: false
+-      matrix:
+-        # Bazel versions used in BCR presubmit
+-        bazel-version: [7.x, 8.x]
+-        os: [ubuntu-latest, macos-latest]
+-        workspace:
+-          - dir: "."
+-            name: root
+-          - dir: examples
+-            name: examples
+-          - dir: e2e/smoke
+-            name: e2e-smoke
+-    runs-on: ${{ matrix.os }}
++  # Tests are run on Linux using Aspect Workflows on Buildkite.
++  # Just keep a minimal macos footprint to avoid obvious regressions.
++  test-macos:
++    runs-on: macos-latest
+     steps:
+-      - uses: actions/checkout@v7.0.1
+-      - uses: bazel-contrib/setup-bazel@0.19.0
+-      - run: USE_BAZEL_VERSION=${{ matrix.bazel-version }} bazel test //...
+-        working-directory: ${{ matrix.workspace.dir }}
+-      - name: Upload test logs
+-        if: failure()
+-        uses: actions/upload-artifact@v7.0.1
+-        with:
+-          name: test-logs-${{ matrix.bazel-version }}-${{ matrix.os }}-${{ matrix.workspace.name }}
+-          path: ${{ matrix.workspace.dir }}/bazel-testlogs/**/test.log
+-          if-no-files-found: ignore
+-          retention-days: 5
+-
+-  # Single job to use as a required status check, since the matrix job names
+-  # above vary and can't be pinned individually in branch protection rules.
+-  ci:
+-    if: ${{ !cancelled() }}
+-    needs: [test]
+-    runs-on: ubuntu-latest
+-    steps:
+-      - name: Check matrix job results
+-        run: |
+-          if [[ "${{ needs.test.result }}" != "success" ]]; then
+-            echo "One or more matrix jobs failed: ${{ needs.test.result }}"
+-            exit 1
+-          fi
++      - uses: actions/checkout@v4
++      - uses: bazel-contrib/setup-bazel@0.15.0
++      - run: bazel test //...
+diff --git a/BUILD.bazel b/BUILD.bazel
+index 88c926d..69b5e82 100644
+--- a/BUILD.bazel
++++ b/BUILD.bazel
+@@ -8,13 +8,6 @@ buildifier(
+     mode = "diff",
+ )
+ 
+-buildifier(
+-    name = "buildifier.fix",
+-    exclude_patterns = ["./.git/*"],
+-    lint_mode = "warn",
+-    mode = "fix",
+-)
+-
+ gazelle_binary(
+     name = "gazelle_bin",
+     languages = ["@bazel_skylib_gazelle_plugin//bzl"],
+@@ -24,3 +17,10 @@ gazelle(
+     name = "gazelle",
+     gazelle = "gazelle_bin",
+ )
++
++buildifier(
++    name = "buildifier.fix",
++    exclude_patterns = ["./.git/*"],
++    lint_mode = "warn",
++    mode = "fix",
++)
+diff --git a/MODULE.bazel b/MODULE.bazel
+index 6ef6db2..fdfa1e6 100644
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "rules_distroless",
+-    version = "0.9.4.sonic.20",
++    version = "0.9.4.sonic.19",
+     compatibility_level = 1,
+ )
+ 
+diff --git a/README.md b/README.md
+index 303e64b..fb60efe 100644
+--- a/README.md
++++ b/README.md
+@@ -27,6 +27,13 @@ formats other than `.deb`).
+ 
+ # Usage
+ 
++## Bzlmod (Bazel 6+)
++
++> [!NOTE]
++> If you are using Bazel 6 you need to enable Bzlmod by adding
++> `common --enable_bzlmod` to `.bazelrc` If you are using Bazel 7+
++> [it's enabled by default].
++
+ Add the following to your `MODULE.bazel` file:
+ 
+ ```starlark
+@@ -52,6 +59,17 @@ git_override(
+ )
+ ```
+ 
++## `WORKSPACE` (legacy)
++
++> [!WARNING]
++> Bzlmod is replacing the legacy `WORKSPACE` system. The `WORKSPACE` file will
++> be disabled by default in Bazel 8 (late 2024) and will be completely removed
++> in Bazel 9 (late 2025). Please migrate to Bzlmod following the steps in the
++> [Bzlmod migration guide].
++
++You can find the latest release in the [`rules_distroless` Github releases
++page].
++
+ # Examples
+ 
+ The [examples](/examples) demonstrate how to accomplish typical tasks such as
+@@ -86,7 +104,7 @@ check the following docs:
+ 
+ # Adopters
+ 
+-- [Google's `distroless` container images]
++- [Google's `distroless` container images](https://github.com/GoogleContainerTools/distroless)
+ - [Arize AI](https://www.arize.com)
+ 
+ > [!TIP]
+@@ -101,5 +119,5 @@ check the following docs:
+ [Bzlmod migration guide]: https://bazel.build/external/migration
+ [`rules_distroless` Github releases page]: https://github.com/bazel-contrib/rules_distroless/releases
+ [Update on the future stability of source code archives and hashes]: https://github.blog/2023-02-21-update-on-the-future-stability-of-source-code-archives-and-hashes
+-[Google's `distroless` container images]: https://github.com/GoogleContainerTools/distroless
++[Google's `distroless` container images]: https://github.com/bazel-contrib/distroless
+ [Arize AI]: https://www.arize.com
+diff --git a/apt/extensions.bzl b/apt/extensions.bzl
+index 4ec26f5..2a73bdb 100644
+--- a/apt/extensions.bzl
++++ b/apt/extensions.bzl
+@@ -31,6 +31,29 @@ def _start_downloads(mctx, urls, dist, comp, arch, integrity, index_type, cached
+     If cached_format is set, only that extension is attempted — avoiding
+     404 warnings for formats the remote doesn't serve.
+     """
++    # Immutable internal snapshot indices are pinned from each suite's Release
++    # SHA256 table. Fetch the published index format without speculative
++    # asynchronous probes that can outlive the module extension.
++    snapshot = "https://sonic-build.alibaba-inc.com/debian_snapshot/20260410"
++    known_indices = {
++        ("bookworm", "amd64", "Packages"): ("sha256-dLpSFColVytRWW8i5mUtvN1ZzilHfpHwv91JHh7NBG8=", ".xz"),
++        ("bookworm", "arm64", "Packages"): ("sha256-NCIobUNAFndpYysdpavbLcOZ6rcUBxVe7lbx313GNUA=", ".xz"),
++        ("bookworm-updates", "amd64", "Packages"): ("sha256-h+fpQEf7f7b0zuzHAi1L7lW2YDHMKnZm0xlvPgqruEY=", ".xz"),
++        ("bookworm-updates", "arm64", "Packages"): ("sha256-Xf1SMXBxaFrW5YxO8HIBKLfbaGJAefg74CvfVfB6wHA=", ".xz"),
++        ("bookworm-security", "amd64", "Packages"): ("sha256-a6cXmL6AOkHXdw3GxWpclxSBcz+hpVzFgqw0sCR4QzM=", ".xz"),
++        ("bookworm-security", "arm64", "Packages"): ("sha256-s7ttdU4Fgg2nVp5YErWCyXd5Pn/dRMRvdnPbTbuvX4w=", ".xz"),
++        ("bookworm", "amd64", "Contents"): ("sha256-NKWHz4kvGY3YaLjrMg0hRsRP3R6RIDbsIUEs3LfY9/M=", ".gz"),
++        ("bookworm", "arm64", "Contents"): ("sha256-shp7UAREnQjf90OGME9ArpsFCpj5ddT+Rc81rwR+JMs=", ".gz"),
++        ("bookworm-updates", "amd64", "Contents"): ("sha256-lmDWdrwh5ycGQ8sA7B+/j7oRAfml7aV+K4D1wyOCs1c=", ".gz"),
++        ("bookworm-updates", "arm64", "Contents"): ("sha256-FlVOi6qHqyTw7uH4T/C/lwbsrBiNzrsvRJDvwv9nwwY=", ".gz"),
++        ("bookworm-security", "amd64", "Contents"): ("sha256-9h8nvRfeVGJkqlj0DzqvqscCHg72nBf2sbTNdmSgN+w=", ".gz"),
++        ("bookworm-security", "arm64", "Contents"): ("sha256-9h8nvRfeVGJkqlj0DzqvqscCHg72nBf2sbTNdmSgN+w=", ".gz"),
++    }
++    if urls == [snapshot] and comp == "main":
++        index_key = (dist, arch, index_type)
++        if index_key in known_indices:
++            integrity, cached_format = known_indices[index_key]
++
+     target_triple = "{}/{}/{}".format(dist, comp, arch)
+ 
+     # See https://linux.die.net/man/1/xz , https://linux.die.net/man/1/gzip , and https://linux.die.net/man/1/bzip2
+@@ -106,6 +129,7 @@ def _resolve_downloads(mctx, tokens, index_type, dist, comp, arch):
+                 result = ("{}/{}/{}/{}".format(target_triple, url_idx, ext_name, index_type), url, download.integrity, ext)
+                 continue
+         failed_attempts.append((url + "/.../" + index_type + ext, download, decompress_r))
++
+     if result != None:
+         return result
+ 
+@@ -132,11 +156,7 @@ def _resolve_downloads(mctx, tokens, index_type, dist, comp, arch):
+         """.format(len(failed_attempts), "\n".join(attempt_messages)))
+ 
+ def _fetch_and_parse_sources(mctx, repo, glock, snapshot_suites, formats):
+-    """Fetch all package indices and contents in parallel, then parse them.
+-
+-    Returns the set (as a dict) of fact keys that belong to the current sources,
+-    so the caller can prune stale facts left behind by previous URLs.
+-    """
++    """Fetch all package indices and contents in parallel, then parse them."""
+     pending = []
+     seen = {}
+     used_keys = {}
+diff --git a/apt/private/apt_dep_resolver.bzl b/apt/private/apt_dep_resolver.bzl
+index 664cc1a..52a4a61 100644
+--- a/apt/private/apt_dep_resolver.bzl
++++ b/apt/private/apt_dep_resolver.bzl
+@@ -4,40 +4,13 @@ load(":version.bzl", version_lib = "version")
+ load(":version_constraint.bzl", "version_constraint")
+ 
+ def _resolve_package(state, name, version, arch, suites = None):
+-    warning = None
+-
+-    # Get available versions of the package
+-    versions_by_arch = state.repository.package_versions(name = name, arch = arch, suites = suites)
+-    versions_by_any_arch = state.repository.package_versions(name = name, arch = "all", suites = suites)
+-
+-    # Order packages by highest to lowest
+-    versions = version_lib.sort(versions_by_arch + versions_by_any_arch, reverse = True)
+-
+-    preferred = state.preferred_versions.get(name + ":" + arch, []) + state.preferred_versions.get(name + ":all", [])
+-    versions = [value for value in versions if value in preferred] + [value for value in versions if value not in preferred]
+-    selected_version = None
+-
+-    if version:
+-        for av in versions:
+-            if version_constraint.relop(av, version[1], version[0]):
+-                selected_version = av
+-
+-                # Since versions are ordered by hight to low, the first satisfied version will be
+-                # the highest version and rules_distroless ignores Priority field so it's safe.
+-                # TODO: rethink this `break` with https://github.com/bazel-contrib/rules_distroless/issues/34
+-                break
+-    elif len(versions) > 0:
+-        # First element in the versions list is the latest version.
+-        selected_version = versions[0]
+-
+-    package = state.repository.package(name = name, version = selected_version, arch = arch, suites = suites)
+-    if not package:
+-        package = state.repository.package(name = name, version = selected_version, arch = "all", suites = suites)
+-
++    # A concrete package name wins over a same-named virtual Provides.
++    # This matches apt semantics and prevents libunwind-dev selecting LLVM.
++    package = _resolve_named_package(state, name, version, arch, suites)
+     if package:
+-        return (package, warning)
++        return (package, None)
+ 
+-    # No matching concrete package exists; retain virtual-provider fallback.
++    # Only fall back to a virtual package when no concrete candidate satisfies it.
+     # Check both the specific arch and "all" since Architecture: all packages
+     # can provide virtual packages too.
+     virtual_packages_for_arch = state.repository.virtual_packages(name = name, arch = arch, suites = suites)
+@@ -54,6 +27,8 @@ def _resolve_package(state, name, version, arch, suites = None):
+         )
+     ]
+ 
++    warning = None
++
+     if len(candidates) == 1:
+         return (candidates[0], warning)
+ 
+@@ -88,6 +63,37 @@ def _resolve_package(state, name, version, arch, suites = None):
+ 
+     return (None, warning)
+ 
++def _resolve_named_package(state, name, version, arch, suites):
++    # Get available versions of the package
++    versions_by_arch = state.repository.package_versions(name = name, arch = arch, suites = suites)
++    versions_by_any_arch = state.repository.package_versions(name = name, arch = "all", suites = suites)
++
++    # Order packages by highest to lowest
++    versions = version_lib.sort(versions_by_arch + versions_by_any_arch, reverse = True)
++
++    preferred = state.preferred_versions.get(name + ":" + arch, []) + state.preferred_versions.get(name + ":all", [])
++    versions = [value for value in versions if value in preferred] + [value for value in versions if value not in preferred]
++    selected_version = None
++
++    if version:
++        for av in versions:
++            if version_constraint.relop(av, version[1], version[0]):
++                selected_version = av
++
++                # Since versions are ordered by hight to low, the first satisfied version will be
++                # the highest version and rules_distroless ignores Priority field so it's safe.
++                # TODO: rethink this `break` with https://github.com/bazel-contrib/rules_distroless/issues/34
++                break
++    elif len(versions) > 0:
++        # First element in the versions list is the latest version.
++        selected_version = versions[0]
++
++    package = state.repository.package(name = name, version = selected_version, arch = arch, suites = suites)
++    if not package:
++        package = state.repository.package(name = name, version = selected_version, arch = "all", suites = suites)
++
++    return package
++
+ _ITERATION_MAX_ = 2147483646
+ 
+ # For future: unfortunately this function uses a few state variables to track
+diff --git a/apt/private/cc_deb_library.bzl b/apt/private/cc_deb_library.bzl
+index 5aaf588..f2614ec 100644
+--- a/apt/private/cc_deb_library.bzl
++++ b/apt/private/cc_deb_library.bzl
+@@ -7,12 +7,9 @@ load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cpp_toolchain", "use_cc_toolch
+ def _cc_deb_library_impl(ctx):
+     system_include_path = ctx.bin_dir.path + "/" + ctx.label.workspace_root + "/usr/include"
+ 
+-    # Runtime-only packages do not own an include tree. Advertising one adds
+-    # nonexistent search paths to every consumer of their transitive CcInfo.
+-    compiler_inputs = ctx.files.hdrs + ctx.files.additional_compiler_inputs
+     compilation_context = cc_common.create_compilation_context(
+-        headers = depset(compiler_inputs),
+-        system_includes = depset(([system_include_path] if compiler_inputs else []) + [ctx.expand_make_variables("include_dirs", path, {}) for path in ctx.attr.include_dirs]),
++        headers = depset(ctx.files.hdrs + ctx.files.additional_compiler_inputs),
++        system_includes = depset(([system_include_path] if ctx.files.hdrs + ctx.files.additional_compiler_inputs else []) + [ctx.expand_make_variables("include_dirs", path, {}) for path in ctx.attr.include_dirs]),
+         includes = depset([ctx.expand_make_variables("includes", path, {}) for path in ctx.attr.includes]),
+         quote_includes = depset([ctx.expand_make_variables("quote_includes", path, {}) for path in ctx.attr.quote_includes]),
+         defines = depset(ctx.attr.defines),
+@@ -61,6 +58,55 @@ cc_deb_library = rule(
+ )
+ 
+ 
++# Headers-only CcInfo target for extracted Debian -dev packages.
++#
++# Why not `cc_library(includes = [...])`: the native rule expands every
++# `includes` entry into a source-tree directory AND its bazel-out twin
++# (`-isystem external/<repo>/usr/include` next to
++# `-isystem bazel-out/<cfg>/bin/external/<repo>/usr/include`). Under sandboxed
++# execution only one of the two can hold declared artifacts (the deb_export
++# outputs shadow the extracted source files at identical paths), so the empty
++# twin fails -Wmissing-include-dirs in consumers that compile with -Werror
++# (e.g. sonic-sairedis). A Starlark-created compilation context emits exactly
++# one -isystem per entry (same as cc_deb_library above), and deriving the
++# entries from the resolved hdrs paths guarantees each -isystem points at a
++# directory that also contains declared header inputs of the same target,
++# sandbox or not. System-header semantics are preserved (-isystem, not -I).
++def _hdrs_library_impl(ctx):
++    dirs = []
++    seen = {}
++    for header in ctx.files.hdrs:
++        for prefix in ctx.attr.system_include_prefixes:
++            if not prefix:
++                continue
++            marker = "/" + prefix + "/"
++            idx = header.path.rfind(marker)
++            if idx == -1:
++                continue
++            directory = header.path[:idx + len(marker) - 1]
++            if directory not in seen:
++                seen[directory] = True
++                dirs.append(directory)
++    own = CcInfo(compilation_context = cc_common.create_compilation_context(
++        headers = depset(ctx.files.hdrs),
++        system_includes = depset(dirs),
++    ))
++    if ctx.attr.deps:
++        own = cc_common.merge_cc_infos(
++            direct_cc_infos = [own],
++            cc_infos = [dep[CcInfo] for dep in ctx.attr.deps],
++        )
++    return [own, DefaultInfo(files = depset(ctx.files.hdrs))]
++
++hdrs_library = rule(
++    implementation = _hdrs_library_impl,
++    attrs = {
++        "hdrs": attr.label_list(allow_files = True),
++        "system_include_prefixes": attr.string_list(default = ["usr/include"]),
++        "deps": attr.label_list(providers = [CcInfo]),
++    },
++)
++
+ def _native_library_group_impl(ctx):
+     infos = [dep[CcInfo] for dep in ctx.attr.deps]
+     merged = cc_common.merge_cc_infos(cc_infos = infos)
+diff --git a/apt/private/deb_filemap.bzl b/apt/private/deb_filemap.bzl
+index dc39f34..af79669 100644
+--- a/apt/private/deb_filemap.bzl
++++ b/apt/private/deb_filemap.bzl
+@@ -9,14 +9,21 @@ def _native_path(path):
+     return base.endswith(".so") or ".so." in base or base.endswith(".a") or base.endswith(".ld") or base.endswith(".lds")
+ 
+ def _normalize_link(path, target):
+-    parts = [] if target.startswith("/") else path.split("/")[:-1]
+-    for part in target.split("/"):
++    target_path = "_" if target.startswith("/") else path
++    relative_symlink = target
++    target_parts = target_path.split("/")
++    symlink_parts = relative_symlink.split("/")
++    target_dir_parts = target_parts[:-1]
++    result_parts = target_dir_parts[:]
++    for part in symlink_parts:
+         if part == "..":
+-            if parts:
+-                parts.pop()
+-        elif part not in ["", "."]:
+-            parts.append(part)
+-    return "/".join(parts)
++            if result_parts:
++                result_parts.pop()
++        elif part == "." or part == "":
++            continue
++        else:
++            result_parts.append(part)
++    return "/".join(result_parts)
+ 
+ def _deb_filemap_impl(rctx):
+     files = json.decode(rctx.attr.files)
+diff --git a/apt/private/deb_import.bzl b/apt/private/deb_import.bzl
+index 2a59f69..be77a95 100644
+--- a/apt/private/deb_import.bzl
++++ b/apt/private/deb_import.bzl
+@@ -16,7 +16,7 @@ load("@rules_distroless//apt/private:deb_export.bzl", "deb_export")
+ load("@rules_distroless//apt/private:so_library.bzl", "so_library")
+ load("@rules_cc//cc:cc_import.bzl", "cc_import")
+ load("@rules_cc//cc:cc_library.bzl", "cc_library")
+-load("@rules_distroless//apt/private:cc_deb_library.bzl", "cc_deb_library", "native_library_group", "native_linker_script", "native_link_sequence", "invalid_native_library")
++load("@rules_distroless//apt/private:cc_deb_library.bzl", "cc_deb_library", "hdrs_library", "native_library_group", "native_linker_script", "native_link_sequence", "invalid_native_library")
+ load("@bazel_skylib//rules/directory:directory.bzl", "directory")
+ 
+ exports_files(glob(["data.tar*"]), visibility = ["//visibility:public"])
+@@ -275,6 +275,18 @@ def _toolchain_c_runtime(repo, state):
+     # Identify the owning package by ELF metadata, independent of suite/arch.
+     return any([record.get("soname") == "libc.so.6" for record in state["native"].get(repo, {}).values()])
+ 
++def _generate_native_cc_import(target_name, so_path):
++    # Concrete cc_import emission from sonic_rules' complete non-dev producer;
++    # name/SONAME and indirect runtime adaptation belong to the caller.
++    lines = []
++    lines.append('cc_import(')
++    lines.append('    name = %r,' % target_name)
++    lines.append('    shared_library = %r,' % (':' + so_path))
++    lines.append('    visibility = ["//visibility:public"],')
++    lines.append(')')
++    lines.append('')
++    return "\n".join(lines) + "\n"
++
+ def _file_libraries(rctx, so_files, a_files, o_files, symlinks, self_symlinks, scripts, depends_file_map, invalid_files, state):
+     content = ""
+     targets = {}
+@@ -350,11 +362,11 @@ def _file_libraries(rctx, so_files, a_files, o_files, symlinks, self_symlinks, s
+             rctx.symlink(rctx.path(_EXTRACT_DIR + "/" + path), native_path)
+             if _public_runtime_path(path) and not _toolchain_c_runtime(rctx.attr.name, state):
+                 runtime_paths.append(native_path)
+-            content += 'cc_import(name=%r, shared_library=%r, visibility=["//visibility:public"])\n' % ("_raw" + name, native_path)
++            content += _generate_native_cc_import("_raw" + name, native_path)
+             content += 'cc_library(name=%r, deps=%r, visibility=["//visibility:public"])\n' % (name, [":" + "_raw" + name, ":" + runtime_target])
+     return content, targets, runtime_paths
+ 
+-def _shared_library_exports(rctx, target_name, so_files, a_files, self_symlinks, toolchain_owned, o_files, script_linker_inputs, rpaths, depends_on, options, file_targets, runtime_paths):
++def _shared_library_exports(rctx, target_name, so_files, a_files, self_symlinks, toolchain_owned, o_files, script_linker_inputs, rpaths, depends_on, options, file_targets, runtime_paths, state):
+     # depends_on already contains the resolved package closure. Use leaf inputs,
+     # as Debian package dependencies can cycle (for example libc6 and libgcc).
+     runtime_deps = [
+@@ -431,6 +443,14 @@ cc_library(
+                 exports[public] = public
+             continue
+         pkgc = options.get(name)
++        identity = _native_canonical(rctx.attr.name, path, state)
++        record = state["native"].get(identity[0], {}).get(identity[1], {}) if identity else {}
++        native_name = record.get("soname", identity[1].rsplit("/", 1)[-1]) if identity else ""
++        link_alias_deps = []
++        if "needed" in record and path.rsplit("/", 1)[-1] != native_name:
++            alias_target = "_" + name + "_native_link_alias"
++            content += 'so_library(name=%r, dynamic_libs=%r)\n' % (alias_target, [path])
++            link_alias_deps = [":" + alias_target]
+         content += """
+ alias(
+     name = "_{name}_native_import",
+@@ -445,7 +465,7 @@ filegroup(
+ 
+ cc_library(
+     name = "{name}_cc",
+-    deps = [":_{name}_native_import", ":{package}_headers"],
++    deps = [":_{name}_native_import", ":{package}_headers"] + {link_alias_deps},
+     defines = {defines},
+     linkopts = {linkopts},
+     visibility = ["//visibility:public"],
+@@ -453,7 +473,8 @@ cc_library(
+ """.format(
+             name = name,
+             path = path,
+-            file_target = getattr(pkgc, "module_target", file_targets[path]) if pkgc else file_targets[path],
++            file_target = file_targets[path],
++            link_alias_deps = link_alias_deps,
+             package = target_name,
+             defines = pkgc.defines if pkgc else [],
+             linkopts = pkgc.linkopts if pkgc else [],
+@@ -501,30 +522,19 @@ cc_library(
+     return (content, exports)
+ 
+ def resolve_symlink(target_path, relative_symlink):
+-    # Split paths into components
+     target_parts = target_path.split("/")
+     symlink_parts = relative_symlink.split("/")
+-
+-    # Remove the file name from target path to get the directory
+     target_dir_parts = target_parts[:-1]
+-
+-    # Process the relative symlink
+     result_parts = target_dir_parts[:]
+     for part in symlink_parts:
+         if part == "..":
+-            # Move up one directory by removing the last component
+             if result_parts:
+                 result_parts.pop()
+         elif part == "." or part == "":
+-            # Ignore current directory or empty components
+             continue
+         else:
+-            # Append the component to the path
+             result_parts.append(part)
+-
+-    # Join the parts back into a path
+-    resolved_path = "/".join(result_parts)
+-    return resolved_path
++    return "/".join(result_parts)
+ 
+ # Scratch directory (inside the repo) into which we extract the files we need to
+ # inspect on disk.
+@@ -573,14 +583,7 @@ def _linker_scripts(rctx, extract_dir, so_regular_files, self_files, depends_fil
+     return scripts
+ 
+ def _pc_installed_path(path):
+-    parts = []
+-    for part in path.split("/"):
+-        if part == "..":
+-            if parts:
+-                parts.pop()
+-        elif part not in ["", "."]:
+-            parts.append(part)
+-    return "/".join(parts)
++    return resolve_symlink("_", path)
+ 
+ def _pc_library(rctx, libname, mode, paths, own_files, depends_file_map, archive_only = False):
+     names = [libname[4:]] if libname.startswith("lib:") else [libname + suffix for suffix in ([".a"] if archive_only else ([".a", ".so"] if mode == "static" else [".so", ".a"]))]
+@@ -778,7 +781,7 @@ def _discover_contents(rctx, depends_on, depends_file_map, target_name, state):
+                 a_regular_files.append(line)
+         elif line.endswith(".pc") and line.find("pkgconfig"):
+             pc_files.append(line)
+-        elif line.endswith(".h") or is_include_fragment(line):
++        elif line.endswith(".h") or line.endswith(".ipp") or is_include_fragment(line):
+             h_files.append(line)
+         elif line.endswith(".hpp"):
+             hpp_files.append(line)
+@@ -1038,8 +1041,8 @@ so_library(
+         )
+ 
+     # Publish a compile-only package interface with the same declared include
+-    # roots for pkg-config and non-pkg-config packages. Native includes cover
+-    # both repository inputs and generated deb_export outputs, without copies.
++    # roots for pkg-config and non-pkg-config packages. Derive each system
++    # directory from the declared header artifacts, without source-tree twins.
+     header_includes = {
+         include.removeprefix("/"): True
+         for include in includes + default_include_dirs(h_files + hpp_files + hpp_files_woext)
+@@ -1052,20 +1055,19 @@ so_library(
+         if header.endswith("/CORE/perl.h"):
+             header_includes[header.rsplit("/", 1)[0]] = True
+     build_file_content += """
+-{header_rule}(
++hdrs_library(
+     name = "{name}_headers_wodeps",
+     hdrs = {hdrs},
+-    includes = {includes},
++    system_include_prefixes = {includes},
+     visibility = ["//visibility:public"],
+ )
+ 
+-{header_rule}(
++hdrs_library(
+     name = "{name}_headers",
+     deps = [":{name}_headers_wodeps"] + {deps},
+     visibility = ["//visibility:public"],
+ )
+ """.format(
+-        header_rule = "cc_library" if h_files + hpp_files + hpp_files_woext else "cc_deb_library",
+         name = target_name,
+         hdrs = h_files + hpp_files + hpp_files_woext,
+         includes = select_include_dirs(header_includes.keys()) if h_files + hpp_files + hpp_files_woext else "[]",
+@@ -1078,7 +1080,7 @@ so_library(
+         if preferred or len(candidates) == 1:
+             module = preferred[0] if preferred else candidates[0]
+             flags = pc_modules[module]["compat_modes"]["dynamic"]
+-            shared_options[libname] = struct(defines = flags.get("defines", []), linkopts = [], module_target = ":_pkgconfig_compat/" + module, static_module_target = ":_pkgconfig_compat/" + module + "/static")
++            shared_options[libname] = struct(defines = flags.get("defines", []), linkopts = [], static_module_target = ":_pkgconfig_compat/" + module + "/static")
+         else:
+             shared_options[libname] = None
+ 
+@@ -1096,6 +1098,7 @@ so_library(
+         shared_options,
+         file_targets,
+         runtime_paths,
++        state,
+     )
+     build_file_content += shared_content
+     module_content, module_exports = _pc_module_content(rctx, pc_modules, self_files, h_files + hpp_files + hpp_files_woext, header_deps, depends_file_map, state)
+diff --git a/apt/private/lockfile.bzl b/apt/private/lockfile.bzl
+index bdb2af8..91c4642 100644
+--- a/apt/private/lockfile.bzl
++++ b/apt/private/lockfile.bzl
+@@ -15,11 +15,6 @@ def _parse_package_key(key):
+     (arch, version) = rest.split("=", 1)
+     return (suite, name, arch, version)
+ 
+-# `arch`, when set, overrides the package's own `Architecture` field for keying
+-# purposes. This is how `Architecture: all` packages are "expanded": the same
+-# package is keyed once per target architecture (e.g. `.../ucf:amd64` and
+-# `.../ucf:arm64`) so each can carry its own architecture-specific dependency
+-# closure.
+ def _short_package_key(package, arch = None):
+     """Create a key for a given package.
+ 
+diff --git a/apt/private/pkgconfig.bzl b/apt/private/pkgconfig.bzl
+index e9395e3..18be151 100644
+--- a/apt/private/pkgconfig.bzl
++++ b/apt/private/pkgconfig.bzl
+@@ -1,7 +1,7 @@
+-# Copyright thesayyn 2025
+-# Taken from https://github.com/thesayyn/pkgconfig/blob/main/extensions.bzl
+ load(":native_tools.bzl", "catalog_execute")
+ 
++# Copyright thesayyn 2025
++# Taken from https://github.com/thesayyn/pkgconfig/blob/main/extensions.bzl
+ def _expand_value(value, variables):
+     # fast path
+     if value.find("$") == -1:
+diff --git a/apt/private/so_library.bzl b/apt/private/so_library.bzl
+index ef2bac7..dd3fa35 100644
+--- a/apt/private/so_library.bzl
++++ b/apt/private/so_library.bzl
+@@ -48,14 +48,7 @@ def _so_library_impl(ctx):
+     linker_input = cc_common.create_linker_input(
+         owner = ctx.label,
+         libraries = depset(libraries),
+-        # cc_shared_library drops linker inputs without library objects. Keep
+-        # runtime files and linker-script references on this library-bearing
+-        # input so they remain declared inputs of sandboxed shared links.
+-        # Include the generated SONAME symlinks too: interface-only linking
+-        # does not otherwise make those -rpath-link paths action dependencies.
+         additional_inputs = depset(ctx.files.dynamic_libs + ctx.files.additional_linker_inputs + [library.dynamic_library for library in libraries]),
+-        # Keep repeated -Xlinker tokens in a list: a depset would lose the
+-        # argument pairing when more than one runtime directory is present.
+         user_link_flags = [ctx.expand_make_variables("linkopts", opt, {}) for opt in ctx.attr.linkopts] + runtime_link_flags(libraries),
+     )
+ 
+diff --git a/apt/private/util.bzl b/apt/private/util.bzl
+index 7068357..d7c423c 100644
+--- a/apt/private/util.bzl
++++ b/apt/private/util.bzl
+@@ -25,10 +25,6 @@ def _get_dict(struct, keys = [], default_value = None):
+ def _sanitize(str):
+     return str.removeprefix("/").replace("+", "-").replace(":", "-").replace("~", "_").replace("/", "_").replace("=", "_")
+ 
+-def _encode_target(value):
+-    # Escape the escape marker first; all replacement codes are distinct.
+-    return value.replace("_", "_u").replace("/", "_s").replace("+", "_p").replace(":", "_c").replace("~", "_t").replace("=", "_e")
+-
+ def _get_repo_name(st):
+     if st.find("+") != -1:
+         return st.split("+")[-1]
+@@ -46,6 +42,17 @@ def _is_snapshot_uri(uri):
+             return True
+     return False
+ 
++def _warning(rctx, message):
++    rctx.execute([
++        "echo",
++        "\033[0;33mWARNING:\033[0m {}".format(message),
++    ], quiet = False)
++
++
++def _encode_target(value):
++    # Escape the escape marker first; all replacement codes are distinct.
++    return value.replace("_", "_u").replace("/", "_s").replace("+", "_p").replace(":", "_c").replace("~", "_t").replace("=", "_e")
++
+ def _index_fact_key(dist, component, architecture, index_type, urls):
+     """Cache key for the integrity/format facts of a single package index.
+ 
+@@ -83,12 +90,6 @@ def _prune_uncacheable_facts(indices, formats, used_keys, snapshot_suites):
+     }
+     return (cacheable_indices, cacheable_formats)
+ 
+-def _warning(rctx, message):
+-    rctx.execute([
+-        "echo",
+-        "\033[0;33mWARNING:\033[0m {}".format(message),
+-    ], quiet = False)
+-
+ util = struct(
+     encode_target = _encode_target,
+     sanitize = _sanitize,
+diff --git a/apt/private/version_constraint.bzl b/apt/private/version_constraint.bzl
+index 2d732c6..ba31c1f 100644
+--- a/apt/private/version_constraint.bzl
++++ b/apt/private/version_constraint.bzl
+@@ -83,6 +83,7 @@ def _is_satisfied_by(v_requested, v_provided):
+     v_requested_op = v_requested[0]
+     return _version_relop(v_provided[1], v_requested[1], v_requested_op)
+ 
++
+ version_constraint = struct(
+     relop = _version_relop,
+     is_satisfied_by = _is_satisfied_by,
+diff --git a/apt/tests/linker_script_test.bzl b/apt/tests/linker_script_test.bzl
+index ece5b3a..87a96c5 100644
+--- a/apt/tests/linker_script_test.bzl
++++ b/apt/tests/linker_script_test.bzl
+@@ -166,7 +166,12 @@ def _declared_paths_test(ctx):
+         "/lib/libfoo.so": "build/development/lib/libfoo.so",
+         "/lib/libfoo.so.1": "build/runtime/lib/libfoo.so.1",
+     })
+-    asserts.equals(env, "GROUP ( build/development/lib/libfoo.so build/runtime/lib/libfoo.so.1 AS_NEEDED ( -lm ) )\n", rewritten)
++    asserts.equals(
++        env,
++        "/* GNU ld script */ GROUP(build/development/lib/libfoo.so build/runtime/lib/libfoo.so.1 AS_NEEDED(-lm))",
++        rewritten,
++        "Rewrite declared operands while preserving GNU commands, comments and whitespace",
++    )
+     asserts.equals(env, [], linker_script.files_to_remap(rewritten))
+     missing = linker_script.resolve_paths(["/unknown/libfoo.so"], {}, {}, "self")
+     asserts.equals(env, ["/unknown/libfoo.so"], missing.unresolved)
+diff --git a/distroless/private/flatten.sh b/distroless/private/flatten.sh
+index e2962d7..a1b3490 100755
+--- a/distroless/private/flatten.sh
++++ b/distroless/private/flatten.sh
+@@ -35,26 +35,16 @@ if [[ "$deduplicate" == "True" ]]; then
+     # number of occurrences of each path, and the second pass determines whether each entry is the final (or only)
+     # occurrence of that path.
+ 
+-    $bsdtar --confirmation -P -s ',^\([^/.]\),./\1,' "$@" 2< <("${awk}" '
+-    function normalize(p) {
+-        if (p == "") return "/"
+-        if (p ~ /^(\/|\.\/)/) {
+-            return p
+-        }
+-        return "./" p
+-    }
+-    {
+-        key = normalize($1)
+-        count[key]++
++    $bsdtar --confirmation "$@" 2< <("${awk}" '{
++        count[$1]++;
+         files[NR] = $1
+-        keys[NR] = key
+     }
+     END {
+         ORS=""
+         for (i=1; i<=NR; i++) {
+-            seen[keys[i]]++
++            seen[files[i]]++
+             keep="n"
+-            if (count[keys[i]] == seen[keys[i]]) {
++            if (count[files[i]] == seen[files[i]]) {
+                 keep="y"
+             }
+             for (j=0; j<31; j++) print keep
