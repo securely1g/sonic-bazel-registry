@@ -676,12 +676,20 @@ def planning_only_change(root: Path, base: str, head: str, paths: list[str]) -> 
     old_guard = "if: ${{ always() && !cancelled() }}"
     new_guard = "if: ${{ !cancelled() && needs.plan.result == 'success' }}"
     for path in paths:
-        if path.startswith("ci/tests/") and path.endswith(".py"):
+        parts = PurePosixPath(path).parts
+        if (len(parts) == 3 and parts[:2] == ("ci", "tests")
+                and parts[2].startswith("test_") and parts[2].endswith(".py")):
+            record = git(root, "ls-tree", head, "--", path).split()
+            if not record or record[0] not in ("100644", "100755"):
+                return False  # Deleted/symlinked tests are not covered by discovery.
             continue  # The unchanged runner discovers these tests, including new ones.
         if path not in ("ci/registry_ci.py", ".github/workflows/registry-ci.yml"):
             return False
-        old = git(root, "show", f"{base}:{path}")
-        new = git(root, "show", f"{head}:{path}")
+        try:
+            old = git(root, "show", f"{base}:{path}")
+            new = git(root, "show", f"{head}:{path}")
+        except subprocess.CalledProcessError:
+            return False  # Added/deleted CI executors cannot be proven unchanged.
         if path == "ci/registry_ci.py":
             try:
                 trees = [ast.parse(text) for text in (old, new)]

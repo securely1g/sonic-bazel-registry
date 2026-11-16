@@ -136,3 +136,25 @@ is not necessarily a higher Bazel version.
 
 See Bazel's [version format and selection rules](https://bazel.build/external/module)
 and [root-module version overrides](https://bazel.build/rules/lib/globals/module#single_version_override).
+
+## Bounded pull-request validation
+
+PR planning compares the entire proposed stack with the maintained publication
+merge base, not a potentially stale event base. Published-input immutability is
+checked independently before selection. PR plans requiring more than two module
+jobs fail before matrix outputs: they are never truncated into a misleading pass.
+Broad shared-executor/catalog changes therefore require an explicit wider
+validation disposition; this limit is not permission to bypass required checks.
+
+Selection-only changes are distinguished from consumer-executor changes by
+comparing Python ASTs with only `plan` and its impact classifier removed. Imports,
+constants, CLI and all consumer execution functions must remain identical. The
+only recognized workflow-only adjustment is the exact pair of successful-plan
+job guards; runner commands, targets, tokens and aggregate gates cannot change.
+Direct discovered Python test additions/edits remain covered by the full native
+runner suites. These scheduler-only changes run those same native suites and ARM
+cross fixture plus all changed module consumers, without rebuilding unrelated
+unchanged modules. The classifier is an impact rule, not a security sandbox or a
+substitute for exact independent review. Unknown changes retain broad coverage
+and fail closed if it exceeds the PR bound. Manual/push validation policies are
+unchanged; they are not automatically authorized by a failed PR plan.
