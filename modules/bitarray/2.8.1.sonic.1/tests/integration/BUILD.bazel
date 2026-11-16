@@ -1,0 +1,18 @@
+load("@rules_python//python:py_test.bzl", "py_test")
+load("@sonic_build_infra//python:wheel_layer.bzl", "wheel_layer")
+
+wheel_layer(
+    name = "installed_layer",
+    wheels = ["@bitarray//:whl"],
+    site_packages = "/usr/local/lib/python3.13/dist-packages",
+    headers = "/usr/local/include/python3.13",
+)
+
+py_test(
+    name = "installed_wheel_test",
+    srcs = ["installed_wheel_test.py"],
+    data = [":installed_layer"],
+    args = ["$(location :installed_layer)"],
+    deps = ["@bitarray//:upstream_test_support"],
+    python_version = "3.13",
+)
