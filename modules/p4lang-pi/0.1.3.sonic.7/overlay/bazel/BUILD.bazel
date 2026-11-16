@@ -1,13 +1,6 @@
-package(default_visibility = ["//visibility:public"])
-
-# The original source archive already has a bazel package. Keep that boundary
-# and export only the overlay inputs used by the producer and its tests.
 exports_files([
-    "configure.sh",
-    "cross-configure.patch",
-    "pi.BUILD.bazel",
-    "runtime.bzl",
-    "runtime_test.py",
-    "sdk_test.cc",
-    "source.bzl",
+    "0002-use-boost-1.83.patch",
+    "0003-remove-protobuf-from-debian-dependency.patch",
+    "0004-remove-init-file.patch",
+    "sdk_test.cc"
 ])
