@@ -1,0 +1,69 @@
+{
+  "excluded_development_files": [
+    "bitarray/architecture.txt",
+    "bitarray/copy_n.txt"
+  ],
+  "metadata": {
+    "Author": [
+      "Ilan Schnell"
+    ],
+    "Author-email": [
+      "ilanschnell@gmail.com"
+    ],
+    "Classifier": [
+      "License :: OSI Approved :: Python Software Foundation License",
+      "Development Status :: 6 - Mature",
+      "Intended Audience :: Developers",
+      "Operating System :: OS Independent",
+      "Programming Language :: C",
+      "Programming Language :: Python :: 2",
+      "Programming Language :: Python :: 2.7",
+      "Programming Language :: Python :: 3",
+      "Programming Language :: Python :: 3.5",
+      "Programming Language :: Python :: 3.6",
+      "Programming Language :: Python :: 3.7",
+      "Programming Language :: Python :: 3.8",
+      "Programming Language :: Python :: 3.9",
+      "Programming Language :: Python :: 3.10",
+      "Programming Language :: Python :: 3.11",
+      "Programming Language :: Python :: 3.12",
+      "Topic :: Utilities"
+    ],
+    "Home-page": [
+      "https://github.com/ilanschnell/bitarray"
+    ],
+    "License": [
+      "PSF"
+    ],
+    "Name": [
+      "bitarray"
+    ],
+    "Summary": [
+      "efficient arrays of booleans -- C extension"
+    ],
+    "Version": [
+      "2.8.1"
+    ]
+  },
+  "mode_contract": {
+    "all_regular_wheel_files": "0644",
+    "original_wheel_byte_or_mode_equivalence": false,
+    "previous_extension_mode": "0755"
+  },
+  "package_files": {
+    "bitarray/__init__.py": "949903370922936e9b1f992737ac3d6de57e2f1ace083e5b392550b14b03d2ad",
+    "bitarray/__init__.pyi": "baef7fa0e40fac46d4059f8fb14daa0607f6e257d313272a63aecae0188d24d5",
+    "bitarray/bitarray.h": "9210b66a632ffba0b0080efa95ae7e5403d976247b28a1cbb7aee4d28b7d9ee1",
+    "bitarray/py.typed": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bitarray/pythoncapi_compat.h": "f72c1d63ee60412c32cbad5c43ea441f65a7e06ca8c177bdde6ddb1929433751",
+    "bitarray/test_150.pickle": "bf9a004b88c9c160d50e1f2cd263e7e220afc0ddfe639b195a9546929c320aac",
+    "bitarray/test_281.pickle": "19a03cbec666732659988cc60cfea9a5f69196cb61531809f6d32cca3a729e87",
+    "bitarray/test_bitarray.py": "e6d4915dc79ef85374292520b974ced6f0a5f07d338a333023b7b9c70b89c27d",
+    "bitarray/test_util.py": "8f91efca6c7aeef9060dc633425b00104a973593a4bf95ed1a51c15fa1929434",
+    "bitarray/util.py": "4cd881bcac818453f529caf88bcbd115cd4a30742697d1ae74cc158977d0bec1",
+    "bitarray/util.pyi": "c3f21527730c1d20a4b9e06ebe39cea315f5a0c86838607d3732d1c1555bf1a8"
+  },
+  "schema": 1,
+  "source_archive_sha256": "95a6d1fdc1699e6c905b153739af1f210f9394402aa7c4b577cc239c5948682e",
+  "source_commit": "eb1f7014446ef5ce0afddd86d2e929975ec7b4f9"
+}
