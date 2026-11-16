@@ -665,10 +665,48 @@ def module_runner(module: str, execution_architecture: str, p4_runner_profile: s
     return RUNNERS[execution_architecture]
 
 
+def planning_only_change(root: Path, base: str, head: str, paths: list[str]) -> bool:
+    """Classify selection-only CI changes; never exempt consumer execution code.
+
+    This is an impact classifier, not a sandbox or review substitute. Full
+    native runner tests and the ARM cross fixture still run after planning.
+    Unknown changes retain the full consumer matrix (and its dispatch cap).
+    """
+    functions = {"plan", "planning_only_change"}
+    old_guard = "if: ${{ always() && !cancelled() }}"
+    new_guard = "if: ${{ !cancelled() && needs.plan.result == 'success' }}"
+    for path in paths:
+        if path.startswith("ci/tests/") and path.endswith(".py"):
+            continue  # The unchanged runner discovers these tests, including new ones.
+        if path not in ("ci/registry_ci.py", ".github/workflows/registry-ci.yml"):
+            return False
+        old = git(root, "show", f"{base}:{path}")
+        new = git(root, "show", f"{head}:{path}")
+        if path == "ci/registry_ci.py":
+            try:
+                trees = [ast.parse(text) for text in (old, new)]
+            except SyntaxError:
+                return False
+            for tree in trees:
+                tree.body = [node for node in tree.body
+                             if not (isinstance(node, ast.FunctionDef) and node.name in functions)]
+            # CLI, imports, constants and every executor must stay equal.
+            if ast.dump(trees[0], include_attributes=False) != ast.dump(trees[1], include_attributes=False):
+                return False
+        else:
+            # Admit only the two fail-closed dependency guards. Any runner,
+            # command, token, target or aggregate change needs broad validation.
+            if old.count(old_guard) != 2 or new != old.replace(old_guard, new_guard):
+                return False
+    return True
+
+
 def plan(root: Path, base: str | None, head: str | None, all_versions: bool = False,
          latest_versions: bool = False, published: str | None = None,
          push: bool = False, p4_runner_profile: str = "large",
          max_jobs: int | None = None) -> dict:
+    if max_jobs is None and base and not push:
+        max_jobs = 2  # One module's two native architectures; never truncate.
     require(max_jobs is None or (type(max_jobs) is int and max_jobs > 0),
             "max_jobs must be a positive integer")
     require(p4_runner_profile in ("standard", "large"), "Invalid P4 runner profile")
@@ -749,7 +787,9 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
                     # deletion already failed check_version_policy above.
                     if (root / "modules" / module / parts[2]).exists():
                         selected.add((module, parts[2]))
-        if ci_changed:
+        ci_paths = [name for name in changed if name and (
+            name.startswith(("ci/", ".github/")) or name == "bazel_registry.json")]
+        if ci_changed and not planning_only_change(root, comparison_base, head, ci_paths):
             selected.update(latest_presubmits(root))
             selected.update(ADDITIONAL_PRESUBMITS)
     require(type(ARM_CROSS_ALL) is bool, "ARM cross survey selection must be boolean")
@@ -1834,8 +1874,6 @@ def main() -> None:
                        help="test latest non-yanked versions and explicit additional presubmits")
     planner.add_argument("--p4-runner-profile", choices=("standard", "large"), default="large",
                          help="AMD64 execution pool for P4C, BMv2 and DASH")
-    planner.add_argument("--max-jobs", type=int,
-                         help="fail closed rather than dispatch or truncate a larger required matrix")
     planner.add_argument("--output", required=True, type=Path)
     synchronizer = subparsers.add_parser("sync-module", help="generate or check an opted-in MODULE overlay")
     synchronizer.add_argument("--module", required=True)
@@ -1862,8 +1900,7 @@ def main() -> None:
     try:
         if args.command == "plan":
             result = plan(ROOT, args.base, args.head, args.all_versions, args.latest_versions,
-                          published=args.published, push=args.push, p4_runner_profile=args.p4_runner_profile,
-                          max_jobs=args.max_jobs)
+                          published=args.published, push=args.push, p4_runner_profile=args.p4_runner_profile)
             args.output.parent.mkdir(parents=True, exist_ok=True)
             args.output.write_text(json.dumps(result, indent=2) + "\n")
             print(json.dumps(result, separators=(",", ":")))

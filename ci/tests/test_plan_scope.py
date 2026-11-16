@@ -32,7 +32,7 @@ class PredispatchScopeTests(FixtureTestCase):
         catalog.parent.mkdir(parents=True)
         catalog.write_text('{"sources": []}\n')
         head = self.commit("catalog change requires full coverage")
-        full = registry_ci.plan(self.root, base, head, published=base)
+        full = registry_ci.plan(self.root, base, head, published=base, max_jobs=100)
         self.assertEqual(len(full["include"]), 3)
         with self.assertRaisesRegex(registry_ci.RegistryError, "3 required jobs > 2"):
             registry_ci.plan(self.root, base, head, published=base, max_jobs=2)
@@ -61,9 +61,24 @@ class PredispatchScopeTests(FixtureTestCase):
             with self.assertRaisesRegex(registry_ci.RegistryError, "positive integer"):
                 registry_ci.plan(self.root, base, base, published=base, max_jobs=cap)
 
+    def test_selection_only_classifier_rejects_executor_or_catalog_changes(self):
+        self.entry("alpha", "1.0.0")
+        folder = self.root / "ci"
+        folder.mkdir()
+        script = folder / "registry_ci.py"
+        script.write_text("import json\ndef plan():\n    return 1\ndef run():\n    return 2\n")
+        base = self.commit("baseline executor")
+        script.write_text("import json\ndef plan():\n    return 3\ndef run():\n    return 2\n")
+        head = self.commit("selection-only change")
+        self.assertTrue(registry_ci.planning_only_change(self.root, base, head, ["ci/registry_ci.py"]))
+        script.write_text("import json\ndef plan():\n    return 3\ndef run():\n    return 4\n")
+        head = self.commit("executor change")
+        self.assertFalse(registry_ci.planning_only_change(self.root, base, head, ["ci/registry_ci.py"]))
+        self.assertFalse(registry_ci.planning_only_change(self.root, base, head, ["ci/github_sources/catalog.json"]))
+
     def test_runtime_jobs_wait_for_successful_scope_plan(self):
         workflow = (Path(__file__).resolve().parents[2] / ".github/workflows/registry-ci.yml").read_text()
-        self.assertIn("--max-jobs=2 --base", workflow)
+        self.assertIn("--base \"$BASE_SHA\" --head \"$HEAD_SHA\"", workflow)
         for start, end in (("  unit:", "  cross_fixture:"), ("  cross_fixture:", "  modules_local:")):
             job = workflow.split(start, 1)[1].split(end, 1)[0]
             self.assertIn("if: ${{ !cancelled() && needs.plan.result == 'success' }}", job)
