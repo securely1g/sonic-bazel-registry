@@ -1,0 +1,81 @@
+diff --git a/apt/private/deb_filemap.bzl b/apt/private/deb_filemap.bzl
+--- a/apt/private/deb_filemap.bzl
++++ b/apt/private/deb_filemap.bzl
+@@ -66,6 +66,12 @@
+             kind = catalog_execute(rctx, "file", ["--mime-type", "-b", extracted])
+             if kind.stdout.strip().startswith("text/"):
+                 native[path] = {"script": rctx.read(extracted)}
++            elif path.endswith(".a") and kind.stdout.strip() == "application/x-archive":
++                # Empty libc compatibility archives carry no object code. Keep
++                # unknown, damaged and object-bearing archives conservative.
++                headers = catalog_execute(rctx, "readelf", ["-h", extracted])
++                if not headers.return_code and not headers.stdout.strip() and not headers.stderr.strip():
++                    native[path] = {"empty_archive": True}
+             elif not path.endswith(".a"):
+                 result = catalog_execute(rctx, "readelf", ["-dW", extracted])
+                 if result.return_code:
+diff --git a/apt/private/deb_import.bzl b/apt/private/deb_import.bzl
+--- a/apt/private/deb_import.bzl
++++ b/apt/private/deb_import.bzl
+@@ -660,6 +660,7 @@
+                 deps = []
+                 link_files = []
+                 sonames = []
++                empty_archives = []
+                 arguments = []
+                 pending = False
+                 selection = (mode, False)
+@@ -698,6 +699,8 @@
+                                 identity = _native_canonical(result.repo, result.path, state)
+                                 record = state["native"].get(identity[0], {}).get(identity[1], {}) if identity else {}
+                                 sonames.append(record.get("soname", identity[1].rsplit("/", 1)[-1]) if identity and "needed" in record else "")
++                                if record.get("empty_archive", False):
++                                    empty_archives.append(result.file)
+                             arguments.append("$FILE:" + str(link_files.index(result.file)))
+                             continue
+                     arguments.append(token)
+@@ -706,7 +709,7 @@
+                     continue
+                 compiler = "_pkgconfig_compile_" + util.encode_target(target)
+                 content += 'cc_deb_library(name=%r, hdrs=%r, deps=%r, includes=%r, include_dirs=%r, quote_includes=%r, defines=%r)\n' % (compiler, hdrs, header_deps, [] if compatible else compile.normal, compile.system + compile.normal if compatible else compile.system, compile.quote, compile.defines)
+-                content += 'native_link_sequence(name=%r, deps=%r, link_files=%r, link_sonames=%r, arguments=%r, visibility=["//visibility:public"])\n' % (target, deps + [":" + compiler], link_files, sonames, arguments)
++                content += 'native_link_sequence(name=%r, deps=%r, link_files=%r, link_sonames=%r, empty_archives=%r, arguments=%r, visibility=["//visibility:public"])\n' % (target, deps + [":" + compiler], link_files, sonames, empty_archives, arguments)
+     return content, exports
+ 
+ def _discover_contents(rctx, depends_on, depends_file_map, target_name, state):
+diff --git a/apt/private/cc_deb_library.bzl b/apt/private/cc_deb_library.bzl
+--- a/apt/private/cc_deb_library.bzl
++++ b/apt/private/cc_deb_library.bzl
+@@ -222,7 +222,12 @@
+     # and prevent independent consumers in multiple cc_shared_libraries.
+     # Keep the carrier for flags-only and static/script inputs: those still
+     # need their flags retained and their static ownership checked.
+-    if not libraries or not all(ctx.attr.link_sonames):
++    empty_archives = {file: True for file in ctx.files.empty_archives}
++    has_static_inputs = any([
++        not soname and ctx.attr.link_files[index][DefaultInfo].files.to_list()[0] not in empty_archives
++        for index, soname in enumerate(ctx.attr.link_sonames)
++    ])
++    if not libraries or has_static_inputs:
+         anchor = ctx.actions.declare_file(ctx.label.name + "/linkopts.a")
+         ctx.actions.write(anchor, "/* Ordered pkg-config link contract. */\n")
+         libraries.append(cc_common.create_library_to_link(actions = ctx.actions, static_library = anchor))
+@@ -249,6 +254,7 @@
+         "_runtime_interface": attr.label(default = Label("//apt/private:runtime.ifso"), allow_single_file = True),
+         "link_files": attr.label_list(allow_files = True),
+         "link_sonames": attr.string_list(),
++        "empty_archives": attr.label_list(allow_files = True),
+         "arguments": attr.string_list(),
+     },
+     fragments = ["cpp"],
+diff --git a/MODULE.bazel b/MODULE.bazel
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "rules_distroless",
+-    version = "0.9.4.sonic.19",
++    version = "0.9.4.sonic.20",
+     compatibility_level = 1,
+ )
+ 

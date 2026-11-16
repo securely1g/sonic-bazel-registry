@@ -1,0 +1,15 @@
+diff --git a/apt/private/deb_import.bzl b/apt/private/deb_import.bzl
+--- a/apt/private/deb_import.bzl
++++ b/apt/private/deb_import.bzl
+@@ -409,7 +409,10 @@
+             else:
+                 resolved_symlink = resolve_symlink(line, symlink_target).removeprefix("./")
+ 
+-        if (line.endswith(".so") or line.find(".so.") != -1) and line.find("lib") != -1:
++        # Parent directories such as ld.so.conf.d are package data, not a
++        # shared-library filename. Keep them out of native ELF inspection.
++        basename = line.rsplit("/", 1)[-1]
++        if (basename.endswith(".so") or ".so." in basename) and line.find("lib") != -1:
+             if line.find("libthread_db") != -1:
+                 continue
+             so_files.append(line)
