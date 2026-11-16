@@ -1,0 +1,15 @@
+{
+  "url": "https://github.com/p/redis-dump-load/archive/758549795174dc6b3be70810e0e4d6308f80f1a3.tar.gz",
+  "strip_prefix": "redis-dump-load-758549795174dc6b3be70810e0e4d6308f80f1a3",
+  "integrity": "sha256-rs5hxpT4h6+DB+joLRKMoI8naAF9mO9gbKE4D2zrWT4=",
+  "patch_strip": 1,
+  "patches": {
+    "0001-Use-pipelines-when-dumping-52.patch": "sha256-iCmyOdT1+U6JAY5/3DQGMYmSm262umY5Y9ApG2tfzc4=",
+    "0002-Fix-setup.py-for-test-and-bdist_wheel.patch": "sha256-/9zPk4h4uz/fB+8nyUBK7WtL7lxuKBPG1UrfkIQiMfQ="
+  },
+  "overlay": {
+    "BUILD.bazel": "sha256-DC5cM2h1urEhwXM0ucJt83oO6lIv20XDNJW1mh8mox4=",
+    "MODULE.bazel": "sha256-eE/+xeYSGmCUrcf9htcegjs76WogEOrQyZ3hTUC9/qs=",
+    "metadata.bzl": "sha256-0HjNjl4lwGv6gxGa0lFW0nf2n8Jd7huJZQktXNgOXFE="
+  }
+}

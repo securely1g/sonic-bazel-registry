@@ -1,0 +1,17 @@
+{
+  "homepage": "https://github.com/openconfig/ygot",
+  "maintainers": [
+    {
+      "name": "Guohan Lu",
+      "email": "securely1g@gmail.com",
+      "github": "securely1g"
+    }
+  ],
+  "repository": [
+    "https://github.com/openconfig/ygot"
+  ],
+  "versions": [
+    "0.7.1.sonic.1"
+  ],
+  "yanked_versions": {}
+}

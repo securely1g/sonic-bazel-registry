@@ -1,0 +1,10 @@
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-rust-deps",
+-    version = "0.0.5",
++    version = "0.0.5-dd364f207d7b320a5af12c81da6d10893f292205",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",

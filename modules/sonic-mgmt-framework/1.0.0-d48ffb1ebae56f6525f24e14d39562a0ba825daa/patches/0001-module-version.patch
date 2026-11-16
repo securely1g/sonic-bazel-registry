@@ -1,0 +1,13 @@
+From: Guohan Lu <securely1g@gmail.com>
+Subject: [PATCH 1/2] Assign the source-specific Framework module version
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-mgmt-framework",
+-    version = "1.0.0",
++    version = "1.0.0-d48ffb1ebae56f6525f24e14d39562a0ba825daa",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",

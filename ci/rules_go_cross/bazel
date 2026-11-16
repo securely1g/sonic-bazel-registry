@@ -1,0 +1,44 @@
+#!/usr/bin/python3
+"""Build ARM64 binaries in the workspaces created by the rules_go tests."""
+import os
+from pathlib import Path
+import subprocess
+import sys
+
+
+def main(args):
+    tools = Path(__file__).resolve().parent
+    bazel = str(tools / "host-bazel")
+    index = next((i for i, arg in enumerate(args) if arg in ("build", "cquery")), None)
+    if index is None:
+        os.execv(bazel, [bazel, *args])
+
+    command = args[index]
+    prefix = [bazel, "--batch", "--host_jvm_args=-Xmx1024m", *args[:index]]
+    # Nested workspaces have their own MODULE.bazel. Register the same compiler
+    # and sysroot the outer build used, with separate target and host platforms.
+    repo = "@registry_ci_cross_cc"
+    options = [
+        f"--inject_repository=registry_ci_cross_cc={tools.parent / 'cross-cc-repository'}",
+        f"--extra_toolchains={repo}//:toolchain",
+        f"--platforms={repo}//nested:arm64",
+        f"--host_platform={repo}//nested:amd64",
+        f"--extra_execution_platforms={repo}//nested:amd64",
+        f"--downloader_config={tools / 'source_mirrors.cfg'}",
+        "--jobs=2", "--spawn_strategy=local", *args[index + 1:],
+    ]
+    subprocess.run([*prefix, command, *options], check=True)
+    if command == "build":
+        outputs = subprocess.check_output([*prefix, "cquery", "--output=files", *options], text=True)
+        if not outputs.strip():
+            sys.exit("Nested rules_go build returned no outputs")
+        for filename in outputs.splitlines():
+            with open(filename, "rb") as stream:
+                header = stream.read(20)
+            if header[:6] != b"\x7fELF\x02\x01" or header[18:20] != b"\xb7\x00":
+                sys.exit(f"Expected an ARM64 executable from the nested rules_go build: {filename}")
+            print(f"Nested AArch64 ELF verified: {filename}", file=sys.stderr)
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

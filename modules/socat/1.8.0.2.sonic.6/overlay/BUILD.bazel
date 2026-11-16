@@ -1,0 +1,77 @@
+load("@rules_python//python:py_test.bzl", "py_test")
+load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
+
+package(default_visibility = ["//visibility:public"])
+
+# Preserve the public targets while building the complete Debian source tree.
+[
+    alias(
+        name = name,
+        actual = "@socat_source//:" + name,
+    )
+    for name in [
+        "sources",
+        "socat_build",
+        "built_socat1",
+        "built_filan",
+        "built_procan",
+        "socat_config_log",
+        "socat_pkg",
+        "socat_pkg.debug_symbols",
+    ]
+]
+
+# Load only the installed TAR and its explicitly declared Debian libraries.
+py_test(
+    name = "socat_package_test",
+    srcs = ["socat_package_test.py"],
+    args = [
+        "$(rootpath :socat_pkg)",
+        "$(rootpath :socat_pkg.debug_symbols)",
+        "$(rootpath @socat_source//:doc/socat.1)",
+        "$(rootpath :socat_config_log)",
+        "$(locations @socat_deps//:packages)",
+    ],
+    data = [
+        ":socat_config_log",
+        ":socat_pkg",
+        ":socat_pkg.debug_symbols",
+        "@socat_deps//:packages",
+        "@socat_source//:COPYING",
+        "@socat_source//:debian/control",
+        "@socat_source//:debian/copyright",
+        "@socat_source//:doc/socat.1",
+        "@socat_source//:socat-broker.sh",
+        "@socat_source//:socat-chain.sh",
+        "@socat_source//:socat-mux.sh",
+    ],
+    python_version = "3.13",
+)
+
+# Package fields come from the existing Debian recipe. This mapping only
+# identifies the Bazel-built TAR for each Debian binary package.
+runtime_packages(
+    name = "runtime_packages.json",
+    apt_packages = {
+        "@socat_deps//" + package + ":data": "@socat_deps//" + package + ":control"
+        for package in [
+            "libreadline8t64",
+            "libssl3t64",
+            "libwrap0",
+            "libtinfo6",
+            "libzstd1",
+            "zlib1g",
+        ]
+    },
+    changelog = "@socat_source//:debian/changelog",
+    control = "@socat_source//:debian/control",
+    packages = {
+        "socat": "//:socat_pkg",
+    },
+    visibility = ["//visibility:public"],
+)
+
+exports_files(
+    ["runtime_packages.md"],
+    visibility = ["//visibility:public"],
+)

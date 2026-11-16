@@ -1,0 +1,20 @@
+{
+  "architectures": [
+    "amd64"
+  ],
+  "consumer_deps": [],
+  "platforms": {
+    "amd64": "@platforms//host:host"
+  },
+  "generated_module_overlay": true,
+  "build_targets": [
+    "@sonic-utilities//:sonic_utilities_wheel",
+    "@sonic-utilities//bazel/runtime:sonic_utilities_wheel"
+  ],
+  "test_targets": [
+    "@sonic-utilities//:wheel_contract_test",
+    "@sonic-utilities//:wheel_installed_test",
+    "@sonic-utilities//:runtime_wheel_contract_test"
+  ],
+  "integration_test_module": "tests/integration"
+}

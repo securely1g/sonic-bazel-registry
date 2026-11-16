@@ -15,7 +15,9 @@
     "6.15.0.sonic.2",
     "6.15.0.sonic.3",
     "6.15.0.sonic.4",
-    "6.15.0.sonic.5"
+    "6.15.0.sonic.5",
+    "6.15.0.sonic.6",
+    "6.15.0.sonic.7"
   ],
   "yanked_versions": {}
 }

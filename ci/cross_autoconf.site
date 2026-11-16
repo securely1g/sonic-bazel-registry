@@ -1,0 +1,16 @@
+# CI cross environment only: do not override explicit configure aliases or
+# change native compiler invocations used to build execution tools.
+if test -z "${host_alias-}" && test -z "${build_alias-}" \
+    && test "$(uname -m)" = x86_64 && test -n "${CC-}"; then
+    registry_ci_cc_target=$(eval "$CC -dumpmachine" 2>/dev/null) || registry_ci_cc_target=
+    case "$registry_ci_cc_target" in
+        aarch64*-linux-gnu*)
+            host_alias=$registry_ci_cc_target
+            build_alias=x86_64-linux-gnu
+            ac_tool_prefix=$host_alias-
+            cross_compiling=yes
+            echo "registry-ci site: host=$host_alias build=$build_alias cross_compiling=$cross_compiling" >&2
+            ;;
+    esac
+    unset registry_ci_cc_target
+fi

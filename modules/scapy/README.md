@@ -1,6 +1,6 @@
 # Scapy for SONiC
 
-`scapy@2.6.1.sonic.1` builds the exact Scapy source selected by SONiC's
+`scapy@2.6.1.sonic.2` builds the exact Scapy source selected by SONiC's
 `src/scapy` gitlink (`8e08cbf759de6709a5b4af6bea3655d293129bb4`).
 The module version describes the upstream 2.6.1 source integration. The wheel
 and installed Python distribution retain Make's explicit `2.6.1.dev0` version:
@@ -27,6 +27,12 @@ currently fed by Make's wheel. Image integration is separate work tracked by
 This producer addresses [issue #101](https://github.com/securely1g/sonic-buildimage/issues/101).
 It introduces no DEB targets and changes no Make recipe.
 
+The second registry revision carries forward the four patches from the first.
+In the native TLS tests the client now sends the second request once, and
+the server and client allow up to five seconds for the peer to respond.
+Both tests still check the HTTP response bodies and the server shutdown.
+[Upstream duplicate-request fix](https://github.com/secdev/scapy/commit/c5e9a5b0cd25f4d0bb87c3b208db342edea7da38) · [Upstream timeout fix](https://github.com/secdev/scapy/commit/49b03612d33d9d0d52300ab651e9a02e017de738).
+
 ## Validation
 
 The registry's independent AMD64 consumer builds the wheel and runs:
@@ -39,8 +45,8 @@ The registry's independent AMD64 consumer builds the wheel and runs:
 - `upstream_test`: run upstream's Linux UTscapy configuration against the
   installed wheel under Python 3.13, without source-tree import fallback.
   Root/network, optional libpcap, external packet tools and hardware/CI-service fixtures are
-  excluded by their upstream tags. Original assertions remain unchanged except
-  for the documented submodule expectation fixed by the selected SONiC patch.
+  excluded by their upstream tags. The suite checks the SONiC submodule version behavior and requires both
+  response bodies in the native TLS tests.
 
 The build/test requirements lock includes the native Python build tools and
 upstream optional test dependencies; none enters the runtime wheel. Brotli

@@ -11,7 +11,8 @@
     "github:secdev/scapy"
   ],
   "versions": [
-    "2.6.1.sonic.1"
+    "2.6.1.sonic.1",
+    "2.6.1.sonic.2"
   ],
   "yanked_versions": {}
 }
