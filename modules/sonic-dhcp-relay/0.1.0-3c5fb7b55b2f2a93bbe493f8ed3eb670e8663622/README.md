@@ -30,4 +30,4 @@ Use new empty directories; audit scoped configured actions before execution. No 
 
 ## Local preparation hold
 
-This landed-source repin is a local tentative candidate only. Registry#235 remains Draft at94a6; shared workflow/helper skew and HOLD252 stale-base predispatch risk are unresolved. Do not push this source-only repin to trigger the known-broken pipeline. Named sonic-reviewer review and explicit shared-CI scope/publication disposition are required before any update. No shared workflow/helper, dependency upgrade, architecture expansion or new DHCP4 consumer coverage is included.
+This landed-source repin is integrated with maintained registry helpers and a fail-closed PR planning safeguard. Necessary readiness/safeguard implementation is authorized; publication still requires exact sonic-reviewer acceptance and verified bounded predispatch checks. The original HOLD252 evidence is retained, not treated as permission to dispatch a broad matrix. No dependency upgrade, architecture expansion or new DHCP4 consumer coverage is included. Fresh bounded native consumer results and actual hosted CI must be recorded separately before claiming registration readiness.
