@@ -60,6 +60,18 @@ establish a successful image build.
 
 ## Native library contracts
 
+Revision .19 fixes independent direct use of the same dynamic pkg-config module
+by two `cc_shared_library` targets. Pure dynamic sequences retain ordered flags
+on their dynamic library inputs, without introducing synthetic static ownership.
+Flags-only and sequences containing static archives, objects or linker scripts
+retain the existing parameter carrier and ownership checks.
+
+The contract fixture adds a diamond in which both DSOs call the same packaged
+shared library and the upper DSO also calls the lower one. Its executable must
+print 84. Equivalent diamonds containing a real static archive, including a
+mixed shared/static module, must fail native static ownership analysis. Existing
+flags-only, archive and ordered push/pop/whole-archive controls remain enabled.
+
 APT library imports preserve installed-file ownership and GNU linker-script
 semantics through native shared-library boundaries. A script may refer to a
 shared object, static archive, object file or nested script through absolute
@@ -73,7 +85,7 @@ Run the original cross-package script regression from the registry root:
 
 ```sh
 USE_BAZEL_VERSION=8.5.1 python3 \
-  modules/rules_distroless/0.9.4.sonic.18/tests/shared_linker_script_test.py \
+  modules/rules_distroless/0.9.4.sonic.19/tests/shared_linker_script_test.py \
   --registry .
 ```
 
@@ -98,7 +110,7 @@ Rust executables consume the adapter's actual CcInfo flags and files.
 
 ```sh
 USE_BAZEL_VERSION=8.5.1 python3 \
-  modules/rules_distroless/0.9.4.sonic.18/tests/library_contract_test.py \
+  modules/rules_distroless/0.9.4.sonic.19/tests/library_contract_test.py \
   --registry . --adapter /path/to/sonic-build-infra/cc/shared_library.bzl \
   --go /path/to/go --rustc /path/to/rustc
 ```
@@ -144,15 +156,16 @@ consumer that accepts those compiler flags. The flags remain in the metadata.
 Legacy labels retain their existing compiler-option compatibility behavior. These field semantics follow the
 [pkg-config guide](https://people.freedesktop.org/~dbn/pkg-config-guide.html).
 
-Requires names and version predicates are resolved by the locked pkgconf executable
-against a private directory built from the locked package metadata. Providers
+Requires names, version predicates and compile/link fields are resolved directly
+in Starlark from the locked package metadata, using the sonic_rules parser
+foundation. Repository analysis does not execute pkg-config or pkgconf. Providers
 can belong to another reviewed collection without being Debian package
 dependencies. The generated catalog separates target architectures and source
 families connected by reviewed dependency edges. Multiple unresolved providers
 produce an explicit ambiguity diagnostic. Missing providers stay errors on the
 explicit module interface; they do not trigger package resolution or lock writes. The host's
 PKG_CONFIG_PATH, PKG_CONFIG_LIBDIR and sysroot settings do not supply modules.
-On Linux AMD64 and ARM64, the importer bootstraps pkgconf, file, readelf,
+On Linux AMD64 and ARM64, the importer bootstraps file and readelf,
 their runtime libraries and the magic database from the checksummed
 [build-infra tools lock](https://github.com/securely1g/sonic-build-infra/blob/08e0956f80574b27a9b68e72fe855cc0089058e5/apt/apt.lock.json).
 Bazel downloads these exact archives through its configured downloader. It uses
@@ -164,8 +177,10 @@ needed to adopt these interfaces.
 Existing package and per-library labels remain compatibility interfaces. Package
 labels keep the aggregate library inputs. Their flags come first from a module
 matching the package base name, then the name without a leading lib; when neither
-exists, the historical aggregate remains. Per-library aliases use an unambiguous
-matching module. A missing private requirement or SDK-required metadata field
+exists, the historical aggregate remains. Individual shared-library `_cc` interfaces select that library and its runtime
+inputs, retaining compile definitions and original unversioned aliases. Complete
+pkg-config link closures belong to explicit `pkgconfig/<module>` interfaces and
+static variants. A missing private requirement or required module metadata field
 falls back to the compatibility module's direct fields. Explicit module targets
 remain strict. Ambiguous unqualified raw-library aliases fail when selected;
 raw archives and precisely selected modules remain usable.
@@ -249,3 +264,13 @@ and transitive ordinary exports, explicit overlay selection, metadata-free
 headers, and the no-primary-match aggregate fallback. All five are selected
 unconditionally by the normal AMD64 and ARM64 presubmit configuration, alongside
 the existing forty tests.
+
+## Reuse pkg-config metadata
+
+Revision .19 records direct requirements in checksummed file-map repositories
+and resolves complete module flags in separate metadata repositories. Changing
+the library exporter reuses those records. Parsed dependency graphs are reused
+within their declared provider context. Ordered fragment processing preserves
+private fields, aliases, version errors and dynamic/static options without
+starting external pkg-config processes. Package
+versions, source locks and caller BUILD declarations stay unchanged.

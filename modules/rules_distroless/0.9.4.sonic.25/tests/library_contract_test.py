@@ -104,13 +104,17 @@ def main():
         'usr/lib/libone.so.1': 'libone.so', 'usr/lib/pkgconfig/one.pc': pc('one'), 'usr/lib/pkgconfig/two.pc': pc('two')}), ['libmulti0'])
     cases.append(('multi', 'int one(void); int two(void);', 'one()+two()', 'libmulti-dev', ()))
 
+    empty_archive = root / 'libempty.a'
+    ar = str(Path(cross['cc']).with_name('aarch64-linux-gnu-ar')) if cross else 'ar'
+    run([ar, 'rcs', str(empty_archive)])
     package('liboptional-dev', {
+        'usr/lib/libempty.a': empty_archive.read_bytes(),
         'usr/lib/liboptional.so.1': library('liboptional', 'optional_value', 42,
             source_text='int optional_state=42; int optional_value(void){return optional_state;}\n'),
         'usr/lib/liboptional.so': 'liboptional.so.1',
         'usr/lib/liboptional_ctor.a': archive('liboptional_ctor', 'optional_ctor_anchor', 0,
             source_text='extern int optional_state; void optional_ctor_anchor(void){} __attribute__((constructor)) static void init(void){optional_state=99;}\n'),
-        'usr/lib/pkgconfig/liboptional.pc': pc('optional'),
+        'usr/lib/pkgconfig/liboptional.pc': pc('optional').replace(b'-loptional\n', b'-loptional -lempty\n'),
         'usr/lib/pkgconfig/liboptional-plugin.pc': pc('optional').replace(b'-loptional\n', b'-loptional -Wl,-z,nodlopen\n') + b'Cflags: -DUNSELECTED_PLUGIN=1\n',
         'usr/lib/pkgconfig/liboptional-ctor.pc': pc('optional_ctor').replace(b'-loptional_ctor\n', b'-loptional_ctor -Wl,-z,nodlopen -Wl,-u,optional_ctor_anchor\n') + b'Requires: liboptional >= 1\n'})
     cases.append(('optional', '#ifdef UNSELECTED_PLUGIN\n#error unrelated module Cflags leaked\n#endif\nint optional_value(void);', 'optional_value()', 'liboptional-dev', ()))
@@ -387,6 +391,12 @@ def main():
     roots = {f'/fixture/{p}:{arch}': '1' for _, _, _, p, _ in cases}
     roots[f'/fixture/fixture-config:{arch}'] = '1'
     roots[f'/fixture/libplain-dev:{arch}'] = '1'
+    roots[f'/fixture/libownership-dev:{arch}'] = '1'
+    # Shared-library ownership: real static members must remain exclusive even
+    # when the same ordered module also contains a real dynamic library.
+    package('libownership-dev', {
+        'usr/lib/pkgconfig/ownership-mixed.pc': b'Name: ownership-mixed\nDescription: real shared and static members\nVersion: 1\nLibs: -L/usr/lib -loptional -Wl,--push-state,-Bstatic -lswitch -Wl,--pop-state\n',
+    }, ['liboptional-dev', 'libswitch-dev'])
     (root / 'apt.lock.json').write_text(json.dumps(dict(version=2, sources={'fixture': {'uris': [root.as_uri()]},'other':{'uris':[root.as_uri()]}},
         packages=packages, dependency_sets={'locked': {'sets': {arch: roots}},
             'providers': {'sets': {arch: {f'/fixture/libpcpublic-dev:{arch}': '1',f'/fixture/libpcprivate-dev:{arch}':'1'}}},
@@ -422,7 +432,7 @@ def _impl(ctx):
 link_context=rule(implementation=_impl,attrs={"dep":attr.label(providers=[CcInfo])})
 ''')
     (root / 'MODULE.bazel').write_text(f'''module(name="library_contracts")
-bazel_dep(name="rules_distroless",version="0.9.4.sonic.18")
+bazel_dep(name="rules_distroless",version="0.9.4.sonic.19")
 bazel_dep(name="rules_cc",version="0.2.20")
 bazel_dep(name="fixture_adapter",version="1")
 local_path_override(module_name="fixture_adapter",path="{adapter}")
@@ -431,6 +441,16 @@ apt.import_lock(lock="//:apt.lock.json",libraries=True)
 use_repo(apt,"locked","conflicting","providers")
 ''')
     if cross:
+        # Preserve real overlay directories; resolve leaf symlinks before the
+        # hermetic sandbox hides unrelated paths under /tmp.
+        def link_fixture_entry(source, target):
+            if source.is_dir() and not source.is_symlink():
+                target.mkdir()
+                for child in source.iterdir():
+                    link_fixture_entry(child, target / child.name)
+            else:
+                target.symlink_to(source.resolve(), target_is_directory=source.is_dir())
+
         for name, directory in [('fixture_cc',Path(cross['cc']).parent.parent),('fixture_sysroot',Path(cross['sysroot']))]:
             target=root/name
             target.mkdir()
@@ -438,12 +458,12 @@ use_repo(apt,"locked","conflicting","providers")
             if name=='fixture_cc':
                 for entry in directory.iterdir():
                     if entry.name not in ('BUILD.bazel','MODULE.bazel','REPO.bazel'):
-                        (target/entry.name).symlink_to(entry,target_is_directory=entry.is_dir())
+                        (target/entry.name).symlink_to(entry.resolve(),target_is_directory=entry.is_dir())
             else:
                 (target/'root').mkdir()
                 for entry in directory.iterdir():
                     if entry.name not in ('BUILD.bazel','BUILD','MODULE.bazel','REPO.bazel'):
-                        (target/'root'/entry.name).symlink_to(entry,target_is_directory=entry.is_dir())
+                        link_fixture_entry(entry, target/'root'/entry.name)
             marker = 'bin/aarch64-linux-gnu-gcc' if name == 'fixture_cc' else 'root/usr/include/stdio.h'
             (target/'BUILD.bazel').write_text('package(default_visibility=["//visibility:public"])\nexports_files(["'+marker+'"])\nfilegroup(name="files",srcs=glob(["**"]))\n')
             with (root/'MODULE.bazel').open('a') as module:
@@ -465,11 +485,32 @@ use_repo(apt,"locked","conflicting","providers")
             f'shared_library_cc_info(name="{case}_link",shared_library=":{case}_bridge")',
             f'cc_library(name="{case}_leaf",srcs=["{case}_leaf.c"],deps=[":{case}_objects"])',
             f'cc_shared_library(name="{case}_downstream",deps=[":{case}_leaf"],dynamic_deps=[":{case}_bridge"],user_link_flags=["-Wl,-z,defs","-Wl,--as-needed","-Wl,-rpath,$ORIGIN","-Wl,-soname,lib{case}_downstream.so"])',
-            f'shared_library_cc_info(name="{case}_downstream_link",shared_library=":{case}_downstream")',
+            f'shared_library_cc_info(name="{case}_downstream_link",shared_library=":{case}_downstream",runtime_deps=["{interface}"])',
             f'cc_binary(name="{case}_consumer",srcs=["{case}_main.c"],deps=[":{case}_downstream_link"],linkopts=["-Wl,-rpath,$$ORIGIN/../lib"])']
+    # Unlike the ordinary bridge/leaf cases above, BOTH sides of each diamond
+    # directly call the SAME selected APT interface.
+    ownership_cases = [
+        ('dynamic', '@locked//liboptional-dev:pkgconfig/liboptional', 'int optional_value(void);', 'optional_value()'),
+        ('static', '@locked//libswitch-dev:pkgconfig/switch', 'int switch_value(void);', 'switch_value()'),
+        ('mixed', '@locked//libownership-dev:pkgconfig/ownership-mixed', 'int optional_value(void); int switch_value(void);', 'optional_value()+switch_value()'),
+    ]
+    for kind, interface, declaration, expression in ownership_cases:
+        case = 'ownership_' + kind
+        (root/(case+'_first.c')).write_text(declaration+' int '+case+'_first(void){return '+expression+';}\n')
+        (root/(case+'_second.c')).write_text(declaration+' int '+case+'_first(void); int '+case+'_second(void){return '+case+'_first()+('+expression+');}\n')
+        (root/(case+'_main.c')).write_text('#include <stdio.h>\nint '+case+'_second(void); int main(void){printf("%d\\n",'+case+'_second());}\n')
+        build += [
+            f'cc_library(name="{case}_first_objects",srcs=["{case}_first.c"],deps=["{interface}"])',
+            f'cc_shared_library(name="{case}_first",deps=[":{case}_first_objects"],user_link_flags=["-Wl,-z,defs"])',
+            f'cc_library(name="{case}_second_objects",srcs=["{case}_second.c"],deps=[":{case}_first_objects","{interface}"])',
+            f'cc_shared_library(name="{case}_second",deps=[":{case}_second_objects"],dynamic_deps=[":{case}_first"],user_link_flags=["-Wl,-z,defs"])',
+            f'shared_library_cc_info(name="{case}_link",shared_library=":{case}_second",runtime_deps=["{interface}"])',
+            f'cc_binary(name="{case}_consumer",srcs=["{case}_main.c"],deps=[":{case}_link"])',
+        ]
     build.append('link_context(name="legacy_header_context",dep="@providers//libpcpublic-dev:libpcpublic")')
     build.append('link_context(name="strict_header_context",dep="@providers//libpcpublic-dev:pkgconfig/pc-public")')
     build.append('link_context(name="language_context",dep=":multi_downstream_link")')
+    build.append('link_context(name="foreign_selected_context",dep="@locked//libboundary-dev:libboundary_cc")')
     build.append('link_context(name="foreign_context",dep="@locked//libprivateboundary-dev:libprivateboundary")')
     build.append('link_context(name="foreign_plain_context",dep="@locked//libplain-dev:libplain")')
     build.append('link_context(name="system_runtime_context",dep="@locked//libsystemboundary-dev:libsystemboundary")')
@@ -515,6 +556,19 @@ PyMODINIT_FUNC PyInit_optional_python(void){return PyModule_Create(&module);}
     def execute(file, cwd):
         command=[str(args.qemu),'-L',cross['sysroot'],str(file)] if cross else [str(file)]
         return run(command,cwd=cwd).stdout.strip()
+    # Genuine archive duplication must fail during native ownership analysis,
+    # not later because of an undefined symbol or unavailable runtime library.
+    for kind in ['static', 'mixed']:
+        result = subprocess.run(bazel+['build']+flags+['--nobuild', '//:ownership_'+kind+'_consumer'],cwd=root,env=env,text=True,capture_output=True)
+        diagnostic = result.stdout + result.stderr
+        (root/('ownership-'+kind+'.log')).write_text(diagnostic)
+        assert result.returncode and 'linked statically' in diagnostic, (kind, diagnostic)
+        print('PASS real archive duplicate ownership rejected:',kind,flush=True)
+    result = run(bazel+['build']+flags+['//:ownership_dynamic_consumer'],cwd=root)
+    (root/'ownership-dynamic.log').write_text(result.stdout+result.stderr)
+    output = execute(root/'bazel-bin/ownership_dynamic_consumer',root)
+    assert output == '84', output  # two direct calls of the independent 42-valued DSO
+    print('PASS same dynamic APT library directly used by both DSOs = 84',flush=True)
     # Ordinary package interfaces must work before any native library is built.
     result = run(bazel+['build']+flags+['//:package_inputs'],cwd=root)
     (root/'package-inputs.log').write_text(result.stdout+result.stderr)
@@ -557,7 +611,14 @@ PyMODINIT_FUNC PyInit_optional_python(void){return PyModule_Create(&module);}
 
         result = subprocess.run(bazel+['build']+flags+['@locked//libpcgraph-dev:pkgconfig/'+module],cwd=root,env=env,text=True,capture_output=True)
         (root/(module+'.log')).write_text(result.stdout+result.stderr)
-        assert result.returncode and 'pkg-config module '+module in result.stdout+result.stderr,(module,result.stdout+result.stderr)
+        diagnostic = result.stdout + result.stderr
+        assert result.returncode and 'pkg-config module '+module in diagnostic, (module, diagnostic)
+        if module == 'bad-version':
+            # Provider discovery must succeed before the SDK rejects version 1
+            # against the fixture's independently declared >99 requirement.
+            assert 'pc-public' in diagnostic and '> 99' in diagnostic, diagnostic
+        else:
+            assert 'missing-module' in diagnostic, diagnostic
         print('PASS module dependency error isolated:',module,flush=True)
     for name, message in [('libbroken_cc', 'Unresolved native symlink'), ('libcycle_cc', 'Cyclic native symlink'), ('libopaque_cc', 'Cannot inspect native shared library')]:
         result = subprocess.run(bazel+['build']+flags+['@locked//libboundary-dev:'+name],cwd=root,env=env,text=True,capture_output=True)
@@ -565,7 +626,7 @@ PyMODINIT_FUNC PyInit_optional_python(void){return PyModule_Create(&module);}
         assert result.returncode and message in result.stdout+result.stderr,(name,result.stdout+result.stderr)
         print('PASS native-only error:',name,flush=True)
     with (root / 'build.log').open('w') as log:
-        result = subprocess.run(bazel+['build']+flags+['//:'+case+'_consumer' for case, *_ in cases]+['//:language_context','//:legacy_header_context','//:strict_header_context','//:foreign_context','//:foreign_plain_context','//:system_runtime_context','//:plugin_context','//:explicit_ctor','//:explicit_plugin','//:graph_static']+(['//:optional_python.so'] if not cross else []),cwd=root,env=env,stdout=log,stderr=subprocess.STDOUT)
+        result = subprocess.run(bazel+['build']+flags+['//:'+case+'_consumer' for case, *_ in cases]+['//:language_context','//:legacy_header_context','//:strict_header_context','//:foreign_context','//:foreign_plain_context','//:foreign_selected_context','//:system_runtime_context','//:plugin_context','//:explicit_ctor','//:explicit_plugin','//:graph_static']+(['//:optional_python.so'] if not cross else []),cwd=root,env=env,stdout=log,stderr=subprocess.STDOUT)
     if result.returncode:
         raise SystemExit('Fixture build failed: '+str(root/'build.log'))
     # Legacy SDK headers remain system headers, so a source -I can override
@@ -592,6 +653,7 @@ PyMODINIT_FUNC PyInit_optional_python(void){return PyModule_Create(&module);}
     # configure_make collects LibraryToLink dynamic files into a flat prefix;
     # its original .pc then resolves an ordinary -l name against that prefix.
     for label, libname, declaration, expression in [
+        ('foreign_selected_context', 'boundary', 'int boundary_value(void);', 'boundary_value()'),
         ('foreign_context', 'privateboundary', 'int private_boundary_value(void);', 'private_boundary_value()'),
         ('foreign_plain_context', 'plain', 'int plain_value(void);', 'plain_value()'),
         ('system_runtime_context', 'systemboundary', 'int system_boundary_value(void);', 'system_boundary_value()'),
