@@ -1,9 +1,14 @@
 # Native AMD64 Linkmgrd for docker-mux
 
-This entry registers merged [Linkmgrd PR #1](https://github.com/securely1g/sonic-linkmgrd/pull/1)
-at `e0f9f94901c30ed30f5fe82af6dafca38f8b35d7`. Its source owner builds the daemon and matching runtime/debug TARs
-for [docker-mux integration #123](https://github.com/securely1g/sonic-buildimage/issues/123).
-No DEB is generated or imported as a substitute for the project source.
+This entry builds the periodic mux recovery tests from Linkmgrd commit
+`7b724e626cdb2232b8b323f31e5f8a7b48ad7a22`. When hardware reports standby for a port configured
+as active, the test waits for the periodic probe, then checks that exactly one
+additional write restores the port to active. It also tests the reverse
+direction. [Linkmgrd #2](https://github.com/securely1g/sonic-linkmgrd/pull/2)
+
+The daemon and its runtime and debug TARs are built from the same source.
+[Original Bazel targets](https://github.com/securely1g/sonic-linkmgrd/pull/1) ·
+[docker-mux integration](https://github.com/securely1g/sonic-buildimage/issues/123)
 
 The runtime installs `/usr/sbin/linkmgrd` and its existing compressed Debian
 changelog. The debug TAR contains the matching Build-ID symbols with `0644`
