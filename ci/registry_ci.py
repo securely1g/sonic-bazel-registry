@@ -83,7 +83,11 @@ ARM_CROSS_VERSIONS: dict[str, tuple[str, ...]] = {
         "0.0.37-316e298e77ab5cfa69af9b0c05ec24d5d94bbe1e",
         "0.0.38-0baa4acc9eac9ccc793b81104b1580d530271cbe",
     ),
-    "sonic-dash": ("0.0.1-2cbfdfa1205c0d03003444e5c80f89adb8c3df59",),
+    "sonic-dash": (
+        "0.0.1-2cbfdfa1205c0d03003444e5c80f89adb8c3df59",
+        "0.0.1-a9b799bb664b3b3b9d6e9a19cedd38b620e769de",
+        "0.0.3-2cbfdfa1205c0d03003444e5c80f89adb8c3df59",
+    ),
     "sonic-dash-api": ("0.0.5-9b2893e890734a2db0c53a5e5c64b031ec0dcfbd",),
     "sonic-dhcpmon": ("0.1.0-b824589b2ba49a8ba59142289bfb04bb3ca68875",),
     "sonic-fips": (FIPS_CROSS_VERSION,),
