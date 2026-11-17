@@ -1,0 +1,124 @@
+SONiC registry version comparison for sonic-linkmgrd
+
+Published baseline: 1.0.0-e0f9f94901c30ed30f5fe82af6dafca38f8b35d7
+Baseline registry commit: 1ccb95bd0c1f23a101d9f3c23f5fdb05a2e1f77b
+Candidate version: 1.0.0-7b724e626cdb2232b8b323f31e5f8a7b48ad7a22
+Candidate PR: https://github.com/securely1g/sonic-bazel-registry/pull/306
+Candidate PR head: 388bab6014fa8291a3888827792654fe61daf6f2
+Upstream source comparison: https://github.com/securely1g/sonic-linkmgrd/compare/e0f9f94901c30ed30f5fe82af6dafca38f8b35d7...7b724e626cdb2232b8b323f31e5f8a7b48ad7a22
+
+This patch compares complete registry entries at matching relative paths and
+updates module metadata. It includes all candidate entry changes and leaves the
+published entry unchanged. The external source archive is represented by its
+old/new URL, source revision and integrity; source changes are at the URL above.
+
+Apply in a clean checkout of the baseline registry commit. The destination
+version directory must not already exist:
+
+  test ! -e modules/sonic-linkmgrd/1.0.0-7b724e626cdb2232b8b323f31e5f8a7b48ad7a22
+  cp -a modules/sonic-linkmgrd/1.0.0-e0f9f94901c30ed30f5fe82af6dafca38f8b35d7 modules/sonic-linkmgrd/1.0.0-7b724e626cdb2232b8b323f31e5f8a7b48ad7a22
+  git apply --check sonic-linkmgrd-e0f9f949-to-7b724e62.patch
+  git apply sonic-linkmgrd-e0f9f949-to-7b724e62.patch
+
+diff --git a/modules/sonic-linkmgrd/1.0.0-7b724e626cdb2232b8b323f31e5f8a7b48ad7a22/MODULE.bazel b/modules/sonic-linkmgrd/1.0.0-7b724e626cdb2232b8b323f31e5f8a7b48ad7a22/MODULE.bazel
+index 29fb1a4070d511e7f915512b0df6c4f6cac6cd7e..4e83af5341f696ca8ffbcd1dc2314fe275f72156 100644
+--- a/modules/sonic-linkmgrd/1.0.0-7b724e626cdb2232b8b323f31e5f8a7b48ad7a22/MODULE.bazel
++++ b/modules/sonic-linkmgrd/1.0.0-7b724e626cdb2232b8b323f31e5f8a7b48ad7a22/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-linkmgrd",
+-    version = "1.0.0-e0f9f94901c30ed30f5fe82af6dafca38f8b35d7",
++    version = "1.0.0-7b724e626cdb2232b8b323f31e5f8a7b48ad7a22",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
+diff --git a/modules/sonic-linkmgrd/1.0.0-7b724e626cdb2232b8b323f31e5f8a7b48ad7a22/README.md b/modules/sonic-linkmgrd/1.0.0-7b724e626cdb2232b8b323f31e5f8a7b48ad7a22/README.md
+index f9a6a941f1ccc38c4427a0665321b136b5e83316..0a375812bbc21232c623e934c0e2dd46dd0f5220 100644
+--- a/modules/sonic-linkmgrd/1.0.0-7b724e626cdb2232b8b323f31e5f8a7b48ad7a22/README.md
++++ b/modules/sonic-linkmgrd/1.0.0-7b724e626cdb2232b8b323f31e5f8a7b48ad7a22/README.md
+@@ -1,9 +1,14 @@
+ # Native AMD64 Linkmgrd for docker-mux
+ 
+-This entry registers merged [Linkmgrd PR #1](https://github.com/securely1g/sonic-linkmgrd/pull/1)
+-at `e0f9f94901c30ed30f5fe82af6dafca38f8b35d7`. Its source owner builds the daemon and matching runtime/debug TARs
+-for [docker-mux integration #123](https://github.com/securely1g/sonic-buildimage/issues/123).
+-No DEB is generated or imported as a substitute for the project source.
++This entry builds the periodic mux recovery tests from Linkmgrd commit
++`7b724e626cdb2232b8b323f31e5f8a7b48ad7a22`. When hardware reports standby for a port configured
++as active, the test waits for the periodic probe, then checks that exactly one
++additional write restores the port to active. It also tests the reverse
++direction. [Linkmgrd #2](https://github.com/securely1g/sonic-linkmgrd/pull/2)
++
++The daemon and its runtime and debug TARs are built from the same source.
++[Original Bazel targets](https://github.com/securely1g/sonic-linkmgrd/pull/1) ·
++[docker-mux integration](https://github.com/securely1g/sonic-buildimage/issues/123)
+ 
+ The runtime installs `/usr/sbin/linkmgrd` and its existing compressed Debian
+ changelog. The debug TAR contains the matching Build-ID symbols with `0644`
+diff --git a/modules/sonic-linkmgrd/1.0.0-7b724e626cdb2232b8b323f31e5f8a7b48ad7a22/patches/0001-module-version.patch b/modules/sonic-linkmgrd/1.0.0-7b724e626cdb2232b8b323f31e5f8a7b48ad7a22/patches/0001-module-version.patch
+index 7cffee97118c5c1199304ac04c3c681f68d2d9c9..1698417c12e88208c88ca1c75abfd715d4c23b07 100644
+--- a/modules/sonic-linkmgrd/1.0.0-7b724e626cdb2232b8b323f31e5f8a7b48ad7a22/patches/0001-module-version.patch
++++ b/modules/sonic-linkmgrd/1.0.0-7b724e626cdb2232b8b323f31e5f8a7b48ad7a22/patches/0001-module-version.patch
+@@ -1,10 +1,17 @@
++Subject: Set the Bazel module version to the registered Linkmgrd revision
++
++The source declares version 1.0.0. Append the source commit so consumers
++can request this exact Linkmgrd revision from the SONiC registry.
++
++Origin: https://github.com/securely1g/sonic-bazel-registry/pull/183
++
+ --- a/MODULE.bazel
+ +++ b/MODULE.bazel
+ @@ -1,6 +1,6 @@
+  module(
+      name = "sonic-linkmgrd",
+ -    version = "1.0.0",
+-+    version = "1.0.0-e0f9f94901c30ed30f5fe82af6dafca38f8b35d7",
+++    version = "1.0.0-7b724e626cdb2232b8b323f31e5f8a7b48ad7a22",
+      bazel_compatibility = [
+          ">=8.5.1",
+          "<=8.5.1",
+diff --git a/modules/sonic-linkmgrd/1.0.0-7b724e626cdb2232b8b323f31e5f8a7b48ad7a22/source.json b/modules/sonic-linkmgrd/1.0.0-7b724e626cdb2232b8b323f31e5f8a7b48ad7a22/source.json
+index fb47ab95bbcd81e03d18afd2d87b6b05aff30156..fab323bd707a56c2633488115bc442d61c8b203a 100644
+--- a/modules/sonic-linkmgrd/1.0.0-7b724e626cdb2232b8b323f31e5f8a7b48ad7a22/source.json
++++ b/modules/sonic-linkmgrd/1.0.0-7b724e626cdb2232b8b323f31e5f8a7b48ad7a22/source.json
+@@ -1,9 +1,9 @@
+ {
+-  "url": "https://github.com/securely1g/sonic-linkmgrd/archive/e0f9f94901c30ed30f5fe82af6dafca38f8b35d7.tar.gz",
+-  "integrity": "sha256-08dSiyqtgU/eADoDNH+bK4akJnj9e9c5fw4RgYaFojw=",
+-  "strip_prefix": "sonic-linkmgrd-e0f9f94901c30ed30f5fe82af6dafca38f8b35d7",
++  "url": "https://github.com/securely1g/sonic-linkmgrd/archive/7b724e626cdb2232b8b323f31e5f8a7b48ad7a22.tar.gz",
++  "integrity": "sha256-IKvTPXzrEW3ws7l5JWc5tDSAoQr6LKL0sGkGC9iaIts=",
++  "strip_prefix": "sonic-linkmgrd-7b724e626cdb2232b8b323f31e5f8a7b48ad7a22",
+   "patch_strip": 1,
+   "patches": {
+-    "0001-module-version.patch": "sha256-NCOmIfI6EqDVU/EP3TCvrARivTL9snAFtU629LnXGfA="
++    "0001-module-version.patch": "sha256-sgLxLKDllHFDyUvRTqa+0DNJhUMywJJl35H8qcUoJS0="
+   }
+ }
+diff --git a/modules/sonic-linkmgrd/1.0.0-7b724e626cdb2232b8b323f31e5f8a7b48ad7a22/tests/consumer/MODULE.bazel b/modules/sonic-linkmgrd/1.0.0-7b724e626cdb2232b8b323f31e5f8a7b48ad7a22/tests/consumer/MODULE.bazel
+index 1ca97c88f9be331ea57fff092e4052cc108fcfc7..85383a243378b38beb248fff0f2a99ebfaa9488f 100644
+--- a/modules/sonic-linkmgrd/1.0.0-7b724e626cdb2232b8b323f31e5f8a7b48ad7a22/tests/consumer/MODULE.bazel
++++ b/modules/sonic-linkmgrd/1.0.0-7b724e626cdb2232b8b323f31e5f8a7b48ad7a22/tests/consumer/MODULE.bazel
+@@ -3,7 +3,7 @@ module(
+     version = "1.0.0",
+ )
+ 
+-bazel_dep(name = "sonic-linkmgrd", version = "1.0.0-e0f9f94901c30ed30f5fe82af6dafca38f8b35d7")
++bazel_dep(name = "sonic-linkmgrd", version = "1.0.0-7b724e626cdb2232b8b323f31e5f8a7b48ad7a22")
+ bazel_dep(name = "sonic-build-infra", version = "0.0.28-9965823498ab54816de5addb6084638470dd04d7", repo_name = "sonic_build_infra")
+ bazel_dep(name = "rules_python", version = "1.9.0")
+ bazel_dep(name = "rules_rs", version = "0.1.0")
+diff --git a/modules/sonic-linkmgrd/metadata.json b/modules/sonic-linkmgrd/metadata.json
+index aa5ca8321952fc23e1cf5a5c6a70c449261ff59b..d9712dd5a8034a9366e9e325743babd4af010749 100644
+--- a/modules/sonic-linkmgrd/metadata.json
++++ b/modules/sonic-linkmgrd/metadata.json
+@@ -1,6 +1,7 @@
+ {
+     "homepage": "https://github.com/sonic-net/sonic-linkmgrd",
+     "versions": [
+-        "1.0.0-e0f9f94901c30ed30f5fe82af6dafca38f8b35d7"
++        "1.0.0-e0f9f94901c30ed30f5fe82af6dafca38f8b35d7",
++        "1.0.0-7b724e626cdb2232b8b323f31e5f8a7b48ad7a22"
+     ]
+ }
