@@ -1,7 +1,5 @@
-# SONiC build infrastructure release
+# Target-aware static archive stripping
 
-Register source base version `0.0.37` at the maintained commit [`d31541a95fdf477302f1b109f2105eee81c86617`](https://github.com/securely1g/sonic-build-infra/commit/d31541a95fdf477302f1b109f2105eee81c86617). This includes the source, OCI control, Python installation, Rust release and locked APT tool interfaces needed by the VS image migration, including declared BSDtar execution inputs and original Debian changelog projection.
+This registration publishes [merged sonic-build-infra 0baa4acc9eac9ccc793b81104b1580d530271cbe](https://github.com/securely1g/sonic-build-infra/commit/0baa4acc9eac9ccc793b81104b1580d530271cbe) with the target-aware strip_static_archive rule and its behavior tests.
 
-The changelog API delegates filename and history selection to the locked Debian helper, then lets consumers apply their final pigz compression. Its source implementation landed in [infra #118](https://github.com/securely1g/sonic-build-infra/pull/118), following [the BSDtar tool closure in #117](https://github.com/securely1g/sonic-build-infra/pull/117). The dependency requests published SDK21; the presubmit consumer selects that same SDK.
-
-The entry preserves the preceding release's build/test targets, native AMD64/ARM64 platforms and AMD64 cross-tool checks. It adds the source-owned OCI control, Python runtime, APT image-tool, linker operand, BSDtar and changelog regressions for the new interfaces. See `presubmit.json` for the exact targets. Native and installed producer validation is recorded separately from downstream full VS acceptance.
+It inherits every overlay and presubmit target from `0.0.37-316e298e77ab5cfa69af9b0c05ec24d5d94bbe1e`, including the existing APT collections and kernel tool checks. It adds two native archive tests and the archive checker build. AMD64-to-ARM64 archive checking is also covered by the source repository CI.

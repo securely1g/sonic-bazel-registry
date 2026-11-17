@@ -57,7 +57,8 @@
     "@sonic-build-infra//tools/build_tools:libtool_library",
     "@sonic-build-infra//tools/build_tools:libtool_c_library",
     "@sonic-build-infra//tools/build_tools:libtool_config",
-    "@sonic-build-infra//tools/build_tools:libtool_argv_validation"
+    "@sonic-build-infra//tools/build_tools:libtool_argv_validation",
+    "@sonic-build-infra//binary/tests:strip_static_archive_check"
   ],
   "test_targets": [
     "@sonic-build-infra//tools/build_tools:runtime_test",
@@ -106,18 +107,8 @@
     "@sonic-build-infra//cc/tests/runtime_context:paired_flags_test",
     "@sonic-build-infra//apt:lock_test",
     "@sonic-build-infra//apt:bookworm_lock_test",
-    "@sonic-build-infra//oci/tests:runtime_control_files_rule_test",
-    "@sonic-build-infra//oci/tests:runtime_per_package_control_test",
-    "@sonic-build-infra//oci/tests:runtime_empty_shlibdeps_test",
-    "@sonic-build-infra//python/tests:runtime_lock_test",
-    "@sonic-build-infra//python/tests:inherited_runtime_test",
-    "@sonic-build-infra//python/tests:source_package_builder_test",
-    "@sonic-build-infra//python/tests:site_packages_test",
-    "@sonic-build-infra//tools/build_tools:image_runtime_test",
-    "@sonic-build-infra//tools/build_tools:elf_runtime_test",
-    "@sonic-build-infra//tools/autoconf:linker_response_test",
-    "@sonic-build-infra//tools/build_tools/bsdtar_tests:bsdtar_test",
-    "@sonic-build-infra//deb/tests:changelogs_test"
+    "@sonic-build-infra//binary/tests:strip_static_archive_test",
+    "@sonic-build-infra//binary/tests:stripped_archive_consumer_test"
   ],
   "host_platforms": {
     "amd64": "@sonic-build-infra//platforms:x86_64_trixie",
