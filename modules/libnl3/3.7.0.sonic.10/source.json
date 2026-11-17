@@ -3,8 +3,8 @@
   "strip_prefix": "libnl-3.7.0",
   "integrity": "sha256-n+Q8y+7qcsZTvc+MkzMlgxNc2kanlQe/0KSDu1f2WTk=",
   "overlay": {
-    "BUILD.bazel": "sha256-GLRsrbQlmURDJ+MqsE0qlwCSpKB9uUq12ATPHNLI6FY=",
-    "MODULE.bazel": "sha256-6BDhOY8pxY9BDkWB5C4lcGPT643Ym0LR26avr/5HKNg=",
+    "BUILD.bazel": "sha256-UuNbB+aqB3H054DJceNdAERPzWj9g9svWkBPw4q5z54=",
+    "MODULE.bazel": "sha256-O2HziJSMOs5Qa6FBHlt94YgOtlIBbcMQERP/NjXU03M=",
     "libnl3.BUILD": "sha256-wb93IBFQe3P5sXTJ+5BWLkEQwCKTojzIWXKWlvcsWzE=",
     "libnl3_consumer_test.c": "sha256-l0dvXDhZLCjjQJpxQuJdTHpHLVFmpE+L9HJarF0P5T0=",
     "libnl3_package_test.sh": "sha256-JHUy8W3YospRGQl/V0lYi6RWGLTLDEF+CZAr4/LP50o=",
@@ -12,7 +12,8 @@
     "patch/0003-Adding-support-for-RTA_NH_ID-attribute.patch": "sha256-EskgH89uNt6jHYCrOrzMDF6myai8wa9f5shFWFiT7+c=",
     "archive_inputs.bzl": "sha256-4grPddhEeq7L/Ba8WhixeRiRm8gBNwkOajjr8CpYyTU=",
     "libnl3_dev_files_test.sh": "sha256-jmHb2Z9uDbNZ4VmnntzT/joU5v16QtBzQfGp+2Cb1Kk=",
-    "runtime_packages.md": "sha256-z21Pd5hCatfe/yCYgt65HAECeeBt3cU9KT+qHjA7Hpg="
+    "runtime_packages.md": "sha256-Ah5KTs5lpFvh2ZWoYx4NfbBsdA9YObh7oQDF7mlyIWA=",
+    "libnl3_control_test.py": "sha256-HGsOpMUtZmA1fZ/h5lgA2sdy5a3QV3ZWuzjbxTOQuvw="
   },
   "patch_strip": 1,
   "patches": {

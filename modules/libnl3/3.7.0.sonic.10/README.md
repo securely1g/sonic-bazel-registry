@@ -1,41 +1,26 @@
-# Native libnl3 shared-library filenames
+# libnl3 generated Debian controls
 
-Common's normal C++ and Rust tests link the native libnl shared providers through
-`dynamic_deps`. Those libraries advertise ABI SONAMEs such as `libnl-3.so.200`,
-but the previous build left the generated filename as `liblibnl_3_shared.so`.
-Bazel propagated the right runfiles directory, yet the loader could not find the
-name in `DT_NEEDED`. Tests that unpacked the installed runtime TAR already had
-the correct SONAME symlink and did not expose this failure.
+Version `3.7.0.sonic.8` retains the published `.7` native libraries, SONAMEs,
+installation TARs, development SDK and matching debug outputs. It adds the
+original Debian `dh_makeshlibs` / `dh_installdeb` control effects and reference
+symbol inputs, using SONiC's explicit `DPKG_GENSYMBOLS_CHECK_LEVEL=0`.
+The five runtime packages publish their real shlibs, symbols and ldconfig
+triggers through the existing runtime-package metadata provider. The two
+mapped development packages also publish their generated control files.
 
-Version `3.7.0.sonic.7` gives all five shared provider outputs their existing
-SONAME filenames. The ABI versions, public labels, source archive, SONiC fixes,
-installed TAR paths, SDK contracts and debug pairing remain unchanged. The
-published `.6` entry is untouched. This version retains `.6`'s existing overlays,
-applies the native-build patch proposed in closed registry PR #148 unchanged,
-then applies two small patches for the output names and SDK timestamps.
+The new control test projects the authoritative generated control trees through
+the shared infrastructure interface and checks the original package version,
+resolved fields, SONAME metadata and Debhelper ldconfig triggers. Existing raw
+shared consumers, installed SDK/path checks and runtime/debug TAR checks remain
+in native AMD64 and ARM64 CI. No source C, nexthop patch, ABI or APT package
+identity changes.
 
-The new raw consumer calls main, generic-netlink, route, netfilter and CLI APIs
-through the actual shared targets. It uses ordinary Bazel runfiles, compares
-`dladdr` results with each declared provider artifact and checks each SONAME
-filename. It does not unpack a runtime TAR, set `LD_LIBRARY_PATH` or select a
-custom loader. Existing installed-consumer, SDK/path and TAR tests remain in
-both AMD64 and ARM64 jobs. The independent consumer module has no source or
-version overrides.
-
-The minimum infrastructure is the published
-`0.0.25-34de7330abc72229dfc8dab88dec71b89c52aa88` registration (build-infra
-#67), which provides the native execution helpers, runtime-package metadata and
-debug-file contract used here. Public Distroless `.14`, `tar.bzl`
-`0.10.5.sonic.1` and rules_cc `0.2.22` keep this ordinary dependent root
-compatible without root-only workarounds. The module, fetched overlay and test
-consumer declare the same minimum. No DEB target is added or run.
-
-The header and exact development-library TARs use the existing `tar.bzl`
-`default_mtime` attribute with epoch `1672560000`. This prevents patched headers,
-generated pkg-config files and static libraries from inheriting build-time
-filesystem timestamps; explicit library-link timestamps remain zero. The
-existing package test checks both exact SDK splits and aggregate header times.
-The existing pkg-config TAR also declares root ownership through upstream
-`mutate(owner="0", group="0")`, so synthesized parent directories do not
-inherit the builder UID/GID. The package test checks every aggregate member,
-including directories. Payload bytes, modes and symlink targets are unchanged.
+The new API first appears in build-infra #109 (`53aa20bb`). The current `.8`
+entry declares the development source module version `0.0.37`; local consumers
+explicitly override only this dependency to the frozen `6c43553` source.
+This is an unpublished dependency, so publication requires a real infrastructure
+registration after the source prerequisites merge, followed by updating this
+entry's module declaration and generated overlay and repeating registry-only
+consumption. The old `.25` minimum does not provide these control APIs.
+The tested libnl3 module itself is always fetched through its complete registry
+source recipe, without a libnl3 source override.

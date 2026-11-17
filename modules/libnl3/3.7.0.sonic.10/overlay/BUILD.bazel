@@ -1,3 +1,5 @@
+load("@rules_python//python:defs.bzl", "py_test")
+load("@sonic_build_infra//oci:source_controls.bzl", "source_package_controls")
 load("@bazel_lib//lib:copy_file.bzl", "copy_file")
 load("@rules_cc//cc:defs.bzl", "cc_test")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
@@ -241,6 +243,11 @@ sh_test(
 # identifies the Bazel-built TAR for each Debian binary package.
 runtime_packages(
     name = "runtime_packages.json",
+    # src/libnl3/Makefile explicitly sets DPKG_GENSYMBOLS_CHECK_LEVEL=0.
+    symbols_check_level = 0,
+    debian_files = {"compat": "@libnl3_debian//:debian/compat"},
+    symbols = {name: "@libnl3_debian//:debian/" + name + ".symbols" for name in ["libnl-3-200", "libnl-genl-3-200", "libnl-nf-3-200", "libnl-route-3-200", "libnl-cli-3-200"]},
+    control_file_helpers = [["dh_makeshlibs"], ["dh_installdeb"]],
     changelog = "@libnl3_debian//:debian/changelog",
     control = "@libnl3_debian//:debian/control",
     packages = {
@@ -276,5 +283,23 @@ runtime_packages(
 
 exports_files(
     ["runtime_packages.md"],
+    visibility = ["//visibility:public"],
+)
+
+# The original dh sequence emits ldconfig triggers and library dependency files.
+_CONTROL_RUNTIME_PACKAGES = ["libnl-3-200", "libnl-genl-3-200", "libnl-nf-3-200", "libnl-route-3-200", "libnl-cli-3-200"]
+_CONTROL_PACKAGES = _CONTROL_RUNTIME_PACKAGES + ["libnl-3-dev", "libnl-route-3-dev"]
+[source_package_controls(
+    name = package + "_test_control",
+    package = package,
+    metadata = ":runtime_packages.json",
+    testonly = True,
+) for package in _CONTROL_PACKAGES]
+
+py_test(
+    name = "libnl3_control_test",
+    srcs = ["libnl3_control_test.py"],
+    args = ["--control=" + package + "=$(rootpath :" + package + "_test_control)" for package in _CONTROL_PACKAGES],
+    data = [":" + package + "_test_control" for package in _CONTROL_PACKAGES],
     visibility = ["//visibility:public"],
 )

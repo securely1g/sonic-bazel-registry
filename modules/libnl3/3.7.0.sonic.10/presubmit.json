@@ -19,7 +19,8 @@
     "@libnl3//:libnl3_package_test",
     "@libnl3//:libnl3_consumer_test",
     "@libnl3//:libnl3_installed_paths_test",
-    "@libnl3//:libnl3_shared_consumer_test"
+    "@libnl3//:libnl3_shared_consumer_test",
+    "@libnl3//:libnl3_control_test"
   ],
   "integration_test_module": "tests/consumer",
   "consumer_deps": []

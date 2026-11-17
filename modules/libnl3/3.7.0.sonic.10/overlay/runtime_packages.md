@@ -10,10 +10,11 @@ declared library metadata. It does not build Debian packages. The generated JSON
 and its staged dependency metadata can be consumed by other source packages and
 OCI inventory checks. No handwritten package-control JSON is maintained here.
 
-The Bazel libraries retain upstream symbol versioning. Their symbol metadata is
-generated from those actual libraries; the Debian reference symbol files describe
-unversioned builds and are not used as a second ABI contract. Dependencies use
-the current Debian changelog version as a conservative minimum.
+The Bazel libraries retain upstream symbol versioning. The original Debian
+reference symbols are passed to dpkg-gensymbols with SONiC's check level zero;
+actual library symbols remain the generated output. The original Debhelper
+sequence supplies shlibs, ldconfig triggers and installation control files.
+Dependencies use the existing Debian changelog version as a conservative minimum.
 
 The producer checks its reviewed `required_paths` against the runtime TAR before
 emitting this metadata. Consumers reuse these checks; an image adds only its own
