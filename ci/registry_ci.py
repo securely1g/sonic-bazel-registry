@@ -65,6 +65,7 @@ ARM_CROSS_VERSIONS: dict[str, tuple[str, ...]] = {
     "libnl3": ("3.7.0.sonic.7",),
     "libpsample": ("1.1.0.sonic.2",),
     "libyang-python": ("3.1.0.sonic.6",),
+    "net-snmp": ("5.9.3.sonic.1",),
     "p4c": ("1.2.4.2.sonic.3",),
     "p4lang-bmv2": ("1.15.0.sonic.4",),
     "p4lang-pi": ("0.1.3.sonic.3",),
