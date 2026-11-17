@@ -1,0 +1,261 @@
+{
+  "authority": "Original Debian binary-bash install/docs helper and fixed release catalogs; oracle computed independently of Bazel producers",
+  "resources": {
+    "usr/share/doc/bash/inputrc.arrows": {
+      "sha256": "092e7ff3a9e25ec05baeabb3e403585e744c17bb8dba4c70aee944a37ba884ce",
+      "bytes": 727,
+      "gzip": false
+    },
+    "usr/share/doc/bash/README.commands.gz": {
+      "sha256": "557b214d0a4d25ebfb53a09634cb1e5094438615044b3c03b17845f02c92ea1a",
+      "bytes": 7527,
+      "gzip": true
+    },
+    "usr/share/doc/bash/README.abs-guide": {
+      "sha256": "4425e3eb24abbaca4ab43a71e02b7364987daba13bb3e2a71df589ab71aa97ba",
+      "bytes": 1105,
+      "gzip": false
+    },
+    "usr/share/doc/bash/README.Debian.gz": {
+      "sha256": "b5e332c960fd5d01b0a754abcedbdcdf75a520e40c6b430d1da4ff26f991c008",
+      "bytes": 4136,
+      "gzip": true
+    },
+    "usr/share/doc/bash/POSIX.gz": {
+      "sha256": "a3ebf2665f22b49ac910ddd33e57a8dfedefef6559209ff17927188eb13ddffc",
+      "bytes": 11778,
+      "gzip": true
+    },
+    "usr/share/doc/bash/INTRO.gz": {
+      "sha256": "88d4f438af6af108d5970aed3a88208a295b6dafc2d55b549169bb0a372ec1fb",
+      "bytes": 7072,
+      "gzip": true
+    },
+    "usr/share/doc/bash/COMPAT.gz": {
+      "sha256": "3c7f70faae3d94736aa93e2e8a85850c549c06ef255477e1479fbfeeb9be90d3",
+      "bytes": 28230,
+      "gzip": true
+    },
+    "usr/share/doc/bash/NEWS.gz": {
+      "sha256": "5c552e7120c7dc7c797cdce807acb9a55bbf6a4b1f86169065650f2f4dc75e43",
+      "bytes": 110040,
+      "gzip": true
+    },
+    "usr/share/doc/bash/CHANGES.gz": {
+      "sha256": "10f5ac18d26ecc9c071adcb22ad6ad3bd9acca563d07841c0803d6d626f49988",
+      "bytes": 436969,
+      "gzip": true
+    },
+    "usr/share/doc/bash/changelog.gz": {
+      "sha256": "10f5ac18d26ecc9c071adcb22ad6ad3bd9acca563d07841c0803d6d626f49988",
+      "bytes": 436969,
+      "gzip": true
+    },
+    "usr/share/doc/bash/changelog.Debian.gz": {
+      "sha256": "74ec30f320a26fd1a2a2c6dc4afaef781fa6027e9bbab2fa5dd41a5c8f6f62a2",
+      "bytes": 7619,
+      "gzip": true
+    },
+    "usr/share/locale/en@quot/LC_MESSAGES/bash.mo": {
+      "sha256": "a14f635b33a9bd32090514c6edc8d44e650d239d236e102ce3ad5060afecb56e",
+      "bytes": 163043,
+      "gzip": false
+    },
+    "usr/share/locale/en@boldquot/LC_MESSAGES/bash.mo": {
+      "sha256": "865ac127474412eff39c529a76aff00fe27979e85de0346b0053d682e157e221",
+      "bytes": 164675,
+      "gzip": false
+    },
+    "usr/share/locale/af/LC_MESSAGES/bash.mo": {
+      "sha256": "f0b2cdc27513d85c66f9c0bbae95a1b71863301e96c52fed72069ac8adce3e34",
+      "bytes": 1280,
+      "gzip": false
+    },
+    "usr/share/locale/bg/LC_MESSAGES/bash.mo": {
+      "sha256": "f7119e061b1e86d363c56c37878325ef239148d6c93a2d2af89f65d3b0bb3b6f",
+      "bytes": 248812,
+      "gzip": false
+    },
+    "usr/share/locale/ca/LC_MESSAGES/bash.mo": {
+      "sha256": "f209e46482625fb28b15ffc32d01b7ee22b145a47c1572dcaaeaabcc3274bd05",
+      "bytes": 183474,
+      "gzip": false
+    },
+    "usr/share/locale/cs/LC_MESSAGES/bash.mo": {
+      "sha256": "6e0765885e5b1e1569aeea74b0172ee2cfda84e82dfcca294e87a8f7f72663ce",
+      "bytes": 185301,
+      "gzip": false
+    },
+    "usr/share/locale/da/LC_MESSAGES/bash.mo": {
+      "sha256": "9eb16f6743231ff442a4e6eda73afe09212f98460d1fa5cb61292efcb302bcb0",
+      "bytes": 70624,
+      "gzip": false
+    },
+    "usr/share/locale/de/LC_MESSAGES/bash.mo": {
+      "sha256": "4089a683a98eedbe65862517aa270dbcb2375e4fd93c4644776ae72b3ae23202",
+      "bytes": 125828,
+      "gzip": false
+    },
+    "usr/share/locale/el/LC_MESSAGES/bash.mo": {
+      "sha256": "cc28ce0ea81e1a078d4eafeb442daabefce5bf34a03dc780271ed2e6bc157f64",
+      "bytes": 83800,
+      "gzip": false
+    },
+    "usr/share/locale/eo/LC_MESSAGES/bash.mo": {
+      "sha256": "a7beda07d0c0c6b758e8e3d87a0d84c9d1e27db26b6d960cdc56e92b4bfe18c0",
+      "bytes": 162418,
+      "gzip": false
+    },
+    "usr/share/locale/es/LC_MESSAGES/bash.mo": {
+      "sha256": "a576c4ce7e6e90bef59758ed2998356f2d0dbbf69c82ab32c0ae5d678b2c361e",
+      "bytes": 183966,
+      "gzip": false
+    },
+    "usr/share/locale/et/LC_MESSAGES/bash.mo": {
+      "sha256": "ed3bca39dbabde1cd9103047b0e7361df3d7290790998dfbb13b65ca0aebe09c",
+      "bytes": 12156,
+      "gzip": false
+    },
+    "usr/share/locale/fi/LC_MESSAGES/bash.mo": {
+      "sha256": "d3d7c5a1ff1d89125fee8a91ee0bae5084d359077d2a79a168b040d0977e62d0",
+      "bytes": 73116,
+      "gzip": false
+    },
+    "usr/share/locale/fr/LC_MESSAGES/bash.mo": {
+      "sha256": "7af1c13ef4b427528b750e94c3a5367f9acef9be2363041ac6858076659a8fe9",
+      "bytes": 190057,
+      "gzip": false
+    },
+    "usr/share/locale/ga/LC_MESSAGES/bash.mo": {
+      "sha256": "82ac099fd96d3b4dde69e2c16a3d405c8e26f9b2ef49319bbb1dae7fa3921da5",
+      "bytes": 115689,
+      "gzip": false
+    },
+    "usr/share/locale/gl/LC_MESSAGES/bash.mo": {
+      "sha256": "99f9dd6443133ed19be3e7ad684a206c53e7293abcbba13ba7620cc4e8e8fc6b",
+      "bytes": 53798,
+      "gzip": false
+    },
+    "usr/share/locale/hr/LC_MESSAGES/bash.mo": {
+      "sha256": "5a9cbdb4c14619dd410379012020c18e37a82bf02c08ab75420d2449e1f0aa49",
+      "bytes": 178369,
+      "gzip": false
+    },
+    "usr/share/locale/hu/LC_MESSAGES/bash.mo": {
+      "sha256": "b81dbc1434b0d6924bfafc7b87cc47dc56f2df62bef4291606b727cf24066452",
+      "bytes": 152745,
+      "gzip": false
+    },
+    "usr/share/locale/id/LC_MESSAGES/bash.mo": {
+      "sha256": "bfd13b1e48a1ec72af924d720c5b46c8424afad4ff74a6e25624a8c8b4a0a99e",
+      "bytes": 98266,
+      "gzip": false
+    },
+    "usr/share/locale/it/LC_MESSAGES/bash.mo": {
+      "sha256": "7c5d5cf9aa21b4384d88409ab1776bf40e3a56d93591a754859f44a96ecf2b04",
+      "bytes": 83883,
+      "gzip": false
+    },
+    "usr/share/locale/ja/LC_MESSAGES/bash.mo": {
+      "sha256": "a31267ec9057ff1ca82d06a357267ada319606b512456818d4400bf14b7a863c",
+      "bytes": 114809,
+      "gzip": false
+    },
+    "usr/share/locale/ko/LC_MESSAGES/bash.mo": {
+      "sha256": "43a49fc7e56aed2158b0b2c69522a8668e6b32be92fa7b7ef2659c77182f6828",
+      "bytes": 185602,
+      "gzip": false
+    },
+    "usr/share/locale/lt/LC_MESSAGES/bash.mo": {
+      "sha256": "4efc532846d2edf73498ba91fcb08cd951e9c05020c12812c55913d133ca711a",
+      "bytes": 28770,
+      "gzip": false
+    },
+    "usr/share/locale/nb/LC_MESSAGES/bash.mo": {
+      "sha256": "08b3214f1f5b39fc690cb1bc709e3115b4ba5a7c69e3f0ce0fb03e29cb2096b6",
+      "bytes": 172246,
+      "gzip": false
+    },
+    "usr/share/locale/nl/LC_MESSAGES/bash.mo": {
+      "sha256": "275c5e1ee56af1a5268f9b86514d9225f4afb47d5d1508bc53283365c72a5e1f",
+      "bytes": 181276,
+      "gzip": false
+    },
+    "usr/share/locale/pl/LC_MESSAGES/bash.mo": {
+      "sha256": "126511d2dd25d7a4ec932e775a80906180721cff46baf9281220a7ba750ecdc2",
+      "bytes": 184164,
+      "gzip": false
+    },
+    "usr/share/locale/pt/LC_MESSAGES/bash.mo": {
+      "sha256": "05ec2ed9adf1f5960c6fa9be024871e06aeebbfa82f289601a5e872529de8cf2",
+      "bytes": 170400,
+      "gzip": false
+    },
+    "usr/share/locale/pt_BR/LC_MESSAGES/bash.mo": {
+      "sha256": "aa30b0dd482b020426c653e624498dd8534626fd5b2cfc77afc268ecc861cf71",
+      "bytes": 173420,
+      "gzip": false
+    },
+    "usr/share/locale/ro/LC_MESSAGES/bash.mo": {
+      "sha256": "0990e15dbc77ecd3581ee708e8cfc1f799c634d9ae80a882e5a435b28ed2e000",
+      "bytes": 190030,
+      "gzip": false
+    },
+    "usr/share/locale/ru/LC_MESSAGES/bash.mo": {
+      "sha256": "771054a542bd87f512d92b207b65e1de353021d97f06874d6e788510f128ec6a",
+      "bytes": 128229,
+      "gzip": false
+    },
+    "usr/share/locale/sk/LC_MESSAGES/bash.mo": {
+      "sha256": "9693acc0a58b619125a990eaca7415721fa60ccedd0306c7907db019cba7c0da",
+      "bytes": 83429,
+      "gzip": false
+    },
+    "usr/share/locale/sl/LC_MESSAGES/bash.mo": {
+      "sha256": "b84455cecc2066ac92bb14f3ee34ad44634e7bec8d1427231f00bd1752182978",
+      "bytes": 80665,
+      "gzip": false
+    },
+    "usr/share/locale/sr/LC_MESSAGES/bash.mo": {
+      "sha256": "10a8c57bd369fa18bd252da44ccdd90979b966cfbcac56232cbb9655acc02462",
+      "bytes": 232614,
+      "gzip": false
+    },
+    "usr/share/locale/sv/LC_MESSAGES/bash.mo": {
+      "sha256": "02a52aa9fb1182b3267d75c495e0c7b2bc1262fb914af6792f78b05a418f8519",
+      "bytes": 176963,
+      "gzip": false
+    },
+    "usr/share/locale/tr/LC_MESSAGES/bash.mo": {
+      "sha256": "5ea0317e7ebd02026d8240386558fbd38d6fe2e36557ad3d088cfe18a7f097f7",
+      "bytes": 130291,
+      "gzip": false
+    },
+    "usr/share/locale/uk/LC_MESSAGES/bash.mo": {
+      "sha256": "f6e967f47cf69b2ef901d6bcbd23d474d3459e9bc4fcc8b20e53a99160599537",
+      "bytes": 237263,
+      "gzip": false
+    },
+    "usr/share/locale/vi/LC_MESSAGES/bash.mo": {
+      "sha256": "9bd7ff42447e8e64b6695d4fd0f9e4c66894767bf1579d6ba1b084cc044e30e0",
+      "bytes": 133752,
+      "gzip": false
+    },
+    "usr/share/locale/zh_CN/LC_MESSAGES/bash.mo": {
+      "sha256": "8eaff54589dee4abd8cdee4dc6ac88bd824d3ee2a41142ece8a7e23ea2b9e041",
+      "bytes": 170166,
+      "gzip": false
+    },
+    "usr/share/locale/zh_TW/LC_MESSAGES/bash.mo": {
+      "sha256": "826dffea15b752abd1825370cd0a90ada8b73648a97a16d415874ee725af9169",
+      "bytes": 168812,
+      "gzip": false
+    }
+  },
+  "bashbug": {
+    "sha256": "a357c1cf0160577653948e84981386c790457f6c1af391297c07ad873ad17cb9",
+    "bytes": 6944,
+    "authority": "Actual original configure output; original Debian CC and managed dpkg-buildflags CFLAGS; original Make PATCHLEVEL replacement and Debian installation sed",
+    "mode": "0755"
+  }
+}
