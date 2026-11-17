@@ -1,0 +1,5 @@
+load("@rules_cc//cc:cc_binary.bzl","cc_binary")
+load("@audisp-tacplus//:source_includes.bzl","private_includes")
+package(default_visibility=["//visibility:public"])
+exports_files(glob(["**"]))
+cc_binary(name="audisp-tacplus",srcs=["audisp-tacplus.c","password.c","regex_helper.c","trace.c","local_accounting.c","sudoers_helper.c"]+glob(["*.h"]),copts=["-DHAVE_CONFIG_H"]+private_includes()+["-O","-Wno-stringop-truncation","-g","-O2","-fstack-protector-strong","-fstack-clash-protection","-fcf-protection","-Wformat","-Werror=format-security","-Wdate-time","-U_FORTIFY_SOURCE","-D_FORTIFY_SOURCE=2","-Wall","-Werror"],features=["-rules_go_unsupported_feature","-opt","-strip_debug_symbols","sonic_as_needed"],linkopts=["-Wl,-z,relro"],linkstatic=False,deps=["@audisp-tacplus//:config_headers","@pam-tacplus//:libtac","@pam-tacplus//:libtacsupport","@tacacs_build_debian//libauparse-dev:libauparse_cc","@tacacs_build_debian//libaudit-dev:libaudit_cc"])
