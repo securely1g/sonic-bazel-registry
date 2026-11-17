@@ -89,7 +89,7 @@ ARM_CROSS_VERSIONS: dict[str, tuple[str, ...]] = {
 # Keep the coherent DASH registration in routine plans. The published
 # .3 registration remains the numeric latest version and keeps its usual jobs.
 ADDITIONAL_PRESUBMITS: set[tuple[str, str]] = {
-    ("sonic-dash", "0.0.1-2cbfdfa1205c0d03003444e5c80f89adb8c3df59"),
+    ("sonic-dash", "0.0.1-a9b799bb664b3b3b9d6e9a19cedd38b620e769de"),
 }
 
 # The original wrappers stage a private target executable, loader and libraries.
