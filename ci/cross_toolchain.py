@@ -17,7 +17,7 @@ import subprocess
 import sys
 
 
-PROVIDER_VERSION = "0.0.25-34de7330abc72229dfc8dab88dec71b89c52aa88"
+PROVIDER_VERSION = "0.0.37-316e298e77ab5cfa69af9b0c05ec24d5d94bbe1e"
 PACKAGE = "_registry_ci_cross"
 REPOSITORY = "registry_ci_cross_cc"
 COMPILER_REPOSITORY = "sonic-build-infra++gcc+gcc-14.2.0-linux-target-aarch64-host-x86_64"
@@ -36,6 +36,7 @@ VERIFIED_SONIC_CROSS_VERSIONS = {
     "0.0.25-17a1e555291c64be1a6ff008f33352bffc4f8e5c",
     "0.0.25-34de7330abc72229dfc8dab88dec71b89c52aa88",
     "0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568",
+    "0.0.37-316e298e77ab5cfa69af9b0c05ec24d5d94bbe1e",
 }
 
 
