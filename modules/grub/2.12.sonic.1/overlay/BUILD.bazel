@@ -1,0 +1,38 @@
+load("@rules_python//python:defs.bzl", "py_test")
+load("@sonic_build_infra//tools/build_tools:defs.bzl", "source_build_tool")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(glob(["debian/patches/**"]) + [
+    "raw-disk.patch",
+    "source.BUILD.bazel",
+])
+
+source_build_tool(
+    name = "grub-bios-setup",
+    binary = "@grub_source//:grub-bios-setup",
+)
+
+py_test(
+    name = "tool_test",
+    srcs = ["tool_test.py"],
+    args = ["$(rootpath :grub-bios-setup)"],
+    data = [":grub-bios-setup"],
+)
+
+py_test(
+    name = "raw_embedding_test",
+    srcs = ["raw_embedding_test.py"],
+    args = [
+        "--setup=$(rootpath :grub-bios-setup)",
+        "--mkimage=$(rootpath @sonic_build_infra//tools/build_tools:grub-mkimage)",
+        "--sgdisk=$(rootpath @sonic_build_infra//tools/build_tools:sgdisk)",
+        "--assets=$(rootpath @sonic_build_infra//tools/build_tools:image_runtime)/usr/lib/grub/i386-pc",
+    ],
+    data = [
+        ":grub-bios-setup",
+        "@sonic_build_infra//tools/build_tools:grub-mkimage",
+        "@sonic_build_infra//tools/build_tools:image_runtime",
+        "@sonic_build_infra//tools/build_tools:sgdisk",
+    ],
+)
