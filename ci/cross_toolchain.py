@@ -37,6 +37,7 @@ VERIFIED_SONIC_CROSS_VERSIONS = {
     "0.0.25-34de7330abc72229dfc8dab88dec71b89c52aa88",
     "0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568",
     "0.0.37-316e298e77ab5cfa69af9b0c05ec24d5d94bbe1e",
+    "0.0.38-0baa4acc9eac9ccc793b81104b1580d530271cbe",
 }
 
 

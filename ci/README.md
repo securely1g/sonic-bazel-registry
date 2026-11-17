@@ -1200,6 +1200,21 @@ debugger/upstream coverage. P4C/PI source candidates and FIPS target-binutils wo
 remain separate module changes; transitive consumers retain their published
 dependency pins. No source recipe or image change is included here.
 
+The ARM64 presubmit for build-infra `.37-316e298e` and `.38-0baa4acc`
+prefers AMD64 execution for cross-compilation. Several runtime assembly rules
+require an ARM64 execution platform because they run their target Debian
+loader to verify and prepare the packages. The runner must support direct
+AArch64 ELF execution through binfmt. In the disposable build-infra runner,
+the workflow exposes its existing ARM64 Trixie root at
+`/usr/gnemul/qemu-aarch64`, QEMU's default interpreter prefix, so actions
+that clear their environment can still start declared ARM64 tools. Validation
+records the native and emulated machines before registering the ARM64 fallback
+for those actions. During test validation, the public configure tools, Bookworm
+Perl and Valgrind wrappers use their ARM64 execution dependencies for target
+runtime comparisons and instrumentation. The foreign runtime test executes its
+original AArch64 Python and declared tools through binfmt, which avoids tracing
+each filesystem operation as it relocates and exercises the full tool tree.
+
 ## Local reproduction
 
 Use a native AMD64 or ARM64 Debian trixie environment with Bazel 8.5.1 and

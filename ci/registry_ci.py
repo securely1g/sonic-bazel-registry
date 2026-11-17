@@ -75,6 +75,10 @@ ARM_CROSS_VERSIONS: dict[str, tuple[str, ...]] = {
     "rules_python": ("1.9.0.sonic.1",),
     "sai": ("1.18.0-sonic.1",),
     "socat": ("1.8.0.2.sonic.5",),
+    "sonic-build-infra": (
+        "0.0.37-316e298e77ab5cfa69af9b0c05ec24d5d94bbe1e",
+        "0.0.38-0baa4acc9eac9ccc793b81104b1580d530271cbe",
+    ),
     "sonic-dash": ("0.0.1-2cbfdfa1205c0d03003444e5c80f89adb8c3df59",),
     "sonic-dash-api": ("0.0.5-9b2893e890734a2db0c53a5e5c64b031ec0dcfbd",),
     "sonic-linux-kernel": ("0.0.2-34a53faaecd325509e9d8f1016ed0108ab558a23",),
@@ -1635,6 +1639,7 @@ def run(root: Path, module: str, version: str, architecture: str,
     require(not cross_compile or architecture == "arm64", "Cross compilation supports ARM64 targets on AMD64")
     require(cross_compile or test_executor is None, "A test executor requires explicit cross compilation")
     native = verify_native("amd64" if cross_compile else architecture)
+    infra_cross = cross_compile and module == "sonic-build-infra" and version in ARM_CROSS_VERSIONS.get(module, ())
     if config.get("test_runtime_preparation") or cross_compile:
         require_test_container(test_container_image)
     if cross_compile:
@@ -1767,6 +1772,21 @@ def run(root: Path, module: str, version: str, architecture: str,
                 host_platform = cross_platforms["execution_platform"]
                 flags.extend([f"--platforms={cross_platforms['target_platform']}",
                               f"--host_platform={host_platform}"])
+                if infra_cross:
+                    # Build tools such as foreign_runtime_arm64 execute their own
+                    # target loader while assembling a runtime. Give those actions
+                    # an ARM execution platform after the preferred AMD64 cross host.
+                    arm_platform = cross_platforms["target_platform"]
+                    arm_uname = "/opt/sonic-arm64-rootfs/usr/bin/uname"
+                    probe_log = artifacts / "cross-binfmt.log"
+                    run_logged(["/usr/bin/env", "-i", arm_uname, "-m"], consumer, probe_log)
+                    machine = probe_log.read_text().strip()
+                    require(machine == "aarch64", "Build-tool runtime assembly requires working AArch64 binfmt")
+                    flags.append(f"--extra_execution_platforms={host_platform},{arm_platform}")
+                    cross_runtime["build_tool_execution"] = {
+                        "preferred": host_platform, "native_machine": native["machine"],
+                        "fallback": arm_platform, "fallback_machine": machine,
+                    }
                 try:
                     pip_hubs = cross_pip.prepare(
                         root, consumer, artifacts, prefix, flags,
@@ -1816,6 +1836,16 @@ def run(root: Path, module: str, version: str, architecture: str,
                     "Fetched MODULE.bazel differs from registry MODULE.bazel")
             shutil.copy2(fetched[0], artifacts / "fetched.MODULE.bazel")
             require((consumer / "MODULE.bazel.lock").is_file(), "Bazel did not generate MODULE.bazel.lock resolution evidence")
+            if infra_cross:
+                # These runtime tests exercise public wrappers alongside target
+                # runtimes and compare their tool versions, loaded Perl paths,
+                # and Valgrind instrumentation of an AArch64 program.
+                # Bazel drops this option on exec transitions. A platform mapping
+                # also applies it to nested ARM execution tools such as Valgrind.
+                mapping = consumer / "_registry_ci_cross" / "build_infra_arm64_tests.platforms"
+                shutil.copy2(root / "ci" / mapping.name, mapping)
+                shutil.copy2(mapping, artifacts / mapping.name)
+                flags.append("--platform_mappings=" + str(mapping.relative_to(consumer)))
             if executor_prefix:
                 mappings = prepare_cross_python_runtimes(prefix, flags, test_targets, output_base,
                                                          consumer, artifacts, executor_prefix)
@@ -1834,6 +1864,11 @@ def run(root: Path, module: str, version: str, architecture: str,
                 cross_runtime["test_executor_sha256"] = hashlib.sha256(go_executor.read_bytes()).hexdigest()
             if executor_prefix:
                 fixtures = ARM_DECLARED_RUNTIME_FIXTURES.get((module, version))
+                if infra_cross:
+                    # The test relocates a large tree and runs its target tools.
+                    # Avoid tracing every filesystem operation inside PRoot.
+                    fixtures = {"tools/build_tools/foreign_runtime_test":
+                                "sonic-build-infra+/tools/build_tools/foreign_runtime_arm64/usr/bin/protoc"}
                 if fixtures:
                     executor_prefix = [str(root / "ci" / "declared_arm_runtime.py"), json.dumps(fixtures), *executor_prefix]
                 test_flags.append("--run_under=" + shlex.join(executor_prefix))
