@@ -11,7 +11,7 @@ Origin: https://github.com/securely1g/sonic-bazel-registry/pull/183
  module(
      name = "sonic-linkmgrd",
 -    version = "1.0.0",
-+    version = "1.0.0-7b724e626cdb2232b8b323f31e5f8a7b48ad7a22",
++    version = "1.0.0-92c78b468b678e3c2ed2877d2cb0a52306f2297f",
      bazel_compatibility = [
          ">=8.5.1",
          "<=8.5.1",

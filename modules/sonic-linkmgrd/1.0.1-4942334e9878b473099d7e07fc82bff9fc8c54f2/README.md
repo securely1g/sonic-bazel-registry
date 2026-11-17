@@ -1,10 +1,17 @@
 # Native AMD64 Linkmgrd for docker-mux
 
-This entry builds the periodic mux recovery tests from Linkmgrd commit
-`7b724e626cdb2232b8b323f31e5f8a7b48ad7a22`. When hardware reports standby for a port configured
-as active, the test waits for the periodic probe, then checks that exactly one
-additional write restores the port to active. It also tests the reverse
-direction. [Linkmgrd #2](https://github.com/securely1g/sonic-linkmgrd/pull/2)
+This entry builds Linkmgrd from merged master commit `92c78b468b678e3c2ed2877d2cb0a52306f2297f`.
+The active/standby test follows a port with its link down through active and
+auto mode. For each input it uses the existing fixture, then dispatches
+callbacks until the composite state changes and checks the expected state.
+Only the scheduled probe waits for a future callback. The test checks that
+the probe runs once and the two hardware writes request active, then standby.
+It also checks that acknowledging standby leaves the write count at two.
+[Active/standby test](https://github.com/securely1g/sonic-linkmgrd/blob/92c78b468b678e3c2ed2877d2cb0a52306f2297f/test/LinkManagerStateMachineTest.cpp#L610-L668)
+
+The active/active recovery tests wait for the periodic probe and check that
+exactly one corrective write restores the configured state in each direction.
+[Linkmgrd #2](https://github.com/securely1g/sonic-linkmgrd/pull/2)
 
 The daemon and its runtime and debug TARs are built from the same source.
 [Original Bazel targets](https://github.com/securely1g/sonic-linkmgrd/pull/1) ·
@@ -26,10 +33,10 @@ libraries through `CcInfo` and has no standalone default file; the daemon and
 original tests compile and link those libraries.
 
 The registration patch sets only the source module version. The producer
-and independent consumer use the maintained infrastructure 0.0.28.
+and independent consumer use the maintained infrastructure 0.0.37.
 Linkmgrd consumes Common 0.0.9 and the libnl 3.7.0.sonic.7 shared
 interfaces through their declared CcInfo providers. Its installed-package
 tests require all three expected native SONAMEs. The root selects the
-reviewed build-infra Trixie APT lock and Distroless 0.9.4.sonic.18.
+reviewed build-infra Trixie APT lock and Distroless 0.9.4.sonic.20.
 The native source and the registry consumer each exercise the exported
 TARs. Image-level validation belongs to buildimage #147.
