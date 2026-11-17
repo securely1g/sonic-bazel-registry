@@ -1,143 +1,19 @@
-# BMv2 from the maintained SONiC source
+# Native BMv2 for SONiC
 
-This module builds the BMv2 `1.15.0-9` source used by SONiC's P4 image. Bazel
-fetches the checksum-verified original archive and Debian source archive, applies
-Debian's `fix-distclean.patch`, then SONiC's `0001-use-boost-1.83.patch`
-and `0002-remove-unnecessary-dependencies.patch` in that order. It invokes
-upstream Autotools/Make through
-`rules_foreign_cc.configure_make`. It does not build Debian packages or change
-SONiC's existing Make recipes.
-The registry also patches the Thrift version check to read the target
-`thrift/config.h` with the C++ compiler. Native builds and ARM64 cross-builds
-use the header version to select the same Thrift interfaces.
-The configure-flags test uses the foreign build tools for the execution platform,
-as the configure action does. The package test loads and exercises the target
-programs and libraries.
+Builds the fixed BMv2 1.15.0-9 input from `src/p4lang/Makefile` with native Bazel C/C++ rules. The ordered source preparation applies Debian’s series and all three SONiC patches. PI is consumed through the native `p4lang-pi@0.1.3.sonic.6` public libraries. System libraries and execution tools share the existing production APT lock.
 
-The configured features match the maintained recipe: PDFixed, Thrift, nanomsg,
-PI and `simple_switch_grpc`. PI headers/libraries come from the independently
-source-built `p4lang-pi` SDK. Target libraries come from declared Trixie APT
-inputs. Autotools, Python and protocol generators come from the declared build
-infrastructure execution-tool bundle. No configure/build action downloads code.
+The original fixed PDFixed, Thrift, nanomsg, PI and gRPC configuration is retained. Thrift and protoc actions declare their source/import inputs and generated C++/Python outputs. Configuration detection belongs to migration evidence; normal builds use explicit configuration and template expansion.
 
-## Public targets
+Public interfaces: `p4lang-bmv2.runtime`, `p4lang-bmv2.runtime.debug_symbols`, `development`, `sdk`, `p4lang-bmv2.runtime_metadata`, `sdk_consumer`, `check_programs`, `upstream_tests`, and `package_test`. The existing `runtime`, `runtime.debug_symbols` and `runtime_packages.json` names remain compatible for current consumers. Runtime and development TARs together preserve the source package’s installation contract. No Debian package is generated.
 
-| Target | Purpose |
-| --- | --- |
-| `:runtime` | Stripped programs, shared libraries, Python clients and licenses in their installed paths |
-| `:runtime.debug_symbols` | Build-ID debug files split from those same linked ELF files |
-| `:sdk` | Installed headers and libraries with CcInfo for source consumers such as DASH |
-| `:package_test` | Installed programs, SDK consumer, enabled features, SONAMEs and matching debug symbols |
-| `:config_log`, `:grpc_config_log` | Configure evidence retained by CI |
+The original 54 default Automake test entries are represented by `upstream_tests`. Each test also has a same-named public suite, and presubmit lists the individual entries so the registry collector checks every executed test summary. `check_programs` also builds the upstream check-only and non-installed programs. Stress tests retain their original disabled selection. The two gRPC checks use the shared native target-runtime rules with declared APT and PI/BMv2 TAR payloads; their upstream source and assertions are preserved. `package_test` exercises installed programs, the public SDK, generated Thrift Python interfaces, library SONAMEs and matching DWARF/build-id/debuglink data. Privileged network forwarding is outside this installation check.
 
-The runtime installs `simple_switch`, `simple_switch_grpc`, `psa_switch` and
-`pna_nic`, eleven shared libraries and their SONAME links, the upstream Python
-Thrift/protobuf clients, and command helpers. Development headers and static
-libraries are SDK build inputs rather than OCI payloads. Container consumers
-also include PI's runtime and the declared target-library runtime closure.
+The original archive and Debian packaging come from the p4lang OBS project for Debian 11. The checksum-pinned registry release mirror supplies the same two files used in BMv2 .4. Ordered source preparation also retains the OBS origins as fallbacks.
 
-Use both runtime and debug TARs directly with OCI rules; there is no intermediate
-DEB conversion. `sonic_deploy_tar(force_debug_build = True)` keeps compilation
-symbols until splitting the final artifacts. The test checks build IDs and
-debuglink CRCs for every deployed ELF and GDB source-line lookup after adding the
-debug TAR. Native AMD64 and ARM64 jobs run the independent registry consumer.
+Original source SHA256: `083bb907e45597af8e29ef3b0a92d33d282ba23840ddd5cfb8372d2f030ab415`. Debian archive SHA256: `30941da6dde4cbbefaa9a12dfffa260115b3b63c6d56b3112b3baee953636179`. The original archive retains revision `68f4a978f465fd76e98fcdecb762981843fb7310`; its version suffix is preserved. The registry archive supplies the module entry, while the shared ordered source repository merges Debian metadata and patches for compilation. Identical original-archive downloads share Bazel’s checksum cache; the two extraction stages remain separate.
 
-```sh
-python3 ci/registry_ci.py run --module p4lang-bmv2 --version 1.15.0.sonic.4 \
-  --architecture amd64 --work-dir /tmp/bmv2-amd64 --artifacts /tmp/bmv2-artifacts
-```
+Installed static archives use the target-aware `strip_static_archive` rule from sonic-build-infra .38. Native and cross builds select binutils for the target object architecture while running on the execution platform.
 
-Replace `amd64` with `arm64` on an ARM64 host. The package test does not exercise
-privileged packet forwarding or the upstream network integration suite. Foreign
-Make compilation is one Bazel action per configured build, so this integration
-does not provide per-source-file Bazel compilation caching.
+The packet-redirect test uses a private short IPC directory per process. Parallel instances previously bound the same two absolute paths under /tmp; the packet assertions and test selection are unchanged.
 
-## Provenance
-
-Original archive SHA256:
-`083bb907e45597af8e29ef3b0a92d33d282ba23840ddd5cfb8372d2f030ab415`.
-Debian source archive SHA256:
-`30941da6dde4cbbefaa9a12dfffa260115b3b63c6d56b3112b3baee953636179`.
-The source archives supply Debian patches and copyright metadata; the overlay
-contains only the maintained SONiC patches and Bazel integration.
-The archive identifies upstream revision
-`68f4a978f465fd76e98fcdecb762981843fb7310`; a generated `VERSION-build` preserves
-that version suffix without running Git inside a build action.
-
-The BCR has no `bmv2`, `behavioral-model` or `p4lang-bmv2` entry. The imported
-archive has an Autotools build and no upstream Bazel module.
-
-## Generated runtime package metadata
-
-`//:runtime_packages.json` is a generated target. The existing Debian
-`control` and `changelog` define package fields; `BUILD.bazel` maps package names
-to the existing Bazel TARs. The shared metadata rule inspects those target
-binaries and declared dependency packages, so version constraints come from
-the built artifacts and Debian tools. There is no handwritten JSON metadata
-file or new DEB producer.
-
-## Large native include and linker lists
-
-Gearbox image PR #154 selects the complete PI/BMv2 dependency closure. Its
-native AMD64 debug action produced a 141,742-byte `CPPFLAGS` environment entry.
-Linux rejects a single environment string above 131,072 bytes, so `/bin/sh`
-could not start BMv2's configure adapter. The compiler launcher could not help
-because the failure occurred before it ran.
-
-This version uses the public `configure_prefix` with the shell's `source`
-builtin. It writes the ordered preprocessor arguments to a private GCC response
-file before starting a process and forwards that file directly to the
-preprocessor. The original final native include directory remains last in that
-same list. Configuration options, optimization/debug flags, source archives,
-patches, installed paths and source ownership remain unchanged.
-
-`//:configure_flags_test` reproduces the original pre-exec failure with a larger
-include list, then exercises the real owner configure frontend, GNU Autoconf
-C/C++/preprocessor checks and recursive Make in the same shell. It checks quoted
-macros, spaces in include paths, header precedence, rejection of driver-only
-CPPFLAGS and exact equality of short/long executable bytes. This focused native
-Trixie test passed locally; complete package and downstream image acceptance are
-separate gates and are still pending for this candidate.
-
-
-The standalone DASH Engine image exposed the remaining linker limit: its
-136,826-byte `LDFLAGS` exceeded Linux's per-string limit before GCC started.
-The same configure prefix now stores its shell-parsed linker arguments in the
-private `.sonic-linker-arguments` vector. The existing shared compiler launcher
-expands only that exact vector before shortening absolute library searches for
-each recursive working directory. Every flag and library-search order remains
-intact; arbitrary GCC response files stay opaque.
-
-The source launcher was introduced in
-[sonic-build-infra PR #82](https://github.com/securely1g/sonic-build-infra/pull/82)
-and registered as `0.0.27-08e0956f80574b27a9b68e72fe855cc0089058e5`.
-This candidate selects published Infra
-`0.0.28-9965823498ab54816de5addb6084638470dd04d7`, matching published PI
-`0.1.3.sonic.4`. The direct module and standalone CI select the same Infra
-version and Distroless `.18`; the TAR `.sonic.2` CI selection stays unchanged.
-No source archive, source patch,
-target ABI, configured feature, installed path or test implementation changes.
-
-The extended original test covers both pre-exec failures and real C/C++ links
-through Autoconf and recursive Libtool, including quoted paths, competing
-libraries and exact short/long executable bytes. Local regression and the exact
-338-argument Engine-vector diagnostic pass. The earlier AMD64/ARM64 acceptance
-belongs to the previous candidate; updated registry CI and Engine acceptance
-remain pending. The original six build targets and two tests on both native
-architectures are preserved, with no DEB generation.
-
-Both native registry builds at `29f27a3` reached the `simple_switch_grpc` link,
-then could not locate four libraries required by PI's `libpifeproto` and
-`libpigrpcserver`. PI already exports their SONAME files in the declared SDK.
-BMv2 now includes that SDK's `lib` directory in its existing link-time
-`rpath-link` search, in addition to the imported-library directory. This does
-not add a runtime search path or change PI's library declarations. Source
-archives, patches and both architecture target inventories are unchanged.
-The failed build retained the configured flags and linker diagnostics, but
-upstream `V=0` omitted the expanded final link command. Corrected native
-registry and downstream Engine acceptance remain pending.
-
-The dependency refresh retains all six build targets and both original tests.
-The existing registry routing selects native AMD64 and ARM64 cross validation;
-new normal CI and downstream image acceptance remain required for the refreshed
-graph. Earlier results above apply only to their recorded inputs.
+The eleven C++ tests that load libpcap and the five CLI tests that start simple_switch use the declared Trixie runtime, including libpcap’s libdbus dependency. Each CLI test waits for its own Thrift endpoint and stops the complete switch process group when it finishes.
