@@ -1,0 +1,26 @@
+{
+  "architectures": [
+    "amd64"
+  ],
+  "generated_module_overlay": true,
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.37-d31541a95fdf477302f1b109f2105eee81c86617",
+      "repo_name": "sonic_build_infra"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
+  },
+  "build_targets": [
+    "@monit//:monit.runtime",
+    "@monit//:monit.control",
+    "@monit//:original_check_binaries",
+    "@monit//:monit.runtime_metadata",
+    "@monit//:monit.runtime.debug_symbols"
+  ],
+  "test_targets": [
+    "@monit//:installation_test"
+  ]
+}

@@ -1,0 +1,290 @@
+load("@bazel_skylib//rules:expand_template.bzl", "expand_template")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_python//python:defs.bzl", "py_test")
+load("@sonic_build_infra//cc:runtime_test.bzl", "native_runtime_binary")
+load("@sonic_build_infra//deb:changelogs.bzl", "debian_changelogs")
+load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
+load("@sonic_build_infra//oci:source_controls.bzl", "source_package_controls")
+load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
+load("@sonic_build_infra//tools/build_tools:defs.bzl", "build_tool")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(glob([
+    "*.bzl",
+    "*.bazel",
+    "*.tpl",
+    "patch/*",
+]))
+
+expand_template(
+    name = "config_h",
+    out = "generated/config.h",
+    substitutions = {},
+    template = "config.h.tpl",
+)
+
+expand_template(
+    name = "xconfig_h",
+    out = "generated/xconfig.h",
+    substitutions = {},
+    template = "xconfig.h.tpl",
+)
+
+cc_library(
+    name = "config_headers",
+    hdrs = [
+        ":config_h",
+        ":parser_header",
+        ":xconfig_h",
+    ],
+    includes = ["generated"],
+    target_compatible_with = ["@platforms//cpu:x86_64"],
+)
+
+[
+    build_tool(
+        name = tool,
+        runtime = "@sonic_build_infra//tools/build_tools:foreign_runtime",
+        tool = tool,
+    )
+    for tool in [
+        "bison",
+        "flex",
+        "perl",
+    ]
+]
+
+genrule(
+    name = "parser_outputs",
+    srcs = ["@monit_src//:src/p.y"],
+    outs = [
+        "generated/y.tab.c",
+        "generated/y.tab.h",
+        "generated/y.output",
+    ],
+    cmd = "$(execpath :bison) -y -dvt --defines=$(location generated/y.tab.h) --report-file=$(location generated/y.output) -o $(location generated/y.tab.c) $<",
+    tools = [":bison"],
+)
+
+filegroup(
+    name = "parser",
+    srcs = ["generated/y.tab.c"],
+)
+
+filegroup(
+    name = "parser_header",
+    srcs = ["generated/y.tab.h"],
+)
+
+genrule(
+    name = "lexer",
+    srcs = ["@monit_src//:src/l.l"],
+    outs = ["generated/lex.yy.c"],
+    cmd = "$(execpath :flex) -i -o$@ $<",
+    tools = [":flex"],
+)
+
+alias(
+    name = "monit",
+    actual = "@monit_src//:monit",
+)
+
+alias(
+    name = "original_check_binaries",
+    actual = "@monit_src//:original_check_binaries",
+)
+
+expand_template(
+    name = "monit_service",
+    out = "generated/monit.service",
+    substitutions = {
+        "@prefix@": "/usr",
+        "@sysconfdir@": "/etc/monit",
+    },
+    template = "@monit_src//:system/startup/monit.service.in",
+)
+
+expand_template(
+    name = "monit_upstart",
+    out = "generated/monit.upstart",
+    substitutions = {
+        "@prefix@": "/usr",
+        "@sysconfdir@": "/etc/monit",
+    },
+    template = "@monit_src//:system/startup/monit.upstart.in",
+)
+
+genrule(
+    name = "manpage",
+    srcs = ["@monit_src//:doc/monit.pod"],
+    outs = ["generated/monit.1"],
+    cmd = "$(execpath :perl) $(execpath @sonic_build_infra//tools/build_tools:foreign_runtime)/usr/bin/pod2man --center 'User Commands' --release 5.34.3 --date='www.mmonit.com' --lax $< > $@",
+    tools = [
+        ":perl",
+        "@sonic_build_infra//tools/build_tools:foreign_runtime",
+    ],
+)
+
+_RESOURCES = [
+    ("@monit_debian//:debian/README.Debian", "usr/share/doc/monit/README.Debian", "0644"),
+    ("@monit_src//:monitrc", "etc/monit/monitrc", "0600"),
+    ("@monit_debian//:debian/conf-available/acpid", "etc/monit/conf-available/acpid", "0644"),
+    ("@monit_debian//:debian/conf-available/apache2", "etc/monit/conf-available/apache2", "0644"),
+    ("@monit_debian//:debian/conf-available/at", "etc/monit/conf-available/at", "0644"),
+    ("@monit_debian//:debian/conf-available/cron", "etc/monit/conf-available/cron", "0644"),
+    ("@monit_debian//:debian/conf-available/mdadm", "etc/monit/conf-available/mdadm", "0644"),
+    ("@monit_debian//:debian/conf-available/memcached", "etc/monit/conf-available/memcached", "0644"),
+    ("@monit_debian//:debian/conf-available/mysql", "etc/monit/conf-available/mysql", "0644"),
+    ("@monit_debian//:debian/conf-available/nginx", "etc/monit/conf-available/nginx", "0644"),
+    ("@monit_debian//:debian/conf-available/openntpd", "etc/monit/conf-available/openntpd", "0644"),
+    ("@monit_debian//:debian/conf-available/openssh-server", "etc/monit/conf-available/openssh-server", "0644"),
+    ("@monit_debian//:debian/conf-available/pdns-recursor", "etc/monit/conf-available/pdns-recursor", "0644"),
+    ("@monit_debian//:debian/conf-available/postfix", "etc/monit/conf-available/postfix", "0644"),
+    ("@monit_debian//:debian/conf-available/rsyslog", "etc/monit/conf-available/rsyslog", "0644"),
+    ("@monit_debian//:debian/conf-available/smartmontools", "etc/monit/conf-available/smartmontools", "0644"),
+    ("@monit_debian//:debian/conf-available/snmpd", "etc/monit/conf-available/snmpd", "0644"),
+    ("@monit_debian//:debian/templates/rootbin", "etc/monit/templates/rootbin", "0644"),
+    ("@monit_debian//:debian/templates/rootrc", "etc/monit/templates/rootrc", "0644"),
+    ("@monit_debian//:debian/templates/rootstrict", "etc/monit/templates/rootstrict", "0644"),
+    ("@monit_debian//:debian/monit.default", "etc/default/monit", "0644"),
+    ("@monit_debian//:debian/monit.init", "etc/init.d/monit", "0755"),
+    ("@monit_debian//:debian/monit.logrotate", "etc/logrotate.d/monit", "0644"),
+    ("@monit_debian//:debian/monit.pam", "etc/pam.d/monit", "0644"),
+    ("@monit_debian//:debian/monit.bug-script", "usr/share/bug/monit", "0755"),
+    ("@monit_debian//:debian/monit.lintian-overrides", "usr/share/lintian/overrides/monit", "0644"),
+    ("@monit_debian//:debian/copyright", "usr/share/doc/monit/copyright", "0644"),
+    ("@monit_src//:CONTRIBUTORS", "usr/share/doc/monit/CONTRIBUTORS", "0644"),
+    ("@monit_src//:system/bash/monit", "usr/share/bash-completion/completions/monit", "0644"),
+    (":monit_service", "usr/lib/systemd/system/monit.service", "0644"),
+    (":monit_upstart", "usr/share/doc/monit/examples/monit.upstart", "0644"),
+]
+
+_COMPRESSED = {
+    "usr/share/doc/monit/changelog.gz": ":generated/changelog",
+    "usr/share/man/man1/monit.1.gz": ":manpage",
+    "usr/share/doc/monit/changelog.Debian.gz": ":generated/changelog.Debian",
+}
+
+[
+    genrule(
+        name = "compressed_" + path.rsplit("/", 1)[1],
+        srcs = [source],
+        outs = ["compressed/" + path.rsplit("/", 1)[1]],
+        cmd = "$(execpath @sonic_build_infra//tools/build_tools:pigz) -n -9 -c $< > $@",
+        tools = ["@sonic_build_infra//tools/build_tools:pigz"],
+    )
+    for path, source in _COMPRESSED.items()
+]
+
+sonic_deploy_tar(
+    name = "monit.runtime",
+    srcs = [source for source, _, _ in _RESOURCES] + [":compressed_" + path.rsplit("/", 1)[1] for path in _COMPRESSED],
+    binaries = {"./usr/bin/monit type=file uid=0 gid=0 mode=0755 time=0": ":monit"},
+    compress_debug_sections = True,
+    mtree = ["./" + dest + " type=file uid=0 gid=0 mode=" + mode + " time=0 content=$(location " + source + ")" for source, dest, mode in _RESOURCES] + ["./" + path + " type=file uid=0 gid=0 mode=0644 time=0 content=$(location :compressed_" + path.rsplit("/", 1)[1] + ")" for path in _COMPRESSED] + [
+        "./etc/monit/conf.d type=dir uid=0 gid=0 mode=0755 time=0",
+        "./etc/monit/conf-enabled type=dir uid=0 gid=0 mode=0755 time=0",
+        "./var/lib/monit/events type=dir uid=0 gid=0 mode=0700 time=0",
+    ],
+)
+
+runtime_packages(
+    name = "monit.runtime_metadata",
+    apt_packages = {"@monit_build_debian//" + pkg + ":data": "@monit_build_debian//" + pkg + ":control" for pkg in [
+        "libssl3t64",
+        "libpam0g",
+        "libcrypt1",
+        "zlib1g",
+    ]},
+    changelog = "@monit_debian//:debian/changelog",
+    control = "@monit_debian//:debian/control",
+    control_file_helpers = [
+        ["dh_installinit"],
+        ["dh_installsystemd"],
+        ["dh_installdeb"],
+    ],
+    debian_files = {
+        "monit.init": "@monit_debian//:debian/monit.init",
+        "monit.service": ":monit_service",
+        "monit.postinst": "@monit_debian//:debian/monit.postinst",
+        "monit.postrm": "@monit_debian//:debian/monit.postrm",
+        "monit.maintscript": "@monit_debian//:debian/monit.maintscript",
+    },
+    module_name = "monit",
+    packages = {"monit": ":monit.runtime"},
+    required_paths = {"monit": [
+        "usr/bin/monit",
+        "etc/monit/monitrc",
+        "usr/lib/systemd/system/monit.service",
+    ]},
+)
+
+source_package_controls(
+    name = "monit.control",
+    metadata = ":monit.runtime_metadata",
+    package = "monit",
+)
+
+# Extract only the installed ELF; the declared BSDtar target retains its runtime.
+genrule(
+    name = "installed_monit_file",
+    testonly = True,
+    srcs = [":monit.runtime"],
+    outs = ["installed_monit_file.elf"],
+    cmd = "$(execpath @sonic_build_infra//tools/build_tools:bsdtar) -xOf $< ./usr/bin/monit > $@ && chmod 0755 $@",
+    tools = ["@sonic_build_infra//tools/build_tools:bsdtar"],
+)
+
+native_runtime_binary(
+    name = "installed_monit_executable",
+    testonly = True,
+    binary = ":installed_monit_file",
+    runtime_payloads = ["@monit_build_debian//" + pkg + ":raw_packages" for pkg in [
+        "libssl3t64",
+        "libpam0g",
+        "libcrypt1",
+        "zlib1g",
+    ]],
+)
+
+py_test(
+    name = "installation_test",
+    srcs = ["installation_test.py"],
+    args = [
+        "$(rootpath :monit.runtime)",
+        "$(rootpath :monit.runtime.debug_symbols)",
+        "$(rootpath :monit.control)",
+        "$(rootpath :monit.runtime_metadata)",
+        "$(rootpath :installed_monit_executable)",
+        "$(rootpath @monit_src//:CHANGES)",
+        "$(rootpath @monit_src//:CONTRIBUTORS)",
+        "$(rootpath @monit_debian//:debian/README.Debian)",
+    ],
+    data = [
+        ":installed_monit_executable",
+        ":monit.control",
+        ":monit.runtime",
+        ":monit.runtime.debug_symbols",
+        ":monit.runtime_metadata",
+        "@monit_debian//:debian/README.Debian",
+        "@monit_src//:CHANGES",
+        "@monit_src//:CONTRIBUTORS",
+    ],
+    main = "installation_test.py",
+    deps = ["@sonic_build_infra//deb:elf_metadata"],
+)
+
+debian_changelogs(
+    name = "monit_changelogs",
+    outs = [
+        "generated/changelog",
+        "generated/changelog.Debian",
+    ],
+    architecture = "amd64",
+    changelog = "@monit_debian//:debian/changelog",
+    control = "@monit_debian//:debian/control",
+    debian_files = {"@monit_debian//:debian/NEWS": "NEWS"},
+    package = "monit",
+    upstream = "@monit_src//:CHANGES",
+)
