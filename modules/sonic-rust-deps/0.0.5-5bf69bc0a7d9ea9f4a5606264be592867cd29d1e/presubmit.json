@@ -50,7 +50,14 @@
     "@sonic-rust-deps//:tonic-build",
     "@sonic-rust-deps//:tower",
     "@sonic-rust-deps//:tracing-error",
-    "@sonic-rust-deps//:uuid"
+    "@sonic-rust-deps//:uuid",
+    "@sonic-rust-deps//:daemonize",
+    "@sonic-rust-deps//:pnet",
+    "@sonic-rust-deps//:procfs",
+    "@sonic-rust-deps//:psutil",
+    "@sonic-rust-deps//:regex",
+    "@sonic-rust-deps//:sysinfo",
+    "@sonic-rust-deps//:syslog"
   ],
   "test_targets": [
     "@sonic-rust-deps//tests:serde_roundtrip_test",
