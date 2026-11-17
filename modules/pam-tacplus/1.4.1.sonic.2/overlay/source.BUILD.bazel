@@ -1,0 +1,254 @@
+load("@pam-tacplus//:header_aliases.bzl", "installed_header_aliases")
+load("@pam-tacplus//:source_includes.bzl", "private_includes")
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
+load("@sonic_build_infra//cc:shared_library.bzl", "shared_library_cc_info")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(glob(["**"]))
+
+# Original CPPFLAGS, upstream AM_CFLAGS and Debian CFLAGS ordering.
+COPTS = [
+    "-DHAVE_CONFIG_H",
+    "-Wdate-time",
+    "-U_FORTIFY_SOURCE",
+    "-D_FORTIFY_SOURCE=2",
+    "-fstack-protector-all",
+    "-g",
+    "-O2",
+    "-ffile-prefix-map=.=.",
+    "-fstack-protector-strong",
+    "-fstack-clash-protection",
+    "-fcf-protection",
+    "-Wformat",
+    "-Werror=format-security",
+]
+
+FEATURES = [
+    "-opt",
+    "-strip_debug_symbols",
+    "sonic_as_needed",
+]
+
+LINKOPTS = [
+    "-g",
+    "-Wl,-z,relro",
+    "-Wl,-z,now",
+    "-fstack-protector-strong",
+    "-lutil",
+]
+
+installed_header_aliases(
+    name = "installed_headers",
+    headers = {
+        "libtac/include/cdefs.h": "cdefs.h",
+        "libtac/include/libtac.h": "libtac.h",
+        "libtac/include/tacplus.h": "tacplus.h",
+        "support.h": "support.h",
+    },
+)
+
+cc_library(
+    name = "libtac_dev_headers",
+    hdrs = [":installed_headers"],
+    includes = ["installed_headers"],
+    deps = [
+        # keep
+        "@tacacs_build_debian//libpam0g-dev:libpam0g_headers",
+    ],
+)
+
+cc_library(
+    name = "private_headers",
+    hdrs = glob(["libtac/lib/*.h"]) + [
+        "pam_tacplus.h",
+        "support.h",
+    ],
+    deps = [
+        # keep
+        "@pam-tacplus//:config_headers",
+        ":libtac_dev_headers",
+    ],
+)
+
+cc_library(
+    name = "libtac_code",
+    srcs = [
+        # keep
+        "libtac/lib/acct_r.c",
+        "libtac/lib/acct_s.c",
+        "libtac/lib/attrib.c",
+        "libtac/lib/authen_r.c",
+        "libtac/lib/authen_s.c",
+        "libtac/lib/author_r.c",
+        "libtac/lib/author_s.c",
+        "libtac/lib/connect.c",
+        "libtac/lib/cont_s.c",
+        "libtac/lib/crypt.c",
+        "libtac/lib/hdr_check.c",
+        "libtac/lib/header.c",
+        "libtac/lib/magic.c",
+        "libtac/lib/md5.c",
+        "libtac/lib/messages.c",
+        "libtac/lib/read_wait.c",
+        "libtac/lib/version.c",
+        "libtac/lib/xalloc.c",
+    ],
+    copts = COPTS + private_includes([
+        ".",
+        "libtac/include",
+    ]),
+    features = FEATURES,
+    deps = [
+        # keep
+        ":private_headers",
+        "@tacacs_build_debian//libssl-dev:libcrypto_cc",
+        "@tacacs_build_debian//libpam0g-dev:libpam_cc",
+    ],
+)
+
+cc_shared_library(
+    name = "libtac_shared",
+    features = FEATURES,
+    shared_lib_name = "libtac.so.2",
+    user_link_flags = ["-Wl,-soname,libtac.so.2"] + LINKOPTS,
+    deps = [
+        # keep
+        ":libtac_code",
+    ],
+)
+
+shared_library_cc_info(
+    name = "libtac_cc",
+    shared_library = ":libtac_shared",
+)
+
+cc_library(
+    name = "libtac",
+    deps = [
+        # keep
+        ":libtac_cc",
+        ":libtac_dev_headers",
+        "@tacacs_build_debian//libssl-dev:libcrypto_cc",
+    ],
+)
+
+# The original libtool support DSO intentionally leaves its tac_* ABI unresolved.
+cc_library(
+    name = "libtacsupport_code",
+    srcs = [
+        # keep
+        "support.c",
+    ],
+    copts = COPTS + private_includes([
+        ".",
+        "libtac/include",
+    ]),
+    features = FEATURES,
+    deps = [
+        # keep
+        ":private_headers",
+        "@tacacs_build_debian//libpam0g-dev:libpam_cc",
+        "@tacacs_build_debian//libssl-dev:libcrypto_cc",
+    ],
+)
+
+cc_shared_library(
+    name = "libtacsupport_shared",
+    features = FEATURES,
+    shared_lib_name = "libtacsupport.so.2",
+    user_link_flags = ["-Wl,-soname,libtacsupport.so.2"] + LINKOPTS,
+    deps = [
+        # keep
+        ":libtacsupport_code",
+    ],
+)
+
+shared_library_cc_info(
+    name = "libtacsupport_cc",
+    shared_library = ":libtacsupport_shared",
+)
+
+cc_library(
+    name = "libtacsupport",
+    deps = [
+        # keep
+        ":libtacsupport_cc",
+        ":libtac_dev_headers",
+        "@tacacs_build_debian//libpam0g-dev:libpam_cc",
+        "@tacacs_build_debian//libssl-dev:libcrypto_cc",
+    ],
+)
+
+cc_library(
+    name = "pam_code",
+    srcs = [
+        # keep
+        "pam_tacplus.c",
+        "support.c",
+    ],
+    copts = COPTS + private_includes([
+        ".",
+        "libtac/include",
+    ]),
+    features = FEATURES,
+    deps = [
+        # keep
+        ":private_headers",
+        ":libtac",
+        "@tacacs_build_debian//libpam0g-dev:libpam_cc",
+        "@tacacs_build_debian//libssl-dev:libcrypto_cc",
+    ],
+)
+
+cc_shared_library(
+    name = "pam_tacplus_shared",
+    dynamic_deps = [
+        # keep
+        # keep
+        ":libtac_shared",
+    ],
+    features = FEATURES,
+    shared_lib_name = "pam_tacplus.so",
+    user_link_flags = ["-Wl,-soname,pam_tacplus.so"] + LINKOPTS,
+    deps = [
+        # keep
+        ":pam_code",
+    ],
+)
+
+# Original tacc AM_CFLAGS/AM_LDFLAGS preserve the executable PIE mode.
+cc_binary(
+    name = "tacc",
+    srcs = [
+        # keep
+        "tacc.c",
+    ],
+    copts = COPTS + ["-fPIE"] + private_includes([
+        ".",
+        "libtac/include",
+    ]),
+    features = FEATURES,
+    linkopts = LINKOPTS + ["-pie"],
+    linkstatic = False,
+    deps = [
+        # keep
+        ":private_headers",
+        ":libtac",
+        "@tacacs_build_debian//libpam0g-dev:libpam_cc",
+        "@tacacs_build_debian//libssl-dev:libcrypto_cc",
+    ],
+)
+
+filegroup(
+    name = "compiled",
+    srcs = [
+        # keep
+        ":libtac_shared",
+        ":libtacsupport_shared",
+        ":pam_tacplus_shared",
+        ":tacc",
+    ],
+)
