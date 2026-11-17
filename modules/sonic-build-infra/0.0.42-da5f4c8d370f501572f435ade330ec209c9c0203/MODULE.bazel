@@ -1,7 +1,7 @@
 # Keep bazel_compatibility in sync with sonic-buildimage's .bazelversion.
 module(
     name = "sonic-build-infra",
-    version = "0.0.37-316e298e77ab5cfa69af9b0c05ec24d5d94bbe1e",
+    version = "0.0.37-d31541a95fdf477302f1b109f2105eee81c86617",
     bazel_compatibility = [
         ">=8.5.1",
         "<=8.5.1",
@@ -10,7 +10,7 @@ module(
 
 bazel_dep(name = "swig", version = "4.3.0.bcr.2")
 bazel_dep(name = "rules_cc", version = "0.2.20")
-bazel_dep(name = "rules_foreign_cc", version = "0.15.1")
+bazel_dep(name = "rules_foreign_cc", version = "0.16.0.sonic.1")
 # Preserve complete source-install/wheel metadata and explicit payload modes.
 bazel_dep(name = "rules_python", version = "1.9.0.sonic.1")
 bazel_dep(name = "platforms", version = "1.0.0")
@@ -19,8 +19,7 @@ bazel_dep(name = "tar.bzl", version = "0.10.5.sonic.2")
 sysroot_tar = use_extension("@tar.bzl//tar:extensions.bzl", "toolchains")
 use_repo(sysroot_tar, "bsd_tar_toolchains_linux_amd64", "bsd_tar_toolchains_linux_arm64")
 
-# Root builds must select the patch even when another dependency requests the
-# upstream release, which sorts above its SONiC prerelease version.
+# Keep the patched tar implementation selected for standalone builds.
 single_version_override(
     module_name = "tar.bzl",
     version = "0.10.5.sonic.2",
@@ -44,7 +43,7 @@ bazel_dep(name = "buildifier_prebuilt", version = "8.5.1.3", dev_dependency = Tr
 
 # The SONiC patch sorts above upstream 0.9.4 without a root override.
 # Share the prepared APT graph across dependency sets in the module lock.
-bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.18")
+bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.21")
 
 # One multiarch directory shared by GCC and Clang on both architectures.
 # Consumers import this same repository through use_extension/use_repo.
@@ -124,6 +123,7 @@ use_repo(
     # Build tools and their runtime dependencies, resolved per architecture.
     "build_tools",
     "image_tools",
+    "bsdtar_tools_debian",
     "initramfs_runtime",
     "manual_tools",
     "base_debug_debian",
@@ -416,7 +416,7 @@ register_toolchains(
 
 # Tests use the consuming root's selected Go SDK. The development SDK below
 # registers the same reviewed version for standalone infrastructure tests.
-bazel_dep(name = "rules_go", version = "0.64.1", repo_name = "io_bazel_rules_go")
+bazel_dep(name = "rules_go", version = "0.65.0.sonic.1", repo_name = "io_bazel_rules_go")
 
 go_sdk = use_extension("@io_bazel_rules_go//go:extensions.bzl", "go_sdk", dev_dependency = True)
 go_sdk.download(
@@ -455,6 +455,13 @@ single_version_override(
 )
 
 register_toolchains("//tools/build_tools:gawk_toolchain")
+
+# Execution-side archive actions use locked APT BSDtar. The target_type and
+# explicit GCC/sysroot repository bootstrap tar labels retain their fallbacks.
+register_toolchains(
+    "//tools/build_tools:apt_bsdtar_amd64_toolchain",
+    "//tools/build_tools:apt_bsdtar_arm64_toolchain",
+)
 
 bookworm_bazel_lib_tools = use_extension("@bazel_lib//lib:extensions.bzl", "toolchains")
 use_repo(bookworm_bazel_lib_tools, "coreutils_toolchains", "zstd_toolchains")
@@ -783,8 +790,7 @@ use_repo(apt, "bookworm_target_debug")
 # Trixie execution tools remain in the existing build_tools dependency set.
 use_repo(apt, "bookworm_build_tools")
 
-# Deterministic compression uses the existing native BCR pigz toolchain.
-bazel_dep(name = "pigz", version = "2.8.bcr.2")
+# Deterministic gzip compression uses pigz from the shared APT tool runtime.
 bazel_dep(name = "rules_gzip", version = "1.0.0")
 bazel_dep(name = "rules_multirun", version = "0.14.0")
 bazel_dep(name = "toolchain_utils", version = "1.0.2")
@@ -826,3 +832,9 @@ http_file(
     sha256 = "beaaa9115d9e26080ea3a4405748276d9c65a307fcd21147352133e58b6b9829",
     downloaded_file_path = "wpa_supplicant.conf.sgml",
 )
+
+# Test the same locked GNU patch repository used by source consumers.
+patch_tools_repository = use_repo_rule("//source:patch_tools.bzl", "patch_tools_repository")
+patch_tools_repository(name = "source_patch_tools", lock = "//apt:apt.lock.json")
+
+use_repo(apt, "p4rt_owner_tools_debian")

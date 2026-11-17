@@ -10,7 +10,7 @@
     },
     {
       "name": "rules_distroless",
-      "version": "0.9.4.sonic.18"
+      "version": "0.9.4.sonic.21"
     }
   ],
   "platforms": {
@@ -105,7 +105,19 @@
     "@sonic-build-infra//cc/tests/runtime_context:paired_layout_test",
     "@sonic-build-infra//cc/tests/runtime_context:paired_flags_test",
     "@sonic-build-infra//apt:lock_test",
-    "@sonic-build-infra//apt:bookworm_lock_test"
+    "@sonic-build-infra//apt:bookworm_lock_test",
+    "@sonic-build-infra//oci/tests:runtime_control_files_rule_test",
+    "@sonic-build-infra//oci/tests:runtime_per_package_control_test",
+    "@sonic-build-infra//oci/tests:runtime_empty_shlibdeps_test",
+    "@sonic-build-infra//python/tests:runtime_lock_test",
+    "@sonic-build-infra//python/tests:inherited_runtime_test",
+    "@sonic-build-infra//python/tests:source_package_builder_test",
+    "@sonic-build-infra//python/tests:site_packages_test",
+    "@sonic-build-infra//tools/build_tools:image_runtime_test",
+    "@sonic-build-infra//tools/build_tools:elf_runtime_test",
+    "@sonic-build-infra//tools/autoconf:linker_response_test",
+    "@sonic-build-infra//tools/build_tools/bsdtar_tests:bsdtar_test",
+    "@sonic-build-infra//deb/tests:changelogs_test"
   ],
   "host_platforms": {
     "amd64": "@sonic-build-infra//platforms:x86_64_trixie",
