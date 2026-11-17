@@ -65,6 +65,7 @@ ARM_CROSS_VERSIONS: dict[str, tuple[str, ...]] = {
     "iproute2": ("6.15.0.sonic.7",),
     "libnl3": ("3.7.0.sonic.7",),
     "libpsample": ("1.1.0.sonic.2",),
+    "libyang": ("3.12.2.sonic.7",),
     "libyang-python": ("3.1.0.sonic.6",),
     "net-snmp": ("5.9.3.sonic.1",),
     "p4c": ("1.2.4.2.sonic.3",),
