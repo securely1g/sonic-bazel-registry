@@ -1,0 +1,55 @@
+load("//apt/private:cc_deb_library.bzl", "cc_deb_library")
+load(":context_test.bzl", "context_test")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_deb_library(
+    name = "runtime",
+    linkopts = ["-Ldeclared_first", "-lfixture_first", "-lfixture_second"],
+)
+
+cc_deb_library(
+    name = "headers",
+    hdrs = ["fixture.h"],
+)
+
+cc_deb_library(
+    name = "additional_headers",
+    additional_compiler_inputs = ["fixture.h"],
+)
+
+cc_deb_library(
+    name = "transitive_headers",
+    deps = [":headers", ":runtime"],
+)
+
+context_test(
+    name = "runtime_test",
+    target_under_test = ":runtime",
+    expected_headers = 0,
+    expected_flags = ["-Ldeclared_first", "-lfixture_first", "-lfixture_second"],
+)
+
+context_test(
+    name = "headers_test",
+    target_under_test = ":headers",
+    expected_headers = 1,
+)
+
+context_test(
+    name = "additional_headers_test",
+    target_under_test = ":additional_headers",
+    expected_headers = 1,
+)
+
+context_test(
+    name = "transitive_headers_test",
+    target_under_test = ":transitive_headers",
+    expected_headers = 1,
+    expected_flags = ["-Ldeclared_first", "-lfixture_first", "-lfixture_second"],
+)
+
+test_suite(
+    name = "tests",
+    tests = [":runtime_test", ":headers_test", ":additional_headers_test", ":transitive_headers_test"],
+)

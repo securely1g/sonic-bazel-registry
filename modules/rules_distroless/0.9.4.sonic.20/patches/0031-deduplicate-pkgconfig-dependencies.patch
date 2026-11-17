@@ -1,0 +1,13 @@
+diff --git a/apt/private/deb_import.bzl b/apt/private/deb_import.bzl
+--- a/apt/private/deb_import.bzl
++++ b/apt/private/deb_import.bzl
+@@ -446,7 +446,8 @@
+                 if result.error:
+                     error = result.error
+                 elif result.target:
+-                    deps.append(result.target)
++                    if result.target not in deps:
++                        deps.append(result.target)
+                 else:
+                     linkopts.append("-l" + libname.removeprefix("lib"))
+             if error:

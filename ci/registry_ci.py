@@ -89,7 +89,7 @@ ARM_CROSS_VERSIONS: dict[str, tuple[str, ...]] = {
 # Keep the coherent DASH registration in routine plans. The published
 # .3 registration remains the numeric latest version and keeps its usual jobs.
 ADDITIONAL_PRESUBMITS: set[tuple[str, str]] = {
-    ("sonic-dash", "0.0.1-2cbfdfa1205c0d03003444e5c80f89adb8c3df59"),
+    ("sonic-dash", "0.0.1-a9b799bb664b3b3b9d6e9a19cedd38b620e769de"),
 }
 
 # The original wrappers stage a private target executable, loader and libraries.
@@ -410,8 +410,21 @@ def validate_entry(root: Path, module: str, version: str) -> dict:
     if "integration_test_module" in config:
         integration_test_directory(entry, config, module, version)
     for dependency in config["consumer_deps"]:
-        require(isinstance(dependency, dict) and set(dependency) in ({"name", "version"}, {"name", "version", "repo_name"}),
-                "consumer_deps require name/version and optional repo_name")
+        require(isinstance(dependency, dict) and {"name", "version"} <= set(dependency)
+                and set(dependency) <= {"name", "version", "repo_name", "source_patches", "patch_strip"},
+                "consumer_deps require name/version and optional repo_name/source_patches/patch_strip")
+        if "source_patches" in dependency:
+            patches = dependency["source_patches"]
+            require(isinstance(patches, list) and bool(patches)
+                    and all(isinstance(patch, str) and LABEL.fullmatch(patch)
+                            and patch.startswith(f"@{module}//") and patch.endswith(".patch")
+                            and ".." not in patch for patch in patches)
+                    and len(patches) == len(set(patches)),
+                    "Consumer patches must be unique .patch labels owned by the exact tested source module")
+            require(type(dependency.get("patch_strip", 0)) is int and dependency.get("patch_strip", 0) >= 0,
+                    "Consumer patch_strip must be a nonnegative integer")
+        else:
+            require("patch_strip" not in dependency, "patch_strip requires source_patches")
         name, dep_version = dependency["name"], dependency["version"]
         alias = dependency.get("repo_name", name)
         require(isinstance(name, str) and NAME.fullmatch(name) is not None and name not in names,
@@ -665,73 +678,9 @@ def module_runner(module: str, execution_architecture: str, p4_runner_profile: s
     return RUNNERS[execution_architecture]
 
 
-def planning_only_change(root: Path, base: str, head: str, paths: list[str]) -> bool:
-    """Classify selection-only CI changes; never exempt consumer execution code.
-
-    This is an impact classifier, not a sandbox or review substitute. Full
-    native runner tests and the ARM cross fixture still run after planning.
-    Unknown changes retain the full consumer matrix (and its dispatch cap).
-    """
-    functions = {"plan", "planning_only_change"}
-    old_guard = "if: ${{ always() && !cancelled() }}"
-    new_guard = "if: ${{ !cancelled() && needs.plan.result == 'success' }}"
-    for path in paths:
-        parts = PurePosixPath(path).parts
-        if (len(parts) == 3 and parts[:2] == ("ci", "tests")
-                and parts[2].startswith("test_") and parts[2].endswith(".py")):
-            record = git(root, "ls-tree", head, "--", path).split()
-            if not record or record[0] not in ("100644", "100755"):
-                return False  # Deleted/symlinked tests are not covered by discovery.
-            continue  # The unchanged runner discovers these tests, including new ones.
-        if path not in ("ci/registry_ci.py", ".github/workflows/registry-ci.yml"):
-            return False
-        try:
-            old = git(root, "show", f"{base}:{path}")
-            new = git(root, "show", f"{head}:{path}")
-        except subprocess.CalledProcessError:
-            return False  # Added/deleted CI executors cannot be proven unchanged.
-        if path == "ci/registry_ci.py":
-            try:
-                trees = [ast.parse(text) for text in (old, new)]
-            except SyntaxError:
-                return False
-            for tree in trees:
-                tree.body = [node for node in tree.body
-                             if not (isinstance(node, ast.FunctionDef) and node.name in functions)]
-            # Only the literal trusted-context plumbing keyword is normalized.
-            # Any different expression or any other main/CLI/executor change
-            # remains visible in the complete AST comparison.
-            expected_context = ast.dump(ast.parse(
-                'os.environ.get("REGISTRY_READINESS_PR", "")', mode="eval").body,
-                include_attributes=False)
-            for tree in trees:
-                for node in ast.walk(tree):
-                    if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "plan":
-                        node.keywords = [kw for kw in node.keywords if not (
-                            kw.arg == "readiness_pr" and ast.dump(kw.value, include_attributes=False) == expected_context)]
-            # CLI, imports, constants and every executor otherwise stay equal.
-            if ast.dump(trees[0], include_attributes=False) != ast.dump(trees[1], include_attributes=False):
-                return False
-        else:
-            # Admit only the two fail-closed dependency guards. Any runner,
-            # command, token, target or aggregate change needs broad validation.
-            context_line = "          REGISTRY_READINESS_PR: ${{ github.event_name == 'pull_request' && github.repository == 'securely1g/sonic-bazel-registry' && (github.event.pull_request.number == 234 || github.event.pull_request.number == 235) && format('{0}', github.event.pull_request.number) || '' }}\n"
-            if new.count(context_line) != 1:
-                return False
-            if old.count(old_guard) != 2 or new.replace(context_line, "", 1) != old.replace(old_guard, new_guard):
-                return False
-    return True
-
-
 def plan(root: Path, base: str | None, head: str | None, all_versions: bool = False,
          latest_versions: bool = False, published: str | None = None,
-         push: bool = False, p4_runner_profile: str = "large",
-         max_jobs: int | None = None, readiness_pr: str = "") -> dict:
-    require(readiness_pr in ("", "234", "235"), "Unknown bounded readiness policy")
-    require(not readiness_pr or (base and not push and not all_versions and not latest_versions),
-            "Bounded readiness policy requires a pull-request comparison")
-    require(max_jobs is None or (type(max_jobs) is int and max_jobs > 0),
-            "max_jobs must be a positive integer")
+         push: bool = False, p4_runner_profile: str = "large") -> dict:
     require(p4_runner_profile in ("standard", "large"), "Invalid P4 runner profile")
     require(not (all_versions and latest_versions), "Choose either --all or --latest")
     require(not ((all_versions or latest_versions) and base),
@@ -751,10 +700,10 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
         require(re.fullmatch(r"[0-9a-fA-F]{40,64}", base) is not None
                 and re.fullmatch(r"[0-9a-fA-F]{40,64}", head) is not None,
                 "base and head must be full commit SHAs")
-        # The event base may predate a maintained-main integration. Compare the
-        # complete proposed stack against maintained publication history, just
-        # like check_version_policy; inherited main changes are not PR changes.
-        # Do not use HEAD as baseline: that would hide actual edits/deletions.
+        # Compare the complete proposed stack with the maintained publication
+        # merge base, just like check_version_policy. The event base can predate
+        # a main integration and incorrectly classify inherited CI as PR edits.
+        # Genuine CI/planner edits still select every required consumer below.
         comparison_base = base if push else git(root, "merge-base", published, head).strip()
         changed = git(root, "diff", "--name-only", "--no-renames", "-z", comparison_base, head).split("\0")
         ci_changed = False
@@ -810,9 +759,7 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
                     # deletion already failed check_version_policy above.
                     if (root / "modules" / module / parts[2]).exists():
                         selected.add((module, parts[2]))
-        ci_paths = [name for name in changed if name and (
-            name.startswith(("ci/", ".github/")) or name == "bazel_registry.json")]
-        if ci_changed and not planning_only_change(root, comparison_base, head, ci_paths):
+        if ci_changed:
             selected.update(latest_presubmits(root))
             selected.update(ADDITIONAL_PRESUBMITS)
     require(type(ARM_CROSS_ALL) is bool, "ARM cross survey selection must be boolean")
@@ -833,24 +780,6 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
                             "execution_architecture": execution_architecture,
                             "cross_compile": cross_compile,
                             "runner": module_runner(module, execution_architecture, p4_runner_profile)})
-    # Fail before writing plan.json or publishing matrix outputs. Never truncate
-    # the required matrix: that would misrepresent coverage as successful.
-    require(max_jobs is None or len(include) <= max_jobs,
-            f"Predispatch scope exceeded: {len(include)} required jobs > {max_jobs}; "
-            "no jobs selected for dispatch. Preserve required coverage and obtain "
-            "an explicit broad-validation disposition before publication.")
-    if readiness_pr:
-        expected = {
-            "235": {("sonic-dhcp-relay", "0.1.0-3c5fb7b55b2f2a93bbe493f8ed3eb670e8663622", "amd64", "amd64", False)},
-            "234": {("sonic-fips", "0.0.5-429b0668a80fabc3d05b3fb67ccda900d863ae3c", arch, arch, False)
-                    for arch in ("amd64", "arm64")},
-        }[readiness_pr]
-        actual = {(j["module"], j["version"], j["architecture"],
-                   j["execution_architecture"], j["cross_compile"]) for j in include}
-        require(actual == expected and len(include) == len(expected),
-                f"Predispatch scope mismatch for PR{readiness_pr}: required matrix "
-                "differs from its exact reviewed module/version/native-architecture scope; "
-                "no plan outputs published and no required jobs truncated")
     return {"include": include}
 
 
@@ -907,9 +836,10 @@ def query_output_trees(prefix: list[str], flags: list[str], labels: list[str],
                           '"trees": [f.path for f in target.files.to_list() if f.is_directory]})')
             # Select the requested top-level configuration. A normal build can
             # also retain this label's exec configuration through a tool dependency.
+            # Legal build labels such as Common++ must remain one query word.
             result = subprocess.run(
                 [*prefix, "cquery", *flags, "--output=starlark", f"--starlark:expr={expression}",
-                 f"config({label}, target)"], cwd=consumer, stdout=output, stderr=errors)
+                 f"config({json.dumps(label, ensure_ascii=False)}, target)"], cwd=consumer, stdout=output, stderr=errors)
             require(result.returncode == 0, f"Declared output query failed for {label}; see {log}")
     trees = {}
     for line in manifest.read_text().splitlines():
@@ -1583,6 +1513,93 @@ def prepare_gazelle_tests(root: Path, work_dir: Path, script_executor: list[str]
     return runner
 
 
+
+def stage_consumer_source_patches(root: Path, module: str, version: str,
+                                  config: dict, consumer: Path, artifacts: Path) -> dict:
+    """Materialize owner-bound patch bytes in the fresh consuming main repository.
+
+    Never extract or execute an archive. Only regular selected members are read
+    after whole-archive integrity verification. Fetch overlays are supported;
+    arbitrary source patches are rejected because they could alter owner bytes.
+    """
+    labels = [label for dep in config["consumer_deps"] for label in dep.get("source_patches", [])]
+    if not labels:
+        return {}
+    require(consumer.is_dir() and not consumer.is_symlink()
+            and consumer.resolve() == consumer.absolute(),
+            "Patch consumer root must have no symlink components")
+    entry = entry_directory(root, module, version)
+    source = read_json(local_input(entry, "source.json"))
+    require(not source.get("patches"), "Owner source_patches require an unpatched archive or explicit overlay inputs")
+    url = source.get("url", "")
+    require(urlparse(url).scheme == "https", "Owner archive must use HTTPS")
+    prefix = source.get("strip_prefix", "")
+    require(isinstance(prefix, str) and prefix and not prefix.startswith("/")
+            and ".." not in prefix.split("/") and "\\" not in prefix,
+            "Owner patch staging requires a safe strip_prefix")
+    with urlopen(url, timeout=60) as response:
+        archive = response.read(64 * 1024 * 1024 + 1)
+    require(len(archive) <= 64 * 1024 * 1024, "Owner patch archive exceeds bounded staging limit")
+    sri(source.get("integrity"), archive)
+    wanted = {}
+    for label in labels:
+        require(isinstance(label, str) and label.startswith(f"@{module}//") and LABEL.fullmatch(label),
+                "Patch label must belong to tested owner")
+        package, name = label.split("//", 1)[1].split(":", 1)
+        path = (package + "/" if package else "") + name
+        require(path.endswith(".patch") and all(part not in ("", ".", "..") for part in path.split("/")),
+                "Unsafe owner patch path")
+        wanted[label] = path
+    selected = {}; seen = set(); nonregular = set()
+    try:
+        with tarfile.open(fileobj=io.BytesIO(archive), mode="r:*") as tar:
+            for member in tar:
+                path = member.name.removeprefix("./").rstrip("/")
+                require(path and not path.startswith("/") and "\\" not in path
+                        and all(part not in ("", ".", "..") for part in path.split("/")),
+                        "Unsafe owner archive member")
+                require(path not in seen, "Duplicate owner archive member")
+                seen.add(path)
+                if not member.isdir() and not member.isfile():
+                    nonregular.add(path)
+                for label, relative in wanted.items():
+                    if path == prefix + "/" + relative:
+                        require(member.isfile() and member.size <= 1024 * 1024,
+                                "Owner patch must be a bounded regular archive member")
+                        selected[label] = tar.extractfile(member).read()
+    except tarfile.TarError as error:
+        raise RegistryError("Owner patch archive is not a supported TAR") from error
+    for label, relative in wanted.items():
+        parts = (prefix + "/" + relative).split("/")
+        require(not any("/".join(parts[:end]) in nonregular for end in range(1, len(parts))),
+                "Owner patch parent must not be a symlink or special member")
+        if relative in source.get("overlay", {}):
+            overlay = local_input(entry / "overlay", relative)
+            require(not (entry / "overlay").is_symlink()
+                    and not any(parent.is_symlink() for parent in overlay.parents if parent.is_relative_to(entry)),
+                    "Owner overlay patch parents must not be symlinks")
+            require(overlay.stat().st_size <= 1024 * 1024, "Owner overlay patch exceeds staging limit")
+            selected[label] = overlay.read_bytes()
+            sri(source["overlay"][relative], selected[label])
+        require(label in selected, "Owner patch not present in verified source")
+    directory = consumer / "_registry_source_patches"
+    require(not directory.exists() and not directory.is_symlink(), "Patch staging directory must be fresh")
+    directory.mkdir()
+    result = {}; receipt = []
+    for index, label in enumerate(dict.fromkeys(labels)):
+        name = f"{index:03d}.patch"
+        (directory / name).write_bytes(selected[label])
+        result[label] = f"//_registry_source_patches:{name}"
+        receipt.append({"source_label": label, "root_label": result[label],
+                        "sha256": hashlib.sha256(selected[label]).hexdigest()})
+    (directory / "BUILD.bazel").write_text("exports_files(" + json.dumps([f"{i:03d}.patch" for i in range(len(result))]) + ")\n")
+    (artifacts / "consumer-source-patches.json").write_text(json.dumps({
+        "owner": module, "version": version, "archive_integrity": source["integrity"],
+        "archive_sha256": hashlib.sha256(archive).hexdigest(), "patches": receipt,
+    }, indent=2) + "\n")
+    return result
+
+
 def run(root: Path, module: str, version: str, architecture: str,
         work_dir: Path, artifacts: Path, bazel: str = "bazel",
         test_container_image: str | None = None,
@@ -1618,14 +1635,20 @@ def run(root: Path, module: str, version: str, architecture: str,
             source = integration_test_directory(entry_directory(root, module, version), config, module, version)
             shutil.copytree(source, consumer, dirs_exist_ok=True)
         else:
+            staged_patches = stage_consumer_source_patches(root, module, version, config, consumer, artifacts)
             declarations = ['module(name = "registry_ci_consumer")']
             for dependency in [{"name": module, "version": version}, *config["consumer_deps"]]:
                 declarations.append("bazel_dep(" + ", ".join(f"{key} = {json.dumps(value)}"
-                                                           for key, value in dependency.items()) + ")")
+                                                           for key, value in dependency.items()
+                                                           if key in ("name", "version", "repo_name")) + ")")
             for dependency in config["consumer_deps"]:
                 name, selected_version = dependency["name"], dependency["version"]
+                patch_args = ""
+                if "source_patches" in dependency:
+                    patch_args = (f", patches = {json.dumps([staged_patches[label] for label in dependency['source_patches']])}, "
+                                  f"patch_strip = {dependency.get('patch_strip', 0)}")
                 declarations.append(f"single_version_override(module_name = {json.dumps(name)}, "
-                                    f"version = {json.dumps(selected_version)})")
+                                    f"version = {json.dumps(selected_version)}{patch_args})")
             if "go_sdk" in config:
                 dependencies = {module: module, **{
                     dependency["name"]: dependency.get("repo_name", dependency["name"])
@@ -1935,8 +1958,7 @@ def main() -> None:
     try:
         if args.command == "plan":
             result = plan(ROOT, args.base, args.head, args.all_versions, args.latest_versions,
-                          published=args.published, push=args.push, p4_runner_profile=args.p4_runner_profile,
-                          readiness_pr=os.environ.get("REGISTRY_READINESS_PR", ""))
+                          published=args.published, push=args.push, p4_runner_profile=args.p4_runner_profile)
             args.output.parent.mkdir(parents=True, exist_ok=True)
             args.output.write_text(json.dumps(result, indent=2) + "\n")
             print(json.dumps(result, separators=(",", ":")))

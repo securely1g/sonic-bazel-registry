@@ -136,33 +136,3 @@ is not necessarily a higher Bazel version.
 
 See Bazel's [version format and selection rules](https://bazel.build/external/module)
 and [root-module version overrides](https://bazel.build/rules/lib/globals/module#single_version_override).
-
-## Bounded readiness validation for PR234 and PR235
-
-Planning compares the complete proposed stack with the maintained publication
-merge base, not a potentially stale event base. Publication integrity checks
-remain independent. Ordinary unrelated PRs retain their complete existing
-required module matrix, including legitimate matrices larger than two jobs.
-
-The workflow supplies `REGISTRY_READINESS_PR` only from GitHub's pull-request
-number and maintained repository identity for the assigned PR234/235 readiness
-work. There is no head-file opt-out, repository-variable override or automatic
-broad fallback. PR235 requires exactly landed relay3c5/nativeAMD64; PR234 requires
-exactly source-owned FIPS0.0.5-429b/nativeAMD64+ARM64 during conflict-only integration; source repin/maintenance
-disposition remains separate. A required matrix differing in module, immutable
-version, target/execution architecture or native/cross mode fails before any
-plan/matrix outputs. Missing and additional jobs both fail; nothing is truncated.
-
-Selection-only changes are distinguished from consumer-executor changes by
-comparing Python ASTs with only `plan` and its impact classifier removed. Imports,
-constants and all consumer execution functions stay identical. The sole admitted
-CLI change is the exact environment-read keyword passed to `plan`; any other
-main/CLI change remains visible. The sole workflow adjustments are the exact
-trusted GitHub-context assignment and two successful-plan guards. Commands,
-runner selection, tokens, targets and aggregate gates are not exempt.
-Direct discovered regular Python test additions/edits remain covered by the full
-native runner suites. These scheduler-only changes retain those suites, the ARM
-cross fixture and all changed module consumers. Unknown shared executor/catalog
-changes retain broad coverage and are rejected for the bounded assigned scope.
-This impact classification is not a sandbox or substitute for independent review.
-Manual/push validation remains unchanged and is not an implied authorization.

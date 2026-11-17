@@ -1,0 +1,971 @@
+diff --git a/MODULE.bazel b/MODULE.bazel
+index 5def723..12542b8 100644
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -14,7 +14,7 @@ bazel_dep(name = "rules_foreign_cc", version = "0.16.0")
+ bazel_dep(name = "rules_java", version = "8.8.0")
+ bazel_dep(name = "rules_shell", version = "0.4.1")
+ bazel_dep(name = "rules_python", version = "1.7.0")
+-bazel_dep(name = "gawk", version = "5.3.2.bcr.3")
++bazel_dep(name = "gawk", version = "5.3.2.sonic.1")
+ bazel_dep(name = "tar.bzl", version = "0.10.4")
+ bazel_dep(name = "yq.bzl", version = "0.3.1")
+ 
+diff --git a/apt/README.md b/apt/README.md
+index 4788651..d3f7162 100644
+--- a/apt/README.md
++++ b/apt/README.md
+@@ -19,3 +19,37 @@ empty interface libraries keep runtime-only files out of direct `DT_NEEDED`
+ entries, while their declared SONAME filenames enter Bazel's solib directories
+ and runtime search paths. Plain `data` files and `additional_linker_inputs` do
+ not provide that runtime linking interface.
++
++## Shared sources and reviewed locks
++
++Declare the project source document once with
++`apt.sources_file(file = "//apt:sources.json")`. Dependencies may repeat the
++same document. A root `override = True` selects a different baseline for the
++whole graph. Legacy declarations may select a subset of its architectures;
++URI or component conflicts fail before downloading indices.
++
++Use `apt.import_lock(lock = "//apt:apt.lock.json", libraries = True,
++sources = "//apt:sources.json", requests = "//apt:requests.json")` to expose
++payload, control archives, existing package/header/pkgconfig targets, and
++individual `libNAME_cc`, `libNAME_shared`, `libNAME_static` targets when the
++DEB contains those libraries. Each package identity has one shared legacy leaf
++repository. Repeated payload/library views reuse that repository. Library
++imports require the reviewed `packages[key].files` map. Target and execution
++platforms select the toolchain and architecture; imports do not choose a C/C++
++toolchain. Shared-library execution follows the deployment loader search path.
++
++Normal imports never fetch package indices or rewrite the lock. Every
++`apt.install` request in a dependency must appear in the lock's recorded inputs;
++changed sources, requests, or package closure require an explicit lock update.
++The `_inputs` record binds full `source_document`, `requests_document`, and
++`module_requests_document` objects.
++
++For explicit updates, read requests with `apt.install_file(file =
++"//apt:requests.json")`, add root `apt.export_lock(name = "apt_lock_export",
++previous_lock = "//apt:apt.lock.json")`, and build `@apt_lock_export//:lock`.
++The target exports `apt.lock.json` on both Bazel facts and lockfile paths. It
++records `packages[key].files`, actual index integrity in `facts`, and normalized
++MODULE requests in `_module_requests`. The update driver validates existing
++package identities and binds reviewed input documents before replacing the
++production lock. `previous_lock` supplies preferred existing versions and fixed
++index integrity; an incompatible constraint must be reviewed by the driver.
+diff --git a/apt/extensions.bzl b/apt/extensions.bzl
+index 3009f2b..9019811 100644
+--- a/apt/extensions.bzl
++++ b/apt/extensions.bzl
+@@ -3,6 +3,7 @@
+ load("@bazel_tools//tools/build_defs/repo:utils.bzl", "read_netrc", "read_user_netrc", "use_netrc")
+ load("//apt/private:apt_deb_repository.bzl", "deb_repository")
+ load("//apt/private:apt_dep_resolver.bzl", "dependency_resolver")
++load("//apt/private:configuration.bzl", "export_lock_repository", "install_requests", "read_sources", "requests_document")
+ load("//apt/private:deb_filemap.bzl", "deb_filemap")
+ load("//apt/private:deb_import.bzl", "deb_import")
+ load("//apt/private:locked_import.bzl", "declare_locked_imports")
+@@ -207,8 +208,7 @@ def _fetch_and_parse_sources(mctx, repo, glock, snapshot_suites, formats):
+     for (urls, dist, comp, arch, pkg_tokens, cnt_tokens, pkg_fk, cnt_fk) in pending:
+         mctx.report_progress("resolving Package indices: {}/{} for {}".format(dist, comp, arch))
+         (output, url, integrity, ext) = _resolve_downloads(mctx, pkg_tokens, "Packages", dist, comp, arch)
+-        if dist in snapshot_suites:
+-            glock.facts()[pkg_fk] = integrity
++        glock.facts()[pkg_fk] = integrity
+         formats[pkg_fk] = ext
+ 
+         mctx.report_progress("parsing Package indices: {}/{} for {}".format(dist, comp, arch))
+@@ -222,8 +222,7 @@ def _fetch_and_parse_sources(mctx, repo, glock, snapshot_suites, formats):
+ 
+         if contents_result != None:
+             (output, url, integrity, ext) = contents_result
+-            if dist in snapshot_suites:
+-                glock.facts()[cnt_fk] = integrity
++            glock.facts()[cnt_fk] = integrity
+             formats[cnt_fk] = ext
+ 
+             mctx.report_progress("parsing Contents: {}/{} for {}".format(dist, comp, arch))
+@@ -234,6 +233,20 @@ def _fetch_and_parse_sources(mctx, repo, glock, snapshot_suites, formats):
+     return used_keys
+ 
+ def _distroless_extension(mctx):
++    (source_records, source_document) = read_sources(mctx)
++    installs = install_requests(mctx)
++    updates = [tag for module in mctx.modules if module.is_root for tag in module.tags.export_lock]
++    imports = [tag for module in mctx.modules for tag in module.tags.import_lock]
++    if imports and not updates:
++        declare_locked_imports(mctx, [], installs, source_document)
++        return
++    previous = {}
++    for tag in updates:
++        if tag.previous_lock:
++            document = json.decode(mctx.read(tag.previous_lock))
++            for package in document["packages"].values():
++                previous.setdefault(package["name"] + ":" + package["architecture"], []).append(package["version"])
++
+     # Detect facts API availability
+     use_facts = hasattr(mctx, "facts")
+     cached_facts = mctx.facts if use_facts else {}
+@@ -241,6 +254,10 @@ def _distroless_extension(mctx):
+     # Seed glock from facts or lockfile
+     if use_facts:
+         glock = lockfile.empty(mctx)
++        for update in updates:
++            if update.previous_lock:
++                for k, v in json.decode(mctx.read(update.previous_lock)).get("facts", {}).items():
++                    glock.facts()[k] = v
+         for (k, v) in cached_facts.get("indices", {}).items():
+             glock.facts()[k] = v
+     else:
+@@ -253,37 +270,22 @@ def _distroless_extension(mctx):
+ 
+     # First pass over sources_list: classify suites as snapshot or rolling
+     snapshot_suites = {}
+-    for mod in mctx.modules:
+-        for sl in mod.tags.sources_list:
+-            uris = [uri.removeprefix("mirror+") for uri in sl.uris]
+-            is_snapshot = len(uris) > 0 and all([util.is_snapshot_uri(uri) for uri in uris])
+-            if is_snapshot:
+-                for suite in sl.suites:
+-                    snapshot_suites[suite] = True
++    for sl in source_records:
++        uris = [uri.removeprefix("mirror+") for uri in sl.uris]
++        is_snapshot = len(uris) > 0 and all([util.is_snapshot_uri(uri) for uri in uris])
++        if is_snapshot:
++            for suite in sl.suites:
++                snapshot_suites[suite] = True
+ 
+     repo = deb_repository.new()
+-    resolver = dependency_resolver.new(repo)
+-
+-    for mod in mctx.modules:
+-        # TODO: also enfore that every module explicitly lists their sources_list
+-        # otherwise they'll break if the sources_list that the module depends on
+-        # magically disappears.
+-        for sl in mod.tags.sources_list:
+-            uris = [uri.removeprefix("mirror+") for uri in sl.uris]
+-            architectures = sl.architectures
+-
+-            for suite in sl.suites:
+-                glock.add_source(
+-                    suite,
+-                    uris = uris,
+-                    types = sl.types,
+-                    components = sl.components,
+-                    architectures = architectures,
+-                )
++    resolver = dependency_resolver.new(repo, preferred_versions = previous)
+ 
+-                repo.add_source(
+-                    (uris, suite, sl.components, architectures),
+-                )
++    for sl in source_records:
++        uris = [uri.removeprefix("mirror+") for uri in sl.uris]
++        architectures = sl.architectures
++        for suite in sl.suites:
++            glock.add_source(suite, uris = uris, types = sl.types, components = sl.components, architectures = architectures)
++            repo.add_source((uris, suite, sl.components, architectures))
+ 
+     # Seed cached formats from facts (which extensions each remote serves)
+     formats = dict(cached_facts.get("formats", {}))
+@@ -298,50 +300,51 @@ def _distroless_extension(mctx):
+     resolution_queue = []
+     already_resolved = {}
+ 
+-    for mod in mctx.modules:
+-        for install in mod.tags.install:
+-            for dep_constraint in install.packages:
+-                constraint = version_constraint.parse_dep(dep_constraint)
+-                architectures = constraint["arch"]
+-                if not architectures:
+-                    # For cases where architecture for the package is not specified we need
+-                    # to first find out which source contains the package. in order to do
+-                    # that we first need to resolve the package for amd64 architecture.
+-                    # Once the repository is found, then resolve the package for all the
+-                    # architectures the repository supports.
+-                    (package, warning) = resolver.resolve_package(
+-                        name = constraint["name"],
+-                        version = constraint["version"],
+-                        arch = "amd64",
+-                        suites = install.suites,
+-                    )
+-                    if warning:
+-                        util.warning(mctx, warning)
+-
+-                    # If the package is not found then add the package
+-                    # to the resolution_queue to let the resolver handle
+-                    # the error messages.
+-                    if not package:
+-                        resolution_queue.append((
+-                            install.dependency_set,
+-                            constraint["name"],
+-                            constraint["version"],
+-                            "amd64",
+-                            install.suites,
+-                        ))
+-                        continue
+-
+-                    source = sources[package["Dist"]]
+-                    architectures = source["architectures"]
+-
+-                for arch in architectures:
++    for install in installs:
++        for dep_constraint in install.packages:
++            constraint = version_constraint.parse_dep(dep_constraint)
++            architectures = constraint["arch"]
++            if not architectures:
++                # For cases where architecture for the package is not specified we need
++                # to first find out which source contains the package. in order to do
++                # that we first need to resolve the package for amd64 architecture.
++                # Once the repository is found, then resolve the package for all the
++                # architectures the repository supports.
++                (package, warning) = resolver.resolve_package(
++                    name = constraint["name"],
++                    version = constraint["version"],
++                    arch = "amd64",
++                    suites = install.suites,
++                )
++                if warning:
++                    util.warning(mctx, warning)
++
++                # If the package is not found then add the package
++                # to the resolution_queue to let the resolver handle
++                # the error messages.
++                if not package:
+                     resolution_queue.append((
+                         install.dependency_set,
+                         constraint["name"],
+                         constraint["version"],
+-                        arch,
++                        "amd64",
+                         install.suites,
++                        install.include_transitive,
+                     ))
++                    continue
++
++                source = sources[package["Dist"]]
++                architectures = source["architectures"]
++
++            for arch in architectures:
++                resolution_queue.append((
++                    install.dependency_set,
++                    constraint["name"],
++                    constraint["version"],
++                    arch,
++                    install.suites,
++                    install.include_transitive,
++                ))
+ 
+     for i in range(0, ITERATION_MAX + 1):
+         if not len(resolution_queue):
+@@ -349,7 +352,7 @@ def _distroless_extension(mctx):
+         if i == ITERATION_MAX:
+             fail("apt.install exhausted, please file a bug")
+ 
+-        (dependency_set_name, name, version, arch, suites) = resolution_queue.pop()
++        (dependency_set_name, name, version, arch, suites, include_transitive) = resolution_queue.pop()
+ 
+         mctx.report_progress("Resolving %s:%s" % (name, arch))
+ 
+@@ -358,7 +361,7 @@ def _distroless_extension(mctx):
+             name = name,
+             version = version,
+             arch = arch,
+-            include_transitive = True,
++            include_transitive = include_transitive,
+             suites = suites,
+         )
+ 
+@@ -376,6 +379,8 @@ def _distroless_extension(mctx):
+         for warning in warnings:
+             util.warning(mctx, warning)
+ 
++        if updates and unmet_dependencies:
++            fail("Cannot export an incomplete APT lock: unresolved dependencies for %s:%s in %s: %s" % (name, arch, dependency_set_name, ", ".join([item[0] for item in unmet_dependencies])))
+         if len(unmet_dependencies):
+             util.warning(
+                 mctx,
+@@ -415,6 +420,7 @@ def _distroless_extension(mctx):
+                     ("=", dep["Version"]),
+                     arch,
+                     suites,
++                    True,
+                 ))
+             glock.add_package_dependency(package, dep, arch)
+ 
+@@ -426,6 +432,16 @@ def _distroless_extension(mctx):
+             arch_set = dependency_set["sets"].setdefault(arch, {})
+             arch_set[pkg_short_key] = package["Version"]
+ 
++    for key, package in glock.packages().items():
++        (_, name, arch, _) = lockfile.parse_package_key(key)
++        package["files"] = sorted(repo.filemap(name = name, arch = arch) or [])
++    export_document = json.decode(glock.as_json())
++    export_document["_module_requests"] = requests_document(installs)
++    if source_document:
++        export_document["_source_document"] = source_document
++    for tag in updates:
++        export_lock_repository(name = tag.name, content = json.encode_indent(export_document))
++
+     # Generate a hub repo for every dependency set
+     lock_content = glock.as_json()
+     for depset_name in dependency_sets.keys():
+@@ -473,7 +489,8 @@ def _distroless_extension(mctx):
+ 
+     # Locked runtime inputs use the same package importer and hub generator.
+     # They do not participate in package-index resolution or rewrite their locks.
+-    declare_locked_imports(mctx, dependency_sets.keys())
++    if not updates:
++        declare_locked_imports(mctx, dependency_sets.keys())
+ 
+     if not use_facts:
+         for mod in mctx.modules:
+@@ -636,9 +653,22 @@ import_lock = tag_class(
+     attrs = {
+         "lock": attr.label(mandatory = True, doc = "Reviewed version-2 APT lock to import without resolving packages."),
+         "dependency_sets": attr.string_list(doc = "Named sets to expose; empty imports every set in the lock."),
++        "libraries": attr.bool(default = False, doc = "Export CcInfo using locked package files, without package indices."),
++        "sources": attr.label(allow_single_file = [".json"]),
++        "requests": attr.label(allow_single_file = [".json"]),
+     },
+ )
+ 
++sources_file = tag_class(attrs = {
++    "file": attr.label(mandatory = True, allow_single_file = [".json"]),
++    "override": attr.bool(default = False),
++})
++install_file = tag_class(attrs = {"file": attr.label(mandatory = True, allow_single_file = [".json"])})
++export_lock = tag_class(attrs = {
++    "name": attr.string(mandatory = True),
++    "previous_lock": attr.label(allow_single_file = [".json"]),
++})
++
+ lock = tag_class(
+     attrs = {
+         "into": attr.label(
+@@ -652,6 +682,9 @@ apt = module_extension(
+     implementation = _distroless_extension,
+     tag_classes = {
+         "install": install,
++        "install_file": install_file,
++        "sources_file": sources_file,
++        "export_lock": export_lock,
+         "import_lock": import_lock,
+         "sources_list": sources_list,
+         "lock": lock,
+diff --git a/apt/private/BUILD.bazel b/apt/private/BUILD.bazel
+index 49cbdf7..a7fe87c 100644
+--- a/apt/private/BUILD.bazel
++++ b/apt/private/BUILD.bazel
+@@ -171,3 +171,17 @@ py_test(
+     deps = [":installer_lib"],
+ )
+ 
++
++py_binary(
++    name = "relocate_pkgconfig",
++    srcs = ["relocate_pkgconfig.py"],
++    python_version = "PY3",
++    visibility = ["//visibility:public"],
++)
++py_test(
++    name = "relocate_pkgconfig_test",
++    srcs = ["relocate_pkgconfig_test.py", "relocate_pkgconfig.py"],
++    main = "relocate_pkgconfig_test.py",
++    imports = ["."],
++    python_version = "PY3",
++)
+diff --git a/apt/private/apt_dep_resolver.bzl b/apt/private/apt_dep_resolver.bzl
+index f009684..664cc1a 100644
+--- a/apt/private/apt_dep_resolver.bzl
++++ b/apt/private/apt_dep_resolver.bzl
+@@ -13,6 +13,8 @@ def _resolve_package(state, name, version, arch, suites = None):
+     # Order packages by highest to lowest
+     versions = version_lib.sort(versions_by_arch + versions_by_any_arch, reverse = True)
+ 
++    preferred = state.preferred_versions.get(name + ":" + arch, []) + state.preferred_versions.get(name + ":all", [])
++    versions = [value for value in versions if value in preferred] + [value for value in versions if value not in preferred]
+     selected_version = None
+ 
+     if version:
+@@ -185,8 +187,8 @@ def _resolve_all(state, name, version, arch, include_transitive = True, suites =
+ 
+     return (root_package, dependencies, unmet_dependencies, warnings)
+ 
+-def _create_resolution(repository):
+-    state = struct(repository = repository)
++def _create_resolution(repository, preferred_versions = {}):
++    state = struct(repository = repository, preferred_versions = preferred_versions)
+     return struct(
+         resolve_all = lambda **kwargs: _resolve_all(state, **kwargs),
+         resolve_package = lambda **kwargs: _resolve_package(state, **kwargs),
+diff --git a/apt/private/deb_export.bzl b/apt/private/deb_export.bzl
+index 6baa526..6c98496 100644
+--- a/apt/private/deb_export.bzl
++++ b/apt/private/deb_export.bzl
+@@ -32,6 +32,8 @@ def _deb_export_impl(ctx):
+     for name, destination in ctx.attr.self_symlinks.items():
+         ctx.actions.symlink(output = installed_outputs[name], target_file = installed_outputs[destination])
+ 
++    extraction_names = []
++    relocations = []
+     extracted_outputs = []
+     rewritten_outputs = []
+     for output in ctx.outputs.outs:
+@@ -39,7 +41,20 @@ def _deb_export_impl(ctx):
+         if installed in ctx.attr.self_symlinks:
+             continue
+         if installed not in ctx.attr.linker_scripts:
+-            extracted_outputs.append(output)
++            if installed.endswith(".pc"):
++                raw = ctx.actions.declare_file("_pkgconfig_raw/" + installed)
++                extracted_outputs.append(raw)
++                relocations.append((installed, raw))
++                ctx.actions.run(
++                    executable = ctx.executable._relocate_pkgconfig,
++                    inputs = [raw],
++                    outputs = [output],
++                    arguments = [raw.path, output.path, installed],
++                    mnemonic = "RelocatePkgConfig",
++                )
++            else:
++                extracted_outputs.append(output)
++            extraction_names.append(installed)
+             continue
+         script = json.decode(ctx.attr.linker_scripts[installed])
+         if script.get("unresolved"):
+@@ -52,18 +67,19 @@ def _deb_export_impl(ctx):
+         rewritten_outputs.append(output)
+ 
+     if extracted_outputs:
+-        fout = extracted_outputs[0]
++        fout = ctx.outputs.outs[0]
+         output = fout.path[:fout.path.find(fout.owner.repo_name) + len(fout.owner.repo_name)]
+         args = ctx.actions.args()
+         args.add("-xf")
+         args.add_all(ctx.files.srcs)
+         args.add("-C")
+         args.add(output)
+-        args.add_all(
+-            extracted_outputs,
+-            map_each = lambda src: src.short_path[len(src.owner.repo_name) + 4:],
+-            allow_closure = True,
+-        )
++        for installed, _raw in relocations:
++            # Match exact archive member names, including the conventional ./ prefix.
++            pattern = installed.replace(".", "\\.")
++            args.add("-s")
++            args.add(",^\\(\\./\\)\\?" + pattern + "$,_pkgconfig_raw/" + installed + ",")
++        args.add_all(extraction_names)
+         ctx.actions.run(
+             executable = bsdtar.tarinfo.binary,
+             # the archive may contain symlinks that point to symlinks that reference
+@@ -87,6 +103,7 @@ def _deb_export_impl(ctx):
+ deb_export = rule(
+     implementation = _deb_export_impl,
+     attrs = {
++        "_relocate_pkgconfig": attr.label(default = ":relocate_pkgconfig", executable = True, cfg = "exec"),
+         "srcs": attr.label_list(allow_files = True),
+         # mapping of foreign label -> symlink_outs index (label_keyed for Bazel 7.0 compat)
+         "foreign_symlinks": attr.label_keyed_string_dict(allow_files = True),
+diff --git a/apt/private/deb_import.bzl b/apt/private/deb_import.bzl
+index e9f4697..0dd8433 100644
+--- a/apt/private/deb_import.bzl
++++ b/apt/private/deb_import.bzl
+@@ -17,6 +17,8 @@ load("@rules_cc//cc:cc_library.bzl", "cc_library")
+ load("@rules_distroless//apt/private:cc_deb_library.bzl", "cc_deb_library")
+ load("@bazel_skylib//rules/directory:directory.bzl", "directory")
+ 
++exports_files(glob(["data.tar*"]), visibility = ["//visibility:public"])
++
+ filegroup(
+     name = "deb",
+     srcs = ["package.deb"],
+@@ -135,7 +137,7 @@ cc_library(
+ )
+ """
+ 
+-def _shared_library_exports(rctx, target_name, so_files, o_files, script_linker_inputs, rpaths, depends_on, options):
++def _shared_library_exports(rctx, target_name, so_files, a_files, self_symlinks, toolchain_owned, o_files, script_linker_inputs, rpaths, depends_on, options):
+     # depends_on already contains the resolved package closure. Use leaf inputs,
+     # as Debian package dependencies can cycle (for example libc6 and libgcc).
+     runtime_deps = [
+@@ -177,6 +179,21 @@ cc_library(
+         ],
+         runtime_deps = runtime_deps,
+     )
++
++    static_inputs = {path: None for path in o_files + script_linker_inputs}.keys()
++    # Static archives propagate their package closure through native CcInfo.
++    content += """
++cc_library(
++    name = "_static_link_inputs_wodeps",
++    srcs = {archives},
++    additional_linker_inputs = {inputs},
++    visibility = ["//visibility:public"],
++)
++""".format(archives = [] if toolchain_owned else a_files, inputs = static_inputs)
++    static_dependencies = [
++        "@%s%s//:_static_link_inputs_wodeps" % (rctx.attr.repo_prefix, util.sanitize(dep))
++        for dep in depends_on
++    ]
+     exports = {}
+     libraries = {}
+     for path in so_files if rctx.attr.package_name.endswith("-dev") else []:
+@@ -218,6 +235,36 @@ cc_library(
+         )
+         exports[name + "_cc"] = name + "_cc"
+         exports[name + "_shared"] = name + "_shared"
++    static_libraries = {}
++    for path in a_files if rctx.attr.package_name.endswith("-dev") else []:
++        basename = path.rsplit("/", 1)[-1]
++        if not basename.startswith("lib") or not basename.endswith(".a"):
++            continue
++        name = basename.removesuffix(".a")
++        canonical = path
++        for _ in range(len(self_symlinks) + 1):
++            if canonical not in self_symlinks:
++                break
++            canonical = self_symlinks[canonical]
++        if canonical in self_symlinks:
++            fail("Cyclic static library alias in %s: %s" % (target_name, path))
++        if name in static_libraries and static_libraries[name] != canonical:
++            fail("Ambiguous static library %s in %s: %s and %s" % (name, target_name, static_libraries[name], canonical))
++        static_libraries[name] = canonical
++    for name, path in sorted(static_libraries.items()):
++        content += """
++cc_import(
++    name = "_{name}_static_import",
++    static_library = "{path}",
++)
++cc_library(
++    name = "{name}_static",
++    deps = [":_{name}_static_import", ":{package}_headers"] + {dependencies},
++    additional_linker_inputs = {inputs},
++    visibility = ["//visibility:public"],
++)
++""".format(name = name, path = path, package = target_name, dependencies = static_dependencies, inputs = static_inputs)
++        exports[name + "_static"] = name + "_static"
+     return (content, exports)
+ 
+ def resolve_symlink(target_path, relative_symlink):
+@@ -253,6 +300,7 @@ _EXTRACT_DIR = "_extracted"
+ def _linker_scripts(rctx, extract_dir, so_regular_files, self_files, depends_file_map, target_name):
+     if not so_regular_files:
+         return {}
++
+     # Inspect text scripts only; never read binary ELF payload as Starlark text.
+     grep = rctx.execute(
+         ["grep", "-I", "-l", "-e", "OUTPUT_FORMAT", "-e", "GROUP", "-e", "INPUT"] +
+@@ -262,14 +310,23 @@ def _linker_scripts(rctx, extract_dir, so_regular_files, self_files, depends_fil
+     for script_path in grep.stdout.splitlines():
+         content = rctx.read(script_path)
+         resolved = linker_script.resolve_paths(
+-            linker_script.files_to_remap(content), self_files, depends_file_map, rctx.attr.name,
++            linker_script.files_to_remap(content),
++            self_files,
++            depends_file_map,
++            rctx.attr.name,
+         )
+         if resolved.paths or resolved.unresolved:
+             scripts[script_path.removeprefix(extract_dir + "/")] = json.encode({"content": content, "paths": resolved.paths, "unresolved": resolved.unresolved})
+     return scripts
+ 
+ def _discover_contents(rctx, depends_on, depends_file_map, target_name):
+-    result = rctx.execute(["tar", "--exclude='./usr/share/**'", "--exclude='./**/'", "-tvf", "data.tar.xz"])
++    archives = [path for path in rctx.path(".").readdir() if path.basename.startswith("data.tar")]
++    if len(archives) != 1:
++        fail("DEB must contain exactly one data archive: " + str(archives))
++    data_archive = str(archives[0])
++    result = rctx.execute(["tar", "--exclude='./usr/share/**'", "--exclude='./**/'", "-tvf", data_archive])
++    if result.return_code:
++        fail("cannot inspect DEB data archive: " + result.stderr)
+     contents_raw = result.stdout.splitlines()
+ 
+     so_files = []
+@@ -282,6 +339,7 @@ def _discover_contents(rctx, depends_on, depends_file_map, target_name):
+     o_files = []
+     symlinks = {}
+     so_regular_files = []
++    a_regular_files = []
+ 
+     for line in contents_raw:
+         # Skip directories
+@@ -318,6 +376,8 @@ def _discover_contents(rctx, depends_on, depends_file_map, target_name):
+                 so_regular_files.append(line)
+         elif line.endswith(".a") and line.find("lib"):
+             a_files.append(line)
++            if resolved_symlink == None:
++                a_regular_files.append(line)
+         elif line.endswith(".pc") and line.find("pkgconfig"):
+             pc_files.append(line)
+         elif line.endswith(".h") or is_include_fragment(line):
+@@ -367,20 +427,20 @@ def _discover_contents(rctx, depends_on, depends_file_map, target_name):
+         )
+ 
+     # Extract, in a single pass, the files we need to inspect on disk:
+-    # - `.so` regular files because they may be linker scripts we need to inspect,
++    # - regular `.so` and `.a` files because either may be GNU ld scripts,
+     # - pkgconfig files because we need them to generate cc targets.
+-    files_to_extract = so_regular_files + pc_files
++    files_to_extract = so_regular_files + a_regular_files + pc_files
+     if files_to_extract:
+         rctx.execute(["mkdir", "-p", _EXTRACT_DIR])
+         rctx.execute(
+-            ["tar", "-xf", "data.tar.xz", "-C", _EXTRACT_DIR] +
++            ["tar", "-xf", data_archive, "-C", _EXTRACT_DIR] +
+             ["./" + f for f in files_to_extract],
+         )
+ 
+     linker_scripts = _linker_scripts(
+         rctx,
+         _EXTRACT_DIR,
+-        so_regular_files,
++        so_regular_files + a_regular_files,
+         self_files,
+         depends_file_map,
+         target_name,
+@@ -436,6 +496,11 @@ so_library(
+     includes = []
+     shared_options = {}
+ 
++    # Follow the existing compiler-runtime CcInfo branch: these headers and
++    # standard libraries are selected by the C/C++ toolchain. Propagating their
++    # static libc into an otherwise dynamic program creates two C runtimes.
++    toolchain_owned = not pkgconfigs and (len(hpp_files) or len(h_files)) and ((target_name.find("libc") != -1 or target_name.find("libstdc") != -1 or target_name.find("libgcc") != -1))
++
+     # Package has a pkgconfig, use that as the source of truth.
+     if len(pkgconfigs):
+         link_paths = []
+@@ -511,7 +576,7 @@ so_library(
+             strip_include_prefix = None,
+         )
+ 
+-    elif (len(hpp_files) or len(h_files)) and ((target_name.find("libc") != -1 or target_name.find("libstdc") != -1 or target_name.find("libgcc") != -1)):
++    elif toolchain_owned:
+         build_file_content += _CC_LIBRARY_LIBC_TMPL.format(
+             name = target_name,
+             hdrs = h_files + hpp_files,
+@@ -554,6 +619,7 @@ so_library(
+         include.removeprefix("/"): True
+         for include in includes + default_include_dirs(h_files + hpp_files + hpp_files_woext)
+     }
++
+     # Perl's public embedding headers can belong to the versioned runtime
+     # package. Its declared CORE/perl.h supplies the exact include directory,
+     # independently of the development package name or Perl version.
+@@ -584,6 +650,9 @@ cc_library(
+         rctx,
+         target_name,
+         so_files,
++        a_files,
++        self_symlinks,
++        toolchain_owned,
+         o_files,
+         script_linker_inputs,
+         rpaths,
+diff --git a/apt/private/deb_postfix.bzl b/apt/private/deb_postfix.bzl
+index 5d294c2..aa7fabb 100644
+--- a/apt/private/deb_postfix.bzl
++++ b/apt/private/deb_postfix.bzl
+@@ -35,7 +35,7 @@ def deb_postfix(name, srcs, outs, mergedusr = False, **kwargs):
+     # https://salsa.debian.org/md/usrmerge/-/tree/master/debian?ref_type=heads
+     if mergedusr:
+         toolchains = ["@bsd_tar_toolchains//:resolved_toolchain"]
+-        tools.append("@gawk//:gawk")
++        tools.append("@gawk//:resolved_toolchain")
+         apply = """\
+             $(BSDTAR_BIN) --confirmation --gzip --options 'gzip:!timestamp' -cf "$$layer" \
+             -s "#^\\./bin/\\(.\\)#./usr/bin/\\1#" \
+@@ -45,7 +45,7 @@ def deb_postfix(name, srcs, outs, mergedusr = False, **kwargs):
+             -s "#^\\./lib64/\\(.\\)#./usr/lib64/\\1#" \
+             -s "#^\\./libx32/\\(.\\)#./usr/libx32/\\1#" \
+             "@$$data_file" 2< <(
+-                $(BSDTAR_BIN) -tvf "$$data_file" | $(location @gawk//:gawk) '{
++                $(BSDTAR_BIN) -tvf "$$data_file" | $(location @gawk//:resolved_toolchain) '{
+                     ORS=""
+                     keep="y"
+                     if (substr($$1, 1, 1) == "d" && (\\
+diff --git a/apt/private/dpkg_status.bzl b/apt/private/dpkg_status.bzl
+index 340bd9a..fc0f50d 100644
+--- a/apt/private/dpkg_status.bzl
++++ b/apt/private/dpkg_status.bzl
+@@ -24,7 +24,7 @@ def _dpkg_status_impl(ctx):
+         outputs = [output],
+         tools = [
+             bsdtar.default.files,
+-            ctx.executable._gawk,
++            ctx.attr._gawk[DefaultInfo].files_to_run,
+             coreutils.default.files,
+         ],
+         arguments = [args],
+@@ -51,7 +51,7 @@ dpkg_status = rule(
+             allow_single_file = True,
+             executable = True,
+             cfg = "exec",
+-            default = "@gawk//:gawk",
++            default = "@gawk//:resolved_toolchain",
+         ),
+     },
+     implementation = _dpkg_status_impl,
+diff --git a/apt/private/dpkg_statusd.bzl b/apt/private/dpkg_statusd.bzl
+index cf6d40f..8094212 100644
+--- a/apt/private/dpkg_statusd.bzl
++++ b/apt/private/dpkg_statusd.bzl
+@@ -27,7 +27,7 @@ def _dpkg_statusd_impl(ctx):
+         outputs = [output],
+         tools = [
+             bsdtar.default.files,
+-            ctx.executable._gawk,
++            ctx.attr._gawk[DefaultInfo].files_to_run,
+             coreutils.default.files,
+         ],
+         arguments = [args],
+@@ -59,7 +59,7 @@ dpkg_statusd = rule(
+             allow_single_file = True,
+             executable = True,
+             cfg = "exec",
+-            default = "@gawk//:gawk",
++            default = "@gawk//:resolved_toolchain",
+         ),
+     },
+     implementation = _dpkg_statusd_impl,
+diff --git a/apt/private/locked_import.bzl b/apt/private/locked_import.bzl
+index a917d81..7fb3a07 100644
+--- a/apt/private/locked_import.bzl
++++ b/apt/private/locked_import.bzl
+@@ -1,8 +1,11 @@
+ """Import reviewed runtime package graphs through the existing APT repositories."""
+ 
++load(":configuration.bzl", "requests_document")
++load(":deb_filemap.bzl", "deb_filemap")
+ load(":deb_import.bzl", "deb_import")
+ load(":translate_dependency_set.bzl", "translate_dependency_set")
+ load(":util.bzl", "util")
++load(":version_constraint.bzl", "version_constraint")
+ 
+ def validation_error(document, requested = []):
+     """Return a useful error before any repository is declared or downloaded."""
+@@ -100,54 +103,131 @@ def expanded_sets(document, requested = []):
+         result[group] = {"sets": architectures}
+     return result
+ 
+-def declare_locked_imports(mctx, existing_sets):
+-    """Reuse deb_import/deb_postfix and the hub generator without index resolution.
++def _check_input_document(mctx, document, field, label):
++    if label:
++        expected = document.get("_inputs", {}).get(field)
++        if expected == None or expected != json.decode(mctx.read(label)):
++            fail("APT lock inputs are stale: " + field + "; run the unified APT lock updater")
+ 
+-    Runtime imports intentionally do not publish C++ compilation targets: a
+-    version-2 lock contains archive identities, not Debian Contents-index maps.
+-    Ordinary apt.install keeps its existing compiler/header exports.
+-    """
+-    declared = {name: True for name in existing_sets}
++def _check_requests(document, installs):
++    inputs = document.get("_inputs", {})
++    recorded = inputs.get("module_requests_document", inputs.get("requests_document", {})).get("dependency_sets", {})
++    file_requests = inputs.get("requests_document", {}).get("dependency_sets", {})
++    requested = requests_document(installs)["dependency_sets"]
++    for group, value in requested.items():
++        records = [item for item in [recorded.get(group), file_requests.get(group)] if item]
++        for package in value["packages"]:
++            if not any([package in item["packages"] and item.get("suites", []) == value["suites"] and item.get("include_transitive", True) == value["include_transitive"] for item in records]):
++                fail("APT lock requests are stale: " + group + ": " + package + "; run the unified APT lock updater")
++
++def _requested_sets(document, installs):
++    result = {}
++    for install in installs:
++        if not install.dependency_set:
++            fail("locked APT requests require a named dependency_set")
++
++        # The reviewed roots retain the chosen provider of virtual requests.
++        if install.dependency_set in document["dependency_sets"]:
++            result[install.dependency_set] = document["dependency_sets"][install.dependency_set]
++            continue
++        definition = result.setdefault(install.dependency_set, {"sets": {}})
++        for request in install.packages:
++            constraint = version_constraint.parse_dep(request)
++            matches = []
++            for key, package in document["packages"].items():
++                if package["name"] != constraint["name"] or (install.suites and package["suite"] not in install.suites):
++                    continue
++                if constraint["version"] and not version_constraint.relop(package["version"], constraint["version"][1], constraint["version"][0]):
++                    continue
++                architecture = key.rsplit("=", 1)[0].rsplit(":", 1)[1]
++                if constraint["arch"] and "any" not in constraint["arch"] and architecture not in constraint["arch"]:
++                    continue
++                matches.append((key, architecture))
++            if not matches:
++                fail("APT request is missing from the production lock: " + request + "; run the unified APT lock updater")
++            for key, architecture in matches:
++                roots = definition["sets"].setdefault(architecture, {})
++                roots[key.rsplit("=", 1)[0]] = document["packages"][key]["version"]
++    return result
++
++def declare_locked_imports(mctx, existing_sets, installs = [], source_document = None):
++    """Import one package graph once, exporting requested payload/library views."""
++    document = None
++    groups = {}
++    library_groups = {}
+     for module in mctx.modules:
+         for tag in module.tags.import_lock:
+-            document = json.decode(mctx.read(tag.lock))
++            current = json.decode(mctx.read(tag.lock))
++            if document != None and current != document:
++                fail("all APT imports must use the same production lock")
++            document = current
++            _check_input_document(mctx, document, "source_document", tag.sources)
++            _check_input_document(mctx, document, "requests_document", tag.requests)
+             for group, definition in expanded_sets(document, tag.dependency_sets).items():
+-                if group in declared:
+-                    fail("APT dependency set is already declared: " + group)
+-                declared[group] = True
+-                prefix = "locked_import_" + group + "_"
+-                selected = {key + "=" + version: True for roots in definition["sets"].values() for key, version in roots.items()}
+-                imported_packages = {
+-                    key: dict(document["packages"][key], depends_on = [
+-                        dependency
+-                        for dependency in reachable_packages(document["packages"], [key])
+-                        if dependency != key
+-                    ])
+-                    for key in selected
+-                }
+-                package_repositories = {}
+-                for key in selected:
+-                    name = prefix + util.sanitize(key)
+-                    if name in package_repositories:
+-                        fail("locked APT package repository names collide: " + key)
+-                    package_repositories[name] = True
+-                    package = imported_packages[key]
+-                    deb_import(
+-                        name = name,
+-                        target_name = name,
+-                        urls = [uri.rstrip("/") + "/" + package["filename"] for uri in document["sources"][package["suite"]]["uris"]],
+-                        sha256 = package["sha256"],
+-                        package_name = package["name"],
+-                        depends_on = package["depends_on"],
+-                        repo_prefix = prefix,
+-                        payload_only = True,
+-                        mergedusr = False,
+-                    )
+-                locked = dict(document, packages = imported_packages, dependency_sets = {group: definition})
+-                translate_dependency_set(
+-                    name = group,
+-                    depset_name = group,
+-                    lock_content = json.encode(locked),
+-                    repo_prefix = prefix,
+-                    payload_only = True,
+-                )
++                groups[group] = definition
++                if tag.libraries:
++                    library_groups[group] = True
++    if document == None:
++        return
++    if source_document != None and document.get("_inputs", {}).get("source_document") != source_document:
++        fail("APT source configuration differs from the production lock; run the unified APT lock updater")
++    _check_requests(document, installs)
++    requested = _requested_sets(document, installs)
++    for group, definition in requested.items():
++        if group not in groups:
++            temp = dict(document, dependency_sets = {group: definition})
++            groups[group] = expanded_sets(temp)[group]
++
++        # Source module development requests retain their historical CcInfo API.
++        library_groups[group] = True
++    for group in existing_sets:
++        if group in groups:
++            fail("APT collection is both resolved and imported: " + group)
++    selected = {}
++    libraries = {}
++    for group, definition in groups.items():
++        for roots in definition["sets"].values():
++            for key, version in roots.items():
++                selected[key + "=" + version] = True
++                if group in library_groups:
++                    libraries[key + "=" + version] = True
++    imported = {
++        key: dict(document["packages"][key], depends_on = [dependency for dependency in reachable_packages(document["packages"], [key]) if dependency != key])
++        for key in selected
++    }
++    for key in libraries:
++        package = imported[key]
++        if type(package.get("files")) != "list" or any([type(path) != "string" or path.startswith("/") or ".." in path.split("/") for path in package["files"]]):
++            fail("library import requires a locked package file map: " + key)
++        deb_filemap(name = util.sanitize(key) + "_filemap", files = json.encode(package["files"]))
++    names = {}
++    for key, package in imported.items():
++        name = util.sanitize(key)
++        if name in names and names[name] != key:
++            fail("locked APT package repository names collide: " + name)
++        names[name] = key
++        deb_import(
++            name = name,
++            target_name = name,
++            urls = [uri.rstrip("/") + "/" + package["filename"] for uri in document["sources"][package["suite"]]["uris"]],
++            sha256 = package["sha256"],
++            package_name = package["name"],
++            depends_on = package["depends_on"],
++            dep_filemaps = ["@" + util.sanitize(dependency) + "_filemap//:filemap.json" for dependency in package["depends_on"]] if key in libraries else [],
++            payload_only = key not in libraries,
++            mergedusr = False,
++        )
++    for group, definition in groups.items():
++        locked = dict(document, packages = imported, dependency_sets = {group: definition})
++        translate_dependency_set(
++            name = group,
++            depset_name = group,
++            lock_content = json.encode(locked),
++            payload_only = group not in library_groups,
++            cc_exports = {
++                "@%s//:cc_exports.json" % util.sanitize(key + "=" + version): key + "=" + version
++                for roots in definition["sets"].values()
++                for key, version in roots.items()
++                if group in library_groups and imported[key + "=" + version]["name"].endswith("-dev")
++            },
++        )
+diff --git a/distroless/private/flatten.bzl b/distroless/private/flatten.bzl
+index cfc2287..1152060 100644
+--- a/distroless/private/flatten.bzl
++++ b/distroless/private/flatten.bzl
+@@ -28,7 +28,7 @@ def _flatten_impl(ctx):
+         outputs = [output],
+         tools = [
+             bsdtar.default.files,
+-            ctx.executable._gawk,
++            ctx.attr._gawk[DefaultInfo].files_to_run,
+             coreutils.default.files,
+         ],
+         arguments = [args],
+@@ -64,7 +64,7 @@ Deduplication is performed only for directories.
+             allow_single_file = True,
+             executable = True,
+             cfg = "exec",
+-            default = "@gawk//:gawk",
++            default = "@gawk//:resolved_toolchain",
+         ),
+     },
+     implementation = _flatten_impl,
+diff --git a/distroless/private/locale.bzl b/distroless/private/locale.bzl
+index 0ca0942..17bc94a 100644
+--- a/distroless/private/locale.bzl
++++ b/distroless/private/locale.bzl
+@@ -57,7 +57,7 @@ def _locale_impl(ctx):
+         tools = [
+             bsdtar.default.files,
+             coreutils.default.files,
+-            ctx.executable._gawk,
++            ctx.attr._gawk[DefaultInfo].files_to_run,
+         ],
+         arguments = [args],
+     )
+@@ -89,7 +89,7 @@ locale = rule(
+             allow_single_file = True,
+             executable = True,
+             cfg = "exec",
+-            default = "@gawk//:gawk",
++            default = "@gawk//:resolved_toolchain",
+         ),
+     },
+     implementation = _locale_impl,

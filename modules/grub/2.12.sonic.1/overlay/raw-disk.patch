@@ -1,0 +1,22 @@
+--- a/util/setup.c
++++ b/util/setup.c
+@@ -313,6 +313,19 @@
+ 
+   core_dev = dest_dev;
+ 
++  /* A declared raw-image consumer supplies the GRUB prefix in core.img and
++     passes --skip-fs-probe.  Its staging directory is not a filesystem on
++     the image, so querying the build host's mount table cannot identify the
++     image root.  Use the destination explicitly and leave normal installs
++     on their existing filesystem-probing path. */
++  if (!fs_probe)
++    {
++      root = xstrdup (dest);
++      root_dev = grub_device_open (root);
++      if (!root_dev)
++        grub_util_error ("%s", grub_errmsg);
++    }
++  else
+   {
+     char **root_devices = grub_guess_root_devices (dir);
+     char **cur;

@@ -1,0 +1,53 @@
+diff --git a/apt/private/so_library.bzl b/apt/private/so_library.bzl
+--- a/apt/private/so_library.bzl
++++ b/apt/private/so_library.bzl
+@@ -45,8 +45,11 @@
+     linker_input = cc_common.create_linker_input(
+         owner = ctx.label,
+         libraries = depset(libraries),
+-        additional_inputs = depset([]),
+-        user_link_flags = depset([]),
++        # cc_shared_library drops linker inputs without library objects. Keep
++        # runtime files and linker-script references on this library-bearing
++        # input so they remain declared inputs of sandboxed shared links.
++        additional_inputs = depset(ctx.files.dynamic_libs + ctx.files.additional_linker_inputs),
++        user_link_flags = depset([ctx.expand_make_variables("linkopts", opt, {}) for opt in ctx.attr.linkopts]),
+     )
+ 
+     linking_context = cc_common.create_linking_context(
+@@ -62,6 +65,8 @@
+     provides = [CcInfo],
+     attrs = {
+         "dynamic_libs": attr.label_list(allow_files = True),
++        "additional_linker_inputs": attr.label_list(allow_files = True),
++        "linkopts": attr.string_list(),
+     },
+     fragments = ["cpp"],
+     toolchains = use_cc_toolchain(),
+diff --git a/apt/private/deb_import.bzl b/apt/private/deb_import.bzl
+--- a/apt/private/deb_import.bzl
++++ b/apt/private/deb_import.bzl
+@@ -484,9 +484,20 @@
+ 
+ so_library(
+     name = "_so_libs",
+-    dynamic_libs = {}
+-)
+-""".format(pc_files, so_files)
++    dynamic_libs = {},
++    additional_linker_inputs = {},
++    linkopts = {},
++)
++""".format(
++        pc_files,
++        so_files,
++        {path: None for path in o_files + script_linker_inputs}.keys(),
++        [
++            flag + "$(BINDIR)/external/" + rctx.attr.name + "/" + directory
++            for directory in {path[:path.rfind("/")]: True for path in so_files}
++            for flag in ["-L", "-Wl,-rpath-link="]
++        ],
++    )
+ 
+     rpaths = {}
+     for so in so_files + a_files:

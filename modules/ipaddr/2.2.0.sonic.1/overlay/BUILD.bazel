@@ -1,0 +1,38 @@
+load("@rules_python//python:py_test.bzl", "py_test")
+load("@sonic_build_infra//python:site_packages.bzl", "site_packages")
+package(default_visibility = ["//visibility:public"])
+exports_files(["MODULE.bazel"])
+site_packages(
+    name = "ipaddr.runtime",
+    distribution = "ipaddr", version = "2.2.0",
+    files = {'ipaddr.py': 'ipaddr.py'},
+    summary = "Google's IP address manipulation library",
+    maintainer = 'Google',
+    maintainer_email = 'ipaddr-py-dev@googlegroups.com',
+    homepage = 'https://github.com/google/ipaddr-py',
+    license = 'Apache License, Version 2.0',
+    classifiers = ['Development Status :: 6 - Mature', 'Intended Audience :: Developers', 'License :: OSI Approved :: Apache Software License', 'Operating System :: OS Independent', 'Programming Language :: Python', 'Programming Language :: Python :: 2', 'Topic :: Internet', 'Topic :: Software Development :: Libraries', 'Topic :: System :: Networking'],
+    description_file = 'README',
+    license_files = ['COPYING'],
+    extra_distinfo_files = {'COPYING': 'licenses/COPYING'},
+    regular_file_mode = "0644",
+    python_tag = "py3",
+    site_packages = "/usr/local/lib/python3.13/dist-packages",
+    scripts = "/usr/local/bin", headers = "/usr/local/include",
+    data_prefix = "/usr/local", interpreter = "/usr/bin/python3",
+)
+
+# Use the original suite as the behavioral oracle for the installed payload.
+py_test(
+    name = "installed_test",
+    srcs = ["tests/installed_test.py"],
+    main = "tests/installed_test.py",
+    args = [
+        "$(rootpath :ipaddr.runtime)",
+        "$(rootpath ipaddr_test.py)",
+        "$(rootpath ipaddr.py)",
+        "$(rootpath COPYING)",
+    ],
+    data = [":ipaddr.runtime", "ipaddr_test.py", "ipaddr.py", "COPYING"],
+    python_version = "3.13",
+)

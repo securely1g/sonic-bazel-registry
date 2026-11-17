@@ -104,7 +104,7 @@ class PrivateMirrorSecretBoundaryTest(unittest.TestCase):
                        "github.event.pull_request.head.repo.full_name": head}
             self.assertEqual(bool(expression_value(expression, context)), expected)
 
-    def test_optional_agent_does_not_skip_admitted_public_test_jobs(self):
+    def test_optional_agent_does_not_skip_public_test_jobs(self):
         workflow = (WORKFLOWS / "registry-ci.yml").read_text()
         for name in ("unit", "cross_fixture", "modules_local"):
             job = re.split(r"\n  [A-Za-z_]+:\n", workflow.split(f"  {name}:\n", 1)[1], maxsplit=1)[0]
@@ -113,7 +113,7 @@ class PrivateMirrorSecretBoundaryTest(unittest.TestCase):
             for plan_result in ("success", "failure", "skipped"):
                 self.assertEqual(bool(expression_value(condition, {"needs.plan.result": plan_result,
                                                                    "needs.plan.outputs.has_local_jobs": "true"})),
-                                 plan_result == "success")
+                                 name != "modules_local" or plan_result == "success")
                 self.assertFalse(expression_value(condition, {"needs.plan.result": plan_result,
                                                                "needs.plan.outputs.has_local_jobs": "true",
                                                                "_cancelled": True}))

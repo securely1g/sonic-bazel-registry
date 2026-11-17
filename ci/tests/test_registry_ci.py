@@ -92,10 +92,7 @@ class FixtureTestCase(unittest.TestCase):
     def selected(self, base: str, head: str, published: str | None = None) -> set[tuple[str, str]]:
         return {
             (job["module"], job["version"])
-            # Inspect the complete required set independently of the PR dispatch
-            # cap, whose rejection controls live in test_plan_scope.py.
-            for job in registry_ci.plan(self.root, base, head, published=published or base,
-                                        max_jobs=100)["include"]
+            for job in registry_ci.plan(self.root, base, head, published=published or base)["include"]
         }
 
 
@@ -2238,7 +2235,7 @@ class WorkflowMatrixTests(unittest.TestCase):
         self.assertNotIn("continue-on-error", suite)
         for block in (unit, cross):
             self.assertIn("needs: plan", block)
-            self.assertIn("if: ${{ !cancelled() && needs.plan.result == 'success' }}", block)
+            self.assertIn("if: ${{ always() && !cancelled() }}", block)
 
     def test_native_unit_bazel_setup_uses_each_execution_architecture(self):
         unit = self.workflow.split("  unit:\n", 1)[1].split("  cross_fixture:\n", 1)[0]
@@ -2983,7 +2980,7 @@ a.output.write_text(json.dumps(r))
         # The fake Bazel emits evidence for each extra target only when the command requests it.
         script = self.fake_bazel.read_text().replace(
             "    print(json.dumps({'label': '@@alpha+//:library', 'trees': []}))",
-            "    requested = args[-1].removeprefix('config(').split(',')[0]\n"
+            "    requested = json.JSONDecoder().raw_decode(args[-1].removeprefix('config('))[0]\n"
             "    print(json.dumps({'label': requested, 'trees': []}))")
         script = script.replace(
             "    Path(path).write_text",

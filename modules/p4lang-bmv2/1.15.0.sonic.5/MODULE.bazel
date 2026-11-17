@@ -1,0 +1,70 @@
+module(name = "p4lang-bmv2", version = "1.15.0.sonic.5")
+
+bazel_dep(name = "platforms", version = "1.1.0")
+bazel_dep(name = "bazel_skylib", version = "1.9.0")
+bazel_dep(name = "rules_cc", version = "0.2.20")
+bazel_dep(name = "rules_python", version = "1.9.0.sonic.1")
+bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.19")
+bazel_dep(name = "sonic-build-infra", version = "0.0.38-0baa4acc9eac9ccc793b81104b1580d530271cbe", repo_name = "sonic_build_infra")
+
+gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
+use_repo(gcc, "gcc_toolchains")
+register_toolchains("@gcc_toolchains//:all")
+
+# Consume the single immutable APT lock imported by the shared infrastructure.
+apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
+use_repo(apt, "bmv2_deps")
+
+bazel_dep(name = "p4lang-pi", version = "0.1.3.sonic.6", repo_name = "p4lang_pi")
+
+prepared_source = use_repo_rule("@sonic_build_infra//source:prepared_source.bzl", "prepared_source")
+prepared_source(
+    name = "bmv2_source",
+    build_file = "//:bazel/bmv2.BUILD.bazel",
+    inputs = {
+        "use-boost-1.83.patch": "//:bazel/use-boost-1.83.patch",
+        "remove-unnecessary-dependencies.patch": "//:bazel/remove-unnecessary-dependencies.patch",
+        "hold-cli-endpoint-reservations.patch": "//:bazel/hold-cli-endpoint-reservations.patch",
+        "isolate-packet-redirect-ipc.patch": "//:bazel/isolate-packet-redirect-ipc.patch",
+    },
+    steps = [
+        '{"op": "archive", "urls": ["https://github.com/securely1g/sonic-bazel-registry/releases/download/p4-source-inputs-20261021/p4lang-bmv2_1.15.0.orig.tar.gz", "https://downloadcontent.opensuse.org/repositories/home:/p4lang/Debian_11/p4lang-bmv2_1.15.0.orig.tar.gz"], "sha256": "083bb907e45597af8e29ef3b0a92d33d282ba23840ddd5cfb8372d2f030ab415"}',
+        '{"op": "archive", "urls": ["https://github.com/securely1g/sonic-bazel-registry/releases/download/p4-source-inputs-20261021/p4lang-bmv2_1.15.0-9.debian.tar.xz", "https://downloadcontent.opensuse.org/repositories/home:/p4lang/Debian_11/p4lang-bmv2_1.15.0-9.debian.tar.xz"], "sha256": "30941da6dde4cbbefaa9a12dfffa260115b3b63c6d56b3112b3baee953636179"}',
+        '{"op": "patch_series", "series": "debian/patches/series"}',
+        '{"op": "patch", "input": "use-boost-1.83.patch", "strip": 1}',
+        '{"op": "patch", "input": "remove-unnecessary-dependencies.patch", "strip": 1}',
+        '{"op": "patch", "input": "hold-cli-endpoint-reservations.patch", "strip": 1}',
+        '{"op": "patch", "input": "isolate-packet-redirect-ipc.patch", "strip": 1}',
+    ],
+)
+single_version_override(module_name = "rules_cc", version = "0.2.20")
+register_toolchains("@sonic_build_infra//tools/build_tools:gawk_toolchain")
+bazel_dep(name = "tar.bzl", version = "0.10.5.sonic.2")
+
+# Reuse APT's exact package repositories from the existing production lock.
+# Both six contexts name the same architecture-all DEB. Only one raw source is needed.
+use_repo(
+    apt,
+    bmv2_six_raw = "trixie_python3-six-amd64_1.17.0-1",
+    bmv2_thrift_raw_amd64 = "trixie_python3-thrift-amd64_0.19.0-4-b1",
+    bmv2_thrift_raw_arm64 = "trixie_python3-thrift-arm64_0.19.0-4-b1",
+ )
+extract_tar = use_repo_rule("@sonic_build_infra//tar:extract_tar.bzl", "extract_tar")
+extract_tar(
+    name = "bmv2_python_six",
+    archive = "@bmv2_six_raw//:data.tar.xz",
+    build_file = "//:bazel/six_python.BUILD.bazel",
+)
+extract_tar(
+    name = "bmv2_python_thrift_amd64",
+    archive = "@bmv2_thrift_raw_amd64//:data.tar.xz",
+    build_file = "//:bazel/thrift_python.BUILD.bazel",
+)
+extract_tar(
+    name = "bmv2_python_thrift_arm64",
+    archive = "@bmv2_thrift_raw_arm64//:data.tar.xz",
+    build_file = "//:bazel/thrift_python.BUILD.bazel",
+)
+# Needed by the unchanged generated example.run shell test.
+bazel_dep(name = "rules_shell", version = "0.8.0")
+bazel_dep(name = "bazel_lib", version = "3.1.1")
