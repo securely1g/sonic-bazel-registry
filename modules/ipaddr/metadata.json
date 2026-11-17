@@ -1,0 +1,11 @@
+{
+  "homepage": "https://github.com/google/ipaddr-py",
+  "maintainers": [],
+  "repository": [
+    "https://pypi.org/project/ipaddr/"
+  ],
+  "versions": [
+    "2.2.0.sonic.1"
+  ],
+  "yanked_versions": {}
+}
