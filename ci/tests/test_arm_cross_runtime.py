@@ -21,11 +21,11 @@ assert SPEC is not None and SPEC.loader is not None
 registry_ci = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(registry_ci)
 
-MODULE = '''module(name = "runner_arm_cross_fixture")
-bazel_dep(name = "sonic-build-infra", version = "0.0.25-34de7330abc72229dfc8dab88dec71b89c52aa88", repo_name = "sonic_build_infra")
+MODULE = f'''module(name = "runner_arm_cross_fixture")
+bazel_dep(name = "sonic-build-infra", version = "{registry_ci.cross_toolchain.PROVIDER_VERSION}", repo_name = "sonic_build_infra")
 bazel_dep(name = "rules_cc", version = "0.2.22")
-bazel_dep(name = "rules_python", version = "1.8.0")
-bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.15")
+bazel_dep(name = "rules_python", version = "1.9.0.sonic.1")
+bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.20")
 apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
 apt.install(
     dependency_set = "cross_fixture_runtime",
