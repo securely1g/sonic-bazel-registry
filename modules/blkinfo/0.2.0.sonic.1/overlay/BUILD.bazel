@@ -1,0 +1,42 @@
+load("@rules_python//python:py_test.bzl", "py_test")
+load("@sonic_build_infra//python:site_packages.bzl", "site_packages")
+package(default_visibility = ["//visibility:public"])
+exports_files(["MODULE.bazel", "PKG-INFO"] + glob(["src/blkinfo/*.py"]))
+site_packages(
+    name = "blkinfo.runtime",
+    distribution = "blkinfo", version = "0.2.0",
+    files = {p: p[len("src/"):] for p in glob(["src/blkinfo/*.py"])},
+    summary = 'blkinfo is a python package to list information about all available or the specified block devices.',
+    author = 'Gennadii Altukhov',
+    author_email = 'grinrag@gmail.com',
+    homepage = 'https://github.com/grinrag/blkinfo',
+    license = 'GPLv3',
+    classifiers = ['Development Status :: 4 - Beta', 'Programming Language :: Python', 'Programming Language :: Python :: 3', 'Topic :: Software Development :: Libraries :: Python Modules'],
+    keywords = 'lsblk disk blockdevice blockinfo blkinfo iscsi',
+    description_content_type = 'text/markdown',
+    description_file = 'README.md',
+    regular_file_mode = "0644",
+    python_tag = "py3",
+    site_packages = "/usr/local/lib/python3.13/dist-packages",
+    scripts = "/usr/local/bin", headers = "/usr/local/include",
+    data_prefix = "/usr/local", interpreter = "/usr/bin/python3",
+)
+
+filegroup(
+    name = "blkinfo.runtime_metadata",
+    srcs = [":blkinfo.runtime"],
+    output_group = "metadata",
+)
+
+py_test(
+    name = "installed_test",
+    srcs = ["tests/installed_test.py"],
+    main = "tests/installed_test.py",
+    args = [
+        "$(rootpath :blkinfo.runtime)",
+        "$(rootpath :blkinfo.runtime_metadata)",
+        "$(rootpath PKG-INFO)",
+    ] + ["$(rootpath " + source + ")" for source in glob(["src/blkinfo/*.py"])],
+    data = [":blkinfo.runtime", ":blkinfo.runtime_metadata", "PKG-INFO"] + glob(["src/blkinfo/*.py"]),
+    python_version = "3.13",
+)
