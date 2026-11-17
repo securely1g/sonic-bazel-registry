@@ -68,6 +68,7 @@ ARM_CROSS_VERSIONS: dict[str, tuple[str, ...]] = {
     "p4lang-bmv2": ("1.15.0.sonic.4",),
     "p4lang-pi": ("0.1.3.sonic.3",),
     "protobuf-legacy": ("3.21.12.sonic.2",),
+    "redis-dump-load": ("1.1.sonic.1",),
     "rules_distroless": ("0.9.4.sonic.17",),
     "rules_foreign_cc": ("0.16.0.sonic.1",),
     "rules_go": ("0.65.0.sonic.1",),
