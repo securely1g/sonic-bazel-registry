@@ -1,0 +1,11 @@
+--- a/apt/private/deb_import.bzl
++++ b/apt/private/deb_import.bzl
+@@ -12,7 +12,7 @@
+ load("@rules_distroless//apt/private:deb_postfix.bzl", "deb_postfix")
+ load("@rules_distroless//apt/private:deb_export.bzl", "deb_export")
+ load("@rules_distroless//apt/private:so_library.bzl", "so_library")
+-load("@rules_cc//cc/private/rules_impl:cc_import.bzl", "cc_import")
++load("@rules_cc//cc:cc_import.bzl", "cc_import")
+ load("@rules_cc//cc:cc_library.bzl", "cc_library")
+ load("@rules_distroless//apt/private:cc_deb_library.bzl", "cc_deb_library")
+ load("@bazel_skylib//rules/directory:directory.bzl", "directory")
