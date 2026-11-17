@@ -1,0 +1,12 @@
+{
+  "url": "https://snapshot.debian.org/file/bcd528d76a4e41ebfcbc7e9df2804dc31e1b0c31",
+  "archive_type": "tar.xz",
+  "integrity": "sha256-YfQkIw5Qf+FC4lOsE9L7eupnvnRUdLh9d3/DxbovJ78=",
+  "strip_prefix": "",
+  "overlay": {
+    "BUILD.bazel": "sha256-u0xLimtlef89g6TfMnV12RkF6Qh1ZpUDD0GH4C/5q20=",
+    "MODULE.bazel": "sha256-SlY/GXO6BSNUmKlSRr48bO7/piMWf3fnEXRVWSuUtHQ=",
+    "installation_test.py": "sha256-+/ORqwRxt+qLdzYIxR/EqdrZ8LlbVSaBRi1ZKBKsX5A=",
+    "source.BUILD.bazel": "sha256-/D2Sv/WXJwmUqySf0PuYwu3DiR29lCwYuCPn6iZEsp8="
+  }
+}

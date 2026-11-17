@@ -1,0 +1,21 @@
+# AUTO-GENERATED. DO NOT EDIT MANUALLY.
+# Source: ../MODULE.bazel
+# Generator: python3 ci/registry_ci.py sync-module --module makedumpfile --version 1.7.7.sonic.1
+
+module(name = "makedumpfile", version = "1.7.7.sonic.1")
+bazel_dep(name = "rules_cc", version = "0.2.22")
+bazel_dep(name = "bazel_skylib", version = "1.9.0")
+bazel_dep(name = "platforms", version = "1.0.0")
+bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.21")
+bazel_dep(name = "tar.bzl", version = "0.10.5.sonic.2")
+bazel_dep(name = "sonic-build-infra", version = "0.0.37-d31541a95fdf477302f1b109f2105eee81c86617", repo_name = "sonic_build_infra")
+apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
+apt.import_lock(lock = "@sonic_build_infra//apt:apt.lock.json", requests = "@sonic_build_infra//apt:requests.json", sources = "@sonic_build_infra//apt:sources.json", dependency_sets = ["makedumpfile_build_debian", "build_tools"], libraries = True)
+use_repo(apt, "makedumpfile_build_debian", "build_tools")
+prepared_source = use_repo_rule("@sonic_build_infra//source:prepared_source.bzl", "prepared_source")
+prepared_source(name = "makedumpfile_source", build_file = "//:source.BUILD.bazel", inputs = {"debian/patches/series": "//:debian/patches/series", "debian/patches/adapt-makefile-to-debian.patch": "//:debian/patches/adapt-makefile-to-debian.patch"}, steps = ['{"op":"archive","urls":["https://snapshot.debian.org/archive/debian/20251005T203402Z/pool/main/m/makedumpfile/makedumpfile_1.7.7.orig.tar.gz"],"sha256":"69b4d24ace3024cf2a41f343e162838b62b1b37d6edc7bbad4260fa36217efee","strip_prefix":"makedumpfile-1.7.7"}', '{"op":"patch_series","series_input":"debian/patches/series","patch_inputs":["debian/patches/adapt-makefile-to-debian.patch"]}'])
+
+bazel_dep(name = "rules_python", version = "1.9.0.sonic.1")
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(python_version = "3.13")
+use_repo(python, "python_3_13")
