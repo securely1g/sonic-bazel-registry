@@ -1,0 +1,91 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.38-0baa4acc9eac9ccc793b81104b1580d530271cbe",
+      "repo_name": "sonic_build_infra"
+    },
+    {
+      "name": "rules_cc",
+      "version": "0.2.20"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
+  },
+  "host_platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
+  },
+  "build_targets": [
+    "@p4lang-bmv2//:p4lang-bmv2.runtime",
+    "@p4lang-bmv2//:p4lang-bmv2.runtime.debug_symbols",
+    "@p4lang-bmv2//:development",
+    "@p4lang-bmv2//:p4lang-bmv2.runtime_metadata",
+    "@p4lang-bmv2//:sdk_consumer",
+    "@p4lang-bmv2//:check_programs"
+  ],
+  "test_targets": [
+    "@p4lang-bmv2//:test_actions",
+    "@p4lang-bmv2//:test_checksums",
+    "@p4lang-bmv2//:test_expressions",
+    "@p4lang-bmv2//:test_conditionals",
+    "@p4lang-bmv2//:test_data",
+    "@p4lang-bmv2//:test_handle_mgr",
+    "@p4lang-bmv2//:test_p4objects",
+    "@p4lang-bmv2//:test_parser",
+    "@p4lang-bmv2//:test_phv",
+    "@p4lang-bmv2//:test_queue",
+    "@p4lang-bmv2//:test_queueing",
+    "@p4lang-bmv2//:test_tables",
+    "@p4lang-bmv2//:test_learning",
+    "@p4lang-bmv2//:test_pre",
+    "@p4lang-bmv2//:test_calculations",
+    "@p4lang-bmv2//:test_headers",
+    "@p4lang-bmv2//:test_header_stacks",
+    "@p4lang-bmv2//:test_header_unions",
+    "@p4lang-bmv2//:test_meters",
+    "@p4lang-bmv2//:test_ageing",
+    "@p4lang-bmv2//:test_counters",
+    "@p4lang-bmv2//:test_pcap",
+    "@p4lang-bmv2//:test_fields",
+    "@p4lang-bmv2//:test_devmgr",
+    "@p4lang-bmv2//:test_packet",
+    "@p4lang-bmv2//:test_extern",
+    "@p4lang-bmv2//:test_periodic_tasks",
+    "@p4lang-bmv2//:test_switch",
+    "@p4lang-bmv2//:test_target_parser",
+    "@p4lang-bmv2//:test_runtime_iface",
+    "@p4lang-bmv2//:test_bm_apps",
+    "@p4lang-bmv2//:test_stateful",
+    "@p4lang-bmv2//:test_enums",
+    "@p4lang-bmv2//:test_core_primitives",
+    "@p4lang-bmv2//:test_control_flow",
+    "@p4lang-bmv2//:test_assert_assume",
+    "@p4lang-bmv2//:test_log_msg",
+    "@p4lang-bmv2//:test_ras",
+    "@p4lang-bmv2//:simple_switch_test_packet_redirect",
+    "@p4lang-bmv2//:simple_switch_test_truncate",
+    "@p4lang-bmv2//:simple_switch_test_swap",
+    "@p4lang-bmv2//:simple_switch_test_queueing",
+    "@p4lang-bmv2//:simple_switch_test_recirc",
+    "@p4lang-bmv2//:simple_switch_test_parser_error",
+    "@p4lang-bmv2//:psa_switch_test_internet_checksum",
+    "@p4lang-bmv2//:psa_switch_test_hash",
+    "@p4lang-bmv2//:pna_nic_test_parse_pna",
+    "@p4lang-bmv2//:test_gtest",
+    "@p4lang-bmv2//:cli_table_dump_old",
+    "@p4lang-bmv2//:cli_table_dump",
+    "@p4lang-bmv2//:cli_table_dump_extra",
+    "@p4lang-bmv2//:cli_indirect_res",
+    "@p4lang-bmv2//:cli_mc_dump",
+    "@p4lang-bmv2//:grpc_example_test",
+    "@p4lang-bmv2//:package_test"
+  ],
+  "generated_module_overlay": true
+}
