@@ -1,0 +1,8 @@
+# AUTO-GENERATED. DO NOT EDIT MANUALLY.
+# Source: ../MODULE.bazel
+# Generator: python3 ci/registry_ci.py sync-module --module www-authenticate --version 0.9.2.sonic.1
+
+module(name = "www-authenticate", version = "0.9.2.sonic.1")
+bazel_dep(name = "rules_python", version = "1.9.0.sonic.1")
+bazel_dep(name = "tar.bzl", version = "0.10.5.sonic.2")
+bazel_dep(name = "sonic-build-infra", version = "0.0.36-3070359b148ad6ad4eab749f5143ff2a38c980df", repo_name = "sonic_build_infra")
