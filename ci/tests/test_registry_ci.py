@@ -3433,6 +3433,9 @@ a.output.write_text(json.dumps(r))
                 self.assertEqual(evidence["test_container_image"], image)
                 self.assertEqual(evidence["host_platform"], "//_registry_ci_cross:amd64")
                 self.assertEqual(evidence["cross_platforms"], adapted)
+                self.assertNotIn("build_tool_execution", evidence["cross_runtime"])
+                self.assertFalse(any(argument.startswith("--extra_execution_platforms=")
+                                     for command in commands for argument in command))
                 autoconf = evidence["cross_runtime"]["autoconf"]
                 self.assertTrue(autoconf["enabled"])
                 for command in commands:

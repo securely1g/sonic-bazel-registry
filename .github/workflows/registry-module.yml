@@ -123,6 +123,21 @@ jobs:
           bundle="$RUNNER_TEMP/arm-kernel"
           ci/arm_kernel_test/prepare.sh "$bundle"
           echo "ARM_TEST_EXECUTOR=$bundle/executor" >> "$GITHUB_ENV"
+      - name: Expose the ARM64 loader to build-infra actions
+        if: inputs.cross_compile && inputs.module == 'sonic-build-infra'
+        run: |
+          set -euo pipefail
+          # Build-tools assembly clears its environment before executing the
+          # target loader. Use QEMU's default prefix inside this disposable runner.
+          root=/opt/sonic-arm64-rootfs
+          prefix=/usr/gnemul/qemu-aarch64
+          [[ -e /.dockerenv || -e /run/.containerenv ]]
+          [[ -x "$root/usr/bin/uname" ]]
+          if [[ ! -e "$prefix" ]]; then
+            sudo -n install -d "$(dirname "$prefix")"
+            sudo -n ln -sT "$root" "$prefix"
+          fi
+          [[ "$(realpath "$prefix")" == "$root" ]]
       - name: Install Bazel 8.5.1
         run: |
           set -euo pipefail
