@@ -32,8 +32,8 @@ prepared_source(
         "isolate-packet-redirect-ipc.patch": "//:bazel/isolate-packet-redirect-ipc.patch",
     },
     steps = [
-        '{"op": "archive", "urls": ["https://downloadcontent.opensuse.org/repositories/home:/p4lang/Debian_11/p4lang-bmv2_1.15.0.orig.tar.gz"], "sha256": "083bb907e45597af8e29ef3b0a92d33d282ba23840ddd5cfb8372d2f030ab415"}',
-        '{"op": "archive", "urls": ["https://downloadcontent.opensuse.org/repositories/home:/p4lang/Debian_11/p4lang-bmv2_1.15.0-9.debian.tar.xz"], "sha256": "30941da6dde4cbbefaa9a12dfffa260115b3b63c6d56b3112b3baee953636179"}',
+        '{"op": "archive", "urls": ["https://github.com/securely1g/sonic-bazel-registry/releases/download/p4-source-inputs-20261021/p4lang-bmv2_1.15.0.orig.tar.gz", "https://downloadcontent.opensuse.org/repositories/home:/p4lang/Debian_11/p4lang-bmv2_1.15.0.orig.tar.gz"], "sha256": "083bb907e45597af8e29ef3b0a92d33d282ba23840ddd5cfb8372d2f030ab415"}',
+        '{"op": "archive", "urls": ["https://github.com/securely1g/sonic-bazel-registry/releases/download/p4-source-inputs-20261021/p4lang-bmv2_1.15.0-9.debian.tar.xz", "https://downloadcontent.opensuse.org/repositories/home:/p4lang/Debian_11/p4lang-bmv2_1.15.0-9.debian.tar.xz"], "sha256": "30941da6dde4cbbefaa9a12dfffa260115b3b63c6d56b3112b3baee953636179"}',
         '{"op": "patch_series", "series": "debian/patches/series"}',
         '{"op": "patch", "input": "use-boost-1.83.patch", "strip": 1}',
         '{"op": "patch", "input": "remove-unnecessary-dependencies.patch", "strip": 1}',
