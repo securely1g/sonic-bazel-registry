@@ -2980,7 +2980,7 @@ a.output.write_text(json.dumps(r))
         # The fake Bazel emits evidence for each extra target only when the command requests it.
         script = self.fake_bazel.read_text().replace(
             "    print(json.dumps({'label': '@@alpha+//:library', 'trees': []}))",
-            "    requested = args[-1].removeprefix('config(').split(',')[0]\n"
+            "    requested = json.JSONDecoder().raw_decode(args[-1].removeprefix('config('))[0]\n"
             "    print(json.dumps({'label': requested, 'trees': []}))")
         script = script.replace(
             "    Path(path).write_text",

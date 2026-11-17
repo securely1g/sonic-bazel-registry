@@ -98,7 +98,7 @@ class BazelArtifactIntegrationTest(unittest.TestCase):
                 'load(":artifact.bzl", "artifact", "use_tool")\n'
                 'package(default_visibility = ["//visibility:public"])\n'
                 'artifact(name = "artifact")\n'
-                'alias(name = "artifact_alias", actual = ":artifact")\n'
+                'alias(name = "Common++", actual = ":artifact")\n'
                 'use_tool(name = "use_tool", tool = ":artifact")\n'
                 'exports_files(["runtime_packages.json"])\n'
                 'alias(name = "metadata_alias", actual = ":runtime_packages.json")\n'
@@ -107,7 +107,7 @@ class BazelArtifactIntegrationTest(unittest.TestCase):
                       "--output_user_root=" + str(work / "bazel")]
             flags = ["--incompatible_autoload_externally=", "--lockfile_mode=off",
                      "--host_platform=//:fixture_platform", "--platforms=//:fixture_platform"]
-            labels = ["@artifact_fixture//:artifact", "@artifact_fixture//:artifact_alias",
+            labels = ["@artifact_fixture//:artifact", "@artifact_fixture//:Common++",
                       "@artifact_fixture//:use_tool", "@artifact_fixture//:runtime_packages.json",
                       "@artifact_fixture//:metadata_alias"]
             bep = artifacts / "build-events.jsonl"
