@@ -1,0 +1,11 @@
+{
+  "homepage": "https://github.com/CumulusNetworks/ifupdown2",
+  "maintainers": [],
+  "repository": [
+    "github:CumulusNetworks/ifupdown2"
+  ],
+  "versions": [
+    "3.0.0.sonic.2"
+  ],
+  "yanked_versions": {}
+}
