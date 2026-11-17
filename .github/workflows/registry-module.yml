@@ -48,9 +48,11 @@ jobs:
   validate:
     name: Validate module
     runs-on: ${{ fromJSON(inputs.runner) }}
-    # Serial P4 builds and the cold SWSS cross-build can take over three hours.
+    # Allow time for FIPS vendor suites, serial P4 builds and cold SWSS cross-builds.
     timeout-minutes: >-
-      ${{ (((contains(fromJSON(inputs.runner), 'debian-trixie-container') ||
+      ${{ (inputs.cross_compile && inputs.module == 'sonic-fips' &&
+           inputs.version == '0.0.6-18a778db501d455f8a1b6d1e3ef8e17121661177') && 240 ||
+          (((contains(fromJSON(inputs.runner), 'debian-trixie-container') ||
              contains(fromJSON(inputs.runner), 'debian-trixie-container-large')) &&
             contains(fromJSON('["p4c","p4lang-bmv2","sonic-dash"]'), inputs.module)) ||
            (inputs.cross_compile && inputs.module == 'sonic-swss' &&
