@@ -75,6 +75,7 @@ ARM_CROSS_VERSIONS: dict[str, tuple[str, ...]] = {
     "rules_go": ("0.65.0.sonic.1",),
     "rules_python": ("1.9.0.sonic.1",),
     "sai": ("1.18.0-sonic.1",),
+    "sflowtool": ("6.11.0.sonic.3",),
     "socat": ("1.8.0.2.sonic.5",),
     "sonic-build-infra": (
         "0.0.37-316e298e77ab5cfa69af9b0c05ec24d5d94bbe1e",
