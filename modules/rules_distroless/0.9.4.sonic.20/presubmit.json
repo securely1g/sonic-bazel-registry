@@ -39,6 +39,7 @@
     "@rules_distroless//registry_ci/headerless:headers_test",
     "@rules_distroless//registry_ci/headerless:additional_headers_test",
     "@rules_distroless//registry_ci/headerless:transitive_headers_test",
+    "@rules_distroless//apt/tests:package_resolution/resolve_exact_root_dependency",
     "@rules_distroless//apt/tests:locked_import/closure",
     "@rules_distroless//apt/tests:locked_import/invalid_lock",
     "@rules_distroless//apt/tests:locked_import/selection",

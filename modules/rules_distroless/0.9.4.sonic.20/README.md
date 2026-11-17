@@ -1,3 +1,14 @@
+# VS image APT contracts (.20)
+
+This entry starts from the complete published `.19` recipe. It retains every
+published `.19` patch and overlay, then adds named-origin/exact-root resolution,
+installed header aliases, and original uncompressed DEB data interfaces used by
+the default AMD64 Trixie VS image. The `.19` version directory remains unchanged.
+
+The consumer module and standalone library regressions select `.20` explicitly.
+`presubmit.json` retains native AMD64 and ARM64 checks; local integrated VS
+acceptance covers AMD64 only and does not replace registry consumer CI.
+
 # Distributed APT requests and workspace locks
 
 Components keep their `apt.install` and `apt.install_file` declarations. In unified
@@ -85,7 +96,7 @@ Run the original cross-package script regression from the registry root:
 
 ```sh
 USE_BAZEL_VERSION=8.5.1 python3 \
-  modules/rules_distroless/0.9.4.sonic.19/tests/shared_linker_script_test.py \
+  modules/rules_distroless/0.9.4.sonic.20/tests/shared_linker_script_test.py \
   --registry .
 ```
 
@@ -110,7 +121,7 @@ Rust executables consume the adapter's actual CcInfo flags and files.
 
 ```sh
 USE_BAZEL_VERSION=8.5.1 python3 \
-  modules/rules_distroless/0.9.4.sonic.19/tests/library_contract_test.py \
+  modules/rules_distroless/0.9.4.sonic.20/tests/library_contract_test.py \
   --registry . --adapter /path/to/sonic-build-infra/cc/shared_library.bzl \
   --go /path/to/go --rustc /path/to/rustc
 ```

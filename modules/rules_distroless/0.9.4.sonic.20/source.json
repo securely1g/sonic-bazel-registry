@@ -51,7 +51,11 @@
         "0045-adopt-sonic-rules-implementations.patch": "sha256-josSAPP8LbRb4Qhg7nNVXV+iMT386Tj644pFNEKw6O0=",
         "0046-reuse-pkgconfig-metadata.patch": "sha256-jpnvb1Ikgp9aIZVje/yaPbi4w3wLyd9TKzMym9Ccq/M=",
         "0047-complete-pkgconfig-metadata-reuse.patch": "sha256-CbPTGrWVUG0Ndrg20ZgJpjFSzrtCsBz37qX/06OVJzk=",
-        "0048-parse-pkgconfig-without-external-tools.patch": "sha256-dXmkhy9XmKZPJsVL+16M5AlFlUXTWqacywSJ/2+o0ko="
+        "0048-parse-pkgconfig-without-external-tools.patch": "sha256-dXmkhy9XmKZPJsVL+16M5AlFlUXTWqacywSJ/2+o0ko=",
+        "0049-named-origins-and-fixed-roots.patch": "sha256-0q6UIkjFiNdYiKp4vfIKQbWARi/IXND+l9SKl5jVeD8=",
+        "0050-declare-installed-header-aliases.patch": "sha256-3FxrmRp/qLEA/wQK9IOq83RNg+Ub8EwXA74tbal+PII=",
+        "0051-original-deb-data-interfaces.patch": "sha256-/4nycQPx30wzSRDWu2IBHMSu6nvYp7f31DbH1XCOWXA=",
+        "0052-module-version-20.patch": "sha256-IzB8qzHVDzJp44r4efH9mu8rFyIBTTrLpUixY/1hcE0="
     },
     "patch_strip": 1,
     "overlay": {

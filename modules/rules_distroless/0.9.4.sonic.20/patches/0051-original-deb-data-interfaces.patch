@@ -1,0 +1,103 @@
+diff --git a/apt/private/deb_import.bzl b/apt/private/deb_import.bzl
+--- a/apt/private/deb_import.bzl
++++ b/apt/private/deb_import.bzl
+@@ -25,6 +25,13 @@
+ filegroup(
+     name = "deb",
+     srcs = ["package.deb"],
++    visibility = ["//visibility:public"],
++)
++
++# Original integrity-checked DEB data member, without normalization/recompression.
++filegroup(
++    name = "raw_data",
++    srcs = glob(["data.tar*"]),
+     visibility = ["//visibility:public"],
+ )
+ 
+diff --git a/apt/private/package.BUILD.tmpl b/apt/private/package.BUILD.tmpl
+--- a/apt/private/package.BUILD.tmpl
++++ b/apt/private/package.BUILD.tmpl
+@@ -9,6 +9,18 @@
+ alias(
+     name = "data",
+     actual = {data_targets},
++    visibility = ["//visibility:public"],
++)
++
++alias(
++    name = "raw_data",
++    actual = {raw_data_targets},
++    visibility = ["//visibility:public"],
++)
++
++filegroup(
++    name = "raw_packages",
++    srcs = {raw_deps} + [":raw_data"],
+     visibility = ["//visibility:public"],
+ )
+ 
+diff --git a/apt/private/translate_dependency_set.bzl b/apt/private/translate_dependency_set.bzl
+--- a/apt/private/translate_dependency_set.bzl
++++ b/apt/private/translate_dependency_set.bzl
+@@ -72,6 +72,17 @@
+ )
+ 
+ 
++# Original DEB members in the selected transitive closure. Consumers provide
++# their target filesystem layout (for example Debian merged-/usr) explicitly.
++filegroup(
++    name = "raw_packages",
++    srcs = select({{
++        "//:linux_%s" % arch: ["//%s/%s:raw_packages" % (package, arch) for package in packages]
++        for arch, packages in _PACKAGES.items()
++    }}) if _PACKAGES else {{}},
++    visibility = ["//visibility:public"],
++)
++
+ # Original pkg-config files for the target architecture's package closure.
+ filegroup(
+     name = "pkgconfig",
+@@ -123,6 +134,18 @@
+ alias(
+     name = "data",
+     actual = select({data_targets}, no_match_error = NO_MATCH_ERROR),
++    visibility = ["//visibility:public"],
++)
++
++alias(
++    name = "raw_data",
++    actual = select({raw_data_targets}, no_match_error = NO_MATCH_ERROR),
++    visibility = ["//visibility:public"],
++)
++
++filegroup(
++    name = "raw_packages",
++    srcs = select({raw_package_targets}, no_match_error = NO_MATCH_ERROR),
+     visibility = ["//visibility:public"],
+ )
+ 
+@@ -235,6 +258,8 @@
+                 package_template.format(
+                     target_name = architecture,
+                     data_targets = '"@%s//:data"' % repo_name,
++                    raw_data_targets = '"@%s//:raw_data"' % repo_name,
++                    raw_deps = package_deps_for_architecture(packages, package, architecture, "raw_data", repo_prefix = rctx.attr.repo_prefix),
+                     deb_targets = '"@%s//:deb"' % repo_name,
+                     control_targets = '"@%s//:control"' % repo_name,
+                     src = '"@%s//:data"' % repo_name,
+@@ -303,6 +328,14 @@
+                     "//:linux_%s" % architecture: "//%s/%s:data" % (package_name, architecture)
+                     for architecture in architectures
+                 }),
++                raw_data_targets = starlark_codegen_utils.to_dict_attr({
++                    "//:linux_%s" % architecture: "//%s/%s:raw_data" % (package_name, architecture)
++                    for architecture in architectures
++                }),
++                raw_package_targets = starlark_codegen_utils.to_dict_list_attr({
++                    "//:linux_%s" % architecture: ["//%s/%s:raw_packages" % (package_name, architecture)]
++                    for architecture in architectures
++                }),
+                 pkgconfig_targets = starlark_codegen_utils.to_dict_attr({
+                     "//:linux_%s" % architecture: "//%s/%s:pkgconfig" % (package_name, architecture)
+                     for architecture in architectures
