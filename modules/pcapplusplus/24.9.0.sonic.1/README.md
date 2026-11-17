@@ -1,0 +1,1 @@
+PcapPlusPlus upstream 24.09 is represented as 24.9.0.sonic.1 for the registry three-component version convention. The source hash and DHCP-port patch match sonic-dhcp-relay/dhcp4relay Make inputs. Native Common++, Packet++, Pcap++ retain the default Linux/libpcap backend; DPDK/PF_RING/XDP and LightPcapNg zstd remain disabled as in the original unconfigured build.

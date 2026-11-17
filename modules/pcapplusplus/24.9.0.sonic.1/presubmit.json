@@ -1,0 +1,24 @@
+{
+  "generated_module_overlay": true,
+  "architectures": [
+    "amd64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.36-3070359b148ad6ad4eab749f5143ff2a38c980df",
+      "repo_name": "sonic_build_infra"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
+  },
+  "build_targets": [
+    "@pcapplusplus//:Common++",
+    "@pcapplusplus//:Packet++",
+    "@pcapplusplus//:Pcap++"
+  ],
+  "test_targets": [
+    "@pcapplusplus//:dhcp_port_contract_test"
+  ]
+}
