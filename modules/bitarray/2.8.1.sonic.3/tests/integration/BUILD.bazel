@@ -16,3 +16,15 @@ py_test(
     deps = ["@bitarray//:upstream_test_support"],
     python_version = "3.13",
 )
+
+# Reuse the installed-wheel oracle against the directly produced TAR: the
+# installation and upstream behavior are the same public package contract.
+py_test(
+    name = "installed_runtime_test",
+    srcs = ["installed_wheel_test.py"],
+    main = "installed_wheel_test.py",
+    data = ["@bitarray//:bitarray.runtime"],
+    args = ["$(location @bitarray//:bitarray.runtime)"],
+    deps = ["@bitarray//:upstream_test_support"],
+    python_version = "3.13",
+)

@@ -1,4 +1,4 @@
-# bitarray 2.8.1.sonic.1
+# bitarray 2.8.1.sonic.2
 
 SONiC config-engine uses bitarray 2.8.1 on CPython 3.13. The module builds
 both C extensions from [upstream source](https://github.com/ilanschnell/bitarray/tree/eb1f7014446ef5ce0afddd86d2e929975ec7b4f9)
@@ -15,3 +15,12 @@ regular files to 0644, including the loadable shared extensions.
 
 Registry CI exercises the upstream test classes, checks wheel contents and ELF
 ABI, and runs the upstream tests a second time from the installed wheel layer.
+
+`@bitarray//:bitarray.runtime` directly installs the same compiled extensions
+and package files into `/usr/local/lib/python3.13/dist-packages`. Its default
+output is an uncompressed TAR; PythonRuntimeInfo and the
+`@bitarray//:bitarray.runtime_metadata` JSON output describe that distribution.
+The wheel and TAR share one metadata declaration and both native extension
+producers. The direct installation graph does not build or unpack the wheel.
+Registry CI retains all three wheel/upstream tests and runs the same complete
+upstream suite from the direct installation TAR.

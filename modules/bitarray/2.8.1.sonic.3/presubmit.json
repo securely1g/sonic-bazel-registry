@@ -5,7 +5,9 @@
   "build_targets": [
     "@bitarray//:whl",
     "@bitarray//:pkg",
-    "//:installed_layer"
+    "//:installed_layer",
+    "@bitarray//:bitarray.runtime",
+    "@bitarray//:bitarray.runtime_metadata"
   ],
   "consumer_deps": [],
   "generated_module_overlay": true,
@@ -19,6 +21,7 @@
   "test_targets": [
     "@bitarray//:upstream_test",
     "@bitarray//:wheel_contract_test",
-    "//:installed_wheel_test"
+    "//:installed_wheel_test",
+    "//:installed_runtime_test"
   ]
 }
