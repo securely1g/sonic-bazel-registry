@@ -2,7 +2,7 @@
 
 module(name = "locked_import_integration")
 
-bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.20")
+bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.21")
 # Exercise the version selected by the gNMI consumer on Bazel 8.
 bazel_dep(name = "rules_cc", version = "0.2.22")
 bazel_dep(name = "bazel_skylib", version = "1.9.2")
@@ -72,3 +72,14 @@ use_repo(
 
 check_catalog_tools = use_repo_rule("//native_catalog:fixtures.bzl", "check_catalog_tools")
 check_catalog_tools(name = "checked_native_catalog_tools")
+
+# Exercise the public multi-file tar toolchain interface on the native executor.
+bazel_dep(name = "tar.bzl", version = "0.10.4")
+tar = use_extension("@tar.bzl//tar:extensions.bzl", "toolchains")
+use_repo(tar, "bsd_tar_toolchains_linux_amd64", "bsd_tar_toolchains_linux_arm64")
+register_toolchains("//multifile_tar:toolchain")
+unpack_fixture = use_repo_rule("//multifile_tar:fixture.bzl", "unpack_fixture")
+unpack_fixture(name = "multifile_unpack_payload")
+
+bazel_dep(name = "aspect_bazel_lib", version = "2.14.0")
+bazel_dep(name = "platforms", version = "0.0.10")

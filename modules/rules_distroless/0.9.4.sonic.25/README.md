@@ -1,3 +1,11 @@
+# SDK21: complete multi-file Tar tools for APT exports
+
+This successor preserves the published SDK20 archive, all 52 patches and every overlay. Patch 0053 adds the selected Tar toolchain default.files to the existing APT Unpack action; patch 0054 aligns the module version. No other production behavior changes.
+
+The independent integration consumer adds one real multi-file executable test: a launcher requires a companion TreeArtifact and invokes declared real BSDtar. It extracts a deterministic raw payload, independently checked for exact bytes and observable read/execute permission bits. The original eight build labels and 48 tests remain on both native architectures.
+
+The SDK20 documentation follows unchanged as retained interface history.
+
 # VS image APT contracts (.20)
 
 This entry starts from the complete published `.19` recipe. It retains every

@@ -55,7 +55,9 @@
         "0049-named-origins-and-fixed-roots.patch": "sha256-0q6UIkjFiNdYiKp4vfIKQbWARi/IXND+l9SKl5jVeD8=",
         "0050-declare-installed-header-aliases.patch": "sha256-3FxrmRp/qLEA/wQK9IOq83RNg+Ub8EwXA74tbal+PII=",
         "0051-original-deb-data-interfaces.patch": "sha256-/4nycQPx30wzSRDWu2IBHMSu6nvYp7f31DbH1XCOWXA=",
-        "0052-module-version-20.patch": "sha256-IzB8qzHVDzJp44r4efH9mu8rFyIBTTrLpUixY/1hcE0="
+        "0052-module-version-20.patch": "sha256-IzB8qzHVDzJp44r4efH9mu8rFyIBTTrLpUixY/1hcE0=",
+        "0053-declare-unpack-tool-files.patch": "sha256-WnzKVF0q3vaySfkZa6XiujasejnUM9kgQ/ZB5CQiR1Q=",
+        "0054-module-version-21.patch": "sha256-yTlirHC7nPMEV8vcNdnOz6D3IIY+R8zKhr5wuzvJc+o="
     },
     "patch_strip": 1,
     "overlay": {
