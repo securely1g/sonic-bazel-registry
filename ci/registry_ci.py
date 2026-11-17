@@ -84,6 +84,7 @@ ARM_CROSS_VERSIONS: dict[str, tuple[str, ...]] = {
     ),
     "sonic-dash": ("0.0.1-2cbfdfa1205c0d03003444e5c80f89adb8c3df59",),
     "sonic-dash-api": ("0.0.5-9b2893e890734a2db0c53a5e5c64b031ec0dcfbd",),
+    "sonic-dhcpmon": ("0.1.0-b824589b2ba49a8ba59142289bfb04bb3ca68875",),
     "sonic-linux-kernel": ("0.0.2-34a53faaecd325509e9d8f1016ed0108ab558a23",),
     "sonic-rust-deps": (
         "0.0.4-6d9c70f708d7420e9e2b2cdc906b80cee6b140f1",
