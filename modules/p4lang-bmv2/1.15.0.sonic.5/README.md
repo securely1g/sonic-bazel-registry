@@ -13,3 +13,5 @@ Original source SHA256: `083bb907e45597af8e29ef3b0a92d33d282ba23840ddd5cfb8372d2
 Installed static archives use the target-aware `strip_static_archive` rule from sonic-build-infra .38. Native and cross builds select binutils for the target object architecture while running on the execution platform.
 
 The packet-redirect test uses a private short IPC directory per process. Parallel instances previously bound the same two absolute paths under /tmp; the packet assertions and test selection are unchanged.
+
+The eleven C++ tests that load libpcap and the five CLI tests that start simple_switch use the declared Trixie runtime, including libpcap’s libdbus dependency. Each CLI test waits for its own Thrift endpoint and stops the complete switch process group when it finishes.

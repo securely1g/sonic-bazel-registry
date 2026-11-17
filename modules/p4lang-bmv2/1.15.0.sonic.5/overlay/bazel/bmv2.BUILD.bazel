@@ -5,6 +5,7 @@ load("@tar.bzl//tar:tar.bzl", "tar")
 load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
 load("@sonic_build_infra//cc:runtime_test.bzl", "native_runtime_test", "native_runtime_binary")
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
+load("@p4lang-bmv2//:bazel/pcap_runtime_test.bzl", "pcap_runtime_test")
 load("@rules_python//python:py_library.bzl", "py_library")
 load("@rules_python//python:py_binary.bzl", "py_binary")
 load("@rules_python//python:py_test.bzl", "py_test")
@@ -3200,7 +3201,7 @@ cc_test(
     local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
 )
 
-cc_test(
+pcap_runtime_test(
     name = "test_pcap",
     srcs = ["tests/test_pcap.cpp"],
     deps = [":core_test_support"],
@@ -3222,7 +3223,7 @@ cc_test(
     local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
 )
 
-cc_test(
+pcap_runtime_test(
     name = "test_devmgr",
     srcs = ["tests/test_devmgr.cpp"],
     deps = [":core_test_support"],
@@ -3266,7 +3267,7 @@ cc_test(
     local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
 )
 
-cc_test(
+pcap_runtime_test(
     name = "test_switch",
     srcs = ["tests/test_switch.cpp"],
     deps = [":core_test_support"],
@@ -3289,7 +3290,7 @@ cc_test(
     local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
 )
 
-cc_test(
+pcap_runtime_test(
     name = "test_runtime_iface",
     srcs = ["tests/test_runtime_iface.cpp"],
     deps = [":core_test_support"],
@@ -3415,7 +3416,7 @@ filegroup(
     testonly = True,
 )
 
-cc_test(
+pcap_runtime_test(
     name = "simple_switch_test_packet_redirect",
     srcs = ["targets/simple_switch/tests/main.cpp", "targets/simple_switch/tests/test_packet_redirect.cpp", "targets/simple_switch/bm/simple_switch/runner.h", "targets/simple_switch/register_access.h", "targets/simple_switch/simple_switch.h"],
     deps = [":bmi_objects", ":simple_switch_objects", ":bm_apps_objects", ":target_test_support", ":upstream_gtest"],
@@ -3427,7 +3428,7 @@ cc_test(
     local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'targets/simple_switch/tests/testdata\\"'],
 )
 
-cc_test(
+pcap_runtime_test(
     name = "simple_switch_test_truncate",
     srcs = ["targets/simple_switch/tests/main.cpp", "targets/simple_switch/tests/test_truncate.cpp", "targets/simple_switch/bm/simple_switch/runner.h", "targets/simple_switch/register_access.h", "targets/simple_switch/simple_switch.h"],
     deps = [":bmi_objects", ":simple_switch_objects", ":bm_apps_objects", ":target_test_support", ":upstream_gtest"],
@@ -3439,7 +3440,7 @@ cc_test(
     local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'targets/simple_switch/tests/testdata\\"'],
 )
 
-cc_test(
+pcap_runtime_test(
     name = "simple_switch_test_swap",
     srcs = ["targets/simple_switch/tests/main.cpp", "targets/simple_switch/tests/test_swap.cpp", "targets/simple_switch/bm/simple_switch/runner.h", "targets/simple_switch/register_access.h", "targets/simple_switch/simple_switch.h"],
     deps = [":bmi_objects", ":simple_switch_objects", ":bm_apps_objects", ":target_test_support", ":upstream_gtest"],
@@ -3451,7 +3452,7 @@ cc_test(
     local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'targets/simple_switch/tests/testdata\\"'],
 )
 
-cc_test(
+pcap_runtime_test(
     name = "simple_switch_test_queueing",
     srcs = ["targets/simple_switch/tests/main.cpp", "targets/simple_switch/tests/test_queueing.cpp", "targets/simple_switch/bm/simple_switch/runner.h", "targets/simple_switch/register_access.h", "targets/simple_switch/simple_switch.h"],
     deps = [":bmi_objects", ":simple_switch_objects", ":bm_apps_objects", ":target_test_support", ":upstream_gtest"],
@@ -3463,7 +3464,7 @@ cc_test(
     local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'targets/simple_switch/tests/testdata\\"'],
 )
 
-cc_test(
+pcap_runtime_test(
     name = "simple_switch_test_recirc",
     srcs = ["targets/simple_switch/tests/main.cpp", "targets/simple_switch/tests/test_recirc.cpp", "targets/simple_switch/bm/simple_switch/runner.h", "targets/simple_switch/register_access.h", "targets/simple_switch/simple_switch.h"],
     deps = [":bmi_objects", ":simple_switch_objects", ":bm_apps_objects", ":target_test_support", ":upstream_gtest"],
@@ -3475,7 +3476,7 @@ cc_test(
     local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'targets/simple_switch/tests/testdata\\"'],
 )
 
-cc_test(
+pcap_runtime_test(
     name = "simple_switch_test_parser_error",
     srcs = ["targets/simple_switch/tests/main.cpp", "targets/simple_switch/tests/test_parser_error.cpp", "targets/simple_switch/bm/simple_switch/runner.h", "targets/simple_switch/register_access.h", "targets/simple_switch/simple_switch.h"],
     deps = [":bmi_objects", ":simple_switch_objects", ":bm_apps_objects", ":target_test_support", ":upstream_gtest"],
@@ -3547,7 +3548,7 @@ filegroup(
     testonly = True,
 )
 
-cc_test(
+pcap_runtime_test(
     name = "pna_nic_test_parse_pna",
     srcs = ["targets/pna_nic/tests/main.cpp", "targets/pna_nic/tests/test_parse_pna.cpp", "targets/pna_nic/externs/pna_counter.h", "targets/pna_nic/externs/pna_hash.h", "targets/pna_nic/externs/pna_internet_checksum.h", "targets/pna_nic/externs/pna_meter.h", "targets/pna_nic/externs/pna_random.h", "targets/pna_nic/pna_nic.h"],
     deps = [":bmi_objects", ":pna_nic_objects", ":bm_apps_objects", ":target_test_support", ":upstream_gtest"],
@@ -3638,7 +3639,7 @@ cc_binary(
 filegroup(
     name = "check_programs",
     testonly = True,
-    srcs = [":test_actions", ":test_checksums", ":test_expressions", ":test_conditionals", ":test_data", ":test_handle_mgr", ":test_p4objects", ":test_parser", ":test_phv", ":test_queue", ":test_queueing", ":test_tables", ":test_learning", ":test_pre", ":test_calculations", ":test_headers", ":test_header_stacks", ":test_header_unions", ":test_meters", ":test_ageing", ":test_counters", ":test_pcap", ":test_fields", ":test_devmgr", ":test_packet", ":test_extern", ":test_periodic_tasks", ":test_switch", ":test_target_parser", ":test_runtime_iface", ":test_bm_apps", ":test_stateful", ":test_enums", ":test_core_primitives", ":test_control_flow", ":test_assert_assume", ":test_log_msg", ":test_ras", ":test_all", ":simple_switch_test_packet_redirect", ":simple_switch_test_truncate", ":simple_switch_test_swap", ":simple_switch_test_queueing", ":simple_switch_test_recirc", ":simple_switch_test_parser_error", ":simple_switch_test_all", ":psa_switch_test_internet_checksum", ":psa_switch_test_hash", ":psa_switch_test_all", ":pna_nic_test_parse_pna", ":pna_nic_test_all", ":test_gtest_binary", ":grpc_example", ":simple_router", ":l2_switch", ":learn_client", ":test_packet_pipe"],
+    srcs = [":test_actions", ":test_checksums", ":test_expressions", ":test_conditionals", ":test_data", ":test_handle_mgr", ":test_p4objects", ":test_parser", ":test_phv", ":test_queue", ":test_queueing", ":test_tables", ":test_learning", ":test_pre", ":test_calculations", ":test_headers", ":test_header_stacks", ":test_header_unions", ":test_meters", ":test_ageing", ":test_counters", ":test_pcap_elf", ":test_fields", ":test_devmgr_elf", ":test_packet", ":test_extern", ":test_periodic_tasks", ":test_switch_elf", ":test_target_parser", ":test_runtime_iface_elf", ":test_bm_apps", ":test_stateful", ":test_enums", ":test_core_primitives", ":test_control_flow", ":test_assert_assume", ":test_log_msg", ":test_ras", ":test_all", ":simple_switch_test_packet_redirect_elf", ":simple_switch_test_truncate_elf", ":simple_switch_test_swap_elf", ":simple_switch_test_queueing_elf", ":simple_switch_test_recirc_elf", ":simple_switch_test_parser_error_elf", ":simple_switch_test_all", ":psa_switch_test_internet_checksum", ":psa_switch_test_hash", ":psa_switch_test_all", ":pna_nic_test_parse_pna_elf", ":pna_nic_test_all", ":test_gtest_binary", ":grpc_example", ":simple_router", ":l2_switch", ":learn_client", ":test_packet_pipe"],
 )
 
 test_suite(
@@ -3671,7 +3672,7 @@ expand_template(
     template = "targets/simple_switch/tests/CLI_tests/run_one_test.py.in",
     out = "generated/cli/run_one_test.py",
     substitutions = {
-        "@abs_top_builddir@/targets/simple_switch/simple_switch": _TEST_RUNFILES_ROOT + "simple_switch",
+        "@abs_top_builddir@/targets/simple_switch/simple_switch": _TEST_RUNFILES_ROOT + "simple_switch_runtime",
         "@abs_top_srcdir@/tools/runtime_CLI.py": _TEST_RUNFILES_ROOT + "runtime_cli",
         "@abs_top_builddir@/thrift_src/gen-py/": _TEST_RUNFILES_ROOT + "generated/python",
     },
@@ -3688,7 +3689,7 @@ py_test(
     srcs = [":cli_test_runner"],
     main = "generated/cli/run_one_test.py",
     args = [_TEST_RUNFILES_ROOT + "targets/simple_switch/tests/CLI_tests/testdata", "table_dump_old", "ecmp.json"] + [],
-    data = [":cli_test_data", ":simple_switch", ":runtime_cli"],
+    data = [":cli_test_data", ":simple_switch_runtime", ":runtime_cli"],
     legacy_create_init = False,
 )
 
@@ -3697,7 +3698,7 @@ py_test(
     srcs = [":cli_test_runner"],
     main = "generated/cli/run_one_test.py",
     args = [_TEST_RUNFILES_ROOT + "targets/simple_switch/tests/CLI_tests/testdata", "table_dump", "ecmp.json"] + [],
-    data = [":cli_test_data", ":simple_switch", ":runtime_cli"],
+    data = [":cli_test_data", ":simple_switch_runtime", ":runtime_cli"],
     legacy_create_init = False,
 )
 
@@ -3706,7 +3707,7 @@ py_test(
     srcs = [":cli_test_runner"],
     main = "generated/cli/run_one_test.py",
     args = [_TEST_RUNFILES_ROOT + "targets/simple_switch/tests/CLI_tests/testdata", "table_dump_extra", "table_dump_extra.json"] + [],
-    data = [":cli_test_data", ":simple_switch", ":runtime_cli"],
+    data = [":cli_test_data", ":simple_switch_runtime", ":runtime_cli"],
     legacy_create_init = False,
 )
 
@@ -3715,7 +3716,7 @@ py_test(
     srcs = [":cli_test_runner"],
     main = "generated/cli/run_one_test.py",
     args = [_TEST_RUNFILES_ROOT + "targets/simple_switch/tests/CLI_tests/testdata", "indirect_res", "indirect_res.json"] + [],
-    data = [":cli_test_data", ":simple_switch", ":runtime_cli"],
+    data = [":cli_test_data", ":simple_switch_runtime", ":runtime_cli"],
     legacy_create_init = False,
 )
 
@@ -3724,8 +3725,15 @@ py_test(
     srcs = [":cli_test_runner"],
     main = "generated/cli/run_one_test.py",
     args = [_TEST_RUNFILES_ROOT + "targets/simple_switch/tests/CLI_tests/testdata", "mc_dump", "ecmp.json"] + ["--pre", "SimplePreLAG"],
-    data = [":cli_test_data", ":simple_switch", ":runtime_cli"],
+    data = [":cli_test_data", ":simple_switch_runtime", ":runtime_cli"],
     legacy_create_init = False,
+)
+
+native_runtime_binary(
+    name = "simple_switch_runtime",
+    binary = ":simple_switch",
+    runtime_payloads = ["@bmv2_deps//:packages", "@p4lang_pi//:p4lang-pi.runtime", ":p4lang-bmv2.runtime"],
+    testonly = True,
 )
 
 native_runtime_binary(
