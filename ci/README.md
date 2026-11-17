@@ -319,10 +319,12 @@ older release cannot displace a higher release: build-infra `0.0.18-95cd3a9...`
 is selected ahead of any `0.0.8-...` registration. This is a CI selection rule,
 not a change to Bazel's dependency resolution.
 
-For routine latest selection, `ADDITIONAL_PRESUBMITS` also selects the coherent DASH
-`0.0.1-2cbfdfa1205c0d03003444e5c80f89adb8c3df59` entry. The published `.3`
-entry remains the numeric latest and keeps its native ARM64 job; the additional
-`.1` entry uses its explicit ARM64 cross route. This applies to CI edits and
+For routine latest selection, `ADDITIONAL_PRESUBMITS` also selects DASH
+`0.0.1-a9b799bb664b3b3b9d6e9a19cedd38b620e769de`, which matches the owner's base
+version and links against PI's ABI-versioned shared libraries. Both this entry
+and the numeric latest `.3` entry run on native ARM64. The older
+`0.0.1-2cbfdfa1205c0d03003444e5c80f89adb8c3df59` retains its version-specific
+ARM64 cross qualification. This selection applies to CI edits and
 `plan --latest`, including default push and manual runs.
 
 Latest selection skips versions listed in `yanked_versions`; a module with all
@@ -1004,7 +1006,7 @@ Its four ARM64 builds and original uncached runtime test passed on the AMD64 Tri
 The test exercised the installed SDK, generated pipeline and detached debug symbols.
 [Validation evidence](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42180204936/job/127767804802)
 
-The current DASH route selects `0.0.1-2cbfdfa1205c0d03003444e5c80f89adb8c3df59`,
+The qualified DASH ARM64 cross route selects `0.0.1-2cbfdfa1205c0d03003444e5c80f89adb8c3df59`,
 published on `main` at `553a6d1d4f8294a43b68314adfc266e64de35ce5` with the source's
 base version and the same compiler and linker argument transport fix.
 It retains all four builds and adds the declared `make_flags_test` beside the

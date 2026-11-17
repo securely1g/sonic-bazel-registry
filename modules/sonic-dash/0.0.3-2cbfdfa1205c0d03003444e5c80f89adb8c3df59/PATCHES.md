@@ -1,7 +1,5 @@
 # Registry version patch
 
-`patches/0001-bump-version.patch` changes the source module version from `0.0.1` to
-`0.0.1-2cbfdfa1205c0d03003444e5c80f89adb8c3df59`. The registry module is exactly the
-result of applying the patch to the [source MODULE](https://github.com/securely1g/DASH/blob/2cbfdfa1205c0d03003444e5c80f89adb8c3df59/MODULE.bazel).
-The argument adapters, public dependency versions, source inputs and tests come
-from [DASH #4](https://github.com/securely1g/DASH/pull/4).
+The version patch appends the full source commit to the source module’s `0.0.1`
+version. The source commit supplies the DASH build adapter, PI library names and
+dependency declarations. [Source MODULE.bazel](https://github.com/securely1g/DASH/blob/a9b799bb664b3b3b9d6e9a19cedd38b620e769de/MODULE.bazel)
