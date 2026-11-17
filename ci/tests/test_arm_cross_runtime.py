@@ -27,12 +27,8 @@ bazel_dep(name = "rules_cc", version = "0.2.22")
 bazel_dep(name = "rules_python", version = "1.9.0.sonic.1")
 bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.20")
 apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
-apt.install(
-    dependency_set = "cross_fixture_runtime",
-    packages = ["libc6"],
-    suites = ["trixie", "trixie-updates", "trixie-security"],
-)
-use_repo(apt, "cross_fixture_runtime")
+apt.import_lock(lock = "@sonic_build_infra//apt:apt.lock.json", dependency_sets = ["sysroot"])
+use_repo(apt, "sysroot")
 '''
 BUILD = '''load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_test")
 load(":objcopy.bzl", "copy_elf")
@@ -64,7 +60,7 @@ cc_binary(name = "runtime_program", srcs = ["runtime_program.c"])
 native_runtime_test(
     name = "native_python_probe",
     binary = ":runtime_program",
-    runtime_payloads = ["@cross_fixture_runtime//libc6:data"],
+    runtime_payloads = ["@sysroot//libc6:data"],
 )
 '''
 TEST_TARGETS = ["//:arm_probe", "//:python_probe", "//:exec_python_probe",
