@@ -1,0 +1,444 @@
+diff --git a/apt/BUILD.bazel b/apt/BUILD.bazel
+index 70e07ea..12d94b6 100644
+--- a/apt/BUILD.bazel
++++ b/apt/BUILD.bazel
+@@ -24,6 +24,7 @@ bzl_library(
+         "//apt/private:apt_dep_resolver",
+         "//apt/private:deb_filemap",
+         "//apt/private:deb_import",
++        "//apt/private:pkgconfig_metadata",
+         "//apt/private:lockfile",
+         "//apt/private:translate_dependency_set",
+         "//apt/private:util",
+diff --git a/apt/extensions.bzl b/apt/extensions.bzl
+index 2a73bdb..cacd83e 100644
+--- a/apt/extensions.bzl
++++ b/apt/extensions.bzl
+@@ -6,6 +6,7 @@ load("//apt/private:apt_dep_resolver.bzl", "dependency_resolver")
+ load("//apt/private:configuration.bzl", "export_lock_repository", "export_requests", "install_requests", "read_sources", "requests_document", "selected_lock_tags", "uses_unified_lock")
+ load("//apt/private:deb_filemap.bzl", "deb_filemap", "package_catalog", "package_catalog_name", "package_catalog_repository")
+ load("//apt/private:deb_import.bzl", "deb_import")
++load("//apt/private:pkgconfig_metadata.bzl", "pkgconfig_metadata")
+ load("//apt/private:locked_import.bzl", "declare_legacy_locked_imports", "declare_locked_imports")
+ load("//apt/private:lockfile.bzl", "lockfile")
+ load("//apt/private:translate_dependency_set.bzl", "translate_dependency_set")
+@@ -493,6 +494,20 @@ def _distroless_extension(mctx):
+     catalog_name = package_catalog_name(glock.packages(), dependency_sets.keys() + [tag.name for tag in updates])
+     package_catalog_repository(name = catalog_name, content = json.encode(package_catalog(glock.packages())))
+ 
++    metadata_names = {}
++    for package_key, package in glock.packages().items():
++        name = package_catalog_name(glock.packages(), dependency_sets.keys() + [tag.name for tag in updates] + [catalog_name] + metadata_names.values())
++        metadata_names[package_key] = name
++        target = util.sanitize(package_key)
++        pkgconfig_metadata(
++            name = name,
++            target_name = target,
++            package_key = package_key,
++            package_catalog = "@" + catalog_name + "//:catalog.json",
++            own_filemap = "@" + target + "_filemap//:filemap.json",
++            dep_filemaps = ["@" + util.sanitize(dep) + "_filemap//:filemap.json" for dep in package["depends_on"]],
++        )
++
+     # Generate a repo per package which will be aliased by hub repo.
+     for (package_key, package) in glock.packages().items():
+         (suite, name, arch, version) = lockfile.parse_package_key(package_key)
+@@ -516,6 +531,7 @@ def _distroless_extension(mctx):
+             sha256 = package["sha256"],
+             mergedusr = False,
+             own_filemap = "@" + util.sanitize(package_key) + "_filemap//:filemap.json",
++            module_metadata = "@" + metadata_names[package_key] + "//:modules.json",
+             depends_on = package["depends_on"],
+             # Label of each dependency's own filemap, in depends_on order,
+             # so deb_import can rebuild the {file: dependency} index by lookup.
+diff --git a/apt/private/BUILD.bazel b/apt/private/BUILD.bazel
+index 1b9b4c7..5724a3d 100644
+--- a/apt/private/BUILD.bazel
++++ b/apt/private/BUILD.bazel
+@@ -64,6 +64,7 @@ bzl_library(
+     deps = [
+         ":linker_script",
+         ":pkgconfig",
++        ":pkgconfig_metadata",
+         ":native_tools",
+     ],
+ )
+@@ -72,7 +73,7 @@ bzl_library(
+     name = "deb_filemap",
+     srcs = ["deb_filemap.bzl"],
+     visibility = ["//apt:__subpackages__"],
+-    deps = [":native_tools", ":util"],
++    deps = [":native_tools", ":pkgconfig", ":util"],
+ )
+ 
+ bzl_library(
+@@ -200,3 +201,10 @@ py_test(
+ )
+ 
+ exports_files(["runtime.ifso"])
++
++bzl_library(
++    name = "pkgconfig_metadata",
++    srcs = ["pkgconfig_metadata.bzl"],
++    visibility = ["//apt:__subpackages__"],
++    deps = [":native_tools", ":pkgconfig", ":util"],
++)
+diff --git a/apt/private/deb_filemap.bzl b/apt/private/deb_filemap.bzl
+index af79669..efab711 100644
+--- a/apt/private/deb_filemap.bzl
++++ b/apt/private/deb_filemap.bzl
+@@ -1,6 +1,7 @@
+ """Cycle-free package inventories, pkg-config documents and native ELF metadata."""
+ 
+ load(":native_tools.bzl", "catalog_execute")
++load(":pkgconfig.bzl", "direct_requirements")
+ 
+ load(":util.bzl", "util")
+ 
+@@ -66,7 +67,7 @@ def _deb_filemap_impl(rctx):
+                 result = rctx.execute(["tar", "-xOf", str(archives[0]), member])
+                 if result.return_code:
+                     fail(result.stderr)
+-                metadata[path] = {"content": result.stdout}
++                metadata[path] = {"content": result.stdout, "direct_requirements": direct_requirements(rctx, path, result.stdout)}
+             if path not in native_files:
+                 continue
+             extracted = "_inspect/" + path
+diff --git a/apt/private/deb_import.bzl b/apt/private/deb_import.bzl
+index be77a95..0fb4e0e 100644
+--- a/apt/private/deb_import.bzl
++++ b/apt/private/deb_import.bzl
+@@ -6,7 +6,8 @@ load("//apt/private:headers.bzl", "is_include_fragment")
+ load(":linker_script.bzl", "linker_script")
+ load(":lockfile.bzl", "lockfile")
+ load(":multiarch.bzl", "default_include_dirs", "select_include_dirs")
+-load(":pkgconfig.bzl", "module_records", "pkgconfig_environment", "resolve_modules")
++load(":pkgconfig.bzl", "resolve_modules")
++load(":pkgconfig_metadata.bzl", "expand_module_metadata")
+ load(":util.bzl", "util")
+ 
+ # BUILD.bazel template
+@@ -153,42 +154,6 @@ def _load_package_key(rctx, key, state):
+         if dependency not in state["extra_keys"]:
+             state["extra_keys"].append(dependency)
+ 
+-def _expand_module_metadata(rctx, state):
+-    if not state["catalog"] or rctx.attr.package_key not in state["catalog"]:
+-        return
+-    context = state["catalog"][rctx.attr.package_key]
+-    providers = {}
+-    for key, package in state["catalog"].items():
+-        if package["architecture"] == context["architecture"] and package["suite"] in context["family"]:
+-            for module in package["modules"]:
+-                providers.setdefault(module, []).append(key)
+-    visited = {}
+-    # Bootstrap providers from the named module's direct requirements. The SDK
+-    # must not traverse dependencies before their locked providers are loaded.
+-    # Full queries below still validate the completed graph and its versions.
+-    for _ in range(len(providers) + len(state["documents"]) + 1):
+-        records = module_records(state["documents"])
+-        for name, record in records.items():
+-            rctx.file("_pc_requirements/" + name + ".pc", record["content"].replace("${pcfiledir}", "/" + record["path"].rsplit("/", 1)[0]))
+-        pending = [name for name in records if name not in visited]
+-        if not pending:
+-            break
+-        for name in pending:
+-            visited[name] = True
+-            for option in ["--print-requires", "--print-requires-private"]:
+-                result = catalog_execute(rctx, "pkg-config", ["--maximum-traverse-depth=1", option, name], environment = pkgconfig_environment(rctx, "_pc_requirements"))
+-                for requirement in result.stdout.splitlines():
+-                    required = requirement.strip().split(" ")[0] if requirement.strip() else ""
+-                    if not required or required in records:
+-                        continue
+-                    matches = providers.get(required, [])
+-                    local = [key for key in matches if state["catalog"][key]["suite"] == context["suite"]]
+-                    matches = local or matches
+-                    if len(matches) == 1:
+-                        _load_package_key(rctx, matches[0], state)
+-                    elif len(matches) > 1:
+-                        state["module_errors"][required] = "Ambiguous locked pkg-config providers for %s: %s" % (required, matches)
+-
+ def _native_canonical(repo, path, state):
+     seen = {}
+     for _ in range(state["file_count"] + 1):
+@@ -887,9 +852,23 @@ def _discover_contents(rctx, depends_on, depends_file_map, target_name, state):
+     if rctx.attr.name not in state["files"]:
+         state["files"][rctx.attr.name] = self_files.keys()
+         state["file_count"] += len(self_files)
++    own_documents = {document["path"]: document for document in pc_documents if document["own"] and "content" in document and "alias" not in document}
++    actual_documents = {}
+     for pc_file in pkgconfigs:
+-        pc_documents.append({"path": pc_file, "repo": rctx.attr.name, "own": True, "content": rctx.read(_EXTRACT_DIR + "/" + pc_file)})
+-    _expand_module_metadata(rctx, state)
++        content = rctx.read(_EXTRACT_DIR + "/" + pc_file)
++        actual_documents[pc_file] = content
++        document = dict(own_documents.get(pc_file, {})) if own_documents.get(pc_file, {}).get("content") == content else {}
++        pc_documents.append(dict(document, path = pc_file, repo = rctx.attr.name, own = True, content = content))
++    metadata = json.decode(rctx.read(rctx.attr.module_metadata)) if rctx.attr.module_metadata else None
++    # Legacy file maps may omit regular .pc files. Preserve inline discovery in
++    # that case instead of treating incomplete leaf metadata as authoritative.
++    state["pc_modules"] = None
++    if metadata != None and metadata["own_order_safe"] and metadata["own_documents"] == actual_documents:
++        for key in metadata["extra_keys"]:
++            _load_package_key(rctx, key, state)
++        state["pc_modules"] = metadata["modules"]
++    else:
++        expand_module_metadata(rctx, state, _load_package_key)
+     # Requires metadata contributes headers; only the SDK's selected link
+     # sequence contributes libraries/options. In particular a private provider's
+     # package default must not leak constructor or nodlopen flags into a dynamic
+@@ -957,7 +936,7 @@ so_library(
+     toolchain_owned = not pkgconfigs and (len(hpp_files) or len(h_files)) and ((target_name.find("libc") != -1 or target_name.find("libstdc") != -1 or target_name.find("libgcc") != -1))
+ 
+     # Own archive metadata also supports legacy index file maps that omit .pc.
+-    pc_modules = resolve_modules(rctx, pc_documents, state["module_errors"])
++    pc_modules = state["pc_modules"] if state["pc_modules"] != None else resolve_modules(rctx, pc_documents, state["module_errors"])
+     primary_names = [name for name in [target_name, target_name.removeprefix("lib")] if name in pc_modules]
+     default_names = primary_names[:1] if primary_names else pc_modules.keys()
+     # The legacy package interface keeps its aggregate libraries. Only the
+@@ -1168,6 +1147,7 @@ deb_import = repository_rule(
+         "package_key": attr.string(),
+         "package_catalog": attr.label(),
+         "own_filemap": attr.label(doc = "Leaf package and pkg-config metadata."),
++        "module_metadata": attr.label(doc = "Internal completed SDK module metadata; legacy callers may omit it."),
+         "payload_only": attr.bool(doc = "Import runtime/control archives without C++ discovery or index filemaps."),
+         "repo_prefix": attr.string(doc = "Internal namespace for locked package repositories."),
+         "urls": attr.string_list(mandatory = True, allow_empty = False),
+diff --git a/apt/private/locked_import.bzl b/apt/private/locked_import.bzl
+index d94f27f..a248581 100644
+--- a/apt/private/locked_import.bzl
++++ b/apt/private/locked_import.bzl
+@@ -3,6 +3,7 @@
+ load(":configuration.bzl", "export_lock_repository", "requests_document", "selected_lock_tags")
+ load(":deb_filemap.bzl", "deb_filemap", "package_catalog", "package_catalog_name", "package_catalog_repository")
+ load(":deb_import.bzl", "deb_import")
++load(":pkgconfig_metadata.bzl", "pkgconfig_metadata")
+ load(":translate_dependency_set.bzl", "translate_dependency_set")
+ load(":util.bzl", "util")
+ load(":version_constraint.bzl", "version_constraint")
+@@ -226,6 +227,22 @@ def declare_locked_imports(mctx, existing_sets, installs = [], source_document =
+         if type(package.get("files")) != "list" or any([type(path) != "string" or path.startswith("/") or ".." in path.split("/") for path in package["files"]]):
+             fail("library import requires a locked package file map: " + key)
+         deb_filemap(name = util.sanitize(key) + "_filemap", files = json.encode(package["files"]), urls = [uri.rstrip("/") + "/" + package["filename"] for uri in document["sources"][package["suite"]]["uris"]], sha256 = package["sha256"])
++    metadata_names = {}
++    for key in libraries:
++        if not any([path.endswith(".pc") for path in imported[key]["files"]]):
++            continue
++        name = package_catalog_name(imported, groups.keys() + [catalog_name] + metadata_names.values() + existing_sets)
++        metadata_names[key] = name
++        package = imported[key]
++        target = util.sanitize(key)
++        pkgconfig_metadata(
++            name = name,
++            target_name = target,
++            package_key = key,
++            package_catalog = "@" + catalog_name + "//:catalog.json",
++            own_filemap = "@" + target + "_filemap//:filemap.json",
++            dep_filemaps = ["@" + util.sanitize(dependency) + "_filemap//:filemap.json" for dependency in package["depends_on"]],
++        )
+     names = {}
+     for key, package in imported.items():
+         name = util.sanitize(key)
+@@ -241,6 +258,7 @@ def declare_locked_imports(mctx, existing_sets, installs = [], source_document =
+             package_key = key,
+             package_catalog = "@" + catalog_name + "//:catalog.json" if key in libraries else None,
+             own_filemap = "@" + name + "_filemap//:filemap.json" if key in libraries else None,
++            module_metadata = "@" + metadata_names[key] + "//:modules.json" if key in metadata_names else None,
+             depends_on = package["depends_on"],
+             dep_filemaps = ["@" + util.sanitize(dependency) + "_filemap//:filemap.json" for dependency in package["depends_on"]] if key in libraries else [],
+             payload_only = key not in libraries,
+@@ -248,7 +266,7 @@ def declare_locked_imports(mctx, existing_sets, installs = [], source_document =
+         )
+     # Keep the expanded catalog once in the module lock, not once per group.
+     # Use the same collision-aware allocator as the native package catalog.
+-    prepared_lock_name = package_catalog_name(imported, groups.keys() + [catalog_name] + existing_sets)
++    prepared_lock_name = package_catalog_name(imported, groups.keys() + [catalog_name] + metadata_names.values() + existing_sets)
+     export_lock_repository(
+         name = prepared_lock_name,
+         content = json.encode(dict(document, packages = imported, dependency_sets = groups)),
+diff --git a/apt/private/pkgconfig.bzl b/apt/private/pkgconfig.bzl
+index 18be151..bc68ca8 100644
+--- a/apt/private/pkgconfig.bzl
++++ b/apt/private/pkgconfig.bzl
+@@ -249,6 +249,19 @@ def pkgconfig_environment(rctx, directory):
+         "PKG_CONFIG_DISABLE_UNINSTALLED": "1",
+     }
+ 
++def direct_requirements(rctx, path, content):
++    """Extract successful SDK depth-one requirements for one immutable document."""
++    name = path.rsplit("/", 1)[-1].removesuffix(".pc")
++    directory = "_pc_leaf_requirements"
++    rctx.file(directory + "/" + name + ".pc", content.replace("${pcfiledir}", "/" + path.rsplit("/", 1)[0]))
++    results = {}
++    for option in ["--print-requires", "--print-requires-private"]:
++        result = catalog_execute(rctx, "pkg-config", ["--maximum-traverse-depth=1", option, name], environment = pkgconfig_environment(rctx, directory))
++        if not result.return_code:
++            results[option] = result.stdout
++    rctx.delete(directory)
++    return results
++
+ def _direct_document(content):
+     lines = []
+     ignoring = False
+@@ -297,11 +310,38 @@ def _link_tokens(tokens):
+             result.append("-l")
+     return _joined_flags(result)
+ 
+-def _query_module(rctx, name, directory, mode):
+-    options = ["--static"] if mode == "static" else []
++def _variant_query_sharing(records):
++    # pkgconf 1.8.1 Cflags always walks private requirements. --static only
++    # adds Cflags.private; Libs also adds private requirements and Libs.private.
++    # Be conservative about escaped/continued metadata and field spelling.
++    cflags = True
++    libs = True
++    for record in records.values():
++        content = record["content"]
++        if "\\" in content:
++            return (False, False)
++        fields = "".join([char for char in content.lower().elems() if char not in " \t\r\n\v\f"])
++        cflags = cflags and "cflags.private" not in fields
++        libs = libs and "requires.private" not in fields and "libs.private" not in fields
++    return (cflags, libs)
++
++def _query_module(rctx, name, directory, mode, query_results, share_cflags, share_libs):
+     environment = pkgconfig_environment(rctx, directory)
+-    libs = catalog_execute(rctx, "pkg-config", options + ["--libs", name], environment = environment)
+-    cflags = catalog_execute(rctx, "pkg-config", options + ["--cflags", name], environment = environment)
++
++    def query(option, share):
++        variant = "dynamic" if share else mode
++        key = (directory, name, variant, option)
++        if key in query_results:
++            return query_results[key]
++        options = ["--static"] if mode == "static" else []
++        result = catalog_execute(rctx, "pkg-config", options + [option, name], environment = environment)
++        # Keep failures in their original mode/context, including diagnostics.
++        if not result.return_code:
++            query_results[key] = result
++        return result
++
++    libs = query("--libs", share_libs)
++    cflags = query("--cflags", share_cflags)
+     if libs.return_code or cflags.return_code:
+         return {"error": "pkg-config module %s (%s): %s%s" % (name, mode, libs.stderr, cflags.stderr)}
+     # The SDK can retain split option operands. Quote tokens when passing them
+@@ -347,17 +387,19 @@ def resolve_modules(rctx, documents, provider_errors = {}):
+         if record["own"]:
+             rctx.file("_pkgconfig_direct/" + name + ".pc", _direct_document(content))
+     resolved = {}
++    share_cflags, share_libs = _variant_query_sharing(records)
++    query_results = {}
+     for name, record in sorted(records.items()):
+         if not record["own"]:
+             continue
+         modes = {}
+         compat = {}
+         for mode in ["dynamic", "static"]:
+-            flags = _query_module(rctx, name, "_pkgconfig_modules", mode)
++            flags = _query_module(rctx, name, "_pkgconfig_modules", mode, query_results, share_cflags, share_libs)
+             if "error" in flags and provider_errors:
+                 flags["error"] += "\n" + "\n".join(provider_errors.values())
+             modes[mode] = flags
+-            compatible = _query_module(rctx, name, "_pkgconfig_direct", mode) if "error" in flags else flags
++            compatible = _query_module(rctx, name, "_pkgconfig_direct", mode, query_results, share_cflags, share_libs) if "error" in flags else flags
+             compat[mode] = _legacy_direct_flags(record["content"], mode) if "error" in compatible else compatible
+         libraries = {libname: True for flags in compat.values() for libname in flags.get("libnames", [])}.keys()
+         resolved[name] = {"modes": modes, "compat_modes": compat, "own_libnames": libraries}
+diff --git a/replacement-source/apt/private/pkgconfig_metadata.bzl b/apt/private/pkgconfig_metadata.bzl
+new file mode 100644
+index 0000000..299c569
+--- /dev/null
++++ b/apt/private/pkgconfig_metadata.bzl
+@@ -0,0 +1,91 @@
++"""Pure locked pkg-config graph data, independent of BUILD rendering."""
++
++load(":native_tools.bzl", "catalog_execute")
++load(":pkgconfig.bzl", "module_records", "pkgconfig_environment", "resolve_modules")
++load(":util.bzl", "util")
++
++def expand_module_metadata(rctx, state, load_package):
++    if not state["catalog"] or rctx.attr.package_key not in state["catalog"]:
++        return
++    context = state["catalog"][rctx.attr.package_key]
++    providers = {}
++    for key, package in state["catalog"].items():
++        if package["architecture"] == context["architecture"] and package["suite"] in context["family"]:
++            for module in package["modules"]:
++                providers.setdefault(module, []).append(key)
++    visited = {}
++    # Bootstrap providers from the named module's direct requirements. The SDK
++    # must not traverse dependencies before their locked providers are loaded.
++    # Full queries below still validate the completed graph and its versions.
++    for _ in range(len(providers) + len(state["documents"]) + 1):
++        records = module_records(state["documents"])
++        written = False
++        pending = [name for name in records if name not in visited]
++        if not pending:
++            break
++        for name in pending:
++            visited[name] = True
++            for option in ["--print-requires", "--print-requires-private"]:
++                cached = records[name].get("direct_requirements", {})
++                if option in cached and "alias" not in records[name]:
++                    requirements = cached[option]
++                else:
++                    if not written:
++                        for module, record in records.items():
++                            rctx.file("_pc_requirements/" + module + ".pc", record["content"].replace("${pcfiledir}", "/" + record["path"].rsplit("/", 1)[0]))
++                        written = True
++                    result = catalog_execute(rctx, "pkg-config", ["--maximum-traverse-depth=1", option, name], environment = pkgconfig_environment(rctx, "_pc_requirements"))
++                    requirements = result.stdout
++                for requirement in requirements.splitlines():
++                    required = requirement.strip().split(" ")[0] if requirement.strip() else ""
++                    if not required or required in records:
++                        continue
++                    matches = providers.get(required, [])
++                    local = [key for key in matches if state["catalog"][key]["suite"] == context["suite"]]
++                    matches = local or matches
++                    if len(matches) == 1:
++                        load_package(rctx, matches[0], state)
++                    elif len(matches) > 1:
++                        state["module_errors"][required] = "Ambiguous locked pkg-config providers for %s: %s" % (required, matches)
++
++def _load_leaf(rctx, filemap, state):
++    path = rctx.path(filemap)
++    owner = path.dirname.basename.removesuffix("_filemap")
++    if owner in state["loaded"]:
++        return
++    state["loaded"][owner] = True
++    for installed, record in json.decode(rctx.read(path.dirname.get_child("pkgconfig.json"))).items():
++        state["documents"].append(dict(record, path = installed, repo = owner, own = owner == state["own_repo"]))
++
++def _load_package(rctx, key, state):
++    for dependency in [key] + state["catalog"][key]["depends_on"]:
++        _load_leaf(rctx, Label("@@" + state["prefix"] + util.sanitize(dependency) + "_filemap//:filemap.json"), state)
++        if dependency not in state["extra_keys"]:
++            state["extra_keys"].append(dependency)
++
++def _metadata_impl(rctx):
++    owner = rctx.path(rctx.attr.own_filemap).dirname.basename.removesuffix("_filemap")
++    state = {"documents": [], "loaded": {}, "own_repo": owner, "prefix": owner.removesuffix(rctx.attr.target_name), "catalog": json.decode(rctx.read(rctx.attr.package_catalog)), "extra_keys": [], "module_errors": {}}
++    for filemap in [rctx.attr.own_filemap] + rctx.attr.dep_filemaps:
++        _load_leaf(rctx, filemap, state)
++    own_documents = {document["path"]: document["content"] for document in state["documents"] if document["own"] and "content" in document and "alias" not in document}
++    own_paths = [document["path"] for document in state["documents"] if document["own"]]
++    own_order_safe = len({path.rsplit("/", 1)[-1]: True for path in own_paths}) == len(own_paths)
++    # Multiple installed paths with one module basename use archive order in
++    # the legacy importer. Leave that uncommon input on its original path.
++    if own_order_safe:
++        expand_module_metadata(rctx, state, _load_package)
++    modules = resolve_modules(rctx, state["documents"], state["module_errors"]) if own_order_safe else {}
++    rctx.file("modules.json", json.encode({"modules": modules, "extra_keys": state["extra_keys"], "own_documents": own_documents, "own_order_safe": own_order_safe}))
++    rctx.file("BUILD.bazel", 'exports_files(["modules.json"], visibility = ["//visibility:public"])\n')
++
++pkgconfig_metadata = repository_rule(
++    implementation = _metadata_impl,
++    attrs = {
++        "own_filemap": attr.label(mandatory = True),
++        "dep_filemaps": attr.label_list(),
++        "package_catalog": attr.label(mandatory = True),
++        "package_key": attr.string(mandatory = True),
++        "target_name": attr.string(mandatory = True),
++    },
++)

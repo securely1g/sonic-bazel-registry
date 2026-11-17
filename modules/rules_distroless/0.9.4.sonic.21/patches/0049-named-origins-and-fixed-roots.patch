@@ -1,0 +1,329 @@
+diff --git a/apt/extensions.bzl b/apt/extensions.bzl
+--- a/apt/extensions.bzl
++++ b/apt/extensions.bzl
+@@ -162,12 +162,12 @@
+     seen = {}
+     used_keys = {}
+     for source_key, source in repo.sources().items():
+-        (urls, dist, component, architecture) = source
++        (urls, dist, component, architecture, suite_key) = source
+ 
+         # Deduplicate: multiple dict entries can map to the same logical source
+         # (one entry per URL in the urls list). Only process each unique
+         # (dist, component, architecture) combination once.
+-        dedup_key = "{}/{}/{}".format(dist, component, architecture)
++        dedup_key = "{}/{}/{}".format(suite_key, component, architecture)
+         if dedup_key in seen:
+             continue
+         seen[dedup_key] = True
+@@ -223,17 +223,18 @@
+             cnt_tokens,
+             pkg_fact_key,
+             cnt_fact_key,
++            suite_key,
+         ))
+ 
+     # Pass 2: Wait, decompress, parse
+-    for (urls, dist, comp, arch, pkg_tokens, cnt_tokens, pkg_fk, cnt_fk) in pending:
++    for (urls, dist, comp, arch, pkg_tokens, cnt_tokens, pkg_fk, cnt_fk, suite_key) in pending:
+         mctx.report_progress("resolving Package indices: {}/{} for {}".format(dist, comp, arch))
+         (output, url, integrity, ext) = _resolve_downloads(mctx, pkg_tokens, "Packages", dist, comp, arch)
+         glock.facts()[pkg_fk] = integrity
+         formats[pkg_fk] = ext
+ 
+         mctx.report_progress("parsing Package indices: {}/{} for {}".format(dist, comp, arch))
+-        repo.parse_package_index(mctx.read(output), urls, dist)
++        repo.parse_package_index(mctx.read(output), urls, suite_key)
+ 
+         if cnt_tokens != None:
+             mctx.report_progress("resolving Contents: {}/{} for {}".format(dist, comp, arch))
+@@ -302,7 +303,7 @@
+         is_snapshot = len(uris) > 0 and all([util.is_snapshot_uri(uri) for uri in uris])
+         if is_snapshot:
+             for suite in sl.suites:
+-                snapshot_suites[suite] = True
++                snapshot_suites[sl.suite_keys[suite]] = True
+ 
+     repo = deb_repository.new()
+     resolver = dependency_resolver.new(repo, preferred_versions = previous)
+@@ -311,8 +312,11 @@
+         uris = [uri.removeprefix("mirror+") for uri in sl.uris]
+         architectures = sl.architectures
+         for suite in sl.suites:
+-            glock.add_source(suite, uris = uris, types = sl.types, components = sl.components, architectures = architectures)
+-            repo.add_source((uris, suite, sl.components, architectures))
++            suite_key = sl.suite_keys[suite]
++            glock.add_source(suite_key, uris = uris, types = sl.types, components = sl.components, architectures = architectures)
++            if hasattr(sl, "origin"):
++                glock.sources()[suite_key].update(origin = sl.origin, suite = suite)
++            repo.add_source((uris, suite, sl.components, architectures), suite_key = suite_key)
+ 
+     # Seed cached formats from facts (which extensions each remote serves)
+     formats = dict(cached_facts.get("formats", {}))
+@@ -357,6 +361,7 @@
+                         "amd64",
+                         install.suites,
+                         install.include_transitive,
++                        install.dependency_set,
+                     ))
+                     continue
+ 
+@@ -364,7 +369,7 @@
+                 architectures = source["architectures"]
+                 if source_document != None:
+                     for record in source_document["sources"]:
+-                        if package["Dist"] in record["suites"]:
++                        if package["Dist"] in [record.get("suite_keys", {}).get(suite, suite) for suite in record["suites"]]:
+                             architectures = record.get("default_architectures", architectures)
+                             break
+ 
+@@ -376,7 +381,22 @@
+                     arch,
+                     install.suites,
+                     install.include_transitive,
++                    install.dependency_set,
+                 ))
++
++    # Exact roots constrain every dependency walk in their collection/arch.
++    # Collections may deliberately select different versions independently.
++    root_constraints = {}
++    for (group, name, version, arch, suites, _, _) in resolution_queue:
++        if not version or version[0] != "=":
++            continue
++        package, _ = resolver.resolve_package(name = name, version = version, arch = arch, suites = suites)
++        if package:
++            pins = root_constraints.setdefault((group, arch), {})
++            concrete = package["Package"]
++            if concrete in pins and pins[concrete] != package["Version"]:
++                fail("conflicting exact APT roots for %s:%s in %s" % (concrete, arch, group))
++            pins[concrete] = package["Version"]
+ 
+     for i in range(0, ITERATION_MAX + 1):
+         if not len(resolution_queue):
+@@ -384,7 +404,7 @@
+         if i == ITERATION_MAX:
+             fail("apt.install exhausted, please file a bug")
+ 
+-        (dependency_set_name, name, version, arch, suites, include_transitive) = resolution_queue.pop()
++        (dependency_set_name, name, version, arch, suites, include_transitive, constraint_group) = resolution_queue.pop()
+ 
+         mctx.report_progress("Resolving %s:%s" % (name, arch))
+ 
+@@ -395,6 +415,7 @@
+             arch = arch,
+             include_transitive = include_transitive,
+             suites = suites,
++            constraints = root_constraints.get((constraint_group, arch), {}),
+         )
+ 
+         if not package:
+@@ -455,6 +476,7 @@
+                     arch,
+                     suites,
+                     True,
++                    constraint_group,
+                 ))
+             glock.add_package_dependency(package, dep, arch)
+ 
+diff --git a/apt/private/configuration.bzl b/apt/private/configuration.bzl
+--- a/apt/private/configuration.bzl
++++ b/apt/private/configuration.bzl
+@@ -25,11 +25,6 @@
+         for document in files:
+             if document != selected:
+                 fail("conflicting global APT source documents")
+-    if selected:
+-        for record in selected["sources"]:
+-            defaults = record.get("default_architectures", record["architectures"])
+-            if type(defaults) != "list" or not defaults or any([arch not in record["architectures"] for arch in defaults]):
+-                fail("APT default_architectures must be a nonempty subset of architectures")
+     records = []
+     if selected:
+         records.extend(selected["sources"])
+@@ -44,16 +39,32 @@
+             if type(value) != "list" or not value or any([type(item) != "string" or not item for item in value]):
+                 fail("APT source requires nonempty string list: " + key)
+         value = {key: record.get(key, []) for key in ["uris", "components", "architectures", "types"]}
+-        for suite in record["suites"]:
++        aliases = record.get("suite_keys", {})
++        origin = record.get("origin", "")
++        if type(aliases) != "dict" or any([key not in record["suites"] for key in aliases]):
++            fail("suite_keys must map configured actual suites")
++        if type(origin) != "string" or (aliases and not origin):
++            fail("suite_keys require a named origin")
++        for actual_suite in record["suites"]:
++            suite = aliases.get(actual_suite, actual_suite)
++            if type(suite) != "string" or not suite or "/" in suite:
++                fail("logical suite key must be one nonempty path segment")
++            value = dict(value)
++            if origin:
++                value.update(origin = origin, suite = actual_suite)
+             if suite in by_suite:
+                 previous = by_suite[suite]
+-                if any([previous[key] != value[key] for key in ["uris", "components", "types"]]):
++                if any([previous[key] != value[key] for key in ["uris", "components", "types"]]) or previous.get("origin") != value.get("origin") or previous.get("suite") != value.get("suite"):
+                     fail("conflicting APT source configuration for suite: " + suite)
+                 if selected and any([arch not in previous["architectures"] for arch in value["architectures"]]):
+                     fail("APT consumer requests an architecture absent from the global source: " + suite)
+                 value = dict(value, architectures = previous["architectures"] + [arch for arch in value["architectures"] if arch not in previous["architectures"]])
+             by_suite[suite] = value
+-    sources = [struct(suites = [suite], **value) for suite, value in by_suite.items()]
++    sources = [struct(
++        suites = [value.get("suite", suite)],
++        suite_keys = {value.get("suite", suite): suite},
++        **value
++    ) for suite, value in by_suite.items()]
+     return (sources, selected)
+ 
+ def _active_imports(module):
+@@ -165,7 +176,8 @@
+             if not version or version[0] != "=":
+                 continue
+             for source in source_document["sources"]:
+-                for suite in source["suites"]:
++                for actual_suite in source["suites"]:
++                    suite = source.get("suite_keys", {}).get(actual_suite, actual_suite)
+                     if install.suites and suite not in install.suites:
+                         continue
+                     for arch in constraint["arch"] or source["architectures"]:
+diff --git a/apt/private/apt_deb_repository.bzl b/apt/private/apt_deb_repository.bzl
+--- a/apt/private/apt_deb_repository.bzl
++++ b/apt/private/apt_deb_repository.bzl
+@@ -119,8 +119,9 @@
+         return None
+     return state.filemap[arch][name]
+ 
+-def _add_source_if_not_present(state, source):
++def _add_source_if_not_present(state, source, suite_key = None):
+     (urls, dist, components, architectures) = source
++    suite_key = suite_key or dist
+ 
+     for arch in architectures:
+         for comp in components:
+@@ -135,7 +136,7 @@
+             if found:
+                 continue
+             for key in keys:
+-                state.sources[key] = (urls, dist, comp, arch)
++                state.sources[key] = (urls, dist, comp, arch, suite_key)
+ 
+ def _create():
+     state = struct(
+@@ -146,7 +147,7 @@
+     )
+ 
+     return struct(
+-        add_source = lambda source: _add_source_if_not_present(state, source),
++        add_source = lambda source, suite_key = None: _add_source_if_not_present(state, source, suite_key),
+         sources = lambda: state.sources,
+         parse_package_index = lambda contents, roots, dist: _parse_repository(state, contents, roots, dist),
+         parse_contents = lambda rcontents, arch: _parse_contents(state, rcontents, arch),
+diff --git a/apt/private/apt_dep_resolver.bzl b/apt/private/apt_dep_resolver.bzl
+--- a/apt/private/apt_dep_resolver.bzl
++++ b/apt/private/apt_dep_resolver.bzl
+@@ -3,12 +3,15 @@
+ load(":version.bzl", version_lib = "version")
+ load(":version_constraint.bzl", "version_constraint")
+ 
+-def _resolve_package(state, name, version, arch, suites = None):
++def _resolve_package(state, name, version, arch, suites = None, constraints = {}):
+     # A concrete package name wins over a same-named virtual Provides.
+     # This matches apt semantics and prevents libunwind-dev selecting LLVM.
+-    package = _resolve_named_package(state, name, version, arch, suites)
++    package = _resolve_named_package(state, name, version, arch, suites, constraints)
+     if package:
+         return (package, None)
++
++    if name in constraints:
++        return (None, None)
+ 
+     # Only fall back to a virtual package when no concrete candidate satisfies it.
+     # Check both the specific arch and "all" since Architecture: all packages
+@@ -22,9 +25,9 @@
+         for (package, provided_version) in virtual_packages
+         # If no version constraint, all candidates are acceptable.
+         # else, only candidates matching is_satisfied_by are acceptable.
+-        if not version or (
++        if (package["Package"] not in constraints or package["Version"] == constraints[package["Package"]]) and (not version or (
+             provided_version and version_constraint.is_satisfied_by(version, provided_version)
+-        )
++        ))
+     ]
+ 
+     warning = None
+@@ -63,7 +66,7 @@
+ 
+     return (None, warning)
+ 
+-def _resolve_named_package(state, name, version, arch, suites):
++def _resolve_named_package(state, name, version, arch, suites, constraints):
+     # Get available versions of the package
+     versions_by_arch = state.repository.package_versions(name = name, arch = arch, suites = suites)
+     versions_by_any_arch = state.repository.package_versions(name = name, arch = "all", suites = suites)
+@@ -73,6 +76,8 @@
+ 
+     preferred = state.preferred_versions.get(name + ":" + arch, []) + state.preferred_versions.get(name + ":all", [])
+     versions = [value for value in versions if value in preferred] + [value for value in versions if value not in preferred]
++    if name in constraints:
++        versions = [value for value in versions if value == constraints[name]]
+     selected_version = None
+ 
+     if version:
+@@ -99,7 +104,7 @@
+ # For future: unfortunately this function uses a few state variables to track
+ # certain conditions and package dependency groups.
+ # TODO: Try to simplify it in the future.
+-def _resolve_all(state, name, version, arch, include_transitive = True, suites = None):
++def _resolve_all(state, name, version, arch, include_transitive = True, suites = None, constraints = {}):
+     unmet_dependencies = []
+     root_package = None
+     dependencies = []
+@@ -127,7 +132,7 @@
+ 
+         path.append(name)
+ 
+-        (package, warning) = _resolve_package(state, name, version, arch, suites = suites)
++        (package, warning) = _resolve_package(state, name, version, arch, suites = suites, constraints = constraints)
+         if warning:
+             warnings.append(warning)
+ 
+diff --git a/apt/tests/resolution_test.bzl b/apt/tests/resolution_test.bzl
+--- a/apt/tests/resolution_test.bzl
++++ b/apt/tests/resolution_test.bzl
+@@ -489,6 +489,28 @@
+ 
+ _TEST_SUITE_PREFIX = "package_resolution/"
+ 
++def _resolve_exact_root_dependency_test(ctx):
++    env = unittest.begin(ctx)
++    idx = _make_index()
++    idx.add_package(package = "containerd.io", version = "1.7.28", dist = "docker-trixie")
++    idx.add_package(package = "containerd.io", version = "2.4.2", dist = "docker-trixie")
++    idx.add_package(package = "docker-ce", version = "28.5.2", depends = "containerd.io (>= 1.7.27)", dist = "docker-trixie")
++    root, dependencies, unmet, _ = idx.resolution.resolve_all(
++        name = "docker-ce", version = ("=", "28.5.2"), arch = _test_arch,
++        suites = ["docker-trixie"], constraints = {"containerd.io": "1.7.28"},
++    )
++    asserts.equals(env, "28.5.2", root["Version"])
++    asserts.equals(env, [("containerd.io", "1.7.28")], [(package["Package"], package["Version"]) for package in dependencies])
++    asserts.equals(env, [], unmet)
++    _, _, unmet, _ = idx.resolution.resolve_all(
++        name = "containerd.io", version = (">=", "2.0"), arch = _test_arch,
++        suites = ["docker-trixie"], constraints = {"containerd.io": "1.7.28"},
++    )
++    asserts.equals(env, [("containerd.io", (">=", "2.0"))], unmet)
++    return unittest.end(env)
++
++resolve_exact_root_dependency_test = unittest.make(_resolve_exact_root_dependency_test)
++
+ def resolution_tests():
+     """Repository macro to create package resolution tests.
+ 
+@@ -527,6 +549,7 @@
+         Depends: ruby
+         ```
+     """
++    resolve_exact_root_dependency_test(name = _TEST_SUITE_PREFIX + "resolve_exact_root_dependency")
+     parse_depends_test(name = _TEST_SUITE_PREFIX + "parse_depends")
+     resolve_optionals_test(name = _TEST_SUITE_PREFIX + "resolve_optionals")
+     resolve_architecture_specific_packages_test(name = _TEST_SUITE_PREFIX + "resolve_architectures_specific")
