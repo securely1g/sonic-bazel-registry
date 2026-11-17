@@ -32,6 +32,7 @@ SONIC_PLATFORMS = {
 VERIFIED_SONIC_CROSS_VERSIONS = {
     "0.0.28-9965823498ab54816de5addb6084638470dd04d7",  # libpsample and sflowtool
     "0.0.33-0d2435b572eca4a6f1db6e003b04956c09fb1a39",  # socat
+    "0.0.35-4016babb62e9eb97a71398b4d77ec9cfa5c62062",  # sonic-dhcpmon
     "0.0.17-8baf1ad829c5095297d85148b042145b87d623a3",
     "0.0.22-a12bc826d6f811a157db5c7c02a2fe033896cc14",
     "0.0.23-5b224d7190d04f1b7b68429eedfc03b7b1565ed0",
