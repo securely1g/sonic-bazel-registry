@@ -369,9 +369,11 @@ def validate_entry(root: Path, module: str, version: str) -> dict:
     required = {"architectures", "consumer_deps", "platforms", "build_targets", "test_targets"}
     require(required <= set(config) <= required | {
         "build_flags", "rust_preparation", "go_sdk", "rust_toolchain", "generated_module_overlay",
-        "test_runtime_preparation", "integration_test_module", "host_platforms", "additional_targets",
+        "test_runtime_preparation", "integration_test_module", "host_platforms", "additional_targets", "forbid_deb_outputs",
     }, f"presubmit.json requires {sorted(required)} and optionally "
        "build_flags/rust_preparation/go_sdk/rust_toolchain/generated_module_overlay/test_runtime_preparation/integration_test_module/host_platforms/additional_targets")
+    if "forbid_deb_outputs" in config:
+        require(config["forbid_deb_outputs"] is True, "forbid_deb_outputs must be true when present")
     if "test_runtime_preparation" in config:
         preparation = config["test_runtime_preparation"]
         require(isinstance(preparation, dict) and {"script", "sha256"} <= set(preparation)
@@ -1197,6 +1199,64 @@ def run_logged(command: list[str], cwd: Path, log: Path) -> None:
         raise RegistryError(f"Command failed with status {result.returncode}; see {log}")
 
 
+
+def audit_non_deb_actions(data: dict) -> int:
+    """Reject package-producing configured actions; imports/metadata are allowed."""
+    require(isinstance(data, dict) and isinstance(data.get("actions"), list)
+            and bool(data["actions"]), "Empty or invalid configured action graph")
+    try:
+        fragments = {item["id"]: item for item in data["pathFragments"]}
+        require(len(fragments) == len(data["pathFragments"]), "Duplicate action path IDs")
+        def path(key):
+            parts, seen = [], set()
+            while key:
+                require(key not in seen, "Cycle in action output path")
+                seen.add(key)
+                item = fragments[key]
+                require(isinstance(item["label"], str), "Invalid action output path")
+                parts.append(item["label"])
+                key = item.get("parentId")
+            return "/".join(reversed(parts))
+        artifacts = {item["id"]: path(item["pathFragmentId"]) for item in data["artifacts"]}
+        require(len(artifacts) == len(data["artifacts"]), "Duplicate artifact IDs")
+        for action in data["actions"]:
+            mnemonic = action["mnemonic"]
+            require(isinstance(mnemonic, str) and mnemonic, "Missing action mnemonic")
+            outputs = [artifacts[key] for key in action.get("outputIds", [])]
+            require(not (any(name.endswith((".deb", ".udeb")) for name in outputs)
+                         or ("deb" in mnemonic.lower()
+                             and mnemonic not in ("ExtractDeb", "DebExtract", "DebianRuntimeMetadata"))),
+                    "Forbidden DEB-producing configured action")
+    except (KeyError, TypeError, ValueError) as error:
+        raise RegistryError("Malformed configured action graph") from error
+    return len(data["actions"])
+
+
+def configured_non_deb_gate(config: dict, prefix: list[str], flags: list[str],
+                            targets: list[str], consumer: Path, artifacts: Path) -> None:
+    if not config.get("forbid_deb_outputs", False):
+        return
+    selection = "set(" + " ".join(json.dumps(label) for label in targets) + ")"
+    commands = []
+    for kind, expression, output in (("cquery", selection, "files"),
+                                     ("aquery", "deps(" + selection + ")", "jsonproto")):
+        command = [*prefix, kind, *flags, expression, "--output=" + output]
+        commands.append(command)
+        (artifacts / "configured-prebuild-commands.json").write_text(json.dumps(commands, indent=2) + "\n")
+        with (artifacts / ("prebuild-" + kind + ".out")).open("w") as stdout, \
+                (artifacts / ("prebuild-" + kind + ".log")).open("w") as stderr:
+            result = subprocess.run(command, cwd=consumer, stdout=stdout, stderr=stderr, timeout=1200)
+        require(result.returncode == 0, "Configured prebuild " + kind + " failed")
+        require((artifacts / ("prebuild-" + kind + ".out")).stat().st_size > 0,
+                "Configured prebuild " + kind + " output is empty")
+    graph = artifacts / "prebuild-aquery.out"
+    count = audit_non_deb_actions(read_json(graph))
+    (artifacts / "configured-prebuild-audit.json").write_text(json.dumps({
+        "targets": targets, "actions": count, "forbidden_producers": [],
+        "graph_sha256": hashlib.sha256(graph.read_bytes()).hexdigest(),
+    }, indent=2) + "\n")
+
+
 def prepare_rust(config: dict, consumer: Path, work_dir: Path, artifacts: Path,
                  bazel_prefix: list[str], flags: list[str]) -> list[str]:
     """Prepare the registry-fetched Rust graph before its extension is evaluated."""
@@ -1759,6 +1819,8 @@ def run(root: Path, module: str, version: str, architecture: str,
                     raise RegistryError(str(error)) from error
                 shutil.copy2(consumer / "MODULE.bazel", artifacts / "consumer.MODULE.bazel")
             flags.extend(prepare_rust(config, consumer, work_dir, artifacts, prefix, flags))
+            configured_non_deb_gate(config, prefix, flags,
+                                    list(dict.fromkeys(build_targets + test_targets)), consumer, artifacts)
             run_logged([*prefix, "build", *flags, f"--build_event_json_file={artifacts / 'build-events.jsonl'}",
                         *build_targets], consumer, artifacts / "build.log")
             declared_trees = query_output_trees(prefix, flags, build_targets, consumer, artifacts)
