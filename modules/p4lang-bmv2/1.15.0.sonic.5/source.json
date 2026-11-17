@@ -8,7 +8,7 @@
     "BUILD.bazel": "sha256-4oJlLzSE4+JnL4a6Bh6y3GyEJ0qVQpWyGBmmARGtW10=",
     "MODULE.bazel": "sha256-osyr4o60RWLlLeqKCqWrezyo4nGYWtbDWEcLW2SSHFo=",
     "bazel/bm_config.h.in": "sha256-eGarfH0RmY2vOdR+t42sFoe8xKJnwF/Oc3nwzd2XwIk=",
-    "bazel/bmv2.BUILD.bazel": "sha256-hXpO2faqbwUraENbOkhREL4prR+v876WPiRXD96sBuQ=",
+    "bazel/bmv2.BUILD.bazel": "sha256-iiK8q1IgBHxaFSQmTkHa746UKZzQA3k2ugdmKnNA+eA=",
     "bazel/hold-cli-endpoint-reservations.patch": "sha256-iRh5fIj011t/PHslkFFeii/GHv0KPYcmEgj6YnMBn1Y=",
     "bazel/libtool.la.in": "sha256-Rs9AI6+qzqpd2LnoQt/+ws7dqJoHmh8CVZL1Ma1tJr4=",
     "bazel/package_test.py": "sha256-jzKnV7oeqYE0LYbKnpNsZz1AfmX5yAFCIsWwPWsndA4=",
