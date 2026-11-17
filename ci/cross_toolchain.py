@@ -155,7 +155,7 @@ def expose_dependency(consumer: Path, name: str, versions: dict[str, str]) -> st
 
 
 def write_platforms(consumer: Path, target_parent: str, execution_parent: str,
-                    platforms_repo: str, trixie: str) -> dict:
+                    platforms_repo: str, distribution: str) -> dict:
     directory = consumer / PACKAGE
     if directory.exists():
         raise ValueError(f"Generated cross-platform package already exists: {directory}")
@@ -163,14 +163,14 @@ def write_platforms(consumer: Path, target_parent: str, execution_parent: str,
     lines = ['package(default_visibility=["//visibility:public"])']
     for name, parent, cpu in (("arm64", target_parent, "aarch64"),
                               ("amd64", execution_parent, "x86_64")):
-        constraints = [f"@{platforms_repo}//os:linux", f"@{platforms_repo}//cpu:{cpu}", trixie]
+        constraints = [f"@{platforms_repo}//os:linux", f"@{platforms_repo}//cpu:{cpu}", distribution]
         lines.append(f"platform(name={json.dumps(name)}, parents=[{json.dumps(parent)}], "
                      f"constraint_values={json.dumps(constraints)})")
     (directory / "BUILD.bazel").write_text("\n".join(lines) + "\n")
     return {"declared_target_platform": target_parent, "declared_execution_platform": execution_parent,
             "target_platform": f"//{PACKAGE}:arm64", "execution_platform": f"//{PACKAGE}:amd64",
             "target_cpu": "aarch64", "execution_cpu": "x86_64", "os": "linux",
-            "distribution_constraint": trixie}
+            "distribution_constraint": distribution}
 
 
 def _sha256(path: Path) -> str:
@@ -273,6 +273,18 @@ register_toolchains("@{REPOSITORY}//:toolchain")
     return adapter
 
 
+def published_distribution(target: str, version: str | None) -> str | None:
+    if target in SONIC_PLATFORMS and version in VERIFIED_SONIC_CROSS_VERSIONS:
+        return target.rsplit(":", 1)[0] + ":trixie"
+    # Net-SNMP uses GCC 12 and its published Bookworm sysroot for the target ABI.
+    if version == "0.0.25-34de7330abc72229dfc8dab88dec71b89c52aa88" and target in {
+        "@sonic_build_infra//platforms:aarch64_bookworm",
+        "@sonic-build-infra//platforms:aarch64_bookworm",
+    }:
+        return target.rsplit(":", 1)[0] + ":bookworm"
+    return None
+
+
 def prepare(root: Path, consumer: Path, work: Path, artifacts: Path, prefix: list[str],
             flags: list[str], target_parent: str, execution_parent: str, run_logged) -> dict:
     """Adapt generated consumer inputs, preserving its selected module versions."""
@@ -282,19 +294,15 @@ def prepare(root: Path, consumer: Path, work: Path, artifacts: Path, prefix: lis
     provider = None
     adapter = None
     sonic_version = before.get("sonic-build-infra")
-    use_published_toolchain = (target_parent in SONIC_PLATFORMS
-                               and sonic_version in VERIFIED_SONIC_CROSS_VERSIONS)
-    if not use_published_toolchain:
+    distribution = published_distribution(target_parent, sonic_version)
+    use_published_toolchain = distribution is not None
+    if distribution is None:
         rules_cc_repo = expose_dependency(consumer, "rules_cc", before)
         run_logged([*prefix, "shutdown"], consumer, artifacts / "cross-consumer-before-provider-shutdown.log")
         provider = prepare_provider(root, work, artifacts, prefix, flags, run_logged)
         adapter = write_adapter(consumer, work, provider, rules_cc_repo, platforms_repo)
-        trixie = f"@{REPOSITORY}//:trixie"
-    else:
-        # Only the exact graph-selected entries above have proven registration.
-        # Retain their distro constraint and all inherited platform constraints.
-        trixie = target_parent.rsplit(":", 1)[0] + ":trixie"
-    result = write_platforms(consumer, target_parent, execution_parent, platforms_repo, trixie)
+        distribution = f"@{REPOSITORY}//:trixie"
+    result = write_platforms(consumer, target_parent, execution_parent, platforms_repo, distribution)
     after = module_graph(prefix, flags, consumer, artifacts, "cross-graph-after")
     if before != after:
         raise ValueError("Cross adapter changed the consumer's selected module versions")
