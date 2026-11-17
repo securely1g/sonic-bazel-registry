@@ -650,3 +650,10 @@ three-module metadata graph with a context that permits files but exposes no
 execute operation. A locked pkgconf control is used only for development
 comparison, outside the production rules. This downstream fix supersedes the
 external-query implementation in earlier patches; it is not submitted upstream.
+
+## Local VS image contract additions (unpublished .20)
+
+49 keeps named APT origins and exact-root constraints across each dependency closure, preserving the published concrete-package-first resolver.
+50 exports installed header directory aliases and cross-package quoted siblings without a copied sysroot.
+51 exposes original DEB data members and raw dependency closures alongside the compatible existing interfaces.
+52 selects module version .20. Published .19's pure-DSO ownership mechanism already solves the formerly external FRR workaround; that old patch is not applied again.
