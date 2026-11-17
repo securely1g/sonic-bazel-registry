@@ -1,0 +1,19 @@
+--- a/apt/extensions.bzl
++++ b/apt/extensions.bzl
+@@ -408,12 +408,14 @@
+ 
+         pkg_short_key = lockfile.short_package_key(package, arch)
+ 
+-        already_resolved[pkg_short_key] = True
++        # A payload-only request has not expanded the package dependencies.
++        # Keep completed transitive work when the same package is requested later.
++        already_resolved[pkg_short_key] = already_resolved.get(pkg_short_key, False) or include_transitive
+ 
+         for dep in dependencies:
+             glock.add_package(dep, arch)
+             dep_key = lockfile.short_package_key(dep, arch)
+-            if dep_key not in already_resolved:
++            if not already_resolved.get(dep_key, False):
+                 resolution_queue.append((
+                     None,
+                     dep["Package"],

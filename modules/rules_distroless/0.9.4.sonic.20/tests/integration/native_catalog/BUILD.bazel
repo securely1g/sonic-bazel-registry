@@ -1,0 +1,6 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
+
+build_test(
+    name = "declared_tools_test",
+    targets = ["@checked_native_catalog_tools//:checked"],
+)
