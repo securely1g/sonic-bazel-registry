@@ -1,0 +1,61 @@
+load("@rules_python//python:defs.bzl", "py_test")
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+"""Current Debian native source and the four SONiC patches, directly installed."""
+load("@bazel_skylib//rules:expand_template.bzl", "expand_template")
+load("@tar.bzl", "tar")
+load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
+load("@sonic_build_infra//deb:changelogs.bzl", "debian_changelogs")
+load("@sonic_build_infra//oci:source_controls.bzl", "source_package_controls")
+package(default_visibility = ["//visibility:public"])
+exports_files(["MODULE.bazel"] + glob(["debian/**"]))
+_CMDLINE = select({"@platforms//cpu:aarch64": {"@KDUMP_CMDLINE_APPEND@": "reset_devices systemd.unit=kdump-tools-dump.service nr_cpus=1"}, "//conditions:default": {"@KDUMP_CMDLINE_APPEND@": "reset_devices systemd.unit=kdump-tools-dump.service nr_cpus=1 irqpoll usbcore.nousb"}})
+expand_template(name = 'kdump_config', template = 'debian/kdump-config.in', out = "generated/kdump_config", substitutions = _CMDLINE)
+expand_template(name = 'default_config', template = 'debian/kdump-tools.conf.in', out = "generated/default_config", substitutions = _CMDLINE)
+expand_template(name = 'man5', template = 'debian/kdump-tools.5.in', out = "generated/man5", substitutions = _CMDLINE)
+alias(name = 'kernel_postinst', actual = "debian/kernel-postinst-generate-initrd")
+alias(name = 'initramfs_hook', actual = "debian/initramfs.hook")
+alias(name = 'initramfs_local_bottom', actual = "debian/initramfs.local-bottom")
+alias(name = 'sysctl.conf', actual = "debian/sysctl.conf")
+debian_changelogs(
+    name = "installed_changelog",
+    control = "debian/control",
+    changelog = "debian/changelog",
+    package = "kdump-tools",
+    architecture = select({"@platforms//cpu:aarch64": "arm64", "//conditions:default": "amd64"}),
+    outs = ["installed-docs/changelog"],
+)
+genrule(name = 'changelog', srcs = [':installed_changelog'], outs = ["changelog.gz"], tools = ["@sonic_build_infra//tools/build_tools:pigz"], cmd = "$(execpath @sonic_build_infra//tools/build_tools:pigz) -n -9 -c $< > $@")
+genrule(name = 'man8', srcs = ['debian/kdump-config.8'], outs = ["man8.gz"], tools = ["@sonic_build_infra//tools/build_tools:pigz"], cmd = "$(execpath @sonic_build_infra//tools/build_tools:pigz) -n -9 -c $< > $@")
+genrule(name = 'man5gz', srcs = [':man5'], outs = ["man5gz.gz"], tools = ["@sonic_build_infra//tools/build_tools:pigz"], cmd = "$(execpath @sonic_build_infra//tools/build_tools:pigz) -n -9 -c $< > $@")
+tar(name = "kdump-tools.runtime", srcs = [':changelog', ':default_config', ':kdump_config', ':man5gz', ':man8', 'debian/copyright', 'debian/initramfs.hook', 'debian/initramfs.local-bottom', 'debian/kdump-tools.README.Debian', 'debian/kdump-tools.grub.default', 'debian/kdump-tools.init', 'debian/kdump-tools.kdump-tools-dump.service', 'debian/kdump-tools.service', 'debian/kdump-tools.udev', 'debian/kdump_mem_estimator', 'debian/kernel-postinst-generate-initrd', 'debian/kernel-postrm-delete-initrd', 'debian/sysctl.conf'], mtree = ['usr/sbin/kdump-config type=file uid=0 gid=0 mode=0755 time=0 content=$(location :kdump_config)', 'usr/share/kdump-tools/kdump-tools.conf type=file uid=0 gid=0 mode=0644 time=0 content=$(location :default_config)', 'usr/share/kdump-tools/kdump_mem_estimator type=file uid=0 gid=0 mode=0755 time=0 content=$(location debian/kdump_mem_estimator)', 'etc/kdump/sysctl.conf type=file uid=0 gid=0 mode=0644 time=0 content=$(location debian/sysctl.conf)', 'etc/kernel/postinst.d/kdump-tools type=file uid=0 gid=0 mode=0755 time=0 content=$(location debian/kernel-postinst-generate-initrd)', 'etc/kernel/postrm.d/kdump-tools type=file uid=0 gid=0 mode=0755 time=0 content=$(location debian/kernel-postrm-delete-initrd)', 'etc/default/grub.d/kdump-tools.cfg type=file uid=0 gid=0 mode=0644 time=0 content=$(location debian/kdump-tools.grub.default)', 'etc/init.d/kdump-tools type=file uid=0 gid=0 mode=0755 time=0 content=$(location debian/kdump-tools.init)', 'usr/lib/systemd/system/kdump-tools.service type=file uid=0 gid=0 mode=0644 time=0 content=$(location debian/kdump-tools.service)', 'usr/lib/systemd/system/kdump-tools-dump.service type=file uid=0 gid=0 mode=0644 time=0 content=$(location debian/kdump-tools.kdump-tools-dump.service)', 'usr/lib/udev/rules.d/50-kdump-tools.rules type=file uid=0 gid=0 mode=0644 time=0 content=$(location debian/kdump-tools.udev)', 'usr/share/initramfs-tools/hooks/kdump-tools type=file uid=0 gid=0 mode=0755 time=0 content=$(location debian/initramfs.hook)', 'usr/share/initramfs-tools/scripts/local-bottom/kdump-sysctl type=file uid=0 gid=0 mode=0755 time=0 content=$(location debian/initramfs.local-bottom)', 'usr/share/doc/kdump-tools/README.Debian type=file uid=0 gid=0 mode=0644 time=0 content=$(location debian/kdump-tools.README.Debian)', 'usr/share/doc/kdump-tools/copyright type=file uid=0 gid=0 mode=0644 time=0 content=$(location debian/copyright)', 'usr/share/doc/kdump-tools/changelog.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :changelog)', 'usr/share/man/man8/kdump-config.8.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :man8)', 'usr/share/man/man5/kdump-tools.5.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :man5gz)', 'var/lib/kdump type=dir uid=0 gid=0 mode=0755 time=0'])
+write_file(name = "substvars", out = "kdump-tools.substvars", content = ["dist:Depends=kexec-tools", ""])
+runtime_packages(name = "kdump-tools.runtime_metadata", debian_files = {"kdump-tools." + name: "debian/kdump-tools." + name for name in ["preinst", "postinst", "postrm", "config", "templates", "init", "service", "kdump-tools-dump.service", "udev"]} | {"kdump-tools.maintscript": "debian/kdump-tools.maintscript.default"} | {path[len("debian/"):]: path for path in glob(["debian/po/**"])}, control_file_helpers = [["dh_installinit"], ["dh_installsystemd", "kdump-tools.service"], ["dh_installsystemd", "--name=kdump-tools-dump", "--no-enable", "kdump-tools-dump.service"], ["dh_installudev", "--priority=50"], ["dh_installinitramfs"], ["dh_installdeb"]], substvars = {"kdump-tools": ":substvars"}, packages = {"kdump-tools": ":kdump-tools.runtime"}, control = "debian/control", changelog = "debian/changelog", required_paths = {"kdump-tools": ["usr/sbin/kdump-config", "etc/kernel/postinst.d/kdump-tools"]})
+
+_SHELLCHECK_INPUTS = glob(["debian/*", "debian/tests/*"])
+py_test(name = "shellcheck", srcs = ["bazel/run_shellcheck.py"], main = "bazel/run_shellcheck.py", python_version = "3.13", args = ["$(rootpath @sonic_build_infra//tools/build_tools:shellcheck)"] + ["$(rootpath " + path + ")" for path in _SHELLCHECK_INPUTS], data = _SHELLCHECK_INPUTS + ["@sonic_build_infra//tools/build_tools:shellcheck"])
+
+# Compatibility for existing buildimage consumers; canonical metadata is above.
+alias(name = "runtime_packages.json", actual = ":kdump-tools.runtime_metadata")
+
+source_package_controls(
+    name = "test_control",
+    metadata = ":kdump-tools.runtime_metadata",
+    package = "kdump-tools",
+    testonly = True,
+    visibility = ["//visibility:private"],
+)
+py_test(
+    name = "installation_test",
+    srcs = ["bazel/installation_test.py"],
+    main = "bazel/installation_test.py",
+    python_version = "3.13",
+    args = [
+        "--archive", "$(rootpath :kdump-tools.runtime)",
+        "--metadata", "$(rootpath :kdump-tools.runtime_metadata)",
+        "--control", "$(rootpath :test_control)",
+        "--source-control", "$(rootpath debian/control)",
+    ],
+    data = [":kdump-tools.runtime", ":kdump-tools.runtime_metadata", ":test_control"] + glob(["debian/**"]),
+    target_compatible_with = ["@platforms//cpu:x86_64", "@platforms//os:linux"],
+    size = "small",
+)
