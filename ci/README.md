@@ -1119,7 +1119,7 @@ including native-only infra 0.0.6 and SAI's 0.0.13, use a CI-local legacy C++
 adapter compatible with the selected `rules_cc`. Both declared platform parents
 remain inherited; the adapter's separate distribution constraint is additional.
 The adapter uses the native-to-ARM GCC14.2 compiler and Trixie sysroot from
-immutable `sonic-build-infra@0.0.25-34de7330abc72229dfc8dab88dec71b89c52aa88`.
+immutable `sonic-build-infra@0.0.37-316e298e77ab5cfa69af9b0c05ec24d5d94bbe1e`.
 The provider resolves separately and its JVM stops after preparation. Its
 dependencies do not enter the consumer graph. Compiler/sysroot files are declared
 action inputs, and the consumer's selected module versions must remain equal
