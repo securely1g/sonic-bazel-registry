@@ -44,6 +44,72 @@ class ConfiguredGateTests(FixtureTestCase):
             with self.assertRaises(registry_ci.RegistryError):
                 registry_ci.audit_non_deb_actions(graph)
 
+    def test_explicit_nonempty_output_evidence_required(self):
+        graphs = [
+            {'actions': [{'mnemonic': 'Genrule'}], 'pathFragments': [], 'artifacts': []},
+            {'actions': [{'mnemonic': 'Genrule', 'outputIds': [2]}],
+             'pathFragments': [], 'artifacts': [{'id': 2, 'pathFragmentId': 0}]},
+        ]
+        for field in ('actions', 'artifacts', 'pathFragments'):
+            for value in (None, [], {}, 'bad'):
+                graph = self.graph(); graph[field] = value; graphs.append(graph)
+        for value in (None, [], {}, '2', 2):
+            graph = self.graph(); graph['actions'][0]['outputIds'] = value; graphs.append(graph)
+        graph = self.graph(); del graph['actions'][0]['outputIds']; graphs.append(graph)
+        for graph in graphs:
+            with self.subTest(graph=graph), self.assertRaises(registry_ci.RegistryError):
+                registry_ci.audit_non_deb_actions(graph)
+
+    def test_positive_integer_ids_and_references_required(self):
+        for value in (0, None, False, True, -1, 1.0, '1', [], {}):
+            for table, field in (('pathFragments', 'id'), ('artifacts', 'id'),
+                                 ('artifacts', 'pathFragmentId')):
+                graph = self.graph(); graph[table][0][field] = value
+                with self.subTest(value=value, table=table, field=field), self.assertRaises(registry_ci.RegistryError):
+                    registry_ci.audit_non_deb_actions(graph)
+            graph = self.graph(); graph['actions'][0]['outputIds'] = [value]
+            with self.subTest(output=value), self.assertRaises(registry_ci.RegistryError):
+                registry_ci.audit_non_deb_actions(graph)
+        for field in ('pathFragments', 'artifacts'):
+            graph = self.graph(); graph[field].append(copy.deepcopy(graph[field][0]))
+            with self.assertRaises(registry_ci.RegistryError):
+                registry_ci.audit_non_deb_actions(graph)
+        graph = self.graph(); graph['actions'][0]['outputIds'] = [2, 2]
+        with self.assertRaises(registry_ci.RegistryError):
+            registry_ci.audit_non_deb_actions(graph)
+
+    def test_root_parent_zero_or_absent_and_valid_nested_paths(self):
+        for explicit in (False, True):
+            graph = self.graph()
+            if explicit:
+                graph['pathFragments'][0]['parentId'] = 0
+            self.assertEqual(registry_ci.audit_non_deb_actions(graph), 1)
+        graph = self.graph(); graph['pathFragments'][0]['parentId'] = 3
+        graph['pathFragments'].append({'id': 3, 'label': 'bazel-out', 'parentId': 0})
+        self.assertEqual(registry_ci.audit_non_deb_actions(graph), 1)
+        for value in (None, False, True, -1, 0.0, '0', 999):
+            bad = self.graph(); bad['pathFragments'][0]['parentId'] = value
+            with self.subTest(parent=value), self.assertRaises(registry_ci.RegistryError):
+                registry_ci.audit_non_deb_actions(bad)
+
+    def test_path_components_and_unreferenced_bad_chains_rejected(self):
+        for value in ('', '.', '..', '/absolute', 'nested/name', 'back\\\\slash', '\x00', None, False, 3):
+            graph = self.graph(); graph['pathFragments'][0]['label'] = value
+            with self.subTest(label=value), self.assertRaises(registry_ci.RegistryError):
+                registry_ci.audit_non_deb_actions(graph)
+        graph = self.graph(); graph['pathFragments'].append({'id': 3, 'label': 'unused', 'parentId': 999})
+        with self.assertRaises(registry_ci.RegistryError):
+            registry_ci.audit_non_deb_actions(graph)
+
+    def test_primary_output_consistency(self):
+        graph = self.graph(); graph['actions'][0]['primaryOutputId'] = 2
+        self.assertEqual(registry_ci.audit_non_deb_actions(graph), 1)
+        for value in (0, None, False, True, '2', 2.0, 999, 3):
+            bad = self.graph(); bad['artifacts'].append({'id': 3, 'pathFragmentId': 1})
+            bad['actions'][0]['primaryOutputId'] = value
+            with self.subTest(primary=value), self.assertRaises(registry_ci.RegistryError):
+                registry_ci.audit_non_deb_actions(bad)
+
     def gate(self, graph, fail=None):
         with tempfile.TemporaryDirectory() as tmp:
             work = Path(tmp); calls = []
@@ -67,6 +133,8 @@ class ConfiguredGateTests(FixtureTestCase):
             self.assertIn('--platforms=//:native', command)
             self.assertIn('--host_platform=//:native', command)
             self.assertTrue(any('"@owner//:Common++"' in arg and '"@owner//:test"' in arg for arg in command))
+        self.assertIn('--include_artifacts=true', calls[1])
+        self.assertNotIn('--include_artifacts=true', calls[0])
         self.assertEqual(result['actions'], 1)
         self.assertEqual(result['forbidden_producers'], [])
 

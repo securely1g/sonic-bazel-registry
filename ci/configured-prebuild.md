@@ -9,8 +9,14 @@ Bazel build, query the union of **all architecture-selected build and test
 labels**, using the same actual registry/target/host/tool flags. Retain cquery
 files and the transitive aquery JSON separately from stderr, plus commands and
 an audit receipt with graph hash. Each query has a1200-second timeout. Empty,
-malformed, incomplete-reference or failed query output cannot pass. Legal labels
-such as Common++ are quoted with JSON encoding.
+malformed, incomplete-reference or failed query output cannot pass. The aquery
+explicitly includes artifacts. Nonempty artifact/path tables and explicit
+nonempty action output lists are required before DEB classification. IDs and
+artifact path references must be positive integers (not bool/null/zero); only
+an absent or integer-zero *parent* terminates a root path. Path components must
+be nonempty, non-traversing components; missing references, cycles and duplicate
+IDs are rejected. A supplied primary output must belong to that action's
+outputs. Legal labels such as Common++ are quoted with JSON encoding.
 
 Reject any selected action output ending .deb/.udeb and DEB mnemonics except the
 existing import/extraction/runtime-metadata exceptions. Debian package imports

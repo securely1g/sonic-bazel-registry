@@ -1204,25 +1204,62 @@ def audit_non_deb_actions(data: dict) -> int:
     """Reject package-producing configured actions; imports/metadata are allowed."""
     require(isinstance(data, dict) and isinstance(data.get("actions"), list)
             and bool(data["actions"]), "Empty or invalid configured action graph")
+    def positive_id(value):
+        require(type(value) is int and value > 0, "Invalid positive action graph ID")
+        return value
+
     try:
-        fragments = {item["id"]: item for item in data["pathFragments"]}
-        require(len(fragments) == len(data["pathFragments"]), "Duplicate action path IDs")
+        require(isinstance(data.get("pathFragments"), list) and bool(data["pathFragments"])
+                and isinstance(data.get("artifacts"), list) and bool(data["artifacts"]),
+                "Missing action output artifact/path evidence")
+        fragments = {}
+        for item in data["pathFragments"]:
+            require(isinstance(item, dict), "Invalid action path fragment")
+            key = positive_id(item["id"])
+            require(key not in fragments, "Duplicate action path IDs")
+            label = item["label"]
+            require(isinstance(label, str) and bool(label) and label not in (".", "..")
+                    and "/" not in label and "\\" not in label and "\x00" not in label,
+                    "Invalid action output path component")
+            # Absent parent or integer zero terminates a root path. This is NOT
+            # a valid artifact path reference; bool/null are not terminators.
+            parent = item.get("parentId", 0)
+            require(type(parent) is int and parent >= 0, "Invalid action path parent ID")
+            fragments[key] = (label, parent)
+
         def path(key):
+            positive_id(key)
             parts, seen = [], set()
-            while key:
+            while key != 0:
                 require(key not in seen, "Cycle in action output path")
                 seen.add(key)
-                item = fragments[key]
-                require(isinstance(item["label"], str), "Invalid action output path")
-                parts.append(item["label"])
-                key = item.get("parentId")
-            return "/".join(reversed(parts))
-        artifacts = {item["id"]: path(item["pathFragmentId"]) for item in data["artifacts"]}
-        require(len(artifacts) == len(data["artifacts"]), "Duplicate artifact IDs")
+                label, key = fragments[key]
+                parts.append(label)
+            resolved = "/".join(reversed(parts))
+            require(bool(resolved), "Empty resolved action output path")
+            return resolved
+
+        # Validate even unreferenced fragments rather than silently accepting a
+        # partial malformed path table. Cache valid paths for the artifact map.
+        paths = {key: path(key) for key in fragments}
+        artifacts = {}
+        for item in data["artifacts"]:
+            require(isinstance(item, dict), "Invalid action artifact")
+            key = positive_id(item["id"])
+            require(key not in artifacts, "Duplicate artifact IDs")
+            artifacts[key] = paths[positive_id(item["pathFragmentId"])]
         for action in data["actions"]:
+            require(isinstance(action, dict), "Invalid action record")
             mnemonic = action["mnemonic"]
             require(isinstance(mnemonic, str) and mnemonic, "Missing action mnemonic")
-            outputs = [artifacts[key] for key in action.get("outputIds", [])]
+            output_ids = action["outputIds"]
+            require(isinstance(output_ids, list) and bool(output_ids), "Missing action output IDs")
+            output_ids = [positive_id(key) for key in output_ids]
+            require(len(set(output_ids)) == len(output_ids), "Duplicate action output IDs")
+            outputs = [artifacts[key] for key in output_ids]
+            if "primaryOutputId" in action:
+                require(positive_id(action["primaryOutputId"]) in output_ids,
+                        "Primary output is not in action outputs")
             require(not (any(name.endswith((".deb", ".udeb")) for name in outputs)
                          or ("deb" in mnemonic.lower()
                              and mnemonic not in ("ExtractDeb", "DebExtract", "DebianRuntimeMetadata"))),
@@ -1241,6 +1278,8 @@ def configured_non_deb_gate(config: dict, prefix: list[str], flags: list[str],
     for kind, expression, output in (("cquery", selection, "files"),
                                      ("aquery", "deps(" + selection + ")", "jsonproto")):
         command = [*prefix, kind, *flags, expression, "--output=" + output]
+        if kind == "aquery":
+            command.append("--include_artifacts=true")
         commands.append(command)
         (artifacts / "configured-prebuild-commands.json").write_text(json.dumps(commands, indent=2) + "\n")
         with (artifacts / ("prebuild-" + kind + ".out")).open("w") as stdout, \
