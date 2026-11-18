@@ -348,8 +348,9 @@ def validate_entry(root: Path, module: str, version: str) -> dict:
     require(required <= set(config) <= required | {
         "build_flags", "rust_preparation", "go_sdk", "rust_toolchain", "generated_module_overlay",
         "test_runtime_preparation", "integration_test_module", "host_platforms", "additional_targets",
+        "cache_audit_targets",
     }, f"presubmit.json requires {sorted(required)} and optionally "
-       "build_flags/rust_preparation/go_sdk/rust_toolchain/generated_module_overlay/test_runtime_preparation/integration_test_module/host_platforms/additional_targets")
+       "build_flags/rust_preparation/go_sdk/rust_toolchain/generated_module_overlay/test_runtime_preparation/integration_test_module/host_platforms/additional_targets/cache_audit_targets")
     if "test_runtime_preparation" in config:
         preparation = config["test_runtime_preparation"]
         require(isinstance(preparation, dict) and {"script", "sha256"} <= set(preparation)
@@ -382,6 +383,12 @@ def validate_entry(root: Path, module: str, version: str) -> dict:
         require(isinstance(host_platforms, dict) and set(host_platforms) == set(architectures)
                 and all(isinstance(label, str) and LABEL.fullmatch(label) for label in host_platforms.values()),
                 "host_platforms must map each architecture to an explicit external target")
+    if "cache_audit_targets" in config:
+        targets = config["cache_audit_targets"]
+        require(isinstance(targets, list) and bool(targets) and
+                all(isinstance(t, str) and re.fullmatch(r"@@[A-Za-z0-9+._-]+//[A-Za-z0-9_./+-]*:[A-Za-z0-9_./+-]+", t)
+                    for t in targets) and len(targets) == len(set(targets)),
+                "cache_audit_targets must be unique canonical Bazel target labels")
     aliases = {module}
     names = {module}
     require(isinstance(config["consumer_deps"], list), "consumer_deps must be a list")
@@ -1595,6 +1602,36 @@ def stage_consumer_source_patches(root: Path, module: str, version: str,
     return result
 
 
+@contextmanager
+def build_cache_audit(targets: list[str], work: Path, artifacts: Path):
+    """Publish only selected spawn outcomes and declared output digests."""
+    if not targets:
+        yield []
+        return
+    # The full execution log contains environment variables and command lines.
+    # Keep it outside the upload directory, including when Bazel or jq fails.
+    with tempfile.TemporaryDirectory(dir=work, prefix="cache-audit-") as temporary:
+        log = Path(temporary) / "execution.json"
+        yield [f"--execution_log_json_file={log}", "--noexecution_log_sort"]
+        # Bazel 8.5 writes adjacent pretty-printed SpawnExec objects. jq reads
+        # one at a time, and Bazel already computed all recorded file digests.
+        select_spawns = """
+            select(.targetLabel as $owner | $targets | index($owner))
+            | .listedOutputs as $outputs
+            | {targetLabel, mnemonic, runner, cacheHit, exitCode,
+               actionDigest: .digest.hash,
+               outputs: [.actualOutputs[] | select(.digest.hash)
+                         | select(.path as $path | $outputs | index($path))
+                         | {path, sha256: .digest.hash}]}
+        """
+        output = subprocess.check_output(["jq", "-c", "--argjson", "targets", json.dumps(targets),
+                                          select_spawns, str(log)], text=True)
+        records = [json.loads(line) for line in output.splitlines()]
+        observed = {record["targetLabel"] for record in records}
+        require(observed == set(targets), f"Missing cache audit targets: {sorted(set(targets) - observed)}")
+        (artifacts / "build-cache-audit.json").write_text(json.dumps(records, indent=2) + "\n")
+
+
 def cross_test_timeout_flags(module: str, version: str, cross_compile: bool, flags: list[str]) -> list[str]:
     """Supply emulation budgets for short, moderate, long and eternal tests."""
     if not cross_compile or any(flag == "--test_timeout" or flag.startswith("--test_timeout=") for flag in flags):
@@ -1789,8 +1826,10 @@ def run(root: Path, module: str, version: str, architecture: str,
                     raise RegistryError(str(error)) from error
                 shutil.copy2(consumer / "MODULE.bazel", artifacts / "consumer.MODULE.bazel")
             flags.extend(prepare_rust(config, consumer, work_dir, artifacts, prefix, flags))
-            run_logged([*prefix, "build", *flags, f"--build_event_json_file={artifacts / 'build-events.jsonl'}",
-                        *build_targets], consumer, artifacts / "build.log")
+            with build_cache_audit(config.get("cache_audit_targets", []), work_dir, artifacts) as audit_flags:
+                run_logged([*prefix, "build", *flags, *audit_flags,
+                            f"--build_event_json_file={artifacts / 'build-events.jsonl'}", *build_targets],
+                           consumer, artifacts / "build.log")
             declared_trees = query_output_trees(prefix, flags, build_targets, consumer, artifacts)
             # Path queries need dependency resolution, but not target/host platform
             # flags whose apparent labels may be unresolved in a fresh info command.

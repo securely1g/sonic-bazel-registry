@@ -31,5 +31,10 @@
   "host_platforms": {
     "amd64": "@sonic-build-infra//platforms:x86_64_trixie",
     "arm64": "@sonic-build-infra//platforms:aarch64_trixie"
-  }
+  },
+  "cache_audit_targets": [
+    "@@p4c++_repo_rules+p4c_source//:codegen_build",
+    "@@p4c++_repo_rules+p4c_source//:build",
+    "@@p4c++_repo_rules+p4c_source//:bm2_ss_tool_build"
+  ]
 }
