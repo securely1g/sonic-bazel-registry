@@ -1,0 +1,12 @@
+diff --git a/debian/rules b/debian/rules
+--- a/debian/rules
++++ b/debian/rules
+@@ -4,6 +4,8 @@
+ export DEB_BUILD_MAINT_OPTIONS := hardening=+all
+ include /usr/share/dpkg/architecture.mk
+ include /usr/share/dpkg/buildtools.mk
++DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
++DEB_BUILD_ARCH_OS  ?= $(shell dpkg-architecture -qDEB_BUILD_ARCH_OS)
+ 
+ LIB_VERSION = 40
+ 

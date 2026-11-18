@@ -1,0 +1,14 @@
+diff --git a/debian/rules b/debian/rules
+--- a/debian/rules
++++ b/debian/rules
+@@ -36,10 +36,6 @@
+ 
+ %:
+ 	dh $@
+-
+-# The net-snmp Makefiles cannot handle parallel builds
+-override_dh_auto_build:
+-	dh_auto_build --no-parallel
+ 
+ override_dh_auto_configure:
+ 	dh_auto_configure -- --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man \
