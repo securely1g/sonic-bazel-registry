@@ -1,0 +1,19 @@
+From: Guohan Lu <securely1g@gmail.com>
+Subject: [PATCH] Register the sonic-fips source commit
+
+Align the source module identity with this commit-qualified registration.
+Dependency updates are owned by the source commit.
+
+Source commit: 9abc81282153fd9844c24e4a8372a4240e7106a1
+Scope: downstream registry integration; not an upstream bug fix.
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-fips",
+-    version = "0.0.7",
++    version = "0.0.7-9abc81282153fd9844c24e4a8372a4240e7106a1",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
