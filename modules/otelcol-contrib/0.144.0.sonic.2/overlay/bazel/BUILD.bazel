@@ -1,0 +1,26 @@
+load("@rules_python//python:py_test.bzl", "py_test")
+
+exports_files([
+    "collector_deps.bzl",
+    "ocb_deps.bzl",
+    "golden_deps.bzl",
+])
+
+exports_files([
+    "release.control",
+    "source_contract_test.py",
+    "package_test.py",
+])
+
+exports_files(["0001-googlecloudspannerreceiver-embedded-metadata.patch"])
+
+py_test(
+    name = "components_output_test",
+    srcs = [
+        "components_output_test.py",
+        "package_test.py",
+    ],
+    args = ["$(location //bazel/testdata:release-components.txt)"],
+    data = ["//bazel/testdata:release-components.txt"],
+    visibility = ["//:__pkg__"],
+)
