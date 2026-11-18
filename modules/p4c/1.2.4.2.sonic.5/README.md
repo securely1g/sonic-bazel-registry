@@ -117,3 +117,8 @@ the packaged compiler. The runtime and debug TARs still contain the full suite.
 The generator, packaged compiler, and standalone BMv2 compiler declare no
 C/C++ header output. Their staged installation trees omit the former empty
 `include/` placeholder so the registry runners can restore cached builds.
+
+The two generator binaries use paths relative to the Bazel execution root and
+rely on their launchers for runtime libraries. The package test checks the
+actual execution-platform binaries for embedded execution roots and ELF
+RPATH/RUNPATH entries on both target architectures.

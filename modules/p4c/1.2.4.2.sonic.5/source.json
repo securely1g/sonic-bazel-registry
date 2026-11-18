@@ -27,6 +27,7 @@
   "patch_strip": 1,
   "patches": {
     "0001-build-only-the-bmv2-compiler-for-dash.patch": "sha256-0gkx+2vzkQPMHRi3OWut7WtkmqwpJiO+8HCbohPnDrE=",
-    "0002-omit-unused-include-output-trees.patch": "sha256-tSrpWYuLHzgs5bZIAZZ9ydTGGQcZImWx2QfTHOY0RXc="
+    "0002-omit-unused-include-output-trees.patch": "sha256-tSrpWYuLHzgs5bZIAZZ9ydTGGQcZImWx2QfTHOY0RXc=",
+    "0003-build-reproducible-host-generators.patch": "sha256-6jPir8RHdI1lLPvVm20V1PeVFIeCKJaCVhNSpgZ7twY="
   }
 }
