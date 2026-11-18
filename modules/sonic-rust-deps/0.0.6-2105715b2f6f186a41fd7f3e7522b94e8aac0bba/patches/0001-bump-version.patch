@@ -1,0 +1,19 @@
+From: Guohan Lu <securely1g@gmail.com>
+Subject: [PATCH] Register the sonic-rust-deps source commit
+
+Align the source module identity with this commit-qualified registration.
+Dependency updates are owned by the source commit.
+
+Source commit: 2105715b2f6f186a41fd7f3e7522b94e8aac0bba
+Scope: downstream registry integration; not an upstream bug fix.
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-rust-deps",
+-    version = "0.0.6",
++    version = "0.0.6-2105715b2f6f186a41fd7f3e7522b94e8aac0bba",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
