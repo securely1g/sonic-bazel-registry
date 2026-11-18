@@ -1,0 +1,27 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.38-0baa4acc9eac9ccc793b81104b1580d530271cbe",
+      "repo_name": "sonic_build_infra"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
+  },
+  "build_targets": [
+    "@sonic-yang-mgmt//:sonic_yang_mgmt_sources",
+    "@sonic-yang-mgmt//:sonic_yang_mgmt_runtime_test",
+    "@sonic-yang-mgmt//:sonic_yang_mgmt_wheel",
+    "@sonic-yang-mgmt//:sonic-yang-mgmt.runtime",
+    "@sonic-yang-mgmt//:requirements_lock.txt"
+  ],
+  "test_targets": [
+    "@sonic-yang-mgmt//:sonic_yang_mgmt_runtime_test"
+  ]
+}
