@@ -419,6 +419,12 @@ The initial validator supports HTTPS source archives with integrity hashes and
 optional patches and overlays. Other registry source types need explicit runner
 support before onboarding.
 
+For per-action remote cache evidence, an entry can set `cache_audit_targets`
+to canonical labels of actions' owning targets. A fresh validation records each
+matching spawn's runner, cache-hit flag, action digest when available, and
+declared file output hashes in `build-cache-audit.json`. The full execution log
+stays in temporary storage and is deleted after the primary build.
+
 The configuration declares:
 
 - `architectures`: target architectures to validate, currently `amd64` and/or
