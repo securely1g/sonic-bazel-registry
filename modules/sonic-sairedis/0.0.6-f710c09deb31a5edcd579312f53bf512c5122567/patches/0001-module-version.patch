@@ -1,0 +1,29 @@
+From: Guohan Lu <securely1g@gmail.com>
+Subject: [PATCH] Register the sonic-sairedis source commit
+
+Align the source module identity with this commit-qualified registration.
+Dependency updates are owned by the source commit.
+Retain the published explicit reproducible gzip toolchain registration.
+
+Source commit: f710c09deb31a5edcd579312f53bf512c5122567
+Scope: downstream registry integration; not an upstream bug fix.
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,7 +1,7 @@
+ # Keep bazel_compatibility in sync with sonic-buildimage's .bazelversion.
+ module(
+     name = "sonic-sairedis",
+-    version = "0.0.6",
++    version = "0.0.6-f710c09deb31a5edcd579312f53bf512c5122567",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
+@@ -41,6 +41,7 @@
+ use_repo(gcc, "gcc_toolchains")
+ 
+ register_toolchains("@gcc_toolchains//:all")
++register_toolchains("@sonic_build_infra//tools/gzip:toolchain")
+ 
+ # Native libraries and headers use the shared, pinned Trixie dependency set.
+ apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
