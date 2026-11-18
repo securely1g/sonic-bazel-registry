@@ -1,0 +1,41 @@
+load("@rules_python//python:py_test.bzl", "py_test")
+load("@sonic_build_infra//python:site_packages.bzl", "site_packages")
+package(default_visibility = ["//visibility:public"])
+exports_files(["MODULE.bazel", "PKG-INFO", "README.rst", "www_authenticate.py"])
+site_packages(
+    name = "www-authenticate.runtime",
+    distribution = "www-authenticate", version = "0.9.2",
+    files = {'www_authenticate.py': 'www_authenticate.py'},
+    summary = 'Parser for WWW-Authenticate headers.',
+    author = 'Alexander Dutton',
+    author_email = 'www-authenticate-lib@alexdutton.co.uk',
+    homepage = 'https://github.com/alexsdutton/www-authenticate',
+    license = 'BSD',
+    description_file = 'README.rst',
+    regular_file_mode = "0644",
+    python_tag = "py3",
+    site_packages = "/usr/local/lib/python3.13/dist-packages",
+    scripts = "/usr/local/bin", headers = "/usr/local/include",
+    data_prefix = "/usr/local", interpreter = "/usr/bin/python3",
+)
+
+filegroup(
+    name = "www-authenticate.runtime_metadata",
+    srcs = [":www-authenticate.runtime"],
+    output_group = "metadata",
+)
+
+py_test(
+    name = "installed_test",
+    srcs = ["tests/installed_test.py"],
+    main = "tests/installed_test.py",
+    args = [
+        "$(rootpath :www-authenticate.runtime)",
+        "$(rootpath :www-authenticate.runtime_metadata)",
+        "$(rootpath PKG-INFO)",
+        "$(rootpath README.rst)",
+        "$(rootpath www_authenticate.py)",
+    ],
+    data = [":www-authenticate.runtime", ":www-authenticate.runtime_metadata", "PKG-INFO", "README.rst", "www_authenticate.py"],
+    python_version = "3.13",
+)
