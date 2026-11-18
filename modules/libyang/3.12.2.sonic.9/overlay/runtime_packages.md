@@ -16,3 +16,8 @@ module/target identity and carries the payload binding to image validation.
 This metadata interface supports Trixie AMD64 and ARM64. Image assembly owns
 accounts, services, caches and configuration. Runtime and tool TAR targets also
 support their declared Bookworm platforms.
+
+The original Debian `dh_makeshlibs` / `dh_installdeb` sequence supplies the
+library's generated shlibs, symbols, ldconfig trigger and binary control files.
+The existing metadata test projects that authoritative control tree and checks
+its recipe identity and original helper effects as well as the OCI payload binding.

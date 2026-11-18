@@ -13,7 +13,8 @@ from sonic_oci.paths import expand_required_paths
 
 def main():
     metadata, runtime, module, control, changelog = map(Path, sys.argv[1:6])
-    architecture = sys.argv[6]
+    control_archive = Path(sys.argv[6])
+    architecture = sys.argv[7]
     document = json.loads(metadata.read_text())
     assert document['architecture'] == architecture
     package = document['packages']['libyang3']
@@ -28,6 +29,19 @@ def main():
     assert '${' not in json.dumps(fields)
     payload_sha = hashlib.sha256(runtime.read_bytes()).hexdigest()
     assert package['payload_sha256'] == payload_sha
+
+    # Debian's original dh sequence emits actual binary control effects.
+    with tarfile.open(control_archive, 'r:') as archive:
+        controls = {entry.name.removeprefix('./'): archive.extractfile(entry).read()
+                    for entry in archive if entry.isfile()}
+    installed_control = Deb822(controls['control'].decode().splitlines())
+    assert installed_control['Package'] == recipe['Package']
+    assert installed_control['Version'] == version
+    assert installed_control['Architecture'] == architecture
+    assert '${' not in controls['control'].decode()
+    assert b'activate-noawait ldconfig' in controls['triggers']
+    assert b'libyang 3 libyang3 ' in controls['shlibs']
+    assert controls['symbols'].startswith(b'libyang.so.3 libyang3 ')
 
     # The image need not duplicate the library path already owned by libyang.
     policy = {'schema': 1, 'packages': {}}

@@ -1,4 +1,5 @@
 load(":prepared_test_runtime.bzl", "prepared_test_runtime")
+load("@sonic_build_infra//oci:source_controls.bzl", "source_package_controls")
 load("@sonic_build_infra//binary:strip_binary.bzl", "strip_binary")
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("@sonic_build_infra//cc:runtime_test.bzl", "native_runtime_binary")
@@ -427,6 +428,7 @@ _OCI_COMPATIBLE_WITH = select({
 
 runtime_packages(
     name = "runtime_packages.json",
+    control_file_helpers = [["dh_makeshlibs"], ["dh_installdeb"]],
     control = "@libyang_debian//:control",
     changelog = "@libyang_debian//:changelog",
     packages = {"libyang3": ":libyang_pkg"},
@@ -435,6 +437,14 @@ runtime_packages(
         ":sys_libxxhash0_data": ":sys_libxxhash0_control",
     },
     required_paths = {"libyang3": ["usr/lib/{multiarch}/libyang.so.3"]},
+    target_compatible_with = _OCI_COMPATIBLE_WITH,
+)
+
+source_package_controls(
+    name = "runtime_test_control",
+    metadata = ":runtime_packages.json",
+    package = "libyang3",
+    testonly = True,
     target_compatible_with = _OCI_COMPATIBLE_WITH,
 )
 
@@ -459,6 +469,7 @@ exec_test(
         "MODULE.bazel",
         "@libyang_debian//:control",
         "@libyang_debian//:changelog",
+        ":runtime_test_control",
     ],
     checker_args = select({":arm64": ["arm64"], "//conditions:default": ["amd64"]}),
     target_compatible_with = _OCI_COMPATIBLE_WITH,

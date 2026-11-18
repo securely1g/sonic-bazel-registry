@@ -1,22 +1,26 @@
-# libyang 3.12.2.sonic.7
+# libyang 3.12.2.sonic.8
 
-Cross-build the same seven build targets and five test targets as .6 for
-AArch64 on the AMD64 Trixie runner. The original Tcl/Expect suite repeatedly
-spawns yanglint and yangre with a five-second startup deadline. Prepare their
-declared target dependencies before entering the suite and run the ARM binaries
-for every invocation. The upstream assertions and timeouts still apply.
+This entry preserves the published `.sonic.7` upstream 3.12.2 archive, SONiC patch, native C targets, prepared CLI runtimes, original test selection and five-second interactive deadlines. It adds the original Debian `dh_makeshlibs` and `dh_installdeb` effects to runtime package metadata. The projected control TAR contains the generated shlibs, symbols and ldconfig trigger; the existing metadata test verifies these files and their package identity.
 
-The upstream driver waits for the Tcl process to exit before closing the
-controlling PTY. Tcl child interpreters use the same declared tclsh launcher
-as their parent. These changes and the build-time runtime preparation come
-from [the .7 candidate in PR #282](https://github.com/securely1g/sonic-bazel-registry/pull/282).
-The consumer pins the published build-infra .28-9965823, Distroless .18 and
-tar.bzl .2. The shared Trixie and Bookworm APT lock provides the dependencies.
+The recipe selects published `sonic-build-infra@0.0.37-d31541a95fdf477302f1b109f2105eee81c86617` and `rules_distroless@0.9.4.sonic.21`. It retains the original fixed APT package identities, source archive, patch and build flags. Published `.sonic.7` inputs remain unchanged; `.sonic.8` is a new packaging revision under the registry's publication policy.
 
-### Prepared CLI test runtimes
+## Interfaces
 
-The `test_yanglint` and `test_yangre` wrappers prepare their runtime closure once as declared native build actions. They call the selected infra runtime validator with the explicit target CPU, original target binary/runfiles and original payloads. The existing instrumentation boundary captures the already-validated loader, libraries and debug files into a declared runtime tree; it never executes a target during preparation. Target ELF, payload architecture, SONAME, debug-link and transitive RPATH checks still run. A relocatable manifest records the validator and target hashes plus every captured runtime file.
+The seven public build targets remain `:libyang_pkg`, `:libyang_pkg.debug_symbols`, `:tools_pkg`, `:tools_pkg.debug_symbols`, `:runtime_packages.json`, `:upstream_test_binaries` and `:development_pkg`. Image consumers use the runtime TAR and producer metadata; matching debug outputs remain separate.
 
-Each test invocation still executes the genuine target loader and original binary. Its original binary path/runfiles, working directory, arguments and caller environment are preserved, with the same three loader environment variables removed. A small statically linked execution-platform path resolver preserves the original binary symlink/RPATH semantics without starting Python or consuming its startup environment. This removes repeated archive/ELF preparation from the original five-second interactive startup deadline. Other runtime wrappers and arbitrary Python tests are unchanged. The full seven-build/five-test native and cross contracts remain the acceptance gate.
+The five presubmit tests remain `:libyang_test`, `:libyang_package_test`, `:upstream_check`, `:runtime_metadata_test` and `:libyang_installed_test`. AMD64 and ARM64 retain their declared Trixie platform routes. Prepared runtime wrappers execute the genuine target loader and binaries; original source, Tcl subprocess behavior, PTY exit handling, cases and assertions remain intact.
 
-`tests/prepared_runtime_test.py` exercises capture architecture/command guards and a clearly labelled launcher surrogate for cwd/argument/environment preservation; it does not substitute for real target execution.
+## Validation
+
+A fresh AMD64 registry consumer with no source overrides passed all seven build targets and five uncached tests, exit 0 in 318.702 seconds. All 63 original upstream execution records passed. The fetched MODULE and every overlay matched the declared recipe, and 71 output files were hashed. The host was Ubuntu; the compiler, sysroot and runtime closure were declared Trixie inputs. Hosted ARM64 validation remains separate. Logs, XML, upstream results and hashes were retained before `bazel clean`.
+
+From the registry root:
+
+```sh
+python3 ci/registry_ci.py run \
+  --module libyang --version 3.12.2.sonic.8 --architecture amd64 \
+  --work-dir /tmp/registry-ci-libyang-amd64 \
+  --artifacts /tmp/registry-ci-libyang-amd64-artifacts
+```
+
+The retained standalone PTY, Tcl interpreter and prepared-runtime regressions under `tests/` supplement the real upstream execution tests; they do not replace them.
