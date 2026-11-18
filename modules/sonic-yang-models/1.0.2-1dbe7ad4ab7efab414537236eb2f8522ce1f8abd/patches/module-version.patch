@@ -1,0 +1,19 @@
+From: Guohan Lu <securely1g@gmail.com>
+Subject: [PATCH] Register the sonic-yang-models source commit
+
+Align the source module identity with this commit-qualified registration.
+Dependency updates are owned by the source commit.
+
+Source commit: 1dbe7ad4ab7efab414537236eb2f8522ce1f8abd
+Scope: downstream registry integration; not an upstream bug fix.
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-yang-models",
+-    version = "1.0.2",
++    version = "1.0.2-1dbe7ad4ab7efab414537236eb2f8522ce1f8abd",
+ )
+ 
+ bazel_dep(name = "rules_python", version = "1.9.0.sonic.1")
