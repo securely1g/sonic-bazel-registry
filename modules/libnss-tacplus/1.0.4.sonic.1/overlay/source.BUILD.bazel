@@ -1,0 +1,51 @@
+load("@libnss-tacplus//:source_includes.bzl", "private_includes")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(glob(["**"]))
+
+cc_library(
+    name = "code",
+    srcs = ["nss_tacplus.c"],
+    hdrs = ["nss_tacplus.h"],
+    copts = [
+        "-DHAVE_CONFIG_H",
+        "-g",
+        "-O2",
+        "-Wall",
+        "-Werror",
+        "-Wdate-time",
+        "-U_FORTIFY_SOURCE",
+        "-D_FORTIFY_SOURCE=2",
+        "-fstack-protector-strong",
+        "-fstack-clash-protection",
+        "-fcf-protection",
+        "-Wformat",
+        "-Werror=format-security",
+    ] + private_includes(),
+    features = [
+        "-rules_go_unsupported_feature",
+        "-opt",
+        "-strip_debug_symbols",
+    ],
+    deps = [
+        "@libnss-tacplus//:config_headers",
+        "@pam-tacplus//:libtac",
+    ],
+)
+
+cc_shared_library(
+    name = "module",
+    dynamic_deps = ["@pam-tacplus//:libtac_shared"],
+    features = ["-strip_debug_symbols"],
+    shared_lib_name = "libnss_tacplus.so.2",
+    user_link_flags = [
+        "-g",
+        "-Wl,-soname,libnss_tacplus.so.2",
+        "-Wl,-z,relro",
+        "-Wl,-z,now",
+    ],
+    deps = [":code"],
+)
