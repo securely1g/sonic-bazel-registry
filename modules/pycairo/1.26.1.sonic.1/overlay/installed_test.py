@@ -12,6 +12,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import xml.etree.ElementTree as ET
 
 
 def child():
@@ -119,8 +120,15 @@ def main():
         (tests / "cmod.so").symlink_to(args.cmod.absolute())
         # Test tools are pure-Python wheels from the declared hash lock.
         pip_paths = [p for p in sys.path if "site-packages" in p and Path(p).is_dir()]
-        env = {k: v for k, v in os.environ.items() if not k.startswith("LD_")}
-        env.update(PYTHONDONTWRITEBYTECODE="1", PYTHONHOME=str(runtime / "usr"), PYTHONPATH=os.pathsep.join([str(installed), str(scratch)] + pip_paths), PYTHONNOUSERSITE="1", PYCAIRO_INSTALLED=str(installed), PYCAIRO_SOURCE=str(source), PYCAIRO_APT_RUNTIME=str(runtime), PYCAIRO_CMOD=str(args.cmod.absolute()), PYCAIRO_METADATA=str(args.metadata.absolute()), PATH="", HOME=str(scratch), XDG_CACHE_HOME=str(scratch / "cache"), HYPOTHESIS_STORAGE_DIRECTORY=str(scratch / "hypothesis"), FONTCONFIG_PATH=str(runtime / "etc/fonts"), FONTCONFIG_FILE=str(runtime / "etc/fonts/fonts.conf"), FONTCONFIG_SYSROOT=str(runtime))
+        # Match the declared build-tools runtime's font isolation: use only
+        # its fonts and a writable test-local cache, without host config paths.
+        fontconfig = ET.Element("fontconfig")
+        ET.SubElement(fontconfig, "dir").text = str(runtime / "usr/share/fonts")
+        ET.SubElement(fontconfig, "cachedir").text = str(scratch / "font-cache")
+        fontconfig_file = scratch / "fonts.conf"
+        ET.ElementTree(fontconfig).write(fontconfig_file, encoding="utf-8", xml_declaration=True)
+        env = {k: v for k, v in os.environ.items() if not k.startswith("LD_") and k != "FONTCONFIG_SYSROOT"}
+        env.update(PYTHONDONTWRITEBYTECODE="1", PYTHONHOME=str(runtime / "usr"), PYTHONPATH=os.pathsep.join([str(installed), str(scratch)] + pip_paths), PYTHONNOUSERSITE="1", PYCAIRO_INSTALLED=str(installed), PYCAIRO_SOURCE=str(source), PYCAIRO_APT_RUNTIME=str(runtime), PYCAIRO_CMOD=str(args.cmod.absolute()), PYCAIRO_METADATA=str(args.metadata.absolute()), PATH="", HOME=str(scratch), XDG_CACHE_HOME=str(scratch / "cache"), HYPOTHESIS_STORAGE_DIRECTORY=str(scratch / "hypothesis"), FONTCONFIG_PATH=str(scratch), FONTCONFIG_FILE=str(fontconfig_file))
         env.setdefault("XML_OUTPUT_FILE", str(output / "pytest.xml"))
         cmd = [str(runtime / "bin/python3"), str(Path(__file__).absolute()), "--child"]
         startup = subprocess.run([str(runtime / "bin/python3"), "--version"], cwd=scratch, env=env)
