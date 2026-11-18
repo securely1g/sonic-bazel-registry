@@ -11,9 +11,9 @@ context without claiming ownership of a synthetic static archive. The existing
 ownership checks still apply to static libraries and contracts carrying linker
 inputs or flags.
 
-# SDK21: complete multi-file Tar tools for APT exports
+## Inherited multi-file Tar support for APT exports
 
-This successor preserves the published SDK20 archive, all 52 patches and every overlay. Patch 0053 adds the selected Tar toolchain default.files to the existing APT Unpack action; patch 0054 aligns the module version. No other production behavior changes.
+Revision .21 added the selected Tar toolchain’s `default.files` to the APT Unpack action in patch 0053. Revision .22 retains that fix and its regression test.
 
 The independent integration consumer adds one real multi-file executable test: a launcher requires a companion TreeArtifact and invokes declared real BSDtar. It extracts a deterministic raw payload, independently checked for exact bytes and observable read/execute permission bits. The original eight build labels and 48 tests remain on both native architectures.
 
@@ -117,7 +117,7 @@ Run the original cross-package script regression from the registry root:
 
 ```sh
 USE_BAZEL_VERSION=8.5.1 python3 \
-  modules/rules_distroless/0.9.4.sonic.20/tests/shared_linker_script_test.py \
+  modules/rules_distroless/0.9.4.sonic.22/tests/shared_linker_script_test.py \
   --registry .
 ```
 
@@ -142,7 +142,7 @@ Rust executables consume the adapter's actual CcInfo flags and files.
 
 ```sh
 USE_BAZEL_VERSION=8.5.1 python3 \
-  modules/rules_distroless/0.9.4.sonic.20/tests/library_contract_test.py \
+  modules/rules_distroless/0.9.4.sonic.22/tests/library_contract_test.py \
   --registry . --adapter /path/to/sonic-build-infra/cc/shared_library.bzl \
   --go /path/to/go --rustc /path/to/rustc
 ```
