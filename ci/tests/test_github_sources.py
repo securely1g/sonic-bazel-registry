@@ -395,6 +395,81 @@ class PreparationTest(Fixture):
                 GITHUB.prepare(self.manifest, self.distdir, self.cache, receipt)
 
 
+class RangeZipTest(Fixture):
+    delivery = "https://release-assets.githubusercontent.com/asset?signature=test-only"
+
+    def setUp(self):
+        super().setUp()
+        self.source, self.data = zipped(
+            [("bin/tool", b"tool bytes"), ("padding", b"x" * (5 * 1024 * 1024)),
+             ("bin/helper", b"helper bytes")], zipfile.ZIP_STORED)
+        self.source["files"].pop(1)
+        self.write_manifest(self.source)
+        self.ranges = []
+
+    def respond(self, request, timeout):
+        self.assertEqual(request.full_url, self.delivery if self.ranges else URL)
+        self.assertEqual(request.get_header("If-range"), '"stable"' if self.ranges else None)
+        span = request.get_header("Range").removeprefix("bytes=")
+        first, last = map(int, span.split("-"))
+        self.assertNotIn((first, last), self.ranges)
+        self.ranges.append((first, last))
+        response = FakeResponse(self.data[first:last + 1], status=206, url=self.delivery)
+        response.headers = {"Content-Range": f"bytes {first}-{last}/{len(self.data)}", "ETag": '"stable"'}
+        return response
+
+    def test_cold_zip_skips_unselected_payload_and_reuses_verified_members(self):
+        with mock.patch.object(GITHUB, "build_opener") as opener:
+            opener.return_value.open.side_effect = self.respond
+            receipt = self.prepare()
+            self.assertEqual({f["source"] for f in receipt["files"]}, {"github"})
+            self.assertEqual((self.distdir / "tool").read_bytes(), b"tool bytes")
+            self.assertEqual((self.distdir / "helper").read_bytes(), b"helper bytes")
+            self.assertLess(sum(last - first + 1 for first, last in self.ranges), len(self.data) // 4)
+            self.distdir = self.root / "second-distdir"
+            opener.return_value.open.side_effect = AssertionError("unexpected download")
+            receipt = self.prepare()
+            self.assertEqual({f["source"] for f in receipt["files"]}, {"member-cache"})
+
+    def test_range_ignored_reuses_first_full_response(self):
+        with mock.patch.object(GITHUB, "build_opener") as opener:
+            opener.return_value.open.return_value = FakeResponse(self.data, url=self.delivery)
+            self.prepare()
+            opener.return_value.open.assert_called_once()
+        self.assertEqual(next(self.cache.glob("*.asset")).read_bytes(), self.data)
+
+    def test_wrong_range_changed_asset_and_corrupt_member_reject_whole_set(self):
+        for fault in ("coordinates", "changed", "length", "sha256"):
+            with self.subTest(fault=fault), mock.patch.object(GITHUB, "build_opener") as opener:
+                self.ranges = []
+                def respond(request, timeout):
+                    response = self.respond(request, timeout)
+                    if fault == "coordinates":
+                        response.headers["Content-Range"] = "bytes 0-100/200"
+                    elif fault == "changed" and len(self.ranges) == 2:
+                        response.headers["ETag"] = '"changed"'
+                    elif fault == "length":
+                        response.truncate(4)
+                    return response
+                opener.return_value.open.side_effect = respond
+                source = copy.deepcopy(self.source)
+                if fault == "sha256":
+                    source["files"][-1]["sha256"] = "a" * 64
+                self.write_manifest(source)
+                with self.assertRaises(GITHUB.SourceError):
+                    self.prepare()
+                self.assertFalse(self.distdir.exists())
+                self.assertFalse(self.receipt.exists())
+
+    def test_large_zip_with_whole_digest_uses_full_transfer(self):
+        self.write_manifest({**self.source, "sha256": sha(self.data)})
+        with mock.patch.object(GITHUB, "build_opener") as opener:
+            opener.return_value.open.return_value = FakeResponse(self.data)
+            self.prepare()
+            opener.return_value.open.assert_called_once()
+            self.assertIsNone(opener.return_value.open.call_args.args[0].get_header("Range"))
+
+
 class ArchiveTest(Fixture):
     def verify(self, source, data):
         path = self.root / "asset"
