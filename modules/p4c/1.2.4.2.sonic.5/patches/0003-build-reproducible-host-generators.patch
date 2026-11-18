@@ -13,7 +13,7 @@ diff --git a/bazel/p4c.BUILD.bazel b/bazel/p4c.BUILD.bazel
  cmake(
      name = "codegen_build",
 +    # The wrappers supply runtime libraries from their declared runfiles.
-+    # A build-directory RUNPATH would leak the sandbox into these tools.
++    # Skip install RPATH padding too: the raw build ELF is staged as-is.
      build_args = ["-j2"],
      build_data = [
          ":python",
@@ -21,7 +21,7 @@ diff --git a/bazel/p4c.BUILD.bazel b/bazel/p4c.BUILD.bazel
          "@sonic_build_infra//tools/build_tools:bison",
      ],
      cache_entries = {
-+        "CMAKE_SKIP_BUILD_RPATH": "ON",
++        "CMAKE_SKIP_RPATH": "ON",
          "CCACHE_PROGRAM": "OFF",
          "BUILD_LINK_WITH_GOLD": "OFF",
          "BUILD_LINK_WITH_LLD": "OFF",
