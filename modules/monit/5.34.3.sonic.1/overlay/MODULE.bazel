@@ -1,0 +1,45 @@
+# AUTO-GENERATED. DO NOT EDIT MANUALLY.
+# Source: ../MODULE.bazel
+# Generator: python3 ci/registry_ci.py sync-module --module monit --version 5.34.3.sonic.1
+
+module(
+    name = "monit",
+    version = "5.34.3.sonic.1",
+)
+
+bazel_dep(name = "bazel_skylib", version = "1.9.2")
+bazel_dep(name = "rules_cc", version = "0.2.20")
+bazel_dep(name = "rules_python", version = "1.9.0.sonic.1")
+bazel_dep(name = "platforms", version = "1.0.0")
+bazel_dep(name = "tar.bzl", version = "0.10.5.sonic.2")
+bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.21")
+bazel_dep(name = "sonic-build-infra", version = "0.0.37-d31541a95fdf477302f1b109f2105eee81c86617", repo_name = "sonic_build_infra")
+
+apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
+apt.import_lock(lock = "@sonic_build_infra//apt:apt.lock.json")
+use_repo(apt, "monit_build_debian")
+
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+http_archive(
+    name = "monit_debian",
+    build_file = "//:debian.BUILD.bazel",
+    sha256 = "2f314b1774c4e2351c71fb05ab988cece0cad458dab7a1bf236cc82ddbf97cda",
+    urls = ["https://deb.debian.org/debian/pool/main/m/monit/monit_5.34.3-1.debian.tar.xz"],
+)
+
+http_archive(
+    name = "monit_src",
+    build_file = "//:source.BUILD.bazel",
+    patch_args = ["-p1"],
+    patches = [
+        "//:patch/0002-change_monit_alert_log_error.patch",
+        "@monit_debian//:debian/patches/010_monitrc.patch",
+        "@monit_debian//:debian/patches/020_enable-hurd.patch",
+        "@monit_debian//:debian/patches/030_fix-warnings.patch",
+        "@monit_debian//:debian/patches/040_hardening-monit.service.patch",
+    ],
+    sha256 = "669d8b95ddec124d1444ba5264f67fdeae8e90e53b2929719f4750fc5ff3ba60",
+    strip_prefix = "monit-5.34.3",
+    urls = ["https://deb.debian.org/debian/pool/main/m/monit/monit_5.34.3.orig.tar.gz"],
+)
