@@ -112,13 +112,11 @@ class PrivateMirrorSecretBoundaryTest(unittest.TestCase):
             self.assertIn("needs: plan", job)
             for plan_result in ("success", "failure", "skipped"):
                 self.assertEqual(bool(expression_value(condition, {"needs.plan.result": plan_result,
-                                                                   "needs.plan.outputs.has_local_jobs": "true"})),
+                                                                   "needs.plan.outputs.has_jobs": "true"})),
                                  name != "modules_local" or plan_result == "success")
                 self.assertFalse(expression_value(condition, {"needs.plan.result": plan_result,
-                                                               "needs.plan.outputs.has_local_jobs": "true",
+                                                               "needs.plan.outputs.has_jobs": "true",
                                                                "_cancelled": True}))
-        hosted = workflow.split("  modules_hosted_arm:\n", 1)[1].split("  required:\n", 1)[0]
-        self.assertNotIn("http_audit", hosted)
         reusable = (WORKFLOWS / "registry-module.yml").read_text()
         self.assertRegex(reusable, r"http_audit_artifact_id:\n\s+description: [^\n]+\n\s+type: string\n\s+default: ''")
 
@@ -218,10 +216,8 @@ class PrivateMirrorSecretBoundaryTest(unittest.TestCase):
                             self.assertEqual(expression_value(expression, ctx), pair.get(key, ""))
                             self.assertEqual(expression_value(expression, ctx | {f"secrets.{key}": ""}), "")
 
-    def test_hosted_arm_call_does_not_forward_secrets(self):
+    def test_cross_fixture_runner_and_optional_module_secrets(self):
         workflow = (WORKFLOWS / "registry-ci.yml").read_text()
-        arm_job = workflow.split("  modules_hosted_arm:\n", 1)[1].split("  required:\n", 1)[0]
-        self.assertNotIn("secrets:", arm_job)
         cross_fixture = workflow.split("  cross_fixture:\n", 1)[1].split("  modules_local:\n", 1)[0]
         self.assertIn("runs-on: [self-hosted, Linux, X64, debian-trixie-container]", cross_fixture)
         for secret in SECRETS:

@@ -44,9 +44,6 @@ class FixtureTestCase(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
-        additional = mock.patch.object(registry_ci, "ADDITIONAL_PRESUBMITS", set())
-        additional.start()
-        self.addCleanup(additional.stop)
 
     def entry(self, module: str, version: str, configured: bool = True) -> Path:
         entry = self.root / "modules" / module / version
@@ -237,27 +234,33 @@ class SelectionTests(FixtureTestCase):
         self.assertEqual({(job["module"], job["version"]) for job in jobs},
                          {("alpha", "1.0.0"), ("alpha", "2.0.0")})
 
-    def test_routine_plans_include_additional_version_without_replacing_latest(self) -> None:
-        self.entry("alpha", "1.0.0")
-        self.entry("alpha", "2.0.0")
-        path = self.root / "ci" / "registry_ci.py"
-        path.parent.mkdir()
-        path.write_text("initial\n")
-        base = self.commit("initial registry and CI")
-        path.write_text("changed\n")
+    def test_routine_plans_select_only_latest_dash_unless_older_release_changes(self) -> None:
+        old_version = "0.0.1-a9b799bb664b3b3b9d6e9a19cedd38b620e769de"
+        latest_version = "0.0.4-" + "a" * 40
+        old = self.entry("sonic-dash", old_version)
+        self.entry("sonic-dash", latest_version)
+        base = self.commit("publish DASH releases")
+
+        ci = self.root / "ci" / "registry_ci.py"
+        ci.parent.mkdir()
+        ci.write_text("# CI change\n")
         head = self.commit("change CI")
-        with mock.patch.object(registry_ci, "ADDITIONAL_PRESUBMITS", {("alpha", "1.0.0")}):
-            self.assertEqual(self.selected(base, head), {("alpha", "1.0.0"), ("alpha", "2.0.0")})
-            jobs = registry_ci.plan(self.root, None, head, latest_versions=True, published=base)["include"]
-        self.assertEqual({(job["module"], job["version"]) for job in jobs},
-                         {("alpha", "1.0.0"), ("alpha", "2.0.0")})
+        latest = {("sonic-dash", latest_version)}
+        self.assertEqual(self.selected(base, head), latest)
+        rows = registry_ci.plan(self.root, None, head, latest_versions=True, published=base)["include"]
+        self.assertEqual({(row["module"], row["version"]) for row in rows}, latest)
+
+        (old / "tests").mkdir()
+        (old / "tests" / "contract_test.py").write_text("assert True\n")
+        topic = self.commit("maintain the historical DASH release")
+        self.assertEqual(self.selected(head, topic), {("sonic-dash", old_version)})
 
     def latest_selected(self) -> set[tuple[str, str]]:
         head = self.commit("published registry")
         return {(job["module"], job["version"])
                 for job in registry_ci.plan(self.root, None, head, latest_versions=True, published=head)["include"]}
 
-    def test_latest_mode_selects_one_version_and_retains_native_architectures(self) -> None:
+    def test_latest_mode_selects_one_version_and_each_declared_architecture(self) -> None:
         self.entry("alpha", "1.0.0")
         latest = self.entry("alpha", "2.0.0")
         self.entry("beta", "1.0.0")
@@ -267,12 +270,11 @@ class SelectionTests(FixtureTestCase):
         config["platforms"]["arm64"] = "@platforms//host:host"
         write_json(latest / "presubmit.json", config)
         head = self.commit("published registry")
-        with mock.patch.object(registry_ci, "ARM_CROSS_ALL", False):
-            jobs = registry_ci.plan(self.root, None, head, latest_versions=True, published=head)["include"]
+        jobs = registry_ci.plan(self.root, None, head, latest_versions=True, published=head)["include"]
         self.assertEqual({(job["module"], job["version"], job["architecture"], tuple(job["runner"]))
                           for job in jobs}, {
             ("alpha", "2.0.0", "amd64", ("self-hosted", "Linux", "X64", "debian-trixie-container")),
-            ("alpha", "2.0.0", "arm64", ("ubuntu-24.04-arm",)),
+            ("alpha", "2.0.0", "arm64", ("self-hosted", "Linux", "X64", "debian-trixie-container")),
             ("beta", "1.0.0", "amd64", ("self-hosted", "Linux", "X64", "debian-trixie-container")),
         })
 
@@ -2030,119 +2032,71 @@ class FailedActionLogTests(FixtureTestCase):
         self.assertFalse((artifacts / "failed-actions").exists())
 
 
-class StagedCrossRoutingTests(FixtureTestCase):
-    def setUp(self):
-        super().setUp()
-        for version in ("1.0.0", "2.0.0"):
-            entry = self.entry("alpha", version)
-            config = json.loads((entry / "presubmit.json").read_text())
-            config["architectures"].append("arm64")
-            config["platforms"]["arm64"] = "@platforms//host:host"
-            write_json(entry / "presubmit.json", config)
-        self.entry("beta", "1.0.0")
-        self.head = self.commit("published contracts")
+class Arm64RoutingTests(FixtureTestCase):
+    def arm_entry(self, module, version, architectures=("amd64", "arm64")):
+        path = self.entry(module, version) / "presubmit.json"
+        config = json.loads(path.read_text())
+        config["architectures"] = list(architectures)
+        config["platforms"] = {arch: f"@{module}//:{arch}" for arch in architectures}
+        write_json(path, config)
 
-    def planned(self, routes, all_versions=True, cross_all=False):
-        with mock.patch.object(registry_ci, "ARM_CROSS_VERSIONS", routes), \
-                mock.patch.object(registry_ci, "ARM_CROSS_ALL", cross_all):
-            return registry_ci.plan(self.root, None, self.head, all_versions=all_versions,
-                                    latest_versions=not all_versions, published=self.head)["include"]
-
-    def test_survey_cross_builds_every_arm_version_without_changing_native_jobs(self):
-        before = {str(path): path.read_bytes() for path in (self.root / "modules").rglob("*") if path.is_file()}
-        native = self.planned({})
-        survey = self.planned({}, cross_all=True)
-        self.assertEqual(len(survey), len(native))
-        for original, routed in zip(native, survey):
-            if original["architecture"] == "arm64":
-                self.assertEqual(routed, {**original, "execution_architecture": "amd64",
-                                         "cross_compile": True, "runner": registry_ci.RUNNERS["amd64"]})
-            else:
-                self.assertEqual(routed, original)
-        self.assertEqual([job["version"] for job in survey if job["cross_compile"]], ["1.0.0", "2.0.0"])
-        self.assertEqual(before, {str(path): path.read_bytes() for path in (self.root / "modules").rglob("*") if path.is_file()})
-
-    def test_survey_rejects_non_boolean_selection(self):
-        for value in (None, "true", 1, []):
-            with self.subTest(value=value), self.assertRaises(registry_ci.RegistryError):
-                self.planned({}, cross_all=value)
-
-    def test_p4_profile_changes_only_jobs_executing_on_amd64(self):
-        p4_modules = ("p4c", "p4lang-bmv2", "sonic-dash")
-        for module in p4_modules:
-            entry = self.entry(module, "1.0.0")
-            path = entry / "presubmit.json"
-            manifest = json.loads(path.read_text())
-            manifest["architectures"] = ["amd64", "arm64"]
-            manifest["platforms"]["arm64"] = "@alpha//:arm"
-            write_json(path, manifest)
-        head = self.commit("Add heavy native and cross cases")
-        large = ["self-hosted", "Linux", "X64", "debian-trixie-container-large"]
-        with mock.patch.object(registry_ci, "ARM_CROSS_VERSIONS", {"p4c": ("1.0.0",)}):
-            for profile in ("large", "standard"):
-                rows = registry_ci.plan(self.root, None, head, all_versions=True, published=head,
-                                        p4_runner_profile=profile)["include"]
+    def test_existing_and_new_arm64_targets_cross_build_on_pr_push_and_dispatch(self):
+        self.arm_entry("alpha", "1.0.0")
+        base = self.commit("publish original contract")
+        self.arm_entry("alpha", "2.0.0")
+        self.arm_entry("beta", "1.0.0", architectures=("arm64",))
+        historical_test = self.root / "modules/alpha/1.0.0/tests/check.sh"
+        historical_test.parent.mkdir()
+        historical_test.write_text("#!/bin/sh\nexit 0\n")
+        head = self.commit("add release, ARM64-only module and historical test")
+        latest = {("alpha", "2.0.0", "amd64"), ("alpha", "2.0.0", "arm64"), ("beta", "1.0.0", "arm64")}
+        all_rows = latest | {("alpha", "1.0.0", "amd64"), ("alpha", "1.0.0", "arm64")}
+        for plan_base, options, expected in (
+            (base, {}, all_rows), (base, {"push": True}, all_rows),
+            (None, {"latest_versions": True}, latest), (None, {"all_versions": True}, all_rows),
+        ):
+            with self.subTest(options=options):
+                rows = registry_ci.plan(self.root, plan_base, head, published=base, **options)["include"]
+                self.assertCountEqual([(row["module"], row["version"], row["architecture"]) for row in rows], expected)
                 for row in rows:
-                    expected = registry_ci.RUNNERS[row["execution_architecture"]]
-                    if profile == "large" and row["module"] in p4_modules and row["execution_architecture"] == "amd64":
-                        expected = large
-                    self.assertEqual(row["runner"], expected, row)
-                heavy = {(row["module"], row["architecture"]) for row in rows if row["runner"] == large}
-                expected = {(module, "amd64") for module in p4_modules} | {("p4c", "arm64")}
-                self.assertEqual(heavy, expected if profile == "large" else set())
-            with self.assertRaisesRegex(registry_ci.RegistryError, "P4 runner profile"):
-                registry_ci.plan(self.root, None, head, all_versions=True, published=head,
-                                 p4_runner_profile="other")
+                    self.assertEqual(row["execution_architecture"], "amd64", row)
+                    self.assertEqual(row["runner"], registry_ci.RUNNERS["amd64"], row)
+                    self.assertEqual(row["cross_compile"], row["architecture"] == "arm64", row)
+        self.assertEqual(self.git("status", "--porcelain"), "")
 
-    def test_empty_routes_preserve_every_native_job_and_original_contract(self):
-        jobs = self.planned({})
-        self.assertEqual(len(jobs), 5)
-        self.assertTrue(all(not job["cross_compile"] for job in jobs))
-        for job in jobs:
-            self.assertEqual(job["execution_architecture"], job["architecture"])
-            self.assertEqual(job["runner"], registry_ci.RUNNERS[job["architecture"]])
+    def test_p4_profile_applies_to_native_and_cross_jobs(self):
+        p4_modules = ("p4c", "p4lang-bmv2", "sonic-dash")
+        for module in (*p4_modules, "alpha"):
+            self.arm_entry(module, "1.0.0")
+        head = self.commit("register native and cross jobs")
+        large = ["self-hosted", "Linux", "X64", "debian-trixie-container-large"]
+        for profile in ("large", "standard"):
+            rows = registry_ci.plan(self.root, None, head, all_versions=True, published=head,
+                                    p4_runner_profile=profile)["include"]
+            self.assertEqual(len(rows), 8)
+            for row in rows:
+                expected = large if profile == "large" and row["module"] in p4_modules else registry_ci.RUNNERS["amd64"]
+                self.assertEqual(row["runner"], expected, row)
+                self.assertEqual(row["cross_compile"], row["architecture"] == "arm64", row)
+                self.assertEqual(row["execution_architecture"], "amd64", row)
+        with self.assertRaisesRegex(registry_ci.RegistryError, "P4 runner profile"):
+            registry_ci.plan(self.root, None, head, all_versions=True, published=head, p4_runner_profile="other")
 
-    def test_staged_default_keeps_unlisted_versions_on_native_arm(self):
-        self.assertIs(registry_ci.ARM_CROSS_ALL, False)
-        jobs = registry_ci.plan(self.root, None, self.head, all_versions=True,
-                                published=self.head)["include"]
-        self.assertEqual(jobs, self.planned({}))
-
-    def test_exact_version_moves_only_declared_arm_row_without_mutating_inputs(self):
-        before = {str(path): path.read_bytes() for path in (self.root / "modules").rglob("*") if path.is_file()}
-        native = self.planned({})
-        routed = self.planned({"alpha": ("1.0.0",), "beta": ("1.0.0",)})
-        identity = lambda job: (job["module"], job["version"], job["architecture"])
-        self.assertCountEqual([identity(job) for job in native], [identity(job) for job in routed])
-        moved = [job for job in routed if job["cross_compile"]]
-        self.assertEqual([identity(job) for job in moved], [("alpha", "1.0.0", "arm64")])
-        self.assertEqual(moved[0]["execution_architecture"], "amd64")
-        self.assertEqual(moved[0]["runner"], registry_ci.RUNNERS["amd64"])
-        self.assertEqual([job for job in routed if not job["cross_compile"]],
-                         [job for job in native if identity(job) != identity(moved[0])])
-        self.assertEqual(before, {str(path): path.read_bytes() for path in (self.root / "modules").rglob("*") if path.is_file()})
-        self.assertFalse(any(job["cross_compile"] for job in self.planned({"alpha": ("1.0.0",)}, all_versions=False)))
-
-    def test_changed_published_source_is_still_rejected_with_cross_route(self):
+    def test_changed_published_source_is_still_rejected(self):
+        self.arm_entry("alpha", "1.0.0")
+        base = self.commit("publish original contract")
         path = self.root / "modules/alpha/1.0.0/MODULE.bazel"
         path.write_text(path.read_text() + "# changed published input\n")
-        changed = self.commit("illegal published source edit")
-        with mock.patch.object(registry_ci, "ARM_CROSS_VERSIONS", {"alpha": ("1.0.0",)}), \
-                self.assertRaises(registry_ci.RegistryError):
-            registry_ci.plan(self.root, self.head, changed, published=self.head)
-
-    def test_malformed_temporary_routes_fail_instead_of_silently_changing_mode(self):
-        for routes in ([], {"alpha": "1.0.0"}, {"alpha": ()}, {"bad/name": ("1.0.0",)},
-                       {"alpha": ("../version",)}, {"alpha": ("1.0.0", "1.0.0")}):
-            with self.subTest(routes=routes), self.assertRaises(registry_ci.RegistryError):
-                self.planned(routes)
+        head = self.commit("edit a published source")
+        with self.assertRaises(registry_ci.RegistryError):
+            registry_ci.plan(self.root, base, head, published=base)
 
 
 class WorkflowMatrixTests(unittest.TestCase):
     def setUp(self):
         self.workflow = (registry_ci.ROOT / ".github/workflows/registry-ci.yml").read_text()
 
-    def test_split_plan_preserves_native_and_cross_jobs_and_marks_empty_groups(self):
+    def test_plan_preserves_native_amd64_and_cross_arm64_and_rejects_other_routes(self):
         script = self.workflow.split("          python3 - <<'PY'\n", 1)[1].split("\n          PY", 1)[0]
         script = "\n".join(line[10:] for line in script.splitlines())
         amd = {"module": "alpha", "version": "1.0.0", "architecture": "amd64",
@@ -2152,15 +2106,18 @@ class WorkflowMatrixTests(unittest.TestCase):
         second_amd = {**amd, "module": "beta"}
         large = {**amd, "module": "sonic-dash", "runner": ["self-hosted", "Linux", "X64", "debian-trixie-container-large"]}
         cross = {**second_amd, "architecture": "arm64", "cross_compile": True}
-        for jobs, succeeds in (([], True), ([amd], True), ([arm], True),
-                               ([arm, amd, second_amd, cross, large], True), ([cross], True),
+        cases = [([], True), ([amd], True), ([arm], False),
+                               ([amd, second_amd, cross, large], True), ([cross], True),
                                ([{**large, "module": "beta"}], False), ([{**amd, "module": "sonic-dash"}], False),
                                ([{**arm, "architecture": "armhf"}], False),
                                ([{**arm, "cross_compile": True}], False),
                                ([{**cross, "cross_compile": "true"}], False),
                                ([{**cross, "runner": registry_ci.RUNNERS["arm64"]}], False),
-                               ([{**amd, "cross_compile": True}], False), ([arm, arm], False)):
-            with self.subTest(jobs=jobs), tempfile.TemporaryDirectory() as temporary:
+                               ([{**amd, "cross_compile": True}], False), ([cross, cross], False)]
+        for size in (256, 257, 379, 512, 513):
+            cases.append(([{**amd, "version": str(i)} for i in range(size)], size <= 512))
+        for jobs, succeeds in cases:
+            with self.subTest(size=len(jobs), first=jobs[:1]), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 matrix = {"include": jobs}
                 (root / "plan.json").write_text(json.dumps(matrix))
@@ -2176,61 +2133,58 @@ class WorkflowMatrixTests(unittest.TestCase):
                     continue
                 self.assertEqual(result.returncode, 0, result.stderr)
                 values = dict(line.split("=", 1) for line in output.read_text().splitlines())
-                self.assertEqual(json.loads(values["matrix"]), matrix)
+                self.assertEqual(json.loads(values["matrix"])["include"], jobs[:256])
+                self.assertEqual(json.loads(values["overflow_matrix"])["include"], jobs[256:])
+                self.assertEqual(values["has_overflow_jobs"], str(len(jobs) > 256).lower())
                 self.assertEqual(values["has_jobs"], str(bool(jobs)).lower())
-                selected = []
-                for group, execution in (("local", "amd64"), ("hosted_arm", "arm64")):
-                    expected = [job for job in jobs if job["execution_architecture"] == execution]
-                    actual = json.loads(values[group + "_matrix"])["include"]
-                    self.assertEqual(actual, expected)
-                    self.assertEqual(values["has_" + group + "_jobs"], str(bool(expected)).lower())
-                    selected.extend(actual)
-                self.assertCountEqual(selected, jobs)
 
-    def test_one_local_budget_and_separate_hosted_admission_share_validation_body(self):
-        for architecture in ("local", "hosted_arm"):
-            # A job block ends at the next two-space job key, not a nested field.
-            block = re.search(r"^  modules_" + architecture + r":\n(.*?)(?=^  \w+:|\Z)",
-                              self.workflow, re.MULTILINE | re.DOTALL)[1]
-            self.assertIn("needs: plan", block)
-            if architecture == "local":
-                self.assertIn("if: ${{ always() && !cancelled() && needs.plan.result == 'success' && "
-                              "needs.plan.outputs.has_local_jobs == 'true' }}", block)
-            else:
-                self.assertIn("if: needs.plan.outputs.has_hosted_arm_jobs == 'true'", block)
-            self.assertIn("matrix: ${{ fromJSON(needs.plan.outputs." + architecture + "_matrix) }}", block)
-            self.assertIn("uses: ./.github/workflows/registry-module.yml", block)
-            for name in ("module", "version", "architecture", "execution_architecture", "cross_compile"):
-                self.assertIn(name + ": ${{ matrix." + name + " }}", block)
-            self.assertIn("runner: ${{ toJSON(matrix.runner) }}", block)
-            self.assertEqual("max-parallel: 10" in block, architecture == "local")
-            self.assertNotIn("steps:", block)
+    def test_all_module_jobs_share_one_local_budget_and_validation_body(self):
+        block = self.workflow.split("  modules_local:\n", 1)[1].split("  modules_overflow:\n", 1)[0]
+        self.assertIn("needs: plan", block)
+        self.assertIn("if: ${{ always() && !cancelled() && needs.plan.result == 'success' && "
+                      "needs.plan.outputs.has_jobs == 'true' }}", block)
+        self.assertIn("matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}", block)
+        self.assertIn("uses: ./.github/workflows/registry-module.yml", block)
+        for name in ("module", "version", "architecture", "execution_architecture", "cross_compile"):
+            self.assertIn(name + ": ${{ matrix." + name + " }}", block)
+        self.assertIn("runner: ${{ toJSON(matrix.runner) }}", block)
+        self.assertIn("max-parallel: 10", block)
+        self.assertNotIn("steps:", block)
+        overflow = self.workflow.split("  modules_overflow:\n", 1)[1].split("  required:\n", 1)[0]
+        self.assertIn("needs: [plan, modules_local]", overflow)
+        self.assertIn("if: ${{ always() && !cancelled() && needs.plan.result == 'success' && "
+                      "needs.plan.outputs.has_overflow_jobs == 'true' }}", overflow)
+        self.assertIn("matrix: ${{ fromJSON(needs.plan.outputs.overflow_matrix) }}", overflow)
+        self.assertIn("max-parallel: 10", overflow)
+        self.assertIn("fail-fast: false", overflow)
+        self.assertIn("uses: ./.github/workflows/registry-module.yml", overflow)
+        for field, anchor in (("with", "module_inputs"), ("secrets", "module_secrets")):
+            self.assertIn(f"{field}: &{anchor}", block)
+            self.assertIn(f"{field}: *{anchor}", overflow)
         shared = (registry_ci.ROOT / ".github/workflows/registry-module.yml").read_text()
         self.assertIn("workflow_call:", shared)
         self.assertIn("runs-on: ${{ fromJSON(inputs.runner) }}", shared)
         self.assertEqual(shared.count("name: Build and test through the registry"), 1)
         self.assertNotIn("name: Build and test through the registry", self.workflow)
-        self.assertIn("needs: [plan, unit, cross_fixture, modules_local, modules_hosted_arm]", self.workflow)
+        self.assertIn("needs: [plan, unit, cross_fixture, modules_local, modules_overflow]", self.workflow)
 
-    def test_aggregate_requires_cross_fixture_and_only_explicitly_empty_module_groups(self):
+    def test_aggregate_requires_module_success_unless_the_plan_is_empty(self):
         block = self.workflow.split("  required:\n", 1)[1]
         script = block.split("        run: |\n", 1)[1]
         script = "\n".join(line[10:] for line in script.splitlines())
-        for architecture in ("local", "hosted_arm"):
-            self.assertIn(architecture.upper() + "_RESULT: ${{ needs.modules_" + architecture + ".result }}", block)
-            self.assertIn("HAS_" + architecture.upper() + "_JOBS: ${{ needs.plan.outputs.has_" + architecture + "_jobs }}", block)
-        base = {"PLAN_RESULT": "success", "UNIT_RESULT": "success", "CROSS_FIXTURE_RESULT": "success", "LOCAL_RESULT": "success",
-                "HOSTED_ARM_RESULT": "success", "HAS_LOCAL_JOBS": "true", "HAS_HOSTED_ARM_JOBS": "true"}
-        cases = [(base, True)]
-        for architecture in ("LOCAL", "HOSTED_ARM"):
-            flag, result = "HAS_" + architecture + "_JOBS", architecture + "_RESULT"
-            cases.append(({**base, flag: "false", result: "skipped"}, True))
-            for invalid in ("failure", "cancelled", "skipped", ""):
-                cases.append(({**base, result: invalid}, False))
-            cases.append(({**base, flag: "false"}, False))
-            cases.append(({**base, flag: "", result: "skipped"}, False))
-        cases.append(({**base, "HAS_LOCAL_JOBS": "false", "HAS_HOSTED_ARM_JOBS": "false",
-                       "LOCAL_RESULT": "skipped", "HOSTED_ARM_RESULT": "skipped"}, True))
+        self.assertIn("MODULE_RESULT: ${{ needs.modules_local.result }}", block)
+        self.assertIn("HAS_JOBS: ${{ needs.plan.outputs.has_jobs }}", block)
+        self.assertIn("OVERFLOW_RESULT: ${{ needs.modules_overflow.result }}", block)
+        self.assertIn("HAS_OVERFLOW_JOBS: ${{ needs.plan.outputs.has_overflow_jobs }}", block)
+        base = {"PLAN_RESULT": "success", "UNIT_RESULT": "success", "CROSS_FIXTURE_RESULT": "success",
+                "HAS_JOBS": "true", "MODULE_RESULT": "success", "HAS_OVERFLOW_JOBS": "false", "OVERFLOW_RESULT": "skipped"}
+        cases = [(base, True), ({**base, "HAS_JOBS": "false", "MODULE_RESULT": "skipped"}, True),
+                 ({**base, "HAS_OVERFLOW_JOBS": "true", "OVERFLOW_RESULT": "success"}, True)]
+        for flag, result in (("HAS_JOBS", "MODULE_RESULT"), ("HAS_OVERFLOW_JOBS", "OVERFLOW_RESULT")):
+            for has_jobs, expected in (("true", "success"), ("false", "skipped"), ("", None)):
+                for status in ("success", "failure", "cancelled", "skipped", ""):
+                    if status != expected:
+                        cases.append(({**base, flag: has_jobs, result: status}, False))
         self.assertIn("CROSS_FIXTURE_RESULT: ${{ needs.cross_fixture.result }}", block)
         for prerequisite in ("PLAN_RESULT", "UNIT_RESULT", "CROSS_FIXTURE_RESULT"):
             for invalid in ("failure", "cancelled", "skipped", ""):
@@ -2240,7 +2194,6 @@ class WorkflowMatrixTests(unittest.TestCase):
                 result = subprocess.run(["/bin/bash", "-c", script], env={**os.environ, **environment},
                                         text=True, capture_output=True)
                 self.assertEqual(result.returncode == 0, succeeds, result.stderr)
-
 
     def test_native_and_cross_jobs_run_distinct_explicit_suites(self):
         unit = self.workflow.split("  unit:\n", 1)[1].split("  cross_fixture:\n", 1)[0]
@@ -2277,8 +2230,9 @@ class WorkflowMatrixTests(unittest.TestCase):
     def test_native_unit_bazel_setup_uses_each_execution_architecture(self):
         unit = self.workflow.split("  unit:\n", 1)[1].split("  cross_fixture:\n", 1)[0]
         script = TestContainerTests.step(unit, "Install Bazel for real runner integration tests")
-        rows = re.findall(r"- architecture: (\w+)\n\s+runner: \[[^\]]+\]\n"
+        rows = re.findall(r"- architecture: (\w+)\n\s+timeout_minutes: \d+\n\s+runner: \[[^\]]+\]\n"
                           r"\s+machine: (\w+)\n\s+bazel_arch: (\w+)\n\s+bazel_sha: ([0-9a-f]+)", unit)
+        self.assertEqual([row[0] for row in rows], ["amd64", "arm64"])
         for architecture, machine, bazel_arch, checksum in rows:
             with self.subTest(architecture=architecture), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
@@ -3395,11 +3349,16 @@ a.output.write_text(json.dumps(r))
         image = "runner@sha256:" + "a" * 64
         native = {"system": "Linux", "machine": "x86_64", "userspace": "amd64"}
         for suffix, host_platform in (("default-cross", "@alpha//:amd64"),
-                                      ("explicit-cross", "@alpha//:exec_amd64")):
+                                      ("explicit-cross", "@alpha//:exec_amd64"),
+                                      ("arm-only", "@local_config_platform//:host")):
             with self.subTest(host_platform=host_platform):
+                config = self.config.copy()
                 if suffix == "explicit-cross":
-                    self.config["host_platforms"] = {"amd64": host_platform, "arm64": "@alpha//:exec_arm64"}
-                    write_json(self.config_path, self.config)
+                    config["host_platforms"] = {"amd64": host_platform, "arm64": "@alpha//:exec_arm64"}
+                if suffix == "arm-only":
+                    config["architectures"] = ["arm64"]
+                    config["platforms"] = {"arm64": "@alpha//:arm64"}
+                write_json(self.config_path, config)
                 commands_path.write_text("")
                 adapted = {"target_platform": "//_registry_ci_cross:arm64",
                            "execution_platform": "//_registry_ci_cross:amd64",
