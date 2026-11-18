@@ -1,0 +1,19 @@
+From: Guohan Lu <securely1g@gmail.com>
+Subject: [PATCH] Register the sonic-dash-api source commit
+
+Align the source module identity with this commit-qualified registration.
+Dependency updates are owned by the source commit.
+
+Source commit: 9a6cc683848a37a40c2af476f9e1dc4678c4b41a
+Scope: downstream registry integration; not an upstream bug fix.
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-dash-api",
+-    version = "0.0.6",
++    version = "0.0.6-9a6cc683848a37a40c2af476f9e1dc4678c4b41a",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
