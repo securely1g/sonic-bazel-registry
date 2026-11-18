@@ -97,7 +97,9 @@ def main():
     for name in ["runtime", "archive", "metadata", "cmod", "source", "native", "patchelf"]:
         parser.add_argument("--" + name, type=Path, required=True)
     args = parser.parse_args()
-    runtime = args.runtime.absolute()
+    # Fontconfig resolves paths relative to its sysroot. Canonicalize Bazel
+    # runfiles paths before supplying both the config filename and sysroot.
+    runtime = args.runtime.resolve()
     source = args.source.absolute().parent
     output = Path(os.environ.get("TEST_UNDECLARED_OUTPUTS_DIR", tempfile.gettempdir()))
     with tempfile.TemporaryDirectory(dir=os.environ.get("TEST_TMPDIR")) as scratch:

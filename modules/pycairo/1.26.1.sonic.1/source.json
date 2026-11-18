@@ -5,7 +5,7 @@
   "overlay": {
     "BUILD.bazel": "sha256-tHED5aMB5sdXofHm5nFzmcx0TShjwCYvcfo+rn/GQ9A=",
     "MODULE.bazel": "sha256-oDBjnEJL7GX7oj84XSjI9cfiKSQSzEtXwUdRjuQbC/g=",
-    "installed_test.py": "sha256-4lGgPTt7TKu+GoC4jzbhzKpxk0Ap8uJjfCY5DVyltt8=",
+    "installed_test.py": "sha256-sC4Ejwlf48Kd3kTWqFDSdpMV07/CXu+EwGdb+tw8cbo=",
     "requirements.in": "sha256-RD34rRoBt/uBmNLF7/XWCD+5X/rPZzqnBr8rRMGlQcg=",
     "requirements_lock.txt": "sha256-x0YlLxlG4rQVKpYR7iG3KK589PDbKzjN6SNrm6xTqGU="
   }
