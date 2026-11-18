@@ -47,3 +47,15 @@ for DEB outputs and package-generation wrappers before execution.
 The real builder proof establishes source generation and build-ID behavior.
 Full collector compilation, runtime/debug TAR acceptance, component parity and
 Docker integration remain the separate OTEL producer/consumer work.
+
+## Nested regression registry inputs
+
+The retained upstream build-ID tests and original external-CGo-header tests
+create their own Bazel workspace. Both use the upstream helper's existing
+`GO_BAZEL_TEST_BAZELFLAGS` interface to select the immutable SONiC registry
+catalog at `3d1cc5e8dfd553d2acbe4198e504a245e6bdbddf`, followed by BCR. This makes the newly selected
+Gazelle SONiC version available. The helper's `local_path_override` still tests
+the actual rules_go candidate; no fixture, assertion, SDK or architecture is
+replaced. `0003-use-sonic-registry-for-nested-regressions.patch` contains only
+the build-ID test's registry configuration. The CGo-header overlay carries the
+same environment setting.
