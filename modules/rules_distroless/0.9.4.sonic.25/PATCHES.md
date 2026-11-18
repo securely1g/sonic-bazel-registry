@@ -657,3 +657,18 @@ external-query implementation in earlier patches; it is not submitted upstream.
 50 exports installed header directory aliases and cross-package quoted siblings without a copied sysroot.
 51 exposes original DEB data members and raw dependency closures alongside the compatible existing interfaces.
 52 selects module version .20. Published .19's pure-DSO ownership mechanism already solves the formerly external FRR workaround; that old patch is not applied again.
+
+## Revision .22
+
+- `0055-owner-scoped-archive-tools.patch` resolves the zstd, bsdtar and gawk
+  toolchains in the Distroless module. An external caller can invoke
+  `deb_postfix` in either merged-/usr mode without those apparent repository names.
+- `0056-preserve-header-only-pkgconfig-ownership.patch` omits the synthetic
+  static archive for an empty dynamic pkg-config link contract. The baseline
+  pure-DSO handling and static ownership checks still apply. The integration
+  tests cover shared consumers of a generated header-only target and check
+  ownership for contracts that supply link inputs.
+- `0057-module-version-22.patch` aligns the fetched module version with the registry.
+
+The two behavior fixes are downstream SONiC changes ported from
+[registry PR #299](https://github.com/securely1g/sonic-bazel-registry/pull/299).

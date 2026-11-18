@@ -2,7 +2,7 @@
 
 module(name = "locked_import_integration")
 
-bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.21")
+bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.22")
 # Exercise the version selected by the gNMI consumer on Bazel 8.
 bazel_dep(name = "rules_cc", version = "0.2.22")
 bazel_dep(name = "bazel_skylib", version = "1.9.2")
@@ -83,3 +83,6 @@ unpack_fixture(name = "multifile_unpack_payload")
 
 bazel_dep(name = "aspect_bazel_lib", version = "2.14.0")
 bazel_dep(name = "platforms", version = "0.0.10")
+
+archive_tool_fixture = use_repo_rule("//archive_tool_mapping:fixture.bzl", "archive_tool_fixture")
+archive_tool_fixture(name = "archive_tool_caller")

@@ -1,8 +1,9 @@
-load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_import", "cc_library")
-load("@rules_distroless//apt/private:cc_deb_library.bzl", "native_link_sequence")
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_import", "cc_library", "cc_shared_library", "cc_test")
+load("@rules_distroless//apt/private:cc_deb_library.bzl", "cc_deb_library", "native_link_sequence")
 load("@rules_distroless//apt/private:so_library.bzl", "so_library")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load(":link_inputs.bzl", "link_inputs")
+load(":ownership_test.bzl", "link_ownership_test")
 
 package(default_testonly = True)
 
@@ -96,4 +97,65 @@ sh_test(
         ":leaf/libapt_runtime_leaf.so.1",
         ":other/libapt_runtime_other.so.1",
     ],
+)
+
+# Both shared objects consume the same dynamic pkg-config target generated
+# by deb_import from the fixture's installed header-only libvariant.pc.
+cc_library(
+    name = "header_first_objects",
+    srcs = ["header_first.c"],
+    deps = ["@header_variant//:pkgconfig/libvariant"],
+)
+
+cc_shared_library(
+    name = "header_first",
+    deps = [":header_first_objects"],
+)
+
+cc_library(
+    name = "header_second_objects",
+    srcs = ["header_second.c"],
+    deps = [":header_first_objects", "@header_variant//:pkgconfig/libvariant"],
+)
+
+cc_shared_library(
+    name = "header_second",
+    deps = [":header_second_objects"],
+    dynamic_deps = [":header_first"],
+)
+
+cc_test(
+    name = "header_only_ownership_test",
+    srcs = ["header_test.c"],
+    deps = [":header_second_objects"],
+    dynamic_deps = [":header_second", ":header_first"],
+)
+
+cc_library(name = "static_only", srcs = ["other.c"], linkstatic = True)
+cc_deb_library(name = "inherited_flags", linkopts = ["-pthread"])
+cc_deb_library(name = "inherited_files", additional_linker_inputs = ["leaf.c"])
+
+[
+    native_link_sequence(name = name, deps = [dep], header_only = True)
+    for name, dep in [
+        ("with_flags", ":inherited_flags"),
+        ("with_files", ":inherited_files"),
+        ("with_static_library", ":static_only"),
+    ]
+]
+
+native_link_sequence(name = "explicit_flags", arguments = ["-pthread"], header_only = True)
+native_link_sequence(name = "legacy_empty")
+
+link_ownership_test(
+    name = "link_ownership_test",
+    anchored = [
+        "@header_variant//:pkgconfig/libvariant/static",
+        ":with_flags",
+        ":with_files",
+        ":with_static_library",
+        ":explicit_flags",
+        ":legacy_empty",
+    ],
+    header_only = "@header_variant//:pkgconfig/libvariant",
 )

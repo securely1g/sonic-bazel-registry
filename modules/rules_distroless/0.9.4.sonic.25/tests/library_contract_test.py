@@ -432,7 +432,7 @@ def _impl(ctx):
 link_context=rule(implementation=_impl,attrs={"dep":attr.label(providers=[CcInfo])})
 ''')
     (root / 'MODULE.bazel').write_text(f'''module(name="library_contracts")
-bazel_dep(name="rules_distroless",version="0.9.4.sonic.20")
+bazel_dep(name="rules_distroless",version="0.9.4.sonic.22")
 bazel_dep(name="rules_cc",version="0.2.20")
 bazel_dep(name="fixture_adapter",version="1")
 local_path_override(module_name="fixture_adapter",path="{adapter}")
@@ -491,6 +491,7 @@ use_repo(apt,"locked","conflicting","providers")
     # directly call the SAME selected APT interface.
     ownership_cases = [
         ('dynamic', '@locked//liboptional-dev:pkgconfig/liboptional', 'int optional_value(void);', 'optional_value()'),
+        ('flags_only', '@locked//libpconly-dev:pkgconfig/pconly', 'extern char pc_only_marker;', '(int)(long)&pc_only_marker'),
         ('static', '@locked//libswitch-dev:pkgconfig/switch', 'int switch_value(void);', 'switch_value()'),
         ('mixed', '@locked//libownership-dev:pkgconfig/ownership-mixed', 'int optional_value(void); int switch_value(void);', 'optional_value()+switch_value()'),
     ]
@@ -558,12 +559,12 @@ PyMODINIT_FUNC PyInit_optional_python(void){return PyModule_Create(&module);}
         return run(command,cwd=cwd).stdout.strip()
     # Genuine archive duplication must fail during native ownership analysis,
     # not later because of an undefined symbol or unavailable runtime library.
-    for kind in ['static', 'mixed']:
+    for kind in ['static', 'mixed', 'flags_only']:
         result = subprocess.run(bazel+['build']+flags+['--nobuild', '//:ownership_'+kind+'_consumer'],cwd=root,env=env,text=True,capture_output=True)
         diagnostic = result.stdout + result.stderr
         (root/('ownership-'+kind+'.log')).write_text(diagnostic)
         assert result.returncode and 'linked statically' in diagnostic, (kind, diagnostic)
-        print('PASS real archive duplicate ownership rejected:',kind,flush=True)
+        print('PASS duplicate ownership rejected:',kind,flush=True)
     result = run(bazel+['build']+flags+['//:ownership_dynamic_consumer'],cwd=root)
     (root/'ownership-dynamic.log').write_text(result.stdout+result.stderr)
     output = execute(root/'bazel-bin/ownership_dynamic_consumer',root)

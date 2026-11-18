@@ -67,7 +67,10 @@
     "//native_headers:without_pkgconfig_test",
     "//native_headers:unmatched_modules_test",
     "//native_catalog:declared_tools_test",
-    "//multifile_tar:unpack_test"
+    "//multifile_tar:unpack_test",
+    "//archive_tool_mapping:archive_tool_mapping_test",
+    "//native_runtime:header_only_ownership_test",
+    "//native_runtime:link_ownership_test"
   ],
   "integration_test_module": "tests/integration"
 }

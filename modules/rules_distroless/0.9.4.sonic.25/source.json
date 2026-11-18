@@ -57,7 +57,10 @@
         "0051-original-deb-data-interfaces.patch": "sha256-/4nycQPx30wzSRDWu2IBHMSu6nvYp7f31DbH1XCOWXA=",
         "0052-module-version-20.patch": "sha256-IzB8qzHVDzJp44r4efH9mu8rFyIBTTrLpUixY/1hcE0=",
         "0053-declare-unpack-tool-files.patch": "sha256-WnzKVF0q3vaySfkZa6XiujasejnUM9kgQ/ZB5CQiR1Q=",
-        "0054-module-version-21.patch": "sha256-yTlirHC7nPMEV8vcNdnOz6D3IIY+R8zKhr5wuzvJc+o="
+        "0054-module-version-21.patch": "sha256-yTlirHC7nPMEV8vcNdnOz6D3IIY+R8zKhr5wuzvJc+o=",
+        "0055-owner-scoped-archive-tools.patch": "sha256-qXPi/ghEscYfWx+/EAsKk86hnL9HDcBfI+PNu7fFIa8=",
+        "0056-preserve-header-only-pkgconfig-ownership.patch": "sha256-TWDDVWZMxhg3cIgK0Eg+1RRY2VKJvZgYvQpgs6mDysM=",
+        "0057-module-version-22.patch": "sha256-Q4TM0X/5U07ieeYUFWPsKQ9Y1k1PLcqHo2OYqVjwjBU="
     },
     "patch_strip": 1,
     "overlay": {
