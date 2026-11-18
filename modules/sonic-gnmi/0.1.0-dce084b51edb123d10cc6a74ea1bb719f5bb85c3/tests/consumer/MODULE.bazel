@@ -105,3 +105,7 @@ go_patches.module_override(
 )
 
 bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.20")
+
+# Select the shared production APT lock for gNMI and its dependencies.
+apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
+apt.import_lock(lock = "@sonic_build_infra//apt:apt.lock.json")
