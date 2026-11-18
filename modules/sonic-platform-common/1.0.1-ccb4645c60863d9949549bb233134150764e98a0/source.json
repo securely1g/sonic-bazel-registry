@@ -1,0 +1,9 @@
+{
+  "url": "https://github.com/securely1g/sonic-platform-common/archive/ccb4645c60863d9949549bb233134150764e98a0.tar.gz",
+  "strip_prefix": "sonic-platform-common-ccb4645c60863d9949549bb233134150764e98a0",
+  "integrity": "sha256-vJngemFaQBBLvAnyXcBACggFg8alj3yAkw99QvyMw+w=",
+  "patches": {
+    "0001-module-version.patch": "sha256-F0E51NibG67S0oklICsRaN/soWELhWB5/vjq40TyiPc="
+  },
+  "patch_strip": 1
+}
