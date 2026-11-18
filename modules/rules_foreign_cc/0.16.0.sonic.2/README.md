@@ -33,7 +33,9 @@ validation on 2026-10-21. Upstream definitions and attribution are preserved.
 The registry consumer uses declared Debian Trixie GCC14 and packaged Make, M4
 and pkg-config. Its fixture-only tool settings must be supplied; omission
 fails analysis instead of selecting ambient tools. The published module has
-no production dependency on SONiC infrastructure.
+no production dependency on SONiC infrastructure. The Make and CMake fixtures
+keep `PWD` at the physical build root while changing directories, following
+the published Distroless template-header fixture.
 
 Native tests build actual Make and CMake fixtures and a produced SDK. They
 check system-warning treatment, ordinary warnings remaining errors, quote

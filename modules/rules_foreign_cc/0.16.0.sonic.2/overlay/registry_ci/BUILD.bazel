@@ -48,6 +48,8 @@ filegroup(
 
 make_variant(
     name = "sdk_headers",
+    # Foreign builds change directories; retain the physical build root.
+    env = {"PWD": "$$EXT_BUILD_ROOT"},
     lib_source = ":sdk_sources",
     out_headers_only = True,
     toolchain = ":fixture_make_toolchain",
@@ -60,6 +62,8 @@ filegroup(
 
 make_variant(
     name = "make_headers",
+    # Foreign builds change directories; retain the physical build root.
+    env = {"PWD": "$$EXT_BUILD_ROOT"},
     lib_source = ":make_sources",
     out_data_files = ["receipt.txt"],
     out_headers_only = True,
@@ -80,6 +84,8 @@ filegroup(
 
 cmake_variant(
     name = "cmake_headers_make",
+    # Foreign builds change directories; retain the physical build root.
+    env = {"PWD": "$$EXT_BUILD_ROOT"},
     cache_entries = {"CMAKE_TRY_COMPILE_TARGET_TYPE": "STATIC_LIBRARY"},
     lib_source = ":cmake_sources",
     out_data_files = ["receipt.txt"],
