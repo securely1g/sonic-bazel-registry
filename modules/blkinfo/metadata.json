@@ -1,0 +1,11 @@
+{
+  "homepage": "https://github.com/grinrag/blkinfo",
+  "maintainers": [],
+  "repository": [
+    "https://pypi.org/project/blkinfo/"
+  ],
+  "versions": [
+    "0.2.0.sonic.1"
+  ],
+  "yanked_versions": {}
+}

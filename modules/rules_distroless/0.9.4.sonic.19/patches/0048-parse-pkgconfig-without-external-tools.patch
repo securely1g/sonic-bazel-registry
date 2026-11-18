@@ -1,0 +1,866 @@
+diff --git a/apt/private/BUILD.bazel b/apt/private/BUILD.bazel
+index 5724a3d..689726d 100644
+--- a/apt/private/BUILD.bazel
++++ b/apt/private/BUILD.bazel
+@@ -145,7 +145,7 @@ bzl_library(
+     name = "pkgconfig",
+     srcs = ["pkgconfig.bzl"],
+     visibility = ["//apt:__subpackages__"],
+-    deps = [":native_tools"],
++    deps = [],
+ )
+ 
+ bzl_library(
+@@ -206,5 +206,5 @@ bzl_library(
+     name = "pkgconfig_metadata",
+     srcs = ["pkgconfig_metadata.bzl"],
+     visibility = ["//apt:__subpackages__"],
+-    deps = [":native_tools", ":pkgconfig", ":util"],
++    deps = [":pkgconfig", ":util"],
+ )
+diff --git a/apt/private/native_tools.bzl b/apt/private/native_tools.bzl
+index 3811852..8882c44 100644
+--- a/apt/private/native_tools.bzl
++++ b/apt/private/native_tools.bzl
+@@ -31,7 +31,7 @@ def _native_tools_impl(ctx):
+     ctx.download(_LOCK_URL, "apt.lock.json", sha256 = _LOCK_SHA256)
+     lock = json.decode(ctx.read("apt.lock.json"))
+     packages = lock["packages"]
+-    roots = ["pkgconf-bin", "file", "binutils-" + triplet.replace("_", "-")]
++    roots = ["file", "binutils-" + triplet.replace("_", "-")]
+     selected = {k: True for k, p in packages.items() if p["suite"] == "trixie" and p["architecture"] == arch and p["name"] in roots}
+     if len(selected) != len(roots):
+         fail("Incomplete catalog tool roots for %s" % arch)
+@@ -63,7 +63,7 @@ def _native_tools_impl(ctx):
+     ctx.symlink(lib, "lib")
+     ctx.symlink(lib + "/" + loader, "loader")
+     ctx.symlink("sysroot/usr/lib/file/magic.mgc", "magic.mgc")
+-    programs = {"file": "file", "pkg-config": "pkgconf", "readelf": triplet + "-readelf"}
++    programs = {"file": "file", "readelf": triplet + "-readelf"}
+     for name, program in programs.items():
+         ctx.symlink("sysroot/usr/bin/" + program, name)
+         # glibc may fall back to system directories after --library-path.
+diff --git a/apt/private/pkgconfig.bzl b/apt/private/pkgconfig.bzl
+index bc68ca8..7db53b7 100644
+--- a/apt/private/pkgconfig.bzl
++++ b/apt/private/pkgconfig.bzl
+@@ -1,67 +1,109 @@
+-load(":native_tools.bzl", "catalog_execute")
+-
+ # Copyright thesayyn 2025
+ # Taken from https://github.com/thesayyn/pkgconfig/blob/main/extensions.bzl
+ def _expand_value(value, variables):
+-    # fast path
+-    if value.find("$") == -1:
+-        return value
+-
+-    expanded_value = ""
+-    key = ""
+-    in_subs = False
+-
+-    def assert_in_subs():
+-        if not in_subs:
+-            fail("corrupted pc file")
+-
+-    for c in value.elems():
+-        if c == "$":
+-            in_subs = True
+-        elif c == "{":
+-            assert_in_subs()
+-        elif c == "}":
+-            assert_in_subs()
+-            if key not in variables:
+-                # fail("corrupted pc file")
+-                value_of_key = ""
+-            else:
+-                value_of_key = variables[key]
+-
+-            # reset subs state
+-            key = ""
+-            in_subs = False
+-
+-            expanded_value += value_of_key
+-        elif in_subs:
+-            key += c
++    result = ""
++    skip = 0
++    for index in range(len(value)):
++        if index < skip:
++            continue
++        if value[index:index + 2] == "${":
++            end = value.find("}", index + 2)
++            if end == -1:
++                break
++            result += variables.get(value[index + 2:end], "")
++            skip = end + 1
+         else:
+-            expanded_value += c
++            result += value[index]
++    return result
+ 
+-    return expanded_value
++def _logical_lines(content):
++    lines = []
++    line = ""
++    escaped = False
++    comment = False
++    trim_continuation = False
++    for char in content.replace("\r\n", "\n").elems():
++        if trim_continuation:
++            if char in [" ", "\t"]:
++                continue
++            trim_continuation = False
++        if char == "\n":
++            if escaped:
++                escaped = False
++                trim_continuation = True
++                continue
++            lines.append(line)
++            line = ""
++            comment = False
++        elif comment:
++            continue
++        elif escaped:
++            line += char if char == "#" else "\\" + char
++            escaped = False
++        elif char == "\\":
++            escaped = True
++        elif char == "#":
++            comment = True
++        else:
++            line += char
++    if escaped:
++        line += "\\"
++    if line:
++        lines.append(line)
++    return lines
++
++def _dequote(value):
++    quote = value[0] if value and value[0] in ["'", '"'] else ""
++    if not quote:
++        return value
++    result = ""
++    skip = False
++    for index in range(len(value)):
++        if skip:
++            skip = False
++        elif value[index:index + 2] == "\\" + quote:
++            result += quote
++            skip = True
++        elif value[index] != quote:
++            result += value[index]
++    return result
+ 
+-def parse_pc(pc):
+-    variables = {}
++def _parse_document(content, installed_dir = None):
++    if installed_dir != None:
++        content = content.replace("${pcfiledir}", installed_dir)
++    variables = {"pcfiledir": installed_dir or "", "pc_sysrootdir": "", "pc_top_builddir": "$(top_builddir)"}
+     directives = {}
+-    for l in pc.splitlines():
+-        l = l.strip()
+-        if l.startswith("#"):
+-            continue
+-        if not l:
+-            continue
+-        colon = l.find(":")
+-        equals = l.find("=")
+-        # A variable value may contain ":"; a field value may contain "=".
+-        # The first separator determines which syntax this line uses.
++    canonical = {name.lower(): name for name in ["Name", "Description", "Version", "Libs", "Libs.private", "Cflags", "Cflags.private", "Requires", "Requires.private", "Requires.internal", "Conflicts", "Provides"]}
++    repeated = ["Libs", "Libs.private", "Cflags", "Cflags.private", "Requires", "Requires.private", "Requires.internal", "Conflicts", "Provides"]
++    for line in _logical_lines(content):
++        line = line.strip()
++        colon = line.find(":")
++        equals = line.find("=")
+         if colon != -1 and (equals == -1 or colon < equals):
+-            (k, v) = _split_once(l, ":")
+-            directives[k.strip()] = _expand_value(v.strip(), variables)
++            key, value = line.split(":", 1)
++            key = canonical.get(key.strip().lower(), key.strip())
++            value = _expand_value(value.strip(), variables)
++            if key in ["Requires.private", "Requires.internal"]:
++                directives.setdefault("_private_requirements", []).extend(_requirements(value, key == "Requires.internal"))
++            if key in repeated and key in directives:
++                directives[key] += " " + value
++            else:
++                directives[key] = value
+         elif equals != -1:
+-            (k, v) = _split_once(l, "=")
+-            variables[k.strip()] = _expand_value(v.strip(), variables)
+-
++            key, value = line.split("=", 1)
++            key = key.strip()
++            value = value.strip()
++            value = _expand_value(_dequote(value), variables)
++            if key not in ["pc_sysrootdir", "pc_top_builddir"]:
++                variables[key] = value
++    if "Version" in directives:
++        directives["Version"] = directives["Version"].replace("\t", " ").split(" ", 1)[0]
+     return (directives, variables)
+ 
++def parse_pc(pc):
++    fields, variables = _parse_document(pc)
++    return ({key: value for key, value in fields.items() if key != "_private_requirements"}, variables)
++
+ def _split_once(l, sep):
+     values = l.split(sep, 1)
+     if len(values) < 2:
+@@ -77,7 +119,7 @@ def _parse_requires(re):
+ def _trim(str):
+     return str.rstrip(" ").lstrip(" ")
+ 
+-def _tokens(value, split_words = True):
++def _tokens(value, split_words = True, allow_invalid = False):
+     # .pc flag fields use shell quoting after variable expansion. Preserve
+     # whitespace inside quotes and escaped characters, without evaluating shell
+     # substitutions. Paths read from variables need unquoting but not splitting.
+@@ -109,6 +151,8 @@ def _tokens(value, split_words = True):
+         else:
+             token += char
+     if escaped or quote:
++        if allow_invalid:
++            return []
+         fail("unterminated quote or escape in pkg-config value: " + value)
+     if token:
+         tokens.append(token)
+@@ -250,17 +294,15 @@ def pkgconfig_environment(rctx, directory):
+     }
+ 
+ def direct_requirements(rctx, path, content):
+-    """Extract successful SDK depth-one requirements for one immutable document."""
+-    name = path.rsplit("/", 1)[-1].removesuffix(".pc")
+-    directory = "_pc_leaf_requirements"
+-    rctx.file(directory + "/" + name + ".pc", content.replace("${pcfiledir}", "/" + path.rsplit("/", 1)[0]))
+-    results = {}
+-    for option in ["--print-requires", "--print-requires-private"]:
+-        result = catalog_execute(rctx, "pkg-config", ["--maximum-traverse-depth=1", option, name], environment = pkgconfig_environment(rctx, directory))
+-        if not result.return_code:
+-            results[option] = result.stdout
+-    rctx.delete(directory)
+-    return results
++    """Direct provider bootstrap, without traversing or executing a tool."""
++    fields, _ = _parse_document(content, "/" + path.rsplit("/", 1)[0])
++    if not all([key in fields for key in ["Name", "Description", "Version"]]):
++        return {}
++    result = {}
++    for option, keys in [("--print-requires", ["Requires"]), ("--print-requires-private", ["Requires.private", "Requires.internal"])]:
++        requirements = fields.get("_private_requirements", []) if option == "--print-requires-private" else _requirements(fields.get("Requires", ""))
++        result[option] = "".join([name + (" " + operator + " " + version if operator else "") + "\n" for name, operator, version, _ in requirements])
++    return result
+ 
+ def _direct_document(content):
+     lines = []
+@@ -310,47 +352,453 @@ def _link_tokens(tokens):
+             result.append("-l")
+     return _joined_flags(result)
+ 
+-def _variant_query_sharing(records):
+-    # pkgconf 1.8.1 Cflags always walks private requirements. --static only
+-    # adds Cflags.private; Libs also adds private requirements and Libs.private.
+-    # Be conservative about escaped/continued metadata and field spelling.
+-    cflags = True
+-    libs = True
+-    for record in records.values():
+-        content = record["content"]
+-        if "\\" in content:
+-            return (False, False)
+-        fields = "".join([char for char in content.lower().elems() if char not in " \t\r\n\v\f"])
+-        cflags = cflags and "cflags.private" not in fields
+-        libs = libs and "requires.private" not in fields and "libs.private" not in fields
+-    return (cflags, libs)
++def _requirements(value, internal = False):
++    words = value.replace(",", " ").replace("\t", " ").replace("\n", " ").split(" ")
++    words = [word for word in words if word]
++    result = []
++    skip = 0
++    for index in range(len(words)):
++        if index < skip:
++            continue
++        name = words[index]
++        operator = ""
++        version = ""
++        if index + 1 < len(words) and words[index + 1][0] in "<>=!":
++            operand = words[index + 1]
++            for char in operand.elems():
++                if char in "<>=!" and not version:
++                    operator += char
++                else:
++                    version += char
++            skip = index + 2
++            if not version and skip < len(words):
++                version = words[skip]
++                skip += 1
++        result.append((name, operator, version, internal))
++    return result
+ 
+-def _query_module(rctx, name, directory, mode, query_results, share_cflags, share_libs):
+-    environment = pkgconfig_environment(rctx, directory)
+-
+-    def query(option, share):
+-        variant = "dynamic" if share else mode
+-        key = (directory, name, variant, option)
+-        if key in query_results:
+-            return query_results[key]
+-        options = ["--static"] if mode == "static" else []
+-        result = catalog_execute(rctx, "pkg-config", options + [option, name], environment = environment)
+-        # Keep failures in their original mode/context, including diagnostics.
+-        if not result.return_code:
+-            query_results[key] = result
++def _version_parts(value):
++    result = []
++    part = ""
++    kind = ""
++    for char in value.elems():
++        next_kind = "number" if char in "0123456789" else "alpha" if char.lower() in "abcdefghijklmnopqrstuvwxyz" else "tilde" if char == "~" else ""
++        if next_kind != kind or next_kind in ["", "tilde"]:
++            if part:
++                result.append((kind, part))
++            part = ""
++        if next_kind:
++            part += char
++        kind = next_kind
++    if part:
++        result.append((kind, part))
++    return result
++
++def _compare_version(left, right):
++    if left.lower() == right.lower():
++        return 0
++    a = _version_parts(left)
++    b = _version_parts(right)
++    for index in range(max(len(a), len(b))):
++        one = a[index] if index < len(a) else ("", "")
++        two = b[index] if index < len(b) else ("", "")
++        if one[0] == "tilde" or two[0] == "tilde":
++            if one[0] != two[0]:
++                return -1 if one[0] == "tilde" else 1
++            continue
++        if not one[0] or not two[0]:
++            return 1 if one[0] else -1
++        if one[0] != two[0]:
++            return 1 if one[0] == "number" else -1
++        l = one[1].lstrip("0") if one[0] == "number" else one[1]
++        r = two[1].lstrip("0") if two[0] == "number" else two[1]
++        if one[0] == "number" and len(l) != len(r):
++            return 1 if len(l) > len(r) else -1
++        if l != r:
++            return 1 if l > r else -1
++    return 0
++
++def _satisfies(version, operator, required):
++    compare = _compare_version(version, required)
++    return {"": True, "=": compare == 0, "==": compare == 0, "!=": compare != 0, "<": compare < 0, ">": compare > 0, "<=": compare <= 0, ">=": compare >= 0}.get(operator, True)
++
++def _unmergeable(value):
++    return not value.startswith("-") or any([value.startswith(prefix) for prefix in ["-framework", "-isystem", "-idirafter", "-pthread", "-Wa,", "-Wl,", "-Wp,", "-trigraphs", "-pedantic", "-ansi", "-std=", "-stdlib=", "-include", "-nostdinc", "-nostdlibinc", "-nobuiltininc"]])
++
++def _relocate(value):
++    if not value.startswith("/"):
++        return value
++    parts = []
++    for part in value.split("/"):
++        if part == "..":
++            if parts:
++                parts.pop()
++        elif part and part != ".":
++            parts.append(part)
++    return "/" + "/".join(parts)
++
++def _copy_fragment(target, fragment):
++    kind, data, merged, private = fragment
++    found = -1
++    for index in range(len(target) - 1, -1, -1):
++        if target[index][:2] == fragment[:2]:
++            found = index
++            break
++    merge_back = kind not in ["F", "L", "I"] and not (kind == "l" and private)
++    merge = not private and _unmergeable(data)
++    if found != -1 and merge_back and merge:
++        previous = target[found - 1][0] if found else ""
++        if not found or previous in ["l", "L", "I"] or not kind or previous == kind:
++            target.pop(found)
++    elif found != -1 and not private and not merge_back:
++        return
++    target.append(fragment)
++
++def _fragments(value, private):
++    result = []
++    for token in _tokens(value, allow_invalid = True):
++        if len(token) > 1 and token.startswith("-") and not token.startswith("-lib:") and not _unmergeable(token):
++            result.append((token[1], _relocate(token[2:]), False, private))
++        elif result and not result[-1][0] and _unmergeable(result[-1][1]):
++            previous = result.pop()
++            _copy_fragment(result, ("", previous[1] + " " + _relocate(token), True, private))
++        else:
++            result.append(("", token, False, private))
++    return result
++
++def _fragment_tokens(fragments):
++    tokens = []
++    for kind, data, merged, _ in fragments:
++        if kind:
++            tokens.append("-" + kind + data)
++        elif merged:
++            tokens.extend([word for word in data.split(" ") if word])
++        else:
++            tokens.append(data)
++    return tokens
++
++def _provides_match(requirement, provided):
++    operator, version = requirement[1:3]
++    offered, offer_version = provided[1:3]
++    # pkgconf 1.8.1's Provides comparator table, distinct from ordinary Version.
++    if not offered:
++        return False
++    if not operator:
++        return True
++    if operator == "=":
++        return _satisfies(version, offered, offer_version)
++    if operator == "!=":
++        comparison = {"<": ">=", ">": "<=", "<=": ">", ">=": "<", "=": "!=", "!=": "="}.get(offered, "")
++        return _satisfies(version, comparison, offer_version)
++    comparison = {"<": {">": "<", ">=": "<", "=": "<", "!=": ">="}, ">": {"<": ">", "<=": ">", "=": ">", "!=": "<="}, "<=": {">": "<=", ">=": "<=", "=": "<=", "!=": ">"}, ">=": {"<": ">=", "<=": ">=", "=": ">=", "!=": "<"}}
++    if offered in comparison.get(operator, {}) and not _satisfies(offer_version, comparison[operator][offered], version):
++        return False
++    return offered not in ["<", ">", "<=", ">="] or _satisfies(version, offered, offer_version)
++
++def _edge_target(parsed, requirement):
++    name = requirement[0]
++    if name in parsed and parsed[name]["valid"]:
++        return name
++    for candidate, document in parsed.items():
++        if not document["valid"]:
++            continue
++        for provided in _requirements(document["fields"].get("Provides", "")):
++            if provided[0] == name and _provides_match(requirement, provided):
++                return candidate
++    return None
++
++def _edge_error(parsed, parent, requirement):
++    name, operator, version, _ = requirement
++    target = _edge_target(parsed, requirement)
++    if target == None:
++        return ("missing", name, parent)
++    if target == name and operator and not _satisfies(parsed[name]["fields"].get("Version", ""), operator, version):
++        return ("version", name, operator, version, parsed[name]["fields"].get("Version", ""))
++    return None
++
++def _query_dependencies(document, field, static):
++    fields = document["fields"]
++    public = _requirements(fields.get("Requires", ""))
++    private = []
++    if static or field.startswith("cflags"):
++        private = fields.get("_private_requirements", [])
++    return [(edge, False) for edge in public] + [(edge, True) for edge in private]
++
++def _dependency_calls(parsed, name, field, static, private, ancestors = {}):
++    active = private
++    private_phase = False
++    result = []
++    for edge, private_edge in _query_dependencies(parsed[name], field, static):
++        if private_edge and not private_phase:
++            active = True
++            private_phase = True
++        result.append((edge, private_edge, active if field == "libs" and static else False))
++        # pkgconf 1.8.1 uses one mutable traversal flag: every successful
++        # traversed node clears it on return, including an empty private list.
++        # A skipped cycle/error/internal edge never enters that traversal.
++        if field == "libs" and static and not _edge_error(parsed, name, edge) and _edge_target(parsed, edge) not in ancestors:
++            active = False
++    return result
++
++def _ordinary_context(parsed, field, static):
++    # In this restricted alphabet mergeback is associative: every predecessor
++    # of -l/-D is another -l/-L or -D/-I. No state/group/private barrier exists.
++    # Preserve exact operation events for every other context.
++    if field == "cflags.private":
++        return False
++    allowed = ["l", "L"] if field == "libs" else ["I", "D"]
++    key = "Libs" if field == "libs" else "Cflags"
++    for document in parsed.values():
++        fields = document["fields"]
++        if field == "libs" and static and (fields.get("Libs.private", "") or fields.get("_private_requirements", [])):
++            return False
++        for kind, _, _, _ in _fragments(fields.get(key, ""), False):
++            if kind not in allowed:
++                return False
++    return True
++
++def _assemble(parsed, name, field, static, private, children, compact):
++    document = parsed[name]
++    fields = document["fields"]
++    fragments = []
++    key = {"libs": "Libs", "cflags": "Cflags", "cflags.private": "Cflags.private"}[field]
++    for fragment in _fragments(fields.get(key, ""), private or field == "cflags.private"):
++        fragments.append(fragment)
++    if field == "libs" and static:
++        for fragment in _fragments(fields.get("Libs.private", ""), True):
++            fragments.append(fragment)
++    errors = []
++    required_names = [edge[0] for edge in _requirements(fields.get("Requires", ""))]
++    for conflict in _requirements(fields.get("Conflicts", "")):
++        if conflict[0] in required_names and not _edge_error(parsed, name, conflict):
++            errors.append(("conflict", conflict[0], conflict[1], conflict[2], parsed[_edge_target(parsed, conflict)]["fields"].get("Version", ""), parsed[_edge_target(parsed, conflict)]["fields"].get("Name", conflict[0]), fields.get("Name", name)))
++    if errors:
++        return ([], errors)
++    public_errors = False
++    for requirement, private_edge, child in children:
++        if private_edge and public_errors:
++            break
++        error = _edge_error(parsed, name, requirement)
++        if error:
++            errors.append(error)
++            public_errors = public_errors or not private_edge
++            continue
++        if requirement[3] and field.startswith("cflags"):
++            continue
++        if child:
++            fragments.extend(child[0])
++            errors.extend(child[1])
++            public_errors = public_errors or (bool(child[1]) and not private_edge)
++    if compact:
++        normalized = []
++        for fragment in fragments:
++            _copy_fragment(normalized, fragment)
++        fragments = normalized
++    return (fragments, errors)
++
++def _fragment_state(fragments):
++    state = {"nodes": [], "last": {}, "ordered": {}, "head": -1, "tail": -1}
++    for fragment in fragments:
++        _state_append(state, fragment)
++    return state
++
++def _state_append(state, fragment):
++    identity = fragment[:2]
++    index = len(state["nodes"])
++    previous = state["tail"]
++    state["nodes"].append({"fragment": fragment, "previous": previous, "next": -1, "same": state["last"].get(identity, -1)})
++    if previous == -1:
++        state["head"] = index
++    else:
++        state["nodes"][previous]["next"] = index
++    state["tail"] = index
++    state["ordered"][index] = fragment
++    state["last"][identity] = index
++
++def _state_values(state):
++    return tuple(state["ordered"].values())
++
++def _state_copy(state, fragment):
++    kind, data, _, private = fragment
++    identity = fragment[:2]
++    found = state["last"].get(identity, -1)
++    merge_back = kind not in ["F", "L", "I"] and not (kind == "l" and private)
++    merge = not private and _unmergeable(data)
++    if found != -1 and merge_back and merge:
++        node = state["nodes"][found]
++        previous = node["previous"]
++        previous_kind = state["nodes"][previous]["fragment"][0] if previous != -1 else ""
++        if previous == -1 or previous_kind in ["l", "L", "I"] or not kind or previous_kind == kind:
++            following = node["next"]
++            if previous == -1:
++                state["head"] = following
++            else:
++                state["nodes"][previous]["next"] = following
++            if following == -1:
++                state["tail"] = previous
++            else:
++                state["nodes"][following]["previous"] = previous
++            state["last"][identity] = node["same"]
++            state["ordered"].pop(found)
++    elif found != -1 and not private and not merge_back:
++        return
++    _state_append(state, fragment)
++
++def _apply_program(programs, identity, transforms):
++    # Execute the dependency DAG against the actual ordered fragment state.
++    # A memo key includes that state, so link-group boundaries and duplicate
++    # private flags are never discarded by a context-free subtree summary.
++    state = _fragment_state([])
++    stack = [{"identity": identity, "index": -1}]
++    for _ in range(3 * programs[identity]["work"] + 1):
++        if not stack:
++            break
++        frame = stack[-1]
++        program = programs[frame["identity"]]
++        if frame["index"] == -1:
++            # Cache a transform only when its traversal work exceeds the
++            # exact state snapshot cost; small subtrees execute in place.
++            cacheable = program["children"] and program["work"] > len(state["ordered"])
++            key = (frame["identity"], _state_values(state)) if cacheable else None
++            if cacheable and key in transforms:
++                state = _fragment_state(transforms[key])
++                stack.pop()
++                continue
++            frame["key"] = key
++            for fragment in program["own"]:
++                _state_copy(state, fragment)
++            frame["index"] = 0
++        if frame["index"] < len(program["children"]):
++            child = program["children"][frame["index"]]
++            frame["index"] += 1
++            stack.append({"identity": child, "index": -1})
++        else:
++            if frame["key"] != None:
++                transforms[frame["key"]] = _state_values(state)
++            stack.pop()
++    if stack:
++        fail("internal pkg-config DAG work accounting mismatch")
++    return list(_state_values(state))
++
++def _graph_query(parsed, root, field, static, query_cache):
++    cache_key = (field, static)
++    program_key = ("program", field, static)
++    state_key = ("state", field, static)
++    if cache_key in query_cache and (root, False) in query_cache[cache_key]:
++        result = query_cache[cache_key][(root, False)]
++        if program_key in query_cache and not result[1]:
++            return (_apply_program(query_cache[program_key], (root, False), query_cache[state_key]), [])
+         return result
++    memo = {}
++    programs = {}
++    compact = _ordinary_context(parsed, field, static)
++    pending = [(name, private) for name in parsed for private in ([False, True] if field == "libs" and static else [False])]
++    # Dependency-first evaluation reuses complete subgraphs. Each round removes
++    # at least one DAG level; the remaining nodes are cycles, not a depth limit.
++    for _ in range(len(parsed)):
++        following = []
++        for name, private in pending:
++            calls = _dependency_calls(parsed, name, field, static, private)
++            children = []
++            dependencies = []
++            ready = True
++            for edge, private_edge, child_private in calls:
++                identity = (_edge_target(parsed, edge), child_private)
++                if _edge_error(parsed, name, edge) or (edge[3] and field.startswith("cflags")):
++                    child = None
++                elif identity not in memo:
++                    ready = False
++                    break
++                else:
++                    child = memo[identity]
++                    dependencies.append(identity)
++                children.append((edge, private_edge, child))
++            if ready:
++                if compact:
++                    memo[(name, private)] = _assemble(parsed, name, field, static, private, children, True)
++                else:
++                    # Validate with memoized diagnostics, but never materialize
++                    # the repeated fragment trace of a shared dependency tree.
++                    _, errors = _assemble(parsed, name, field, static, private, [(edge, private_edge, ([], child[1]) if child else None) for edge, private_edge, child in children], False)
++                    memo[(name, private)] = ([], errors)
++                    own, _ = _assemble(parsed, name, field, static, private, [], False)
++                    work = 1
++                    for dependency in dependencies:
++                        work += programs[dependency]["work"]
++                    programs[(name, private)] = {"own": own, "children": dependencies, "work": work}
++            else:
++                following.append((name, private))
++        if len(following) == len(pending):
++            break
++        pending = following
++    query_cache[cache_key] = memo
++    if not compact:
++        query_cache[program_key] = programs
++        query_cache[state_key] = {}
++    if (root, False) in memo:
++        if not compact and not memo[(root, False)][1]:
++            return (_apply_program(programs, (root, False), query_cache[state_key]), [])
++        return memo[(root, False)]
++    # Expand only the cyclic remainder, excluding active ancestors as pkgconf
++    # does. An acyclic path contains at most len(parsed) distinct modules.
++    nodes = [{"name": root, "private": False, "ancestors": {}, "children": []}]
++    frontier = [0]
++    for _ in range(len(parsed) + 1):
++        following = []
++        for index in frontier:
++            node = nodes[index]
++            ancestors = dict(node["ancestors"])
++            ancestors[node["name"]] = True
++            for edge, private_edge, child_private in _dependency_calls(parsed, node["name"], field, static, node["private"], ancestors):
++                identity = (_edge_target(parsed, edge), child_private)
++                child = None
++                if not _edge_error(parsed, node["name"], edge) and not (edge[3] and field.startswith("cflags")) and identity[0] not in ancestors:
++                    if identity in memo:
++                        child = memo[identity]
++                        if not compact and not child[1]:
++                            child = (_apply_program(programs, identity, query_cache[state_key]), [])
++                    else:
++                        child = len(nodes)
++                        nodes.append({"name": identity[0], "private": identity[1], "ancestors": ancestors, "children": []})
++                        following.append(child)
++                node["children"].append((edge, private_edge, child))
++        frontier = following
++        if not frontier:
++            break
++    results = {}
++    for index in range(len(nodes) - 1, -1, -1):
++        node = nodes[index]
++        children = [(edge, private_edge, results[child] if type(child) == "int" else child) for edge, private_edge, child in node["children"]]
++        results[index] = _assemble(parsed, node["name"], field, static, node["private"], children, False)
++    fragments, errors = results[0]
++    normalized = []
++    for fragment in fragments:
++        _copy_fragment(normalized, fragment)
++    return (normalized, errors)
++
++def _error_text(errors):
++    text = ""
++    notice = False
++    for error in errors:
++        if error[0] == "missing":
++            name, parent = error[1:]
++            if not notice:
++                text += "Package %s was not found in the pkg-config search path.\nPerhaps you should add the directory containing `%s.pc'\nto the PKG_CONFIG_PATH environment variable\n" % (name, name)
++                notice = True
++            text += "Package '%s', required by '%s', not found\n" % (name, parent)
++        elif error[0] == "version":
++            name, operator, required, actual = error[1:]
++            text += "Package dependency requirement '%s %s %s' could not be satisfied.\nPackage '%s' has version '%s', required version is '%s %s'\n" % (name, operator, required, name, actual, operator, required)
++        else:
++            name, operator, required, actual, realname, parent = error[1:]
++            text += "Version '%s' of '%s' conflicts with '%s' due to satisfying conflict rule '%s %s%s'.\nIt may be possible to ignore this conflict and continue, try the\nPKG_CONFIG_IGNORE_CONFLICTS environment variable.\n" % (actual, realname, parent, name, operator, (" " + required) if required else "")
++    return text
+ 
+-    libs = query("--libs", share_libs)
+-    cflags = query("--cflags", share_cflags)
+-    if libs.return_code or cflags.return_code:
+-        return {"error": "pkg-config module %s (%s): %s%s" % (name, mode, libs.stderr, cflags.stderr)}
+-    # The SDK can retain split option operands. Quote tokens when passing them
+-    # through the legacy lexical parser so paths containing spaces stay intact.
+-    lib_tokens = _link_tokens(_tokens(libs.stdout))
+-    compile_tokens = _joined_flags(_tokens(cflags.stdout))
++def _flags_from_tokens(lib_tokens, cflag_tokens):
++    lib_tokens = _link_tokens(lib_tokens)
++    compile_tokens = _joined_flags(cflag_tokens)
+     quote = lambda tokens: " ".join(["'" + token.replace("'", "'\\''") + "'" for token in tokens])
+     parsed = process_pcconfig(({"Libs": quote(lib_tokens), "Cflags": quote(compile_tokens)}, {}), infer_includes = False)
+-    cflag_tokens = _tokens(cflags.stdout)
+     include_paths = list(parsed[5])
+     pending = False
+     for token in cflag_tokens:
+@@ -366,6 +814,43 @@ def _query_module(rctx, name, directory, mode, query_results, share_cflags, shar
+     literal_libraries = ["lib:" + token.rsplit("/", 1)[-1] for token in lib_tokens if not token.startswith("-") and any([token.endswith(suffix) for suffix in [".a", ".so", ".o", ".ld", ".lds"]])]
+     return {"libnames": parsed[0] + literal_libraries, "linkopts": parsed[3], "link_paths": parsed[4], "includes": include_paths, "defines": parsed[6], "libs": lib_tokens, "cflags": cflag_tokens}
+ 
++def _variant_query_sharing(records):
++    # pkgconf 1.8.1 Cflags always walks private requirements. --static only
++    # adds Cflags.private; Libs also adds private requirements and Libs.private.
++    # Be conservative about escaped/continued metadata and field spelling.
++    cflags = True
++    libs = True
++    for record in records.values():
++        content = record["content"]
++        if "\\" in content:
++            return (False, False)
++        fields = "".join([char for char in content.lower().elems() if char not in " \t\r\n\v\f"])
++        cflags = cflags and "cflags.private" not in fields
++        libs = libs and "requires.private" not in fields and "libs.private" not in fields
++    return (cflags, libs)
++
++def _query_module(parsed, name, mode, query_cache, share_cflags, share_libs):
++    if name not in parsed or not parsed[name]["valid"]:
++        errors = [("missing", name, "virtual:world")]
++        return {"error": "pkg-config module %s (%s): %s%s" % (name, mode, _error_text(errors), _error_text(errors))}
++    lib_static = mode == "static"
++    cflag_static = mode == "static"
++    libs, lib_errors = _graph_query(parsed, name, "libs", False if share_libs else lib_static, query_cache)
++    cflags, cflag_errors = _graph_query(parsed, name, "cflags", False if share_cflags else cflag_static, query_cache)
++    if lib_static and share_libs and lib_errors:
++        libs, lib_errors = _graph_query(parsed, name, "libs", True, query_cache)
++    if cflag_static and share_cflags and cflag_errors:
++        cflags, cflag_errors = _graph_query(parsed, name, "cflags", True, query_cache)
++    if lib_errors or cflag_errors:
++        return {"error": "pkg-config module %s (%s): %s%s" % (name, mode, _error_text(lib_errors), _error_text(cflag_errors))}
++    normalized_libs = list(libs)
++    normalized_cflags = list(cflags)
++    if mode == "static" and not share_cflags:
++        private, _ = _graph_query(parsed, name, "cflags.private", True, query_cache)
++        for fragment in private:
++            _copy_fragment(normalized_cflags, fragment)
++    return _flags_from_tokens(_fragment_tokens(normalized_libs), _fragment_tokens(normalized_cflags))
++
+ def _legacy_direct_flags(content, mode):
+     directives, variables = parse_pc(content)
+     # Retain the historical direct-field interface even for metadata rejected
+@@ -378,28 +863,33 @@ def _legacy_direct_flags(content, mode):
+     return {"libnames": parsed[0], "linkopts": parsed[3], "link_paths": parsed[4], "includes": parsed[5], "defines": parsed[6], "libs": _link_tokens(_tokens(libs)), "cflags": _tokens(direct.get("Cflags", ""))}
+ 
+ def resolve_modules(rctx, documents, provider_errors = {}):
+-    """Strict module contracts and separate, best-effort legacy module defaults."""
++    """Evaluate locked .pc documents without processes or host filesystem input."""
+     records = module_records(documents)
++    parsed = {}
++    for name, record in records.items():
++        fields, variables = _parse_document(record["content"], "/" + record["path"].rsplit("/", 1)[0])
++        parsed[name] = {"fields": fields, "variables": variables, "valid": all([key in fields for key in ["Name", "Description", "Version"]])}
++    direct = {}
+     for name, record in records.items():
+-        installed_dir = "/" + record["path"].rsplit("/", 1)[0]
+-        content = record["content"].replace("${pcfiledir}", installed_dir)
+-        rctx.file("_pkgconfig_modules/" + name + ".pc", content)
+-        if record["own"]:
+-            rctx.file("_pkgconfig_direct/" + name + ".pc", _direct_document(content))
++        if not record["own"]:
++            continue
++        fields, variables = _parse_document(_direct_document(record["content"]), "/" + record["path"].rsplit("/", 1)[0])
++        direct[name] = {"fields": fields, "variables": variables, "valid": all([key in fields for key in ["Name", "Description", "Version"]])}
+     resolved = {}
++    strict_queries = {}
++    direct_queries = {}
+     share_cflags, share_libs = _variant_query_sharing(records)
+-    query_results = {}
+     for name, record in sorted(records.items()):
+         if not record["own"]:
+             continue
+         modes = {}
+         compat = {}
+         for mode in ["dynamic", "static"]:
+-            flags = _query_module(rctx, name, "_pkgconfig_modules", mode, query_results, share_cflags, share_libs)
++            flags = _query_module(parsed, name, mode, strict_queries, share_cflags, share_libs)
+             if "error" in flags and provider_errors:
+                 flags["error"] += "\n" + "\n".join(provider_errors.values())
+             modes[mode] = flags
+-            compatible = _query_module(rctx, name, "_pkgconfig_direct", mode, query_results, share_cflags, share_libs) if "error" in flags else flags
++            compatible = _query_module(direct, name, mode, direct_queries, share_cflags, share_libs) if "error" in flags else flags
+             compat[mode] = _legacy_direct_flags(record["content"], mode) if "error" in compatible else compatible
+         libraries = {libname: True for flags in compat.values() for libname in flags.get("libnames", [])}.keys()
+         resolved[name] = {"modes": modes, "compat_modes": compat, "own_libnames": libraries}
+diff --git a/apt/private/pkgconfig_metadata.bzl b/apt/private/pkgconfig_metadata.bzl
+index 299c569..605c4f9 100644
+--- a/apt/private/pkgconfig_metadata.bzl
++++ b/apt/private/pkgconfig_metadata.bzl
+@@ -1,7 +1,6 @@
+ """Pure locked pkg-config graph data, independent of BUILD rendering."""
+ 
+-load(":native_tools.bzl", "catalog_execute")
+-load(":pkgconfig.bzl", "module_records", "pkgconfig_environment", "resolve_modules")
++load(":pkgconfig.bzl", "direct_requirements", "module_records", "resolve_modules")
+ load(":util.bzl", "util")
+ 
+ def expand_module_metadata(rctx, state, load_package):
+@@ -19,7 +18,6 @@ def expand_module_metadata(rctx, state, load_package):
+     # Full queries below still validate the completed graph and its versions.
+     for _ in range(len(providers) + len(state["documents"]) + 1):
+         records = module_records(state["documents"])
+-        written = False
+         pending = [name for name in records if name not in visited]
+         if not pending:
+             break
+@@ -30,12 +28,7 @@ def expand_module_metadata(rctx, state, load_package):
+                 if option in cached and "alias" not in records[name]:
+                     requirements = cached[option]
+                 else:
+-                    if not written:
+-                        for module, record in records.items():
+-                            rctx.file("_pc_requirements/" + module + ".pc", record["content"].replace("${pcfiledir}", "/" + record["path"].rsplit("/", 1)[0]))
+-                        written = True
+-                    result = catalog_execute(rctx, "pkg-config", ["--maximum-traverse-depth=1", option, name], environment = pkgconfig_environment(rctx, "_pc_requirements"))
+-                    requirements = result.stdout
++                    requirements = direct_requirements(rctx, records[name]["path"], records[name]["content"]).get(option, "")
+                 for requirement in requirements.splitlines():
+                     required = requirement.strip().split(" ")[0] if requirement.strip() else ""
+                     if not required or required in records:

@@ -1,0 +1,11 @@
+{
+  "homepage": "https://salsa.debian.org/debian/kdump-tools",
+  "maintainers": [],
+  "repository": [
+    "https://salsa.debian.org/debian/kdump-tools"
+  ],
+  "versions": [
+    "1.10.7.sonic.1"
+  ],
+  "yanked_versions": {}
+}

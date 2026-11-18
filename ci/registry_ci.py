@@ -55,6 +55,7 @@ RUNNERS = {
 # The exploratory survey uses True in its separate branch; do not infer success
 # from a build-only result or an API-green job without the original test evidence.
 ARM_CROSS_ALL = False
+FIPS_CROSS_VERSION = "0.0.6-18a778db501d455f8a1b6d1e3ef8e17121661177"
 # Temporary exact-version routes qualified by the complete original ARM contract.
 # Remove this map and the hosted ARM route after the full migration, so future
 # ARM versions receive cross validation as well. See ci/README.md for CI evidence.
@@ -63,21 +64,39 @@ ARM_CROSS_VERSIONS: dict[str, tuple[str, ...]] = {
     "gazelle": ("0.54.0.sonic.1",),
     "iproute2": ("6.15.0.sonic.7",),
     "libnl3": ("3.7.0.sonic.7",),
+    "libpsample": ("1.1.0.sonic.2",),
+    "libyang": ("3.12.2.sonic.7",),
     "libyang-python": ("3.1.0.sonic.6",),
+    "net-snmp": ("5.9.3.sonic.1",),
     "p4c": ("1.2.4.2.sonic.3",),
     "p4lang-bmv2": ("1.15.0.sonic.4",),
-    "p4lang-pi": ("0.1.3.sonic.3",),
+    "p4lang-pi": ("0.1.3.sonic.3", "0.1.3.sonic.6"),
     "protobuf-legacy": ("3.21.12.sonic.2",),
-    "rules_distroless": ("0.9.4.sonic.17",),
+    "redis-dump-load": ("1.1.sonic.1",),
+    "rules_distroless": ("0.9.4.sonic.17", "0.9.4.sonic.20", "0.9.4.sonic.21"),
     "rules_foreign_cc": ("0.16.0.sonic.1",),
     "rules_go": ("0.65.0.sonic.1",),
     "rules_python": ("1.9.0.sonic.1",),
     "sai": ("1.18.0-sonic.1",),
-    "socat": ("1.8.0.2.sonic.5",),
-    "sonic-dash": ("0.0.1-2cbfdfa1205c0d03003444e5c80f89adb8c3df59",),
+    "sflowtool": ("6.11.0.sonic.3",),
+    "socat": ("1.8.0.2.sonic.5", "1.8.0.2.sonic.7"),
+    "sonic-build-infra": (
+        "0.0.37-316e298e77ab5cfa69af9b0c05ec24d5d94bbe1e",
+        "0.0.38-0baa4acc9eac9ccc793b81104b1580d530271cbe",
+    ),
+    "sonic-dash": (
+        "0.0.1-2cbfdfa1205c0d03003444e5c80f89adb8c3df59",
+        "0.0.1-a9b799bb664b3b3b9d6e9a19cedd38b620e769de",
+        "0.0.3-2cbfdfa1205c0d03003444e5c80f89adb8c3df59",
+    ),
     "sonic-dash-api": ("0.0.5-9b2893e890734a2db0c53a5e5c64b031ec0dcfbd",),
+    "sonic-dhcpmon": ("0.1.0-b824589b2ba49a8ba59142289bfb04bb3ca68875",),
+    "sonic-fips": (FIPS_CROSS_VERSION,),
     "sonic-linux-kernel": ("0.0.2-34a53faaecd325509e9d8f1016ed0108ab558a23",),
-    "sonic-rust-deps": ("0.0.4-6d9c70f708d7420e9e2b2cdc906b80cee6b140f1",),
+    "sonic-rust-deps": (
+        "0.0.4-6d9c70f708d7420e9e2b2cdc906b80cee6b140f1",
+        "0.0.5-dd364f207d7b320a5af12c81da6d10893f292205",
+    ),
     "sonic-sairedis": ("0.0.5-33443ea1666a23812365d03fb959066ee84c9aa0",),
     "sonic-swss": ("0.0.3-9c3797990d4b5a79100a40fe7689927c18212361",),
     "sonic-swss-common": ("0.0.9-334389eae54afd1f4f5ee69f89c3a7ad2062ee61",),
@@ -89,7 +108,7 @@ ARM_CROSS_VERSIONS: dict[str, tuple[str, ...]] = {
 # Keep the coherent DASH registration in routine plans. The published
 # .3 registration remains the numeric latest version and keeps its usual jobs.
 ADDITIONAL_PRESUBMITS: set[tuple[str, str]] = {
-    ("sonic-dash", "0.0.1-2cbfdfa1205c0d03003444e5c80f89adb8c3df59"),
+    ("sonic-dash", "0.0.1-a9b799bb664b3b3b9d6e9a19cedd38b620e769de"),
 }
 
 # The original wrappers stage a private target executable, loader and libraries.
@@ -244,9 +263,26 @@ def integration_test_directory(entry: Path, config: dict, module: str, version: 
         tree = ast.parse(declaration)
     except SyntaxError as error:
         raise RegistryError("Integration MODULE.bazel must use ordinary module declarations") from error
+    version_pin_functions = set()
+    for statement in tree.body:
+        if not (isinstance(statement, ast.Expr) and isinstance(statement.value, ast.Call)):
+            continue
+        call = statement.value
+        if not (isinstance(call.func, ast.Name) and call.func.id == "single_version_override"):
+            continue
+        require(not call.args and len(call.keywords) == 2
+                and {keyword.arg for keyword in call.keywords} == {"module_name", "version"}
+                and all(isinstance(keyword.value, ast.Constant)
+                        and isinstance(keyword.value.value, str)
+                        and bool(keyword.value.value.strip()) for keyword in call.keywords),
+                "Integration single_version_override requires only literal nonempty module_name and version")
+        values = {keyword.arg: keyword.value.value for keyword in call.keywords}
+        require(values["module_name"] != module or values["version"] == version,
+                "Integration version pin must retain the exact reviewed module version")
+        version_pin_functions.add(call.func)
     for node in ast.walk(tree):
         if isinstance(node, ast.Name):
-            require(not node.id.endswith("_override")
+            require((not node.id.endswith("_override") or node in version_pin_functions)
                     and node.id not in ("include", "override_repo", "inject_repo"),
                     "Integration MODULE.bazel cannot include files or override registry sources")
     dependencies = []
@@ -410,8 +446,21 @@ def validate_entry(root: Path, module: str, version: str) -> dict:
     if "integration_test_module" in config:
         integration_test_directory(entry, config, module, version)
     for dependency in config["consumer_deps"]:
-        require(isinstance(dependency, dict) and set(dependency) in ({"name", "version"}, {"name", "version", "repo_name"}),
-                "consumer_deps require name/version and optional repo_name")
+        require(isinstance(dependency, dict) and {"name", "version"} <= set(dependency)
+                and set(dependency) <= {"name", "version", "repo_name", "source_patches", "patch_strip"},
+                "consumer_deps require name/version and optional repo_name/source_patches/patch_strip")
+        if "source_patches" in dependency:
+            patches = dependency["source_patches"]
+            require(isinstance(patches, list) and bool(patches)
+                    and all(isinstance(patch, str) and LABEL.fullmatch(patch)
+                            and patch.startswith(f"@{module}//") and patch.endswith(".patch")
+                            and ".." not in patch for patch in patches)
+                    and len(patches) == len(set(patches)),
+                    "Consumer patches must be unique .patch labels owned by the exact tested source module")
+            require(type(dependency.get("patch_strip", 0)) is int and dependency.get("patch_strip", 0) >= 0,
+                    "Consumer patch_strip must be a nonnegative integer")
+        else:
+            require("patch_strip" not in dependency, "patch_strip requires source_patches")
         name, dep_version = dependency["name"], dependency["version"]
         alias = dependency.get("repo_name", name)
         require(isinstance(name, str) and NAME.fullmatch(name) is not None and name not in names,
@@ -687,9 +736,11 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
         require(re.fullmatch(r"[0-9a-fA-F]{40,64}", base) is not None
                 and re.fullmatch(r"[0-9a-fA-F]{40,64}", head) is not None,
                 "base and head must be full commit SHAs")
-        # A PR compares its own changes with the common ancestor. Releases
-        # added only to its target branch are not deletions from this checkout.
-        comparison_base = base if push else git(root, "merge-base", base, head).strip()
+        # Compare the complete proposed stack with the maintained publication
+        # merge base, just like check_version_policy. The event base can predate
+        # a main integration and incorrectly classify inherited CI as PR edits.
+        # Genuine CI/planner edits still select every required consumer below.
+        comparison_base = base if push else git(root, "merge-base", published, head).strip()
         changed = git(root, "diff", "--name-only", "--no-renames", "-z", comparison_base, head).split("\0")
         ci_changed = False
         for name in filter(None, changed):
@@ -821,9 +872,10 @@ def query_output_trees(prefix: list[str], flags: list[str], labels: list[str],
                           '"trees": [f.path for f in target.files.to_list() if f.is_directory]})')
             # Select the requested top-level configuration. A normal build can
             # also retain this label's exec configuration through a tool dependency.
+            # Legal build labels such as Common++ must remain one query word.
             result = subprocess.run(
                 [*prefix, "cquery", *flags, "--output=starlark", f"--starlark:expr={expression}",
-                 f"config({label}, target)"], cwd=consumer, stdout=output, stderr=errors)
+                 f"config({json.dumps(label, ensure_ascii=False)}, target)"], cwd=consumer, stdout=output, stderr=errors)
             require(result.returncode == 0, f"Declared output query failed for {label}; see {log}")
     trees = {}
     for line in manifest.read_text().splitlines():
@@ -1370,6 +1422,37 @@ def python_runtime_identity(runtime: Path, consumer: Path, log: Path,
     return identity
 
 
+def prepare_fips_recipe_perl(consumer: Path, work_dir: Path, artifacts: Path,
+                             executor_prefix: list[str], kernel_executor: Path) -> str:
+    """Use the target Perl for every original recipe, with native AIO for AF_ALG."""
+    runtime = consumer / "fips_recipe_runtime"
+    runtime.mkdir(exist_ok=True)
+    (runtime / "BUILD.bazel").write_text('exports_files(["run"])\n')
+    guest_perl = [*executor_prefix, "/usr/bin/perl"]
+    identity = json.loads(subprocess.check_output(
+        [*guest_perl, "-MConfig", "-MJSON::PP", "-e",
+         'print encode_json({version => $Config{version}, archname => $Config{archname}})'],
+        text=True, cwd=consumer))
+    require("aarch64" in identity["archname"], "OpenSSL TAP recipes must use AArch64 Perl")
+    identity["kernel_executor"] = str(kernel_executor)
+    identity["kernel_recipes"] = ["30-test_afalg.t"]
+    (artifacts / "fips-recipe-perl.json").write_text(json.dumps(identity, indent=2) + "\n")
+
+    # Embed the complete launcher in the Bazel input copied by rules_foreign_cc.
+    # OpenSSL's global EXE_SHELL would cause its CMP/HTTP recipe to skip.
+    kernel = shlex.join([str(kernel_executor), "--bind", str(work_dir), "--bind", str(artifacts)])
+    target_path = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+    runner = runtime / "run"
+    runner.write_text(
+        "#!/bin/sh\nunset PERLLIB PERL5LIB PERL5OPT\n"
+        'for arg do\n    case "${arg##*/}" in\n        30-test_afalg.t)\n'
+        f'            exec {kernel} --cwd "$PWD" --timeout 180 -- /usr/bin/env PATH={target_path} /usr/bin/perl "$@" ;;\n'
+        "    esac\ndone\n"
+        + 'exec ' + shlex.join(guest_perl) + ' "$@"\n')
+    runner.chmod(0o755)
+    return "--@sonic-fips//openssl/integration:recipe_perl=//fips_recipe_runtime:run"
+
+
 def prepare_cross_python_runtimes(bazel_prefix: list[str], flags: list[str], test_targets: list[str],
                                   output_base: Path, consumer: Path, artifacts: Path,
                                   executor_prefix: list[str]) -> list[dict]:
@@ -1497,6 +1580,101 @@ def prepare_gazelle_tests(root: Path, work_dir: Path, script_executor: list[str]
     return runner
 
 
+def stage_consumer_source_patches(root: Path, module: str, version: str,
+                                  config: dict, consumer: Path, artifacts: Path) -> dict:
+    """Materialize owner-bound patch bytes in the fresh consuming main repository.
+
+    Never extract or execute an archive. Only regular selected members are read
+    after whole-archive integrity verification. Fetch overlays are supported;
+    arbitrary source patches are rejected because they could alter owner bytes.
+    """
+    labels = [label for dep in config["consumer_deps"] for label in dep.get("source_patches", [])]
+    if not labels:
+        return {}
+    require(consumer.is_dir() and not consumer.is_symlink()
+            and consumer.resolve() == consumer.absolute(),
+            "Patch consumer root must have no symlink components")
+    entry = entry_directory(root, module, version)
+    source = read_json(local_input(entry, "source.json"))
+    require(not source.get("patches"), "Owner source_patches require an unpatched archive or explicit overlay inputs")
+    url = source.get("url", "")
+    require(urlparse(url).scheme == "https", "Owner archive must use HTTPS")
+    prefix = source.get("strip_prefix", "")
+    require(isinstance(prefix, str) and prefix and not prefix.startswith("/")
+            and ".." not in prefix.split("/") and "\\" not in prefix,
+            "Owner patch staging requires a safe strip_prefix")
+    with urlopen(url, timeout=60) as response:
+        archive = response.read(64 * 1024 * 1024 + 1)
+    require(len(archive) <= 64 * 1024 * 1024, "Owner patch archive exceeds bounded staging limit")
+    sri(source.get("integrity"), archive)
+    wanted = {}
+    for label in labels:
+        require(isinstance(label, str) and label.startswith(f"@{module}//") and LABEL.fullmatch(label),
+                "Patch label must belong to tested owner")
+        package, name = label.split("//", 1)[1].split(":", 1)
+        path = (package + "/" if package else "") + name
+        require(path.endswith(".patch") and all(part not in ("", ".", "..") for part in path.split("/")),
+                "Unsafe owner patch path")
+        wanted[label] = path
+    selected = {}; seen = set(); nonregular = set()
+    try:
+        with tarfile.open(fileobj=io.BytesIO(archive), mode="r:*") as tar:
+            for member in tar:
+                path = member.name.removeprefix("./").rstrip("/")
+                require(path and not path.startswith("/") and "\\" not in path
+                        and all(part not in ("", ".", "..") for part in path.split("/")),
+                        "Unsafe owner archive member")
+                require(path not in seen, "Duplicate owner archive member")
+                seen.add(path)
+                if not member.isdir() and not member.isfile():
+                    nonregular.add(path)
+                for label, relative in wanted.items():
+                    if path == prefix + "/" + relative:
+                        require(member.isfile() and member.size <= 1024 * 1024,
+                                "Owner patch must be a bounded regular archive member")
+                        selected[label] = tar.extractfile(member).read()
+    except tarfile.TarError as error:
+        raise RegistryError("Owner patch archive is not a supported TAR") from error
+    for label, relative in wanted.items():
+        parts = (prefix + "/" + relative).split("/")
+        require(not any("/".join(parts[:end]) in nonregular for end in range(1, len(parts))),
+                "Owner patch parent must not be a symlink or special member")
+        if relative in source.get("overlay", {}):
+            overlay = local_input(entry / "overlay", relative)
+            require(not (entry / "overlay").is_symlink()
+                    and not any(parent.is_symlink() for parent in overlay.parents if parent.is_relative_to(entry)),
+                    "Owner overlay patch parents must not be symlinks")
+            require(overlay.stat().st_size <= 1024 * 1024, "Owner overlay patch exceeds staging limit")
+            selected[label] = overlay.read_bytes()
+            sri(source["overlay"][relative], selected[label])
+        require(label in selected, "Owner patch not present in verified source")
+    directory = consumer / "_registry_source_patches"
+    require(not directory.exists() and not directory.is_symlink(), "Patch staging directory must be fresh")
+    directory.mkdir()
+    result = {}; receipt = []
+    for index, label in enumerate(dict.fromkeys(labels)):
+        name = f"{index:03d}.patch"
+        (directory / name).write_bytes(selected[label])
+        result[label] = f"//_registry_source_patches:{name}"
+        receipt.append({"source_label": label, "root_label": result[label],
+                        "sha256": hashlib.sha256(selected[label]).hexdigest()})
+    (directory / "BUILD.bazel").write_text("exports_files(" + json.dumps([f"{i:03d}.patch" for i in range(len(result))]) + ")\n")
+    (artifacts / "consumer-source-patches.json").write_text(json.dumps({
+        "owner": module, "version": version, "archive_integrity": source["integrity"],
+        "archive_sha256": hashlib.sha256(archive).hexdigest(), "patches": receipt,
+    }, indent=2) + "\n")
+    return result
+
+
+def cross_test_timeout_flags(module: str, version: str, cross_compile: bool, flags: list[str]) -> list[str]:
+    """Supply emulation budgets for short, moderate, long and eternal tests."""
+    if not cross_compile or any(flag == "--test_timeout" or flag.startswith("--test_timeout=") for flag in flags):
+        return []
+    # The FIPS package test runs the complete SymCrypt unittest under QEMU.
+    long_seconds = 5400 if (module, version) == ("sonic-fips", FIPS_CROSS_VERSION) else 2700
+    return [f"--test_timeout=180,900,{long_seconds},7200"]
+
+
 def run(root: Path, module: str, version: str, architecture: str,
         work_dir: Path, artifacts: Path, bazel: str = "bazel",
         test_container_image: str | None = None,
@@ -1511,6 +1689,12 @@ def run(root: Path, module: str, version: str, architecture: str,
     require(not cross_compile or architecture == "arm64", "Cross compilation supports ARM64 targets on AMD64")
     require(cross_compile or test_executor is None, "A test executor requires explicit cross compilation")
     native = verify_native("amd64" if cross_compile else architecture)
+    fips_cross = cross_compile and module == "sonic-fips" and version in ARM_CROSS_VERSIONS.get(module, ())
+    infra_cross = cross_compile and module == "sonic-build-infra" and version in ARM_CROSS_VERSIONS.get(module, ())
+    kernel_executor = Path("/usr/local/bin/sonic-arm64-kernel")
+    if fips_cross:
+        require(kernel_executor.is_file() and os.access(kernel_executor, os.X_OK),
+                "FIPS ARM cross tests require the worker image with sonic-arm64-kernel")
     if config.get("test_runtime_preparation") or cross_compile:
         require_test_container(test_container_image)
     if cross_compile:
@@ -1532,14 +1716,20 @@ def run(root: Path, module: str, version: str, architecture: str,
             source = integration_test_directory(entry_directory(root, module, version), config, module, version)
             shutil.copytree(source, consumer, dirs_exist_ok=True)
         else:
+            staged_patches = stage_consumer_source_patches(root, module, version, config, consumer, artifacts)
             declarations = ['module(name = "registry_ci_consumer")']
             for dependency in [{"name": module, "version": version}, *config["consumer_deps"]]:
                 declarations.append("bazel_dep(" + ", ".join(f"{key} = {json.dumps(value)}"
-                                                           for key, value in dependency.items()) + ")")
+                                                           for key, value in dependency.items()
+                                                           if key in ("name", "version", "repo_name")) + ")")
             for dependency in config["consumer_deps"]:
                 name, selected_version = dependency["name"], dependency["version"]
+                patch_args = ""
+                if "source_patches" in dependency:
+                    patch_args = (f", patches = {json.dumps([staged_patches[label] for label in dependency['source_patches']])}, "
+                                  f"patch_strip = {dependency.get('patch_strip', 0)}")
                 declarations.append(f"single_version_override(module_name = {json.dumps(name)}, "
-                                    f"version = {json.dumps(selected_version)})")
+                                    f"version = {json.dumps(selected_version)}{patch_args})")
             if "go_sdk" in config:
                 dependencies = {module: module, **{
                     dependency["name"]: dependency.get("repo_name", dependency["name"])
@@ -1637,6 +1827,21 @@ def run(root: Path, module: str, version: str, architecture: str,
                 host_platform = cross_platforms["execution_platform"]
                 flags.extend([f"--platforms={cross_platforms['target_platform']}",
                               f"--host_platform={host_platform}"])
+                if infra_cross:
+                    # Build tools such as foreign_runtime_arm64 execute their own
+                    # target loader while assembling a runtime. Give those actions
+                    # an ARM execution platform after the preferred AMD64 cross host.
+                    arm_platform = cross_platforms["target_platform"]
+                    arm_uname = "/opt/sonic-arm64-rootfs/usr/bin/uname"
+                    probe_log = artifacts / "cross-binfmt.log"
+                    run_logged(["/usr/bin/env", "-i", arm_uname, "-m"], consumer, probe_log)
+                    machine = probe_log.read_text().strip()
+                    require(machine == "aarch64", "Build-tool runtime assembly requires working AArch64 binfmt")
+                    flags.append(f"--extra_execution_platforms={host_platform},{arm_platform}")
+                    cross_runtime["build_tool_execution"] = {
+                        "preferred": host_platform, "native_machine": native["machine"],
+                        "fallback": arm_platform, "fallback_machine": machine,
+                    }
                 try:
                     pip_hubs = cross_pip.prepare(
                         root, consumer, artifacts, prefix, flags,
@@ -1645,7 +1850,7 @@ def run(root: Path, module: str, version: str, architecture: str,
                     raise RegistryError(str(error)) from error
                 cross_runtime["pip_hubs"] = pip_hubs
                 try:
-                    cross_runtime["autoconf"] = cross_autoconf.prepare(work_dir, artifacts, flags)
+                    cross_runtime["autoconf"] = cross_autoconf.prepare(work_dir, artifacts, flags, fips_krb5=fips_cross)
                 except ValueError as error:
                     raise RegistryError(str(error)) from error
                 shutil.copy2(consumer / "MODULE.bazel", artifacts / "consumer.MODULE.bazel")
@@ -1686,6 +1891,16 @@ def run(root: Path, module: str, version: str, architecture: str,
                     "Fetched MODULE.bazel differs from registry MODULE.bazel")
             shutil.copy2(fetched[0], artifacts / "fetched.MODULE.bazel")
             require((consumer / "MODULE.bazel.lock").is_file(), "Bazel did not generate MODULE.bazel.lock resolution evidence")
+            if infra_cross:
+                # These runtime tests exercise public wrappers alongside target
+                # runtimes and compare their tool versions, loaded Perl paths,
+                # and Valgrind instrumentation of an AArch64 program.
+                # Bazel drops this option on exec transitions. A platform mapping
+                # also applies it to nested ARM execution tools such as Valgrind.
+                mapping = consumer / "_registry_ci_cross" / "build_infra_arm64_tests.platforms"
+                shutil.copy2(root / "ci" / mapping.name, mapping)
+                shutil.copy2(mapping, artifacts / mapping.name)
+                flags.append("--platform_mappings=" + str(mapping.relative_to(consumer)))
             if executor_prefix:
                 mappings = prepare_cross_python_runtimes(prefix, flags, test_targets, output_base,
                                                          consumer, artifacts, executor_prefix)
@@ -1702,18 +1917,20 @@ def run(root: Path, module: str, version: str, architecture: str,
                 executor_prefix = [str(go_executor)]
                 cross_runtime["test_executor_prefix"] = executor_prefix
                 cross_runtime["test_executor_sha256"] = hashlib.sha256(go_executor.read_bytes()).hexdigest()
+            if fips_cross:
+                test_flags.extend(["--keep_going", prepare_fips_recipe_perl(
+                    consumer, work_dir, artifacts, executor_prefix, kernel_executor)])
             if executor_prefix:
                 fixtures = ARM_DECLARED_RUNTIME_FIXTURES.get((module, version))
+                if infra_cross:
+                    # The test relocates a large tree and runs its target tools.
+                    # Avoid tracing every filesystem operation inside PRoot.
+                    fixtures = {"tools/build_tools/foreign_runtime_test":
+                                "sonic-build-infra+/tools/build_tools/foreign_runtime_arm64/usr/bin/protoc"}
                 if fixtures:
                     executor_prefix = [str(root / "ci" / "declared_arm_runtime.py"), json.dumps(fixtures), *executor_prefix]
                 test_flags.append("--run_under=" + shlex.join(executor_prefix))
-            # Emulated Python can spend more than five minutes staging a large
-            # declared runtime before the test starts. Keep caller timeouts and
-            # native defaults; extend only the cross-test execution budgets.
-            if cross_compile and not any(
-                    flag == "--test_timeout" or flag.startswith("--test_timeout=")
-                    for flag in [*flags, *test_flags]):
-                test_flags.append("--test_timeout=180,900,2700,7200")
+            test_flags.extend(cross_test_timeout_flags(module, version, cross_compile, [*flags, *test_flags]))
             # Export HOME before Bazel's test setup assigns TEST_TMPDIR. With
             # HOME absent, that shell assignment is invisible to Python and
             # expanduser() falls back to the account home outside the sandbox.

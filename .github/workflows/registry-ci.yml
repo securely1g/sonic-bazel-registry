@@ -171,6 +171,12 @@ jobs:
     runs-on: ${{ matrix.runner }}
     timeout-minutes: ${{ matrix.timeout_minutes }}
     steps:
+      - name: Bypass the proxy for Bazel Central Registry
+        if: runner.environment == 'self-hosted'
+        shell: bash
+        run: |
+          echo "no_proxy=${no_proxy:+${no_proxy},}bcr.bazel.build" >> "$GITHUB_ENV"
+          echo "NO_PROXY=${NO_PROXY:+${NO_PROXY},}bcr.bazel.build" >> "$GITHUB_ENV"
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -281,6 +287,12 @@ jobs:
       REGISTRY_CI_TEST_ARM_EXECUTOR: /usr/local/bin/sonic-arm64
       REGISTRY_CI_TEST_ARTIFACTS: cross-fixture-artifacts
     steps:
+      - name: Bypass the proxy for Bazel Central Registry
+        if: runner.environment == 'self-hosted'
+        shell: bash
+        run: |
+          echo "no_proxy=${no_proxy:+${no_proxy},}bcr.bazel.build" >> "$GITHUB_ENV"
+          echo "NO_PROXY=${NO_PROXY:+${NO_PROXY},}bcr.bazel.build" >> "$GITHUB_ENV"
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}

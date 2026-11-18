@@ -1,0 +1,16 @@
+# @LIBRARY@.la - a libtool library file
+# Generated from the original Libtool 0:0:0 installation contract.
+dlname='@LIBRARY@.so.0'
+library_names='@LIBRARY@.so.0.0.0 @LIBRARY@.so.0 @LIBRARY@.so'
+old_library='@LIBRARY@.a'
+inherited_linker_flags=''
+dependency_libs=' @DEPENDENCIES@'
+weak_library_names=''
+current=0
+age=0
+revision=0
+installed=yes
+shouldnotlink=no
+dlopen=''
+dlpreopen=''
+libdir='@LIBDIR@'

@@ -1,0 +1,165 @@
+#ifndef _INCLUDE_BM_CONFIG_H
+#define _INCLUDE_BM_CONFIG_H 1
+/* #undef COVERAGE */
+/* #undef DEBUG_ON */
+#ifndef BM_ELOG_ON
+#define BM_ELOG_ON @BM_ELOG_ON@
+#endif
+#ifndef BM_ENABLE_MODULES
+#define BM_ENABLE_MODULES @BM_ENABLE_MODULES@
+#endif
+#ifndef BM_HAVE_ALGORITHM
+#define BM_HAVE_ALGORITHM @BM_HAVE_ALGORITHM@
+#endif
+#ifndef BM_HAVE_ARRAY
+#define BM_HAVE_ARRAY @BM_HAVE_ARRAY@
+#endif
+#ifndef BM_HAVE_CASSERT
+#define BM_HAVE_CASSERT @BM_HAVE_CASSERT@
+#endif
+#ifndef BM_HAVE_CMATH
+#define BM_HAVE_CMATH @BM_HAVE_CMATH@
+#endif
+#ifndef BM_HAVE_CSTDIO
+#define BM_HAVE_CSTDIO @BM_HAVE_CSTDIO@
+#endif
+#ifndef BM_HAVE_CTIME
+#define BM_HAVE_CTIME @BM_HAVE_CTIME@
+#endif
+#ifndef BM_HAVE_CXX17
+#define BM_HAVE_CXX17 @BM_HAVE_CXX17@
+#endif
+#ifndef BM_HAVE_DLFCN_H
+#define BM_HAVE_DLFCN_H @BM_HAVE_DLFCN_H@
+#endif
+#ifndef BM_HAVE_DLOPEN
+#define BM_HAVE_DLOPEN @BM_HAVE_DLOPEN@
+#endif
+#ifndef BM_HAVE_INTTYPES_H
+#define BM_HAVE_INTTYPES_H @BM_HAVE_INTTYPES_H@
+#endif
+/* #undef HAVE_LIBATOMIC */
+#ifndef BM_HAVE_LIBBOOST_THREAD
+#define BM_HAVE_LIBBOOST_THREAD @BM_HAVE_LIBBOOST_THREAD@
+#endif
+/* #undef HAVE_LIBGCOV */
+#ifndef BM_HAVE_LIBGMP
+#define BM_HAVE_LIBGMP @BM_HAVE_LIBGMP@
+#endif
+#ifndef BM_HAVE_LIBNANOMSG
+#define BM_HAVE_LIBNANOMSG @BM_HAVE_LIBNANOMSG@
+#endif
+#ifndef BM_HAVE_LIBPCAP
+#define BM_HAVE_LIBPCAP @BM_HAVE_LIBPCAP@
+#endif
+#ifndef BM_HAVE_PI_P4INFO_H
+#define BM_HAVE_PI_P4INFO_H @BM_HAVE_PI_P4INFO_H@
+#endif
+#ifndef BM_HAVE_PI_PI_H
+#define BM_HAVE_PI_PI_H @BM_HAVE_PI_PI_H@
+#endif
+#ifndef BM_HAVE_PI_TARGET_PI_IMP_H
+#define BM_HAVE_PI_TARGET_PI_IMP_H @BM_HAVE_PI_TARGET_PI_IMP_H@
+#endif
+#ifndef BM_HAVE_PTHREAD
+#define BM_HAVE_PTHREAD @BM_HAVE_PTHREAD@
+#endif
+#ifndef BM_HAVE_PTHREAD_PRIO_INHERIT
+#define BM_HAVE_PTHREAD_PRIO_INHERIT @BM_HAVE_PTHREAD_PRIO_INHERIT@
+#endif
+#ifndef BM_HAVE_QUEUE
+#define BM_HAVE_QUEUE @BM_HAVE_QUEUE@
+#endif
+#ifndef BM_HAVE_STDINT_H
+#define BM_HAVE_STDINT_H @BM_HAVE_STDINT_H@
+#endif
+#ifndef BM_HAVE_STDIO_H
+#define BM_HAVE_STDIO_H @BM_HAVE_STDIO_H@
+#endif
+#ifndef BM_HAVE_STDLIB_H
+#define BM_HAVE_STDLIB_H @BM_HAVE_STDLIB_H@
+#endif
+#ifndef BM_HAVE_STRING
+#define BM_HAVE_STRING @BM_HAVE_STRING@
+#endif
+#ifndef BM_HAVE_STRINGS_H
+#define BM_HAVE_STRINGS_H @BM_HAVE_STRINGS_H@
+#endif
+#ifndef BM_HAVE_STRING_H
+#define BM_HAVE_STRING_H @BM_HAVE_STRING_H@
+#endif
+#ifndef BM_HAVE_SYS_STAT_H
+#define BM_HAVE_SYS_STAT_H @BM_HAVE_SYS_STAT_H@
+#endif
+#ifndef BM_HAVE_SYS_TYPES_H
+#define BM_HAVE_SYS_TYPES_H @BM_HAVE_SYS_TYPES_H@
+#endif
+/* #undef HAVE_THRIFT_STDCXX_H */
+#ifndef BM_HAVE_TUPLE
+#define BM_HAVE_TUPLE @BM_HAVE_TUPLE@
+#endif
+#ifndef BM_HAVE_UNISTD_H
+#define BM_HAVE_UNISTD_H @BM_HAVE_UNISTD_H@
+#endif
+#ifndef BM_HAVE_UNORDERED_MAP
+#define BM_HAVE_UNORDERED_MAP @BM_HAVE_UNORDERED_MAP@
+#endif
+#ifndef BM_HAVE_UTILITY
+#define BM_HAVE_UTILITY @BM_HAVE_UTILITY@
+#endif
+#ifndef BM_HAVE_VECTOR
+#define BM_HAVE_VECTOR @BM_HAVE_VECTOR@
+#endif
+#ifndef BM_LOG_DEBUG_ON
+#define BM_LOG_DEBUG_ON @BM_LOG_DEBUG_ON@
+#endif
+#ifndef BM_LOG_TRACE_ON
+#define BM_LOG_TRACE_ON @BM_LOG_TRACE_ON@
+#endif
+#ifndef BM_LT_OBJDIR
+#define BM_LT_OBJDIR @BM_LT_OBJDIR@
+#endif
+#ifndef BM_NANOMSG_ON
+#define BM_NANOMSG_ON @BM_NANOMSG_ON@
+#endif
+#ifndef BM_PACKAGE
+#define BM_PACKAGE @BM_PACKAGE@
+#endif
+#ifndef BM_PACKAGE_BUGREPORT
+#define BM_PACKAGE_BUGREPORT @BM_PACKAGE_BUGREPORT@
+#endif
+#ifndef BM_PACKAGE_NAME
+#define BM_PACKAGE_NAME @BM_PACKAGE_NAME@
+#endif
+#ifndef BM_PACKAGE_STRING
+#define BM_PACKAGE_STRING @BM_PACKAGE_STRING@
+#endif
+#ifndef BM_PACKAGE_TARNAME
+#define BM_PACKAGE_TARNAME @BM_PACKAGE_TARNAME@
+#endif
+#ifndef BM_PACKAGE_URL
+#define BM_PACKAGE_URL @BM_PACKAGE_URL@
+#endif
+#ifndef BM_PACKAGE_VERSION
+#define BM_PACKAGE_VERSION @BM_PACKAGE_VERSION@
+#endif
+/* #undef PTHREAD_CREATE_JOINABLE */
+#ifndef BM_STDC_HEADERS
+#define BM_STDC_HEADERS @BM_STDC_HEADERS@
+#endif
+#ifndef BM_THRIFT_ON
+#define BM_THRIFT_ON @BM_THRIFT_ON@
+#endif
+#ifndef BM_THRIFT_VERSION
+#define BM_THRIFT_VERSION @BM_THRIFT_VERSION@
+#endif
+#ifndef BM_VERSION
+#define BM_VERSION @BM_VERSION@
+#endif
+#ifndef BM_WP4_16_STACKS
+#define BM_WP4_16_STACKS @BM_WP4_16_STACKS@
+#endif
+/* #undef _UINT64_T */
+/* #undef size_t */
+/* #undef uint64_t */
+#endif

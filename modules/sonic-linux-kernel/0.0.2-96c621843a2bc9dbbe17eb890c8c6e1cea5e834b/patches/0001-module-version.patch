@@ -1,0 +1,7 @@
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -2,3 +2,3 @@
+     name = "sonic-linux-kernel",
+-    version = "0.0.2",
++    version = "0.0.2-96c621843a2bc9dbbe17eb890c8c6e1cea5e834b",
+ )

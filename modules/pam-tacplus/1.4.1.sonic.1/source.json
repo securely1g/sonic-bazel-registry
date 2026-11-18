@@ -1,0 +1,17 @@
+{
+  "url": "https://codeload.github.com/securely1g/sonic-buildimage/tar.gz/40ab930912c5586e245b8c34e770be9729b2e4b0",
+  "integrity": "sha256-RJqwpq5XC4hpJUH7nWzJJt+iEnZVOczLbPtJlMbXFEg=",
+  "strip_prefix": "sonic-buildimage-40ab930912c5586e245b8c34e770be9729b2e4b0/src/tacacs/pam",
+  "archive_type": "tar.gz",
+  "overlay": {
+    "BUILD.bazel": "sha256-+URKNXue3He7sHMQZw417fG7op9el3BEplk49thbkUQ=",
+    "MODULE.bazel": "sha256-/OYawj5YwVz/4rvGTj9X8suYXeM1UtzS08ebEfVrdDI=",
+    "config.h.tpl": "sha256-281E/+oKXlITIkihKuDjOAFFGB5jsqHi8TV0zrz2VCQ=",
+    "header_aliases.bzl": "sha256-oJmJfJQKQbzGMNGg9cOzSApu2lbxR8wyM5GzYKyRlYM=",
+    "installation_test.py": "sha256-GP3ua1CDKsyvzZFBGMcAFzwI7GQOUhtGu83RmEB8rAE=",
+    "source.BUILD.bazel": "sha256-fmHBpqfEE6A3T6Qy5kRMdS3mhzwW2Xx/xvcbSY6Ilso=",
+    "source_includes.bzl": "sha256-CMCq5bUaY7af3TNyWs9hhrGT7oWO0XaBLlYWwoM3XM4=",
+    "tests/BUILD.bazel": "sha256-WHYeLMbC8HKkVyErtOEaQH/1H3NO0mn1afjG1G8nujA=",
+    "tests/consumer.c": "sha256-zqng6Av4LcUYTFsUDPNGTFm5Or3Q+7fdqrNPGPqsL7s="
+  }
+}

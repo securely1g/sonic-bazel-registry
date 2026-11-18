@@ -1,0 +1,28 @@
+# AUTO-GENERATED. DO NOT EDIT MANUALLY.
+# Source: ../MODULE.bazel
+# Generator: python3 ci/registry_ci.py sync-module --module ifupdown2 --version 3.0.0.sonic.1
+
+module(name = "ifupdown2", version = "3.0.0.sonic.1")
+bazel_dep(name = "bazel_skylib", version = "1.8.2")
+bazel_dep(name = "rules_python", version = "1.9.0.sonic.1")
+bazel_dep(name = "platforms", version = "1.0.0")
+bazel_dep(name = "tar.bzl", version = "0.10.5.sonic.2")
+bazel_dep(name = "sonic-build-infra", version = "0.0.37-d31541a95fdf477302f1b109f2105eee81c86617", repo_name = "sonic_build_infra")
+
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+http_archive(
+    name = "ifupdown2_src",
+    urls = ["https://github.com/CumulusNetworks/ifupdown2/archive/3.0.0-1.tar.gz"],
+    sha256 = "55ded1c60f720c81a5d4b5feeb48d893fd3f29d4ad0fe7d9cec508fe84b5f1b8",
+    strip_prefix = "ifupdown2-3.0.0-1",
+    build_file = "//:source.BUILD.bazel",
+    patch_args = ["-p1"],
+    patches = [
+        "//:patch/0001-fix-broadcast-addr-encoding.patch",
+        "//:patch/0002-disable-checks-when-using-no-wait.patch",
+        "//:patch/0003-Fix-the-return-value-of-utils._execute_subprocess-me.patch",
+        "//:patch/bug-296-python-3.12-compability.patch",
+        "//:patch/0004-Ensure-etc-iproute2-rt_tables.d-directory-present-fo.patch",
+        "//:patch/0005-nlpacket-tolerate-unsupported-address-families-mctp.patch",
+    ],
+)

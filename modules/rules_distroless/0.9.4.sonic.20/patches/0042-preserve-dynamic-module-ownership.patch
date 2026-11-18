@@ -1,0 +1,33 @@
+diff --git a/apt/private/cc_deb_library.bzl b/apt/private/cc_deb_library.bzl
+--- a/apt/private/cc_deb_library.bzl
++++ b/apt/private/cc_deb_library.bzl
+@@ -217,9 +217,15 @@
+                 args.append(file.path)
+         else:
+             args.append(token.replace("$(BINDIR)", ctx.bin_dir.path))
+-    anchor = ctx.actions.declare_file(ctx.label.name + "/linkopts.a")
+-    ctx.actions.write(anchor, "/* Ordered pkg-config link contract. */\n")
+-    libraries.append(cc_common.create_library_to_link(actions = ctx.actions, static_library = anchor))
++    # Dynamic LibraryToLink entries already carry this ordered link input.
++    # A synthetic static library would give a pure-DSO module static ownership
++    # and prevent independent consumers in multiple cc_shared_libraries.
++    # Keep the carrier for flags-only and static/script inputs: those still
++    # need their flags retained and their static ownership checked.
++    if not libraries or not all(ctx.attr.link_sonames):
++        anchor = ctx.actions.declare_file(ctx.label.name + "/linkopts.a")
++        ctx.actions.write(anchor, "/* Ordered pkg-config link contract. */\n")
++        libraries.append(cc_common.create_library_to_link(actions = ctx.actions, static_library = anchor))
+     # GCC copies driver -L options into COLLECT_GCC_OPTIONS. Even an @response
+     # file cannot prevent its single environment string from exceeding Linux's
+     # limit. These are linker search paths: pass them directly to the linker,
+diff --git a/MODULE.bazel b/MODULE.bazel
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "rules_distroless",
+-    version = "0.9.4.sonic.18",
++    version = "0.9.4.sonic.19",
+     compatibility_level = 1,
+ )
+ 

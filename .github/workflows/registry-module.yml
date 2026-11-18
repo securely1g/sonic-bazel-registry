@@ -54,7 +54,9 @@ jobs:
              contains(fromJSON(inputs.runner), 'debian-trixie-container-large')) &&
             contains(fromJSON('["p4c","p4lang-bmv2","sonic-dash"]'), inputs.module)) ||
            (inputs.cross_compile && inputs.module == 'sonic-swss' &&
-            inputs.version == '0.0.3-9c3797990d4b5a79100a40fe7689927c18212361')) && 360 || 180 }}
+            inputs.version == '0.0.3-9c3797990d4b5a79100a40fe7689927c18212361')) && 360 ||
+          (inputs.cross_compile && inputs.module == 'sonic-fips' &&
+           inputs.version == '0.0.6-18a778db501d455f8a1b6d1e3ef8e17121661177') && 240 || 180 }}
     # Local native/cross jobs execute directly in the fresh Trixie runner.
     # Only native hosted ARM needs the separate pinned job image.
     container: ${{ inputs.architecture == 'arm64' && !inputs.cross_compile && 'debian:trixie-20260918@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c' || '' }}
@@ -72,6 +74,12 @@ jobs:
       ARM_TEST_EXECUTOR: /usr/local/bin/sonic-arm64
       TEST_CONTAINER_IMAGE: ${{ inputs.architecture == 'arm64' && !inputs.cross_compile && 'debian:trixie-20260918@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c' || '' }}
     steps:
+      - name: Bypass the proxy for Bazel Central Registry
+        if: runner.environment == 'self-hosted'
+        shell: bash
+        run: |
+          echo "no_proxy=${no_proxy:+${no_proxy},}bcr.bazel.build" >> "$GITHUB_ENV"
+          echo "NO_PROXY=${NO_PROXY:+${NO_PROXY},}bcr.bazel.build" >> "$GITHUB_ENV"
       - name: Validate execution route
         run: |
           set -euo pipefail
@@ -117,6 +125,21 @@ jobs:
           bundle="$RUNNER_TEMP/arm-kernel"
           ci/arm_kernel_test/prepare.sh "$bundle"
           echo "ARM_TEST_EXECUTOR=$bundle/executor" >> "$GITHUB_ENV"
+      - name: Expose the ARM64 loader to build-infra actions
+        if: inputs.cross_compile && inputs.module == 'sonic-build-infra'
+        run: |
+          set -euo pipefail
+          # Build-tools assembly clears its environment before executing the
+          # target loader. Use QEMU's default prefix inside this disposable runner.
+          root=/opt/sonic-arm64-rootfs
+          prefix=/usr/gnemul/qemu-aarch64
+          [[ -e /.dockerenv || -e /run/.containerenv ]]
+          [[ -x "$root/usr/bin/uname" ]]
+          if [[ ! -e "$prefix" ]]; then
+            sudo -n install -d "$(dirname "$prefix")"
+            sudo -n ln -sT "$root" "$prefix"
+          fi
+          [[ "$(realpath "$prefix")" == "$root" ]]
       - name: Install Bazel 8.5.1
         run: |
           set -euo pipefail

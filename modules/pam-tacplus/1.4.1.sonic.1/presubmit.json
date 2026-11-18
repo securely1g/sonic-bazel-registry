@@ -1,0 +1,32 @@
+{
+  "architectures": [
+    "amd64"
+  ],
+  "generated_module_overlay": true,
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.37-d31541a95fdf477302f1b109f2105eee81c86617",
+      "repo_name": "sonic_build_infra"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
+  },
+  "build_targets": [
+    "@pam-tacplus//:libtac2.runtime",
+    "@pam-tacplus//:libpam-tacplus.runtime",
+    "@pam-tacplus//:libtac2.control",
+    "@pam-tacplus//:libpam-tacplus.control",
+    "@pam-tacplus//:compiled",
+    "@pam-tacplus//:libtac-dev.runtime",
+    "@pam-tacplus//:libtac2.runtime.debug_symbols",
+    "@pam-tacplus//:libpam-tacplus.runtime.debug_symbols",
+    "@pam-tacplus//:libtac-dev.runtime_metadata",
+    "@pam-tacplus//:libtac-dev.control"
+  ],
+  "test_targets": [
+    "@pam-tacplus//:installation_test",
+    "@pam-tacplus//tests:public_api_test"
+  ]
+}

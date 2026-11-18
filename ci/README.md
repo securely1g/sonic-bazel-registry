@@ -319,10 +319,12 @@ older release cannot displace a higher release: build-infra `0.0.18-95cd3a9...`
 is selected ahead of any `0.0.8-...` registration. This is a CI selection rule,
 not a change to Bazel's dependency resolution.
 
-For routine latest selection, `ADDITIONAL_PRESUBMITS` also selects the coherent DASH
-`0.0.1-2cbfdfa1205c0d03003444e5c80f89adb8c3df59` entry. The published `.3`
-entry remains the numeric latest and keeps its native ARM64 job; the additional
-`.1` entry uses its explicit ARM64 cross route. This applies to CI edits and
+For routine latest selection, `ADDITIONAL_PRESUBMITS` also selects DASH
+`0.0.1-a9b799bb664b3b3b9d6e9a19cedd38b620e769de`, which matches the owner's base
+version and links against PI's ABI-versioned shared libraries. Both this entry
+and the numeric latest `.3` entry run on native ARM64. The older
+`0.0.1-2cbfdfa1205c0d03003444e5c80f89adb8c3df59` retains its version-specific
+ARM64 cross qualification. This selection applies to CI edits and
 `plan --latest`, including default push and manual runs.
 
 Latest selection skips versions listed in `yanked_versions`; a module with all
@@ -460,7 +462,15 @@ The configuration declares:
   separate test module, for example `tests/integration`. CI copies its ordinary
   `MODULE.bazel`, `BUILD.bazel`, tests and fixtures into the fresh consumer. The
   test module must directly select the tested module's exact name and version;
-  it cannot use source overrides or include other MODULE files. Keep
+  it cannot use source overrides or include other MODULE files. A standard
+  `single_version_override` may contain exactly the literal, nonempty
+  `module_name` and `version` arguments. This selects a registry version without
+  replacing its source; patches, registry redirects and other arguments are
+  rejected, and the tested module must retain its exact reviewed version. For
+  example, a historical Framework consumer pinned the reviewed infrastructure
+  `0.0.26-2a6fc39c55be05e849b0e3a2d1808a4a59f123a6` while its dependency
+  minima named an earlier, higher-sorting commit suffix. This matches the
+  generated consumer's existing version-pin behavior. Keep
   `consumer_deps` empty and omit the generated Go/Rust options in this mode:
   the checked-in test module owns its dependencies and toolchains. Explicit
   root targets such as `//:archive_contract_test` are then allowed alongside
@@ -1004,7 +1014,7 @@ Its four ARM64 builds and original uncached runtime test passed on the AMD64 Tri
 The test exercised the installed SDK, generated pipeline and detached debug symbols.
 [Validation evidence](https://github.com/securely1g/sonic-bazel-registry/actions/runs/42180204936/job/127767804802)
 
-The current DASH route selects `0.0.1-2cbfdfa1205c0d03003444e5c80f89adb8c3df59`,
+The qualified DASH ARM64 cross route selects `0.0.1-2cbfdfa1205c0d03003444e5c80f89adb8c3df59`,
 published on `main` at `553a6d1d4f8294a43b68314adfc266e64de35ce5` with the source's
 base version and the same compiler and linker argument transport fix.
 It retains all four builds and adds the declared `make_flags_test` beside the
@@ -1091,6 +1101,12 @@ with the pinned GCC/G++ adapter and the corrected ARM guest executor.
 This result is historical and used earlier dependency pins. The refreshed
 Infra `.28-9965823`, PI `.4` and Distroless `.18` selection still requires normal CI.
 
+The FIPS 0.0.6 cross job uses the ARM64 compression development libraries
+for the OpenSSL SDK test and a guest kernel for the vendor AF_ALG recipe.
+The other vendor recipes use the userspace executor. These capabilities come
+from [runner change #93](https://github.com/securely1g/agi-projects/pull/93)
+and [runner change #94](https://github.com/securely1g/agi-projects/pull/94).
+
 Inside a configured disposable runner with `/usr/local/bin/sonic-arm64`, use
 fresh work and artifact directories. This command is a local opt-in example,
 not a request to execute inside an active registered worker:
@@ -1119,7 +1135,7 @@ including native-only infra 0.0.6 and SAI's 0.0.13, use a CI-local legacy C++
 adapter compatible with the selected `rules_cc`. Both declared platform parents
 remain inherited; the adapter's separate distribution constraint is additional.
 The adapter uses the native-to-ARM GCC14.2 compiler and Trixie sysroot from
-immutable `sonic-build-infra@0.0.25-34de7330abc72229dfc8dab88dec71b89c52aa88`.
+immutable `sonic-build-infra@0.0.37-316e298e77ab5cfa69af9b0c05ec24d5d94bbe1e`.
 The provider resolves separately and its JVM stops after preparation. Its
 dependencies do not enter the consumer graph. Compiler/sysroot files are declared
 action inputs, and the consumer's selected module versions must remain equal
@@ -1163,9 +1179,11 @@ recognizes an ARM compiler selected by a native build action. It preserves
 explicit configure aliases, native compiler actions and caller-provided
 `CONFIG_SITE`; it invents no cached target-probe answers. The effective site and
 hash are retained. Source-owned runtime preparation executes through the guest
-wrapper, preserving its locked inputs and checking an ARM receipt. Cross test
-timeout defaults are 180/900/2700/7200 seconds for Bazel's four timeout classes;
-explicit caller values and native defaults remain unchanged. All original build
+wrapper, preserving its locked inputs and checking an ARM receipt. Cross tests
+default to 180/900/2700/7200 seconds for Bazel's four timeout classes. The FIPS
+0.0.6 ARM cross job allows 5,400 seconds for long tests and four hours for the
+job, which runs the OpenSSL vendor suite and the SymCrypt unittest. Explicit
+caller timeouts take precedence. All original build
 and test labels, source checks and uncached-test requirements still apply.
 
 The dedicated CI cross-fixture job runs all tests in `test_arm_cross_runtime.py`
@@ -1189,6 +1207,21 @@ Bazel/sandbox execution in rules_go, SWSS self-reexecution under emulation, and 
 debugger/upstream coverage. P4C/PI source candidates and FIPS target-binutils work
 remain separate module changes; transitive consumers retain their published
 dependency pins. No source recipe or image change is included here.
+
+The ARM64 presubmit for build-infra `.37-316e298e` and `.38-0baa4acc`
+prefers AMD64 execution for cross-compilation. Several runtime assembly rules
+require an ARM64 execution platform because they run their target Debian
+loader to verify and prepare the packages. The runner must support direct
+AArch64 ELF execution through binfmt. In the disposable build-infra runner,
+the workflow exposes its existing ARM64 Trixie root at
+`/usr/gnemul/qemu-aarch64`, QEMU's default interpreter prefix, so actions
+that clear their environment can still start declared ARM64 tools. Validation
+records the native and emulated machines before registering the ARM64 fallback
+for those actions. During test validation, the public configure tools, Bookworm
+Perl and Valgrind wrappers use their ARM64 execution dependencies for target
+runtime comparisons and instrumentation. The foreign runtime test executes its
+original AArch64 Python and declared tools through binfmt, which avoids tracing
+each filesystem operation as it relocates and exercises the full tool tree.
 
 ## Local reproduction
 
@@ -1230,3 +1263,26 @@ Registered SONiC patches may retain a Go pseudo-version suffix, for example
 SONiC patch number and separator precedence. Equal release/patch snapshots
 continue to use metadata registration order; hashes/timestamps are not sorted.
 Malformed or unrelated suffixes remain rejected.
+
+### Source-owned root dependency patches
+
+A generated consumer may declare `source_patches` and nonnegative `patch_strip`
+on a `consumer_deps` item. The harness verifies the entire immutable tested source archive against its SRI,
+reads only bounded regular selected patch members (never extracts or executes
+archive code), and copies their exact bytes into a fresh root package with an
+exports_files BUILD file. Root-local labels, not external repository labels,
+become `single_version_override` patch arguments; Bazel8.5.1 rejects external
+patch labels during MODULE evaluation. Patch arguments never enter `bazel_dep`. Every patch must be
+a unique `.patch` label in the exact tested module (`@<module>//...`); external
+URLs, other repositories, traversal, arbitrary override commands and self-version
+overrides remain rejected. The tested module's immutable archive/recipe integrity
+pins the patch bytes. Traversal, duplicate archive members, symlink patch members
+or parents, missing members, stale staging directories and unknown source patch
+transformations fail closed. Declared overlays are accepted only after their
+individual integrity checks. Staging receipts retain owner/archive digest,
+source-to-root label mapping and each patch hash in original order. Existing dependencies without this opt-in generate identical
+root declarations. An integration-test MODULE still cannot override sources.
+This supports source-maintained execution-tool compatibility patches whose
+root-only declarations otherwise do not propagate to external consumers. It does
+not change source archive integrity, relax published-entry immutability or exempt
+this shared runner change from any consumer presubmit coverage.

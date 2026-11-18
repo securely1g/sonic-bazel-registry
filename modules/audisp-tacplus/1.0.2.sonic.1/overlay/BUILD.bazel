@@ -1,0 +1,55 @@
+load("@rules_python//python:defs.bzl","py_test")
+load("@sonic_build_infra//tar:sonic_deploy_tar.bzl","sonic_deploy_tar")
+load("@sonic_build_infra//oci:runtime_packages.bzl","runtime_packages")
+load("@sonic_build_infra//oci:source_controls.bzl","source_package_controls")
+load("@bazel_skylib//rules:expand_template.bzl","expand_template")
+load("@sonic_build_infra//deb:changelogs.bzl", "debian_changelogs")
+load("@rules_cc//cc:cc_library.bzl","cc_library")
+package(default_visibility=["//visibility:public"])
+exports_files(glob(["*.bzl","*.bazel","*.tpl"]))
+expand_template(name="config_h",template="config.h.tpl",out="generated/config.h",substitutions={})
+cc_library(name="config_headers",hdrs=[":config_h"],includes=["generated"],target_compatible_with=["@platforms//cpu:x86_64"])
+alias(name="compiled",actual="@audisp_tacplus_src//:audisp-tacplus")
+debian_changelogs(
+    name = "installed_changelog",
+    control = "@audisp_tacplus_src//:debian/control",
+    changelog = "@audisp_tacplus_src//:debian/changelog",
+    debian_files = {"@audisp_tacplus_src//:debian/compat": "compat"},
+    package = "audisp-tacplus",
+    architecture = "amd64",
+    outs = ["installed/changelog"],
+)
+[
+    genrule(
+        name = name + "_gz",
+        srcs = [source],
+        outs = ["compressed/" + name + ".gz"],
+        tools = ["@sonic_build_infra//tools/build_tools:pigz"],
+        cmd = "$(location @sonic_build_infra//tools/build_tools:pigz) -n -9 -c $(location " + source + ") > $@",
+    )
+    for name, source in [
+        ("audisp-tacplus.8", "@audisp_tacplus_src//:audisp-tacplus.8"),
+        ("README", "@audisp_tacplus_src//:README"),
+        ("NEWS", "@audisp_tacplus_src//:NEWS"),
+        ("changelog", ":installed/changelog"),
+    ]
+]
+
+sonic_deploy_tar(
+    name = "audisp-tacplus.runtime",
+    compress_debug_sections = True,
+    force_debug_build = True,
+    debug_symlinks = {"usr/share/doc/audisp-tacplus-dbgsym": "audisp-tacplus"},
+    binaries = {"sbin/audisp-tacplus type=file uid=0 gid=0 mode=0755": ":compiled"},
+    srcs = ["@audisp_tacplus_src//:audisp-tacplus.conf", "@audisp_tacplus_src//:audisp-tacplus.rules", "@audisp_tacplus_src//:debian/copyright", ":audisp-tacplus.8_gz", ":README_gz", ":NEWS_gz", ":changelog_gz"],
+    mtree = [
+        "etc/audit/plugins.d/audisp-tacplus.conf type=file uid=0 gid=0 mode=0644 content=$(location @audisp_tacplus_src//:audisp-tacplus.conf)",
+        "etc/audit/rules.d/audisp-tacplus.rules type=file uid=0 gid=0 mode=0644 content=$(location @audisp_tacplus_src//:audisp-tacplus.rules)",
+        "usr/share/man/man8/audisp-tacplus.8.gz type=file uid=0 gid=0 mode=0644 content=$(location :audisp-tacplus.8_gz)",
+        "usr/share/doc/audisp-tacplus/copyright type=file uid=0 gid=0 mode=0644 content=$(location @audisp_tacplus_src//:debian/copyright)",
+    ] + ["usr/share/doc/audisp-tacplus/" + name + ".gz type=file uid=0 gid=0 mode=0644 content=$(location :" + name + "_gz)" for name in ["README", "NEWS", "changelog"]],
+)
+
+runtime_packages(name="audisp-tacplus.runtime_metadata",module_name="audisp-tacplus",control="@audisp_tacplus_src//:debian/control",changelog="@audisp_tacplus_src//:debian/changelog",packages={"audisp-tacplus":":audisp-tacplus.runtime"},required_paths={"audisp-tacplus":["sbin/audisp-tacplus","etc/audit/rules.d/audisp-tacplus.rules"]},apt_packages={"@tacacs_build_debian//"+pkg+":data":"@tacacs_build_debian//"+pkg+":control" for pkg in ["libauparse0t64","libaudit1"]},dependencies=["@pam-tacplus//:runtime_metadata"],debian_files={"compat":"@audisp_tacplus_src//:debian/compat","audisp-tacplus.postinst":"@audisp_tacplus_src//:debian/audisp-tacplus.postinst","audisp-tacplus.postrm":"@audisp_tacplus_src//:debian/audisp-tacplus.postrm"},control_file_helpers=[["dh_installdeb"]])
+source_package_controls(name="audisp-tacplus.control",metadata=":audisp-tacplus.runtime_metadata",package="audisp-tacplus")
+py_test(name="installation_test",srcs=["installation_test.py"],args=["$(rootpath :audisp-tacplus.runtime)","$(rootpath :audisp-tacplus.control)","$(rootpath @audisp_tacplus_src//:audisp-tacplus.conf)","$(rootpath @audisp_tacplus_src//:audisp-tacplus.rules)","$(rootpath :audisp-tacplus.runtime.debug_symbols)","$(rootpath @audisp_tacplus_src//:audisp-tacplus.8)","$(rootpath @audisp_tacplus_src//:README)","$(rootpath @audisp_tacplus_src//:NEWS)","$(rootpath @audisp_tacplus_src//:debian/changelog)"],data=[":audisp-tacplus.runtime",":audisp-tacplus.control","@audisp_tacplus_src//:audisp-tacplus.conf","@audisp_tacplus_src//:audisp-tacplus.rules",":audisp-tacplus.runtime.debug_symbols","@audisp_tacplus_src//:audisp-tacplus.8","@audisp_tacplus_src//:README","@audisp_tacplus_src//:NEWS","@audisp_tacplus_src//:debian/changelog"],deps=["@sonic_build_infra//deb:elf_metadata"])

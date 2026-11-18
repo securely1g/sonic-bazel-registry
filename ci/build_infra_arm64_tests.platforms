@@ -1,0 +1,4 @@
+platforms:
+  //_registry_ci_cross:arm64
+    --experimental_add_exec_constraints_to_targets=sonic-build-infra[+]?//tools/build_tools:(make|m4|pkgconf|perl|bison|flex|autoconf|autoheader|autom4te|perl_bookworm|valgrind)$=@platforms//cpu:aarch64
+    --experimental_add_exec_constraints_to_targets=sonic-build-infra[+]?//cc/tests/runtime_test:(instrumented|memchecked)$=@platforms//cpu:aarch64

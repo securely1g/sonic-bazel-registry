@@ -1,0 +1,17 @@
+--- a/apt/private/locked_import.bzl
++++ b/apt/private/locked_import.bzl
+@@ -228,9 +228,11 @@
+             fail("library import requires a locked package file map: " + key)
+         deb_filemap(name = util.sanitize(key) + "_filemap", files = json.encode(package["files"]), urls = [uri.rstrip("/") + "/" + package["filename"] for uri in document["sources"][package["suite"]]["uris"]], sha256 = package["sha256"])
+     metadata_names = {}
+-    for key in libraries:
+-        if not any([path.endswith(".pc") for path in imported[key]["files"]]):
+-            continue
++    metadata_keys = [key for key in libraries if any([path.endswith(".pc") for path in imported[key]["files"]])]
++    # Append dependency-only contexts after own-PC contexts to preserve the
++    # already allocated names and cache identities of their flags data repos.
++    metadata_keys += [key for key in libraries if key not in metadata_keys and any([path.endswith(".pc") for dependency in imported[key]["depends_on"] for path in imported[dependency]["files"]])]
++    for key in metadata_keys:
+         name = package_catalog_name(imported, groups.keys() + [catalog_name] + metadata_names.values() + existing_sets)
+         metadata_names[key] = name
+         package = imported[key]
