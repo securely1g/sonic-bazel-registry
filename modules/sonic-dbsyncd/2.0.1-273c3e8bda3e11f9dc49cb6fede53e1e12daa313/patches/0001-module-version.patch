@@ -1,0 +1,19 @@
+From: Guohan Lu <securely1g@gmail.com>
+Subject: [PATCH] Register the sonic-dbsyncd source commit
+
+Align the source module identity with this commit-qualified registration.
+Dependency updates are owned by the source commit.
+
+Source commit: 273c3e8bda3e11f9dc49cb6fede53e1e12daa313
+Scope: downstream registry integration; not an upstream bug fix.
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-dbsyncd",
+-    version = "2.0.1",
++    version = "2.0.1-273c3e8bda3e11f9dc49cb6fede53e1e12daa313",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
