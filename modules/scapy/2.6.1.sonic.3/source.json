@@ -14,7 +14,7 @@
   },
   "overlay": {
     "BUILD.bazel": "sha256-Zqe/EtUv0+UaDGqU8S1P1M3Ly0D8x7XOjD1a2Ax/k28=",
-    "MODULE.bazel": "sha256-KIRYcwICVr0EEvDjNaMnfRV//OIs5gSNUcQfqyQzPUk=",
+    "MODULE.bazel": "sha256-GQ/eLONbf2naB5ZbdbMlZJKT0M17pryfHk+kCpy8g2Y=",
     "build_wheel.py": "sha256-Gk8S9qoz6zt3/MbMM5NAyMJEmfueGoi2Zk/2sPDkda0=",
     "requirements.in": "sha256-drzszxTpKL1KxTOZckKZSgf7ZTbXQK1VtcKH37cucdk=",
     "requirements_lock.txt": "sha256-b/9Lty0bRVWIbm75Sy7xyspQWQs9h/OhtKxjw1A7IBc=",
