@@ -1,0 +1,35 @@
+From: Guohan Lu <securely1g@gmail.com>
+Subject: [PATCH] Advertise CcInfo from imported Debian library rules
+
+Common's native cc_shared_library linked through the development import
+libhiredis.so but lost the runtime package's libhiredis.so.1.1.0 directory.
+Both rules already return CcInfo. Advertising it lets the native graph aspect
+visit their runtime-library metadata and retain that directory.
+
+This is an original local repair. Both upstream files still omit the provider
+advertisement at 403a8b5dc7fe80d31156d92f9c14789f9f547a50:
+https://github.com/bazel-contrib/rules_distroless/blob/403a8b5dc7fe80d31156d92f9c14789f9f547a50/apt/private/so_library.bzl
+https://github.com/bazel-contrib/rules_distroless/blob/403a8b5dc7fe80d31156d92f9c14789f9f547a50/apt/private/cc_deb_library.bzl
+
+diff --git a/apt/private/cc_deb_library.bzl b/apt/private/cc_deb_library.bzl
+--- a/apt/private/cc_deb_library.bzl
++++ b/apt/private/cc_deb_library.bzl
+@@ -38,6 +38,7 @@
+ 
+ cc_deb_library = rule(
+     implementation = _cc_deb_library_impl,
++    provides = [CcInfo],
+     attrs = {
+         "hdrs": attr.label_list(allow_files = True),
+         "deps": attr.label_list(providers = [CcInfo]),
+diff --git a/apt/private/so_library.bzl b/apt/private/so_library.bzl
+--- a/apt/private/so_library.bzl
++++ b/apt/private/so_library.bzl
+@@ -59,6 +59,7 @@
+ 
+ so_library = rule(
+     implementation = _so_library_impl,
++    provides = [CcInfo],
+     attrs = {
+         "dynamic_libs": attr.label_list(allow_files = True),
+     },
