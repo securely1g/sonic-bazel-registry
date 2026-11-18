@@ -1,6 +1,5 @@
 """General maintained-base regression tests; temporary Git only, no builds."""
 from test_registry_ci import FixtureTestCase, registry_ci
-from unittest import mock
 
 
 class MaintainedPlanBaseTests(FixtureTestCase):
@@ -23,7 +22,7 @@ class MaintainedPlanBaseTests(FixtureTestCase):
             plan = registry_ci.plan(self.root, base, head, published=current)
             self.assertEqual([j["module"] for j in plan["include"]], ["component"])
 
-    def test_actual_planner_change_keeps_full_and_additional_coverage(self):
+    def test_actual_planner_change_selects_only_latest_version_of_each_module(self):
         for module in ("alpha", "beta", "gamma"):
             self.entry(module, "2.0.0")
         self.entry("alpha", "1.0.0")
@@ -32,10 +31,9 @@ class MaintainedPlanBaseTests(FixtureTestCase):
         path.parent.mkdir()
         path.write_text("def plan():\n    return 'real planner change'\n")
         head = self.commit("planner semantics changed")
-        with mock.patch.object(registry_ci, "ADDITIONAL_PRESUBMITS", {("alpha", "1.0.0")}):
-            jobs = registry_ci.plan(self.root, base, head, published=base)["include"]
-        self.assertEqual({(j["module"],j["version"]) for j in jobs},
-                         {("alpha", "1.0.0"), ("alpha", "2.0.0"), ("beta", "2.0.0"), ("gamma", "2.0.0")})
+        jobs = registry_ci.plan(self.root, base, head, published=base)["include"]
+        self.assertCountEqual([(job["module"], job["version"]) for job in jobs],
+                              [("alpha", "2.0.0"), ("beta", "2.0.0"), ("gamma", "2.0.0")])
 
     def test_published_input_rewrite_still_rejected(self):
         entry = self.entry("alpha", "1.0.0")
