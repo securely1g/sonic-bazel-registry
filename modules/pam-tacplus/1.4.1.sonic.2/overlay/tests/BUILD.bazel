@@ -1,0 +1,27 @@
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@sonic_build_infra//cc:runtime_test.bzl", "native_runtime_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//visibility:public"],
+)
+
+cc_binary(
+    name = "public_api_consumer",
+    srcs = ["consumer.c"],
+    linkstatic = False,
+    deps = [
+        "//:libtac",
+        "//:libtacsupport",
+    ],
+)
+
+native_runtime_test(
+    name = "public_api_test",
+    binary = ":public_api_consumer",
+    runtime_payloads = [
+        "//:libtac2.runtime",
+        "@tacacs_build_debian//libssl3t64:raw_packages",
+        "@tacacs_build_debian//libpam0g:raw_packages",
+    ],
+)
