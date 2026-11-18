@@ -1,0 +1,19 @@
+From: Guohan Lu <securely1g@gmail.com>
+Subject: [PATCH] Register the sonic-platform-common source commit
+
+Align the source module identity with this commit-qualified registration.
+Dependency updates are owned by the source commit.
+
+Source commit: 970a9851032d5c3332a48add08388add37a4ccb0
+Scope: downstream registry integration; not an upstream bug fix.
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-platform-common",
+-    version = "1.0.1",
++    version = "1.0.1-970a9851032d5c3332a48add08388add37a4ccb0",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
