@@ -1,0 +1,24 @@
+Subject: Let annotation fields reach their existing schema-free setter
+
+Annotation fields deliberately have no YANG child schema. SONiC's node
+handling dereferences that missing schema before reaching the existing
+annotation setter. Guard only the leaf/leaf-list inspection so the shared
+ytypes API used by management-common keeps its original annotation
+behavior. Ordinary data fields still require a schema.
+
+Origin: SONiC shared-module compatibility correction exposed by the
+original ytypes node tests; the existing annotation setter is unchanged.
+https://github.com/securely1g/sonic-bazel-registry/pull/214
+
+diff --git a/ytypes/node.go b/ytypes/node.go
+--- a/ytypes/node.go
++++ b/ytypes/node.go
+@@ -149,7 +149,7 @@
+ 					return nil, status.Errorf(codes.Unknown, "failed to initialize struct field %s in %T, child schema %v, path %v", ft.Name, root, cschema, path)
+ 				}
+ 
+-				if cschema.IsLeaf() || cschema.IsLeafList() {
++				if cschema != nil && (cschema.IsLeaf() || cschema.IsLeafList()) {
+ 					if len(path.Elem) == 1 && len(path.Elem[0].Key) == 1 {
+ 						var vals []string
+ 						vals = append(vals, path.Elem[0].Key[path.Elem[0].Name])
