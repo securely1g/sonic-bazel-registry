@@ -2082,6 +2082,16 @@ class Arm64RoutingTests(FixtureTestCase):
         with self.assertRaisesRegex(registry_ci.RegistryError, "P4 runner profile"):
             registry_ci.plan(self.root, None, head, all_versions=True, published=head, p4_runner_profile="other")
 
+    def test_bmv2_cross_package_inspection_gets_a_longer_moderate_timeout(self):
+        for module, cross, flags, expected in (
+            ("p4lang-bmv2", True, [], ["--test_timeout=180,2700,2700,7200"]),
+            ("p4lang-bmv2", True, ["--test_timeout=42"], []),
+            ("p4lang-bmv2", False, [], []),
+            ("p4c", True, [], ["--test_timeout=180,900,2700,7200"]),
+        ):
+            with self.subTest(module=module, cross=cross, flags=flags):
+                self.assertEqual(registry_ci.cross_test_timeout_flags(module, "1.15.0.sonic.5", cross, flags), expected)
+
     def test_changed_published_source_is_still_rejected(self):
         self.arm_entry("alpha", "1.0.0")
         base = self.commit("publish original contract")
