@@ -1,3 +1,9 @@
+## Dependency refresh for `1.2.4.2.sonic.5`
+
+This candidate retains the `1.2.4.2.sonic.4` source and existing patches. Its module dependencies select the newest non-yanked versions published at `3d1cc5e8dfd553d2acbe4198e504a245e6bdbddf`. Versions introduced by this refresh are not dependency targets of the same refresh.
+
+Existing unpublished changes from `65c7510587f999dda86ceff8758a11c87a6896a4` are retained.
+
 # P4C 1.2.4.2 for SONiC
 
 This producer retains SONiC's `p4lang-p4c` 1.2.4.2-3 CMake/Make build

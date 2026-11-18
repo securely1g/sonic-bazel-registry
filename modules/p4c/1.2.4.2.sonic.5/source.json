@@ -3,7 +3,7 @@
   "integrity": "sha256-hnGpC27CUr3n9SL0tp+FLmsehx5w3444FfgtrPtuk5Q=",
   "overlay": {
     "BUILD.bazel": "sha256-Ogui7jU6GIwuPZFRsxWarLejWoYdzgDo3w0XHbQIhx0=",
-    "MODULE.bazel": "sha256-MOX5iLJ60PfD9i1QDVW0zEVlGlRsrZinp+1P/k4t1tY=",
+    "MODULE.bazel": "sha256-Ki66NKOofGVlXO0kVlSgY7ug/URgqQbrEssHDkbwiKw=",
     "bazel/0001-native-protoc.patch": "sha256-qlJafmRxKJxhJVnFMfRgE2gxeMzuRi1g5k/4vYCVFts=",
     "bazel/0002-use-boost-1.83.patch": "sha256-S7mHEysJW4XvI+uW2xzQ7A/hz1iN1H+4+zvILwyOG3s=",
     "bazel/0003-fix-build-for-boost-1.83.patch": "sha256-lIir3S1os2V47iAljZNqEOp0TSG18yiDsBmDDQu9obM=",
