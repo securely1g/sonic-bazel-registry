@@ -1,0 +1,323 @@
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@bazel_skylib//rules:expand_template.bzl", "expand_template")
+load("@isc-dhcp//:header_config.bzl", "BIND_CONFIG", "BIND_PLATFORM", "IRS_NETDB")
+package(default_visibility = ["//visibility:public"])
+expand_template(name = "platform_h", template = "lib/isc/include/isc/platform.h.in", out = "lib/isc/include/isc/platform.h", substitutions = BIND_PLATFORM)
+expand_template(name = "bind_config_h", template = "config.h.in", out = "config.h", substitutions = BIND_CONFIG)
+BIND_TARGET_COPTS = select({
+    "@platforms//cpu:x86_64": [
+        "-g",
+        "-O2",
+        "-fPIC",
+        "-fstack-protector-strong",
+        "-Wformat",
+        "-Werror=format-security",
+        "-Wall",
+        "-W",
+        "-Wmissing-prototypes",
+        "-Wcast-qual",
+        "-Wwrite-strings",
+        "-Wpointer-arith",
+        "-fno-strict-aliasing",
+        "-fno-delete-null-pointer-checks",
+        "-DCALL_SCRIPT_ON_ONETRY_FAIL",
+        "-DNSUPDATE",
+        "-D_PATH_DHCPD_CONF=/etc/dhcp/dhcpd.conf",
+        "-D_PATH_DHCPD_DB=/var/lib/dhcp/dhcpd.leases",
+        "-D_PATH_DHCPD6_DB=/var/lib/dhcp/dhcpd6.leases",
+        "-D_PATH_DHCLIENT_SCRIPT=/sbin/dhclient-script",
+        "-D_PATH_DHCLIENT_CONF=/etc/dhcp/dhclient.conf",
+        "-D_PATH_DHCLIENT_DB=/var/lib/dhcp/dhclient.leases",
+        "-D_PATH_DHCLIENT6_DB=/var/lib/dhcp/dhclient6.leases",
+    ],
+    "//conditions:default": ["-w"],
+})
+
+filegroup(
+    name = "all_sources",
+    srcs = glob(
+        [
+            "lib/isc/**/*.c",
+            "lib/isc/**/*.h",
+            "lib/dns/**/*.c",
+            "lib/dns/**/*.h",
+            "lib/isccfg/**/*.c",
+            "lib/isccfg/**/*.h",
+            "lib/irs/**/*.c",
+            "lib/irs/**/*.h",
+        ],
+        allow_empty = True,
+    ),
+)
+
+# =============================================================================
+# libisc
+# =============================================================================
+
+LIBISC_HEADERS = glob(
+    [
+        "lib/isc/*.h",
+        "lib/isc/include/**/*.h",
+        "lib/isc/unix/*.h",
+        "lib/isc/unix/include/**/*.h",
+        "lib/isc/pthreads/include/**/*.h",
+        "lib/isc/nothreads/include/**/*.h",
+        "lib/isc/x86_32/include/**/*.h",
+        "lib/isc/noatomic/include/**/*.h",
+    ],
+    allow_empty = True,
+) + [":platform_h", ":bind_config_h"]
+
+LIBISC_INCLUDES = [
+    ".",
+    "lib/isc",
+    "lib/isc/include",
+    "lib/isc/unix",
+    "lib/isc/unix/include",
+] + select({
+    "@platforms//cpu:x86_64": ["lib/isc/nothreads/include"],
+    "//conditions:default": ["lib/isc/pthreads/include"],
+}) + select({
+    "@platforms//cpu:aarch64": ["lib/isc/noatomic/include"],
+    "//conditions:default": ["lib/isc/x86_32/include"],
+})
+
+LIBISC_COPTS = [
+    "-D_GNU_SOURCE",
+    "-DSYSCONFDIR=\\\"/etc/bind\\\"",
+    "-DVERSION=\\\"9.11.36\\\"",
+    "-DLIBINTERFACE=1107",
+    "-DLIBREVISION=7",
+    "-DLIBAGE=0",
+] + BIND_TARGET_COPTS + select({
+    "@platforms//cpu:x86_64": ["-DPK11_LIB_LOCATION=\\\"undefined\\\""],
+    "//conditions:default": ["-D_REENTRANT"],
+})
+
+# 原 Make 对 safe.c 单独追加 -O0；原生编译对象再并入同一 libisc 归档。
+cc_library(
+    name = "libisc_safe",
+    features = ["-opt"],
+    srcs = ["lib/isc/safe.c"],
+    hdrs = LIBISC_HEADERS,
+    includes = LIBISC_INCLUDES,
+    copts = LIBISC_COPTS + ["-O0"],
+    target_compatible_with = select({
+        "@platforms//cpu:x86_64": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+)
+
+filegroup(
+    name = "libisc_safe_objects",
+    srcs = [":libisc_safe"],
+    output_group = "compilation_outputs",
+)
+
+cc_library(
+    name = "libisc",
+    srcs = ['lib/isc/backtrace-emptytbl.c', 'lib/isc/inet_ntop.c', 'lib/isc/inet_pton.c', 'lib/isc/aes.c', 'lib/isc/assertions.c', 'lib/isc/backtrace.c', 'lib/isc/base32.c', 'lib/isc/base64.c', 'lib/isc/bind9.c', 'lib/isc/buffer.c', 'lib/isc/bufferlist.c', 'lib/isc/commandline.c', 'lib/isc/counter.c', 'lib/isc/crc64.c', 'lib/isc/error.c', 'lib/isc/event.c', 'lib/isc/hash.c', 'lib/isc/ht.c', 'lib/isc/heap.c', 'lib/isc/hex.c', 'lib/isc/hmacmd5.c', 'lib/isc/hmacsha.c', 'lib/isc/httpd.c', 'lib/isc/inet_aton.c', 'lib/isc/iterated_hash.c', 'lib/isc/lex.c', 'lib/isc/lfsr.c', 'lib/isc/lib.c', 'lib/isc/log.c', 'lib/isc/md5.c', 'lib/isc/mem.c', 'lib/isc/mutexblock.c', 'lib/isc/netaddr.c', 'lib/isc/netscope.c', 'lib/isc/pool.c', 'lib/isc/ondestroy.c', 'lib/isc/parseint.c', 'lib/isc/portset.c', 'lib/isc/quota.c', 'lib/isc/radix.c', 'lib/isc/random.c', 'lib/isc/ratelimiter.c', 'lib/isc/refcount.c', 'lib/isc/region.c', 'lib/isc/regex.c', 'lib/isc/result.c', 'lib/isc/rwlock.c', 'lib/isc/serial.c', 'lib/isc/siphash.c', 'lib/isc/sha1.c', 'lib/isc/sha2.c', 'lib/isc/sockaddr.c', 'lib/isc/stats.c', 'lib/isc/string.c', 'lib/isc/strtoul.c', 'lib/isc/symtab.c', 'lib/isc/task.c', 'lib/isc/taskpool.c', 'lib/isc/tm.c', 'lib/isc/timer.c', 'lib/isc/utf8.c', 'lib/isc/version.c', 'lib/isc/unix/app.c', 'lib/isc/unix/dir.c', 'lib/isc/unix/entropy.c', 'lib/isc/unix/errno.c', 'lib/isc/unix/errno2result.c', 'lib/isc/unix/file.c', 'lib/isc/unix/fsaccess.c', 'lib/isc/unix/interfaceiter.c', 'lib/isc/unix/keyboard.c', 'lib/isc/unix/meminfo.c', 'lib/isc/unix/net.c', 'lib/isc/unix/os.c', 'lib/isc/unix/resource.c', 'lib/isc/unix/socket.c', 'lib/isc/unix/stdio.c', 'lib/isc/unix/stdtime.c', 'lib/isc/unix/strerror.c', 'lib/isc/unix/syslog.c', 'lib/isc/unix/time.c', 'lib/isc/nls/msgcat.c', 'lib/isc/nothreads/thread.c', ':bind_config_h', ':libisc_safe_objects', ':platform_h'],
+    hdrs = LIBISC_HEADERS,
+    textual_hdrs = [
+        # Included via #include "..." from interfaceiter.c
+        "lib/isc/unix/ifiter_getifaddrs.c",
+        "lib/isc/unix/ifiter_sysctl.c",
+        "lib/isc/unix/ifiter_ioctl.c",
+        # #included from unix/<name>.c (top-level *_api / stub C is template body)
+        "lib/isc/app_api.c",
+        "lib/isc/socket_api.c",
+        "lib/isc/entropy.c",
+        "lib/isc/fsaccess.c",
+    ],
+    includes = LIBISC_INCLUDES,
+    copts = LIBISC_COPTS,
+    linkopts = select({
+        # 原 Make 的 GCC 默认按实际引用保留共享库；不能把 APT 的间接库强行装入中继。
+        "@platforms//cpu:x86_64": ["-Wl,--as-needed"],
+        "//conditions:default": ["-pthread"],
+    }),
+    deps = ["@isc_dhcp_build_debian//zlib1g-dev:libz_cc"],
+    visibility = ["//visibility:public"],
+)
+
+# =============================================================================
+# libdns code generation: gen.c host tool + 4 generated headers
+# =============================================================================
+
+cc_binary(
+    name = "dns_gen",
+    srcs = [
+        "lib/dns/gen.c",
+        "lib/dns/gen-unix.h",
+        ":platform_h",
+        ":bind_config_h",
+    ] + glob(["lib/isc/include/**/*.h"]),
+    includes = [
+        ".",
+        "lib/isc/include",
+        "lib/isc/unix/include",
+    ] + select({
+        "@platforms//cpu:x86_64": ["lib/isc/nothreads/include"],
+        "//conditions:default": ["lib/isc/pthreads/include"],
+    }) + select({
+        "@platforms//cpu:aarch64": ["lib/isc/noatomic/include"],
+        "//conditions:default": ["lib/isc/x86_32/include"],
+    }),
+    copts = ["-w"],
+)
+
+# rdata files needed by gen.c at codegen time. Glob keeps the list in sync
+# with whatever rdata/<class>/<type>_<num>.[hc] files BIND ships.
+filegroup(
+    name = "dns_rdata_files",
+    srcs = glob([
+        "lib/dns/rdata/**/*.h",
+        "lib/dns/rdata/**/*.c",
+    ]),
+)
+
+# gen.c expects -s <dir-containing-rdata>. We pass lib/dns; the cmd extracts
+# that prefix from any one rdata file location to be hermetic against bazel
+# execroot relocation.
+genrule(
+    name = 'dns_enumtype_h',
+    srcs = [":dns_rdata_files", "lib/dns/rdata/rdatastructpre.h"],
+    outs = ['lib/dns/include/dns/enumtype.h'],
+    tools = [":dns_gen"],
+    cmd = 'root=$$PWD; source=$(location lib/dns/rdata/rdatastructpre.h); source=$${source%/rdata/*}; tool=$$root/$(location :dns_gen); out=$$root/$@; cd "$$source"; "$$tool" -s . -t > "$$out"',
+)
+genrule(
+    name = 'dns_enumclass_h',
+    srcs = [":dns_rdata_files", "lib/dns/rdata/rdatastructpre.h"],
+    outs = ['lib/dns/include/dns/enumclass.h'],
+    tools = [":dns_gen"],
+    cmd = 'root=$$PWD; source=$(location lib/dns/rdata/rdatastructpre.h); source=$${source%/rdata/*}; tool=$$root/$(location :dns_gen); out=$$root/$@; cd "$$source"; "$$tool" -s . -c > "$$out"',
+)
+genrule(
+    name = 'dns_rdatastruct_h',
+    srcs = [":dns_rdata_files", "lib/dns/rdata/rdatastructpre.h"],
+    outs = ['lib/dns/include/dns/rdatastruct.h'],
+    tools = [":dns_gen"],
+    cmd = 'root=$$PWD; source=$(location lib/dns/rdata/rdatastructpre.h); source=$${source%/rdata/*}; tool=$$root/$(location :dns_gen); out=$$root/$@; cd "$$source"; "$$tool" -s . -i -P ./rdata/rdatastructpre.h -S ./rdata/rdatastructsuf.h > "$$out"',
+)
+genrule(
+    name = 'dns_code_h',
+    srcs = [":dns_rdata_files", "lib/dns/rdata/rdatastructpre.h"],
+    outs = ['lib/dns/code.h'],
+    tools = [":dns_gen"],
+    cmd = 'root=$$PWD; source=$(location lib/dns/rdata/rdatastructpre.h); source=$${source%/rdata/*}; tool=$$root/$(location :dns_gen); out=$$root/$@; cd "$$source"; "$$tool" -s .  > "$$out"',
+)
+# =============================================================================
+# libdns
+# =============================================================================
+
+cc_library(
+    name = "libdns",
+    srcs = ['lib/dns/acache.c', 'lib/dns/acl.c', 'lib/dns/adb.c', 'lib/dns/badcache.c', 'lib/dns/byaddr.c', 'lib/dns/cache.c', 'lib/dns/callbacks.c', 'lib/dns/catz.c', 'lib/dns/clientinfo.c', 'lib/dns/compress.c', 'lib/dns/db.c', 'lib/dns/dbiterator.c', 'lib/dns/dbtable.c', 'lib/dns/diff.c', 'lib/dns/dispatch.c', 'lib/dns/dlz.c', 'lib/dns/dns64.c', 'lib/dns/dnssec.c', 'lib/dns/ds.c', 'lib/dns/dyndb.c', 'lib/dns/fixedname.c', 'lib/dns/forward.c', 'lib/dns/ipkeylist.c', 'lib/dns/iptable.c', 'lib/dns/journal.c', 'lib/dns/keydata.c', 'lib/dns/keytable.c', 'lib/dns/lib.c', 'lib/dns/log.c', 'lib/dns/lookup.c', 'lib/dns/master.c', 'lib/dns/masterdump.c', 'lib/dns/message.c', 'lib/dns/name.c', 'lib/dns/ncache.c', 'lib/dns/nsec.c', 'lib/dns/nsec3.c', 'lib/dns/nta.c', 'lib/dns/order.c', 'lib/dns/peer.c', 'lib/dns/portlist.c', 'lib/dns/private.c', 'lib/dns/rbt.c', 'lib/dns/rbtdb.c', 'lib/dns/rbtdb64.c', 'lib/dns/rcode.c', 'lib/dns/rdata.c', 'lib/dns/rdatalist.c', 'lib/dns/rdataset.c', 'lib/dns/rdatasetiter.c', 'lib/dns/rdataslab.c', 'lib/dns/request.c', 'lib/dns/resolver.c', 'lib/dns/result.c', 'lib/dns/rootns.c', 'lib/dns/rpz.c', 'lib/dns/rrl.c', 'lib/dns/rriterator.c', 'lib/dns/sdb.c', 'lib/dns/sdlz.c', 'lib/dns/soa.c', 'lib/dns/ssu.c', 'lib/dns/ssu_external.c', 'lib/dns/stats.c', 'lib/dns/tcpmsg.c', 'lib/dns/time.c', 'lib/dns/timer.c', 'lib/dns/tkey.c', 'lib/dns/tsec.c', 'lib/dns/tsig.c', 'lib/dns/ttl.c', 'lib/dns/update.c', 'lib/dns/validator.c', 'lib/dns/version.c', 'lib/dns/view.c', 'lib/dns/xfrin.c', 'lib/dns/zone.c', 'lib/dns/zonekey.c', 'lib/dns/zt.c', 'lib/dns/dst_api.c', 'lib/dns/dst_lib.c', 'lib/dns/dst_parse.c', 'lib/dns/dst_result.c', 'lib/dns/gssapi_link.c', 'lib/dns/gssapictx.c', 'lib/dns/hmac_link.c', 'lib/dns/key.c', 'lib/dns/client.c', 'lib/dns/ecdb.c', ':dns_code_h', ':dns_enumclass_h', ':dns_enumtype_h', ':dns_rdatastruct_h'],
+    hdrs = glob(
+        [
+            "lib/dns/*.h",
+            "lib/dns/include/**/*.h",
+            "lib/dns/rdata/**/*.h",
+            "lib/dns/rdata/**/*.c",
+        ],
+        allow_empty = True,
+    ),
+    textual_hdrs = [
+        # rbtdb64.c is itself compiled but does #include "rbtdb.c"
+        "lib/dns/rbtdb.c",
+    ],
+    includes = [
+        "lib/dns",
+        "lib/dns/include",
+    ],
+    copts = [
+        "-D_GNU_SOURCE",
+        "-DUSE_MD5",
+        "-DVERSION=\\\"9.11.36\\\"",
+        "-DMAJOR=\\\"9.11\\\"",
+        "-DMAPAPI=\\\"1.0\\\"",
+        "-DLIBINTERFACE=1115",
+        "-DLIBREVISION=3",
+        "-DLIBAGE=0",
+        "-DSYSCONFDIR=\\\"/etc/bind\\\"",
+    ] + BIND_TARGET_COPTS + select({
+        "@platforms//cpu:x86_64": [],
+        "//conditions:default": ["-D_REENTRANT"],
+    }),
+    deps = [":libisc"],
+    visibility = ["//visibility:public"],
+)
+
+# =============================================================================
+# libisccfg
+# =============================================================================
+
+cc_library(
+    name = "libisccfg",
+    srcs = ['lib/isccfg/aclconf.c', 'lib/isccfg/dnsconf.c', 'lib/isccfg/log.c', 'lib/isccfg/namedconf.c', 'lib/isccfg/parser.c', 'lib/isccfg/version.c'],
+    hdrs = glob(
+        ["lib/isccfg/include/**/*.h"],
+        allow_empty = True,
+    ),
+    includes = ["lib/isccfg/include"],
+    copts = [
+        "-D_GNU_SOURCE",
+        "-DVERSION=\\\"9.11.36\\\"",
+        "-DLIBINTERFACE=163",
+        "-DLIBREVISION=8",
+        "-DLIBAGE=0",
+    ] + BIND_TARGET_COPTS + select({
+        "@platforms//cpu:x86_64": [],
+        "//conditions:default": ["-D_REENTRANT"],
+    }),
+    deps = [
+        ":libisc",
+        ":libdns",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+# =============================================================================
+# Generated lib/irs/include/irs/platform.h
+# =============================================================================
+#
+# irs/platform.h.in has no @TOKEN@ substitutions; just strip the .in suffix.
+
+expand_template(name = "irs_platform_h", template = "lib/irs/include/irs/platform.h.in", out = "lib/irs/include/irs/platform.h", substitutions = {})
+expand_template(name = "irs_netdb_h", template = "lib/irs/include/irs/netdb.h.in", out = "lib/irs/include/irs/netdb.h", substitutions = IRS_NETDB)
+
+# =============================================================================
+# libirs
+# =============================================================================
+
+cc_library(
+    name = "libirs",
+    srcs = ['lib/irs/context.c', 'lib/irs/dnsconf.c', 'lib/irs/gai_strerror.c', 'lib/irs/getaddrinfo.c', 'lib/irs/getnameinfo.c', 'lib/irs/resconf.c', ':irs_netdb_h', ':irs_platform_h'],
+    hdrs = glob(
+        ["lib/irs/include/**/*.h"],
+        allow_empty = True,
+    ),
+    includes = ["lib/irs/include"],
+    copts = [
+        "-D_GNU_SOURCE",
+        "-DVERSION=\\\"9.11.36\\\"",
+        "-DLIBINTERFACE=161",
+        "-DLIBREVISION=1",
+        "-DLIBAGE=0",
+    ] + BIND_TARGET_COPTS + select({
+        "@platforms//cpu:x86_64": [],
+        "//conditions:default": ["-D_REENTRANT"],
+    }),
+    deps = [
+        ":libisc",
+        ":libdns",
+        ":libisccfg",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+# Read-only input closure for the existing controlled configuration probe.
+filegroup(name = "probe_inputs", srcs = glob(["**"], exclude = ["BUILD.bazel"]), visibility = ["//visibility:public"])
+exports_files(["configure"])
