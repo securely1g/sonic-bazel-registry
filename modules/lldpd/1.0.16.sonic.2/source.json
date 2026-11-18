@@ -4,7 +4,7 @@
   "integrity": "sha256-47ORZQx7pnzqL+hNZ/201/yKoexc+G64u5hHEd+EZak=",
   "overlay": {
     "BUILD.bazel": "sha256-Vk+M19Wa/khRB5QsscAwN8olDkDv1jsNJ9hPm6ssAHA=",
-    "MODULE.bazel": "sha256-SNmvD8t78EJTzMrxRKaN3TKqhWZLl6+cEa3NM5Ly6UI=",
+    "MODULE.bazel": "sha256-MY9AjupZZVYoIorVMbK49pr+pHY3jBTgII5/NhZ9NHc=",
     "bazel/apt.lock.json": "sha256-SBNQhcOlVWeOD17o5ueRfklobK0u+o+26ZeDk83c8hE=",
     "bazel/configure.sh": "sha256-MnXjYGvqlZE+uix1rnifNRF5itLaNbEn4obdCtSaYIg=",
     "bazel/inputs.bzl": "sha256-A2fySgzwcdXUvpg5+InL4rUhN/AIHU7xCsK8pZQlk4s=",

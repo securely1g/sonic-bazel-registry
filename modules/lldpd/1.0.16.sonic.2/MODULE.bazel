@@ -28,7 +28,10 @@ register_toolchains(
 # Execution tools remain in sonic-build-infra's shared foreign_runtime.
 apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
 apt.import_lock(
-    lock = "//:bazel/apt.lock.json",
+    dependency_sets = ["lldpd_deps"],
+    lock = "@sonic_build_infra//apt:apt.lock.json",
+    requests = "@sonic_build_infra//apt:requests.json",
+    sources = "@sonic_build_infra//apt:sources.json",
 )
 use_repo(apt, "lldpd_deps")
 
