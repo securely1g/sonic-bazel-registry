@@ -1,0 +1,3777 @@
+load("@sonic_build_infra//binary:strip_static_archive.bzl", "strip_static_archive")
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
+load("@tar.bzl//tar:tar.bzl", "tar")
+load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
+load("@sonic_build_infra//cc:runtime_test.bzl", "native_runtime_test", "native_runtime_binary")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
+load("@p4lang-bmv2//:bazel/pcap_runtime_test.bzl", "pcap_runtime_test")
+load("@rules_python//python:py_library.bzl", "py_library")
+load("@rules_python//python:py_binary.bzl", "py_binary")
+load("@rules_python//python:py_test.bzl", "py_test")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("@bazel_lib//lib:expand_template.bzl", executable_expand_template = "expand_template")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
+load("@rules_cc//cc:cc_static_library.bzl", "cc_static_library")
+load("@bazel_lib//lib:expand_template.bzl", "expand_template")
+load("@sonic_build_infra//cc:shared_library.bzl", "shared_library_cc_info")
+package(default_visibility = ["//visibility:public"])
+
+expand_template(
+    name = "bm_configuration",
+    template = "@p4lang-bmv2//:bazel/bm_config.h.in",
+    out = "generated/include/bm/config.h",
+    substitutions = {
+    "@BM_ELOG_ON@": "/**/",
+    "@BM_ENABLE_MODULES@": "/**/",
+    "@BM_HAVE_ALGORITHM@": "1",
+    "@BM_HAVE_ARRAY@": "1",
+    "@BM_HAVE_CASSERT@": "1",
+    "@BM_HAVE_CMATH@": "1",
+    "@BM_HAVE_CSTDIO@": "1",
+    "@BM_HAVE_CTIME@": "1",
+    "@BM_HAVE_CXX17@": "1",
+    "@BM_HAVE_DLFCN_H@": "1",
+    "@BM_HAVE_DLOPEN@": "/**/",
+    "@BM_HAVE_INTTYPES_H@": "1",
+    "@BM_HAVE_LIBBOOST_THREAD@": "1",
+    "@BM_HAVE_LIBGMP@": "1",
+    "@BM_HAVE_LIBNANOMSG@": "1",
+    "@BM_HAVE_LIBPCAP@": "1",
+    "@BM_HAVE_PI_P4INFO_H@": "1",
+    "@BM_HAVE_PI_PI_H@": "1",
+    "@BM_HAVE_PI_TARGET_PI_IMP_H@": "1",
+    "@BM_HAVE_PTHREAD@": "1",
+    "@BM_HAVE_PTHREAD_PRIO_INHERIT@": "1",
+    "@BM_HAVE_QUEUE@": "1",
+    "@BM_HAVE_STDINT_H@": "1",
+    "@BM_HAVE_STDIO_H@": "1",
+    "@BM_HAVE_STDLIB_H@": "1",
+    "@BM_HAVE_STRING@": "1",
+    "@BM_HAVE_STRINGS_H@": "1",
+    "@BM_HAVE_STRING_H@": "1",
+    "@BM_HAVE_SYS_STAT_H@": "1",
+    "@BM_HAVE_SYS_TYPES_H@": "1",
+    "@BM_HAVE_TUPLE@": "1",
+    "@BM_HAVE_UNISTD_H@": "1",
+    "@BM_HAVE_UNORDERED_MAP@": "1",
+    "@BM_HAVE_UTILITY@": "1",
+    "@BM_HAVE_VECTOR@": "1",
+    "@BM_LOG_DEBUG_ON@": "/**/",
+    "@BM_LOG_TRACE_ON@": "/**/",
+    "@BM_LT_OBJDIR@": "\".libs/\"",
+    "@BM_NANOMSG_ON@": "/**/",
+    "@BM_PACKAGE@": "\"bm\"",
+    "@BM_PACKAGE_BUGREPORT@": "\"antonin@barefootnetworks.com\"",
+    "@BM_PACKAGE_NAME@": "\"bm\"",
+    "@BM_PACKAGE_STRING@": "\"bm 1.15.0-68f4a978\"",
+    "@BM_PACKAGE_TARNAME@": "\"bm\"",
+    "@BM_PACKAGE_URL@": "\"\"",
+    "@BM_PACKAGE_VERSION@": "\"1.15.0-68f4a978\"",
+    "@BM_STDC_HEADERS@": "1",
+    "@BM_THRIFT_ON@": "/**/",
+    "@BM_THRIFT_VERSION@": "1900",
+    "@BM_VERSION@": "\"1.15.0-68f4a978\"",
+    "@BM_WP4_16_STACKS@": "/**/"
+},
+)
+
+expand_template(
+    name = "version",
+    template = "src/bm_sim/version.cpp.in",
+    out = "generated/version.cpp",
+    substitutions = {
+    "@BM_VERSION@": "1.15.0-68f4a978",
+    "#include \"version.h\"": "#include \"src/bm_sim/version.h\""
+},
+)
+
+cc_library(
+    name = "config",
+    hdrs = [
+    "generated/include/bm/config.h"
+],
+    strip_include_prefix = "generated/include",
+)
+
+cc_library(
+    name = "headers",
+    hdrs = [
+    "include/bm/bm_grpc/pem.h",
+    "include/bm/bm_apps/packet_pipe.h",
+    "include/bm/bm_apps/notifications.h",
+    "include/bm/bm_apps/learn.h",
+    "include/bm/bm_sim/dynamic_bitset.h",
+    "include/bm/bm_sim/handle_mgr.h",
+    "include/bm/bm_sim/parser_error.h",
+    "include/bm/bm_sim/stacks.h",
+    "include/bm/bm_sim/context.h",
+    "include/bm/bm_sim/dev_mgr.h",
+    "include/bm/bm_sim/parser.h",
+    "include/bm/bm_sim/actions.h",
+    "include/bm/bm_sim/match_key_types.h",
+    "include/bm/bm_sim/P4Objects.h",
+    "include/bm/bm_sim/runtime_interface.h",
+    "include/bm/bm_sim/device_id.h",
+    "include/bm/bm_sim/match_units.h",
+    "include/bm/bm_sim/packet_buffer.h",
+    "include/bm/bm_sim/periodic_task.h",
+    "include/bm/bm_sim/meters.h",
+    "include/bm/bm_sim/header_unions.h",
+    "include/bm/bm_sim/target_parser.h",
+    "include/bm/bm_sim/bignum.h",
+    "include/bm/bm_sim/match_tables.h",
+    "include/bm/bm_sim/enums.h",
+    "include/bm/bm_sim/phv_source.h",
+    "include/bm/bm_sim/nn.h",
+    "include/bm/bm_sim/port_monitor.h",
+    "include/bm/bm_sim/_assert.h",
+    "include/bm/bm_sim/queueing.h",
+    "include/bm/bm_sim/simple_pre.h",
+    "include/bm/bm_sim/packet.h",
+    "include/bm/bm_sim/named_p4object.h",
+    "include/bm/bm_sim/headers.h",
+    "include/bm/bm_sim/debugger.h",
+    "include/bm/bm_sim/logger.h",
+    "include/bm/bm_sim/entries.h",
+    "include/bm/bm_sim/action_profile.h",
+    "include/bm/bm_sim/transport.h",
+    "include/bm/bm_sim/pcap_file.h",
+    "include/bm/bm_sim/ras.h",
+    "include/bm/bm_sim/stateful.h",
+    "include/bm/bm_sim/event_logger.h",
+    "include/bm/bm_sim/extern.h",
+    "include/bm/bm_sim/fields.h",
+    "include/bm/bm_sim/phv_forward.h",
+    "include/bm/bm_sim/options_parse.h",
+    "include/bm/bm_sim/packet_handler.h",
+    "include/bm/bm_sim/bytecontainer.h",
+    "include/bm/bm_sim/checksums.h",
+    "include/bm/bm_sim/match_error_codes.h",
+    "include/bm/bm_sim/counters.h",
+    "include/bm/bm_sim/queue.h",
+    "include/bm/bm_sim/field_lists.h",
+    "include/bm/bm_sim/short_alloc.h",
+    "include/bm/bm_sim/action_entry.h",
+    "include/bm/bm_sim/control_flow.h",
+    "include/bm/bm_sim/conditionals.h",
+    "include/bm/bm_sim/control_action.h",
+    "include/bm/bm_sim/deparser.h",
+    "include/bm/bm_sim/ageing.h",
+    "include/bm/bm_sim/tables.h",
+    "include/bm/bm_sim/calculations.h",
+    "include/bm/bm_sim/simple_pre_lag.h",
+    "include/bm/bm_sim/data.h",
+    "include/bm/bm_sim/source_info.h",
+    "include/bm/bm_sim/phv.h",
+    "include/bm/bm_sim/pre.h",
+    "include/bm/bm_sim/expressions.h",
+    "include/bm/bm_sim/learning.h",
+    "include/bm/bm_sim/lookup_structures.h",
+    "include/bm/bm_sim/pipeline.h",
+    "include/bm/bm_sim/switch.h",
+    "include/bm/thrift/stdcxx.h",
+    "include/bm/bm_runtime/bm_runtime.h",
+    "include/bm/bm_sim/core/primitives.h"
+],
+    strip_include_prefix = "include",
+    deps = [
+    ":config",
+    ":spdlog",
+    "@bmv2_deps//libboost-filesystem1.83-dev:libboost-filesystem1.83_headers",
+    "@bmv2_deps//libboost-program-options1.83-dev:libboost-program-options1.83_headers",
+    "@bmv2_deps//libboost-thread1.83-dev:libboost-thread1.83_headers",
+    "@bmv2_deps//libboost-system1.83-dev:libboost-system1.83_headers",
+    "@bmv2_deps//libgmp-dev:libgmp_headers",
+    "@bmv2_deps//libpcap0.8-dev:libpcap0.8_headers",
+    "@bmv2_deps//libnanomsg-dev:libnanomsg_headers",
+    "@bmv2_deps//libthrift-dev:libthrift_headers"
+],
+)
+
+cc_library(
+    name = "json_headers",
+    hdrs = [
+    "third_party/jsoncpp/include/jsoncpp/json.h"
+],
+    strip_include_prefix = "third_party/jsoncpp/include",
+)
+
+cc_library(
+    name = "json",
+    srcs = [
+    "third_party/jsoncpp/src/jsoncpp.cpp"
+],
+    deps = [
+    ":json_headers"
+],
+    copts = [
+    "-g",
+    "-O3",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time",
+    "-std=c++17"
+] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    local_defines = [
+    "_FORTIFY_SOURCE=2"
+],
+)
+
+cc_library(
+    name = "spdlog",
+    hdrs = [
+    "third_party/spdlog/bm/spdlog/logger.h",
+    "third_party/spdlog/bm/spdlog/tweakme.h",
+    "third_party/spdlog/bm/spdlog/formatter.h",
+    "third_party/spdlog/bm/spdlog/spdlog.h",
+    "third_party/spdlog/bm/spdlog/common.h",
+    "third_party/spdlog/bm/spdlog/async_logger.h",
+    "third_party/spdlog/bm/spdlog/sinks/syslog_sink.h",
+    "third_party/spdlog/bm/spdlog/sinks/file_sinks.h",
+    "third_party/spdlog/bm/spdlog/sinks/sink.h",
+    "third_party/spdlog/bm/spdlog/sinks/ostream_sink.h",
+    "third_party/spdlog/bm/spdlog/sinks/dist_sink.h",
+    "third_party/spdlog/bm/spdlog/sinks/null_sink.h",
+    "third_party/spdlog/bm/spdlog/sinks/base_sink.h",
+    "third_party/spdlog/bm/spdlog/sinks/android_sink.h",
+    "third_party/spdlog/bm/spdlog/sinks/stdout_sinks.h",
+    "third_party/spdlog/bm/spdlog/details/async_logger_impl.h",
+    "third_party/spdlog/bm/spdlog/details/os.h",
+    "third_party/spdlog/bm/spdlog/details/format.h",
+    "third_party/spdlog/bm/spdlog/details/logger_impl.h",
+    "third_party/spdlog/bm/spdlog/details/log_msg.h",
+    "third_party/spdlog/bm/spdlog/details/registry.h",
+    "third_party/spdlog/bm/spdlog/details/file_helper.h",
+    "third_party/spdlog/bm/spdlog/details/mpmc_bounded_q.h",
+    "third_party/spdlog/bm/spdlog/details/null_mutex.h",
+    "third_party/spdlog/bm/spdlog/details/line_logger.h",
+    "third_party/spdlog/bm/spdlog/details/async_log_helper.h",
+    "third_party/spdlog/bm/spdlog/details/spdlog_impl.h",
+    "third_party/spdlog/bm/spdlog/details/pattern_formatter_impl.h"
+],
+    includes = [
+    "third_party/spdlog"
+],
+    textual_hdrs = [
+    "third_party/spdlog/bm/spdlog/details/format.cc"
+],
+)
+
+genrule(
+    name = "generate_standard",
+    srcs = [
+    "thrift_src/standard.thrift"
+],
+    outs = [
+    "generated/thrift/standard/cpp/standard_types.cpp",
+    "generated/thrift/standard/cpp/standard_types.h",
+    "generated/thrift/standard/cpp/standard_constants.cpp",
+    "generated/thrift/standard/cpp/standard_constants.h",
+    "generated/thrift/standard/cpp/Standard.cpp",
+    "generated/thrift/standard/cpp/Standard.h",
+    "generated/python/bm_runtime/standard/__init__.py",
+    "generated/python/bm_runtime/standard/constants.py",
+    "generated/python/bm_runtime/standard/ttypes.py",
+    "generated/python/bm_runtime/standard/Standard.py",
+    "generated/python/bm_runtime/standard/Standard-remote"
+],
+    tools = [
+    "@sonic_build_infra//tools/build_tools:thrift"
+],
+    cmd = "mkdir -p $(RULEDIR)/generated/thrift/standard/cpp $(RULEDIR)/generated/python && $(location @sonic_build_infra//tools/build_tools:thrift) -I $$(dirname $(location thrift_src/standard.thrift)) --gen cpp -out $(RULEDIR)/generated/thrift/standard/cpp $(location thrift_src/standard.thrift) && $(location @sonic_build_infra//tools/build_tools:thrift) -I $$(dirname $(location thrift_src/standard.thrift)) --gen py -out $(RULEDIR)/generated/python $(location thrift_src/standard.thrift) && touch $(RULEDIR)/generated/thrift/standard/cpp/standard_types.cpp $(RULEDIR)/generated/thrift/standard/cpp/standard_types.h $(RULEDIR)/generated/thrift/standard/cpp/standard_constants.cpp $(RULEDIR)/generated/thrift/standard/cpp/standard_constants.h $(RULEDIR)/generated/thrift/standard/cpp/Standard.cpp $(RULEDIR)/generated/thrift/standard/cpp/Standard.h",
+)
+
+cc_library(
+    name = "thrift_standard",
+    srcs = [
+    "generated/thrift/standard/cpp/standard_types.cpp",
+    "generated/thrift/standard/cpp/standard_constants.cpp",
+    "generated/thrift/standard/cpp/Standard.cpp"
+],
+    hdrs = [
+    "generated/thrift/standard/cpp/standard_types.h",
+    "generated/thrift/standard/cpp/standard_constants.h",
+    "generated/thrift/standard/cpp/Standard.h"
+],
+    includes = [
+    "generated/thrift/standard/cpp"
+],
+    copts = [
+    "-g",
+    "-O3",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time",
+    "-std=c++17",
+    "-pthread",
+    "-Wall",
+    "-Wextra"
+] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    deps = [
+    "@bmv2_deps//libthrift-dev:libthrift_cc"
+],
+    local_defines = [
+    "_FORTIFY_SOURCE=2"
+],
+)
+
+cc_library(
+    name = "thrift_bm_standard",
+    hdrs = [
+    "generated/thrift/standard/cpp/standard_types.h",
+    "generated/thrift/standard/cpp/standard_constants.h",
+    "generated/thrift/standard/cpp/Standard.h"
+],
+    strip_include_prefix = "generated/thrift/standard/cpp",
+    include_prefix = "bm",
+    deps = [
+    ":thrift_standard"
+],
+)
+
+cc_library(
+    name = "thrift_bm_standard_headers",
+    hdrs = [
+    "generated/thrift/standard/cpp/standard_types.h",
+    "generated/thrift/standard/cpp/standard_constants.h",
+    "generated/thrift/standard/cpp/Standard.h"
+],
+    strip_include_prefix = "generated/thrift/standard/cpp",
+    include_prefix = "bm",
+    deps = [
+    "@bmv2_deps//libthrift-dev:libthrift_headers"
+],
+)
+
+genrule(
+    name = "generate_simple_pre",
+    srcs = [
+    "thrift_src/simple_pre.thrift"
+],
+    outs = [
+    "generated/thrift/simple_pre/cpp/simple_pre_types.cpp",
+    "generated/thrift/simple_pre/cpp/simple_pre_types.h",
+    "generated/thrift/simple_pre/cpp/simple_pre_constants.cpp",
+    "generated/thrift/simple_pre/cpp/simple_pre_constants.h",
+    "generated/thrift/simple_pre/cpp/SimplePre.cpp",
+    "generated/thrift/simple_pre/cpp/SimplePre.h",
+    "generated/python/bm_runtime/simple_pre/__init__.py",
+    "generated/python/bm_runtime/simple_pre/constants.py",
+    "generated/python/bm_runtime/simple_pre/ttypes.py",
+    "generated/python/bm_runtime/simple_pre/SimplePre.py",
+    "generated/python/bm_runtime/simple_pre/SimplePre-remote"
+],
+    tools = [
+    "@sonic_build_infra//tools/build_tools:thrift"
+],
+    cmd = "mkdir -p $(RULEDIR)/generated/thrift/simple_pre/cpp $(RULEDIR)/generated/python && $(location @sonic_build_infra//tools/build_tools:thrift) -I $$(dirname $(location thrift_src/simple_pre.thrift)) --gen cpp -out $(RULEDIR)/generated/thrift/simple_pre/cpp $(location thrift_src/simple_pre.thrift) && $(location @sonic_build_infra//tools/build_tools:thrift) -I $$(dirname $(location thrift_src/simple_pre.thrift)) --gen py -out $(RULEDIR)/generated/python $(location thrift_src/simple_pre.thrift) && touch $(RULEDIR)/generated/thrift/simple_pre/cpp/simple_pre_types.cpp $(RULEDIR)/generated/thrift/simple_pre/cpp/simple_pre_types.h $(RULEDIR)/generated/thrift/simple_pre/cpp/simple_pre_constants.cpp $(RULEDIR)/generated/thrift/simple_pre/cpp/simple_pre_constants.h $(RULEDIR)/generated/thrift/simple_pre/cpp/SimplePre.cpp $(RULEDIR)/generated/thrift/simple_pre/cpp/SimplePre.h",
+)
+
+cc_library(
+    name = "thrift_simple_pre",
+    srcs = [
+    "generated/thrift/simple_pre/cpp/simple_pre_types.cpp",
+    "generated/thrift/simple_pre/cpp/simple_pre_constants.cpp",
+    "generated/thrift/simple_pre/cpp/SimplePre.cpp"
+],
+    hdrs = [
+    "generated/thrift/simple_pre/cpp/simple_pre_types.h",
+    "generated/thrift/simple_pre/cpp/simple_pre_constants.h",
+    "generated/thrift/simple_pre/cpp/SimplePre.h"
+],
+    includes = [
+    "generated/thrift/simple_pre/cpp"
+],
+    copts = [
+    "-g",
+    "-O3",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time",
+    "-std=c++17",
+    "-pthread",
+    "-Wall",
+    "-Wextra"
+] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    deps = [
+    "@bmv2_deps//libthrift-dev:libthrift_cc"
+],
+    local_defines = [
+    "_FORTIFY_SOURCE=2"
+],
+)
+
+cc_library(
+    name = "thrift_bm_simple_pre",
+    hdrs = [
+    "generated/thrift/simple_pre/cpp/simple_pre_types.h",
+    "generated/thrift/simple_pre/cpp/simple_pre_constants.h",
+    "generated/thrift/simple_pre/cpp/SimplePre.h"
+],
+    strip_include_prefix = "generated/thrift/simple_pre/cpp",
+    include_prefix = "bm",
+    deps = [
+    ":thrift_simple_pre"
+],
+)
+
+cc_library(
+    name = "thrift_bm_simple_pre_headers",
+    hdrs = [
+    "generated/thrift/simple_pre/cpp/simple_pre_types.h",
+    "generated/thrift/simple_pre/cpp/simple_pre_constants.h",
+    "generated/thrift/simple_pre/cpp/SimplePre.h"
+],
+    strip_include_prefix = "generated/thrift/simple_pre/cpp",
+    include_prefix = "bm",
+    deps = [
+    "@bmv2_deps//libthrift-dev:libthrift_headers"
+],
+)
+
+genrule(
+    name = "generate_simple_pre_lag",
+    srcs = [
+    "thrift_src/simple_pre_lag.thrift"
+],
+    outs = [
+    "generated/thrift/simple_pre_lag/cpp/simple_pre_lag_types.cpp",
+    "generated/thrift/simple_pre_lag/cpp/simple_pre_lag_types.h",
+    "generated/thrift/simple_pre_lag/cpp/simple_pre_lag_constants.cpp",
+    "generated/thrift/simple_pre_lag/cpp/simple_pre_lag_constants.h",
+    "generated/thrift/simple_pre_lag/cpp/SimplePreLAG.cpp",
+    "generated/thrift/simple_pre_lag/cpp/SimplePreLAG.h",
+    "generated/python/bm_runtime/simple_pre_lag/__init__.py",
+    "generated/python/bm_runtime/simple_pre_lag/constants.py",
+    "generated/python/bm_runtime/simple_pre_lag/ttypes.py",
+    "generated/python/bm_runtime/simple_pre_lag/SimplePreLAG.py",
+    "generated/python/bm_runtime/simple_pre_lag/SimplePreLAG-remote"
+],
+    tools = [
+    "@sonic_build_infra//tools/build_tools:thrift"
+],
+    cmd = "mkdir -p $(RULEDIR)/generated/thrift/simple_pre_lag/cpp $(RULEDIR)/generated/python && $(location @sonic_build_infra//tools/build_tools:thrift) -I $$(dirname $(location thrift_src/simple_pre_lag.thrift)) --gen cpp -out $(RULEDIR)/generated/thrift/simple_pre_lag/cpp $(location thrift_src/simple_pre_lag.thrift) && $(location @sonic_build_infra//tools/build_tools:thrift) -I $$(dirname $(location thrift_src/simple_pre_lag.thrift)) --gen py -out $(RULEDIR)/generated/python $(location thrift_src/simple_pre_lag.thrift) && touch $(RULEDIR)/generated/thrift/simple_pre_lag/cpp/simple_pre_lag_types.cpp $(RULEDIR)/generated/thrift/simple_pre_lag/cpp/simple_pre_lag_types.h $(RULEDIR)/generated/thrift/simple_pre_lag/cpp/simple_pre_lag_constants.cpp $(RULEDIR)/generated/thrift/simple_pre_lag/cpp/simple_pre_lag_constants.h $(RULEDIR)/generated/thrift/simple_pre_lag/cpp/SimplePreLAG.cpp $(RULEDIR)/generated/thrift/simple_pre_lag/cpp/SimplePreLAG.h",
+)
+
+cc_library(
+    name = "thrift_simple_pre_lag",
+    srcs = [
+    "generated/thrift/simple_pre_lag/cpp/simple_pre_lag_types.cpp",
+    "generated/thrift/simple_pre_lag/cpp/simple_pre_lag_constants.cpp",
+    "generated/thrift/simple_pre_lag/cpp/SimplePreLAG.cpp"
+],
+    hdrs = [
+    "generated/thrift/simple_pre_lag/cpp/simple_pre_lag_types.h",
+    "generated/thrift/simple_pre_lag/cpp/simple_pre_lag_constants.h",
+    "generated/thrift/simple_pre_lag/cpp/SimplePreLAG.h"
+],
+    includes = [
+    "generated/thrift/simple_pre_lag/cpp"
+],
+    copts = [
+    "-g",
+    "-O3",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time",
+    "-std=c++17",
+    "-pthread",
+    "-Wall",
+    "-Wextra"
+] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    deps = [
+    "@bmv2_deps//libthrift-dev:libthrift_cc"
+],
+    local_defines = [
+    "_FORTIFY_SOURCE=2"
+],
+)
+
+cc_library(
+    name = "thrift_bm_simple_pre_lag",
+    hdrs = [
+    "generated/thrift/simple_pre_lag/cpp/simple_pre_lag_types.h",
+    "generated/thrift/simple_pre_lag/cpp/simple_pre_lag_constants.h",
+    "generated/thrift/simple_pre_lag/cpp/SimplePreLAG.h"
+],
+    strip_include_prefix = "generated/thrift/simple_pre_lag/cpp",
+    include_prefix = "bm",
+    deps = [
+    ":thrift_simple_pre_lag"
+],
+)
+
+cc_library(
+    name = "thrift_bm_simple_pre_lag_headers",
+    hdrs = [
+    "generated/thrift/simple_pre_lag/cpp/simple_pre_lag_types.h",
+    "generated/thrift/simple_pre_lag/cpp/simple_pre_lag_constants.h",
+    "generated/thrift/simple_pre_lag/cpp/SimplePreLAG.h"
+],
+    strip_include_prefix = "generated/thrift/simple_pre_lag/cpp",
+    include_prefix = "bm",
+    deps = [
+    "@bmv2_deps//libthrift-dev:libthrift_headers"
+],
+)
+
+genrule(
+    name = "generate_simple_switch",
+    srcs = [
+    "targets/simple_switch/thrift/simple_switch.thrift"
+],
+    outs = [
+    "generated/thrift/simple_switch/cpp/simple_switch_types.cpp",
+    "generated/thrift/simple_switch/cpp/simple_switch_types.h",
+    "generated/thrift/simple_switch/cpp/simple_switch_constants.cpp",
+    "generated/thrift/simple_switch/cpp/simple_switch_constants.h",
+    "generated/thrift/simple_switch/cpp/SimpleSwitch.cpp",
+    "generated/thrift/simple_switch/cpp/SimpleSwitch.h",
+    "generated/python/sswitch_runtime/__init__.py",
+    "generated/python/sswitch_runtime/constants.py",
+    "generated/python/sswitch_runtime/ttypes.py",
+    "generated/python/sswitch_runtime/SimpleSwitch.py",
+    "generated/python/sswitch_runtime/SimpleSwitch-remote"
+],
+    tools = [
+    "@sonic_build_infra//tools/build_tools:thrift"
+],
+    cmd = "mkdir -p $(RULEDIR)/generated/thrift/simple_switch/cpp $(RULEDIR)/generated/python && $(location @sonic_build_infra//tools/build_tools:thrift) -I $$(dirname $(location targets/simple_switch/thrift/simple_switch.thrift)) --gen cpp -out $(RULEDIR)/generated/thrift/simple_switch/cpp $(location targets/simple_switch/thrift/simple_switch.thrift) && $(location @sonic_build_infra//tools/build_tools:thrift) -I $$(dirname $(location targets/simple_switch/thrift/simple_switch.thrift)) --gen py -out $(RULEDIR)/generated/python $(location targets/simple_switch/thrift/simple_switch.thrift) && touch $(RULEDIR)/generated/thrift/simple_switch/cpp/simple_switch_types.cpp $(RULEDIR)/generated/thrift/simple_switch/cpp/simple_switch_types.h $(RULEDIR)/generated/thrift/simple_switch/cpp/simple_switch_constants.cpp $(RULEDIR)/generated/thrift/simple_switch/cpp/simple_switch_constants.h $(RULEDIR)/generated/thrift/simple_switch/cpp/SimpleSwitch.cpp $(RULEDIR)/generated/thrift/simple_switch/cpp/SimpleSwitch.h",
+)
+
+cc_library(
+    name = "thrift_simple_switch",
+    srcs = [
+    "generated/thrift/simple_switch/cpp/simple_switch_types.cpp",
+    "generated/thrift/simple_switch/cpp/simple_switch_constants.cpp",
+    "generated/thrift/simple_switch/cpp/SimpleSwitch.cpp"
+],
+    hdrs = [
+    "generated/thrift/simple_switch/cpp/simple_switch_types.h",
+    "generated/thrift/simple_switch/cpp/simple_switch_constants.h",
+    "generated/thrift/simple_switch/cpp/SimpleSwitch.h"
+],
+    includes = [
+    "generated/thrift/simple_switch/cpp"
+],
+    copts = [
+    "-g",
+    "-O3",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time",
+    "-std=c++17",
+    "-pthread",
+    "-Wall",
+    "-Wextra"
+] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    deps = [
+    "@bmv2_deps//libthrift-dev:libthrift_cc"
+],
+    local_defines = [
+    "_FORTIFY_SOURCE=2"
+],
+)
+
+cc_library(
+    name = "thrift_bm_simple_switch",
+    hdrs = [
+    "generated/thrift/simple_switch/cpp/simple_switch_types.h",
+    "generated/thrift/simple_switch/cpp/simple_switch_constants.h",
+    "generated/thrift/simple_switch/cpp/SimpleSwitch.h"
+],
+    strip_include_prefix = "generated/thrift/simple_switch/cpp",
+    include_prefix = "bm",
+    deps = [
+    ":thrift_simple_switch"
+],
+)
+
+cc_library(
+    name = "thrift_bm_simple_switch_headers",
+    hdrs = [
+    "generated/thrift/simple_switch/cpp/simple_switch_types.h",
+    "generated/thrift/simple_switch/cpp/simple_switch_constants.h",
+    "generated/thrift/simple_switch/cpp/SimpleSwitch.h"
+],
+    strip_include_prefix = "generated/thrift/simple_switch/cpp",
+    include_prefix = "bm",
+    deps = [
+    "@bmv2_deps//libthrift-dev:libthrift_headers"
+],
+)
+
+genrule(
+    name = "generate_psa_switch",
+    srcs = [
+    "targets/psa_switch/thrift/psa_switch.thrift"
+],
+    outs = [
+    "generated/thrift/psa_switch/cpp/psa_switch_types.cpp",
+    "generated/thrift/psa_switch/cpp/psa_switch_types.h",
+    "generated/thrift/psa_switch/cpp/psa_switch_constants.cpp",
+    "generated/thrift/psa_switch/cpp/psa_switch_constants.h",
+    "generated/thrift/psa_switch/cpp/PsaSwitch.cpp",
+    "generated/thrift/psa_switch/cpp/PsaSwitch.h",
+    "generated/python/pswitch_runtime/__init__.py",
+    "generated/python/pswitch_runtime/constants.py",
+    "generated/python/pswitch_runtime/ttypes.py",
+    "generated/python/pswitch_runtime/PsaSwitch.py",
+    "generated/python/pswitch_runtime/PsaSwitch-remote"
+],
+    tools = [
+    "@sonic_build_infra//tools/build_tools:thrift"
+],
+    cmd = "mkdir -p $(RULEDIR)/generated/thrift/psa_switch/cpp $(RULEDIR)/generated/python && $(location @sonic_build_infra//tools/build_tools:thrift) -I $$(dirname $(location targets/psa_switch/thrift/psa_switch.thrift)) --gen cpp -out $(RULEDIR)/generated/thrift/psa_switch/cpp $(location targets/psa_switch/thrift/psa_switch.thrift) && $(location @sonic_build_infra//tools/build_tools:thrift) -I $$(dirname $(location targets/psa_switch/thrift/psa_switch.thrift)) --gen py -out $(RULEDIR)/generated/python $(location targets/psa_switch/thrift/psa_switch.thrift) && touch $(RULEDIR)/generated/thrift/psa_switch/cpp/psa_switch_types.cpp $(RULEDIR)/generated/thrift/psa_switch/cpp/psa_switch_types.h $(RULEDIR)/generated/thrift/psa_switch/cpp/psa_switch_constants.cpp $(RULEDIR)/generated/thrift/psa_switch/cpp/psa_switch_constants.h $(RULEDIR)/generated/thrift/psa_switch/cpp/PsaSwitch.cpp $(RULEDIR)/generated/thrift/psa_switch/cpp/PsaSwitch.h",
+)
+
+cc_library(
+    name = "thrift_psa_switch",
+    srcs = [
+    "generated/thrift/psa_switch/cpp/psa_switch_types.cpp",
+    "generated/thrift/psa_switch/cpp/psa_switch_constants.cpp",
+    "generated/thrift/psa_switch/cpp/PsaSwitch.cpp"
+],
+    hdrs = [
+    "generated/thrift/psa_switch/cpp/psa_switch_types.h",
+    "generated/thrift/psa_switch/cpp/psa_switch_constants.h",
+    "generated/thrift/psa_switch/cpp/PsaSwitch.h"
+],
+    includes = [
+    "generated/thrift/psa_switch/cpp"
+],
+    copts = [
+    "-g",
+    "-O3",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time",
+    "-std=c++17",
+    "-pthread",
+    "-Wall",
+    "-Wextra"
+] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    deps = [
+    "@bmv2_deps//libthrift-dev:libthrift_cc"
+],
+    local_defines = [
+    "_FORTIFY_SOURCE=2"
+],
+)
+
+cc_library(
+    name = "thrift_bm_psa_switch",
+    hdrs = [
+    "generated/thrift/psa_switch/cpp/psa_switch_types.h",
+    "generated/thrift/psa_switch/cpp/psa_switch_constants.h",
+    "generated/thrift/psa_switch/cpp/PsaSwitch.h"
+],
+    strip_include_prefix = "generated/thrift/psa_switch/cpp",
+    include_prefix = "bm",
+    deps = [
+    ":thrift_psa_switch"
+],
+)
+
+cc_library(
+    name = "thrift_bm_psa_switch_headers",
+    hdrs = [
+    "generated/thrift/psa_switch/cpp/psa_switch_types.h",
+    "generated/thrift/psa_switch/cpp/psa_switch_constants.h",
+    "generated/thrift/psa_switch/cpp/PsaSwitch.h"
+],
+    strip_include_prefix = "generated/thrift/psa_switch/cpp",
+    include_prefix = "bm",
+    deps = [
+    "@bmv2_deps//libthrift-dev:libthrift_headers"
+],
+)
+
+genrule(
+    name = "generate_pna_nic",
+    srcs = [
+    "targets/pna_nic/thrift/pna_nic.thrift"
+],
+    outs = [
+    "generated/thrift/pna_nic/cpp/pna_nic_types.cpp",
+    "generated/thrift/pna_nic/cpp/pna_nic_types.h",
+    "generated/thrift/pna_nic/cpp/pna_nic_constants.cpp",
+    "generated/thrift/pna_nic/cpp/pna_nic_constants.h",
+    "generated/thrift/pna_nic/cpp/PnaNic.cpp",
+    "generated/thrift/pna_nic/cpp/PnaNic.h",
+    "generated/python/pnic_runtime/__init__.py",
+    "generated/python/pnic_runtime/constants.py",
+    "generated/python/pnic_runtime/ttypes.py",
+    "generated/python/pnic_runtime/PnaNic.py",
+    "generated/python/pnic_runtime/PnaNic-remote"
+],
+    tools = [
+    "@sonic_build_infra//tools/build_tools:thrift"
+],
+    cmd = "mkdir -p $(RULEDIR)/generated/thrift/pna_nic/cpp $(RULEDIR)/generated/python && $(location @sonic_build_infra//tools/build_tools:thrift) -I $$(dirname $(location targets/pna_nic/thrift/pna_nic.thrift)) --gen cpp -out $(RULEDIR)/generated/thrift/pna_nic/cpp $(location targets/pna_nic/thrift/pna_nic.thrift) && $(location @sonic_build_infra//tools/build_tools:thrift) -I $$(dirname $(location targets/pna_nic/thrift/pna_nic.thrift)) --gen py -out $(RULEDIR)/generated/python $(location targets/pna_nic/thrift/pna_nic.thrift) && touch $(RULEDIR)/generated/thrift/pna_nic/cpp/pna_nic_types.cpp $(RULEDIR)/generated/thrift/pna_nic/cpp/pna_nic_types.h $(RULEDIR)/generated/thrift/pna_nic/cpp/pna_nic_constants.cpp $(RULEDIR)/generated/thrift/pna_nic/cpp/pna_nic_constants.h $(RULEDIR)/generated/thrift/pna_nic/cpp/PnaNic.cpp $(RULEDIR)/generated/thrift/pna_nic/cpp/PnaNic.h",
+)
+
+cc_library(
+    name = "thrift_pna_nic",
+    srcs = [
+    "generated/thrift/pna_nic/cpp/pna_nic_types.cpp",
+    "generated/thrift/pna_nic/cpp/pna_nic_constants.cpp",
+    "generated/thrift/pna_nic/cpp/PnaNic.cpp"
+],
+    hdrs = [
+    "generated/thrift/pna_nic/cpp/pna_nic_types.h",
+    "generated/thrift/pna_nic/cpp/pna_nic_constants.h",
+    "generated/thrift/pna_nic/cpp/PnaNic.h"
+],
+    includes = [
+    "generated/thrift/pna_nic/cpp"
+],
+    copts = [
+    "-g",
+    "-O3",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time",
+    "-std=c++17",
+    "-pthread",
+    "-Wall",
+    "-Wextra"
+] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    deps = [
+    "@bmv2_deps//libthrift-dev:libthrift_cc"
+],
+    local_defines = [
+    "_FORTIFY_SOURCE=2"
+],
+)
+
+cc_library(
+    name = "thrift_bm_pna_nic",
+    hdrs = [
+    "generated/thrift/pna_nic/cpp/pna_nic_types.h",
+    "generated/thrift/pna_nic/cpp/pna_nic_constants.h",
+    "generated/thrift/pna_nic/cpp/PnaNic.h"
+],
+    strip_include_prefix = "generated/thrift/pna_nic/cpp",
+    include_prefix = "bm",
+    deps = [
+    ":thrift_pna_nic"
+],
+)
+
+cc_library(
+    name = "thrift_bm_pna_nic_headers",
+    hdrs = [
+    "generated/thrift/pna_nic/cpp/pna_nic_types.h",
+    "generated/thrift/pna_nic/cpp/pna_nic_constants.h",
+    "generated/thrift/pna_nic/cpp/PnaNic.h"
+],
+    strip_include_prefix = "generated/thrift/pna_nic/cpp",
+    include_prefix = "bm",
+    deps = [
+    "@bmv2_deps//libthrift-dev:libthrift_headers"
+],
+)
+
+genrule(
+    name = "generate_res",
+    srcs = [
+    "pdfixed/thrift/res.thrift"
+],
+    outs = [
+    "generated/thrift/res/cpp/res_types.cpp",
+    "generated/thrift/res/cpp/res_types.h",
+    "generated/thrift/res/cpp/res_constants.cpp",
+    "generated/thrift/res/cpp/res_constants.h",
+    "generated/python/res_pd_rpc/__init__.py",
+    "generated/python/res_pd_rpc/constants.py",
+    "generated/python/res_pd_rpc/ttypes.py"
+],
+    tools = [
+    "@sonic_build_infra//tools/build_tools:thrift"
+],
+    cmd = "mkdir -p $(RULEDIR)/generated/thrift/res/cpp $(RULEDIR)/generated/python && $(location @sonic_build_infra//tools/build_tools:thrift) -I $$(dirname $(location pdfixed/thrift/res.thrift)) --gen cpp -out $(RULEDIR)/generated/thrift/res/cpp $(location pdfixed/thrift/res.thrift) && $(location @sonic_build_infra//tools/build_tools:thrift) -I $$(dirname $(location pdfixed/thrift/res.thrift)) --gen py -out $(RULEDIR)/generated/python $(location pdfixed/thrift/res.thrift) && touch $(RULEDIR)/generated/thrift/res/cpp/res_types.cpp $(RULEDIR)/generated/thrift/res/cpp/res_types.h $(RULEDIR)/generated/thrift/res/cpp/res_constants.cpp $(RULEDIR)/generated/thrift/res/cpp/res_constants.h",
+)
+
+cc_library(
+    name = "thrift_res",
+    srcs = [
+    "generated/thrift/res/cpp/res_types.cpp",
+    "generated/thrift/res/cpp/res_constants.cpp"
+],
+    hdrs = [
+    "generated/thrift/res/cpp/res_types.h",
+    "generated/thrift/res/cpp/res_constants.h"
+],
+    includes = [
+    "generated/thrift/res/cpp"
+],
+    copts = [
+    "-g",
+    "-O3",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time",
+    "-std=c++17"
+] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    deps = [
+    "@bmv2_deps//libthrift-dev:libthrift_cc"
+],
+    local_defines = [
+    "_FORTIFY_SOURCE=2"
+],
+)
+
+genrule(
+    name = "generate_conn_mgr_pd_rpc",
+    srcs = [
+    "pdfixed/thrift/conn_mgr_pd_rpc.thrift",
+    "pdfixed/thrift/res.thrift"
+],
+    outs = [
+    "generated/thrift/conn_mgr_pd_rpc/cpp/conn_mgr_pd_rpc_types.cpp",
+    "generated/thrift/conn_mgr_pd_rpc/cpp/conn_mgr_pd_rpc_types.h",
+    "generated/thrift/conn_mgr_pd_rpc/cpp/conn_mgr_pd_rpc_constants.cpp",
+    "generated/thrift/conn_mgr_pd_rpc/cpp/conn_mgr_pd_rpc_constants.h",
+    "generated/thrift/conn_mgr_pd_rpc/cpp/conn_mgr.cpp",
+    "generated/thrift/conn_mgr_pd_rpc/cpp/conn_mgr.h",
+    "generated/python/conn_mgr_pd_rpc/__init__.py",
+    "generated/python/conn_mgr_pd_rpc/constants.py",
+    "generated/python/conn_mgr_pd_rpc/ttypes.py",
+    "generated/python/conn_mgr_pd_rpc/conn_mgr.py",
+    "generated/python/conn_mgr_pd_rpc/conn_mgr-remote"
+],
+    tools = [
+    "@sonic_build_infra//tools/build_tools:thrift"
+],
+    cmd = "mkdir -p $(RULEDIR)/generated/thrift/conn_mgr_pd_rpc/cpp $(RULEDIR)/generated/python && $(location @sonic_build_infra//tools/build_tools:thrift) -I $$(dirname $(location pdfixed/thrift/conn_mgr_pd_rpc.thrift)) --gen cpp -out $(RULEDIR)/generated/thrift/conn_mgr_pd_rpc/cpp $(location pdfixed/thrift/conn_mgr_pd_rpc.thrift) && $(location @sonic_build_infra//tools/build_tools:thrift) -I $$(dirname $(location pdfixed/thrift/conn_mgr_pd_rpc.thrift)) --gen py -out $(RULEDIR)/generated/python $(location pdfixed/thrift/conn_mgr_pd_rpc.thrift) && touch $(RULEDIR)/generated/thrift/conn_mgr_pd_rpc/cpp/conn_mgr_pd_rpc_types.cpp $(RULEDIR)/generated/thrift/conn_mgr_pd_rpc/cpp/conn_mgr_pd_rpc_types.h $(RULEDIR)/generated/thrift/conn_mgr_pd_rpc/cpp/conn_mgr_pd_rpc_constants.cpp $(RULEDIR)/generated/thrift/conn_mgr_pd_rpc/cpp/conn_mgr_pd_rpc_constants.h $(RULEDIR)/generated/thrift/conn_mgr_pd_rpc/cpp/conn_mgr.cpp $(RULEDIR)/generated/thrift/conn_mgr_pd_rpc/cpp/conn_mgr.h",
+)
+
+cc_library(
+    name = "thrift_conn_mgr_pd_rpc",
+    srcs = [
+    "generated/thrift/conn_mgr_pd_rpc/cpp/conn_mgr_pd_rpc_types.cpp",
+    "generated/thrift/conn_mgr_pd_rpc/cpp/conn_mgr_pd_rpc_constants.cpp",
+    "generated/thrift/conn_mgr_pd_rpc/cpp/conn_mgr.cpp"
+],
+    hdrs = [
+    "generated/thrift/conn_mgr_pd_rpc/cpp/conn_mgr_pd_rpc_types.h",
+    "generated/thrift/conn_mgr_pd_rpc/cpp/conn_mgr_pd_rpc_constants.h",
+    "generated/thrift/conn_mgr_pd_rpc/cpp/conn_mgr.h"
+],
+    includes = [
+    "generated/thrift/conn_mgr_pd_rpc/cpp"
+],
+    copts = [
+    "-g",
+    "-O3",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time",
+    "-std=c++17"
+] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    deps = [
+    "@bmv2_deps//libthrift-dev:libthrift_cc",
+    ":thrift_res"
+],
+    local_defines = [
+    "_FORTIFY_SOURCE=2"
+],
+)
+
+genrule(
+    name = "generate_mc_pd_rpc",
+    srcs = [
+    "pdfixed/thrift/mc_pd_rpc.thrift",
+    "pdfixed/thrift/res.thrift"
+],
+    outs = [
+    "generated/thrift/mc_pd_rpc/cpp/mc_pd_rpc_types.cpp",
+    "generated/thrift/mc_pd_rpc/cpp/mc_pd_rpc_types.h",
+    "generated/thrift/mc_pd_rpc/cpp/mc_pd_rpc_constants.cpp",
+    "generated/thrift/mc_pd_rpc/cpp/mc_pd_rpc_constants.h",
+    "generated/thrift/mc_pd_rpc/cpp/mc.cpp",
+    "generated/thrift/mc_pd_rpc/cpp/mc.h",
+    "generated/python/mc_pd_rpc/__init__.py",
+    "generated/python/mc_pd_rpc/constants.py",
+    "generated/python/mc_pd_rpc/ttypes.py",
+    "generated/python/mc_pd_rpc/mc.py",
+    "generated/python/mc_pd_rpc/mc-remote"
+],
+    tools = [
+    "@sonic_build_infra//tools/build_tools:thrift"
+],
+    cmd = "mkdir -p $(RULEDIR)/generated/thrift/mc_pd_rpc/cpp $(RULEDIR)/generated/python && $(location @sonic_build_infra//tools/build_tools:thrift) -I $$(dirname $(location pdfixed/thrift/mc_pd_rpc.thrift)) --gen cpp -out $(RULEDIR)/generated/thrift/mc_pd_rpc/cpp $(location pdfixed/thrift/mc_pd_rpc.thrift) && $(location @sonic_build_infra//tools/build_tools:thrift) -I $$(dirname $(location pdfixed/thrift/mc_pd_rpc.thrift)) --gen py -out $(RULEDIR)/generated/python $(location pdfixed/thrift/mc_pd_rpc.thrift) && touch $(RULEDIR)/generated/thrift/mc_pd_rpc/cpp/mc_pd_rpc_types.cpp $(RULEDIR)/generated/thrift/mc_pd_rpc/cpp/mc_pd_rpc_types.h $(RULEDIR)/generated/thrift/mc_pd_rpc/cpp/mc_pd_rpc_constants.cpp $(RULEDIR)/generated/thrift/mc_pd_rpc/cpp/mc_pd_rpc_constants.h $(RULEDIR)/generated/thrift/mc_pd_rpc/cpp/mc.cpp $(RULEDIR)/generated/thrift/mc_pd_rpc/cpp/mc.h",
+)
+
+cc_library(
+    name = "thrift_mc_pd_rpc",
+    srcs = [
+    "generated/thrift/mc_pd_rpc/cpp/mc_pd_rpc_types.cpp",
+    "generated/thrift/mc_pd_rpc/cpp/mc_pd_rpc_constants.cpp",
+    "generated/thrift/mc_pd_rpc/cpp/mc.cpp"
+],
+    hdrs = [
+    "generated/thrift/mc_pd_rpc/cpp/mc_pd_rpc_types.h",
+    "generated/thrift/mc_pd_rpc/cpp/mc_pd_rpc_constants.h",
+    "generated/thrift/mc_pd_rpc/cpp/mc.h"
+],
+    includes = [
+    "generated/thrift/mc_pd_rpc/cpp"
+],
+    copts = [
+    "-g",
+    "-O3",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time",
+    "-std=c++17"
+] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    deps = [
+    "@bmv2_deps//libthrift-dev:libthrift_cc",
+    ":thrift_res"
+],
+    local_defines = [
+    "_FORTIFY_SOURCE=2"
+],
+)
+
+genrule(
+    name = "generate_sswitch_pd_rpc",
+    srcs = [
+    "pdfixed/thrift/sswitch_pd_rpc.thrift",
+    "pdfixed/thrift/res.thrift"
+],
+    outs = [
+    "generated/thrift/sswitch_pd_rpc/cpp/sswitch_pd_rpc_types.cpp",
+    "generated/thrift/sswitch_pd_rpc/cpp/sswitch_pd_rpc_types.h",
+    "generated/thrift/sswitch_pd_rpc/cpp/sswitch_pd_rpc_constants.cpp",
+    "generated/thrift/sswitch_pd_rpc/cpp/sswitch_pd_rpc_constants.h",
+    "generated/thrift/sswitch_pd_rpc/cpp/sswitch.cpp",
+    "generated/thrift/sswitch_pd_rpc/cpp/sswitch.h",
+    "generated/python/sswitch_pd_rpc/__init__.py",
+    "generated/python/sswitch_pd_rpc/constants.py",
+    "generated/python/sswitch_pd_rpc/ttypes.py",
+    "generated/python/sswitch_pd_rpc/sswitch.py",
+    "generated/python/sswitch_pd_rpc/sswitch-remote"
+],
+    tools = [
+    "@sonic_build_infra//tools/build_tools:thrift"
+],
+    cmd = "mkdir -p $(RULEDIR)/generated/thrift/sswitch_pd_rpc/cpp $(RULEDIR)/generated/python && $(location @sonic_build_infra//tools/build_tools:thrift) -I $$(dirname $(location pdfixed/thrift/sswitch_pd_rpc.thrift)) --gen cpp -out $(RULEDIR)/generated/thrift/sswitch_pd_rpc/cpp $(location pdfixed/thrift/sswitch_pd_rpc.thrift) && $(location @sonic_build_infra//tools/build_tools:thrift) -I $$(dirname $(location pdfixed/thrift/sswitch_pd_rpc.thrift)) --gen py -out $(RULEDIR)/generated/python $(location pdfixed/thrift/sswitch_pd_rpc.thrift) && touch $(RULEDIR)/generated/thrift/sswitch_pd_rpc/cpp/sswitch_pd_rpc_types.cpp $(RULEDIR)/generated/thrift/sswitch_pd_rpc/cpp/sswitch_pd_rpc_types.h $(RULEDIR)/generated/thrift/sswitch_pd_rpc/cpp/sswitch_pd_rpc_constants.cpp $(RULEDIR)/generated/thrift/sswitch_pd_rpc/cpp/sswitch_pd_rpc_constants.h $(RULEDIR)/generated/thrift/sswitch_pd_rpc/cpp/sswitch.cpp $(RULEDIR)/generated/thrift/sswitch_pd_rpc/cpp/sswitch.h",
+)
+
+cc_library(
+    name = "thrift_sswitch_pd_rpc",
+    srcs = [
+    "generated/thrift/sswitch_pd_rpc/cpp/sswitch_pd_rpc_types.cpp",
+    "generated/thrift/sswitch_pd_rpc/cpp/sswitch_pd_rpc_constants.cpp",
+    "generated/thrift/sswitch_pd_rpc/cpp/sswitch.cpp"
+],
+    hdrs = [
+    "generated/thrift/sswitch_pd_rpc/cpp/sswitch_pd_rpc_types.h",
+    "generated/thrift/sswitch_pd_rpc/cpp/sswitch_pd_rpc_constants.h",
+    "generated/thrift/sswitch_pd_rpc/cpp/sswitch.h"
+],
+    includes = [
+    "generated/thrift/sswitch_pd_rpc/cpp"
+],
+    copts = [
+    "-g",
+    "-O3",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time",
+    "-std=c++17"
+] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    deps = [
+    "@bmv2_deps//libthrift-dev:libthrift_cc",
+    ":thrift_res"
+],
+    local_defines = [
+    "_FORTIFY_SOURCE=2"
+],
+)
+
+cc_library(
+    name = "runtime_stubs_objects",
+    deps = [
+    ":thrift_bm_standard",
+    ":thrift_bm_simple_pre",
+    ":thrift_bm_simple_pre_lag"
+],
+)
+
+cc_library(
+    name = "runtime_stubs_headers",
+    deps = [
+    ":thrift_bm_standard_headers",
+    ":thrift_bm_simple_pre_headers",
+    ":thrift_bm_simple_pre_lag_headers"
+],
+)
+
+cc_library(
+    name = "bmi_headers",
+    hdrs = [
+    "src/BMI/bmi_interface.h",
+    "src/BMI/BMI/bmi_port.h"
+],
+    includes = [
+    "src/BMI"
+],
+)
+
+cc_library(
+    name = "bmi_objects",
+    srcs = [
+    "src/BMI/bmi_interface.c",
+    "src/BMI/bmi_port.c",
+    "src/BMI/bmi_interface.h",
+    "src/BMI/BMI/bmi_port.h"
+],
+    hdrs = [],
+    copts = [
+    "-g",
+    "-O3",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time",
+    "-pthread",
+    "-Werror=implicit-function-declaration"
+] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    local_defines = [
+    "_FORTIFY_SOURCE=2",
+    "WITH_PCAP_FIX"
+],
+    includes = [
+    "src/BMI"
+],
+    deps = [
+    ":headers",
+    "@bmv2_deps//libpcap0.8-dev:libpcap_cc"
+],
+    implementation_deps = [],
+    linkopts = [
+    "-pthread",
+    "-Wl,-z,relro,-z,now"
+],
+)
+
+cc_library(
+    name = "lpm_trie_header",
+    hdrs = [
+    "src/bm_sim/lpm_trie.h"
+],
+    strip_include_prefix = "src/bm_sim",
+)
+
+cc_library(
+    name = "bmsim_c",
+    srcs = [
+    "src/bm_sim/md5.c",
+    "src/bm_sim/xxhash.c",
+    "src/bm_sim/md5.h",
+    "src/bm_sim/lpm_trie.h",
+    "src/bm_sim/version.h",
+    "src/bm_sim/crc_map.h",
+    "src/bm_sim/crc_tables.h",
+    "src/bm_sim/utils.h",
+    "src/bm_sim/xxhash.h",
+    "src/bm_sim/extract.h"
+],
+    copts = [
+    "-g",
+    "-O3",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time",
+    "-pthread",
+    "-Werror=implicit-function-declaration"
+] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    deps = [
+    ":headers"
+],
+    local_defines = [
+    "_FORTIFY_SOURCE=2"
+],
+)
+
+cc_library(
+    name = "bmsim_objects",
+    srcs = [
+    "src/bm_sim/_assert.cpp",
+    "src/bm_sim/action_profile.cpp",
+    "src/bm_sim/actions.cpp",
+    "src/bm_sim/ageing.cpp",
+    "src/bm_sim/bytecontainer.cpp",
+    "src/bm_sim/calculations.cpp",
+    "src/bm_sim/checksums.cpp",
+    "src/bm_sim/conditionals.cpp",
+    "src/bm_sim/context.cpp",
+    "src/bm_sim/control_action.cpp",
+    "src/bm_sim/counters.cpp",
+    "src/bm_sim/crc_map.cpp",
+    "src/bm_sim/debugger.cpp",
+    "src/bm_sim/deparser.cpp",
+    "src/bm_sim/dev_mgr.cpp",
+    "src/bm_sim/dev_mgr_bmi.cpp",
+    "src/bm_sim/dev_mgr_packet_in.cpp",
+    "src/bm_sim/enums.cpp",
+    "src/bm_sim/event_logger.cpp",
+    "src/bm_sim/expressions.cpp",
+    "src/bm_sim/extern.cpp",
+    "src/bm_sim/fields.cpp",
+    "src/bm_sim/headers.cpp",
+    "src/bm_sim/header_unions.cpp",
+    "src/bm_sim/learning.cpp",
+    "src/bm_sim/lookup_structures.cpp",
+    "src/bm_sim/logger.cpp",
+    "src/bm_sim/lpm_trie.cpp",
+    "src/bm_sim/match_error_codes.cpp",
+    "src/bm_sim/match_units.cpp",
+    "src/bm_sim/match_tables.cpp",
+    "src/bm_sim/meters.cpp",
+    "src/bm_sim/options_parse.cpp",
+    "src/bm_sim/P4Objects.cpp",
+    "src/bm_sim/packet.cpp",
+    "src/bm_sim/parser.cpp",
+    "src/bm_sim/parser_error.cpp",
+    "src/bm_sim/pcap_file.cpp",
+    "src/bm_sim/pipeline.cpp",
+    "src/bm_sim/periodic_task.cpp",
+    "src/bm_sim/port_monitor.cpp",
+    "src/bm_sim/phv.cpp",
+    "src/bm_sim/phv_source.cpp",
+    "src/bm_sim/stateful.cpp",
+    "src/bm_sim/switch.cpp",
+    "src/bm_sim/simple_pre.cpp",
+    "src/bm_sim/simple_pre_lag.cpp",
+    "src/bm_sim/source_info.cpp",
+    "src/bm_sim/stacks.cpp",
+    "src/bm_sim/tables.cpp",
+    "src/bm_sim/target_parser.cpp",
+    "src/bm_sim/transport.cpp",
+    "src/bm_sim/transport_nn.cpp",
+    "src/bm_sim/core/primitives.cpp",
+    "src/bm_sim/crc_map.h",
+    "src/bm_sim/crc_tables.h",
+    "src/bm_sim/extract.h",
+    "src/bm_sim/lpm_trie.h",
+    "src/bm_sim/md5.h",
+    "src/bm_sim/utils.h",
+    "src/bm_sim/version.h",
+    "src/bm_sim/xxhash.h",
+    ":version"
+],
+    hdrs = [],
+    copts = [
+    "-g",
+    "-O3",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time",
+    "-std=c++17",
+    "-pthread",
+    "-Wall",
+    "-Wextra"
+] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    local_defines = [
+    "_FORTIFY_SOURCE=2"
+],
+    includes = [],
+    deps = [
+    ":headers",
+    ":bmi_objects",
+    ":json",
+    ":spdlog",
+    "@bmv2_deps//libboost-filesystem1.83-dev:libboost_filesystem_cc",
+    "@bmv2_deps//libboost-program-options1.83-dev:libboost_program_options_cc",
+    "@bmv2_deps//libboost-thread1.83-dev:libboost_thread_cc",
+    "@bmv2_deps//libboost-system1.83-dev:libboost_system_cc",
+    "@bmv2_deps//libgmp-dev:libgmp_cc",
+    "@bmv2_deps//libpcap0.8-dev:libpcap_cc",
+    "@bmv2_deps//libnanomsg-dev:libnanomsg_cc",
+    ":bmsim_c"
+],
+    implementation_deps = [
+    ":lpm_trie_header"
+],
+    linkopts = [
+    "-pthread",
+    "-Wl,-z,relro,-z,now"
+],
+)
+
+cc_library(
+    name = "bm_runtime_objects",
+    srcs = [
+    "src/bm_runtime/server.cpp",
+    "src/bm_runtime/Standard_server.cpp",
+    "src/bm_runtime/SimplePre_server.cpp",
+    "src/bm_runtime/SimplePreLAG_server.cpp"
+],
+    hdrs = [],
+    copts = [
+    "-g",
+    "-O3",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time",
+    "-std=c++17",
+    "-pthread",
+    "-Wall",
+    "-Wextra"
+] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    local_defines = [
+    "_FORTIFY_SOURCE=2"
+],
+    includes = [],
+    deps = [
+    ":headers",
+    ":bmsim_objects",
+    ":runtime_stubs_headers",
+    ":runtimestubs_link"
+],
+    implementation_deps = [],
+    linkopts = [
+    "-pthread",
+    "-Wl,-z,relro,-z,now"
+],
+)
+
+cc_library(
+    name = "bm_apps_objects",
+    srcs = [
+    "src/bm_apps/notifications.cpp",
+    "src/bm_apps/packet_pipe.cpp",
+    "src/bm_apps/learn.cpp",
+    "src/bm_apps/nn.h"
+],
+    hdrs = [],
+    copts = [
+    "-g",
+    "-O3",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time",
+    "-std=c++17",
+    "-pthread",
+    "-Wall",
+    "-Wextra"
+] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    local_defines = [
+    "_FORTIFY_SOURCE=2"
+],
+    includes = [],
+    deps = [
+    ":headers",
+    ":runtime_stubs_headers",
+    ":runtimestubs_link",
+    "@bmv2_deps//libnanomsg-dev:libnanomsg_cc"
+],
+    implementation_deps = [],
+    linkopts = [
+    "-pthread",
+    "-Wl,-z,relro,-z,now"
+],
+)
+
+cc_library(
+    name = "simple_switch_headers",
+    hdrs = [
+    "targets/simple_switch/simple_switch.h",
+    "targets/simple_switch/register_access.h",
+    "targets/simple_switch/bm/simple_switch/runner.h"
+],
+    includes = [
+    "targets/simple_switch"
+],
+    deps = [
+    ":headers",
+    ":spdlog"
+],
+)
+
+cc_library(
+    name = "simple_switch_objects",
+    srcs = [
+    "targets/simple_switch/simple_switch.cpp",
+    "targets/simple_switch/primitives.cpp",
+    "targets/simple_switch/thrift/src/SimpleSwitch_server.cpp",
+    "targets/simple_switch/simple_switch.h",
+    "targets/simple_switch/register_access.h"
+],
+    hdrs = [],
+    copts = [
+    "-g",
+    "-O3",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time",
+    "-std=c++17",
+    "-pthread",
+    "-Wall",
+    "-Wextra"
+] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    local_defines = [
+    "_FORTIFY_SOURCE=2",
+    "WITH_PI"
+],
+    includes = [
+    "targets/simple_switch"
+],
+    deps = [
+    ":headers",
+    ":bmsim_objects",
+    ":runtime_stubs_headers",
+    ":thrift_bm_simple_switch_headers",
+    ":simpleswitch_thrift_link"
+],
+    implementation_deps = [],
+    linkopts = [
+    "-pthread",
+    "-Wl,-z,relro,-z,now"
+],
+)
+
+cc_library(
+    name = "bmpi_objects",
+    srcs = [
+    "PI/src/pi.cpp",
+    "PI/src/pi_imp.cpp",
+    "PI/src/pi_tables_imp.cpp",
+    "PI/src/pi_act_prof_imp.cpp",
+    "PI/src/pi_counter_imp.cpp",
+    "PI/src/pi_meter_imp.cpp",
+    "PI/src/pi_learn_imp.cpp",
+    "PI/src/pi_mc_imp.cpp",
+    "PI/src/pi_clone_imp.cpp",
+    "PI/src/common.cpp",
+    "PI/src/action_helpers.cpp",
+    "PI/src/direct_res_spec.cpp",
+    "PI/src/group_selection.cpp",
+    "PI/src/device_state.cpp",
+    "PI/src/common.h",
+    "PI/src/action_helpers.h",
+    "PI/src/direct_res_spec.h",
+    "PI/src/group_selection.h",
+    "PI/src/device_state.h",
+    "PI/bm/PI/pi.h"
+],
+    hdrs = [],
+    copts = [
+    "-g",
+    "-O3",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time",
+    "-std=c++17",
+    "-pthread",
+    "-Wall",
+    "-Wextra"
+] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    local_defines = [
+    "_FORTIFY_SOURCE=2",
+    "WITH_SIMPLE_SWITCH"
+],
+    includes = [
+    "PI"
+],
+    deps = [
+    ":headers",
+    ":simple_switch_headers",
+    "@p4lang_pi//:pi_headers",
+    "@bmv2_deps//libgmp-dev:libgmp_cc"
+],
+    implementation_deps = [],
+    linkopts = [
+    "-pthread",
+    "-Wl,-z,relro,-z,now"
+],
+)
+
+cc_library(
+    name = "simple_switch_runner_objects",
+    srcs = [
+    "targets/simple_switch/runner.cpp",
+    "targets/simple_switch/bm/simple_switch/runner.h"
+],
+    hdrs = [],
+    copts = [
+    "-g",
+    "-O3",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time",
+    "-std=c++17",
+    "-pthread",
+    "-Wall",
+    "-Wextra"
+] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    local_defines = [
+    "_FORTIFY_SOURCE=2",
+    "WITH_PI"
+],
+    includes = [
+    "targets/simple_switch"
+],
+    deps = [
+    ":headers",
+    ":bmpi_link",
+    ":pi_target_headers",
+    ":simple_switch_objects"
+],
+    implementation_deps = [],
+    linkopts = [
+    "-pthread",
+    "-Wl,-z,relro,-z,now"
+],
+)
+
+cc_library(
+    name = "psa_switch_objects",
+    srcs = [
+    "targets/psa_switch/psa_switch.cpp",
+    "targets/psa_switch/primitives.cpp",
+    "targets/psa_switch/externs/psa_counter.cpp",
+    "targets/psa_switch/externs/psa_meter.cpp",
+    "targets/psa_switch/externs/psa_random.cpp",
+    "targets/psa_switch/externs/psa_internet_checksum.cpp",
+    "targets/psa_switch/externs/psa_hash.cpp",
+    "targets/psa_switch/thrift/src/PsaSwitch_server.cpp",
+    "targets/psa_switch/psa_switch.h",
+    "targets/psa_switch/externs/psa_counter.h",
+    "targets/psa_switch/externs/psa_meter.h",
+    "targets/psa_switch/externs/psa_random.h",
+    "targets/psa_switch/externs/psa_internet_checksum.h",
+    "targets/psa_switch/externs/psa_hash.h"
+],
+    hdrs = [],
+    copts = [
+    "-g",
+    "-O3",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time",
+    "-std=c++17",
+    "-pthread",
+    "-Wall",
+    "-Wextra"
+] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    local_defines = [
+    "_FORTIFY_SOURCE=2"
+],
+    includes = [
+    "targets/psa_switch"
+],
+    deps = [
+    ":headers",
+    ":bmsim_objects",
+    ":runtime_stubs_headers",
+    ":thrift_bm_psa_switch_headers",
+    ":psaswitch_thrift_link"
+],
+    implementation_deps = [],
+    linkopts = [
+    "-pthread",
+    "-Wl,-z,relro,-z,now"
+],
+)
+
+cc_library(
+    name = "pna_nic_objects",
+    srcs = [
+    "targets/pna_nic/pna_nic.cpp",
+    "targets/pna_nic/primitives.cpp",
+    "targets/pna_nic/externs/pna_counter.cpp",
+    "targets/pna_nic/externs/pna_meter.cpp",
+    "targets/pna_nic/externs/pna_random.cpp",
+    "targets/pna_nic/externs/pna_internet_checksum.cpp",
+    "targets/pna_nic/externs/pna_hash.cpp",
+    "targets/pna_nic/thrift/src/PnaNic_server.cpp",
+    "targets/pna_nic/pna_nic.h",
+    "targets/pna_nic/externs/pna_counter.h",
+    "targets/pna_nic/externs/pna_meter.h",
+    "targets/pna_nic/externs/pna_random.h",
+    "targets/pna_nic/externs/pna_internet_checksum.h",
+    "targets/pna_nic/externs/pna_hash.h"
+],
+    hdrs = [],
+    copts = [
+    "-g",
+    "-O3",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time",
+    "-std=c++17",
+    "-pthread",
+    "-Wall",
+    "-Wextra"
+] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    local_defines = [
+    "_FORTIFY_SOURCE=2"
+],
+    includes = [
+    "targets/pna_nic"
+],
+    deps = [
+    ":headers",
+    ":bmsim_objects",
+    ":runtime_stubs_headers",
+    ":thrift_bm_pna_nic_headers",
+    ":pnanic_thrift_link"
+],
+    implementation_deps = [],
+    linkopts = [
+    "-pthread",
+    "-Wl,-z,relro,-z,now"
+],
+)
+
+cc_library(
+    name = "pdfixed_objects",
+    srcs = [
+    "pdfixed/src/pd_notifications.cpp",
+    "pdfixed/src/pd_helpers.cpp",
+    "pdfixed/src/pd_pre.cpp",
+    "pdfixed/src/pd_mirroring.cpp",
+    "pdfixed/src/pd_static.cpp",
+    "pdfixed/src/pd_swap.cpp",
+    "pdfixed/include/bm/pdfixed/pd_mirroring.h",
+    "pdfixed/include/bm/pdfixed/pd_common.h",
+    "pdfixed/include/bm/pdfixed/pd_swap.h",
+    "pdfixed/include/bm/pdfixed/pd_static.h",
+    "pdfixed/include/bm/pdfixed/pd_pre.h",
+    "pdfixed/include/bm/pdfixed/int/pd_helpers.h",
+    "pdfixed/include/bm/pdfixed/int/pd_conn_mgr.h",
+    "pdfixed/include/bm/pdfixed/int/pd_notifications.h"
+],
+    hdrs = [],
+    copts = [
+    "-g",
+    "-O3",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time",
+    "-std=c++17"
+] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    local_defines = [
+    "_FORTIFY_SOURCE=2"
+],
+    includes = [
+    "pdfixed/include"
+],
+    deps = [
+    ":headers",
+    ":runtime_stubs_headers",
+    ":thrift_bm_simple_switch_headers",
+    ":runtimestubs_link",
+    ":simpleswitch_thrift_link",
+    "@bmv2_deps//libnanomsg-dev:libnanomsg_cc"
+],
+    implementation_deps = [],
+    linkopts = [
+    "-pthread",
+    "-Wl,-z,relro,-z,now"
+],
+)
+
+cc_library(
+    name = "pdfixedthrift_objects",
+    srcs = [
+    "pdfixed/thrift-src/pdfixed_rpc_server.cpp",
+    "pdfixed/thrift-src/conn_mgr_pd_rpc_server.ipp",
+    "pdfixed/thrift-src/mc_pd_rpc_server.ipp",
+    "pdfixed/thrift-src/sswitch_pd_rpc_server.ipp",
+    "pdfixed/include/bm/pdfixed/pd_mirroring.h",
+    "pdfixed/include/bm/pdfixed/pd_common.h",
+    "pdfixed/include/bm/pdfixed/pd_swap.h",
+    "pdfixed/include/bm/pdfixed/pd_static.h",
+    "pdfixed/include/bm/pdfixed/pd_pre.h",
+    "pdfixed/include/bm/pdfixed/int/pd_helpers.h",
+    "pdfixed/include/bm/pdfixed/int/pd_conn_mgr.h",
+    "pdfixed/include/bm/pdfixed/int/pd_notifications.h"
+],
+    hdrs = [],
+    copts = [
+    "-g",
+    "-O3",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time",
+    "-std=c++17"
+] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    local_defines = [
+    "_FORTIFY_SOURCE=2"
+],
+    includes = [
+    "pdfixed/include"
+],
+    deps = [
+    ":headers",
+    ":thrift_res",
+    ":thrift_conn_mgr_pd_rpc",
+    ":thrift_mc_pd_rpc",
+    ":thrift_sswitch_pd_rpc"
+],
+    implementation_deps = [],
+    linkopts = [
+    "-pthread",
+    "-Wl,-z,relro,-z,now"
+],
+)
+
+genrule(
+    name = "generate_dataplane",
+    srcs = [
+    "services/p4/bm/dataplane_interface.proto"
+],
+    outs = [
+    "generated/proto/p4/bm/dataplane_interface.pb.cc",
+    "generated/proto/p4/bm/dataplane_interface.pb.h",
+    "generated/proto/p4/bm/dataplane_interface.grpc.pb.cc",
+    "generated/proto/p4/bm/dataplane_interface.grpc.pb.h",
+    "generated/proto/p4/bm/dataplane_interface_pb2.py",
+    "generated/proto/p4/bm/dataplane_interface_pb2_grpc.py"
+],
+    tools = [
+    "@sonic_build_infra//proto:protoc",
+    "@sonic_build_infra//tools/build_tools:grpc_cpp_plugin",
+    "@sonic_build_infra//tools/build_tools:grpc_python_plugin"
+],
+    cmd = "mkdir -p $(RULEDIR)/generated/proto && root=$(location services/p4/bm/dataplane_interface.proto); root=$${root%/p4/bm/dataplane_interface.proto}; $(location @sonic_build_infra//proto:protoc) -I\"$$root\" --cpp_out=$(RULEDIR)/generated/proto --python_out=$(RULEDIR)/generated/proto --grpc_out=$(RULEDIR)/generated/proto --plugin=protoc-gen-grpc=$(location @sonic_build_infra//tools/build_tools:grpc_cpp_plugin) $(location services/p4/bm/dataplane_interface.proto) && $(location @sonic_build_infra//proto:protoc) -I\"$$root\" --grpc_out=$(RULEDIR)/generated/proto --plugin=protoc-gen-grpc=$(location @sonic_build_infra//tools/build_tools:grpc_python_plugin) $(location services/p4/bm/dataplane_interface.proto)",
+)
+
+cc_library(
+    name = "dataplane_headers",
+    hdrs = [
+    "generated/proto/p4/bm/dataplane_interface.pb.h",
+    "generated/proto/p4/bm/dataplane_interface.grpc.pb.h"
+],
+    strip_include_prefix = "generated/proto",
+    deps = [
+    "@bmv2_deps//libgrpc++-dev:libgrpc++_headers",
+    "@bmv2_deps//libgrpc-dev:libgrpc_headers",
+    "@bmv2_deps//libprotobuf-dev:libprotobuf_headers"
+],
+)
+
+cc_library(
+    name = "dataplane_objects",
+    srcs = [
+    "generated/proto/p4/bm/dataplane_interface.pb.cc",
+    "generated/proto/p4/bm/dataplane_interface.grpc.pb.cc"
+],
+    hdrs = [
+    "generated/proto/p4/bm/dataplane_interface.pb.h",
+    "generated/proto/p4/bm/dataplane_interface.grpc.pb.h"
+],
+    strip_include_prefix = "generated/proto",
+    copts = [
+    "-g",
+    "-O3",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time",
+    "-std=c++17"
+] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    deps = [
+    "@bmv2_deps//libgrpc++-dev:libgrpc++_cc",
+    "@bmv2_deps//libgrpc-dev:libgrpc_cc",
+    "@bmv2_deps//libprotobuf-dev:libprotobuf_cc"
+],
+    local_defines = [
+    "_FORTIFY_SOURCE=2"
+],
+)
+
+cc_library(
+    name = "grpc_runner_objects",
+    srcs = [
+    "targets/simple_switch_grpc/switch_runner.cpp",
+    "targets/simple_switch_grpc/switch_runner.h"
+],
+    hdrs = [],
+    copts = [
+    "-g",
+    "-O3",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time",
+    "-std=c++17",
+    "-pthread",
+    "-Wall",
+    "-Wextra"
+] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    local_defines = [
+    "_FORTIFY_SOURCE=2",
+    "WITH_THRIFT"
+],
+    includes = [],
+    deps = [
+    ":simple_switch_objects",
+    ":bmi_objects",
+    ":bmpi_link",
+    ":bm_grpc_dataplane_link",
+    ":bm_runtime_objects",
+    ":runtimestubs_link",
+    ":simpleswitch_thrift_link",
+    "@p4lang_pi//:pifeproto",
+    "@p4lang_pi//:pigrpcserver",
+    "@p4lang_pi//:pi",
+    "@p4lang_pi//:pip4info",
+    ":headers",
+    ":pi_target_headers",
+    ":thrift_bm_simple_switch_headers",
+    ":dataplane_headers"
+],
+    implementation_deps = [],
+    linkopts = [
+    "-pthread",
+    "-Wl,-z,relro,-z,now"
+],
+)
+
+cc_library(
+    name = "bmall_objects",
+    deps = [
+    ":bmsim_objects",
+    ":bmi_objects",
+    ":bm_runtime_objects",
+    ":runtimestubs_link"
+],
+)
+
+cc_shared_library(
+    name = "bmall_shared",
+    deps = [
+    ":bmall_objects"
+],
+    shared_lib_name = "libbmall.so.0",
+    dynamic_deps = [
+    ":runtimestubs_shared"
+],
+    user_link_flags = [
+    "-Wl,-soname,libbmall.so.0",
+    "-Wl,-z,relro,-z,now"
+],
+    features = [
+    "-strip_debug_symbols"
+],
+)
+
+shared_library_cc_info(
+    name = "bmall_link",
+    shared_library = ":bmall_shared",
+    runtime_deps = [
+    ":bmall_objects"
+],
+)
+
+cc_static_library(
+    name = "bmall_archive",
+    deps = [
+    ":bmall_objects"
+],
+)
+
+cc_library(
+    name = "bmp4apps_objects",
+    deps = [
+    ":bm_apps_objects"
+],
+)
+
+cc_shared_library(
+    name = "bmp4apps_shared",
+    deps = [
+    ":bmp4apps_objects"
+],
+    shared_lib_name = "libbmp4apps.so.0",
+    dynamic_deps = [
+    ":runtimestubs_shared"
+],
+    user_link_flags = [
+    "-Wl,-soname,libbmp4apps.so.0",
+    "-Wl,-z,relro,-z,now"
+],
+    features = [
+    "-strip_debug_symbols"
+],
+)
+
+shared_library_cc_info(
+    name = "bmp4apps_link",
+    shared_library = ":bmp4apps_shared",
+    runtime_deps = [
+    ":bmp4apps_objects"
+],
+)
+
+cc_static_library(
+    name = "bmp4apps_archive",
+    deps = [
+    ":bmp4apps_objects"
+],
+)
+
+cc_shared_library(
+    name = "bmpi_shared",
+    deps = [
+    ":bmpi_objects"
+],
+    shared_lib_name = "libbmpi.so.0",
+    dynamic_deps = [],
+    user_link_flags = [
+    "-Wl,-soname,libbmpi.so.0",
+    "-Wl,-z,relro,-z,now"
+],
+    features = [
+    "-strip_debug_symbols"
+],
+)
+
+shared_library_cc_info(
+    name = "bmpi_link",
+    shared_library = ":bmpi_shared",
+    runtime_deps = [
+    ":bmpi_objects"
+],
+)
+
+cc_static_library(
+    name = "bmpi_archive",
+    deps = [
+    ":bmpi_objects"
+],
+)
+
+cc_library(
+    name = "bm_grpc_dataplane_objects",
+    deps = [
+    ":dataplane_objects"
+],
+)
+
+cc_shared_library(
+    name = "bm_grpc_dataplane_shared",
+    deps = [
+    ":bm_grpc_dataplane_objects"
+],
+    shared_lib_name = "libbm_grpc_dataplane.so.0",
+    dynamic_deps = [],
+    user_link_flags = [
+    "-Wl,-soname,libbm_grpc_dataplane.so.0",
+    "-Wl,-z,relro,-z,now"
+],
+    features = [
+    "-strip_debug_symbols"
+],
+)
+
+shared_library_cc_info(
+    name = "bm_grpc_dataplane_link",
+    shared_library = ":bm_grpc_dataplane_shared",
+    runtime_deps = [
+    ":bm_grpc_dataplane_objects"
+],
+)
+
+cc_static_library(
+    name = "bm_grpc_dataplane_archive",
+    deps = [
+    ":bm_grpc_dataplane_objects"
+],
+)
+
+cc_library(
+    name = "runtimestubs_objects",
+    deps = [
+    ":runtime_stubs_objects"
+],
+)
+
+cc_shared_library(
+    name = "runtimestubs_shared",
+    deps = [
+    ":runtimestubs_objects"
+],
+    shared_lib_name = "libruntimestubs.so.0",
+    dynamic_deps = [],
+    user_link_flags = [
+    "-Wl,-soname,libruntimestubs.so.0",
+    "-Wl,-z,relro,-z,now"
+],
+    features = [
+    "-strip_debug_symbols"
+],
+)
+
+shared_library_cc_info(
+    name = "runtimestubs_link",
+    shared_library = ":runtimestubs_shared",
+    runtime_deps = [
+    ":runtimestubs_objects"
+],
+)
+
+cc_static_library(
+    name = "runtimestubs_archive",
+    deps = [
+    ":runtimestubs_objects"
+],
+)
+
+cc_library(
+    name = "bmpdfixed_objects",
+    deps = [
+    ":pdfixed_objects"
+],
+)
+
+cc_shared_library(
+    name = "bmpdfixed_shared",
+    deps = [
+    ":bmpdfixed_objects"
+],
+    shared_lib_name = "libbmpdfixed.so.0",
+    dynamic_deps = [
+    ":runtimestubs_shared",
+    ":simpleswitch_thrift_shared"
+],
+    user_link_flags = [
+    "-Wl,-soname,libbmpdfixed.so.0",
+    "-Wl,-z,relro,-z,now"
+],
+    features = [
+    "-strip_debug_symbols"
+],
+)
+
+shared_library_cc_info(
+    name = "bmpdfixed_link",
+    shared_library = ":bmpdfixed_shared",
+    runtime_deps = [
+    ":bmpdfixed_objects"
+],
+)
+
+cc_static_library(
+    name = "bmpdfixed_archive",
+    deps = [
+    ":bmpdfixed_objects"
+],
+)
+
+cc_library(
+    name = "bmpdfixedthrift_objects",
+    deps = [
+    ":pdfixedthrift_objects"
+],
+)
+
+cc_shared_library(
+    name = "bmpdfixedthrift_shared",
+    deps = [
+    ":bmpdfixedthrift_objects"
+],
+    shared_lib_name = "libbmpdfixedthrift.so.0",
+    dynamic_deps = [],
+    user_link_flags = [
+    "-Wl,-soname,libbmpdfixedthrift.so.0",
+    "-Wl,-z,relro,-z,now"
+],
+    features = [
+    "-strip_debug_symbols"
+],
+)
+
+shared_library_cc_info(
+    name = "bmpdfixedthrift_link",
+    shared_library = ":bmpdfixedthrift_shared",
+    runtime_deps = [
+    ":bmpdfixedthrift_objects"
+],
+)
+
+cc_static_library(
+    name = "bmpdfixedthrift_archive",
+    deps = [
+    ":bmpdfixedthrift_objects"
+],
+)
+
+cc_library(
+    name = "simpleswitch_runner_objects",
+    deps = [
+    ":simple_switch_runner_objects",
+    ":bmi_objects"
+],
+)
+
+cc_shared_library(
+    name = "simpleswitch_runner_shared",
+    deps = [
+    ":simpleswitch_runner_objects"
+],
+    shared_lib_name = "libsimpleswitch_runner.so.0",
+    dynamic_deps = [
+    ":bmpi_shared"
+],
+    user_link_flags = [
+    "-Wl,-soname,libsimpleswitch_runner.so.0",
+    "-Wl,-z,relro,-z,now"
+],
+    features = [
+    "-strip_debug_symbols"
+],
+)
+
+shared_library_cc_info(
+    name = "simpleswitch_runner_link",
+    shared_library = ":simpleswitch_runner_shared",
+    runtime_deps = [
+    ":simpleswitch_runner_objects"
+],
+)
+
+cc_static_library(
+    name = "simpleswitch_runner_archive",
+    deps = [
+    ":simpleswitch_runner_objects"
+],
+)
+
+cc_library(
+    name = "simpleswitch_thrift_objects",
+    deps = [
+    ":thrift_simple_switch"
+],
+)
+
+cc_shared_library(
+    name = "simpleswitch_thrift_shared",
+    deps = [
+    ":simpleswitch_thrift_objects"
+],
+    shared_lib_name = "libsimpleswitch_thrift.so.0",
+    dynamic_deps = [],
+    user_link_flags = [
+    "-Wl,-soname,libsimpleswitch_thrift.so.0",
+    "-Wl,-z,relro,-z,now"
+],
+    features = [
+    "-strip_debug_symbols"
+],
+)
+
+shared_library_cc_info(
+    name = "simpleswitch_thrift_link",
+    shared_library = ":simpleswitch_thrift_shared",
+    runtime_deps = [
+    ":simpleswitch_thrift_objects"
+],
+)
+
+cc_static_library(
+    name = "simpleswitch_thrift_archive",
+    deps = [
+    ":simpleswitch_thrift_objects"
+],
+)
+
+cc_library(
+    name = "pnanic_thrift_objects",
+    deps = [
+    ":thrift_pna_nic"
+],
+)
+
+cc_shared_library(
+    name = "pnanic_thrift_shared",
+    deps = [
+    ":pnanic_thrift_objects"
+],
+    shared_lib_name = "libpnanic_thrift.so.0",
+    dynamic_deps = [],
+    user_link_flags = [
+    "-Wl,-soname,libpnanic_thrift.so.0",
+    "-Wl,-z,relro,-z,now"
+],
+    features = [
+    "-strip_debug_symbols"
+],
+)
+
+shared_library_cc_info(
+    name = "pnanic_thrift_link",
+    shared_library = ":pnanic_thrift_shared",
+    runtime_deps = [
+    ":pnanic_thrift_objects"
+],
+)
+
+cc_static_library(
+    name = "pnanic_thrift_archive",
+    deps = [
+    ":pnanic_thrift_objects"
+],
+)
+
+cc_library(
+    name = "psaswitch_thrift_objects",
+    deps = [
+    ":thrift_psa_switch"
+],
+)
+
+cc_shared_library(
+    name = "psaswitch_thrift_shared",
+    deps = [
+    ":psaswitch_thrift_objects"
+],
+    shared_lib_name = "libpsaswitch_thrift.so.0",
+    dynamic_deps = [],
+    user_link_flags = [
+    "-Wl,-soname,libpsaswitch_thrift.so.0",
+    "-Wl,-z,relro,-z,now"
+],
+    features = [
+    "-strip_debug_symbols"
+],
+)
+
+shared_library_cc_info(
+    name = "psaswitch_thrift_link",
+    shared_library = ":psaswitch_thrift_shared",
+    runtime_deps = [
+    ":psaswitch_thrift_objects"
+],
+)
+
+cc_static_library(
+    name = "psaswitch_thrift_archive",
+    deps = [
+    ":psaswitch_thrift_objects"
+],
+)
+
+cc_binary(
+    name = "simple_switch",
+    srcs = [
+    "targets/simple_switch/main.cpp"
+],
+    copts = [
+    "-g",
+    "-O3",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time",
+    "-std=c++17",
+    "-pthread",
+    "-Wall",
+    "-Wextra"
+] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    local_defines = [
+    "_FORTIFY_SOURCE=2"
+],
+    deps = [
+    ":bm_runtime_objects",
+    ":simple_switch_objects",
+    ":bmi_objects"
+],
+    additional_linker_inputs = [],
+    linkopts = [
+    "-pthread",
+    "-Wl,-z,relro,-z,now",
+    "-rdynamic"
+],
+    features = [
+    "-strip_debug_symbols"
+],
+)
+
+cc_binary(
+    name = "psa_switch",
+    srcs = [
+    "targets/psa_switch/main.cpp"
+],
+    copts = [
+    "-g",
+    "-O3",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time",
+    "-std=c++17",
+    "-pthread",
+    "-Wall",
+    "-Wextra"
+] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    local_defines = [
+    "_FORTIFY_SOURCE=2"
+],
+    deps = [
+    ":bm_runtime_objects",
+    ":psa_switch_objects",
+    ":bmi_objects"
+],
+    additional_linker_inputs = [],
+    linkopts = [
+    "-pthread",
+    "-Wl,-z,relro,-z,now"
+],
+    features = [
+    "-strip_debug_symbols"
+],
+)
+
+cc_binary(
+    name = "pna_nic",
+    srcs = [
+    "targets/pna_nic/main.cpp"
+],
+    copts = [
+    "-g",
+    "-O3",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time",
+    "-std=c++17",
+    "-pthread",
+    "-Wall",
+    "-Wextra"
+] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    local_defines = [
+    "_FORTIFY_SOURCE=2"
+],
+    deps = [
+    ":bm_runtime_objects",
+    ":pna_nic_objects",
+    ":bmi_objects"
+],
+    additional_linker_inputs = [],
+    linkopts = [
+    "-pthread",
+    "-Wl,-z,relro,-z,now"
+],
+    features = [
+    "-strip_debug_symbols"
+],
+)
+
+cc_binary(
+    name = "simple_switch_grpc",
+    srcs = [
+    "targets/simple_switch_grpc/main.cpp"
+],
+    copts = [
+    "-g",
+    "-O3",
+    "-fstack-protector-strong",
+    "-Wformat",
+    "-Werror=format-security",
+    "-fstack-clash-protection",
+    "-Wdate-time",
+    "-std=c++17",
+    "-pthread",
+    "-Wall",
+    "-Wextra"
+] + select({"@platforms//cpu:x86_64": ["-fcf-protection"], "@platforms//cpu:aarch64": ["-mbranch-protection=standard"]}),
+    local_defines = [
+    "WITH_THRIFT",
+    "_FORTIFY_SOURCE=2"
+],
+    deps = [
+    ":grpc_runner_objects",
+    "@bmv2_deps//libgrpc++-dev:libgrpc++_reflection_cc",
+    ":bmi_objects"
+],
+    additional_linker_inputs = [
+    "@bmv2_deps//libgrpc++-dev:libgrpc++_reflection_shared"
+],
+    linkopts = [
+    "-Wl,--no-as-needed,$(location @bmv2_deps//libgrpc++-dev:libgrpc++_reflection_shared),--as-needed",
+    "-pthread",
+    "-Wl,-z,relro,-z,now",
+    "-rdynamic"
+],
+    features = [
+    "-strip_debug_symbols"
+],
+)
+
+cc_library(
+    name = "pi_target_headers",
+    hdrs = [
+    "PI/bm/PI/pi.h"
+],
+    strip_include_prefix = "PI",
+    deps = [
+    "@p4lang_pi//:pi_headers"
+],
+)
+
+cc_library(
+    name = "pdfixed_headers",
+    hdrs = [
+    "pdfixed/include/bm/pdfixed/pd_mirroring.h",
+    "pdfixed/include/bm/pdfixed/pd_common.h",
+    "pdfixed/include/bm/pdfixed/pd_swap.h",
+    "pdfixed/include/bm/pdfixed/pd_static.h",
+    "pdfixed/include/bm/pdfixed/pd_pre.h",
+    "pdfixed/include/bm/pdfixed/int/pd_helpers.h",
+    "pdfixed/include/bm/pdfixed/int/pd_conn_mgr.h",
+    "pdfixed/include/bm/pdfixed/int/pd_notifications.h"
+],
+    strip_include_prefix = "pdfixed/include",
+    deps = [
+    ":headers"
+],
+)
+
+cc_library(
+    name = "json_sdk_headers",
+    hdrs = [
+    "third_party/jsoncpp/include/jsoncpp/json.h"
+],
+    strip_include_prefix = "third_party/jsoncpp/include",
+    include_prefix = "bm",
+)
+
+cc_library(
+    name = "runner_headers",
+    hdrs = [
+    "targets/simple_switch/bm/simple_switch/runner.h"
+],
+    strip_include_prefix = "targets/simple_switch",
+    deps = [
+    ":headers"
+],
+)
+
+cc_library(
+    name = "pdfixed_rpc_headers",
+    hdrs = [
+    "pdfixed/thrift-src/pdfixed_rpc_server.h"
+],
+    strip_include_prefix = "pdfixed",
+    include_prefix = "bm/pdfixed",
+)
+
+cc_library(
+    name = "sdk",
+    deps = [
+    ":bmall_link",
+    ":bmp4apps_link",
+    ":bmpi_link",
+    ":bm_grpc_dataplane_link",
+    ":runtimestubs_link",
+    ":bmpdfixed_link",
+    ":bmpdfixedthrift_link",
+    ":simpleswitch_runner_link",
+    ":simpleswitch_thrift_link",
+    ":pnanic_thrift_link",
+    ":psaswitch_thrift_link",
+    "@p4lang_pi//:pi",
+    "@p4lang_pi//:pip4info",
+    ":headers",
+    ":pi_target_headers",
+    ":runner_headers",
+    ":pdfixed_headers",
+    ":json_sdk_headers",
+    ":json_headers",
+    ":spdlog",
+    ":dataplane_headers",
+    ":pdfixed_rpc_headers",
+    ":thrift_bm_standard_headers",
+    ":thrift_bm_simple_pre_headers",
+    ":thrift_bm_simple_pre_lag_headers",
+    ":thrift_bm_simple_switch_headers",
+    ":thrift_bm_psa_switch_headers",
+    ":thrift_bm_pna_nic_headers"
+],
+)
+
+exports_files(["debian/control", "debian/changelog", "debian/copyright", "pdfixed/thrift/res.thrift"])
+
+# Additional loads for the top of bmv2.BUILD.bazel:
+
+# Append the declarations below after native compilation targets.
+expand_template(
+    name = "install_bm_CLI",
+    template = "tools/bm_CLI.in",
+    out = "installed/bin/bm_CLI",
+    substitutions = {"@pythondir@": "/usr/lib/python3/dist-packages", "#!/usr/bin/env python3": "#!/usr/bin/python3"},
+    is_executable = True,
+)
+
+expand_template(
+    name = "install_bm_p4dbg",
+    template = "tools/bm_p4dbg.in",
+    out = "installed/bin/bm_p4dbg",
+    substitutions = {"@pythondir@": "/usr/lib/python3/dist-packages", "#!/usr/bin/env python3": "#!/usr/bin/python3"},
+    is_executable = True,
+)
+
+expand_template(
+    name = "install_bm_nanomsg_events",
+    template = "tools/bm_nanomsg_events.in",
+    out = "installed/bin/bm_nanomsg_events",
+    substitutions = {"@pythondir@": "/usr/lib/python3/dist-packages", "#!/usr/bin/env python3": "#!/usr/bin/python3"},
+    is_executable = True,
+)
+
+expand_template(
+    name = "install_simple_switch_CLI",
+    template = "targets/simple_switch/simple_switch_CLI.in",
+    out = "installed/bin/simple_switch_CLI",
+    substitutions = {"@pythondir@": "/usr/lib/python3/dist-packages", "#!/usr/bin/env python3": "#!/usr/bin/python3"},
+    is_executable = True,
+)
+
+expand_template(
+    name = "install_psa_switch_CLI",
+    template = "targets/psa_switch/psa_switch_CLI.in",
+    out = "installed/bin/psa_switch_CLI",
+    substitutions = {"@pythondir@": "/usr/lib/python3/dist-packages", "#!/usr/bin/env python3": "#!/usr/bin/python3"},
+    is_executable = True,
+)
+
+expand_template(
+    name = "install_pna_nic_CLI",
+    template = "targets/pna_nic/pna_nic_CLI.in",
+    out = "installed/bin/pna_nic_CLI",
+    substitutions = {"@pythondir@": "/usr/lib/python3/dist-packages", "#!/usr/bin/env python3": "#!/usr/bin/python3"},
+    is_executable = True,
+)
+
+write_file(
+    name = "install_python_initializers",
+    out = "installed/empty_initializer.py",
+    content = [""],
+)
+
+genrule(
+    name = "install_changelog",
+    srcs = ["debian/changelog"],
+    outs = ["installed/changelog.Debian.gz"],
+    tools = ["@sonic_build_infra//tools/build_tools:gzip"],
+    cmd = "$(location @sonic_build_infra//tools/build_tools:gzip) -n -9 -c $(location debian/changelog) > $@",
+)
+
+# Installation maps come from Automake install variables and Debian helpers.
+_INSTALL_RUNTIME_FILES = {
+    "usr/bin/bm_CLI": "installed/bin/bm_CLI",
+    "usr/bin/bm_nanomsg_events": "installed/bin/bm_nanomsg_events",
+    "usr/bin/bm_p4dbg": "installed/bin/bm_p4dbg",
+    "usr/bin/pna_nic_CLI": "installed/bin/pna_nic_CLI",
+    "usr/bin/psa_switch_CLI": "installed/bin/psa_switch_CLI",
+    "usr/bin/simple_switch_CLI": "installed/bin/simple_switch_CLI",
+    "usr/lib/python3/dist-packages/bm/pdfixed/conn_mgr_pd_rpc/__init__.py": "generated/python/conn_mgr_pd_rpc/__init__.py",
+    "usr/lib/python3/dist-packages/bm/pdfixed/conn_mgr_pd_rpc/conn_mgr.py": "generated/python/conn_mgr_pd_rpc/conn_mgr.py",
+    "usr/lib/python3/dist-packages/bm/pdfixed/conn_mgr_pd_rpc/constants.py": "generated/python/conn_mgr_pd_rpc/constants.py",
+    "usr/lib/python3/dist-packages/bm/pdfixed/conn_mgr_pd_rpc/ttypes.py": "generated/python/conn_mgr_pd_rpc/ttypes.py",
+    "usr/lib/python3/dist-packages/bm/pdfixed/mc_pd_rpc/__init__.py": "generated/python/mc_pd_rpc/__init__.py",
+    "usr/lib/python3/dist-packages/bm/pdfixed/mc_pd_rpc/constants.py": "generated/python/mc_pd_rpc/constants.py",
+    "usr/lib/python3/dist-packages/bm/pdfixed/mc_pd_rpc/mc.py": "generated/python/mc_pd_rpc/mc.py",
+    "usr/lib/python3/dist-packages/bm/pdfixed/mc_pd_rpc/ttypes.py": "generated/python/mc_pd_rpc/ttypes.py",
+    "usr/lib/python3/dist-packages/bm/pdfixed/res_pd_rpc/__init__.py": "generated/python/res_pd_rpc/__init__.py",
+    "usr/lib/python3/dist-packages/bm/pdfixed/res_pd_rpc/constants.py": "generated/python/res_pd_rpc/constants.py",
+    "usr/lib/python3/dist-packages/bm/pdfixed/res_pd_rpc/ttypes.py": "generated/python/res_pd_rpc/ttypes.py",
+    "usr/lib/python3/dist-packages/bm/pdfixed/sswitch_pd_rpc/__init__.py": "generated/python/sswitch_pd_rpc/__init__.py",
+    "usr/lib/python3/dist-packages/bm/pdfixed/sswitch_pd_rpc/constants.py": "generated/python/sswitch_pd_rpc/constants.py",
+    "usr/lib/python3/dist-packages/bm/pdfixed/sswitch_pd_rpc/sswitch.py": "generated/python/sswitch_pd_rpc/sswitch.py",
+    "usr/lib/python3/dist-packages/bm/pdfixed/sswitch_pd_rpc/ttypes.py": "generated/python/sswitch_pd_rpc/ttypes.py",
+    "usr/lib/python3/dist-packages/bm/pdfixed/conn_mgr_pd_rpc/conn_mgr-remote": "generated/python/conn_mgr_pd_rpc/conn_mgr-remote",
+    "usr/lib/python3/dist-packages/bm/pdfixed/mc_pd_rpc/mc-remote": "generated/python/mc_pd_rpc/mc-remote",
+    "usr/lib/python3/dist-packages/bm/pdfixed/sswitch_pd_rpc/sswitch-remote": "generated/python/sswitch_pd_rpc/sswitch-remote",
+    "usr/lib/python3/dist-packages/bm_runtime/__init__.py": "installed/empty_initializer.py",
+    "usr/lib/python3/dist-packages/bm_runtime/simple_pre/SimplePre.py": "generated/python/bm_runtime/simple_pre/SimplePre.py",
+    "usr/lib/python3/dist-packages/bm_runtime/simple_pre/__init__.py": "generated/python/bm_runtime/simple_pre/__init__.py",
+    "usr/lib/python3/dist-packages/bm_runtime/simple_pre/constants.py": "generated/python/bm_runtime/simple_pre/constants.py",
+    "usr/lib/python3/dist-packages/bm_runtime/simple_pre/ttypes.py": "generated/python/bm_runtime/simple_pre/ttypes.py",
+    "usr/lib/python3/dist-packages/bm_runtime/simple_pre_lag/SimplePreLAG.py": "generated/python/bm_runtime/simple_pre_lag/SimplePreLAG.py",
+    "usr/lib/python3/dist-packages/bm_runtime/simple_pre_lag/__init__.py": "generated/python/bm_runtime/simple_pre_lag/__init__.py",
+    "usr/lib/python3/dist-packages/bm_runtime/simple_pre_lag/constants.py": "generated/python/bm_runtime/simple_pre_lag/constants.py",
+    "usr/lib/python3/dist-packages/bm_runtime/simple_pre_lag/ttypes.py": "generated/python/bm_runtime/simple_pre_lag/ttypes.py",
+    "usr/lib/python3/dist-packages/bm_runtime/standard/Standard.py": "generated/python/bm_runtime/standard/Standard.py",
+    "usr/lib/python3/dist-packages/bm_runtime/standard/__init__.py": "generated/python/bm_runtime/standard/__init__.py",
+    "usr/lib/python3/dist-packages/bm_runtime/standard/constants.py": "generated/python/bm_runtime/standard/constants.py",
+    "usr/lib/python3/dist-packages/bm_runtime/standard/ttypes.py": "generated/python/bm_runtime/standard/ttypes.py",
+    "usr/lib/python3/dist-packages/bmpy_utils.py": "tools/bmpy_utils.py",
+    "usr/lib/python3/dist-packages/nanomsg_client.py": "tools/nanomsg_client.py",
+    "usr/lib/python3/dist-packages/p4/bm/__init__.py": "installed/empty_initializer.py",
+    "usr/lib/python3/dist-packages/p4/bm/dataplane_interface_pb2.py": "generated/proto/p4/bm/dataplane_interface_pb2.py",
+    "usr/lib/python3/dist-packages/p4/bm/dataplane_interface_pb2_grpc.py": "generated/proto/p4/bm/dataplane_interface_pb2_grpc.py",
+    "usr/lib/python3/dist-packages/p4dbg.py": "tools/p4dbg.py",
+    "usr/lib/python3/dist-packages/pnic_CLI.py": "targets/pna_nic/pnic_CLI.py",
+    "usr/lib/python3/dist-packages/pnic_runtime/PnaNic.py": "generated/python/pnic_runtime/PnaNic.py",
+    "usr/lib/python3/dist-packages/pnic_runtime/__init__.py": "generated/python/pnic_runtime/__init__.py",
+    "usr/lib/python3/dist-packages/pnic_runtime/constants.py": "generated/python/pnic_runtime/constants.py",
+    "usr/lib/python3/dist-packages/pnic_runtime/ttypes.py": "generated/python/pnic_runtime/ttypes.py",
+    "usr/lib/python3/dist-packages/pswitch_CLI.py": "targets/psa_switch/pswitch_CLI.py",
+    "usr/lib/python3/dist-packages/pswitch_runtime/PsaSwitch.py": "generated/python/pswitch_runtime/PsaSwitch.py",
+    "usr/lib/python3/dist-packages/pswitch_runtime/__init__.py": "generated/python/pswitch_runtime/__init__.py",
+    "usr/lib/python3/dist-packages/pswitch_runtime/constants.py": "generated/python/pswitch_runtime/constants.py",
+    "usr/lib/python3/dist-packages/pswitch_runtime/ttypes.py": "generated/python/pswitch_runtime/ttypes.py",
+    "usr/lib/python3/dist-packages/runtime_CLI.py": "tools/runtime_CLI.py",
+    "usr/lib/python3/dist-packages/sswitch_CLI.py": "targets/simple_switch/sswitch_CLI.py",
+    "usr/lib/python3/dist-packages/sswitch_runtime/SimpleSwitch.py": "generated/python/sswitch_runtime/SimpleSwitch.py",
+    "usr/lib/python3/dist-packages/sswitch_runtime/__init__.py": "generated/python/sswitch_runtime/__init__.py",
+    "usr/lib/python3/dist-packages/sswitch_runtime/constants.py": "generated/python/sswitch_runtime/constants.py",
+    "usr/lib/python3/dist-packages/sswitch_runtime/ttypes.py": "generated/python/sswitch_runtime/ttypes.py",
+    "usr/share/doc/p4lang-bmv2/changelog.Debian.gz": "installed/changelog.Debian.gz",
+    "usr/share/doc/p4lang-bmv2/copyright": "debian/copyright",
+}
+
+_INSTALL_HEADERS = {
+    "usr/include/bm/PI/pi.h": "PI/bm/PI/pi.h",
+    "usr/include/bm/PnaNic.h": "generated/thrift/pna_nic/cpp/PnaNic.h",
+    "usr/include/bm/PsaSwitch.h": "generated/thrift/psa_switch/cpp/PsaSwitch.h",
+    "usr/include/bm/SimplePre.h": "generated/thrift/simple_pre/cpp/SimplePre.h",
+    "usr/include/bm/SimplePreLAG.h": "generated/thrift/simple_pre_lag/cpp/SimplePreLAG.h",
+    "usr/include/bm/SimpleSwitch.h": "generated/thrift/simple_switch/cpp/SimpleSwitch.h",
+    "usr/include/bm/Standard.h": "generated/thrift/standard/cpp/Standard.h",
+    "usr/include/bm/bm_apps/learn.h": "include/bm/bm_apps/learn.h",
+    "usr/include/bm/bm_apps/notifications.h": "include/bm/bm_apps/notifications.h",
+    "usr/include/bm/bm_apps/packet_pipe.h": "include/bm/bm_apps/packet_pipe.h",
+    "usr/include/bm/bm_grpc/pem.h": "include/bm/bm_grpc/pem.h",
+    "usr/include/bm/bm_runtime/bm_runtime.h": "include/bm/bm_runtime/bm_runtime.h",
+    "usr/include/bm/bm_sim/P4Objects.h": "include/bm/bm_sim/P4Objects.h",
+    "usr/include/bm/bm_sim/_assert.h": "include/bm/bm_sim/_assert.h",
+    "usr/include/bm/bm_sim/action_entry.h": "include/bm/bm_sim/action_entry.h",
+    "usr/include/bm/bm_sim/action_profile.h": "include/bm/bm_sim/action_profile.h",
+    "usr/include/bm/bm_sim/actions.h": "include/bm/bm_sim/actions.h",
+    "usr/include/bm/bm_sim/ageing.h": "include/bm/bm_sim/ageing.h",
+    "usr/include/bm/bm_sim/bignum.h": "include/bm/bm_sim/bignum.h",
+    "usr/include/bm/bm_sim/bytecontainer.h": "include/bm/bm_sim/bytecontainer.h",
+    "usr/include/bm/bm_sim/calculations.h": "include/bm/bm_sim/calculations.h",
+    "usr/include/bm/bm_sim/checksums.h": "include/bm/bm_sim/checksums.h",
+    "usr/include/bm/bm_sim/conditionals.h": "include/bm/bm_sim/conditionals.h",
+    "usr/include/bm/bm_sim/context.h": "include/bm/bm_sim/context.h",
+    "usr/include/bm/bm_sim/control_action.h": "include/bm/bm_sim/control_action.h",
+    "usr/include/bm/bm_sim/control_flow.h": "include/bm/bm_sim/control_flow.h",
+    "usr/include/bm/bm_sim/core/primitives.h": "include/bm/bm_sim/core/primitives.h",
+    "usr/include/bm/bm_sim/counters.h": "include/bm/bm_sim/counters.h",
+    "usr/include/bm/bm_sim/data.h": "include/bm/bm_sim/data.h",
+    "usr/include/bm/bm_sim/debugger.h": "include/bm/bm_sim/debugger.h",
+    "usr/include/bm/bm_sim/deparser.h": "include/bm/bm_sim/deparser.h",
+    "usr/include/bm/bm_sim/dev_mgr.h": "include/bm/bm_sim/dev_mgr.h",
+    "usr/include/bm/bm_sim/device_id.h": "include/bm/bm_sim/device_id.h",
+    "usr/include/bm/bm_sim/dynamic_bitset.h": "include/bm/bm_sim/dynamic_bitset.h",
+    "usr/include/bm/bm_sim/entries.h": "include/bm/bm_sim/entries.h",
+    "usr/include/bm/bm_sim/enums.h": "include/bm/bm_sim/enums.h",
+    "usr/include/bm/bm_sim/event_logger.h": "include/bm/bm_sim/event_logger.h",
+    "usr/include/bm/bm_sim/expressions.h": "include/bm/bm_sim/expressions.h",
+    "usr/include/bm/bm_sim/extern.h": "include/bm/bm_sim/extern.h",
+    "usr/include/bm/bm_sim/field_lists.h": "include/bm/bm_sim/field_lists.h",
+    "usr/include/bm/bm_sim/fields.h": "include/bm/bm_sim/fields.h",
+    "usr/include/bm/bm_sim/handle_mgr.h": "include/bm/bm_sim/handle_mgr.h",
+    "usr/include/bm/bm_sim/header_unions.h": "include/bm/bm_sim/header_unions.h",
+    "usr/include/bm/bm_sim/headers.h": "include/bm/bm_sim/headers.h",
+    "usr/include/bm/bm_sim/learning.h": "include/bm/bm_sim/learning.h",
+    "usr/include/bm/bm_sim/logger.h": "include/bm/bm_sim/logger.h",
+    "usr/include/bm/bm_sim/lookup_structures.h": "include/bm/bm_sim/lookup_structures.h",
+    "usr/include/bm/bm_sim/match_error_codes.h": "include/bm/bm_sim/match_error_codes.h",
+    "usr/include/bm/bm_sim/match_key_types.h": "include/bm/bm_sim/match_key_types.h",
+    "usr/include/bm/bm_sim/match_tables.h": "include/bm/bm_sim/match_tables.h",
+    "usr/include/bm/bm_sim/match_units.h": "include/bm/bm_sim/match_units.h",
+    "usr/include/bm/bm_sim/meters.h": "include/bm/bm_sim/meters.h",
+    "usr/include/bm/bm_sim/named_p4object.h": "include/bm/bm_sim/named_p4object.h",
+    "usr/include/bm/bm_sim/nn.h": "include/bm/bm_sim/nn.h",
+    "usr/include/bm/bm_sim/options_parse.h": "include/bm/bm_sim/options_parse.h",
+    "usr/include/bm/bm_sim/packet.h": "include/bm/bm_sim/packet.h",
+    "usr/include/bm/bm_sim/packet_buffer.h": "include/bm/bm_sim/packet_buffer.h",
+    "usr/include/bm/bm_sim/packet_handler.h": "include/bm/bm_sim/packet_handler.h",
+    "usr/include/bm/bm_sim/parser.h": "include/bm/bm_sim/parser.h",
+    "usr/include/bm/bm_sim/parser_error.h": "include/bm/bm_sim/parser_error.h",
+    "usr/include/bm/bm_sim/pcap_file.h": "include/bm/bm_sim/pcap_file.h",
+    "usr/include/bm/bm_sim/periodic_task.h": "include/bm/bm_sim/periodic_task.h",
+    "usr/include/bm/bm_sim/phv.h": "include/bm/bm_sim/phv.h",
+    "usr/include/bm/bm_sim/phv_forward.h": "include/bm/bm_sim/phv_forward.h",
+    "usr/include/bm/bm_sim/phv_source.h": "include/bm/bm_sim/phv_source.h",
+    "usr/include/bm/bm_sim/pipeline.h": "include/bm/bm_sim/pipeline.h",
+    "usr/include/bm/bm_sim/port_monitor.h": "include/bm/bm_sim/port_monitor.h",
+    "usr/include/bm/bm_sim/pre.h": "include/bm/bm_sim/pre.h",
+    "usr/include/bm/bm_sim/queue.h": "include/bm/bm_sim/queue.h",
+    "usr/include/bm/bm_sim/queueing.h": "include/bm/bm_sim/queueing.h",
+    "usr/include/bm/bm_sim/ras.h": "include/bm/bm_sim/ras.h",
+    "usr/include/bm/bm_sim/runtime_interface.h": "include/bm/bm_sim/runtime_interface.h",
+    "usr/include/bm/bm_sim/short_alloc.h": "include/bm/bm_sim/short_alloc.h",
+    "usr/include/bm/bm_sim/simple_pre.h": "include/bm/bm_sim/simple_pre.h",
+    "usr/include/bm/bm_sim/simple_pre_lag.h": "include/bm/bm_sim/simple_pre_lag.h",
+    "usr/include/bm/bm_sim/source_info.h": "include/bm/bm_sim/source_info.h",
+    "usr/include/bm/bm_sim/stacks.h": "include/bm/bm_sim/stacks.h",
+    "usr/include/bm/bm_sim/stateful.h": "include/bm/bm_sim/stateful.h",
+    "usr/include/bm/bm_sim/switch.h": "include/bm/bm_sim/switch.h",
+    "usr/include/bm/bm_sim/tables.h": "include/bm/bm_sim/tables.h",
+    "usr/include/bm/bm_sim/target_parser.h": "include/bm/bm_sim/target_parser.h",
+    "usr/include/bm/bm_sim/transport.h": "include/bm/bm_sim/transport.h",
+    "usr/include/bm/config.h": "generated/include/bm/config.h",
+    "usr/include/bm/pdfixed/int/pd_conn_mgr.h": "pdfixed/include/bm/pdfixed/int/pd_conn_mgr.h",
+    "usr/include/bm/pdfixed/int/pd_helpers.h": "pdfixed/include/bm/pdfixed/int/pd_helpers.h",
+    "usr/include/bm/pdfixed/int/pd_notifications.h": "pdfixed/include/bm/pdfixed/int/pd_notifications.h",
+    "usr/include/bm/pdfixed/pd_common.h": "pdfixed/include/bm/pdfixed/pd_common.h",
+    "usr/include/bm/pdfixed/pd_mirroring.h": "pdfixed/include/bm/pdfixed/pd_mirroring.h",
+    "usr/include/bm/pdfixed/pd_pre.h": "pdfixed/include/bm/pdfixed/pd_pre.h",
+    "usr/include/bm/pdfixed/pd_static.h": "pdfixed/include/bm/pdfixed/pd_static.h",
+    "usr/include/bm/pdfixed/pd_swap.h": "pdfixed/include/bm/pdfixed/pd_swap.h",
+    "usr/include/bm/pdfixed/thrift-src/pdfixed_rpc_server.h": "pdfixed/thrift-src/pdfixed_rpc_server.h",
+    "usr/include/bm/pdfixed/thrift/res.thrift": "pdfixed/thrift/res.thrift",
+    "usr/include/bm/pna_nic_constants.h": "generated/thrift/pna_nic/cpp/pna_nic_constants.h",
+    "usr/include/bm/pna_nic_types.h": "generated/thrift/pna_nic/cpp/pna_nic_types.h",
+    "usr/include/bm/psa_switch_constants.h": "generated/thrift/psa_switch/cpp/psa_switch_constants.h",
+    "usr/include/bm/psa_switch_types.h": "generated/thrift/psa_switch/cpp/psa_switch_types.h",
+    "usr/include/bm/simple_pre_constants.h": "generated/thrift/simple_pre/cpp/simple_pre_constants.h",
+    "usr/include/bm/simple_pre_lag_constants.h": "generated/thrift/simple_pre_lag/cpp/simple_pre_lag_constants.h",
+    "usr/include/bm/simple_pre_lag_types.h": "generated/thrift/simple_pre_lag/cpp/simple_pre_lag_types.h",
+    "usr/include/bm/simple_pre_types.h": "generated/thrift/simple_pre/cpp/simple_pre_types.h",
+    "usr/include/bm/simple_switch/runner.h": "targets/simple_switch/bm/simple_switch/runner.h",
+    "usr/include/bm/simple_switch_constants.h": "generated/thrift/simple_switch/cpp/simple_switch_constants.h",
+    "usr/include/bm/simple_switch_types.h": "generated/thrift/simple_switch/cpp/simple_switch_types.h",
+    "usr/include/bm/spdlog/async_logger.h": "third_party/spdlog/bm/spdlog/async_logger.h",
+    "usr/include/bm/spdlog/common.h": "third_party/spdlog/bm/spdlog/common.h",
+    "usr/include/bm/spdlog/details/async_log_helper.h": "third_party/spdlog/bm/spdlog/details/async_log_helper.h",
+    "usr/include/bm/spdlog/details/async_logger_impl.h": "third_party/spdlog/bm/spdlog/details/async_logger_impl.h",
+    "usr/include/bm/spdlog/details/file_helper.h": "third_party/spdlog/bm/spdlog/details/file_helper.h",
+    "usr/include/bm/spdlog/details/format.cc": "third_party/spdlog/bm/spdlog/details/format.cc",
+    "usr/include/bm/spdlog/details/format.h": "third_party/spdlog/bm/spdlog/details/format.h",
+    "usr/include/bm/spdlog/details/line_logger.h": "third_party/spdlog/bm/spdlog/details/line_logger.h",
+    "usr/include/bm/spdlog/details/log_msg.h": "third_party/spdlog/bm/spdlog/details/log_msg.h",
+    "usr/include/bm/spdlog/details/logger_impl.h": "third_party/spdlog/bm/spdlog/details/logger_impl.h",
+    "usr/include/bm/spdlog/details/mpmc_bounded_q.h": "third_party/spdlog/bm/spdlog/details/mpmc_bounded_q.h",
+    "usr/include/bm/spdlog/details/null_mutex.h": "third_party/spdlog/bm/spdlog/details/null_mutex.h",
+    "usr/include/bm/spdlog/details/os.h": "third_party/spdlog/bm/spdlog/details/os.h",
+    "usr/include/bm/spdlog/details/pattern_formatter_impl.h": "third_party/spdlog/bm/spdlog/details/pattern_formatter_impl.h",
+    "usr/include/bm/spdlog/details/registry.h": "third_party/spdlog/bm/spdlog/details/registry.h",
+    "usr/include/bm/spdlog/details/spdlog_impl.h": "third_party/spdlog/bm/spdlog/details/spdlog_impl.h",
+    "usr/include/bm/spdlog/formatter.h": "third_party/spdlog/bm/spdlog/formatter.h",
+    "usr/include/bm/spdlog/logger.h": "third_party/spdlog/bm/spdlog/logger.h",
+    "usr/include/bm/spdlog/sinks/android_sink.h": "third_party/spdlog/bm/spdlog/sinks/android_sink.h",
+    "usr/include/bm/spdlog/sinks/base_sink.h": "third_party/spdlog/bm/spdlog/sinks/base_sink.h",
+    "usr/include/bm/spdlog/sinks/dist_sink.h": "third_party/spdlog/bm/spdlog/sinks/dist_sink.h",
+    "usr/include/bm/spdlog/sinks/file_sinks.h": "third_party/spdlog/bm/spdlog/sinks/file_sinks.h",
+    "usr/include/bm/spdlog/sinks/null_sink.h": "third_party/spdlog/bm/spdlog/sinks/null_sink.h",
+    "usr/include/bm/spdlog/sinks/ostream_sink.h": "third_party/spdlog/bm/spdlog/sinks/ostream_sink.h",
+    "usr/include/bm/spdlog/sinks/sink.h": "third_party/spdlog/bm/spdlog/sinks/sink.h",
+    "usr/include/bm/spdlog/sinks/stdout_sinks.h": "third_party/spdlog/bm/spdlog/sinks/stdout_sinks.h",
+    "usr/include/bm/spdlog/sinks/syslog_sink.h": "third_party/spdlog/bm/spdlog/sinks/syslog_sink.h",
+    "usr/include/bm/spdlog/spdlog.h": "third_party/spdlog/bm/spdlog/spdlog.h",
+    "usr/include/bm/spdlog/tweakme.h": "third_party/spdlog/bm/spdlog/tweakme.h",
+    "usr/include/bm/standard_constants.h": "generated/thrift/standard/cpp/standard_constants.h",
+    "usr/include/bm/standard_types.h": "generated/thrift/standard/cpp/standard_types.h",
+    "usr/include/bm/thrift/stdcxx.h": "include/bm/thrift/stdcxx.h",
+    "usr/include/p4/bm/dataplane_interface.grpc.pb.h": "generated/proto/p4/bm/dataplane_interface.grpc.pb.h",
+    "usr/include/p4/bm/dataplane_interface.pb.h": "generated/proto/p4/bm/dataplane_interface.pb.h",
+}
+
+_INSTALL_LIBTOOL_DEPENDENCIES = {
+    "bm_grpc_dataplane": "-lboost_thread -lpcap -lgmp -lnanomsg",
+    "bmall": "@LIBDIR@/libruntimestubs.la -lboost_system -lthrift -lboost_program_options -lboost_filesystem -lboost_thread -lpcap -lgmp -lnanomsg",
+    "bmp4apps": "@LIBDIR@/libruntimestubs.la -lthrift -lboost_thread -lpcap -lgmp -lnanomsg",
+    "bmpdfixed": "@LIBDIR@/libruntimestubs.la @LIBDIR@/libsimpleswitch_thrift.la -lboost_thread -lpcap -lgmp -lnanomsg",
+    "bmpdfixedthrift": "-lboost_thread -lpcap -lgmp -lnanomsg",
+    "bmpi": "-lboost_thread -lpcap -lgmp -lnanomsg",
+    "pnanic_thrift": "-lboost_thread -lpcap -lgmp -lnanomsg",
+    "psaswitch_thrift": "-lboost_thread -lpcap -lgmp -lnanomsg",
+    "runtimestubs": "-lboost_thread -lpcap -lgmp -lnanomsg",
+    "simpleswitch_runner": "@LIBDIR@/libbmpi.la -lboost_system -lthrift -lboost_program_options -lboost_filesystem -lboost_thread -lpcap -lgmp -lnanomsg",
+    "simpleswitch_thrift": "-lboost_thread -lpcap -lgmp -lnanomsg",
+}
+
+# dh_strip strips debugging information from installed static archives.
+[
+    strip_static_archive(
+        name = library + "_installed_archive",
+        src = ":" + library + "_archive",
+        out = "installed/lib" + library + ".a",
+    )
+    for library in _INSTALL_LIBTOOL_DEPENDENCIES
+]
+
+[
+    expand_template(
+        name = library + "_libtool_" + architecture,
+        template = "@p4lang-bmv2//:bazel/libtool.la.in",
+        out = "installed/" + architecture + "/lib" + library + ".la",
+        substitutions = {
+            "@LIBRARY@": "lib" + library,
+            "@LIBDIR@": "/usr/lib/" + multiarch,
+            "@DEPENDENCIES@": dependencies.replace("@LIBDIR@", "/usr/lib/" + multiarch),
+        },
+    )
+    for architecture, multiarch in [("amd64", "x86_64-linux-gnu"), ("arm64", "aarch64-linux-gnu")]
+    for library, dependencies in _INSTALL_LIBTOOL_DEPENDENCIES.items()
+]
+
+[
+    sonic_deploy_tar(
+        name = "p4lang-bmv2.runtime_" + architecture,
+        binaries = dict([
+            ("./usr/bin/" + program + " type=file uid=0 gid=0 mode=0755 time=0", ":" + program)
+            for program in ["simple_switch", "simple_switch_grpc", "psa_switch", "pna_nic"]
+        ] + [
+            ("./usr/lib/" + multiarch + "/lib" + library + ".so.0.0.0 type=file uid=0 gid=0 mode=0644 time=0", ":" + library + "_shared")
+            for library in _INSTALL_LIBTOOL_DEPENDENCIES
+        ]),
+        srcs = depset(_INSTALL_RUNTIME_FILES.values()).to_list(),
+        mtree = [
+            ". type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/bin type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/lib type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/share type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/lib/python3 type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/share/doc type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/lib/python3/dist-packages type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/share/doc/p4lang-bmv2 type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/lib/python3/dist-packages/bm type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/lib/python3/dist-packages/bm_runtime type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/lib/python3/dist-packages/p4 type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/lib/python3/dist-packages/pnic_runtime type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/lib/python3/dist-packages/pswitch_runtime type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/lib/python3/dist-packages/sswitch_runtime type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/lib/python3/dist-packages/bm/pdfixed type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/lib/python3/dist-packages/bm_runtime/simple_pre type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/lib/python3/dist-packages/bm_runtime/simple_pre_lag type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/lib/python3/dist-packages/bm_runtime/standard type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/lib/python3/dist-packages/p4/bm type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/lib/python3/dist-packages/bm/pdfixed/conn_mgr_pd_rpc type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/lib/python3/dist-packages/bm/pdfixed/mc_pd_rpc type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/lib/python3/dist-packages/bm/pdfixed/res_pd_rpc type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/lib/python3/dist-packages/bm/pdfixed/sswitch_pd_rpc type=dir uid=0 gid=0 mode=0755 time=0",
+] + [
+            "./usr/lib/" + multiarch + " type=dir uid=0 gid=0 mode=0755 time=0",
+        ] + [
+            "./" + destination + " type=file uid=0 gid=0 mode=" + ("0755" if destination.startswith("usr/bin/") else "0644") + " time=0 content=$(location " + label + ")"
+            for destination, label in _INSTALL_RUNTIME_FILES.items()
+        ] + [
+            "./usr/lib/" + multiarch + "/lib" + library + ".so.0 type=link uid=0 gid=0 mode=0777 time=0 link=lib" + library + ".so.0.0.0"
+            for library in _INSTALL_LIBTOOL_DEPENDENCIES
+        ],
+        visibility = ["//visibility:public"],
+    )
+    for architecture, multiarch in [("amd64", "x86_64-linux-gnu"), ("arm64", "aarch64-linux-gnu")]
+]
+
+[
+    tar(
+        name = "development_" + architecture,
+        srcs = _INSTALL_HEADERS.values() + [
+            ":" + library + "_installed_archive" for library in _INSTALL_LIBTOOL_DEPENDENCIES
+        ] + [
+            ":" + library + "_libtool_" + architecture for library in _INSTALL_LIBTOOL_DEPENDENCIES
+        ],
+        mtree = [
+            ". type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/include type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/lib type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/include/bm type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/include/p4 type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/include/bm/PI type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/include/bm/bm_apps type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/include/bm/bm_grpc type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/include/bm/bm_runtime type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/include/bm/bm_sim type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/include/bm/pdfixed type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/include/bm/simple_switch type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/include/bm/spdlog type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/include/bm/thrift type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/include/p4/bm type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/include/bm/bm_sim/core type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/include/bm/pdfixed/int type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/include/bm/pdfixed/thrift type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/include/bm/pdfixed/thrift-src type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/include/bm/spdlog/details type=dir uid=0 gid=0 mode=0755 time=0",
+            "./usr/include/bm/spdlog/sinks type=dir uid=0 gid=0 mode=0755 time=0",
+] + [
+            "./usr/lib/" + multiarch + " type=dir uid=0 gid=0 mode=0755 time=0",
+        ] + [
+            "./" + destination + " type=file uid=0 gid=0 mode=0644 time=0 content=$(location " + label + ")"
+            for destination, label in _INSTALL_HEADERS.items()
+        ] + [
+            "./usr/lib/" + multiarch + "/lib" + library + ".a type=file uid=0 gid=0 mode=0644 time=0 content=$(location :" + library + "_installed_archive)"
+            for library in _INSTALL_LIBTOOL_DEPENDENCIES
+        ] + [
+            "./usr/lib/" + multiarch + "/lib" + library + ".la type=file uid=0 gid=0 mode=0644 time=0 content=$(location :" + library + "_libtool_" + architecture + ")"
+            for library in _INSTALL_LIBTOOL_DEPENDENCIES
+        ] + [
+            "./usr/lib/" + multiarch + "/lib" + library + ".so type=link uid=0 gid=0 mode=0777 time=0 link=lib" + library + ".so.0.0.0"
+            for library in _INSTALL_LIBTOOL_DEPENDENCIES
+        ],
+        visibility = ["//visibility:public"],
+    )
+    for architecture, multiarch in [("amd64", "x86_64-linux-gnu"), ("arm64", "aarch64-linux-gnu")]
+]
+
+alias(
+    name = "p4lang-bmv2.runtime",
+    actual = select({
+    "@platforms//cpu:aarch64": ":p4lang-bmv2.runtime_arm64",
+    "@platforms//cpu:x86_64": ":p4lang-bmv2.runtime_amd64",
+}),
+)
+
+alias(
+    name = "p4lang-bmv2.runtime.debug_symbols",
+    actual = select({
+    "@platforms//cpu:aarch64": ":p4lang-bmv2.runtime_arm64.debug_symbols",
+    "@platforms//cpu:x86_64": ":p4lang-bmv2.runtime_amd64.debug_symbols",
+}),
+)
+
+alias(
+    name = "development",
+    actual = select({
+    "@platforms//cpu:aarch64": ":development_arm64",
+    "@platforms//cpu:x86_64": ":development_amd64",
+}),
+)
+
+runtime_packages(
+    name = "p4lang-bmv2.runtime_metadata",
+    control = "debian/control",
+    changelog = "debian/changelog",
+    module_name = "p4lang-bmv2",
+    control_file_helpers = [["dh_installdeb"]],
+    debian_files = {"compat": "debian/compat"},
+    packages = {"p4lang-bmv2": ":p4lang-bmv2.runtime"},
+    dependencies = ["@p4lang_pi//:p4lang-pi.runtime_metadata"],
+    apt_packages = {
+        "@bmv2_deps//" + package + ":data": "@bmv2_deps//" + package + ":control"
+        for package in [
+            "libboost-filesystem1.83.0", "libboost-program-options1.83.0",
+            "libboost-thread1.83.0", "libboost-atomic1.83.0", "libgmp10",
+            "libgrpc++1.51t64", "libgrpc29t64", "libnanomsg5", "libpcap0.8t64",
+            "libprotobuf32t64", "libthrift-0.19.0t64", "libssl3t64", "zlib1g",
+        ]
+    },
+    visibility = ["//visibility:public"],
+)
+
+
+
+# Append after native component declarations. Move load() lines to the BUILD header.
+
+_TEST_RUNFILES_ROOT = "../" + repository_name().lstrip("@") + "/" if repository_name() != "@" else ""
+
+cc_library(
+    name = "upstream_gtest",
+    srcs = ["third_party/gtest/src/gtest-all.cc"],
+    hdrs = ["third_party/gtest/include/gtest/gtest-assertion-result.h", "third_party/gtest/include/gtest/gtest-death-test.h", "third_party/gtest/include/gtest/gtest-matchers.h", "third_party/gtest/include/gtest/gtest-message.h", "third_party/gtest/include/gtest/gtest-param-test.h", "third_party/gtest/include/gtest/gtest-printers.h", "third_party/gtest/include/gtest/gtest-spi.h", "third_party/gtest/include/gtest/gtest-test-part.h", "third_party/gtest/include/gtest/gtest-typed-test.h", "third_party/gtest/include/gtest/gtest.h", "third_party/gtest/include/gtest/gtest_pred_impl.h", "third_party/gtest/include/gtest/gtest_prod.h", "third_party/gtest/include/gtest/internal/custom/gtest-port.h", "third_party/gtest/include/gtest/internal/custom/gtest-printers.h", "third_party/gtest/include/gtest/internal/custom/gtest.h", "third_party/gtest/include/gtest/internal/gtest-death-test-internal.h", "third_party/gtest/include/gtest/internal/gtest-filepath.h", "third_party/gtest/include/gtest/internal/gtest-internal.h", "third_party/gtest/include/gtest/internal/gtest-param-util.h", "third_party/gtest/include/gtest/internal/gtest-port-arch.h", "third_party/gtest/include/gtest/internal/gtest-port.h", "third_party/gtest/include/gtest/internal/gtest-string.h", "third_party/gtest/include/gtest/internal/gtest-type-util.h"],
+    textual_hdrs = ["third_party/gtest/src/gtest-assertion-result.cc", "third_party/gtest/src/gtest-death-test.cc", "third_party/gtest/src/gtest-filepath.cc", "third_party/gtest/src/gtest-internal-inl.h", "third_party/gtest/src/gtest-matchers.cc", "third_party/gtest/src/gtest-port.cc", "third_party/gtest/src/gtest-printers.cc", "third_party/gtest/src/gtest-test-part.cc", "third_party/gtest/src/gtest-typed-test.cc", "third_party/gtest/src/gtest.cc"],
+    includes = ["third_party/gtest", "third_party/gtest/include"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread"],
+    testonly = True,
+)
+
+cc_library(
+    name = "core_test_headers",
+    hdrs = ["tests/utils.h", "src/bm_sim/crc_map.h", "src/bm_sim/crc_tables.h", "src/bm_sim/md5.h", "src/bm_sim/lpm_trie.h", "src/bm_sim/xxhash.h", "src/bm_sim/utils.h"],
+    includes = ["tests", "src/bm_sim"],
+    deps = [":headers"],
+    testonly = True,
+)
+
+cc_library(
+    name = "test_bmi_stubs",
+    srcs = ["tests/bmi_stubs.c"],
+    hdrs = ["src/BMI/BMI/bmi_port.h"],
+    includes = ["src/BMI"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread"],
+    alwayslink = True,
+    testonly = True,
+)
+
+expand_template(
+    name = "test_cli_utils",
+    template = "tests/utils.cpp.in",
+    out = "generated/tests/utils.cpp",
+    substitutions = {
+        "@top_srcdir@/tools/runtime_CLI.py": _TEST_RUNFILES_ROOT + "runtime_cli",
+        "@top_builddir@/thrift_src/gen-py/": _TEST_RUNFILES_ROOT + "generated/python",
+    },
+)
+
+cc_library(
+    name = "core_test_support",
+    srcs = ["tests/main.cpp", "tests/primitives.cpp", ":test_cli_utils"],
+    deps = [":core_test_headers", ":test_bmi_stubs", ":upstream_gtest", ":bmsim_objects", ":bm_runtime_objects", ":bm_apps_objects", ":runtimestubs_link", ":runtime_stubs_headers", ":json"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    alwayslink = True,
+    testonly = True,
+)
+
+filegroup(
+    name = "core_test_data",
+    srcs = ["tests/testdata/config_options.json", "tests/testdata/empty_config.json", "tests/testdata/empty_config.md5", "tests/testdata/en0.pcap", "tests/testdata/header_stack.json", "tests/testdata/header_stack.p4", "tests/testdata/lo0.pcap", "tests/testdata/logging.json", "tests/testdata/one_extern.json", "tests/testdata/one_header.json", "tests/testdata/parse_vset.json", "tests/testdata/parse_vset.p4", "tests/testdata/pvs_struct_2.json", "tests/testdata/pvs_struct_2.p4", "tests/testdata/runtime_iface.json", "tests/testdata/runtime_iface.p4", "tests/testdata/serialize.json", "tests/testdata/serialize.p4", "tests/testdata/unions_e2e_options_bos.json", "tests/testdata/unions_e2e_options_count.json"],
+    testonly = True,
+)
+
+cc_test(
+    name = "test_actions",
+    srcs = ["tests/test_actions.cpp"],
+    deps = [":core_test_support"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    features = ["-strip_debug_symbols"],
+    data = [":core_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
+)
+
+cc_test(
+    name = "test_checksums",
+    srcs = ["tests/test_checksums.cpp"],
+    deps = [":core_test_support"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    features = ["-strip_debug_symbols"],
+    data = [":core_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
+)
+
+cc_test(
+    name = "test_expressions",
+    srcs = ["tests/test_expressions.cpp"],
+    deps = [":core_test_support"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    features = ["-strip_debug_symbols"],
+    data = [":core_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
+)
+
+cc_test(
+    name = "test_conditionals",
+    srcs = ["tests/test_conditionals.cpp"],
+    deps = [":core_test_support"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    features = ["-strip_debug_symbols"],
+    data = [":core_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
+)
+
+cc_test(
+    name = "test_data",
+    srcs = ["tests/test_data.cpp"],
+    deps = [":core_test_support"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    features = ["-strip_debug_symbols"],
+    data = [":core_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
+)
+
+cc_test(
+    name = "test_handle_mgr",
+    srcs = ["tests/test_handle_mgr.cpp"],
+    deps = [":core_test_support"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    features = ["-strip_debug_symbols"],
+    data = [":core_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
+)
+
+cc_test(
+    name = "test_p4objects",
+    srcs = ["tests/test_p4objects.cpp"],
+    deps = [":core_test_support"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    features = ["-strip_debug_symbols"],
+    data = [":core_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
+)
+
+cc_test(
+    name = "test_parser",
+    srcs = ["tests/test_parser.cpp"],
+    deps = [":core_test_support"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    features = ["-strip_debug_symbols"],
+    data = [":core_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
+)
+
+cc_test(
+    name = "test_phv",
+    srcs = ["tests/test_phv.cpp"],
+    deps = [":core_test_support"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    features = ["-strip_debug_symbols"],
+    data = [":core_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
+)
+
+cc_test(
+    name = "test_queue",
+    srcs = ["tests/test_queue.cpp"],
+    deps = [":core_test_support"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    features = ["-strip_debug_symbols"],
+    data = [":core_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
+)
+
+cc_test(
+    name = "test_queueing",
+    srcs = ["tests/test_queueing.cpp"],
+    deps = [":core_test_support"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    features = ["-strip_debug_symbols"],
+    data = [":core_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
+)
+
+cc_test(
+    name = "test_tables",
+    srcs = ["tests/test_tables.cpp"],
+    deps = [":core_test_support"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    features = ["-strip_debug_symbols"],
+    data = [":core_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
+)
+
+cc_test(
+    name = "test_learning",
+    srcs = ["tests/test_learning.cpp"],
+    deps = [":core_test_support"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    features = ["-strip_debug_symbols"],
+    data = [":core_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
+)
+
+cc_test(
+    name = "test_pre",
+    srcs = ["tests/test_pre.cpp"],
+    deps = [":core_test_support"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    features = ["-strip_debug_symbols"],
+    data = [":core_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
+)
+
+cc_test(
+    name = "test_calculations",
+    srcs = ["tests/test_calculations.cpp"],
+    deps = [":core_test_support"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    features = ["-strip_debug_symbols"],
+    data = [":core_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
+)
+
+cc_test(
+    name = "test_headers",
+    srcs = ["tests/test_headers.cpp"],
+    deps = [":core_test_support"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    features = ["-strip_debug_symbols"],
+    data = [":core_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
+)
+
+cc_test(
+    name = "test_header_stacks",
+    srcs = ["tests/test_header_stacks.cpp"],
+    deps = [":core_test_support"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    features = ["-strip_debug_symbols"],
+    data = [":core_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
+)
+
+cc_test(
+    name = "test_header_unions",
+    srcs = ["tests/test_header_unions.cpp"],
+    deps = [":core_test_support"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    features = ["-strip_debug_symbols"],
+    data = [":core_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
+)
+
+cc_test(
+    name = "test_meters",
+    srcs = ["tests/test_meters.cpp"],
+    deps = [":core_test_support"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    features = ["-strip_debug_symbols"],
+    data = [":core_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
+)
+
+cc_test(
+    name = "test_ageing",
+    srcs = ["tests/test_ageing.cpp"],
+    deps = [":core_test_support"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    features = ["-strip_debug_symbols"],
+    data = [":core_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
+)
+
+cc_test(
+    name = "test_counters",
+    srcs = ["tests/test_counters.cpp"],
+    deps = [":core_test_support"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    features = ["-strip_debug_symbols"],
+    data = [":core_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
+)
+
+pcap_runtime_test(
+    name = "test_pcap",
+    srcs = ["tests/test_pcap.cpp"],
+    deps = [":core_test_support"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    features = ["-strip_debug_symbols"],
+    data = [":core_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
+)
+
+cc_test(
+    name = "test_fields",
+    srcs = ["tests/test_fields.cpp"],
+    deps = [":core_test_support"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    features = ["-strip_debug_symbols"],
+    data = [":core_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
+)
+
+pcap_runtime_test(
+    name = "test_devmgr",
+    srcs = ["tests/test_devmgr.cpp"],
+    deps = [":core_test_support"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    features = ["-strip_debug_symbols"],
+    data = [":core_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
+)
+
+cc_test(
+    name = "test_packet",
+    srcs = ["tests/test_packet.cpp"],
+    deps = [":core_test_support"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    features = ["-strip_debug_symbols"],
+    data = [":core_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
+)
+
+cc_test(
+    name = "test_extern",
+    srcs = ["tests/test_extern.cpp"],
+    deps = [":core_test_support"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    features = ["-strip_debug_symbols"],
+    data = [":core_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
+)
+
+cc_test(
+    name = "test_periodic_tasks",
+    srcs = ["tests/test_periodic_tasks.cpp"],
+    deps = [":core_test_support"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    features = ["-strip_debug_symbols"],
+    data = [":core_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
+)
+
+pcap_runtime_test(
+    name = "test_switch",
+    srcs = ["tests/test_switch.cpp"],
+    deps = [":core_test_support"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    features = ["-strip_debug_symbols"],
+    data = [":core_test_data", ":runtime_cli"],
+    tags = ["exclusive"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
+)
+
+cc_test(
+    name = "test_target_parser",
+    srcs = ["tests/test_target_parser.cpp"],
+    deps = [":core_test_support"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    features = ["-strip_debug_symbols"],
+    data = [":core_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
+)
+
+pcap_runtime_test(
+    name = "test_runtime_iface",
+    srcs = ["tests/test_runtime_iface.cpp"],
+    deps = [":core_test_support"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    features = ["-strip_debug_symbols"],
+    data = [":core_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
+)
+
+cc_test(
+    name = "test_bm_apps",
+    srcs = ["tests/test_bm_apps.cpp"],
+    deps = [":core_test_support"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    features = ["-strip_debug_symbols"],
+    data = [":core_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
+)
+
+cc_test(
+    name = "test_stateful",
+    srcs = ["tests/test_stateful.cpp"],
+    deps = [":core_test_support"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    features = ["-strip_debug_symbols"],
+    data = [":core_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
+)
+
+cc_test(
+    name = "test_enums",
+    srcs = ["tests/test_enums.cpp"],
+    deps = [":core_test_support"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    features = ["-strip_debug_symbols"],
+    data = [":core_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
+)
+
+cc_test(
+    name = "test_core_primitives",
+    srcs = ["tests/test_core_primitives.cpp"],
+    deps = [":core_test_support"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    features = ["-strip_debug_symbols"],
+    data = [":core_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
+)
+
+cc_test(
+    name = "test_control_flow",
+    srcs = ["tests/test_control_flow.cpp"],
+    deps = [":core_test_support"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    features = ["-strip_debug_symbols"],
+    data = [":core_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
+)
+
+cc_test(
+    name = "test_assert_assume",
+    srcs = ["tests/test_assert_assume.cpp"],
+    deps = [":core_test_support"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    features = ["-strip_debug_symbols"],
+    data = [":core_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
+)
+
+cc_test(
+    name = "test_log_msg",
+    srcs = ["tests/test_log_msg.cpp"],
+    deps = [":core_test_support"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    features = ["-strip_debug_symbols"],
+    data = [":core_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
+)
+
+cc_test(
+    name = "test_ras",
+    srcs = ["tests/test_ras.cpp"],
+    deps = [":core_test_support"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    features = ["-strip_debug_symbols"],
+    data = [":core_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
+)
+
+cc_binary(
+    name = "test_all",
+    srcs = ["tests/test_actions.cpp", "tests/test_checksums.cpp", "tests/test_expressions.cpp", "tests/test_conditionals.cpp", "tests/test_data.cpp", "tests/test_handle_mgr.cpp", "tests/test_p4objects.cpp", "tests/test_parser.cpp", "tests/test_phv.cpp", "tests/test_queue.cpp", "tests/test_queueing.cpp", "tests/test_tables.cpp", "tests/test_learning.cpp", "tests/test_pre.cpp", "tests/test_calculations.cpp", "tests/test_headers.cpp", "tests/test_header_stacks.cpp", "tests/test_header_unions.cpp", "tests/test_meters.cpp", "tests/test_ageing.cpp", "tests/test_counters.cpp", "tests/test_pcap.cpp", "tests/test_fields.cpp", "tests/test_devmgr.cpp", "tests/test_packet.cpp", "tests/test_extern.cpp", "tests/test_periodic_tasks.cpp", "tests/test_switch.cpp", "tests/test_target_parser.cpp", "tests/test_runtime_iface.cpp", "tests/test_bm_apps.cpp", "tests/test_stateful.cpp", "tests/test_enums.cpp", "tests/test_core_primitives.cpp", "tests/test_control_flow.cpp", "tests/test_assert_assume.cpp", "tests/test_log_msg.cpp", "tests/test_ras.cpp"],
+    deps = [":core_test_support"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    data = [":core_test_data", ":runtime_cli"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    testonly = True,
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'tests/testdata\\"'],
+)
+
+cc_library(
+    name = "target_test_support",
+    srcs = ["targets/test_utils/utils.cpp"],
+    hdrs = ["targets/test_utils/utils.h"],
+    includes = ["targets/test_utils"],
+    deps = [":headers", ":upstream_gtest"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    testonly = True,
+)
+
+filegroup(
+    name = "simple_switch_test_data",
+    srcs = ["targets/simple_switch/tests/testdata/packet_redirect.json", "targets/simple_switch/tests/testdata/packet_redirect.p4", "targets/simple_switch/tests/testdata/parser_error.json", "targets/simple_switch/tests/testdata/parser_error.p4", "targets/simple_switch/tests/testdata/queueing.json", "targets/simple_switch/tests/testdata/queueing.p4", "targets/simple_switch/tests/testdata/recirc.json", "targets/simple_switch/tests/testdata/recirc.p4", "targets/simple_switch/tests/testdata/swap_1.json", "targets/simple_switch/tests/testdata/swap_1.p4", "targets/simple_switch/tests/testdata/swap_2.json", "targets/simple_switch/tests/testdata/swap_2.p4", "targets/simple_switch/tests/testdata/truncate.json", "targets/simple_switch/tests/testdata/truncate.p4"],
+    testonly = True,
+)
+
+pcap_runtime_test(
+    name = "simple_switch_test_packet_redirect",
+    srcs = ["targets/simple_switch/tests/main.cpp", "targets/simple_switch/tests/test_packet_redirect.cpp", "targets/simple_switch/bm/simple_switch/runner.h", "targets/simple_switch/register_access.h", "targets/simple_switch/simple_switch.h"],
+    deps = [":bmi_objects", ":simple_switch_objects", ":bm_apps_objects", ":target_test_support", ":upstream_gtest"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    includes = ["targets/simple_switch", "targets/simple_switch/tests"],
+    features = ["-strip_debug_symbols"],
+    data = [":simple_switch_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'targets/simple_switch/tests/testdata\\"'],
+)
+
+pcap_runtime_test(
+    name = "simple_switch_test_truncate",
+    srcs = ["targets/simple_switch/tests/main.cpp", "targets/simple_switch/tests/test_truncate.cpp", "targets/simple_switch/bm/simple_switch/runner.h", "targets/simple_switch/register_access.h", "targets/simple_switch/simple_switch.h"],
+    deps = [":bmi_objects", ":simple_switch_objects", ":bm_apps_objects", ":target_test_support", ":upstream_gtest"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    includes = ["targets/simple_switch", "targets/simple_switch/tests"],
+    features = ["-strip_debug_symbols"],
+    data = [":simple_switch_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'targets/simple_switch/tests/testdata\\"'],
+)
+
+pcap_runtime_test(
+    name = "simple_switch_test_swap",
+    srcs = ["targets/simple_switch/tests/main.cpp", "targets/simple_switch/tests/test_swap.cpp", "targets/simple_switch/bm/simple_switch/runner.h", "targets/simple_switch/register_access.h", "targets/simple_switch/simple_switch.h"],
+    deps = [":bmi_objects", ":simple_switch_objects", ":bm_apps_objects", ":target_test_support", ":upstream_gtest"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    includes = ["targets/simple_switch", "targets/simple_switch/tests"],
+    features = ["-strip_debug_symbols"],
+    data = [":simple_switch_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'targets/simple_switch/tests/testdata\\"'],
+)
+
+pcap_runtime_test(
+    name = "simple_switch_test_queueing",
+    srcs = ["targets/simple_switch/tests/main.cpp", "targets/simple_switch/tests/test_queueing.cpp", "targets/simple_switch/bm/simple_switch/runner.h", "targets/simple_switch/register_access.h", "targets/simple_switch/simple_switch.h"],
+    deps = [":bmi_objects", ":simple_switch_objects", ":bm_apps_objects", ":target_test_support", ":upstream_gtest"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    includes = ["targets/simple_switch", "targets/simple_switch/tests"],
+    features = ["-strip_debug_symbols"],
+    data = [":simple_switch_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'targets/simple_switch/tests/testdata\\"'],
+)
+
+pcap_runtime_test(
+    name = "simple_switch_test_recirc",
+    srcs = ["targets/simple_switch/tests/main.cpp", "targets/simple_switch/tests/test_recirc.cpp", "targets/simple_switch/bm/simple_switch/runner.h", "targets/simple_switch/register_access.h", "targets/simple_switch/simple_switch.h"],
+    deps = [":bmi_objects", ":simple_switch_objects", ":bm_apps_objects", ":target_test_support", ":upstream_gtest"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    includes = ["targets/simple_switch", "targets/simple_switch/tests"],
+    features = ["-strip_debug_symbols"],
+    data = [":simple_switch_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'targets/simple_switch/tests/testdata\\"'],
+)
+
+pcap_runtime_test(
+    name = "simple_switch_test_parser_error",
+    srcs = ["targets/simple_switch/tests/main.cpp", "targets/simple_switch/tests/test_parser_error.cpp", "targets/simple_switch/bm/simple_switch/runner.h", "targets/simple_switch/register_access.h", "targets/simple_switch/simple_switch.h"],
+    deps = [":bmi_objects", ":simple_switch_objects", ":bm_apps_objects", ":target_test_support", ":upstream_gtest"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    includes = ["targets/simple_switch", "targets/simple_switch/tests"],
+    features = ["-strip_debug_symbols"],
+    data = [":simple_switch_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'targets/simple_switch/tests/testdata\\"'],
+)
+
+cc_binary(
+    name = "simple_switch_test_all",
+    srcs = ["targets/simple_switch/tests/main.cpp", "targets/simple_switch/tests/test_packet_redirect.cpp", "targets/simple_switch/tests/test_truncate.cpp", "targets/simple_switch/tests/test_swap.cpp", "targets/simple_switch/tests/test_queueing.cpp", "targets/simple_switch/tests/test_recirc.cpp", "targets/simple_switch/tests/test_parser_error.cpp", "targets/simple_switch/bm/simple_switch/runner.h", "targets/simple_switch/register_access.h", "targets/simple_switch/simple_switch.h"],
+    deps = [":bmi_objects", ":simple_switch_objects", ":bm_apps_objects", ":target_test_support", ":upstream_gtest"],
+    includes = ["targets/simple_switch", "targets/simple_switch/tests"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    data = [":simple_switch_test_data"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    testonly = True,
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'targets/simple_switch/tests/testdata\\"'],
+)
+
+filegroup(
+    name = "psa_switch_test_data",
+    srcs = [],
+    testonly = True,
+)
+
+cc_test(
+    name = "psa_switch_test_internet_checksum",
+    srcs = ["targets/psa_switch/tests/main.cpp", "targets/psa_switch/tests/test_internet_checksum.cpp", "targets/psa_switch/externs/psa_counter.h", "targets/psa_switch/externs/psa_hash.h", "targets/psa_switch/externs/psa_internet_checksum.h", "targets/psa_switch/externs/psa_meter.h", "targets/psa_switch/externs/psa_random.h", "targets/psa_switch/psa_switch.h"],
+    deps = [":bmi_objects", ":psa_switch_objects", ":bm_apps_objects", ":target_test_support", ":upstream_gtest"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    includes = ["targets/psa_switch", "targets/psa_switch/tests"],
+    features = ["-strip_debug_symbols"],
+    data = [":psa_switch_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'targets/psa_switch/tests/testdata\\"'],
+)
+
+cc_test(
+    name = "psa_switch_test_hash",
+    srcs = ["targets/psa_switch/tests/main.cpp", "targets/psa_switch/tests/test_hash.cpp", "targets/psa_switch/externs/psa_counter.h", "targets/psa_switch/externs/psa_hash.h", "targets/psa_switch/externs/psa_internet_checksum.h", "targets/psa_switch/externs/psa_meter.h", "targets/psa_switch/externs/psa_random.h", "targets/psa_switch/psa_switch.h"],
+    deps = [":bmi_objects", ":psa_switch_objects", ":bm_apps_objects", ":target_test_support", ":upstream_gtest"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    includes = ["targets/psa_switch", "targets/psa_switch/tests"],
+    features = ["-strip_debug_symbols"],
+    data = [":psa_switch_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'targets/psa_switch/tests/testdata\\"'],
+)
+
+cc_binary(
+    name = "psa_switch_test_all",
+    srcs = ["targets/psa_switch/tests/main.cpp", "targets/psa_switch/tests/test_internet_checksum.cpp", "targets/psa_switch/tests/test_hash.cpp", "targets/psa_switch/externs/psa_counter.h", "targets/psa_switch/externs/psa_hash.h", "targets/psa_switch/externs/psa_internet_checksum.h", "targets/psa_switch/externs/psa_meter.h", "targets/psa_switch/externs/psa_random.h", "targets/psa_switch/psa_switch.h"],
+    deps = [":bmi_objects", ":psa_switch_objects", ":bm_apps_objects", ":target_test_support", ":upstream_gtest"],
+    includes = ["targets/psa_switch", "targets/psa_switch/tests"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    data = [":psa_switch_test_data"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    testonly = True,
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'targets/psa_switch/tests/testdata\\"'],
+)
+
+filegroup(
+    name = "pna_nic_test_data",
+    srcs = ["targets/pna_nic/tests/testdata/pna-demo-L2-one-table.json"],
+    testonly = True,
+)
+
+pcap_runtime_test(
+    name = "pna_nic_test_parse_pna",
+    srcs = ["targets/pna_nic/tests/main.cpp", "targets/pna_nic/tests/test_parse_pna.cpp", "targets/pna_nic/externs/pna_counter.h", "targets/pna_nic/externs/pna_hash.h", "targets/pna_nic/externs/pna_internet_checksum.h", "targets/pna_nic/externs/pna_meter.h", "targets/pna_nic/externs/pna_random.h", "targets/pna_nic/pna_nic.h"],
+    deps = [":bmi_objects", ":pna_nic_objects", ":bm_apps_objects", ":target_test_support", ":upstream_gtest"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    includes = ["targets/pna_nic", "targets/pna_nic/tests"],
+    features = ["-strip_debug_symbols"],
+    data = [":pna_nic_test_data"],
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'targets/pna_nic/tests/testdata\\"'],
+)
+
+cc_binary(
+    name = "pna_nic_test_all",
+    srcs = ["targets/pna_nic/tests/main.cpp", "targets/pna_nic/tests/test_parse_pna.cpp", "targets/pna_nic/externs/pna_counter.h", "targets/pna_nic/externs/pna_hash.h", "targets/pna_nic/externs/pna_internet_checksum.h", "targets/pna_nic/externs/pna_meter.h", "targets/pna_nic/externs/pna_random.h", "targets/pna_nic/pna_nic.h"],
+    deps = [":bmi_objects", ":pna_nic_objects", ":bm_apps_objects", ":target_test_support", ":upstream_gtest"],
+    includes = ["targets/pna_nic", "targets/pna_nic/tests"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    data = [":pna_nic_test_data"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    testonly = True,
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'targets/pna_nic/tests/testdata\\"'],
+)
+
+cc_binary(
+    name = "test_gtest_binary",
+    testonly = True,
+    srcs = ["targets/simple_switch_grpc/tests/utils.cpp", "targets/simple_switch_grpc/tests/base_test.cpp", "targets/simple_switch_grpc/tests/main.cpp", "targets/simple_switch_grpc/tests/test_basic.cpp", "targets/simple_switch_grpc/tests/test_grpc_dp.cpp", "targets/simple_switch_grpc/tests/test_packet_io.cpp", "targets/simple_switch_grpc/tests/test_counter.cpp", "targets/simple_switch_grpc/tests/test_meter.cpp", "targets/simple_switch_grpc/tests/test_ternary.cpp", "targets/simple_switch_grpc/tests/test_pre.cpp", "targets/simple_switch_grpc/tests/test_digest.cpp", "targets/simple_switch_grpc/tests/test_idle_timeout.cpp", "targets/simple_switch_grpc/tests/test_action_profile.cpp", "targets/simple_switch_grpc/tests/test_optional.cpp", "targets/simple_switch_grpc/tests/utils.h", "targets/simple_switch_grpc/tests/base_test.h", "targets/simple_switch_grpc/switch_runner.h"],
+    deps = [":grpc_runner_objects", ":upstream_gtest", "@p4lang_pi//:piprotogrpc", "@p4lang_pi//:piprotobuf"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    includes = ["targets/simple_switch_grpc", "targets/simple_switch_grpc/tests"],
+    features = ["-strip_debug_symbols"],
+    data = ["targets/simple_switch_grpc/tests/testdata/action_profile.json", "targets/simple_switch_grpc/tests/testdata/action_profile.p4", "targets/simple_switch_grpc/tests/testdata/action_profile.proto.txt", "targets/simple_switch_grpc/tests/testdata/clone.json", "targets/simple_switch_grpc/tests/testdata/clone.p4", "targets/simple_switch_grpc/tests/testdata/clone.proto.txt", "targets/simple_switch_grpc/tests/testdata/counter.json", "targets/simple_switch_grpc/tests/testdata/counter.p4", "targets/simple_switch_grpc/tests/testdata/counter.proto.txt", "targets/simple_switch_grpc/tests/testdata/digest.json", "targets/simple_switch_grpc/tests/testdata/digest.p4", "targets/simple_switch_grpc/tests/testdata/digest.proto.txt", "targets/simple_switch_grpc/tests/testdata/loopback.json", "targets/simple_switch_grpc/tests/testdata/loopback.p4", "targets/simple_switch_grpc/tests/testdata/loopback.proto.txt", "targets/simple_switch_grpc/tests/testdata/meter.json", "targets/simple_switch_grpc/tests/testdata/meter.p4", "targets/simple_switch_grpc/tests/testdata/meter.proto.txt", "targets/simple_switch_grpc/tests/testdata/multicast.json", "targets/simple_switch_grpc/tests/testdata/multicast.p4", "targets/simple_switch_grpc/tests/testdata/multicast.proto.txt", "targets/simple_switch_grpc/tests/testdata/optional.json", "targets/simple_switch_grpc/tests/testdata/optional.p4", "targets/simple_switch_grpc/tests/testdata/optional.proto.txt", "targets/simple_switch_grpc/tests/testdata/packet_io.json", "targets/simple_switch_grpc/tests/testdata/packet_io.p4", "targets/simple_switch_grpc/tests/testdata/packet_io.proto.txt", "targets/simple_switch_grpc/tests/testdata/simple_router.json", "targets/simple_switch_grpc/tests/testdata/simple_router.proto.txt", "targets/simple_switch_grpc/tests/testdata/ternary.json", "targets/simple_switch_grpc/tests/testdata/ternary.p4", "targets/simple_switch_grpc/tests/testdata/ternary.proto.txt"],
+    local_defines = ["WITH_THRIFT", 'TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'targets/simple_switch_grpc/tests/testdata\\"'],
+)
+
+native_runtime_test(
+    name = "test_gtest",
+    binary = ":test_gtest_binary",
+    runtime_payloads = ["@bmv2_deps//:packages", "@p4lang_pi//:p4lang-pi.runtime", ":p4lang-bmv2.runtime"],
+    data = ["targets/simple_switch_grpc/tests/testdata/action_profile.json", "targets/simple_switch_grpc/tests/testdata/action_profile.p4", "targets/simple_switch_grpc/tests/testdata/action_profile.proto.txt", "targets/simple_switch_grpc/tests/testdata/clone.json", "targets/simple_switch_grpc/tests/testdata/clone.p4", "targets/simple_switch_grpc/tests/testdata/clone.proto.txt", "targets/simple_switch_grpc/tests/testdata/counter.json", "targets/simple_switch_grpc/tests/testdata/counter.p4", "targets/simple_switch_grpc/tests/testdata/counter.proto.txt", "targets/simple_switch_grpc/tests/testdata/digest.json", "targets/simple_switch_grpc/tests/testdata/digest.p4", "targets/simple_switch_grpc/tests/testdata/digest.proto.txt", "targets/simple_switch_grpc/tests/testdata/loopback.json", "targets/simple_switch_grpc/tests/testdata/loopback.p4", "targets/simple_switch_grpc/tests/testdata/loopback.proto.txt", "targets/simple_switch_grpc/tests/testdata/meter.json", "targets/simple_switch_grpc/tests/testdata/meter.p4", "targets/simple_switch_grpc/tests/testdata/meter.proto.txt", "targets/simple_switch_grpc/tests/testdata/multicast.json", "targets/simple_switch_grpc/tests/testdata/multicast.p4", "targets/simple_switch_grpc/tests/testdata/multicast.proto.txt", "targets/simple_switch_grpc/tests/testdata/optional.json", "targets/simple_switch_grpc/tests/testdata/optional.p4", "targets/simple_switch_grpc/tests/testdata/optional.proto.txt", "targets/simple_switch_grpc/tests/testdata/packet_io.json", "targets/simple_switch_grpc/tests/testdata/packet_io.p4", "targets/simple_switch_grpc/tests/testdata/packet_io.proto.txt", "targets/simple_switch_grpc/tests/testdata/simple_router.json", "targets/simple_switch_grpc/tests/testdata/simple_router.proto.txt", "targets/simple_switch_grpc/tests/testdata/ternary.json", "targets/simple_switch_grpc/tests/testdata/ternary.p4", "targets/simple_switch_grpc/tests/testdata/ternary.proto.txt"],
+    tags = ["exclusive"],
+)
+
+cc_binary(
+    name = "grpc_example",
+    srcs = ["targets/simple_switch_grpc/tests/example.cpp", "targets/simple_switch_grpc/tests/utils.cpp", "targets/simple_switch_grpc/tests/utils.h"],
+    deps = ["@p4lang_pi//:piprotogrpc", "@p4lang_pi//:piprotobuf"],
+    includes = ["targets/simple_switch_grpc/tests"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+    testonly = True,
+    local_defines = ['TESTDATADIR=\\"' + _TEST_RUNFILES_ROOT + 'targets/simple_switch_grpc/tests/testdata\\"'],
+)
+
+cc_binary(
+    name = "simple_router",
+    srcs = ["targets/simple_router/simple_router.cpp", "targets/simple_router/primitives.cpp"],
+    deps = [":bmsim_objects", ":bmi_objects", ":bm_runtime_objects", ":runtimestubs_link", ":runtime_stubs_headers", ":json"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+)
+
+cc_binary(
+    name = "l2_switch",
+    srcs = ["targets/l2_switch/l2_switch.cpp", "targets/l2_switch/primitives.cpp"],
+    deps = [":bmsim_objects", ":bmi_objects", ":bm_runtime_objects", ":runtimestubs_link", ":runtime_stubs_headers", ":json"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+)
+
+cc_binary(
+    name = "learn_client",
+    srcs = ["targets/l2_switch/learn_client/learn_client.cpp"],
+    deps = [":bm_apps_objects"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+)
+
+cc_binary(
+    name = "test_packet_pipe",
+    srcs = ["src/bm_apps/examples/test_packet_pipe.cpp"],
+    deps = [":bm_apps_objects"],
+    copts = ["-g", "-O3", "-fstack-protector-strong", "-Wformat", "-Werror=format-security", "-fPIC", "-pthread", "-std=c++17", "-Wall", "-Wextra"],
+    linkopts = ["-pthread", "-Wl,-z,relro,-z,now"],
+)
+
+filegroup(
+    name = "check_programs",
+    testonly = True,
+    srcs = [":test_actions", ":test_checksums", ":test_expressions", ":test_conditionals", ":test_data", ":test_handle_mgr", ":test_p4objects", ":test_parser", ":test_phv", ":test_queue", ":test_queueing", ":test_tables", ":test_learning", ":test_pre", ":test_calculations", ":test_headers", ":test_header_stacks", ":test_header_unions", ":test_meters", ":test_ageing", ":test_counters", ":test_pcap_elf", ":test_fields", ":test_devmgr_elf", ":test_packet", ":test_extern", ":test_periodic_tasks", ":test_switch_elf", ":test_target_parser", ":test_runtime_iface_elf", ":test_bm_apps", ":test_stateful", ":test_enums", ":test_core_primitives", ":test_control_flow", ":test_assert_assume", ":test_log_msg", ":test_ras", ":test_all", ":simple_switch_test_packet_redirect_elf", ":simple_switch_test_truncate_elf", ":simple_switch_test_swap_elf", ":simple_switch_test_queueing_elf", ":simple_switch_test_recirc_elf", ":simple_switch_test_parser_error_elf", ":simple_switch_test_all", ":psa_switch_test_internet_checksum", ":psa_switch_test_hash", ":psa_switch_test_all", ":pna_nic_test_parse_pna_elf", ":pna_nic_test_all", ":test_gtest_binary", ":grpc_example", ":simple_router", ":l2_switch", ":learn_client", ":test_packet_pipe"],
+)
+
+test_suite(
+    name = "upstream_cc_tests",
+    tests = [":test_actions", ":test_checksums", ":test_expressions", ":test_conditionals", ":test_data", ":test_handle_mgr", ":test_p4objects", ":test_parser", ":test_phv", ":test_queue", ":test_queueing", ":test_tables", ":test_learning", ":test_pre", ":test_calculations", ":test_headers", ":test_header_stacks", ":test_header_unions", ":test_meters", ":test_ageing", ":test_counters", ":test_pcap", ":test_fields", ":test_devmgr", ":test_packet", ":test_extern", ":test_periodic_tasks", ":test_switch", ":test_target_parser", ":test_runtime_iface", ":test_bm_apps", ":test_stateful", ":test_enums", ":test_core_primitives", ":test_control_flow", ":test_assert_assume", ":test_log_msg", ":test_ras", ":simple_switch_test_packet_redirect", ":simple_switch_test_truncate", ":simple_switch_test_swap", ":simple_switch_test_queueing", ":simple_switch_test_recirc", ":simple_switch_test_parser_error", ":psa_switch_test_internet_checksum", ":psa_switch_test_hash", ":pna_nic_test_parse_pna", ":test_gtest"],
+)
+
+# Move these load() lines to the BUILD header before all declarations.
+
+py_library(
+    name = "bmv2_python_interfaces",
+    srcs = ["generated/python/bm_runtime/standard/__init__.py", "generated/python/bm_runtime/standard/constants.py", "generated/python/bm_runtime/standard/ttypes.py", "generated/python/bm_runtime/standard/Standard.py", "generated/python/bm_runtime/simple_pre/__init__.py", "generated/python/bm_runtime/simple_pre/constants.py", "generated/python/bm_runtime/simple_pre/ttypes.py", "generated/python/bm_runtime/simple_pre/SimplePre.py", "generated/python/bm_runtime/simple_pre_lag/__init__.py", "generated/python/bm_runtime/simple_pre_lag/constants.py", "generated/python/bm_runtime/simple_pre_lag/ttypes.py", "generated/python/bm_runtime/simple_pre_lag/SimplePreLAG.py", "generated/python/sswitch_runtime/__init__.py", "generated/python/sswitch_runtime/constants.py", "generated/python/sswitch_runtime/ttypes.py", "generated/python/sswitch_runtime/SimpleSwitch.py", "generated/python/pswitch_runtime/__init__.py", "generated/python/pswitch_runtime/constants.py", "generated/python/pswitch_runtime/ttypes.py", "generated/python/pswitch_runtime/PsaSwitch.py", "generated/python/pnic_runtime/__init__.py", "generated/python/pnic_runtime/constants.py", "generated/python/pnic_runtime/ttypes.py", "generated/python/pnic_runtime/PnaNic.py", "generated/python/res_pd_rpc/__init__.py", "generated/python/res_pd_rpc/constants.py", "generated/python/res_pd_rpc/ttypes.py", "generated/python/conn_mgr_pd_rpc/__init__.py", "generated/python/conn_mgr_pd_rpc/constants.py", "generated/python/conn_mgr_pd_rpc/ttypes.py", "generated/python/conn_mgr_pd_rpc/conn_mgr.py", "generated/python/mc_pd_rpc/__init__.py", "generated/python/mc_pd_rpc/constants.py", "generated/python/mc_pd_rpc/ttypes.py", "generated/python/mc_pd_rpc/mc.py", "generated/python/sswitch_pd_rpc/__init__.py", "generated/python/sswitch_pd_rpc/constants.py", "generated/python/sswitch_pd_rpc/ttypes.py", "generated/python/sswitch_pd_rpc/sswitch.py"],
+    imports = ["generated/python"],
+)
+
+py_binary(
+    name = "runtime_cli",
+    srcs = ["tools/runtime_CLI.py", "tools/bmpy_utils.py"],
+    main = "tools/runtime_CLI.py",
+    imports = ["tools"],
+    legacy_create_init = False,
+    deps = [":bmv2_python_interfaces"] + select({
+        "@platforms//cpu:x86_64": ["@bmv2_python_thrift_amd64//:thrift"],
+        "@platforms//cpu:aarch64": ["@bmv2_python_thrift_arm64//:thrift"],
+    }),
+)
+
+expand_template(
+    name = "cli_test_runner",
+    template = "targets/simple_switch/tests/CLI_tests/run_one_test.py.in",
+    out = "generated/cli/run_one_test.py",
+    substitutions = {
+        "@abs_top_builddir@/targets/simple_switch/simple_switch": _TEST_RUNFILES_ROOT + "simple_switch_runtime",
+        "@abs_top_srcdir@/tools/runtime_CLI.py": _TEST_RUNFILES_ROOT + "runtime_cli",
+        "@abs_top_builddir@/thrift_src/gen-py/": _TEST_RUNFILES_ROOT + "generated/python",
+    },
+)
+
+filegroup(
+    name = "cli_test_data",
+    srcs = ["targets/simple_switch/tests/CLI_tests/testdata/.gitignore", "targets/simple_switch/tests/CLI_tests/testdata/ecmp.json", "targets/simple_switch/tests/CLI_tests/testdata/indirect_res.in", "targets/simple_switch/tests/CLI_tests/testdata/indirect_res.json", "targets/simple_switch/tests/CLI_tests/testdata/indirect_res.out", "targets/simple_switch/tests/CLI_tests/testdata/indirect_res.p4", "targets/simple_switch/tests/CLI_tests/testdata/mc_dump.in", "targets/simple_switch/tests/CLI_tests/testdata/mc_dump.out", "targets/simple_switch/tests/CLI_tests/testdata/table_dump.in", "targets/simple_switch/tests/CLI_tests/testdata/table_dump.out", "targets/simple_switch/tests/CLI_tests/testdata/table_dump_extra.in", "targets/simple_switch/tests/CLI_tests/testdata/table_dump_extra.json", "targets/simple_switch/tests/CLI_tests/testdata/table_dump_extra.out", "targets/simple_switch/tests/CLI_tests/testdata/table_dump_extra.p4", "targets/simple_switch/tests/CLI_tests/testdata/table_dump_old.in", "targets/simple_switch/tests/CLI_tests/testdata/table_dump_old.out"],
+    testonly = True,
+)
+
+py_test(
+    name = "cli_table_dump_old",
+    srcs = [":cli_test_runner"],
+    main = "generated/cli/run_one_test.py",
+    args = [_TEST_RUNFILES_ROOT + "targets/simple_switch/tests/CLI_tests/testdata", "table_dump_old", "ecmp.json"] + [],
+    data = [":cli_test_data", ":simple_switch_runtime", ":runtime_cli"],
+    legacy_create_init = False,
+)
+
+py_test(
+    name = "cli_table_dump",
+    srcs = [":cli_test_runner"],
+    main = "generated/cli/run_one_test.py",
+    args = [_TEST_RUNFILES_ROOT + "targets/simple_switch/tests/CLI_tests/testdata", "table_dump", "ecmp.json"] + [],
+    data = [":cli_test_data", ":simple_switch_runtime", ":runtime_cli"],
+    legacy_create_init = False,
+)
+
+py_test(
+    name = "cli_table_dump_extra",
+    srcs = [":cli_test_runner"],
+    main = "generated/cli/run_one_test.py",
+    args = [_TEST_RUNFILES_ROOT + "targets/simple_switch/tests/CLI_tests/testdata", "table_dump_extra", "table_dump_extra.json"] + [],
+    data = [":cli_test_data", ":simple_switch_runtime", ":runtime_cli"],
+    legacy_create_init = False,
+)
+
+py_test(
+    name = "cli_indirect_res",
+    srcs = [":cli_test_runner"],
+    main = "generated/cli/run_one_test.py",
+    args = [_TEST_RUNFILES_ROOT + "targets/simple_switch/tests/CLI_tests/testdata", "indirect_res", "indirect_res.json"] + [],
+    data = [":cli_test_data", ":simple_switch_runtime", ":runtime_cli"],
+    legacy_create_init = False,
+)
+
+py_test(
+    name = "cli_mc_dump",
+    srcs = [":cli_test_runner"],
+    main = "generated/cli/run_one_test.py",
+    args = [_TEST_RUNFILES_ROOT + "targets/simple_switch/tests/CLI_tests/testdata", "mc_dump", "ecmp.json"] + ["--pre", "SimplePreLAG"],
+    data = [":cli_test_data", ":simple_switch_runtime", ":runtime_cli"],
+    legacy_create_init = False,
+)
+
+native_runtime_binary(
+    name = "simple_switch_runtime",
+    binary = ":simple_switch",
+    runtime_payloads = ["@bmv2_deps//:packages", "@p4lang_pi//:p4lang-pi.runtime", ":p4lang-bmv2.runtime"],
+    testonly = True,
+)
+
+native_runtime_binary(
+    name = "simple_switch_grpc_runtime",
+    binary = ":simple_switch_grpc",
+    runtime_payloads = ["@bmv2_deps//:packages", "@p4lang_pi//:p4lang-pi.runtime", ":p4lang-bmv2.runtime"],
+    testonly = True,
+)
+
+native_runtime_binary(
+    name = "grpc_example_runtime",
+    binary = ":grpc_example",
+    runtime_payloads = ["@bmv2_deps//:packages", "@p4lang_pi//:p4lang-pi.runtime", ":p4lang-bmv2.runtime"],
+    testonly = True,
+)
+
+executable_expand_template(
+    name = "grpc_example_script",
+    template = "targets/simple_switch_grpc/tests/example.run.in",
+    out = "generated/tests/example.run",
+    is_executable = True,
+    substitutions = {
+        # Runtime launchers wait for target children; terminate the whole background job.
+        "#!/usr/bin/env bash": "#!/usr/bin/env bash\nset -m",
+        "kill $switch_PID": "kill -- -$$switch_PID",
+        "@builddir@/../simple_switch_grpc": _TEST_RUNFILES_ROOT + "simple_switch_grpc_runtime",
+        "@builddir@/example": _TEST_RUNFILES_ROOT + "grpc_example_runtime",
+    },
+)
+
+sh_test(
+    name = "grpc_example_test",
+    srcs = [":grpc_example_script"],
+    data = [":simple_switch_grpc_runtime", ":grpc_example_runtime", "targets/simple_switch_grpc/tests/testdata/action_profile.json", "targets/simple_switch_grpc/tests/testdata/action_profile.p4", "targets/simple_switch_grpc/tests/testdata/action_profile.proto.txt", "targets/simple_switch_grpc/tests/testdata/clone.json", "targets/simple_switch_grpc/tests/testdata/clone.p4", "targets/simple_switch_grpc/tests/testdata/clone.proto.txt", "targets/simple_switch_grpc/tests/testdata/counter.json", "targets/simple_switch_grpc/tests/testdata/counter.p4", "targets/simple_switch_grpc/tests/testdata/counter.proto.txt", "targets/simple_switch_grpc/tests/testdata/digest.json", "targets/simple_switch_grpc/tests/testdata/digest.p4", "targets/simple_switch_grpc/tests/testdata/digest.proto.txt", "targets/simple_switch_grpc/tests/testdata/loopback.json", "targets/simple_switch_grpc/tests/testdata/loopback.p4", "targets/simple_switch_grpc/tests/testdata/loopback.proto.txt", "targets/simple_switch_grpc/tests/testdata/meter.json", "targets/simple_switch_grpc/tests/testdata/meter.p4", "targets/simple_switch_grpc/tests/testdata/meter.proto.txt", "targets/simple_switch_grpc/tests/testdata/multicast.json", "targets/simple_switch_grpc/tests/testdata/multicast.p4", "targets/simple_switch_grpc/tests/testdata/multicast.proto.txt", "targets/simple_switch_grpc/tests/testdata/optional.json", "targets/simple_switch_grpc/tests/testdata/optional.p4", "targets/simple_switch_grpc/tests/testdata/optional.proto.txt", "targets/simple_switch_grpc/tests/testdata/packet_io.json", "targets/simple_switch_grpc/tests/testdata/packet_io.p4", "targets/simple_switch_grpc/tests/testdata/packet_io.proto.txt", "targets/simple_switch_grpc/tests/testdata/simple_router.json", "targets/simple_switch_grpc/tests/testdata/simple_router.proto.txt", "targets/simple_switch_grpc/tests/testdata/ternary.json", "targets/simple_switch_grpc/tests/testdata/ternary.p4", "targets/simple_switch_grpc/tests/testdata/ternary.proto.txt"],
+    tags = ["exclusive"],
+)
+
+test_suite(
+    name = "upstream_tests",
+    tests = [":upstream_cc_tests", ":cli_table_dump_old", ":cli_table_dump", ":cli_table_dump_extra", ":cli_indirect_res", ":cli_mc_dump", ":grpc_example_test"],
+)
