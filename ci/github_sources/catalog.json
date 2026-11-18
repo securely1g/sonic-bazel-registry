@@ -72,6 +72,78 @@
       "manifests": [
         "cosmos-4.0.2.json"
       ]
+    },
+    {
+      "module": "libteam",
+      "version": "1.31.0.sonic.2",
+      "execution_architecture": "amd64",
+      "manifests": [
+        "cosmos-4.0.2.json"
+      ]
+    },
+    {
+      "module": "libteam",
+      "version": "1.31.0.sonic.2",
+      "execution_architecture": "arm64",
+      "manifests": [
+        "cosmos-4.0.2.json"
+      ]
+    },
+    {
+      "module": "sonic-dhcpmon",
+      "version": "0.1.1-9941c86ae87437894fb76f3c10a0db863ba4d289",
+      "execution_architecture": "amd64",
+      "manifests": [
+        "cosmos-4.0.2.json"
+      ]
+    },
+    {
+      "module": "sonic-dhcpmon",
+      "version": "0.1.1-9941c86ae87437894fb76f3c10a0db863ba4d289",
+      "execution_architecture": "arm64",
+      "manifests": [
+        "cosmos-4.0.2.json"
+      ]
+    },
+    {
+      "module": "sonic-dash-ha",
+      "version": "0.0.2-9e0d2c9bd4ffb9d879a3bb86db0e80f2b86862f7",
+      "execution_architecture": "amd64",
+      "manifests": [
+        "cosmos-4.0.2.json"
+      ]
+    },
+    {
+      "module": "sonic-sairedis",
+      "version": "0.0.6-f710c09deb31a5edcd579312f53bf512c5122567",
+      "execution_architecture": "amd64",
+      "manifests": [
+        "cosmos-4.0.2.json"
+      ]
+    },
+    {
+      "module": "sonic-sairedis",
+      "version": "0.0.6-f710c09deb31a5edcd579312f53bf512c5122567",
+      "execution_architecture": "arm64",
+      "manifests": [
+        "cosmos-4.0.2.json"
+      ]
+    },
+    {
+      "module": "sonic-swss",
+      "version": "0.0.4-4775fd06c79b6b96fbefaa569ae6884c6c2dee75",
+      "execution_architecture": "amd64",
+      "manifests": [
+        "cosmos-4.0.2.json"
+      ]
+    },
+    {
+      "module": "sonic-swss",
+      "version": "0.0.4-4775fd06c79b6b96fbefaa569ae6884c6c2dee75",
+      "execution_architecture": "arm64",
+      "manifests": [
+        "cosmos-4.0.2.json"
+      ]
     }
   ]
 }
