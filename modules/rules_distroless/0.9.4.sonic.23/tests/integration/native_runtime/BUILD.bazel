@@ -1,0 +1,161 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_import", "cc_library", "cc_shared_library", "cc_test")
+load("@rules_distroless//apt/private:cc_deb_library.bzl", "cc_deb_library", "native_link_sequence")
+load("@rules_distroless//apt/private:so_library.bzl", "so_library")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load(":link_inputs.bzl", "link_inputs")
+load(":ownership_test.bzl", "link_ownership_test")
+
+package(default_testonly = True)
+
+# Model a packaged DSO whose DT_NEEDED dependency resides in another package.
+# Neither imported-library contract selects the leaf on the executable link
+# line; its DT_NEEDED lookup must use the declared runtime dependency.
+cc_binary(
+    name = "leaf/libapt_runtime_leaf.so.1",
+    srcs = ["leaf.c"],
+    linkopts = ["-Wl,-soname,libapt_runtime_leaf.so.1"],
+    linkshared = True,
+)
+
+cc_binary(
+    name = "other/libapt_runtime_other.so.1",
+    srcs = ["other.c"],
+    linkopts = ["-Wl,-soname,libapt_runtime_other.so.1"],
+    linkshared = True,
+)
+
+genrule(
+    name = "parent_fixture",
+    srcs = ["parent.c", ":leaf/libapt_runtime_leaf.so.1", ":other/libapt_runtime_other.so.1"],
+    outs = ["parent/libapt_runtime_parent.so.1"],
+    cmd = "$(CC) -shared -fPIC -Wl,-soname,libapt_runtime_parent.so.1 $(location parent.c) $(location :leaf/libapt_runtime_leaf.so.1) $(location :other/libapt_runtime_other.so.1) -o $@",
+    toolchains = ["@bazel_tools//tools/cpp:current_cc_toolchain"],
+)
+
+cc_import(
+    name = "parent_link",
+    shared_library = ":parent/libapt_runtime_parent.so.1",
+)
+
+so_library(
+    name = "runtime",
+    dynamic_libs = [":leaf/libapt_runtime_leaf.so.1", ":other/libapt_runtime_other.so.1"],
+)
+
+cc_library(
+    name = "direct_contract",
+    deps = [":parent_link", ":runtime"],
+)
+
+# The ordered pkg-config path rebuilds LibraryToLink objects; it must preserve
+# the same indirect search contract as a direct imported library.
+native_link_sequence(
+    name = "ordered_contract",
+    arguments = ["$FILE:0"],
+    link_files = [":parent/libapt_runtime_parent.so.1"],
+    link_sonames = ["libapt_runtime_parent.so.1"],
+    deps = [":direct_contract"],
+)
+
+link_inputs(name = "direct_inputs", dep = ":direct_contract")
+link_inputs(name = "ordered_inputs", dep = ":ordered_contract")
+
+# Consume the native provider's declared flags and files without a host
+# toolchain's inferred runtime RPATH masking a missing link-time search path.
+genrule(
+    name = "direct_consumer_build",
+    srcs = ["main.c", ":direct_inputs", ":parent/libapt_runtime_parent.so.1"],
+    outs = ["direct_consumer"],
+    cmd = "$(CC) $(location main.c) $(location :parent/libapt_runtime_parent.so.1) $(APT_NATIVE_FLAGS) -o $@",
+    toolchains = ["@bazel_tools//tools/cpp:current_cc_toolchain", ":direct_inputs"],
+)
+
+genrule(
+    name = "ordered_consumer_build",
+    srcs = ["main.c", ":ordered_inputs"],
+    outs = ["ordered_consumer"],
+    cmd = "$(CC) $(location main.c) $(APT_NATIVE_FLAGS) -o $@",
+    toolchains = ["@bazel_tools//tools/cpp:current_cc_toolchain", ":ordered_inputs"],
+)
+
+# Both executables must link without adding the leaf as a direct DT_NEEDED
+# dependency, then run with only the three explicitly declared fixture DSOs.
+sh_test(
+    name = "indirect_dependency_test",
+    srcs = ["test.sh"],
+    args = [
+        "$(rootpath :direct_consumer)",
+        "$(rootpath :ordered_consumer)",
+        "$(rootpath :parent/libapt_runtime_parent.so.1)",
+        "$(rootpath :leaf/libapt_runtime_leaf.so.1)",
+        "$(rootpath :other/libapt_runtime_other.so.1)",
+    ],
+    data = [
+        ":direct_consumer",
+        ":ordered_consumer",
+        ":parent/libapt_runtime_parent.so.1",
+        ":leaf/libapt_runtime_leaf.so.1",
+        ":other/libapt_runtime_other.so.1",
+    ],
+)
+
+# Both shared objects consume the same dynamic pkg-config target generated
+# by deb_import from the fixture's installed header-only libvariant.pc.
+cc_library(
+    name = "header_first_objects",
+    srcs = ["header_first.c"],
+    deps = ["@header_variant//:pkgconfig/libvariant"],
+)
+
+cc_shared_library(
+    name = "header_first",
+    deps = [":header_first_objects"],
+)
+
+cc_library(
+    name = "header_second_objects",
+    srcs = ["header_second.c"],
+    deps = [":header_first_objects", "@header_variant//:pkgconfig/libvariant"],
+)
+
+cc_shared_library(
+    name = "header_second",
+    deps = [":header_second_objects"],
+    dynamic_deps = [":header_first"],
+)
+
+cc_test(
+    name = "header_only_ownership_test",
+    srcs = ["header_test.c"],
+    deps = [":header_second_objects"],
+    dynamic_deps = [":header_second", ":header_first"],
+)
+
+cc_library(name = "static_only", srcs = ["other.c"], linkstatic = True)
+cc_deb_library(name = "inherited_flags", linkopts = ["-pthread"])
+cc_deb_library(name = "inherited_files", additional_linker_inputs = ["leaf.c"])
+
+[
+    native_link_sequence(name = name, deps = [dep], header_only = True)
+    for name, dep in [
+        ("with_flags", ":inherited_flags"),
+        ("with_files", ":inherited_files"),
+        ("with_static_library", ":static_only"),
+    ]
+]
+
+native_link_sequence(name = "explicit_flags", arguments = ["-pthread"], header_only = True)
+native_link_sequence(name = "legacy_empty")
+
+link_ownership_test(
+    name = "link_ownership_test",
+    anchored = [
+        "@header_variant//:pkgconfig/libvariant/static",
+        ":with_flags",
+        ":with_files",
+        ":with_static_library",
+        ":explicit_flags",
+        ":legacy_empty",
+    ],
+    header_only = "@header_variant//:pkgconfig/libvariant",
+)
