@@ -1,0 +1,19 @@
+From: Guohan Lu <securely1g@gmail.com>
+Subject: [PATCH] Register the sonic-gnmi source commit
+
+Align the source module identity with this commit-qualified registration.
+Dependency updates are owned by the source commit.
+
+Source commit: 678f15def7c4ca6946d2fb94918e3fe6cf47d982
+Scope: downstream registry integration; not an upstream bug fix.
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-gnmi",
+-    version = "0.1.1",
++    version = "0.1.1-678f15def7c4ca6946d2fb94918e3fe6cf47d982",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
