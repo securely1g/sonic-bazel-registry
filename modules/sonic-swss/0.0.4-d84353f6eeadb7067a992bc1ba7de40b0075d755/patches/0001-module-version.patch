@@ -1,0 +1,20 @@
+From: Guohan Lu <securely1g@gmail.com>
+Subject: [PATCH] Register the sonic-swss source commit
+
+Align the source module identity with this commit-qualified registration.
+Dependency updates are owned by the source commit.
+
+Source commit: d84353f6eeadb7067a992bc1ba7de40b0075d755
+Scope: downstream registry integration; not an upstream bug fix.
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,7 +1,7 @@
+ # Keep bazel_compatibility aligned with sonic-buildimage and sonic-swss-common.
+ module(
+     name = "sonic-swss",
+-    version = "0.0.4",
++    version = "0.0.4-d84353f6eeadb7067a992bc1ba7de40b0075d755",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
