@@ -1,0 +1,292 @@
+load("@bazel_skylib//rules:expand_template.bzl", "expand_template")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_python//python:defs.bzl", "py_test")
+load("@sonic_build_infra//deb:changelogs.bzl", "debian_changelogs")
+load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
+load("@sonic_build_infra//oci:source_controls.bzl", "source_package_controls")
+load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(glob([
+    "*.bzl",
+    "*.bazel",
+    "*.patch",
+    "*.tpl",
+]))
+
+expand_template(
+    name = "config_h",
+    out = "generated/config.h",
+    substitutions = {},
+    template = "config.h.tpl",
+)
+
+cc_library(
+    name = "config_headers",
+    hdrs = [":config_h"],
+    includes = ["generated"],
+    target_compatible_with = ["@platforms//cpu:x86_64"],
+)
+
+[
+    alias(
+        name = name,
+        actual = "@pam_tacplus_src//:" + name,
+    )
+    for name in [
+        "libtac",
+        "libtacsupport",
+        "libtac_dev_headers",
+        "libtac_shared",
+        "libtacsupport_shared",
+        "pam_tacplus_shared",
+        "tacc",
+        "compiled",
+    ]
+]
+
+# Original compat9 dh_installchangelogs/dh_compress per binary package.
+[
+    debian_changelogs(
+        name = package + "_changelogs",
+        outs = [
+            "docs/" + package + "/changelog",
+            "docs/" + package + "/changelog.Debian",
+        ],
+        architecture = "amd64",
+        changelog = "@pam_tacplus_src//:debian/changelog",
+        control = "@pam_tacplus_src//:debian/control",
+        debian_files = {"@pam_tacplus_src//:debian/compat": "compat"},
+        package = package,
+        upstream = "@pam_tacplus_src//:ChangeLog",
+    )
+    for package in [
+        "libtac2",
+        "libpam-tacplus",
+        "libtac-dev",
+    ]
+]
+
+[
+    genrule(
+        name = package + "_" + basename + "_gz",
+        srcs = ["docs/" + package + "/" + basename],
+        outs = ["compressed/" + package + "/" + basename + ".gz"],
+        cmd = "$(execpath @sonic_build_infra//tools/build_tools:pigz) -n -9 -c $< > $@",
+        tools = ["@sonic_build_infra//tools/build_tools:pigz"],
+    )
+    for package in [
+        "libtac2",
+        "libpam-tacplus",
+        "libtac-dev",
+    ]
+    for basename in [
+        "changelog",
+        "changelog.Debian",
+    ]
+]
+
+genrule(
+    name = "readme_gz",
+    srcs = ["@pam_tacplus_src//:README.md"],
+    outs = ["compressed/README.md.gz"],
+    cmd = "$(execpath @sonic_build_infra//tools/build_tools:pigz) -n -9 -c $< > $@",
+    tools = ["@sonic_build_infra//tools/build_tools:pigz"],
+)
+
+sonic_deploy_tar(
+    name = "libtac2.runtime",
+    srcs = [
+        ":libtac2_changelog.Debian_gz",
+        ":libtac2_changelog_gz",
+        "@pam_tacplus_src//:debian/copyright",
+    ],
+    binaries = {
+        "./usr/lib/x86_64-linux-gnu/libtac.so.2.0.0 type=file uid=0 gid=0 mode=0644 time=0": ":libtac_shared",
+        "./usr/lib/x86_64-linux-gnu/libtacsupport.so.2.0.0 type=file uid=0 gid=0 mode=0644 time=0": ":libtacsupport_shared",
+    },
+    compress_debug_sections = True,
+    mtree = [
+        "./usr/share/doc/libtac2/changelog.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :libtac2_changelog_gz)",
+        "./usr/share/doc/libtac2/changelog.Debian.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :libtac2_changelog.Debian_gz)",
+        "./usr/lib/x86_64-linux-gnu/libtac.so.2 type=link uid=0 gid=0 mode=0777 time=0 link=libtac.so.2.0.0",
+        "./usr/lib/x86_64-linux-gnu/libtacsupport.so.2 type=link uid=0 gid=0 mode=0777 time=0 link=libtacsupport.so.2.0.0",
+        "./usr/share/doc/libtac2/copyright type=file uid=0 gid=0 mode=0644 time=0 content=$(location @pam_tacplus_src//:debian/copyright)",
+    ],
+)
+
+sonic_deploy_tar(
+    name = "libpam-tacplus.runtime",
+    srcs = [
+        ":libpam-tacplus_changelog.Debian_gz",
+        ":libpam-tacplus_changelog_gz",
+        ":readme_gz",
+        "@pam_tacplus_src//:debian/README.Debian",
+        "@pam_tacplus_src//:debian/copyright",
+        "@pam_tacplus_src//:debian/tacplus",
+        "@pam_tacplus_src//:sample.pam",
+    ],
+    binaries = {"./lib/x86_64-linux-gnu/security/pam_tacplus.so type=file uid=0 gid=0 mode=0644 time=0": ":pam_tacplus_shared"},
+    compress_debug_sections = True,
+    mtree = [
+        "./usr/share/doc/libpam-tacplus/changelog.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :libpam-tacplus_changelog_gz)",
+        "./usr/share/doc/libpam-tacplus/changelog.Debian.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :libpam-tacplus_changelog.Debian_gz)",
+        "./usr/share/doc/libpam-tacplus/README.md.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :readme_gz)",
+        "./usr/share/pam-configs/tacplus type=file uid=0 gid=0 mode=0644 time=0 content=$(location @pam_tacplus_src//:debian/tacplus)",
+        "./usr/share/doc/libpam-tacplus/copyright type=file uid=0 gid=0 mode=0644 time=0 content=$(location @pam_tacplus_src//:debian/copyright)",
+        "./usr/share/doc/libpam-tacplus/sample.pam type=file uid=0 gid=0 mode=0644 time=0 content=$(location @pam_tacplus_src//:sample.pam)",
+        "./usr/share/doc/libpam-tacplus/README.Debian type=file uid=0 gid=0 mode=0644 time=0 content=$(location @pam_tacplus_src//:debian/README.Debian)",
+    ],
+)
+
+runtime_packages(
+    name = "runtime_metadata",
+    apt_packages = {"@tacacs_build_debian//" + pkg + ":data": "@tacacs_build_debian//" + pkg + ":control" for pkg in [
+        "libpam0g",
+        "libssl3t64",
+    ]},
+    changelog = "@pam_tacplus_src//:debian/changelog",
+    control = "@pam_tacplus_src//:debian/control",
+    control_file_helpers = [["dh_installdeb"]],
+    control_file_helpers_by_package = {"libtac2": [
+        ["dh_makeshlibs"],
+        ["dh_installdeb"],
+    ]},
+    debian_files = {
+        "compat": "@pam_tacplus_src//:debian/compat",
+        "libpam-tacplus.postinst": "@pam_tacplus_src//:debian/libpam-tacplus.postinst",
+        "libpam-tacplus.prerm": "@pam_tacplus_src//:debian/libpam-tacplus.prerm",
+    },
+    module_name = "pam-tacplus",
+    packages = {
+        "libtac2": ":libtac2.runtime",
+        "libpam-tacplus": ":libpam-tacplus.runtime",
+    },
+    required_paths = {
+        "libtac2": [
+            "usr/lib/x86_64-linux-gnu/libtac.so.2.0.0",
+            "usr/lib/x86_64-linux-gnu/libtacsupport.so.2.0.0",
+        ],
+        "libpam-tacplus": [
+            "lib/x86_64-linux-gnu/security/pam_tacplus.so",
+            "usr/share/pam-configs/tacplus",
+        ],
+    },
+)
+
+[
+    source_package_controls(
+        name = package + ".control",
+        metadata = ":runtime_metadata",
+        package = package,
+    )
+    for package in [
+        "libtac2",
+        "libpam-tacplus",
+    ]
+]
+
+py_test(
+    name = "installation_test",
+    srcs = ["installation_test.py"],
+    args = [
+        "$(rootpath :libtac2.runtime)",
+        "$(rootpath :libpam-tacplus.runtime)",
+        "$(rootpath :libtac2.runtime.debug_symbols)",
+        "$(rootpath :libpam-tacplus.runtime.debug_symbols)",
+        "$(rootpath :libtac2.control)",
+        "$(rootpath :libpam-tacplus.control)",
+        "$(rootpath :runtime_metadata)",
+        "$(rootpath @pam_tacplus_src//:debian/tacplus)",
+        "$(rootpath :libtac-dev.runtime)",
+        "$(rootpath @pam_tacplus_src//:ChangeLog)",
+        "$(rootpath @pam_tacplus_src//:README.md)",
+        "$(rootpath @pam_tacplus_src//:libtac/include/cdefs.h)",
+        "$(rootpath @pam_tacplus_src//:libtac/include/libtac.h)",
+        "$(rootpath @pam_tacplus_src//:libtac/include/tacplus.h)",
+        "$(rootpath @pam_tacplus_src//:support.h)",
+    ],
+    data = [
+        ":libpam-tacplus.control",
+        ":libpam-tacplus.runtime",
+        ":libpam-tacplus.runtime.debug_symbols",
+        ":libtac-dev.runtime",
+        ":libtac2.control",
+        ":libtac2.runtime",
+        ":libtac2.runtime.debug_symbols",
+        ":runtime_metadata",
+        "@pam_tacplus_src//:ChangeLog",
+        "@pam_tacplus_src//:README.md",
+        "@pam_tacplus_src//:debian/tacplus",
+        "@pam_tacplus_src//:libtac/include/cdefs.h",
+        "@pam_tacplus_src//:libtac/include/libtac.h",
+        "@pam_tacplus_src//:libtac/include/tacplus.h",
+        "@pam_tacplus_src//:support.h",
+    ],
+    deps = ["@sonic_build_infra//deb:elf_metadata"],
+)
+
+expand_template(
+    name = "libtac_pc",
+    out = "generated/libtac.pc",
+    substitutions = {
+        "@prefix@": "/usr",
+        "@exec_prefix@": "${prefix}",
+        "@libdir@": "/usr/lib/x86_64-linux-gnu",
+        "@includedir@": "${prefix}/include",
+        "@VERSION@": "1.4.1",
+    },
+    template = "@pam_tacplus_src//:libtac.pc.in",
+)
+
+sonic_deploy_tar(
+    name = "libtac-dev.runtime",
+    srcs = ["@pam_tacplus_src//:" + source for source in [
+        "libtac/include/cdefs.h",
+        "libtac/include/libtac.h",
+        "libtac/include/tacplus.h",
+        "support.h",
+        "debian/copyright",
+    ]] + [
+        ":libtac-dev_changelog.Debian_gz",
+        ":libtac-dev_changelog_gz",
+        ":libtac_pc",
+    ],
+    mtree = ["./usr/include/libtac/" + basename + " type=file uid=0 gid=0 mode=0644 time=0 content=$(location @pam_tacplus_src//:" + source + ")" for source, basename in [
+        ("libtac/include/cdefs.h", "cdefs.h"),
+        ("libtac/include/libtac.h", "libtac.h"),
+        ("libtac/include/tacplus.h", "tacplus.h"),
+        ("support.h", "support.h"),
+    ]] + [
+        "./usr/lib/x86_64-linux-gnu/libtac.so type=link uid=0 gid=0 mode=0777 time=0 link=libtac.so.2.0.0",
+        "./usr/lib/x86_64-linux-gnu/libtacsupport.so type=link uid=0 gid=0 mode=0777 time=0 link=libtacsupport.so.2.0.0",
+        "./usr/lib/x86_64-linux-gnu/pkgconfig/libtac.pc type=file uid=0 gid=0 mode=0644 time=0 content=$(location :libtac_pc)",
+        "./usr/share/doc/libtac-dev/copyright type=file uid=0 gid=0 mode=0644 time=0 content=$(location @pam_tacplus_src//:debian/copyright)",
+        "./usr/share/doc/libtac-dev/changelog.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :libtac-dev_changelog_gz)",
+        "./usr/share/doc/libtac-dev/changelog.Debian.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :libtac-dev_changelog.Debian_gz)",
+    ],
+)
+
+runtime_packages(
+    name = "libtac-dev.runtime_metadata",
+    apt_packages = {"@tacacs_build_debian//libc6-dev:data": "@tacacs_build_debian//libc6-dev:control"},
+    changelog = "@pam_tacplus_src//:debian/changelog",
+    control = "@pam_tacplus_src//:debian/control",
+    control_file_helpers = [["dh_installdeb"]],
+    debian_files = {"compat": "@pam_tacplus_src//:debian/compat"},
+    dependencies = [":runtime_metadata"],
+    module_name = "pam-tacplus",
+    packages = {"libtac-dev": ":libtac-dev.runtime"},
+    required_paths = {"libtac-dev": [
+        "usr/include/libtac/libtac.h",
+        "usr/include/libtac/support.h",
+        "usr/lib/x86_64-linux-gnu/pkgconfig/libtac.pc",
+    ]},
+)
+
+source_package_controls(
+    name = "libtac-dev.control",
+    metadata = ":libtac-dev.runtime_metadata",
+    package = "libtac-dev",
+)
