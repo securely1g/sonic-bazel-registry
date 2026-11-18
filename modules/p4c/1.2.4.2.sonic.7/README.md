@@ -109,3 +109,7 @@ to the existing Bazel TARs. The shared metadata rule inspects those target
 binaries and declared dependency packages, so version constraints come from
 the built artifacts and Debian tools. There is no handwritten JSON metadata
 file or new DEB producer.
+
+DASH uses `@p4c//:p4c_bm2_ss` on the execution platform. This target builds
+the upstream BMv2 simple-switch executable with the same IR configuration as
+the packaged compiler. The runtime and debug TARs still contain the full suite.
