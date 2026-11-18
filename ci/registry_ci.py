@@ -1599,9 +1599,12 @@ def cross_test_timeout_flags(module: str, version: str, cross_compile: bool, fla
     """Supply emulation budgets for short, moderate, long and eternal tests."""
     if not cross_compile or any(flag == "--test_timeout" or flag.startswith("--test_timeout=") for flag in flags):
         return []
+    # BMv2's moderate package test unpacks and inspects its runtime and debug
+    # archives under QEMU, which takes longer than the default 900 seconds.
+    moderate_seconds = 2700 if module == "p4lang-bmv2" else 900
     # The FIPS package test runs the complete SymCrypt unittest under QEMU.
     long_seconds = 5400 if (module, version) == ("sonic-fips", FIPS_CROSS_VERSION) else 2700
-    return [f"--test_timeout=180,900,{long_seconds},7200"]
+    return [f"--test_timeout=180,{moderate_seconds},{long_seconds},7200"]
 
 
 def run(root: Path, module: str, version: str, architecture: str,
