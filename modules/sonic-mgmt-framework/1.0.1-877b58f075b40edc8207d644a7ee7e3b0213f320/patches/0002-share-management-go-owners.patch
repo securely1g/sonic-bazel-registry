@@ -1,0 +1,22 @@
+From: Guohan Lu <securely1g@gmail.com>
+Subject: [PATCH] Contribute Framework dependencies to the consuming Go workspace
+
+Retain the published go_mod integration. The owner source retains its standalone
+go.bazel.work; a consuming root owns its Go workspace and replacements.
+Old dependency-version hunks are unnecessary because the source now owns those pins.
+
+Source commit: 877b58f075b40edc8207d644a7ee7e3b0213f320
+Scope: downstream registry integration; not an upstream bug fix.
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -25,7 +25,8 @@
+ )
+ 
+ go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
+-go_deps.from_file(go_work = "//:go.bazel.work")
++# A consuming root owns its Go workspace. Contribute the Framework module dependencies.
++go_deps.from_file(go_mod = "//:go.mod")
+ 
+ # Root-only patch selection, matching the management-common owner.
+ go_patches = use_extension("@gazelle//:extensions.bzl", "go_deps", dev_dependency = True)

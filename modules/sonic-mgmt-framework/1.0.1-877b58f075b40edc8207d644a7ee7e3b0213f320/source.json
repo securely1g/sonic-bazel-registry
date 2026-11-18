@@ -1,0 +1,10 @@
+{
+  "url": "https://github.com/securely1g/sonic-mgmt-framework/archive/877b58f075b40edc8207d644a7ee7e3b0213f320.tar.gz",
+  "strip_prefix": "sonic-mgmt-framework-877b58f075b40edc8207d644a7ee7e3b0213f320",
+  "integrity": "sha256-tpCa0pKJmyudGHfxadFcCnaAgFSCNWVPGDv+mIyet70=",
+  "patches": {
+    "0001-module-version.patch": "sha256-cdJAP5szAAfWJ+cFMwBYLZXhXYtdqhnhjJipDTNEKmU=",
+    "0002-share-management-go-owners.patch": "sha256-BKJ9MNHutT1rVSw2DTUQWF3I0b8qMB75s/sAV90/8xQ="
+  },
+  "patch_strip": 1
+}

@@ -1,0 +1,18 @@
+From: Guohan Lu <securely1g@gmail.com>
+Subject: [PATCH] Register the Framework source commit
+
+Align only the source module identity with this commit-qualified registration.
+
+Source commit: 877b58f075b40edc8207d644a7ee7e3b0213f320
+Scope: downstream registry integration; not an upstream bug fix.
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-mgmt-framework",
+-    version = "1.0.1",
++    version = "1.0.1-877b58f075b40edc8207d644a7ee7e3b0213f320",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
