@@ -101,16 +101,8 @@ class SourceCatalogTests(unittest.TestCase):
         cases = [
             ('libteam', '1.31.0.sonic.1',
              '1.31.0.sonic.2', ('amd64', 'arm64')),
-            ('sonic-dash-ha', '0.0.1-502377912f3530c9bb6c27007822919f6f32aeb7',
-             '0.0.2-9e0d2c9bd4ffb9d879a3bb86db0e80f2b86862f7', ('amd64',)),
-            ('sonic-dhcpmon', '0.1.0-b824589b2ba49a8ba59142289bfb04bb3ca68875',
-             '0.1.1-9941c86ae87437894fb76f3c10a0db863ba4d289', ('amd64', 'arm64')),
             ('sonic-sairedis', '0.0.5-33443ea1666a23812365d03fb959066ee84c9aa0',
-             '0.0.6-f710c09deb31a5edcd579312f53bf512c5122567', ('amd64', 'arm64')),
-            ('sonic-swss', '0.0.3-9c3797990d4b5a79100a40fe7689927c18212361',
-             '0.0.4-4775fd06c79b6b96fbefaa569ae6884c6c2dee75', ('amd64', 'arm64')),
-            ('sonic-swss', '0.0.4-4775fd06c79b6b96fbefaa569ae6884c6c2dee75',
-             '0.0.4-d84353f6eeadb7067a992bc1ba7de40b0075d755', ('amd64', 'arm64')),
+             '0.0.5-6b9b254c0d083f3c75e20c61e88e083a7acf0a67', ('amd64', 'arm64')),
         ]
         for module, previous, current, supported in cases:
             for version in (previous, current):
@@ -120,6 +112,16 @@ class SourceCatalogTests(unittest.TestCase):
                             registry.github_source_manifests(ROOT, module, version, execution),
                             expected if execution in supported else [],
                         )
+
+    def test_landed_dbsyncd_has_only_its_supported_native_route(self):
+        version = "2.0.1-273c3e8bda3e11f9dc49cb6fede53e1e12daa313"
+        self.assertEqual(
+            registry.github_source_manifests(ROOT, "sonic-dbsyncd", version, "amd64"),
+            [ROOT / "ci/github_sources/cosmos-4.0.2.json"],
+        )
+        self.assertEqual(
+            registry.github_source_manifests(ROOT, "sonic-dbsyncd", version, "arm64"), [],
+        )
 
     def test_cross_resolution_keeps_distdir_and_private_downloader_together(self):
         flags = ["--distdir=/verified/generation", "--experimental_downloader_config=/private/config",
