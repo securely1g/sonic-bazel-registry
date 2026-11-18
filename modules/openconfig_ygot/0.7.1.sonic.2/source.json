@@ -21,7 +21,7 @@
   },
   "overlay": {
     "BUILD.bazel": "sha256-1AIwjhQ8PZtyd1OyPc6t1otXkKKK0dEUsBH+b+0Cbnw=",
-    "MODULE.bazel": "sha256-SWbQW2Q9UAxHZTwwDXQ9jE6OI1LNWePo5bDzC/LbmZ4=",
+    "MODULE.bazel": "sha256-y5NDnqH6xq4xbIyWGikaHrmAQtDWibAXeNPEZ35CAP8=",
     "demo/bgp/BUILD.bazel": "sha256-MjAs+lcFwR4WzFaEPF8PQS10UOUaD61HvJGkd/9e4f0=",
     "demo/device/BUILD.bazel": "sha256-rgDVZQCdqwf1egiO75N0aIIrZk4t8egrprADYrmVN4w=",
     "demo/getting_started/BUILD.bazel": "sha256-AA/hzc8vMTYkPVdLamL6xz1QeOnLCYGQ60vwGlyzzWw=",
