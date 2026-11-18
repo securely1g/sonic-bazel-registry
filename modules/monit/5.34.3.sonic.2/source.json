@@ -1,0 +1,16 @@
+{
+  "url": "https://codeload.github.com/securely1g/sonic-buildimage/tar.gz/40ab930912c5586e245b8c34e770be9729b2e4b0",
+  "integrity": "sha256-RJqwpq5XC4hpJUH7nWzJJt+iEnZVOczLbPtJlMbXFEg=",
+  "strip_prefix": "sonic-buildimage-40ab930912c5586e245b8c34e770be9729b2e4b0/src/monit",
+  "archive_type": "tar.gz",
+  "overlay": {
+    "BUILD.bazel": "sha256-9S6+8vuTA9+y40BX7ibDb0UVidby7NgPR1QwYso4ozU=",
+    "MODULE.bazel": "sha256-prfNWiVb4Vxmkoa4mHx2P4BfQze7yNoDAX7/l9wvbUY=",
+    "config.h.tpl": "sha256-qFCOki886X4mfR9p0jH/dMy0+2Cmo4NmFwGBiOw9SMw=",
+    "debian.BUILD.bazel": "sha256-1a2JokjlzSuMfUGTRUe1pM6K5VC04S4W71m0+mDWPS8=",
+    "installation_test.py": "sha256-o2H0lGytFDRnWvFu0vYu7XgqBb+3szKPaWGgItg23vY=",
+    "source.BUILD.bazel": "sha256-BwEkDmzkBMZuOF3KVmoRtz88QqZIujGVe/IMk3+tiCk=",
+    "source_includes.bzl": "sha256-ByJmp6yh7n3SjZllaalSUiMYjwWzKFmiOvDmI5XOeOg=",
+    "xconfig.h.tpl": "sha256-Ay90cA3sa1B0EFlZuM9sffY5gXSzavYQO5qbCD7b2kE="
+  }
+}
