@@ -1,0 +1,29 @@
+{
+  "url": "https://deb.debian.org/debian/pool/main/i/isc-dhcp/isc-dhcp_4.4.3-P1-2.debian.tar.xz",
+  "integrity": "sha256-ODPBpwN5WwSksRjpaGsL5ohe0CmAB2ucjuNnSUDMmL8=",
+  "overlay": {
+    "BUILD.bazel": "sha256-6iE4StxiXbX1Z4Eh0Cqll0dkYdd67zrjs6mX117/Q70=",
+    "MODULE.bazel": "sha256-qVMWr2zAk/jPrhLygIbCNKPLI0RnQPmUFEGBXfcyJfU=",
+    "bind.BUILD.bazel": "sha256-7WUgiQ4JZVe0s6EZCdpibPhYzqHCaG/KIIeRq9J/MxA=",
+    "header_config.bzl": "sha256-PGXDwlX8IMDxo9HQLWo6Uv4B59hUDWZTC56igrS+vq8=",
+    "installation_test.py": "sha256-3O2vMZLTRayXCnJufJ6/siRk0T4H1UbHvwBDz/urJcY=",
+    "isc-dhcp.BUILD.bazel": "sha256-dfsdYhCwZQtqPpXC1NDSnuX/RN3OL6/eRcn1H+Bj1Ns=",
+    "sonic-patches/0001-Bugfix-Don-t-print-log-messages-to-stderr-in-release.patch": "sha256-8oEQEXduyTNBR3bN7TMcX9ZJCtZ4vLvKalFzFF91wb4=",
+    "sonic-patches/0002-Customizable-Option-82-circuit-ID-and-remote-ID-fiel.patch": "sha256-IE/WWzY/xQW6pEdQgkArkbNMydwKRt3H/1BuNvoqylw=",
+    "sonic-patches/0003-Support-for-obtaining-name-of-physical-interface-tha.patch": "sha256-isyQ1UPw0AGEbKgdlp1SS0Awsu5TLCC9w+gZ7Ht9VNQ=",
+    "sonic-patches/0004-Support-for-loading-port-alias-map-file-to-replace-p.patch": "sha256-HEa73oXB+wLSV0ZmR4WMzSjXSqFRfeeXWaoq64anYCE=",
+    "sonic-patches/0005-Add-enable-use-sockets-to-configure-flags-in-debian-.patch": "sha256-1f43jpn6sbAwx4nTV8lQAR6DzAVpsnQma700UXcEtpY=",
+    "sonic-patches/0006-Bugfix-Ensure-HAVE_SO_BINDTODEVICE-has-a-chance-to-b.patch": "sha256-bmWhukzsauVa3y1fsSy14UhuVLz4HU8Vovr4ZY9pLnE=",
+    "sonic-patches/0007-If-destination-of-BOOTREQUEST-is-directed-broadcast-.patch": "sha256-htbEM5Foes1y7Xoh9qm1TiqFKy9qPRQw6kfUmh176Y8=",
+    "sonic-patches/0008-Don-t-skip-down-interfaces-when-discovering-interfac.patch": "sha256-P6NoPVnJsSo09h8oi1MgnZOVmRafabrg8j+e/dXJhPU=",
+    "sonic-patches/0009-Support-for-dual-tor-scenario.patch": "sha256-oUActTq2fnat/zWJtQ7uxatQgBJIzP2Q1Bqe7bczEu8=",
+    "sonic-patches/0010-Bugfix-correctly-set-interface-netmask.patch": "sha256-LBPLXJqimEJwR2iF3WBUcxfhyLmu8rWsNwY3dU12Zd0=",
+    "sonic-patches/0011-dhcp-relay-Prevent-Buffer-Overrun.patch": "sha256-6cfvbmOLyCU0iLCKbkzTRNMtAI0PnyHf/bU65fweb5c=",
+    "sonic-patches/0012-add-option-si-to-support-using-src-intf-ip-in-relay.patch": "sha256-0fIIXKbx/+Gjja5gYq99Wm1pDiGZV8m+u9WptK5pGt4=",
+    "sonic-patches/0014-enable-parallel-build.patch": "sha256-59acIZ5GiH1p83E+Bh0pktHlMssgijdDlZOS8CEbFXk=",
+    "sonic-patches/0015-option-to-set-primary-address-in-interface.patch": "sha256-fDQKmtaRwROGo1LMMuQUxzMaNqTyJlsm9Wn3dxiEkEM=",
+    "sonic-patches/0016-Don-t-look-up-the-ifindex-for-fallback.patch": "sha256-rV+eGe6186VM5wUjri3n0HtzyYhvx6iFb8TQo4qA0HI=",
+    "sonic-patches/0017-Register-IO-obj-before-create-fd-watch.patch": "sha256-MYXJb8kqYxYSq/lqgW7IWLB/q5hGR80KhCLFmc2EL0Q=",
+    "sonic-patches/series": "sha256-+2gsZAwVOnJFtu0YYu8QyRE8LrkxFwZ0VQ4Ui1GnrWg="
+  }
+}

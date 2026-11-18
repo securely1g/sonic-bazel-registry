@@ -1,0 +1,103 @@
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@bazel_skylib//rules:expand_template.bzl", "expand_template")
+load("@isc-dhcp//:header_config.bzl", "DHCP_CONFIG", "isc_private_headers")
+package(default_visibility = ["//visibility:public"])
+exports_files(["bind/bind.tar.gz", "relay/dhcrelay.8", "RELNOTES", "README"])
+expand_template(name = "config_h", template = "includes/config.h.in", out = "includes/config.h", substitutions = DHCP_CONFIG)
+ISC_DHCP_COPTS = isc_private_headers() + [
+    "-Wall",
+    "-Wdate-time",
+    "-Werror=format-security",
+    "-DHAVE_CONFIG_H",
+    "-DLOCALSTATEDIR=\\\"/var\\\"",
+    # -D_PATH_* macros come from debian/rules (set via CFLAGS)
+    "-D_PATH_DHCPD_CONF=\\\"/etc/dhcp/dhcpd.conf\\\"",
+    "-D_PATH_DHCPD_DB=\\\"/var/lib/dhcp/dhcpd.leases\\\"",
+    "-D_PATH_DHCPD6_DB=\\\"/var/lib/dhcp/dhcpd6.leases\\\"",
+    "-D_PATH_DHCLIENT_SCRIPT=\\\"/sbin/dhclient-script\\\"",
+    "-D_PATH_DHCLIENT_CONF=\\\"/etc/dhcp/dhclient.conf\\\"",
+    "-D_PATH_DHCLIENT_DB=\\\"/var/lib/dhcp/dhclient.leases\\\"",
+    "-D_PATH_DHCLIENT6_DB=\\\"/var/lib/dhcp/dhclient6.leases\\\"",
+    "-DCALL_SCRIPT_ON_ONETRY_FAIL",
+]
+
+# Hardening flags (matches debian/rules DEB_BUILD_MAINT_OPTIONS=hardening=+all)
+ISC_DHCP_LINKOPTS = select({
+    "@platforms//cpu:x86_64": [],
+    "//conditions:default": ["-pthread"],
+}) + [
+    "-Wl,-z,relro,-z,now",
+    "-pie",
+    "-latomic",
+]
+
+ISC_DHCP_HARDEN_COPTS = [
+    "-fPIE",
+    "-fstack-protector-strong",
+    "-D_FORTIFY_SOURCE=2",
+    "-Wformat",
+    "-O2",
+]
+
+# =============================================================================
+# libomapi (OMAPI protocol library)
+# =============================================================================
+
+# Debian builds these libraries again with NSUPDATE for the final relay pass.
+# Keep the original no-DDNS libraries above for the second-pass dhclient.
+cc_library(
+    name = "libomapi_relay",
+    srcs = glob(
+        ["omapip/*.c"],
+        exclude = [
+            "omapip/test.c",
+            "omapip/svtest.c",
+        ],
+    ),
+    hdrs = glob(["includes/**/*.h"]) + [":config_h"],
+    copts = ISC_DHCP_COPTS + ISC_DHCP_HARDEN_COPTS + ["-DNSUPDATE"],
+    deps = [
+        "@isc_dhcp_bind_src//:libdns",
+        "@isc_dhcp_bind_src//:libisccfg",
+        "@isc_dhcp_bind_src//:libirs",
+        "@isc_dhcp_bind_src//:libisc",
+    ],
+)
+
+cc_library(
+    name = "libdhcp_relay",
+    srcs = glob(["common/*.c"]),
+    hdrs = glob(["includes/**/*.h"]) + [":config_h"],
+    copts = ISC_DHCP_COPTS + ISC_DHCP_HARDEN_COPTS + ["-DNSUPDATE"],
+    deps = [
+        ":libomapi_relay",
+        "@isc_dhcp_bind_src//:libdns",
+        "@isc_dhcp_bind_src//:libisccfg",
+        "@isc_dhcp_bind_src//:libirs",
+        "@isc_dhcp_bind_src//:libisc",
+    ],
+)
+
+cc_binary(
+    name = "dhcrelay",
+    srcs = ["relay/dhcrelay.c"],
+    copts = ISC_DHCP_COPTS + ISC_DHCP_HARDEN_COPTS + [
+        "-DNSUPDATE",
+    ],
+    linkopts = ISC_DHCP_LINKOPTS,
+    linkstatic = True,
+    deps = [
+        ":libdhcp_relay",
+        ":libomapi_relay",
+        "@isc_dhcp_bind_src//:libdns",
+        "@isc_dhcp_bind_src//:libisccfg",
+        "@isc_dhcp_bind_src//:libirs",
+        "@isc_dhcp_bind_src//:libisc",
+    ],
+)
+
+
+# Read-only input closure for the existing controlled configuration probe.
+filegroup(name = "probe_inputs", srcs = glob(["**"], exclude = ["BUILD.bazel"]), visibility = ["//visibility:public"])
+exports_files(["configure"])
