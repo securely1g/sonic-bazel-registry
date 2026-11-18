@@ -1,8 +1,8 @@
 From: Guohan Lu <securely1g@gmail.com>
-Subject: [PATCH] Register the sonic-linkmgrd source commit
+Subject: [PATCH] Register the merged sonic-linkmgrd source commit
 
-Align the source module identity with this commit-qualified registration.
-Dependency updates are owned by the source commit.
+Qualify the exact merged source module identity. Preserve all dependency
+declarations from the source owner; unmerged refresh changes are deferred.
 
 Source commit: 4942334e9878b473099d7e07fc82bff9fc8c54f2
 Scope: downstream registry integration; not an upstream bug fix.

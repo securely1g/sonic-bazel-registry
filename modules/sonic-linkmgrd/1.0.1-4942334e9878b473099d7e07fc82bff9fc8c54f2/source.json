@@ -4,6 +4,6 @@
   "strip_prefix": "sonic-linkmgrd-4942334e9878b473099d7e07fc82bff9fc8c54f2",
   "patch_strip": 1,
   "patches": {
-    "0001-module-version.patch": "sha256-ZHCxcTbdyRlLSedygwq8ZiVtVE7W9Jwypyo8fM9fQUY="
+    "0001-module-version.patch": "sha256-hd3GW8OP1tzZm3vnsqS8I2u2MV0McTsMa2t+R3AcXHk="
   }
 }

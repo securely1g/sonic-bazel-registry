@@ -1,9 +1,7 @@
 From: Guohan Lu <securely1g@gmail.com>
-Subject: [PATCH] Contribute Framework dependencies to the consuming Go workspace
+Subject: [PATCH] Preserve Framework consumer Go ownership
 
-Retain the published go_mod integration. The owner source retains its standalone
-go.bazel.work; a consuming root owns its Go workspace and replacements.
-Old dependency-version hunks are unnecessary because the source now owns those pins.
+Retain published go_mod consumer integration; the owner keeps its standalone go_work declaration.
 
 Source commit: 1ca814b6f0053fb728d40bfa82be69a4d4eca6bf
 Scope: downstream registry integration; not an upstream bug fix.

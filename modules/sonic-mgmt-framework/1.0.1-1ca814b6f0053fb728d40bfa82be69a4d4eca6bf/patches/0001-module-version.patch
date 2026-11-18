@@ -1,7 +1,8 @@
 From: Guohan Lu <securely1g@gmail.com>
-Subject: [PATCH] Register the Framework source commit
+Subject: [PATCH] Register the merged Framework source commit
 
-Align only the source module identity with this commit-qualified registration.
+Qualify the exact merged source module identity. Preserve all dependency
+declarations from the source owner; unmerged refresh changes are deferred.
 
 Source commit: 1ca814b6f0053fb728d40bfa82be69a4d4eca6bf
 Scope: downstream registry integration; not an upstream bug fix.

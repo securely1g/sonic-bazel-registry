@@ -3,7 +3,7 @@
   "strip_prefix": "sonic-dash-api-55310bf7437d67411418c974587adcdc1b194d6b",
   "integrity": "sha256-ataw6/wlkCqytUopsY6udRiqooba18eFmtMWI1qBOKE=",
   "patches": {
-    "0001-module-version.patch": "sha256-NpSqQaFu2MGskUGwmcImlFv5JxoklUOmacyGUqQePSQ="
+    "0001-module-version.patch": "sha256-whFrtvysCM1RIhQddSuVGRqgvesc4/pbGe7hkv/WJYM="
   },
   "patch_strip": 1
 }

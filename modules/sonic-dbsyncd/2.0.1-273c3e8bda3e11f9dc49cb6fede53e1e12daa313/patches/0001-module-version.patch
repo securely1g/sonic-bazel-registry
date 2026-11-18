@@ -1,8 +1,8 @@
 From: Guohan Lu <securely1g@gmail.com>
-Subject: [PATCH] Register the sonic-dbsyncd source commit
+Subject: [PATCH] Register the merged sonic-dbsyncd source commit
 
-Align the source module identity with this commit-qualified registration.
-Dependency updates are owned by the source commit.
+Qualify the exact merged source module identity. Preserve all dependency
+declarations from the source owner; unmerged refresh changes are deferred.
 
 Source commit: 273c3e8bda3e11f9dc49cb6fede53e1e12daa313
 Scope: downstream registry integration; not an upstream bug fix.

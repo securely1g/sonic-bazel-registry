@@ -1,9 +1,0 @@
-{
-  "url": "https://github.com/securely1g/sonic-dash-ha/archive/9e0d2c9bd4ffb9d879a3bb86db0e80f2b86862f7.tar.gz",
-  "strip_prefix": "sonic-dash-ha-9e0d2c9bd4ffb9d879a3bb86db0e80f2b86862f7",
-  "integrity": "sha256-27iGeGNnizWVePqZxlo6l+jChaol09cIXyMXVzSx3UY=",
-  "patches": {
-    "0001-module-version.patch": "sha256-g9nc3LPh1UspQrP3rQgEs2vgeZ6Tzmium0LlBzAxrF4="
-  },
-  "patch_strip": 1
-}

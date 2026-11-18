@@ -1,8 +1,8 @@
 From: Guohan Lu <securely1g@gmail.com>
-Subject: [PATCH] Register the sonic-mgmt-common source commit
+Subject: [PATCH] Register the merged sonic-mgmt-common source commit
 
-Align the source module identity with this commit-qualified registration.
-Dependency updates are owned by the source commit.
+Qualify the exact merged source module identity. Preserve all dependency
+declarations from the source owner; unmerged refresh changes are deferred.
 
 Source commit: c83630943c1e869107463be4f885fdfcc8321759
 Scope: downstream registry integration; not an upstream bug fix.

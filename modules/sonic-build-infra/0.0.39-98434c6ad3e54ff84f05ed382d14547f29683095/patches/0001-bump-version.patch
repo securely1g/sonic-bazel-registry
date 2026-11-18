@@ -1,0 +1,20 @@
+From: Guohan Lu <securely1g@gmail.com>
+Subject: [PATCH] Register the merged sonic-build-infra source commit
+
+Qualify the exact merged source module identity. Preserve all dependency
+declarations from the source owner; unmerged refresh changes are deferred.
+
+Source commit: 98434c6ad3e54ff84f05ed382d14547f29683095
+Scope: downstream registry integration; not an upstream bug fix.
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,7 +1,7 @@
+ # Keep bazel_compatibility in sync with sonic-buildimage's .bazelversion.
+ module(
+     name = "sonic-build-infra",
+-    version = "0.0.39",
++    version = "0.0.39-98434c6ad3e54ff84f05ed382d14547f29683095",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",

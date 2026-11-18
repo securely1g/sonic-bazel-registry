@@ -1,8 +1,8 @@
 From: Guohan Lu <securely1g@gmail.com>
-Subject: [PATCH] Register the sonic-platform-common source commit
+Subject: [PATCH] Register the merged sonic-platform-common source commit
 
-Align the source module identity with this commit-qualified registration.
-Dependency updates are owned by the source commit.
+Qualify the exact merged source module identity. Preserve all dependency
+declarations from the source owner; unmerged refresh changes are deferred.
 
 Source commit: ccb4645c60863d9949549bb233134150764e98a0
 Scope: downstream registry integration; not an upstream bug fix.
