@@ -1,0 +1,18 @@
+{
+  "url": "https://deb.debian.org/debian/pool/main/k/kdump-tools/kdump-tools_1.10.7.tar.xz",
+  "integrity": "sha256-NjBQbyKEIKlsAwYFAJqUp6O4eN+J0ZA+i9EgXa+5E70=",
+  "strip_prefix": "kdump-tools-1.10.7",
+  "overlay": {
+    "MODULE.bazel": "sha256-d53P7uzPz6KZ82Y4UeypC9BUuF0IRFSnDHyAvY1i34g=",
+    "BUILD.bazel": "sha256-FDWwrjAahhEdfAv0EguNf6/Zj5tkufVnDuBV/V3oUZQ=",
+    "bazel/run_shellcheck.py": "sha256-chCSZLsXED5roW7FkL6umvRniERLHaCz+mjA0vrhT5w=",
+    "bazel/installation_test.py": "sha256-1jMBGq2YdxArfstJK+5di1XhuKvrb5ZgWe20PFd4xJ4="
+  },
+  "patch_strip": 1,
+  "patches": {
+    "0002-core-file-prefixed-by-kdump.patch": "sha256-0tEkqqlBawOWMeZ11hG/a4FyLl5nhccYetTWGBIDMnU=",
+    "0003-Revert-the-MODULES-dep-optimization.patch": "sha256-VU28uH8o2Nl3KZshb8OW3313ArJWwr9AD5mU/vn9e1U=",
+    "0004-disable-kdump-load-check.patch": "sha256-duiFuF8VqUNpj6MEhxkuf/SFaUVxB+DWSrJl1KWJKaI=",
+    "0005-Generate-initrd-for-kdump-on-build-time.patch": "sha256-6CMdzYMaz5NgUwEdJrBiZ3K3i2MsbsvwUEUnzqKslcs="
+  }
+}

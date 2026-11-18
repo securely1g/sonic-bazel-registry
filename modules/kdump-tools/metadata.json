@@ -5,7 +5,8 @@
     "https://salsa.debian.org/debian/kdump-tools"
   ],
   "versions": [
-    "1.10.7.sonic.1"
+    "1.10.7.sonic.1",
+    "1.10.7.sonic.2"
   ],
   "yanked_versions": {}
 }
