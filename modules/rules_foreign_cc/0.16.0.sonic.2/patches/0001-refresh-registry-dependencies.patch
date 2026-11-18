@@ -1,0 +1,38 @@
+From: Guohan Lu <securely1g@gmail.com>
+Subject: [PATCH] Refresh rules_foreign_cc registry dependency versions
+
+The registry dependency refresh selects the newest non-yanked module
+versions published at catalog 3d1cc5e8dfd553d2acbe4198e504a245e6bdbddf.
+Apply this after the inherited patch series so the fetched MODULE
+matches the registry declaration. Package source and behavior patches
+remain unchanged. This is a downstream registry integration change.
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -2,7 +2,7 @@
+ 
+ module(
+     name = "rules_foreign_cc",
+-    version = "0.16.0.sonic.1",
++    version = "0.16.0.sonic.2",
+     compatibility_level = 1,
+ )
+ 
+@@ -10,7 +10,7 @@
+ bazel_dep(name = "bazel_skylib", version = "1.9.2")
+ bazel_dep(name = "platforms", version = "1.0.0")
+ bazel_dep(name = "rules_cc", version = "0.2.18")
+-bazel_dep(name = "rules_python", version = "1.9.0")
++bazel_dep(name = "rules_python", version = "1.9.0.sonic.1")
+ bazel_dep(name = "rules_shell", version = "0.6.1")
+ bazel_dep(name = "bazel_lib", version = "3.2.0")
+ bazel_dep(name = "m4", version = "1.4.21.bcr.4")
+@@ -19,7 +19,7 @@
+ bazel_dep(name = "pkgconf", version = "3.0.7")
+ 
+ # Dev dependencies
+-bazel_dep(name = "gazelle", version = "0.44.0", dev_dependency = True, repo_name = "bazel_gazelle")
++bazel_dep(name = "gazelle", version = "0.54.0.sonic.1", dev_dependency = True, repo_name = "bazel_gazelle")
+ bazel_dep(name = "bazel_skylib_gazelle_plugin", version = "1.9.0", dev_dependency = True)
+ 
+ # Note: 2.x forces rules_nodejs 6.7.3, which is required for bazel 9

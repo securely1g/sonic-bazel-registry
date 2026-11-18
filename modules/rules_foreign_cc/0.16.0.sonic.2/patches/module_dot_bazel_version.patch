@@ -1,0 +1,11 @@
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -2,7 +2,7 @@
+ 
+ module(
+     name = "rules_foreign_cc",
+-    version = "0.0.0",
++    version = "0.16.0.sonic.1",
+     compatibility_level = 1,
+ )
+ 
