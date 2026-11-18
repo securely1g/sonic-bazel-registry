@@ -1,0 +1,4 @@
+load(":package.bzl", "ifupdown2_targets")
+package(default_visibility = ["//visibility:public"])
+exports_files(["source.BUILD.bazel"] + glob(["patch/*.patch"]))
+ifupdown2_targets(source_prefix = "@ifupdown2_src//:")
