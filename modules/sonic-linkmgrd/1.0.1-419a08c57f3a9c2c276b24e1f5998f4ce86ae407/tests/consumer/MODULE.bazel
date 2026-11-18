@@ -1,0 +1,19 @@
+module(
+    name = "linkmgrd_external_consumer",
+    version = "1.0.0",
+)
+
+bazel_dep(name = "sonic-linkmgrd", version = "1.0.1-419a08c57f3a9c2c276b24e1f5998f4ce86ae407")
+bazel_dep(name = "sonic-build-infra", version = "0.0.38-0baa4acc9eac9ccc793b81104b1580d530271cbe", repo_name = "sonic_build_infra")
+bazel_dep(name = "rules_python", version = "1.9.0.sonic.1")
+bazel_dep(name = "rules_rs", version = "0.1.0")
+
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(
+    is_default = True,
+    python_version = "3.13",
+)
+
+# The consumer selects C++ and TAR targets, with no Rust compilation.
+rust = use_extension("@rules_rs//rs:rules_rust_reexported_extensions.bzl", "rust")
+rust.toolchain(versions = [])
