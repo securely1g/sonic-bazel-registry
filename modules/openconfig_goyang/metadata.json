@@ -11,7 +11,8 @@
     "https://github.com/openconfig/goyang"
   ],
   "versions": [
-    "0.0.0.sonic.1-20200309174518-a00bece872fc"
+    "0.0.0.sonic.1-20200309174518-a00bece872fc",
+    "0.0.0.sonic.2-20200309174518-a00bece872fc"
   ],
   "yanked_versions": {}
 }
