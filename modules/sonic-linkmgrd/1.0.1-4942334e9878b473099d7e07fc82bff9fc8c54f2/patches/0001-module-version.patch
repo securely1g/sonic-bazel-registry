@@ -1,0 +1,19 @@
+From: Guohan Lu <securely1g@gmail.com>
+Subject: [PATCH] Register the sonic-linkmgrd source commit
+
+Align the source module identity with this commit-qualified registration.
+Dependency updates are owned by the source commit.
+
+Source commit: 4942334e9878b473099d7e07fc82bff9fc8c54f2
+Scope: downstream registry integration; not an upstream bug fix.
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-linkmgrd",
+-    version = "1.0.1",
++    version = "1.0.1-4942334e9878b473099d7e07fc82bff9fc8c54f2",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
