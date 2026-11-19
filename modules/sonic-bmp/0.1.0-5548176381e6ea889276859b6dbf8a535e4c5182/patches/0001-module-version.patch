@@ -1,0 +1,10 @@
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-bmp",
+-    version = "0.1.0",
++    version = "0.1.0-5548176381e6ea889276859b6dbf8a535e4c5182",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",

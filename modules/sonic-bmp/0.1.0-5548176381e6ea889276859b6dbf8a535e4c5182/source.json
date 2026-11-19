@@ -1,0 +1,9 @@
+{
+  "url": "https://github.com/securely1g/sonic-bmp/archive/5548176381e6ea889276859b6dbf8a535e4c5182.tar.gz",
+  "strip_prefix": "sonic-bmp-5548176381e6ea889276859b6dbf8a535e4c5182",
+  "integrity": "sha256-Q8bHDYXewWMncj2LNbZWQgfS3oRlNAvxs5jDsESKioY=",
+  "patches": {
+    "0001-module-version.patch": "sha256-vsVoJrDoydZSwCJn+6Dfen02Gang+VoihNjSEgRp9Oc="
+  },
+  "patch_strip": 1
+}
