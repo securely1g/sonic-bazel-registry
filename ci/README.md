@@ -890,38 +890,61 @@ all bazelrc files. The workflow verifies the binary's checksum again. ARM cross 
 actions are pinned to commit SHAs, checkout does not
 persist credentials, and the workflow uses read-only repository permissions.
 
-Local native AMD64 and cross ARM module jobs pass
-`--bazel-startup-arg=--host_jvm_args=-Xmx2g` to bound
-Bazel's Java heap within the worker's memory limit. The runner accepts
-repeated startup arguments, forwards them to build, test, cquery, info and Rust
-preparation, and records them in `validation.json`.
-Repeated `--bazel-build-arg` options reach build, test and output queries.
-Local module jobs use `--jobs=1` and `--discard_analysis_cache` to reduce
-concurrent compiler memory. Rust preparation receives those settings too.
-On a large runner, the P4 recipes can use their own `make -j4` within one
-Bazel action. The job verifies an effective 8-CPU cgroup quota, at least 8 CPUs
-in its affinity, and a 16 GiB memory limit before starting validation. Its
-`p4-runner-resources.json` artifact records these limits, the command exit code,
-and the job cgroup's available memory peak and OOM counters before and after
-Bazel. For locally executed CMake and Make actions, it also reads Bazel's
-existing build and test event files. For each reported action mnemonic, it
-divides the accumulated user and system CPU seconds by the wall time between
-its first start and last finish. With multiple actions this gives average cores
-over the group's span, including gaps. Bazel's action count can include cache
-hits, which add no local CPU time. Missing CPU metrics and phases with remote
-execution are reported without a cores estimate. This measurement records CPU
-consumption of the whole recipe, including its child processes.
-[Bazel build metrics](https://github.com/bazelbuild/bazel/blob/8.5.1/src/main/java/com/google/devtools/build/lib/buildeventstream/proto/build_event_stream.proto#L847-L873).
+Every module validation, including native ARM64, runs through
+`ci/runner_resources.py`. The wrapper records the tightest enclosing cgroup v2
+CPU quota and memory limit, plus process CPU affinity, in
+`runner-resources.json`.
+
+Bazel uses its default job count and CPU budget. The resource wrapper sets
+only the action memory budget: 80% of the effective memory remaining after
+reserving the existing 2 GiB JVM maximum heap. Effective memory is the smaller
+of host RAM and the tightest enclosing cgroup limit. A 6 GiB runner receives
+3276 MiB; a 16 GiB runner receives 11468 MiB. Keep
+`--discard_analysis_cache`. Build rules retain their action resource estimates.
+
+CI does not select compiler concurrency or inject Make/GC flags by module name.
+Build rules own action resource declarations and any internal tool parallelism.
+A wrapper that starts several compilers must declare their combined resource
+needs; native compile/link actions can declare their individual needs. These
+estimates guide scheduling and do not impose hard per-action memory limits or
+infer the process tree's future peak. Published module recipes remain unchanged.
+
+The receipt records cgroup memory peak and OOM counters before and after
+validation, the command exit status, and local CPU
+measurements by action mnemonic for both native and wrapped actions. Cache-only,
+remote, missing and ambiguous measurements retain explicit statuses. Repeated
+startup/build arguments reach build, test and output queries through the existing
+runner interface. Cache settings remain unchanged.
+
+### Opt-in analysis diagnostics
+
+The reusable `registry-module.yml` also accepts manual dispatch for one exact
+module/version on the native AMD64 pool. Its manual defaults select the reviewed
+libnl3 `3.7.0.sonic.8` case. Set `profile_analysis=true` to retain
+`build.profile.json`, `test.profile.json`, separate Starlark CPU profiles, and
+`jvm-gc.log` in the existing evidence artifact. Ordinary workflow calls leave
+profiling disabled. The runner CLI exposes the same opt-in as `--profile-analysis`.
+
+Use the JSON traces to measure loading/analysis boundaries, fetch intervals,
+Starlark tasks and garbage-collection events. Use the CPU samples for Starlark
+hotspots and the JVM log for GC/safepoint pauses. Concurrent downloads, analysis
+threads and background GC can overlap; their totals are not additive partitions
+of analysis wall time. Profiling can affect the measured run. Evidence from a
+rerun must retain its own commit, runner capacity and cache identity, rather than
+being attributed to an older unprofiled command.
+
+The diagnostics use the existing cache policy and private-mirror redaction and
+publication checks. No cache is emptied or redirected by the profiling option.
 
 The default repository Actions variable setting is
 `REGISTRY_P4_RUNNER_PROFILE=large` (also selected when the variable is unset).
 GitHub waits for an available runner matching the plan's exact labels. If
 large workers are offline, set the variable to `standard` and **start a new
-run that executes planning**. The resulting jobs use the ordinary pool and
-append `--eval=.NOTPARALLEL:` to target and execution-platform `GNUMAKEFLAGS`
-to fit 6 GiB. Retrying only an already-planned job retains its previous label.
+run that executes planning**. The resulting jobs use the ordinary pool and its
+measured capacity under the same scheduling policy. Retrying only an
+already-planned job retains its previous label.
 Restore the variable to `large` or remove it to resume the large route. Check
-the P4 jobs' resource artifacts after enabling a new pool.
+the jobs' resource artifacts after enabling a new pool.
 
 These three P4 modules have a six-hour deadline per job. The planner combines
 native AMD64 and ARM64 cross jobs and splits them into matrices of at most
@@ -1104,13 +1127,14 @@ fresh work and artifact directories. This command is a local opt-in example,
 not a request to execute inside an active registered worker:
 
 ```sh
-sudo -n /usr/bin/python3 -I -S ci/registry_ci.py run \
+sudo -n /usr/bin/python3 -I -S ci/runner_resources.py \
+  /tmp/registry-ci-libnl3-cross-artifacts/runner-resources.json \
+  /usr/bin/python3 -I -S ci/registry_ci.py run \
   --module libnl3 --version 3.7.0.sonic.7 --architecture arm64 \
   --cross-compile --test-executor /usr/local/bin/sonic-arm64 \
   --test-container-image "$SONIC_RUNNER_IMAGE_REFERENCE" \
   --bazel /usr/local/bin/bazel \
-  --bazel-startup-arg=--host_jvm_args=-Xmx2g \
-  --bazel-build-arg=--jobs=1 --bazel-build-arg=--discard_analysis_cache \
+  --bazel-build-arg=--discard_analysis_cache \
   --work-dir /tmp/registry-ci-libnl3-cross \
   --artifacts /tmp/registry-ci-libnl3-cross-artifacts
 ```

@@ -1161,6 +1161,18 @@ def read_log_tail(path: Path, max_bytes: int) -> str:
         return stream.read().decode(errors="replace")
 
 
+def analysis_profile_startup_args(artifacts: Path) -> list[str]:
+    return ["--host_jvm_args=-Xlog:gc*,safepoint:file=" + str(artifacts / "jvm-gc.log")
+            + ":time,uptimemillis,level,tags"]
+
+
+def analysis_profile_flags(artifacts: Path, phase: str) -> list[str]:
+    return ["--profile=" + str(artifacts / (phase + ".profile.json")),
+            "--starlark_cpu_profile=" + str(artifacts / (phase + ".starlark.pprof")),
+            *["--experimental_profile_additional_tasks=" + task for task in
+              ("starlark_user_fn", "starlark_builtin_fn", "starlark_repository_fn")]]
+
+
 def run_logged(command: list[str], cwd: Path, log: Path) -> None:
     print(f"Running Bazel validation; log: {log}", flush=True)
     with log.open("w") as output:
@@ -1650,7 +1662,8 @@ def run(root: Path, module: str, version: str, architecture: str,
         test_container_image: str | None = None,
         bazel_startup_args: list[str] | None = None,
         bazel_build_args: list[str] | None = None,
-        cross_compile: bool = False, test_executor: Path | None = None) -> None:
+        cross_compile: bool = False, test_executor: Path | None = None,
+        profile_analysis: bool = False) -> None:
     config = validate_entry(root, module, version)
     require(architecture in config["architectures"], "Architecture is not configured for this version")
     additional = config.get("additional_targets", {}).get(architecture, {})
@@ -1765,8 +1778,10 @@ def run(root: Path, module: str, version: str, architecture: str,
                     "Cross tests must execute in an ARM64 Debian Trixie runtime")
             cross_runtime["executor_sha256"] = hashlib.sha256(test_executor.read_bytes()).hexdigest()
             cross_runtime["executor_prefix"] = executor_prefix
+        profiling_startup = analysis_profile_startup_args(artifacts) if profile_analysis else []
+
         prefix = [bazel, "--ignore_all_rc_files", f"--output_user_root={work_dir / 'bazel'}",
-                  *(bazel_startup_args or [])]
+                  *(bazel_startup_args or []), *profiling_startup]
         flags = [f"--registry={root.resolve().as_uri()}", "--registry=https://bcr.bazel.build/",
                  f"--platforms={config['platforms'][architecture]}", "--lockfile_mode=update",
                  f"--experimental_downloader_config={root.resolve() / 'ci/source_mirrors.cfg'}",
@@ -1828,7 +1843,8 @@ def run(root: Path, module: str, version: str, architecture: str,
                 shutil.copy2(consumer / "MODULE.bazel", artifacts / "consumer.MODULE.bazel")
             flags.extend(prepare_rust(config, consumer, work_dir, artifacts, prefix, flags))
             with build_cache_audit(config.get("cache_audit_targets", []), work_dir, artifacts) as audit_flags:
-                run_logged([*prefix, "build", *flags, *audit_flags,
+                profile_flags = analysis_profile_flags(artifacts, "build") if profile_analysis else []
+                run_logged([*prefix, "build", *flags, *audit_flags, *profile_flags,
                             f"--build_event_json_file={artifacts / 'build-events.jsonl'}", *build_targets],
                            consumer, artifacts / "build.log")
             declared_trees = query_output_trees(prefix, flags, build_targets, consumer, artifacts)
@@ -1912,7 +1928,7 @@ def run(root: Path, module: str, version: str, architecture: str,
             # separate bind mounts reject those links even on one filesystem.
             # Keep input staging within the disposable container, and leave
             # build action strategies unchanged.
-            run_logged([*prefix, "test", *flags, *test_flags, "--test_env=HOME=",
+            run_logged([*prefix, "test", *flags, *test_flags, *(analysis_profile_flags(artifacts, "test") if profile_analysis else []), "--test_env=HOME=",
                         f"--strategy=TestRunner={TEST_SANDBOX_STRATEGY}",
                         "--nocache_test_results", "--test_output=errors",
                         f"--build_event_json_file={artifacts / 'test-events.jsonl'}", *test_targets],
@@ -2030,6 +2046,8 @@ def main() -> None:
                         help="repeatable Bazel startup option; use --bazel-startup-arg=--option=value")
     runner.add_argument("--bazel-build-arg", action="append", default=[],
                         help="repeatable Bazel build/test/query option; use --bazel-build-arg=--option=value")
+    runner.add_argument("--profile-analysis", action="store_true",
+                        help="retain JSON traces, Starlark CPU profiles and JVM GC/safepoint logs")
     runner.add_argument("--cross-compile", action="store_true",
                         help="build ARM64 targets on AMD64 and execute tests with an explicit emulated runtime")
     runner.add_argument("--test-executor", type=Path,
@@ -2050,7 +2068,7 @@ def main() -> None:
         else:
             run(ROOT, args.module, args.version, args.architecture, args.work_dir, args.artifacts,
                 args.bazel, args.test_container_image, args.bazel_startup_arg, args.bazel_build_arg,
-                args.cross_compile, args.test_executor)
+                args.cross_compile, args.test_executor, profile_analysis=args.profile_analysis)
     except (RegistryError, OSError, subprocess.CalledProcessError) as error:
         parser.exit(1, f"Registry CI failed: {error}\n")
 
