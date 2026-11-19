@@ -1,3 +1,9 @@
+## Dependency refresh for `1.2.4.2.sonic.5`
+
+This candidate retains the `1.2.4.2.sonic.4` source and existing patches. Its module dependencies select the newest non-yanked versions published at `3d1cc5e8dfd553d2acbe4198e504a245e6bdbddf`. Versions introduced by this refresh are not dependency targets of the same refresh.
+
+Existing unpublished changes from `65c7510587f999dda86ceff8758a11c87a6896a4` are retained.
+
 # P4C 1.2.4.2 for SONiC
 
 This producer retains SONiC's `p4lang-p4c` 1.2.4.2-3 CMake/Make build
@@ -113,3 +119,12 @@ file or new DEB producer.
 DASH uses `@p4c//:p4c_bm2_ss` on the execution platform. This target builds
 the upstream BMv2 simple-switch executable with the same IR configuration as
 the packaged compiler. The runtime and debug TARs still contain the full suite.
+
+The generator, packaged compiler, and standalone BMv2 compiler declare no
+C/C++ header output. Their staged installation trees omit the former empty
+`include/` placeholder so the registry runners can restore cached builds.
+
+The two generator binaries use paths relative to the Bazel execution root and
+rely on their launchers for runtime libraries. The package test checks the
+actual execution-platform binaries for embedded execution roots and ELF
+RPATH/RUNPATH entries on both target architectures.

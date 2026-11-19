@@ -3,7 +3,7 @@
   "integrity": "sha256-hnGpC27CUr3n9SL0tp+FLmsehx5w3444FfgtrPtuk5Q=",
   "overlay": {
     "BUILD.bazel": "sha256-Ogui7jU6GIwuPZFRsxWarLejWoYdzgDo3w0XHbQIhx0=",
-    "MODULE.bazel": "sha256-AOkhuTzpSwsBqzTkUgp0mlgWSYjP5ONdy9Jf5LrTrVA=",
+    "MODULE.bazel": "sha256-Ki66NKOofGVlXO0kVlSgY7ug/URgqQbrEssHDkbwiKw=",
     "bazel/0001-native-protoc.patch": "sha256-qlJafmRxKJxhJVnFMfRgE2gxeMzuRi1g5k/4vYCVFts=",
     "bazel/0002-use-boost-1.83.patch": "sha256-S7mHEysJW4XvI+uW2xzQ7A/hz1iN1H+4+zvILwyOG3s=",
     "bazel/0003-fix-build-for-boost-1.83.patch": "sha256-lIir3S1os2V47iAljZNqEOp0TSG18yiDsBmDDQu9obM=",
@@ -26,6 +26,8 @@
   "strip_prefix": "p4c-624c6be8076881e9af1e2f7d7691bc6c4416f4b1",
   "patch_strip": 1,
   "patches": {
-    "0001-build-only-the-bmv2-compiler-for-dash.patch": "sha256-0gkx+2vzkQPMHRi3OWut7WtkmqwpJiO+8HCbohPnDrE="
+    "0001-build-only-the-bmv2-compiler-for-dash.patch": "sha256-0gkx+2vzkQPMHRi3OWut7WtkmqwpJiO+8HCbohPnDrE=",
+    "0002-omit-unused-include-output-trees.patch": "sha256-tSrpWYuLHzgs5bZIAZZ9ydTGGQcZImWx2QfTHOY0RXc=",
+    "0003-build-reproducible-host-generators.patch": "sha256-FmXX+h1834yoLdaOEHp4JfaZ1ZNZOAVp6UFqqsPp+fQ="
   }
 }
