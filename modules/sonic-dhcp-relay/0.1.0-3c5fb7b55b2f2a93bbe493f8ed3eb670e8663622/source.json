@@ -1,8 +1,0 @@
-{
-  "url": "https://github.com/securely1g/sonic-dhcp-relay/archive/3c5fb7b55b2f2a93bbe493f8ed3eb670e8663622.tar.gz",
-  "strip_prefix": "sonic-dhcp-relay-3c5fb7b55b2f2a93bbe493f8ed3eb670e8663622",
-  "integrity": "sha256-yiIwG3xxrqgGNUyiy8te4UDYL02hnMrRHANb4QB5+xI=",
-  "overlay": {
-    "MODULE.bazel": "sha256-Yxt6mQ2z5DEP62fMe03Kldx5Rjmy9SD+/WnUjfIa8gQ="
-  }
-}

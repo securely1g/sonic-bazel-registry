@@ -1,0 +1,25 @@
+load("@rules_python//python:py_test.bzl", "py_test")
+
+py_test(
+    name = "archive_contract_test",
+    srcs = ["archive_contract_test.py"],
+    args = [
+        "$(rootpath @sonic-dhcp-relay//dhcp4relay:runtime)",
+        "$(rootpath @sonic-dhcp-relay//dhcp4relay:runtime.debug_symbols)",
+        "$(rootpath @sonic-dhcp-relay//:dhcp4_metadata)",
+        "$(rootpath @sonic-dhcp-relay//dhcp6relay:runtime)",
+        "$(rootpath @sonic-dhcp-relay//dhcp6relay:runtime.debug_symbols)",
+        "$(rootpath @sonic-dhcp-relay//:dhcp6_metadata)",
+    ],
+    data = [
+        "@sonic-dhcp-relay//dhcp4relay:runtime",
+        "@sonic-dhcp-relay//dhcp4relay:runtime.debug_symbols",
+        "@sonic-dhcp-relay//:dhcp4_metadata",
+        "@sonic-dhcp-relay//dhcp6relay:runtime",
+        "@sonic-dhcp-relay//dhcp6relay:runtime.debug_symbols",
+        "@sonic-dhcp-relay//:dhcp6_metadata",
+    ],
+    deps = ["@sonic_build_infra//deb:elf_metadata"],
+    python_version = "3.13",
+    legacy_create_init = False,
+)

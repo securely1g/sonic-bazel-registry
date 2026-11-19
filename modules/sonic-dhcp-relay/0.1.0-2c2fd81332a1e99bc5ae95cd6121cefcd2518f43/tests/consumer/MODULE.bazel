@@ -1,0 +1,35 @@
+module(name = "dhcp_relay_registry_consumer")
+
+bazel_dep(name = "sonic-dhcp-relay", version = "0.1.0-2c2fd81332a1e99bc5ae95cd6121cefcd2518f43")
+bazel_dep(name = "sonic-build-infra", version = "0.0.39-81476192bf2cdb70bb646e85935c5d698b6de8a0", repo_name = "sonic_build_infra")
+bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.21")
+bazel_dep(name = "rules_python", version = "1.9.0.sonic.1")
+bazel_dep(name = "rules_rs", version = "0.1.0")
+bazel_dep(name = "rules_cc", version = "0.2.20")
+bazel_dep(name = "tar.bzl", version = "0.10.5.sonic.2")
+
+# Reproduce the source root's supported Bazel 8.5.1 toolchain selections.
+single_version_override(module_name = "rules_cc", version = "0.2.20")
+single_version_override(module_name = "tar.bzl", version = "0.10.5.sonic.2")
+
+gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
+use_repo(gcc, "gcc_toolchains")
+register_toolchains("@gcc_toolchains//:all")
+
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(is_default = True, python_version = "3.13")
+
+rust = use_extension("@rules_rs//rs:rules_rust_reexported_extensions.bzl", "rust")
+rust.toolchain(edition = "2021", versions = ["1.90.0"], extra_target_triples = ["aarch64-unknown-linux-gnu", "x86_64-unknown-linux-gnu"])
+use_repo(rust, "rust_toolchains")
+register_toolchains("@rust_toolchains//:all")
+
+# Root selection composes all source owners against the same published lock.
+apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
+apt.import_lock(
+    lock = "@sonic_build_infra//apt:apt.lock.json",
+    requests = "@sonic_build_infra//apt:requests.json",
+    sources = "@sonic_build_infra//apt:sources.json",
+    libraries = True,
+    dependency_sets = ["dhcpmon_debian", "dhcp_relay_test_debian", "trixie"],
+)
