@@ -48,7 +48,7 @@ jobs:
   validate:
     name: Validate module
     runs-on: ${{ fromJSON(inputs.runner) }}
-    # Serial P4 builds and the cold SWSS cross-build can take over three hours.
+    # Large P4 graphs and the cold SWSS cross-build can take over three hours.
     timeout-minutes: >-
       ${{ (((contains(fromJSON(inputs.runner), 'debian-trixie-container') ||
              contains(fromJSON(inputs.runner), 'debian-trixie-container-large')) &&
@@ -67,7 +67,6 @@ jobs:
       DEBIAN_FRONTEND: noninteractive
       CI_MODULE: ${{ inputs.module }}
       CI_VERSION: ${{ inputs.version }}
-      CI_LARGE_RUNNER: ${{ contains(fromJSON(inputs.runner), 'debian-trixie-container-large') }}
       CI_ARCHITECTURE: ${{ inputs.architecture }}
       CI_EXECUTION_ARCHITECTURE: ${{ inputs.execution_architecture || inputs.architecture }}
       CI_CROSS_COMPILE: ${{ inputs.cross_compile }}
@@ -195,46 +194,21 @@ jobs:
           set -euo pipefail
           ROOT=()
           SECRET_ENV=()
-          BAZEL_STARTUP_ARGS=()
-          BAZEL_BUILD_ARGS=()
+          BAZEL_BUILD_ARGS=(--bazel-build-arg=--discard_analysis_cache)
           CROSS_ARGS=()
           HTTP_AUDIT_ARGS=()
           if [[ "${HTTP_AUDIT_READY:-}" == success ]]; then
             HTTP_AUDIT_ARGS=(--http-audit-jar "$RUNNER_TEMP/debian-http-audit/debian-http-audit.jar")
           fi
-          RESOURCE_RECEIPT=()
+          # The same budget applies to every module and target architecture.
+          RESOURCE_RECEIPT=(python3 ci/runner_resources.py "$GITHUB_WORKSPACE/ci-artifacts/runner-resources.json")
           if [[ "$CI_EXECUTION_ARCHITECTURE" == amd64 ]]; then
             TEST_CONTAINER_IMAGE="${SONIC_RUNNER_IMAGE_REFERENCE:?Missing runner image identity}"
             ROOT=(sudo -n)
             SECRET_ENV=(--preserve-env=DEBIAN_MIRROR_ROOT,DEBIAN_SECURITY_MIRROR_ROOT,DEBIAN_MIRROR_BASE_URL,DEBIAN_SECURITY_MIRROR_BASE_URL,GITHUB_ACTIONS)
-            # Bazel's default heap is too small for large dependency graphs
-            # inside the runner's memory limit.
-            BAZEL_STARTUP_ARGS=(--bazel-startup-arg=--host_jvm_args=-Xmx2g)
-            BAZEL_BUILD_ARGS=(--bazel-build-arg=--jobs=1 --bazel-build-arg=--discard_analysis_cache)
             # Isolated pip uses its bundled CAs unless Requests receives the
             # system bundle that the registry runner provisions for its proxy.
             BAZEL_BUILD_ARGS+=(--bazel-build-arg=--repo_env=REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt)
-            case "$CI_MODULE" in
-              p4c|p4lang-bmv2|sonic-dash)
-                # These recipes run make -j4 inside one Bazel action. DASH also
-                # compiles P4C for the execution platform.
-                if [[ "${CI_LARGE_RUNNER:-false}" == true ]]; then
-                  # One Bazel action may run the recipe's four parallel Make compilers.
-                  RESOURCE_RECEIPT=(python3 ci/p4_runner_resources.py "$GITHUB_WORKSPACE/ci-artifacts/p4-runner-resources.json")
-                else
-                  make_flags="${GNUMAKEFLAGS:+$GNUMAKEFLAGS }--eval=.NOTPARALLEL:"
-                  BAZEL_BUILD_ARGS+=("--bazel-build-arg=--action_env=GNUMAKEFLAGS=$make_flags"
-                                     "--bazel-build-arg=--host_action_env=GNUMAKEFLAGS=$make_flags")
-                  if [[ "$CI_MODULE" == sonic-dash && "$CI_ARCHITECTURE" == amd64 ]]; then
-                    # The host P4C compiler and Bazel share 6 GiB while compiling dash_pipeline.p4.
-                    BAZEL_BUILD_ARGS+=(--bazel-build-arg=--host_cxxopt=-DGC_FREE_SPACE_DIVISOR=16)
-                    BAZEL_STARTUP_ARGS+=(--bazel-startup-arg=--host_jvm_args=-XX:G1PeriodicGCInterval=30000
-                                         --bazel-startup-arg=--host_jvm_args=-XX:MinHeapFreeRatio=20
-                                         --bazel-startup-arg=--host_jvm_args=-XX:MaxHeapFreeRatio=35)
-                  fi
-                fi
-                ;;
-            esac
             "${ROOT[@]}" git config --global --add safe.directory "$GITHUB_WORKSPACE"
           fi
           if [[ "$CI_CROSS_COMPILE" == true ]]; then
@@ -250,7 +224,6 @@ jobs:
             --version "$CI_VERSION" \
             --architecture "$CI_ARCHITECTURE" \
             --bazel /usr/local/bin/bazel \
-            "${BAZEL_STARTUP_ARGS[@]}" \
             "${BAZEL_BUILD_ARGS[@]}" \
             "${CROSS_ARGS[@]}" \
             --work-dir "$RUNNER_TEMP/registry-ci" \

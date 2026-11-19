@@ -1,21 +1,20 @@
-"""Verify the large runner's cgroup limits and record local foreign-build CPU usage."""
+"""Budget Bazel against the runner capacity and record build resource usage."""
 
 import argparse
 from fractions import Fraction
 import json
+import math
 import os
 from pathlib import Path
 import subprocess
 import sys
-
-FOREIGN_MAKE_ACTIONS = {"CcCmakeMakeRule", "CcConfigureMakeRule", "CcMakeRule"}
 
 
 def unified_cgroup(path: Path) -> str:
     for line in path.read_text().splitlines():
         if line.startswith("0::/"):
             return line[3:]
-    raise ValueError("The large Trixie runner requires a unified cgroup v2 hierarchy")
+    raise ValueError("The runner requires a unified cgroup v2 hierarchy")
 
 
 def capacity(group: str, root: Path) -> dict:
@@ -60,7 +59,7 @@ def memory_usage(cgroup: Path) -> dict:
     return usage
 
 
-def local_foreign_cpu(summary: dict) -> dict:
+def local_action_cpu(summary: dict) -> dict:
     """Bazel aggregates spawned CPU by mnemonic; its action counts include cache hits."""
     runners = [runner for runner in summary.get("runnerCount", []) if int(runner.get("count", 0)) > 0]
     if not any(runner.get("execKind") == "Local" for runner in runners):
@@ -73,8 +72,6 @@ def local_foreign_cpu(summary: dict) -> dict:
 
     groups = []
     for action in summary.get("actionData", []):
-        if action["mnemonic"] not in FOREIGN_MAKE_ACTIONS:
-            continue
         group = {"mnemonic": action["mnemonic"], "reported_actions": int(action.get("actionsExecuted", 0))}
         # Cache hits do not report local spawn CPU. Bazel can also omit a mnemonic from its top-N summary.
         cpu = sum(float(action.get(key, "0s").removesuffix("s")) for key in ("userTime", "systemTime"))
@@ -88,41 +85,57 @@ def local_foreign_cpu(summary: dict) -> dict:
             "groups": groups}
 
 
-def foreign_cpu(events: Path) -> dict:
+def action_cpu(events: Path) -> dict:
     try:
         with events.open("rb") as stream:
             for line in stream:
                 if b'"buildMetrics"' in line:
                     metrics = json.loads(line).get("buildMetrics")
                     if metrics and "actionSummary" in metrics:
-                        return local_foreign_cpu(metrics["actionSummary"])
+                        return local_action_cpu(metrics["actionSummary"])
     except (OSError, AttributeError, KeyError, TypeError, ValueError):
         # A failed or interrupted Bazel command may have only partial build events.
         pass
     return {"status": "missing_metrics"}
 
 
-def run(output: Path, command: list[str]) -> int:
-    proc = Path("/proc")
-    group = unified_cgroup(proc / "self/cgroup")
+def action_budget(limits: dict, heap_mb: int) -> dict:
+    """Use all effective CPUs and 80% of RAM left after the JVM heap reserve."""
+    cpus = limits["cpu_affinity_count"]
+    if limits["cpu_quota_cores"] is not None:
+        cpus = min(cpus, limits["cpu_quota_cores"])
+    host_memory = os.sysconf("SC_PHYS_PAGES") * os.sysconf("SC_PAGE_SIZE")
+    memory = min(host_memory, (limits["memory_limit_bytes"] if limits["memory_limit_bytes"] is not None else host_memory))
+    memory_mb = int((memory / 1024**2 - heap_mb) * .8)
+    if cpus <= 0 or heap_mb <= 0 or memory_mb <= 0:
+        raise ValueError("Runner capacity must leave CPU and action memory after the JVM reserve")
+    return {"jobs": math.ceil(cpus), "cpu": cpus, "memory_mb": memory_mb, "jvm_heap_mb": heap_mb}
+
+
+def run(output: Path, command: list[str], heap_mb: int = 2048) -> int:
+    group = unified_cgroup(Path("/proc/self/cgroup"))
     cgroup_root = Path("/sys/fs/cgroup")
     limits = capacity(group, cgroup_root)
+    budget = action_budget(limits, heap_mb)
     cgroup = cgroup_root / group.lstrip("/")
-    receipt = {"runner_label": "debian-trixie-container-large",
-               **limits, "memory_before": memory_usage(cgroup),
-               "bazel_jobs": 1, "recipe_make_jobs": 4}
+    arguments = [
+        f"--bazel-startup-arg=--host_jvm_args=-Xmx{heap_mb}m",
+        f"--bazel-build-arg=--jobs={budget['jobs']}",
+        f"--bazel-build-arg=--local_resources=cpu={budget['cpu']:g}",
+        f"--bazel-build-arg=--local_resources=memory={budget['memory_mb']}",
+        "--bazel-build-arg=--experimental_action_resource_set",
+    ]
+    receipt = {**limits, "bazel_budget": budget, "bazel_arguments": arguments,
+               "memory_before": memory_usage(cgroup)}
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(receipt, indent=2) + "\n")
-    if (receipt["cpu_quota_cores"] != 8 or receipt["cpu_affinity_count"] < 8
-            or receipt["memory_limit_bytes"] != 16 * 1024**3):
-        raise ValueError(f"Expected an 8 CPU / 16 GiB large runner; measured {receipt}")
-    status = subprocess.run(command).returncode
-    receipt["foreign_build_cpu"] = {phase: foreign_cpu(output.parent / f"{phase}-events.jsonl")
-                                    for phase in ("build", "test")}
+    status = subprocess.run([*command, *arguments]).returncode
+    receipt["build_cpu"] = {phase: action_cpu(output.parent / f"{phase}-events.jsonl")
+                            for phase in ("build", "test")}
     receipt["exit_code"] = status
     receipt["memory_after"] = memory_usage(cgroup)
     output.write_text(json.dumps(receipt, indent=2) + "\n")
-    print("Large runner evidence:", json.dumps(receipt, sort_keys=True), flush=True)
+    print("Runner resource evidence:", json.dumps(receipt, sort_keys=True), flush=True)
     return status if status >= 0 else 128 - status
 
 
@@ -136,4 +149,4 @@ if __name__ == "__main__":
     try:
         sys.exit(run(args.output, args.command))
     except (OSError, ValueError) as error:
-        parser.exit(1, f"Large runner resource check failed: {error}\n")
+        parser.exit(1, f"Runner resource check failed: {error}\n")
