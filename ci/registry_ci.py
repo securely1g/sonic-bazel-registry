@@ -506,48 +506,6 @@ def release_key(version: str) -> tuple[tuple[int, ...], int, int]:
     return numbers, 0, 0
 
 
-def latest_dependency(root: Path, name: str, version: str) -> str:
-    """Select a dependency from this registry, leaving external registries to Bazel."""
-    metadata = root / "modules" / name / "metadata.json"
-    if not metadata.is_file():
-        return version
-    data = read_json(metadata)
-    eligible = [(release_key(value), index, value)
-                for index, value in enumerate(data["versions"])
-                if value not in data.get("yanked_versions", {})]
-    require(bool(eligible), f"{name}: no available registry version")
-    return max(eligible)[2]
-
-
-def latest_integration_dependencies(root: Path, module: str, declaration: str) -> str:
-    """Update literal versions in an already validated integration MODULE."""
-    lines = declaration.encode().splitlines(keepends=True)
-    offsets = [0]
-    for line in lines:
-        offsets.append(offsets[-1] + len(line))
-    edits = []
-    for statement in ast.parse(declaration).body:
-        if not isinstance(statement, ast.Expr) or not isinstance(statement.value, ast.Call):
-            continue
-        call = statement.value
-        if not isinstance(call.func, ast.Name) or call.func.id not in ("bazel_dep", "single_version_override"):
-            continue
-        values = {keyword.arg: keyword.value for keyword in call.keywords}
-        name = values.get("name" if call.func.id == "bazel_dep" else "module_name")
-        version = values.get("version")
-        if not isinstance(name, ast.Constant) or name.value == module or not isinstance(version, ast.Constant):
-            continue
-        selected = latest_dependency(root, name.value, version.value)
-        if selected != version.value:
-            edits.append((offsets[version.lineno - 1] + version.col_offset,
-                          offsets[version.end_lineno - 1] + version.end_col_offset,
-                          json.dumps(selected).encode()))
-    content = declaration.encode()
-    for start, end, value in sorted(edits, reverse=True):
-        content = content[:start] + value + content[end:]
-    return content.decode()
-
-
 def latest_presubmits(root: Path) -> set[tuple[str, str]]:
     """Select the newest non-yanked release of each module already covered by CI."""
     modules = {path.parent.parent for path in (root / "modules").glob("*/*/presubmit.json")}
@@ -1667,17 +1625,8 @@ def run(root: Path, module: str, version: str, architecture: str,
         bazel_startup_args: list[str] | None = None,
         bazel_build_args: list[str] | None = None,
         cross_compile: bool = False, test_executor: Path | None = None,
-        profile_analysis: bool = False, latest_dependencies: bool = False) -> None:
+        profile_analysis: bool = False) -> None:
     config = validate_entry(root, module, version)
-    use_latest = latest_dependencies and (module, version) in latest_presubmits(root)
-    if use_latest:
-        dependencies = []
-        for dependency in config["consumer_deps"]:
-            selected = latest_dependency(root, dependency["name"], dependency["version"])
-            require(selected == dependency["version"] or not dependency.get("source_patches"),
-                    f"{dependency['name']}: source patches must be reviewed for {selected}")
-            dependencies.append({**dependency, "version": selected})
-        config = {**config, "consumer_deps": dependencies}
     require(architecture in config["architectures"], "Architecture is not configured for this version")
     additional = config.get("additional_targets", {}).get(architecture, {})
     build_targets = config["build_targets"] + additional.get("build_targets", [])
@@ -1711,9 +1660,6 @@ def run(root: Path, module: str, version: str, architecture: str,
         if "integration_test_module" in config:
             source = integration_test_directory(entry_directory(root, module, version), config, module, version)
             shutil.copytree(source, consumer, dirs_exist_ok=True)
-            if use_latest:
-                declaration = consumer / "MODULE.bazel"
-                declaration.write_text(latest_integration_dependencies(root, module, declaration.read_text()))
         else:
             staged_patches = stage_consumer_source_patches(root, module, version, config, consumer, artifacts)
             declarations = ['module(name = "registry_ci_consumer")']
@@ -2059,7 +2005,6 @@ def main() -> None:
                         help="repeatable Bazel startup option; use --bazel-startup-arg=--option=value")
     runner.add_argument("--bazel-build-arg", action="append", default=[],
                         help="repeatable Bazel build/test/query option; use --bazel-build-arg=--option=value")
-    runner.add_argument("--latest-dependencies", action="store_true")
     runner.add_argument("--profile-analysis", action="store_true",
                         help="retain JSON traces, Starlark CPU profiles and JVM GC/safepoint logs")
     runner.add_argument("--cross-compile", action="store_true",
@@ -2082,8 +2027,7 @@ def main() -> None:
         else:
             run(ROOT, args.module, args.version, args.architecture, args.work_dir, args.artifacts,
                 args.bazel, args.test_container_image, args.bazel_startup_arg, args.bazel_build_arg,
-                args.cross_compile, args.test_executor, profile_analysis=args.profile_analysis,
-                **({"latest_dependencies": True} if args.latest_dependencies else {}))
+                args.cross_compile, args.test_executor, profile_analysis=args.profile_analysis)
     except (RegistryError, OSError, subprocess.CalledProcessError) as error:
         parser.exit(1, f"Registry CI failed: {error}\n")
 

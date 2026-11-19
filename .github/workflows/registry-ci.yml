@@ -372,7 +372,6 @@ jobs:
       architecture: ${{ matrix.architecture }}
       execution_architecture: ${{ matrix.execution_architecture }}
       cross_compile: ${{ matrix.cross_compile }}
-      latest_dependencies: ${{ !inputs.all_versions }}
       runner: ${{ toJSON(matrix.runner) }}
       http_audit_artifact_id: ${{ needs.plan.outputs.http_audit_artifact_id }}
     # Public/fork runs keep the existing download candidates without these secrets.
