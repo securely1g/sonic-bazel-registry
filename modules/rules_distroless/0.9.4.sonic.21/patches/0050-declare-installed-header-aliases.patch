@@ -1,0 +1,133 @@
+diff --git a/apt/private/headers.bzl b/apt/private/headers.bzl
+--- a/apt/private/headers.bzl
++++ b/apt/private/headers.bzl
+@@ -7,3 +7,77 @@
+ def is_include_fragment(path):
+     """Whether an installed include file has a supported fragment suffix."""
+     return path.startswith("usr/include/") and any([path.endswith(suffix) for suffix in _FRAGMENT_SUFFIXES])
++
++def expand_directory_aliases(groups, symlinks, directories):
++    """Publish in-package directory aliases as declared header leaf symlinks.
++
++    Bazel file inputs cannot name directory symlinks. Unlike materializing a
++    tree artifact, each alias leaf can link its already-declared target file.
++    Nested aliases expand before publication; cycles cannot grow output paths.
++    """
++    groups = [list(group) for group in groups]
++    links = dict(symlinks)
++    header_paths = {path: True for group in groups for path in group}
++    original = {path: target for path, target in symlinks.items() if path in header_paths}
++    directory_aliases = {}
++    for iteration in range(len(original) + 2):
++        changed = False
++        headers = [path for group in groups for path in group]
++        for alias, target in original.items():
++            seen = {alias: True}
++            for _ in range(len(original) + 1):
++                if target in seen:
++                    fail("Cyclic native header symlink: " + alias)
++                seen[target] = True
++                if target not in original:
++                    break
++                target = original[target]
++            if target in directories or any([path.startswith(target + "/") for path in headers]):
++                if alias.startswith(target + "/"):
++                    fail("Cyclic native header directory alias: " + alias)
++                if alias not in directory_aliases:
++                    directory_aliases[alias] = target
++                    changed = True
++        for index in range(len(groups)):
++            groups[index] = [path for path in groups[index] if path not in directory_aliases]
++        for alias, target in directory_aliases.items():
++            links.pop(alias, None)
++            for group in groups:
++                for path in list(group):
++                    if path.startswith(target + "/"):
++                        leaf = alias + path[len(target):]
++                        if leaf not in group:
++                            group.append(leaf)
++                            links[leaf] = path
++                            changed = True
++        if not changed:
++            return groups, links
++    fail("Cyclic native header directory aliases")
++
++def complete_header_parents(groups, depends_file_map, include_roots):
++    """Retain quoted sibling lookup when an installed directory spans packages.
++
++    Default include roots already search dependency repositories. Only deeper
++    logical parents need local leaf aliases; the original package TAR remains
++    unchanged and every alias refers to a declared dependency header output.
++    """
++    groups = [list(group) for group in groups]
++    own = {path: True for group in groups for path in group}
++    parents = {path.rsplit("/", 1)[0]: True for path in own}
++    roots = {path.removeprefix("/"): True for path in include_roots}
++    aliases = {}
++    for path, repo in depends_file_map.items():
++        parent = path.rsplit("/", 1)[0]
++        if path in own or parent not in parents or parent in roots:
++            continue
++        if path.endswith(".h") or is_include_fragment(path):
++            group = 0
++        elif path.endswith(".hpp"):
++            group = 1
++        elif "include/c++" in path or (path.startswith("usr/include/") and "." not in path.rsplit("/", 1)[-1]):
++            group = 2
++        else:
++            continue
++        groups[group].append(path)
++        aliases[path] = "@@%s//:%s" % (repo, path)
++    return groups, aliases
+diff --git a/apt/private/deb_import.bzl b/apt/private/deb_import.bzl
+--- a/apt/private/deb_import.bzl
++++ b/apt/private/deb_import.bzl
+@@ -2,7 +2,7 @@
+ 
+ load(":native_tools.bzl", "catalog_execute")
+ 
+-load("//apt/private:headers.bzl", "is_include_fragment")
++load("//apt/private:headers.bzl", "complete_header_parents", "expand_directory_aliases", "is_include_fragment")
+ load(":linker_script.bzl", "linker_script")
+ load(":lockfile.bzl", "lockfile")
+ load(":multiarch.bzl", "default_include_dirs", "select_include_dirs")
+@@ -697,6 +697,7 @@
+     h_files = []
+     hpp_files = []
+     hpp_files_woext = []
++    directories = []
+     pc_files = []
+     pc_aliases = []
+     o_files = []
+@@ -707,6 +708,7 @@
+     for line in contents_raw:
+         # Skip directories
+         if line.endswith("/"):
++            directories.append(line[line.find(" ./") + 3:].rstrip("/"))
+             continue
+ 
+         line = line[line.find(" ./") + 3:]
+@@ -759,6 +761,14 @@
+ 
+         if resolved_symlink:
+             symlinks[line] = resolved_symlink
++
++    header_groups, symlinks = expand_directory_aliases(
++        [h_files, hpp_files, hpp_files_woext], symlinks, directories,
++    )
++    header_groups, foreign_headers = complete_header_parents(
++        header_groups, depends_file_map, default_include_dirs([path for group in header_groups for path in group]),
++    )
++    h_files, hpp_files, hpp_files_woext = header_groups
+ 
+     # Resolve symlinks
+     # For each symlink, we check:
+@@ -792,6 +802,8 @@
+             else:
+                 invalid_files[symlink] = "Unresolved native symlink: %s -> %s" % (symlink, destination)
+             break
++
++    symlinks.update(foreign_headers)
+ 
+     # Extract, in a single pass, the files we need to inspect on disk:
+     # - regular `.so` and `.a` files because either may be GNU ld scripts,

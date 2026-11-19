@@ -1,0 +1,89 @@
+Subject: [PATCH] Keep sandbox paths out of P4C compiler generators
+
+Map source paths relative to the execution root and skip the CMake build
+RUNPATH. These executables are consumed as inputs to the compiler and use
+their wrappers' declared runtime libraries. Check both execution-platform
+ELFs during the existing P4C package test.
+
+diff --git a/bazel/p4c.BUILD.bazel b/bazel/p4c.BUILD.bazel
+--- a/bazel/p4c.BUILD.bazel
++++ b/bazel/p4c.BUILD.bazel
+@@ -111,6 +111,8 @@
+ # Bazel's execution platform even when the installed compiler targets ARM64.
+ cmake(
+     name = "codegen_build",
++    # The wrappers supply runtime libraries from their declared runfiles.
++    # Skip install RPATH padding too: the raw build ELF is staged as-is.
+     build_args = ["-j2"],
+     build_data = [
+         ":python",
+@@ -119,6 +121,7 @@
+         "@sonic_build_infra//tools/build_tools:bison",
+     ],
+     cache_entries = {
++        "CMAKE_SKIP_RPATH": "ON",
+         "CCACHE_PROGRAM": "OFF",
+         "BUILD_LINK_WITH_GOLD": "OFF",
+         "BUILD_LINK_WITH_LLD": "OFF",
+@@ -155,6 +158,7 @@
+     out_binaries = ["irgenerator", "protoc"],
+     out_include_dir = "",
+     postfix_script = "mkdir -p $$INSTALLDIR/bin; cp tools/ir-generator/irgenerator $$INSTALLDIR/bin/; cp _deps/protobuf-build/protoc $$INSTALLDIR/bin/",
++    set_file_prefix_map = True,
+     targets = ["irgenerator", "protoc"],
+ )
+ 
+@@ -332,6 +336,19 @@
+     scope = [":p4c_bm2_ss", ":build"],
+ )
+ 
++# The compiler consumes these generators in the execution configuration. The
++# test uses the same ELF files, including when its target platform is ARM64.
++genrule(
++    name = "test_codegen_binaries",
++    testonly = True,
++    outs = ["test-inputs/irgenerator", "test-inputs/protoc"],
++    cmd = """
++        cp $(execpath :codegen_irgenerator_binary) $(execpath test-inputs/irgenerator)
++        cp $(execpath :codegen_protoc_binary) $(execpath test-inputs/protoc)
++    """,
++    tools = [":codegen_irgenerator_binary", ":codegen_protoc_binary"],
++)
++
+ py_test(
+     name = "package_test",
+     srcs = ["bazel/package_test.py"],
+@@ -342,6 +359,8 @@
+         "$(rootpath :compile_commands)",
+         "$(rootpath :cmake_cache)",
+         "$(rootpath :tool_to_package_build_path)",
++        "$(rootpath test-inputs/irgenerator)",
++        "$(rootpath test-inputs/protoc)",
+     ],
+     data = [
+         ":cmake_cache",
+@@ -350,6 +369,8 @@
+         ":p4c_pkg",
+         ":p4c_pkg.debug_symbols",
+         ":tool_to_package_build_path",
++        "test-inputs/irgenerator",
++        "test-inputs/protoc",
+     ],
+     main = "bazel/package_test.py",
+ )
+diff --git a/bazel/package_test.py b/bazel/package_test.py
+--- a/bazel/package_test.py
++++ b/bazel/package_test.py
+@@ -23,7 +23,11 @@
+ 
+ with tempfile.TemporaryDirectory() as directory:
+     root = Path(directory)
+-    runtime, debug, compiler, commands, cache, package_path = map(Path, sys.argv[1:])
++    runtime, debug, compiler, commands, cache, package_path, irgenerator, protoc = map(Path, sys.argv[1:])
++    for program in (irgenerator, protoc):
++        assert b"/execroot/" not in program.read_bytes(), f"{program.name} contains a Bazel execution root"
++        dynamic = run("readelf", "-d", str(program))
++        assert "(RUNPATH)" not in dynamic and "(RPATH)" not in dynamic, (program.name, dynamic)
+     assert not package_path.read_text().strip(), (
+         "DASH's execution tool depends on the full compiler build:\n" + package_path.read_text()
+     )

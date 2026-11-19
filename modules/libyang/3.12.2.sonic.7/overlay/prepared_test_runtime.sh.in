@@ -1,0 +1,28 @@
+#!/bin/sh
+set -eu
+self=$0
+case "$self" in /*) ;; *) self="$PWD/$self" ;; esac
+runfiles="$self.runfiles"
+if [ ! -d "$runfiles" ] && [ -n "${RUNFILES_DIR:-}" ] && [ -d "$RUNFILES_DIR" ]; then
+    runfiles=$RUNFILES_DIR
+fi
+if [ ! -d "$runfiles" ] && [ -n "${TEST_SRCDIR:-}" ] && [ -d "$TEST_SRCDIR" ]; then
+    runfiles=$TEST_SRCDIR
+fi
+if [ ! -d "$runfiles" ]; then
+    runfiles=$self
+    while :; do
+        case "$runfiles" in
+            *.runfiles) break ;;
+            /|"") echo "Missing prepared target runtime runfiles: $self" >&2; exit 1 ;;
+        esac
+        runfiles=${runfiles%/*}
+    done
+fi
+export RUNFILES_DIR="$runfiles"
+unset LD_LIBRARY_PATH LD_PRELOAD LD_AUDIT
+# The declared static execution-platform helper resolves only the binary path;
+# it has no interpreter startup and does not change the target's environment.
+binary=$("$runfiles/@@REALPATH@@" "$runfiles/@@BINARY@@")
+runtime="$runfiles/@@RUNTIME@@"
+exec "$runtime/@@LOADER@@" --inhibit-cache --library-path "$runtime" "$binary" "$@"

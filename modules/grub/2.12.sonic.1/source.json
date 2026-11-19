@@ -1,0 +1,16 @@
+{
+  "url": "https://deb.debian.org/debian/pool/main/g/grub2/grub2_2.12-9+deb13u2.debian.tar.xz",
+  "integrity": "sha256-TTxGie4QBGaja2pcqiR371JfvFtuwnywMZyD232fr4k=",
+  "strip_prefix": "",
+  "overlay": {
+    "BUILD.bazel": "sha256-KzpKuJmB0oGf+aTXjrQujusmJKd8doP0qANxsWS1C7k=",
+    "MODULE.bazel": "sha256-yBLNCMO2IsR3GBRRV29ClYmukb4dRQZ/N2SiZmqAKyo=",
+    "autoconf.bzl": "sha256-sfxh73rRZli9DnJSMhYlJzET1X9rfmJoRatzGoGCvm4=",
+    "geninit.bzl": "sha256-ZdSRgRktLXRsuSUERZohLdkS/r6FC9MA7909Ws0kDqI=",
+    "install_dirs.bzl": "sha256-uEatlq8Q1dVciQb6FlRRSZjUOteKnMLUvILdhZ4Assg=",
+    "raw-disk.patch": "sha256-d0HVjuhWZa/7NGOIN3yPw2Uz2mqirplbxAgxzWYub7A=",
+    "source.BUILD.bazel": "sha256-UEBA72OY8x5HLp6nvq+nYSyeD/Uxz86fVqMq1cyCH0s=",
+    "tool_test.py": "sha256-usz7thzx2QRLc3/5V1Xss0pP8wsnCmu5J19jR1vjhNA=",
+    "raw_embedding_test.py": "sha256-N4ermIdx6fW6KCDawIn1DjWJDIzjmhwAxbM+SEFFn3E="
+  }
+}

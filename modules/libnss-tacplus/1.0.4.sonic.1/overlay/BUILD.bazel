@@ -1,0 +1,197 @@
+load("@bazel_skylib//rules:expand_template.bzl", "expand_template")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_python//python:defs.bzl", "py_binary", "py_test")
+load("@sonic_build_infra//binary:strip_binary.bzl", "strip_binary")
+load("@sonic_build_infra//deb:changelogs.bzl", "debian_changelogs")
+load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
+load("@sonic_build_infra//oci:source_controls.bzl", "source_package_controls")
+load("@sonic_build_infra//tar:debug_symbols_tar.bzl", "debug_symbols_tar")
+load("@sonic_build_infra//tools/build_tools:defs.bzl", "build_tool", "build_tools_runtime")
+load(":nss_install_strip.bzl", "nss_install_strip")
+load(":runtime_tar.bzl", "nss_runtime_tar")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(glob([
+    "*.bzl",
+    "*.bazel",
+    "*.tpl",
+]))
+
+expand_template(
+    name = "config_h",
+    out = "generated/config.h",
+    substitutions = {},
+    template = "config.h.tpl",
+)
+
+cc_library(
+    name = "config_headers",
+    hdrs = [":config_h"],
+    includes = ["generated"],
+    target_compatible_with = ["@platforms//cpu:x86_64"],
+)
+
+alias(
+    name = "compiled",
+    actual = "@libnss_tacplus_src//:module",
+)
+
+py_binary(
+    name = "runtime_tar",
+    srcs = ["runtime_tar.py"],
+)
+
+debian_changelogs(
+    name = "changelogs",
+    outs = [
+        "docs/changelog",
+        "docs/changelog.Debian",
+    ],
+    architecture = "amd64",
+    changelog = "@libnss_tacplus_src//:debian/changelog",
+    control = "@libnss_tacplus_src//:debian/control",
+    debian_files = {"@libnss_tacplus_src//:debian/compat": "compat"},
+    package = "libnss-tacplus",
+    upstream = "@libnss_tacplus_src//:ChangeLog",
+)
+
+[
+    genrule(
+        name = basename + "_gz",
+        srcs = ["docs/" + basename],
+        outs = ["compressed/" + basename + ".gz"],
+        cmd = "$(execpath @sonic_build_infra//tools/build_tools:pigz) -n -9 -c $< > $@",
+        tools = ["@sonic_build_infra//tools/build_tools:pigz"],
+    )
+    for basename in [
+        "changelog",
+        "changelog.Debian",
+    ]
+]
+
+nss_install_strip(
+    name = "install_stripped",
+    src = ":compiled",
+    out = "install/libnss_tacplus.so",
+)
+
+strip_binary(
+    name = "debian_stripped",
+    src = ":install_stripped",
+    compress_debug_sections = True,
+    force_debug_build = False,
+)
+
+filegroup(
+    name = "debian_runtime_elf",
+    srcs = [":debian_stripped"],
+    output_group = "stripped",
+)
+
+# The genrule's execution tool uses the existing locked APT ELF interface.
+build_tools_runtime(
+    name = "objcopy_runtime",
+    architecture = "amd64",
+    elf_tools = {"objcopy": "usr/bin/objcopy"},
+    packages = ["@build_tools//binutils:raw_packages"],
+    profile = "elf",
+    visibility = ["//visibility:private"],
+)
+
+build_tool(
+    name = "install_objcopy",
+    runtime = ":objcopy_runtime",
+    tool = "objcopy",
+    visibility = ["//visibility:private"],
+)
+
+# Original compat9 dh_strip removes these sections after extracting dbgsym.
+genrule(
+    name = "runtime_elf",
+    srcs = [":debian_runtime_elf"],
+    outs = ["runtime/libnss_tacplus.so"],
+    cmd = "$(execpath :install_objcopy) --remove-section=.comment --remove-section=.note $< $@",
+    tools = [":install_objcopy"],
+)
+
+nss_runtime_tar(
+    name = "libnss-tacplus.runtime",
+    config = "@libnss_tacplus_src//:tacplus_nss.conf",
+    copyright = "@libnss_tacplus_src//:debian/copyright",
+    debug = ":debian_stripped",
+    docs = {
+        ":changelog_gz": "usr/share/doc/libnss-tacplus/changelog.gz",
+        ":changelog.Debian_gz": "usr/share/doc/libnss-tacplus/changelog.Debian.gz",
+    },
+    elf = ":runtime_elf",
+    libc = "@tacacs_build_debian//libc6:raw_data",
+)
+
+runtime_packages(
+    name = "runtime_metadata",
+    changelog = "@libnss_tacplus_src//:debian/changelog",
+    control = "@libnss_tacplus_src//:debian/control",
+    control_file_helpers = [
+        ["dh_makeshlibs"],
+        ["dh_installdeb"],
+    ],
+    debian_files = {
+        "compat": "@libnss_tacplus_src//:debian/compat",
+        "libnss-tacplus.symbols": "@libnss_tacplus_src//:debian/libnss-tacplus.symbols",
+        "libnss-tacplus.postinst": "@libnss_tacplus_src//:debian/libnss-tacplus.postinst",
+        "libnss-tacplus.prerm": "@libnss_tacplus_src//:debian/libnss-tacplus.prerm",
+    },
+    dependencies = ["@pam-tacplus//:runtime_metadata"],
+    module_name = "libnss-tacplus",
+    packages = {"libnss-tacplus": ":libnss-tacplus.runtime"},
+    required_paths = {"libnss-tacplus": [
+        "lib/x86_64-linux-gnu/libnss_tacplus.so.2",
+        "etc/tacplus_nss.conf",
+    ]},
+    symbols = {"libnss-tacplus": "@libnss_tacplus_src//:debian/libnss-tacplus.symbols"},
+)
+
+source_package_controls(
+    name = "libnss-tacplus.control",
+    metadata = ":runtime_metadata",
+    package = "libnss-tacplus",
+)
+
+py_test(
+    name = "installation_test",
+    srcs = ["installation_test.py"],
+    args = [
+        "$(rootpath :libnss-tacplus.runtime)",
+        "$(rootpath :libnss-tacplus.control)",
+        "$(rootpath @libnss_tacplus_src//:tacplus_nss.conf)",
+        "$(rootpath :libnss-tacplus.runtime.debug_symbols)",
+        "$(rootpath :compiled)",
+        "$(rootpath :install_stripped)",
+        "$(rootpath @libnss_tacplus_src//:ChangeLog)",
+        "$(rootpath :runtime_metadata)",
+    ],
+    data = [
+        ":compiled",
+        ":install_stripped",
+        ":libnss-tacplus.control",
+        ":libnss-tacplus.runtime",
+        ":libnss-tacplus.runtime.debug_symbols",
+        ":runtime_metadata",
+        "@libnss_tacplus_src//:ChangeLog",
+        "@libnss_tacplus_src//:tacplus_nss.conf",
+    ],
+    deps = ["@sonic_build_infra//deb:elf_metadata"],
+)
+
+filegroup(
+    name = "debug_tree",
+    srcs = [":debian_stripped"],
+    output_group = "debug",
+)
+
+debug_symbols_tar(
+    name = "libnss-tacplus.runtime.debug_symbols",
+    srcs = [":debug_tree"],
+    symlinks = {},
+)

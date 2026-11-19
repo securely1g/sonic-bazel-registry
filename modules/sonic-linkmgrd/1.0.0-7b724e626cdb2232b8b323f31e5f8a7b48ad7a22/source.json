@@ -1,0 +1,9 @@
+{
+  "url": "https://github.com/securely1g/sonic-linkmgrd/archive/7b724e626cdb2232b8b323f31e5f8a7b48ad7a22.tar.gz",
+  "integrity": "sha256-IKvTPXzrEW3ws7l5JWc5tDSAoQr6LKL0sGkGC9iaIts=",
+  "strip_prefix": "sonic-linkmgrd-7b724e626cdb2232b8b323f31e5f8a7b48ad7a22",
+  "patch_strip": 1,
+  "patches": {
+    "0001-module-version.patch": "sha256-sgLxLKDllHFDyUvRTqa+0DNJhUMywJJl35H8qcUoJS0="
+  }
+}

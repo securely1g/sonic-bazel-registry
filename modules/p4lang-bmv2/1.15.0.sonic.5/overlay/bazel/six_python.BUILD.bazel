@@ -1,0 +1,10 @@
+load("@rules_python//python:py_library.bzl", "py_library")
+
+py_library(
+    name = "six",
+    srcs = [
+    "usr/lib/python3/dist-packages/six.py"
+],
+    imports = ["usr/lib/python3/dist-packages"],
+    visibility = ["//visibility:public"],
+)

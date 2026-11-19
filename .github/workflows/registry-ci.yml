@@ -31,10 +31,8 @@ jobs:
     outputs:
       matrix: ${{ steps.plan.outputs.matrix }}
       has_jobs: ${{ steps.plan.outputs.has_jobs }}
-      local_matrix: ${{ steps.plan.outputs.local_matrix }}
-      has_local_jobs: ${{ steps.plan.outputs.has_local_jobs }}
-      hosted_arm_matrix: ${{ steps.plan.outputs.hosted_arm_matrix }}
-      has_hosted_arm_jobs: ${{ steps.plan.outputs.has_hosted_arm_jobs }}
+      overflow_matrix: ${{ steps.plan.outputs.overflow_matrix }}
+      has_overflow_jobs: ${{ steps.plan.outputs.has_overflow_jobs }}
       http_audit_artifact_id: ${{ steps.http_audit_upload.outputs.artifact-id }}
       mirror_config: ${{ steps.mirror_config.outputs.kind }}
     steps:
@@ -74,7 +72,6 @@ jobs:
         id: plan
         shell: bash
         env:
-          REGISTRY_READINESS_PR: ${{ github.event_name == 'pull_request' && github.repository == 'securely1g/sonic-bazel-registry' && (github.event.pull_request.number == 234 || github.event.pull_request.number == 235) && format('{0}', github.event.pull_request.number) || '' }}
           EVENT_NAME: ${{ github.event_name }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           BEFORE_SHA: ${{ github.event.before }}
@@ -118,7 +115,7 @@ jobs:
           from registry_ci import module_runner
 
           matrix = json.loads(Path("plan.json").read_text())
-          routes = {("amd64", "amd64", False), ("arm64", "arm64", False), ("arm64", "amd64", True)}
+          routes = {("amd64", "amd64", False), ("arm64", "amd64", True)}
           identities = set()
           for job in matrix["include"]:
               route = (job.get("architecture"), job.get("execution_architecture"), job.get("cross_compile"))
@@ -129,14 +126,15 @@ jobs:
               if identity in identities:
                   raise SystemExit("Duplicate module validation job")
               identities.add(identity)
+          # GitHub Actions allows up to 256 rows in one matrix.
+          jobs = matrix["include"]
+          if len(jobs) > 512:
+              raise SystemExit("More than 512 validation jobs: add a module matrix before running this plan")
           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
-              print("matrix=" + json.dumps(matrix, separators=(",", ":")), file=output)
-              print("has_jobs=" + str(bool(matrix["include"])).lower(), file=output)
-              for group, execution in (("local", "amd64"), ("hosted_arm", "arm64")):
-                  selected = {"include": [job for job in matrix["include"]
-                                          if job["execution_architecture"] == execution]}
-                  print(group + "_matrix=" + json.dumps(selected, separators=(",", ":")), file=output)
-                  print("has_" + group + "_jobs=" + str(bool(selected["include"])).lower(), file=output)
+              for matrix_key, jobs_key, batch in (("matrix", "has_jobs", jobs[:256]),
+                                                  ("overflow_matrix", "has_overflow_jobs", jobs[256:])):
+                  print(matrix_key + "=" + json.dumps({"include": batch}, separators=(",", ":")), file=output)
+                  print(jobs_key + "=" + str(bool(batch)).lower(), file=output)
           PY
       - name: Retain validation plan
         if: always()
@@ -152,7 +150,7 @@ jobs:
   unit:
     name: Registry runner tests (${{ matrix.architecture }})
     needs: plan
-    if: ${{ !cancelled() && needs.plan.result == 'success' }}
+    if: ${{ always() && !cancelled() }}
     strategy:
       fail-fast: false
       matrix:
@@ -172,6 +170,12 @@ jobs:
     runs-on: ${{ matrix.runner }}
     timeout-minutes: ${{ matrix.timeout_minutes }}
     steps:
+      - name: Bypass the proxy for Bazel Central Registry
+        if: runner.environment == 'self-hosted'
+        shell: bash
+        run: |
+          echo "no_proxy=${no_proxy:+${no_proxy},}bcr.bazel.build" >> "$GITHUB_ENV"
+          echo "NO_PROXY=${NO_PROXY:+${NO_PROXY},}bcr.bazel.build" >> "$GITHUB_ENV"
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -274,7 +278,7 @@ jobs:
   cross_fixture:
     name: ARM cross compiler and runtime fixture
     needs: plan
-    if: ${{ !cancelled() && needs.plan.result == 'success' }}
+    if: ${{ always() && !cancelled() }}
     runs-on: [self-hosted, Linux, X64, debian-trixie-container]
     timeout-minutes: 60
     env:
@@ -282,6 +286,12 @@ jobs:
       REGISTRY_CI_TEST_ARM_EXECUTOR: /usr/local/bin/sonic-arm64
       REGISTRY_CI_TEST_ARTIFACTS: cross-fixture-artifacts
     steps:
+      - name: Bypass the proxy for Bazel Central Registry
+        if: runner.environment == 'self-hosted'
+        shell: bash
+        run: |
+          echo "no_proxy=${no_proxy:+${no_proxy},}bcr.bazel.build" >> "$GITHUB_ENV"
+          echo "NO_PROXY=${NO_PROXY:+${NO_PROXY},}bcr.bazel.build" >> "$GITHUB_ENV"
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -349,14 +359,14 @@ jobs:
   modules_local:
     name: ${{ matrix.module }} ${{ matrix.version }} (${{ matrix.architecture }})
     needs: plan
-    if: ${{ always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.has_local_jobs == 'true' }}
+    if: ${{ always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.has_jobs == 'true' }}
     strategy:
       fail-fast: false
       # One module budget per run covers native AMD64 and every ARM cross job.
       max-parallel: 10
-      matrix: ${{ fromJSON(needs.plan.outputs.local_matrix) }}
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     uses: ./.github/workflows/registry-module.yml
-    with:
+    with: &module_inputs
       module: ${{ matrix.module }}
       version: ${{ matrix.version }}
       architecture: ${{ matrix.architecture }}
@@ -365,32 +375,28 @@ jobs:
       runner: ${{ toJSON(matrix.runner) }}
       http_audit_artifact_id: ${{ needs.plan.outputs.http_audit_artifact_id }}
     # Public/fork runs keep the existing download candidates without these secrets.
-    secrets:
+    secrets: &module_secrets
       DEBIAN_MIRROR_ROOT: ${{ contains(matrix.runner, 'self-hosted') && (contains(matrix.runner, 'debian-trixie-container') || contains(matrix.runner, 'debian-trixie-container-large')) && needs.plan.outputs.mirror_config == 'roots' && secrets.DEBIAN_MIRROR_ROOT || '' }}
       DEBIAN_MIRROR_BASE_URL: ${{ contains(matrix.runner, 'self-hosted') && (contains(matrix.runner, 'debian-trixie-container') || contains(matrix.runner, 'debian-trixie-container-large')) && needs.plan.outputs.mirror_config == 'dated' && secrets.DEBIAN_MIRROR_BASE_URL || '' }}
       DEBIAN_SECURITY_MIRROR_ROOT: ${{ contains(matrix.runner, 'self-hosted') && (contains(matrix.runner, 'debian-trixie-container') || contains(matrix.runner, 'debian-trixie-container-large')) && needs.plan.outputs.mirror_config == 'roots' && secrets.DEBIAN_SECURITY_MIRROR_ROOT || '' }}
       DEBIAN_SECURITY_MIRROR_BASE_URL: ${{ contains(matrix.runner, 'self-hosted') && (contains(matrix.runner, 'debian-trixie-container') || contains(matrix.runner, 'debian-trixie-container-large')) && needs.plan.outputs.mirror_config == 'dated' && secrets.DEBIAN_SECURITY_MIRROR_BASE_URL || '' }}
 
-  modules_hosted_arm:
+  modules_overflow:
     name: ${{ matrix.module }} ${{ matrix.version }} (${{ matrix.architecture }})
-    needs: plan
-    if: needs.plan.outputs.has_hosted_arm_jobs == 'true'
+    needs: [plan, modules_local]
+    if: ${{ always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.has_overflow_jobs == 'true' }}
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.plan.outputs.hosted_arm_matrix) }}
+      max-parallel: 10
+      matrix: ${{ fromJSON(needs.plan.outputs.overflow_matrix) }}
     uses: ./.github/workflows/registry-module.yml
-    with:
-      module: ${{ matrix.module }}
-      version: ${{ matrix.version }}
-      architecture: ${{ matrix.architecture }}
-      execution_architecture: ${{ matrix.execution_architecture }}
-      cross_compile: ${{ matrix.cross_compile }}
-      runner: ${{ toJSON(matrix.runner) }}
+    with: *module_inputs
+    secrets: *module_secrets
 
   required:
     name: Registry CI
     if: always()
-    needs: [plan, unit, cross_fixture, modules_local, modules_hosted_arm]
+    needs: [plan, unit, cross_fixture, modules_local, modules_overflow]
     runs-on: [self-hosted, Linux, X64, debian-trixie-container]
     timeout-minutes: 5
     steps:
@@ -400,10 +406,10 @@ jobs:
           PLAN_RESULT: ${{ needs.plan.result }}
           UNIT_RESULT: ${{ needs.unit.result }}
           CROSS_FIXTURE_RESULT: ${{ needs.cross_fixture.result }}
-          LOCAL_RESULT: ${{ needs.modules_local.result }}
-          HOSTED_ARM_RESULT: ${{ needs.modules_hosted_arm.result }}
-          HAS_LOCAL_JOBS: ${{ needs.plan.outputs.has_local_jobs }}
-          HAS_HOSTED_ARM_JOBS: ${{ needs.plan.outputs.has_hosted_arm_jobs }}
+          MODULE_RESULT: ${{ needs.modules_local.result }}
+          HAS_JOBS: ${{ needs.plan.outputs.has_jobs }}
+          OVERFLOW_RESULT: ${{ needs.modules_overflow.result }}
+          HAS_OVERFLOW_JOBS: ${{ needs.plan.outputs.has_overflow_jobs }}
         run: |
           set -euo pipefail
           [[ "$PLAN_RESULT" == success ]]
@@ -416,5 +422,5 @@ jobs:
               [[ "$1" == false && "$2" == skipped ]]
             fi
           }
-          require_modules "$HAS_LOCAL_JOBS" "$LOCAL_RESULT"
-          require_modules "$HAS_HOSTED_ARM_JOBS" "$HOSTED_ARM_RESULT"
+          require_modules "$HAS_JOBS" "$MODULE_RESULT"
+          require_modules "$HAS_OVERFLOW_JOBS" "$OVERFLOW_RESULT"

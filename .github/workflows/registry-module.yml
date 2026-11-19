@@ -3,6 +3,10 @@ name: Registry module validation
 on:
   workflow_call:
     inputs:
+      profile_analysis:
+        description: Retain Bazel analysis traces and JVM GC logs
+        type: boolean
+        default: false
       module:
         required: true
         type: string
@@ -41,6 +45,37 @@ on:
         description: Optional dated Debian security mirror for checkouts predating the snapshot manifest
         required: false
 
+  workflow_dispatch:
+    inputs:
+      module:
+        description: Module to profile
+        type: string
+        default: libnl3
+      version:
+        description: Exact published module version
+        type: string
+        default: 3.7.0.sonic.8
+      architecture:
+        description: Target architecture
+        type: choice
+        options: [amd64]
+        default: amd64
+      runner:
+        description: Native diagnostic runner route
+        type: string
+        default: '["self-hosted","Linux","X64","debian-trixie-container"]'
+      cross_compile:
+        type: boolean
+        default: false
+      profile_analysis:
+        description: Retain diagnostic profiles
+        type: boolean
+        default: true
+      remote_downloader:
+        description: Optional gRPC cache/Remote Asset endpoint to verify without local fallback
+        type: string
+        default: ''
+
 permissions:
   contents: read
 
@@ -48,13 +83,15 @@ jobs:
   validate:
     name: Validate module
     runs-on: ${{ fromJSON(inputs.runner) }}
-    # Serial P4 builds and the cold SWSS cross-build can take over three hours.
+    # Large P4 graphs and the cold SWSS cross-build can take over three hours.
     timeout-minutes: >-
       ${{ (((contains(fromJSON(inputs.runner), 'debian-trixie-container') ||
              contains(fromJSON(inputs.runner), 'debian-trixie-container-large')) &&
             contains(fromJSON('["p4c","p4lang-bmv2","sonic-dash"]'), inputs.module)) ||
            (inputs.cross_compile && inputs.module == 'sonic-swss' &&
-            inputs.version == '0.0.3-9c3797990d4b5a79100a40fe7689927c18212361')) && 360 || 180 }}
+            inputs.version == '0.0.3-9c3797990d4b5a79100a40fe7689927c18212361')) && 360 ||
+          (inputs.cross_compile && inputs.module == 'sonic-fips' &&
+           inputs.version == '0.0.6-18a778db501d455f8a1b6d1e3ef8e17121661177') && 240 || 180 }}
     # Local native/cross jobs execute directly in the fresh Trixie runner.
     # Only native hosted ARM needs the separate pinned job image.
     container: ${{ inputs.architecture == 'arm64' && !inputs.cross_compile && 'debian:trixie-20260918@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c' || '' }}
@@ -64,14 +101,21 @@ jobs:
     env:
       DEBIAN_FRONTEND: noninteractive
       CI_MODULE: ${{ inputs.module }}
+      CI_PROFILE_ANALYSIS: ${{ inputs.profile_analysis }}
+      CI_REMOTE_DOWNLOADER: ${{ inputs.remote_downloader }}
       CI_VERSION: ${{ inputs.version }}
-      CI_LARGE_RUNNER: ${{ contains(fromJSON(inputs.runner), 'debian-trixie-container-large') }}
       CI_ARCHITECTURE: ${{ inputs.architecture }}
       CI_EXECUTION_ARCHITECTURE: ${{ inputs.execution_architecture || inputs.architecture }}
       CI_CROSS_COMPILE: ${{ inputs.cross_compile }}
       ARM_TEST_EXECUTOR: /usr/local/bin/sonic-arm64
       TEST_CONTAINER_IMAGE: ${{ inputs.architecture == 'arm64' && !inputs.cross_compile && 'debian:trixie-20260918@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c' || '' }}
     steps:
+      - name: Bypass the proxy for Bazel Central Registry
+        if: runner.environment == 'self-hosted'
+        shell: bash
+        run: |
+          echo "no_proxy=${no_proxy:+${no_proxy},}bcr.bazel.build" >> "$GITHUB_ENV"
+          echo "NO_PROXY=${NO_PROXY:+${NO_PROXY},}bcr.bazel.build" >> "$GITHUB_ENV"
       - name: Validate execution route
         run: |
           set -euo pipefail
@@ -117,6 +161,21 @@ jobs:
           bundle="$RUNNER_TEMP/arm-kernel"
           ci/arm_kernel_test/prepare.sh "$bundle"
           echo "ARM_TEST_EXECUTOR=$bundle/executor" >> "$GITHUB_ENV"
+      - name: Expose the ARM64 loader to build-infra actions
+        if: inputs.cross_compile && inputs.module == 'sonic-build-infra'
+        run: |
+          set -euo pipefail
+          # Build-tools assembly clears its environment before executing the
+          # target loader. Use QEMU's default prefix inside this disposable runner.
+          root=/opt/sonic-arm64-rootfs
+          prefix=/usr/gnemul/qemu-aarch64
+          [[ -e /.dockerenv || -e /run/.containerenv ]]
+          [[ -x "$root/usr/bin/uname" ]]
+          if [[ ! -e "$prefix" ]]; then
+            sudo -n install -d "$(dirname "$prefix")"
+            sudo -n ln -sT "$root" "$prefix"
+          fi
+          [[ "$(realpath "$prefix")" == "$root" ]]
       - name: Install Bazel 8.5.1
         run: |
           set -euo pipefail
@@ -161,6 +220,50 @@ jobs:
                   rows[label] = {"measurement_error_errno": error.errno}
           print(json.dumps({"phase": os.environ["STORAGE_PHASE"], "storage": rows}, sort_keys=True))
           PY_STORAGE
+      - name: Probe the selected remote downloader endpoint
+        if: inputs.remote_downloader != ''
+        run: |
+          python3 - <<'PY_PROBE'
+          import json, os, re, socket, subprocess
+          from pathlib import Path
+          from urllib.parse import urlsplit
+          endpoint = os.environ["CI_REMOTE_DOWNLOADER"]
+          uri = urlsplit(endpoint)
+          if uri.scheme not in ("grpc", "grpcs") or not uri.hostname:
+              raise SystemExit("This TCP probe requires an explicit grpc:// or grpcs:// endpoint")
+          port = uri.port or (443 if uri.scheme == "grpcs" else 80)
+          output = Path(os.environ["GITHUB_WORKSPACE"]) / "ci-artifacts/remote-downloader-probe"
+          output.mkdir(parents=True, exist_ok=True)
+          receipt = {"endpoint": endpoint, "local_fallback": False}
+          try:
+              with socket.create_connection((uri.hostname, port), timeout=5):
+                  receipt["tcp"] = "connected"
+          except OSError as error:
+              receipt.update(tcp="failed", error_type=type(error).__name__, error=str(error))
+              (output / "probe.json").write_text(json.dumps(receipt, indent=2) + "\n")
+              print(json.dumps(receipt))
+              raise SystemExit(1)
+          # An empty protobuf request is sufficient for GetCapabilities.
+          (output / "request.bin").write_bytes(bytes(5))
+          address = uri.netloc
+          url = ("https" if uri.scheme == "grpcs" else "http") + "://" + address
+          url += "/build.bazel.remote.execution.v2.Capabilities/GetCapabilities"
+          result = subprocess.run(["curl", "--silent", "--show-error", "--http2-prior-knowledge",
+              "--noproxy", uri.hostname, "--connect-timeout", "5", "--max-time", "15",
+              "--header", "content-type: application/grpc", "--header", "te: trailers",
+              "--data-binary", "@" + str(output / "request.bin"),
+              "--dump-header", str(output / "headers.txt"), "--output", str(output / "response.bin"), url],
+              text=True, capture_output=True)
+          receipt["capabilities_curl_exit"] = result.returncode
+          headers = (output / "headers.txt").read_text() if (output / "headers.txt").exists() else ""
+          receipt["grpc_status"] = re.findall(r"(?im)^grpc-status:\s*(\d+)", headers)
+          receipt["content_type"] = re.findall(r"(?im)^content-type:\s*([^\r\n]+)", headers)
+          receipt["curl_error"] = result.stderr
+          (output / "headers.txt").write_text(json.dumps({key: receipt[key] for key in ("grpc_status", "content_type")}))
+          (output / "probe.json").write_text(json.dumps(receipt, indent=2) + "\n")
+          print(json.dumps(receipt))
+          # Bazel remains the authoritative protocol/authentication check.
+          PY_PROBE
       - name: Build and test through the registry
         env:
           HTTP_AUDIT_READY: ${{ steps.http_audit_download.outcome }}
@@ -172,46 +275,31 @@ jobs:
           set -euo pipefail
           ROOT=()
           SECRET_ENV=()
-          BAZEL_STARTUP_ARGS=()
-          BAZEL_BUILD_ARGS=()
+          BAZEL_STARTUP_ARGS=(--bazel-startup-arg=--host_jvm_args=-Xmx2g)
+          BAZEL_BUILD_ARGS=(--bazel-build-arg=--discard_analysis_cache)
+          if [[ -n "${CI_REMOTE_DOWNLOADER:-}" ]]; then
+            BAZEL_BUILD_ARGS+=("--bazel-build-arg=--remote_cache=$CI_REMOTE_DOWNLOADER"
+              "--bazel-build-arg=--experimental_remote_downloader=$CI_REMOTE_DOWNLOADER"
+              --bazel-build-arg=--noexperimental_remote_downloader_local_fallback)
+          fi
           CROSS_ARGS=()
+          PROFILE_ARGS=()
+          if [[ "${CI_PROFILE_ANALYSIS:-false}" == true ]]; then
+            PROFILE_ARGS=(--profile-analysis)
+          fi
           HTTP_AUDIT_ARGS=()
           if [[ "${HTTP_AUDIT_READY:-}" == success ]]; then
             HTTP_AUDIT_ARGS=(--http-audit-jar "$RUNNER_TEMP/debian-http-audit/debian-http-audit.jar")
           fi
-          RESOURCE_RECEIPT=()
+          # Keep Bazel CPU defaults and reserve memory for the JVM and system.
+          RESOURCE_RECEIPT=(python3 ci/runner_resources.py "$GITHUB_WORKSPACE/ci-artifacts/runner-resources.json")
           if [[ "$CI_EXECUTION_ARCHITECTURE" == amd64 ]]; then
             TEST_CONTAINER_IMAGE="${SONIC_RUNNER_IMAGE_REFERENCE:?Missing runner image identity}"
             ROOT=(sudo -n)
             SECRET_ENV=(--preserve-env=DEBIAN_MIRROR_ROOT,DEBIAN_SECURITY_MIRROR_ROOT,DEBIAN_MIRROR_BASE_URL,DEBIAN_SECURITY_MIRROR_BASE_URL,GITHUB_ACTIONS)
-            # Bazel's default heap is too small for large dependency graphs
-            # inside the runner's memory limit.
-            BAZEL_STARTUP_ARGS=(--bazel-startup-arg=--host_jvm_args=-Xmx2g)
-            BAZEL_BUILD_ARGS=(--bazel-build-arg=--jobs=1 --bazel-build-arg=--discard_analysis_cache)
             # Isolated pip uses its bundled CAs unless Requests receives the
             # system bundle that the registry runner provisions for its proxy.
             BAZEL_BUILD_ARGS+=(--bazel-build-arg=--repo_env=REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt)
-            case "$CI_MODULE" in
-              p4c|p4lang-bmv2|sonic-dash)
-                # These recipes run make -j4 inside one Bazel action. DASH also
-                # compiles P4C for the execution platform.
-                if [[ "${CI_LARGE_RUNNER:-false}" == true ]]; then
-                  # One Bazel action may run the recipe's four parallel Make compilers.
-                  RESOURCE_RECEIPT=(python3 ci/p4_runner_resources.py "$GITHUB_WORKSPACE/ci-artifacts/p4-runner-resources.json")
-                else
-                  make_flags="${GNUMAKEFLAGS:+$GNUMAKEFLAGS }--eval=.NOTPARALLEL:"
-                  BAZEL_BUILD_ARGS+=("--bazel-build-arg=--action_env=GNUMAKEFLAGS=$make_flags"
-                                     "--bazel-build-arg=--host_action_env=GNUMAKEFLAGS=$make_flags")
-                  if [[ "$CI_MODULE" == sonic-dash && "$CI_ARCHITECTURE" == amd64 ]]; then
-                    # The host P4C compiler and Bazel share 6 GiB while compiling dash_pipeline.p4.
-                    BAZEL_BUILD_ARGS+=(--bazel-build-arg=--host_cxxopt=-DGC_FREE_SPACE_DIVISOR=16)
-                    BAZEL_STARTUP_ARGS+=(--bazel-startup-arg=--host_jvm_args=-XX:G1PeriodicGCInterval=30000
-                                         --bazel-startup-arg=--host_jvm_args=-XX:MinHeapFreeRatio=20
-                                         --bazel-startup-arg=--host_jvm_args=-XX:MaxHeapFreeRatio=35)
-                  fi
-                fi
-                ;;
-            esac
             "${ROOT[@]}" git config --global --add safe.directory "$GITHUB_WORKSPACE"
           fi
           if [[ "$CI_CROSS_COMPILE" == true ]]; then
@@ -230,6 +318,7 @@ jobs:
             "${BAZEL_STARTUP_ARGS[@]}" \
             "${BAZEL_BUILD_ARGS[@]}" \
             "${CROSS_ARGS[@]}" \
+            "${PROFILE_ARGS[@]}" \
             --work-dir "$RUNNER_TEMP/registry-ci" \
             --artifacts "$GITHUB_WORKSPACE/ci-artifacts" \
             --test-container-image "$TEST_CONTAINER_IMAGE"

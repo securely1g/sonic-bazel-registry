@@ -1,0 +1,97 @@
+load("@rules_python//python:py_test.bzl", "py_test")
+load("@pycairo_test_pip//:requirements.bzl", "requirement")
+load("@sonic_build_infra//tools/build_tools:defs.bzl", "build_tools_runtime")
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
+load("@sonic_build_infra//python:site_packages.bzl", "site_packages")
+
+package(default_visibility = ["//visibility:public"])
+exports_files(["MODULE.bazel", "PKG-INFO", "README.rst", "COPYING", "COPYING-LGPL-2.1", "COPYING-MPL-1.1"])
+
+cc_binary(
+    name = "_cairo.so",
+    srcs = ['cairo/device.c', 'cairo/bufferproxy.c', 'cairo/error.c', 'cairo/cairomodule.c', 'cairo/context.c', 'cairo/font.c', 'cairo/matrix.c', 'cairo/path.c', 'cairo/pattern.c', 'cairo/region.c', 'cairo/surface.c', 'cairo/enums.c', 'cairo/misc.c', 'cairo/glyph.c', 'cairo/rectangle.c', 'cairo/textcluster.c', 'cairo/textextents.c'] + glob(["cairo/*.h"]),
+    copts = ['-O2', '-g', '-Wall', '-Warray-bounds', '-Wcast-align', '-Wconversion', '-Wextra', '-Wformat=2', '-Wformat-nonliteral', '-Wformat-security', '-Wimplicit-function-declaration', '-Winit-self', '-Winline', '-Wmissing-format-attribute', '-Wmissing-noreturn', '-Wnested-externs', '-Wold-style-definition', '-Wpacked', '-Wpointer-arith', '-Wreturn-type', '-Wshadow', '-Wsign-compare', '-Wstrict-aliasing', '-Wundef', '-Wunused-but-set-variable', '-Wswitch-default', '-Wno-missing-field-initializers', '-Wno-unused-parameter', '-fno-strict-aliasing', '-fvisibility=hidden', '-std=c99'],
+    local_defines = ["PYCAIRO_VERSION_MAJOR=1", "PYCAIRO_VERSION_MINOR=26", "PYCAIRO_VERSION_MICRO=1"],
+    linkshared = True,
+    features = ["-strip_debug_symbols"],
+    deps = ["@python_3_13//:python_headers", "@pycairo_build_debian//libcairo2-dev:libcairo_cc"],
+)
+
+# Keep the native build's library lookup intact. Only the installation copy
+# drops Bazel build paths; patchelf preserves its original debug sections.
+genrule(
+    name = "installed_cairo",
+    srcs = [":_cairo.so"],
+    outs = ["installed/_cairo.so"],
+    tools = ["@sonic_build_infra//tools/build_tools:patchelf"],
+    cmd = "$(execpath @sonic_build_infra//tools/build_tools:patchelf) --remove-rpath --output $@ $<",
+)
+
+site_packages(
+    name = "pycairo.runtime",
+    distribution = "pycairo", version = "1.26.1",
+    files = {p: p for p in ["cairo/__init__.py", "cairo/__init__.pyi", "cairo/py.typed"]} | {"cairo/py3cairo.h": "cairo/include/py3cairo.h", ":installed_cairo": "cairo/_cairo.cpython-313-x86_64-linux-gnu.so"},
+    summary = "Python interface for cairo",
+    homepage = "https://pycairo.readthedocs.io",
+    python_requires = ">=3.8", license = "LGPL-2.1-only OR MPL-1.1",
+    maintainer = 'Christoph Reiter',
+    maintainer_email = 'reiter.christoph@gmail.com',
+    classifiers = ['Operating System :: OS Independent', 'Programming Language :: Python :: 3', 'Programming Language :: Python :: Implementation :: CPython', 'Programming Language :: Python :: Implementation :: PyPy', 'License :: OSI Approved :: GNU Lesser General Public License v2 (LGPLv2)', 'License :: OSI Approved :: Mozilla Public License 1.1 (MPL 1.1)'],
+    project_urls = {"Source": "https://github.com/pygobject/pycairo"},
+    license_files = ['COPYING', 'COPYING-LGPL-2.1', 'COPYING-MPL-1.1'],
+    extra_distinfo_files = {name: "licenses/" + name for name in ['COPYING', 'COPYING-LGPL-2.1', 'COPYING-MPL-1.1']},
+    description_file = "README.rst",
+    regular_file_mode = "0644",
+    python_tag = "cp313", abi = "cp313", platform = "linux_x86_64",
+    site_packages = "/usr/local/lib/python3.13/dist-packages",
+    scripts = "/usr/local/bin", headers = "/usr/local/include",
+    data_prefix = "/usr/local", interpreter = "/usr/bin/python3",
+    target_compatible_with = ["@platforms//cpu:x86_64", "@platforms//os:linux"],
+)
+
+filegroup(
+    name = "pycairo.runtime_metadata",
+    srcs = [":pycairo.runtime"],
+    output_group = "metadata",
+)
+
+# Original setup.py build_tests compiles both files before pytest.
+cc_binary(
+    name = "cmod.so",
+    srcs = ["tests/cmodule/cmodule.c", "tests/cmodule/cmodulelib.c", "tests/cmodule/cmodulelib.h"],
+    copts = ["-std=c99", "-fno-strict-aliasing", "-fvisibility=hidden"],
+    local_defines = ["PY_SSIZE_T_CLEAN"],
+    linkshared = True,
+    deps = [":cairo_capi_headers", "@python_3_13//:python_headers", "@pycairo_build_debian//libcairo2-dev:libcairo_cc"],
+    testonly = True,
+)
+
+build_tools_runtime(
+    name = "test_runtime",
+    architecture = "amd64",
+    profile = "elf",
+    elf_tools = {"python3": "usr/bin/python3.13"},
+    packages = ["@build_tools//python3:raw_packages", "@pycairo_build_debian//libcairo2:raw_packages"],
+    testonly = True,
+)
+
+py_test(
+    name = "pycairo_test",
+    srcs = ["installed_test.py"],
+    main = "installed_test.py",
+    args = ["--runtime", "$(rootpath :test_runtime)", "--archive", "$(rootpath :pycairo.runtime)", "--metadata", "$(rootpath :pycairo.runtime_metadata)", "--cmod", "$(rootpath :cmod.so)", "--source", "$(rootpath setup.py)", "--native", "$(rootpath :_cairo.so)", "--patchelf", "$(rootpath @sonic_build_infra//tools/build_tools:patchelf)"],
+    data = [":_cairo.so", "@sonic_build_infra//tools/build_tools:patchelf", ":test_runtime", ":pycairo.runtime", ":pycairo.runtime_metadata", ":cmod.so", "setup.py", "cairo/py3cairo.h", "PKG-INFO", "README.rst", "COPYING", "COPYING-LGPL-2.1", "COPYING-MPL-1.1"] + glob(["tests/**"], exclude = ["tests/**/*.pyc"]),
+    deps = [requirement("pytest"), requirement("hypothesis")],
+    python_version = "3.13",
+    legacy_create_init = False,
+    target_compatible_with = ["@platforms//cpu:x86_64", "@platforms//os:linux"],
+    size = "medium",
+)
+
+cc_library(
+    name = "cairo_capi_headers",
+    hdrs = ["cairo/py3cairo.h"],
+    strip_include_prefix = "cairo",
+    deps = ["@python_3_13//:python_headers", "@pycairo_build_debian//libcairo2-dev:libcairo_cc"],
+    testonly = True,
+)

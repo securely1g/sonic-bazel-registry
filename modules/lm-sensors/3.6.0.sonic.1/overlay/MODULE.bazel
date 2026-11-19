@@ -1,0 +1,44 @@
+# AUTO-GENERATED. DO NOT EDIT MANUALLY.
+# Source: ../MODULE.bazel
+# Generator: python3 ci/registry_ci.py sync-module --module lm-sensors --version 3.6.0.sonic.1
+
+module(
+    name = "lm-sensors",
+    version = "3.6.0.sonic.1",
+)
+
+bazel_dep(name = "rules_cc", version = "0.2.22")
+bazel_dep(name = "rules_shell", version = "0.8.0")
+bazel_dep(name = "rules_python", version = "1.9.0.sonic.1")
+bazel_dep(name = "sonic-build-infra", version = "0.0.37-d31541a95fdf477302f1b109f2105eee81c86617", repo_name = "sonic_build_infra")
+
+apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
+
+bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.21")
+
+use_repo(apt, "lm_sensors_debian")
+
+prepared_source = use_repo_rule("@sonic_build_infra//source:prepared_source.bzl", "prepared_source")
+
+prepared_source(
+    name = "lm_sensors_source",
+    build_file = "//:source.BUILD.bazel",
+    inputs = {
+        "debian/patches/series": "//:debian/patches/series",
+        "debian/patches/01-sensors-detect-udevadm.patch": "//:debian/patches/01-sensors-detect-udevadm.patch",
+        "debian/patches/02-sensors-conf-convert-improvements.patch": "//:debian/patches/02-sensors-conf-convert-improvements.patch",
+        "debian/patches/06-sensors-detect-debian.patch": "//:debian/patches/06-sensors-detect-debian.patch",
+        "debian/patches/08-sensors-detect-lm85.patch": "//:debian/patches/08-sensors-detect-lm85.patch",
+        "debian/patches/09-sensors-detect-sch5524.patch": "//:debian/patches/09-sensors-detect-sch5524.patch",
+        "debian/patches/11-fancontrol-check.patch": "//:debian/patches/11-fancontrol-check.patch",
+        "debian/patches/14-2-digits-kernel.patch": "//:debian/patches/14-2-digits-kernel.patch",
+        "debian/patches/15-path-max.patch": "//:debian/patches/15-path-max.patch",
+    },
+    steps = [
+        '{"op":"archive","urls":["https://deb.debian.org/debian/pool/main/l/lm-sensors/lm-sensors_3.6.0.orig.tar.gz"],"sha256":"0591f9fa0339f0d15e75326d0365871c2d4e2ed8aa1ff759b3a55d3734b7d197","strip_prefix":"lm-sensors-3-6-0"}',
+        '{"op":"patch_series","series_input":"debian/patches/series","patch_inputs":["debian/patches/01-sensors-detect-udevadm.patch","debian/patches/02-sensors-conf-convert-improvements.patch","debian/patches/06-sensors-detect-debian.patch","debian/patches/08-sensors-detect-lm85.patch","debian/patches/09-sensors-detect-sch5524.patch","debian/patches/11-fancontrol-check.patch","debian/patches/14-2-digits-kernel.patch","debian/patches/15-path-max.patch"]}',
+    ],
+)
+
+bazel_dep(name = "tar.bzl", version = "0.6.0")
+bazel_dep(name = "bazel_skylib", version = "1.9.2")
