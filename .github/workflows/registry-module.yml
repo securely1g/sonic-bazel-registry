@@ -313,7 +313,6 @@ jobs:
             -- python3 ci/registry_ci.py run \
             --module "$CI_MODULE" \
             --version "$CI_VERSION" \
-            --infra-version 0.0.39-81476192bf2cdb70bb646e85935c5d698b6de8a0 \
             --architecture "$CI_ARCHITECTURE" \
             --bazel /usr/local/bin/bazel \
             "${BAZEL_STARTUP_ARGS[@]}" \

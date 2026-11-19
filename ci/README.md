@@ -1287,7 +1287,3 @@ This supports source-maintained execution-tool compatibility patches whose
 root-only declarations otherwise do not propagate to external consumers. It does
 not change source archive integrity, relax published-entry immutability or exempt
 this shared runner change from any consumer presubmit coverage.
-
-### Current Infra candidate in CI
-
-The module workflow explicitly passes `--infra-version 0.0.39-81476192bf2cdb70bb646e85935c5d698b6de8a0`. For presubmits that declare Infra in `consumer_deps`, the generated CI root selects this registered version through the existing version-only override. The effective dependency list is recorded in `validation.json`. Published MODULE files and presubmit dependency pins remain unchanged. Direct Infra jobs keep testing their selected module version. Local calls without this option retain the registered presubmit selection.

@@ -6,7 +6,6 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
-import copy
 from unittest import mock
 
 
@@ -18,22 +17,6 @@ spec.loader.exec_module(resources)
 
 
 class ResourceTests(unittest.TestCase):
-    def test_infra_candidate_changes_only_ci_dependency_selection(self):
-        sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-        import registry_ci
-        config = {"consumer_deps": [
-            {"name": "sonic-build-infra", "version": "old", "repo_name": "infra"},
-            {"name": "rules_cc", "version": "0.2.20"}], "test_targets": ["//:test"]}
-        original = copy.deepcopy(config)
-        selected = registry_ci.select_infra_candidate(config, "new")
-        self.assertEqual(config, original)
-        self.assertEqual(selected["consumer_deps"], [
-            {"name": "sonic-build-infra", "version": "new", "repo_name": "infra"},
-            {"name": "rules_cc", "version": "0.2.20"}])
-        self.assertEqual(selected["test_targets"], ["//:test"])
-        empty = {"consumer_deps": [], "test_targets": ["//:test"]}
-        self.assertEqual(registry_ci.select_infra_candidate(empty, "new"), empty)
-
     def test_capacity_uses_effective_pod_and_container_limits(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
