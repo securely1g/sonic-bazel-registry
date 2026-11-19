@@ -15,7 +15,7 @@
     },
     {
       "name": "rules_distroless",
-      "version": "0.9.4.sonic.18"
+      "version": "0.9.4.sonic.21"
     },
     {
       "name": "rules_cc",
