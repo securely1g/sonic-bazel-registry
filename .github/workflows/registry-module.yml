@@ -275,6 +275,7 @@ jobs:
           set -euo pipefail
           ROOT=()
           SECRET_ENV=()
+          BAZEL_STARTUP_ARGS=(--bazel-startup-arg=--host_jvm_args=-Xmx2g)
           BAZEL_BUILD_ARGS=(--bazel-build-arg=--discard_analysis_cache)
           if [[ -n "${CI_REMOTE_DOWNLOADER:-}" ]]; then
             BAZEL_BUILD_ARGS+=("--bazel-build-arg=--remote_cache=$CI_REMOTE_DOWNLOADER"
@@ -290,7 +291,7 @@ jobs:
           if [[ "${HTTP_AUDIT_READY:-}" == success ]]; then
             HTTP_AUDIT_ARGS=(--http-audit-jar "$RUNNER_TEMP/debian-http-audit/debian-http-audit.jar")
           fi
-          # The same budget applies to every module and target architecture.
+          # Observe resources without overriding Bazel scheduling defaults.
           RESOURCE_RECEIPT=(python3 ci/runner_resources.py "$GITHUB_WORKSPACE/ci-artifacts/runner-resources.json")
           if [[ "$CI_EXECUTION_ARCHITECTURE" == amd64 ]]; then
             TEST_CONTAINER_IMAGE="${SONIC_RUNNER_IMAGE_REFERENCE:?Missing runner image identity}"
@@ -314,6 +315,7 @@ jobs:
             --version "$CI_VERSION" \
             --architecture "$CI_ARCHITECTURE" \
             --bazel /usr/local/bin/bazel \
+            "${BAZEL_STARTUP_ARGS[@]}" \
             "${BAZEL_BUILD_ARGS[@]}" \
             "${CROSS_ARGS[@]}" \
             "${PROFILE_ARGS[@]}" \

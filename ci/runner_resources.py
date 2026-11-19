@@ -1,9 +1,8 @@
-"""Budget Bazel against the runner capacity and record build resource usage."""
+"""Record runner capacity and build resource usage without setting Bazel budgets."""
 
 import argparse
 from fractions import Fraction
 import json
-import math
 import os
 from pathlib import Path
 import subprocess
@@ -99,37 +98,15 @@ def action_cpu(events: Path) -> dict:
     return {"status": "missing_metrics"}
 
 
-def action_budget(limits: dict, heap_mb: int) -> dict:
-    """Use all effective CPUs and 80% of RAM left after the JVM heap reserve."""
-    cpus = limits["cpu_affinity_count"]
-    if limits["cpu_quota_cores"] is not None:
-        cpus = min(cpus, limits["cpu_quota_cores"])
-    host_memory = os.sysconf("SC_PHYS_PAGES") * os.sysconf("SC_PAGE_SIZE")
-    memory = min(host_memory, (limits["memory_limit_bytes"] if limits["memory_limit_bytes"] is not None else host_memory))
-    memory_mb = int((memory / 1024**2 - heap_mb) * .8)
-    if cpus <= 0 or heap_mb <= 0 or memory_mb <= 0:
-        raise ValueError("Runner capacity must leave CPU and action memory after the JVM reserve")
-    return {"jobs": math.ceil(cpus), "cpu": cpus, "memory_mb": memory_mb, "jvm_heap_mb": heap_mb}
-
-
-def run(output: Path, command: list[str], heap_mb: int = 2048) -> int:
+def run(output: Path, command: list[str]) -> int:
     group = unified_cgroup(Path("/proc/self/cgroup"))
     cgroup_root = Path("/sys/fs/cgroup")
     limits = capacity(group, cgroup_root)
-    budget = action_budget(limits, heap_mb)
     cgroup = cgroup_root / group.lstrip("/")
-    arguments = [
-        f"--bazel-startup-arg=--host_jvm_args=-Xmx{heap_mb}m",
-        f"--bazel-build-arg=--jobs={budget['jobs']}",
-        f"--bazel-build-arg=--local_resources=cpu={budget['cpu']:g}",
-        f"--bazel-build-arg=--local_resources=memory={budget['memory_mb']}",
-        "--bazel-build-arg=--experimental_action_resource_set",
-    ]
-    receipt = {**limits, "bazel_budget": budget, "bazel_arguments": arguments,
-               "memory_before": memory_usage(cgroup)}
+    receipt = {**limits, "memory_before": memory_usage(cgroup)}
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(receipt, indent=2) + "\n")
-    status = subprocess.run([*command, *arguments]).returncode
+    status = subprocess.run(command).returncode
     receipt["build_cpu"] = {phase: action_cpu(output.parent / f"{phase}-events.jsonl")
                             for phase in ("build", "test")}
     receipt["exit_code"] = status

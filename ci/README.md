@@ -882,20 +882,14 @@ actions are pinned to commit SHAs, checkout does not
 persist credentials, and the workflow uses read-only repository permissions.
 
 Every module validation, including native ARM64, runs through
-`ci/runner_resources.py`. The wrapper derives the effective CPU quota and memory
-limit from the tightest enclosing cgroup v2, caps CPU by process affinity and
-memory by host RAM, and records the result in `runner-resources.json`.
+`ci/runner_resources.py`. The wrapper records the tightest enclosing cgroup v2
+CPU quota and memory limit, plus process CPU affinity, in
+`runner-resources.json`.
 
-The same policy applies to every module:
-
-- Reserve the existing 2 GiB maximum JVM heap, then allocate 80% of the remaining
-  RAM to Bazel actions. The rest remains available for the system and non-heap
-  overhead. Fail before validation if the runner cannot provide a positive budget.
-- Set `--jobs` to the effective CPU count rounded up, and set
-  `--local_resources=cpu` to the exact CPU budget (including fractional quotas).
-  Set `--local_resources=memory` to the computed action budget in MiB.
-- Enable `--experimental_action_resource_set` so custom rules' action CPU and
-  memory estimates participate in scheduling. Keep `--discard_analysis_cache`.
+Bazel uses its default job count, CPU budget and action memory budget. The
+resource wrapper only observes the runner; it does not compute budgets or add
+Bazel arguments. Keep the existing 2 GiB JVM maximum heap and
+`--discard_analysis_cache`. Build rules retain their action resource estimates.
 
 CI does not select compiler concurrency or inject Make/GC flags by module name.
 Build rules own action resource declarations and any internal tool parallelism.
@@ -904,8 +898,8 @@ needs; native compile/link actions can declare their individual needs. These
 estimates guide scheduling and do not impose hard per-action memory limits or
 infer the process tree's future peak. Published module recipes remain unchanged.
 
-The receipt records the exact Bazel arguments, cgroup memory peak and OOM
-counters before and after validation, the command exit status, and local CPU
+The receipt records cgroup memory peak and OOM counters before and after
+validation, the command exit status, and local CPU
 measurements by action mnemonic for both native and wrapped actions. Cache-only,
 remote, missing and ambiguous measurements retain explicit statuses. Repeated
 startup/build arguments reach build, test and output queries through the existing

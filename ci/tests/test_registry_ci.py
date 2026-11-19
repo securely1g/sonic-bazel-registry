@@ -2373,7 +2373,7 @@ class TestContainerTests(unittest.TestCase):
                                  environment["SONIC_RUNNER_IMAGE_REFERENCE"] if execution == "amd64" else selection[1])
                 self.assertEqual(arguments[arguments.index("--bazel") + 1], "/usr/local/bin/bazel")
                 self.assertEqual([arg for arg in arguments if arg.startswith("--bazel-startup-arg=")],
-                                 [])
+                                 ["--bazel-startup-arg=--host_jvm_args=-Xmx2g"])
                 self.assertEqual([arg for arg in arguments if arg.startswith("--bazel-build-arg=")],
                                  ["--bazel-build-arg=--discard_analysis_cache",
                                   "--bazel-build-arg=--repo_env=REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt"]
@@ -2423,9 +2423,9 @@ class TestContainerTests(unittest.TestCase):
                     self.assertEqual(args[:3], ["ci/runner_resources.py",
                         str(root / "workspace/ci-artifacts/runner-resources.json"), "python3"])
                     self.assertEqual(args[args.index("--module") + 1], module)
-                    # Resource flags belong to the same capacity-based wrapper,
-                    # independently of module name, execution and target architecture.
-                    self.assertEqual([arg for arg in args if arg.startswith("--bazel-startup-arg=")], [])
+                    # Keep the existing JVM heap independent of Bazel action scheduling.
+                    self.assertEqual([arg for arg in args if arg.startswith("--bazel-startup-arg=")],
+                                     ["--bazel-startup-arg=--host_jvm_args=-Xmx2g"])
                     self.assertEqual([arg for arg in args if arg.startswith("--bazel-build-arg=")],
                         ["--bazel-build-arg=--discard_analysis_cache"] +
                         (["--bazel-build-arg=--repo_env=REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt"]
