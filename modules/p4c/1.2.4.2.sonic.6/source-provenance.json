@@ -1,0 +1,8 @@
+{
+  "upstream_commit": "624c6be8076881e9af1e2f7d7691bc6c4416f4b1",
+  "upstream_archive_sha256": "8671a90b6ec252bde7f522f4b69f852e6b1e871e70df8e3815f82dacfb6e9394",
+  "retained_bundle_sha256": "a41d616add63924a098edaab446809f543ffadfc2e40356f9b73986f324c668a",
+  "debian_archive_sha256": "2a39bf04c8d084724014b71cdeb3b91dbe7a32bf1bd6cd499e5e132aa3e4cb40",
+  "source_selection": "Primary compiler source is downloaded from the pinned upstream commit. The retained distribution supplies only original Protobuf IDL, P4Runtime IDL, Inja and the original AMD64 Z3 input. The independent native protobuf-legacy 21.12 module supplies compiled Protobuf and protoc.",
+  "patches": "Apply the selected Debian series, five original SONiC patches, and the relocated include-directory adapter documented in PATCHES.md. No test-generator semantic change."
+}

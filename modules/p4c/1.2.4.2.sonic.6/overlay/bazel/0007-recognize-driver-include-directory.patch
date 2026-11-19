@@ -1,0 +1,28 @@
+--- a/frontends/common/parser_options.cpp
++++ b/frontends/common/parser_options.cpp
+@@ -324,6 +324,16 @@
+     return true;
+ }
+ 
++// The driver supplies one include directory, also passed verbatim to cpp's -I.
++// Preserve that spelling so cpp's source filenames and ToP4's system-header
++// prefix agree when a declared loader relocates the compiler execution.
++void useDriverIncludePath(const char *&includePathOut, const char *variable) {
++    if (const char *path = getenv(variable)) {
++        struct stat st;
++        if (stat(path, &st) >= 0 && S_ISDIR(st.st_mode)) includePathOut = strdup(path);
++    }
++}
++
+ }  // namespace
+ 
+ bool ParserOptions::searchForIncludePath(const char *&includePathOut,
+@@ -357,6 +367,8 @@
+     searchForIncludePath(p4_14includePath,
+                          {"p4_14include", "../p4_14include", "../../p4_14include"},
+                          exename(argv[0]));
++    useDriverIncludePath(p4includePath, "P4C_16_INCLUDE_PATH");
++    useDriverIncludePath(p4_14includePath, "P4C_14_INCLUDE_PATH");
+ 
+     auto remainingOptions = Util::Options::process(argc, argv);
+     validateOptions();
