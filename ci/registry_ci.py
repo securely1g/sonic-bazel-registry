@@ -51,65 +51,7 @@ RUNNERS = {
     "amd64": ["self-hosted", "Linux", "X64", "debian-trixie-container"],
     "arm64": ["ubuntu-24.04-arm"],
 }
-# This staged migration keeps unverified and future ARM versions on native ARM.
-# The exploratory survey uses True in its separate branch; do not infer success
-# from a build-only result or an API-green job without the original test evidence.
-ARM_CROSS_ALL = False
 FIPS_CROSS_VERSION = "0.0.6-18a778db501d455f8a1b6d1e3ef8e17121661177"
-# Temporary exact-version routes qualified by the complete original ARM contract.
-# Remove this map and the hosted ARM route after the full migration, so future
-# ARM versions receive cross validation as well. See ci/README.md for CI evidence.
-ARM_CROSS_VERSIONS: dict[str, tuple[str, ...]] = {
-    "gawk": ("5.3.2.sonic.1",),
-    "gazelle": ("0.54.0.sonic.1",),
-    "iproute2": ("6.15.0.sonic.7",),
-    "libnl3": ("3.7.0.sonic.7",),
-    "libpsample": ("1.1.0.sonic.2",),
-    "libyang": ("3.12.2.sonic.7",),
-    "libyang-python": ("3.1.0.sonic.6",),
-    "net-snmp": ("5.9.3.sonic.1",),
-    "p4c": ("1.2.4.2.sonic.3", "1.2.4.2.sonic.5"),
-    "p4lang-bmv2": ("1.15.0.sonic.4",),
-    "p4lang-pi": ("0.1.3.sonic.3", "0.1.3.sonic.6"),
-    "protobuf-legacy": ("3.21.12.sonic.2",),
-    "redis-dump-load": ("1.1.sonic.1",),
-    "rules_distroless": ("0.9.4.sonic.17", "0.9.4.sonic.20", "0.9.4.sonic.21"),
-    "rules_foreign_cc": ("0.16.0.sonic.1",),
-    "rules_go": ("0.65.0.sonic.1",),
-    "rules_python": ("1.9.0.sonic.1",),
-    "sai": ("1.18.0-sonic.1",),
-    "sflowtool": ("6.11.0.sonic.3",),
-    "socat": ("1.8.0.2.sonic.5", "1.8.0.2.sonic.7"),
-    "sonic-build-infra": (
-        "0.0.37-316e298e77ab5cfa69af9b0c05ec24d5d94bbe1e",
-        "0.0.38-0baa4acc9eac9ccc793b81104b1580d530271cbe",
-    ),
-    "sonic-dash": (
-        "0.0.1-2cbfdfa1205c0d03003444e5c80f89adb8c3df59",
-        "0.0.1-a9b799bb664b3b3b9d6e9a19cedd38b620e769de",
-        "0.0.3-2cbfdfa1205c0d03003444e5c80f89adb8c3df59",
-    ),
-    "sonic-dash-api": ("0.0.5-9b2893e890734a2db0c53a5e5c64b031ec0dcfbd",),
-    "sonic-dhcpmon": ("0.1.0-b824589b2ba49a8ba59142289bfb04bb3ca68875",),
-    "sonic-fips": (FIPS_CROSS_VERSION,),
-    "sonic-linux-kernel": ("0.0.2-34a53faaecd325509e9d8f1016ed0108ab558a23",),
-    "sonic-rust-deps": (
-        "0.0.4-6d9c70f708d7420e9e2b2cdc906b80cee6b140f1",
-        "0.0.5-dd364f207d7b320a5af12c81da6d10893f292205",
-    ),
-    "sonic-sairedis": ("0.0.5-33443ea1666a23812365d03fb959066ee84c9aa0",),
-    "sonic-swss": ("0.0.3-9c3797990d4b5a79100a40fe7689927c18212361",),
-    "sonic-swss-common": ("0.0.9-334389eae54afd1f4f5ee69f89c3a7ad2062ee61",),
-    "sonic-yang-mgmt": ("1.0.0-9ab452d22773c41783092ae3bd6c206d6c257c8d",),
-    "sonic-yang-models": ("1.0.1-b0a9362a7a1b4b5e1b7188c019d256f7c8aaff9f",),
-    "tar.bzl": ("0.10.5.sonic.2",),
-}
-
-# Keep the coherent DASH registration in routine plans. The published
-# .3 registration remains the numeric latest version and keeps its usual jobs.
-ADDITIONAL_PRESUBMITS: set[tuple[str, str]] = {
-    ("sonic-dash", "0.0.1-a9b799bb664b3b3b9d6e9a19cedd38b620e769de"),
-}
 
 # The original wrappers stage a private target executable, loader and libraries.
 ARM_DECLARED_RUNTIME_FIXTURES = {
@@ -737,7 +679,6 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
                         for path in (root / "modules").glob("*/*/presubmit.json"))
     elif latest_versions:
         selected.update(latest_presubmits(root))
-        selected.update(ADDITIONAL_PRESUBMITS)
     else:
         require(bool(base) and bool(head), "plan requires --base/--head, --latest or --all")
         require(re.fullmatch(r"[0-9a-fA-F]{40,64}", base) is not None
@@ -804,25 +745,13 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
                         selected.add((module, parts[2]))
         if ci_changed:
             selected.update(latest_presubmits(root))
-            selected.update(ADDITIONAL_PRESUBMITS)
-    require(type(ARM_CROSS_ALL) is bool, "ARM cross survey selection must be boolean")
-    require(isinstance(ARM_CROSS_VERSIONS, dict), "ARM cross routes must be a module/version map")
-    for module, versions in ARM_CROSS_VERSIONS.items():
-        require(isinstance(module, str) and NAME.fullmatch(module) is not None
-                and isinstance(versions, tuple) and bool(versions)
-                and all(isinstance(version, str) and VERSION.fullmatch(version) for version in versions)
-                and len(versions) == len(set(versions)), "Invalid temporary ARM cross route")
     include = []
     for module, version in sorted(selected):
         config = validate_entry(root, module, version)
         for architecture in config["architectures"]:
-            cross_compile = architecture == "arm64" and (
-                ARM_CROSS_ALL or version in ARM_CROSS_VERSIONS.get(module, ()))
-            execution_architecture = "amd64" if cross_compile else architecture
             include.append({"module": module, "version": version, "architecture": architecture,
-                            "execution_architecture": execution_architecture,
-                            "cross_compile": cross_compile,
-                            "runner": module_runner(module, execution_architecture, p4_runner_profile)})
+                            "execution_architecture": "amd64", "cross_compile": architecture == "arm64",
+                            "runner": module_runner(module, "amd64", p4_runner_profile)})
     return {"include": include}
 
 
@@ -1707,9 +1636,12 @@ def cross_test_timeout_flags(module: str, version: str, cross_compile: bool, fla
     """Supply emulation budgets for short, moderate, long and eternal tests."""
     if not cross_compile or any(flag == "--test_timeout" or flag.startswith("--test_timeout=") for flag in flags):
         return []
+    # BMv2's moderate package test unpacks and inspects its runtime and debug
+    # archives under QEMU, which takes longer than the default 900 seconds.
+    moderate_seconds = 2700 if module == "p4lang-bmv2" else 900
     # The FIPS package test runs the complete SymCrypt unittest under QEMU.
     long_seconds = 5400 if (module, version) == ("sonic-fips", FIPS_CROSS_VERSION) else 2700
-    return [f"--test_timeout=180,900,{long_seconds},7200"]
+    return [f"--test_timeout=180,{moderate_seconds},{long_seconds},7200"]
 
 
 def run(root: Path, module: str, version: str, architecture: str,
@@ -1726,8 +1658,9 @@ def run(root: Path, module: str, version: str, architecture: str,
     require(not cross_compile or architecture == "arm64", "Cross compilation supports ARM64 targets on AMD64")
     require(cross_compile or test_executor is None, "A test executor requires explicit cross compilation")
     native = verify_native("amd64" if cross_compile else architecture)
-    fips_cross = cross_compile and module == "sonic-fips" and version in ARM_CROSS_VERSIONS.get(module, ())
-    infra_cross = cross_compile and module == "sonic-build-infra" and version in ARM_CROSS_VERSIONS.get(module, ())
+    fips_cross = cross_compile and (module, version) == ("sonic-fips", FIPS_CROSS_VERSION)
+    infra_cross = (cross_compile and module == "sonic-build-infra" and
+                   "@sonic-build-infra//tools/build_tools:foreign_runtime_test" in test_targets)
     kernel_executor = Path("/usr/local/bin/sonic-arm64-kernel")
     if fips_cross:
         require(kernel_executor.is_file() and os.access(kernel_executor, os.X_OK),
@@ -1738,7 +1671,6 @@ def run(root: Path, module: str, version: str, architecture: str,
         require(test_executor is not None and test_executor.is_absolute()
                 and test_executor.is_file() and os.access(test_executor, os.X_OK),
                 "ARM64 cross compilation requires an executable absolute --test-executor path")
-        require("amd64" in config["platforms"], "Cross compilation requires a declared AMD64 execution platform")
     work_dir, artifacts = work_dir.resolve(), artifacts.resolve()
     require(not work_dir.exists() or not any(work_dir.iterdir()), "work-dir must be fresh and empty")
     require(not artifacts.is_relative_to(work_dir), "artifacts must be outside work-dir")
@@ -1845,7 +1777,9 @@ def run(root: Path, module: str, version: str, architecture: str,
                                             work_dir, artifacts))
         host_platform = config.get("host_platforms", {}).get(execution_architecture)
         if cross_compile and host_platform is None:
-            host_platform = config["platforms"]["amd64"]
+            # ARM-only manifests have no AMD64 target platform. The build runs on
+            # a verified AMD64 host; derive its execution platform from Bazel.
+            host_platform = config["platforms"].get("amd64", "@local_config_platform//:host")
         if host_platform is not None:
             flags.append(f"--host_platform={host_platform}")
         if config.get("rust_toolchain", {}).get("mangled_allocator_libraries", False):
