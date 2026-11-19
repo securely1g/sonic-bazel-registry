@@ -1,3 +1,17 @@
+# Prepared-repository cache support in the unpublished .23 candidate
+
+`0060-cache-prepared-apt-repositories.patch` adapts
+https://github.com/securely1g/rules_distroless/pull/6 to the retained
+SONiC-specific native metadata implementations. It adds reproducible repository
+metadata only for tracked metadata generators and checksum-pinned package
+imports, uses declared archive tools, preserves canonical label identities
+when cache directories have numeric names, and removes output-base-absolute
+native aliases. Host-specific native-tool bootstrap behavior is unchanged.
+
+This follows the module-extension-only change in registry PR #431; both
+changes use the same unpublished `0.9.4.sonic.23` candidate. Published .22 and
+earlier recipes, patches and overlays are unchanged.
+
 # Patch provenance for 0.9.4.sonic.19
 
 This candidate retains the published 0.9.4.sonic.17 inputs and adds

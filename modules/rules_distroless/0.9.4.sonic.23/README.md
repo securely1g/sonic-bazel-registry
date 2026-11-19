@@ -1,3 +1,32 @@
+# Prepared APT repository caching (`0.9.4.sonic.23`)
+
+Patch 0060 makes locked package imports, file maps, package catalogs,
+pkg-config metadata and dependency-set repositories eligible for Bazel's
+repository contents cache. This is separate from the reproducible module
+extension result described below: extension metadata alone does not cache
+the generated repositories' contents.
+
+The rules use the declared tar.bzl host binary rather than host `tar`,
+derive repository identities from labels instead of cache-directory names,
+and materialize native library aliases as regular files rather than symlinks
+back into a previous output base. Imports without package checksums remain
+ineligible. The host-specific native-tool bootstrap is deliberately not
+marked reproducible.
+
+Run the standalone native cache contract from the registry root:
+
+```sh
+USE_BAZEL_VERSION=8.5.1 python3 \
+  modules/rules_distroless/0.9.4.sonic.23/tests/repository_cache_test.py \
+  --registry .
+```
+
+It creates a synthetic DEB containing headers, pkg-config metadata and an ELF
+shared library. Fresh output bases must reuse the exact prepared cache entries
+after the original output base is deleted, preserve generated BUILD contents
+and usable native aliases, and invalidate correctly when package inputs change.
+This tests local shared-cache correctness, not NFS performance.
+
 # Lock imports outside MODULE.bazel.lock (`0.9.4.sonic.23`)
 
 A unified `apt.import_lock` now marks its module extension result as
