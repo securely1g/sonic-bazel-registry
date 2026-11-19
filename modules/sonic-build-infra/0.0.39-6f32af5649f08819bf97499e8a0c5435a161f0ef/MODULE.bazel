@@ -1,11 +1,7 @@
-# AUTO-GENERATED. DO NOT EDIT MANUALLY.
-# Source: ../MODULE.bazel
-# Generator: python3 ci/registry_ci.py sync-module --module sonic-build-infra --version 0.0.39-5dd692e1573f634d1f97a1930069253e50dbd4f2
-
 # Keep bazel_compatibility in sync with sonic-buildimage's .bazelversion.
 module(
     name = "sonic-build-infra",
-    version = "0.0.39-5dd692e1573f634d1f97a1930069253e50dbd4f2",
+    version = "0.0.39-6f32af5649f08819bf97499e8a0c5435a161f0ef",
     bazel_compatibility = [
         ">=8.5.1",
         "<=8.5.1",
