@@ -9,16 +9,6 @@ def _impl(ctx):
         type = "tar.gz",
     )
 
-    # GitHub archives omit submodule content. Restore the exact libbpf gitlink
-    # recorded by the primary P4C commit from libbpf's upstream repository.
-    ctx.download_and_extract(
-        url = "https://codeload.github.com/libbpf/libbpf/tar.gz/051a4009f94d5633a8f734ca4235f0a78ee90469",
-        sha256 = "274be7806056fefefa66d1dc1b2bcce5d4f60105916b9d9b40ca9547a3f8dce5",
-        output = "backends/ebpf/runtime/contrib/libbpf",
-        stripPrefix = "libbpf-051a4009f94d5633a8f734ca4235f0a78ee90469",
-        type = "tar.gz",
-    )
-
     # Recover only dependency inputs from the retained bundle. Its modified
     # compiler tree and old build directory never enter this repository.
     ctx.download_and_extract(
@@ -50,8 +40,8 @@ def _impl(ctx):
     for patch in ctx.attr.patches:
         ctx.patch(ctx.path(patch), strip = 1)
 
-    # This repository builds through upstream CMake. Remove Bazel package
-    # boundaries so the declared source filegroup includes the bundled sources.
+    # The native compiler declares each source directly in its root package.
+    # Remove inherited package boundaries from the retained fixed source inputs.
     for path in ["BUILD.bazel", "build/_deps/protobuf-src/BUILD.bazel", "build/_deps/p4runtime-src/proto/BUILD.bazel", "build/_deps/p4runtime-src/bazel/example/BUILD.bazel", "build/_deps/protobuf-src/csharp/BUILD.bazel", "build/_deps/protobuf-src/build_defs/BUILD.bazel", "build/_deps/protobuf-src/conformance/BUILD.bazel", "build/_deps/protobuf-src/php/BUILD.bazel", "build/_deps/protobuf-src/examples/BUILD.bazel", "build/_deps/protobuf-src/ruby/BUILD.bazel", "build/_deps/protobuf-src/util/python/BUILD.bazel", "build/_deps/protobuf-src/third_party/googletest/BUILD.bazel", "bazel/example/BUILD.bazel", "bazel/example/p4/BUILD.bazel", "backends/p4tools/BUILD.bazel"]:
         ctx.delete(path)
 

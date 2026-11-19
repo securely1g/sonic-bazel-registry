@@ -2,6 +2,8 @@
 
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 
+P4C_SOURCE_ROOT = Label("//:Version.txt").workspace_root
+
 def _key(ctx, file):
     return file.short_path[3:] if file.short_path.startswith("../") else ctx.workspace_name + "/" + file.short_path
 
