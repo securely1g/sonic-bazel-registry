@@ -1,0 +1,276 @@
+diff -ruN a/MODULE.bazel b/MODULE.bazel
+--- a/MODULE.bazel	2026-11-19 18:21:34.652000000 +1100
++++ b/MODULE.bazel	2026-11-19 18:24:14.565366811 +1100
+@@ -32,7 +32,12 @@
+ use_repo(bazel_lib_toolchains, "coreutils_toolchains")
+ 
+ tar_toolchains = use_extension("@tar.bzl//tar:extensions.bzl", "toolchains")
+-use_repo(tar_toolchains, "bsd_tar_toolchains")
++use_repo(
++    tar_toolchains,
++    "bsd_tar_toolchains",
++    "bsd_tar_toolchains_linux_amd64",
++    "bsd_tar_toolchains_linux_arm64",
++)
+ 
+ native_tools = use_repo_rule("//apt/private:native_tools.bzl", "native_tools_repository")
+ native_tools(name = "distroless_native_tools")
+diff -ruN a/apt/private/BUILD.bazel b/apt/private/BUILD.bazel
+--- a/apt/private/BUILD.bazel	2026-11-19 18:21:34.500143678 +1100
++++ b/apt/private/BUILD.bazel	2026-11-19 18:24:49.702900782 +1100
+@@ -66,6 +66,7 @@
+         ":pkgconfig",
+         ":pkgconfig_metadata",
+         ":native_tools",
++        ":repository_cache",
+     ],
+ )
+ 
+@@ -73,7 +74,14 @@
+     name = "deb_filemap",
+     srcs = ["deb_filemap.bzl"],
+     visibility = ["//apt:__subpackages__"],
+-    deps = [":native_tools", ":pkgconfig", ":util"],
++    deps = [":native_tools", ":pkgconfig", ":repository_cache", ":util"],
++)
++
++bzl_library(
++    name = "repository_cache",
++    srcs = ["repository_cache.bzl"],
++    visibility = ["//apt:__subpackages__"],
++    deps = ["@bazel_lib//lib:repo_utils"],
+ )
+ 
+ bzl_library(
+@@ -95,6 +103,7 @@
+     visibility = ["//apt:__subpackages__"],
+     deps = [
+         ":lockfile",
++        ":repository_cache",
+         ":starlark_codegen_utils",
+         ":util",
+         "//apt:defs",
+@@ -206,5 +215,5 @@
+     name = "pkgconfig_metadata",
+     srcs = ["pkgconfig_metadata.bzl"],
+     visibility = ["//apt:__subpackages__"],
+-    deps = [":pkgconfig", ":util"],
++    deps = [":pkgconfig", ":repository_cache", ":util"],
+ )
+diff -ruN a/apt/private/deb_filemap.bzl b/apt/private/deb_filemap.bzl
+--- a/apt/private/deb_filemap.bzl	2026-11-19 18:21:34.469822246 +1100
++++ b/apt/private/deb_filemap.bzl	2026-11-19 18:24:14.569382588 +1100
+@@ -2,6 +2,7 @@
+ 
+ load(":native_tools.bzl", "catalog_execute")
+ load(":pkgconfig.bzl", "direct_requirements")
++load(":repository_cache.bzl", "host_tar", "reproducible_repository")
+ 
+ load(":util.bzl", "util")
+ 
+@@ -39,7 +40,7 @@
+         archives = [path for path in rctx.path(".").readdir() if path.basename.startswith("data.tar")]
+         if len(archives) != 1:
+             fail("DEB must contain exactly one data archive")
+-        listing = rctx.execute(["tar", "-tvf", str(archives[0])])
++        listing = rctx.execute([host_tar(rctx), "-tvf", str(archives[0])], environment = {"LC_ALL": "C", "TZ": "UTC"})
+         if listing.return_code:
+             fail(listing.stderr)
+         members = {}
+@@ -59,12 +60,12 @@
+         selected_native = [path for path in members if path in native_files]
+         if selected_native:
+             rctx.file("_inspect/.keep", "")
+-            unpack = rctx.execute(["tar", "-xf", str(archives[0]), "-C", str(rctx.path("_inspect"))] + [members[path] for path in selected_native])
++            unpack = rctx.execute([host_tar(rctx), "-xf", str(archives[0]), "-C", str(rctx.path("_inspect"))] + [members[path] for path in selected_native], environment = {"LC_ALL": "C", "TZ": "UTC"})
+             if unpack.return_code:
+                 fail(unpack.stderr)
+         for path, member in members.items():
+             if path in pc_files:
+-                result = rctx.execute(["tar", "-xOf", str(archives[0]), member])
++                result = rctx.execute([host_tar(rctx), "-xOf", str(archives[0]), member], environment = {"LC_ALL": "C", "TZ": "UTC"})
+                 if result.return_code:
+                     fail(result.stderr)
+                 metadata[path] = {"content": result.stdout, "direct_requirements": direct_requirements(rctx, path, result.stdout)}
+@@ -105,6 +106,9 @@
+     rctx.file("pkgconfig.json", json.encode(metadata))
+     rctx.file("native.json", json.encode(native))
+     rctx.file("BUILD.bazel", 'exports_files(["filemap.json", "pkgconfig.json", "native.json"], visibility=["//visibility:public"])\n')
++    if not rctx.attr.urls or rctx.attr.sha256:
++        return reproducible_repository(rctx)
++    return None
+ 
+ deb_filemap = repository_rule(
+     implementation = _deb_filemap_impl,
+@@ -118,6 +122,7 @@
+ def _catalog_impl(rctx):
+     rctx.file("catalog.json", rctx.attr.content)
+     rctx.file("BUILD.bazel", 'exports_files(["catalog.json"], visibility=["//visibility:public"])\n')
++    return reproducible_repository(rctx)
+ 
+ package_catalog_repository = repository_rule(
+     implementation = _catalog_impl,
+diff -ruN a/apt/private/deb_import.bzl b/apt/private/deb_import.bzl
+--- a/apt/private/deb_import.bzl	2026-11-19 18:21:34.622508697 +1100
++++ b/apt/private/deb_import.bzl	2026-11-19 18:28:35.912003166 +1100
+@@ -8,6 +8,7 @@
+ load(":multiarch.bzl", "default_include_dirs", "select_include_dirs")
+ load(":pkgconfig.bzl", "resolve_modules")
+ load(":pkgconfig_metadata.bzl", "expand_module_metadata")
++load(":repository_cache.bzl", "copy_archive_file", "host_tar", "reproducible_repository")
+ load(":util.bzl", "util")
+ 
+ # BUILD.bazel template
+@@ -139,7 +140,7 @@
+ 
+ def _load_leaf(rctx, filemap, state):
+     path = rctx.path(filemap)
+-    owner = path.dirname.basename.removesuffix("_filemap")
++    owner = filemap.workspace_name.removesuffix("_filemap")
+     if owner in state["files"]:
+         return owner
+     state["files"][owner] = json.decode(rctx.read(path))
+@@ -331,7 +332,7 @@
+             record = own_metadata.get(path, {})
+             soname = record.get("soname", path.rsplit("/", 1)[-1])
+             native_path = "_native/" + path + "/" + soname
+-            rctx.symlink(rctx.path(_EXTRACT_DIR + "/" + path), native_path)
++            copy_archive_file(rctx, path, native_path)
+             if _public_runtime_path(path) and not _toolchain_c_runtime(rctx.attr.name, state):
+                 runtime_paths.append(native_path)
+             content += _generate_native_cc_import("_raw" + name, native_path)
+@@ -694,7 +695,7 @@
+     if len(archives) != 1:
+         fail("DEB must contain exactly one data archive: " + str(archives))
+     data_archive = str(archives[0])
+-    result = rctx.execute(["tar", "--exclude='./**/'", "-tvf", data_archive])
++    result = rctx.execute([host_tar(rctx), "-tvf", data_archive], environment = {"LC_ALL": "C", "TZ": "UTC"})
+     if result.return_code:
+         fail("cannot inspect DEB data archive: " + result.stderr)
+     contents_raw = result.stdout.splitlines()
+@@ -817,11 +818,15 @@
+     # - pkgconfig files because we need them to generate cc targets.
+     files_to_extract = so_regular_files + a_regular_files + pc_files
+     if files_to_extract:
+-        rctx.execute(["mkdir", "-p", _EXTRACT_DIR])
+-        rctx.execute(
+-            ["tar", "-xf", data_archive, "-C", _EXTRACT_DIR] +
++        rctx.file(_EXTRACT_DIR + "/.keep", "")
++        rctx.delete(_EXTRACT_DIR + "/.keep")
++        result = rctx.execute(
++            [host_tar(rctx), "-xf", data_archive, "-C", _EXTRACT_DIR] +
+             ["./" + f for f in files_to_extract],
++            environment = {"LC_ALL": "C", "TZ": "UTC"},
+         )
++        if result.return_code:
++            fail(result.stderr)
+ 
+     linker_scripts = _linker_scripts(
+         rctx,
+@@ -1119,7 +1124,7 @@
+             depends_on = ["@" + rctx.attr.repo_prefix + util.sanitize(dep_key) + "//:data" for dep_key in rctx.attr.depends_on],
+             target_name = rctx.attr.target_name,
+         ) + '\nfilegroup(name = "pkgconfig", visibility = ["//visibility:public"])\n')
+-        return
++        return reproducible_repository(rctx) if rctx.attr.sha256 else None
+ 
+     state = {"file_count": 0, "files": {}, "native": {}, "documents": [], "provided": {}, "extra_keys": [], "module_errors": {}, "catalog": json.decode(rctx.read(rctx.attr.package_catalog)) if rctx.attr.package_catalog else {}, "prefix": rctx.attr.name.removesuffix(rctx.attr.target_name)}
+     filemaps = ([rctx.attr.own_filemap] if rctx.attr.own_filemap else []) + rctx.attr.dep_filemaps
+@@ -1159,6 +1164,7 @@
+         foreign_symlinks = foreign_symlinks,
+         symlink_outs = symlinks.keys(),
+     ))
++    return reproducible_repository(rctx) if rctx.attr.sha256 else None
+ 
+ deb_import = repository_rule(
+     implementation = _deb_import_impl,
+diff -ruN a/apt/private/pkgconfig_metadata.bzl b/apt/private/pkgconfig_metadata.bzl
+--- a/apt/private/pkgconfig_metadata.bzl	2026-11-19 18:21:34.509151250 +1100
++++ b/apt/private/pkgconfig_metadata.bzl	2026-11-19 18:24:14.573398365 +1100
+@@ -1,6 +1,7 @@
+ """Pure locked pkg-config graph data, independent of BUILD rendering."""
+ 
+ load(":pkgconfig.bzl", "direct_requirements", "module_records", "resolve_modules")
++load(":repository_cache.bzl", "reproducible_repository")
+ load(":util.bzl", "util")
+ 
+ def expand_module_metadata(rctx, state, load_package):
+@@ -43,7 +44,7 @@
+ 
+ def _load_leaf(rctx, filemap, state):
+     path = rctx.path(filemap)
+-    owner = path.dirname.basename.removesuffix("_filemap")
++    owner = filemap.workspace_name.removesuffix("_filemap")
+     if owner in state["loaded"]:
+         return
+     state["loaded"][owner] = True
+@@ -57,7 +58,7 @@
+             state["extra_keys"].append(dependency)
+ 
+ def _metadata_impl(rctx):
+-    owner = rctx.path(rctx.attr.own_filemap).dirname.basename.removesuffix("_filemap")
++    owner = rctx.attr.own_filemap.workspace_name.removesuffix("_filemap")
+     state = {"documents": [], "loaded": {}, "own_repo": owner, "prefix": owner.removesuffix(rctx.attr.target_name), "catalog": json.decode(rctx.read(rctx.attr.package_catalog)), "extra_keys": [], "module_errors": {}}
+     for filemap in [rctx.attr.own_filemap] + rctx.attr.dep_filemaps:
+         _load_leaf(rctx, filemap, state)
+@@ -71,6 +72,7 @@
+     modules = resolve_modules(rctx, state["documents"], state["module_errors"]) if own_order_safe else {}
+     rctx.file("modules.json", json.encode({"modules": modules, "extra_keys": state["extra_keys"], "own_documents": own_documents, "own_order_safe": own_order_safe}))
+     rctx.file("BUILD.bazel", 'exports_files(["modules.json"], visibility = ["//visibility:public"])\n')
++    return reproducible_repository(rctx)
+ 
+ pkgconfig_metadata = repository_rule(
+     implementation = _metadata_impl,
+diff -ruN a/apt/private/repository_cache.bzl b/apt/private/repository_cache.bzl
+--- a/apt/private/repository_cache.bzl	1970-01-01 10:00:00.000000000 +1000
++++ b/apt/private/repository_cache.bzl	2026-11-19 18:24:49.691303915 +1100
+@@ -0,0 +1,30 @@
++"""Reproducible, relocatable preparation of locked APT repositories."""
++
++load("@bazel_lib//lib:repo_utils.bzl", "repo_utils")
++
++def reproducible_repository(ctx):
++    """Keep compatibility with Bazel versions without repository metadata."""
++    if hasattr(ctx, "repo_metadata"):
++        return ctx.repo_metadata(reproducible = True)
++    return None
++
++def host_tar(ctx):
++    """Use tar.bzl's pinned repository-host archive tool."""
++    platform = repo_utils.platform(ctx)
++    return ctx.path(Label("@bsd_tar_toolchains_{}//:tar".format(platform)))
++
++def copy_archive_file(ctx, member, destination):
++    """Materialize a native alias without an output-base-absolute symlink."""
++    archives = [path for path in ctx.path(".").readdir() if path.basename.startswith("data.tar")]
++    if len(archives) != 1:
++        fail("Expected one Debian data archive")
++    directory, name = destination.rsplit("/", 1)
++    ctx.file(directory + "/.keep", "")
++    ctx.delete(directory + "/.keep")
++    replacement = name.replace("\\", "\\\\").replace("&", "\\&").replace("!", "\\!")
++    result = ctx.execute(
++        [host_tar(ctx), "-xf", archives[0], "-C", directory, "-s", "!^.*$!" + replacement + "!", "./" + member],
++        environment = {"LC_ALL": "C", "TZ": "UTC"},
++    )
++    if result.return_code:
++        fail("Cannot materialize native library %s: %s" % (destination, result.stderr))
+diff -ruN a/apt/private/translate_dependency_set.bzl b/apt/private/translate_dependency_set.bzl
+--- a/apt/private/translate_dependency_set.bzl	2026-11-19 18:21:34.566137244 +1100
++++ b/apt/private/translate_dependency_set.bzl	2026-11-19 18:24:14.577414142 +1100
+@@ -1,6 +1,7 @@
+ "repository rule for generating a dependency graph from a lockfile."
+ 
+ load(":lockfile.bzl", "lockfile")
++load(":repository_cache.bzl", "reproducible_repository")
+ load(":starlark_codegen_utils.bzl", "starlark_codegen_utils")
+ load(":util.bzl", "util")
+ load(":version.bzl", version_lib = "version")
+@@ -361,6 +362,7 @@
+         packages = starlark_codegen_utils.to_dict_list_attr(architectures_to_package_names),
+         architectures = starlark_codegen_utils.to_list_attr(dependency_set["sets"].keys()),
+     ))
++    return reproducible_repository(rctx)
+ 
+ translate_dependency_set = repository_rule(
+     implementation = _translate_dependency_set_impl,
