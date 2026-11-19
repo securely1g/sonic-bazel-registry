@@ -886,9 +886,11 @@ Every module validation, including native ARM64, runs through
 CPU quota and memory limit, plus process CPU affinity, in
 `runner-resources.json`.
 
-Bazel uses its default job count, CPU budget and action memory budget. The
-resource wrapper only observes the runner; it does not compute budgets or add
-Bazel arguments. Keep the existing 2 GiB JVM maximum heap and
+Bazel uses its default job count and CPU budget. The resource wrapper sets
+only the action memory budget: 80% of the effective memory remaining after
+reserving the existing 2 GiB JVM maximum heap. Effective memory is the smaller
+of host RAM and the tightest enclosing cgroup limit. A 6 GiB runner receives
+3276 MiB; a 16 GiB runner receives 11468 MiB. Keep
 `--discard_analysis_cache`. Build rules retain their action resource estimates.
 
 CI does not select compiler concurrency or inject Make/GC flags by module name.
@@ -1285,3 +1287,7 @@ This supports source-maintained execution-tool compatibility patches whose
 root-only declarations otherwise do not propagate to external consumers. It does
 not change source archive integrity, relax published-entry immutability or exempt
 this shared runner change from any consumer presubmit coverage.
+
+### Current Infra candidate in CI
+
+The module workflow explicitly passes `--infra-version 0.0.39-81476192bf2cdb70bb646e85935c5d698b6de8a0`. For presubmits that declare Infra in `consumer_deps`, the generated CI root selects this registered version through the existing version-only override. The effective dependency list is recorded in `validation.json`. Published MODULE files and presubmit dependency pins remain unchanged. Direct Infra jobs keep testing their selected module version. Local calls without this option retain the registered presubmit selection.

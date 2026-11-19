@@ -2487,7 +2487,7 @@ class BazelStartupArgumentTests(unittest.TestCase):
                     registry_ci.main()
                 execute.assert_called_once_with(registry_ci.ROOT, "alpha", "1.0.0", "amd64",
                                                 Path("/tmp/work"), Path("/tmp/artifacts"), "bazel", None,
-                                                startup, build, False, None, profile_analysis=False)
+                                                startup, build, False, None, profile_analysis=False, infra_version=None)
 
 
     def test_cli_keeps_cross_compilation_and_runtime_explicit(self) -> None:

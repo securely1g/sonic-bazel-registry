@@ -1619,14 +1619,24 @@ def cross_test_timeout_flags(module: str, version: str, cross_compile: bool, fla
     return [f"--test_timeout=180,{moderate_seconds},{long_seconds},7200"]
 
 
+def select_infra_candidate(config: dict, version: str) -> dict:
+    """Change only the CI consumer's declared Infra dependency, preserving registration inputs."""
+    return {**config, "consumer_deps": [
+        {**dependency, "version": version} if dependency["name"] == "sonic-build-infra" else dependency
+        for dependency in config["consumer_deps"]]}
+
+
 def run(root: Path, module: str, version: str, architecture: str,
         work_dir: Path, artifacts: Path, bazel: str = "bazel",
         test_container_image: str | None = None,
         bazel_startup_args: list[str] | None = None,
         bazel_build_args: list[str] | None = None,
         cross_compile: bool = False, test_executor: Path | None = None,
-        profile_analysis: bool = False) -> None:
+        profile_analysis: bool = False, infra_version: str | None = None) -> None:
     config = validate_entry(root, module, version)
+    if infra_version is not None and module != "sonic-build-infra":
+        validate_entry(root, "sonic-build-infra", infra_version)
+        config = select_infra_candidate(config, infra_version)
     require(architecture in config["architectures"], "Architecture is not configured for this version")
     additional = config.get("additional_targets", {}).get(architecture, {})
     build_targets = config["build_targets"] + additional.get("build_targets", [])
@@ -2005,6 +2015,8 @@ def main() -> None:
                         help="repeatable Bazel startup option; use --bazel-startup-arg=--option=value")
     runner.add_argument("--bazel-build-arg", action="append", default=[],
                         help="repeatable Bazel build/test/query option; use --bazel-build-arg=--option=value")
+    runner.add_argument("--infra-version",
+                        help="validate declared Infra consumers with this registered candidate version")
     runner.add_argument("--profile-analysis", action="store_true",
                         help="retain JSON traces, Starlark CPU profiles and JVM GC/safepoint logs")
     runner.add_argument("--cross-compile", action="store_true",
@@ -2027,7 +2039,8 @@ def main() -> None:
         else:
             run(ROOT, args.module, args.version, args.architecture, args.work_dir, args.artifacts,
                 args.bazel, args.test_container_image, args.bazel_startup_arg, args.bazel_build_arg,
-                args.cross_compile, args.test_executor, profile_analysis=args.profile_analysis)
+                args.cross_compile, args.test_executor, profile_analysis=args.profile_analysis,
+                infra_version=args.infra_version)
     except (RegistryError, OSError, subprocess.CalledProcessError) as error:
         parser.exit(1, f"Registry CI failed: {error}\n")
 

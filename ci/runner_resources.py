@@ -98,15 +98,28 @@ def action_cpu(events: Path) -> dict:
     return {"status": "missing_metrics"}
 
 
+def action_memory_mb(limits: dict, heap_mb: int = 2048) -> int:
+    host_bytes = os.sysconf("SC_PHYS_PAGES") * os.sysconf("SC_PAGE_SIZE")
+    limit = limits["memory_limit_bytes"]
+    available = min(host_bytes, limit if limit is not None else host_bytes)
+    budget = int((available // 1024**2 - heap_mb) * .8)
+    if budget <= 0:
+        raise ValueError("Runner memory must exceed the JVM heap reserve")
+    return budget
+
+
 def run(output: Path, command: list[str]) -> int:
     group = unified_cgroup(Path("/proc/self/cgroup"))
     cgroup_root = Path("/sys/fs/cgroup")
     limits = capacity(group, cgroup_root)
     cgroup = cgroup_root / group.lstrip("/")
-    receipt = {**limits, "memory_before": memory_usage(cgroup)}
+    budget = action_memory_mb(limits)
+    arguments = [f"--bazel-build-arg=--local_resources=memory={budget}"]
+    receipt = {**limits, "action_memory_mb": budget, "jvm_heap_mb": 2048,
+               "memory_before": memory_usage(cgroup)}
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(receipt, indent=2) + "\n")
-    status = subprocess.run(command).returncode
+    status = subprocess.run([*command, *arguments]).returncode
     receipt["build_cpu"] = {phase: action_cpu(output.parent / f"{phase}-events.jsonl")
                             for phase in ("build", "test")}
     receipt["exit_code"] = status
