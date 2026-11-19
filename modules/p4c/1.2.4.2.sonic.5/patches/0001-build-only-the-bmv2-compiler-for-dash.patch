@@ -1,0 +1,208 @@
+Subject: [PATCH] Build only the BMv2 simple-switch compiler for DASH generation
+
+DASH invokes p4c-bm2-ss on the execution platform. Selecting that binary
+from the full compiler package builds every backend again in that
+configuration. Build the upstream p4c-bm2-ss target directly and stage
+its executable for the existing DASH wrapper. Use the same backend
+configuration so the shared IR definitions match the packaged compiler.
+
+Base: p4c@1.2.4.2.sonic.3, with its SONiC overlays applied.
+
+diff --git a/bazel/p4c.BUILD.bazel b/bazel/p4c.BUILD.bazel
+index 7e0368f..40f9f14 100644
+--- a/bazel/p4c.BUILD.bazel
++++ b/bazel/p4c.BUILD.bazel
+@@ -176,54 +176,59 @@ cmake(
+     for program in ["irgenerator", "protoc"]
+ ]
+ 
++# The installed suite and the build-time compiler share the same IR definitions.
++_COMPILER_TOOLS = [
++    ":codegen_irgenerator",
++    ":codegen_protoc",
++    ":python",
++    ":bazel/foreign.cmake",
++    "@sonic_build_infra//tools/build_tools:flex",
++    "@sonic_build_infra//tools/build_tools:bison",
++]
++
++_COMPILER_CACHE_ENTRIES = {
++    "CMAKE_BUILD_TYPE": "Release",
++    # Bazel owns caching; never discover an undeclared host ccache binary.
++    "CCACHE_PROGRAM": "OFF",
++    # Keep the declared GCC/BFD toolchain. Host Gold cannot read the
++    # sysroot-relative paths in the declared libc/libm linker scripts.
++    "BUILD_LINK_WITH_GOLD": "OFF",
++    "BUILD_LINK_WITH_LLD": "OFF",
++    "CMAKE_INSTALL_PREFIX": "/usr",
++    "CMAKE_PROJECT_P4C_INCLUDE": "$(execpath :bazel/foreign.cmake)",
++    "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
++    "CMAKE_C_FLAGS_RELEASE": "-O2 -g -DNDEBUG -fstack-protector-strong -D_FORTIFY_SOURCE=2",
++    "CMAKE_CXX_FLAGS_RELEASE": "-O2 -g -DNDEBUG -fstack-protector-strong -D_FORTIFY_SOURCE=2",
++    "CMAKE_EXE_LINKER_FLAGS": "-Wl,-z,relro,-z,now -Wl,--build-id=sha1 -Wl,-rpath-link,$$EXT_BUILD_DEPS$$/lib",
++    "PYTHON_EXECUTABLE": "$(execpath :python)",
++    "FLEX_EXECUTABLE": "$(execpath @sonic_build_infra//tools/build_tools:flex)",
++    "BISON_EXECUTABLE": "$(execpath @sonic_build_infra//tools/build_tools:bison)",
++    "P4C_IRGENERATOR_EXECUTABLE": "$(execpath :codegen_irgenerator)",
++    "PROTOBUF_PROTOC_EXECUTABLE": "$(execpath :codegen_protoc)",
++    "Boost_NO_BOOST_CMAKE": "ON",
++    "ENABLE_BMV2": "ON",
++    "ENABLE_EBPF": "ON",
++    "ENABLE_UBPF": "ON",
++    "ENABLE_DPDK": "ON",
++    "ENABLE_P4C_GRAPHS": "ON",
++    "ENABLE_P4TEST": "ON",
++    "ENABLE_DOCS": "OFF",
++    "ENABLE_GC": "ON",
++    "ENABLE_GTESTS": "OFF",
++    "ENABLE_PROTOBUF_STATIC": "ON",
++    "ENABLE_MULTITHREAD": "OFF",
++    "ENABLE_GMP": "ON",
++    "FETCHCONTENT_FULLY_DISCONNECTED": "ON",
++} | select({
++    "@platforms//cpu:x86_64": {"ENABLE_TEST_TOOLS": "ON"},
++    "@platforms//cpu:aarch64": {"ENABLE_TEST_TOOLS": "OFF"},
++})
++
+ cmake(
+     name = "build",
+     build_args = ["-j4"],
+-    build_data = [
+-        ":codegen_irgenerator",
+-        ":codegen_protoc",
+-        ":python",
+-        ":bazel/foreign.cmake",
+-        "@sonic_build_infra//tools/build_tools:flex",
+-        "@sonic_build_infra//tools/build_tools:bison",
+-    ],
+-    cache_entries = {
+-        "CMAKE_BUILD_TYPE": "Release",
+-        # Bazel owns caching; never discover an undeclared host ccache binary.
+-        "CCACHE_PROGRAM": "OFF",
+-        # Keep the declared GCC/BFD toolchain. Host Gold cannot read the
+-        # sysroot-relative paths in the declared libc/libm linker scripts.
+-        "BUILD_LINK_WITH_GOLD": "OFF",
+-        "BUILD_LINK_WITH_LLD": "OFF",
+-        "CMAKE_INSTALL_PREFIX": "/usr",
+-        "CMAKE_PROJECT_P4C_INCLUDE": "$(execpath :bazel/foreign.cmake)",
+-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+-        "CMAKE_C_FLAGS_RELEASE": "-O2 -g -DNDEBUG -fstack-protector-strong -D_FORTIFY_SOURCE=2",
+-        "CMAKE_CXX_FLAGS_RELEASE": "-O2 -g -DNDEBUG -fstack-protector-strong -D_FORTIFY_SOURCE=2",
+-        "CMAKE_EXE_LINKER_FLAGS": "-Wl,-z,relro,-z,now -Wl,--build-id=sha1 -Wl,-rpath-link,$$EXT_BUILD_DEPS$$/lib",
+-        "PYTHON_EXECUTABLE": "$(execpath :python)",
+-        "FLEX_EXECUTABLE": "$(execpath @sonic_build_infra//tools/build_tools:flex)",
+-        "BISON_EXECUTABLE": "$(execpath @sonic_build_infra//tools/build_tools:bison)",
+-        "P4C_IRGENERATOR_EXECUTABLE": "$(execpath :codegen_irgenerator)",
+-        "PROTOBUF_PROTOC_EXECUTABLE": "$(execpath :codegen_protoc)",
+-        "Boost_NO_BOOST_CMAKE": "ON",
+-        "ENABLE_BMV2": "ON",
+-        "ENABLE_EBPF": "ON",
+-        "ENABLE_UBPF": "ON",
+-        "ENABLE_DPDK": "ON",
+-        "ENABLE_P4C_GRAPHS": "ON",
+-        "ENABLE_P4TEST": "ON",
+-        "ENABLE_DOCS": "OFF",
+-        "ENABLE_GC": "ON",
+-        "ENABLE_GTESTS": "OFF",
+-        "ENABLE_PROTOBUF_STATIC": "ON",
+-        "ENABLE_MULTITHREAD": "OFF",
+-        "ENABLE_GMP": "ON",
+-        "FETCHCONTENT_FULLY_DISCONNECTED": "ON",
+-    } | select({
+-        "@platforms//cpu:x86_64": {"ENABLE_TEST_TOOLS": "ON"},
+-        "@platforms//cpu:aarch64": {"ENABLE_TEST_TOOLS": "OFF"},
+-    }),
++    build_data = _COMPILER_TOOLS,
++    cache_entries = _COMPILER_CACHE_ENTRIES,
+     configuration = "Release",
+     env = {"P4C_VERSION": "1.2.4.2"},
+     features = ["-sanitize_pwd"],
+@@ -250,6 +255,32 @@ cmake(
+     deps = _BUILD_DEPS,
+ )
+ 
++# DASH runs this backend during source generation. Build its upstream CMake
++# target directly; the default install step would require the whole suite.
++cmake(
++    name = "bm2_ss_tool_build",
++    build_args = ["-j4"],
++    build_data = _COMPILER_TOOLS,
++    cache_entries = _COMPILER_CACHE_ENTRIES,
++    configuration = "Release",
++    deps = _BUILD_DEPS,
++    env = {"P4C_VERSION": "1.2.4.2"},
++    features = ["-sanitize_pwd"],
++    generate_args = ["-GUnix Makefiles", "-DCMAKE_SKIP_BUILD_RPATH=ON"],
++    install = False,
++    lib_name = "p4c-bm2-ss-tool",
++    lib_source = ":sources",
++    out_binaries = ["p4c-bm2-ss"],
++    postfix_script = "mkdir -p $$INSTALLDIR/bin $$INSTALLDIR/include; cp backends/bmv2/p4c-bm2-ss $$INSTALLDIR/bin/",
++    targets = ["p4c-bm2-ss"],
++)
++
++filegroup(
++    name = "bm2_ss_tool_binary",
++    srcs = [":bm2_ss_tool_build"],
++    output_group = "p4c-bm2-ss",
++)
++
+ p4c_runtime(
+     name = "p4c_pkg",
+     data = _DATA,
+@@ -274,7 +305,7 @@ filegroup(
+ 
+ keep_debug_info(
+     name = "compiler",
+-    src = ":built_p4c-bm2-ss",
++    src = ":bm2_ss_tool_binary",
+ )
+ 
+ p4c_tool(
+@@ -291,6 +322,14 @@ p4c_tool(
+     ],
+ )
+ 
++# The production wrapper must stay independent of the complete image tool suite.
++genquery(
++    name = "tool_to_package_build_path",
++    expression = "somepath(:p4c_bm2_ss, :build)",
++    opts = ["--noimplicit_deps"],
++    scope = [":p4c_bm2_ss", ":build"],
++)
++
+ py_test(
+     name = "package_test",
+     srcs = ["bazel/package_test.py"],
+@@ -300,6 +339,7 @@ py_test(
+         "$(rootpath :p4c_bm2_ss)",
+         "$(rootpath :compile_commands)",
+         "$(rootpath :cmake_cache)",
++        "$(rootpath :tool_to_package_build_path)",
+     ],
+     data = [
+         ":cmake_cache",
+@@ -307,6 +347,7 @@ py_test(
+         ":p4c_bm2_ss",
+         ":p4c_pkg",
+         ":p4c_pkg.debug_symbols",
++        ":tool_to_package_build_path",
+     ],
+     main = "bazel/package_test.py",
+ )
+diff --git a/bazel/package_test.py b/bazel/package_test.py
+index a4c8aab..3501681 100644
+--- a/bazel/package_test.py
++++ b/bazel/package_test.py
+@@ -23,7 +23,10 @@ def build_id(path):
+ 
+ with tempfile.TemporaryDirectory() as directory:
+     root = Path(directory)
+-    runtime, debug, compiler, commands, cache = map(Path, sys.argv[1:])
++    runtime, debug, compiler, commands, cache, package_path = map(Path, sys.argv[1:])
++    assert not package_path.read_text().strip(), (
++        "DASH's execution tool depends on the full compiler build:\n" + package_path.read_text()
++    )
+     compilation = json.loads(commands.read_text())
+     assert any("/build/_deps/protobuf-src/" in item["file"] for item in compilation)
+     assert any("/frontends/" in item["file"] for item in compilation)

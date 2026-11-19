@@ -1,0 +1,40 @@
+Subject: [PATCH] Omit unused include directories from P4C builds
+
+All three P4C CMake targets deliver programs and data. An empty include
+directory in the staged install tree prevents the registry runner from
+restoring the remote action result. Disable the default header output and
+stop creating that directory. Installed runtime headers live under usr.
+
+--- a/bazel/p4c.BUILD.bazel
++++ b/bazel/p4c.BUILD.bazel
+@@ -153,7 +153,8 @@
+     lib_name = "p4c-codegen",
+     lib_source = ":sources",
+     out_binaries = ["irgenerator", "protoc"],
+-    postfix_script = "mkdir -p $$INSTALLDIR/bin $$INSTALLDIR/include; cp tools/ir-generator/irgenerator $$INSTALLDIR/bin/; cp _deps/protobuf-build/protoc $$INSTALLDIR/bin/",
++    out_include_dir = "",
++    postfix_script = "mkdir -p $$INSTALLDIR/bin; cp tools/ir-generator/irgenerator $$INSTALLDIR/bin/; cp _deps/protobuf-build/protoc $$INSTALLDIR/bin/",
+     targets = ["irgenerator", "protoc"],
+ )
+ 
+@@ -250,8 +251,8 @@
+         "evidence/compile_commands.json",
+         "evidence/CMakeCache.txt",
+     ],
+-    out_include_dir = "include",
+-    postfix_script = "mkdir -p $$INSTALLDIR/include $$INSTALLDIR/evidence; cp compile_commands.json CMakeCache.txt $$INSTALLDIR/evidence/",
++    out_include_dir = "",
++    postfix_script = "mkdir -p $$INSTALLDIR/evidence; cp compile_commands.json CMakeCache.txt $$INSTALLDIR/evidence/",
+     deps = _BUILD_DEPS,
+ )
+ 
+@@ -271,7 +272,8 @@
+     lib_name = "p4c-bm2-ss-tool",
+     lib_source = ":sources",
+     out_binaries = ["p4c-bm2-ss"],
+-    postfix_script = "mkdir -p $$INSTALLDIR/bin $$INSTALLDIR/include; cp backends/bmv2/p4c-bm2-ss $$INSTALLDIR/bin/",
++    out_include_dir = "",
++    postfix_script = "mkdir -p $$INSTALLDIR/bin; cp backends/bmv2/p4c-bm2-ss $$INSTALLDIR/bin/",
+     targets = ["p4c-bm2-ss"],
+ )
+ 
