@@ -1,0 +1,46 @@
+load("@aspect_bazel_lib//lib/private:tar_toolchain.bzl", "tar_toolchain")
+load("@rules_python//python:defs.bzl", "py_binary", "py_test")
+load(":fixture.bzl", "multifile_tool", "payload")
+
+package(default_visibility = ["//visibility:public"])
+
+py_binary(
+    name = "fixture_generator",
+    srcs = ["fixture_generator.py"],
+)
+
+multifile_tool(
+    name = "tar",
+    tar = select({
+        "@platforms//cpu:aarch64": "@bsd_tar_toolchains_linux_arm64//:tar",
+        "@platforms//cpu:x86_64": "@bsd_tar_toolchains_linux_amd64//:tar",
+    }),
+)
+
+# Both binary and files are already in the same execution configuration here.
+tar_toolchain(
+    name = "implementation",
+    binary = ":tar",
+    files = [":tar"],
+)
+
+toolchain(
+    name = "toolchain",
+    toolchain = ":implementation",
+    toolchain_type = "@aspect_bazel_lib//lib:tar_toolchain_type",
+)
+
+payload(name = "payload")
+
+py_test(
+    name = "unpack_test",
+    srcs = ["unpack_test.py"],
+    args = [
+        "$(location @multifile_unpack_payload//:usr/share/closure/payload.txt)",
+        "$(location @multifile_unpack_payload//:usr/bin/closure-probe)",
+    ],
+    data = [
+        "@multifile_unpack_payload//:usr/bin/closure-probe",
+        "@multifile_unpack_payload//:usr/share/closure/payload.txt",
+    ],
+)
