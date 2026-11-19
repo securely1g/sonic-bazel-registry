@@ -56,7 +56,7 @@ jobs:
            (inputs.cross_compile && inputs.module == 'sonic-swss' &&
             inputs.version == '0.0.3-9c3797990d4b5a79100a40fe7689927c18212361')) && 360 ||
           (inputs.cross_compile && inputs.module == 'sonic-fips' &&
-           inputs.version == '0.0.6-18a778db501d455f8a1b6d1e3ef8e17121661177') && 240 || 180 }}
+           contains(fromJSON('["0.0.6-18a778db501d455f8a1b6d1e3ef8e17121661177","0.0.6-1a8daf8dd8a3ad54de0e91a55b46fd5bbd206763"]'), inputs.version)) && 240 || 180 }}
     # Local native/cross jobs execute directly in the fresh Trixie runner.
     # Only native hosted ARM needs the separate pinned job image.
     container: ${{ inputs.architecture == 'arm64' && !inputs.cross_compile && 'debian:trixie-20260918@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c' || '' }}

@@ -4,7 +4,7 @@ Only compiler/sysroot repository files are used. No host compiler, headers, or
 libraries are substituted for the separately pinned Debian provider inputs.
 """
 
-load("@bazel_tools//tools/cpp:cc_toolchain_config_lib.bzl", "action_config", "feature", "flag_group", "flag_set", "tool", "tool_path")
+load("@bazel_tools//tools/cpp:cc_toolchain_config_lib.bzl", "action_config", "feature", "flag_group", "flag_set", "tool", "tool_path", "with_feature_set")
 
 def _impl(ctx):
     compiler = ctx.file.compiler_anchor.path[:-len("/inputs.json")]
@@ -29,14 +29,12 @@ def _impl(ctx):
         "lto-index-for-dynamic-library",
         "lto-index-for-nodeps-dynamic-library",
     ]
-    # Bazel 8.5.1's generated legacy link actions imply strip_debug_symbols,
-    # preventing callers such as foreign_cc from disabling it. Preserve the
-    # other CppActionConfigs link implications, but make stripping an ordinary
-    # default-enabled feature that honors the caller's disabled features.
+    # Keep Bazel 8.5.1 link defaults while honoring explicit opt-outs for
+    # stripping and RPATH, as foreign_cc and runtime layout fixtures require.
+    # Other CppActionConfigs link implications remain unchanged.
     link_implications = [
         "linkstamps",
         "output_execpath_flags",
-        "runtime_library_search_directories",
         "library_search_directories",
         "libraries_to_link",
         "user_link_flags",
@@ -95,6 +93,37 @@ def _impl(ctx):
         features = [
             feature(name = "supports_pic", enabled = True),
             feature(name = "supports_dynamic_linker", enabled = True),
+            # Keep Bazel 8.5.1's Linux RPATH expansion, but let a rule
+            # explicitly disable it without an unconditional action implication.
+            feature(name = "runtime_library_search_directories", enabled = True, flag_sets = [
+                flag_set(
+                    actions = link_actions,
+                    with_features = [with_feature_set(features = ["static_link_cpp_runtimes"])],
+                    flag_groups = [flag_group(
+                        expand_if_available = "runtime_library_search_directories",
+                        iterate_over = "runtime_library_search_directories",
+                        flag_groups = [
+                            flag_group(
+                                expand_if_true = "is_cc_test",
+                                flags = ["-Xlinker", "-rpath", "-Xlinker", "$EXEC_ORIGIN/%{runtime_library_search_directories}"],
+                            ),
+                            flag_group(
+                                expand_if_false = "is_cc_test",
+                                flags = ["-Xlinker", "-rpath", "-Xlinker", "$ORIGIN/%{runtime_library_search_directories}"],
+                            ),
+                        ],
+                    )],
+                ),
+                flag_set(
+                    actions = link_actions,
+                    with_features = [with_feature_set(not_features = ["static_link_cpp_runtimes"])],
+                    flag_groups = [flag_group(
+                        expand_if_available = "runtime_library_search_directories",
+                        iterate_over = "runtime_library_search_directories",
+                        flags = ["-Xlinker", "-rpath", "-Xlinker", "$ORIGIN/%{runtime_library_search_directories}"],
+                    )],
+                ),
+            ]),
             feature(name = "strip_debug_symbols", enabled = True, flag_sets = [flag_set(
                 actions = link_actions,
                 flag_groups = [flag_group(flags = ["-Wl,-S"], expand_if_available = "strip_debug_symbols")],
