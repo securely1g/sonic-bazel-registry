@@ -71,6 +71,10 @@ on:
         description: Retain diagnostic profiles
         type: boolean
         default: true
+      remote_downloader:
+        description: Optional gRPC cache/Remote Asset endpoint to verify without local fallback
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -98,6 +102,7 @@ jobs:
       DEBIAN_FRONTEND: noninteractive
       CI_MODULE: ${{ inputs.module }}
       CI_PROFILE_ANALYSIS: ${{ inputs.profile_analysis }}
+      CI_REMOTE_DOWNLOADER: ${{ inputs.remote_downloader }}
       CI_VERSION: ${{ inputs.version }}
       CI_ARCHITECTURE: ${{ inputs.architecture }}
       CI_EXECUTION_ARCHITECTURE: ${{ inputs.execution_architecture || inputs.architecture }}
@@ -215,6 +220,50 @@ jobs:
                   rows[label] = {"measurement_error_errno": error.errno}
           print(json.dumps({"phase": os.environ["STORAGE_PHASE"], "storage": rows}, sort_keys=True))
           PY_STORAGE
+      - name: Probe the selected remote downloader endpoint
+        if: inputs.remote_downloader != ''
+        run: |
+          python3 - <<'PY_PROBE'
+          import json, os, re, socket, subprocess
+          from pathlib import Path
+          from urllib.parse import urlsplit
+          endpoint = os.environ["CI_REMOTE_DOWNLOADER"]
+          uri = urlsplit(endpoint)
+          if uri.scheme not in ("grpc", "grpcs") or not uri.hostname:
+              raise SystemExit("This TCP probe requires an explicit grpc:// or grpcs:// endpoint")
+          port = uri.port or (443 if uri.scheme == "grpcs" else 80)
+          output = Path(os.environ["GITHUB_WORKSPACE"]) / "ci-artifacts/remote-downloader-probe"
+          output.mkdir(parents=True, exist_ok=True)
+          receipt = {"endpoint": endpoint, "local_fallback": False}
+          try:
+              with socket.create_connection((uri.hostname, port), timeout=5):
+                  receipt["tcp"] = "connected"
+          except OSError as error:
+              receipt.update(tcp="failed", error_type=type(error).__name__, error=str(error))
+              (output / "probe.json").write_text(json.dumps(receipt, indent=2) + "\n")
+              print(json.dumps(receipt))
+              raise SystemExit(1)
+          # An empty protobuf request is sufficient for GetCapabilities.
+          (output / "request.bin").write_bytes(bytes(5))
+          address = uri.netloc
+          url = ("https" if uri.scheme == "grpcs" else "http") + "://" + address
+          url += "/build.bazel.remote.execution.v2.Capabilities/GetCapabilities"
+          result = subprocess.run(["curl", "--silent", "--show-error", "--http2-prior-knowledge",
+              "--noproxy", uri.hostname, "--connect-timeout", "5", "--max-time", "15",
+              "--header", "content-type: application/grpc", "--header", "te: trailers",
+              "--data-binary", "@" + str(output / "request.bin"),
+              "--dump-header", str(output / "headers.txt"), "--output", str(output / "response.bin"), url],
+              text=True, capture_output=True)
+          receipt["capabilities_curl_exit"] = result.returncode
+          headers = (output / "headers.txt").read_text() if (output / "headers.txt").exists() else ""
+          receipt["grpc_status"] = re.findall(r"(?im)^grpc-status:\s*(\d+)", headers)
+          receipt["content_type"] = re.findall(r"(?im)^content-type:\s*([^\r\n]+)", headers)
+          receipt["curl_error"] = result.stderr
+          (output / "headers.txt").write_text(json.dumps({key: receipt[key] for key in ("grpc_status", "content_type")}))
+          (output / "probe.json").write_text(json.dumps(receipt, indent=2) + "\n")
+          print(json.dumps(receipt))
+          # Bazel remains the authoritative protocol/authentication check.
+          PY_PROBE
       - name: Build and test through the registry
         env:
           HTTP_AUDIT_READY: ${{ steps.http_audit_download.outcome }}
@@ -227,6 +276,11 @@ jobs:
           ROOT=()
           SECRET_ENV=()
           BAZEL_BUILD_ARGS=(--bazel-build-arg=--discard_analysis_cache)
+          if [[ -n "${CI_REMOTE_DOWNLOADER:-}" ]]; then
+            BAZEL_BUILD_ARGS+=("--bazel-build-arg=--remote_cache=$CI_REMOTE_DOWNLOADER"
+              "--bazel-build-arg=--experimental_remote_downloader=$CI_REMOTE_DOWNLOADER"
+              --bazel-build-arg=--noexperimental_remote_downloader_local_fallback)
+          fi
           CROSS_ARGS=()
           PROFILE_ARGS=()
           if [[ "${CI_PROFILE_ANALYSIS:-false}" == true ]]; then
