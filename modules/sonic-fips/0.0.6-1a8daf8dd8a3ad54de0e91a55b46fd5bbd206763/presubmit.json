@@ -6,12 +6,12 @@
   "consumer_deps": [
     {
       "name": "sonic-build-infra",
-      "version": "0.0.39-81476192bf2cdb70bb646e85935c5d698b6de8a0",
+      "version": "0.0.37-316e298e77ab5cfa69af9b0c05ec24d5d94bbe1e",
       "repo_name": "sonic_build_infra"
     },
     {
       "name": "rules_distroless",
-      "version": "0.9.4.sonic.21"
+      "version": "0.9.4.sonic.20"
     },
     {
       "name": "tar.bzl",
