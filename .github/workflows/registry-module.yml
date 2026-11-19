@@ -3,6 +3,9 @@ name: Registry module validation
 on:
   workflow_call:
     inputs:
+      latest_dependencies:
+        type: boolean
+        default: false
       profile_analysis:
         description: Retain Bazel analysis traces and JVM GC logs
         type: boolean
@@ -101,6 +104,7 @@ jobs:
     env:
       DEBIAN_FRONTEND: noninteractive
       CI_MODULE: ${{ inputs.module }}
+      CI_LATEST_DEPENDENCIES: ${{ inputs.latest_dependencies }}
       CI_PROFILE_ANALYSIS: ${{ inputs.profile_analysis }}
       CI_REMOTE_DOWNLOADER: ${{ inputs.remote_downloader }}
       CI_VERSION: ${{ inputs.version }}
@@ -284,8 +288,11 @@ jobs:
           fi
           CROSS_ARGS=()
           PROFILE_ARGS=()
+          if [[ "${CI_LATEST_DEPENDENCIES:-false}" == true ]]; then
+            PROFILE_ARGS+=(--latest-dependencies)
+          fi
           if [[ "${CI_PROFILE_ANALYSIS:-false}" == true ]]; then
-            PROFILE_ARGS=(--profile-analysis)
+            PROFILE_ARGS+=(--profile-analysis)
           fi
           HTTP_AUDIT_ARGS=()
           if [[ "${HTTP_AUDIT_READY:-}" == success ]]; then

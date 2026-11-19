@@ -333,10 +333,14 @@ metadata edits test every listed version. Explicit `plan --all` includes every
 version with a configuration, including historical or yanked versions, without
 replacing one with another.
 
-Latest selection only changes which standalone module jobs run. Each selected
-version keeps its declared architectures, targets and `consumer_deps` pins;
-older versions remain available to consumers and can still be tested explicitly.
-Routine CI does not claim that all historical versions passed.
+Default CI selects the latest non-yanked version of each explicitly declared
+validation-root dependency available in the checked-out registry. This applies
+to generated consumers and the copied integration MODULE.bazel. The tested
+component retains the exact planned version. Dependencies absent from this
+registry retain their declarations, and Bazel resolves transitive dependencies.
+Explicit historical jobs and the all-versions matrix retain their original
+dependency selections. A source patch pinned to an older dependency must be
+reviewed before it can apply to a newer release.
 
 ## Publication policy checks
 
