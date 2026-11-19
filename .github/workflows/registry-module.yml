@@ -3,6 +3,10 @@ name: Registry module validation
 on:
   workflow_call:
     inputs:
+      profile_analysis:
+        description: Retain Bazel analysis traces and JVM GC logs
+        type: boolean
+        default: false
       module:
         required: true
         type: string
@@ -41,6 +45,33 @@ on:
         description: Optional dated Debian security mirror for checkouts predating the snapshot manifest
         required: false
 
+  workflow_dispatch:
+    inputs:
+      module:
+        description: Module to profile
+        type: string
+        default: libnl3
+      version:
+        description: Exact published module version
+        type: string
+        default: 3.7.0.sonic.8
+      architecture:
+        description: Target architecture
+        type: choice
+        options: [amd64]
+        default: amd64
+      runner:
+        description: Native diagnostic runner route
+        type: string
+        default: '["self-hosted","Linux","X64","debian-trixie-container"]'
+      cross_compile:
+        type: boolean
+        default: false
+      profile_analysis:
+        description: Retain diagnostic profiles
+        type: boolean
+        default: true
+
 permissions:
   contents: read
 
@@ -66,6 +97,7 @@ jobs:
     env:
       DEBIAN_FRONTEND: noninteractive
       CI_MODULE: ${{ inputs.module }}
+      CI_PROFILE_ANALYSIS: ${{ inputs.profile_analysis }}
       CI_VERSION: ${{ inputs.version }}
       CI_ARCHITECTURE: ${{ inputs.architecture }}
       CI_EXECUTION_ARCHITECTURE: ${{ inputs.execution_architecture || inputs.architecture }}
@@ -196,6 +228,10 @@ jobs:
           SECRET_ENV=()
           BAZEL_BUILD_ARGS=(--bazel-build-arg=--discard_analysis_cache)
           CROSS_ARGS=()
+          PROFILE_ARGS=()
+          if [[ "${CI_PROFILE_ANALYSIS:-false}" == true ]]; then
+            PROFILE_ARGS=(--profile-analysis)
+          fi
           HTTP_AUDIT_ARGS=()
           if [[ "${HTTP_AUDIT_READY:-}" == success ]]; then
             HTTP_AUDIT_ARGS=(--http-audit-jar "$RUNNER_TEMP/debian-http-audit/debian-http-audit.jar")
@@ -226,6 +262,7 @@ jobs:
             --bazel /usr/local/bin/bazel \
             "${BAZEL_BUILD_ARGS[@]}" \
             "${CROSS_ARGS[@]}" \
+            "${PROFILE_ARGS[@]}" \
             --work-dir "$RUNNER_TEMP/registry-ci" \
             --artifacts "$GITHUB_WORKSPACE/ci-artifacts" \
             --test-container-image "$TEST_CONTAINER_IMAGE"

@@ -911,6 +911,26 @@ remote, missing and ambiguous measurements retain explicit statuses. Repeated
 startup/build arguments reach build, test and output queries through the existing
 runner interface. Cache settings remain unchanged.
 
+### Opt-in analysis diagnostics
+
+The reusable `registry-module.yml` also accepts manual dispatch for one exact
+module/version on the native AMD64 pool. Its manual defaults select the reviewed
+libnl3 `3.7.0.sonic.8` case. Set `profile_analysis=true` to retain
+`build.profile.json`, `test.profile.json`, separate Starlark CPU profiles, and
+`jvm-gc.log` in the existing evidence artifact. Ordinary workflow calls leave
+profiling disabled. The runner CLI exposes the same opt-in as `--profile-analysis`.
+
+Use the JSON traces to measure loading/analysis boundaries, fetch intervals,
+Starlark tasks and garbage-collection events. Use the CPU samples for Starlark
+hotspots and the JVM log for GC/safepoint pauses. Concurrent downloads, analysis
+threads and background GC can overlap; their totals are not additive partitions
+of analysis wall time. Profiling can affect the measured run. Evidence from a
+rerun must retain its own commit, runner capacity and cache identity, rather than
+being attributed to an older unprofiled command.
+
+The diagnostics use the existing cache policy and private-mirror redaction and
+publication checks. No cache is emptied or redirected by the profiling option.
+
 The default repository Actions variable setting is
 `REGISTRY_P4_RUNNER_PROFILE=large` (also selected when the variable is unset).
 GitHub waits for an available runner matching the plan's exact labels. If

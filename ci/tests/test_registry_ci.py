@@ -2431,6 +2431,17 @@ class TestContainerTests(unittest.TestCase):
                         (["--bazel-build-arg=--repo_env=REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt"]
                          if execution == "amd64" else []))
 
+    def test_manual_profile_request_reaches_the_module_runner(self):
+        workflow = (registry_ci.ROOT / ".github/workflows/registry-module.yml").read_text()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            env = self.shell_environment(root, "amd64", "amd64", False)
+            env["CI_PROFILE_ANALYSIS"] = "true"
+            result = subprocess.run(["bash", "-c", self.step(workflow, "Build and test through the registry")],
+                                    env=env, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("--profile-analysis", (root / "CAPTURE").read_text().splitlines())
+
     def test_module_archive_preserves_modes_and_uses_sudo_only_for_local_execution(self):
         workflow = (registry_ci.ROOT / ".github/workflows/registry-module.yml").read_text()
         script = self.step(workflow, "Archive module validation results")
@@ -2476,7 +2487,7 @@ class BazelStartupArgumentTests(unittest.TestCase):
                     registry_ci.main()
                 execute.assert_called_once_with(registry_ci.ROOT, "alpha", "1.0.0", "amd64",
                                                 Path("/tmp/work"), Path("/tmp/artifacts"), "bazel", None,
-                                                startup, build, False, None)
+                                                startup, build, False, None, profile_analysis=False)
 
 
     def test_cli_keeps_cross_compilation_and_runtime_explicit(self) -> None:
