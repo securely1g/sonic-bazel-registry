@@ -1,4 +1,4 @@
-## Dependency refresh for `0.9.4.sonic.23`
+## Dependency refresh for `0.9.4.sonic.24`
 
 This candidate retains the `0.9.4.sonic.22` source and existing patches. Its module dependencies select the newest non-yanked versions published at `3d1cc5e8dfd553d2acbe4198e504a245e6bdbddf`. Versions introduced by this refresh are not dependency targets of the same refresh.
 
@@ -310,3 +310,5 @@ within their declared provider context. Ordered fragment processing preserves
 private fields, aliases, version errors and dynamic/static options without
 starting external pkg-config processes. Package
 versions, source locks and caller BUILD declarations stay unchanged.
+
+This refresh reserves `.23` for [registry #431](https://github.com/securely1g/sonic-bazel-registry/pull/431). Patch `0059-reproducible-lock-import.patch` is copied unchanged from that PR at `82517bbdb08707428c60db959fc546063f03812d`, retaining its author attribution. It marks the tracked-file-only unified import reproducible; legacy imports and generated package payloads retain their existing behavior.

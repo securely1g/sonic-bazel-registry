@@ -13,7 +13,7 @@ remain unchanged. This is a downstream registry integration change.
  module(
      name = "rules_distroless",
 -    version = "0.9.4.sonic.22",
-+    version = "0.9.4.sonic.23",
++    version = "0.9.4.sonic.24",
      compatibility_level = 1,
  )
  
