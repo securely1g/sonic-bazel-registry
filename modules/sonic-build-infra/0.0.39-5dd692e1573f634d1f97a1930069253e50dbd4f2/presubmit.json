@@ -1,0 +1,23 @@
+{
+  "architectures": [
+    "amd64"
+  ],
+  "consumer_deps": [],
+  "platforms": {
+    "amd64": "@sonic-build-infra//platforms:x86_64_trixie"
+  },
+  "host_platforms": {
+    "amd64": "@sonic-build-infra//platforms:x86_64_trixie"
+  },
+  "generated_module_overlay": true,
+  "integration_test_module": "tests/consumer",
+  "build_targets": [
+    "@sonic-build-infra//python/tests:wheel_demo_runtime",
+    "@sonic-build-infra//python/tests:wheel_demo_metadata",
+    "@sonic-build-infra//python/tests:wheel_demo_plan"
+  ],
+  "test_targets": [
+    "@sonic-build-infra//python:wheel_layer_test",
+    "@sonic-build-infra//python/tests:wheel_runtime_test"
+  ]
+}

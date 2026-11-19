@@ -1,0 +1,14 @@
+module(name = "wheel_metadata_registry_consumer")
+
+bazel_dep(name = "sonic-build-infra", version = "0.0.39-5dd692e1573f634d1f97a1930069253e50dbd4f2")
+# This unpublished source snapshot shares the owner's 0.0.39 base version.
+# Select it explicitly instead of a lexically higher older source SHA.
+single_version_override(module_name = "sonic-build-infra", version = "0.0.39-5dd692e1573f634d1f97a1930069253e50dbd4f2")
+bazel_dep(name = "rules_python", version = "1.9.0.sonic.1")
+bazel_dep(name = "rules_cc", version = "0.2.20")
+bazel_dep(name = "tar.bzl", version = "0.10.5.sonic.2")
+single_version_override(module_name = "rules_cc", version = "0.2.20")
+single_version_override(module_name = "tar.bzl", version = "0.10.5.sonic.2")
+
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(is_default = True, python_version = "3.11")

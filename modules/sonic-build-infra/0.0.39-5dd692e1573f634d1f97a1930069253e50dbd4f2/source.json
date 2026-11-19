@@ -1,0 +1,8 @@
+{
+  "url": "https://github.com/securely1g/sonic-build-infra/archive/5dd692e1573f634d1f97a1930069253e50dbd4f2.tar.gz",
+  "strip_prefix": "sonic-build-infra-5dd692e1573f634d1f97a1930069253e50dbd4f2",
+  "integrity": "sha256-BWtAoRSh73RR4kfhmcM2eLLIdWtyWgKDBVO5jGzeJHs=",
+  "overlay": {
+    "MODULE.bazel": "sha256-1icbxiNZteM4NElHwadvPpN1catkr8NBvbvVyl3XdVc="
+  }
+}
