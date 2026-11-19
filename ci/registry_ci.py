@@ -586,7 +586,7 @@ def check_published_files(root: Path, path: str, published: str, head: str) -> N
     # whether their files are build inputs from a docs/ or tests/ pathname.
     supported = (isinstance(source, dict) and source.get("type", "archive") == "archive"
                  and set(source) <= {"type", "url", "integrity", "strip_prefix", "patches",
-                                     "patch_strip", "overlay", "docs_url", "mirror_urls"})
+                                     "patch_strip", "overlay", "docs_url", "mirror_urls", "archive_type"})
     for name in sorted(changed):
         old, new = before.get(name), after.get(name)
         regular = all(item is None or item[0] in ("100644", "100755") and item[1] == "blob"
