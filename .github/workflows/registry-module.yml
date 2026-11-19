@@ -211,9 +211,6 @@ jobs:
             # inside the runner's memory limit.
             BAZEL_STARTUP_ARGS=(--bazel-startup-arg=--host_jvm_args=-Xmx2g)
             BAZEL_BUILD_ARGS=(--bazel-build-arg=--jobs=1 --bazel-build-arg=--discard_analysis_cache)
-            if [[ "$CI_MODULE" == p4c && "$CI_VERSION" == 1.2.4.2.sonic.6 ]]; then
-              BAZEL_BUILD_ARGS=(--bazel-build-arg=--jobs=4 --bazel-build-arg=--discard_analysis_cache)
-            fi
             # Isolated pip uses its bundled CAs unless Requests receives the
             # system bundle that the registry runner provisions for its proxy.
             BAZEL_BUILD_ARGS+=(--bazel-build-arg=--repo_env=REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt)
