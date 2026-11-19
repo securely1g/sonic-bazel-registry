@@ -2114,6 +2114,18 @@ class Arm64RoutingTests(FixtureTestCase):
             with self.subTest(module=module, cross=cross, flags=flags):
                 self.assertEqual(registry_ci.cross_test_timeout_flags(module, "1.15.0.sonic.5", cross, flags), expected)
 
+    def test_sairedis_cross_comparisons_get_the_existing_long_qemu_budget(self):
+        for cross, flags, expected in (
+            (True, [], ["--test_timeout=180,2700,2700,7200"]),
+            (False, [], []),
+            (True, ["--test_timeout=42"], []),
+            (True, ["--test_timeout", "42"], []),
+        ):
+            with self.subTest(cross=cross, flags=flags):
+                self.assertEqual(registry_ci.cross_test_timeout_flags(
+                    "sonic-sairedis", "0.0.5-6b9b254c0d083f3c75e20c61e88e083a7acf0a67",
+                    cross, flags), expected)
+
     def test_changed_published_source_is_still_rejected(self):
         self.arm_entry("alpha", "1.0.0")
         base = self.commit("publish original contract")
