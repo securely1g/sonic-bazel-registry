@@ -2373,11 +2373,11 @@ class TestContainerTests(unittest.TestCase):
                                  environment["SONIC_RUNNER_IMAGE_REFERENCE"] if execution == "amd64" else selection[1])
                 self.assertEqual(arguments[arguments.index("--bazel") + 1], "/usr/local/bin/bazel")
                 self.assertEqual([arg for arg in arguments if arg.startswith("--bazel-startup-arg=")],
-                                 ["--bazel-startup-arg=--host_jvm_args=-Xmx2g"] if execution == "amd64" else [])
+                                 ["--bazel-startup-arg=--host_jvm_args=-Xmx2g"])
                 self.assertEqual([arg for arg in arguments if arg.startswith("--bazel-build-arg=")],
-                                 ["--bazel-build-arg=--jobs=1", "--bazel-build-arg=--discard_analysis_cache",
+                                 ["--bazel-build-arg=--discard_analysis_cache",
                                   "--bazel-build-arg=--repo_env=REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt"]
-                                 if execution == "amd64" else [])
+                                 if execution == "amd64" else ["--bazel-build-arg=--discard_analysis_cache"])
                 self.assertEqual("--cross-compile" in arguments, cross)
                 self.assertEqual("--test-executor" in arguments, cross)
                 if cross:
@@ -2408,52 +2408,39 @@ class TestContainerTests(unittest.TestCase):
                 self.assertNotEqual(result.returncode, 0)
                 self.assertFalse((root / "CAPTURE").exists())
 
-    def test_local_p4_builds_limit_make_for_targets_and_tools(self):
+    def test_every_module_and_architecture_uses_the_same_resource_policy(self):
         workflow = (registry_ci.ROOT / ".github/workflows/registry-module.yml").read_text()
         script = self.step(workflow, "Build and test through the registry")
-        for module, target, execution, prior, expected, large in (
-            ("p4c", "amd64", "amd64", None, "--eval=.NOTPARALLEL:", False),
-            ("p4c", "arm64", "amd64", "-r --warn-undefined-variables", "-r --warn-undefined-variables --eval=.NOTPARALLEL:", False),
-            ("p4lang-bmv2", "amd64", "amd64", "", "--eval=.NOTPARALLEL:", False),
-            ("sonic-dash", "amd64", "amd64", None, "--eval=.NOTPARALLEL:", False),
-            ("sonic-dash", "arm64", "amd64", "-r", "-r --eval=.NOTPARALLEL:", False),
-            ("sonic-dash", "arm64", "arm64", None, None, False),
-            ("p4c", "arm64", "arm64", "-r", None, False),
-            ("libyang", "amd64", "amd64", "-r", None, False),
-            ("p4c", "amd64", "amd64", None, None, True),
-            ("p4c", "arm64", "amd64", None, None, True),
-            ("p4lang-bmv2", "amd64", "amd64", None, None, True),
-            ("sonic-dash", "amd64", "amd64", None, None, True),
-            ("sonic-dash", "arm64", "amd64", None, None, True),
-        ):
-            with self.subTest(module=module, target=target, execution=execution, large=large), tempfile.TemporaryDirectory() as tmp:
-                root = Path(tmp)
-                env = self.shell_environment(root, target, execution, target != execution)
-                env["CI_MODULE"] = module
-                env["CI_LARGE_RUNNER"] = str(large).lower()
-                env.pop("GNUMAKEFLAGS", None)
-                if prior is not None:
-                    env["GNUMAKEFLAGS"] = prior
-                result = subprocess.run(["bash", "-c", script], env=env, capture_output=True, text=True)
-                self.assertEqual(result.returncode, 0, result.stderr)
-                args = (root / "CAPTURE").read_text().splitlines()
-                self.assertEqual("ci/p4_runner_resources.py" in args, large)
-                if large:
-                    self.assertIn("--bazel-build-arg=--jobs=1", args)
-                self.assertEqual([arg for arg in args if "GNUMAKEFLAGS=" in arg], [] if expected is None else [
-                    "--bazel-build-arg=--action_env=GNUMAKEFLAGS=" + expected,
-                    "--bazel-build-arg=--host_action_env=GNUMAKEFLAGS=" + expected,
-                ])
-                standard_amd64_dash = (module, target, execution, large) == ("sonic-dash", "amd64", "amd64", False)
-                jvm_flags = ["-Xmx2g"] if execution == "amd64" else []
-                if standard_amd64_dash:
-                    jvm_flags.extend(["-XX:G1PeriodicGCInterval=30000", "-XX:MinHeapFreeRatio=20",
-                                      "-XX:MaxHeapFreeRatio=35"])
-                self.assertEqual([arg for arg in args if arg.startswith("--bazel-startup-arg=")],
-                                 ["--bazel-startup-arg=--host_jvm_args=" + flag for flag in jvm_flags])
-                self.assertEqual([arg for arg in args if "GC_FREE_SPACE_DIVISOR" in arg],
-                                 ["--bazel-build-arg=--host_cxxopt=-DGC_FREE_SPACE_DIVISOR=16"]
-                                 if standard_amd64_dash else [])
+        for module in ("p4c", "p4lang-bmv2", "sonic-dash", "libyang", "new-native-module"):
+            for target, execution in (("amd64", "amd64"), ("arm64", "amd64"), ("arm64", "arm64")):
+                with self.subTest(module=module, target=target, execution=execution), tempfile.TemporaryDirectory() as tmp:
+                    root = Path(tmp)
+                    env = self.shell_environment(root, target, execution, target != execution)
+                    env["CI_MODULE"] = module
+                    result = subprocess.run(["bash", "-c", script], env=env, capture_output=True, text=True)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    args = (root / "CAPTURE").read_text().splitlines()
+                    self.assertEqual(args[:3], ["ci/runner_resources.py",
+                        str(root / "workspace/ci-artifacts/runner-resources.json"), "python3"])
+                    self.assertEqual(args[args.index("--module") + 1], module)
+                    # Keep the existing JVM heap independent of Bazel action scheduling.
+                    self.assertEqual([arg for arg in args if arg.startswith("--bazel-startup-arg=")],
+                                     ["--bazel-startup-arg=--host_jvm_args=-Xmx2g"])
+                    self.assertEqual([arg for arg in args if arg.startswith("--bazel-build-arg=")],
+                        ["--bazel-build-arg=--discard_analysis_cache"] +
+                        (["--bazel-build-arg=--repo_env=REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt"]
+                         if execution == "amd64" else []))
+
+    def test_manual_profile_request_reaches_the_module_runner(self):
+        workflow = (registry_ci.ROOT / ".github/workflows/registry-module.yml").read_text()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            env = self.shell_environment(root, "amd64", "amd64", False)
+            env["CI_PROFILE_ANALYSIS"] = "true"
+            result = subprocess.run(["bash", "-c", self.step(workflow, "Build and test through the registry")],
+                                    env=env, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("--profile-analysis", (root / "CAPTURE").read_text().splitlines())
 
     def test_module_archive_preserves_modes_and_uses_sudo_only_for_local_execution(self):
         workflow = (registry_ci.ROOT / ".github/workflows/registry-module.yml").read_text()
@@ -2500,7 +2487,7 @@ class BazelStartupArgumentTests(unittest.TestCase):
                     registry_ci.main()
                 execute.assert_called_once_with(registry_ci.ROOT, "alpha", "1.0.0", "amd64",
                                                 Path("/tmp/work"), Path("/tmp/artifacts"), "bazel", None,
-                                                startup, build, False, None)
+                                                startup, build, False, None, profile_analysis=False)
 
 
     def test_cli_keeps_cross_compilation_and_runtime_explicit(self) -> None:

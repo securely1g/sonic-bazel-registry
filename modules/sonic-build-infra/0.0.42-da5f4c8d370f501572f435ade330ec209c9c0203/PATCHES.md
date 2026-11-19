@@ -1,6 +1,6 @@
 # Registry patches
 
-0001 sets the registered module version.
+`0001-bump-version.patch` sets the immutable registered version.
+`0002-registry-cross-test-visibility.patch` exposes the existing kernel runtime tests to the registry overlay.
 
-Retained source compatibility patches: 0002-registry-cross-test-visibility.patch.
-Already integrated patches removed: .
+All implementation changes come from merged Infra master `81476192bf2cdb70bb646e85935c5d698b6de8a0`.

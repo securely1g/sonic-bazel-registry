@@ -339,10 +339,9 @@ class PrivateMirrorWorkflowCommandTest(unittest.TestCase):
                 result = self.run_step("Build and test through the registry")
                 self.assertEqual(result.returncode, 0, result.stderr)
                 command = json.loads(self.capture.read_text())
-                self.assertEqual(command["args"][:2], ["ci/private_mirrors.py", "run"])
+                self.assertEqual(command["args"][:4], ["ci/runner_resources.py",
+                    str(self.directory / "ci-artifacts/runner-resources.json"), "python3", "ci/private_mirrors.py"])
                 self.assertIn("ci/registry_ci.py", command["args"])
-                self.assertIn("--bazel-build-arg=--jobs=1", command["args"])
-                self.assertIn("--bazel-startup-arg=--host_jvm_args=-Xmx2g", command["args"])
                 self.assertEqual(command["secrets"], list(ROOT_SECRETS.values()))
                 self.assertEqual(command["github_actions"], "true")
                 self.assertNotIn("debian-fixture", " ".join(command["args"]))
