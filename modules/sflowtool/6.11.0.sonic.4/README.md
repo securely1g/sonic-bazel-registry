@@ -1,3 +1,7 @@
+## Dependency refresh for `6.11.0.sonic.4`
+
+This candidate retains the `6.11.0.sonic.3` source and existing patches. Its module dependencies select the newest non-yanked versions published at `3d1cc5e8dfd553d2acbe4198e504a245e6bdbddf`. Versions introduced by this refresh are not dependency targets of the same refresh.
+
 # sflowtool for the SONiC sFlow image
 
 This entry builds the `sflowtool` executable selected by SONiC's
