@@ -1,17 +1,19 @@
-Subject: Set the Bazel module version to the registered Linkmgrd revision
+From: Guohan Lu <securely1g@gmail.com>
+Subject: [PATCH] Register the merged sonic-linkmgrd source commit
 
-The source declares version 1.0.0. Append the source commit so consumers
-can request this exact Linkmgrd revision from the SONiC registry.
+Qualify the exact merged source module identity. Preserve all dependency
+declarations from the source owner; unmerged refresh changes are deferred.
 
-Origin: https://github.com/securely1g/sonic-bazel-registry/pull/183
+Source commit: 4942334e9878b473099d7e07fc82bff9fc8c54f2
+Scope: downstream registry integration; not an upstream bug fix.
 
 --- a/MODULE.bazel
 +++ b/MODULE.bazel
 @@ -1,6 +1,6 @@
  module(
      name = "sonic-linkmgrd",
--    version = "1.0.0",
-+    version = "1.0.0-92c78b468b678e3c2ed2877d2cb0a52306f2297f",
+-    version = "1.0.1",
++    version = "1.0.1-4942334e9878b473099d7e07fc82bff9fc8c54f2",
      bazel_compatibility = [
          ">=8.5.1",
          "<=8.5.1",
