@@ -10,6 +10,7 @@ cc_library(
     name = "headers",
     hdrs = glob(["include/**/*.h", "snmplib/**/*.h", "agent/**/*.h", "apps/**/*.h"]) + ["@net_snmp//:configured_headers"],
     includes = [
+        ".",
         "include",
         "snmplib",
         "snmplib/transports",

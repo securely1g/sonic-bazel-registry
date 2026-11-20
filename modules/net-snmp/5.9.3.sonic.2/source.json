@@ -5,7 +5,7 @@
   "overlay": {
     ".bazelrc": "sha256-bqY6IRC9+XT1Dr9Nk3d13o7/xwbyi+ZEex2vx/6hHe4=",
     "BUILD.bazel": "sha256-quZJBeBr8tCD73taNhjqnmszK0CYwOs/T5/VHxELCi8=",
-    "MODULE.bazel": "sha256-TjL2F7MCf8iIEFHk3vVYtsBOu1xh4s9mdYsjNOWKdAY=",
+    "MODULE.bazel": "sha256-ocMkEMnW6Wbe8jwUbcxTuuxeV3cmb9HDVDTl4Z3GIpI=",
     "native_contract_test.py": "sha256-woV2+5coW4OsnQWPvx5S82P/wskOsf1hK4tLmn7rhMg=",
     "package_sources/BUILD.bazel": "sha256-ECIJSnnFtZCAb9CYoKYs4sUfJxL1GG2WRw0lNa5RzK0=",
     "package_sources/documentation.py": "sha256-CFInmA2ft12P58e7Y7f5xLhL9ckiYi15CLcQBym8L6s=",
@@ -61,7 +61,7 @@
     "patches/48-cross-compile-changes.patch": "sha256-/szcMkwLv1bUNa19VuxLYl6VSpO6H9UXB2lA3cENTAM=",
     "perl_sources/BUILD.bazel": "sha256-siGh4uz6Qvkjp2Poj+iyHGd8Nhz9f6YfDfHYu9ZxV8I=",
     "perl_xs.py": "sha256-SRFRPTuHCn7z/VdtbzW2boaMiJT8mmpj7qSLSDrzPkE=",
-    "source.BUILD.bazel": "sha256-WIxgD63hmRqAmMpwnc2jYyhk+4qpJDjmdgQwRuchUrI=",
+    "source.BUILD.bazel": "sha256-y9EAypsUMabW1kthTkZroMv+KgQZNb2MpVJLubGwua8=",
     "source_overrides/agent/mibgroup/mibII/interfaces.c": "sha256-gfuyFNNQCfeySqGTznC2220hvJ2jRB2rJI0gTqaaKT0=",
     "source_overrides/agent/snmp_agent.c": "sha256-plAAP8BA4kZJaeluW7MKbpLQ7+LcCObYjgM1mtuwATU=",
     "source_overrides/agent/snmpd.c": "sha256-lECrAgU8InZwZcw2ep9kMxW8pBqploC/8z4M7GxQi2I=",
