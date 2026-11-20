@@ -1,6 +1,6 @@
 module(name = "dhcp_relay_registry_consumer")
 
-bazel_dep(name = "sonic-dhcp-relay", version = "0.1.0-2c2fd81332a1e99bc5ae95cd6121cefcd2518f43")
+bazel_dep(name = "sonic-dhcp-relay", version = "0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739")
 bazel_dep(name = "sonic-build-infra", version = "0.0.39-81476192bf2cdb70bb646e85935c5d698b6de8a0", repo_name = "sonic_build_infra")
 bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.21")
 bazel_dep(name = "rules_python", version = "1.9.0.sonic.1")

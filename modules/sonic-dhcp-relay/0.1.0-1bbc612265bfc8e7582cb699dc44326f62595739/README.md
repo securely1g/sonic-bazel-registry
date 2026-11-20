@@ -1,7 +1,7 @@
 # DHCP relay source registration
 
 Register native AMD64/Trixie DHCPv4 and DHCPv6 source builds from
-[`securely1g/sonic-dhcp-relay@2c2fd81332a1e99bc5ae95cd6121cefcd2518f43`](https://github.com/securely1g/sonic-dhcp-relay/commit/2c2fd81332a1e99bc5ae95cd6121cefcd2518f43).
+[`securely1g/sonic-dhcp-relay@1bbc612265bfc8e7582cb699dc44326f62595739`](https://github.com/securely1g/sonic-dhcp-relay/commit/1bbc612265bfc8e7582cb699dc44326f62595739).
 The registry version adds the immutable source commit to the owner's unchanged
 `0.1.0` base version. The generated MODULE overlay changes only that identity;
 compilation, runtime fixtures and packaging interfaces remain source-owned.
@@ -41,7 +41,7 @@ metadata or test results. No DEB-producing target or fixture is selected.
 ```sh
 python3 ci/registry_ci.py run \
   --module sonic-dhcp-relay \
-  --version 0.1.0-2c2fd81332a1e99bc5ae95cd6121cefcd2518f43 \
+  --version 0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739 \
   --architecture amd64 \
   --work-dir /tmp/relay-registry-consumer \
   --artifacts /tmp/relay-registry-evidence \
@@ -56,16 +56,14 @@ retain the exact-head CI receipts before claiming the registration passes.
 
 ## Landing order
 
-Direct source prerequisite: [DHCP relay PR #5](https://github.com/securely1g/sonic-dhcp-relay/pull/5),
-which is stacked on [PR #4](https://github.com/securely1g/sonic-dhcp-relay/pull/4).
-Both source PRs are unmerged, so this registration must remain Draft.
+The source prerequisites [DHCP relay PR #4](https://github.com/securely1g/sonic-dhcp-relay/pull/4)
+and [PR #5](https://github.com/securely1g/sonic-dhcp-relay/pull/5) are merged. This entry
+selects PR #5's actual landed commit on `master`, not its former PR-head snapshot.
 
-Keep this PR Draft while the selected source revision is unmerged. Merge the
-source change first, repin this unpublished registration to its landed immutable
-commit, recheck the archive and consumer, then land the registration. The DHCP
-relay image consumes this registration afterward. Canonical registry defaults
+Validate this exact registry candidate before landing the registration. The
+separate DHCP relay image integration consumes the resulting module. Canonical registry defaults
 remain `securely1g/sonic-bazel-registry/main`; a candidate revision is used only
 for explicitly selected premerge validation. DHCP monitor and ISC DHCP are
 separate existing source owners, not reimplemented by this module.
 
-Archive SHA256: `b2435198bde85d52ec05d56e9899640d2f2cbc372170dee3365e0c0767f42e0e`. All 90 tracked source blobs, Git file types and executable bits match the owner commit. The `gmock_global` gitlink is fetched by its separately pinned source declaration.
+Archive SHA256: `ebf5d7fab4749b5a4837cd8d72b1f0c2fef0a28c3255a745e3ecd62f5da53cce`. All 90 tracked source blobs, Git file types and executable bits match the owner commit. The `gmock_global` gitlink is fetched by its separately pinned source declaration.

@@ -1,6 +1,6 @@
 module(
     name = "sonic-dhcp-relay",
-    version = "0.1.0-2c2fd81332a1e99bc5ae95cd6121cefcd2518f43",
+    version = "0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739",
     bazel_compatibility = [
         ">=8.5.1",
         "<=8.5.1",
