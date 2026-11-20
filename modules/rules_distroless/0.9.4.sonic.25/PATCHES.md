@@ -1,3 +1,14 @@
+# Patch provenance for 0.9.4.sonic.25
+
+This release extends the published `0.9.4.sonic.24` patch stack with
+`0060-declare-native-aliases.patch`, which adds explicit native aliases for
+locked APT collections, and `0061-module-version-25.patch`, which advances
+the module version. Patch `0062-share-debian-archives-and-pkgconfig-work.patch`
+shares verified archives, extraction and tool inputs, and removes redundant
+pkg-config discovery work. These patches address repository evaluation observed while
+analyzing the SONiC Syncd VS build for AMD64. The archive and the existing
+registry test targets are carried forward from .24.
+
 # Patch provenance for 0.9.4.sonic.19
 
 This candidate retains the published 0.9.4.sonic.17 inputs and adds
