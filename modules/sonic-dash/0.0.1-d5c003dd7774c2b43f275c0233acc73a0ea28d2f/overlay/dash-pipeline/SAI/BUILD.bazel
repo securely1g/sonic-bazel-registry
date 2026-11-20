@@ -1,0 +1,356 @@
+load("@dash_generator_deps//:requirements.bzl", "requirement")
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_import", "cc_library")
+load("@rules_python//python:defs.bzl", "py_binary")
+load("//bazel:metadata.bzl", "dash_metadata")
+load("//bazel:runtime.bzl", "dash_runtime")
+
+package(default_visibility = ["//visibility:private"])
+
+py_binary(
+    name = "sai_api_gen",
+    srcs = ["sai_api_gen.py"] + glob(["utils/**/*.py"]),
+    imports = ["."],
+    python_version = "3.13",
+    deps = [requirement(name) for name in [
+        "jinja2",
+        "pyyaml",
+        "pyyaml-include",
+        "jsonpath-ng",
+    ]],
+)
+
+_DASH_APIS = [
+    "dashacl",
+    "dashappliance",
+    "dashdirectionlookup",
+    "dasheni",
+    "dashflow",
+    "dashha",
+    "dashinboundrouting",
+    "dashmeter",
+    "dashoutboundcatopa",
+    "dashoutboundportmap",
+    "dashoutboundrouting",
+    "dashpavalidation",
+    "dashtunnel",
+    "dashtrustedvni",
+    "dashvip",
+    "dashvnet",
+]
+
+_DASH_GENERATED_HEADERS = [
+    "generated/SAI/inc/saiobject.h",
+    "generated/SAI/experimental/saiextensions.h",
+    "generated/SAI/experimental/saiportextensions.h",
+    "generated/SAI/experimental/saitypesextensions.h",
+] + ["generated/SAI/experimental/saiexperimental" + api + ".h" for api in _DASH_APIS]
+
+_DASH_GENERATED_IMPLS = [
+    "generated/lib/saifixedapis.cpp",
+    "generated/lib/sairoute.cpp",
+] + ["generated/lib/sai" + api + ".cpp" for api in _DASH_APIS]
+
+genrule(
+    name = "generate_sai",
+    srcs = [
+        "//dash-pipeline:bmv2/dash_pipeline.bmv2/dash_pipeline_p4rt.json",
+        "//dash-pipeline:bmv2/dash_pipeline.bmv2/dash_pipeline_ir.json",
+        "@dash_sai_source//:inc/saiobject.h",
+        "@dash_sai_source//:meta/acronyms.txt",
+        "@dash_sai_source//:experimental/saiextensions.h",
+        "@dash_sai_source//:experimental/saiportextensions.h",
+        "@dash_sai_source//:experimental/saitypesextensions.h",
+    ] + glob(["specs/*.yaml", "templates/**/*.j2"]),
+    outs = _DASH_GENERATED_HEADERS + _DASH_GENERATED_IMPLS + ["generated/lib/saiimpl.h"],
+    cmd = '"$(execpath :sai_api_gen)" "$(execpath //dash-pipeline:bmv2/dash_pipeline.bmv2/dash_pipeline_p4rt.json)" ' +
+          '--ir "$(execpath //dash-pipeline:bmv2/dash_pipeline.bmv2/dash_pipeline_ir.json)" ' +
+          '--ignore-tables=underlay_mac,eni_meter,slb_decap ' +
+          '--sai-spec-dir "$$(dirname $(execpath specs/sai_spec.yaml))" ' +
+          '--sai-header-root "$$(dirname $(execpath @dash_sai_source//:inc/saiobject.h))/.." ' +
+          '--template-root "$$(dirname $(execpath templates/saiimpl.h.j2))/.." ' +
+          '--output-dir "$(@D)/generated" dash',
+    tools = [":sai_api_gen"],
+)
+
+_INC = ["@dash_sai_source//:inc", "generated/SAI/inc/saiobject.h"]
+_EXPERIMENTAL = ["@dash_sai_source//:experimental"] + _DASH_GENERATED_HEADERS[1:]
+
+dash_metadata(
+    name = "metadata",
+    inc = _INC,
+    experimental = _EXPERIMENTAL,
+    meta = ["@dash_sai_source//:metadata_inputs"],
+    parser = "@dash_sai_source//:meta/parse.pl",
+)
+
+cc_library(
+    name = "extended_inc",
+    hdrs = ["generated/SAI/inc/saiobject.h"],
+    strip_include_prefix = "generated/SAI/inc",
+)
+
+cc_library(
+    name = "extended_experimental",
+    hdrs = _DASH_GENERATED_HEADERS[1:],
+    strip_include_prefix = "generated/SAI/experimental",
+)
+
+cc_library(
+    name = "api_headers",
+    deps = [
+        ":extended_inc",
+        ":extended_experimental",
+        "@dash_sai_source//:inc_headers",
+        "@dash_sai_source//:experimental_headers",
+    ],
+)
+
+cc_library(
+    name = "metadata_headers",
+    hdrs = [
+        "metadata/saimetadata.h",
+        "metadata/saimetadatasize.h",
+    ],
+    strip_include_prefix = "metadata",
+    deps = [
+        ":api_headers",
+        "@dash_sai_source//:metadata_headers",
+    ],
+)
+
+cc_library(
+    name = "metadata_objects",
+    srcs = [
+        "metadata/saimetadata.c",
+        "@dash_sai_source//:meta/saimetadatautils.c",
+        "@dash_sai_source//:meta/saiserialize.c",
+    ],
+    alwayslink = True,
+    copts = [
+        "-g",
+        "-fPIC",
+        "-Wdangling-pointer=1",
+        "-ansi",
+        "-Wall",
+        "-Wcast-align",
+        "-Wcast-qual",
+        "-Wconversion",
+        "-Wdisabled-optimization",
+        "-Werror",
+        "-Wextra",
+        "-Wfloat-equal",
+        "-Wformat=2",
+        "-Wformat-nonliteral",
+        "-Wformat-security",
+        "-Wformat-y2k",
+        "-Wimport",
+        "-Winit-self",
+        "-Winline",
+        "-Winvalid-pch",
+        "-Wmissing-field-initializers",
+        "-Wmissing-format-attribute",
+        "-Wmissing-include-dirs",
+        "-Wno-error=missing-include-dirs",
+        "-Wmissing-noreturn",
+        "-Wno-aggregate-return",
+        "-Wno-padded",
+        "-Wno-switch-enum",
+        "-Wno-unused-parameter",
+        "-Wpacked",
+        "-Wpointer-arith",
+        "-Wredundant-decls",
+        "-Wshadow",
+        "-Wstack-protector",
+        "-Wstrict-aliasing=3",
+        "-Wswitch",
+        "-Wswitch-default",
+        "-Wunreachable-code",
+        "-Wunused",
+        "-Wvariadic-macros",
+        "-Wwrite-strings",
+    ],
+    deps = [":metadata_headers"],
+    linkstatic = True,
+)
+
+cc_binary(
+    name = "libdashsaimetadata.so",
+    features = ["-strip_debug_symbols"],
+    linkopts = [
+        "-Wl,-Bsymbolic-functions",
+        "-Wl,-z,relro",
+        "-Wl,-z,now",
+    ],
+    deps = [":metadata_objects"],
+    linkshared = True,
+)
+
+cc_library(
+    name = "implementation_headers",
+    hdrs = [
+        "src/config.h",
+        "src/dashsai.h",
+        "src/logger.h",
+        "src/objectidmanager.h",
+        "src/p4meta.h",
+        "src/saidash.h",
+        "src/utils.h",
+    ],
+    strip_include_prefix = "src",
+)
+
+cc_library(
+    name = "generated_implementation_headers",
+    hdrs = ["generated/lib/saiimpl.h"],
+    strip_include_prefix = "generated/lib",
+)
+
+_DASH_LINK_DEPS = [
+    "@pi_deps//libgrpc++-dev:libgrpc++_cc",
+    "@pi_deps//libgrpc-dev:libgrpc_cc",
+    "@pi_deps//libgrpc-dev:libgpr_cc",
+    "@pi_deps//libprotobuf-dev:libprotobuf_cc",
+    "@pi_deps//libabsl-dev:libabsl_synchronization_cc",
+    "@p4lang_pi//:piprotogrpc",
+    "@p4lang_pi//:piprotobuf",
+]
+
+cc_binary(
+    name = "libsai.so",
+    srcs = [
+        "src/config.cpp",
+            "src/dashsai.cpp",
+            "src/logger.cpp",
+            "src/objectidmanager.cpp",
+            "src/p4meta.cpp",
+            "src/sai_dash_acl.cpp",
+        "src/sai_dash_buffer.cpp",
+        "src/sai_dash_dtel.cpp",
+        "src/sai_dash_hostif.cpp",
+        "src/sai_dash_neighbor.cpp",
+        "src/sai_dash_next_hop.cpp",
+        "src/sai_dash_policer.cpp",
+        "src/sai_dash_port.cpp",
+        "src/sai_dash_router_interface.cpp",
+        "src/sai_dash_switch.cpp",
+            "src/utils.cpp",
+        ] + _DASH_GENERATED_IMPLS,
+    copts = [
+        "-g",
+        "-ansi",
+        "-fPIC",
+        "-pipe",
+        "-std=c++14",
+        "-Wall",
+        "-Wcast-align",
+        "-Wcast-qual",
+        "-Wconversion",
+        "-Wdisabled-optimization",
+        "-Werror",
+        "-Wextra",
+        "-Wfloat-equal",
+        "-Wformat=2",
+        "-Wformat-nonliteral",
+        "-Wformat-security",
+        "-Wformat-y2k",
+        "-Wimport",
+        "-Winit-self",
+        "-Wno-inline",
+        "-Winvalid-pch",
+        "-Wmissing-field-initializers",
+        "-Wmissing-format-attribute",
+        "-Wmissing-include-dirs",
+        "-Wno-error=missing-include-dirs",
+        "-Wmissing-noreturn",
+        "-Wno-aggregate-return",
+        "-Wno-padded",
+        "-Wno-switch-enum",
+        "-Wno-unused-parameter",
+        "-Wpacked",
+        "-Wpointer-arith",
+        "-Wredundant-decls",
+        "-Wshadow",
+        "-Wstack-protector",
+        "-Wstrict-aliasing=3",
+        "-Wswitch",
+        "-Wswitch-default",
+        "-Wunreachable-code",
+        "-Wunused",
+        "-Wvariadic-macros",
+        "-Wwrite-strings",
+        "-Wno-switch-default",
+        "-Wconversion",
+        "-Wno-psabi",
+        "-Wno-unused-label",
+        "-Wno-unused-result",
+    ],
+    features = ["-strip_debug_symbols"],
+    linkopts = ["-Wl,-z,defs"],
+    linkshared = True,
+    deps = [
+        ":generated_implementation_headers",
+        ":implementation_headers",
+        ":metadata_objects",
+        ":metadata_headers",
+    ] + _DASH_LINK_DEPS,
+)
+
+cc_import(
+    name = "sai_link",
+    shared_library = ":libsai.so",
+)
+
+cc_library(
+    name = "sdk",
+    deps = [":api_headers", ":sai_link"] + _DASH_LINK_DEPS,
+    visibility = ["//visibility:public"],
+)
+
+alias(name = "libsai", actual = ":libsai.so")
+alias(name = "libdashsaimetadata", actual = ":libdashsaimetadata.so")
+
+[
+    alias(
+        name = "pipeline_" + name,
+        actual = "//dash-pipeline:bmv2/dash_pipeline.bmv2/" + path,
+    )
+    for name, path in {
+        "json": "dash_pipeline.json",
+        "p4rt_json": "dash_pipeline_p4rt.json",
+        "p4rt_txt": "dash_pipeline_p4rt.txt",
+        "ir_json": "dash_pipeline_ir.json",
+    }.items()
+]
+
+dash_runtime(
+    name = "runtime_amd64",
+    triplet = "x86_64-linux-gnu",
+)
+
+dash_runtime(
+    name = "runtime_arm64",
+    triplet = "aarch64-linux-gnu",
+)
+
+alias(
+    name = "runtime",
+    visibility = ["//visibility:public"],
+    actual = select({
+        "@platforms//cpu:x86_64": ":runtime_amd64",
+        "@platforms//cpu:arm64": ":runtime_arm64",
+    }),
+)
+
+alias(
+    name = "runtime.debug_symbols",
+    visibility = ["//visibility:public"],
+    actual = select({
+        "@platforms//cpu:x86_64": ":runtime_amd64.debug_symbols",
+        "@platforms//cpu:arm64": ":runtime_arm64.debug_symbols",
+    }),
+)
+
+exports_files(
+    ["debian/libsai_1.0.0_amd64/DEBIAN/control"],
+    visibility = ["//visibility:public"],
+)
