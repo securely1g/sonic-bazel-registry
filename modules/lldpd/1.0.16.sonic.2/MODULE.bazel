@@ -1,4 +1,4 @@
-module(name = "lldpd", version = "1.0.16.sonic.1")
+module(name = "lldpd", version = "1.0.16.sonic.2")
 
 bazel_dep(name = "bazel_skylib", version = "1.9.0")
 bazel_dep(name = "platforms", version = "1.1.0")
@@ -8,10 +8,10 @@ bazel_dep(name = "pigz", version = "2.8.bcr.2")
 bazel_dep(name = "rules_multirun", version = "0.14.0")
 bazel_dep(name = "toolchain_utils", version = "1.0.2")
 bazel_dep(name = "rules_cc", version = "0.2.20")
-bazel_dep(name = "rules_python", version = "1.8.0")
-bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.13")
-bazel_dep(name = "tar.bzl", version = "0.10.5-sonic.1")
-bazel_dep(name = "sonic-build-infra", version = "0.0.25-17a1e555291c64be1a6ff008f33352bffc4f8e5c", repo_name = "sonic_build_infra")
+bazel_dep(name = "rules_python", version = "1.9.0.sonic.1")
+bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.22")
+bazel_dep(name = "tar.bzl", version = "0.10.5.sonic.2")
+bazel_dep(name = "sonic-build-infra", version = "0.0.38-0baa4acc9eac9ccc793b81104b1580d530271cbe", repo_name = "sonic_build_infra")
 
 gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
 use_repo(gcc, "gcc_toolchains")
@@ -28,7 +28,10 @@ register_toolchains(
 # Execution tools remain in sonic-build-infra's shared foreign_runtime.
 apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
 apt.import_lock(
-    lock = "//:bazel/apt.lock.json",
+    dependency_sets = ["lldpd_deps"],
+    lock = "@sonic_build_infra//apt:apt.lock.json",
+    requests = "@sonic_build_infra//apt:requests.json",
+    sources = "@sonic_build_infra//apt:sources.json",
 )
 use_repo(apt, "lldpd_deps")
 

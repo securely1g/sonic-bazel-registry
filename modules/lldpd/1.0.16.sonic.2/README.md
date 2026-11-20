@@ -1,3 +1,7 @@
+## Dependency refresh for `1.0.16.sonic.2`
+
+This candidate retains the `1.0.16.sonic.1` source and existing patches. Its module dependencies select the newest non-yanked versions published at `3d1cc5e8dfd553d2acbe4198e504a245e6bdbddf`. Versions introduced by this refresh are not dependency targets of the same refresh.
+
 # LLDP source package for SONiC
 
 The Bazel Central Registry has no `lldpd` module, and upstream `1.0.16` has no
@@ -12,9 +16,13 @@ files were compared with GNU patch applying the unchanged legacy patch bytes.
 
 The native AMD64/Trixie build uses upstream configure/Make through
 `rules_foreign_cc`, the shared SONiC GCC/sysroot and shared execution tools.
-The separate checked target-library lock contains the exact external Debian
-headers/libraries used by this component. No component execution-tool set,
-DEB producer, or Make package-cache dependency is introduced.
+The `lldpd_deps` set in the shared `sonic-build-infra` production lock supplies
+the external Debian headers/libraries used by this component. Its complete
+AMD64 closure preserves all 69 package identities, archive hashes and dependency
+edges from the earlier component-local lock. This entry contains no duplicate
+APT lock; both its module definition and fetched source import the shared lock.
+No component execution-tool set, DEB producer, or Make package-cache dependency
+is introduced.
 
 `@lldpd//:runtime` and `@lldpd//:runtime.debug_symbols` are the public installed
 payloads. `lldpd`, `lldpcli` (also exposed through the `lldpctl` symlink), and
@@ -44,7 +52,7 @@ action. Bazel caches that complete action and the separate TAR/image actions;
 this module does not claim per-C-file Bazel compilation caching. Preserve the
 checked source hashes, patch order and target-library lock when updating it.
 
-The target lock selects AMD64 `check`, `libbsd-dev`, `libcap-dev`,
+The shared target dependency set selects AMD64 `check`, `libbsd-dev`, `libcap-dev`,
 `libevent-dev`, `libpci-dev`, `libreadline-dev`, `libsnmp-dev`, and `libxml2-dev`
 from the recorded Debian snapshots. Refresh it with the public
 `rules_distroless` APT resolver when intentionally changing these inputs, and
