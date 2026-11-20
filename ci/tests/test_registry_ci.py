@@ -659,6 +659,28 @@ class VersionPolicyTests(FixtureTestCase):
         head = self.commit("add CI for the historical release")
         self.assertEqual(self.selected(published, head), {("alpha", "1.0.0")})
 
+    def test_published_archive_type_allows_standalone_ci_maintenance(self) -> None:
+        """Bazel's standard archive format field does not make CI a fetch input."""
+        entry = self.entry("alpha", "1.0.0")
+        source = json.loads((entry / "source.json").read_text())
+        write_json(entry / "source.json", {**source, "archive_type": "tar.gz"})
+        published = self.commit("published archive with explicit format")
+        config = json.loads((entry / "presubmit.json").read_text())
+        config["consumer_deps"][0]["version"] = "1.1.0"
+        write_json(entry / "presubmit.json", config)
+        head = self.commit("update standalone CI dependency")
+        self.assertEqual(self.selected(published, head), {("alpha", "1.0.0")})
+
+    def test_published_archive_type_keeps_source_recipe_immutable(self) -> None:
+        entry = self.entry("alpha", "1.0.0")
+        source = {**json.loads((entry / "source.json").read_text()), "archive_type": "tar.gz"}
+        write_json(entry / "source.json", source)
+        published = self.commit("published archive with explicit format")
+        write_json(entry / "source.json", {**source, "url": "https://example.invalid/changed.tar.gz"})
+        head = self.commit("change published source URL")
+        with self.assertRaisesRegex(registry_ci.RegistryError, "published version changed or removed"):
+            registry_ci.plan(self.root, published, head, published=published)
+
     def test_published_test_executable_bit_is_maintenance(self) -> None:
         entry = self.entry("alpha", "1.0.0")
         script = entry / "tests" / "run.sh"
@@ -2091,6 +2113,18 @@ class Arm64RoutingTests(FixtureTestCase):
         ):
             with self.subTest(module=module, cross=cross, flags=flags):
                 self.assertEqual(registry_ci.cross_test_timeout_flags(module, "1.15.0.sonic.5", cross, flags), expected)
+
+    def test_sairedis_cross_comparisons_get_the_existing_long_qemu_budget(self):
+        for cross, flags, expected in (
+            (True, [], ["--test_timeout=180,2700,2700,7200"]),
+            (False, [], []),
+            (True, ["--test_timeout=42"], []),
+            (True, ["--test_timeout", "42"], []),
+        ):
+            with self.subTest(cross=cross, flags=flags):
+                self.assertEqual(registry_ci.cross_test_timeout_flags(
+                    "sonic-sairedis", "0.0.5-6b9b254c0d083f3c75e20c61e88e083a7acf0a67",
+                    cross, flags), expected)
 
     def test_changed_published_source_is_still_rejected(self):
         self.arm_entry("alpha", "1.0.0")

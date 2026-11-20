@@ -347,6 +347,9 @@ This also checks inherited candidates when a PR changes only
 metadata or documentation; the actual stacked PR base is used only to select
 validation jobs.
 
+Archive entries may use Bazel's standard `archive_type` field to select the
+extraction format. This field does not change the maintenance boundary below.
+
 For supported archive entries, the only mutable entry-relative paths are regular
 files at `README.md`, `PATCHES.md`, `docs/**`, `presubmit.json` and `tests/**`.
 These may be added, edited or removed, and regular maintenance files may change

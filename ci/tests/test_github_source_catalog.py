@@ -94,7 +94,34 @@ class SourceCatalogTests(unittest.TestCase):
         for execution in ("amd64", "arm64"):
             with self.subTest(execution=execution):
                 self.assertEqual(registry.github_source_manifests(ROOT, "libteam", "1.31.0.sonic.1", execution), selected)
-        self.assertEqual(registry.github_source_manifests(ROOT, "libteam", "1.31.0.sonic.2", "arm64"), [])
+        self.assertEqual(registry.github_source_manifests(ROOT, "libteam", "1.31.0.sonic.999", "arm64"), [])
+
+    def test_refreshed_consumers_keep_the_approved_cosmos_routes(self):
+        expected = [ROOT / "ci/github_sources/cosmos-4.0.2.json"]
+        cases = [
+            ('libteam', '1.31.0.sonic.1',
+             '1.31.0.sonic.2', ('amd64', 'arm64')),
+            ('sonic-sairedis', '0.0.5-33443ea1666a23812365d03fb959066ee84c9aa0',
+             '0.0.5-6b9b254c0d083f3c75e20c61e88e083a7acf0a67', ('amd64', 'arm64')),
+        ]
+        for module, previous, current, supported in cases:
+            for version in (previous, current):
+                for execution in ("amd64", "arm64"):
+                    with self.subTest(module=module, version=version, execution=execution):
+                        self.assertEqual(
+                            registry.github_source_manifests(ROOT, module, version, execution),
+                            expected if execution in supported else [],
+                        )
+
+    def test_landed_dbsyncd_has_only_its_supported_native_route(self):
+        version = "2.0.1-273c3e8bda3e11f9dc49cb6fede53e1e12daa313"
+        self.assertEqual(
+            registry.github_source_manifests(ROOT, "sonic-dbsyncd", version, "amd64"),
+            [ROOT / "ci/github_sources/cosmos-4.0.2.json"],
+        )
+        self.assertEqual(
+            registry.github_source_manifests(ROOT, "sonic-dbsyncd", version, "arm64"), [],
+        )
 
     def test_cross_resolution_keeps_distdir_and_private_downloader_together(self):
         flags = ["--distdir=/verified/generation", "--experimental_downloader_config=/private/config",

@@ -72,6 +72,46 @@
       "manifests": [
         "cosmos-4.0.2.json"
       ]
+    },
+    {
+      "module": "libteam",
+      "version": "1.31.0.sonic.2",
+      "execution_architecture": "amd64",
+      "manifests": [
+        "cosmos-4.0.2.json"
+      ]
+    },
+    {
+      "module": "libteam",
+      "version": "1.31.0.sonic.2",
+      "execution_architecture": "arm64",
+      "manifests": [
+        "cosmos-4.0.2.json"
+      ]
+    },
+    {
+      "module": "sonic-sairedis",
+      "version": "0.0.5-6b9b254c0d083f3c75e20c61e88e083a7acf0a67",
+      "execution_architecture": "amd64",
+      "manifests": [
+        "cosmos-4.0.2.json"
+      ]
+    },
+    {
+      "module": "sonic-sairedis",
+      "version": "0.0.5-6b9b254c0d083f3c75e20c61e88e083a7acf0a67",
+      "execution_architecture": "arm64",
+      "manifests": [
+        "cosmos-4.0.2.json"
+      ]
+    },
+    {
+      "module": "sonic-dbsyncd",
+      "version": "2.0.1-273c3e8bda3e11f9dc49cb6fede53e1e12daa313",
+      "execution_architecture": "amd64",
+      "manifests": [
+        "cosmos-4.0.2.json"
+      ]
     }
   ]
 }
