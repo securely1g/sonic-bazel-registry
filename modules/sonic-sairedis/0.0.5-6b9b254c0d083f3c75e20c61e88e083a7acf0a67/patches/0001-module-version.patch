@@ -1,12 +1,12 @@
-Register the landed Sairedis source with its exact revision.
+From: Guohan Lu <securely1g@gmail.com>
+Subject: [PATCH] Register the merged sonic-sairedis source commit
 
-Retain the published registry gzip toolchain registration for external
-package consumers. The landed source now owns the Common and infrastructure
-dependency selections, so no registry dependency substitution is needed.
-This patch does not change program versions, native sources, ABI or packaging.
+Qualify the exact merged source module identity. Preserve all dependency
+declarations from the source owner; unmerged refresh changes are deferred.
+Retain the published explicit reproducible gzip toolchain registration.
 
-Source: https://github.com/securely1g/sonic-sairedis/commit/33443ea1666a23812365d03fb959066ee84c9aa0
-Scope: Registry module identity and inherited gzip toolchain registration.
+Source commit: 6b9b254c0d083f3c75e20c61e88e083a7acf0a67
+Scope: downstream registry integration; not an upstream bug fix.
 
 --- a/MODULE.bazel
 +++ b/MODULE.bazel
@@ -15,15 +15,15 @@ Scope: Registry module identity and inherited gzip toolchain registration.
  module(
      name = "sonic-sairedis",
 -    version = "0.0.5",
-+    version = "0.0.5-33443ea1666a23812365d03fb959066ee84c9aa0",
++    version = "0.0.5-6b9b254c0d083f3c75e20c61e88e083a7acf0a67",
      bazel_compatibility = [
          ">=8.5.1",
          "<=8.5.1",
 @@ -41,6 +41,7 @@
  use_repo(gcc, "gcc_toolchains")
-
+ 
  register_toolchains("@gcc_toolchains//:all")
 +register_toolchains("@sonic_build_infra//tools/gzip:toolchain")
-
+ 
  # Native libraries and headers use the shared, pinned Trixie dependency set.
  apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")

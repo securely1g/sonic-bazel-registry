@@ -1,7 +1,17 @@
-# Sairedis SAI code generation
+# Register merged sonic-sairedis sources
 
-This version registers Sairedis master commit `33443ea1666a23812365d03fb959066ee84c9aa0`. Its SAI stub generator runs Python on the build host, so an AMD64 runner can generate Redis, VS and Proxy SAI C++ sources for ARM64. For example, the build executes AMD64 Python and compiles the generated VS stub with AArch64 GCC. [SAI stub generator](https://github.com/securely1g/sonic-sairedis/pull/10)
+Source: [securely1g/sonic-sairedis@6b9b254c](https://github.com/securely1g/sonic-sairedis/commit/6b9b254c0d083f3c75e20c61e88e083a7acf0a67).
 
-The source archive includes the ZeroMQ and Syncd log format corrections and the ZeroMQ poller shutdown fix. The pending-request test tears down a channel with an unread request, rebinds its endpoint and checks a second request and reply. The registry applies one patch to record the exact module version and retain the gzip toolchain used by package consumers. [ZeroMQ log formats](https://github.com/securely1g/sonic-sairedis/pull/11) · [Syncd and saidump log formats](https://github.com/securely1g/sonic-sairedis/pull/12) · [ZeroMQ shutdown and regression test](https://github.com/securely1g/sonic-sairedis/pull/13)
+This entry uses the latest maintained-branch commit captured on 2026-11-18. It preserves the owner module base `0.0.5` and its dependency declarations. The registry qualifies the version with the full source commit and retains existing compatible consumer tests and registry adaptations.
 
-The AMD64 and ARM64 presubmits retain all 19 build targets and seven tests from published version 0.0.4.
+Retain the published explicit reproducible gzip toolchain registration.
+
+The following declaration updates remain deferred because they have not landed in this source owner:
+
+| Dependency | Merged owner selection | Deferred refresh selection |
+|---|---|---|
+| libnl3 | `3.7.0.sonic.7` | `3.7.0.sonic.8` |
+| rules_distroless | `0.9.4.sonic.20` | `0.9.4.sonic.22` |
+| sonic-build-infra | `0.0.37-316e298e77ab5cfa69af9b0c05ec24d5d94bbe1e` | `0.0.38-0baa4acc9eac9ccc793b81104b1580d530271cbe` |
+
+Archive integrity, complete patch application, overlay checksums and module identity were checked locally. This preparation does not claim a completed Bazel build or passing CI.
