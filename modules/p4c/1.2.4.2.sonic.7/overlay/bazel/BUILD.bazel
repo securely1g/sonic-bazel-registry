@@ -1,0 +1,24 @@
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "0001-use-boost-1.83.patch",
+    "0002-fix-build-for-boost-1.83.patch",
+    "0003-update-thrift-dependency.patch",
+    "0004-remove-protobuf-from-debian-dependency.patch",
+    "0005-remove-scapy-from-debian-dependency.patch",
+    "0007-recognize-driver-include-directory.patch",
+    "p4_library.bzl",
+    "p4_library_test.p4",
+    "p4_library_test_defs.h",
+    "p4c.BUILD.bazel",
+    "package_test.py",
+    "source.bzl",
+    "tool.bzl",
+])
+
+bzl_library(
+    name = "p4_library",
+    srcs = ["p4_library.bzl"],
+)

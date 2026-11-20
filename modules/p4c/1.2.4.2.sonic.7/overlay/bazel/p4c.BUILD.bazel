@@ -1,0 +1,1134 @@
+load("@bazel_skylib//rules:expand_template.bzl", "expand_template")
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_import", "cc_library")
+load("@rules_python//python:defs.bzl", "py_test")
+load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
+load("@sonic_build_infra//tools/build_tools:defs.bzl", "source_build_tool")
+load("@sonic_build_infra//toolchains/gcc:defs.bzl", "bin")
+load(":bazel/tool.bzl", "P4C_SOURCE_ROOT", "p4c_tool")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["debian/control", "debian/changelog"] + glob(["p4include/**"]))
+
+# SONiC's fixed configure inputs; target feature probes are recorded at port time.
+expand_template(
+    name = "config_header",
+    template = "cmake/config.h.cmake",
+    out = "config.h",
+    substitutions = {
+        "#cmakedefine HAVE_LIBGMP 1": "/* #undef HAVE_LIBGMP */",
+        "#cmakedefine HAVE_GC_PRINT_STATS 1": "/* #undef HAVE_GC_PRINT_STATS */",
+        "#cmakedefine": "#define",
+    },
+)
+
+cc_library(
+    name = "configuration_headers",
+    hdrs = ["config.h"],
+    includes = ["."],
+    defines = [
+        "MAX_LOGGING_LEVEL=10",
+        "CONFIG_PREFIX='\"/usr\"'",
+        "CONFIG_PKGDATADIR='\"/usr/share/p4c\"'",
+    ],
+)
+
+_SYSTEM_DEPS = [
+    "@p4c_deps//libboost-graph1.83-dev:libboost-graph1.83",
+    "@p4c_deps//libboost-iostreams1.83-dev:libboost_iostreams_cc",
+    "@p4c_deps//libfl-dev:libfl",
+    "@p4c_deps//libgc-dev:libgc",
+    "@p4c_deps//libgc-dev:libgccpp_cc",
+    "@p4c_deps//zlib1g-dev:zlib1g",
+]
+
+# Native GCC targets share the original C++17 and hardened release flags.
+_SOURCE_ROOT = P4C_SOURCE_ROOT
+_COPTS = [
+    "-std=gnu++17",
+    "-O3",
+    "-g",
+    "-DNDEBUG",
+    "-fstack-protector-strong",
+    "-D_FORTIFY_SOURCE=2",
+    "-fPIC",
+    "-Wall",
+    "-Wextra",
+    "-Wno-overloaded-virtual",
+    "-Wno-deprecated",
+    "-Wno-deprecated-declarations",
+    "-pedantic",
+    "-fdiagnostics-color=never",
+    "-Wdate-time",
+    "-ffile-prefix-map=" + _SOURCE_ROOT + "=.",
+    "-ffile-prefix-map=$(BINDIR)/" + _SOURCE_ROOT + "=./build",
+    "-ffile-prefix-map=/proc/self/cwd=.",
+]
+_LINKOPTS = ["-pthread", "-Wl,-z,relro,-z,now", "-Wl,--build-id=sha1"]
+
+cc_library(
+    name = "p4ctoolkit",
+    srcs = [
+        "lib/backtrace.cpp",
+        "lib/bitvec.cpp",
+        "lib/compile_context.cpp",
+        "lib/crash.cpp",
+        "lib/cstring.cpp",
+        "lib/error_catalog.cpp",
+        "lib/error_message.cpp",
+        "lib/exename.cpp",
+        "lib/gc.cpp",
+        "lib/big_int_util.cpp",
+        "lib/hash.cpp",
+        "lib/hex.cpp",
+        "lib/indent.cpp",
+        "lib/json.cpp",
+        "lib/log.cpp",
+        "lib/match.cpp",
+        "lib/nullstream.cpp",
+        "lib/options.cpp",
+        "lib/path.cpp",
+        "lib/source_file.cpp",
+        "lib/stringify.cpp",
+        "lib/timer.cpp",
+    ],
+    hdrs = glob(["lib/*.h"]),
+    copts = _COPTS + ["-fno-builtin"],
+    deps = [":configuration_headers"] + _SYSTEM_DEPS,
+)
+
+genrule(
+    name = "ir_lexer",
+    srcs = ["tools/ir-generator/ir-generator-lex.l"],
+    outs = ["tools/ir-generator/ir-generator-lex.c"],
+    tools = ["@sonic_build_infra//tools/build_tools:flex", "@sonic_build_infra//tools/build_tools:m4"],
+    cmd = 'M4="$(location @sonic_build_infra//tools/build_tools:m4)" ' + "$(location @sonic_build_infra//tools/build_tools:flex) -t $(location tools/ir-generator/ir-generator-lex.l) > $@",
+)
+
+genrule(
+    name = "ir_parser",
+    srcs = ["tools/ir-generator/ir-generator.ypp"],
+    outs = ["tools/ir-generator/ir-generator.cpp", "tools/ir-generator/ir-generator.hpp"],
+    tools = ["@sonic_build_infra//tools/build_tools:bison", "@sonic_build_infra//tools/build_tools:m4"],
+    cmd = 'M4="$(location @sonic_build_infra//tools/build_tools:m4)" ' + "$(location @sonic_build_infra//tools/build_tools:bison) --defines=$(RULEDIR)/tools/ir-generator/ir-generator.hpp --output=$(RULEDIR)/tools/ir-generator/ir-generator.cpp $(location tools/ir-generator/ir-generator.ypp)",
+)
+
+cc_library(
+    name = "irgenerator_library",
+    srcs = [
+        "tools/ir-generator/irclass.cpp",
+        "tools/ir-generator/methods.cpp",
+        "tools/ir-generator/type.cpp",
+        "tools/ir-generator/ir-generator.cpp",
+    ],
+    hdrs = glob(["tools/ir-generator/*.h"]) + ["tools/ir-generator/ir-generator.hpp"],
+    textual_hdrs = [":ir_lexer"],
+    copts = _COPTS,
+    deps = [":p4ctoolkit"],
+)
+
+cc_binary(
+    name = "irgenerator",
+    srcs = ["tools/ir-generator/generator.cpp"],
+    copts = _COPTS,
+    linkopts = _LINKOPTS,
+    linkstatic = True,
+    deps = [":irgenerator_library"],
+)
+
+source_build_tool(name = "irgenerator_tool", binary = ":irgenerator")
+source_build_tool(name = "protoc_tool", binary = "@protobuf_legacy//:protoc")
+
+# The IR definition set follows SONiC's enabled target backends, including
+# P4Tools only for AMD64. The execution-platform generator remains native.
+genrule(
+    name = "ir_generated",
+    srcs = [
+        "ir/base.def",
+        "ir/type.def",
+        "ir/expression.def",
+        "ir/ir.def",
+        "ir/v1.def",
+        "frontends/p4-14/ir-v1.def",
+        "backends/bmv2/bmv2.def",
+        "backends/dpdk/dpdk.def",
+        "backends/tc/tc.def",
+    ] + select({
+        "@platforms//cpu:x86_64": ["backends/p4tools/p4tools.def"],
+        "@platforms//cpu:aarch64": [],
+    }),
+    outs = ["ir/ir-generated.cpp", "ir/ir-generated.h", "ir/gen-tree-macro.h"],
+    tools = [":irgenerator_tool", "@sonic_build_infra//tools/build_tools:gawk"],
+    cmd = "$(location :irgenerator_tool) -i $(RULEDIR)/ir/ir-generated.cpp.raw -o $(RULEDIR)/ir/ir-generated.h.raw -t $(RULEDIR)/ir/gen-tree-macro.h.raw " +
+          "$(location ir/base.def) $(location ir/type.def) $(location ir/expression.def) $(location ir/ir.def) $(location ir/v1.def) " +
+          "$(location frontends/p4-14/ir-v1.def) $(location backends/bmv2/bmv2.def) $(location backends/dpdk/dpdk.def) $(location backends/tc/tc.def)" + select({
+              "@platforms//cpu:x86_64": " $(location backends/p4tools/p4tools.def)",
+              "@platforms//cpu:aarch64": "",
+          }) + """
+for name in ir-generated.cpp ir-generated.h gen-tree-macro.h; do
+    $(location @sonic_build_infra//tools/build_tools:gawk) -v name="$(RULEDIR)/ir/$$name" '/^#$$/ { printf "#line %d \\"%s\\"\\n", NR+1, name; next } { print }' "$(RULEDIR)/ir/$$name.raw" > "$(RULEDIR)/ir/$$name"
+done
+""",
+)
+
+genrule(
+    name = "p4_parser",
+    srcs = ["frontends/parsers/p4/p4parser.ypp"],
+    outs = ["frontends/parsers/p4/p4parser.cpp", "frontends/parsers/p4/p4parser.hpp", "frontends/parsers/p4/p4parser.output", "frontends/parsers/p4/stack.hh"],
+    tools = ["@sonic_build_infra//tools/build_tools:bison", "@sonic_build_infra//tools/build_tools:m4"],
+    cmd = 'M4="$(location @sonic_build_infra//tools/build_tools:m4)" ' + "$(location @sonic_build_infra//tools/build_tools:bison) -Werror=conflicts-sr -Werror=conflicts-rr --verbose --defines=$(RULEDIR)/frontends/parsers/p4/p4parser.hpp --output=$(RULEDIR)/frontends/parsers/p4/p4parser.cpp $(location frontends/parsers/p4/p4parser.ypp)",
+)
+
+genrule(
+    name = "p4_lexer",
+    srcs = ["frontends/parsers/p4/p4lexer.ll", ":p4_parser"],
+    outs = ["frontends/parsers/p4/p4lexer.cc"],
+    tools = ["@sonic_build_infra//tools/build_tools:flex", "@sonic_build_infra//tools/build_tools:m4"],
+    cmd = 'M4="$(location @sonic_build_infra//tools/build_tools:m4)" ' + "$(location @sonic_build_infra//tools/build_tools:flex) -t $(location frontends/parsers/p4/p4lexer.ll) > $@",
+)
+
+genrule(
+    name = "v1_parser",
+    srcs = ["frontends/parsers/v1/v1parser.ypp"],
+    outs = ["frontends/parsers/v1/v1parser.cpp", "frontends/parsers/v1/v1parser.hpp", "frontends/parsers/v1/v1parser.output", "frontends/parsers/v1/stack.hh"],
+    tools = ["@sonic_build_infra//tools/build_tools:bison", "@sonic_build_infra//tools/build_tools:m4"],
+    cmd = 'M4="$(location @sonic_build_infra//tools/build_tools:m4)" ' + "$(location @sonic_build_infra//tools/build_tools:bison) -Werror=conflicts-sr -Werror=conflicts-rr --verbose --defines=$(RULEDIR)/frontends/parsers/v1/v1parser.hpp --output=$(RULEDIR)/frontends/parsers/v1/v1parser.cpp $(location frontends/parsers/v1/v1parser.ypp)",
+)
+
+genrule(
+    name = "v1_lexer",
+    srcs = ["frontends/parsers/v1/v1lexer.ll", ":v1_parser"],
+    outs = ["frontends/parsers/v1/v1lexer.cc"],
+    tools = ["@sonic_build_infra//tools/build_tools:flex", "@sonic_build_infra//tools/build_tools:m4"],
+    cmd = 'M4="$(location @sonic_build_infra//tools/build_tools:m4)" ' + "$(location @sonic_build_infra//tools/build_tools:flex) -t $(location frontends/parsers/v1/v1lexer.ll) > $@",
+)
+
+genrule(
+    name = "controlplane_protos",
+    srcs = ["control-plane/google/rpc/status.proto"] + glob([
+        "build/_deps/p4runtime-src/proto/**/*.proto",
+        "build/_deps/protobuf-src/src/google/protobuf/*.proto",
+    ]),
+    outs = [
+        "control-plane/google/rpc/status.pb.cc",
+        "control-plane/google/rpc/status.pb.h",
+        "control-plane/google/rpc/status_pb2.py",
+        "control-plane/p4/config/v1/p4info.pb.cc",
+        "control-plane/p4/config/v1/p4info.pb.h",
+        "control-plane/p4/config/v1/p4info_pb2.py",
+        "control-plane/p4/config/v1/p4types.pb.cc",
+        "control-plane/p4/config/v1/p4types.pb.h",
+        "control-plane/p4/config/v1/p4types_pb2.py",
+        "control-plane/p4/v1/p4runtime.pb.cc",
+        "control-plane/p4/v1/p4runtime.pb.h",
+        "control-plane/p4/v1/p4runtime_pb2.py",
+        "control-plane/p4/v1/p4data.pb.cc",
+        "control-plane/p4/v1/p4data.pb.h",
+        "control-plane/p4/v1/p4data_pb2.py",
+    ],
+    tools = [":protoc_tool"],
+    cmd = """runtime="$(location build/_deps/p4runtime-src/proto/p4/config/v1/p4info.proto)"
+protobuf="$(location build/_deps/protobuf-src/src/google/protobuf/descriptor.proto)"
+status="$(location control-plane/google/rpc/status.proto)"
+mkdir -p $(RULEDIR)/control-plane
+$(location :protoc_tool) -I "$${runtime%/p4/config/v1/p4info.proto}" -I "$${status%/google/rpc/status.proto}" -I "$${protobuf%/google/protobuf/descriptor.proto}" --cpp_out=$(RULEDIR)/control-plane --python_out=$(RULEDIR)/control-plane --experimental_allow_proto3_optional \
+$(location control-plane/google/rpc/status.proto) $(location build/_deps/p4runtime-src/proto/p4/config/v1/p4info.proto) $(location build/_deps/p4runtime-src/proto/p4/config/v1/p4types.proto) $(location build/_deps/p4runtime-src/proto/p4/v1/p4runtime.proto) $(location build/_deps/p4runtime-src/proto/p4/v1/p4data.proto)""",
+)
+
+cc_library(
+    name = "controlplane_messages",
+    srcs = [
+        "control-plane/google/rpc/status.pb.cc",
+        "control-plane/p4/config/v1/p4info.pb.cc",
+        "control-plane/p4/config/v1/p4types.pb.cc",
+        "control-plane/p4/v1/p4runtime.pb.cc",
+        "control-plane/p4/v1/p4data.pb.cc",
+    ],
+    hdrs = [
+        "control-plane/google/rpc/status.pb.h",
+        "control-plane/p4/config/v1/p4info.pb.h",
+        "control-plane/p4/config/v1/p4types.pb.h",
+        "control-plane/p4/v1/p4runtime.pb.h",
+        "control-plane/p4/v1/p4data.pb.h",
+    ],
+    includes = ["control-plane"],
+    copts = _COPTS + ["-Wno-unused-parameter", "-Wno-array-bounds", "-Wno-error"],
+    deps = [":configuration_headers", "@protobuf_legacy//:protobuf"],
+)
+
+genrule(
+    name = "dpdk_protos",
+    srcs = ["backends/dpdk/control-plane/proto/p4info.proto"] + glob([
+        "build/_deps/p4runtime-src/proto/**/*.proto",
+        "build/_deps/protobuf-src/src/google/protobuf/*.proto",
+    ]),
+    outs = ["backends/dpdk/p4/config/p4info.pb.cc", "backends/dpdk/p4/config/p4info.pb.h", "backends/dpdk/p4/config/p4info_pb2.py"],
+    tools = [":protoc_tool"],
+    cmd = """runtime="$(location build/_deps/p4runtime-src/proto/p4/config/v1/p4info.proto)"
+protobuf="$(location build/_deps/protobuf-src/src/google/protobuf/descriptor.proto)"
+source="$(location backends/dpdk/control-plane/proto/p4info.proto)"
+mkdir -p $(RULEDIR)/backends/dpdk/p4/config
+$(location :protoc_tool) -I "$${source%/p4info.proto}" -I "$${runtime%/p4/config/v1/p4info.proto}" -I "$${protobuf%/google/protobuf/descriptor.proto}" --cpp_out=$(RULEDIR)/backends/dpdk/p4/config --python_out=$(RULEDIR)/backends/dpdk/p4/config $(location backends/dpdk/control-plane/proto/p4info.proto)""",
+)
+
+cc_library(
+    name = "dpdk_messages",
+    srcs = ["backends/dpdk/p4/config/p4info.pb.cc"],
+    hdrs = ["backends/dpdk/p4/config/p4info.pb.h"],
+    includes = ["backends/dpdk"],
+    copts = _COPTS + ["-Wno-unused-parameter", "-Wno-array-bounds", "-Wno-error"],
+    deps = [":configuration_headers", "@protobuf_legacy//:protobuf"],
+)
+
+expand_template(
+    name = "backends_bmv2_simple_switch_version",
+    template = "backends/bmv2/simple_switch/version.h.cmake",
+    out = "backends/bmv2/simple_switch/version.h",
+    substitutions = {
+        "@P4C_VERSION@": "1.2.4.2",
+        "@P4C_VERSION_MAJOR@": "",
+        "@P4C_VERSION_MINOR@": "",
+        "@P4C_VERSION_PATCH@": "",
+        "@P4C_VERSION_RC@": "",
+        "@P4C_GIT_SHA@": "",
+        "@CMAKE_BUILD_TYPE@": "Release",
+    },
+)
+
+expand_template(
+    name = "backends_bmv2_psa_switch_version",
+    template = "backends/bmv2/psa_switch/version.h.cmake",
+    out = "backends/bmv2/psa_switch/version.h",
+    substitutions = {
+        "@P4C_VERSION@": "1.2.4.2",
+        "@P4C_VERSION_MAJOR@": "",
+        "@P4C_VERSION_MINOR@": "",
+        "@P4C_VERSION_PATCH@": "",
+        "@P4C_VERSION_RC@": "",
+        "@P4C_GIT_SHA@": "",
+        "@CMAKE_BUILD_TYPE@": "Release",
+    },
+)
+
+expand_template(
+    name = "backends_dpdk_version",
+    template = "backends/dpdk/version.h.cmake",
+    out = "backends/dpdk/version.h",
+    substitutions = {
+        "@P4C_VERSION@": "1.2.4.2",
+        "@P4C_VERSION_MAJOR@": "",
+        "@P4C_VERSION_MINOR@": "",
+        "@P4C_VERSION_PATCH@": "",
+        "@P4C_VERSION_RC@": "",
+        "@P4C_GIT_SHA@": "",
+        "@CMAKE_BUILD_TYPE@": "Release",
+    },
+)
+
+expand_template(
+    name = "backends_ebpf_version",
+    template = "backends/ebpf/version.h.cmake",
+    out = "backends/ebpf/version.h",
+    substitutions = {
+        "@P4C_VERSION@": "1.2.4.2",
+        "@P4C_VERSION_MAJOR@": "",
+        "@P4C_VERSION_MINOR@": "",
+        "@P4C_VERSION_PATCH@": "",
+        "@P4C_VERSION_RC@": "",
+        "@P4C_GIT_SHA@": "",
+        "@CMAKE_BUILD_TYPE@": "Release",
+    },
+)
+
+expand_template(
+    name = "backends_ubpf_version",
+    template = "backends/ubpf/version.h.cmake",
+    out = "backends/ubpf/version.h",
+    substitutions = {
+        "@P4C_VERSION@": "1.2.4.2",
+        "@P4C_VERSION_MAJOR@": "",
+        "@P4C_VERSION_MINOR@": "",
+        "@P4C_VERSION_PATCH@": "",
+        "@P4C_VERSION_RC@": "",
+        "@P4C_GIT_SHA@": "",
+        "@CMAKE_BUILD_TYPE@": "Release",
+    },
+)
+
+expand_template(
+    name = "backends_graphs_version",
+    template = "backends/graphs/version.h.cmake",
+    out = "backends/graphs/version.h",
+    substitutions = {
+        "@P4C_VERSION@": "1.2.4.2",
+        "@P4C_VERSION_MAJOR@": "",
+        "@P4C_VERSION_MINOR@": "",
+        "@P4C_VERSION_PATCH@": "",
+        "@P4C_VERSION_RC@": "",
+        "@P4C_GIT_SHA@": "",
+        "@CMAKE_BUILD_TYPE@": "Release",
+    },
+)
+
+expand_template(
+    name = "backends_p4test_version",
+    template = "backends/p4test/version.h.cmake",
+    out = "backends/p4test/version.h",
+    substitutions = {
+        "@P4C_VERSION@": "1.2.4.2",
+        "@P4C_VERSION_MAJOR@": "",
+        "@P4C_VERSION_MINOR@": "",
+        "@P4C_VERSION_PATCH@": "",
+        "@P4C_VERSION_RC@": "",
+        "@P4C_GIT_SHA@": "",
+        "@CMAKE_BUILD_TYPE@": "Release",
+    },
+)
+
+# These original libraries have cyclic IR/frontend/control-plane dependencies.
+cc_library(
+    name = "compiler_core",
+    srcs = [
+        "ir/base.cpp",
+        "ir/dbprint.cpp",
+        "ir/dbprint-expression.cpp",
+        "ir/dbprint-stmt.cpp",
+        "ir/dbprint-type.cpp",
+        "ir/dbprint-p4.cpp",
+        "ir/dump.cpp",
+        "ir/expression.cpp",
+        "ir/ir.cpp",
+        "ir/irutils.cpp",
+        "ir/json_parser.cpp",
+        "ir/node.cpp",
+        "ir/pass_manager.cpp",
+        "ir/type.cpp",
+        "ir/v1.cpp",
+        "ir/visitor.cpp",
+        "ir/write_context.cpp",
+        "frontends/common/applyOptionsPragmas.cpp",
+        "frontends/common/constantFolding.cpp",
+        "frontends/common/constantParsing.cpp",
+        "frontends/common/options.cpp",
+        "frontends/common/parser_options.cpp",
+        "frontends/common/parseInput.cpp",
+        "frontends/common/resolveReferences/referenceMap.cpp",
+        "frontends/common/resolveReferences/resolveReferences.cpp",
+        "frontends/parsers/parserDriver.cpp",
+        "frontends/parsers/p4/p4AnnotationLexer.cpp",
+        "frontends/p4/actionsInlining.cpp",
+        "frontends/p4/callGraph.cpp",
+        "frontends/p4/checkConstants.cpp",
+        "frontends/p4/checkCoreMethods.cpp",
+        "frontends/p4/checkNamedArgs.cpp",
+        "frontends/p4/createBuiltins.cpp",
+        "frontends/p4/def_use.cpp",
+        "frontends/p4/defaultArguments.cpp",
+        "frontends/p4/defaultValues.cpp",
+        "frontends/p4/deprecated.cpp",
+        "frontends/p4/directCalls.cpp",
+        "frontends/p4/dontcareArgs.cpp",
+        "frontends/p4/enumInstance.cpp",
+        "frontends/p4/entryPriorities.cpp",
+        "frontends/p4/evaluator/evaluator.cpp",
+        "frontends/p4/evaluator/substituteParameters.cpp",
+        "frontends/p4/externInstance.cpp",
+        "frontends/p4/fromv1.0/converters.cpp",
+        "frontends/p4/fromv1.0/programStructure.cpp",
+        "frontends/p4/frontend.cpp",
+        "frontends/p4/functionsInlining.cpp",
+        "frontends/p4/hierarchicalNames.cpp",
+        "frontends/p4/inlining.cpp",
+        "frontends/p4/localizeActions.cpp",
+        "frontends/p4/methodInstance.cpp",
+        "frontends/p4/modelInstances.cpp",
+        "frontends/p4/moveConstructors.cpp",
+        "frontends/p4/moveDeclarations.cpp",
+        "frontends/p4/parameterSubstitution.cpp",
+        "frontends/p4/parseAnnotations.cpp",
+        "frontends/p4/parserCallGraph.cpp",
+        "frontends/p4/parserControlFlow.cpp",
+        "frontends/p4/reassociation.cpp",
+        "frontends/p4/redundantParsers.cpp",
+        "frontends/p4/removeParameters.cpp",
+        "frontends/p4/removeReturns.cpp",
+        "frontends/p4/reservedWords.cpp",
+        "frontends/p4/resetHeaders.cpp",
+        "frontends/p4/setHeaders.cpp",
+        "frontends/p4/sideEffects.cpp",
+        "frontends/p4/simplify.cpp",
+        "frontends/p4/simplifyDefUse.cpp",
+        "frontends/p4/simplifyParsers.cpp",
+        "frontends/p4/simplifySwitch.cpp",
+        "frontends/p4/specialize.cpp",
+        "frontends/p4/specializeGenericFunctions.cpp",
+        "frontends/p4/specializeGenericTypes.cpp",
+        "frontends/p4/strengthReduction.cpp",
+        "frontends/p4/structInitializers.cpp",
+        "frontends/p4/switchAddDefault.cpp",
+        "frontends/p4/symbol_table.cpp",
+        "frontends/p4/tableApply.cpp",
+        "frontends/p4/tableKeyNames.cpp",
+        "frontends/p4/ternaryBool.cpp",
+        "frontends/p4/toP4/toP4.cpp",
+        "frontends/p4/typeChecking/bindVariables.cpp",
+        "frontends/p4/typeChecking/syntacticEquivalence.cpp",
+        "frontends/p4/typeChecking/typeChecker.cpp",
+        "frontends/p4/typeChecking/typeConstraints.cpp",
+        "frontends/p4/typeChecking/typeSubstitution.cpp",
+        "frontends/p4/typeChecking/typeSubstitutionVisitor.cpp",
+        "frontends/p4/typeChecking/typeUnification.cpp",
+        "frontends/p4/typeMap.cpp",
+        "frontends/p4/uniqueNames.cpp",
+        "frontends/p4/unusedDeclarations.cpp",
+        "frontends/p4/uselessCasts.cpp",
+        "frontends/p4/validateParsedProgram.cpp",
+        "frontends/p4-14/typecheck.cpp",
+        "frontends/p4-14/header_type.cpp",
+        "midend/actionSynthesis.cpp",
+        "midend/booleanKeys.cpp",
+        "midend/complexComparison.cpp",
+        "midend/convertEnums.cpp",
+        "midend/convertErrors.cpp",
+        "midend/copyStructures.cpp",
+        "midend/coverage.cpp",
+        "midend/eliminateInvalidHeaders.cpp",
+        "midend/eliminateNewtype.cpp",
+        "midend/eliminateSerEnums.cpp",
+        "midend/eliminateSwitch.cpp",
+        "midend/eliminateTuples.cpp",
+        "midend/eliminateTypedefs.cpp",
+        "midend/expandEmit.cpp",
+        "midend/expandLookahead.cpp",
+        "midend/fillEnumMap.cpp",
+        "midend/flattenHeaders.cpp",
+        "midend/flattenInterfaceStructs.cpp",
+        "midend/flattenLogMsg.cpp",
+        "midend/flattenUnions.cpp",
+        "midend/hsIndexSimplify.cpp",
+        "midend/interpreter.cpp",
+        "midend/global_copyprop.cpp",
+        "midend/local_copyprop.cpp",
+        "midend/nestedStructs.cpp",
+        "midend/noMatch.cpp",
+        "midend/orderArguments.cpp",
+        "midend/parserUnroll.cpp",
+        "midend/predication.cpp",
+        "midend/removeAssertAssume.cpp",
+        "midend/removeComplexExpressions.cpp",
+        "midend/removeExits.cpp",
+        "midend/removeLeftSlices.cpp",
+        "midend/removeMiss.cpp",
+        "midend/removeSelectBooleans.cpp",
+        "midend/replaceSelectRange.cpp",
+        "midend/removeUnusedParameters.cpp",
+        "midend/saturationElim.cpp",
+        "midend/simplifyBitwise.cpp",
+        "midend/simplifyKey.cpp",
+        "midend/simplifySelectCases.cpp",
+        "midend/simplifySelectList.cpp",
+        "midend/singleArgumentSelect.cpp",
+        "midend/tableHit.cpp",
+        "midend/validateProperties.cpp",
+        "control-plane/addMissingIds.cpp",
+        "control-plane/bytestrings.cpp",
+        "control-plane/flattenHeader.cpp",
+        "control-plane/p4RuntimeArchHandler.cpp",
+        "control-plane/p4RuntimeArchStandard.cpp",
+        "control-plane/p4RuntimeSerializer.cpp",
+        "control-plane/p4RuntimeSymbolTable.cpp",
+        "control-plane/typeSpecConverter.cpp",
+        "control-plane/bfruntime.cpp",
+        "ir/ir-generated.cpp",
+        "backends/dpdk/spec.cpp",
+        "backends/dpdk/printUtils.cpp",
+        "backends/dpdk/dbprint-dpdk.cpp",
+        "frontends/parsers/p4/p4parser.cpp",
+        "frontends/parsers/p4/p4lexer.cc",
+        "frontends/parsers/v1/v1parser.cpp",
+        "frontends/parsers/v1/v1lexer.cc",
+    ],
+    hdrs = glob(["ir/**/*.h", "frontends/**/*.h", "frontends/**/*.hpp", "midend/**/*.h", "control-plane/**/*.h", "backends/**/*.h"]) + [
+        "ir/ir-generated.h",
+        "ir/gen-tree-macro.h",
+        "frontends/parsers/p4/p4parser.hpp",
+        "frontends/parsers/p4/stack.hh",
+        "frontends/parsers/v1/v1parser.hpp",
+        "frontends/parsers/v1/stack.hh",
+    ],
+    includes = ["."],
+    copts = _COPTS,
+    deps = [":p4ctoolkit", ":controlplane_messages"],
+)
+
+cc_library(
+    name = "bmv2_backend",
+    srcs = [
+        "backends/bmv2/common/JsonObjects.cpp",
+        "backends/bmv2/common/action.cpp",
+        "backends/bmv2/common/controlFlowGraph.cpp",
+        "backends/bmv2/common/deparser.cpp",
+        "backends/bmv2/common/expression.cpp",
+        "backends/bmv2/common/extern.cpp",
+        "backends/bmv2/common/globals.cpp",
+        "backends/bmv2/common/header.cpp",
+        "backends/bmv2/common/helpers.cpp",
+        "backends/bmv2/common/lower.cpp",
+        "backends/bmv2/common/metermap.cpp",
+        "backends/bmv2/common/parser.cpp",
+        "backends/bmv2/common/programStructure.cpp",
+    ],
+    copts = _COPTS,
+    deps = [":compiler_core"],
+)
+
+cc_binary(
+    name = "p4c-bm2-ss",
+    srcs = [
+        "backends/bmv2/simple_switch/main.cpp",
+        "backends/bmv2/simple_switch/midend.cpp",
+        "backends/bmv2/simple_switch/simpleSwitch.cpp",
+        "backends/bmv2/simple_switch/version.h",
+    ],
+    copts = _COPTS,
+    linkopts = _LINKOPTS,
+    linkstatic = True,
+    deps = [
+        ":compiler_core",
+        ":bmv2_backend",
+    ],
+)
+
+cc_binary(
+    name = "p4c-bm2-psa",
+    srcs = [
+        "backends/bmv2/psa_switch/main.cpp",
+        "backends/bmv2/psa_switch/midend.cpp",
+        "backends/bmv2/psa_switch/psaSwitch.cpp",
+        "backends/bmv2/psa_switch/psaProgramStructure.cpp",
+        "backends/bmv2/psa_switch/options.cpp",
+        "backends/bmv2/psa_switch/version.h",
+    ],
+    copts = _COPTS,
+    linkopts = _LINKOPTS,
+    linkstatic = True,
+    deps = [
+        ":compiler_core",
+        ":bmv2_backend",
+    ],
+)
+
+cc_binary(
+    name = "p4c-dpdk",
+    srcs = [
+        "backends/bmv2/common/lower.cpp",
+        "backends/dpdk/backend.cpp",
+        "backends/dpdk/main.cpp",
+        "backends/dpdk/midend.cpp",
+        "backends/dpdk/dpdkHelpers.cpp",
+        "backends/dpdk/dpdkProgram.cpp",
+        "backends/dpdk/dpdkProgramStructure.cpp",
+        "backends/dpdk/dpdkArch.cpp",
+        "backends/dpdk/dpdkContext.cpp",
+        "backends/dpdk/dpdkAsmOpt.cpp",
+        "backends/dpdk/dpdkMetadata.cpp",
+        "backends/dpdk/dpdkUtils.cpp",
+        "backends/dpdk/options.cpp",
+        "backends/dpdk/control-plane/bfruntime_ext.cpp",
+        "backends/dpdk/tdiConf.cpp",
+        "backends/dpdk/version.h",
+    ],
+    copts = _COPTS,
+    linkopts = _LINKOPTS,
+    linkstatic = True,
+    deps = [
+        ":compiler_core",
+        ":dpdk_messages",
+    ],
+)
+
+cc_binary(
+    name = "p4c-ebpf",
+    srcs = [
+        "backends/ebpf/p4c-ebpf.cpp",
+        "backends/ebpf/ebpfBackend.cpp",
+        "backends/ebpf/ebpfProgram.cpp",
+        "backends/ebpf/ebpfTable.cpp",
+        "backends/ebpf/ebpfControl.cpp",
+        "backends/ebpf/ebpfDeparser.cpp",
+        "backends/ebpf/ebpfParser.cpp",
+        "backends/ebpf/ebpfOptions.cpp",
+        "backends/ebpf/target.cpp",
+        "backends/ebpf/ebpfType.cpp",
+        "backends/ebpf/codeGen.cpp",
+        "backends/ebpf/ebpfModel.cpp",
+        "backends/ebpf/midend.cpp",
+        "backends/ebpf/lower.cpp",
+        "backends/bmv2/common/programStructure.cpp",
+        "backends/bmv2/psa_switch/psaProgramStructure.cpp",
+        "backends/ebpf/psa/ebpfPsaGen.cpp",
+        "backends/ebpf/psa/ebpfPipeline.cpp",
+        "backends/ebpf/psa/ebpfPsaParser.cpp",
+        "backends/ebpf/psa/ebpfPsaDeparser.cpp",
+        "backends/ebpf/psa/ebpfPsaControl.cpp",
+        "backends/ebpf/psa/ebpfPsaTable.cpp",
+        "backends/ebpf/psa/backend.cpp",
+        "backends/ebpf/psa/externs/ebpfPsaCounter.cpp",
+        "backends/ebpf/psa/externs/ebpfPsaChecksum.cpp",
+        "backends/ebpf/psa/externs/ebpfPsaDigest.cpp",
+        "backends/ebpf/psa/externs/ebpfPsaHashAlgorithm.cpp",
+        "backends/ebpf/psa/externs/ebpfPsaTableImplementation.cpp",
+        "backends/ebpf/psa/externs/ebpfPsaRandom.cpp",
+        "backends/ebpf/psa/externs/ebpfPsaRegister.cpp",
+        "backends/ebpf/psa/externs/ebpfPsaMeter.cpp",
+        "backends/ebpf/version.h",
+    ],
+    copts = _COPTS,
+    linkopts = _LINKOPTS,
+    linkstatic = True,
+    deps = [
+        ":compiler_core",
+    ],
+)
+
+cc_binary(
+    name = "p4c-ubpf",
+    srcs = [
+        "backends/ubpf/p4c-ubpf.cpp",
+        "backends/ubpf/ubpfBackend.cpp",
+        "backends/ubpf/ubpfProgram.cpp",
+        "backends/ubpf/ubpfParser.cpp",
+        "backends/ubpf/ubpfDeparser.cpp",
+        "backends/ubpf/ubpfControl.cpp",
+        "backends/ubpf/ubpfType.cpp",
+        "backends/ubpf/ubpfTable.cpp",
+        "backends/ubpf/ubpfRegister.cpp",
+        "backends/ubpf/ubpfModel.cpp",
+        "backends/ubpf/target.cpp",
+        "backends/ubpf/midend.cpp",
+        "backends/ebpf/ebpfProgram.cpp",
+        "backends/ebpf/ebpfTable.cpp",
+        "backends/ebpf/ebpfParser.cpp",
+        "backends/ebpf/ebpfControl.cpp",
+        "backends/ebpf/ebpfOptions.cpp",
+        "backends/ebpf/target.cpp",
+        "backends/ebpf/codeGen.cpp",
+        "backends/ebpf/ebpfType.cpp",
+        "backends/ebpf/ebpfModel.cpp",
+        "backends/ebpf/midend.cpp",
+        "backends/ebpf/lower.cpp",
+        "backends/ubpf/version.h",
+    ],
+    copts = _COPTS,
+    linkopts = _LINKOPTS,
+    linkstatic = True,
+    deps = [
+        ":compiler_core",
+    ],
+)
+
+cc_binary(
+    name = "p4c-pna-p4tc",
+    srcs = [
+        "backends/tc/backend.cpp",
+        "backends/tc/ebpfCodeGen.cpp",
+        "backends/tc/introspection.cpp",
+        "backends/tc/midend.cpp",
+        "backends/tc/pnaProgramStructure.cpp",
+        "backends/tc/tc.cpp",
+        "backends/tc/tcAnnotations.cpp",
+        "backends/tc/version.cpp",
+        "backends/ebpf/ebpfBackend.cpp",
+        "backends/ebpf/ebpfProgram.cpp",
+        "backends/ebpf/ebpfTable.cpp",
+        "backends/ebpf/ebpfControl.cpp",
+        "backends/ebpf/ebpfDeparser.cpp",
+        "backends/ebpf/ebpfParser.cpp",
+        "backends/ebpf/ebpfOptions.cpp",
+        "backends/ebpf/target.cpp",
+        "backends/ebpf/ebpfType.cpp",
+        "backends/ebpf/codeGen.cpp",
+        "backends/ebpf/ebpfModel.cpp",
+        "backends/ebpf/midend.cpp",
+        "backends/ebpf/lower.cpp",
+        "backends/bmv2/common/programStructure.cpp",
+        "backends/bmv2/psa_switch/psaProgramStructure.cpp",
+        "backends/ebpf/psa/ebpfPsaGen.cpp",
+        "backends/ebpf/psa/ebpfPipeline.cpp",
+        "backends/ebpf/psa/ebpfPsaParser.cpp",
+        "backends/ebpf/psa/ebpfPsaDeparser.cpp",
+        "backends/ebpf/psa/ebpfPsaControl.cpp",
+        "backends/ebpf/psa/ebpfPsaTable.cpp",
+        "backends/ebpf/psa/backend.cpp",
+        "backends/ebpf/psa/externs/ebpfPsaCounter.cpp",
+        "backends/ebpf/psa/externs/ebpfPsaChecksum.cpp",
+        "backends/ebpf/psa/externs/ebpfPsaDigest.cpp",
+        "backends/ebpf/psa/externs/ebpfPsaHashAlgorithm.cpp",
+        "backends/ebpf/psa/externs/ebpfPsaTableImplementation.cpp",
+        "backends/ebpf/psa/externs/ebpfPsaRandom.cpp",
+        "backends/ebpf/psa/externs/ebpfPsaRegister.cpp",
+        "backends/ebpf/psa/externs/ebpfPsaMeter.cpp",
+    ],
+    copts = _COPTS,
+    linkopts = _LINKOPTS,
+    linkstatic = True,
+    deps = [
+        ":compiler_core",
+    ],
+)
+
+cc_binary(
+    name = "p4test",
+    srcs = [
+        "backends/p4test/p4test.cpp",
+        "backends/p4test/midend.cpp",
+        "backends/p4test/version.h",
+    ],
+    copts = _COPTS,
+    linkopts = _LINKOPTS,
+    linkstatic = True,
+    deps = [
+        ":compiler_core",
+    ],
+)
+
+cc_binary(
+    name = "p4c-graphs",
+    srcs = [
+        "backends/graphs/graphs.cpp",
+        "backends/graphs/controls.cpp",
+        "backends/graphs/parsers.cpp",
+        "backends/graphs/graph_visitor.cpp",
+        "backends/graphs/p4c-graphs.cpp",
+        "backends/graphs/version.h",
+    ],
+    copts = _COPTS,
+    linkopts = _LINKOPTS,
+    linkstatic = True,
+    deps = [
+        ":compiler_core",
+    ],
+)
+
+cc_import(
+    name = "z3_static_archive",
+    static_library = "build/_deps/z3-src/bin/libz3.a",
+    target_compatible_with = ["@platforms//cpu:x86_64"],
+)
+
+cc_library(
+    name = "z3_archive",
+    hdrs = glob(["build/_deps/z3-src/include/*.h"]),
+    strip_include_prefix = "build/_deps/z3-src/include",
+    deps = [":z3_static_archive"],
+    target_compatible_with = ["@platforms//cpu:x86_64"],
+)
+
+cc_library(
+    name = "inja",
+    hdrs = glob(["build/_deps/inja-src/include/**/*.hpp", "build/_deps/inja-src/third_party/include/**/*.hpp"]),
+    includes = ["build/_deps/inja-src/include", "build/_deps/inja-src/third_party/include"],
+)
+
+expand_template(
+    name = "p4tools_version",
+    template = "backends/p4tools/common/version.h.in",
+    out = "backends/p4tools/common/version.h",
+    substitutions = {
+        "@P4TOOLS_VERSION_MAJOR@": "1",
+        "@P4TOOLS_VERSION_MINOR@": "2",
+        "@P4TOOLS_VERSION_PATCH@": "4",
+        "@P4TOOLS_VERSION_HASH@": "",
+    },
+)
+
+expand_template(
+    name = "testgen_register",
+    template = "backends/p4tools/modules/testgen/register.h.in",
+    out = "backends/p4tools/modules/testgen/register.h",
+    substitutions = {
+        "@include_statements_var@": "#include \"backends/p4tools/modules/testgen/targets/bmv2/register.h\"\n#include \"backends/p4tools/modules/testgen/targets/ebpf/register.h\"\n#include \"backends/p4tools/modules/testgen/targets/pna/register.h\"\n",
+        "@compiler_targets_var@": "    bmv2RegisterCompilerTarget();\n    ebpfRegisterCompilerTarget();\n    pnaRegisterCompilerTarget();\n",
+        "@testgen_targets_var@": "    bmv2RegisterTestgenTarget();\n    ebpfRegisterTestgenTarget();\n    pnaRegisterTestgenTarget();\n",
+    },
+)
+
+cc_binary(
+    name = "p4testgen",
+    srcs = [
+        "backends/p4tools/common/options.cpp",
+        "backends/p4tools/common/version.cpp",
+        "backends/p4tools/common/compiler/compiler_target.cpp",
+        "backends/p4tools/common/compiler/convert_hs_index.cpp",
+        "backends/p4tools/common/compiler/convert_varbits.cpp",
+        "backends/p4tools/common/compiler/midend.cpp",
+        "backends/p4tools/common/compiler/reachability.cpp",
+        "backends/p4tools/common/core/abstract_execution_state.cpp",
+        "backends/p4tools/common/core/target.cpp",
+        "backends/p4tools/common/core/z3_solver.cpp",
+        "backends/p4tools/common/lib/arch_spec.cpp",
+        "backends/p4tools/common/lib/format_int.cpp",
+        "backends/p4tools/common/lib/gen_eq.cpp",
+        "backends/p4tools/common/lib/model.cpp",
+        "backends/p4tools/common/lib/namespace_context.cpp",
+        "backends/p4tools/common/lib/symbolic_env.cpp",
+        "backends/p4tools/common/lib/table_utils.cpp",
+        "backends/p4tools/common/lib/taint.cpp",
+        "backends/p4tools/common/lib/trace_event.cpp",
+        "backends/p4tools/common/lib/trace_event_types.cpp",
+        "backends/p4tools/common/lib/util.cpp",
+        "backends/p4tools/common/lib/variables.cpp",
+        "backends/p4tools/modules/testgen/options.cpp",
+        "backends/p4tools/modules/testgen/testgen.cpp",
+        "backends/p4tools/modules/testgen/core/externs.cpp",
+        "backends/p4tools/modules/testgen/core/program_info.cpp",
+        "backends/p4tools/modules/testgen/core/small_step/abstract_stepper.cpp",
+        "backends/p4tools/modules/testgen/core/small_step/cmd_stepper.cpp",
+        "backends/p4tools/modules/testgen/core/small_step/expr_stepper.cpp",
+        "backends/p4tools/modules/testgen/core/small_step/extern_stepper.cpp",
+        "backends/p4tools/modules/testgen/core/small_step/table_stepper.cpp",
+        "backends/p4tools/modules/testgen/core/small_step/small_step.cpp",
+        "backends/p4tools/modules/testgen/core/symbolic_executor/depth_first.cpp",
+        "backends/p4tools/modules/testgen/core/symbolic_executor/selected_branches.cpp",
+        "backends/p4tools/modules/testgen/core/symbolic_executor/random_backtrack.cpp",
+        "backends/p4tools/modules/testgen/core/symbolic_executor/greedy_stmt_cov.cpp",
+        "backends/p4tools/modules/testgen/core/symbolic_executor/max_stmt_cov.cpp",
+        "backends/p4tools/modules/testgen/core/symbolic_executor/symbolic_executor.cpp",
+        "backends/p4tools/modules/testgen/core/target.cpp",
+        "backends/p4tools/modules/testgen/lib/collect_coverable_nodes.cpp",
+        "backends/p4tools/modules/testgen/lib/concolic.cpp",
+        "backends/p4tools/modules/testgen/lib/continuation.cpp",
+        "backends/p4tools/modules/testgen/lib/execution_state.cpp",
+        "backends/p4tools/modules/testgen/lib/final_state.cpp",
+        "backends/p4tools/modules/testgen/lib/logging.cpp",
+        "backends/p4tools/modules/testgen/lib/packet_vars.cpp",
+        "backends/p4tools/modules/testgen/lib/test_backend.cpp",
+        "backends/p4tools/modules/testgen/lib/test_spec.cpp",
+        "backends/p4tools/modules/testgen/lib/tf.cpp",
+        "backends/p4tools/modules/testgen/targets/bmv2/backend/protobuf/protobuf.cpp",
+        "backends/p4tools/modules/testgen/targets/bmv2/backend/metadata/metadata.cpp",
+        "backends/p4tools/modules/testgen/targets/bmv2/backend/ptf/ptf.cpp",
+        "backends/p4tools/modules/testgen/targets/bmv2/backend/stf/stf.cpp",
+        "backends/p4tools/modules/testgen/targets/bmv2/bmv2.cpp",
+        "backends/p4tools/modules/testgen/targets/bmv2/cmd_stepper.cpp",
+        "backends/p4tools/modules/testgen/targets/bmv2/concolic.cpp",
+        "backends/p4tools/modules/testgen/targets/bmv2/constants.cpp",
+        "backends/p4tools/modules/testgen/targets/bmv2/contrib/bmv2_hash/calculations.cpp",
+        "backends/p4tools/modules/testgen/targets/bmv2/expr_stepper.cpp",
+        "backends/p4tools/modules/testgen/targets/bmv2/map_direct_externs.cpp",
+        "backends/p4tools/modules/testgen/targets/bmv2/p4_asserts_parser.cpp",
+        "backends/p4tools/modules/testgen/targets/bmv2/p4_refers_to_parser.cpp",
+        "backends/p4tools/modules/testgen/targets/bmv2/program_info.cpp",
+        "backends/p4tools/modules/testgen/targets/bmv2/table_stepper.cpp",
+        "backends/p4tools/modules/testgen/targets/bmv2/target.cpp",
+        "backends/p4tools/modules/testgen/targets/bmv2/test_backend.cpp",
+        "backends/p4tools/modules/testgen/targets/bmv2/test_spec.cpp",
+        "backends/p4tools/modules/testgen/targets/ebpf/backend/stf/stf.cpp",
+        "backends/p4tools/modules/testgen/targets/ebpf/ebpf.cpp",
+        "backends/p4tools/modules/testgen/targets/ebpf/cmd_stepper.cpp",
+        "backends/p4tools/modules/testgen/targets/ebpf/concolic.cpp",
+        "backends/p4tools/modules/testgen/targets/ebpf/constants.cpp",
+        "backends/p4tools/modules/testgen/targets/ebpf/expr_stepper.cpp",
+        "backends/p4tools/modules/testgen/targets/ebpf/program_info.cpp",
+        "backends/p4tools/modules/testgen/targets/ebpf/table_stepper.cpp",
+        "backends/p4tools/modules/testgen/targets/ebpf/target.cpp",
+        "backends/p4tools/modules/testgen/targets/ebpf/test_backend.cpp",
+        "backends/p4tools/modules/testgen/targets/ebpf/test_spec.cpp",
+        "backends/p4tools/modules/testgen/targets/pna/backend/metadata/metadata.cpp",
+        "backends/p4tools/modules/testgen/targets/pna/dpdk/cmd_stepper.cpp",
+        "backends/p4tools/modules/testgen/targets/pna/dpdk/expr_stepper.cpp",
+        "backends/p4tools/modules/testgen/targets/pna/dpdk/program_info.cpp",
+        "backends/p4tools/modules/testgen/targets/pna/dpdk/table_stepper.cpp",
+        "backends/p4tools/modules/testgen/targets/pna/pna.cpp",
+        "backends/p4tools/modules/testgen/targets/pna/concolic.cpp",
+        "backends/p4tools/modules/testgen/targets/pna/constants.cpp",
+        "backends/p4tools/modules/testgen/targets/pna/shared_cmd_stepper.cpp",
+        "backends/p4tools/modules/testgen/targets/pna/shared_expr_stepper.cpp",
+        "backends/p4tools/modules/testgen/targets/pna/shared_program_info.cpp",
+        "backends/p4tools/modules/testgen/targets/pna/shared_table_stepper.cpp",
+        "backends/p4tools/modules/testgen/targets/pna/target.cpp",
+        "backends/p4tools/modules/testgen/targets/pna/test_backend.cpp",
+        "backends/p4tools/modules/testgen/targets/pna/test_spec.cpp",
+        "backends/p4tools/modules/testgen/main.cpp",
+        "backends/p4tools/common/version.h",
+        "backends/p4tools/modules/testgen/register.h",
+    ],
+    copts = _COPTS,
+    linkopts = _LINKOPTS,
+    linkstatic = True,
+    deps = [":compiler_core", ":z3_archive", ":inja"],
+    target_compatible_with = ["@platforms//cpu:x86_64"],
+)
+
+expand_template(
+    name = "installed_driver",
+    template = "tools/driver/p4c.in",
+    out = "installed/p4c",
+    substitutions = {
+        "#!/usr/bin/env python3": "#!/usr/bin/python3",
+        "@P4C_VERSION@": "1.2.4.2",
+        "@prefix@": "/usr",
+        "@exec_prefix@": "/usr",
+        "@datarootdir@": "${prefix}/share",
+    },
+)
+
+genrule(
+    name = "debian_changelog",
+    srcs = ["debian/changelog"],
+    outs = ["changelog.Debian.gz"],
+    tools = ["@sonic_build_infra//tools/gzip:reproducible_gzip"],
+    cmd = "$(location @sonic_build_infra//tools/gzip:reproducible_gzip) --stdout $(location debian/changelog) > $@",
+)
+
+_RUNTIME_FILES = [
+        "p4include/bmv2/psa.p4",
+        "p4include/core.p4",
+        "p4include/dpdk/pna.p4",
+        "p4include/dpdk/psa.p4",
+        "backends/ebpf/p4include/ebpf_model.p4",
+        "p4include/pna.p4",
+        "p4include/tc/pna.p4",
+        "backends/ubpf/p4include/ubpf_model.p4",
+        "p4include/v1model.p4",
+        "p4include/xdp_model.p4",
+        "tools/driver/p4c_src/__init__.py",
+        "tools/driver/p4c_src/config.py",
+        "tools/driver/p4c_src/driver.py",
+        "tools/driver/p4c_src/main.py",
+        "tools/driver/p4c_src/util.py",
+        "tools/driver/p4c_src/p4c.bmv2.cfg",
+        "tools/driver/p4c_src/p4c.ebpf.cfg",
+        "tools/driver/p4c_src/p4c.dpdk.cfg",
+        ":installed_driver",
+        "debian/copyright",
+        "LICENSE",
+        ":debian_changelog",
+    ]
+
+_RUNTIME_MTREE = [
+        "usr/share/p4c/p4include/bmv2/psa.p4 uid=0 gid=0 type=file mode=0644 content=$(location p4include/bmv2/psa.p4)",
+        "usr/share/p4c/p4include/core.p4 uid=0 gid=0 type=file mode=0644 content=$(location p4include/core.p4)",
+        "usr/share/p4c/p4include/dpdk/pna.p4 uid=0 gid=0 type=file mode=0644 content=$(location p4include/dpdk/pna.p4)",
+        "usr/share/p4c/p4include/dpdk/psa.p4 uid=0 gid=0 type=file mode=0644 content=$(location p4include/dpdk/psa.p4)",
+        "usr/share/p4c/p4include/ebpf_model.p4 uid=0 gid=0 type=file mode=0644 content=$(location backends/ebpf/p4include/ebpf_model.p4)",
+        "usr/share/p4c/p4include/pna.p4 uid=0 gid=0 type=file mode=0644 content=$(location p4include/pna.p4)",
+        "usr/share/p4c/p4include/tc/pna.p4 uid=0 gid=0 type=file mode=0644 content=$(location p4include/tc/pna.p4)",
+        "usr/share/p4c/p4include/ubpf_model.p4 uid=0 gid=0 type=file mode=0644 content=$(location backends/ubpf/p4include/ubpf_model.p4)",
+        "usr/share/p4c/p4include/v1model.p4 uid=0 gid=0 type=file mode=0644 content=$(location p4include/v1model.p4)",
+        "usr/share/p4c/p4include/xdp_model.p4 uid=0 gid=0 type=file mode=0644 content=$(location p4include/xdp_model.p4)",
+        "usr/share/p4c/p4c_src/__init__.py uid=0 gid=0 type=file mode=0644 content=$(location tools/driver/p4c_src/__init__.py)",
+        "usr/share/p4c/p4c_src/config.py uid=0 gid=0 type=file mode=0644 content=$(location tools/driver/p4c_src/config.py)",
+        "usr/share/p4c/p4c_src/driver.py uid=0 gid=0 type=file mode=0644 content=$(location tools/driver/p4c_src/driver.py)",
+        "usr/share/p4c/p4c_src/main.py uid=0 gid=0 type=file mode=0644 content=$(location tools/driver/p4c_src/main.py)",
+        "usr/share/p4c/p4c_src/util.py uid=0 gid=0 type=file mode=0644 content=$(location tools/driver/p4c_src/util.py)",
+        "usr/share/p4c/p4c_src/p4c.bmv2.cfg uid=0 gid=0 type=file mode=0644 content=$(location tools/driver/p4c_src/p4c.bmv2.cfg)",
+        "usr/share/p4c/p4c_src/p4c.ebpf.cfg uid=0 gid=0 type=file mode=0644 content=$(location tools/driver/p4c_src/p4c.ebpf.cfg)",
+        "usr/share/p4c/p4c_src/p4c.dpdk.cfg uid=0 gid=0 type=file mode=0644 content=$(location tools/driver/p4c_src/p4c.dpdk.cfg)",
+        "usr/bin/p4c uid=0 gid=0 type=file mode=0755 content=$(location :installed_driver)",
+        "usr/share/doc/p4lang-p4c/copyright uid=0 gid=0 type=file mode=0644 content=$(location debian/copyright)",
+        "usr/share/doc/p4lang-p4c/LICENSE uid=0 gid=0 type=file mode=0644 content=$(location LICENSE)",
+        "usr/share/doc/p4lang-p4c/changelog.Debian.gz uid=0 gid=0 type=file mode=0644 content=$(location :debian_changelog)",
+    ]
+
+[
+    sonic_deploy_tar(
+        name = "p4lang-p4c.runtime_" + cpu,
+        binaries = {"usr/bin/p4c-bm2-ss uid=0 gid=0 type=file mode=0755": ":p4c-bm2-ss", "usr/bin/p4c-bm2-psa uid=0 gid=0 type=file mode=0755": ":p4c-bm2-psa", "usr/bin/p4c-ebpf uid=0 gid=0 type=file mode=0755": ":p4c-ebpf", "usr/bin/p4c-ubpf uid=0 gid=0 type=file mode=0755": ":p4c-ubpf", "usr/bin/p4c-dpdk uid=0 gid=0 type=file mode=0755": ":p4c-dpdk", "usr/bin/p4c-graphs uid=0 gid=0 type=file mode=0755": ":p4c-graphs", "usr/bin/p4c-pna-p4tc uid=0 gid=0 type=file mode=0755": ":p4c-pna-p4tc", "usr/bin/p4test uid=0 gid=0 type=file mode=0755": ":p4test"} | ({"usr/bin/p4testgen uid=0 gid=0 type=file mode=0755": ":p4testgen"} if cpu == "x86_64" else {}),
+        srcs = _RUNTIME_FILES,
+        mtree = _RUNTIME_MTREE,
+        force_debug_build = True,
+        target_compatible_with = ["@platforms//cpu:" + cpu],
+    )
+    for cpu in ["x86_64", "aarch64"]
+]
+
+alias(
+    name = "p4lang-p4c.runtime",
+    actual = select({
+        "@platforms//cpu:x86_64": ":p4lang-p4c.runtime_x86_64",
+        "@platforms//cpu:aarch64": ":p4lang-p4c.runtime_aarch64",
+    }),
+)
+alias(
+    name = "p4lang-p4c.runtime.debug_symbols",
+    actual = select({
+        "@platforms//cpu:x86_64": ":p4lang-p4c.runtime_x86_64.debug_symbols",
+        "@platforms//cpu:aarch64": ":p4lang-p4c.runtime_aarch64.debug_symbols",
+    }),
+)
+
+alias(name = "p4c_pkg", actual = ":p4lang-p4c.runtime")
+alias(name = "p4c_pkg.debug_symbols", actual = ":p4lang-p4c.runtime.debug_symbols")
+
+filegroup(
+    name = "gcc_runtime",
+    srcs = select({
+        "@platforms//cpu:x86_64": ["@gcc-14.2.0-linux-target-x86_64-host-x86_64//:multicall_support_files"],
+        "@platforms//cpu:aarch64": ["@gcc-14.2.0-linux-target-aarch64-host-aarch64//:multicall_support_files"],
+    }),
+)
+filegroup(
+    name = "cpp",
+    srcs = select({
+        "@platforms//cpu:x86_64": [bin("x86_64", "14.2.0", "gcc")],
+        "@platforms//cpu:aarch64": [bin("aarch64", "14.2.0", "gcc")],
+    }),
+)
+filegroup(name = "p4include", srcs = glob(["p4include/**"]))
+
+p4c_tool(
+    name = "p4c_bm2_ss",
+    binary = ":p4c-bm2-ss",
+    cpp = ":cpp",
+    data = [":p4include"],
+    runtime = [":gcc_runtime"],
+    deps = _SYSTEM_DEPS,
+)
+
+alias(name = "p4c_bmv2", actual = ":p4c_bm2_ss")
+
+p4c_tool(
+    name = "p4c_graphs",
+    binary = ":p4c-graphs",
+    cpp = ":cpp",
+    data = [":p4include"],
+    runtime = [":gcc_runtime"],
+    deps = _SYSTEM_DEPS,
+)
+
+filegroup(
+    name = "configuration",
+    srcs = ["config.h", "backends/bmv2/simple_switch/version.h", "ir/ir-generated.h", "ir/gen-tree-macro.h"],
+)
+
+
+# Validate the installed artifact contract without executing target programs.
+py_test(
+    name = "package_test",
+    python_version = "3.11",
+    srcs = ["bazel/package_test.py"],
+    main = "bazel/package_test.py",
+    args = [
+        "--runtime", "$(rootpath :p4lang-p4c.runtime)",
+        "--debug", "$(rootpath :p4lang-p4c.runtime.debug_symbols)",
+        "--metadata", "$(rootpath @p4c//:p4lang-p4c.runtime_metadata)",
+        "--readelf", "$(rootpath @sonic_build_infra//toolchains/binutils:readelf)",
+        "--objcopy", "$(rootpath @sonic_build_infra//toolchains/binutils:objcopy)",
+        "--control", "$(rootpath debian/control)",
+        "--changelog", "$(rootpath debian/changelog)",
+        "--arch",
+    ] + select({
+        "@platforms//cpu:x86_64": ["amd64"],
+        "@platforms//cpu:aarch64": ["arm64"],
+    }),
+    data = [
+        "debian/control", "debian/changelog",
+        ":p4lang-p4c.runtime",
+        ":p4lang-p4c.runtime.debug_symbols",
+        "@p4c//:p4lang-p4c.runtime_metadata",
+        "@sonic_build_infra//toolchains/binutils:readelf",
+        "@sonic_build_infra//toolchains/binutils:objcopy",
+    ],
+    timeout = "long",
+)
