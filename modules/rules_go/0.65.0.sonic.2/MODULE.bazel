@@ -2,7 +2,7 @@ module(
     name = "rules_go",
     # Replaced with the release version by Publish to BCR, which requires the attribute to be
     # present. Empty rather than a placeholder so that overrides don't report a bogus version.
-    version = "0.65.0.sonic.1",
+    version = "0.65.0.sonic.2",
     bazel_compatibility = [">=7.7.0"],
     compatibility_level = 0,
     repo_name = "io_bazel_rules_go",
@@ -53,7 +53,7 @@ use_repo(
 
 register_toolchains("@go_toolchains//:all")
 
-bazel_dep(name = "gazelle", version = "0.51.3")
+bazel_dep(name = "gazelle", version = "0.54.0.sonic.1")
 
 go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
 go_deps.from_file(go_mod = "//:go.mod")

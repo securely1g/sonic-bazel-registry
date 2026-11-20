@@ -24,7 +24,12 @@ go_bazel_test(
     name = "cc_header_inputs_test",
     srcs = ["cc_header_inputs_test.go"],
     args = ["-test.v"],
-    env = {"USE_BAZEL_VERSION": "8.5.1"},
+    env = {
+        # The upstream helper writes these flags into its nested .bazelrc.
+        # Its existing local_path_override still selects this candidate.
+        "GO_BAZEL_TEST_BAZELFLAGS": "--registry=https://raw.githubusercontent.com/securely1g/sonic-bazel-registry/3d1cc5e8dfd553d2acbe4198e504a245e6bdbddf --registry=https://bcr.bazel.build",
+        "USE_BAZEL_VERSION": "8.5.1",
+    },
     target_compatible_with = ["@platforms//os:linux"],
     timeout = "long",
 )
