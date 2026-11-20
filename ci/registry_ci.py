@@ -46,7 +46,7 @@ _GITHUB_SPEC = importlib.util.spec_from_file_location("registry_github_sources",
 assert _GITHUB_SPEC is not None and _GITHUB_SPEC.loader is not None
 github_sources = importlib.util.module_from_spec(_GITHUB_SPEC)
 _GITHUB_SPEC.loader.exec_module(github_sources)
-P4_MODULES = {"p4c", "p4lang-bmv2", "sonic-dash"}
+P4_MODULES = {"p4c", "p4lang-bmv2", "sonic-dash", "sonic-pins"}
 RUNNERS = {
     "amd64": ["self-hosted", "Linux", "X64", "debian-trixie-container"],
     "arm64": ["ubuntu-24.04-arm"],
@@ -2029,7 +2029,7 @@ def main() -> None:
     scope.add_argument("--latest", action="store_true", dest="latest_versions",
                        help="test latest non-yanked versions and explicit additional presubmits")
     planner.add_argument("--p4-runner-profile", choices=("standard", "large"), default="large",
-                         help="AMD64 execution pool for P4C, BMv2 and DASH")
+                         help="AMD64 execution pool for P4C, BMv2, DASH and PINS")
     planner.add_argument("--output", required=True, type=Path)
     synchronizer = subparsers.add_parser("sync-module", help="generate or check an opted-in MODULE overlay")
     synchronizer.add_argument("--module", required=True)
