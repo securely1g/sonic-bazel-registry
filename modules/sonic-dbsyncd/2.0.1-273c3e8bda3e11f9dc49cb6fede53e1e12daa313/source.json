@@ -1,9 +1,9 @@
 {
-  "url": "https://github.com/securely1g/sonic-dbsyncd/archive/8a3830704d3f6067823f7c10b3b31913965add81.tar.gz",
-  "strip_prefix": "sonic-dbsyncd-8a3830704d3f6067823f7c10b3b31913965add81",
-  "integrity": "sha256-2pYUzQQvdfijbtik8eYxCj8eRnOhe+dykr6jdbcPttk=",
+  "url": "https://github.com/securely1g/sonic-dbsyncd/archive/273c3e8bda3e11f9dc49cb6fede53e1e12daa313.tar.gz",
+  "strip_prefix": "sonic-dbsyncd-273c3e8bda3e11f9dc49cb6fede53e1e12daa313",
+  "integrity": "sha256-5JE5TgXodibSNcAFb4lYzAB1r9QsIovOlR4Ni+DYDf4=",
   "patches": {
-    "0001-module-version.patch": "sha256-7qLye1/j9feMlxfRsdlzwdfkZ+YT5lMV8d/nz3Kur6I="
+    "0001-module-version.patch": "sha256-Vb1QIkPo7a8wzXmN6tEzhOtCun3qlMbdAvR8H9Qw8SY="
   },
   "patch_strip": 1
 }
