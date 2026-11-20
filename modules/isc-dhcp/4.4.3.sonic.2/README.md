@@ -1,3 +1,7 @@
+## Dependency refresh for `4.4.3.sonic.2`
+
+This candidate retains the `4.4.3.sonic.1` source and existing patches. Its module dependencies select the newest non-yanked versions published at `3d1cc5e8dfd553d2acbe4198e504a245e6bdbddf`. Versions introduced by this refresh are not dependency targets of the same refresh.
+
 # ISC DHCP 4.4.3-P1-2 relay
 
 The registry uses normalized module version `4.4.3.sonic.1` for Debian source

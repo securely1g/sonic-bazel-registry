@@ -3,7 +3,7 @@
   "integrity": "sha256-ODPBpwN5WwSksRjpaGsL5ohe0CmAB2ucjuNnSUDMmL8=",
   "overlay": {
     "BUILD.bazel": "sha256-6iE4StxiXbX1Z4Eh0Cqll0dkYdd67zrjs6mX117/Q70=",
-    "MODULE.bazel": "sha256-qVMWr2zAk/jPrhLygIbCNKPLI0RnQPmUFEGBXfcyJfU=",
+    "MODULE.bazel": "sha256-Fohfsztj4AdcfPidzNBMfYIFuttmMBLxRmz1ie/KvK8=",
     "bind.BUILD.bazel": "sha256-7WUgiQ4JZVe0s6EZCdpibPhYzqHCaG/KIIeRq9J/MxA=",
     "header_config.bzl": "sha256-PGXDwlX8IMDxo9HQLWo6Uv4B59hUDWZTC56igrS+vq8=",
     "installation_test.py": "sha256-3O2vMZLTRayXCnJufJ6/siRk0T4H1UbHvwBDz/urJcY=",
