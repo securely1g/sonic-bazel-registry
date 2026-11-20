@@ -4,7 +4,7 @@
   "integrity": "sha256-gEGFSoglg61SY0ZnNsnIxox0saNXVKt3DSM0P5R1KPs=",
   "overlay": {
     "BUILD.bazel": "sha256-kJhsSpKEfggJZirTGp+C2OAR/fQX+3YozNjDq+BITYc=",
-    "MODULE.bazel": "sha256-/0QUSw8DwxjJbTU6PmAbLwtAoNpUjoh1eqN+VzQU7ko=",
+    "MODULE.bazel": "sha256-onUqsREeMnYO8kl1BPPnU4TwqlGYGnwd0jJ+CuN9Y2c=",
     "README.bazel.md": "sha256-yuelWWvFSFJXK/yEk63n7Lp/S9hdyMxcGHo+mYz1Sdk=",
     "bazel/0001-bridge-fdb-protocol.patch": "sha256-qdyXQnLw6BEAVws6m0r56Of6ShvXgavipuWe8i+ONUw=",
     "bazel/configure.sh": "sha256-Nx0iISMVO9+86iOPsA4pBLtS3DqynH2F1+HWFewIPSA=",
