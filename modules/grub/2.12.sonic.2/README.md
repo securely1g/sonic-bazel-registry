@@ -1,3 +1,7 @@
+## Dependency refresh for `2.12.sonic.2`
+
+This candidate retains the `2.12.sonic.1` source and existing patches. Its module dependencies select the newest non-yanked versions published at `3d1cc5e8dfd553d2acbe4198e504a245e6bdbddf`. Versions introduced by this refresh are not dependency targets of the same refresh.
+
 # GRUB 2.12 hermetic raw-image BIOS setup tool
 
 GNU GRUB2.12 and Debian2.12-9+deb13u2 packaging match the fixed APT boot.img and i386-pc modules. The declared source preparation applies all148 original Debian patches, then one narrow raw-image patch: when the caller explicitly passes --skip-fs-probe, use the already opened destination as root instead of guessing a host device from the staging directory. The ordinary probing branch stays unchanged.

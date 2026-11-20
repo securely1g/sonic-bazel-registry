@@ -1,10 +1,10 @@
 # AUTO-GENERATED. DO NOT EDIT MANUALLY.
 # Source: ../MODULE.bazel
-# Generator: python3 ci/registry_ci.py sync-module --module grub --version 2.12.sonic.1
+# Generator: python3 ci/registry_ci.py sync-module --module grub --version 2.12.sonic.2
 
 module(
     name = "grub",
-    version = "2.12.sonic.1",
+    version = "2.12.sonic.2",
     bazel_compatibility = [">=7.4.1"],
 )
 
@@ -25,7 +25,7 @@ bazel_dep(name = "xz", version = "5.4.5.bcr.9")
 # Modules the BUILD files shipped in the source tree, or the hand-written BUILD files, load.
 bazel_dep(name = "package_metadata", version = "0.0.13")
 
-bazel_dep(name = "sonic-build-infra", version = "0.0.34-a4723268cd72a573ed316ab75347e698cc3f86ab", repo_name = "sonic_build_infra")
+bazel_dep(name = "sonic-build-infra", version = "0.0.38-0baa4acc9eac9ccc793b81104b1580d530271cbe", repo_name = "sonic_build_infra")
 
 prepared_source = use_repo_rule("@sonic_build_infra//source:prepared_source.bzl", "prepared_source")
 prepared_source(

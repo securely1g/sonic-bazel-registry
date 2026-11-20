@@ -4,7 +4,7 @@
   "strip_prefix": "",
   "overlay": {
     "BUILD.bazel": "sha256-KzpKuJmB0oGf+aTXjrQujusmJKd8doP0qANxsWS1C7k=",
-    "MODULE.bazel": "sha256-yBLNCMO2IsR3GBRRV29ClYmukb4dRQZ/N2SiZmqAKyo=",
+    "MODULE.bazel": "sha256-0SAjzljYvffYbwvnmjsSf34TGvY4LS0jhOgw7KaXIXw=",
     "autoconf.bzl": "sha256-sfxh73rRZli9DnJSMhYlJzET1X9rfmJoRatzGoGCvm4=",
     "geninit.bzl": "sha256-ZdSRgRktLXRsuSUERZohLdkS/r6FC9MA7909Ws0kDqI=",
     "install_dirs.bzl": "sha256-uEatlq8Q1dVciQb6FlRRSZjUOteKnMLUvILdhZ4Assg=",
