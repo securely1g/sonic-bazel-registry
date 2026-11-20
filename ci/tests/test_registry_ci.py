@@ -2087,7 +2087,7 @@ class Arm64RoutingTests(FixtureTestCase):
         self.assertEqual(self.git("status", "--porcelain"), "")
 
     def test_p4_profile_applies_to_native_and_cross_jobs(self):
-        p4_modules = ("p4c", "p4lang-bmv2", "sonic-dash")
+        p4_modules = ("p4c", "p4lang-bmv2", "sonic-dash", "sonic-pins")
         for module in (*p4_modules, "alpha"):
             self.arm_entry(module, "1.0.0")
         head = self.commit("register native and cross jobs")
@@ -2095,7 +2095,7 @@ class Arm64RoutingTests(FixtureTestCase):
         for profile in ("large", "standard"):
             rows = registry_ci.plan(self.root, None, head, all_versions=True, published=head,
                                     p4_runner_profile=profile)["include"]
-            self.assertEqual(len(rows), 8)
+            self.assertEqual(len(rows), 10)
             for row in rows:
                 expected = large if profile == "large" and row["module"] in p4_modules else registry_ci.RUNNERS["amd64"]
                 self.assertEqual(row["runner"], expected, row)
@@ -2149,10 +2149,12 @@ class WorkflowMatrixTests(unittest.TestCase):
         arm = {**amd, "architecture": "arm64", "execution_architecture": "arm64", "runner": registry_ci.RUNNERS["arm64"]}
         second_amd = {**amd, "module": "beta"}
         large = {**amd, "module": "sonic-dash", "runner": ["self-hosted", "Linux", "X64", "debian-trixie-container-large"]}
+        pins_large = {**amd, "module": "sonic-pins", "runner": ["self-hosted", "Linux", "X64", "debian-trixie-container-large"]}
         cross = {**second_amd, "architecture": "arm64", "cross_compile": True}
         cases = [([], True), ([amd], True), ([arm], False),
-                               ([amd, second_amd, cross, large], True), ([cross], True),
+                               ([amd, second_amd, cross, large, pins_large], True), ([cross], True),
                                ([{**large, "module": "beta"}], False), ([{**amd, "module": "sonic-dash"}], False),
+                               ([{**amd, "module": "sonic-pins"}], False),
                                ([{**arm, "architecture": "armhf"}], False),
                                ([{**arm, "cross_compile": True}], False),
                                ([{**cross, "cross_compile": "true"}], False),
@@ -2375,6 +2377,10 @@ class TestContainerTests(unittest.TestCase):
         self.assertIsNotNone(selection)
         self.assertIn("TEST_CONTAINER_IMAGE: " + expression, workflow)
         self.assertIn("if: inputs.architecture == 'arm64' && !inputs.cross_compile", workflow)
+        timeout_modules = re.search(
+            r"contains\(fromJSON\('(\[[^\]]+\])'\), inputs\.module\)\) \|\|", workflow)
+        self.assertIsNotNone(timeout_modules)
+        self.assertEqual(set(json.loads(timeout_modules[1])), registry_ci.P4_MODULES)
         self.assertIn("CI_EXECUTION_ARCHITECTURE: ${{ inputs.execution_architecture || inputs.architecture }}", workflow)
         self.assertRegex(workflow, r"cross_compile:\n\s+type: boolean\n\s+default: false")
         for architecture, execution, cross in (("amd64", "amd64", False), ("arm64", "arm64", False),
@@ -2445,7 +2451,7 @@ class TestContainerTests(unittest.TestCase):
     def test_every_module_and_architecture_uses_the_same_resource_policy(self):
         workflow = (registry_ci.ROOT / ".github/workflows/registry-module.yml").read_text()
         script = self.step(workflow, "Build and test through the registry")
-        for module in ("p4c", "p4lang-bmv2", "sonic-dash", "libyang", "new-native-module"):
+        for module in ("p4c", "p4lang-bmv2", "sonic-dash", "sonic-pins", "libyang", "new-native-module"):
             for target, execution in (("amd64", "amd64"), ("arm64", "amd64"), ("arm64", "arm64")):
                 with self.subTest(module=module, target=target, execution=execution), tempfile.TemporaryDirectory() as tmp:
                     root = Path(tmp)

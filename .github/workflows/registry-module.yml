@@ -87,7 +87,7 @@ jobs:
     timeout-minutes: >-
       ${{ (((contains(fromJSON(inputs.runner), 'debian-trixie-container') ||
              contains(fromJSON(inputs.runner), 'debian-trixie-container-large')) &&
-            contains(fromJSON('["p4c","p4lang-bmv2","sonic-dash"]'), inputs.module)) ||
+            contains(fromJSON('["p4c","p4lang-bmv2","sonic-dash","sonic-pins"]'), inputs.module)) ||
            (inputs.cross_compile && inputs.module == 'sonic-swss' &&
             inputs.version == '0.0.3-9c3797990d4b5a79100a40fe7689927c18212361')) && 360 ||
           (inputs.cross_compile && inputs.module == 'sonic-fips' &&

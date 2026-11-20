@@ -837,7 +837,7 @@ original validation failure is still preserved.
 
 Planning, the aggregate check, AMD64 runner tests, and ordinary local module
 validation use `self-hosted`, `Linux`, `X64`, and `debian-trixie-container`.
-P4C (`p4c`), BMv2 (`p4lang-bmv2`), and DASH (`sonic-dash`) use
+P4C (`p4c`), BMv2 (`p4lang-bmv2`), DASH (`sonic-dash`), and PINS (`sonic-pins`) use
 `debian-trixie-container-large` by default whenever their execution architecture
 is AMD64. This includes ARM64 cross-builds and the P4C host tool built inside
 DASH. Both Trixie pools use the same source mirrors, private-mirror trust checks,
@@ -946,7 +946,7 @@ already-planned job retains its previous label.
 Restore the variable to `large` or remove it to resume the large route. Check
 the jobs' resource artifacts after enabling a new pool.
 
-These three P4 modules have a six-hour deadline per job. The planner combines
+These four P4 modules have a six-hour deadline per job. The planner combines
 native AMD64 and ARM64 cross jobs and splits them into matrices of at most
 256 jobs, GitHub's limit per matrix. Plans with more than 256 jobs use a
 second matrix. The second matrix starts after the first finishes,
