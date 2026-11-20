@@ -9,7 +9,7 @@
   },
   "overlay": {
     "BUILD.bazel": "sha256-sH18hsnVhG2SZV5c9k36Nh9JNzNbcO/HBxkhCCNRZBY=",
-    "MODULE.bazel": "sha256-MpjVM1HAcaqGXR0rBELSe6Qvt/xXJmITJfx9ic9HFLk=",
+    "MODULE.bazel": "sha256-xyDLVzVIiI9srKDGj3qLOrDssj+tkpLxAn861sk98eQ=",
     "bazel/BUILD.bazel": "sha256-O5dwZLFDs+RlcO1PxcIC551HH/9a1acxgfbDFfuXULY=",
     "bazel/package_test.py": "sha256-XRWWNS78R+ZtOXA8SuFXgLf1TTb8wyiWMY2DPdaqAQ4=",
     "bazel/settings.bzl": "sha256-aKd8kCqcZs6krRKBX+dLchY7xouiO/alhGuSl15Go+A=",
