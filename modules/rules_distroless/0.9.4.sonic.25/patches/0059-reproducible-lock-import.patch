@@ -1,0 +1,32 @@
+From: Yunang Chen <yunang@google.com>
+Subject: [PATCH] Keep unified APT lock imports out of MODULE.bazel.lock
+
+A unified apt.import_lock declares every package, file-map, catalog and
+hub repository from the reviewed source, request and lock files. Bazel
+stored all of those repository specifications in the workspace
+MODULE.bazel.lock because the extension returned no metadata, although
+the import reads only tracked files and performs no index or network
+access. Return reproducible metadata on this path so Bazel keeps the
+repositories in its output-base cache instead. Generated repositories,
+lock validation and the resolver/export path are unchanged.
+
+Origin: SONiC lockfile size analysis of sonic-build-infra, where the
+unified import accounted for almost all of the workspace lockfile.
+Upstream status: SONiC-specific; upstream has no apt.import_lock.
+
+Signed-off-by: Yunang Chen <yunang@google.com>
+--- a/apt/extensions.bzl
++++ b/apt/extensions.bzl
+@@ -267,7 +267,11 @@
+     imports, _ = selected_lock_tags(mctx, require_one_root_lock = unified)
+     if imports and not updates and unified:
+         declare_locked_imports(mctx, [], installs, source_document)
+-        return
++
++        # This path only reads tracked source, request and lock files. Bazel
++        # can recompute it exactly, so keep its repositories out of the
++        # workspace MODULE.bazel.lock.
++        return mctx.extension_metadata(reproducible = True)
+     previous = {}
+     for tag in updates:
+         if tag.previous_lock:

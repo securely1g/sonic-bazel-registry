@@ -1,0 +1,10 @@
+--- a/apt/private/deb_export.bzl
++++ b/apt/private/deb_export.bzl
+@@ -86,6 +86,7 @@
+         args.add_all(extraction_names)
+         ctx.actions.run(
+             executable = bsdtar.tarinfo.binary,
++            tools = bsdtar.default.files,
+             # the archive may contain symlinks that point to symlinks that reference
+             # files from other packages, therefore symlink_outs must be present in the
+             # sandbox for Bazel to succesfully track them.
