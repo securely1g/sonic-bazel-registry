@@ -5,7 +5,7 @@
   "strip_prefix": "",
   "overlay": {
     "BUILD.bazel": "sha256-u0xLimtlef89g6TfMnV12RkF6Qh1ZpUDD0GH4C/5q20=",
-    "MODULE.bazel": "sha256-SlY/GXO6BSNUmKlSRr48bO7/piMWf3fnEXRVWSuUtHQ=",
+    "MODULE.bazel": "sha256-qc+1qKyppBjXM4yRVlQeRHGdE+yf9Fut2UIL5zBgCuQ=",
     "installation_test.py": "sha256-+/ORqwRxt+qLdzYIxR/EqdrZ8LlbVSaBRi1ZKBKsX5A=",
     "source.BUILD.bazel": "sha256-/D2Sv/WXJwmUqySf0PuYwu3DiR29lCwYuCPn6iZEsp8="
   }
