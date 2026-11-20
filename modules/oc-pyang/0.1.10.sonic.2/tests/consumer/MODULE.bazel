@@ -1,8 +1,8 @@
 module(name = "oc_pyang_consumer")
 
-bazel_dep(name = "oc-pyang", version = "0.1.10.sonic.1")
+bazel_dep(name = "oc-pyang", version = "0.1.10.sonic.2")
 bazel_dep(name = "platforms", version = "1.1.0")
-bazel_dep(name = "rules_python", version = "1.9.0")
+bazel_dep(name = "rules_python", version = "1.9.0.sonic.1")
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
 python.toolchain(
