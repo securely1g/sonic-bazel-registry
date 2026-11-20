@@ -1,11 +1,10 @@
-# DASH with the native PI SDK
+# Native DASH SAI build
 
-This version registers DASH `a9b799bb664b3b3b9d6e9a19cedd38b620e769de`. Its recursive Make adapter links
-`libsai.so` against the ABI filenames `libpiprotogrpc.so.0` and
-`libpiprotobuf.so.0` exported by the `p4lang-pi` `0.1.3.sonic.6` SDK.
-[DASH source change](https://github.com/securely1g/DASH/pull/5)
+This entry builds the DASH revision selected by sonic-buildimage's DASH SAI
+Make recipe, `d5c003dd7774c2b43f275c0233acc73a0ea28d2f`. The registry overlay supplies Bazel rules and
+generator adapters with explicit input and output paths. SAI comes from
+the gitlink at `8dd59e5eba472f0e53e8db00530e7c6e5ce2a335`.
 
-The AMD64 and ARM64 presubmits build the SDK, runtime TAR, debug TAR and
-runtime package inventory. The runtime test checks the installed artifacts.
-The Make regression test exercises compiler and linker flag propagation and
-the ABI filenames used by the final shared-library link.
+P4C `1.2.4.2.sonic.6` and PI `0.1.3.sonic.7` provide the pipeline compiler and
+link dependencies. Syncd VS can consume `@sonic-dash//:sdk`,
+`:runtime`, `:runtime.debug_symbols` and `:runtime_packages.json`.
