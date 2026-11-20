@@ -1,3 +1,7 @@
+## Dependency refresh for `0.7.1.sonic.2`
+
+This candidate retains the `0.7.1.sonic.1` source and existing patches. Its module dependencies select the newest non-yanked versions published at `3d1cc5e8dfd553d2acbe4198e504a245e6bdbddf`. Versions introduced by this refresh are not dependency targets of the same refresh.
+
 # SONiC's shared ygot dependency
 
 Management-common's generator and runtime libraries use ygot 0.7.1 with the
@@ -116,3 +120,11 @@ tested configuration.
 - `0014` updates only the embedded gzip schema literals in the five generated-code
   goldens. Decompression matches the already-verified additive SONiC JSON
   metadata in `0006`; every byte outside those literals remains unchanged.
+
+## Go SDK compatibility
+
+The refreshed rules_go 0.65.0 dependency selects `golang.org/x/net` v0.59.0,
+whose `go.mod` requires Go 1.26.0. The module and standalone consumer therefore
+select Go 1.26.7, the toolchain declared by that exact rules_go release. This
+keeps the existing YGOT source, Go dependency declarations, patches and all
+26 selected tests intact; strict dependency validation remains enabled.
