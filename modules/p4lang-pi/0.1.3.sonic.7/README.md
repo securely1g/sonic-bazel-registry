@@ -1,3 +1,7 @@
+## Dependency refresh for `0.1.3.sonic.7`
+
+This candidate retains the `0.1.3.sonic.6` source and existing patches. Its module dependencies select the newest non-yanked versions published at `3d1cc5e8dfd553d2acbe4198e504a245e6bdbddf`. Versions introduced by this refresh are not dependency targets of the same refresh.
+
 # PI 0.1.3 native SONiC adaptation
 
 This module builds the fixed `p4lang-pi 0.1.3-2` source archive with native
