@@ -1,0 +1,16 @@
+load("@rules_python//python:py_test.bzl", "py_test")
+py_test(
+    name = "installation_layout_test",
+    srcs = ["installation_layout_test.py"],
+    args = [
+        "--source=$(rootpath @sonic-platform-daemons//:sonic-ledd/setup.py)",
+        "--runtime",
+        "$(rootpaths @sonic-platform-daemons//:daemons.runtime)",
+    ],
+    data = [
+        "@sonic-platform-daemons//:sonic-ledd/setup.py",
+        "@sonic-platform-daemons//:test_sources",
+        "@sonic-platform-daemons//:daemons.runtime",
+    ],
+    python_version = "3.13",
+)
