@@ -1,3 +1,7 @@
+## Dependency refresh for `0.16.0.sonic.2`
+
+This candidate retains the `0.16.0.sonic.1` source and existing patches. Its module dependencies select the newest non-yanked versions published at `3d1cc5e8dfd553d2acbe4198e504a245e6bdbddf`. Versions introduced by this refresh are not dependency targets of the same refresh.
+
 # Preserve dependency header classes in foreign Make builds
 
 The upstream Make/configure adapter emits dependency header paths as `-I`.
@@ -29,7 +33,9 @@ validation on 2026-10-21. Upstream definitions and attribution are preserved.
 The registry consumer uses declared Debian Trixie GCC14 and packaged Make, M4
 and pkg-config. Its fixture-only tool settings must be supplied; omission
 fails analysis instead of selecting ambient tools. The published module has
-no production dependency on SONiC infrastructure.
+no production dependency on SONiC infrastructure. The Make and CMake fixtures
+keep `PWD` at the physical build root while changing directories, following
+the published Distroless template-header fixture.
 
 Native tests build actual Make and CMake fixtures and a produced SDK. They
 check system-warning treatment, ordinary warnings remaining errors, quote

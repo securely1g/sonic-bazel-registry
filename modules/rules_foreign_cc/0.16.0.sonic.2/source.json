@@ -4,11 +4,12 @@
   "url": "https://github.com/bazel-contrib/rules_foreign_cc/releases/download/0.16.0/rules_foreign_cc-0.16.0.tar.gz",
   "patches": {
     "module_dot_bazel_version.patch": "sha256-C9sBvqWVY72BKfpnL9/UhMX4vQlUGY6o6Xwyt2jWKHc=",
-    "preserve-header-classes.patch": "sha256-xzc3Xgtn1w5NbiK7vR3h06zoBH6u/IpC90ax2gPdoao="
+    "preserve-header-classes.patch": "sha256-xzc3Xgtn1w5NbiK7vR3h06zoBH6u/IpC90ax2gPdoao=",
+    "0001-refresh-registry-dependencies.patch": "sha256-eyuxcZ+rVqgb9/u01x8C/8pmDgM1qn8oX+7uKU79WGw="
   },
   "patch_strip": 1,
   "overlay": {
-    "registry_ci/BUILD.bazel": "sha256-MJmay7b7POFppv9++fC+5ic+tXBwM23Jm2KWkbmuuH8=",
+    "registry_ci/BUILD.bazel": "sha256-kWEUjXqROXhV4DbWFtDd8NiNWKcTSrC0nXIotS7NztI=",
     "registry_ci/cmake_source/CMakeLists.txt": "sha256-Nz0tS4yOkfJkmMe5jEjnTp5dlLE4aut770RpvgrqbXY=",
     "registry_ci/cmake_source/paths.cc": "sha256-FY2OeAmZXkIKGAY0Li+o/ka/yCgDUYd+3m4D9bu+rEs=",
     "registry_ci/headers.bzl": "sha256-AhgYFFGzFIOTEdJuKpM9VkvTrQqJd53OeXRZDjLobto=",
