@@ -1,0 +1,180 @@
+diff --git a/meta/cap.pm b/meta/cap.pm
+index 24a2935..d00c0a0 100644
+--- a/meta/cap.pm
++++ b/meta/cap.pm
+@@ -39,13 +39,7 @@ sub GetCapabilityFiles
+ {
+     my $dir = shift;
+
+-    opendir(my $dh, $dir) or die "Can't opendir $dir: $!";
+-
+-    my @cap = grep { /^\w*\.cap$/ and -f "$dir/$_" } readdir($dh);
+-
+-    closedir $dh;
+-
+-    return sort @cap;
++    return GetFilesByRegex($dir, qr/^\w*\.cap$/);
+ }
+
+ sub GetVendorCapabilityFiles
+@@ -60,7 +54,7 @@ sub ReadCapFile
+
+     local $/ = undef;
+
+-    open FILE, $filename or die "Couldn't open file $filename: $!";
++    open FILE, DeclaredMetadataInput($filename) or die "Couldn't open file $filename: $!";
+
+     binmode FILE;
+
+diff --git a/meta/parse.pl b/meta/parse.pl
+index 70b2435..1e7b2c9 100755
+--- a/meta/parse.pl
++++ b/meta/parse.pl
+@@ -2550,9 +2550,8 @@ sub ProcessCustomObjectCount
+
+ sub ProcessSaiStatus
+ {
+-    my $filename = "../inc/saistatus.h";
+-
+-    open(my $fh, '<', $filename) or die "Could not open file '$filename' $!";
++    my $header = ReadHeaderFile("$INCLUDE_DIR/saistatus.h");
++    open(my $fh, "<", \$header) or die "Could not read saistatus.h: $!";
+
+     my @values = ();
+
+diff --git a/meta/style.pm b/meta/style.pm
+index d4e583b..0f8ca76 100644
+--- a/meta/style.pm
++++ b/meta/style.pm
+@@ -68,7 +68,7 @@ sub RunAspell
+
+     my $pid = eval {
+         open3("<&" . fileno($input), ">&" . fileno($output), ">&" . fileno($output),
+-            $aspell, "-l", "en", "-a", "-p", "./aspell.en.pws");
++            $aspell, "-l", "en", "-a", "-p", DeclaredMetadataInput("aspell.en.pws"));
+     };
+     if (not defined $pid)
+     {
+@@ -673,7 +673,7 @@ sub GetAcronyms
+
+     my $filename = "acronyms.txt";
+
+-    open FILE, $filename or die "Couldn't open file $filename: $!";
++    open FILE, DeclaredMetadataInput($filename) or die "Couldn't open file $filename: $!";
+
+     my @acronyms;
+
+diff --git a/meta/utils.pm b/meta/utils.pm
+index 7145433..2f7e0b8 100644
+--- a/meta/utils.pm
++++ b/meta/utils.pm
+@@ -29,6 +29,7 @@ use strict;
+ use warnings;
+ use diagnostics;
+ use Term::ANSIColor;
++use JSON::PP qw(decode_json);
+
+ require Exporter;
+
+@@ -168,12 +169,41 @@ sub WriteFile
+     close F;
+ }
+
++# @brief Resolve declared generator inputs when an input map is supplied.
++my $inputMap;
++if (defined $ENV{SAI_METADATA_INPUTS})
++{
++    open(my $manifest, '<', $ENV{SAI_METADATA_INPUTS})
++        or die "Couldn't open SAI metadata input map: $!";
++    local $/;
++    $inputMap = decode_json(<$manifest>);
++    close $manifest;
++}
++
++sub DeclaredMetadataInput
++{
++    my $file = shift;
++    return $file if not defined $inputMap;
++    return $inputMap->{"."}{$file} if exists $inputMap->{"."}{$file};
++
++    die "SAI metadata input '$file' is missing from the input map";
++}
++
++sub DeclaredFiles
++{
++    my ($dir, $regex) = @_;
++    my $files = $inputMap->{$dir} or die "Unknown SAI metadata input directory '$dir'";
++    return sort grep { /$regex/ } keys %{$files};
++}
++
+ sub GetHeaderFiles
+ {
+     my $dir = shift;
+
+     $dir = $main::INCLUDE_DIR if not defined $dir;
+
++    return DeclaredFiles($dir, qr/^sai\w*\.h$/) if defined $inputMap;
++
+     opendir(my $dh, $dir) or die "Can't opendir $dir: $!";
+
+     my @headers = grep { /^sai\w*\.h$/ and -f "$dir/$_" } readdir($dh);
+@@ -189,6 +219,8 @@ sub GetMetaSourceFiles
+
+     $dir = "." if not defined $dir;
+
++    return DeclaredFiles($dir, qr/^sai\w*\.(c|cpp)$/) if defined $inputMap;
++
+     opendir(my $dh, $dir) or die "Can't opendir $dir: $!";
+
+     my @sources = grep { /^sai\w*\.(c|cpp)$/ and -f "$dir/$_" } readdir($dh);
+@@ -219,6 +251,8 @@ sub GetFilesByRegex
+
+     $dir = $main::INCLUDE_DIR if not defined $dir;
+
++    return DeclaredFiles($dir, $regex) if defined $inputMap;
++
+     opendir(my $dh, $dir) or die "Can't opendir $dir: $!";
+
+     my @files = grep { /$regex/ and -f "$dir/$_" } readdir($dh);
+@@ -250,9 +284,29 @@ sub ReadHeaderFile
+
+     my $filename = $file;
+
+-    $filename = "$main::INCLUDE_DIR/$file" if not -e $filename;
+-    $filename = "$main::EXPERIMENTAL_DIR/$file" if not -e $filename;
+-    $filename = "$main::CUSTOM_DIR/$file" if not -e $filename;
++    if (defined $inputMap)
++    {
++        my ($dir, $name) = $file =~ m!^(.*/)/?([^/]+)$!;
++        if (defined $dir)
++        {
++            $dir =~ s!//+$!/!;
++            $filename = $inputMap->{$dir}{$name};
++        }
++        else
++        {
++            $filename = $inputMap->{"."}{$file}
++                // $inputMap->{$main::INCLUDE_DIR}{$file}
++                // $inputMap->{$main::EXPERIMENTAL_DIR}{$file}
++                // $inputMap->{$main::CUSTOM_DIR}{$file};
++        }
++        die "SAI header '$file' is missing from the input map" if not defined $filename;
++    }
++    else
++    {
++        $filename = "$main::INCLUDE_DIR/$file" if not -e $filename;
++        $filename = "$main::EXPERIMENTAL_DIR/$file" if not -e $filename;
++        $filename = "$main::CUSTOM_DIR/$file" if not -e $filename;
++    }
+
+     open FILE, $filename or die "Couldn't open file $filename: $!";
+
+@@ -628,7 +682,7 @@ BEGIN
+     our @ISA    = qw(Exporter);
+     our @EXPORT = qw/
+     LogDebug LogInfo LogWarning LogError
+-    WriteFile GetHeaderFiles GetMetaHeaderFiles GetExperimentalHeaderFiles GetCustomHeaderFiles GetMetadataSourceFiles ReadHeaderFile GetMetaSourceFiles
++    WriteFile GetHeaderFiles GetMetaHeaderFiles GetExperimentalHeaderFiles GetCustomHeaderFiles GetMetadataSourceFiles ReadHeaderFile GetMetaSourceFiles DeclaredMetadataInput GetFilesByRegex
+     GetNonObjectIdStructNames GetNonObjectIdStructNamesWithBulkApi IsSpecialObject GetStructLists GetStructKeysInOrder
+     Trim ExitOnErrors ExitOnErrorsOrWarnings ProcessEnumInitializers
+     WriteHeader WriteSource WriteTest WriteSwig WriteMetaDataFiles WriteSectionComment WriteSourceSectionComment
