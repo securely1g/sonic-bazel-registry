@@ -1,3 +1,7 @@
+## Dependency refresh for `5.34.3.sonic.2`
+
+This candidate retains the `5.34.3.sonic.1` source and existing patches. Its module dependencies select the newest non-yanked versions published at `3d1cc5e8dfd553d2acbe4198e504a245e6bdbddf`. Versions introduced by this refresh are not dependency targets of the same refresh.
+
 # Monit 5.34.3 SONiC native module
 
 Build the Debian 1:5.34.3-1 source with its four Debian patches and the original
