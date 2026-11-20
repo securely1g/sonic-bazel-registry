@@ -1,8 +1,11 @@
-Subject: Pin the registered FIPS libedit metadata source revision
+From: Guohan Lu <securely1g@gmail.com>
+Subject: [PATCH] Register the merged sonic-fips source commit
 
-Add the exact source commit to the module version so registry consumers
-select the reviewed OpenSSH declared-metadata snapshot without changing
-its build declarations, dependencies or public targets.
+Qualify the exact merged source module identity. Preserve all dependency
+declarations from the source owner; unmerged refresh changes are deferred.
+
+Source commit: 1a8daf8dd8a3ad54de0e91a55b46fd5bbd206763
+Scope: downstream registry integration; not an upstream bug fix.
 
 --- a/MODULE.bazel
 +++ b/MODULE.bazel
@@ -10,7 +13,7 @@ its build declarations, dependencies or public targets.
  module(
      name = "sonic-fips",
 -    version = "0.0.6",
-+    version = "0.0.6-18a778db501d455f8a1b6d1e3ef8e17121661177",
++    version = "0.0.6-1a8daf8dd8a3ad54de0e91a55b46fd5bbd206763",
      bazel_compatibility = [
          ">=8.5.1",
          "<=8.5.1",

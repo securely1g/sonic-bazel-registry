@@ -1,30 +1,14 @@
-# SONiC FIPS runtime and debug TARs
+# Register merged sonic-fips sources
 
-This version registers the merged OpenSSH libedit metadata fix from
-[sonic-fips #21](https://github.com/securely1g/sonic-fips/pull/21).
-The OpenSSH configure step queries the declared libedit pkg-config metadata
-while keeping the source-built OpenSSL 3.5.7 headers ahead of the SDK's generic
-include directory. Libedit's own include and library flags remain available
-to the feature and link probes.
+Source: [securely1g/sonic-fips@1a8daf8d](https://github.com/securely1g/sonic-fips/commit/1a8daf8dd8a3ad54de0e91a55b46fd5bbd206763).
 
-The source archive is pinned to
-[18a778db](https://github.com/securely1g/sonic-fips/commit/18a778db501d455f8a1b6d1e3ef8e17121661177).
-The registry patch appends this commit to the upstream module version. The
-registered build and test targets are listed in [presubmit.json](presubmit.json).
-Both native AMD64 and ARM64 consumers build the OpenSSL, OpenSSH, Kerberos and
-SymCrypt outputs and run the package, timestamp and OpenSSL integration tests.
+This entry uses the latest maintained-branch commit captured on 2026-11-18. It preserves the owner module base `0.0.6` and its dependency declarations. The registry qualifies the version with the full source commit and retains existing compatible consumer tests and registry adaptations.
 
-## ARM64 cross-validation
+The following declaration updates remain deferred because they have not landed in this source owner:
 
-The registry presubmit retains all 18 build targets and six package tests.
-On AMD64-to-ARM64 runs, Kerberos measures its three configure answers with
-the selected target compiler and ARM runtime. All original OpenSSL recipes
-use target Perl. Only `30-test_afalg.t` invokes the worker's ARM64 kernel
-executor for Linux native asynchronous I/O. The guest's development packages
-supply zlib and Zstandard for the original static SDK consumer.
+| Dependency | Merged owner selection | Deferred refresh selection |
+|---|---|---|
+| rules_distroless | `0.9.4.sonic.20` | `0.9.4.sonic.22` |
+| sonic-build-infra | `0.0.37-316e298e77ab5cfa69af9b0c05ec24d5d94bbe1e` | `0.0.38-0baa4acc9eac9ccc793b81104b1580d530271cbe` |
 
-This route uses the worker's corrected userspace executor, ARM compression
-development packages and explicit kernel executor. See
-[worker #92](https://github.com/securely1g/agi-projects/pull/92),
-[worker #93](https://github.com/securely1g/agi-projects/pull/93) and
-[worker #94](https://github.com/securely1g/agi-projects/pull/94).
+Archive integrity, complete patch application, overlay checksums and module identity were checked locally. This preparation does not claim a completed Bazel build or passing CI.
