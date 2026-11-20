@@ -3,7 +3,8 @@
   "strip_prefix": "",
   "url": "https://github.com/bazel-contrib/bazel-gazelle/releases/download/v0.54.0/bazel-gazelle-v0.54.0.tar.gz",
   "patches": {
-    "0001-go-module-zip-cache.patch": "sha256-O7Zdpd0z9d3H2nEpYnyW2rkS5S43S+ST38OmRYCUoEo="
+    "0001-go-module-zip-cache.patch": "sha256-O7Zdpd0z9d3H2nEpYnyW2rkS5S43S+ST38OmRYCUoEo=",
+    "0002-refresh-registry-dependencies.patch": "sha256-r43pBpEebUs2GQd1O8AB2dRhVP5kD3Jq4PmIc4a/Ui0="
   },
   "patch_strip": 1
 }

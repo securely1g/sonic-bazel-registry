@@ -32,3 +32,11 @@ separately for the candidate.
 
 The GOPROXY URL regression follows https://go.dev/ref/mod#goproxy-protocol.
 The patch is maintained here and has not been submitted upstream.
+
+## Revision .2: refresh registry dependencies
+
+`0002-refresh-registry-dependencies.patch` aligns the module identity with
+`0.54.0.sonic.2` and updates `rules_go` from `0.59.0` to `0.65.0.sonic.1`, the
+latest non-yanked version published in registry snapshot `3d1cc5e8`.
+This is downstream registry integration, not an upstream bug fix. The inherited
+module ZIP caching patch remains unchanged.
