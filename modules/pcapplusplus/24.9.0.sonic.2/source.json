@@ -9,6 +9,6 @@
   "overlay": {
     "dhcp_port_contract_test.cpp": "sha256-AvC3SrGClCY/DyO/XyDt7nhxrnNBFTmpM39oGC4Osz8=",
     "BUILD.bazel": "sha256-L1TOZmL5Cz7U3hEui1cl7RA4pZ0eqY0b6vwQUqx20bM=",
-    "MODULE.bazel": "sha256-NjUKR9A6mgMKJznI7H6+EVz24tnKE5BpSyUxRIzzKN8="
+    "MODULE.bazel": "sha256-H9JbINt/eGSJJgzcBAzxEVSiPGI+ocw0Wg7dTP8j650="
   }
 }
