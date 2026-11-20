@@ -1,3 +1,7 @@
+## Dependency refresh for `1.15.0.sonic.6`
+
+This candidate retains the `1.15.0.sonic.5` source and existing patches. Its module dependencies select the newest non-yanked versions published at `3d1cc5e8dfd553d2acbe4198e504a245e6bdbddf`. Versions introduced by this refresh are not dependency targets of the same refresh.
+
 # Native BMv2 for SONiC
 
 Builds the fixed BMv2 1.15.0-9 input from `src/p4lang/Makefile` with native Bazel C/C++ rules. The ordered source preparation applies Debian’s series and all three SONiC patches. PI is consumed through the native `p4lang-pi@0.1.3.sonic.6` public libraries. System libraries and execution tools share the existing production APT lock.
