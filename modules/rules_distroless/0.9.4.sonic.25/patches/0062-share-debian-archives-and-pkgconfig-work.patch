@@ -1,0 +1,922 @@
+Subject: [PATCH] Share locked Debian archives and streamline pkg-config discovery
+
+diff --git a/MODULE.bazel b/MODULE.bazel
+index c2475ff..0833326 100644
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -36,6 +36,8 @@ use_repo(tar_toolchains, "bsd_tar_toolchains")
+ 
+ native_tools = use_repo_rule("//apt/private:native_tools.bzl", "native_tools_repository")
+ native_tools(name = "distroless_native_tools")
++tools_lock = use_repo_rule("//apt/private:native_tools.bzl", "native_tools_lock")
++tools_lock(name = "distroless_native_tools_lock")
+ 
+ # The account merger runs on the execution platform, never in the base image.
+ python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+diff --git a/apt/private/deb_archive.bzl b/apt/private/deb_archive.bzl
+new file mode 100644
+index 0000000..762bc9c
+--- /dev/null
++++ b/apt/private/deb_archive.bzl
+@@ -0,0 +1,66 @@
++"""Prepare immutable DEB archive members independently of package consumers."""
++
++def _archive_impl(ctx):
++    ctx.download(ctx.attr.urls, "package.deb", sha256 = ctx.attr.sha256)
++    ctx.extract("package.deb")
++    files = sorted([p.basename for p in ctx.path(".").readdir() if p.basename != "package.deb"])
++    data = [name for name in files if name.startswith("data.tar")]
++    if len(data) != 1:
++        fail("DEB must contain exactly one data archive: " + str(data))
++    ctx.file("members.json", json.encode({"files": files, "data": data[0]}))
++    ctx.file("BUILD.bazel", """
++load("@rules_distroless//apt/private:deb_postfix.bzl", "deb_postfix")
++
++package(default_visibility = ["//visibility:public"])
++exports_files(["members.json", "package.deb"] + {files})
++filegroup(name = "deb", srcs = ["package.deb"])
++filegroup(name = "raw_data", srcs = [{data}])
++filegroup(name = "control", srcs = {control})
++deb_postfix(name = "data", srcs = [{data}], outs = ["content.tar.gz"], mergedusr = False)
++""".format(files = repr(files), data = repr(data[0]), control = repr([name for name in files if name.startswith("control.tar.")])))
++
++
++deb_archive = repository_rule(
++    implementation = _archive_impl,
++    attrs = {
++        "urls": attr.string_list(mandatory = True, allow_empty = False),
++        "sha256": attr.string(mandatory = True),
++    },
++)
++
++def archive_name(sha256):
++    return "apt_archive_" + sha256
++
++def archive_members(ctx, label):
++    manifest = ctx.path(label)
++    return manifest.dirname, json.decode(ctx.read(manifest))
++
++def _is_native_file(path):
++    base = path.rsplit("/", 1)[-1]
++    return base.endswith(".so") or ".so." in base or base.endswith(".a") or base.endswith(".ld") or base.endswith(".lds")
++
++def _contents_impl(ctx):
++    root, members = archive_members(ctx, ctx.attr.archive)
++    data = root.get_child(members["data"])
++    listing = ctx.execute(["tar", "-tvf", data])
++    if listing.return_code:
++        fail(listing.stderr)
++    ctx.file("listing.txt", listing.stdout)
++    selected = {}
++    for line in listing.stdout.splitlines():
++        if " ./" not in line or " -> " in line or line.endswith("/"):
++            continue
++        member = line.split(" ./", 1)[1]
++        if member.endswith(".pc") or _is_native_file(member):
++            selected[member] = True
++    ctx.file("_extracted/.keep", "")
++    if selected:
++        extract = ctx.execute(["tar", "-xf", data, "-C", ctx.path("_extracted")] + ["./" + name for name in selected])
++        if extract.return_code:
++            fail(extract.stderr)
++    ctx.file("BUILD.bazel", 'exports_files(["listing.txt"], visibility = ["//visibility:public"])\n')
++
++deb_contents = repository_rule(
++    implementation = _contents_impl,
++    attrs = {"archive": attr.label(mandatory = True)},
++)
+diff --git a/apt/private/deb_filemap.bzl b/apt/private/deb_filemap.bzl
+index efab711..ecbe999 100644
+--- a/apt/private/deb_filemap.bzl
++++ b/apt/private/deb_filemap.bzl
+@@ -1,5 +1,6 @@
+ """Cycle-free package inventories, pkg-config documents and native ELF metadata."""
+ 
++load(":deb_archive.bzl", "archive_members")
+ load(":native_tools.bzl", "catalog_execute")
+ load(":pkgconfig.bzl", "direct_requirements")
+ 
+@@ -31,19 +32,30 @@ def _deb_filemap_impl(rctx):
+     rctx.file("filemap.json", rctx.attr.files)
+     metadata = {}
+     native = {}
+-    pc_files = [path for path in files if path.endswith(".pc")]
+-    native_files = [path for path in files if _native_path(path)]
++    pc_files = {path: True for path in files if path.endswith(".pc")}
++    native_files = {path: True for path in files if _native_path(path)}
+     if (pc_files or native_files) and rctx.attr.urls:
+-        rctx.download(url = rctx.attr.urls, sha256 = rctx.attr.sha256, output = "package.deb")
+-        rctx.extract("package.deb")
+-        archives = [path for path in rctx.path(".").readdir() if path.basename.startswith("data.tar")]
+-        if len(archives) != 1:
+-            fail("DEB must contain exactly one data archive")
+-        listing = rctx.execute(["tar", "-tvf", str(archives[0])])
+-        if listing.return_code:
+-            fail(listing.stderr)
++        inspect = rctx.path("_inspect")
++        if rctx.attr.archive:
++            root, archive = archive_members(rctx, rctx.attr.archive)
++            data = root.get_child(archive["data"])
++            contents = rctx.path(rctx.attr.contents)
++            inspect = contents.dirname.get_child("_extracted")
++            listing = rctx.read(contents)
++        else:
++            rctx.download(url = rctx.attr.urls, sha256 = rctx.attr.sha256, output = "package.deb")
++            rctx.extract("package.deb")
++            archives = [path for path in rctx.path(".").readdir() if path.basename.startswith("data.tar")]
++            if len(archives) != 1:
++                fail("DEB must contain exactly one data archive")
++            data = archives[0]
++            result = rctx.execute(["tar", "-tvf", data])
++            if result.return_code:
++                fail(result.stderr)
++            listing = result.stdout
+         members = {}
+-        for entry in listing.stdout.splitlines():
++        repeated_pc = {}
++        for entry in listing.splitlines():
+             if " ./" not in entry:
+                 continue
+             entry = entry.split(" ./", 1)[1]
+@@ -55,22 +67,29 @@ def _deb_filemap_impl(rctx):
+                 if path in native_files:
+                     native[path] = record
+             elif entry in pc_files or entry in native_files:
++                if entry in members and entry in pc_files:
++                    repeated_pc[entry] = True
+                 members[entry] = "./" + entry
+-        selected_native = [path for path in members if path in native_files]
+-        if selected_native:
++        # Retain tar's concatenation semantics for duplicate .pc members.
++        selected = [member for path, member in members.items() if path in native_files or path not in repeated_pc]
++        if selected and not rctx.attr.contents:
+             rctx.file("_inspect/.keep", "")
+-            unpack = rctx.execute(["tar", "-xf", str(archives[0]), "-C", str(rctx.path("_inspect"))] + [members[path] for path in selected_native])
++            unpack = rctx.execute(["tar", "-xf", data, "-C", str(rctx.path("_inspect"))] + selected)
+             if unpack.return_code:
+                 fail(unpack.stderr)
+         for path, member in members.items():
+             if path in pc_files:
+-                result = rctx.execute(["tar", "-xOf", str(archives[0]), member])
+-                if result.return_code:
+-                    fail(result.stderr)
+-                metadata[path] = {"content": result.stdout, "direct_requirements": direct_requirements(rctx, path, result.stdout)}
++                if path in repeated_pc:
++                    result = rctx.execute(["tar", "-xOf", data, member])
++                    if result.return_code:
++                        fail(result.stderr)
++                    content = result.stdout
++                else:
++                    content = rctx.read(inspect.get_child(path))
++                metadata[path] = {"content": content, "direct_requirements": direct_requirements(rctx, path, content)}
+             if path not in native_files:
+                 continue
+-            extracted = "_inspect/" + path
++            extracted = inspect.get_child(path)
+             kind = catalog_execute(rctx, "file", ["--mime-type", "-b", extracted])
+             if kind.stdout.strip().startswith("text/"):
+                 native[path] = {"script": rctx.read(extracted)}
+@@ -110,6 +129,9 @@ deb_filemap = repository_rule(
+     implementation = _deb_filemap_impl,
+     attrs = {
+         "files": attr.string(),
++        "archive": attr.label(),
++        "native_tools": attr.label(),
++        "contents": attr.label(),
+         "urls": attr.string_list(),
+         "sha256": attr.string(),
+     },
+diff --git a/apt/private/deb_import.bzl b/apt/private/deb_import.bzl
+index f84c09d..ade8d17 100644
+--- a/apt/private/deb_import.bzl
++++ b/apt/private/deb_import.bzl
+@@ -1,5 +1,6 @@
+ "deb_import"
+ 
++load(":deb_archive.bzl", "archive_members")
+ load(":native_tools.bzl", "catalog_execute")
+ 
+ load("//apt/private:headers.bzl", "complete_header_parents", "expand_directory_aliases", "is_include_fragment")
+@@ -557,21 +558,27 @@ def _linker_scripts(rctx, extract_dir, so_regular_files, self_files, depends_fil
+ def _pc_installed_path(path):
+     return resolve_symlink("_", path)
+ 
+-def _pc_library(rctx, libname, mode, paths, own_files, depends_file_map, archive_only = False):
+-    names = [libname[4:]] if libname.startswith("lib:") else [libname + suffix for suffix in ([".a"] if archive_only else ([".a", ".so"] if mode == "static" else [".so", ".a"]))]
+-    candidates = {path: rctx.attr.name for path in own_files if path.rsplit("/", 1)[-1] in names}
++def _pc_file_lookup(owner, own_files, depends_file_map):
++    by_name = {}
++    for path in own_files:
++        by_name.setdefault(path.rsplit("/", 1)[-1], {})[path] = owner
+     for path, repo in depends_file_map.items():
+-        if path.rsplit("/", 1)[-1] in names:
+-            candidates.setdefault(path, repo)
++        by_name.setdefault(path.rsplit("/", 1)[-1], {}).setdefault(path, repo)
++    return struct(owner = owner, own_files = own_files, dependencies = depends_file_map, by_name = by_name, directories = {})
++
++def _pc_library(libname, mode, paths, lookup, archive_only = False):
++    names = [libname[4:]] if libname.startswith("lib:") else [libname + suffix for suffix in ([".a"] if archive_only else ([".a", ".so"] if mode == "static" else [".so", ".a"]))]
+     # GNU ld visits each search directory before trying the next directory.
+     for directory in paths:
+         for name in names:
+             path = _pc_installed_path(directory) + "/" + name
++            candidates = lookup.by_name.get(name, {})
+             if path in candidates:
+                 owner = candidates[path]
+                 return struct(target = "@@%s//:%s" % (owner, _file_library_name(path)), file = "@@%s//:%s" % (owner, path), repo = owner, path = path, error = "")
+     for name in names:
+-        matches = [path for path in candidates if path.rsplit("/", 1)[-1] == name]
++        candidates = lookup.by_name.get(name, {})
++        matches = candidates.keys()
+         if len(matches) == 1:
+             path = matches[0]
+             owner = candidates[path]
+@@ -580,19 +587,26 @@ def _pc_library(rctx, libname, mode, paths, own_files, depends_file_map, archive
+             return struct(target = None, file = None, repo = None, path = None, error = "Ambiguous pkg-config library %s: %s" % (libname, matches))
+     return struct(target = None, file = None, repo = None, path = None, error = "")
+ 
+-def _pc_include_dirs(rctx, includes, own_files, depends_file_map):
++def _pc_include_dirs(includes, lookup):
+     directories = {}
+     for include in includes:
+         installed = _pc_installed_path(include)
+-        owners = {rctx.attr.name: True for path in own_files if path.startswith(installed + "/")}
+-        for path, repo in depends_file_map.items():
+-            if path.startswith(installed + "/"):
+-                owners[repo] = True
+-        for repo in owners:
+-            directories["$(BINDIR)/external/" + repo + "/" + installed] = True
++        if installed not in lookup.directories:
++            prefix = installed + "/"
++            owners = {}
++            for path in lookup.own_files:
++                if path.startswith(prefix):
++                    owners[lookup.owner] = True
++                    break
++            for path, repo in lookup.dependencies.items():
++                if path.startswith(prefix):
++                    owners[repo] = True
++            lookup.directories[installed] = ["$(BINDIR)/external/" + repo + "/" + installed for repo in owners]
++        for directory in lookup.directories[installed]:
++            directories[directory] = True
+     return directories.keys()
+ 
+-def _pc_compile_fields(rctx, flags, own_files, depends_file_map):
++def _pc_compile_fields(flags, lookup):
+     normal = []
+     system = []
+     quote = []
+@@ -617,74 +631,87 @@ def _pc_compile_fields(rctx, flags, own_files, depends_file_map):
+             unsupported.append(flag)
+     if pending:
+         unsupported.append(pending + " (missing operand)")
+-    return struct(normal = _pc_include_dirs(rctx, normal, own_files, depends_file_map), system = _pc_include_dirs(rctx, system, own_files, depends_file_map), quote = _pc_include_dirs(rctx, quote, own_files, depends_file_map), defines = defines, unsupported = unsupported)
++    return struct(normal = _pc_include_dirs(normal, lookup), system = _pc_include_dirs(system, lookup), quote = _pc_include_dirs(quote, lookup), defines = defines, unsupported = unsupported)
++
++def _pc_link_fields(flags, mode, lookup, state):
++    error = ""
++    deps = []
++    link_files = []
++    sonames = []
++    empty_archives = []
++    arguments = []
++    pending = False
++    selection = (mode, False)
++    selection_stack = []
++    for token in flags.get("libs", []):
++        if token == "-Wl,--push-state":
++            selection_stack.append(selection)
++        elif token == "-Wl,--pop-state":
++            if selection_stack:
++                selection = selection_stack.pop()
++        elif token in ["-Wl,-Bstatic", "-Wl,-dn", "-Wl,-non_shared", "-static"]:
++            selection = ("static", True)
++        elif token in ["-Wl,-Bdynamic", "-Wl,-dy", "-Wl,-call_shared"]:
++            selection = ("dynamic", False)
++        if token == "-L":
++            pending = True
++            continue
++        if pending or token.startswith("-L"):
++            directory = token if pending else token[2:]
++            pending = False
++            arguments.extend(["-L" + mapped for mapped in _pc_include_dirs([directory], lookup)])
++            arguments.append("-Wl,-rpath=" + directory)
++            continue
++        literal = not token.startswith("-") and (any([token.endswith(suffix) for suffix in [".a", ".so", ".o", ".ld", ".lds"]]) or ".so." in token.rsplit("/", 1)[-1])
++        if token.startswith("-l") or literal:
++            libname = "lib:" + token.rsplit("/", 1)[-1] if literal else "lib" + token[2:]
++            paths = ([token.rsplit("/", 1)[0]] if literal and "/" in token else []) + flags["link_paths"]
++            result = _pc_library(libname, selection[0], paths, lookup, archive_only = selection[1])
++            if result.error:
++                error = result.error
++            elif result.target:
++                if result.target not in deps:
++                    deps.append(result.target)
++                if result.file not in link_files:
++                    link_files.append(result.file)
++                    identity = _native_canonical(result.repo, result.path, state)
++                    record = state["native"].get(identity[0], {}).get(identity[1], {}) if identity else {}
++                    sonames.append(record.get("soname", identity[1].rsplit("/", 1)[-1]) if identity and "needed" in record else "")
++                    if record.get("empty_archive", False):
++                        empty_archives.append(result.file)
++                arguments.append("$FILE:" + str(link_files.index(result.file)))
++                continue
++        arguments.append(token)
++    return struct(error = error, deps = deps, files = link_files, sonames = sonames, empty_archives = empty_archives, arguments = arguments)
+ 
+-def _pc_module_content(rctx, modules, own_files, hdrs, header_deps, depends_file_map, state):
++def _pc_module_content(modules, hdrs, header_deps, lookup, state):
+     content = ""
+     exports = {}
+     for name, definition in modules.items():
++        strict = {}
+         for compatible in [False, True]:
+             for mode, flags in definition["compat_modes" if compatible else "modes"].items():
+                 target = ("_pkgconfig_compat/" if compatible else "pkgconfig/") + name + ("/static" if mode == "static" else "")
+                 if not compatible:
+                     exports[target] = target
+                 error = flags.get("error", "")
+-                compile = _pc_compile_fields(rctx, flags, own_files, depends_file_map)
++                if compatible and definition["modes"].get(mode) == flags:
++                    variant = strict[mode]
++                else:
++                    variant = struct(compile = _pc_compile_fields(flags, lookup), link = _pc_link_fields(flags, mode, lookup, state))
++                    if not compatible:
++                        strict[mode] = variant
++                compile = variant.compile
+                 if compile.unsupported and not compatible:
+                     error = "pkg-config module %s: CcInfo cannot propagate these compiler options: %s. Use the original :pkgconfig metadata with a consumer that accepts compiler flags." % (name, compile.unsupported)
+-                deps = []
+-                link_files = []
+-                sonames = []
+-                empty_archives = []
+-                arguments = []
+-                pending = False
+-                selection = (mode, False)
+-                selection_stack = []
+-                for token in flags.get("libs", []):
+-                    if token == "-Wl,--push-state":
+-                        selection_stack.append(selection)
+-                    elif token == "-Wl,--pop-state":
+-                        if selection_stack:
+-                            selection = selection_stack.pop()
+-                    elif token in ["-Wl,-Bstatic", "-Wl,-dn", "-Wl,-non_shared", "-static"]:
+-                        selection = ("static", True)
+-                    elif token in ["-Wl,-Bdynamic", "-Wl,-dy", "-Wl,-call_shared"]:
+-                        selection = ("dynamic", False)
+-                    if token == "-L":
+-                        pending = True
+-                        continue
+-                    if pending or token.startswith("-L"):
+-                        directory = token if pending else token[2:]
+-                        pending = False
+-                        arguments.extend(["-L" + mapped for mapped in _pc_include_dirs(rctx, [directory], own_files, depends_file_map)])
+-                        arguments.append("-Wl,-rpath=" + directory)
+-                        continue
+-                    literal = not token.startswith("-") and (any([token.endswith(suffix) for suffix in [".a", ".so", ".o", ".ld", ".lds"]]) or ".so." in token.rsplit("/", 1)[-1])
+-                    if token.startswith("-l") or literal:
+-                        libname = "lib:" + token.rsplit("/", 1)[-1] if literal else "lib" + token[2:]
+-                        paths = ([token.rsplit("/", 1)[0]] if literal and "/" in token else []) + flags["link_paths"]
+-                        result = _pc_library(rctx, libname, selection[0], paths, own_files, depends_file_map, archive_only = selection[1])
+-                        if result.error:
+-                            error = result.error
+-                        elif result.target:
+-                            if result.target not in deps:
+-                                deps.append(result.target)
+-                            if result.file not in link_files:
+-                                link_files.append(result.file)
+-                                identity = _native_canonical(result.repo, result.path, state)
+-                                record = state["native"].get(identity[0], {}).get(identity[1], {}) if identity else {}
+-                                sonames.append(record.get("soname", identity[1].rsplit("/", 1)[-1]) if identity and "needed" in record else "")
+-                                if record.get("empty_archive", False):
+-                                    empty_archives.append(result.file)
+-                            arguments.append("$FILE:" + str(link_files.index(result.file)))
+-                            continue
+-                    arguments.append(token)
++                link = variant.link
++                error = link.error or error
+                 if error:
+                     content += 'invalid_native_library(name=%r, message=%r, visibility=["//visibility:public"])\n' % (target, error)
+                     continue
+                 compiler = "_pkgconfig_compile_" + util.encode_target(target)
+                 content += 'cc_deb_library(name=%r, hdrs=%r, deps=%r, includes=%r, include_dirs=%r, quote_includes=%r, defines=%r)\n' % (compiler, hdrs, header_deps, [] if compatible else compile.normal, compile.system + compile.normal if compatible else compile.system, compile.quote, compile.defines)
+-                content += 'native_link_sequence(name=%r, deps=%r, link_files=%r, link_sonames=%r, empty_archives=%r, arguments=%r, header_only=%r, visibility=["//visibility:public"])\n' % (target, deps + [":" + compiler], link_files, sonames, empty_archives, arguments, mode == "dynamic" and not flags.get("libs", []))
++                content += 'native_link_sequence(name=%r, deps=%r, link_files=%r, link_sonames=%r, empty_archives=%r, arguments=%r, header_only=%r, visibility=["//visibility:public"])\n' % (target, link.deps + [":" + compiler], link.files, link.sonames, link.empty_archives, link.arguments, mode == "dynamic" and not flags.get("libs", []))
+     return content, exports
+ 
+ def _discover_contents(rctx, depends_on, depends_file_map, target_name, state):
+@@ -694,10 +721,15 @@ def _discover_contents(rctx, depends_on, depends_file_map, target_name, state):
+     if len(archives) != 1:
+         fail("DEB must contain exactly one data archive: " + str(archives))
+     data_archive = str(archives[0])
+-    result = rctx.execute(["tar", "--exclude='./**/'", "-tvf", data_archive])
+-    if result.return_code:
+-        fail("cannot inspect DEB data archive: " + result.stderr)
+-    contents_raw = result.stdout.splitlines()
++    if rctx.attr.contents:
++        contents = rctx.path(rctx.attr.contents)
++        contents_raw = rctx.read(contents).splitlines()
++        rctx.symlink(contents.dirname.get_child(_EXTRACT_DIR), _EXTRACT_DIR)
++    else:
++        result = rctx.execute(["tar", "--exclude='./**/'", "-tvf", data_archive])
++        if result.return_code:
++            fail("cannot inspect DEB data archive: " + result.stderr)
++        contents_raw = result.stdout.splitlines()
+ 
+     so_files = []
+     a_files = []
+@@ -816,7 +848,7 @@ def _discover_contents(rctx, depends_on, depends_file_map, target_name, state):
+     # - regular `.so` and `.a` files because either may be GNU ld scripts,
+     # - pkgconfig files because we need them to generate cc targets.
+     files_to_extract = so_regular_files + a_regular_files + pc_files
+-    if files_to_extract:
++    if files_to_extract and not rctx.attr.contents:
+         rctx.execute(["mkdir", "-p", _EXTRACT_DIR])
+         rctx.execute(
+             ["tar", "-xf", data_archive, "-C", _EXTRACT_DIR] +
+@@ -960,6 +992,7 @@ so_library(
+     default_names = primary_names[:1] if primary_names else pc_modules.keys()
+     # The legacy package interface keeps its aggregate libraries. Only the
+     # matching default module supplies options; unrelated variants stay raw.
++    lookup = _pc_file_lookup(rctx.attr.name, self_files, depends_file_map) if pc_modules else None
+     if pc_modules:
+         includes = []
+         link_paths = []
+@@ -978,7 +1011,7 @@ so_library(
+                 shared_options.setdefault(libname, pkgc)
+                 if libname in default_libraries:
+                     continue
+-                result = _pc_library(rctx, libname, "dynamic", pkgc.link_paths, self_files, depends_file_map)
++                result = _pc_library(libname, "dynamic", pkgc.link_paths, lookup)
+                 if result.target and result.target not in additional:
+                     additional.append(result.target)
+                 elif result.error or not result.target:
+@@ -1099,19 +1132,24 @@ hdrs_library(
+         state,
+     )
+     build_file_content += shared_content
+-    module_content, module_exports = _pc_module_content(rctx, pc_modules, self_files, h_files + hpp_files + hpp_files_woext, header_deps, depends_file_map, state)
++    module_content, module_exports = _pc_module_content(pc_modules, h_files + hpp_files + hpp_files_woext, header_deps, lookup, state)
+     build_file_content += module_content
+     shared_exports.update(module_exports)
+     return (build_file_content, outs, symlinks, linker_scripts, self_symlinks, shared_exports)
+ 
+ def _deb_import_impl(rctx):
+     # Retain the verified original archive for real dpkg installation.
+-    rctx.download(
+-        url = rctx.attr.urls,
+-        sha256 = rctx.attr.sha256,
+-        output = "package.deb",
+-    )
+-    rctx.extract("package.deb")
++    if rctx.attr.archive:
++        root, archive = archive_members(rctx, rctx.attr.archive)
++        for name in ["package.deb"] + archive["files"]:
++            rctx.symlink(root.get_child(name), name)
++    else:
++        rctx.download(
++            url = rctx.attr.urls,
++            sha256 = rctx.attr.sha256,
++            output = "package.deb",
++        )
++        rctx.extract("package.deb")
+ 
+     if rctx.attr.payload_only:
+         rctx.file("BUILD.bazel", _DEB_ARCHIVES_BUILD_TMPL.format(
+@@ -1164,6 +1202,9 @@ deb_import = repository_rule(
+     implementation = _deb_import_impl,
+     attrs = {
+         "package_key": attr.string(),
++        "archive": attr.label(),
++        "native_tools": attr.label(),
++        "contents": attr.label(),
+         "package_catalog": attr.label(),
+         "own_filemap": attr.label(doc = "Leaf package and pkg-config metadata."),
+         "module_metadata": attr.label(doc = "Internal completed SDK module metadata; legacy callers may omit it."),
+diff --git a/apt/private/locked_import.bzl b/apt/private/locked_import.bzl
+index 9879158..197ad1b 100644
+--- a/apt/private/locked_import.bzl
++++ b/apt/private/locked_import.bzl
+@@ -1,3 +1,5 @@
++load(":native_tools.bzl", "native_tools_packages", "native_tools_repository")
++load(":deb_archive.bzl", "archive_name", "deb_archive", "deb_contents")
+ """Import reviewed runtime package graphs through the existing APT repositories."""
+ 
+ load(":configuration.bzl", "export_lock_repository", "requests_document", "selected_lock_tags")
+@@ -222,11 +224,36 @@ def declare_locked_imports(mctx, existing_sets, installs = [], source_document =
+     }
+     catalog_name = package_catalog_name(imported, groups.keys())
+     package_catalog_repository(name = catalog_name, content = json.encode(package_catalog(imported)))
++    archives = {}
++    content_repositories = {}
++    for key, package in imported.items():
++        checksum = package["sha256"]
++        name = archive_name(checksum)
++        urls = [uri.rstrip("/") + "/" + package["filename"] for uri in document["sources"][package["suite"]]["uris"]]
++        if name not in archives:
++            archives[name] = {}
++        archives[name].update({url: True for url in urls})
++        if key in libraries:
++            content_repositories[name] = True
++    tools = {}
++    if libraries:
++        tool_lock = json.decode(mctx.read(Label("@distroless_native_tools_lock//:apt.lock.json")))
++        for key in native_tools_packages(mctx.os, tool_lock):
++            package = tool_lock["packages"][key]
++            name = archive_name(package["sha256"])
++            urls = [uri.rstrip("/") + "/" + package["filename"] for uri in tool_lock["sources"][package["suite"]]["uris"]]
++            archives.setdefault(name, {}).update({url: True for url in urls})
++            tools["@%s//:members.json" % name] = key
++        native_tools_repository(name = "apt_native_tools", archives = tools)
++    for name, urls in archives.items():
++        deb_archive(name = name, sha256 = name.removeprefix("apt_archive_"), urls = urls.keys())
++    for name in content_repositories:
++        deb_contents(name = name + "_contents", archive = "@%s//:members.json" % name)
+     for key in libraries:
+         package = imported[key]
+         if type(package.get("files")) != "list" or any([type(path) != "string" or path.startswith("/") or ".." in path.split("/") for path in package["files"]]):
+             fail("library import requires a locked package file map: " + key)
+-        deb_filemap(name = util.sanitize(key) + "_filemap", files = json.encode(package["files"]), urls = [uri.rstrip("/") + "/" + package["filename"] for uri in document["sources"][package["suite"]]["uris"]], sha256 = package["sha256"])
++        deb_filemap(name = util.sanitize(key) + "_filemap", native_tools = "@apt_native_tools//:ROOT", archive = "@%s//:members.json" % archive_name(package["sha256"]), contents = "@%s_contents//:listing.txt" % archive_name(package["sha256"]), files = json.encode(package["files"]), urls = [uri.rstrip("/") + "/" + package["filename"] for uri in document["sources"][package["suite"]]["uris"]], sha256 = package["sha256"])
+     metadata_names = {}
+     metadata_keys = [key for key in libraries if any([path.endswith(".pc") for path in imported[key]["files"]])]
+     # Append dependency-only contexts after own-PC contexts to preserve the
+@@ -258,6 +285,9 @@ def declare_locked_imports(mctx, existing_sets, installs = [], source_document =
+             sha256 = package["sha256"],
+             package_name = package["name"],
+             package_key = key,
++            archive = "@%s//:members.json" % archive_name(package["sha256"]),
++            contents = "@%s_contents//:listing.txt" % archive_name(package["sha256"]) if key in libraries else None,
++            native_tools = "@apt_native_tools//:ROOT" if key in libraries else None,
+             package_catalog = "@" + catalog_name + "//:catalog.json" if key in libraries else None,
+             own_filemap = "@" + name + "_filemap//:filemap.json" if key in libraries else None,
+             module_metadata = "@" + metadata_names[key] + "//:modules.json" if key in metadata_names else None,
+@@ -292,6 +322,7 @@ def declare_locked_imports(mctx, existing_sets, installs = [], source_document =
+             lock_file = "@%s//:apt.lock.json" % prepared_lock_name,
+             payload_only = group not in library_groups,
+             declared_aliases = declared_aliases.get(group, {}),
++            shared_archives = True,
+             cc_exports = {
+                 "@%s//:cc_exports.json" % util.sanitize(key + "=" + version): key + "=" + version
+                 for roots in definition["sets"].values()
+diff --git a/apt/private/native_tools.bzl b/apt/private/native_tools.bzl
+index 8882c44..90573f1 100644
+--- a/apt/private/native_tools.bzl
++++ b/apt/private/native_tools.bzl
+@@ -1,4 +1,6 @@
+-"""Bootstrap the APT catalog's native inspection tools without importing APT."""
++"""Bootstrap the APT catalog's native inspection tools from raw DEB archives."""
++
++load(":deb_archive.bzl", "archive_members")
+ 
+ # Import data from a landed build-infra revision. Making this rule depend on the
+ # generated APT repositories would require these tools to fetch themselves.
+@@ -24,12 +26,16 @@ def unlocked_library(listing, root):
+             return entry
+     return None
+ 
+-def _native_tools_impl(ctx):
+-    if ctx.os.name != "linux" or ctx.os.arch not in _HOSTS:
+-        fail("The SONiC native APT catalog requires an AMD64 or ARM64 Linux host, got %s %s" % (ctx.os.name, ctx.os.arch))
+-    arch, triplet, loader = _HOSTS[ctx.os.arch]
++def _tools_lock_impl(ctx):
+     ctx.download(_LOCK_URL, "apt.lock.json", sha256 = _LOCK_SHA256)
+-    lock = json.decode(ctx.read("apt.lock.json"))
++    ctx.file("BUILD.bazel", 'exports_files(["apt.lock.json"], visibility = ["//visibility:public"])\n')
++
++native_tools_lock = repository_rule(implementation = _tools_lock_impl)
++
++def native_tools_packages(os, lock):
++    if os.name != "linux" or os.arch not in _HOSTS:
++        fail("The SONiC native APT catalog requires an AMD64 or ARM64 Linux host, got %s %s" % (os.name, os.arch))
++    arch, triplet, _ = _HOSTS[os.arch]
+     packages = lock["packages"]
+     roots = ["file", "binutils-" + triplet.replace("_", "-")]
+     selected = {k: True for k, p in packages.items() if p["suite"] == "trixie" and p["architecture"] == arch and p["name"] in roots}
+@@ -47,17 +53,28 @@ def _native_tools_impl(ctx):
+         selected.update(children)
+         pending = children.keys()
+ 
+-    for key in sorted(selected):
+-        package = packages[key]
+-        urls = [uri.rstrip("/") + "/" + package["filename"] for uri in lock["sources"][package["suite"]]["uris"]]
+-        # Use the ordinary Bazel downloader so trusted builds retain their
+-        # configured snapshot mirror preference and public fallback.
+-        ctx.download_and_extract(urls, "unpack", sha256 = package["sha256"], type = "deb")
+-        data = [f for f in ctx.path("unpack").readdir() if f.basename.startswith("data.tar")]
+-        if len(data) != 1:
+-            fail("Expected one data archive in %s" % key)
+-        ctx.extract(data[0], "sysroot")
+-        ctx.delete("unpack")
++    return sorted(selected)
++
++def _native_tools_impl(ctx):
++    if ctx.os.name != "linux" or ctx.os.arch not in _HOSTS:
++        fail("The SONiC native APT catalog requires an AMD64 or ARM64 Linux host, got %s %s" % (ctx.os.name, ctx.os.arch))
++    _, triplet, loader = _HOSTS[ctx.os.arch]
++    if ctx.attr.archives:
++        for archive in sorted(ctx.attr.archives, key = ctx.attr.archives.get):
++            root, members = archive_members(ctx, archive)
++            ctx.extract(root.get_child(members["data"]), "sysroot")
++    else:
++        ctx.download(_LOCK_URL, "apt.lock.json", sha256 = _LOCK_SHA256)
++        lock = json.decode(ctx.read("apt.lock.json"))
++        for key in native_tools_packages(ctx.os, lock):
++            package = lock["packages"][key]
++            urls = [uri.rstrip("/") + "/" + package["filename"] for uri in lock["sources"][package["suite"]]["uris"]]
++            ctx.download_and_extract(urls, "unpack", sha256 = package["sha256"], type = "deb")
++            data = [f for f in ctx.path("unpack").readdir() if f.basename.startswith("data.tar")]
++            if len(data) != 1:
++                fail("Expected one data archive in %s" % key)
++            ctx.extract(data[0], "sysroot")
++            ctx.delete("unpack")
+ 
+     lib = "sysroot/usr/lib/" + triplet
+     ctx.symlink(lib, "lib")
+@@ -80,14 +97,17 @@ def _native_tools_impl(ctx):
+     ctx.file("ROOT", "", executable = False)
+     ctx.file("BUILD.bazel", 'exports_files(["ROOT"])\n')
+ 
+-native_tools_repository = repository_rule(implementation = _native_tools_impl)
++native_tools_repository = repository_rule(
++    implementation = _native_tools_impl,
++    attrs = {"archives": attr.label_keyed_string_dict(doc = "Shared archive manifests keyed by installation order (package key).")},
++)
+ 
+ def _tool_environment():
+     return {"GLIBC_TUNABLES": "", "LC_ALL": "C", "LD_AUDIT": "", "LD_LIBRARY_PATH": "", "LD_PRELOAD": "", "PATH": ""}
+ 
+ def catalog_execute(ctx, name, args, environment = {}):
+     """Run a catalog tool using the locked loader, libraries and magic database."""
+-    root = ctx.path(Label("@distroless_native_tools//:ROOT")).dirname
++    root = ctx.path(getattr(ctx.attr, "native_tools", None) or Label("@distroless_native_tools//:ROOT")).dirname
+     argv = [root.get_child("loader"), "--inhibit-cache", "--library-path", root.get_child("lib"), root.get_child(name)]
+     if name == "file":
+         argv.extend(["-m", root.get_child("magic.mgc")])
+diff --git a/apt/private/pkgconfig.bzl b/apt/private/pkgconfig.bzl
+index 7db53b7..7c9be6b 100644
+--- a/apt/private/pkgconfig.bzl
++++ b/apt/private/pkgconfig.bzl
+@@ -597,19 +597,16 @@ def _assemble(parsed, name, field, static, private, children, compact):
+     return (fragments, errors)
+ 
+ def _fragment_state(fragments):
+-    state = {"nodes": [], "last": {}, "ordered": {}, "head": -1, "tail": -1}
++    state = {"nodes": [], "last": {}, "ordered": {}, "tail": -1}
+     for fragment in fragments:
+-        _state_append(state, fragment)
++        _state_append(state, fragment[:2], fragment)
+     return state
+ 
+-def _state_append(state, fragment):
+-    identity = fragment[:2]
++def _state_append(state, identity, fragment):
+     index = len(state["nodes"])
+     previous = state["tail"]
+-    state["nodes"].append({"fragment": fragment, "previous": previous, "next": -1, "same": state["last"].get(identity, -1)})
+-    if previous == -1:
+-        state["head"] = index
+-    else:
++    state["nodes"].append({"fragment": fragment, "previous": previous, "next": -1})
++    if previous != -1:
+         state["nodes"][previous]["next"] = index
+     state["tail"] = index
+     state["ordered"][index] = fragment
+@@ -622,33 +619,36 @@ def _state_copy(state, fragment):
+     kind, data, _, private = fragment
+     identity = fragment[:2]
+     found = state["last"].get(identity, -1)
+-    merge_back = kind not in ["F", "L", "I"] and not (kind == "l" and private)
+-    merge = not private and _unmergeable(data)
+-    if found != -1 and merge_back and merge:
++    if found == -1 or private:
++        _state_append(state, identity, fragment)
++        return
++    if kind in ["F", "L", "I"]:
++        return
++    if _unmergeable(data):
+         node = state["nodes"][found]
+         previous = node["previous"]
+         previous_kind = state["nodes"][previous]["fragment"][0] if previous != -1 else ""
+         if previous == -1 or previous_kind in ["l", "L", "I"] or not kind or previous_kind == kind:
+             following = node["next"]
+-            if previous == -1:
+-                state["head"] = following
+-            else:
++            if following == -1 and node["fragment"] == fragment:
++                return
++            if previous != -1:
+                 state["nodes"][previous]["next"] = following
+             if following == -1:
+                 state["tail"] = previous
+             else:
+                 state["nodes"][following]["previous"] = previous
+-            state["last"][identity] = node["same"]
+             state["ordered"].pop(found)
+-    elif found != -1 and not private and not merge_back:
+-        return
+-    _state_append(state, fragment)
++    # Moving an occurrence always appends the same identity immediately.
++    _state_append(state, identity, fragment)
+ 
+ def _apply_program(programs, identity, transforms):
+     # Execute the dependency DAG against the actual ordered fragment state.
+     # A memo key includes that state, so link-group boundaries and duplicate
+     # private flags are never discarded by a context-free subtree summary.
+     state = _fragment_state([])
++    # Once a public search path is present, later operations cannot remove it.
++    seen_paths = {}
+     stack = [{"identity": identity, "index": -1}]
+     for _ in range(3 * programs[identity]["work"] + 1):
+         if not stack:
+@@ -671,14 +671,45 @@ def _apply_program(programs, identity, transforms):
+         if frame["index"] < len(program["children"]):
+             child = program["children"][frame["index"]]
+             frame["index"] += 1
+-            stack.append({"identity": child, "index": -1})
++            child_program = programs[child]
++            if child_program["children"]:
++                stack.append({"identity": child, "index": -1})
++            elif not child_program["stable"] or child not in seen_paths:
++                if child_program["stable"]:
++                    seen_paths[child] = True
++                # A leaf has no transform to cache or child to return to.
++                for fragment in child_program["own"]:
++                    _state_copy(state, fragment)
+         else:
+             if frame["key"] != None:
+                 transforms[frame["key"]] = _state_values(state)
+             stack.pop()
+     if stack:
+         fail("internal pkg-config DAG work accounting mismatch")
+-    return list(_state_values(state))
++    return state["ordered"].values()
++
++def _fragment_program(own, dependencies, programs):
++    children = []
++    work = 1
++    stable = all([fragment[0] in ["F", "L", "I"] and not fragment[3] for fragment in own])
++    for dependency in dependencies:
++        child = programs[dependency]
++        if child["own"] or child["children"]:
++            children.append(dependency)
++            work += child["work"]
++            stable = stable and child["stable"]
++    if stable:
++        # Public search paths are first-occurrence additions. They cannot be
++        # moved or removed by later insertions of the same kind and path.
++        # Fold a subtree with only such additions in its original order.
++        additions = {}
++        for fragment in own:
++            additions.setdefault(fragment[:2], fragment)
++        for dependency in children:
++            for fragment in programs[dependency]["own"]:
++                additions.setdefault(fragment[:2], fragment)
++        return {"own": additions.values(), "children": [], "work": 1, "stable": True}
++    return {"own": own, "children": children, "work": work, "stable": False}
+ 
+ def _graph_query(parsed, root, field, static, query_cache):
+     cache_key = (field, static)
+@@ -722,10 +753,7 @@ def _graph_query(parsed, root, field, static, query_cache):
+                     _, errors = _assemble(parsed, name, field, static, private, [(edge, private_edge, ([], child[1]) if child else None) for edge, private_edge, child in children], False)
+                     memo[(name, private)] = ([], errors)
+                     own, _ = _assemble(parsed, name, field, static, private, [], False)
+-                    work = 1
+-                    for dependency in dependencies:
+-                        work += programs[dependency]["work"]
+-                    programs[(name, private)] = {"own": own, "children": dependencies, "work": work}
++                    programs[(name, private)] = _fragment_program(own, dependencies, programs)
+             else:
+                 following.append((name, private))
+         if len(following) == len(pending):
+@@ -843,13 +871,13 @@ def _query_module(parsed, name, mode, query_cache, share_cflags, share_libs):
+         cflags, cflag_errors = _graph_query(parsed, name, "cflags", True, query_cache)
+     if lib_errors or cflag_errors:
+         return {"error": "pkg-config module %s (%s): %s%s" % (name, mode, _error_text(lib_errors), _error_text(cflag_errors))}
+-    normalized_libs = list(libs)
+-    normalized_cflags = list(cflags)
+     if mode == "static" and not share_cflags:
+         private, _ = _graph_query(parsed, name, "cflags.private", True, query_cache)
+-        for fragment in private:
+-            _copy_fragment(normalized_cflags, fragment)
+-    return _flags_from_tokens(_fragment_tokens(normalized_libs), _fragment_tokens(normalized_cflags))
++        if private:
++            cflags = list(cflags)
++            for fragment in private:
++                _copy_fragment(cflags, fragment)
++    return _flags_from_tokens(_fragment_tokens(libs), _fragment_tokens(cflags))
+ 
+ def _legacy_direct_flags(content, mode):
+     directives, variables = parse_pc(content)
+@@ -862,6 +890,15 @@ def _legacy_direct_flags(content, mode):
+     libs = direct.get("Libs", "") + (" " + direct.get("Libs.private", "") if mode == "static" else "")
+     return {"libnames": parsed[0], "linkopts": parsed[3], "link_paths": parsed[4], "includes": parsed[5], "defines": parsed[6], "libs": _link_tokens(_tokens(libs)), "cflags": _tokens(direct.get("Cflags", ""))}
+ 
++def _parse_compat_documents(records):
++    direct = {}
++    for name, record in records.items():
++        if not record["own"]:
++            continue
++        fields, variables = _parse_document(_direct_document(record["content"]), "/" + record["path"].rsplit("/", 1)[0])
++        direct[name] = {"fields": fields, "variables": variables, "valid": all([key in fields for key in ["Name", "Description", "Version"]])}
++    return direct
++
+ def resolve_modules(rctx, documents, provider_errors = {}):
+     """Evaluate locked .pc documents without processes or host filesystem input."""
+     records = module_records(documents)
+@@ -869,12 +906,7 @@ def resolve_modules(rctx, documents, provider_errors = {}):
+     for name, record in records.items():
+         fields, variables = _parse_document(record["content"], "/" + record["path"].rsplit("/", 1)[0])
+         parsed[name] = {"fields": fields, "variables": variables, "valid": all([key in fields for key in ["Name", "Description", "Version"]])}
+-    direct = {}
+-    for name, record in records.items():
+-        if not record["own"]:
+-            continue
+-        fields, variables = _parse_document(_direct_document(record["content"]), "/" + record["path"].rsplit("/", 1)[0])
+-        direct[name] = {"fields": fields, "variables": variables, "valid": all([key in fields for key in ["Name", "Description", "Version"]])}
++    direct = None
+     resolved = {}
+     strict_queries = {}
+     direct_queries = {}
+@@ -889,7 +921,11 @@ def resolve_modules(rctx, documents, provider_errors = {}):
+             if "error" in flags and provider_errors:
+                 flags["error"] += "\n" + "\n".join(provider_errors.values())
+             modes[mode] = flags
+-            compatible = _query_module(direct, name, mode, direct_queries, share_cflags, share_libs) if "error" in flags else flags
++            compatible = flags
++            if "error" in flags:
++                if direct == None:
++                    direct = _parse_compat_documents(records)
++                compatible = _query_module(direct, name, mode, direct_queries, share_cflags, share_libs)
+             compat[mode] = _legacy_direct_flags(record["content"], mode) if "error" in compatible else compatible
+         libraries = {libname: True for flags in compat.values() for libname in flags.get("libnames", [])}.keys()
+         resolved[name] = {"modes": modes, "compat_modes": compat, "own_libnames": libraries}
+diff --git a/apt/private/translate_dependency_set.bzl b/apt/private/translate_dependency_set.bzl
+index 35609e5..532fc6e 100644
+--- a/apt/private/translate_dependency_set.bzl
++++ b/apt/private/translate_dependency_set.bzl
+@@ -1,5 +1,6 @@
+ "repository rule for generating a dependency graph from a lockfile."
+ 
++load(":deb_archive.bzl", "archive_name")
+ load(":lockfile.bzl", "lockfile")
+ load(":starlark_codegen_utils.bzl", "starlark_codegen_utils")
+ load(":util.bzl", "util")
+@@ -186,9 +187,9 @@ alias(
+ # this scoping, a package's `depends_on` (which spans every architecture the
+ # lockfile knows about) would leak foreign-architecture deps into a single
+ # architecture's target, causing file duplication that confuses `flatten`.
+-def package_deps_for_architecture(packages, package, architecture, target = "data", repo_prefix = ""):
++def package_deps_for_architecture(packages, package, architecture, target = "data", repo_prefix = "", shared_archives = False):
+     return [
+-        "@" + repo_prefix + util.sanitize(dep_key) + "//:" + target
++        "@" + (archive_name(packages[dep_key]["sha256"]) if shared_archives else repo_prefix + util.sanitize(dep_key)) + "//:" + target
+         for dep_key in package["depends_on"]
+         if packages[dep_key]["architecture"] in [architecture, "all"]
+     ]
+@@ -228,6 +229,7 @@ def _translate_dependency_set_impl(rctx):
+             package_key = short_key + "=" + version
+             repo_name = rctx.attr.repo_prefix + util.sanitize(package_key)
+             package = packages[package_key]
++            payload_repo = archive_name(package["sha256"]) if rctx.attr.shared_archives else repo_name
+             package_name = package["name"]
+ 
+             architectures_to_package_names[architecture].append(package_name)
+@@ -257,13 +259,13 @@ Please unify the versions manually, or use separate `apt.install` calls (with di
+                 "%s/%s/BUILD.bazel" % (package["name"], architecture),
+                 package_template.format(
+                     target_name = architecture,
+-                    data_targets = '"@%s//:data"' % repo_name,
+-                    raw_data_targets = '"@%s//:raw_data"' % repo_name,
+-                    raw_deps = package_deps_for_architecture(packages, package, architecture, "raw_data", repo_prefix = rctx.attr.repo_prefix),
+-                    deb_targets = '"@%s//:deb"' % repo_name,
+-                    control_targets = '"@%s//:control"' % repo_name,
+-                    src = '"@%s//:data"' % repo_name,
+-                    deps = package_deps_for_architecture(packages, package, architecture, repo_prefix = rctx.attr.repo_prefix),
++                    data_targets = '"@%s//:data"' % payload_repo,
++                    raw_data_targets = '"@%s//:raw_data"' % payload_repo,
++                    raw_deps = package_deps_for_architecture(packages, package, architecture, "raw_data", repo_prefix = rctx.attr.repo_prefix, shared_archives = rctx.attr.shared_archives),
++                    deb_targets = '"@%s//:deb"' % payload_repo,
++                    control_targets = '"@%s//:control"' % payload_repo,
++                    src = '"@%s//:data"' % payload_repo,
++                    deps = package_deps_for_architecture(packages, package, architecture, repo_prefix = rctx.attr.repo_prefix, shared_archives = rctx.attr.shared_archives),
+                     pkgconfig_deps = package_deps_for_architecture(packages, package, architecture, "pkgconfig", repo_prefix = rctx.attr.repo_prefix),
+                     urls = [
+                         uri + "/" + package["filename"]
+@@ -339,7 +341,7 @@ Please unify the versions manually, or use separate `apt.install` calls (with di
+             _PACKAGE_TEMPLATE.format(
+                 target_name = package_name,
+                 deb_targets = starlark_codegen_utils.to_dict_attr({
+-                    "//:linux_%s" % architecture: "@%s%s//:deb" % (rctx.attr.repo_prefix, util.sanitize(package_key))
++                    "//:linux_%s" % architecture: "//%s/%s:deb" % (package_name, architecture)
+                     for (architecture, package_key) in info.architectures.items()
+                 }),
+                 data_targets = starlark_codegen_utils.to_dict_attr({
+@@ -385,6 +387,7 @@ translate_dependency_set = repository_rule(
+     attrs = {
+         "payload_only": attr.bool(doc = "Expose archive inputs without native C++ targets."),
+         "declared_aliases": attr.string_list_dict(),
++        "shared_archives": attr.bool(doc = "Select payload targets directly from shared archive repos."),
+         "cc_exports": attr.label_keyed_string_dict(doc = "Internal package-export metadata labels mapped to lockfile package keys."),
+         "repo_prefix": attr.string(doc = "Internal namespace for locked package repositories."),
+         "depset_name": attr.string(doc = "INTERNAL: DO NOT USE"),

@@ -1,0 +1,44 @@
+diff --git a/apt/private/deb_import.bzl b/apt/private/deb_import.bzl
+--- a/apt/private/deb_import.bzl
++++ b/apt/private/deb_import.bzl
+@@ -265,6 +265,13 @@
+     directory, name = path.rsplit("/", 1)
+     return name.startswith("lib") and (directory in ["usr/lib", "lib", "lib64", "usr/lib64"] or "-linux-" in directory.rsplit("/", 1)[-1])
+ 
++def _toolchain_c_runtime(repo, state):
++    # glibc and its companion DSOs must agree with the ELF interpreter chosen
++    # by the C/C++ toolchain. A transitive package dependency must not add a
++    # second C runtime to solib or a foreign build's ordinary dependency prefix.
++    # Identify the owning package by ELF metadata, independent of suite/arch.
++    return any([record.get("soname") == "libc.so.6" for record in state["native"].get(repo, {}).values()])
++
+ def _file_libraries(rctx, so_files, a_files, o_files, symlinks, self_symlinks, scripts, depends_file_map, invalid_files, state):
+     content = ""
+     targets = {}
+@@ -298,7 +305,7 @@
+                     record["runpath"].extend(value.split(":"))
+             own_metadata[path] = record
+     for path in so_files + a_files + o_files:
+-        if path.endswith(".so") and _public_runtime_path(path):
++        if path.endswith(".so") and _public_runtime_path(path) and not _toolchain_c_runtime(rctx.attr.name, state):
+             identity = _native_canonical(rctx.attr.name, path, state)
+             if identity and "needed" in state["native"].get(identity[0], {}).get(identity[1], {}):
+                 # Foreign builds query the package's original -l names even
+@@ -321,7 +328,7 @@
+         if closure.error:
+             content += 'invalid_native_library(name=%r, message=%r, visibility=["//visibility:public"])\n' % (name, closure.error)
+             continue
+-        runtime = [_raw_library_target(repo, installed, state) for repo, installed in closure.libraries if (repo, installed) != (rctx.attr.name, path)]
++        runtime = [_raw_library_target(repo, installed, state) for repo, installed in closure.libraries if (repo, installed) != (rctx.attr.name, path) and not _toolchain_c_runtime(repo, state)]
+         runtime_target = "_runtime" + name
+         content += 'so_library(name=%r, dynamic_libs=%r)\n' % (runtime_target, runtime)
+         if path in scripts:
+@@ -338,7 +345,7 @@
+             soname = record.get("soname", path.rsplit("/", 1)[-1])
+             native_path = "_native/" + path + "/" + soname
+             rctx.symlink(rctx.path(_EXTRACT_DIR + "/" + path), native_path)
+-            if _public_runtime_path(path):
++            if _public_runtime_path(path) and not _toolchain_c_runtime(rctx.attr.name, state):
+                 runtime_paths.append(native_path)
+             content += 'cc_import(name=%r, shared_library=%r, visibility=["//visibility:public"])\n' % ("_raw" + name, native_path)
+             content += 'cc_library(name=%r, deps=%r, visibility=["//visibility:public"])\n' % (name, [":" + "_raw" + name, ":" + runtime_target])
