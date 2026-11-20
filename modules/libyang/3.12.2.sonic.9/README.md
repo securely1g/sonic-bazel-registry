@@ -1,3 +1,7 @@
+## Dependency refresh for `3.12.2.sonic.9`
+
+This candidate retains the `3.12.2.sonic.8` source and existing patches. Its module dependencies select the newest non-yanked versions published at `3d1cc5e8dfd553d2acbe4198e504a245e6bdbddf`. Versions introduced by this refresh are not dependency targets of the same refresh.
+
 # libyang 3.12.2.sonic.8
 
 This entry preserves the published `.sonic.7` upstream 3.12.2 archive, SONiC patch, native C targets, prepared CLI runtimes, original test selection and five-second interactive deadlines. It adds the original Debian `dh_makeshlibs` and `dh_installdeb` effects to runtime package metadata. The projected control TAR contains the generated shlibs, symbols and ldconfig trigger; the existing metadata test verifies these files and their package identity.

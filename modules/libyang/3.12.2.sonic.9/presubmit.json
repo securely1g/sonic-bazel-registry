@@ -6,7 +6,7 @@
   "consumer_deps": [
     {
       "name": "sonic-build-infra",
-      "version": "0.0.37-d31541a95fdf477302f1b109f2105eee81c86617",
+      "version": "0.0.38-0baa4acc9eac9ccc793b81104b1580d530271cbe",
       "repo_name": "sonic_build_infra"
     },
     {
@@ -15,7 +15,7 @@
     },
     {
       "name": "rules_distroless",
-      "version": "0.9.4.sonic.21"
+      "version": "0.9.4.sonic.22"
     }
   ],
   "platforms": {
