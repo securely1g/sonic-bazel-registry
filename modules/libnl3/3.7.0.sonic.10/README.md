@@ -1,3 +1,7 @@
+## Dependency refresh for `3.7.0.sonic.9`
+
+This candidate retains the `3.7.0.sonic.8` source and existing patches. Its module dependencies select the newest non-yanked versions published at `3d1cc5e8dfd553d2acbe4198e504a245e6bdbddf`. Versions introduced by this refresh are not dependency targets of the same refresh.
+
 # libnl3 generated Debian controls
 
 Version `3.7.0.sonic.8` retains the published `.7` native libraries, SONAMEs,
