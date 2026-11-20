@@ -1,3 +1,7 @@
+## Dependency refresh for `3.21.12.sonic.3`
+
+This candidate retains the `3.21.12.sonic.2` source and existing patches. Its module dependencies select the newest non-yanked versions published at `3d1cc5e8dfd553d2acbe4198e504a245e6bdbddf`. Versions introduced by this refresh are not dependency targets of the same refresh.
+
 # Protobuf 3.21.12 runtime metadata for Trixie
 
 Sysmgr's source targets in [buildimage PR #5](https://github.com/securely1g/sonic-buildimage/pull/5)
