@@ -1,0 +1,25 @@
+package(default_visibility = ["//visibility:public"])
+
+alias(
+    name = "p4include",
+    actual = "@p4c_source//:p4include",
+)
+
+[
+    alias(
+        name = path,
+        actual = "@p4c_source//:p4include/" + path,
+    )
+    for path in [
+        "bmv2/psa.p4",
+        "core.p4",
+        "dpdk/pna.p4",
+        "dpdk/psa.p4",
+        "ebpf_model.p4",
+        "pna.p4",
+        "tc/pna.p4",
+        "ubpf_model.p4",
+        "v1model.p4",
+        "xdp_model.p4",
+    ]
+]
