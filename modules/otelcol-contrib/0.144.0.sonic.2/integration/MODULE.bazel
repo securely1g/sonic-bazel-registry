@@ -1,8 +1,8 @@
 module(name = "otelcol_registry_consumer")
 
-bazel_dep(name = "otelcol-contrib", version = "0.144.0.sonic.1")
-bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.15")
-bazel_dep(name = "sonic-build-infra", version = "0.0.26-51c838da6ff57295fde6e0bc3807841cb31a8568", repo_name = "sonic_build_infra")
+bazel_dep(name = "otelcol-contrib", version = "0.144.0.sonic.2")
+bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.22")
+bazel_dep(name = "sonic-build-infra", version = "0.0.38-0baa4acc9eac9ccc793b81104b1580d530271cbe", repo_name = "sonic_build_infra")
 bazel_dep(name = "rules_go", version = "0.65.0.sonic.1", repo_name = "io_bazel_rules_go")
 
 go_sdk = use_extension("@io_bazel_rules_go//go:extensions.bzl", "go_sdk")
