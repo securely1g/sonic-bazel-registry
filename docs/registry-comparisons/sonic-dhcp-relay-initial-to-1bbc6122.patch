@@ -1,0 +1,532 @@
+# Complete initial registration: sonic-dhcp-relay 0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739
+# Published predecessor: none. The module does not exist on the maintained
+# registry baseline below. This patch includes the complete cumulative entry
+# addition and metadata, not just the latest PR commit.
+# Registry baseline (main): 967051cf53d7f46a4d046d8771344ffa94287317
+# Registry candidate (PR #235): f12cc2d9c0e7290f55f453fbf4d1547c1c79d5ba
+# Source owner (landed master): 1bbc612265bfc8e7582cb699dc44326f62595739
+# Source archive: https://github.com/securely1g/sonic-dhcp-relay/archive/1bbc612265bfc8e7582cb699dc44326f62595739.tar.gz
+# Source archive SHA256: ebf5d7fab4749b5a4837cd8d72b1f0c2fef0a28c3255a745e3ecd62f5da53cce
+#
+# Application instructions (run from an existing sonic-bazel-registry clone):
+#   git worktree add --detach /tmp/dhcp-relay-comparison 967051cf53d7f46a4d046d8771344ffa94287317
+#   cd /tmp/dhcp-relay-comparison
+#   test ! -e modules/sonic-dhcp-relay
+#   git apply --check /absolute/path/sonic-dhcp-relay-initial-to-1bbc6122.patch
+#   git apply --index /absolute/path/sonic-dhcp-relay-initial-to-1bbc6122.patch
+#   test "$(git write-tree)" = "$(git rev-parse f12cc2d9c0e7290f55f453fbf4d1547c1c79d5ba^{tree})"
+#   python3 ci/registry_ci.py sync-module --module sonic-dhcp-relay --version 0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739 --check
+#
+# Fetch the pinned candidate commit before running the tree comparison above.
+# The destination module directory must not already exist. No published entry
+# is copied, overwritten, or removed. The complete root-tree comparison covers
+# file inventories, contents, symlink targets and Git file modes, including all
+# unchanged published entries. This artifact is outside the compared tree.
+# Source changes live in the separately linked upstream comparison; this patch
+# describes the registry entry and records its exact source URL and integrity.
+
+diff --git a/modules/sonic-dhcp-relay/0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739/MODULE.bazel b/modules/sonic-dhcp-relay/0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739/MODULE.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..6d488ff6e7a2c2b3b4da799d4055cfa2eaa8be16
+--- /dev/null
++++ b/modules/sonic-dhcp-relay/0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739/MODULE.bazel
+@@ -0,0 +1,100 @@
++module(
++    name = "sonic-dhcp-relay",
++    version = "0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739",
++    bazel_compatibility = [
++        ">=8.5.1",
++        "<=8.5.1",
++    ],
++)
++
++bazel_dep(name = "sonic-build-infra", version = "0.0.39-81476192bf2cdb70bb646e85935c5d698b6de8a0", repo_name = "sonic_build_infra")
++bazel_dep(name = "sonic-swss-common", version = "0.0.9-334389eae54afd1f4f5ee69f89c3a7ad2062ee61", repo_name = "sonic_swss_common")
++bazel_dep(name = "rules_cc", version = "0.2.20")
++bazel_dep(name = "platforms", version = "1.1.0")
++bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.21")
++bazel_dep(name = "googletest", version = "1.14.0.bcr.1", repo_name = "com_google_googletest")
++
++gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
++use_repo(gcc, "gcc_toolchains")
++
++register_toolchains("@gcc_toolchains//:all")
++
++# Reuse the published global APT lock; no component-private resolver or lock.
++apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
++apt.import_lock(
++    dependency_sets = [
++        "dhcpmon_debian",
++        "dhcp_relay_test_debian",
++        "trixie",
++    ],
++    libraries = True,
++    lock = "@sonic_build_infra//apt:apt.lock.json",
++    requests = "@sonic_build_infra//apt:requests.json",
++    sources = "@sonic_build_infra//apt:sources.json",
++)
++use_repo(apt, "dhcp_relay_test_debian", "dhcpmon_debian", "trixie")
++
++bazel_dep(name = "rules_python", version = "1.9.0.sonic.1")
++
++python = use_extension("@rules_python//python/extensions:python.bzl", "python")
++python.toolchain(python_version = "3.13")
++use_repo(python, "python_3_13")
++
++register_toolchains("@python_3_13//:all")
++
++# Root-only compatibility selections required by the existing owner modules.
++# Match the shared deployment rules' supported patched tar implementation.
++single_version_override(
++    module_name = "tar.bzl",
++    version = "0.10.5.sonic.2",
++)
++
++# Later rules_cc requires a Bazel runtime toolchain unavailable in 8.5.1.
++single_version_override(
++    module_name = "rules_cc",
++    version = "0.2.20",
++)
++
++# Common registers Rust consumers; its non-root dev toolchains are not inherited.
++bazel_dep(name = "rules_rs", version = "0.1.0")
++
++rust = use_extension("@rules_rs//rs:rules_rust_reexported_extensions.bzl", "rust", dev_dependency = True)
++rust.toolchain(
++    edition = "2021",
++    extra_target_triples = [
++        "aarch64-unknown-linux-gnu",
++        "x86_64-unknown-linux-gnu",
++    ],
++    versions = ["1.90.0"],
++)
++use_repo(rust, "rust_toolchains")
++
++register_toolchains(
++    "@rust_toolchains//:all",
++    dev_dependency = True,
++)
++
++# Existing source module used by installed-runtime validation.
++bazel_dep(name = "libyang", version = "3.12.2.sonic.6")
++
++# Direct runtime TAR references require a root-visible repository mapping.
++# Match Common's selected source owner; do not substitute distro libnl.
++bazel_dep(name = "libnl3", version = "3.7.0.sonic.7")
++
++# The shared native producer preserves v24.09 and the identical SONiC DHCP
++# random-source-port patch. It owns libpcap and all library build definitions.
++bazel_dep(name = "pcapplusplus", version = "24.9.0.sonic.1")
++
++http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
++
++# Same immutable source as the existing gitlink, also available in source archives.
++http_archive(
++    name = "gmock_global_headers",
++    build_file = "//third_party:gmock-global.BUILD.bazel",
++    sha256 = "29c753ae56de70e1f558c5f1ef8c16014f27bcf899acb0c41713eb31806e9a81",
++    strip_prefix = "gmock-global-6552faa2a94250ed0192dbd62e608d37fafcc216",
++    type = "tar.gz",
++    urls = ["https://codeload.github.com/apriorit/gmock-global/tar.gz/6552faa2a94250ed0192dbd62e608d37fafcc216"],
++)
++
++bazel_dep(name = "rules_shell", version = "0.8.0")
+diff --git a/modules/sonic-dhcp-relay/0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739/README.md b/modules/sonic-dhcp-relay/0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739/README.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..3e9ef5617bb3855c4c12e140363d6b1fff08435a
+--- /dev/null
++++ b/modules/sonic-dhcp-relay/0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739/README.md
+@@ -0,0 +1,69 @@
++# DHCP relay source registration
++
++Register native AMD64/Trixie DHCPv4 and DHCPv6 source builds from
++[`securely1g/sonic-dhcp-relay@1bbc612265bfc8e7582cb699dc44326f62595739`](https://github.com/securely1g/sonic-dhcp-relay/commit/1bbc612265bfc8e7582cb699dc44326f62595739).
++The registry version adds the immutable source commit to the owner's unchanged
++`0.1.0` base version. The generated MODULE overlay changes only that identity;
++compilation, runtime fixtures and packaging interfaces remain source-owned.
++
++The source consumes the published native `pcapplusplus@24.9.0.sonic.1` target,
++including SONiC's existing DHCP source-port patch. It no longer carries a private
++PcapPlusPlus build or root parser-generator patches. The consumer selects the
++same published `sonic-build-infra@0.0.39-81476192bf2cdb70bb646e85935c5d698b6de8a0`
++APT lock as the source; it introduces no component-private lock or source override.
++
++## External-consumer validation
++
++The AMD64 manifest builds six public outputs:
++
++| Producer | Runtime | Symbols | Package metadata |
++| --- | --- | --- | --- |
++| DHCPv4 | `//dhcp4relay:runtime` | `//dhcp4relay:runtime.debug_symbols` | `//:dhcp4_metadata` |
++| DHCPv6 | `//dhcp6relay:runtime` | `//dhcp6relay:runtime.debug_symbols` | `//:dhcp6_metadata` |
++
++It executes all four source-owned acceptance targets uncached:
++`//tests/runtime:sender_test` (3 cases), `:pcap_patch_test` (2),
++`:v4_full_suite_test` (62), and `:v6_full_suite_test` (47). These preserve the
++original assertions and private Redis fixture, using declared ELF runtimes and
++Python instead of requiring Docker inside the registry worker. The source CI
++also verifies the 114 individual test cases have no failures, disables or skips.
++Registry evidence retains their XML reports for the same review.
++
++The independent `//:archive_contract_test` checks both installed executable paths,
++AMD64 ELF identity, runtime/debug build IDs and debuglink CRCs, root ownership,
++fixed TAR timestamps and package metadata bound to the runtime TAR digest.
++The shared ELF parser is reused; no target binary executes on the host loader.
++
++The checked-in consumer MODULE makes the source root's supported Bazel 8.5.1
++GCC, Python and Rust selections explicit. All validation outputs are TARs,
++metadata or test results. No DEB-producing target or fixture is selected.
++
++```sh
++python3 ci/registry_ci.py run \
++  --module sonic-dhcp-relay \
++  --version 0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739 \
++  --architecture amd64 \
++  --work-dir /tmp/relay-registry-consumer \
++  --artifacts /tmp/relay-registry-evidence \
++  --bazel bazel
++```
++
++Use empty job-local work/evidence directories. Audit the configured consumer
++action graph for DEB-producing outputs before dispatching this manifest. The
++maintained registry runner then checks the fetched identity, declared outputs
++and uncached test results. A prepared manifest is not a native test result;
++retain the exact-head CI receipts before claiming the registration passes.
++
++## Landing order
++
++The source prerequisites [DHCP relay PR #4](https://github.com/securely1g/sonic-dhcp-relay/pull/4)
++and [PR #5](https://github.com/securely1g/sonic-dhcp-relay/pull/5) are merged. This entry
++selects PR #5's actual landed commit on `master`, not its former PR-head snapshot.
++
++Validate this exact registry candidate before landing the registration. The
++separate DHCP relay image integration consumes the resulting module. Canonical registry defaults
++remain `securely1g/sonic-bazel-registry/main`; a candidate revision is used only
++for explicitly selected premerge validation. DHCP monitor and ISC DHCP are
++separate existing source owners, not reimplemented by this module.
++
++Archive SHA256: `ebf5d7fab4749b5a4837cd8d72b1f0c2fef0a28c3255a745e3ecd62f5da53cce`. All 90 tracked source blobs, Git file types and executable bits match the owner commit. The `gmock_global` gitlink is fetched by its separately pinned source declaration.
+diff --git a/modules/sonic-dhcp-relay/0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739/overlay/MODULE.bazel b/modules/sonic-dhcp-relay/0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739/overlay/MODULE.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..7e6d6fb222d4d903c790c15f75b9454fa6c7b9e2
+--- /dev/null
++++ b/modules/sonic-dhcp-relay/0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739/overlay/MODULE.bazel
+@@ -0,0 +1,104 @@
++# AUTO-GENERATED. DO NOT EDIT MANUALLY.
++# Source: ../MODULE.bazel
++# Generator: python3 ci/registry_ci.py sync-module --module sonic-dhcp-relay --version 0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739
++
++module(
++    name = "sonic-dhcp-relay",
++    version = "0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739",
++    bazel_compatibility = [
++        ">=8.5.1",
++        "<=8.5.1",
++    ],
++)
++
++bazel_dep(name = "sonic-build-infra", version = "0.0.39-81476192bf2cdb70bb646e85935c5d698b6de8a0", repo_name = "sonic_build_infra")
++bazel_dep(name = "sonic-swss-common", version = "0.0.9-334389eae54afd1f4f5ee69f89c3a7ad2062ee61", repo_name = "sonic_swss_common")
++bazel_dep(name = "rules_cc", version = "0.2.20")
++bazel_dep(name = "platforms", version = "1.1.0")
++bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.21")
++bazel_dep(name = "googletest", version = "1.14.0.bcr.1", repo_name = "com_google_googletest")
++
++gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
++use_repo(gcc, "gcc_toolchains")
++
++register_toolchains("@gcc_toolchains//:all")
++
++# Reuse the published global APT lock; no component-private resolver or lock.
++apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
++apt.import_lock(
++    dependency_sets = [
++        "dhcpmon_debian",
++        "dhcp_relay_test_debian",
++        "trixie",
++    ],
++    libraries = True,
++    lock = "@sonic_build_infra//apt:apt.lock.json",
++    requests = "@sonic_build_infra//apt:requests.json",
++    sources = "@sonic_build_infra//apt:sources.json",
++)
++use_repo(apt, "dhcp_relay_test_debian", "dhcpmon_debian", "trixie")
++
++bazel_dep(name = "rules_python", version = "1.9.0.sonic.1")
++
++python = use_extension("@rules_python//python/extensions:python.bzl", "python")
++python.toolchain(python_version = "3.13")
++use_repo(python, "python_3_13")
++
++register_toolchains("@python_3_13//:all")
++
++# Root-only compatibility selections required by the existing owner modules.
++# Match the shared deployment rules' supported patched tar implementation.
++single_version_override(
++    module_name = "tar.bzl",
++    version = "0.10.5.sonic.2",
++)
++
++# Later rules_cc requires a Bazel runtime toolchain unavailable in 8.5.1.
++single_version_override(
++    module_name = "rules_cc",
++    version = "0.2.20",
++)
++
++# Common registers Rust consumers; its non-root dev toolchains are not inherited.
++bazel_dep(name = "rules_rs", version = "0.1.0")
++
++rust = use_extension("@rules_rs//rs:rules_rust_reexported_extensions.bzl", "rust", dev_dependency = True)
++rust.toolchain(
++    edition = "2021",
++    extra_target_triples = [
++        "aarch64-unknown-linux-gnu",
++        "x86_64-unknown-linux-gnu",
++    ],
++    versions = ["1.90.0"],
++)
++use_repo(rust, "rust_toolchains")
++
++register_toolchains(
++    "@rust_toolchains//:all",
++    dev_dependency = True,
++)
++
++# Existing source module used by installed-runtime validation.
++bazel_dep(name = "libyang", version = "3.12.2.sonic.6")
++
++# Direct runtime TAR references require a root-visible repository mapping.
++# Match Common's selected source owner; do not substitute distro libnl.
++bazel_dep(name = "libnl3", version = "3.7.0.sonic.7")
++
++# The shared native producer preserves v24.09 and the identical SONiC DHCP
++# random-source-port patch. It owns libpcap and all library build definitions.
++bazel_dep(name = "pcapplusplus", version = "24.9.0.sonic.1")
++
++http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
++
++# Same immutable source as the existing gitlink, also available in source archives.
++http_archive(
++    name = "gmock_global_headers",
++    build_file = "//third_party:gmock-global.BUILD.bazel",
++    sha256 = "29c753ae56de70e1f558c5f1ef8c16014f27bcf899acb0c41713eb31806e9a81",
++    strip_prefix = "gmock-global-6552faa2a94250ed0192dbd62e608d37fafcc216",
++    type = "tar.gz",
++    urls = ["https://codeload.github.com/apriorit/gmock-global/tar.gz/6552faa2a94250ed0192dbd62e608d37fafcc216"],
++)
++
++bazel_dep(name = "rules_shell", version = "0.8.0")
+diff --git a/modules/sonic-dhcp-relay/0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739/presubmit.json b/modules/sonic-dhcp-relay/0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739/presubmit.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..caab6301765d4e8c68b6419a09e9f9eec0026a22
+--- /dev/null
++++ b/modules/sonic-dhcp-relay/0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739/presubmit.json
+@@ -0,0 +1,29 @@
++{
++  "architectures": [
++    "amd64"
++  ],
++  "consumer_deps": [],
++  "platforms": {
++    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
++  },
++  "host_platforms": {
++    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
++  },
++  "generated_module_overlay": true,
++  "integration_test_module": "tests/consumer",
++  "build_targets": [
++    "@sonic-dhcp-relay//dhcp4relay:runtime",
++    "@sonic-dhcp-relay//dhcp4relay:runtime.debug_symbols",
++    "@sonic-dhcp-relay//:dhcp4_metadata",
++    "@sonic-dhcp-relay//dhcp6relay:runtime",
++    "@sonic-dhcp-relay//dhcp6relay:runtime.debug_symbols",
++    "@sonic-dhcp-relay//:dhcp6_metadata"
++  ],
++  "test_targets": [
++    "@sonic-dhcp-relay//tests/runtime:sender_test",
++    "@sonic-dhcp-relay//tests/runtime:pcap_patch_test",
++    "@sonic-dhcp-relay//tests/runtime:v4_full_suite_test",
++    "@sonic-dhcp-relay//tests/runtime:v6_full_suite_test",
++    "//:archive_contract_test"
++  ]
++}
+diff --git a/modules/sonic-dhcp-relay/0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739/source.json b/modules/sonic-dhcp-relay/0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739/source.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..0e1760ad5846dc62ae1bff218d54a331ac477d42
+--- /dev/null
++++ b/modules/sonic-dhcp-relay/0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739/source.json
+@@ -0,0 +1,8 @@
++{
++  "url": "https://github.com/securely1g/sonic-dhcp-relay/archive/1bbc612265bfc8e7582cb699dc44326f62595739.tar.gz",
++  "strip_prefix": "sonic-dhcp-relay-1bbc612265bfc8e7582cb699dc44326f62595739",
++  "integrity": "sha256-6/XX+rR0m1pIN82NcrHwwv7woowyVadF4+zWL12lPM4=",
++  "overlay": {
++    "MODULE.bazel": "sha256-uXVGax7zUY1e8EQJjxeiTwBHbnCZaHxC6Y8a5uF3i68="
++  }
++}
+diff --git a/modules/sonic-dhcp-relay/0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739/tests/consumer/BUILD.bazel b/modules/sonic-dhcp-relay/0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739/tests/consumer/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..1b9c7e40a207fcea1916dadfb8deeebbe9e40995
+--- /dev/null
++++ b/modules/sonic-dhcp-relay/0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739/tests/consumer/BUILD.bazel
+@@ -0,0 +1,25 @@
++load("@rules_python//python:py_test.bzl", "py_test")
++
++py_test(
++    name = "archive_contract_test",
++    srcs = ["archive_contract_test.py"],
++    args = [
++        "$(rootpath @sonic-dhcp-relay//dhcp4relay:runtime)",
++        "$(rootpath @sonic-dhcp-relay//dhcp4relay:runtime.debug_symbols)",
++        "$(rootpath @sonic-dhcp-relay//:dhcp4_metadata)",
++        "$(rootpath @sonic-dhcp-relay//dhcp6relay:runtime)",
++        "$(rootpath @sonic-dhcp-relay//dhcp6relay:runtime.debug_symbols)",
++        "$(rootpath @sonic-dhcp-relay//:dhcp6_metadata)",
++    ],
++    data = [
++        "@sonic-dhcp-relay//dhcp4relay:runtime",
++        "@sonic-dhcp-relay//dhcp4relay:runtime.debug_symbols",
++        "@sonic-dhcp-relay//:dhcp4_metadata",
++        "@sonic-dhcp-relay//dhcp6relay:runtime",
++        "@sonic-dhcp-relay//dhcp6relay:runtime.debug_symbols",
++        "@sonic-dhcp-relay//:dhcp6_metadata",
++    ],
++    deps = ["@sonic_build_infra//deb:elf_metadata"],
++    python_version = "3.13",
++    legacy_create_init = False,
++)
+diff --git a/modules/sonic-dhcp-relay/0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739/tests/consumer/MODULE.bazel b/modules/sonic-dhcp-relay/0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739/tests/consumer/MODULE.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..ece1d06f082a829c68cfcaab5164ed276179228a
+--- /dev/null
++++ b/modules/sonic-dhcp-relay/0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739/tests/consumer/MODULE.bazel
+@@ -0,0 +1,35 @@
++module(name = "dhcp_relay_registry_consumer")
++
++bazel_dep(name = "sonic-dhcp-relay", version = "0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739")
++bazel_dep(name = "sonic-build-infra", version = "0.0.39-81476192bf2cdb70bb646e85935c5d698b6de8a0", repo_name = "sonic_build_infra")
++bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.21")
++bazel_dep(name = "rules_python", version = "1.9.0.sonic.1")
++bazel_dep(name = "rules_rs", version = "0.1.0")
++bazel_dep(name = "rules_cc", version = "0.2.20")
++bazel_dep(name = "tar.bzl", version = "0.10.5.sonic.2")
++
++# Reproduce the source root's supported Bazel 8.5.1 toolchain selections.
++single_version_override(module_name = "rules_cc", version = "0.2.20")
++single_version_override(module_name = "tar.bzl", version = "0.10.5.sonic.2")
++
++gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
++use_repo(gcc, "gcc_toolchains")
++register_toolchains("@gcc_toolchains//:all")
++
++python = use_extension("@rules_python//python/extensions:python.bzl", "python")
++python.toolchain(is_default = True, python_version = "3.13")
++
++rust = use_extension("@rules_rs//rs:rules_rust_reexported_extensions.bzl", "rust")
++rust.toolchain(edition = "2021", versions = ["1.90.0"], extra_target_triples = ["aarch64-unknown-linux-gnu", "x86_64-unknown-linux-gnu"])
++use_repo(rust, "rust_toolchains")
++register_toolchains("@rust_toolchains//:all")
++
++# Root selection composes all source owners against the same published lock.
++apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
++apt.import_lock(
++    lock = "@sonic_build_infra//apt:apt.lock.json",
++    requests = "@sonic_build_infra//apt:requests.json",
++    sources = "@sonic_build_infra//apt:sources.json",
++    libraries = True,
++    dependency_sets = ["dhcpmon_debian", "dhcp_relay_test_debian", "trixie"],
++)
+diff --git a/modules/sonic-dhcp-relay/0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739/tests/consumer/archive_contract_test.py b/modules/sonic-dhcp-relay/0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739/tests/consumer/archive_contract_test.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..4588717e860effff603a7aa29679bf1a252b4f45
+--- /dev/null
++++ b/modules/sonic-dhcp-relay/0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739/tests/consumer/archive_contract_test.py
+@@ -0,0 +1,76 @@
++"""Check the external DHCP relay runtime, symbol and metadata interfaces."""
++
++import hashlib
++import json
++from pathlib import Path, PurePosixPath
++import sys
++import tarfile
++import unittest
++import zlib
++
++from elf_metadata import Elf
++
++INPUTS = list(map(Path, sys.argv[1:]))
++sys.argv = sys.argv[:1]
++
++
++class ArchiveContractTest(unittest.TestCase):
++    def archive(self, path):
++        files = {}
++        with tarfile.open(path) as archive:
++            for member in archive:
++                name = PurePosixPath(member.name)
++                self.assertFalse(name.is_absolute() or ".." in name.parts, member.name)
++                self.assertTrue(member.isfile() or member.isdir(), member.name)
++                self.assertEqual((member.uid, member.gid), (0, 0), member.name)
++                # Preserve the shared tar/mtree rules' fixed historical epochs.
++                self.assertIn(member.mtime, (0, 946699200, 1672560000), member.name)
++                self.assertNotIn("DEBIAN", name.parts)
++                if member.isfile():
++                    self.assertNotIn(str(name), files)
++                    files[str(name)] = (member.mode, archive.extractfile(member).read())
++        return files
++
++    def test_both_runtime_symbol_and_metadata_contracts(self):
++        self.assertEqual(len(INPUTS), 6)
++        for index, binary in enumerate(("dhcp4relay", "dhcp6relay")):
++            with self.subTest(binary=binary):
++                runtime, debug, metadata = INPUTS[index * 3:index * 3 + 3]
++                files = self.archive(runtime)
++                installed = "usr/sbin/" + binary
++                self.assertEqual(set(files), {installed})
++                mode, contents = files[installed]
++                self.assertEqual(mode, 0o755)
++                elf = Elf(contents)
++                self.assertEqual((elf.bits, elf.machine), (64, 62))
++                self.assertTrue(elf.build_id)
++                self.assertNotIn(".debug_info", elf.by_name)
++                self.assertNotIn(".zdebug_info", elf.by_name)
++                symbols = self.archive(debug)
++                symbol_path = "usr/lib/debug/.build-id/" + elf.build_id[:2] + "/" + elf.build_id[2:] + ".debug"
++                self.assertEqual(set(symbols), {symbol_path})
++                symbol_mode, symbol_bytes = symbols[symbol_path]
++                self.assertEqual(symbol_mode, 0o644)
++                symbol_elf = Elf(symbol_bytes)
++                self.assertEqual(symbol_elf.build_id, elf.build_id)
++                self.assertTrue({".debug_info", ".zdebug_info"} & set(symbol_elf.by_name))
++                self.assertEqual(elf.debuglink, PurePosixPath(symbol_path).name)
++                self.assertEqual(elf.debuglink_crc, zlib.crc32(symbol_bytes))
++                document = json.loads(metadata.read_text())
++                self.assertEqual(document["schema"], 1)
++                self.assertEqual(document["module"], "sonic-dhcp-relay")
++                self.assertEqual(document["architecture"], "amd64")
++                package = "sonic-" + binary
++                record = document["packages"][package]
++                self.assertEqual(record["payload_sha256"], hashlib.sha256(runtime.read_bytes()).hexdigest())
++                fields = record["control_fields"]
++                self.assertEqual(fields["Package"], package)
++                self.assertEqual(fields["Architecture"], "amd64")
++                self.assertTrue(fields["Version"])
++                self.assertTrue(fields["Depends"])
++                self.assertNotIn("${", json.dumps(fields))
++                self.assertIn("control", record["control_files"])
++
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/modules/sonic-dhcp-relay/metadata.json b/modules/sonic-dhcp-relay/metadata.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..fcaef2314592d5a886a72c299e72db32df08b777
+--- /dev/null
++++ b/modules/sonic-dhcp-relay/metadata.json
+@@ -0,0 +1,5 @@
++{
++  "versions": [
++    "0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739"
++  ]
++}
