@@ -1,3 +1,7 @@
+## Dependency refresh for `0.0.0.sonic.2-20200309174518-a00bece872fc`
+
+This candidate retains the `0.0.0.sonic.1-20200309174518-a00bece872fc` source and existing patches. Its module dependencies select the newest non-yanked versions published at `3d1cc5e8dfd553d2acbe4198e504a245e6bdbddf`. Versions introduced by this refresh are not dependency targets of the same refresh.
+
 # SONiC's shared goyang dependency
 
 Management-common's generated bindings and its ygot 0.7.1 dependency use
