@@ -672,3 +672,19 @@ external-query implementation in earlier patches; it is not submitted upstream.
 
 The two behavior fixes are downstream SONiC changes ported from
 [registry PR #299](https://github.com/securely1g/sonic-bazel-registry/pull/299).
+
+## Revision .24: refresh registry dependencies
+
+`0058-refresh-registry-dependencies.patch` aligns the module identity with
+`0.9.4.sonic.24` and selects the latest non-yanked dependencies published in
+registry snapshot `3d1cc5e8`:
+
+- `rules_foreign_cc`: `0.16.0` to `0.16.0.sonic.1`.
+- `rules_python`: `1.7.0` to `1.9.0.sonic.1`.
+- `tar.bzl`: `0.10.4` to `0.10.5.sonic.2`.
+- Development dependency `gazelle`: `0.34.0` to `0.54.0.sonic.1`.
+
+This is downstream registry integration, not an upstream bug fix. All inherited
+behavior patches and APT lock entries remain unchanged.
+
+This refresh reserves `.23` for [registry #431](https://github.com/securely1g/sonic-bazel-registry/pull/431). Patch `0059-reproducible-lock-import.patch` is copied unchanged from that PR at `82517bbdb08707428c60db959fc546063f03812d`, retaining its author attribution. It marks the tracked-file-only unified import reproducible; legacy imports and generated package payloads retain their existing behavior.

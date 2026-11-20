@@ -2,13 +2,13 @@
 
 module(name = "locked_import_integration")
 
-bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.22")
+bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.24")
 # Exercise the version selected by the gNMI consumer on Bazel 8.
 bazel_dep(name = "rules_cc", version = "0.2.22")
 bazel_dep(name = "bazel_skylib", version = "1.9.2")
 bazel_dep(name = "rules_shell", version = "0.6.1")
-bazel_dep(name = "rules_foreign_cc", version = "0.16.0")
-bazel_dep(name = "rules_python", version = "1.9.0")
+bazel_dep(name = "rules_foreign_cc", version = "0.16.0.sonic.1")
+bazel_dep(name = "rules_python", version = "1.9.0.sonic.1")
 
 # Repository rules run on the Bazel host, including when the targets are cross-built.
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
@@ -74,7 +74,7 @@ check_catalog_tools = use_repo_rule("//native_catalog:fixtures.bzl", "check_cata
 check_catalog_tools(name = "checked_native_catalog_tools")
 
 # Exercise the public multi-file tar toolchain interface on the native executor.
-bazel_dep(name = "tar.bzl", version = "0.10.4")
+bazel_dep(name = "tar.bzl", version = "0.10.5.sonic.2")
 tar = use_extension("@tar.bzl//tar:extensions.bzl", "toolchains")
 use_repo(tar, "bsd_tar_toolchains_linux_amd64", "bsd_tar_toolchains_linux_arm64")
 register_toolchains("//multifile_tar:toolchain")
