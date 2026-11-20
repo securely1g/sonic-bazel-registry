@@ -11,7 +11,7 @@
   "patch_strip": 1,
   "overlay": {
     "BUILD.bazel": "sha256-t91Ybb4L41nFBrSOaf1cZmNZHvgd1ErRUS8RyttCVyc=",
-    "MODULE.bazel": "sha256-w/YAy9YvlVUoTwxQye0rR0aFsbzRD0OPYuuV8eEXTLU=",
+    "MODULE.bazel": "sha256-IKu3CvBrTPkGrBAHu16owubiZCWO8P6L3z4HZMrkKAs=",
     "README.bazel.md": "sha256-Asm4yZz1Ne0TqomFVT07Dk+54E23Idlxz4XPHdVc5nU=",
     "emit_cffi.py": "sha256-YjYPPXhOAhh9H+8jlDfemJopHM7Vca0LN5uSrCJU9Vk=",
     "generate_egg_metadata.py": "sha256-s3jCx9kxNQH459x+Ze5eLR4+qQAriQVCh+ntfWH+BE8=",
