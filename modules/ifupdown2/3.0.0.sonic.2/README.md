@@ -1,3 +1,7 @@
+## Dependency refresh for `3.0.0.sonic.2`
+
+This candidate retains the `3.0.0.sonic.1` source and existing patches. Its module dependencies select the newest non-yanked versions published at `3d1cc5e8dfd553d2acbe4198e504a245e6bdbddf`. Versions introduced by this refresh are not dependency targets of the same refresh.
+
 # ifupdown2 3.0.0
 
 This module installs the SONiC Make-selected 3.0.0-1 upstream source and the six SONiC patches in their original order. The source wrapper and patches come from the fixed sonic-buildimage archive in source.json.
