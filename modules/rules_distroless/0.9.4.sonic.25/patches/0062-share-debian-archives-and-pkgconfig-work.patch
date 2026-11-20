@@ -649,7 +649,7 @@ index 8882c44..90573f1 100644
  def catalog_execute(ctx, name, args, environment = {}):
      """Run a catalog tool using the locked loader, libraries and magic database."""
 -    root = ctx.path(Label("@distroless_native_tools//:ROOT")).dirname
-+    root = ctx.path(ctx.attr.native_tools or Label("@distroless_native_tools//:ROOT")).dirname
++    root = ctx.path(getattr(ctx.attr, "native_tools", None) or Label("@distroless_native_tools//:ROOT")).dirname
      argv = [root.get_child("loader"), "--inhibit-cache", "--library-path", root.get_child("lib"), root.get_child(name)]
      if name == "file":
          argv.extend(["-m", root.get_child("magic.mgc")])
