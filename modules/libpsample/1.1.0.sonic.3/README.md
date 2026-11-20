@@ -1,3 +1,7 @@
+## Dependency refresh for `1.1.0.sonic.3`
+
+This candidate retains the `1.1.0.sonic.2` source and existing patches. Its module dependencies select the newest non-yanked versions published at `3d1cc5e8dfd553d2acbe4198e504a245e6bdbddf`. Versions introduced by this refresh are not dependency targets of the same refresh.
+
 # SONiC psample runtime and SDK
 
 Build the exact Mellanox/libpsample revision selected by SONiC's `src/sflow/psample/Makefile`:
