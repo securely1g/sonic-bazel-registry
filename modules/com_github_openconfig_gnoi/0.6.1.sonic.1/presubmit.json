@@ -1,0 +1,18 @@
+{
+  "architectures": [
+    "amd64"
+  ],
+  "consumer_deps": [],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
+  },
+  "build_targets": [
+    "@com_github_openconfig_gnoi//types:types_cc_proto",
+    "//:types_consumer_test"
+  ],
+  "test_targets": [
+    "//:types_consumer_test"
+  ],
+  "integration_test_module": "tests/integration",
+  "generated_module_overlay": true
+}
