@@ -1,4 +1,4 @@
-# Distroless .25 explicit native aliases
+# Distroless .25 APT repository performance
 
 `apt.native_aliases` lets the root module declare additional native targets
 for a locked APT collection. Generating an opted-in collection no longer
@@ -6,6 +6,10 @@ loads every package's export metadata. Bazel resolves the actual target in
 the package for the selected architecture. An empty alias map exposes the
 built-in targets alone. Existing consumers keep automatic discovery by
 omitting the tag.
+
+Locked imports share the verified archive, extraction, and native tool inputs
+by Debian package checksum. Package metadata reuses the extracted contents.
+Pkg-config discovery batches reads and avoids repeated module traversal.
 
 ## Dependency refresh for `0.9.4.sonic.24`
 
