@@ -195,6 +195,12 @@ def upstream_test(wheel, source, root, receipts):
     for tag in excluded:
         command += ["-K", tag]
     env = isolated_environment(site)
+    # The upstream interactive tests need writable XDG state before importing
+    # Scapy. Keep it in this acceptance run, without changing the worker HOME.
+    for key, name in (("XDG_CONFIG_HOME", "config"), ("XDG_CACHE_HOME", "cache")):
+        directory = root / name
+        directory.mkdir(mode=0o700)
+        env[key] = str(directory)
     log = execute(command, cwd=site, env=env, timeout=1500)
     (receipts / "upstream.log").write_text(log)
     # Keep upstream's original concatenated xUnit campaign fragments verbatim.
