@@ -1,3 +1,7 @@
+## Dependency refresh for `3.6.0.sonic.2`
+
+This candidate retains the `3.6.0.sonic.1` source and existing patches. Its module dependencies select the newest non-yanked versions published at `3d1cc5e8dfd553d2acbe4198e504a245e6bdbddf`. Versions introduced by this refresh are not dependency targets of the same refresh.
+
 # lm-sensors 3.6.0 SONiC native module
 
 The recipe preserves Debian 1:3.6.0-7.1, its eight source patches and the two
