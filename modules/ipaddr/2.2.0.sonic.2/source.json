@@ -4,7 +4,7 @@
   "strip_prefix": "ipaddr-2.2.0",
   "overlay": {
     "BUILD.bazel": "sha256-iDxDpx5k8UI8xYuMkbCtctIywPRZEYdHz5BVj7nzRck=",
-    "MODULE.bazel": "sha256-srzRNAJHtP7U1FXtTkdwiEMzhY0lcayBKrmqzvEw68M=",
+    "MODULE.bazel": "sha256-Q+12+2TFWr/o5xYqCyhF6oNfxqea0AGlDlFg5M6g08Y=",
     "tests/installed_test.py": "sha256-RsP2T8D271OiKgYrKGgXgIOJLWSTH06EoAo+JssNd4M="
   }
 }
