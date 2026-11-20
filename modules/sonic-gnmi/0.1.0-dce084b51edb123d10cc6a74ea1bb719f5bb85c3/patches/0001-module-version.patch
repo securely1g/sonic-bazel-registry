@@ -1,10 +1,19 @@
+From: Guohan Lu <securely1g@gmail.com>
+Subject: [PATCH] Register the merged sonic-gnmi source commit
+
+Qualify the exact merged source module identity. Preserve all dependency
+declarations from the source owner; unmerged refresh changes are deferred.
+
+Source commit: dce084b51edb123d10cc6a74ea1bb719f5bb85c3
+Scope: downstream registry integration; not an upstream bug fix.
+
 --- a/MODULE.bazel
 +++ b/MODULE.bazel
 @@ -1,6 +1,6 @@
  module(
      name = "sonic-gnmi",
 -    version = "0.1.0",
-+    version = "0.1.0-3cc2cba22ba980128518aafe4ddae14aeebebb08",
++    version = "0.1.0-dce084b51edb123d10cc6a74ea1bb719f5bb85c3",
      bazel_compatibility = [
          ">=8.5.1",
          "<=8.5.1",

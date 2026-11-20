@@ -1,9 +1,9 @@
 {
-  "url": "https://github.com/securely1g/sonic-gnmi/archive/3cc2cba22ba980128518aafe4ddae14aeebebb08.tar.gz",
-  "strip_prefix": "sonic-gnmi-3cc2cba22ba980128518aafe4ddae14aeebebb08",
-  "integrity": "sha256-WFYMMWTndeCjSjRbkE4Qtl/QnDS2jU7wVkcIMjhioO0=",
+  "url": "https://github.com/securely1g/sonic-gnmi/archive/dce084b51edb123d10cc6a74ea1bb719f5bb85c3.tar.gz",
+  "strip_prefix": "sonic-gnmi-dce084b51edb123d10cc6a74ea1bb719f5bb85c3",
+  "integrity": "sha256-St9erE4Row/wcc9Zfq7VdKHGFa7EqGlVp/5rWxYbj90=",
   "patches": {
-    "0001-module-version.patch": "sha256-z7nsW+t5QDcqAtMTXB+7c5jDcCqppOu+uNTjFsEABxU="
+    "0001-module-version.patch": "sha256-0J7PIPPStwUUYoK3fB8UQ71XATKrVjy9bv9fewMspNo="
   },
   "patch_strip": 1
 }
