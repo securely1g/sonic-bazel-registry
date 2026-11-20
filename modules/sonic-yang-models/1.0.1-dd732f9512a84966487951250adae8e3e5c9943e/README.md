@@ -1,18 +1,14 @@
-# Source-owned YANG model distribution
+# Register merged sonic-yang-models sources
 
-This entry selects the standalone module under `src/sonic-yang-models` from landed
-[sonic-buildimage #32](https://github.com/securely1g/sonic-buildimage/pull/32),
-at maintained `master` commit `b0a9362a7a1b4b5e1b7188c019d256f7c8aaff9f`.
-The only registry patch aligns the module version with the immutable source SHA.
+Source: [securely1g/sonic-buildimage@dd732f95](https://github.com/securely1g/sonic-buildimage/commit/dd732f9512a84966487951250adae8e3e5c9943e).
 
-`yang_models_wheel` builds the existing setup.py distribution from source.
-`yang_models_pkg` installs its Python metadata and both model variants using
-the shared wheel-layer rule. `yang_models` keeps the prepared Python model tree.
+This entry uses the latest maintained-branch commit captured on 2026-11-18. It preserves the owner module base `1.0.1` and its dependency declarations. The registry qualifies the version with the full source commit and retains existing compatible consumer tests and registry adaptations.
 
-The source container base in
-[buildimage #30](https://github.com/securely1g/sonic-buildimage/pull/30), consumed
-by [buildimage #13](https://github.com/securely1g/sonic-buildimage/pull/13), needs
-the installed metadata so pip recognizes config-engine's sonic-yang-models
-requirement. Native AMD64 and ARM64 registry CI checks the source wheel,
-installed distribution discovery, complete manifests, file bytes and ownership.
-It builds wheel and TAR outputs and creates no Debian packages.
+The following declaration updates remain deferred because they have not landed in this source owner:
+
+| Dependency | Merged owner selection | Deferred refresh selection |
+|---|---|---|
+| rules_python | `1.8.0` | `1.9.0.sonic.1` |
+| sonic-build-infra | `0.0.37-d31541a95fdf477302f1b109f2105eee81c86617` | `0.0.38-0baa4acc9eac9ccc793b81104b1580d530271cbe` |
+
+Archive integrity, complete patch application, overlay checksums and module identity were checked locally. This preparation does not claim a completed Bazel build or passing CI.
