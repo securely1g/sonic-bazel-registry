@@ -11,3 +11,11 @@ License-File selects Core Metadata2.4 and caller supplies corresponding licenses
 Contracts: https://packaging.python.org/en/latest/specifications/core-metadata/ and https://peps.python.org/pep-0639/#license-files-in-project-formats . Preserve original License text; do not infer License-Expression.
 
 Public registry consumer: @rules_python//registry_ci:metadata_test verifies three native wheels, changed/omitted fields, repeated License-File paths, regular ZIP modes and RECORD checksums. Source development validation also runs all upstream //tests/py_wheel/... and //tests/tools:wheelmaker_test.
+
+## Revision .2: refresh registry dependencies
+
+`0004-refresh-registry-dependencies.patch` aligns the module identity with
+`1.9.0.sonic.2` and updates the development dependency `rules_go` from `0.41.0`
+to `0.65.0.sonic.1`, the latest non-yanked version published in registry snapshot
+`3d1cc5e8`. This is downstream registry integration, not an upstream bug fix.
+The inherited wheel metadata and permission patches remain unchanged.
