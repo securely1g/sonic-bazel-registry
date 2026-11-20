@@ -11,7 +11,8 @@
     "https://github.com/openconfig/ygot"
   ],
   "versions": [
-    "0.7.1.sonic.1"
+    "0.7.1.sonic.1",
+    "0.7.1.sonic.2"
   ],
   "yanked_versions": {}
 }

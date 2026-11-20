@@ -1,0 +1,19 @@
+From: Guohan Lu <securely1g@gmail.com>
+Subject: [PATCH] Register the merged sonic-fips source commit
+
+Qualify the exact merged source module identity. Preserve all dependency
+declarations from the source owner; unmerged refresh changes are deferred.
+
+Source commit: 1a8daf8dd8a3ad54de0e91a55b46fd5bbd206763
+Scope: downstream registry integration; not an upstream bug fix.
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-fips",
+-    version = "0.0.6",
++    version = "0.0.6-1a8daf8dd8a3ad54de0e91a55b46fd5bbd206763",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",

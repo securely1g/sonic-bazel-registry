@@ -73,6 +73,15 @@ tests and queries, while retaining `private_mirrors.py` and its downloader confi
 Execution architecture matters: a future ARM64 target built on AMD64 still uses
 the AMD64 host tools. This does not itself enable new cross-build coverage.
 
+For large ZIPs with a small selection of individually locked members, the reader
+fetches only the blocks containing the ZIP directory, member headers and data.
+It reuses the validated GitHub delivery URL for that transfer and checks the
+strong ETag when provided. If GitHub returns the full asset in response to the
+first range request, the reader consumes that response. Archives with a declared
+whole-file SHA256 always use the complete asset when a download is needed.
+Extracted members from range downloads are cached by SHA256 and verified again
+on reuse.
+
 For standalone reuse, `--repository-cache` can point to an existing Bazel
 repository cache. The helper rechecks size and SHA256 before reusing a distdir
 file, repository-cache file or downloaded asset. Registry CI uses a separate

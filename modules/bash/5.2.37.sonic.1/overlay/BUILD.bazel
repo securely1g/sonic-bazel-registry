@@ -1,0 +1,245 @@
+load("@bazel_skylib//rules:expand_template.bzl", "expand_template")
+load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
+load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
+load("@rules_cc//cc:defs.bzl", "cc_library")
+load("@sonic_build_infra//tools/build_tools:defs.bzl", "build_tool")
+load("@sonic_build_infra//cc:runtime_test.bzl", "native_runtime_binary")
+load("@rules_cc//cc:defs.bzl", "cc_binary")
+load("@rules_python//python:defs.bzl", "py_test")
+load("@rules_python//python:defs.bzl", "py_binary")
+load("@sonic_build_infra//oci:source_controls.bzl", "source_package_controls")
+load("@sonic_build_infra//deb:changelogs.bzl", "debian_changelogs")
+load(":test_rules.bzl", "installed_bash_test_binary")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["MODULE.bazel", "source.BUILD.bazel", "source_includes.bzl", "debian.BUILD.bazel", "patches/series", "patches/0001-Add-plugin-support-to-bash.patch"])
+
+expand_template(name = "config_h", template = "config.h.tpl", out = "generated/config/config.h", substitutions = {})
+expand_template(name = "pathnames_h", template = "@bash_src//:pathnames.h.in", out = "generated/config/pathnames.h", substitutions = {"@DEBUGGER_START_FILE@": "/usr/share/bashdb/bashdb-main.inc"})
+genrule(
+    name = "version_h",
+    srcs = ["@bash_src//:support/mkversion.sh", "@bash_src//:patchlevel.h"],
+    outs = ["generated/config/version.h"],
+    tools = [":build_bash"],
+    cmd = """PATH= $(execpath :build_bash) <<'SONIC_BASH_VERSION'
+set -eu
+header=$(location @bash_src//:patchlevel.h)
+$(execpath :build_bash) $(location @bash_src//:support/mkversion.sh) -b -S "$${header%/*}" -d 5.2 -s release -o $@
+SONIC_BASH_VERSION
+""",
+)
+
+cc_library(
+    name = "config_headers",
+    hdrs = [":config_h", ":pathnames_h", ":version_h"],
+    includes = ["generated/config"],
+    target_compatible_with = ["@platforms//cpu:x86_64"],
+)
+
+alias(name = "tinfo", actual = "@bash_build_debian//libncurses-dev:libtinfo_cc")
+build_tool(name = "build_bash", runtime = "@sonic_build_infra//tools/build_tools:foreign_runtime", tool = "bash")
+alias(name = "bash", actual = "@bash_src//:bash")
+alias(name = "clear_console", actual = "@bash_src//:clear_console")
+filegroup(name = "skel_profile", srcs = ["@bash_debian//:debian/skel.profile"])
+filegroup(name = "skel_bash_logout", srcs = ["@bash_debian//:debian/skel.bash_logout"])
+
+_RESOURCES = [
+    ("@bash_debian//:debian/etc.bash.bashrc", "etc/bash.bashrc", "0644"),
+    ("@bash_debian//:debian/skel.bashrc", "etc/skel/.bashrc", "0644"),
+    ("@bash_debian//:debian/skel.profile", "etc/skel/.profile", "0644"),
+    ("@bash_debian//:debian/skel.bash_logout", "etc/skel/.bash_logout", "0644"),
+    ("@bash_debian//:debian/shells.d/bash", "usr/share/debianutils/shells.d/bash", "0644"),
+    ("@bash_src//:bashbug", "usr/bin/bashbug", "0755"),
+    ("@bash_debian//:debian/copyright", "usr/share/doc/bash/copyright", "0644"),
+    ("@bash_debian//:debian/bash.menu", "usr/share/menu/bash", "0644"),
+    ("@bash_debian//:debian/bash.overrides", "usr/share/lintian/overrides/bash", "0644"),
+]
+
+_MANPAGES = {
+    "bash.1": "@bash_src//:doc/bash.1",
+    "rbash.1": "@bash_src//:doc/rbash.1",
+    "bashbug.1": "@bash_debian//:debian/bashbug.1",
+    "clear_console.1": "@bash_debian//:debian/clear_console.1",
+    "bash-builtins.7": "@bash_debian//:debian/bash-builtins.7",
+}
+[
+    genrule(
+        name = name + ".gz",
+        srcs = [source],
+        outs = ["man/" + name + ".gz"],
+        tools = ["@sonic_build_infra//tools/build_tools:pigz"],
+        cmd = "$(execpath @sonic_build_infra//tools/build_tools:pigz) -n -9 -c $< > $@",
+    )
+    for name, source in _MANPAGES.items()
+]
+
+debian_changelogs(
+    name = "changelogs",
+    control = "@bash_debian//:debian/control",
+    changelog = "@bash_debian//:debian/changelog",
+    debian_files = {"@bash_debian//:debian/compat": "compat"},
+    upstream = "@bash_src//:CHANGES",
+    package = "bash",
+    architecture = "amd64",
+    outs = ["docs/changelog", "docs/changelog.Debian"],
+)
+
+_DOCUMENTS = {
+    'CHANGES.gz': '@bash_src//:CHANGES',
+    'NEWS.gz': '@bash_src//:NEWS',
+    'COMPAT.gz': '@bash_src//:COMPAT',
+    'INTRO.gz': '@bash_src//:doc/INTRO',
+    'POSIX.gz': '@bash_src//:POSIX',
+    'README.Debian.gz': '@bash_debian//:debian/README',
+    'README.commands.gz': '@bash_debian//:debian/README.commands',
+    "changelog.gz": ":docs/changelog",
+    "changelog.Debian.gz": ":docs/changelog.Debian",
+}
+[
+    genrule(
+        name = "doc_" + name,
+        srcs = [source],
+        outs = ["compressed_docs/" + name],
+        tools = ["@sonic_build_infra//tools/build_tools:pigz"],
+        cmd = "$(execpath @sonic_build_infra//tools/build_tools:pigz) -n -9 -c $< > $@",
+    )
+    for name, source in _DOCUMENTS.items()
+]
+
+# The release catalogs are unchanged by all original Debian/SONiC patches.
+_LOCALES = [
+    'en@quot',
+    'en@boldquot',
+    'af',
+    'bg',
+    'ca',
+    'cs',
+    'da',
+    'de',
+    'el',
+    'eo',
+    'es',
+    'et',
+    'fi',
+    'fr',
+    'ga',
+    'gl',
+    'hr',
+    'hu',
+    'id',
+    'it',
+    'ja',
+    'ko',
+    'lt',
+    'nb',
+    'nl',
+    'pl',
+    'pt',
+    'pt_BR',
+    'ro',
+    'ru',
+    'sk',
+    'sl',
+    'sr',
+    'sv',
+    'tr',
+    'uk',
+    'vi',
+    'zh_CN',
+    'zh_TW',
+]
+_RESOURCES += [
+    (":doc_" + name, "usr/share/doc/bash/" + name, "0644")
+    for name in _DOCUMENTS
+] + [
+    ("@bash_src//:po/" + language + ".gmo", "usr/share/locale/" + language + "/LC_MESSAGES/bash.mo", "0644")
+    for language in _LOCALES
+] + [
+    ("@bash_debian//:debian/README.abs-guide", "usr/share/doc/bash/README.abs-guide", "0644"),
+    ("@bash_debian//:debian/inputrc.arrows", "usr/share/doc/bash/inputrc.arrows", "0644"),
+]
+
+sonic_deploy_tar(
+    compress_debug_sections = True,
+    name = "bash.runtime",
+    binaries = {
+        "usr/bin/bash type=file uid=0 gid=0 mode=0755 time=0": ":bash",
+        "usr/bin/clear_console type=file uid=0 gid=0 mode=0755 time=0": ":clear_console",
+    },
+    srcs = [source for source, _, _ in _RESOURCES] + [":" + name + ".gz" for name in _MANPAGES],
+    mtree = [destination + " type=file uid=0 gid=0 mode=" + mode + " time=0 content=$(location " + source + ")" for source, destination, mode in _RESOURCES] + [
+        "usr/share/man/man" + name[-1] + "/" + name + ".gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :" + name + ".gz)" for name in _MANPAGES
+    ] + ["usr/bin/rbash type=link uid=0 gid=0 mode=0777 time=0 link=bash"],
+)
+
+runtime_packages(
+    name = "bash.runtime_metadata",
+    module_name = "bash",
+    control = "@bash_debian//:debian/control",
+    changelog = "@bash_debian//:debian/changelog",
+    packages = {"bash": ":bash.runtime"},
+    apt_packages = {"@bash_build_debian//libtinfo6:data": "@bash_build_debian//libtinfo6:control"},
+    required_paths = {"bash": ["usr/bin/bash", "etc/skel/.bashrc", "etc/skel/.profile", "etc/skel/.bash_logout"]},
+    control_file_helpers = [["dh_installmenu"], ["dh_installdeb"]],
+    debian_files = {
+        "compat": "@bash_debian//:debian/compat",
+        "bash.menu": "@bash_debian//:debian/bash.menu",
+        "bash.postinst": "@bash_debian//:debian/bash.postinst",
+        "bash.prerm": "@bash_debian//:debian/bash.prerm",
+    },
+)
+
+source_package_controls(
+    name = "bash.control",
+    metadata = ":bash.runtime_metadata",
+    package = "bash",
+)
+
+filegroup(name = "bash.runtime_receipt", srcs = [":bash.control"], output_group = "receipt")
+
+# The original Make recipe runs these same SONiC plugin tests after building.
+cc_binary(
+    name = "plugin_test_binary",
+    testonly = True,
+    srcs = ["Files/unittest/plugin_test.c", "Files/unittest/mock_helper.c", "Files/unittest/mock_helper.h", "@bash_src//:plugin.c"],
+    local_defines = ["DEBUG", "BASH_PLUGIN_UT"],
+    copts = ["-std=gnu17", "-Wno-parentheses", "-Wno-format-security", "-Wno-implicit-function-declaration"],
+    deps = ["@bash_src//:source_headers", "@bash_build_debian//libcunit1-dev:libcunit_cc"],
+)
+native_runtime_binary(
+    name = "plugin_test_executable",
+    testonly = True,
+    binary = ":plugin_test_binary",
+    runtime_payloads = ["@bash_build_debian//libc6:data", "@bash_build_debian//libcunit1:data"],
+)
+py_test(
+    name = "plugin_test",
+    srcs = ["plugin_test_runner.py"],
+    main = "plugin_test_runner.py",
+    data = [":plugin_test_executable", "Files/unittest/bash_plugins.conf"],
+    args = ["$(rootpath :plugin_test_executable)", "$(rootpath Files/unittest/bash_plugins.conf)"],
+)
+
+native_runtime_binary(
+    name = "installed_bash_executable",
+    testonly = True,
+    binary = ":installed_bash_file",
+    runtime_payloads = ["@bash_build_debian//libc6:data", "@bash_build_debian//libtinfo6:data"],
+)
+py_binary(name = "test_extract_tool", srcs = ["test_extract.py"], main = "test_extract.py")
+installed_bash_test_binary(name = "installed_bash_file", testonly = True, payload = ":bash.runtime")
+native_runtime_binary(
+    name = "build_bash_executable",
+    testonly = True,
+    binary = ":bash",
+    runtime_payloads = ["@bash_build_debian//libc6:data", "@bash_build_debian//libtinfo6:data"],
+)
+py_test(
+    name = "installation_test",
+    srcs = ["installation_test.py"],
+    main = "installation_test.py",
+    args = ["$(rootpath :bash.runtime)", "$(rootpath :bash.runtime.debug_symbols)", "$(rootpath :bash.control)", "$(rootpath :bash.runtime_metadata)", "$(rootpath :installed_bash_executable)", "$(rootpath :build_bash_executable)", "$(rootpath :original_installation.json)", "$(rootpath :bash)"],
+    data = [":bash.runtime", ":bash.runtime.debug_symbols", ":bash.control", ":bash.runtime_metadata", ":installed_bash_executable", ":build_bash_executable", ":original_installation.json", ":bash"],
+    deps = ["@sonic_build_infra//deb:elf_metadata"],
+)

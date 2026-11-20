@@ -1,0 +1,15 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_cross_binary")
+
+exports_files([
+    "go.mod",
+    "go.sum",
+])
+
+# Run upstream's original receiver/comparator as a separate test process.
+go_cross_binary(
+    name = "golden",
+    testonly = True,
+    sdk_version = "1.25.6",
+    target = "@com_github_open_telemetry_opentelemetry_collector_contrib_cmd_golden//:golden",
+    visibility = ["//distributions/otelcol-contrib:__pkg__"],
+)

@@ -564,12 +564,9 @@ class SourceMirrorWorkflowScopeTest(unittest.TestCase):
         script = workflow.split("          python3 - <<'PY'\n", 1)[1].split("          PY\n", 1)[0]
         script = "\n".join(line[10:] for line in script.splitlines())
         matrix = {"include": [{"module": "original", "version": "1.0.0", "architecture": architecture,
-                               "execution_architecture": architecture, "cross_compile": False,
-                               "runner": REGISTRY_CI.RUNNERS[architecture]}
+                               "execution_architecture": "amd64", "cross_compile": architecture == "arm64",
+                               "runner": REGISTRY_CI.RUNNERS["amd64"]}
                               for architecture in ("amd64", "arm64")]}
-        matrix["include"].append({"module": "cross", "version": "1.0.0", "architecture": "arm64",
-                                  "execution_architecture": "amd64", "cross_compile": True,
-                                  "runner": REGISTRY_CI.RUNNERS["amd64"]})
         for branch, repository in (
             ("codex/pigz-source-mirror", "securely1g/sonic-bazel-registry"),
             ("codex/debian-container-runners", "securely1g/sonic-bazel-registry"),
@@ -588,8 +585,6 @@ class SourceMirrorWorkflowScopeTest(unittest.TestCase):
                     lines = output.read_text().splitlines()
                     self.assertEqual(json.loads(lines[0].removeprefix("matrix=")), matrix)
                     self.assertIn("has_jobs=true", lines)
-                    self.assertIn("has_local_jobs=true", lines)
-                    self.assertIn("has_hosted_arm_jobs=true", lines)
 
 
 @unittest.skipUnless(os.environ.get("REGISTRY_CI_TEST_BAZEL"),

@@ -1,0 +1,74 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "LICENSE.txt",
+    "experimental/saiextensions.h",
+    "experimental/saiportextensions.h",
+    "experimental/saitypesextensions.h",
+    "inc/saiobject.h",
+    "meta/acronyms.txt",
+    "meta/parse.pl",
+    "meta/saimetadatautils.c",
+    "meta/saiserialize.c",
+])
+
+filegroup(
+    name = "inc",
+    srcs = glob(["inc/*.h"], exclude = ["inc/saiobject.h"]),
+)
+
+filegroup(
+    name = "experimental",
+    srcs = glob(
+        ["experimental/*.h"],
+        exclude = [
+            "experimental/saiextensions.h",
+            "experimental/saiexperimentaldash*.h",
+            "experimental/saiportextensions.h",
+            "experimental/saitypesextensions.h",
+        ],
+    ),
+)
+
+filegroup(
+    name = "metadata_inputs",
+    srcs = glob([
+        "meta/*.c",
+        "meta/*.cap",
+        "meta/*.cpp",
+        "meta/*.h",
+        "meta/*.pl",
+        "meta/*.pm",
+        "meta/*.sh",
+        "meta/Doxyfile*",
+    ]) + [
+        "meta/Makefile",
+        "meta/acronyms.txt",
+        "meta/aspell.en.pws",
+    ],
+)
+
+cc_library(
+    name = "inc_headers",
+    hdrs = [":inc"],
+    strip_include_prefix = "inc",
+)
+
+cc_library(
+    name = "experimental_headers",
+    hdrs = [":experimental"],
+    strip_include_prefix = "experimental",
+)
+
+cc_library(
+    name = "metadata_headers",
+    hdrs = [
+        "meta/saimetadatalogger.h",
+        "meta/saimetadatatypes.h",
+        "meta/saimetadatautils.h",
+        "meta/saiserialize.h",
+    ],
+    strip_include_prefix = "meta",
+)

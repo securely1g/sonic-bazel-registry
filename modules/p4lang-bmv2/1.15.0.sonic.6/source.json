@@ -1,0 +1,23 @@
+{
+  "url": "https://github.com/securely1g/sonic-bazel-registry/releases/download/p4-source-inputs-20261021/p4lang-bmv2_1.15.0.orig.tar.gz",
+  "integrity": "sha256-CDu5B+RVl6+OKe87CpLTPSgrojhA3dXPuDctLwMKtBU=",
+  "archive_type": "tar.gz",
+  "overlay": {
+    ".bazelrc": "sha256-eWNvsdlx7rkWwPCx7OFAM1IWNUq+1/1tQCDCZj5Ap64=",
+    ".bazelversion": "sha256-vlEH0zbCxnyjNmGd+GJItoepKbYme0QCEAZsUVzqBjo=",
+    "BUILD.bazel": "sha256-4oJlLzSE4+JnL4a6Bh6y3GyEJ0qVQpWyGBmmARGtW10=",
+    "MODULE.bazel": "sha256-UGVCXTFrXZ8pp7QHOjnF+hUL6AVyb13Pj7pryfOZEZI=",
+    "bazel/bm_config.h.in": "sha256-eGarfH0RmY2vOdR+t42sFoe8xKJnwF/Oc3nwzd2XwIk=",
+    "bazel/bmv2.BUILD.bazel": "sha256-Z9vDIWYAYZQ1D+yMLS1or6SMlDXdLygQ1CxwcaKGunM=",
+    "bazel/hold-cli-endpoint-reservations.patch": "sha256-WuTyja0kmT23vUtzNDKxnaNljCZH29QQeuBuSQmoKHw=",
+    "bazel/isolate-packet-redirect-ipc.patch": "sha256-eFUWF3qYbPMtLNpZInAXKb+QXi+qXo608gFy/sj2FOU=",
+    "bazel/libtool.la.in": "sha256-Rs9AI6+qzqpd2LnoQt/+ws7dqJoHmh8CVZL1Ma1tJr4=",
+    "bazel/package_test.py": "sha256-jzKnV7oeqYE0LYbKnpNsZz1AfmX5yAFCIsWwPWsndA4=",
+    "bazel/pcap_runtime_test.bzl": "sha256-+1WAbXJvuSsZKK5QwazqbKLPK7NnByE0tN08Q91jDtE=",
+    "bazel/remove-unnecessary-dependencies.patch": "sha256-ptIQahFQYXUDzr1mDt8jZi/zUxYpFqTMCunacnNfWjY=",
+    "bazel/sdk_consumer.cpp": "sha256-uAaIndFG92O06Klw7DEioJrpaB5cyFOP+Y6ZCuTUHHc=",
+    "bazel/six_python.BUILD.bazel": "sha256-Z3EMl99QoRbM7ZbcIVFhoYL27ztkEAq+NHHUwpIQIR0=",
+    "bazel/thrift_python.BUILD.bazel": "sha256-OVMi3QgQhfZ3CT7xwsIrDfgnDYMIi7rkvNqJWVkXLpg=",
+    "bazel/use-boost-1.83.patch": "sha256-RuXpjeTrP7ec/sPAvmGhQszRdDGQLkZFgEHYXfMkzto="
+  }
+}

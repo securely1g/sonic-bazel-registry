@@ -1,0 +1,13 @@
+{
+  "integrity": "sha256-labR/cFpnmyQWxU3Oa8fIQ+TlEAqp8S1d8wjnFlIaC4=",
+  "overlay": {
+    "BUILD.bazel": "sha256-y1bNbsheQF/06gzpTlJMjRe6aepxU6qYN9D89CbPk5o=",
+    "MODULE.bazel": "sha256-JDI9H4zmj/mPsThgfxNqww6kgLkP0w54aoGY1/H/+kU=",
+    "packaging.bzl": "sha256-Q2VOxMwGgvJCASJUOWU1ZHf0h0GU9DaLbEwA5KAR21Q=",
+    "tests/upstream_contract.json": "sha256-GH5q0toe1t88+pCVOXmZtcaKJ5oVAgJn/nhrcLqkTNg=",
+    "tests/upstream_test.py": "sha256-Yvv7IFO8Zj5l3SXivdHrRJIBpHK2NVgPO/BIm0lacXM=",
+    "tests/wheel_contract_test.py": "sha256-ogal6cCclRG4T8jRUWgZPdoUGbLpJngBNkGb6PKWcpk="
+  },
+  "strip_prefix": "bitarray-eb1f7014446ef5ce0afddd86d2e929975ec7b4f9",
+  "url": "https://github.com/ilanschnell/bitarray/archive/eb1f7014446ef5ce0afddd86d2e929975ec7b4f9.tar.gz"
+}

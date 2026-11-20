@@ -1,0 +1,57 @@
+Subject: Avoid static ownership for empty dynamic pkg-config contracts
+
+A header-only .pc target can be used directly by two cc_shared_library
+consumers connected through dynamic_deps. Its empty compile-only linker
+input does not need the synthetic archive used to retain link flags.
+Keep the existing anchor rules for every other caller and contract.
+
+Origin: ported from securely1g/sonic-bazel-registry#299 to published .21.
+Upstream status: SONiC adaptation, not submitted.
+
+diff --git a/apt/private/cc_deb_library.bzl b/apt/private/cc_deb_library.bzl
+--- a/apt/private/cc_deb_library.bzl
++++ b/apt/private/cc_deb_library.bzl
+@@ -218,7 +218,10 @@
+     features = cc_common.configure_features(ctx = ctx, cc_toolchain = toolchain, requested_features = ctx.features, unsupported_features = ctx.disabled_features)
+     runtime = {}
+     files = {file: True for file in ctx.files.link_files}
++    has_inherited_link_inputs = False
+     for item in merged.linking_context.linker_inputs.to_list():
++        if item.libraries or item.additional_inputs or item.user_link_flags:
++            has_inherited_link_inputs = True
+         for file in item.additional_inputs:
+             files[file] = True
+         for library in item.libraries:
+@@ -273,7 +276,11 @@
+         not soname and ctx.attr.link_files[index][DefaultInfo].files.to_list()[0] not in empty_archives
+         for index, soname in enumerate(ctx.attr.link_sonames)
+     ])
+-    if not libraries or has_static_inputs:
++    # A generated header-only .pc can have an empty compiler-owned linker
++    # input. It carries no link contract for a shared object to own.
++    header_only = (ctx.attr.header_only and not has_inherited_link_inputs and
++                   not ctx.attr.arguments and not ctx.attr.link_files and not ctx.attr.link_sonames)
++    if not header_only and (not libraries or has_static_inputs):
+         anchor = ctx.actions.declare_file(ctx.label.name + "/linkopts.a")
+         ctx.actions.write(anchor, "/* Ordered pkg-config link contract. */\n")
+         libraries.append(cc_common.create_library_to_link(actions = ctx.actions, static_library = anchor))
+@@ -302,6 +309,7 @@
+         "link_sonames": attr.string_list(),
+         "empty_archives": attr.label_list(allow_files = True),
+         "arguments": attr.string_list(),
++        "header_only": attr.bool(default = False),
+     },
+     fragments = ["cpp"],
+     toolchains = use_cc_toolchain(),
+diff --git a/apt/private/deb_import.bzl b/apt/private/deb_import.bzl
+--- a/apt/private/deb_import.bzl
++++ b/apt/private/deb_import.bzl
+@@ -684,7 +684,7 @@
+                     continue
+                 compiler = "_pkgconfig_compile_" + util.encode_target(target)
+                 content += 'cc_deb_library(name=%r, hdrs=%r, deps=%r, includes=%r, include_dirs=%r, quote_includes=%r, defines=%r)\n' % (compiler, hdrs, header_deps, [] if compatible else compile.normal, compile.system + compile.normal if compatible else compile.system, compile.quote, compile.defines)
+-                content += 'native_link_sequence(name=%r, deps=%r, link_files=%r, link_sonames=%r, empty_archives=%r, arguments=%r, visibility=["//visibility:public"])\n' % (target, deps + [":" + compiler], link_files, sonames, empty_archives, arguments)
++                content += 'native_link_sequence(name=%r, deps=%r, link_files=%r, link_sonames=%r, empty_archives=%r, arguments=%r, header_only=%r, visibility=["//visibility:public"])\n' % (target, deps + [":" + compiler], link_files, sonames, empty_archives, arguments, mode == "dynamic" and not flags.get("libs", []))
+     return content, exports
+ 
+ def _discover_contents(rctx, depends_on, depends_file_map, target_name, state):

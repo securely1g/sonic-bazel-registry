@@ -1,0 +1,37 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.39-81476192bf2cdb70bb646e85935c5d698b6de8a0"
+    },
+    {
+      "name": "tar.bzl",
+      "version": "0.10.5.sonic.2"
+    },
+    {
+      "name": "rules_distroless",
+      "version": "0.9.4.sonic.25"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic-build-infra//platforms:x86_64_trixie",
+    "arm64": "@sonic-build-infra//platforms:aarch64_trixie"
+  },
+  "build_targets": [
+    "@sonic-dash//:runtime",
+    "@sonic-dash//:runtime.debug_symbols",
+    "@sonic-dash//bazel:sdk_consumer",
+    "@sonic-dash//:runtime_packages.json"
+  ],
+  "test_targets": [
+    "@sonic-dash//bazel:runtime_test"
+  ],
+  "host_platforms": {
+    "amd64": "@sonic-build-infra//platforms:x86_64_trixie",
+    "arm64": "@sonic-build-infra//platforms:aarch64_trixie"
+  }
+}

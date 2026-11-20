@@ -46,51 +46,13 @@ _GITHUB_SPEC = importlib.util.spec_from_file_location("registry_github_sources",
 assert _GITHUB_SPEC is not None and _GITHUB_SPEC.loader is not None
 github_sources = importlib.util.module_from_spec(_GITHUB_SPEC)
 _GITHUB_SPEC.loader.exec_module(github_sources)
-P4_MODULES = {"p4c", "p4lang-bmv2", "sonic-dash"}
+P4_MODULES = {"p4c", "p4lang-bmv2", "sonic-dash", "sonic-pins"}
 RUNNERS = {
     "amd64": ["self-hosted", "Linux", "X64", "debian-trixie-container"],
     "arm64": ["ubuntu-24.04-arm"],
 }
-# This staged migration keeps unverified and future ARM versions on native ARM.
-# The exploratory survey uses True in its separate branch; do not infer success
-# from a build-only result or an API-green job without the original test evidence.
-ARM_CROSS_ALL = False
-# Temporary exact-version routes qualified by the complete original ARM contract.
-# Remove this map and the hosted ARM route after the full migration, so future
-# ARM versions receive cross validation as well. See ci/README.md for CI evidence.
-ARM_CROSS_VERSIONS: dict[str, tuple[str, ...]] = {
-    "gawk": ("5.3.2.sonic.1",),
-    "gazelle": ("0.54.0.sonic.1",),
-    "iproute2": ("6.15.0.sonic.7",),
-    "libnl3": ("3.7.0.sonic.7",),
-    "libyang-python": ("3.1.0.sonic.6",),
-    "p4c": ("1.2.4.2.sonic.3",),
-    "p4lang-bmv2": ("1.15.0.sonic.4",),
-    "p4lang-pi": ("0.1.3.sonic.3",),
-    "protobuf-legacy": ("3.21.12.sonic.2",),
-    "rules_distroless": ("0.9.4.sonic.17",),
-    "rules_foreign_cc": ("0.16.0.sonic.1",),
-    "rules_go": ("0.65.0.sonic.1",),
-    "rules_python": ("1.9.0.sonic.1",),
-    "sai": ("1.18.0-sonic.1",),
-    "socat": ("1.8.0.2.sonic.5",),
-    "sonic-dash": ("0.0.1-2cbfdfa1205c0d03003444e5c80f89adb8c3df59",),
-    "sonic-dash-api": ("0.0.5-9b2893e890734a2db0c53a5e5c64b031ec0dcfbd",),
-    "sonic-linux-kernel": ("0.0.2-34a53faaecd325509e9d8f1016ed0108ab558a23",),
-    "sonic-rust-deps": ("0.0.4-6d9c70f708d7420e9e2b2cdc906b80cee6b140f1",),
-    "sonic-sairedis": ("0.0.5-33443ea1666a23812365d03fb959066ee84c9aa0",),
-    "sonic-swss": ("0.0.3-9c3797990d4b5a79100a40fe7689927c18212361",),
-    "sonic-swss-common": ("0.0.9-334389eae54afd1f4f5ee69f89c3a7ad2062ee61",),
-    "sonic-yang-mgmt": ("1.0.0-9ab452d22773c41783092ae3bd6c206d6c257c8d",),
-    "sonic-yang-models": ("1.0.1-b0a9362a7a1b4b5e1b7188c019d256f7c8aaff9f",),
-    "tar.bzl": ("0.10.5.sonic.2",),
-}
-
-# Keep the coherent DASH registration in routine plans. The published
-# .3 registration remains the numeric latest version and keeps its usual jobs.
-ADDITIONAL_PRESUBMITS: set[tuple[str, str]] = {
-    ("sonic-dash", "0.0.1-a9b799bb664b3b3b9d6e9a19cedd38b620e769de"),
-}
+FIPS_CROSS_VERSION = "0.0.6-18a778db501d455f8a1b6d1e3ef8e17121661177"
+FIPS_CROSS_VERSIONS = {FIPS_CROSS_VERSION, "0.0.6-1a8daf8dd8a3ad54de0e91a55b46fd5bbd206763"}
 
 # The original wrappers stage a private target executable, loader and libraries.
 ARM_DECLARED_RUNTIME_FIXTURES = {
@@ -244,9 +206,26 @@ def integration_test_directory(entry: Path, config: dict, module: str, version: 
         tree = ast.parse(declaration)
     except SyntaxError as error:
         raise RegistryError("Integration MODULE.bazel must use ordinary module declarations") from error
+    version_pin_functions = set()
+    for statement in tree.body:
+        if not (isinstance(statement, ast.Expr) and isinstance(statement.value, ast.Call)):
+            continue
+        call = statement.value
+        if not (isinstance(call.func, ast.Name) and call.func.id == "single_version_override"):
+            continue
+        require(not call.args and len(call.keywords) == 2
+                and {keyword.arg for keyword in call.keywords} == {"module_name", "version"}
+                and all(isinstance(keyword.value, ast.Constant)
+                        and isinstance(keyword.value.value, str)
+                        and bool(keyword.value.value.strip()) for keyword in call.keywords),
+                "Integration single_version_override requires only literal nonempty module_name and version")
+        values = {keyword.arg: keyword.value.value for keyword in call.keywords}
+        require(values["module_name"] != module or values["version"] == version,
+                "Integration version pin must retain the exact reviewed module version")
+        version_pin_functions.add(call.func)
     for node in ast.walk(tree):
         if isinstance(node, ast.Name):
-            require(not node.id.endswith("_override")
+            require((not node.id.endswith("_override") or node in version_pin_functions)
                     and node.id not in ("include", "override_repo", "inject_repo"),
                     "Integration MODULE.bazel cannot include files or override registry sources")
     dependencies = []
@@ -369,9 +348,10 @@ def validate_entry(root: Path, module: str, version: str) -> dict:
     required = {"architectures", "consumer_deps", "platforms", "build_targets", "test_targets"}
     require(required <= set(config) <= required | {
         "build_flags", "rust_preparation", "go_sdk", "rust_toolchain", "generated_module_overlay",
-        "test_runtime_preparation", "integration_test_module", "host_platforms", "additional_targets", "forbid_deb_outputs",
+        "test_runtime_preparation", "integration_test_module", "host_platforms", "additional_targets",
+        "cache_audit_targets", "forbid_deb_outputs",
     }, f"presubmit.json requires {sorted(required)} and optionally "
-       "build_flags/rust_preparation/go_sdk/rust_toolchain/generated_module_overlay/test_runtime_preparation/integration_test_module/host_platforms/additional_targets")
+       "build_flags/rust_preparation/go_sdk/rust_toolchain/generated_module_overlay/test_runtime_preparation/integration_test_module/host_platforms/additional_targets/cache_audit_targets/forbid_deb_outputs")
     if "forbid_deb_outputs" in config:
         require(config["forbid_deb_outputs"] is True, "forbid_deb_outputs must be true when present")
     if "test_runtime_preparation" in config:
@@ -406,6 +386,12 @@ def validate_entry(root: Path, module: str, version: str) -> dict:
         require(isinstance(host_platforms, dict) and set(host_platforms) == set(architectures)
                 and all(isinstance(label, str) and LABEL.fullmatch(label) for label in host_platforms.values()),
                 "host_platforms must map each architecture to an explicit external target")
+    if "cache_audit_targets" in config:
+        targets = config["cache_audit_targets"]
+        require(isinstance(targets, list) and bool(targets) and
+                all(isinstance(t, str) and re.fullmatch(r"@@[A-Za-z0-9+._-]+//[A-Za-z0-9_./+-]*:[A-Za-z0-9_./+-]+", t)
+                    for t in targets) and len(targets) == len(set(targets)),
+                "cache_audit_targets must be unique canonical Bazel target labels")
     aliases = {module}
     names = {module}
     require(isinstance(config["consumer_deps"], list), "consumer_deps must be a list")
@@ -602,7 +588,7 @@ def check_published_files(root: Path, path: str, published: str, head: str) -> N
     # whether their files are build inputs from a docs/ or tests/ pathname.
     supported = (isinstance(source, dict) and source.get("type", "archive") == "archive"
                  and set(source) <= {"type", "url", "integrity", "strip_prefix", "patches",
-                                     "patch_strip", "overlay", "docs_url", "mirror_urls"})
+                                     "patch_strip", "overlay", "docs_url", "mirror_urls", "archive_type"})
     for name in sorted(changed):
         old, new = before.get(name), after.get(name)
         regular = all(item is None or item[0] in ("100644", "100755") and item[1] == "blob"
@@ -696,7 +682,6 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
                         for path in (root / "modules").glob("*/*/presubmit.json"))
     elif latest_versions:
         selected.update(latest_presubmits(root))
-        selected.update(ADDITIONAL_PRESUBMITS)
     else:
         require(bool(base) and bool(head), "plan requires --base/--head, --latest or --all")
         require(re.fullmatch(r"[0-9a-fA-F]{40,64}", base) is not None
@@ -763,25 +748,13 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
                         selected.add((module, parts[2]))
         if ci_changed:
             selected.update(latest_presubmits(root))
-            selected.update(ADDITIONAL_PRESUBMITS)
-    require(type(ARM_CROSS_ALL) is bool, "ARM cross survey selection must be boolean")
-    require(isinstance(ARM_CROSS_VERSIONS, dict), "ARM cross routes must be a module/version map")
-    for module, versions in ARM_CROSS_VERSIONS.items():
-        require(isinstance(module, str) and NAME.fullmatch(module) is not None
-                and isinstance(versions, tuple) and bool(versions)
-                and all(isinstance(version, str) and VERSION.fullmatch(version) for version in versions)
-                and len(versions) == len(set(versions)), "Invalid temporary ARM cross route")
     include = []
     for module, version in sorted(selected):
         config = validate_entry(root, module, version)
         for architecture in config["architectures"]:
-            cross_compile = architecture == "arm64" and (
-                ARM_CROSS_ALL or version in ARM_CROSS_VERSIONS.get(module, ()))
-            execution_architecture = "amd64" if cross_compile else architecture
             include.append({"module": module, "version": version, "architecture": architecture,
-                            "execution_architecture": execution_architecture,
-                            "cross_compile": cross_compile,
-                            "runner": module_runner(module, execution_architecture, p4_runner_profile)})
+                            "execution_architecture": "amd64", "cross_compile": architecture == "arm64",
+                            "runner": module_runner(module, "amd64", p4_runner_profile)})
     return {"include": include}
 
 
@@ -1190,6 +1163,18 @@ def read_log_tail(path: Path, max_bytes: int) -> str:
         return stream.read().decode(errors="replace")
 
 
+def analysis_profile_startup_args(artifacts: Path) -> list[str]:
+    return ["--host_jvm_args=-Xlog:gc*,safepoint:file=" + str(artifacts / "jvm-gc.log")
+            + ":time,uptimemillis,level,tags"]
+
+
+def analysis_profile_flags(artifacts: Path, phase: str) -> list[str]:
+    return ["--profile=" + str(artifacts / (phase + ".profile.json")),
+            "--starlark_cpu_profile=" + str(artifacts / (phase + ".starlark.pprof")),
+            *["--experimental_profile_additional_tasks=" + task for task in
+              ("starlark_user_fn", "starlark_builtin_fn", "starlark_repository_fn")]]
+
+
 def run_logged(command: list[str], cwd: Path, log: Path) -> None:
     print(f"Running Bazel validation; log: {log}", flush=True)
     with log.open("w") as output:
@@ -1485,6 +1470,37 @@ def python_runtime_identity(runtime: Path, consumer: Path, log: Path,
     return identity
 
 
+def prepare_fips_recipe_perl(consumer: Path, work_dir: Path, artifacts: Path,
+                             executor_prefix: list[str], kernel_executor: Path) -> str:
+    """Use the target Perl for every original recipe, with native AIO for AF_ALG."""
+    runtime = consumer / "fips_recipe_runtime"
+    runtime.mkdir(exist_ok=True)
+    (runtime / "BUILD.bazel").write_text('exports_files(["run"])\n')
+    guest_perl = [*executor_prefix, "/usr/bin/perl"]
+    identity = json.loads(subprocess.check_output(
+        [*guest_perl, "-MConfig", "-MJSON::PP", "-e",
+         'print encode_json({version => $Config{version}, archname => $Config{archname}})'],
+        text=True, cwd=consumer))
+    require("aarch64" in identity["archname"], "OpenSSL TAP recipes must use AArch64 Perl")
+    identity["kernel_executor"] = str(kernel_executor)
+    identity["kernel_recipes"] = ["30-test_afalg.t"]
+    (artifacts / "fips-recipe-perl.json").write_text(json.dumps(identity, indent=2) + "\n")
+
+    # Embed the complete launcher in the Bazel input copied by rules_foreign_cc.
+    # OpenSSL's global EXE_SHELL would cause its CMP/HTTP recipe to skip.
+    kernel = shlex.join([str(kernel_executor), "--bind", str(work_dir), "--bind", str(artifacts)])
+    target_path = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+    runner = runtime / "run"
+    runner.write_text(
+        "#!/bin/sh\nunset PERLLIB PERL5LIB PERL5OPT\n"
+        'for arg do\n    case "${arg##*/}" in\n        30-test_afalg.t)\n'
+        f'            exec {kernel} --cwd "$PWD" --timeout 180 -- /usr/bin/env PATH={target_path} /usr/bin/perl "$@" ;;\n'
+        "    esac\ndone\n"
+        + 'exec ' + shlex.join(guest_perl) + ' "$@"\n')
+    runner.chmod(0o755)
+    return "--@sonic-fips//openssl/integration:recipe_perl=//fips_recipe_runtime:run"
+
+
 def prepare_cross_python_runtimes(bazel_prefix: list[str], flags: list[str], test_targets: list[str],
                                   output_base: Path, consumer: Path, artifacts: Path,
                                   executor_prefix: list[str]) -> list[dict]:
@@ -1612,7 +1628,6 @@ def prepare_gazelle_tests(root: Path, work_dir: Path, script_executor: list[str]
     return runner
 
 
-
 def stage_consumer_source_patches(root: Path, module: str, version: str,
                                   config: dict, consumer: Path, artifacts: Path) -> dict:
     """Materialize owner-bound patch bytes in the fresh consuming main repository.
@@ -1699,12 +1714,55 @@ def stage_consumer_source_patches(root: Path, module: str, version: str,
     return result
 
 
+@contextmanager
+def build_cache_audit(targets: list[str], work: Path, artifacts: Path):
+    """Publish only selected spawn outcomes and declared output digests."""
+    if not targets:
+        yield []
+        return
+    # The full execution log contains environment variables and command lines.
+    # Keep it outside the upload directory, including when Bazel or jq fails.
+    with tempfile.TemporaryDirectory(dir=work, prefix="cache-audit-") as temporary:
+        log = Path(temporary) / "execution.json"
+        yield [f"--execution_log_json_file={log}", "--noexecution_log_sort"]
+        # Bazel 8.5 writes adjacent pretty-printed SpawnExec objects. jq reads
+        # one at a time, and Bazel already computed all recorded file digests.
+        select_spawns = """
+            select(.targetLabel as $owner | $targets | index($owner))
+            | .listedOutputs as $outputs
+            | {targetLabel, mnemonic, runner, cacheHit, exitCode,
+               actionDigest: .digest.hash,
+               outputs: [.actualOutputs[] | select(.digest.hash)
+                         | select(.path as $path | $outputs | index($path))
+                         | {path, sha256: .digest.hash}]}
+        """
+        output = subprocess.check_output(["jq", "-c", "--argjson", "targets", json.dumps(targets),
+                                          select_spawns, str(log)], text=True)
+        records = [json.loads(line) for line in output.splitlines()]
+        observed = {record["targetLabel"] for record in records}
+        require(observed == set(targets), f"Missing cache audit targets: {sorted(set(targets) - observed)}")
+        (artifacts / "build-cache-audit.json").write_text(json.dumps(records, indent=2) + "\n")
+
+
+def cross_test_timeout_flags(module: str, version: str, cross_compile: bool, flags: list[str]) -> list[str]:
+    """Supply emulation budgets for short, moderate, long and eternal tests."""
+    if not cross_compile or any(flag == "--test_timeout" or flag.startswith("--test_timeout=") for flag in flags):
+        return []
+    # BMv2 inspects runtime/debug archives and Sairedis runs two sequential
+    # saiasiccmp comparisons under QEMU; both exceed the 900-second budget.
+    moderate_seconds = 2700 if module in {"p4lang-bmv2", "sonic-sairedis"} else 900
+    # The FIPS package test runs the complete SymCrypt unittest under QEMU.
+    long_seconds = 5400 if (module == "sonic-fips" and version in FIPS_CROSS_VERSIONS) else 2700
+    return [f"--test_timeout=180,{moderate_seconds},{long_seconds},7200"]
+
+
 def run(root: Path, module: str, version: str, architecture: str,
         work_dir: Path, artifacts: Path, bazel: str = "bazel",
         test_container_image: str | None = None,
         bazel_startup_args: list[str] | None = None,
         bazel_build_args: list[str] | None = None,
-        cross_compile: bool = False, test_executor: Path | None = None) -> None:
+        cross_compile: bool = False, test_executor: Path | None = None,
+        profile_analysis: bool = False) -> None:
     config = validate_entry(root, module, version)
     require(architecture in config["architectures"], "Architecture is not configured for this version")
     additional = config.get("additional_targets", {}).get(architecture, {})
@@ -1713,13 +1771,19 @@ def run(root: Path, module: str, version: str, architecture: str,
     require(not cross_compile or architecture == "arm64", "Cross compilation supports ARM64 targets on AMD64")
     require(cross_compile or test_executor is None, "A test executor requires explicit cross compilation")
     native = verify_native("amd64" if cross_compile else architecture)
+    fips_cross = cross_compile and (module == "sonic-fips" and version in FIPS_CROSS_VERSIONS)
+    infra_cross = (cross_compile and module == "sonic-build-infra" and
+                   "@sonic-build-infra//tools/build_tools:foreign_runtime_test" in test_targets)
+    kernel_executor = Path("/usr/local/bin/sonic-arm64-kernel")
+    if fips_cross:
+        require(kernel_executor.is_file() and os.access(kernel_executor, os.X_OK),
+                "FIPS ARM cross tests require the worker image with sonic-arm64-kernel")
     if config.get("test_runtime_preparation") or cross_compile:
         require_test_container(test_container_image)
     if cross_compile:
         require(test_executor is not None and test_executor.is_absolute()
                 and test_executor.is_file() and os.access(test_executor, os.X_OK),
                 "ARM64 cross compilation requires an executable absolute --test-executor path")
-        require("amd64" in config["platforms"], "Cross compilation requires a declared AMD64 execution platform")
     work_dir, artifacts = work_dir.resolve(), artifacts.resolve()
     require(not work_dir.exists() or not any(work_dir.iterdir()), "work-dir must be fresh and empty")
     require(not artifacts.is_relative_to(work_dir), "artifacts must be outside work-dir")
@@ -1813,8 +1877,10 @@ def run(root: Path, module: str, version: str, architecture: str,
                     "Cross tests must execute in an ARM64 Debian Trixie runtime")
             cross_runtime["executor_sha256"] = hashlib.sha256(test_executor.read_bytes()).hexdigest()
             cross_runtime["executor_prefix"] = executor_prefix
+        profiling_startup = analysis_profile_startup_args(artifacts) if profile_analysis else []
+
         prefix = [bazel, "--ignore_all_rc_files", f"--output_user_root={work_dir / 'bazel'}",
-                  *(bazel_startup_args or [])]
+                  *(bazel_startup_args or []), *profiling_startup]
         flags = [f"--registry={root.resolve().as_uri()}", "--registry=https://bcr.bazel.build/",
                  f"--platforms={config['platforms'][architecture]}", "--lockfile_mode=update",
                  f"--experimental_downloader_config={root.resolve() / 'ci/source_mirrors.cfg'}",
@@ -1826,7 +1892,9 @@ def run(root: Path, module: str, version: str, architecture: str,
                                             work_dir, artifacts))
         host_platform = config.get("host_platforms", {}).get(execution_architecture)
         if cross_compile and host_platform is None:
-            host_platform = config["platforms"]["amd64"]
+            # ARM-only manifests have no AMD64 target platform. The build runs on
+            # a verified AMD64 host; derive its execution platform from Bazel.
+            host_platform = config["platforms"].get("amd64", "@local_config_platform//:host")
         if host_platform is not None:
             flags.append(f"--host_platform={host_platform}")
         if config.get("rust_toolchain", {}).get("mangled_allocator_libraries", False):
@@ -1845,6 +1913,21 @@ def run(root: Path, module: str, version: str, architecture: str,
                 host_platform = cross_platforms["execution_platform"]
                 flags.extend([f"--platforms={cross_platforms['target_platform']}",
                               f"--host_platform={host_platform}"])
+                if infra_cross:
+                    # Build tools such as foreign_runtime_arm64 execute their own
+                    # target loader while assembling a runtime. Give those actions
+                    # an ARM execution platform after the preferred AMD64 cross host.
+                    arm_platform = cross_platforms["target_platform"]
+                    arm_uname = "/opt/sonic-arm64-rootfs/usr/bin/uname"
+                    probe_log = artifacts / "cross-binfmt.log"
+                    run_logged(["/usr/bin/env", "-i", arm_uname, "-m"], consumer, probe_log)
+                    machine = probe_log.read_text().strip()
+                    require(machine == "aarch64", "Build-tool runtime assembly requires working AArch64 binfmt")
+                    flags.append(f"--extra_execution_platforms={host_platform},{arm_platform}")
+                    cross_runtime["build_tool_execution"] = {
+                        "preferred": host_platform, "native_machine": native["machine"],
+                        "fallback": arm_platform, "fallback_machine": machine,
+                    }
                 try:
                     pip_hubs = cross_pip.prepare(
                         root, consumer, artifacts, prefix, flags,
@@ -1853,15 +1936,18 @@ def run(root: Path, module: str, version: str, architecture: str,
                     raise RegistryError(str(error)) from error
                 cross_runtime["pip_hubs"] = pip_hubs
                 try:
-                    cross_runtime["autoconf"] = cross_autoconf.prepare(work_dir, artifacts, flags)
+                    cross_runtime["autoconf"] = cross_autoconf.prepare(work_dir, artifacts, flags, fips_krb5=fips_cross)
                 except ValueError as error:
                     raise RegistryError(str(error)) from error
                 shutil.copy2(consumer / "MODULE.bazel", artifacts / "consumer.MODULE.bazel")
             flags.extend(prepare_rust(config, consumer, work_dir, artifacts, prefix, flags))
             configured_non_deb_gate(config, prefix, flags,
                                     list(dict.fromkeys(build_targets + test_targets)), consumer, artifacts)
-            run_logged([*prefix, "build", *flags, f"--build_event_json_file={artifacts / 'build-events.jsonl'}",
-                        *build_targets], consumer, artifacts / "build.log")
+            with build_cache_audit(config.get("cache_audit_targets", []), work_dir, artifacts) as audit_flags:
+                profile_flags = analysis_profile_flags(artifacts, "build") if profile_analysis else []
+                run_logged([*prefix, "build", *flags, *audit_flags, *profile_flags,
+                            f"--build_event_json_file={artifacts / 'build-events.jsonl'}", *build_targets],
+                           consumer, artifacts / "build.log")
             declared_trees = query_output_trees(prefix, flags, build_targets, consumer, artifacts)
             # Path queries need dependency resolution, but not target/host platform
             # flags whose apparent labels may be unresolved in a fresh info command.
@@ -1896,6 +1982,16 @@ def run(root: Path, module: str, version: str, architecture: str,
                     "Fetched MODULE.bazel differs from registry MODULE.bazel")
             shutil.copy2(fetched[0], artifacts / "fetched.MODULE.bazel")
             require((consumer / "MODULE.bazel.lock").is_file(), "Bazel did not generate MODULE.bazel.lock resolution evidence")
+            if infra_cross:
+                # These runtime tests exercise public wrappers alongside target
+                # runtimes and compare their tool versions, loaded Perl paths,
+                # and Valgrind instrumentation of an AArch64 program.
+                # Bazel drops this option on exec transitions. A platform mapping
+                # also applies it to nested ARM execution tools such as Valgrind.
+                mapping = consumer / "_registry_ci_cross" / "build_infra_arm64_tests.platforms"
+                shutil.copy2(root / "ci" / mapping.name, mapping)
+                shutil.copy2(mapping, artifacts / mapping.name)
+                flags.append("--platform_mappings=" + str(mapping.relative_to(consumer)))
             if executor_prefix:
                 mappings = prepare_cross_python_runtimes(prefix, flags, test_targets, output_base,
                                                          consumer, artifacts, executor_prefix)
@@ -1912,18 +2008,20 @@ def run(root: Path, module: str, version: str, architecture: str,
                 executor_prefix = [str(go_executor)]
                 cross_runtime["test_executor_prefix"] = executor_prefix
                 cross_runtime["test_executor_sha256"] = hashlib.sha256(go_executor.read_bytes()).hexdigest()
+            if fips_cross:
+                test_flags.extend(["--keep_going", prepare_fips_recipe_perl(
+                    consumer, work_dir, artifacts, executor_prefix, kernel_executor)])
             if executor_prefix:
                 fixtures = ARM_DECLARED_RUNTIME_FIXTURES.get((module, version))
+                if infra_cross:
+                    # The test relocates a large tree and runs its target tools.
+                    # Avoid tracing every filesystem operation inside PRoot.
+                    fixtures = {"tools/build_tools/foreign_runtime_test":
+                                "sonic-build-infra+/tools/build_tools/foreign_runtime_arm64/usr/bin/protoc"}
                 if fixtures:
                     executor_prefix = [str(root / "ci" / "declared_arm_runtime.py"), json.dumps(fixtures), *executor_prefix]
                 test_flags.append("--run_under=" + shlex.join(executor_prefix))
-            # Emulated Python can spend more than five minutes staging a large
-            # declared runtime before the test starts. Keep caller timeouts and
-            # native defaults; extend only the cross-test execution budgets.
-            if cross_compile and not any(
-                    flag == "--test_timeout" or flag.startswith("--test_timeout=")
-                    for flag in [*flags, *test_flags]):
-                test_flags.append("--test_timeout=180,900,2700,7200")
+            test_flags.extend(cross_test_timeout_flags(module, version, cross_compile, [*flags, *test_flags]))
             # Export HOME before Bazel's test setup assigns TEST_TMPDIR. With
             # HOME absent, that shell assignment is invisible to Python and
             # expanduser() falls back to the account home outside the sandbox.
@@ -1931,7 +2029,7 @@ def run(root: Path, module: str, version: str, architecture: str,
             # separate bind mounts reject those links even on one filesystem.
             # Keep input staging within the disposable container, and leave
             # build action strategies unchanged.
-            run_logged([*prefix, "test", *flags, *test_flags, "--test_env=HOME=",
+            run_logged([*prefix, "test", *flags, *test_flags, *(analysis_profile_flags(artifacts, "test") if profile_analysis else []), "--test_env=HOME=",
                         f"--strategy=TestRunner={TEST_SANDBOX_STRATEGY}",
                         "--nocache_test_results", "--test_output=errors",
                         f"--build_event_json_file={artifacts / 'test-events.jsonl'}", *test_targets],
@@ -2032,7 +2130,7 @@ def main() -> None:
     scope.add_argument("--latest", action="store_true", dest="latest_versions",
                        help="test latest non-yanked versions and explicit additional presubmits")
     planner.add_argument("--p4-runner-profile", choices=("standard", "large"), default="large",
-                         help="AMD64 execution pool for P4C, BMv2 and DASH")
+                         help="AMD64 execution pool for P4C, BMv2, DASH and PINS")
     planner.add_argument("--output", required=True, type=Path)
     synchronizer = subparsers.add_parser("sync-module", help="generate or check an opted-in MODULE overlay")
     synchronizer.add_argument("--module", required=True)
@@ -2049,6 +2147,8 @@ def main() -> None:
                         help="repeatable Bazel startup option; use --bazel-startup-arg=--option=value")
     runner.add_argument("--bazel-build-arg", action="append", default=[],
                         help="repeatable Bazel build/test/query option; use --bazel-build-arg=--option=value")
+    runner.add_argument("--profile-analysis", action="store_true",
+                        help="retain JSON traces, Starlark CPU profiles and JVM GC/safepoint logs")
     runner.add_argument("--cross-compile", action="store_true",
                         help="build ARM64 targets on AMD64 and execute tests with an explicit emulated runtime")
     runner.add_argument("--test-executor", type=Path,
@@ -2069,7 +2169,7 @@ def main() -> None:
         else:
             run(ROOT, args.module, args.version, args.architecture, args.work_dir, args.artifacts,
                 args.bazel, args.test_container_image, args.bazel_startup_arg, args.bazel_build_arg,
-                args.cross_compile, args.test_executor)
+                args.cross_compile, args.test_executor, profile_analysis=args.profile_analysis)
     except (RegistryError, OSError, subprocess.CalledProcessError) as error:
         parser.exit(1, f"Registry CI failed: {error}\n")
 

@@ -1,0 +1,19 @@
+From: Guohan Lu <securely1g@gmail.com>
+Subject: [PATCH] Register the merged sonic-yang-models source commit
+
+Qualify the exact merged source module identity. Preserve all dependency
+declarations from the source owner; unmerged refresh changes are deferred.
+
+Source commit: dd732f9512a84966487951250adae8e3e5c9943e
+Scope: downstream registry integration; not an upstream bug fix.
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-yang-models",
+-    version = "1.0.1",
++    version = "1.0.1-dd732f9512a84966487951250adae8e3e5c9943e",
+ )
+ 
+ bazel_dep(name = "rules_python", version = "1.8.0")

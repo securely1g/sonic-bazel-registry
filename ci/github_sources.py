@@ -8,6 +8,7 @@ for the Bazel process, and never executes files or extracts archive paths.
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
 import hashlib
 from http.client import HTTPException
 import json
@@ -216,95 +217,188 @@ def cached_file(path: Path, destination: Path, entry: dict) -> bool:
         return False
 
 
-def download(source: dict, destination: Path) -> None:
-    """Bound bytes/time and sanitize errors, including signed CDN URL failures."""
-    validate_url(source["url"])
-    opener = build_opener(GitHubRedirectHandler())
-    request = Request(source["url"], headers={"Accept-Encoding": "identity",
-                                              "User-Agent": "sonic-github-sources/1"})
-    deadline = time.monotonic() + TRANSFER_SECONDS
+@contextmanager
+def github_response(opener, url, deadline, headers=None):
+    request = Request(url, headers={"Accept-Encoding": "identity",
+                      "User-Agent": "sonic-github-sources/1", **(headers or {})})
+    remaining = deadline - time.monotonic()
+    require(remaining > 0, "GitHub download exceeded its deadline")
     try:
-        with opener.open(request, timeout=READ_TIMEOUT_SECONDS) as response:
+        with opener.open(request, timeout=min(remaining, READ_TIMEOUT_SECONDS)) as response:
             validate_url(response.geturl(), initial=False)
-            require(response.status == 200, "GitHub asset did not return HTTP 200")
-            length = response.headers.get("Content-Length")
-            require(length is None or (length.isdecimal() and int(length) == source["size"]),
-                    "GitHub asset Content-Length differs from its lock")
-            total = 0
-            with destination.open("wb") as output:
-                while True:
-                    require(time.monotonic() <= deadline, "GitHub download exceeded its deadline")
-                    data = response.read(min(CHUNK_BYTES, source["size"] - total + 1))
-                    if not data:
-                        break
-                    total += len(data)
-                    require(total <= source["size"], "GitHub asset exceeds its locked size")
-                    output.write(data)
-            require(total == source["size"], "GitHub asset is shorter than its locked size")
+            yield response
     except HTTPError as error:
         raise SourceError(f"GitHub download failed with HTTP {error.code}; no alternate host attempted") from None
     except (URLError, OSError, HTTPException):
         raise SourceError("GitHub download failed; no alternate host attempted") from None
 
 
+def save_asset(response, source, destination, deadline):
+    require(response.status == 200, "GitHub asset did not return HTTP 200")
+    length = response.headers.get("Content-Length")
+    require(length is None or (length.isdecimal() and int(length) == source["size"]),
+            "GitHub asset Content-Length differs from its lock")
+    total = 0
+    with destination.open("wb") as output:
+        while True:
+            require(time.monotonic() <= deadline, "GitHub download exceeded its deadline")
+            data = response.read(min(CHUNK_BYTES, source["size"] - total + 1))
+            if not data:
+                break
+            total += len(data)
+            require(total <= source["size"], "GitHub asset exceeds its locked size")
+            output.write(data)
+    require(total == source["size"], "GitHub asset is shorter than its locked size")
+
+
+def download(source: dict, destination: Path) -> None:
+    """Bound bytes/time and sanitize errors, including signed CDN URL failures."""
+    validate_url(source["url"])
+    deadline = time.monotonic() + TRANSFER_SECONDS
+    with github_response(build_opener(GitHubRedirectHandler()), source["url"], deadline) as response:
+        save_asset(response, source, destination, deadline)
+
+
+class FullAssetDownloaded(Exception):
+    """The origin ignored the first Range request and returned the complete file."""
+
+
+class GitHubZipReader:
+    """Fetch each touched block once. Repeated ZIP metadata reads see identical bytes."""
+
+    block_size = 256 * 1024
+
+    def __init__(self, source, scratch, fallback_path):
+        self.source = source
+        self.url = source["url"]
+        validate_url(self.url)
+        self.scratch = scratch
+        self.scratch.truncate(source["size"])
+        self.seek = scratch.seek
+        self.tell = scratch.tell
+        self.seekable = scratch.seekable
+        self.fetched_blocks = set()
+        self.etag = None
+        self.opener = build_opener(GitHubRedirectHandler())
+        self.deadline = time.monotonic() + TRANSFER_SECONDS
+        self.fallback_path = fallback_path
+
+    def read(self, size=-1):
+        position = self.tell()
+        remaining = max(0, self.source["size"] - position)
+        count = remaining if size < 0 else min(size, remaining)
+        if count:
+            for block in range(position // self.block_size, (position + count - 1) // self.block_size + 1):
+                if block not in self.fetched_blocks:
+                    self.fetch_block(block)
+            self.seek(position)
+        return self.scratch.read(count)
+
+    def fetch_block(self, block):
+        first = block * self.block_size
+        last = min(first + self.block_size, self.source["size"]) - 1
+        headers = {"Range": f"bytes={first}-{last}"}
+        if self.etag:
+            headers["If-Range"] = self.etag
+        with github_response(self.opener, self.url, self.deadline, headers) as response:
+            if response.status == 200 and not self.fetched_blocks:
+                save_asset(response, self.source, self.fallback_path, self.deadline)
+                raise FullAssetDownloaded()
+            require(response.status == 206 and
+                    response.headers.get("Content-Range") == f"bytes {first}-{last}/{self.source['size']}",
+                    "Invalid GitHub asset byte range")
+            etag = response.headers.get("ETag")
+            if not self.fetched_blocks:
+                self.url = response.geturl()  # Reuse this validated GitHub delivery URL within this transfer.
+                self.etag = etag if etag and etag.startswith('"') else None
+            require(not self.etag or self.etag == etag, "GitHub asset changed during range reads")
+            length = last - first + 1
+            data = response.read(length + 1)
+            require(len(data) == length, "GitHub range length differs from requested size")
+            require(time.monotonic() <= self.deadline, "GitHub download exceeded its deadline")
+        self.scratch.seek(first)
+        self.scratch.write(data)
+        self.fetched_blocks.add(block)
+
+
 def source_files(path: Path, source: dict, stage: Path) -> None:
     """Verify a whole direct asset or only the explicitly locked ZIP members."""
-    try:
-        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
-        with os.fdopen(fd, "rb") as stream:
-            status = os.fstat(stream.fileno())
-            require(stat.S_ISREG(status.st_mode) and status.st_size == source["size"],
-                    "Cached source size or file type does not match its lock")
-            if "sha256" in source:
-                hasher = hashlib.sha256()
-                total = 0
-                while True:
-                    chunk = stream.read(min(CHUNK_BYTES, source["size"] - total + 1))
-                    if not chunk:
-                        break
-                    total += len(chunk)
-                    require(total <= source["size"], "Source exceeds its locked size")
-                    hasher.update(chunk)
-                require(total == source["size"] and hasher.hexdigest() == source["sha256"],
-                        "Source size or SHA256 does not match its lock")
-                stream.seek(0)
-            if source["format"] == "file":
-                entry = source["files"][0]
-                copy_verified(stream, stage / entry["name"], entry["size"], entry["sha256"])
-                return
-            # ZipFile materializes the central directory. Bound that allocation
-            # before opening it; selected members have their own locked bounds.
-            stream.seek(max(0, source["size"] - 65557))
-            tail = stream.read(65557)
-            end = tail.rfind(b"PK\x05\x06")
-            require(end >= 0 and len(tail) - end >= 22, "ZIP end record is missing")
-            record = struct.unpack("<4s4H2LH", tail[end:end + 22])
-            require(record[1:3] == (0, 0) and record[3] == record[4] < 65535
-                    and record[5] <= MAX_ZIP_DIRECTORY_BYTES
-                    and record[6] < 0xffffffff and len(tail) - end == 22 + record[7],
-                    "ZIP directory is too large, multipart or ZIP64")
-            # ZipFile follows a ZIP64 locator even without legacy sentinel
-            # values, replacing the directory size checked above. A maximum
-            # comment puts the locator before our tail window; seek directly.
-            end_offset = max(0, source["size"] - 65557) + end
-            if end_offset >= 20:
-                stream.seek(end_offset - 20)
-                require(stream.read(4) != b"PK\x06\x07", "ZIP64 archives are unsupported")
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    with os.fdopen(fd, "rb") as stream:
+        status = os.fstat(stream.fileno())
+        require(stat.S_ISREG(status.st_mode) and status.st_size == source["size"],
+                "Cached source size or file type does not match its lock")
+        if "sha256" in source:
+            hasher = hashlib.sha256()
+            total = 0
+            while True:
+                chunk = stream.read(min(CHUNK_BYTES, source["size"] - total + 1))
+                if not chunk:
+                    break
+                total += len(chunk)
+                require(total <= source["size"], "Source exceeds its locked size")
+                hasher.update(chunk)
+            require(total == source["size"] and hasher.hexdigest() == source["sha256"],
+                    "Source size or SHA256 does not match its lock")
             stream.seek(0)
-            with zipfile.ZipFile(stream) as archive:
-                for entry in source["files"]:
-                    matches = [info for info in archive.infolist() if info.filename == entry["path"]]
-                    require(len(matches) == 1, "Expected exactly one copy of each selected ZIP member")
-                    info = matches[0]
-                    require(info.orig_filename == entry["path"] and not info.flag_bits & 1
-                            and stat.S_IFMT(info.external_attr >> 16) in (0, stat.S_IFREG)
-                            and not info.is_dir() and info.file_size == entry["size"]
-                            and info.compress_type in (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED),
-                            "Selected ZIP member has an unsupported type, name, size or compression")
-                    with archive.open(info) as member:
-                        copy_verified(member, stage / entry["name"], entry["size"], entry["sha256"])
+        if source["format"] == "file":
+            entry = source["files"][0]
+            copy_verified(stream, stage / entry["name"], entry["size"], entry["sha256"])
+            return
+        zip_members(stream, source, stage)
+
+
+def zip_members(stream, source, stage):
+    try:
+        # ZipFile materializes the central directory. Bound that allocation
+        # before opening it; selected members have their own locked bounds.
+        stream.seek(max(0, source["size"] - 65557))
+        tail = stream.read(65557)
+        end = tail.rfind(b"PK\x05\x06")
+        require(end >= 0 and len(tail) - end >= 22, "ZIP end record is missing")
+        record = struct.unpack("<4s4H2LH", tail[end:end + 22])
+        require(record[1:3] == (0, 0) and record[3] == record[4] < 65535
+                and record[5] <= MAX_ZIP_DIRECTORY_BYTES
+                and record[6] < 0xffffffff and len(tail) - end == 22 + record[7],
+                "ZIP directory is too large, multipart or ZIP64")
+        # ZipFile follows a ZIP64 locator even without legacy sentinel
+        # values, replacing the directory size checked above. A maximum
+        # comment puts the locator before our tail window; seek directly.
+        end_offset = max(0, source["size"] - 65557) + end
+        if end_offset >= 20:
+            stream.seek(end_offset - 20)
+            require(stream.read(4) != b"PK\x06\x07", "ZIP64 archives are unsupported")
+        stream.seek(0)
+        with zipfile.ZipFile(stream) as archive:
+            for entry in source["files"]:
+                matches = [info for info in archive.infolist() if info.filename == entry["path"]]
+                require(len(matches) == 1, "Expected exactly one copy of each selected ZIP member")
+                info = matches[0]
+                require(info.orig_filename == entry["path"] and not info.flag_bits & 1
+                        and stat.S_IFMT(info.external_attr >> 16) in (0, stat.S_IFREG)
+                        and not info.is_dir() and info.file_size == entry["size"]
+                        and info.compress_type in (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED),
+                        "Selected ZIP member has an unsupported type, name, size or compression")
+                with archive.open(info) as member:
+                    copy_verified(member, stage / entry["name"], entry["size"], entry["sha256"])
     except (zipfile.BadZipFile, RuntimeError, NotImplementedError, EOFError, zlib.error):
         raise SourceError("ZIP verification failed") from None
+
+
+def fetch_source(source, fetched, stage):
+    # Reading just the directory and selected members pays off for a large ZIP
+    # with a small selection. A whole-archive digest always needs the full file.
+    if (source["format"] == "zip" and "sha256" not in source and
+            source["size"] > 4 * max(CHUNK_BYTES, sum(entry["size"] for entry in source["files"]))):
+        try:
+            with tempfile.TemporaryFile(dir=stage) as scratch:
+                zip_members(GitHubZipReader(source, scratch, fetched), source, stage)
+            return
+        except FullAssetDownloaded:
+            pass
+    else:
+        download(source, fetched)
+    source_files(fetched, source, stage)
 
 
 def atomic_copy(source: Path, destination: Path) -> None:
@@ -344,6 +438,8 @@ def prepare(manifest_path: Path, distdir: Path, cache_dir: Path, receipt: Path,
                 if repository_cache is not None:
                     candidates.append(("repository-cache", Path(repository_cache) / "content_addressable"
                                        / "sha256" / entry["sha256"] / "file"))
+                if source["format"] == "zip" and "sha256" not in source:
+                    candidates.append(("member-cache", cache_dir / "members" / entry["sha256"]))
                 for origin, candidate in candidates:
                     if cached_file(candidate, payloads / entry["name"], entry):
                         origins[entry["name"]] = origin
@@ -362,10 +458,13 @@ def prepare(manifest_path: Path, distdir: Path, cache_dir: Path, receipt: Path,
                 origin = "asset-cache"
             except (SourceError, OSError):
                 fetched = stage / "download.asset"
-                download(source, fetched)
-                source_files(fetched, source, source_stage)
-                fetched.chmod(0o644)
-                fetched.replace(cached)
+                fetch_source(source, fetched, source_stage)
+                if fetched.exists():
+                    fetched.chmod(0o644)
+                    fetched.replace(cached)
+                else:
+                    for entry in source["files"]:
+                        atomic_copy(source_stage / entry["name"], cache_dir / "members" / entry["sha256"])
                 origin = "github"
             for name in missing:
                 (source_stage / name).replace(payloads / name)

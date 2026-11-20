@@ -1,0 +1,48 @@
+From: Guohan Lu <securely1g@gmail.com>
+Subject: [PATCH] tftp: use the actual temporary directory for mocked RRQ tests
+
+Upstream source: https://github.com/secdev/scapy/blob/8e08cbf759de6709a5b4af6bea3655d293129bb4/test/tftp.uts
+Status: Local test portability fix for the pinned SONiC source.
+
+The RRQ fixture creates a file using tempfile but assumes its path starts
+with /tmp/. Bazel workers provide a private TMPDIR, so slicing five bytes
+and serving /tmp/ requests a different file. The mocked server then waits
+until UTScapy times out. Derive the request basename and serving directory
+from the actual file instead. Preserve the mocked packet sequence, transfer
+payload, success assertion and cleanup; no product code or privileges change.
+
+Validation: the existing Scapy wheel_test and full upstream_test targets,
+including the unchanged received_data == sent_data assertion.
+
+--- a/test/tftp.uts
++++ b/test/tftp.uts
+@@ -144,6 +144,7 @@
+ ~ linux
+ 
+ sent_data = "P" * 512 + "<3"
++import os
+ import tempfile
+ filename = tempfile.mktemp(suffix=".txt")
+ fdesc = open(filename, "w")
+@@ -154,7 +155,7 @@
+ 
+ class MockRRQSocket(MockTFTPSocket):
+     packets = [IP(dst="1.2.3.4") / UDP(dport=0x2807) / TFTP() / TFTP_RRQ(filename="scapy.txt") / TFTP_Options(options=[TFTP_Option(oname="blksize", value="100")]),
+-               IP(dst="1.2.3.4") / UDP(dport=0x2807) / TFTP() / TFTP_RRQ(filename=filename[5:]) / TFTP_Options(),
++               IP(dst="1.2.3.4") / UDP(dport=0x2807) / TFTP() / TFTP_RRQ(filename=os.path.basename(filename)) / TFTP_Options(),
+                IP(dst="1.2.3.4") / UDP(dport=0x2807) / TFTP() / TFTP_ACK(block=1),
+                IP(dst="1.2.3.4") / UDP(dport=0x2807) / TFTP() / TFTP_ACK(block=2) ]
+     def send(self, *args, **kargs):
+@@ -164,11 +165,10 @@
+                 global received_data
+                 received_data += pkt[Raw].load.decode("utf-8")
+ 
+-tftp_rrq = TFTP_RRQ_server(ip="1.2.3.4", sport=0x2807, dir="/tmp/", serve_one=True,
++tftp_rrq = TFTP_RRQ_server(ip="1.2.3.4", sport=0x2807, dir=os.path.dirname(filename), serve_one=True,
+                            ll=MockRRQSocket,
+                            recvsock=MockRRQSocket)
+ tftp_rrq.run()
+ assert received_data == sent_data
+ 
+-import os
+ os.unlink(filename)

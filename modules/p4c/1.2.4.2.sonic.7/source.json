@@ -1,0 +1,26 @@
+{
+  "url": "https://github.com/securely1g/sonic-bazel-registry/releases/download/p4-source-inputs-20261021/p4lang-p4c_1.2.4.2-3.debian.tar.xz",
+  "integrity": "sha256-Kjm/BMjQhHJAFLcc3rO5Hb56Mr8b1s1Jnl4TKqPky0A=",
+  "overlay": {
+    "BUILD.bazel": "sha256-eM64Tj7QWwZPLQ+BBmKsJrwngnBoJ3P8v7WH/vqDNrs=",
+    "MODULE.bazel": "sha256-5OmsxbC3fEftb4NP4VecmYt/h4RGDO0/S2bv6v7M24Q=",
+    "bazel/0001-use-boost-1.83.patch": "sha256-S7mHEysJW4XvI+uW2xzQ7A/hz1iN1H+4+zvILwyOG3s=",
+    "bazel/0002-fix-build-for-boost-1.83.patch": "sha256-lIir3S1os2V47iAljZNqEOp0TSG18yiDsBmDDQu9obM=",
+    "bazel/0003-update-thrift-dependency.patch": "sha256-o1tKrVH4aQhq42whdit69M4IZNUpCRiEAlToyqsMmAQ=",
+    "bazel/0004-remove-protobuf-from-debian-dependency.patch": "sha256-YTZk6iagtgMuLRzm4fQvzCW9rzViB6YFbzetpBTHUoA=",
+    "bazel/0005-remove-scapy-from-debian-dependency.patch": "sha256-Wl0MCiaXaXZv5P/tlT5wGyPG40aUYfGIVE+iLo9FZU0=",
+    "bazel/0007-recognize-driver-include-directory.patch": "sha256-j7RbCCLc58POLyvrAtE+gPX5oJtiYXP3s+7uHp0XL8M=",
+    "bazel/BUILD.bazel": "sha256-R1jmIJd130wKXIFEmQEOKEkWBaT4PrjF4/eheC+1hpY=",
+    "bazel/p4_library.bzl": "sha256-LH2rLciIai104e24guseRteVu2EzVcrsbKNhROKKls4=",
+    "bazel/p4_library_test.p4": "sha256-PQsXcp/IZKaKPJPe6PVCWUjATWhjKhqQ3sjOkd9sFDI=",
+    "bazel/p4_library_test_defs.h": "sha256-IVGa886RxYneluruVreRRuyuKzJYYdaUvtC8ButCgIc=",
+    "bazel/p4c.BUILD.bazel": "sha256-debGuYU5RLV6bxBI4oLF5i5CHuus3+gYGqNnz01onKk=",
+    "bazel/package_test.py": "sha256-bG79rbjdDy0pHXzKidbOknh8dnFI3fr3Z9P5B6KwRHA=",
+    "bazel/source.bzl": "sha256-PojqOkoEeEEIQE4isjy4Q6PVvPFh4whSYjjEyxtxadA=",
+    "bazel/tool.bzl": "sha256-V8unj/fogZ04BQYrZ2do7VCfbPU6wL2PzDv28BTXEQ0=",
+    "p4include/BUILD.bazel": "sha256-nsUvTlYnCAAjPQcnaVeOKhVFX2dlGwEMtMAWjKXokEs=",
+    "runtime_packages.md": "sha256-wkvEehs9scBPahHiX0S/SpyHu6v45GC+zGG8bCJesDw="
+  },
+  "archive_type": "tar.xz",
+  "patches": {}
+}

@@ -1,0 +1,1081 @@
+Subject: Record existing SONiC metadata in JSON schema goldens
+
+Management-common's generator consumes SONiC's ordering, module and
+performance metadata. Its existing generator emits these fields, but the
+five original JSON schema goldens omit them. Add that metadata to the
+expected files so the original generator tests check the selected SONiC
+contract. Preserve every pre-existing key/value; do not change generation.
+
+Origin: SONiC shared-module golden update for the generator retained in
+0001, verified against the existing generated JSON schema output.
+https://github.com/securely1g/sonic-bazel-registry/pull/214
+
+diff --git a/ygen/testdata/schema/openconfig-options-compress-schema.json b/ygen/testdata/schema/openconfig-options-compress-schema.json
+--- a/ygen/testdata/schema/openconfig-options-compress-schema.json
++++ b/ygen/testdata/schema/openconfig-options-compress-schema.json
+@@ -67,6 +67,7 @@
+                                                     "Argument": "oco"
+                                                 }
+                                             },
++                                            "DirOKeys": [],
+                                             "Type": {
+                                                 "Name": "uint32",
+                                                 "Kind": 7,
+@@ -84,6 +85,9 @@
+                                                         }
+                                                     }
+                                                 ]
++                                            },
++                                            "PerfOpts": {
++                                                "ChildSchemaCache": null
+                                             }
+                                         },
+                                         "peer-address": {
+@@ -98,6 +102,7 @@
+                                                     "Argument": "oco"
+                                                 }
+                                             },
++                                            "DirOKeys": [],
+                                             "Type": {
+                                                 "Name": "union",
+                                                 "Kind": 19,
+@@ -117,11 +122,21 @@
+                                                         ]
+                                                     }
+                                                 ]
+-                                            }
+-                                        }
+-                                    },
++                                            },
++                                            "PerfOpts": {
++                                                "ChildSchemaCache": null
++                                            }
++                                        }
++                                    },
++                                    "DirOKeys": [
++                                        "peer-address",
++                                        "hold-time"
++                                    ],
+                                     "Annotation": {
+                                         "schemapath": "/openconfig-options/bgp/neighbors/neighbor/config"
++                                    },
++                                    "PerfOpts": {
++                                        "ChildSchemaCache": null
+                                     }
+                                 },
+                                 "peer-address": {
+@@ -136,10 +151,14 @@
+                                             "Argument": "oco"
+                                         }
+                                     },
++                                    "DirOKeys": [],
+                                     "Type": {
+                                         "Name": "leafref",
+                                         "Kind": 17,
+                                         "Path": "../config/peer-address"
++                                    },
++                                    "PerfOpts": {
++                                        "ChildSchemaCache": null
+                                     }
+                                 },
+                                 "state": {
+@@ -167,6 +186,7 @@
+                                                     "Argument": "oco"
+                                                 }
+                                             },
++                                            "DirOKeys": [],
+                                             "Type": {
+                                                 "Name": "union",
+                                                 "Kind": 19,
+@@ -207,6 +227,9 @@
+                                                 "MinElements": null,
+                                                 "MaxElements": null,
+                                                 "OrderedBy": null
++                                            },
++                                            "PerfOpts": {
++                                                "ChildSchemaCache": null
+                                             }
+                                         },
+                                         "hold-time": {
+@@ -221,6 +244,7 @@
+                                                     "Argument": "oco"
+                                                 }
+                                             },
++                                            "DirOKeys": [],
+                                             "Type": {
+                                                 "Name": "uint32",
+                                                 "Kind": 7,
+@@ -238,6 +262,9 @@
+                                                         }
+                                                     }
+                                                 ]
++                                            },
++                                            "PerfOpts": {
++                                                "ChildSchemaCache": null
+                                             }
+                                         },
+                                         "peer-address": {
+@@ -252,6 +279,7 @@
+                                                     "Argument": "oco"
+                                                 }
+                                             },
++                                            "DirOKeys": [],
+                                             "Type": {
+                                                 "Name": "union",
+                                                 "Kind": 19,
+@@ -271,6 +299,9 @@
+                                                         ]
+                                                     }
+                                                 ]
++                                            },
++                                            "PerfOpts": {
++                                                "ChildSchemaCache": null
+                                             }
+                                         },
+                                         "session-state": {
+@@ -285,18 +316,36 @@
+                                                     "Argument": "oco"
+                                                 }
+                                             },
++                                            "DirOKeys": [],
+                                             "Type": {
+                                                 "Name": "enumeration",
+                                                 "Kind": 14,
+                                                 "Enum": {}
+-                                            }
+-                                        }
+-                                    },
++                                            },
++                                            "PerfOpts": {
++                                                "ChildSchemaCache": null
++                                            }
++                                        }
++                                    },
++                                    "DirOKeys": [
++                                        "peer-address",
++                                        "hold-time",
++                                        "enabled-address-family",
++                                        "session-state"
++                                    ],
+                                     "Annotation": {
+                                         "schemapath": "/openconfig-options/bgp/neighbors/neighbor/state"
++                                    },
++                                    "PerfOpts": {
++                                        "ChildSchemaCache": null
+                                     }
+                                 }
+                             },
++                            "DirOKeys": [
++                                "peer-address",
++                                "config",
++                                "state"
++                            ],
+                             "Key": "peer-address",
+                             "ListAttr": {
+                                 "MinElements": null,
+@@ -306,22 +355,45 @@
+                             "Annotation": {
+                                 "schemapath": "/openconfig-options/bgp/neighbors/neighbor",
+                                 "structname": "Bgp_Neighbor"
++                            },
++                            "PerfOpts": {
++                                "ChildSchemaCache": null
+                             }
+                         }
+                     },
++                    "DirOKeys": [
++                        "neighbor"
++                    ],
+                     "Annotation": {
+                         "schemapath": "/openconfig-options/bgp/neighbors"
++                    },
++                    "PerfOpts": {
++                        "ChildSchemaCache": null
+                     }
+                 }
+             },
++            "DirOKeys": [
++                "neighbors"
++            ],
+             "Annotation": {
++                "modulename": "openconfig-options",
++                "namespace": "urn:oco",
++                "organization": "",
++                "revision": "",
+                 "schemapath": "/openconfig-options/bgp",
+                 "structname": "Bgp"
++            },
++            "PerfOpts": {
++                "ChildSchemaCache": null
+             }
+         }
+     },
++    "DirOKeys": null,
+     "Annotation": {
+         "isCompressedSchema": true,
+         "isFakeRoot": true
++    },
++    "PerfOpts": {
++        "ChildSchemaCache": null
+     }
+ }
+diff --git a/ygen/testdata/schema/openconfig-options-nocompress-schema.json b/ygen/testdata/schema/openconfig-options-nocompress-schema.json
+--- a/ygen/testdata/schema/openconfig-options-nocompress-schema.json
++++ b/ygen/testdata/schema/openconfig-options-nocompress-schema.json
+@@ -67,6 +67,7 @@
+                                                     "Argument": "oco"
+                                                 }
+                                             },
++                                            "DirOKeys": [],
+                                             "Type": {
+                                                 "Name": "uint32",
+                                                 "Kind": 7,
+@@ -84,6 +85,9 @@
+                                                         }
+                                                     }
+                                                 ]
++                                            },
++                                            "PerfOpts": {
++                                                "ChildSchemaCache": null
+                                             }
+                                         },
+                                         "peer-address": {
+@@ -98,6 +102,7 @@
+                                                     "Argument": "oco"
+                                                 }
+                                             },
++                                            "DirOKeys": [],
+                                             "Type": {
+                                                 "Name": "union",
+                                                 "Kind": 19,
+@@ -117,12 +122,22 @@
+                                                         ]
+                                                     }
+                                                 ]
++                                            },
++                                            "PerfOpts": {
++                                                "ChildSchemaCache": null
+                                             }
+                                         }
+                                     },
++                                    "DirOKeys": [
++                                        "peer-address",
++                                        "hold-time"
++                                    ],
+                                     "Annotation": {
+                                         "schemapath": "/openconfig-options/bgp/neighbors/neighbor/config",
+                                         "structname": "OpenconfigOptions_Bgp_Neighbors_Neighbor_Config"
++                                    },
++                                    "PerfOpts": {
++                                        "ChildSchemaCache": null
+                                     }
+                                 },
+                                 "peer-address": {
+@@ -137,10 +152,14 @@
+                                             "Argument": "oco"
+                                         }
+                                     },
++                                    "DirOKeys": [],
+                                     "Type": {
+                                         "Name": "leafref",
+                                         "Kind": 17,
+                                         "Path": "../config/peer-address"
++                                    },
++                                    "PerfOpts": {
++                                        "ChildSchemaCache": null
+                                     }
+                                 },
+                                 "state": {
+@@ -168,6 +187,7 @@
+                                                     "Argument": "oco"
+                                                 }
+                                             },
++                                            "DirOKeys": [],
+                                             "Type": {
+                                                 "Name": "union",
+                                                 "Kind": 19,
+@@ -208,6 +228,9 @@
+                                                 "MinElements": null,
+                                                 "MaxElements": null,
+                                                 "OrderedBy": null
++                                            },
++                                            "PerfOpts": {
++                                                "ChildSchemaCache": null
+                                             }
+                                         },
+                                         "hold-time": {
+@@ -222,6 +245,7 @@
+                                                     "Argument": "oco"
+                                                 }
+                                             },
++                                            "DirOKeys": [],
+                                             "Type": {
+                                                 "Name": "uint32",
+                                                 "Kind": 7,
+@@ -239,6 +263,9 @@
+                                                         }
+                                                     }
+                                                 ]
++                                            },
++                                            "PerfOpts": {
++                                                "ChildSchemaCache": null
+                                             }
+                                         },
+                                         "peer-address": {
+@@ -253,6 +280,7 @@
+                                                     "Argument": "oco"
+                                                 }
+                                             },
++                                            "DirOKeys": [],
+                                             "Type": {
+                                                 "Name": "union",
+                                                 "Kind": 19,
+@@ -272,6 +300,9 @@
+                                                         ]
+                                                     }
+                                                 ]
++                                            },
++                                            "PerfOpts": {
++                                                "ChildSchemaCache": null
+                                             }
+                                         },
+                                         "session-state": {
+@@ -286,19 +317,37 @@
+                                                     "Argument": "oco"
+                                                 }
+                                             },
++                                            "DirOKeys": [],
+                                             "Type": {
+                                                 "Name": "enumeration",
+                                                 "Kind": 14,
+                                                 "Enum": {}
++                                            },
++                                            "PerfOpts": {
++                                                "ChildSchemaCache": null
+                                             }
+                                         }
+                                     },
++                                    "DirOKeys": [
++                                        "peer-address",
++                                        "hold-time",
++                                        "enabled-address-family",
++                                        "session-state"
++                                    ],
+                                     "Annotation": {
+                                         "schemapath": "/openconfig-options/bgp/neighbors/neighbor/state",
+                                         "structname": "OpenconfigOptions_Bgp_Neighbors_Neighbor_State"
++                                    },
++                                    "PerfOpts": {
++                                        "ChildSchemaCache": null
+                                     }
+                                 }
+                             },
++                            "DirOKeys": [
++                                "peer-address",
++                                "config",
++                                "state"
++                            ],
+                             "Key": "peer-address",
+                             "ListAttr": {
+                                 "MinElements": null,
+@@ -308,22 +357,45 @@
+                             "Annotation": {
+                                 "schemapath": "/openconfig-options/bgp/neighbors/neighbor",
+                                 "structname": "OpenconfigOptions_Bgp_Neighbors_Neighbor"
++                            },
++                            "PerfOpts": {
++                                "ChildSchemaCache": null
+                             }
+                         }
+                     },
++                    "DirOKeys": [
++                        "neighbor"
++                    ],
+                     "Annotation": {
+                         "schemapath": "/openconfig-options/bgp/neighbors",
+                         "structname": "OpenconfigOptions_Bgp_Neighbors"
++                    },
++                    "PerfOpts": {
++                        "ChildSchemaCache": null
+                     }
+                 }
+             },
++            "DirOKeys": [
++                "neighbors"
++            ],
+             "Annotation": {
++                "modulename": "openconfig-options",
++                "namespace": "urn:oco",
++                "organization": "",
++                "revision": "",
+                 "schemapath": "/openconfig-options/bgp",
+                 "structname": "OpenconfigOptions_Bgp"
++            },
++            "PerfOpts": {
++                "ChildSchemaCache": null
+             }
+         }
+     },
++    "DirOKeys": null,
+     "Annotation": {
+         "isFakeRoot": true
++    },
++    "PerfOpts": {
++        "ChildSchemaCache": null
+     }
+ }
+diff --git a/ygen/testdata/schema/openconfig-options-compress-fakeroot-schema.json b/ygen/testdata/schema/openconfig-options-compress-fakeroot-schema.json
+--- a/ygen/testdata/schema/openconfig-options-compress-fakeroot-schema.json
++++ b/ygen/testdata/schema/openconfig-options-compress-fakeroot-schema.json
+@@ -67,6 +67,7 @@
+                                                     "Argument": "oco"
+                                                 }
+                                             },
++                                            "DirOKeys": [],
+                                             "Type": {
+                                                 "Name": "uint32",
+                                                 "Kind": 7,
+@@ -84,6 +85,9 @@
+                                                         }
+                                                     }
+                                                 ]
++                                            },
++                                            "PerfOpts": {
++                                                "ChildSchemaCache": null
+                                             }
+                                         },
+                                         "peer-address": {
+@@ -98,6 +102,7 @@
+                                                     "Argument": "oco"
+                                                 }
+                                             },
++                                            "DirOKeys": [],
+                                             "Type": {
+                                                 "Name": "union",
+                                                 "Kind": 19,
+@@ -117,11 +122,21 @@
+                                                         ]
+                                                     }
+                                                 ]
++                                            },
++                                            "PerfOpts": {
++                                                "ChildSchemaCache": null
+                                             }
+                                         }
+                                     },
++                                    "DirOKeys": [
++                                        "peer-address",
++                                        "hold-time"
++                                    ],
+                                     "Annotation": {
+                                         "schemapath": "/openconfig-options/bgp/neighbors/neighbor/config"
++                                    },
++                                    "PerfOpts": {
++                                        "ChildSchemaCache": null
+                                     }
+                                 },
+                                 "peer-address": {
+@@ -136,10 +151,14 @@
+                                             "Argument": "oco"
+                                         }
+                                     },
++                                    "DirOKeys": [],
+                                     "Type": {
+                                         "Name": "leafref",
+                                         "Kind": 17,
+                                         "Path": "../config/peer-address"
++                                    },
++                                    "PerfOpts": {
++                                        "ChildSchemaCache": null
+                                     }
+                                 },
+                                 "state": {
+@@ -167,6 +186,7 @@
+                                                     "Argument": "oco"
+                                                 }
+                                             },
++                                            "DirOKeys": [],
+                                             "Type": {
+                                                 "Name": "union",
+                                                 "Kind": 19,
+@@ -207,6 +227,9 @@
+                                                 "MinElements": null,
+                                                 "MaxElements": null,
+                                                 "OrderedBy": null
++                                            },
++                                            "PerfOpts": {
++                                                "ChildSchemaCache": null
+                                             }
+                                         },
+                                         "hold-time": {
+@@ -221,6 +244,7 @@
+                                                     "Argument": "oco"
+                                                 }
+                                             },
++                                            "DirOKeys": [],
+                                             "Type": {
+                                                 "Name": "uint32",
+                                                 "Kind": 7,
+@@ -238,6 +262,9 @@
+                                                         }
+                                                     }
+                                                 ]
++                                            },
++                                            "PerfOpts": {
++                                                "ChildSchemaCache": null
+                                             }
+                                         },
+                                         "peer-address": {
+@@ -252,6 +279,7 @@
+                                                     "Argument": "oco"
+                                                 }
+                                             },
++                                            "DirOKeys": [],
+                                             "Type": {
+                                                 "Name": "union",
+                                                 "Kind": 19,
+@@ -271,6 +299,9 @@
+                                                         ]
+                                                     }
+                                                 ]
++                                            },
++                                            "PerfOpts": {
++                                                "ChildSchemaCache": null
+                                             }
+                                         },
+                                         "session-state": {
+@@ -285,18 +316,36 @@
+                                                     "Argument": "oco"
+                                                 }
+                                             },
++                                            "DirOKeys": [],
+                                             "Type": {
+                                                 "Name": "enumeration",
+                                                 "Kind": 14,
+                                                 "Enum": {}
++                                            },
++                                            "PerfOpts": {
++                                                "ChildSchemaCache": null
+                                             }
+                                         }
+                                     },
++                                    "DirOKeys": [
++                                        "peer-address",
++                                        "hold-time",
++                                        "enabled-address-family",
++                                        "session-state"
++                                    ],
+                                     "Annotation": {
+                                         "schemapath": "/openconfig-options/bgp/neighbors/neighbor/state"
++                                    },
++                                    "PerfOpts": {
++                                        "ChildSchemaCache": null
+                                     }
+                                 }
+                             },
++                            "DirOKeys": [
++                                "peer-address",
++                                "config",
++                                "state"
++                            ],
+                             "Key": "peer-address",
+                             "ListAttr": {
+                                 "MinElements": null,
+@@ -306,24 +355,47 @@
+                             "Annotation": {
+                                 "schemapath": "/openconfig-options/bgp/neighbors/neighbor",
+                                 "structname": "Bgp_Neighbor"
++                            },
++                            "PerfOpts": {
++                                "ChildSchemaCache": null
+                             }
+                         }
+                     },
++                    "DirOKeys": [
++                        "neighbor"
++                    ],
+                     "Annotation": {
+                         "schemapath": "/openconfig-options/bgp/neighbors"
++                    },
++                    "PerfOpts": {
++                        "ChildSchemaCache": null
+                     }
+                 }
+             },
++            "DirOKeys": [
++                "neighbors"
++            ],
+             "Annotation": {
++                "modulename": "openconfig-options",
++                "namespace": "urn:oco",
++                "organization": "",
++                "revision": "",
+                 "schemapath": "/openconfig-options/bgp",
+                 "structname": "Bgp"
++            },
++            "PerfOpts": {
++                "ChildSchemaCache": null
+             }
+         }
+     },
++    "DirOKeys": null,
+     "Annotation": {
+         "isCompressedSchema": true,
+         "isFakeRoot": true,
+         "schemapath": "/",
+         "structname": "Device"
++    },
++    "PerfOpts": {
++        "ChildSchemaCache": null
+     }
+ }
+diff --git a/ygen/testdata/schema/openconfig-options-nocompress-fakeroot-schema.json b/ygen/testdata/schema/openconfig-options-nocompress-fakeroot-schema.json
+--- a/ygen/testdata/schema/openconfig-options-nocompress-fakeroot-schema.json
++++ b/ygen/testdata/schema/openconfig-options-nocompress-fakeroot-schema.json
+@@ -67,6 +67,7 @@
+                                                     "Argument": "oco"
+                                                 }
+                                             },
++                                            "DirOKeys": [],
+                                             "Type": {
+                                                 "Name": "uint32",
+                                                 "Kind": 7,
+@@ -84,6 +85,9 @@
+                                                         }
+                                                     }
+                                                 ]
++                                            },
++                                            "PerfOpts": {
++                                                "ChildSchemaCache": null
+                                             }
+                                         },
+                                         "peer-address": {
+@@ -98,6 +102,7 @@
+                                                     "Argument": "oco"
+                                                 }
+                                             },
++                                            "DirOKeys": [],
+                                             "Type": {
+                                                 "Name": "union",
+                                                 "Kind": 19,
+@@ -117,12 +122,22 @@
+                                                         ]
+                                                     }
+                                                 ]
++                                            },
++                                            "PerfOpts": {
++                                                "ChildSchemaCache": null
+                                             }
+                                         }
+                                     },
++                                    "DirOKeys": [
++                                        "peer-address",
++                                        "hold-time"
++                                    ],
+                                     "Annotation": {
+                                         "schemapath": "/openconfig-options/bgp/neighbors/neighbor/config",
+                                         "structname": "OpenconfigOptions_Bgp_Neighbors_Neighbor_Config"
++                                    },
++                                    "PerfOpts": {
++                                        "ChildSchemaCache": null
+                                     }
+                                 },
+                                 "peer-address": {
+@@ -137,10 +152,14 @@
+                                             "Argument": "oco"
+                                         }
+                                     },
++                                    "DirOKeys": [],
+                                     "Type": {
+                                         "Name": "leafref",
+                                         "Kind": 17,
+                                         "Path": "../config/peer-address"
++                                    },
++                                    "PerfOpts": {
++                                        "ChildSchemaCache": null
+                                     }
+                                 },
+                                 "state": {
+@@ -168,6 +187,7 @@
+                                                     "Argument": "oco"
+                                                 }
+                                             },
++                                            "DirOKeys": [],
+                                             "Type": {
+                                                 "Name": "union",
+                                                 "Kind": 19,
+@@ -208,6 +228,9 @@
+                                                 "MinElements": null,
+                                                 "MaxElements": null,
+                                                 "OrderedBy": null
++                                            },
++                                            "PerfOpts": {
++                                                "ChildSchemaCache": null
+                                             }
+                                         },
+                                         "hold-time": {
+@@ -222,6 +245,7 @@
+                                                     "Argument": "oco"
+                                                 }
+                                             },
++                                            "DirOKeys": [],
+                                             "Type": {
+                                                 "Name": "uint32",
+                                                 "Kind": 7,
+@@ -239,6 +263,9 @@
+                                                         }
+                                                     }
+                                                 ]
++                                            },
++                                            "PerfOpts": {
++                                                "ChildSchemaCache": null
+                                             }
+                                         },
+                                         "peer-address": {
+@@ -253,6 +280,7 @@
+                                                     "Argument": "oco"
+                                                 }
+                                             },
++                                            "DirOKeys": [],
+                                             "Type": {
+                                                 "Name": "union",
+                                                 "Kind": 19,
+@@ -272,6 +300,9 @@
+                                                         ]
+                                                     }
+                                                 ]
++                                            },
++                                            "PerfOpts": {
++                                                "ChildSchemaCache": null
+                                             }
+                                         },
+                                         "session-state": {
+@@ -286,19 +317,37 @@
+                                                     "Argument": "oco"
+                                                 }
+                                             },
++                                            "DirOKeys": [],
+                                             "Type": {
+                                                 "Name": "enumeration",
+                                                 "Kind": 14,
+                                                 "Enum": {}
++                                            },
++                                            "PerfOpts": {
++                                                "ChildSchemaCache": null
+                                             }
+                                         }
+                                     },
++                                    "DirOKeys": [
++                                        "peer-address",
++                                        "hold-time",
++                                        "enabled-address-family",
++                                        "session-state"
++                                    ],
+                                     "Annotation": {
+                                         "schemapath": "/openconfig-options/bgp/neighbors/neighbor/state",
+                                         "structname": "OpenconfigOptions_Bgp_Neighbors_Neighbor_State"
++                                    },
++                                    "PerfOpts": {
++                                        "ChildSchemaCache": null
+                                     }
+                                 }
+                             },
++                            "DirOKeys": [
++                                "peer-address",
++                                "config",
++                                "state"
++                            ],
+                             "Key": "peer-address",
+                             "ListAttr": {
+                                 "MinElements": null,
+@@ -308,24 +357,47 @@
+                             "Annotation": {
+                                 "schemapath": "/openconfig-options/bgp/neighbors/neighbor",
+                                 "structname": "OpenconfigOptions_Bgp_Neighbors_Neighbor"
++                            },
++                            "PerfOpts": {
++                                "ChildSchemaCache": null
+                             }
+                         }
+                     },
++                    "DirOKeys": [
++                        "neighbor"
++                    ],
+                     "Annotation": {
+                         "schemapath": "/openconfig-options/bgp/neighbors",
+                         "structname": "OpenconfigOptions_Bgp_Neighbors"
++                    },
++                    "PerfOpts": {
++                        "ChildSchemaCache": null
+                     }
+                 }
+             },
++            "DirOKeys": [
++                "neighbors"
++            ],
+             "Annotation": {
++                "modulename": "openconfig-options",
++                "namespace": "urn:oco",
++                "organization": "",
++                "revision": "",
+                 "schemapath": "/openconfig-options/bgp",
+                 "structname": "OpenconfigOptions_Bgp"
++            },
++            "PerfOpts": {
++                "ChildSchemaCache": null
+             }
+         }
+     },
++    "DirOKeys": null,
+     "Annotation": {
+         "isFakeRoot": true,
+         "schemapath": "/",
+         "structname": "Device"
++    },
++    "PerfOpts": {
++        "ChildSchemaCache": null
+     }
+ }
+diff --git a/ygen/testdata/schema/openconfig-options-explicit-schema.json b/ygen/testdata/schema/openconfig-options-explicit-schema.json
+--- a/ygen/testdata/schema/openconfig-options-explicit-schema.json
++++ b/ygen/testdata/schema/openconfig-options-explicit-schema.json
+@@ -54,9 +54,13 @@
+                                             "Argument": "ocs"
+                                         }
+                                     },
++                                    "DirOKeys": [],
+                                     "Type": {
+                                         "Name": "binary",
+                                         "Kind": 9
++                                    },
++                                    "PerfOpts": {
++                                        "ChildSchemaCache": null
+                                     }
+                                 },
+                                 "one": {
+@@ -71,9 +75,13 @@
+                                             "Argument": "ocs"
+                                         }
+                                     },
++                                    "DirOKeys": [],
+                                     "Type": {
+                                         "Name": "string",
+                                         "Kind": 18
++                                    },
++                                    "PerfOpts": {
++                                        "ChildSchemaCache": null
+                                     }
+                                 },
+                                 "three": {
+@@ -88,15 +96,27 @@
+                                             "Argument": "ocs"
+                                         }
+                                     },
++                                    "DirOKeys": [],
+                                     "Type": {
+                                         "Name": "enumeration",
+                                         "Kind": 14,
+                                         "Enum": {}
+-                                    }
+-                                }
+-                            },
++                                    },
++                                    "PerfOpts": {
++                                        "ChildSchemaCache": null
++                                    }
++                                }
++                            },
++                            "DirOKeys": [
++                                "one",
++                                "three",
++                                "four"
++                            ],
+                             "Annotation": {
+                                 "schemapath": "/openconfig-simple/parent/child/config"
++                            },
++                            "PerfOpts": {
++                                "ChildSchemaCache": null
+                             }
+                         },
+                         "state": {
+@@ -124,9 +144,13 @@
+                                             "Argument": "ocs"
+                                         }
+                                     },
++                                    "DirOKeys": [],
+                                     "Type": {
+                                         "Name": "binary",
+                                         "Kind": 9
++                                    },
++                                    "PerfOpts": {
++                                        "ChildSchemaCache": null
+                                     }
+                                 },
+                                 "one": {
+@@ -141,9 +165,13 @@
+                                             "Argument": "ocs"
+                                         }
+                                     },
++                                    "DirOKeys": [],
+                                     "Type": {
+                                         "Name": "string",
+                                         "Kind": 18
++                                    },
++                                    "PerfOpts": {
++                                        "ChildSchemaCache": null
+                                     }
+                                 },
+                                 "three": {
+@@ -158,10 +186,14 @@
+                                             "Argument": "ocs"
+                                         }
+                                     },
++                                    "DirOKeys": [],
+                                     "Type": {
+                                         "Name": "enumeration",
+                                         "Kind": 14,
+                                         "Enum": {}
++                                    },
++                                    "PerfOpts": {
++                                        "ChildSchemaCache": null
+                                     }
+                                 },
+                                 "two": {
+@@ -176,26 +208,56 @@
+                                             "Argument": "ocs"
+                                         }
+                                     },
++                                    "DirOKeys": [],
+                                     "Type": {
+                                         "Name": "string",
+                                         "Kind": 18
+-                                    }
+-                                }
+-                            },
++                                    },
++                                    "PerfOpts": {
++                                        "ChildSchemaCache": null
++                                    }
++                                }
++                            },
++                            "DirOKeys": [
++                                "one",
++                                "three",
++                                "four",
++                                "two"
++                            ],
+                             "Annotation": {
+                                 "schemapath": "/openconfig-simple/parent/child/state"
++                            },
++                            "PerfOpts": {
++                                "ChildSchemaCache": null
+                             }
+                         }
+                     },
++                    "DirOKeys": [
++                        "config",
++                        "state"
++                    ],
+                     "Annotation": {
+                         "schemapath": "/openconfig-simple/parent/child",
+                         "structname": "Parent_Child"
++                    },
++                    "PerfOpts": {
++                        "ChildSchemaCache": null
+                     }
+                 }
+             },
++            "DirOKeys": [
++                "child"
++            ],
+             "Annotation": {
++                "modulename": "openconfig-simple",
++                "namespace": "urn:ocs",
++                "organization": "",
++                "revision": "",
+                 "schemapath": "/openconfig-simple/parent",
+                 "structname": "Parent"
++            },
++            "PerfOpts": {
++                "ChildSchemaCache": null
+             }
+         },
+         "remote-container": {
+@@ -236,14 +298,24 @@
+                                     "Argument": "ocr"
+                                 }
+                             },
++                            "DirOKeys": [],
+                             "Type": {
+                                 "Name": "string",
+                                 "Kind": 18
++                            },
++                            "PerfOpts": {
++                                "ChildSchemaCache": null
+                             }
+                         }
+                     },
++                    "DirOKeys": [
++                        "a-leaf"
++                    ],
+                     "Annotation": {
+                         "schemapath": "/openconfig-simple/remote-container/config"
++                    },
++                    "PerfOpts": {
++                        "ChildSchemaCache": null
+                     }
+                 },
+                 "state": {
+@@ -271,27 +343,52 @@
+                                     "Argument": "ocr"
+                                 }
+                             },
++                            "DirOKeys": [],
+                             "Type": {
+                                 "Name": "string",
+                                 "Kind": 18
++                            },
++                            "PerfOpts": {
++                                "ChildSchemaCache": null
+                             }
+                         }
+                     },
++                    "DirOKeys": [
++                        "a-leaf"
++                    ],
+                     "Annotation": {
+                         "schemapath": "/openconfig-simple/remote-container/state"
++                    },
++                    "PerfOpts": {
++                        "ChildSchemaCache": null
+                     }
+                 }
+             },
++            "DirOKeys": [
++                "config",
++                "state"
++            ],
+             "Annotation": {
++                "modulename": "openconfig-simple",
++                "namespace": "urn:ocs",
++                "organization": "",
++                "revision": "",
+                 "schemapath": "/openconfig-simple/remote-container",
+                 "structname": "RemoteContainer"
++            },
++            "PerfOpts": {
++                "ChildSchemaCache": null
+             }
+         }
+     },
++    "DirOKeys": null,
+     "Annotation": {
+         "isCompressedSchema": true,
+         "isFakeRoot": true,
+         "schemapath": "/",
+         "structname": "Fakeroot"
++    },
++    "PerfOpts": {
++        "ChildSchemaCache": null
+     }
+ }

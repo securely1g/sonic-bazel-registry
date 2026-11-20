@@ -1,0 +1,74 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "ygen",
+    srcs = [
+        "codegen.go",
+        "directory.go",
+        "genstate.go",
+        "goelements.go",
+        "gogen.go",
+        "helpers.go",
+        "protoelements.go",
+        "protogen.go",
+        "schemaparse.go",
+        "schematree.go",
+    ],
+    importpath = "github.com/openconfig/ygot/ygen",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//genutil",
+        "//util",
+        "//ygot",
+        "@com_github_golang_glog//:glog",
+        "@com_github_google_go_cmp//cmp",
+        "@com_github_openconfig_gnmi//ctree",
+        "@com_github_openconfig_gnmi//errlist",
+        "@com_github_openconfig_gnmi//proto/gnmi",
+        "@com_github_openconfig_goyang//pkg/yang",
+    ],
+)
+
+alias(
+    name = "go_default_library",
+    actual = ":ygen",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "ygen_test",
+    srcs = [
+        "codegen_test.go",
+        "directory_test.go",
+        "genstate_test.go",
+        "goelements_test.go",
+        "gogen_test.go",
+        "helpers_test.go",
+        "protoelements_test.go",
+        "protogen_test.go",
+        "schemaparse_test.go",
+        "schematree_test.go",
+    ],
+    args = ["-test.v"],
+    data = glob(["testdata/**"]) + ["//:schema_testdata"],
+    embed = [":ygen"],
+    deps = [
+        "//genutil",
+        "//internal/sonicfixture",
+        "//testutil",
+        "//ygot",
+        "@com_github_google_go_cmp//cmp",
+        "@com_github_google_go_cmp//cmp/cmpopts",
+        "@com_github_kylelemons_godebug//pretty",
+        "@com_github_openconfig_gnmi//errdiff",
+        "@com_github_openconfig_goyang//pkg/yang",
+    ],
+)
+
+go_test(
+    name = "sonic_union_order_test",
+    srcs = ["sonic_union_order_test.go"],
+    args = ["-test.v"],
+    data = ["sonic_union_order.yang"],
+    embed = [":ygen"],
+)

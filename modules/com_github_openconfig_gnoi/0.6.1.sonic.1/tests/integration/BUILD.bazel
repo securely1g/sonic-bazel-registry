@@ -1,0 +1,7 @@
+load("@rules_cc//cc:defs.bzl", "cc_test")
+
+cc_test(
+    name = "types_consumer_test",
+    srcs = ["types_consumer_test.cc"],
+    deps = ["@com_github_openconfig_gnoi//types:types_cc_proto"],
+)

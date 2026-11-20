@@ -1,0 +1,274 @@
+load("@monit//:source_includes.bzl", "private_includes")
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(glob(["**"]))
+
+# Source lists are the exact current Makefile.am lists with ARCH=LINUX.
+MONIT_SOURCES = [
+    "src/monit.c",
+    "src/alert.c",
+    "src/control.c",
+    "src/daemonize.c",
+    "src/env.c",
+    "src/event.c",
+    "src/file.c",
+    "src/gc.c",
+    "src/http.c",
+    "src/log.c",
+    "src/md5.c",
+    "src/md5_crypt.c",
+    "src/net/net.c",
+    "src/net/socket.c",
+    "src/net/Link.c",
+    "src/sha1.c",
+    "src/checksum.c",
+    "src/signal.c",
+    "src/spawn.c",
+    "src/state.c",
+    "src/util.c",
+    "src/validate.c",
+    "src/device/device_common.c",
+    "src/device/sysdep_LINUX.c",
+    "src/http/base64.c",
+    "src/http/cervlet.c",
+    "src/http/client.c",
+    "src/http/engine.c",
+    "src/http/xml.c",
+    "src/http/processor.c",
+    "src/notification/Address.c",
+    "src/notification/MMonit.c",
+    "src/notification/SMTP.c",
+    "src/process/SystemInfo.c",
+    "src/process/ProcessTree.c",
+    "src/process/sysdep_LINUX.c",
+    "src/protocols/apache_status.c",
+    "src/protocols/clamav.c",
+    "src/protocols/default.c",
+    "src/protocols/dns.c",
+    "src/protocols/dwp.c",
+    "src/protocols/fail2ban.c",
+    "src/protocols/ftp.c",
+    "src/protocols/generic.c",
+    "src/protocols/gps.c",
+    "src/protocols/http.c",
+    "src/protocols/imap.c",
+    "src/protocols/ldap2.c",
+    "src/protocols/ldap3.c",
+    "src/protocols/lmtp.c",
+    "src/protocols/memcache.c",
+    "src/protocols/mongodb.c",
+    "src/protocols/mqtt.c",
+    "src/protocols/mysql.c",
+    "src/protocols/nntp.c",
+    "src/protocols/ntp3.c",
+    "src/protocols/pgsql.c",
+    "src/protocols/pop.c",
+    "src/protocols/postfix_policy.c",
+    "src/protocols/protocol.c",
+    "src/protocols/radius.c",
+    "src/protocols/rdate.c",
+    "src/protocols/redis.c",
+    "src/protocols/rsync.c",
+    "src/protocols/sieve.c",
+    "src/protocols/sip.c",
+    "src/protocols/smtp.c",
+    "src/protocols/spamassassin.c",
+    "src/protocols/ssh.c",
+    "src/protocols/tns.c",
+    "src/protocols/websocket.c",
+    "src/ssl/Ssl.c",
+    "src/terminal/TextBox.c",
+    "src/terminal/TextColor.c",
+    "src/statistics/Statistics.c",
+]
+
+LIBMONIT_SOURCES = [
+    "libmonit/src/Bootstrap.c",
+    "libmonit/src/exceptions/assert.c",
+    "libmonit/src/exceptions/Exception.c",
+    "libmonit/src/io/Dir.c",
+    "libmonit/src/io/File.c",
+    "libmonit/src/io/InputStream.c",
+    "libmonit/src/io/OutputStream.c",
+    "libmonit/src/system/Mem.c",
+    "libmonit/src/system/Net.c",
+    "libmonit/src/system/Command.c",
+    "libmonit/src/system/Random.c",
+    "libmonit/src/system/System.c",
+    "libmonit/src/system/Time.c",
+    "libmonit/src/util/Fmt.c",
+    "libmonit/src/util/Array.c",
+    "libmonit/src/util/List.c",
+    "libmonit/src/util/Str.c",
+    "libmonit/src/util/StringBuffer.c",
+    "libmonit/src/thread/Thread.c",
+]
+
+# Current Debian hardening/LTO flags and controlled configure additions.
+COPTS = [
+    "-DHAVE_CONFIG_H",
+    "-g",
+    "-O2",
+    "-flto=auto",
+    "-ffat-lto-objects",
+    "-fstack-protector-strong",
+    "-fstack-clash-protection",
+    "-fcf-protection",
+    "-Wformat",
+    "-Werror=format-security",
+    "-Wdate-time",
+    "-U_FORTIFY_SOURCE",
+    "-D_FORTIFY_SOURCE=2",
+    "-Wextra",
+    "-fstack-protector-all",
+    "-D_GNU_SOURCE",
+    "-Wall",
+    "-Wunused",
+    "-std=c11",
+    "-D_REENTRANT",
+]
+
+LIBMONIT_INCLUDES = [
+    "libmonit/src",
+    "libmonit/src/exceptions",
+    "libmonit/src/io",
+    "libmonit/src/net",
+    "libmonit/src/util",
+    "libmonit/src/thread",
+]
+
+MONIT_INCLUDES = [
+    "src",
+    "src/device",
+    "src/http",
+    "src/notification",
+    "src/process",
+    "src/protocols",
+    "src/ssl",
+    "src/terminal",
+    "libmonit/src",
+]
+
+cc_library(
+    name = "libmonit",
+    srcs = LIBMONIT_SOURCES,
+    hdrs = glob([
+        "libmonit/src/**/*.h",
+        "libmonit/src/**/*.inc",
+    ]),
+    copts = COPTS + private_includes(LIBMONIT_INCLUDES),
+    features = ["-opt"],
+    includes = LIBMONIT_INCLUDES,
+    deps = [
+        "@monit//:config_headers",
+        "@monit_build_debian//zlib1g-dev:libz_cc",
+    ],
+)
+
+cc_library(
+    name = "monit_headers",
+    hdrs = glob([
+        "src/**/*.h",
+        "src/**/*.inc",
+    ]),
+    includes = MONIT_INCLUDES,
+    deps = ["@monit//:config_headers"],
+)
+
+cc_binary(
+    name = "monit",
+    srcs = MONIT_SOURCES + [
+        # keep
+        "@monit//:parser",
+        "@monit//:lexer",
+    ],
+    copts = COPTS + private_includes(MONIT_INCLUDES) + [
+        "-DLINUX",
+        '-DSYSCONFDIR=\\"/etc/monit\\"',
+    ],
+    features = [
+        "-opt",
+        "-strip_debug_symbols",
+        "sonic_as_needed",
+    ],
+    linkopts = [
+        "-g",
+        "-flto=auto",
+        "-Wl,-z,relro",
+        "-Wl,-z,now",
+        "-rdynamic",
+        "-lm",
+        "-pthread",
+        "-lresolv",
+        "-lrt",
+    ],
+    linkstatic = False,
+    deps = [
+        # keep
+        ":libmonit",
+        ":monit_headers",
+        "@monit_build_debian//libpam0g-dev:libpam_cc",
+        "@monit_build_debian//libssl-dev:libssl_cc",
+        "@monit_build_debian//libssl-dev:libcrypto_cc",
+        "@monit_build_debian//libcrypt-dev:libcrypt_cc",
+    ],
+)
+
+[
+    cc_binary(
+        name = "unittest_" + name,
+        srcs = ["libmonit/test/" + name + ".c"],
+        copts = COPTS + private_includes(LIBMONIT_INCLUDES),
+        features = ["-opt"],
+        linkopts = [
+            "-g",
+            "-flto=auto",
+            "-lm",
+            "-pthread",
+            "-lrt",
+        ],
+        linkstatic = False,
+        deps = [":libmonit"],
+    )
+    for name in [
+        "StrTest",
+        "FmtTest",
+        "SystemTest",
+        "RandomTest",
+        "ArrayTest",
+        "ListTest",
+        "DirTest",
+        "StringBufferTest",
+        "InputStreamTest",
+        "OutputStreamTest",
+        "FileTest",
+        "ExceptionTest",
+        "NetTest",
+        "TimeTest",
+        "CommandTest",
+    ]
+]
+
+filegroup(
+    name = "original_check_binaries",
+    srcs = [":unittest_" + name for name in [
+        "StrTest",
+        "FmtTest",
+        "SystemTest",
+        "RandomTest",
+        "ArrayTest",
+        "ListTest",
+        "DirTest",
+        "StringBufferTest",
+        "InputStreamTest",
+        "OutputStreamTest",
+        "FileTest",
+        "ExceptionTest",
+        "NetTest",
+        "TimeTest",
+        "CommandTest",
+    ]],
+)

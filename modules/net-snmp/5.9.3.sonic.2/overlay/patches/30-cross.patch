@@ -1,0 +1,49 @@
+diff --git a/configure.d/config_os_libs2 b/configure.d/config_os_libs2
+--- a/configure.d/config_os_libs2
++++ b/configure.d/config_os_libs2
+@@ -546,12 +546,16 @@
+ ##
+ #   mysql
+ ##
+-if test "x$with_mysql" = "xyes" ; then
+-  AC_PATH_PROGS(MYSQLCONFIG,mysql_config)
+-  test -x "$MYSQLCONFIG" \
++AS_IF([test "x$with_mysql" = "xyes"],[
++  PKG_CHECK_MODULES([MYSQL],[mysqlclient],[
++    MYSQL_INCLUDES="$MYSQL_CFLAGS"
++  ],[
++    AC_PATH_PROGS(MYSQLCONFIG,mysql_config)
++    test -x "$MYSQLCONFIG" \
+ 	|| AC_MSG_ERROR([Could not find mysql_config and was specifically asked to use MySQL support])
+-  MYSQL_LIBS=`$MYSQLCONFIG --libs`
+-  MYSQL_INCLUDES=`$MYSQLCONFIG --include`
++    MYSQL_LIBS=`$MYSQLCONFIG --libs`
++    MYSQL_INCLUDES=`$MYSQLCONFIG --include`
++  ])
+   _libs="${LIBS}"
+   _cppflags="${CPPFLAGS}"
+   LIBS="${LIBS} ${MYSQL_LIBS}"
+@@ -593,9 +597,9 @@
+   CPPFLAGS="${_cppflags}"
+   LIBS="${_libs}"
+   AC_MSG_CACHE_ADD(MYSQL Trap Logging:         enabled)
+-else
++],[
+   AC_MSG_CACHE_ADD(MYSQL Trap Logging:         unavailable)
+-fi
++])
+ AC_SUBST(MYSQL_LIBS)
+ AC_SUBST(MYSQL_INCLUDES)
+ 
+diff --git a/Makefile.in b/Makefile.in
+--- a/Makefile.in
++++ b/Makefile.in
+@@ -186,7 +186,7 @@
+ 	if false; then							\
+ 	    carp=-MCarp::Always;					\
+ 	fi &&								\
+-	export PERL5LIB="$$dir/perl" &&					\
++	export PERL5LIB="$$dir/perl$${PERL5LIB:+:$$PERL5LIB}" &&	\
+ 	$(PERL) $$carp Makefile.PL -NET-SNMP-IN-SOURCE=true		\
+ 	    -NET-SNMP-CONFIG="sh $$dir/net-snmp-config" $(PERLARGS)
+ 

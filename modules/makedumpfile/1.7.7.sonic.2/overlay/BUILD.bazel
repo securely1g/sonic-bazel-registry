@@ -1,0 +1,80 @@
+load("@sonic_build_infra//deb:changelogs.bzl", "debian_changelogs")
+load("@rules_python//python:py_test.bzl", "py_test")
+load("@sonic_build_infra//tools/build_tools:defs.bzl", "build_tools_runtime")
+load("@sonic_build_infra//oci:source_controls.bzl", "source_package_controls")
+load("@bazel_skylib//rules:expand_template.bzl", "expand_template")
+load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
+load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
+package(default_visibility = ["//visibility:public"])
+exports_files(["MODULE.bazel", "source.BUILD.bazel"] + glob(["debian/**"]))
+alias(name = "makedumpfile", actual = "@makedumpfile_source//:makedumpfile")
+expand_template(name = "man8", template = "@makedumpfile_source//:makedumpfile.8.in", out = "generated/makedumpfile.8", substitutions = {"@DATE@": "21 Apr 2025", "@VERSION@": "1.7.7"})
+genrule(name = "man8.gzip", srcs = [":man8"], outs = ["man8.gz"], tools = ["@sonic_build_infra//tools/build_tools:pigz"], cmd = "$(execpath @sonic_build_infra//tools/build_tools:pigz) -n -9 -c $< > $@")
+expand_template(name = "man5", template = "@makedumpfile_source//:makedumpfile.conf.5.in", out = "generated/makedumpfile.conf.5", substitutions = {"@DATE@": "21 Apr 2025", "@VERSION@": "1.7.7"})
+genrule(name = "man5.gzip", srcs = [":man5"], outs = ["man5.gz"], tools = ["@sonic_build_infra//tools/build_tools:pigz"], cmd = "$(execpath @sonic_build_infra//tools/build_tools:pigz) -n -9 -c $< > $@")
+debian_changelogs(
+    name = "installed_changelog",
+    control = "debian/control",
+    changelog = "debian/changelog",
+    package = "makedumpfile",
+    architecture = select({"@platforms//cpu:x86_64": "amd64", "@platforms//cpu:aarch64": "arm64"}),
+    outs = ["generated/changelog.Debian"],
+)
+genrule(name = "changelog.gzip", srcs = [":generated/changelog.Debian"], outs = ["changelog.gz"], tools = ["@sonic_build_infra//tools/build_tools:pigz"], cmd = "$(execpath @sonic_build_infra//tools/build_tools:pigz) -n -9 -c $< > $@")
+sonic_deploy_tar(name = "makedumpfile.runtime", force_debug_build = True, binaries = {"usr/bin/makedumpfile uid=0 gid=0 mode=0755 type=file": ":makedumpfile"}, srcs = ['@makedumpfile_source//:makedumpfile-R.pl', '@makedumpfile_source//:makedumpfile.conf', 'debian/copyright', ':man8.gzip', ':man5.gzip', ':changelog.gzip'], mtree = ['usr/bin/makedumpfile-R.pl type=file uid=0 gid=0 mode=0755 time=0 content=$(location @makedumpfile_source//:makedumpfile-R.pl)', 'usr/share/makedumpfile/makedumpfile.conf.sample type=file uid=0 gid=0 mode=0644 time=0 content=$(location @makedumpfile_source//:makedumpfile.conf)', 'usr/share/doc/makedumpfile/copyright type=file uid=0 gid=0 mode=0644 time=0 content=$(location debian/copyright)', 'usr/share/man/man8/makedumpfile.8.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :man8.gzip)', 'usr/share/man/man5/makedumpfile.conf.5.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :man5.gzip)', 'usr/share/doc/makedumpfile/changelog.Debian.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :changelog.gzip)'])
+runtime_packages(name = "makedumpfile.runtime_metadata", apt_packages = {"@makedumpfile_build_debian//" + name + ":data": "@makedumpfile_build_debian//" + name + ":control" for name in ["libdw1t64", "libelf1t64", "libbz2-1.0", "liblzo2-2", "libzstd1", "zlib1g", "liblzma5"]}, packages = {"makedumpfile": ":makedumpfile.runtime"}, control = "debian/control", changelog = "debian/changelog", required_paths = {"makedumpfile": ["usr/bin/makedumpfile", "usr/bin/makedumpfile-R.pl"]})
+
+# One declared installed root, reused by the native probe and the original
+# Debian autopkgtest's read-only installed-path fixture.
+build_tools_runtime(
+    name = "test_runtime",
+    architecture = "amd64",
+    profile = "elf",
+    elf_tools = {"makedumpfile": "usr/bin/makedumpfile"},
+    packages = [
+        ":makedumpfile.runtime",
+        "@makedumpfile_build_debian//libdw1t64:raw_packages",
+        "@makedumpfile_build_debian//liblzo2-2:raw_packages",
+        "@build_tools//libc-bin:raw_packages",
+    ],
+    testonly = True,
+)
+
+source_package_controls(
+    name = "test_control",
+    metadata = ":makedumpfile.runtime_metadata",
+    package = "makedumpfile",
+    testonly = True,
+    visibility = ["//visibility:private"],
+)
+
+py_test(
+    name = "installation_test",
+    srcs = ["installation_test.py"],
+    args = [
+        "--runtime", "$(rootpath :test_runtime)",
+        "--archive", "$(rootpath :makedumpfile.runtime)",
+        "--metadata", "$(rootpath :makedumpfile.runtime_metadata)",
+        "--control", "$(rootpath :test_control)",
+        "--symbols", "$(rootpath :makedumpfile.runtime.debug_symbols)",
+        "--build-binary", "$(rootpath :makedumpfile)",
+        "--source", "$(rootpath @makedumpfile_source//:Makefile)",
+        "--debian", "$(rootpath debian/control)",
+        "--pigz", "$(rootpath @sonic_build_infra//tools/build_tools:pigz)",
+        "--perl", "$(rootpath @sonic_build_infra//tools/build_tools:perl)",
+        "--readelf", "$(rootpath @sonic_build_infra//toolchains/binutils:readelf)",
+    ],
+    data = [
+        ":test_runtime", ":makedumpfile.runtime", ":makedumpfile.runtime_metadata",
+        ":test_control", ":makedumpfile.runtime.debug_symbols", ":makedumpfile",
+        "@makedumpfile_source//:Makefile", "@makedumpfile_source//:makedumpfile-R.pl",
+        "@makedumpfile_source//:makedumpfile.conf", "@makedumpfile_source//:makedumpfile.8.in",
+        "@makedumpfile_source//:makedumpfile.conf.5.in", "debian/control", "debian/changelog",
+        "debian/copyright", "debian/tests/sanity.py", "@sonic_build_infra//tools/build_tools:pigz",
+        "@sonic_build_infra//tools/build_tools:perl", "@sonic_build_infra//toolchains/binutils:readelf",
+    ],
+    deps = ["@sonic_build_infra//deb:elf_metadata"],
+    python_version = "3.13",
+    target_compatible_with = ["@platforms//cpu:x86_64", "@platforms//os:linux"],
+    size = "small",
+)

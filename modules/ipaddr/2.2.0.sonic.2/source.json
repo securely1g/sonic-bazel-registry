@@ -1,0 +1,10 @@
+{
+  "url": "https://files.pythonhosted.org/packages/9d/a7/1b39a16cb90dfe491f57e1cab3103a15d4e8dd9a150872744f531b1106c1/ipaddr-2.2.0.tar.gz",
+  "integrity": "sha256-QJLf5mdYjRaqErWay3yKQCTl3LI6aBzQsLYCNz7KiNY=",
+  "strip_prefix": "ipaddr-2.2.0",
+  "overlay": {
+    "BUILD.bazel": "sha256-iDxDpx5k8UI8xYuMkbCtctIywPRZEYdHz5BVj7nzRck=",
+    "MODULE.bazel": "sha256-Q+12+2TFWr/o5xYqCyhF6oNfxqea0AGlDlFg5M6g08Y=",
+    "tests/installed_test.py": "sha256-RsP2T8D271OiKgYrKGgXgIOJLWSTH06EoAo+JssNd4M="
+  }
+}

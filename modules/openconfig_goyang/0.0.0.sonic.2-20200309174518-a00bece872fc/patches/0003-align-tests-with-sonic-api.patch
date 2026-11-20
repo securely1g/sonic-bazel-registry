@@ -1,0 +1,277 @@
+diff --git a/pkg/yang/marshal_test.go b/pkg/yang/marshal_test.go
+--- a/pkg/yang/marshal_test.go
++++ b/pkg/yang/marshal_test.go
+@@ -71,6 +71,7 @@
+       "Argument": "ModulePrefix"
+     }
+   },
++  "DirOKeys": null,
+   "Type": {
+     "Name": "string",
+     "Kind": 18,
+@@ -210,6 +211,7 @@
+           "Argument": "ModulePrefix"
+         }
+       },
++      "DirOKeys": null,
+       "Type": {
+         "Name": "union",
+         "Kind": 0,
+@@ -239,6 +241,7 @@
+       }
+     }
+   },
++  "DirOKeys": null,
+   "Augments": [
+     {
+       "Name": "augment",
+@@ -251,7 +254,8 @@
+           "HasArgument": true,
+           "Argument": "ModulePrefix"
+         }
+-      }
++      },
++      "DirOKeys": null
+     }
+   ],
+   "Augmented": [
+@@ -266,7 +270,8 @@
+           "HasArgument": true,
+           "Argument": "ModulePrefix"
+         }
+-      }
++      },
++      "DirOKeys": null
+     }
+   ],
+   "Uses": [
+@@ -285,7 +290,8 @@
+             "HasArgument": true,
+             "Argument": "ModulePrefix"
+           }
+-        }
++        },
++        "DirOKeys": null
+       }
+     }
+   ]
+@@ -331,12 +337,14 @@
+     "leaf": {
+       "Name": "string",
+       "Kind": 0,
+-      "Config": 0
++      "Config": 0,
++      "DirOKeys": null
+     },
+     "leaf-list": {
+       "Name": "leaf-list",
+       "Kind": 0,
+       "Config": 0,
++      "DirOKeys": null,
+       "ListAttr": {
+         "MinElements": null,
+         "MaxElements": null,
+@@ -344,6 +352,7 @@
+       }
+     }
+   },
++  "DirOKeys": null,
+   "Exts": [
+     {
+       "Keyword": "some-extension:ext",
+@@ -488,6 +497,7 @@
+                   "Argument": "t"
+                 }
+               },
++              "DirOKeys": [],
+               "Type": {
+                 "Name": "foobar",
+                 "Kind": 18,
+@@ -505,6 +515,9 @@
+                     }
+                   }
+                 ]
++              },
++              "PerfOpts": {
++                "ChildSchemaCache": null
+               }
+             },
+             "k": {
+@@ -519,17 +532,28 @@
+                   "Argument": "t"
+                 }
+               },
++              "DirOKeys": [],
+               "Type": {
+                 "Name": "string",
+                 "Kind": 18
++              },
++              "PerfOpts": {
++                "ChildSchemaCache": null
+               }
+             }
+           },
++          "DirOKeys": [
++            "k",
++            "bar"
++          ],
+           "Key": "k",
+           "ListAttr": {
+             "MinElements": null,
+             "MaxElements": null,
+             "OrderedBy": null
++          },
++          "PerfOpts": {
++            "ChildSchemaCache": null
+           }
+         },
+         "d": {
+@@ -544,6 +568,7 @@
+               "Argument": "t"
+             }
+           },
++          "DirOKeys": [],
+           "Type": {
+             "Name": "decimal64",
+             "Kind": 12,
+@@ -562,6 +587,9 @@
+                 }
+               }
+             ]
++          },
++          "PerfOpts": {
++            "ChildSchemaCache": null
+           }
+         },
+         "x": {
+@@ -576,6 +604,7 @@
+               "Argument": "t"
+             }
+           },
++          "DirOKeys": [],
+           "Type": {
+             "Name": "union",
+             "Kind": 19,
+@@ -597,6 +626,9 @@
+                 }
+               }
+             ]
++          },
++          "PerfOpts": {
++            "ChildSchemaCache": null
+           }
+         },
+         "zip": {
+@@ -611,6 +643,7 @@
+               "Argument": "t"
+             }
+           },
++          "DirOKeys": [],
+           "Type": {
+             "Name": "string",
+             "Kind": 18
+@@ -619,11 +652,26 @@
+             "MinElements": null,
+             "MaxElements": null,
+             "OrderedBy": null
++          },
++          "PerfOpts": {
++            "ChildSchemaCache": null
+           }
+         }
++      },
++      "DirOKeys": [
++        "a",
++        "zip",
++        "d",
++        "x"
++      ],
++      "PerfOpts": {
++        "ChildSchemaCache": null
+       }
+     }
+   },
++  "DirOKeys": [
++    "test"
++  ],
+   "Identities": [
+     {
+       "Name": "BASE",
+@@ -636,7 +684,10 @@
+     {
+       "Name": "DERIVED"
+     }
+-  ]
++  ],
++  "PerfOpts": {
++    "ChildSchemaCache": null
++  }
+ }`,
+ 		},
+ 	}, {
+@@ -691,6 +742,7 @@
+           "Argument": "t"
+         }
+       },
++      "DirOKeys": [],
+       "Type": {
+         "Name": "string",
+         "Kind": 18
+@@ -701,8 +753,17 @@
+           "HasArgument": true,
+           "Argument": "marked"
+         }
+-      ]
+-    }
++      ],
++      "PerfOpts": {
++        "ChildSchemaCache": null
++      }
++    }
++  },
++  "DirOKeys": [
++    "t"
++  ],
++  "PerfOpts": {
++    "ChildSchemaCache": null
+   }
+ }`,
+ 			"ext": `{
+@@ -716,6 +777,10 @@
+       "HasArgument": true,
+       "Argument": "e"
+     }
++  },
++  "DirOKeys": [],
++  "PerfOpts": {
++    "ChildSchemaCache": null
+   }
+ }`,
+ 		},
+diff --git a/pkg/yang/entry_test.go b/pkg/yang/entry_test.go
+--- a/pkg/yang/entry_test.go
++++ b/pkg/yang/entry_test.go
+@@ -1559,8 +1559,9 @@
+ 		if got := data.Kind; got != tt.wantEntryKind {
+ 			t.Errorf("%s: want Kind: %v, got: %v", tt.name, tt.wantEntryKind, got)
+ 		}
+-		if got := data.Description; got != tt.wantNodeKind {
+-			t.Errorf("%s: want data.Description: %q, got: %q", tt.name, tt.wantNodeKind, got)
++		// SONiC intentionally drops Entry descriptions for memory use; the AST remains intact.
++		if got := data.Description; got != "" {
++			t.Errorf("%s: want empty SONiC data.Description, got: %q", tt.name, got)
+ 		}
+ 	}
+ }
+@@ -1787,8 +1788,9 @@
+ 		}
+ 		if got := e.Node.Kind(); got != tt.wantNodeKind {
+ 			t.Errorf("%s: got `operation` node kind: %q, want: %q", tt.name, got, tt.wantNodeKind)
+-		} else if got := e.Description; got != tt.wantNodeKind {
+-			t.Errorf("%s: got `operation` Description: %q, want: %q", tt.name, got, tt.wantNodeKind)
++		} else if got := e.Description; got != "" {
++			// SONiC intentionally drops Entry descriptions for memory use.
++			t.Errorf("%s: got `operation` Description: %q, want empty SONiC description", tt.name, got)
+ 		}
+ 		// confirm the child RPCEntry was populated for the entry.
+ 		if e.RPC == nil {

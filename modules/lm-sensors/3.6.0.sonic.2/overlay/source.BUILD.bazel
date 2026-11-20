@@ -1,0 +1,209 @@
+load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
+load("@lm-sensors//:source_includes.bzl", "private_include")
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_shared_library")
+load("@sonic_build_infra//cc:shared_library.bzl", "shared_library_cc_info")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(glob(
+    ["**"],
+    exclude = ["BUILD.bazel"],
+))
+
+genrule(
+    name = "parser",
+    srcs = ["lib/conf-parse.y"],
+    outs = [
+        "lib/conf-parse.c",
+        "lib/conf-parse.h",
+    ],
+    cmd = "M4=$(execpath @sonic_build_infra//tools/build_tools:m4) $(execpath @sonic_build_infra//tools/build_tools:bison) -p sensors_yy --defines=$(execpath lib/conf-parse.h) -o $(execpath lib/conf-parse.c) $<",
+    tools = [
+        "@sonic_build_infra//tools/build_tools:bison",
+        "@sonic_build_infra//tools/build_tools:m4",
+    ],
+)
+
+genrule(
+    name = "lexer",
+    srcs = [
+        "lib/conf-lex.l",
+        ":parser",
+    ],
+    outs = ["lib/conf-lex.c"],
+    cmd = "$(execpath @sonic_build_infra//tools/build_tools:flex) -Psensors_yy -t -Cfe -8 $(execpath lib/conf-lex.l) > $@",
+    tools = ["@sonic_build_infra//tools/build_tools:flex"],
+)
+
+_PRIVATE_INCLUDE = private_include()
+
+cc_library(
+    name = "sensors_implementation",
+    srcs = [
+        "lib/access.c",
+        "lib/data.c",
+        "lib/error.c",
+        "lib/general.c",
+        "lib/init.c",
+        "lib/sysfs.c",
+        "version.h",
+        ":lexer",
+        ":parser",
+    ] + glob(["lib/*.h"]),
+    copts = [
+        "-O2",
+        "-g",
+        "-fPIC",
+        _PRIVATE_INCLUDE,
+    ],
+    features = ["-strip_debug_symbols"],
+    includes = ["."],
+    linkopts = ["-lm"],
+    local_defines = [
+        "_REENTRANT",
+        "ETCDIR=\\\"/etc\\\"",
+    ],
+    alwayslink = True,
+)
+
+cc_shared_library(
+    name = "libsensors.so.5.0.0",
+    additional_linker_inputs = ["lib/libsensors.map"],
+    features = ["-strip_debug_symbols"],
+    shared_lib_name = "libsensors.so.5.0.0",
+    user_link_flags = [
+        "-Wl,-soname,libsensors.so.5",
+        "-Wl,--version-script=$(location lib/libsensors.map)",
+    ],
+    deps = [":sensors_implementation"],
+)
+
+shared_library_cc_info(
+    name = "sensors_link",
+    shared_library = ":libsensors.so.5.0.0",
+)
+
+cc_library(
+    name = "sensors_library",
+    hdrs = glob(["lib/*.h"]),
+    includes = ["."],
+    deps = [":sensors_link"],
+)
+
+cc_binary(
+    name = "sensors",
+    srcs = [
+        "prog/sensors/chips.c",
+        "prog/sensors/main.c",
+        "version.h",
+    ] + glob(["prog/sensors/*.h"]),
+    copts = [
+        "-O2",
+        "-g",
+    ],
+    features = ["-strip_debug_symbols"],
+    local_defines = ["ETCDIR=\\\"/etc\\\""],
+    deps = [":sensors_library"],
+)
+
+cc_binary(
+    name = "sensord",
+    srcs = [
+        "prog/sensord/args.c",
+        "prog/sensord/chips.c",
+        "prog/sensord/lib.c",
+        "prog/sensord/rrd.c",
+        "prog/sensord/sense.c",
+        "prog/sensord/sensord.c",
+        "version.h",
+    ] + glob(["prog/sensord/*.h"]),
+    copts = [
+        "-O2",
+        "-g",
+    ],
+    features = ["-strip_debug_symbols"],
+    local_defines = ["ETCDIR=\\\"/etc\\\""],
+    deps = [
+        ":sensors_library",
+        "@lm_sensors_debian//librrd-dev:librrd_cc",
+    ],
+)
+
+[
+    cc_binary(
+        name = name,
+        srcs = [
+            "prog/dump/" + name + ".c",
+            "prog/dump/util.c",
+            "version.h",
+        ] + (["prog/dump/superio.c"] if name == "isadump" else []) + glob(["prog/dump/*.h"]),
+        copts = [
+            "-O2",
+            "-g",
+        ],
+        features = ["-strip_debug_symbols"],
+    )
+    for name in [
+        "isadump",
+        "isaset",
+    ]
+]
+
+# Preserve the original driver's ../conf-parse.h include across Bazel's
+# source/output roots. A declared symlink creates the required output directory;
+# no source tree or source bytes are copied.
+copy_file(
+    name = "scanner_driver",
+    src = "lib/test/test-scanner.c",
+    out = "lib/test/scanner-driver.c",
+    allow_symlink = True,
+)
+
+# Declare the original source directory as a textual input for its unchanged
+# ../data.h and ../scanner.h searches; it is not a second compilation unit.
+cc_library(
+    name = "scanner_source_layout",
+    textual_hdrs = ["lib/test/test-scanner.c"],
+)
+
+# Original Make all-lib-test target, linked exactly from its original objects.
+cc_binary(
+    name = "test-scanner",
+    srcs = [
+        "lib/conf-parse.h",
+        "lib/error.c",
+        "lib/general.c",
+        ":lexer",
+        ":scanner_driver",
+    ] + glob(["lib/*.h"]),
+    copts = [
+        "-O2",
+        "-g",
+        _PRIVATE_INCLUDE,
+        _PRIVATE_INCLUDE + "/test",
+    ],
+    features = ["-strip_debug_symbols"],
+    includes = ["."],
+    local_defines = [
+        "_REENTRANT",
+        "ETCDIR=\\\"/etc\\\"",
+    ],
+    deps = [":scanner_source_layout"],
+)
+
+# Original DBG_SRC_ARCHIVE file selection, including build-generated C/header inputs.
+filegroup(
+    name = "debug_sources",
+    srcs = glob(
+        [
+            "**/*.c",
+            "**/*.cpp",
+            "**/*.h",
+            "**/*.hpp",
+        ],
+        allow_empty = True,
+    ) + [
+        ":lexer",
+        ":parser",
+    ],
+)

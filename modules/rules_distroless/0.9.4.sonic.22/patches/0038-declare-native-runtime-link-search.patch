@@ -1,0 +1,55 @@
+diff --git a/apt/private/cc_deb_library.bzl b/apt/private/cc_deb_library.bzl
+index a343862d8f112b1d1bad5be2faa76711d52ce70b..fced84271d6376c3ea3d91185ad770df17037c4f 100644
+--- a/apt/private/cc_deb_library.bzl
++++ b/apt/private/cc_deb_library.bzl
+@@ -1,4 +1,4 @@
+-load(":so_library.bzl", "runtime_library")
++load(":so_library.bzl", "runtime_library", "runtime_link_flags")
+ load("@rules_cc//cc:defs.bzl", "CcInfo", "cc_common")
+ load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cpp_toolchain", "use_cc_toolchain")
+ 
+@@ -229,7 +229,7 @@
+         if argument.startswith("-L"):
+             driver_args.append("-Xlinker")
+         driver_args.append(argument)
+-    linker = cc_common.create_linker_input(owner = ctx.label, libraries = depset(libraries), additional_inputs = depset(files.keys()), user_link_flags = driver_args)
++    linker = cc_common.create_linker_input(owner = ctx.label, libraries = depset(libraries), additional_inputs = depset(files.keys()), user_link_flags = driver_args + runtime_link_flags(libraries))
+     runfiles = ctx.runfiles(files = runtime.values())
+     for dep in ctx.attr.deps:
+         runfiles = runfiles.merge(dep[DefaultInfo].default_runfiles)
+diff --git a/apt/private/so_library.bzl b/apt/private/so_library.bzl
+index c731e5014df7542c466d23e56ddf74bebe8365d0..ef2bac7c6a0676bc2dabd60ed1b4d59ec7205fd6 100644
+--- a/apt/private/so_library.bzl
++++ b/apt/private/so_library.bzl
+@@ -15,6 +15,16 @@
+         dynamic_library_symlink_path = directory + "/" + file.basename,
+         interface_library_symlink_path = directory + "/rpath.ifso",
+     )
++
++def runtime_link_flags(libraries):
++    # A sysrooted linker cannot rely on the program's runtime RPATH to find
++    # indirect DT_NEEDED libraries. Search only the declared SONAME symlinks,
++    # without selecting those DSOs as direct libraries on the ordered link line.
++    directories = {library.dynamic_library.dirname: True for library in libraries if library.dynamic_library}
++    flags = []
++    for directory in directories:
++        flags.extend(["-Xlinker", "-rpath-link=" + directory])
++    return flags
+ 
+ def _so_library_impl(ctx):
+     cc_toolchain = find_cpp_toolchain(ctx)
+@@ -41,8 +51,12 @@
+         # cc_shared_library drops linker inputs without library objects. Keep
+         # runtime files and linker-script references on this library-bearing
+         # input so they remain declared inputs of sandboxed shared links.
+-        additional_inputs = depset(ctx.files.dynamic_libs + ctx.files.additional_linker_inputs),
+-        user_link_flags = depset([ctx.expand_make_variables("linkopts", opt, {}) for opt in ctx.attr.linkopts]),
++        # Include the generated SONAME symlinks too: interface-only linking
++        # does not otherwise make those -rpath-link paths action dependencies.
++        additional_inputs = depset(ctx.files.dynamic_libs + ctx.files.additional_linker_inputs + [library.dynamic_library for library in libraries]),
++        # Keep repeated -Xlinker tokens in a list: a depset would lose the
++        # argument pairing when more than one runtime directory is present.
++        user_link_flags = [ctx.expand_make_variables("linkopts", opt, {}) for opt in ctx.attr.linkopts] + runtime_link_flags(libraries),
+     )
+ 
+     linking_context = cc_common.create_linking_context(

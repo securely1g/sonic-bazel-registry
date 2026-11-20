@@ -1,0 +1,63 @@
+load("@rules_python//python:py_test.bzl", "py_test")
+load("@tar.bzl//tar:tar.bzl", "tar")
+load("@sonic_build_infra//cc:runtime_test.bzl", "native_runtime_binary")
+load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
+
+package(default_visibility = ["//visibility:public"])
+exports_files(["MODULE.bazel", "Makefile", "control"])
+
+tar(
+    name = "sedutil.runtime",
+    srcs = ["@sedutil_prebuilt//:sedutil-cli"],
+    mtree = ["usr/local/bin/sedutil-cli type=file uid=0 gid=0 mode=0755 time=0 content=$(location @sedutil_prebuilt//:sedutil-cli)"],
+    target_compatible_with = ["@platforms//cpu:x86_64", "@platforms//os:linux"],
+)
+
+tar(
+    name = "sedutil.control",
+    srcs = ["control"],
+    mtree = ["control type=file uid=0 gid=0 mode=0644 time=0 content=$(location control)"],
+)
+
+# Original Make directly invokes dpkg-deb; it never calculates shlibdeps.
+runtime_packages(
+    name = "sedutil.runtime_metadata",
+    packages = {"sedutil": ":sedutil.runtime"},
+    control = "control",
+    shlibdeps = False,
+    required_paths = {"sedutil": ["usr/local/bin/sedutil-cli"]},
+)
+
+genrule(
+    name = "installed_executable",
+    testonly = True,
+    srcs = [":sedutil.runtime"],
+    outs = ["installed/sedutil-cli"],
+    tools = ["@sonic_build_infra//tools/build_tools:bsdtar"],
+    cmd = '$(execpath @sonic_build_infra//tools/build_tools:bsdtar) -xOf $(location :sedutil.runtime) usr/local/bin/sedutil-cli > $@ && chmod 755 $@',
+)
+
+native_runtime_binary(
+    name = "sedutil_executable",
+    testonly = True,
+    binary = ":installed_executable",
+    runtime_payloads = [
+        "@vs_host_debian//libc6:raw_data",
+        "@vs_host_debian//libstdc++6:raw_data",
+        "@vs_host_debian//libgcc-s1:raw_data",
+    ],
+)
+
+py_test(
+    name = "installation_test",
+    srcs = ["installation_test.py"],
+    args = [
+        "$(rootpath :sedutil.runtime)",
+        "$(rootpath :sedutil.control)",
+        "$(rootpath :sedutil_executable)",
+        "$(rootpath @sedutil_prebuilt//:sedutil-cli)",
+        "$(rootpath :sedutil.runtime_metadata)",
+    ],
+    data = [":sedutil.runtime", ":sedutil.control", ":sedutil_executable", "@sedutil_prebuilt//:sedutil-cli", ":sedutil.runtime_metadata"],
+    deps = ["@sonic_build_infra//deb:elf_metadata"],
+)

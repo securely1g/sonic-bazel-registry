@@ -1,0 +1,11 @@
+--- a/backends/ebpf/CMakeLists.txt
++++ b/backends/ebpf/CMakeLists.txt
+@@ -158,7 +158,7 @@
+ message(STATUS "Detected kernel version: ${P4C_EBPF_KERNEL_VER}")
+ # Check if the kernel version is new enough to support ebpf features
+ set (MIN_KERNEL 4.15.0)
+-string (REGEX MATCH "[0-9]+[^-]*" KERNEL_VER ${CMAKE_SYSTEM})
++string (REGEX MATCH "[0-9]+[^-]*" KERNEL_VER "${P4C_EBPF_KERNEL_VER}")
+ if (${KERNEL_VER} VERSION_LESS ${MIN_KERNEL} )
+   MESSAGE(WARNING "Kernel version ${KERNEL_VER} too small, expected ${MIN_KERNEL}. Ignoring ebpf kernel tests...")
+   set (SUPPORTS_KERNEL False)

@@ -83,6 +83,16 @@ class CrossToolchainTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "original module graph"):
             cross.expose_dependency(self.consumer, "missing", self.versions)
 
+    def test_infra39_keeps_its_declared_cross_toolchain(self):
+        version = "0.0.39-81476192bf2cdb70bb646e85935c5d698b6de8a0"
+        versions = {**self.versions, "sonic-build-infra": version}
+        result, consumer, _, _ = self.prepare_case(versions)
+        self.assertTrue(result["use_published_cross_toolchain"])
+        self.assertEqual(result["selected_module_versions"], versions)
+        self.assertEqual(result["distribution_constraint"],
+                         "@sonic_build_infra//platforms:trixie")
+        self.assertNotIn("registry_ci_cross_cc", (consumer / "MODULE.bazel").read_text())
+
     def test_proven_selected_versions_keep_published_compiler_and_inherited_constraints(self):
         self.assertIn(cross.PROVIDER_VERSION, cross.VERIFIED_SONIC_CROSS_VERSIONS)
         for version in sorted(cross.VERIFIED_SONIC_CROSS_VERSIONS):
@@ -103,6 +113,19 @@ class CrossToolchainTest(unittest.TestCase):
                     self.assertIn(f'parents=["{execution}"]', generated)
                     self.assertNotIn("register_toolchains", (consumer / "MODULE.bazel").read_text())
                     self.assertFalse((artifacts / "cross-adapter.BUILD.bazel").exists())
+
+    def test_net_snmp_keeps_the_published_bookworm_cross_toolchain(self):
+        version = "0.0.25-34de7330abc72229dfc8dab88dec71b89c52aa88"
+        target = "@sonic_build_infra//platforms:aarch64_bookworm"
+        execution = "@sonic_build_infra//platforms:x86_64_bookworm"
+        result, consumer, _, provider = self.prepare_case(
+            {**self.versions, "sonic-build-infra": version}, target, execution)
+        provider.assert_not_called()
+        self.assertEqual(result["distribution_constraint"], "@sonic_build_infra//platforms:bookworm")
+        generated = (consumer / cross.PACKAGE / "BUILD.bazel").read_text()
+        self.assertIn(target, generated)
+        self.assertIn(execution, generated)
+        self.assertNotIn("trixie", generated)
 
     def test_native_only_and_unknown_selected_versions_use_provider_with_original_parents(self):
         for version in ("0.0.6-553b2f70f9ba77b74befdf77674894166139ddcc",

@@ -1,0 +1,23 @@
+{
+  "architectures": [
+    "amd64"
+  ],
+  "generated_module_overlay": true,
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.38-0baa4acc9eac9ccc793b81104b1580d530271cbe",
+      "repo_name": "sonic_build_infra"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
+  },
+  "build_targets": [
+    "@grub//:grub-bios-setup"
+  ],
+  "test_targets": [
+    "@grub//:tool_test",
+    "@grub//:raw_embedding_test"
+  ]
+}

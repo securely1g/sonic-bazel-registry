@@ -1,0 +1,19 @@
+From: Guohan Lu <securely1g@gmail.com>
+Subject: [PATCH] Register the merged sonic-mgmt-common source commit
+
+Qualify the exact merged source module identity. Preserve all dependency
+declarations from the source owner; unmerged refresh changes are deferred.
+
+Source commit: c83630943c1e869107463be4f885fdfcc8321759
+Scope: downstream registry integration; not an upstream bug fix.
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-mgmt-common",
+-    version = "1.0.2",
++    version = "1.0.2-c83630943c1e869107463be4f885fdfcc8321759",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",

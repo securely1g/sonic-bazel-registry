@@ -1,12 +1,13 @@
 """Inert tests only; do not invoke Bazel/build/network."""
+import ast
 import copy
+from contextlib import contextmanager
 import json
 from pathlib import Path
 import subprocess
 import tempfile
 from unittest import mock
 from test_registry_ci import FixtureTestCase, registry_ci, write_json
-import test_registry_ci as fixtures
 
 
 class ConfiguredGateTests(FixtureTestCase):
@@ -145,29 +146,111 @@ class ConfiguredGateTests(FixtureTestCase):
         with self.assertRaises(registry_ci.RegistryError):
             self.gate(self.graph('DebAssemble', 'x.deb'))
 
+    def build_fragment(self):
+        """Compile only the real guard/cache/build statements, with inert callees."""
+        tree = ast.parse(Path(registry_ci.__file__).read_text())
+        runner = next(node for node in tree.body
+                      if isinstance(node, ast.FunctionDef) and node.name == 'run')
+        for block in ast.walk(runner):
+            body = getattr(block, 'body', None)
+            if not isinstance(body, list):
+                continue
+            for index, node in enumerate(body):
+                if (isinstance(node, ast.Expr) and isinstance(node.value, ast.Call)
+                        and isinstance(node.value.func, ast.Name)
+                        and node.value.func.id == 'configured_non_deb_gate'):
+                    cache = body[index + 1]
+                    self.assertIsInstance(cache, ast.With)
+                    self.assertEqual(cache.items[0].context_expr.func.id, 'build_cache_audit')
+                    return compile(ast.Module(body=[node, cache], type_ignores=[]),
+                                   '<actual-guard-cache-build>', 'exec')
+        self.fail('Missing direct prebuild guard before cache/profile context')
+
+    def run_build_fragment(self, blocked=False, profile=True):
+        events = []
+        commands = []
+        def gate(config, prefix, flags, targets, consumer, artifacts):
+            events.append('guard')
+            self.assertEqual(targets, ['@owner//:runtime', '@owner//:test'])
+            self.assertEqual(flags, ['--platforms=//:native', '--host_platform=//:native'])
+            if blocked:
+                raise registry_ci.RegistryError('blocked graph')
+        @contextmanager
+        def cache(targets, work, artifacts):
+            self.assertEqual(targets, ['@@owner+//:runtime'])
+            events.append('cache-enter')
+            yield ['--execution_log_json_file=/private/cache.json']
+            events.append('cache-exit')
+        def profiles(artifacts, phase):
+            self.assertEqual(phase, 'build')
+            events.append('profile')
+            return ['--profile=/private/build.profile']
+        def logged(command, consumer, log):
+            events.append('build')
+            commands.append(command)
+        context = dict(config={'cache_audit_targets': ['@@owner+//:runtime']},
+                       prefix=['bazel', '--batch'],
+                       flags=['--platforms=//:native', '--host_platform=//:native'],
+                       build_targets=['@owner//:runtime'],
+                       test_targets=['@owner//:runtime', '@owner//:test'],
+                       consumer=Path('/inert/consumer'), artifacts=Path('/inert/artifacts'),
+                       work_dir=Path('/inert/work'), profile_analysis=profile,
+                       configured_non_deb_gate=gate, build_cache_audit=cache,
+                       analysis_profile_flags=profiles, run_logged=logged)
+        if blocked:
+            with self.assertRaisesRegex(registry_ci.RegistryError, 'blocked graph'):
+                exec(self.build_fragment(), context)
+            self.assertEqual(events, ['guard'])
+            self.assertEqual(commands, [])
+        else:
+            exec(self.build_fragment(), context)
+        return events, commands
+
     def test_actual_runner_stops_before_build_on_gate_failure(self):
-        fixture = fixtures.FetchedModuleTests()
-        fixture.setUp()
-        try:
-            fixture.config['forbid_deb_outputs'] = True
-            write_json(fixture.config_path, fixture.config)
-            with mock.patch.object(registry_ci, 'configured_non_deb_gate',
-                                   side_effect=registry_ci.RegistryError('blocked graph')) as gate, \
-                    mock.patch.object(registry_ci, 'run_logged') as run:
-                with self.assertRaisesRegex(registry_ci.RegistryError, 'blocked graph'):
-                    fixture.run_fixture('gate-block')
-                gate.assert_called_once()
-                self.assertEqual(gate.call_args.args[3], ['@alpha//:library', '@alpha//:consumer_test'])
-                self.assertFalse(any('build' in call.args[0] or 'test' in call.args[0]
-                                     for call in run.call_args_list))
-        finally:
-            fixture.doCleanups()
+        self.run_build_fragment(blocked=True)
+
+    def test_cache_and_profile_flags_preserved_after_gate(self):
+        for enabled in (False, True):
+            events, commands = self.run_build_fragment(profile=enabled)
+            self.assertEqual(events, ['guard', 'cache-enter'] +
+                             (['profile'] if enabled else []) + ['build', 'cache-exit'])
+            self.assertEqual(commands[0][:4], ['bazel', '--batch', 'build', '--platforms=//:native'])
+            self.assertIn('--execution_log_json_file=/private/cache.json', commands[0])
+            self.assertEqual('--profile=/private/build.profile' in commands[0], enabled)
+            self.assertEqual(commands[0][-1], '@owner//:runtime')
+
+    def test_cache_schema_and_strict_guard_coexist(self):
+        entry = self.entry('alpha', '1.0.0')
+        path = entry / 'presubmit.json'
+        cfg = json.loads(path.read_text())
+        cfg.update(forbid_deb_outputs=True, cache_audit_targets=['@@alpha+//:library'])
+        write_json(path, cfg)
+        registry_ci.validate_entry(self.root, 'alpha', '1.0.0')
+        for value in ([], ['@alpha//:library'], ['@@alpha+//:library'] * 2):
+            cfg['cache_audit_targets'] = value
+            write_json(path, cfg)
+            with self.assertRaises(registry_ci.RegistryError):
+                registry_ci.validate_entry(self.root, 'alpha', '1.0.0')
+
+    def test_planner_preserves_upstream_all_cross_route_and_full_ci_selection(self):
+        self.entry('alpha', '1.0.0')
+        path = self.root / 'modules/alpha/1.0.0/presubmit.json'
+        cfg = json.loads(path.read_text())
+        cfg['architectures'].append('arm64')
+        cfg['platforms']['arm64'] = '@platforms//:arm64'
+        write_json(path, cfg)
+        head, base = 'a' * 40, 'b' * 40
+        with mock.patch.object(registry_ci, 'git', side_effect=[head, base, 'ci/registry_ci.py\0']), \
+                mock.patch.object(registry_ci, 'check_version_policy', return_value=set()), \
+                mock.patch.object(registry_ci, 'latest_presubmits', return_value={('alpha', '1.0.0')}) as latest:
+            jobs = registry_ci.plan(self.root, base, head, published=base)['include']
+        latest.assert_called_once_with(self.root)
+        self.assertEqual([job['architecture'] for job in jobs], ['amd64', 'arm64'])
+        self.assertEqual([job['execution_architecture'] for job in jobs], ['amd64', 'amd64'])
+        self.assertEqual([job['cross_compile'] for job in jobs], [False, True])
 
     def test_no_optin_no_subprocess_and_gate_before_build(self):
         with mock.patch.object(registry_ci.subprocess, 'run') as run:
             registry_ci.configured_non_deb_gate({}, [], [], [], Path('.'), Path('.'))
             run.assert_not_called()
-        source = Path(registry_ci.__file__).read_text()
-        call = source.index('            configured_non_deb_gate(config, prefix, flags,')
-        self.assertLess(call, source.index('            run_logged([*prefix, "build", *flags,'))
-        self.assertIn('build_targets + test_targets', source[call:call+240])
+        self.build_fragment()

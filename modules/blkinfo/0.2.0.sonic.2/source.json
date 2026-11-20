@@ -1,0 +1,10 @@
+{
+  "url": "https://files.pythonhosted.org/packages/51/04/92c0f6d2cae019384f01db784014408c98c01a9520a757cd1fd382ab95c4/blkinfo-0.2.0.tar.gz",
+  "integrity": "sha256-MiqQZZX3iDLWclrHSguf0nlN8ziFhNnwXBovjhkySFE=",
+  "strip_prefix": "blkinfo-0.2.0",
+  "overlay": {
+    "BUILD.bazel": "sha256-fSpxZEU6CFXss+a4F3c4CZcmMIn5wOBad0pj//ED1U0=",
+    "MODULE.bazel": "sha256-4gER+v+N2EgvB4AmdTBwe4eLQ5MMY+74txFw/dXQNwE=",
+    "tests/installed_test.py": "sha256-SwkIWQ0bkxQDzJCjwnZ84Vg5okb4o8CL7WwF40oNiT4="
+  }
+}

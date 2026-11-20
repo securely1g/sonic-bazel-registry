@@ -1,0 +1,19 @@
+From: Guohan Lu <securely1g@gmail.com>
+Subject: [PATCH] Register the merged Framework source commit
+
+Qualify the exact merged source module identity. Preserve all dependency
+declarations from the source owner; unmerged refresh changes are deferred.
+
+Source commit: 1ca814b6f0053fb728d40bfa82be69a4d4eca6bf
+Scope: downstream registry integration; not an upstream bug fix.
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-mgmt-framework",
+-    version = "1.0.1",
++    version = "1.0.1-1ca814b6f0053fb728d40bfa82be69a4d4eca6bf",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",

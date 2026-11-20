@@ -1,0 +1,12 @@
+{
+  "homepage": "https://pypi.org/project/pycairo/",
+  "maintainers": [],
+  "repository": [
+    "https://pypi.org/project/pycairo/"
+  ],
+  "versions": [
+    "1.26.1.sonic.1",
+    "1.26.1.sonic.2"
+  ],
+  "yanked_versions": {}
+}
