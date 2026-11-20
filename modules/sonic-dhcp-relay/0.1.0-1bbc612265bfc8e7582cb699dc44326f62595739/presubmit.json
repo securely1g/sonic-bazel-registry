@@ -1,0 +1,29 @@
+{
+  "architectures": [
+    "amd64"
+  ],
+  "consumer_deps": [],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
+  },
+  "host_platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
+  },
+  "generated_module_overlay": true,
+  "integration_test_module": "tests/consumer",
+  "build_targets": [
+    "@sonic-dhcp-relay//dhcp4relay:runtime",
+    "@sonic-dhcp-relay//dhcp4relay:runtime.debug_symbols",
+    "@sonic-dhcp-relay//:dhcp4_metadata",
+    "@sonic-dhcp-relay//dhcp6relay:runtime",
+    "@sonic-dhcp-relay//dhcp6relay:runtime.debug_symbols",
+    "@sonic-dhcp-relay//:dhcp6_metadata"
+  ],
+  "test_targets": [
+    "@sonic-dhcp-relay//tests/runtime:sender_test",
+    "@sonic-dhcp-relay//tests/runtime:pcap_patch_test",
+    "@sonic-dhcp-relay//tests/runtime:v4_full_suite_test",
+    "@sonic-dhcp-relay//tests/runtime:v6_full_suite_test",
+    "//:archive_contract_test"
+  ]
+}
