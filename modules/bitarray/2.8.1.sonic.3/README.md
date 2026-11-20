@@ -1,3 +1,7 @@
+## Dependency refresh for `2.8.1.sonic.3`
+
+This candidate retains the `2.8.1.sonic.2` source and existing patches. Its module dependencies select the newest non-yanked versions published at `3d1cc5e8dfd553d2acbe4198e504a245e6bdbddf`. Versions introduced by this refresh are not dependency targets of the same refresh.
+
 # bitarray 2.8.1.sonic.2
 
 SONiC config-engine uses bitarray 2.8.1 on CPython 3.13. The module builds
