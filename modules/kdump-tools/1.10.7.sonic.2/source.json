@@ -3,7 +3,7 @@
   "integrity": "sha256-NjBQbyKEIKlsAwYFAJqUp6O4eN+J0ZA+i9EgXa+5E70=",
   "strip_prefix": "kdump-tools-1.10.7",
   "overlay": {
-    "MODULE.bazel": "sha256-bNO9lX4RpgSM1XxFnRi47SiKe3YrIeNjINmGcavrJsI=",
+    "MODULE.bazel": "sha256-d53P7uzPz6KZ82Y4UeypC9BUuF0IRFSnDHyAvY1i34g=",
     "BUILD.bazel": "sha256-FDWwrjAahhEdfAv0EguNf6/Zj5tkufVnDuBV/V3oUZQ=",
     "bazel/run_shellcheck.py": "sha256-chCSZLsXED5roW7FkL6umvRniERLHaCz+mjA0vrhT5w=",
     "bazel/installation_test.py": "sha256-1jMBGq2YdxArfstJK+5di1XhuKvrb5ZgWe20PFd4xJ4="
