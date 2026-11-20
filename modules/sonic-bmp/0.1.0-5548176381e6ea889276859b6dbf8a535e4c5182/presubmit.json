@@ -1,0 +1,66 @@
+{
+  "architectures": [
+    "amd64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.38-0baa4acc9eac9ccc793b81104b1580d530271cbe",
+      "repo_name": "sonic_build_infra"
+    },
+    {
+      "name": "tar.bzl",
+      "version": "0.10.5.sonic.2"
+    },
+    {
+      "name": "rules_cc",
+      "version": "0.2.20"
+    },
+    {
+      "name": "rules_go",
+      "version": "0.65.0.sonic.1"
+    },
+    {
+      "name": "libnl3",
+      "version": "3.7.0.sonic.8"
+    },
+    {
+      "name": "libyang",
+      "version": "3.12.2.sonic.8"
+    },
+    {
+      "name": "libyang-python",
+      "version": "3.1.0.sonic.6"
+    },
+    {
+      "name": "sonic-rust-deps",
+      "version": "0.0.5-5bf69bc0a7d9ea9f4a5606264be592867cd29d1e"
+    },
+    {
+      "name": "sonic-yang-models",
+      "version": "1.0.1-b0a9362a7a1b4b5e1b7188c019d256f7c8aaff9f"
+    },
+    {
+      "name": "rules_rs",
+      "version": "0.1.0"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
+  },
+  "host_platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
+  },
+  "build_targets": [
+    "@sonic-bmp//:runtime",
+    "@sonic-bmp//:runtime.debug_symbols",
+    "@sonic-bmp//:runtime_packages.json"
+  ],
+  "test_targets": [
+    "@sonic-bmp//:install_test"
+  ],
+  "rust_toolchain": {
+    "version": "1.90.0",
+    "bindgen": true
+  }
+}
