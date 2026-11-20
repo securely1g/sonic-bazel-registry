@@ -1,0 +1,4 @@
+exports_files([
+    "settings.bzl",
+    "package_test.py",
+])

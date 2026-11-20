@@ -11,7 +11,8 @@
     "https://github.com/sflow/host-sflow"
   ],
   "versions": [
-    "2.1.26.sonic.1"
+    "2.1.26.sonic.1",
+    "2.1.26.sonic.2"
   ],
   "yanked_versions": {}
 }

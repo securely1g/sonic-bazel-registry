@@ -1,0 +1,26 @@
+{
+  "architectures": [
+    "amd64"
+  ],
+  "generated_module_overlay": true,
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.38-0baa4acc9eac9ccc793b81104b1580d530271cbe",
+      "repo_name": "sonic_build_infra"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
+  },
+  "build_targets": [
+    "@libnss-tacplus//:libnss-tacplus.runtime",
+    "@libnss-tacplus//:libnss-tacplus.control",
+    "@libnss-tacplus//:compiled",
+    "@libnss-tacplus//:runtime_metadata",
+    "@libnss-tacplus//:libnss-tacplus.runtime.debug_symbols"
+  ],
+  "test_targets": [
+    "@libnss-tacplus//:installation_test"
+  ]
+}

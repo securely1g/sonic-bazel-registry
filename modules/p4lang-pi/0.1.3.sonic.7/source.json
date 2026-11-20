@@ -1,0 +1,22 @@
+{
+  "url": "https://github.com/securely1g/sonic-bazel-registry/releases/download/p4-source-inputs-20261021/p4lang-pi_0.1.3.orig.tar.gz",
+  "integrity": "sha256-m7K5fyyqdUi5zHmMNkO5cxXz2Pg3LTaJ3qXioi4YoJc=",
+  "archive_type": "tar.gz",
+  "patches": {
+    "0001-native-build-metadata.patch": "sha256-CT5FT1me3ohz0PcUdM4Vsq8c2Fk0fJtI1gv5ZjONfOw=",
+    "0005-remove-unused-nested-bazel-packages.patch": "sha256-BlUSmwgfdvnEiYWsjrNtxTQKHKYzmLGsukRT3Fjn/TU="
+  },
+  "patch_strip": 1,
+  "overlay": {
+    ".bazelrc": "sha256-eWNvsdlx7rkWwPCx7OFAM1IWNUq+1/1tQCDCZj5Ap64=",
+    ".bazelversion": "sha256-vlEH0zbCxnyjNmGd+GJItoepKbYme0QCEAZsUVzqBjo=",
+    "BUILD.bazel": "sha256-QGJxvhg0uQffsHxHLQmH08ZPIP+gSQc7MSU0+Gtou28=",
+    "MODULE.bazel": "sha256-ey6PobnF2z2yF4Q5Rt68nhXZaD8e32Ncv1Pj1a7/Oo4=",
+    "bazel/0002-use-boost-1.83.patch": "sha256-IQ5pU6p80HUUeCbX9Fdn2tPQQV8LX82p1HcxKMb9oFA=",
+    "bazel/0003-remove-protobuf-from-debian-dependency.patch": "sha256-tGtCqm7Yl26pdBMuq9MdUp4057SPIdE9Iw4DBiTZ2Eg=",
+    "bazel/0004-remove-init-file.patch": "sha256-t1+cneJf4rm4Y/eiyjFd658TfIbms48i2k4ZL965vnc=",
+    "bazel/BUILD.bazel": "sha256-iQ2pQUaxrd63h8Et2hMH6RroGRkiFmuxdrL/PwAz4hA=",
+    "bazel/sdk_test.cc": "sha256-8Xhj1/JvO/BymtyugoLpzUd1mg7iCcL5FQMia9xvqhY=",
+    "tools/bazel/runtime/prepare.py": "sha256-HNLNxC97MVhXnZHZY4D20GqRQrt6Zj5cNiQ7FYsIBlQ="
+  }
+}

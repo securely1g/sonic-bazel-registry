@@ -19,6 +19,7 @@ class FipsCrossRecipeTests(unittest.TestCase):
         default = ["--test_timeout=180,900,2700,7200"]
         for module, release, cross, flags, expected in [
             ("sonic-fips", version, True, [], ["--test_timeout=180,900,5400,7200"]),
+            ("sonic-fips", "0.0.6-1a8daf8dd8a3ad54de0e91a55b46fd5bbd206763", True, [], ["--test_timeout=180,900,5400,7200"]),
             ("sonic-fips", "other-version", True, [], default),
             ("other-module", version, True, [], default),
             ("sonic-fips", version, False, [], []),

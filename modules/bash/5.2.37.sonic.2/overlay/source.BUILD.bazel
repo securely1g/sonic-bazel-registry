@@ -1,0 +1,412 @@
+load("@bazel_skylib//rules:expand_template.bzl", "expand_template")
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@bash//:source_includes.bzl", "private_builtins_include", "reproducibility_copts")
+
+package(default_visibility = ["//visibility:public"])
+
+# Debian Trixie's dpkg-buildflags compile and reproducibility flags.
+DEBIAN_BUILD_COPTS = reproducibility_copts() + [
+    "-g",
+    "-O2",
+    "-Werror=implicit-function-declaration",
+    "-fstack-protector-strong",
+    "-fstack-clash-protection",
+    "-fcf-protection",
+    "-Wformat",
+    "-Werror=format-security",
+    "-Wall",
+    "-Wdate-time",
+    "-U_FORTIFY_SOURCE",
+    "-D_FORTIFY_SOURCE=2",
+]
+
+# Debian Trixie's dpkg-buildflags linker hardening, plus the build ID needed
+# by sonic_deb to strip the main package and populate its dbgsym package.
+DEBIAN_BUILD_LINKOPTS = [
+    "-Wl,-z,relro",
+    "-Wl,-z,now",
+    "-Wl,--build-id",
+]
+
+COMMON_COPTS = DEBIAN_BUILD_COPTS + [
+    "-std=gnu17",
+    "-DHAVE_CONFIG_H",
+    "-DSHELL",
+    "-Wno-error",
+    "-Wno-parentheses",
+    "-Wno-unused-function",
+    "-Wno-unused-variable",
+] + select({
+    "@platforms//cpu:x86_64": [
+        "-DCONF_HOSTTYPE=\\\"x86_64\\\"",
+        "-DCONF_MACHTYPE=\\\"x86_64-pc-linux-gnu\\\"",
+        "-DCONF_VENDOR=\\\"pc\\\"",
+    ],
+    "@platforms//cpu:aarch64": [
+        "-DCONF_HOSTTYPE=\\\"aarch64\\\"",
+        "-DCONF_MACHTYPE=\\\"aarch64-unknown-linux-gnu\\\"",
+        "-DCONF_VENDOR=\\\"unknown\\\"",
+    ],
+    "//conditions:default": [],
+})
+
+COMMON_DEFINES = [
+    "PROGRAM=\\\"bash\\\"",
+    "CONF_OSTYPE=\\\"linux-gnu\\\"",
+    "LOCALEDIR=\\\"/usr/share/locale\\\"",
+    "PACKAGE=\\\"bash\\\"",
+]
+
+COMMON_INCLUDES = [
+    ".",
+    "include",
+    "lib",
+    "lib/glob",
+    "lib/readline",
+    "lib/tilde",
+]
+
+cc_library(
+    name = "source_headers",
+    hdrs = glob(["**/*.h"], exclude = ["config.h.in"]),
+    includes = COMMON_INCLUDES,
+    deps = ["@bash//:config_headers"],
+)
+
+cc_binary(
+    name = "mkbuiltins",
+    srcs = ["builtins/mkbuiltins.c"],
+    copts = ["-std=gnu17", "-DCROSS_COMPILING", "-Wno-error"],
+    includes = COMMON_INCLUDES,
+    deps = [":source_headers"],
+    linkopts = ["-static"],
+)
+
+# 顺序来自原 builtins/Makefile.in 的 DEFSRC，reserved 位于 pushd 之前。
+# 生成器按入参构造 builtin 表，不能把它当无序文件集合。
+BUILTIN_DEF_NAMES = [
+    "alias", "bind", "break", "builtin", "caller", "cd", "colon",
+    "command", "declare", "echo", "enable", "eval", "getopts", "exec",
+    "exit", "fc", "fg_bg", "hash", "help", "history", "jobs", "kill",
+    "let", "read", "return", "set", "setattr", "shift", "source",
+    "suspend", "test", "times", "trap", "type", "ulimit", "umask",
+    "wait", "reserved", "pushd", "shopt", "printf", "complete", "mapfile",
+]
+
+BUILTIN_NAMES = [name for name in BUILTIN_DEF_NAMES if name != "reserved"]
+BUILTIN_PRODUCTION_DEFS = ["builtins/%s.def" % name for name in BUILTIN_NAMES]
+BUILTIN_DEFS = ["builtins/%s.def" % name for name in BUILTIN_DEF_NAMES]
+BUILTIN_OUTPUTS = ["generated/builtins/%s.c" % name for name in BUILTIN_NAMES]
+
+filegroup(
+    name = "builtin_production_defs",
+    srcs = BUILTIN_PRODUCTION_DEFS,
+)
+
+genrule(
+    name = "builtin_sources",
+    srcs = BUILTIN_DEFS,
+    outs = BUILTIN_OUTPUTS + [
+        "generated/builtins/builtins.c",
+        "generated/builtins/builtext.h",
+    ],
+    tools = [":mkbuiltins", "@bash//:build_bash"],
+    cmd = """PATH= $(execpath @bash//:build_bash) <<'SONIC_BASH_GENERATE'
+set -eu
+out=$(@D)/generated/builtins
+mkdir -p "$$out"
+for src in """ + " ".join(["$(location %s)" % src for src in BUILTIN_PRODUCTION_DEFS]) + """; do
+  $(execpath :mkbuiltins) -D builtins "$$src"
+  base=$$(basename "$$src" .def)
+  mv "$$base.c" "$$out/$$base.c"
+done
+$(execpath :mkbuiltins) \
+  -externfile builtext.h -structfile builtins.c \
+  -noproduction -D builtins """ + " ".join(["$(location %s)" % src for src in BUILTIN_DEFS]) + """
+mv builtext.h "$$out/builtext.h"
+mv builtins.c "$$out/builtins.c"
+SONIC_BASH_GENERATE
+""",
+)
+
+cc_binary(
+    name = "mksyntax",
+    srcs = ["mksyntax.c"],
+    copts = ["-Wno-error"],
+    includes = COMMON_INCLUDES,
+    deps = [":source_headers"],
+    linkopts = ["-static"],
+)
+
+genrule(
+    name = "syntax_c",
+    srcs = ["syntax.h"],
+    outs = ["generated/syntax.c"],
+    tools = [":mksyntax"],
+    cmd = "$(execpath :mksyntax) -o $@",
+)
+
+cc_binary(
+    name = "mksignames",
+    srcs = [
+        "support/mksignames.c",
+        "support/signames.c",
+    ],
+    copts = ["-DBUILDTOOL", "-Wno-error"],
+    includes = COMMON_INCLUDES,
+    deps = [":source_headers"],
+    linkopts = ["-static"],
+)
+
+genrule(
+    name = "signames_h",
+    outs = ["generated/signames.h"],
+    tools = [":mksignames"],
+    cmd = "$(execpath :mksignames) $@",
+)
+
+cc_binary(
+    name = "psize",
+    srcs = ["builtins/psize.c"],
+    includes = COMMON_INCLUDES,
+    deps = [":source_headers"],
+    linkopts = ["-static"],
+)
+
+genrule(
+    name = "pipesize_h",
+    outs = ["generated/builtins/pipesize.h"],
+    tools = [":psize", "@bash//:build_bash"],
+    cmd = """PATH= $(execpath @bash//:build_bash) <<'SONIC_BASH_GENERATE'
+set -eu
+# psize.sh's exact pipe probe; only the final header is retained.
+$(execpath :psize) 2>$@.value | sleep 3
+if [ -s $@.value ]; then
+    printf '#define PIPESIZE %s\\n' "$$(cat $@.value)" > $@
+else
+    printf '#define PIPESIZE 512\\n' > $@
+fi
+rm $@.value
+SONIC_BASH_GENERATE
+""",
+)
+
+cc_library(
+    name = "generated_headers",
+    hdrs = [
+        ":signames_h",
+        ":builtin_sources",
+        ":pipesize_h",
+    ],
+    includes = [
+        "generated",
+        "generated/builtins",
+    ],
+)
+
+cc_library(
+    name = "libsh",
+    srcs = [
+        "lib/sh/casemod.c", "lib/sh/clktck.c", "lib/sh/clock.c",
+        "lib/sh/eaccess.c", "lib/sh/fmtullong.c", "lib/sh/fmtulong.c",
+        "lib/sh/fmtumax.c", "lib/sh/fnxform.c", "lib/sh/fpurge.c",
+        "lib/sh/getenv.c", "lib/sh/gettimeofday.c", "lib/sh/input_avail.c",
+        "lib/sh/itos.c", "lib/sh/mailstat.c", "lib/sh/makepath.c",
+        "lib/sh/mbscasecmp.c", "lib/sh/mbschr.c", "lib/sh/mbscmp.c", "lib/sh/netconn.c",
+        "lib/sh/netopen.c", "lib/sh/oslib.c", "lib/sh/pathcanon.c",
+        "lib/sh/pathphys.c", "lib/sh/random.c", "lib/sh/setlinebuf.c",
+        "lib/sh/shmatch.c", "lib/sh/shmbchar.c", "lib/sh/shquote.c",
+        "lib/sh/shtty.c", "lib/sh/snprintf.c", "lib/sh/spell.c",
+        "lib/sh/stringlist.c", "lib/sh/stringvec.c", "lib/sh/strnlen.c",
+        "lib/sh/strtrans.c", "lib/sh/strvis.c", "lib/sh/timers.c", "lib/sh/timeval.c", "lib/sh/tmpfile.c",
+        "lib/sh/uconvert.c", "lib/sh/ufuncs.c", "lib/sh/unicode.c",
+        "lib/sh/utf8.c", "lib/sh/wcsdup.c", "lib/sh/wcsnwidth.c",
+        "lib/sh/winsize.c", "lib/sh/zcatfd.c", "lib/sh/zgetline.c",
+        "lib/sh/zmapfd.c", "lib/sh/zread.c", "lib/sh/zwrite.c",
+    ],
+    copts = COMMON_COPTS,
+    defines = COMMON_DEFINES,
+    includes = COMMON_INCLUDES,
+    textual_hdrs = ["lib/sh/fmtulong.c"],
+    deps = [":source_headers"],
+)
+
+cc_library(
+    name = "libglob",
+    srcs = [
+        "lib/glob/glob.c",
+        "lib/glob/gmisc.c",
+        "lib/glob/smatch.c",
+        "lib/glob/strmatch.c",
+        "lib/glob/xmbsrtowcs.c",
+    ],
+    copts = COMMON_COPTS,
+    defines = COMMON_DEFINES,
+    includes = COMMON_INCLUDES,
+    textual_hdrs = [
+        "lib/glob/glob_loop.c",
+        "lib/glob/gm_loop.c",
+        "lib/glob/sm_loop.c",
+    ],
+    deps = [":source_headers"],
+)
+
+cc_library(
+    name = "libtilde",
+    srcs = ["lib/tilde/tilde.c"],
+    copts = COMMON_COPTS,
+    defines = COMMON_DEFINES,
+    includes = COMMON_INCLUDES,
+    deps = [":source_headers"],
+)
+
+# Bash supplies the shell integration functions itself. Readline's standalone
+# shell.c is a fallback for non-Bash consumers and would define them twice.
+HISTORY_SRCS = [
+    "lib/readline/history.c", "lib/readline/histexpand.c",
+    "lib/readline/histfile.c", "lib/readline/histsearch.c",
+    "lib/readline/mbutil.c", "lib/readline/savestring.c",
+    "lib/readline/xfree.c", "lib/readline/xmalloc.c",
+]
+
+cc_library(
+    name = "libhistory",
+    srcs = HISTORY_SRCS,
+    copts = COMMON_COPTS,
+    defines = COMMON_DEFINES,
+    includes = COMMON_INCLUDES,
+    deps = [":source_headers"],
+)
+
+cc_library(
+    name = "libreadline",
+    srcs = [
+        "lib/readline/bind.c", "lib/readline/callback.c",
+        "lib/readline/colors.c", "lib/readline/compat.c",
+        "lib/readline/complete.c", "lib/readline/display.c",
+        "lib/readline/funmap.c", "lib/readline/input.c",
+        "lib/readline/isearch.c",
+        "lib/readline/keymaps.c", "lib/readline/kill.c",
+        "lib/readline/macro.c", "lib/readline/misc.c", "lib/readline/nls.c",
+        "lib/readline/parens.c", "lib/readline/parse-colors.c",
+        "lib/readline/readline.c", "lib/readline/rltty.c",
+        "lib/readline/search.c", "lib/readline/shell.c", "lib/readline/signals.c",
+        "lib/readline/terminal.c", "lib/readline/text.c",
+        "lib/readline/tilde.c", "lib/readline/undo.c",
+        "lib/readline/util.c", "lib/readline/vi_mode.c",
+    ] + HISTORY_SRCS,
+    copts = COMMON_COPTS + ["-DREADLINE_LIBRARY"],
+    defines = COMMON_DEFINES,
+    includes = COMMON_INCLUDES,
+    textual_hdrs = [
+        "lib/readline/emacs_keymap.c",
+        "lib/readline/vi_keymap.c",
+    ],
+    deps = [
+        ":libhistory",
+        ":source_headers",
+        "@bash//:tinfo",
+    ],
+)
+
+cc_library(
+    name = "libbuiltins",
+    srcs = [":builtin_sources"] + [
+        "builtins/bashgetopt.c",
+        "builtins/common.c",
+        "builtins/evalfile.c",
+        "builtins/evalstring.c",
+        "builtins/getopt.c",
+    ],
+    copts = COMMON_COPTS + [private_builtins_include()],
+    defines = COMMON_DEFINES,
+    includes = COMMON_INCLUDES + ["generated"],
+    deps = [
+        ":generated_headers",
+        ":source_headers",
+    ],
+)
+
+cc_binary(
+    name = "bash",
+    srcs = [
+        ":syntax_c",
+        "alias.c", "array.c", "arrayfunc.c", "assoc.c", "bashhist.c",
+        "bashline.c", "bracecomp.c", "braces.c", "copy_cmd.c",
+        "dispose_cmd.c", "error.c", "eval.c", "execute_cmd.c", "expr.c",
+        "findcmd.c", "flags.c", "general.c", "hashcmd.c", "hashlib.c",
+        "input.c", "jobs.c", "list.c", "locale.c", "mailcheck.c",
+        "make_cmd.c", "pathexp.c", "pcomplete.c", "pcomplib.c",
+        "plugin.c", "print_cmd.c", "redir.c", "shell.c", "sig.c",
+        "stringlib.c", "subst.c", "test.c", "trap.c",
+        "unwind_prot.c", "variables.c", "version.c", "xmalloc.c", "y.tab.c",
+    ],
+    copts = COMMON_COPTS,
+    defines = COMMON_DEFINES,
+    includes = COMMON_INCLUDES + ["generated"],
+    features = ["-strip_debug_symbols"],
+    linkopts = DEBIAN_BUILD_LINKOPTS + ["-ldl", "-rdynamic"],
+    deps = [
+        ":generated_headers",
+        ":libbuiltins",
+        ":libglob",
+        # 原 Make 先链接 libsh，避免 Readline 的备用实现抢先满足同名符号。
+        ":libsh",
+        ":libreadline",
+        ":libtilde",
+        ":source_headers",
+        "@bash//:tinfo",
+    ],
+)
+
+cc_binary(
+    name = "clear_console",
+    srcs = ["@bash_debian//:debian/clear_console.c"],
+    copts = DEBIAN_BUILD_COPTS + ["-Wno-error=unused-result"],
+    features = ["-strip_debug_symbols"],
+    linkopts = DEBIAN_BUILD_LINKOPTS,
+    deps = ["@bash//:tinfo"],
+)
+
+
+# Original configure substitutes bashbug.sh.in, Make substitutes PATCHLEVEL,
+# and Debian installation removes both reproducibility prefix-map arguments.
+# CC/CFLAGS below are the original Debian packaging metadata after that sed.
+expand_template(
+    name = "bashbug_amd64",
+    out = "generated/amd64/bashbug",
+    substitutions = {
+        "@CC@": "gcc",
+        "@CFLAGS@": "-g -O2 -Werror=implicit-function-declaration -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -Wall",
+        "@host_cpu@": "x86_64",
+        "@host@": "x86_64-pc-linux-gnu",
+        "@host_os@": "linux-gnu",
+        "!PATCHLEVEL!": "37",
+        "@BASHVERS@": "5.2",
+        "@RELSTATUS@": "release",
+    },
+    template = "support/bashbug.sh.in",
+    target_compatible_with = ["@platforms//cpu:x86_64"],
+)
+
+alias(name = "bashbug", actual = ":bashbug_amd64")
+
+exports_files([
+    "CHANGES",
+    "COMPAT",
+    "NEWS",
+    "POSIX",
+    "RBASH",
+    "README",
+    "plugin.c",
+    "plugin.h",
+] + glob([
+    "doc/**",
+    "examples/**",
+    "po/**",
+    "support/**",
+]))
+
+filegroup(name = "configure_inputs", srcs = glob(["**"], exclude = ["BUILD.bazel"]))
+exports_files(["configure", "patchlevel.h", "pathnames.h.in"])

@@ -1,0 +1,23 @@
+{
+  "generated_module_overlay": true,
+  "architectures": [
+    "amd64"
+  ],
+  "consumer_deps": [],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
+  },
+  "build_targets": [
+    "@otelcol-contrib//:otelcol-contrib",
+    "@otelcol-contrib//:runtime",
+    "@otelcol-contrib//:runtime.debug_symbols",
+    "@otelcol-contrib//:runtime_packages.json",
+    "@otelcol-contrib//:sources"
+  ],
+  "test_targets": [
+    "@otelcol-contrib//distributions/otelcol-contrib:source_contract_test",
+    "@otelcol-contrib//bazel:components_output_test",
+    "@otelcol-contrib//distributions/otelcol-contrib:package_test"
+  ],
+  "integration_test_module": "integration"
+}

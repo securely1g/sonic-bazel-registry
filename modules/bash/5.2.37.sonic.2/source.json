@@ -1,0 +1,19 @@
+{
+  "url": "https://codeload.github.com/securely1g/sonic-buildimage/tar.gz/40ab930912c5586e245b8c34e770be9729b2e4b0",
+  "integrity": "sha256-RJqwpq5XC4hpJUH7nWzJJt+iEnZVOczLbPtJlMbXFEg=",
+  "strip_prefix": "sonic-buildimage-40ab930912c5586e245b8c34e770be9729b2e4b0/src/bash",
+  "overlay": {
+    "BUILD.bazel": "sha256-DXo+js+NzMSpDU4UlxiNgksXjvWtXSnorAelA3irQbc=",
+    "MODULE.bazel": "sha256-zfkKyBpq/RzUAOVRnx1ICraPTxqMD5gxYqnM0EzUOtQ=",
+    "config.h.tpl": "sha256-oX65Kom/qmLTNbjhl3qPOXpsrOdbUmp2rOYb6MTkllY=",
+    "debian.BUILD.bazel": "sha256-C8j6bSyRMcrroGofj5BpijQSZuDgdpoKxMJNV1RL3TU=",
+    "installation_test.py": "sha256-3wLwQtCiHdipHTkVAtSVtC3R98Vcs+guCwovQkV1q8Q=",
+    "plugin_test_runner.py": "sha256-D2u7MiV0e/Zn+/Ym8m2Otki3a7tMuF4Y7VVsoEMuDlE=",
+    "source.BUILD.bazel": "sha256-m31oTMEy3LHZBqt+BvJR45xZvjz+8XMFNGL5FB1BnZ8=",
+    "source_includes.bzl": "sha256-G2B/Ba1it0l2AV48LDDbiBGSy6Y1mu/h5HhTekvRMj0=",
+    "test_extract.py": "sha256-0F/GCLBDQ6SquXI/AsHuyuOO0yTcrDwdFcYlHvw/YAo=",
+    "test_rules.bzl": "sha256-mwPtR1DStyrqN7lj25N80W4+C2tPrbld0oB6IiBEtmo=",
+    "original_installation.json": "sha256-Kd21Frx87/UM3AT3QfNzcQS4G9JzoyUcCyHjGzQ5sKs="
+  },
+  "archive_type": "tar.gz"
+}

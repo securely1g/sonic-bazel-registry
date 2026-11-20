@@ -1,0 +1,80 @@
+"""Original Debian relay installation from native ISC DHCP and bundled BIND."""
+load("@bazel_skylib//rules:expand_template.bzl", "expand_template")
+load("@rules_python//python:defs.bzl", "py_test")
+load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
+load("@sonic_build_infra//deb:changelogs.bzl", "debian_changelogs")
+load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
+load("@sonic_build_infra//oci:source_controls.bzl", "source_package_controls")
+package(default_visibility = ["//visibility:public"])
+exports_files(glob(["debian/patches/**", "sonic-patches/**"]) + [
+    "isc-dhcp.BUILD.bazel", "bind.BUILD.bazel", "header_config.bzl", "MODULE.bazel",
+    "debian/control", "debian/changelog",
+])
+alias(name = "dhcrelay", actual = "@isc_dhcp_src//:dhcrelay")
+
+# dh_install substitutes these four path placeholders before dh_compress.
+expand_template(
+    name = "relay_manpage",
+    template = "@isc_dhcp_src//:relay/dhcrelay.8",
+    out = "installed/dhcrelay.8",
+    substitutions = {"ETCDIR": "/etc/dhcp", "RUNDIR": "/var/run", "CLIENTBINDIR": "/sbin", "DBDIR": "/var/lib/dhcp"},
+)
+debian_changelogs(
+    name = "changelogs",
+    control = "debian/control",
+    changelog = "debian/changelog",
+    debian_files = {"debian/isc-dhcp-relay.NEWS": "isc-dhcp-relay.NEWS"},
+    upstream = "@isc_dhcp_src//:RELNOTES",
+    package = "isc-dhcp-relay",
+    architecture = "amd64",
+    outs = ["installed/changelog", "installed/changelog.Debian", "installed/NEWS.Debian"],
+)
+# Compression is only for the final Debian-installed document payload.
+[
+    genrule(
+        name = name + "_gz",
+        srcs = [source],
+        outs = ["compressed/" + name + ".gz"],
+        tools = ["@sonic_build_infra//tools/build_tools:pigz"],
+        cmd = "$(location @sonic_build_infra//tools/build_tools:pigz) -n -9 -c $(location " + source + ") > $@",
+    )
+    for name, source in [
+        ("dhcrelay.8", ":relay_manpage"),
+        ("README", "@isc_dhcp_src//:README"),
+        ("changelog", ":installed/changelog"),
+        ("changelog.Debian", ":installed/changelog.Debian"),
+        ("NEWS.Debian", ":installed/NEWS.Debian"),
+    ]
+]
+sonic_deploy_tar(
+    name = "isc-dhcp-relay.runtime",
+    binaries = {"usr/sbin/dhcrelay uid=0 gid=0 mode=0755 type=file": ":dhcrelay"},
+    force_debug_build = True,
+    debug_symlinks = {"usr/share/doc/isc-dhcp-relay-dbgsym": "isc-dhcp-relay"},
+    srcs = ["debian/isc-dhcp-relay.init.d", "debian/copyright", ":dhcrelay.8_gz", ":README_gz", ":changelog_gz", ":changelog.Debian_gz", ":NEWS.Debian_gz"],
+    mtree = [
+        "etc/init.d/isc-dhcp-relay uid=0 gid=0 mode=0755 type=file content=$(location debian/isc-dhcp-relay.init.d)",
+        "usr/share/man/man8/dhcrelay.8.gz uid=0 gid=0 mode=0644 type=file content=$(location :dhcrelay.8_gz)",
+        "usr/share/doc/isc-dhcp-relay/copyright uid=0 gid=0 mode=0644 type=file content=$(location debian/copyright)",
+    ] + ["usr/share/doc/isc-dhcp-relay/" + name + ".gz uid=0 gid=0 mode=0644 type=file content=$(location :" + name + "_gz)" for name in ["README", "changelog", "changelog.Debian", "NEWS.Debian"]],
+)
+alias(name = "relay.runtime", actual = ":isc-dhcp-relay.runtime")
+alias(name = "relay.runtime.debug_symbols", actual = ":isc-dhcp-relay.runtime.debug_symbols")
+runtime_packages(
+    name = "isc-dhcp-relay.runtime_metadata",
+    packages = {"isc-dhcp-relay": ":isc-dhcp-relay.runtime"},
+    control = "debian/control",
+    changelog = "debian/changelog",
+    required_paths = {"isc-dhcp-relay": ["usr/sbin/dhcrelay", "etc/init.d/isc-dhcp-relay"]},
+    debian_files = {"isc-dhcp-relay." + name: "debian/isc-dhcp-relay." + name for name in ["config", "templates", "postinst", "postrm", "prerm"]},
+    control_file_helpers = [["dh_installinit"], ["dh_installdeb"]],
+)
+alias(name = "runtime_packages.json", actual = ":isc-dhcp-relay.runtime_metadata")
+source_package_controls(name = "isc-dhcp-relay.control", metadata = ":isc-dhcp-relay.runtime_metadata", package = "isc-dhcp-relay")
+py_test(
+    name = "installation_test",
+    srcs = ["installation_test.py"],
+    args = ["$(rootpath :isc-dhcp-relay.runtime)", "$(rootpath :isc-dhcp-relay.runtime.debug_symbols)", "$(rootpath :isc-dhcp-relay.control)", "$(rootpath debian/isc-dhcp-relay.init.d)", "$(rootpath @isc_dhcp_src//:relay/dhcrelay.8)", "$(rootpath @isc_dhcp_src//:README)", "$(rootpath @isc_dhcp_src//:RELNOTES)"],
+    data = [":isc-dhcp-relay.runtime", ":isc-dhcp-relay.runtime.debug_symbols", ":isc-dhcp-relay.control", "debian/isc-dhcp-relay.init.d", "@isc_dhcp_src//:relay/dhcrelay.8", "@isc_dhcp_src//:README", "@isc_dhcp_src//:RELNOTES"],
+    deps = ["@sonic_build_infra//deb:elf_metadata"],
+)

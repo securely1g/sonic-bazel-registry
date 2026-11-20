@@ -1,0 +1,19 @@
+load("@rules_python//python:py_library.bzl", "py_library")
+load(":metadata.bzl", "distribution_targets")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["LICENSE", "README.rst"])
+
+py_library(
+    name = "redisdl",
+    srcs = ["redisdl.py"],
+)
+
+distribution_targets()
+
+filegroup(
+    name = "runtime_metadata",
+    srcs = [":install"],
+    output_group = "metadata",
+)

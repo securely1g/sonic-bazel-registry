@@ -1,0 +1,12 @@
+{
+  "url": "https://codeload.github.com/securely1g/sonic-buildimage/tar.gz/40ab930912c5586e245b8c34e770be9729b2e4b0",
+  "integrity": "sha256-RJqwpq5XC4hpJUH7nWzJJt+iEnZVOczLbPtJlMbXFEg=",
+  "strip_prefix": "sonic-buildimage-40ab930912c5586e245b8c34e770be9729b2e4b0/src/sedutil",
+  "overlay": {
+    "BUILD.bazel": "sha256-DU1tYXFGg4SqpqI2EB2C3izkZR1xsZpfC32QpZUAyqw=",
+    "MODULE.bazel": "sha256-Q76770Q95Hu6rAA1CDKjPYMcosBiC0jHMI6yqB4VZ+o=",
+    "control": "sha256-0WDzp/tewKsDlR+dc+FOUwYi1MNQmB0GdOaozvy9WpQ=",
+    "installation_test.py": "sha256-8XI2GyALJ3Mb1+CCFeOOJdpbCKSQlb7YbivachXpAhI="
+  },
+  "archive_type": "tar.gz"
+}

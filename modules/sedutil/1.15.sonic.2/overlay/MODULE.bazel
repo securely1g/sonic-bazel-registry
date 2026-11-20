@@ -1,0 +1,21 @@
+# AUTO-GENERATED. DO NOT EDIT MANUALLY.
+# Source: ../MODULE.bazel
+# Generator: python3 ci/registry_ci.py sync-module --module sedutil --version 1.15.sonic.2
+
+module(name = "sedutil", version = "1.15.sonic.2")
+bazel_dep(name = "bazel_skylib", version = "1.9.2")
+bazel_dep(name = "rules_python", version = "1.9.0.sonic.1")
+bazel_dep(name = "platforms", version = "1.0.0")
+bazel_dep(name = "tar.bzl", version = "0.10.5.sonic.2")
+bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.22")
+bazel_dep(name = "sonic-build-infra", version = "0.0.38-0baa4acc9eac9ccc793b81104b1580d530271cbe", repo_name = "sonic_build_infra")
+apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
+apt.import_lock(lock = "@sonic_build_infra//apt:apt.lock.json", requests = "@sonic_build_infra//apt:requests.json", sources = "@sonic_build_infra//apt:sources.json", dependency_sets = ["vs_host_debian"])
+use_repo(apt, "vs_host_debian")
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+http_archive(
+    name = "sedutil_prebuilt",
+    urls = ["https://github.com/ChubbyAnt/sedutil/releases/download/1.15-5ad84d8/sedutil-cli-1.15-5ad84d8.zip"],
+    sha256 = "8df1e6b9deb5ba97fe69a695acdb829de8cea39522a710bdb811f9dd74e6b74a",
+    build_file_content = "exports_files([\"sedutil-cli\"], visibility=[\"//visibility:public\"])\n",
+)

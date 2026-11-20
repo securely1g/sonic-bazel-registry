@@ -1,0 +1,26 @@
+From: Guohan Lu <securely1g@gmail.com>
+Subject: [PATCH] Test the selected SONiC submodule version behavior
+
+The retained SONiC production patch intentionally removes the .git-directory
+requirement. Update the original test to assert the successful parsed version
+for that same mocked submodule shape. Preserve all other original assertions.
+
+--- a/test/regression.uts
++++ b/test/regression.uts
+@@ -58,14 +58,10 @@
+         class GitModuleScapy(object):
+             __version__ = _version_from_git_describe()
+ 
+-# GH3847
++# SONiC also accepts a submodule, whose .git is a file rather than a directory.
+ with mock.patch('scapy.subprocess.Popen', return_value=b):
+     with mock.patch('scapy.os.path.isdir', return_value=False):
+-        try:
+-            _version_from_git_describe()
+-            assert False
+-        except ValueError:
+-            pass
++        assert _version_from_git_describe() == '2.4.5rc1.dev261'
+ 
+ assert GitModuleScapy.__version__ == '2.4.5rc1.dev261'
+ assert _version_checker(GitModuleScapy, (2, 4, 5))

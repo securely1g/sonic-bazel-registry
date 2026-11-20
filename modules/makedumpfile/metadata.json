@@ -5,7 +5,8 @@
     "https://github.com/makedumpfile/makedumpfile"
   ],
   "versions": [
-    "1.7.7.sonic.1"
+    "1.7.7.sonic.1",
+    "1.7.7.sonic.2"
   ],
   "yanked_versions": {}
 }

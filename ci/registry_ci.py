@@ -52,6 +52,7 @@ RUNNERS = {
     "arm64": ["ubuntu-24.04-arm"],
 }
 FIPS_CROSS_VERSION = "0.0.6-18a778db501d455f8a1b6d1e3ef8e17121661177"
+FIPS_CROSS_VERSIONS = {FIPS_CROSS_VERSION, "0.0.6-1a8daf8dd8a3ad54de0e91a55b46fd5bbd206763"}
 
 # The original wrappers stage a private target executable, loader and libraries.
 ARM_DECLARED_RUNTIME_FIXTURES = {
@@ -585,7 +586,7 @@ def check_published_files(root: Path, path: str, published: str, head: str) -> N
     # whether their files are build inputs from a docs/ or tests/ pathname.
     supported = (isinstance(source, dict) and source.get("type", "archive") == "archive"
                  and set(source) <= {"type", "url", "integrity", "strip_prefix", "patches",
-                                     "patch_strip", "overlay", "docs_url", "mirror_urls"})
+                                     "patch_strip", "overlay", "docs_url", "mirror_urls", "archive_type"})
     for name in sorted(changed):
         old, new = before.get(name), after.get(name)
         regular = all(item is None or item[0] in ("100644", "100755") and item[1] == "blob"
@@ -1648,11 +1649,11 @@ def cross_test_timeout_flags(module: str, version: str, cross_compile: bool, fla
     """Supply emulation budgets for short, moderate, long and eternal tests."""
     if not cross_compile or any(flag == "--test_timeout" or flag.startswith("--test_timeout=") for flag in flags):
         return []
-    # BMv2's moderate package test unpacks and inspects its runtime and debug
-    # archives under QEMU, which takes longer than the default 900 seconds.
-    moderate_seconds = 2700 if module == "p4lang-bmv2" else 900
+    # BMv2 inspects runtime/debug archives and Sairedis runs two sequential
+    # saiasiccmp comparisons under QEMU; both exceed the 900-second budget.
+    moderate_seconds = 2700 if module in {"p4lang-bmv2", "sonic-sairedis"} else 900
     # The FIPS package test runs the complete SymCrypt unittest under QEMU.
-    long_seconds = 5400 if (module, version) == ("sonic-fips", FIPS_CROSS_VERSION) else 2700
+    long_seconds = 5400 if (module == "sonic-fips" and version in FIPS_CROSS_VERSIONS) else 2700
     return [f"--test_timeout=180,{moderate_seconds},{long_seconds},7200"]
 
 
@@ -1671,7 +1672,7 @@ def run(root: Path, module: str, version: str, architecture: str,
     require(not cross_compile or architecture == "arm64", "Cross compilation supports ARM64 targets on AMD64")
     require(cross_compile or test_executor is None, "A test executor requires explicit cross compilation")
     native = verify_native("amd64" if cross_compile else architecture)
-    fips_cross = cross_compile and (module, version) == ("sonic-fips", FIPS_CROSS_VERSION)
+    fips_cross = cross_compile and (module == "sonic-fips" and version in FIPS_CROSS_VERSIONS)
     infra_cross = (cross_compile and module == "sonic-build-infra" and
                    "@sonic-build-infra//tools/build_tools:foreign_runtime_test" in test_targets)
     kernel_executor = Path("/usr/local/bin/sonic-arm64-kernel")

@@ -1,0 +1,15 @@
+{
+  "url": "https://codeload.github.com/securely1g/sonic-buildimage/tar.gz/40ab930912c5586e245b8c34e770be9729b2e4b0",
+  "integrity": "sha256-RJqwpq5XC4hpJUH7nWzJJt+iEnZVOczLbPtJlMbXFEg=",
+  "strip_prefix": "sonic-buildimage-40ab930912c5586e245b8c34e770be9729b2e4b0/src/ifupdown2",
+  "overlay": {
+    "BUILD.bazel": "sha256-5SFXcK7ci+hfPQIrR4heXqEaIUrNRHilZSojuOQoCgI=",
+    "MODULE.bazel": "sha256-ALC0GRK55MfwnTmG0eH5BXkySnwVretZwKN/ZIc4pUU=",
+    "changelog.py": "sha256-bFRIXfA/BiRM+LfUv4tmaPnQ6ff3gw/zl4Tv/giDhVQ=",
+    "package.bzl": "sha256-ukVhYznb3RUv97SgPVekJSIdYkBmpK1/kyCZHnCW3zU=",
+    "rst_manpage.py": "sha256-snxz5TOoH52d9OJ6unHblZNRO8nxOjpgpPmSaEjGM2U=",
+    "runtime_test.py": "sha256-TwAhPwDCfckmygMAhka+YUjc/Hy+PvcIWK28U/p4OPU=",
+    "source.BUILD.bazel": "sha256-fCXwJkuKNt2uj/rk4qAT/OyEW286XjeAyCAQgvrLYIc="
+  },
+  "archive_type": "tar.gz"
+}

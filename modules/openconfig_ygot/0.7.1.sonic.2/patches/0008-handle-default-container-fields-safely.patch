@@ -1,0 +1,24 @@
+Subject: Check unknown container fields without calling IsNil on scalars
+
+The ytypes container validator used by management-common can encounter an
+unknown scalar field. Calling reflect.IsNil on it panics. Use the existing
+nil-or-default predicate so unset/default fields remain harmless and
+non-default unknown fields still reach the existing rejection checks.
+Preserve choice handling and SONiC's readonly-field behavior.
+
+Origin: SONiC shared-module correction covered by the original container
+tests and overlay/ytypes/sonic_container_defaults_test.go.
+https://github.com/securely1g/sonic-bazel-registry/pull/214
+
+diff --git a/ytypes/container.go b/ytypes/container.go
+--- a/ytypes/container.go
++++ b/ytypes/container.go
+@@ -78,7 +78,7 @@
+ 						errors = util.AppendErrs(errors, errs)
+ 					}
+ 				}
+-			case !structElems.Field(i).IsNil():
++			case !util.IsValueNilOrDefault(fieldValue):
+ 				// Either an element in choice schema subtree, or bad field.
+ 				// If the former, it will be found in the choice check below.
+ 				extraFields[fieldName] = nil

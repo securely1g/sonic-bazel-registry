@@ -1,0 +1,10 @@
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+package(default_visibility = ["//visibility:public"])
+exports_files(glob(["**"], exclude = ["BUILD.bazel"]))
+write_file(name = "version_header", out = "bazel_version.h", content = ['#define VERSION "1.7.7"', '#define RELEASE_DATE "21 Apr 2025"', ""])
+cc_binary(name = "makedumpfile", srcs = ['makedumpfile.c', 'print_info.c', 'dwarf_info.c', 'elf_info.c', 'erase_info.c', 'sadump_info.c', 'cache.c', 'tools.c', 'printk.c', 'detect_cycle.c'] + glob(["*.h"]) + [":version_header"], defines = ["_FILE_OFFSET_BITS=64", "_LARGEFILE_SOURCE", "_LARGEFILE64_SOURCE", "USELZO", "USEZSTD"], includes = ["."], copts = ["-g", "-O2", "-Wall", "-include", "bazel_version.h"], linkopts = ["-rdynamic", "-ldl", "-pthread"], linkstatic = False, deps = [":arch"] + ["@makedumpfile_build_debian//libdw-dev:libdw_cc", "@makedumpfile_build_debian//libelf-dev:libelf_cc", "@makedumpfile_build_debian//libbz2-dev:libbz2_cc", "@makedumpfile_build_debian//liblzo2-dev:liblzo2_cc", "@makedumpfile_build_debian//zlib1g-dev:libz_cc", "@makedumpfile_build_debian//libzstd-dev:libzstd_cc"])
+
+# Original CFLAGS_ARCH excludes the main program version/compression defines.
+cc_library(name = "arch", srcs = ['arch/arm.c', 'arch/arm64.c', 'arch/x86.c', 'arch/x86_64.c', 'arch/ia64.c', 'arch/ppc64.c', 'arch/s390x.c', 'arch/ppc.c', 'arch/sparc64.c', 'arch/mips64.c', 'arch/loongarch64.c', 'arch/riscv64.c'] + glob(["*.h"]), local_defines = ["_FILE_OFFSET_BITS=64", "_LARGEFILE_SOURCE", "_LARGEFILE64_SOURCE"], includes = ["."], copts = ["-g", "-O2", "-Wall"], deps = ["@makedumpfile_build_debian//libdw-dev:libdw_cc", "@makedumpfile_build_debian//libelf-dev:libelf_cc", "@makedumpfile_build_debian//libbz2-dev:libbz2_cc", "@makedumpfile_build_debian//liblzo2-dev:liblzo2_cc", "@makedumpfile_build_debian//zlib1g-dev:libz_cc", "@makedumpfile_build_debian//libzstd-dev:libzstd_cc"])

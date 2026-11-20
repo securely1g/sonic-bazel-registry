@@ -1,6 +1,7 @@
 {
   "homepage": "https://github.com/sonic-net/sonic-dbsyncd",
   "versions": [
-    "2.0.0-8a3830704d3f6067823f7c10b3b31913965add81"
+    "2.0.0-8a3830704d3f6067823f7c10b3b31913965add81",
+    "2.0.1-273c3e8bda3e11f9dc49cb6fede53e1e12daa313"
   ]
 }

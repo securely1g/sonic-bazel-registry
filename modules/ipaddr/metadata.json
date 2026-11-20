@@ -5,7 +5,8 @@
     "https://pypi.org/project/ipaddr/"
   ],
   "versions": [
-    "2.2.0.sonic.1"
+    "2.2.0.sonic.1",
+    "2.2.0.sonic.2"
   ],
   "yanked_versions": {}
 }

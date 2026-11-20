@@ -1,0 +1,20 @@
+From: Guohan Lu <securely1g@gmail.com>
+Subject: [PATCH] Preserve Framework consumer Go ownership
+
+Retain published go_mod consumer integration; the owner keeps its standalone go_work declaration.
+
+Source commit: 1ca814b6f0053fb728d40bfa82be69a4d4eca6bf
+Scope: downstream registry integration; not an upstream bug fix.
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -25,7 +25,8 @@
+ )
+ 
+ go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
+-go_deps.from_file(go_work = "//:go.bazel.work")
++# A consuming root owns its Go workspace. Contribute the Framework module dependencies.
++go_deps.from_file(go_mod = "//:go.mod")
+ 
+ # Root-only patch selection, matching the management-common owner.
+ go_patches = use_extension("@gazelle//:extensions.bzl", "go_deps", dev_dependency = True)
