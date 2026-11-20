@@ -1,10 +1,10 @@
 # AUTO-GENERATED. DO NOT EDIT MANUALLY.
 # Source: ../MODULE.bazel
-# Generator: python3 ci/registry_ci.py sync-module --module p4c --version 1.2.4.2.sonic.6
+# Generator: python3 ci/registry_ci.py sync-module --module p4c --version 1.2.4.2.sonic.7
 
 module(
     name = "p4c",
-    version = "1.2.4.2.sonic.6",
+    version = "1.2.4.2.sonic.7",
 )
 
 bazel_dep(name = "bazel_skylib", version = "1.8.2")
@@ -51,21 +51,21 @@ apt.install(
 )
 use_repo(apt, "p4c_deps")
 
-p4c_source = use_repo_rule("//:bazel/source.bzl", "p4c_source")
+p4c_source = use_repo_rule("//bazel:source.bzl", "p4c_source")
 
 p4c_source(
     name = "p4c_source",
     overlays = {
-        "//:bazel/p4c.BUILD.bazel": "BUILD.bazel",
-        "//:bazel/tool.bzl": "bazel/tool.bzl",
-        "//:bazel/package_test.py": "bazel/package_test.py",
+        "//bazel:p4c.BUILD.bazel": "BUILD.bazel",
+        "//bazel:tool.bzl": "bazel/tool.bzl",
+        "//bazel:package_test.py": "bazel/package_test.py",
     },
     patches = [
-        "//:bazel/0001-use-boost-1.83.patch",
-        "//:bazel/0002-fix-build-for-boost-1.83.patch",
-        "//:bazel/0003-update-thrift-dependency.patch",
-        "//:bazel/0004-remove-protobuf-from-debian-dependency.patch",
-        "//:bazel/0005-remove-scapy-from-debian-dependency.patch",
-        "//:bazel/0007-recognize-driver-include-directory.patch",
+        "//bazel:0001-use-boost-1.83.patch",
+        "//bazel:0002-fix-build-for-boost-1.83.patch",
+        "//bazel:0003-update-thrift-dependency.patch",
+        "//bazel:0004-remove-protobuf-from-debian-dependency.patch",
+        "//bazel:0005-remove-scapy-from-debian-dependency.patch",
+        "//bazel:0007-recognize-driver-include-directory.patch",
     ],
 )

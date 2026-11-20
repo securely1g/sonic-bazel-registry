@@ -26,7 +26,8 @@
     "@p4c//:p4lang-p4c.runtime_metadata"
   ],
   "test_targets": [
-    "@p4c//:package_test"
+    "@p4c//:package_test",
+    "@p4c//:p4_library_test"
   ],
   "generated_module_overlay": true,
   "host_platforms": {

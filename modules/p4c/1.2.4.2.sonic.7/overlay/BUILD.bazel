@@ -1,4 +1,6 @@
+load("@rules_python//python:defs.bzl", "py_test")
 load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
+load("//bazel:p4_library.bzl", "p4_graphs", "p4_library")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -8,9 +10,13 @@ package(default_visibility = ["//visibility:public"])
         "p4lang-p4c.runtime",
         "p4lang-p4c.runtime.debug_symbols",
         "p4c_bm2_ss",
+        "p4c_bmv2",
+        "p4c_graphs",
         "configuration",
     ]
 ]
+
+alias(name = "p4include", actual = "//p4include")
 
 # Keep published interfaces for existing module consumers.
 alias(name = "p4c_pkg", actual = ":p4lang-p4c.runtime")
@@ -56,3 +62,59 @@ runtime_packages(
 )
 
 exports_files(["runtime_packages.md"])
+
+p4_library(
+    name = "p4_library_test_program",
+    src = "//bazel:p4_library_test.p4",
+    deps = ["//bazel:p4_library_test_defs.h"],
+    extra_args = "-DTEST_EXTRA_TABLE=1",
+    target = "bmv2",
+    target_out = "p4_library_test_program.bmv2.json",
+    p4info_out = "p4_library_test_program.p4info.pb.txt",
+    visibility = ["//visibility:private"],
+)
+
+p4_graphs(
+    name = "p4_library_test_graphs",
+    src = "//bazel:p4_library_test.p4",
+    deps = ["//bazel:p4_library_test_defs.h"],
+    extra_args = "-DTEST_EXTRA_TABLE=1",
+    out = "p4_library_test_program.dot",
+    visibility = ["//visibility:private"],
+)
+
+genrule(
+    name = "p4_library_test_preprocessed",
+    srcs = [
+        "//bazel:p4_library_test.p4",
+        "//bazel:p4_library_test_defs.h",
+    ],
+    outs = ["p4_library_test_preprocessed.p4"],
+    tools = [":p4c_bm2_ss"],
+    cmd = 'TMP_DIR=$$(mktemp -d) && trap "rm -rf \\"$$TMP_DIR\\"" EXIT && $(location :p4c_bm2_ss) --pp $@ -o "$$TMP_DIR/out.json" -I$$(dirname $(location //bazel:p4_library_test_defs.h)) -DTEST_EXTRA_TABLE=1 $(location //bazel:p4_library_test.p4)',
+    visibility = ["//visibility:private"],
+)
+
+py_test(
+    name = "p4_library_test",
+    python_version = "3.11",
+    srcs = ["//bazel:package_test.py"],
+    main = "//bazel:package_test.py",
+    args = [
+        "--check-p4-library",
+        "--bmv2-json", "$(rootpath :p4_library_test_program.bmv2.json)",
+        "--p4info", "$(rootpath :p4_library_test_program.p4info.pb.txt)",
+        "--graph-dot", "$(rootpath :p4_library_test_graphs)",
+        "--v1model", "$(rootpath //p4include:v1model.p4)",
+        "--preprocessed", "$(rootpath :p4_library_test_preprocessed)",
+    ],
+    data = [
+        ":p4_library_test_program.bmv2.json",
+        ":p4_library_test_program.p4info.pb.txt",
+        ":p4_library_test_graphs",
+        ":p4_library_test_preprocessed",
+        ":p4include",
+        "//p4include:v1model.p4",
+    ],
+    visibility = ["//visibility:private"],
+)

@@ -18,10 +18,24 @@ import zlib
 
 def arguments():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--check-p4-library", action="store_true")
     for name in ("runtime", "debug", "metadata", "readelf", "objcopy", "control", "changelog"):
-        parser.add_argument("--" + name, required=True, type=lambda value: Path(value).absolute())
-    parser.add_argument("--arch", choices=("amd64", "arm64"), required=True)
-    return parser.parse_args()
+        parser.add_argument("--" + name, type=lambda value: Path(value).absolute())
+    parser.add_argument("--arch", choices=("amd64", "arm64"))
+    for name in ("bmv2-json", "p4info", "graph-dot", "v1model", "preprocessed"):
+        parser.add_argument("--" + name, type=lambda value: Path(value).absolute())
+    args = parser.parse_args()
+    if args.check_p4_library:
+        missing = [name for name in ("bmv2_json", "p4info", "graph_dot", "v1model", "preprocessed")
+                   if getattr(args, name) is None]
+        if missing:
+            parser.error(f"--check-p4-library requires {missing}")
+    else:
+        missing = [name for name in ("runtime", "debug", "metadata", "readelf", "objcopy", "control", "changelog", "arch")
+                   if getattr(args, name) is None]
+        if missing:
+            parser.error(f"package validation requires {missing}")
+    return args
 
 
 def run(*argv, env=None, cwd=None):
@@ -125,8 +139,27 @@ def check_metadata(args, root):
     return version
 
 
+def check_p4_library(args):
+    bmv2 = json.loads(args.bmv2_json.read_text())
+    assert bmv2["program"], bmv2
+    actions = {action["name"] for action in bmv2.get("actions", [])}
+    assert any(name.endswith("forward") for name in actions), actions
+    p4info = args.p4info.read_text()
+    assert "forward_table" in p4info and "forward" in p4info, p4info
+    dot = args.graph_dot.read_text()
+    assert "digraph" in dot and "MyIngress" in dot, dot
+    assert args.v1model.is_file() and (args.v1model.parent / "core.p4").is_file(), args.v1model
+    assert "V1Switch" in args.v1model.read_text(), args.v1model
+    preprocessed = args.preprocessed.read_text()
+    assert "table forward_table" in preprocessed and "bit<9>" in preprocessed, preprocessed
+    print(json.dumps({"p4_library_checked": True, "actions": sorted(actions)}))
+
+
 def main():
     args = arguments()
+    if args.check_p4_library:
+        check_p4_library(args)
+        return
     with tempfile.TemporaryDirectory() as directory:
         work = Path(directory)
         root, debug = work / "runtime", work / "debug"

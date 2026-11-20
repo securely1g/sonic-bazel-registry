@@ -8,7 +8,7 @@ load(":bazel/tool.bzl", "P4C_SOURCE_ROOT", "p4c_tool")
 
 package(default_visibility = ["//visibility:public"])
 
-exports_files(["debian/control", "debian/changelog"])
+exports_files(["debian/control", "debian/changelog"] + glob(["p4include/**"]))
 
 # SONiC's fixed configure inputs; target feature probes are recorded at port time.
 expand_template(
@@ -1080,6 +1080,17 @@ filegroup(name = "p4include", srcs = glob(["p4include/**"]))
 p4c_tool(
     name = "p4c_bm2_ss",
     binary = ":p4c-bm2-ss",
+    cpp = ":cpp",
+    data = [":p4include"],
+    runtime = [":gcc_runtime"],
+    deps = _SYSTEM_DEPS,
+)
+
+alias(name = "p4c_bmv2", actual = ":p4c_bm2_ss")
+
+p4c_tool(
+    name = "p4c_graphs",
+    binary = ":p4c-graphs",
     cpp = ":cpp",
     data = [":p4include"],
     runtime = [":gcc_runtime"],

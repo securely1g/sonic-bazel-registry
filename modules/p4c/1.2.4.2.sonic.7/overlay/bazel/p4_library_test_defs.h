@@ -1,0 +1,6 @@
+#ifndef P4_LIBRARY_TEST_DEFS_H_
+#define P4_LIBRARY_TEST_DEFS_H_
+
+#define TEST_PORT_WIDTH 9
+
+#endif  // P4_LIBRARY_TEST_DEFS_H_
