@@ -1,21 +1,16 @@
-# Wheel metadata for checked Python runtimes
+# Kernel compatibility ELF payloads
 
-Register merged [Infra #127](https://github.com/securely1g/sonic-build-infra/pull/127)
-source `6c9cd9477816ad129bf8d4501c9259504f3f85ca` as `0.0.40-6c9cd9477816ad129bf8d4501c9259504f3f85ca`.
+Register merged [Infra #129](https://github.com/securely1g/sonic-build-infra/pull/129)
+source `edab3bd22b7a9a2ae631f06a1a5072b113045fe7` as
+`0.0.41-edab3bd22b7a9a2ae631f06a1a5072b113045fe7`.
 
-The DHCP relay image in [buildimage #251](https://github.com/securely1g/sonic-buildimage/pull/251)
-uses `wheel_layer` outputs as inputs to `python_runtime_plan` and
-`checked_python_runtime`. This source exposes the installed wheels through
-`PythonRuntimeInfo`, records their distribution metadata and hashes, and accepts
-the existing rules_python patched-wheel filename convention while retaining the
-installed distribution version and RECORD validation.
+The sonic-linux-kernel debug package includes native and compatibility VDSOs.
+The shared `sonic_deb` assembler now accepts these mixed ELF machine types while
+retaining the package Architecture check against its selected target platform.
+The source module base version is `0.0.41` so consumers select this fix over
+published `0.0.40` snapshots.
 
-The source module's base version remains `0.0.40`; the full merged commit identifies
-this registration. Preserve all published entries, the previous registration's
-cross-test visibility patch and its validation overlay. Both AMD64 and ARM64 consumer presubmits
-retain the prior tools and package checks and add the owner's wheel-layer and
-wheel-runtime tests. These cover metadata handoff, installed TAR contents,
-dependency plans, patched wheel names and rejection of inconsistent metadata.
-
-Consumers can select this registered version after publication and remove their
-temporary review registry. This registration does not update buildimage #251.
+Implementation changes come from the merged source archive. The registry retains
+the existing cross-test visibility patch and validation overlay, preserves the
+previous consumer tests and adds `//deb:assemble_test`. Published entries remain
+unchanged. The kernel module registered alongside this entry consumes the fix.

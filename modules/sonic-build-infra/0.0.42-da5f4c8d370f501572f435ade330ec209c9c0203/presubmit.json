@@ -112,7 +112,8 @@
     "@sonic-build-infra//binary/tests:stripped_archive_consumer_test",
     "@sonic-build-infra//tar:debug_symbols_manifest_test",
     "@sonic-build-infra//python:wheel_layer_test",
-    "@sonic-build-infra//python/tests:wheel_runtime_test"
+    "@sonic-build-infra//python/tests:wheel_runtime_test",
+    "@sonic-build-infra//deb:assemble_test"
   ],
   "host_platforms": {
     "amd64": "@sonic-build-infra//platforms:x86_64_trixie",
