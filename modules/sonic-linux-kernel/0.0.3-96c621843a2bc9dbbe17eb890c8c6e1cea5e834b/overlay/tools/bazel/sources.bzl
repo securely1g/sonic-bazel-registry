@@ -19,19 +19,26 @@ KERNEL_SOURCES = {
     ),
 }
 
+def _source_urls(name):
+    # Debian Snapshot retains the exact Makefile inputs after archive rotation.
+    return [
+        "https://snapshot.debian.org/archive/debian-security/20250813T110322Z/pool/updates/main/l/linux/" + name,
+        "https://packages.trafficmanager.net/public/debian-security/pool/updates/main/l/linux/" + name,
+    ]
+
 def _kernel_sources_impl(module_ctx):
     for name, source in KERNEL_SOURCES.items():
         http_file(
             name = name,
-            urls = ["https://packages.trafficmanager.net/public/debian-security/pool/updates/main/l/linux/" + source.name],
+            urls = _source_urls(source.name),
             downloaded_file_path = source.name,
             sha256 = source.sha256,
         )
 
     patch_tools_repository(name = "kernel_patch_tools", lock = "@sonic_build_infra//apt:apt.lock.json")
     steps = [
-        json.encode({"op": "archive", "urls": ["https://packages.trafficmanager.net/public/debian-security/pool/updates/main/l/linux/" + KERNEL_SOURCES["kernel_orig"].name], "sha256": KERNEL_SOURCES["kernel_orig"].sha256, "strip_prefix": "linux-6.12.41"}),
-        json.encode({"op": "archive", "urls": ["https://packages.trafficmanager.net/public/debian-security/pool/updates/main/l/linux/" + KERNEL_SOURCES["kernel_debian"].name], "sha256": KERNEL_SOURCES["kernel_debian"].sha256}),
+        json.encode({"op": "archive", "urls": _source_urls(KERNEL_SOURCES["kernel_orig"].name), "sha256": KERNEL_SOURCES["kernel_orig"].sha256, "strip_prefix": "linux-6.12.41"}),
+        json.encode({"op": "archive", "urls": _source_urls(KERNEL_SOURCES["kernel_debian"].name), "sha256": KERNEL_SOURCES["kernel_debian"].sha256}),
         json.encode({"op": "patch_series", "series": "debian/patches/series", "format": "gnu"}),
     ]
     prepared_source(name = "kernel_debian_prepared", steps = steps,
