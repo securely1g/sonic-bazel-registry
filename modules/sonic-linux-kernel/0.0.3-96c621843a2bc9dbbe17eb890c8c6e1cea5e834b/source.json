@@ -26,7 +26,7 @@
     "tools/bazel/module_action.py": "sha256-kepzG1c/FGVQmWbuU8M1aU0IVaLVOkWekZ6nipsZ19E=",
     "tools/bazel/prepared.BUILD.bazel": "sha256-/z9sVzLJeCCwLfd1ykttdIFY6Idg/7/KnxuAZ/sLR6U=",
     "tools/bazel/runtime_metadata.py": "sha256-+I9YCZFooeRSVJ9n3ZelZWWr84HpkrJ5plTbunqFPcQ=",
-    "tools/bazel/sources.bzl": "sha256-FdkQP/XuAMeA4EjsDhhHc2q54uvYkTebjaPECT5w7Fk=",
+    "tools/bazel/sources.bzl": "sha256-/bikwGo6vTXUeUYXU+6nbs9sF/8faBL2J4Ejyg3C8N8=",
     "tools/bazel/stage_kernel.py": "sha256-2pnNi31dsxfNdyMotQ0jsiuddjDqIVtMxSSKeomwJcs=",
     "tools/bazel/stage_kernel_test.py": "sha256-Gi4NLBLd13+B4J4hn2NSQK3v8d/y9Dk2fApmyjBtziI=",
     "tools/bazel/verify_cache.py": "sha256-BwCON91rQgbU4McDlfmtJ5GKsUgrw+yWWna4RNqldQY=",

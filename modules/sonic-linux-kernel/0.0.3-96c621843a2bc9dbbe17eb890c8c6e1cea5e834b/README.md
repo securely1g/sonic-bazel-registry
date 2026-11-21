@@ -2,8 +2,10 @@
 
 This Registry revision owns the Bazel implementation. Its fixed
 sonic-linux-kernel archive supplies the Make recipe, configuration and SONiC
-patches. Linux and Debian packaging archives use the Makefile's versions,
-URLs and SHA256 values.
+patches. Linux and Debian packaging archives use the Makefile's versions
+and SHA256 values. Downloads use Debian Snapshot's retained copies first,
+with the Makefile's original URL as a fallback. All three files keep their
+original SHA256 identities.
 
 The shared prepared_source repository rule applies Debian's ordered quilt
 series and the SONiC feature series once. Debian's base tree remains separate
