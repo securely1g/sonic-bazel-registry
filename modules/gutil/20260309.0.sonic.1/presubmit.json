@@ -1,0 +1,40 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.38-0baa4acc9eac9ccc793b81104b1580d530271cbe",
+      "repo_name": "sonic_build_infra"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
+  },
+  "host_platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
+  },
+  "build_targets": [
+    "@gutil//gutil:io",
+    "@gutil//gutil:proto",
+    "@gutil//gutil:status",
+    "@gutil//gutil:syslog_sink",
+    "@gutil//gutil:version",
+    "@gutil//gutil/embed_data:generate_cc_embed_data"
+  ],
+  "test_targets": [
+    "@gutil//gutil:collections_test",
+    "@gutil//gutil:io_test",
+    "@gutil//gutil:proto_matchers_test",
+    "@gutil//gutil:proto_ordering_test",
+    "@gutil//gutil:proto_test",
+    "@gutil//gutil:status_matchers_test",
+    "@gutil//gutil:testing_test",
+    "@gutil//gutil:timer_test",
+    "@gutil//gutil:version_test"
+  ]
+}

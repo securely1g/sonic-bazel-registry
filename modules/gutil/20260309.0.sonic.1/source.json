@@ -1,0 +1,11 @@
+{
+  "url": "https://github.com/google/gutil/releases/download/20260309.0/gutil-release-20260309.zip",
+  "strip_prefix": "gutil-release-20260309",
+  "integrity": "sha256-COlz21oYb3l54vfGezDZPQQi/Fg2UTIWeG/rrvXu/LM=",
+  "patches": {
+    "0001-fix-return-if-error.patch": "sha256-BWQ4Q+e4/ofOd2e547XXQqITE5DD4ISvwMG0BIxzPqQ=",
+    "0002-module-version.patch": "sha256-t3GhxvFyVrIz7Go5jp0mFdzuISnF3RmM0LEqb1c9aAQ=",
+    "0003-declare-cxx20.patch": "sha256-EOaTAEhJEXiSpwYWWN/Gcx1iZ7hpVxkpHbDuo1ns2js="
+  },
+  "patch_strip": 1
+}
