@@ -1,7 +1,31 @@
-# SONiC kernel 0.0.2-96c621843a2bc9dbbe17eb890c8c6e1cea5e834b
+# SONiC Linux 6.12.41
 
-Buildimage stages the five Debian packages from `@sonic_linux_kernel//:kernel_packages` under `target/debs/trixie` for the VS installer. The native AMD64 and ARM64 outputs are the unsigned kernel image, matching debug symbols, common headers, architecture-specific headers and kbuild tools. The target also exports the schema 4 `kernel-packages.json`, which records the host and target architectures, package hashes, source and tool identity. [Buildimage kernel workflow](https://github.com/securely1g/sonic-buildimage/blob/master/tools/bazel/kernel/README.md)
+This Registry revision owns the Bazel implementation. Its fixed
+sonic-linux-kernel archive supplies the Make recipe, configuration and SONiC
+patches. Linux and Debian packaging archives use the Makefile's versions
+and SHA256 values. Downloads use Debian Snapshot's retained copies first,
+with the Makefile's original URL as a fallback. All three files keep their
+original SHA256 identities.
 
-The producer builds Debian kernel `6.12.41-1` with the SONiC Make packaging recipes under Bazel's `linux-sandbox`. Its `//tools/bazel:kernel_config` setting takes the VS Make configuration. It supports native AMD64 and ARM64 and cross-compilation from AMD64 to ARM64 or ARMHF. [Producer contract](https://github.com/securely1g/sonic-linux-kernel/blob/96c621843a2bc9dbbe17eb890c8c6e1cea5e834b/tools/bazel/README.md)
+The shared prepared_source repository rule applies Debian's ordered quilt
+series and the SONiC feature series once. Debian's base tree remains separate
+from the SONiC feature tree, as required by the tools-header recipe. The compilation
+action reads the SONiC source tree directly. Debian's generated setup target retains the Trixie
+configuration merge and checks. One explicit Kbuild compiles the selected
+image and modules with separately declared HOSTCC/host binutils and target
+CC/CROSS_COMPILE. ARM64 on AMD64 uses the declared AArch64 and compatibility
+compilers. Pahole uses one thread per Make job.
 
-The registered source and its cache-verification consumer use build infrastructure `0.0.38-0baa4acc9eac9ccc793b81104b1580d530271cbe`. Version-only dependencies select Gazelle `0.54.0.sonic.1` and Distroless `0.9.4.sonic.22` in both roots. The five registry tests exercise the native kernel action, cache verification, package contract, artifact collection and staging. The source workflow builds the full packages and checks their hashes after recovery from the remote action cache. [Kernel source change](https://github.com/securely1g/sonic-linux-kernel/pull/7) · [Registered source](https://github.com/securely1g/sonic-linux-kernel/commit/96c621843a2bc9dbbe17eb890c8c6e1cea5e834b)
+The runtime modules are installed once. Matching unstripped modules are moved
+to the debug installation tree. Independent installation actions retain the maintained Debian package layouts
+and export uncompressed installation TARs and controls. Final DEBs use the shared
+sonic_deb rule. Runtime TAR, boot files, control TAR and metadata are available
+without DEB compression, and kernel_module depends on compilation alone.
+Debug packages contain matching symbols without a full Linux source copy. Generated headers, symbol versions and host helpers
+form the compact external-module interface; the immutable prepared sources
+are carried by KernelBuildInfo.
+
+Public interfaces remain kernel_packages, linux-image.runtime,
+linux-image.runtime_metadata, linux-image.control, boot, kernel_metadata.json
+and kernel_build_outputs. kernel_module consumes the same Kbuild identity.
+The action logs configuration, Kbuild, installation and export durations.
