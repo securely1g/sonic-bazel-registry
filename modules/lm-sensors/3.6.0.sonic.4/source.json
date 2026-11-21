@@ -7,11 +7,11 @@
     "0002-Patch-to-peform-dh_installinit-to-include-sensord.in.patch": "sha256-BdfZEZTxmXiTpYj1Pe30ugDzCuskCyS8PsQZ4GvWVeg="
   },
   "overlay": {
-    "BUILD.bazel": "sha256-rwwWljLKqRFLHQWpVjdiYF32jgU4DVc9RFNjRnBgmgQ=",
-    "MODULE.bazel": "sha256-p6rUei610cMvYGm4i3Qj2+qZR/vSAXpDAgPDilRPEIc=",
+    "BUILD.bazel": "sha256-F7r4MNW7GHZIfbEBbGta5YN6mqG6eGm9yf9Fh19fl3c=",
+    "MODULE.bazel": "sha256-pxrKuZJQtHcuq0xSgKAatkixKTIkm0OkocLhyxZEETc=",
     "debug_contract_test.py": "sha256-6a2gh4obtU3lKEMHcqHC6iXUFtr/QoKOWk1ZIWcBpv4=",
     "installed_resources_test.py": "sha256-TJjVZPTXs8YYqXGesd1/pIgsti6+4GttVwmHBXb6uIU=",
-    "runtime_contract_test.py": "sha256-nIngEYIhT5k+35oVqgsXlT7ufEQFGsMv8ihfcK8vEDE=",
+    "runtime_contract_test.py": "sha256-UioiP1JTIU20wYBQIbActKaHF7ugg3WFSzoFczsmcNU=",
     "scanner_test.py": "sha256-i9wu2v9OOXssqYDM57dwdMd1e+TUf9Xpazpz9gTvyP4=",
     "source.BUILD.bazel": "sha256-SDJQHtUXkp5dU7FL+hYcQLXpk4FHw9RPIUd4ALqSoHw=",
     "source_includes.bzl": "sha256-4J4jekyGZb5KffqDGdaBRIUqk/IjcKZgl8JFGrlIguo="

@@ -1,4 +1,7 @@
 """Validate Debian/SONiC installed interfaces without requiring sensor hardware."""
+import hashlib
+import json
+from pathlib import Path
 import sys
 import tarfile
 
@@ -9,7 +12,17 @@ required = {
  "fancontrol": {"usr/sbin/fancontrol": ("file", 0o755), "usr/sbin/pwmconfig": ("file", 0o755), "usr/lib/systemd/system/fancontrol.service": ("file", 0o644)},
  "sensord": {"usr/sbin/sensord": ("file", 0o755), "etc/default/sensord": ("file", 0o644)},
 }
-for (name, expected), path in zip(required.items(), sys.argv[1:], strict=True):
+def check_package_record(package, name, archive_path):
+    assert package["control_fields"]["Package"] == name, name
+    with open(archive_path, "rb") as archive:
+        assert package["payload_sha256"] == hashlib.file_digest(archive, "sha256").hexdigest(), name
+    if name == "libsensors-config":
+        assert package["control_fields"]["Architecture"] == "all", name
+
+
+metadata = json.loads(Path(sys.argv[-1]).read_text())
+for (name, expected), path in zip(required.items(), sys.argv[1:-1], strict=True):
+ check_package_record(metadata["packages"][name], name, path)
  with tarfile.open(path) as tar:
   members={m.name.removeprefix("./"):m for m in tar}
   for filename,(kind,mode) in expected.items():

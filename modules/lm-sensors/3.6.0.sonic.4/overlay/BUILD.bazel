@@ -218,6 +218,7 @@ runtime_packages(
     )},
     packages = {
         "libsensors5": ":libsensors5.runtime",
+        "libsensors-config": ":libsensors-config.runtime",
         "lm-sensors": ":lm-sensors.runtime",
         "fancontrol": ":fancontrol.runtime",
         "sensord": ":sensord.runtime",
@@ -234,14 +235,14 @@ py_test(
         "libsensors-config",
         "fancontrol",
         "sensord",
-    ]],
+    ]] + ["$(location :runtime_packages.json)"],
     data = [":" + name + ".runtime" for name in [
         "libsensors5",
         "lm-sensors",
         "libsensors-config",
         "fancontrol",
         "sensord",
-    ]],
+    ]] + [":runtime_packages.json"],
 )
 
 genrule(
@@ -409,6 +410,7 @@ native_runtime_test(
     for package in [
         "lm-sensors",
         "libsensors5",
+        "libsensors-config",
         "fancontrol",
         "sensord",
     ]
