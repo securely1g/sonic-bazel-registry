@@ -1,0 +1,13 @@
+diff --git a/e2e_tests/p4check.bzl b/e2e_tests/p4check.bzl
+index 02a0a5e..1f83cc4 100644
+--- a/e2e_tests/p4check.bzl
++++ b/e2e_tests/p4check.bzl
+@@ -79,7 +79,7 @@ def run_p4check(name, src, out, deps = [], table_entries = [], visibility = None
+ 
+ def _diff_test_script(ctx):
+     """Returns bash script to be executed by the diff_test target."""
+-    return """
++    return """#!/usr/bin/env bash
+ if [[ "$1" == "--update" ]]; then
+     cp -f "{actual}" "${{BUILD_WORKSPACE_DIRECTORY}}/{expected}"
+ fi

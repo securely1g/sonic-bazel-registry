@@ -1,0 +1,24 @@
+diff --git a/apt/private/deb_import.bzl b/apt/private/deb_import.bzl
+--- a/apt/private/deb_import.bzl
++++ b/apt/private/deb_import.bzl
+@@ -163,8 +163,9 @@
+             for module in package["modules"]:
+                 providers.setdefault(module, []).append(key)
+     visited = {}
+-    # Print-requires inspects only the named module; the SDK expands variables,
+-    # continuation lines and version syntax without needing its dependencies.
++    # Bootstrap providers from the named module's direct requirements. The SDK
++    # must not traverse dependencies before their locked providers are loaded.
++    # Full queries below still validate the completed graph and its versions.
+     for _ in range(len(providers) + len(state["documents"]) + 1):
+         records = module_records(state["documents"])
+         for name, record in records.items():
+@@ -175,7 +176,7 @@
+         for name in pending:
+             visited[name] = True
+             for option in ["--print-requires", "--print-requires-private"]:
+-                result = catalog_execute(rctx, "pkg-config", [option, name], environment = pkgconfig_environment(rctx, "_pc_requirements"))
++                result = catalog_execute(rctx, "pkg-config", ["--maximum-traverse-depth=1", option, name], environment = pkgconfig_environment(rctx, "_pc_requirements"))
+                 for requirement in result.stdout.splitlines():
+                     required = requirement.strip().split(" ")[0] if requirement.strip() else ""
+                     if not required or required in records:

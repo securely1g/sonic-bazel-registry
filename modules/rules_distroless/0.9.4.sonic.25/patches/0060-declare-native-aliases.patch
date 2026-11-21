@@ -1,0 +1,131 @@
+Subject: [PATCH] Declare native APT aliases without package discovery
+
+diff --git a/apt/README.md b/apt/README.md
+index d3f7162..da30c07 100644
+--- a/apt/README.md
++++ b/apt/README.md
+@@ -53,3 +53,20 @@ MODULE requests in `_module_requests`. The update driver validates existing
+ package identities and binds reviewed input documents before replacing the
+ production lock. `previous_lock` supplies preferred existing versions and fixed
+ index integrity; an incompatible constraint must be reviewed by the driver.
++
++To declare only the additional native targets a locked library collection
++exposes, add `apt.native_aliases` in the root MODULE. Built-in package targets
++are still available. For each `package:target`, an empty list selects all
++architectures that have the package. A nonempty list limits the alias to
++those architectures.
++
++```starlark
++apt.native_aliases(
++    dependency_set = "sdk",
++    aliases = {"libexample-dev:libexample_cc": []},
++)
++```
++
++Omitting the tag retains automatic discovery. Declaring the tag with an empty
++map exposes only the built-in targets. With the tag, Bazel loads and resolves
++the target in the selected Debian package when the alias is used.
+diff --git a/apt/extensions.bzl b/apt/extensions.bzl
+index 587aebb..aa46497 100644
+--- a/apt/extensions.bzl
++++ b/apt/extensions.bzl
+@@ -762,6 +762,11 @@ lock_view = tag_class(attrs = {
+     "dependency_sets": attr.string_list(mandatory = True),
+ })
+ 
++native_aliases = tag_class(attrs = {
++    "dependency_set": attr.string(mandatory = True),
++    "aliases": attr.string_list_dict(doc = "Package:target mapped to architectures. An empty list selects all architectures of the package."),
++})
++
+ lock = tag_class(
+     attrs = {
+         "into": attr.label(
+@@ -780,6 +785,7 @@ apt = module_extension(
+         "export_lock": export_lock,
+         "export_requests": export_requests_tag,
+         "lock_view": lock_view,
++        "native_aliases": native_aliases,
+         "import_lock": import_lock,
+         "sources_list": sources_list,
+         "lock": lock,
+diff --git a/apt/private/locked_import.bzl b/apt/private/locked_import.bzl
+index 2ce7e47..9879158 100644
+--- a/apt/private/locked_import.bzl
++++ b/apt/private/locked_import.bzl
+@@ -273,17 +273,30 @@ def declare_locked_imports(mctx, existing_sets, installs = [], source_document =
+         name = prepared_lock_name,
+         content = json.encode(dict(document, packages = imported, dependency_sets = groups)),
+     )
++    declared_aliases = {}
++    for module in mctx.modules:
++        if not module.is_root:
++            continue
++        for tag in module.tags.native_aliases:
++            group = tag.dependency_set
++            if group not in library_groups:
++                fail("apt.native_aliases requires a locked library collection: " + group)
++            if group in declared_aliases:
++                fail("duplicate apt.native_aliases for " + group)
++            declared_aliases[group] = tag.aliases
++
+     for group, definition in groups.items():
+         translate_dependency_set(
+             name = group,
+             depset_name = group,
+             lock_file = "@%s//:apt.lock.json" % prepared_lock_name,
+             payload_only = group not in library_groups,
++            declared_aliases = declared_aliases.get(group, {}),
+             cc_exports = {
+                 "@%s//:cc_exports.json" % util.sanitize(key + "=" + version): key + "=" + version
+                 for roots in definition["sets"].values()
+                 for key, version in roots.items()
+-                if group in library_groups and imported[key + "=" + version]["name"].endswith("-dev")
++                if group not in declared_aliases and group in library_groups and imported[key + "=" + version]["name"].endswith("-dev")
+             },
+         )
+ 
+diff --git a/apt/private/translate_dependency_set.bzl b/apt/private/translate_dependency_set.bzl
+index 4406b22..35609e5 100644
+--- a/apt/private/translate_dependency_set.bzl
++++ b/apt/private/translate_dependency_set.bzl
+@@ -276,6 +276,16 @@ Please unify the versions manually, or use separate `apt.install` calls (with di
+                 ),
+             )
+ 
++    declared_by_package = {}
++    for alias, architectures in rctx.attr.declared_aliases.items():
++        parts = alias.split(":")
++        if len(parts) != 2 or not parts[0] or not parts[1]:
++            fail("native alias must be package:target: " + alias)
++        package, target = parts
++        if package not in packages_to_architectures:
++            fail("native alias refers to a package outside " + rctx.attr.depset_name + ": " + alias)
++        declared_by_package.setdefault(package, {})[target] = architectures
++
+     for (_, info) in packages_to_architectures.items():
+         package_name = info.name
+ 
+@@ -310,6 +320,14 @@ Please unify the versions manually, or use separate `apt.install` calls (with di
+                 export_file, targets = cc_exports[package_key]
+                 for public_name, target in targets.items():
+                     library_targets.setdefault(public_name, {})["//:linux_%s" % architecture] = str(export_file.same_package_label(target))
++        for name, alias_architectures in declared_by_package.get(package_name, {}).items():
++            selects = {}
++            for architecture in alias_architectures or info.architectures.keys():
++                if architecture not in info.architectures:
++                    fail("native alias %s:%s has no package for %s" % (package_name, name, architecture))
++                package_key = info.architectures[architecture]
++                selects["//:linux_%s" % architecture] = "@%s//:%s" % (util.sanitize(package_key), name)
++            library_targets[name] = selects
+         for target_name, selects in sorted(library_targets.items()):
+             extra += _DEB_CC_IMPORT.format(
+                 target_name = target_name,
+@@ -366,6 +384,7 @@ translate_dependency_set = repository_rule(
+     implementation = _translate_dependency_set_impl,
+     attrs = {
+         "payload_only": attr.bool(doc = "Expose archive inputs without native C++ targets."),
++        "declared_aliases": attr.string_list_dict(),
+         "cc_exports": attr.label_keyed_string_dict(doc = "Internal package-export metadata labels mapped to lockfile package keys."),
+         "repo_prefix": attr.string(doc = "Internal namespace for locked package repositories."),
+         "depset_name": attr.string(doc = "INTERNAL: DO NOT USE"),

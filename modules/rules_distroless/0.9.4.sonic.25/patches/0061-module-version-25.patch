@@ -1,0 +1,12 @@
+diff --git a/MODULE.bazel b/MODULE.bazel
+index 2ef2eb4..c2475ff 100644
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "rules_distroless",
+-    version = "0.9.4.sonic.24",
++    version = "0.9.4.sonic.25",
+     compatibility_level = 1,
+ )
+ 

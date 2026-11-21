@@ -1,0 +1,96 @@
+diff --git a/apt/private/deb_import.bzl b/apt/private/deb_import.bzl
+--- a/apt/private/deb_import.bzl
++++ b/apt/private/deb_import.bzl
+@@ -353,13 +353,13 @@
+     for script_path in grep.stdout.splitlines():
+         content = rctx.read(script_path)
+         resolved = linker_script.resolve_paths(
+-            linker_script.files_to_remap(content),
++            linker_script.files_to_remap(content, include_relative = True),
+             self_files,
+             depends_file_map,
+             rctx.attr.name,
++            script_dir = script_path.removeprefix(extract_dir + "/").rsplit("/", 1)[0],
+         )
+-        if resolved.paths or resolved.unresolved:
+-            scripts[script_path.removeprefix(extract_dir + "/")] = json.encode({"content": content, "paths": resolved.paths, "unresolved": resolved.unresolved})
++        scripts[script_path.removeprefix(extract_dir + "/")] = json.encode({"content": content, "paths": resolved.paths, "unresolved": resolved.unresolved})
+     return scripts
+ 
+ def _discover_contents(rctx, depends_on, depends_file_map, target_name):
+diff --git a/apt/private/linker_script.bzl b/apt/private/linker_script.bzl
+--- a/apt/private/linker_script.bzl
++++ b/apt/private/linker_script.bzl
+@@ -71,16 +71,19 @@
+         content = content.replace(ws, " ")
+     return [token for token in content.split(" ") if token != ""]
+ 
+-def _files_to_remap(content):
++def _files_to_remap(content, include_relative = False):
+     """Parse a GNU ld linker script and return the absolute library paths it references.
+ 
+     Args:
+         content: the text of a linker script (such as the contents of a .so file
+             that is actually an ld script).
++        include_relative: also return relative library names and -l options for
++            resolution against the script directory and declared package files.
+ 
+     Returns:
+         The list of absolute .so/.a paths referenced by the script's
+-        INPUT/GROUP/AS_NEEDED commands. Relative sonames and -l flags are omitted.
++        INPUT/GROUP/AS_NEEDED commands. Relative sonames and -l flags are included
++        only when include_relative is enabled.
+     """
+     tokens = _tokenize(content)
+ 
+@@ -116,7 +119,7 @@
+             # We are inside a command, and we need to interpret the value.
+             current_command = current_commands[-1]
+             if (_command_takes_a_file_list(current_command) and
+-                _is_file_to_remap(token)):
++                (_is_file_to_remap(token) or (include_relative and (_is_library(token) or token.startswith("-l"))))):
+                 files_to_remap.append(token)
+ 
+             # else: Some command inputs are not files (e.g. `OUTPUT_FORMAT`).
+@@ -152,13 +155,38 @@
+             return (depends_file_map[candidate], candidate)
+     return (None, None)
+ 
+-def _resolve_paths(referenced_paths, self_files, depends_file_map, self_repo):
++def _resolve_paths(referenced_paths, self_files, depends_file_map, self_repo, script_dir = None):
+     paths = {}
+     unresolved = []
+     for abs_path in sorted({p: None for p in referenced_paths}.keys()):
+-        repo, installed = _resolve_installed_path(abs_path, self_files, depends_file_map, self_repo)
++        if abs_path.startswith("/"):
++            repo, installed = _resolve_installed_path(abs_path, self_files, depends_file_map, self_repo)
++        else:
++            names = [abs_path]
++            if abs_path.startswith("-l:"):
++                names = [abs_path[3:]]
++            elif abs_path.startswith("-l"):
++                names = ["lib" + abs_path[2:] + ".so", "lib" + abs_path[2:] + ".a"]
++            repo, installed = None, None
++            for name in names:
++                if script_dir:
++                    repo, installed = _resolve_installed_path("/" + script_dir + "/" + name, self_files, depends_file_map, self_repo)
++                if repo == None:
++                    candidates = {path: self_repo for path in self_files if path.rsplit("/", 1)[-1] == name}
++                    for path, owner in depends_file_map.items():
++                        if path.rsplit("/", 1)[-1] == name and path not in candidates:
++                            candidates[path] = owner
++                    if len(candidates) > 1:
++                        fail("Ambiguous linker-script input " + abs_path + ": " + str(candidates.keys()))
++                    if candidates:
++                        installed = candidates.keys()[0]
++                        repo = candidates[installed]
++                if repo != None:
++                    break
+         if repo == None:
+-            unresolved.append(abs_path)
++            # Toolchain libraries such as -lgcc remain the linker's responsibility.
++            if not abs_path.startswith("-l"):
++                unresolved.append(abs_path)
+         else:
+             paths[abs_path] = [repo, installed]
+     return struct(paths = paths, unresolved = unresolved)

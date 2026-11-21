@@ -1,0 +1,46 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.38-0baa4acc9eac9ccc793b81104b1580d530271cbe",
+      "repo_name": "sonic_build_infra"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
+  },
+  "host_platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
+  },
+  "build_targets": [
+    "@p4_constraints//p4_constraints:ast",
+    "@p4_constraints//p4_constraints:big_int",
+    "@p4_constraints//p4_constraints:quote",
+    "@p4_constraints//p4_constraints:ret_check",
+    "@p4_constraints//p4_constraints/backend:constraint_info",
+    "@p4_constraints//p4_constraints/backend:errors",
+    "@p4_constraints//p4_constraints/backend:interpreter",
+    "@p4_constraints//p4_constraints/cli:p4check",
+    "@p4_constraints//p4_constraints/frontend:ast_constructors",
+    "@p4_constraints//p4_constraints/frontend:lexer",
+    "@p4_constraints//p4_constraints/frontend:parser",
+    "@p4_constraints//p4_constraints/frontend:token"
+  ],
+  "test_targets": [
+    "@p4_constraints//p4_constraints:ast_test",
+    "@p4_constraints//p4_constraints:big_int_test",
+    "@p4_constraints//p4_constraints/backend:constraint_info_test",
+    "@p4_constraints//p4_constraints/backend:interpreter_golden_test",
+    "@p4_constraints//p4_constraints/backend:interpreter_test",
+    "@p4_constraints//p4_constraints/backend:type_checker_test",
+    "@p4_constraints//p4_constraints/frontend:lexer_test",
+    "@p4_constraints//p4_constraints/frontend:parser_test",
+    "@p4_constraints//p4_constraints/frontend:token_test"
+  ]
+}
