@@ -1,0 +1,13 @@
+diff --git a/MODULE.bazel b/MODULE.bazel
+index 5f1e62f..02810f5 100644
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -16,7 +16,7 @@
+ 
+ module(
+     name = "gutil",
+-    version = "20260309.0",
++    version = "20260309.0.sonic.1",
+     bazel_compatibility = [">=7.4.1"],
+ )
+ 
