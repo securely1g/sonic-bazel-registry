@@ -1,0 +1,14 @@
+module(name = "platform_daemons_registry_consumer")
+bazel_dep(name = "sonic-platform-daemons", version = "1.0.0-2f8dea4661691ce7e6bfa3322576c8ab5591730f")
+bazel_dep(name = "rules_python", version = "1.9.0.sonic.1")
+bazel_dep(name = "platforms", version = "1.1.0")
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(is_default = True, python_version = "3.13")
+bazel_dep(name = "sonic-build-infra", version = "0.0.40-6c9cd9477816ad129bf8d4501c9259504f3f85ca")
+pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+pip.parse(
+    hub_name = "platform_daemons_registry_checks",
+    python_version = "3.13",
+    requirements_lock = "@sonic-build-infra//python:wheel_requirements_lock.txt",
+)
+use_repo(pip, "platform_daemons_registry_checks")

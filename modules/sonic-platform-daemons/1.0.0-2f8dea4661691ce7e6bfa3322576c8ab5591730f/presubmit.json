@@ -1,0 +1,18 @@
+{
+  "architectures": [
+    "amd64"
+  ],
+  "consumer_deps": [],
+  "platforms": {
+    "amd64": "@platforms//host:host"
+  },
+  "integration_test_module": "tests/integration",
+  "build_targets": [
+    "@sonic-platform-daemons//:daemons.wheels",
+    "@sonic-platform-daemons//:daemons.runtime",
+    "@sonic-platform-daemons//:daemons.runtime_metadata"
+  ],
+  "test_targets": [
+    "//:installation_layout_test"
+  ]
+}
