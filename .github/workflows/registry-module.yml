@@ -1,379 +1,45 @@
 name: Registry module validation
-
 on:
-  workflow_call:
-    inputs:
-      profile_analysis:
-        description: Retain Bazel analysis traces and JVM GC logs
-        type: boolean
-        default: false
-      module:
-        required: true
-        type: string
-      version:
-        required: true
-        type: string
-      architecture:
-        required: true
-        type: string
-      execution_architecture:
-        description: Native host architecture; defaults to the target for native callers
-        type: string
-        default: ''
-      cross_compile:
-        type: boolean
-        default: false
-      runner:
-        description: JSON array of runner labels from the validated plan
-        required: true
-        type: string
-      http_audit_artifact_id:
-        description: Optional audit agent artifact produced from this source in the same workflow run
-        type: string
-        default: ''
-    secrets:
-      DEBIAN_MIRROR_ROOT:
-        description: Optional private Debian archive root ending in /archive/debian/
-        required: false
-      DEBIAN_SECURITY_MIRROR_ROOT:
-        description: Optional private Debian security archive root ending in /archive/debian-security/
-        required: false
-      DEBIAN_MIRROR_BASE_URL:
-        description: Optional dated Debian mirror for checkouts predating the snapshot manifest
-        required: false
-      DEBIAN_SECURITY_MIRROR_BASE_URL:
-        description: Optional dated Debian security mirror for checkouts predating the snapshot manifest
-        required: false
-
   workflow_dispatch:
-    inputs:
-      module:
-        description: Module to profile
-        type: string
-        default: libnl3
-      version:
-        description: Exact published module version
-        type: string
-        default: 3.7.0.sonic.8
-      architecture:
-        description: Target architecture
-        type: choice
-        options: [amd64]
-        default: amd64
-      runner:
-        description: Native diagnostic runner route
-        type: string
-        default: '["self-hosted","Linux","X64","debian-trixie-container"]'
-      cross_compile:
-        type: boolean
-        default: false
-      profile_analysis:
-        description: Retain diagnostic profiles
-        type: boolean
-        default: true
-      remote_downloader:
-        description: Optional gRPC cache/Remote Asset endpoint to verify without local fallback
-        type: string
-        default: ''
-
 permissions:
   contents: read
-
 jobs:
-  validate:
-    name: Validate module
-    runs-on: ${{ fromJSON(inputs.runner) }}
-    # Large P4 graphs and the cold SWSS cross-build can take over three hours.
-    timeout-minutes: >-
-      ${{ (((contains(fromJSON(inputs.runner), 'debian-trixie-container') ||
-             contains(fromJSON(inputs.runner), 'debian-trixie-container-large')) &&
-            contains(fromJSON('["p4c","p4lang-bmv2","sonic-dash","sonic-pins"]'), inputs.module)) ||
-           (inputs.cross_compile && inputs.module == 'sonic-swss' &&
-            inputs.version == '0.0.3-9c3797990d4b5a79100a40fe7689927c18212361')) && 360 ||
-          (inputs.cross_compile && inputs.module == 'sonic-fips' &&
-           contains(fromJSON('["0.0.6-18a778db501d455f8a1b6d1e3ef8e17121661177","0.0.6-1a8daf8dd8a3ad54de0e91a55b46fd5bbd206763"]'), inputs.version)) && 240 || 180 }}
-    # Local native/cross jobs execute directly in the fresh Trixie runner.
-    # Only native hosted ARM needs the separate pinned job image.
-    container: ${{ inputs.architecture == 'arm64' && !inputs.cross_compile && 'debian:trixie-20260918@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c' || '' }}
-    defaults:
-      run:
-        shell: bash
-    env:
-      DEBIAN_FRONTEND: noninteractive
-      CI_MODULE: ${{ inputs.module }}
-      CI_PROFILE_ANALYSIS: ${{ inputs.profile_analysis }}
-      CI_REMOTE_DOWNLOADER: ${{ inputs.remote_downloader }}
-      CI_VERSION: ${{ inputs.version }}
-      CI_ARCHITECTURE: ${{ inputs.architecture }}
-      CI_EXECUTION_ARCHITECTURE: ${{ inputs.execution_architecture || inputs.architecture }}
-      CI_CROSS_COMPILE: ${{ inputs.cross_compile }}
-      ARM_TEST_EXECUTOR: /usr/local/bin/sonic-arm64
-      TEST_CONTAINER_IMAGE: ${{ inputs.architecture == 'arm64' && !inputs.cross_compile && 'debian:trixie-20260918@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c' || '' }}
+  network-probe:
+    name: Probe worker download routes
+    runs-on: [self-hosted, Linux, X64, debian-trixie-container]
+    timeout-minutes: 5
     steps:
-      - name: Bypass the proxy for Bazel Central Registry
-        if: runner.environment == 'self-hosted'
+      - name: Compare configured proxy with direct public downloads
         shell: bash
         run: |
-          echo "no_proxy=${no_proxy:+${no_proxy},}bcr.bazel.build" >> "$GITHUB_ENV"
-          echo "NO_PROXY=${NO_PROXY:+${NO_PROXY},}bcr.bazel.build" >> "$GITHUB_ENV"
-      - name: Validate execution route
-        run: |
-          set -euo pipefail
-          case "$CI_ARCHITECTURE:$CI_EXECUTION_ARCHITECTURE:$CI_CROSS_COMPILE:$(uname -m)" in
-            amd64:amd64:false:x86_64|arm64:arm64:false:aarch64|arm64:amd64:true:x86_64) ;;
-            *) echo "Unsupported target/native execution route" >&2; exit 1 ;;
-          esac
-          if [[ "$CI_CROSS_COMPILE" == true ]]; then
-            [[ -x "$ARM_TEST_EXECUTOR" ]] || { echo "Missing ARM test executor" >&2; exit 1; }
-          fi
-      - name: Install build and package test tools
-        if: inputs.architecture == 'arm64' && !inputs.cross_compile
-        run: |
-          set -euo pipefail
-          apt-get update
-          # LLVM needs libxml2; installed SDK tests exercise their pkg-config metadata.
-          apt-get install -y --no-install-recommends binutils build-essential ca-certificates curl file gdb git libxml2 libzstd-dev patch pkg-config python3 tar unzip xz-utils zlib1g-dev zstd
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          persist-credentials: false
-      - name: Prepare APT repository tools
-        run: |
-          bash ci/prepare_repository_tools.sh
-      - name: Identify the checked-out mirror configuration
-        id: mirror_config
-        if: ${{ contains(fromJSON(inputs.runner), 'self-hosted') && (contains(fromJSON(inputs.runner), 'debian-trixie-container') || contains(fromJSON(inputs.runner), 'debian-trixie-container-large')) && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && hashFiles('ci/private_mirrors.py') != '' }}
-        run: echo "kind=${{ hashFiles('ci/debian_snapshots.json') != '' && 'roots' || 'dated' }}" >> "$GITHUB_OUTPUT"
-      - name: Download the optional same-run HTTP audit agent
-        id: http_audit_download
-        if: ${{ inputs.http_audit_artifact_id != '' && contains(fromJSON(inputs.runner), 'self-hosted') && (contains(fromJSON(inputs.runner), 'debian-trixie-container') || contains(fromJSON(inputs.runner), 'debian-trixie-container-large')) && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) }}
-        continue-on-error: true
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          artifact-ids: ${{ inputs.http_audit_artifact_id }}
-          path: ${{ runner.temp }}/debian-http-audit
-          merge-multiple: true
-      - name: Prepare a Debian ARM kernel for the Linux AIO test
-        if: inputs.cross_compile && inputs.module == 'rules_distroless'
-        run: |
-          sudo -n apt-get -q update
-          sudo -n apt-get -q -y --no-install-recommends install qemu-system-arm cpio
-          bundle="$RUNNER_TEMP/arm-kernel"
-          ci/arm_kernel_test/prepare.sh "$bundle"
-          echo "ARM_TEST_EXECUTOR=$bundle/executor" >> "$GITHUB_ENV"
-      - name: Expose the ARM64 loader to build-infra actions
-        if: inputs.cross_compile && inputs.module == 'sonic-build-infra'
-        run: |
-          set -euo pipefail
-          # Build-tools assembly clears its environment before executing the
-          # target loader. Use QEMU's default prefix inside this disposable runner.
-          root=/opt/sonic-arm64-rootfs
-          prefix=/usr/gnemul/qemu-aarch64
-          [[ -e /.dockerenv || -e /run/.containerenv ]]
-          [[ -x "$root/usr/bin/uname" ]]
-          if [[ ! -e "$prefix" ]]; then
-            sudo -n install -d "$(dirname "$prefix")"
-            sudo -n ln -sT "$root" "$prefix"
-          fi
-          [[ "$(realpath "$prefix")" == "$root" ]]
-      - name: Install Bazel 8.5.1
-        run: |
-          set -euo pipefail
-          case "$(uname -m)" in
-            x86_64)
-              [[ "$CI_EXECUTION_ARCHITECTURE" == amd64 ]]
-              bazel_arch=x86_64
-              bazel_sha=61d89402f0368e64b6c827be5de79d8e65382e8124c3cbb97325611a1851392e
-              ;;
-            aarch64)
-              [[ "$CI_EXECUTION_ARCHITECTURE" == arm64 ]]
-              bazel_arch=arm64
-              bazel_sha=b7f2a85595e8a87d54843bc656c1e379fd9b8c1b5f783dc41717c1d7eb7cc49f
-              ;;
-            *) echo "Unsupported native architecture" >&2; exit 1 ;;
-          esac
-          if [[ "$CI_EXECUTION_ARCHITECTURE" == amd64 ]]; then
-            printf '%s  %s\n' "$bazel_sha" /usr/local/lib/bazel-8.5.1 | sha256sum --check --strict
-          else
-            curl --fail --location --retry 3 --output /tmp/bazel "https://releases.bazel.build/8.5.1/release/bazel-8.5.1-linux-${bazel_arch}"
-            printf '%s  %s\n' "$bazel_sha" /tmp/bazel | sha256sum --check --strict
-            install -m 0755 /tmp/bazel /usr/local/bin/bazel
-          fi
-      - name: Record module validation storage
-        env:
-          STORAGE_PHASE: before-validation
-        run: |
-          python3 - <<'PY_STORAGE'
-          import json, os
-          from pathlib import Path
-          rows = {}
-          for label, variable in (("workspace", "GITHUB_WORKSPACE"), ("scratch", "RUNNER_TEMP")):
-              path = Path(os.environ[variable])
-              try:
-                  usage = os.statvfs(path)
-                  rows[label] = {"device": path.stat().st_dev,
-                                 "free_bytes": usage.f_bavail * usage.f_frsize,
-                                 "total_bytes": usage.f_blocks * usage.f_frsize,
-                                 "free_inodes": usage.f_favail,
-                                 "total_inodes": usage.f_files}
-              except OSError as error:
-                  rows[label] = {"measurement_error_errno": error.errno}
-          print(json.dumps({"phase": os.environ["STORAGE_PHASE"], "storage": rows}, sort_keys=True))
-          PY_STORAGE
-      - name: Probe the selected remote downloader endpoint
-        if: inputs.remote_downloader != ''
-        run: |
-          python3 - <<'PY_PROBE'
-          import json, os, re, socket, subprocess
-          from pathlib import Path
+          python3 - <<'PY'
+          import json, os, subprocess
           from urllib.parse import urlsplit
-          endpoint = os.environ["CI_REMOTE_DOWNLOADER"]
-          uri = urlsplit(endpoint)
-          if uri.scheme not in ("grpc", "grpcs") or not uri.hostname:
-              raise SystemExit("This TCP probe requires an explicit grpc:// or grpcs:// endpoint")
-          port = uri.port or (443 if uri.scheme == "grpcs" else 80)
-          output = Path(os.environ["GITHUB_WORKSPACE"]) / "ci-artifacts/remote-downloader-probe"
-          output.mkdir(parents=True, exist_ok=True)
-          receipt = {"endpoint": endpoint, "local_fallback": False}
-          try:
-              with socket.create_connection((uri.hostname, port), timeout=5):
-                  receipt["tcp"] = "connected"
-          except OSError as error:
-              receipt.update(tcp="failed", error_type=type(error).__name__, error=str(error))
-              (output / "probe.json").write_text(json.dumps(receipt, indent=2) + "\n")
-              print(json.dumps(receipt))
-              raise SystemExit(1)
-          # An empty protobuf request is sufficient for GetCapabilities.
-          (output / "request.bin").write_bytes(bytes(5))
-          address = uri.netloc
-          url = ("https" if uri.scheme == "grpcs" else "http") + "://" + address
-          url += "/build.bazel.remote.execution.v2.Capabilities/GetCapabilities"
-          result = subprocess.run(["curl", "--silent", "--show-error", "--http2-prior-knowledge",
-              "--noproxy", uri.hostname, "--connect-timeout", "5", "--max-time", "15",
-              "--header", "content-type: application/grpc", "--header", "te: trailers",
-              "--data-binary", "@" + str(output / "request.bin"),
-              "--dump-header", str(output / "headers.txt"), "--output", str(output / "response.bin"), url],
-              text=True, capture_output=True)
-          receipt["capabilities_curl_exit"] = result.returncode
-          headers = (output / "headers.txt").read_text() if (output / "headers.txt").exists() else ""
-          receipt["grpc_status"] = re.findall(r"(?im)^grpc-status:\s*(\d+)", headers)
-          receipt["content_type"] = re.findall(r"(?im)^content-type:\s*([^\r\n]+)", headers)
-          receipt["curl_error"] = result.stderr
-          (output / "headers.txt").write_text(json.dumps({key: receipt[key] for key in ("grpc_status", "content_type")}))
-          (output / "probe.json").write_text(json.dumps(receipt, indent=2) + "\n")
-          print(json.dumps(receipt))
-          # Bazel remains the authoritative protocol/authentication check.
-          PY_PROBE
-      - name: Build and test through the registry
-        env:
-          HTTP_AUDIT_READY: ${{ steps.http_audit_download.outcome }}
-          DEBIAN_MIRROR_ROOT: ${{ steps.mirror_config.outputs.kind == 'roots' && secrets.DEBIAN_MIRROR_ROOT || '' }}
-          DEBIAN_MIRROR_BASE_URL: ${{ steps.mirror_config.outputs.kind == 'dated' && secrets.DEBIAN_MIRROR_BASE_URL || '' }}
-          DEBIAN_SECURITY_MIRROR_ROOT: ${{ steps.mirror_config.outputs.kind == 'roots' && secrets.DEBIAN_SECURITY_MIRROR_ROOT || '' }}
-          DEBIAN_SECURITY_MIRROR_BASE_URL: ${{ steps.mirror_config.outputs.kind == 'dated' && secrets.DEBIAN_SECURITY_MIRROR_BASE_URL || '' }}
-        run: |
-          set -euo pipefail
-          ROOT=()
-          SECRET_ENV=()
-          BAZEL_STARTUP_ARGS=(--bazel-startup-arg=--host_jvm_args=-Xmx2g)
-          BAZEL_BUILD_ARGS=(--bazel-build-arg=--discard_analysis_cache)
-          if [[ -n "${CI_REMOTE_DOWNLOADER:-}" ]]; then
-            BAZEL_BUILD_ARGS+=("--bazel-build-arg=--remote_cache=$CI_REMOTE_DOWNLOADER"
-              "--bazel-build-arg=--experimental_remote_downloader=$CI_REMOTE_DOWNLOADER"
-              --bazel-build-arg=--noexperimental_remote_downloader_local_fallback)
-          fi
-          CROSS_ARGS=()
-          PROFILE_ARGS=()
-          if [[ "${CI_PROFILE_ANALYSIS:-false}" == true ]]; then
-            PROFILE_ARGS=(--profile-analysis)
-          fi
-          HTTP_AUDIT_ARGS=()
-          if [[ "${HTTP_AUDIT_READY:-}" == success ]]; then
-            HTTP_AUDIT_ARGS=(--http-audit-jar "$RUNNER_TEMP/debian-http-audit/debian-http-audit.jar")
-          fi
-          # Keep Bazel CPU defaults and reserve memory for the JVM and system.
-          RESOURCE_RECEIPT=(python3 ci/runner_resources.py "$GITHUB_WORKSPACE/ci-artifacts/runner-resources.json")
-          if [[ "$CI_EXECUTION_ARCHITECTURE" == amd64 ]]; then
-            TEST_CONTAINER_IMAGE="${SONIC_RUNNER_IMAGE_REFERENCE:?Missing runner image identity}"
-            ROOT=(sudo -n)
-            SECRET_ENV=(--preserve-env=DEBIAN_MIRROR_ROOT,DEBIAN_SECURITY_MIRROR_ROOT,DEBIAN_MIRROR_BASE_URL,DEBIAN_SECURITY_MIRROR_BASE_URL,GITHUB_ACTIONS)
-            # Isolated pip uses its bundled CAs unless Requests receives the
-            # system bundle that the registry runner provisions for its proxy.
-            BAZEL_BUILD_ARGS+=(--bazel-build-arg=--repo_env=REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt)
-            "${ROOT[@]}" git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          fi
-          if [[ "$CI_CROSS_COMPILE" == true ]]; then
-            CROSS_ARGS=(--cross-compile --test-executor "$ARM_TEST_EXECUTOR")
-          fi
-          "${ROOT[@]}" "${SECRET_ENV[@]}" "${RESOURCE_RECEIPT[@]}" python3 ci/private_mirrors.py run \
-            --artifacts "$GITHUB_WORKSPACE/ci-artifacts" \
-            --private-dir "$RUNNER_TEMP/private-mirrors-module" \
-            --public-config ci/source_mirrors.cfg \
-            "${HTTP_AUDIT_ARGS[@]}" \
-            -- python3 ci/registry_ci.py run \
-            --module "$CI_MODULE" \
-            --version "$CI_VERSION" \
-            --architecture "$CI_ARCHITECTURE" \
-            --bazel /usr/local/bin/bazel \
-            "${BAZEL_STARTUP_ARGS[@]}" \
-            "${BAZEL_BUILD_ARGS[@]}" \
-            "${CROSS_ARGS[@]}" \
-            "${PROFILE_ARGS[@]}" \
-            --work-dir "$RUNNER_TEMP/registry-ci" \
-            --artifacts "$GITHUB_WORKSPACE/ci-artifacts" \
-            --test-container-image "$TEST_CONTAINER_IMAGE"
-      - name: Record storage after failed module validation
-        if: failure()
-        env:
-          STORAGE_PHASE: failed-validation
-        run: |
-          python3 - <<'PY_STORAGE'
-          import json, os
-          from pathlib import Path
-          rows = {}
-          for label, variable in (("workspace", "GITHUB_WORKSPACE"), ("scratch", "RUNNER_TEMP")):
-              path = Path(os.environ[variable])
-              try:
-                  usage = os.statvfs(path)
-                  rows[label] = {"device": path.stat().st_dev,
-                                 "free_bytes": usage.f_bavail * usage.f_frsize,
-                                 "total_bytes": usage.f_blocks * usage.f_frsize,
-                                 "free_inodes": usage.f_favail,
-                                 "total_inodes": usage.f_files}
-              except OSError as error:
-                  rows[label] = {"measurement_error_errno": error.errno}
-          print(json.dumps({"phase": os.environ["STORAGE_PHASE"], "storage": rows}, sort_keys=True))
-          PY_STORAGE
-      - name: Archive module validation results
-        id: archive
-        if: always()
-        env:
-          DEBIAN_MIRROR_ROOT: ${{ steps.mirror_config.outputs.kind == 'roots' && secrets.DEBIAN_MIRROR_ROOT || '' }}
-          DEBIAN_MIRROR_BASE_URL: ${{ steps.mirror_config.outputs.kind == 'dated' && secrets.DEBIAN_MIRROR_BASE_URL || '' }}
-          DEBIAN_SECURITY_MIRROR_ROOT: ${{ steps.mirror_config.outputs.kind == 'roots' && secrets.DEBIAN_SECURITY_MIRROR_ROOT || '' }}
-          DEBIAN_SECURITY_MIRROR_BASE_URL: ${{ steps.mirror_config.outputs.kind == 'dated' && secrets.DEBIAN_SECURITY_MIRROR_BASE_URL || '' }}
-        run: |
-          set -euo pipefail
-          ROOT=()
-          SECRET_ENV=()
-          if [[ "$CI_EXECUTION_ARCHITECTURE" == amd64 ]]; then
-            ROOT=(sudo -n)
-            SECRET_ENV=(--preserve-env=DEBIAN_MIRROR_ROOT,DEBIAN_SECURITY_MIRROR_ROOT,DEBIAN_MIRROR_BASE_URL,DEBIAN_SECURITY_MIRROR_BASE_URL,GITHUB_ACTIONS)
-          fi
-          archive="$RUNNER_TEMP/registry-ci-evidence.tar"
-          "${ROOT[@]}" "${SECRET_ENV[@]}" python3 ci/private_mirrors.py check-artifacts \
-            --artifacts "$GITHUB_WORKSPACE/ci-artifacts"
-          "${ROOT[@]}" bash ci/archive_artifacts.sh "$GITHUB_WORKSPACE/ci-artifacts" "$archive"
-          if [[ -f "$archive" && "$CI_EXECUTION_ARCHITECTURE" == amd64 ]]; then
-            # Keep permissions inside the TAR intact while letting the
-            # non-root upload action read the root-created archive.
-            sudo -n chown "$(id -u):$(id -g)" "$archive"
-          fi
-      - name: Retain module validation results
-        if: always() && steps.archive.outcome == 'success'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: registry-ci-${{ inputs.module }}-${{ inputs.version }}-${{ inputs.architecture }}
-          path: ${{ runner.temp }}/registry-ci-evidence.tar
-          if-no-files-found: warn
-          retention-days: 14
+          urls = [
+              'https://github.com/bazel-contrib/rules_python/releases/download/1.9.0/rules_python-1.9.0.tar.gz',
+              'https://deb.debian.org/debian/pool/main/k/kdump-tools/kdump-tools_1.10.7.tar.xz',
+              'https://files.pythonhosted.org/packages/e2/03/f3c8ba0a6b6e30d7d18c40faab90807c9bb5e9a1e3b2fe2008af624a9c97/build-1.2.1-py3-none-any.whl',
+              'https://pypi.org/simple/python-debian/',
+          ]
+          direct_ok = True
+          for url in urls:
+              for route in ['proxy', 'direct']:
+                  environment = dict(os.environ)
+                  environment['no_proxy'] = environment['NO_PROXY'] = '' if route == 'proxy' else '*'
+                  if route == 'direct':
+                      for key in ['http_proxy', 'https_proxy', 'HTTP_PROXY', 'HTTPS_PROXY', 'all_proxy', 'ALL_PROXY']:
+                          environment.pop(key, None)
+                  command = ['curl', '--disable', '--fail', '--location', '--silent', '--show-error',
+                             '--connect-timeout', '5', '--max-time', '15', '--range', '0-0',
+                             '--output', '/dev/null', '--write-out', '%{http_code}\n%{url_effective}', url]
+                  result = subprocess.run(command, env=environment, text=True, capture_output=True)
+                  fields = result.stdout.splitlines()
+                  record = dict(route=route, host=urlsplit(url).hostname, returncode=result.returncode,
+                                http_status=fields[0] if fields else '',
+                                final_host=urlsplit(fields[1]).hostname if len(fields)>1 else '',
+                                error=result.stderr[:300])
+                  print(json.dumps(record), flush=True)
+                  if route == 'direct' and result.returncode:
+                      direct_ok = False
+          raise SystemExit(0 if direct_ok else 1)
+          PY
