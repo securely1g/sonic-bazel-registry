@@ -1,0 +1,11 @@
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -2,7 +2,7 @@
+ 
+ module(
+     name = "sonic-pins",
+-    version = "0.0.0",
++    version = "0.0.1-42726b44e5f7b1ffeeedc5283aab7ea83a4d224e",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
