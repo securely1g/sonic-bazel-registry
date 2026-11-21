@@ -305,7 +305,11 @@ jobs:
           if [[ "$CI_CROSS_COMPILE" == true ]]; then
             CROSS_ARGS=(--cross-compile --test-executor "$ARM_TEST_EXECUTOR")
           fi
-          "${ROOT[@]}" "${SECRET_ENV[@]}" "${RESOURCE_RECEIPT[@]}" python3 ci/private_mirrors.py run \
+          # Keep the worker proxy out of the elevated build process. Artifact
+          # clients continue to use the job's existing routing environment.
+          "${ROOT[@]}" "${SECRET_ENV[@]}" env \
+            -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY -u all_proxy -u ALL_PROXY \
+            "${RESOURCE_RECEIPT[@]}" python3 ci/private_mirrors.py run \
             --artifacts "$GITHUB_WORKSPACE/ci-artifacts" \
             --private-dir "$RUNNER_TEMP/private-mirrors-module" \
             --public-config ci/source_mirrors.cfg \
