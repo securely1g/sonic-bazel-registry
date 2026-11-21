@@ -264,15 +264,6 @@ jobs:
           print(json.dumps(receipt))
           # Bazel remains the authoritative protocol/authentication check.
           PY_PROBE
-      - name: Inspect proxy inheritance across sudo
-        run: |
-          python3 - <<'PY_PROXY'
-          import json, os, subprocess
-          script = "import os,json;print(json.dumps(dict(proxy_present=bool(os.environ.get('https_proxy') or os.environ.get('HTTPS_PROXY')),bcr_bypassed='bcr.bazel.build' in os.environ.get('no_proxy',''),no_proxy_present=bool(os.environ.get('no_proxy') or os.environ.get('NO_PROXY')))))"
-          print('runner', subprocess.check_output(['python3','-c',script],text=True).strip())
-          print('root', subprocess.check_output(['sudo','-n','python3','-c',script],text=True).strip())
-          print('direct child', subprocess.check_output(['sudo','-n','env','-u','http_proxy','-u','https_proxy','-u','HTTP_PROXY','-u','HTTPS_PROXY','-u','all_proxy','-u','ALL_PROXY','python3','-c',script],text=True).strip())
-          PY_PROXY
       - name: Build and test through the registry
         env:
           HTTP_AUDIT_READY: ${{ steps.http_audit_download.outcome }}
@@ -314,6 +305,8 @@ jobs:
           if [[ "$CI_CROSS_COMPILE" == true ]]; then
             CROSS_ARGS=(--cross-compile --test-executor "$ARM_TEST_EXECUTOR")
           fi
+          # Keep the worker proxy out of the elevated build process. Artifact
+          # clients continue to use the job's existing routing environment.
           "${ROOT[@]}" "${SECRET_ENV[@]}" env \
             -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY -u all_proxy -u ALL_PROXY \
             "${RESOURCE_RECEIPT[@]}" python3 ci/private_mirrors.py run \
