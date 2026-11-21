@@ -1,0 +1,11 @@
+{
+  "url": "https://github.com/p4lang/p4-constraints/releases/download/20260909.0/p4-constraints-release-20260909.zip",
+  "strip_prefix": "p4-constraints-release-20260909",
+  "integrity": "sha256-Z7z3zXU9nM2meC5sWRWsCYBVovECDovUJS/6SjgVCgE=",
+  "patches": {
+    "0001-module-version.patch": "sha256-4owZ7NOSOCvVQJNPcFVaCacMmW6adLECffJIip1Y0CM=",
+    "0002-declare-cxx20.patch": "sha256-xUKBL/ysnaQVVEhKXv8S4UpVOoJxjxPP6EhCqugzl4I=",
+    "0003-diff-test-shebang.patch": "sha256-irXKNlrkAH6gVUqqUd8BSt0Bmg5rD2cOhdD6Fun1HBc="
+  },
+  "patch_strip": 1
+}

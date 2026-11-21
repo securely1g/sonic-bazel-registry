@@ -1,0 +1,213 @@
+diff --git a/MODULE.bazel b/MODULE.bazel
+index 7ff3223..ce1d0a0 100644
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -8,7 +8,7 @@ bazel_dep(name = "abseil-cpp", version = "20260107.1")
+ bazel_dep(name = "bazel_skylib", version = "1.9.0")
+ bazel_dep(name = "boost.multiprecision", version = "1.90.0.bcr.1")
+ bazel_dep(name = "googletest", version = "1.17.0.bcr.2")
+-bazel_dep(name = "gutil", version = "20260309.0")
++bazel_dep(name = "gutil", version = "20260309.0.sonic.1")
+ bazel_dep(name = "p4c", version = "1.2.5.11")
+ bazel_dep(name = "p4runtime", version = "1.5.0.bcr.1")
+ bazel_dep(name = "protobuf", version = "33.5")
+diff --git a/p4_constraints/BUILD.bazel b/p4_constraints/BUILD.bazel
+index 5d40ccb..2ff3c42 100644
+--- a/p4_constraints/BUILD.bazel
++++ b/p4_constraints/BUILD.bazel
+@@ -12,6 +12,7 @@ cc_library(
+     name = "big_int",
+     srcs = ["big_int.cc"],
+     hdrs = ["big_int.h"],
++    copts = ["-std=c++20"],
+     deps = [
+         "@abseil-cpp//absl/status",
+         "@abseil-cpp//absl/status:statusor",
+@@ -25,6 +26,7 @@ cc_test(
+     name = "big_int_test",
+     size = "small",
+     srcs = ["big_int_test.cc"],
++    copts = ["-std=c++20"],
+     deps = [
+         ":big_int",
+         "@googletest//:gtest_main",
+@@ -36,6 +38,7 @@ cc_library(
+     name = "ast",
+     srcs = ["ast.cc"],
+     hdrs = ["ast.h"],
++    copts = ["-std=c++20"],
+     deps = [
+         ":ast_cc_proto",
+         "@abseil-cpp//absl/container:flat_hash_map",
+@@ -61,6 +64,7 @@ cc_test(
+     name = "ast_test",
+     size = "small",
+     srcs = ["ast_test.cc"],
++    copts = ["-std=c++20"],
+     deps = [
+         ":ast",
+         "@abseil-cpp//absl/container:flat_hash_set",
+@@ -85,6 +89,7 @@ cc_library(
+     name = "quote",
+     srcs = ["quote.cc"],
+     hdrs = ["quote.h"],
++    copts = ["-std=c++20"],
+     deps = [
+         ":ast",
+         ":ast_cc_proto",
+@@ -102,6 +107,7 @@ cc_library(
+     name = "ret_check",
+     srcs = ["ret_check.cc"],
+     hdrs = ["ret_check.h"],
++    copts = ["-std=c++20"],
+     deps = [
+         ":source_location",
+         "@abseil-cpp//absl/base:core_headers",
+diff --git a/p4_constraints/backend/BUILD.bazel b/p4_constraints/backend/BUILD.bazel
+index 5b97ff3..42f9c15 100644
+--- a/p4_constraints/backend/BUILD.bazel
++++ b/p4_constraints/backend/BUILD.bazel
+@@ -10,6 +10,7 @@ cc_library(
+     name = "interpreter",
+     srcs = ["interpreter.cc"],
+     hdrs = ["interpreter.h"],
++    copts = ["-std=c++20"],
+     deps = [
+         ":constraint_info",
+         ":errors",
+@@ -40,6 +41,7 @@ cc_test(
+     name = "interpreter_test",
+     size = "small",
+     srcs = ["interpreter_test.cc"],
++    copts = ["-std=c++20"],
+     deps = [
+         ":constraint_info",
+         ":interpreter",
+@@ -69,6 +71,7 @@ cc_library(
+         "constraint_info.h",
+         "type_checker.h",
+     ],
++    copts = ["-std=c++20"],
+     deps = [
+         "//p4_constraints:ast",
+         "//p4_constraints:ast_cc_proto",
+@@ -96,6 +99,7 @@ cc_library(
+ cc_test(
+     name = "interpreter_golden_test_runner",
+     srcs = ["interpreter_golden_test_runner.cc"],
++    copts = ["-std=c++20"],
+     linkstatic = True,
+     deps = [
+         ":constraint_info",
+@@ -127,6 +131,7 @@ cc_test(
+     name = "type_checker_test",
+     size = "small",
+     srcs = ["type_checker_test.cc"],
++    copts = ["-std=c++20"],
+     deps = [
+         ":constraint_info",
+         "//p4_constraints:ast",
+@@ -148,6 +153,7 @@ cc_library(
+     hdrs = [
+         "symbolic_interpreter.h",
+     ],
++    copts = ["-std=c++20"],
+     deps = [
+         ":constraint_info",
+         ":errors",
+@@ -175,6 +181,7 @@ cc_library(
+     name = "errors",
+     srcs = ["errors.cc"],
+     hdrs = ["errors.h"],
++    copts = ["-std=c++20"],
+     deps = [
+         "//p4_constraints:ast_cc_proto",
+         "//p4_constraints:constraint_source",
+@@ -187,6 +194,7 @@ cc_library(
+ cc_test(
+     name = "symbolic_interpreter_test",
+     srcs = ["symbolic_interpreter_test.cc"],
++    copts = ["-std=c++20"],
+     deps = [
+         ":constraint_info",
+         ":interpreter",
+@@ -212,6 +220,7 @@ cc_test(
+ cc_test(
+     name = "constraint_info_test",
+     srcs = ["constraint_info_test.cc"],
++    copts = ["-std=c++20"],
+     deps = [
+         ":constraint_info",
+         "@abseil-cpp//absl/container:flat_hash_map",
+diff --git a/p4_constraints/cli/BUILD.bazel b/p4_constraints/cli/BUILD.bazel
+index 9899121..eb9a6b7 100644
+--- a/p4_constraints/cli/BUILD.bazel
++++ b/p4_constraints/cli/BUILD.bazel
+@@ -7,6 +7,7 @@ licenses(["notice"])
+ cc_binary(
+     name = "p4check",
+     srcs = ["p4check.cc"],
++    copts = ["-std=c++20"],
+     deps = [
+         "//p4_constraints/backend:constraint_info",
+         "//p4_constraints/backend:interpreter",
+diff --git a/p4_constraints/frontend/BUILD.bazel b/p4_constraints/frontend/BUILD.bazel
+index 1fbdc88..d385deb 100644
+--- a/p4_constraints/frontend/BUILD.bazel
++++ b/p4_constraints/frontend/BUILD.bazel
+@@ -7,6 +7,7 @@ cc_library(
+     name = "parser",
+     srcs = ["parser.cc"],
+     hdrs = ["parser.h"],
++    copts = ["-std=c++20"],
+     visibility = ["//visibility:public"],
+     deps = [
+         ":ast_constructors",
+@@ -29,6 +30,7 @@ cc_test(
+     name = "parser_test",
+     size = "small",
+     srcs = ["parser_test.cc"],
++    copts = ["-std=c++20"],
+     deps = [
+         ":constraint_kind",
+         ":parser",
+@@ -47,6 +49,7 @@ cc_library(
+     name = "lexer",
+     srcs = ["lexer.cc"],
+     hdrs = ["lexer.h"],
++    copts = ["-std=c++20"],
+     visibility = ["//visibility:public"],
+     deps = [
+         ":token",
+@@ -64,6 +67,7 @@ cc_test(
+     name = "lexer_test",
+     size = "small",
+     srcs = ["lexer_test.cc"],
++    copts = ["-std=c++20"],
+     deps = [
+         ":lexer",
+         ":token",
+@@ -77,6 +81,7 @@ cc_library(
+     name = "token",
+     srcs = ["token.cc"],
+     hdrs = ["token.h"],
++    copts = ["-std=c++20"],
+     deps = [
+         "//p4_constraints:ast_cc_proto",
+         "@abseil-cpp//absl/container:flat_hash_map",
+@@ -90,6 +95,7 @@ cc_test(
+     name = "token_test",
+     size = "small",
+     srcs = ["token_test.cc"],
++    copts = ["-std=c++20"],
+     deps = [
+         ":token",
+         "@googletest//:gtest_main",
+@@ -100,6 +106,7 @@ cc_library(
+     name = "ast_constructors",
+     srcs = ["ast_constructors.cc"],
+     hdrs = ["ast_constructors.h"],
++    copts = ["-std=c++20"],
+     visibility = ["//visibility:private"],
+     deps = [
+         ":constraint_kind",

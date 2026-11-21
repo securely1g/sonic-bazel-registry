@@ -1,0 +1,10 @@
+{
+  "versions": [
+    "20260909.0.sonic.1"
+  ],
+  "homepage": "https://github.com/p4lang/p4-constraints",
+  "repository": [
+    "github:p4lang/p4-constraints"
+  ],
+  "yanked_versions": {}
+}
