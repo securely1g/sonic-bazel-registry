@@ -2,13 +2,20 @@
 import argparse
 import ast
 import configparser
+import hashlib
+import json
 from email.parser import BytesParser
 from pathlib import Path
 import tarfile
 import unittest
+import zipfile
+
+from packaging.requirements import Requirement
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--source', type=Path, required=True)
+parser.add_argument('--wheels', nargs='+', type=Path, required=True)
+parser.add_argument('--receipts', nargs='+', type=Path, required=True)
 parser.add_argument('--runtime', nargs='+', required=True)
 args, remaining = parser.parse_known_args()
 SOURCE = args.source.absolute().parent.parent
@@ -48,6 +55,8 @@ def setup_fields(path):
 
 class InstallationLayoutTest(unittest.TestCase):
     def test_original_setup_contract(self):
+        wheels = {p.name: p for p in args.wheels}
+        receipts = {r['distribution']: r for r in (json.loads(p.read_text()) for p in args.receipts)}
         observed = set()
         for archive in args.runtime:
             with self.subTest(archive=archive), tarfile.open(archive) as stream:
@@ -55,20 +64,26 @@ class InstallationLayoutTest(unittest.TestCase):
                 headers = [p for p in members if p.endswith('.dist-info/METADATA')]
                 self.assertEqual(len(headers), 1)
                 header = headers[0]
-                metadata = BytesParser().parsebytes(stream.extractfile(members[header]).read())
+                raw = stream.extractfile(members[header]).read()
+                metadata = BytesParser().parsebytes(raw)
                 name = metadata['Name']
+                receipt = receipts.pop(name)
+                wheel = wheels.pop(receipt['wheel']['filename'])
+                self.assertEqual(receipt['wheel']['sha256'], hashlib.sha256(wheel.read_bytes()).hexdigest())
+                self.assertEqual(receipt['wheel']['metadata_sha256'], hashlib.sha256(raw).hexdigest())
+                with zipfile.ZipFile(wheel) as archive:
+                    self.assertEqual(archive.read(header.removeprefix(SITE)), raw)
                 self.assertNotIn(name, observed)
                 observed.add(name)
                 owner = SOURCE / name
                 contract = setup_fields(owner / 'setup.py')
                 self.assertEqual(name, contract['name'])
                 self.assertEqual(metadata['Version'], contract['version'])
-                normalize = lambda value: ''.join(value.split()).replace('"', "'")
                 expected_requires = list(contract.get('install_requires', []))
                 for extra, requirements in contract.get('extras_require', {}).items():
                     expected_requires.extend(requirement + "; extra == '" + extra + "'" for requirement in requirements)
-                self.assertEqual(sorted(map(normalize, metadata.get_all('Requires-Dist', []))),
-                                 sorted(map(normalize, expected_requires)))
+                self.assertEqual(set(map(Requirement, metadata.get_all('Requires-Dist', []))),
+                                 set(map(Requirement, expected_requires)))
                 for package in contract['packages']:
                     directory = owner / package.replace('.', '/')
                     for source in directory.glob('*.py'):
@@ -93,6 +108,8 @@ class InstallationLayoutTest(unittest.TestCase):
                     self.assertEqual(member.mode, 0o755 if name.startswith('usr/local/bin/') else 0o644)
         expected = {p.parent.name for p in SOURCE.glob('sonic-*/setup.py')}
         self.assertEqual(observed, expected)
+        self.assertFalse(wheels)
+        self.assertFalse(receipts)
 
 
 if __name__ == '__main__':

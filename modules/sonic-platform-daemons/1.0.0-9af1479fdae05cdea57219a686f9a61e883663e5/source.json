@@ -1,9 +1,0 @@
-{
-  "url": "https://github.com/songqing-sq/sonic-platform-daemons/archive/9af1479fdae05cdea57219a686f9a61e883663e5.tar.gz",
-  "strip_prefix": "sonic-platform-daemons-9af1479fdae05cdea57219a686f9a61e883663e5",
-  "integrity": "sha256-NJLY8B4KqTJA0N6Hmpj5P9oaZZ6hNYz2eu5uk8FQqMc=",
-  "patches": {
-    "0001-module-version.patch": "sha256-laQr/a3ERP19IEi5wXmVZYm/ihDLH9HuEWsUzSYIc/Y="
-  },
-  "patch_strip": 1
-}

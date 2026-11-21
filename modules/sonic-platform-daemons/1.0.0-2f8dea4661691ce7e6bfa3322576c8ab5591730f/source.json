@@ -1,0 +1,9 @@
+{
+  "url": "https://github.com/securely1g/sonic-platform-daemons/archive/2f8dea4661691ce7e6bfa3322576c8ab5591730f.tar.gz",
+  "strip_prefix": "sonic-platform-daemons-2f8dea4661691ce7e6bfa3322576c8ab5591730f",
+  "integrity": "sha256-vON6nIdADh+UlpnYt3UMlQ050yEqwAwl/+HVs8TenCs=",
+  "patches": {
+    "0001-module-version.patch": "sha256-rBs3hCBRGSmapusm+qcyV9zHGfqYbQdw+AEFAimn174="
+  },
+  "patch_strip": 1
+}

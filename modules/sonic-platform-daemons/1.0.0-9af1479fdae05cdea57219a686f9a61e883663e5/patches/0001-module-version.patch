@@ -1,8 +1,0 @@
---- a/MODULE.bazel
-+++ b/MODULE.bazel
-@@ -1,4 +1,4 @@
--module(name = "sonic-platform-daemons", version = "1.0.0")
-+module(name = "sonic-platform-daemons", version = "1.0.0-9af1479fdae05cdea57219a686f9a61e883663e5")
- bazel_dep(name = "rules_python", version = "1.9.0.sonic.1")
- bazel_dep(name = "sonic-build-infra", version = "0.0.39-81476192bf2cdb70bb646e85935c5d698b6de8a0", repo_name = "sonic_build_infra")
- python = use_extension("@rules_python//python/extensions:python.bzl", "python")

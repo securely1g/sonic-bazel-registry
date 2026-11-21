@@ -8,6 +8,7 @@
   },
   "integration_test_module": "tests/integration",
   "build_targets": [
+    "@sonic-platform-daemons//:daemons.wheels",
     "@sonic-platform-daemons//:daemons.runtime",
     "@sonic-platform-daemons//:daemons.runtime_metadata"
   ],

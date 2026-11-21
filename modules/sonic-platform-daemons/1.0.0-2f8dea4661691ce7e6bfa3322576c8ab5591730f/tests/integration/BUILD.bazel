@@ -4,6 +4,10 @@ py_test(
     srcs = ["installation_layout_test.py"],
     args = [
         "--source=$(rootpath @sonic-platform-daemons//:sonic-ledd/setup.py)",
+        "--wheels",
+        "$(rootpaths @sonic-platform-daemons//:daemons.wheels)",
+        "--receipts",
+        "$(rootpaths @sonic-platform-daemons//:daemons.runtime_metadata)",
         "--runtime",
         "$(rootpaths @sonic-platform-daemons//:daemons.runtime)",
     ],
@@ -11,6 +15,9 @@ py_test(
         "@sonic-platform-daemons//:sonic-ledd/setup.py",
         "@sonic-platform-daemons//:test_sources",
         "@sonic-platform-daemons//:daemons.runtime",
+        "@sonic-platform-daemons//:daemons.wheels",
+        "@sonic-platform-daemons//:daemons.runtime_metadata",
     ],
+    deps = ["@platform_daemons_registry_checks//packaging"],
     python_version = "3.13",
 )
