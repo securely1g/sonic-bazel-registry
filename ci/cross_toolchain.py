@@ -43,6 +43,7 @@ VERIFIED_SONIC_CROSS_VERSIONS = {
     "0.0.38-0baa4acc9eac9ccc793b81104b1580d530271cbe",
     "0.0.39-81476192bf2cdb70bb646e85935c5d698b6de8a0",
     "0.0.40-e3d21fce8c3e06f3635bbddd92f1807b3f66d3c1",
+    "0.0.40-6c9cd9477816ad129bf8d4501c9259504f3f85ca",  # merged Infra #127
 }
 
 
