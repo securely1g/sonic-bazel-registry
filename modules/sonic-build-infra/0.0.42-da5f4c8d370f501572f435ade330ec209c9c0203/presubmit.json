@@ -65,6 +65,7 @@
     "@sonic-build-infra//tools/build_tools:configure_runtime_test",
     "@sonic-build-infra//tools/build_tools:configure_make_test",
     "@sonic-build-infra//toolchains/gcc/tests:foreign_link_test",
+    "@sonic-build-infra//toolchains/gcc/tests:assembly_include_test",
     "@sonic-build-infra//tools/build_tools:kerberos_runtime_test",
     "@sonic-build-infra//tests:hello_strip_test",
     "@sonic-build-infra//tests:libgreet_pic_test",

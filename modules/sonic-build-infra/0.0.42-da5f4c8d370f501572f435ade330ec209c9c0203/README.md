@@ -1,5 +1,5 @@
-# Shared build tools and direct debug-symbol packaging
+# Assembly preprocessing with sysroot headers and compressed DWARF
 
-Register merged Infra master `81476192bf2cdb70bb646e85935c5d698b6de8a0` as `0.0.39-81476192bf2cdb70bb646e85935c5d698b6de8a0`. It includes preserved link destinations during directory-alias materialization and direct final debug-symbol TAR creation from Infra PR #126.
+Register merged Infra master `e3d21fce8c3e06f3635bbddd92f1807b3f66d3c1` as `0.0.40-e3d21fce8c3e06f3635bbddd92f1807b3f66d3c1`. It gives preprocessed assembly (`.S`) actions `-nostdinc` and the shared sysroot's C include directories, like C compiles (Infra PR #128), and compresses extracted DWARF by default (Infra PR #123).
 
-Preserve the existing registry test overlay and public cross-test visibility patch. The presubmit retains the existing tool and package checks and includes the public debug-symbol manifest, ownership and mode tests.
+Preserve the existing registry test overlay and public cross-test visibility patch. The presubmit retains the existing tool and package checks and adds `toolchains/gcc/tests:assembly_include_test`.
