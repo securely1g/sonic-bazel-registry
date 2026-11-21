@@ -110,12 +110,12 @@ jobs:
       ARM_TEST_EXECUTOR: /usr/local/bin/sonic-arm64
       TEST_CONTAINER_IMAGE: ${{ inputs.architecture == 'arm64' && !inputs.cross_compile && 'debian:trixie-20260918@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c' || '' }}
     steps:
-      - name: Use direct downloads on self-hosted runners
+      - name: Bypass the proxy for Bazel Central Registry
         if: runner.environment == 'self-hosted'
         shell: bash
         run: |
-          echo "no_proxy=*" >> "$GITHUB_ENV"
-          echo "NO_PROXY=*" >> "$GITHUB_ENV"
+          echo "no_proxy=${no_proxy:+${no_proxy},}bcr.bazel.build" >> "$GITHUB_ENV"
+          echo "NO_PROXY=${NO_PROXY:+${NO_PROXY},}bcr.bazel.build" >> "$GITHUB_ENV"
       - name: Validate execution route
         run: |
           set -euo pipefail
@@ -264,6 +264,15 @@ jobs:
           print(json.dumps(receipt))
           # Bazel remains the authoritative protocol/authentication check.
           PY_PROBE
+      - name: Inspect proxy inheritance across sudo
+        run: |
+          python3 - <<'PY_PROXY'
+          import json, os, subprocess
+          script = "import os,json;print(json.dumps(dict(proxy_present=bool(os.environ.get('https_proxy') or os.environ.get('HTTPS_PROXY')),bcr_bypassed='bcr.bazel.build' in os.environ.get('no_proxy',''),no_proxy_present=bool(os.environ.get('no_proxy') or os.environ.get('NO_PROXY')))))"
+          print('runner', subprocess.check_output(['python3','-c',script],text=True).strip())
+          print('root', subprocess.check_output(['sudo','-n','python3','-c',script],text=True).strip())
+          print('direct child', subprocess.check_output(['sudo','-n','env','-u','http_proxy','-u','https_proxy','-u','HTTP_PROXY','-u','HTTPS_PROXY','-u','all_proxy','-u','ALL_PROXY','python3','-c',script],text=True).strip())
+          PY_PROXY
       - name: Build and test through the registry
         env:
           HTTP_AUDIT_READY: ${{ steps.http_audit_download.outcome }}
@@ -305,7 +314,9 @@ jobs:
           if [[ "$CI_CROSS_COMPILE" == true ]]; then
             CROSS_ARGS=(--cross-compile --test-executor "$ARM_TEST_EXECUTOR")
           fi
-          "${ROOT[@]}" "${SECRET_ENV[@]}" "${RESOURCE_RECEIPT[@]}" python3 ci/private_mirrors.py run \
+          "${ROOT[@]}" "${SECRET_ENV[@]}" env \
+            -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY -u all_proxy -u ALL_PROXY \
+            "${RESOURCE_RECEIPT[@]}" python3 ci/private_mirrors.py run \
             --artifacts "$GITHUB_WORKSPACE/ci-artifacts" \
             --private-dir "$RUNNER_TEMP/private-mirrors-module" \
             --public-config ci/source_mirrors.cfg \
