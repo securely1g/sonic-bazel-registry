@@ -234,7 +234,8 @@ jobs:
           if [[ "${HTTP_AUDIT_READY:-}" == success ]]; then
             HTTP_AUDIT_ARGS=(--http-audit-jar "$RUNNER_TEMP/debian-http-audit/debian-http-audit.jar")
           fi
-          python3 ci/private_mirrors.py suite \
+          env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY -u all_proxy -u ALL_PROXY \
+            python3 ci/private_mirrors.py suite \
             --artifacts runner-ci-artifacts --private-dir "$RUNNER_TEMP/private-mirrors-unit" \
             --public-config ci/source_mirrors.cfg "${HTTP_AUDIT_ARGS[@]}" \
             -- python3 ci/run_runner_tests.py --suite native
@@ -334,7 +335,8 @@ jobs:
           if [[ "${HTTP_AUDIT_READY:-}" == success ]]; then
             HTTP_AUDIT_ARGS=(--http-audit-jar "$RUNNER_TEMP/debian-http-audit/debian-http-audit.jar")
           fi
-          python3 ci/private_mirrors.py suite \
+          env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY -u all_proxy -u ALL_PROXY \
+            python3 ci/private_mirrors.py suite \
             --artifacts cross-fixture-artifacts --private-dir "$RUNNER_TEMP/private-mirrors-cross" \
             --public-config ci/source_mirrors.cfg "${HTTP_AUDIT_ARGS[@]}" \
             -- python3 ci/run_runner_tests.py --suite cross
