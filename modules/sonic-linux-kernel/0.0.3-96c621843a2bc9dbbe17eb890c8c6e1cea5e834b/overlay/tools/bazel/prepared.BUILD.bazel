@@ -1,0 +1,3 @@
+package(default_visibility = ["//visibility:public"])
+filegroup(name = "source_files", srcs = glob(["**"], exclude = ["BUILD.bazel"], allow_empty = False))
+exports_files(["Makefile"])
