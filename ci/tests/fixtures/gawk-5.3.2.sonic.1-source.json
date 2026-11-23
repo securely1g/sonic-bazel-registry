@@ -1,0 +1,8 @@
+{
+  "url": "https://mirrors.kernel.org/gnu/gawk/gawk-5.3.2.tar.xz",
+  "mirror_urls": [
+    "https://ftp.gnu.org/gnu/gawk/gawk-5.3.2.tar.xz",
+    "https://ftpmirror.gnu.org/gnu/gawk/gawk-5.3.2.tar.xz"
+  ],
+  "integrity": "sha256-+MNIZQnecFGSE4sA7ywAu73Q6Eww1cB9I/xzqdxMycw="
+}

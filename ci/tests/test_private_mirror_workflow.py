@@ -72,7 +72,8 @@ class PrivateMirrorSecretBoundaryTest(unittest.TestCase):
         workflow = (WORKFLOWS / "registry-ci.yml").read_text()
         self.assertNotIn("\n  http_audit:\n", workflow)
         producer = workflow.split("  plan:\n", 1)[1].split("  unit:\n", 1)[0]
-        self.assertIn("runs-on: [self-hosted, Linux, X64, debian-trixie-container]", producer)
+        self.assertIn("vars.REGISTRY_RUNNER_MODE == 'cross' && github.ref == 'refs/heads/main'", producer)
+        self.assertIn("""fromJSON('["self-hosted","Linux","X64","debian-trixie-container"]') || 'ubuntu-24.04'""", producer)
         compile_step = step(producer, "Compile the maintained audit source once")
         upload_step = step(producer, "Publish the same-run audit agent")
         self.assertIn("continue-on-error: true", compile_step)
@@ -111,12 +112,13 @@ class PrivateMirrorSecretBoundaryTest(unittest.TestCase):
             condition = re.search(r"^    if: \$\{\{ (.*) \}\}$", job, re.M)[1]
             self.assertIn("needs: plan", job)
             for plan_result in ("success", "failure", "skipped"):
-                self.assertEqual(bool(expression_value(condition, {"needs.plan.result": plan_result,
-                                                                   "needs.plan.outputs.has_jobs": "true"})),
-                                 name != "modules_local" or plan_result == "success")
-                self.assertFalse(expression_value(condition, {"needs.plan.result": plan_result,
-                                                               "needs.plan.outputs.has_jobs": "true",
-                                                               "_cancelled": True}))
+                for mode in ("hosted", "cross"):
+                    context = {"needs.plan.result": plan_result, "needs.plan.outputs.has_jobs": "true",
+                               "needs.plan.outputs.runner_mode": mode if plan_result == "success" else ""}
+                    expected = {"unit": True, "cross_fixture": plan_result == "success" and mode == "cross",
+                                "modules_local": plan_result == "success"}
+                    self.assertEqual(bool(expression_value(condition, context)), expected[name])
+                    self.assertFalse(expression_value(condition, {**context, "_cancelled": True}))
         reusable = (WORKFLOWS / "registry-module.yml").read_text()
         self.assertRegex(reusable, r"http_audit_artifact_id:\n\s+description: [^\n]+\n\s+type: string\n\s+default: ''")
 
@@ -291,7 +293,7 @@ class PrivateMirrorWorkflowCommandTest(unittest.TestCase):
         self.environment = dict(os.environ, PATH=f"{self.bin}:{os.environ['PATH']}",
                                 GITHUB_WORKSPACE=str(self.directory), RUNNER_TEMP=str(self.directory / "tmp"),
                                 CI_MODULE="fixture", CI_VERSION="1.0", CI_ARCHITECTURE="amd64",
-                                CI_EXECUTION_ARCHITECTURE="amd64", CI_CROSS_COMPILE="false",
+                                CI_EXECUTION_ARCHITECTURE="amd64", CI_CROSS_COMPILE="false", CI_SELF_HOSTED="true",
                                 ARM_TEST_EXECUTOR="/usr/local/bin/sonic-arm64",
                                 TEST_CONTAINER_IMAGE="", SONIC_RUNNER_IMAGE_REFERENCE="fixture@sha256:" + "a" * 64,
                                 CAPTURE=str(self.capture), FAIL_CHECK="0", GITHUB_ACTIONS="true", **ROOT_SECRETS)

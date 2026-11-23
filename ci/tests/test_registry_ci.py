@@ -273,9 +273,9 @@ class SelectionTests(FixtureTestCase):
         jobs = registry_ci.plan(self.root, None, head, latest_versions=True, published=head)["include"]
         self.assertEqual({(job["module"], job["version"], job["architecture"], tuple(job["runner"]))
                           for job in jobs}, {
-            ("alpha", "2.0.0", "amd64", ("self-hosted", "Linux", "X64", "debian-trixie-container")),
-            ("alpha", "2.0.0", "arm64", ("self-hosted", "Linux", "X64", "debian-trixie-container")),
-            ("beta", "1.0.0", "amd64", ("self-hosted", "Linux", "X64", "debian-trixie-container")),
+            ("alpha", "2.0.0", "amd64", ("ubuntu-24.04",)),
+            ("alpha", "2.0.0", "arm64", ("ubuntu-24.04-arm",)),
+            ("beta", "1.0.0", "amd64", ("ubuntu-24.04",)),
         })
 
     def test_latest_compares_release_and_sonic_patch_numbers_numerically(self) -> None:
@@ -513,6 +513,14 @@ class VersionPolicyTests(FixtureTestCase):
         self.entry("libyang-python", "3.1.0.sonic.4")
         head = self.commit("next candidate")
         self.assertEqual(self.selected(published, head), {("libyang-python", "3.1.0.sonic.4")})
+
+    def test_cannot_remove_published_presubmit_coverage(self) -> None:
+        entry = self.entry("alpha", "1.0.0")
+        base = self.commit("published version with a recipe")
+        (entry / "presubmit.json").unlink()
+        head = self.commit("remove the published recipe")
+        with self.assertRaisesRegex(registry_ci.RegistryError, "removing published presubmit"):
+            registry_ci.plan(self.root, None, head, latest_versions=True, published=base)
 
     def test_candidate_can_be_revised_before_publication(self) -> None:
         """Editing the one unmerged candidate does not require another version."""
@@ -2062,6 +2070,29 @@ class Arm64RoutingTests(FixtureTestCase):
         config["platforms"] = {arch: f"@{module}//:{arch}" for arch in architectures}
         write_json(path, config)
 
+    def test_default_routes_use_native_github_runners(self):
+        self.arm_entry("p4c", "1.0.0")
+        head = self.commit("native execution")
+        rows = registry_ci.plan(self.root, None, head, latest_versions=True, published=head)["include"]
+        self.assertEqual([(r["architecture"], r["execution_architecture"], r["cross_compile"], r["runner"])
+                          for r in rows], [("amd64", "amd64", False, ["ubuntu-24.04"]),
+                                           ("arm64", "arm64", False, ["ubuntu-24.04-arm"])])
+
+    def test_legacy_entries_are_reported_and_new_recipe_less_versions_fail(self):
+        from contextlib import redirect_stderr
+
+        self.entry("legacy", "1.0", configured=False)
+        base = self.commit("existing registry")
+        log = io.StringIO()
+        with redirect_stderr(log):
+            result = registry_ci.plan(self.root, None, base, latest_versions=True, published=base)
+        self.assertEqual(result["include"], [])
+        self.assertIn("No presubmit coverage for 1 existing entries: legacy/1.0", log.getvalue())
+        self.entry("next", "1.0", configured=False)
+        head = self.commit("new version without a recipe")
+        with self.assertRaisesRegex(registry_ci.RegistryError, "new versions need presubmit"):
+            registry_ci.plan(self.root, None, head, latest_versions=True, published=base, push=True)
+
     def test_existing_and_new_arm64_targets_cross_build_on_pr_push_and_dispatch(self):
         self.arm_entry("alpha", "1.0.0")
         base = self.commit("publish original contract")
@@ -2078,7 +2109,7 @@ class Arm64RoutingTests(FixtureTestCase):
             (None, {"latest_versions": True}, latest), (None, {"all_versions": True}, all_rows),
         ):
             with self.subTest(options=options):
-                rows = registry_ci.plan(self.root, plan_base, head, published=base, **options)["include"]
+                rows = registry_ci.plan(self.root, plan_base, head, published=base, runner_mode="cross", **options)["include"]
                 self.assertCountEqual([(row["module"], row["version"], row["architecture"]) for row in rows], expected)
                 for row in rows:
                     self.assertEqual(row["execution_architecture"], "amd64", row)
@@ -2094,7 +2125,7 @@ class Arm64RoutingTests(FixtureTestCase):
         large = ["self-hosted", "Linux", "X64", "debian-trixie-container-large"]
         for profile in ("large", "standard"):
             rows = registry_ci.plan(self.root, None, head, all_versions=True, published=head,
-                                    p4_runner_profile=profile)["include"]
+                                    p4_runner_profile=profile, runner_mode="cross")["include"]
             self.assertEqual(len(rows), 10)
             for row in rows:
                 expected = large if profile == "large" and row["module"] in p4_modules else registry_ci.RUNNERS["amd64"]
@@ -2162,15 +2193,20 @@ class WorkflowMatrixTests(unittest.TestCase):
                                ([{**amd, "cross_compile": True}], False), ([cross, cross], False)]
         for size in (256, 257, 379, 512, 513):
             cases.append(([{**amd, "version": str(i)} for i in range(size)], size <= 512))
-        for jobs, succeeds in cases:
-            with self.subTest(size=len(jobs), first=jobs[:1]), tempfile.TemporaryDirectory() as temporary:
+        cases = [("cross", jobs, succeeds) for jobs, succeeds in cases]
+        hosted_amd = {**amd, "runner": ["ubuntu-24.04"]}
+        for jobs, succeeds in (([hosted_amd, arm], True), ([amd], False), ([cross], False),
+                               ([{**arm, "runner": hosted_amd["runner"]}], False)):
+            cases.append(("hosted", jobs, succeeds))
+        for mode, jobs, succeeds in cases:
+            with self.subTest(mode=mode, size=len(jobs), first=jobs[:1]), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 matrix = {"include": jobs}
                 (root / "plan.json").write_text(json.dumps(matrix))
                 output = root / "outputs"
                 result = subprocess.run([sys.executable, "-I", "-S", "-c", script], cwd=root,
                     env={**os.environ, "EVENT_NAME": "workflow_dispatch", "GITHUB_OUTPUT": str(output),
-                         "P4_RUNNER_PROFILE": "large", "GITHUB_WORKSPACE": str(registry_ci.ROOT)},
+                         "P4_RUNNER_PROFILE": "large", "RUNNER_MODE": mode, "GITHUB_WORKSPACE": str(registry_ci.ROOT)},
                     text=True, capture_output=True)
                 if not succeeds:
                     self.assertNotEqual(result.returncode, 0)
@@ -2179,6 +2215,7 @@ class WorkflowMatrixTests(unittest.TestCase):
                     continue
                 self.assertEqual(result.returncode, 0, result.stderr)
                 values = dict(line.split("=", 1) for line in output.read_text().splitlines())
+                self.assertEqual(values["runner_mode"], mode)
                 self.assertEqual(json.loads(values["matrix"])["include"], jobs[:256])
                 self.assertEqual(json.loads(values["overflow_matrix"])["include"], jobs[256:])
                 self.assertEqual(values["has_overflow_jobs"], str(len(jobs) > 256).lower())
@@ -2222,9 +2259,12 @@ class WorkflowMatrixTests(unittest.TestCase):
         self.assertIn("HAS_JOBS: ${{ needs.plan.outputs.has_jobs }}", block)
         self.assertIn("OVERFLOW_RESULT: ${{ needs.modules_overflow.result }}", block)
         self.assertIn("HAS_OVERFLOW_JOBS: ${{ needs.plan.outputs.has_overflow_jobs }}", block)
-        base = {"PLAN_RESULT": "success", "UNIT_RESULT": "success", "CROSS_FIXTURE_RESULT": "success",
+        base = {"PLAN_RESULT": "success", "UNIT_RESULT": "success", "RUNNER_MODE": "cross", "CROSS_FIXTURE_RESULT": "success",
                 "HAS_JOBS": "true", "MODULE_RESULT": "success", "HAS_OVERFLOW_JOBS": "false", "OVERFLOW_RESULT": "skipped"}
         cases = [(base, True), ({**base, "HAS_JOBS": "false", "MODULE_RESULT": "skipped"}, True),
+                 ({**base, "RUNNER_MODE": "hosted", "CROSS_FIXTURE_RESULT": "skipped"}, True),
+                 ({**base, "RUNNER_MODE": "hosted", "CROSS_FIXTURE_RESULT": "success"}, False),
+                 ({**base, "RUNNER_MODE": "invalid", "CROSS_FIXTURE_RESULT": "skipped"}, False),
                  ({**base, "HAS_OVERFLOW_JOBS": "true", "OVERFLOW_RESULT": "success"}, True)]
         for flag, result in (("HAS_JOBS", "MODULE_RESULT"), ("HAS_OVERFLOW_JOBS", "OVERFLOW_RESULT")):
             for has_jobs, expected in (("true", "success"), ("false", "skipped"), ("", None)):
@@ -2249,14 +2289,12 @@ class WorkflowMatrixTests(unittest.TestCase):
         self.assertIn("architecture: arm64", unit)
         self.assertIn("runner: [ubuntu-24.04-arm]", unit)
         self.assertIn("timeout-minutes: ${{ matrix.timeout_minutes }}", unit)
-        rows = re.findall(r"- architecture: (\w+)\n\s+timeout_minutes: (\d+)\n\s+runner: \[([^\]]+)\]\n"
-                          r"\s+machine: (\w+)\n\s+bazel_arch: (\w+)\n\s+bazel_sha: ([0-9a-f]+)", unit)
-        self.assertEqual(rows, [
-            ("amd64", "45", "self-hosted, Linux, X64, debian-trixie-container", "x86_64", "x86_64",
-             "61d89402f0368e64b6c827be5de79d8e65382e8124c3cbb97325611a1851392e"),
-            ("arm64", "30", "ubuntu-24.04-arm", "aarch64", "arm64",
-             "b7f2a85595e8a87d54843bc656c1e379fd9b8c1b5f783dc41717c1d7eb7cc49f"),
-        ])
+        self.assertIn("needs.plan.outputs.runner_mode == 'cross' && "
+                      """fromJSON('["self-hosted","Linux","X64","debian-trixie-container"]') || """
+                      """fromJSON('["ubuntu-24.04"]')""", unit)
+        plan = self.workflow.split("  plan:\n", 1)[1].split("  unit:\n", 1)[0]
+        self.assertIn("vars.REGISTRY_RUNNER_MODE == 'cross' && github.ref == 'refs/heads/main'", plan)
+        self.assertIn("(github.event_name == 'push' || github.event_name == 'workflow_dispatch')", plan)
         self.assertNotIn("REGISTRY_CI_TEST_ARM_EXECUTOR", unit)
         self.assertIn("python3 ci/run_runner_tests.py --suite cross", cross)
         self.assertIn("REGISTRY_CI_TEST_BAZEL: /usr/local/bin/bazel", cross)
@@ -2271,19 +2309,24 @@ class WorkflowMatrixTests(unittest.TestCase):
         self.assertNotIn("continue-on-error", suite)
         for block in (unit, cross):
             self.assertIn("needs: plan", block)
-            self.assertIn("if: ${{ always() && !cancelled() }}", block)
+        self.assertIn("if: ${{ always() && !cancelled() }}", unit)
+        self.assertIn("if: ${{ !cancelled() && needs.plan.outputs.runner_mode == 'cross' }}", cross)
 
     def test_native_unit_bazel_setup_uses_each_execution_architecture(self):
         unit = self.workflow.split("  unit:\n", 1)[1].split("  cross_fixture:\n", 1)[0]
         script = TestContainerTests.step(unit, "Install Bazel for real runner integration tests")
-        rows = re.findall(r"- architecture: (\w+)\n\s+timeout_minutes: \d+\n\s+runner: \[[^\]]+\]\n"
+        rows = re.findall(r"- architecture: (\w+)\n\s+timeout_minutes: \d+\n\s+runner: [^\n]+\n"
                           r"\s+machine: (\w+)\n\s+bazel_arch: (\w+)\n\s+bazel_sha: ([0-9a-f]+)", unit)
         self.assertEqual([row[0] for row in rows], ["amd64", "arm64"])
-        for architecture, machine, bazel_arch, checksum in rows:
-            with self.subTest(architecture=architecture), tempfile.TemporaryDirectory() as temporary:
+        self.assertEqual([row[3] for row in rows],
+                         ["61d89402f0368e64b6c827be5de79d8e65382e8124c3cbb97325611a1851392e",
+                          "b7f2a85595e8a87d54843bc656c1e379fd9b8c1b5f783dc41717c1d7eb7cc49f"])
+        for (architecture, machine, bazel_arch, checksum), self_hosted in [(rows[0], True), (rows[0], False), (rows[1], False)]:
+            with self.subTest(architecture=architecture, self_hosted=self_hosted), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 environment = TestContainerTests.shell_environment(self, root, architecture, architecture, False)
-                environment.update(EXPECTED_MACHINE=machine, BAZEL_ARCH=bazel_arch, BAZEL_SHA=checksum,
+                environment.update(CI_SELF_HOSTED=str(self_hosted).lower(),
+                                   EXPECTED_MACHINE=machine, BAZEL_ARCH=bazel_arch, BAZEL_SHA=checksum,
                                    GITHUB_ENV=str(root / "github-env"))
                 chmod = root / "bin/chmod"
                 chmod.write_text('#!/bin/bash\nprintf "%s\\n" "$@" > "$RUNNER_TEMP/chmod-args"\n')
@@ -2292,16 +2335,16 @@ class WorkflowMatrixTests(unittest.TestCase):
                                         text=True, capture_output=True)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual((root / "CHECKSUM_ARGS").read_text().splitlines(), ["--check", "--strict"])
-                binary = "/usr/local/lib/bazel-8.5.1" if architecture == "amd64" else environment["RUNNER_TEMP"] + "/bazel-8.5.1"
+                binary = "/usr/local/lib/bazel-8.5.1" if self_hosted else environment["RUNNER_TEMP"] + "/bazel-8.5.1"
                 self.assertEqual((root / "CHECKSUM_LOG").read_text().strip(), checksum + "  " + binary)
-                selected = "/usr/local/bin/bazel" if architecture == "amd64" else binary
+                selected = "/usr/local/bin/bazel" if self_hosted else binary
                 self.assertEqual((root / "github-env").read_text(), "REGISTRY_CI_TEST_BAZEL=" + selected + "\n")
-                if architecture == "amd64":
+                if self_hosted:
                     self.assertFalse((root / "CURL_LOG").exists())
                 else:
                     self.assertEqual((root / "CURL_LOG").read_text().splitlines(),
                                      ["--fail", "--location", "--retry", "3", "--output", binary,
-                                      "https://releases.bazel.build/8.5.1/release/bazel-8.5.1-linux-arm64"])
+                                      f"https://releases.bazel.build/8.5.1/release/bazel-8.5.1-linux-{bazel_arch}"])
                     self.assertEqual((Path(environment["RUNNER_TEMP"]) / "chmod-args").read_text().splitlines(), ["0755", binary])
                 bad = subprocess.run(["/bin/bash", "-c", script],
                                      env={**environment, "NATIVE_MACHINE": "unexpected"}, text=True, capture_output=True)
@@ -2356,6 +2399,7 @@ class TestContainerTests(unittest.TestCase):
         (root / "workspace/ci-artifacts").mkdir(parents=True)
         (root / "runner temp").mkdir()
         environment = {**os.environ, "PATH": str(commands) + os.pathsep + os.environ["PATH"],
+                       "CI_SELF_HOSTED": str(execution == "amd64").lower(),
                        "CI_MODULE": "alpha", "CI_VERSION": "1.0.0", "CI_ARCHITECTURE": architecture,
                        "CI_EXECUTION_ARCHITECTURE": execution, "CI_CROSS_COMPILE": str(cross).lower(),
                        "NATIVE_MACHINE": "x86_64" if execution == "amd64" else "aarch64",
@@ -2372,58 +2416,62 @@ class TestContainerTests(unittest.TestCase):
         expression = next(line.split("container: ", 1)[1] for line in workflow.splitlines()
                           if line.strip().startswith("container: "))
         selection = re.fullmatch(
-            r"\$\{\{ inputs\.architecture == 'arm64' && !inputs\.cross_compile && '(\S+@sha256:[0-9a-f]{64})' \|\| '' \}\}",
+            r"\$\{\{ !contains\(fromJSON\(inputs\.runner\), 'self-hosted'\) && '(\S+@sha256:[0-9a-f]{64})' \|\| '' \}\}",
             expression)
         self.assertIsNotNone(selection)
         self.assertIn("TEST_CONTAINER_IMAGE: " + expression, workflow)
-        self.assertIn("if: inputs.architecture == 'arm64' && !inputs.cross_compile", workflow)
+        self.assertIn("if: runner.environment == 'github-hosted'", workflow)
         timeout_modules = re.search(
             r"contains\(fromJSON\('(\[[^\]]+\])'\), inputs\.module\)\) \|\|", workflow)
         self.assertIsNotNone(timeout_modules)
         self.assertEqual(set(json.loads(timeout_modules[1])), registry_ci.P4_MODULES)
         self.assertIn("CI_EXECUTION_ARCHITECTURE: ${{ inputs.execution_architecture || inputs.architecture }}", workflow)
         self.assertRegex(workflow, r"cross_compile:\n\s+type: boolean\n\s+default: false")
-        for architecture, execution, cross in (("amd64", "amd64", False), ("arm64", "arm64", False),
-                                                ("arm64", "amd64", True)):
-            with self.subTest(architecture=architecture, cross=cross), tempfile.TemporaryDirectory() as temporary:
+        for architecture, execution, cross, self_hosted in (
+                ("amd64", "amd64", False, False), ("arm64", "arm64", False, False),
+                ("amd64", "amd64", False, True), ("arm64", "amd64", True, True)):
+            with self.subTest(architecture=architecture, cross=cross, self_hosted=self_hosted), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 environment = self.shell_environment(root, architecture, execution, cross)
-                environment["TEST_CONTAINER_IMAGE"] = selection[1] if execution == "arm64" else ""
+                environment["CI_SELF_HOSTED"] = str(self_hosted).lower()
+                environment["TEST_CONTAINER_IMAGE"] = "" if self_hosted else selection[1]
                 for name in ("Validate execution route", "Install Bazel 8.5.1", "Build and test through the registry"):
                     result = subprocess.run(["/bin/bash", "-c", self.step(workflow, name)], env=environment,
                                             text=True, capture_output=True)
                     self.assertEqual(result.returncode, 0, result.stderr)
                 checksum = (root / "CHECKSUM_LOG").read_text().split()
                 self.assertEqual((root / "CHECKSUM_ARGS").read_text().splitlines(), ["--check", "--strict"])
-                if execution == "amd64":
+                if self_hosted:
                     self.assertEqual(checksum, ["61d89402f0368e64b6c827be5de79d8e65382e8124c3cbb97325611a1851392e",
                                                 "/usr/local/lib/bazel-8.5.1"])
                     self.assertFalse((root / "CURL_LOG").exists())
                     self.assertFalse((root / "INSTALL_LOG").exists())
                 else:
-                    self.assertEqual(checksum, ["b7f2a85595e8a87d54843bc656c1e379fd9b8c1b5f783dc41717c1d7eb7cc49f",
-                                                "/tmp/bazel"])
-                    self.assertIn("https://releases.bazel.build/8.5.1/release/bazel-8.5.1-linux-arm64",
+                    expected = ("b7f2a85595e8a87d54843bc656c1e379fd9b8c1b5f783dc41717c1d7eb7cc49f"
+                                if architecture == "arm64" else "61d89402f0368e64b6c827be5de79d8e65382e8124c3cbb97325611a1851392e")
+                    suffix = "arm64" if architecture == "arm64" else "x86_64"
+                    self.assertEqual(checksum, [expected, "/tmp/bazel"])
+                    self.assertIn(f"https://releases.bazel.build/8.5.1/release/bazel-8.5.1-linux-{suffix}",
                                   (root / "CURL_LOG").read_text().splitlines())
                     self.assertEqual((root / "INSTALL_LOG").read_text().splitlines(),
                                      ["-m", "0755", "/tmp/bazel", "/usr/local/bin/bazel"])
                 arguments = (root / "CAPTURE").read_text().splitlines()
                 self.assertEqual(arguments[arguments.index("--architecture") + 1], architecture)
                 self.assertEqual(arguments[arguments.index("--test-container-image") + 1],
-                                 environment["SONIC_RUNNER_IMAGE_REFERENCE"] if execution == "amd64" else selection[1])
+                                 environment["SONIC_RUNNER_IMAGE_REFERENCE"] if self_hosted else selection[1])
                 self.assertEqual(arguments[arguments.index("--bazel") + 1], "/usr/local/bin/bazel")
                 self.assertEqual([arg for arg in arguments if arg.startswith("--bazel-startup-arg=")],
                                  ["--bazel-startup-arg=--host_jvm_args=-Xmx2g"])
                 self.assertEqual([arg for arg in arguments if arg.startswith("--bazel-build-arg=")],
                                  ["--bazel-build-arg=--discard_analysis_cache",
                                   "--bazel-build-arg=--repo_env=REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt"]
-                                 if execution == "amd64" else ["--bazel-build-arg=--discard_analysis_cache"])
+                                 if self_hosted else ["--bazel-build-arg=--discard_analysis_cache"])
                 self.assertEqual("--cross-compile" in arguments, cross)
                 self.assertEqual("--test-executor" in arguments, cross)
                 if cross:
                     self.assertEqual(arguments[arguments.index("--test-executor") + 1], environment["ARM_TEST_EXECUTOR"])
                 self.assertEqual(arguments[arguments.index("--work-dir") + 1], str(root / "runner temp/registry-ci"))
-                if execution == "amd64":
+                if self_hosted:
                     self.assertEqual((root / "GIT_LOG").read_text().splitlines(),
                                      ["config", "--global", "--add", "safe.directory", str(root / "workspace")])
                     self.assertEqual(len((root / "SUDO_LOG").read_text().splitlines()), 2)

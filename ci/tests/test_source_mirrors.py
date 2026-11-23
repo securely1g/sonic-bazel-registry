@@ -35,6 +35,7 @@ ARM_ARCHIVES = (
 )
 ARM_RELEASE = "https://github.com/securely1g/sonic-bazel-registry/releases/download/ci-source-mirrors-20261104"
 PIGZ_GITHUB = f"{ARM_RELEASE}/pigz-2.8.tar.gz"
+PIGZ_UPSTREAM = "https://zlib.net/pigz/pigz-2.8.tar.gz"
 PIGZ_MACPORTS = "https://distfiles.macports.org/pigz/pigz-2.8.tar.gz"
 GAWK_SHA256 = "f8c3486509de705192138b00ef2c00bbbdd0e84c30d5c07d23fc73a9dc4cc9cc"
 GAWK_BAZEL_MIRROR = "https://mirror.bazel.build/ftp.gnu.org/gnu/gawk/gawk-5.3.2.tar.xz"
@@ -89,27 +90,27 @@ def debian_release_url(filename):
 
 
 class PigzSourceMirrorScopeTest(unittest.TestCase):
-    def test_only_the_pinned_archive_gets_release_then_macports_candidates(self):
-        """Share one exact pigz mirror without rewriting other versions or hosts."""
+    def test_only_the_pinned_archive_gets_publisher_then_mirror_candidates(self):
+        """Keep the digest-verified fallback specific to this upstream release."""
         rewrites = [line.split()[1:] for line in (ROOT / "ci/source_mirrors.cfg").read_text().splitlines()
                     if line.startswith("rewrite ")]
         upstream = "zlib.net/pigz/pigz-2.8.tar.gz"
         self.assertEqual([replacement for pattern, replacement in rewrites
-                          if re.fullmatch(pattern, upstream)], [PIGZ_GITHUB, PIGZ_MACPORTS])
+                          if re.fullmatch(pattern, upstream)], [PIGZ_UPSTREAM, PIGZ_MACPORTS, PIGZ_GITHUB])
         for other in (upstream.replace("2.8", "2.9"), upstream + "?query", upstream + ".sig",
                       upstream.replace("zlib.net", "example.org")):
             self.assertFalse(any(re.fullmatch(pattern, other) for pattern, _ in rewrites), other)
 
 
 class ArmSourceMirrorScopeTest(unittest.TestCase):
-    def test_only_exact_pinned_arm_urls_get_github_then_upstream_candidates(self):
+    def test_only_exact_pinned_arm_urls_get_upstream_then_github_candidates(self):
         rewrites = [line.split()[1:] for line in (ROOT / "ci/source_mirrors.cfg").read_text().splitlines()
                     if line.startswith("rewrite ")]
         for name, version, _integrity in ARM_ARCHIVES:
             github, upstream = arm_urls(name, version)
             candidates = [replacement for pattern, replacement in rewrites
                           if re.fullmatch(pattern, upstream.removeprefix("https://"))]
-            self.assertEqual(candidates, [github, upstream])
+            self.assertEqual(candidates, [upstream, github])
             for other in (upstream + "?query", upstream + ".other", upstream.replace(version, "9.9.9"),
                           upstream.replace("gitlab.arm.com", "another.example"),
                           upstream.replace("/downloads/", "/different/")):
@@ -188,9 +189,9 @@ class DebianPoolMirrorScopeTest(unittest.TestCase):
         for filename, upstream in DEBIAN_RELEASE_PACKAGES:
             mirror = debian_release_url(filename)
             self.assertEqual(self.candidates(upstream), [
-                mirror,
                 "https://deb.debian.org/debian/pool/" + upstream.split("/pool/", 1)[1],
                 upstream,
+                mirror,
             ])
             for other in (
                 upstream.replace("20260727T143429Z", "20260728T143429Z"),
@@ -275,22 +276,22 @@ class ArchiveFetchTestCase(unittest.TestCase):
 
 
 class ArmSourceMirrorIntegrationTest(ArchiveFetchTestCase):
-    def test_github_archives_match_original_bcr_recipes_with_empty_cache(self):
+    def test_arm_archives_match_original_bcr_recipes_with_empty_cache(self):
         for name, version, integrity in ARM_ARCHIVES:
             with self.subTest(module=name), tempfile.TemporaryDirectory(prefix="registry-arm-mirror-") as temporary:
                 work = Path(temporary)
-                github, upstream = arm_urls(name, version)
+                _, upstream = arm_urls(name, version)
                 metadata = f"https://bcr.bazel.build/modules/{name}/{version}"
                 with urlopen(metadata + "/source.json", timeout=60) as response:
                     source = json.load(response)
                 self.assertEqual(source["url"], upstream)
                 self.assertEqual(source["integrity"], integrity)
                 checksum = base64.b64decode(integrity.removeprefix("sha512-")).hex()
-                with urlopen(github, timeout=60) as response:
-                    self.assertEqual(hashlib.sha512(response.read()).hexdigest(), checksum)
-                # Exercise the real release asset, never silently pass via upstream.
-                config = work / "github-only.cfg"
-                config.write_text((ROOT / "ci/source_mirrors.cfg").read_text() + "\nblock gitlab.arm.com\n")
+                config = ROOT / "ci/source_mirrors.cfg"
+                if os.environ.get("REGISTRY_CI_TEST_MIRROR_ONLY") == "1":
+                    mirror_config = work / "mirror-only.cfg"
+                    mirror_config.write_text(config.read_text() + "\nblock gitlab.arm.com\n")
+                    config = mirror_config
                 result, transcript, cache = self.fetch(
                     work, f'module(name = "arm_mirror_consumer")\nbazel_dep(name = "{name}", version = "{version}")\n',
                     name, config)
@@ -335,8 +336,8 @@ class ArmSourceMirrorIntegrationTest(ArchiveFetchTestCase):
                 try:
                     config = work / "local.cfg"
                     config.write_text((ROOT / "ci/source_mirrors.cfg").read_text()
-                                      .replace(github, f"http://127.0.0.1:{server.server_port}/primary")
-                                      .replace(upstream, f"http://127.0.0.1:{server.server_port}/upstream"))
+                                      .replace(upstream, f"http://127.0.0.1:{server.server_port}/primary")
+                                      .replace(github, f"http://127.0.0.1:{server.server_port}/fallback"))
                     result, transcript, cache = self.fetch(work,
                         'module(name = "fallback_consumer")\n'
                         'http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")\n'
@@ -344,7 +345,7 @@ class ArmSourceMirrorIntegrationTest(ArchiveFetchTestCase):
                         "archive_fixture", config)
                     # Repeated HTTP attempts are allowed, but candidate order is fixed.
                     self.assertEqual(list(dict.fromkeys(requests)),
-                                     ["/primary"] if primary == "valid" else ["/primary", "/upstream"])
+                                     ["/primary"] if primary == "valid" else ["/primary", "/fallback"])
                     archive = cache / "content_addressable/sha512" / checksum / "file"
                     if fallback == "corrupt":
                         self.assertNotEqual(result.returncode, 0, transcript)
@@ -361,16 +362,19 @@ class ArmSourceMirrorIntegrationTest(ArchiveFetchTestCase):
 
 class GawkSourceMirrorIntegrationTest(ArchiveFetchTestCase):
     def test_gawk_mirror_preserves_published_integrity_with_empty_cache(self):
-        source = json.loads((ROOT / "modules/gawk/5.3.2.sonic.1/source.json").read_text())
+        source = json.loads((Path(__file__).parent / "fixtures/gawk-5.3.2.sonic.1-source.json").read_text())
         self.assertEqual(base64.b64decode(source["integrity"].removeprefix("sha256-")).hex(), GAWK_SHA256)
         urls = [source["url"], *source["mirror_urls"]]
         self.assertEqual(urls, [f"https://{host}/gnu/gawk/gawk-5.3.2.tar.xz" for host in GAWK_HOSTS])
         with tempfile.TemporaryDirectory(prefix="registry-gawk-mirror-") as temporary:
             work = Path(temporary)
-            config = work / "bazel-mirror-only.cfg"
-            blocked = (*GAWK_HOSTS, "distfiles.macports.org")
-            config.write_text((ROOT / "ci/source_mirrors.cfg").read_text()
-                              + "\n" + "\n".join("block " + host for host in blocked) + "\n")
+            config = ROOT / "ci/source_mirrors.cfg"
+            if os.environ.get("REGISTRY_CI_TEST_MIRROR_ONLY") == "1":
+                blocked = (*GAWK_HOSTS, "distfiles.macports.org")
+                mirror_config = work / "mirror-only.cfg"
+                mirror_config.write_text(config.read_text()
+                                         + "\n" + "\n".join("block " + host for host in blocked) + "\n")
+                config = mirror_config
             result, transcript, cache = self.fetch(work,
                 'module(name = "gawk_mirror_consumer")\n'
                 'http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")\n'
@@ -457,18 +461,18 @@ class DebianPoolMirrorIntegrationTest(ArchiveFetchTestCase):
                 self.assertEqual(package.stat().st_size, size)
                 self.assertEqual(hashlib.sha256(package.read_bytes()).hexdigest(), checksum)
 
-    def test_release_mirrors_satisfy_original_snapshot_fetches(self):
+    def test_official_cdn_satisfies_original_snapshot_fetches(self):
         for filename, upstream in DEBIAN_RELEASE_PACKAGES:
             with self.subTest(package=filename):
-                self.exercise_snapshot_fallback(upstream, ["/mirror/" + filename])
+                self.exercise_snapshot_fallback(upstream, ["/cdn/pool/" + upstream.split("/pool/", 1)[1]])
 
-    def test_unavailable_release_mirrors_keep_original_fallbacks(self):
+    def test_unavailable_official_servers_fall_back_to_verified_copies(self):
         for filename, upstream in DEBIAN_RELEASE_PACKAGES:
             with self.subTest(package=filename):
                 self.exercise_snapshot_fallback(upstream, [
-                    "/mirror/" + filename,
                     "/cdn/pool/" + upstream.split("/pool/", 1)[1],
                     "/snapshot/" + upstream.split("/archive/debian/", 1)[1],
+                    "/mirror/" + filename,
                 ])
 
     def test_content_addressed_file_satisfies_the_original_snapshot_fetch(self):
@@ -564,8 +568,8 @@ class SourceMirrorWorkflowScopeTest(unittest.TestCase):
         script = workflow.split("          python3 - <<'PY'\n", 1)[1].split("          PY\n", 1)[0]
         script = "\n".join(line[10:] for line in script.splitlines())
         matrix = {"include": [{"module": "original", "version": "1.0.0", "architecture": architecture,
-                               "execution_architecture": "amd64", "cross_compile": architecture == "arm64",
-                               "runner": REGISTRY_CI.RUNNERS["amd64"]}
+                               "execution_architecture": architecture, "cross_compile": False,
+                               "runner": REGISTRY_CI.module_runner("original", architecture, "large", "hosted")}
                               for architecture in ("amd64", "arm64")]}
         for branch, repository in (
             ("codex/pigz-source-mirror", "securely1g/sonic-bazel-registry"),
@@ -578,12 +582,12 @@ class SourceMirrorWorkflowScopeTest(unittest.TestCase):
                     output = Path(temporary) / "output"
                     env = {"EVENT_NAME": "pull_request", "HEAD_REF": branch,
                            "HEAD_REPOSITORY": repository, "GITHUB_OUTPUT": str(output), "P4_RUNNER_PROFILE": "large",
-                           "GITHUB_WORKSPACE": str(ROOT)}
+                           "GITHUB_WORKSPACE": str(ROOT), "RUNNER_MODE": "hosted"}
                     with mock.patch.dict(os.environ, env), mock.patch.object(sys, "path", list(sys.path)), \
                             mock.patch.object(Path, "read_text", return_value=json.dumps(matrix)):
                         exec(compile(script, "registry-ci-workflow", "exec"), {})
                     lines = output.read_text().splitlines()
-                    self.assertEqual(json.loads(lines[0].removeprefix("matrix=")), matrix)
+                    self.assertEqual(json.loads(dict(line.split("=", 1) for line in lines)["matrix"]), matrix)
                     self.assertIn("has_jobs=true", lines)
 
 
@@ -591,14 +595,14 @@ class SourceMirrorWorkflowScopeTest(unittest.TestCase):
                      "set REGISTRY_CI_TEST_BAZEL to exercise real Bazel downloads")
 class SourceMirrorIntegrationTest(unittest.TestCase):
     def test_original_bcr_archive_and_patches_with_empty_cache(self):
-        """Fetch the real GitHub copy and apply BCR's unchanged source patches."""
+        """Fetch through the public mirrors and apply BCR's unchanged source patches."""
         self.exercise_mirror()
 
-    def test_unavailable_release_falls_back_to_verified_macports_bytes(self):
+    def test_unavailable_publisher_falls_back_to_verified_mirror_bytes(self):
         """A missing first candidate must not prevent a valid fallback download."""
         self.exercise_mirror(primary="missing", fallback="valid")
 
-    def test_corrupt_release_falls_back_to_verified_macports_bytes(self):
+    def test_corrupt_publisher_falls_back_to_verified_mirror_bytes(self):
         """Reject a changed first response and retain the original BCR digest."""
         self.exercise_mirror(primary="corrupt", fallback="valid")
 
@@ -622,19 +626,24 @@ class SourceMirrorIntegrationTest(unittest.TestCase):
             server = None
             requests = []
             if primary == "live":
-                # Require the real release asset; MacPorts cannot hide its failure.
-                config.write_text(config_text + "\nblock distfiles.macports.org\n")
+                config.write_text(config_text)
             else:
                 original = b""
                 if fallback == "valid":
-                    with urlopen(PIGZ_GITHUB, timeout=60) as response:
-                        original = response.read()
+                    for url in (PIGZ_UPSTREAM, PIGZ_MACPORTS, PIGZ_GITHUB):
+                        try:
+                            with urlopen(url, timeout=60) as response:
+                                original = response.read()
+                            break
+                        except OSError:
+                            if url == PIGZ_GITHUB:
+                                raise
                     self.assertEqual(hashlib.sha256(original).hexdigest(), PIGZ_SHA256)
 
                 class ArchiveSource(BaseHTTPRequestHandler):
                     def do_GET(self):
                         requests.append(self.path)
-                        behavior = primary if self.path == "/release/pigz-2.8.tar.gz" else fallback
+                        behavior = primary if self.path == "/publisher/pigz-2.8.tar.gz" else fallback
                         if behavior == "missing":
                             self.send_error(404)
                             return
@@ -650,6 +659,7 @@ class SourceMirrorIntegrationTest(unittest.TestCase):
                 server = ThreadingHTTPServer(("127.0.0.1", 0), ArchiveSource)
                 threading.Thread(target=server.serve_forever, daemon=True).start()
                 config.write_text(config_text
+                                  .replace(PIGZ_UPSTREAM, f"http://127.0.0.1:{server.server_port}/publisher/pigz-2.8.tar.gz")
                                   .replace(PIGZ_GITHUB, f"http://127.0.0.1:{server.server_port}/release/pigz-2.8.tar.gz")
                                   .replace(PIGZ_MACPORTS, f"http://127.0.0.1:{server.server_port}/macports/pigz-2.8.tar.gz"))
             cache = work / "repository-cache"
@@ -670,7 +680,10 @@ class SourceMirrorIntegrationTest(unittest.TestCase):
                 transcript = (artifacts / "fetch.log").read_text()
                 archive = cache / "content_addressable/sha256" / PIGZ_SHA256 / "file"
                 if primary != "live":
-                    self.assertEqual(list(dict.fromkeys(requests)), ["/release/pigz-2.8.tar.gz", "/macports/pigz-2.8.tar.gz"])
+                    expected = ["/publisher/pigz-2.8.tar.gz", "/macports/pigz-2.8.tar.gz"]
+                    if fallback == "corrupt":
+                        expected.append("/release/pigz-2.8.tar.gz")
+                    self.assertEqual(list(dict.fromkeys(requests)), expected)
                 if primary == "corrupt":
                     self.assertIn("Checksum", transcript)
                 if fallback == "corrupt":

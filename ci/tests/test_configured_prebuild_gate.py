@@ -232,7 +232,7 @@ class ConfiguredGateTests(FixtureTestCase):
             with self.assertRaises(registry_ci.RegistryError):
                 registry_ci.validate_entry(self.root, 'alpha', '1.0.0')
 
-    def test_planner_preserves_upstream_all_cross_route_and_full_ci_selection(self):
+    def test_planner_preserves_opt_in_cross_route_and_full_ci_selection(self):
         self.entry('alpha', '1.0.0')
         path = self.root / 'modules/alpha/1.0.0/presubmit.json'
         cfg = json.loads(path.read_text())
@@ -243,7 +243,7 @@ class ConfiguredGateTests(FixtureTestCase):
         with mock.patch.object(registry_ci, 'git', side_effect=[head, base, 'ci/registry_ci.py\0']), \
                 mock.patch.object(registry_ci, 'check_version_policy', return_value=set()), \
                 mock.patch.object(registry_ci, 'latest_presubmits', return_value={('alpha', '1.0.0')}) as latest:
-            jobs = registry_ci.plan(self.root, base, head, published=base)['include']
+            jobs = registry_ci.plan(self.root, base, head, published=base, runner_mode='cross')['include']
         latest.assert_called_once_with(self.root)
         self.assertEqual([job['architecture'] for job in jobs], ['amd64', 'arm64'])
         self.assertEqual([job['execution_architecture'] for job in jobs], ['amd64', 'amd64'])

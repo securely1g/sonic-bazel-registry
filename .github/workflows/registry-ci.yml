@@ -26,9 +26,14 @@ concurrency:
 jobs:
   plan:
     name: Plan module validation
-    runs-on: [self-hosted, Linux, X64, debian-trixie-container]
+    # Only the maintained branch can opt into the provisioned Trixie pool.
+    runs-on: >-
+      ${{ vars.REGISTRY_RUNNER_MODE == 'cross' && github.ref == 'refs/heads/main' &&
+          (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+          fromJSON('["self-hosted","Linux","X64","debian-trixie-container"]') || 'ubuntu-24.04' }}
     timeout-minutes: 10
     outputs:
+      runner_mode: ${{ steps.plan.outputs.runner_mode }}
       matrix: ${{ steps.plan.outputs.matrix }}
       has_jobs: ${{ steps.plan.outputs.has_jobs }}
       overflow_matrix: ${{ steps.plan.outputs.overflow_matrix }}
@@ -77,6 +82,7 @@ jobs:
           BEFORE_SHA: ${{ github.event.before }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           ALL_VERSIONS: ${{ inputs.all_versions }}
+          RUNNER_MODE: ${{ runner.environment == 'self-hosted' && 'cross' || 'hosted' }}
           P4_RUNNER_PROFILE: ${{ vars.REGISTRY_P4_RUNNER_PROFILE || 'large' }}
         run: |
           set -euo pipefail
@@ -89,20 +95,20 @@ jobs:
           else
             # Use the maintained repository, including for forks and stacked
             # PRs. Anonymous public fetch needs no write token or credentials.
-            git fetch --no-tags https://github.com/securely1g/sonic-bazel-registry.git \
+            git fetch --no-tags https://github.com/sonic-net/sonic-bazel-registry.git \
               +refs/heads/main:refs/registry-ci/published-main
             PUBLISHED_SHA="$(git rev-parse refs/registry-ci/published-main)"
           fi
           printf 'Event: %s\nPublished baseline: %s\nPR base: %s\nHead: %s\n' \
             "$EVENT_NAME" "$PUBLISHED_SHA" "$BASE_SHA" "$HEAD_SHA" | tee plan.log
           if [[ "$EVENT_NAME" == pull_request ]]; then
-            python3 ci/registry_ci.py plan --p4-runner-profile="$P4_RUNNER_PROFILE" --published "$PUBLISHED_SHA" \
+            python3 ci/registry_ci.py plan --runner-mode="$RUNNER_MODE" --p4-runner-profile="$P4_RUNNER_PROFILE" --published "$PUBLISHED_SHA" \
               --base "$BASE_SHA" --head "$HEAD_SHA" --output plan.json 2>&1 | tee -a plan.log
           elif [[ "$EVENT_NAME" == workflow_dispatch && "$ALL_VERSIONS" == true ]]; then
-            python3 ci/registry_ci.py plan --p4-runner-profile="$P4_RUNNER_PROFILE" --published "$PUBLISHED_SHA" \
+            python3 ci/registry_ci.py plan --runner-mode="$RUNNER_MODE" --p4-runner-profile="$P4_RUNNER_PROFILE" --published "$PUBLISHED_SHA" \
               --head "$HEAD_SHA" --all --output plan.json 2>&1 | tee -a plan.log
           else
-            python3 ci/registry_ci.py plan --p4-runner-profile="$P4_RUNNER_PROFILE" --published "$PUBLISHED_SHA" \
+            python3 ci/registry_ci.py plan --runner-mode="$RUNNER_MODE" --p4-runner-profile="$P4_RUNNER_PROFILE" --published "$PUBLISHED_SHA" \
               "${POLICY_FLAGS[@]}" --head "$HEAD_SHA" --latest --output plan.json 2>&1 | tee -a plan.log
           fi
           python3 - <<'PY'
@@ -115,12 +121,14 @@ jobs:
           from registry_ci import module_runner
 
           matrix = json.loads(Path("plan.json").read_text())
-          routes = {("amd64", "amd64", False), ("arm64", "amd64", True)}
+          mode = os.environ["RUNNER_MODE"]
+          routes = {("amd64", "amd64", False)}
+          routes.add(("arm64", "amd64", True) if mode == "cross" else ("arm64", "arm64", False))
           identities = set()
           for job in matrix["include"]:
               route = (job.get("architecture"), job.get("execution_architecture"), job.get("cross_compile"))
               if (type(job.get("cross_compile")) is not bool or route not in routes
-                      or job.get("runner") != module_runner(job["module"], route[1], os.environ["P4_RUNNER_PROFILE"])):
+                      or job.get("runner") != module_runner(job["module"], route[1], os.environ["P4_RUNNER_PROFILE"], mode)):
                   raise SystemExit("Unsupported execution route in validation plan")
               identity = (job["module"], job["version"], job["architecture"])
               if identity in identities:
@@ -131,6 +139,7 @@ jobs:
           if len(jobs) > 512:
               raise SystemExit("More than 512 validation jobs: add a module matrix before running this plan")
           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              print("runner_mode=" + mode, file=output)
               for matrix_key, jobs_key, batch in (("matrix", "has_jobs", jobs[:256]),
                                                   ("overflow_matrix", "has_overflow_jobs", jobs[256:])):
                   print(matrix_key + "=" + json.dumps({"include": batch}, separators=(",", ":")), file=output)
@@ -157,7 +166,7 @@ jobs:
         include:
           - architecture: amd64
             timeout_minutes: 45
-            runner: [self-hosted, Linux, X64, debian-trixie-container]
+            runner: ${{ needs.plan.outputs.runner_mode == 'cross' && fromJSON('["self-hosted","Linux","X64","debian-trixie-container"]') || fromJSON('["ubuntu-24.04"]') }}
             machine: x86_64
             bazel_arch: x86_64
             bazel_sha: 61d89402f0368e64b6c827be5de79d8e65382e8124c3cbb97325611a1851392e
@@ -200,13 +209,14 @@ jobs:
       - name: Install Bazel for real runner integration tests
         shell: bash
         env:
+          CI_SELF_HOSTED: ${{ runner.environment == 'self-hosted' }}
           EXPECTED_MACHINE: ${{ matrix.machine }}
           BAZEL_ARCH: ${{ matrix.bazel_arch }}
           BAZEL_SHA: ${{ matrix.bazel_sha }}
         run: |
           set -euo pipefail
           [[ "$(uname -m)" == "$EXPECTED_MACHINE" ]]
-          if [[ "$BAZEL_ARCH" == x86_64 ]]; then
+          if [[ "$CI_SELF_HOSTED" == true ]]; then
             printf '%s  %s\n' "$BAZEL_SHA" /usr/local/lib/bazel-8.5.1 | sha256sum --check --strict
             # The image wrapper passes its Java CA store as a startup option,
             # including when tests use --ignore_all_rc_files.
@@ -279,7 +289,7 @@ jobs:
   cross_fixture:
     name: ARM cross compiler and runtime fixture
     needs: plan
-    if: ${{ always() && !cancelled() }}
+    if: ${{ !cancelled() && needs.plan.outputs.runner_mode == 'cross' }}
     runs-on: [self-hosted, Linux, X64, debian-trixie-container]
     timeout-minutes: 60
     env:
@@ -399,7 +409,7 @@ jobs:
     name: Registry CI
     if: always()
     needs: [plan, unit, cross_fixture, modules_local, modules_overflow]
-    runs-on: [self-hosted, Linux, X64, debian-trixie-container]
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - name: Require successful planning, runner tests, and module validation
@@ -407,6 +417,7 @@ jobs:
         env:
           PLAN_RESULT: ${{ needs.plan.result }}
           UNIT_RESULT: ${{ needs.unit.result }}
+          RUNNER_MODE: ${{ needs.plan.outputs.runner_mode }}
           CROSS_FIXTURE_RESULT: ${{ needs.cross_fixture.result }}
           MODULE_RESULT: ${{ needs.modules_local.result }}
           HAS_JOBS: ${{ needs.plan.outputs.has_jobs }}
@@ -416,7 +427,10 @@ jobs:
           set -euo pipefail
           [[ "$PLAN_RESULT" == success ]]
           [[ "$UNIT_RESULT" == success ]]
-          [[ "$CROSS_FIXTURE_RESULT" == success ]]
+          case "$RUNNER_MODE:$CROSS_FIXTURE_RESULT" in
+            hosted:skipped|cross:success) ;;
+            *) exit 1 ;;
+          esac
           require_modules() {
             if [[ "$1" == true ]]; then
               [[ "$2" == success ]]

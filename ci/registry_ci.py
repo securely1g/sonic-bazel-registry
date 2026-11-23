@@ -582,6 +582,8 @@ def check_published_files(root: Path, path: str, published: str, head: str) -> N
         return result
 
     before, after = files(published), files(head)
+    require("presubmit.json" not in before or "presubmit.json" in after,
+            f"{path}: removing published presubmit coverage is not allowed")
     changed = {name for name in before.keys() | after.keys() if before.get(name) != after.get(name)}
     source = json.loads(git(root, "show", f"{published}:{path}/source.json"))
     # Unsupported source layouts retain whole-entry immutability. Do not guess
@@ -655,12 +657,20 @@ def check_version_policy(root: Path, published: str, head: str,
         require(len(candidates) <= 1,
                 f"{module}: multiple unreleased candidates relative to {published}: {', '.join(candidates)}; "
                 "consolidate the unmerged stack into one candidate and update its consumers")
+        for version in candidates:
+            require((root / path / version / "presubmit.json").is_file(),
+                    f"{module}@{version}: new versions need presubmit.json")
         print(f"Version policy: {module}: candidates={candidates}, published={published}", file=sys.stderr)
     return published_entries
 
 
-def module_runner(module: str, execution_architecture: str, p4_runner_profile: str) -> list[str]:
+def module_runner(module: str, execution_architecture: str, p4_runner_profile: str,
+                  runner_mode: str = "hosted") -> list[str]:
     """Choose capacity after the target's native/cross route has been determined."""
+    require(execution_architecture in RUNNERS, "Invalid execution architecture")
+    if runner_mode == "hosted":
+        return ["ubuntu-24.04" if execution_architecture == "amd64" else "ubuntu-24.04-arm"]
+    require(runner_mode == "cross", "Invalid runner mode")
     if p4_runner_profile == "large" and execution_architecture == "amd64" and module in P4_MODULES:
         return ["self-hosted", "Linux", "X64", "debian-trixie-container-large"]
     return RUNNERS[execution_architecture]
@@ -668,14 +678,21 @@ def module_runner(module: str, execution_architecture: str, p4_runner_profile: s
 
 def plan(root: Path, base: str | None, head: str | None, all_versions: bool = False,
          latest_versions: bool = False, published: str | None = None,
-         push: bool = False, p4_runner_profile: str = "large") -> dict:
+         push: bool = False, p4_runner_profile: str = "large", runner_mode: str = "hosted") -> dict:
     require(p4_runner_profile in ("standard", "large"), "Invalid P4 runner profile")
+    require(runner_mode in ("hosted", "cross"), "Invalid runner mode")
     require(not (all_versions and latest_versions), "Choose either --all or --latest")
     require(not ((all_versions or latest_versions) and base),
             "Do not combine --all/--latest with --base")
     require(bool(published) and bool(head), "plan requires --published and --head")
     require(git(root, "rev-parse", "HEAD").strip() == head, "Checkout HEAD differs from planned head")
     published_entries = check_version_policy(root, published, head, push)
+    uncovered = sorted(path.parent.relative_to(root / "modules").as_posix()
+                       for path in (root / "modules").glob("*/*/MODULE.bazel")
+                       if not path.with_name("presubmit.json").is_file())
+    if uncovered:
+        print(f"No presubmit coverage for {len(uncovered)} existing entries: "
+              + ", ".join(uncovered), file=sys.stderr)
     selected = set()
     if all_versions:
         selected.update((path.parent.parent.name, path.parent.name)
@@ -752,9 +769,11 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
     for module, version in sorted(selected):
         config = validate_entry(root, module, version)
         for architecture in config["architectures"]:
+            cross_compile = runner_mode == "cross" and architecture == "arm64"
+            execution = "amd64" if cross_compile else architecture
             include.append({"module": module, "version": version, "architecture": architecture,
-                            "execution_architecture": "amd64", "cross_compile": architecture == "arm64",
-                            "runner": module_runner(module, "amd64", p4_runner_profile)})
+                            "execution_architecture": execution, "cross_compile": cross_compile,
+                            "runner": module_runner(module, execution, p4_runner_profile, runner_mode)})
     return {"include": include}
 
 
@@ -2129,6 +2148,8 @@ def main() -> None:
                        help="test every configured version, including historical versions")
     scope.add_argument("--latest", action="store_true", dest="latest_versions",
                        help="test latest non-yanked versions and explicit additional presubmits")
+    planner.add_argument("--runner-mode", choices=("hosted", "cross"), default="hosted",
+                         help="native hosted runners or an enabled self-hosted AMD64 cross-execution pool")
     planner.add_argument("--p4-runner-profile", choices=("standard", "large"), default="large",
                          help="AMD64 execution pool for P4C, BMv2, DASH and PINS")
     planner.add_argument("--output", required=True, type=Path)
@@ -2159,7 +2180,8 @@ def main() -> None:
     try:
         if args.command == "plan":
             result = plan(ROOT, args.base, args.head, args.all_versions, args.latest_versions,
-                          published=args.published, push=args.push, p4_runner_profile=args.p4_runner_profile)
+                          published=args.published, push=args.push, p4_runner_profile=args.p4_runner_profile,
+                          runner_mode=args.runner_mode)
             args.output.parent.mkdir(parents=True, exist_ok=True)
             args.output.write_text(json.dumps(result, indent=2) + "\n")
             print(json.dumps(result, separators=(",", ":")))
