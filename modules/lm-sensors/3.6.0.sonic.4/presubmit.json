@@ -1,0 +1,41 @@
+{
+  "generated_module_overlay": true,
+  "architectures": [
+    "amd64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.38-0baa4acc9eac9ccc793b81104b1580d530271cbe",
+      "repo_name": "sonic_build_infra"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
+  },
+  "build_targets": [
+    "@lm-sensors//:lm-sensors.runtime",
+    "@lm-sensors//:libsensors5.runtime",
+    "@lm-sensors//:libsensors-config.runtime",
+    "@lm-sensors//:fancontrol.runtime",
+    "@lm-sensors//:sensord.runtime",
+    "@lm-sensors//:runtime_packages.json",
+    "@lm-sensors//:debug_sources",
+    "@lm-sensors//:lm-sensors.control",
+    "@lm-sensors//:libsensors5.control",
+    "@lm-sensors//:libsensors-config.control",
+    "@lm-sensors//:fancontrol.control",
+    "@lm-sensors//:sensord.control",
+    "@lm-sensors//:lm-sensors.runtime.debug_symbols",
+    "@lm-sensors//:libsensors5.runtime.debug_symbols",
+    "@lm-sensors//:sensord.runtime.debug_symbols"
+  ],
+  "test_targets": [
+    "@lm-sensors//:runtime_contract_test",
+    "@lm-sensors//:sensors_runtime_test",
+    "@lm-sensors//:scanner_test",
+    "@lm-sensors//:sensord_help_test",
+    "@lm-sensors//:debug_contract_test",
+    "@lm-sensors//:installed_resources_test"
+  ]
+}

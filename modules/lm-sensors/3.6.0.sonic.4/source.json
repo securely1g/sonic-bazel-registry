@@ -1,0 +1,19 @@
+{
+  "url": "https://deb.debian.org/debian/pool/main/l/lm-sensors/lm-sensors_3.6.0-7.1.debian.tar.xz",
+  "integrity": "sha256-zZsTWQhwvAMd4cWH11cv6xCGqvyTKT0hUwKDx1rxy/E=",
+  "patch_strip": 1,
+  "patches": {
+    "0001-patch-the-debian-package-info-to-get-sensord.patch": "sha256-n45xvsQTcVX0gmOwwsneuq8OZ8YFBpiVgja6vMqfU0I=",
+    "0002-Patch-to-peform-dh_installinit-to-include-sensord.in.patch": "sha256-BdfZEZTxmXiTpYj1Pe30ugDzCuskCyS8PsQZ4GvWVeg="
+  },
+  "overlay": {
+    "BUILD.bazel": "sha256-5xhHPY74ClLT21jLy83QNaOtlgv3VgADOwp6rfgoCTY=",
+    "MODULE.bazel": "sha256-LLoOQy9xD0PYS+3V2J0Nsih26wUF7BrsXXm02PtC7ak=",
+    "debug_contract_test.py": "sha256-98pkyWkBy+0PxlwbER8c3vmpx6pgootDY8BSMsxPAos=",
+    "installed_resources_test.py": "sha256-TJjVZPTXs8YYqXGesd1/pIgsti6+4GttVwmHBXb6uIU=",
+    "runtime_contract_test.py": "sha256-ovGse6S8bHha5lnQUCt6UpOvq0Dp2wbzn8qnayiKxlA=",
+    "scanner_test.py": "sha256-i9wu2v9OOXssqYDM57dwdMd1e+TUf9Xpazpz9gTvyP4=",
+    "source.BUILD.bazel": "sha256-SDJQHtUXkp5dU7FL+hYcQLXpk4FHw9RPIUd4ALqSoHw=",
+    "source_includes.bzl": "sha256-4J4jekyGZb5KffqDGdaBRIUqk/IjcKZgl8JFGrlIguo="
+  }
+}
