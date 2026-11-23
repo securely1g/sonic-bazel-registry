@@ -5,21 +5,22 @@ permissions:
   contents: read
 jobs:
   network-probe:
-    name: Probe pinned Salsa downloads
+    name: Probe official Debian source downloads
     runs-on: [self-hosted, Linux, X64, debian-trixie-container]
     timeout-minutes: 5
     steps:
-      - name: Compare proxy and direct routes with original checksums
+      - name: Verify official archives with original source package checksums
         shell: bash
         run: |
           python3 - <<'PY_PROBE'
           import hashlib, json, os, pathlib, socket, subprocess, tempfile
-          archives = [('https://salsa.debian.org/ssh-team/openssh/-/archive/53e29c05c14ec5f29dbd3df5466b55cf4ca488b1/openssh-53e29c05c14ec5f29dbd3df5466b55cf4ca488b1.tar.gz', 'c9124c499d92034c2413f0917949272b182e059951a37ca0c18831f59aab44b6'), ('https://salsa.debian.org/debian/krb5/-/archive/d26e8df8ee220af0f2361a66d2d357762aff1c3e/krb5-d26e8df8ee220af0f2361a66d2d357762aff1c3e.tar.gz', '4a0db8cff8e4fc9adb4f242920302eca0a92db7e1a7479dd1ca17f45c710e3b7'), ('https://salsa.debian.org/cpython-team/python3/-/archive/942fbb14f3ee7e2c3cb416767229bbc25aaba79d/python3-942fbb14f3ee7e2c3cb416767229bbc25aaba79d.tar.gz', 'd8d93eb5ea0cda15161b39a71d39f071f5fcfa0a8875473852833867f2fca1cc'), ('https://salsa.debian.org/go-team/compiler/golang/-/archive/9972a7f298dfca34b1bf0463121664998b8959b4/golang-9972a7f298dfca34b1bf0463121664998b8959b4.tar.gz', '860d10312d714f0a13626e433398d1c8cc2ab0f57073cc87cf9c9edc2188fa35')]
+          archives = [('https://deb.debian.org/debian/pool/main/o/openssh/openssh_10.0p1.orig.tar.gz', '021a2e709a0edf4250b1256bd5a9e500411a90dddabea830ed59cef90eb9d85c'), ('https://deb.debian.org/debian/pool/main/o/openssh/openssh_10.0p1-7.debian.tar.xz', '09888aeb70db929b83f6acf8439f9de43c69ef7de89bb2f9549ef1bff5688fc5'), ('https://snapshot.debian.org/file/3e383bbe88cbed56bdad4ba655c40abf0e961cf7', 'b7a4cd5ead67fb08b980b21abd150ff7217e85ea320c9ed0c6dadd304840ad35'), ('https://snapshot.debian.org/file/6796cf7d9aa28564b70b6066e158a9d52f736fde', '521fdfaf5cda93a64cc70afd357dc31ea6f4128ff5a489b036b58887eceddd46'), ('https://snapshot.debian.org/file/db8dfd08342bd6e11e2cb31fadb297634ba1bf71', 'ef80889c0d7627165dfa4f4fab563469956e192c67edfec66cdb6b93e59d770f'), ('https://deb.debian.org/debian/pool/main/g/golang-1.26/golang-1.26_1.26.5-1~bpo13+1.debian.tar.xz', '3466bb862db77aa1a049173b1165089dbd6bdd82ab347e49c47ddbffa92fc618')]
           print(json.dumps({"salsa_addresses": sorted({v[4][0] for v in socket.getaddrinfo("salsa.debian.org",443,type=socket.SOCK_STREAM)})}), flush=True)
-          with tempfile.TemporaryDirectory(prefix="salsa-probe-", dir=os.environ["RUNNER_TEMP"]) as temporary:
+          failures = 0
+          with tempfile.TemporaryDirectory(prefix="debian-probe-", dir=os.environ["RUNNER_TEMP"], ignore_cleanup_errors=True) as temporary:
               directory = pathlib.Path(temporary)
               for index, (url, expected) in enumerate(archives):
-                  for route in ["proxy", "direct"]:
+                  for route in ["direct"]:
                       environment = dict(os.environ)
                       environment["no_proxy"] = environment["NO_PROXY"] = "" if route == "proxy" else "*"
                       if route == "direct":
@@ -27,21 +28,26 @@ jobs:
                               environment.pop(key, None)
                       output = directory / f"{index}-{route}.tar.gz"
                       result = subprocess.run(["curl","--disable","--fail","--location","--silent","--show-error",
-                          "--connect-timeout","5","--max-time","20","--output",str(output),
+                          "--connect-timeout","5","--max-time","30","--output",str(output),
                           "--write-out","%{http_code} %{remote_ip} %{size_download}",url],
                           env=environment,text=True,capture_output=True)
                       digest = hashlib.sha256(output.read_bytes()).hexdigest() if output.exists() else None
+                      failures += int(result.returncode != 0 or digest != expected)
                       print(json.dumps(dict(archive=url,route=route,returncode=result.returncode,
                           response=result.stdout,sha256=digest,sha256_matches=digest==expected,error=result.stderr[:400])),flush=True)
-              url, expected = archives[2]
+              url, expected = archives[4]
               (directory / "WORKSPACE.bazel").write_text('workspace(name="salsa_probe")\nload("//:probe.bzl", "probe")\nprobe(name="archive")\n')
               (directory / "BUILD.bazel").write_text("")
-              (directory / "probe.bzl").write_text('def _impl(ctx):\n    ctx.download(url='+repr(url)+', output="archive.tar.gz", sha256='+repr(expected)+', canonical_id="worker-salsa-probe-20261123")\n    ctx.file("BUILD.bazel", "")\nprobe=repository_rule(implementation=_impl)\n')
+              (directory / "probe.bzl").write_text('def _impl(ctx):\n    ctx.download(url='+repr(url)+', output="archive.tar.gz", sha256='+repr(expected)+', canonical_id="worker-debian-probe-20261123")\n    ctx.file("BUILD.bazel", "")\nprobe=repository_rule(implementation=_impl)\n')
               command=["sudo","-n","env","-u","http_proxy","-u","https_proxy","-u","HTTP_PROXY","-u","HTTPS_PROXY","-u","all_proxy","-u","ALL_PROXY","/usr/local/bin/bazel","--output_base="+str(directory/"bazel-output"),"fetch","--enable_workspace","--noenable_bzlmod","@archive//...","--http_connector_attempts=1","--http_timeout_scaling=0.1"]
               try:
                   result=subprocess.run(command,cwd=directory,text=True,capture_output=True,timeout=60)
                   print(result.stdout,flush=True);print(result.stderr,flush=True)
                   print(json.dumps({"bazel_direct_exit":result.returncode}),flush=True)
+                  failures += int(result.returncode != 0)
               except subprocess.TimeoutExpired:
+                  failures += 1
                   print(json.dumps({"bazel_direct_status":"timeout_60s"}),flush=True)
+          print(json.dumps({"failed_downloads":failures}), flush=True)
+          raise SystemExit(1 if failures else 0)
           PY_PROBE
