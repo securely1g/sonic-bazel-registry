@@ -4,7 +4,11 @@ Version `1.11.0-2ed0920f2fea7940f4b2b7f5c37e51e225eb1ea6` pins
 [Azure/sonic-fips](https://github.com/Azure/sonic-fips/tree/2ed0920f2fea7940f4b2b7f5c37e51e225eb1ea6)
 at commit `2ed0920f2fea7940f4b2b7f5c37e51e225eb1ea6`.
 The implementation lives directly in this registry entry's overlay. Source
-preparation preserves the original gitlinks, Debian patches and SONiC patches.
+preparation preserves the original source contents, Debian patches and SONiC patches.
+OpenSSH and Go Debian inputs use their exact official Debian source packages;
+Kerberos and CPython Debian inputs use their exact Debian Snapshot source packages.
+OpenSSH applies the official Debian patch series before the SONiC patches,
+reconstructing the original pinned Salsa commit without downloading from Salsa.
 Explicit Bazel rules perform generation, compilation, linking and installation;
 configure probes supply migration-time configuration data.
 

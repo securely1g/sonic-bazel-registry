@@ -56,7 +56,9 @@ prepared_source(
     build_file = "//openssh:source.BUILD.bazel",
     inputs = {'native.patch': '//openssh:0001-native-configuration-inputs.patch', 'sonic/0001-Put-style-as-line-number-to-ssh-session-environment-.patch': '//:src/openssh.patch/0001-Put-style-as-line-number-to-ssh-session-environment-.patch', 'sonic/0002-Revert-commit-69334996-make-sshd_config-ClientAliveC.patch': '//:src/openssh.patch/0002-Revert-commit-69334996-make-sshd_config-ClientAliveC.patch', 'sonic/0003-Export-remote-info-for-authorization.patch': '//:src/openssh.patch/0003-Export-remote-info-for-authorization.patch', 'sonic/0004-Remove-second-pwnam-call.patch': '//:src/openssh.patch/0004-Remove-second-pwnam-call.patch', 'sonic/microsoft-symcrypt-fips.patch': '//:src/openssh.patch/microsoft-symcrypt-fips.patch'},
     steps = [
-        '{"op":"archive","urls":["https://salsa.debian.org/ssh-team/openssh/-/archive/53e29c05c14ec5f29dbd3df5466b55cf4ca488b1/openssh-53e29c05c14ec5f29dbd3df5466b55cf4ca488b1.tar.gz"],"sha256":"c9124c499d92034c2413f0917949272b182e059951a37ca0c18831f59aab44b6","strip_prefix":"openssh-53e29c05c14ec5f29dbd3df5466b55cf4ca488b1"}',
+        '{"op":"archive","urls":["https://deb.debian.org/debian/pool/main/o/openssh/openssh_10.0p1.orig.tar.gz"],"sha256":"021a2e709a0edf4250b1256bd5a9e500411a90dddabea830ed59cef90eb9d85c","strip_prefix":"openssh-10.0p1"}',
+        '{"op":"archive","urls":["https://deb.debian.org/debian/pool/main/o/openssh/openssh_10.0p1-7.debian.tar.xz"],"sha256":"09888aeb70db929b83f6acf8439f9de43c69ef7de89bb2f9549ef1bff5688fc5"}',
+        '{"op":"patch_series","series":"debian/patches/series","format":"gnu"}',
         '{"op":"patch","input":"sonic/0001-Put-style-as-line-number-to-ssh-session-environment-.patch"}',
         '{"op":"patch","input":"sonic/0002-Revert-commit-69334996-make-sshd_config-ClientAliveC.patch"}',
         '{"op":"patch","input":"sonic/0003-Export-remote-info-for-authorization.patch"}',
@@ -72,7 +74,8 @@ prepared_source(
     gnu_tools = "@source_patch_tools//:ROOT",
     inputs = {'native.patch': '//krb5:0001-native-configuration-inputs.patch', 'sonic/90-support-openssl-crypto-impl.patch': '//:src/krb5.patch/90-support-openssl-crypto-impl.patch', 'test/fix-test-output.patch': '//:src/krb5.patch/debian.patch/fix-test-output.patch', 'test/fix-running-in-container.patch': '//:src/krb5.patch/debian.patch/fix-running-in-container.patch'},
     steps = [
-        '{"op":"archive","urls":["https://salsa.debian.org/debian/krb5/-/archive/d26e8df8ee220af0f2361a66d2d357762aff1c3e/krb5-d26e8df8ee220af0f2361a66d2d357762aff1c3e.tar.gz"],"sha256":"4a0db8cff8e4fc9adb4f242920302eca0a92db7e1a7479dd1ca17f45c710e3b7","strip_prefix":"krb5-d26e8df8ee220af0f2361a66d2d357762aff1c3e"}',
+        '{"op":"archive","urls":["https://snapshot.debian.org/archive/debian/20240627T204135Z/pool/main/k/krb5/krb5_1.21.3.orig.tar.gz"],"sha256":"b7a4cd5ead67fb08b980b21abd150ff7217e85ea320c9ed0c6dadd304840ad35","strip_prefix":"krb5-1.21.3"}',
+        '{"op":"archive","urls":["https://snapshot.debian.org/archive/debian/20250313T084507Z/pool/main/k/krb5/krb5_1.21.3-5.debian.tar.xz"],"sha256":"521fdfaf5cda93a64cc70afd357dc31ea6f4128ff5a489b036b58887eceddd46"}',
         '{"op":"patch","input":"sonic/90-support-openssl-crypto-impl.patch","format":"gnu","fuzz":2}',
         '{"op":"patch_series","series":"debian/patches/series"}',
         '{"op":"patch","input":"test/fix-test-output.patch"}',
@@ -88,7 +91,7 @@ prepared_source(
     inputs = {"fips/0001-load-openssl-configuration.patch": "//python:0001-load-openssl-configuration.patch"},
     steps = [
         '{"op":"archive","urls":["https://github.com/python/cpython/archive/6cb20a219a860eaf687b2d968b41c480c7461909.tar.gz"],"sha256":"72244f202a8348c33c3cf8e254ad19c526676ed6d72ffe6e75aa8db76d371244","strip_prefix":"cpython-6cb20a219a860eaf687b2d968b41c480c7461909"}',
-        '{"op":"archive","urls":["https://salsa.debian.org/cpython-team/python3/-/archive/942fbb14f3ee7e2c3cb416767229bbc25aaba79d/python3-942fbb14f3ee7e2c3cb416767229bbc25aaba79d.tar.gz"],"sha256":"d8d93eb5ea0cda15161b39a71d39f071f5fcfa0a8875473852833867f2fca1cc","strip_prefix":"python3-942fbb14f3ee7e2c3cb416767229bbc25aaba79d"}',
+        '{"op":"archive","urls":["https://snapshot.debian.org/archive/debian/20250626T082658Z/pool/main/p/python3.13/python3.13_3.13.5-2.debian.tar.xz"],"sha256":"ef80889c0d7627165dfa4f4fab563469956e192c67edfec66cdb6b93e59d770f"}',
         '{"op":"patch","input":"fips/0001-load-openssl-configuration.patch","strip":1}',
         '{"op":"patch_series","series":"debian/patches/series","format":"gnu"}',
     ],
@@ -128,7 +131,7 @@ prepared_source(
     steps = [
         '{"op":"archive","urls":["https://github.com/golang/go/archive/c19862e5f8415b4f24b189d065ed739517c548ba.tar.gz"],"sha256":"bee8baca25b69a67f5b94acdaa161b5ef9c42bd37365c92eb5857b16303cda10","strip_prefix":"go-c19862e5f8415b4f24b189d065ed739517c548ba"}',
         '{"op":"patch_series","series_input":"fips/series","patch_inputs":["fips/000-fips.patch","fips/001-fix-linkage.patch","fips/002-fix-std-crypto.patch","fips/003-fix-hpke-test.patch","fips/004-host-fips-auto.patch","fips/005-hkdf-expandlabel-read.patch","fips/006-idna-reject-ascii-xn.patch"],"format":"native"}',
-        '{"op":"archive","urls":["https://salsa.debian.org/go-team/compiler/golang/-/archive/9972a7f298dfca34b1bf0463121664998b8959b4/golang-9972a7f298dfca34b1bf0463121664998b8959b4.tar.gz"],"sha256":"860d10312d714f0a13626e433398d1c8cc2ab0f57073cc87cf9c9edc2188fa35","strip_prefix":"golang-9972a7f298dfca34b1bf0463121664998b8959b4/debian","output":"debian"}',
+        '{"op":"archive","urls":["https://deb.debian.org/debian/pool/main/g/golang-1.26/golang-1.26_1.26.5-1~bpo13+1.debian.tar.xz"],"sha256":"3466bb862db77aa1a049173b1165089dbd6bdd82ab347e49c47ddbffa92fc618","strip_prefix":"debian","output":"debian"}',
         '{"op":"patch_series","series":"debian/patches/series","format":"gnu"}',
         '{"op":"patch_series","series_input":"sonic/series","patch_inputs":["sonic/openssl-config.patch","sonic/disable-vdso-test-for-armhf.patch"],"format":"gnu"}',
     ],
