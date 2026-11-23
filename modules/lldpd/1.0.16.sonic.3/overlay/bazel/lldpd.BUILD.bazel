@@ -1,0 +1,332 @@
+load("@sonic_build_infra//toolchains/gcc:gcc.bzl", "GCC_METADATA")
+load("@bazel_skylib//rules:expand_template.bzl", "expand_template")
+load("@bazel_lib//lib:run_binary.bzl", "run_binary")
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_shared_library")
+load("@rules_gzip//gzip/compress:defs.bzl", "gzip_compress")
+load("@sonic_build_infra//cc:preprocess.bzl", "cc_preprocess")
+load("@sonic_build_infra//cc:shared_library.bzl", "shared_library_cc_info")
+load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
+load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
+
+package(default_visibility = ["//visibility:public"])
+exports_files(glob(["**"], exclude = ["BUILD.bazel"]))
+filegroup(name = "sources", srcs = glob(["**"], exclude = ["BUILD.bazel"]))
+
+_COPTS = ["-O2", "-g", "-fdiagnostics-show-option", "-fdiagnostics-color=auto", "-pipe", "-Wall", "-W", "-Wextra", "-Wformat", "-Wformat-security", "-Wimplicit-fallthrough", "-Wfatal-errors", "-Winline", "-Wpointer-arith", "-fno-omit-frame-pointer", "-Wno-cast-align", "-Wno-unused-parameter", "-Wno-missing-field-initializers", "-Wno-sign-compare", "-fstack-protector", "-fstack-protector-all", "-fstack-protector-strong", "-fstack-clash-protection", "-Werror=format-security", "-D_FORTIFY_SOURCE=2"]
+_LINKOPTS = ["-Wl,-z,relro,-z,now", "-Wl,--build-id=sha1"]
+_INSTALL_CPUS = ["x86_64", "aarch64"]
+
+# Filled from the target-toolchain Autoconf inspection; no configure action is
+# part of the production dependency graph.
+expand_template(
+    name = "configuration",
+    template = "config.h.in",
+    out = "config.h",
+    substitutions = {
+        "#undef APPARMORDIR\n": "#define APPARMORDIR \"no\"\n",
+        "#undef BUILD_DATE\n": "#define BUILD_DATE \"1970-01-01T00:00:00Z\"\n",
+        "#undef ENABLE_CDP\n": "#define ENABLE_CDP /**/\n",
+        "#undef ENABLE_CUSTOM\n": "#define ENABLE_CUSTOM /**/\n",
+        "#undef ENABLE_DOT1\n": "#define ENABLE_DOT1 /**/\n",
+        "#undef ENABLE_DOT3\n": "#define ENABLE_DOT3 /**/\n",
+        "#undef ENABLE_EDP\n": "#define ENABLE_EDP /**/\n",
+        "#undef ENABLE_FDP\n": "#define ENABLE_FDP /**/\n",
+        "#undef ENABLE_LLDPMED\n": "#define ENABLE_LLDPMED /**/\n",
+        "#undef ENABLE_PRIVSEP\n": "#define ENABLE_PRIVSEP /**/\n",
+        "#undef ENABLE_SONMP\n": "#define ENABLE_SONMP /**/\n",
+        "#undef HAVE_ALIGNOF\n": "#define HAVE_ALIGNOF 1\n",
+        "#undef HAVE_ARPA_NAMESER_H\n": "#define HAVE_ARPA_NAMESER_H 1\n",
+        "#undef HAVE_ASPRINTF\n": "#define HAVE_ASPRINTF 1\n",
+        "#undef HAVE_DAEMON\n": "#define HAVE_DAEMON 1\n",
+        "#undef HAVE_DLFCN_H\n": "#define HAVE_DLFCN_H 1\n",
+        "#undef HAVE_FORK\n": "#define HAVE_FORK 1\n",
+        "#undef HAVE_GETLINE\n": "#define HAVE_GETLINE 1\n",
+        "#undef HAVE_INTTYPES_H\n": "#define HAVE_INTTYPES_H 1\n",
+        "#undef HAVE_LIBREADLINE\n": "#define HAVE_LIBREADLINE 1\n",
+        "#undef HAVE_LINUX_CAPABILITIES\n": "#define HAVE_LINUX_CAPABILITIES 1\n",
+        "#undef HAVE_MALLOC\n": "#define HAVE_MALLOC 1\n",
+        "#undef HAVE_NETDB_H\n": "#define HAVE_NETDB_H 1\n",
+        "#undef HAVE_NETINET_IN_H\n": "#define HAVE_NETINET_IN_H 1\n",
+        "#undef HAVE_NETSNMP_ENABLE_SUBAGENT\n": "#define HAVE_NETSNMP_ENABLE_SUBAGENT 1\n",
+        "#undef HAVE_NETSNMP_TDOMAIN_F_CREATE_FROM_TSTRING_NEW\n": "#define HAVE_NETSNMP_TDOMAIN_F_CREATE_FROM_TSTRING_NEW 1\n",
+        "#undef HAVE_NET_SNMP_AGENT_UTIL_FUNCS_H\n": "#define HAVE_NET_SNMP_AGENT_UTIL_FUNCS_H 1\n",
+        "#undef HAVE_READLINE_HISTORY\n": "#define HAVE_READLINE_HISTORY 1\n",
+        "#undef HAVE_READLINE_HISTORY_H\n": "#define HAVE_READLINE_HISTORY_H 1\n",
+        "#undef HAVE_READLINE_READLINE_H\n": "#define HAVE_READLINE_READLINE_H 1\n",
+        "#undef HAVE_REALLOC\n": "#define HAVE_REALLOC 1\n",
+        "#undef HAVE_RESOLV_H\n": "#define HAVE_RESOLV_H 1\n",
+        "#undef HAVE_RES_INIT\n": "#define HAVE_RES_INIT 1\n",
+        "#undef HAVE_SETPROCTITLE\n": "#define HAVE_SETPROCTITLE 1\n",
+        "#undef HAVE_SETPROCTITLE_INIT\n": "#define HAVE_SETPROCTITLE_INIT 1\n",
+        "#undef HAVE_SETRESGID\n": "#define HAVE_SETRESGID 1\n",
+        "#undef HAVE_SETRESUID\n": "#define HAVE_SETRESUID 1\n",
+        "#undef HAVE_SNMP_SELECT_INFO2\n": "#define HAVE_SNMP_SELECT_INFO2 1\n",
+        "#undef HAVE_STDINT_H\n": "#define HAVE_STDINT_H 1\n",
+        "#undef HAVE_STDIO_H\n": "#define HAVE_STDIO_H 1\n",
+        "#undef HAVE_STDLIB_H\n": "#define HAVE_STDLIB_H 1\n",
+        "#undef HAVE_STRINGS_H\n": "#define HAVE_STRINGS_H 1\n",
+        "#undef HAVE_STRING_H\n": "#define HAVE_STRING_H 1\n",
+        "#undef HAVE_STRLCPY\n": "#define HAVE_STRLCPY 1\n",
+        "#undef HAVE_STRNDUP\n": "#define HAVE_STRNDUP 1\n",
+        "#undef HAVE_STRNLEN\n": "#define HAVE_STRNLEN 1\n",
+        "#undef HAVE_STRTONUM\n": "#define HAVE_STRTONUM 1\n",
+        "#undef HAVE_SYS_STAT_H\n": "#define HAVE_SYS_STAT_H 1\n",
+        "#undef HAVE_SYS_TYPES_H\n": "#define HAVE_SYS_TYPES_H 1\n",
+        "#undef HAVE_TYPEOF\n": "#define HAVE_TYPEOF 1\n",
+        "#undef HAVE_UINT32_T\n": "#define HAVE_UINT32_T 1\n",
+        "#undef HAVE_UNISTD_H\n": "#define HAVE_UNISTD_H 1\n",
+        "#undef HAVE_U_INT32_T\n": "#define HAVE_U_INT32_T 1\n",
+        "#undef HAVE_VFORK\n": "#define HAVE_VFORK 1\n",
+        "#undef HAVE_VSYSLOG\n": "#define HAVE_VSYSLOG 1\n",
+        "#undef HAVE_WORKING_FORK\n": "#define HAVE_WORKING_FORK 1\n",
+        "#undef HAVE_WORKING_VFORK\n": "#define HAVE_WORKING_VFORK 1\n",
+        "#undef HOST_OS_LINUX\n": "#define HOST_OS_LINUX 1\n",
+        "#undef LAUNCHDDAEMONSDIR\n": "#define LAUNCHDDAEMONSDIR \"/Library/LaunchDaemons\"\n",
+        "#undef LLDPD_CTL_SOCKET\n": "#define LLDPD_CTL_SOCKET \"/run/lldpd.socket\"\n",
+        "#undef LLDPD_PID_FILE\n": "#define LLDPD_PID_FILE \"/run/lldpd.pid\"\n",
+        "#undef LLDP_CC\n": "#define LLDP_CC \"C compiler command is not available for reproducible builds\"\n",
+        "#undef LLDP_LD\n": "#define LLDP_LD \"Linker compiler command is not available for reproducible builds\"\n",
+        "#undef LT_OBJDIR\n": "#define LT_OBJDIR \".libs/\"\n",
+        "#undef MIN_LINUX_KERNEL_VERSION\n": "#define MIN_LINUX_KERNEL_VERSION \"2.6.39\"\n",
+        "#undef NETLINK_MAX_RECEIVE_BUFSIZE\n": "#define NETLINK_MAX_RECEIVE_BUFSIZE 4194304\n",
+        "#undef NETLINK_RECEIVE_BUFSIZE\n": "#define NETLINK_RECEIVE_BUFSIZE 2097152\n",
+        "#undef NETLINK_SEND_BUFSIZE\n": "#define NETLINK_SEND_BUFSIZE 0\n",
+        "#undef PACKAGE\n": "#define PACKAGE \"lldpd\"\n",
+        "#undef PACKAGE_BUGREPORT\n": "#define PACKAGE_BUGREPORT \"https://github.com/lldpd/lldpd/issues\"\n",
+        "#undef PACKAGE_NAME\n": "#define PACKAGE_NAME \"lldpd\"\n",
+        "#undef PACKAGE_STRING\n": "#define PACKAGE_STRING \"lldpd 1.0.16\"\n",
+        "#undef PACKAGE_TARNAME\n": "#define PACKAGE_TARNAME \"lldpd\"\n",
+        "#undef PACKAGE_URL\n": "#define PACKAGE_URL \"https://lldpd.github.io/\"\n",
+        "#undef PACKAGE_VERSION\n": "#define PACKAGE_VERSION \"1.0.16\"\n",
+        "#undef PRIVSEP_CHROOT\n": "#define PRIVSEP_CHROOT \"/run/lldpd\"\n",
+        "#undef PRIVSEP_GROUP\n": "#define PRIVSEP_GROUP \"_lldpd\"\n",
+        "#undef PRIVSEP_USER\n": "#define PRIVSEP_USER \"_lldpd\"\n",
+        "#undef STDC_HEADERS\n": "#define STDC_HEADERS 1\n",
+        "#undef SYSTEMDSYSTEMUNITDIR\n": "#define SYSTEMDSYSTEMUNITDIR \"/lib/systemd/system\"\n",
+        "#undef SYSUSERSDIR\n": "#define SYSUSERSDIR \"\"\n",
+        "#undef USE_SNMP\n": "#define USE_SNMP 1\n",
+        "#undef USE_XML\n": "#define USE_XML 1\n",
+        "#undef VERSION\n": "#define VERSION \"1.0.16\"\n"
+},
+)
+cc_library(name = "bundled_headers", hdrs = glob(["include/**/*.h"]), strip_include_prefix = "include")
+cc_library(
+    name = "headers",
+    hdrs = glob(["src/**/*.h"]) + [":configuration"],
+    includes = [".", "src", "src/compat", "src/lib", "src/daemon", "src/client"],
+    deps = [":bundled_headers"],
+    defines = ["HAVE_CONFIG_H=1", "_GNU_SOURCE", "SYSCONFDIR=\\\"/etc\\\"", "LLDPCLI_PATH=\\\"/usr/sbin/lldpcli\\\""],
+)
+
+cc_library(
+    name = "compat",
+    srcs = ["src/compat/empty.c"],
+    deps = [":headers", "@iproute2_deps//libbsd-dev:pkgconfig/libbsd"],
+    copts = _COPTS,
+)
+cc_library(
+    name = "common",
+    srcs = ["src/log.c", "src/version.c", "src/marshal.c", "src/ctl.c", "src/lldpd-structs.c"],
+    deps = [":compat"],
+    copts = _COPTS,
+)
+cc_library(
+    name = "common_client",
+    srcs = ["src/log.c", "src/version.c"],
+    deps = [":compat"],
+    copts = _COPTS,
+)
+cc_library(name = "fixedpoint", srcs = ["src/lib/fixedpoint.c"], deps = [":headers"], copts = _COPTS)
+
+_ATOMS = ["config", "dot1", "dot3", "interface", "med", "mgmt", "port", "custom", "chassis"]
+[cc_preprocess(name = "atom_" + name, src = "src/lib/atoms/" + name + ".c", deps = [":headers", ":compat"], copts = _COPTS) for name in _ATOMS]
+run_binary(
+    name = "atom_glue",
+    tool = "@lldpd//:atom_glue",
+    srcs = [":atom_" + name for name in _ATOMS],
+    outs = ["src/lib/atom-glue.c"],
+    args = ["$(location :atom_" + name + ")" for name in _ATOMS] + ["$(location src/lib/atom-glue.c)"],
+)
+cc_library(
+    name = "liblldpctl_objects",
+    srcs = ["src/lib/errors.c", "src/lib/connection.c", "src/lib/atom.c", "src/lib/helpers.c", ":atom_glue"] + ["src/lib/atoms/" + name + ".c" for name in _ATOMS],
+    deps = [":common", ":fixedpoint"],
+    copts = _COPTS,
+)
+cc_shared_library(
+    name = "liblldpctl",
+    deps = [":liblldpctl_objects"],
+    shared_lib_name = "liblldpctl.so.4",
+    user_link_flags = _LINKOPTS + ["-Wl,-soname,liblldpctl.so.4", "-Wl,--version-script=$(location src/lib/lldpctl.map)"],
+    additional_linker_inputs = ["src/lib/lldpctl.map"],
+    features = ["-strip_debug_symbols"],
+)
+shared_library_cc_info(name = "liblldpctl_link", shared_library = ":liblldpctl", runtime_deps = ["@iproute2_deps//libbsd-dev:pkgconfig/libbsd"])
+cc_library(name = "lldpctl_headers", hdrs = ["src/lib/lldpctl.h"], strip_include_prefix = "src/lib", deps = [":lldp_constants"])
+cc_library(name = "lldp_constants", hdrs = ["src/lldp-const.h"], strip_include_prefix = "src")
+cc_library(name = "lldpctl", deps = [":lldpctl_headers", ":liblldpctl_link"])
+
+# Debian net-snmp-config --base-cflags applies only to the two SNMP objects.
+# Public include/link paths come from CcInfo; source-package build paths are
+# provenance rather than lldpd inputs. Architecture hardening follows the target.
+cc_library(
+    name = "snmp",
+    srcs = ["src/daemon/agent.c", "src/daemon/agent_priv.c"],
+    deps = [":common", "@dhcpmon_debian//libevent-dev:pkgconfig/libevent", "@frr_deps//libcap-dev:libcap_cc", "@frr_deps//libsnmp-dev:pkgconfig/netsnmp-agent"],
+    copts = _COPTS + ["-Werror=implicit-function-declaration", "-fstack-clash-protection", "-fno-strict-aliasing", "-fwrapv", "-Wdate-time", "-Ulinux", "-Dlinux=linux", "-pipe"] + select({
+        "@platforms//cpu:aarch64": ["-mbranch-protection=standard"],
+        "//conditions:default": ["-fcf-protection"],
+    }),
+    local_defines = ["NETSNMP_USE_INLINE", "NETSNMP_ENABLE_IPV6", "NETSNMP_REMOVE_U64", "NETSNMP_NO_INLINE", "_REENTRANT", "_GNU_SOURCE", "DEBIAN", "_LARGEFILE_SOURCE", "_FILE_OFFSET_BITS=64"],
+)
+
+filegroup(name = "snmp_objects", srcs = [":snmp"], output_group = "compilation_outputs")
+cc_library(
+    name = "daemon",
+    srcs = [
+        "src/daemon/frame.c", "src/daemon/client.c", "src/daemon/priv.c",
+        "src/daemon/privsep.c", "src/daemon/privsep_io.c", "src/daemon/privsep_fd.c",
+        "src/daemon/interfaces.c", "src/daemon/event.c", "src/daemon/lldpd.c",
+        "src/daemon/pattern.c", "src/daemon/bitmap.c",
+        "src/daemon/protocols/lldp.c", "src/daemon/protocols/cdp.c",
+        "src/daemon/protocols/sonmp.c", "src/daemon/protocols/edp.c",
+        "src/daemon/forward-linux.c", "src/daemon/interfaces-linux.c",
+        "src/daemon/netlink.c", "src/daemon/dmi-linux.c", "src/daemon/priv-linux.c",
+        ":snmp_objects",
+    ],
+    deps = [":common", "@dhcpmon_debian//libevent-dev:pkgconfig/libevent", "@frr_deps//libcap-dev:libcap_cc", "@frr_deps//libsnmp-dev:pkgconfig/netsnmp-agent"],
+    copts = _COPTS,
+)
+cc_binary(name = "lldpd", srcs = ["src/daemon/main.c"], deps = [":daemon"], copts = _COPTS + ["-fPIE"], linkopts = _LINKOPTS + ["-fPIE", "-pie"], features = ["-strip_debug_symbols"])
+cc_binary(
+    name = "lldpcli",
+    srcs = [
+        "src/client/lldpcli.c", "src/client/display.c", "src/client/conf.c",
+        "src/client/conf-med.c", "src/client/conf-inv.c", "src/client/conf-dot3.c",
+        "src/client/conf-power.c", "src/client/conf-lldp.c", "src/client/conf-system.c",
+        "src/client/commands.c", "src/client/show.c", "src/client/misc.c",
+        "src/client/tokenizer.c", "src/client/utf8.c", "src/client/text_writer.c",
+        "src/client/kv_writer.c", "src/client/json_writer.c", "src/client/xml_writer.c",
+    ],
+    deps = [":common_client", ":lldpctl", "@frr_deps//libreadline-dev:pkgconfig/readline", "@trixie//libxml2-dev:pkgconfig/libxml-2.0"],
+    copts = _COPTS,
+    linkopts = _LINKOPTS + ["-fPIE", "-pie"],
+    features = ["-strip_debug_symbols"],
+)
+
+_CHECKS = ["marshal", "pattern", "bitmap", "fixedpoint", "lldp", "cdp", "sonmp", "edp", "snmp"]
+[
+    cc_binary(
+        name = "check_" + name,
+        srcs = ["tests/check_" + name + ".c"] + (["tests/common.c"] if name in ["lldp", "cdp", "sonmp", "edp"] else []) + glob(["tests/*.h"]),
+        deps = [":daemon", ":fixedpoint", "@sonic_build_infra//apt/check:check"],
+        copts = _COPTS + ["-Wno-format-extra-args"],
+        linkopts = _LINKOPTS + ["-fPIE", "-pie"],
+        features = ["-strip_debug_symbols"],
+    )
+    for name in _CHECKS
+]
+filegroup(name = "upstream_tests", srcs = [":check_" + name for name in _CHECKS])
+
+_TEMPLATE_SUBSTITUTIONS = {
+    "@bindir@": "/usr/bin", "@sbindir@": "/usr/sbin", "@sysconfdir@": "/etc",
+    "@pkgdatadir@": "/usr/share/lldpd", "@includedir@": "/usr/include",
+    "@exec_prefix@": "/usr", "@prefix@": "/usr", "@VERSION@": "1.0.16",
+    "@PACKAGE@": "lldpd", "@PACKAGE_NAME@": "lldpd", "@PACKAGE_URL@": "https://lldpd.github.io/",
+    "@PRIVSEP_USER@": "_lldpd", "@PRIVSEP_GROUP@": "_lldpd", "@PRIVSEP_CHROOT@": "/run/lldpd",
+    "@LLDPD_PID_FILE@": "/run/lldpd.pid", "@LLDPD_CTL_SOCKET@": "/run/lldpd.socket",
+}
+[
+    expand_template(name = name, template = source, out = output, substitutions = select({"@platforms//cpu:aarch64": _TEMPLATE_SUBSTITUTIONS | {"@libdir@": "/usr/lib/aarch64-linux-gnu"}, "//conditions:default": _TEMPLATE_SUBSTITUTIONS | {"@libdir@": "/usr/lib/x86_64-linux-gnu"}}))
+    for name, source, output in [
+        ("data_1", "src/daemon/lldpd.service.in", "lldpd.service"),
+        ("data_2", "src/daemon/lldpd.8.in", "lldpd.8"),
+        ("data_3", "src/client/lldpcli.8.in", "lldpcli.8"),
+        ("pkgconfig", "src/lib/lldpctl.pc.in", "lldpctl.pc"),
+    ]
+]
+alias(name = "data_0", actual = "src/client/README.conf")
+alias(name = "data_5", actual = "src/client/completion/lldpcli")
+alias(name = "data_6", actual = "src/client/completion/_lldpcli")
+_DOCS = {
+    "usr/share/doc/lldpd/NEWS.gz": "NEWS",
+    "usr/share/doc/lldpd/README.md.gz": "README.md",
+    "usr/share/doc/lldpd/changelog.gz": "ChangeLog",
+    "usr/share/doc/lldpd/changelog.Debian.gz": "debian/changelog",
+}
+[gzip_compress(name = "doc_" + str(index), src = source, level = 9) for index, source in enumerate(_DOCS.values())]
+[gzip_compress(name = "manual_" + str(index), src = ":data_" + str(index), level = 9) for index in [2, 3]]
+_FILES = {
+    "etc/lldpd.d/README.conf": ":data_0",
+    "lib/systemd/system/lldpd.service": ":data_1",
+    "usr/share/bash-completion/completions/lldpcli": ":data_5",
+    "usr/share/zsh/vendor-completions/_lldpcli": ":data_6",
+    "usr/share/man/man8/lldpd.8.gz": ":manual_2",
+    "usr/share/man/man8/lldpcli.8.gz": ":manual_3",
+    "usr/share/doc/lldpd/README.Debian": "debian/README.Debian",
+    "usr/share/lintian/overrides/lldpd": "debian/lldpd.lintian-overrides",
+    "usr/share/doc/lldpd/copyright": "debian/copyright",
+    "usr/share/doc/lldpd/CONTRIBUTE.md": "CONTRIBUTE.md",
+    "etc/default/lldpd": "debian/lldpd.default",
+} | {path: ":doc_" + str(index) for index, path in enumerate(_DOCS)}
+# sonic_deploy_tar's installation mappings are static in the published infra.
+# Only package paths vary with the target; all variants consume the same native
+# program/library targets and share one source and configuration graph.
+[
+    sonic_deploy_tar(
+        name = "_lldpd_runtime_" + cpu,
+        binaries = {
+            "usr/sbin/lldpd uid=0 gid=0 mode=0755 type=file": ":lldpd",
+            "usr/sbin/lldpcli uid=101 gid=4 mode=04750 type=file": ":lldpcli",
+            "usr/lib/" + GCC_METADATA[cpu].multiarch + "/liblldpctl.so.4.9.1 uid=0 gid=0 mode=0644 type=file": ":liblldpctl",
+        },
+        srcs = _FILES.values() + ["debian/lldpd.init.d"],
+        mtree = [path + " uid=0 gid=0 mode=0644 type=file content=$(location " + label + ")" for path, label in _FILES.items()] + [
+            "etc/init.d/lldpd uid=0 gid=0 mode=0755 type=file content=$(location debian/lldpd.init.d)",
+            "usr/sbin/lldpctl uid=0 gid=0 mode=0777 type=link link=lldpcli",
+            "usr/share/man/man8/lldpctl.8.gz uid=0 gid=0 mode=0777 type=link link=lldpcli.8.gz",
+            "usr/lib/" + GCC_METADATA[cpu].multiarch + "/liblldpctl.so.4 uid=0 gid=0 mode=0777 type=link link=liblldpctl.so.4.9.1",
+        ],
+        force_debug_build = True,
+        target_compatible_with = ["@platforms//cpu:" + cpu],
+        visibility = ["//:__pkg__"],
+    )
+    for cpu in _INSTALL_CPUS
+]
+[
+    sonic_deploy_tar(
+        name = "_liblldpctl_dev_runtime_" + cpu,
+        srcs = ["src/lib/lldpctl.h", "src/lldp-const.h", ":pkgconfig"],
+        mtree = [
+            "usr/include/lldpctl.h uid=0 gid=0 mode=0644 type=file content=$(location src/lib/lldpctl.h)",
+            "usr/include/lldp-const.h uid=0 gid=0 mode=0644 type=file content=$(location src/lldp-const.h)",
+            "usr/lib/" + GCC_METADATA[cpu].multiarch + "/liblldpctl.so uid=0 gid=0 mode=0777 type=link link=liblldpctl.so.4",
+            "usr/lib/" + GCC_METADATA[cpu].multiarch + "/pkgconfig/lldpctl.pc uid=0 gid=0 mode=0644 type=file content=$(location :pkgconfig)",
+        ],
+        target_compatible_with = ["@platforms//cpu:" + cpu],
+        visibility = ["//:__pkg__"],
+    )
+    for cpu in _INSTALL_CPUS
+]
+alias(name = "lldpd.runtime", actual = select({"@platforms//cpu:" + cpu: ":_lldpd_runtime_" + cpu for cpu in _INSTALL_CPUS}))
+alias(name = "lldpd.runtime.debug_symbols", actual = select({"@platforms//cpu:" + cpu: ":_lldpd_runtime_" + cpu + ".debug_symbols" for cpu in _INSTALL_CPUS}))
+alias(name = "liblldpctl-dev.runtime", actual = select({"@platforms//cpu:" + cpu: ":_liblldpctl_dev_runtime_" + cpu for cpu in _INSTALL_CPUS}))
+runtime_packages(
+    name = "lldpd.runtime_metadata",
+    control = "debian/control",
+    changelog = "debian/changelog",
+    module_name = "lldpd",
+    packages = {"lldpd": ":lldpd.runtime", "liblldpctl-dev": ":liblldpctl-dev.runtime"},
+    apt_packages = {
+        "@frr_deps//libsnmp40t64:data": "@frr_deps//libsnmp40t64:control",
+        "@frr_deps//libreadline8t64:data": "@frr_deps//libreadline8t64:control",
+        "@frr_deps//libcap2:data": "@frr_deps//libcap2:control",
+        "@dhcpmon_debian//libevent-2.1-7t64:data": "@dhcpmon_debian//libevent-2.1-7t64:control",
+        "@iproute2_deps//libbsd0:data": "@iproute2_deps//libbsd0:control",
+        "@trixie//libxml2:data": "@trixie//libxml2:control",
+    },
+)
+alias(name = "runtime", actual = ":lldpd.runtime")
+alias(name = "runtime.debug_symbols", actual = ":lldpd.runtime.debug_symbols")
+
+alias(name = "liblldpctl-dev.runtime_metadata", actual = ":lldpd.runtime_metadata")

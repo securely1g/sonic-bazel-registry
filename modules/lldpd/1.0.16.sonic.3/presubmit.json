@@ -1,0 +1,30 @@
+{
+  "generated_module_overlay": true,
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.42-da5f4c8d370f501572f435ade330ec209c9c0203",
+      "repo_name": "sonic_build_infra"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
+  },
+  "build_targets": [
+    "@lldpd//:lldpd.runtime",
+    "@lldpd//:lldpd.runtime.debug_symbols",
+    "@lldpd//:liblldpctl-dev.runtime",
+    "@lldpd//:lldpd.runtime_metadata",
+    "@lldpd//:configuration",
+    "@lldpd//:consumer"
+  ],
+  "test_targets": [
+    "@lldpd//:upstream_test",
+    "@lldpd//:package_test"
+  ]
+}
