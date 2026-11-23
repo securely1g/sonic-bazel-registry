@@ -1,6 +1,12 @@
-## Dependency refresh for `3.21.12.sonic.3`
+# Locked GNU patch for `3.21.12.sonic.4`
 
-This candidate retains the `3.21.12.sonic.2` source and existing patches. Its module dependencies select the newest non-yanked versions published at `3d1cc5e8dfd553d2acbe4198e504a245e6bdbddf`. Versions introduced by this refresh are not dependency targets of the same refresh.
+Source preparation uses infra's `patch_tools_repository` with zero fuzz.
+The component retains `--no-backup-if-mismatch` to preserve the source tree;
+the shared `gnu_patch` helper does not expose that policy. GNU patch and its loader/library closure come from the shared APT
+lock for the execution host; the repository does not search the host PATH.
+The Debian patch series, integration patch and public targets are preserved.
+The existing source-preparation regression checks the independently extracted
+Debian source bytes and executable modes.
 
 # Protobuf 3.21.12 runtime metadata for Trixie
 

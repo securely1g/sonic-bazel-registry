@@ -1,13 +1,20 @@
 """Prepare Protobuf from the pinned Debian source archives."""
 
-def _apply_patch(ctx, patch_tool, patch, strip):
+def _apply_patch(ctx, patch):
+    # The original recipe disables backup creation on offset matches. The
+    # shared gnu_patch helper does not expose this option, so keep that policy
+    # while consuming its declared tool repository and private loader.
+    root = ctx.path(ctx.attr.gnu_tools).dirname
+    ctx.read(patch)
+    ctx.read(root.get_child("manifest.json"))
     result = ctx.execute(
-        [patch_tool, "--batch", "--forward", "--fuzz=0", "--no-backup-if-mismatch", "-p" + str(strip), "-i", patch],
-        environment = {"LC_ALL": "C"},
+        [root.get_child("loader"), "--inhibit-cache", "--library-path", root.get_child("lib"), root.get_child("patch"), "--batch", "--forward", "--fuzz=0", "--no-backup-if-mismatch", "-p1", "--input=" + str(patch)],
+        environment = {"PATH": "", "LC_ALL": "C", "LD_PRELOAD": "", "LD_LIBRARY_PATH": "", "LD_AUDIT": "", "GLIBC_TUNABLES": ""},
         quiet = True,
     )
     if result.return_code:
         fail("Cannot apply {}:\n{}{}".format(patch, result.stdout, result.stderr))
+
 
 def _protobuf_source_impl(ctx):
     ctx.download_and_extract(
@@ -16,13 +23,6 @@ def _protobuf_source_impl(ctx):
         stripPrefix = "protobuf-3.21.12",
     )
     ctx.download_and_extract(url = ctx.attr.debian_url, sha256 = ctx.attr.debian_sha256)
-    patch_tool = ctx.which("patch")
-    if not patch_tool:
-        fail("Preparing Debian's source series requires GNU patch")
-    version = ctx.execute([patch_tool, "--version"], quiet = True)
-    if version.return_code or not version.stdout.startswith("GNU patch "):
-        fail("Preparing Debian's source series requires GNU patch")
-
     # Debian's original patches need GNU patch's file-boundary and offset
     # handling. Never normalize or copy the distribution-owned patch files.
     for line in ctx.read("debian/patches/series").splitlines():
@@ -31,8 +31,8 @@ def _protobuf_source_impl(ctx):
             continue
         if len(fields) != 1 or fields[0].startswith("/") or ".." in fields[0].split("/"):
             fail("Unsupported Debian patch entry: " + line)
-        _apply_patch(ctx, patch_tool, ctx.path("debian/patches/" + fields[0]), 1)
-    _apply_patch(ctx, patch_tool, ctx.path(ctx.attr.integration_patch), 1)
+        _apply_patch(ctx, ctx.path("debian/patches/" + fields[0]))
+    _apply_patch(ctx, ctx.path(ctx.attr.integration_patch))
 
     for source, destination in ctx.attr.overlays.items():
         ctx.symlink(source, destination)
@@ -54,6 +54,7 @@ filegroup(
 protobuf_source = repository_rule(
     implementation = _protobuf_source_impl,
     attrs = {
+        "gnu_tools": attr.label(mandatory = True, allow_single_file = True),
         "upstream_url": attr.string(mandatory = True),
         "upstream_sha256": attr.string(mandatory = True),
         "debian_url": attr.string(mandatory = True),
