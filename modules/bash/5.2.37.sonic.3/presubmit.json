@@ -1,0 +1,36 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "generated_module_overlay": true,
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.38-0baa4acc9eac9ccc793b81104b1580d530271cbe",
+      "repo_name": "sonic_build_infra"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
+  },
+  "build_targets": [
+    "@bash//:bash.runtime",
+    "@bash//:bash.runtime.debug_symbols",
+    "@bash//:bash.runtime_metadata",
+    "@bash//:bash.control",
+    "@bash//:bash.runtime_receipt"
+  ],
+  "test_targets": [
+    "@bash//:installation_test"
+  ],
+  "additional_targets": {
+    "amd64": {
+      "test_targets": [
+        "@bash//:plugin_test",
+        "@bash//:cli_test"
+      ]
+    }
+  }
+}
