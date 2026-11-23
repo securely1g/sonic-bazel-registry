@@ -8,31 +8,54 @@ load("@tar.bzl", "tar")
 
 package(default_visibility = ["//visibility:public"])
 
+# Debian's install recipe uses /usr/lib/$(DEB_HOST_MULTIARCH).
+_LIBRARY_PLATFORMS = {
+    "@platforms//cpu:x86_64": ("amd64", "x86_64-linux-gnu"),
+    "@platforms//cpu:aarch64": ("arm64", "aarch64-linux-gnu"),
+}
+_ARCHITECTURE = select({platform: abi[0] for platform, abi in _LIBRARY_PLATFORMS.items()})
+
 exports_files([
     "MODULE.bazel",
     "source.BUILD.bazel",
     "source_includes.bzl",
 ] + glob(["debian/**"]))
 
-sonic_deploy_tar(
-    name = "libsensors5.runtime",
-    srcs = [
-        "debian/libsensors5.README.Debian",
-        ":libsensors5_doc_1",
-        ":libsensors5_upstream_changelog",
-        "//:debian/copyright",
-    ],
-    binaries = {
-        "./usr/lib/x86_64-linux-gnu/libsensors.so.5.0.0 type=file uid=0 gid=0 mode=0644 time=0": "@lm_sensors_source//:libsensors.so.5.0.0",
-    },
-    mtree = [
-        "./usr/share/doc/libsensors5/changelog.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :libsensors5_upstream_changelog)",
-        "./usr/share/doc/libsensors5/README.Debian type=file uid=0 gid=0 mode=0644 time=0 content=$(location debian/libsensors5.README.Debian)",
-        "./usr/share/doc/libsensors5/changelog.Debian.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :libsensors5_doc_1)",
-        "./usr/share/doc/libsensors5/copyright type=file uid=0 gid=0 mode=0644 time=0 content=$(location //:debian/copyright)",
-        "./usr/lib/x86_64-linux-gnu/libsensors.so.5 type=link uid=0 gid=0 mode=0777 time=0 link=libsensors.so.5.0.0",
-    ],
-)
+[
+    sonic_deploy_tar(
+        name = "libsensors5.runtime_" + abi[0],
+        srcs = [
+            "debian/libsensors5.README.Debian",
+            ":libsensors5_doc_1",
+            ":libsensors5_upstream_changelog",
+            "//:debian/copyright",
+        ],
+        binaries = {
+            "./usr/lib/" + abi[1] + "/libsensors.so.5.0.0 type=file uid=0 gid=0 mode=0644 time=0": "@lm_sensors_source//:libsensors.so.5.0.0",
+        },
+        mtree = [
+            "./usr/share/doc/libsensors5/changelog.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :libsensors5_upstream_changelog)",
+            "./usr/share/doc/libsensors5/README.Debian type=file uid=0 gid=0 mode=0644 time=0 content=$(location debian/libsensors5.README.Debian)",
+            "./usr/share/doc/libsensors5/changelog.Debian.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :libsensors5_doc_1)",
+            "./usr/share/doc/libsensors5/copyright type=file uid=0 gid=0 mode=0644 time=0 content=$(location //:debian/copyright)",
+            "./usr/lib/" + abi[1] + "/libsensors.so.5 type=link uid=0 gid=0 mode=0777 time=0 link=libsensors.so.5.0.0",
+        ],
+        target_compatible_with = [platform],
+        visibility = ["//visibility:private"],
+    )
+    for platform, abi in _LIBRARY_PLATFORMS.items()
+]
+
+[
+    alias(
+        name = "libsensors5.runtime" + suffix,
+        actual = select({
+            platform: ":libsensors5.runtime_" + abi[0] + suffix
+            for platform, abi in _LIBRARY_PLATFORMS.items()
+        }),
+    )
+    for suffix in ["", ".debug_symbols"]
+]
 
 sonic_deploy_tar(
     name = "lm-sensors.runtime",
@@ -515,7 +538,7 @@ debian_changelogs(
         "generated/libsensors5/changelog",
         "generated/libsensors5/changelog.Debian",
     ],
-    architecture = "amd64",
+    architecture = _ARCHITECTURE,
     changelog = "debian/changelog",
     control = "debian/control",
     debian_files = {"debian/sensord.NEWS": "sensord.NEWS"} if "libsensors5" == "sensord" else {},
@@ -537,7 +560,7 @@ debian_changelogs(
         "generated/lm-sensors/changelog",
         "generated/lm-sensors/changelog.Debian",
     ],
-    architecture = "amd64",
+    architecture = _ARCHITECTURE,
     changelog = "debian/changelog",
     control = "debian/control",
     debian_files = {"debian/sensord.NEWS": "sensord.NEWS"} if "lm-sensors" == "sensord" else {},
@@ -559,7 +582,7 @@ debian_changelogs(
         "generated/fancontrol/changelog",
         "generated/fancontrol/changelog.Debian",
     ],
-    architecture = "amd64",
+    architecture = _ARCHITECTURE,
     changelog = "debian/changelog",
     control = "debian/control",
     debian_files = {"debian/sensord.NEWS": "sensord.NEWS"} if "fancontrol" == "sensord" else {},
@@ -581,7 +604,7 @@ debian_changelogs(
         "generated/sensord/changelog",
         "generated/sensord/changelog.Debian",
     ],
-    architecture = "amd64",
+    architecture = _ARCHITECTURE,
     changelog = "debian/changelog",
     control = "debian/control",
     debian_files = {"debian/sensord.NEWS": "sensord.NEWS"} if "sensord" == "sensord" else {},
@@ -603,7 +626,7 @@ debian_changelogs(
         "generated/libsensors-config/changelog",
         "generated/libsensors-config/changelog.Debian",
     ],
-    architecture = "amd64",
+    architecture = _ARCHITECTURE,
     changelog = "debian/changelog",
     control = "debian/control",
     debian_files = {"debian/sensord.NEWS": "sensord.NEWS"} if "libsensors-config" == "sensord" else {},

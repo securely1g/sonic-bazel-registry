@@ -9,7 +9,7 @@ from elf_metadata import Elf
 # rules/lm-sensors.mk exports these three dbgsym packages. Debian splits
 # every ELF of each selected package, including the two dump utilities.
 installed = {
-    "libsensors5": ["usr/lib/x86_64-linux-gnu/libsensors.so.5.0.0"],
+    "libsensors5": [],
     "lm-sensors": ["usr/bin/sensors", "usr/sbin/isadump", "usr/sbin/isaset"],
     "sensord": ["usr/sbin/sensord"],
 }
@@ -22,6 +22,11 @@ for (package, paths), runtime_path, debug_path in zip(
             m.name.removeprefix("./"): debug.extractfile(m).read()
             for m in debug if m.isfile()
         }
+        if package == "libsensors5":
+            # Symbol pairing follows the sole installed library on either ABI;
+            # runtime_contract_test separately checks its multiarch directory.
+            paths = [name for name in runtime_members if pathlib.PurePosixPath(name).name == "libsensors.so.5.0.0"]
+            assert len(paths) == 1, (package, paths)
         expected = set()
         for path in paths:
             elf = Elf(runtime.extractfile(runtime_members[path]).read())
