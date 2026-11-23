@@ -1,0 +1,18 @@
+{
+  "url": "https://deb.debian.org/debian/pool/main/l/lldpd/lldpd_1.0.16.orig.tar.gz",
+  "strip_prefix": "lldpd-1.0.16",
+  "integrity": "sha256-47ORZQx7pnzqL+hNZ/201/yKoexc+G64u5hHEd+EZak=",
+  "overlay": {
+    "BUILD.bazel": "sha256-gkOfnxFO9/gRxClVgUQ3ItGVPKy+haBviOc1NCVyeIM=",
+    "MODULE.bazel": "sha256-Cc0EhGoDI2i4FMiSwqUHK0V80tYxgJmfOTnxd/8rrOI=",
+    "bazel/atom_glue.py": "sha256-BG2nRMlNOWtEC2y5U4bpBkgmsfWWSHONGubr/Wc2h34=",
+    "bazel/consumer.c": "sha256-/TbM5aYJP81M9TzQzhw+jhj9igzyr+u7B5Fn98JvzBs=",
+    "bazel/lldpd.BUILD.bazel": "sha256-vQXRBuj1eytr4wCmmXK93R9zhXHAucEuWJKmu4Lwt5Y=",
+    "bazel/package_test.py": "sha256-Eg/o7hkaXcA3Qrp6TlJomuqx2Ri6iKPPjy/muBKd7ag=",
+    "bazel/patch/0001-return-error-when-port-does-not-exist.patch": "sha256-4pDZwGY6VGcqiq7JMDxMwXM51xbxJgVz+KdRezJ4h7A=",
+    "bazel/patch/0002-use-a-different-socket-for-changes-and-queries.patch": "sha256-UsmzGzYQUS3CFpUvewjHx7Ea77gcIfxqZ5u1RfkyyCg=",
+    "bazel/patch/0003-use-explicit-libbsd-headers.patch": "sha256-YiW2q0yjfLkBgCbgHtOZ4Mdet5ajwJJ7OfNtLNnPvL0=",
+    "bazel/patch/series": "sha256-2Ly9uyGOyQsmcBY1piO5EXNzrJAAKinBDgABCjGW1dU=",
+    "bazel/upstream_test.py": "sha256-6oI3hefvClAJUoCF3vRpwlP3mb7MfGPq9v1OGDF7w6Q="
+  }
+}
