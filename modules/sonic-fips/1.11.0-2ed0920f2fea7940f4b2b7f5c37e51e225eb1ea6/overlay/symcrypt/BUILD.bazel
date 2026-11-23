@@ -1,0 +1,66 @@
+load("@tar.bzl//tar:tar.bzl", "tar")
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@sonic_build_infra//cc:runtime_test.bzl", "native_runtime_binary", "native_runtime_test")
+load("@rules_cc//cc:cc_import.bzl", "cc_import")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
+load("@sonic_build_infra//oci:debug_symbols_layer.bzl", "debug_symbols_layer")
+load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
+load(":seal.bzl", "sealed_runtime", "symcrypt_seal")
+package(default_visibility = ["//visibility:public"])
+exports_files(["core.BUILD.bazel", "provider.BUILD.bazel", "jitter.BUILD.bazel", "elftools.BUILD.bazel"])
+symcrypt_seal(name = "core", src = "@symcrypt_src//:core_shared", processor = "@symcrypt_src//:fips_processor")
+cc_import(name = "sealed_core", shared_library = ":core")
+cc_library(name = "libsymcrypt", deps = [":sealed_core", "@symcrypt_src//:headers"])
+[
+    sonic_deploy_tar(
+        name = "components_" + cpu,
+        target_compatible_with = ["@platforms//cpu:" + cpu],
+        srcs = [":core"],
+        binaries = {
+            "usr/lib/" + triplet + "/libsymcryptengine.so type=file uid=0 gid=0 mode=0755": "@symcrypt_openssl_src//:engine_shared",
+            "usr/lib/" + triplet + "/ossl-modules/symcryptprovider.so type=file uid=0 gid=0 mode=0755": "@symcrypt_openssl_src//:provider_shared",
+        },
+        mtree = [
+            "usr/lib/" + triplet + "/libsymcrypt.so.103.13.0 type=file uid=0 gid=0 mode=0755 content=$(location :core)",
+            "usr/lib/" + triplet + "/libsymcrypt.so.103 type=link uid=0 gid=0 link=libsymcrypt.so.103.13.0",
+            "usr/lib/" + triplet + "/libsymcrypt.so type=link uid=0 gid=0 link=libsymcrypt.so.103",
+            "usr/lib/" + triplet + "/symcryptengine.so type=link uid=0 gid=0 link=libsymcryptengine.so",
+            "usr/lib/" + triplet + "/engines-3/symcryptengine.so type=link uid=0 gid=0 link=../libsymcryptengine.so",
+            "etc/ssl type=dir uid=0 gid=0 mode=0755",
+        ],
+    )
+    for cpu, triplet in [("x86_64", "x86_64-linux-gnu"), ("aarch64", "aarch64-linux-gnu")]
+]
+sealed_runtime(name = "symcrypt-openssl.runtime", tar = select({"@platforms//cpu:x86_64": ":components_x86_64", "@platforms//cpu:aarch64": ":components_aarch64"}), components = [":core"] + select({"@platforms//cpu:x86_64": [":components_x86_64"], "@platforms//cpu:aarch64": [":components_aarch64"]}))
+debug_symbols_layer(name = "symcrypt-openssl.runtime.debug_symbols", image = ":symcrypt-openssl.runtime")
+# Original SymCrypt-OpenSSL-Debian/Makefile uses dpkg-deb with its finalized
+# binary control; it does not run dh_shlibdeps or add runtime Depends.
+runtime_packages(name = "symcrypt-openssl.runtime_metadata", shlibdeps = False, control = "//:src/SymCrypt-OpenSSL-Debian/debian/control", packages = {"symcrypt-openssl": ":symcrypt-openssl.runtime"}, dependencies = ["//openssl:openssl.runtime_metadata", "//openssl:libssl3t64.runtime_metadata"])
+alias(name = "symcryptunittest", actual = "@symcrypt_src//:symcryptunittest")
+
+native_runtime_binary(
+    name = "run_unittest",
+    binary = "@symcrypt_src//:symcryptunittest",
+    runtime_payloads = ["@sysroot//libc6:data", "@sysroot//libstdc++6:data", "@sysroot//libgcc-s1:data", "@sysroot//libatomic1:data"],
+    data = [":core"],
+)
+native_runtime_test(
+    name = "upstream_tests",
+    binary = "@symcrypt_src//:symcryptunittest",
+    runtime_payloads = ["@sysroot//libc6:data", "@sysroot//libstdc++6:data", "@sysroot//libgcc-s1:data", "@sysroot//libatomic1:data"],
+    timeout = "long",
+)
+
+cc_binary(name = "core_consumer", testonly = True, srcs = ["core_consumer.c"], deps = [":libsymcrypt"])
+tar(
+    name = "core_test_payload",
+    testonly = True,
+    srcs = [":core"],
+    mtree = ["usr/lib/libsymcrypt.so.103 type=file uid=0 gid=0 mode=0755 content=$(location :core)"],
+)
+native_runtime_test(
+    name = "sealed_core_test",
+    binary = ":core_consumer",
+    runtime_payloads = [":core_test_payload", "@sysroot//libc6:data", "@sysroot//libgcc-s1:data", "@sysroot//libatomic1:data"],
+)

@@ -1,0 +1,16 @@
+Subject: Preserve Debian Go GO386 default in the bootstrap SDK
+
+Source: golang-debian/debian/helpers/goenv.sh exports GO386=softfloat.
+This generated SDK input affects internal/buildcfg in the native tool builds.
+
+--- a/src/internal/buildcfg/zbootstrap.go
++++ b/src/internal/buildcfg/zbootstrap.go
+@@ -4,7 +4,7 @@
+ 
+ import "runtime"
+ 
+-const DefaultGO386 = `sse2`
++const DefaultGO386 = `softfloat`
+ const DefaultGOAMD64 = `v1`
+ const DefaultGOARM = `7`
+ const DefaultGOARM64 = `v8.0`

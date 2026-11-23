@@ -1,0 +1,11 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+package(default_visibility = ["//visibility:public"])
+exports_files(glob(["**"], exclude = ["BUILD.bazel"]))
+filegroup(name = "sources", srcs = glob(["**"], exclude = ["BUILD.bazel"]))
+cc_library(
+    name = "source_headers",
+    hdrs = glob(["**/*.h"]),
+    includes = [".", "openbsd-compat"],
+)
+
+filegroup(name = "unit_testdata", srcs = glob(["regress/unittests/*/testdata/**"]))

@@ -1,0 +1,2 @@
+package(default_visibility = ["//visibility:public"])
+exports_files(["dh_runit", "data/logscript", "postinst-runit", "prerm-runit", "postrm-runit"])

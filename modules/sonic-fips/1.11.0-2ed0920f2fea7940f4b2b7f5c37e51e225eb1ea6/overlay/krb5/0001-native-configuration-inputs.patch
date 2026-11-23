@@ -1,0 +1,8 @@
+--- a/debian/changelog
++++ b/debian/changelog
+@@ -1,4 +1,4 @@
+-krb5 (1.21.3-5) unstable; urgency=medium
++krb5 (1.21.3-5+fips) unstable; urgency=medium
+ 
+   * Non-maintainer upload with maintainer agreement.
+   * Fix CVE-2025-24528: Prevent overflow when calculating
