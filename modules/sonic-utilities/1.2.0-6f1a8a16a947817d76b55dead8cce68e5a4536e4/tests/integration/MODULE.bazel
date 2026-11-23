@@ -1,0 +1,9 @@
+module(name = "utilities_registry_consumer")
+bazel_dep(name = "sonic-utilities", version = "1.2.0-6f1a8a16a947817d76b55dead8cce68e5a4536e4")
+bazel_dep(name = "rules_python", version = "1.9.0.sonic.1")
+bazel_dep(name = "platforms", version = "1.0.0")
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(python_version = "3.13", is_default = True)
+
+# Source CI covers the real generator with its bounded Click environment.
+register_toolchains("@sonic-utilities//bazel/data:ci_toolchain")
