@@ -1,0 +1,2178 @@
+#!/usr/bin/env python3
+"""Validate registry entries and test them from an independent Bazel consumer."""
+
+from __future__ import annotations
+
+import argparse
+import ast
+import base64
+from contextlib import contextmanager
+import hashlib
+import importlib.util
+import io
+import json
+import os
+from pathlib import Path, PurePosixPath
+import platform
+import posixpath
+import re
+import shlex
+import shutil
+import subprocess
+import sys
+import tarfile
+import tempfile
+import tokenize
+from urllib.parse import unquote, urlparse
+from urllib.request import urlopen
+
+
+ROOT = Path(__file__).resolve().parents[1]
+# Load by file path so isolated host planning (`python3 -I -S`) does not depend
+# on the current directory or add the checkout to Python's import search path.
+_CROSS_SPEC = importlib.util.spec_from_file_location("registry_ci_cross_toolchain", Path(__file__).with_name("cross_toolchain.py"))
+assert _CROSS_SPEC is not None and _CROSS_SPEC.loader is not None
+cross_toolchain = importlib.util.module_from_spec(_CROSS_SPEC)
+_CROSS_SPEC.loader.exec_module(cross_toolchain)
+_PIP_SPEC = importlib.util.spec_from_file_location("registry_ci_cross_pip", Path(__file__).with_name("cross_pip.py"))
+assert _PIP_SPEC is not None and _PIP_SPEC.loader is not None
+cross_pip = importlib.util.module_from_spec(_PIP_SPEC)
+_PIP_SPEC.loader.exec_module(cross_pip)
+_AUTOCONF_SPEC = importlib.util.spec_from_file_location("registry_ci_cross_autoconf", Path(__file__).with_name("cross_autoconf.py"))
+assert _AUTOCONF_SPEC is not None and _AUTOCONF_SPEC.loader is not None
+cross_autoconf = importlib.util.module_from_spec(_AUTOCONF_SPEC)
+_AUTOCONF_SPEC.loader.exec_module(cross_autoconf)
+_GITHUB_SPEC = importlib.util.spec_from_file_location("registry_github_sources", Path(__file__).with_name("github_sources.py"))
+assert _GITHUB_SPEC is not None and _GITHUB_SPEC.loader is not None
+github_sources = importlib.util.module_from_spec(_GITHUB_SPEC)
+_GITHUB_SPEC.loader.exec_module(github_sources)
+P4_MODULES = {"p4c", "p4lang-bmv2", "sonic-dash", "sonic-pins"}
+RUNNERS = {
+    "amd64": ["self-hosted", "Linux", "X64", "debian-trixie-container"],
+    "arm64": ["ubuntu-24.04-arm"],
+}
+FIPS_CROSS_VERSION = "0.0.6-18a778db501d455f8a1b6d1e3ef8e17121661177"
+FIPS_CROSS_VERSIONS = {FIPS_CROSS_VERSION, "0.0.6-1a8daf8dd8a3ad54de0e91a55b46fd5bbd206763"}
+
+# The original wrappers stage a private target executable, loader and libraries.
+ARM_DECLARED_RUNTIME_FIXTURES = {
+    ("sonic-sairedis", "0.0.5-33443ea1666a23812365d03fb959066ee84c9aa0"): {
+        "saiasiccmp/tests.sh": "sonic-sairedis+/saiasiccmp/saiasiccmp",
+        "tests/tests_test.sh": "sonic-sairedis+/tests/tests",
+    },
+}
+
+HTTP_DOWNLOAD_FLAGS = (
+    "--http_connector_attempts=12",
+    "--http_connector_retry_max_timeout=10s",
+    "--http_max_parallel_downloads=4",
+)
+TEST_SANDBOX_STRATEGY = "processwrapper-sandbox,local"
+NAME = re.compile(r"[a-z][a-z0-9._-]*\Z")
+VERSION = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+-]*\Z")
+LABEL = re.compile(r"@[a-z][a-z0-9._-]*//[A-Za-z0-9_./+-]*:[A-Za-z0-9_./+-]+\Z")
+ROOT_LABEL = re.compile(r"//[A-Za-z0-9_./+-]*:[A-Za-z0-9_./+-]+\Z")
+
+
+class RegistryError(ValueError):
+    """A registry entry or required validation result is invalid."""
+
+
+def require(condition: bool, message: str) -> None:
+    if not condition:
+        raise RegistryError(message)
+
+
+def read_json(path: Path) -> dict:
+    def presubmit_object(pairs: list[tuple[str, object]]) -> dict:
+        fields = dict(pairs)
+        require(len(fields) == len(pairs), "Duplicate field in presubmit.json")
+        return fields
+
+    try:
+        value = json.loads(path.read_text(), object_pairs_hook=presubmit_object if path.name == "presubmit.json" else None)
+    except (OSError, ValueError) as error:
+        raise RegistryError(f"Cannot read {path}: {error}") from error
+    require(isinstance(value, dict), f"{path}: expected a JSON object")
+    return value
+
+
+def parse_module_identity(text: str) -> tuple[str, str]:
+    """Read a literal, top-level module() call without executing Starlark."""
+    try:
+        tokens = list(tokenize.generate_tokens(io.StringIO(text).readline))
+    except (tokenize.TokenError, IndentationError) as error:
+        raise RegistryError(f"Cannot tokenize MODULE.bazel: {error}") from error
+    calls = []
+    depth = 0
+    for index, token in enumerate(tokens):
+        # Module extensions may also expose a method named module(). Only the
+        # bare module() declaration identifies this registry entry.
+        attribute = index > 0 and tokens[index - 1].string == "."
+        if token.string == "module" and token.type == tokenize.NAME and depth == 0 and not attribute:
+            following = tokens[index + 1]
+            if following.string == "(":
+                nesting = 0
+                for end in range(index + 1, len(tokens)):
+                    if tokens[end].string == "(":
+                        nesting += 1
+                    elif tokens[end].string == ")":
+                        nesting -= 1
+                        if nesting == 0:
+                            call = tokenize.untokenize(tokens[index:end + 1]).strip()
+                            try:
+                                calls.append(ast.parse(call, mode="eval").body)
+                            except SyntaxError as error:
+                                raise RegistryError("Unsupported module() declaration") from error
+                            break
+        if token.type == tokenize.OP:
+            if token.string in ("(", "[", "{"):
+                depth += 1
+            elif token.string in (")", "]", "}"):
+                depth -= 1
+    require(len(calls) == 1, "MODULE.bazel must contain exactly one module() declaration")
+    call = calls[0]
+    require(isinstance(call, ast.Call) and not call.args, "module() must use literal named arguments")
+    values = {}
+    for keyword in call.keywords:
+        if keyword.arg in ("name", "version"):
+            require(keyword.arg not in values, f"Duplicate module {keyword.arg}")
+            require(isinstance(keyword.value, ast.Constant) and isinstance(keyword.value.value, str),
+                    f"module {keyword.arg} must be a literal string")
+            values[keyword.arg] = keyword.value.value
+    require(set(values) == {"name", "version"}, "module() needs literal name and version")
+    return values["name"], values["version"]
+
+
+def sri(integrity: str, data: bytes | None = None) -> None:
+    require(isinstance(integrity, str), "integrity must be a string")
+    match = re.fullmatch(r"(sha256|sha384|sha512)-([A-Za-z0-9+/]+={0,2})", integrity)
+    require(match is not None, f"Unsupported integrity: {integrity}")
+    algorithm, encoded = match.groups()
+    try:
+        digest = base64.b64decode(encoded, validate=True)
+    except ValueError as error:
+        raise RegistryError(f"Invalid integrity: {integrity}") from error
+    require(len(digest) == hashlib.new(algorithm).digest_size, "Incorrect integrity digest length")
+    if data is not None:
+        require(hashlib.new(algorithm, data).digest() == digest, "Integrity checksum mismatch")
+
+
+def local_input(directory: Path, name: str) -> Path:
+    require(isinstance(name, str), "Registry input name must be a string")
+    path = PurePosixPath(name)
+    require(bool(name) and not path.is_absolute() and all(part not in ("..", ".") for part in path.parts),
+            f"Unsafe registry input path: {name}")
+    require("\\" not in name and "//" not in name, f"Unsafe registry input path: {name}")
+    result = directory / name
+    require(result.is_file() and not result.is_symlink(), f"Missing regular input: {result}")
+    require(result.resolve().is_relative_to(directory.resolve()), f"Input escapes its directory: {result}")
+    return result
+
+
+def entry_directory(root: Path, module: str, version: str) -> Path:
+    require(NAME.fullmatch(module) is not None, f"Invalid module name: {module}")
+    require(VERSION.fullmatch(version) is not None, f"Invalid module version: {version}")
+    entry = root / "modules" / module / version
+    require(entry.is_dir() and not entry.is_symlink(), f"Missing version directory: {entry}")
+    require(entry.resolve().is_relative_to(root.resolve()), f"Version directory escapes registry: {entry}")
+    return entry
+
+
+def integration_test_directory(entry: Path, config: dict, module: str, version: str) -> Path:
+    """Validate the ordinary test module copied into the private CI consumer."""
+    name = config["integration_test_module"]
+    require(isinstance(name, str) and bool(name), "integration_test_module must name a directory")
+    parts = name.split("/")
+    require("\\" not in name and all(part and not part.startswith(".") for part in parts),
+            "integration_test_module must be a contained, entry-relative directory")
+    directory = entry
+    for part in parts:
+        directory /= part
+        require(directory.is_dir() and not directory.is_symlink(),
+                f"Integration test directory must not contain symlinks: {directory}")
+    require(directory.resolve().is_relative_to(entry.resolve()),
+            "Integration test directory escapes the registry entry")
+    for path in directory.rglob("*"):
+        require(not path.is_symlink() and (path.is_file() or path.is_dir()),
+                f"Integration tests require regular files and directories: {path}")
+        require(not path.name.startswith((".", "bazel-"))
+                and path.name not in ("MODULE.bazel.lock", "__pycache__")
+                and path.suffix != ".pyc",
+                f"Integration tests must not contain local build state: {path}")
+    local_input(directory, "BUILD.bazel")
+    declaration = local_input(directory, "MODULE.bazel").read_text()
+    try:
+        tree = ast.parse(declaration)
+    except SyntaxError as error:
+        raise RegistryError("Integration MODULE.bazel must use ordinary module declarations") from error
+    version_pin_functions = set()
+    for statement in tree.body:
+        if not (isinstance(statement, ast.Expr) and isinstance(statement.value, ast.Call)):
+            continue
+        call = statement.value
+        if not (isinstance(call.func, ast.Name) and call.func.id == "single_version_override"):
+            continue
+        require(not call.args and len(call.keywords) == 2
+                and {keyword.arg for keyword in call.keywords} == {"module_name", "version"}
+                and all(isinstance(keyword.value, ast.Constant)
+                        and isinstance(keyword.value.value, str)
+                        and bool(keyword.value.value.strip()) for keyword in call.keywords),
+                "Integration single_version_override requires only literal nonempty module_name and version")
+        values = {keyword.arg: keyword.value.value for keyword in call.keywords}
+        require(values["module_name"] != module or values["version"] == version,
+                "Integration version pin must retain the exact reviewed module version")
+        version_pin_functions.add(call.func)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name):
+            require((not node.id.endswith("_override") or node in version_pin_functions)
+                    and node.id not in ("include", "override_repo", "inject_repo"),
+                    "Integration MODULE.bazel cannot include files or override registry sources")
+    dependencies = []
+    for statement in tree.body:
+        if isinstance(statement, ast.Expr) and isinstance(statement.value, ast.Call):
+            call = statement.value
+            if isinstance(call.func, ast.Name) and call.func.id == "bazel_dep":
+                require(not call.args, "Integration bazel_dep requires named literal arguments")
+                try:
+                    values = {keyword.arg: ast.literal_eval(keyword.value) for keyword in call.keywords}
+                except (ValueError, TypeError) as error:
+                    raise RegistryError("Integration bazel_dep requires literal arguments") from error
+                if values.get("name") == module:
+                    dependencies.append(values)
+    require(dependencies == [{"name": module, "version": version}],
+            "Integration MODULE.bazel must directly select the exact tested module and version")
+    require(not config["consumer_deps"]
+            and not {"go_sdk", "rust_toolchain", "rust_preparation"}.intersection(config),
+            "Integration MODULE.bazel owns its dependencies and toolchains; "
+            "consumer_deps and generated toolchain options must be omitted or empty")
+    return directory
+
+
+def module_overlay_bytes(entry: Path, module: str, version: str) -> bytes:
+    canonical = local_input(entry, "MODULE.bazel").read_bytes()
+    require(parse_module_identity(canonical.decode("utf-8")) == (module, version),
+            "Registry module identity disagrees with directory")
+    header = ("# AUTO-GENERATED. DO NOT EDIT MANUALLY.\n"
+              "# Source: ../MODULE.bazel\n"
+              f"# Generator: python3 ci/registry_ci.py sync-module --module {module} --version {version}\n\n")
+    return header.encode("utf-8") + canonical
+
+
+def sync_module(root: Path, module: str, version: str, check: bool = False) -> None:
+    """Generate only the opted-in MODULE overlay and its source.json checksum."""
+    entry = entry_directory(root, module, version)
+    config = read_json(local_input(entry, "presubmit.json"))
+    require(config.get("generated_module_overlay") is True,
+            "sync-module requires generated_module_overlay: true in presubmit.json")
+    expected = module_overlay_bytes(entry, module, version)
+    source_path = local_input(entry, "source.json")
+    source = read_json(source_path)
+    overlays = source.get("overlay", {})
+    require(isinstance(overlays, dict), "source.overlay must be an object")
+    directory = entry / "overlay"
+    require(not directory.is_symlink() and (not directory.exists() or directory.is_dir()),
+            f"Overlay directory must be a real directory: {directory}")
+    output = directory / "MODULE.bazel"
+    require(not output.is_symlink(), f"Generated overlay must not be a symlink: {output}")
+    if output.exists():
+        local_input(directory, "MODULE.bazel")
+    integrity = "sha256-" + base64.b64encode(hashlib.sha256(expected).digest()).decode("ascii")
+    if check:
+        command = f"python3 ci/registry_ci.py sync-module --module {module} --version {version}"
+        try:
+            require(local_input(directory, "MODULE.bazel").read_bytes() == expected,
+                    "Generated MODULE overlay differs from canonical MODULE.bazel")
+            sri(overlays.get("MODULE.bazel"), expected)
+            require(overlays["MODULE.bazel"] == integrity, "Generated MODULE overlay checksum is stale")
+        except RegistryError as error:
+            raise RegistryError(f"{error}; run: {command}") from error
+        return
+    # Refuse shared inodes as well as symlinks before either write. The canonical
+    # MODULE and unrelated files must never change through an output alias.
+    require(source_path.stat().st_nlink == 1 and (not output.exists() or output.stat().st_nlink == 1),
+            "Generated overlay and source.json must not be hard-linked")
+    if not output.exists() or output.read_bytes() != expected:
+        directory.mkdir(exist_ok=True)
+        output.write_bytes(expected)
+    if overlays.get("MODULE.bazel") != integrity:
+        source.setdefault("overlay", {})["MODULE.bazel"] = integrity
+        source_path.write_text(json.dumps(source, indent=2) + "\n")
+
+
+def validate_targets(labels: list, field: str, module: str, config: dict) -> None:
+    require(isinstance(labels, list) and bool(labels) and all(isinstance(label, str) for label in labels),
+            f"{field} must be a nonempty list")
+    require(len(set(labels)) == len(labels), f"{field} must have unique targets")
+    for label in labels:
+        external = LABEL.fullmatch(label) is not None and label.startswith(f"@{module}//")
+        integration = "integration_test_module" in config and ROOT_LABEL.fullmatch(label) is not None
+        require((external or integration) and label.rsplit(":", 1)[1] not in ("all", "all-targets"),
+                f"{field} requires explicit targets in @{module} or the configured integration module: {label}")
+
+
+def validate_entry(root: Path, module: str, version: str) -> dict:
+    entry = entry_directory(root, module, version)
+    metadata = read_json(entry.parent / "metadata.json")
+    versions = metadata.get("versions")
+    require(isinstance(versions, list) and all(isinstance(v, str) for v in versions), "metadata needs versions")
+    require(len(versions) == len(set(versions)) and version in versions, "metadata version list is inconsistent")
+    try:
+        identity = parse_module_identity((entry / "MODULE.bazel").read_text())
+    except OSError as error:
+        raise RegistryError(f"Cannot read registry MODULE.bazel: {error}") from error
+    require(identity == (module, version), f"Registry module identity {identity} disagrees with directory")
+    source = read_json(entry / "source.json")
+    require(source.get("type", "archive") == "archive", "Only archive registry entries are supported")
+    url = source.get("url")
+    require(isinstance(url, str) and urlparse(url).scheme == "https" and bool(urlparse(url).netloc),
+            "Source archive must have an HTTPS URL")
+    sri(source.get("integrity"))
+    require(type(source.get("patch_strip", 0)) is int and source.get("patch_strip", 0) >= 0,
+            "patch_strip must be a nonnegative integer")
+    for key, folder in (("patches", "patches"), ("overlay", "overlay")):
+        inputs = source.get(key, {})
+        require(isinstance(inputs, dict), f"source.{key} must be an object")
+        for name, integrity in inputs.items():
+            path = local_input(entry / folder, name)
+            try:
+                sri(integrity, path.read_bytes())
+            except RegistryError as error:
+                raise RegistryError(f"{path}: {error}") from error
+        if (entry / folder).exists():
+            actual = {path.relative_to(entry / folder).as_posix()
+                      for path in (entry / folder).rglob("*") if path.is_file()}
+            require(actual == set(inputs), f"Unlisted or missing {folder} files: {actual ^ set(inputs)}")
+
+    config = read_json(entry / "presubmit.json")
+    required = {"architectures", "consumer_deps", "platforms", "build_targets", "test_targets"}
+    require(required <= set(config) <= required | {
+        "build_flags", "rust_preparation", "go_sdk", "rust_toolchain", "generated_module_overlay",
+        "test_runtime_preparation", "integration_test_module", "host_platforms", "additional_targets",
+        "cache_audit_targets", "forbid_deb_outputs",
+    }, f"presubmit.json requires {sorted(required)} and optionally "
+       "build_flags/rust_preparation/go_sdk/rust_toolchain/generated_module_overlay/test_runtime_preparation/integration_test_module/host_platforms/additional_targets/cache_audit_targets/forbid_deb_outputs")
+    if "forbid_deb_outputs" in config:
+        require(config["forbid_deb_outputs"] is True, "forbid_deb_outputs must be true when present")
+    if "test_runtime_preparation" in config:
+        preparation = config["test_runtime_preparation"]
+        require(isinstance(preparation, dict) and {"script", "sha256"} <= set(preparation)
+                and set(preparation) <= {"script", "sha256", "apt_mirror_protocol"},
+                "test_runtime_preparation requires script and sha256, with optional apt_mirror_protocol")
+        if "apt_mirror_protocol" in preparation:
+            require(preparation["apt_mirror_protocol"] == "locked-runtime-v1",
+                    "Unsupported APT runtime preparation protocol")
+        script = preparation["script"]
+        require(isinstance(script, str) and re.fullmatch(r"[A-Za-z0-9_./-]+\.py", script) is not None
+                and not script.startswith("/") and ".." not in PurePosixPath(script).parts,
+                "Test runtime preparation script must be a relative Python path in the tested source")
+        require(isinstance(preparation["sha256"], str)
+                and re.fullmatch(r"[0-9a-f]{64}", preparation["sha256"]) is not None,
+                "Test runtime preparation sha256 must be a SHA256 digest")
+    if "generated_module_overlay" in config:
+        require(config["generated_module_overlay"] is True, "generated_module_overlay must be true when present")
+        sync_module(root, module, version, check=True)
+    architectures = config["architectures"]
+    require(isinstance(architectures, list) and bool(architectures)
+            and all(isinstance(a, str) and a in RUNNERS for a in architectures)
+            and len(set(architectures)) == len(architectures),
+            "architectures must list supported, unique native architectures")
+    platforms = config["platforms"]
+    require(isinstance(platforms, dict) and set(platforms) == set(architectures)
+            and all(isinstance(label, str) and LABEL.fullmatch(label) for label in platforms.values()),
+            "platforms must map each architecture to an explicit external target")
+    if "host_platforms" in config:
+        host_platforms = config["host_platforms"]
+        require(isinstance(host_platforms, dict) and set(host_platforms) == set(architectures)
+                and all(isinstance(label, str) and LABEL.fullmatch(label) for label in host_platforms.values()),
+                "host_platforms must map each architecture to an explicit external target")
+    if "cache_audit_targets" in config:
+        targets = config["cache_audit_targets"]
+        require(isinstance(targets, list) and bool(targets) and
+                all(isinstance(t, str) and re.fullmatch(r"@@[A-Za-z0-9+._-]+//[A-Za-z0-9_./+-]*:[A-Za-z0-9_./+-]+", t)
+                    for t in targets) and len(targets) == len(set(targets)),
+                "cache_audit_targets must be unique canonical Bazel target labels")
+    aliases = {module}
+    names = {module}
+    require(isinstance(config["consumer_deps"], list), "consumer_deps must be a list")
+    if "integration_test_module" in config:
+        integration_test_directory(entry, config, module, version)
+    for dependency in config["consumer_deps"]:
+        require(isinstance(dependency, dict) and {"name", "version"} <= set(dependency)
+                and set(dependency) <= {"name", "version", "repo_name", "source_patches", "patch_strip"},
+                "consumer_deps require name/version and optional repo_name/source_patches/patch_strip")
+        if "source_patches" in dependency:
+            patches = dependency["source_patches"]
+            require(isinstance(patches, list) and bool(patches)
+                    and all(isinstance(patch, str) and LABEL.fullmatch(patch)
+                            and patch.startswith(f"@{module}//") and patch.endswith(".patch")
+                            and ".." not in patch for patch in patches)
+                    and len(patches) == len(set(patches)),
+                    "Consumer patches must be unique .patch labels owned by the exact tested source module")
+            require(type(dependency.get("patch_strip", 0)) is int and dependency.get("patch_strip", 0) >= 0,
+                    "Consumer patch_strip must be a nonnegative integer")
+        else:
+            require("patch_strip" not in dependency, "patch_strip requires source_patches")
+        name, dep_version = dependency["name"], dependency["version"]
+        alias = dependency.get("repo_name", name)
+        require(isinstance(name, str) and NAME.fullmatch(name) is not None and name not in names,
+                "Invalid or duplicate consumer dependency")
+        require(isinstance(dep_version, str) and VERSION.fullmatch(dep_version) is not None,
+                "Invalid consumer dependency version")
+        require(isinstance(alias, str) and NAME.fullmatch(alias) is not None and alias not in aliases,
+                "Invalid or duplicate consumer repository name")
+        names.add(name)
+        aliases.add(alias)
+    if "go_sdk" in config:
+        sdk = config["go_sdk"]
+        require(isinstance(sdk, dict) and set(sdk) == {"version"},
+                "go_sdk requires only an exact version")
+        require(isinstance(sdk["version"], str)
+                and re.fullmatch(r"1\.[0-9]+\.[0-9]+", sdk["version"]) is not None,
+                "go_sdk version must be an exact stable Go release such as 1.25.0")
+        require("rules_go" in names,
+                "go_sdk requires rules_go as the tested module or a declared consumer dependency")
+    if "rust_toolchain" in config:
+        toolchain = config["rust_toolchain"]
+        require(isinstance(toolchain, dict)
+                and {"version"} <= set(toolchain) <= {"version", "mangled_allocator_libraries", "bindgen"},
+                "rust_toolchain requires version and optionally mangled_allocator_libraries/bindgen")
+        require(isinstance(toolchain["version"], str)
+                and re.fullmatch(r"1\.[0-9]+\.[0-9]+", toolchain["version"]) is not None,
+                "rust_toolchain version must be an exact stable Rust release such as 1.90.0")
+        require("rules_rs" in names,
+                "rust_toolchain requires rules_rs as the tested module or a declared consumer dependency")
+        for option in ("mangled_allocator_libraries", "bindgen"):
+            require(type(toolchain.get(option, False)) is bool, f"rust_toolchain {option} must be a boolean")
+    target_fields = ("build_targets", "test_targets")
+    for field in target_fields:
+        validate_targets(config[field], field, module, config)
+    if "additional_targets" in config:
+        additions = config["additional_targets"]
+        require(isinstance(additions, dict) and bool(additions) and set(additions) <= set(architectures),
+                "additional_targets must map configured architectures to target lists")
+        for arch, extra in additions.items():
+            require(isinstance(extra, dict) and bool(extra) and set(extra) <= set(target_fields),
+                    f"additional_targets.{arch} requires build_targets or test_targets")
+            for field, labels in extra.items():
+                validate_targets(labels, f"additional_targets.{arch}.{field}", module, config)
+                require(not set(config[field]).intersection(labels),
+                        f"additional_targets.{arch}.{field} repeats a common target")
+    build_flags = config.get("build_flags", [])
+    require(isinstance(build_flags, list), "build_flags must be a list")
+    settings = set()
+    for flag in build_flags:
+        require(isinstance(flag, str) and "=" in flag and not any(c.isspace() for c in flag),
+                "build_flags requires module-qualified Starlark settings with explicit values")
+        setting, value = flag.split("=", 1)
+        require(setting.startswith(f"--@{module}//") and LABEL.fullmatch(setting[2:]) is not None
+                and bool(value) and setting not in settings,
+                "build_flags must set unique Starlark settings in the module under test")
+        settings.add(setting)
+    if "rust_preparation" in config:
+        preparation = config["rust_preparation"]
+        require(isinstance(preparation, dict) and set(preparation) == {
+            "module", "repo_name", "helper_revision", "helper_sha256",
+        }, "rust_preparation requires module, repo_name, helper_revision and helper_sha256")
+        dependencies = {module: module, **{
+            dependency["name"]: dependency.get("repo_name", dependency["name"])
+            for dependency in config["consumer_deps"]
+        }}
+        require(isinstance(preparation["module"], str)
+                and dependencies.get(preparation["module"]) == preparation["repo_name"],
+                "Rust preparation must select the tested module or a declared consumer dependency")
+        require(isinstance(preparation["helper_revision"], str)
+                and re.fullmatch(r"[0-9a-f]{40}", preparation["helper_revision"]) is not None,
+                "Rust preparation helper_revision must be a full commit SHA")
+        require(isinstance(preparation["helper_sha256"], str)
+                and re.fullmatch(r"[0-9a-f]{64}", preparation["helper_sha256"]) is not None,
+                "Rust preparation helper_sha256 must be a SHA256 digest")
+    return config
+
+
+def git(root: Path, *args: str) -> str:
+    return subprocess.check_output(
+        ["git", "-c", f"safe.directory={root.resolve()}", "-C", str(root), *args], text=True)
+
+
+def release_key(version: str) -> tuple[tuple[int, ...], int, int]:
+    """Order registry releases and patches without treating Git hashes as dates."""
+    match = re.fullmatch(r"([0-9]+(?:\.[0-9]+)*)(.*)", version)
+    require(match is not None, f"Cannot select latest registry version: {version}")
+    release, suffix = match.groups()
+    numbers = tuple(int(part) for part in release.split("."))
+    # Equivalent numeric releases must still use registration order for snapshots.
+    while len(numbers) > 1 and numbers[-1] == 0:
+        numbers = numbers[:-1]
+    # Published Go integrations retain the upstream timestamp/hash after the
+    # SONiC patch number. Like other source snapshots, metadata registration
+    # order breaks ties within the same numeric release and SONiC patch.
+    patch = re.fullmatch(r"([.-])sonic\.([0-9]+)(?:-[0-9]{14}-[0-9a-f]{12})?", suffix)
+    if patch:
+        return numbers, int(patch[2]), int(patch[1] == ".")
+    require(suffix in ("", ".sonic-buildimage", ".sonic-patched")
+            or re.fullmatch(r"(?:-|\.commit-)[0-9a-f]{7,40}", suffix) is not None,
+            f"Unsupported registry version for latest selection: {version}")
+    return numbers, 0, 0
+
+
+def latest_presubmits(root: Path) -> set[tuple[str, str]]:
+    """Select the newest non-yanked release of each module already covered by CI."""
+    modules = {path.parent.parent for path in (root / "modules").glob("*/*/presubmit.json")}
+    selected = set()
+    for directory in sorted(modules):
+        metadata = read_json(directory / "metadata.json")
+        versions = metadata.get("versions")
+        require(isinstance(versions, list) and bool(versions)
+                and all(isinstance(v, str) and VERSION.fullmatch(v) for v in versions),
+                f"{directory.name}: metadata needs valid versions")
+        require(len(versions) == len(set(versions)), f"{directory.name}: duplicate metadata versions")
+        directories = {path.name for path in directory.iterdir() if path.is_dir()}
+        require(set(versions) == directories, f"{directory.name}: metadata and version directories differ")
+        yanked = metadata.get("yanked_versions", {})
+        require(isinstance(yanked, dict) and set(yanked) <= set(versions)
+                and all(isinstance(reason, str) for reason in yanked.values()),
+                f"{directory.name}: invalid yanked_versions metadata")
+        eligible = [(release_key(version), index, version)
+                    for index, version in enumerate(versions) if version not in yanked]
+        if not eligible:
+            print(f"Skipping {directory.name}: all versions are yanked", file=sys.stderr)
+            continue
+        # Numeric release/patch first; metadata append order breaks snapshot ties.
+        version = max(eligible)[2]
+        require((directory / version / "presubmit.json").is_file(),
+                f"{directory.name}: latest version {version} needs presubmit.json")
+        selected.add((directory.name, version))
+    return selected
+
+
+def maintenance_kind(name: str) -> str | None:
+    """Only these entry-relative paths are documentation or standalone CI inputs."""
+    if name in ("README.md", "PATCHES.md") or name.startswith("docs/"):
+        return "docs"
+    if name == "presubmit.json" or name.startswith("tests/"):
+        return "tests"
+    return None
+
+
+def recipe_references(source: dict, name: str) -> bool:
+    """Conservatively protect local files named by the immutable source recipe."""
+    def references(value) -> bool:
+        if isinstance(value, dict):
+            return any(references(key) or references(item) for key, item in value.items())
+        if isinstance(value, list):
+            return any(references(item) for item in value)
+        if isinstance(value, str):
+            path = posixpath.normpath(unquote(urlparse(value).path))
+            return path == name or path.endswith("/" + name)
+        return False
+
+    # docs_url advertises documentation; Bazel does not use it to fetch sources.
+    return references({key: value for key, value in source.items() if key != "docs_url"})
+
+
+def check_published_files(root: Path, path: str, published: str, head: str) -> None:
+    """Allow maintenance without changing any published consumer input."""
+    def files(revision: str) -> dict[str, tuple[str, str, str]]:
+        result = {}
+        for record in git(root, "ls-tree", "-r", "-z", f"{revision}:{path}").split("\0"):
+            if record:
+                info, name = record.split("\t", 1)
+                result[name] = tuple(info.split())  # mode, object type, object ID
+        return result
+
+    before, after = files(published), files(head)
+    changed = {name for name in before.keys() | after.keys() if before.get(name) != after.get(name)}
+    source = json.loads(git(root, "show", f"{published}:{path}/source.json"))
+    # Unsupported source layouts retain whole-entry immutability. Do not guess
+    # whether their files are build inputs from a docs/ or tests/ pathname.
+    supported = (isinstance(source, dict) and source.get("type", "archive") == "archive"
+                 and set(source) <= {"type", "url", "integrity", "strip_prefix", "patches",
+                                     "patch_strip", "overlay", "docs_url", "mirror_urls", "archive_type"})
+    for name in sorted(changed):
+        old, new = before.get(name), after.get(name)
+        regular = all(item is None or item[0] in ("100644", "100755") and item[1] == "blob"
+                      for item in (old, new))
+        require(supported and maintenance_kind(name) is not None and regular
+                and not recipe_references(source, name),
+                f"{path}/{name}: published version changed or removed; preserve consumer inputs, "
+                "their file modes and unknown paths (rebase if the maintained branch advanced)")
+
+
+def check_version_policy(root: Path, published: str, head: str,
+                         push: bool = False) -> set[tuple[str, str]]:
+    """Protect published entries and allow one candidate across an entire PR stack."""
+    for name, revision in (("published", published), ("head", head)):
+        require(isinstance(revision, str) and re.fullmatch(r"[0-9a-fA-F]{40,64}", revision) is not None,
+                f"{name} must be a full commit SHA")
+        require(git(root, "rev-parse", "--verify", f"{revision}^{{commit}}").strip() == revision,
+                f"Cannot resolve {name} commit: {revision}")
+    # Compare the complete proposed stack with the maintained branch. Unrelated
+    # releases published after the branch fork are not deletions by this PR.
+    # A push replaces main itself, so even a non-fast-forward rollback must
+    # retain everything published before the push.
+    ancestor = published if push else git(root, "merge-base", published, head).strip()
+    changed = git(root, "diff", "--name-only", "--no-renames", "-z", ancestor, head, "--", "modules/")
+    modules = {PurePosixPath(name).parts[1] for name in changed.split("\0") if name}
+    published_entries = set()
+    for module in sorted(modules):
+        require(NAME.fullmatch(module) is not None, f"Invalid module name: {module}")
+        path = f"modules/{module}"
+        # ls-tree lists committed directories even when metadata omits one.
+        # Looking only at metadata or the PR's own base would miss candidates.
+        published_exists = bool(git(root, "ls-tree", published, "--", path).strip())
+        published_versions = {}
+        if published_exists:
+            for record in git(root, "ls-tree", "-z", f"{published}:{path}").split("\0"):
+                if record:
+                    info, name = record.split("\t", 1)
+                    mode, kind, oid = info.split()
+                    if kind == "tree":
+                        published_versions[name] = (mode, oid)
+        require(bool(git(root, "ls-tree", head, "--", path).strip()),
+                f"{module}: published module cannot be deleted")
+        head_versions = {}
+        for record in git(root, "ls-tree", "-z", f"{head}:{path}").split("\0"):
+            if record:
+                info, name = record.split("\t", 1)
+                mode, kind, oid = info.split()
+                if kind == "tree":
+                    head_versions[name] = (mode, oid)
+        metadata = json.loads(git(root, "show", f"{head}:{path}/metadata.json"))
+        versions = metadata.get("versions")
+        require(isinstance(versions, list) and all(isinstance(v, str) for v in versions),
+                f"{module}: metadata needs versions")
+        require(len(versions) == len(set(versions)) and set(versions) == set(head_versions),
+                f"{module}: metadata and version directories differ")
+        for version, tree in sorted(published_versions.items()):
+            published_entries.add((module, version))
+            require(version in head_versions,
+                    f"{module}@{version}: published version changed or removed; "
+                    "retain the version directory (rebase if the maintained branch advanced)")
+            if head_versions[version] != tree:
+                check_published_files(root, f"{path}/{version}", published, head)
+        candidates = sorted(set(head_versions) - set(published_versions))
+        require(len(candidates) <= 1,
+                f"{module}: multiple unreleased candidates relative to {published}: {', '.join(candidates)}; "
+                "consolidate the unmerged stack into one candidate and update its consumers")
+        print(f"Version policy: {module}: candidates={candidates}, published={published}", file=sys.stderr)
+    return published_entries
+
+
+def module_runner(module: str, execution_architecture: str, p4_runner_profile: str) -> list[str]:
+    """Choose capacity after the target's native/cross route has been determined."""
+    if p4_runner_profile == "large" and execution_architecture == "amd64" and module in P4_MODULES:
+        return ["self-hosted", "Linux", "X64", "debian-trixie-container-large"]
+    return RUNNERS[execution_architecture]
+
+
+def plan(root: Path, base: str | None, head: str | None, all_versions: bool = False,
+         latest_versions: bool = False, published: str | None = None,
+         push: bool = False, p4_runner_profile: str = "large") -> dict:
+    require(p4_runner_profile in ("standard", "large"), "Invalid P4 runner profile")
+    require(not (all_versions and latest_versions), "Choose either --all or --latest")
+    require(not ((all_versions or latest_versions) and base),
+            "Do not combine --all/--latest with --base")
+    require(bool(published) and bool(head), "plan requires --published and --head")
+    require(git(root, "rev-parse", "HEAD").strip() == head, "Checkout HEAD differs from planned head")
+    published_entries = check_version_policy(root, published, head, push)
+    selected = set()
+    if all_versions:
+        selected.update((path.parent.parent.name, path.parent.name)
+                        for path in (root / "modules").glob("*/*/presubmit.json"))
+    elif latest_versions:
+        selected.update(latest_presubmits(root))
+    else:
+        require(bool(base) and bool(head), "plan requires --base/--head, --latest or --all")
+        require(re.fullmatch(r"[0-9a-fA-F]{40,64}", base) is not None
+                and re.fullmatch(r"[0-9a-fA-F]{40,64}", head) is not None,
+                "base and head must be full commit SHAs")
+        # Compare the complete proposed stack with the maintained publication
+        # merge base, just like check_version_policy. The event base can predate
+        # a main integration and incorrectly classify inherited CI as PR edits.
+        # Genuine CI/planner edits still select every required consumer below.
+        comparison_base = base if push else git(root, "merge-base", published, head).strip()
+        changed = git(root, "diff", "--name-only", "--no-renames", "-z", comparison_base, head).split("\0")
+        ci_changed = False
+        for name in filter(None, changed):
+            parts = PurePosixPath(name).parts
+            if parts[0] in ("ci", ".github") or name == "bazel_registry.json":
+                ci_changed = True
+            elif parts[0] == "modules":
+                require(len(parts) >= 3, f"Unsupported module path: {name}")
+                module = parts[1]
+                if len(parts) == 3 and parts[2] == "README.md":
+                    # Module documentation does not name a version or require a
+                    # manifest for every unchanged historical release.
+                    continue
+                if parts[2] == "metadata.json":
+                    metadata = read_json(root / "modules" / module / "metadata.json")
+                    versions = metadata.get("versions")
+                    require(isinstance(versions, list) and bool(versions)
+                            and all(isinstance(v, str) for v in versions),
+                            "Changed module metadata needs versions")
+                    require(len(versions) == len(set(versions)), "Metadata contains duplicate versions")
+                    directories = {p.name for p in (root / "modules" / module).iterdir() if p.is_dir()}
+                    require(set(versions) == directories, f"{module}: metadata and version directories differ")
+                    previous = subprocess.run(
+                        ["git", "-C", str(root), "show", f"{comparison_base}:modules/{module}/metadata.json"],
+                        text=True, capture_output=True,
+                    )
+                    relevant = versions
+                    if previous.returncode == 0:
+                        old = json.loads(previous.stdout)
+                        old_versions = old.get("versions", [])
+                        added = set(versions) - set(old_versions)
+                        old_fields = {key: value for key, value in old.items() if key != "versions"}
+                        new_fields = {key: value for key, value in metadata.items() if key != "versions"}
+                        # Adding, replacing or removing a draft does not require
+                        # retrofitting CI to unchanged historical versions. The
+                        # policy check above protects all published directories.
+                        # Other metadata changes still cover every version.
+                        retained = [v for v in versions if v in old_versions]
+                        old_retained = [v for v in old_versions if v in versions]
+                        if (set(versions) != set(old_versions) and old_fields == new_fields
+                                and retained == old_retained):
+                            relevant = [v for v in versions if v in added]
+                    selected.update((module, version) for version in relevant)
+                else:
+                    require(len(parts) >= 4, f"Unsupported version path: {name}")
+                    if ((module, parts[2]) in published_entries
+                            and maintenance_kind("/".join(parts[3:])) == "docs"):
+                        # Published documentation maintenance has passed the
+                        # consumer-input check and needs no historical CI retrofit.
+                        continue
+                    # A deleted unpublished candidate has no jobs. Published
+                    # deletion already failed check_version_policy above.
+                    if (root / "modules" / module / parts[2]).exists():
+                        selected.add((module, parts[2]))
+        if ci_changed:
+            selected.update(latest_presubmits(root))
+    include = []
+    for module, version in sorted(selected):
+        config = validate_entry(root, module, version)
+        for architecture in config["architectures"]:
+            include.append({"module": module, "version": version, "architecture": architecture,
+                            "execution_architecture": "amd64", "cross_compile": architecture == "arm64",
+                            "runner": module_runner(module, "amd64", p4_runner_profile)})
+    return {"include": include}
+
+
+def normalized_label(label: str) -> str:
+    """BEP uses canonical repository names, whereas manifests use apparent names."""
+    if label.startswith(("@@//", "@//")):
+        return label[label.index("//"):]
+    if label.startswith("@@"):
+        repository, target = label[2:].split("//", 1)
+        return "@" + repository.split("+", 1)[0] + "//" + target
+    return label
+
+
+def verify_tests(bep_path: Path, labels: list[str]) -> None:
+    summaries = {}
+    executed = set()
+    for line in bep_path.read_text().splitlines():
+        event = json.loads(line)
+        identifier = event.get("id", {})
+        if "testSummary" in identifier:
+            label = normalized_label(identifier["testSummary"]["label"])
+            summary = event.get("testSummary", {})
+            require(label not in summaries, f"Multiple test configurations for {label}")
+            summaries[label] = summary
+        if "testResult" in identifier:
+            label = normalized_label(identifier["testResult"]["label"])
+            result = event.get("testResult", {})
+            if label in labels:
+                require(result.get("status") == "PASSED", f"{label}: a test attempt did not pass")
+                require(not result.get("cachedLocally", False)
+                        and not result.get("executionInfo", {}).get("cachedRemotely", False),
+                        f"{label}: test result was cached")
+                executed.add(label)
+    for label in labels:
+        require(label in summaries and label in executed, f"Required test did not execute: {label}")
+        summary = summaries[label]
+        require(summary.get("overallStatus") == "PASSED", f"{label}: required test did not pass")
+        require(summary.get("totalRunCount", 0) > 0 and summary.get("totalNumCached", 0) == 0,
+                f"{label}: required test did not run uncached")
+
+
+def query_output_trees(prefix: list[str], flags: list[str], labels: list[str],
+                       consumer: Path, artifacts: Path) -> dict[str, list[str]]:
+    """Recover declared directory boundaries that the BEP expands into files."""
+    manifest = artifacts / "declared-output-trees.jsonl"
+    log = artifacts / "declared-output-trees.log"
+    with manifest.open("w") as output, log.open("w") as errors:
+        for label in labels:
+            # cquery resolves target.label through aliases, while BEP completion
+            # records retain the requested alias. Query separately so every
+            # directory remains associated with its exact requested target.
+            expression = ('json.encode({"label": ' + json.dumps(label) + ', '
+                          '"resolved_label": str(target.label), '
+                          '"trees": [f.path for f in target.files.to_list() if f.is_directory]})')
+            # Select the requested top-level configuration. A normal build can
+            # also retain this label's exec configuration through a tool dependency.
+            # Legal build labels such as Common++ must remain one query word.
+            result = subprocess.run(
+                [*prefix, "cquery", *flags, "--output=starlark", f"--starlark:expr={expression}",
+                 f"config({json.dumps(label, ensure_ascii=False)}, target)"], cwd=consumer, stdout=output, stderr=errors)
+            require(result.returncode == 0, f"Declared output query failed for {label}; see {log}")
+    trees = {}
+    for line in manifest.read_text().splitlines():
+        value = json.loads(line)
+        require(isinstance(value, dict) and isinstance(value.get("label"), str)
+                and isinstance(value.get("trees"), list), "Invalid declared output query record")
+        label = normalized_label(value["label"])
+        require(label in labels and label not in trees, f"Unexpected or repeated output query target: {label}")
+        paths = value["trees"]
+        for path in paths:
+            require(isinstance(path, str), "Declared tree path must be a string")
+            relative = PurePosixPath(path)
+            require(bool(relative.parts) and relative.parts[0] == "bazel-out"
+                    and ".." not in relative.parts and "\\" not in path,
+                    f"Unsafe declared tree path: {path}")
+        require(len(paths) == len(set(paths)), f"Repeated declared directory for {label}")
+        trees[label] = paths
+    require(set(trees) == set(labels), "Declared output query omitted required targets")
+    return trees
+
+
+def collect_outputs(bep_path: Path, labels: list[str], work_dir: Path, artifacts: Path,
+                    declared_trees: dict[str, list[str]] | None = None,
+                    execution_root: Path | None = None) -> None:
+    """Retain declared default outputs, including tree artifacts, from a build BEP."""
+    sets, completed = {}, {}
+    for line in bep_path.read_text().splitlines():
+        event = json.loads(line)
+        identifier = event.get("id", {})
+        if "namedSet" in identifier:
+            sets[identifier["namedSet"]["id"]] = event.get("namedSetOfFiles", {})
+        if "targetCompleted" in identifier:
+            label = normalized_label(identifier["targetCompleted"]["label"])
+            if label in labels:
+                require(label not in completed, f"Multiple build configurations for {label}")
+                completed[label] = event.get("completed", {})
+
+    work_dir = work_dir.resolve()
+    declared_trees = declared_trees or {}
+    require(not declared_trees or set(declared_trees) == set(labels),
+            "Declared directory manifest must cover exactly the requested targets")
+    if execution_root is not None:
+        execution_root = execution_root.resolve()
+        require(execution_root.is_relative_to(work_dir), "Execution root escapes work-dir")
+    outputs = artifacts / "outputs"
+    require(not outputs.exists(), f"Output destination already exists: {outputs}")
+    outputs.mkdir(parents=True)
+    retained = {}
+
+    def resolve_output(path: Path) -> Path:
+        try:
+            return path.resolve()
+        except (OSError, RuntimeError) as error:
+            raise RegistryError(f"Invalid build output link: {path}: {error}") from error
+
+    def portable_link(path: Path, root: Path, ancestors: frozenset = frozenset()) -> bool:
+        target = path.readlink()
+        if target.is_absolute() or path in ancestors:
+            return False
+        cursor = path.parent
+        for part in target.parts:
+            cursor = cursor.parent if part == ".." else cursor / part
+            if not cursor.is_relative_to(root):
+                return False
+            if cursor.is_symlink():
+                # Follow each intermediate link before interpreting '..'. A
+                # materialized directory can otherwise change the final target.
+                if not portable_link(cursor, root, ancestors | {path}):
+                    return False
+                cursor = resolve_output(cursor)
+        return True
+
+    def archive_tree(source: Path, relative: PurePosixPath) -> dict:
+        # GitHub artifacts reject ':' and fold case. Put POSIX tree contents in
+        # a TAR whose upload name depends only on the declared output path.
+        key = hashlib.sha256(relative.as_posix().encode()).hexdigest()
+        destination = outputs / "trees" / (key + ".tar")
+        destination.parent.mkdir(parents=True, exist_ok=True)
+
+        def normalize(member: tarfile.TarInfo) -> tarfile.TarInfo:
+            member.uid = member.gid = member.mtime = 0
+            member.uname = member.gname = ""
+            return member
+
+        def add(tree: tarfile.TarFile, path: Path, name: PurePosixPath,
+                ancestors: frozenset = frozenset()) -> None:
+            resolved = resolve_output(path)
+            require(resolved.is_relative_to(work_dir), f"Build output escapes work-dir: {resolved}")
+            require(resolved.is_file() or resolved.is_dir(), f"Missing regular build output: {resolved}")
+            if resolved.is_dir():
+                require(resolved not in ancestors, f"Build output directory cycle: {resolved}")
+            # Preserve portable links inside this tree. Links into other build
+            # outputs are materialized, as before, so they remain usable alone.
+            if path.is_symlink() and path.is_relative_to(source):
+                if (name == relative / path.relative_to(source)
+                        and resolved.is_relative_to(source) and portable_link(path, source)):
+                    tree.add(path, arcname=name.as_posix(), recursive=False, filter=normalize)
+                    return
+            tree.add(resolved, arcname=name.as_posix(), recursive=False, filter=normalize)
+            if resolved.is_dir():
+                for child in sorted(resolved.iterdir()):
+                    add(tree, child, name / child.name, ancestors | {resolved})
+
+        temporary = None
+        try:
+            with tempfile.NamedTemporaryFile(dir=destination.parent, suffix=".tmp", delete=False) as stream:
+                temporary = Path(stream.name)
+                with tarfile.open(fileobj=stream, mode="w", format=tarfile.PAX_FORMAT, dereference=False) as tree:
+                    add(tree, source, relative)
+                stream.flush()
+                stream.seek(0)
+                checksum = hashlib.file_digest(stream, "sha256").hexdigest()
+                size = stream.seek(0, 2)
+            name = destination.relative_to(artifacts).as_posix()
+            record = {"path": name, "sha256": checksum, "size": size,
+                      "type": "tree_archive", "root": relative.as_posix()}
+            require(name not in retained or retained[name] == record, f"Conflicting build outputs: {name}")
+            if name not in retained:
+                temporary.replace(destination)
+                retained[name] = record
+            return record
+        finally:
+            if temporary is not None:
+                temporary.unlink(missing_ok=True)
+
+    def copy_output(source: Path, relative: PurePosixPath) -> list[dict]:
+        source = resolve_output(source)
+        require(source.is_relative_to(work_dir), f"Build output escapes work-dir: {source}")
+        destination = outputs / relative
+        if source.is_dir():
+            return [archive_tree(source, relative)]
+        require(source.is_file(), f"Missing regular build output: {source}")
+        with source.open("rb") as stream:
+            checksum = hashlib.file_digest(stream, "sha256").hexdigest()
+        name = (PurePosixPath("outputs") / relative).as_posix()
+        record = {"path": name, "sha256": checksum, "size": source.stat().st_size}
+        require(name not in retained or retained[name] == record, f"Conflicting build outputs: {name}")
+        if name not in retained:
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, destination)
+            retained[name] = record
+        return [record]
+
+    def files(set_id: str, ancestors: frozenset = frozenset()) -> list[dict]:
+        require(set_id in sets and set_id not in ancestors, f"Missing or cyclic output file set: {set_id}")
+        group = sets[set_id]
+        result = list(group.get("files", []))
+        for child in group.get("fileSets", []):
+            result.extend(files(child["id"], ancestors | {set_id}))
+        return result
+
+    index = {}
+    for label in labels:
+        target = completed.get(label, {})
+        require(target.get("success") is True, f"Required build target did not complete: {label}")
+        declared = []
+        for group in target.get("outputGroup", []):
+            if group["name"] == "default":
+                require(not group.get("incomplete", False), f"Incomplete outputs for {label}")
+                for file_set in group.get("fileSets", []):
+                    declared.extend(files(file_set["id"]))
+        tree_paths = [PurePosixPath(path) for path in declared_trees.get(label, [])]
+        require(bool(declared or tree_paths), f"Required build target has no default outputs: {label}")
+        records = {}
+        for tree_path in tree_paths:
+            require(execution_root is not None, "Declared directories require an execution root")
+            require(bool(tree_path.parts) and tree_path.parts[0] == "bazel-out"
+                    and ".." not in tree_path.parts and "\\" not in str(tree_path),
+                    f"Unsafe declared tree path: {tree_path}")
+            source = execution_root / tree_path
+            require(source.is_dir(), f"Declared output tree is not a directory: {source}")
+            for record in copy_output(source, tree_path):
+                records[record["path"]] = record
+        for output in declared:
+            uri = urlparse(output.get("uri", ""))
+            require(uri.scheme == "file" and uri.netloc in ("", "localhost")
+                    and not uri.query and not uri.fragment,
+                    f"Build output must be a local file: {output.get('uri')}")
+            name = "/".join([*output.get("pathPrefix", []), output["name"]])
+            relative = PurePosixPath(name)
+            require(bool(relative.parts) and not relative.is_absolute() and ".." not in relative.parts
+                    and "\\" not in name, f"Unsafe build output path: {name}")
+            source = resolve_output(Path(unquote(uri.path)))
+            require(source.is_relative_to(work_dir), f"Build output escapes work-dir: {source}")
+            matching_trees = [tree_path for tree_path in tree_paths
+                              if relative.is_relative_to(tree_path)]
+            if matching_trees:
+                # The declared tree has already been archived. Bazel 8.5.1 can
+                # corrupt a non-ASCII basename in an expanded member's URI.
+                # Its logical name can also retain UTF-8 bytes as Latin-1.
+                # Recover only a missing literal basename inside this declared
+                # tree; the URI, digest and length checks below still apply.
+                literal = execution_root / relative
+                expected = resolve_output(literal)
+                require(expected.is_relative_to(work_dir),
+                        f"Expanded tree member escapes work-dir: {name}")
+                if "\ufffd" in uri.path and not literal.exists() and not literal.is_symlink():
+                    try:
+                        basename = relative.name.encode("latin-1").decode("utf-8")
+                    except UnicodeError:
+                        pass
+                    else:
+                        if basename != relative.name:
+                            candidate = literal.with_name(basename)
+                            recovered = resolve_output(candidate)
+                            require(not candidate.is_symlink() and recovered.is_file()
+                                    and any(recovered.is_relative_to(resolve_output(execution_root / tree_path))
+                                            for tree_path in matching_trees),
+                                    f"Recovered tree member is not a confined regular file: {name}")
+                            relative = relative.with_name(basename)
+                            expected = recovered
+                # A damaged URI basename may alias the expected file through a
+                # symlink. Equal resolved paths must not bypass its byte checks.
+                if source != expected or (
+                        "\ufffd" in uri.path and Path(unquote(uri.path)).name != relative.name):
+                    decoded = Path(unquote(uri.path))
+                    ascii_name = lambda value: "".join(c for c in value if c.isascii())
+                    require("\ufffd" in uri.path and not relative.name.isascii()
+                            and not re.search(r"%(?![0-9A-Fa-f]{2})", uri.path)
+                            and ".." not in decoded.parts and "\\" not in uri.path
+                            and decoded.parent.resolve() == (execution_root / relative).parent.resolve()
+                            and ascii_name(decoded.name) == ascii_name(relative.name),
+                            f"Expanded tree member does not match its execution-root path: {name}")
+                    require(any(expected.is_relative_to(resolve_output(execution_root / tree_path))
+                                for tree_path in matching_trees) and expected.is_file(),
+                            f"Expanded tree member is not a confined regular file: {name}")
+                    digest, length = output.get("digest"), output.get("length")
+                    require(isinstance(digest, str) and re.fullmatch(r"[0-9a-f]{64}", digest)
+                            and isinstance(length, str) and re.fullmatch(r"0|[1-9][0-9]*", length),
+                            f"Expanded tree member requires SHA256 and length: {name}")
+                    with expected.open("rb") as stream:
+                        actual_digest = hashlib.file_digest(stream, "sha256").hexdigest()
+                    require(expected.stat().st_size == int(length) and actual_digest == digest,
+                            f"Expanded tree member digest or length mismatch: {name}")
+                continue
+            # Repository files have only a basename in BEP. Keep their private
+            # workspace identity so different packages' control.tar.xz files
+            # cannot collide. Directory archives retain their logical root.
+            if (not output.get("pathPrefix") and relative.parts[0] != "bazel-out"
+                    and not source.is_dir()):
+                relative = PurePosixPath("source") / source.relative_to(work_dir).as_posix()
+            for record in copy_output(source, relative):
+                records[record["path"]] = record
+        index[label] = [records[path] for path in sorted(records)]
+    (artifacts / "outputs.json").write_text(json.dumps(index, indent=2) + "\n")
+
+
+def collect_failed_action_logs(bep_path: Path, work_dir: Path, artifacts: Path) -> None:
+    """Keep diagnostics omitted by Bazel's UI size limit without masking failure."""
+    if not bep_path.is_file():
+        return
+    work_dir = work_dir.resolve()
+    destination = artifacts / "failed-actions" / bep_path.stem
+    records = []
+    for number, line in enumerate(bep_path.read_text().splitlines(), start=1):
+        try:
+            event = json.loads(line)
+        except ValueError as error:
+            records.append({"event": number, "error": f"Invalid BEP event: {error}"})
+            continue
+        action = event.get("action", {})
+        if not (action.get("exitCode", 0) or action.get("failureDetail")
+                or action.get("success") is False):
+            continue
+        for stream in ("stdout", "stderr"):
+            output = action.get(stream)
+            if not output:
+                continue
+            record = {"event": number, "label": action.get("label"), "exit_code": action.get("exitCode"),
+                      "type": action.get("type"), "stream": stream}
+            try:
+                uri = urlparse(output.get("uri", ""))
+                require(uri.scheme == "file" and uri.netloc in ("", "localhost")
+                        and not uri.query and not uri.fragment,
+                        "Action log must be a local file URI")
+                source = Path(unquote(uri.path))
+                require(source.is_absolute(), "Action log path must be absolute")
+                source = source.resolve(strict=True)
+                require(source.is_relative_to(work_dir), "Action log escapes work-dir")
+                require(source.is_file(), "Action log is not a regular file")
+                destination.mkdir(parents=True, exist_ok=True)
+                target = destination / f"{number:06d}.{stream}.log"
+                shutil.copyfile(source, target)
+                with target.open("rb") as saved:
+                    checksum = hashlib.file_digest(saved, "sha256").hexdigest()
+                record.update(path=target.relative_to(artifacts).as_posix(),
+                              size=target.stat().st_size, sha256=checksum)
+            except (OSError, RuntimeError, ValueError) as error:
+                # Missing, remote or unsafe logs must not replace the original
+                # build/test failure with a secondary collection exception.
+                record["error"] = str(error)
+            records.append(record)
+    if records:
+        destination.mkdir(parents=True, exist_ok=True)
+        (destination / "index.json").write_text(json.dumps(records, indent=2) + "\n")
+
+
+def collect_test_logs(bep_path: Path, work_dir: Path, artifacts: Path) -> None:
+    """Retain BEP-declared logs from every test configuration and attempt."""
+    index = []
+    work_dir = work_dir.resolve()
+    for line in bep_path.read_text().splitlines():
+        event = json.loads(line)
+        identity = event.get("id", {}).get("testResult")
+        if identity is None:
+            continue
+        result = event.get("testResult", {})
+        record = {"test": identity, "status": result.get("status"), "files": []}
+        for output in result.get("testActionOutput", []):
+            name = output.get("name")
+            if name not in ("test.log", "test.xml"):
+                continue
+            uri = urlparse(output.get("uri", ""))
+            require(uri.scheme == "file" and uri.netloc in ("", "localhost")
+                    and not uri.query and not uri.fragment,
+                    f"Test log must be a local file: {output.get('uri')}")
+            source = Path(unquote(uri.path)).resolve()
+            require(source.is_relative_to(work_dir), f"Test log escapes work-dir: {source}")
+            parts = source.relative_to(work_dir).parts
+            require(len(parts) >= 8 and parts[0] == "bazel" and parts[2] == "execroot"
+                    and parts[4] == "bazel-out" and parts[6] == "testlogs",
+                    f"Test log is outside Bazel's configuration testlogs: {source}")
+            require(source.is_file(), f"Missing test log: {source}")
+            relative = Path("test-results") / str(len(index)) / Path(*parts[5:])
+            destination = artifacts / relative
+            require(not destination.exists(), f"Duplicate test log: {relative}")
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, destination)
+            with destination.open("rb") as stream:
+                checksum = hashlib.file_digest(stream, "sha256").hexdigest()
+            record["files"].append({"path": relative.as_posix(), "sha256": checksum,
+                                    "size": destination.stat().st_size})
+        index.append(record)
+    (artifacts / "test-results.json").write_text(json.dumps(index, indent=2) + "\n")
+
+
+def read_log_tail(path: Path, max_bytes: int) -> str:
+    """Start at a line boundary so the outer mirror redactor sees complete URLs."""
+    with path.open("rb") as stream:
+        size = stream.seek(0, os.SEEK_END)
+        if size > max_bytes:
+            stream.seek(-(max_bytes + 1), os.SEEK_END)
+            stream.readline()
+        else:
+            stream.seek(0)
+        return stream.read().decode(errors="replace")
+
+
+def analysis_profile_startup_args(artifacts: Path) -> list[str]:
+    return ["--host_jvm_args=-Xlog:gc*,safepoint:file=" + str(artifacts / "jvm-gc.log")
+            + ":time,uptimemillis,level,tags"]
+
+
+def analysis_profile_flags(artifacts: Path, phase: str) -> list[str]:
+    return ["--profile=" + str(artifacts / (phase + ".profile.json")),
+            "--starlark_cpu_profile=" + str(artifacts / (phase + ".starlark.pprof")),
+            *["--experimental_profile_additional_tasks=" + task for task in
+              ("starlark_user_fn", "starlark_builtin_fn", "starlark_repository_fn")]]
+
+
+def run_logged(command: list[str], cwd: Path, log: Path) -> None:
+    print(f"Running Bazel validation; log: {log}", flush=True)
+    with log.open("w") as output:
+        result = subprocess.run(command, cwd=cwd, stdout=output, stderr=subprocess.STDOUT)
+    if result.returncode:
+        print(read_log_tail(log, 16000), file=sys.stderr)
+        raise RegistryError(f"Command failed with status {result.returncode}; see {log}")
+
+
+
+def audit_non_deb_actions(data: dict) -> int:
+    """Reject package-producing configured actions; imports/metadata are allowed."""
+    require(isinstance(data, dict) and isinstance(data.get("actions"), list)
+            and bool(data["actions"]), "Empty or invalid configured action graph")
+    def positive_id(value):
+        require(type(value) is int and value > 0, "Invalid positive action graph ID")
+        return value
+
+    try:
+        require(isinstance(data.get("pathFragments"), list) and bool(data["pathFragments"])
+                and isinstance(data.get("artifacts"), list) and bool(data["artifacts"]),
+                "Missing action output artifact/path evidence")
+        fragments = {}
+        for item in data["pathFragments"]:
+            require(isinstance(item, dict), "Invalid action path fragment")
+            key = positive_id(item["id"])
+            require(key not in fragments, "Duplicate action path IDs")
+            label = item["label"]
+            require(isinstance(label, str) and bool(label) and label not in (".", "..")
+                    and "/" not in label and "\\" not in label and "\x00" not in label,
+                    "Invalid action output path component")
+            # Absent parent or integer zero terminates a root path. This is NOT
+            # a valid artifact path reference; bool/null are not terminators.
+            parent = item.get("parentId", 0)
+            require(type(parent) is int and parent >= 0, "Invalid action path parent ID")
+            fragments[key] = (label, parent)
+
+        def path(key):
+            positive_id(key)
+            parts, seen = [], set()
+            while key != 0:
+                require(key not in seen, "Cycle in action output path")
+                seen.add(key)
+                label, key = fragments[key]
+                parts.append(label)
+            resolved = "/".join(reversed(parts))
+            require(bool(resolved), "Empty resolved action output path")
+            return resolved
+
+        # Validate even unreferenced fragments rather than silently accepting a
+        # partial malformed path table. Cache valid paths for the artifact map.
+        paths = {key: path(key) for key in fragments}
+        artifacts = {}
+        for item in data["artifacts"]:
+            require(isinstance(item, dict), "Invalid action artifact")
+            key = positive_id(item["id"])
+            require(key not in artifacts, "Duplicate artifact IDs")
+            artifacts[key] = paths[positive_id(item["pathFragmentId"])]
+        for action in data["actions"]:
+            require(isinstance(action, dict), "Invalid action record")
+            mnemonic = action["mnemonic"]
+            require(isinstance(mnemonic, str) and mnemonic, "Missing action mnemonic")
+            output_ids = action["outputIds"]
+            require(isinstance(output_ids, list) and bool(output_ids), "Missing action output IDs")
+            output_ids = [positive_id(key) for key in output_ids]
+            require(len(set(output_ids)) == len(output_ids), "Duplicate action output IDs")
+            outputs = [artifacts[key] for key in output_ids]
+            if "primaryOutputId" in action:
+                require(positive_id(action["primaryOutputId"]) in output_ids,
+                        "Primary output is not in action outputs")
+            require(not (any(name.endswith((".deb", ".udeb")) for name in outputs)
+                         or ("deb" in mnemonic.lower()
+                             and mnemonic not in ("ExtractDeb", "DebExtract", "DebianRuntimeMetadata"))),
+                    "Forbidden DEB-producing configured action")
+    except (KeyError, TypeError, ValueError) as error:
+        raise RegistryError("Malformed configured action graph") from error
+    return len(data["actions"])
+
+
+def configured_non_deb_gate(config: dict, prefix: list[str], flags: list[str],
+                            targets: list[str], consumer: Path, artifacts: Path) -> None:
+    if not config.get("forbid_deb_outputs", False):
+        return
+    selection = "set(" + " ".join(json.dumps(label) for label in targets) + ")"
+    commands = []
+    for kind, expression, output in (("cquery", selection, "files"),
+                                     ("aquery", "deps(" + selection + ")", "jsonproto")):
+        command = [*prefix, kind, *flags, expression, "--output=" + output]
+        if kind == "aquery":
+            command.append("--include_artifacts=true")
+        commands.append(command)
+        (artifacts / "configured-prebuild-commands.json").write_text(json.dumps(commands, indent=2) + "\n")
+        with (artifacts / ("prebuild-" + kind + ".out")).open("w") as stdout, \
+                (artifacts / ("prebuild-" + kind + ".log")).open("w") as stderr:
+            result = subprocess.run(command, cwd=consumer, stdout=stdout, stderr=stderr, timeout=1200)
+        require(result.returncode == 0, "Configured prebuild " + kind + " failed")
+        require((artifacts / ("prebuild-" + kind + ".out")).stat().st_size > 0,
+                "Configured prebuild " + kind + " output is empty")
+    graph = artifacts / "prebuild-aquery.out"
+    count = audit_non_deb_actions(read_json(graph))
+    (artifacts / "configured-prebuild-audit.json").write_text(json.dumps({
+        "targets": targets, "actions": count, "forbidden_producers": [],
+        "graph_sha256": hashlib.sha256(graph.read_bytes()).hexdigest(),
+    }, indent=2) + "\n")
+
+
+def prepare_rust(config: dict, consumer: Path, work_dir: Path, artifacts: Path,
+                 bazel_prefix: list[str], flags: list[str]) -> list[str]:
+    """Prepare the registry-fetched Rust graph before its extension is evaluated."""
+    preparation = config.get("rust_preparation")
+    if preparation is None:
+        return []
+    revision = preparation["helper_revision"]
+    url = ("https://raw.githubusercontent.com/securely1g/sonic-build-infra/"
+           f"{revision}/tools/rust/prepare.py")
+    with urlopen(url, timeout=60) as response:
+        source = response.read()
+    require(hashlib.sha256(source).hexdigest() == preparation["helper_sha256"],
+            "Rust preparation helper checksum mismatch")
+    helper = artifacts / "rust-prepare.py"
+    helper.write_bytes(source)
+    overrides = work_dir / "rust-overrides.bazelrc"
+    # The shared module has its own native toolchains. Consumer platform labels
+    # and Starlark settings may name repositories that do not exist there.
+    preparation_flags = [flag for flag in flags
+                         if flag.startswith(("--registry=", "--lockfile_mode=", "--experimental_downloader_config=",
+                                             "--http_connector_attempts=", "--http_connector_retry_max_timeout=",
+                                             "--http_max_parallel_downloads=", "--jobs=",
+                                             "--discard_analysis_cache", "--distdir="))]
+    command = [sys.executable, str(helper), "--workspace", str(consumer),
+               "--shared-only", "--shared-dependency",
+               f"{preparation['module']}={preparation['repo_name']}",
+               "--staging-dir", str(work_dir / "rust-deps"),
+               "--overrides-rc", str(overrides),
+               "--receipt", str(artifacts / "rust-preparation.json"),
+               "--bazel", bazel_prefix[0],
+               *["--bazel-startup-arg=" + flag for flag in bazel_prefix[1:]],
+               *["--bazel-arg=" + flag for flag in preparation_flags]]
+    run_logged(command, consumer, artifacts / "rust-preparation.log")
+    # Keep all other runner settings fixed. Only the verified private copy of
+    # the selected Rust module may replace a fetched repository.
+    lines = [line for line in overrides.read_text().splitlines()
+             if line and not line.startswith("#")]
+    prefix = f"common --override_module={preparation['module']}="
+    require(len(lines) == 1 and lines[0].startswith(prefix),
+            "Rust preparation must produce exactly its declared module override")
+    staged = Path(lines[0][len(prefix):]).resolve()
+    require(staged.is_relative_to((work_dir / "rust-deps").resolve()),
+            "Prepared Rust module must stay in its private staging directory")
+    for name in ("Cargo.toml", "Cargo.lock", "Cargo.Bazel.lock", "preparation.json", "source-resolution.json"):
+        shutil.copy2(staged / name, artifacts / ("shared-rust-" + name))
+    shutil.copy2(overrides, artifacts / "rust-overrides.bazelrc")
+    return [lines[0].removeprefix("common ")]
+
+
+def fetched_modules(output_base: Path, module: str) -> list[Path]:
+    # Canonical module repositories use module+ (or module+version). Extension
+    # repositories start module++extension+repo and have their own declarations.
+    # For example, rules_rs generates a separate rules_rust repository.
+    return [path for path in (output_base / "external").glob(f"{module}+*/MODULE.bazel")
+            if "++" not in path.parent.name]
+
+
+def verify_native(architecture: str) -> dict:
+    native = {"system": platform.system(), "machine": platform.machine()}
+    require(native["system"] == "Linux"
+            and native["machine"] == {"amd64": "x86_64", "arm64": "aarch64"}[architecture],
+            "Validation must run on a native Linux host of the requested architecture")
+    native["userspace"] = subprocess.check_output(
+        ["dpkg", "--print-architecture"], text=True).strip()
+    require(native["userspace"] == architecture,
+            "Debian userspace must match the requested native architecture")
+    return native
+
+
+def source_inputs(entry: Path) -> dict[str, str]:
+    return {str(path.relative_to(entry)): hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in sorted(entry.rglob("*"))
+            if path.is_file() and "__pycache__" not in path.parts}
+
+
+@contextmanager
+def preserve_source_inputs(root: Path, entry: Path, artifacts: Path, native: dict):
+    """Record the reviewed recipe and reject changes even when validation fails."""
+    inputs = source_inputs(entry)
+    receipt = {"source_head": git(root, "rev-parse", "HEAD").strip(),
+               "recipe": str(entry.relative_to(root)), "native": native,
+               "source_inputs": inputs, "result": "incomplete"}
+    try:
+        yield
+        receipt["result"] = "passed"
+    finally:
+        receipt["source_inputs_unchanged"] = source_inputs(entry) == inputs
+        if not receipt["source_inputs_unchanged"]:
+            receipt["result"] = "failed: recipe inputs changed"
+        (artifacts / "source-validation.json").write_text(json.dumps(receipt, indent=2) + "\n")
+        require(receipt["source_inputs_unchanged"], "Registry source inputs changed during validation")
+
+
+def require_test_container(image_reference: str | None) -> None:
+    """Runtime installation is opt-in and confined to a disposable native job."""
+    require(isinstance(image_reference, str)
+            and re.fullmatch(r"\S+@sha256:[0-9a-f]{64}", image_reference) is not None,
+            "Test runtime preparation requires --test-container-image with the disposable image's digest")
+    require(os.geteuid() == 0 and any(Path(p).exists() for p in ("/.dockerenv", "/run/.containerenv")),
+            "Test runtime preparation must run as root inside a disposable container")
+    require("VERSION_CODENAME=trixie" in Path("/etc/os-release").read_text().splitlines(),
+            "Test runtime preparation requires a Debian Trixie container")
+
+
+def prepare_test_runtime(config: dict, source: Path, consumer: Path, artifacts: Path,
+                         architecture: str, image_reference: str | None,
+                         executor_prefix: list[str] | None = None) -> list[str]:
+    """Reuse the fetched owner's locked setup; retain its receipt and test identity."""
+    preparation = config.get("test_runtime_preparation")
+    if preparation is None:
+        return []
+    require_test_container(image_reference)
+    helper = (source / preparation["script"]).resolve()
+    require(helper.is_relative_to(source.resolve()) and helper.is_file(),
+            "Test runtime preparation script must remain inside the fetched source")
+    content = helper.read_bytes()
+    require(hashlib.sha256(content).hexdigest() == preparation["sha256"],
+            "Test runtime preparation script checksum mismatch")
+    lock = consumer / "MODULE.bazel.lock"
+    require(lock.is_file(), "Bazel did not generate MODULE.bazel.lock resolution evidence")
+    lock_hash = hashlib.sha256(lock.read_bytes()).hexdigest()
+    shutil.copy2(lock, artifacts / "test-runtime.MODULE.bazel.lock")
+    (artifacts / "test-runtime-prepare.py").write_bytes(content)
+    receipt_path = artifacts / "test-runtime.json"
+    interpreter = "/usr/bin/python3" if executor_prefix else sys.executable
+    mirror_config = os.environ.get("SONIC_APT_MIRROR_CONFIG")
+    if mirror_config and preparation.get("apt_mirror_protocol") == "locked-runtime-v1":
+        mirror_path = Path(mirror_config).resolve()
+        require(mirror_path.is_file() and not mirror_path.is_relative_to(artifacts.resolve()),
+                "Private APT mirror configuration must be a file outside retained artifacts")
+        preparer = Path(__file__).resolve().with_name("apt_runtime_mirrors.py")
+        preparation_prefix = list(executor_prefix or [])
+        if preparation_prefix:
+            require(preparation_prefix[-1] == "--", "Expected the ARM runtime command separator")
+            preparation_prefix[-1:-1] = ["--bind", str(preparer.parent), "--bind", str(mirror_path)]
+        run_logged([*preparation_prefix, interpreter, "-B", str(preparer),
+                    "--owner-script", str(helper), "--owner-sha256", preparation["sha256"],
+                    "--lock", str(lock), "--mirror-config", str(mirror_path),
+                    "--output", str(artifacts / "test-runtime-mirrors.json")],
+                   consumer, artifacts / "test-runtime-mirror-preparation.log")
+    run_logged([*(executor_prefix or []), interpreter, "-B", str(helper), "--lock", str(lock),
+                "--image-reference", image_reference, "--output", str(receipt_path)],
+               consumer, artifacts / "test-runtime-preparation.log")
+    receipt = read_json(receipt_path)
+    require(receipt.get("architecture") == architecture and receipt.get("image_reference") == image_reference
+            and receipt.get("lock_sha256") == lock_hash
+            and hashlib.sha256(lock.read_bytes()).hexdigest() == lock_hash,
+            "Test runtime receipt must match the target architecture, container and consumer lock")
+    runtime_id = receipt.get("SONIC_TEST_RUNTIME_ID")
+    require(isinstance(runtime_id, str) and re.fullmatch(r"[0-9a-f]{64}", runtime_id) is not None,
+            "Test runtime preparation must provide SONIC_TEST_RUNTIME_ID")
+    identity = {key: value for key, value in receipt.items()
+                if key not in ("SONIC_TEST_RUNTIME_ID", "preserved_base_packages", "lock_sha256")}
+    require(runtime_id == hashlib.sha256(json.dumps(identity, sort_keys=True,
+                                                    separators=(",", ":")).encode()).hexdigest(),
+            "Test runtime identity does not match its receipt")
+    return [f"--test_env=SONIC_TEST_RUNTIME_ID={runtime_id}"]
+
+
+def python_runtime_identity(runtime: Path, consumer: Path, log: Path,
+                            executor_prefix: list[str] | None = None) -> dict:
+    """Inspect the real interpreter, including its architecture and exact ABI."""
+    executable = (runtime / "bin/python3").resolve(strict=True)
+    require(executable.is_relative_to(runtime.resolve()), "Python interpreter escapes its runtime")
+    with executable.open("rb") as stream:
+        header = stream.read(20)
+    require(header[:6] == b"\x7fELF\x02\x01", "Python runtime requires a 64-bit little-endian ELF interpreter")
+    machine = int.from_bytes(header[18:20], "little")
+    require(machine == (183 if executor_prefix else 62), "Python runtime has the wrong ELF architecture")
+    probe = (
+        "import json, platform, sys; "
+        "print(json.dumps(dict(machine=platform.machine(), version=list(sys.version_info), "
+        "implementation=sys.implementation.name, cache_tag=sys.implementation.cache_tag, abiflags=sys.abiflags)))"
+    )
+    run_logged([*(executor_prefix or []), str(executable), "-I", "-S", "-c", probe], consumer, log)
+    identity = read_json(log)
+    require(identity.get("machine") == ("aarch64" if executor_prefix else "x86_64"),
+            "Python runtime must execute with its actual architecture")
+    identity["elf_machine"] = machine
+    with executable.open("rb") as stream:
+        identity["interpreter_sha256"] = hashlib.file_digest(stream, "sha256").hexdigest()
+    identity["libraries"] = {}
+    for library in sorted((runtime / "lib").glob("libpython*.so.*")):
+        require(library.resolve().is_relative_to(runtime.resolve()), "Python library escapes its runtime")
+        with library.open("rb") as stream:
+            identity["libraries"][library.name] = hashlib.file_digest(stream, "sha256").hexdigest()
+    return identity
+
+
+def prepare_fips_recipe_perl(consumer: Path, work_dir: Path, artifacts: Path,
+                             executor_prefix: list[str], kernel_executor: Path) -> str:
+    """Use the target Perl for every original recipe, with native AIO for AF_ALG."""
+    runtime = consumer / "fips_recipe_runtime"
+    runtime.mkdir(exist_ok=True)
+    (runtime / "BUILD.bazel").write_text('exports_files(["run"])\n')
+    guest_perl = [*executor_prefix, "/usr/bin/perl"]
+    identity = json.loads(subprocess.check_output(
+        [*guest_perl, "-MConfig", "-MJSON::PP", "-e",
+         'print encode_json({version => $Config{version}, archname => $Config{archname}})'],
+        text=True, cwd=consumer))
+    require("aarch64" in identity["archname"], "OpenSSL TAP recipes must use AArch64 Perl")
+    identity["kernel_executor"] = str(kernel_executor)
+    identity["kernel_recipes"] = ["30-test_afalg.t"]
+    (artifacts / "fips-recipe-perl.json").write_text(json.dumps(identity, indent=2) + "\n")
+
+    # Embed the complete launcher in the Bazel input copied by rules_foreign_cc.
+    # OpenSSL's global EXE_SHELL would cause its CMP/HTTP recipe to skip.
+    kernel = shlex.join([str(kernel_executor), "--bind", str(work_dir), "--bind", str(artifacts)])
+    target_path = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+    runner = runtime / "run"
+    runner.write_text(
+        "#!/bin/sh\nunset PERLLIB PERL5LIB PERL5OPT\n"
+        'for arg do\n    case "${arg##*/}" in\n        30-test_afalg.t)\n'
+        f'            exec {kernel} --cwd "$PWD" --timeout 180 -- /usr/bin/env PATH={target_path} /usr/bin/perl "$@" ;;\n'
+        "    esac\ndone\n"
+        + 'exec ' + shlex.join(guest_perl) + ' "$@"\n')
+    runner.chmod(0o755)
+    return "--@sonic-fips//openssl/integration:recipe_perl=//fips_recipe_runtime:run"
+
+
+def prepare_cross_python_runtimes(bazel_prefix: list[str], flags: list[str], test_targets: list[str],
+                                  output_base: Path, consumer: Path, artifacts: Path,
+                                  executor_prefix: list[str]) -> list[dict]:
+    """Use the locked ARM peers of exec-configured Python only inside tests.
+
+    Some unchanged test launchers embed the execution toolchain's Python even
+    while testing an ARM binary. Native build actions keep that AMD64 runtime;
+    PRoot maps its complete, matching ARM runtime into the test's filesystem.
+    """
+    run_logged([*bazel_prefix, "cquery", *flags, "set(" + " ".join(test_targets) + ")",
+                "--output=label"], consumer, artifacts / "cross-test-analysis.log")
+    external = output_base / "external"
+    runtimes = sorted(path for path in external.iterdir()
+                      if path.name.startswith("rules_python+") and "+python+python_" in path.name
+                      and path.name.endswith("_x86_64-unknown-linux-gnu") and path.is_dir())
+    fetch_flags = [flag for flag in flags if flag.startswith((
+        "--registry=", "--lockfile_mode=", "--experimental_downloader_config=", "--override_module=",
+        "--override_repository=", "--http_connector_attempts=", "--http_connector_retry_max_timeout=",
+        "--http_max_parallel_downloads=", "--distdir="))]
+    mappings = []
+    for index, native in enumerate(runtimes):
+        require((native / "STANDALONE_INTERPRETER").is_file(), "Expected a declared standalone Python runtime")
+        arm_name = native.name.removesuffix("_x86_64-unknown-linux-gnu") + "_aarch64-unknown-linux-gnu"
+        run_logged([*bazel_prefix, "fetch", *fetch_flags, "--repo=@@" + arm_name], consumer,
+                   artifacts / f"cross-python-{index}-fetch.log")
+        arm = external / arm_name
+        require((arm / "STANDALONE_INTERPRETER").is_file(), "Missing declared ARM Python runtime")
+        native_identity = python_runtime_identity(native, consumer, artifacts / f"cross-python-{index}-native.json")
+        arm_identity = python_runtime_identity(arm, consumer, artifacts / f"cross-python-{index}-arm.json",
+                                               executor_prefix)
+        require(all(native_identity.get(key) == arm_identity.get(key)
+                    for key in ("version", "implementation", "cache_tag", "abiflags")),
+                "ARM test Python must match the locked native Python version and ABI")
+        mappings.append({"source": str(arm.resolve()), "destination": str(native.resolve()),
+                         "native_repository": native.name, "arm_repository": arm_name,
+                         "native": native_identity, "arm": arm_identity})
+    (artifacts / "cross-python-runtimes.json").write_text(json.dumps(mappings, indent=2) + "\n")
+    return mappings
+
+
+def github_source_manifests(root: Path, module: str, version: str,
+                            execution_architecture: str) -> list[Path]:
+    """Select exact transport inputs without changing a published module recipe."""
+    directory = root / "ci/github_sources"
+    catalog = directory / "catalog.json"
+    if not catalog.exists():
+        return []  # Older/fixture catalogs have no opt-in source sets.
+    value = read_json(catalog)
+    require(set(value) == {"schema_version", "inputs"} and type(value["schema_version"]) is int
+            and value["schema_version"] == 1 and isinstance(value["inputs"], list),
+            "Invalid GitHub source catalog")
+    seen, selected = set(), []
+    for item in value["inputs"]:
+        require(isinstance(item, dict) and set(item) == {
+            "module", "version", "execution_architecture", "manifests"}, "Invalid GitHub source selector")
+        require(isinstance(item["module"], str) and NAME.fullmatch(item["module"])
+                and isinstance(item["version"], str) and VERSION.fullmatch(item["version"])
+                and item["execution_architecture"] in ("amd64", "arm64"), "Invalid GitHub source identity")
+        identity = (item["module"], item["version"], item["execution_architecture"])
+        require(identity not in seen, "Duplicate GitHub source selector")
+        seen.add(identity)
+        manifests = item["manifests"]
+        require(isinstance(manifests, list) and bool(manifests)
+                and all(isinstance(name, str) and re.fullmatch(r"[a-z0-9][a-z0-9._-]*\.json", name)
+                        and name != "catalog.json" for name in manifests)
+                and len(manifests) == len(set(manifests)), "Invalid GitHub source manifest list")
+        if identity == (module, version, execution_architecture):
+            for name in manifests:
+                path = directory / name
+                require(path.is_file() and not path.is_symlink(), "Selected GitHub source manifest is missing or linked")
+                selected.append(path)
+    return selected
+
+
+def prepare_github_sources(root: Path, module: str, version: str, execution_architecture: str,
+                           work_dir: Path, artifacts: Path) -> list[str]:
+    flags = []
+    for manifest in github_source_manifests(root, module, version, execution_architecture):
+        # Separate generations let different versions reuse a URL basename.
+        generation = hashlib.sha256(manifest.read_bytes()).hexdigest()
+        distdir = work_dir / "github-inputs" / generation
+        try:
+            github_sources.prepare(manifest, distdir, work_dir / "github-downloads",
+                                   artifacts / "github-sources" / (generation + ".json"))
+        except (ValueError, OSError) as error:
+            raise RegistryError(f"GitHub source preparation failed: {error}") from error
+        flags.append(f"--distdir={distdir}")
+    return flags
+
+
+def prepare_nested_go_tests(root: Path, work_dir: Path, bazel: str) -> Path:
+    """Expose native Bazel and the outer ARM toolchain to the original Go tests."""
+    adapter = work_dir / "cross-cc-repository"
+    require((adapter / "BUILD.bazel").is_file(), "Nested rules_go tests require the isolated ARM toolchain")
+    host_bazel = shutil.which(bazel)
+    require(host_bazel is not None, f"Could not locate the native Bazel launcher: {bazel}")
+    source = root / "ci" / "rules_go_cross"
+    platforms = adapter / "nested"
+    platforms.mkdir()
+    shutil.copy2(source / "platforms.BUILD.bazel", platforms / "BUILD.bazel")
+    tools = work_dir / "nested-go-tools"
+    tools.mkdir()
+    shutil.copy2(source / "bazel", tools / "bazel")
+    shutil.copy2(source / "executor", tools / "executor")
+    (tools / "host-bazel").symlink_to(Path(host_bazel).absolute())
+    shutil.copy2(root / "ci" / "source_mirrors.cfg", tools / "source_mirrors.cfg")
+    return tools / "executor"
+
+
+def prepare_gazelle_tests(root: Path, work_dir: Path, script_executor: list[str]) -> Path:
+    """Run Go test binaries directly and preserve the target runtime for shell tests."""
+    tools = work_dir / "gazelle-test-tools"
+    tools.mkdir()
+    go = tools / "arm-go-test"
+    shutil.copy2(root / "ci" / "rules_go_cross" / "executor", go)
+    runner = tools / "executor"
+    runner.write_text(
+        '#!/bin/sh\nset -eu\n'
+        'if [ "$(head -c 2 -- "$1")" = "#!" ]; then\n'
+        f'    exec {shlex.join(script_executor)} "$@"\n'
+        'fi\n'
+        f'exec {shlex.quote(str(go))} "$@"\n'
+    )
+    runner.chmod(0o755)
+    return runner
+
+
+def stage_consumer_source_patches(root: Path, module: str, version: str,
+                                  config: dict, consumer: Path, artifacts: Path) -> dict:
+    """Materialize owner-bound patch bytes in the fresh consuming main repository.
+
+    Never extract or execute an archive. Only regular selected members are read
+    after whole-archive integrity verification. Fetch overlays are supported;
+    arbitrary source patches are rejected because they could alter owner bytes.
+    """
+    labels = [label for dep in config["consumer_deps"] for label in dep.get("source_patches", [])]
+    if not labels:
+        return {}
+    require(consumer.is_dir() and not consumer.is_symlink()
+            and consumer.resolve() == consumer.absolute(),
+            "Patch consumer root must have no symlink components")
+    entry = entry_directory(root, module, version)
+    source = read_json(local_input(entry, "source.json"))
+    require(not source.get("patches"), "Owner source_patches require an unpatched archive or explicit overlay inputs")
+    url = source.get("url", "")
+    require(urlparse(url).scheme == "https", "Owner archive must use HTTPS")
+    prefix = source.get("strip_prefix", "")
+    require(isinstance(prefix, str) and prefix and not prefix.startswith("/")
+            and ".." not in prefix.split("/") and "\\" not in prefix,
+            "Owner patch staging requires a safe strip_prefix")
+    with urlopen(url, timeout=60) as response:
+        archive = response.read(64 * 1024 * 1024 + 1)
+    require(len(archive) <= 64 * 1024 * 1024, "Owner patch archive exceeds bounded staging limit")
+    sri(source.get("integrity"), archive)
+    wanted = {}
+    for label in labels:
+        require(isinstance(label, str) and label.startswith(f"@{module}//") and LABEL.fullmatch(label),
+                "Patch label must belong to tested owner")
+        package, name = label.split("//", 1)[1].split(":", 1)
+        path = (package + "/" if package else "") + name
+        require(path.endswith(".patch") and all(part not in ("", ".", "..") for part in path.split("/")),
+                "Unsafe owner patch path")
+        wanted[label] = path
+    selected = {}; seen = set(); nonregular = set()
+    try:
+        with tarfile.open(fileobj=io.BytesIO(archive), mode="r:*") as tar:
+            for member in tar:
+                path = member.name.removeprefix("./").rstrip("/")
+                require(path and not path.startswith("/") and "\\" not in path
+                        and all(part not in ("", ".", "..") for part in path.split("/")),
+                        "Unsafe owner archive member")
+                require(path not in seen, "Duplicate owner archive member")
+                seen.add(path)
+                if not member.isdir() and not member.isfile():
+                    nonregular.add(path)
+                for label, relative in wanted.items():
+                    if path == prefix + "/" + relative:
+                        require(member.isfile() and member.size <= 1024 * 1024,
+                                "Owner patch must be a bounded regular archive member")
+                        selected[label] = tar.extractfile(member).read()
+    except tarfile.TarError as error:
+        raise RegistryError("Owner patch archive is not a supported TAR") from error
+    for label, relative in wanted.items():
+        parts = (prefix + "/" + relative).split("/")
+        require(not any("/".join(parts[:end]) in nonregular for end in range(1, len(parts))),
+                "Owner patch parent must not be a symlink or special member")
+        if relative in source.get("overlay", {}):
+            overlay = local_input(entry / "overlay", relative)
+            require(not (entry / "overlay").is_symlink()
+                    and not any(parent.is_symlink() for parent in overlay.parents if parent.is_relative_to(entry)),
+                    "Owner overlay patch parents must not be symlinks")
+            require(overlay.stat().st_size <= 1024 * 1024, "Owner overlay patch exceeds staging limit")
+            selected[label] = overlay.read_bytes()
+            sri(source["overlay"][relative], selected[label])
+        require(label in selected, "Owner patch not present in verified source")
+    directory = consumer / "_registry_source_patches"
+    require(not directory.exists() and not directory.is_symlink(), "Patch staging directory must be fresh")
+    directory.mkdir()
+    result = {}; receipt = []
+    for index, label in enumerate(dict.fromkeys(labels)):
+        name = f"{index:03d}.patch"
+        (directory / name).write_bytes(selected[label])
+        result[label] = f"//_registry_source_patches:{name}"
+        receipt.append({"source_label": label, "root_label": result[label],
+                        "sha256": hashlib.sha256(selected[label]).hexdigest()})
+    (directory / "BUILD.bazel").write_text("exports_files(" + json.dumps([f"{i:03d}.patch" for i in range(len(result))]) + ")\n")
+    (artifacts / "consumer-source-patches.json").write_text(json.dumps({
+        "owner": module, "version": version, "archive_integrity": source["integrity"],
+        "archive_sha256": hashlib.sha256(archive).hexdigest(), "patches": receipt,
+    }, indent=2) + "\n")
+    return result
+
+
+@contextmanager
+def build_cache_audit(targets: list[str], work: Path, artifacts: Path):
+    """Publish only selected spawn outcomes and declared output digests."""
+    if not targets:
+        yield []
+        return
+    # The full execution log contains environment variables and command lines.
+    # Keep it outside the upload directory, including when Bazel or jq fails.
+    with tempfile.TemporaryDirectory(dir=work, prefix="cache-audit-") as temporary:
+        log = Path(temporary) / "execution.json"
+        yield [f"--execution_log_json_file={log}", "--noexecution_log_sort"]
+        # Bazel 8.5 writes adjacent pretty-printed SpawnExec objects. jq reads
+        # one at a time, and Bazel already computed all recorded file digests.
+        select_spawns = """
+            select(.targetLabel as $owner | $targets | index($owner))
+            | .listedOutputs as $outputs
+            | {targetLabel, mnemonic, runner, cacheHit, exitCode,
+               actionDigest: .digest.hash,
+               outputs: [.actualOutputs[] | select(.digest.hash)
+                         | select(.path as $path | $outputs | index($path))
+                         | {path, sha256: .digest.hash}]}
+        """
+        output = subprocess.check_output(["jq", "-c", "--argjson", "targets", json.dumps(targets),
+                                          select_spawns, str(log)], text=True)
+        records = [json.loads(line) for line in output.splitlines()]
+        observed = {record["targetLabel"] for record in records}
+        require(observed == set(targets), f"Missing cache audit targets: {sorted(set(targets) - observed)}")
+        (artifacts / "build-cache-audit.json").write_text(json.dumps(records, indent=2) + "\n")
+
+
+def cross_test_timeout_flags(module: str, version: str, cross_compile: bool, flags: list[str]) -> list[str]:
+    """Supply emulation budgets for short, moderate, long and eternal tests."""
+    if not cross_compile or any(flag == "--test_timeout" or flag.startswith("--test_timeout=") for flag in flags):
+        return []
+    # BMv2 inspects runtime/debug archives and Sairedis runs two sequential
+    # saiasiccmp comparisons under QEMU; both exceed the 900-second budget.
+    moderate_seconds = 2700 if module in {"p4lang-bmv2", "sonic-sairedis"} else 900
+    # The FIPS package test runs the complete SymCrypt unittest under QEMU.
+    long_seconds = 5400 if (module == "sonic-fips" and version in FIPS_CROSS_VERSIONS) else 2700
+    return [f"--test_timeout=180,{moderate_seconds},{long_seconds},7200"]
+
+
+def run(root: Path, module: str, version: str, architecture: str,
+        work_dir: Path, artifacts: Path, bazel: str = "bazel",
+        test_container_image: str | None = None,
+        bazel_startup_args: list[str] | None = None,
+        bazel_build_args: list[str] | None = None,
+        cross_compile: bool = False, test_executor: Path | None = None,
+        profile_analysis: bool = False) -> None:
+    config = validate_entry(root, module, version)
+    require(architecture in config["architectures"], "Architecture is not configured for this version")
+    additional = config.get("additional_targets", {}).get(architecture, {})
+    build_targets = config["build_targets"] + additional.get("build_targets", [])
+    test_targets = config["test_targets"] + additional.get("test_targets", [])
+    require(not cross_compile or architecture == "arm64", "Cross compilation supports ARM64 targets on AMD64")
+    require(cross_compile or test_executor is None, "A test executor requires explicit cross compilation")
+    native = verify_native("amd64" if cross_compile else architecture)
+    fips_cross = cross_compile and (module == "sonic-fips" and version in FIPS_CROSS_VERSIONS)
+    infra_cross = (cross_compile and module == "sonic-build-infra" and
+                   "@sonic-build-infra//tools/build_tools:foreign_runtime_test" in test_targets)
+    kernel_executor = Path("/usr/local/bin/sonic-arm64-kernel")
+    if fips_cross:
+        require(kernel_executor.is_file() and os.access(kernel_executor, os.X_OK),
+                "FIPS ARM cross tests require the worker image with sonic-arm64-kernel")
+    if config.get("test_runtime_preparation") or cross_compile:
+        require_test_container(test_container_image)
+    if cross_compile:
+        require(test_executor is not None and test_executor.is_absolute()
+                and test_executor.is_file() and os.access(test_executor, os.X_OK),
+                "ARM64 cross compilation requires an executable absolute --test-executor path")
+    work_dir, artifacts = work_dir.resolve(), artifacts.resolve()
+    require(not work_dir.exists() or not any(work_dir.iterdir()), "work-dir must be fresh and empty")
+    require(not artifacts.is_relative_to(work_dir), "artifacts must be outside work-dir")
+    entry = entry_directory(root, module, version)
+    require(not work_dir.is_relative_to(entry.resolve()) and not artifacts.is_relative_to(entry.resolve()),
+            "Validation work and artifacts must stay outside the source entry")
+    artifacts.mkdir(parents=True, exist_ok=True)
+    with preserve_source_inputs(root, entry, artifacts, native):
+        consumer = work_dir / "consumer"
+        consumer.mkdir(parents=True)
+        if "integration_test_module" in config:
+            source = integration_test_directory(entry_directory(root, module, version), config, module, version)
+            shutil.copytree(source, consumer, dirs_exist_ok=True)
+        else:
+            staged_patches = stage_consumer_source_patches(root, module, version, config, consumer, artifacts)
+            declarations = ['module(name = "registry_ci_consumer")']
+            for dependency in [{"name": module, "version": version}, *config["consumer_deps"]]:
+                declarations.append("bazel_dep(" + ", ".join(f"{key} = {json.dumps(value)}"
+                                                           for key, value in dependency.items()
+                                                           if key in ("name", "version", "repo_name")) + ")")
+            for dependency in config["consumer_deps"]:
+                name, selected_version = dependency["name"], dependency["version"]
+                patch_args = ""
+                if "source_patches" in dependency:
+                    patch_args = (f", patches = {json.dumps([staged_patches[label] for label in dependency['source_patches']])}, "
+                                  f"patch_strip = {dependency.get('patch_strip', 0)}")
+                declarations.append(f"single_version_override(module_name = {json.dumps(name)}, "
+                                    f"version = {json.dumps(selected_version)}{patch_args})")
+            if "go_sdk" in config:
+                dependencies = {module: module, **{
+                    dependency["name"]: dependency.get("repo_name", dependency["name"])
+                    for dependency in config["consumer_deps"]
+                }}
+                extension = f"@{dependencies['rules_go']}//go:extensions.bzl"
+                declarations.extend([
+                    f"go_sdk = use_extension({json.dumps(extension)}, \"go_sdk\")",
+                    f"go_sdk.download(version = {json.dumps(config['go_sdk']['version'])})",
+                ])
+            if "rust_toolchain" in config:
+                dependencies = {module: module, **{
+                    dependency["name"]: dependency.get("repo_name", dependency["name"])
+                    for dependency in config["consumer_deps"]
+                }}
+                extension = f"@{dependencies['rules_rs']}//rs:rules_rust_reexported_extensions.bzl"
+                # rules_rs' legacy Rust extension needs a root declaration even when a
+                # dependency registers the same toolchain. Match real component roots.
+                declarations.extend([
+                    f"rust = use_extension({json.dumps(extension)}, \"rust\")",
+                    'rust.toolchain(edition = "2021", '
+                    'extra_target_triples = ["aarch64-unknown-linux-gnu", "x86_64-unknown-linux-gnu"], '
+                    f"versions = [{json.dumps(config['rust_toolchain']['version'])}])",
+                    'use_repo(rust, "rust_toolchains")',
+                    'register_toolchains("@rust_toolchains//:all")',
+                ])
+                if config["rust_toolchain"].get("mangled_allocator_libraries", False):
+                    declarations.extend([
+                        f'rules_rust = use_extension("@{dependencies["rules_rs"]}//rs:rules_rust.bzl", "rules_rust")',
+                        'use_repo(rules_rust, "rules_rust")',
+                    ])
+                if config["rust_toolchain"].get("bindgen", False):
+                    declarations.extend([
+                        f'bindgen = use_extension("@{dependencies["rules_rs"]}//rs:rules_rust_bindgen.bzl", "rules_rust_bindgen")',
+                        'use_repo(bindgen, "rules_rust_bindgen")',
+                        'register_toolchains("@rules_rust_bindgen//:all")',
+                    ])
+            (consumer / "MODULE.bazel").write_text("\n\n".join(declarations) + "\n")
+            (consumer / "BUILD.bazel").write_text("# Explicit external targets are built from this consumer.\n")
+        (consumer / ".bazelversion").write_text("8.5.1\n")
+        (consumer / ".gitignore").write_text("MODULE.bazel.lock\n")
+        shutil.copy2(consumer / "MODULE.bazel", artifacts / "consumer.MODULE.bazel")
+        executor_prefix = []
+        cross_runtime = None
+        if cross_compile:
+            # Debuggers resolve separate symbols through real paths. Keep /tmp
+            # consistent between the guest and this disposable runner container.
+            executor_prefix = [str(test_executor), "--bind", "/tmp", "--bind", str(work_dir),
+                               "--bind", str(artifacts), "--"]
+            probe = (
+                "import json, pathlib, platform, subprocess; "
+                "release = dict(line.split('=', 1) for line in pathlib.Path('/etc/os-release').read_text().splitlines() "
+                "if '=' in line); "
+                "print(json.dumps(dict(system=platform.system(), machine=platform.machine(), "
+                "userspace=subprocess.check_output(['dpkg', '--print-architecture'], text=True).strip(), "
+                "debian_codename=release.get('VERSION_CODENAME', '').strip(chr(34)))))"
+            )
+            probe_log = artifacts / "cross-runtime-probe.json"
+            run_logged([*executor_prefix, "/usr/bin/python3", "-I", "-S", "-c", probe], consumer, probe_log)
+            cross_runtime = read_json(probe_log)
+            require(cross_runtime == {"system": "Linux", "machine": "aarch64", "userspace": "arm64",
+                                      "debian_codename": "trixie"},
+                    "Cross tests must execute in an ARM64 Debian Trixie runtime")
+            cross_runtime["executor_sha256"] = hashlib.sha256(test_executor.read_bytes()).hexdigest()
+            cross_runtime["executor_prefix"] = executor_prefix
+        profiling_startup = analysis_profile_startup_args(artifacts) if profile_analysis else []
+
+        prefix = [bazel, "--ignore_all_rc_files", f"--output_user_root={work_dir / 'bazel'}",
+                  *(bazel_startup_args or []), *profiling_startup]
+        flags = [f"--registry={root.resolve().as_uri()}", "--registry=https://bcr.bazel.build/",
+                 f"--platforms={config['platforms'][architecture]}", "--lockfile_mode=update",
+                 f"--experimental_downloader_config={root.resolve() / 'ci/source_mirrors.cfg'}",
+                 *HTTP_DOWNLOAD_FLAGS,
+                 "--remote_download_regex=(^|.*/)tools/build_tools/kernel_runtime_(amd64|arm64)(/.*)?$",
+                 *config.get("build_flags", []), *(bazel_build_args or [])]
+        execution_architecture = "amd64" if cross_compile else architecture
+        flags.extend(prepare_github_sources(root, module, version, execution_architecture,
+                                            work_dir, artifacts))
+        host_platform = config.get("host_platforms", {}).get(execution_architecture)
+        if cross_compile and host_platform is None:
+            # ARM-only manifests have no AMD64 target platform. The build runs on
+            # a verified AMD64 host; derive its execution platform from Bazel.
+            host_platform = config["platforms"].get("amd64", "@local_config_platform//:host")
+        if host_platform is not None:
+            flags.append(f"--host_platform={host_platform}")
+        if config.get("rust_toolchain", {}).get("mangled_allocator_libraries", False):
+            flags.append("--@rules_rust//rust/settings:experimental_use_allocator_libraries_with_mangled_symbols=True")
+        cross_platforms = None
+        pip_hubs = None
+        try:
+            if cross_compile:
+                try:
+                    cross_platforms = cross_toolchain.prepare(
+                        root, consumer, work_dir, artifacts, prefix, flags,
+                        config["platforms"][architecture], host_platform, run_logged)
+                except ValueError as error:
+                    raise RegistryError(str(error)) from error
+                flags = [flag for flag in flags if not flag.startswith(("--platforms=", "--host_platform="))]
+                host_platform = cross_platforms["execution_platform"]
+                flags.extend([f"--platforms={cross_platforms['target_platform']}",
+                              f"--host_platform={host_platform}"])
+                if infra_cross:
+                    # Build tools such as foreign_runtime_arm64 execute their own
+                    # target loader while assembling a runtime. Give those actions
+                    # an ARM execution platform after the preferred AMD64 cross host.
+                    arm_platform = cross_platforms["target_platform"]
+                    arm_uname = "/opt/sonic-arm64-rootfs/usr/bin/uname"
+                    probe_log = artifacts / "cross-binfmt.log"
+                    run_logged(["/usr/bin/env", "-i", arm_uname, "-m"], consumer, probe_log)
+                    machine = probe_log.read_text().strip()
+                    require(machine == "aarch64", "Build-tool runtime assembly requires working AArch64 binfmt")
+                    flags.append(f"--extra_execution_platforms={host_platform},{arm_platform}")
+                    cross_runtime["build_tool_execution"] = {
+                        "preferred": host_platform, "native_machine": native["machine"],
+                        "fallback": arm_platform, "fallback_machine": machine,
+                    }
+                try:
+                    pip_hubs = cross_pip.prepare(
+                        root, consumer, artifacts, prefix, flags,
+                        cross_platforms["selected_module_versions"], cross_toolchain)
+                except ValueError as error:
+                    raise RegistryError(str(error)) from error
+                cross_runtime["pip_hubs"] = pip_hubs
+                try:
+                    cross_runtime["autoconf"] = cross_autoconf.prepare(work_dir, artifacts, flags, fips_krb5=fips_cross)
+                except ValueError as error:
+                    raise RegistryError(str(error)) from error
+                shutil.copy2(consumer / "MODULE.bazel", artifacts / "consumer.MODULE.bazel")
+            flags.extend(prepare_rust(config, consumer, work_dir, artifacts, prefix, flags))
+            configured_non_deb_gate(config, prefix, flags,
+                                    list(dict.fromkeys(build_targets + test_targets)), consumer, artifacts)
+            with build_cache_audit(config.get("cache_audit_targets", []), work_dir, artifacts) as audit_flags:
+                profile_flags = analysis_profile_flags(artifacts, "build") if profile_analysis else []
+                run_logged([*prefix, "build", *flags, *audit_flags, *profile_flags,
+                            f"--build_event_json_file={artifacts / 'build-events.jsonl'}", *build_targets],
+                           consumer, artifacts / "build.log")
+            declared_trees = query_output_trees(prefix, flags, build_targets, consumer, artifacts)
+            # Path queries need dependency resolution, but not target/host platform
+            # flags whose apparent labels may be unresolved in a fresh info command.
+            info_flags = [flag for flag in flags if flag.startswith(
+                ("--registry=", "--lockfile_mode=", "--experimental_downloader_config=",
+                 "--override_module=", "--override_repository=", "--distdir="))]
+            execution_root = Path(subprocess.check_output([*prefix, "info", *info_flags, "execution_root"],
+                                                         cwd=consumer, text=True).strip())
+            collect_outputs(artifacts / "build-events.jsonl", build_targets, work_dir, artifacts,
+                            declared_trees, execution_root)
+            output_base = Path(subprocess.check_output([*prefix, "info", *info_flags, "output_base"],
+                                                      cwd=consumer, text=True).strip())
+            try:
+                cross_pip.record_locks(pip_hubs, output_base, artifacts, fetched_modules)
+            except ValueError as error:
+                raise RegistryError(str(error)) from error
+            if executor_prefix and not output_base.resolve().is_relative_to(work_dir):
+                # Startup options may choose a cache outside the work directory.
+                # Runfiles symlinks and locked runtime packages still need it.
+                executor_prefix[-1:-1] = ["--bind", str(output_base.resolve())]
+            fetched = fetched_modules(output_base, module)
+            require(len(fetched) == 1, f"Expected one fetched repository for {module}, found {len(fetched)}")
+            registry_module = root / "modules" / module / version / "MODULE.bazel"
+            require(parse_module_identity(fetched[0].read_text()) == (module, version),
+                    "Fetched source module name/version differs from requested registry entry")
+            canonical_bytes = registry_module.read_bytes()
+            fetched_bytes = fetched[0].read_bytes()
+            # Bazel materializes the registry's MODULE after applying source
+            # overlays/patches. The generated overlay is checked independently at
+            # entry validation; its banner is not part of the fetched MODULE.
+            require(fetched_bytes == canonical_bytes,
+                    "Fetched MODULE.bazel differs from registry MODULE.bazel")
+            shutil.copy2(fetched[0], artifacts / "fetched.MODULE.bazel")
+            require((consumer / "MODULE.bazel.lock").is_file(), "Bazel did not generate MODULE.bazel.lock resolution evidence")
+            if infra_cross:
+                # These runtime tests exercise public wrappers alongside target
+                # runtimes and compare their tool versions, loaded Perl paths,
+                # and Valgrind instrumentation of an AArch64 program.
+                # Bazel drops this option on exec transitions. A platform mapping
+                # also applies it to nested ARM execution tools such as Valgrind.
+                mapping = consumer / "_registry_ci_cross" / "build_infra_arm64_tests.platforms"
+                shutil.copy2(root / "ci" / mapping.name, mapping)
+                shutil.copy2(mapping, artifacts / mapping.name)
+                flags.append("--platform_mappings=" + str(mapping.relative_to(consumer)))
+            if executor_prefix:
+                mappings = prepare_cross_python_runtimes(prefix, flags, test_targets, output_base,
+                                                         consumer, artifacts, executor_prefix)
+                cross_runtime["python_runtimes"] = mappings
+                for mapping in mappings:
+                    executor_prefix[-1:-1] = ["--bind-at", mapping["source"], mapping["destination"]]
+            test_flags = prepare_test_runtime(config, fetched[0].parent, consumer, artifacts,
+                                              architecture, test_container_image, executor_prefix or None)
+            if cross_compile and module in {"rules_go", "gazelle"}:
+                if module == "rules_go":
+                    go_executor = prepare_nested_go_tests(root, work_dir, bazel)
+                else:
+                    go_executor = prepare_gazelle_tests(root, work_dir, executor_prefix)
+                executor_prefix = [str(go_executor)]
+                cross_runtime["test_executor_prefix"] = executor_prefix
+                cross_runtime["test_executor_sha256"] = hashlib.sha256(go_executor.read_bytes()).hexdigest()
+            if fips_cross:
+                test_flags.extend(["--keep_going", prepare_fips_recipe_perl(
+                    consumer, work_dir, artifacts, executor_prefix, kernel_executor)])
+            if executor_prefix:
+                fixtures = ARM_DECLARED_RUNTIME_FIXTURES.get((module, version))
+                if infra_cross:
+                    # The test relocates a large tree and runs its target tools.
+                    # Avoid tracing every filesystem operation inside PRoot.
+                    fixtures = {"tools/build_tools/foreign_runtime_test":
+                                "sonic-build-infra+/tools/build_tools/foreign_runtime_arm64/usr/bin/protoc"}
+                if fixtures:
+                    executor_prefix = [str(root / "ci" / "declared_arm_runtime.py"), json.dumps(fixtures), *executor_prefix]
+                test_flags.append("--run_under=" + shlex.join(executor_prefix))
+            test_flags.extend(cross_test_timeout_flags(module, version, cross_compile, [*flags, *test_flags]))
+            # Export HOME before Bazel's test setup assigns TEST_TMPDIR. With
+            # HOME absent, that shell assignment is invisible to Python and
+            # expanduser() falls back to the account home outside the sandbox.
+            # Tests can hard-link declared runfiles into TEST_TMPDIR. Linux's
+            # separate bind mounts reject those links even on one filesystem.
+            # Keep input staging within the disposable container, and leave
+            # build action strategies unchanged.
+            run_logged([*prefix, "test", *flags, *test_flags, *(analysis_profile_flags(artifacts, "test") if profile_analysis else []), "--test_env=HOME=",
+                        f"--strategy=TestRunner={TEST_SANDBOX_STRATEGY}",
+                        "--nocache_test_results", "--test_output=errors",
+                        f"--build_event_json_file={artifacts / 'test-events.jsonl'}", *test_targets],
+                       consumer, artifacts / "test.log")
+            verify_tests(artifacts / "test-events.jsonl", test_targets)
+            for dependency in config["consumer_deps"]:
+                name, selected_version = dependency["name"], dependency["version"]
+                selected = fetched_modules(output_base, name)
+                require(len(selected) == 1, f"Expected one fetched repository for consumer dependency {name}")
+                require(parse_module_identity(selected[0].read_text()) == (name, selected_version),
+                        f"Fetched consumer dependency {name} differs from the declared version {selected_version}")
+                shutil.copy2(selected[0], artifacts / f"consumer-dep-{name}.MODULE.bazel")
+            (artifacts / "validation.json").write_text(json.dumps({
+                "module": module, "version": version, "architecture": architecture,
+                "execution_architecture": execution_architecture,
+                "cross_compile": cross_compile,
+                "test_execution": "qemu-aarch64" if cross_compile else "native",
+                "cross_runtime": cross_runtime,
+                "test_container_image": test_container_image,
+                "build_targets": build_targets, "passed_tests": test_targets,
+                "build_flags": config.get("build_flags", []),
+                "bazel_startup_args": bazel_startup_args or [],
+                "bazel_build_args": bazel_build_args or [],
+                "test_sandbox_strategy": TEST_SANDBOX_STRATEGY,
+                "platform": cross_platforms["target_platform"] if cross_platforms else config["platforms"][architecture],
+                "cross_platforms": cross_platforms,
+                "host_platform": host_platform,
+                "consumer_deps": config["consumer_deps"],
+                "integration_test_module": config.get("integration_test_module"),
+                "go_sdk": config.get("go_sdk"),
+                "rust_toolchain": config.get("rust_toolchain"),
+                "rust_preparation": config.get("rust_preparation"),
+                "test_runtime_preparation": config.get("test_runtime_preparation"),
+                "test_runtime_flags": test_flags,
+                "generated_module_overlay": config.get("generated_module_overlay", False),
+                "fetched_module_matches_registry": fetched_bytes == canonical_bytes,
+                "registry_module_sha256": hashlib.sha256(canonical_bytes).hexdigest(),
+                "fetched_module_sha256": hashlib.sha256(fetched_bytes).hexdigest(),
+                "generated_module_overlay_sha256": (hashlib.sha256(module_overlay_bytes(
+                    registry_module.parent, module, version)).hexdigest()
+                    if config.get("generated_module_overlay") else None),
+            }, indent=2) + "\n")
+        finally:
+            validation_failed = sys.exc_info()[0] is not None
+            for phase in ("build", "test"):
+                try:
+                    collect_failed_action_logs(artifacts / f"{phase}-events.jsonl", work_dir, artifacts)
+                except (OSError, ValueError) as error:
+                    print(f"Could not retain {phase} action logs: {error}", file=sys.stderr)
+            lockfile = consumer / "MODULE.bazel.lock"
+            if lockfile.is_file():
+                try:
+                    shutil.copy2(lockfile, artifacts / "MODULE.bazel.lock")
+                except OSError as error:
+                    # Preserve an earlier native failure; missing mandatory
+                    # evidence still fails an otherwise successful validation.
+                    print(f"Could not retain validation lock: errno={error.errno}", file=sys.stderr)
+                    if not validation_failed:
+                        raise
+            testlogs = consumer / "bazel-testlogs"
+            if testlogs.exists():
+                try:
+                    shutil.copytree(testlogs, artifacts / "testlogs", dirs_exist_ok=True)
+                except OSError as error:
+                    print(f"Could not retain validation testlogs: errno={error.errno}", file=sys.stderr)
+                    if not validation_failed:
+                        raise
+            test_events = artifacts / "test-events.jsonl"
+            if test_events.is_file():
+                try:
+                    collect_test_logs(test_events, work_dir, artifacts)
+                except (RegistryError, OSError, ValueError) as error:
+                    try:
+                        (artifacts / "test-results-error.json").write_text(
+                            json.dumps({"error": str(error)}, indent=2) + "\n")
+                    except OSError as receipt_error:
+                        print(f"Test log collection error receipt failed: {receipt_error}", file=sys.stderr)
+                    if not validation_failed:
+                        raise
+                    # Keep the original build/test failure while retaining the
+                    # separate collection error and any files already copied.
+                    print(f"Test log collection failed: {error}", file=sys.stderr)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    planner = subparsers.add_parser("plan")
+    planner.add_argument("--base")
+    planner.add_argument("--head")
+    planner.add_argument("--published", required=True,
+                         help="fresh maintained-main SHA for PRs; event.before SHA for pushes")
+    planner.add_argument("--push", action="store_true",
+                         help="compare directly against the pre-push publication baseline")
+    scope = planner.add_mutually_exclusive_group()
+    scope.add_argument("--all", action="store_true", dest="all_versions",
+                       help="test every configured version, including historical versions")
+    scope.add_argument("--latest", action="store_true", dest="latest_versions",
+                       help="test latest non-yanked versions and explicit additional presubmits")
+    planner.add_argument("--p4-runner-profile", choices=("standard", "large"), default="large",
+                         help="AMD64 execution pool for P4C, BMv2, DASH and PINS")
+    planner.add_argument("--output", required=True, type=Path)
+    synchronizer = subparsers.add_parser("sync-module", help="generate or check an opted-in MODULE overlay")
+    synchronizer.add_argument("--module", required=True)
+    synchronizer.add_argument("--version", required=True)
+    synchronizer.add_argument("--check", action="store_true", help="check generated bytes and checksum without writing")
+    runner = subparsers.add_parser("run")
+    runner.add_argument("--module", required=True)
+    runner.add_argument("--version", required=True)
+    runner.add_argument("--architecture", required=True, choices=RUNNERS)
+    runner.add_argument("--work-dir", required=True, type=Path)
+    runner.add_argument("--artifacts", required=True, type=Path)
+    runner.add_argument("--bazel", default="bazel")
+    runner.add_argument("--bazel-startup-arg", action="append", default=[],
+                        help="repeatable Bazel startup option; use --bazel-startup-arg=--option=value")
+    runner.add_argument("--bazel-build-arg", action="append", default=[],
+                        help="repeatable Bazel build/test/query option; use --bazel-build-arg=--option=value")
+    runner.add_argument("--profile-analysis", action="store_true",
+                        help="retain JSON traces, Starlark CPU profiles and JVM GC/safepoint logs")
+    runner.add_argument("--cross-compile", action="store_true",
+                        help="build ARM64 targets on AMD64 and execute tests with an explicit emulated runtime")
+    runner.add_argument("--test-executor", type=Path,
+                        help="absolute ARM64 runtime wrapper, supporting --bind PATH then -- COMMAND")
+    runner.add_argument("--test-container-image",
+                        help="opt into runtime preparation inside this disposable container, including its digest")
+    args = parser.parse_args()
+    try:
+        if args.command == "plan":
+            result = plan(ROOT, args.base, args.head, args.all_versions, args.latest_versions,
+                          published=args.published, push=args.push, p4_runner_profile=args.p4_runner_profile)
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            args.output.write_text(json.dumps(result, indent=2) + "\n")
+            print(json.dumps(result, separators=(",", ":")))
+            print(f"Selected {len(result['include'])} validation jobs", file=sys.stderr)
+        elif args.command == "sync-module":
+            sync_module(ROOT, args.module, args.version, args.check)
+        else:
+            run(ROOT, args.module, args.version, args.architecture, args.work_dir, args.artifacts,
+                args.bazel, args.test_container_image, args.bazel_startup_arg, args.bazel_build_arg,
+                args.cross_compile, args.test_executor, profile_analysis=args.profile_analysis)
+    except (RegistryError, OSError, subprocess.CalledProcessError) as error:
+        parser.exit(1, f"Registry CI failed: {error}\n")
+
+
+if __name__ == "__main__":
+    main()
