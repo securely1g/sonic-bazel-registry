@@ -1,0 +1,82 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
+load("@bazel_skylib//rules:expand_template.bzl", "expand_template")
+package(default_visibility = ["//visibility:public"])
+expand_template(name = "base_header", template = "SymCryptProvider/inc/p_scossl_base.h.in", out = "generated/p_scossl_base.h", substitutions = {"@SymCrypt-OpenSSL_VERSION@":"1.11.0", "@SYMCRYPT_MINIMUM_MAJOR@":"103", "@SYMCRYPT_MINIMUM_MINOR@":"8"})
+cc_library(name = "common", srcs = [
+    "ScosslCommon/src/scossl_helpers.c",
+    "ScosslCommon/src/scossl_aes_aead.c",
+    "ScosslCommon/src/scossl_dh.c",
+    "ScosslCommon/src/scossl_ecc.c",
+    "ScosslCommon/src/scossl_hkdf.c",
+    "ScosslCommon/src/scossl_mac.c",
+    "ScosslCommon/src/scossl_rsa.c",
+    "ScosslCommon/src/scossl_sshkdf.c",
+    "ScosslCommon/src/scossl_tls1prf.c"
+], hdrs = glob(["ScosslCommon/inc/*.h"]), includes = ["ScosslCommon/inc", "ScosslCommon/src"], deps = ["@sonic_fips//symcrypt:libsymcrypt", "@sonic_fips//openssl:libcrypto"], copts = ["-O3", "-DNDEBUG", "-g", "-fPIC", "-Wall", "-Wextra", "-Wno-unknown-pragmas", "-Wno-unused-function"] + select({"@platforms//cpu:x86_64": ["-D_AMD64_", "-mssse3", "-mxsave", "-maes", "-mpclmul", "-msha", "-mrdrnd", "-mrdseed"], "@platforms//cpu:aarch64": ["-D_ARM64_"]}), alwayslink = True)
+cc_library(name = "provider_objects", srcs = [
+    "SymCryptProvider/src/asymcipher/p_scossl_rsa_cipher.c",
+    "SymCryptProvider/src/ciphers/p_scossl_aes.c",
+    "SymCryptProvider/src/ciphers/p_scossl_aes_aead.c",
+    "SymCryptProvider/src/ciphers/p_scossl_aes_xts.c",
+    "SymCryptProvider/src/decoder/p_scossl_decode_common.c",
+    "SymCryptProvider/src/decoder/p_scossl_decode_mlkem.c",
+    "SymCryptProvider/src/decoder/p_scossl_decode_mldsa.c",
+    "SymCryptProvider/src/digests/p_scossl_digest_common.c",
+    "SymCryptProvider/src/digests/p_scossl_digest_generic.c",
+    "SymCryptProvider/src/digests/p_scossl_shake.c",
+    "SymCryptProvider/src/digests/p_scossl_cshake.c",
+    "SymCryptProvider/src/encoder/p_scossl_encode_common.c",
+    "SymCryptProvider/src/encoder/p_scossl_encode_mldsa.c",
+    "SymCryptProvider/src/encoder/p_scossl_encode_mlkem.c",
+    "SymCryptProvider/src/kdf/p_scossl_hkdf.c",
+    "SymCryptProvider/src/kdf/p_scossl_kbkdf.c",
+    "SymCryptProvider/src/kdf/p_scossl_pbkdf2.c",
+    "SymCryptProvider/src/kdf/p_scossl_srtpkdf.c",
+    "SymCryptProvider/src/kdf/p_scossl_sshkdf.c",
+    "SymCryptProvider/src/kdf/p_scossl_sskdf.c",
+    "SymCryptProvider/src/kdf/p_scossl_tls1prf.c",
+    "SymCryptProvider/src/kem/p_scossl_mlkem.c",
+    "SymCryptProvider/src/kem/p_scossl_mlkem_hybrid.c",
+    "SymCryptProvider/src/keyexch/p_scossl_dh.c",
+    "SymCryptProvider/src/keyexch/p_scossl_ecdh.c",
+    "SymCryptProvider/src/keyexch/p_scossl_kdf_keyexch.c",
+    "SymCryptProvider/src/keymgmt/p_scossl_dh_keymgmt.c",
+    "SymCryptProvider/src/keymgmt/p_scossl_ecc_keymgmt.c",
+    "SymCryptProvider/src/keymgmt/p_scossl_kdf_keymgmt.c",
+    "SymCryptProvider/src/keymgmt/p_scossl_mldsa_keymgmt.c",
+    "SymCryptProvider/src/keymgmt/p_scossl_mlkem_keymgmt.c",
+    "SymCryptProvider/src/keymgmt/p_scossl_mlkem_hybrid_keymgmt.c",
+    "SymCryptProvider/src/keymgmt/p_scossl_rsa_keymgmt.c",
+    "SymCryptProvider/src/mac/p_scossl_cmac.c",
+    "SymCryptProvider/src/mac/p_scossl_hmac.c",
+    "SymCryptProvider/src/mac/p_scossl_kmac.c",
+    "SymCryptProvider/src/signature/p_scossl_ecdsa_signature.c",
+    "SymCryptProvider/src/signature/p_scossl_ecdsa_sigalg_signature.c",
+    "SymCryptProvider/src/signature/p_scossl_mldsa.c",
+    "SymCryptProvider/src/signature/p_scossl_rsa_signature.c",
+    "SymCryptProvider/src/signature/p_scossl_rsa_sigalg_signature.c",
+    "SymCryptProvider/src/skeymgmt/p_scossl_aes_skeymgmt.c",
+    "SymCryptProvider/src/skeymgmt/p_scossl_generic_skeymgmt.c",
+    "SymCryptProvider/src/p_scossl_bio.c",
+    "SymCryptProvider/src/p_scossl_ecc.c",
+    "SymCryptProvider/src/p_scossl_rand.c",
+    "SymCryptProvider/src/p_scossl_rsa.c",
+    "SymCryptProvider/src/p_scossl_base.c"
+], hdrs = glob(["SymCryptProvider/inc/**/*.h", "SymCryptProvider/src/**/*.h"]) + [":base_header"], includes = ["SymCryptProvider/inc", "SymCryptProvider/src", "generated"], deps = [":common"], copts = ["-O3", "-DNDEBUG", "-g", "-fPIC", "-Wall", "-Wextra", "-Wno-unknown-pragmas", "-Wno-deprecated-declarations", "-Wno-unused-parameter"] + select({"@platforms//cpu:x86_64": ["-D_AMD64_", "-mssse3", "-mxsave", "-maes", "-mpclmul", "-msha", "-mrdrnd", "-mrdseed"], "@platforms//cpu:aarch64": ["-D_ARM64_"]}), alwayslink = True)
+cc_shared_library(name = "provider_shared", deps = [":provider_objects"], dynamic_deps = ["@sonic_fips//openssl:libcrypto_shared"], shared_lib_name = "symcryptprovider.so", user_link_flags = ["-Wl,-soname,symcryptprovider.so"], features = ["-strip_debug_symbols"])
+cc_library(name = "engine_objects", srcs = [
+    "SymCryptEngine/src/e_scossl.c",
+    "SymCryptEngine/src/e_scossl_ciphers.c",
+    "SymCryptEngine/src/e_scossl_dh.c",
+    "SymCryptEngine/src/e_scossl_digests.c",
+    "SymCryptEngine/src/e_scossl_dsa.c",
+    "SymCryptEngine/src/e_scossl_ecc.c",
+    "SymCryptEngine/src/e_scossl_rand.c",
+    "SymCryptEngine/src/e_scossl_rsa.c",
+    "SymCryptEngine/src/e_scossl_rsapss.c",
+    "SymCryptEngine/src/e_scossl_hkdf.c",
+    "SymCryptEngine/src/e_scossl_tls1prf.c",
+    "SymCryptEngine/src/e_scossl_hmac.c"
+], hdrs = glob(["SymCryptEngine/inc/**/*.h", "SymCryptEngine/src/**/*.h"]), includes = ["SymCryptEngine/inc", "SymCryptEngine/src", "SymCryptEngine/dynamic"], deps = [":common"], copts = ["-O3", "-DNDEBUG", "-g", "-fPIC", "-Wall", "-Wextra", "-Wno-unknown-pragmas", "-Wno-deprecated-declarations", "-Wno-unused-parameter"] + select({"@platforms//cpu:x86_64": ["-D_AMD64_", "-mssse3", "-mxsave", "-maes", "-mpclmul", "-msha", "-mrdrnd", "-mrdseed"], "@platforms//cpu:aarch64": ["-D_ARM64_"]}), alwayslink = True)
+cc_shared_library(name = "engine_shared", deps = [":engine_objects"], dynamic_deps = ["@sonic_fips//openssl:libcrypto_shared"], shared_lib_name = "symcryptengine.so", user_link_flags = ["-Wl,-soname,symcryptengine.so"], features = ["-strip_debug_symbols"])

@@ -1,0 +1,2249 @@
+load(":configuration.bzl", "configuration_substitutions", "rpc_types_substitutions")
+load(":install.bzl", "native_install_package", "target_multiarch_substitutions")
+load('@rules_python//python:defs.bzl', 'py_test')
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@sonic_build_infra//cc:runtime_test.bzl", "native_runtime_binary")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
+load("@bazel_skylib//rules:expand_template.bzl", "expand_template")
+load("@sonic_build_infra//cc:shared_library.bzl", "shared_library_cc_info")
+load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages", "runtime_packages_group")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["source.BUILD.bazel", "0001-native-configuration-inputs.patch"])
+
+# Derived from controlled AMD64 Autoconf evidence.
+expand_template(
+    name = "configuration",
+    template = "@krb5_src//:src/include/autoconf.h.in",
+    out = "generated/include/autoconf.h",
+    substitutions = configuration_substitutions(),
+)
+
+expand_template(
+    name = "osconf",
+    template = "@krb5_src//:src/include/osconf.hin",
+    out = "generated/include/osconf.h",
+    substitutions = target_multiarch_substitutions({'@SYSCONFCONF': '', '@LIBDIR': '/usr/lib/{DEB_HOST_MULTIARCH}', '@DYNOBJEXT': '.so', '@LOCALSTATEDIR': '/etc', '@MODULEDIR': '/usr/lib/{DEB_HOST_MULTIARCH}/krb5/plugins', '@KRB5RCTMPDIR': '/var/tmp', '@SBINDIR': '/usr/sbin', '@BINDIR': '/usr/bin', '@SYSCONFDIR': '/etc', '@GSSMODULEDIR': '/usr/lib/{DEB_HOST_MULTIARCH}/gss'}),
+)
+
+expand_template(
+    name = "rpc_types",
+    template = "@krb5_src//:src/include/gssrpc/types.hin",
+    out = "generated/include/gssrpc/types.h",
+    substitutions = rpc_types_substitutions(),
+)
+
+genrule(
+    name = "error_chpass_util_strings",
+    srcs = [
+        "@krb5_src//:src/lib/kadm5/chpass_util_strings.et"
+    ],
+    outs = [
+        "generated/errors/lib/kadm5/chpass_util_strings.c",
+        "generated/errors/lib/kadm5/chpass_util_strings.h"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:compile_et"
+    ],
+    cmd = "tool=\"$(execpath @sonic_build_infra//tools/build_tools:compile_et)\"; input=\"$(execpath @krb5_src//:src/lib/kadm5/chpass_util_strings.et)\"; root=\"$$PWD\"; cd \"$(@D)/generated/errors/lib/kadm5\"; \"$$root/$$tool\" \"$$root/$$input\"",
+)
+
+cc_library(
+    name = "error_chpass_util_strings_headers",
+    hdrs = [
+        ":generated/errors/lib/kadm5/chpass_util_strings.h"
+    ],
+    strip_include_prefix = "generated/errors/lib/kadm5",
+)
+
+cc_library(
+    name = "error_chpass_util_strings_public_headers",
+    hdrs = [
+        ":generated/errors/lib/kadm5/chpass_util_strings.h"
+    ],
+    strip_include_prefix = "generated/errors/lib/kadm5",
+    include_prefix = "kadm5",
+)
+
+genrule(
+    name = "error_kadm_err",
+    srcs = [
+        "@krb5_src//:src/lib/kadm5/kadm_err.et"
+    ],
+    outs = [
+        "generated/errors/lib/kadm5/kadm_err.c",
+        "generated/errors/lib/kadm5/kadm_err.h"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:compile_et"
+    ],
+    cmd = "tool=\"$(execpath @sonic_build_infra//tools/build_tools:compile_et)\"; input=\"$(execpath @krb5_src//:src/lib/kadm5/kadm_err.et)\"; root=\"$$PWD\"; cd \"$(@D)/generated/errors/lib/kadm5\"; \"$$root/$$tool\" \"$$root/$$input\"",
+)
+
+cc_library(
+    name = "error_kadm_err_headers",
+    hdrs = [
+        ":generated/errors/lib/kadm5/kadm_err.h"
+    ],
+    strip_include_prefix = "generated/errors/lib/kadm5",
+)
+
+cc_library(
+    name = "error_kadm_err_public_headers",
+    hdrs = [
+        ":generated/errors/lib/kadm5/kadm_err.h"
+    ],
+    strip_include_prefix = "generated/errors/lib/kadm5",
+    include_prefix = "kadm5",
+)
+
+genrule(
+    name = "error_adb_err",
+    srcs = [
+        "@krb5_src//:src/lib/kdb/adb_err.et"
+    ],
+    outs = [
+        "generated/errors/lib/kdb/adb_err.c",
+        "generated/errors/lib/kdb/adb_err.h"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:compile_et"
+    ],
+    cmd = "tool=\"$(execpath @sonic_build_infra//tools/build_tools:compile_et)\"; input=\"$(execpath @krb5_src//:src/lib/kdb/adb_err.et)\"; root=\"$$PWD\"; cd \"$(@D)/generated/errors/lib/kdb\"; \"$$root/$$tool\" \"$$root/$$input\"",
+)
+
+cc_library(
+    name = "error_adb_err_headers",
+    hdrs = [
+        ":generated/errors/lib/kdb/adb_err.h"
+    ],
+    strip_include_prefix = "generated/errors/lib/kdb",
+)
+
+genrule(
+    name = "error_krb5_err",
+    srcs = [
+        "@krb5_src//:src/lib/krb5/error_tables/krb5_err.et"
+    ],
+    outs = [
+        "generated/errors/lib/krb5/error_tables/krb5_err.c",
+        "generated/errors/lib/krb5/error_tables/krb5_err.h"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:compile_et"
+    ],
+    cmd = "tool=\"$(execpath @sonic_build_infra//tools/build_tools:compile_et)\"; input=\"$(execpath @krb5_src//:src/lib/krb5/error_tables/krb5_err.et)\"; root=\"$$PWD\"; cd \"$(@D)/generated/errors/lib/krb5/error_tables\"; \"$$root/$$tool\" \"$$root/$$input\"",
+)
+
+cc_library(
+    name = "error_krb5_err_headers",
+    hdrs = [
+        ":generated/errors/lib/krb5/error_tables/krb5_err.h"
+    ],
+    strip_include_prefix = "generated/errors/lib/krb5/error_tables",
+)
+
+genrule(
+    name = "error_asn1_err",
+    srcs = [
+        "@krb5_src//:src/lib/krb5/error_tables/asn1_err.et"
+    ],
+    outs = [
+        "generated/errors/lib/krb5/error_tables/asn1_err.c",
+        "generated/errors/lib/krb5/error_tables/asn1_err.h"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:compile_et"
+    ],
+    cmd = "tool=\"$(execpath @sonic_build_infra//tools/build_tools:compile_et)\"; input=\"$(execpath @krb5_src//:src/lib/krb5/error_tables/asn1_err.et)\"; root=\"$$PWD\"; cd \"$(@D)/generated/errors/lib/krb5/error_tables\"; \"$$root/$$tool\" \"$$root/$$input\"",
+)
+
+cc_library(
+    name = "error_asn1_err_headers",
+    hdrs = [
+        ":generated/errors/lib/krb5/error_tables/asn1_err.h"
+    ],
+    strip_include_prefix = "generated/errors/lib/krb5/error_tables",
+)
+
+genrule(
+    name = "error_kdb5_err",
+    srcs = [
+        "@krb5_src//:src/lib/krb5/error_tables/kdb5_err.et"
+    ],
+    outs = [
+        "generated/errors/lib/krb5/error_tables/kdb5_err.c",
+        "generated/errors/lib/krb5/error_tables/kdb5_err.h"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:compile_et"
+    ],
+    cmd = "tool=\"$(execpath @sonic_build_infra//tools/build_tools:compile_et)\"; input=\"$(execpath @krb5_src//:src/lib/krb5/error_tables/kdb5_err.et)\"; root=\"$$PWD\"; cd \"$(@D)/generated/errors/lib/krb5/error_tables\"; \"$$root/$$tool\" \"$$root/$$input\"",
+)
+
+cc_library(
+    name = "error_kdb5_err_headers",
+    hdrs = [
+        ":generated/errors/lib/krb5/error_tables/kdb5_err.h"
+    ],
+    strip_include_prefix = "generated/errors/lib/krb5/error_tables",
+)
+
+genrule(
+    name = "error_kv5m_err",
+    srcs = [
+        "@krb5_src//:src/lib/krb5/error_tables/kv5m_err.et"
+    ],
+    outs = [
+        "generated/errors/lib/krb5/error_tables/kv5m_err.c",
+        "generated/errors/lib/krb5/error_tables/kv5m_err.h"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:compile_et"
+    ],
+    cmd = "tool=\"$(execpath @sonic_build_infra//tools/build_tools:compile_et)\"; input=\"$(execpath @krb5_src//:src/lib/krb5/error_tables/kv5m_err.et)\"; root=\"$$PWD\"; cd \"$(@D)/generated/errors/lib/krb5/error_tables\"; \"$$root/$$tool\" \"$$root/$$input\"",
+)
+
+cc_library(
+    name = "error_kv5m_err_headers",
+    hdrs = [
+        ":generated/errors/lib/krb5/error_tables/kv5m_err.h"
+    ],
+    strip_include_prefix = "generated/errors/lib/krb5/error_tables",
+)
+
+genrule(
+    name = "error_k5e1_err",
+    srcs = [
+        "@krb5_src//:src/lib/krb5/error_tables/k5e1_err.et"
+    ],
+    outs = [
+        "generated/errors/lib/krb5/error_tables/k5e1_err.c",
+        "generated/errors/lib/krb5/error_tables/k5e1_err.h"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:compile_et"
+    ],
+    cmd = "tool=\"$(execpath @sonic_build_infra//tools/build_tools:compile_et)\"; input=\"$(execpath @krb5_src//:src/lib/krb5/error_tables/k5e1_err.et)\"; root=\"$$PWD\"; cd \"$(@D)/generated/errors/lib/krb5/error_tables\"; \"$$root/$$tool\" \"$$root/$$input\"",
+)
+
+cc_library(
+    name = "error_k5e1_err_headers",
+    hdrs = [
+        ":generated/errors/lib/krb5/error_tables/k5e1_err.h"
+    ],
+    strip_include_prefix = "generated/errors/lib/krb5/error_tables",
+)
+
+genrule(
+    name = "error_krb524_err",
+    srcs = [
+        "@krb5_src//:src/lib/krb5/error_tables/krb524_err.et"
+    ],
+    outs = [
+        "generated/errors/lib/krb5/error_tables/krb524_err.c",
+        "generated/errors/lib/krb5/error_tables/krb524_err.h"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:compile_et"
+    ],
+    cmd = "tool=\"$(execpath @sonic_build_infra//tools/build_tools:compile_et)\"; input=\"$(execpath @krb5_src//:src/lib/krb5/error_tables/krb524_err.et)\"; root=\"$$PWD\"; cd \"$(@D)/generated/errors/lib/krb5/error_tables\"; \"$$root/$$tool\" \"$$root/$$input\"",
+)
+
+cc_library(
+    name = "error_krb524_err_headers",
+    hdrs = [
+        ":generated/errors/lib/krb5/error_tables/krb524_err.h"
+    ],
+    strip_include_prefix = "generated/errors/lib/krb5/error_tables",
+)
+
+genrule(
+    name = "error_gssapi_err_generic",
+    srcs = [
+        "@krb5_src//:src/lib/gssapi/generic/gssapi_err_generic.et"
+    ],
+    outs = [
+        "generated/errors/lib/gssapi/generic/gssapi_err_generic.c",
+        "generated/errors/lib/gssapi/generic/gssapi_err_generic.h"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:compile_et"
+    ],
+    cmd = "tool=\"$(execpath @sonic_build_infra//tools/build_tools:compile_et)\"; input=\"$(execpath @krb5_src//:src/lib/gssapi/generic/gssapi_err_generic.et)\"; root=\"$$PWD\"; cd \"$(@D)/generated/errors/lib/gssapi/generic\"; \"$$root/$$tool\" \"$$root/$$input\"",
+)
+
+cc_library(
+    name = "error_gssapi_err_generic_headers",
+    hdrs = [
+        ":generated/errors/lib/gssapi/generic/gssapi_err_generic.h"
+    ],
+    strip_include_prefix = "generated/errors/lib/gssapi/generic",
+)
+
+genrule(
+    name = "error_gssapi_err_krb5",
+    srcs = [
+        "@krb5_src//:src/lib/gssapi/krb5/gssapi_err_krb5.et"
+    ],
+    outs = [
+        "generated/errors/lib/gssapi/krb5/gssapi_err_krb5.c",
+        "generated/errors/lib/gssapi/krb5/gssapi_err_krb5.h"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:compile_et"
+    ],
+    cmd = "tool=\"$(execpath @sonic_build_infra//tools/build_tools:compile_et)\"; input=\"$(execpath @krb5_src//:src/lib/gssapi/krb5/gssapi_err_krb5.et)\"; root=\"$$PWD\"; cd \"$(@D)/generated/errors/lib/gssapi/krb5\"; \"$$root/$$tool\" \"$$root/$$input\"",
+)
+
+cc_library(
+    name = "error_gssapi_err_krb5_headers",
+    hdrs = [
+        ":generated/errors/lib/gssapi/krb5/gssapi_err_krb5.h"
+    ],
+    strip_include_prefix = "generated/errors/lib/gssapi/krb5",
+)
+
+genrule(
+    name = "error_prof_err",
+    srcs = [
+        "@krb5_src//:src/util/profile/prof_err.et"
+    ],
+    outs = [
+        "generated/errors/util/profile/prof_err.c",
+        "generated/errors/util/profile/prof_err.h"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:compile_et"
+    ],
+    cmd = "tool=\"$(execpath @sonic_build_infra//tools/build_tools:compile_et)\"; input=\"$(execpath @krb5_src//:src/util/profile/prof_err.et)\"; root=\"$$PWD\"; cd \"$(@D)/generated/errors/util/profile\"; \"$$root/$$tool\" \"$$root/$$input\"",
+)
+
+cc_library(
+    name = "error_prof_err_headers",
+    hdrs = [
+        ":generated/errors/util/profile/prof_err.h"
+    ],
+    strip_include_prefix = "generated/errors/util/profile",
+)
+
+genrule(
+    name = "errmap_header",
+    srcs = [
+        "@krb5_src//:src/util/gen.pl",
+        "@krb5_src//:src/util/t_array.pm",
+        "@krb5_src//:src/util/t_bimap.pm",
+        "@krb5_src//:src/util/t_template.pm"
+    ],
+    outs = [
+        "generated/gssapi/errmap.h"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:perl"
+    ],
+    cmd = "generator=\"$(location @krb5_src//:src/util/gen.pl)\"; $(location @sonic_build_infra//tools/build_tools:perl) -w -I\"$${generator%/*}\" \"$$generator\" bimap $@ NAME=mecherrmap LEFT=OM_uint32 RIGHT=\"struct mecherror\" LEFTPRINT=print_OM_uint32 RIGHTPRINT=mecherror_print LEFTCMP=cmp_OM_uint32 RIGHTCMP=mecherror_cmp",
+)
+
+cc_library(
+    name = "errmap_headers",
+    hdrs = [
+        ":generated/gssapi/errmap.h"
+    ],
+    strip_include_prefix = "generated/gssapi",
+)
+
+genrule(
+    name = "error_map_header",
+    srcs = [
+        "@krb5_src//:src/util/gen-map.pl",
+        "@krb5_src//:src/util/ktemplate.pm"
+    ],
+    outs = [
+        "generated/gssapi/error_map.h"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:perl"
+    ],
+    cmd = "generator=\"$(location @krb5_src//:src/util/gen-map.pl)\"; $(location @sonic_build_infra//tools/build_tools:perl) -w -I\"$${generator%/*}\" \"$$generator\" -o$@ NAME=gsserrmap KEY=OM_uint32 VALUE=\"char *\" COMPARE=compare_OM_uint32 FREEVALUE=free_string",
+)
+
+cc_library(
+    name = "error_map_headers",
+    hdrs = [
+        ":generated/gssapi/error_map.h"
+    ],
+    strip_include_prefix = "generated/gssapi",
+)
+
+genrule(
+    name = "krb5_header",
+    srcs = [
+        "@krb5_src//:src/include/krb5/krb5.hin",
+        ":generated/errors/lib/krb5/error_tables/krb5_err.h",
+        ":generated/errors/lib/krb5/error_tables/k5e1_err.h",
+        ":generated/errors/lib/krb5/error_tables/kdb5_err.h",
+        ":generated/errors/lib/krb5/error_tables/kv5m_err.h",
+        ":generated/errors/lib/krb5/error_tables/krb524_err.h",
+        ":generated/errors/lib/krb5/error_tables/asn1_err.h"
+    ],
+    outs = [
+        "generated/include/krb5/krb5.h"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:perl"
+    ],
+    cmd = "{ echo \"/* Generated from krb5.hin and the original error table headers. */\"; echo \"#ifndef KRB5_KRB5_H_INCLUDED\"; echo \"#define KRB5_KRB5_H_INCLUDED\"; $(location @sonic_build_infra//tools/build_tools:perl) -pe '' $(location @krb5_src//:src/include/krb5/krb5.hin) $(location :generated/errors/lib/krb5/error_tables/krb5_err.h) $(location :generated/errors/lib/krb5/error_tables/k5e1_err.h) $(location :generated/errors/lib/krb5/error_tables/kdb5_err.h) $(location :generated/errors/lib/krb5/error_tables/kv5m_err.h) $(location :generated/errors/lib/krb5/error_tables/krb524_err.h) $(location :generated/errors/lib/krb5/error_tables/asn1_err.h); echo \"#endif /* KRB5_KRB5_H_INCLUDED */\"; } > $@",
+)
+
+genrule(
+    name = "profile_header",
+    srcs = [
+        "@krb5_src//:src/util/profile/profile.hin",
+        ":generated/errors/util/profile/prof_err.h"
+    ],
+    outs = [
+        "generated/include/profile.h"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:perl"
+    ],
+    cmd = "$(location @sonic_build_infra//tools/build_tools:perl) -pe '' $(location @krb5_src//:src/util/profile/profile.hin) $(location :generated/errors/util/profile/prof_err.h) > $@",
+)
+
+expand_template(
+    name = "gssapi_header",
+    template = "@krb5_src//:src/lib/gssapi/generic/gssapi.hin",
+    out = "generated/include/gssapi/gssapi.h",
+    substitutions = {},
+)
+
+cc_library(
+    name = "public_generated_headers",
+    hdrs = [
+        ":krb5_header",
+        ":profile_header",
+        ":gssapi_header",
+        ":rpc_types"
+    ],
+    strip_include_prefix = "generated/include",
+    deps = [
+        "@krb5_src//:public_source_headers",
+        "@krb5_deps//comerr-dev:libcom_err_cc",
+        ":error_chpass_util_strings_public_headers",
+        ":error_kadm_err_public_headers"
+    ],
+)
+
+cc_library(
+    name = "build_headers",
+    hdrs = [
+        ":configuration",
+        ":osconf"
+    ],
+    includes = [
+        "generated/include"
+    ],
+    deps = [
+        ":public_generated_headers",
+        "@krb5_src//:source_headers",
+        ":error_chpass_util_strings_headers",
+        ":error_chpass_util_strings_public_headers",
+        ":error_kadm_err_headers",
+        ":error_kadm_err_public_headers",
+        ":error_adb_err_headers",
+        ":error_krb5_err_headers",
+        ":error_asn1_err_headers",
+        ":error_kdb5_err_headers",
+        ":error_kv5m_err_headers",
+        ":error_k5e1_err_headers",
+        ":error_krb524_err_headers",
+        ":error_gssapi_err_generic_headers",
+        ":error_gssapi_err_krb5_headers",
+        ":error_prof_err_headers",
+        ":errmap_headers",
+        ":error_map_headers"
+    ],
+)
+
+genrule(
+    name = "support_version_script",
+    srcs = [
+        "@krb5_src//:src/util/support/libkrb5support-fixed.exports"
+    ],
+    outs = [
+        "exports/krb5support.map"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:perl"
+    ],
+    cmd = "{ echo \"krb5support_0_MIT {\"; $(location @sonic_build_infra//tools/build_tools:perl) -pe 's/$$/;/' $(location @krb5_src//:src/util/support/libkrb5support-fixed.exports); echo \"}; HIDDEN { local: __*; _rest*; _save*; *; };\"; } > $@",
+)
+
+cc_library(
+    name = "support_objects",
+    srcs = [
+        "@krb5_src//:src/util/support/threads.c",
+        "@krb5_src//:src/util/support/init-addrinfo.c",
+        "@krb5_src//:src/util/support/plugins.c",
+        "@krb5_src//:src/util/support/errors.c",
+        "@krb5_src//:src/util/support/k5buf.c",
+        "@krb5_src//:src/util/support/gmt_mktime.c",
+        "@krb5_src//:src/util/support/fake-addrinfo.c",
+        "@krb5_src//:src/util/support/utf8.c",
+        "@krb5_src//:src/util/support/utf8_conv.c",
+        "@krb5_src//:src/util/support/zap.c",
+        "@krb5_src//:src/util/support/path.c",
+        "@krb5_src//:src/util/support/base64.c",
+        "@krb5_src//:src/util/support/json.c",
+        "@krb5_src//:src/util/support/hex.c",
+        "@krb5_src//:src/util/support/hashtab.c",
+        "@krb5_src//:src/util/support/bcmp.c",
+        "@krb5_src//:src/util/support/strerror_r.c",
+        "@krb5_src//:src/util/support/dir_filenames.c"
+    ],
+    deps = [
+        ":build_headers"
+    ],
+    copts = select({"@platforms//cpu:x86_64": ["-g", "-O2", "-Werror=implicit-function-declaration", "-fstack-protector-strong", "-fstack-clash-protection", "-Wformat", "-Werror=format-security", "-fcf-protection", "-Wdate-time", "-D_FORTIFY_SOURCE=2", "-pthread"], "@platforms//cpu:aarch64": ["-g", "-O2", "-Werror=implicit-function-declaration", "-fstack-protector-strong", "-fstack-clash-protection", "-Wformat", "-Werror=format-security", "-mbranch-protection=standard", "-Wdate-time", "-D_FORTIFY_SOURCE=2", "-pthread"]}),
+    local_defines = [
+        "HAVE_CONFIG_H",
+        "SHARED",
+        "KRB5_DEPRECATED=1",
+        "KRB5_PRIVATE"
+    ],
+    linkopts = [
+        "-ldl",
+        "-lresolv",
+        "-pthread"
+    ],
+    linkstatic = True,
+)
+
+cc_shared_library(
+    name = "support_shared",
+    deps = [
+        ":support_objects"
+    ],
+    dynamic_deps = [],
+    shared_lib_name = "libkrb5support.so.0.1",
+    user_link_flags = [
+        "-Wl,-soname,libkrb5support.so.0",
+        "-Wl,--no-undefined",
+        "-Wl,-z,relro",
+        "-Wl,--version-script=$(location :support_version_script)"
+    ],
+    additional_linker_inputs = [
+        ":support_version_script"
+    ],
+    features = [
+        "-strip_debug_symbols"
+    ],
+)
+
+shared_library_cc_info(
+    name = "support_link",
+    shared_library = ":support_shared",
+    runtime_deps = [
+        ":build_headers"
+    ],
+)
+
+cc_library(
+    name = "support",
+    deps = [
+        ":public_generated_headers",
+        ":support_link"
+    ],
+)
+
+genrule(
+    name = "k5crypto_version_script",
+    srcs = [
+        "@krb5_src//:src/lib/crypto/libk5crypto.exports"
+    ],
+    outs = [
+        "exports/k5crypto.map"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:perl"
+    ],
+    cmd = "{ echo \"k5crypto_3_MIT {\"; $(location @sonic_build_infra//tools/build_tools:perl) -pe 's/$$/;/' $(location @krb5_src//:src/lib/crypto/libk5crypto.exports); echo \"}; HIDDEN { local: __*; _rest*; _save*; *; };\"; } > $@",
+)
+
+cc_library(
+    name = "k5crypto_objects",
+    srcs = [
+        "@krb5_src//:src/lib/crypto/krb/aead.c",
+        "@krb5_src//:src/lib/crypto/krb/block_size.c",
+        "@krb5_src//:src/lib/crypto/krb/cf2.c",
+        "@krb5_src//:src/lib/crypto/krb/checksum_dk_cmac.c",
+        "@krb5_src//:src/lib/crypto/krb/checksum_dk_hmac.c",
+        "@krb5_src//:src/lib/crypto/krb/checksum_etm.c",
+        "@krb5_src//:src/lib/crypto/krb/checksum_hmac_md5.c",
+        "@krb5_src//:src/lib/crypto/krb/checksum_unkeyed.c",
+        "@krb5_src//:src/lib/crypto/krb/checksum_length.c",
+        "@krb5_src//:src/lib/crypto/krb/cksumtype_to_string.c",
+        "@krb5_src//:src/lib/crypto/krb/cksumtypes.c",
+        "@krb5_src//:src/lib/crypto/krb/coll_proof_cksum.c",
+        "@krb5_src//:src/lib/crypto/krb/crypto_length.c",
+        "@krb5_src//:src/lib/crypto/krb/default_state.c",
+        "@krb5_src//:src/lib/crypto/krb/decrypt.c",
+        "@krb5_src//:src/lib/crypto/krb/decrypt_iov.c",
+        "@krb5_src//:src/lib/crypto/krb/derive.c",
+        "@krb5_src//:src/lib/crypto/krb/encrypt.c",
+        "@krb5_src//:src/lib/crypto/krb/encrypt_iov.c",
+        "@krb5_src//:src/lib/crypto/krb/encrypt_length.c",
+        "@krb5_src//:src/lib/crypto/krb/enctype_util.c",
+        "@krb5_src//:src/lib/crypto/krb/enc_dk_cmac.c",
+        "@krb5_src//:src/lib/crypto/krb/enc_dk_hmac.c",
+        "@krb5_src//:src/lib/crypto/krb/enc_etm.c",
+        "@krb5_src//:src/lib/crypto/krb/enc_raw.c",
+        "@krb5_src//:src/lib/crypto/krb/enc_rc4.c",
+        "@krb5_src//:src/lib/crypto/krb/etypes.c",
+        "@krb5_src//:src/lib/crypto/krb/key.c",
+        "@krb5_src//:src/lib/crypto/krb/keyblocks.c",
+        "@krb5_src//:src/lib/crypto/krb/keyed_cksum.c",
+        "@krb5_src//:src/lib/crypto/krb/keyed_checksum_types.c",
+        "@krb5_src//:src/lib/crypto/krb/keylengths.c",
+        "@krb5_src//:src/lib/crypto/krb/make_checksum.c",
+        "@krb5_src//:src/lib/crypto/krb/make_checksum_iov.c",
+        "@krb5_src//:src/lib/crypto/krb/make_random_key.c",
+        "@krb5_src//:src/lib/crypto/krb/mandatory_sumtype.c",
+        "@krb5_src//:src/lib/crypto/krb/nfold.c",
+        "@krb5_src//:src/lib/crypto/krb/old_api_glue.c",
+        "@krb5_src//:src/lib/crypto/krb/prf.c",
+        "@krb5_src//:src/lib/crypto/krb/prf_aes2.c",
+        "@krb5_src//:src/lib/crypto/krb/prf_cmac.c",
+        "@krb5_src//:src/lib/crypto/krb/prf_des.c",
+        "@krb5_src//:src/lib/crypto/krb/prf_dk.c",
+        "@krb5_src//:src/lib/crypto/krb/prf_rc4.c",
+        "@krb5_src//:src/lib/crypto/krb/prng.c",
+        "@krb5_src//:src/lib/crypto/krb/random_to_key.c",
+        "@krb5_src//:src/lib/crypto/krb/s2k_pbkdf2.c",
+        "@krb5_src//:src/lib/crypto/krb/s2k_rc4.c",
+        "@krb5_src//:src/lib/crypto/krb/state.c",
+        "@krb5_src//:src/lib/crypto/krb/string_to_cksumtype.c",
+        "@krb5_src//:src/lib/crypto/krb/string_to_key.c",
+        "@krb5_src//:src/lib/crypto/krb/valid_cksumtype.c",
+        "@krb5_src//:src/lib/crypto/krb/verify_checksum.c",
+        "@krb5_src//:src/lib/crypto/krb/verify_checksum_iov.c",
+        "@krb5_src//:src/lib/crypto/builtin/cmac.c",
+        "@krb5_src//:src/lib/crypto/builtin/hmac.c",
+        "@krb5_src//:src/lib/crypto/builtin/kdf.c",
+        "@krb5_src//:src/lib/crypto/builtin/pbkdf2.c",
+        "@krb5_src//:src/lib/crypto/openssl/cmac.c",
+        "@krb5_src//:src/lib/crypto/openssl/hmac.c",
+        "@krb5_src//:src/lib/crypto/openssl/kdf.c",
+        "@krb5_src//:src/lib/crypto/openssl/pbkdf2.c",
+        "@krb5_src//:src/lib/crypto/openssl/sha256.c",
+        "@krb5_src//:src/lib/crypto/openssl/enc_provider/des3.c",
+        "@krb5_src//:src/lib/crypto/openssl/enc_provider/rc4.c",
+        "@krb5_src//:src/lib/crypto/openssl/enc_provider/aes.c",
+        "@krb5_src//:src/lib/crypto/openssl/enc_provider/camellia.c",
+        "@krb5_src//:src/lib/crypto/openssl/des/des_keys.c",
+        "@krb5_src//:src/lib/crypto/openssl/hash_provider/hash_evp.c",
+        "@krb5_src//:src/lib/crypto/builtin/md4/md4.c",
+        "@krb5_src//:src/lib/crypto/builtin/enc_provider/des3.c",
+        "@krb5_src//:src/lib/crypto/builtin/enc_provider/rc4.c",
+        "@krb5_src//:src/lib/crypto/builtin/enc_provider/aes.c",
+        "@krb5_src//:src/lib/crypto/builtin/enc_provider/camellia.c",
+        "@krb5_src//:src/lib/crypto/builtin/des/d3_aead.c",
+        "@krb5_src//:src/lib/crypto/builtin/des/d3_kysched.c",
+        "@krb5_src//:src/lib/crypto/builtin/des/des_keys.c",
+        "@krb5_src//:src/lib/crypto/builtin/des/f_aead.c",
+        "@krb5_src//:src/lib/crypto/builtin/des/f_cksum.c",
+        "@krb5_src//:src/lib/crypto/builtin/des/f_parity.c",
+        "@krb5_src//:src/lib/crypto/builtin/des/f_sched.c",
+        "@krb5_src//:src/lib/crypto/builtin/des/f_tables.c",
+        "@krb5_src//:src/lib/crypto/builtin/des/key_sched.c",
+        "@krb5_src//:src/lib/crypto/builtin/des/weak_key.c",
+        "@krb5_src//:src/lib/crypto/builtin/md5/md5.c",
+        "@krb5_src//:src/lib/crypto/builtin/camellia/camellia.c",
+        "@krb5_src//:src/lib/crypto/builtin/sha1/shs.c",
+        "@krb5_src//:src/lib/crypto/builtin/aes/aescrypt.c",
+        "@krb5_src//:src/lib/crypto/builtin/aes/aestab.c",
+        "@krb5_src//:src/lib/crypto/builtin/aes/aeskey.c",
+        "@krb5_src//:src/lib/crypto/builtin/hash_provider/hash_md4.c",
+        "@krb5_src//:src/lib/crypto/builtin/hash_provider/hash_md5.c",
+        "@krb5_src//:src/lib/crypto/builtin/hash_provider/hash_sha1.c",
+        "@krb5_src//:src/lib/crypto/builtin/hash_provider/hash_sha2.c",
+        "@krb5_src//:src/lib/crypto/builtin/sha2/sha256.c",
+        "@krb5_src//:src/lib/crypto/builtin/sha2/sha512.c"
+    ],
+    deps = [
+        ":build_headers",
+        ":support",
+        "//openssl:libcrypto",
+        "@krb5_deps//comerr-dev:libcom_err_cc"
+    ],
+    copts = select({"@platforms//cpu:x86_64": ["-g", "-O2", "-Werror=implicit-function-declaration", "-fstack-protector-strong", "-fstack-clash-protection", "-Wformat", "-Werror=format-security", "-fcf-protection", "-Wdate-time", "-D_FORTIFY_SOURCE=2", "-pthread"], "@platforms//cpu:aarch64": ["-g", "-O2", "-Werror=implicit-function-declaration", "-fstack-protector-strong", "-fstack-clash-protection", "-Wformat", "-Werror=format-security", "-mbranch-protection=standard", "-Wdate-time", "-D_FORTIFY_SOURCE=2", "-pthread"]}),
+    local_defines = [
+        "HAVE_CONFIG_H",
+        "SHARED",
+        "KRB5_DEPRECATED=1",
+        "KRB5_PRIVATE"
+    ],
+    linkopts = [
+        "-ldl",
+        "-lresolv",
+        "-pthread"
+    ],
+    linkstatic = True,
+)
+
+cc_shared_library(
+    name = "k5crypto_shared",
+    deps = [
+        ":k5crypto_objects"
+    ],
+    dynamic_deps = [
+        ":support_shared",
+        "//openssl:libcrypto_shared"
+    ],
+    shared_lib_name = "libk5crypto.so.3.1",
+    user_link_flags = [
+        "-Wl,-soname,libk5crypto.so.3",
+        "-Wl,--no-undefined",
+        "-Wl,-z,relro",
+        "-Wl,--version-script=$(location :k5crypto_version_script)"
+    ],
+    additional_linker_inputs = [
+        ":k5crypto_version_script"
+    ],
+    features = [
+        "-strip_debug_symbols"
+    ],
+)
+
+shared_library_cc_info(
+    name = "k5crypto_link",
+    shared_library = ":k5crypto_shared",
+    runtime_deps = [
+        ":build_headers",
+        ":support",
+        "//openssl:libcrypto",
+        "@krb5_deps//comerr-dev:libcom_err_cc"
+    ],
+)
+
+cc_library(
+    name = "k5crypto",
+    deps = [
+        ":public_generated_headers",
+        ":k5crypto_link"
+    ],
+)
+
+genrule(
+    name = "krb5_version_script",
+    srcs = [
+        "@krb5_src//:src/lib/krb5/libkrb5.exports"
+    ],
+    outs = [
+        "exports/krb5.map"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:perl"
+    ],
+    cmd = "{ echo \"krb5_3_MIT {\"; $(location @sonic_build_infra//tools/build_tools:perl) -pe 's/$$/;/' $(location @krb5_src//:src/lib/krb5/libkrb5.exports); echo \"}; HIDDEN { local: __*; _rest*; _save*; *; };\"; } > $@",
+)
+
+cc_library(
+    name = "krb5_objects",
+    srcs = [
+        "@krb5_src//:src/lib/krb5/krb5_libinit.c",
+        ":generated/errors/lib/krb5/error_tables/asn1_err.c",
+        ":generated/errors/lib/krb5/error_tables/kdb5_err.c",
+        ":generated/errors/lib/krb5/error_tables/krb5_err.c",
+        ":generated/errors/lib/krb5/error_tables/k5e1_err.c",
+        ":generated/errors/lib/krb5/error_tables/kv5m_err.c",
+        ":generated/errors/lib/krb5/error_tables/krb524_err.c",
+        "@krb5_src//:src/lib/krb5/asn.1/asn1_encode.c",
+        "@krb5_src//:src/lib/krb5/asn.1/asn1_k_encode.c",
+        "@krb5_src//:src/lib/krb5/asn.1/ldap_key_seq.c",
+        "@krb5_src//:src/lib/krb5/ccache/ccapi_util.c",
+        "@krb5_src//:src/lib/krb5/ccache/ccbase.c",
+        "@krb5_src//:src/lib/krb5/ccache/cccopy.c",
+        "@krb5_src//:src/lib/krb5/ccache/cccursor.c",
+        "@krb5_src//:src/lib/krb5/ccache/ccdefault.c",
+        "@krb5_src//:src/lib/krb5/ccache/ccdefops.c",
+        "@krb5_src//:src/lib/krb5/ccache/ccmarshal.c",
+        "@krb5_src//:src/lib/krb5/ccache/ccselect.c",
+        "@krb5_src//:src/lib/krb5/ccache/ccselect_hostname.c",
+        "@krb5_src//:src/lib/krb5/ccache/ccselect_k5identity.c",
+        "@krb5_src//:src/lib/krb5/ccache/ccselect_realm.c",
+        "@krb5_src//:src/lib/krb5/ccache/cc_api_macos.c",
+        "@krb5_src//:src/lib/krb5/ccache/cc_dir.c",
+        "@krb5_src//:src/lib/krb5/ccache/cc_retr.c",
+        "@krb5_src//:src/lib/krb5/ccache/cc_file.c",
+        "@krb5_src//:src/lib/krb5/ccache/cc_kcm.c",
+        "@krb5_src//:src/lib/krb5/ccache/cc_memory.c",
+        "@krb5_src//:src/lib/krb5/ccache/cc_keyring.c",
+        "@krb5_src//:src/lib/krb5/ccache/ccfns.c",
+        "@krb5_src//:src/lib/krb5/keytab/ktadd.c",
+        "@krb5_src//:src/lib/krb5/keytab/ktbase.c",
+        "@krb5_src//:src/lib/krb5/keytab/ktdefault.c",
+        "@krb5_src//:src/lib/krb5/keytab/ktfr_entry.c",
+        "@krb5_src//:src/lib/krb5/keytab/ktremove.c",
+        "@krb5_src//:src/lib/krb5/keytab/ktfns.c",
+        "@krb5_src//:src/lib/krb5/keytab/kt_file.c",
+        "@krb5_src//:src/lib/krb5/keytab/kt_memory.c",
+        "@krb5_src//:src/lib/krb5/keytab/read_servi.c",
+        "@krb5_src//:src/lib/krb5/krb/addr_comp.c",
+        "@krb5_src//:src/lib/krb5/krb/addr_order.c",
+        "@krb5_src//:src/lib/krb5/krb/addr_srch.c",
+        "@krb5_src//:src/lib/krb5/krb/allow_weak.c",
+        "@krb5_src//:src/lib/krb5/krb/appdefault.c",
+        "@krb5_src//:src/lib/krb5/krb/ai_authdata.c",
+        "@krb5_src//:src/lib/krb5/krb/auth_con.c",
+        "@krb5_src//:src/lib/krb5/krb/cammac_util.c",
+        "@krb5_src//:src/lib/krb5/krb/authdata.c",
+        "@krb5_src//:src/lib/krb5/krb/authdata_exp.c",
+        "@krb5_src//:src/lib/krb5/krb/authdata_enc.c",
+        "@krb5_src//:src/lib/krb5/krb/authdata_dec.c",
+        "@krb5_src//:src/lib/krb5/krb/bld_pr_ext.c",
+        "@krb5_src//:src/lib/krb5/krb/bld_princ.c",
+        "@krb5_src//:src/lib/krb5/krb/chk_trans.c",
+        "@krb5_src//:src/lib/krb5/krb/chpw.c",
+        "@krb5_src//:src/lib/krb5/krb/conv_creds.c",
+        "@krb5_src//:src/lib/krb5/krb/conv_princ.c",
+        "@krb5_src//:src/lib/krb5/krb/copy_addrs.c",
+        "@krb5_src//:src/lib/krb5/krb/copy_auth.c",
+        "@krb5_src//:src/lib/krb5/krb/copy_athctr.c",
+        "@krb5_src//:src/lib/krb5/krb/copy_cksum.c",
+        "@krb5_src//:src/lib/krb5/krb/copy_creds.c",
+        "@krb5_src//:src/lib/krb5/krb/copy_data.c",
+        "@krb5_src//:src/lib/krb5/krb/copy_key.c",
+        "@krb5_src//:src/lib/krb5/krb/copy_princ.c",
+        "@krb5_src//:src/lib/krb5/krb/copy_tick.c",
+        "@krb5_src//:src/lib/krb5/krb/cp_key_cnt.c",
+        "@krb5_src//:src/lib/krb5/krb/decode_kdc.c",
+        "@krb5_src//:src/lib/krb5/krb/decrypt_tk.c",
+        "@krb5_src//:src/lib/krb5/krb/deltat.c",
+        "@krb5_src//:src/lib/krb5/krb/enc_helper.c",
+        "@krb5_src//:src/lib/krb5/krb/enc_keyhelper.c",
+        "@krb5_src//:src/lib/krb5/krb/encode_kdc.c",
+        "@krb5_src//:src/lib/krb5/krb/encrypt_tk.c",
+        "@krb5_src//:src/lib/krb5/krb/etype_list.c",
+        "@krb5_src//:src/lib/krb5/krb/fast.c",
+        "@krb5_src//:src/lib/krb5/krb/fwd_tgt.c",
+        "@krb5_src//:src/lib/krb5/krb/gc_via_tkt.c",
+        "@krb5_src//:src/lib/krb5/krb/gen_seqnum.c",
+        "@krb5_src//:src/lib/krb5/krb/gen_subkey.c",
+        "@krb5_src//:src/lib/krb5/krb/gen_save_subkey.c",
+        "@krb5_src//:src/lib/krb5/krb/get_creds.c",
+        "@krb5_src//:src/lib/krb5/krb/get_etype_info.c",
+        "@krb5_src//:src/lib/krb5/krb/get_in_tkt.c",
+        "@krb5_src//:src/lib/krb5/krb/gic_keytab.c",
+        "@krb5_src//:src/lib/krb5/krb/gic_opt.c",
+        "@krb5_src//:src/lib/krb5/krb/gic_pwd.c",
+        "@krb5_src//:src/lib/krb5/krb/in_tkt_sky.c",
+        "@krb5_src//:src/lib/krb5/krb/init_ctx.c",
+        "@krb5_src//:src/lib/krb5/krb/copy_ctx.c",
+        "@krb5_src//:src/lib/krb5/krb/init_keyblock.c",
+        "@krb5_src//:src/lib/krb5/krb/kdc_rep_dc.c",
+        "@krb5_src//:src/lib/krb5/krb/kerrs.c",
+        "@krb5_src//:src/lib/krb5/krb/kfree.c",
+        "@krb5_src//:src/lib/krb5/krb/libdef_parse.c",
+        "@krb5_src//:src/lib/krb5/krb/mk_cred.c",
+        "@krb5_src//:src/lib/krb5/krb/mk_error.c",
+        "@krb5_src//:src/lib/krb5/krb/mk_priv.c",
+        "@krb5_src//:src/lib/krb5/krb/mk_rep.c",
+        "@krb5_src//:src/lib/krb5/krb/mk_req.c",
+        "@krb5_src//:src/lib/krb5/krb/mk_req_ext.c",
+        "@krb5_src//:src/lib/krb5/krb/mk_safe.c",
+        "@krb5_src//:src/lib/krb5/krb/pac.c",
+        "@krb5_src//:src/lib/krb5/krb/pac_sign.c",
+        "@krb5_src//:src/lib/krb5/krb/padata.c",
+        "@krb5_src//:src/lib/krb5/krb/parse.c",
+        "@krb5_src//:src/lib/krb5/krb/parse_host_string.c",
+        "@krb5_src//:src/lib/krb5/krb/plugin.c",
+        "@krb5_src//:src/lib/krb5/krb/pr_to_salt.c",
+        "@krb5_src//:src/lib/krb5/krb/preauth2.c",
+        "@krb5_src//:src/lib/krb5/krb/preauth_ec.c",
+        "@krb5_src//:src/lib/krb5/krb/preauth_encts.c",
+        "@krb5_src//:src/lib/krb5/krb/preauth_otp.c",
+        "@krb5_src//:src/lib/krb5/krb/preauth_pkinit.c",
+        "@krb5_src//:src/lib/krb5/krb/preauth_sam2.c",
+        "@krb5_src//:src/lib/krb5/krb/princ_comp.c",
+        "@krb5_src//:src/lib/krb5/krb/privsafe.c",
+        "@krb5_src//:src/lib/krb5/krb/random_str.c",
+        "@krb5_src//:src/lib/krb5/krb/rd_cred.c",
+        "@krb5_src//:src/lib/krb5/krb/rd_error.c",
+        "@krb5_src//:src/lib/krb5/krb/rd_priv.c",
+        "@krb5_src//:src/lib/krb5/krb/rd_rep.c",
+        "@krb5_src//:src/lib/krb5/krb/rd_req.c",
+        "@krb5_src//:src/lib/krb5/krb/rd_req_dec.c",
+        "@krb5_src//:src/lib/krb5/krb/rd_safe.c",
+        "@krb5_src//:src/lib/krb5/krb/recvauth.c",
+        "@krb5_src//:src/lib/krb5/krb/response_items.c",
+        "@krb5_src//:src/lib/krb5/krb/s4u_creds.c",
+        "@krb5_src//:src/lib/krb5/krb/sendauth.c",
+        "@krb5_src//:src/lib/krb5/krb/send_tgs.c",
+        "@krb5_src//:src/lib/krb5/krb/ser_actx.c",
+        "@krb5_src//:src/lib/krb5/krb/ser_adata.c",
+        "@krb5_src//:src/lib/krb5/krb/ser_addr.c",
+        "@krb5_src//:src/lib/krb5/krb/ser_auth.c",
+        "@krb5_src//:src/lib/krb5/krb/ser_cksum.c",
+        "@krb5_src//:src/lib/krb5/krb/ser_ctx.c",
+        "@krb5_src//:src/lib/krb5/krb/ser_key.c",
+        "@krb5_src//:src/lib/krb5/krb/ser_princ.c",
+        "@krb5_src//:src/lib/krb5/krb/serialize.c",
+        "@krb5_src//:src/lib/krb5/krb/set_realm.c",
+        "@krb5_src//:src/lib/krb5/krb/sname_match.c",
+        "@krb5_src//:src/lib/krb5/krb/srv_dec_tkt.c",
+        "@krb5_src//:src/lib/krb5/krb/srv_rcache.c",
+        "@krb5_src//:src/lib/krb5/krb/str_conv.c",
+        "@krb5_src//:src/lib/krb5/krb/tgtname.c",
+        "@krb5_src//:src/lib/krb5/krb/unparse.c",
+        "@krb5_src//:src/lib/krb5/krb/val_renew.c",
+        "@krb5_src//:src/lib/krb5/krb/valid_times.c",
+        "@krb5_src//:src/lib/krb5/krb/vfy_increds.c",
+        "@krb5_src//:src/lib/krb5/krb/vic_opt.c",
+        "@krb5_src//:src/lib/krb5/krb/walk_rtree.c",
+        "@krb5_src//:src/lib/krb5/os/accessor.c",
+        "@krb5_src//:src/lib/krb5/os/c_ustime.c",
+        "@krb5_src//:src/lib/krb5/os/ccdefname.c",
+        "@krb5_src//:src/lib/krb5/os/changepw.c",
+        "@krb5_src//:src/lib/krb5/os/dnsglue.c",
+        "@krb5_src//:src/lib/krb5/os/dnssrv.c",
+        "@krb5_src//:src/lib/krb5/os/expand_path.c",
+        "@krb5_src//:src/lib/krb5/os/full_ipadr.c",
+        "@krb5_src//:src/lib/krb5/os/gen_port.c",
+        "@krb5_src//:src/lib/krb5/os/genaddrs.c",
+        "@krb5_src//:src/lib/krb5/os/gen_rname.c",
+        "@krb5_src//:src/lib/krb5/os/hostaddr.c",
+        "@krb5_src//:src/lib/krb5/os/hostrealm.c",
+        "@krb5_src//:src/lib/krb5/os/hostrealm_dns.c",
+        "@krb5_src//:src/lib/krb5/os/hostrealm_domain.c",
+        "@krb5_src//:src/lib/krb5/os/hostrealm_profile.c",
+        "@krb5_src//:src/lib/krb5/os/hostrealm_registry.c",
+        "@krb5_src//:src/lib/krb5/os/init_os_ctx.c",
+        "@krb5_src//:src/lib/krb5/os/krbfileio.c",
+        "@krb5_src//:src/lib/krb5/os/ktdefname.c",
+        "@krb5_src//:src/lib/krb5/os/mk_faddr.c",
+        "@krb5_src//:src/lib/krb5/os/localaddr.c",
+        "@krb5_src//:src/lib/krb5/os/localauth.c",
+        "@krb5_src//:src/lib/krb5/os/localauth_an2ln.c",
+        "@krb5_src//:src/lib/krb5/os/localauth_k5login.c",
+        "@krb5_src//:src/lib/krb5/os/localauth_names.c",
+        "@krb5_src//:src/lib/krb5/os/localauth_rule.c",
+        "@krb5_src//:src/lib/krb5/os/locate_kdc.c",
+        "@krb5_src//:src/lib/krb5/os/lock_file.c",
+        "@krb5_src//:src/lib/krb5/os/net_read.c",
+        "@krb5_src//:src/lib/krb5/os/net_write.c",
+        "@krb5_src//:src/lib/krb5/os/port2ip.c",
+        "@krb5_src//:src/lib/krb5/os/prompter.c",
+        "@krb5_src//:src/lib/krb5/os/read_msg.c",
+        "@krb5_src//:src/lib/krb5/os/read_pwd.c",
+        "@krb5_src//:src/lib/krb5/os/realm_dom.c",
+        "@krb5_src//:src/lib/krb5/os/sendto_kdc.c",
+        "@krb5_src//:src/lib/krb5/os/sn2princ.c",
+        "@krb5_src//:src/lib/krb5/os/thread_safe.c",
+        "@krb5_src//:src/lib/krb5/os/timeofday.c",
+        "@krb5_src//:src/lib/krb5/os/toffset.c",
+        "@krb5_src//:src/lib/krb5/os/trace.c",
+        "@krb5_src//:src/lib/krb5/os/unlck_file.c",
+        "@krb5_src//:src/lib/krb5/os/ustime.c",
+        "@krb5_src//:src/lib/krb5/os/write_msg.c",
+        "@krb5_src//:src/lib/krb5/rcache/memrcache.c",
+        "@krb5_src//:src/lib/krb5/rcache/rc_base.c",
+        "@krb5_src//:src/lib/krb5/rcache/rc_dfl.c",
+        "@krb5_src//:src/lib/krb5/rcache/rc_file2.c",
+        "@krb5_src//:src/lib/krb5/rcache/rc_none.c",
+        "@krb5_src//:src/lib/krb5/unicode/ucdata/ucdata.c",
+        "@krb5_src//:src/lib/krb5/unicode/ucstr.c",
+        "@krb5_src//:src/util/profile/prof_tree.c",
+        "@krb5_src//:src/util/profile/prof_file.c",
+        "@krb5_src//:src/util/profile/prof_parse.c",
+        "@krb5_src//:src/util/profile/prof_get.c",
+        "@krb5_src//:src/util/profile/prof_set.c",
+        ":generated/errors/util/profile/prof_err.c",
+        "@krb5_src//:src/util/profile/prof_init.c"
+    ],
+    deps = [
+        ":build_headers",
+        ":k5crypto",
+        ":support",
+        "@krb5_deps//comerr-dev:libcom_err_cc",
+        "@krb5_deps//libkeyutils-dev:libkeyutils"
+    ],
+    copts = select({"@platforms//cpu:x86_64": ["-g", "-O2", "-Werror=implicit-function-declaration", "-fstack-protector-strong", "-fstack-clash-protection", "-Wformat", "-Werror=format-security", "-fcf-protection", "-Wdate-time", "-D_FORTIFY_SOURCE=2", "-pthread"], "@platforms//cpu:aarch64": ["-g", "-O2", "-Werror=implicit-function-declaration", "-fstack-protector-strong", "-fstack-clash-protection", "-Wformat", "-Werror=format-security", "-mbranch-protection=standard", "-Wdate-time", "-D_FORTIFY_SOURCE=2", "-pthread"]}),
+    local_defines = select({"@platforms//cpu:x86_64": ["HAVE_CONFIG_H", "SHARED", "KRB5_DEPRECATED=1", "KRB5_PRIVATE", "LOCALEDIR=\\\"/usr/share/locale\\\"", "LIBDIR=\\\"/usr/lib/x86_64-linux-gnu\\\"", "BINDIR=\\\"/usr/bin\\\"", "SBINDIR=\\\"/usr/sbin\\\"", "DYNOBJEXT=\\\".so\\\"", "HAS_STDARG"], "@platforms//cpu:aarch64": ["HAVE_CONFIG_H", "SHARED", "KRB5_DEPRECATED=1", "KRB5_PRIVATE", "LOCALEDIR=\\\"/usr/share/locale\\\"", "LIBDIR=\\\"/usr/lib/aarch64-linux-gnu\\\"", "BINDIR=\\\"/usr/bin\\\"", "SBINDIR=\\\"/usr/sbin\\\"", "DYNOBJEXT=\\\".so\\\"", "HAS_STDARG"]}),
+    linkopts = [
+        "-ldl",
+        "-lresolv",
+        "-pthread"
+    ],
+    linkstatic = True,
+)
+
+cc_shared_library(
+    name = "krb5_shared",
+    deps = [
+        ":krb5_objects"
+    ],
+    dynamic_deps = [
+        ":k5crypto_shared",
+        ":support_shared"
+    ],
+    shared_lib_name = "libkrb5.so.3.3",
+    user_link_flags = [
+        "-Wl,-soname,libkrb5.so.3",
+        "-Wl,--no-undefined",
+        "-Wl,-z,relro",
+        "-Wl,--version-script=$(location :krb5_version_script)"
+    ],
+    additional_linker_inputs = [
+        ":krb5_version_script"
+    ],
+    features = [
+        "-strip_debug_symbols"
+    ],
+)
+
+shared_library_cc_info(
+    name = "krb5_link",
+    shared_library = ":krb5_shared",
+    runtime_deps = [
+        ":build_headers",
+        ":k5crypto",
+        ":support",
+        "@krb5_deps//comerr-dev:libcom_err_cc",
+        "@krb5_deps//libkeyutils-dev:libkeyutils"
+    ],
+)
+
+cc_library(
+    name = "krb5",
+    deps = [
+        ":public_generated_headers",
+        ":krb5_link"
+    ],
+)
+
+genrule(
+    name = "gssapi_version_script",
+    srcs = [
+        "@krb5_src//:src/lib/gssapi/libgssapi_krb5.exports"
+    ],
+    outs = [
+        "exports/gssapi_krb5.map"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:perl"
+    ],
+    cmd = "{ echo \"gssapi_krb5_2_MIT {\"; $(location @sonic_build_infra//tools/build_tools:perl) -pe 's/$$/;/' $(location @krb5_src//:src/lib/gssapi/libgssapi_krb5.exports); echo \"}; HIDDEN { local: __*; _rest*; _save*; *; };\"; } > $@",
+)
+
+cc_library(
+    name = "gssapi_objects",
+    srcs = [
+        "@krb5_src//:src/lib/gssapi/generic/disp_com_err_status.c",
+        "@krb5_src//:src/lib/gssapi/generic/disp_major_status.c",
+        "@krb5_src//:src/lib/gssapi/generic/gssapi_generic.c",
+        "@krb5_src//:src/lib/gssapi/generic/oid_ops.c",
+        "@krb5_src//:src/lib/gssapi/generic/rel_buffer.c",
+        "@krb5_src//:src/lib/gssapi/generic/rel_oid_set.c",
+        "@krb5_src//:src/lib/gssapi/generic/util_buffer.c",
+        "@krb5_src//:src/lib/gssapi/generic/util_buffer_set.c",
+        "@krb5_src//:src/lib/gssapi/generic/util_errmap.c",
+        "@krb5_src//:src/lib/gssapi/generic/util_set.c",
+        "@krb5_src//:src/lib/gssapi/generic/util_seqstate.c",
+        "@krb5_src//:src/lib/gssapi/generic/util_token.c",
+        ":generated/errors/lib/gssapi/generic/gssapi_err_generic.c",
+        "@krb5_src//:src/lib/gssapi/krb5/accept_sec_context.c",
+        "@krb5_src//:src/lib/gssapi/krb5/acquire_cred.c",
+        "@krb5_src//:src/lib/gssapi/krb5/canon_name.c",
+        "@krb5_src//:src/lib/gssapi/krb5/compare_name.c",
+        "@krb5_src//:src/lib/gssapi/krb5/context_time.c",
+        "@krb5_src//:src/lib/gssapi/krb5/copy_ccache.c",
+        "@krb5_src//:src/lib/gssapi/krb5/cred_store.c",
+        "@krb5_src//:src/lib/gssapi/krb5/delete_sec_context.c",
+        "@krb5_src//:src/lib/gssapi/krb5/disp_name.c",
+        "@krb5_src//:src/lib/gssapi/krb5/disp_status.c",
+        "@krb5_src//:src/lib/gssapi/krb5/duplicate_name.c",
+        "@krb5_src//:src/lib/gssapi/krb5/export_cred.c",
+        "@krb5_src//:src/lib/gssapi/krb5/export_name.c",
+        "@krb5_src//:src/lib/gssapi/krb5/export_sec_context.c",
+        "@krb5_src//:src/lib/gssapi/krb5/get_tkt_flags.c",
+        "@krb5_src//:src/lib/gssapi/krb5/gssapi_krb5.c",
+        "@krb5_src//:src/lib/gssapi/krb5/iakerb.c",
+        "@krb5_src//:src/lib/gssapi/krb5/import_cred.c",
+        "@krb5_src//:src/lib/gssapi/krb5/import_name.c",
+        "@krb5_src//:src/lib/gssapi/krb5/import_sec_context.c",
+        "@krb5_src//:src/lib/gssapi/krb5/indicate_mechs.c",
+        "@krb5_src//:src/lib/gssapi/krb5/init_sec_context.c",
+        "@krb5_src//:src/lib/gssapi/krb5/inq_context.c",
+        "@krb5_src//:src/lib/gssapi/krb5/inq_cred.c",
+        "@krb5_src//:src/lib/gssapi/krb5/inq_names.c",
+        "@krb5_src//:src/lib/gssapi/krb5/k5seal.c",
+        "@krb5_src//:src/lib/gssapi/krb5/k5sealiov.c",
+        "@krb5_src//:src/lib/gssapi/krb5/k5sealv3.c",
+        "@krb5_src//:src/lib/gssapi/krb5/k5sealv3iov.c",
+        "@krb5_src//:src/lib/gssapi/krb5/k5unseal.c",
+        "@krb5_src//:src/lib/gssapi/krb5/k5unsealiov.c",
+        "@krb5_src//:src/lib/gssapi/krb5/krb5_gss_glue.c",
+        "@krb5_src//:src/lib/gssapi/krb5/lucid_context.c",
+        "@krb5_src//:src/lib/gssapi/krb5/naming_exts.c",
+        "@krb5_src//:src/lib/gssapi/krb5/prf.c",
+        "@krb5_src//:src/lib/gssapi/krb5/process_context_token.c",
+        "@krb5_src//:src/lib/gssapi/krb5/rel_cred.c",
+        "@krb5_src//:src/lib/gssapi/krb5/rel_oid.c",
+        "@krb5_src//:src/lib/gssapi/krb5/rel_name.c",
+        "@krb5_src//:src/lib/gssapi/krb5/s4u_gss_glue.c",
+        "@krb5_src//:src/lib/gssapi/krb5/set_allowable_enctypes.c",
+        "@krb5_src//:src/lib/gssapi/krb5/ser_sctx.c",
+        "@krb5_src//:src/lib/gssapi/krb5/set_ccache.c",
+        "@krb5_src//:src/lib/gssapi/krb5/store_cred.c",
+        "@krb5_src//:src/lib/gssapi/krb5/util_cksum.c",
+        "@krb5_src//:src/lib/gssapi/krb5/util_crypt.c",
+        "@krb5_src//:src/lib/gssapi/krb5/util_seed.c",
+        "@krb5_src//:src/lib/gssapi/krb5/util_seqnum.c",
+        "@krb5_src//:src/lib/gssapi/krb5/val_cred.c",
+        "@krb5_src//:src/lib/gssapi/krb5/wrap_size_limit.c",
+        ":generated/errors/lib/gssapi/krb5/gssapi_err_krb5.c",
+        "@krb5_src//:src/lib/gssapi/spnego/spnego_mech.c",
+        "@krb5_src//:src/lib/gssapi/spnego/negoex_ctx.c",
+        "@krb5_src//:src/lib/gssapi/spnego/negoex_util.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_accept_sec_context.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_acquire_cred.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_acquire_cred_with_pw.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_acquire_cred_imp_name.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_authorize_localname.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_buffer_set.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_canon_name.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_compare_name.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_complete_auth_token.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_context_time.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_decapsulate_token.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_delete_sec_context.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_del_name_attr.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_dsp_name.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_dsp_name_ext.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_dsp_status.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_dup_name.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_encapsulate_token.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_exp_sec_context.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_export_cred.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_export_name.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_export_name_comp.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_get_name_attr.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_glue.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_imp_cred.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_imp_name.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_imp_sec_context.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_init_sec_context.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_initialize.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_inq_context.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_inq_context_oid.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_inq_cred.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_inq_cred_oid.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_inq_name.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_inq_names.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_map_name_to_any.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_mech_invoke.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_mechattr.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_mechname.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_negoex.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_oid_ops.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_prf.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_process_context.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_rel_buffer.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_rel_cred.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_rel_name.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_rel_name_mapping.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_rel_oid_set.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_saslname.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_seal.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_set_context_option.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_set_cred_option.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_set_name_attr.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_set_neg_mechs.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_sign.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_store_cred.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_unseal.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_unwrap_aead.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_unwrap_iov.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_verify.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_wrap_aead.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/g_wrap_iov.c",
+        "@krb5_src//:src/lib/gssapi/mechglue/gssd_pname_to_uid.c"
+    ],
+    deps = [
+        ":build_headers",
+        ":krb5",
+        ":k5crypto",
+        ":support",
+        "@krb5_deps//comerr-dev:libcom_err_cc"
+    ],
+    copts = select({"@platforms//cpu:x86_64": ["-g", "-O2", "-Werror=implicit-function-declaration", "-fstack-protector-strong", "-fstack-clash-protection", "-Wformat", "-Werror=format-security", "-fcf-protection", "-Wdate-time", "-D_FORTIFY_SOURCE=2", "-pthread"], "@platforms//cpu:aarch64": ["-g", "-O2", "-Werror=implicit-function-declaration", "-fstack-protector-strong", "-fstack-clash-protection", "-Wformat", "-Werror=format-security", "-mbranch-protection=standard", "-Wdate-time", "-D_FORTIFY_SOURCE=2", "-pthread"]}),
+    local_defines = [
+        "HAVE_CONFIG_H",
+        "SHARED",
+        "KRB5_DEPRECATED=1",
+        "KRB5_PRIVATE",
+        "_GSS_STATIC_LINK=1"
+    ],
+    linkopts = [
+        "-ldl",
+        "-lresolv",
+        "-pthread"
+    ],
+    linkstatic = True,
+)
+
+cc_shared_library(
+    name = "gssapi_shared",
+    deps = [
+        ":gssapi_objects"
+    ],
+    dynamic_deps = [
+        ":krb5_shared",
+        ":k5crypto_shared",
+        ":support_shared"
+    ],
+    shared_lib_name = "libgssapi_krb5.so.2.2",
+    user_link_flags = [
+        "-Wl,-soname,libgssapi_krb5.so.2",
+        "-Wl,--no-undefined",
+        "-Wl,-z,relro",
+        "-Wl,--version-script=$(location :gssapi_version_script)"
+    ],
+    additional_linker_inputs = [
+        ":gssapi_version_script"
+    ],
+    features = [
+        "-strip_debug_symbols"
+    ],
+)
+
+shared_library_cc_info(
+    name = "gssapi_link",
+    shared_library = ":gssapi_shared",
+    runtime_deps = [
+        ":build_headers",
+        ":krb5",
+        ":k5crypto",
+        ":support",
+        "@krb5_deps//comerr-dev:libcom_err_cc"
+    ],
+)
+
+cc_library(
+    name = "gssapi",
+    deps = [
+        ":public_generated_headers",
+        ":gssapi_link"
+    ],
+)
+
+genrule(
+    name = "gssrpc_version_script",
+    srcs = [
+        "@krb5_src//:src/lib/rpc/libgssrpc.exports"
+    ],
+    outs = [
+        "exports/gssrpc.map"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:perl"
+    ],
+    cmd = "{ echo \"gssrpc_4_MIT {\"; $(location @sonic_build_infra//tools/build_tools:perl) -pe 's/$$/;/' $(location @krb5_src//:src/lib/rpc/libgssrpc.exports); echo \"}; HIDDEN { local: __*; _rest*; _save*; *; };\"; } > $@",
+)
+
+cc_library(
+    name = "gssrpc_objects",
+    srcs = [
+        "@krb5_src//:src/lib/rpc/auth_none.c",
+        "@krb5_src//:src/lib/rpc/auth_unix.c",
+        "@krb5_src//:src/lib/rpc/authgss_prot.c",
+        "@krb5_src//:src/lib/rpc/authunix_prot.c",
+        "@krb5_src//:src/lib/rpc/auth_gss.c",
+        "@krb5_src//:src/lib/rpc/auth_gssapi.c",
+        "@krb5_src//:src/lib/rpc/auth_gssapi_misc.c",
+        "@krb5_src//:src/lib/rpc/bindresvport.c",
+        "@krb5_src//:src/lib/rpc/clnt_generic.c",
+        "@krb5_src//:src/lib/rpc/clnt_perror.c",
+        "@krb5_src//:src/lib/rpc/clnt_raw.c",
+        "@krb5_src//:src/lib/rpc/clnt_simple.c",
+        "@krb5_src//:src/lib/rpc/clnt_tcp.c",
+        "@krb5_src//:src/lib/rpc/clnt_udp.c",
+        "@krb5_src//:src/lib/rpc/dyn.c",
+        "@krb5_src//:src/lib/rpc/rpc_dtablesize.c",
+        "@krb5_src//:src/lib/rpc/get_myaddress.c",
+        "@krb5_src//:src/lib/rpc/getrpcport.c",
+        "@krb5_src//:src/lib/rpc/pmap_clnt.c",
+        "@krb5_src//:src/lib/rpc/pmap_getmaps.c",
+        "@krb5_src//:src/lib/rpc/pmap_getport.c",
+        "@krb5_src//:src/lib/rpc/pmap_prot.c",
+        "@krb5_src//:src/lib/rpc/pmap_prot2.c",
+        "@krb5_src//:src/lib/rpc/pmap_rmt.c",
+        "@krb5_src//:src/lib/rpc/rpc_prot.c",
+        "@krb5_src//:src/lib/rpc/rpc_commondata.c",
+        "@krb5_src//:src/lib/rpc/rpc_callmsg.c",
+        "@krb5_src//:src/lib/rpc/svc.c",
+        "@krb5_src//:src/lib/rpc/svc_auth.c",
+        "@krb5_src//:src/lib/rpc/svc_auth_gss.c",
+        "@krb5_src//:src/lib/rpc/svc_auth_gssapi.c",
+        "@krb5_src//:src/lib/rpc/svc_auth_none.c",
+        "@krb5_src//:src/lib/rpc/svc_auth_unix.c",
+        "@krb5_src//:src/lib/rpc/svc_raw.c",
+        "@krb5_src//:src/lib/rpc/svc_run.c",
+        "@krb5_src//:src/lib/rpc/svc_simple.c",
+        "@krb5_src//:src/lib/rpc/svc_tcp.c",
+        "@krb5_src//:src/lib/rpc/svc_udp.c",
+        "@krb5_src//:src/lib/rpc/xdr.c",
+        "@krb5_src//:src/lib/rpc/xdr_array.c",
+        "@krb5_src//:src/lib/rpc/xdr_float.c",
+        "@krb5_src//:src/lib/rpc/xdr_mem.c",
+        "@krb5_src//:src/lib/rpc/xdr_rec.c",
+        "@krb5_src//:src/lib/rpc/xdr_reference.c",
+        "@krb5_src//:src/lib/rpc/xdr_stdio.c",
+        "@krb5_src//:src/lib/rpc/xdr_sizeof.c",
+        "@krb5_src//:src/lib/rpc/xdr_alloc.c"
+    ],
+    deps = [
+        ":build_headers",
+        ":gssapi",
+        ":krb5",
+        ":k5crypto",
+        ":support",
+        "@krb5_deps//comerr-dev:libcom_err_cc"
+    ],
+    copts = select({"@platforms//cpu:x86_64": ["-g", "-O2", "-Werror=implicit-function-declaration", "-fstack-protector-strong", "-fstack-clash-protection", "-Wformat", "-Werror=format-security", "-fcf-protection", "-Wdate-time", "-D_FORTIFY_SOURCE=2", "-pthread"], "@platforms//cpu:aarch64": ["-g", "-O2", "-Werror=implicit-function-declaration", "-fstack-protector-strong", "-fstack-clash-protection", "-Wformat", "-Werror=format-security", "-mbranch-protection=standard", "-Wdate-time", "-D_FORTIFY_SOURCE=2", "-pthread"]}),
+    local_defines = [
+        "HAVE_CONFIG_H",
+        "SHARED",
+        "KRB5_DEPRECATED=1",
+        "KRB5_PRIVATE",
+        "GSSAPI_KRB5",
+        "DEBUG_GSSAPI=0",
+        "GSSRPC__IMPL"
+    ],
+    linkopts = [
+        "-ldl",
+        "-lresolv",
+        "-pthread"
+    ],
+    linkstatic = True,
+)
+
+cc_shared_library(
+    name = "gssrpc_shared",
+    deps = [
+        ":gssrpc_objects"
+    ],
+    dynamic_deps = [
+        ":gssapi_shared",
+        ":krb5_shared",
+        ":k5crypto_shared",
+        ":support_shared"
+    ],
+    shared_lib_name = "libgssrpc.so.4.2",
+    user_link_flags = [
+        "-Wl,-soname,libgssrpc.so.4",
+        "-Wl,--no-undefined",
+        "-Wl,-z,relro",
+        "-Wl,--version-script=$(location :gssrpc_version_script)"
+    ],
+    additional_linker_inputs = [
+        ":gssrpc_version_script"
+    ],
+    features = [
+        "-strip_debug_symbols"
+    ],
+)
+
+shared_library_cc_info(
+    name = "gssrpc_link",
+    shared_library = ":gssrpc_shared",
+    runtime_deps = [
+        ":build_headers",
+        ":gssapi",
+        ":krb5",
+        ":k5crypto",
+        ":support",
+        "@krb5_deps//comerr-dev:libcom_err_cc"
+    ],
+)
+
+cc_library(
+    name = "gssrpc",
+    deps = [
+        ":public_generated_headers",
+        ":gssrpc_link"
+    ],
+)
+
+genrule(
+    name = "kdb5_version_script",
+    srcs = [
+        "@krb5_src//:src/lib/kdb/libkdb5.exports"
+    ],
+    outs = [
+        "exports/kdb5.map"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:perl"
+    ],
+    cmd = "{ echo \"kdb5_10_MIT {\"; $(location @sonic_build_infra//tools/build_tools:perl) -pe 's/$$/;/' $(location @krb5_src//:src/lib/kdb/libkdb5.exports); echo \"}; HIDDEN { local: __*; _rest*; _save*; *; };\"; } > $@",
+)
+
+cc_library(
+    name = "kdb5_objects",
+    srcs = [
+        "@krb5_src//:src/lib/kdb/kdb5.c",
+        "@krb5_src//:src/lib/kdb/encrypt_key.c",
+        "@krb5_src//:src/lib/kdb/decrypt_key.c",
+        "@krb5_src//:src/lib/kdb/kdb_default.c",
+        "@krb5_src//:src/lib/kdb/kdb_cpw.c",
+        ":generated/errors/lib/kdb/adb_err.c",
+        "@krb5_src//:src/lib/kdb/iprop_xdr.c",
+        "@krb5_src//:src/lib/kdb/kdb_convert.c",
+        "@krb5_src//:src/lib/kdb/kdb_log.c",
+        "@krb5_src//:src/lib/kdb/keytab.c"
+    ],
+    deps = [
+        ":build_headers",
+        ":gssrpc",
+        ":krb5",
+        ":k5crypto",
+        ":support",
+        "@krb5_deps//comerr-dev:libcom_err_cc"
+    ],
+    copts = select({"@platforms//cpu:x86_64": ["-g", "-O2", "-Werror=implicit-function-declaration", "-fstack-protector-strong", "-fstack-clash-protection", "-Wformat", "-Werror=format-security", "-fcf-protection", "-Wdate-time", "-D_FORTIFY_SOURCE=2", "-pthread"], "@platforms//cpu:aarch64": ["-g", "-O2", "-Werror=implicit-function-declaration", "-fstack-protector-strong", "-fstack-clash-protection", "-Wformat", "-Werror=format-security", "-mbranch-protection=standard", "-Wdate-time", "-D_FORTIFY_SOURCE=2", "-pthread"]}),
+    local_defines = [
+        "HAVE_CONFIG_H",
+        "SHARED",
+        "KRB5_DEPRECATED=1",
+        "KRB5_PRIVATE",
+        "KDB5_USE_LIB_KDB_DB2"
+    ],
+    linkopts = [
+        "-ldl",
+        "-lresolv",
+        "-pthread"
+    ],
+    linkstatic = True,
+)
+
+cc_shared_library(
+    name = "kdb5_shared",
+    deps = [
+        ":kdb5_objects"
+    ],
+    dynamic_deps = [
+        ":gssrpc_shared",
+        ":krb5_shared",
+        ":k5crypto_shared",
+        ":support_shared"
+    ],
+    shared_lib_name = "libkdb5.so.10.0",
+    user_link_flags = [
+        "-Wl,-soname,libkdb5.so.10",
+        "-Wl,--no-undefined",
+        "-Wl,-z,relro",
+        "-Wl,--version-script=$(location :kdb5_version_script)"
+    ],
+    additional_linker_inputs = [
+        ":kdb5_version_script"
+    ],
+    features = [
+        "-strip_debug_symbols"
+    ],
+)
+
+shared_library_cc_info(
+    name = "kdb5_link",
+    shared_library = ":kdb5_shared",
+    runtime_deps = [
+        ":build_headers",
+        ":gssrpc",
+        ":krb5",
+        ":k5crypto",
+        ":support",
+        "@krb5_deps//comerr-dev:libcom_err_cc"
+    ],
+)
+
+cc_library(
+    name = "kdb5",
+    deps = [
+        ":public_generated_headers",
+        ":kdb5_link"
+    ],
+)
+
+genrule(
+    name = "kadm5clnt_version_script",
+    srcs = [
+        "@krb5_src//:src/lib/kadm5/clnt/libkadm5clnt_mit.exports"
+    ],
+    outs = [
+        "exports/kadm5clnt_mit.map"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:perl"
+    ],
+    cmd = "{ echo \"kadm5clnt_mit_12_MIT {\"; $(location @sonic_build_infra//tools/build_tools:perl) -pe 's/$$/;/' $(location @krb5_src//:src/lib/kadm5/clnt/libkadm5clnt_mit.exports); echo \"}; HIDDEN { local: __*; _rest*; _save*; *; };\"; } > $@",
+)
+
+cc_library(
+    name = "kadm5clnt_objects",
+    srcs = [
+        ":generated/errors/lib/kadm5/kadm_err.c",
+        ":generated/errors/lib/kadm5/chpass_util_strings.c",
+        "@krb5_src//:src/lib/kadm5/misc_free.c",
+        "@krb5_src//:src/lib/kadm5/kadm_rpc_xdr.c",
+        "@krb5_src//:src/lib/kadm5/chpass_util.c",
+        "@krb5_src//:src/lib/kadm5/alt_prof.c",
+        "@krb5_src//:src/lib/kadm5/str_conv.c",
+        "@krb5_src//:src/lib/kadm5/logger.c",
+        "@krb5_src//:src/lib/kadm5/clnt/clnt_policy.c",
+        "@krb5_src//:src/lib/kadm5/clnt/client_rpc.c",
+        "@krb5_src//:src/lib/kadm5/clnt/client_principal.c",
+        "@krb5_src//:src/lib/kadm5/clnt/client_init.c",
+        "@krb5_src//:src/lib/kadm5/clnt/clnt_privs.c",
+        "@krb5_src//:src/lib/kadm5/clnt/clnt_chpass_util.c"
+    ],
+    deps = [
+        ":build_headers",
+        ":gssrpc",
+        ":gssapi",
+        ":krb5",
+        ":k5crypto",
+        ":support",
+        "@krb5_deps//comerr-dev:libcom_err_cc"
+    ],
+    copts = select({"@platforms//cpu:x86_64": ["-g", "-O2", "-Werror=implicit-function-declaration", "-fstack-protector-strong", "-fstack-clash-protection", "-Wformat", "-Werror=format-security", "-fcf-protection", "-Wdate-time", "-D_FORTIFY_SOURCE=2", "-pthread"], "@platforms//cpu:aarch64": ["-g", "-O2", "-Werror=implicit-function-declaration", "-fstack-protector-strong", "-fstack-clash-protection", "-Wformat", "-Werror=format-security", "-mbranch-protection=standard", "-Wdate-time", "-D_FORTIFY_SOURCE=2", "-pthread"]}),
+    local_defines = [
+        "HAVE_CONFIG_H",
+        "SHARED",
+        "KRB5_DEPRECATED=1",
+        "KRB5_PRIVATE"
+    ],
+    linkopts = [
+        "-ldl",
+        "-lresolv",
+        "-pthread"
+    ],
+    linkstatic = True,
+)
+
+cc_shared_library(
+    name = "kadm5clnt_shared",
+    deps = [
+        ":kadm5clnt_objects"
+    ],
+    dynamic_deps = [
+        ":gssrpc_shared",
+        ":gssapi_shared",
+        ":krb5_shared",
+        ":k5crypto_shared",
+        ":support_shared"
+    ],
+    shared_lib_name = "libkadm5clnt_mit.so.12.0",
+    user_link_flags = [
+        "-Wl,-soname,libkadm5clnt_mit.so.12",
+        "-Wl,--no-undefined",
+        "-Wl,-z,relro",
+        "-Wl,--version-script=$(location :kadm5clnt_version_script)"
+    ],
+    additional_linker_inputs = [
+        ":kadm5clnt_version_script"
+    ],
+    features = [
+        "-strip_debug_symbols"
+    ],
+)
+
+shared_library_cc_info(
+    name = "kadm5clnt_link",
+    shared_library = ":kadm5clnt_shared",
+    runtime_deps = [
+        ":build_headers",
+        ":gssrpc",
+        ":gssapi",
+        ":krb5",
+        ":k5crypto",
+        ":support",
+        "@krb5_deps//comerr-dev:libcom_err_cc"
+    ],
+)
+
+cc_library(
+    name = "kadm5clnt",
+    deps = [
+        ":public_generated_headers",
+        ":kadm5clnt_link"
+    ],
+)
+
+genrule(
+    name = "kadm5srv_version_script",
+    srcs = [
+        "@krb5_src//:src/lib/kadm5/srv/libkadm5srv_mit.exports"
+    ],
+    outs = [
+        "exports/kadm5srv_mit.map"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:perl"
+    ],
+    cmd = "{ echo \"kadm5srv_mit_12_MIT {\"; $(location @sonic_build_infra//tools/build_tools:perl) -pe 's/$$/;/' $(location @krb5_src//:src/lib/kadm5/srv/libkadm5srv_mit.exports); echo \"}; HIDDEN { local: __*; _rest*; _save*; *; };\"; } > $@",
+)
+
+cc_library(
+    name = "kadm5srv_objects",
+    srcs = [
+        ":generated/errors/lib/kadm5/kadm_err.c",
+        ":generated/errors/lib/kadm5/chpass_util_strings.c",
+        "@krb5_src//:src/lib/kadm5/misc_free.c",
+        "@krb5_src//:src/lib/kadm5/kadm_rpc_xdr.c",
+        "@krb5_src//:src/lib/kadm5/chpass_util.c",
+        "@krb5_src//:src/lib/kadm5/alt_prof.c",
+        "@krb5_src//:src/lib/kadm5/str_conv.c",
+        "@krb5_src//:src/lib/kadm5/logger.c",
+        "@krb5_src//:src/lib/kadm5/srv/pwqual.c",
+        "@krb5_src//:src/lib/kadm5/srv/pwqual_dict.c",
+        "@krb5_src//:src/lib/kadm5/srv/pwqual_empty.c",
+        "@krb5_src//:src/lib/kadm5/srv/pwqual_hesiod.c",
+        "@krb5_src//:src/lib/kadm5/srv/pwqual_princ.c",
+        "@krb5_src//:src/lib/kadm5/srv/kadm5_hook.c",
+        "@krb5_src//:src/lib/kadm5/srv/svr_policy.c",
+        "@krb5_src//:src/lib/kadm5/srv/svr_principal.c",
+        "@krb5_src//:src/lib/kadm5/srv/server_kdb.c",
+        "@krb5_src//:src/lib/kadm5/srv/server_misc.c",
+        "@krb5_src//:src/lib/kadm5/srv/server_init.c",
+        "@krb5_src//:src/lib/kadm5/srv/svr_iters.c",
+        "@krb5_src//:src/lib/kadm5/srv/svr_chpass_util.c",
+        "@krb5_src//:src/lib/kadm5/srv/adb_xdr.c"
+    ],
+    deps = [
+        ":build_headers",
+        ":gssrpc",
+        ":gssapi",
+        ":kdb5",
+        ":krb5",
+        ":k5crypto",
+        ":support",
+        "@krb5_deps//comerr-dev:libcom_err_cc"
+    ],
+    copts = select({"@platforms//cpu:x86_64": ["-g", "-O2", "-Werror=implicit-function-declaration", "-fstack-protector-strong", "-fstack-clash-protection", "-Wformat", "-Werror=format-security", "-fcf-protection", "-Wdate-time", "-D_FORTIFY_SOURCE=2", "-pthread"], "@platforms//cpu:aarch64": ["-g", "-O2", "-Werror=implicit-function-declaration", "-fstack-protector-strong", "-fstack-clash-protection", "-Wformat", "-Werror=format-security", "-mbranch-protection=standard", "-Wdate-time", "-D_FORTIFY_SOURCE=2", "-pthread"]}),
+    local_defines = [
+        "HAVE_CONFIG_H",
+        "SHARED",
+        "KRB5_DEPRECATED=1",
+        "KRB5_PRIVATE"
+    ],
+    linkopts = [
+        "-ldl",
+        "-lresolv",
+        "-pthread"
+    ],
+    linkstatic = True,
+)
+
+cc_shared_library(
+    name = "kadm5srv_shared",
+    deps = [
+        ":kadm5srv_objects"
+    ],
+    dynamic_deps = [
+        ":gssrpc_shared",
+        ":gssapi_shared",
+        ":kdb5_shared",
+        ":krb5_shared",
+        ":k5crypto_shared",
+        ":support_shared"
+    ],
+    shared_lib_name = "libkadm5srv_mit.so.12.0",
+    user_link_flags = [
+        "-Wl,-soname,libkadm5srv_mit.so.12",
+        "-Wl,--no-undefined",
+        "-Wl,-z,relro",
+        "-Wl,--version-script=$(location :kadm5srv_version_script)"
+    ],
+    additional_linker_inputs = [
+        ":kadm5srv_version_script"
+    ],
+    features = [
+        "-strip_debug_symbols"
+    ],
+)
+
+shared_library_cc_info(
+    name = "kadm5srv_link",
+    shared_library = ":kadm5srv_shared",
+    runtime_deps = [
+        ":build_headers",
+        ":gssrpc",
+        ":gssapi",
+        ":kdb5",
+        ":krb5",
+        ":k5crypto",
+        ":support",
+        "@krb5_deps//comerr-dev:libcom_err_cc"
+    ],
+)
+
+cc_library(
+    name = "kadm5srv",
+    deps = [
+        ":public_generated_headers",
+        ":kadm5srv_link"
+    ],
+)
+
+genrule(
+    name = "spake_version_script",
+    srcs = [
+        "@krb5_src//:src/plugins/preauth/spake/spake.exports"
+    ],
+    outs = [
+        "exports/spake.map"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:perl"
+    ],
+    cmd = "{ echo \"HIDDEN { local: __*; _rest*; _save*; *; }; spake_0_MIT {\"; $(location @sonic_build_infra//tools/build_tools:perl) -pe 's/$$/;/' $(location @krb5_src//:src/plugins/preauth/spake/spake.exports); echo \"};\"; } > $@",
+)
+
+cc_library(
+    name = "spake_objects",
+    srcs = [
+        "@krb5_src//:src/plugins/preauth/spake/util.c",
+        "@krb5_src//:src/plugins/preauth/spake/iana.c",
+        "@krb5_src//:src/plugins/preauth/spake/groups.c",
+        "@krb5_src//:src/plugins/preauth/spake/openssl.c",
+        "@krb5_src//:src/plugins/preauth/spake/edwards25519.c",
+        "@krb5_src//:src/plugins/preauth/spake/spake_client.c",
+        "@krb5_src//:src/plugins/preauth/spake/spake_kdc.c"
+    ],
+    deps = [
+        ":build_headers",
+        ":krb5",
+        ":k5crypto",
+        ":support",
+        "//openssl:libcrypto",
+        "@krb5_deps//comerr-dev:libcom_err_cc"
+    ],
+    copts = select({"@platforms//cpu:x86_64": ["-g", "-O2", "-Werror=implicit-function-declaration", "-fstack-protector-strong", "-fstack-clash-protection", "-Wformat", "-Werror=format-security", "-fcf-protection", "-Wdate-time", "-D_FORTIFY_SOURCE=2", "-pthread"], "@platforms//cpu:aarch64": ["-g", "-O2", "-Werror=implicit-function-declaration", "-fstack-protector-strong", "-fstack-clash-protection", "-Wformat", "-Werror=format-security", "-mbranch-protection=standard", "-Wdate-time", "-D_FORTIFY_SOURCE=2", "-pthread"]}),
+    local_defines = [
+        "HAVE_CONFIG_H",
+        "SHARED",
+        "KRB5_DEPRECATED=1",
+        "KRB5_PRIVATE"
+    ],
+    linkopts = [
+        "-ldl",
+        "-lresolv",
+        "-pthread"
+    ],
+    linkstatic = True,
+)
+
+cc_shared_library(
+    name = "spake_shared",
+    deps = [
+        ":spake_objects"
+    ],
+    dynamic_deps = [
+        ":krb5_shared",
+        ":k5crypto_shared",
+        ":support_shared",
+        "//openssl:libcrypto_shared"
+    ],
+    shared_lib_name = "spake.so",
+    user_link_flags = [
+        "-Wl,-soname,spake.so.0",
+        "-Wl,--no-undefined",
+        "-Wl,-z,relro",
+        "-Wl,--version-script=$(location :spake_version_script)"
+    ],
+    additional_linker_inputs = [
+        ":spake_version_script"
+    ],
+    features = [
+        "-strip_debug_symbols"
+    ],
+)
+
+shared_library_cc_info(
+    name = "spake_link",
+    shared_library = ":spake_shared",
+    runtime_deps = [
+        ":build_headers",
+        ":krb5",
+        ":k5crypto",
+        ":support",
+        "//openssl:libcrypto",
+        "@krb5_deps//comerr-dev:libcom_err_cc"
+    ],
+)
+
+cc_library(
+    name = "spake",
+    deps = [
+        ":public_generated_headers",
+        ":spake_link"
+    ],
+)
+
+
+cc_binary(
+    name = "support_test_base64_binary",
+    srcs = [
+        "@krb5_src//:src/util/support/t_base64.c",
+        "@krb5_src//:src/util/support/base64.c"
+    ],
+    deps = [':build_headers'],
+    copts = select({"@platforms//cpu:x86_64": ["-g", "-O2", "-Werror=implicit-function-declaration", "-fstack-protector-strong", "-fstack-clash-protection", "-Wformat", "-Werror=format-security", "-fcf-protection", "-Wdate-time", "-D_FORTIFY_SOURCE=2", "-pthread"], "@platforms//cpu:aarch64": ["-g", "-O2", "-Werror=implicit-function-declaration", "-fstack-protector-strong", "-fstack-clash-protection", "-Wformat", "-Werror=format-security", "-mbranch-protection=standard", "-Wdate-time", "-D_FORTIFY_SOURCE=2", "-pthread"]}),
+    local_defines = [
+        "HAVE_CONFIG_H",
+        "KRB5_DEPRECATED=1",
+        "KRB5_PRIVATE"
+    ],
+    linkstatic = True,
+    features = [
+        "-strip_debug_symbols"
+    ],
+)
+
+native_runtime_binary(
+    name = "support_test_base64_runtime",
+    binary = ":support_test_base64_binary",
+    runtime_payloads = [
+        "@krb5_deps//libc6:data",
+        "@krb5_deps//libgcc-s1:data"
+    ],
+)
+
+py_test(
+    name = "support_test_base64",
+    srcs = [
+        "upstream_test.py"
+    ],
+    main = "upstream_test.py",
+    args = [
+        "$(rootpath :support_test_base64_runtime)"
+    ],
+    data = [
+        ":support_test_base64_runtime"
+    ],
+)
+
+
+expand_template(
+    name = "pc_gssrpc",
+    template = "@krb5_src//:src/build-tools/gssrpc.pc.in",
+    out = "pkgconfig/gssrpc.pc",
+    substitutions = target_multiarch_substitutions({'@COM_ERR_LIB@': '-lcom_err', '@DEFCCNAME@': 'FILE:/tmp/krb5cc_%{uid}', '@DEFCKTNAME@': 'FILE:/etc/krb5/user/%{euid}/client.keytab', '@DEFKTNAME@': 'FILE:/etc/krb5.keytab', '@KRB5_VERSION@': '1.21.3', '@exec_prefix@': '${prefix}', '@includedir@': '${prefix}/include', '@libdir@': '${exec_prefix}/lib/{DEB_HOST_MULTIARCH}', '@prefix@': '/usr', '@KDB5_DB_LIB@': ''}),
+)
+
+expand_template(
+    name = "pc_kadm-client",
+    template = "@krb5_src//:src/build-tools/kadm-client.pc.in",
+    out = "pkgconfig/kadm-client.pc",
+    substitutions = target_multiarch_substitutions({'@COM_ERR_LIB@': '-lcom_err', '@DEFCCNAME@': 'FILE:/tmp/krb5cc_%{uid}', '@DEFCKTNAME@': 'FILE:/etc/krb5/user/%{euid}/client.keytab', '@DEFKTNAME@': 'FILE:/etc/krb5.keytab', '@KRB5_VERSION@': '1.21.3', '@exec_prefix@': '${prefix}', '@includedir@': '${prefix}/include', '@libdir@': '${exec_prefix}/lib/{DEB_HOST_MULTIARCH}', '@prefix@': '/usr', '@KDB5_DB_LIB@': ''}),
+)
+
+expand_template(
+    name = "pc_kadm-server",
+    template = "@krb5_src//:src/build-tools/kadm-server.pc.in",
+    out = "pkgconfig/kadm-server.pc",
+    substitutions = target_multiarch_substitutions({'@COM_ERR_LIB@': '-lcom_err', '@DEFCCNAME@': 'FILE:/tmp/krb5cc_%{uid}', '@DEFCKTNAME@': 'FILE:/etc/krb5/user/%{euid}/client.keytab', '@DEFKTNAME@': 'FILE:/etc/krb5.keytab', '@KRB5_VERSION@': '1.21.3', '@exec_prefix@': '${prefix}', '@includedir@': '${prefix}/include', '@libdir@': '${exec_prefix}/lib/{DEB_HOST_MULTIARCH}', '@prefix@': '/usr', '@KDB5_DB_LIB@': ''}),
+)
+
+expand_template(
+    name = "pc_kdb",
+    template = "@krb5_src//:src/build-tools/kdb.pc.in",
+    out = "pkgconfig/kdb.pc",
+    substitutions = target_multiarch_substitutions({'@COM_ERR_LIB@': '-lcom_err', '@DEFCCNAME@': 'FILE:/tmp/krb5cc_%{uid}', '@DEFCKTNAME@': 'FILE:/etc/krb5/user/%{euid}/client.keytab', '@DEFKTNAME@': 'FILE:/etc/krb5.keytab', '@KRB5_VERSION@': '1.21.3', '@exec_prefix@': '${prefix}', '@includedir@': '${prefix}/include', '@libdir@': '${exec_prefix}/lib/{DEB_HOST_MULTIARCH}', '@prefix@': '/usr', '@KDB5_DB_LIB@': ''}),
+)
+
+expand_template(
+    name = "pc_krb5-gssapi",
+    template = "@krb5_src//:src/build-tools/krb5-gssapi.pc.in",
+    out = "pkgconfig/krb5-gssapi.pc",
+    substitutions = target_multiarch_substitutions({'@COM_ERR_LIB@': '-lcom_err', '@DEFCCNAME@': 'FILE:/tmp/krb5cc_%{uid}', '@DEFCKTNAME@': 'FILE:/etc/krb5/user/%{euid}/client.keytab', '@DEFKTNAME@': 'FILE:/etc/krb5.keytab', '@KRB5_VERSION@': '1.21.3', '@exec_prefix@': '${prefix}', '@includedir@': '${prefix}/include', '@libdir@': '${exec_prefix}/lib/{DEB_HOST_MULTIARCH}', '@prefix@': '/usr', '@KDB5_DB_LIB@': ''}),
+)
+
+expand_template(
+    name = "pc_krb5",
+    template = "@krb5_src//:src/build-tools/krb5.pc.in",
+    out = "pkgconfig/krb5.pc",
+    substitutions = target_multiarch_substitutions({'@COM_ERR_LIB@': '-lcom_err', '@DEFCCNAME@': 'FILE:/tmp/krb5cc_%{uid}', '@DEFCKTNAME@': 'FILE:/etc/krb5/user/%{euid}/client.keytab', '@DEFKTNAME@': 'FILE:/etc/krb5.keytab', '@KRB5_VERSION@': '1.21.3', '@exec_prefix@': '${prefix}', '@includedir@': '${prefix}/include', '@libdir@': '${exec_prefix}/lib/{DEB_HOST_MULTIARCH}', '@prefix@': '/usr', '@KDB5_DB_LIB@': ''}),
+)
+
+expand_template(
+    name = "pc_mit-krb5-gssapi",
+    template = "@krb5_src//:src/build-tools/mit-krb5-gssapi.pc.in",
+    out = "pkgconfig/mit-krb5-gssapi.pc",
+    substitutions = target_multiarch_substitutions({'@COM_ERR_LIB@': '-lcom_err', '@DEFCCNAME@': 'FILE:/tmp/krb5cc_%{uid}', '@DEFCKTNAME@': 'FILE:/etc/krb5/user/%{euid}/client.keytab', '@DEFKTNAME@': 'FILE:/etc/krb5.keytab', '@KRB5_VERSION@': '1.21.3', '@exec_prefix@': '${prefix}', '@includedir@': '${prefix}/include', '@libdir@': '${exec_prefix}/lib/{DEB_HOST_MULTIARCH}', '@prefix@': '/usr', '@KDB5_DB_LIB@': ''}),
+)
+
+expand_template(
+    name = "pc_mit-krb5",
+    template = "@krb5_src//:src/build-tools/mit-krb5.pc.in",
+    out = "pkgconfig/mit-krb5.pc",
+    substitutions = target_multiarch_substitutions({'@COM_ERR_LIB@': '-lcom_err', '@DEFCCNAME@': 'FILE:/tmp/krb5cc_%{uid}', '@DEFCKTNAME@': 'FILE:/etc/krb5/user/%{euid}/client.keytab', '@DEFKTNAME@': 'FILE:/etc/krb5.keytab', '@KRB5_VERSION@': '1.21.3', '@exec_prefix@': '${prefix}', '@includedir@': '${prefix}/include', '@libdir@': '${exec_prefix}/lib/{DEB_HOST_MULTIARCH}', '@prefix@': '/usr', '@KDB5_DB_LIB@': ''}),
+)
+
+expand_template(
+    name = "krb5_config",
+    template = "@krb5_src//:src/build-tools/krb5-config.in",
+    out = "tools/krb5-config.mit",
+    substitutions = {
+        "@CC_LINK@": "$(CC) $(PROG_LIBPATH) $(PROG_RPATH_FLAGS) $(CFLAGS) $(LDFLAGS)",
+        "@COM_ERR_LIB@": "-lcom_err",
+        "@DEFCCNAME@": "FILE:/tmp/krb5cc_%{uid}",
+        "@DEFCKTNAME@": "FILE:/etc/krb5/user/%{euid}/client.keytab",
+        "@DEFKTNAME@": "FILE:/etc/krb5.keytab",
+        "@DL_LIB@": "",
+        "@GEN_LIB@": "",
+        "@KDB5_DB_LIB@": "",
+        "@KRB5_VERSION@": "1.21.3",
+        "@LIBS@": "-lkeyutils -lcrypto -lresolv ",
+        "@PROG_RPATH_FLAGS@": "",
+        "@PTHREAD_CFLAGS@": "-pthread",
+        "@RPATH_FLAG@": "",
+        "@exec_prefix@": "${prefix}",
+        "@prefix@": "/usr"
+    },
+)
+
+genrule(
+    name = "krb5_config_manual",
+    srcs = [
+        "@krb5_src//:src/man/krb5-config.man"
+    ],
+    outs = [
+        "manuals/krb5-config.mit.1.gz"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:gzip"
+    ],
+    cmd = "$(location @sonic_build_infra//tools/build_tools:gzip) -n -9 -c $(location @krb5_src//:src/man/krb5-config.man) > $@",
+)
+
+genrule(
+    name = "changelog",
+    srcs = [
+        "@krb5_src//:debian/changelog"
+    ],
+    outs = [
+        "documentation/changelog.Debian.gz"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:gzip"
+    ],
+    cmd = "$(location @sonic_build_infra//tools/build_tools:gzip) -n -9 -c $(location @krb5_src//:debian/changelog) > $@",
+)
+
+genrule(
+    name = "readme",
+    srcs = [
+        "@krb5_src//:README"
+    ],
+    outs = [
+        "documentation/README.gz"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:gzip"
+    ],
+    cmd = "$(location @sonic_build_infra//tools/build_tools:gzip) -n -9 -c $(location @krb5_src//:README) > $@",
+)
+
+native_install_package(
+    name = "libkrb5support0.runtime",
+    srcs = ['@krb5_src//:debian/copyright', ':changelog'],
+    binaries = {'usr/lib/{DEB_HOST_MULTIARCH}/libkrb5support.so.0.1 type=file uid=0 gid=0 mode=0644': ':support_shared'},
+    mtree = ['usr/lib/{DEB_HOST_MULTIARCH}/libkrb5support.so.0 type=link uid=0 gid=0 mode=0777 link=libkrb5support.so.0.1', 'usr/share/doc/libkrb5support0/copyright type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:debian/copyright)', 'usr/share/doc/libkrb5support0/changelog.Debian.gz type=file uid=0 gid=0 mode=0644 content=$(location :changelog)'],
+)
+
+
+native_install_package(
+    name = "libk5crypto3.runtime",
+    srcs = ['@krb5_src//:debian/copyright', ':changelog'],
+    binaries = {'usr/lib/{DEB_HOST_MULTIARCH}/libk5crypto.so.3.1 type=file uid=0 gid=0 mode=0644': ':k5crypto_shared'},
+    mtree = ['usr/lib/{DEB_HOST_MULTIARCH}/libk5crypto.so.3 type=link uid=0 gid=0 mode=0777 link=libk5crypto.so.3.1', 'usr/share/doc/libk5crypto3/copyright type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:debian/copyright)', 'usr/share/doc/libk5crypto3/changelog.Debian.gz type=file uid=0 gid=0 mode=0644 content=$(location :changelog)'],
+)
+
+
+native_install_package(
+    name = "libkrb5-3.runtime",
+    srcs = ['@krb5_src//:debian/copyright', ':changelog', ':readme', '@krb5_src//:debian/README.Debian'],
+    binaries = {'usr/lib/{DEB_HOST_MULTIARCH}/libkrb5.so.3.3 type=file uid=0 gid=0 mode=0644': ':krb5_shared', 'usr/lib/{DEB_HOST_MULTIARCH}/krb5/plugins/preauth/spake.so type=file uid=0 gid=0 mode=0644': ':spake_shared'},
+    mtree = ['usr/lib/{DEB_HOST_MULTIARCH}/libkrb5.so.3 type=link uid=0 gid=0 mode=0777 link=libkrb5.so.3.3', 'usr/share/doc/libkrb5-3/copyright type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:debian/copyright)', 'usr/share/doc/libkrb5-3/changelog.Debian.gz type=file uid=0 gid=0 mode=0644 content=$(location :changelog)', 'usr/share/doc/libkrb5-3/README.gz type=file uid=0 gid=0 mode=0644 content=$(location :readme)', 'usr/share/doc/libkrb5-3/README.Debian type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:debian/README.Debian)'],
+)
+
+
+native_install_package(
+    name = "libgssapi-krb5-2.runtime",
+    srcs = ['@krb5_src//:debian/copyright', ':changelog'],
+    binaries = {'usr/lib/{DEB_HOST_MULTIARCH}/libgssapi_krb5.so.2.2 type=file uid=0 gid=0 mode=0644': ':gssapi_shared'},
+    mtree = ['usr/lib/{DEB_HOST_MULTIARCH}/libgssapi_krb5.so.2 type=link uid=0 gid=0 mode=0777 link=libgssapi_krb5.so.2.2', 'usr/share/doc/libgssapi-krb5-2/copyright type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:debian/copyright)', 'usr/share/doc/libgssapi-krb5-2/changelog.Debian.gz type=file uid=0 gid=0 mode=0644 content=$(location :changelog)'],
+)
+
+
+native_install_package(
+    name = "libgssrpc4t64.runtime",
+    srcs = ['@krb5_src//:debian/copyright', ':changelog'],
+    binaries = {'usr/lib/{DEB_HOST_MULTIARCH}/libgssrpc.so.4.2 type=file uid=0 gid=0 mode=0644': ':gssrpc_shared'},
+    mtree = ['usr/lib/{DEB_HOST_MULTIARCH}/libgssrpc.so.4 type=link uid=0 gid=0 mode=0777 link=libgssrpc.so.4.2', 'usr/share/doc/libgssrpc4t64/copyright type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:debian/copyright)', 'usr/share/doc/libgssrpc4t64/changelog.Debian.gz type=file uid=0 gid=0 mode=0644 content=$(location :changelog)'],
+)
+
+
+native_install_package(
+    name = "libkadm5clnt-mit12.runtime",
+    srcs = ['@krb5_src//:debian/copyright', ':changelog'],
+    binaries = {'usr/lib/{DEB_HOST_MULTIARCH}/libkadm5clnt_mit.so.12.0 type=file uid=0 gid=0 mode=0644': ':kadm5clnt_shared'},
+    mtree = ['usr/lib/{DEB_HOST_MULTIARCH}/libkadm5clnt_mit.so.12 type=link uid=0 gid=0 mode=0777 link=libkadm5clnt_mit.so.12.0', 'usr/share/doc/libkadm5clnt-mit12/copyright type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:debian/copyright)', 'usr/share/doc/libkadm5clnt-mit12/changelog.Debian.gz type=file uid=0 gid=0 mode=0644 content=$(location :changelog)'],
+)
+
+
+native_install_package(
+    name = "libkadm5srv-mit12.runtime",
+    srcs = ['@krb5_src//:debian/copyright', ':changelog'],
+    binaries = {'usr/lib/{DEB_HOST_MULTIARCH}/libkadm5srv_mit.so.12.0 type=file uid=0 gid=0 mode=0644': ':kadm5srv_shared'},
+    mtree = ['usr/lib/{DEB_HOST_MULTIARCH}/libkadm5srv_mit.so.12 type=link uid=0 gid=0 mode=0777 link=libkadm5srv_mit.so.12.0', 'usr/share/doc/libkadm5srv-mit12/copyright type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:debian/copyright)', 'usr/share/doc/libkadm5srv-mit12/changelog.Debian.gz type=file uid=0 gid=0 mode=0644 content=$(location :changelog)'],
+)
+
+
+native_install_package(
+    name = "krb5-multidev.runtime",
+    srcs = [':changelog', ':generated/errors/lib/kadm5/chpass_util_strings.h', ':generated/errors/lib/kadm5/kadm_err.h', ':gssapi_header', ':krb5_config', ':krb5_config_manual', ':krb5_header', ':pc_gssrpc', ':pc_kadm-client', ':pc_kadm-server', ':pc_kdb', ':pc_krb5', ':pc_krb5-gssapi', ':pc_mit-krb5', ':pc_mit-krb5-gssapi', ':profile_header', ':rpc_types', '@krb5_src//:debian/copyright', '@krb5_src//:src/include/gssapi.h', '@krb5_src//:src/include/gssrpc/auth.h', '@krb5_src//:src/include/gssrpc/auth_gss.h', '@krb5_src//:src/include/gssrpc/auth_gssapi.h', '@krb5_src//:src/include/gssrpc/auth_unix.h', '@krb5_src//:src/include/gssrpc/clnt.h', '@krb5_src//:src/include/gssrpc/netdb.h', '@krb5_src//:src/include/gssrpc/pmap_clnt.h', '@krb5_src//:src/include/gssrpc/pmap_prot.h', '@krb5_src//:src/include/gssrpc/pmap_rmt.h', '@krb5_src//:src/include/gssrpc/rename.h', '@krb5_src//:src/include/gssrpc/rpc.h', '@krb5_src//:src/include/gssrpc/rpc_msg.h', '@krb5_src//:src/include/gssrpc/svc.h', '@krb5_src//:src/include/gssrpc/svc_auth.h', '@krb5_src//:src/include/gssrpc/xdr.h', '@krb5_src//:src/include/kdb.h', '@krb5_src//:src/include/krb5.h', '@krb5_src//:src/include/krb5/ccselect_plugin.h', '@krb5_src//:src/include/krb5/certauth_plugin.h', '@krb5_src//:src/include/krb5/clpreauth_plugin.h', '@krb5_src//:src/include/krb5/hostrealm_plugin.h', '@krb5_src//:src/include/krb5/kadm5_auth_plugin.h', '@krb5_src//:src/include/krb5/kadm5_hook_plugin.h', '@krb5_src//:src/include/krb5/kdcpolicy_plugin.h', '@krb5_src//:src/include/krb5/kdcpreauth_plugin.h', '@krb5_src//:src/include/krb5/localauth_plugin.h', '@krb5_src//:src/include/krb5/locate_plugin.h', '@krb5_src//:src/include/krb5/plugin.h', '@krb5_src//:src/include/krb5/preauth_plugin.h', '@krb5_src//:src/include/krb5/pwqual_plugin.h', '@krb5_src//:src/lib/gssapi/generic/gssapi_alloc.h', '@krb5_src//:src/lib/gssapi/generic/gssapi_ext.h', '@krb5_src//:src/lib/gssapi/generic/gssapi_generic.h', '@krb5_src//:src/lib/gssapi/krb5/gssapi_krb5.h', '@krb5_src//:src/lib/kadm5/admin.h'],
+    mtree = ['usr/include/mit-krb5/krb5/certauth_plugin.h type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:src/include/krb5/certauth_plugin.h)', 'usr/include/mit-krb5/krb5/ccselect_plugin.h type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:src/include/krb5/ccselect_plugin.h)', 'usr/include/mit-krb5/krb5/clpreauth_plugin.h type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:src/include/krb5/clpreauth_plugin.h)', 'usr/include/mit-krb5/krb5/hostrealm_plugin.h type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:src/include/krb5/hostrealm_plugin.h)', 'usr/include/mit-krb5/krb5/kdcpolicy_plugin.h type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:src/include/krb5/kdcpolicy_plugin.h)', 'usr/include/mit-krb5/krb5/kdcpreauth_plugin.h type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:src/include/krb5/kdcpreauth_plugin.h)', 'usr/include/mit-krb5/krb5/localauth_plugin.h type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:src/include/krb5/localauth_plugin.h)', 'usr/include/mit-krb5/krb5/locate_plugin.h type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:src/include/krb5/locate_plugin.h)', 'usr/include/mit-krb5/krb5/plugin.h type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:src/include/krb5/plugin.h)', 'usr/include/mit-krb5/krb5/preauth_plugin.h type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:src/include/krb5/preauth_plugin.h)', 'usr/include/mit-krb5/krb5/pwqual_plugin.h type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:src/include/krb5/pwqual_plugin.h)', 'usr/include/mit-krb5/krb5/kadm5_auth_plugin.h type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:src/include/krb5/kadm5_auth_plugin.h)', 'usr/include/mit-krb5/krb5/kadm5_hook_plugin.h type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:src/include/krb5/kadm5_hook_plugin.h)', 'usr/include/mit-krb5/krb5.h type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:src/include/krb5.h)', 'usr/include/mit-krb5/gssapi.h type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:src/include/gssapi.h)', 'usr/include/mit-krb5/kdb.h type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:src/include/kdb.h)', 'usr/include/mit-krb5/krb5/krb5.h type=file uid=0 gid=0 mode=0644 content=$(location :krb5_header)', 'usr/include/mit-krb5/profile.h type=file uid=0 gid=0 mode=0644 content=$(location :profile_header)', 'usr/include/mit-krb5/gssapi/gssapi.h type=file uid=0 gid=0 mode=0644 content=$(location :gssapi_header)', 'usr/include/mit-krb5/gssrpc/types.h type=file uid=0 gid=0 mode=0644 content=$(location :rpc_types)', 'usr/include/mit-krb5/gssapi/gssapi_alloc.h type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:src/lib/gssapi/generic/gssapi_alloc.h)', 'usr/include/mit-krb5/gssapi/gssapi_ext.h type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:src/lib/gssapi/generic/gssapi_ext.h)', 'usr/include/mit-krb5/gssapi/gssapi_generic.h type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:src/lib/gssapi/generic/gssapi_generic.h)', 'usr/include/mit-krb5/gssapi/gssapi_krb5.h type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:src/lib/gssapi/krb5/gssapi_krb5.h)', 'usr/include/mit-krb5/gssrpc/auth.h type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:src/include/gssrpc/auth.h)', 'usr/include/mit-krb5/gssrpc/auth_gss.h type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:src/include/gssrpc/auth_gss.h)', 'usr/include/mit-krb5/gssrpc/auth_gssapi.h type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:src/include/gssrpc/auth_gssapi.h)', 'usr/include/mit-krb5/gssrpc/auth_unix.h type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:src/include/gssrpc/auth_unix.h)', 'usr/include/mit-krb5/gssrpc/clnt.h type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:src/include/gssrpc/clnt.h)', 'usr/include/mit-krb5/gssrpc/netdb.h type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:src/include/gssrpc/netdb.h)', 'usr/include/mit-krb5/gssrpc/pmap_clnt.h type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:src/include/gssrpc/pmap_clnt.h)', 'usr/include/mit-krb5/gssrpc/pmap_prot.h type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:src/include/gssrpc/pmap_prot.h)', 'usr/include/mit-krb5/gssrpc/pmap_rmt.h type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:src/include/gssrpc/pmap_rmt.h)', 'usr/include/mit-krb5/gssrpc/rename.h type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:src/include/gssrpc/rename.h)', 'usr/include/mit-krb5/gssrpc/rpc.h type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:src/include/gssrpc/rpc.h)', 'usr/include/mit-krb5/gssrpc/rpc_msg.h type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:src/include/gssrpc/rpc_msg.h)', 'usr/include/mit-krb5/gssrpc/svc.h type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:src/include/gssrpc/svc.h)', 'usr/include/mit-krb5/gssrpc/svc_auth.h type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:src/include/gssrpc/svc_auth.h)', 'usr/include/mit-krb5/gssrpc/xdr.h type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:src/include/gssrpc/xdr.h)', 'usr/include/mit-krb5/kadm5/admin.h type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:src/lib/kadm5/admin.h)', 'usr/include/mit-krb5/kadm5/chpass_util_strings.h type=file uid=0 gid=0 mode=0644 content=$(location :generated/errors/lib/kadm5/chpass_util_strings.h)', 'usr/include/mit-krb5/kadm5/kadm_err.h type=file uid=0 gid=0 mode=0644 content=$(location :generated/errors/lib/kadm5/kadm_err.h)', 'usr/share/doc/krb5-multidev/copyright type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:debian/copyright)', 'usr/share/doc/krb5-multidev/changelog.Debian.gz type=file uid=0 gid=0 mode=0644 content=$(location :changelog)', 'usr/bin/krb5-config.mit type=file uid=0 gid=0 mode=0755 content=$(location :krb5_config)', 'usr/share/man/man1/krb5-config.mit.1.gz type=file uid=0 gid=0 mode=0644 content=$(location :krb5_config_manual)', 'usr/lib/{DEB_HOST_MULTIARCH}/mit-krb5/libkrb5support.so type=link uid=0 gid=0 mode=0777 link=../libkrb5support.so.0', 'usr/lib/{DEB_HOST_MULTIARCH}/mit-krb5/libk5crypto.so type=link uid=0 gid=0 mode=0777 link=../libk5crypto.so.3', 'usr/lib/{DEB_HOST_MULTIARCH}/mit-krb5/libkrb5.so type=link uid=0 gid=0 mode=0777 link=../libkrb5.so.3', 'usr/lib/{DEB_HOST_MULTIARCH}/mit-krb5/libgssapi_krb5.so type=link uid=0 gid=0 mode=0777 link=../libgssapi_krb5.so.2', 'usr/lib/{DEB_HOST_MULTIARCH}/mit-krb5/libgssrpc.so type=link uid=0 gid=0 mode=0777 link=../libgssrpc.so.4', 'usr/lib/{DEB_HOST_MULTIARCH}/mit-krb5/libkdb5.so type=link uid=0 gid=0 mode=0777 link=../libkdb5.so.10', 'usr/lib/{DEB_HOST_MULTIARCH}/mit-krb5/libkadm5clnt_mit.so type=link uid=0 gid=0 mode=0777 link=../libkadm5clnt_mit.so.12', 'usr/lib/{DEB_HOST_MULTIARCH}/mit-krb5/libkadm5srv_mit.so type=link uid=0 gid=0 mode=0777 link=../libkadm5srv_mit.so.12', 'usr/lib/{DEB_HOST_MULTIARCH}/mit-krb5/libkadm5clnt.so type=link uid=0 gid=0 mode=0777 link=libkadm5clnt_mit.so', 'usr/lib/{DEB_HOST_MULTIARCH}/mit-krb5/libkadm5srv.so type=link uid=0 gid=0 mode=0777 link=libkadm5srv_mit.so', 'usr/lib/{DEB_HOST_MULTIARCH}/pkgconfig/mit-krb5/gssrpc.pc type=file uid=0 gid=0 mode=0644 content=$(location :pc_gssrpc)', 'usr/lib/{DEB_HOST_MULTIARCH}/pkgconfig/mit-krb5/kadm-client.pc type=file uid=0 gid=0 mode=0644 content=$(location :pc_kadm-client)', 'usr/lib/{DEB_HOST_MULTIARCH}/pkgconfig/mit-krb5/kadm-server.pc type=file uid=0 gid=0 mode=0644 content=$(location :pc_kadm-server)', 'usr/lib/{DEB_HOST_MULTIARCH}/pkgconfig/mit-krb5/kdb.pc type=file uid=0 gid=0 mode=0644 content=$(location :pc_kdb)', 'usr/lib/{DEB_HOST_MULTIARCH}/pkgconfig/mit-krb5/krb5-gssapi.pc type=file uid=0 gid=0 mode=0644 content=$(location :pc_krb5-gssapi)', 'usr/lib/{DEB_HOST_MULTIARCH}/pkgconfig/mit-krb5/krb5.pc type=file uid=0 gid=0 mode=0644 content=$(location :pc_krb5)', 'usr/lib/{DEB_HOST_MULTIARCH}/pkgconfig/mit-krb5-gssapi.pc type=file uid=0 gid=0 mode=0644 content=$(location :pc_mit-krb5-gssapi)', 'usr/lib/{DEB_HOST_MULTIARCH}/pkgconfig/mit-krb5.pc type=file uid=0 gid=0 mode=0644 content=$(location :pc_mit-krb5)'],
+)
+
+
+native_install_package(
+    name = "libkrb5-dev.runtime",
+    srcs = [':changelog', '@krb5_src//:debian/copyright', '@krb5_src//:src/util/ac_check_krb5.m4'],
+    mtree = ['usr/include/krb5/certauth_plugin.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/krb5/certauth_plugin.h', 'usr/include/krb5/ccselect_plugin.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/krb5/ccselect_plugin.h', 'usr/include/krb5/clpreauth_plugin.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/krb5/clpreauth_plugin.h', 'usr/include/krb5/hostrealm_plugin.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/krb5/hostrealm_plugin.h', 'usr/include/krb5/kdcpolicy_plugin.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/krb5/kdcpolicy_plugin.h', 'usr/include/krb5/kdcpreauth_plugin.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/krb5/kdcpreauth_plugin.h', 'usr/include/krb5/localauth_plugin.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/krb5/localauth_plugin.h', 'usr/include/krb5/locate_plugin.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/krb5/locate_plugin.h', 'usr/include/krb5/plugin.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/krb5/plugin.h', 'usr/include/krb5/preauth_plugin.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/krb5/preauth_plugin.h', 'usr/include/krb5/pwqual_plugin.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/krb5/pwqual_plugin.h', 'usr/include/krb5/kadm5_auth_plugin.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/krb5/kadm5_auth_plugin.h', 'usr/include/krb5/kadm5_hook_plugin.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/krb5/kadm5_hook_plugin.h', 'usr/include/krb5.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/krb5.h', 'usr/include/gssapi.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/gssapi.h', 'usr/include/kdb.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/kdb.h', 'usr/include/krb5/krb5.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/krb5/krb5.h', 'usr/include/profile.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/profile.h', 'usr/include/gssapi/gssapi.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/gssapi/gssapi.h', 'usr/include/gssrpc/types.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/gssrpc/types.h', 'usr/include/gssapi/gssapi_alloc.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/gssapi/gssapi_alloc.h', 'usr/include/gssapi/gssapi_ext.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/gssapi/gssapi_ext.h', 'usr/include/gssapi/gssapi_generic.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/gssapi/gssapi_generic.h', 'usr/include/gssapi/gssapi_krb5.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/gssapi/gssapi_krb5.h', 'usr/include/gssrpc/auth.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/gssrpc/auth.h', 'usr/include/gssrpc/auth_gss.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/gssrpc/auth_gss.h', 'usr/include/gssrpc/auth_gssapi.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/gssrpc/auth_gssapi.h', 'usr/include/gssrpc/auth_unix.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/gssrpc/auth_unix.h', 'usr/include/gssrpc/clnt.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/gssrpc/clnt.h', 'usr/include/gssrpc/netdb.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/gssrpc/netdb.h', 'usr/include/gssrpc/pmap_clnt.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/gssrpc/pmap_clnt.h', 'usr/include/gssrpc/pmap_prot.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/gssrpc/pmap_prot.h', 'usr/include/gssrpc/pmap_rmt.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/gssrpc/pmap_rmt.h', 'usr/include/gssrpc/rename.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/gssrpc/rename.h', 'usr/include/gssrpc/rpc.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/gssrpc/rpc.h', 'usr/include/gssrpc/rpc_msg.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/gssrpc/rpc_msg.h', 'usr/include/gssrpc/svc.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/gssrpc/svc.h', 'usr/include/gssrpc/svc_auth.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/gssrpc/svc_auth.h', 'usr/include/gssrpc/xdr.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/gssrpc/xdr.h', 'usr/include/kadm5/admin.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/kadm5/admin.h', 'usr/include/kadm5/chpass_util_strings.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/kadm5/chpass_util_strings.h', 'usr/include/kadm5/kadm_err.h type=link uid=0 gid=0 mode=0777 link=/usr/include/mit-krb5/kadm5/kadm_err.h', 'usr/bin/krb5-config type=link uid=0 gid=0 mode=0777 link=krb5-config.mit', 'usr/share/man/man1/krb5-config.1.gz type=link uid=0 gid=0 mode=0777 link=krb5-config.mit.1.gz', 'usr/share/doc/libkrb5-dev/copyright type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:debian/copyright)', 'usr/share/doc/libkrb5-dev/changelog.Debian.gz type=file uid=0 gid=0 mode=0644 content=$(location :changelog)', 'usr/share/aclocal/ac_check_krb5.m4 type=file uid=0 gid=0 mode=0644 content=$(location @krb5_src//:src/util/ac_check_krb5.m4)', 'usr/lib/{DEB_HOST_MULTIARCH}/libkrb5support.so type=link uid=0 gid=0 mode=0777 link=/usr/lib/{DEB_HOST_MULTIARCH}/mit-krb5/libkrb5support.so', 'usr/lib/{DEB_HOST_MULTIARCH}/libk5crypto.so type=link uid=0 gid=0 mode=0777 link=/usr/lib/{DEB_HOST_MULTIARCH}/mit-krb5/libk5crypto.so', 'usr/lib/{DEB_HOST_MULTIARCH}/libkrb5.so type=link uid=0 gid=0 mode=0777 link=/usr/lib/{DEB_HOST_MULTIARCH}/mit-krb5/libkrb5.so', 'usr/lib/{DEB_HOST_MULTIARCH}/libgssapi_krb5.so type=link uid=0 gid=0 mode=0777 link=/usr/lib/{DEB_HOST_MULTIARCH}/mit-krb5/libgssapi_krb5.so', 'usr/lib/{DEB_HOST_MULTIARCH}/libgssrpc.so type=link uid=0 gid=0 mode=0777 link=/usr/lib/{DEB_HOST_MULTIARCH}/mit-krb5/libgssrpc.so', 'usr/lib/{DEB_HOST_MULTIARCH}/libkdb5.so type=link uid=0 gid=0 mode=0777 link=/usr/lib/{DEB_HOST_MULTIARCH}/mit-krb5/libkdb5.so', 'usr/lib/{DEB_HOST_MULTIARCH}/libkadm5clnt_mit.so type=link uid=0 gid=0 mode=0777 link=/usr/lib/{DEB_HOST_MULTIARCH}/mit-krb5/libkadm5clnt_mit.so', 'usr/lib/{DEB_HOST_MULTIARCH}/libkadm5srv_mit.so type=link uid=0 gid=0 mode=0777 link=/usr/lib/{DEB_HOST_MULTIARCH}/mit-krb5/libkadm5srv_mit.so', 'usr/lib/{DEB_HOST_MULTIARCH}/libkadm5clnt.so type=link uid=0 gid=0 mode=0777 link=/usr/lib/{DEB_HOST_MULTIARCH}/mit-krb5/libkadm5clnt.so', 'usr/lib/{DEB_HOST_MULTIARCH}/libkadm5srv.so type=link uid=0 gid=0 mode=0777 link=/usr/lib/{DEB_HOST_MULTIARCH}/mit-krb5/libkadm5srv.so', 'usr/lib/{DEB_HOST_MULTIARCH}/pkgconfig/gssrpc.pc type=link uid=0 gid=0 mode=0777 link=/usr/lib/{DEB_HOST_MULTIARCH}/pkgconfig/mit-krb5/gssrpc.pc', 'usr/lib/{DEB_HOST_MULTIARCH}/pkgconfig/kadm-client.pc type=link uid=0 gid=0 mode=0777 link=/usr/lib/{DEB_HOST_MULTIARCH}/pkgconfig/mit-krb5/kadm-client.pc', 'usr/lib/{DEB_HOST_MULTIARCH}/pkgconfig/kadm-server.pc type=link uid=0 gid=0 mode=0777 link=/usr/lib/{DEB_HOST_MULTIARCH}/pkgconfig/mit-krb5/kadm-server.pc', 'usr/lib/{DEB_HOST_MULTIARCH}/pkgconfig/kdb.pc type=link uid=0 gid=0 mode=0777 link=/usr/lib/{DEB_HOST_MULTIARCH}/pkgconfig/mit-krb5/kdb.pc', 'usr/lib/{DEB_HOST_MULTIARCH}/pkgconfig/krb5-gssapi.pc type=link uid=0 gid=0 mode=0777 link=/usr/lib/{DEB_HOST_MULTIARCH}/pkgconfig/mit-krb5/krb5-gssapi.pc', 'usr/lib/{DEB_HOST_MULTIARCH}/pkgconfig/krb5.pc type=link uid=0 gid=0 mode=0777 link=/usr/lib/{DEB_HOST_MULTIARCH}/pkgconfig/mit-krb5/krb5.pc', 'usr/bin/krb5-config type=link uid=0 gid=0 mode=0777 link=krb5-config.mit', 'usr/share/man/man1/krb5-config.1.gz type=link uid=0 gid=0 mode=0777 link=krb5-config.mit.1.gz'],
+)
+
+
+runtime_packages(
+    name = "libkrb5support0.runtime_metadata",
+    control = "@krb5_src//:debian/control",
+    changelog = "@krb5_src//:debian/changelog",
+    packages = {
+        "libkrb5support0": ":libkrb5support0.runtime"
+    },
+    symbols = {
+        "libkrb5support0": "@krb5_src//:debian/libkrb5support0.symbols"
+    },
+    symbols_check_level = 4,
+    apt_packages = {
+        "@krb5_deps//libcom-err2:data": "@krb5_deps//libcom-err2:control",
+        "@krb5_deps//libkeyutils1:data": "@krb5_deps//libkeyutils1:control"
+    },
+    dependencies = [],
+    symbols_excludes = {'libkrb5support0': ["krb5/plugins"]},
+)
+
+runtime_packages(
+    name = "libk5crypto3.runtime_metadata",
+    control = "@krb5_src//:debian/control",
+    changelog = "@krb5_src//:debian/changelog",
+    packages = {
+        "libk5crypto3": ":libk5crypto3.runtime"
+    },
+    symbols = {
+        "libk5crypto3": "@krb5_src//:debian/libk5crypto3.symbols"
+    },
+    symbols_check_level = 4,
+    apt_packages = {
+        "@krb5_deps//libcom-err2:data": "@krb5_deps//libcom-err2:control",
+        "@krb5_deps//libkeyutils1:data": "@krb5_deps//libkeyutils1:control"
+    },
+    dependencies = [
+        ":libkrb5support0.runtime_metadata",
+        "//openssl:runtime_packages.json"
+    ],
+    symbols_excludes = {'libk5crypto3': ["krb5/plugins"]},
+)
+
+runtime_packages(
+    name = "libkrb5-3.runtime_metadata",
+    control = "@krb5_src//:debian/control",
+    changelog = "@krb5_src//:debian/changelog",
+    packages = {
+        "libkrb5-3": ":libkrb5-3.runtime"
+    },
+    symbols = {
+        "libkrb5-3": "@krb5_src//:debian/libkrb5-3.symbols"
+    },
+    symbols_check_level = 4,
+    apt_packages = {
+        "@krb5_deps//libcom-err2:data": "@krb5_deps//libcom-err2:control",
+        "@krb5_deps//libkeyutils1:data": "@krb5_deps//libkeyutils1:control"
+    },
+    dependencies = [
+        ":libk5crypto3.runtime_metadata",
+        ":libkrb5support0.runtime_metadata"
+    ],
+    symbols_excludes = {'libkrb5-3': ["krb5/plugins"]},
+)
+
+runtime_packages(
+    name = "libgssapi-krb5-2.runtime_metadata",
+    control = "@krb5_src//:debian/control",
+    changelog = "@krb5_src//:debian/changelog",
+    packages = {
+        "libgssapi-krb5-2": ":libgssapi-krb5-2.runtime"
+    },
+    symbols = {
+        "libgssapi-krb5-2": "@krb5_src//:debian/libgssapi-krb5-2.symbols"
+    },
+    symbols_check_level = 4,
+    apt_packages = {
+        "@krb5_deps//libcom-err2:data": "@krb5_deps//libcom-err2:control",
+        "@krb5_deps//libkeyutils1:data": "@krb5_deps//libkeyutils1:control"
+    },
+    dependencies = [
+        ":libkrb5-3.runtime_metadata",
+        ":libk5crypto3.runtime_metadata",
+        ":libkrb5support0.runtime_metadata"
+    ],
+    symbols_excludes = {'libgssapi-krb5-2': ["krb5/plugins"]},
+)
+
+runtime_packages(
+    name = "libgssrpc4t64.runtime_metadata",
+    control = "@krb5_src//:debian/control",
+    changelog = "@krb5_src//:debian/changelog",
+    packages = {
+        "libgssrpc4t64": ":libgssrpc4t64.runtime"
+    },
+    symbols = {
+        "libgssrpc4t64": "@krb5_src//:debian/libgssrpc4t64.symbols"
+    },
+    symbols_check_level = 4,
+    apt_packages = {
+        "@krb5_deps//libcom-err2:data": "@krb5_deps//libcom-err2:control",
+        "@krb5_deps//libkeyutils1:data": "@krb5_deps//libkeyutils1:control"
+    },
+    dependencies = [
+        ":libgssapi-krb5-2.runtime_metadata",
+        ":libkrb5-3.runtime_metadata",
+        ":libk5crypto3.runtime_metadata",
+        ":libkrb5support0.runtime_metadata"
+    ],
+    symbols_excludes = {'libgssrpc4t64': ["krb5/plugins"]},
+)
+
+runtime_packages(
+    name = "libkadm5clnt-mit12.runtime_metadata",
+    control = "@krb5_src//:debian/control",
+    changelog = "@krb5_src//:debian/changelog",
+    packages = {
+        "libkadm5clnt-mit12": ":libkadm5clnt-mit12.runtime"
+    },
+    symbols = {
+        "libkadm5clnt-mit12": "@krb5_src//:debian/libkadm5clnt-mit12.symbols"
+    },
+    symbols_check_level = 4,
+    apt_packages = {
+        "@krb5_deps//libcom-err2:data": "@krb5_deps//libcom-err2:control",
+        "@krb5_deps//libkeyutils1:data": "@krb5_deps//libkeyutils1:control"
+    },
+    dependencies = [
+        ":libgssrpc4t64.runtime_metadata",
+        ":libgssapi-krb5-2.runtime_metadata",
+        ":libkrb5-3.runtime_metadata",
+        ":libk5crypto3.runtime_metadata",
+        ":libkrb5support0.runtime_metadata"
+    ],
+    symbols_excludes = {'libkadm5clnt-mit12': ["krb5/plugins"]},
+)
+
+runtime_packages(
+    name = "libkadm5srv-mit12.runtime_metadata",
+    control = "@krb5_src//:debian/control",
+    changelog = "@krb5_src//:debian/changelog",
+    packages = {
+        "libkadm5srv-mit12": ":libkadm5srv-mit12.runtime"
+    },
+    symbols = {
+        "libkadm5srv-mit12": "@krb5_src//:debian/libkadm5srv-mit12.symbols"
+    },
+    symbols_check_level = 4,
+    apt_packages = {
+        "@krb5_deps//libcom-err2:data": "@krb5_deps//libcom-err2:control",
+        "@krb5_deps//libkeyutils1:data": "@krb5_deps//libkeyutils1:control",
+        "@openssh_deps//libkdb5-10t64:data": "@openssh_deps//libkdb5-10t64:control"
+    },
+    dependencies = [
+        ":libgssrpc4t64.runtime_metadata",
+        ":libgssapi-krb5-2.runtime_metadata",
+        ":libkrb5-3.runtime_metadata",
+        ":libk5crypto3.runtime_metadata",
+        ":libkrb5support0.runtime_metadata"
+    ],
+    symbols_excludes = {'libkadm5srv-mit12': ["krb5/plugins"]},
+)
+
+runtime_packages(
+    name = "krb5-multidev.runtime_metadata",
+    control = "@krb5_src//:debian/control",
+    changelog = "@krb5_src//:debian/changelog",
+    packages = {
+        "krb5-multidev": ":krb5-multidev.runtime"
+    },
+    apt_packages = {
+        "@krb5_deps//comerr-dev:data": "@krb5_deps//comerr-dev:control"
+    },
+    dependencies = [
+        ":libkrb5support0.runtime_metadata",
+        ":libk5crypto3.runtime_metadata",
+        ":libkrb5-3.runtime_metadata",
+        ":libgssapi-krb5-2.runtime_metadata",
+        ":libgssrpc4t64.runtime_metadata",
+        ":libkadm5clnt-mit12.runtime_metadata",
+        ":libkadm5srv-mit12.runtime_metadata"
+    ],
+)
+
+runtime_packages(
+    name = "libkrb5-dev.runtime_metadata",
+    control = "@krb5_src//:debian/control",
+    changelog = "@krb5_src//:debian/changelog",
+    packages = {
+        "libkrb5-dev": ":libkrb5-dev.runtime"
+    },
+    apt_packages = {
+        "@krb5_deps//comerr-dev:data": "@krb5_deps//comerr-dev:control"
+    },
+    dependencies = [
+        ":krb5-multidev.runtime_metadata"
+    ],
+)
+
+runtime_packages_group(
+    name = "runtime_packages.json",
+    packages = [
+        ":libkrb5support0.runtime_metadata",
+        ":libk5crypto3.runtime_metadata",
+        ":libkrb5-3.runtime_metadata",
+        ":libgssapi-krb5-2.runtime_metadata",
+        ":libgssrpc4t64.runtime_metadata",
+        ":libkadm5clnt-mit12.runtime_metadata",
+        ":libkadm5srv-mit12.runtime_metadata",
+        ":krb5-multidev.runtime_metadata",
+        ":libkrb5-dev.runtime_metadata"
+    ],
+)
+
+
+# Original full default-check prerequisites.
+
+
+# Original full default-check execution.
+
+

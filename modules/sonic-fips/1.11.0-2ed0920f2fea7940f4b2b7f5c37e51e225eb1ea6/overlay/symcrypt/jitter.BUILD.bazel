@@ -1,0 +1,18 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+package(default_visibility = ["//visibility:public"])
+cc_library(
+    name = "jitterentropy",
+    srcs = [
+    "src/jitterentropy-base.c",
+    "src/jitterentropy-gcd.c",
+    "src/jitterentropy-health.c",
+    "src/jitterentropy-noise.c",
+    "src/jitterentropy-sha3.c",
+    "src/jitterentropy-timer.c"
+],
+    hdrs = glob(["*.h", "src/*.h"]),
+    includes = [".", "src"],
+    copts = ["-O0", "-g", "-fPIC", "-fwrapv", "-fvisibility=hidden", "-fstack-protector-strong", "-Wextra", "-Wall", "-pedantic", "-Wconversion"],
+    local_defines = ["CONFIG_CRYPTO_CPU_JITTERENTROPY_SECURE_MEMORY"],
+    alwayslink = True,
+)

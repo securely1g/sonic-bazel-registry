@@ -1,0 +1,18 @@
+# Configuration interface for the upstream OpenSSL Perl generators.
+# Values are selected by the target platform in BUILD.bazel.
+package configdata;
+use strict;
+use warnings;
+use Exporter;
+our @ISA = qw(Exporter);
+our @EXPORT = qw(%config %target %withargs %unified_info %disabled @disablables);
+our @EXPORT_OK = @EXPORT;
+our %config = (@CONFIG@);
+$config{sourcedir} = $ENV{OPENSSL_SOURCE_ROOT} // die "OPENSSL_SOURCE_ROOT is required";
+$config{builddir} = $ENV{OPENSSL_CONFIG_ROOT} // die "OPENSSL_CONFIG_ROOT is required";
+our %target = (@TARGET@);
+our %disabled = (@DISABLED@);
+our %withargs = ();
+our @disablables = (@DISABLABLES@);
+our %unified_info = (@UNIFIED@);
+1;

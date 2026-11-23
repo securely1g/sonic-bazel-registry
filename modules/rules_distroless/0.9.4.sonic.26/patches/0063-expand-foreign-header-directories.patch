@@ -1,0 +1,81 @@
+diff --git a/apt/private/headers.bzl b/apt/private/headers.bzl
+--- a/apt/private/headers.bzl
++++ b/apt/private/headers.bzl
+@@ -8,8 +8,17 @@
+     """Whether an installed include file has a supported fragment suffix."""
+     return path.startswith("usr/include/") and any([path.endswith(suffix) for suffix in _FRAGMENT_SUFFIXES])
+ 
+-def expand_directory_aliases(groups, symlinks, directories):
+-    """Publish in-package directory aliases as declared header leaf symlinks.
++def _header_group(path):
++    if path.endswith(".h") or is_include_fragment(path):
++        return 0
++    if path.endswith(".hpp"):
++        return 1
++    if "include/c++" in path or (path.startswith("usr/include/") and "." not in path.rsplit("/", 1)[-1]):
++        return 2
++    return None
++
++def expand_directory_aliases(groups, symlinks, directories, depends_file_map = {}):
++    """Publish installed directory aliases as declared header leaf symlinks.
+ 
+     Bazel file inputs cannot name directory symlinks. Unlike materializing a
+     tree artifact, each alias leaf can link its already-declared target file.
+@@ -19,10 +28,17 @@
+     links = dict(symlinks)
+     header_paths = {path: True for group in groups for path in group}
+     original = {path: target for path, target in symlinks.items() if path in header_paths}
++    if not original:
++        return groups, links
++    foreign_groups = [[], [], []]
++    for path in depends_file_map:
++        index = _header_group(path)
++        if index != None:
++            foreign_groups[index].append(path)
+     directory_aliases = {}
+     for iteration in range(len(original) + 2):
+         changed = False
+-        headers = [path for group in groups for path in group]
++        headers = [path for group in groups + foreign_groups for path in group]
+         for alias, target in original.items():
+             seen = {alias: True}
+             for _ in range(len(original) + 1):
+@@ -42,8 +58,8 @@
+             groups[index] = [path for path in groups[index] if path not in directory_aliases]
+         for alias, target in directory_aliases.items():
+             links.pop(alias, None)
+-            for group in groups:
+-                for path in list(group):
++            for index, group in enumerate(groups):
++                for path in list(group) + foreign_groups[index]:
+                     if path.startswith(target + "/"):
+                         leaf = alias + path[len(target):]
+                         if leaf not in group:
+@@ -70,13 +86,8 @@
+         parent = path.rsplit("/", 1)[0]
+         if path in own or parent not in parents or parent in roots:
+             continue
+-        if path.endswith(".h") or is_include_fragment(path):
+-            group = 0
+-        elif path.endswith(".hpp"):
+-            group = 1
+-        elif "include/c++" in path or (path.startswith("usr/include/") and "." not in path.rsplit("/", 1)[-1]):
+-            group = 2
+-        else:
++        group = _header_group(path)
++        if group == None:
+             continue
+         groups[group].append(path)
+         aliases[path] = "@@%s//:%s" % (repo, path)
+diff --git a/apt/private/deb_import.bzl b/apt/private/deb_import.bzl
+--- a/apt/private/deb_import.bzl
++++ b/apt/private/deb_import.bzl
+@@ -802,7 +802,7 @@
+             symlinks[line] = resolved_symlink
+ 
+     header_groups, symlinks = expand_directory_aliases(
+-        [h_files, hpp_files, hpp_files_woext], symlinks, directories,
++        [h_files, hpp_files, hpp_files_woext], symlinks, directories, depends_file_map,
+     )
+     header_groups, foreign_headers = complete_header_parents(
+         header_groups, depends_file_map, default_include_dirs([path for group in header_groups for path in group]),

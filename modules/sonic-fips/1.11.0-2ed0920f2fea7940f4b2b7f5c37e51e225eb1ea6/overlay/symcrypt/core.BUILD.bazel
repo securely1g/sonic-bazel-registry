@@ -1,0 +1,311 @@
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@bazel_skylib//rules:expand_template.bzl", "expand_template")
+load("@rules_python//python:defs.bzl", "py_binary")
+package(default_visibility = ["//visibility:public"])
+exports_files(glob(["**"], exclude = ["BUILD.bazel", "3rdparty/jitterentropy-library/**"]))
+_COPTS = ["-O3", "-g", "-DNDEBUG", "-fPIC", "-fno-plt", "-fno-builtin-bcmp", "-fms-extensions", "-fno-unroll-loops", "-fstack-protector-strong", "-Wno-all", "-Wno-extra", "-Wno-unused-but-set-parameter", "-Werror", "-Wno-unknown-pragmas", "-Wno-deprecated-declarations", "-Wno-multichar"] + select({
+    "@platforms//cpu:x86_64": ["-mssse3", "-mxsave", "-maes", "-mpclmul", "-msha", "-mrdrnd", "-mrdseed"],
+    "@platforms//cpu:aarch64": ["-march=armv8-a+simd+crypto", "-flax-vector-conversions", "-mno-outline-atomics"],
+})
+_LIB_COPTS = _COPTS + ["-Wstack-protector", "--param=ssp-buffer-size=4"]
+expand_template(name = "version_header", template = "conf/symcrypt_internal_shared.inc.in", out = "generated/symcrypt_internal_shared.inc", substitutions = {"@SYMCRYPT_VERSION_MAJOR@": "103", "@SYMCRYPT_VERSION_MINOR@": "13", "@SYMCRYPT_VERSION_PATCH@": "0"})
+expand_template(name = "build_header", template = "conf/buildInfo.h.in", out = "generated/buildInfo.h", substitutions = {"@SYMCRYPT_BUILD_INFO_BRANCH@": "HEAD", "@SYMCRYPT_BUILD_INFO_COMMIT@": "2026-08-05T21:48:57+00:00_286762b7730e2b780678f5ab11fef2b1bad639e0", "@SYMCRYPT_BUILD_INFO_TIMESTAMP@": "2026-08-05T21:48:57+00:00"})
+cc_library(name = "headers", hdrs = glob(["inc/**", "lib/*.h", "lib/*.cppasm", "lib/*pattern.c"]) + [":version_header", ":build_header"], includes = ["inc", "generated", "lib"], defines = ["SYMCRYPT_MODULE_DO_FIPS_SELFTESTS=1", "SYMCRYPT_MODULE_USE_FIPS_ENTROPY=1"])
+py_binary(name = "asm_processor", srcs = ["scripts/symcryptasm_processor.py"], main = "scripts/symcryptasm_processor.py")
+py_binary(name = "fips_processor", srcs = ["scripts/process_fips_module.py"], main = "scripts/process_fips_module.py", deps = ["@symcrypt_pyelftools//:elftools"])
+genrule(name = "amd64_aesasm", srcs = glob(["lib/amd64/*.symcryptasm"]), outs = ["generated/amd64/aesasm.S"], tools = [":asm_processor"], cmd = "$(location :asm_processor) gas amd64 systemv $(location lib/amd64/aesasm.symcryptasm) $@")
+genrule(name = "amd64_fdef_asm", srcs = glob(["lib/amd64/*.symcryptasm"]), outs = ["generated/amd64/fdef_asm.S"], tools = [":asm_processor"], cmd = "$(location :asm_processor) gas amd64 systemv $(location lib/amd64/fdef_asm.symcryptasm) $@")
+genrule(name = "amd64_fdef369_asm", srcs = glob(["lib/amd64/*.symcryptasm"]), outs = ["generated/amd64/fdef369_asm.S"], tools = [":asm_processor"], cmd = "$(location :asm_processor) gas amd64 systemv $(location lib/amd64/fdef369_asm.symcryptasm) $@")
+genrule(name = "amd64_fdef_mulx", srcs = glob(["lib/amd64/*.symcryptasm"]), outs = ["generated/amd64/fdef_mulx.S"], tools = [":asm_processor"], cmd = "$(location :asm_processor) gas amd64 systemv $(location lib/amd64/fdef_mulx.symcryptasm) $@")
+genrule(name = "amd64_wipe", srcs = glob(["lib/amd64/*.symcryptasm"]), outs = ["generated/amd64/wipe.S"], tools = [":asm_processor"], cmd = "$(location :asm_processor) gas amd64 systemv $(location lib/amd64/wipe.symcryptasm) $@")
+genrule(name = "amd64_sha256xmm_asm", srcs = glob(["lib/amd64/*.symcryptasm"]), outs = ["generated/amd64/sha256xmm_asm.S"], tools = [":asm_processor"], cmd = "$(location :asm_processor) gas amd64 systemv $(location lib/amd64/sha256xmm_asm.symcryptasm) $@")
+genrule(name = "amd64_sha256ymm_asm", srcs = glob(["lib/amd64/*.symcryptasm"]), outs = ["generated/amd64/sha256ymm_asm.S"], tools = [":asm_processor"], cmd = "$(location :asm_processor) gas amd64 systemv $(location lib/amd64/sha256ymm_asm.symcryptasm) $@")
+genrule(name = "amd64_sha512ymm_asm", srcs = glob(["lib/amd64/*.symcryptasm"]), outs = ["generated/amd64/sha512ymm_asm.S"], tools = [":asm_processor"], cmd = "$(location :asm_processor) gas amd64 systemv $(location lib/amd64/sha512ymm_asm.symcryptasm) $@")
+genrule(name = "amd64_sha512ymm_avx512vl_asm", srcs = glob(["lib/amd64/*.symcryptasm"]), outs = ["generated/amd64/sha512ymm_avx512vl_asm.S"], tools = [":asm_processor"], cmd = "$(location :asm_processor) gas amd64 systemv $(location lib/amd64/sha512ymm_avx512vl_asm.symcryptasm) $@")
+cc_library(name = "asm_amd64", srcs = [
+    ":generated/amd64/aesasm.S",
+    ":generated/amd64/fdef_asm.S",
+    ":generated/amd64/fdef369_asm.S",
+    ":generated/amd64/fdef_mulx.S",
+    ":generated/amd64/wipe.S",
+    ":generated/amd64/sha256xmm_asm.S",
+    ":generated/amd64/sha256ymm_asm.S",
+    ":generated/amd64/sha512ymm_asm.S",
+    ":generated/amd64/sha512ymm_avx512vl_asm.S"
+], deps = [":headers"], copts = ["-ffreestanding", "-DSYMCRYPT_GAS", "-DSYMCRYPT_CPU_AMD64"], alwayslink = True, target_compatible_with = ["@platforms//cpu:x86_64"])
+genrule(name = "arm64_fdef_asm", srcs = glob(["lib/arm64/*.symcryptasm"]), outs = ["generated/arm64/fdef_asm.S"], tools = [":asm_processor"], cmd = "$(location :asm_processor) gas arm64 aapcs64 $(location lib/arm64/fdef_asm.symcryptasm) $@")
+genrule(name = "arm64_fdef369_asm", srcs = glob(["lib/arm64/*.symcryptasm"]), outs = ["generated/arm64/fdef369_asm.S"], tools = [":asm_processor"], cmd = "$(location :asm_processor) gas arm64 aapcs64 $(location lib/arm64/fdef369_asm.symcryptasm) $@")
+genrule(name = "arm64_wipe", srcs = glob(["lib/arm64/*.symcryptasm"]), outs = ["generated/arm64/wipe.S"], tools = [":asm_processor"], cmd = "$(location :asm_processor) gas arm64 aapcs64 $(location lib/arm64/wipe.symcryptasm) $@")
+cc_library(name = "asm_arm64", srcs = [
+    ":generated/arm64/fdef_asm.S",
+    ":generated/arm64/fdef369_asm.S",
+    ":generated/arm64/wipe.S"
+], deps = [":headers"], copts = ["-ffreestanding", "-DSYMCRYPT_GAS", "-DSYMCRYPT_CPU_ARM64"], alwayslink = True, target_compatible_with = ["@platforms//cpu:aarch64"])
+cc_library(name = "aes_ymm", srcs = ["lib/aes-ymm.c"], deps = [":headers"], copts = _LIB_COPTS + ["-std=gnu11", "-Wno-incompatible-pointer-types"] + select({"@platforms//cpu:x86_64":[
+    "-mavx",
+    "-mavx2",
+    "-mvaes",
+    "-mvpclmulqdq"
+], "@platforms//cpu:aarch64":[]}), alwayslink = True)
+cc_library(name = "aes_zmm", srcs = ["lib/aes-zmm.c"], deps = [":headers"], copts = _LIB_COPTS + ["-std=gnu11", "-Wno-incompatible-pointer-types"] + select({"@platforms//cpu:x86_64":[
+    "-mavx512f",
+    "-mavx512bw",
+    "-mavx512dq",
+    "-mavx512vl",
+    "-mvaes",
+    "-mvpclmulqdq"
+], "@platforms//cpu:aarch64":[]}), alwayslink = True)
+cc_library(name = "sha256Par_ymm", srcs = ["lib/sha256Par-ymm.c"], deps = [":headers"], copts = _LIB_COPTS + ["-std=gnu11", "-Wno-incompatible-pointer-types"] + select({"@platforms//cpu:x86_64":[
+    "-mavx",
+    "-mavx2"
+], "@platforms//cpu:aarch64":[]}), alwayslink = True)
+cc_library(name = "sha512Par_ymm", srcs = ["lib/sha512Par-ymm.c"], deps = [":headers"], copts = _LIB_COPTS + ["-std=gnu11", "-Wno-incompatible-pointer-types"] + select({"@platforms//cpu:x86_64":[
+    "-mavx",
+    "-mavx2"
+], "@platforms//cpu:aarch64":[]}), alwayslink = True)
+cc_library(name = "sha256_xmm", srcs = ["lib/sha256-xmm.c"], deps = [":headers"], copts = _LIB_COPTS + ["-std=gnu11", "-Wno-incompatible-pointer-types"] + select({"@platforms//cpu:x86_64":[
+    "-mssse3"
+], "@platforms//cpu:aarch64":[]}), alwayslink = True)
+cc_library(name = "sha256_ymm", srcs = ["lib/sha256-ymm.c"], deps = [":headers"], copts = _LIB_COPTS + ["-std=gnu11", "-Wno-incompatible-pointer-types"] + select({"@platforms//cpu:x86_64":[
+    "-mavx",
+    "-mavx2",
+    "-mbmi2"
+], "@platforms//cpu:aarch64":[]}), alwayslink = True)
+cc_library(name = "sha512_ymm", srcs = ["lib/sha512-ymm.c"], deps = [":headers"], copts = _LIB_COPTS + ["-std=gnu11", "-Wno-incompatible-pointer-types"] + select({"@platforms//cpu:x86_64":[
+    "-mavx",
+    "-mavx2",
+    "-mbmi2"
+], "@platforms//cpu:aarch64":[]}), alwayslink = True)
+cc_library(name = "common", srcs = [
+    "lib/3des.c",
+    "lib/a_dispatch.c",
+    "lib/aes-asm.c",
+    "lib/aes-c.c",
+    "lib/aes-default-bc.c",
+    "lib/aes-default.c",
+    "lib/aes-key.c",
+    "lib/aes-neon.c",
+    "lib/aes-selftest.c",
+    "lib/aes-xmm.c",
+    "lib/aescmac.c",
+    "lib/aesCtrDrbg.c",
+    "lib/aeskw.c",
+    "lib/AesTables.c",
+    "lib/blockciphermodes.c",
+    "lib/ccm.c",
+    "lib/chacha20_poly1305.c",
+    "lib/chacha20.c",
+    "lib/composite_encoding.c",
+    "lib/composite_mldsa.c",
+    "lib/composite_mlkem.c",
+    "lib/cpuid_notry.c",
+    "lib/cpuid_um.c",
+    "lib/cpuid.c",
+    "lib/crt.c",
+    "lib/data_accessors.c",
+    "lib/DesTables.c",
+    "lib/desx.c",
+    "lib/dh.c",
+    "lib/dl_internal_groups.c",
+    "lib/dlgroup.c",
+    "lib/dlkey.c",
+    "lib/dsa.c",
+    "lib/ec_dh.c",
+    "lib/ec_dispatch.c",
+    "lib/ec_dsa.c",
+    "lib/ec_internal_curve_params.c",
+    "lib/ec_internal_curves.c",
+    "lib/ec_montgomery.c",
+    "lib/ec_mul.c",
+    "lib/ec_short_weierstrass.c",
+    "lib/ec_twisted_edwards.c",
+    "lib/eckey.c",
+    "lib/ecpoint.c",
+    "lib/ecurve.c",
+    "lib/equal.c",
+    "lib/FatalIntercept.c",
+    "lib/fdef_general.c",
+    "lib/fdef_int.c",
+    "lib/fdef_mod.c",
+    "lib/fdef369_mod.c",
+    "lib/fips_selftest.c",
+    "lib/gcm.c",
+    "lib/gen_int.c",
+    "lib/ghash.c",
+    "lib/hash.c",
+    "lib/hkdf_selftest.c",
+    "lib/hkdf.c",
+    "lib/hmac.c",
+    "lib/hmacmd5.c",
+    "lib/hmacsha1.c",
+    "lib/hmacsha224.c",
+    "lib/hmacsha256.c",
+    "lib/hmacsha384.c",
+    "lib/hmacsha512.c",
+    "lib/hmacsha512_224.c",
+    "lib/hmacsha512_256.c",
+    "lib/hmacsha3_224.c",
+    "lib/hmacsha3_256.c",
+    "lib/hmacsha3_384.c",
+    "lib/hmacsha3_512.c",
+    "lib/kmac.c",
+    "lib/libmain.c",
+    "lib/lms.c",
+    "lib/marvin32.c",
+    "lib/md2.c",
+    "lib/md4.c",
+    "lib/md5.c",
+    "lib/mldsa.c",
+    "lib/mldsa_primitives.c",
+    "lib/modexp.c",
+    "lib/paddingPkcs7.c",
+    "lib/parhash.c",
+    "lib/pbkdf2_hmacsha1.c",
+    "lib/pbkdf2_hmacsha256.c",
+    "lib/pbkdf2.c",
+    "lib/poly1305.c",
+    "lib/primes.c",
+    "lib/rc2.c",
+    "lib/rc4.c",
+    "lib/rdrand.c",
+    "lib/rdseed.c",
+    "lib/recoding.c",
+    "lib/rsa_enc.c",
+    "lib/rsa_padding.c",
+    "lib/rsakey.c",
+    "lib/ScsTable.c",
+    "lib/scsTools.c",
+    "lib/selftest.c",
+    "lib/service_indicator.c",
+    "lib/session.c",
+    "lib/sha1.c",
+    "lib/sha256.c",
+    "lib/sha256Par.c",
+    "lib/sha512.c",
+    "lib/sha512Par.c",
+    "lib/sha3.c",
+    "lib/sha3_224.c",
+    "lib/sha3_256.c",
+    "lib/sha3_384.c",
+    "lib/sha3_512.c",
+    "lib/shake.c",
+    "lib/sp800_108_hmacsha1.c",
+    "lib/sp800_108_hmacsha256.c",
+    "lib/sp800_108_hmacsha512.c",
+    "lib/sp800_108.c",
+    "lib/srtp_kdf.c",
+    "lib/srtp_kdf_selftest.c",
+    "lib/ssh_kdf.c",
+    "lib/ssh_kdf_sha256.c",
+    "lib/ssh_kdf_sha512.c",
+    "lib/sskdf.c",
+    "lib/sskdf_selftest.c",
+    "lib/tlsCbcVerify.c",
+    "lib/tlsprf_selftest.c",
+    "lib/tlsprf.c",
+    "lib/xmss.c",
+    "lib/xtsaes.c",
+    "lib/mlkem.c",
+    "lib/mlkem_primitives.c"
+] + select({"@platforms//cpu:x86_64":["lib/linux/intrinsics.c"], "@platforms//cpu:aarch64":[]}), deps = [":headers"] + [
+    ":aes_ymm",
+    ":aes_zmm",
+    ":sha256Par_ymm",
+    ":sha512Par_ymm",
+    ":sha256_xmm",
+    ":sha256_ymm",
+    ":sha512_ymm"
+] + select({"@platforms//cpu:x86_64":[":asm_amd64"], "@platforms//cpu:aarch64":[":asm_arm64"]}), copts = _LIB_COPTS + ["-std=gnu11", "-Wno-incompatible-pointer-types"], linkopts = ["-latomic"], alwayslink = True)
+cc_library(name = "posix_environment", srcs = ["lib/env_posixUserMode.c"], deps = [":common"], copts = _LIB_COPTS + ["-std=gnu11"], alwayslink = True)
+cc_library(name = "module_objects", srcs = ["modules/posix/common/module.c", "modules/posix/common/rng.c", "modules/posix/generic/statusindicator.c", "modules/posix/common/optional/rngforkdetection.c", "modules/posix/common/optional/rngsecureurandom.c", "modules/posix/common/optional/module_posixUserMode.c", "modules/posix/common/callbacks_pthread.c", "modules/posix/common/integrity.c", "modules/posix/common/optional/rngfipsjitter.c"], hdrs = glob(["modules/**/*.h"]), includes = ["modules/posix/common"], deps = [":posix_environment", "@jitterentropy_src//:jitterentropy"], copts = _COPTS + ["-std=gnu11"], linkopts = ["-lpthread"], alwayslink = True)
+cc_shared_library(name = "core_shared", deps = [":module_objects"], shared_lib_name = "libsymcrypt.so.103.13.0", additional_linker_inputs = ["modules/posix/common/exports.ver"], user_link_flags = ["-Wl,-soname,libsymcrypt.so.103", "-Wl,-Bsymbolic", "-Wl,-z,relro", "-Wl,-z,noexecstack", "-Wl,-z,now", "-Wl,-gc-sections", "-Wl,--build-id", "-Wl,--version-script=$(location modules/posix/common/exports.ver)", "-nostdlib", "-nodefaultlibs", "-nostartfiles"], features = ["-strip_debug_symbols"])
+genrule(name = "kat_kat_IEEE802_11SaeCustom_dat", srcs = ["unittest/kat_IEEE802_11SaeCustom.dat"], outs = ["test_resources/kat_IEEE802_11SaeCustom.dat.h"], cmd = "printf '%s\\n' '#pragma once' 'static const char kat_IEEE802_11SaeCustom_dat[] = R\"for_c++_include(' > $@; cat $(location unittest/kat_IEEE802_11SaeCustom.dat) >> $@; printf '%s\\n' ')for_c++_include\";' >> $@")
+genrule(name = "kat_kat_authenc_dat", srcs = ["unittest/kat_authenc.dat"], outs = ["test_resources/kat_authenc.dat.h"], cmd = "printf '%s\\n' '#pragma once' 'static const char kat_authenc_dat[] = R\"for_c++_include(' > $@; cat $(location unittest/kat_authenc.dat) >> $@; printf '%s\\n' ')for_c++_include\";' >> $@")
+genrule(name = "kat_kat_blockcipher_dat", srcs = ["unittest/kat_blockcipher.dat"], outs = ["test_resources/kat_blockcipher.dat.h"], cmd = "printf '%s\\n' '#pragma once' 'static const char kat_blockcipher_dat[] = R\"for_c++_include(' > $@; cat $(location unittest/kat_blockcipher.dat) >> $@; printf '%s\\n' ')for_c++_include\";' >> $@")
+genrule(name = "kat_kat_composite_kem_dat", srcs = ["unittest/kat_composite_kem.dat"], outs = ["test_resources/kat_composite_kem.dat.h"], cmd = "printf '%s\\n' '#pragma once' 'static const char kat_composite_kem_dat[] = R\"for_c++_include(' > $@; cat $(location unittest/kat_composite_kem.dat) >> $@; printf '%s\\n' ')for_c++_include\";' >> $@")
+genrule(name = "kat_kat_composite_mldsa_dat", srcs = ["unittest/kat_composite_mldsa.dat"], outs = ["test_resources/kat_composite_mldsa.dat.h"], cmd = "printf '%s\\n' '#pragma once' 'static const char kat_composite_mldsa_dat[] = R\"for_c++_include(' > $@; cat $(location unittest/kat_composite_mldsa.dat) >> $@; printf '%s\\n' ')for_c++_include\";' >> $@")
+genrule(name = "kat_kat_cxof_dat", srcs = ["unittest/kat_cxof.dat"], outs = ["test_resources/kat_cxof.dat.h"], cmd = "printf '%s\\n' '#pragma once' 'static const char kat_cxof_dat[] = R\"for_c++_include(' > $@; cat $(location unittest/kat_cxof.dat) >> $@; printf '%s\\n' ')for_c++_include\";' >> $@")
+genrule(name = "kat_kat_dh_dat", srcs = ["unittest/kat_dh.dat"], outs = ["test_resources/kat_dh.dat.h"], cmd = "printf '%s\\n' '#pragma once' 'static const char kat_dh_dat[] = R\"for_c++_include(' > $@; cat $(location unittest/kat_dh.dat) >> $@; printf '%s\\n' ')for_c++_include\";' >> $@")
+genrule(name = "kat_kat_dsa_dat", srcs = ["unittest/kat_dsa.dat"], outs = ["test_resources/kat_dsa.dat.h"], cmd = "printf '%s\\n' '#pragma once' 'static const char kat_dsa_dat[] = R\"for_c++_include(' > $@; cat $(location unittest/kat_dsa.dat) >> $@; printf '%s\\n' ')for_c++_include\";' >> $@")
+genrule(name = "kat_kat_ecdsa_dat", srcs = ["unittest/kat_ecdsa.dat"], outs = ["test_resources/kat_ecdsa.dat.h"], cmd = "printf '%s\\n' '#pragma once' 'static const char kat_ecdsa_dat[] = R\"for_c++_include(' > $@; cat $(location unittest/kat_ecdsa.dat) >> $@; printf '%s\\n' ')for_c++_include\";' >> $@")
+genrule(name = "kat_kat_hash_dat", srcs = ["unittest/kat_hash.dat"], outs = ["test_resources/kat_hash.dat.h"], cmd = "printf '%s\\n' '#pragma once' 'static const char kat_hash_dat[] = R\"for_c++_include(' > $@; cat $(location unittest/kat_hash.dat) >> $@; printf '%s\\n' ')for_c++_include\";' >> $@")
+genrule(name = "kat_kat_hash_long_dat", srcs = ["unittest/kat_hash_long.dat"], outs = ["test_resources/kat_hash_long.dat.h"], cmd = "printf '%s\\n' '#pragma once' 'static const char kat_hash_long_dat[] = R\"for_c++_include(' > $@; cat $(location unittest/kat_hash_long.dat) >> $@; printf '%s\\n' ')for_c++_include\";' >> $@")
+genrule(name = "kat_kat_hbs_dat", srcs = ["unittest/kat_hbs.dat"], outs = ["test_resources/kat_hbs.dat.h"], cmd = "printf '%s\\n' '#pragma once' 'static const char kat_hbs_dat[] = R\"for_c++_include(' > $@; cat $(location unittest/kat_hbs.dat) >> $@; printf '%s\\n' ')for_c++_include\";' >> $@")
+genrule(name = "kat_kat_hpke_dat", srcs = ["unittest/kat_hpke.dat"], outs = ["test_resources/kat_hpke.dat.h"], cmd = "printf '%s\\n' '#pragma once' 'static const char kat_hpke_dat[] = R\"for_c++_include(' > $@; cat $(location unittest/kat_hpke.dat) >> $@; printf '%s\\n' ')for_c++_include\";' >> $@")
+genrule(name = "kat_kat_kdf_dat", srcs = ["unittest/kat_kdf.dat"], outs = ["test_resources/kat_kdf.dat.h"], cmd = "printf '%s\\n' '#pragma once' 'static const char kat_kdf_dat[] = R\"for_c++_include(' > $@; cat $(location unittest/kat_kdf.dat) >> $@; printf '%s\\n' ')for_c++_include\";' >> $@")
+genrule(name = "kat_kat_kem_dat", srcs = ["unittest/kat_kem.dat"], outs = ["test_resources/kat_kem.dat.h"], cmd = "printf '%s\\n' '#pragma once' 'static const char kat_kem_dat[] = R\"for_c++_include(' > $@; cat $(location unittest/kat_kem.dat) >> $@; printf '%s\\n' ')for_c++_include\";' >> $@")
+genrule(name = "kat_kat_keywrap_dat", srcs = ["unittest/kat_keywrap.dat"], outs = ["test_resources/kat_keywrap.dat.h"], cmd = "printf '%s\\n' '#pragma once' 'static const char kat_keywrap_dat[] = R\"for_c++_include(' > $@; cat $(location unittest/kat_keywrap.dat) >> $@; printf '%s\\n' ')for_c++_include\";' >> $@")
+genrule(name = "kat_kat_kmac_dat", srcs = ["unittest/kat_kmac.dat"], outs = ["test_resources/kat_kmac.dat.h"], cmd = "printf '%s\\n' '#pragma once' 'static const char kat_kmac_dat[] = R\"for_c++_include(' > $@; cat $(location unittest/kat_kmac.dat) >> $@; printf '%s\\n' ')for_c++_include\";' >> $@")
+genrule(name = "kat_kat_mac_dat", srcs = ["unittest/kat_mac.dat"], outs = ["test_resources/kat_mac.dat.h"], cmd = "printf '%s\\n' '#pragma once' 'static const char kat_mac_dat[] = R\"for_c++_include(' > $@; cat $(location unittest/kat_mac.dat) >> $@; printf '%s\\n' ')for_c++_include\";' >> $@")
+genrule(name = "kat_kat_pqdsa_dat", srcs = ["unittest/kat_pqdsa.dat"], outs = ["test_resources/kat_pqdsa.dat.h"], cmd = "printf '%s\\n' '#pragma once' 'static const char kat_pqdsa_dat[] = R\"for_c++_include(' > $@; cat $(location unittest/kat_pqdsa.dat) >> $@; printf '%s\\n' ')for_c++_include\";' >> $@")
+genrule(name = "kat_kat_rng_dat", srcs = ["unittest/kat_rng.dat"], outs = ["test_resources/kat_rng.dat.h"], cmd = "printf '%s\\n' '#pragma once' 'static const char kat_rng_dat[] = R\"for_c++_include(' > $@; cat $(location unittest/kat_rng.dat) >> $@; printf '%s\\n' ')for_c++_include\";' >> $@")
+genrule(name = "kat_kat_rsaenc_dat", srcs = ["unittest/kat_rsaenc.dat"], outs = ["test_resources/kat_rsaenc.dat.h"], cmd = "printf '%s\\n' '#pragma once' 'static const char kat_rsaenc_dat[] = R\"for_c++_include(' > $@; cat $(location unittest/kat_rsaenc.dat) >> $@; printf '%s\\n' ')for_c++_include\";' >> $@")
+genrule(name = "kat_kat_rsasign_dat", srcs = ["unittest/kat_rsasign.dat"], outs = ["test_resources/kat_rsasign.dat.h"], cmd = "printf '%s\\n' '#pragma once' 'static const char kat_rsasign_dat[] = R\"for_c++_include(' > $@; cat $(location unittest/kat_rsasign.dat) >> $@; printf '%s\\n' ')for_c++_include\";' >> $@")
+genrule(name = "kat_kat_streamcipher_dat", srcs = ["unittest/kat_streamcipher.dat"], outs = ["test_resources/kat_streamcipher.dat.h"], cmd = "printf '%s\\n' '#pragma once' 'static const char kat_streamcipher_dat[] = R\"for_c++_include(' > $@; cat $(location unittest/kat_streamcipher.dat) >> $@; printf '%s\\n' ')for_c++_include\";' >> $@")
+genrule(name = "kat_kat_xof_dat", srcs = ["unittest/kat_xof.dat"], outs = ["test_resources/kat_xof.dat.h"], cmd = "printf '%s\\n' '#pragma once' 'static const char kat_xof_dat[] = R\"for_c++_include(' > $@; cat $(location unittest/kat_xof.dat) >> $@; printf '%s\\n' ')for_c++_include\";' >> $@")
+genrule(name = "kat_kat_xts_dat", srcs = ["unittest/kat_xts.dat"], outs = ["test_resources/kat_xts.dat.h"], cmd = "printf '%s\\n' '#pragma once' 'static const char kat_xts_dat[] = R\"for_c++_include(' > $@; cat $(location unittest/kat_xts.dat) >> $@; printf '%s\\n' ')for_c++_include\";' >> $@")
+write_file(name = "resource_index", out = "test_resources/resource.h", content = [
+    "#pragma once",
+    "#include \"kat_IEEE802_11SaeCustom.dat.h\"",
+    "#include \"kat_authenc.dat.h\"",
+    "#include \"kat_blockcipher.dat.h\"",
+    "#include \"kat_composite_kem.dat.h\"",
+    "#include \"kat_composite_mldsa.dat.h\"",
+    "#include \"kat_cxof.dat.h\"",
+    "#include \"kat_dh.dat.h\"",
+    "#include \"kat_dsa.dat.h\"",
+    "#include \"kat_ecdsa.dat.h\"",
+    "#include \"kat_hash.dat.h\"",
+    "#include \"kat_hash_long.dat.h\"",
+    "#include \"kat_hbs.dat.h\"",
+    "#include \"kat_hpke.dat.h\"",
+    "#include \"kat_kdf.dat.h\"",
+    "#include \"kat_kem.dat.h\"",
+    "#include \"kat_keywrap.dat.h\"",
+    "#include \"kat_kmac.dat.h\"",
+    "#include \"kat_mac.dat.h\"",
+    "#include \"kat_pqdsa.dat.h\"",
+    "#include \"kat_rng.dat.h\"",
+    "#include \"kat_rsaenc.dat.h\"",
+    "#include \"kat_rsasign.dat.h\"",
+    "#include \"kat_streamcipher.dat.h\"",
+    "#include \"kat_xof.dat.h\"",
+    "#include \"kat_xts.dat.h\"",
+    "static inline size_t GetResourceBytes(const char *resourceName, const char **bytes) {",
+    "    if (strcasecmp(resourceName, \"kat_IEEE802_11SaeCustom.dat\") == 0) { *bytes = kat_IEEE802_11SaeCustom_dat; return sizeof(kat_IEEE802_11SaeCustom_dat); }",
+    "    if (strcasecmp(resourceName, \"kat_authenc.dat\") == 0) { *bytes = kat_authenc_dat; return sizeof(kat_authenc_dat); }",
+    "    if (strcasecmp(resourceName, \"kat_blockcipher.dat\") == 0) { *bytes = kat_blockcipher_dat; return sizeof(kat_blockcipher_dat); }",
+    "    if (strcasecmp(resourceName, \"kat_composite_kem.dat\") == 0) { *bytes = kat_composite_kem_dat; return sizeof(kat_composite_kem_dat); }",
+    "    if (strcasecmp(resourceName, \"kat_composite_mldsa.dat\") == 0) { *bytes = kat_composite_mldsa_dat; return sizeof(kat_composite_mldsa_dat); }",
+    "    if (strcasecmp(resourceName, \"kat_cxof.dat\") == 0) { *bytes = kat_cxof_dat; return sizeof(kat_cxof_dat); }",
+    "    if (strcasecmp(resourceName, \"kat_dh.dat\") == 0) { *bytes = kat_dh_dat; return sizeof(kat_dh_dat); }",
+    "    if (strcasecmp(resourceName, \"kat_dsa.dat\") == 0) { *bytes = kat_dsa_dat; return sizeof(kat_dsa_dat); }",
+    "    if (strcasecmp(resourceName, \"kat_ecdsa.dat\") == 0) { *bytes = kat_ecdsa_dat; return sizeof(kat_ecdsa_dat); }",
+    "    if (strcasecmp(resourceName, \"kat_hash.dat\") == 0) { *bytes = kat_hash_dat; return sizeof(kat_hash_dat); }",
+    "    if (strcasecmp(resourceName, \"kat_hash_long.dat\") == 0) { *bytes = kat_hash_long_dat; return sizeof(kat_hash_long_dat); }",
+    "    if (strcasecmp(resourceName, \"kat_hbs.dat\") == 0) { *bytes = kat_hbs_dat; return sizeof(kat_hbs_dat); }",
+    "    if (strcasecmp(resourceName, \"kat_hpke.dat\") == 0) { *bytes = kat_hpke_dat; return sizeof(kat_hpke_dat); }",
+    "    if (strcasecmp(resourceName, \"kat_kdf.dat\") == 0) { *bytes = kat_kdf_dat; return sizeof(kat_kdf_dat); }",
+    "    if (strcasecmp(resourceName, \"kat_kem.dat\") == 0) { *bytes = kat_kem_dat; return sizeof(kat_kem_dat); }",
+    "    if (strcasecmp(resourceName, \"kat_keywrap.dat\") == 0) { *bytes = kat_keywrap_dat; return sizeof(kat_keywrap_dat); }",
+    "    if (strcasecmp(resourceName, \"kat_kmac.dat\") == 0) { *bytes = kat_kmac_dat; return sizeof(kat_kmac_dat); }",
+    "    if (strcasecmp(resourceName, \"kat_mac.dat\") == 0) { *bytes = kat_mac_dat; return sizeof(kat_mac_dat); }",
+    "    if (strcasecmp(resourceName, \"kat_pqdsa.dat\") == 0) { *bytes = kat_pqdsa_dat; return sizeof(kat_pqdsa_dat); }",
+    "    if (strcasecmp(resourceName, \"kat_rng.dat\") == 0) { *bytes = kat_rng_dat; return sizeof(kat_rng_dat); }",
+    "    if (strcasecmp(resourceName, \"kat_rsaenc.dat\") == 0) { *bytes = kat_rsaenc_dat; return sizeof(kat_rsaenc_dat); }",
+    "    if (strcasecmp(resourceName, \"kat_rsasign.dat\") == 0) { *bytes = kat_rsasign_dat; return sizeof(kat_rsasign_dat); }",
+    "    if (strcasecmp(resourceName, \"kat_streamcipher.dat\") == 0) { *bytes = kat_streamcipher_dat; return sizeof(kat_streamcipher_dat); }",
+    "    if (strcasecmp(resourceName, \"kat_xof.dat\") == 0) { *bytes = kat_xof_dat; return sizeof(kat_xof_dat); }",
+    "    if (strcasecmp(resourceName, \"kat_xts.dat\") == 0) { *bytes = kat_xts_dat; return sizeof(kat_xts_dat); }",
+    "    return 0;",
+    "}"
+])
+cc_library(name = "test_resources", hdrs = [":resource_index"] + [":kat_kat_IEEE802_11SaeCustom_dat", ":kat_kat_authenc_dat", ":kat_kat_blockcipher_dat", ":kat_kat_composite_kem_dat", ":kat_kat_composite_mldsa_dat", ":kat_kat_cxof_dat", ":kat_kat_dh_dat", ":kat_kat_dsa_dat", ":kat_kat_ecdsa_dat", ":kat_kat_hash_dat", ":kat_kat_hash_long_dat", ":kat_kat_hbs_dat", ":kat_kat_hpke_dat", ":kat_kat_kdf_dat", ":kat_kat_kem_dat", ":kat_kat_keywrap_dat", ":kat_kat_kmac_dat", ":kat_kat_mac_dat", ":kat_kat_pqdsa_dat", ":kat_kat_rng_dat", ":kat_kat_rsaenc_dat", ":kat_kat_rsasign_dat", ":kat_kat_streamcipher_dat", ":kat_kat_xof_dat", ":kat_kat_xts_dat"], includes = ["test_resources"])
+cc_library(name = "plus", srcs = ["lib_plus/ec_encoding.c", "lib_plus/hpke.c", "lib_plus/hpke_aead.c", "lib_plus/hpke_kdf.c", "lib_plus/hpke_kem.c", "lib_plus/hpke_kem_dhkem.c"], hdrs = glob(["lib_plus/*.h"]), deps = [":headers", ":common"], includes = ["inc/symcrypt_plus", "lib_plus"], copts = _LIB_COPTS + ["-std=gnu11"], alwayslink = True)
+cc_library(name = "unittest_objects", srcs = ["unittest/lib/callback.cpp", "unittest/lib/kat.cpp", "unittest/lib/main.cpp", "unittest/lib/perf.cpp", "unittest/lib/perfPrint.cpp", "unittest/lib/printtable.cpp", "unittest/lib/ref_implementations.cpp", "unittest/lib/resultMerge.cpp", "unittest/lib/rndDriver.cpp", "unittest/lib/rng.cpp", "unittest/lib/sc_implementations.cpp", "unittest/lib/testAccessors.cpp", "unittest/lib/testAesCtrDrbg.cpp", "unittest/lib/testArithmetic.cpp", "unittest/lib/testAuthEnc.cpp", "unittest/lib/testBlockCiphers.cpp", "unittest/lib/testCompositeHelpers.cpp", "unittest/lib/testCustomizableXof.cpp", "unittest/lib/testDh.cpp", "unittest/lib/testDsa.cpp", "unittest/lib/testEcc.cpp", "unittest/lib/testEcEncoding.cpp", "unittest/lib/testhash.cpp", "unittest/lib/testHbs.cpp", "unittest/lib/testKdf.cpp", "unittest/lib/testKem.cpp", "unittest/lib/testHpke.cpp", "unittest/lib/testKeyWrap.cpp", "unittest/lib/testKmac.cpp", "unittest/lib/testMac.cpp", "unittest/lib/testMontgomery.cpp", "unittest/lib/testMultiThread.cpp", "unittest/lib/testPaddingPkcs7.cpp", "unittest/lib/testRsaEnc.cpp", "unittest/lib/testRsaSign.cpp", "unittest/lib/testPqDsa.cpp", "unittest/lib/testScsTable.cpp", "unittest/lib/testScsTools.cpp", "unittest/lib/testSelftest.cpp", "unittest/lib/testServiceIndicator.cpp", "unittest/lib/testStatusIndicator.cpp", "unittest/lib/testStreamCipher.cpp", "unittest/lib/testTlsCbcHmac.cpp", "unittest/lib/testutil.cpp", "unittest/lib/testWipe.cpp", "unittest/lib/testXof.cpp", "unittest/lib/testXts.cpp", "unittest/lib/env_linuxSymCryptUnittest.cpp"], hdrs = glob(["unittest/inc/**", "unittest/lib/*.h", "unittest/lib/*pattern.cpp", "unittest/lib/env_commonSymCryptUnittest.cpp", "unittest/lib/selftestFuncList.cpp", "unittest/lib/main_exe_common.cpp", "modules/*.h"]), includes = ["unittest/inc", "unittest/lib", "unittest/resource"], deps = [":plus", ":test_resources"] + select({"@platforms//cpu:x86_64": [":test_asm"], "@platforms//cpu:aarch64": []}), copts = _COPTS + ["-std=c++17", "-Wno-write-strings"], defines = ["INCLUDE_IMPL_CAPI=0", "INCLUDE_IMPL_CNG=0", "INCLUDE_IMPL_MSBIGNUM=0", "INCLUDE_IMPL_RSA32=0"], alwayslink = True)
+cc_binary(name = "symcryptunittest", srcs = ["unittest/exe_posix/main_exe.cpp"], deps = [":unittest_objects"], copts = _COPTS + ["-std=c++17"] + select({"@platforms//cpu:x86_64":["-mavx", "-mavx2"], "@platforms//cpu:aarch64":[]}), linkopts = ["-ldl", "-lpthread", "-Wl,--as-needed", "-Wl,--dynamic-list=$(location unittest/exe_posix/dynamic-list.ver)"], additional_linker_inputs = ["unittest/exe_posix/dynamic-list.ver"], features = ["-strip_debug_symbols"])
+
+cc_library(name = "test_asm", srcs = ["unittest/lib/amd64/saveymm-gas.asm", "unittest/lib/amd64/savezmm-gas.asm"], copts = ["-x", "assembler", "-g"], alwayslink = True, target_compatible_with = ["@platforms//cpu:x86_64"])

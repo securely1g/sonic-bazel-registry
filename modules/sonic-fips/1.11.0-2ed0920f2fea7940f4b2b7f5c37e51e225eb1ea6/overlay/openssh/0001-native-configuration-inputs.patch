@@ -1,0 +1,23 @@
+--- a/debian/changelog
++++ b/debian/changelog
+@@ -1,4 +1,4 @@
+-openssh (1:10.0p1-7) unstable; urgency=medium
++openssh (1:10.0p1-7+fips) unstable; urgency=medium
+ 
+   * Make postinst logic for cleaning up the sshd diversion more robust.
+ 
+--- a/config.h.in
++++ b/config.h.in
+@@ -1,4 +1,12 @@
+ /* config.h.in.  Generated from configure.ac by autoheader.  */
++
++/* Definitions introduced by the preserved Debian/SONiC configure patches. */
++#undef LIBWRAP
++#undef SYSTEMD_SOCKET_ACTIVATION
++#undef USE_CCAPI
++#undef USE_SECURITY_SESSION_API
++#undef _TIME_BITS
++#undef __MINGW_USE_VC2005_COMPAT
+ 
+ /* Define if building universal (internal helper macro) */
+ #undef AC_APPLE_UNIVERSAL_BUILD

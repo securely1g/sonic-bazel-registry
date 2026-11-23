@@ -1,0 +1,487 @@
+load("@io_bazel_rules_go//go/private/rules:sdk.bzl", "go_sdk")
+load("@io_bazel_rules_go//go/private:go_toolchain.bzl", "go_toolchain")
+load("@io_bazel_rules_go//go:def.bzl", "go_binary")
+load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
+load("@sonic_build_infra//tools/build_tools:defs.bzl", "source_build_tool")
+load("@bazel_skylib//rules:expand_template.bzl", "expand_template")
+load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
+load("@sonic_build_infra//cc:toolchain_variant.bzl", "cc_binary_toolchain_variant")
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+
+package(default_visibility = ["//visibility:public"])
+exports_files(["fips.series", "patches.BUILD.bazel", "source.BUILD.bazel", "0001-debian-sdk-defaults.patch", "derive_perl_substvars.py"])
+expand_template(
+    name = "changelog",
+    template = "@golang_src//:debian/changelog",
+    out = "changelog.fips",
+    substitutions = {"1.26.5-1~bpo13+1": "1.26.5-1~bpo13+1+fips"},
+)
+genrule(
+    name = "changelog_compressed",
+    srcs = [":changelog"],
+    outs = ["changelog.gz"],
+    tools = ["@sonic_build_infra//tools/build_tools:pigz"],
+    cmd = "$(location @sonic_build_infra//tools/build_tools:pigz) -n -c $(location :changelog) >$@",
+)
+
+alias(name = "golang-1.26-src.runtime", actual = "@golang_src//:golang-1.26-src.runtime")
+runtime_packages(
+    name = "golang-1.26-src.runtime_metadata",
+    control = "@golang_src//:debian/control",
+    changelog = ":changelog",
+    module_name = "sonic-fips",
+    packages = {"golang-1.26-src": ":golang-1.26-src.runtime"},
+    # Original Debian dh_makeshlibs/dh_shlibdeps both exclude testdata and test.
+    symbols_excludes = {"golang-1.26-src": ["testdata", "test"]},
+    shlibdeps_excludes = {"golang-1.26-src": ["testdata", "test"]},
+    package_roles = {"golang-1.26-src": "source"},
+)
+
+alias(name = "golang-1.26-doc.runtime", actual = "@golang_src//:golang-1.26-doc.runtime")
+runtime_packages(
+    name = "golang-1.26-doc.runtime_metadata",
+    control = "@golang_src//:debian/control",
+    changelog = ":changelog",
+    module_name = "sonic-fips",
+    packages = {"golang-1.26-doc": ":golang-1.26-doc.runtime"},
+)
+
+alias(name = "golang-1.26.runtime", actual = "@golang_src//:golang-1.26.runtime")
+runtime_packages(
+    name = "golang-1.26.runtime_metadata",
+    control = "@golang_src//:debian/control",
+    changelog = ":changelog",
+    module_name = "sonic-fips",
+    packages = {"golang-1.26": ":golang-1.26.runtime"},
+)
+
+GO_TOOLCHAINS = [
+    ":sdk_amd64_amd64",
+    ":sdk_amd64_arm64",
+    ":sdk_arm64_amd64",
+    ":sdk_arm64_arm64",
+]
+
+toolchain(
+    name = "sdk_amd64_amd64",
+    toolchain_type = "@io_bazel_rules_go//go:toolchain",
+    toolchain = ":native_toolchain_amd64_amd64",
+    exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+    target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+)
+
+toolchain(
+    name = "sdk_amd64_arm64",
+    toolchain_type = "@io_bazel_rules_go//go:toolchain",
+    toolchain = ":native_toolchain_amd64_arm64",
+    exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+    target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:aarch64"],
+)
+
+toolchain(
+    name = "sdk_arm64_amd64",
+    toolchain_type = "@io_bazel_rules_go//go:toolchain",
+    toolchain = ":native_toolchain_arm64_amd64",
+    exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:aarch64"],
+    target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+)
+
+toolchain(
+    name = "sdk_arm64_arm64",
+    toolchain_type = "@io_bazel_rules_go//go:toolchain",
+    toolchain = ":native_toolchain_arm64_arm64",
+    exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:aarch64"],
+    target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:aarch64"],
+)
+
+cc_binary_toolchain_variant(
+    name = "addr2line",
+    actual = "@golang_src//:pkg_cmd_addr2line",
+    extra_toolchains = GO_TOOLCHAINS,
+)
+
+
+cc_binary_toolchain_variant(
+    name = "asm",
+    actual = "@golang_src//:pkg_cmd_asm",
+    extra_toolchains = GO_TOOLCHAINS,
+)
+
+cc_binary_toolchain_variant(
+    name = "buildid",
+    actual = "@golang_src//:pkg_cmd_buildid",
+    extra_toolchains = GO_TOOLCHAINS,
+)
+
+cc_binary_toolchain_variant(
+    name = "cgo",
+    actual = "@golang_src//:pkg_cmd_cgo",
+    extra_toolchains = GO_TOOLCHAINS,
+)
+
+cc_binary_toolchain_variant(
+    name = "compile",
+    actual = "@golang_src//:pkg_cmd_compile",
+    extra_toolchains = GO_TOOLCHAINS,
+)
+
+cc_binary_toolchain_variant(
+    name = "covdata",
+    actual = "@golang_src//:pkg_cmd_covdata",
+    extra_toolchains = GO_TOOLCHAINS,
+)
+
+cc_binary_toolchain_variant(
+    name = "cover",
+    actual = "@golang_src//:pkg_cmd_cover",
+    extra_toolchains = GO_TOOLCHAINS,
+)
+
+cc_binary_toolchain_variant(
+    name = "dist",
+    actual = "@golang_src//:pkg_cmd_dist",
+    extra_toolchains = GO_TOOLCHAINS,
+)
+
+cc_binary_toolchain_variant(
+    name = "distpack",
+    actual = "@golang_src//:pkg_cmd_distpack",
+    extra_toolchains = GO_TOOLCHAINS,
+)
+
+cc_binary_toolchain_variant(
+    name = "fix",
+    actual = "@golang_src//:pkg_cmd_fix",
+    extra_toolchains = GO_TOOLCHAINS,
+)
+
+cc_binary_toolchain_variant(
+    name = "go",
+    actual = "@golang_src//:pkg_cmd_go",
+    extra_toolchains = GO_TOOLCHAINS,
+)
+
+cc_binary_toolchain_variant(
+    name = "gofmt",
+    actual = "@golang_src//:pkg_cmd_gofmt",
+    extra_toolchains = GO_TOOLCHAINS,
+)
+
+cc_binary_toolchain_variant(
+    name = "link",
+    actual = "@golang_src//:pkg_cmd_link",
+    extra_toolchains = GO_TOOLCHAINS,
+)
+
+cc_binary_toolchain_variant(
+    name = "nm",
+    actual = "@golang_src//:pkg_cmd_nm",
+    extra_toolchains = GO_TOOLCHAINS,
+)
+
+cc_binary_toolchain_variant(
+    name = "objdump",
+    actual = "@golang_src//:pkg_cmd_objdump",
+    extra_toolchains = GO_TOOLCHAINS,
+)
+
+cc_binary_toolchain_variant(
+    name = "pack",
+    actual = "@golang_src//:pkg_cmd_pack",
+    extra_toolchains = GO_TOOLCHAINS,
+)
+
+cc_binary_toolchain_variant(
+    name = "pprof",
+    actual = "@golang_src//:pkg_cmd_pprof",
+    extra_toolchains = GO_TOOLCHAINS,
+)
+
+cc_binary_toolchain_variant(
+    name = "preprofile",
+    actual = "@golang_src//:pkg_cmd_preprofile",
+    extra_toolchains = GO_TOOLCHAINS,
+)
+
+
+cc_binary_toolchain_variant(
+    name = "test2json",
+    actual = "@golang_src//:pkg_cmd_test2json",
+    extra_toolchains = GO_TOOLCHAINS,
+)
+
+cc_binary_toolchain_variant(
+    name = "trace",
+    actual = "@golang_src//:pkg_cmd_trace",
+    extra_toolchains = GO_TOOLCHAINS,
+)
+
+cc_binary_toolchain_variant(
+    name = "vet",
+    actual = "@golang_src//:pkg_cmd_vet",
+    extra_toolchains = GO_TOOLCHAINS,
+)
+
+write_file(
+    name = 'generated_cmd_go_cfg',
+    out = 'generated/cmd_go/zdefaultcc.go',
+    content = ['// Code generated by go tool dist; DO NOT EDIT.', '', 'package cfg', 'const DefaultPkgConfig = `pkg-config`', 'func DefaultCC(goos, goarch string) string {', 'switch goos+`/`+goarch {', 'case "linux/386": return "i686-linux-gnu-gcc"', 'case "linux/amd64": return "x86_64-linux-gnu-gcc"', 'case "linux/arm": return "arm-linux-gnueabihf-gcc"', 'case "linux/arm64": return "aarch64-linux-gnu-gcc"', 'case "linux/loong64": return "loongarch64-linux-gnu-gcc"', 'case "linux/mips": return "mips-linux-gnu-gcc"', 'case "linux/mipsle": return "mipsel-linux-gnu-gcc"', 'case "linux/mips64le": return "mips64el-linux-gnuabi64-gcc"', 'case "linux/ppc64": return "powerpc64-linux-gnu-gcc"', 'case "linux/ppc64le": return "powerpc64le-linux-gnu-gcc"', 'case "linux/riscv64": return "riscv64-linux-gnu-gcc"', 'case "linux/s390x": return "s390x-linux-gnu-gcc"', '}', 'switch goos {', 'case "darwin", "ios", "freebsd", "openbsd": return "clang"', '}', 'return "gcc"', '}', 'func DefaultCXX(goos, goarch string) string {', 'switch goos+`/`+goarch {', 'case "linux/386": return "i686-linux-gnu-g++"', 'case "linux/amd64": return "x86_64-linux-gnu-g++"', 'case "linux/arm": return "arm-linux-gnueabihf-g++"', 'case "linux/arm64": return "aarch64-linux-gnu-g++"', 'case "linux/loong64": return "loongarch64-linux-gnu-g++"', 'case "linux/mips": return "mips-linux-gnu-g++"', 'case "linux/mipsle": return "mipsel-linux-gnu-g++"', 'case "linux/mips64le": return "mips64el-linux-gnuabi64-g++"', 'case "linux/ppc64": return "powerpc64-linux-gnu-g++"', 'case "linux/ppc64le": return "powerpc64le-linux-gnu-g++"', 'case "linux/riscv64": return "riscv64-linux-gnu-g++"', 'case "linux/s390x": return "s390x-linux-gnu-g++"', '}', 'switch goos {', 'case "darwin", "ios", "freebsd", "openbsd": return "clang++"', '}', 'return "g++"', '}'],
+)
+
+write_file(
+    name = 'generated_cmd_cgo',
+    out = 'generated/cmd_cgo/zdefaultcc.go',
+    content = ['// Code generated by go tool dist; DO NOT EDIT.', '', 'package main', 'const defaultPkgConfig = `pkg-config`', 'func defaultCC(goos, goarch string) string {', 'switch goos+`/`+goarch {', 'case "linux/386": return "i686-linux-gnu-gcc"', 'case "linux/amd64": return "x86_64-linux-gnu-gcc"', 'case "linux/arm": return "arm-linux-gnueabihf-gcc"', 'case "linux/arm64": return "aarch64-linux-gnu-gcc"', 'case "linux/loong64": return "loongarch64-linux-gnu-gcc"', 'case "linux/mips": return "mips-linux-gnu-gcc"', 'case "linux/mipsle": return "mipsel-linux-gnu-gcc"', 'case "linux/mips64le": return "mips64el-linux-gnuabi64-gcc"', 'case "linux/ppc64": return "powerpc64-linux-gnu-gcc"', 'case "linux/ppc64le": return "powerpc64le-linux-gnu-gcc"', 'case "linux/riscv64": return "riscv64-linux-gnu-gcc"', 'case "linux/s390x": return "s390x-linux-gnu-gcc"', '}', 'switch goos {', 'case "darwin", "ios", "freebsd", "openbsd": return "clang"', '}', 'return "gcc"', '}', 'func defaultCXX(goos, goarch string) string {', 'switch goos+`/`+goarch {', 'case "linux/386": return "i686-linux-gnu-g++"', 'case "linux/amd64": return "x86_64-linux-gnu-g++"', 'case "linux/arm": return "arm-linux-gnueabihf-g++"', 'case "linux/arm64": return "aarch64-linux-gnu-g++"', 'case "linux/loong64": return "loongarch64-linux-gnu-g++"', 'case "linux/mips": return "mips-linux-gnu-g++"', 'case "linux/mipsle": return "mipsel-linux-gnu-g++"', 'case "linux/mips64le": return "mips64el-linux-gnuabi64-g++"', 'case "linux/ppc64": return "powerpc64-linux-gnu-g++"', 'case "linux/ppc64le": return "powerpc64le-linux-gnu-g++"', 'case "linux/riscv64": return "riscv64-linux-gnu-g++"', 'case "linux/s390x": return "s390x-linux-gnu-g++"', '}', 'switch goos {', 'case "darwin", "ios", "freebsd", "openbsd": return "clang++"', '}', 'return "g++"', '}'],
+)
+
+write_file(
+    name = "generated_objabi",
+    out = "generated/objabi/zbootstrap.go",
+    content = ["// Code generated by go tool dist; DO NOT EDIT.", "", "package objabi"],
+)
+
+
+go_binary(
+    name = "tzdata_generator_impl",
+    srcs = ["tzdata_generator.go"],
+    pure = "off",
+)
+cc_binary_toolchain_variant(
+    name = "tzdata_generator_selected",
+    actual = ":tzdata_generator_impl",
+    extra_toolchains = GO_TOOLCHAINS,
+)
+source_build_tool(name = "tzdata_generator", binary = ":tzdata_generator_selected")
+genrule(
+    name = "generated_tzdata",
+    srcs = ["@golang_src//:lib/time/zoneinfo.zip"],
+    tools = [":tzdata_generator"],
+    outs = ["generated/tzdata/zzipdata.go"],
+    cmd = "$(location :tzdata_generator) $(location @golang_src//:lib/time/zoneinfo.zip) >$@",
+)
+write_file(
+    name = "generated_sys",
+    out = "generated/sys/zversion.go",
+    content = ["// Code generated by go tool dist; DO NOT EDIT.", "", "package sys"],
+)
+write_file(
+    name = "generated_buildcfg",
+    out = "generated/buildcfg/zbootstrap.go",
+    content = [
+        "// Code generated by go tool dist; DO NOT EDIT.",
+        "",
+        "package buildcfg",
+        "import \"runtime\"",
+        "const DefaultGO386 = `softfloat`",
+        "const DefaultGOAMD64 = `v1`",
+        "const DefaultGOARM = `7`",
+        "const DefaultGOARM64 = `v8.0`",
+        "const DefaultGOMIPS = `hardfloat`",
+        "const DefaultGOMIPS64 = `hardfloat`",
+        "const DefaultGOPPC64 = `power8`",
+        "const DefaultGORISCV64 = `rva20u64`",
+        "const defaultGOEXPERIMENT = ``",
+        "const defaultGO_EXTLINK_ENABLED = ``",
+        "const defaultGO_LDSO = ``",
+        "const version = `go1.26.5`",
+        "const defaultGOOS = runtime.GOOS",
+        "const defaultGOARCH = runtime.GOARCH",
+        "const DefaultGOFIPS140 = `off`",
+        "const DefaultCGO_ENABLED = \"\"",
+    ],
+)
+
+GENERATED_SOURCES = {':generated_cmd_go_cfg': 'cmd/go/internal/cfg/zdefaultcc.go', ':generated_sys': 'internal/runtime/sys/zversion.go', ':generated_tzdata': 'time/tzdata/zzipdata.go', ':generated_cmd_cgo': 'cmd/cgo/zdefaultcc.go', ':generated_objabi': 'cmd/internal/objabi/zbootstrap.go', ':generated_buildcfg': 'internal/buildcfg/zbootstrap.go'}
+
+sonic_deploy_tar(
+    name = "golang-1.26-go.runtime_amd64",
+    binaries = {
+        './usr/lib/go-1.26/pkg/tool/linux_amd64/asm type=file uid=0 gid=0 mode=0755 time=0': ':asm',
+        './usr/lib/go-1.26/pkg/tool/linux_amd64/cgo type=file uid=0 gid=0 mode=0755 time=0': ':cgo',
+        './usr/lib/go-1.26/pkg/tool/linux_amd64/compile type=file uid=0 gid=0 mode=0755 time=0': ':compile',
+        './usr/lib/go-1.26/pkg/tool/linux_amd64/cover type=file uid=0 gid=0 mode=0755 time=0': ':cover',
+        './usr/lib/go-1.26/pkg/tool/linux_amd64/fix type=file uid=0 gid=0 mode=0755 time=0': ':fix',
+        './usr/lib/go-1.26/bin/go type=file uid=0 gid=0 mode=0755 time=0': ':go',
+        './usr/lib/go-1.26/bin/gofmt type=file uid=0 gid=0 mode=0755 time=0': ':gofmt',
+        './usr/lib/go-1.26/pkg/tool/linux_amd64/link type=file uid=0 gid=0 mode=0755 time=0': ':link',
+        './usr/lib/go-1.26/pkg/tool/linux_amd64/preprofile type=file uid=0 gid=0 mode=0755 time=0': ':preprofile',
+        './usr/lib/go-1.26/pkg/tool/linux_amd64/vet type=file uid=0 gid=0 mode=0755 time=0': ':vet',
+    },
+    srcs = ["@golang_src//:VERSION", "@golang_src//:go.env", "@golang_src//:debian/copyright", ":changelog.gz"] + GENERATED_SOURCES.keys() + ['@golang_src//:src/runtime/asm_amd64.h', '@golang_src//:src/runtime/asm_ppc64x.h', '@golang_src//:src/runtime/asm_riscv64.h', '@golang_src//:src/runtime/funcdata.h', '@golang_src//:src/runtime/textflag.h'],
+    mtree = [
+        './usr/lib/go-1.26/VERSION type=file uid=0 gid=0 mode=0644 time=0 content=$(location @golang_src//:VERSION)',
+        './usr/lib/go-1.26/go.env type=file uid=0 gid=0 mode=0644 time=0 content=$(location @golang_src//:go.env)',
+        './usr/share/doc/golang-1.26-go/copyright type=file uid=0 gid=0 mode=0644 time=0 content=$(location @golang_src//:debian/copyright)',
+        './usr/share/doc/golang-1.26-go/changelog.Debian.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :changelog.gz)',
+        './usr/lib/go-1.26/api type=link uid=0 gid=0 mode=0777 time=0 link=../../share/go-1.26/api',
+        './usr/lib/go-1.26/lib type=link uid=0 gid=0 mode=0777 time=0 link=../../share/go-1.26/lib',
+        './usr/lib/go-1.26/misc type=link uid=0 gid=0 mode=0777 time=0 link=../../share/go-1.26/misc',
+        './usr/lib/go-1.26/src type=link uid=0 gid=0 mode=0777 time=0 link=../../share/go-1.26/src',
+        './usr/lib/go-1.26/test type=link uid=0 gid=0 mode=0777 time=0 link=../../share/go-1.26/test',
+        './usr/lib/go-1.26/pkg/include type=link uid=0 gid=0 mode=0777 time=0 link=../../../share/go-1.26/pkg/include',
+        './usr/share/go-1.26/pkg/include/asm_amd64.h type=file uid=0 gid=0 mode=0644 time=0 content=$(location @golang_src//:src/runtime/asm_amd64.h)',
+        './usr/share/go-1.26/pkg/include/asm_ppc64x.h type=file uid=0 gid=0 mode=0644 time=0 content=$(location @golang_src//:src/runtime/asm_ppc64x.h)',
+        './usr/share/go-1.26/pkg/include/asm_riscv64.h type=file uid=0 gid=0 mode=0644 time=0 content=$(location @golang_src//:src/runtime/asm_riscv64.h)',
+        './usr/share/go-1.26/pkg/include/funcdata.h type=file uid=0 gid=0 mode=0644 time=0 content=$(location @golang_src//:src/runtime/funcdata.h)',
+        './usr/share/go-1.26/pkg/include/textflag.h type=file uid=0 gid=0 mode=0644 time=0 content=$(location @golang_src//:src/runtime/textflag.h)',
+    ] + [
+        "./usr/share/go-1.26/src/{} type=file uid=0 gid=0 mode=0644 time=0 content=$(location {})".format(path, label)
+        for label, path in GENERATED_SOURCES.items()
+    ],
+)
+
+sonic_deploy_tar(
+    name = "golang-1.26-go.runtime_arm64",
+    binaries = {
+        './usr/lib/go-1.26/pkg/tool/linux_arm64/asm type=file uid=0 gid=0 mode=0755 time=0': ':asm',
+        './usr/lib/go-1.26/pkg/tool/linux_arm64/cgo type=file uid=0 gid=0 mode=0755 time=0': ':cgo',
+        './usr/lib/go-1.26/pkg/tool/linux_arm64/compile type=file uid=0 gid=0 mode=0755 time=0': ':compile',
+        './usr/lib/go-1.26/pkg/tool/linux_arm64/cover type=file uid=0 gid=0 mode=0755 time=0': ':cover',
+        './usr/lib/go-1.26/pkg/tool/linux_arm64/fix type=file uid=0 gid=0 mode=0755 time=0': ':fix',
+        './usr/lib/go-1.26/bin/go type=file uid=0 gid=0 mode=0755 time=0': ':go',
+        './usr/lib/go-1.26/bin/gofmt type=file uid=0 gid=0 mode=0755 time=0': ':gofmt',
+        './usr/lib/go-1.26/pkg/tool/linux_arm64/link type=file uid=0 gid=0 mode=0755 time=0': ':link',
+        './usr/lib/go-1.26/pkg/tool/linux_arm64/preprofile type=file uid=0 gid=0 mode=0755 time=0': ':preprofile',
+        './usr/lib/go-1.26/pkg/tool/linux_arm64/vet type=file uid=0 gid=0 mode=0755 time=0': ':vet',
+    },
+    srcs = ["@golang_src//:VERSION", "@golang_src//:go.env", "@golang_src//:debian/copyright", ":changelog.gz"] + GENERATED_SOURCES.keys() + ['@golang_src//:src/runtime/asm_amd64.h', '@golang_src//:src/runtime/asm_ppc64x.h', '@golang_src//:src/runtime/asm_riscv64.h', '@golang_src//:src/runtime/funcdata.h', '@golang_src//:src/runtime/textflag.h'],
+    mtree = [
+        './usr/lib/go-1.26/VERSION type=file uid=0 gid=0 mode=0644 time=0 content=$(location @golang_src//:VERSION)',
+        './usr/lib/go-1.26/go.env type=file uid=0 gid=0 mode=0644 time=0 content=$(location @golang_src//:go.env)',
+        './usr/share/doc/golang-1.26-go/copyright type=file uid=0 gid=0 mode=0644 time=0 content=$(location @golang_src//:debian/copyright)',
+        './usr/share/doc/golang-1.26-go/changelog.Debian.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :changelog.gz)',
+        './usr/lib/go-1.26/api type=link uid=0 gid=0 mode=0777 time=0 link=../../share/go-1.26/api',
+        './usr/lib/go-1.26/lib type=link uid=0 gid=0 mode=0777 time=0 link=../../share/go-1.26/lib',
+        './usr/lib/go-1.26/misc type=link uid=0 gid=0 mode=0777 time=0 link=../../share/go-1.26/misc',
+        './usr/lib/go-1.26/src type=link uid=0 gid=0 mode=0777 time=0 link=../../share/go-1.26/src',
+        './usr/lib/go-1.26/test type=link uid=0 gid=0 mode=0777 time=0 link=../../share/go-1.26/test',
+        './usr/lib/go-1.26/pkg/include type=link uid=0 gid=0 mode=0777 time=0 link=../../../share/go-1.26/pkg/include',
+        './usr/share/go-1.26/pkg/include/asm_amd64.h type=file uid=0 gid=0 mode=0644 time=0 content=$(location @golang_src//:src/runtime/asm_amd64.h)',
+        './usr/share/go-1.26/pkg/include/asm_ppc64x.h type=file uid=0 gid=0 mode=0644 time=0 content=$(location @golang_src//:src/runtime/asm_ppc64x.h)',
+        './usr/share/go-1.26/pkg/include/asm_riscv64.h type=file uid=0 gid=0 mode=0644 time=0 content=$(location @golang_src//:src/runtime/asm_riscv64.h)',
+        './usr/share/go-1.26/pkg/include/funcdata.h type=file uid=0 gid=0 mode=0644 time=0 content=$(location @golang_src//:src/runtime/funcdata.h)',
+        './usr/share/go-1.26/pkg/include/textflag.h type=file uid=0 gid=0 mode=0644 time=0 content=$(location @golang_src//:src/runtime/textflag.h)',
+    ] + [
+        "./usr/share/go-1.26/src/{} type=file uid=0 gid=0 mode=0644 time=0 content=$(location {})".format(path, label)
+        for label, path in GENERATED_SOURCES.items()
+    ],
+)
+
+alias(
+    name = "golang-1.26-go.runtime",
+    actual = select({
+        "@platforms//cpu:x86_64": ":golang-1.26-go.runtime_amd64",
+        "@platforms//cpu:aarch64": ":golang-1.26-go.runtime_arm64",
+    }),
+)
+runtime_packages(
+    name = "golang-1.26-go.runtime_metadata",
+    substvars = {"golang-1.26-go": ":compiler_perl_substvars"},
+    control = "@golang_src//:debian/control",
+    changelog = ":changelog",
+    module_name = "sonic-fips",
+    packages = {"golang-1.26-go": ":golang-1.26-go.runtime"},
+)
+
+# cmd packages are explicit go_library dependencies, rather than stdlib archives.
+genrule(
+    name = "stdlib_packages_amd64",
+    srcs = ["@fips_go_sdk_amd64//:package_list"],
+    outs = ["sdk/amd64/stdlib_packages.txt"],
+    tools = ["@sonic_build_infra//tools/build_tools:gawk"],
+    cmd = "$(location @sonic_build_infra//tools/build_tools:gawk) '!/^cmd\\// { print }' $(location @fips_go_sdk_amd64//:package_list) > $@",
+)
+go_sdk(
+    name = "native_sdk_amd64",
+    goos = "linux",
+    goarch = "amd64",
+    version = "1.26.5",
+    root_file = "@fips_go_sdk_amd64//:host_compatible_root_file",
+    package_list = ":stdlib_packages_amd64",
+    libs = ["@fips_go_sdk_amd64//:libs"],
+    headers = ["@fips_go_sdk_amd64//:headers"],
+    srcs = ["@fips_go_sdk_amd64//:srcs"],
+    tools = ["@fips_go_sdk_amd64//:tools"],
+    go = "@fips_go_sdk_amd64//:bin/go",
+)
+
+go_toolchain(
+    name = "native_toolchain_amd64_amd64",
+    goos = "linux",
+    goarch = "amd64",
+    sdk = ":native_sdk_amd64",
+    builder = "@fips_go_sdk_amd64//:builder_reset",
+    pack = "@fips_go_sdk_amd64//:pack_reset",
+    covdata = "@fips_go_sdk_amd64//:covdata_reset",
+    cgo_link_flags = ["-Wl,-whole-archive"],
+)
+
+go_toolchain(
+    name = "native_toolchain_amd64_arm64",
+    goos = "linux",
+    goarch = "arm64",
+    sdk = ":native_sdk_amd64",
+    builder = "@fips_go_sdk_amd64//:builder_reset",
+    pack = "@fips_go_sdk_amd64//:pack_reset",
+    covdata = "@fips_go_sdk_amd64//:covdata_reset",
+    cgo_link_flags = ["-Wl,-whole-archive"],
+)
+
+# cmd packages are explicit go_library dependencies, rather than stdlib archives.
+genrule(
+    name = "stdlib_packages_arm64",
+    srcs = ["@fips_go_sdk_arm64//:package_list"],
+    outs = ["sdk/arm64/stdlib_packages.txt"],
+    tools = ["@sonic_build_infra//tools/build_tools:gawk"],
+    cmd = "$(location @sonic_build_infra//tools/build_tools:gawk) '!/^cmd\\// { print }' $(location @fips_go_sdk_arm64//:package_list) > $@",
+)
+go_sdk(
+    name = "native_sdk_arm64",
+    goos = "linux",
+    goarch = "arm64",
+    version = "1.26.5",
+    root_file = "@fips_go_sdk_arm64//:host_compatible_root_file",
+    package_list = ":stdlib_packages_arm64",
+    libs = ["@fips_go_sdk_arm64//:libs"],
+    headers = ["@fips_go_sdk_arm64//:headers"],
+    srcs = ["@fips_go_sdk_arm64//:srcs"],
+    tools = ["@fips_go_sdk_arm64//:tools"],
+    go = "@fips_go_sdk_arm64//:bin/go",
+)
+
+go_toolchain(
+    name = "native_toolchain_arm64_amd64",
+    goos = "linux",
+    goarch = "amd64",
+    sdk = ":native_sdk_arm64",
+    builder = "@fips_go_sdk_arm64//:builder_reset",
+    pack = "@fips_go_sdk_arm64//:pack_reset",
+    covdata = "@fips_go_sdk_arm64//:covdata_reset",
+    cgo_link_flags = ["-Wl,-whole-archive"],
+)
+
+go_toolchain(
+    name = "native_toolchain_arm64_arm64",
+    goos = "linux",
+    goarch = "arm64",
+    sdk = ":native_sdk_arm64",
+    builder = "@fips_go_sdk_arm64//:builder_reset",
+    pack = "@fips_go_sdk_arm64//:pack_reset",
+    covdata = "@fips_go_sdk_arm64//:covdata_reset",
+    cgo_link_flags = ["-Wl,-whole-archive"],
+)
+
+genrule(
+    name = "compiler_perl_substvars",
+    srcs = ["derive_perl_substvars.py", ":golang-1.26-go.runtime", ":changelog", "@golang_src//:debian/control"],
+    tools = ["@sonic_build_infra//tools/build_tools:python3", "@sonic_build_infra//tools/build_tools:kernel_runtime"],
+    outs = ["golang-1.26-go.substvars"],
+    cmd = "$(location @sonic_build_infra//tools/build_tools:python3) $(location derive_perl_substvars.py) --runtime $(location @sonic_build_infra//tools/build_tools:kernel_runtime) --archive $(location :golang-1.26-go.runtime) --control $(location @golang_src//:debian/control) --changelog $(location :changelog) --output $@ --architecture " + select({
+        "@platforms//cpu:x86_64": "amd64",
+        "@platforms//cpu:aarch64": "arm64",
+    }),
+)
+# Native executables used by the original Debian test stage. They do not add
+# files to the four delivered packages.
+source_build_tool(name = "native_go_tool", binary = ":go")
+source_build_tool(name = "native_dist_tool", binary = ":dist")

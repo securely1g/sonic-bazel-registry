@@ -666,6 +666,41 @@ def module_runner(module: str, execution_architecture: str, p4_runner_profile: s
     return RUNNERS[execution_architecture]
 
 
+def added_cross_toolchain_versions(root: Path, base: str, head: str) -> set[str] | None:
+    """Recognize additions to the version set with all other Python unchanged."""
+    trees = []
+    versions = []
+    for revision in (base, head):
+        result = subprocess.run(
+            ["git", "-C", str(root), "show", f"{revision}:ci/cross_toolchain.py"],
+            text=True, capture_output=True,
+        )
+        if result.returncode:
+            return None
+        try:
+            tree = ast.parse(result.stdout)
+        except SyntaxError:
+            return None
+        assignments = [node for node in tree.body if isinstance(node, ast.Assign)
+                       and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name)
+                       and node.targets[0].id == "VERIFIED_SONIC_CROSS_VERSIONS"]
+        if len(assignments) != 1 or not isinstance(assignments[0].value, ast.Set):
+            return None
+        elements = assignments[0].value.elts
+        if not all(isinstance(value, ast.Constant) and isinstance(value.value, str)
+                   for value in elements):
+            return None
+        values = {value.value for value in elements}
+        if len(values) != len(elements):
+            return None
+        versions.append(values)
+        assignments[0].value = ast.Set(elts=[])
+        trees.append(ast.dump(tree, include_attributes=False))
+    if trees[0] != trees[1] or not versions[0] < versions[1]:
+        return None
+    return versions[1] - versions[0]
+
+
 def plan(root: Path, base: str | None, head: str | None, all_versions: bool = False,
          latest_versions: bool = False, published: str | None = None,
          push: bool = False, p4_runner_profile: str = "large") -> dict:
@@ -694,9 +729,14 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
         comparison_base = base if push else git(root, "merge-base", published, head).strip()
         changed = git(root, "diff", "--name-only", "--no-renames", "-z", comparison_base, head).split("\0")
         ci_changed = False
+        cross_versions = None
         for name in filter(None, changed):
             parts = PurePosixPath(name).parts
             if parts[0] in ("ci", ".github") or name == "bazel_registry.json":
+                if name == "ci/cross_toolchain.py":
+                    cross_versions = added_cross_toolchain_versions(root, comparison_base, head)
+                    if cross_versions:
+                        continue
                 ci_changed = True
             elif parts[0] == "modules":
                 require(len(parts) >= 3, f"Unsupported module path: {name}")
@@ -746,6 +786,13 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
                     # deletion already failed check_version_policy above.
                     if (root / "modules" / module / parts[2]).exists():
                         selected.add((module, parts[2]))
+        if cross_versions:
+            # A newly registered Infra version cannot affect published consumers.
+            # Its own selected presubmit still validates its declared platforms.
+            if any(("sonic-build-infra", version) not in selected
+                   or ("sonic-build-infra", version) in published_entries
+                   for version in cross_versions):
+                ci_changed = True
         if ci_changed:
             selected.update(latest_presubmits(root))
     include = []

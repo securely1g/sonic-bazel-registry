@@ -1,0 +1,1241 @@
+load("@sonic_build_infra//tools/build_tools:dtrace.bzl", "dtrace_object")
+load(":metadata_bridge.bzl", "python_original_metadata")
+load("@rules_python//python:defs.bzl", "py_binary")
+load(":runtime_install.bzl", "python_runtime_tars")
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+
+load(":pgo.bzl", "python_profile", "empty_profile", "execution_compiler", "profile_flags")
+load(":installed_configuration.bzl", "INSTALLED_CONFIGURATION", "ARM_INSTALLED_OVERRIDES")
+load("@sonic_build_infra//tools/build_tools:defs.bzl", "source_build_tool")
+load("@bazel_skylib//rules:expand_template.bzl", "expand_template")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+package(default_visibility = ["//visibility:public"])
+execution_compiler(name = "execution_compiler")
+profile_flags(name = "generate_flags", stage = "generate")
+profile_flags(name = "use_flags", stage = "use", profile = ":profile_data")
+exports_files([
+    "source.BUILD.bazel",
+    "generate_sysconfig.py",
+    "profile_driver.py",
+    "pgo.bzl",
+    "0001-load-openssl-configuration.patch",
+])
+
+# Derived from the controlled patched-Autoconf AMD64 source-only probe.
+# Full default DTrace, Bluez, GDBM and Tcl/Tk inputs were verified with R26.
+CORE_DEFINES = {
+    '#undef AC_APPLE_UNIVERSAL_BUILD\n': '/* #undef AC_APPLE_UNIVERSAL_BUILD */\n',
+    '#undef AIX_BUILDDATE\n': '/* #undef AIX_BUILDDATE */\n',
+    '#undef AIX_GENUINE_CPLUSPLUS\n': '/* #undef AIX_GENUINE_CPLUSPLUS */\n',
+    '#undef ALIGNOF_LONG\n': '#define ALIGNOF_LONG 8\n',
+    '#undef ALIGNOF_MAX_ALIGN_T\n': '#define ALIGNOF_MAX_ALIGN_T 16\n',
+    '#undef ALIGNOF_SIZE_T\n': '#define ALIGNOF_SIZE_T 8\n',
+    '#undef ALT_SOABI\n': '/* #undef ALT_SOABI */\n',
+    '#undef ANDROID_API_LEVEL\n': '/* #undef ANDROID_API_LEVEL */\n',
+    '#undef DOUBLE_IS_ARM_MIXED_ENDIAN_IEEE754\n': '/* #undef DOUBLE_IS_ARM_MIXED_ENDIAN_IEEE754 */\n',
+    '#undef DOUBLE_IS_BIG_ENDIAN_IEEE754\n': '/* #undef DOUBLE_IS_BIG_ENDIAN_IEEE754 */\n',
+    '#undef DOUBLE_IS_LITTLE_ENDIAN_IEEE754\n': '#define DOUBLE_IS_LITTLE_ENDIAN_IEEE754 1\n',
+    '#undef ENABLE_IPV6\n': '#define ENABLE_IPV6 1\n',
+    '#undef GETPGRP_HAVE_ARG\n': '/* #undef GETPGRP_HAVE_ARG */\n',
+    '#undef HAVE_ACCEPT\n': '#define HAVE_ACCEPT 1\n',
+    '#undef HAVE_ACCEPT4\n': '#define HAVE_ACCEPT4 1\n',
+    '#undef HAVE_ACOSH\n': '#define HAVE_ACOSH 1\n',
+    '#undef HAVE_ADDRINFO\n': '#define HAVE_ADDRINFO 1\n',
+    '#undef HAVE_ALARM\n': '#define HAVE_ALARM 1\n',
+    '#undef HAVE_ALIGNED_REQUIRED\n': '/* #undef HAVE_ALIGNED_REQUIRED */\n',
+    '#undef HAVE_ALLOCA_H\n': '#define HAVE_ALLOCA_H 1\n',
+    '#undef HAVE_ALTZONE\n': '/* #undef HAVE_ALTZONE */\n',
+    '#undef HAVE_ASINH\n': '#define HAVE_ASINH 1\n',
+    '#undef HAVE_ASM_TYPES_H\n': '#define HAVE_ASM_TYPES_H 1\n',
+    '#undef HAVE_ATANH\n': '#define HAVE_ATANH 1\n',
+    '#undef HAVE_BIND\n': '#define HAVE_BIND 1\n',
+    '#undef HAVE_BIND_TEXTDOMAIN_CODESET\n': '#define HAVE_BIND_TEXTDOMAIN_CODESET 1\n',
+    '#undef HAVE_BLUETOOTH_BLUETOOTH_H\n': '#define HAVE_BLUETOOTH_BLUETOOTH_H 1\n',
+    '#undef HAVE_BLUETOOTH_H\n': '/* #undef HAVE_BLUETOOTH_H */\n',
+    '#undef HAVE_BROKEN_MBSTOWCS\n': '/* #undef HAVE_BROKEN_MBSTOWCS */\n',
+    '#undef HAVE_BROKEN_NICE\n': '/* #undef HAVE_BROKEN_NICE */\n',
+    '#undef HAVE_BROKEN_PIPE_BUF\n': '/* #undef HAVE_BROKEN_PIPE_BUF */\n',
+    '#undef HAVE_BROKEN_POLL\n': '/* #undef HAVE_BROKEN_POLL */\n',
+    '#undef HAVE_BROKEN_POSIX_SEMAPHORES\n': '/* #undef HAVE_BROKEN_POSIX_SEMAPHORES */\n',
+    '#undef HAVE_BROKEN_PTHREAD_SIGMASK\n': '/* #undef HAVE_BROKEN_PTHREAD_SIGMASK */\n',
+    '#undef HAVE_BROKEN_SEM_GETVALUE\n': '/* #undef HAVE_BROKEN_SEM_GETVALUE */\n',
+    '#undef HAVE_BROKEN_UNSETENV\n': '/* #undef HAVE_BROKEN_UNSETENV */\n',
+    '#undef HAVE_BUILTIN_ATOMIC\n': '#define HAVE_BUILTIN_ATOMIC 1\n',
+    '#undef HAVE_BZLIB_H\n': '#define HAVE_BZLIB_H 1\n',
+    '#undef HAVE_CHFLAGS\n': '/* #undef HAVE_CHFLAGS */\n',
+    '#undef HAVE_CHMOD\n': '#define HAVE_CHMOD 1\n',
+    '#undef HAVE_CHOWN\n': '#define HAVE_CHOWN 1\n',
+    '#undef HAVE_CHROOT\n': '#define HAVE_CHROOT 1\n',
+    '#undef HAVE_CLOCK\n': '#define HAVE_CLOCK 1\n',
+    '#undef HAVE_CLOCK_GETRES\n': '#define HAVE_CLOCK_GETRES 1\n',
+    '#undef HAVE_CLOCK_GETTIME\n': '#define HAVE_CLOCK_GETTIME 1\n',
+    '#undef HAVE_CLOCK_NANOSLEEP\n': '#define HAVE_CLOCK_NANOSLEEP 1\n',
+    '#undef HAVE_CLOCK_SETTIME\n': '#define HAVE_CLOCK_SETTIME 1\n',
+    '#undef HAVE_CLOCK_T\n': '#define HAVE_CLOCK_T 1\n',
+    '#undef HAVE_CLOSEFROM\n': '#define HAVE_CLOSEFROM 1\n',
+    '#undef HAVE_CLOSE_RANGE\n': '#define HAVE_CLOSE_RANGE 1\n',
+    '#undef HAVE_COMPUTED_GOTOS\n': '#define HAVE_COMPUTED_GOTOS 1\n',
+    '#undef HAVE_CONFSTR\n': '#define HAVE_CONFSTR 1\n',
+    '#undef HAVE_CONIO_H\n': '/* #undef HAVE_CONIO_H */\n',
+    '#undef HAVE_CONNECT\n': '#define HAVE_CONNECT 1\n',
+    '#undef HAVE_COPY_FILE_RANGE\n': '#define HAVE_COPY_FILE_RANGE 1\n',
+    '#undef HAVE_CTERMID\n': '#define HAVE_CTERMID 1\n',
+    '#undef HAVE_CTERMID_R\n': '/* #undef HAVE_CTERMID_R */\n',
+    '#undef HAVE_CURSES_FILTER\n': '#define HAVE_CURSES_FILTER 1\n',
+    '#undef HAVE_CURSES_H\n': '#define HAVE_CURSES_H 1\n',
+    '#undef HAVE_CURSES_HAS_KEY\n': '#define HAVE_CURSES_HAS_KEY 1\n',
+    '#undef HAVE_CURSES_IMMEDOK\n': '#define HAVE_CURSES_IMMEDOK 1\n',
+    '#undef HAVE_CURSES_IS_PAD\n': '#define HAVE_CURSES_IS_PAD 1\n',
+    '#undef HAVE_CURSES_IS_TERM_RESIZED\n': '#define HAVE_CURSES_IS_TERM_RESIZED 1\n',
+    '#undef HAVE_CURSES_RESIZETERM\n': '#define HAVE_CURSES_RESIZETERM 1\n',
+    '#undef HAVE_CURSES_RESIZE_TERM\n': '#define HAVE_CURSES_RESIZE_TERM 1\n',
+    '#undef HAVE_CURSES_SYNCOK\n': '#define HAVE_CURSES_SYNCOK 1\n',
+    '#undef HAVE_CURSES_TYPEAHEAD\n': '#define HAVE_CURSES_TYPEAHEAD 1\n',
+    '#undef HAVE_CURSES_USE_ENV\n': '#define HAVE_CURSES_USE_ENV 1\n',
+    '#undef HAVE_CURSES_WCHGAT\n': '#define HAVE_CURSES_WCHGAT 1\n',
+    '#undef HAVE_DB_H\n': '#define HAVE_DB_H 1\n',
+    '#undef HAVE_DECL_RTLD_DEEPBIND\n': '#define HAVE_DECL_RTLD_DEEPBIND 1\n',
+    '#undef HAVE_DECL_RTLD_GLOBAL\n': '#define HAVE_DECL_RTLD_GLOBAL 1\n',
+    '#undef HAVE_DECL_RTLD_LAZY\n': '#define HAVE_DECL_RTLD_LAZY 1\n',
+    '#undef HAVE_DECL_RTLD_LOCAL\n': '#define HAVE_DECL_RTLD_LOCAL 1\n',
+    '#undef HAVE_DECL_RTLD_MEMBER\n': '#define HAVE_DECL_RTLD_MEMBER 0\n',
+    '#undef HAVE_DECL_RTLD_NODELETE\n': '#define HAVE_DECL_RTLD_NODELETE 1\n',
+    '#undef HAVE_DECL_RTLD_NOLOAD\n': '#define HAVE_DECL_RTLD_NOLOAD 1\n',
+    '#undef HAVE_DECL_RTLD_NOW\n': '#define HAVE_DECL_RTLD_NOW 1\n',
+    '#undef HAVE_DECL_TZNAME\n': '/* #undef HAVE_DECL_TZNAME */\n',
+    '#undef HAVE_DECL_UT_NAMESIZE\n': '#define HAVE_DECL_UT_NAMESIZE 1\n',
+    '#undef HAVE_DEVICE_MACROS\n': '#define HAVE_DEVICE_MACROS 1\n',
+    '#undef HAVE_DEV_PTC\n': '/* #undef HAVE_DEV_PTC */\n',
+    '#undef HAVE_DEV_PTMX\n': '#define HAVE_DEV_PTMX 1\n',
+    '#undef HAVE_DIRECT_H\n': '/* #undef HAVE_DIRECT_H */\n',
+    '#undef HAVE_DIRENT_D_TYPE\n': '#define HAVE_DIRENT_D_TYPE 1\n',
+    '#undef HAVE_DIRENT_H\n': '#define HAVE_DIRENT_H 1\n',
+    '#undef HAVE_DIRFD\n': '#define HAVE_DIRFD 1\n',
+    '#undef HAVE_DLFCN_H\n': '#define HAVE_DLFCN_H 1\n',
+    '#undef HAVE_DLOPEN\n': '#define HAVE_DLOPEN 1\n',
+    '#undef HAVE_DUP\n': '#define HAVE_DUP 1\n',
+    '#undef HAVE_DUP2\n': '#define HAVE_DUP2 1\n',
+    '#undef HAVE_DUP3\n': '#define HAVE_DUP3 1\n',
+    '#undef HAVE_DYLD_SHARED_CACHE_CONTAINS_PATH\n': '/* #undef HAVE_DYLD_SHARED_CACHE_CONTAINS_PATH */\n',
+    '#undef HAVE_DYNAMIC_LOADING\n': '#define HAVE_DYNAMIC_LOADING 1\n',
+    '#undef HAVE_EDITLINE_READLINE_H\n': '/* #undef HAVE_EDITLINE_READLINE_H */\n',
+    '#undef HAVE_ENDIAN_H\n': '#define HAVE_ENDIAN_H 1\n',
+    '#undef HAVE_EPOLL\n': '#define HAVE_EPOLL 1\n',
+    '#undef HAVE_EPOLL_CREATE1\n': '#define HAVE_EPOLL_CREATE1 1\n',
+    '#undef HAVE_ERF\n': '#define HAVE_ERF 1\n',
+    '#undef HAVE_ERFC\n': '#define HAVE_ERFC 1\n',
+    '#undef HAVE_ERRNO_H\n': '#define HAVE_ERRNO_H 1\n',
+    '#undef HAVE_EVENTFD\n': '#define HAVE_EVENTFD 1\n',
+    '#undef HAVE_EXECV\n': '#define HAVE_EXECV 1\n',
+    '#undef HAVE_EXPLICIT_BZERO\n': '#define HAVE_EXPLICIT_BZERO 1\n',
+    '#undef HAVE_EXPLICIT_MEMSET\n': '/* #undef HAVE_EXPLICIT_MEMSET */\n',
+    '#undef HAVE_EXPM1\n': '#define HAVE_EXPM1 1\n',
+    '#undef HAVE_FACCESSAT\n': '#define HAVE_FACCESSAT 1\n',
+    '#undef HAVE_FCHDIR\n': '#define HAVE_FCHDIR 1\n',
+    '#undef HAVE_FCHMOD\n': '#define HAVE_FCHMOD 1\n',
+    '#undef HAVE_FCHMODAT\n': '#define HAVE_FCHMODAT 1\n',
+    '#undef HAVE_FCHOWN\n': '#define HAVE_FCHOWN 1\n',
+    '#undef HAVE_FCHOWNAT\n': '#define HAVE_FCHOWNAT 1\n',
+    '#undef HAVE_FCNTL_H\n': '#define HAVE_FCNTL_H 1\n',
+    '#undef HAVE_FDATASYNC\n': '#define HAVE_FDATASYNC 1\n',
+    '#undef HAVE_FDOPENDIR\n': '#define HAVE_FDOPENDIR 1\n',
+    '#undef HAVE_FDWALK\n': '/* #undef HAVE_FDWALK */\n',
+    '#undef HAVE_FEXECVE\n': '#define HAVE_FEXECVE 1\n',
+    '#undef HAVE_FFI_CLOSURE_ALLOC\n': '#define HAVE_FFI_CLOSURE_ALLOC 1\n',
+    '#undef HAVE_FFI_PREP_CIF_VAR\n': '#define HAVE_FFI_PREP_CIF_VAR 1\n',
+    '#undef HAVE_FFI_PREP_CLOSURE_LOC\n': '#define HAVE_FFI_PREP_CLOSURE_LOC 1\n',
+    '#undef HAVE_FLOCK\n': '#define HAVE_FLOCK 1\n',
+    '#undef HAVE_FORK\n': '#define HAVE_FORK 1\n',
+    '#undef HAVE_FORK1\n': '/* #undef HAVE_FORK1 */\n',
+    '#undef HAVE_FORKPTY\n': '#define HAVE_FORKPTY 1\n',
+    '#undef HAVE_FPATHCONF\n': '#define HAVE_FPATHCONF 1\n',
+    '#undef HAVE_FSEEK64\n': '/* #undef HAVE_FSEEK64 */\n',
+    '#undef HAVE_FSEEKO\n': '#define HAVE_FSEEKO 1\n',
+    '#undef HAVE_FSTATAT\n': '#define HAVE_FSTATAT 1\n',
+    '#undef HAVE_FSTATVFS\n': '#define HAVE_FSTATVFS 1\n',
+    '#undef HAVE_FSYNC\n': '#define HAVE_FSYNC 1\n',
+    '#undef HAVE_FTELL64\n': '/* #undef HAVE_FTELL64 */\n',
+    '#undef HAVE_FTELLO\n': '#define HAVE_FTELLO 1\n',
+    '#undef HAVE_FTIME\n': '#define HAVE_FTIME 1\n',
+    '#undef HAVE_FTRUNCATE\n': '#define HAVE_FTRUNCATE 1\n',
+    '#undef HAVE_FUTIMENS\n': '#define HAVE_FUTIMENS 1\n',
+    '#undef HAVE_FUTIMES\n': '#define HAVE_FUTIMES 1\n',
+    '#undef HAVE_FUTIMESAT\n': '#define HAVE_FUTIMESAT 1\n',
+    '#undef HAVE_GAI_STRERROR\n': '#define HAVE_GAI_STRERROR 1\n',
+    '#undef HAVE_GCC_ASM_FOR_MC68881\n': '/* #undef HAVE_GCC_ASM_FOR_MC68881 */\n',
+    '#undef HAVE_GCC_ASM_FOR_X64\n': '#define HAVE_GCC_ASM_FOR_X64 1\n',
+    '#undef HAVE_GCC_ASM_FOR_X87\n': '#define HAVE_GCC_ASM_FOR_X87 1\n',
+    '#undef HAVE_GCC_UINT128_T\n': '#define HAVE_GCC_UINT128_T 1\n',
+    '#undef HAVE_GDBM_DASH_NDBM_H\n': '/* #undef HAVE_GDBM_DASH_NDBM_H */\n',
+    '#undef HAVE_GDBM_H\n': '#define HAVE_GDBM_H 1\n',
+    '#undef HAVE_GDBM_NDBM_H\n': '/* #undef HAVE_GDBM_NDBM_H */\n',
+    '#undef HAVE_GETADDRINFO\n': '#define HAVE_GETADDRINFO 1\n',
+    '#undef HAVE_GETC_UNLOCKED\n': '#define HAVE_GETC_UNLOCKED 1\n',
+    '#undef HAVE_GETEGID\n': '#define HAVE_GETEGID 1\n',
+    '#undef HAVE_GETENTROPY\n': '#define HAVE_GETENTROPY 1\n',
+    '#undef HAVE_GETEUID\n': '#define HAVE_GETEUID 1\n',
+    '#undef HAVE_GETGID\n': '#define HAVE_GETGID 1\n',
+    '#undef HAVE_GETGRENT\n': '#define HAVE_GETGRENT 1\n',
+    '#undef HAVE_GETGRGID\n': '#define HAVE_GETGRGID 1\n',
+    '#undef HAVE_GETGRGID_R\n': '#define HAVE_GETGRGID_R 1\n',
+    '#undef HAVE_GETGRNAM_R\n': '#define HAVE_GETGRNAM_R 1\n',
+    '#undef HAVE_GETGROUPLIST\n': '#define HAVE_GETGROUPLIST 1\n',
+    '#undef HAVE_GETGROUPS\n': '#define HAVE_GETGROUPS 1\n',
+    '#undef HAVE_GETHOSTBYADDR\n': '#define HAVE_GETHOSTBYADDR 1\n',
+    '#undef HAVE_GETHOSTBYNAME\n': '#define HAVE_GETHOSTBYNAME 1\n',
+    '#undef HAVE_GETHOSTBYNAME_R\n': '#define HAVE_GETHOSTBYNAME_R 1\n',
+    '#undef HAVE_GETHOSTBYNAME_R_3_ARG\n': '/* #undef HAVE_GETHOSTBYNAME_R_3_ARG */\n',
+    '#undef HAVE_GETHOSTBYNAME_R_5_ARG\n': '/* #undef HAVE_GETHOSTBYNAME_R_5_ARG */\n',
+    '#undef HAVE_GETHOSTBYNAME_R_6_ARG\n': '#define HAVE_GETHOSTBYNAME_R_6_ARG 1\n',
+    '#undef HAVE_GETHOSTNAME\n': '#define HAVE_GETHOSTNAME 1\n',
+    '#undef HAVE_GETITIMER\n': '#define HAVE_GETITIMER 1\n',
+    '#undef HAVE_GETLOADAVG\n': '#define HAVE_GETLOADAVG 1\n',
+    '#undef HAVE_GETLOGIN\n': '#define HAVE_GETLOGIN 1\n',
+    '#undef HAVE_GETLOGIN_R\n': '#define HAVE_GETLOGIN_R 1\n',
+    '#undef HAVE_GETNAMEINFO\n': '#define HAVE_GETNAMEINFO 1\n',
+    '#undef HAVE_GETPAGESIZE\n': '#define HAVE_GETPAGESIZE 1\n',
+    '#undef HAVE_GETPEERNAME\n': '#define HAVE_GETPEERNAME 1\n',
+    '#undef HAVE_GETPGID\n': '#define HAVE_GETPGID 1\n',
+    '#undef HAVE_GETPGRP\n': '#define HAVE_GETPGRP 1\n',
+    '#undef HAVE_GETPID\n': '#define HAVE_GETPID 1\n',
+    '#undef HAVE_GETPPID\n': '#define HAVE_GETPPID 1\n',
+    '#undef HAVE_GETPRIORITY\n': '#define HAVE_GETPRIORITY 1\n',
+    '#undef HAVE_GETPROTOBYNAME\n': '#define HAVE_GETPROTOBYNAME 1\n',
+    '#undef HAVE_GETPWENT\n': '#define HAVE_GETPWENT 1\n',
+    '#undef HAVE_GETPWNAM_R\n': '#define HAVE_GETPWNAM_R 1\n',
+    '#undef HAVE_GETPWUID\n': '#define HAVE_GETPWUID 1\n',
+    '#undef HAVE_GETPWUID_R\n': '#define HAVE_GETPWUID_R 1\n',
+    '#undef HAVE_GETRANDOM\n': '#define HAVE_GETRANDOM 1\n',
+    '#undef HAVE_GETRANDOM_SYSCALL\n': '#define HAVE_GETRANDOM_SYSCALL 1\n',
+    '#undef HAVE_GETRESGID\n': '#define HAVE_GETRESGID 1\n',
+    '#undef HAVE_GETRESUID\n': '#define HAVE_GETRESUID 1\n',
+    '#undef HAVE_GETRUSAGE\n': '#define HAVE_GETRUSAGE 1\n',
+    '#undef HAVE_GETSERVBYNAME\n': '#define HAVE_GETSERVBYNAME 1\n',
+    '#undef HAVE_GETSERVBYPORT\n': '#define HAVE_GETSERVBYPORT 1\n',
+    '#undef HAVE_GETSID\n': '#define HAVE_GETSID 1\n',
+    '#undef HAVE_GETSOCKNAME\n': '#define HAVE_GETSOCKNAME 1\n',
+    '#undef HAVE_GETSPENT\n': '#define HAVE_GETSPENT 1\n',
+    '#undef HAVE_GETSPNAM\n': '#define HAVE_GETSPNAM 1\n',
+    '#undef HAVE_GETUID\n': '#define HAVE_GETUID 1\n',
+    '#undef HAVE_GETWD\n': '#define HAVE_GETWD 1\n',
+    '#undef HAVE_GLIBC_MEMMOVE_BUG\n': '/* #undef HAVE_GLIBC_MEMMOVE_BUG */\n',
+    '#undef HAVE_GRANTPT\n': '#define HAVE_GRANTPT 1\n',
+    '#undef HAVE_GRP_H\n': '#define HAVE_GRP_H 1\n',
+    '#undef HAVE_HSTRERROR\n': '#define HAVE_HSTRERROR 1\n',
+    '#undef HAVE_HTOLE64\n': '#define HAVE_HTOLE64 1\n',
+    '#undef HAVE_IF_NAMEINDEX\n': '#define HAVE_IF_NAMEINDEX 1\n',
+    '#undef HAVE_INET_ATON\n': '#define HAVE_INET_ATON 1\n',
+    '#undef HAVE_INET_NTOA\n': '#define HAVE_INET_NTOA 1\n',
+    '#undef HAVE_INET_PTON\n': '#define HAVE_INET_PTON 1\n',
+    '#undef HAVE_INITGROUPS\n': '#define HAVE_INITGROUPS 1\n',
+    '#undef HAVE_INTTYPES_H\n': '#define HAVE_INTTYPES_H 1\n',
+    '#undef HAVE_IO_H\n': '/* #undef HAVE_IO_H */\n',
+    '#undef HAVE_IPA_PURE_CONST_BUG\n': '/* #undef HAVE_IPA_PURE_CONST_BUG */\n',
+    '#undef HAVE_KILL\n': '#define HAVE_KILL 1\n',
+    '#undef HAVE_KILLPG\n': '#define HAVE_KILLPG 1\n',
+    '#undef HAVE_KQUEUE\n': '/* #undef HAVE_KQUEUE */\n',
+    '#undef HAVE_LANGINFO_H\n': '#define HAVE_LANGINFO_H 1\n',
+    '#undef HAVE_LARGEFILE_SUPPORT\n': '/* #undef HAVE_LARGEFILE_SUPPORT */\n',
+    '#undef HAVE_LCHFLAGS\n': '/* #undef HAVE_LCHFLAGS */\n',
+    '#undef HAVE_LCHMOD\n': '/* #undef HAVE_LCHMOD */\n',
+    '#undef HAVE_LCHOWN\n': '#define HAVE_LCHOWN 1\n',
+    '#undef HAVE_LIBB2\n': '/* #undef HAVE_LIBB2 */\n',
+    '#undef HAVE_LIBDB\n': '#define HAVE_LIBDB 1\n',
+    '#undef HAVE_LIBDL\n': '#define HAVE_LIBDL 1\n',
+    '#undef HAVE_LIBDLD\n': '/* #undef HAVE_LIBDLD */\n',
+    '#undef HAVE_LIBIEEE\n': '/* #undef HAVE_LIBIEEE */\n',
+    '#undef HAVE_LIBINTL_H\n': '#define HAVE_LIBINTL_H 1\n',
+    '#undef HAVE_LIBRESOLV\n': '/* #undef HAVE_LIBRESOLV */\n',
+    '#undef HAVE_LIBSENDFILE\n': '/* #undef HAVE_LIBSENDFILE */\n',
+    '#undef HAVE_LIBSQLITE3\n': '#define HAVE_LIBSQLITE3 1\n',
+    '#undef HAVE_LIBUTIL_H\n': '/* #undef HAVE_LIBUTIL_H */\n',
+    '#undef HAVE_LINK\n': '#define HAVE_LINK 1\n',
+    '#undef HAVE_LINKAT\n': '#define HAVE_LINKAT 1\n',
+    '#undef HAVE_LINUX_AUXVEC_H\n': '#define HAVE_LINUX_AUXVEC_H 1\n',
+    '#undef HAVE_LINUX_CAN_BCM_H\n': '#define HAVE_LINUX_CAN_BCM_H 1\n',
+    '#undef HAVE_LINUX_CAN_H\n': '#define HAVE_LINUX_CAN_H 1\n',
+    '#undef HAVE_LINUX_CAN_J1939_H\n': '#define HAVE_LINUX_CAN_J1939_H 1\n',
+    '#undef HAVE_LINUX_CAN_RAW_FD_FRAMES\n': '#define HAVE_LINUX_CAN_RAW_FD_FRAMES 1\n',
+    '#undef HAVE_LINUX_CAN_RAW_H\n': '#define HAVE_LINUX_CAN_RAW_H 1\n',
+    '#undef HAVE_LINUX_CAN_RAW_JOIN_FILTERS\n': '#define HAVE_LINUX_CAN_RAW_JOIN_FILTERS 1\n',
+    '#undef HAVE_LINUX_FS_H\n': '#define HAVE_LINUX_FS_H 1\n',
+    '#undef HAVE_LINUX_LIMITS_H\n': '#define HAVE_LINUX_LIMITS_H 1\n',
+    '#undef HAVE_LINUX_MEMFD_H\n': '#define HAVE_LINUX_MEMFD_H 1\n',
+    '#undef HAVE_LINUX_NETLINK_H\n': '#define HAVE_LINUX_NETLINK_H 1\n',
+    '#undef HAVE_LINUX_QRTR_H\n': '#define HAVE_LINUX_QRTR_H 1\n',
+    '#undef HAVE_LINUX_RANDOM_H\n': '#define HAVE_LINUX_RANDOM_H 1\n',
+    '#undef HAVE_LINUX_SOUNDCARD_H\n': '#define HAVE_LINUX_SOUNDCARD_H 1\n',
+    '#undef HAVE_LINUX_TIPC_H\n': '#define HAVE_LINUX_TIPC_H 1\n',
+    '#undef HAVE_LINUX_VM_SOCKETS_H\n': '#define HAVE_LINUX_VM_SOCKETS_H 1\n',
+    '#undef HAVE_LINUX_WAIT_H\n': '#define HAVE_LINUX_WAIT_H 1\n',
+    '#undef HAVE_LISTEN\n': '#define HAVE_LISTEN 1\n',
+    '#undef HAVE_LOCKF\n': '#define HAVE_LOCKF 1\n',
+    '#undef HAVE_LOG1P\n': '#define HAVE_LOG1P 1\n',
+    '#undef HAVE_LOG2\n': '#define HAVE_LOG2 1\n',
+    '#undef HAVE_LOGIN_TTY\n': '#define HAVE_LOGIN_TTY 1\n',
+    '#undef HAVE_LONG_DOUBLE\n': '#define HAVE_LONG_DOUBLE 1\n',
+    '#undef HAVE_LSTAT\n': '#define HAVE_LSTAT 1\n',
+    '#undef HAVE_LUTIMES\n': '#define HAVE_LUTIMES 1\n',
+    '#undef HAVE_LZMA_H\n': '/* #undef HAVE_LZMA_H */\n',
+    '#undef HAVE_MADVISE\n': '#define HAVE_MADVISE 1\n',
+    '#undef HAVE_MAKEDEV\n': '#define HAVE_MAKEDEV 1\n',
+    '#undef HAVE_MAXLOGNAME\n': '/* #undef HAVE_MAXLOGNAME */\n',
+    '#undef HAVE_MBRTOWC\n': '#define HAVE_MBRTOWC 1\n',
+    '#undef HAVE_MEMFD_CREATE\n': '#define HAVE_MEMFD_CREATE 1\n',
+    '#undef HAVE_MEMRCHR\n': '#define HAVE_MEMRCHR 1\n',
+    '#undef HAVE_MINIX_CONFIG_H\n': '/* #undef HAVE_MINIX_CONFIG_H */\n',
+    '#undef HAVE_MKDIRAT\n': '#define HAVE_MKDIRAT 1\n',
+    '#undef HAVE_MKFIFO\n': '#define HAVE_MKFIFO 1\n',
+    '#undef HAVE_MKFIFOAT\n': '#define HAVE_MKFIFOAT 1\n',
+    '#undef HAVE_MKNOD\n': '#define HAVE_MKNOD 1\n',
+    '#undef HAVE_MKNODAT\n': '#define HAVE_MKNODAT 1\n',
+    '#undef HAVE_MKTIME\n': '#define HAVE_MKTIME 1\n',
+    '#undef HAVE_MMAP\n': '#define HAVE_MMAP 1\n',
+    '#undef HAVE_MREMAP\n': '#define HAVE_MREMAP 1\n',
+    '#undef HAVE_NANOSLEEP\n': '#define HAVE_NANOSLEEP 1\n',
+    '#undef HAVE_NCURSES\n': '/* #undef HAVE_NCURSES */\n',
+    '#undef HAVE_NCURSESW\n': '#define HAVE_NCURSESW 1\n',
+    '#undef HAVE_NCURSESW_CURSES_H\n': '#define HAVE_NCURSESW_CURSES_H 1\n',
+    '#undef HAVE_NCURSESW_NCURSES_H\n': '#define HAVE_NCURSESW_NCURSES_H 1\n',
+    '#undef HAVE_NCURSESW_PANEL_H\n': '#define HAVE_NCURSESW_PANEL_H 1\n',
+    '#undef HAVE_NCURSES_CURSES_H\n': '/* #undef HAVE_NCURSES_CURSES_H */\n',
+    '#undef HAVE_NCURSES_H\n': '#define HAVE_NCURSES_H 1\n',
+    '#undef HAVE_NCURSES_NCURSES_H\n': '/* #undef HAVE_NCURSES_NCURSES_H */\n',
+    '#undef HAVE_NCURSES_PANEL_H\n': '/* #undef HAVE_NCURSES_PANEL_H */\n',
+    '#undef HAVE_NDBM_H\n': '/* #undef HAVE_NDBM_H */\n',
+    '#undef HAVE_NDIR_H\n': '/* #undef HAVE_NDIR_H */\n',
+    '#undef HAVE_NETCAN_CAN_H\n': '/* #undef HAVE_NETCAN_CAN_H */\n',
+    '#undef HAVE_NETDB_H\n': '#define HAVE_NETDB_H 1\n',
+    '#undef HAVE_NETINET_IN_H\n': '#define HAVE_NETINET_IN_H 1\n',
+    '#undef HAVE_NETLINK_NETLINK_H\n': '/* #undef HAVE_NETLINK_NETLINK_H */\n',
+    '#undef HAVE_NETPACKET_PACKET_H\n': '#define HAVE_NETPACKET_PACKET_H 1\n',
+    '#undef HAVE_NET_ETHERNET_H\n': '#define HAVE_NET_ETHERNET_H 1\n',
+    '#undef HAVE_NET_IF_H\n': '#define HAVE_NET_IF_H 1\n',
+    '#undef HAVE_NICE\n': '#define HAVE_NICE 1\n',
+    '#undef HAVE_NON_UNICODE_WCHAR_T_REPRESENTATION\n': '/* #undef HAVE_NON_UNICODE_WCHAR_T_REPRESENTATION */\n',
+    '#undef HAVE_OPENAT\n': '#define HAVE_OPENAT 1\n',
+    '#undef HAVE_OPENDIR\n': '#define HAVE_OPENDIR 1\n',
+    '#undef HAVE_OPENPTY\n': '#define HAVE_OPENPTY 1\n',
+    '#undef HAVE_PANEL\n': '/* #undef HAVE_PANEL */\n',
+    '#undef HAVE_PANELW\n': '#define HAVE_PANELW 1\n',
+    '#undef HAVE_PANEL_H\n': '#define HAVE_PANEL_H 1\n',
+    '#undef HAVE_PATHCONF\n': '#define HAVE_PATHCONF 1\n',
+    '#undef HAVE_PAUSE\n': '#define HAVE_PAUSE 1\n',
+    '#undef HAVE_PIPE\n': '#define HAVE_PIPE 1\n',
+    '#undef HAVE_PIPE2\n': '#define HAVE_PIPE2 1\n',
+    '#undef HAVE_PLOCK\n': '/* #undef HAVE_PLOCK */\n',
+    '#undef HAVE_POLL\n': '#define HAVE_POLL 1\n',
+    '#undef HAVE_POLL_H\n': '#define HAVE_POLL_H 1\n',
+    '#undef HAVE_POSIX_FADVISE\n': '#define HAVE_POSIX_FADVISE 1\n',
+    '#undef HAVE_POSIX_FALLOCATE\n': '#define HAVE_POSIX_FALLOCATE 1\n',
+    '#undef HAVE_POSIX_OPENPT\n': '#define HAVE_POSIX_OPENPT 1\n',
+    '#undef HAVE_POSIX_SPAWN\n': '#define HAVE_POSIX_SPAWN 1\n',
+    '#undef HAVE_POSIX_SPAWNP\n': '#define HAVE_POSIX_SPAWNP 1\n',
+    '#undef HAVE_POSIX_SPAWN_FILE_ACTIONS_ADDCLOSEFROM_NP\n': '#define HAVE_POSIX_SPAWN_FILE_ACTIONS_ADDCLOSEFROM_NP 1\n',
+    '#undef HAVE_PREAD\n': '#define HAVE_PREAD 1\n',
+    '#undef HAVE_PREADV\n': '#define HAVE_PREADV 1\n',
+    '#undef HAVE_PREADV2\n': '#define HAVE_PREADV2 1\n',
+    '#undef HAVE_PRLIMIT\n': '#define HAVE_PRLIMIT 1\n',
+    '#undef HAVE_PROCESS_H\n': '/* #undef HAVE_PROCESS_H */\n',
+    '#undef HAVE_PROCESS_VM_READV\n': '#define HAVE_PROCESS_VM_READV 1\n',
+    '#undef HAVE_PROTOTYPES\n': '#define HAVE_PROTOTYPES 1\n',
+    '#undef HAVE_PTHREAD_CONDATTR_SETCLOCK\n': '#define HAVE_PTHREAD_CONDATTR_SETCLOCK 1\n',
+    '#undef HAVE_PTHREAD_COND_TIMEDWAIT_RELATIVE_NP\n': '/* #undef HAVE_PTHREAD_COND_TIMEDWAIT_RELATIVE_NP */\n',
+    '#undef HAVE_PTHREAD_DESTRUCTOR\n': '/* #undef HAVE_PTHREAD_DESTRUCTOR */\n',
+    '#undef HAVE_PTHREAD_GETCPUCLOCKID\n': '#define HAVE_PTHREAD_GETCPUCLOCKID 1\n',
+    '#undef HAVE_PTHREAD_H\n': '#define HAVE_PTHREAD_H 1\n',
+    '#undef HAVE_PTHREAD_INIT\n': '/* #undef HAVE_PTHREAD_INIT */\n',
+    '#undef HAVE_PTHREAD_KILL\n': '#define HAVE_PTHREAD_KILL 1\n',
+    '#undef HAVE_PTHREAD_SIGMASK\n': '#define HAVE_PTHREAD_SIGMASK 1\n',
+    '#undef HAVE_PTHREAD_STUBS\n': '/* #undef HAVE_PTHREAD_STUBS */\n',
+    '#undef HAVE_PTSNAME\n': '#define HAVE_PTSNAME 1\n',
+    '#undef HAVE_PTSNAME_R\n': '#define HAVE_PTSNAME_R 1\n',
+    '#undef HAVE_PTY_H\n': '#define HAVE_PTY_H 1\n',
+    '#undef HAVE_PWRITE\n': '#define HAVE_PWRITE 1\n',
+    '#undef HAVE_PWRITEV\n': '#define HAVE_PWRITEV 1\n',
+    '#undef HAVE_PWRITEV2\n': '#define HAVE_PWRITEV2 1\n',
+    '#undef HAVE_READLINE_READLINE_H\n': '/* #undef HAVE_READLINE_READLINE_H */\n',
+    '#undef HAVE_READLINK\n': '#define HAVE_READLINK 1\n',
+    '#undef HAVE_READLINKAT\n': '#define HAVE_READLINKAT 1\n',
+    '#undef HAVE_READV\n': '#define HAVE_READV 1\n',
+    '#undef HAVE_REALPATH\n': '#define HAVE_REALPATH 1\n',
+    '#undef HAVE_RECVFROM\n': '#define HAVE_RECVFROM 1\n',
+    '#undef HAVE_RENAMEAT\n': '#define HAVE_RENAMEAT 1\n',
+    '#undef HAVE_RL_APPEND_HISTORY\n': '#define HAVE_RL_APPEND_HISTORY 1\n',
+    '#undef HAVE_RL_CATCH_SIGNAL\n': '#define HAVE_RL_CATCH_SIGNAL 1\n',
+    '#undef HAVE_RL_COMPDISP_FUNC_T\n': '#define HAVE_RL_COMPDISP_FUNC_T 1\n',
+    '#undef HAVE_RL_COMPLETION_APPEND_CHARACTER\n': '#define HAVE_RL_COMPLETION_APPEND_CHARACTER 1\n',
+    '#undef HAVE_RL_COMPLETION_DISPLAY_MATCHES_HOOK\n': '#define HAVE_RL_COMPLETION_DISPLAY_MATCHES_HOOK 1\n',
+    '#undef HAVE_RL_COMPLETION_MATCHES\n': '#define HAVE_RL_COMPLETION_MATCHES 1\n',
+    '#undef HAVE_RL_COMPLETION_SUPPRESS_APPEND\n': '#define HAVE_RL_COMPLETION_SUPPRESS_APPEND 1\n',
+    '#undef HAVE_RL_PRE_INPUT_HOOK\n': '#define HAVE_RL_PRE_INPUT_HOOK 1\n',
+    '#undef HAVE_RL_RESIZE_TERMINAL\n': '#define HAVE_RL_RESIZE_TERMINAL 1\n',
+    '#undef HAVE_RTPSPAWN\n': '/* #undef HAVE_RTPSPAWN */\n',
+    '#undef HAVE_SCHED_GET_PRIORITY_MAX\n': '#define HAVE_SCHED_GET_PRIORITY_MAX 1\n',
+    '#undef HAVE_SCHED_H\n': '#define HAVE_SCHED_H 1\n',
+    '#undef HAVE_SCHED_RR_GET_INTERVAL\n': '#define HAVE_SCHED_RR_GET_INTERVAL 1\n',
+    '#undef HAVE_SCHED_SETAFFINITY\n': '#define HAVE_SCHED_SETAFFINITY 1\n',
+    '#undef HAVE_SCHED_SETPARAM\n': '#define HAVE_SCHED_SETPARAM 1\n',
+    '#undef HAVE_SCHED_SETSCHEDULER\n': '#define HAVE_SCHED_SETSCHEDULER 1\n',
+    '#undef HAVE_SEM_CLOCKWAIT\n': '#define HAVE_SEM_CLOCKWAIT 1\n',
+    '#undef HAVE_SEM_GETVALUE\n': '#define HAVE_SEM_GETVALUE 1\n',
+    '#undef HAVE_SEM_OPEN\n': '#define HAVE_SEM_OPEN 1\n',
+    '#undef HAVE_SEM_TIMEDWAIT\n': '#define HAVE_SEM_TIMEDWAIT 1\n',
+    '#undef HAVE_SEM_UNLINK\n': '#define HAVE_SEM_UNLINK 1\n',
+    '#undef HAVE_SENDFILE\n': '#define HAVE_SENDFILE 1\n',
+    '#undef HAVE_SENDTO\n': '#define HAVE_SENDTO 1\n',
+    '#undef HAVE_SETEGID\n': '#define HAVE_SETEGID 1\n',
+    '#undef HAVE_SETEUID\n': '#define HAVE_SETEUID 1\n',
+    '#undef HAVE_SETGID\n': '#define HAVE_SETGID 1\n',
+    '#undef HAVE_SETGROUPS\n': '#define HAVE_SETGROUPS 1\n',
+    '#undef HAVE_SETHOSTNAME\n': '#define HAVE_SETHOSTNAME 1\n',
+    '#undef HAVE_SETITIMER\n': '#define HAVE_SETITIMER 1\n',
+    '#undef HAVE_SETJMP_H\n': '#define HAVE_SETJMP_H 1\n',
+    '#undef HAVE_SETLOCALE\n': '#define HAVE_SETLOCALE 1\n',
+    '#undef HAVE_SETNS\n': '#define HAVE_SETNS 1\n',
+    '#undef HAVE_SETPGID\n': '#define HAVE_SETPGID 1\n',
+    '#undef HAVE_SETPGRP\n': '#define HAVE_SETPGRP 1\n',
+    '#undef HAVE_SETPRIORITY\n': '#define HAVE_SETPRIORITY 1\n',
+    '#undef HAVE_SETREGID\n': '#define HAVE_SETREGID 1\n',
+    '#undef HAVE_SETRESGID\n': '#define HAVE_SETRESGID 1\n',
+    '#undef HAVE_SETRESUID\n': '#define HAVE_SETRESUID 1\n',
+    '#undef HAVE_SETREUID\n': '#define HAVE_SETREUID 1\n',
+    '#undef HAVE_SETSID\n': '#define HAVE_SETSID 1\n',
+    '#undef HAVE_SETSOCKOPT\n': '#define HAVE_SETSOCKOPT 1\n',
+    '#undef HAVE_SETUID\n': '#define HAVE_SETUID 1\n',
+    '#undef HAVE_SETVBUF\n': '#define HAVE_SETVBUF 1\n',
+    '#undef HAVE_SHADOW_H\n': '#define HAVE_SHADOW_H 1\n',
+    '#undef HAVE_SHM_OPEN\n': '#define HAVE_SHM_OPEN 1\n',
+    '#undef HAVE_SHM_UNLINK\n': '#define HAVE_SHM_UNLINK 1\n',
+    '#undef HAVE_SHUTDOWN\n': '#define HAVE_SHUTDOWN 1\n',
+    '#undef HAVE_SIGACTION\n': '#define HAVE_SIGACTION 1\n',
+    '#undef HAVE_SIGALTSTACK\n': '#define HAVE_SIGALTSTACK 1\n',
+    '#undef HAVE_SIGFILLSET\n': '#define HAVE_SIGFILLSET 1\n',
+    '#undef HAVE_SIGINFO_T_SI_BAND\n': '#define HAVE_SIGINFO_T_SI_BAND 1\n',
+    '#undef HAVE_SIGINTERRUPT\n': '#define HAVE_SIGINTERRUPT 1\n',
+    '#undef HAVE_SIGNAL_H\n': '#define HAVE_SIGNAL_H 1\n',
+    '#undef HAVE_SIGPENDING\n': '#define HAVE_SIGPENDING 1\n',
+    '#undef HAVE_SIGRELSE\n': '#define HAVE_SIGRELSE 1\n',
+    '#undef HAVE_SIGTIMEDWAIT\n': '#define HAVE_SIGTIMEDWAIT 1\n',
+    '#undef HAVE_SIGWAIT\n': '#define HAVE_SIGWAIT 1\n',
+    '#undef HAVE_SIGWAITINFO\n': '#define HAVE_SIGWAITINFO 1\n',
+    '#undef HAVE_SNPRINTF\n': '#define HAVE_SNPRINTF 1\n',
+    '#undef HAVE_SOCKADDR_ALG\n': '#define HAVE_SOCKADDR_ALG 1\n',
+    '#undef HAVE_SOCKADDR_SA_LEN\n': '/* #undef HAVE_SOCKADDR_SA_LEN */\n',
+    '#undef HAVE_SOCKADDR_STORAGE\n': '#define HAVE_SOCKADDR_STORAGE 1\n',
+    '#undef HAVE_SOCKET\n': '#define HAVE_SOCKET 1\n',
+    '#undef HAVE_SOCKETPAIR\n': '#define HAVE_SOCKETPAIR 1\n',
+    '#undef HAVE_SOCKLEN_T\n': '#define HAVE_SOCKLEN_T 1\n',
+    '#undef HAVE_SPAWN_H\n': '#define HAVE_SPAWN_H 1\n',
+    '#undef HAVE_SPLICE\n': '#define HAVE_SPLICE 1\n',
+    '#undef HAVE_SSIZE_T\n': '#define HAVE_SSIZE_T 1\n',
+    '#undef HAVE_STATVFS\n': '#define HAVE_STATVFS 1\n',
+    '#undef HAVE_STAT_TV_NSEC\n': '#define HAVE_STAT_TV_NSEC 1\n',
+    '#undef HAVE_STAT_TV_NSEC2\n': '/* #undef HAVE_STAT_TV_NSEC2 */\n',
+    '#undef HAVE_STDINT_H\n': '#define HAVE_STDINT_H 1\n',
+    '#undef HAVE_STDIO_H\n': '#define HAVE_STDIO_H 1\n',
+    '#undef HAVE_STDLIB_H\n': '#define HAVE_STDLIB_H 1\n',
+    '#undef HAVE_STD_ATOMIC\n': '#define HAVE_STD_ATOMIC 1\n',
+    '#undef HAVE_STRFTIME\n': '#define HAVE_STRFTIME 1\n',
+    '#undef HAVE_STRINGS_H\n': '#define HAVE_STRINGS_H 1\n',
+    '#undef HAVE_STRING_H\n': '#define HAVE_STRING_H 1\n',
+    '#undef HAVE_STRLCPY\n': '#define HAVE_STRLCPY 1\n',
+    '#undef HAVE_STROPTS_H\n': '/* #undef HAVE_STROPTS_H */\n',
+    '#undef HAVE_STRSIGNAL\n': '#define HAVE_STRSIGNAL 1\n',
+    '#undef HAVE_STRUCT_PASSWD_PW_GECOS\n': '#define HAVE_STRUCT_PASSWD_PW_GECOS 1\n',
+    '#undef HAVE_STRUCT_PASSWD_PW_PASSWD\n': '#define HAVE_STRUCT_PASSWD_PW_PASSWD 1\n',
+    '#undef HAVE_STRUCT_STAT_ST_BIRTHTIME\n': '/* #undef HAVE_STRUCT_STAT_ST_BIRTHTIME */\n',
+    '#undef HAVE_STRUCT_STAT_ST_BLKSIZE\n': '#define HAVE_STRUCT_STAT_ST_BLKSIZE 1\n',
+    '#undef HAVE_STRUCT_STAT_ST_BLOCKS\n': '#define HAVE_STRUCT_STAT_ST_BLOCKS 1\n',
+    '#undef HAVE_STRUCT_STAT_ST_FLAGS\n': '/* #undef HAVE_STRUCT_STAT_ST_FLAGS */\n',
+    '#undef HAVE_STRUCT_STAT_ST_GEN\n': '/* #undef HAVE_STRUCT_STAT_ST_GEN */\n',
+    '#undef HAVE_STRUCT_STAT_ST_RDEV\n': '#define HAVE_STRUCT_STAT_ST_RDEV 1\n',
+    '#undef HAVE_STRUCT_TM_TM_ZONE\n': '#define HAVE_STRUCT_TM_TM_ZONE 1\n',
+    '#undef HAVE_SYMLINK\n': '#define HAVE_SYMLINK 1\n',
+    '#undef HAVE_SYMLINKAT\n': '#define HAVE_SYMLINKAT 1\n',
+    '#undef HAVE_SYNC\n': '#define HAVE_SYNC 1\n',
+    '#undef HAVE_SYSCONF\n': '#define HAVE_SYSCONF 1\n',
+    '#undef HAVE_SYSEXITS_H\n': '#define HAVE_SYSEXITS_H 1\n',
+    '#undef HAVE_SYSLOG_H\n': '#define HAVE_SYSLOG_H 1\n',
+    '#undef HAVE_SYSTEM\n': '#define HAVE_SYSTEM 1\n',
+    '#undef HAVE_SYS_AUDIOIO_H\n': '/* #undef HAVE_SYS_AUDIOIO_H */\n',
+    '#undef HAVE_SYS_AUXV_H\n': '#define HAVE_SYS_AUXV_H 1\n',
+    '#undef HAVE_SYS_BSDTTY_H\n': '/* #undef HAVE_SYS_BSDTTY_H */\n',
+    '#undef HAVE_SYS_DEVPOLL_H\n': '/* #undef HAVE_SYS_DEVPOLL_H */\n',
+    '#undef HAVE_SYS_DIR_H\n': '/* #undef HAVE_SYS_DIR_H */\n',
+    '#undef HAVE_SYS_ENDIAN_H\n': '/* #undef HAVE_SYS_ENDIAN_H */\n',
+    '#undef HAVE_SYS_EPOLL_H\n': '#define HAVE_SYS_EPOLL_H 1\n',
+    '#undef HAVE_SYS_EVENTFD_H\n': '#define HAVE_SYS_EVENTFD_H 1\n',
+    '#undef HAVE_SYS_EVENT_H\n': '/* #undef HAVE_SYS_EVENT_H */\n',
+    '#undef HAVE_SYS_FILE_H\n': '#define HAVE_SYS_FILE_H 1\n',
+    '#undef HAVE_SYS_IOCTL_H\n': '#define HAVE_SYS_IOCTL_H 1\n',
+    '#undef HAVE_SYS_KERN_CONTROL_H\n': '/* #undef HAVE_SYS_KERN_CONTROL_H */\n',
+    '#undef HAVE_SYS_LOADAVG_H\n': '/* #undef HAVE_SYS_LOADAVG_H */\n',
+    '#undef HAVE_SYS_LOCK_H\n': '/* #undef HAVE_SYS_LOCK_H */\n',
+    '#undef HAVE_SYS_MEMFD_H\n': '/* #undef HAVE_SYS_MEMFD_H */\n',
+    '#undef HAVE_SYS_MKDEV_H\n': '/* #undef HAVE_SYS_MKDEV_H */\n',
+    '#undef HAVE_SYS_MMAN_H\n': '#define HAVE_SYS_MMAN_H 1\n',
+    '#undef HAVE_SYS_MODEM_H\n': '/* #undef HAVE_SYS_MODEM_H */\n',
+    '#undef HAVE_SYS_NDIR_H\n': '/* #undef HAVE_SYS_NDIR_H */\n',
+    '#undef HAVE_SYS_PARAM_H\n': '#define HAVE_SYS_PARAM_H 1\n',
+    '#undef HAVE_SYS_PIDFD_H\n': '#define HAVE_SYS_PIDFD_H 1\n',
+    '#undef HAVE_SYS_POLL_H\n': '#define HAVE_SYS_POLL_H 1\n',
+    '#undef HAVE_SYS_RANDOM_H\n': '#define HAVE_SYS_RANDOM_H 1\n',
+    '#undef HAVE_SYS_RESOURCE_H\n': '#define HAVE_SYS_RESOURCE_H 1\n',
+    '#undef HAVE_SYS_SELECT_H\n': '#define HAVE_SYS_SELECT_H 1\n',
+    '#undef HAVE_SYS_SENDFILE_H\n': '#define HAVE_SYS_SENDFILE_H 1\n',
+    '#undef HAVE_SYS_SOCKET_H\n': '#define HAVE_SYS_SOCKET_H 1\n',
+    '#undef HAVE_SYS_SOUNDCARD_H\n': '#define HAVE_SYS_SOUNDCARD_H 1\n',
+    '#undef HAVE_SYS_STATVFS_H\n': '#define HAVE_SYS_STATVFS_H 1\n',
+    '#undef HAVE_SYS_STAT_H\n': '#define HAVE_SYS_STAT_H 1\n',
+    '#undef HAVE_SYS_SYSCALL_H\n': '#define HAVE_SYS_SYSCALL_H 1\n',
+    '#undef HAVE_SYS_SYSMACROS_H\n': '#define HAVE_SYS_SYSMACROS_H 1\n',
+    '#undef HAVE_SYS_SYS_DOMAIN_H\n': '/* #undef HAVE_SYS_SYS_DOMAIN_H */\n',
+    '#undef HAVE_SYS_TERMIO_H\n': '/* #undef HAVE_SYS_TERMIO_H */\n',
+    '#undef HAVE_SYS_TIMERFD_H\n': '#define HAVE_SYS_TIMERFD_H 1\n',
+    '#undef HAVE_SYS_TIMES_H\n': '#define HAVE_SYS_TIMES_H 1\n',
+    '#undef HAVE_SYS_TIME_H\n': '#define HAVE_SYS_TIME_H 1\n',
+    '#undef HAVE_SYS_TYPES_H\n': '#define HAVE_SYS_TYPES_H 1\n',
+    '#undef HAVE_SYS_UIO_H\n': '#define HAVE_SYS_UIO_H 1\n',
+    '#undef HAVE_SYS_UN_H\n': '#define HAVE_SYS_UN_H 1\n',
+    '#undef HAVE_SYS_UTSNAME_H\n': '#define HAVE_SYS_UTSNAME_H 1\n',
+    '#undef HAVE_SYS_WAIT_H\n': '#define HAVE_SYS_WAIT_H 1\n',
+    '#undef HAVE_SYS_XATTR_H\n': '#define HAVE_SYS_XATTR_H 1\n',
+    '#undef HAVE_TCGETPGRP\n': '#define HAVE_TCGETPGRP 1\n',
+    '#undef HAVE_TCSETPGRP\n': '#define HAVE_TCSETPGRP 1\n',
+    '#undef HAVE_TEMPNAM\n': '#define HAVE_TEMPNAM 1\n',
+    '#undef HAVE_TERMIOS_H\n': '#define HAVE_TERMIOS_H 1\n',
+    '#undef HAVE_TERM_H\n': '#define HAVE_TERM_H 1\n',
+    '#undef HAVE_TIMEGM\n': '#define HAVE_TIMEGM 1\n',
+    '#undef HAVE_TIMERFD_CREATE\n': '#define HAVE_TIMERFD_CREATE 1\n',
+    '#undef HAVE_TIMES\n': '#define HAVE_TIMES 1\n',
+    '#undef HAVE_TMPFILE\n': '#define HAVE_TMPFILE 1\n',
+    '#undef HAVE_TMPNAM\n': '#define HAVE_TMPNAM 1\n',
+    '#undef HAVE_TMPNAM_R\n': '#define HAVE_TMPNAM_R 1\n',
+    '#undef HAVE_TM_ZONE\n': '#define HAVE_TM_ZONE 1\n',
+    '#undef HAVE_TRUNCATE\n': '#define HAVE_TRUNCATE 1\n',
+    '#undef HAVE_TTYNAME_R\n': '#define HAVE_TTYNAME_R 1\n',
+    '#undef HAVE_TZNAME\n': '/* #undef HAVE_TZNAME */\n',
+    '#undef HAVE_UMASK\n': '#define HAVE_UMASK 1\n',
+    '#undef HAVE_UNAME\n': '#define HAVE_UNAME 1\n',
+    '#undef HAVE_UNISTD_H\n': '#define HAVE_UNISTD_H 1\n',
+    '#undef HAVE_UNLINKAT\n': '#define HAVE_UNLINKAT 1\n',
+    '#undef HAVE_UNLOCKPT\n': '#define HAVE_UNLOCKPT 1\n',
+    '#undef HAVE_UNSHARE\n': '#define HAVE_UNSHARE 1\n',
+    '#undef HAVE_USABLE_WCHAR_T\n': '/* #undef HAVE_USABLE_WCHAR_T */\n',
+    '#undef HAVE_UTIL_H\n': '/* #undef HAVE_UTIL_H */\n',
+    '#undef HAVE_UTIMENSAT\n': '#define HAVE_UTIMENSAT 1\n',
+    '#undef HAVE_UTIMES\n': '#define HAVE_UTIMES 1\n',
+    '#undef HAVE_UTIME_H\n': '#define HAVE_UTIME_H 1\n',
+    '#undef HAVE_UTMP_H\n': '#define HAVE_UTMP_H 1\n',
+    '#undef HAVE_UT_NAMESIZE\n': '#define HAVE_UT_NAMESIZE 1\n',
+    '#undef HAVE_UUID_CREATE\n': '/* #undef HAVE_UUID_CREATE */\n',
+    '#undef HAVE_UUID_ENC_BE\n': '/* #undef HAVE_UUID_ENC_BE */\n',
+    '#undef HAVE_UUID_GENERATE_TIME_SAFE\n': '#define HAVE_UUID_GENERATE_TIME_SAFE 1\n',
+    '#undef HAVE_UUID_H\n': '#define HAVE_UUID_H 1\n',
+    '#undef HAVE_UUID_UUID_H\n': '/* #undef HAVE_UUID_UUID_H */\n',
+    '#undef HAVE_VFORK\n': '#define HAVE_VFORK 1\n',
+    '#undef HAVE_WAIT\n': '#define HAVE_WAIT 1\n',
+    '#undef HAVE_WAIT3\n': '#define HAVE_WAIT3 1\n',
+    '#undef HAVE_WAIT4\n': '#define HAVE_WAIT4 1\n',
+    '#undef HAVE_WAITID\n': '#define HAVE_WAITID 1\n',
+    '#undef HAVE_WAITPID\n': '#define HAVE_WAITPID 1\n',
+    '#undef HAVE_WCHAR_H\n': '#define HAVE_WCHAR_H 1\n',
+    '#undef HAVE_WCSCOLL\n': '#define HAVE_WCSCOLL 1\n',
+    '#undef HAVE_WCSFTIME\n': '#define HAVE_WCSFTIME 1\n',
+    '#undef HAVE_WCSXFRM\n': '#define HAVE_WCSXFRM 1\n',
+    '#undef HAVE_WMEMCMP\n': '#define HAVE_WMEMCMP 1\n',
+    '#undef HAVE_WORKING_TZSET\n': '#define HAVE_WORKING_TZSET 1\n',
+    '#undef HAVE_WRITEV\n': '#define HAVE_WRITEV 1\n',
+    '#undef HAVE_ZLIB_COPY\n': '#define HAVE_ZLIB_COPY 1\n',
+    '#undef HAVE_ZLIB_H\n': '/* #undef HAVE_ZLIB_H */\n',
+    '#undef HAVE__GETPTY\n': '/* #undef HAVE__GETPTY */\n',
+    '#undef HAVE___UINT128_T\n': '#define HAVE___UINT128_T 1\n',
+    '#undef MAJOR_IN_MKDEV\n': '/* #undef MAJOR_IN_MKDEV */\n',
+    '#undef MAJOR_IN_SYSMACROS\n': '#define MAJOR_IN_SYSMACROS 1\n',
+    '#undef MVWDELCH_IS_EXPRESSION\n': '#define MVWDELCH_IS_EXPRESSION 1\n',
+    '#undef PACKAGE_BUGREPORT\n': '/* #undef PACKAGE_BUGREPORT */\n',
+    '#undef PACKAGE_NAME\n': '/* #undef PACKAGE_NAME */\n',
+    '#undef PACKAGE_STRING\n': '/* #undef PACKAGE_STRING */\n',
+    '#undef PACKAGE_TARNAME\n': '/* #undef PACKAGE_TARNAME */\n',
+    '#undef PACKAGE_URL\n': '/* #undef PACKAGE_URL */\n',
+    '#undef PACKAGE_VERSION\n': '/* #undef PACKAGE_VERSION */\n',
+    '#undef POSIX_SEMAPHORES_NOT_ENABLED\n': '/* #undef POSIX_SEMAPHORES_NOT_ENABLED */\n',
+    '#undef PTHREAD_KEY_T_IS_COMPATIBLE_WITH_INT\n': '#define PTHREAD_KEY_T_IS_COMPATIBLE_WITH_INT 1\n',
+    '#undef PTHREAD_SYSTEM_SCHED_SUPPORTED\n': '#define PTHREAD_SYSTEM_SCHED_SUPPORTED 1\n',
+    '#undef PYLONG_BITS_IN_DIGIT\n': '/* #undef PYLONG_BITS_IN_DIGIT */\n',
+    '#undef PY_BUILTIN_HASHLIB_HASHES\n': '#define PY_BUILTIN_HASHLIB_HASHES "md5,sha1,sha2,sha3,blake2"\n',
+    '#undef PY_COERCE_C_LOCALE\n': '#define PY_COERCE_C_LOCALE 1\n',
+    '#undef PY_HAVE_PERF_TRAMPOLINE\n': '#define PY_HAVE_PERF_TRAMPOLINE 1\n',
+    '#undef PY_SQLITE_ENABLE_LOAD_EXTENSION\n': '#define PY_SQLITE_ENABLE_LOAD_EXTENSION 1\n',
+    '#undef PY_SQLITE_HAVE_SERIALIZE\n': '#define PY_SQLITE_HAVE_SERIALIZE 1\n',
+    '#undef PY_SSL_DEFAULT_CIPHERS\n': '#define PY_SSL_DEFAULT_CIPHERS 2\n',
+    '#undef PY_SSL_DEFAULT_CIPHER_STRING\n': '/* #undef PY_SSL_DEFAULT_CIPHER_STRING */\n',
+    '#undef PY_SUPPORT_TIER\n': '#define PY_SUPPORT_TIER 1\n',
+    '#undef Py_DEBUG\n': '/* #undef Py_DEBUG */\n',
+    '#undef Py_ENABLE_SHARED\n': '/* #undef Py_ENABLE_SHARED */\n',
+    '#undef Py_GIL_DISABLED\n': '/* #undef Py_GIL_DISABLED */\n',
+    '#undef Py_HASH_ALGORITHM\n': '/* #undef Py_HASH_ALGORITHM */\n',
+    '#undef Py_RL_STARTUP_HOOK_TAKES_ARGS\n': '/* #undef Py_RL_STARTUP_HOOK_TAKES_ARGS */\n',
+    '#undef Py_STATS\n': '/* #undef Py_STATS */\n',
+    '#undef Py_SUNOS_VERSION\n': '/* #undef Py_SUNOS_VERSION */\n',
+    '#undef Py_TRACE_REFS\n': '/* #undef Py_TRACE_REFS */\n',
+    '#undef RETSIGTYPE\n': '#define RETSIGTYPE void\n',
+    '#undef SETPGRP_HAVE_ARG\n': '/* #undef SETPGRP_HAVE_ARG */\n',
+    '#undef SIGNED_RIGHT_SHIFT_ZERO_FILLS\n': '/* #undef SIGNED_RIGHT_SHIFT_ZERO_FILLS */\n',
+    '#undef SIZEOF_DOUBLE\n': '#define SIZEOF_DOUBLE 8\n',
+    '#undef SIZEOF_FLOAT\n': '#define SIZEOF_FLOAT 4\n',
+    '#undef SIZEOF_FPOS_T\n': '#define SIZEOF_FPOS_T 16\n',
+    '#undef SIZEOF_INT\n': '#define SIZEOF_INT 4\n',
+    '#undef SIZEOF_LONG\n': '#define SIZEOF_LONG 8\n',
+    '#undef SIZEOF_LONG_DOUBLE\n': '#define SIZEOF_LONG_DOUBLE 16\n',
+    '#undef SIZEOF_LONG_LONG\n': '#define SIZEOF_LONG_LONG 8\n',
+    '#undef SIZEOF_OFF_T\n': '#define SIZEOF_OFF_T 8\n',
+    '#undef SIZEOF_PID_T\n': '#define SIZEOF_PID_T 4\n',
+    '#undef SIZEOF_PTHREAD_KEY_T\n': '#define SIZEOF_PTHREAD_KEY_T 4\n',
+    '#undef SIZEOF_PTHREAD_T\n': '#define SIZEOF_PTHREAD_T 8\n',
+    '#undef SIZEOF_SHORT\n': '#define SIZEOF_SHORT 2\n',
+    '#undef SIZEOF_SIZE_T\n': '#define SIZEOF_SIZE_T 8\n',
+    '#undef SIZEOF_TIME_T\n': '#define SIZEOF_TIME_T 8\n',
+    '#undef SIZEOF_UINTPTR_T\n': '#define SIZEOF_UINTPTR_T 8\n',
+    '#undef SIZEOF_VOID_P\n': '#define SIZEOF_VOID_P 8\n',
+    '#undef SIZEOF_WCHAR_T\n': '#define SIZEOF_WCHAR_T 4\n',
+    '#undef SIZEOF__BOOL\n': '#define SIZEOF__BOOL 1\n',
+    '#undef STDC_HEADERS\n': '#define STDC_HEADERS 1\n',
+    '#undef SYS_SELECT_WITH_SYS_TIME\n': '#define SYS_SELECT_WITH_SYS_TIME 1\n',
+    '#undef THREAD_STACK_SIZE\n': '/* #undef THREAD_STACK_SIZE */\n',
+    '#undef TIMEMODULE_LIB\n': '/* #undef TIMEMODULE_LIB */\n',
+    '#undef TM_IN_SYS_TIME\n': '/* #undef TM_IN_SYS_TIME */\n',
+    '#undef USE_COMPUTED_GOTOS\n': '#define USE_COMPUTED_GOTOS 1\n',
+    '# undef _ALL_SOURCE\n': '# define _ALL_SOURCE 1\n',
+    '# undef _DARWIN_C_SOURCE\n': '# define _DARWIN_C_SOURCE 1\n',
+    '# undef __EXTENSIONS__\n': '# define __EXTENSIONS__ 1\n',
+    '# undef _GNU_SOURCE\n': '# define _GNU_SOURCE 1\n',
+    '# undef _HPUX_ALT_XOPEN_SOCKET_API\n': '# define _HPUX_ALT_XOPEN_SOCKET_API 1\n',
+    '# undef _MINIX\n': '/* # undef _MINIX */\n',
+    '# undef _NETBSD_SOURCE\n': '# define _NETBSD_SOURCE 1\n',
+    '# undef _OPENBSD_SOURCE\n': '# define _OPENBSD_SOURCE 1\n',
+    '# undef _POSIX_SOURCE\n': '/* # undef _POSIX_SOURCE */\n',
+    '# undef _POSIX_1_SOURCE\n': '/* # undef _POSIX_1_SOURCE */\n',
+    '# undef _POSIX_PTHREAD_SEMANTICS\n': '# define _POSIX_PTHREAD_SEMANTICS 1\n',
+    '# undef __STDC_WANT_IEC_60559_ATTRIBS_EXT__\n': '# define __STDC_WANT_IEC_60559_ATTRIBS_EXT__ 1\n',
+    '# undef __STDC_WANT_IEC_60559_BFP_EXT__\n': '# define __STDC_WANT_IEC_60559_BFP_EXT__ 1\n',
+    '# undef __STDC_WANT_IEC_60559_DFP_EXT__\n': '# define __STDC_WANT_IEC_60559_DFP_EXT__ 1\n',
+    '# undef __STDC_WANT_IEC_60559_FUNCS_EXT__\n': '# define __STDC_WANT_IEC_60559_FUNCS_EXT__ 1\n',
+    '# undef __STDC_WANT_IEC_60559_TYPES_EXT__\n': '# define __STDC_WANT_IEC_60559_TYPES_EXT__ 1\n',
+    '# undef __STDC_WANT_LIB_EXT2__\n': '# define __STDC_WANT_LIB_EXT2__ 1\n',
+    '# undef __STDC_WANT_MATH_SPEC_FUNCS__\n': '# define __STDC_WANT_MATH_SPEC_FUNCS__ 1\n',
+    '# undef _TANDEM_SOURCE\n': '# define _TANDEM_SOURCE 1\n',
+    '# undef _XOPEN_SOURCE\n': '# define _XOPEN_SOURCE 700\n',
+    '#undef WINDOW_HAS_FLAGS\n': '/* #undef WINDOW_HAS_FLAGS */\n',
+    '#undef WITH_DECIMAL_CONTEXTVAR\n': '#define WITH_DECIMAL_CONTEXTVAR 1\n',
+    '#undef WITH_DOC_STRINGS\n': '#define WITH_DOC_STRINGS 1\n',
+    '#undef WITH_DTRACE\n': '#define WITH_DTRACE 1\n',
+    '#undef WITH_DYLD\n': '/* #undef WITH_DYLD */\n',
+    '#undef WITH_EDITLINE\n': '/* #undef WITH_EDITLINE */\n',
+    '#undef WITH_FREELISTS\n': '#define WITH_FREELISTS 1\n',
+    '#undef WITH_LIBINTL\n': '/* #undef WITH_LIBINTL */\n',
+    '#undef WITH_MIMALLOC\n': '#define WITH_MIMALLOC 1\n',
+    '#undef WITH_NEXT_FRAMEWORK\n': '/* #undef WITH_NEXT_FRAMEWORK */\n',
+    '#undef WITH_PYMALLOC\n': '#define WITH_PYMALLOC 1\n',
+    '#undef WITH_VALGRIND\n': '/* #undef WITH_VALGRIND */\n',
+    '#  undef WORDS_BIGENDIAN\n': '/* #  undef WORDS_BIGENDIAN */\n',
+    '#undef X87_DOUBLE_ROUNDING\n': '/* #undef X87_DOUBLE_ROUNDING */\n',
+    '#undef _BSD_SOURCE\n': '/* #undef _BSD_SOURCE */\n',
+    '#undef _DARWIN_C_SOURCE\n': '#define _DARWIN_C_SOURCE 1\n',
+    '#undef _FILE_OFFSET_BITS\n': '#define _FILE_OFFSET_BITS 64\n',
+    '#undef _INCLUDE__STDC_A1_SOURCE\n': '/* #undef _INCLUDE__STDC_A1_SOURCE */\n',
+    '#undef _LARGEFILE_SOURCE\n': '#define _LARGEFILE_SOURCE 1\n',
+    '#undef _LARGE_FILES\n': '/* #undef _LARGE_FILES */\n',
+    '#undef _NETBSD_SOURCE\n': '#define _NETBSD_SOURCE 1\n',
+    '#undef _POSIX_C_SOURCE\n': '#define _POSIX_C_SOURCE 200809L\n',
+    '#undef _POSIX_THREADS\n': '/* #undef _POSIX_THREADS */\n',
+    '#undef _PYTHONFRAMEWORK\n': '#define _PYTHONFRAMEWORK ""\n',
+    '#undef _REENTRANT\n': '#define _REENTRANT 1\n',
+    '#undef _WASI_EMULATED_GETPID\n': '/* #undef _WASI_EMULATED_GETPID */\n',
+    '#undef _WASI_EMULATED_PROCESS_CLOCKS\n': '/* #undef _WASI_EMULATED_PROCESS_CLOCKS */\n',
+    '#undef _WASI_EMULATED_SIGNAL\n': '/* #undef _WASI_EMULATED_SIGNAL */\n',
+    '#undef _XOPEN_SOURCE\n': '#define _XOPEN_SOURCE 700\n',
+    '#undef _XOPEN_SOURCE_EXTENDED\n': '#define _XOPEN_SOURCE_EXTENDED 1\n',
+    '#undef __BSD_VISIBLE\n': '#define __BSD_VISIBLE 1\n',
+    '#undef clock_t\n': '/* #undef clock_t */\n',
+    '#undef const\n': '/* #undef const */\n',
+    '#undef gid_t\n': '/* #undef gid_t */\n',
+    '#undef mode_t\n': '/* #undef mode_t */\n',
+    '#undef off_t\n': '/* #undef off_t */\n',
+    '#undef pid_t\n': '/* #undef pid_t */\n',
+    '#undef signed\n': '/* #undef signed */\n',
+    '#undef size_t\n': '/* #undef size_t */\n',
+    '#undef socklen_t\n': '/* #undef socklen_t */\n',
+    '#undef uid_t\n': '/* #undef uid_t */\n',
+}
+
+# Actual ARM64 cross-probe differences; the native graph and templates are shared.
+ARM_CORE_OVERRIDES = {'#undef HAVE_ALIGNED_REQUIRED\n': '#define HAVE_ALIGNED_REQUIRED 1\n', '#undef HAVE_BROKEN_SEM_GETVALUE\n': '#define HAVE_BROKEN_SEM_GETVALUE 1\n', '#undef HAVE_DEV_PTC\n': '#define HAVE_DEV_PTC 1\n', '#undef HAVE_GCC_ASM_FOR_X64\n': '/* #undef HAVE_GCC_ASM_FOR_X64 */\n', '#undef HAVE_GCC_ASM_FOR_X87\n': '/* #undef HAVE_GCC_ASM_FOR_X87 */\n', '#undef HAVE_WORKING_TZSET\n': '/* #undef HAVE_WORKING_TZSET */\n', '#undef PTHREAD_SYSTEM_SCHED_SUPPORTED\n': '/* #undef PTHREAD_SYSTEM_SCHED_SUPPORTED */\n', '#undef PY_SUPPORT_TIER\n': '#define PY_SUPPORT_TIER 2\n'}
+
+# Original Makefile.pre.in:2016-2021: real dtrace header, then original sed.
+# SystemTap's -h path without -C does not invoke a compiler.
+genrule(
+    name = "pydtrace_raw_header",
+    srcs = ["@cpython_src//:Include/pydtrace.d"],
+    outs = ["dtrace-raw/pydtrace_probes.h"],
+    tools = ["@sonic_build_infra//tools/build_tools:dtrace"],
+    cmd = "$(location @sonic_build_infra//tools/build_tools:dtrace) -h -s $(location @cpython_src//:Include/pydtrace.d) -o $@",
+)
+genrule(
+    name = "pydtrace_probes_header",
+    srcs = [":pydtrace_raw_header"],
+    outs = ["dtrace/pydtrace_probes.h"],
+    tools = ["@sonic_build_infra//tools/build_tools:kernel_runtime"],
+    cmd = "$(location @sonic_build_infra//tools/build_tools:kernel_runtime)/bin/sed 's/PYTHON_/PyDTrace_/' $< >$@",
+)
+
+expand_template(
+    name = "static_header",
+    template = "@cpython_src//:pyconfig.h.in",
+    out = "static/pyconfig.h",
+    substitutions = select({"@platforms//cpu:x86_64": CORE_DEFINES, "@platforms//cpu:aarch64": CORE_DEFINES | ARM_CORE_OVERRIDES}),
+)
+cc_library(
+    name = "configuration_static",
+    deps = [":pydtrace_headers"],
+    hdrs = [":static_header"],
+    strip_include_prefix = "static",
+)
+
+expand_template(
+    name = "shared_header",
+    template = "@cpython_src//:pyconfig.h.in",
+    out = "shared/pyconfig.h",
+    substitutions = select({"@platforms//cpu:x86_64": CORE_DEFINES | {"#undef Py_ENABLE_SHARED\n": "#define Py_ENABLE_SHARED 1\n"}, "@platforms//cpu:aarch64": CORE_DEFINES | ARM_CORE_OVERRIDES | {"#undef Py_ENABLE_SHARED\n": "#define Py_ENABLE_SHARED 1\n"}}),
+)
+cc_library(
+    name = "configuration_shared",
+    deps = [":pydtrace_headers"],
+    hdrs = [":shared_header"],
+    strip_include_prefix = "shared",
+)
+
+alias(name = "python3.13", actual = "@cpython_src//:python3.13")
+alias(name = "libpython_shared", actual = "@cpython_src//:libpython_shared")
+alias(name = "extensions_native", actual = "@cpython_src//:extensions_native")
+alias(name = "_testembed", actual = "@cpython_src//:_testembed")
+source_build_tool(name = "native_python_tool", binary = "@cpython_src//:python_shared_for_metadata")
+expand_template(
+    name = "installed_makefile",
+    template = "@cpython_src//:Makefile.pre.in",
+    out = "installed/Makefile",
+    substitutions = select({"@platforms//cpu:x86_64": INSTALLED_CONFIGURATION, "@platforms//cpu:aarch64": INSTALLED_CONFIGURATION | ARM_INSTALLED_OVERRIDES}),
+)
+genrule(
+    name = "sysconfig_data",
+    srcs = ["generate_sysconfig.py", ":installed_makefile", ":shared_header", "@cpython_src//:stdlib_sources", "@cpython_src//:Lib/os.py"],
+    outs = ["installed/sysconfigdata.py"],
+    tools = [":native_python_tool"],
+    cmd = "libfile=$(location @cpython_src//:Lib/os.py); PYTHONPATH=$${libfile%/os.py} $(location :native_python_tool) -B -S $(location generate_sysconfig.py) $(location :installed_makefile) $(location :shared_header) $@ $${libfile%/os.py}",
+)
+expand_template(
+    name = "changelog",
+    template = "@cpython_src//:debian/changelog",
+    out = "changelog.fips",
+    substitutions = {"3.13.5-2": "3.13.5-2+fips"},
+)
+
+# Original unnormalized Makefile variables, parsed by the fixed CPython helper.
+# Original module-local configure inputs from the same trusted config.status.
+ORIGINAL_CONFIGURE_ENVIRONMENT = {'TCLTK_CFLAGS': ' -Wno-strict-prototypes -DWITH_APPINIT=1', 'TCLTK_LIBS': '-l:libtk8.6.so -l:libtkstub8.6.a -l:libtcl8.6.so -l:libtclstub8.6.a ', 'CURSES_CFLAGS': '-D_DEFAULT_SOURCE ', 'CURSES_LIBS': '-l:libncursesw.so.6 -l:libtinfo.so.6 ', 'PANEL_CFLAGS': '-D_DEFAULT_SOURCE ', 'PANEL_LIBS': '-l:libpanelw.so.6 '}
+ORIGINAL_BUILD_CONFIGURATION = {'CFLAGS': '-fno-strict-overflow -fno-strict-aliasing -DNDEBUG -g -O3 -Wall', 'PY_CFLAGS': '-fno-strict-overflow -fno-strict-aliasing -DNDEBUG -g -O3 -Wall', 'CONFIGURE_CFLAGS_NODIST': '-Wdate-time -D_FORTIFY_SOURCE=2 -g -Werror=implicit-function-declaration -ffile-prefix-map=@SOURCE_ROOT@=. -specs=@EXECUTION_TOOLS@/usr/share/dpkg/no-pie-compile.specs -fstack-protector -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O3 -flto -fuse-linker-plugin -ffat-lto-objects -std=c11 -Werror=implicit-function-declaration -fvisibility=hidden', 'CFLAGS_NODIST': '', 'PY_CFLAGS_NODIST': '-Wdate-time -D_FORTIFY_SOURCE=2 -g -Werror=implicit-function-declaration -ffile-prefix-map=@SOURCE_ROOT@=. -specs=@EXECUTION_TOOLS@/usr/share/dpkg/no-pie-compile.specs -fstack-protector -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O3 -flto -fuse-linker-plugin -ffat-lto-objects -std=c11 -Werror=implicit-function-declaration -fvisibility=hidden  -I@SOURCE_ROOT@/Include/internal -I@SOURCE_ROOT@/Include/internal/mimalloc', 'LDFLAGS': '-specs=@EXECUTION_TOOLS@/usr/share/dpkg/no-pie-link.specs -Wl,-z,relro -g -fwrapv -O3 -flto -fuse-linker-plugin -ffat-lto-objects', 'PY_LDFLAGS': '-specs=@EXECUTION_TOOLS@/usr/share/dpkg/no-pie-link.specs -Wl,-z,relro -g -fwrapv -O3 -flto -fuse-linker-plugin -ffat-lto-objects', 'CONFIGURE_LDFLAGS_NODIST': '-specs=@EXECUTION_TOOLS@/usr/share/dpkg/no-pie-link.specs -Wl,-z,relro -g -fwrapv -O3 -flto -fuse-linker-plugin -ffat-lto-objects', 'LDFLAGS_NODIST': '', 'PY_LDFLAGS_NODIST': '-specs=@EXECUTION_TOOLS@/usr/share/dpkg/no-pie-link.specs -Wl,-z,relro -g -fwrapv -O3 -flto -fuse-linker-plugin -ffat-lto-objects', 'LDSHARED': '@CC@ -shared -Wl,-O1 -Wl,-Bsymbolic-functions -specs=@EXECUTION_TOOLS@/usr/share/dpkg/no-pie-link.specs -Wl,-z,relro -g -fwrapv -O3 -flto -fuse-linker-plugin -ffat-lto-objects', 'BLDSHARED': '@CC@ -shared -Wl,-O1 -Wl,-Bsymbolic-functions -specs=@EXECUTION_TOOLS@/usr/share/dpkg/no-pie-link.specs -Wl,-z,relro -g -fwrapv -O3 -flto -fuse-linker-plugin -ffat-lto-objects', 'LDCXXSHARED': '@CXX@ -shared -Wl,-O1 -Wl,-Bsymbolic-functions -specs=@EXECUTION_TOOLS@/usr/share/dpkg/no-pie-link.specs -Wl,-z,relro -g -fwrapv -O3 -flto -fuse-linker-plugin -ffat-lto-objects', 'LINKCC': '@CC@'}
+
+# Only actual --enable-shared variant differences from the fixed parser.
+ORIGINAL_STATIC_BUILD_CONFIGURATION = ORIGINAL_BUILD_CONFIGURATION | {'BLDLIBRARY': 'libpython3.13.a', 'CFLAGSFORSHARED': '', 'INSTSONAME': 'libpython3.13.a', 'LDLIBRARY': 'libpython3.13.a', 'LIBEXPAT_CFLAGS': '-fno-strict-overflow -fno-strict-aliasing -DNDEBUG -g -O3 -Wall -Wdate-time -D_FORTIFY_SOURCE=2 -g -Werror=implicit-function-declaration -ffile-prefix-map=@SOURCE_ROOT@=. -specs=@EXECUTION_TOOLS@/usr/share/dpkg/no-pie-compile.specs -fstack-protector -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O3 -flto -fuse-linker-plugin -ffat-lto-objects -std=c11 -Werror=implicit-function-declaration -fvisibility=hidden  -I@SOURCE_ROOT@/Include/internal -I@SOURCE_ROOT@/Include/internal/mimalloc -IObjects -IInclude -IPython -I. -I@SOURCE_ROOT@/Include -fPIC', 'LIBHACL_CFLAGS': '-I@SOURCE_ROOT@/Modules/_hacl/include -D_BSD_SOURCE -D_DEFAULT_SOURCE -fno-strict-overflow -fno-strict-aliasing -DNDEBUG -g -O3 -Wall -Wdate-time -D_FORTIFY_SOURCE=2 -g -Werror=implicit-function-declaration -ffile-prefix-map=@SOURCE_ROOT@=. -specs=@EXECUTION_TOOLS@/usr/share/dpkg/no-pie-compile.specs -fstack-protector -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O3 -flto -fuse-linker-plugin -ffat-lto-objects -std=c11 -Werror=implicit-function-declaration -fvisibility=hidden  -I@SOURCE_ROOT@/Include/internal -I@SOURCE_ROOT@/Include/internal/mimalloc -IObjects -IInclude -IPython -I. -I@SOURCE_ROOT@/Include -fPIC', 'LIBMPDEC_CFLAGS': '-I@SOURCE_ROOT@/Modules/_decimal/libmpdec -DCONFIG_64=1 -DANSI=1 -DHAVE_UINT128_T=1 -fno-strict-overflow -fno-strict-aliasing -DNDEBUG -g -O3 -Wall -Wdate-time -D_FORTIFY_SOURCE=2 -g -Werror=implicit-function-declaration -ffile-prefix-map=@SOURCE_ROOT@=. -specs=@EXECUTION_TOOLS@/usr/share/dpkg/no-pie-compile.specs -fstack-protector -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O3 -flto -fuse-linker-plugin -ffat-lto-objects -std=c11 -Werror=implicit-function-declaration -fvisibility=hidden  -I@SOURCE_ROOT@/Include/internal -I@SOURCE_ROOT@/Include/internal/mimalloc -IObjects -IInclude -IPython -I. -I@SOURCE_ROOT@/Include -fPIC', 'LIBRARY_DEPS': 'libpython3.13.a', 'LINK_PYTHON_DEPS': 'libpython3.13.a', 'LINK_PYTHON_OBJS': '\\', 'PY3LIBRARY': '', 'PY_BUILTIN_MODULE_CFLAGS': '-fno-strict-overflow -fno-strict-aliasing -DNDEBUG -g -O3 -Wall -Wdate-time -D_FORTIFY_SOURCE=2 -g -Werror=implicit-function-declaration -ffile-prefix-map=@SOURCE_ROOT@=. -specs=@EXECUTION_TOOLS@/usr/share/dpkg/no-pie-compile.specs -fstack-protector -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O3 -flto -fuse-linker-plugin -ffat-lto-objects -std=c11 -Werror=implicit-function-declaration -fvisibility=hidden  -I@SOURCE_ROOT@/Include/internal -I@SOURCE_ROOT@/Include/internal/mimalloc -IObjects -IInclude -IPython -I. -I@SOURCE_ROOT@/Include -DPy_BUILD_CORE_BUILTIN', 'PY_CORE_CFLAGS': '-fno-strict-overflow -fno-strict-aliasing -DNDEBUG -g -O3 -Wall -Wdate-time -D_FORTIFY_SOURCE=2 -g -Werror=implicit-function-declaration -ffile-prefix-map=@SOURCE_ROOT@=. -specs=@EXECUTION_TOOLS@/usr/share/dpkg/no-pie-compile.specs -fstack-protector -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O3 -flto -fuse-linker-plugin -ffat-lto-objects -std=c11 -Werror=implicit-function-declaration -fvisibility=hidden  -I@SOURCE_ROOT@/Include/internal -I@SOURCE_ROOT@/Include/internal/mimalloc -IObjects -IInclude -IPython -I. -I@SOURCE_ROOT@/Include -DPy_BUILD_CORE', 'PY_STDMODULE_CFLAGS': '-fno-strict-overflow -fno-strict-aliasing -DNDEBUG -g -O3 -Wall -Wdate-time -D_FORTIFY_SOURCE=2 -g -Werror=implicit-function-declaration -ffile-prefix-map=@SOURCE_ROOT@=. -specs=@EXECUTION_TOOLS@/usr/share/dpkg/no-pie-compile.specs -fstack-protector -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O3 -flto -fuse-linker-plugin -ffat-lto-objects -std=c11 -Werror=implicit-function-declaration -fvisibility=hidden  -I@SOURCE_ROOT@/Include/internal -I@SOURCE_ROOT@/Include/internal/mimalloc -IObjects -IInclude -IPython -I. -I@SOURCE_ROOT@/Include'}
+ORIGINAL_SHARED_BUILD_CONFIGURATION = ORIGINAL_BUILD_CONFIGURATION | {'BLDLIBRARY': '-L. -lpython3.13', 'CFLAGSFORSHARED': '-fPIC', 'INSTSONAME': 'libpython3.13.so.1.0', 'LDLIBRARY': 'libpython3.13.so', 'LIBEXPAT_CFLAGS': '-fno-strict-overflow -fno-strict-aliasing -DNDEBUG -g -O3 -Wall -Wdate-time -D_FORTIFY_SOURCE=2 -g -Werror=implicit-function-declaration -ffile-prefix-map=@SOURCE_ROOT@=. -specs=@EXECUTION_TOOLS@/usr/share/dpkg/no-pie-compile.specs -fstack-protector -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O3 -flto -fuse-linker-plugin -ffat-lto-objects -std=c11 -Werror=implicit-function-declaration -fvisibility=hidden  -I@SOURCE_ROOT@/Include/internal -I@SOURCE_ROOT@/Include/internal/mimalloc -IObjects -IInclude -IPython -I. -I@SOURCE_ROOT@/Include -fPIC -fPIC', 'LIBHACL_CFLAGS': '-I@SOURCE_ROOT@/Modules/_hacl/include -D_BSD_SOURCE -D_DEFAULT_SOURCE -fno-strict-overflow -fno-strict-aliasing -DNDEBUG -g -O3 -Wall -Wdate-time -D_FORTIFY_SOURCE=2 -g -Werror=implicit-function-declaration -ffile-prefix-map=@SOURCE_ROOT@=. -specs=@EXECUTION_TOOLS@/usr/share/dpkg/no-pie-compile.specs -fstack-protector -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O3 -flto -fuse-linker-plugin -ffat-lto-objects -std=c11 -Werror=implicit-function-declaration -fvisibility=hidden  -I@SOURCE_ROOT@/Include/internal -I@SOURCE_ROOT@/Include/internal/mimalloc -IObjects -IInclude -IPython -I. -I@SOURCE_ROOT@/Include -fPIC -fPIC', 'LIBMPDEC_CFLAGS': '-I@SOURCE_ROOT@/Modules/_decimal/libmpdec -DCONFIG_64=1 -DANSI=1 -DHAVE_UINT128_T=1 -fno-strict-overflow -fno-strict-aliasing -DNDEBUG -g -O3 -Wall -Wdate-time -D_FORTIFY_SOURCE=2 -g -Werror=implicit-function-declaration -ffile-prefix-map=@SOURCE_ROOT@=. -specs=@EXECUTION_TOOLS@/usr/share/dpkg/no-pie-compile.specs -fstack-protector -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O3 -flto -fuse-linker-plugin -ffat-lto-objects -std=c11 -Werror=implicit-function-declaration -fvisibility=hidden  -I@SOURCE_ROOT@/Include/internal -I@SOURCE_ROOT@/Include/internal/mimalloc -IObjects -IInclude -IPython -I. -I@SOURCE_ROOT@/Include -fPIC -fPIC', 'LIBRARY_DEPS': 'libpython3.13.a libpython3.13.so libpython3.so', 'LINK_PYTHON_DEPS': 'libpython3.13.a libpython3.13.so libpython3.so', 'LINK_PYTHON_OBJS': '-L. -lpython3.13', 'PY3LIBRARY': 'libpython3.so', 'PY_BUILTIN_MODULE_CFLAGS': '-fno-strict-overflow -fno-strict-aliasing -DNDEBUG -g -O3 -Wall -Wdate-time -D_FORTIFY_SOURCE=2 -g -Werror=implicit-function-declaration -ffile-prefix-map=@SOURCE_ROOT@=. -specs=@EXECUTION_TOOLS@/usr/share/dpkg/no-pie-compile.specs -fstack-protector -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O3 -flto -fuse-linker-plugin -ffat-lto-objects -std=c11 -Werror=implicit-function-declaration -fvisibility=hidden  -I@SOURCE_ROOT@/Include/internal -I@SOURCE_ROOT@/Include/internal/mimalloc -IObjects -IInclude -IPython -I. -I@SOURCE_ROOT@/Include -fPIC -DPy_BUILD_CORE_BUILTIN', 'PY_CORE_CFLAGS': '-fno-strict-overflow -fno-strict-aliasing -DNDEBUG -g -O3 -Wall -Wdate-time -D_FORTIFY_SOURCE=2 -g -Werror=implicit-function-declaration -ffile-prefix-map=@SOURCE_ROOT@=. -specs=@EXECUTION_TOOLS@/usr/share/dpkg/no-pie-compile.specs -fstack-protector -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O3 -flto -fuse-linker-plugin -ffat-lto-objects -std=c11 -Werror=implicit-function-declaration -fvisibility=hidden  -I@SOURCE_ROOT@/Include/internal -I@SOURCE_ROOT@/Include/internal/mimalloc -IObjects -IInclude -IPython -I. -I@SOURCE_ROOT@/Include -fPIC -DPy_BUILD_CORE', 'PY_STDMODULE_CFLAGS': '-fno-strict-overflow -fno-strict-aliasing -DNDEBUG -g -O3 -Wall -Wdate-time -D_FORTIFY_SOURCE=2 -g -Werror=implicit-function-declaration -ffile-prefix-map=@SOURCE_ROOT@=. -specs=@EXECUTION_TOOLS@/usr/share/dpkg/no-pie-compile.specs -fstack-protector -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O3 -flto -fuse-linker-plugin -ffat-lto-objects -std=c11 -Werror=implicit-function-declaration -fvisibility=hidden  -I@SOURCE_ROOT@/Include/internal -I@SOURCE_ROOT@/Include/internal/mimalloc -IObjects -IInclude -IPython -I. -I@SOURCE_ROOT@/Include -fPIC'}
+
+python_profile(
+    name = 'profile_data',
+    test_data_runtime = "@sonic_build_infra//tools/build_tools:python_pgo_runtime",
+    workload = 'original',
+    interpreter = '@cpython_src//:python3.13_instrument',
+    modules = {'_asyncio': '@cpython_src//:_asyncio.so_instrument', '_contextvars': '@cpython_src//:_contextvars.so_instrument', '_lsprof': '@cpython_src//:_lsprof.so_instrument', '_queue': '@cpython_src//:_queue.so_instrument', '_interpreters': '@cpython_src//:_interpreters.so_instrument', '_interpchannels': '@cpython_src//:_interpchannels.so_instrument', '_interpqueues': '@cpython_src//:_interpqueues.so_instrument', '_zoneinfo': '@cpython_src//:_zoneinfo.so_instrument', '_decimal': '@cpython_src//:_decimal.so_instrument', '_codecs_cn': '@cpython_src//:_codecs_cn.so_instrument', '_codecs_hk': '@cpython_src//:_codecs_hk.so_instrument', '_codecs_iso2022': '@cpython_src//:_codecs_iso2022.so_instrument', '_codecs_jp': '@cpython_src//:_codecs_jp.so_instrument', '_codecs_kr': '@cpython_src//:_codecs_kr.so_instrument', '_codecs_tw': '@cpython_src//:_codecs_tw.so_instrument', '_multibytecodec': '@cpython_src//:_multibytecodec.so_instrument', 'mmap': '@cpython_src//:mmap.so_instrument', 'resource': '@cpython_src//:resource.so_instrument', 'termios': '@cpython_src//:termios.so_instrument', '_posixshmem': '@cpython_src//:_posixshmem.so_instrument', '_multiprocessing': '@cpython_src//:_multiprocessing.so_instrument', 'xxsubtype': '@cpython_src//:xxsubtype.so_instrument', '_xxtestfuzz': '@cpython_src//:_xxtestfuzz.so_instrument', '_testbuffer': '@cpython_src//:_testbuffer.so_instrument', '_testinternalcapi': '@cpython_src//:_testinternalcapi.so_instrument', '_testcapi': '@cpython_src//:_testcapi.so_instrument', '_testlimitedcapi': '@cpython_src//:_testlimitedcapi.so_instrument', '_testclinic': '@cpython_src//:_testclinic.so_instrument', '_testclinic_limited': '@cpython_src//:_testclinic_limited.so_instrument', '_testimportmultiple': '@cpython_src//:_testimportmultiple.so_instrument', '_testmultiphase': '@cpython_src//:_testmultiphase.so_instrument', '_testsinglephase': '@cpython_src//:_testsinglephase.so_instrument', '_testexternalinspection': '@cpython_src//:_testexternalinspection.so_instrument', 'xxlimited': '@cpython_src//:xxlimited.so_instrument', 'xxlimited_35': '@cpython_src//:xxlimited_35.so_instrument', '_ssl': '@cpython_src//:_ssl.so_instrument', '_hashlib': '@cpython_src//:_hashlib.so_instrument', '_bz2': '@cpython_src//:_bz2.so_instrument', '_lzma': '@cpython_src//:_lzma.so_instrument', '_dbm': '@cpython_src//:_dbm.so_instrument', 'readline': '@cpython_src//:readline.so_instrument', '_ctypes': '@cpython_src//:_ctypes.so_instrument', '_curses': '@cpython_src//:_curses.so_instrument', '_curses_panel': '@cpython_src//:_curses_panel.so_instrument', '_sqlite3': '@cpython_src//:_sqlite3.so_instrument', '_uuid': '@cpython_src//:_uuid.so_instrument', '_ctypes_test': '@cpython_src//:_ctypes_test.so_instrument', '_gdbm': '@cpython_src//:_gdbm.so_instrument', '_tkinter': '@cpython_src//:_tkinter.so_instrument'},
+    srcs = ["@cpython_src//:profile_sources"],
+    source_marker = "@cpython_src//:Lib/os.py",
+    metadata = ":sysconfig_data",
+    makefile = ":installed_makefile",
+    pyconfig = ":static_header",
+    runtime_deps = ['@python_build_deps//libexpat1-dev:libexpat_cc', '@frr_deps//libreadline-dev:libreadline_cc', '@iproute2_deps//libdb-dev:libdb', '@iproute2_deps//libnsl-dev:libnsl_cc', '@python_build_deps//libbz2-dev:libbz2_cc', '@openssl_deps//zlib1g-dev:libz_cc', '@python_build_deps//liblzma-dev:liblzma_cc', '@python_build_deps//libsqlite3-dev:libsqlite3_cc', '@sonic_fips//openssl:libcrypto', '@sonic_fips//openssl:libssl', '@trixie//libncurses-dev:libncursesw_cc', '@trixie//libncurses-dev:libpanelw_cc', '@trixie//libncurses-dev:libtinfo_cc', '@trixie//uuid-dev:libuuid_cc', '@python_build_deps//libffi-dev:libffi_cc', '@cpython_src//:python'] + ['@python_build_deps//libgdbm-dev:libgdbm_cc', '@python_build_deps//tcl-dev:pkgconfig/tcl', '@python_build_deps//tk-dev:pkgconfig/tk'],
+    # Same native build-view policy; GNU triplet and dpkg hardening follow the target.
+    build_configuration = select({
+        "@platforms//cpu:x86_64": ORIGINAL_STATIC_BUILD_CONFIGURATION,
+        "@platforms//cpu:aarch64": {key: val.replace("x86_64-linux-gnu", "aarch64-linux-gnu").replace("-fcf-protection", "-mbranch-protection=standard") for key, val in ORIGINAL_STATIC_BUILD_CONFIGURATION.items()},
+    }),
+    configure_environment = ORIGINAL_CONFIGURE_ENVIRONMENT,
+    openssl_pkgconfig = ["//openssl:pkgconfig"],
+    openssl_libraries = {"ssl": "//openssl:libssl", "crypto": "//openssl:libcrypto"},
+    compiler_deps = ['@python_build_deps//libexpat1-dev:libexpat_cc', '@frr_deps//libreadline-dev:libreadline_cc', '@iproute2_deps//libdb-dev:libdb', '@iproute2_deps//libnsl-dev:libnsl_cc', '@python_build_deps//libbz2-dev:libbz2_cc', '@openssl_deps//zlib1g-dev:libz_cc', '@python_build_deps//liblzma-dev:liblzma_cc', '@python_build_deps//libsqlite3-dev:libsqlite3_cc', '@sonic_fips//openssl:libcrypto', '@sonic_fips//openssl:libssl', '@trixie//libncurses-dev:libncursesw_cc', '@trixie//libncurses-dev:libpanelw_cc', '@trixie//libncurses-dev:libtinfo_cc', '@trixie//uuid-dev:libuuid_cc', '@python_build_deps//libffi-dev:libffi_cc'] + ['@python_build_deps//libgdbm-dev:libgdbm_cc', '@python_build_deps//tcl-dev:pkgconfig/tcl', '@python_build_deps//tk-dev:pkgconfig/tk'] + ['@python_build_deps//systemtap-sdt-dev:systemtap-sdt_headers', '@python_build_deps//libbluetooth-dev:libbluetooth_headers'],
+    runtime_payloads = ['//openssl:openssl.runtime', '//openssl:libssl3t64.runtime', '//symcrypt:symcrypt-openssl.runtime'],
+    freeze_profiles = ['@cpython_src//:freeze_profiles'],
+    embed = '@cpython_src//:_testembed_instrument',
+)
+
+python_profile(
+    name = 'contextvars_smoke_profile',
+    workload = 'contextvars-smoke',
+    interpreter = '@cpython_src//:python_shared_for_metadata',
+    modules = {'_contextvars': '@cpython_src//:contextvars_smoke_generate.so'},
+    srcs = ["@cpython_src//:profile_sources"],
+    source_marker = "@cpython_src//:Lib/os.py",
+    metadata = ":sysconfig_data",
+    makefile = ":installed_makefile",
+    pyconfig = ":static_header",
+    runtime_deps = ['@python_build_deps//libexpat1-dev:libexpat_cc', '@frr_deps//libreadline-dev:libreadline_cc', '@iproute2_deps//libdb-dev:libdb', '@iproute2_deps//libnsl-dev:libnsl_cc', '@python_build_deps//libbz2-dev:libbz2_cc', '@openssl_deps//zlib1g-dev:libz_cc', '@python_build_deps//liblzma-dev:liblzma_cc', '@python_build_deps//libsqlite3-dev:libsqlite3_cc', '@sonic_fips//openssl:libcrypto', '@sonic_fips//openssl:libssl', '@trixie//libncurses-dev:libncursesw_cc', '@trixie//libncurses-dev:libpanelw_cc', '@trixie//libncurses-dev:libtinfo_cc', '@trixie//uuid-dev:libuuid_cc', '@python_build_deps//libffi-dev:libffi_cc', '@cpython_src//:python'],
+    runtime_payloads = ['//openssl:openssl.runtime', '//openssl:libssl3t64.runtime', '//symcrypt:symcrypt-openssl.runtime'],
+    freeze_profiles = [],
+    target_compatible_with = ["@platforms//cpu:x86_64"],
+)
+
+empty_profile(name = "empty_profile", tags = ["manual"])
+
+
+genrule(
+    name = 'install_shebang_0',
+    srcs = ["rewrite_shebang.py", '@cpython_src//:Lib/base64.py'],
+    outs = ['install-generated/install_shebang_0'],
+    tools = ["@sonic_build_infra//tools/build_tools:python3"],
+    cmd = '$(location @sonic_build_infra//tools/build_tools:python3) $(location rewrite_shebang.py) $(location @cpython_src//:Lib/base64.py) $@',
+)
+
+genrule(
+    name = 'install_shebang_1',
+    srcs = ["rewrite_shebang.py", '@cpython_src//:Lib/encodings/rot_13.py'],
+    outs = ['install-generated/install_shebang_1'],
+    tools = ["@sonic_build_infra//tools/build_tools:python3"],
+    cmd = '$(location @sonic_build_infra//tools/build_tools:python3) $(location rewrite_shebang.py) $(location @cpython_src//:Lib/encodings/rot_13.py) $@',
+)
+
+genrule(
+    name = 'install_shebang_2',
+    srcs = ["rewrite_shebang.py", '@cpython_src//:Lib/platform.py'],
+    outs = ['install-generated/install_shebang_2'],
+    tools = ["@sonic_build_infra//tools/build_tools:python3"],
+    cmd = '$(location @sonic_build_infra//tools/build_tools:python3) $(location rewrite_shebang.py) $(location @cpython_src//:Lib/platform.py) $@',
+)
+
+genrule(
+    name = 'install_shebang_3',
+    srcs = ["rewrite_shebang.py", '@cpython_src//:Lib/quopri.py'],
+    outs = ['install-generated/install_shebang_3'],
+    tools = ["@sonic_build_infra//tools/build_tools:python3"],
+    cmd = '$(location @sonic_build_infra//tools/build_tools:python3) $(location rewrite_shebang.py) $(location @cpython_src//:Lib/quopri.py) $@',
+)
+
+genrule(
+    name = 'install_shebang_4',
+    srcs = ["rewrite_shebang.py", '@cpython_src//:Lib/cProfile.py'],
+    outs = ['install-generated/install_shebang_4'],
+    tools = ["@sonic_build_infra//tools/build_tools:python3"],
+    cmd = '$(location @sonic_build_infra//tools/build_tools:python3) $(location rewrite_shebang.py) $(location @cpython_src//:Lib/cProfile.py) $@',
+)
+
+genrule(
+    name = 'install_shebang_5',
+    srcs = ["rewrite_shebang.py", '@cpython_src//:Lib/pdb.py'],
+    outs = ['install-generated/install_shebang_5'],
+    tools = ["@sonic_build_infra//tools/build_tools:python3"],
+    cmd = '$(location @sonic_build_infra//tools/build_tools:python3) $(location rewrite_shebang.py) $(location @cpython_src//:Lib/pdb.py) $@',
+)
+
+genrule(
+    name = 'install_shebang_6',
+    srcs = ["rewrite_shebang.py", '@cpython_src//:Lib/profile.py'],
+    outs = ['install-generated/install_shebang_6'],
+    tools = ["@sonic_build_infra//tools/build_tools:python3"],
+    cmd = '$(location @sonic_build_infra//tools/build_tools:python3) $(location rewrite_shebang.py) $(location @cpython_src//:Lib/profile.py) $@',
+)
+
+genrule(
+    name = 'install_shebang_7',
+    srcs = ["rewrite_shebang.py", '@cpython_src//:Lib/pydoc.py'],
+    outs = ['install-generated/install_shebang_7'],
+    tools = ["@sonic_build_infra//tools/build_tools:python3"],
+    cmd = '$(location @sonic_build_infra//tools/build_tools:python3) $(location rewrite_shebang.py) $(location @cpython_src//:Lib/pydoc.py) $@',
+)
+
+genrule(
+    name = 'install_shebang_8',
+    srcs = ["rewrite_shebang.py", '@cpython_src//:Lib/smtplib.py'],
+    outs = ['install-generated/install_shebang_8'],
+    tools = ["@sonic_build_infra//tools/build_tools:python3"],
+    cmd = '$(location @sonic_build_infra//tools/build_tools:python3) $(location rewrite_shebang.py) $(location @cpython_src//:Lib/smtplib.py) $@',
+)
+
+genrule(
+    name = 'install_shebang_9',
+    srcs = ["rewrite_shebang.py", '@cpython_src//:Lib/tabnanny.py'],
+    outs = ['install-generated/install_shebang_9'],
+    tools = ["@sonic_build_infra//tools/build_tools:python3"],
+    cmd = '$(location @sonic_build_infra//tools/build_tools:python3) $(location rewrite_shebang.py) $(location @cpython_src//:Lib/tabnanny.py) $@',
+)
+
+genrule(
+    name = 'install_shebang_10',
+    srcs = ["rewrite_shebang.py", '@cpython_src//:Lib/tarfile.py'],
+    outs = ['install-generated/install_shebang_10'],
+    tools = ["@sonic_build_infra//tools/build_tools:python3"],
+    cmd = '$(location @sonic_build_infra//tools/build_tools:python3) $(location rewrite_shebang.py) $(location @cpython_src//:Lib/tarfile.py) $@',
+)
+
+genrule(
+    name = 'install_shebang_11',
+    srcs = ["rewrite_shebang.py", '@cpython_src//:Lib/test/regrtest.py'],
+    outs = ['install-generated/install_shebang_11'],
+    tools = ["@sonic_build_infra//tools/build_tools:python3"],
+    cmd = '$(location @sonic_build_infra//tools/build_tools:python3) $(location rewrite_shebang.py) $(location @cpython_src//:Lib/test/regrtest.py) $@',
+)
+
+genrule(
+    name = 'install_shebang_12',
+    srcs = ["rewrite_shebang.py", '@cpython_src//:Lib/test/support/smtpd.py'],
+    outs = ['install-generated/install_shebang_12'],
+    tools = ["@sonic_build_infra//tools/build_tools:python3"],
+    cmd = '$(location @sonic_build_infra//tools/build_tools:python3) $(location rewrite_shebang.py) $(location @cpython_src//:Lib/test/support/smtpd.py) $@',
+)
+
+genrule(
+    name = 'install_shebang_13',
+    srcs = ["rewrite_shebang.py", '@cpython_src//:Lib/timeit.py'],
+    outs = ['install-generated/install_shebang_13'],
+    tools = ["@sonic_build_infra//tools/build_tools:python3"],
+    cmd = '$(location @sonic_build_infra//tools/build_tools:python3) $(location rewrite_shebang.py) $(location @cpython_src//:Lib/timeit.py) $@',
+)
+
+genrule(
+    name = 'install_shebang_14',
+    srcs = ["rewrite_shebang.py", '@cpython_src//:Lib/trace.py'],
+    outs = ['install-generated/install_shebang_14'],
+    tools = ["@sonic_build_infra//tools/build_tools:python3"],
+    cmd = '$(location @sonic_build_infra//tools/build_tools:python3) $(location rewrite_shebang.py) $(location @cpython_src//:Lib/trace.py) $@',
+)
+
+genrule(
+    name = 'install_shebang_15',
+    srcs = ["rewrite_shebang.py", '@cpython_src//:Lib/webbrowser.py'],
+    outs = ['install-generated/install_shebang_15'],
+    tools = ["@sonic_build_infra//tools/build_tools:python3"],
+    cmd = '$(location @sonic_build_infra//tools/build_tools:python3) $(location rewrite_shebang.py) $(location @cpython_src//:Lib/webbrowser.py) $@',
+)
+
+genrule(
+    name = 'install_shebang_16',
+    srcs = ["rewrite_shebang.py", '@cpython_src//:Tools/scripts/pydoc3'],
+    outs = ['install-generated/install_shebang_16'],
+    tools = ["@sonic_build_infra//tools/build_tools:python3"],
+    cmd = '$(location @sonic_build_infra//tools/build_tools:python3) $(location rewrite_shebang.py) $(location @cpython_src//:Tools/scripts/pydoc3) $@',
+)
+
+genrule(
+    name = 'install_shebang_17',
+    srcs = ["rewrite_shebang.py", '@cpython_src//:Tools/i18n/pygettext.py'],
+    outs = ['install-generated/install_shebang_17'],
+    tools = ["@sonic_build_infra//tools/build_tools:python3"],
+    cmd = '$(location @sonic_build_infra//tools/build_tools:python3) $(location rewrite_shebang.py) $(location @cpython_src//:Tools/i18n/pygettext.py) $@',
+)
+
+expand_template(
+    name = 'install_template_18',
+    template = '@cpython_src//:debian/PVER.desktop.in',
+    out = 'install-generated/install_template_18',
+    substitutions = select({"@platforms//cpu:x86_64": {'@PVER@': 'python3.13', '@VER@': '3.13', '@SVER@': '3.13.0~rc3', '@PRIORITY@': '3130', '@SCRIPTDIR@': '/usr/lib/python3.13', '@HOST_QUAL@': ':amd64'}, "@platforms//cpu:aarch64": {'@PVER@': 'python3.13', '@VER@': '3.13', '@SVER@': '3.13.0~rc3', '@PRIORITY@': '3130', '@SCRIPTDIR@': '/usr/lib/python3.13', '@HOST_QUAL@': ':arm64'}}),
+)
+
+genrule(
+    name = 'install_mkbinfmt',
+    srcs = ['@cpython_src//:debian/mkbinfmt.py', '@cpython_src//:debian/imp.py', "@cpython_src//:Lib/os.py", "@cpython_src//:stdlib_sources"],
+    outs = ['install-generated/install_mkbinfmt'],
+    tools = [":native_python_tool"],
+    cmd = 'libfile=$(location @cpython_src//:Lib/os.py); PYTHONPATH=$${libfile%/os.py} $(location :native_python_tool) -B -S $(location @cpython_src//:debian/mkbinfmt.py) python3.13 >$@',
+)
+
+genrule(
+    name = 'install_mkbinfmtconf',
+    srcs = ['@cpython_src//:debian/mkbinfmtconf.py', "@cpython_src//:Lib/os.py", "@cpython_src//:stdlib_sources"],
+    outs = ['install-generated/install_mkbinfmtconf'],
+    tools = [":native_python_tool"],
+    cmd = 'libfile=$(location @cpython_src//:Lib/os.py); PYTHONPATH=$${libfile%/os.py} $(location :native_python_tool) -B -S $(location @cpython_src//:debian/mkbinfmtconf.py) python3.13 >$@',
+)
+
+genrule(
+    name = 'install_gzip_19',
+    srcs = ['@cpython_src//:Misc/python.man'],
+    outs = ['install-generated/install_gzip_19.gz'],
+    tools = ["@sonic_build_infra//tools/build_tools:kernel_runtime"],
+    cmd = '$(location @sonic_build_infra//tools/build_tools:kernel_runtime)/bin/gzip -9 -n -c $(location @cpython_src//:Misc/python.man) >$@',
+)
+
+genrule(
+    name = 'install_gzip_20',
+    srcs = [':original_generated_pydoc_1'],
+    outs = ['install-generated/install_gzip_20.gz'],
+    tools = ["@sonic_build_infra//tools/build_tools:kernel_runtime"],
+    cmd = '$(location @sonic_build_infra//tools/build_tools:kernel_runtime)/bin/gzip -9 -n -c $(location :original_generated_pydoc_1) >$@',
+)
+
+genrule(
+    name = 'install_gzip_21',
+    srcs = [':original_generated_pdb_1'],
+    outs = ['install-generated/install_gzip_21.gz'],
+    tools = ["@sonic_build_infra//tools/build_tools:kernel_runtime"],
+    cmd = '$(location @sonic_build_infra//tools/build_tools:kernel_runtime)/bin/gzip -9 -n -c $(location :original_generated_pdb_1) >$@',
+)
+
+genrule(
+    name = 'install_gzip_22',
+    srcs = ['@cpython_src//:debian/pygettext.1'],
+    outs = ['install-generated/install_gzip_22.gz'],
+    tools = ["@sonic_build_infra//tools/build_tools:kernel_runtime"],
+    cmd = '$(location @sonic_build_infra//tools/build_tools:kernel_runtime)/bin/gzip -9 -n -c $(location @cpython_src//:debian/pygettext.1) >$@',
+)
+
+genrule(
+    name = 'install_gzip_23',
+    srcs = [':changelog'],
+    outs = ['install-generated/install_gzip_23.gz'],
+    tools = ["@sonic_build_infra//tools/build_tools:kernel_runtime"],
+    cmd = '$(location @sonic_build_infra//tools/build_tools:kernel_runtime)/bin/gzip -9 -n -c $(location :changelog) >$@',
+)
+
+expand_template(
+    name = 'install_template_24',
+    template = '@cpython_src//:debian/PVER-minimal.README.Debian.in',
+    out = 'install-generated/install_template_24',
+    substitutions = select({"@platforms//cpu:x86_64": {'@PVER@': 'python3.13', '@VER@': '3.13', '@SVER@': '3.13.0~rc3', '@PRIORITY@': '3130', '@SCRIPTDIR@': '/usr/lib/python3.13', '@HOST_QUAL@': ':amd64'}, "@platforms//cpu:aarch64": {'@PVER@': 'python3.13', '@VER@': '3.13', '@SVER@': '3.13.0~rc3', '@PRIORITY@': '3130', '@SCRIPTDIR@': '/usr/lib/python3.13', '@HOST_QUAL@': ':arm64'}}),
+)
+
+genrule(
+    name = 'install_gzip_25',
+    srcs = [':install_template_24'],
+    outs = ['install-generated/install_gzip_25.gz'],
+    tools = ["@sonic_build_infra//tools/build_tools:kernel_runtime"],
+    cmd = '$(location @sonic_build_infra//tools/build_tools:kernel_runtime)/bin/gzip -9 -n -c $(location :install_template_24) >$@',
+)
+
+expand_template(
+    name = 'install_template_26',
+    template = '@cpython_src//:debian/README.Debian.in',
+    out = 'install-generated/install_template_26',
+    substitutions = select({"@platforms//cpu:x86_64": {'@PVER@': 'python3.13', '@VER@': '3.13', '@SVER@': '3.13.0~rc3', '@PRIORITY@': '3130', '@SCRIPTDIR@': '/usr/lib/python3.13', '@HOST_QUAL@': ':amd64'}, "@platforms//cpu:aarch64": {'@PVER@': 'python3.13', '@VER@': '3.13', '@SVER@': '3.13.0~rc3', '@PRIORITY@': '3130', '@SCRIPTDIR@': '/usr/lib/python3.13', '@HOST_QUAL@': ':arm64'}}),
+)
+
+expand_template(
+    name = 'install_template_27',
+    template = '@cpython_src//:debian/README.PVER.in',
+    out = 'install-generated/install_template_27',
+    substitutions = select({"@platforms//cpu:x86_64": {'@PVER@': 'python3.13', '@VER@': '3.13', '@SVER@': '3.13.0~rc3', '@PRIORITY@': '3130', '@SCRIPTDIR@': '/usr/lib/python3.13', '@HOST_QUAL@': ':amd64'}, "@platforms//cpu:aarch64": {'@PVER@': 'python3.13', '@VER@': '3.13', '@SVER@': '3.13.0~rc3', '@PRIORITY@': '3130', '@SCRIPTDIR@': '/usr/lib/python3.13', '@HOST_QUAL@': ':arm64'}}),
+)
+
+write_file(name = "install_empty_news", out = "install-generated/NEWS", content = [])
+
+genrule(
+    name = 'install_gzip_28',
+    srcs = [':install_empty_news'],
+    outs = ['install-generated/install_gzip_28.gz'],
+    tools = ["@sonic_build_infra//tools/build_tools:kernel_runtime"],
+    cmd = '$(location @sonic_build_infra//tools/build_tools:kernel_runtime)/bin/gzip -9 -n -c $(location :install_empty_news) >$@',
+)
+
+genrule(
+    name = 'install_gzip_29',
+    srcs = ['@cpython_src//:README.rst'],
+    outs = ['install-generated/install_gzip_29.gz'],
+    tools = ["@sonic_build_infra//tools/build_tools:kernel_runtime"],
+    cmd = '$(location @sonic_build_infra//tools/build_tools:kernel_runtime)/bin/gzip -9 -n -c $(location @cpython_src//:README.rst) >$@',
+)
+
+genrule(
+    name = 'install_gzip_30',
+    srcs = ['@cpython_src//:Misc/ACKS'],
+    outs = ['install-generated/install_gzip_30.gz'],
+    tools = ["@sonic_build_infra//tools/build_tools:kernel_runtime"],
+    cmd = '$(location @sonic_build_infra//tools/build_tools:kernel_runtime)/bin/gzip -9 -n -c $(location @cpython_src//:Misc/ACKS) >$@',
+)
+
+python_runtime_tars(packages = {'python3.13-minimal': {'files': {'usr/share/binfmts/python3.13': {'label': ':install_mkbinfmt', 'mode': '0644'}, 'usr/lib/binfmt.d/python3.13.conf': {'label': ':install_mkbinfmtconf', 'mode': '0644'}, 'usr/share/man/man1/python3.13.1.gz': {'label': ':install_gzip_19', 'mode': '0644'}, 'usr/share/doc/python3.13-minimal/copyright': {'label': '@cpython_src//:debian/copyright', 'mode': '0644'}, 'usr/share/doc/python3.13-minimal/changelog.Debian.gz': {'label': ':install_gzip_23', 'mode': '0644'}, 'usr/share/doc/python3.13-minimal/README.Debian.gz': {'label': ':install_gzip_25', 'mode': '0644'}}, 'binaries': {'usr/bin/python3.13': '@cpython_src//:python3.13'}, 'links': {}, 'directories': []}, 'libpython3.13-minimal': {'files': {'usr/lib/python3.13/__future__.py': {'label': '@cpython_src//:Lib/__future__.py', 'mode': '0644'}, 'usr/lib/python3.13/_collections_abc.py': {'label': '@cpython_src//:Lib/_collections_abc.py', 'mode': '0644'}, 'usr/lib/python3.13/_colorize.py': {'label': '@cpython_src//:Lib/_colorize.py', 'mode': '0644'}, 'usr/lib/python3.13/_compat_pickle.py': {'label': '@cpython_src//:Lib/_compat_pickle.py', 'mode': '0644'}, 'usr/lib/python3.13/_opcode_metadata.py': {'label': '@cpython_src//:Lib/_opcode_metadata.py', 'mode': '0644'}, 'usr/lib/python3.13/_py_abc.py': {'label': '@cpython_src//:Lib/_py_abc.py', 'mode': '0644'}, 'usr/lib/python3.13/_sitebuiltins.py': {'label': '@cpython_src//:Lib/_sitebuiltins.py', 'mode': '0644'}, 'usr/lib/python3.13/_strptime.py': {'label': '@cpython_src//:Lib/_strptime.py', 'mode': '0644'}, 'usr/lib/python3.13/_threading_local.py': {'label': '@cpython_src//:Lib/_threading_local.py', 'mode': '0644'}, 'usr/lib/python3.13/_weakrefset.py': {'label': '@cpython_src//:Lib/_weakrefset.py', 'mode': '0644'}, 'usr/lib/python3.13/abc.py': {'label': '@cpython_src//:Lib/abc.py', 'mode': '0644'}, 'usr/lib/python3.13/argparse.py': {'label': '@cpython_src//:Lib/argparse.py', 'mode': '0644'}, 'usr/lib/python3.13/ast.py': {'label': '@cpython_src//:Lib/ast.py', 'mode': '0644'}, 'usr/lib/python3.13/base64.py': {'label': ':install_shebang_0', 'mode': '0755'}, 'usr/lib/python3.13/bisect.py': {'label': '@cpython_src//:Lib/bisect.py', 'mode': '0644'}, 'usr/lib/python3.13/calendar.py': {'label': '@cpython_src//:Lib/calendar.py', 'mode': '0644'}, 'usr/lib/python3.13/codecs.py': {'label': '@cpython_src//:Lib/codecs.py', 'mode': '0644'}, 'usr/lib/python3.13/collections/__init__.py': {'label': '@cpython_src//:Lib/collections/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/compileall.py': {'label': '@cpython_src//:Lib/compileall.py', 'mode': '0644'}, 'usr/lib/python3.13/configparser.py': {'label': '@cpython_src//:Lib/configparser.py', 'mode': '0644'}, 'usr/lib/python3.13/contextlib.py': {'label': '@cpython_src//:Lib/contextlib.py', 'mode': '0644'}, 'usr/lib/python3.13/copy.py': {'label': '@cpython_src//:Lib/copy.py', 'mode': '0644'}, 'usr/lib/python3.13/copyreg.py': {'label': '@cpython_src//:Lib/copyreg.py', 'mode': '0644'}, 'usr/lib/python3.13/csv.py': {'label': '@cpython_src//:Lib/csv.py', 'mode': '0644'}, 'usr/lib/python3.13/dataclasses.py': {'label': '@cpython_src//:Lib/dataclasses.py', 'mode': '0644'}, 'usr/lib/python3.13/datetime.py': {'label': '@cpython_src//:Lib/datetime.py', 'mode': '0644'}, 'usr/lib/python3.13/dis.py': {'label': '@cpython_src//:Lib/dis.py', 'mode': '0644'}, 'usr/lib/python3.13/email/__init__.py': {'label': '@cpython_src//:Lib/email/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/email/_encoded_words.py': {'label': '@cpython_src//:Lib/email/_encoded_words.py', 'mode': '0644'}, 'usr/lib/python3.13/email/_header_value_parser.py': {'label': '@cpython_src//:Lib/email/_header_value_parser.py', 'mode': '0644'}, 'usr/lib/python3.13/email/_parseaddr.py': {'label': '@cpython_src//:Lib/email/_parseaddr.py', 'mode': '0644'}, 'usr/lib/python3.13/email/_policybase.py': {'label': '@cpython_src//:Lib/email/_policybase.py', 'mode': '0644'}, 'usr/lib/python3.13/email/architecture.rst': {'label': '@cpython_src//:Lib/email/architecture.rst', 'mode': '0644'}, 'usr/lib/python3.13/email/base64mime.py': {'label': '@cpython_src//:Lib/email/base64mime.py', 'mode': '0644'}, 'usr/lib/python3.13/email/charset.py': {'label': '@cpython_src//:Lib/email/charset.py', 'mode': '0644'}, 'usr/lib/python3.13/email/contentmanager.py': {'label': '@cpython_src//:Lib/email/contentmanager.py', 'mode': '0644'}, 'usr/lib/python3.13/email/encoders.py': {'label': '@cpython_src//:Lib/email/encoders.py', 'mode': '0644'}, 'usr/lib/python3.13/email/errors.py': {'label': '@cpython_src//:Lib/email/errors.py', 'mode': '0644'}, 'usr/lib/python3.13/email/feedparser.py': {'label': '@cpython_src//:Lib/email/feedparser.py', 'mode': '0644'}, 'usr/lib/python3.13/email/generator.py': {'label': '@cpython_src//:Lib/email/generator.py', 'mode': '0644'}, 'usr/lib/python3.13/email/header.py': {'label': '@cpython_src//:Lib/email/header.py', 'mode': '0644'}, 'usr/lib/python3.13/email/headerregistry.py': {'label': '@cpython_src//:Lib/email/headerregistry.py', 'mode': '0644'}, 'usr/lib/python3.13/email/iterators.py': {'label': '@cpython_src//:Lib/email/iterators.py', 'mode': '0644'}, 'usr/lib/python3.13/email/message.py': {'label': '@cpython_src//:Lib/email/message.py', 'mode': '0644'}, 'usr/lib/python3.13/email/mime/__init__.py': {'label': '@cpython_src//:Lib/email/mime/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/email/mime/application.py': {'label': '@cpython_src//:Lib/email/mime/application.py', 'mode': '0644'}, 'usr/lib/python3.13/email/mime/audio.py': {'label': '@cpython_src//:Lib/email/mime/audio.py', 'mode': '0644'}, 'usr/lib/python3.13/email/mime/base.py': {'label': '@cpython_src//:Lib/email/mime/base.py', 'mode': '0644'}, 'usr/lib/python3.13/email/mime/image.py': {'label': '@cpython_src//:Lib/email/mime/image.py', 'mode': '0644'}, 'usr/lib/python3.13/email/mime/message.py': {'label': '@cpython_src//:Lib/email/mime/message.py', 'mode': '0644'}, 'usr/lib/python3.13/email/mime/multipart.py': {'label': '@cpython_src//:Lib/email/mime/multipart.py', 'mode': '0644'}, 'usr/lib/python3.13/email/mime/nonmultipart.py': {'label': '@cpython_src//:Lib/email/mime/nonmultipart.py', 'mode': '0644'}, 'usr/lib/python3.13/email/mime/text.py': {'label': '@cpython_src//:Lib/email/mime/text.py', 'mode': '0644'}, 'usr/lib/python3.13/email/parser.py': {'label': '@cpython_src//:Lib/email/parser.py', 'mode': '0644'}, 'usr/lib/python3.13/email/policy.py': {'label': '@cpython_src//:Lib/email/policy.py', 'mode': '0644'}, 'usr/lib/python3.13/email/quoprimime.py': {'label': '@cpython_src//:Lib/email/quoprimime.py', 'mode': '0644'}, 'usr/lib/python3.13/email/utils.py': {'label': '@cpython_src//:Lib/email/utils.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/__init__.py': {'label': '@cpython_src//:Lib/encodings/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/aliases.py': {'label': '@cpython_src//:Lib/encodings/aliases.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/ascii.py': {'label': '@cpython_src//:Lib/encodings/ascii.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/base64_codec.py': {'label': '@cpython_src//:Lib/encodings/base64_codec.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/big5.py': {'label': '@cpython_src//:Lib/encodings/big5.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/big5hkscs.py': {'label': '@cpython_src//:Lib/encodings/big5hkscs.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/bz2_codec.py': {'label': '@cpython_src//:Lib/encodings/bz2_codec.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/charmap.py': {'label': '@cpython_src//:Lib/encodings/charmap.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/cp037.py': {'label': '@cpython_src//:Lib/encodings/cp037.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/cp1006.py': {'label': '@cpython_src//:Lib/encodings/cp1006.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/cp1026.py': {'label': '@cpython_src//:Lib/encodings/cp1026.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/cp1125.py': {'label': '@cpython_src//:Lib/encodings/cp1125.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/cp1140.py': {'label': '@cpython_src//:Lib/encodings/cp1140.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/cp1250.py': {'label': '@cpython_src//:Lib/encodings/cp1250.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/cp1251.py': {'label': '@cpython_src//:Lib/encodings/cp1251.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/cp1252.py': {'label': '@cpython_src//:Lib/encodings/cp1252.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/cp1253.py': {'label': '@cpython_src//:Lib/encodings/cp1253.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/cp1254.py': {'label': '@cpython_src//:Lib/encodings/cp1254.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/cp1255.py': {'label': '@cpython_src//:Lib/encodings/cp1255.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/cp1256.py': {'label': '@cpython_src//:Lib/encodings/cp1256.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/cp1257.py': {'label': '@cpython_src//:Lib/encodings/cp1257.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/cp1258.py': {'label': '@cpython_src//:Lib/encodings/cp1258.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/cp273.py': {'label': '@cpython_src//:Lib/encodings/cp273.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/cp424.py': {'label': '@cpython_src//:Lib/encodings/cp424.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/cp437.py': {'label': '@cpython_src//:Lib/encodings/cp437.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/cp500.py': {'label': '@cpython_src//:Lib/encodings/cp500.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/cp720.py': {'label': '@cpython_src//:Lib/encodings/cp720.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/cp737.py': {'label': '@cpython_src//:Lib/encodings/cp737.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/cp775.py': {'label': '@cpython_src//:Lib/encodings/cp775.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/cp850.py': {'label': '@cpython_src//:Lib/encodings/cp850.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/cp852.py': {'label': '@cpython_src//:Lib/encodings/cp852.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/cp855.py': {'label': '@cpython_src//:Lib/encodings/cp855.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/cp856.py': {'label': '@cpython_src//:Lib/encodings/cp856.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/cp857.py': {'label': '@cpython_src//:Lib/encodings/cp857.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/cp858.py': {'label': '@cpython_src//:Lib/encodings/cp858.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/cp860.py': {'label': '@cpython_src//:Lib/encodings/cp860.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/cp861.py': {'label': '@cpython_src//:Lib/encodings/cp861.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/cp862.py': {'label': '@cpython_src//:Lib/encodings/cp862.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/cp863.py': {'label': '@cpython_src//:Lib/encodings/cp863.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/cp864.py': {'label': '@cpython_src//:Lib/encodings/cp864.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/cp865.py': {'label': '@cpython_src//:Lib/encodings/cp865.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/cp866.py': {'label': '@cpython_src//:Lib/encodings/cp866.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/cp869.py': {'label': '@cpython_src//:Lib/encodings/cp869.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/cp874.py': {'label': '@cpython_src//:Lib/encodings/cp874.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/cp875.py': {'label': '@cpython_src//:Lib/encodings/cp875.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/cp932.py': {'label': '@cpython_src//:Lib/encodings/cp932.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/cp949.py': {'label': '@cpython_src//:Lib/encodings/cp949.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/cp950.py': {'label': '@cpython_src//:Lib/encodings/cp950.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/euc_jis_2004.py': {'label': '@cpython_src//:Lib/encodings/euc_jis_2004.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/euc_jisx0213.py': {'label': '@cpython_src//:Lib/encodings/euc_jisx0213.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/euc_jp.py': {'label': '@cpython_src//:Lib/encodings/euc_jp.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/euc_kr.py': {'label': '@cpython_src//:Lib/encodings/euc_kr.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/gb18030.py': {'label': '@cpython_src//:Lib/encodings/gb18030.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/gb2312.py': {'label': '@cpython_src//:Lib/encodings/gb2312.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/gbk.py': {'label': '@cpython_src//:Lib/encodings/gbk.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/hex_codec.py': {'label': '@cpython_src//:Lib/encodings/hex_codec.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/hp_roman8.py': {'label': '@cpython_src//:Lib/encodings/hp_roman8.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/hz.py': {'label': '@cpython_src//:Lib/encodings/hz.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/idna.py': {'label': '@cpython_src//:Lib/encodings/idna.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/iso2022_jp.py': {'label': '@cpython_src//:Lib/encodings/iso2022_jp.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/iso2022_jp_1.py': {'label': '@cpython_src//:Lib/encodings/iso2022_jp_1.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/iso2022_jp_2.py': {'label': '@cpython_src//:Lib/encodings/iso2022_jp_2.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/iso2022_jp_2004.py': {'label': '@cpython_src//:Lib/encodings/iso2022_jp_2004.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/iso2022_jp_3.py': {'label': '@cpython_src//:Lib/encodings/iso2022_jp_3.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/iso2022_jp_ext.py': {'label': '@cpython_src//:Lib/encodings/iso2022_jp_ext.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/iso2022_kr.py': {'label': '@cpython_src//:Lib/encodings/iso2022_kr.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/iso8859_1.py': {'label': '@cpython_src//:Lib/encodings/iso8859_1.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/iso8859_10.py': {'label': '@cpython_src//:Lib/encodings/iso8859_10.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/iso8859_11.py': {'label': '@cpython_src//:Lib/encodings/iso8859_11.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/iso8859_13.py': {'label': '@cpython_src//:Lib/encodings/iso8859_13.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/iso8859_14.py': {'label': '@cpython_src//:Lib/encodings/iso8859_14.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/iso8859_15.py': {'label': '@cpython_src//:Lib/encodings/iso8859_15.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/iso8859_16.py': {'label': '@cpython_src//:Lib/encodings/iso8859_16.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/iso8859_2.py': {'label': '@cpython_src//:Lib/encodings/iso8859_2.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/iso8859_3.py': {'label': '@cpython_src//:Lib/encodings/iso8859_3.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/iso8859_4.py': {'label': '@cpython_src//:Lib/encodings/iso8859_4.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/iso8859_5.py': {'label': '@cpython_src//:Lib/encodings/iso8859_5.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/iso8859_6.py': {'label': '@cpython_src//:Lib/encodings/iso8859_6.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/iso8859_7.py': {'label': '@cpython_src//:Lib/encodings/iso8859_7.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/iso8859_8.py': {'label': '@cpython_src//:Lib/encodings/iso8859_8.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/iso8859_9.py': {'label': '@cpython_src//:Lib/encodings/iso8859_9.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/johab.py': {'label': '@cpython_src//:Lib/encodings/johab.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/koi8_r.py': {'label': '@cpython_src//:Lib/encodings/koi8_r.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/koi8_t.py': {'label': '@cpython_src//:Lib/encodings/koi8_t.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/koi8_u.py': {'label': '@cpython_src//:Lib/encodings/koi8_u.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/kz1048.py': {'label': '@cpython_src//:Lib/encodings/kz1048.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/latin_1.py': {'label': '@cpython_src//:Lib/encodings/latin_1.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/mac_arabic.py': {'label': '@cpython_src//:Lib/encodings/mac_arabic.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/mac_croatian.py': {'label': '@cpython_src//:Lib/encodings/mac_croatian.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/mac_cyrillic.py': {'label': '@cpython_src//:Lib/encodings/mac_cyrillic.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/mac_farsi.py': {'label': '@cpython_src//:Lib/encodings/mac_farsi.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/mac_greek.py': {'label': '@cpython_src//:Lib/encodings/mac_greek.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/mac_iceland.py': {'label': '@cpython_src//:Lib/encodings/mac_iceland.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/mac_latin2.py': {'label': '@cpython_src//:Lib/encodings/mac_latin2.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/mac_roman.py': {'label': '@cpython_src//:Lib/encodings/mac_roman.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/mac_romanian.py': {'label': '@cpython_src//:Lib/encodings/mac_romanian.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/mac_turkish.py': {'label': '@cpython_src//:Lib/encodings/mac_turkish.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/mbcs.py': {'label': '@cpython_src//:Lib/encodings/mbcs.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/oem.py': {'label': '@cpython_src//:Lib/encodings/oem.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/palmos.py': {'label': '@cpython_src//:Lib/encodings/palmos.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/ptcp154.py': {'label': '@cpython_src//:Lib/encodings/ptcp154.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/punycode.py': {'label': '@cpython_src//:Lib/encodings/punycode.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/quopri_codec.py': {'label': '@cpython_src//:Lib/encodings/quopri_codec.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/raw_unicode_escape.py': {'label': '@cpython_src//:Lib/encodings/raw_unicode_escape.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/rot_13.py': {'label': ':install_shebang_1', 'mode': '0755'}, 'usr/lib/python3.13/encodings/shift_jis.py': {'label': '@cpython_src//:Lib/encodings/shift_jis.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/shift_jis_2004.py': {'label': '@cpython_src//:Lib/encodings/shift_jis_2004.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/shift_jisx0213.py': {'label': '@cpython_src//:Lib/encodings/shift_jisx0213.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/tis_620.py': {'label': '@cpython_src//:Lib/encodings/tis_620.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/undefined.py': {'label': '@cpython_src//:Lib/encodings/undefined.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/unicode_escape.py': {'label': '@cpython_src//:Lib/encodings/unicode_escape.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/utf_16.py': {'label': '@cpython_src//:Lib/encodings/utf_16.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/utf_16_be.py': {'label': '@cpython_src//:Lib/encodings/utf_16_be.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/utf_16_le.py': {'label': '@cpython_src//:Lib/encodings/utf_16_le.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/utf_32.py': {'label': '@cpython_src//:Lib/encodings/utf_32.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/utf_32_be.py': {'label': '@cpython_src//:Lib/encodings/utf_32_be.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/utf_32_le.py': {'label': '@cpython_src//:Lib/encodings/utf_32_le.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/utf_7.py': {'label': '@cpython_src//:Lib/encodings/utf_7.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/utf_8.py': {'label': '@cpython_src//:Lib/encodings/utf_8.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/utf_8_sig.py': {'label': '@cpython_src//:Lib/encodings/utf_8_sig.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/uu_codec.py': {'label': '@cpython_src//:Lib/encodings/uu_codec.py', 'mode': '0644'}, 'usr/lib/python3.13/encodings/zlib_codec.py': {'label': '@cpython_src//:Lib/encodings/zlib_codec.py', 'mode': '0644'}, 'usr/lib/python3.13/enum.py': {'label': '@cpython_src//:Lib/enum.py', 'mode': '0644'}, 'usr/lib/python3.13/filecmp.py': {'label': '@cpython_src//:Lib/filecmp.py', 'mode': '0644'}, 'usr/lib/python3.13/fnmatch.py': {'label': '@cpython_src//:Lib/fnmatch.py', 'mode': '0644'}, 'usr/lib/python3.13/functools.py': {'label': '@cpython_src//:Lib/functools.py', 'mode': '0644'}, 'usr/lib/python3.13/genericpath.py': {'label': '@cpython_src//:Lib/genericpath.py', 'mode': '0644'}, 'usr/lib/python3.13/getopt.py': {'label': '@cpython_src//:Lib/getopt.py', 'mode': '0644'}, 'usr/lib/python3.13/glob.py': {'label': '@cpython_src//:Lib/glob.py', 'mode': '0644'}, 'usr/lib/python3.13/hashlib.py': {'label': '@cpython_src//:Lib/hashlib.py', 'mode': '0644'}, 'usr/lib/python3.13/heapq.py': {'label': '@cpython_src//:Lib/heapq.py', 'mode': '0644'}, 'usr/lib/python3.13/importlib/__init__.py': {'label': '@cpython_src//:Lib/importlib/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/importlib/_abc.py': {'label': '@cpython_src//:Lib/importlib/_abc.py', 'mode': '0644'}, 'usr/lib/python3.13/importlib/_bootstrap.py': {'label': '@cpython_src//:Lib/importlib/_bootstrap.py', 'mode': '0644'}, 'usr/lib/python3.13/importlib/_bootstrap_external.py': {'label': '@cpython_src//:Lib/importlib/_bootstrap_external.py', 'mode': '0644'}, 'usr/lib/python3.13/importlib/abc.py': {'label': '@cpython_src//:Lib/importlib/abc.py', 'mode': '0644'}, 'usr/lib/python3.13/importlib/machinery.py': {'label': '@cpython_src//:Lib/importlib/machinery.py', 'mode': '0644'}, 'usr/lib/python3.13/importlib/metadata/__init__.py': {'label': '@cpython_src//:Lib/importlib/metadata/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/importlib/metadata/_adapters.py': {'label': '@cpython_src//:Lib/importlib/metadata/_adapters.py', 'mode': '0644'}, 'usr/lib/python3.13/importlib/metadata/_collections.py': {'label': '@cpython_src//:Lib/importlib/metadata/_collections.py', 'mode': '0644'}, 'usr/lib/python3.13/importlib/metadata/_functools.py': {'label': '@cpython_src//:Lib/importlib/metadata/_functools.py', 'mode': '0644'}, 'usr/lib/python3.13/importlib/metadata/_itertools.py': {'label': '@cpython_src//:Lib/importlib/metadata/_itertools.py', 'mode': '0644'}, 'usr/lib/python3.13/importlib/metadata/_meta.py': {'label': '@cpython_src//:Lib/importlib/metadata/_meta.py', 'mode': '0644'}, 'usr/lib/python3.13/importlib/metadata/_text.py': {'label': '@cpython_src//:Lib/importlib/metadata/_text.py', 'mode': '0644'}, 'usr/lib/python3.13/importlib/metadata/diagnose.py': {'label': '@cpython_src//:Lib/importlib/metadata/diagnose.py', 'mode': '0644'}, 'usr/lib/python3.13/importlib/readers.py': {'label': '@cpython_src//:Lib/importlib/readers.py', 'mode': '0644'}, 'usr/lib/python3.13/importlib/resources/__init__.py': {'label': '@cpython_src//:Lib/importlib/resources/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/importlib/resources/_adapters.py': {'label': '@cpython_src//:Lib/importlib/resources/_adapters.py', 'mode': '0644'}, 'usr/lib/python3.13/importlib/resources/_common.py': {'label': '@cpython_src//:Lib/importlib/resources/_common.py', 'mode': '0644'}, 'usr/lib/python3.13/importlib/resources/_functional.py': {'label': '@cpython_src//:Lib/importlib/resources/_functional.py', 'mode': '0644'}, 'usr/lib/python3.13/importlib/resources/_itertools.py': {'label': '@cpython_src//:Lib/importlib/resources/_itertools.py', 'mode': '0644'}, 'usr/lib/python3.13/importlib/resources/abc.py': {'label': '@cpython_src//:Lib/importlib/resources/abc.py', 'mode': '0644'}, 'usr/lib/python3.13/importlib/resources/readers.py': {'label': '@cpython_src//:Lib/importlib/resources/readers.py', 'mode': '0644'}, 'usr/lib/python3.13/importlib/resources/simple.py': {'label': '@cpython_src//:Lib/importlib/resources/simple.py', 'mode': '0644'}, 'usr/lib/python3.13/importlib/simple.py': {'label': '@cpython_src//:Lib/importlib/simple.py', 'mode': '0644'}, 'usr/lib/python3.13/importlib/util.py': {'label': '@cpython_src//:Lib/importlib/util.py', 'mode': '0644'}, 'usr/lib/python3.13/inspect.py': {'label': '@cpython_src//:Lib/inspect.py', 'mode': '0644'}, 'usr/lib/python3.13/io.py': {'label': '@cpython_src//:Lib/io.py', 'mode': '0644'}, 'usr/lib/python3.13/ipaddress.py': {'label': '@cpython_src//:Lib/ipaddress.py', 'mode': '0644'}, 'usr/lib/python3.13/json/__init__.py': {'label': '@cpython_src//:Lib/json/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/json/decoder.py': {'label': '@cpython_src//:Lib/json/decoder.py', 'mode': '0644'}, 'usr/lib/python3.13/json/encoder.py': {'label': '@cpython_src//:Lib/json/encoder.py', 'mode': '0644'}, 'usr/lib/python3.13/json/scanner.py': {'label': '@cpython_src//:Lib/json/scanner.py', 'mode': '0644'}, 'usr/lib/python3.13/json/tool.py': {'label': '@cpython_src//:Lib/json/tool.py', 'mode': '0644'}, 'usr/lib/python3.13/keyword.py': {'label': '@cpython_src//:Lib/keyword.py', 'mode': '0644'}, 'usr/lib/python3.13/linecache.py': {'label': '@cpython_src//:Lib/linecache.py', 'mode': '0644'}, 'usr/lib/python3.13/locale.py': {'label': '@cpython_src//:Lib/locale.py', 'mode': '0644'}, 'usr/lib/python3.13/logging/__init__.py': {'label': '@cpython_src//:Lib/logging/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/logging/config.py': {'label': '@cpython_src//:Lib/logging/config.py', 'mode': '0644'}, 'usr/lib/python3.13/logging/handlers.py': {'label': '@cpython_src//:Lib/logging/handlers.py', 'mode': '0644'}, 'usr/lib/python3.13/opcode.py': {'label': '@cpython_src//:Lib/opcode.py', 'mode': '0644'}, 'usr/lib/python3.13/operator.py': {'label': '@cpython_src//:Lib/operator.py', 'mode': '0644'}, 'usr/lib/python3.13/optparse.py': {'label': '@cpython_src//:Lib/optparse.py', 'mode': '0644'}, 'usr/lib/python3.13/os.py': {'label': '@cpython_src//:Lib/os.py', 'mode': '0644'}, 'usr/lib/python3.13/pathlib/__init__.py': {'label': '@cpython_src//:Lib/pathlib/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/pathlib/_abc.py': {'label': '@cpython_src//:Lib/pathlib/_abc.py', 'mode': '0644'}, 'usr/lib/python3.13/pathlib/_local.py': {'label': '@cpython_src//:Lib/pathlib/_local.py', 'mode': '0644'}, 'usr/lib/python3.13/pickle.py': {'label': '@cpython_src//:Lib/pickle.py', 'mode': '0644'}, 'usr/lib/python3.13/pkgutil.py': {'label': '@cpython_src//:Lib/pkgutil.py', 'mode': '0644'}, 'usr/lib/python3.13/platform.py': {'label': ':install_shebang_2', 'mode': '0755'}, 'usr/lib/python3.13/posixpath.py': {'label': '@cpython_src//:Lib/posixpath.py', 'mode': '0644'}, 'usr/lib/python3.13/py_compile.py': {'label': '@cpython_src//:Lib/py_compile.py', 'mode': '0644'}, 'usr/lib/python3.13/quopri.py': {'label': ':install_shebang_3', 'mode': '0755'}, 'usr/lib/python3.13/random.py': {'label': '@cpython_src//:Lib/random.py', 'mode': '0644'}, 'usr/lib/python3.13/re/__init__.py': {'label': '@cpython_src//:Lib/re/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/re/_casefix.py': {'label': '@cpython_src//:Lib/re/_casefix.py', 'mode': '0644'}, 'usr/lib/python3.13/re/_compiler.py': {'label': '@cpython_src//:Lib/re/_compiler.py', 'mode': '0644'}, 'usr/lib/python3.13/re/_constants.py': {'label': '@cpython_src//:Lib/re/_constants.py', 'mode': '0644'}, 'usr/lib/python3.13/re/_parser.py': {'label': '@cpython_src//:Lib/re/_parser.py', 'mode': '0644'}, 'usr/lib/python3.13/reprlib.py': {'label': '@cpython_src//:Lib/reprlib.py', 'mode': '0644'}, 'usr/lib/python3.13/runpy.py': {'label': '@cpython_src//:Lib/runpy.py', 'mode': '0644'}, 'usr/lib/python3.13/selectors.py': {'label': '@cpython_src//:Lib/selectors.py', 'mode': '0644'}, 'usr/lib/python3.13/signal.py': {'label': '@cpython_src//:Lib/signal.py', 'mode': '0644'}, 'usr/lib/python3.13/site.py': {'label': '@cpython_src//:Lib/site.py', 'mode': '0644'}, 'usr/lib/python3.13/socket.py': {'label': '@cpython_src//:Lib/socket.py', 'mode': '0644'}, 'usr/lib/python3.13/sre_compile.py': {'label': '@cpython_src//:Lib/sre_compile.py', 'mode': '0644'}, 'usr/lib/python3.13/sre_constants.py': {'label': '@cpython_src//:Lib/sre_constants.py', 'mode': '0644'}, 'usr/lib/python3.13/sre_parse.py': {'label': '@cpython_src//:Lib/sre_parse.py', 'mode': '0644'}, 'usr/lib/python3.13/ssl.py': {'label': '@cpython_src//:Lib/ssl.py', 'mode': '0644'}, 'usr/lib/python3.13/stat.py': {'label': '@cpython_src//:Lib/stat.py', 'mode': '0644'}, 'usr/lib/python3.13/string.py': {'label': '@cpython_src//:Lib/string.py', 'mode': '0644'}, 'usr/lib/python3.13/struct.py': {'label': '@cpython_src//:Lib/struct.py', 'mode': '0644'}, 'usr/lib/python3.13/subprocess.py': {'label': '@cpython_src//:Lib/subprocess.py', 'mode': '0644'}, 'usr/lib/python3.13/sysconfig/__init__.py': {'label': '@cpython_src//:Lib/sysconfig/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/sysconfig/__main__.py': {'label': '@cpython_src//:Lib/sysconfig/__main__.py', 'mode': '0644'}, 'usr/lib/python3.13/tempfile.py': {'label': '@cpython_src//:Lib/tempfile.py', 'mode': '0644'}, 'usr/lib/python3.13/textwrap.py': {'label': '@cpython_src//:Lib/textwrap.py', 'mode': '0644'}, 'usr/lib/python3.13/threading.py': {'label': '@cpython_src//:Lib/threading.py', 'mode': '0644'}, 'usr/lib/python3.13/token.py': {'label': '@cpython_src//:Lib/token.py', 'mode': '0644'}, 'usr/lib/python3.13/tokenize.py': {'label': '@cpython_src//:Lib/tokenize.py', 'mode': '0644'}, 'usr/lib/python3.13/traceback.py': {'label': '@cpython_src//:Lib/traceback.py', 'mode': '0644'}, 'usr/lib/python3.13/tracemalloc.py': {'label': '@cpython_src//:Lib/tracemalloc.py', 'mode': '0644'}, 'usr/lib/python3.13/types.py': {'label': '@cpython_src//:Lib/types.py', 'mode': '0644'}, 'usr/lib/python3.13/typing.py': {'label': '@cpython_src//:Lib/typing.py', 'mode': '0644'}, 'usr/lib/python3.13/urllib/__init__.py': {'label': '@cpython_src//:Lib/urllib/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/urllib/error.py': {'label': '@cpython_src//:Lib/urllib/error.py', 'mode': '0644'}, 'usr/lib/python3.13/urllib/parse.py': {'label': '@cpython_src//:Lib/urllib/parse.py', 'mode': '0644'}, 'usr/lib/python3.13/urllib/request.py': {'label': '@cpython_src//:Lib/urllib/request.py', 'mode': '0644'}, 'usr/lib/python3.13/urllib/response.py': {'label': '@cpython_src//:Lib/urllib/response.py', 'mode': '0644'}, 'usr/lib/python3.13/urllib/robotparser.py': {'label': '@cpython_src//:Lib/urllib/robotparser.py', 'mode': '0644'}, 'usr/lib/python3.13/warnings.py': {'label': '@cpython_src//:Lib/warnings.py', 'mode': '0644'}, 'usr/lib/python3.13/weakref.py': {'label': '@cpython_src//:Lib/weakref.py', 'mode': '0644'}, 'usr/lib/python3.13/zipfile/__init__.py': {'label': '@cpython_src//:Lib/zipfile/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/zipfile/__main__.py': {'label': '@cpython_src//:Lib/zipfile/__main__.py', 'mode': '0644'}, 'usr/lib/python3.13/zipfile/_path/__init__.py': {'label': '@cpython_src//:Lib/zipfile/_path/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/zipfile/_path/glob.py': {'label': '@cpython_src//:Lib/zipfile/_path/glob.py', 'mode': '0644'}, 'usr/lib/python3.13/zipimport.py': {'label': '@cpython_src//:Lib/zipimport.py', 'mode': '0644'}, 'usr/lib/python3.13/_sysconfigdata__linux_x86_64-linux-gnu.py': {'label': ':sysconfig_data', 'mode': '0644'}, 'etc/python3.13/sitecustomize.py': {'label': ':original_generated_sitecustomize_py', 'mode': '0644'}, 'usr/share/doc/libpython3.13-minimal/copyright': {'label': '@cpython_src//:debian/copyright', 'mode': '0644'}, 'usr/share/doc/libpython3.13-minimal/changelog.Debian.gz': {'label': ':install_gzip_23', 'mode': '0644'}, 'usr/share/doc/libpython3.13-minimal/README.Debian': {'label': ':install_template_26', 'mode': '0644'}}, 'binaries': {'usr/lib/python3.13/lib-dynload/_ssl.so': '@cpython_src//:_ssl.so', 'usr/lib/python3.13/lib-dynload/_hashlib.so': '@cpython_src//:_hashlib.so'}, 'links': {'usr/lib/python3.13/sitecustomize.py': '../../../etc/python3.13/sitecustomize.py'}, 'directories': []}, 'libpython3.13-stdlib': {'files': {'usr/lib/python3.13/__hello__.py': {'label': '@cpython_src//:Lib/__hello__.py', 'mode': '0644'}, 'usr/lib/python3.13/__phello__/__init__.py': {'label': '@cpython_src//:Lib/__phello__/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/__phello__/spam.py': {'label': '@cpython_src//:Lib/__phello__/spam.py', 'mode': '0644'}, 'usr/lib/python3.13/_aix_support.py': {'label': '@cpython_src//:Lib/_aix_support.py', 'mode': '0644'}, 'usr/lib/python3.13/_android_support.py': {'label': '@cpython_src//:Lib/_android_support.py', 'mode': '0644'}, 'usr/lib/python3.13/_apple_support.py': {'label': '@cpython_src//:Lib/_apple_support.py', 'mode': '0644'}, 'usr/lib/python3.13/_compression.py': {'label': '@cpython_src//:Lib/_compression.py', 'mode': '0644'}, 'usr/lib/python3.13/_distutils_system_mod.py': {'label': '@cpython_src//:Lib/_distutils_system_mod.py', 'mode': '0644'}, 'usr/lib/python3.13/_ios_support.py': {'label': '@cpython_src//:Lib/_ios_support.py', 'mode': '0644'}, 'usr/lib/python3.13/_markupbase.py': {'label': '@cpython_src//:Lib/_markupbase.py', 'mode': '0644'}, 'usr/lib/python3.13/_osx_support.py': {'label': '@cpython_src//:Lib/_osx_support.py', 'mode': '0644'}, 'usr/lib/python3.13/_pydatetime.py': {'label': '@cpython_src//:Lib/_pydatetime.py', 'mode': '0644'}, 'usr/lib/python3.13/_pydecimal.py': {'label': '@cpython_src//:Lib/_pydecimal.py', 'mode': '0644'}, 'usr/lib/python3.13/_pyio.py': {'label': '@cpython_src//:Lib/_pyio.py', 'mode': '0644'}, 'usr/lib/python3.13/_pylong.py': {'label': '@cpython_src//:Lib/_pylong.py', 'mode': '0644'}, 'usr/lib/python3.13/_pyrepl/__init__.py': {'label': '@cpython_src//:Lib/_pyrepl/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/_pyrepl/__main__.py': {'label': '@cpython_src//:Lib/_pyrepl/__main__.py', 'mode': '0644'}, 'usr/lib/python3.13/_pyrepl/_minimal_curses.py': {'label': '@cpython_src//:Lib/_pyrepl/_minimal_curses.py', 'mode': '0644'}, 'usr/lib/python3.13/_pyrepl/_threading_handler.py': {'label': '@cpython_src//:Lib/_pyrepl/_threading_handler.py', 'mode': '0644'}, 'usr/lib/python3.13/_pyrepl/base_eventqueue.py': {'label': '@cpython_src//:Lib/_pyrepl/base_eventqueue.py', 'mode': '0644'}, 'usr/lib/python3.13/_pyrepl/commands.py': {'label': '@cpython_src//:Lib/_pyrepl/commands.py', 'mode': '0644'}, 'usr/lib/python3.13/_pyrepl/completing_reader.py': {'label': '@cpython_src//:Lib/_pyrepl/completing_reader.py', 'mode': '0644'}, 'usr/lib/python3.13/_pyrepl/console.py': {'label': '@cpython_src//:Lib/_pyrepl/console.py', 'mode': '0644'}, 'usr/lib/python3.13/_pyrepl/curses.py': {'label': '@cpython_src//:Lib/_pyrepl/curses.py', 'mode': '0644'}, 'usr/lib/python3.13/_pyrepl/fancy_termios.py': {'label': '@cpython_src//:Lib/_pyrepl/fancy_termios.py', 'mode': '0644'}, 'usr/lib/python3.13/_pyrepl/historical_reader.py': {'label': '@cpython_src//:Lib/_pyrepl/historical_reader.py', 'mode': '0644'}, 'usr/lib/python3.13/_pyrepl/input.py': {'label': '@cpython_src//:Lib/_pyrepl/input.py', 'mode': '0644'}, 'usr/lib/python3.13/_pyrepl/keymap.py': {'label': '@cpython_src//:Lib/_pyrepl/keymap.py', 'mode': '0644'}, 'usr/lib/python3.13/_pyrepl/main.py': {'label': '@cpython_src//:Lib/_pyrepl/main.py', 'mode': '0644'}, 'usr/lib/python3.13/_pyrepl/mypy.ini': {'label': '@cpython_src//:Lib/_pyrepl/mypy.ini', 'mode': '0644'}, 'usr/lib/python3.13/_pyrepl/pager.py': {'label': '@cpython_src//:Lib/_pyrepl/pager.py', 'mode': '0644'}, 'usr/lib/python3.13/_pyrepl/reader.py': {'label': '@cpython_src//:Lib/_pyrepl/reader.py', 'mode': '0644'}, 'usr/lib/python3.13/_pyrepl/readline.py': {'label': '@cpython_src//:Lib/_pyrepl/readline.py', 'mode': '0644'}, 'usr/lib/python3.13/_pyrepl/simple_interact.py': {'label': '@cpython_src//:Lib/_pyrepl/simple_interact.py', 'mode': '0644'}, 'usr/lib/python3.13/_pyrepl/trace.py': {'label': '@cpython_src//:Lib/_pyrepl/trace.py', 'mode': '0644'}, 'usr/lib/python3.13/_pyrepl/types.py': {'label': '@cpython_src//:Lib/_pyrepl/types.py', 'mode': '0644'}, 'usr/lib/python3.13/_pyrepl/unix_console.py': {'label': '@cpython_src//:Lib/_pyrepl/unix_console.py', 'mode': '0644'}, 'usr/lib/python3.13/_pyrepl/unix_eventqueue.py': {'label': '@cpython_src//:Lib/_pyrepl/unix_eventqueue.py', 'mode': '0644'}, 'usr/lib/python3.13/_pyrepl/utils.py': {'label': '@cpython_src//:Lib/_pyrepl/utils.py', 'mode': '0644'}, 'usr/lib/python3.13/_pyrepl/windows_console.py': {'label': '@cpython_src//:Lib/_pyrepl/windows_console.py', 'mode': '0644'}, 'usr/lib/python3.13/_pyrepl/windows_eventqueue.py': {'label': '@cpython_src//:Lib/_pyrepl/windows_eventqueue.py', 'mode': '0644'}, 'usr/lib/python3.13/antigravity.py': {'label': '@cpython_src//:Lib/antigravity.py', 'mode': '0644'}, 'usr/lib/python3.13/asyncio/__init__.py': {'label': '@cpython_src//:Lib/asyncio/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/asyncio/__main__.py': {'label': '@cpython_src//:Lib/asyncio/__main__.py', 'mode': '0644'}, 'usr/lib/python3.13/asyncio/base_events.py': {'label': '@cpython_src//:Lib/asyncio/base_events.py', 'mode': '0644'}, 'usr/lib/python3.13/asyncio/base_futures.py': {'label': '@cpython_src//:Lib/asyncio/base_futures.py', 'mode': '0644'}, 'usr/lib/python3.13/asyncio/base_subprocess.py': {'label': '@cpython_src//:Lib/asyncio/base_subprocess.py', 'mode': '0644'}, 'usr/lib/python3.13/asyncio/base_tasks.py': {'label': '@cpython_src//:Lib/asyncio/base_tasks.py', 'mode': '0644'}, 'usr/lib/python3.13/asyncio/constants.py': {'label': '@cpython_src//:Lib/asyncio/constants.py', 'mode': '0644'}, 'usr/lib/python3.13/asyncio/coroutines.py': {'label': '@cpython_src//:Lib/asyncio/coroutines.py', 'mode': '0644'}, 'usr/lib/python3.13/asyncio/events.py': {'label': '@cpython_src//:Lib/asyncio/events.py', 'mode': '0644'}, 'usr/lib/python3.13/asyncio/exceptions.py': {'label': '@cpython_src//:Lib/asyncio/exceptions.py', 'mode': '0644'}, 'usr/lib/python3.13/asyncio/format_helpers.py': {'label': '@cpython_src//:Lib/asyncio/format_helpers.py', 'mode': '0644'}, 'usr/lib/python3.13/asyncio/futures.py': {'label': '@cpython_src//:Lib/asyncio/futures.py', 'mode': '0644'}, 'usr/lib/python3.13/asyncio/locks.py': {'label': '@cpython_src//:Lib/asyncio/locks.py', 'mode': '0644'}, 'usr/lib/python3.13/asyncio/log.py': {'label': '@cpython_src//:Lib/asyncio/log.py', 'mode': '0644'}, 'usr/lib/python3.13/asyncio/mixins.py': {'label': '@cpython_src//:Lib/asyncio/mixins.py', 'mode': '0644'}, 'usr/lib/python3.13/asyncio/proactor_events.py': {'label': '@cpython_src//:Lib/asyncio/proactor_events.py', 'mode': '0644'}, 'usr/lib/python3.13/asyncio/protocols.py': {'label': '@cpython_src//:Lib/asyncio/protocols.py', 'mode': '0644'}, 'usr/lib/python3.13/asyncio/queues.py': {'label': '@cpython_src//:Lib/asyncio/queues.py', 'mode': '0644'}, 'usr/lib/python3.13/asyncio/runners.py': {'label': '@cpython_src//:Lib/asyncio/runners.py', 'mode': '0644'}, 'usr/lib/python3.13/asyncio/selector_events.py': {'label': '@cpython_src//:Lib/asyncio/selector_events.py', 'mode': '0644'}, 'usr/lib/python3.13/asyncio/sslproto.py': {'label': '@cpython_src//:Lib/asyncio/sslproto.py', 'mode': '0644'}, 'usr/lib/python3.13/asyncio/staggered.py': {'label': '@cpython_src//:Lib/asyncio/staggered.py', 'mode': '0644'}, 'usr/lib/python3.13/asyncio/streams.py': {'label': '@cpython_src//:Lib/asyncio/streams.py', 'mode': '0644'}, 'usr/lib/python3.13/asyncio/subprocess.py': {'label': '@cpython_src//:Lib/asyncio/subprocess.py', 'mode': '0644'}, 'usr/lib/python3.13/asyncio/taskgroups.py': {'label': '@cpython_src//:Lib/asyncio/taskgroups.py', 'mode': '0644'}, 'usr/lib/python3.13/asyncio/tasks.py': {'label': '@cpython_src//:Lib/asyncio/tasks.py', 'mode': '0644'}, 'usr/lib/python3.13/asyncio/threads.py': {'label': '@cpython_src//:Lib/asyncio/threads.py', 'mode': '0644'}, 'usr/lib/python3.13/asyncio/timeouts.py': {'label': '@cpython_src//:Lib/asyncio/timeouts.py', 'mode': '0644'}, 'usr/lib/python3.13/asyncio/transports.py': {'label': '@cpython_src//:Lib/asyncio/transports.py', 'mode': '0644'}, 'usr/lib/python3.13/asyncio/trsock.py': {'label': '@cpython_src//:Lib/asyncio/trsock.py', 'mode': '0644'}, 'usr/lib/python3.13/asyncio/unix_events.py': {'label': '@cpython_src//:Lib/asyncio/unix_events.py', 'mode': '0644'}, 'usr/lib/python3.13/asyncio/windows_events.py': {'label': '@cpython_src//:Lib/asyncio/windows_events.py', 'mode': '0644'}, 'usr/lib/python3.13/asyncio/windows_utils.py': {'label': '@cpython_src//:Lib/asyncio/windows_utils.py', 'mode': '0644'}, 'usr/lib/python3.13/bdb.py': {'label': '@cpython_src//:Lib/bdb.py', 'mode': '0644'}, 'usr/lib/python3.13/bz2.py': {'label': '@cpython_src//:Lib/bz2.py', 'mode': '0644'}, 'usr/lib/python3.13/cProfile.py': {'label': ':install_shebang_4', 'mode': '0755'}, 'usr/lib/python3.13/cmd.py': {'label': '@cpython_src//:Lib/cmd.py', 'mode': '0644'}, 'usr/lib/python3.13/code.py': {'label': '@cpython_src//:Lib/code.py', 'mode': '0644'}, 'usr/lib/python3.13/codeop.py': {'label': '@cpython_src//:Lib/codeop.py', 'mode': '0644'}, 'usr/lib/python3.13/colorsys.py': {'label': '@cpython_src//:Lib/colorsys.py', 'mode': '0644'}, 'usr/lib/python3.13/concurrent/__init__.py': {'label': '@cpython_src//:Lib/concurrent/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/concurrent/futures/__init__.py': {'label': '@cpython_src//:Lib/concurrent/futures/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/concurrent/futures/_base.py': {'label': '@cpython_src//:Lib/concurrent/futures/_base.py', 'mode': '0644'}, 'usr/lib/python3.13/concurrent/futures/process.py': {'label': '@cpython_src//:Lib/concurrent/futures/process.py', 'mode': '0644'}, 'usr/lib/python3.13/concurrent/futures/thread.py': {'label': '@cpython_src//:Lib/concurrent/futures/thread.py', 'mode': '0644'}, 'usr/lib/python3.13/contextvars.py': {'label': '@cpython_src//:Lib/contextvars.py', 'mode': '0644'}, 'usr/lib/python3.13/ctypes/__init__.py': {'label': '@cpython_src//:Lib/ctypes/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/ctypes/_aix.py': {'label': '@cpython_src//:Lib/ctypes/_aix.py', 'mode': '0644'}, 'usr/lib/python3.13/ctypes/_endian.py': {'label': '@cpython_src//:Lib/ctypes/_endian.py', 'mode': '0644'}, 'usr/lib/python3.13/ctypes/util.py': {'label': '@cpython_src//:Lib/ctypes/util.py', 'mode': '0644'}, 'usr/lib/python3.13/ctypes/wintypes.py': {'label': '@cpython_src//:Lib/ctypes/wintypes.py', 'mode': '0644'}, 'usr/lib/python3.13/curses/__init__.py': {'label': '@cpython_src//:Lib/curses/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/curses/ascii.py': {'label': '@cpython_src//:Lib/curses/ascii.py', 'mode': '0644'}, 'usr/lib/python3.13/curses/has_key.py': {'label': '@cpython_src//:Lib/curses/has_key.py', 'mode': '0644'}, 'usr/lib/python3.13/curses/panel.py': {'label': '@cpython_src//:Lib/curses/panel.py', 'mode': '0644'}, 'usr/lib/python3.13/curses/textpad.py': {'label': '@cpython_src//:Lib/curses/textpad.py', 'mode': '0644'}, 'usr/lib/python3.13/dbm/__init__.py': {'label': '@cpython_src//:Lib/dbm/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/dbm/dumb.py': {'label': '@cpython_src//:Lib/dbm/dumb.py', 'mode': '0644'}, 'usr/lib/python3.13/dbm/gnu.py': {'label': '@cpython_src//:Lib/dbm/gnu.py', 'mode': '0644'}, 'usr/lib/python3.13/dbm/ndbm.py': {'label': '@cpython_src//:Lib/dbm/ndbm.py', 'mode': '0644'}, 'usr/lib/python3.13/dbm/sqlite3.py': {'label': '@cpython_src//:Lib/dbm/sqlite3.py', 'mode': '0644'}, 'usr/lib/python3.13/decimal.py': {'label': '@cpython_src//:Lib/decimal.py', 'mode': '0644'}, 'usr/lib/python3.13/difflib.py': {'label': '@cpython_src//:Lib/difflib.py', 'mode': '0644'}, 'usr/lib/python3.13/doctest.py': {'label': '@cpython_src//:Lib/doctest.py', 'mode': '0644'}, 'usr/lib/python3.13/fileinput.py': {'label': '@cpython_src//:Lib/fileinput.py', 'mode': '0644'}, 'usr/lib/python3.13/fractions.py': {'label': '@cpython_src//:Lib/fractions.py', 'mode': '0644'}, 'usr/lib/python3.13/ftplib.py': {'label': '@cpython_src//:Lib/ftplib.py', 'mode': '0644'}, 'usr/lib/python3.13/getpass.py': {'label': '@cpython_src//:Lib/getpass.py', 'mode': '0644'}, 'usr/lib/python3.13/gettext.py': {'label': '@cpython_src//:Lib/gettext.py', 'mode': '0644'}, 'usr/lib/python3.13/graphlib.py': {'label': '@cpython_src//:Lib/graphlib.py', 'mode': '0644'}, 'usr/lib/python3.13/gzip.py': {'label': '@cpython_src//:Lib/gzip.py', 'mode': '0644'}, 'usr/lib/python3.13/hmac.py': {'label': '@cpython_src//:Lib/hmac.py', 'mode': '0644'}, 'usr/lib/python3.13/html/__init__.py': {'label': '@cpython_src//:Lib/html/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/html/entities.py': {'label': '@cpython_src//:Lib/html/entities.py', 'mode': '0644'}, 'usr/lib/python3.13/html/parser.py': {'label': '@cpython_src//:Lib/html/parser.py', 'mode': '0644'}, 'usr/lib/python3.13/http/__init__.py': {'label': '@cpython_src//:Lib/http/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/http/client.py': {'label': '@cpython_src//:Lib/http/client.py', 'mode': '0644'}, 'usr/lib/python3.13/http/cookiejar.py': {'label': '@cpython_src//:Lib/http/cookiejar.py', 'mode': '0644'}, 'usr/lib/python3.13/http/cookies.py': {'label': '@cpython_src//:Lib/http/cookies.py', 'mode': '0644'}, 'usr/lib/python3.13/http/server.py': {'label': '@cpython_src//:Lib/http/server.py', 'mode': '0644'}, 'usr/lib/python3.13/imaplib.py': {'label': '@cpython_src//:Lib/imaplib.py', 'mode': '0644'}, 'usr/lib/python3.13/lzma.py': {'label': '@cpython_src//:Lib/lzma.py', 'mode': '0644'}, 'usr/lib/python3.13/mailbox.py': {'label': '@cpython_src//:Lib/mailbox.py', 'mode': '0644'}, 'usr/lib/python3.13/mimetypes.py': {'label': '@cpython_src//:Lib/mimetypes.py', 'mode': '0644'}, 'usr/lib/python3.13/modulefinder.py': {'label': '@cpython_src//:Lib/modulefinder.py', 'mode': '0644'}, 'usr/lib/python3.13/multiprocessing/__init__.py': {'label': '@cpython_src//:Lib/multiprocessing/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/multiprocessing/connection.py': {'label': '@cpython_src//:Lib/multiprocessing/connection.py', 'mode': '0644'}, 'usr/lib/python3.13/multiprocessing/context.py': {'label': '@cpython_src//:Lib/multiprocessing/context.py', 'mode': '0644'}, 'usr/lib/python3.13/multiprocessing/dummy/__init__.py': {'label': '@cpython_src//:Lib/multiprocessing/dummy/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/multiprocessing/dummy/connection.py': {'label': '@cpython_src//:Lib/multiprocessing/dummy/connection.py', 'mode': '0644'}, 'usr/lib/python3.13/multiprocessing/forkserver.py': {'label': '@cpython_src//:Lib/multiprocessing/forkserver.py', 'mode': '0644'}, 'usr/lib/python3.13/multiprocessing/heap.py': {'label': '@cpython_src//:Lib/multiprocessing/heap.py', 'mode': '0644'}, 'usr/lib/python3.13/multiprocessing/managers.py': {'label': '@cpython_src//:Lib/multiprocessing/managers.py', 'mode': '0644'}, 'usr/lib/python3.13/multiprocessing/pool.py': {'label': '@cpython_src//:Lib/multiprocessing/pool.py', 'mode': '0644'}, 'usr/lib/python3.13/multiprocessing/popen_fork.py': {'label': '@cpython_src//:Lib/multiprocessing/popen_fork.py', 'mode': '0644'}, 'usr/lib/python3.13/multiprocessing/popen_forkserver.py': {'label': '@cpython_src//:Lib/multiprocessing/popen_forkserver.py', 'mode': '0644'}, 'usr/lib/python3.13/multiprocessing/popen_spawn_posix.py': {'label': '@cpython_src//:Lib/multiprocessing/popen_spawn_posix.py', 'mode': '0644'}, 'usr/lib/python3.13/multiprocessing/popen_spawn_win32.py': {'label': '@cpython_src//:Lib/multiprocessing/popen_spawn_win32.py', 'mode': '0644'}, 'usr/lib/python3.13/multiprocessing/process.py': {'label': '@cpython_src//:Lib/multiprocessing/process.py', 'mode': '0644'}, 'usr/lib/python3.13/multiprocessing/queues.py': {'label': '@cpython_src//:Lib/multiprocessing/queues.py', 'mode': '0644'}, 'usr/lib/python3.13/multiprocessing/reduction.py': {'label': '@cpython_src//:Lib/multiprocessing/reduction.py', 'mode': '0644'}, 'usr/lib/python3.13/multiprocessing/resource_sharer.py': {'label': '@cpython_src//:Lib/multiprocessing/resource_sharer.py', 'mode': '0644'}, 'usr/lib/python3.13/multiprocessing/resource_tracker.py': {'label': '@cpython_src//:Lib/multiprocessing/resource_tracker.py', 'mode': '0644'}, 'usr/lib/python3.13/multiprocessing/shared_memory.py': {'label': '@cpython_src//:Lib/multiprocessing/shared_memory.py', 'mode': '0644'}, 'usr/lib/python3.13/multiprocessing/sharedctypes.py': {'label': '@cpython_src//:Lib/multiprocessing/sharedctypes.py', 'mode': '0644'}, 'usr/lib/python3.13/multiprocessing/spawn.py': {'label': '@cpython_src//:Lib/multiprocessing/spawn.py', 'mode': '0644'}, 'usr/lib/python3.13/multiprocessing/synchronize.py': {'label': '@cpython_src//:Lib/multiprocessing/synchronize.py', 'mode': '0644'}, 'usr/lib/python3.13/multiprocessing/util.py': {'label': '@cpython_src//:Lib/multiprocessing/util.py', 'mode': '0644'}, 'usr/lib/python3.13/netrc.py': {'label': '@cpython_src//:Lib/netrc.py', 'mode': '0644'}, 'usr/lib/python3.13/ntpath.py': {'label': '@cpython_src//:Lib/ntpath.py', 'mode': '0644'}, 'usr/lib/python3.13/nturl2path.py': {'label': '@cpython_src//:Lib/nturl2path.py', 'mode': '0644'}, 'usr/lib/python3.13/numbers.py': {'label': '@cpython_src//:Lib/numbers.py', 'mode': '0644'}, 'usr/lib/python3.13/pdb.py': {'label': ':install_shebang_5', 'mode': '0755'}, 'usr/lib/python3.13/pickletools.py': {'label': '@cpython_src//:Lib/pickletools.py', 'mode': '0644'}, 'usr/lib/python3.13/plistlib.py': {'label': '@cpython_src//:Lib/plistlib.py', 'mode': '0644'}, 'usr/lib/python3.13/poplib.py': {'label': '@cpython_src//:Lib/poplib.py', 'mode': '0644'}, 'usr/lib/python3.13/pprint.py': {'label': '@cpython_src//:Lib/pprint.py', 'mode': '0644'}, 'usr/lib/python3.13/profile.py': {'label': ':install_shebang_6', 'mode': '0755'}, 'usr/lib/python3.13/pstats.py': {'label': '@cpython_src//:Lib/pstats.py', 'mode': '0644'}, 'usr/lib/python3.13/pty.py': {'label': '@cpython_src//:Lib/pty.py', 'mode': '0644'}, 'usr/lib/python3.13/pyclbr.py': {'label': '@cpython_src//:Lib/pyclbr.py', 'mode': '0644'}, 'usr/lib/python3.13/pydoc.py': {'label': ':install_shebang_7', 'mode': '0755'}, 'usr/lib/python3.13/pydoc_data/__init__.py': {'label': '@cpython_src//:Lib/pydoc_data/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/pydoc_data/_pydoc.css': {'label': '@cpython_src//:Lib/pydoc_data/_pydoc.css', 'mode': '0644'}, 'usr/lib/python3.13/pydoc_data/topics.py': {'label': '@cpython_src//:Lib/pydoc_data/topics.py', 'mode': '0644'}, 'usr/lib/python3.13/queue.py': {'label': '@cpython_src//:Lib/queue.py', 'mode': '0644'}, 'usr/lib/python3.13/rlcompleter.py': {'label': '@cpython_src//:Lib/rlcompleter.py', 'mode': '0644'}, 'usr/lib/python3.13/sched.py': {'label': '@cpython_src//:Lib/sched.py', 'mode': '0644'}, 'usr/lib/python3.13/secrets.py': {'label': '@cpython_src//:Lib/secrets.py', 'mode': '0644'}, 'usr/lib/python3.13/shelve.py': {'label': '@cpython_src//:Lib/shelve.py', 'mode': '0644'}, 'usr/lib/python3.13/shlex.py': {'label': '@cpython_src//:Lib/shlex.py', 'mode': '0644'}, 'usr/lib/python3.13/shutil.py': {'label': '@cpython_src//:Lib/shutil.py', 'mode': '0644'}, 'usr/lib/python3.13/site-packages/README.txt': {'label': '@cpython_src//:Lib/site-packages/README.txt', 'mode': '0644'}, 'usr/lib/python3.13/smtplib.py': {'label': ':install_shebang_8', 'mode': '0755'}, 'usr/lib/python3.13/socketserver.py': {'label': '@cpython_src//:Lib/socketserver.py', 'mode': '0644'}, 'usr/lib/python3.13/sqlite3/__init__.py': {'label': '@cpython_src//:Lib/sqlite3/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/sqlite3/__main__.py': {'label': '@cpython_src//:Lib/sqlite3/__main__.py', 'mode': '0644'}, 'usr/lib/python3.13/sqlite3/dbapi2.py': {'label': '@cpython_src//:Lib/sqlite3/dbapi2.py', 'mode': '0644'}, 'usr/lib/python3.13/sqlite3/dump.py': {'label': '@cpython_src//:Lib/sqlite3/dump.py', 'mode': '0644'}, 'usr/lib/python3.13/statistics.py': {'label': '@cpython_src//:Lib/statistics.py', 'mode': '0644'}, 'usr/lib/python3.13/stringprep.py': {'label': '@cpython_src//:Lib/stringprep.py', 'mode': '0644'}, 'usr/lib/python3.13/symtable.py': {'label': '@cpython_src//:Lib/symtable.py', 'mode': '0644'}, 'usr/lib/python3.13/tabnanny.py': {'label': ':install_shebang_9', 'mode': '0755'}, 'usr/lib/python3.13/tarfile.py': {'label': ':install_shebang_10', 'mode': '0755'}, 'usr/lib/python3.13/test/__init__.py': {'label': '@cpython_src//:Lib/test/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/test/__main__.py': {'label': '@cpython_src//:Lib/test/__main__.py', 'mode': '0644'}, 'usr/lib/python3.13/test/libregrtest/__init__.py': {'label': '@cpython_src//:Lib/test/libregrtest/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/test/libregrtest/cmdline.py': {'label': '@cpython_src//:Lib/test/libregrtest/cmdline.py', 'mode': '0644'}, 'usr/lib/python3.13/test/libregrtest/filter.py': {'label': '@cpython_src//:Lib/test/libregrtest/filter.py', 'mode': '0644'}, 'usr/lib/python3.13/test/libregrtest/findtests.py': {'label': '@cpython_src//:Lib/test/libregrtest/findtests.py', 'mode': '0644'}, 'usr/lib/python3.13/test/libregrtest/logger.py': {'label': '@cpython_src//:Lib/test/libregrtest/logger.py', 'mode': '0644'}, 'usr/lib/python3.13/test/libregrtest/main.py': {'label': '@cpython_src//:Lib/test/libregrtest/main.py', 'mode': '0644'}, 'usr/lib/python3.13/test/libregrtest/mypy.ini': {'label': '@cpython_src//:Lib/test/libregrtest/mypy.ini', 'mode': '0644'}, 'usr/lib/python3.13/test/libregrtest/pgo.py': {'label': '@cpython_src//:Lib/test/libregrtest/pgo.py', 'mode': '0644'}, 'usr/lib/python3.13/test/libregrtest/refleak.py': {'label': '@cpython_src//:Lib/test/libregrtest/refleak.py', 'mode': '0644'}, 'usr/lib/python3.13/test/libregrtest/result.py': {'label': '@cpython_src//:Lib/test/libregrtest/result.py', 'mode': '0644'}, 'usr/lib/python3.13/test/libregrtest/results.py': {'label': '@cpython_src//:Lib/test/libregrtest/results.py', 'mode': '0644'}, 'usr/lib/python3.13/test/libregrtest/run_workers.py': {'label': '@cpython_src//:Lib/test/libregrtest/run_workers.py', 'mode': '0644'}, 'usr/lib/python3.13/test/libregrtest/runtests.py': {'label': '@cpython_src//:Lib/test/libregrtest/runtests.py', 'mode': '0644'}, 'usr/lib/python3.13/test/libregrtest/save_env.py': {'label': '@cpython_src//:Lib/test/libregrtest/save_env.py', 'mode': '0644'}, 'usr/lib/python3.13/test/libregrtest/setup.py': {'label': '@cpython_src//:Lib/test/libregrtest/setup.py', 'mode': '0644'}, 'usr/lib/python3.13/test/libregrtest/single.py': {'label': '@cpython_src//:Lib/test/libregrtest/single.py', 'mode': '0644'}, 'usr/lib/python3.13/test/libregrtest/testresult.py': {'label': '@cpython_src//:Lib/test/libregrtest/testresult.py', 'mode': '0644'}, 'usr/lib/python3.13/test/libregrtest/tsan.py': {'label': '@cpython_src//:Lib/test/libregrtest/tsan.py', 'mode': '0644'}, 'usr/lib/python3.13/test/libregrtest/utils.py': {'label': '@cpython_src//:Lib/test/libregrtest/utils.py', 'mode': '0644'}, 'usr/lib/python3.13/test/libregrtest/win_utils.py': {'label': '@cpython_src//:Lib/test/libregrtest/win_utils.py', 'mode': '0644'}, 'usr/lib/python3.13/test/libregrtest/worker.py': {'label': '@cpython_src//:Lib/test/libregrtest/worker.py', 'mode': '0644'}, 'usr/lib/python3.13/test/regrtest.py': {'label': ':install_shebang_11', 'mode': '0755'}, 'usr/lib/python3.13/test/support/__init__.py': {'label': '@cpython_src//:Lib/test/support/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/test/support/_hypothesis_stubs/__init__.py': {'label': '@cpython_src//:Lib/test/support/_hypothesis_stubs/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/test/support/_hypothesis_stubs/_helpers.py': {'label': '@cpython_src//:Lib/test/support/_hypothesis_stubs/_helpers.py', 'mode': '0644'}, 'usr/lib/python3.13/test/support/_hypothesis_stubs/strategies.py': {'label': '@cpython_src//:Lib/test/support/_hypothesis_stubs/strategies.py', 'mode': '0644'}, 'usr/lib/python3.13/test/support/ast_helper.py': {'label': '@cpython_src//:Lib/test/support/ast_helper.py', 'mode': '0644'}, 'usr/lib/python3.13/test/support/asynchat.py': {'label': '@cpython_src//:Lib/test/support/asynchat.py', 'mode': '0644'}, 'usr/lib/python3.13/test/support/asyncore.py': {'label': '@cpython_src//:Lib/test/support/asyncore.py', 'mode': '0644'}, 'usr/lib/python3.13/test/support/bytecode_helper.py': {'label': '@cpython_src//:Lib/test/support/bytecode_helper.py', 'mode': '0644'}, 'usr/lib/python3.13/test/support/hashlib_helper.py': {'label': '@cpython_src//:Lib/test/support/hashlib_helper.py', 'mode': '0644'}, 'usr/lib/python3.13/test/support/hypothesis_helper.py': {'label': '@cpython_src//:Lib/test/support/hypothesis_helper.py', 'mode': '0644'}, 'usr/lib/python3.13/test/support/i18n_helper.py': {'label': '@cpython_src//:Lib/test/support/i18n_helper.py', 'mode': '0644'}, 'usr/lib/python3.13/test/support/import_helper.py': {'label': '@cpython_src//:Lib/test/support/import_helper.py', 'mode': '0644'}, 'usr/lib/python3.13/test/support/interpreters/__init__.py': {'label': '@cpython_src//:Lib/test/support/interpreters/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/test/support/interpreters/_crossinterp.py': {'label': '@cpython_src//:Lib/test/support/interpreters/_crossinterp.py', 'mode': '0644'}, 'usr/lib/python3.13/test/support/interpreters/channels.py': {'label': '@cpython_src//:Lib/test/support/interpreters/channels.py', 'mode': '0644'}, 'usr/lib/python3.13/test/support/interpreters/queues.py': {'label': '@cpython_src//:Lib/test/support/interpreters/queues.py', 'mode': '0644'}, 'usr/lib/python3.13/test/support/logging_helper.py': {'label': '@cpython_src//:Lib/test/support/logging_helper.py', 'mode': '0644'}, 'usr/lib/python3.13/test/support/numbers.py': {'label': '@cpython_src//:Lib/test/support/numbers.py', 'mode': '0644'}, 'usr/lib/python3.13/test/support/os_helper.py': {'label': '@cpython_src//:Lib/test/support/os_helper.py', 'mode': '0644'}, 'usr/lib/python3.13/test/support/pty_helper.py': {'label': '@cpython_src//:Lib/test/support/pty_helper.py', 'mode': '0644'}, 'usr/lib/python3.13/test/support/refleak_helper.py': {'label': '@cpython_src//:Lib/test/support/refleak_helper.py', 'mode': '0644'}, 'usr/lib/python3.13/test/support/script_helper.py': {'label': '@cpython_src//:Lib/test/support/script_helper.py', 'mode': '0644'}, 'usr/lib/python3.13/test/support/smtpd.py': {'label': ':install_shebang_12', 'mode': '0755'}, 'usr/lib/python3.13/test/support/socket_helper.py': {'label': '@cpython_src//:Lib/test/support/socket_helper.py', 'mode': '0644'}, 'usr/lib/python3.13/test/support/testcase.py': {'label': '@cpython_src//:Lib/test/support/testcase.py', 'mode': '0644'}, 'usr/lib/python3.13/test/support/threading_helper.py': {'label': '@cpython_src//:Lib/test/support/threading_helper.py', 'mode': '0644'}, 'usr/lib/python3.13/test/support/venv.py': {'label': '@cpython_src//:Lib/test/support/venv.py', 'mode': '0644'}, 'usr/lib/python3.13/test/support/warnings_helper.py': {'label': '@cpython_src//:Lib/test/support/warnings_helper.py', 'mode': '0644'}, 'usr/lib/python3.13/test/test_support.py': {'label': '@cpython_src//:Lib/test/test_support.py', 'mode': '0644'}, 'usr/lib/python3.13/test/typinganndata/__init__.py': {'label': '@cpython_src//:Lib/test/typinganndata/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/test/typinganndata/_typed_dict_helper.py': {'label': '@cpython_src//:Lib/test/typinganndata/_typed_dict_helper.py', 'mode': '0644'}, 'usr/lib/python3.13/test/typinganndata/ann_module.py': {'label': '@cpython_src//:Lib/test/typinganndata/ann_module.py', 'mode': '0644'}, 'usr/lib/python3.13/test/typinganndata/ann_module2.py': {'label': '@cpython_src//:Lib/test/typinganndata/ann_module2.py', 'mode': '0644'}, 'usr/lib/python3.13/test/typinganndata/ann_module3.py': {'label': '@cpython_src//:Lib/test/typinganndata/ann_module3.py', 'mode': '0644'}, 'usr/lib/python3.13/test/typinganndata/ann_module4.py': {'label': '@cpython_src//:Lib/test/typinganndata/ann_module4.py', 'mode': '0644'}, 'usr/lib/python3.13/test/typinganndata/ann_module5.py': {'label': '@cpython_src//:Lib/test/typinganndata/ann_module5.py', 'mode': '0644'}, 'usr/lib/python3.13/test/typinganndata/ann_module6.py': {'label': '@cpython_src//:Lib/test/typinganndata/ann_module6.py', 'mode': '0644'}, 'usr/lib/python3.13/test/typinganndata/ann_module695.py': {'label': '@cpython_src//:Lib/test/typinganndata/ann_module695.py', 'mode': '0644'}, 'usr/lib/python3.13/test/typinganndata/ann_module7.py': {'label': '@cpython_src//:Lib/test/typinganndata/ann_module7.py', 'mode': '0644'}, 'usr/lib/python3.13/test/typinganndata/ann_module8.py': {'label': '@cpython_src//:Lib/test/typinganndata/ann_module8.py', 'mode': '0644'}, 'usr/lib/python3.13/test/typinganndata/ann_module9.py': {'label': '@cpython_src//:Lib/test/typinganndata/ann_module9.py', 'mode': '0644'}, 'usr/lib/python3.13/test/typinganndata/mod_generics_cache.py': {'label': '@cpython_src//:Lib/test/typinganndata/mod_generics_cache.py', 'mode': '0644'}, 'usr/lib/python3.13/this.py': {'label': '@cpython_src//:Lib/this.py', 'mode': '0644'}, 'usr/lib/python3.13/timeit.py': {'label': ':install_shebang_13', 'mode': '0755'}, 'usr/lib/python3.13/tomllib/__init__.py': {'label': '@cpython_src//:Lib/tomllib/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/tomllib/_parser.py': {'label': '@cpython_src//:Lib/tomllib/_parser.py', 'mode': '0644'}, 'usr/lib/python3.13/tomllib/_re.py': {'label': '@cpython_src//:Lib/tomllib/_re.py', 'mode': '0644'}, 'usr/lib/python3.13/tomllib/_types.py': {'label': '@cpython_src//:Lib/tomllib/_types.py', 'mode': '0644'}, 'usr/lib/python3.13/tomllib/mypy.ini': {'label': '@cpython_src//:Lib/tomllib/mypy.ini', 'mode': '0644'}, 'usr/lib/python3.13/trace.py': {'label': ':install_shebang_14', 'mode': '0755'}, 'usr/lib/python3.13/tty.py': {'label': '@cpython_src//:Lib/tty.py', 'mode': '0644'}, 'usr/lib/python3.13/turtle.py': {'label': '@cpython_src//:Lib/turtle.py', 'mode': '0644'}, 'usr/lib/python3.13/unittest/__init__.py': {'label': '@cpython_src//:Lib/unittest/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/unittest/__main__.py': {'label': '@cpython_src//:Lib/unittest/__main__.py', 'mode': '0644'}, 'usr/lib/python3.13/unittest/_log.py': {'label': '@cpython_src//:Lib/unittest/_log.py', 'mode': '0644'}, 'usr/lib/python3.13/unittest/async_case.py': {'label': '@cpython_src//:Lib/unittest/async_case.py', 'mode': '0644'}, 'usr/lib/python3.13/unittest/case.py': {'label': '@cpython_src//:Lib/unittest/case.py', 'mode': '0644'}, 'usr/lib/python3.13/unittest/loader.py': {'label': '@cpython_src//:Lib/unittest/loader.py', 'mode': '0644'}, 'usr/lib/python3.13/unittest/main.py': {'label': '@cpython_src//:Lib/unittest/main.py', 'mode': '0644'}, 'usr/lib/python3.13/unittest/mock.py': {'label': '@cpython_src//:Lib/unittest/mock.py', 'mode': '0644'}, 'usr/lib/python3.13/unittest/result.py': {'label': '@cpython_src//:Lib/unittest/result.py', 'mode': '0644'}, 'usr/lib/python3.13/unittest/runner.py': {'label': '@cpython_src//:Lib/unittest/runner.py', 'mode': '0644'}, 'usr/lib/python3.13/unittest/signals.py': {'label': '@cpython_src//:Lib/unittest/signals.py', 'mode': '0644'}, 'usr/lib/python3.13/unittest/suite.py': {'label': '@cpython_src//:Lib/unittest/suite.py', 'mode': '0644'}, 'usr/lib/python3.13/unittest/util.py': {'label': '@cpython_src//:Lib/unittest/util.py', 'mode': '0644'}, 'usr/lib/python3.13/uuid.py': {'label': '@cpython_src//:Lib/uuid.py', 'mode': '0644'}, 'usr/lib/python3.13/venv/__init__.py': {'label': '@cpython_src//:Lib/venv/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/venv/__main__.py': {'label': '@cpython_src//:Lib/venv/__main__.py', 'mode': '0644'}, 'usr/lib/python3.13/venv/scripts/common/Activate.ps1': {'label': '@cpython_src//:Lib/venv/scripts/common/Activate.ps1', 'mode': '0644'}, 'usr/lib/python3.13/venv/scripts/common/activate': {'label': '@cpython_src//:Lib/venv/scripts/common/activate', 'mode': '0644'}, 'usr/lib/python3.13/venv/scripts/common/activate.fish': {'label': '@cpython_src//:Lib/venv/scripts/common/activate.fish', 'mode': '0644'}, 'usr/lib/python3.13/venv/scripts/posix/activate.csh': {'label': '@cpython_src//:Lib/venv/scripts/posix/activate.csh', 'mode': '0644'}, 'usr/lib/python3.13/wave.py': {'label': '@cpython_src//:Lib/wave.py', 'mode': '0644'}, 'usr/lib/python3.13/webbrowser.py': {'label': ':install_shebang_15', 'mode': '0755'}, 'usr/lib/python3.13/wsgiref/__init__.py': {'label': '@cpython_src//:Lib/wsgiref/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/wsgiref/handlers.py': {'label': '@cpython_src//:Lib/wsgiref/handlers.py', 'mode': '0644'}, 'usr/lib/python3.13/wsgiref/headers.py': {'label': '@cpython_src//:Lib/wsgiref/headers.py', 'mode': '0644'}, 'usr/lib/python3.13/wsgiref/simple_server.py': {'label': '@cpython_src//:Lib/wsgiref/simple_server.py', 'mode': '0644'}, 'usr/lib/python3.13/wsgiref/types.py': {'label': '@cpython_src//:Lib/wsgiref/types.py', 'mode': '0644'}, 'usr/lib/python3.13/wsgiref/util.py': {'label': '@cpython_src//:Lib/wsgiref/util.py', 'mode': '0644'}, 'usr/lib/python3.13/wsgiref/validate.py': {'label': '@cpython_src//:Lib/wsgiref/validate.py', 'mode': '0644'}, 'usr/lib/python3.13/xml/__init__.py': {'label': '@cpython_src//:Lib/xml/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/xml/dom/NodeFilter.py': {'label': '@cpython_src//:Lib/xml/dom/NodeFilter.py', 'mode': '0644'}, 'usr/lib/python3.13/xml/dom/__init__.py': {'label': '@cpython_src//:Lib/xml/dom/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/xml/dom/domreg.py': {'label': '@cpython_src//:Lib/xml/dom/domreg.py', 'mode': '0644'}, 'usr/lib/python3.13/xml/dom/expatbuilder.py': {'label': '@cpython_src//:Lib/xml/dom/expatbuilder.py', 'mode': '0644'}, 'usr/lib/python3.13/xml/dom/minicompat.py': {'label': '@cpython_src//:Lib/xml/dom/minicompat.py', 'mode': '0644'}, 'usr/lib/python3.13/xml/dom/minidom.py': {'label': '@cpython_src//:Lib/xml/dom/minidom.py', 'mode': '0644'}, 'usr/lib/python3.13/xml/dom/pulldom.py': {'label': '@cpython_src//:Lib/xml/dom/pulldom.py', 'mode': '0644'}, 'usr/lib/python3.13/xml/dom/xmlbuilder.py': {'label': '@cpython_src//:Lib/xml/dom/xmlbuilder.py', 'mode': '0644'}, 'usr/lib/python3.13/xml/etree/ElementInclude.py': {'label': '@cpython_src//:Lib/xml/etree/ElementInclude.py', 'mode': '0644'}, 'usr/lib/python3.13/xml/etree/ElementPath.py': {'label': '@cpython_src//:Lib/xml/etree/ElementPath.py', 'mode': '0644'}, 'usr/lib/python3.13/xml/etree/ElementTree.py': {'label': '@cpython_src//:Lib/xml/etree/ElementTree.py', 'mode': '0644'}, 'usr/lib/python3.13/xml/etree/__init__.py': {'label': '@cpython_src//:Lib/xml/etree/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/xml/etree/cElementTree.py': {'label': '@cpython_src//:Lib/xml/etree/cElementTree.py', 'mode': '0644'}, 'usr/lib/python3.13/xml/parsers/__init__.py': {'label': '@cpython_src//:Lib/xml/parsers/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/xml/parsers/expat.py': {'label': '@cpython_src//:Lib/xml/parsers/expat.py', 'mode': '0644'}, 'usr/lib/python3.13/xml/sax/__init__.py': {'label': '@cpython_src//:Lib/xml/sax/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/xml/sax/_exceptions.py': {'label': '@cpython_src//:Lib/xml/sax/_exceptions.py', 'mode': '0644'}, 'usr/lib/python3.13/xml/sax/expatreader.py': {'label': '@cpython_src//:Lib/xml/sax/expatreader.py', 'mode': '0644'}, 'usr/lib/python3.13/xml/sax/handler.py': {'label': '@cpython_src//:Lib/xml/sax/handler.py', 'mode': '0644'}, 'usr/lib/python3.13/xml/sax/saxutils.py': {'label': '@cpython_src//:Lib/xml/sax/saxutils.py', 'mode': '0644'}, 'usr/lib/python3.13/xml/sax/xmlreader.py': {'label': '@cpython_src//:Lib/xml/sax/xmlreader.py', 'mode': '0644'}, 'usr/lib/python3.13/xmlrpc/__init__.py': {'label': '@cpython_src//:Lib/xmlrpc/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/xmlrpc/client.py': {'label': '@cpython_src//:Lib/xmlrpc/client.py', 'mode': '0644'}, 'usr/lib/python3.13/xmlrpc/server.py': {'label': '@cpython_src//:Lib/xmlrpc/server.py', 'mode': '0644'}, 'usr/lib/python3.13/zipapp.py': {'label': '@cpython_src//:Lib/zipapp.py', 'mode': '0644'}, 'usr/lib/python3.13/zoneinfo/__init__.py': {'label': '@cpython_src//:Lib/zoneinfo/__init__.py', 'mode': '0644'}, 'usr/lib/python3.13/zoneinfo/_common.py': {'label': '@cpython_src//:Lib/zoneinfo/_common.py', 'mode': '0644'}, 'usr/lib/python3.13/zoneinfo/_tzpath.py': {'label': '@cpython_src//:Lib/zoneinfo/_tzpath.py', 'mode': '0644'}, 'usr/lib/python3.13/zoneinfo/_zoneinfo.py': {'label': '@cpython_src//:Lib/zoneinfo/_zoneinfo.py', 'mode': '0644'}, 'usr/lib/python3.13/LICENSE.txt': {'label': '@cpython_src//:LICENSE', 'mode': '0644'}, 'usr/lib/python3.13/EXTERNALLY-MANAGED': {'label': ':original_generated_EXTERNALLY_MANAGED', 'mode': '0644'}}, 'binaries': {'usr/lib/python3.13/lib-dynload/_asyncio.so': '@cpython_src//:_asyncio.so', 'usr/lib/python3.13/lib-dynload/_contextvars.so': '@cpython_src//:_contextvars.so', 'usr/lib/python3.13/lib-dynload/_lsprof.so': '@cpython_src//:_lsprof.so', 'usr/lib/python3.13/lib-dynload/_queue.so': '@cpython_src//:_queue.so', 'usr/lib/python3.13/lib-dynload/_interpreters.so': '@cpython_src//:_interpreters.so', 'usr/lib/python3.13/lib-dynload/_interpchannels.so': '@cpython_src//:_interpchannels.so', 'usr/lib/python3.13/lib-dynload/_interpqueues.so': '@cpython_src//:_interpqueues.so', 'usr/lib/python3.13/lib-dynload/_zoneinfo.so': '@cpython_src//:_zoneinfo.so', 'usr/lib/python3.13/lib-dynload/_decimal.so': '@cpython_src//:_decimal.so', 'usr/lib/python3.13/lib-dynload/_codecs_cn.so': '@cpython_src//:_codecs_cn.so', 'usr/lib/python3.13/lib-dynload/_codecs_hk.so': '@cpython_src//:_codecs_hk.so', 'usr/lib/python3.13/lib-dynload/_codecs_iso2022.so': '@cpython_src//:_codecs_iso2022.so', 'usr/lib/python3.13/lib-dynload/_codecs_jp.so': '@cpython_src//:_codecs_jp.so', 'usr/lib/python3.13/lib-dynload/_codecs_kr.so': '@cpython_src//:_codecs_kr.so', 'usr/lib/python3.13/lib-dynload/_codecs_tw.so': '@cpython_src//:_codecs_tw.so', 'usr/lib/python3.13/lib-dynload/_multibytecodec.so': '@cpython_src//:_multibytecodec.so', 'usr/lib/python3.13/lib-dynload/mmap.so': '@cpython_src//:mmap.so', 'usr/lib/python3.13/lib-dynload/resource.so': '@cpython_src//:resource.so', 'usr/lib/python3.13/lib-dynload/termios.so': '@cpython_src//:termios.so', 'usr/lib/python3.13/lib-dynload/_posixshmem.so': '@cpython_src//:_posixshmem.so', 'usr/lib/python3.13/lib-dynload/_multiprocessing.so': '@cpython_src//:_multiprocessing.so', 'usr/lib/python3.13/lib-dynload/xxsubtype.so': '@cpython_src//:xxsubtype.so', 'usr/lib/python3.13/lib-dynload/_xxtestfuzz.so': '@cpython_src//:_xxtestfuzz.so', 'usr/lib/python3.13/lib-dynload/_testbuffer.so': '@cpython_src//:_testbuffer.so', 'usr/lib/python3.13/lib-dynload/_testinternalcapi.so': '@cpython_src//:_testinternalcapi.so', 'usr/lib/python3.13/lib-dynload/_testcapi.so': '@cpython_src//:_testcapi.so', 'usr/lib/python3.13/lib-dynload/_testlimitedcapi.so': '@cpython_src//:_testlimitedcapi.so', 'usr/lib/python3.13/lib-dynload/_testclinic.so': '@cpython_src//:_testclinic.so', 'usr/lib/python3.13/lib-dynload/_testclinic_limited.so': '@cpython_src//:_testclinic_limited.so', 'usr/lib/python3.13/lib-dynload/_testimportmultiple.so': '@cpython_src//:_testimportmultiple.so', 'usr/lib/python3.13/lib-dynload/_testmultiphase.so': '@cpython_src//:_testmultiphase.so', 'usr/lib/python3.13/lib-dynload/_testsinglephase.so': '@cpython_src//:_testsinglephase.so', 'usr/lib/python3.13/lib-dynload/_testexternalinspection.so': '@cpython_src//:_testexternalinspection.so', 'usr/lib/python3.13/lib-dynload/xxlimited.so': '@cpython_src//:xxlimited.so', 'usr/lib/python3.13/lib-dynload/xxlimited_35.so': '@cpython_src//:xxlimited_35.so', 'usr/lib/python3.13/lib-dynload/_bz2.so': '@cpython_src//:_bz2.so', 'usr/lib/python3.13/lib-dynload/_lzma.so': '@cpython_src//:_lzma.so', 'usr/lib/python3.13/lib-dynload/_dbm.so': '@cpython_src//:_dbm.so', 'usr/lib/python3.13/lib-dynload/readline.so': '@cpython_src//:readline.so', 'usr/lib/python3.13/lib-dynload/_ctypes.so': '@cpython_src//:_ctypes.so', 'usr/lib/python3.13/lib-dynload/_curses.so': '@cpython_src//:_curses.so', 'usr/lib/python3.13/lib-dynload/_curses_panel.so': '@cpython_src//:_curses_panel.so', 'usr/lib/python3.13/lib-dynload/_sqlite3.so': '@cpython_src//:_sqlite3.so', 'usr/lib/python3.13/lib-dynload/_uuid.so': '@cpython_src//:_uuid.so', 'usr/lib/python3.13/lib-dynload/_ctypes_test.so': '@cpython_src//:_ctypes_test.so'}, 'links': {'usr/share/doc/libpython3.13-stdlib': 'libpython3.13-minimal'}, 'directories': []}, 'libpython3.13': {'files': {}, 'binaries': {'usr/lib/x86_64-linux-gnu/libpython3.13.so.1.0': '@cpython_src//:libpython_shared'}, 'links': {'usr/lib/x86_64-linux-gnu/libpython3.13.so.1': 'libpython3.13.so.1.0', 'usr/lib/python3.13/config-3.13-x86_64-linux-gnu/libpython3.13.so': '../../x86_64-linux-gnu/libpython3.13.so.1', 'usr/share/doc/libpython3.13': 'libpython3.13-stdlib'}, 'directories': []}, 'python3.13': {'files': {'usr/bin/pydoc3.13': {'label': ':install_shebang_16', 'mode': '0755'}, 'usr/bin/pygettext3.13': {'label': ':install_shebang_17', 'mode': '0755'}, 'usr/share/pixmaps/python3.13.xpm': {'label': '@cpython_src//:debian/pylogo.xpm', 'mode': '0644'}, 'usr/share/applications/python3.13.desktop': {'label': ':install_template_18', 'mode': '0644'}, 'usr/share/man/man1/pydoc3.13.1.gz': {'label': ':install_gzip_20', 'mode': '0644'}, 'usr/share/man/man1/pdb3.13.1.gz': {'label': ':install_gzip_21', 'mode': '0644'}, 'usr/share/man/man1/pygettext3.13.1.gz': {'label': ':install_gzip_22', 'mode': '0644'}, 'usr/share/doc/python3.13/copyright': {'label': '@cpython_src//:debian/copyright', 'mode': '0644'}, 'usr/share/doc/python3.13/changelog.Debian.gz': {'label': ':install_gzip_23', 'mode': '0644'}, 'usr/share/doc/python3.13/README.Debian': {'label': ':install_template_27', 'mode': '0644'}, 'usr/share/doc/python3.13/NEWS.gz': {'label': ':install_gzip_28', 'mode': '0644'}, 'usr/share/doc/python3.13/README.rst.gz': {'label': ':install_gzip_29', 'mode': '0644'}, 'usr/share/doc/python3.13/ACKS.gz': {'label': ':install_gzip_30', 'mode': '0644'}, 'usr/share/doc/python3.13/README.venv': {'label': '@cpython_src//:debian/README.venv', 'mode': '0644'}}, 'binaries': {}, 'links': {'usr/bin/pdb3.13': '../lib/python3.13/pdb.py', 'usr/share/doc/python3.13/changelog.gz': 'NEWS.gz'}, 'directories': ['usr/lib/python3/dist-packages']}})
+
+expand_template(name = 'metadata_template_python3_13_minimal_postinst', template = '@cpython_src//:debian/PVER-minimal.postinst.in', out = 'install-metadata/python3.13-minimal.postinst', substitutions = select({"@platforms//cpu:x86_64": {'@PVER@': 'python3.13', '@VER@': '3.13', '@SVER@': '3.13.0~rc3', '@PRIORITY@': '3130', '@SCRIPTDIR@': '/usr/lib/python3.13', '@HOST_QUAL@': ':amd64', '@INFO@': ''}, "@platforms//cpu:aarch64": {'@PVER@': 'python3.13', '@VER@': '3.13', '@SVER@': '3.13.0~rc3', '@PRIORITY@': '3130', '@SCRIPTDIR@': '/usr/lib/python3.13', '@HOST_QUAL@': ':arm64', '@INFO@': ''}}))
+
+expand_template(name = 'metadata_template_python3_13_minimal_postrm', template = '@cpython_src//:debian/PVER-minimal.postrm.in', out = 'install-metadata/python3.13-minimal.postrm', substitutions = select({"@platforms//cpu:x86_64": {'@PVER@': 'python3.13', '@VER@': '3.13', '@SVER@': '3.13.0~rc3', '@PRIORITY@': '3130', '@SCRIPTDIR@': '/usr/lib/python3.13', '@HOST_QUAL@': ':amd64', '@INFO@': ''}, "@platforms//cpu:aarch64": {'@PVER@': 'python3.13', '@VER@': '3.13', '@SVER@': '3.13.0~rc3', '@PRIORITY@': '3130', '@SCRIPTDIR@': '/usr/lib/python3.13', '@HOST_QUAL@': ':arm64', '@INFO@': ''}}))
+
+expand_template(name = 'metadata_template_python3_13_minimal_preinst', template = '@cpython_src//:debian/PVER-minimal.preinst.in', out = 'install-metadata/python3.13-minimal.preinst', substitutions = select({"@platforms//cpu:x86_64": {'@PVER@': 'python3.13', '@VER@': '3.13', '@SVER@': '3.13.0~rc3', '@PRIORITY@': '3130', '@SCRIPTDIR@': '/usr/lib/python3.13', '@HOST_QUAL@': ':amd64', '@INFO@': ''}, "@platforms//cpu:aarch64": {'@PVER@': 'python3.13', '@VER@': '3.13', '@SVER@': '3.13.0~rc3', '@PRIORITY@': '3130', '@SCRIPTDIR@': '/usr/lib/python3.13', '@HOST_QUAL@': ':arm64', '@INFO@': ''}}))
+
+expand_template(name = 'metadata_template_python3_13_minimal_prerm', template = '@cpython_src//:debian/PVER-minimal.prerm.in', out = 'install-metadata/python3.13-minimal.prerm', substitutions = select({"@platforms//cpu:x86_64": {'@PVER@': 'python3.13', '@VER@': '3.13', '@SVER@': '3.13.0~rc3', '@PRIORITY@': '3130', '@SCRIPTDIR@': '/usr/lib/python3.13', '@HOST_QUAL@': ':amd64', '@INFO@': ''}, "@platforms//cpu:aarch64": {'@PVER@': 'python3.13', '@VER@': '3.13', '@SVER@': '3.13.0~rc3', '@PRIORITY@': '3130', '@SCRIPTDIR@': '/usr/lib/python3.13', '@HOST_QUAL@': ':arm64', '@INFO@': ''}}))
+
+expand_template(name = 'metadata_template_python3_13_postinst', template = '@cpython_src//:debian/PVER.postinst.in', out = 'install-metadata/python3.13.postinst', substitutions = select({"@platforms//cpu:x86_64": {'@PVER@': 'python3.13', '@VER@': '3.13', '@SVER@': '3.13.0~rc3', '@PRIORITY@': '3130', '@SCRIPTDIR@': '/usr/lib/python3.13', '@HOST_QUAL@': ':amd64', '@INFO@': ''}, "@platforms//cpu:aarch64": {'@PVER@': 'python3.13', '@VER@': '3.13', '@SVER@': '3.13.0~rc3', '@PRIORITY@': '3130', '@SCRIPTDIR@': '/usr/lib/python3.13', '@HOST_QUAL@': ':arm64', '@INFO@': ''}}))
+
+expand_template(name = 'metadata_template_python3_13_prerm', template = '@cpython_src//:debian/PVER.prerm.in', out = 'install-metadata/python3.13.prerm', substitutions = select({"@platforms//cpu:x86_64": {'@PVER@': 'python3.13', '@VER@': '3.13', '@SVER@': '3.13.0~rc3', '@PRIORITY@': '3130', '@SCRIPTDIR@': '/usr/lib/python3.13', '@HOST_QUAL@': ':amd64', '@INFO@': ''}, "@platforms//cpu:aarch64": {'@PVER@': 'python3.13', '@VER@': '3.13', '@SVER@': '3.13.0~rc3', '@PRIORITY@': '3130', '@SCRIPTDIR@': '/usr/lib/python3.13', '@HOST_QUAL@': ':arm64', '@INFO@': ''}}))
+
+expand_template(name = 'metadata_template_libpython3_13_minimal_postinst', template = '@cpython_src//:debian/libPVER-minimal.postinst.in', out = 'install-metadata/libpython3.13-minimal.postinst', substitutions = select({"@platforms//cpu:x86_64": {'@PVER@': 'python3.13', '@VER@': '3.13', '@SVER@': '3.13.0~rc3', '@PRIORITY@': '3130', '@SCRIPTDIR@': '/usr/lib/python3.13', '@HOST_QUAL@': ':amd64', '@INFO@': ''}, "@platforms//cpu:aarch64": {'@PVER@': 'python3.13', '@VER@': '3.13', '@SVER@': '3.13.0~rc3', '@PRIORITY@': '3130', '@SCRIPTDIR@': '/usr/lib/python3.13', '@HOST_QUAL@': ':arm64', '@INFO@': ''}}))
+
+expand_template(name = 'metadata_template_libpython3_13_minimal_postrm', template = '@cpython_src//:debian/libPVER-minimal.postrm.in', out = 'install-metadata/libpython3.13-minimal.postrm', substitutions = select({"@platforms//cpu:x86_64": {'@PVER@': 'python3.13', '@VER@': '3.13', '@SVER@': '3.13.0~rc3', '@PRIORITY@': '3130', '@SCRIPTDIR@': '/usr/lib/python3.13', '@HOST_QUAL@': ':amd64', '@INFO@': ''}, "@platforms//cpu:aarch64": {'@PVER@': 'python3.13', '@VER@': '3.13', '@SVER@': '3.13.0~rc3', '@PRIORITY@': '3130', '@SCRIPTDIR@': '/usr/lib/python3.13', '@HOST_QUAL@': ':arm64', '@INFO@': ''}}))
+
+expand_template(name = 'metadata_template_libpython3_13_minimal_prerm', template = '@cpython_src//:debian/libPVER-minimal.prerm.in', out = 'install-metadata/libpython3.13-minimal.prerm', substitutions = select({"@platforms//cpu:x86_64": {'@PVER@': 'python3.13', '@VER@': '3.13', '@SVER@': '3.13.0~rc3', '@PRIORITY@': '3130', '@SCRIPTDIR@': '/usr/lib/python3.13', '@HOST_QUAL@': ':amd64', '@INFO@': ''}, "@platforms//cpu:aarch64": {'@PVER@': 'python3.13', '@VER@': '3.13', '@SVER@': '3.13.0~rc3', '@PRIORITY@': '3130', '@SCRIPTDIR@': '/usr/lib/python3.13', '@HOST_QUAL@': ':arm64', '@INFO@': ''}}))
+
+expand_template(name = 'metadata_template_libpython3_13_stdlib_prerm', template = '@cpython_src//:debian/libPVER-stdlib.prerm.in', out = 'install-metadata/libpython3.13-stdlib.prerm', substitutions = select({"@platforms//cpu:x86_64": {'@PVER@': 'python3.13', '@VER@': '3.13', '@SVER@': '3.13.0~rc3', '@PRIORITY@': '3130', '@SCRIPTDIR@': '/usr/lib/python3.13', '@HOST_QUAL@': ':amd64', '@INFO@': ''}, "@platforms//cpu:aarch64": {'@PVER@': 'python3.13', '@VER@': '3.13', '@SVER@': '3.13.0~rc3', '@PRIORITY@': '3130', '@SCRIPTDIR@': '/usr/lib/python3.13', '@HOST_QUAL@': ':arm64', '@INFO@': ''}}))
+
+expand_template(name = 'metadata_template_libpython3_13_symbols', template = '@cpython_src//:debian/libPVER.symbols.in', out = 'install-metadata/libpython3.13.symbols', substitutions = select({"@platforms//cpu:x86_64": {'@PVER@': 'python3.13', '@VER@': '3.13', '@SVER@': '3.13.0~rc3', '@PRIORITY@': '3130', '@SCRIPTDIR@': '/usr/lib/python3.13', '@HOST_QUAL@': ':amd64', '@INFO@': ''}, "@platforms//cpu:aarch64": {'@PVER@': 'python3.13', '@VER@': '3.13', '@SVER@': '3.13.0~rc3', '@PRIORITY@': '3130', '@SCRIPTDIR@': '/usr/lib/python3.13', '@HOST_QUAL@': ':arm64', '@INFO@': ''}}))
+
+expand_template(name = 'metadata_template_libpython_symbols', template = '@cpython_src//:debian/libpython.symbols.in', out = 'install-metadata/libpython.symbols', substitutions = select({"@platforms//cpu:x86_64": {'@PVER@': 'python3.13', '@VER@': '3.13', '@SVER@': '3.13.0~rc3', '@PRIORITY@': '3130', '@SCRIPTDIR@': '/usr/lib/python3.13', '@HOST_QUAL@': ':amd64', '@INFO@': ''}, "@platforms//cpu:aarch64": {'@PVER@': 'python3.13', '@VER@': '3.13', '@SVER@': '3.13.0~rc3', '@PRIORITY@': '3130', '@SCRIPTDIR@': '/usr/lib/python3.13', '@HOST_QUAL@': ':arm64', '@INFO@': ''}}))
+
+py_binary(name = "metadata_bridge", srcs = ["metadata_bridge.py"], deps = ["@sonic_build_infra//oci:runtime_packages_lib"])
+
+python_original_metadata(
+    changelog = ':changelog',
+    rules = '@cpython_src//:debian/rules',
+    debian_files = {'compat': '@cpython_src//:debian/compat', 'python3.13-minimal.postinst': ':metadata_template_python3_13_minimal_postinst', 'python3.13-minimal.postrm': ':metadata_template_python3_13_minimal_postrm', 'python3.13-minimal.preinst': ':metadata_template_python3_13_minimal_preinst', 'python3.13-minimal.prerm': ':metadata_template_python3_13_minimal_prerm', 'python3.13.postinst': ':metadata_template_python3_13_postinst', 'python3.13.prerm': ':metadata_template_python3_13_prerm', 'libpython3.13-minimal.postinst': ':metadata_template_libpython3_13_minimal_postinst', 'libpython3.13-minimal.postrm': ':metadata_template_libpython3_13_minimal_postrm', 'libpython3.13-minimal.prerm': ':metadata_template_libpython3_13_minimal_prerm', 'libpython3.13-stdlib.prerm': ':metadata_template_libpython3_13_stdlib_prerm', 'libpython3.13.symbols': ':metadata_template_libpython3_13_symbols', 'libpython.symbols': ':metadata_template_libpython_symbols'},
+    symbols = {'libpython3.13': ':metadata_template_libpython3_13_symbols'},
+    dependencies = ['//openssl:libssl3t64.runtime_metadata'],
+    apt_data = ['@python_build_deps//libexpat1:data', '@frr_deps//libreadline8t64:data', '@python_build_deps//libbz2-1.0:data', '@python_build_deps//libsqlite3-0:data', '@python_build_deps//libffi8:data', '@trixie//libncursesw6:data', '@trixie//libtinfo6:data', '@trixie//libuuid1:data', '@trixie//liblzma5:data', '@iproute2_deps//libdb5.3t64:data', '@openssl_deps//zlib1g:data'],
+    apt_controls = ['@python_build_deps//libexpat1:control', '@frr_deps//libreadline8t64:control', '@python_build_deps//libbz2-1.0:control', '@python_build_deps//libsqlite3-0:control', '@python_build_deps//libffi8:control', '@trixie//libncursesw6:control', '@trixie//libtinfo6:control', '@trixie//libuuid1:control', '@trixie//liblzma5:control', '@iproute2_deps//libdb5.3t64:control', '@openssl_deps//zlib1g:control'],
+    name = 'python_original_controls_public',
+    mode = 'controls',
+    control = '@cpython_src//:debian/control',
+    packages = {'python3.13': ':python3.13.runtime', 'python3.13-minimal': ':python3.13-minimal.runtime', 'libpython3.13': ':libpython3.13.runtime', 'libpython3.13-minimal': ':libpython3.13-minimal.runtime', 'libpython3.13-stdlib': ':libpython3.13-stdlib.runtime'},
+    tags = [],
+)
+
+filegroup(name = 'python3.13.public_source_control', srcs = [":python_original_controls_public"], output_group = 'python3_13')
+filegroup(name = 'python3.13.public_binary_control', srcs = [":python_original_controls_public"], output_group = 'python3_13_binary')
+
+python_original_metadata(
+    changelog = ':changelog',
+    rules = '@cpython_src//:debian/rules',
+    debian_files = {'compat': '@cpython_src//:debian/compat', 'python3.13-minimal.postinst': ':metadata_template_python3_13_minimal_postinst', 'python3.13-minimal.postrm': ':metadata_template_python3_13_minimal_postrm', 'python3.13-minimal.preinst': ':metadata_template_python3_13_minimal_preinst', 'python3.13-minimal.prerm': ':metadata_template_python3_13_minimal_prerm', 'python3.13.postinst': ':metadata_template_python3_13_postinst', 'python3.13.prerm': ':metadata_template_python3_13_prerm', 'libpython3.13-minimal.postinst': ':metadata_template_libpython3_13_minimal_postinst', 'libpython3.13-minimal.postrm': ':metadata_template_libpython3_13_minimal_postrm', 'libpython3.13-minimal.prerm': ':metadata_template_libpython3_13_minimal_prerm', 'libpython3.13-stdlib.prerm': ':metadata_template_libpython3_13_stdlib_prerm', 'libpython3.13.symbols': ':metadata_template_libpython3_13_symbols', 'libpython.symbols': ':metadata_template_libpython_symbols'},
+    symbols = {},
+    dependencies = ['//openssl:libssl3t64.runtime_metadata'],
+    apt_data = ['@python_build_deps//libexpat1:data', '@frr_deps//libreadline8t64:data', '@python_build_deps//libbz2-1.0:data', '@python_build_deps//libsqlite3-0:data', '@python_build_deps//libffi8:data', '@trixie//libncursesw6:data', '@trixie//libtinfo6:data', '@trixie//libuuid1:data', '@trixie//liblzma5:data', '@iproute2_deps//libdb5.3t64:data', '@openssl_deps//zlib1g:data'],
+    apt_controls = ['@python_build_deps//libexpat1:control', '@frr_deps//libreadline8t64:control', '@python_build_deps//libbz2-1.0:control', '@python_build_deps//libsqlite3-0:control', '@python_build_deps//libffi8:control', '@trixie//libncursesw6:control', '@trixie//libtinfo6:control', '@trixie//libuuid1:control', '@trixie//liblzma5:control', '@iproute2_deps//libdb5.3t64:control', '@openssl_deps//zlib1g:control'],
+    name = 'python3.13.runtime_metadata',
+    mode = 'metadata',
+    control = ':python3.13.public_source_control',
+    expected_control = ':python3.13.public_binary_control',
+    packages = {'python3.13': ':python3.13.runtime'},
+    tags = [],
+)
+
+filegroup(name = 'python3.13-minimal.public_source_control', srcs = [":python_original_controls_public"], output_group = 'python3_13_minimal')
+filegroup(name = 'python3.13-minimal.public_binary_control', srcs = [":python_original_controls_public"], output_group = 'python3_13_minimal_binary')
+
+python_original_metadata(
+    changelog = ':changelog',
+    rules = '@cpython_src//:debian/rules',
+    debian_files = {'compat': '@cpython_src//:debian/compat', 'python3.13-minimal.postinst': ':metadata_template_python3_13_minimal_postinst', 'python3.13-minimal.postrm': ':metadata_template_python3_13_minimal_postrm', 'python3.13-minimal.preinst': ':metadata_template_python3_13_minimal_preinst', 'python3.13-minimal.prerm': ':metadata_template_python3_13_minimal_prerm', 'python3.13.postinst': ':metadata_template_python3_13_postinst', 'python3.13.prerm': ':metadata_template_python3_13_prerm', 'libpython3.13-minimal.postinst': ':metadata_template_libpython3_13_minimal_postinst', 'libpython3.13-minimal.postrm': ':metadata_template_libpython3_13_minimal_postrm', 'libpython3.13-minimal.prerm': ':metadata_template_libpython3_13_minimal_prerm', 'libpython3.13-stdlib.prerm': ':metadata_template_libpython3_13_stdlib_prerm', 'libpython3.13.symbols': ':metadata_template_libpython3_13_symbols', 'libpython.symbols': ':metadata_template_libpython_symbols'},
+    symbols = {},
+    dependencies = ['//openssl:libssl3t64.runtime_metadata'],
+    apt_data = ['@python_build_deps//libexpat1:data', '@frr_deps//libreadline8t64:data', '@python_build_deps//libbz2-1.0:data', '@python_build_deps//libsqlite3-0:data', '@python_build_deps//libffi8:data', '@trixie//libncursesw6:data', '@trixie//libtinfo6:data', '@trixie//libuuid1:data', '@trixie//liblzma5:data', '@iproute2_deps//libdb5.3t64:data', '@openssl_deps//zlib1g:data'],
+    apt_controls = ['@python_build_deps//libexpat1:control', '@frr_deps//libreadline8t64:control', '@python_build_deps//libbz2-1.0:control', '@python_build_deps//libsqlite3-0:control', '@python_build_deps//libffi8:control', '@trixie//libncursesw6:control', '@trixie//libtinfo6:control', '@trixie//libuuid1:control', '@trixie//liblzma5:control', '@iproute2_deps//libdb5.3t64:control', '@openssl_deps//zlib1g:control'],
+    name = 'python3.13-minimal.runtime_metadata',
+    mode = 'metadata',
+    control = ':python3.13-minimal.public_source_control',
+    expected_control = ':python3.13-minimal.public_binary_control',
+    packages = {'python3.13-minimal': ':python3.13-minimal.runtime'},
+    tags = [],
+)
+
+filegroup(name = 'libpython3.13.public_source_control', srcs = [":python_original_controls_public"], output_group = 'libpython3_13')
+filegroup(name = 'libpython3.13.public_binary_control', srcs = [":python_original_controls_public"], output_group = 'libpython3_13_binary')
+
+python_original_metadata(
+    changelog = ':changelog',
+    rules = '@cpython_src//:debian/rules',
+    debian_files = {'compat': '@cpython_src//:debian/compat', 'python3.13-minimal.postinst': ':metadata_template_python3_13_minimal_postinst', 'python3.13-minimal.postrm': ':metadata_template_python3_13_minimal_postrm', 'python3.13-minimal.preinst': ':metadata_template_python3_13_minimal_preinst', 'python3.13-minimal.prerm': ':metadata_template_python3_13_minimal_prerm', 'python3.13.postinst': ':metadata_template_python3_13_postinst', 'python3.13.prerm': ':metadata_template_python3_13_prerm', 'libpython3.13-minimal.postinst': ':metadata_template_libpython3_13_minimal_postinst', 'libpython3.13-minimal.postrm': ':metadata_template_libpython3_13_minimal_postrm', 'libpython3.13-minimal.prerm': ':metadata_template_libpython3_13_minimal_prerm', 'libpython3.13-stdlib.prerm': ':metadata_template_libpython3_13_stdlib_prerm', 'libpython3.13.symbols': ':metadata_template_libpython3_13_symbols', 'libpython.symbols': ':metadata_template_libpython_symbols'},
+    symbols = {'libpython3.13': ':metadata_template_libpython3_13_symbols'},
+    dependencies = ['//openssl:libssl3t64.runtime_metadata'],
+    apt_data = ['@python_build_deps//libexpat1:data', '@frr_deps//libreadline8t64:data', '@python_build_deps//libbz2-1.0:data', '@python_build_deps//libsqlite3-0:data', '@python_build_deps//libffi8:data', '@trixie//libncursesw6:data', '@trixie//libtinfo6:data', '@trixie//libuuid1:data', '@trixie//liblzma5:data', '@iproute2_deps//libdb5.3t64:data', '@openssl_deps//zlib1g:data'],
+    apt_controls = ['@python_build_deps//libexpat1:control', '@frr_deps//libreadline8t64:control', '@python_build_deps//libbz2-1.0:control', '@python_build_deps//libsqlite3-0:control', '@python_build_deps//libffi8:control', '@trixie//libncursesw6:control', '@trixie//libtinfo6:control', '@trixie//libuuid1:control', '@trixie//liblzma5:control', '@iproute2_deps//libdb5.3t64:control', '@openssl_deps//zlib1g:control'],
+    name = 'libpython3.13.runtime_metadata',
+    mode = 'metadata',
+    control = ':libpython3.13.public_source_control',
+    expected_control = ':libpython3.13.public_binary_control',
+    packages = {'libpython3.13': ':libpython3.13.runtime'},
+    tags = [],
+)
+
+filegroup(name = 'libpython3.13-minimal.public_source_control', srcs = [":python_original_controls_public"], output_group = 'libpython3_13_minimal')
+filegroup(name = 'libpython3.13-minimal.public_binary_control', srcs = [":python_original_controls_public"], output_group = 'libpython3_13_minimal_binary')
+
+python_original_metadata(
+    changelog = ':changelog',
+    rules = '@cpython_src//:debian/rules',
+    debian_files = {'compat': '@cpython_src//:debian/compat', 'python3.13-minimal.postinst': ':metadata_template_python3_13_minimal_postinst', 'python3.13-minimal.postrm': ':metadata_template_python3_13_minimal_postrm', 'python3.13-minimal.preinst': ':metadata_template_python3_13_minimal_preinst', 'python3.13-minimal.prerm': ':metadata_template_python3_13_minimal_prerm', 'python3.13.postinst': ':metadata_template_python3_13_postinst', 'python3.13.prerm': ':metadata_template_python3_13_prerm', 'libpython3.13-minimal.postinst': ':metadata_template_libpython3_13_minimal_postinst', 'libpython3.13-minimal.postrm': ':metadata_template_libpython3_13_minimal_postrm', 'libpython3.13-minimal.prerm': ':metadata_template_libpython3_13_minimal_prerm', 'libpython3.13-stdlib.prerm': ':metadata_template_libpython3_13_stdlib_prerm', 'libpython3.13.symbols': ':metadata_template_libpython3_13_symbols', 'libpython.symbols': ':metadata_template_libpython_symbols'},
+    symbols = {},
+    dependencies = ['//openssl:libssl3t64.runtime_metadata'],
+    apt_data = ['@python_build_deps//libexpat1:data', '@frr_deps//libreadline8t64:data', '@python_build_deps//libbz2-1.0:data', '@python_build_deps//libsqlite3-0:data', '@python_build_deps//libffi8:data', '@trixie//libncursesw6:data', '@trixie//libtinfo6:data', '@trixie//libuuid1:data', '@trixie//liblzma5:data', '@iproute2_deps//libdb5.3t64:data', '@openssl_deps//zlib1g:data'],
+    apt_controls = ['@python_build_deps//libexpat1:control', '@frr_deps//libreadline8t64:control', '@python_build_deps//libbz2-1.0:control', '@python_build_deps//libsqlite3-0:control', '@python_build_deps//libffi8:control', '@trixie//libncursesw6:control', '@trixie//libtinfo6:control', '@trixie//libuuid1:control', '@trixie//liblzma5:control', '@iproute2_deps//libdb5.3t64:control', '@openssl_deps//zlib1g:control'],
+    name = 'libpython3.13-minimal.runtime_metadata',
+    mode = 'metadata',
+    control = ':libpython3.13-minimal.public_source_control',
+    expected_control = ':libpython3.13-minimal.public_binary_control',
+    packages = {'libpython3.13-minimal': ':libpython3.13-minimal.runtime'},
+    tags = [],
+)
+
+filegroup(name = 'libpython3.13-stdlib.public_source_control', srcs = [":python_original_controls_public"], output_group = 'libpython3_13_stdlib')
+filegroup(name = 'libpython3.13-stdlib.public_binary_control', srcs = [":python_original_controls_public"], output_group = 'libpython3_13_stdlib_binary')
+
+python_original_metadata(
+    changelog = ':changelog',
+    rules = '@cpython_src//:debian/rules',
+    debian_files = {'compat': '@cpython_src//:debian/compat', 'python3.13-minimal.postinst': ':metadata_template_python3_13_minimal_postinst', 'python3.13-minimal.postrm': ':metadata_template_python3_13_minimal_postrm', 'python3.13-minimal.preinst': ':metadata_template_python3_13_minimal_preinst', 'python3.13-minimal.prerm': ':metadata_template_python3_13_minimal_prerm', 'python3.13.postinst': ':metadata_template_python3_13_postinst', 'python3.13.prerm': ':metadata_template_python3_13_prerm', 'libpython3.13-minimal.postinst': ':metadata_template_libpython3_13_minimal_postinst', 'libpython3.13-minimal.postrm': ':metadata_template_libpython3_13_minimal_postrm', 'libpython3.13-minimal.prerm': ':metadata_template_libpython3_13_minimal_prerm', 'libpython3.13-stdlib.prerm': ':metadata_template_libpython3_13_stdlib_prerm', 'libpython3.13.symbols': ':metadata_template_libpython3_13_symbols', 'libpython.symbols': ':metadata_template_libpython_symbols'},
+    symbols = {},
+    dependencies = ['//openssl:libssl3t64.runtime_metadata'],
+    apt_data = ['@python_build_deps//libexpat1:data', '@frr_deps//libreadline8t64:data', '@python_build_deps//libbz2-1.0:data', '@python_build_deps//libsqlite3-0:data', '@python_build_deps//libffi8:data', '@trixie//libncursesw6:data', '@trixie//libtinfo6:data', '@trixie//libuuid1:data', '@trixie//liblzma5:data', '@iproute2_deps//libdb5.3t64:data', '@openssl_deps//zlib1g:data'],
+    apt_controls = ['@python_build_deps//libexpat1:control', '@frr_deps//libreadline8t64:control', '@python_build_deps//libbz2-1.0:control', '@python_build_deps//libsqlite3-0:control', '@python_build_deps//libffi8:control', '@trixie//libncursesw6:control', '@trixie//libtinfo6:control', '@trixie//libuuid1:control', '@trixie//liblzma5:control', '@iproute2_deps//libdb5.3t64:control', '@openssl_deps//zlib1g:control'],
+    name = 'libpython3.13-stdlib.runtime_metadata',
+    mode = 'metadata',
+    control = ':libpython3.13-stdlib.public_source_control',
+    expected_control = ':libpython3.13-stdlib.public_binary_control',
+    packages = {'libpython3.13-stdlib': ':libpython3.13-stdlib.runtime'},
+    tags = [],
+)
+
+
+
+
+
+
+
+
+
+
+
+
+expand_template(name = 'original_generated_sitecustomize_py', template = '@cpython_src//:debian/sitecustomize.py.in', out = 'original-generated/sitecustomize.py', substitutions = select({"@platforms//cpu:x86_64": {'@PVER@': 'python3.13', '@VER@': '3.13', '@SVER@': '3.13.0~rc3', '@PRIORITY@': '3130', '@SCRIPTDIR@': '/usr/lib/python3.13', '@INFO@': '', '@HOST_QUAL@': ':amd64'}, "@platforms//cpu:aarch64": {'@PVER@': 'python3.13', '@VER@': '3.13', '@SVER@': '3.13.0~rc3', '@PRIORITY@': '3130', '@SCRIPTDIR@': '/usr/lib/python3.13', '@INFO@': '', '@HOST_QUAL@': ':arm64'}}))
+expand_template(name = 'original_generated_EXTERNALLY_MANAGED', template = '@cpython_src//:debian/EXTERNALLY-MANAGED.in', out = 'original-generated/EXTERNALLY-MANAGED', substitutions = select({"@platforms//cpu:x86_64": {'@PVER@': 'python3.13', '@VER@': '3.13', '@SVER@': '3.13.0~rc3', '@PRIORITY@': '3130', '@SCRIPTDIR@': '/usr/lib/python3.13', '@INFO@': '', '@HOST_QUAL@': ':amd64'}, "@platforms//cpu:aarch64": {'@PVER@': 'python3.13', '@VER@': '3.13', '@SVER@': '3.13.0~rc3', '@PRIORITY@': '3130', '@SCRIPTDIR@': '/usr/lib/python3.13', '@INFO@': '', '@HOST_QUAL@': ':arm64'}}))
+expand_template(name = 'original_generated_pydoc_1', template = '@cpython_src//:debian/pydoc.1.in', out = 'original-generated/pydoc.1', substitutions = select({"@platforms//cpu:x86_64": {'@PVER@': 'python3.13', '@VER@': '3.13', '@SVER@': '3.13.0~rc3', '@PRIORITY@': '3130', '@SCRIPTDIR@': '/usr/lib/python3.13', '@INFO@': '', '@HOST_QUAL@': ':amd64'}, "@platforms//cpu:aarch64": {'@PVER@': 'python3.13', '@VER@': '3.13', '@SVER@': '3.13.0~rc3', '@PRIORITY@': '3130', '@SCRIPTDIR@': '/usr/lib/python3.13', '@INFO@': '', '@HOST_QUAL@': ':arm64'}}))
+expand_template(name = 'original_generated_pdb_1', template = '@cpython_src//:debian/pdb.1.in', out = 'original-generated/pdb.1', substitutions = select({"@platforms//cpu:x86_64": {'@PVER@': 'python3.13', '@VER@': '3.13', '@SVER@': '3.13.0~rc3', '@PRIORITY@': '3130', '@SCRIPTDIR@': '/usr/lib/python3.13', '@INFO@': '', '@HOST_QUAL@': ':amd64'}, "@platforms//cpu:aarch64": {'@PVER@': 'python3.13', '@VER@': '3.13', '@SVER@': '3.13.0~rc3', '@PRIORITY@': '3130', '@SCRIPTDIR@': '/usr/lib/python3.13', '@INFO@': '', '@HOST_QUAL@': ':arm64'}}))
+
+
+
+
+
+
+# One authoritative literal original Setup.local, shared by build views.
+write_file(name = "original_setup_local", out = "configuration/Setup.local", content = ['_bisect _bisectmodule.c', '_csv _csv.c', '_datetime _datetimemodule.c', '_heapq _heapqmodule.c', '_json _json.c', '_opcode _opcode.c', '_pickle _pickle.c', '_random _randommodule.c', '_socket socketmodule.c', '_statistics _statisticsmodule.c', '_struct _struct.c', 'array arraymodule.c', 'binascii binascii.c', 'cmath cmathmodule.c', 'math mathmodule.c', 'select selectmodule.c', '_elementtree _elementtree.c -lexpat', 'pyexpat pyexpat.c -lexpat', '_blake2 _blake2/blake2module.c _blake2/blake2b_impl.c _blake2/blake2s_impl.c', '_md5 md5module.c -I$(srcdir)/Modules/_hacl/include _hacl/Hacl_Hash_MD5.c -D_BSD_SOURCE -D_DEFAULT_SOURCE', '_sha1 sha1module.c -I$(srcdir)/Modules/_hacl/include _hacl/Hacl_Hash_SHA1.c -D_BSD_SOURCE -D_DEFAULT_SOURCE', '_sha2 sha2module.c -I$(srcdir)/Modules/_hacl/include Modules/_hacl/libHacl_Hash_SHA2.a', '_sha3 sha3module.c -I$(srcdir)/Modules/_hacl/include _hacl/Hacl_Hash_SHA3.c -D_BSD_SOURCE -D_DEFAULT_SOURCE', 'unicodedata unicodedata.c', '_posixsubprocess _posixsubprocess.c', 'fcntl fcntlmodule.c', 'grp grpmodule.c', 'syslog syslogmodule.c', 'zlib  zlibmodule.c -lz'])
+
+# Original Makefile.pre.in DTRACE_OBJS, selected by the complete native probe.
+dtrace_object(
+    name = "pydtrace_object",
+    src = "@cpython_src//:Include/pydtrace.d",
+    deps = ["@python_build_deps//systemtap-sdt-dev:systemtap-sdt_headers"],
+    source_date_epoch = "1750964122",
+)
+cc_library(
+    name = "pydtrace_headers",
+    hdrs = [":pydtrace_probes_header"],
+    strip_include_prefix = "dtrace",
+    deps = ["@python_build_deps//systemtap-sdt-dev:systemtap-sdt_headers"],
+)
+cc_library(
+    name = "pydtrace_runtime",
+    srcs = [":pydtrace_object"],
+    alwayslink = True,
+    linkstatic = True,
+)

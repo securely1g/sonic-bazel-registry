@@ -1,0 +1,9 @@
+load(":dispatcher.bzl", "openssl_test_dispatcher")
+package(default_visibility = ["//visibility:public"])
+exports_files(["wrap.sh", "shlib_wrap.sh", "perl.sh", "SonicFipsOpenSSLTestPerl.pm"])
+
+openssl_test_dispatcher(name = "perl_dispatcher", template = "perl.sh")
+
+openssl_test_dispatcher(name = "wrap_dispatcher", template = "wrap.sh")
+
+openssl_test_dispatcher(name = "shlib_wrap_dispatcher", template = "shlib_wrap.sh")

@@ -1,0 +1,30 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+package(default_visibility = ["//visibility:public"])
+exports_files(glob(["**"], exclude = ["BUILD.bazel"]))
+cc_library(
+    name = "internal_headers",
+    hdrs = glob(["**/*.h", "**/*.inc", "**/*.def"]) + ["crypto/LPdir_unix.c", "crypto/des/ncbc_enc.c", "providers/implementations/macs/blake2_mac_impl.c", "engines/e_afalg_err.c", "engines/e_loader_attic_err.c", "engines/e_ossltest_err.c"],
+    includes = [".", "include", "providers/common/include", "providers/implementations/include", "providers/fips/include", "apps/include", "crypto", "crypto/modes"],
+)
+cc_library(
+    name = "public_headers",
+    hdrs = glob(["include/openssl/*.h"]),
+    includes = ["include"],
+)
+filegroup(
+    name = "generation_support",
+    srcs = ["VERSION.dat", "external/perl/MODULES.txt", "util/engines.num", "util/libcrypto.num", "util/libssl.num"] + glob([
+        "util/perl/**/*.pm", "Configurations/platform*.pm", "Configurations/platform/**/*.pm", "external/perl/**/*.pm", "providers/common/der/*.pm", "providers/common/der/*.asn1", "apps/**/*.c",
+    ]),
+)
+filegroup(name = "perlasm_support", srcs = glob(["crypto/perlasm/*.pl"]) + ["crypto/ec/ecp_nistz256_table.c"])
+
+cc_library(name = "test_bn_headers", hdrs = glob(["crypto/bn/*.h"]), includes = ["crypto/bn"])
+
+cc_library(name = "test_ec_headers", hdrs = glob(["crypto/ec/*.h"]), includes = ["crypto/ec"])
+
+cc_library(name = "test_curve448_headers", hdrs = glob(["crypto/ec/curve448/*.h"]), includes = ["crypto/ec/curve448"])
+
+cc_library(name = "test_rsa_headers", hdrs = glob(["crypto/rsa/*.h"]), includes = ["crypto/rsa"])
+
+cc_library(name = "dasync_textual_source", hdrs = ["engines/e_dasync_err.c"])

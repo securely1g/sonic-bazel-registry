@@ -1,0 +1,16 @@
+Subject: Adapt SONiC OpenSSL initialization to CPython 3.13
+
+Preserve src/cpython.patch/openssl-config.patch: load the system OpenSSL
+configuration when initializing _ssl. CPython 3.13 uses multi-phase module
+initialization and removed the old PySocketModule setup context.
+Source: Azure/sonic-fips@2ed0920f2fea7940f4b2b7f5c37e51e225eb1ea6
+
+--- a/Modules/_ssl.c
++++ b/Modules/_ssl.c
+@@ -6833,5 +6833,6 @@
+ PyMODINIT_FUNC
+ PyInit__ssl(void)
+ {
++    OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CONFIG, NULL);
+     return PyModuleDef_Init(&_sslmodule_def);
+ }

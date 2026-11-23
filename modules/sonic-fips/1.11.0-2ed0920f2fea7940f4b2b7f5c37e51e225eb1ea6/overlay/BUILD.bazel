@@ -1,0 +1,37 @@
+load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages_group")
+
+package(default_visibility = ["//visibility:public"])
+exports_files(glob(["src/**", "rules/*.mk"]))
+
+runtime_packages_group(
+    name = "runtime_packages.json",
+    packages = [
+        "//openssl:openssl.runtime_metadata",
+        "//openssl:libssl3t64.runtime_metadata",
+        "//openssl:libssl-dev.runtime_metadata",
+        "//openssl:libssl-doc.runtime_metadata",
+        "//openssh:ssh.runtime_metadata",
+        "//openssh:openssh-client.runtime_metadata",
+        "//openssh:openssh-sftp-server.runtime_metadata",
+        "//openssh:openssh-server.runtime_metadata",
+        "//python:python3.13.runtime_metadata",
+        "//python:python3.13-minimal.runtime_metadata",
+        "//python:libpython3.13.runtime_metadata",
+        "//python:libpython3.13-minimal.runtime_metadata",
+        "//python:libpython3.13-stdlib.runtime_metadata",
+        "//golang:golang-1.26.runtime_metadata",
+        "//golang:golang-1.26-go.runtime_metadata",
+        "//golang:golang-1.26-src.runtime_metadata",
+        "//golang:golang-1.26-doc.runtime_metadata",
+        "//krb5:libk5crypto3.runtime_metadata",
+        "//krb5:libkrb5support0.runtime_metadata",
+        "//krb5:libkrb5-3.runtime_metadata",
+        "//krb5:libgssapi-krb5-2.runtime_metadata",
+        "//krb5:libkadm5clnt-mit12.runtime_metadata",
+        "//krb5:libkadm5srv-mit12.runtime_metadata",
+        "//krb5:libgssrpc4t64.runtime_metadata",
+        "//krb5:krb5-multidev.runtime_metadata",
+        "//krb5:libkrb5-dev.runtime_metadata",
+        "//symcrypt:symcrypt-openssl.runtime_metadata",
+    ],
+)

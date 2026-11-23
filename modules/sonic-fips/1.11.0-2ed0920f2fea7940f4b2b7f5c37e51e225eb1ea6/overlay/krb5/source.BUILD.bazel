@@ -1,0 +1,22 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+package(default_visibility = ["//visibility:public"])
+exports_files(glob(["**"], exclude = ["BUILD.bazel"]))
+filegroup(name = "sources", srcs = glob(["**"], exclude = ["BUILD.bazel"]))
+cc_library(
+    name = "source_headers",
+    hdrs = glob(["**/*.h"]),
+    textual_hdrs = ["src/lib/krb5/krb/brand.c", "src/lib/krb5/krb/strptime.c"],
+    includes = ["src", "src/include", "src/lib/crypto/krb", "src/lib/crypto/builtin", "src/lib/crypto/builtin/des", "src/lib/crypto/builtin/aes", "src/lib/crypto/builtin/camellia", "src/lib/crypto/builtin/md4", "src/lib/crypto/builtin/md5", "src/lib/crypto/builtin/sha1", "src/lib/crypto/builtin/sha2", "src/util/profile", "src/lib/krb5/ccache", "src/lib/krb5/keytab", "src/lib/krb5/os", "src/lib/krb5/rcache", "src/lib/krb5/unicode", "src/lib/krb5/unicode/ucdata", "src/lib/gssapi", "src/lib/gssapi/spnego", "src/lib/gssapi/generic", "src/lib/gssapi/krb5", "src/lib/gssapi/mechglue", "src/lib/kadm5", "src/lib/kadm5/clnt", "src/lib/kadm5/srv", "src/lib/kdb", "src/lib/rpc"],
+)
+
+
+# Public include mappings preserve upstream gssapi/ and kadm5/ include names.
+cc_library(name = "gssapi_generic_headers", hdrs = ["src/lib/gssapi/generic/" + p for p in ["gssapi_generic.h", "gssapi_alloc.h", "gssapi_ext.h"]], strip_include_prefix = "src/lib/gssapi/generic", include_prefix = "gssapi")
+cc_library(name = "gssapi_krb5_headers", hdrs = ["src/lib/gssapi/krb5/gssapi_krb5.h"], strip_include_prefix = "src/lib/gssapi/krb5", include_prefix = "gssapi")
+cc_library(name = "kadm5_headers", hdrs = glob(["src/lib/kadm5/*.h", "src/lib/kadm5/clnt/*.h"]), strip_include_prefix = "src/lib/kadm5", include_prefix = "kadm5")
+cc_library(name = "public_source_headers", hdrs = glob(["src/include/krb5/*.h", "src/include/gssrpc/*.h"]) + ["src/include/krb5.h", "src/include/gssapi.h", "src/include/kdb.h"], strip_include_prefix = "src/include", deps = [":gssapi_generic_headers", ":gssapi_krb5_headers", ":kadm5_headers"])
+
+
+# Original full default-check source inputs.
+
+

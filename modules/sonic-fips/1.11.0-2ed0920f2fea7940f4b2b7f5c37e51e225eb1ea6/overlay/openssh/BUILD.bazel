@@ -1,0 +1,1895 @@
+load(":configuration.bzl", "configuration_substitutions")
+load(":target_platform.bzl", "target_arch_command")
+load("@rules_python//python:defs.bzl", "py_test", "py_binary")
+load("@sonic_build_infra//cc:runtime_test.bzl", "native_runtime_binary")
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@bazel_skylib//rules:expand_template.bzl", "expand_template")
+load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
+load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages", "runtime_packages_group")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["source.BUILD.bazel", "dh-runit.BUILD.bazel", "0001-native-configuration-inputs.patch"])
+
+# Derived from the controlled AMD64 source OpenSSL/Kerberos probe.
+# USE_BTMP follows the original Debian post-configure override.
+expand_template(
+    name = "configuration",
+    template = "@openssh_src//:config.h.in",
+    out = "config.h",
+    substitutions = configuration_substitutions(),
+)
+
+cc_library(
+    name = "configuration_headers",
+    hdrs = [
+        ":configuration"
+    ],
+    includes = [
+        "."
+    ],
+    defines = [
+        "SSHDIR=\\\"/etc/ssh\\\"",
+        "_PATH_SSH_PROGRAM=\\\"/usr/bin/ssh\\\"",
+        "_PATH_SSH_ASKPASS_DEFAULT=\\\"/usr/bin/ssh-askpass\\\"",
+        "_PATH_SFTP_SERVER=\\\"/usr/lib/openssh/sftp-server\\\"",
+        "_PATH_SSH_KEY_SIGN=\\\"/usr/lib/openssh/ssh-keysign\\\"",
+        "_PATH_SSHD_SESSION=\\\"/usr/lib/openssh/sshd-session\\\"",
+        "_PATH_SSHD_AUTH=\\\"/usr/lib/openssh/sshd-auth\\\"",
+        "_PATH_SSH_PKCS11_HELPER=\\\"/usr/lib/openssh/ssh-pkcs11-helper\\\"",
+        "_PATH_SSH_SK_HELPER=\\\"/usr/lib/openssh/ssh-sk-helper\\\"",
+        "_PATH_SSH_PIDDIR=\\\"/run\\\"",
+        "_PATH_PRIVSEP_CHROOT_DIR=\\\"/run/sshd\\\"",
+        "SSH_EXTRAVERSION=\\\"Debian-7+fips\\\""
+    ],
+)
+
+cc_library(
+    name = "compat",
+    srcs = [
+        "@openssh_src//:openbsd-compat/arc4random.c",
+        "@openssh_src//:openbsd-compat/arc4random_uniform.c",
+        "@openssh_src//:openbsd-compat/base64.c",
+        "@openssh_src//:openbsd-compat/basename.c",
+        "@openssh_src//:openbsd-compat/bcrypt_pbkdf.c",
+        "@openssh_src//:openbsd-compat/bindresvport.c",
+        "@openssh_src//:openbsd-compat/blowfish.c",
+        "@openssh_src//:openbsd-compat/daemon.c",
+        "@openssh_src//:openbsd-compat/dirname.c",
+        "@openssh_src//:openbsd-compat/explicit_bzero.c",
+        "@openssh_src//:openbsd-compat/fmt_scaled.c",
+        "@openssh_src//:openbsd-compat/freezero.c",
+        "@openssh_src//:openbsd-compat/fnmatch.c",
+        "@openssh_src//:openbsd-compat/getcwd.c",
+        "@openssh_src//:openbsd-compat/getgrouplist.c",
+        "@openssh_src//:openbsd-compat/getopt_long.c",
+        "@openssh_src//:openbsd-compat/getrrsetbyname.c",
+        "@openssh_src//:openbsd-compat/glob.c",
+        "@openssh_src//:openbsd-compat/inet_aton.c",
+        "@openssh_src//:openbsd-compat/inet_ntoa.c",
+        "@openssh_src//:openbsd-compat/inet_ntop.c",
+        "@openssh_src//:openbsd-compat/md5.c",
+        "@openssh_src//:openbsd-compat/memmem.c",
+        "@openssh_src//:openbsd-compat/mktemp.c",
+        "@openssh_src//:openbsd-compat/pwcache.c",
+        "@openssh_src//:openbsd-compat/readpassphrase.c",
+        "@openssh_src//:openbsd-compat/reallocarray.c",
+        "@openssh_src//:openbsd-compat/recallocarray.c",
+        "@openssh_src//:openbsd-compat/rresvport.c",
+        "@openssh_src//:openbsd-compat/setenv.c",
+        "@openssh_src//:openbsd-compat/setproctitle.c",
+        "@openssh_src//:openbsd-compat/sha1.c",
+        "@openssh_src//:openbsd-compat/sha2.c",
+        "@openssh_src//:openbsd-compat/sigact.c",
+        "@openssh_src//:openbsd-compat/strcasestr.c",
+        "@openssh_src//:openbsd-compat/strlcat.c",
+        "@openssh_src//:openbsd-compat/strlcpy.c",
+        "@openssh_src//:openbsd-compat/strmode.c",
+        "@openssh_src//:openbsd-compat/strndup.c",
+        "@openssh_src//:openbsd-compat/strnlen.c",
+        "@openssh_src//:openbsd-compat/strptime.c",
+        "@openssh_src//:openbsd-compat/strsep.c",
+        "@openssh_src//:openbsd-compat/strtoll.c",
+        "@openssh_src//:openbsd-compat/strtonum.c",
+        "@openssh_src//:openbsd-compat/strtoull.c",
+        "@openssh_src//:openbsd-compat/strtoul.c",
+        "@openssh_src//:openbsd-compat/timingsafe_bcmp.c",
+        "@openssh_src//:openbsd-compat/vis.c",
+        "@openssh_src//:openbsd-compat/bsd-asprintf.c",
+        "@openssh_src//:openbsd-compat/bsd-closefrom.c",
+        "@openssh_src//:openbsd-compat/bsd-cygwin_util.c",
+        "@openssh_src//:openbsd-compat/bsd-err.c",
+        "@openssh_src//:openbsd-compat/bsd-flock.c",
+        "@openssh_src//:openbsd-compat/bsd-getentropy.c",
+        "@openssh_src//:openbsd-compat/bsd-getline.c",
+        "@openssh_src//:openbsd-compat/bsd-getpagesize.c",
+        "@openssh_src//:openbsd-compat/bsd-getpeereid.c",
+        "@openssh_src//:openbsd-compat/bsd-malloc.c",
+        "@openssh_src//:openbsd-compat/bsd-misc.c",
+        "@openssh_src//:openbsd-compat/bsd-nextstep.c",
+        "@openssh_src//:openbsd-compat/bsd-openpty.c",
+        "@openssh_src//:openbsd-compat/bsd-poll.c",
+        "@openssh_src//:openbsd-compat/bsd-pselect.c",
+        "@openssh_src//:openbsd-compat/bsd-setres_id.c",
+        "@openssh_src//:openbsd-compat/bsd-signal.c",
+        "@openssh_src//:openbsd-compat/bsd-snprintf.c",
+        "@openssh_src//:openbsd-compat/bsd-statvfs.c",
+        "@openssh_src//:openbsd-compat/bsd-timegm.c",
+        "@openssh_src//:openbsd-compat/bsd-waitpid.c",
+        "@openssh_src//:openbsd-compat/fake-rfc2553.c",
+        "@openssh_src//:openbsd-compat/getrrsetbyname-ldns.c",
+        "@openssh_src//:openbsd-compat/kludge-fd_set.c",
+        "@openssh_src//:openbsd-compat/openssl-compat.c",
+        "@openssh_src//:openbsd-compat/libressl-api-compat.c",
+        "@openssh_src//:openbsd-compat/xcrypt.c",
+        "@openssh_src//:openbsd-compat/port-aix.c",
+        "@openssh_src//:openbsd-compat/port-irix.c",
+        "@openssh_src//:openbsd-compat/port-linux.c",
+        "@openssh_src//:openbsd-compat/port-prngd.c",
+        "@openssh_src//:openbsd-compat/port-solaris.c",
+        "@openssh_src//:openbsd-compat/port-net.c",
+        "@openssh_src//:openbsd-compat/port-uw.c"
+    ],
+    textual_hdrs = [],
+    copts = select({'@platforms//cpu:x86_64': ['-g', '-O2', '-Werror=implicit-function-declaration', '-fstack-protector-strong', '-fstack-clash-protection', '-Wformat', '-Werror=format-security', '-fcf-protection', '-Wdate-time', '-D_FORTIFY_SOURCE=2', '-pthread', '-pipe', '-Wno-error=format-truncation', '-Wall', '-Wextra', '-Wpointer-arith', '-Wuninitialized', '-Wsign-compare', '-Wformat-security', '-Wsizeof-pointer-memaccess', '-Wno-pointer-sign', '-Wno-unused-parameter', '-Wno-unused-result', '-Wimplicit-fallthrough', '-Wmisleading-indentation', '-fno-strict-aliasing', '-ftrapv', '-fzero-call-used-regs=used', '-ftrivial-auto-var-init=zero', '-fno-builtin-memset', '-D_XOPEN_SOURCE=600', '-D_BSD_SOURCE', '-D_DEFAULT_SOURCE', '-D_GNU_SOURCE', '-DOPENSSL_API_COMPAT=0x10100000L', '-DHAVE_CONFIG_H', '-fPIC'], '@platforms//cpu:aarch64': ['-g', '-O2', '-Werror=implicit-function-declaration', '-fstack-protector-strong', '-fstack-clash-protection', '-Wformat', '-Werror=format-security', '-mbranch-protection=standard', '-Wdate-time', '-D_FORTIFY_SOURCE=2', '-pthread', '-pipe', '-Wno-error=format-truncation', '-Wall', '-Wextra', '-Wpointer-arith', '-Wuninitialized', '-Wsign-compare', '-Wformat-security', '-Wsizeof-pointer-memaccess', '-Wno-pointer-sign', '-Wno-unused-parameter', '-Wno-unused-result', '-Wimplicit-fallthrough', '-Wmisleading-indentation', '-fno-strict-aliasing', '-ftrapv', '-fzero-call-used-regs=used', '-ftrivial-auto-var-init=zero', '-fno-builtin-memset', '-D_XOPEN_SOURCE=600', '-D_BSD_SOURCE', '-D_DEFAULT_SOURCE', '-D_GNU_SOURCE', '-DHAVE_CONFIG_H', '-fPIC']}),
+    deps = [
+        "@openssh_deps//libpam0g-dev:libpam0g",
+        ":configuration_headers",
+        "@openssh_src//:source_headers",
+        "@openssh_deps//libbsd-dev:libbsd_headers",
+        "//openssl:libcrypto",
+        "//krb5:gssapi",
+        "@openssh_deps//zlib1g-dev:zlib1g",
+        "@openssh_deps//libcrypt-dev:libcrypt",
+        "@openssh_deps//libselinux1-dev:libselinux1"
+    ],
+    linkopts = [
+        "-ldl",
+        "-lresolv",
+        "-pthread"
+    ],
+    linkstatic = True,
+)
+
+cc_library(
+    name = "ssh_library",
+    srcs = [
+        "@openssh_src//:ssh_api.c",
+        "@openssh_src//:ssherr.c",
+        "@openssh_src//:sshbuf.c",
+        "@openssh_src//:sshkey.c",
+        "@openssh_src//:sshbuf-getput-basic.c",
+        "@openssh_src//:sshbuf-misc.c",
+        "@openssh_src//:sshbuf-getput-crypto.c",
+        "@openssh_src//:krl.c",
+        "@openssh_src//:bitmap.c",
+        "@openssh_src//:ssh-xmss.c",
+        "@openssh_src//:sshkey-xmss.c",
+        "@openssh_src//:xmss_commons.c",
+        "@openssh_src//:xmss_fast.c",
+        "@openssh_src//:xmss_hash.c",
+        "@openssh_src//:xmss_hash_address.c",
+        "@openssh_src//:xmss_wots.c",
+        "@openssh_src//:authfd.c",
+        "@openssh_src//:authfile.c",
+        "@openssh_src//:canohost.c",
+        "@openssh_src//:channels.c",
+        "@openssh_src//:cipher.c",
+        "@openssh_src//:cipher-aes.c",
+        "@openssh_src//:cipher-aesctr.c",
+        "@openssh_src//:cleanup.c",
+        "@openssh_src//:compat.c",
+        "@openssh_src//:fatal.c",
+        "@openssh_src//:hostfile.c",
+        "@openssh_src//:log.c",
+        "@openssh_src//:match.c",
+        "@openssh_src//:moduli.c",
+        "@openssh_src//:nchan.c",
+        "@openssh_src//:packet.c",
+        "@openssh_src//:readpass.c",
+        "@openssh_src//:ttymodes.c",
+        "@openssh_src//:xmalloc.c",
+        "@openssh_src//:addr.c",
+        "@openssh_src//:addrmatch.c",
+        "@openssh_src//:atomicio.c",
+        "@openssh_src//:dispatch.c",
+        "@openssh_src//:mac.c",
+        "@openssh_src//:misc.c",
+        "@openssh_src//:utf8.c",
+        "@openssh_src//:monitor_fdpass.c",
+        "@openssh_src//:rijndael.c",
+        "@openssh_src//:ssh-dss.c",
+        "@openssh_src//:ssh-ecdsa.c",
+        "@openssh_src//:ssh-ecdsa-sk.c",
+        "@openssh_src//:ssh-ed25519-sk.c",
+        "@openssh_src//:ssh-rsa.c",
+        "@openssh_src//:ssh-null.c",
+        "@openssh_src//:dh.c",
+        "@openssh_src//:msg.c",
+        "@openssh_src//:progressmeter.c",
+        "@openssh_src//:dns.c",
+        "@openssh_src//:entropy.c",
+        "@openssh_src//:gss-genr.c",
+        "@openssh_src//:umac.c",
+        "@openssh_src//:umac128.c",
+        "@openssh_src//:ssh-pkcs11.c",
+        "@openssh_src//:smult_curve25519_ref.c",
+        "@openssh_src//:poly1305.c",
+        "@openssh_src//:chacha.c",
+        "@openssh_src//:cipher-chachapoly.c",
+        "@openssh_src//:cipher-chachapoly-libcrypto.c",
+        "@openssh_src//:ssh-ed25519.c",
+        "@openssh_src//:digest-openssl.c",
+        "@openssh_src//:digest-libc.c",
+        "@openssh_src//:hmac.c",
+        "@openssh_src//:ed25519.c",
+        "@openssh_src//:hash.c",
+        "@openssh_src//:kex.c",
+        "@openssh_src//:kex-names.c",
+        "@openssh_src//:kexdh.c",
+        "@openssh_src//:kexgex.c",
+        "@openssh_src//:kexecdh.c",
+        "@openssh_src//:kexc25519.c",
+        "@openssh_src//:kexgexc.c",
+        "@openssh_src//:kexgexs.c",
+        "@openssh_src//:kexgssc.c",
+        "@openssh_src//:kexsntrup761x25519.c",
+        "@openssh_src//:kexmlkem768x25519.c",
+        "@openssh_src//:sntrup761.c",
+        "@openssh_src//:kexgen.c",
+        "@openssh_src//:sftp-realpath.c",
+        "@openssh_src//:platform-pledge.c",
+        "@openssh_src//:platform-tracing.c",
+        "@openssh_src//:platform-misc.c",
+        "@openssh_src//:sshbuf-io.c"
+    ],
+    textual_hdrs = [
+        "@openssh_src//:umac.c"
+    ],
+    copts = select({'@platforms//cpu:x86_64': ['-g', '-O2', '-Werror=implicit-function-declaration', '-fstack-protector-strong', '-fstack-clash-protection', '-Wformat', '-Werror=format-security', '-fcf-protection', '-Wdate-time', '-D_FORTIFY_SOURCE=2', '-pthread', '-pipe', '-Wno-error=format-truncation', '-Wall', '-Wextra', '-Wpointer-arith', '-Wuninitialized', '-Wsign-compare', '-Wformat-security', '-Wsizeof-pointer-memaccess', '-Wno-pointer-sign', '-Wno-unused-parameter', '-Wno-unused-result', '-Wimplicit-fallthrough', '-Wmisleading-indentation', '-fno-strict-aliasing', '-ftrapv', '-fzero-call-used-regs=used', '-ftrivial-auto-var-init=zero', '-fno-builtin-memset', '-fPIE', '-D_XOPEN_SOURCE=600', '-D_BSD_SOURCE', '-D_DEFAULT_SOURCE', '-D_GNU_SOURCE', '-DOPENSSL_API_COMPAT=0x10100000L', '-DHAVE_CONFIG_H'], '@platforms//cpu:aarch64': ['-g', '-O2', '-Werror=implicit-function-declaration', '-fstack-protector-strong', '-fstack-clash-protection', '-Wformat', '-Werror=format-security', '-mbranch-protection=standard', '-Wdate-time', '-D_FORTIFY_SOURCE=2', '-pthread', '-pipe', '-Wno-error=format-truncation', '-Wall', '-Wextra', '-Wpointer-arith', '-Wuninitialized', '-Wsign-compare', '-Wformat-security', '-Wsizeof-pointer-memaccess', '-Wno-pointer-sign', '-Wno-unused-parameter', '-Wno-unused-result', '-Wimplicit-fallthrough', '-Wmisleading-indentation', '-fno-strict-aliasing', '-ftrapv', '-fzero-call-used-regs=used', '-ftrivial-auto-var-init=zero', '-fno-builtin-memset', '-fPIE', '-D_XOPEN_SOURCE=600', '-D_BSD_SOURCE', '-D_DEFAULT_SOURCE', '-D_GNU_SOURCE', '-DHAVE_CONFIG_H']}),
+    deps = [
+        "@openssh_deps//libpam0g-dev:libpam0g",
+        ":configuration_headers",
+        "@openssh_src//:source_headers",
+        "@openssh_deps//libbsd-dev:libbsd_headers",
+        "//openssl:libcrypto",
+        "//krb5:gssapi",
+        "@openssh_deps//zlib1g-dev:zlib1g",
+        "@openssh_deps//libcrypt-dev:libcrypt",
+        "@openssh_deps//libselinux1-dev:libselinux1",
+        ":compat"
+    ],
+    linkopts = [
+        "-ldl",
+        "-lresolv",
+        "-pthread"
+    ],
+    linkstatic = True,
+)
+
+cc_binary(
+    name = "ssh",
+    srcs = [
+        "@openssh_src//:ssh.c",
+        "@openssh_src//:readconf.c",
+        "@openssh_src//:clientloop.c",
+        "@openssh_src//:sshtty.c",
+        "@openssh_src//:sshconnect.c",
+        "@openssh_src//:sshconnect2.c",
+        "@openssh_src//:mux.c",
+        "@openssh_src//:ssh-sk-client.c"
+    ],
+    deps = [
+        ":ssh_library"
+    ],
+    copts = select({'@platforms//cpu:x86_64': ['-g', '-O2', '-Werror=implicit-function-declaration', '-fstack-protector-strong', '-fstack-clash-protection', '-Wformat', '-Werror=format-security', '-fcf-protection', '-Wdate-time', '-D_FORTIFY_SOURCE=2', '-pthread', '-pipe', '-Wno-error=format-truncation', '-Wall', '-Wextra', '-Wpointer-arith', '-Wuninitialized', '-Wsign-compare', '-Wformat-security', '-Wsizeof-pointer-memaccess', '-Wno-pointer-sign', '-Wno-unused-parameter', '-Wno-unused-result', '-Wimplicit-fallthrough', '-Wmisleading-indentation', '-fno-strict-aliasing', '-ftrapv', '-fzero-call-used-regs=used', '-ftrivial-auto-var-init=zero', '-fno-builtin-memset', '-fPIE', '-D_XOPEN_SOURCE=600', '-D_BSD_SOURCE', '-D_DEFAULT_SOURCE', '-D_GNU_SOURCE', '-DOPENSSL_API_COMPAT=0x10100000L', '-DHAVE_CONFIG_H'], '@platforms//cpu:aarch64': ['-g', '-O2', '-Werror=implicit-function-declaration', '-fstack-protector-strong', '-fstack-clash-protection', '-Wformat', '-Werror=format-security', '-mbranch-protection=standard', '-Wdate-time', '-D_FORTIFY_SOURCE=2', '-pthread', '-pipe', '-Wno-error=format-truncation', '-Wall', '-Wextra', '-Wpointer-arith', '-Wuninitialized', '-Wsign-compare', '-Wformat-security', '-Wsizeof-pointer-memaccess', '-Wno-pointer-sign', '-Wno-unused-parameter', '-Wno-unused-result', '-Wimplicit-fallthrough', '-Wmisleading-indentation', '-fno-strict-aliasing', '-ftrapv', '-fzero-call-used-regs=used', '-ftrivial-auto-var-init=zero', '-fno-builtin-memset', '-fPIE', '-D_XOPEN_SOURCE=600', '-D_BSD_SOURCE', '-D_DEFAULT_SOURCE', '-D_GNU_SOURCE', '-DHAVE_CONFIG_H']}),
+    linkopts = [
+        "-Wl,-z,relro",
+        "-Wl,-z,now"
+    ],
+    features = [
+        "-strip_debug_symbols"
+    ],
+    linkstatic = True,
+)
+
+cc_binary(
+    name = "sshd",
+    srcs = [
+        "@openssh_src//:sshd.c",
+        "@openssh_src//:platform-listen.c",
+        "@openssh_src//:servconf.c",
+        "@openssh_src//:sshpty.c",
+        "@openssh_src//:srclimit.c",
+        "@openssh_src//:groupaccess.c",
+        "@openssh_src//:auth2-methods.c",
+        "@openssh_src//:dns.c",
+        "@openssh_src//:fatal.c",
+        "@openssh_src//:compat.c",
+        "@openssh_src//:utf8.c",
+        "@openssh_src//:authfd.c",
+        "@openssh_src//:canohost.c",
+        "@openssh_src//:ssh-sk-client.c"
+    ],
+    deps = [
+        ":ssh_library",
+        "@openssh_deps//libaudit-dev:libaudit",
+        "@openssh_deps//libpam0g-dev:libpam0g",
+        "@openssh_deps//libselinux1-dev:libselinux1",
+        "@openssh_deps//libwrap0-dev:libwrap_cc"
+    ],
+    copts = select({'@platforms//cpu:x86_64': ['-g', '-O2', '-Werror=implicit-function-declaration', '-fstack-protector-strong', '-fstack-clash-protection', '-Wformat', '-Werror=format-security', '-fcf-protection', '-Wdate-time', '-D_FORTIFY_SOURCE=2', '-pthread', '-pipe', '-Wno-error=format-truncation', '-Wall', '-Wextra', '-Wpointer-arith', '-Wuninitialized', '-Wsign-compare', '-Wformat-security', '-Wsizeof-pointer-memaccess', '-Wno-pointer-sign', '-Wno-unused-parameter', '-Wno-unused-result', '-Wimplicit-fallthrough', '-Wmisleading-indentation', '-fno-strict-aliasing', '-ftrapv', '-fzero-call-used-regs=used', '-ftrivial-auto-var-init=zero', '-fno-builtin-memset', '-fPIE', '-D_XOPEN_SOURCE=600', '-D_BSD_SOURCE', '-D_DEFAULT_SOURCE', '-D_GNU_SOURCE', '-DOPENSSL_API_COMPAT=0x10100000L', '-DHAVE_CONFIG_H'], '@platforms//cpu:aarch64': ['-g', '-O2', '-Werror=implicit-function-declaration', '-fstack-protector-strong', '-fstack-clash-protection', '-Wformat', '-Werror=format-security', '-mbranch-protection=standard', '-Wdate-time', '-D_FORTIFY_SOURCE=2', '-pthread', '-pipe', '-Wno-error=format-truncation', '-Wall', '-Wextra', '-Wpointer-arith', '-Wuninitialized', '-Wsign-compare', '-Wformat-security', '-Wsizeof-pointer-memaccess', '-Wno-pointer-sign', '-Wno-unused-parameter', '-Wno-unused-result', '-Wimplicit-fallthrough', '-Wmisleading-indentation', '-fno-strict-aliasing', '-ftrapv', '-fzero-call-used-regs=used', '-ftrivial-auto-var-init=zero', '-fno-builtin-memset', '-fPIE', '-D_XOPEN_SOURCE=600', '-D_BSD_SOURCE', '-D_DEFAULT_SOURCE', '-D_GNU_SOURCE', '-DHAVE_CONFIG_H']}),
+    linkopts = [
+        "-Wl,-z,relro",
+        "-Wl,-z,now"
+    ],
+    features = [
+        "-strip_debug_symbols"
+    ],
+    linkstatic = True,
+)
+
+cc_binary(
+    name = "sshd-session",
+    srcs = [
+        "@openssh_src//:sshd-session.c",
+        "@openssh_src//:auth-rhosts.c",
+        "@openssh_src//:auth-passwd.c",
+        "@openssh_src//:audit.c",
+        "@openssh_src//:audit-bsm.c",
+        "@openssh_src//:audit-linux.c",
+        "@openssh_src//:platform.c",
+        "@openssh_src//:sshpty.c",
+        "@openssh_src//:sshlogin.c",
+        "@openssh_src//:servconf.c",
+        "@openssh_src//:serverloop.c",
+        "@openssh_src//:auth.c",
+        "@openssh_src//:auth2.c",
+        "@openssh_src//:auth2-methods.c",
+        "@openssh_src//:auth-options.c",
+        "@openssh_src//:session.c",
+        "@openssh_src//:auth2-chall.c",
+        "@openssh_src//:groupaccess.c",
+        "@openssh_src//:auth-bsdauth.c",
+        "@openssh_src//:auth2-hostbased.c",
+        "@openssh_src//:auth2-kbdint.c",
+        "@openssh_src//:auth2-none.c",
+        "@openssh_src//:auth2-passwd.c",
+        "@openssh_src//:auth2-pubkey.c",
+        "@openssh_src//:auth2-pubkeyfile.c",
+        "@openssh_src//:monitor.c",
+        "@openssh_src//:monitor_wrap.c",
+        "@openssh_src//:auth-krb5.c",
+        "@openssh_src//:auth2-gss.c",
+        "@openssh_src//:gss-serv.c",
+        "@openssh_src//:gss-serv-krb5.c",
+        "@openssh_src//:kexgsss.c",
+        "@openssh_src//:loginrec.c",
+        "@openssh_src//:auth-pam.c",
+        "@openssh_src//:auth-shadow.c",
+        "@openssh_src//:auth-sia.c",
+        "@openssh_src//:sftp-server.c",
+        "@openssh_src//:sftp-common.c",
+        "@openssh_src//:uidswap.c",
+        "@openssh_src//:platform-listen.c",
+        "@openssh_src//:ssh-sk-client.c"
+    ],
+    deps = [
+        ":ssh_library",
+        "@openssh_deps//libaudit-dev:libaudit",
+        "@openssh_deps//libpam0g-dev:libpam0g",
+        "@openssh_deps//libselinux1-dev:libselinux1",
+        "@openssh_deps//libwrap0-dev:libwrap_cc",
+        "@openssh_deps//libwtmpdb-dev:libwtmpdb"
+    ],
+    copts = select({'@platforms//cpu:x86_64': ['-g', '-O2', '-Werror=implicit-function-declaration', '-fstack-protector-strong', '-fstack-clash-protection', '-Wformat', '-Werror=format-security', '-fcf-protection', '-Wdate-time', '-D_FORTIFY_SOURCE=2', '-pthread', '-pipe', '-Wno-error=format-truncation', '-Wall', '-Wextra', '-Wpointer-arith', '-Wuninitialized', '-Wsign-compare', '-Wformat-security', '-Wsizeof-pointer-memaccess', '-Wno-pointer-sign', '-Wno-unused-parameter', '-Wno-unused-result', '-Wimplicit-fallthrough', '-Wmisleading-indentation', '-fno-strict-aliasing', '-ftrapv', '-fzero-call-used-regs=used', '-ftrivial-auto-var-init=zero', '-fno-builtin-memset', '-fPIE', '-D_XOPEN_SOURCE=600', '-D_BSD_SOURCE', '-D_DEFAULT_SOURCE', '-D_GNU_SOURCE', '-DOPENSSL_API_COMPAT=0x10100000L', '-DHAVE_CONFIG_H'], '@platforms//cpu:aarch64': ['-g', '-O2', '-Werror=implicit-function-declaration', '-fstack-protector-strong', '-fstack-clash-protection', '-Wformat', '-Werror=format-security', '-mbranch-protection=standard', '-Wdate-time', '-D_FORTIFY_SOURCE=2', '-pthread', '-pipe', '-Wno-error=format-truncation', '-Wall', '-Wextra', '-Wpointer-arith', '-Wuninitialized', '-Wsign-compare', '-Wformat-security', '-Wsizeof-pointer-memaccess', '-Wno-pointer-sign', '-Wno-unused-parameter', '-Wno-unused-result', '-Wimplicit-fallthrough', '-Wmisleading-indentation', '-fno-strict-aliasing', '-ftrapv', '-fzero-call-used-regs=used', '-ftrivial-auto-var-init=zero', '-fno-builtin-memset', '-fPIE', '-D_XOPEN_SOURCE=600', '-D_BSD_SOURCE', '-D_DEFAULT_SOURCE', '-D_GNU_SOURCE', '-DHAVE_CONFIG_H']}),
+    linkopts = [
+        "-Wl,-z,relro",
+        "-Wl,-z,now"
+    ],
+    features = [
+        "-strip_debug_symbols"
+    ],
+    linkstatic = True,
+)
+
+cc_binary(
+    name = "sshd-auth",
+    srcs = [
+        "@openssh_src//:sshd-auth.c",
+        "@openssh_src//:auth2-methods.c",
+        "@openssh_src//:auth-rhosts.c",
+        "@openssh_src//:auth-passwd.c",
+        "@openssh_src//:sshpty.c",
+        "@openssh_src//:sshlogin.c",
+        "@openssh_src//:servconf.c",
+        "@openssh_src//:serverloop.c",
+        "@openssh_src//:auth.c",
+        "@openssh_src//:auth2.c",
+        "@openssh_src//:auth-options.c",
+        "@openssh_src//:session.c",
+        "@openssh_src//:auth2-chall.c",
+        "@openssh_src//:groupaccess.c",
+        "@openssh_src//:auth-bsdauth.c",
+        "@openssh_src//:auth2-hostbased.c",
+        "@openssh_src//:auth2-kbdint.c",
+        "@openssh_src//:auth2-none.c",
+        "@openssh_src//:auth2-passwd.c",
+        "@openssh_src//:auth2-pubkey.c",
+        "@openssh_src//:auth2-pubkeyfile.c",
+        "@openssh_src//:auth2-gss.c",
+        "@openssh_src//:gss-serv.c",
+        "@openssh_src//:gss-serv-krb5.c",
+        "@openssh_src//:kexgsss.c",
+        "@openssh_src//:monitor_wrap.c",
+        "@openssh_src//:auth-krb5.c",
+        "@openssh_src//:audit.c",
+        "@openssh_src//:audit-bsm.c",
+        "@openssh_src//:audit-linux.c",
+        "@openssh_src//:platform.c",
+        "@openssh_src//:loginrec.c",
+        "@openssh_src//:auth-pam.c",
+        "@openssh_src//:auth-shadow.c",
+        "@openssh_src//:auth-sia.c",
+        "@openssh_src//:sandbox-null.c",
+        "@openssh_src//:sandbox-rlimit.c",
+        "@openssh_src//:sandbox-darwin.c",
+        "@openssh_src//:sandbox-seccomp-filter.c",
+        "@openssh_src//:sandbox-capsicum.c",
+        "@openssh_src//:sandbox-solaris.c",
+        "@openssh_src//:sftp-server.c",
+        "@openssh_src//:sftp-common.c",
+        "@openssh_src//:uidswap.c",
+        "@openssh_src//:ssh-sk-client.c"
+    ],
+    deps = [
+        ":ssh_library",
+        "@openssh_deps//libaudit-dev:libaudit",
+        "@openssh_deps//libpam0g-dev:libpam0g",
+        "@openssh_deps//libselinux1-dev:libselinux1",
+        "@openssh_deps//libwrap0-dev:libwrap_cc",
+        "@openssh_deps//libwtmpdb-dev:libwtmpdb"
+    ],
+    copts = select({'@platforms//cpu:x86_64': ['-g', '-O2', '-Werror=implicit-function-declaration', '-fstack-protector-strong', '-fstack-clash-protection', '-Wformat', '-Werror=format-security', '-fcf-protection', '-Wdate-time', '-D_FORTIFY_SOURCE=2', '-pthread', '-pipe', '-Wno-error=format-truncation', '-Wall', '-Wextra', '-Wpointer-arith', '-Wuninitialized', '-Wsign-compare', '-Wformat-security', '-Wsizeof-pointer-memaccess', '-Wno-pointer-sign', '-Wno-unused-parameter', '-Wno-unused-result', '-Wimplicit-fallthrough', '-Wmisleading-indentation', '-fno-strict-aliasing', '-ftrapv', '-fzero-call-used-regs=used', '-ftrivial-auto-var-init=zero', '-fno-builtin-memset', '-fPIE', '-D_XOPEN_SOURCE=600', '-D_BSD_SOURCE', '-D_DEFAULT_SOURCE', '-D_GNU_SOURCE', '-DOPENSSL_API_COMPAT=0x10100000L', '-DHAVE_CONFIG_H'], '@platforms//cpu:aarch64': ['-g', '-O2', '-Werror=implicit-function-declaration', '-fstack-protector-strong', '-fstack-clash-protection', '-Wformat', '-Werror=format-security', '-mbranch-protection=standard', '-Wdate-time', '-D_FORTIFY_SOURCE=2', '-pthread', '-pipe', '-Wno-error=format-truncation', '-Wall', '-Wextra', '-Wpointer-arith', '-Wuninitialized', '-Wsign-compare', '-Wformat-security', '-Wsizeof-pointer-memaccess', '-Wno-pointer-sign', '-Wno-unused-parameter', '-Wno-unused-result', '-Wimplicit-fallthrough', '-Wmisleading-indentation', '-fno-strict-aliasing', '-ftrapv', '-fzero-call-used-regs=used', '-ftrivial-auto-var-init=zero', '-fno-builtin-memset', '-fPIE', '-D_XOPEN_SOURCE=600', '-D_BSD_SOURCE', '-D_DEFAULT_SOURCE', '-D_GNU_SOURCE', '-DHAVE_CONFIG_H']}),
+    linkopts = [
+        "-Wl,-z,relro",
+        "-Wl,-z,now"
+    ],
+    features = [
+        "-strip_debug_symbols"
+    ],
+    linkstatic = True,
+)
+
+cc_binary(
+    name = "scp",
+    srcs = [
+        "@openssh_src//:scp.c",
+        "@openssh_src//:progressmeter.c",
+        "@openssh_src//:sftp-common.c",
+        "@openssh_src//:sftp-client.c",
+        "@openssh_src//:sftp-glob.c"
+    ],
+    deps = [
+        ":ssh_library"
+    ],
+    copts = select({'@platforms//cpu:x86_64': ['-g', '-O2', '-Werror=implicit-function-declaration', '-fstack-protector-strong', '-fstack-clash-protection', '-Wformat', '-Werror=format-security', '-fcf-protection', '-Wdate-time', '-D_FORTIFY_SOURCE=2', '-pthread', '-pipe', '-Wno-error=format-truncation', '-Wall', '-Wextra', '-Wpointer-arith', '-Wuninitialized', '-Wsign-compare', '-Wformat-security', '-Wsizeof-pointer-memaccess', '-Wno-pointer-sign', '-Wno-unused-parameter', '-Wno-unused-result', '-Wimplicit-fallthrough', '-Wmisleading-indentation', '-fno-strict-aliasing', '-ftrapv', '-fzero-call-used-regs=used', '-ftrivial-auto-var-init=zero', '-fno-builtin-memset', '-fPIE', '-D_XOPEN_SOURCE=600', '-D_BSD_SOURCE', '-D_DEFAULT_SOURCE', '-D_GNU_SOURCE', '-DOPENSSL_API_COMPAT=0x10100000L', '-DHAVE_CONFIG_H'], '@platforms//cpu:aarch64': ['-g', '-O2', '-Werror=implicit-function-declaration', '-fstack-protector-strong', '-fstack-clash-protection', '-Wformat', '-Werror=format-security', '-mbranch-protection=standard', '-Wdate-time', '-D_FORTIFY_SOURCE=2', '-pthread', '-pipe', '-Wno-error=format-truncation', '-Wall', '-Wextra', '-Wpointer-arith', '-Wuninitialized', '-Wsign-compare', '-Wformat-security', '-Wsizeof-pointer-memaccess', '-Wno-pointer-sign', '-Wno-unused-parameter', '-Wno-unused-result', '-Wimplicit-fallthrough', '-Wmisleading-indentation', '-fno-strict-aliasing', '-ftrapv', '-fzero-call-used-regs=used', '-ftrivial-auto-var-init=zero', '-fno-builtin-memset', '-fPIE', '-D_XOPEN_SOURCE=600', '-D_BSD_SOURCE', '-D_DEFAULT_SOURCE', '-D_GNU_SOURCE', '-DHAVE_CONFIG_H']}),
+    linkopts = [
+        "-Wl,-z,relro",
+        "-Wl,-z,now"
+    ],
+    features = [
+        "-strip_debug_symbols"
+    ],
+    linkstatic = True,
+)
+
+cc_binary(
+    name = "ssh-add",
+    srcs = [
+        "@openssh_src//:ssh-add.c",
+        "@openssh_src//:ssh-sk-client.c"
+    ],
+    deps = [
+        ":ssh_library"
+    ],
+    copts = select({'@platforms//cpu:x86_64': ['-g', '-O2', '-Werror=implicit-function-declaration', '-fstack-protector-strong', '-fstack-clash-protection', '-Wformat', '-Werror=format-security', '-fcf-protection', '-Wdate-time', '-D_FORTIFY_SOURCE=2', '-pthread', '-pipe', '-Wno-error=format-truncation', '-Wall', '-Wextra', '-Wpointer-arith', '-Wuninitialized', '-Wsign-compare', '-Wformat-security', '-Wsizeof-pointer-memaccess', '-Wno-pointer-sign', '-Wno-unused-parameter', '-Wno-unused-result', '-Wimplicit-fallthrough', '-Wmisleading-indentation', '-fno-strict-aliasing', '-ftrapv', '-fzero-call-used-regs=used', '-ftrivial-auto-var-init=zero', '-fno-builtin-memset', '-fPIE', '-D_XOPEN_SOURCE=600', '-D_BSD_SOURCE', '-D_DEFAULT_SOURCE', '-D_GNU_SOURCE', '-DOPENSSL_API_COMPAT=0x10100000L', '-DHAVE_CONFIG_H'], '@platforms//cpu:aarch64': ['-g', '-O2', '-Werror=implicit-function-declaration', '-fstack-protector-strong', '-fstack-clash-protection', '-Wformat', '-Werror=format-security', '-mbranch-protection=standard', '-Wdate-time', '-D_FORTIFY_SOURCE=2', '-pthread', '-pipe', '-Wno-error=format-truncation', '-Wall', '-Wextra', '-Wpointer-arith', '-Wuninitialized', '-Wsign-compare', '-Wformat-security', '-Wsizeof-pointer-memaccess', '-Wno-pointer-sign', '-Wno-unused-parameter', '-Wno-unused-result', '-Wimplicit-fallthrough', '-Wmisleading-indentation', '-fno-strict-aliasing', '-ftrapv', '-fzero-call-used-regs=used', '-ftrivial-auto-var-init=zero', '-fno-builtin-memset', '-fPIE', '-D_XOPEN_SOURCE=600', '-D_BSD_SOURCE', '-D_DEFAULT_SOURCE', '-D_GNU_SOURCE', '-DHAVE_CONFIG_H']}),
+    linkopts = [
+        "-Wl,-z,relro",
+        "-Wl,-z,now"
+    ],
+    features = [
+        "-strip_debug_symbols"
+    ],
+    linkstatic = True,
+)
+
+cc_binary(
+    name = "ssh-agent",
+    srcs = [
+        "@openssh_src//:ssh-agent.c",
+        "@openssh_src//:ssh-pkcs11-client.c",
+        "@openssh_src//:ssh-sk-client.c"
+    ],
+    deps = [
+        ":ssh_library"
+    ],
+    copts = select({'@platforms//cpu:x86_64': ['-g', '-O2', '-Werror=implicit-function-declaration', '-fstack-protector-strong', '-fstack-clash-protection', '-Wformat', '-Werror=format-security', '-fcf-protection', '-Wdate-time', '-D_FORTIFY_SOURCE=2', '-pthread', '-pipe', '-Wno-error=format-truncation', '-Wall', '-Wextra', '-Wpointer-arith', '-Wuninitialized', '-Wsign-compare', '-Wformat-security', '-Wsizeof-pointer-memaccess', '-Wno-pointer-sign', '-Wno-unused-parameter', '-Wno-unused-result', '-Wimplicit-fallthrough', '-Wmisleading-indentation', '-fno-strict-aliasing', '-ftrapv', '-fzero-call-used-regs=used', '-ftrivial-auto-var-init=zero', '-fno-builtin-memset', '-fPIE', '-D_XOPEN_SOURCE=600', '-D_BSD_SOURCE', '-D_DEFAULT_SOURCE', '-D_GNU_SOURCE', '-DOPENSSL_API_COMPAT=0x10100000L', '-DHAVE_CONFIG_H'], '@platforms//cpu:aarch64': ['-g', '-O2', '-Werror=implicit-function-declaration', '-fstack-protector-strong', '-fstack-clash-protection', '-Wformat', '-Werror=format-security', '-mbranch-protection=standard', '-Wdate-time', '-D_FORTIFY_SOURCE=2', '-pthread', '-pipe', '-Wno-error=format-truncation', '-Wall', '-Wextra', '-Wpointer-arith', '-Wuninitialized', '-Wsign-compare', '-Wformat-security', '-Wsizeof-pointer-memaccess', '-Wno-pointer-sign', '-Wno-unused-parameter', '-Wno-unused-result', '-Wimplicit-fallthrough', '-Wmisleading-indentation', '-fno-strict-aliasing', '-ftrapv', '-fzero-call-used-regs=used', '-ftrivial-auto-var-init=zero', '-fno-builtin-memset', '-fPIE', '-D_XOPEN_SOURCE=600', '-D_BSD_SOURCE', '-D_DEFAULT_SOURCE', '-D_GNU_SOURCE', '-DHAVE_CONFIG_H']}),
+    linkopts = [
+        "-Wl,-z,relro",
+        "-Wl,-z,now"
+    ],
+    features = [
+        "-strip_debug_symbols"
+    ],
+    linkstatic = True,
+)
+
+cc_binary(
+    name = "ssh-keygen",
+    srcs = [
+        "@openssh_src//:ssh-keygen.c",
+        "@openssh_src//:sshsig.c",
+        "@openssh_src//:ssh-sk-client.c"
+    ],
+    deps = [
+        ":ssh_library"
+    ],
+    copts = select({'@platforms//cpu:x86_64': ['-g', '-O2', '-Werror=implicit-function-declaration', '-fstack-protector-strong', '-fstack-clash-protection', '-Wformat', '-Werror=format-security', '-fcf-protection', '-Wdate-time', '-D_FORTIFY_SOURCE=2', '-pthread', '-pipe', '-Wno-error=format-truncation', '-Wall', '-Wextra', '-Wpointer-arith', '-Wuninitialized', '-Wsign-compare', '-Wformat-security', '-Wsizeof-pointer-memaccess', '-Wno-pointer-sign', '-Wno-unused-parameter', '-Wno-unused-result', '-Wimplicit-fallthrough', '-Wmisleading-indentation', '-fno-strict-aliasing', '-ftrapv', '-fzero-call-used-regs=used', '-ftrivial-auto-var-init=zero', '-fno-builtin-memset', '-fPIE', '-D_XOPEN_SOURCE=600', '-D_BSD_SOURCE', '-D_DEFAULT_SOURCE', '-D_GNU_SOURCE', '-DOPENSSL_API_COMPAT=0x10100000L', '-DHAVE_CONFIG_H'], '@platforms//cpu:aarch64': ['-g', '-O2', '-Werror=implicit-function-declaration', '-fstack-protector-strong', '-fstack-clash-protection', '-Wformat', '-Werror=format-security', '-mbranch-protection=standard', '-Wdate-time', '-D_FORTIFY_SOURCE=2', '-pthread', '-pipe', '-Wno-error=format-truncation', '-Wall', '-Wextra', '-Wpointer-arith', '-Wuninitialized', '-Wsign-compare', '-Wformat-security', '-Wsizeof-pointer-memaccess', '-Wno-pointer-sign', '-Wno-unused-parameter', '-Wno-unused-result', '-Wimplicit-fallthrough', '-Wmisleading-indentation', '-fno-strict-aliasing', '-ftrapv', '-fzero-call-used-regs=used', '-ftrivial-auto-var-init=zero', '-fno-builtin-memset', '-fPIE', '-D_XOPEN_SOURCE=600', '-D_BSD_SOURCE', '-D_DEFAULT_SOURCE', '-D_GNU_SOURCE', '-DHAVE_CONFIG_H']}),
+    linkopts = [
+        "-Wl,-z,relro",
+        "-Wl,-z,now"
+    ],
+    features = [
+        "-strip_debug_symbols"
+    ],
+    linkstatic = True,
+)
+
+cc_binary(
+    name = "ssh-keysign",
+    srcs = [
+        "@openssh_src//:ssh-keysign.c",
+        "@openssh_src//:readconf.c",
+        "@openssh_src//:uidswap.c",
+        "@openssh_src//:ssh-sk-client.c"
+    ],
+    deps = [
+        ":ssh_library"
+    ],
+    copts = select({'@platforms//cpu:x86_64': ['-g', '-O2', '-Werror=implicit-function-declaration', '-fstack-protector-strong', '-fstack-clash-protection', '-Wformat', '-Werror=format-security', '-fcf-protection', '-Wdate-time', '-D_FORTIFY_SOURCE=2', '-pthread', '-pipe', '-Wno-error=format-truncation', '-Wall', '-Wextra', '-Wpointer-arith', '-Wuninitialized', '-Wsign-compare', '-Wformat-security', '-Wsizeof-pointer-memaccess', '-Wno-pointer-sign', '-Wno-unused-parameter', '-Wno-unused-result', '-Wimplicit-fallthrough', '-Wmisleading-indentation', '-fno-strict-aliasing', '-ftrapv', '-fzero-call-used-regs=used', '-ftrivial-auto-var-init=zero', '-fno-builtin-memset', '-fPIE', '-D_XOPEN_SOURCE=600', '-D_BSD_SOURCE', '-D_DEFAULT_SOURCE', '-D_GNU_SOURCE', '-DOPENSSL_API_COMPAT=0x10100000L', '-DHAVE_CONFIG_H'], '@platforms//cpu:aarch64': ['-g', '-O2', '-Werror=implicit-function-declaration', '-fstack-protector-strong', '-fstack-clash-protection', '-Wformat', '-Werror=format-security', '-mbranch-protection=standard', '-Wdate-time', '-D_FORTIFY_SOURCE=2', '-pthread', '-pipe', '-Wno-error=format-truncation', '-Wall', '-Wextra', '-Wpointer-arith', '-Wuninitialized', '-Wsign-compare', '-Wformat-security', '-Wsizeof-pointer-memaccess', '-Wno-pointer-sign', '-Wno-unused-parameter', '-Wno-unused-result', '-Wimplicit-fallthrough', '-Wmisleading-indentation', '-fno-strict-aliasing', '-ftrapv', '-fzero-call-used-regs=used', '-ftrivial-auto-var-init=zero', '-fno-builtin-memset', '-fPIE', '-D_XOPEN_SOURCE=600', '-D_BSD_SOURCE', '-D_DEFAULT_SOURCE', '-D_GNU_SOURCE', '-DHAVE_CONFIG_H']}),
+    linkopts = [
+        "-Wl,-z,relro",
+        "-Wl,-z,now"
+    ],
+    features = [
+        "-strip_debug_symbols"
+    ],
+    linkstatic = True,
+)
+
+cc_binary(
+    name = "ssh-pkcs11-helper",
+    srcs = [
+        "@openssh_src//:ssh-pkcs11-helper.c",
+        "@openssh_src//:ssh-pkcs11.c",
+        "@openssh_src//:ssh-sk-client.c"
+    ],
+    deps = [
+        ":ssh_library"
+    ],
+    copts = select({'@platforms//cpu:x86_64': ['-g', '-O2', '-Werror=implicit-function-declaration', '-fstack-protector-strong', '-fstack-clash-protection', '-Wformat', '-Werror=format-security', '-fcf-protection', '-Wdate-time', '-D_FORTIFY_SOURCE=2', '-pthread', '-pipe', '-Wno-error=format-truncation', '-Wall', '-Wextra', '-Wpointer-arith', '-Wuninitialized', '-Wsign-compare', '-Wformat-security', '-Wsizeof-pointer-memaccess', '-Wno-pointer-sign', '-Wno-unused-parameter', '-Wno-unused-result', '-Wimplicit-fallthrough', '-Wmisleading-indentation', '-fno-strict-aliasing', '-ftrapv', '-fzero-call-used-regs=used', '-ftrivial-auto-var-init=zero', '-fno-builtin-memset', '-fPIE', '-D_XOPEN_SOURCE=600', '-D_BSD_SOURCE', '-D_DEFAULT_SOURCE', '-D_GNU_SOURCE', '-DOPENSSL_API_COMPAT=0x10100000L', '-DHAVE_CONFIG_H'], '@platforms//cpu:aarch64': ['-g', '-O2', '-Werror=implicit-function-declaration', '-fstack-protector-strong', '-fstack-clash-protection', '-Wformat', '-Werror=format-security', '-mbranch-protection=standard', '-Wdate-time', '-D_FORTIFY_SOURCE=2', '-pthread', '-pipe', '-Wno-error=format-truncation', '-Wall', '-Wextra', '-Wpointer-arith', '-Wuninitialized', '-Wsign-compare', '-Wformat-security', '-Wsizeof-pointer-memaccess', '-Wno-pointer-sign', '-Wno-unused-parameter', '-Wno-unused-result', '-Wimplicit-fallthrough', '-Wmisleading-indentation', '-fno-strict-aliasing', '-ftrapv', '-fzero-call-used-regs=used', '-ftrivial-auto-var-init=zero', '-fno-builtin-memset', '-fPIE', '-D_XOPEN_SOURCE=600', '-D_BSD_SOURCE', '-D_DEFAULT_SOURCE', '-D_GNU_SOURCE', '-DHAVE_CONFIG_H']}),
+    linkopts = [
+        "-Wl,-z,relro",
+        "-Wl,-z,now"
+    ],
+    features = [
+        "-strip_debug_symbols"
+    ],
+    linkstatic = True,
+)
+
+cc_binary(
+    name = "ssh-sk-helper",
+    srcs = [
+        "@openssh_src//:ssh-sk-helper.c",
+        "@openssh_src//:ssh-sk.c",
+        "@openssh_src//:sk-usbhid.c"
+    ],
+    deps = [
+        ":ssh_library",
+        "@openssh_deps//libfido2-dev:libfido2_cc",
+        "@openssh_deps//libcbor-dev:libcbor",
+        "@openssh_deps//libudev-dev:libudev"
+    ],
+    copts = select({'@platforms//cpu:x86_64': ['-g', '-O2', '-Werror=implicit-function-declaration', '-fstack-protector-strong', '-fstack-clash-protection', '-Wformat', '-Werror=format-security', '-fcf-protection', '-Wdate-time', '-D_FORTIFY_SOURCE=2', '-pthread', '-pipe', '-Wno-error=format-truncation', '-Wall', '-Wextra', '-Wpointer-arith', '-Wuninitialized', '-Wsign-compare', '-Wformat-security', '-Wsizeof-pointer-memaccess', '-Wno-pointer-sign', '-Wno-unused-parameter', '-Wno-unused-result', '-Wimplicit-fallthrough', '-Wmisleading-indentation', '-fno-strict-aliasing', '-ftrapv', '-fzero-call-used-regs=used', '-ftrivial-auto-var-init=zero', '-fno-builtin-memset', '-fPIE', '-D_XOPEN_SOURCE=600', '-D_BSD_SOURCE', '-D_DEFAULT_SOURCE', '-D_GNU_SOURCE', '-DOPENSSL_API_COMPAT=0x10100000L', '-DHAVE_CONFIG_H'], '@platforms//cpu:aarch64': ['-g', '-O2', '-Werror=implicit-function-declaration', '-fstack-protector-strong', '-fstack-clash-protection', '-Wformat', '-Werror=format-security', '-mbranch-protection=standard', '-Wdate-time', '-D_FORTIFY_SOURCE=2', '-pthread', '-pipe', '-Wno-error=format-truncation', '-Wall', '-Wextra', '-Wpointer-arith', '-Wuninitialized', '-Wsign-compare', '-Wformat-security', '-Wsizeof-pointer-memaccess', '-Wno-pointer-sign', '-Wno-unused-parameter', '-Wno-unused-result', '-Wimplicit-fallthrough', '-Wmisleading-indentation', '-fno-strict-aliasing', '-ftrapv', '-fzero-call-used-regs=used', '-ftrivial-auto-var-init=zero', '-fno-builtin-memset', '-fPIE', '-D_XOPEN_SOURCE=600', '-D_BSD_SOURCE', '-D_DEFAULT_SOURCE', '-D_GNU_SOURCE', '-DHAVE_CONFIG_H']}),
+    linkopts = [
+        "-Wl,-z,relro",
+        "-Wl,-z,now"
+    ],
+    features = [
+        "-strip_debug_symbols"
+    ],
+    linkstatic = True,
+)
+
+cc_binary(
+    name = "ssh-keyscan",
+    srcs = [
+        "@openssh_src//:ssh-keyscan.c",
+        "@openssh_src//:ssh-sk-client.c"
+    ],
+    deps = [
+        ":ssh_library"
+    ],
+    copts = select({'@platforms//cpu:x86_64': ['-g', '-O2', '-Werror=implicit-function-declaration', '-fstack-protector-strong', '-fstack-clash-protection', '-Wformat', '-Werror=format-security', '-fcf-protection', '-Wdate-time', '-D_FORTIFY_SOURCE=2', '-pthread', '-pipe', '-Wno-error=format-truncation', '-Wall', '-Wextra', '-Wpointer-arith', '-Wuninitialized', '-Wsign-compare', '-Wformat-security', '-Wsizeof-pointer-memaccess', '-Wno-pointer-sign', '-Wno-unused-parameter', '-Wno-unused-result', '-Wimplicit-fallthrough', '-Wmisleading-indentation', '-fno-strict-aliasing', '-ftrapv', '-fzero-call-used-regs=used', '-ftrivial-auto-var-init=zero', '-fno-builtin-memset', '-fPIE', '-D_XOPEN_SOURCE=600', '-D_BSD_SOURCE', '-D_DEFAULT_SOURCE', '-D_GNU_SOURCE', '-DOPENSSL_API_COMPAT=0x10100000L', '-DHAVE_CONFIG_H'], '@platforms//cpu:aarch64': ['-g', '-O2', '-Werror=implicit-function-declaration', '-fstack-protector-strong', '-fstack-clash-protection', '-Wformat', '-Werror=format-security', '-mbranch-protection=standard', '-Wdate-time', '-D_FORTIFY_SOURCE=2', '-pthread', '-pipe', '-Wno-error=format-truncation', '-Wall', '-Wextra', '-Wpointer-arith', '-Wuninitialized', '-Wsign-compare', '-Wformat-security', '-Wsizeof-pointer-memaccess', '-Wno-pointer-sign', '-Wno-unused-parameter', '-Wno-unused-result', '-Wimplicit-fallthrough', '-Wmisleading-indentation', '-fno-strict-aliasing', '-ftrapv', '-fzero-call-used-regs=used', '-ftrivial-auto-var-init=zero', '-fno-builtin-memset', '-fPIE', '-D_XOPEN_SOURCE=600', '-D_BSD_SOURCE', '-D_DEFAULT_SOURCE', '-D_GNU_SOURCE', '-DHAVE_CONFIG_H']}),
+    linkopts = [
+        "-Wl,-z,relro",
+        "-Wl,-z,now"
+    ],
+    features = [
+        "-strip_debug_symbols"
+    ],
+    linkstatic = True,
+)
+
+cc_binary(
+    name = "sftp-server",
+    srcs = [
+        "@openssh_src//:sftp-common.c",
+        "@openssh_src//:sftp-server.c",
+        "@openssh_src//:sftp-server-main.c"
+    ],
+    deps = [
+        ":ssh_library"
+    ],
+    copts = select({'@platforms//cpu:x86_64': ['-g', '-O2', '-Werror=implicit-function-declaration', '-fstack-protector-strong', '-fstack-clash-protection', '-Wformat', '-Werror=format-security', '-fcf-protection', '-Wdate-time', '-D_FORTIFY_SOURCE=2', '-pthread', '-pipe', '-Wno-error=format-truncation', '-Wall', '-Wextra', '-Wpointer-arith', '-Wuninitialized', '-Wsign-compare', '-Wformat-security', '-Wsizeof-pointer-memaccess', '-Wno-pointer-sign', '-Wno-unused-parameter', '-Wno-unused-result', '-Wimplicit-fallthrough', '-Wmisleading-indentation', '-fno-strict-aliasing', '-ftrapv', '-fzero-call-used-regs=used', '-ftrivial-auto-var-init=zero', '-fno-builtin-memset', '-fPIE', '-D_XOPEN_SOURCE=600', '-D_BSD_SOURCE', '-D_DEFAULT_SOURCE', '-D_GNU_SOURCE', '-DOPENSSL_API_COMPAT=0x10100000L', '-DHAVE_CONFIG_H'], '@platforms//cpu:aarch64': ['-g', '-O2', '-Werror=implicit-function-declaration', '-fstack-protector-strong', '-fstack-clash-protection', '-Wformat', '-Werror=format-security', '-mbranch-protection=standard', '-Wdate-time', '-D_FORTIFY_SOURCE=2', '-pthread', '-pipe', '-Wno-error=format-truncation', '-Wall', '-Wextra', '-Wpointer-arith', '-Wuninitialized', '-Wsign-compare', '-Wformat-security', '-Wsizeof-pointer-memaccess', '-Wno-pointer-sign', '-Wno-unused-parameter', '-Wno-unused-result', '-Wimplicit-fallthrough', '-Wmisleading-indentation', '-fno-strict-aliasing', '-ftrapv', '-fzero-call-used-regs=used', '-ftrivial-auto-var-init=zero', '-fno-builtin-memset', '-fPIE', '-D_XOPEN_SOURCE=600', '-D_BSD_SOURCE', '-D_DEFAULT_SOURCE', '-D_GNU_SOURCE', '-DHAVE_CONFIG_H']}),
+    linkopts = [
+        "-Wl,-z,relro",
+        "-Wl,-z,now"
+    ],
+    features = [
+        "-strip_debug_symbols"
+    ],
+    linkstatic = True,
+)
+
+cc_binary(
+    name = "sftp",
+    srcs = [
+        "@openssh_src//:sftp.c",
+        "@openssh_src//:sftp-usergroup.c",
+        "@openssh_src//:progressmeter.c",
+        "@openssh_src//:sftp-common.c",
+        "@openssh_src//:sftp-client.c",
+        "@openssh_src//:sftp-glob.c"
+    ],
+    deps = [
+        ":ssh_library",
+        "@openssh_deps//libedit-dev:libedit"
+    ],
+    copts = select({'@platforms//cpu:x86_64': ['-g', '-O2', '-Werror=implicit-function-declaration', '-fstack-protector-strong', '-fstack-clash-protection', '-Wformat', '-Werror=format-security', '-fcf-protection', '-Wdate-time', '-D_FORTIFY_SOURCE=2', '-pthread', '-pipe', '-Wno-error=format-truncation', '-Wall', '-Wextra', '-Wpointer-arith', '-Wuninitialized', '-Wsign-compare', '-Wformat-security', '-Wsizeof-pointer-memaccess', '-Wno-pointer-sign', '-Wno-unused-parameter', '-Wno-unused-result', '-Wimplicit-fallthrough', '-Wmisleading-indentation', '-fno-strict-aliasing', '-ftrapv', '-fzero-call-used-regs=used', '-ftrivial-auto-var-init=zero', '-fno-builtin-memset', '-fPIE', '-D_XOPEN_SOURCE=600', '-D_BSD_SOURCE', '-D_DEFAULT_SOURCE', '-D_GNU_SOURCE', '-DOPENSSL_API_COMPAT=0x10100000L', '-DHAVE_CONFIG_H'], '@platforms//cpu:aarch64': ['-g', '-O2', '-Werror=implicit-function-declaration', '-fstack-protector-strong', '-fstack-clash-protection', '-Wformat', '-Werror=format-security', '-mbranch-protection=standard', '-Wdate-time', '-D_FORTIFY_SOURCE=2', '-pthread', '-pipe', '-Wno-error=format-truncation', '-Wall', '-Wextra', '-Wpointer-arith', '-Wuninitialized', '-Wsign-compare', '-Wformat-security', '-Wsizeof-pointer-memaccess', '-Wno-pointer-sign', '-Wno-unused-parameter', '-Wno-unused-result', '-Wimplicit-fallthrough', '-Wmisleading-indentation', '-fno-strict-aliasing', '-ftrapv', '-fzero-call-used-regs=used', '-ftrivial-auto-var-init=zero', '-fno-builtin-memset', '-fPIE', '-D_XOPEN_SOURCE=600', '-D_BSD_SOURCE', '-D_DEFAULT_SOURCE', '-D_GNU_SOURCE', '-DHAVE_CONFIG_H']}),
+    linkopts = [
+        "-Wl,-z,relro",
+        "-Wl,-z,now"
+    ],
+    features = [
+        "-strip_debug_symbols"
+    ],
+    linkstatic = True,
+)
+
+expand_template(
+    name = "ssh_config_installed",
+    template = "@openssh_src//:ssh_config",
+    out = "installed/ssh_config",
+    substitutions = {
+        "/usr/libexec": "/usr/lib/openssh",
+        "/var/run/sshd.pid": "/run/sshd.pid",
+        "/etc/moduli": "/etc/ssh/moduli",
+        "/usr/X11R6/bin/xauth": "/usr/bin/xauth",
+        "/var/empty": "/run/sshd",
+        "/usr/bin:/bin:/usr/sbin:/sbin": "/usr/local/bin:/usr/bin:/bin:/usr/games",
+        "#\t$OpenBSD: ssh_config,v 1.36 2023/08/02 23:04:38 djm Exp $\n": ""
+    },
+)
+
+expand_template(
+    name = "sshd_config_installed",
+    template = "@openssh_src//:sshd_config",
+    out = "installed/sshd_config",
+    substitutions = {
+        "/usr/libexec": "/usr/lib/openssh",
+        "/var/run/sshd.pid": "/run/sshd.pid",
+        "/etc/moduli": "/etc/ssh/moduli",
+        "/usr/X11R6/bin/xauth": "/usr/bin/xauth",
+        "/var/empty": "/run/sshd",
+        "/usr/bin:/bin:/usr/sbin:/sbin": "/usr/local/bin:/usr/bin:/bin:/usr/games",
+        "#\t$OpenBSD: sshd_config,v 1.105 2024/12/03 14:12:47 dtucker Exp $\n": ""
+    },
+)
+
+expand_template(
+    name = "moduli_installed",
+    template = "@openssh_src//:moduli",
+    out = "installed/moduli",
+    substitutions = {
+        "/usr/libexec": "/usr/lib/openssh",
+        "/var/run/sshd.pid": "/run/sshd.pid",
+        "/etc/moduli": "/etc/ssh/moduli",
+        "/usr/X11R6/bin/xauth": "/usr/bin/xauth",
+        "/var/empty": "/run/sshd",
+        "/usr/bin:/bin:/usr/sbin:/sbin": "/usr/local/bin:/usr/bin:/bin:/usr/games",
+        "#    $OpenBSD: moduli,v 1.39 2024/11/29 00:13:36 dtucker Exp $\n": ""
+    },
+)
+
+expand_template(
+    name = "pam_configuration",
+    template = "@openssh_src//:debian/openssh-server.sshd.pam.in",
+    out = "installed/sshd.pam",
+    substitutions = {
+        "@IF_KEYINIT@": ""
+    },
+)
+
+expand_template(
+    name = "man_scp_1_paths",
+    template = "@openssh_src//:scp.1",
+    out = "manuals/scp.1.paths",
+    substitutions = {
+        "/usr/libexec": "/usr/lib/openssh",
+        "/var/run/sshd.pid": "/run/sshd.pid",
+        "/etc/moduli": "/etc/ssh/moduli",
+        "/usr/X11R6/bin/xauth": "/usr/bin/xauth",
+        "/var/empty": "/run/sshd",
+        "/usr/bin:/bin:/usr/sbin:/sbin": "/usr/local/bin:/usr/bin:/bin:/usr/games"
+    },
+)
+
+genrule(
+    name = "man_scp_1",
+    srcs = [
+        ":man_scp_1_paths",
+        "@openssh_src//:fixalgorithms"
+    ],
+    outs = [
+        "manuals/scp.1.gz"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:kerberos_runtime",
+        "@sonic_build_infra//tools/build_tools:gzip"
+    ],
+    cmd = "bash $(location @openssh_src//:fixalgorithms) \"$(location @sonic_build_infra//tools/build_tools:kerberos_runtime)/bin/sed\"  < $(location :man_scp_1_paths) | $(location @sonic_build_infra//tools/build_tools:gzip) -n -9 -c > $@",
+)
+
+expand_template(
+    name = "man_sftp_1_paths",
+    template = "@openssh_src//:sftp.1",
+    out = "manuals/sftp.1.paths",
+    substitutions = {
+        "/usr/libexec": "/usr/lib/openssh",
+        "/var/run/sshd.pid": "/run/sshd.pid",
+        "/etc/moduli": "/etc/ssh/moduli",
+        "/usr/X11R6/bin/xauth": "/usr/bin/xauth",
+        "/var/empty": "/run/sshd",
+        "/usr/bin:/bin:/usr/sbin:/sbin": "/usr/local/bin:/usr/bin:/bin:/usr/games"
+    },
+)
+
+genrule(
+    name = "man_sftp_1",
+    srcs = [
+        ":man_sftp_1_paths",
+        "@openssh_src//:fixalgorithms"
+    ],
+    outs = [
+        "manuals/sftp.1.gz"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:kerberos_runtime",
+        "@sonic_build_infra//tools/build_tools:gzip"
+    ],
+    cmd = "bash $(location @openssh_src//:fixalgorithms) \"$(location @sonic_build_infra//tools/build_tools:kerberos_runtime)/bin/sed\"  < $(location :man_sftp_1_paths) | $(location @sonic_build_infra//tools/build_tools:gzip) -n -9 -c > $@",
+)
+
+expand_template(
+    name = "man_ssh_add_1_paths",
+    template = "@openssh_src//:ssh-add.1",
+    out = "manuals/ssh-add.1.paths",
+    substitutions = {
+        "/usr/libexec": "/usr/lib/openssh",
+        "/var/run/sshd.pid": "/run/sshd.pid",
+        "/etc/moduli": "/etc/ssh/moduli",
+        "/usr/X11R6/bin/xauth": "/usr/bin/xauth",
+        "/var/empty": "/run/sshd",
+        "/usr/bin:/bin:/usr/sbin:/sbin": "/usr/local/bin:/usr/bin:/bin:/usr/games"
+    },
+)
+
+genrule(
+    name = "man_ssh_add_1",
+    srcs = [
+        ":man_ssh_add_1_paths",
+        "@openssh_src//:fixalgorithms"
+    ],
+    outs = [
+        "manuals/ssh-add.1.gz"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:kerberos_runtime",
+        "@sonic_build_infra//tools/build_tools:gzip"
+    ],
+    cmd = "bash $(location @openssh_src//:fixalgorithms) \"$(location @sonic_build_infra//tools/build_tools:kerberos_runtime)/bin/sed\"  < $(location :man_ssh_add_1_paths) | $(location @sonic_build_infra//tools/build_tools:gzip) -n -9 -c > $@",
+)
+
+expand_template(
+    name = "man_ssh_agent_1_paths",
+    template = "@openssh_src//:ssh-agent.1",
+    out = "manuals/ssh-agent.1.paths",
+    substitutions = {
+        "/usr/libexec": "/usr/lib/openssh",
+        "/var/run/sshd.pid": "/run/sshd.pid",
+        "/etc/moduli": "/etc/ssh/moduli",
+        "/usr/X11R6/bin/xauth": "/usr/bin/xauth",
+        "/var/empty": "/run/sshd",
+        "/usr/bin:/bin:/usr/sbin:/sbin": "/usr/local/bin:/usr/bin:/bin:/usr/games"
+    },
+)
+
+genrule(
+    name = "man_ssh_agent_1",
+    srcs = [
+        ":man_ssh_agent_1_paths",
+        "@openssh_src//:fixalgorithms"
+    ],
+    outs = [
+        "manuals/ssh-agent.1.gz"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:kerberos_runtime",
+        "@sonic_build_infra//tools/build_tools:gzip"
+    ],
+    cmd = "bash $(location @openssh_src//:fixalgorithms) \"$(location @sonic_build_infra//tools/build_tools:kerberos_runtime)/bin/sed\"  < $(location :man_ssh_agent_1_paths) | $(location @sonic_build_infra//tools/build_tools:gzip) -n -9 -c > $@",
+)
+
+expand_template(
+    name = "man_ssh_keygen_1_paths",
+    template = "@openssh_src//:ssh-keygen.1",
+    out = "manuals/ssh-keygen.1.paths",
+    substitutions = {
+        "/usr/libexec": "/usr/lib/openssh",
+        "/var/run/sshd.pid": "/run/sshd.pid",
+        "/etc/moduli": "/etc/ssh/moduli",
+        "/usr/X11R6/bin/xauth": "/usr/bin/xauth",
+        "/var/empty": "/run/sshd",
+        "/usr/bin:/bin:/usr/sbin:/sbin": "/usr/local/bin:/usr/bin:/bin:/usr/games"
+    },
+)
+
+genrule(
+    name = "man_ssh_keygen_1",
+    srcs = [
+        ":man_ssh_keygen_1_paths",
+        "@openssh_src//:fixalgorithms"
+    ],
+    outs = [
+        "manuals/ssh-keygen.1.gz"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:kerberos_runtime",
+        "@sonic_build_infra//tools/build_tools:gzip"
+    ],
+    cmd = "bash $(location @openssh_src//:fixalgorithms) \"$(location @sonic_build_infra//tools/build_tools:kerberos_runtime)/bin/sed\"  < $(location :man_ssh_keygen_1_paths) | $(location @sonic_build_infra//tools/build_tools:gzip) -n -9 -c > $@",
+)
+
+expand_template(
+    name = "man_ssh_keyscan_1_paths",
+    template = "@openssh_src//:ssh-keyscan.1",
+    out = "manuals/ssh-keyscan.1.paths",
+    substitutions = {
+        "/usr/libexec": "/usr/lib/openssh",
+        "/var/run/sshd.pid": "/run/sshd.pid",
+        "/etc/moduli": "/etc/ssh/moduli",
+        "/usr/X11R6/bin/xauth": "/usr/bin/xauth",
+        "/var/empty": "/run/sshd",
+        "/usr/bin:/bin:/usr/sbin:/sbin": "/usr/local/bin:/usr/bin:/bin:/usr/games"
+    },
+)
+
+genrule(
+    name = "man_ssh_keyscan_1",
+    srcs = [
+        ":man_ssh_keyscan_1_paths",
+        "@openssh_src//:fixalgorithms"
+    ],
+    outs = [
+        "manuals/ssh-keyscan.1.gz"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:kerberos_runtime",
+        "@sonic_build_infra//tools/build_tools:gzip"
+    ],
+    cmd = "bash $(location @openssh_src//:fixalgorithms) \"$(location @sonic_build_infra//tools/build_tools:kerberos_runtime)/bin/sed\"  < $(location :man_ssh_keyscan_1_paths) | $(location @sonic_build_infra//tools/build_tools:gzip) -n -9 -c > $@",
+)
+
+expand_template(
+    name = "man_ssh_1_paths",
+    template = "@openssh_src//:ssh.1",
+    out = "manuals/ssh.1.paths",
+    substitutions = {
+        "/usr/libexec": "/usr/lib/openssh",
+        "/var/run/sshd.pid": "/run/sshd.pid",
+        "/etc/moduli": "/etc/ssh/moduli",
+        "/usr/X11R6/bin/xauth": "/usr/bin/xauth",
+        "/var/empty": "/run/sshd",
+        "/usr/bin:/bin:/usr/sbin:/sbin": "/usr/local/bin:/usr/bin:/bin:/usr/games"
+    },
+)
+
+genrule(
+    name = "man_ssh_1",
+    srcs = [
+        ":man_ssh_1_paths",
+        "@openssh_src//:fixalgorithms"
+    ],
+    outs = [
+        "manuals/ssh.1.gz"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:kerberos_runtime",
+        "@sonic_build_infra//tools/build_tools:gzip"
+    ],
+    cmd = "bash $(location @openssh_src//:fixalgorithms) \"$(location @sonic_build_infra//tools/build_tools:kerberos_runtime)/bin/sed\"  < $(location :man_ssh_1_paths) | $(location @sonic_build_infra//tools/build_tools:gzip) -n -9 -c > $@",
+)
+
+expand_template(
+    name = "man_ssh_config_5_paths",
+    template = "@openssh_src//:ssh_config.5",
+    out = "manuals/ssh_config.5.paths",
+    substitutions = {
+        "/usr/libexec": "/usr/lib/openssh",
+        "/var/run/sshd.pid": "/run/sshd.pid",
+        "/etc/moduli": "/etc/ssh/moduli",
+        "/usr/X11R6/bin/xauth": "/usr/bin/xauth",
+        "/var/empty": "/run/sshd",
+        "/usr/bin:/bin:/usr/sbin:/sbin": "/usr/local/bin:/usr/bin:/bin:/usr/games"
+    },
+)
+
+genrule(
+    name = "man_ssh_config_5",
+    srcs = [
+        ":man_ssh_config_5_paths",
+        "@openssh_src//:fixalgorithms"
+    ],
+    outs = [
+        "manuals/ssh_config.5.gz"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:kerberos_runtime",
+        "@sonic_build_infra//tools/build_tools:gzip"
+    ],
+    cmd = "bash $(location @openssh_src//:fixalgorithms) \"$(location @sonic_build_infra//tools/build_tools:kerberos_runtime)/bin/sed\"  < $(location :man_ssh_config_5_paths) | $(location @sonic_build_infra//tools/build_tools:gzip) -n -9 -c > $@",
+)
+
+expand_template(
+    name = "man_ssh_keysign_8_paths",
+    template = "@openssh_src//:ssh-keysign.8",
+    out = "manuals/ssh-keysign.8.paths",
+    substitutions = {
+        "/usr/libexec": "/usr/lib/openssh",
+        "/var/run/sshd.pid": "/run/sshd.pid",
+        "/etc/moduli": "/etc/ssh/moduli",
+        "/usr/X11R6/bin/xauth": "/usr/bin/xauth",
+        "/var/empty": "/run/sshd",
+        "/usr/bin:/bin:/usr/sbin:/sbin": "/usr/local/bin:/usr/bin:/bin:/usr/games"
+    },
+)
+
+genrule(
+    name = "man_ssh_keysign_8",
+    srcs = [
+        ":man_ssh_keysign_8_paths",
+        "@openssh_src//:fixalgorithms"
+    ],
+    outs = [
+        "manuals/ssh-keysign.8.gz"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:kerberos_runtime",
+        "@sonic_build_infra//tools/build_tools:gzip"
+    ],
+    cmd = "bash $(location @openssh_src//:fixalgorithms) \"$(location @sonic_build_infra//tools/build_tools:kerberos_runtime)/bin/sed\"  < $(location :man_ssh_keysign_8_paths) | $(location @sonic_build_infra//tools/build_tools:gzip) -n -9 -c > $@",
+)
+
+expand_template(
+    name = "man_ssh_pkcs11_helper_8_paths",
+    template = "@openssh_src//:ssh-pkcs11-helper.8",
+    out = "manuals/ssh-pkcs11-helper.8.paths",
+    substitutions = {
+        "/usr/libexec": "/usr/lib/openssh",
+        "/var/run/sshd.pid": "/run/sshd.pid",
+        "/etc/moduli": "/etc/ssh/moduli",
+        "/usr/X11R6/bin/xauth": "/usr/bin/xauth",
+        "/var/empty": "/run/sshd",
+        "/usr/bin:/bin:/usr/sbin:/sbin": "/usr/local/bin:/usr/bin:/bin:/usr/games"
+    },
+)
+
+genrule(
+    name = "man_ssh_pkcs11_helper_8",
+    srcs = [
+        ":man_ssh_pkcs11_helper_8_paths",
+        "@openssh_src//:fixalgorithms"
+    ],
+    outs = [
+        "manuals/ssh-pkcs11-helper.8.gz"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:kerberos_runtime",
+        "@sonic_build_infra//tools/build_tools:gzip"
+    ],
+    cmd = "bash $(location @openssh_src//:fixalgorithms) \"$(location @sonic_build_infra//tools/build_tools:kerberos_runtime)/bin/sed\"  < $(location :man_ssh_pkcs11_helper_8_paths) | $(location @sonic_build_infra//tools/build_tools:gzip) -n -9 -c > $@",
+)
+
+expand_template(
+    name = "man_ssh_sk_helper_8_paths",
+    template = "@openssh_src//:ssh-sk-helper.8",
+    out = "manuals/ssh-sk-helper.8.paths",
+    substitutions = {
+        "/usr/libexec": "/usr/lib/openssh",
+        "/var/run/sshd.pid": "/run/sshd.pid",
+        "/etc/moduli": "/etc/ssh/moduli",
+        "/usr/X11R6/bin/xauth": "/usr/bin/xauth",
+        "/var/empty": "/run/sshd",
+        "/usr/bin:/bin:/usr/sbin:/sbin": "/usr/local/bin:/usr/bin:/bin:/usr/games"
+    },
+)
+
+genrule(
+    name = "man_ssh_sk_helper_8",
+    srcs = [
+        ":man_ssh_sk_helper_8_paths",
+        "@openssh_src//:fixalgorithms"
+    ],
+    outs = [
+        "manuals/ssh-sk-helper.8.gz"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:kerberos_runtime",
+        "@sonic_build_infra//tools/build_tools:gzip"
+    ],
+    cmd = "bash $(location @openssh_src//:fixalgorithms) \"$(location @sonic_build_infra//tools/build_tools:kerberos_runtime)/bin/sed\"  < $(location :man_ssh_sk_helper_8_paths) | $(location @sonic_build_infra//tools/build_tools:gzip) -n -9 -c > $@",
+)
+
+expand_template(
+    name = "man_moduli_5_paths",
+    template = "@openssh_src//:moduli.5",
+    out = "manuals/moduli.5.paths",
+    substitutions = {
+        "/usr/libexec": "/usr/lib/openssh",
+        "/var/run/sshd.pid": "/run/sshd.pid",
+        "/etc/moduli": "/etc/ssh/moduli",
+        "/usr/X11R6/bin/xauth": "/usr/bin/xauth",
+        "/var/empty": "/run/sshd",
+        "/usr/bin:/bin:/usr/sbin:/sbin": "/usr/local/bin:/usr/bin:/bin:/usr/games"
+    },
+)
+
+genrule(
+    name = "man_moduli_5",
+    srcs = [
+        ":man_moduli_5_paths",
+        "@openssh_src//:fixalgorithms"
+    ],
+    outs = [
+        "manuals/moduli.5.gz"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:kerberos_runtime",
+        "@sonic_build_infra//tools/build_tools:gzip"
+    ],
+    cmd = "bash $(location @openssh_src//:fixalgorithms) \"$(location @sonic_build_infra//tools/build_tools:kerberos_runtime)/bin/sed\"  < $(location :man_moduli_5_paths) | $(location @sonic_build_infra//tools/build_tools:gzip) -n -9 -c > $@",
+)
+
+expand_template(
+    name = "man_sshd_config_5_paths",
+    template = "@openssh_src//:sshd_config.5",
+    out = "manuals/sshd_config.5.paths",
+    substitutions = {
+        "/usr/libexec": "/usr/lib/openssh",
+        "/var/run/sshd.pid": "/run/sshd.pid",
+        "/etc/moduli": "/etc/ssh/moduli",
+        "/usr/X11R6/bin/xauth": "/usr/bin/xauth",
+        "/var/empty": "/run/sshd",
+        "/usr/bin:/bin:/usr/sbin:/sbin": "/usr/local/bin:/usr/bin:/bin:/usr/games"
+    },
+)
+
+genrule(
+    name = "man_sshd_config_5",
+    srcs = [
+        ":man_sshd_config_5_paths",
+        "@openssh_src//:fixalgorithms"
+    ],
+    outs = [
+        "manuals/sshd_config.5.gz"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:kerberos_runtime",
+        "@sonic_build_infra//tools/build_tools:gzip"
+    ],
+    cmd = "bash $(location @openssh_src//:fixalgorithms) \"$(location @sonic_build_infra//tools/build_tools:kerberos_runtime)/bin/sed\"  < $(location :man_sshd_config_5_paths) | $(location @sonic_build_infra//tools/build_tools:gzip) -n -9 -c > $@",
+)
+
+expand_template(
+    name = "man_sshd_8_paths",
+    template = "@openssh_src//:sshd.8",
+    out = "manuals/sshd.8.paths",
+    substitutions = {
+        "/usr/libexec": "/usr/lib/openssh",
+        "/var/run/sshd.pid": "/run/sshd.pid",
+        "/etc/moduli": "/etc/ssh/moduli",
+        "/usr/X11R6/bin/xauth": "/usr/bin/xauth",
+        "/var/empty": "/run/sshd",
+        "/usr/bin:/bin:/usr/sbin:/sbin": "/usr/local/bin:/usr/bin:/bin:/usr/games"
+    },
+)
+
+genrule(
+    name = "man_sshd_8",
+    srcs = [
+        ":man_sshd_8_paths",
+        "@openssh_src//:fixalgorithms"
+    ],
+    outs = [
+        "manuals/sshd.8.gz"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:kerberos_runtime",
+        "@sonic_build_infra//tools/build_tools:gzip"
+    ],
+    cmd = "bash $(location @openssh_src//:fixalgorithms) \"$(location @sonic_build_infra//tools/build_tools:kerberos_runtime)/bin/sed\"  < $(location :man_sshd_8_paths) | $(location @sonic_build_infra//tools/build_tools:gzip) -n -9 -c > $@",
+)
+
+expand_template(
+    name = "man_sftp_server_8_paths",
+    template = "@openssh_src//:sftp-server.8",
+    out = "manuals/sftp-server.8.paths",
+    substitutions = {
+        "/usr/libexec": "/usr/lib/openssh",
+        "/var/run/sshd.pid": "/run/sshd.pid",
+        "/etc/moduli": "/etc/ssh/moduli",
+        "/usr/X11R6/bin/xauth": "/usr/bin/xauth",
+        "/var/empty": "/run/sshd",
+        "/usr/bin:/bin:/usr/sbin:/sbin": "/usr/local/bin:/usr/bin:/bin:/usr/games"
+    },
+)
+
+genrule(
+    name = "man_sftp_server_8",
+    srcs = [
+        ":man_sftp_server_8_paths",
+        "@openssh_src//:fixalgorithms"
+    ],
+    outs = [
+        "manuals/sftp-server.8.gz"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:kerberos_runtime",
+        "@sonic_build_infra//tools/build_tools:gzip"
+    ],
+    cmd = "bash $(location @openssh_src//:fixalgorithms) \"$(location @sonic_build_infra//tools/build_tools:kerberos_runtime)/bin/sed\"  < $(location :man_sftp_server_8_paths) | $(location @sonic_build_infra//tools/build_tools:gzip) -n -9 -c > $@",
+)
+
+expand_template(
+    name = "man_ssh_copy_id_1_paths",
+    template = "@openssh_src//:contrib/ssh-copy-id.1",
+    out = "manuals/ssh-copy-id.1.paths",
+    substitutions = {
+        "/usr/libexec": "/usr/lib/openssh",
+        "/var/run/sshd.pid": "/run/sshd.pid",
+        "/etc/moduli": "/etc/ssh/moduli",
+        "/usr/X11R6/bin/xauth": "/usr/bin/xauth",
+        "/var/empty": "/run/sshd",
+        "/usr/bin:/bin:/usr/sbin:/sbin": "/usr/local/bin:/usr/bin:/bin:/usr/games"
+    },
+)
+
+genrule(
+    name = "man_ssh_copy_id_1",
+    srcs = [
+        ":man_ssh_copy_id_1_paths",
+        "@openssh_src//:fixalgorithms"
+    ],
+    outs = [
+        "manuals/ssh-copy-id.1.gz"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:kerberos_runtime",
+        "@sonic_build_infra//tools/build_tools:gzip"
+    ],
+    cmd = "bash $(location @openssh_src//:fixalgorithms) \"$(location @sonic_build_infra//tools/build_tools:kerberos_runtime)/bin/sed\"  < $(location :man_ssh_copy_id_1_paths) | $(location @sonic_build_infra//tools/build_tools:gzip) -n -9 -c > $@",
+)
+
+expand_template(
+    name = "man_ssh_argv0_1_paths",
+    template = "@openssh_src//:debian/ssh-argv0.1",
+    out = "manuals/ssh-argv0.1.paths",
+    substitutions = {
+        "/usr/libexec": "/usr/lib/openssh",
+        "/var/run/sshd.pid": "/run/sshd.pid",
+        "/etc/moduli": "/etc/ssh/moduli",
+        "/usr/X11R6/bin/xauth": "/usr/bin/xauth",
+        "/var/empty": "/run/sshd",
+        "/usr/bin:/bin:/usr/sbin:/sbin": "/usr/local/bin:/usr/bin:/bin:/usr/games"
+    },
+)
+
+genrule(
+    name = "man_ssh_argv0_1",
+    srcs = [
+        ":man_ssh_argv0_1_paths",
+        "@openssh_src//:fixalgorithms"
+    ],
+    outs = [
+        "manuals/ssh-argv0.1.gz"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:kerberos_runtime",
+        "@sonic_build_infra//tools/build_tools:gzip"
+    ],
+    cmd = "bash $(location @openssh_src//:fixalgorithms) \"$(location @sonic_build_infra//tools/build_tools:kerberos_runtime)/bin/sed\"  < $(location :man_ssh_argv0_1_paths) | $(location @sonic_build_infra//tools/build_tools:gzip) -n -9 -c > $@",
+)
+
+genrule(
+    name = "doc_debian_changelog",
+    srcs = [
+        "@openssh_src//:debian/changelog"
+    ],
+    outs = [
+        "documentation/debian_changelog.gz"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:gzip"
+    ],
+    cmd = "$(location @sonic_build_infra//tools/build_tools:gzip) -n -9 -c $(location @openssh_src//:debian/changelog) > $@",
+)
+
+genrule(
+    name = "doc_ChangeLog",
+    srcs = [
+        "@openssh_src//:ChangeLog"
+    ],
+    outs = [
+        "documentation/ChangeLog.gz"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:gzip"
+    ],
+    cmd = "$(location @sonic_build_infra//tools/build_tools:gzip) -n -9 -c $(location @openssh_src//:ChangeLog) > $@",
+)
+
+genrule(
+    name = "doc_OVERVIEW",
+    srcs = [
+        "@openssh_src//:OVERVIEW"
+    ],
+    outs = [
+        "documentation/OVERVIEW.gz"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:gzip"
+    ],
+    cmd = "$(location @sonic_build_infra//tools/build_tools:gzip) -n -9 -c $(location @openssh_src//:OVERVIEW) > $@",
+)
+
+genrule(
+    name = "doc_README_tun",
+    srcs = [
+        "@openssh_src//:README.tun"
+    ],
+    outs = [
+        "documentation/README_tun.gz"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:gzip"
+    ],
+    cmd = "$(location @sonic_build_infra//tools/build_tools:gzip) -n -9 -c $(location @openssh_src//:README.tun) > $@",
+)
+
+genrule(
+    name = "doc_debian_README_Debian",
+    srcs = [
+        "@openssh_src//:debian/README.Debian"
+    ],
+    outs = [
+        "documentation/debian_README_Debian.gz"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:gzip"
+    ],
+    cmd = "$(location @sonic_build_infra//tools/build_tools:gzip) -n -9 -c $(location @openssh_src//:debian/README.Debian) > $@",
+)
+
+genrule(
+    name = "doc_debian_NEWS",
+    srcs = [
+        "@openssh_src//:debian/NEWS"
+    ],
+    outs = [
+        "documentation/debian_NEWS.gz"
+    ],
+    tools = [
+        "@sonic_build_infra//tools/build_tools:gzip"
+    ],
+    cmd = "$(location @sonic_build_infra//tools/build_tools:gzip) -n -9 -c $(location @openssh_src//:debian/NEWS) > $@",
+)
+
+py_binary(
+    name = "installation_contract_tool",
+    srcs = [
+        "installation_contract.py"
+    ],
+    main = "installation_contract.py",
+)
+
+# Original dh_runit logscript for logscript,name=ssh (no usr/bin option).
+expand_template(
+    name = "server_runit_log",
+    template = "@dh_runit_src//:data/logscript",
+    out = "installed/runit-log-run",
+    substitutions = {"{{ logdir }}": "/var/log/runit/ssh"},
+)
+write_file(name = "server_runit_installed", out = "installed/runit-installed", content = [])
+
+write_file(
+    name = "server_install_members",
+    out = "contracts/server-members.json",
+    content = [
+        "[\"etc/default/ssh\", \"etc/init.d/ssh\", \"etc/pam.d/sshd\", \"etc/ssh/moduli\", \"etc/sv/ssh/.meta/installed\", \"etc/sv/ssh/log/run\", \"etc/runit/runsvdir/default\", \"usr/share/runit/meta/ssh/installed\", \"var/log/runit/ssh\", \"etc/sv/ssh/finish\", \"etc/sv/ssh/run\", \"etc/ufw/applications.d/openssh-server\", \"usr/lib/openssh/ssh-session-cleanup\", \"usr/lib/systemd/system/rescue-ssh.target\", \"usr/lib/systemd/system/ssh.service\", \"usr/lib/systemd/system/ssh.socket\", \"usr/lib/systemd/system/sshd-keygen.service\", \"usr/lib/systemd/system/sshd@.service\", \"usr/lib/sysusers.d/openssh-server.conf\", \"usr/lib/tmpfiles.d/openssh-server.conf\", \"usr/share/apport/package-hooks/openssh-server.py\", \"usr/share/doc/openssh-client/examples/ssh-session-cleanup.service\", \"usr/share/man/man5/moduli.5.gz\", \"usr/share/man/man5/sshd_config.5.gz\", \"usr/share/man/man8/sshd.8.gz\", \"usr/share/openssh/sshd_config\", \"usr/share/openssh/sshd_config.md5sum\"]"
+    ],
+)
+
+genrule(
+    name = "server_installation_contract",
+    srcs = [
+        "@openssh_src//:debian/openssh-server.runit",
+        ":server_install_members",
+        ":server_runit_log",
+        "@dh_runit_src//:data/logscript"
+    ],
+    outs = [
+        "contracts/server-installation.ok"
+    ],
+    tools = [
+        ":installation_contract_tool"
+    ],
+    cmd = "$(location :installation_contract_tool) --runit $(location @openssh_src//:debian/openssh-server.runit) --members $(location :server_install_members) --marker $@ --logscript $(location :server_runit_log) --logscript-template $(location @dh_runit_src//:data/logscript)",
+)
+
+write_file(
+    name = "server_substitutions",
+    out = "metadata/openssh-server.substvars",
+    content = [
+        "openssh-server:Recommends="
+    ],
+)
+
+py_binary(
+    name = "debian_helper_fragments_tool",
+    srcs = [
+        "debian_helpers.py"
+    ],
+    main = "debian_helpers.py",
+    deps = ["@sonic_build_infra//oci:runtime_packages_lib"],
+)
+
+genrule(
+    name = "openssh-client_debian_fragments",
+    srcs = [
+        ":openssh-client.runtime",
+        "@openssh_src//:debian/control",
+        "@openssh_src//:debian/changelog"
+    ],
+    outs = [
+        "metadata_helpers/openssh-client/postinst.debhelper",
+        "metadata_helpers/openssh-client/postrm.debhelper",
+        "metadata_helpers/openssh-client/substvars"
+    ],
+    tools = [
+        ":debian_helper_fragments_tool",
+        "@sonic_build_infra//tools/build_tools:kernel_runtime"
+    ],
+    cmd = target_arch_command('$(location :debian_helper_fragments_tool) --architecture {DEB_HOST_ARCH} --package openssh-client --payload $(location :openssh-client.runtime) --control $(location @openssh_src//:debian/control) --changelog $(location @openssh_src//:debian/changelog) --runtime $(execpath @sonic_build_infra//tools/build_tools:kernel_runtime) --output-substvars $(location :metadata_helpers/openssh-client/substvars) --fragment postinst=$(location :metadata_helpers/openssh-client/postinst.debhelper) --fragment postrm=$(location :metadata_helpers/openssh-client/postrm.debhelper)'),
+)
+
+genrule(
+    name = "openssh-server_debian_fragments",
+    srcs = [
+        ":openssh-server.runtime",
+        "@openssh_src//:debian/control",
+        "@openssh_src//:debian/changelog",
+        ":server_substitutions",
+        "runit_autoscripts.pl",
+        "@openssh_src//:debian/openssh-server.postinst",
+        "@openssh_src//:debian/openssh-server.preinst",
+        "@openssh_src//:debian/openssh-server.postrm",
+        "@openssh_src//:debian/openssh-server.maintscript",
+        "@openssh_src//:debian/openssh-server.config",
+        "@openssh_src//:debian/openssh-server.templates",
+        "@openssh_src//:debian/po/tr.po",
+        "@openssh_src//:debian/po/templates.pot",
+        "@openssh_src//:debian/po/sv.po",
+        "@openssh_src//:debian/po/ru.po",
+        "@openssh_src//:debian/po/ro.po",
+        "@openssh_src//:debian/po/pt_BR.po",
+        "@openssh_src//:debian/po/pt.po",
+        "@openssh_src//:debian/po/nl.po",
+        "@openssh_src//:debian/po/ja.po",
+        "@openssh_src//:debian/po/it.po",
+        "@openssh_src//:debian/po/fr.po",
+        "@openssh_src//:debian/po/es.po",
+        "@openssh_src//:debian/po/de.po",
+        "@openssh_src//:debian/po/da.po",
+        "@openssh_src//:debian/po/cs.po",
+        "@openssh_src//:debian/po/ca.po",
+        "@openssh_src//:debian/po/POTFILES.in",
+        "@dh_runit_src//:dh_runit",
+        "@dh_runit_src//:postinst-runit",
+        "@dh_runit_src//:prerm-runit",
+        "@dh_runit_src//:postrm-runit"
+    ],
+    outs = ['metadata_helpers/openssh-server/postinst', 'metadata_helpers/openssh-server/preinst', 'metadata_helpers/openssh-server/prerm', 'metadata_helpers/openssh-server/postrm', 'metadata_helpers/openssh-server/control', 'metadata_helpers/openssh-server/substvars'],
+    tools = [":debian_helper_fragments_tool", "@sonic_build_infra//tools/build_tools:kernel_runtime"],
+    cmd = target_arch_command('$(location :debian_helper_fragments_tool) --architecture {DEB_HOST_ARCH} --package openssh-server --payload $(location :openssh-server.runtime) --control $(location @openssh_src//:debian/control) --changelog $(location @openssh_src//:debian/changelog) --runtime $(execpath @sonic_build_infra//tools/build_tools:kernel_runtime) --output-substvars $(location :metadata_helpers/openssh-server/substvars) --substvars-source $(location :server_substitutions) --runit-source $(location @dh_runit_src//:dh_runit) --runit-autoscripts $(location runit_autoscripts.pl) --output-control $(location :metadata_helpers/openssh-server/control) --debian-file openssh-server.postinst=$(location @openssh_src//:debian/openssh-server.postinst) --debian-file openssh-server.preinst=$(location @openssh_src//:debian/openssh-server.preinst) --debian-file openssh-server.postrm=$(location @openssh_src//:debian/openssh-server.postrm) --debian-file openssh-server.maintscript=$(location @openssh_src//:debian/openssh-server.maintscript) --debian-file openssh-server.config=$(location @openssh_src//:debian/openssh-server.config) --debian-file openssh-server.templates=$(location @openssh_src//:debian/openssh-server.templates) --debian-file po/tr.po=$(location @openssh_src//:debian/po/tr.po) --debian-file po/templates.pot=$(location @openssh_src//:debian/po/templates.pot) --debian-file po/sv.po=$(location @openssh_src//:debian/po/sv.po) --debian-file po/ru.po=$(location @openssh_src//:debian/po/ru.po) --debian-file po/ro.po=$(location @openssh_src//:debian/po/ro.po) --debian-file po/pt_BR.po=$(location @openssh_src//:debian/po/pt_BR.po) --debian-file po/pt.po=$(location @openssh_src//:debian/po/pt.po) --debian-file po/nl.po=$(location @openssh_src//:debian/po/nl.po) --debian-file po/ja.po=$(location @openssh_src//:debian/po/ja.po) --debian-file po/it.po=$(location @openssh_src//:debian/po/it.po) --debian-file po/fr.po=$(location @openssh_src//:debian/po/fr.po) --debian-file po/es.po=$(location @openssh_src//:debian/po/es.po) --debian-file po/de.po=$(location @openssh_src//:debian/po/de.po) --debian-file po/da.po=$(location @openssh_src//:debian/po/da.po) --debian-file po/cs.po=$(location @openssh_src//:debian/po/cs.po) --debian-file po/ca.po=$(location @openssh_src//:debian/po/ca.po) --debian-file po/POTFILES.in=$(location @openssh_src//:debian/po/POTFILES.in) --fragment postinst=$(location :metadata_helpers/openssh-server/postinst) --fragment preinst=$(location :metadata_helpers/openssh-server/preinst) --fragment prerm=$(location :metadata_helpers/openssh-server/prerm) --fragment postrm=$(location :metadata_helpers/openssh-server/postrm)'),
+)
+
+sonic_deploy_tar(
+    name = "openssh-client.runtime",
+    srcs = [
+        ":doc_ChangeLog",
+        ":doc_OVERVIEW",
+        ":doc_README_tun",
+        ":doc_debian_NEWS",
+        ":doc_debian_README_Debian",
+        ":doc_debian_changelog",
+        ":man_scp_1",
+        ":man_sftp_1",
+        ":man_ssh_1",
+        ":man_ssh_add_1",
+        ":man_ssh_agent_1",
+        ":man_ssh_argv0_1",
+        ":man_ssh_config_5",
+        ":man_ssh_copy_id_1",
+        ":man_ssh_keygen_1",
+        ":man_ssh_keyscan_1",
+        ":man_ssh_keysign_8",
+        ":man_ssh_pkcs11_helper_8",
+        ":man_ssh_sk_helper_8",
+        ":ssh_config_installed",
+        "@openssh_src//:README",
+        "@openssh_src//:README.dns",
+        "@openssh_src//:contrib/ssh-copy-id",
+        "@openssh_src//:debian/copyright",
+        "@openssh_src//:debian/openssh-client.apport",
+        "@openssh_src//:debian/openssh-client.tmpfiles",
+        "@openssh_src//:debian/ssh-argv0",
+        "@openssh_src//:debian/systemd/ssh-agent.service",
+        "@openssh_src//:debian/systemd/ssh-agent.socket"
+    ],
+    binaries = {
+        "usr/bin/ssh type=file uid=0 gid=0 mode=0755": ":ssh",
+        "usr/bin/scp type=file uid=0 gid=0 mode=0755": ":scp",
+        "usr/bin/sftp type=file uid=0 gid=0 mode=0755": ":sftp",
+        "usr/bin/ssh-add type=file uid=0 gid=0 mode=0755": ":ssh-add",
+        "usr/bin/ssh-agent type=file uid=0 gid=0 mode=0755": ":ssh-agent",
+        "usr/bin/ssh-keygen type=file uid=0 gid=0 mode=0755": ":ssh-keygen",
+        "usr/bin/ssh-keyscan type=file uid=0 gid=0 mode=0755": ":ssh-keyscan",
+        "usr/lib/openssh/ssh-keysign type=file uid=0 gid=0 mode=4755": ":ssh-keysign",
+        "usr/lib/openssh/ssh-pkcs11-helper type=file uid=0 gid=0 mode=0755": ":ssh-pkcs11-helper",
+        "usr/lib/openssh/ssh-sk-helper type=file uid=0 gid=0 mode=0755": ":ssh-sk-helper"
+    },
+    mtree = [
+        "etc/ssh/ssh_config type=file uid=0 gid=0 mode=0644 content=$(location :ssh_config_installed)",
+        "usr/bin/ssh-copy-id type=file uid=0 gid=0 mode=0755 content=$(location @openssh_src//:contrib/ssh-copy-id)",
+        "usr/bin/ssh-argv0 type=file uid=0 gid=0 mode=0755 content=$(location @openssh_src//:debian/ssh-argv0)",
+        "usr/share/apport/package-hooks/openssh-client.py type=file uid=0 gid=0 mode=0644 content=$(location @openssh_src//:debian/openssh-client.apport)",
+        "usr/lib/systemd/user/ssh-agent.service type=file uid=0 gid=0 mode=0644 content=$(location @openssh_src//:debian/systemd/ssh-agent.service)",
+        "usr/lib/systemd/user/ssh-agent.socket type=file uid=0 gid=0 mode=0644 content=$(location @openssh_src//:debian/systemd/ssh-agent.socket)",
+        "usr/lib/tmpfiles.d/openssh-client.conf type=file uid=0 gid=0 mode=0644 content=$(location @openssh_src//:debian/openssh-client.tmpfiles)",
+        "usr/share/doc/openssh-client/copyright type=file uid=0 gid=0 mode=0644 content=$(location @openssh_src//:debian/copyright)",
+        "usr/share/man/man1/scp.1.gz type=file uid=0 gid=0 mode=0644 content=$(location :man_scp_1)",
+        "usr/share/man/man1/sftp.1.gz type=file uid=0 gid=0 mode=0644 content=$(location :man_sftp_1)",
+        "usr/share/man/man1/ssh-add.1.gz type=file uid=0 gid=0 mode=0644 content=$(location :man_ssh_add_1)",
+        "usr/share/man/man1/ssh-agent.1.gz type=file uid=0 gid=0 mode=0644 content=$(location :man_ssh_agent_1)",
+        "usr/share/man/man1/ssh-keygen.1.gz type=file uid=0 gid=0 mode=0644 content=$(location :man_ssh_keygen_1)",
+        "usr/share/man/man1/ssh-keyscan.1.gz type=file uid=0 gid=0 mode=0644 content=$(location :man_ssh_keyscan_1)",
+        "usr/share/man/man1/ssh.1.gz type=file uid=0 gid=0 mode=0644 content=$(location :man_ssh_1)",
+        "usr/share/man/man5/ssh_config.5.gz type=file uid=0 gid=0 mode=0644 content=$(location :man_ssh_config_5)",
+        "usr/share/man/man8/ssh-keysign.8.gz type=file uid=0 gid=0 mode=0644 content=$(location :man_ssh_keysign_8)",
+        "usr/share/man/man8/ssh-pkcs11-helper.8.gz type=file uid=0 gid=0 mode=0644 content=$(location :man_ssh_pkcs11_helper_8)",
+        "usr/share/man/man8/ssh-sk-helper.8.gz type=file uid=0 gid=0 mode=0644 content=$(location :man_ssh_sk_helper_8)",
+        "usr/share/man/man1/ssh-copy-id.1.gz type=file uid=0 gid=0 mode=0644 content=$(location :man_ssh_copy_id_1)",
+        "usr/share/man/man1/ssh-argv0.1.gz type=file uid=0 gid=0 mode=0644 content=$(location :man_ssh_argv0_1)",
+        "usr/share/doc/openssh-client/changelog.Debian.gz type=file uid=0 gid=0 mode=0644 content=$(location :doc_debian_changelog)",
+        "usr/share/doc/openssh-client/changelog.gz type=file uid=0 gid=0 mode=0644 content=$(location :doc_ChangeLog)",
+        "usr/share/doc/openssh-client/OVERVIEW.gz type=file uid=0 gid=0 mode=0644 content=$(location :doc_OVERVIEW)",
+        "usr/share/doc/openssh-client/README type=file uid=0 gid=0 mode=0644 content=$(location @openssh_src//:README)",
+        "usr/share/doc/openssh-client/README.dns type=file uid=0 gid=0 mode=0644 content=$(location @openssh_src//:README.dns)",
+        "usr/share/doc/openssh-client/README.tun.gz type=file uid=0 gid=0 mode=0644 content=$(location :doc_README_tun)",
+        "usr/share/doc/openssh-client/README.Debian.gz type=file uid=0 gid=0 mode=0644 content=$(location :doc_debian_README_Debian)",
+        "usr/share/doc/openssh-client/NEWS.Debian.gz type=file uid=0 gid=0 mode=0644 content=$(location :doc_debian_NEWS)",
+        "etc/ssh/ssh_config.d type=dir uid=0 gid=0 mode=0755",
+        "usr/lib/systemd/user/graphical-session-pre.target.wants/ssh-agent.service type=link uid=0 gid=0 mode=0777 link=../ssh-agent.service"
+    ],
+)
+
+runtime_packages(
+    name = "openssh-client.runtime_metadata",
+    control = "@openssh_src//:debian/control",
+    changelog = "@openssh_src//:debian/changelog",
+    packages = {
+        "openssh-client": ":openssh-client.runtime"
+    },
+    apt_packages = {
+        "@openssh_deps//libaudit1:data": "@openssh_deps//libaudit1:control",
+        "@openssh_deps//libcap-ng0:data": "@openssh_deps//libcap-ng0:control",
+        "@openssh_deps//libcbor0.10:data": "@openssh_deps//libcbor0.10:control",
+        "@openssh_deps//libcrypt1:data": "@openssh_deps//libcrypt1:control",
+        "@openssh_deps//libedit2:data": "@openssh_deps//libedit2:control",
+        "@openssh_deps//libbsd0:data": "@openssh_deps//libbsd0:control",
+        "@openssh_deps//libmd0:data": "@openssh_deps//libmd0:control",
+        "@openssh_deps//libfido2-1:data": "@openssh_deps//libfido2-1:control",
+        "@openssh_deps//libpam0g:data": "@openssh_deps//libpam0g:control",
+        "@openssh_deps//libselinux1:data": "@openssh_deps//libselinux1:control",
+        "@openssh_deps//libtinfo6:data": "@openssh_deps//libtinfo6:control",
+        "@openssh_deps//libudev1:data": "@openssh_deps//libudev1:control",
+        "@openssh_deps//libwrap0:data": "@openssh_deps//libwrap0:control",
+        "@openssh_deps//libwtmpdb0:data": "@openssh_deps//libwtmpdb0:control",
+        "@openssh_deps//zlib1g:data": "@openssh_deps//zlib1g:control"
+    },
+    dependencies = [
+        "//openssl:runtime_packages.json",
+        "//krb5:runtime_packages.json"
+    ],
+    substvars = {
+        "openssh-client": ":metadata_helpers/openssh-client/substvars"
+    },
+    debian_files = {
+        "openssh-client.postinst": "@openssh_src//:debian/openssh-client.postinst",
+        "openssh-client.postrm": "@openssh_src//:debian/openssh-client.postrm",
+        "openssh-client.maintscript": "@openssh_src//:debian/openssh-client.maintscript",
+        "openssh-client.postinst.debhelper": ":metadata_helpers/openssh-client/postinst.debhelper",
+        "openssh-client.postrm.debhelper": ":metadata_helpers/openssh-client/postrm.debhelper"
+    },
+    control_file_helpers = [
+        [
+            "dh_installdeb"
+        ]
+    ],
+)
+
+sonic_deploy_tar(
+    name = "openssh-server.runtime",
+    srcs = [
+        ":server_runit_log",
+        ":server_runit_installed",
+        ":man_moduli_5",
+        ":man_sshd_8",
+        ":man_sshd_config_5",
+        ":moduli_installed",
+        ":pam_configuration",
+        ":sshd_config_installed",
+        "@openssh_src//:debian/openssh-server.apport",
+        "@openssh_src//:debian/openssh-server.ssh.default",
+        "@openssh_src//:debian/openssh-server.ssh.init",
+        "@openssh_src//:debian/openssh-server.ssh.runscript/finish",
+        "@openssh_src//:debian/openssh-server.ssh.runscript/run",
+        "@openssh_src//:debian/openssh-server.sysusers",
+        "@openssh_src//:debian/openssh-server.tmpfiles",
+        "@openssh_src//:debian/openssh-server.ucf-md5sum",
+        "@openssh_src//:debian/openssh-server.ufw.profile",
+        "@openssh_src//:debian/systemd/rescue-ssh.target",
+        "@openssh_src//:debian/systemd/ssh-session-cleanup",
+        "@openssh_src//:debian/systemd/ssh-session-cleanup.service",
+        "@openssh_src//:debian/systemd/ssh.service",
+        "@openssh_src//:debian/systemd/ssh.socket",
+        "@openssh_src//:debian/systemd/sshd-keygen.service",
+        "@openssh_src//:debian/systemd/sshd@.service",
+        ":server_installation_contract"
+    ],
+    binaries = {
+        "usr/sbin/sshd type=file uid=0 gid=0 mode=0755": ":sshd",
+        "usr/lib/openssh/sshd-session type=file uid=0 gid=0 mode=0755": ":sshd-session",
+        "usr/lib/openssh/sshd-auth type=file uid=0 gid=0 mode=0755": ":sshd-auth"
+    },
+    mtree = [
+        "etc/ssh/moduli type=file uid=0 gid=0 mode=0644 content=$(location :moduli_installed)",
+        "usr/share/openssh/sshd_config type=file uid=0 gid=0 mode=0644 content=$(location :sshd_config_installed)",
+        "usr/share/openssh/sshd_config.md5sum type=file uid=0 gid=0 mode=0644 content=$(location @openssh_src//:debian/openssh-server.ucf-md5sum)",
+        "etc/ufw/applications.d/openssh-server type=file uid=0 gid=0 mode=0644 content=$(location @openssh_src//:debian/openssh-server.ufw.profile)",
+        "usr/lib/openssh/ssh-session-cleanup type=file uid=0 gid=0 mode=0755 content=$(location @openssh_src//:debian/systemd/ssh-session-cleanup)",
+        "usr/share/apport/package-hooks/openssh-server.py type=file uid=0 gid=0 mode=0644 content=$(location @openssh_src//:debian/openssh-server.apport)",
+        "etc/pam.d/sshd type=file uid=0 gid=0 mode=0644 content=$(location :pam_configuration)",
+        "etc/default/ssh type=file uid=0 gid=0 mode=0644 content=$(location @openssh_src//:debian/openssh-server.ssh.default)",
+        "etc/init.d/ssh type=file uid=0 gid=0 mode=0755 content=$(location @openssh_src//:debian/openssh-server.ssh.init)",
+        "usr/lib/tmpfiles.d/openssh-server.conf type=file uid=0 gid=0 mode=0644 content=$(location @openssh_src//:debian/openssh-server.tmpfiles)",
+        "usr/lib/sysusers.d/openssh-server.conf type=file uid=0 gid=0 mode=0644 content=$(location @openssh_src//:debian/openssh-server.sysusers)",
+        "usr/share/doc/openssh-client/examples/ssh-session-cleanup.service type=file uid=0 gid=0 mode=0644 content=$(location @openssh_src//:debian/systemd/ssh-session-cleanup.service)",
+        "etc/runit/runsvdir/default type=dir uid=0 gid=0 mode=0755",
+        "etc/sv/ssh/.meta type=dir uid=0 gid=0 mode=0755",
+        "etc/sv/ssh/.meta/installed type=file uid=0 gid=0 mode=0644 content=$(location :server_runit_installed)",
+        "etc/sv/ssh/log type=dir uid=0 gid=0 mode=0755",
+        "etc/sv/ssh/log/run type=file uid=0 gid=0 mode=0755 content=$(location :server_runit_log)",
+        "usr/share/runit/meta/ssh type=dir uid=0 gid=0 mode=0755",
+        "usr/share/runit/meta/ssh/installed type=file uid=0 gid=0 mode=0644 content=$(location :server_runit_installed)",
+        "var/log/runit/ssh type=dir uid=0 gid=0 mode=0755",
+        "etc/sv/ssh/run type=file uid=0 gid=0 mode=0755 content=$(location @openssh_src//:debian/openssh-server.ssh.runscript/run)",
+        "etc/sv/ssh/finish type=file uid=0 gid=0 mode=0755 content=$(location @openssh_src//:debian/openssh-server.ssh.runscript/finish)",
+        "usr/lib/systemd/system/ssh.service type=file uid=0 gid=0 mode=0644 content=$(location @openssh_src//:debian/systemd/ssh.service)",
+        "usr/lib/systemd/system/ssh.socket type=file uid=0 gid=0 mode=0644 content=$(location @openssh_src//:debian/systemd/ssh.socket)",
+        "usr/lib/systemd/system/rescue-ssh.target type=file uid=0 gid=0 mode=0644 content=$(location @openssh_src//:debian/systemd/rescue-ssh.target)",
+        "usr/lib/systemd/system/sshd@.service type=file uid=0 gid=0 mode=0644 content=$(location @openssh_src//:debian/systemd/sshd@.service)",
+        "usr/lib/systemd/system/sshd-keygen.service type=file uid=0 gid=0 mode=0644 content=$(location @openssh_src//:debian/systemd/sshd-keygen.service)",
+        "usr/share/man/man5/moduli.5.gz type=file uid=0 gid=0 mode=0644 content=$(location :man_moduli_5)",
+        "usr/share/man/man5/sshd_config.5.gz type=file uid=0 gid=0 mode=0644 content=$(location :man_sshd_config_5)",
+        "usr/share/man/man8/sshd.8.gz type=file uid=0 gid=0 mode=0644 content=$(location :man_sshd_8)",
+        "etc/ssh/sshd_config.d type=dir uid=0 gid=0 mode=0755",
+        "usr/share/doc/openssh-server type=link uid=0 gid=0 mode=0777 link=openssh-client",
+        "usr/share/man/man5/authorized_keys.5.gz type=link uid=0 gid=0 mode=0777 link=sshd_config.5.gz"
+    ],
+)
+
+runtime_packages(
+    name = "openssh-server.runtime_metadata",
+    control = ":metadata_helpers/openssh-server/control",
+    changelog = "@openssh_src//:debian/changelog",
+    packages = {
+        "openssh-server": ":openssh-server.runtime"
+    },
+    apt_packages = {
+        "@openssh_deps//libaudit1:data": "@openssh_deps//libaudit1:control",
+        "@openssh_deps//libcap-ng0:data": "@openssh_deps//libcap-ng0:control",
+        "@openssh_deps//libcbor0.10:data": "@openssh_deps//libcbor0.10:control",
+        "@openssh_deps//libcrypt1:data": "@openssh_deps//libcrypt1:control",
+        "@openssh_deps//libedit2:data": "@openssh_deps//libedit2:control",
+        "@openssh_deps//libbsd0:data": "@openssh_deps//libbsd0:control",
+        "@openssh_deps//libmd0:data": "@openssh_deps//libmd0:control",
+        "@openssh_deps//libfido2-1:data": "@openssh_deps//libfido2-1:control",
+        "@openssh_deps//libpam0g:data": "@openssh_deps//libpam0g:control",
+        "@openssh_deps//libselinux1:data": "@openssh_deps//libselinux1:control",
+        "@openssh_deps//libtinfo6:data": "@openssh_deps//libtinfo6:control",
+        "@openssh_deps//libudev1:data": "@openssh_deps//libudev1:control",
+        "@openssh_deps//libwrap0:data": "@openssh_deps//libwrap0:control",
+        "@openssh_deps//libwtmpdb0:data": "@openssh_deps//libwtmpdb0:control",
+        "@openssh_deps//zlib1g:data": "@openssh_deps//zlib1g:control"
+    },
+    dependencies = [
+        "//openssl:runtime_packages.json",
+        "//krb5:runtime_packages.json"
+    ],
+    substvars = {
+        "openssh-server": ":metadata_helpers/openssh-server/substvars"
+    },
+    debian_files = {
+        "openssh-server.postinst": ":metadata_helpers/openssh-server/postinst",
+        "openssh-server.preinst": ":metadata_helpers/openssh-server/preinst",
+        "openssh-server.postrm": ":metadata_helpers/openssh-server/postrm",
+        "openssh-server.maintscript": "@openssh_src//:debian/openssh-server.maintscript",
+        "openssh-server.config": "@openssh_src//:debian/openssh-server.config",
+        "openssh-server.templates": "@openssh_src//:debian/openssh-server.templates",
+        "openssh-server.prerm": ":metadata_helpers/openssh-server/prerm",
+        "po/tr.po": "@openssh_src//:debian/po/tr.po",
+        "po/templates.pot": "@openssh_src//:debian/po/templates.pot",
+        "po/sv.po": "@openssh_src//:debian/po/sv.po",
+        "po/ru.po": "@openssh_src//:debian/po/ru.po",
+        "po/ro.po": "@openssh_src//:debian/po/ro.po",
+        "po/pt_BR.po": "@openssh_src//:debian/po/pt_BR.po",
+        "po/pt.po": "@openssh_src//:debian/po/pt.po",
+        "po/nl.po": "@openssh_src//:debian/po/nl.po",
+        "po/ja.po": "@openssh_src//:debian/po/ja.po",
+        "po/it.po": "@openssh_src//:debian/po/it.po",
+        "po/fr.po": "@openssh_src//:debian/po/fr.po",
+        "po/es.po": "@openssh_src//:debian/po/es.po",
+        "po/de.po": "@openssh_src//:debian/po/de.po",
+        "po/da.po": "@openssh_src//:debian/po/da.po",
+        "po/cs.po": "@openssh_src//:debian/po/cs.po",
+        "po/ca.po": "@openssh_src//:debian/po/ca.po",
+        "po/POTFILES.in": "@openssh_src//:debian/po/POTFILES.in"
+    },
+    control_file_helpers = [["dh_installdeb"]],
+)
+
+sonic_deploy_tar(
+    name = "openssh-sftp-server.runtime",
+    srcs = [
+        ":man_sftp_server_8"
+    ],
+    binaries = {
+        "usr/lib/openssh/sftp-server type=file uid=0 gid=0 mode=0755": ":sftp-server"
+    },
+    mtree = [
+        "usr/share/man/man8/sftp-server.8.gz type=file uid=0 gid=0 mode=0644 content=$(location :man_sftp_server_8)",
+        "usr/lib/sftp-server type=link uid=0 gid=0 mode=0777 link=openssh/sftp-server",
+        "usr/share/doc/openssh-sftp-server type=link uid=0 gid=0 mode=0777 link=openssh-client"
+    ],
+)
+
+runtime_packages(
+    name = "openssh-sftp-server.runtime_metadata",
+    control = "@openssh_src//:debian/control",
+    changelog = "@openssh_src//:debian/changelog",
+    packages = {
+        "openssh-sftp-server": ":openssh-sftp-server.runtime"
+    },
+    apt_packages = {
+        "@openssh_deps//libaudit1:data": "@openssh_deps//libaudit1:control",
+        "@openssh_deps//libcap-ng0:data": "@openssh_deps//libcap-ng0:control",
+        "@openssh_deps//libcbor0.10:data": "@openssh_deps//libcbor0.10:control",
+        "@openssh_deps//libcrypt1:data": "@openssh_deps//libcrypt1:control",
+        "@openssh_deps//libedit2:data": "@openssh_deps//libedit2:control",
+        "@openssh_deps//libbsd0:data": "@openssh_deps//libbsd0:control",
+        "@openssh_deps//libmd0:data": "@openssh_deps//libmd0:control",
+        "@openssh_deps//libfido2-1:data": "@openssh_deps//libfido2-1:control",
+        "@openssh_deps//libpam0g:data": "@openssh_deps//libpam0g:control",
+        "@openssh_deps//libselinux1:data": "@openssh_deps//libselinux1:control",
+        "@openssh_deps//libtinfo6:data": "@openssh_deps//libtinfo6:control",
+        "@openssh_deps//libudev1:data": "@openssh_deps//libudev1:control",
+        "@openssh_deps//libwrap0:data": "@openssh_deps//libwrap0:control",
+        "@openssh_deps//libwtmpdb0:data": "@openssh_deps//libwtmpdb0:control",
+        "@openssh_deps//zlib1g:data": "@openssh_deps//zlib1g:control"
+    },
+    dependencies = [
+        "//openssl:runtime_packages.json",
+        "//krb5:runtime_packages.json"
+    ],
+    substvars = {},
+    debian_files = {},
+    control_file_helpers = [
+        [
+            "dh_installdeb"
+        ]
+    ],
+)
+
+sonic_deploy_tar(
+    name = "ssh.runtime",
+    srcs = [
+        ":doc_debian_changelog",
+        "@openssh_src//:debian/copyright"
+    ],
+    binaries = {},
+    mtree = [
+        "usr/share/doc/ssh/copyright type=file uid=0 gid=0 mode=0644 content=$(location @openssh_src//:debian/copyright)",
+        "usr/share/doc/ssh/changelog.Debian.gz type=file uid=0 gid=0 mode=0644 content=$(location :doc_debian_changelog)"
+    ],
+)
+
+runtime_packages(
+    name = "ssh.runtime_metadata",
+    control = "@openssh_src//:debian/control",
+    changelog = "@openssh_src//:debian/changelog",
+    packages = {
+        "ssh": ":ssh.runtime"
+    },
+    apt_packages = {
+        "@openssh_deps//libaudit1:data": "@openssh_deps//libaudit1:control",
+        "@openssh_deps//libcap-ng0:data": "@openssh_deps//libcap-ng0:control",
+        "@openssh_deps//libcbor0.10:data": "@openssh_deps//libcbor0.10:control",
+        "@openssh_deps//libcrypt1:data": "@openssh_deps//libcrypt1:control",
+        "@openssh_deps//libedit2:data": "@openssh_deps//libedit2:control",
+        "@openssh_deps//libbsd0:data": "@openssh_deps//libbsd0:control",
+        "@openssh_deps//libmd0:data": "@openssh_deps//libmd0:control",
+        "@openssh_deps//libfido2-1:data": "@openssh_deps//libfido2-1:control",
+        "@openssh_deps//libpam0g:data": "@openssh_deps//libpam0g:control",
+        "@openssh_deps//libselinux1:data": "@openssh_deps//libselinux1:control",
+        "@openssh_deps//libtinfo6:data": "@openssh_deps//libtinfo6:control",
+        "@openssh_deps//libudev1:data": "@openssh_deps//libudev1:control",
+        "@openssh_deps//libwrap0:data": "@openssh_deps//libwrap0:control",
+        "@openssh_deps//libwtmpdb0:data": "@openssh_deps//libwtmpdb0:control",
+        "@openssh_deps//zlib1g:data": "@openssh_deps//zlib1g:control"
+    },
+    dependencies = [],
+    substvars = {},
+    debian_files = {},
+    control_file_helpers = [
+        [
+            "dh_installdeb"
+        ]
+    ],
+)
+
+runtime_packages_group(
+    name = "runtime_packages.json",
+    packages = [
+        ":openssh-client.runtime_metadata",
+        ":openssh-server.runtime_metadata",
+        ":openssh-sftp-server.runtime_metadata",
+        ":ssh.runtime_metadata"
+    ],
+)
+
+cc_library(
+    name = "unit_test_helper",
+    srcs = [
+        "@openssh_src//:regress/unittests/test_helper/test_helper.c",
+        "@openssh_src//:regress/unittests/test_helper/fuzz.c"
+    ],
+    deps = [
+        ":ssh_library"
+    ],
+    copts = select({'@platforms//cpu:x86_64': ['-g', '-O2', '-Werror=implicit-function-declaration', '-fstack-protector-strong', '-fstack-clash-protection', '-Wformat', '-Werror=format-security', '-fcf-protection', '-Wdate-time', '-D_FORTIFY_SOURCE=2', '-pthread', '-pipe', '-Wno-error=format-truncation', '-Wall', '-Wextra', '-Wpointer-arith', '-Wuninitialized', '-Wsign-compare', '-Wformat-security', '-Wsizeof-pointer-memaccess', '-Wno-pointer-sign', '-Wno-unused-parameter', '-Wno-unused-result', '-Wimplicit-fallthrough', '-Wmisleading-indentation', '-fno-strict-aliasing', '-ftrapv', '-fzero-call-used-regs=used', '-ftrivial-auto-var-init=zero', '-fno-builtin-memset', '-fPIE', '-D_XOPEN_SOURCE=600', '-D_BSD_SOURCE', '-D_DEFAULT_SOURCE', '-D_GNU_SOURCE', '-DOPENSSL_API_COMPAT=0x10100000L', '-DHAVE_CONFIG_H'], '@platforms//cpu:aarch64': ['-g', '-O2', '-Werror=implicit-function-declaration', '-fstack-protector-strong', '-fstack-clash-protection', '-Wformat', '-Werror=format-security', '-mbranch-protection=standard', '-Wdate-time', '-D_FORTIFY_SOURCE=2', '-pthread', '-pipe', '-Wno-error=format-truncation', '-Wall', '-Wextra', '-Wpointer-arith', '-Wuninitialized', '-Wsign-compare', '-Wformat-security', '-Wsizeof-pointer-memaccess', '-Wno-pointer-sign', '-Wno-unused-parameter', '-Wno-unused-result', '-Wimplicit-fallthrough', '-Wmisleading-indentation', '-fno-strict-aliasing', '-ftrapv', '-fzero-call-used-regs=used', '-ftrivial-auto-var-init=zero', '-fno-builtin-memset', '-fPIE', '-D_XOPEN_SOURCE=600', '-D_BSD_SOURCE', '-D_DEFAULT_SOURCE', '-D_GNU_SOURCE', '-DHAVE_CONFIG_H']}),
+    linkstatic = True,
+)
+
+
+cc_binary(
+    name = "unit_sshkey_binary",
+    srcs = [
+        "@openssh_src//:regress/unittests/sshkey/test_fuzz.c",
+        "@openssh_src//:regress/unittests/sshkey/tests.c",
+        "@openssh_src//:regress/unittests/sshkey/common.c",
+        "@openssh_src//:regress/unittests/sshkey/test_file.c",
+        "@openssh_src//:regress/unittests/sshkey/test_sshkey.c",
+        "@openssh_src//:ssh-sk-client.c"
+    ],
+    deps = [
+        ":unit_test_helper",
+        ":ssh_library"
+    ],
+    copts = select({'@platforms//cpu:x86_64': ['-g', '-O2', '-Werror=implicit-function-declaration', '-fstack-protector-strong', '-fstack-clash-protection', '-Wformat', '-Werror=format-security', '-fcf-protection', '-Wdate-time', '-D_FORTIFY_SOURCE=2', '-pthread', '-pipe', '-Wno-error=format-truncation', '-Wall', '-Wextra', '-Wpointer-arith', '-Wuninitialized', '-Wsign-compare', '-Wformat-security', '-Wsizeof-pointer-memaccess', '-Wno-pointer-sign', '-Wno-unused-parameter', '-Wno-unused-result', '-Wimplicit-fallthrough', '-Wmisleading-indentation', '-fno-strict-aliasing', '-ftrapv', '-fzero-call-used-regs=used', '-ftrivial-auto-var-init=zero', '-fno-builtin-memset', '-fPIE', '-D_XOPEN_SOURCE=600', '-D_BSD_SOURCE', '-D_DEFAULT_SOURCE', '-D_GNU_SOURCE', '-DOPENSSL_API_COMPAT=0x10100000L', '-DHAVE_CONFIG_H'], '@platforms//cpu:aarch64': ['-g', '-O2', '-Werror=implicit-function-declaration', '-fstack-protector-strong', '-fstack-clash-protection', '-Wformat', '-Werror=format-security', '-mbranch-protection=standard', '-Wdate-time', '-D_FORTIFY_SOURCE=2', '-pthread', '-pipe', '-Wno-error=format-truncation', '-Wall', '-Wextra', '-Wpointer-arith', '-Wuninitialized', '-Wsign-compare', '-Wformat-security', '-Wsizeof-pointer-memaccess', '-Wno-pointer-sign', '-Wno-unused-parameter', '-Wno-unused-result', '-Wimplicit-fallthrough', '-Wmisleading-indentation', '-fno-strict-aliasing', '-ftrapv', '-fzero-call-used-regs=used', '-ftrivial-auto-var-init=zero', '-fno-builtin-memset', '-fPIE', '-D_XOPEN_SOURCE=600', '-D_BSD_SOURCE', '-D_DEFAULT_SOURCE', '-D_GNU_SOURCE', '-DHAVE_CONFIG_H']}),
+    linkstatic = True,
+    features = [
+        "-strip_debug_symbols"
+    ],
+)
+
+native_runtime_binary(
+    name = "unit_sshkey_runtime",
+    binary = ":unit_sshkey_binary",
+    runtime_payloads = [
+        "//openssl:libssl3t64.runtime",
+        "//symcrypt:symcrypt-openssl.runtime",
+        "//krb5:libkrb5support0.runtime",
+        "//krb5:libk5crypto3.runtime",
+        "//krb5:libkrb5-3.runtime",
+        "//krb5:libgssapi-krb5-2.runtime",
+        "@openssh_deps//libc6:data",
+        "@openssh_deps//libgcc-s1:data",
+        "@openssh_deps//libselinux1:data",
+        "@openssh_deps//libpcre2-8-0:data",
+        "@openssh_deps//libcrypt1:data",
+        "@openssh_deps//zlib1g:data",
+        "@openssh_deps//libedit2:data",
+        "@openssh_deps//libbsd0:data",
+        "@openssh_deps//libmd0:data",
+        "@openssh_deps//libtinfo6:data",
+        "@openssl_deps//libzstd1:data",
+        "@krb5_deps//libcom-err2:data",
+        "@krb5_deps//libkeyutils1:data"
+    ],
+)
+
+py_test(
+    name = "unit_sshkey_test",
+    srcs = [
+        "unit_test.py"
+    ],
+    main = "unit_test.py",
+    args = [
+        "$(rootpath :unit_sshkey_runtime)",
+        "$(rootpath @openssh_src//:regress/unittests/sshkey/testdata/dsa_1)"
+    ],
+    data = [
+        ":unit_sshkey_runtime",
+        "@openssh_src//:regress/unittests/sshkey/testdata/dsa_1",
+        "@openssh_src//:unit_testdata"
+    ],
+    tags = [],
+)
+
+
