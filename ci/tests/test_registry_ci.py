@@ -225,6 +225,71 @@ class SelectionTests(FixtureTestCase):
                 self.assertEqual(self.selected(base, head), {("alpha", "2.0.0"), ("beta", "2.0.0")})
                 base = head
 
+    def test_cross_version_additions_for_new_infra_select_only_changed_modules(self) -> None:
+        self.entry("unrelated", "1.0.0")
+        cross = self.root / "ci" / "cross_toolchain.py"
+        cross.parent.mkdir()
+        cross.write_text('VERIFIED_SONIC_CROSS_VERSIONS = {"0.9.0", "1.0.0"}\ndef choose(): return True\n')
+        base = self.commit("published registry and cross selection")
+        self.entry("sonic-build-infra", "2.0.0")
+        self.entry("consumer", "1.0.0")
+        cross.write_text('# new immutable versions\nVERIFIED_SONIC_CROSS_VERSIONS = {"2.0.0", "1.0.0", "0.9.0"}\ndef choose(): return True\n')
+        head = self.commit("register Infra versions and their consumer")
+        self.assertEqual(self.selected(base, head), {
+            ("sonic-build-infra", "2.0.0"), ("consumer", "1.0.0"),
+        })
+
+    def test_other_cross_selection_changes_still_select_all_latest_modules(self) -> None:
+        self.entry("unrelated", "1.0.0")
+        cross = self.root / "ci" / "cross_toolchain.py"
+        cross.parent.mkdir()
+        original = 'VERIFIED_SONIC_CROSS_VERSIONS = {"1.0.0", "1.1.0"}\ndef choose(): return True\n'
+        cross.write_text(original)
+        base = self.commit("published registry and cross selection")
+        self.entry("sonic-build-infra", "2.0.0")
+        candidates = {
+            "removal": '{"1.0.0", "2.0.0"}',
+            "duplicate": '{"1.0.0", "1.1.0", "2.0.0", "2.0.0"}',
+            "expression": '{"1.0.0", "1.1.0", "2.0.0" + ""}',
+            "logic": '{"1.0.0", "1.1.0", "2.0.0"}',
+            "missing_registration": '{"1.0.0", "1.1.0", "9.0.0"}',
+        }
+        for name, values in candidates.items():
+            with self.subTest(change=name):
+                cross.write_text('VERIFIED_SONIC_CROSS_VERSIONS = ' + values +
+                                 '\ndef choose(): return ' + ('False' if name == "logic" else 'True') + '\n')
+                head = self.commit(name)
+                self.assertEqual(self.selected(base, head), {
+                    ("unrelated", "1.0.0"), ("sonic-build-infra", "2.0.0"),
+                })
+
+    def test_cross_version_addition_for_published_infra_still_selects_all_latest(self) -> None:
+        self.entry("unrelated", "1.0.0")
+        self.entry("sonic-build-infra", "2.0.0")
+        cross = self.root / "ci" / "cross_toolchain.py"
+        cross.parent.mkdir()
+        cross.write_text('VERIFIED_SONIC_CROSS_VERSIONS = {"1.0.0"}\n')
+        base = self.commit("published Infra without cross recognition")
+        cross.write_text('VERIFIED_SONIC_CROSS_VERSIONS = {"1.0.0", "2.0.0"}\n')
+        head = self.commit("change selection for published Infra consumers")
+        self.assertEqual(self.selected(base, head), {
+            ("unrelated", "1.0.0"), ("sonic-build-infra", "2.0.0"),
+        })
+
+    def test_cross_version_addition_does_not_hide_other_ci_changes(self) -> None:
+        self.entry("unrelated", "1.0.0")
+        cross = self.root / "ci" / "cross_toolchain.py"
+        cross.parent.mkdir()
+        cross.write_text('VERIFIED_SONIC_CROSS_VERSIONS = {"1.0.0"}\n')
+        base = self.commit("published cross selection")
+        self.entry("sonic-build-infra", "2.0.0")
+        cross.write_text('VERIFIED_SONIC_CROSS_VERSIONS = {"1.0.0", "2.0.0"}\n')
+        (cross.parent / "runner.py").write_text('print("changed")\n')
+        head = self.commit("register Infra and change runner")
+        self.assertEqual(self.selected(base, head), {
+            ("unrelated", "1.0.0"), ("sonic-build-infra", "2.0.0"),
+        })
+
     def test_all_mode_keeps_configured_historical_versions(self) -> None:
         self.entry("alpha", "1.0.0")
         self.entry("alpha", "2.0.0")
