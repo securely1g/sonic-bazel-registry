@@ -5,7 +5,8 @@
   "patches": {
     "0001-bcr-module-version.patch": "sha256-I1WjYcQJvEG9tig3fBKj8Hv/KocZzdVOOJ9MiNQcWMI=",
     "0002-sonic-module-version.patch": "sha256-os33lOL1RNzSOb6s/8hZEgY14FzyapoMGQt7d0JXHJY=",
-    "0003-preserve-wheel-metadata-and-modes.patch": "sha256-B3xes4U3uYtyEg5wfc75ZYF0DwAY0YKH31Pq3cpJVbE="
+    "0003-preserve-wheel-metadata-and-modes.patch": "sha256-B3xes4U3uYtyEg5wfc75ZYF0DwAY0YKH31Pq3cpJVbE=",
+    "0004-refresh-registry-dependencies.patch": "sha256-HttW3T/FHuMjtkqHv2wT8VDtjvCy8460i86Xqxgj8Uw="
   },
   "patch_strip": 1,
   "overlay": {
