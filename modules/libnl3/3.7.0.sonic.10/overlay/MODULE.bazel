@@ -1,10 +1,10 @@
 # AUTO-GENERATED. DO NOT EDIT MANUALLY.
 # Source: ../MODULE.bazel
-# Generator: python3 ci/registry_ci.py sync-module --module libnl3 --version 3.7.0.sonic.9
+# Generator: python3 ci/registry_ci.py sync-module --module libnl3 --version 3.7.0.sonic.10
 
 module(
     name = "libnl3",
-    version = "3.7.0.sonic.9",
+    version = "3.7.0.sonic.10",
 )
 
 bazel_dep(name = "buildifier_prebuilt", version = "8.5.1.2", dev_dependency = True)
