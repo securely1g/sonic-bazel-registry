@@ -2,7 +2,8 @@
   "homepage": "https://www.gnu.org/software/bash/",
   "versions": [
     "5.2.37.sonic.1",
-    "5.2.37.sonic.2"
+    "5.2.37.sonic.2",
+    "5.2.37.sonic.3"
   ],
   "yanked_versions": {}
 }
