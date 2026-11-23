@@ -1,0 +1,643 @@
+load("@rules_python//python:defs.bzl", "py_test")
+load("@sonic_build_infra//cc:runtime_test.bzl", "native_runtime_binary", "native_runtime_test")
+load("@sonic_build_infra//deb:changelogs.bzl", "debian_changelogs")
+load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
+load("@sonic_build_infra//oci:source_controls.bzl", "source_package_controls")
+load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
+load("@tar.bzl", "tar")
+
+package(default_visibility = ["//visibility:public"])
+
+# Debian's install recipe uses /usr/lib/$(DEB_HOST_MULTIARCH).
+_LIBRARY_PLATFORMS = {
+    "@platforms//cpu:x86_64": ("amd64", "x86_64-linux-gnu"),
+    "@platforms//cpu:aarch64": ("arm64", "aarch64-linux-gnu"),
+}
+_ARCHITECTURE = select({platform: abi[0] for platform, abi in _LIBRARY_PLATFORMS.items()})
+
+exports_files([
+    "MODULE.bazel",
+    "source.BUILD.bazel",
+    "source_includes.bzl",
+] + glob(["debian/**"]))
+
+[
+    sonic_deploy_tar(
+        name = "libsensors5.runtime_" + abi[0],
+        srcs = [
+            "debian/libsensors5.README.Debian",
+            ":libsensors5_doc_1",
+            ":libsensors5_upstream_changelog",
+            "//:debian/copyright",
+        ],
+        binaries = {
+            "./usr/lib/" + abi[1] + "/libsensors.so.5.0.0 type=file uid=0 gid=0 mode=0644 time=0": "@lm_sensors_source//:libsensors.so.5.0.0",
+        },
+        mtree = [
+            "./usr/share/doc/libsensors5/changelog.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :libsensors5_upstream_changelog)",
+            "./usr/share/doc/libsensors5/README.Debian type=file uid=0 gid=0 mode=0644 time=0 content=$(location debian/libsensors5.README.Debian)",
+            "./usr/share/doc/libsensors5/changelog.Debian.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :libsensors5_doc_1)",
+            "./usr/share/doc/libsensors5/copyright type=file uid=0 gid=0 mode=0644 time=0 content=$(location //:debian/copyright)",
+            "./usr/lib/" + abi[1] + "/libsensors.so.5 type=link uid=0 gid=0 mode=0777 time=0 link=libsensors.so.5.0.0",
+        ],
+        target_compatible_with = [platform],
+        visibility = ["//visibility:private"],
+    )
+    for platform, abi in _LIBRARY_PLATFORMS.items()
+]
+
+[
+    alias(
+        name = "libsensors5.runtime" + suffix,
+        actual = select({
+            platform: ":libsensors5.runtime_" + abi[0] + suffix
+            for platform, abi in _LIBRARY_PLATFORMS.items()
+        }),
+    )
+    for suffix in ["", ".debug_symbols"]
+]
+
+sonic_deploy_tar(
+    name = "lm-sensors.runtime",
+    srcs = [
+        ":lm-sensors_doc_0",
+        ":lm-sensors_doc_1",
+        ":lm-sensors_doc_10",
+        ":lm-sensors_doc_2",
+        ":lm-sensors_doc_3",
+        ":lm-sensors_doc_4",
+        ":lm-sensors_doc_5",
+        ":lm-sensors_doc_6",
+        ":lm-sensors_doc_7",
+        ":lm-sensors_doc_8",
+        ":lm-sensors_upstream_changelog",
+        "//:debian/copyright",
+        "//:debian/lm-sensors.init",
+        "//:debian/lm-sensors.service",
+        "@lm_sensors_source//:doc/developers/applications",
+        "@lm_sensors_source//:doc/temperature-sensors",
+        "@lm_sensors_source//:doc/vid",
+        "@lm_sensors_source//:etc/sensors-conf-convert",
+        "@lm_sensors_source//:prog/daemon/healthd.sh",
+        "@lm_sensors_source//:prog/detect/sensors-detect",
+        "@lm_sensors_source//:prog/hotplug/README.p4b",
+        "@lm_sensors_source//:prog/hotplug/unhide_ICH_SMBus",
+        "@lm_sensors_source//:prog/tellerstats/README",
+        "@lm_sensors_source//:prog/tellerstats/gather.sh",
+        "@lm_sensors_source//:prog/tellerstats/gnuplotscript.tmpl",
+        "@lm_sensors_source//:prog/tellerstats/index.shtml",
+        "@lm_sensors_source//:prog/tellerstats/tellerstats.conf",
+        "@lm_sensors_source//:prog/tellerstats/tellerstats.sh",
+    ],
+    binaries = {
+        "./usr/bin/sensors type=file uid=0 gid=0 mode=0755 time=0": "@lm_sensors_source//:sensors",
+        "./usr/sbin/isadump type=file uid=0 gid=0 mode=0755 time=0": "@lm_sensors_source//:isadump",
+        "./usr/sbin/isaset type=file uid=0 gid=0 mode=0755 time=0": "@lm_sensors_source//:isaset",
+    },
+    mtree = [
+        "./usr/share/doc/lm-sensors/changelog.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :lm-sensors_upstream_changelog)",
+        "./usr/share/doc/lm-sensors/examples/daemon/healthd.sh type=file uid=0 gid=0 mode=0644 time=0 content=$(location @lm_sensors_source//:prog/daemon/healthd.sh)",
+        "./usr/share/doc/lm-sensors/examples/hotplug/README.p4b type=file uid=0 gid=0 mode=0644 time=0 content=$(location @lm_sensors_source//:prog/hotplug/README.p4b)",
+        "./usr/share/doc/lm-sensors/examples/hotplug/unhide_ICH_SMBus type=file uid=0 gid=0 mode=0644 time=0 content=$(location @lm_sensors_source//:prog/hotplug/unhide_ICH_SMBus)",
+        "./usr/share/doc/lm-sensors/examples/tellerstats/README type=file uid=0 gid=0 mode=0644 time=0 content=$(location @lm_sensors_source//:prog/tellerstats/README)",
+        "./usr/share/doc/lm-sensors/examples/tellerstats/gather.sh type=file uid=0 gid=0 mode=0644 time=0 content=$(location @lm_sensors_source//:prog/tellerstats/gather.sh)",
+        "./usr/share/doc/lm-sensors/examples/tellerstats/gnuplotscript.tmpl type=file uid=0 gid=0 mode=0644 time=0 content=$(location @lm_sensors_source//:prog/tellerstats/gnuplotscript.tmpl)",
+        "./usr/share/doc/lm-sensors/examples/tellerstats/index.shtml type=file uid=0 gid=0 mode=0644 time=0 content=$(location @lm_sensors_source//:prog/tellerstats/index.shtml)",
+        "./usr/share/doc/lm-sensors/examples/tellerstats/tellerstats.conf type=file uid=0 gid=0 mode=0644 time=0 content=$(location @lm_sensors_source//:prog/tellerstats/tellerstats.conf)",
+        "./usr/share/doc/lm-sensors/examples/tellerstats/tellerstats.sh type=file uid=0 gid=0 mode=0644 time=0 content=$(location @lm_sensors_source//:prog/tellerstats/tellerstats.sh)",
+        "./usr/share/doc/lm-sensors/README.Debian.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :lm-sensors_doc_0)",
+        "./usr/share/man/man1/sensors.1.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :lm-sensors_doc_1)",
+        "./usr/share/man/man5/sensors.conf.5.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :lm-sensors_doc_2)",
+        "./usr/share/man/man8/sensors-detect.8.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :lm-sensors_doc_3)",
+        "./usr/share/man/man8/sensors-conf-convert.8.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :lm-sensors_doc_4)",
+        "./usr/share/man/man8/isadump.8.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :lm-sensors_doc_5)",
+        "./usr/share/man/man8/isaset.8.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :lm-sensors_doc_6)",
+        "./usr/share/doc/lm-sensors/changelog.Debian.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :lm-sensors_doc_7)",
+        "./usr/share/doc/lm-sensors/donations.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :lm-sensors_doc_8)",
+        "./usr/share/doc/lm-sensors/vid type=file uid=0 gid=0 mode=0644 time=0 content=$(location @lm_sensors_source//:doc/vid)",
+        "./usr/share/doc/lm-sensors/fan-divisors.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :lm-sensors_doc_10)",
+        "./usr/share/doc/lm-sensors/applications type=file uid=0 gid=0 mode=0644 time=0 content=$(location @lm_sensors_source//:doc/developers/applications)",
+        "./usr/share/doc/lm-sensors/temperature-sensors type=file uid=0 gid=0 mode=0644 time=0 content=$(location @lm_sensors_source//:doc/temperature-sensors)",
+        "./usr/sbin/sensors-detect type=file uid=0 gid=0 mode=0755 time=0 content=$(location @lm_sensors_source//:prog/detect/sensors-detect)",
+        "./usr/bin/sensors-conf-convert type=file uid=0 gid=0 mode=0755 time=0 content=$(location @lm_sensors_source//:etc/sensors-conf-convert)",
+        "./etc/init.d/lm-sensors type=file uid=0 gid=0 mode=0755 time=0 content=$(location //:debian/lm-sensors.init)",
+        "./usr/lib/systemd/system/lm-sensors.service type=file uid=0 gid=0 mode=0644 time=0 content=$(location //:debian/lm-sensors.service)",
+        "./usr/share/doc/lm-sensors/copyright type=file uid=0 gid=0 mode=0644 time=0 content=$(location //:debian/copyright)",
+    ],
+)
+
+sonic_deploy_tar(
+    name = "libsensors-config.runtime",
+    srcs = [
+        ":libsensors-config_doc_0",
+        ":libsensors-config_upstream_changelog",
+        "//:debian/copyright",
+        "@lm_sensors_source//:etc/sensors.conf.default",
+    ],
+    binaries = {
+    },
+    mtree = [
+        "./usr/share/doc/libsensors-config/changelog.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :libsensors-config_upstream_changelog)",
+        "./usr/share/doc/libsensors-config/changelog.Debian.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :libsensors-config_doc_0)",
+        "./etc/sensors3.conf type=file uid=0 gid=0 mode=0644 time=0 content=$(location @lm_sensors_source//:etc/sensors.conf.default)",
+        "./usr/share/doc/libsensors-config/copyright type=file uid=0 gid=0 mode=0644 time=0 content=$(location //:debian/copyright)",
+        "./etc/sensors.d type=dir uid=0 gid=0 mode=0755 time=0",
+        "./etc/sensors.d/.placeholder type=file uid=0 gid=0 mode=0644 time=0",
+    ],
+)
+
+sonic_deploy_tar(
+    name = "fancontrol.runtime",
+    srcs = [
+        ":fancontrol_doc_0",
+        ":fancontrol_doc_1",
+        ":fancontrol_doc_2",
+        ":fancontrol_doc_3",
+        ":fancontrol_upstream_changelog",
+        "//:debian/copyright",
+        "//:debian/fancontrol.init",
+        "//:debian/fancontrol.service",
+        "//:debian/fancontrol-systemd-sleep",
+        "@lm_sensors_source//:prog/pwm/fancontrol",
+        "@lm_sensors_source//:prog/pwm/pwmconfig",
+    ],
+    binaries = {
+    },
+    mtree = [
+        "./usr/share/doc/fancontrol/changelog.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :fancontrol_upstream_changelog)",
+        "./usr/share/man/man8/fancontrol.8.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :fancontrol_doc_0)",
+        "./usr/share/man/man8/pwmconfig.8.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :fancontrol_doc_1)",
+        "./usr/share/doc/fancontrol/fancontrol.txt.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :fancontrol_doc_2)",
+        "./usr/share/doc/fancontrol/changelog.Debian.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :fancontrol_doc_3)",
+        "./usr/sbin/fancontrol type=file uid=0 gid=0 mode=0755 time=0 content=$(location @lm_sensors_source//:prog/pwm/fancontrol)",
+        "./usr/sbin/pwmconfig type=file uid=0 gid=0 mode=0755 time=0 content=$(location @lm_sensors_source//:prog/pwm/pwmconfig)",
+        "./etc/init.d/fancontrol type=file uid=0 gid=0 mode=0755 time=0 content=$(location //:debian/fancontrol.init)",
+        "./usr/lib/systemd/system/fancontrol.service type=file uid=0 gid=0 mode=0644 time=0 content=$(location //:debian/fancontrol.service)",
+        "./usr/lib/systemd/system-sleep/fancontrol type=file uid=0 gid=0 mode=0755 time=0 content=$(location //:debian/fancontrol-systemd-sleep)",
+        "./usr/share/doc/fancontrol/copyright type=file uid=0 gid=0 mode=0644 time=0 content=$(location //:debian/copyright)",
+    ],
+)
+
+sonic_deploy_tar(
+    name = "sensord.runtime",
+    srcs = [
+        "debian/sensord.README.Debian",
+        ":sensord_doc_0",
+        ":sensord_doc_3",
+        ":sensord_upstream_changelog",
+        "//:debian/copyright",
+        "//:debian/sensord.default",
+        "//:debian/sensord.init",
+    ],
+    binaries = {
+        "./usr/sbin/sensord type=file uid=0 gid=0 mode=0755 time=0": "@lm_sensors_source//:sensord",
+    },
+    mtree = [
+        "./usr/share/doc/sensord/changelog.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :sensord_upstream_changelog)",
+        "./usr/share/man/man8/sensord.8.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :sensord_doc_0)",
+        "./usr/share/doc/sensord/README.Debian type=file uid=0 gid=0 mode=0644 time=0 content=$(location debian/sensord.README.Debian)",
+        "./usr/share/doc/sensord/changelog.Debian.gz type=file uid=0 gid=0 mode=0644 time=0 content=$(location :sensord_doc_3)",
+        "./etc/default/sensord type=file uid=0 gid=0 mode=0644 time=0 content=$(location //:debian/sensord.default)",
+        "./etc/init.d/sensord type=file uid=0 gid=0 mode=0755 time=0 content=$(location //:debian/sensord.init)",
+        "./usr/share/doc/sensord/copyright type=file uid=0 gid=0 mode=0644 time=0 content=$(location //:debian/copyright)",
+    ],
+)
+
+runtime_packages(
+    name = "runtime_packages.json",
+    apt_packages = {"@lm_sensors_debian//librrd8t64:data": "@lm_sensors_debian//librrd8t64:control"},
+    changelog = "debian/changelog",
+    control = "debian/control",
+    control_file_helpers = [["dh_installdeb"]],
+    control_file_helpers_by_package = {
+        "libsensors5": [
+            ["dh_makeshlibs"],
+            ["dh_installdeb"],
+        ],
+    } | {
+        package: [
+            [
+                "dh_installinit",
+                option,
+            ],
+            [
+                "dh_installsystemd",
+                option,
+            ],
+            ["dh_installdeb"],
+        ]
+        for package, option in {
+            "fancontrol": "--restart-after-upgrade",
+            "lm-sensors": "--no-start",
+            "sensord": "--no-start",
+        }.items()
+    },
+    debian_files = {p[len("debian/"):]: p for p in glob(
+        ["debian/*"],
+        exclude = [
+            "debian/control",
+            "debian/changelog",
+        ],
+    )},
+    packages = {
+        "libsensors5": ":libsensors5.runtime",
+        "libsensors-config": ":libsensors-config.runtime",
+        "lm-sensors": ":lm-sensors.runtime",
+        "fancontrol": ":fancontrol.runtime",
+        "sensord": ":sensord.runtime",
+    },
+    symbols = {"libsensors5": "debian/libsensors5.symbols"},
+)
+
+py_test(
+    name = "runtime_contract_test",
+    srcs = ["runtime_contract_test.py"],
+    args = ["$(location :" + name + ".runtime)" for name in [
+        "libsensors5",
+        "lm-sensors",
+        "libsensors-config",
+        "fancontrol",
+        "sensord",
+    ]] + ["$(location :runtime_packages.json)"],
+    data = [":" + name + ".runtime" for name in [
+        "libsensors5",
+        "lm-sensors",
+        "libsensors-config",
+        "fancontrol",
+        "sensord",
+    ]] + [":runtime_packages.json"],
+)
+
+genrule(
+    name = "libsensors5_doc_1",
+    srcs = ["generated/libsensors5/changelog.Debian"],
+    outs = ["libsensors5_doc_1.gz"],
+    cmd = "$(execpath @sonic_build_infra//tools/build_tools:pigz) -n -9 -c $< > $@",
+    tools = ["@sonic_build_infra//tools/build_tools:pigz"],
+)
+
+genrule(
+    name = "lm-sensors_doc_0",
+    srcs = ["debian/lm-sensors.README.Debian"],
+    outs = ["lm-sensors_doc_0.gz"],
+    cmd = "$(execpath @sonic_build_infra//tools/build_tools:pigz) -n -9 -c $< > $@",
+    tools = ["@sonic_build_infra//tools/build_tools:pigz"],
+)
+
+genrule(
+    name = "lm-sensors_doc_1",
+    srcs = ["@lm_sensors_source//:prog/sensors/sensors.1"],
+    outs = ["lm-sensors_doc_1.gz"],
+    cmd = "$(execpath @sonic_build_infra//tools/build_tools:pigz) -n -9 -c $< > $@",
+    tools = ["@sonic_build_infra//tools/build_tools:pigz"],
+)
+
+genrule(
+    name = "lm-sensors_doc_2",
+    srcs = ["@lm_sensors_source//:lib/sensors.conf.5"],
+    outs = ["lm-sensors_doc_2.gz"],
+    cmd = "$(execpath @sonic_build_infra//tools/build_tools:pigz) -n -9 -c $< > $@",
+    tools = ["@sonic_build_infra//tools/build_tools:pigz"],
+)
+
+genrule(
+    name = "lm-sensors_doc_3",
+    srcs = ["@lm_sensors_source//:prog/detect/sensors-detect.8"],
+    outs = ["lm-sensors_doc_3.gz"],
+    cmd = "$(execpath @sonic_build_infra//tools/build_tools:pigz) -n -9 -c $< > $@",
+    tools = ["@sonic_build_infra//tools/build_tools:pigz"],
+)
+
+genrule(
+    name = "lm-sensors_doc_4",
+    srcs = ["@lm_sensors_source//:etc/sensors-conf-convert.8"],
+    outs = ["lm-sensors_doc_4.gz"],
+    cmd = "$(execpath @sonic_build_infra//tools/build_tools:pigz) -n -9 -c $< > $@",
+    tools = ["@sonic_build_infra//tools/build_tools:pigz"],
+)
+
+genrule(
+    name = "lm-sensors_doc_5",
+    srcs = ["@lm_sensors_source//:prog/dump/isadump.8"],
+    outs = ["lm-sensors_doc_5.gz"],
+    cmd = "$(execpath @sonic_build_infra//tools/build_tools:pigz) -n -9 -c $< > $@",
+    tools = ["@sonic_build_infra//tools/build_tools:pigz"],
+)
+
+genrule(
+    name = "lm-sensors_doc_6",
+    srcs = ["@lm_sensors_source//:prog/dump/isaset.8"],
+    outs = ["lm-sensors_doc_6.gz"],
+    cmd = "$(execpath @sonic_build_infra//tools/build_tools:pigz) -n -9 -c $< > $@",
+    tools = ["@sonic_build_infra//tools/build_tools:pigz"],
+)
+
+genrule(
+    name = "lm-sensors_doc_7",
+    srcs = ["generated/lm-sensors/changelog.Debian"],
+    outs = ["lm-sensors_doc_7.gz"],
+    cmd = "$(execpath @sonic_build_infra//tools/build_tools:pigz) -n -9 -c $< > $@",
+    tools = ["@sonic_build_infra//tools/build_tools:pigz"],
+)
+
+genrule(
+    name = "lm-sensors_doc_8",
+    srcs = ["@lm_sensors_source//:doc/donations"],
+    outs = ["lm-sensors_doc_8.gz"],
+    cmd = "$(execpath @sonic_build_infra//tools/build_tools:pigz) -n -9 -c $< > $@",
+    tools = ["@sonic_build_infra//tools/build_tools:pigz"],
+)
+
+genrule(
+    name = "lm-sensors_doc_10",
+    srcs = ["@lm_sensors_source//:doc/fan-divisors"],
+    outs = ["lm-sensors_doc_10.gz"],
+    cmd = "$(execpath @sonic_build_infra//tools/build_tools:pigz) -n -9 -c $< > $@",
+    tools = ["@sonic_build_infra//tools/build_tools:pigz"],
+)
+
+genrule(
+    name = "fancontrol_doc_0",
+    srcs = ["@lm_sensors_source//:prog/pwm/fancontrol.8"],
+    outs = ["fancontrol_doc_0.gz"],
+    cmd = "$(execpath @sonic_build_infra//tools/build_tools:pigz) -n -9 -c $< > $@",
+    tools = ["@sonic_build_infra//tools/build_tools:pigz"],
+)
+
+genrule(
+    name = "fancontrol_doc_1",
+    srcs = ["@lm_sensors_source//:prog/pwm/pwmconfig.8"],
+    outs = ["fancontrol_doc_1.gz"],
+    cmd = "$(execpath @sonic_build_infra//tools/build_tools:pigz) -n -9 -c $< > $@",
+    tools = ["@sonic_build_infra//tools/build_tools:pigz"],
+)
+
+genrule(
+    name = "fancontrol_doc_2",
+    srcs = ["@lm_sensors_source//:doc/fancontrol.txt"],
+    outs = ["fancontrol_doc_2.gz"],
+    cmd = "$(execpath @sonic_build_infra//tools/build_tools:pigz) -n -9 -c $< > $@",
+    tools = ["@sonic_build_infra//tools/build_tools:pigz"],
+)
+
+genrule(
+    name = "fancontrol_doc_3",
+    srcs = ["generated/fancontrol/changelog.Debian"],
+    outs = ["fancontrol_doc_3.gz"],
+    cmd = "$(execpath @sonic_build_infra//tools/build_tools:pigz) -n -9 -c $< > $@",
+    tools = ["@sonic_build_infra//tools/build_tools:pigz"],
+)
+
+genrule(
+    name = "sensord_doc_0",
+    srcs = ["@lm_sensors_source//:prog/sensord/sensord.8"],
+    outs = ["sensord_doc_0.gz"],
+    cmd = "$(execpath @sonic_build_infra//tools/build_tools:pigz) -n -9 -c $< > $@",
+    tools = ["@sonic_build_infra//tools/build_tools:pigz"],
+)
+
+genrule(
+    name = "sensord_doc_3",
+    srcs = ["generated/sensord/changelog.Debian"],
+    outs = ["sensord_doc_3.gz"],
+    cmd = "$(execpath @sonic_build_infra//tools/build_tools:pigz) -n -9 -c $< > $@",
+    tools = ["@sonic_build_infra//tools/build_tools:pigz"],
+)
+
+genrule(
+    name = "libsensors-config_doc_0",
+    srcs = ["generated/libsensors-config/changelog.Debian"],
+    outs = ["libsensors-config_doc_0.gz"],
+    cmd = "$(execpath @sonic_build_infra//tools/build_tools:pigz) -n -9 -c $< > $@",
+    tools = ["@sonic_build_infra//tools/build_tools:pigz"],
+)
+
+# Upstream's --version entry point exercises the installed SONAME without
+# requiring sensor hardware or consulting the worker's library installation.
+native_runtime_test(
+    name = "sensors_runtime_test",
+    args = ["--version"],
+    binary = "@lm_sensors_source//:sensors",
+    runtime_payloads = [
+        ":libsensors5.runtime",
+        "@lm_sensors_debian//libc6:data",
+    ],
+)
+
+[
+    source_package_controls(
+        name = package + ".control",
+        metadata = ":runtime_packages.json",
+        package = package,
+    )
+    for package in [
+        "lm-sensors",
+        "libsensors5",
+        "libsensors-config",
+        "fancontrol",
+        "sensord",
+    ]
+]
+
+filegroup(
+    name = "debug_sources",
+    srcs = ["@lm_sensors_source//:debug_sources"],
+)
+
+native_runtime_binary(
+    name = "scanner_runner",
+    binary = "@lm_sensors_source//:test-scanner",
+    runtime_payloads = ["@lm_sensors_debian//libc6:data"],
+)
+
+py_test(
+    name = "scanner_test",
+    srcs = ["scanner_test.py"],
+    args = ["$(rootpath :scanner_runner)"],
+    data = [":scanner_runner"],
+)
+
+native_runtime_test(
+    name = "sensord_help_test",
+    args = ["--help"],
+    binary = "@lm_sensors_source//:sensord",
+    runtime_payloads = [
+        ":libsensors5.runtime",
+        "@lm_sensors_debian//librrd8t64:raw_packages",
+    ],
+)
+
+py_test(
+    name = "debug_contract_test",
+    srcs = ["debug_contract_test.py"],
+    args = [
+        "$(rootpath :" + package + suffix + ")"
+        for package in [
+            "libsensors5",
+            "lm-sensors",
+            "sensord",
+        ]
+        for suffix in [
+            ".runtime",
+            ".runtime.debug_symbols",
+        ]
+    ],
+    data = [
+        ":" + package + suffix
+        for package in [
+            "libsensors5",
+            "lm-sensors",
+            "sensord",
+        ]
+        for suffix in [
+            ".runtime",
+            ".runtime.debug_symbols",
+        ]
+    ],
+    deps = ["@sonic_build_infra//deb:elf_metadata"],
+)
+
+py_test(
+    name = "installed_resources_test",
+    srcs = ["installed_resources_test.py"],
+    args = [
+        "$(rootpath @lm_sensors_source//:CHANGES)",
+        "$(rootpath :debian/control)",
+    ] + ["$(rootpath :" + package + ".runtime)" for package in [
+        "libsensors5",
+        "lm-sensors",
+        "fancontrol",
+        "sensord",
+        "libsensors-config",
+    ]],
+    data = glob(["debian/*"]) + [
+        "@lm_sensors_source//:CHANGES",
+        "@lm_sensors_source//:doc/developers/applications",
+        "@lm_sensors_source//:doc/donations",
+        "@lm_sensors_source//:doc/fan-divisors",
+        "@lm_sensors_source//:doc/fancontrol.txt",
+        "@lm_sensors_source//:doc/temperature-sensors",
+        "@lm_sensors_source//:doc/vid",
+        "@lm_sensors_source//:etc/sensors.conf.default",
+        "@lm_sensors_source//:etc/sensors-conf-convert",
+        "@lm_sensors_source//:prog/detect/sensors-detect",
+        "@lm_sensors_source//:prog/pwm/fancontrol",
+        "@lm_sensors_source//:prog/pwm/pwmconfig",
+    ] + [":" + package + ".runtime" for package in [
+        "libsensors5",
+        "lm-sensors",
+        "fancontrol",
+        "sensord",
+        "libsensors-config",
+    ]],
+)
+
+debian_changelogs(
+    name = "libsensors5_changelogs",
+    outs = [
+        "generated/libsensors5/changelog",
+        "generated/libsensors5/changelog.Debian",
+    ],
+    architecture = _ARCHITECTURE,
+    changelog = "debian/changelog",
+    control = "debian/control",
+    debian_files = {"debian/sensord.NEWS": "sensord.NEWS"} if "libsensors5" == "sensord" else {},
+    package = "libsensors5",
+    upstream = "@lm_sensors_source//:CHANGES",
+)
+
+genrule(
+    name = "libsensors5_upstream_changelog",
+    srcs = ["generated/libsensors5/changelog"],
+    outs = ["libsensors5_upstream_changelog.gz"],
+    cmd = "$(execpath @sonic_build_infra//tools/build_tools:pigz) -n -9 -c $< > $@",
+    tools = ["@sonic_build_infra//tools/build_tools:pigz"],
+)
+
+debian_changelogs(
+    name = "lm-sensors_changelogs",
+    outs = [
+        "generated/lm-sensors/changelog",
+        "generated/lm-sensors/changelog.Debian",
+    ],
+    architecture = _ARCHITECTURE,
+    changelog = "debian/changelog",
+    control = "debian/control",
+    debian_files = {"debian/sensord.NEWS": "sensord.NEWS"} if "lm-sensors" == "sensord" else {},
+    package = "lm-sensors",
+    upstream = "@lm_sensors_source//:CHANGES",
+)
+
+genrule(
+    name = "lm-sensors_upstream_changelog",
+    srcs = ["generated/lm-sensors/changelog"],
+    outs = ["lm-sensors_upstream_changelog.gz"],
+    cmd = "$(execpath @sonic_build_infra//tools/build_tools:pigz) -n -9 -c $< > $@",
+    tools = ["@sonic_build_infra//tools/build_tools:pigz"],
+)
+
+debian_changelogs(
+    name = "fancontrol_changelogs",
+    outs = [
+        "generated/fancontrol/changelog",
+        "generated/fancontrol/changelog.Debian",
+    ],
+    architecture = _ARCHITECTURE,
+    changelog = "debian/changelog",
+    control = "debian/control",
+    debian_files = {"debian/sensord.NEWS": "sensord.NEWS"} if "fancontrol" == "sensord" else {},
+    package = "fancontrol",
+    upstream = "@lm_sensors_source//:CHANGES",
+)
+
+genrule(
+    name = "fancontrol_upstream_changelog",
+    srcs = ["generated/fancontrol/changelog"],
+    outs = ["fancontrol_upstream_changelog.gz"],
+    cmd = "$(execpath @sonic_build_infra//tools/build_tools:pigz) -n -9 -c $< > $@",
+    tools = ["@sonic_build_infra//tools/build_tools:pigz"],
+)
+
+debian_changelogs(
+    name = "sensord_changelogs",
+    outs = [
+        "generated/sensord/changelog",
+        "generated/sensord/changelog.Debian",
+    ],
+    architecture = _ARCHITECTURE,
+    changelog = "debian/changelog",
+    control = "debian/control",
+    debian_files = {"debian/sensord.NEWS": "sensord.NEWS"} if "sensord" == "sensord" else {},
+    package = "sensord",
+    upstream = "@lm_sensors_source//:CHANGES",
+)
+
+genrule(
+    name = "sensord_upstream_changelog",
+    srcs = ["generated/sensord/changelog"],
+    outs = ["sensord_upstream_changelog.gz"],
+    cmd = "$(execpath @sonic_build_infra//tools/build_tools:pigz) -n -9 -c $< > $@",
+    tools = ["@sonic_build_infra//tools/build_tools:pigz"],
+)
+
+debian_changelogs(
+    name = "libsensors-config_changelogs",
+    outs = [
+        "generated/libsensors-config/changelog",
+        "generated/libsensors-config/changelog.Debian",
+    ],
+    architecture = _ARCHITECTURE,
+    changelog = "debian/changelog",
+    control = "debian/control",
+    debian_files = {"debian/sensord.NEWS": "sensord.NEWS"} if "libsensors-config" == "sensord" else {},
+    package = "libsensors-config",
+    upstream = "@lm_sensors_source//:CHANGES",
+)
+
+genrule(
+    name = "libsensors-config_upstream_changelog",
+    srcs = ["generated/libsensors-config/changelog"],
+    outs = ["libsensors-config_upstream_changelog.gz"],
+    cmd = "$(execpath @sonic_build_infra//tools/build_tools:pigz) -n -9 -c $< > $@",
+    tools = ["@sonic_build_infra//tools/build_tools:pigz"],
+)
