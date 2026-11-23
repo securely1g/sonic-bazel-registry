@@ -1,0 +1,22 @@
+From: SONiC Bazel integration
+Subject: Include libbsd's public namespace without relying on system-header overlays
+
+The hermetic toolchain declares libc system directories before dependency
+system include directories. Use libbsd's public namespaced headers so its
+strtonum and setproctitle declarations are independent of that search order.
+Function selection and implementation are unchanged.
+
+--- a/src/compat/compat.h
++++ b/src/compat/compat.h
+@@ -39,6 +39,11 @@
+ #  include <config.h>
+ #endif
+ 
++#ifdef HOST_OS_LINUX
++#  include <bsd/stdlib.h>
++#  include <bsd/unistd.h>
++#endif
++
+ #include <stdio.h>
+ #include <stddef.h>
+ #include <stdarg.h>
