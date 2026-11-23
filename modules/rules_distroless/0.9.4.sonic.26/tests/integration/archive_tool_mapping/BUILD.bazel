@@ -1,0 +1,26 @@
+load("@rules_python//python:defs.bzl", "py_test")
+load("@tar.bzl//tar:tar.bzl", "tar")
+
+tar(
+    name = "payload",
+    srcs = ["probe.txt"],
+    mtree = [
+        "./bin time=0 uid=0 gid=0 mode=0755 type=dir",
+        "./bin/probe time=0 uid=0 gid=0 mode=0751 type=file content=$(location probe.txt)",
+    ],
+    out = "data.tar",
+    visibility = ["//visibility:public"],
+)
+
+py_test(
+    name = "archive_tool_mapping_test",
+    srcs = ["archive_tool_mapping_test.py"],
+    args = [
+        "$(location @archive_tool_caller//:plain)",
+        "$(location @archive_tool_caller//:merged)",
+    ],
+    data = [
+        "@archive_tool_caller//:plain",
+        "@archive_tool_caller//:merged",
+    ],
+)
