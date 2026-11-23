@@ -110,12 +110,12 @@ jobs:
       ARM_TEST_EXECUTOR: /usr/local/bin/sonic-arm64
       TEST_CONTAINER_IMAGE: ${{ inputs.architecture == 'arm64' && !inputs.cross_compile && 'debian:trixie-20260918@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c' || '' }}
     steps:
-      - name: Bypass the proxy for Bazel Central Registry
+      - name: Use direct downloads for BCR and Salsa
         if: runner.environment == 'self-hosted'
         shell: bash
         run: |
-          echo "no_proxy=${no_proxy:+${no_proxy},}bcr.bazel.build" >> "$GITHUB_ENV"
-          echo "NO_PROXY=${NO_PROXY:+${NO_PROXY},}bcr.bazel.build" >> "$GITHUB_ENV"
+          echo "no_proxy=${no_proxy:+${no_proxy},}bcr.bazel.build,salsa.debian.org" >> "$GITHUB_ENV"
+          echo "NO_PROXY=${NO_PROXY:+${NO_PROXY},}bcr.bazel.build,salsa.debian.org" >> "$GITHUB_ENV"
       - name: Validate execution route
         run: |
           set -euo pipefail
