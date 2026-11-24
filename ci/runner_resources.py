@@ -108,7 +108,8 @@ def action_memory_mb(limits: dict, heap_mb: int = 2048) -> int:
     return budget
 
 
-def run(output: Path, command: list[str], module: str | None = None) -> int:
+def run(output: Path, command: list[str], module: str | None = None,
+        architecture: str | None = None) -> int:
     group = unified_cgroup(Path("/proc/self/cgroup"))
     cgroup_root = Path("/sys/fs/cgroup")
     limits = capacity(group, cgroup_root)
@@ -118,7 +119,9 @@ def run(output: Path, command: list[str], module: str | None = None) -> int:
     receipt = {**limits, "action_memory_mb": budget, "jvm_heap_mb": 2048,
                "memory_before": memory_usage(cgroup)}
     # The largest P4C and orchagent compilations exceed Bazel's memory estimates.
-    jobs = {"p4c": 3, "sonic-dash": 3, "sonic-swss": 2}.get(module)
+    jobs = {"p4c": 3, "sonic-dash": 3}.get(module)
+    if module == "sonic-swss":
+        jobs = 1 if architecture == "arm64" else 2
     if jobs is not None:
         arguments.append(f"--bazel-build-arg=--jobs={jobs}")
         receipt["bazel_jobs"] = jobs
@@ -142,6 +145,6 @@ if __name__ == "__main__":
     if not args.command:
         parser.error("a command to monitor is required")
     try:
-        sys.exit(run(args.output, args.command, os.environ.get("CI_MODULE")))
+        sys.exit(run(args.output, args.command, os.environ.get("CI_MODULE"), os.environ.get("CI_ARCHITECTURE")))
     except (OSError, ValueError) as error:
         parser.exit(1, f"Runner resource check failed: {error}\n")

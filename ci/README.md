@@ -908,9 +908,10 @@ of host RAM and the tightest enclosing cgroup limit. A 6 GiB runner receives
 
 P4C and DASH use `--jobs=3` for builds and tests on both architectures. Parallel
 P4 frontend compilations, including DASH's host compiler, exhausted the large
-runners during native AMD64 and ARM64 cross validation. SWSS uses `--jobs=2`
-because concurrent orchagent C++ compilers exhausted the 6 GiB runners on
-both architectures. Other modules retain Bazel's default job count. CI keeps
+runners during native AMD64 and ARM64 cross validation. SWSS uses two jobs
+on AMD64 and one on ARM64. Two concurrent ARM64 actions compiling orchagent
+exhausted the 6 GiB runner and killed the Bazel server. Other modules retain
+Bazel's default job count. CI keeps
 the default CPU budget for all modules.
 Build rules own action resource declarations and any internal tool parallelism.
 A wrapper that starts several compilers must declare their combined resource

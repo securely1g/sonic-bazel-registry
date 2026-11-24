@@ -305,7 +305,7 @@ class PrivateMirrorWorkflowCommandTest(unittest.TestCase):
                 case "$1" in --preserve-env=*) preserved=${1#--preserve-env=};; esac
                 shift
             done
-            for name in CI_MODULE DEBIAN_MIRROR_ROOT DEBIAN_SECURITY_MIRROR_ROOT DEBIAN_MIRROR_BASE_URL DEBIAN_SECURITY_MIRROR_BASE_URL GITHUB_ACTIONS; do
+            for name in CI_MODULE CI_ARCHITECTURE DEBIAN_MIRROR_ROOT DEBIAN_SECURITY_MIRROR_ROOT DEBIAN_MIRROR_BASE_URL DEBIAN_SECURITY_MIRROR_BASE_URL GITHUB_ACTIONS; do
                 case ",$preserved," in *,$name,*) ;; *) unset "$name";; esac
             done
             exec "$@"
@@ -314,7 +314,7 @@ class PrivateMirrorWorkflowCommandTest(unittest.TestCase):
             import json, os, sys
             with open(os.environ['CAPTURE'], 'a') as log:
                 log.write(json.dumps({'args': sys.argv[1:], 'github_actions': os.environ.get('GITHUB_ACTIONS'),
-                    'module': os.environ.get('CI_MODULE'),
+                    'module': os.environ.get('CI_MODULE'), 'architecture': os.environ.get('CI_ARCHITECTURE'),
                     'secrets': [os.environ.get(name) for name in
                     ('DEBIAN_MIRROR_ROOT', 'DEBIAN_SECURITY_MIRROR_ROOT', 'DEBIAN_MIRROR_BASE_URL',
                      'DEBIAN_SECURITY_MIRROR_BASE_URL') if os.environ.get(name)]}) + '\\n')
@@ -345,6 +345,7 @@ class PrivateMirrorWorkflowCommandTest(unittest.TestCase):
                     str(self.directory / "ci-artifacts/runner-resources.json"), "python3", "ci/private_mirrors.py"])
                 self.assertIn("ci/registry_ci.py", command["args"])
                 self.assertEqual(command["module"], module)
+                self.assertEqual(command["architecture"], architecture)
                 self.assertEqual(command["secrets"], list(ROOT_SECRETS.values()))
                 self.assertEqual(command["github_actions"], "true")
                 self.assertNotIn("debian-fixture", " ".join(command["args"]))

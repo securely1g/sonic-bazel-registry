@@ -94,9 +94,11 @@ class ResourceTests(unittest.TestCase):
                 mock.patch.object(resources, "unified_cgroup", return_value="/runner"), \
                 mock.patch.object(resources.subprocess, "run", return_value=mock.Mock(returncode=0)) as child:
             receipt = Path(tmp) / "receipt.json"
-            for module, jobs in (("p4c", 3), ("sonic-dash", 3), ("sonic-swss", 2), ("libnl3", None)):
-                with self.subTest(module=module):
-                    self.assertEqual(resources.run(receipt, ["registry-ci"], module), 0)
+            for module, arch, jobs in (("p4c", "arm64", 3), ("sonic-dash", "amd64", 3),
+                                       ("sonic-swss", "amd64", 2), ("sonic-swss", "arm64", 1),
+                                       ("libnl3", "arm64", None)):
+                with self.subTest(module=module, architecture=arch):
+                    self.assertEqual(resources.run(receipt, ["registry-ci"], module, arch), 0)
                     args = child.call_args.args[0]
                     job_flags = [arg for arg in args if arg.startswith("--bazel-build-arg=--jobs=")]
                     self.assertEqual(job_flags, [f"--bazel-build-arg=--jobs={jobs}"] if jobs else [])
