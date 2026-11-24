@@ -1,13 +1,8 @@
-module(
-    name = "sonic-platform-common",
-    version = "1.0.1-2b84e6a2b24f8e1c937b68140e806a13db302384",
-    bazel_compatibility = [
-        ">=8.5.1",
-        "<=8.5.1",
-    ],
-)
+module(name = "platform_common_registry_consumer")
 
+bazel_dep(name = "sonic-platform-common", version = "1.0.1-74d0685cf303b1a08099b378d2428f4a8e6d85e0")
 bazel_dep(name = "rules_python", version = "1.9.0.sonic.2")
+bazel_dep(name = "platforms", version = "1.1.0")
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
 python.toolchain(
@@ -17,8 +12,8 @@ python.toolchain(
 
 pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
 pip.parse(
-    hub_name = "platform_common_pip",
+    hub_name = "registry_test_pip",
     python_version = "3.13",
     requirements_lock = "//:requirements_lock.txt",
 )
-use_repo(pip, "platform_common_pip")
+use_repo(pip, "registry_test_pip")

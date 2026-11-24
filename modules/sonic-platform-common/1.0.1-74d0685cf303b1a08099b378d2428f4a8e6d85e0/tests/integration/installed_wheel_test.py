@@ -82,6 +82,11 @@ def main():
                      if isinstance(target, ast.Name)}
         for level in ("MINOR", "MAJOR", "CRITICAL"):
             assert constants[level] == level
+        module_source = ast.parse((site / "sonic_platform_base/module_base.py").read_text())
+        module_base = next(node for node in module_source.body
+                           if isinstance(node, ast.ClassDef) and node.name == "ModuleBase")
+        assert any(isinstance(node, ast.FunctionDef) and node.name == "is_shutdown_allowed"
+                   for node in module_base.body), "Installed ModuleBase lacks the chassisd shutdown API"
         # These public peripheral interfaces require only this owner's wheel.
         # Config-engine/Common-dependent interfaces are covered in owner CI.
         probe = r'''import importlib,importlib.metadata,json,pathlib,sys
@@ -117,7 +122,7 @@ print(json.dumps({'modules':modules}))
             "status": "passed", "architecture": platform.machine(),
             "python": platform.python_version(), "wheel": wheel.name,
             "sha256": hashlib.sha256(wheel.read_bytes()).hexdigest(),
-            "source_revision": "2b84e6a2b24f8e1c937b68140e806a13db302384",
+            "source_revision": "74d0685cf303b1a08099b378d2428f4a8e6d85e0",
             "packages": len(set(packages)), "payload_files": len(expected),
             "installed_probe": json.loads(result.stdout),
             "scope": "Complete owner wheel payload/metadata and installed LED/fan/EEPROM/Y-cable APIs; Common/config-engine runtime is covered by source CI",
