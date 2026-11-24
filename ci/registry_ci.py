@@ -57,7 +57,7 @@ FIPS_CROSS_VERSIONS = {FIPS_CROSS_VERSION, "0.0.6-1a8daf8dd8a3ad54de0e91a55b46fd
 # One approved in-place dependency update. The final Git tree pins every path,
 # byte and file mode under modules/, including the matching overlay checksums.
 DEPENDENCY_ALIGNMENT_BASE = "f2c122b9bb0e98cc42b1228ff0315f8d75a721c2"
-DEPENDENCY_ALIGNMENT_TREE = "868d25546021cb838125a1f6b0eaf39b87d75825"
+DEPENDENCY_ALIGNMENT_TREE = "bd7cbebb649d6c8f12038cb5b3aac2842c9e04ae"
 
 # The original wrappers stage a private target executable, loader and libraries.
 ARM_DECLARED_RUNTIME_FIXTURES = {
@@ -362,8 +362,14 @@ def validate_entry(root: Path, module: str, version: str) -> dict:
     if "test_runtime_preparation" in config:
         preparation = config["test_runtime_preparation"]
         require(isinstance(preparation, dict) and {"script", "sha256"} <= set(preparation)
-                and set(preparation) <= {"script", "sha256", "apt_mirror_protocol"},
-                "test_runtime_preparation requires script and sha256, with optional apt_mirror_protocol")
+                and set(preparation) <= {"script", "sha256", "apt_mirror_protocol", "apt_lock"},
+                "Invalid test_runtime_preparation fields")
+        if "apt_lock" in preparation:
+            lock = preparation["apt_lock"]
+            require(isinstance(lock, dict) and set(lock) == {"label", "dependency_set"}
+                    and isinstance(lock["label"], str) and LABEL.fullmatch(lock["label"])
+                    and isinstance(lock["dependency_set"], str) and re.fullmatch(r"[a-z][a-z0-9_]*", lock["dependency_set"]),
+                    "apt_lock requires an exported Bazel source label and dependency_set")
         if "apt_mirror_protocol" in preparation:
             require(preparation["apt_mirror_protocol"] == "locked-runtime-v1",
                     "Unsupported APT runtime preparation protocol")
@@ -1445,9 +1451,43 @@ def require_test_container(image_reference: str | None) -> None:
             "Test runtime preparation requires a Debian Trixie container")
 
 
+def runtime_apt_compatibility_input(apt_lock: Path, dependency_set: str, architecture: str) -> dict:
+    """Present a pinned APT v2 package set in the format read by published owner helpers."""
+    content = apt_lock.read_bytes()
+    lock = json.loads(content)
+    require(lock.get("version") == 2, "Expected a version-2 APT lock")
+    roots = lock["dependency_sets"][dependency_set]["sets"][architecture]
+    packages = {}
+    specs = {}
+    pending = [f"{key}={version}" for key, version in roots.items()]
+    while pending:
+        key = pending.pop()
+        if key in packages:
+            continue
+        package = lock["packages"][key]
+        digest = package["sha256"]
+        urls = [uri.rstrip("/") + "/" + package["filename"] for uri in lock["sources"][package["suite"]]["uris"]]
+        require(urls and re.fullmatch(r"[0-9a-f]{64}", digest), f"Invalid locked APT archive for {key}")
+        spec = {"repoRuleId": "ci_compat%deb_import", "attributes": {
+            "package_name": package["name"], "sha256": digest, "urls": urls}}
+        require(digest not in specs or specs[digest] == spec, f"Ambiguous locked APT archive for {key}")
+        specs[digest] = spec
+        packages[key] = {field: package[field] for field in
+                         ("name", "version", "architecture", "suite", "filename", "sha256", "depends_on")}
+        pending.extend(package["depends_on"])
+    document = {"packages": packages, "sources": lock["sources"],
+                "dependency_sets": {dependency_set: {"sets": {architecture: roots}}}}
+    specs["ci_apt_lock"] = {"repoRuleId": "ci_compat%export_lock_repository",
+                            "attributes": {"content": json.dumps(document, sort_keys=True)}}
+    specs[dependency_set] = {"repoRuleId": "ci_compat%hub", "attributes": {
+        "depset_name": dependency_set, "lock_file": "@@registry_ci+apt+ci_apt_lock//:apt.lock.json"}}
+    return {"apt_lock_sha256": hashlib.sha256(content).hexdigest(), "moduleExtensions": {
+        "@@registry_ci//apt:extensions.bzl%apt": {"general": {"generatedRepoSpecs": specs}}}}
+
+
 def prepare_test_runtime(config: dict, source: Path, consumer: Path, artifacts: Path,
                          architecture: str, image_reference: str | None,
-                         executor_prefix: list[str] | None = None) -> list[str]:
+                         executor_prefix: list[str] | None = None, apt_lock: Path | None = None) -> list[str]:
     """Reuse the fetched owner's locked setup; retain its receipt and test identity."""
     preparation = config.get("test_runtime_preparation")
     if preparation is None:
@@ -1461,8 +1501,15 @@ def prepare_test_runtime(config: dict, source: Path, consumer: Path, artifacts: 
             "Test runtime preparation script checksum mismatch")
     lock = consumer / "MODULE.bazel.lock"
     require(lock.is_file(), "Bazel did not generate MODULE.bazel.lock resolution evidence")
-    lock_hash = hashlib.sha256(lock.read_bytes()).hexdigest()
     shutil.copy2(lock, artifacts / "test-runtime.MODULE.bazel.lock")
+    if apt_lock is not None:
+        exported = artifacts / "test-runtime.apt.lock.json"
+        shutil.copy2(apt_lock, exported)
+        compatibility_input = runtime_apt_compatibility_input(exported, preparation["apt_lock"]["dependency_set"],
+                                                              architecture)
+        lock = artifacts / "test-runtime.owner-compatibility.json"
+        lock.write_text(json.dumps(compatibility_input, sort_keys=True) + "\n")
+    lock_hash = hashlib.sha256(lock.read_bytes()).hexdigest()
     (artifacts / "test-runtime-prepare.py").write_bytes(content)
     receipt_path = artifacts / "test-runtime.json"
     interpreter = "/usr/bin/python3" if executor_prefix else sys.executable
@@ -2058,8 +2105,18 @@ def run(root: Path, module: str, version: str, architecture: str,
                 cross_runtime["python_runtimes"] = mappings
                 for mapping in mappings:
                     executor_prefix[-1:-1] = ["--bind-at", mapping["source"], mapping["destination"]]
+            apt_lock = None
+            apt_lock_config = config.get("test_runtime_preparation", {}).get("apt_lock")
+            if apt_lock_config:
+                apt_lock_label = apt_lock_config["label"]
+                paths = subprocess.check_output([*prefix, "cquery", *flags, "--output=files",
+                                                 f'kind("source file", {apt_lock_label})'],
+                                                cwd=consumer, text=True).splitlines()
+                require(len(paths) == 1, f"Expected a single exported APT lock source for {apt_lock_label}")
+                apt_lock = execution_root / paths[0]
             test_flags = prepare_test_runtime(config, fetched[0].parent, consumer, artifacts,
-                                              architecture, test_container_image, executor_prefix or None)
+                                              architecture, test_container_image, executor_prefix or None,
+                                              apt_lock=apt_lock)
             if cross_compile and module in {"rules_go", "gazelle"}:
                 if module == "rules_go":
                     go_executor = prepare_nested_go_tests(root, work_dir, bazel)

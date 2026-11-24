@@ -483,6 +483,10 @@ The configuration declares:
   file digest. For example, Common's C++ and Rust tests need `libhiredis.so.1.1.0`
   at execution time; its existing helper installs missing runtime packages from
   the resolved Debian snapshot without changing the compiler or built library.
+  For a published helper that reads Distroless repository records, set `apt_lock`
+  to an object with the exported APT lock's `label` and `dependency_set`. CI
+  saves the original APT and Bazel locks, then derives the helper's package
+  records from the selected architecture and snapshot checksums.
   No module opts in implicitly, and the registration must review the helper's
   package selection and installation behavior together with its checksum.
 - `generated_module_overlay` (optional): set to `true` to derive
