@@ -483,6 +483,10 @@ The configuration declares:
   file digest. For example, Common's C++ and Rust tests need `libhiredis.so.1.1.0`
   at execution time; its existing helper installs missing runtime packages from
   the resolved Debian snapshot without changing the compiler or built library.
+  For a published helper that reads Distroless repository records, set `apt_lock`
+  to an object with the exported APT lock's `label` and `dependency_set`. CI
+  saves the original APT and Bazel locks, then derives the helper's package
+  records from the selected architecture and snapshot checksums.
   No module opts in implicitly, and the registration must review the helper's
   package selection and installation behavior together with its checksum.
 - `generated_module_overlay` (optional): set to `true` to derive
@@ -895,14 +899,19 @@ Every module validation, including native ARM64, runs through
 CPU quota and memory limit, plus process CPU affinity, in
 `runner-resources.json`.
 
-Bazel uses its default job count and CPU budget. The resource wrapper sets
-only the action memory budget: 80% of the effective memory remaining after
-reserving the existing 2 GiB JVM maximum heap. Effective memory is the smaller
+The resource wrapper sets the action memory budget to 80% of the effective memory
+remaining after the 2 GiB JVM heap reserve. Effective memory is the smaller
 of host RAM and the tightest enclosing cgroup limit. A 6 GiB runner receives
 3276 MiB; a 16 GiB runner receives 11468 MiB. Keep
 `--discard_analysis_cache`. Build rules retain their action resource estimates.
 
-CI does not select compiler concurrency or inject Make/GC flags by module name.
+P4C and DASH use `--jobs=3` for builds and tests on both architectures. Parallel
+P4 frontend compilations, including DASH's host compiler, exhausted the large
+runners during native AMD64 and ARM64 cross validation. SWSS uses two jobs
+on AMD64 and one on ARM64. Two concurrent ARM64 actions compiling orchagent
+exhausted the 6 GiB runner and killed the Bazel server. Other modules retain
+Bazel's default job count. CI keeps
+the default CPU budget for all modules.
 Build rules own action resource declarations and any internal tool parallelism.
 A wrapper that starts several compilers must declare their combined resource
 needs; native compile/link actions can declare their individual needs. These
@@ -1178,6 +1187,8 @@ native ARM hardware or kernel coverage. The helper probes the real guest CPU and
 userspace before building, records the executor hash, and binds the work and
 artifact paths plus container-local `/tmp`. An output base outside the work
 directory is bound explicitly too. Native Bazel and build tools stay on AMD64.
+PRoot keeps bind mount points in a per-process temporary directory. Parallel
+ARM build actions can then use the same QEMU interpreter root after a test exits.
 
 Some existing test launchers embed exec-configured Python. For tests only, the
 helper resolves the matching locked ARM standalone runtime, verifies real

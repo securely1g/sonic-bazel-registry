@@ -291,7 +291,7 @@ jobs:
           if [[ "${HTTP_AUDIT_READY:-}" == success ]]; then
             HTTP_AUDIT_ARGS=(--http-audit-jar "$RUNNER_TEMP/debian-http-audit/debian-http-audit.jar")
           fi
-          # Keep Bazel CPU defaults and reserve memory for the JVM and system.
+          # Budget local actions and record cgroup memory pressure around validation.
           RESOURCE_RECEIPT=(python3 ci/runner_resources.py "$GITHUB_WORKSPACE/ci-artifacts/runner-resources.json")
           if [[ "$CI_EXECUTION_ARCHITECTURE" == amd64 ]]; then
             TEST_CONTAINER_IMAGE="${SONIC_RUNNER_IMAGE_REFERENCE:?Missing runner image identity}"
@@ -309,6 +309,7 @@ jobs:
           # clients continue to use the job's existing routing environment.
           "${ROOT[@]}" "${SECRET_ENV[@]}" env \
             -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY -u all_proxy -u ALL_PROXY \
+            CI_MODULE="$CI_MODULE" CI_ARCHITECTURE="$CI_ARCHITECTURE" \
             "${RESOURCE_RECEIPT[@]}" python3 ci/private_mirrors.py run \
             --artifacts "$GITHUB_WORKSPACE/ci-artifacts" \
             --private-dir "$RUNNER_TEMP/private-mirrors-module" \
