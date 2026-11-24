@@ -3543,6 +3543,7 @@ a.output.write_text(json.dumps(r))
                         self.assertIn("--platforms=//_registry_ci_cross:arm64", command)
                     wrappers = [arg for arg in command if arg.startswith("--run_under=")]
                     self.assertEqual(bool(wrappers), "test" in command)
+                    self.assertEqual("--test_env=PROOT_DONT_POLLUTE_ROOTFS=1" in command, "test" in command)
                     if wrappers:
                         self.assertEqual(registry_ci.shlex.split(wrappers[0].split("=", 1)[1]),
                                          [str(executor), "--bind", "/tmp", "--bind", str(self.root / ("work-" + suffix)),

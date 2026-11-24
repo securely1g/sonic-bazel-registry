@@ -73,6 +73,7 @@ HTTP_DOWNLOAD_FLAGS = (
     "--http_max_parallel_downloads=4",
 )
 TEST_SANDBOX_STRATEGY = "processwrapper-sandbox,local"
+PROOT_PRIVATE_BINDS = "PROOT_DONT_POLLUTE_ROOTFS=1"
 NAME = re.compile(r"[a-z][a-z0-9._-]*\Z")
 VERSION = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+-]*\Z")
 LABEL = re.compile(r"@[a-z][a-z0-9._-]*//[A-Za-z0-9_./+-]*:[A-Za-z0-9_./+-]+\Z")
@@ -2143,6 +2144,9 @@ def run(root: Path, module: str, version: str, architecture: str,
                                 "sonic-build-infra+/tools/build_tools/foreign_runtime_arm64/usr/bin/protoc"}
                 if fixtures:
                     executor_prefix = [str(root / "ci" / "declared_arm_runtime.py"), json.dumps(fixtures), *executor_prefix]
+                # A parallel ARM build can cache paths from the same QEMU root.
+                # Give PRoot private mount points so its exit cannot remove them.
+                test_flags.append("--test_env=" + PROOT_PRIVATE_BINDS)
                 test_flags.append("--run_under=" + shlex.join(executor_prefix))
             test_flags.extend(cross_test_timeout_flags(module, version, cross_compile, [*flags, *test_flags]))
             # Export HOME before Bazel's test setup assigns TEST_TMPDIR. With

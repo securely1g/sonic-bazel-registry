@@ -1187,6 +1187,8 @@ native ARM hardware or kernel coverage. The helper probes the real guest CPU and
 userspace before building, records the executor hash, and binds the work and
 artifact paths plus container-local `/tmp`. An output base outside the work
 directory is bound explicitly too. Native Bazel and build tools stay on AMD64.
+PRoot keeps bind mount points in a per-process temporary directory. Parallel
+ARM build actions can then use the same QEMU interpreter root after a test exits.
 
 Some existing test launchers embed exec-configured Python. For tests only, the
 helper resolves the matching locked ARM standalone runtime, verifies real
