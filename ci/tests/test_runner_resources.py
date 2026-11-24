@@ -88,6 +88,22 @@ class ResourceTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "JVM heap reserve"):
                 resources.action_memory_mb({"memory_limit_bytes": 2048 * 1024**2})
 
+    def test_expensive_compilers_have_module_specific_job_caps(self):
+        limits = {"cpu_quota_cores": 8, "memory_limit_bytes": 16 * 1024**3}
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(resources, "capacity", return_value=limits), \
+                mock.patch.object(resources, "unified_cgroup", return_value="/runner"), \
+                mock.patch.object(resources.subprocess, "run", return_value=mock.Mock(returncode=0)) as child:
+            receipt = Path(tmp) / "receipt.json"
+            for module, arch, jobs in (("p4c", "arm64", 3), ("sonic-dash", "amd64", 3),
+                                       ("sonic-swss", "amd64", 2), ("sonic-swss", "arm64", 1),
+                                       ("libnl3", "arm64", None)):
+                with self.subTest(module=module, architecture=arch):
+                    self.assertEqual(resources.run(receipt, ["registry-ci"], module, arch), 0)
+                    args = child.call_args.args[0]
+                    job_flags = [arg for arg in args if arg.startswith("--bazel-build-arg=--jobs=")]
+                    self.assertEqual(job_flags, [f"--bazel-build-arg=--jobs={jobs}"] if jobs else [])
+                    self.assertEqual(json.loads(receipt.read_text()).get("bazel_jobs"), jobs)
+
     def test_monitor_adds_memory_budget_and_preserves_child_failure(self):
         limits = {"cpu_quota_cores": 3, "cpu_affinity_count": 16, "memory_limit_bytes": 8 * 1024**3}
         with tempfile.TemporaryDirectory() as tmp, mock.patch.object(resources, "unified_cgroup", return_value="/runner"):

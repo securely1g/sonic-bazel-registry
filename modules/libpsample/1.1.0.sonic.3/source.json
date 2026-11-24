@@ -4,7 +4,7 @@
   "strip_prefix": "libpsample-e48fad2402500a2aeb73961729aad06f793ff46e",
   "overlay": {
     "BUILD.bazel": "sha256-HLBOImie3Pete3g0E5fu4ffs8JNRqV8nVo0th7GhzFg=",
-    "MODULE.bazel": "sha256-iBXTP+S6O4yG8yYICBKuZq8MECgKxtBmZK1U91sd3g8=",
+    "MODULE.bazel": "sha256-OVtS9o0ksz7HuIFA4AlNXvJijvlyMZfLEZYiyoEJQ6o=",
     "bazel/copyright": "sha256-vBOuWKivfOeIJCm/YO7iyOpMwVuOMJ9Afp5N51zs8QE=",
     "bazel/debian/changelog": "sha256-ZZ7KcWuixiA8hkpQLmWdRGh7UrbvHpOFXezNEe0xRLc=",
     "bazel/debian/control": "sha256-TnajPF/+OG6vYPpsybaalCBZ/ktbEC4+DmfMOZYCVm0=",

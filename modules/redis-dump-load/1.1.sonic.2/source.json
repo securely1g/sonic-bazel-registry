@@ -9,7 +9,7 @@
   },
   "overlay": {
     "BUILD.bazel": "sha256-DC5cM2h1urEhwXM0ucJt83oO6lIv20XDNJW1mh8mox4=",
-    "MODULE.bazel": "sha256-ua+gYycCzKskgUPnoIptqMCwBqk/ZZr9BLOJ2YucQcw=",
+    "MODULE.bazel": "sha256-UIo1DUAq5ecvqzt8sKMkHol0mRJXlVIgsBlhwJD/9F0=",
     "metadata.bzl": "sha256-0HjNjl4lwGv6gxGa0lFW0nf2n8Jd7huJZQktXNgOXFE="
   }
 }

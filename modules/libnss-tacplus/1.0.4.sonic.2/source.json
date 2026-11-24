@@ -5,7 +5,7 @@
   "archive_type": "tar.gz",
   "overlay": {
     "BUILD.bazel": "sha256-+9an3Khgsd76EL+jEZUkU74vxSRxdnYKsFTv0bYIm1U=",
-    "MODULE.bazel": "sha256-JCg9QBZrtiRUiEt09LIqvpHR/c/eTcdgJjJdrv3ZpR0=",
+    "MODULE.bazel": "sha256-JFs9SGtg4SPs7QIJrjLVnDyDvv6VwldueoR3q4j/+jw=",
     "config.h.tpl": "sha256-q7m5l/CqP11Dmg/H6EVY9PWQFrLInkBUBZH9c7hLnac=",
     "installation_test.py": "sha256-EP2Q1rR8atWhdhcUapLi0dkh0/XC+oUYn7NHsijhdJk=",
     "nss_install_strip.bzl": "sha256-bO7CjU8FXdN+GDtQLgaKH7lAwRc4xsO3/Q4jRoxk9OY=",

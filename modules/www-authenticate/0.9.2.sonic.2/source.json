@@ -4,7 +4,7 @@
   "strip_prefix": "www-authenticate-0.9.2",
   "overlay": {
     "BUILD.bazel": "sha256-V9wwsZt6SJDQ58tE01vlk8f/Inr2xX75kOAbcOvkWVU=",
-    "MODULE.bazel": "sha256-RhCJ5GA561MS2TARJXPgeL/5z80GwDKHDU7aC2bo6Dw=",
+    "MODULE.bazel": "sha256-rTXyz1pPe4RJ63FI3ZnoABmLkD6zdXsR0VX3IhxKQeM=",
     "tests/installed_test.py": "sha256-aH2nWPthYU0apAoYEGD9lPDRl53anDc650wT8mtJKfo="
   }
 }

@@ -3,6 +3,6 @@
   "strip_prefix": "sonic-utilities-6f1a8a16a947817d76b55dead8cce68e5a4536e4",
   "integrity": "sha256-vHkfrawiy0dSo80dZvhkZEpxxwoDrC3nr45V7n1nYYE=",
   "overlay": {
-    "MODULE.bazel": "sha256-pfGAVKCC0b6oynihFYImTpRSJ2x+y9CFSkrRK30ESNY="
+    "MODULE.bazel": "sha256-IxFxyesqGczAf96ecT1Ocy1U11swqrxyNKvO9rhabg4="
   }
 }

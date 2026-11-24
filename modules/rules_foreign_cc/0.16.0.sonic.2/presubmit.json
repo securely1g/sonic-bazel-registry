@@ -7,7 +7,7 @@
     {
       "name": "sonic-build-infra",
       "repo_name": "sonic_build_infra",
-      "version": "0.0.38-0baa4acc9eac9ccc793b81104b1580d530271cbe"
+      "version": "0.0.44-35726399908a3beb947174e9359f902077928289"
     }
   ],
   "platforms": {

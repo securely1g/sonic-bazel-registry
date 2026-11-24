@@ -54,6 +54,11 @@ RUNNERS = {
 FIPS_CROSS_VERSION = "0.0.6-18a778db501d455f8a1b6d1e3ef8e17121661177"
 FIPS_CROSS_VERSIONS = {FIPS_CROSS_VERSION, "0.0.6-1a8daf8dd8a3ad54de0e91a55b46fd5bbd206763"}
 
+# One approved in-place dependency update. The final Git tree pins every path,
+# byte and file mode under modules/, including the matching overlay checksums.
+DEPENDENCY_ALIGNMENT_BASE = "cd400fbb4bf4d683272076d92f1b7bd869b380c9"
+DEPENDENCY_ALIGNMENT_TREE = "17b9e85690e0c9f95d141b382366df7954d7959a"
+
 # The original wrappers stage a private target executable, loader and libraries.
 ARM_DECLARED_RUNTIME_FIXTURES = {
     ("sonic-sairedis", "0.0.5-33443ea1666a23812365d03fb959066ee84c9aa0"): {
@@ -68,6 +73,7 @@ HTTP_DOWNLOAD_FLAGS = (
     "--http_max_parallel_downloads=4",
 )
 TEST_SANDBOX_STRATEGY = "processwrapper-sandbox,local"
+PROOT_PRIVATE_BINDS = "PROOT_DONT_POLLUTE_ROOTFS=1"
 NAME = re.compile(r"[a-z][a-z0-9._-]*\Z")
 VERSION = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+-]*\Z")
 LABEL = re.compile(r"@[a-z][a-z0-9._-]*//[A-Za-z0-9_./+-]*:[A-Za-z0-9_./+-]+\Z")
@@ -357,8 +363,15 @@ def validate_entry(root: Path, module: str, version: str) -> dict:
     if "test_runtime_preparation" in config:
         preparation = config["test_runtime_preparation"]
         require(isinstance(preparation, dict) and {"script", "sha256"} <= set(preparation)
-                and set(preparation) <= {"script", "sha256", "apt_mirror_protocol"},
-                "test_runtime_preparation requires script and sha256, with optional apt_mirror_protocol")
+                and set(preparation) <= {"script", "sha256", "apt_mirror_protocol", "apt_lock"},
+                "Invalid test_runtime_preparation fields")
+        if "apt_lock" in preparation:
+            lock = preparation["apt_lock"]
+            require(isinstance(lock, dict) and {"label", "dependency_set"} <= set(lock) <= {"label", "dependency_set", "inline_hub_lock"}
+                    and isinstance(lock.get("inline_hub_lock", False), bool)
+                    and isinstance(lock["label"], str) and LABEL.fullmatch(lock["label"])
+                    and isinstance(lock["dependency_set"], str) and re.fullmatch(r"[a-z][a-z0-9_]*", lock["dependency_set"]),
+                    "apt_lock requires an exported Bazel source label and dependency_set")
         if "apt_mirror_protocol" in preparation:
             require(preparation["apt_mirror_protocol"] == "locked-runtime-v1",
                     "Unsupported APT runtime preparation protocol")
@@ -600,8 +613,8 @@ def check_published_files(root: Path, path: str, published: str, head: str) -> N
 
 
 def check_version_policy(root: Path, published: str, head: str,
-                         push: bool = False) -> set[tuple[str, str]]:
-    """Protect published entries and allow one candidate across an entire PR stack."""
+                         push: bool = False) -> tuple[set[tuple[str, str]], set[tuple[str, str]]]:
+    """Protect published entries and return any in-place updates that must be tested."""
     for name, revision in (("published", published), ("head", head)):
         require(isinstance(revision, str) and re.fullmatch(r"[0-9a-fA-F]{40,64}", revision) is not None,
                 f"{name} must be a full commit SHA")
@@ -614,7 +627,12 @@ def check_version_policy(root: Path, published: str, head: str,
     ancestor = published if push else git(root, "merge-base", published, head).strip()
     changed = git(root, "diff", "--name-only", "--no-renames", "-z", ancestor, head, "--", "modules/")
     modules = {PurePosixPath(name).parts[1] for name in changed.split("\0") if name}
+    approved_alignment = (
+        published == DEPENDENCY_ALIGNMENT_BASE
+        and git(root, "rev-parse", f"{head}:modules").strip() == DEPENDENCY_ALIGNMENT_TREE
+    )
     published_entries = set()
+    aligned_entries = set()
     for module in sorted(modules):
         require(NAME.fullmatch(module) is not None, f"Invalid module name: {module}")
         path = f"modules/{module}"
@@ -650,13 +668,17 @@ def check_version_policy(root: Path, published: str, head: str,
                     f"{module}@{version}: published version changed or removed; "
                     "retain the version directory (rebase if the maintained branch advanced)")
             if head_versions[version] != tree:
-                check_published_files(root, f"{path}/{version}", published, head)
+                if approved_alignment:
+                    # --latest on push must also cover changed backport releases.
+                    aligned_entries.add((module, version))
+                else:
+                    check_published_files(root, f"{path}/{version}", published, head)
         candidates = sorted(set(head_versions) - set(published_versions))
         require(len(candidates) <= 1,
                 f"{module}: multiple unreleased candidates relative to {published}: {', '.join(candidates)}; "
                 "consolidate the unmerged stack into one candidate and update its consumers")
         print(f"Version policy: {module}: candidates={candidates}, published={published}", file=sys.stderr)
-    return published_entries
+    return published_entries, aligned_entries
 
 
 def module_runner(module: str, execution_architecture: str, p4_runner_profile: str) -> list[str]:
@@ -710,8 +732,7 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
             "Do not combine --all/--latest with --base")
     require(bool(published) and bool(head), "plan requires --published and --head")
     require(git(root, "rev-parse", "HEAD").strip() == head, "Checkout HEAD differs from planned head")
-    published_entries = check_version_policy(root, published, head, push)
-    selected = set()
+    published_entries, selected = check_version_policy(root, published, head, push)
     if all_versions:
         selected.update((path.parent.parent.name, path.parent.name)
                         for path in (root / "modules").glob("*/*/presubmit.json"))
@@ -1432,9 +1453,46 @@ def require_test_container(image_reference: str | None) -> None:
             "Test runtime preparation requires a Debian Trixie container")
 
 
+def runtime_apt_compatibility_input(apt_lock: Path, dependency_set: str, architecture: str,
+                                    *, inline_hub_lock: bool = False) -> dict:
+    """Present a pinned APT v2 package set in the format read by published owner helpers."""
+    content = apt_lock.read_bytes()
+    lock = json.loads(content)
+    require(lock.get("version") == 2, "Expected a version-2 APT lock")
+    roots = lock["dependency_sets"][dependency_set]["sets"][architecture]
+    packages = {}
+    specs = {}
+    pending = [f"{key}={version}" for key, version in roots.items()]
+    while pending:
+        key = pending.pop()
+        if key in packages:
+            continue
+        package = lock["packages"][key]
+        digest = package["sha256"]
+        urls = [uri.rstrip("/") + "/" + package["filename"] for uri in lock["sources"][package["suite"]]["uris"]]
+        require(urls and re.fullmatch(r"[0-9a-f]{64}", digest), f"Invalid locked APT archive for {key}")
+        spec = {"repoRuleId": "ci_compat%deb_import", "attributes": {
+            "package_name": package["name"], "sha256": digest, "urls": urls}}
+        require(digest not in specs or specs[digest] == spec, f"Ambiguous locked APT archive for {key}")
+        specs[digest] = spec
+        packages[key] = {field: package[field] for field in
+                         ("name", "version", "architecture", "suite", "filename", "sha256", "depends_on")}
+        pending.extend(package["depends_on"])
+    document = {"packages": packages, "sources": lock["sources"],
+                "dependency_sets": {dependency_set: {"sets": {architecture: roots}}}}
+    specs["ci_apt_lock"] = {"repoRuleId": "ci_compat%export_lock_repository",
+                            "attributes": {"content": json.dumps(document, sort_keys=True)}}
+    specs[dependency_set] = {"repoRuleId": "ci_compat%hub", "attributes": {
+        "depset_name": dependency_set, "lock_file": "@@registry_ci+apt+ci_apt_lock//:apt.lock.json"}}
+    if inline_hub_lock:
+        specs[dependency_set]["attributes"]["lock_content"] = specs["ci_apt_lock"]["attributes"]["content"]
+    return {"apt_lock_sha256": hashlib.sha256(content).hexdigest(), "moduleExtensions": {
+        "@@registry_ci//apt:extensions.bzl%apt": {"general": {"generatedRepoSpecs": specs}}}}
+
+
 def prepare_test_runtime(config: dict, source: Path, consumer: Path, artifacts: Path,
                          architecture: str, image_reference: str | None,
-                         executor_prefix: list[str] | None = None) -> list[str]:
+                         executor_prefix: list[str] | None = None, apt_lock: Path | None = None) -> list[str]:
     """Reuse the fetched owner's locked setup; retain its receipt and test identity."""
     preparation = config.get("test_runtime_preparation")
     if preparation is None:
@@ -1448,8 +1506,17 @@ def prepare_test_runtime(config: dict, source: Path, consumer: Path, artifacts: 
             "Test runtime preparation script checksum mismatch")
     lock = consumer / "MODULE.bazel.lock"
     require(lock.is_file(), "Bazel did not generate MODULE.bazel.lock resolution evidence")
-    lock_hash = hashlib.sha256(lock.read_bytes()).hexdigest()
     shutil.copy2(lock, artifacts / "test-runtime.MODULE.bazel.lock")
+    if apt_lock is not None:
+        exported = artifacts / "test-runtime.apt.lock.json"
+        shutil.copy2(apt_lock, exported)
+        lock_config = preparation["apt_lock"]
+        compatibility_input = runtime_apt_compatibility_input(
+            exported, lock_config["dependency_set"], architecture,
+            inline_hub_lock=lock_config.get("inline_hub_lock", False))
+        lock = artifacts / "test-runtime.owner-compatibility.json"
+        lock.write_text(json.dumps(compatibility_input, sort_keys=True) + "\n")
+    lock_hash = hashlib.sha256(lock.read_bytes()).hexdigest()
     (artifacts / "test-runtime-prepare.py").write_bytes(content)
     receipt_path = artifacts / "test-runtime.json"
     interpreter = "/usr/bin/python3" if executor_prefix else sys.executable
@@ -2045,8 +2112,18 @@ def run(root: Path, module: str, version: str, architecture: str,
                 cross_runtime["python_runtimes"] = mappings
                 for mapping in mappings:
                     executor_prefix[-1:-1] = ["--bind-at", mapping["source"], mapping["destination"]]
+            apt_lock = None
+            apt_lock_config = config.get("test_runtime_preparation", {}).get("apt_lock")
+            if apt_lock_config:
+                apt_lock_label = apt_lock_config["label"]
+                paths = subprocess.check_output([*prefix, "cquery", *flags, "--output=files",
+                                                 f'kind("source file", {apt_lock_label})'],
+                                                cwd=consumer, text=True).splitlines()
+                require(len(paths) == 1, f"Expected a single exported APT lock source for {apt_lock_label}")
+                apt_lock = execution_root / paths[0]
             test_flags = prepare_test_runtime(config, fetched[0].parent, consumer, artifacts,
-                                              architecture, test_container_image, executor_prefix or None)
+                                              architecture, test_container_image, executor_prefix or None,
+                                              apt_lock=apt_lock)
             if cross_compile and module in {"rules_go", "gazelle"}:
                 if module == "rules_go":
                     go_executor = prepare_nested_go_tests(root, work_dir, bazel)
@@ -2067,6 +2144,9 @@ def run(root: Path, module: str, version: str, architecture: str,
                                 "sonic-build-infra+/tools/build_tools/foreign_runtime_arm64/usr/bin/protoc"}
                 if fixtures:
                     executor_prefix = [str(root / "ci" / "declared_arm_runtime.py"), json.dumps(fixtures), *executor_prefix]
+                # A parallel ARM build can cache paths from the same QEMU root.
+                # Give PRoot private mount points so its exit cannot remove them.
+                test_flags.append("--test_env=" + PROOT_PRIVATE_BINDS)
                 test_flags.append("--run_under=" + shlex.join(executor_prefix))
             test_flags.extend(cross_test_timeout_flags(module, version, cross_compile, [*flags, *test_flags]))
             # Export HOME before Bazel's test setup assigns TEST_TMPDIR. With

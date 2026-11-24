@@ -17,7 +17,7 @@ import subprocess
 import sys
 
 
-PROVIDER_VERSION = "0.0.37-316e298e77ab5cfa69af9b0c05ec24d5d94bbe1e"
+PROVIDER_VERSION = "0.0.44-35726399908a3beb947174e9359f902077928289"
 PACKAGE = "_registry_ci_cross"
 REPOSITORY = "registry_ci_cross_cc"
 COMPILER_REPOSITORY = "sonic-build-infra++gcc+gcc-14.2.0-linux-target-aarch64-host-x86_64"
@@ -286,7 +286,8 @@ def published_distribution(target: str, version: str | None) -> str | None:
     if target in SONIC_PLATFORMS and version in VERIFIED_SONIC_CROSS_VERSIONS:
         return target.rsplit(":", 1)[0] + ":trixie"
     # Net-SNMP uses GCC 12 and its published Bookworm sysroot for the target ABI.
-    if version == "0.0.25-34de7330abc72229dfc8dab88dec71b89c52aa88" and target in {
+    if version in {"0.0.25-34de7330abc72229dfc8dab88dec71b89c52aa88",
+                   "0.0.44-35726399908a3beb947174e9359f902077928289"} and target in {
         "@sonic_build_infra//platforms:aarch64_bookworm",
         "@sonic-build-infra//platforms:aarch64_bookworm",
     }:

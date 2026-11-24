@@ -559,6 +559,39 @@ class SelectionTests(FixtureTestCase):
 class VersionPolicyTests(FixtureTestCase):
     """Exercise publication boundaries with real Git histories, including stacks."""
 
+    def test_dependency_alignment_requires_exact_base_and_modules_tree(self) -> None:
+        self.entry("beta", "1.0.0")
+        self.entry("beta", "2.0.0")
+        self.entry("alpha", "3.0.0")
+        manifest = self.entry("alpha", "1.0.0") / "MODULE.bazel"
+        declaration = manifest.read_text() + 'bazel_dep(name = "beta", version = "1.0.0")\n'
+        manifest.write_text(declaration)
+        base = self.commit("publish alpha with its original dependency")
+        (self.root / "README.md").write_text("Registry documentation.\n")
+        another_base = self.commit("advance main without changing modules")
+        manifest.write_text(declaration.replace('name = "beta", version = "1.0.0"',
+                                                'name = "beta", version = "2.0.0"'))
+        head = self.commit("align alpha with beta 2")
+
+        with mock.patch.multiple(registry_ci, DEPENDENCY_ALIGNMENT_BASE=base,
+                                 DEPENDENCY_ALIGNMENT_TREE=self.git("rev-parse", f"{head}:modules")):
+            self.assertEqual(self.selected(base, head), {("alpha", "1.0.0")})
+            jobs = registry_ci.plan(self.root, None, head, latest_versions=True, published=base, push=True)
+            self.assertEqual({(j["module"], j["version"]) for j in jobs["include"]},
+                             {("alpha", "1.0.0"), ("alpha", "3.0.0"), ("beta", "2.0.0")})
+            with self.assertRaisesRegex(registry_ci.RegistryError, "published version changed"):
+                self.selected(another_base, head)
+
+            manifest.chmod(0o755)
+            unapproved = self.commit("also change a published file mode")
+            for published in (base, head):
+                with self.subTest(published=published):
+                    with self.assertRaisesRegex(registry_ci.RegistryError, "published version changed"):
+                        self.selected(published, unapproved)
+                    with self.assertRaisesRegex(registry_ci.RegistryError, "published version changed"):
+                        registry_ci.plan(self.root, None, unapproved, latest_versions=True,
+                                         published=published, push=True)
+
     def test_stacked_base_does_not_publish_its_inherited_candidate(self) -> None:
         """A child adding .4 must also count its parent's still-unmerged .3."""
         self.entry("libyang-python", "3.1.0.sonic.2")
@@ -912,6 +945,34 @@ class VersionPolicyTests(FixtureTestCase):
         self.git("checkout", "--detach", old_head)
         with self.assertRaisesRegex(registry_ci.RegistryError, "published version changed or removed"):
             registry_ci.plan(self.root, None, old_head, all_versions=True, published=before, push=True)
+
+    def test_push_workflow_recovers_a_previous_tip_outside_the_checkout(self) -> None:
+        self.entry("alpha", "1.0.0")
+        head = self.commit("main before the release")
+        self.git("checkout", "-b", "discarded")
+        self.entry("alpha", "2.0.0")
+        before = self.commit("publish 2.0.0")
+        self.git("checkout", "--detach", head)
+        self.git("branch", "-D", "discarded")
+
+        with tempfile.TemporaryDirectory() as temporary:
+            server = Path(temporary)
+            remote = server / "registry.git"
+            remote.symlink_to(self.root / ".git", target_is_directory=True)
+            checkout = server / "checkout"
+            subprocess.run(["git", "clone", remote.as_uri(), str(checkout)],
+                           check=True, capture_output=True)
+            self.assertNotEqual(subprocess.run(["git", "cat-file", "-e", before], cwd=checkout,
+                                               capture_output=True).returncode, 0)
+            workflow = (registry_ci.ROOT / ".github/workflows/registry-ci.yml").read_text()
+            script = workflow.split("          POLICY_FLAGS=()\n", 1)[1].split("          printf 'Event:", 1)[0]
+            env = {**os.environ, "EVENT_NAME": "push", "BEFORE_SHA": before,
+                   "GITHUB_SERVER_URL": server.as_uri(), "GITHUB_REPOSITORY": "registry"}
+            result = subprocess.run(["bash", "-ec", script + '\nprintf "%s" "$PUBLISHED_SHA"'], cwd=checkout,
+                                    env=env, check=True, capture_output=True, text=True)
+            self.assertEqual(result.stdout, before)
+            with self.assertRaisesRegex(registry_ci.RegistryError, "published version changed or removed"):
+                registry_ci.plan(checkout, None, head, latest_versions=True, published=before, push=True)
 
     def test_unknown_or_missing_publication_baseline_fails_closed(self) -> None:
         """No --all or missing-SHA fallback may bypass release-policy checks."""
@@ -3482,6 +3543,7 @@ a.output.write_text(json.dumps(r))
                         self.assertIn("--platforms=//_registry_ci_cross:arm64", command)
                     wrappers = [arg for arg in command if arg.startswith("--run_under=")]
                     self.assertEqual(bool(wrappers), "test" in command)
+                    self.assertEqual("--test_env=PROOT_DONT_POLLUTE_ROOTFS=1" in command, "test" in command)
                     if wrappers:
                         self.assertEqual(registry_ci.shlex.split(wrappers[0].split("=", 1)[1]),
                                          [str(executor), "--bind", "/tmp", "--bind", str(self.root / ("work-" + suffix)),

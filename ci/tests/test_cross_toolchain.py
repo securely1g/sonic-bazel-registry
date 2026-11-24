@@ -115,17 +115,20 @@ class CrossToolchainTest(unittest.TestCase):
                     self.assertFalse((artifacts / "cross-adapter.BUILD.bazel").exists())
 
     def test_net_snmp_keeps_the_published_bookworm_cross_toolchain(self):
-        version = "0.0.25-34de7330abc72229dfc8dab88dec71b89c52aa88"
         target = "@sonic_build_infra//platforms:aarch64_bookworm"
         execution = "@sonic_build_infra//platforms:x86_64_bookworm"
-        result, consumer, _, provider = self.prepare_case(
-            {**self.versions, "sonic-build-infra": version}, target, execution)
-        provider.assert_not_called()
-        self.assertEqual(result["distribution_constraint"], "@sonic_build_infra//platforms:bookworm")
-        generated = (consumer / cross.PACKAGE / "BUILD.bazel").read_text()
-        self.assertIn(target, generated)
-        self.assertIn(execution, generated)
-        self.assertNotIn("trixie", generated)
+        versions = ("0.0.25-34de7330abc72229dfc8dab88dec71b89c52aa88",
+                    "0.0.44-35726399908a3beb947174e9359f902077928289")
+        for version in versions:
+            with self.subTest(version=version):
+                result, consumer, _, provider = self.prepare_case(
+                    {**self.versions, "sonic-build-infra": version}, target, execution)
+                provider.assert_not_called()
+                self.assertEqual(result["distribution_constraint"], "@sonic_build_infra//platforms:bookworm")
+                generated = (consumer / cross.PACKAGE / "BUILD.bazel").read_text()
+                self.assertIn(target, generated)
+                self.assertIn(execution, generated)
+                self.assertNotIn("trixie", generated)
 
     def test_native_only_and_unknown_selected_versions_use_provider_with_original_parents(self):
         for version in ("0.0.6-553b2f70f9ba77b74befdf77674894166139ddcc",

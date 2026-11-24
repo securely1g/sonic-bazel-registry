@@ -6,7 +6,7 @@
   "consumer_deps": [
     {
       "name": "sonic-build-infra",
-      "version": "0.0.38-0baa4acc9eac9ccc793b81104b1580d530271cbe",
+      "version": "0.0.44-35726399908a3beb947174e9359f902077928289",
       "repo_name": "sonic_build_infra"
     },
     {
@@ -57,6 +57,10 @@
   "test_runtime_preparation": {
     "script": "tools/bazel/runtime/prepare.py",
     "sha256": "1cd2cdc42f7b3158579d91d96380f6d06a9142bb7a663e5c36243b158b080654",
-    "apt_mirror_protocol": "locked-runtime-v1"
+    "apt_mirror_protocol": "locked-runtime-v1",
+    "apt_lock": {
+      "label": "@sonic_build_infra//apt:apt.lock.json",
+      "dependency_set": "pi_deps"
+    }
   }
 }

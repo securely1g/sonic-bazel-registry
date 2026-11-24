@@ -14,10 +14,10 @@ import zlib
 TOOLS = {}
 
 
-def command(*args, **kwargs):
+def command(*args, text=True, **kwargs):
     if args and args[0] in TOOLS:
         args = (TOOLS[args[0]], *args[1:])
-    return subprocess.check_output(args, text=True, stderr=subprocess.STDOUT, **kwargs)
+    return subprocess.check_output(args, text=text, stderr=subprocess.STDOUT, **kwargs)
 
 
 def build_id(path):
@@ -214,8 +214,9 @@ def main():
             symbols = root / 'usr/lib/debug/.build-id' / identity[:2] / (identity[2:] + '.debug')
             assert build_id(symbols) == identity
             assert '.debug_info' in command('readelf', '-SW', str(symbols))
-            paths = command('readelf', '-p', '.debug_line_str', '-p', '.debug_str', str(symbols))
-            assert '/execroot/' not in paths, paths
+            paths = command('readelf', '--decompress', '-p', '.debug_line_str',
+                            '-p', '.debug_str', str(symbols), text=False)
+            assert b'/execroot/' not in paths, paths
             section = root / (name + '.debuglink')
             command('objcopy', '--dump-section', f'.gnu_debuglink={section}', str(binary), str(root / (name + '.copy')))
             link = section.read_bytes()

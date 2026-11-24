@@ -51,7 +51,7 @@ def main():
             "dependency_sets": {"locked": {"sets": {architecture: {f"/fixture/libfixture-dev:{architecture}": "1"}}}}}
     (root / "apt.lock.json").write_text(json.dumps(lock))
     (root / "MODULE.bazel").write_text('''module(name="shared_linker_script_contract")
-bazel_dep(name="rules_distroless",version="0.9.4.sonic.22")
+bazel_dep(name="rules_distroless",version="0.9.4.sonic.26")
 bazel_dep(name="rules_cc",version="0.2.20")
 apt=use_extension("@rules_distroless//apt:extensions.bzl","apt")
 apt.import_lock(lock="//:apt.lock.json",libraries=True)

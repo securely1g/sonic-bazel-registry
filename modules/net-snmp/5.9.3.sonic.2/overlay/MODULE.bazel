@@ -7,12 +7,12 @@ module(name = "net-snmp", version = "5.9.3.sonic.2", repo_name = "net_snmp")
 bazel_dep(name = "bazel_skylib", version = "1.8.2")
 bazel_dep(name = "rules_cc", version = "0.2.20")
 bazel_dep(name = "platforms", version = "1.0.0")
-bazel_dep(name = "sonic-build-infra", version = "0.0.38-0baa4acc9eac9ccc793b81104b1580d530271cbe", repo_name = "sonic_build_infra")
+bazel_dep(name = "sonic-build-infra", version = "0.0.44-35726399908a3beb947174e9359f902077928289", repo_name = "sonic_build_infra")
 
 bazel_dep(name = "rules_pkg", version = "1.1.0")
 
-bazel_dep(name = "rules_python", version = "1.9.0.sonic.1")
-bazel_dep(name = "libnl3", version = "3.7.0.sonic.8")
+bazel_dep(name = "rules_python", version = "1.9.0.sonic.2")
+bazel_dep(name = "libnl3", version = "3.7.0.sonic.10")
 
 gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
 use_repo(gcc, "gcc_toolchains")

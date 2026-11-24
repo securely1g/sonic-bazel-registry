@@ -24,8 +24,8 @@ SPEC.loader.exec_module(registry_ci)
 MODULE = f'''module(name = "runner_arm_cross_fixture")
 bazel_dep(name = "sonic-build-infra", version = "{registry_ci.cross_toolchain.PROVIDER_VERSION}", repo_name = "sonic_build_infra")
 bazel_dep(name = "rules_cc", version = "0.2.22")
-bazel_dep(name = "rules_python", version = "1.9.0.sonic.1")
-bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.20")
+bazel_dep(name = "rules_python", version = "1.9.0.sonic.2")
+bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.26")
 apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
 apt.import_lock(lock = "@sonic_build_infra//apt:apt.lock.json", dependency_sets = ["sysroot"])
 use_repo(apt, "sysroot")
@@ -184,6 +184,22 @@ def elf_machine(path: Path) -> int:
 @unittest.skipUnless(os.environ.get("REGISTRY_CI_TEST_BAZEL") and os.environ.get("REGISTRY_CI_TEST_ARM_EXECUTOR"),
                      "set REGISTRY_CI_TEST_BAZEL and REGISTRY_CI_TEST_ARM_EXECUTOR for the ARM64 fixture")
 class ArmCrossRuntimeIntegrationTest(unittest.TestCase):
+    def test_bind_mounts_leave_the_shared_arm_root_unchanged(self):
+        executor = os.environ["REGISTRY_CI_TEST_ARM_EXECUTOR"]
+        with tempfile.TemporaryDirectory(prefix="registry-proot-") as tmp:
+            source = Path(tmp)
+            (source / "marker").touch()
+            mount = "/" + source.name
+            shared = mount + "-shared-root"
+            # Inspect the real guest tree while PRoot still has the bind active.
+            subprocess.run([
+                "/usr/bin/env", registry_ci.PROOT_PRIVATE_BINDS, executor,
+                "--bind-at", str(source), mount + "/payload",
+                "--bind-at", "/opt/sonic-arm64-rootfs", shared,
+                "--", "/bin/sh", "-ec",
+                'test -f "$1/payload/marker" && test ! -e "$2$1"', "check", mount, shared,
+            ], check=True, timeout=60)
+
     def test_native_generator_and_nested_arm_runtime(self):
         executor = Path(os.environ["REGISTRY_CI_TEST_ARM_EXECUTOR"]).resolve(strict=True)
         self.assertTrue(os.access(executor, os.X_OK), executor)
@@ -314,6 +330,7 @@ class ArmCrossRuntimeIntegrationTest(unittest.TestCase):
                 execute("bazel-test", [*bazel_prefix, "test", *flags,
                                        "--strategy=TestRunner=" + registry_ci.TEST_SANDBOX_STRATEGY,
                                        "--test_env=HOME=", "--nocache_test_results", "--test_output=all",
+                                       "--test_env=" + registry_ci.PROOT_PRIVATE_BINDS,
                                        "--run_under=" + shlex.join(prefix),
                                        "--build_event_json_file=" + str(test_events), *TEST_TARGETS],
                         consumer, timeout=300)

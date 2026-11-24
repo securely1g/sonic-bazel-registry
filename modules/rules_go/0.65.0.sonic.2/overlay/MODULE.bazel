@@ -57,7 +57,7 @@ use_repo(
 
 register_toolchains("@go_toolchains//:all")
 
-bazel_dep(name = "gazelle", version = "0.54.0.sonic.1")
+bazel_dep(name = "gazelle", version = "0.54.0.sonic.2")
 
 go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
 go_deps.from_file(go_mod = "//:go.mod")

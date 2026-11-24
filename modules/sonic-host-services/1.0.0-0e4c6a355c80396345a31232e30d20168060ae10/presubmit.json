@@ -5,7 +5,7 @@
   "consumer_deps": [
     {
       "name": "sonic-build-infra",
-      "version": "0.0.42-da5f4c8d370f501572f435ade330ec209c9c0203",
+      "version": "0.0.44-35726399908a3beb947174e9359f902077928289",
       "repo_name": "sonic_build_infra"
     },
     {
@@ -14,11 +14,11 @@
     },
     {
       "name": "libnl3",
-      "version": "3.7.0.sonic.8"
+      "version": "3.7.0.sonic.10"
     },
     {
       "name": "libyang",
-      "version": "3.12.2.sonic.8"
+      "version": "3.12.2.sonic.9"
     }
   ],
   "platforms": {

@@ -432,7 +432,7 @@ def _impl(ctx):
 link_context=rule(implementation=_impl,attrs={"dep":attr.label(providers=[CcInfo])})
 ''')
     (root / 'MODULE.bazel').write_text(f'''module(name="library_contracts")
-bazel_dep(name="rules_distroless",version="0.9.4.sonic.22")
+bazel_dep(name="rules_distroless",version="0.9.4.sonic.26")
 bazel_dep(name="rules_cc",version="0.2.20")
 bazel_dep(name="fixture_adapter",version="1")
 local_path_override(module_name="fixture_adapter",path="{adapter}")

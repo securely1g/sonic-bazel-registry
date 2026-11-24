@@ -1,6 +1,6 @@
 ## Dependency refresh for `0.65.0.sonic.2`
 
-This candidate retains the `0.65.0.sonic.1` source and existing patches. Its module dependencies select the newest non-yanked versions published at `3d1cc5e8dfd553d2acbe4198e504a245e6bdbddf`. Versions introduced by this refresh are not dependency targets of the same refresh.
+This entry keeps the upstream rules_go 0.65.0 source and selects Gazelle `0.54.0.sonic.2` from the SONiC registry.
 
 # Content-derived Go build IDs for SONiC
 
@@ -53,7 +53,7 @@ Docker integration remain the separate OTEL producer/consumer work.
 The retained upstream build-ID tests and original external-CGo-header tests
 create their own Bazel workspace. Both use the upstream helper's existing
 `GO_BAZEL_TEST_BAZELFLAGS` interface to select the immutable SONiC registry
-catalog at `3d1cc5e8dfd553d2acbe4198e504a245e6bdbddf`, followed by BCR. This makes the newly selected
+catalog at `f2c122b9bb0e98cc42b1228ff0315f8d75a721c2`, followed by BCR. This makes the newly selected
 Gazelle SONiC version available. The helper's `local_path_override` still tests
 the actual rules_go candidate; no fixture, assertion, SDK or architecture is
 replaced. `0003-use-sonic-registry-for-nested-regressions.patch` contains only
