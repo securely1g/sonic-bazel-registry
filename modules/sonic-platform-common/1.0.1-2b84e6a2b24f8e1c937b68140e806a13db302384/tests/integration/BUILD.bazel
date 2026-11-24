@@ -3,6 +3,7 @@ load("@rules_python//python:py_test.bzl", "py_test")
 
 platform(
     name = "linux_arm64",
+    visibility = ["//visibility:public"],
     constraint_values = ["@platforms//cpu:aarch64", "@platforms//os:linux"],
 )
 
