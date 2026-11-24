@@ -35,6 +35,35 @@ MARKER = "[private-mirror]"
 TEXT_SUFFIXES = {".log", ".stderr", ".stdout", ".json", ".jsonl", ".xml"}
 
 
+# These installed Go parser test inputs come from golang/go@c19862e5f8415b4f24b189d065ed739517c548ba,
+# archive SHA-256 bee8baca25b69a67f5b94acdaa161b5ef9c42bd37365c92eb5857b16303cda10.
+# They contain deliberately unreadable, prefixed or very large sparse test archives.
+GO_SOURCE_TEST_FIXTURES = {
+    "./usr/share/go-1.26/src/archive/tar/testdata/gnu-sparse-many-zeros.tar.bz2":
+        (1642, "52e60a5c548deccd51d0a8523323ffa322e4ab2b0e4f5472a5966a9e8d66b919"),
+    "./usr/share/go-1.26/src/archive/tar/testdata/issue10968.tar":
+        (512, "a302db10909ff2822f09f362576eca6e1b4f0d70e34748f6fa1eea79e7d3713a"),
+    "./usr/share/go-1.26/src/archive/tar/testdata/issue11169.tar":
+        (602, "9c80a95a15edc3eef8fd6c506c4a92481f517bebd088d5db0eb260033a77c0f6"),
+    "./usr/share/go-1.26/src/archive/tar/testdata/issue12435.tar":
+        (512, "de7e983cc020b72b10819773e487c794e1269fc5a3793bc13d3c61ffacc553a5"),
+    "./usr/share/go-1.26/src/archive/tar/testdata/pax-bad-hdr-file.tar":
+        (2560, "63d5e53472b1ea35cd8814f9d4dee7597601c99eca367177bbaaab1e09d30468"),
+    "./usr/share/go-1.26/src/archive/tar/testdata/pax-path-hdr.tar":
+        (1024, "2f434250f98a8aad5e77b8695d751b11bca1625d4d0264638113ad27ebeb11c7"),
+    "./usr/share/go-1.26/src/archive/tar/testdata/writer-big.tar":
+        (512, "5a0bee74a7bd0caa1d572ff1ae58c3c79310c8fc646a5e84fb5e1eea488ea4b5"),
+    "./usr/share/go-1.26/src/archive/zip/testdata/test-badbase.zip":
+        (1170, "d11fa637a1153619ed3443401942d242238519feb24233bc1965a693b5f0d326"),
+    "./usr/share/go-1.26/src/archive/zip/testdata/test-baddirsz.zip":
+        (1170, "60452121e8533c13ae22ce41a2539278049ffb63a08e1fea3d7239b7e627e55a"),
+    "./usr/share/go-1.26/src/archive/zip/testdata/test-prefix.zip":
+        (1227, "d88728cfbbc295b8e146bde1e21fd4514ea60cc9909eb9ddb7537b0d448bfcea"),
+    "./usr/share/go-1.26/src/go/internal/gcimporter/testdata/versions/test_go1.11_999b.a":
+        (2600, "003030a28fdbfe3884475e2b987771723833f0ccc8e3a0c7a314ba9be3a51568"),
+}
+
+
 class PrivacyError(ValueError):
     """A generic error deliberately containing no private input or filename."""
 
@@ -302,7 +331,18 @@ class Redactor:
                         self._check_text(member.linkname)
                         if member.isfile():
                             with archive.extractfile(member) as contents:
-                                self._scan_stream(contents, member.name, depth + 1)
+                                fixture = (GO_SOURCE_TEST_FIXTURES.get(member.name)
+                                           if depth == 0 and name == "golang-1.26-src.runtime.tar" else None)
+                                if fixture is None:
+                                    self._scan_stream(contents, member.name, depth + 1)
+                                else:
+                                    size, digest = fixture
+                                    if member.size != size:
+                                        raise PrivacyError("Go source test fixture size differs from the pinned release")
+                                    payload = contents.read(size + 1)
+                                    if len(payload) != size or hashlib.sha256(payload).hexdigest() != digest:
+                                        raise PrivacyError("Go source test fixture differs from the pinned release")
+                                    self._scan_raw(contents, payload)
             elif kind == "zip":
                 with zipfile.ZipFile(data) as archive:
                     for member in archive.infolist():
