@@ -899,14 +899,16 @@ Every module validation, including native ARM64, runs through
 CPU quota and memory limit, plus process CPU affinity, in
 `runner-resources.json`.
 
-Bazel uses its default job count and CPU budget. The resource wrapper sets
-only the action memory budget: 80% of the effective memory remaining after
-reserving the existing 2 GiB JVM maximum heap. Effective memory is the smaller
+The resource wrapper sets the action memory budget to 80% of the effective memory
+remaining after the 2 GiB JVM heap reserve. Effective memory is the smaller
 of host RAM and the tightest enclosing cgroup limit. A 6 GiB runner receives
 3276 MiB; a 16 GiB runner receives 11468 MiB. Keep
 `--discard_analysis_cache`. Build rules retain their action resource estimates.
 
-CI does not select compiler concurrency or inject Make/GC flags by module name.
+P4C and DASH use `--jobs=3` for builds and tests on both architectures. Parallel
+P4 frontend compilations, including DASH's host compiler, exhausted the large
+runners during native AMD64 and ARM64 cross validation. Other modules retain
+Bazel's default job count. CI keeps the default CPU budget for all modules.
 Build rules own action resource declarations and any internal tool parallelism.
 A wrapper that starts several compilers must declare their combined resource
 needs; native compile/link actions can declare their individual needs. These

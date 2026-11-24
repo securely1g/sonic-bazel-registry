@@ -88,6 +88,20 @@ class ResourceTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "JVM heap reserve"):
                 resources.action_memory_mb({"memory_limit_bytes": 2048 * 1024**2})
 
+    def test_p4_compiler_and_dash_host_tool_have_bounded_parallelism(self):
+        limits = {"cpu_quota_cores": 8, "memory_limit_bytes": 16 * 1024**3}
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(resources, "capacity", return_value=limits), \
+                mock.patch.object(resources, "unified_cgroup", return_value="/runner"), \
+                mock.patch.object(resources.subprocess, "run", return_value=mock.Mock(returncode=0)) as child:
+            receipt = Path(tmp) / "receipt.json"
+            for module in ("p4c", "sonic-dash", "libnl3"):
+                with self.subTest(module=module):
+                    self.assertEqual(resources.run(receipt, ["registry-ci"], module), 0)
+                    args = child.call_args.args[0]
+                    self.assertEqual("--bazel-build-arg=--jobs=3" in args, module != "libnl3")
+                    self.assertEqual(json.loads(receipt.read_text()).get("bazel_jobs"),
+                                     3 if module != "libnl3" else None)
+
     def test_monitor_adds_memory_budget_and_preserves_child_failure(self):
         limits = {"cpu_quota_cores": 3, "cpu_affinity_count": 16, "memory_limit_bytes": 8 * 1024**3}
         with tempfile.TemporaryDirectory() as tmp, mock.patch.object(resources, "unified_cgroup", return_value="/runner"):

@@ -1,4 +1,4 @@
-"""Record runner capacity and build resource usage without setting Bazel budgets."""
+"""Set Bazel resource budgets and retain the runner's capacity and usage."""
 
 import argparse
 from fractions import Fraction
@@ -108,7 +108,7 @@ def action_memory_mb(limits: dict, heap_mb: int = 2048) -> int:
     return budget
 
 
-def run(output: Path, command: list[str]) -> int:
+def run(output: Path, command: list[str], module: str | None = None) -> int:
     group = unified_cgroup(Path("/proc/self/cgroup"))
     cgroup_root = Path("/sys/fs/cgroup")
     limits = capacity(group, cgroup_root)
@@ -117,6 +117,10 @@ def run(output: Path, command: list[str]) -> int:
     arguments = [f"--bazel-build-arg=--local_resources=memory={budget}"]
     receipt = {**limits, "action_memory_mb": budget, "jvm_heap_mb": 2048,
                "memory_before": memory_usage(cgroup)}
+    # P4C frontends can exceed Bazel's per-compile estimate, including the DASH host tool.
+    if module in {"p4c", "sonic-dash"}:
+        arguments.append("--bazel-build-arg=--jobs=3")
+        receipt["bazel_jobs"] = 3
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(receipt, indent=2) + "\n")
     status = subprocess.run([*command, *arguments]).returncode
@@ -137,6 +141,6 @@ if __name__ == "__main__":
     if not args.command:
         parser.error("a command to monitor is required")
     try:
-        sys.exit(run(args.output, args.command))
+        sys.exit(run(args.output, args.command, os.environ.get("CI_MODULE")))
     except (OSError, ValueError) as error:
         parser.exit(1, f"Runner resource check failed: {error}\n")
