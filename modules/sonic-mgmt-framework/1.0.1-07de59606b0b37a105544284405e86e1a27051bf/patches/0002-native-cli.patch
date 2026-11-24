@@ -1,0 +1,363 @@
+diff --git a/CLI/BUILD.bazel b/CLI/BUILD.bazel
+index 78b1702..80e2ca8 100644
+--- a/CLI/BUILD.bazel
++++ b/CLI/BUILD.bazel
+@@ -1,6 +1,4 @@
+-load("@bazel_skylib//rules:select_file.bzl", "select_file")
+ load("@rules_cc//cc:defs.bzl", "cc_test")
+-load("@rules_foreign_cc//foreign_cc:defs.bzl", "configure_make")
+ load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+ load("@rules_python//python:py_test.bzl", "py_test")
+ load("@sonic_build_infra//binary:keep_debug_info.bzl", "keep_debug_info")
+@@ -21,96 +19,19 @@ _LIBRARIES = [
+     "libtinyrl",
+ ]
+ 
+-cli_prepare(
+-    name = "klish_sources",
+-    srcs = glob(["klish/patches/klish-2.1.4/**"]),
+-    archive = "klish/klish-2.1.4.tgz",
+-    configure = "//CLI/bazel:configure.sh",
+-    mode = "klish",
+-    source_prefix = "CLI/klish/patches/klish-2.1.4",
+-    target_compatible_with = _AMD64,
+-    tools = "@sonic_build_infra//tools/build_tools:foreign_runtime",
+-)
++# Public interfaces now consume individual native compilation/link outputs.
++alias(name = "clish", actual = "@framework_klish//:clish")
+ 
+-# The same patched source, configure options and Make build as CLI/klish/Makefile.
+-# Only its build environment and install staging are explicit Bazel inputs.
+-configure_make(
++[alias(name = name + ".so", actual = "@framework_klish//:" + name + ".so") for name in _LIBRARIES]
++alias(name = "clish_plugin_clish.so", actual = "@framework_klish//:clish_plugin_clish.so")
++[alias(name = name + ".a", actual = "@framework_klish//:" + name + ".a") for name in _LIBRARIES + ["clish_plugin_clish"]]
++
++filegroup(
+     name = "klish",
+-    args = [
+-        "-C",
+-        "source",
+-    ],
+-    build_data = [
+-        "@sonic_build_infra//tools/build_tools:foreign_runtime",
+-        "@sonic_build_infra//tools/build_tools:configure_environment.sh",
+-        "//CLI/bazel:target_libraries",
+-    ],
+-    configure_command = "source/bazel-configure.sh",
+-    configure_in_place = True,
+-    configure_options = [
+-        "--enable-debug=no",
+-        "--prefix=/usr/local",
+-        "--bindir=/usr/sbin/cli",
+-        "--libdir=/usr/sbin/cli/.libs",
+-    ],
+-    configure_prefix = "/bin/sh",
+-    env = {
+-        "BAZEL_FOREIGN_TOOLS": "$(execpath @sonic_build_infra//tools/build_tools:foreign_runtime)",
+-        "BAZEL_CONFIGURE_ENV": "$(execpath @sonic_build_infra//tools/build_tools:configure_environment.sh)",
+-        "CLI_TARGET_ROOT": "$(execpath //CLI/bazel:target_libraries)",
+-        "PATH": "$(execpath @sonic_build_infra//tools/build_tools:foreign_runtime)/bin:$$PATH",
+-        "SOURCE_DATE_EPOCH": "0",
+-    },
+-    features = ["-sanitize_pwd"],
+-    lib_source = ":klish_sources",
+-    out_binaries = ["clish"],
+-    out_data_files = ["config.log"],
+-    out_shared_libs = [name + ".so.1.0.0" for name in _LIBRARIES] + ["clish_plugin_clish.so"],
+-    out_static_libs = [name + ".a" for name in _LIBRARIES] + ["clish_plugin_clish.a"],
+-    postfix_script = "\n".join([
+-        # Libtool's build-tree libraries embed the temporary .libs directory.
+-        # Its normal install/relink step replaces that with the deployed path
+-        # before build IDs and matching debug symbols are packaged.
+-        "$$BAZEL_FOREIGN_TOOLS/bin/make -C source install-libLTLIBRARIES install-binPROGRAMS DESTDIR=$$INSTALLDIR/staged",
+-        "mkdir -p $$INSTALLDIR/bin $$INSTALLDIR/lib $$INSTALLDIR/include",
+-        "cp $$INSTALLDIR/staged/usr/sbin/cli/clish $$INSTALLDIR/bin/",
+-        "cp -P $$INSTALLDIR/staged/usr/sbin/cli/.libs/*.so* $$INSTALLDIR/staged/usr/sbin/cli/.libs/*.a $$INSTALLDIR/lib/",
+-        "cp source/config.log $$INSTALLDIR/",
+-    ]),
++    srcs = [":clish", ":clish_plugin_clish.so"] + [":" + name + suffix for name in _LIBRARIES for suffix in [".so", ".a"]] + [":clish_plugin_clish.a"],
+     target_compatible_with = _AMD64,
+-    targets = [""],
+ )
+ 
+-select_file(
+-    name = "clish",
+-    srcs = ":klish",
+-    subpath = "klish/bin/clish",
+-)
+-
+-[
+-    select_file(
+-        name = name + ".so",
+-        srcs = ":klish",
+-        subpath = "klish/lib/" + name + ".so.1.0.0",
+-    )
+-    for name in _LIBRARIES
+-]
+-
+-select_file(
+-    name = "clish_plugin_clish.so",
+-    srcs = ":klish",
+-    subpath = "klish/lib/clish_plugin_clish.so",
+-)
+-
+-[
+-    select_file(
+-        name = name + ".a",
+-        srcs = ":klish",
+-        subpath = "klish/lib/" + name + ".a",
+-    )
+-    for name in _LIBRARIES + ["clish_plugin_clish"]
+-]
+-
+ # Use the same configuration for installed static archives and deployed ELF
+ # files, so splitting symbols does not compile the klish source tree twice.
+ [
+@@ -168,7 +89,6 @@ cli_prepare(
+         "renderer/scripts/*.py",
+         "renderer/templates/*",
+     ]),
+-    mode = "assets",
+     source_prefix = "CLI",
+     target_compatible_with = _AMD64,
+     tools = "@sonic_build_infra//tools/build_tools:foreign_runtime",
+diff --git a/CLI/bazel/BUILD.bazel b/CLI/bazel/BUILD.bazel
+index d9a3d0c..8f0f39f 100644
+--- a/CLI/bazel/BUILD.bazel
++++ b/CLI/bazel/BUILD.bazel
+@@ -4,7 +4,8 @@ load(":defs.bzl", "cli_unpack")
+ package(default_visibility = ["//CLI:__pkg__"])
+ 
+ exports_files([
+-    "configure.sh",
++    "klish.BUILD.bazel",
++    "klish_config.h.in",
+     "generator_order_test.py",
+     "installed_probe.py",
+     "verify_gdb.py",
+diff --git a/CLI/bazel/README.md b/CLI/bazel/README.md
+index c7bcfd6..39b40b1 100644
+--- a/CLI/bazel/README.md
++++ b/CLI/bazel/README.md
+@@ -7,11 +7,13 @@ remain available.
+ 
+ The build has separate actions for:
+ 
+-- `//CLI:klish_sources`: unpack the checked-in klish 2.1.4 archive with the
+-  registered BSD tar toolchain, apply the existing normal-diff patches with a
+-  declared GNU patch, and copy the existing added source files.
+-- `//CLI:klish`: build those sources with `rules_foreign_cc.configure_make`, the
+-  shared GCC Trixie toolchain and shared declared Autotools runtime.
++- `@framework_klish`: use the shared source-preparation rule to extract the
++  checked-in klish 2.1.4 archive, apply the existing replacement files and
++  unified patches, and expose individual source files.
++- `//CLI:klish`: build those sources with native `cc_library`,
++  `cc_shared_library` and `cc_binary` targets using the GCC Trixie toolchain.
++  The configuration template preserves the original options and the reviewed
++  target-toolchain probe; normal builds do not invoke Autotools or Make.
+ - `//CLI:installed_assets`: run the existing platform-feature script, macro
+   expansion, pipe insertion and default-command insertion, then validate every
+   installed command XML against the existing XSD with declared xmllint.
+@@ -27,9 +29,10 @@ compiler prefix maps remove action-directory paths from debugging information.
+ 
+ The CLI selects libxml2, libcurl, Python 3.13 embedding and cJSON development
+ inputs from the published build-infra APT set `framework_cli_target_debian`.
+-Its shared foreign runtime supplies GNU patch, xmllint and xsltproc for the
+-generators in the execution configuration. The isolated build-input tree
+-relocates Debian aliases inside the tree and uses UTC during the build.
++Compilation consumes the APT library targets directly through `CcInfo`.
++Declared execution tools supply xmllint and xsltproc for the asset generators.
++The separate installed-runtime test input relocates Debian aliases within its
++declared library tree and uses UTC.
+ 
+ The CLI's runtime Python imports use the root `framework_pip` lock (requests,
+ six, natsort and Jinja2); lxml is a generator dependency. A containing image must
+diff --git a/CLI/bazel/configure.sh b/CLI/bazel/configure.sh
+deleted file mode 100755
+index 0fd8821..0000000
+--- a/CLI/bazel/configure.sh
++++ /dev/null
+@@ -1,17 +0,0 @@
+-#!/bin/sh
+-# Adapt the existing klish configure inputs to the declared foreign_cc sysroot.
+-set -eu
+-cd "${0%/*}"
+-export PATH="$BAZEL_FOREIGN_TOOLS/bin:$PATH"
+-export PKG_CONFIG_LIBDIR="$CLI_TARGET_ROOT/usr/lib/x86_64-linux-gnu/pkgconfig:$CLI_TARGET_ROOT/usr/share/pkgconfig"
+-export PKG_CONFIG_SYSROOT_DIR="$CLI_TARGET_ROOT"
+-pkgconf="$BAZEL_FOREIGN_TOOLS/bin/pkgconf"
+-export CPPFLAGS="${CPPFLAGS:-} -I$CLI_TARGET_ROOT/usr/include -I$CLI_TARGET_ROOT/usr/include/cjson $($pkgconf --cflags libcurl python-3.13-embed)"
+-export LIBS="$($pkgconf --libs libcurl) $($pkgconf --libs python-3.13-embed) -lcjson"
+-# Keep debugging and source restoration reproducible across sandbox locations.
+-cli_maps="-ffile-prefix-map=$EXT_BUILD_ROOT=. -ffile-prefix-map=$PWD=."
+-export CFLAGS="${CFLAGS:-} -g $cli_maps"
+-export CXXFLAGS="${CXXFLAGS:-} -g $cli_maps"
+-export LDFLAGS="${LDFLAGS:-} -L$CLI_TARGET_ROOT/usr/lib/x86_64-linux-gnu -Wl,-rpath-link,$CLI_TARGET_ROOT/usr/lib/x86_64-linux-gnu"
+-/bin/sh ./autogen.sh
+-exec /bin/sh "$BAZEL_CONFIGURE_ENV" ./configure --with-libxml2="$CLI_TARGET_ROOT/usr" "$@"
+diff --git a/CLI/bazel/defs.bzl b/CLI/bazel/defs.bzl
+index 1634bc5..3dfb19b 100644
+--- a/CLI/bazel/defs.bzl
++++ b/CLI/bazel/defs.bzl
+@@ -36,9 +36,7 @@ cli_unpack = rule(
+ )
+ 
+ def _prepare_impl(ctx):
+-    # foreign_cc derives a source root from the tree artifact's parent. Give
+-    # it a dedicated parent so sibling generated CLI outputs are not inputs.
+-    output = ctx.actions.declare_directory(ctx.label.name + "/source" if ctx.attr.mode == "klish" else ctx.label.name)
++    output = ctx.actions.declare_directory(ctx.label.name)
+     manifest = ctx.actions.declare_file(ctx.label.name + ".inputs.json")
+     mappings = {}
+     for file in ctx.files.srcs:
+@@ -52,19 +50,12 @@ def _prepare_impl(ctx):
+         mappings[relative] = file.path
+     ctx.actions.write(manifest, json.encode(mappings))
+     args = ctx.actions.args()
+-    args.add(ctx.attr.mode)
++    args.add("assets")
+     args.add("--inputs", manifest)
+     args.add("--output", output.path)
+     args.add("--tools", ctx.file.tools.path)
+     inputs = ctx.files.srcs + [manifest, ctx.file.tools]
+     tools = []
+-    if ctx.attr.mode == "klish":
+-        bsdtar = ctx.toolchains[_TAR]
+-        args.add("--bsdtar", bsdtar.tarinfo.binary)
+-        args.add("--archive", ctx.file.archive)
+-        args.add("--configure", ctx.file.configure)
+-        inputs += [ctx.file.archive, ctx.file.configure]
+-        tools += bsdtar.default.files.to_list()
+     ctx.actions.run(
+         executable = ctx.executable._prepare,
+         arguments = [args],
+@@ -72,20 +63,16 @@ def _prepare_impl(ctx):
+         tools = tools,
+         outputs = [output],
+         env = {"LC_ALL": "C", "LANG": "C", "PYTHONHASHSEED": "0"},
+-        mnemonic = "CliPatchedSource" if ctx.attr.mode == "klish" else "CliCommandTree",
++        mnemonic = "CliCommandTree",
+     )
+     return [DefaultInfo(files = depset([output]))]
+ 
+ cli_prepare = rule(
+     implementation = _prepare_impl,
+     attrs = {
+-        "mode": attr.string(values = ["klish", "assets"], mandatory = True),
+         "srcs": attr.label_list(allow_files = True, mandatory = True),
+         "source_prefix": attr.string(mandatory = True),
+-        "archive": attr.label(allow_single_file = True),
+-        "configure": attr.label(allow_single_file = True),
+         "tools": attr.label(allow_single_file = True, cfg = "exec", mandatory = True),
+         "_prepare": attr.label(default = Label(":prepare"), executable = True, cfg = "exec"),
+     },
+-    toolchains = [_TAR],
+ )
+diff --git a/CLI/bazel/prepare.py b/CLI/bazel/prepare.py
+index ea063c0..72a1cd1 100644
+--- a/CLI/bazel/prepare.py
++++ b/CLI/bazel/prepare.py
+@@ -1,6 +1,5 @@
+ """Stage the existing CLI sources using declared upstream archive/XML tools."""
+ import argparse
+-import hashlib
+ import importlib
+ import json
+ import os
+@@ -9,8 +8,6 @@ import shutil
+ import subprocess
+ import tempfile
+ 
+-KLISH_SHA256 = "c3e9d65868a6fc07aa118c43dc9c43688d76ac3d2c8780599f3bbf1c2b5a1c33"
+-
+ 
+ def run(argv, **kwargs):
+     subprocess.run([str(item) for item in argv], check=True, **kwargs)
+@@ -46,26 +43,6 @@ def unpack(args):
+         localtime.symlink_to("Etc/UTC")
+ 
+ 
+-def klish(args):
+-    if hashlib.sha256(args.archive.read_bytes()).hexdigest() != KLISH_SHA256:
+-        raise RuntimeError("vendored klish archive differs from the reviewed Make source")
+-    args.output.mkdir(parents=True, exist_ok=True)
+-    run([args.bsdtar, "-xf", args.archive, "-C", args.output, "--strip-components=1", "--no-same-owner"])
+-    mapping = json.loads(args.inputs.read_text())
+-    for relative, source in sorted(mapping.items()):
+-        source = Path(source)
+-        destination = args.output / relative.removesuffix(".diff")
+-        if relative.endswith(".diff"):
+-            # These owner-maintained files use normal diff, not a repository patch.
+-            # Name the target explicitly and reject fuzz, reversal and partial apply.
+-            run(tool_command(args.tools, "patch") + ["--batch", "--forward", "--fuzz=0", "--no-backup-if-mismatch", str(destination), str(source)])
+-        else:
+-            destination.parent.mkdir(parents=True, exist_ok=True)
+-            shutil.copy2(source, destination)
+-    shutil.copy2(args.configure, args.output / "bazel-configure.sh")
+-
+-
+-
+ def assets(args):
+     # The working copy is action-private: legacy generators may write temporary
+     # files beside their Python sources, never into the source checkout.
+@@ -123,14 +100,11 @@ def main():
+     p.add_argument("--bsdtar", type=Path, required=True)
+     p.add_argument("--archives", type=Path, nargs="+", required=True)
+     p.add_argument("--output", type=Path, required=True)
+-    p = modes.add_parser("klish")
+-    for name in ("bsdtar", "archive", "inputs", "tools", "configure", "output"):
+-        p.add_argument("--" + name, type=Path, required=True)
+     p = modes.add_parser("assets")
+     for name in ("inputs", "tools", "output"):
+         p.add_argument("--" + name, type=Path, required=True)
+     args = parser.parse_args()
+-    {"unpack": unpack, "klish": klish, "assets": assets}[args.mode](args)
++    {"unpack": unpack, "assets": assets}[args.mode](args)
+ 
+ 
+ if __name__ == "__main__":
+diff --git a/tools/bazel/README.md b/tools/bazel/README.md
+index 9a94e89..f7073af 100644
+--- a/tools/bazel/README.md
++++ b/tools/bazel/README.md
+@@ -57,10 +57,11 @@ TARs, measures a no-op, independently edits REST source/UI templates/CLI assets,
+ and checks that only the corresponding outputs change. Restoring each input
+ must reproduce every original hash.
+ 
+-Klish uses libtool's install/relink step before packaging so its library search
+-paths name `/usr/sbin/cli/.libs`. A harmless configure-script edit also rebuilds
+-the same native sources in a new temporary directory and must preserve every
+-TAR hash; package checks reject temporary build paths in ELF search paths.
++Klish uses native C/C++ compilation and shared-library targets over the existing
++SONiC-patched 2.1.4 sources. Configuration is generated from the reviewed template;
++Autotools and Make are not build actions. The existing runtime, static archives
++and matching symbol TARs retain their installation interfaces. Package checks
++reject temporary build paths in installed ELF search paths.
+ 
+ `tools/bazel/check_consumer.py` also builds the public runtime/debug TARs from an
+ independent root, composing them with Common data as a Docker consumer does. It
+diff --git a/tools/bazel/check_incremental.py b/tools/bazel/check_incremental.py
+index 68f4d66..2f603aa 100644
+--- a/tools/bazel/check_incremental.py
++++ b/tools/bazel/check_incremental.py
+@@ -56,19 +56,6 @@ def main():
+         assert restored["sha256"] == result["baseline"]["sha256"], name
+         result[name + "_restore"] = restored
+         (OUTPUT / "incremental.json").write_text(json.dumps(result, indent=2) + "\n")
+-    # A harmless configure-script comment changes the declared foreign action,
+-    # rebuilding the same native sources in another temporary directory. This
+-    # catches libtool build-directory paths in deployed ELF files/build IDs.
+-    configure = Path("CLI/bazel/configure.sh")
+-    original = configure.read_bytes()
+-    try:
+-        configure.write_bytes(original + b"\n# Native CLI reproducibility probe.\n")
+-        result["cli_rebuild"] = snapshot("cli-rebuild")
+-        assert result["cli_rebuild"]["sha256"] == result["baseline"]["sha256"]
+-    finally:
+-        configure.write_bytes(original)
+-    result["cli_configure_restore"] = snapshot("cli-configure-restore")
+-    assert result["cli_configure_restore"]["sha256"] == result["baseline"]["sha256"]
+     (OUTPUT / "incremental.json").write_text(json.dumps(result, indent=2) + "\n")
+     print(json.dumps(result, indent=2))
+ 
