@@ -1,0 +1,15 @@
+From: Guohan Lu <lguohan@gmail.com>
+Subject: [PATCH] Identify the registered Rust dependency source by its commit
+
+Pin the shared Cargo graph that exposes the DASH HA derive and serializer APIs.
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-rust-deps",
+-    version = "0.0.5",
++    version = "0.0.5-4064a814e8530300a7acbad4a9aff0621e2fb98e",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
