@@ -4,6 +4,8 @@ This registry publishes versioned Bazel dependencies for SONiC. Scope each
 module registration or update PR to one module, including its metadata,
 sources, patches, overlays, and validation.
 
+The [upstream sync decision record](docs/registry-dependency-decisions.md) explains the module versions and public dependencies selected for PR #459.
+
 ## Module version convention
 
 Use these formats for new module versions:
