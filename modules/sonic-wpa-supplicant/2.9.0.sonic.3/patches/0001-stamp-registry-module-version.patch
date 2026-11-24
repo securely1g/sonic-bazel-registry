@@ -1,0 +1,14 @@
+From: Guohan Lu <lguohan@gmail.com>
+Subject: [PATCH] Match the published WPA registry version
+
+The owner declares the original module version. Stamp this source for
+the published release while keeping the owner's dependency selection.
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,4 +1,4 @@
+-module(name = "sonic-wpa-supplicant", version = "2.9.0.sonic.1", bazel_compatibility = [">=8.5.1", "<=8.5.1"])
++module(name = "sonic-wpa-supplicant", version = "2.9.0.sonic.3", bazel_compatibility = [">=8.5.1", "<=8.5.1"])
+ 
+ bazel_dep(name = "bazel_skylib", version = "1.9.2")
+ bazel_dep(name = "platforms", version = "1.1.0")
