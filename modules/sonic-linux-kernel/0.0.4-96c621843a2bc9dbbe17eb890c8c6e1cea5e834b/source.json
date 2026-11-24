@@ -21,7 +21,7 @@
     "tools/bazel/deb_test_support.py": "sha256-MUiEYi0MFw7SZW71X0uw2ddNg6Lfp/vesjHWp9KNxWs=",
     "tools/bazel/kbuild_generate.py": "sha256-wNwQUXcVxJIEtGIEbG+FNy8LTwhOCC+EEcluSOGOaWw=",
     "tools/bazel/kbuild_generate_test.py": "sha256-lb8iGMMrEMDyVyh4+ZtkrXixIZ0kANj7ZXmNlV8aGok=",
-    "tools/bazel/kbuild_tools.bzl": "sha256-bfFff8sE/Ta6kNjcLP8kNxBMjyw0+R1MujvQPCGFvIE=",
+    "tools/bazel/kbuild_tools.bzl": "sha256-8R9yg0mJgAKgbhQRy9aII3y4A5hHjSTPj5fPiTXgma8=",
     "tools/bazel/kernel.bzl": "sha256-OnG0UbHR6tlDPhZJtEyz+X0nY1CdBp6+7YimmFOGFXE=",
     "tools/bazel/kernel_action.py": "sha256-nj5xQc8EEDXjFr6hT6MXTjgQSw+qe1QS1qUwCvLk3kM=",
     "tools/bazel/kernel_action_test.py": "sha256-HzaxKXr9ay2aJU9+se3gGBmRpE1XvF77KQhVysiSjxw=",

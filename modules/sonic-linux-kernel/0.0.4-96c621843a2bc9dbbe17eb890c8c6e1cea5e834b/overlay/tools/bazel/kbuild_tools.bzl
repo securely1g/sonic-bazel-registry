@@ -119,7 +119,12 @@ def kernel_kbuild_tools(name, **kwargs):
     headers = name + "_headers"
     cc_library(
         name = headers,
-        hdrs = [Label("@kernel_prepared//:tool_headers"), Label("@kernel_debian_prepared//:kbuild_headers")],
+        hdrs = [Label("@kernel_prepared//:tool_headers"), Label("@kernel_debian_prepared//:kbuild_headers")] + select({
+            # tools/include/uapi/asm/bpf_perf_event.h includes this source
+            # through its relative ../../arch/arm64 path on AArch64.
+            "@platforms//cpu:aarch64": [_source("arch/arm64/include/uapi/asm/bpf_perf_event.h")],
+            "//conditions:default": [],
+        }),
         textual_hdrs = [_source(p) for p in ["scripts/genksyms/keywords.c", "tools/arch/x86/lib/inat.c", "tools/arch/x86/lib/insn.c"]],
         **common
     )
