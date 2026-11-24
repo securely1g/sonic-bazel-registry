@@ -56,8 +56,8 @@ FIPS_CROSS_VERSIONS = {FIPS_CROSS_VERSION, "0.0.6-1a8daf8dd8a3ad54de0e91a55b46fd
 
 # One approved in-place dependency update. The final Git tree pins every path,
 # byte and file mode under modules/, including the matching overlay checksums.
-DEPENDENCY_ALIGNMENT_BASE = "1b5f59a1479e12e23e2944d20f9df2a363f711ac"
-DEPENDENCY_ALIGNMENT_TREE = "118ea611c564a7ee6be78b454519e2db3be651c4"
+DEPENDENCY_ALIGNMENT_BASE = "a962946c481b5b6af4ec95dce81d352e724e1dd8"
+DEPENDENCY_ALIGNMENT_TREE = "02b7f3652af6e59f3fa6a28eff92bb82c66150db"
 
 # The original wrappers stage a private target executable, loader and libraries.
 ARM_DECLARED_RUNTIME_FIXTURES = {
