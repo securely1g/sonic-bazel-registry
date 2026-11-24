@@ -305,7 +305,7 @@ class PrivateMirrorWorkflowCommandTest(unittest.TestCase):
                 case "$1" in --preserve-env=*) preserved=${1#--preserve-env=};; esac
                 shift
             done
-            for name in DEBIAN_MIRROR_ROOT DEBIAN_SECURITY_MIRROR_ROOT DEBIAN_MIRROR_BASE_URL DEBIAN_SECURITY_MIRROR_BASE_URL GITHUB_ACTIONS; do
+            for name in CI_MODULE DEBIAN_MIRROR_ROOT DEBIAN_SECURITY_MIRROR_ROOT DEBIAN_MIRROR_BASE_URL DEBIAN_SECURITY_MIRROR_BASE_URL GITHUB_ACTIONS; do
                 case ",$preserved," in *,$name,*) ;; *) unset "$name";; esac
             done
             exec "$@"
@@ -314,6 +314,7 @@ class PrivateMirrorWorkflowCommandTest(unittest.TestCase):
             import json, os, sys
             with open(os.environ['CAPTURE'], 'a') as log:
                 log.write(json.dumps({'args': sys.argv[1:], 'github_actions': os.environ.get('GITHUB_ACTIONS'),
+                    'module': os.environ.get('CI_MODULE'),
                     'secrets': [os.environ.get(name) for name in
                     ('DEBIAN_MIRROR_ROOT', 'DEBIAN_SECURITY_MIRROR_ROOT', 'DEBIAN_MIRROR_BASE_URL',
                      'DEBIAN_SECURITY_MIRROR_BASE_URL') if os.environ.get(name)]}) + '\\n')
@@ -335,13 +336,15 @@ class PrivateMirrorWorkflowCommandTest(unittest.TestCase):
         for architecture, cross in (("amd64", False), ("arm64", True)):
             with self.subTest(architecture=architecture, cross=cross):
                 self.capture.unlink(missing_ok=True)
-                self.environment.update(CI_ARCHITECTURE=architecture, CI_CROSS_COMPILE=str(cross).lower())
+                module = "sonic-dash" if cross else "p4c"
+                self.environment.update(CI_ARCHITECTURE=architecture, CI_CROSS_COMPILE=str(cross).lower(), CI_MODULE=module)
                 result = self.run_step("Build and test through the registry")
                 self.assertEqual(result.returncode, 0, result.stderr)
                 command = json.loads(self.capture.read_text())
                 self.assertEqual(command["args"][:4], ["ci/runner_resources.py",
                     str(self.directory / "ci-artifacts/runner-resources.json"), "python3", "ci/private_mirrors.py"])
                 self.assertIn("ci/registry_ci.py", command["args"])
+                self.assertEqual(command["module"], module)
                 self.assertEqual(command["secrets"], list(ROOT_SECRETS.values()))
                 self.assertEqual(command["github_actions"], "true")
                 self.assertNotIn("debian-fixture", " ".join(command["args"]))
