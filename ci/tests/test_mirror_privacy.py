@@ -373,6 +373,30 @@ class PrivacyTest(unittest.TestCase):
                 self.assert_rejected_without_disclosure()
                 path.unlink()
 
+    def test_pinned_go_fixture_requires_exact_content_and_scans_all_raw_bytes(self):
+        name = "./usr/share/go-1.26/src/archive/tar/testdata/verified.tar"
+        archive = self.artifacts / "golang-1.26-src.runtime.tar"
+        value = b"public parser fixture"
+        for case, data, expected, accepted in (
+                ("verified", value, value, True),
+                ("same size edit", value[:-1] + b"!", value, False),
+                ("size edit", value + b"!", value, False),
+                ("private marker", HOST.encode(), HOST.encode(), False)):
+            with self.subTest(case=case), mock.patch.dict(privacy.GO_SOURCE_TEST_FIXTURES, {
+                    name: (len(expected), hashlib.sha256(expected).hexdigest())}):
+                archive.write_bytes(tar_bytes(name, data))
+                if accepted:
+                    self.redactor.scrub_and_scan(self.artifacts)
+                else:
+                    self.assert_rejected_without_disclosure()
+        archive.write_bytes(tar_bytes(name, value))
+        self.assert_rejected_without_disclosure()
+        other = self.artifacts / "other.tar"
+        archive.rename(other)
+        with mock.patch.dict(privacy.GO_SOURCE_TEST_FIXTURES, {
+                name: (len(value), hashlib.sha256(value).hexdigest())}):
+            self.assert_rejected_without_disclosure()
+
     def test_empty_archive_suffixes_and_whiteouts_are_payload_free(self):
         names = (".wh.changelog.gz", "empty.gz", "empty.zip", "empty.xz")
         for name in names:

@@ -103,7 +103,11 @@
   "test_runtime_preparation": {
     "script": "tools/bazel/runtime/prepare.py",
     "sha256": "719e798469389a8a9d879e5057b6a1f83b302521f5142954ba2cd80ca0c10f66",
-    "apt_mirror_protocol": "locked-runtime-v1"
+    "apt_mirror_protocol": "locked-runtime-v1",
+    "apt_lock": {
+      "label": "@sonic_build_infra//apt:apt.lock.json",
+      "dependency_set": "trixie"
+    }
   },
   "host_platforms": {
     "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
