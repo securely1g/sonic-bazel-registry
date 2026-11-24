@@ -57,6 +57,10 @@
   "test_runtime_preparation": {
     "script": "tools/bazel/runtime/prepare.py",
     "sha256": "1cd2cdc42f7b3158579d91d96380f6d06a9142bb7a663e5c36243b158b080654",
-    "apt_mirror_protocol": "locked-runtime-v1"
+    "apt_mirror_protocol": "locked-runtime-v1",
+    "apt_lock": {
+      "label": "@sonic_build_infra//apt:apt.lock.json",
+      "dependency_set": "pi_deps"
+    }
   }
 }

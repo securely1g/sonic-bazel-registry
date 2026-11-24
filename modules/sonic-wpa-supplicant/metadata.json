@@ -1,6 +1,7 @@
 {
   "homepage": "https://w1.fi/wpa_supplicant/",
   "versions": [
-    "2.9.0.sonic.2"
+    "2.9.0.sonic.2",
+    "2.9.0.sonic.3"
   ]
 }
