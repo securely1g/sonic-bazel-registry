@@ -1,0 +1,9 @@
+{
+  "url": "https://github.com/securely1g/sonic-wpa-supplicant/archive/372949541598873fd9f42473687f24d13c45535c.tar.gz",
+  "integrity": "sha256-Z8/NXQCKLPXIXkuTDlY26bB1u73e+WauiIsKff1R0gU=",
+  "strip_prefix": "sonic-wpa-supplicant-372949541598873fd9f42473687f24d13c45535c",
+  "patches": {
+    "0001-stamp-registry-module-version.patch": "sha256-wYR1V6MTd/BDk0UH8sv32EynmZ52xWRSk8SoG8eMNBw="
+  },
+  "patch_strip": 1
+}
