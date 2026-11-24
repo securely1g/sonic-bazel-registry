@@ -1,0 +1,18 @@
+From: Guohan Lu <lguohan@gmail.com>
+Subject: [PATCH] Give the registered sonic-platform-common source its commit-qualified identity
+
+The registry selects the merged owner revision by its full Git commit.
+Preserve the owner's build rules and dependencies.
+
+Source commit: 74d0685cf303b1a08099b378d2428f4a8e6d85e0
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-platform-common",
+-    version = "1.0.1",
++    version = "1.0.1-74d0685cf303b1a08099b378d2428f4a8e6d85e0",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
