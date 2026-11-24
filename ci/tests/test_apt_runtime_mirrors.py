@@ -176,6 +176,9 @@ class AptRuntimeMirrorsTests(unittest.TestCase):
             source_lock.write_text(json.dumps(lock))
             catalog = registry_ci.runtime_apt_compatibility_input(source_lock, "pi_deps", arch)
             self.assertEqual(catalog["apt_lock_sha256"], hashlib.sha256(source_lock.read_bytes()).hexdigest())
+            inline = registry_ci.runtime_apt_compatibility_input(source_lock, "pi_deps", arch, inline_hub_lock=True)
+            hub = next(iter(inline["moduleExtensions"].values()))["general"]["generatedRepoSpecs"]
+            self.assertEqual(hub["pi_deps"]["attributes"]["lock_content"], hub["ci_apt_lock"]["attributes"]["content"])
             selected = owner["select_runtime"](catalog, arch)
             self.assertEqual(set(selected), {*owner["RUNTIME_ROOTS"], "runtime-data"})
             for name, actual in selected.items():

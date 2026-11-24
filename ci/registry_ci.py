@@ -366,7 +366,8 @@ def validate_entry(root: Path, module: str, version: str) -> dict:
                 "Invalid test_runtime_preparation fields")
         if "apt_lock" in preparation:
             lock = preparation["apt_lock"]
-            require(isinstance(lock, dict) and set(lock) == {"label", "dependency_set"}
+            require(isinstance(lock, dict) and {"label", "dependency_set"} <= set(lock) <= {"label", "dependency_set", "inline_hub_lock"}
+                    and isinstance(lock.get("inline_hub_lock", False), bool)
                     and isinstance(lock["label"], str) and LABEL.fullmatch(lock["label"])
                     and isinstance(lock["dependency_set"], str) and re.fullmatch(r"[a-z][a-z0-9_]*", lock["dependency_set"]),
                     "apt_lock requires an exported Bazel source label and dependency_set")
@@ -1451,7 +1452,8 @@ def require_test_container(image_reference: str | None) -> None:
             "Test runtime preparation requires a Debian Trixie container")
 
 
-def runtime_apt_compatibility_input(apt_lock: Path, dependency_set: str, architecture: str) -> dict:
+def runtime_apt_compatibility_input(apt_lock: Path, dependency_set: str, architecture: str,
+                                    *, inline_hub_lock: bool = False) -> dict:
     """Present a pinned APT v2 package set in the format read by published owner helpers."""
     content = apt_lock.read_bytes()
     lock = json.loads(content)
@@ -1481,6 +1483,8 @@ def runtime_apt_compatibility_input(apt_lock: Path, dependency_set: str, archite
                             "attributes": {"content": json.dumps(document, sort_keys=True)}}
     specs[dependency_set] = {"repoRuleId": "ci_compat%hub", "attributes": {
         "depset_name": dependency_set, "lock_file": "@@registry_ci+apt+ci_apt_lock//:apt.lock.json"}}
+    if inline_hub_lock:
+        specs[dependency_set]["attributes"]["lock_content"] = specs["ci_apt_lock"]["attributes"]["content"]
     return {"apt_lock_sha256": hashlib.sha256(content).hexdigest(), "moduleExtensions": {
         "@@registry_ci//apt:extensions.bzl%apt": {"general": {"generatedRepoSpecs": specs}}}}
 
@@ -1505,8 +1509,10 @@ def prepare_test_runtime(config: dict, source: Path, consumer: Path, artifacts: 
     if apt_lock is not None:
         exported = artifacts / "test-runtime.apt.lock.json"
         shutil.copy2(apt_lock, exported)
-        compatibility_input = runtime_apt_compatibility_input(exported, preparation["apt_lock"]["dependency_set"],
-                                                              architecture)
+        lock_config = preparation["apt_lock"]
+        compatibility_input = runtime_apt_compatibility_input(
+            exported, lock_config["dependency_set"], architecture,
+            inline_hub_lock=lock_config.get("inline_hub_lock", False))
         lock = artifacts / "test-runtime.owner-compatibility.json"
         lock.write_text(json.dumps(compatibility_input, sort_keys=True) + "\n")
     lock_hash = hashlib.sha256(lock.read_bytes()).hexdigest()
