@@ -1,0 +1,15 @@
+From: Guohan Lu <lguohan@gmail.com>
+Subject: [PATCH] Identify the registered Rust dependency source by its commit
+
+Host Services needs the shared Cargo graph with sysinfo 0.40 and procfs 0.18.
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-rust-deps",
+-    version = "0.0.5",
++    version = "0.0.5-2510c15a401970f362465171d0228e69db5259be",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
