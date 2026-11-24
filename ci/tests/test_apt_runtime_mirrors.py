@@ -1,6 +1,7 @@
 import hashlib
 import importlib.util
 import json
+import runpy
 from pathlib import Path
 import subprocess
 import sys
@@ -148,6 +149,45 @@ class AptRuntimeMirrorsTests(unittest.TestCase):
         self.assertFalse(any("--download-only" in call.args[0] for call in run.call_args_list))
         self.assertEqual(json.loads((self.root / "result.json").read_text())["result"], "incomplete")
 
+    def test_pi_uses_its_architecture_specific_snapshot_set_from_the_exported_lock(self):
+        source = Path(__file__).resolve().parents[2] / "modules/p4lang-pi/0.1.3.sonic.7/overlay"
+        owner = runpy.run_path(str(source / "tools/bazel/runtime/prepare.py"))
+        lock = {"version": 2, "packages": {}, "dependency_sets": {"pi_deps": {"sets": {}}},
+                "sources": {"trixie": {"uris": [SOURCE]}}}
+
+        def package(name, arch, version, deps):
+            key = f"{name}:{arch}={version}"
+            lock["packages"][key] = {
+                "name": name, "architecture": arch, "version": version, "suite": "trixie",
+                "depends_on": deps, "filename": f"pool/main/{name}_{version}_{arch}.deb",
+                "sha256": hashlib.sha256(key.encode()).hexdigest(),
+            }
+            return key
+
+        common = package("runtime-data", "all", "1", [])
+        for arch in ("amd64", "arm64"):
+            group = lock["dependency_sets"]["pi_deps"]["sets"][arch] = {}
+            for root in owner["RUNTIME_ROOTS"]:
+                package(root, arch, "1", [common])
+                package(root, arch, "2", [])  # Available in the catalog, outside pi_deps.
+                group[f"{root}:{arch}"] = "1"
+        for arch in ("amd64", "arm64"):
+            source_lock = self.root / "apt.lock.json"
+            source_lock.write_text(json.dumps(lock))
+            catalog = registry_ci.runtime_apt_compatibility_input(source_lock, "pi_deps", arch)
+            self.assertEqual(catalog["apt_lock_sha256"], hashlib.sha256(source_lock.read_bytes()).hexdigest())
+            selected = owner["select_runtime"](catalog, arch)
+            self.assertEqual(set(selected), {*owner["RUNTIME_ROOTS"], "runtime-data"})
+            for name, actual in selected.items():
+                expected = lock["packages"][f"{name}:{'all' if name == 'runtime-data' else arch}=1"]
+                self.assertEqual(actual["sha256"], expected["sha256"])
+                self.assertEqual(actual["urls"], [f"{SOURCE}/{expected['filename']}"])
+            self.assertIn(f"arch={arch}", owner["snapshot_sources"](selected, arch))
+        lock["packages"][common]["sha256"] = "invalid"
+        source_lock.write_text(json.dumps(lock))
+        with self.assertRaisesRegex(ValueError, "Invalid locked APT archive"):
+            registry_ci.runtime_apt_compatibility_input(source_lock, "pi_deps", "amd64")
+
     def test_registry_hook_keeps_owner_bytes_and_uses_the_same_arm_guest(self):
         source = self.root / "source"
         source.mkdir()
@@ -157,7 +197,10 @@ class AptRuntimeMirrorsTests(unittest.TestCase):
         consumer = self.root / "consumer"
         consumer.mkdir()
         lock = consumer / "MODULE.bazel.lock"
-        lock.write_text("{}")
+        lock.write_text('{"moduleExtensions": {}}')
+        declared = self.root / "apt.lock.json"
+        declared.write_text(json.dumps({"version": 2, "sources": {}, "packages": {},
+                                        "dependency_sets": {"trixie": {"sets": {"arm64": {}}}}}))
         artifacts = self.root / "artifacts"
         artifacts.mkdir()
         prefix = ["/guest-executor", "--bind", str(consumer), "--bind", str(artifacts), "--"]
@@ -169,7 +212,7 @@ class AptRuntimeMirrorsTests(unittest.TestCase):
             calls.append(command)
             if str(helper) in command and "--owner-script" not in command:
                 receipt = {"architecture": "arm64", "image_reference": image,
-                           "lock_sha256": hashlib.sha256(lock.read_bytes()).hexdigest(),
+                           "lock_sha256": hashlib.sha256(Path(command[command.index("--lock") + 1]).read_bytes()).hexdigest(),
                            "preserved_base_packages": {}, "runtime_libraries": {}}
                 identity = {k: v for k, v in receipt.items()
                             if k not in ("preserved_base_packages", "lock_sha256")}
@@ -181,8 +224,16 @@ class AptRuntimeMirrorsTests(unittest.TestCase):
                 mock.patch.object(registry_ci, "require_test_container"), \
                 mock.patch.object(registry_ci, "run_logged", side_effect=execute):
             registry_ci.prepare_test_runtime({"test_runtime_preparation": {"script": "prepare.py", "sha256": sha,
-                                                                          "apt_mirror_protocol": "locked-runtime-v1"}},
-                                             source, consumer, artifacts, "arm64", image, prefix)
+                                                                          "apt_mirror_protocol": "locked-runtime-v1",
+                                                                          "apt_lock": {"dependency_set": "trixie"}}},
+                                             source, consumer, artifacts, "arm64", image, prefix, apt_lock=declared)
+        copied = artifacts / "test-runtime.apt.lock.json"
+        self.assertEqual(copied.read_bytes(), declared.read_bytes())
+        self.assertEqual((artifacts / "test-runtime.MODULE.bazel.lock").read_bytes(), lock.read_bytes())
+        derived = artifacts / "test-runtime.owner-compatibility.json"
+        self.assertNotEqual(derived.read_bytes(), copied.read_bytes())
+        self.assertEqual(json.loads(derived.read_text())["apt_lock_sha256"], hashlib.sha256(copied.read_bytes()).hexdigest())
+        self.assertEqual([Path(c[c.index("--lock") + 1]) for c in calls], [derived, derived])
         self.assertEqual(len(calls), 2)
         self.assertEqual(calls[0][:len(prefix) - 1], prefix[:-1])
         self.assertIn(str(self.config), calls[0][:calls[0].index("--")])
