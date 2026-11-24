@@ -4,6 +4,8 @@
 
 These selections use source ancestry, packaged targets and current consumers. Version suffixes below abbreviate the source commit. Each selected version links to its full registry entry.
 
+The selections cover the entries published at `f2c122b9`. The refreshed base, `1b5f59a1`, includes the seven subsequent releases from PRs #460–465. Those releases retain their published dependencies, including Linux Kernel 0.0.4’s Build Infra 0.0.45 pin and the shared Rust 0.0.5 APIs for DASH HA. The one-time CI exception covers the original 262 module-file edits and one historical SWSS Common 0.0.9 test fixture, which uses the selected Build Infra to validate the YANG dependency.
+
 | Module | Candidates reviewed | Selection | Reason |
 | --- | --- | --- | --- |
 | `sonic-swss-common` | `0.0.8-a045092`, `0.0.9-334389e`, `0.0.8-2a4ddd0` | [`0.0.8-2a4ddd0`](../modules/sonic-swss-common/0.0.8-2a4ddd070edb719f2e969a880a5cfff711e64e72/) | The final `0.0.8` source is six commits ahead of the `0.0.9` source and includes its changes. Twelve components had requested `0.0.9`. |
