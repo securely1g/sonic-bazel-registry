@@ -1,0 +1,15 @@
+{
+  "url": "https://github.com/securely1g/sonic-mgmt-framework/archive/07de59606b0b37a105544284405e86e1a27051bf.tar.gz",
+  "strip_prefix": "sonic-mgmt-framework-07de59606b0b37a105544284405e86e1a27051bf",
+  "integrity": "sha256-R2wmdKFGx8N9YNv9GmU/yWEv4jHqbYPjCkMLTP2RxTI=",
+  "patches": {
+    "0001-normalize-klish-patches.patch": "sha256-pv30ks+oA5VwbQA7AJcLPgk52X2GgCOPtu5Aqw1bEzU=",
+    "0002-native-cli.patch": "sha256-iqgU9JdedR831K6DeByxs7+mKs9mODmQRCsRY56uQ9w=",
+    "0003-module-and-consumer.patch": "sha256-zP6PPCKlxLejXno2/cTp0PdlHzFLNUIrAl4nEjJTVpU="
+  },
+  "patch_strip": 1,
+  "overlay": {
+    "CLI/bazel/klish.BUILD.bazel": "sha256-QDdISrg9vUVS+YwXU5nLoknUI9e3li6QzeDScISRJXc=",
+    "CLI/bazel/klish_config.h.in": "sha256-BC4iVz6glnDKDjeIDtNuJi34mCPYechG30ISUiP63KE="
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "architectures": [
+    "amd64"
+  ],
+  "consumer_deps": [],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
+  },
+  "build_targets": [
+    "//:image_payload",
+    "@sonic-mgmt-framework//dist:runtime",
+    "@sonic-mgmt-framework//dist:runtime.debug_symbols",
+    "@sonic-mgmt-framework//dist:rest_binaries",
+    "@sonic-mgmt-framework//dist:ui",
+    "@sonic-mgmt-framework//CLI:runtime",
+    "@sonic-mgmt-framework//CLI:runtime.debug_symbols"
+  ],
+  "test_targets": [
+    "@sonic-mgmt-framework//dist:package_test",
+    "@sonic-mgmt-framework//dist:rest_runtime_test",
+    "@sonic-mgmt-framework//CLI:installed_runtime_test",
+    "@sonic-mgmt-framework//tools/bazel:models_repro_test",
+    "@sonic-mgmt-framework//tools/bazel:codegen_config_test",
+    "@sonic-mgmt-framework//rest/server:server_test",
+    "@sonic-mgmt-framework//tools/openapi_tests:generator_test",
+    "@sonic-mgmt-framework//CLI:cli_client_test",
+    "@sonic-mgmt-framework//CLI:generator_order_test",
+    "@sonic-mgmt-framework//CLI:rest_tls_test"
+  ],
+  "integration_test_module": "tests/consumer"
+}
