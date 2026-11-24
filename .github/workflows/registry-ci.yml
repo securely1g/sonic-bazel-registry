@@ -85,6 +85,10 @@ jobs:
             # main already contains this push. Comparing with current main
             # would silently bless edits/deletions of published entries.
             PUBLISHED_SHA="$BEFORE_SHA"
+            # A force push can leave the previous tip outside the checkout's history.
+            if ! git cat-file -e "${BEFORE_SHA}^{commit}" 2>/dev/null; then
+              git fetch --no-tags "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git" "$BEFORE_SHA"
+            fi
             POLICY_FLAGS+=(--push)
           else
             # Use the maintained repository, including for forks and stacked
