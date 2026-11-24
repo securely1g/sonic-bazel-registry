@@ -5,11 +5,11 @@
   "overlay": {
     ".bazelrc": "sha256-fy+ML8+uyjYUjvhrxiGRoqwJiejqNeSCa5LDTSDPoF4=",
     "BUILD.bazel": "sha256-4kfFHwh3qQDTebqVhIBYAchPxlc8eWUq90BPy4xQy7g=",
-    "MODULE.bazel": "sha256-hBm7DKuOXm1SdtFuWRALVVLMTavf9KoIkEqBtyo60ag=",
+    "MODULE.bazel": "sha256-7IJgkHUlH/7imAY7ymy78D9GpkkK+t0BI7adGrhZQ8c=",
     "README.bazel.md": "sha256-BxOkzshdM7QXPEuGXh+2zrFHjwxZT7TkOLu+ocODD5Q=",
     "bazel/0003-procan-namespace-nul.patch": "sha256-N3LNqgqQSI0+ygpR0HqN3E59DcICFZtgLHh1Vbf7Tcg=",
     "bazel/enable_readline.patch": "sha256-AuLt7bFWMDMdKiTRYPBSo0uZ2CjQae/86mCK7OMF9mg=",
     "bazel/socat.BUILD.bazel": "sha256-vmtxEDFvzXTH2wAfGZpZqSXpgmlTxIGaRP+NMXucFjM=",
-    "socat_package_test.py": "sha256-oJDvEO9/qBS0siBLr9j2NRnkwrcZzYA7FdtAHJzanwA="
+    "socat_package_test.py": "sha256-vCv54Gajr7L0WxlgzW7wT8NbVdLs+Jkn9Ie3TA9yb3o="
   }
 }

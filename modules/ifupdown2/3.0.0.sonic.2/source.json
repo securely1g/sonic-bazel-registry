@@ -4,7 +4,7 @@
   "strip_prefix": "sonic-buildimage-40ab930912c5586e245b8c34e770be9729b2e4b0/src/ifupdown2",
   "overlay": {
     "BUILD.bazel": "sha256-5SFXcK7ci+hfPQIrR4heXqEaIUrNRHilZSojuOQoCgI=",
-    "MODULE.bazel": "sha256-ALC0GRK55MfwnTmG0eH5BXkySnwVretZwKN/ZIc4pUU=",
+    "MODULE.bazel": "sha256-nLVY0HZRwLS4jDu6PvPlUItY10Z+K06vQbH0fCZ+Wok=",
     "changelog.py": "sha256-bFRIXfA/BiRM+LfUv4tmaPnQ6ff3gw/zl4Tv/giDhVQ=",
     "package.bzl": "sha256-ukVhYznb3RUv97SgPVekJSIdYkBmpK1/kyCZHnCW3zU=",
     "rst_manpage.py": "sha256-snxz5TOoH52d9OJ6unHblZNRO8nxOjpgpPmSaEjGM2U=",

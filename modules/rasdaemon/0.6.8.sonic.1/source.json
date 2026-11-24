@@ -4,7 +4,7 @@
   "strip_prefix": "sonic-buildimage-40ab930912c5586e245b8c34e770be9729b2e4b0/src/rasdaemon",
   "overlay": {
     "BUILD.bazel": "sha256-T73NCQlxhVt+I57Oh0AQTSLUELIv8IpklHvbmRm/lek=",
-    "MODULE.bazel": "sha256-3L8VnKdsu40mTSFJHH9TiGRRzEH6mWwm5W1xt3Q+o+I=",
+    "MODULE.bazel": "sha256-8rCvzfzPEqTxusSJPJCbHLZlmtOs3rtqZFyYPquhhcc=",
     "config.h": "sha256-i/kAmLiNpRi6rtnEKIKjZPrLauic+QZB3xUkKgRkKPk=",
     "source.BUILD.bazel": "sha256-6Lq0e3F2kZDRwudAbiEunD1GlpSqUXM5by5+O4yj0DQ=",
     "bazel/installation_test.py": "sha256-Lehi9oni7tK1PCVtbA+Cfd6u6+Sik23yV8PVh9CwBIU="

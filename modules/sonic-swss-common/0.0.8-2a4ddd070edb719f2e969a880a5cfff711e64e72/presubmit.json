@@ -6,7 +6,7 @@
   "consumer_deps": [
     {
       "name": "sonic-build-infra",
-      "version": "0.0.37-d31541a95fdf477302f1b109f2105eee81c86617",
+      "version": "0.0.44-35726399908a3beb947174e9359f902077928289",
       "repo_name": "sonic_build_infra"
     },
     {
@@ -15,7 +15,7 @@
     },
     {
       "name": "rules_distroless",
-      "version": "0.9.4.sonic.21"
+      "version": "0.9.4.sonic.26"
     },
     {
       "name": "rules_cc",
@@ -23,16 +23,16 @@
     },
     {
       "name": "rules_go",
-      "version": "0.65.0.sonic.1",
+      "version": "0.65.0.sonic.2",
       "repo_name": "io_bazel_rules_go"
     },
     {
       "name": "libnl3",
-      "version": "3.7.0.sonic.7"
+      "version": "3.7.0.sonic.10"
     },
     {
       "name": "sonic-rust-deps",
-      "version": "0.0.5-dd364f207d7b320a5af12c81da6d10893f292205",
+      "version": "0.0.5-5bf69bc0a7d9ea9f4a5606264be592867cd29d1e",
       "repo_name": "sonic_rust_deps"
     },
     {

@@ -11,7 +11,7 @@
     ".bazelrc": "sha256-eWNvsdlx7rkWwPCx7OFAM1IWNUq+1/1tQCDCZj5Ap64=",
     ".bazelversion": "sha256-vlEH0zbCxnyjNmGd+GJItoepKbYme0QCEAZsUVzqBjo=",
     "BUILD.bazel": "sha256-QGJxvhg0uQffsHxHLQmH08ZPIP+gSQc7MSU0+Gtou28=",
-    "MODULE.bazel": "sha256-ey6PobnF2z2yF4Q5Rt68nhXZaD8e32Ncv1Pj1a7/Oo4=",
+    "MODULE.bazel": "sha256-fUS0WKSh+FOEPCLlgjfJzpTqZ7HTu70amHSaxQw2t4Q=",
     "bazel/0002-use-boost-1.83.patch": "sha256-IQ5pU6p80HUUeCbX9Fdn2tPQQV8LX82p1HcxKMb9oFA=",
     "bazel/0003-remove-protobuf-from-debian-dependency.patch": "sha256-tGtCqm7Yl26pdBMuq9MdUp4057SPIdE9Iw4DBiTZ2Eg=",
     "bazel/0004-remove-init-file.patch": "sha256-t1+cneJf4rm4Y/eiyjFd658TfIbms48i2k4ZL965vnc=",

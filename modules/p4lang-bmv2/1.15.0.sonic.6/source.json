@@ -6,7 +6,7 @@
     ".bazelrc": "sha256-eWNvsdlx7rkWwPCx7OFAM1IWNUq+1/1tQCDCZj5Ap64=",
     ".bazelversion": "sha256-vlEH0zbCxnyjNmGd+GJItoepKbYme0QCEAZsUVzqBjo=",
     "BUILD.bazel": "sha256-4oJlLzSE4+JnL4a6Bh6y3GyEJ0qVQpWyGBmmARGtW10=",
-    "MODULE.bazel": "sha256-UGVCXTFrXZ8pp7QHOjnF+hUL6AVyb13Pj7pryfOZEZI=",
+    "MODULE.bazel": "sha256-Qnw672/PkdG+Gtpq3P8b9+tejr5mk4e+BD84AWKH9+M=",
     "bazel/bm_config.h.in": "sha256-eGarfH0RmY2vOdR+t42sFoe8xKJnwF/Oc3nwzd2XwIk=",
     "bazel/bmv2.BUILD.bazel": "sha256-Z9vDIWYAYZQ1D+yMLS1or6SMlDXdLygQ1CxwcaKGunM=",
     "bazel/hold-cli-endpoint-reservations.patch": "sha256-WuTyja0kmT23vUtzNDKxnaNljCZH29QQeuBuSQmoKHw=",

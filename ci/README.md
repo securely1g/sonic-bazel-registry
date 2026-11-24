@@ -1144,14 +1144,14 @@ target platforms, retaining other constraints from the declared parents. This
 also overrides host-derived aliases that would otherwise select AMD64 output
 for an ARM64 request. Published Sonic Trixie platforms keep their toolchains only
 when the exact graph-selected `sonic-build-infra` version is in
-`cross_toolchain.py`'s verified registration allowlist. Its six immutable entries
-declare AMD64 execution, ARM64 targets and Trixie; a familiar platform label or
-newer version alone does not establish that capability. All other consumers,
+`cross_toolchain.py`'s verified registration allowlist. These toolchains
+declare AMD64 execution, ARM64 targets and Trixie. Net-SNMP uses the
+registered GCC 12 Bookworm toolchain from its verified Infra release. Other consumers,
 including native-only infra 0.0.6 and SAI's 0.0.13, use a CI-local legacy C++
 adapter compatible with the selected `rules_cc`. Both declared platform parents
 remain inherited; the adapter's separate distribution constraint is additional.
 The adapter uses the native-to-ARM GCC14.2 compiler and Trixie sysroot from
-immutable `sonic-build-infra@0.0.37-316e298e77ab5cfa69af9b0c05ec24d5d94bbe1e`.
+`sonic-build-infra@0.0.44-35726399908a3beb947174e9359f902077928289`.
 The provider resolves separately and its JVM stops after preparation. Its
 dependencies do not enter the consumer graph. Compiler/sysroot files are declared
 action inputs, and the consumer's selected module versions must remain equal

@@ -54,6 +54,11 @@ RUNNERS = {
 FIPS_CROSS_VERSION = "0.0.6-18a778db501d455f8a1b6d1e3ef8e17121661177"
 FIPS_CROSS_VERSIONS = {FIPS_CROSS_VERSION, "0.0.6-1a8daf8dd8a3ad54de0e91a55b46fd5bbd206763"}
 
+# One approved in-place dependency update. The final Git tree pins every path,
+# byte and file mode under modules/, including the matching overlay checksums.
+DEPENDENCY_ALIGNMENT_BASE = "f2c122b9bb0e98cc42b1228ff0315f8d75a721c2"
+DEPENDENCY_ALIGNMENT_TREE = "868d25546021cb838125a1f6b0eaf39b87d75825"
+
 # The original wrappers stage a private target executable, loader and libraries.
 ARM_DECLARED_RUNTIME_FIXTURES = {
     ("sonic-sairedis", "0.0.5-33443ea1666a23812365d03fb959066ee84c9aa0"): {
@@ -600,8 +605,8 @@ def check_published_files(root: Path, path: str, published: str, head: str) -> N
 
 
 def check_version_policy(root: Path, published: str, head: str,
-                         push: bool = False) -> set[tuple[str, str]]:
-    """Protect published entries and allow one candidate across an entire PR stack."""
+                         push: bool = False) -> tuple[set[tuple[str, str]], set[tuple[str, str]]]:
+    """Protect published entries and return any in-place updates that must be tested."""
     for name, revision in (("published", published), ("head", head)):
         require(isinstance(revision, str) and re.fullmatch(r"[0-9a-fA-F]{40,64}", revision) is not None,
                 f"{name} must be a full commit SHA")
@@ -614,7 +619,12 @@ def check_version_policy(root: Path, published: str, head: str,
     ancestor = published if push else git(root, "merge-base", published, head).strip()
     changed = git(root, "diff", "--name-only", "--no-renames", "-z", ancestor, head, "--", "modules/")
     modules = {PurePosixPath(name).parts[1] for name in changed.split("\0") if name}
+    approved_alignment = (
+        published == DEPENDENCY_ALIGNMENT_BASE
+        and git(root, "rev-parse", f"{head}:modules").strip() == DEPENDENCY_ALIGNMENT_TREE
+    )
     published_entries = set()
+    aligned_entries = set()
     for module in sorted(modules):
         require(NAME.fullmatch(module) is not None, f"Invalid module name: {module}")
         path = f"modules/{module}"
@@ -650,13 +660,17 @@ def check_version_policy(root: Path, published: str, head: str,
                     f"{module}@{version}: published version changed or removed; "
                     "retain the version directory (rebase if the maintained branch advanced)")
             if head_versions[version] != tree:
-                check_published_files(root, f"{path}/{version}", published, head)
+                if approved_alignment:
+                    # --latest on push must also cover changed backport releases.
+                    aligned_entries.add((module, version))
+                else:
+                    check_published_files(root, f"{path}/{version}", published, head)
         candidates = sorted(set(head_versions) - set(published_versions))
         require(len(candidates) <= 1,
                 f"{module}: multiple unreleased candidates relative to {published}: {', '.join(candidates)}; "
                 "consolidate the unmerged stack into one candidate and update its consumers")
         print(f"Version policy: {module}: candidates={candidates}, published={published}", file=sys.stderr)
-    return published_entries
+    return published_entries, aligned_entries
 
 
 def module_runner(module: str, execution_architecture: str, p4_runner_profile: str) -> list[str]:
@@ -710,8 +724,7 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
             "Do not combine --all/--latest with --base")
     require(bool(published) and bool(head), "plan requires --published and --head")
     require(git(root, "rev-parse", "HEAD").strip() == head, "Checkout HEAD differs from planned head")
-    published_entries = check_version_policy(root, published, head, push)
-    selected = set()
+    published_entries, selected = check_version_policy(root, published, head, push)
     if all_versions:
         selected.update((path.parent.parent.name, path.parent.name)
                         for path in (root / "modules").glob("*/*/presubmit.json"))

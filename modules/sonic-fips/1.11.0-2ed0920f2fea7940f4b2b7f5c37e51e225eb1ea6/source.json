@@ -4,7 +4,7 @@
   "strip_prefix": "sonic-fips-2ed0920f2fea7940f4b2b7f5c37e51e225eb1ea6",
   "overlay": {
     "BUILD.bazel": "sha256-LIdQUDlWs9D/ZVnk4KVToiae4csqCKorPT85pin6mog=",
-    "MODULE.bazel": "sha256-lEi5CyXOEPRaI1lDrG8UbCa00WO63uyg15j4tHbD17k=",
+    "MODULE.bazel": "sha256-KZ0UHDgcjhvuLM+a3lQSeniOyFlHZUZvT724zQqcOhM=",
     "golang/0001-debian-sdk-defaults.patch": "sha256-/Zaavcqu0GMiG0h3Ft4Gta7GYAcLgdfRfWJ/6Z/MvjM=",
     "golang/BUILD.bazel": "sha256-qIJ4wuqEWzMKiAPQbgTFqA4ZdRkAiq1CNfHKpOaLM7k=",
     "golang/derive_perl_substvars.py": "sha256-MztMrhvwdbSZ+wVS/BD/pOp5YXP2NFtGI555mU2uNcU=",

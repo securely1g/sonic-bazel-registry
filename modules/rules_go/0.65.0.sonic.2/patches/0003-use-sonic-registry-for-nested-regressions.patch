@@ -1,6 +1,6 @@
 Subject: [PATCH] tests: resolve SONiC dependencies in nested Bazel fixtures
 
-The registry dependency refresh selects Gazelle 0.54.0.sonic.1. The upstream
+The registry dependency refresh selects Gazelle 0.54.0.sonic.2. The upstream
 bazel_testing helper creates a fresh workspace with only BCR configured, so
 the retained native build-ID regression tests fail before compiling their
 fixtures. Pass the existing helper's GO_BAZEL_TEST_BAZELFLAGS interface the
@@ -23,7 +23,7 @@ through an upstream interface or these module versions are available in BCR.
 +    env = {
 +        # The upstream helper writes these flags into its nested .bazelrc.
 +        # Its existing local_path_override still selects this candidate.
-+        "GO_BAZEL_TEST_BAZELFLAGS": "--registry=https://raw.githubusercontent.com/securely1g/sonic-bazel-registry/3d1cc5e8dfd553d2acbe4198e504a245e6bdbddf --registry=https://bcr.bazel.build",
++        "GO_BAZEL_TEST_BAZELFLAGS": "--registry=https://raw.githubusercontent.com/securely1g/sonic-bazel-registry/f2c122b9bb0e98cc42b1228ff0315f8d75a721c2 --registry=https://bcr.bazel.build",
 +        "USE_BAZEL_VERSION": "8.5.1",
 +    },
      target_compatible_with = ["@platforms//os:linux"],

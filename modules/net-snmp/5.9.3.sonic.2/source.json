@@ -5,7 +5,7 @@
   "overlay": {
     ".bazelrc": "sha256-bqY6IRC9+XT1Dr9Nk3d13o7/xwbyi+ZEex2vx/6hHe4=",
     "BUILD.bazel": "sha256-quZJBeBr8tCD73taNhjqnmszK0CYwOs/T5/VHxELCi8=",
-    "MODULE.bazel": "sha256-ocMkEMnW6Wbe8jwUbcxTuuxeV3cmb9HDVDTl4Z3GIpI=",
+    "MODULE.bazel": "sha256-LvxTaYqLttec9o95gee5v5WdYm36QvjEBLludY36rOg=",
     "native_contract_test.py": "sha256-woV2+5coW4OsnQWPvx5S82P/wskOsf1hK4tLmn7rhMg=",
     "package_sources/BUILD.bazel": "sha256-ECIJSnnFtZCAb9CYoKYs4sUfJxL1GG2WRw0lNa5RzK0=",
     "package_sources/documentation.py": "sha256-CFInmA2ft12P58e7Y7f5xLhL9ckiYi15CLcQBym8L6s=",

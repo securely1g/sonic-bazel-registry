@@ -5,12 +5,12 @@
   "consumer_deps": [
     {
       "name": "sonic-build-infra",
-      "version": "0.0.40-e3d21fce8c3e06f3635bbddd92f1807b3f66d3c1",
+      "version": "0.0.44-35726399908a3beb947174e9359f902077928289",
       "repo_name": "sonic_build_infra"
     },
     {
       "name": "sonic-swss-common",
-      "version": "0.0.9-334389eae54afd1f4f5ee69f89c3a7ad2062ee61",
+      "version": "0.0.8-2a4ddd070edb719f2e969a880a5cfff711e64e72",
       "repo_name": "sonic_swss_common"
     },
     {
@@ -27,7 +27,7 @@
     },
     {
       "name": "rules_distroless",
-      "version": "0.9.4.sonic.22"
+      "version": "0.9.4.sonic.26"
     },
     {
       "name": "rules_cc",
@@ -35,19 +35,19 @@
     },
     {
       "name": "rules_go",
-      "version": "0.65.0.sonic.1"
+      "version": "0.65.0.sonic.2"
     },
     {
       "name": "libnl3",
-      "version": "3.7.0.sonic.8"
+      "version": "3.7.0.sonic.10"
     },
     {
       "name": "libyang",
-      "version": "3.12.2.sonic.8"
+      "version": "3.12.2.sonic.9"
     },
     {
       "name": "libyang-python",
-      "version": "3.1.0.sonic.6"
+      "version": "3.1.0.sonic.7"
     },
     {
       "name": "sonic-rust-deps",
@@ -55,7 +55,7 @@
     },
     {
       "name": "sonic-yang-models",
-      "version": "1.0.1-b0a9362a7a1b4b5e1b7188c019d256f7c8aaff9f"
+      "version": "1.0.1-dd732f9512a84966487951250adae8e3e5c9943e"
     },
     {
       "name": "rules_rs",

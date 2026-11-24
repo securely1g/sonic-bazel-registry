@@ -241,7 +241,7 @@ class ConfiguredGateTests(FixtureTestCase):
         write_json(path, cfg)
         head, base = 'a' * 40, 'b' * 40
         with mock.patch.object(registry_ci, 'git', side_effect=[head, base, 'ci/registry_ci.py\0']), \
-                mock.patch.object(registry_ci, 'check_version_policy', return_value=set()), \
+                mock.patch.object(registry_ci, 'check_version_policy', return_value=(set(), set())), \
                 mock.patch.object(registry_ci, 'latest_presubmits', return_value={('alpha', '1.0.0')}) as latest:
             jobs = registry_ci.plan(self.root, base, head, published=base)['include']
         latest.assert_called_once_with(self.root)

@@ -559,6 +559,39 @@ class SelectionTests(FixtureTestCase):
 class VersionPolicyTests(FixtureTestCase):
     """Exercise publication boundaries with real Git histories, including stacks."""
 
+    def test_dependency_alignment_requires_exact_base_and_modules_tree(self) -> None:
+        self.entry("beta", "1.0.0")
+        self.entry("beta", "2.0.0")
+        self.entry("alpha", "3.0.0")
+        manifest = self.entry("alpha", "1.0.0") / "MODULE.bazel"
+        declaration = manifest.read_text() + 'bazel_dep(name = "beta", version = "1.0.0")\n'
+        manifest.write_text(declaration)
+        base = self.commit("publish alpha with its original dependency")
+        (self.root / "README.md").write_text("Registry documentation.\n")
+        another_base = self.commit("advance main without changing modules")
+        manifest.write_text(declaration.replace('name = "beta", version = "1.0.0"',
+                                                'name = "beta", version = "2.0.0"'))
+        head = self.commit("align alpha with beta 2")
+
+        with mock.patch.multiple(registry_ci, DEPENDENCY_ALIGNMENT_BASE=base,
+                                 DEPENDENCY_ALIGNMENT_TREE=self.git("rev-parse", f"{head}:modules")):
+            self.assertEqual(self.selected(base, head), {("alpha", "1.0.0")})
+            jobs = registry_ci.plan(self.root, None, head, latest_versions=True, published=base, push=True)
+            self.assertEqual({(j["module"], j["version"]) for j in jobs["include"]},
+                             {("alpha", "1.0.0"), ("alpha", "3.0.0"), ("beta", "2.0.0")})
+            with self.assertRaisesRegex(registry_ci.RegistryError, "published version changed"):
+                self.selected(another_base, head)
+
+            manifest.chmod(0o755)
+            unapproved = self.commit("also change a published file mode")
+            for published in (base, head):
+                with self.subTest(published=published):
+                    with self.assertRaisesRegex(registry_ci.RegistryError, "published version changed"):
+                        self.selected(published, unapproved)
+                    with self.assertRaisesRegex(registry_ci.RegistryError, "published version changed"):
+                        registry_ci.plan(self.root, None, unapproved, latest_versions=True,
+                                         published=published, push=True)
+
     def test_stacked_base_does_not_publish_its_inherited_candidate(self) -> None:
         """A child adding .4 must also count its parent's still-unmerged .3."""
         self.entry("libyang-python", "3.1.0.sonic.2")
