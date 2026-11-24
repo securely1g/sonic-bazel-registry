@@ -117,10 +117,11 @@ def run(output: Path, command: list[str], module: str | None = None) -> int:
     arguments = [f"--bazel-build-arg=--local_resources=memory={budget}"]
     receipt = {**limits, "action_memory_mb": budget, "jvm_heap_mb": 2048,
                "memory_before": memory_usage(cgroup)}
-    # P4C frontends can exceed Bazel's per-compile estimate, including the DASH host tool.
-    if module in {"p4c", "sonic-dash"}:
-        arguments.append("--bazel-build-arg=--jobs=3")
-        receipt["bazel_jobs"] = 3
+    # The largest P4C and orchagent compilations exceed Bazel's memory estimates.
+    jobs = {"p4c": 3, "sonic-dash": 3, "sonic-swss": 2}.get(module)
+    if jobs is not None:
+        arguments.append(f"--bazel-build-arg=--jobs={jobs}")
+        receipt["bazel_jobs"] = jobs
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(receipt, indent=2) + "\n")
     status = subprocess.run([*command, *arguments]).returncode
