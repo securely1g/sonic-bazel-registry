@@ -5,7 +5,7 @@
   "archive_type": "tar.gz",
   "overlay": {
     "BUILD.bazel": "sha256-b6/vPfnShpNNDakKFHVB5Q4+UcywC97JzVmXnG094FE=",
-    "MODULE.bazel": "sha256-2yQ2Tefw9FmiVfpAumN97ktkdBRaWxmZ7rG2rbTHgoc=",
+    "MODULE.bazel": "sha256-KqoLwEwewxtkyy0EMHfNJijwaGTgkE0gSqlVFZE0UEc=",
     "bazel/BUILD.bazel": "sha256-56XJE6IxVxeLBDU46gpilz8eE2brDGNua9CC3R8wTyY=",
     "bazel/README.md": "sha256-ANMncNu53CMSlEuf3LUpHWbqfB27ZHB6of35ph7qGS4=",
     "bazel/direct_metadata_inputs.patch": "sha256-p34AniYVVYNhC9xW4jwaOQ2i2AFrQoSkr2fTL8gagNE=",

@@ -2,7 +2,7 @@ module(name = "gnoi_registry_consumer")
 
 bazel_dep(name = "com_github_openconfig_gnoi", version = "0.6.1.sonic.1")
 bazel_dep(name = "rules_cc", version = "0.2.22")
-bazel_dep(name = "sonic-build-infra", version = "0.0.44-35726399908a3beb947174e9359f902077928289", repo_name = "sonic_build_infra")
+bazel_dep(name = "sonic-build-infra", version = "0.0.45-77ef625a4ddafc8cdc15f3cc6aee31eabac8a5de", repo_name = "sonic_build_infra")
 
 gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
 use_repo(gcc, "gcc_toolchains")

@@ -54,10 +54,12 @@ RUNNERS = {
 FIPS_CROSS_VERSION = "0.0.6-18a778db501d455f8a1b6d1e3ef8e17121661177"
 FIPS_CROSS_VERSIONS = {FIPS_CROSS_VERSION, "0.0.6-1a8daf8dd8a3ad54de0e91a55b46fd5bbd206763"}
 
-# One approved in-place dependency update. The final Git tree pins every path,
-# byte and file mode under modules/, including the matching overlay checksums.
-DEPENDENCY_ALIGNMENT_BASE = "cd400fbb4bf4d683272076d92f1b7bd869b380c9"
-DEPENDENCY_ALIGNMENT_TREE = "17b9e85690e0c9f95d141b382366df7954d7959a"
+# Each approved in-place update pairs the previously published commit with
+# the exact modules/ tree, including overlay checksums and file modes.
+DEPENDENCY_ALIGNMENT_TREES = {
+    "cd400fbb4bf4d683272076d92f1b7bd869b380c9": "17b9e85690e0c9f95d141b382366df7954d7959a",
+    "ff3d97beed1b5f07ffa66851e795ec0788c4edca": "225aa5e10805a7b513f3fa5ec6a8d1261d08f5cb",
+}
 
 # The original wrappers stage a private target executable, loader and libraries.
 ARM_DECLARED_RUNTIME_FIXTURES = {
@@ -628,8 +630,8 @@ def check_version_policy(root: Path, published: str, head: str,
     changed = git(root, "diff", "--name-only", "--no-renames", "-z", ancestor, head, "--", "modules/")
     modules = {PurePosixPath(name).parts[1] for name in changed.split("\0") if name}
     approved_alignment = (
-        published == DEPENDENCY_ALIGNMENT_BASE
-        and git(root, "rev-parse", f"{head}:modules").strip() == DEPENDENCY_ALIGNMENT_TREE
+        published in DEPENDENCY_ALIGNMENT_TREES
+        and git(root, "rev-parse", f"{head}:modules").strip() == DEPENDENCY_ALIGNMENT_TREES[published]
     )
     published_entries = set()
     aligned_entries = set()

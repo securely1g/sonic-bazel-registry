@@ -8,7 +8,7 @@
   },
   "overlay": {
     "BUILD.bazel": "sha256-5xhHPY74ClLT21jLy83QNaOtlgv3VgADOwp6rfgoCTY=",
-    "MODULE.bazel": "sha256-keeR+sw7N5gSuYCNRse0dLD7/5oStMHWYbxiCnZZ2Bk=",
+    "MODULE.bazel": "sha256-urhUV9mjLdw8iJJWSeppntVvgCqDlKM0oiMcr+ccGsM=",
     "debug_contract_test.py": "sha256-98pkyWkBy+0PxlwbER8c3vmpx6pgootDY8BSMsxPAos=",
     "installed_resources_test.py": "sha256-TJjVZPTXs8YYqXGesd1/pIgsti6+4GttVwmHBXb6uIU=",
     "runtime_contract_test.py": "sha256-ovGse6S8bHha5lnQUCt6UpOvq0Dp2wbzn8qnayiKxlA=",

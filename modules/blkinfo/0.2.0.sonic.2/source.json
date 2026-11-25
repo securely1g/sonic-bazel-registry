@@ -4,7 +4,7 @@
   "strip_prefix": "blkinfo-0.2.0",
   "overlay": {
     "BUILD.bazel": "sha256-fSpxZEU6CFXss+a4F3c4CZcmMIn5wOBad0pj//ED1U0=",
-    "MODULE.bazel": "sha256-hCXOBdij+8f2o+VYiiITbl1IAwiA9OymmsJC9+7oaf0=",
+    "MODULE.bazel": "sha256-uCAo62Kc+O5pKk449Dn+5GNJXZlewnG37TPA1QN/+MU=",
     "tests/installed_test.py": "sha256-SwkIWQ0bkxQDzJCjwnZ84Vg5okb4o8CL7WwF40oNiT4="
   }
 }

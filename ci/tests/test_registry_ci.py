@@ -573,8 +573,11 @@ class VersionPolicyTests(FixtureTestCase):
                                                 'name = "beta", version = "2.0.0"'))
         head = self.commit("align alpha with beta 2")
 
-        with mock.patch.multiple(registry_ci, DEPENDENCY_ALIGNMENT_BASE=base,
-                                 DEPENDENCY_ALIGNMENT_TREE=self.git("rev-parse", f"{head}:modules")):
+        approved = {
+            base: self.git("rev-parse", f"{head}:modules"),
+            another_base: self.git("rev-parse", f"{another_base}:modules"),
+        }
+        with mock.patch.object(registry_ci, "DEPENDENCY_ALIGNMENT_TREES", approved):
             self.assertEqual(self.selected(base, head), {("alpha", "1.0.0")})
             jobs = registry_ci.plan(self.root, None, head, latest_versions=True, published=base, push=True)
             self.assertEqual({(j["module"], j["version"]) for j in jobs["include"]},

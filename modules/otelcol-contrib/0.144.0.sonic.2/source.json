@@ -4,7 +4,7 @@
   "url": "https://github.com/open-telemetry/opentelemetry-collector-releases/archive/9e444f54f4033bf6b7c254f0a8797ffd3917b6de.tar.gz",
   "overlay": {
     "BUILD.bazel": "sha256-o42n6Wgr3OF7Wx+EtHX3F30Ep0oHx619QBtNSBCwj0c=",
-    "MODULE.bazel": "sha256-lB2uUSTY70YqW9WzAI9ylVWY6CrEjQP+w8Ba8D1LyXA=",
+    "MODULE.bazel": "sha256-VHgWCkz/APgSx17momuMw3TZJHXyGcbZP+4fWyBCkl0=",
     "bazel/0001-googlecloudspannerreceiver-embedded-metadata.patch": "sha256-hieAxJFGgun5JglPHV2Mmj8lYM5CX3OG09Vmsd4K2+I=",
     "bazel/BUILD.bazel": "sha256-SGs1rXH9FPQxWRrqHAJn1/6VGR5pUJx6uPP2TWEf6VA=",
     "bazel/buildinfo/BUILD.bazel": "sha256-q3ly0zp30j/g6itz6P7bmximGRaJmoDUcrVMGXQAZ8Y=",
