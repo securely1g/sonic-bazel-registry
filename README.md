@@ -118,6 +118,20 @@ module versions, registry commits, overrides, and lockfiles. See the
 [publication policy checks](ci/README.md#publication-policy-checks) for CI's
 baseline and comparison details.
 
+### Version all SAI consumers on upgrade
+
+Every SAI version bump requires a new module version for every current registry
+module that depends on `sai`, directly or transitively. This
+includes SAI patch revisions and consumers that need no code changes. Record
+the affected modules and their old and new versions in the upgrade PRs.
+
+The SAI entry can be published first. Then publish each consumer in dependency
+order, keeping previous releases on their original inputs. For example, publish
+a compatible `sonic-sairedis` against the new `sai`, then publish `sonic-swss`
+with pins to both new versions. Use the normal version convention for each
+consumer. Complete the upgrade when each consumer's Bazel graph resolves the
+intended versions and its supported architecture builds and tests pass.
+
 ### Check Bazel's selected version
 
 Bazel treats the text after `-` as a prerelease suffix. Using `.sonic.y`
