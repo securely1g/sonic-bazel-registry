@@ -4,7 +4,7 @@
   "integrity": "sha256-47ORZQx7pnzqL+hNZ/201/yKoexc+G64u5hHEd+EZak=",
   "overlay": {
     "BUILD.bazel": "sha256-gkOfnxFO9/gRxClVgUQ3ItGVPKy+haBviOc1NCVyeIM=",
-    "MODULE.bazel": "sha256-SJDEo9InmMabEknso8gCslqtae/x3e4Bjrdqd3eHLtk=",
+    "MODULE.bazel": "sha256-+Bw3OuZaFUca1QunCXyyTq/eIZEm6tAV28aB4AbL2Sw=",
     "bazel/atom_glue.py": "sha256-BG2nRMlNOWtEC2y5U4bpBkgmsfWWSHONGubr/Wc2h34=",
     "bazel/consumer.c": "sha256-/TbM5aYJP81M9TzQzhw+jhj9igzyr+u7B5Fn98JvzBs=",
     "bazel/lldpd.BUILD.bazel": "sha256-vQXRBuj1eytr4wCmmXK93R9zhXHAucEuWJKmu4Lwt5Y=",

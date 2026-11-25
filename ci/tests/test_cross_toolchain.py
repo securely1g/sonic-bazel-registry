@@ -118,7 +118,8 @@ class CrossToolchainTest(unittest.TestCase):
         target = "@sonic_build_infra//platforms:aarch64_bookworm"
         execution = "@sonic_build_infra//platforms:x86_64_bookworm"
         versions = ("0.0.25-34de7330abc72229dfc8dab88dec71b89c52aa88",
-                    "0.0.44-35726399908a3beb947174e9359f902077928289")
+                    "0.0.44-35726399908a3beb947174e9359f902077928289",
+                    "0.0.45-77ef625a4ddafc8cdc15f3cc6aee31eabac8a5de")
         for version in versions:
             with self.subTest(version=version):
                 result, consumer, _, provider = self.prepare_case(

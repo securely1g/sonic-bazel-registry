@@ -4,7 +4,7 @@
   "strip_prefix": "pycairo-1.26.1",
   "overlay": {
     "BUILD.bazel": "sha256-tHED5aMB5sdXofHm5nFzmcx0TShjwCYvcfo+rn/GQ9A=",
-    "MODULE.bazel": "sha256-qAVM6CDMwVHDc2WUKtk5tijQy9LJj9LWArx02CH0rL0=",
+    "MODULE.bazel": "sha256-0Y1AZVQZMp2lQ+oUvwaXU+UahK0UDODVkXhiokdXucM=",
     "installed_test.py": "sha256-RgQSs83EtOCi/p8GW9iobJgx6TMsGfknkViSmLQstWo=",
     "requirements.in": "sha256-RD34rRoBt/uBmNLF7/XWCD+5X/rPZzqnBr8rRMGlQcg=",
     "requirements_lock.txt": "sha256-x0YlLxlG4rQVKpYR7iG3KK589PDbKzjN6SNrm6xTqGU="

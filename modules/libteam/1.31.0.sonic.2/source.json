@@ -4,7 +4,7 @@
   "strip_prefix": "libteam-1.31",
   "overlay": {
     "BUILD.bazel": "sha256-/PJRvBoIO+I+t0e6ZJSlqavgiCjJMX87uo0SqOa4Kqs=",
-    "MODULE.bazel": "sha256-d1p1bkGLWiaVXSKjaxB9ZuzK+s2raXtqa1Rxa4n3BCo=",
+    "MODULE.bazel": "sha256-3b1RM0YcDSIHOSviW6AT589ZWn5BAfDcI/1xXXxfStg=",
     "bazel/config.h.in": "sha256-6KKxJ1wSXmVs6StcX7vBmZfA2V5N9lzx+p94c0xWB5o=",
     "bazel/consumer_test.c": "sha256-o5VfXTZHGW5LYHIzF9A78/cJSRRHZEZoM3AtBmffCTw=",
     "bazel/package_test.py": "sha256-BCOzQcMFKaDqdcJLpgyiXYUPmAFLF9kLE+h18PJXV1A=",

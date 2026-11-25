@@ -25,7 +25,7 @@ bazel_dep(name = "xz", version = "5.4.5.bcr.9")
 # Modules the BUILD files shipped in the source tree, or the hand-written BUILD files, load.
 bazel_dep(name = "package_metadata", version = "0.0.13")
 
-bazel_dep(name = "sonic-build-infra", version = "0.0.44-35726399908a3beb947174e9359f902077928289", repo_name = "sonic_build_infra")
+bazel_dep(name = "sonic-build-infra", version = "0.0.45-77ef625a4ddafc8cdc15f3cc6aee31eabac8a5de", repo_name = "sonic_build_infra")
 
 prepared_source = use_repo_rule("@sonic_build_infra//source:prepared_source.bzl", "prepared_source")
 prepared_source(

@@ -4,7 +4,7 @@
   "strip_prefix": "sonic-buildimage-40ab930912c5586e245b8c34e770be9729b2e4b0/src/bash",
   "overlay": {
     "BUILD.bazel": "sha256-kmBCQyKWitwzolnEYF2nJPjhV2OC5QekmoE9cEwdNHQ=",
-    "MODULE.bazel": "sha256-vNLFebZFpfE/YixmrDhLhEgMTo9ahHyqplXWD8bV34g=",
+    "MODULE.bazel": "sha256-4r6whUykXvpoN20fZzKhVR1KYEAc/d15lSHqZqaXsNE=",
     "cli_test.py": "sha256-vj20vOwL/gp1EL15QG9KbKSjkEkIORnFCn7m4ZlxnCI=",
     "config.h.tpl": "sha256-0N5EC0yt5/i/+pe5edxAl1SkPqzGu4i0s6Hm8bT4wWw=",
     "debian.BUILD.bazel": "sha256-C8j6bSyRMcrroGofj5BpijQSZuDgdpoKxMJNV1RL3TU=",

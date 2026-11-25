@@ -6,7 +6,7 @@
     ".bazelrc": "sha256-kDLQETu6EZBbuKeYm/mQh1YjVf2nWwe9TlSig8cVUnY=",
     ".bazelversion": "sha256-vlEH0zbCxnyjNmGd+GJItoepKbYme0QCEAZsUVzqBjo=",
     "BUILD.bazel": "sha256-fL4xROa+62xK1XeLee44BwhF1XSI/J4nvKisNJI/4Eg=",
-    "MODULE.bazel": "sha256-SJmj6n1nqBIZCElCzluM2mycvhRM3tZtSUVr0Bz1KCg=",
+    "MODULE.bazel": "sha256-CzJZ1Dn5Kf3P17//Y0N1A5gDcVrPp8LgRbIvtBwYL1Q=",
     "patches-debian/bazel-install-outputs.patch": "sha256-zoS87NnJirzdXE1+ZeTMV8Zvl/uPZUx4YEqwZiAaRhE=",
     "patches-debian/bazel-relocatable-tools.patch": "sha256-1PKKHkSzdTLh+kR2Ul0P9XW8TnTwOjbnITP+bd1yhBQ=",
     "tools/bazel/BUILD.bazel": "sha256-AosKvhFoDT/9dSgUiz6XHdGWDPia61NrSiKgel++uRo=",

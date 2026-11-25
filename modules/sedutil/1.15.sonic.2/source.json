@@ -4,7 +4,7 @@
   "strip_prefix": "sonic-buildimage-40ab930912c5586e245b8c34e770be9729b2e4b0/src/sedutil",
   "overlay": {
     "BUILD.bazel": "sha256-DU1tYXFGg4SqpqI2EB2C3izkZR1xsZpfC32QpZUAyqw=",
-    "MODULE.bazel": "sha256-9BJ5WFrj+mfTbDSpWQAkq7+hhuawdo3fiH9nfmg7zrg=",
+    "MODULE.bazel": "sha256-4wlnyuzNk+e6ukLzikMbLP10RpxUZGkpmEBCdhhEuEo=",
     "control": "sha256-0WDzp/tewKsDlR+dc+FOUwYi1MNQmB0GdOaozvy9WpQ=",
     "installation_test.py": "sha256-8XI2GyALJ3Mb1+CCFeOOJdpbCKSQlb7YbivachXpAhI="
   },

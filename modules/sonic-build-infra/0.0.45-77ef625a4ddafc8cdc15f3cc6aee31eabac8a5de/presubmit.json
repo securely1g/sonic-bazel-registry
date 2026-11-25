@@ -115,7 +115,8 @@
     "@sonic-build-infra//python:wheel_layer_test",
     "@sonic-build-infra//python/tests:wheel_runtime_test",
     "@sonic-build-infra//deb:assemble_test",
-    "@sonic-build-infra//tests:hello_deb_optional_fields_build_test"
+    "@sonic-build-infra//tests:hello_deb_optional_fields_build_test",
+    "@sonic-build-infra//tests:configured_install_paths_test"
   ],
   "host_platforms": {
     "amd64": "@sonic-build-infra//platforms:x86_64_trixie",
@@ -125,7 +126,9 @@
     "amd64": {
       "build_targets": [
         "@sonic-build-infra//tools/build_tools:docbook_runtime",
-        "@sonic-build-infra//tools/build_tools:docbook2man"
+        "@sonic-build-infra//tools/build_tools:docbook2man",
+        "@sonic-build-infra//tools/build_tools:dtrace",
+        "@sonic-build-infra//tools/build_tools:python_pgo_runtime"
       ],
       "test_targets": [
         "@sonic-build-infra//registry_ci:kernel_arm64_tools_test",

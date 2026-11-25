@@ -287,7 +287,8 @@ def published_distribution(target: str, version: str | None) -> str | None:
         return target.rsplit(":", 1)[0] + ":trixie"
     # Net-SNMP uses GCC 12 and its published Bookworm sysroot for the target ABI.
     if version in {"0.0.25-34de7330abc72229dfc8dab88dec71b89c52aa88",
-                   "0.0.44-35726399908a3beb947174e9359f902077928289"} and target in {
+                   "0.0.44-35726399908a3beb947174e9359f902077928289",
+                   "0.0.45-77ef625a4ddafc8cdc15f3cc6aee31eabac8a5de"} and target in {
         "@sonic_build_infra//platforms:aarch64_bookworm",
         "@sonic-build-infra//platforms:aarch64_bookworm",
     }:

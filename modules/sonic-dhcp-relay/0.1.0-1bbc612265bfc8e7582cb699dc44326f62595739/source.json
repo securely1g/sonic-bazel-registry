@@ -3,6 +3,6 @@
   "strip_prefix": "sonic-dhcp-relay-1bbc612265bfc8e7582cb699dc44326f62595739",
   "integrity": "sha256-6/XX+rR0m1pIN82NcrHwwv7woowyVadF4+zWL12lPM4=",
   "overlay": {
-    "MODULE.bazel": "sha256-cU9JJu2s+6JrKCJo6KUsLKLLVLpgZ2Z6rZ+xJclzsk4="
+    "MODULE.bazel": "sha256-2OZJfoQnX+Q5hlrec29StyphjqWDUv9wjZ+JDK1nTEU="
   }
 }

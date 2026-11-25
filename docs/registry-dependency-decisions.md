@@ -21,3 +21,19 @@ The selections cover the entries published at `f2c122b9`. The refreshed base, `c
 Build Infra runs `configured_install_paths_test` on AMD64 and ARM64. AMD64 also builds `dtrace` and `python_pgo_runtime`. [Build Infra validation targets](../modules/sonic-build-infra/0.0.44-35726399908a3beb947174e9359f902077928289/presubmit.json)
 
 Thirteen module names in this catalog also exist in the Bazel Central Registry. Among these, the three public-pin decisions were P4C, Go rules and Python rules. All other same-registry pins in the selected entries converge on the selected version. The in-place edit has a one-time CI exception tied to the exact baseline and reviewed module tree.
+
+## Follow-up after #459
+
+The audit of `ff3d97be` found 70 older direct pins across 61 current modules. The follow-up updates 67 of those pins and their corresponding test consumers.
+
+| Dependency | Previous | Selected | Direct pins updated |
+| --- | --- | --- | ---: |
+| Build Infra | `0.0.44-3572639` | `0.0.45-77ef625` | 60 |
+| Rust dependencies | `0.0.5-5bf69bc` | `0.0.5-4064a81` | 4 |
+| Management Common | `1.0.2-c836309` | `1.0.2-68bfd75` | 1 |
+| Python rules | `1.9.0.sonic.1` | `1.9.0.sonic.2` | 1 |
+| Distroless rules | `0.9.4.sonic.21` | `0.9.4.sonic.26` | 1 |
+
+Sairedis and SWSS use `sai@1.18.0.sonic.2`. The current Sairedis source cannot compile the PON stub generated from 1.19.2 headers. After [Sairedis #18](https://github.com/securely1g/sonic-sairedis/pull/18) merges, a separate registry PR can register its landed source and move both consumers to `1.19.2.sonic.1`. Standalone `p4_constraints` continues to request public P4C `1.2.5.11`. [Sairedis #2152](https://github.com/sonic-net/sonic-sairedis/pull/2152) · [Registry #461](https://github.com/securely1g/sonic-bazel-registry/pull/461)
+
+gNMI uses Go 1.26.0 with Management Common `68bfd75`. Management Framework keeps `c836309` and Go 1.25.9 because its certificate generator requires that SDK. The Framework source update also removes its dependency on the obsolete Common `glog.patch`. Register the compatible source after [Management Framework #7](https://github.com/securely1g/sonic-mgmt-framework/pull/7) merges.

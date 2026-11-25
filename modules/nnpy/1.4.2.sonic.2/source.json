@@ -5,7 +5,7 @@
   "integrity": "sha256-k3lyBwlwo9Uf3e1EvnBE4GlgaY/NLvNQsHVNCOCsxOY=",
   "overlay": {
     "BUILD.bazel": "sha256-6dbX9kQA/z8MOx31QT6z9B1j5Q+TJJtxEPRnwW7JwvI=",
-    "MODULE.bazel": "sha256-UgpXJoN3xWcREsKo2Wn4XKxrFqqraneTWpnOnutzCi4=",
+    "MODULE.bazel": "sha256-FU6OxjiclbsoJKw24Rqa/O/69Y9BsFDgsMadNDiypeU=",
     "emit_cffi.py": "sha256-ZynORDhzqZlGOnXKvAaXB3211NJlGjuphxzO4HeKKNQ=",
     "package_test.py": "sha256-Ko+TL5aDMvafhNlMcSrRiDyKHjcKETts3jHe3LDl3qw=",
     "requirements_lock.txt": "sha256-kRUPNna4A13f1JwKpLGFJnHawlJIeKg95ob13UAIcWo="
