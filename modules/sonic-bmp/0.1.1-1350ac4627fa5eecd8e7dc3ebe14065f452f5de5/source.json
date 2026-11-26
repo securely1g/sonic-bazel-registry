@@ -1,0 +1,12 @@
+{
+  "url": "https://github.com/sonic-net/sonic-bmp/archive/1350ac4627fa5eecd8e7dc3ebe14065f452f5de5.tar.gz",
+  "strip_prefix": "sonic-bmp-1350ac4627fa5eecd8e7dc3ebe14065f452f5de5",
+  "integrity": "sha256-1ISXvjFoOwB9d6XjjwfXilpLz/aJYBgGNOonCIihDzc=",
+  "patch_strip": 1,
+  "patches": {
+    "0001-bazel-producer.patch": "sha256-Bvojf7WOgPH6y4TYn7GkC3woplDBeJjppTA5C21qgmw="
+  },
+  "overlay": {
+    "MODULE.bazel": "sha256-GX7GmEPJ/AVNzGZw9WOZahkgxZILJBV755WqQkz4sfE="
+  }
+}

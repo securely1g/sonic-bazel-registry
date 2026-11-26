@@ -1,0 +1,12 @@
+{
+  "url": "https://github.com/sonic-net/sonic-dbsyncd/archive/6da9e215021cd88b3bd6c05c63bd63ebe5e8eb88.tar.gz",
+  "strip_prefix": "sonic-dbsyncd-6da9e215021cd88b3bd6c05c63bd63ebe5e8eb88",
+  "integrity": "sha256-yPbYUXP3rqBlfJHX5E4UDSdVEakyBILanGRSf8FzsEk=",
+  "patch_strip": 1,
+  "patches": {
+    "0001-bazel-producer.patch": "sha256-UrwtblyfLBZiwN3ETzzv06ilHsd6bOwByUN3OIhcvzs="
+  },
+  "overlay": {
+    "MODULE.bazel": "sha256-td2bpcIf18VPJZM7CSkEBCLoDoI4WLRd7YOubrC1xNo="
+  }
+}

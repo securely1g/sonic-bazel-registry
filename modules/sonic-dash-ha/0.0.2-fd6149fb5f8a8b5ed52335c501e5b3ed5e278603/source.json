@@ -1,0 +1,12 @@
+{
+  "url": "https://github.com/sonic-net/sonic-dash-ha/archive/fd6149fb5f8a8b5ed52335c501e5b3ed5e278603.tar.gz",
+  "strip_prefix": "sonic-dash-ha-fd6149fb5f8a8b5ed52335c501e5b3ed5e278603",
+  "integrity": "sha256-l125dA7nRezq9fvenK7enfMdKdt3L5VBmjCjdF55qHw=",
+  "patch_strip": 1,
+  "patches": {
+    "0001-bazel-producer.patch": "sha256-CS3FWDoo7UzPAb8BNkGtFHLOQCh/CX3kCRIrg948fls="
+  },
+  "overlay": {
+    "MODULE.bazel": "sha256-PZFd1AUBNzCCp+n0ymDhLttSZWems7n5HZzo/fpOZmQ="
+  }
+}
