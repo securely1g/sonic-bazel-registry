@@ -845,7 +845,7 @@ validation use `self-hosted`, `Linux`, `X64`, and `debian-trixie-container`.
 P4C (`p4c`), BMv2 (`p4lang-bmv2`), DASH (`sonic-dash`), and PINS (`sonic-pins`) use
 `debian-trixie-container-large` by default whenever their execution architecture
 is AMD64. This includes ARM64 cross-builds and the P4C host tool built inside
-DASH. Both Trixie pools use the same source mirrors, private-mirror trust checks,
+DASH. SAI Redis ARM64 cross-builds also use the large pool. Both Trixie pools use the same source mirrors, private-mirror trust checks,
 HTTP audit, and package tools.
 
 The large pool on `lgh108` provides four concurrent jobs, each limited to 8
@@ -910,7 +910,9 @@ P4C and DASH use `--jobs=3` for builds and tests on both architectures. Parallel
 P4 frontend compilations, including DASH's host compiler, exhausted the large
 runners during native AMD64 and ARM64 cross validation. SWSS uses two jobs
 on AMD64 and one on ARM64. Two concurrent ARM64 actions compiling orchagent
-exhausted the 6 GiB runner and killed the Bazel server. Other modules retain
+exhausted the 6 GiB runner and killed the Bazel server. SAI Redis uses one job
+on ARM64 because cross-compiling FlexCounter.cpp exceeded the 6 GiB limit
+even with one action. Other modules retain
 Bazel's default job count. CI keeps
 the default CPU budget for all modules.
 Build rules own action resource declarations and any internal tool parallelism.
