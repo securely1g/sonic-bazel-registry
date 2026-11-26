@@ -1,0 +1,13 @@
+{
+  "url": "https://github.com/sonic-net/sonic-snmpagent/archive/e2e369d3e5420af0c259508f6817a385124cc623.tar.gz",
+  "strip_prefix": "sonic-snmpagent-e2e369d3e5420af0c259508f6817a385124cc623",
+  "integrity": "sha256-ttFe2fm35Eld6BPtWvIZw4bsPLMbXFND9j6/LEClVvk=",
+  "patch_strip": 1,
+  "patches": {
+    "0001-bazel-producer.patch": "sha256-KMqT8CUIB0gUxSuV1b2CZVRJt4Ccl94fisQrd4ySNUc="
+  },
+  "overlay": {
+    "MODULE.bazel": "sha256-sHts4zkyUYYeNeauQlRMKD+2NQ8j/+j1bD5LTJFACRs=",
+    "tests/bazel/refresh/BUILD.bazel": "sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU="
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "url": "https://github.com/sonic-net/sonic-linkmgrd/archive/926040f8a26c1affca07831a1b613be7291372bb.tar.gz",
+  "strip_prefix": "sonic-linkmgrd-926040f8a26c1affca07831a1b613be7291372bb",
+  "integrity": "sha256-xfeoeX8pWe0mLr+Q/b3aq48NLf6MtA7IBuLmDCxcvtg=",
+  "patch_strip": 1,
+  "patches": {
+    "0001-bazel-producer.patch": "sha256-g09XfWofvgxJOvG/Ew81hcroniIyXjQJ1vjQ9o+iX4Q="
+  },
+  "overlay": {
+    "MODULE.bazel": "sha256-rA39n7hgHMWq9gQLo5EYSS5sLiaDgKUGDur1QEWVUcY="
+  }
+}
