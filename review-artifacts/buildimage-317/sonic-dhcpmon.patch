@@ -1,0 +1,324 @@
+Registry entry comparison for sonic-dhcpmon
+Baseline 2d5a28673ab6af079d28524c22de93f29ea517e5 (0.1.0-b824589b2ba49a8ba59142289bfb04bb3ca68875)
+Candidate 808d38250689ac20cb16f00c14b6ea3f8a5718e1 (0.1.1-3e7160d9b89ad7c701a0827af80367ab1b206ccf)
+
+In a clean baseline checkout where the destination does not yet exist:
+  cp -a modules/sonic-dhcpmon/0.1.0-b824589b2ba49a8ba59142289bfb04bb3ca68875 modules/sonic-dhcpmon/0.1.1-3e7160d9b89ad7c701a0827af80367ab1b206ccf
+  git apply <path-to-downloaded-patch>
+
+diff --git a/modules/sonic-dhcpmon/0.1.1-3e7160d9b89ad7c701a0827af80367ab1b206ccf/MODULE.bazel b/modules/sonic-dhcpmon/0.1.1-3e7160d9b89ad7c701a0827af80367ab1b206ccf/MODULE.bazel
+index c7758b61c6094554c6faeab72a3ea5b1ad2d722a..23009b9cc1f4a34a78d8d92de90d283608642070 100644
+--- a/modules/sonic-dhcpmon/0.1.1-3e7160d9b89ad7c701a0827af80367ab1b206ccf/MODULE.bazel
++++ b/modules/sonic-dhcpmon/0.1.1-3e7160d9b89ad7c701a0827af80367ab1b206ccf/MODULE.bazel
+@@ -1,7 +1,7 @@
+-module(name = "sonic-dhcpmon", version = "0.1.0-b824589b2ba49a8ba59142289bfb04bb3ca68875")
++module(name = "sonic-dhcpmon", version = "0.1.1-3e7160d9b89ad7c701a0827af80367ab1b206ccf")
+ bazel_dep(name = "rules_cc", version = "0.2.20")
+ bazel_dep(name = "sonic-build-infra", version = "0.0.45-77ef625a4ddafc8cdc15f3cc6aee31eabac8a5de", repo_name = "sonic_build_infra")
+-bazel_dep(name = "sonic-swss-common", version = "0.0.8-2a4ddd070edb719f2e969a880a5cfff711e64e72", repo_name = "sonic_swss_common")
++bazel_dep(name = "sonic-swss-common", version = "0.0.9-e06d5157d0a6a7228c8ba7357bdfd5e03623e586", repo_name = "sonic_swss_common")
+ bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.26")
+ # Select the same production lock when building standalone or as a dependency.
+ apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
+diff --git a/modules/sonic-dhcpmon/0.1.1-3e7160d9b89ad7c701a0827af80367ab1b206ccf/README.md b/modules/sonic-dhcpmon/0.1.1-3e7160d9b89ad7c701a0827af80367ab1b206ccf/README.md
+index 443138851c770f640421b940e154808131d7fdf3..7554470573bf459535af0d388fab67cae18ffaed 100644
+--- a/modules/sonic-dhcpmon/0.1.1-3e7160d9b89ad7c701a0827af80367ab1b206ccf/README.md
++++ b/modules/sonic-dhcpmon/0.1.1-3e7160d9b89ad7c701a0827af80367ab1b206ccf/README.md
+@@ -1,13 +1,5 @@
+-# SONiC DHCP monitor
++# sonic-dhcpmon at the upstream buildimage submodule revision
+ 
+-This entry registers [the landed DHCP monitor source](https://github.com/securely1g/sonic-dhcpmon/commit/b824589b2ba49a8ba59142289bfb04bb3ca68875).
+-The source repository owns the build, runtime packaging, Debian metadata, and behavior tests.
+-The only registry patch sets the module version to `0.1.0-b824589b2ba49a8ba59142289bfb04bb3ca68875`.
++This entry builds `0.1.1-3e7160d9b89ad7c701a0827af80367ab1b206ccf` from the `src/dhcpmon` gitlink at sonic-net/sonic-buildimage commit `9dfc6c15719f`. The registry verifies the canonical source archive by SHA-256 before applying the producer's Bazel integration. [Buildimage tree](https://github.com/sonic-net/sonic-buildimage/tree/9dfc6c15719f9266120407e384f9ee885970f833/src) · [Source commit](https://github.com/sonic-net/sonic-dhcpmon/commit/3e7160d9b89ad7c701a0827af80367ab1b206ccf)
+ 
+-Both native Debian Trixie presubmits build the runtime and detached debug symbols
+-(`//:runtime` and `//:runtime.debug_symbols`), generate Debian metadata
+-(`//:monitor_metadata`), and run the production utility test (`//:util_behavior_test`).
+-The module imports the `dhcpmon_debian` package set from sonic-build-infra's shared
+-APT lock. The consumer selects the same build infrastructure, toolchains, and packaging
+-rules as the source build. Each native runner obtains the test launcher from the existing
+-checksum-verified Cosmos manifest.
++The package and architecture checks are declared in [presubmit.json](presubmit.json). The [previous registration](../0.1.0-b824589b2ba49a8ba59142289bfb04bb3ca68875/) records the earlier release and its validation history.
+diff --git a/modules/sonic-dhcpmon/0.1.1-3e7160d9b89ad7c701a0827af80367ab1b206ccf/overlay/MODULE.bazel b/modules/sonic-dhcpmon/0.1.1-3e7160d9b89ad7c701a0827af80367ab1b206ccf/overlay/MODULE.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..1c95833d45d26967f1f86c20ec2335e240ba6e2e
+--- /dev/null
++++ b/modules/sonic-dhcpmon/0.1.1-3e7160d9b89ad7c701a0827af80367ab1b206ccf/overlay/MODULE.bazel
+@@ -0,0 +1,35 @@
++# AUTO-GENERATED. DO NOT EDIT MANUALLY.
++# Source: ../MODULE.bazel
++# Generator: python3 ci/registry_ci.py sync-module --module sonic-dhcpmon --version 0.1.1-3e7160d9b89ad7c701a0827af80367ab1b206ccf
++
++module(name = "sonic-dhcpmon", version = "0.1.1-3e7160d9b89ad7c701a0827af80367ab1b206ccf")
++bazel_dep(name = "rules_cc", version = "0.2.20")
++bazel_dep(name = "sonic-build-infra", version = "0.0.45-77ef625a4ddafc8cdc15f3cc6aee31eabac8a5de", repo_name = "sonic_build_infra")
++bazel_dep(name = "sonic-swss-common", version = "0.0.9-e06d5157d0a6a7228c8ba7357bdfd5e03623e586", repo_name = "sonic_swss_common")
++bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.26")
++# Select the same production lock when building standalone or as a dependency.
++apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
++apt.import_lock(
++    lock = "@sonic_build_infra//apt:apt.lock.json",
++    requests = "@sonic_build_infra//apt:requests.json",
++    sources = "@sonic_build_infra//apt:sources.json",
++    dependency_sets = ["dhcpmon_debian"],
++    libraries = True,
++)
++use_repo(apt, "dhcpmon_debian")
++
++bazel_dep(name = "jsoncpp", version = "1.9.5")
++
++gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
++use_repo(gcc, "gcc_toolchains")
++register_toolchains("@gcc_toolchains//:all")
++
++single_version_override(module_name = "tar.bzl", version = "0.10.5.sonic.2")
++# Later rules_cc requires a Bazel runtime toolchain unavailable in 8.5.1.
++single_version_override(module_name = "rules_cc", version = "0.2.20")
++# Common registers Rust consumers; its non-root dev toolchains are not inherited.
++bazel_dep(name = "rules_rs", version = "0.1.0")
++rust = use_extension("@rules_rs//rs:rules_rust_reexported_extensions.bzl", "rust", dev_dependency = True)
++rust.toolchain(edition = "2021", versions = ["1.90.0"], extra_target_triples = ["aarch64-unknown-linux-gnu", "x86_64-unknown-linux-gnu"])
++use_repo(rust, "rust_toolchains")
++register_toolchains("@rust_toolchains//:all", dev_dependency = True)
+diff --git a/modules/sonic-dhcpmon/0.1.1-3e7160d9b89ad7c701a0827af80367ab1b206ccf/patches/0001-bazel-producer.patch b/modules/sonic-dhcpmon/0.1.1-3e7160d9b89ad7c701a0827af80367ab1b206ccf/patches/0001-bazel-producer.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..0fc640f8d3fae6c7b47614a02fc2cb314948f961
+--- /dev/null
++++ b/modules/sonic-dhcpmon/0.1.1-3e7160d9b89ad7c701a0827af80367ab1b206ccf/patches/0001-bazel-producer.patch
+@@ -0,0 +1,170 @@
++diff --git a/.bazelrc b/.bazelrc
++new file mode 100644
++index 0000000000000000000000000000000000000000..2b6a7f54efa00a926508216de9fc6801651c9d40
++--- /dev/null
+++++ b/.bazelrc
++@@ -0,0 +1,7 @@
+++common --registry=https://raw.githubusercontent.com/sonic-net/sonic-bazel-registry/main
+++common --registry=https://bcr.bazel.build/
+++common --platforms=@sonic_build_infra//platforms:x86_64_trixie
+++common:aarch64 --platforms=@sonic_build_infra//platforms:aarch64_trixie
+++build --compilation_mode=opt
+++build --copt=-g
+++build --linkopt=-Wl,--build-id
++diff --git a/.bazelversion b/.bazelversion
++new file mode 100644
++index 0000000000000000000000000000000000000000..f9c71a52e2fd865dbf40db779b5bf8157d5c5a6a
++--- /dev/null
+++++ b/.bazelversion
++@@ -0,0 +1 @@
+++8.5.1
++diff --git a/BUILD.bazel b/BUILD.bazel
++new file mode 100644
++index 0000000000000000000000000000000000000000..0803508ee0403aeb87454828f702762186e73056
++--- /dev/null
+++++ b/BUILD.bazel
++@@ -0,0 +1,80 @@
+++load("@sonic_build_infra//cc:runtime_test.bzl", "native_runtime_test")
+++load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
+++load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+++load("@rules_cc//cc:cc_library.bzl", "cc_library")
+++load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
+++package(default_visibility = ["//visibility:public"])
+++
+++# The source revision uses Debian's jsoncpp/json/json.h include path.
+++cc_library(
+++    name = "debian_jsoncpp_headers",
+++    hdrs = ["bazel/include/jsoncpp/json/json.h"],
+++    strip_include_prefix = "bazel/include",
+++    deps = ["@jsoncpp//:jsoncpp"],
+++)
+++
+++cc_binary(
+++    name = "dhcpmon",
+++    srcs = [
+++        "src/dhcp_check_profile_relay.cpp", "src/health_check.cpp",
+++        "src/packet_handler.cpp", "src/sock_mgr.cpp", "src/event_mgr.cpp",
+++        "src/dhcp_device.cpp", "src/dhcp_devman.cpp", "src/dhcp_mon.cpp",
+++        "src/util.cpp", "src/main.cpp",
+++    ] + glob(["src/*.h"]),
+++    copts = ["-O3", "-g3", "-Wall", "-std=c++17"],
+++    linkopts = ["-pthread"],
+++    deps = [
+++        "@sonic_swss_common//:libswsscommon_shared",
+++        "@dhcpmon_debian//libevent-dev:libevent_cc",
+++        "@dhcpmon_debian//libevent-dev:libevent_pthreads_cc",
+++        "@dhcpmon_debian//libexplain-dev:libexplain_cc",
+++        ":debian_jsoncpp_headers",
+++        "@dhcpmon_debian//libboost-thread1.83-dev:libboost_thread_cc",
+++        "@dhcpmon_debian//libboost-system1.83-dev:libboost_system_cc",
+++        "@dhcpmon_debian//libhiredis-dev:libhiredis_cc",
+++        "@dhcpmon_debian//libpcap0.8-dev:libpcap_cc",
+++    ],
+++)
+++sonic_deploy_tar(
+++    name = "runtime",
+++    binaries = {"usr/sbin/dhcpmon uid=0 gid=0 mode=0755 type=file": ":dhcpmon"},
+++    mtree = ["usr type=dir uid=0 gid=0 mode=0755", "usr/sbin type=dir uid=0 gid=0 mode=0755"],
+++    force_debug_build = True,
+++)
+++
+++exports_files(["debian/control", "debian/changelog"])
+++
+++runtime_packages(
+++    name = "monitor_metadata",
+++    packages = {"sonic-dhcpmon": "//:runtime"},
+++    control = "//:debian/control",
+++    changelog = "//:debian/changelog",
+++    required_paths = {"sonic-dhcpmon": ["usr/sbin/dhcpmon"]},
+++    # The shared metadata rule supplies libc, libgcc and libstdc++ for the target.
+++    apt_packages = {
+++        "@dhcpmon_debian//" + name + ":data": "@dhcpmon_debian//" + name + ":control"
+++        for name in [
+++            "libevent-2.1-7t64",
+++            "libevent-pthreads-2.1-7t64",
+++            "libexplain51t64",
+++            "libhiredis1.1.0",
+++            "libpcap0.8t64",
+++        ]
+++    },
+++    dependencies = ["@sonic_swss_common//:runtime_packages.json"],
+++    visibility = ["//visibility:public"],
+++)
+++
+++cc_binary(name = "util_behavior_binary", testonly = True, srcs = ["tests/util_behavior_test.cpp", "src/util.cpp"] + glob(["src/*.h"]), copts = ["-std=c++17", "-UNDEBUG"], deps = [":debian_jsoncpp_headers", "@sonic_swss_common//:libswsscommon_shared", "@dhcpmon_debian//libexplain-dev:libexplain_cc", "@dhcpmon_debian//libevent-dev:libevent_cc"], visibility = ["//visibility:public"])
+++
+++# Run with declared target loader/libraries, not an evidence-only host image.
+++native_runtime_test(
+++    name = "util_behavior_test",
+++    binary = ":util_behavior_binary",
+++    runtime_payloads = [
+++        "@sonic_swss_common//dist:libswsscommon_pkg",
+++        "@sonic_swss_common//tools/bazel/runtime:test_runtime",
+++        "@dhcpmon_debian//libexplain-dev",
+++        "@dhcpmon_debian//libevent-dev",
+++    ],
+++)
++diff --git a/bazel/include/jsoncpp/json/json.h b/bazel/include/jsoncpp/json/json.h
++new file mode 100644
++index 0000000000000000000000000000000000000000..68ec43d08e084a3941bb2fd665833aa15e79fe81
++--- /dev/null
+++++ b/bazel/include/jsoncpp/json/json.h
++@@ -0,0 +1,2 @@
+++#pragma once
+++#include <json/json.h>
++diff --git a/tests/util_behavior_test.cpp b/tests/util_behavior_test.cpp
++new file mode 100644
++index 0000000000000000000000000000000000000000..2a7c7d8bb7e021d2fb576f6dbda153195b682253
++--- /dev/null
+++++ b/tests/util_behavior_test.cpp
++@@ -0,0 +1,50 @@
+++#include <arpa/inet.h>
+++#include <swss/dbconnector.h>
+++#include <swss/table.h>
+++#include "src/util.h"
+++#include <cassert>
+++#include <array>
+++#include <iostream>
+++#include <limits>
+++#include <memory>
+++#include <mutex>
+++#include <vector>
+++std::shared_ptr<swss::DBConnector> mStateDbPtr;
+++std::shared_ptr<swss::Table> mStateDbMuxTablePtr;
+++std::mutex mux_table_lock;
+++std::shared_ptr<swss::DBConnector> mConfigDbPtr;
+++bool dual_tor_mode = false;
+++std::string downstream_ifname = "Vlan1000";
+++static uint32_t reference_sum(const uint8_t *p, size_t n) {
+++    uint32_t sum=0; for(size_t i=0;i<n;i+=2) sum += (uint16_t(p[i])<<8) | (i+1<n?p[i+1]:0); return sum;
+++}
+++static uint16_t reference_fold(uint32_t n) { while(n>>16)n=(n&65535)+(n>>16); return uint16_t(~n); }
+++int main() {
+++    std::array<uint8_t,65> bytes{}; for(size_t i=0;i<bytes.size();++i)bytes[i]=uint8_t(i*37+11);
+++    for(size_t n=0;n<=bytes.size();++n)assert(checksum_accumulate_words(bytes.data(),n)==reference_sum(bytes.data(),n));
+++    std::cout << "PASS checksum lengths 0..65\n";
+++    for(uint32_t n: {0u,1u,65535u,65536u,0x12345678u,0xffffffffu})assert(checksum_finalize_fold(n)==reference_fold(n));
+++    std::cout << "PASS carry folding\n";
+++    iphdr ip{};ip.version=4;ip.ihl=5;ip.ttl=64;ip.protocol=17;inet_pton(AF_INET,"192.0.2.1",&ip.saddr);inet_pton(AF_INET,"198.51.100.2",&ip.daddr);
+++    assert(calculate_ip_checksum(&ip)==reference_fold(reference_sum(reinterpret_cast<uint8_t*>(&ip),20)));assert(calculate_ip_checksum(nullptr)==0);
+++    std::cout << "PASS IPv4 header checksum\n";
+++    struct {udphdr header;uint8_t payload[7];} udp{};udp.header.source=htons(67);udp.header.dest=htons(68);udp.header.len=htons(15);for(int i=0;i<7;++i)udp.payload[i]=uint8_t(i+1);
+++    uint32_t sum=reference_sum(reinterpret_cast<uint8_t*>(&ip.saddr),4)+reference_sum(reinterpret_cast<uint8_t*>(&ip.daddr),4)+17+15+reference_sum(reinterpret_cast<uint8_t*>(&udp),15);
+++    uint16_t wanted=reference_fold(sum);if(!wanted)wanted=65535;assert(calculate_udp_checksum(&udp.header,reinterpret_cast<uint8_t*>(&ip),false)==wanted);
+++    udp.header.check=htons(wanted);assert(calculate_udp_checksum(&udp.header,reinterpret_cast<uint8_t*>(&ip),false)==65535);udp.header.check=0;
+++    std::cout << "PASS IPv4 UDP pseudoheader and zero checksum encoding\n";
+++    ip6_hdr ip6{};inet_pton(AF_INET6,"2001:db8::1",&ip6.ip6_src);inet_pton(AF_INET6,"2001:db8::2",&ip6.ip6_dst);
+++    sum=reference_sum(reinterpret_cast<uint8_t*>(&ip6.ip6_src),16)+reference_sum(reinterpret_cast<uint8_t*>(&ip6.ip6_dst),16)+17+15+reference_sum(reinterpret_cast<uint8_t*>(&udp),15);
+++    wanted=reference_fold(sum);if(!wanted)wanted=65535;assert(calculate_udp_checksum(&udp.header,reinterpret_cast<uint8_t*>(&ip6),true)==wanted);assert(calculate_udp_checksum(nullptr,reinterpret_cast<uint8_t*>(&ip6),true)==0);assert(calculate_udp_checksum(&udp.header,nullptr,false)==0);
+++    std::cout << "PASS IPv6 UDP pseudoheader and invalid pointer handling\n";
+++    uint64_t number=0;assert(parse_uint64_from_str("0",number)&&number==0);assert(parse_uint64_from_str("18446744073709551615",number)&&number==std::numeric_limits<uint64_t>::max());assert(!parse_uint64_from_str("18446744073709551616",number));assert(!parse_uint64_from_str("12junk",number));assert(!parse_uint64_from_str("",number));
+++    std::cout << "PASS uint64 parsing boundaries\n";
+++    std::string valid="{\"a\":1,\"b\":\"relay\"}",invalid="{broken";Json::Value value;assert(parse_json_str(&valid,&value));assert(value["a"].asInt()==1&&value["b"].asString()=="relay");assert(!parse_json_str(&invalid,&value));assert(!parse_json_str(&valid,nullptr));
+++    std::cout << "PASS production JSON parsing\n";
+++    std::array<uint8_t,6> mac{0,17,34,51,68,255};assert(generate_addr_string(mac.data(),6)=="00:11:22:33:44:ff");assert(generate_addr_string(reinterpret_cast<uint8_t*>(&ip.saddr),4)=="192.0.2.1");in6_addr loop{};inet_pton(AF_INET6,"::1",&loop);assert(generate_addr_string(reinterpret_cast<uint8_t*>(&loop),16)=="::1");
+++    std::cout << "PASS IPv4 IPv6 and MAC formatting\n";
+++    auto own=construct_counter_db_table_key("Vlan1000",false),other=construct_counter_db_table_key("Ethernet0",false),v6=construct_counter_db_table_key("Ethernet0",true);assert(own==std::string(COUNTERS_DB_COUNTER_TABLE_PREFIX)+"Vlan1000");assert(other==std::string(COUNTERS_DB_COUNTER_TABLE_PREFIX)+"Vlan1000"+COUNTERS_DB_SEPARATOR+"Ethernet0");assert(v6==std::string(COUNTERS_DB_COUNTER_TABLE_V6_PREFIX)+"Vlan1000"+COUNTERS_DB_SEPARATOR+"Ethernet0");assert(parse_counter_table_key(other)==std::make_pair(std::string("Vlan1000"),std::string("Ethernet0")));assert(parse_counter_table_key(own)==std::make_pair(std::string("Vlan1000"),std::string("Vlan1000")));assert(!intf_is_standby("Ethernet0"));
+++    std::cout << "PASS counter keys and non-dual-ToR standby path\n";
+++    std::string names[]={"discover","offer"};std::unordered_map<uint8_t,uint64_t> counters{{0,1},{1,2}};assert(generate_json_string(&counters,2,names)=="{'discover':'1','offer':'2'}");assert(generate_json_string(nullptr,2,names)=="{'discover':'0','offer':'0'}");
+++    std::cout << "PASS counter serialization\nMonitor-production-utility-PASS 10 groups\n";
+++}
+diff --git a/modules/sonic-dhcpmon/0.1.1-3e7160d9b89ad7c701a0827af80367ab1b206ccf/patches/0001-module-version.patch b/modules/sonic-dhcpmon/0.1.1-3e7160d9b89ad7c701a0827af80367ab1b206ccf/patches/0001-module-version.patch
+deleted file mode 100644
+index c8711422355138b8c53710de701e25e011cef438..0000000000000000000000000000000000000000
+--- a/modules/sonic-dhcpmon/0.1.1-3e7160d9b89ad7c701a0827af80367ab1b206ccf/patches/0001-module-version.patch
++++ /dev/null
+@@ -1,12 +0,0 @@
+-Align the landed DHCP monitor module with its immutable registry version.
+-
+-Source: https://github.com/securely1g/sonic-dhcpmon/commit/b824589b2ba49a8ba59142289bfb04bb3ca68875
+-
+---- a/MODULE.bazel
+-+++ b/MODULE.bazel
+-@@ -1,4 +1,4 @@
+--module(name = "sonic-dhcpmon", version = "0.1.0")
+-+module(name = "sonic-dhcpmon", version = "0.1.0-b824589b2ba49a8ba59142289bfb04bb3ca68875")
+- bazel_dep(name = "rules_cc", version = "0.2.20")
+- bazel_dep(name = "sonic-build-infra", version = "0.0.35-4016babb62e9eb97a71398b4d77ec9cfa5c62062", repo_name = "sonic_build_infra")
+- bazel_dep(name = "sonic-swss-common", version = "0.0.9-334389eae54afd1f4f5ee69f89c3a7ad2062ee61", repo_name = "sonic_swss_common")
+diff --git a/modules/sonic-dhcpmon/0.1.1-3e7160d9b89ad7c701a0827af80367ab1b206ccf/presubmit.json b/modules/sonic-dhcpmon/0.1.1-3e7160d9b89ad7c701a0827af80367ab1b206ccf/presubmit.json
+index 17e3cbb4d1d75ee2c1d04644cbc60bf22ed18e32..85f5a4bc63fe2b5ea6e58240dbef5e24237fdc12 100644
+--- a/modules/sonic-dhcpmon/0.1.1-3e7160d9b89ad7c701a0827af80367ab1b206ccf/presubmit.json
++++ b/modules/sonic-dhcpmon/0.1.1-3e7160d9b89ad7c701a0827af80367ab1b206ccf/presubmit.json
+@@ -44,5 +44,6 @@
+   ],
+   "rust_toolchain": {
+     "version": "1.90.0"
+-  }
++  },
++  "generated_module_overlay": true
+ }
+diff --git a/modules/sonic-dhcpmon/0.1.1-3e7160d9b89ad7c701a0827af80367ab1b206ccf/source.json b/modules/sonic-dhcpmon/0.1.1-3e7160d9b89ad7c701a0827af80367ab1b206ccf/source.json
+index f972adf2050ea9ff856c21058ca9cfea15ea15ac..bcb1c56eed25d0393af39b7fd988ed21ca818fad 100644
+--- a/modules/sonic-dhcpmon/0.1.1-3e7160d9b89ad7c701a0827af80367ab1b206ccf/source.json
++++ b/modules/sonic-dhcpmon/0.1.1-3e7160d9b89ad7c701a0827af80367ab1b206ccf/source.json
+@@ -1,9 +1,12 @@
+ {
+-  "url": "https://github.com/securely1g/sonic-dhcpmon/archive/b824589b2ba49a8ba59142289bfb04bb3ca68875.tar.gz",
+-  "strip_prefix": "sonic-dhcpmon-b824589b2ba49a8ba59142289bfb04bb3ca68875",
+-  "integrity": "sha256-YN6KRlHBiukYgTgA+msvxdrXnyzwUXTzHP+rWMx2WIs=",
++  "url": "https://github.com/sonic-net/sonic-dhcpmon/archive/3e7160d9b89ad7c701a0827af80367ab1b206ccf.tar.gz",
++  "strip_prefix": "sonic-dhcpmon-3e7160d9b89ad7c701a0827af80367ab1b206ccf",
++  "integrity": "sha256-KUJ1f10OyLSIg8Kp/ZMumSIg6AFrlJt6jAyjZWCdvts=",
++  "patch_strip": 1,
+   "patches": {
+-    "0001-module-version.patch": "sha256-4kLFlkbaXHqaj5SDKNJpU3X/tLd+EAjP4XiAi7dfgcA="
++    "0001-bazel-producer.patch": "sha256-mv5Cw66nKFZjfgyDQI6in9ZLBh+78NgbG5U3orkHZ30="
+   },
+-  "patch_strip": 1
++  "overlay": {
++    "MODULE.bazel": "sha256-XhtwMstpJeqdFGxpGqQQj8pKg4PR6PcJ39SRrE2xn14="
++  }
+ }
+diff --git a/modules/sonic-dhcpmon/metadata.json b/modules/sonic-dhcpmon/metadata.json
+index 1d3f906baea1e5f18d39cfcae0452a26910a00ef..32890a2301dd4932396f223b6cae45096a428231 100644
+--- a/modules/sonic-dhcpmon/metadata.json
++++ b/modules/sonic-dhcpmon/metadata.json
+@@ -1,5 +1,6 @@
+ {
+   "versions": [
+-    "0.1.0-b824589b2ba49a8ba59142289bfb04bb3ca68875"
++    "0.1.0-b824589b2ba49a8ba59142289bfb04bb3ca68875",
++    "0.1.1-3e7160d9b89ad7c701a0827af80367ab1b206ccf"
+   ]
+ }
