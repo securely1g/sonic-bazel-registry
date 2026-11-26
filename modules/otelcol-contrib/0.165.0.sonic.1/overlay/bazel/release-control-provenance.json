@@ -1,0 +1,6 @@
+{
+  "source": "Exact finalized control from the existing official 0.165.0 AMD64 DEB; metadata input only, no DEB producer.",
+  "url": "https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v0.165.0/otelcol-contrib_0.165.0_linux_amd64.deb",
+  "deb_sha256": "dafb5174344dd15f339fd8208783b17122fb4cd37fa7e5461fb09d99df212b4b",
+  "control_sha256": "8a4482200a395e1d66ab8ffbb832670950f4ad93c9eda1e8dcfb1dee9ddb4258"
+}

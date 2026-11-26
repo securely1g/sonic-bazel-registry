@@ -1,0 +1,23 @@
+diff --git a/BUILD.bazel b/BUILD.bazel
+--- a/BUILD.bazel
++++ b/BUILD.bazel
+@@ -10,6 +10,7 @@
+         "factory.go",
+         "receiver.go",
+     ],
++    embedsrcs = ["//internal/metadataconfig:metrics.yaml"],
+     importpath = "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/googlecloudspannerreceiver",
+     visibility = ["//visibility:public"],
+     deps = [
+diff --git a/internal/metadataconfig/BUILD.bazel b/internal/metadataconfig/BUILD.bazel
+--- a/internal/metadataconfig/BUILD.bazel
++++ b/internal/metadataconfig/BUILD.bazel
+@@ -12,3 +12,8 @@
+         "@org_uber_go_goleak//:goleak",
+     ],
+ )
++
++exports_files(
++    ["metrics.yaml"],
++    visibility = ["//:__pkg__"],
++)

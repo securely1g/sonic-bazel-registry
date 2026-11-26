@@ -1,0 +1,125 @@
+Keep the Go module replacements that identify the actual sources linked into a
+binary. Go's normal build command records these with debug.Module.Replace.
+rules_go v0.65.0 currently records only the original path, version and checksum.
+Gazelle's archive_override can supply a REPO.bazel whose package metadata adds
+the effective module's path, version and checksum as Go-specific PURL qualifiers.
+Only packages reachable from the executable contribute records. This is needed
+for the source-generated OBI receiver and the Avro fork in Collector v0.165.0.
+
+diff --git a/go/tools/builders/buildinfo.go b/go/tools/builders/buildinfo.go
+index 29bb423..e80baa0 100644
+--- a/go/tools/builders/buildinfo.go
++++ b/go/tools/builders/buildinfo.go
+@@ -31,10 +31,17 @@ const (
+ 	buildInfoEnd   = "\xf9\x32\x43\x31\x86\x18\x20\x72\x00\x82\x42\x10\x41\x16\xd8\xf2"
+ )
+ 
++// A module's replacement is a value so independently generated package metadata
++// for the same source still deduplicates at link time.
++type moduleReplacement struct {
++	path, version, sum string
++}
++
+ type moduleInfo struct {
+-	path    string
+-	version string
+-	sum     string
++	replacement moduleReplacement
++	path        string
++	version     string
++	sum         string
+ }
+ 
+ type packageMetadata struct {
+@@ -226,15 +233,26 @@ func moduleFromPURL(purl string) (moduleInfo, bool, error) {
+ 	}
+ 
+ 	var moduleSum string
++	var replacement moduleReplacement
+ 	if u.RawQuery != "" {
+ 		values, err := url.ParseQuery(u.RawQuery)
+ 		if err != nil {
+ 			return moduleInfo{}, false, fmt.Errorf("parsing Go package URL qualifiers: %w", err)
+ 		}
+ 		moduleSum = values.Get("checksum")
++		replacement = moduleReplacement{path: values.Get("go_replace"), version: values.Get("go_replace_version"), sum: values.Get("go_replace_sum")}
++		if replacement != (moduleReplacement{}) {
++			local := strings.HasPrefix(replacement.path, ".") || strings.HasPrefix(replacement.path, "/")
++			if moduleSum != "" || replacement.path == "" || replacement.version == "" ||
++				strings.ContainsAny(replacement.path+replacement.version+replacement.sum, "\t\r\n\x00") ||
++				(local && (replacement.version != "(devel)" || replacement.sum != "")) ||
++				(!local && (!strings.HasPrefix(replacement.version, "v") || !strings.HasPrefix(replacement.sum, "h1:"))) {
++				return moduleInfo{}, false, fmt.Errorf("invalid Go module replacement in package URL %q", purl)
++			}
++		}
+ 	}
+ 
+-	return moduleInfo{path: modulePath, version: moduleVersion, sum: moduleSum}, true, nil
++	return moduleInfo{path: modulePath, version: moduleVersion, sum: moduleSum, replacement: replacement}, true, nil
+ }
+ 
+ func buildInfoDeps(modules []moduleInfo, mainModule moduleInfo) []*debug.Module {
+@@ -264,16 +282,26 @@ func buildInfoDeps(modules []moduleInfo, mainModule moduleInfo) []*debug.Module
+ 		if unique[i].version != unique[j].version {
+ 			return unique[i].version < unique[j].version
+ 		}
+-		return unique[i].sum < unique[j].sum
++		if unique[i].sum != unique[j].sum {
++			return unique[i].sum < unique[j].sum
++		}
++		a, b := unique[i].replacement, unique[j].replacement
++		if a.path != b.path {
++			return a.path < b.path
++		}
++		if a.version != b.version {
++			return a.version < b.version
++		}
++		return a.sum < b.sum
+ 	})
+ 
+ 	deps := make([]*debug.Module, 0, len(unique))
+ 	for _, module := range unique {
+-		deps = append(deps, &debug.Module{
+-			Path:    module.path,
+-			Version: module.version,
+-			Sum:     module.sum,
+-		})
++		dep := &debug.Module{Path: module.path, Version: module.version, Sum: module.sum}
++		if r := module.replacement; r.path != "" {
++			dep.Replace = &debug.Module{Path: r.path, Version: r.version, Sum: r.sum}
++		}
++		deps = append(deps, dep)
+ 	}
+ 	return deps
+ }
+diff --git a/go/tools/builders/buildinfo_test.go b/go/tools/builders/buildinfo_test.go
+index a2152ea..2882ba8 100644
+--- a/go/tools/builders/buildinfo_test.go
++++ b/go/tools/builders/buildinfo_test.go
+@@ -384,3 +384,26 @@ func TestShouldEmitBuildInfo(t *testing.T) {
+ 		})
+ 	}
+ }
++
++func TestGoModuleReplacements(t *testing.T) {
++	for _, replacement := range []moduleReplacement{
++		{path: "../local", version: "(devel)"},
++		{path: "example.com/fork", version: "v1.2.3", sum: "h1:sourcehash="},
++	} {
++		u := "pkg:golang/example.com/original@v1.2.0?go_replace=" + replacement.path + "&go_replace_version=" + replacement.version + "&go_replace_sum=" + replacement.sum
++		module, ok, err := moduleFromPURL(u)
++		if !ok || err != nil {
++			t.Fatalf("%s: %v", u, err)
++		}
++		deps := buildInfoDeps([]moduleInfo{module, module}, moduleInfo{})
++		if len(deps) != 1 || deps[0].Path != "example.com/original" || deps[0].Version != "v1.2.0" || deps[0].Sum != "" {
++			t.Fatalf("wrong original module: %+v", deps)
++		}
++		if r := deps[0].Replace; r == nil || r.Path != replacement.path || r.Version != replacement.version || r.Sum != replacement.sum {
++			t.Fatalf("wrong effective module: %+v", r)
++		}
++	}
++	if _, _, err := moduleFromPURL("pkg:golang/example.com/module@v1?go_replace=../local&go_replace_version=v1.0.0"); err == nil {
++		t.Fatal("accepted an inconsistent replacement for a local source")
++	}
++}

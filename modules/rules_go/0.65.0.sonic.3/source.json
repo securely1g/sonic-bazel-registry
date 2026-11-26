@@ -1,0 +1,17 @@
+{
+  "integrity": "sha256-1KbpPcY5RBcrw7kVoRv6jXORyfH9wR1+Q3JPSXYX8OU=",
+  "strip_prefix": "",
+  "url": "https://github.com/bazel-contrib/rules_go/releases/download/v0.65.0/rules_go-v0.65.0.zip",
+  "patches": {
+    "0001-resolve-relative-cgo-header-paths.patch": "sha256-BgKoiBB484u4wZyuzk+QGgSLF87wPTef/JuqqD+cB6w=",
+    "0002-select-native-build-id-regressions.patch": "sha256-ChAFZ24XwTVlf2Kb5URKVVGuc+SMy4wx0Lde5DM1ux4=",
+    "0003-use-sonic-registry-for-nested-regressions.patch": "sha256-EKxFIJW9bnZP6W2WdHUN9V8xGD49TJLN3Kibcl/pyMM=",
+    "0004-preserve-go-module-replacements-in-buildinfo.patch": "sha256-Nd00L/mitHaUE8aJSlaQM2ixOZbbTklJfV0E9r6v/Rw="
+  },
+  "patch_strip": 1,
+  "overlay": {
+    "tests/sonic_4583/BUILD.bazel": "sha256-Tab9A+CPNkBpQA/4C/PUs5wJGGQOQzLkzIFps532qnU=",
+    "tests/sonic_4583/cc_header_inputs_test.go": "sha256-EE80WVRgnK10Rg6Fjl7bQDBNdZp2yacTIXg5/ad35fM=",
+    "MODULE.bazel": "sha256-/oFeDLH+0mK4zFO5Dzqzrmw4uqidSFptJB8mU0V6C4s="
+  }
+}
