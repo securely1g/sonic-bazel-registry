@@ -1,0 +1,24 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Each modules/<name>/<version>/ directory is a published registry entry and never changes; a new version is a new directory, so Renovate reads nothing under modules/. ignorePaths, unlike a disabled packageRule, also keeps security updates out. It replaces config:recommended's list of ignored test directories; ci/tests/ holds only Python and Java, which no enabled manager reads",
+  "extends": ["local>sonic-net/sonic-pipelines//renovate/default"],
+  "baseBranchPatterns": ["main"],
+  "ignorePaths": ["modules/**"],
+  "packageRules": [
+    {
+      "description": "The default branch here is main, which the preset's master rules do not match. Group patch and minor updates on main, as the preset does on master",
+      "matchBaseBranches": ["main"],
+      "matchUpdateTypes": ["patch", "minor"],
+      "groupName": "{{{datasource}}} {{{updateType}}} updates"
+    },
+    {
+      "description": "Renovate merges the updates the preset labels automerge: security updates below a major version, except patched modules. It merges on a later run, once every check on the head commit has passed, not only the required ones, and the renovate-approve app has approved the pull request. Reviewers are still assigned, so one that fails reaches them.",
+      "matchJsonata": ["isVulnerabilityAlert = true and $not('patched-module' in addLabels)"],
+      "matchUpdateTypes": ["patch", "minor"],
+      "automerge": true,
+      "automergeType": "pr",
+      "platformAutomerge": false,
+      "assignAutomerge": true
+    }
+  ]
+}
