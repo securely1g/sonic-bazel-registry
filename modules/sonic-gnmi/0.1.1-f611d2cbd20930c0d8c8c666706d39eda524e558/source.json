@@ -1,0 +1,31 @@
+{
+  "url": "https://github.com/sonic-net/sonic-gnmi/archive/f611d2cbd20930c0d8c8c666706d39eda524e558.tar.gz",
+  "strip_prefix": "sonic-gnmi-f611d2cbd20930c0d8c8c666706d39eda524e558",
+  "integrity": "sha256-vU8tvn4NYxIwxUq/P7GSNKbB/DKk1Vv3eP6lUtShXd8=",
+  "patch_strip": 1,
+  "patches": {
+    "0001-bazel-producer.patch": "sha256-lplMUDBmbmVbO0Ej3VHikQaJPjhwW3Xi8N8YLN1nZk0="
+  },
+  "overlay": {
+    "MODULE.bazel": "sha256-RXqapaMOUZzMpVkkNAYxPdwMpk1wQHwEaULo+f7XbUA=",
+    "testdata/COUNTERS_Ethernet1.txt": "sha256-fVzmuPxuN9Uf36tb2/L6KrJ0p8WnYGF0+Q0k71nsg7A=",
+    "testdata/COUNTERS_Ethernet68_Pfcwd.txt": "sha256-2q4QOX8cCXfmLxBMFB4AF0Kr096EpYvZX5U2Z/nCy4E=",
+    "testdata/COUNTERS_Ethernet68_Pfcwd_alias.txt": "sha256-JklslI5OPhTkqXzoi50XHHp7v/UYDSOeh+5lhW31KRo=",
+    "testdata/COUNTERS_Ethernet68_Queues.txt": "sha256-+9PDeebUVfrHtTlGfo0Xt7D8lbTc3v4LSkogLTrkdcw=",
+    "testdata/COUNTERS_Ethernet68_Queues_alias.txt": "sha256-e5fdRhNdN6DBqKnrFTNOwQTbpP2xj1daVxTpIVvK1dY=",
+    "testdata/COUNTERS_Ethernet_wildcard.txt": "sha256-iCSIeWj+tRy85Dh6RyiwRsKuxEEo8k4C9kUSHnpQ6wM=",
+    "testdata/COUNTERS_Ethernet_wildcard_PFC_7_RX_alias.txt": "sha256-Qj06iSxaNsP633DeBFedciBNn251Rl5Kp2uOz/SO+ww=",
+    "testdata/COUNTERS_Ethernet_wildcard_Pfcwd_alias.txt": "sha256-RGd+tWgcl+3LyWKfDUkqDDg5VJXY9043nA7IrNJgtLI=",
+    "testdata/COUNTERS_Ethernet_wildcard_Queues_alias.txt": "sha256-IcPChjz4SiOsWMakhshblRcY2nLHqMMOa8AxfrHQEBo=",
+    "testdata/COUNTERS_Ethernet_wildcard_alias.txt": "sha256-sGVP1sfK27/L+kw+MfrLfQJTtODERrdP5yeaHpNBvKc=",
+    "testdata/COUNTERS_SID_single_entry.json": "sha256-sqXb6RDYEEoKnUgloTeZY62DsFt7sVGP1NFvMlIOP0g=",
+    "testdata/COUNTERS_SID_wildcard.json": "sha256-GlLF3XgytxOWLoAx4x2I8ETwmld0KdBnfD9RCrSDYm0=",
+    "testdata/COUNTERS_oid_0x1500000000091e.txt": "sha256-skyWnXK+Bauyp4De6ydCyKAxwZKDQYMsat8BorzLIIE=",
+    "testdata/COUNTERS_oid_0x1500000000091f.txt": "sha256-skyWnXK+Bauyp4De6ydCyKAxwZKDQYMsat8BorzLIIE=",
+    "testdata/COUNTERS_oid_0x54000000004f63.txt": "sha256-yyQC08EVYFlkW7SBphV873O+kaf5FpVl5uaKsDuRHKw=",
+    "testdata/COUNTERS_oid_0x54000000004f64.txt": "sha256-sqXb6RDYEEoKnUgloTeZY62DsFt7sVGP1NFvMlIOP0g=",
+    "testdata/PERIODIC_WATERMARKS_Ethernet_wildcard_PriorityGroups_alias.txt": "sha256-4mXMg5+iGjkROTDn8TPkIQvmXnYbEjrpdPYo40I/wow=",
+    "testdata/RATES_Ethernet_wildcard_alias.txt": "sha256-7s0MbXds7o8lZYEEMeUpaWbZtWsXV+glaKeB23oqNu8=",
+    "testdata/RATES_oid_Ethernet89.txt": "sha256-j4XDJ+7wDG4Nw9MVMkmnq8KYis68BjJF8loPx9rlZyw="
+  }
+}
