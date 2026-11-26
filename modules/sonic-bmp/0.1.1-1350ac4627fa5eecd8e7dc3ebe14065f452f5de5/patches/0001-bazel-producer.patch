@@ -1,0 +1,158 @@
+diff --git a/.bazelrc b/.bazelrc
+new file mode 100644
+index 0000000000000000000000000000000000000000..0a8c62475901df55051092cb756f543b1bb14880
+--- /dev/null
++++ b/.bazelrc
+@@ -0,0 +1,7 @@
++common --registry=https://raw.githubusercontent.com/sonic-net/sonic-bazel-registry/main
++common --registry=https://bcr.bazel.build
++build --platforms=@sonic_build_infra//platforms:x86_64_trixie
++build --host_platform=@sonic_build_infra//platforms:x86_64_trixie
++build --incompatible_strict_action_env
++build --@sonic_swss_common//tools/bazel:yang_modules=True
++test --test_output=errors
+diff --git a/.bazelversion b/.bazelversion
+new file mode 100644
+index 0000000000000000000000000000000000000000..f9c71a52e2fd865dbf40db779b5bf8157d5c5a6a
+--- /dev/null
++++ b/.bazelversion
+@@ -0,0 +1 @@
++8.5.1
+diff --git a/BUILD.bazel b/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..cb3b9c8ee50d0c7f4d003a6c3791fa84ea82b74f
+--- /dev/null
++++ b/BUILD.bazel
+@@ -0,0 +1,92 @@
++"""SONiC's Redis-backed OpenBMP receiver and its installation payload."""
++
++load("@bazel_skylib//rules:expand_template.bzl", "expand_template")
++load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
++load("@rules_cc//cc:cc_test.bzl", "cc_test")
++load("@rules_python//python:py_test.bzl", "py_test")
++load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
++load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
++
++package(default_visibility = ["//visibility:public"])
++
++expand_template(
++    name = "version_header",
++    out = "openbmpd_version.h",
++    template = "openbmpd_version.h.in",
++    substitutions = {"@OPENBMPD_VERSION@": "0.14.0-0"},
++)
++
++# Match Make's ENABLE_REDIS selection. The Kafka backend has separate sources
++# and requires libraries which are absent from the SONiC runtime.
++cc_binary(
++    name = "openbmpd",
++    srcs = glob(
++        ["Server/src/**/*.cpp", "Server/src/**/*.h", "Server/src/**/*.hpp"],
++        exclude = ["Server/src/kafka/**"],
++    ) + [":version_header"],
++    copts = ["-std=c++14", "-Wno-unused-result", "-pthread"],
++    includes = ["Server/src", "Server/src/bgp", "Server/src/bgp/linkstate", "Server/src/bmp", "Server/src/redis"],
++    local_defines = ["REDIS_ENABLED"],
++    linkopts = ["-pthread"],
++    deps = [
++        "@bmp_build_debian//libboost-dev:libboost",
++        "@bmp_build_debian//libyaml-cpp-dev:libyaml-cpp_cc",
++        "@sonic_swss_common//:libswsscommon_shared",
++    ],
++    target_compatible_with = ["@platforms//cpu:x86_64", "@sonic_build_infra//platforms:trixie"],
++)
++
++sonic_deploy_tar(
++    name = "runtime",
++    binaries = {"./usr/bin/openbmpd uid=0 gid=0 mode=0755 time=0 type=file": ":openbmpd"},
++    force_debug_build = True,
++    srcs = ["Server/openbmpd.conf"],
++    mtree = ["./etc/bmp/openbmpd.conf uid=0 gid=0 mode=0644 time=0 type=file content=$(location Server/openbmpd.conf)"],
++)
++
++runtime_packages(
++    name = "runtime_packages.json",
++    module_name = "sonic-bmp",
++    control = "debian/control",
++    changelog = "debian/changelog",
++    debian_files = {"compat": "debian/compat"},
++    packages = {"sonic-bmp": ":runtime"},
++    required_paths = {"sonic-bmp": ["usr/bin/openbmpd", "etc/bmp/openbmpd.conf"]},
++    dependencies = ["@sonic_swss_common//:runtime_packages.json"],
++    apt_packages = {
++        "@bmp_runtime_debian//libyaml-cpp0.8:data": "@bmp_runtime_debian//libyaml-cpp0.8:control",
++    },
++)
++
++# Exercise the same backend-independent parser and reader sources as CTest.
++cc_test(
++    name = "bmp_parser_test",
++    srcs = [
++        "Server/src/Config.cpp",
++        "Server/src/Logger.cpp",
++        "Server/src/bmp/BMPReader.cpp",
++        "Server/src/bmp/parseBMP.cpp",
++        "Server/src/md5.cpp",
++        "Server/tests/parseBMP_test.cpp",
++    ] + glob([
++        "Server/src/*.h",
++        "Server/src/*.hpp",
++        "Server/src/bgp/**/*.cpp",
++        "Server/src/bgp/**/*.h",
++        "Server/src/bmp/*.h",
++    ]),
++    copts = ["-std=c++14", "-pthread"],
++    includes = ["Server/src", "Server/src/bgp", "Server/src/bgp/linkstate", "Server/src/bmp"],
++    linkopts = ["-pthread"],
++    deps = [
++        "@bmp_build_debian//libboost-dev:libboost",
++        "@bmp_build_debian//libyaml-cpp-dev:libyaml-cpp_cc",
++    ],
++)
++
++py_test(
++    name = "install_test",
++    srcs = ["install_test.py"],
++    args = ["$(rootpath :runtime)", "$(rootpath :runtime.debug_symbols)", "$(rootpath Server/openbmpd.conf)"],
++    data = [":runtime", ":runtime.debug_symbols", "Server/openbmpd.conf"],
++)
+diff --git a/install_test.py b/install_test.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..d0fbc3026a1f1a40b9e28a44512c0cae4cb27564
+--- /dev/null
++++ b/install_test.py
+@@ -0,0 +1,34 @@
++"""Check the installed Redis collector, its default configuration and symbols."""
++
++import struct
++import sys
++import tarfile
++from pathlib import Path
++
++
++def build_id(elf):
++    # GNU NT_GNU_BUILD_ID uses a four-byte name and a SHA-1 descriptor.
++    note = struct.pack("<III", 4, 20, 3) + b"GNU\0"
++    start = elf.index(note) + len(note)
++    return elf[start:start + 20].hex()
++
++
++def main(runtime, symbols, configuration):
++    with tarfile.open(runtime) as archive:
++        files = {entry.name.removeprefix("./"): entry for entry in archive if entry.isfile()}
++        assert set(files) == {"usr/bin/openbmpd", "etc/bmp/openbmpd.conf"}, set(files)
++        daemon = files["usr/bin/openbmpd"]
++        assert daemon.mode == 0o755 and daemon.uid == daemon.gid == 0
++        config = files["etc/bmp/openbmpd.conf"]
++        assert config.mode == 0o644 and archive.extractfile(config).read() == Path(configuration).read_bytes()
++        elf = archive.extractfile(daemon).read()
++        assert elf.startswith(b"\x7fELF\x02\x01")
++        assert struct.unpack_from("<H", elf, 18)[0] == 62  # EM_X86_64
++        ident = build_id(elf)
++    with tarfile.open(symbols) as archive:
++        symbol = next(entry for entry in archive if entry.name.endswith("/.build-id/" + ident[:2] + "/" + ident[2:] + ".debug"))
++        assert build_id(archive.extractfile(symbol).read()) == ident
++
++
++if __name__ == "__main__":
++    main(*sys.argv[1:])

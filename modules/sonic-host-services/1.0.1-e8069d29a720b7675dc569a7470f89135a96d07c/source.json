@@ -1,0 +1,12 @@
+{
+  "url": "https://github.com/sonic-net/sonic-host-services/archive/e8069d29a720b7675dc569a7470f89135a96d07c.tar.gz",
+  "strip_prefix": "sonic-host-services-e8069d29a720b7675dc569a7470f89135a96d07c",
+  "integrity": "sha256-OQcX+HoiK5Vk8LfmomwCjc3J/eRqYBX3mirARmzFbwc=",
+  "patch_strip": 1,
+  "patches": {
+    "0001-bazel-producer.patch": "sha256-ftRmpqKOwZcsrkKr5+cwU3HpKkCgAJDxVwrYnOOngp0="
+  },
+  "overlay": {
+    "MODULE.bazel": "sha256-RYJulPuAYJvUAxuaTc5pbVvY36MBCRemQTb3N51/S7I="
+  }
+}

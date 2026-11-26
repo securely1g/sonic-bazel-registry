@@ -1,0 +1,12 @@
+{
+  "url": "https://github.com/sonic-net/sonic-swss/archive/20c9de14f185fa502ad6ee7f8f8dc5c1f008a6a5.tar.gz",
+  "strip_prefix": "sonic-swss-20c9de14f185fa502ad6ee7f8f8dc5c1f008a6a5",
+  "integrity": "sha256-0Cgb2uzP4Li0EkZerj1+tRmp37/KLSIesldha7s8iHs=",
+  "patch_strip": 1,
+  "patches": {
+    "0001-bazel-producer.patch": "sha256-bacq5ALSI7OgK1sl9c8Q6H7LT9cTr6tdII4ZcHohSAE="
+  },
+  "overlay": {
+    "MODULE.bazel": "sha256-YwwaiDAzcs7ViCWZOP0fR3j//w96gA3vi2RNic5xIJU="
+  }
+}
