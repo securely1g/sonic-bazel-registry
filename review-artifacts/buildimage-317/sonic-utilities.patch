@@ -1,6 +1,6 @@
 Registry entry comparison for sonic-utilities
-Baseline 2d5a28673ab6af079d28524c22de93f29ea517e5 (1.2.0-6f1a8a16a947817d76b55dead8cce68e5a4536e4)
-Candidate e42106c801551fe4a1a9cf601261ee1ee55736ff (1.2.1-7f28a11da6cb7816a0520fb34d5ebe1ac65a1f1c)
+Baseline 872ed827b70638f667f5ef6e0bab64c4f3e177b4 (1.2.0-6f1a8a16a947817d76b55dead8cce68e5a4536e4)
+Candidate bb26ec1fa29f3080205103ea019d40875cc74b2a (1.2.1-7f28a11da6cb7816a0520fb34d5ebe1ac65a1f1c)
 
 In a clean baseline checkout where the destination does not yet exist:
   cp -a modules/sonic-utilities/1.2.0-6f1a8a16a947817d76b55dead8cce68e5a4536e4 modules/sonic-utilities/1.2.1-7f28a11da6cb7816a0520fb34d5ebe1ac65a1f1c
