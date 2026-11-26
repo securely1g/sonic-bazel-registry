@@ -1,0 +1,2367 @@
+Registry entry comparison for sonic-dash-ha
+Baseline 2d5a28673ab6af079d28524c22de93f29ea517e5 (0.0.1-502377912f3530c9bb6c27007822919f6f32aeb7)
+Candidate 040fc700c89f8db7f04e3672596823bff08d515e (0.0.2-fd6149fb5f8a8b5ed52335c501e5b3ed5e278603)
+
+In a clean baseline checkout where the destination does not yet exist:
+  cp -a modules/sonic-dash-ha/0.0.1-502377912f3530c9bb6c27007822919f6f32aeb7 modules/sonic-dash-ha/0.0.2-fd6149fb5f8a8b5ed52335c501e5b3ed5e278603
+  git apply <path-to-downloaded-patch>
+
+diff --git a/modules/sonic-dash-ha/0.0.2-fd6149fb5f8a8b5ed52335c501e5b3ed5e278603/MODULE.bazel b/modules/sonic-dash-ha/0.0.2-fd6149fb5f8a8b5ed52335c501e5b3ed5e278603/MODULE.bazel
+index 9eed42c49750e30e9d44ca17bcda0c2f022b229e..f8af8ad07bf83cab837776ac7794b27f4cd6e361 100644
+--- a/modules/sonic-dash-ha/0.0.2-fd6149fb5f8a8b5ed52335c501e5b3ed5e278603/MODULE.bazel
++++ b/modules/sonic-dash-ha/0.0.2-fd6149fb5f8a8b5ed52335c501e5b3ed5e278603/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-dash-ha",
+-    version = "0.0.1-502377912f3530c9bb6c27007822919f6f32aeb7",
++    version = "0.0.2-fd6149fb5f8a8b5ed52335c501e5b3ed5e278603",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
+@@ -12,20 +12,26 @@ bazel_dep(name = "buildifier_prebuilt", version = "8.5.1.3", dev_dependency = Tr
+ bazel_dep(name = "rules_rs", version = "0.1.0")
+ bazel_dep(name = "rules_cc", version = "0.2.20")
+ bazel_dep(name = "rules_python", version = "1.9.0.sonic.2")
+-bazel_dep(name = "rules_shell", version = "0.6.1")
++bazel_dep(name = "rules_shell", version = "0.8.0")
+ bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.26")
+ bazel_dep(name = "platforms", version = "1.1.0")
+ bazel_dep(name = "tar.bzl", version = "0.10.5.sonic.2")
+ bazel_dep(name = "protobuf-legacy", version = "3.21.12.sonic.4", repo_name = "protobuf_legacy")
+ bazel_dep(name = "sonic-rust-deps", version = "0.0.5-4064a814e8530300a7acbad4a9aff0621e2fb98e", repo_name = "sonic_rust_deps")
+-bazel_dep(name = "sonic-swss-common", version = "0.0.8-2a4ddd070edb719f2e969a880a5cfff711e64e72", repo_name = "sonic_swss_common")
++bazel_dep(name = "sonic-swss-common", version = "0.0.9-e06d5157d0a6a7228c8ba7357bdfd5e03623e586", repo_name = "sonic_swss_common")
+ bazel_dep(name = "sonic-dash-api", version = "0.0.6-55310bf7437d67411418c974587adcdc1b194d6b", repo_name = "sonic_dash_api")
+-bazel_dep(name = "sonic-build-infra", version = "0.0.45-77ef625a4ddafc8cdc15f3cc6aee31eabac8a5de", repo_name = "sonic_build_infra")
++bazel_dep(name = "sonic-build-infra", version = "0.0.44-35726399908a3beb947174e9359f902077928289", repo_name = "sonic_build_infra")
+ 
+ # Align the shared native toolchain with the maintained infrastructure source.
++# SWSS Common's older commit sorts higher. Pin the crates selected by Cargo.lock.
++single_version_override(
++    module_name = "sonic-rust-deps",
++    version = "0.0.5-4064a814e8530300a7acbad4a9aff0621e2fb98e",
++)
++
+ single_version_override(
+     module_name = "sonic-build-infra",
+-    version = "0.0.45-77ef625a4ddafc8cdc15f3cc6aee31eabac8a5de",
++    version = "0.0.44-35726399908a3beb947174e9359f902077928289",
+ )
+ 
+ single_version_override(
+diff --git a/modules/sonic-dash-ha/0.0.2-fd6149fb5f8a8b5ed52335c501e5b3ed5e278603/README.md b/modules/sonic-dash-ha/0.0.2-fd6149fb5f8a8b5ed52335c501e5b3ed5e278603/README.md
+index a66ef810b70d57e9269d5feab38e57243c4d5e43..7e216662c4dd0e827c6e4fdf4c8ea16f4f58f8ef 100644
+--- a/modules/sonic-dash-ha/0.0.2-fd6149fb5f8a8b5ed52335c501e5b3ed5e278603/README.md
++++ b/modules/sonic-dash-ha/0.0.2-fd6149fb5f8a8b5ed52335c501e5b3ed5e278603/README.md
+@@ -1,45 +1,5 @@
+-# DASH HA native AMD64 source producer
++# sonic-dash-ha at the upstream buildimage submodule revision
+ 
+-This initial registration packages landed DASH HA master commit
+-`502377912f3530c9bb6c27007822919f6f32aeb7` from
+-[source PR #1](https://github.com/securely1g/sonic-dash-ha/pull/1).
+-The source owns all 14 Cargo workspace crates, the original protocol generators,
+-Cargo.lock, native installation layout, and its build and test rules.
+-The registry patch only sets the commit-qualified module version.
++This entry builds `0.0.2-fd6149fb5f8a8b5ed52335c501e5b3ed5e278603` from the `src/sonic-dash-ha` gitlink at sonic-net/sonic-buildimage commit `9dfc6c15719f`. The registry verifies the canonical source archive by SHA-256 before applying the producer's Bazel integration. [Buildimage tree](https://github.com/sonic-net/sonic-buildimage/tree/9dfc6c15719f9266120407e384f9ee885970f833/src) · [Source commit](https://github.com/sonic-net/sonic-dash-ha/commit/fd6149fb5f8a8b5ed52335c501e5b3ed5e278603)
+ 
+-## Public outputs and tests
+-
+-The native Debian Trixie AMD64 consumer builds:
+-
+-- `@sonic-dash-ha//:dash_ha_pkg`: hamgrd, swbusd, swbus-cli, and wait_for_loopback.py.
+-- `@sonic-dash-ha//:dash_ha_pkg.debug_symbols`: matching separate debug symbols.
+-- `@sonic-dash-ha//:runtime_packages.json`: source-package identity and payload metadata.
+-- `@sonic-dash-ha//crates/container:container`: a separate build utility.
+-
+-The registered consumer retains the 19 original crate/integration test targets,
+-installed TAR/ELF/GDB and private-loopback SWBus acceptance, and the native
+-Rustdoc target for the original compile_fail and no_run examples: 21 targets.
+-The source CI additionally covers dev/release modes and Common's three existing
+-async/testing compatibility targets. Its tested merge tree is identical to the
+-landed source. Registry CI exercises an ordinary fresh external consumer.
+-The declared targets produce source TARs and metadata.
+-
+-## Dependencies and consumer toolchains
+-
+-The source selects published infrastructure 0.0.33, shared Rust 0.0.5-dd364f2,
+-Common 0.0.9-334389e, API 0.0.5-9b2893e, Distroless .18, tar.bzl .sonic.2,
+-and Protobuf legacy .sonic.2. Test tools consume infrastructure's shared APT
+-production lock. Cargo and APT input bytes remain source-owned.
+-
+-The generated test root pins infrastructure, tar.bzl, rules_cc 0.2.20 and
+-rules_go 0.64.1 to reproduce the source root's overrides, which do not propagate
+-from a dependency module. Its rules_rs declaration supplies Rust 1.90.0 with
+-bindgen and mangled allocator libraries. Other source dependencies resolve
+-through the module's maintained declarations. Both target and host platforms
+-select native AMD64 Trixie.
+-
+-The API owner supplies HA's original schema revision
+-`18a29c1c8a21aeb22a4893c786564acaf8212156`, preserving ha_scope_id=1 and vdpu_id=2.
+-Docker image integration is the separate
+-[buildimage PR #155](https://github.com/securely1g/sonic-buildimage/pull/155).
+-See [registry CI](../../../ci/README.md) for the standard fresh-consumer command.
++The package and architecture checks are declared in [presubmit.json](presubmit.json). The [previous registration](../0.0.1-502377912f3530c9bb6c27007822919f6f32aeb7/) records the earlier release and its validation history.
+diff --git a/modules/sonic-dash-ha/0.0.2-fd6149fb5f8a8b5ed52335c501e5b3ed5e278603/overlay/MODULE.bazel b/modules/sonic-dash-ha/0.0.2-fd6149fb5f8a8b5ed52335c501e5b3ed5e278603/overlay/MODULE.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..5046729e93dfd7ac6f64081a696032a74801efaf
+--- /dev/null
++++ b/modules/sonic-dash-ha/0.0.2-fd6149fb5f8a8b5ed52335c501e5b3ed5e278603/overlay/MODULE.bazel
+@@ -0,0 +1,94 @@
++# AUTO-GENERATED. DO NOT EDIT MANUALLY.
++# Source: ../MODULE.bazel
++# Generator: python3 ci/registry_ci.py sync-module --module sonic-dash-ha --version 0.0.2-fd6149fb5f8a8b5ed52335c501e5b3ed5e278603
++
++module(
++    name = "sonic-dash-ha",
++    version = "0.0.2-fd6149fb5f8a8b5ed52335c501e5b3ed5e278603",
++    bazel_compatibility = [
++        ">=8.5.1",
++        "<=8.5.1",
++    ],
++)
++
++bazel_dep(name = "buildifier_prebuilt", version = "8.5.1.3", dev_dependency = True)
++
++bazel_dep(name = "rules_rs", version = "0.1.0")
++bazel_dep(name = "rules_cc", version = "0.2.20")
++bazel_dep(name = "rules_python", version = "1.9.0.sonic.2")
++bazel_dep(name = "rules_shell", version = "0.8.0")
++bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.26")
++bazel_dep(name = "platforms", version = "1.1.0")
++bazel_dep(name = "tar.bzl", version = "0.10.5.sonic.2")
++bazel_dep(name = "protobuf-legacy", version = "3.21.12.sonic.4", repo_name = "protobuf_legacy")
++bazel_dep(name = "sonic-rust-deps", version = "0.0.5-4064a814e8530300a7acbad4a9aff0621e2fb98e", repo_name = "sonic_rust_deps")
++bazel_dep(name = "sonic-swss-common", version = "0.0.9-e06d5157d0a6a7228c8ba7357bdfd5e03623e586", repo_name = "sonic_swss_common")
++bazel_dep(name = "sonic-dash-api", version = "0.0.6-55310bf7437d67411418c974587adcdc1b194d6b", repo_name = "sonic_dash_api")
++bazel_dep(name = "sonic-build-infra", version = "0.0.44-35726399908a3beb947174e9359f902077928289", repo_name = "sonic_build_infra")
++
++# Align the shared native toolchain with the maintained infrastructure source.
++# SWSS Common's older commit sorts higher. Pin the crates selected by Cargo.lock.
++single_version_override(
++    module_name = "sonic-rust-deps",
++    version = "0.0.5-4064a814e8530300a7acbad4a9aff0621e2fb98e",
++)
++
++single_version_override(
++    module_name = "sonic-build-infra",
++    version = "0.0.44-35726399908a3beb947174e9359f902077928289",
++)
++
++single_version_override(
++    module_name = "tar.bzl",
++    version = "0.10.5.sonic.2",
++)
++
++single_version_override(
++    module_name = "rules_cc",
++    version = "0.2.20",
++)
++
++single_version_override(
++    module_name = "rules_go",
++    version = "0.65.0.sonic.2",
++)
++
++gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
++use_repo(gcc, "gcc_toolchains")
++
++register_toolchains("@gcc_toolchains//:all")
++
++# The shared owner reads canonical Cargo inputs directly with rules_rs.
++rules_rust = use_extension("@rules_rs//rs:rules_rust.bzl", "rules_rust")
++use_repo(rules_rust, "rules_rust")
++
++rust = use_extension("@rules_rs//rs:rules_rust_reexported_extensions.bzl", "rust")
++rust.toolchain(
++    edition = "2021",
++    versions = ["1.90.0"],
++)
++use_repo(rust, "rust_toolchains")
++
++register_toolchains("@rust_toolchains//:all")
++
++bindgen = use_extension("@rules_rs//rs:rules_rust_bindgen.bzl", "rules_rust_bindgen")
++use_repo(bindgen, "rules_rust_bindgen")
++
++register_toolchains("@rules_rust_bindgen//:all")
++
++python = use_extension("@rules_python//python/extensions:python.bzl", "python")
++python.toolchain(python_version = "3.13")
++use_repo(python, "python_3_13")
++
++register_toolchains("@python_3_13//:all")
++
++bazel_dep(name = "patchelf", version = "0.18.0.bcr.1")
++
++apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
++apt.import_lock(
++    dependency_sets = ["trixie"],
++    lock = "@sonic_build_infra//apt:apt.lock.json",
++    requests = "@sonic_build_infra//apt:requests.json",
++    sources = "@sonic_build_infra//apt:sources.json",
++)
++use_repo(apt, "trixie")
+diff --git a/modules/sonic-dash-ha/0.0.2-fd6149fb5f8a8b5ed52335c501e5b3ed5e278603/patches/0001-bazel-producer.patch b/modules/sonic-dash-ha/0.0.2-fd6149fb5f8a8b5ed52335c501e5b3ed5e278603/patches/0001-bazel-producer.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..5587de5096de53a0daab60886ea6d01808557049
+--- /dev/null
++++ b/modules/sonic-dash-ha/0.0.2-fd6149fb5f8a8b5ed52335c501e5b3ed5e278603/patches/0001-bazel-producer.patch
+@@ -0,0 +1,2095 @@
++diff --git a/.bazelrc b/.bazelrc
++new file mode 100644
++index 0000000000000000000000000000000000000000..5308dfa6799e0b86469b2a363c7aa59848a946e1
++--- /dev/null
+++++ b/.bazelrc
++@@ -0,0 +1,3 @@
+++common --registry=https://raw.githubusercontent.com/sonic-net/sonic-bazel-registry/main
+++common --registry=https://bcr.bazel.build
+++import %workspace%/bazel/common.bazelrc
++diff --git a/.bazelversion b/.bazelversion
++new file mode 100644
++index 0000000000000000000000000000000000000000..f9c71a52e2fd865dbf40db779b5bf8157d5c5a6a
++--- /dev/null
+++++ b/.bazelversion
++@@ -0,0 +1 @@
+++8.5.1
++diff --git a/BUILD.bazel b/BUILD.bazel
++new file mode 100644
++index 0000000000000000000000000000000000000000..5962851834cb75c6bed1be7037266be9d118753c
++--- /dev/null
+++++ b/BUILD.bazel
++@@ -0,0 +1,43 @@
+++load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
+++load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
+++
+++package(default_visibility = ["//visibility:public"])
+++
+++exports_files([
+++    "Cargo.toml",
+++    "Cargo.lock",
+++    "debian/control",
+++    "debian/changelog",
+++    "debian/install",
+++])
+++
+++# This is the native debian/install payload; container is a build utility and
+++# remains a separate source target, not an installed fourth service.
+++sonic_deploy_tar(
+++    name = "dash_ha_pkg",
+++    srcs = ["scripts/wait_for_loopback.py"],
+++    binaries = {
+++        "usr/bin/hamgrd uid=0 gid=0 mode=0755 type=file": "//crates/hamgrd:hamgrd",
+++        "usr/bin/swbusd uid=0 gid=0 mode=0755 type=file": "//crates/swbusd:swbusd",
+++        "usr/bin/swbus-cli uid=0 gid=0 mode=0755 type=file": "//crates/swbus-cli:swbus_cli",
+++    },
+++    default_mtime = "1686772800",
+++    force_debug_build = True,
+++    mtree = ["usr/bin/wait_for_loopback.py uid=0 gid=0 mode=0755 type=file content=$(location scripts/wait_for_loopback.py)"],
+++    visibility = ["//visibility:public"],
+++)
+++
+++# Describes installed source TARs; this target does not create a Debian package.
+++runtime_packages(
+++    name = "runtime_packages.json",
+++    changelog = "debian/changelog",
+++    control = "debian/control",
+++    dependencies = ["@sonic_swss_common//:runtime_packages.json"],
+++    packages = {"dash-ha": ":dash_ha_pkg"},
+++    required_paths = {"dash-ha": [
+++        "usr/bin/hamgrd",
+++        "usr/bin/swbusd",
+++        "usr/bin/swbus-cli",
+++        "usr/bin/wait_for_loopback.py",
+++    ]},
+++)
++diff --git a/bazel/BUILD.bazel b/bazel/BUILD.bazel
++new file mode 100644
++index 0000000000000000000000000000000000000000..4a5c90ccbfe1428a1e9c0f3753a654b29336abf1
++--- /dev/null
+++++ b/bazel/BUILD.bazel
++@@ -0,0 +1,81 @@
+++load("@rules_distroless//distroless:defs.bzl", "flatten")
+++load("@rules_python//python:defs.bzl", "py_binary")
+++load("@rules_shell//shell:sh_test.bzl", "sh_test")
+++
+++package(default_visibility = ["//visibility:public"])
+++
+++exports_files([
+++    "run_test_fixture.py",
+++    "package_test.py",
+++])
+++
+++# Test tools are separate from the installed HA payload. Common's original
+++# helper starts and kills its own private Redis server with its original TTL.
+++flatten(
+++    name = "test_runtime",
+++    testonly = True,
+++    deduplicate = True,
+++    tars = [
+++        "@sonic_swss_common//tools/bazel/runtime:test_runtime",
+++        "@sonic_swss_common//common:lua_runtime",
+++        "@trixie//redis-server",
+++        "@trixie//coreutils",
+++        "@trixie//procps",
+++    ],
+++)
+++
+++# Installed package acceptance adds source Common and debugger tools privately.
+++flatten(
+++    name = "installed_runtime",
+++    testonly = True,
+++    deduplicate = True,
+++    tars = [
+++        ":test_runtime",
+++        "@sonic_swss_common//dist:libswsscommon_pkg",
+++        "@trixie//binutils",
+++        "@trixie//gdb",
+++    ],
+++)
+++
+++sh_test(
+++    name = "installed_package_test",
+++    timeout = "long",
+++    srcs = ["@sonic_swss_common//tools/bazel/runtime:run_with_runtime.py"],
+++    args = [
+++        "$(location @patchelf//:patchelf)",
+++        "$(location :installed_runtime)",
+++        "-",
+++        "enabled",
+++        "$(location :package_test.py)",
+++        "--runtime-tar",
+++        "$(location //:dash_ha_pkg)",
+++        "--debug-tar",
+++        "$(location //:dash_ha_pkg.debug_symbols)",
+++        "--script",
+++        "$(location //:scripts/wait_for_loopback.py)",
+++    ],
+++    data = [
+++        ":installed_runtime",
+++        ":package_test.py",
+++        "//:dash_ha_pkg",
+++        "//:dash_ha_pkg.debug_symbols",
+++        "//:scripts/wait_for_loopback.py",
+++        "@patchelf",
+++    ],
+++    tags = ["exclusive"],
+++)
+++
+++# Supply the original Common tests' declared libraries through --run_under;
+++# their private target visibility and reusable library interfaces stay intact.
+++py_binary(
+++    name = "common_test_runner",
+++    testonly = True,
+++    srcs = ["common_test_runner.py"],
+++    data = [
+++        ":test_runtime",
+++        "@patchelf",
+++        "@sonic_swss_common//tools/bazel/runtime:run_with_runtime.py",
+++    ],
+++    main = "common_test_runner.py",
+++    deps = ["@rules_python//python/runfiles"],
+++)
++diff --git a/bazel/README.md b/bazel/README.md
++new file mode 100644
++index 0000000000000000000000000000000000000000..00c2a68da9c8ba8dc35311e1f918e0dc75abac14
++--- /dev/null
+++++ b/bazel/README.md
++@@ -0,0 +1,94 @@
+++# Native AMD64 source builds with Bazel
+++
+++The Bazel path builds all 14 Cargo workspace crates on Debian Trixie. The
+++installed output follows `debian/install`: `hamgrd`, `swbusd`, `swbus-cli`, and
+++`wait_for_loopback.py`. The `container` program is a separate build utility.
+++The output is a runtime TAR, a matching debug TAR, and source-package metadata.
+++Docker integration is a separate consumer; these targets do not produce DEBs.
+++
+++## Build and test
+++
+++Use Bazel 8.5.1 on native Debian Trixie AMD64. The target and host platform
+++settings both select Trixie for the native dependency graph. GCC, Rust 1.90.0,
+++Protobuf, Common's native/Rust libraries, and the runtime test tools are declared
+++dependencies.
+++
+++```sh
+++bazel build --config=release //:dash_ha_pkg //:dash_ha_pkg.debug_symbols //:runtime_packages.json
+++bazel test --config=release //crates/... //bazel:installed_package_test
+++bazel build --config=release //crates/container:container
+++```
+++
+++The normal registry configuration is maintained SONiC `main` plus BCR.
+++Run the same dev and release checks as CI:
+++
+++```sh
+++python3 bazel/ci.py
+++```
+++
+++The driver requires a clean checkout and uses maintained SONiC `main` plus BCR.
+++It retains resolved inputs, the configured no-DEB graph, matching runtime/debug
+++packages, Rustdoc output, and test XML/logs separately under `artifacts/dev/`
+++and `artifacts/release/`, before switching configuration. The two original
+++Rustdoc examples are compiled by `//crates/swbus-actor:doc_test`.
+++This preserves the dev/release selection in `make ci-test`. Cargo metadata
+++reports no optional features in the current workspace members, so its
+++`--all-features` option adds no workspace feature variants.
+++The shared infrastructure owns the immutable APT source configuration and
+++production lock; this consumer imports its existing `trixie` collection.
+++The root registry configuration is retained as `root.bazelrc` for artifact upload.
+++Generated `MODULE.bazel.lock` files are evidence and remain untracked.
+++`Cargo.lock` is the canonical Cargo lock. Repeated local runs reuse Bazel's
+++output tree. Optional shared local caches belong in ignored `.bazelrc.user`:
+++
+++```text
+++common --repository_cache=/absolute/path/to/bazel/repository-cache
+++build --disk_cache=/absolute/path/to/bazel/disk-cache
+++```
+++
+++## Source ownership and compatibility
+++
+++Each crate has a maintained `BUILD.bazel` beside its Rust code. Shared third
+++party crates come from `sonic-rust-deps`; reusable Common Rust libraries and
+++its testing helpers come from `sonic-swss-common`. Cargo and Bazel select the
+++same reviewed Common source. Common's default and async variants retain
+++matching testing helpers and shared Serde/Tokio types.
+++
+++Both original `build.rs` generators remain intact. The SWBus generator uses
+++its existing Tonic protocol. The HA API generator consumes the API owner's
+++`ha_schema_sources` at original revision
+++`18a29c1c8a21aeb22a4893c786564acaf8212156`. That schema uses
+++`ha_scope_id = 1` and `vdpu_id = 2`; the current API's swapped field numbers
+++would change HA's wire format. Only the file layout adapter belongs here;
+++the schema bytes and their source archive remain API-owned.
+++
+++The procedural macro only emits Common references into the caller's code.
+++Its Common dependencies are therefore development dependencies for its
+++integration test, rather than libraries loaded into the compiler process.
+++This also keeps the native Cargo build valid.
+++
+++## Validation and routine changes
+++
+++The original crate and integration tests run with their declared JSON
+++fixtures and Common's original private Redis lifetime/cleanup behavior.
+++Common's Lua files and the Redis/timeout/kill programs come from declared
+++runtime inputs. Installed-package validation checks the exact native install
+++inventory, TAR headers, AMD64 ELF dependency closure, matching build IDs and
+++debug links, and source lines in GDB. A negative GDB control omits the debug
+++TAR. A private loopback `swbusd`/`swbus-cli` exchange exercises the installed
+++programs. This does not prove ASIC HA operation or Docker integration.
+++
+++For a normal Rust source addition, update the owning crate; recursive source
+++globs include its module files. Add each dependency to that crate's `deps`,
+++and extend the shared crate owner when a reusable third party is missing.
+++When adding a Cargo workspace member, add its component `BUILD.bazel`; CI
+++compares the two inventories. Add integration test targets and fixture labels
+++beside their source, preserving each original test entry point. An installed
+++program change must update `debian/install`, the root TAR target and installed
+++acceptance together. CI checks the source inventory and retains every test
+++configuration through Bazel's build events. The three original Common
+++async/testing compatibility targets run separately through the test-only
+++`//bazel:common_test_runner` launcher, which delegates to Common's existing
+++declared-runtime runner. This keeps the original owner tests and shared
+++Rust types intact. CI retains built packages before running tests, so a
+++failing test still uploads its exact source inputs and produced TARs.
++diff --git a/bazel/buildifier/BUILD.bazel b/bazel/buildifier/BUILD.bazel
++new file mode 100644
++index 0000000000000000000000000000000000000000..b014bc7e6ea66f9a0819841c266cb6ec1e41094d
++--- /dev/null
+++++ b/bazel/buildifier/BUILD.bazel
++@@ -0,0 +1,11 @@
+++load("@buildifier_prebuilt//:rules.bzl", "buildifier")
+++
+++buildifier(
+++    name = "check",
+++    exclude_patterns = [
+++        "./.git/*",
+++        "./artifacts/*",
+++    ],
+++    lint_mode = "",
+++    mode = "diff",
+++)
++diff --git a/bazel/ci.py b/bazel/ci.py
++new file mode 100755
++index 0000000000000000000000000000000000000000..a9de6b3d4a680e7b9ca659097f5b14a8abba6b77
++--- /dev/null
+++++ b/bazel/ci.py
++@@ -0,0 +1,226 @@
+++#!/usr/bin/python3
+++"""Build and retain the native AMD64 HA source contract without producing DEBs."""
+++import functools
+++import hashlib
+++import json
+++import os
+++from pathlib import Path
+++import shutil
+++import subprocess
+++import sys
+++import tomllib
+++from urllib.parse import unquote, urlparse
+++import xml.etree.ElementTree as ET
+++
+++ROOT = Path(__file__).resolve().parents[1]
+++PACKAGES = ["//:dash_ha_pkg", "//:dash_ha_pkg.debug_symbols", "//:runtime_packages.json"]
+++BUILD = PACKAGES + ["//crates/container:container"]
+++DOC_TEST = "//crates/swbus-actor:doc_test"
+++TESTS = ["//crates/...", "//bazel:installed_package_test", "@sonic_swss_common//tools/bazel/rust:testing_interface_test",
+++         "@sonic_swss_common//tools/bazel/rust:async_testing_interface_test", "@sonic_swss_common//crates/swss-common:swss_common_async_test"]
+++
+++
+++def profile_acceptance(profile, registry_head):
+++    output = ROOT / "artifacts" / profile
+++    output.mkdir(parents=True, exist_ok=True)
+++    env = dict(os.environ)
+++    bazel = [env.get("BAZEL", "bazel"), "--host_jvm_args=-Xmx3g"]
+++    flags = ["--lockfile_mode=update", "--jobs=2"]
+++    downloader = None
+++    if env.get("BAZEL_DOWNLOADER_CONFIG"):
+++        downloader_path = Path(env["BAZEL_DOWNLOADER_CONFIG"]).resolve(strict=True)
+++        flags.append("--downloader_config=" + str(downloader_path))
+++        retained_config = output / "downloader.cfg"
+++        shutil.copyfile(downloader_path, retained_config)
+++        downloader = {"path": retained_config.name,
+++            "sha256": hashlib.sha256(retained_config.read_bytes()).hexdigest()}
+++    flags += ["--compilation_mode=dbg"] if profile == "dev" else ["--config=release"]
+++    head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
+++    status = subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT, text=True)
+++    assert not status, "Build acceptance requires a clean source checkout: " + status
+++    assert not subprocess.check_output(["git", "ls-files", "MODULE.bazel.lock", "Cargo.Bazel.lock"], cwd=ROOT)
+++    input_hashes = {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest() for name in ("Cargo.toml", "Cargo.lock", "MODULE.bazel", ".bazelrc", "bazel/common.bazelrc")}
+++
+++    def run(command, *arguments, capture=None, log_name=None, allow_failure=False):
+++        command_flags = [item for item in flags if item.startswith(("--lockfile_mode=", "--downloader_config="))] if command == "query" else flags
+++        argv = [*bazel, command, *command_flags, *arguments]
+++        if capture:
+++            with capture.open("w") as stream:
+++                subprocess.run(argv, cwd=ROOT, env=env, stdout=stream, check=True)
+++            return None
+++        if command in ("build", "test", "run"):
+++            log_path = output / (log_name or (command + ".log"))
+++            with log_path.open("w") as log:
+++                process = subprocess.Popen(argv, cwd=ROOT, env=env, stdout=subprocess.PIPE,
+++                                           stderr=subprocess.STDOUT, text=True)
+++                for line in process.stdout:
+++                    print(line, end="", flush=True)
+++                    log.write(line)
+++                status = process.wait()
+++                assert allow_failure or status == 0, "Bazel failed; see " + str(log_path)
+++            return status
+++        return subprocess.check_output(argv, cwd=ROOT, env=env, text=True)
+++
+++    run("run", "//bazel/buildifier:check")
+++    workspace = tomllib.loads((ROOT / "Cargo.toml").read_text())["workspace"]
+++    members = set(workspace["members"])
+++    definitions = run("query", 'kind("rust_(library|binary|proc_macro) rule", //crates/...)', "--output=label").splitlines()
+++    packages = {label.removeprefix("//").split(":")[0] for label in definitions}
+++    assert packages == members, ("Cargo/Bazel crate coverage differs", packages, members)
+++    native_install = set()
+++    for line in (ROOT / "debian/install").read_text().splitlines():
+++        source, directory = line.split()
+++        native_install.add(directory + "/" + Path(source).name)
+++    assert native_install == {"usr/bin/" + name for name in ("hamgrd", "swbusd", "swbus-cli", "wait_for_loopback.py")}
+++    (output / "source-contract.json").write_text(json.dumps({"cargo_crates": sorted(members),
+++        "bazel_targets": definitions, "native_install": sorted(native_install)}, indent=2) + "\n")
+++
+++    def normalized(label):
+++        for prefix in ("@@sonic-swss-common+//", "@sonic-swss-common//"):
+++            if label.startswith(prefix):
+++                return "@sonic_swss_common//" + label[len(prefix):]
+++        return label
+++    selection = "tests(set(" + " ".join(TESTS) + "))"
+++    expected_tests = {normalized(label) for label in run("query",
+++        selection + ' except attr("tags", "manual", ' + selection + ')', "--output=label").splitlines()}
+++    common_tests = {normalized(label) for label in TESTS if label.startswith("@")}
+++    assert {label for label in expected_tests if label.startswith("@") } == common_tests
+++    assert DOC_TEST in expected_tests
+++    original_crate_tests = sorted(label for label in expected_tests if label.startswith("//crates/") and label != DOC_TEST)
+++    assert expected_tests - common_tests - {label for label in expected_tests if label.startswith("//crates/")} == {"//bazel:installed_package_test"}
+++
+++    # Retain the complete configured closure. Omitting commandline serialization
+++    # bounds JVM memory; the graph still includes every transitive action/output.
+++    graph = output / "actions.json"
+++    run("aquery", "--include_commandline=false", "--output=jsonproto",
+++        "deps(" + " union ".join(BUILD + TESTS + ["//bazel:common_test_runner"]) + ")", capture=graph)
+++    data = json.loads(graph.read_text())
+++    fragments = {x["id"]: x for x in data["pathFragments"]}
+++    @functools.lru_cache(None)
+++    def path(identity):
+++        item = fragments[identity]
+++        return (path(item["parentId"]) + "/" if item.get("parentId") else "") + item["label"]
+++    artifacts = {x["id"]: path(x["pathFragmentId"]) for x in data["artifacts"]}
+++    emitted = [artifacts[i] for action in data["actions"] for i in action.get("outputIds", [])]
+++    assert not [name for name in emitted if name.endswith((".deb", ".udeb", ".ddeb"))]
+++    (output / "no-deb.json").write_text(json.dumps({"actions": len(data["actions"]), "outputs": len(emitted), "deb_outputs": [], "audit_scope": "Every configured action output; command lines are not serialized"}, indent=2) + "\n")
+++    run("build", "--build_event_json_file=" + str(output / "build-events.jsonl"), *BUILD)
+++    # Bazel 8 info does not initialize apparent platform repository mappings.
+++    # This path-only query does not analyze or build a configured target.
+++    execution = Path(run("info", "--platforms=", "execution_root").strip()).resolve()
+++    retained = {}
+++    for label in BUILD:
+++        names = run("cquery", label, "--output=files").splitlines()
+++        assert names, label
+++        for name in names:
+++            source = execution / name
+++            assert source.is_file(), (label, name)
+++            destination = output / "packages" / source.name
+++            destination.parent.mkdir(exist_ok=True)
+++            shutil.copyfile(source, destination)
+++            retained[str(destination.relative_to(output))] = {"target": label, "size": source.stat().st_size,
+++                "sha256": hashlib.sha256(source.read_bytes()).hexdigest()}
+++    # Retain successfully built payloads before tests, including on test failure.
+++    for name, digest in input_hashes.items():
+++        assert hashlib.sha256((ROOT / name).read_bytes()).hexdigest() == digest, name
+++        # upload-artifact excludes hidden files by default.
+++        destination = output / ("root.bazelrc" if name == ".bazelrc" else name)
+++        destination.parent.mkdir(parents=True, exist_ok=True)
+++        shutil.copyfile(ROOT / name, destination)
+++    shutil.copyfile(ROOT / "MODULE.bazel.lock", output / "MODULE.bazel.lock")
+++    (output / "build-provenance.json").write_text(json.dumps({"source": head,
+++        "architecture": "amd64", "configuration": profile, "registry_head": registry_head, "downloader_config": downloader,
+++        "source_inputs": input_hashes, "module_lock_sha256": hashlib.sha256((output / "MODULE.bazel.lock").read_bytes()).hexdigest(),
+++        "outputs": retained, "status": "built; test acceptance pending"}, indent=2) + "\n")
+++    groups = [
+++        ("ha", sorted(expected_tests - common_tests - {DOC_TEST}), []),
+++        ("docs", [DOC_TEST], []),
+++        ("common", sorted(common_tests), ["--run_under=//bazel:common_test_runner"]),
+++    ]
+++    statuses = []
+++    event_files = []
+++    for name, labels, extra in groups:
+++        events = output / (name + "-test-events.jsonl")
+++        event_files.append(events)
+++        statuses.append(run("test", "--nocache_test_results", "--test_output=errors",
+++            "--build_event_json_file=" + str(events), *extra, *labels,
+++            log_name=name + "-test.log", allow_failure=True))
+++    # Rustdoc runs in a build action; its native result files are independent
+++    # of the Bazel test runner's replayed XML/log. Retain both before switching
+++    # compilation modes, including the original failure output.
+++    doc_outputs = {}
+++    doc_binary = run("cquery", DOC_TEST, "--output=files").splitlines()
+++    assert len(doc_binary) == 1, doc_binary
+++    for suffix in ("stdout", "stderr", "exit_code"):
+++        source = execution / (doc_binary[0] + "." + suffix)
+++        assert source.is_file(), source
+++        destination = output / "rustdoc" / source.name
+++        destination.parent.mkdir(exist_ok=True)
+++        shutil.copyfile(source, destination)
+++        doc_outputs[suffix] = {"path": str(destination.relative_to(output)),
+++            "sha256": hashlib.sha256(source.read_bytes()).hexdigest(), "size": source.stat().st_size}
+++    (output / "rustdoc-results.json").write_text(json.dumps(doc_outputs, indent=2) + "\n")
+++    tests = {}
+++    attempts = []
+++    identities = set()
+++    failures = []
+++    for line in (line for event_file in event_files for line in event_file.open()):
+++        event = json.loads(line)
+++        if "testResult" not in event:
+++            continue
+++        identity, result = event["id"]["testResult"], event["testResult"]
+++        if result["status"] != "PASSED":
+++            failures.append({"identity": identity, "status": result["status"]})
+++        label = normalized(identity["label"])
+++        assert label in expected_tests, identity
+++        key = json.dumps(identity, sort_keys=True)
+++        assert key not in identities, identity
+++        identities.add(key)
+++        # Retain configuration/run/shard/attempt independently, as the shared
+++        # registry collector does. Never flatten transitioned tests by label.
+++        key_hash = hashlib.sha256(key.encode()).hexdigest()
+++        attempt = {"identity": identity, "label": label, "status": result["status"], "files": []}
+++        xmls = []
+++        for index, artifact in enumerate(result.get("testActionOutput", [])):
+++            uri = urlparse(artifact.get("uri", ""))
+++            assert uri.scheme == "file" and uri.netloc in ("", "localhost") and not uri.query and not uri.fragment
+++            source = Path(unquote(uri.path)).resolve()
+++            assert source.is_relative_to(execution) and source.is_file(), source
+++            destination = output / "test-results" / key_hash / (str(index) + "-" + source.name)
+++            destination.parent.mkdir(parents=True, exist_ok=True)
+++            shutil.copyfile(source, destination)
+++            attempt["files"].append({"name": artifact["name"], "path": str(destination.relative_to(output)),
+++                "source": str(source.relative_to(execution)), "size": source.stat().st_size,
+++                "sha256": hashlib.sha256(source.read_bytes()).hexdigest()})
+++            if artifact["name"] == "test.xml":
+++                tree = ET.parse(source)
+++                if any(list(tree.iter(kind)) for kind in ("failure", "error", "skipped")) or not list(tree.iter("testcase")):
+++                    failures.append({"identity": identity, "xml": "Failed, skipped or empty test XML"})
+++                xmls.append(str(destination.relative_to(output)))
+++        assert len(xmls) == 1, label
+++        tests.setdefault(label, []).append(xmls[0])
+++        attempts.append(attempt)
+++    assert set(tests) == expected_tests, ("Missing or unexpected tests", sorted(expected_tests - set(tests)), sorted(set(tests) - expected_tests))
+++    (output / "test-results.json").write_text(json.dumps({"expected_labels": sorted(expected_tests), "original_crate_test_count": len(original_crate_tests), "attempts": attempts, "failures": failures}, indent=2) + "\n")
+++    assert not failures and all(status == 0 for status in statuses), (failures, statuses)
+++    for name, digest in input_hashes.items():
+++        assert hashlib.sha256((ROOT / name).read_bytes()).hexdigest() == digest, name
+++    assert not subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT)
+++    (output / "provenance.json").write_text(json.dumps({"source": head, "architecture": "amd64", "configuration": profile,
+++        "registry_head": registry_head, "downloader_config": downloader, "source_inputs": input_hashes, "module_lock_sha256": hashlib.sha256((output / "MODULE.bazel.lock").read_bytes()).hexdigest(),
+++        "outputs": retained, "tests": tests, "rustdoc": doc_outputs,
+++        "scope": "HA source runtime/debug TARs and original tests; Docker integration is separate"}, indent=2) + "\n")
+++
+++
+++def main():
+++    # Record the observed canonical registry revision without changing the root
+++    # .bazelrc's main+BCR selection or bypassing workspace/local configuration.
+++    registry_head = subprocess.check_output([
+++        "git", "ls-remote", "https://github.com/sonic-net/sonic-bazel-registry.git", "refs/heads/main",
+++    ], cwd=ROOT, text=True).split()[0]
+++    for profile in ("dev", "release"):
+++        profile_acceptance(profile, registry_head)
+++
+++
+++if __name__ == "__main__":
+++    main()
++diff --git a/bazel/common.bazelrc b/bazel/common.bazelrc
++new file mode 100644
++index 0000000000000000000000000000000000000000..9406d382061188ad02dc3531e4b3df2cd3de3e1a
++--- /dev/null
+++++ b/bazel/common.bazelrc
++@@ -0,0 +1,7 @@
+++common --check_direct_dependencies=off
+++common --platforms=@sonic_build_infra//platforms:x86_64_trixie
+++common --host_platform=@sonic_build_infra//platforms:x86_64_trixie
+++build --@rules_rust//rust/settings:experimental_use_allocator_libraries_with_mangled_symbols=True
+++build --remote_download_regex=(^|.*/)tools/build_tools/kernel_runtime_(amd64|arm64)(/.*)?$
+++build:release --compilation_mode=opt
+++try-import %workspace%/.bazelrc.user
++diff --git a/bazel/common_test_runner.py b/bazel/common_test_runner.py
++new file mode 100644
++index 0000000000000000000000000000000000000000..5cf70ccac73385ad0c9fa71a40ca5447da038c89
++--- /dev/null
+++++ b/bazel/common_test_runner.py
++@@ -0,0 +1,28 @@
+++"""Use Common's declared runtime for its original top-level compatibility tests."""
+++import os
+++from pathlib import Path
+++import sys
+++
+++from python.runfiles import runfiles
+++
+++
+++def main():
+++    files = runfiles.Create()
+++    assert files is not None
+++
+++    def locate(name):
+++        path = files.Rlocation(name)
+++        assert path and Path(path).is_file(), name
+++        return str(Path(path).absolute())
+++
+++    # Repository mapping keeps these labels valid both in the owning workspace
+++    # and in an ordinary external HA module. The test binary itself is supplied
+++    # by Bazel's --run_under contract, not a dependency on a private owner target.
+++    runner = locate("sonic_swss_common/tools/bazel/runtime/run_with_runtime.py")
+++    patchelf = locate("patchelf/patchelf")
+++    runtime = locate("sonic-dash-ha/bazel/test_runtime.tar")
+++    os.execv(sys.executable, [sys.executable, runner, patchelf, runtime, "-", "enabled", *sys.argv[1:]])
+++
+++
+++if __name__ == "__main__":
+++    main()
++diff --git a/bazel/package_test.py b/bazel/package_test.py
++new file mode 100755
++index 0000000000000000000000000000000000000000..ad766c98a047e3e7c5e5ac6d277a12aa771235fc
++--- /dev/null
+++++ b/bazel/package_test.py
++@@ -0,0 +1,161 @@
+++#!/usr/bin/python3
+++"""Check the deployed HA payload, symbols and real private-loopback consumers."""
+++import argparse
+++import hashlib
+++import json
+++import os
+++from pathlib import Path
+++import re
+++import socket
+++import struct
+++import subprocess
+++import tarfile
+++import time
+++import zlib
+++
+++EPOCH = 1686772800
+++PROGRAMS = {"hamgrd": "hamgrd", "swbusd": "swbusd", "swbus-cli": "swbus_cli"}
+++EXPECTED = {"usr/bin/" + name for name in PROGRAMS} | {"usr/bin/wait_for_loopback.py"}
+++
+++
+++def unpack(path, destination, expected, mode, epoch=EPOCH, directory_epochs=None):
+++    with tarfile.open(path) as archive:
+++        members = archive.getmembers()
+++        names = [m.name.removeprefix("./") for m in members]
+++        assert len(names) == len(set(names)), "Duplicate TAR member"
+++        files = {m.name.removeprefix("./") for m in members if m.isfile()}
+++        assert files == expected, (files, expected)
+++        for member in members:
+++            name = member.name.removeprefix("./").rstrip("/")
+++            assert member.uid == member.gid == 0, member.name
+++            expected_time = (directory_epochs or {}).get(name, epoch) if member.isdir() else epoch
+++            assert member.mtime == expected_time, member.name
+++            if member.isdir():
+++                assert member.mode == 0o755 and (name == "." or any(x.startswith(name + "/") for x in expected)), member.name
+++            else:
+++                assert member.isfile() and member.mode == mode, member.name
+++        archive.extractall(destination, filter="data")
+++
+++
+++def main():
+++    parser = argparse.ArgumentParser(description=__doc__)
+++    parser.add_argument("--runtime-tar", type=Path, required=True)
+++    parser.add_argument("--debug-tar", type=Path, required=True)
+++    parser.add_argument("--script", type=Path, required=True)
+++    args = parser.parse_args()
+++    runtime = Path(os.environ["SWSS_RUNTIME_ROOT"])
+++    scratch = Path(os.environ["TEST_TMPDIR"]) / "installed-ha"
+++    scratch.mkdir()
+++    deployed = scratch / "runtime"
+++    symbols = scratch / "symbols"
+++    unpack(args.runtime_tar, deployed, EXPECTED, 0o755)
+++    assert (deployed / "usr/bin/wait_for_loopback.py").read_bytes() == args.script.read_bytes()
+++    # Common's declared runtime has the package and each transitive library.
+++    # Invoke its loader directly, with no host library search fallback needed
+++    # for any DT_NEEDED entry asserted below.
+++    loaders = {p.resolve() for p in runtime.rglob("ld-linux-x86-64.so.2") if p.is_file()}
+++    assert len(loaders) == 1
+++    loader = str(loaders.pop())
+++    libraries = sorted({str(p.parent.resolve()) for p in runtime.rglob("lib*.so*") if p.is_file()})
+++    library_path = ":".join(libraries)
+++    env = dict(os.environ, LC_ALL="C", DEBUGINFOD_URLS="", PYTHONHOME=str(runtime / "usr"))
+++    for variable in ("LD_PRELOAD", "LD_LIBRARY_PATH", "LD_AUDIT", "PYTHONPATH"):
+++        env.pop(variable, None)
+++
+++    def executable(name):
+++        matches = {p.resolve() for p in (runtime / "usr/bin").glob("*" + name) if p.is_file()}
+++        exact = runtime / "usr/bin" / name
+++        if exact.is_file():
+++            return exact.resolve()
+++        assert len(matches) == 1, (name, matches)
+++        return matches.pop()
+++
+++    def argv(program, *arguments):
+++        return [loader, "--library-path", library_path, str(program), *map(str, arguments)]
+++
+++    def run(program, *arguments):
+++        result = subprocess.run(argv(program, *arguments), env=env, capture_output=True, text=True, timeout=40)
+++        assert result.returncode == 0, result.stdout + result.stderr
+++        return result.stdout + result.stderr
+++
+++    readelf, objcopy, gdb = [executable(name) for name in ("readelf", "objcopy", "gdb")]
+++    ids = {}
+++    for name in PROGRAMS:
+++        binary = deployed / "usr/bin" / name
+++        header = binary.read_bytes()[:20]
+++        assert header[:6] == b"\x7fELF\x02\x01" and struct.unpack_from("<H", header, 18)[0] == 62
+++        notes = run(readelf, "-n", binary)
+++        ids[name] = re.search(r"Build ID: ([0-9a-f]+)", notes).group(1)
+++        assert ".debug_info" not in run(readelf, "-SW", binary)
+++        listing = subprocess.run(
+++            [loader, "--library-path", library_path, "--list", str(binary)], env=env,
+++            capture_output=True, text=True, check=True, timeout=40).stdout
+++        assert "not found" not in listing
+++        for dependency in re.findall(r"=> (\S+)", listing):
+++            assert Path(dependency).resolve().is_relative_to(runtime), dependency
+++        assert "Usage:" in run(binary, "--help")
+++    expected_debug = {"usr/lib/debug/.build-id/" + build_id[:2] + "/" + build_id[2:] + ".debug" for build_id in ids.values()}
+++    # tar.bzl's directory mutator gives these synthesized parents its fixed
+++    # default epoch; the owner symbol tree retains its own fixed epoch.
+++    unpack(args.debug_tar, symbols, expected_debug, 0o644, epoch=1672560000,
+++           directory_epochs={name: 946699200 for name in (".", "usr", "usr/lib", "usr/lib/debug")})
+++    report = {"programs": {}, "scope": "AMD64 runtime TAR, matching symbols and private loopback swbus; Docker/ASIC HA deployment is separate"}
+++    for name, crate in PROGRAMS.items():
+++        binary = deployed / "usr/bin" / name
+++        build_id = ids[name]
+++        debug = symbols / "usr/lib/debug/.build-id" / build_id[:2] / (build_id[2:] + ".debug")
+++        assert re.search(r"Build ID: ([0-9a-f]+)", run(readelf, "-n", debug)).group(1) == build_id
+++        assert ".debug_info" in run(readelf, "-SW", debug)
+++        section = scratch / (name + ".debuglink")
+++        run(objcopy, "--dump-section", ".gnu_debuglink=" + str(section), binary)
+++        data = section.read_bytes(); end = data.index(b"\0")
+++        assert data[:end].decode() == debug.name
+++        crc = struct.unpack_from("<I", data, (end + 4) & ~3)[0]
+++        assert crc == zlib.crc32(debug.read_bytes()) & 0xffffffff
+++        query = "info line " + crate + "::main"
+++        common = ["--batch", "--nx", "--quiet", "--data-directory=" + str(runtime / "usr/share/gdb"),
+++                  "-iex", "set auto-load off", "-iex", "set debuginfod enabled off"]
+++        empty = scratch / (name + "-no-symbols"); empty.mkdir()
+++        negative_result = subprocess.run(argv(gdb, *common, "-iex", "set debug-file-directory " + str(empty),
+++            "-ex", "file " + str(binary), "-ex", query), env=env, capture_output=True, text=True, timeout=40)
+++        negative = negative_result.stdout + negative_result.stderr
+++        assert negative_result.returncode == 1, negative
+++        assert 'Function "' + crate + '::main" not defined.' in negative, negative
+++        assert not re.search(r"Line \d+ of .*\.rs", negative), negative
+++        positive = run(gdb, *common, "-iex", "set debug-file-directory " + str(symbols / "usr/lib/debug"), "-ex", "file " + str(binary), "-ex", query)
+++        assert re.search(r"Line \d+ of .*crates/" + re.escape(name) + r"/src/main.rs", positive), positive
+++        report["programs"][name] = {"sha256": hashlib.sha256(binary.read_bytes()).hexdigest(), "build_id": build_id,
+++                                    "debug_sha256": hashlib.sha256(debug.read_bytes()).hexdigest(), "gdb": positive, "negative_gdb": negative}
+++    with socket.socket() as reservation:
+++        reservation.bind(("127.0.0.1", 0)); port = reservation.getsockname()[1]
+++    config = scratch / "swbus.yaml"
+++    service = "region-a.cluster-a.127.0.0.1-dpu0"
+++    config.write_text(f'endpoint: "127.0.0.1:{port}"\nroutes:\n  - key: "{service}"\n    scope: "InCluster"\npeers: []\n')
+++    server_log = scratch / "swbusd.log"
+++    with server_log.open("w") as log:
+++        server = subprocess.Popen(argv(deployed / "usr/bin/swbusd", "--config", config), env=env, stdout=log, stderr=log)
+++        try:
+++            for attempt in range(100):
+++                assert server.poll() is None, server_log.read_text()
+++                try:
+++                    with socket.create_connection(("127.0.0.1", port), timeout=.1):
+++                        break
+++                except OSError:
+++                    time.sleep(.1)
+++            else:
+++                raise AssertionError("Installed swbusd did not listen")
+++            output = run(deployed / "usr/bin/swbus-cli", "--config-file", config, "ping", "--count", "1", "--timeout", "3", "--interval", "0", service)
+++            assert "Response received: ping_seq=0" in output and "request timeout" not in output, output
+++            report["installed_swbus_ping"] = output
+++        finally:
+++            server.terminate()
+++            try:
+++                server.wait(timeout=10)
+++            except subprocess.TimeoutExpired:
+++                server.kill();server.wait(timeout=5)
+++    destination = Path(os.environ.get("TEST_UNDECLARED_OUTPUTS_DIR", scratch)) / "installed-ha.json"
+++    destination.write_text(json.dumps(report, indent=2) + "\n")
+++
+++
+++if __name__ == "__main__":
+++    main()
++diff --git a/bazel/run_test_fixture.py b/bazel/run_test_fixture.py
++new file mode 100755
++index 0000000000000000000000000000000000000000..f18c00c39fa753d5189ff219fb31a37b25151af2
++--- /dev/null
+++++ b/bazel/run_test_fixture.py
++@@ -0,0 +1,64 @@
+++#!/usr/bin/python3
+++"""Run original crate tests with declared tools and their Cargo fixture directory."""
+++import importlib.util
+++import os
+++from pathlib import Path
+++import shutil
+++import subprocess
+++import sys
+++
+++
+++def main():
+++    patchelf, common_runner, binary, manifest, count, *remaining = sys.argv[1:]
+++    fixtures, arguments = remaining[:int(count)], remaining[int(count):]
+++    patchelf, common_runner, binary = [str(Path(value).resolve()) for value in (patchelf, common_runner, binary)]
+++    # Keep the manifest's lexical runfiles location. Resolving its symlink
+++    # would escape into the source checkout and admit undeclared siblings.
+++    crate = Path(os.path.abspath(manifest)).parent
+++    spec = importlib.util.spec_from_file_location("common_runtime", common_runner)
+++    runtime = importlib.util.module_from_spec(spec)
+++    spec.loader.exec_module(runtime)
+++    root = Path(os.environ["SWSS_RUNTIME_ROOT"])
+++    # ProducerStateTable loads Common's real owner-provided Redis scripts.
+++    # Keep the installed default untouched and select this private test root.
+++    lua = root / "usr/share/swss"
+++    if not (lua / "producer_state_table_apply_view.lua").is_file():
+++        raise AssertionError("Declared Common Lua runtime is missing")
+++    os.environ["SWSS_COMMON_LUA_DIR"] = str(lua)
+++    temporary = Path(os.environ["TEST_TMPDIR"])
+++    tools = temporary / "ha-test-tools"
+++    tools.mkdir()
+++    # Common's original helper invokes these names. Retain its timeout, Redis
+++    # options and cleanup semantics, but execute only the declared package bytes.
+++    for name in ("redis-server", "timeout", "kill"):
+++        source = root / "usr/bin" / name
+++        if not source.is_file():
+++            source = root / "bin" / name
+++        if not source.is_file():
+++            raise AssertionError("Missing declared test tool: " + name)
+++        interpreter = runtime.elf_interpreter(source)
+++        loaders = {item.resolve() for item in root.rglob(Path(interpreter).name) if item.is_file()}
+++        if len(loaders) != 1:
+++            raise AssertionError("Ambiguous declared loader for " + name)
+++        installed = tools / name
+++        shutil.copyfile(source, installed)
+++        installed.chmod(0o755)
+++        subprocess.run([patchelf, "--set-interpreter", str(loaders.pop()), "--set-rpath", os.environ["LD_LIBRARY_PATH"], str(installed)], check=True)
+++    os.environ["PATH"] = str(tools)
+++    working = temporary / "ha-crate-fixtures"
+++    working.mkdir()
+++    for fixture in fixtures:
+++        source = Path(os.path.abspath(fixture))
+++        relative = source.relative_to(crate)
+++        if relative.parts[0] != "tests" or not source.is_file():
+++            raise AssertionError("Invalid declared crate fixture: " + fixture)
+++        destination = working / relative
+++        destination.parent.mkdir(parents=True, exist_ok=True)
+++        shutil.copyfile(source, destination)
+++    command = runtime.declared_runtime_command([binary, *arguments], root, patchelf)
+++    os.chdir(working)
+++    return subprocess.run(command).returncode
+++
+++
+++if __name__ == "__main__":
+++    raise SystemExit(main())
++diff --git a/bazel/runtime.bzl b/bazel/runtime.bzl
++new file mode 100644
++index 0000000000000000000000000000000000000000..7beaf59671bbbd542296bcbb175b00497a7c02f4
++--- /dev/null
+++++ b/bazel/runtime.bzl
++@@ -0,0 +1,34 @@
+++"""Original Rust tests with Common's declared runtime and Cargo fixtures."""
+++
+++load("@rules_shell//shell:sh_test.bzl", "sh_test")
+++
+++def ha_rust_test(name, binary, fixtures = [], **kwargs):
+++    sh_test(
+++        name = name,
+++        srcs = ["@sonic_swss_common//tools/bazel/runtime:run_with_runtime.py"],
+++        args = [
+++            "$(location @patchelf//:patchelf)",
+++            "$(location //bazel:test_runtime)",
+++            "-",
+++            "enabled",
+++            "$(location //bazel:run_test_fixture.py)",
+++            "$(location @patchelf//:patchelf)",
+++            "$(location @sonic_swss_common//tools/bazel/runtime:run_with_runtime.py)",
+++            "$(location " + binary + ")",
+++            "$(location :Cargo.toml)",
+++            str(len(fixtures)),
+++        ] + ["$(location " + fixture + ")" for fixture in fixtures] + [
+++            "--test-threads=1",
+++        ],
+++        data = [
+++            binary,
+++            ":Cargo.toml",
+++            "//bazel:test_runtime",
+++            "//bazel:run_test_fixture.py",
+++            "@patchelf//:patchelf",
+++            "@sonic_swss_common//tools/bazel/runtime:run_with_runtime.py",
+++        ] + fixtures,
+++        tags = ["exclusive"],
+++        timeout = "long",
+++        **kwargs
+++    )
++diff --git a/bazel/rust.bzl b/bazel/rust.bzl
++new file mode 100644
++index 0000000000000000000000000000000000000000..4356c23a93a7159a344a3209419ac825dcde671c
++--- /dev/null
+++++ b/bazel/rust.bzl
++@@ -0,0 +1,9 @@
+++"""Shared compiler settings from Cargo.toml's workspace contract."""
+++
+++RUST_FLAGS = [
+++    "-Cdebuginfo=2",
+++    "-Wunused_extern_crates",
+++    "-Wtrivial_numeric_casts",
+++    "-Wunstable_features",
+++    "-Wunused_import_braces",
+++]
++diff --git a/crates/container/BUILD.bazel b/crates/container/BUILD.bazel
++new file mode 100644
++index 0000000000000000000000000000000000000000..d2e66c5a3648a4e019b24f5444c8a54769cf94f0
++--- /dev/null
+++++ b/crates/container/BUILD.bazel
++@@ -0,0 +1,59 @@
+++load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
+++load("@rules_rs//rs:rust_test.bzl", "rust_test")
+++load("//bazel:runtime.bzl", "ha_rust_test")
+++load("//bazel:rust.bzl", "RUST_FLAGS")
+++
+++package(default_visibility = ["//visibility:public"])
+++
+++exports_files(["Cargo.toml"])
+++
+++_CARGO_ENV = {
+++    "CARGO_PKG_AUTHORS": "SONiC",
+++    "CARGO_PKG_DESCRIPTION": "",
+++    "CARGO_PKG_HOMEPAGE": "",
+++    "CARGO_PKG_NAME": "container",
+++    "CARGO_PKG_REPOSITORY": "https://github.com/sonic/sonic-dash-ha",
+++}
+++
+++rust_binary(
+++    name = "container",
+++    srcs = glob(["src/**/*.rs"]),
+++    crate_name = "container",
+++    crate_root = "src/main.rs",
+++    edition = "2021",
+++    experimental_use_cc_common_link = 1,
+++    rustc_env = _CARGO_ENV,
+++    rustc_flags = RUST_FLAGS,
+++    version = "0.1.0",
+++    deps = [
+++        "@sonic_rust_deps//:bollard",
+++        "@sonic_rust_deps//:chrono",
+++        "@sonic_rust_deps//:clap",
+++        "@sonic_rust_deps//:enumset",
+++        "@sonic_rust_deps//:futures-util",
+++        "@sonic_rust_deps//:serde_json",
+++        "@sonic_rust_deps//:thiserror2",
+++        "@sonic_rust_deps//:tokio",
+++        "@sonic_swss_common//crates/swss-common:swss_common_async",
+++    ],
+++)
+++
+++# Preserve the original crate unit tests; installed runners supply native
+++# runtime libraries and private Redis/fixture working directories.
+++rust_test(
+++    name = "unit_test_binary",
+++    crate = ":container",
+++    experimental_use_cc_common_link = 1,
+++    tags = ["manual"],
+++    deps = [
+++    ],
+++)
+++
+++ha_rust_test(
+++    name = "unit_test",
+++    binary = ":unit_test_binary",
+++    fixtures = glob(
+++        ["tests/**/*.json"],
+++        allow_empty = True,
+++    ),
+++)
++diff --git a/crates/hamgrd/BUILD.bazel b/crates/hamgrd/BUILD.bazel
++new file mode 100644
++index 0000000000000000000000000000000000000000..348dcf207d034d3b8861b2cec7e08475c846d440
++--- /dev/null
+++++ b/crates/hamgrd/BUILD.bazel
++@@ -0,0 +1,75 @@
+++load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
+++load("@rules_rs//rs:rust_test.bzl", "rust_test")
+++load("//bazel:runtime.bzl", "ha_rust_test")
+++load("//bazel:rust.bzl", "RUST_FLAGS")
+++
+++package(default_visibility = ["//visibility:public"])
+++
+++exports_files(["Cargo.toml"])
+++
+++_CARGO_ENV = {
+++    "CARGO_PKG_AUTHORS": "SONiC",
+++    "CARGO_PKG_DESCRIPTION": "SONiC DASH high availability manager daemon",
+++    "CARGO_PKG_HOMEPAGE": "",
+++    "CARGO_PKG_NAME": "hamgrd",
+++    "CARGO_PKG_REPOSITORY": "https://github.com/sonic/sonic-dash-ha",
+++}
+++
+++rust_binary(
+++    name = "hamgrd",
+++    srcs = glob(["src/**/*.rs"]),
+++    crate_name = "hamgrd",
+++    crate_root = "src/main.rs",
+++    edition = "2021",
+++    experimental_use_cc_common_link = 1,
+++    proc_macro_deps = [
+++        "//crates/sonicdb-derive:sonicdb_derive",
+++    ],
+++    rustc_env = _CARGO_ENV,
+++    rustc_flags = RUST_FLAGS,
+++    version = "0.1.0",
+++    deps = [
+++        "//crates/sonic-common:sonic_common",
+++        "//crates/sonic-dash-api-proto:sonic_dash_api_proto",
+++        "//crates/swbus-actor:swbus_actor",
+++        "//crates/swbus-config:swbus_config",
+++        "//crates/swbus-edge:swbus_edge",
+++        "//crates/swss-common-bridge:swss_common_bridge",
+++        "//crates/swss-serde:swss_serde",
+++        "@sonic_rust_deps//:anyhow",
+++        "@sonic_rust_deps//:chrono",
+++        "@sonic_rust_deps//:clap",
+++        "@sonic_rust_deps//:futures-util",
+++        "@sonic_rust_deps//:hex",
+++        "@sonic_rust_deps//:lazy_static",
+++        "@sonic_rust_deps//:prost",
+++        "@sonic_rust_deps//:serde",
+++        "@sonic_rust_deps//:serde_json",
+++        "@sonic_rust_deps//:serde_with",
+++        "@sonic_rust_deps//:tokio",
+++        "@sonic_rust_deps//:tracing",
+++        "@sonic_rust_deps//:uuid",
+++        "@sonic_swss_common//crates/swss-common:swss_common_async",
+++        "@sonic_swss_common//crates/swss-common-testing:swss_common_testing_async",
+++    ],
+++)
+++
+++# Preserve the original crate unit tests; installed runners supply native
+++# runtime libraries and private Redis/fixture working directories.
+++rust_test(
+++    name = "unit_test_binary",
+++    crate = ":hamgrd",
+++    experimental_use_cc_common_link = 1,
+++    tags = ["manual"],
+++    deps = [
+++    ],
+++)
+++
+++ha_rust_test(
+++    name = "unit_test",
+++    binary = ":unit_test_binary",
+++    fixtures = glob(
+++        ["tests/**/*.json"],
+++        allow_empty = True,
+++    ),
+++)
++diff --git a/crates/sonic-common/BUILD.bazel b/crates/sonic-common/BUILD.bazel
++new file mode 100644
++index 0000000000000000000000000000000000000000..82a185f4ae1f49116a5f2f209884b237819a45d9
++--- /dev/null
+++++ b/crates/sonic-common/BUILD.bazel
++@@ -0,0 +1,61 @@
+++load("@rules_rs//rs:rust_library.bzl", "rust_library")
+++load("@rules_rs//rs:rust_test.bzl", "rust_test")
+++load("//bazel:runtime.bzl", "ha_rust_test")
+++load("//bazel:rust.bzl", "RUST_FLAGS")
+++
+++package(default_visibility = ["//visibility:public"])
+++
+++exports_files(["Cargo.toml"])
+++
+++_CARGO_ENV = {
+++    "CARGO_PKG_AUTHORS": "SONiC",
+++    "CARGO_PKG_DESCRIPTION": "SONiC common library",
+++    "CARGO_PKG_HOMEPAGE": "",
+++    "CARGO_PKG_NAME": "sonic-common",
+++    "CARGO_PKG_REPOSITORY": "https://github.com/sonic/sonic-dash-ha",
+++}
+++
+++rust_library(
+++    name = "sonic_common",
+++    srcs = glob(["src/**/*.rs"]),
+++    crate_name = "sonic_common",
+++    crate_root = "src/lib.rs",
+++    edition = "2021",
+++    rustc_env = _CARGO_ENV,
+++    rustc_flags = RUST_FLAGS,
+++    version = "0.1.0",
+++    deps = [
+++        "@sonic_rust_deps//:better-panic",
+++        "@sonic_rust_deps//:color-eyre",
+++        "@sonic_rust_deps//:file-rotate",
+++        "@sonic_rust_deps//:human-panic",
+++        "@sonic_rust_deps//:lazy_static",
+++        "@sonic_rust_deps//:signal-hook",
+++        "@sonic_rust_deps//:syslog-tracing",
+++        "@sonic_rust_deps//:tracing",
+++        "@sonic_rust_deps//:tracing-error",
+++        "@sonic_rust_deps//:tracing-subscriber",
+++        "@sonic_swss_common//crates/swss-common:swss_common_async",
+++    ],
+++)
+++
+++# Preserve the original crate unit tests; installed runners supply native
+++# runtime libraries and private Redis/fixture working directories.
+++rust_test(
+++    name = "unit_test_binary",
+++    crate = ":sonic_common",
+++    experimental_use_cc_common_link = 1,
+++    tags = ["manual"],
+++    deps = [
+++        "@sonic_rust_deps//:pretty_assertions",
+++    ],
+++)
+++
+++ha_rust_test(
+++    name = "unit_test",
+++    binary = ":unit_test_binary",
+++    fixtures = glob(
+++        ["tests/**/*.json"],
+++        allow_empty = True,
+++    ),
+++)
++diff --git a/crates/sonic-dash-api-proto/BUILD.bazel b/crates/sonic-dash-api-proto/BUILD.bazel
++new file mode 100644
++index 0000000000000000000000000000000000000000..08f406af1c5d9c31debb53c6bd3f61ad6d0ed09e
++--- /dev/null
+++++ b/crates/sonic-dash-api-proto/BUILD.bazel
++@@ -0,0 +1,88 @@
+++load("@rules_rs//rs:cargo_build_script.bzl", "cargo_build_script")
+++load("@rules_rs//rs:rust_library.bzl", "rust_library")
+++load("@rules_rs//rs:rust_test.bzl", "rust_test")
+++load("//bazel:runtime.bzl", "ha_rust_test")
+++load("//bazel:rust.bzl", "RUST_FLAGS")
+++
+++package(default_visibility = ["//visibility:public"])
+++
+++exports_files(["Cargo.toml"])
+++
+++_CARGO_ENV = {
+++    "CARGO_PKG_AUTHORS": "SONiC",
+++    "CARGO_PKG_DESCRIPTION": "",
+++    "CARGO_PKG_HOMEPAGE": "",
+++    "CARGO_PKG_NAME": "sonic-dash-api-proto",
+++    "CARGO_PKG_REPOSITORY": "https://github.com/sonic/sonic-dash-ha",
+++}
+++
+++# Keep the original build.rs paths while sourcing the exact owner schema.
+++genrule(
+++    name = "schema_inputs",
+++    srcs = ["@sonic_dash_api//:ha_schema_sources"],
+++    outs = [
+++        "sonic-dash-api/proto/ha_scope_config.proto",
+++        "sonic-dash-api/proto/ha_set_config.proto",
+++        "sonic-dash-api/proto/types.proto",
+++    ],
+++    cmd = "mkdir -p $(@D)/sonic-dash-api/proto; for source in $(locations @sonic_dash_api//:ha_schema_sources); do cp $$source $(@D)/sonic-dash-api/proto/$$(basename $$source); done",
+++)
+++
+++cargo_build_script(
+++    name = "generate",
+++    srcs = ["build.rs"],
+++    build_script_env = {"PROTOC": "$(execpath @protobuf_legacy//:protoc)"},
+++    crate_root = "build.rs",
+++    data = [":schema_inputs"],
+++    edition = "2021",
+++    tools = ["@protobuf_legacy//:protoc"],
+++    version = "0.1.0",
+++    deps = [
+++        "@sonic_rust_deps//:prost-build",
+++    ],
+++)
+++
+++rust_library(
+++    name = "sonic_dash_api_proto",
+++    srcs = glob(["src/**/*.rs"]),
+++    crate_name = "sonic_dash_api_proto",
+++    crate_root = "src/lib.rs",
+++    edition = "2021",
+++    proc_macro_deps = [
+++        "//crates/sonicdb-derive:sonicdb_derive",
+++        "@sonic_rust_deps//:strum_macros",
+++    ],
+++    rustc_env = _CARGO_ENV,
+++    rustc_flags = RUST_FLAGS,
+++    version = "0.1.0",
+++    deps = [
+++        ":generate",
+++        "//crates/sonic-common:sonic_common",
+++        "@sonic_rust_deps//:hex",
+++        "@sonic_rust_deps//:prost",
+++        "@sonic_rust_deps//:serde",
+++        "@sonic_rust_deps//:serde_json",
+++        "@sonic_rust_deps//:strum",
+++        "@sonic_swss_common//crates/swss-common:swss_common_async",
+++    ],
+++)
+++
+++# Preserve the original crate unit tests; installed runners supply native
+++# runtime libraries and private Redis/fixture working directories.
+++rust_test(
+++    name = "unit_test_binary",
+++    crate = ":sonic_dash_api_proto",
+++    experimental_use_cc_common_link = 1,
+++    tags = ["manual"],
+++    deps = [
+++    ],
+++)
+++
+++ha_rust_test(
+++    name = "unit_test",
+++    binary = ":unit_test_binary",
+++    fixtures = glob(
+++        ["tests/**/*.json"],
+++        allow_empty = True,
+++    ),
+++)
++diff --git a/crates/sonicdb-derive/BUILD.bazel b/crates/sonicdb-derive/BUILD.bazel
++new file mode 100644
++index 0000000000000000000000000000000000000000..e31da889622ee661173a186cab7c11e2c862d0e3
++--- /dev/null
+++++ b/crates/sonicdb-derive/BUILD.bazel
++@@ -0,0 +1,65 @@
+++load("@rules_rs//rs:rust_proc_macro.bzl", "rust_proc_macro")
+++load("@rules_rs//rs:rust_test.bzl", "rust_test")
+++load("//bazel:runtime.bzl", "ha_rust_test")
+++load("//bazel:rust.bzl", "RUST_FLAGS")
+++
+++package(default_visibility = ["//visibility:public"])
+++
+++exports_files(["Cargo.toml"])
+++
+++_CARGO_ENV = {
+++    "CARGO_PKG_AUTHORS": "SONiC",
+++    "CARGO_PKG_DESCRIPTION": "",
+++    "CARGO_PKG_HOMEPAGE": "",
+++    "CARGO_PKG_NAME": "sonicdb-derive",
+++    "CARGO_PKG_REPOSITORY": "https://github.com/sonic/sonic-dash-ha",
+++}
+++
+++rust_proc_macro(
+++    name = "sonicdb_derive",
+++    srcs = glob(["src/**/*.rs"]),
+++    crate_name = "sonicdb_derive",
+++    crate_root = "src/lib.rs",
+++    edition = "2021",
+++    rustc_env = _CARGO_ENV,
+++    rustc_flags = RUST_FLAGS,
+++    version = "0.1.0",
+++    deps = [
+++        "@sonic_rust_deps//:proc-macro2",
+++        "@sonic_rust_deps//:quote",
+++        "@sonic_rust_deps//:syn3",
+++    ],
+++)
+++
+++rust_test(
+++    name = "basic_test_binary",
+++    srcs = glob(["tests/**/*.rs"]),
+++    crate_root = "tests/basic.rs",
+++    data = glob(
+++        ["tests/**/*.json"],
+++        allow_empty = True,
+++    ),
+++    edition = "2021",
+++    experimental_use_cc_common_link = 1,
+++    proc_macro_deps = [
+++        ":sonicdb_derive",
+++    ],
+++    rustc_env = _CARGO_ENV,
+++    tags = ["manual"],
+++    deps = [
+++        "//crates/sonic-common:sonic_common",
+++        "@sonic_rust_deps//:proc-macro2",
+++        "@sonic_rust_deps//:quote",
+++        "@sonic_rust_deps//:syn3",
+++        "@sonic_swss_common//crates/swss-common:swss_common_async",
+++    ],
+++)
+++
+++ha_rust_test(
+++    name = "basic_test",
+++    binary = ":basic_test_binary",
+++    fixtures = glob(
+++        ["tests/**/*.json"],
+++        allow_empty = True,
+++    ),
+++)
++diff --git a/crates/sonicdb-derive/Cargo.toml b/crates/sonicdb-derive/Cargo.toml
++index e6bce2fcfb0185b0438313bd99e2713986bedbfc..51cf65cde11a774f73ffc063f48e0683db7c3fcd 100644
++--- a/crates/sonicdb-derive/Cargo.toml
+++++ b/crates/sonicdb-derive/Cargo.toml
++@@ -12,6 +12,9 @@ edition.workspace = true
++ syn = "3.0"         # For parsing Rust code
++ quote = "1.0"       # For generating Rust code
++ proc-macro2 = "1.0" # For working with procedural macros
+++# These crates are referenced by emitted tokens, not by the macro process.
+++# The integration test compiles those tokens against the real owner interfaces.
+++[dev-dependencies]
++ swss-common.workspace = true
++ sonic-common.workspace = true
++ 
++diff --git a/crates/swbus-actor/BUILD.bazel b/crates/swbus-actor/BUILD.bazel
++new file mode 100644
++index 0000000000000000000000000000000000000000..e56c2415cd3d86c080a220e977fbcca9709133c7
++--- /dev/null
+++++ b/crates/swbus-actor/BUILD.bazel
++@@ -0,0 +1,174 @@
+++load("@rules_rs//rs:rust_library.bzl", "rust_library")
+++load("@rules_rs//rs:rust_test.bzl", "rust_test")
+++load("@rules_rust//rust:rust_doc_test.bzl", "rust_doc_test")
+++load("//bazel:runtime.bzl", "ha_rust_test")
+++load("//bazel:rust.bzl", "RUST_FLAGS")
+++
+++package(default_visibility = ["//visibility:public"])
+++
+++exports_files(["Cargo.toml"])
+++
+++_CARGO_ENV = {
+++    "CARGO_PKG_AUTHORS": "SONiC",
+++    "CARGO_PKG_DESCRIPTION": "",
+++    "CARGO_PKG_HOMEPAGE": "",
+++    "CARGO_PKG_NAME": "swbus-actor",
+++    "CARGO_PKG_REPOSITORY": "https://github.com/sonic/sonic-dash-ha",
+++}
+++
+++rust_library(
+++    name = "swbus_actor",
+++    srcs = glob(["src/**/*.rs"]),
+++    crate_name = "swbus_actor",
+++    crate_root = "src/lib.rs",
+++    edition = "2021",
+++    rustc_env = _CARGO_ENV,
+++    rustc_flags = RUST_FLAGS,
+++    version = "0.1.0",
+++    deps = [
+++        "//crates/sonic-common:sonic_common",
+++        "//crates/swbus-edge:swbus_edge",
+++        "@sonic_rust_deps//:anyhow",
+++        "@sonic_rust_deps//:serde",
+++        "@sonic_rust_deps//:serde_json",
+++        "@sonic_rust_deps//:serde_with",
+++        "@sonic_rust_deps//:tokio",
+++        "@sonic_rust_deps//:tracing",
+++        "@sonic_swss_common//crates/swss-common:swss_common_async",
+++    ],
+++)
+++
+++# Run the original compile_fail and no_run examples through rustdoc itself.
+++rust_doc_test(
+++    name = "doc_test",
+++    crate = ":swbus_actor",
+++)
+++
+++# Preserve the original crate unit tests; installed runners supply native
+++# runtime libraries and private Redis/fixture working directories.
+++rust_test(
+++    name = "unit_test_binary",
+++    crate = ":swbus_actor",
+++    experimental_use_cc_common_link = 1,
+++    tags = ["manual"],
+++    deps = [
+++        "@sonic_swss_common//crates/swss-common-testing:swss_common_testing_async",
+++    ],
+++)
+++
+++rust_test(
+++    name = "echo_test_binary",
+++    srcs = glob(["tests/**/*.rs"]),
+++    crate_root = "tests/echo.rs",
+++    data = glob(
+++        ["tests/**/*.json"],
+++        allow_empty = True,
+++    ),
+++    edition = "2021",
+++    experimental_use_cc_common_link = 1,
+++    rustc_env = _CARGO_ENV,
+++    tags = ["manual"],
+++    deps = [
+++        ":swbus_actor",
+++        "//crates/sonic-common:sonic_common",
+++        "//crates/swbus-edge:swbus_edge",
+++        "@sonic_rust_deps//:anyhow",
+++        "@sonic_rust_deps//:serde",
+++        "@sonic_rust_deps//:serde_json",
+++        "@sonic_rust_deps//:serde_with",
+++        "@sonic_rust_deps//:tokio",
+++        "@sonic_rust_deps//:tracing",
+++        "@sonic_swss_common//crates/swss-common:swss_common_async",
+++        "@sonic_swss_common//crates/swss-common-testing:swss_common_testing_async",
+++    ],
+++)
+++
+++rust_test(
+++    name = "kvstore_test_binary",
+++    srcs = glob(["tests/**/*.rs"]),
+++    crate_root = "tests/kvstore.rs",
+++    data = glob(
+++        ["tests/**/*.json"],
+++        allow_empty = True,
+++    ),
+++    edition = "2021",
+++    experimental_use_cc_common_link = 1,
+++    rustc_env = _CARGO_ENV,
+++    tags = ["manual"],
+++    deps = [
+++        ":swbus_actor",
+++        "//crates/sonic-common:sonic_common",
+++        "//crates/swbus-edge:swbus_edge",
+++        "@sonic_rust_deps//:anyhow",
+++        "@sonic_rust_deps//:serde",
+++        "@sonic_rust_deps//:serde_json",
+++        "@sonic_rust_deps//:serde_with",
+++        "@sonic_rust_deps//:tokio",
+++        "@sonic_rust_deps//:tracing",
+++        "@sonic_swss_common//crates/swss-common:swss_common_async",
+++        "@sonic_swss_common//crates/swss-common-testing:swss_common_testing_async",
+++    ],
+++)
+++
+++rust_test(
+++    name = "test_executor_test_binary",
+++    srcs = glob(["tests/**/*.rs"]),
+++    crate_root = "tests/test_executor.rs",
+++    data = glob(
+++        ["tests/**/*.json"],
+++        allow_empty = True,
+++    ),
+++    edition = "2021",
+++    experimental_use_cc_common_link = 1,
+++    rustc_env = _CARGO_ENV,
+++    tags = ["manual"],
+++    deps = [
+++        ":swbus_actor",
+++        "//crates/sonic-common:sonic_common",
+++        "//crates/swbus-edge:swbus_edge",
+++        "@sonic_rust_deps//:anyhow",
+++        "@sonic_rust_deps//:serde",
+++        "@sonic_rust_deps//:serde_json",
+++        "@sonic_rust_deps//:serde_with",
+++        "@sonic_rust_deps//:tokio",
+++        "@sonic_rust_deps//:tracing",
+++        "@sonic_swss_common//crates/swss-common:swss_common_async",
+++        "@sonic_swss_common//crates/swss-common-testing:swss_common_testing_async",
+++    ],
+++)
+++
+++ha_rust_test(
+++    name = "unit_test",
+++    binary = ":unit_test_binary",
+++    fixtures = glob(
+++        ["tests/**/*.json"],
+++        allow_empty = True,
+++    ),
+++)
+++
+++ha_rust_test(
+++    name = "echo_test",
+++    binary = ":echo_test_binary",
+++    fixtures = glob(
+++        ["tests/**/*.json"],
+++        allow_empty = True,
+++    ),
+++)
+++
+++ha_rust_test(
+++    name = "kvstore_test",
+++    binary = ":kvstore_test_binary",
+++    fixtures = glob(
+++        ["tests/**/*.json"],
+++        allow_empty = True,
+++    ),
+++)
+++
+++ha_rust_test(
+++    name = "test_executor_test",
+++    binary = ":test_executor_test_binary",
+++    fixtures = glob(
+++        ["tests/**/*.json"],
+++        allow_empty = True,
+++    ),
+++)
++diff --git a/crates/swbus-cli/BUILD.bazel b/crates/swbus-cli/BUILD.bazel
++new file mode 100644
++index 0000000000000000000000000000000000000000..edbcd707793534ac58d41b51309abf76035e9352
++--- /dev/null
+++++ b/crates/swbus-cli/BUILD.bazel
++@@ -0,0 +1,70 @@
+++load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
+++load("@rules_rs//rs:rust_test.bzl", "rust_test")
+++load("//bazel:runtime.bzl", "ha_rust_test")
+++load("//bazel:rust.bzl", "RUST_FLAGS")
+++
+++package(default_visibility = ["//visibility:public"])
+++
+++exports_files(["Cargo.toml"])
+++
+++_CARGO_ENV = {
+++    "CARGO_PKG_AUTHORS": "SONiC",
+++    "CARGO_PKG_DESCRIPTION": "SONiC Switch Bus CLI",
+++    "CARGO_PKG_HOMEPAGE": "",
+++    "CARGO_PKG_NAME": "swbus-cli",
+++    "CARGO_PKG_REPOSITORY": "https://github.com/sonic/sonic-dash-ha",
+++}
+++
+++rust_binary(
+++    name = "swbus_cli",
+++    srcs = glob(["src/**/*.rs"]),
+++    crate_name = "swbus_cli",
+++    crate_root = "src/main.rs",
+++    edition = "2021",
+++    experimental_use_cc_common_link = 1,
+++    rustc_env = _CARGO_ENV,
+++    rustc_flags = RUST_FLAGS,
+++    version = "0.1.0",
+++    deps = [
+++        "//crates/swbus-actor:swbus_actor",
+++        "//crates/swbus-config:swbus_config",
+++        "//crates/swbus-core:swbus_core",
+++        "//crates/swbus-edge:swbus_edge",
+++        "//crates/swbus-proto:swbus_proto",
+++        "@sonic_rust_deps//:anyhow",
+++        "@sonic_rust_deps//:chrono",
+++        "@sonic_rust_deps//:clap",
+++        "@sonic_rust_deps//:serde_json",
+++        "@sonic_rust_deps//:serde_yaml",
+++        "@sonic_rust_deps//:tabled",
+++        "@sonic_rust_deps//:tokio",
+++        "@sonic_rust_deps//:tokio-stream",
+++        "@sonic_rust_deps//:tonic",
+++        "@sonic_rust_deps//:tracing",
+++        "@sonic_rust_deps//:tracing-subscriber",
+++        "@sonic_rust_deps//:uuid",
+++    ],
+++)
+++
+++# Preserve the original crate unit tests; installed runners supply native
+++# runtime libraries and private Redis/fixture working directories.
+++rust_test(
+++    name = "unit_test_binary",
+++    crate = ":swbus_cli",
+++    experimental_use_cc_common_link = 1,
+++    tags = ["manual"],
+++    deps = [
+++        "//crates/swss-serde:swss_serde",
+++        "@sonic_swss_common//crates/swss-common:swss_common_async",
+++        "@sonic_swss_common//crates/swss-common-testing:swss_common_testing_async",
+++    ],
+++)
+++
+++ha_rust_test(
+++    name = "unit_test",
+++    binary = ":unit_test_binary",
+++    fixtures = glob(
+++        ["tests/**/*.json"],
+++        allow_empty = True,
+++    ),
+++)
++diff --git a/crates/swbus-config/BUILD.bazel b/crates/swbus-config/BUILD.bazel
++new file mode 100644
++index 0000000000000000000000000000000000000000..1af74859dbbef2b8ee7c7eec0d13a5af18b01b05
++--- /dev/null
+++++ b/crates/swbus-config/BUILD.bazel
++@@ -0,0 +1,59 @@
+++load("@rules_rs//rs:rust_library.bzl", "rust_library")
+++load("@rules_rs//rs:rust_test.bzl", "rust_test")
+++load("//bazel:runtime.bzl", "ha_rust_test")
+++load("//bazel:rust.bzl", "RUST_FLAGS")
+++
+++package(default_visibility = ["//visibility:public"])
+++
+++exports_files(["Cargo.toml"])
+++
+++_CARGO_ENV = {
+++    "CARGO_PKG_AUTHORS": "SONiC",
+++    "CARGO_PKG_DESCRIPTION": "",
+++    "CARGO_PKG_HOMEPAGE": "",
+++    "CARGO_PKG_NAME": "swbus-config",
+++    "CARGO_PKG_REPOSITORY": "https://github.com/sonic/sonic-dash-ha",
+++}
+++
+++rust_library(
+++    name = "swbus_config",
+++    srcs = glob(["src/**/*.rs"]),
+++    crate_name = "swbus_config",
+++    crate_root = "src/lib.rs",
+++    edition = "2021",
+++    rustc_env = _CARGO_ENV,
+++    rustc_flags = RUST_FLAGS,
+++    version = "0.1.0",
+++    deps = [
+++        "//crates/swbus-proto:swbus_proto",
+++        "//crates/swss-serde:swss_serde",
+++        "@sonic_rust_deps//:serde",
+++        "@sonic_rust_deps//:serde_json",
+++        "@sonic_rust_deps//:serde_yaml",
+++        "@sonic_rust_deps//:thiserror2",
+++        "@sonic_rust_deps//:tracing",
+++        "@sonic_swss_common//crates/swss-common:swss_common_async",
+++    ],
+++)
+++
+++# Preserve the original crate unit tests; installed runners supply native
+++# runtime libraries and private Redis/fixture working directories.
+++rust_test(
+++    name = "unit_test_binary",
+++    crate = ":swbus_config",
+++    experimental_use_cc_common_link = 1,
+++    tags = ["manual"],
+++    deps = [
+++        "@sonic_rust_deps//:tempfile",
+++        "@sonic_swss_common//crates/swss-common-testing:swss_common_testing_async",
+++    ],
+++)
+++
+++ha_rust_test(
+++    name = "unit_test",
+++    binary = ":unit_test_binary",
+++    fixtures = glob(
+++        ["tests/**/*.json"],
+++        allow_empty = True,
+++    ),
+++)
++diff --git a/crates/swbus-core/BUILD.bazel b/crates/swbus-core/BUILD.bazel
++new file mode 100644
++index 0000000000000000000000000000000000000000..ffbb85c6c4ad3ae307de102338a41456c066d004
++--- /dev/null
+++++ b/crates/swbus-core/BUILD.bazel
++@@ -0,0 +1,188 @@
+++load("@rules_rs//rs:rust_library.bzl", "rust_library")
+++load("@rules_rs//rs:rust_test.bzl", "rust_test")
+++load("//bazel:runtime.bzl", "ha_rust_test")
+++load("//bazel:rust.bzl", "RUST_FLAGS")
+++
+++package(default_visibility = ["//visibility:public"])
+++
+++exports_files(["Cargo.toml"])
+++
+++_CARGO_ENV = {
+++    "CARGO_PKG_AUTHORS": "SONiC",
+++    "CARGO_PKG_DESCRIPTION": "SONiC Switch Bus",
+++    "CARGO_PKG_HOMEPAGE": "",
+++    "CARGO_PKG_NAME": "swbus-core",
+++    "CARGO_PKG_REPOSITORY": "https://github.com/sonic/sonic-dash-ha",
+++}
+++
+++rust_library(
+++    name = "swbus_core",
+++    srcs = glob(["src/**/*.rs"]),
+++    crate_name = "swbus_core",
+++    crate_root = "src/lib.rs",
+++    edition = "2021",
+++    proc_macro_deps = [
+++        "@sonic_rust_deps//:atomic_enum",
+++        "@sonic_rust_deps//:contracts",
+++        "@sonic_rust_deps//:derivative",
+++        "@sonic_rust_deps//:getset",
+++    ],
+++    rustc_env = _CARGO_ENV,
+++    rustc_flags = RUST_FLAGS,
+++    version = "0.1.0",
+++    deps = [
+++        "//crates/swbus-config:swbus_config",
+++        "//crates/swbus-proto:swbus_proto",
+++        "@sonic_rust_deps//:color-eyre",
+++        "@sonic_rust_deps//:dashmap",
+++        "@sonic_rust_deps//:futures-core",
+++        "@sonic_rust_deps//:hyper-util",
+++        "@sonic_rust_deps//:prost",
+++        "@sonic_rust_deps//:serde",
+++        "@sonic_rust_deps//:serde_json",
+++        "@sonic_rust_deps//:serde_yaml",
+++        "@sonic_rust_deps//:strum",
+++        "@sonic_rust_deps//:tempfile",
+++        "@sonic_rust_deps//:tokio",
+++        "@sonic_rust_deps//:tokio-stream",
+++        "@sonic_rust_deps//:tokio-util",
+++        "@sonic_rust_deps//:tonic",
+++        "@sonic_rust_deps//:tower",
+++        "@sonic_rust_deps//:tracing",
+++    ],
+++)
+++
+++# Preserve the original crate unit tests; installed runners supply native
+++# runtime libraries and private Redis/fixture working directories.
+++rust_test(
+++    name = "unit_test_binary",
+++    crate = ":swbus_core",
+++    experimental_use_cc_common_link = 1,
+++    tags = ["manual"],
+++    deps = [
+++        "//crates/sonic-common:sonic_common",
+++        "//crates/swbus-edge:swbus_edge",
+++        "@sonic_rust_deps//:lazy_static",
+++        "@sonic_rust_deps//:pretty_assertions",
+++        "@sonic_rust_deps//:tracing-subscriber",
+++    ],
+++)
+++
+++rust_test(
+++    name = "basic_tests_test_binary",
+++    srcs = glob(["tests/**/*.rs"]),
+++    crate_root = "tests/basic_tests.rs",
+++    data = glob(
+++        ["tests/**/*.json"],
+++        allow_empty = True,
+++    ),
+++    edition = "2021",
+++    experimental_use_cc_common_link = 1,
+++    proc_macro_deps = [
+++        "@sonic_rust_deps//:atomic_enum",
+++        "@sonic_rust_deps//:contracts",
+++        "@sonic_rust_deps//:derivative",
+++        "@sonic_rust_deps//:getset",
+++    ],
+++    rustc_env = _CARGO_ENV,
+++    tags = ["manual"],
+++    deps = [
+++        ":swbus_core",
+++        "//crates/sonic-common:sonic_common",
+++        "//crates/swbus-config:swbus_config",
+++        "//crates/swbus-edge:swbus_edge",
+++        "//crates/swbus-proto:swbus_proto",
+++        "@sonic_rust_deps//:color-eyre",
+++        "@sonic_rust_deps//:dashmap",
+++        "@sonic_rust_deps//:futures-core",
+++        "@sonic_rust_deps//:hyper-util",
+++        "@sonic_rust_deps//:lazy_static",
+++        "@sonic_rust_deps//:pretty_assertions",
+++        "@sonic_rust_deps//:prost",
+++        "@sonic_rust_deps//:serde",
+++        "@sonic_rust_deps//:serde_json",
+++        "@sonic_rust_deps//:serde_yaml",
+++        "@sonic_rust_deps//:strum",
+++        "@sonic_rust_deps//:tempfile",
+++        "@sonic_rust_deps//:tokio",
+++        "@sonic_rust_deps//:tokio-stream",
+++        "@sonic_rust_deps//:tokio-util",
+++        "@sonic_rust_deps//:tonic",
+++        "@sonic_rust_deps//:tower",
+++        "@sonic_rust_deps//:tracing",
+++        "@sonic_rust_deps//:tracing-subscriber",
+++    ],
+++)
+++
+++rust_test(
+++    name = "inter_cluster_tests_test_binary",
+++    srcs = glob(["tests/**/*.rs"]),
+++    crate_root = "tests/inter_cluster_tests.rs",
+++    data = glob(
+++        ["tests/**/*.json"],
+++        allow_empty = True,
+++    ),
+++    edition = "2021",
+++    experimental_use_cc_common_link = 1,
+++    proc_macro_deps = [
+++        "@sonic_rust_deps//:atomic_enum",
+++        "@sonic_rust_deps//:contracts",
+++        "@sonic_rust_deps//:derivative",
+++        "@sonic_rust_deps//:getset",
+++    ],
+++    rustc_env = _CARGO_ENV,
+++    tags = ["manual"],
+++    deps = [
+++        ":swbus_core",
+++        "//crates/sonic-common:sonic_common",
+++        "//crates/swbus-config:swbus_config",
+++        "//crates/swbus-edge:swbus_edge",
+++        "//crates/swbus-proto:swbus_proto",
+++        "@sonic_rust_deps//:color-eyre",
+++        "@sonic_rust_deps//:dashmap",
+++        "@sonic_rust_deps//:futures-core",
+++        "@sonic_rust_deps//:hyper-util",
+++        "@sonic_rust_deps//:lazy_static",
+++        "@sonic_rust_deps//:pretty_assertions",
+++        "@sonic_rust_deps//:prost",
+++        "@sonic_rust_deps//:serde",
+++        "@sonic_rust_deps//:serde_json",
+++        "@sonic_rust_deps//:serde_yaml",
+++        "@sonic_rust_deps//:strum",
+++        "@sonic_rust_deps//:tempfile",
+++        "@sonic_rust_deps//:tokio",
+++        "@sonic_rust_deps//:tokio-stream",
+++        "@sonic_rust_deps//:tokio-util",
+++        "@sonic_rust_deps//:tonic",
+++        "@sonic_rust_deps//:tower",
+++        "@sonic_rust_deps//:tracing",
+++        "@sonic_rust_deps//:tracing-subscriber",
+++    ],
+++)
+++
+++ha_rust_test(
+++    name = "unit_test",
+++    binary = ":unit_test_binary",
+++    fixtures = glob(
+++        ["tests/**/*.json"],
+++        allow_empty = True,
+++    ),
+++)
+++
+++ha_rust_test(
+++    name = "basic_tests_test",
+++    binary = ":basic_tests_test_binary",
+++    fixtures = glob(
+++        ["tests/**/*.json"],
+++        allow_empty = True,
+++    ),
+++)
+++
+++ha_rust_test(
+++    name = "inter_cluster_tests_test",
+++    binary = ":inter_cluster_tests_test_binary",
+++    fixtures = glob(
+++        ["tests/**/*.json"],
+++        allow_empty = True,
+++    ),
+++)
++diff --git a/crates/swbus-edge/BUILD.bazel b/crates/swbus-edge/BUILD.bazel
++new file mode 100644
++index 0000000000000000000000000000000000000000..84c9519d22b98584fcd67bb1f5f73793871fc0e7
++--- /dev/null
+++++ b/crates/swbus-edge/BUILD.bazel
++@@ -0,0 +1,66 @@
+++load("@rules_rs//rs:rust_library.bzl", "rust_library")
+++load("@rules_rs//rs:rust_test.bzl", "rust_test")
+++load("//bazel:runtime.bzl", "ha_rust_test")
+++load("//bazel:rust.bzl", "RUST_FLAGS")
+++
+++package(default_visibility = ["//visibility:public"])
+++
+++exports_files(["Cargo.toml"])
+++
+++_CARGO_ENV = {
+++    "CARGO_PKG_AUTHORS": "SONiC",
+++    "CARGO_PKG_DESCRIPTION": "",
+++    "CARGO_PKG_HOMEPAGE": "",
+++    "CARGO_PKG_NAME": "swbus-edge",
+++    "CARGO_PKG_REPOSITORY": "https://github.com/sonic/sonic-dash-ha",
+++}
+++
+++rust_library(
+++    name = "swbus_edge",
+++    srcs = glob(["src/**/*.rs"]),
+++    crate_name = "swbus_edge",
+++    crate_root = "src/lib.rs",
+++    edition = "2021",
+++    proc_macro_deps = [
+++        "@sonic_rust_deps//:contracts",
+++    ],
+++    rustc_env = _CARGO_ENV,
+++    rustc_flags = RUST_FLAGS,
+++    version = "0.1.0",
+++    deps = [
+++        "//crates/swbus-proto:swbus_proto",
+++        "@sonic_rust_deps//:dashmap",
+++        "@sonic_rust_deps//:prost",
+++        "@sonic_rust_deps//:strum",
+++        "@sonic_rust_deps//:thiserror2",
+++        "@sonic_rust_deps//:tokio",
+++        "@sonic_rust_deps//:tokio-stream",
+++        "@sonic_rust_deps//:tonic",
+++        "@sonic_rust_deps//:tracing",
+++    ],
+++)
+++
+++# Preserve the original crate unit tests; installed runners supply native
+++# runtime libraries and private Redis/fixture working directories.
+++rust_test(
+++    name = "unit_test_binary",
+++    crate = ":swbus_edge",
+++    experimental_use_cc_common_link = 1,
+++    tags = ["manual"],
+++    deps = [
+++        "//crates/sonic-common:sonic_common",
+++        "//crates/swbus-config:swbus_config",
+++        "//crates/swbus-core:swbus_core",
+++        "@sonic_rust_deps//:rand",
+++        "@sonic_rust_deps//:serde_yaml",
+++    ],
+++)
+++
+++ha_rust_test(
+++    name = "unit_test",
+++    binary = ":unit_test_binary",
+++    fixtures = glob(
+++        ["tests/**/*.json"],
+++        allow_empty = True,
+++    ),
+++)
++diff --git a/crates/swbus-proto/BUILD.bazel b/crates/swbus-proto/BUILD.bazel
++new file mode 100644
++index 0000000000000000000000000000000000000000..6e0a007e7d15c3e33b77091ea1ec187524ffa890
++--- /dev/null
+++++ b/crates/swbus-proto/BUILD.bazel
++@@ -0,0 +1,75 @@
+++load("@rules_rs//rs:cargo_build_script.bzl", "cargo_build_script")
+++load("@rules_rs//rs:rust_library.bzl", "rust_library")
+++load("@rules_rs//rs:rust_test.bzl", "rust_test")
+++load("//bazel:runtime.bzl", "ha_rust_test")
+++load("//bazel:rust.bzl", "RUST_FLAGS")
+++
+++package(default_visibility = ["//visibility:public"])
+++
+++exports_files(["Cargo.toml"])
+++
+++_CARGO_ENV = {
+++    "CARGO_PKG_AUTHORS": "SONiC",
+++    "CARGO_PKG_DESCRIPTION": "",
+++    "CARGO_PKG_HOMEPAGE": "",
+++    "CARGO_PKG_NAME": "swbus-proto",
+++    "CARGO_PKG_REPOSITORY": "https://github.com/sonic/sonic-dash-ha",
+++}
+++
+++cargo_build_script(
+++    name = "generate",
+++    srcs = ["build.rs"],
+++    build_script_env = {"PROTOC": "$(execpath @protobuf_legacy//:protoc)"},
+++    crate_root = "build.rs",
+++    data = ["proto/swbus.proto"],
+++    edition = "2021",
+++    tools = ["@protobuf_legacy//:protoc"],
+++    version = "0.1.0",
+++    deps = [
+++        "@sonic_rust_deps//:tonic-build",
+++    ],
+++)
+++
+++rust_library(
+++    name = "swbus_proto",
+++    srcs = glob(["src/**/*.rs"]),
+++    crate_name = "swbus_proto",
+++    crate_root = "src/lib.rs",
+++    edition = "2021",
+++    proc_macro_deps = [
+++        "@sonic_rust_deps//:contracts",
+++    ],
+++    rustc_env = _CARGO_ENV,
+++    rustc_flags = RUST_FLAGS,
+++    version = "0.1.0",
+++    deps = [
+++        ":generate",
+++        "@sonic_rust_deps//:prost",
+++        "@sonic_rust_deps//:serde",
+++        "@sonic_rust_deps//:serde_json",
+++        "@sonic_rust_deps//:strum",
+++        "@sonic_rust_deps//:thiserror2",
+++        "@sonic_rust_deps//:tonic",
+++    ],
+++)
+++
+++# Preserve the original crate unit tests; installed runners supply native
+++# runtime libraries and private Redis/fixture working directories.
+++rust_test(
+++    name = "unit_test_binary",
+++    crate = ":swbus_proto",
+++    experimental_use_cc_common_link = 1,
+++    tags = ["manual"],
+++    deps = [
+++        "@sonic_rust_deps//:pretty_assertions",
+++    ],
+++)
+++
+++ha_rust_test(
+++    name = "unit_test",
+++    binary = ":unit_test_binary",
+++    fixtures = glob(
+++        ["tests/**/*.json"],
+++        allow_empty = True,
+++    ),
+++)
++diff --git a/crates/swbusd/BUILD.bazel b/crates/swbusd/BUILD.bazel
++new file mode 100644
++index 0000000000000000000000000000000000000000..c8336a5bb865700ce4975463b9552c946a46995c
++--- /dev/null
+++++ b/crates/swbusd/BUILD.bazel
++@@ -0,0 +1,58 @@
+++load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
+++load("@rules_rs//rs:rust_test.bzl", "rust_test")
+++load("//bazel:runtime.bzl", "ha_rust_test")
+++load("//bazel:rust.bzl", "RUST_FLAGS")
+++
+++package(default_visibility = ["//visibility:public"])
+++
+++exports_files(["Cargo.toml"])
+++
+++_CARGO_ENV = {
+++    "CARGO_PKG_AUTHORS": "SONiC",
+++    "CARGO_PKG_DESCRIPTION": "SONiC Switch Bus Daemon",
+++    "CARGO_PKG_HOMEPAGE": "",
+++    "CARGO_PKG_NAME": "swbusd",
+++    "CARGO_PKG_REPOSITORY": "https://github.com/sonic/sonic-dash-ha",
+++}
+++
+++rust_binary(
+++    name = "swbusd",
+++    srcs = glob(["src/**/*.rs"]),
+++    crate_name = "swbusd",
+++    crate_root = "src/main.rs",
+++    edition = "2021",
+++    experimental_use_cc_common_link = 1,
+++    rustc_env = _CARGO_ENV,
+++    rustc_flags = RUST_FLAGS,
+++    version = "0.1.0",
+++    deps = [
+++        "//crates/sonic-common:sonic_common",
+++        "//crates/swbus-config:swbus_config",
+++        "//crates/swbus-core:swbus_core",
+++        "@sonic_rust_deps//:clap",
+++        "@sonic_rust_deps//:tokio",
+++        "@sonic_rust_deps//:tokio-stream",
+++        "@sonic_rust_deps//:tonic",
+++        "@sonic_rust_deps//:tracing",
+++    ],
+++)
+++
+++# Preserve the original crate unit tests; installed runners supply native
+++# runtime libraries and private Redis/fixture working directories.
+++rust_test(
+++    name = "unit_test_binary",
+++    crate = ":swbusd",
+++    experimental_use_cc_common_link = 1,
+++    tags = ["manual"],
+++    deps = [
+++    ],
+++)
+++
+++ha_rust_test(
+++    name = "unit_test",
+++    binary = ":unit_test_binary",
+++    fixtures = glob(
+++        ["tests/**/*.json"],
+++        allow_empty = True,
+++    ),
+++)
++diff --git a/crates/swss-common-bridge/BUILD.bazel b/crates/swss-common-bridge/BUILD.bazel
++new file mode 100644
++index 0000000000000000000000000000000000000000..778696d5c6ce2b8a8dd581ca965ccdda09d14ac4
++--- /dev/null
+++++ b/crates/swss-common-bridge/BUILD.bazel
++@@ -0,0 +1,66 @@
+++load("@rules_rs//rs:rust_library.bzl", "rust_library")
+++load("@rules_rs//rs:rust_test.bzl", "rust_test")
+++load("//bazel:runtime.bzl", "ha_rust_test")
+++load("//bazel:rust.bzl", "RUST_FLAGS")
+++
+++package(default_visibility = ["//visibility:public"])
+++
+++exports_files(["Cargo.toml"])
+++
+++_CARGO_ENV = {
+++    "CARGO_PKG_AUTHORS": "SONiC",
+++    "CARGO_PKG_DESCRIPTION": "",
+++    "CARGO_PKG_HOMEPAGE": "",
+++    "CARGO_PKG_NAME": "swss-common-bridge",
+++    "CARGO_PKG_REPOSITORY": "https://github.com/sonic/sonic-dash-ha",
+++}
+++
+++rust_library(
+++    name = "swss_common_bridge",
+++    srcs = glob(["src/**/*.rs"]),
+++    crate_name = "swss_common_bridge",
+++    crate_root = "src/lib.rs",
+++    edition = "2021",
+++    proc_macro_deps = [
+++        "//crates/sonicdb-derive:sonicdb_derive",
+++    ],
+++    rustc_env = _CARGO_ENV,
+++    rustc_flags = RUST_FLAGS,
+++    version = "0.1.0",
+++    deps = [
+++        "//crates/sonic-common:sonic_common",
+++        "//crates/sonic-dash-api-proto:sonic_dash_api_proto",
+++        "//crates/swbus-actor:swbus_actor",
+++        "//crates/swbus-edge:swbus_edge",
+++        "@sonic_rust_deps//:anyhow",
+++        "@sonic_rust_deps//:hex",
+++        "@sonic_rust_deps//:prost",
+++        "@sonic_rust_deps//:serde",
+++        "@sonic_rust_deps//:serde_json",
+++        "@sonic_rust_deps//:tokio",
+++        "@sonic_rust_deps//:tokio-util",
+++        "@sonic_rust_deps//:tracing",
+++        "@sonic_swss_common//crates/swss-common:swss_common_async",
+++    ],
+++)
+++
+++# Preserve the original crate unit tests; installed runners supply native
+++# runtime libraries and private Redis/fixture working directories.
+++rust_test(
+++    name = "unit_test_binary",
+++    crate = ":swss_common_bridge",
+++    experimental_use_cc_common_link = 1,
+++    tags = ["manual"],
+++    deps = [
+++        "@sonic_swss_common//crates/swss-common-testing:swss_common_testing_async",
+++    ],
+++)
+++
+++ha_rust_test(
+++    name = "unit_test",
+++    binary = ":unit_test_binary",
+++    fixtures = glob(
+++        ["tests/**/*.json"],
+++        allow_empty = True,
+++    ),
+++)
++diff --git a/crates/swss-serde/BUILD.bazel b/crates/swss-serde/BUILD.bazel
++new file mode 100644
++index 0000000000000000000000000000000000000000..a398b5235089a71eeaf9f87905e4a87d9d635e64
++--- /dev/null
+++++ b/crates/swss-serde/BUILD.bazel
++@@ -0,0 +1,53 @@
+++load("@rules_rs//rs:rust_library.bzl", "rust_library")
+++load("@rules_rs//rs:rust_test.bzl", "rust_test")
+++load("//bazel:runtime.bzl", "ha_rust_test")
+++load("//bazel:rust.bzl", "RUST_FLAGS")
+++
+++package(default_visibility = ["//visibility:public"])
+++
+++exports_files(["Cargo.toml"])
+++
+++_CARGO_ENV = {
+++    "CARGO_PKG_AUTHORS": "SONiC",
+++    "CARGO_PKG_DESCRIPTION": "",
+++    "CARGO_PKG_HOMEPAGE": "",
+++    "CARGO_PKG_NAME": "swss-serde",
+++    "CARGO_PKG_REPOSITORY": "https://github.com/sonic/sonic-dash-ha",
+++}
+++
+++rust_library(
+++    name = "swss_serde",
+++    srcs = glob(["src/**/*.rs"]),
+++    crate_name = "swss_serde",
+++    crate_root = "src/lib.rs",
+++    edition = "2021",
+++    rustc_env = _CARGO_ENV,
+++    rustc_flags = RUST_FLAGS,
+++    version = "0.1.0",
+++    deps = [
+++        "@sonic_rust_deps//:serde",
+++        "@sonic_rust_deps//:serde_serializer_quick_unsupported1",
+++        "@sonic_swss_common//crates/swss-common:swss_common_async",
+++    ],
+++)
+++
+++# Preserve the original crate unit tests; installed runners supply native
+++# runtime libraries and private Redis/fixture working directories.
+++rust_test(
+++    name = "unit_test_binary",
+++    crate = ":swss_serde",
+++    experimental_use_cc_common_link = 1,
+++    tags = ["manual"],
+++    deps = [
+++        "@sonic_swss_common//crates/swss-common-testing:swss_common_testing_async",
+++    ],
+++)
+++
+++ha_rust_test(
+++    name = "unit_test",
+++    binary = ":unit_test_binary",
+++    fixtures = glob(
+++        ["tests/**/*.json"],
+++        allow_empty = True,
+++    ),
+++)
+diff --git a/modules/sonic-dash-ha/0.0.2-fd6149fb5f8a8b5ed52335c501e5b3ed5e278603/patches/0001-module-version.patch b/modules/sonic-dash-ha/0.0.2-fd6149fb5f8a8b5ed52335c501e5b3ed5e278603/patches/0001-module-version.patch
+deleted file mode 100644
+index fc07b2e5f73e536bdf5c108914b4050d4c777c77..0000000000000000000000000000000000000000
+--- a/modules/sonic-dash-ha/0.0.2-fd6149fb5f8a8b5ed52335c501e5b3ed5e278603/patches/0001-module-version.patch
++++ /dev/null
+@@ -1,10 +0,0 @@
+---- a/MODULE.bazel
+-+++ b/MODULE.bazel
+-@@ -1,6 +1,6 @@
+- module(
+-     name = "sonic-dash-ha",
+--    version = "0.0.1",
+-+    version = "0.0.1-502377912f3530c9bb6c27007822919f6f32aeb7",
+-     bazel_compatibility = [
+-         ">=8.5.1",
+-         "<=8.5.1",
+diff --git a/modules/sonic-dash-ha/0.0.2-fd6149fb5f8a8b5ed52335c501e5b3ed5e278603/presubmit.json b/modules/sonic-dash-ha/0.0.2-fd6149fb5f8a8b5ed52335c501e5b3ed5e278603/presubmit.json
+index 89ce361843769697c30d309b0329fdc2e1e2ab21..dadbd7af01ee5ac57b152eb3379c5e6b1e48ae12 100644
+--- a/modules/sonic-dash-ha/0.0.2-fd6149fb5f8a8b5ed52335c501e5b3ed5e278603/presubmit.json
++++ b/modules/sonic-dash-ha/0.0.2-fd6149fb5f8a8b5ed52335c501e5b3ed5e278603/presubmit.json
+@@ -64,5 +64,6 @@
+     "version": "1.90.0",
+     "mangled_allocator_libraries": true,
+     "bindgen": true
+-  }
++  },
++  "generated_module_overlay": true
+ }
+diff --git a/modules/sonic-dash-ha/0.0.2-fd6149fb5f8a8b5ed52335c501e5b3ed5e278603/source.json b/modules/sonic-dash-ha/0.0.2-fd6149fb5f8a8b5ed52335c501e5b3ed5e278603/source.json
+index 616f5d6b55712d35b4a64512a3727467c2db9d06..ba89c45846dda5e884afa87eda16aebf69cb4a96 100644
+--- a/modules/sonic-dash-ha/0.0.2-fd6149fb5f8a8b5ed52335c501e5b3ed5e278603/source.json
++++ b/modules/sonic-dash-ha/0.0.2-fd6149fb5f8a8b5ed52335c501e5b3ed5e278603/source.json
+@@ -1,9 +1,12 @@
+ {
+-  "url": "https://github.com/securely1g/sonic-dash-ha/archive/502377912f3530c9bb6c27007822919f6f32aeb7.tar.gz",
+-  "strip_prefix": "sonic-dash-ha-502377912f3530c9bb6c27007822919f6f32aeb7",
+-  "integrity": "sha256-3gXvMS4QK9Az8nEo2rq9YIUw0EbNYZbIsBHAKrZVoIc=",
++  "url": "https://github.com/sonic-net/sonic-dash-ha/archive/fd6149fb5f8a8b5ed52335c501e5b3ed5e278603.tar.gz",
++  "strip_prefix": "sonic-dash-ha-fd6149fb5f8a8b5ed52335c501e5b3ed5e278603",
++  "integrity": "sha256-l125dA7nRezq9fvenK7enfMdKdt3L5VBmjCjdF55qHw=",
++  "patch_strip": 1,
+   "patches": {
+-    "0001-module-version.patch": "sha256-gsm+tU/r3pEsPeGxbuydby+DWNYwYVJUdcOZ0wtKqOk="
++    "0001-bazel-producer.patch": "sha256-RNDPeWSwgTUZimxmDciYZJGZzOyiRSV16uTf54x5BYY="
+   },
+-  "patch_strip": 1
++  "overlay": {
++    "MODULE.bazel": "sha256-PZFd1AUBNzCCp+n0ymDhLttSZWems7n5HZzo/fpOZmQ="
++  }
+ }
+diff --git a/modules/sonic-dash-ha/metadata.json b/modules/sonic-dash-ha/metadata.json
+index 4f779d1b8fbdc93f8555e27b172562562f04b05f..71f5f3ed818d030f6f3e148c5f7f064c5fa61a89 100644
+--- a/modules/sonic-dash-ha/metadata.json
++++ b/modules/sonic-dash-ha/metadata.json
+@@ -1,5 +1,6 @@
+ {
+   "versions": [
+-    "0.0.1-502377912f3530c9bb6c27007822919f6f32aeb7"
++    "0.0.1-502377912f3530c9bb6c27007822919f6f32aeb7",
++    "0.0.2-fd6149fb5f8a8b5ed52335c501e5b3ed5e278603"
+   ]
+ }
