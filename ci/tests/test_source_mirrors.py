@@ -116,6 +116,21 @@ class ArmSourceMirrorScopeTest(unittest.TestCase):
                 self.assertFalse(any(re.fullmatch(pattern, other.removeprefix("https://"))
                                      for pattern, _replacement in rewrites), other)
 
+    def test_cosmos_mirrors_only_the_pinned_execution_tools(self):
+        rewrites = [line.split()[1:] for line in (ROOT / "ci/source_mirrors.cfg").read_text().splitlines()
+                    if line.startswith("rewrite ")]
+        directory = "cosmo.zip/pub/cosmos/v/4.0.2/bin/"
+        for tool in ("assimilate", "ape-x86_64.elf"):
+            source = directory + tool
+            candidates = []
+            for pattern, replacement in rewrites:
+                match = re.fullmatch(pattern, source)
+                if match:
+                    candidates.append(re.sub(r"\$(\d+)", lambda ref: match[int(ref[1])], replacement))
+            self.assertEqual(candidates, [f"{ARM_RELEASE}/cosmos-4.0.2-{tool}", f"https://{source}"])
+        for other in (directory + "ape-aarch64.elf", directory.replace("4.0.2", "4.0.3") + "assimilate"):
+            self.assertFalse(any(re.fullmatch(pattern, other) for pattern, _ in rewrites))
+
     def test_bison_candidates_only_match_the_two_pinned_source_urls(self):
         rewrites = [line.split()[1:] for line in (ROOT / "ci/source_mirrors.cfg").read_text().splitlines()
                     if line.startswith("rewrite ")]

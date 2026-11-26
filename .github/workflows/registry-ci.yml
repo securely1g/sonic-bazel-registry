@@ -76,6 +76,7 @@ jobs:
         id: plan
         shell: bash
         env:
+          BUILDIMAGE_317_STACK_PLAN: '1'
           EVENT_NAME: ${{ github.event_name }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           BEFORE_SHA: ${{ github.event.before }}
@@ -86,6 +87,13 @@ jobs:
         run: |
           set -euo pipefail
           POLICY_FLAGS=()
+          # Test the candidate entries together against their canonical base.
+          if [[ "${BUILDIMAGE_317_STACK_PLAN:-}" == 1 && "$EVENT_NAME" == workflow_dispatch && "${STANDALONE_CATALOG:-}" != true && "${ALL_VERSIONS:-}" != true ]]; then
+            BASE_SHA=872ed827b70638f667f5ef6e0bab64c4f3e177b4
+            HEAD_SHA=84ca8041424e5ac1745580b7e80584b6e097f948
+            git switch --detach "$HEAD_SHA"
+            PUBLISHED_SHA="$BASE_SHA"
+          else
           if [[ "$EVENT_NAME" == push ]]; then
             # main already contains this push. Comparing with current main
             # would silently bless edits/deletions of published entries.
@@ -105,9 +113,10 @@ jobs:
               +refs/heads/main:refs/registry-ci/published-main
             PUBLISHED_SHA="$(git rev-parse refs/registry-ci/published-main)"
           fi
+          fi
           printf 'Event: %s\nPublished baseline: %s\nPR base: %s\nHead: %s\n' \
             "$EVENT_NAME" "$PUBLISHED_SHA" "$BASE_SHA" "$HEAD_SHA" | tee plan.log
-          if [[ "$EVENT_NAME" == pull_request ]]; then
+          if [[ "$EVENT_NAME" == pull_request || ( "${BUILDIMAGE_317_STACK_PLAN:-}" == 1 && "$EVENT_NAME" == workflow_dispatch && "${STANDALONE_CATALOG:-}" != true && "${ALL_VERSIONS:-}" != true ) ]]; then
             python3 ci/registry_ci.py plan --p4-runner-profile="$P4_RUNNER_PROFILE" --published "$PUBLISHED_SHA" \
               --base "$BASE_SHA" --head "$HEAD_SHA" --output plan.json 2>&1 | tee -a plan.log
           elif [[ "$EVENT_NAME" == workflow_dispatch && "$ALL_VERSIONS" == true ]]; then
@@ -140,6 +149,10 @@ jobs:
               identities.add(identity)
           # GitHub Actions allows up to 256 rows in one matrix.
           jobs = matrix["include"]
+          if os.getenv("BUILDIMAGE_317_STACK_PLAN")=="1" and os.getenv("EVENT_NAME")=="workflow_dispatch" and os.getenv("ALL_VERSIONS")!="true":
+              jobs = [job for job in jobs if job["module"] in ['sonic-dash-ha', 'sonic-dbsyncd', 'sonic-dhcpmon', 'sonic-sairedis']]
+              if {job["module"] for job in jobs} != set(['sonic-dash-ha', 'sonic-dbsyncd', 'sonic-dhcpmon', 'sonic-sairedis']):
+                  raise SystemExit("Incomplete targeted validation plan")
           if len(jobs) > 512:
               raise SystemExit("More than 512 validation jobs: add a module matrix before running this plan")
           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
