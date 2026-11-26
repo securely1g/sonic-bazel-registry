@@ -1,0 +1,1744 @@
+Registry entry comparison for sonic-dhcp-relay
+Baseline 2d5a28673ab6af079d28524c22de93f29ea517e5 (0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739)
+Candidate 3daf91424a93377ef151c4804faf7b3b15532389 (0.1.1-bb94f3d743c908cab3ff99f9cfb694d5a0d4e06e)
+
+In a clean baseline checkout where the destination does not yet exist:
+  cp -a modules/sonic-dhcp-relay/0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739 modules/sonic-dhcp-relay/0.1.1-bb94f3d743c908cab3ff99f9cfb694d5a0d4e06e
+  git apply <path-to-downloaded-patch>
+
+diff --git a/modules/sonic-dhcp-relay/0.1.1-bb94f3d743c908cab3ff99f9cfb694d5a0d4e06e/MODULE.bazel b/modules/sonic-dhcp-relay/0.1.1-bb94f3d743c908cab3ff99f9cfb694d5a0d4e06e/MODULE.bazel
+index 32980995898c44249d496061ef40b9daebf4577f..8702b6e53a466986cadcd5a91d1e4e5b228fe7df 100644
+--- a/modules/sonic-dhcp-relay/0.1.1-bb94f3d743c908cab3ff99f9cfb694d5a0d4e06e/MODULE.bazel
++++ b/modules/sonic-dhcp-relay/0.1.1-bb94f3d743c908cab3ff99f9cfb694d5a0d4e06e/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-dhcp-relay",
+-    version = "0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739",
++    version = "0.1.1-bb94f3d743c908cab3ff99f9cfb694d5a0d4e06e",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
+@@ -8,7 +8,7 @@ module(
+ )
+ 
+ bazel_dep(name = "sonic-build-infra", version = "0.0.45-77ef625a4ddafc8cdc15f3cc6aee31eabac8a5de", repo_name = "sonic_build_infra")
+-bazel_dep(name = "sonic-swss-common", version = "0.0.8-2a4ddd070edb719f2e969a880a5cfff711e64e72", repo_name = "sonic_swss_common")
++bazel_dep(name = "sonic-swss-common", version = "0.0.9-e06d5157d0a6a7228c8ba7357bdfd5e03623e586", repo_name = "sonic_swss_common")
+ bazel_dep(name = "rules_cc", version = "0.2.20")
+ bazel_dep(name = "platforms", version = "1.1.0")
+ bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.26")
+@@ -75,7 +75,7 @@ register_toolchains(
+ )
+ 
+ # Existing source module used by installed-runtime validation.
+-bazel_dep(name = "libyang", version = "3.12.2.sonic.9")
++bazel_dep(name = "libyang", version = "3.12.2.sonic.10")
+ 
+ # Direct runtime TAR references require a root-visible repository mapping.
+ # Match Common's selected source owner; do not substitute distro libnl.
+diff --git a/modules/sonic-dhcp-relay/0.1.1-bb94f3d743c908cab3ff99f9cfb694d5a0d4e06e/README.md b/modules/sonic-dhcp-relay/0.1.1-bb94f3d743c908cab3ff99f9cfb694d5a0d4e06e/README.md
+index 3e9ef5617bb3855c4c12e140363d6b1fff08435a..05d54484c20ad5821ab002b57d578a95752ce340 100644
+--- a/modules/sonic-dhcp-relay/0.1.1-bb94f3d743c908cab3ff99f9cfb694d5a0d4e06e/README.md
++++ b/modules/sonic-dhcp-relay/0.1.1-bb94f3d743c908cab3ff99f9cfb694d5a0d4e06e/README.md
+@@ -41,7 +41,7 @@ metadata or test results. No DEB-producing target or fixture is selected.
+ ```sh
+ python3 ci/registry_ci.py run \
+   --module sonic-dhcp-relay \
+-  --version 0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739 \
++  --version 0.1.1-bb94f3d743c908cab3ff99f9cfb694d5a0d4e06e \
+   --architecture amd64 \
+   --work-dir /tmp/relay-registry-consumer \
+   --artifacts /tmp/relay-registry-evidence \
+diff --git a/modules/sonic-dhcp-relay/0.1.1-bb94f3d743c908cab3ff99f9cfb694d5a0d4e06e/overlay/MODULE.bazel b/modules/sonic-dhcp-relay/0.1.1-bb94f3d743c908cab3ff99f9cfb694d5a0d4e06e/overlay/MODULE.bazel
+index a9ae666aa75ad302b2823addf04626c88614b055..59f500b19e2ecaff97458dd1a70d77fe81804dbb 100644
+--- a/modules/sonic-dhcp-relay/0.1.1-bb94f3d743c908cab3ff99f9cfb694d5a0d4e06e/overlay/MODULE.bazel
++++ b/modules/sonic-dhcp-relay/0.1.1-bb94f3d743c908cab3ff99f9cfb694d5a0d4e06e/overlay/MODULE.bazel
+@@ -1,10 +1,10 @@
+ # AUTO-GENERATED. DO NOT EDIT MANUALLY.
+ # Source: ../MODULE.bazel
+-# Generator: python3 ci/registry_ci.py sync-module --module sonic-dhcp-relay --version 0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739
++# Generator: python3 ci/registry_ci.py sync-module --module sonic-dhcp-relay --version 0.1.1-bb94f3d743c908cab3ff99f9cfb694d5a0d4e06e
+ 
+ module(
+     name = "sonic-dhcp-relay",
+-    version = "0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739",
++    version = "0.1.1-bb94f3d743c908cab3ff99f9cfb694d5a0d4e06e",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
+@@ -12,7 +12,7 @@ module(
+ )
+ 
+ bazel_dep(name = "sonic-build-infra", version = "0.0.45-77ef625a4ddafc8cdc15f3cc6aee31eabac8a5de", repo_name = "sonic_build_infra")
+-bazel_dep(name = "sonic-swss-common", version = "0.0.8-2a4ddd070edb719f2e969a880a5cfff711e64e72", repo_name = "sonic_swss_common")
++bazel_dep(name = "sonic-swss-common", version = "0.0.9-e06d5157d0a6a7228c8ba7357bdfd5e03623e586", repo_name = "sonic_swss_common")
+ bazel_dep(name = "rules_cc", version = "0.2.20")
+ bazel_dep(name = "platforms", version = "1.1.0")
+ bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.26")
+@@ -79,7 +79,7 @@ register_toolchains(
+ )
+ 
+ # Existing source module used by installed-runtime validation.
+-bazel_dep(name = "libyang", version = "3.12.2.sonic.9")
++bazel_dep(name = "libyang", version = "3.12.2.sonic.10")
+ 
+ # Direct runtime TAR references require a root-visible repository mapping.
+ # Match Common's selected source owner; do not substitute distro libnl.
+diff --git a/modules/sonic-dhcp-relay/0.1.1-bb94f3d743c908cab3ff99f9cfb694d5a0d4e06e/patches/0001-bazel-producer.patch b/modules/sonic-dhcp-relay/0.1.1-bb94f3d743c908cab3ff99f9cfb694d5a0d4e06e/patches/0001-bazel-producer.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..9c4ed373edfe65eeac0bc04005da618f13b5ba8e
+--- /dev/null
++++ b/modules/sonic-dhcp-relay/0.1.1-bb94f3d743c908cab3ff99f9cfb694d5a0d4e06e/patches/0001-bazel-producer.patch
+@@ -0,0 +1,1607 @@
++diff --git a/.bazelrc b/.bazelrc
++new file mode 100644
++index 0000000000000000000000000000000000000000..2dae4296b51ac954ea0ecea269ed87a75e7fe0c6
++--- /dev/null
+++++ b/.bazelrc
++@@ -0,0 +1,15 @@
+++common --registry=https://raw.githubusercontent.com/sonic-net/sonic-bazel-registry/main
+++common --registry=https://bcr.bazel.build/
+++common --platforms=@sonic_build_infra//platforms:x86_64_trixie
+++common:aarch64 --platforms=@sonic_build_infra//platforms:aarch64_trixie
+++build --compilation_mode=opt
+++build --copt=-g
+++build --linkopt=-Wl,--build-id
+++
+++# CodeQL observes local compiler invocations in a fresh output base.
+++build:codeql --host_platform=@sonic_build_infra//platforms:x86_64_trixie
+++build:codeql --jobs=2
+++build:codeql --spawn_strategy=local
+++build:codeql --disk_cache=
+++build:codeql --remote_cache=
+++build:codeql --remote_executor=
++diff --git a/.bazelversion b/.bazelversion
++new file mode 100644
++index 0000000000000000000000000000000000000000..f9c71a52e2fd865dbf40db779b5bf8157d5c5a6a
++--- /dev/null
+++++ b/.bazelversion
++@@ -0,0 +1 @@
+++8.5.1
++diff --git a/BUILD.bazel b/BUILD.bazel
++new file mode 100644
++index 0000000000000000000000000000000000000000..67a65af03ce10dbb9553285bb4725ebe14e4aaa3
++--- /dev/null
+++++ b/BUILD.bazel
++@@ -0,0 +1,46 @@
+++load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
+++
+++package(default_visibility = ["//visibility:public"])
+++
+++exports_files([".bazelversion"])
+++
+++runtime_packages(
+++    name = "dhcp4_metadata",
+++    apt_packages = {"@dhcpmon_debian//" + name + ":data": "@dhcpmon_debian//" + name + ":control" for name in [
+++        "libc6",
+++        "libgcc-s1",
+++        "libstdc++6",
+++        "libevent-2.1-7t64",
+++        "libevent-pthreads-2.1-7t64",
+++        "libexplain51t64",
+++        "libhiredis1.1.0",
+++        "libpcap0.8t64",
+++    ]},
+++    architecture = "amd64",
+++    changelog = "//dhcp4relay:debian/changelog",
+++    control = "//dhcp4relay:debian/control",
+++    dependencies = ["@sonic_swss_common//:runtime_packages.json"],
+++    module_name = "sonic-dhcp-relay",
+++    packages = {"sonic-dhcp4relay": "//dhcp4relay:runtime"},
+++    visibility = ["//visibility:public"],
+++)
+++
+++runtime_packages(
+++    name = "dhcp6_metadata",
+++    apt_packages = {"@dhcpmon_debian//" + name + ":data": "@dhcpmon_debian//" + name + ":control" for name in [
+++        "libc6",
+++        "libgcc-s1",
+++        "libstdc++6",
+++        "libevent-2.1-7t64",
+++        "libevent-pthreads-2.1-7t64",
+++        "libexplain51t64",
+++        "libhiredis1.1.0",
+++    ]},
+++    architecture = "amd64",
+++    changelog = "//dhcp6relay:debian/changelog",
+++    control = "//dhcp6relay:debian/control",
+++    dependencies = ["@sonic_swss_common//:runtime_packages.json"],
+++    module_name = "sonic-dhcp-relay",
+++    packages = {"sonic-dhcp6relay": "//dhcp6relay:runtime"},
+++    visibility = ["//visibility:public"],
+++)
++diff --git a/dhcp4relay/BUILD.bazel b/dhcp4relay/BUILD.bazel
++new file mode 100644
++index 0000000000000000000000000000000000000000..bb610c805951efd9545a707e17d5f84637be596f
++--- /dev/null
+++++ b/dhcp4relay/BUILD.bazel
++@@ -0,0 +1,138 @@
+++load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+++load("@rules_cc//cc:cc_library.bzl", "cc_library")
+++load("@rules_cc//cc:cc_test.bzl", "cc_test")
+++load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
+++
+++package(default_visibility = ["//visibility:public"])
+++
+++cc_library(
+++    name = "relay",
+++    srcs = [
+++        "src/dhcp4_sender.cpp",
+++        "src/dhcp4relay.cpp",
+++        "src/dhcp4relay_mgr.cpp",
+++        "src/dhcp4relay_stats.cpp",
+++    ],
+++    hdrs = glob(["src/*.h"]),
+++    copts = [
+++        "-Wall",
+++        "-std=c++17",
+++        "-fPIE",
+++    ],
+++    linkopts = ["-pthread"],
+++    deps = [
+++        "@dhcpmon_debian//libboost-system1.83-dev:libboost_system_cc",
+++        "@dhcpmon_debian//libboost-thread1.83-dev:libboost_thread_cc",
+++        "@dhcpmon_debian//libevent-dev:libevent_cc",
+++        "@pcapplusplus//:Pcap++",
+++        "@sonic_swss_common//:libswsscommon_shared",
+++    ],
+++)
+++
+++cc_binary(
+++    name = "dhcp4relay",
+++    srcs = ["src/main.cpp"],
+++    copts = [
+++        "-std=c++17",
+++        "-fPIE",
+++    ],
+++    linkopts = ["-pie"],
+++    deps = [":relay"],
+++)
+++
+++sonic_deploy_tar(
+++    name = "runtime",
+++    binaries = {"usr/sbin/dhcp4relay uid=0 gid=0 mode=0755 type=file": ":dhcp4relay"},
+++    force_debug_build = True,
+++    mtree = [
+++        "usr type=dir uid=0 gid=0 mode=0755",
+++        "usr/sbin type=dir uid=0 gid=0 mode=0755",
+++    ],
+++)
+++
+++cc_test(
+++    name = "pcap_patch_test",
+++    srcs = ["test/pcap_patch_test.cpp"],
+++    copts = ["-std=c++17"],
+++    deps = [
+++        "@com_google_googletest//:gtest_main",
+++        "@pcapplusplus//:Pcap++",
+++    ],
+++)
+++
+++# All twelve original test/subdir.mk translation units, plus the narrow socket
+++# and fixture-lifetime seam. Original assertions remain unchanged.
+++_SUITE_SRCS = [
+++    "test/main.cpp",
+++    "test/mock_relay.cpp",
+++    "src/dhcp4relay_mgr.cpp",
+++    "src/dhcp4relay_stats.cpp",
+++    "src/dhcp4relay.cpp",
+++    "src/dhcp4_sender.cpp",
+++    "test/mock_dbconnector.cpp",
+++    "test/mock_table.cpp",
+++    "test/mock_consumerstatetable.cpp",
+++    "test/mock_hiredis.cpp",
+++    "test/mock_redisreply.cpp",
+++    "test/mock_relay_stats.cpp",
+++    "test/socket_seam.cpp",
+++    "test/mock_relay.h",
+++    "test/mock_table.h",
+++] + glob(["src/*.h"])
+++
+++_SUITE_COPTS = [
+++    "-Wall",
+++    "-std=c++17",
+++    "-fPIE",
+++    "-DUNIT_TEST",
+++    "-DBAZEL_TEST_BUILD",
+++    "-fsanitize=address",
+++    "-fno-omit-frame-pointer",
+++]
+++
+++_SUITE_LINKOPTS = [
+++    "-pthread",
+++    "-fsanitize=address",
+++    "-Wl,--wrap=socket",
+++    "-Wl,--wrap=bind",
+++    "-Wl,--wrap=close",
+++    "-Wl,--wrap=setsockopt",
+++]
+++
+++_SUITE_DEPS = [
+++    "@pcapplusplus//:Pcap++",
+++    "@com_google_googletest//:gtest",
+++    "@gmock_global_headers//:headers",
+++    "@sonic_swss_common//:libswsscommon_shared",
+++    "@dhcpmon_debian//libevent-dev:libevent_cc",
+++    "@dhcpmon_debian//libboost-thread1.83-dev:libboost_thread_cc",
+++    "@dhcpmon_debian//libboost-system1.83-dev:libboost_system_cc",
+++]
+++
+++cc_binary(
+++    name = "relay_test",
+++    testonly = True,
+++    srcs = _SUITE_SRCS,
+++    copts = _SUITE_COPTS,
+++    linkopts = _SUITE_LINKOPTS,
+++    deps = _SUITE_DEPS,
+++)
+++
+++exports_files(["test/database_config.json"])
+++
+++# Manual semantic negative control. Never a production dependency; the matching
+++# manual runtime test must fail the original bootp_pad assertions.
+++cc_binary(
+++    name = "relay_test_negative",
+++    testonly = True,
+++    srcs = _SUITE_SRCS + ["test/negative_bootp.cpp"],
+++    copts = _SUITE_COPTS,
+++    linkopts = _SUITE_LINKOPTS + ["-Wl,--wrap=_Z9bootp_padPhPKhPjb"],
+++    tags = ["manual"],
+++    deps = _SUITE_DEPS,
+++)
+++
+++exports_files([
+++    "debian/control",
+++    "debian/changelog",
+++])
++diff --git a/dhcp4relay/patch/BUILD.bazel b/dhcp4relay/patch/BUILD.bazel
++new file mode 100644
++index 0000000000000000000000000000000000000000..b7226cb106d7bd1b45fc41c4c1d75c2656eec03a
++--- /dev/null
+++++ b/dhcp4relay/patch/BUILD.bazel
++@@ -0,0 +1 @@
+++exports_files(["0001-dhcpv4-relay-accept-random-src-port.patch"])
++diff --git a/dhcp4relay/test/mock_relay.cpp b/dhcp4relay/test/mock_relay.cpp
++index 5e467cefd36058f57ed0518190856412d1126cb2..3d2c3687081b915d48d340a6c9c6ba31053937ef 100644
++--- a/dhcp4relay/test/mock_relay.cpp
+++++ b/dhcp4relay/test/mock_relay.cpp
++@@ -931,6 +931,7 @@ TEST(relayConfig, handle_vlan_interface_events) {
++ 
++     close(pipe_fds[0]);
++     close(pipe_fds[1]);
+++    FreeMockIfaddrs(mock_ifaddrs);
++ }
++ 
++ TEST(relayConfig, handle_port_table_events) {
++@@ -1112,6 +1113,7 @@ TEST(DHCPMgrTest, process_vlan_events) {
++     config->vlan = "Vlan100";
++     config->is_add = true;
++     vlans_copy["Vlan100"] = *config;
+++    delete config;  // map owns its value copy, not this fixture allocation
++     std::deque<swss::KeyOpFieldsValuesTuple> entries;
++     entries.emplace_back("Vlan100", "SET", std::vector<swss::FieldValueTuple>{}); 
++     dhcpMgr.process_vlan_notification(entries);
++@@ -1688,6 +1690,7 @@ TEST(DHCPRelayTest, to_client) {
++         return true;
++     });
++     to_client(&dhcpLayer, &vlans, "172.22.178.234");
+++    FreeMockIfaddrs(mock_ifaddrs);
++ }
++ 
++ TEST(DHCPRelayTest, to_client_zero_giaddr_skips_interface_lookup) {
++diff --git a/dhcp4relay/test/mock_relay.h b/dhcp4relay/test/mock_relay.h
++index 62b1e0f281ff22ca4f35abcb06c8fd913c25b244..7a248dd5f1270f712b86090b6be3368eee4b5d60 100644
++--- a/dhcp4relay/test/mock_relay.h
+++++ b/dhcp4relay/test/mock_relay.h
++@@ -4,7 +4,11 @@
++ #include "../src/dhcp4relay_mgr.h"
++ #include "gmock/gmock.h"
++ #include "gtest/gtest.h"
+++#ifdef BAZEL_TEST_BUILD
+++#include "gmock-global/gmock-global.h"
+++#else
++ #include "../../gmock_global/include/gmock-global/gmock-global.h"
+++#endif
++ #include <new>
++ #include <future>
++ 
++diff --git a/dhcp4relay/test/negative_bootp.cpp b/dhcp4relay/test/negative_bootp.cpp
++new file mode 100644
++index 0000000000000000000000000000000000000000..ebfd9a662b198cea144ec9cebb971f2c91aa94e6
++--- /dev/null
+++++ b/dhcp4relay/test/negative_bootp.cpp
++@@ -0,0 +1,3 @@
+++// Deliberate semantic fault for the manual negative-control binary only.
+++#include <cstdint>
+++extern "C" void __wrap__Z9bootp_padPhPKhPjb(uint8_t *, const uint8_t *, uint32_t *, bool) {}
++diff --git a/dhcp4relay/test/pcap_patch_test.cpp b/dhcp4relay/test/pcap_patch_test.cpp
++new file mode 100644
++index 0000000000000000000000000000000000000000..56f7f6d66c20c61d6472612114f1c75d810c8683
++--- /dev/null
+++++ b/dhcp4relay/test/pcap_patch_test.cpp
++@@ -0,0 +1,28 @@
+++#include <pcapplusplus/DhcpLayer.h>
+++#include <pcapplusplus/Packet.h>
+++#include <pcapplusplus/EthLayer.h>
+++#include <pcapplusplus/IPv4Layer.h>
+++#include <pcapplusplus/UdpLayer.h>
+++#include "gtest/gtest.h"
+++
+++TEST(PcapSonicsPatch, RecognizesEphemeralDhcpPorts) {
+++    EXPECT_TRUE(pcpp::DhcpLayer::isDhcpPorts(49152, 67));
+++    EXPECT_TRUE(pcpp::DhcpLayer::isDhcpPorts(49153, 68));
+++    EXPECT_FALSE(pcpp::DhcpLayer::isDhcpPorts(67, 69));
+++    EXPECT_TRUE(pcpp::DhcpLayer::isDhcpPorts(68, 67));
+++}
+++TEST(PcapSonicsPatch, ParsesPacketThroughPatchedClassifier) {
+++    pcpp::EthLayer ethernet(pcpp::MacAddress("00:11:22:33:44:55"), pcpp::MacAddress("ff:ff:ff:ff:ff:ff"));
+++    pcpp::IPv4Layer ip(pcpp::IPv4Address("0.0.0.0"), pcpp::IPv4Address("255.255.255.255"));
+++    pcpp::UdpLayer udp(49152, 67);
+++    pcpp::DhcpLayer dhcp(pcpp::DHCP_DISCOVER, pcpp::MacAddress("00:11:22:33:44:55"));
+++    pcpp::Packet packet(600);
+++    ASSERT_TRUE(packet.addLayer(&ethernet));
+++    ASSERT_TRUE(packet.addLayer(&ip));
+++    ASSERT_TRUE(packet.addLayer(&udp));
+++    ASSERT_TRUE(packet.addLayer(&dhcp));
+++    packet.computeCalculateFields();
+++    pcpp::Packet parsed(packet.getRawPacket());
+++    ASSERT_NE(parsed.getLayerOfType<pcpp::DhcpLayer>(), nullptr);
+++    EXPECT_EQ(parsed.getLayerOfType<pcpp::DhcpLayer>()->getMessageType(), pcpp::DHCP_DISCOVER);
+++}
++diff --git a/dhcp4relay/test/socket_seam.cpp b/dhcp4relay/test/socket_seam.cpp
++new file mode 100644
++index 0000000000000000000000000000000000000000..951cfb180b209db9cbc2a5c964189bd864e145ab
++--- /dev/null
+++++ b/dhcp4relay/test/socket_seam.cpp
++@@ -0,0 +1,120 @@
+++// Test-only adapter for the raw packet descriptor. Production links neither
+++// this file nor --wrap. Real kernel BPF attach/reject validation is retained.
+++#include <arpa/inet.h>
+++#include <linux/if_ether.h>
+++#include <linux/if_packet.h>
+++#include <sys/socket.h>
+++#include <unistd.h>
+++#include <set>
+++#include "gtest/gtest.h"
+++#include "../src/dhcp4relay.h"
+++#include <fcntl.h>
+++
+++namespace {
+++std::set<int> packet_fds;
+++std::set<int> udp_fds;
+++}
+++extern "C" int __real_socket(int, int, int);
+++extern "C" int __real_bind(int, const sockaddr *, socklen_t);
+++extern "C" int __real_close(int);
+++extern "C" int __real_setsockopt(int, int, int, const void *, socklen_t);
+++extern "C" int __wrap_socket(int domain, int type, int protocol) {
+++    if (domain != AF_PACKET) {
+++        const int fd = __real_socket(domain, type, protocol);
+++        if (fd >= 0 && domain == AF_INET && type == SOCK_DGRAM && protocol == 0)
+++            udp_fds.insert(fd);
+++        return fd;
+++    }
+++    EXPECT_EQ(type, SOCK_RAW);
+++    EXPECT_EQ(protocol, htons(ETH_P_ALL));
+++    int fd = __real_socket(AF_UNIX, SOCK_DGRAM, 0);
+++    if (fd >= 0) packet_fds.insert(fd);
+++    return fd;
+++}
+++extern "C" int __wrap_bind(int fd, const sockaddr *addr, socklen_t len) {
+++    if (udp_fds.count(fd)) {
+++        // Check the production DHCP endpoint, then ask the real kernel to bind
+++        // an ephemeral port. Unit tests need neither CAP_NET_BIND_SERVICE nor
+++        // exclusive ownership of the host's DHCP port; address errors stay real.
+++        EXPECT_NE(addr, nullptr);
+++        EXPECT_EQ(len, sizeof(sockaddr_in));
+++        if (!addr || len != sizeof(sockaddr_in)) return -1;
+++        auto endpoint = *reinterpret_cast<const sockaddr_in *>(addr);
+++        EXPECT_EQ(endpoint.sin_family, AF_INET);
+++        EXPECT_EQ(endpoint.sin_port, htons(67));
+++        endpoint.sin_port = 0;
+++        return __real_bind(fd, reinterpret_cast<const sockaddr *>(&endpoint), len);
+++    }
+++    if (!packet_fds.count(fd)) return __real_bind(fd, addr, len);
+++    EXPECT_EQ(len, sizeof(sockaddr_ll));
+++    if (len != sizeof(sockaddr_ll)) return -1;
+++    const auto *packet = reinterpret_cast<const sockaddr_ll *>(addr);
+++    EXPECT_EQ(packet->sll_family, AF_PACKET);
+++    EXPECT_EQ(packet->sll_protocol, htons(ETH_P_ALL));
+++    EXPECT_EQ(packet->sll_ifindex, 0);
+++    return 0;
+++}
+++extern "C" int __wrap_setsockopt(int fd, int level, int opt, const void *value, socklen_t len) {
+++    // These packet-only flags cannot be set on the substitute AF_UNIX socket.
+++    // Assert the exact production contract; no blanket setsockopt success seam.
+++    if (packet_fds.count(fd) && level == SOL_PACKET &&
+++        (opt == PACKET_AUXDATA || opt == PACKET_IGNORE_OUTGOING)) {
+++        EXPECT_EQ(len, sizeof(int));
+++        EXPECT_NE(value, nullptr);
+++        if (len != sizeof(int) || !value) return -1;
+++        EXPECT_EQ(*static_cast<const int *>(value), 1);
+++        return 0;
+++    }
+++    return __real_setsockopt(fd, level, opt, value, len);
+++}
+++extern "C" int __wrap_close(int fd) {
+++    packet_fds.erase(fd);
+++    udp_fds.erase(fd);
+++    return __real_close(fd);
+++}
+++class PacketSocketCleanup : public testing::EmptyTestEventListener {
+++    void OnTestEnd(const testing::TestInfo &) override {
+++        // Manager-only cases enqueue heap-owned messages without running the
+++        // relay consumer. Drain/dispose after all assertions, before the next
+++        // InitConfigPipeForTest closes that queue. No feature behavior is mocked.
+++        if (config_pipe[0] > STDERR_FILENO) {
+++            int flags = fcntl(config_pipe[0], F_GETFL);
+++            if (flags >= 0) {
+++                fcntl(config_pipe[0], F_SETFL, flags | O_NONBLOCK);
+++                event_config message;
+++                while (read(config_pipe[0], &message, sizeof(message)) == sizeof(message)) {
+++                    switch (message.type) {
+++                    case DHCPv4_RELAY_CONFIG_UPDATE:
+++                    case DHCPv4_RELAY_INTERFACE_UPDATE:
+++                    case DHCPv4_SERVER_RELAY_CONFIG_UPDATE:
+++                    case DHCPv4_RELAY_DUAL_TOR_UPDATE:
+++                        delete static_cast<relay_config *>(message.msg); break;
+++                    case DHCPv4_RELAY_VLAN_MEMBER_UPDATE:
+++                        delete static_cast<vlan_member_config *>(message.msg); break;
+++                    case DHCPv4_RELAY_PORTCHANNEL_MEMBER_UPDATE:
+++                        delete static_cast<portchannel_member_config *>(message.msg); break;
+++                    case DHCPv4_RELAY_VLAN_INTERFACE_UPDATE:
+++                        delete static_cast<vlan_interface_config *>(message.msg); break;
+++                    case DHCPv4_RELAY_PORT_UPDATE:
+++                        delete static_cast<port_config *>(message.msg); break;
+++                    // Scalar notification events carry no owned payload; the
+++                    // legacy producer does not initialize their msg member.
+++                    default: break;
+++                    }
+++                }
+++                fcntl(config_pipe[0], F_SETFL, flags);
+++            }
+++        }
+++        for (int fd : packet_fds) __real_close(fd);
+++        packet_fds.clear();
+++    }
+++    void OnTestProgramEnd(const testing::UnitTest &) override {
+++        // Some upstream cases intentionally keep successful fixture sockets.
+++        for (int fd : udp_fds) __real_close(fd);
+++        udp_fds.clear();
+++    }
+++};
+++static const bool registered = [] {
+++    testing::UnitTest::GetInstance()->listeners().Append(new PacketSocketCleanup);
+++    return true;
+++}();
++diff --git a/dhcp6relay/BUILD.bazel b/dhcp6relay/BUILD.bazel
++new file mode 100644
++index 0000000000000000000000000000000000000000..524972c14d1153f78bed0986fd8873c131e05663
++--- /dev/null
+++++ b/dhcp6relay/BUILD.bazel
++@@ -0,0 +1,142 @@
+++load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+++load("@rules_cc//cc:cc_library.bzl", "cc_library")
+++load("@rules_cc//cc:cc_test.bzl", "cc_test")
+++load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
+++
+++package(default_visibility = ["//visibility:public"])
+++
+++cc_library(
+++    name = "sender",
+++    srcs = ["src/sender.cpp"],
+++    hdrs = ["src/sender.h"],
+++    copts = [
+++        "-Wall",
+++        "-std=c++17",
+++        "-fPIE",
+++    ],
+++)
+++
+++cc_library(
+++    name = "relay",
+++    srcs = [
+++        "src/config_interface.cpp",
+++        "src/relay.cpp",
+++    ],
+++    hdrs = [
+++        "src/config_interface.h",
+++        "src/relay.h",
+++    ],
+++    copts = [
+++        "-Wall",
+++        "-std=c++17",
+++        "-fPIE",
+++    ],
+++    linkopts = ["-pthread"],
+++    deps = [
+++        ":sender",
+++        "@dhcpmon_debian//libboost-system1.83-dev:libboost_system_cc",
+++        "@dhcpmon_debian//libboost-thread1.83-dev:libboost_thread_cc",
+++        "@dhcpmon_debian//libevent-dev:libevent_cc",
+++        "@sonic_swss_common//:libswsscommon_shared",
+++    ],
+++)
+++
+++cc_binary(
+++    name = "dhcp6relay",
+++    srcs = ["src/main.cpp"],
+++    copts = [
+++        "-Wall",
+++        "-std=c++17",
+++        "-fPIE",
+++    ],
+++    linkopts = [
+++        "-pie",
+++        "-pthread",
+++    ],
+++    deps = [":relay"],
+++)
+++
+++sonic_deploy_tar(
+++    name = "runtime",
+++    binaries = {"usr/sbin/dhcp6relay uid=0 gid=0 mode=0755 type=file": ":dhcp6relay"},
+++    force_debug_build = True,
+++    mtree = [
+++        "usr type=dir uid=0 gid=0 mode=0755",
+++        "usr/sbin type=dir uid=0 gid=0 mode=0755",
+++    ],
+++)
+++
+++# Exercises the real sender.cpp, not the existing mock_send replacement.
+++# Linker wrapping permits deterministic error/byte checks with no network/root.
+++cc_test(
+++    name = "sender_test",
+++    size = "small",
+++    srcs = ["test/sender_test.cpp"],
+++    copts = [
+++        "-Wall",
+++        "-std=c++17",
+++    ],
+++    linkopts = ["-Wl,--wrap=sendto"],
+++    deps = [
+++        ":sender",
+++        "@com_google_googletest//:gtest_main",
+++    ],
+++)
+++
+++# Original relay/config suite, using the existing mocks and PR #1 Redis fixture.
+++# ASan preserves the original Make death-test contract; the test-only socket
+++# seam removes CAP_NET_RAW without mocking kernel BPF validation.
+++cc_binary(
+++    name = "relay_test",
+++    testonly = True,
+++    srcs = [
+++        "src/config_interface.cpp",
+++        "src/config_interface.h",
+++        "src/relay.cpp",
+++        "src/relay.h",
+++        "src/sender.h",
+++        "test/main.cpp",
+++        "test/mock_config_interface.cpp",
+++        "test/mock_config_interface.h",
+++        "test/mock_relay.cpp",
+++        "test/mock_relay.h",
+++        "test/mock_send.cpp",
+++        "test/mock_send.h",
+++        "test/socket_seam.cpp",
+++    ],
+++    copts = [
+++        "-Wall",
+++        "-std=c++17",
+++        "-fPIE",
+++        "-DBAZEL_TEST_BUILD",
+++        "-fsanitize=address",
+++        "-fno-omit-frame-pointer",
+++    ],
+++    linkopts = [
+++        "-pthread",
+++        "-fsanitize=address",
+++        "-Wl,--wrap=socket",
+++        "-Wl,--wrap=bind",
+++        "-Wl,--wrap=close",
+++        "-Wl,--wrap=event_new",
+++        "-Wl,--wrap=event_free",
+++    ],
+++    deps = [
+++        "@com_google_googletest//:gtest",
+++        "@dhcpmon_debian//libboost-system1.83-dev:libboost_system_cc",
+++        "@dhcpmon_debian//libboost-thread1.83-dev:libboost_thread_cc",
+++        "@dhcpmon_debian//libevent-dev:libevent_cc",
+++        "@gmock_global_headers//:headers",
+++        "@sonic_swss_common//:libswsscommon_shared",
+++    ],
+++)
+++
+++exports_files([
+++    "test/run_tests.py",
+++    "test/database_config.json",
+++])
+++
+++exports_files([
+++    "debian/control",
+++    "debian/changelog",
+++])
++diff --git a/dhcp6relay/test/main.cpp b/dhcp6relay/test/main.cpp
++index dfca267b835565528fb9cffbbf4ff3f869f3939d..c81101d651d308359406d0036185406828ed7f94 100644
++--- a/dhcp6relay/test/main.cpp
+++++ b/dhcp6relay/test/main.cpp
++@@ -1,5 +1,6 @@
++ #include "gtest/gtest.h"
++ #include <swss/dbconnector.h>
+++#include <cstdlib>
++ #include <string>
++ 
++ std::string database_config = "./test/database_config.json";
++@@ -19,6 +20,11 @@ public:
++ 
++ int main(int argc, char* argv[])
++ {
+++    const char* test_database_config = std::getenv("DHCP6RELAY_TEST_DATABASE_CONFIG");
+++    if (test_database_config && *test_database_config)
+++    {
+++        database_config = test_database_config;
+++    }
++     testing::InitGoogleTest(&argc, argv);
++     // Registers a global test environment, and verifies that the
++     // registration function returns its argument.
++diff --git a/dhcp6relay/test/mock_config_interface.h b/dhcp6relay/test/mock_config_interface.h
++index 1c096d6a8bd7935cb5f09502781afa985f182944..dcb4ca205c10ca64dcdc6c547b3794b9484098af 100644
++--- a/dhcp6relay/test/mock_config_interface.h
+++++ b/dhcp6relay/test/mock_config_interface.h
++@@ -4,7 +4,11 @@
++ #include "mock_send.h"
++ #include "gmock/gmock.h"
++ #include "gtest/gtest.h"
+++#ifdef BAZEL_TEST_BUILD
+++#include "gmock-global/gmock-global.h"
+++#else
++ #include "../../gmock_global/include/gmock-global/gmock-global.h"
+++#endif
++ #include <new>
++ #include <future>
++ 
++diff --git a/dhcp6relay/test/mock_relay.cpp b/dhcp6relay/test/mock_relay.cpp
++index 025d268218c6bb373588807efc7a4f1e70b026da..fd2102de4024eb4dbb819dd02ac6f46210636eaf 100644
++--- a/dhcp6relay/test/mock_relay.cpp
+++++ b/dhcp6relay/test/mock_relay.cpp
++@@ -14,6 +14,21 @@
++ using namespace ::testing;
++ 
++ bool dual_tor_sock = false;
+++
+++// A test's dual-ToR mode must not leak into later single-ToR test cases,
+++// including when an assertion returns early from the test body.
+++class ScopedDualTorMode {
+++public:
+++    explicit ScopedDualTorMode(bool enabled) : previous_(dual_tor_sock) {
+++        dual_tor_sock = enabled;
+++    }
+++    ~ScopedDualTorMode() {
+++        dual_tor_sock = previous_;
+++    }
+++private:
+++    const bool previous_;
+++};
+++
++ char loopback[IF_NAMESIZE] = "Loopback0";
++ int mock_sock = 124;
++ 
++@@ -440,7 +455,7 @@ TEST(relay, relay_client)
++   EXPECT_DEATH(relay_client(msg, 65535, &ip_hdr, &ether_hdr, &config), "");
++ 
++   // normal packet testing
++-  dual_tor_sock = true;
+++  const ScopedDualTorMode dual_tor_mode(true);
++   ASSERT_NO_THROW(relay_client(msg, msg_len, &ip_hdr, &ether_hdr, &config));
++ 
++   EXPECT_EQ(last_used_sock, mock_sock);
++@@ -510,7 +525,7 @@ TEST(relay, relay_relay_forw) {
++   ASSERT_NO_THROW(relay_relay_forw(super_frame, BUFFER_SIZE, &ip_hdr, &config));
++ 
++   // normal packet
++-  dual_tor_sock = true;
+++  const ScopedDualTorMode dual_tor_mode(true);
++   ASSERT_NO_THROW(relay_relay_forw(msg, msg_len, &ip_hdr, &config));
++ 
++   EXPECT_EQ(last_used_sock, mock_sock);
++@@ -938,7 +953,7 @@ TEST(relay, client_callback) {
++   // test normal msg and vlan found 
++   ASSERT_NO_THROW(client_callback(-1, 0, &vlans));
++ 
++-  dual_tor_sock = true;
+++  const ScopedDualTorMode dual_tor_mode(true);
++   // test normal msg and vlan found + dual tor
++   ASSERT_NO_THROW(client_callback(-1, 0, &vlans));
++   dual_tor_sock = false;
++diff --git a/dhcp6relay/test/mock_relay.h b/dhcp6relay/test/mock_relay.h
++index 5070e1785725124db4280adc13727e5a3047343a..735b86fbab077bc5d78827ba9f1e87b2b42064d3 100644
++--- a/dhcp6relay/test/mock_relay.h
+++++ b/dhcp6relay/test/mock_relay.h
++@@ -4,7 +4,11 @@
++ #include "mock_send.h" 
++ #include "gmock/gmock.h"
++ #include "gtest/gtest.h"
+++#ifdef BAZEL_TEST_BUILD
+++#include "gmock-global/gmock-global.h"
+++#else
++ #include "../../gmock_global/include/gmock-global/gmock-global.h"
+++#endif
++ #include <new>
++ #include <future>
++ 
++diff --git a/dhcp6relay/test/run_tests.py b/dhcp6relay/test/run_tests.py
++new file mode 100644
++index 0000000000000000000000000000000000000000..31f504c00d6f23f1d3ffdc24970f5bb1866c6178
++--- /dev/null
+++++ b/dhcp6relay/test/run_tests.py
++@@ -0,0 +1,94 @@
+++#!/usr/bin/env python3
+++"""Run the DHCPv6 tests against a private, temporary Redis instance."""
+++
+++import argparse
+++import json
+++import os
+++from pathlib import Path
+++import signal
+++import socket
+++import subprocess
+++import sys
+++import tempfile
+++import time
+++
+++
+++def stop(process):
+++    if process is not None and process.poll() is None:
+++        process.terminate()
+++        try:
+++            process.wait(timeout=5)
+++        except subprocess.TimeoutExpired:
+++            process.kill()
+++            process.wait()
+++
+++
+++def wait_ready(server, path):
+++    deadline = time.monotonic() + 5
+++    while time.monotonic() < deadline:
+++        if server.poll() is not None:
+++            raise RuntimeError("private Redis exited before becoming ready")
+++        try:
+++            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
+++                client.settimeout(0.1)
+++                client.connect(str(path))
+++                client.sendall(b"PING\r\n")
+++                if client.recv(64) == b"+PONG\r\n":
+++                    return
+++        except OSError:
+++            pass
+++        time.sleep(0.05)
+++    raise RuntimeError("private Redis did not become ready within 5 seconds")
+++
+++
+++def run(command, redis_server):
+++    with tempfile.TemporaryDirectory(prefix="dhcp6relay-test-") as directory:
+++        root = Path(directory)
+++        socket_path = root / "redis.sock"
+++        config = json.loads(Path(__file__).with_name("database_config.json").read_text())
+++        config["INSTANCES"]["redis"]["unix_socket_path"] = str(socket_path)
+++        config_path = root / "database_config.json"
+++        config_path.write_text(json.dumps(config))
+++        environment = dict(os.environ, DHCP6RELAY_TEST_DATABASE_CONFIG=str(config_path))
+++        server = test = None
+++        try:
+++            # No TCP listener, persistence, global configuration or shared database.
+++            server = subprocess.Popen([
+++                redis_server, "--port", "0", "--unixsocket", str(socket_path),
+++                "--unixsocketperm", "700", "--save", "", "--appendonly", "no",
+++                "--dir", directory, "--daemonize", "no",
+++            ])
+++            wait_ready(server, socket_path)
+++            test = subprocess.Popen(command, env=environment)
+++            result = test.wait()
+++            if server.poll() is not None:
+++                raise RuntimeError("private Redis exited while tests were running")
+++            return result if result >= 0 else 128 - result
+++        finally:
+++            stop(test)
+++            stop(server)
+++
+++
+++def interrupted(signum, _frame):
+++    raise SystemExit(128 + signum)
+++
+++
+++def main():
+++    parser = argparse.ArgumentParser(description=__doc__)
+++    parser.add_argument("--redis-server", default="redis-server")
+++    parser.add_argument("command", nargs=argparse.REMAINDER)
+++    args = parser.parse_args()
+++    command = args.command[1:] if args.command[:1] == ["--"] else args.command
+++    if not command:
+++        parser.error("a test command is required after --")
+++    for signum in (signal.SIGINT, signal.SIGTERM):
+++        signal.signal(signum, interrupted)
+++    try:
+++        return run(command, args.redis_server)
+++    except (OSError, RuntimeError) as error:
+++        print(f"DHCPv6 test fixture: {error}", file=sys.stderr)
+++        return 1
+++
+++
+++if __name__ == "__main__":
+++    sys.exit(main())
++diff --git a/dhcp6relay/test/run_tests_test.py b/dhcp6relay/test/run_tests_test.py
++new file mode 100644
++index 0000000000000000000000000000000000000000..e40d0ab6d040dcfa7fc4d38c4f7972f50c76ee67
++--- /dev/null
+++++ b/dhcp6relay/test/run_tests_test.py
++@@ -0,0 +1,103 @@
+++"""Regression tests for the DHCPv6 test suite’s private Redis lifecycle."""
+++
+++import json
+++import os
+++from pathlib import Path
+++import shutil
+++import signal
+++import subprocess
+++import sys
+++import tempfile
+++import time
+++import unittest
+++
+++
+++SOURCE = Path(__file__).resolve().parent
+++PROBE = r'''
+++import json, os, signal, socket, struct, sys, time
+++from pathlib import Path
+++config_path = Path(os.environ["DHCP6RELAY_TEST_DATABASE_CONFIG"])
+++config = json.loads(config_path.read_text())
+++socket_path = config["INSTANCES"]["redis"]["unix_socket_path"]
+++with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
+++    client.connect(socket_path)
+++    redis_pid, _, _ = struct.unpack("3i", client.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12))
+++    client.sendall(b"DBSIZE\r\n")
+++    assert client.recv(64) == b":0\r\n"
+++    client.sendall(b"SET private-fixture-test yes\r\n")
+++    assert client.recv(64) == b"+OK\r\n"
+++Path(sys.argv[1]).write_text(json.dumps({"directory": str(config_path.parent), "redis_pid": redis_pid, "test_pid": os.getpid()}))
+++if sys.argv[2] == "wait":
+++    time.sleep(30)
+++elif sys.argv[2] == "signal":
+++    os.kill(os.getpid(), signal.SIGTERM)
+++else:
+++    sys.exit(int(sys.argv[2]))
+++'''
+++
+++
+++class RedisFixtureTest(unittest.TestCase):
+++    def setUp(self):
+++        self.directory = tempfile.TemporaryDirectory(prefix="dhcp6-fixture-regression-")
+++        self.addCleanup(self.directory.cleanup)
+++        self.root = Path(self.directory.name)
+++        self.receipt = self.root / "probe.json"
+++
+++    def command(self, result, redis_server=None):
+++        return [sys.executable, str(SOURCE / "run_tests.py"), "--redis-server",
+++                redis_server or os.environ.get("REDIS_SERVER", "redis-server"),
+++                "--", sys.executable, "-c", PROBE, str(self.receipt), result]
+++
+++    def require_redis(self):
+++        if not shutil.which(os.environ.get("REDIS_SERVER", "redis-server")):
+++            self.skipTest("redis-server is required for lifecycle tests")
+++
+++    def assert_cleaned(self):
+++        receipt = json.loads(self.receipt.read_text())
+++        self.assertFalse(Path(receipt["directory"]).exists())
+++        for name in ("redis_pid", "test_pid"):
+++            with self.assertRaises(ProcessLookupError):
+++                os.kill(receipt[name], 0)
+++        return receipt
+++
+++    def test_fresh_database_status_and_cleanup(self):
+++        self.require_redis()
+++        directories = []
+++        for status, expected in (("0", 0), ("7", 7), ("signal", 143)):
+++            with self.subTest(status=status):
+++                result = subprocess.run(self.command(status), capture_output=True, text=True, timeout=10)
+++                self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
+++                directories.append(self.assert_cleaned()["directory"])
+++        self.assertEqual(len(set(directories)), 3)
+++
+++    def test_interruption_cleans_owned_processes(self):
+++        self.require_redis()
+++        with subprocess.Popen(self.command("wait"), stdout=subprocess.DEVNULL,
+++                              stderr=subprocess.DEVNULL) as process:
+++            try:
+++                deadline = time.monotonic() + 5
+++                while not self.receipt.exists() and time.monotonic() < deadline:
+++                    self.assertIsNone(process.poll())
+++                    time.sleep(0.02)
+++                self.assertTrue(self.receipt.exists())
+++            finally:
+++                process.terminate()
+++                result = process.wait(timeout=10)
+++        self.assertEqual(result, 143)
+++        self.assert_cleaned()
+++
+++    def test_startup_failure_does_not_run_tests(self):
+++        exiting_server = self.root / "exiting-redis"
+++        exiting_server.write_text("#!/bin/sh\nexit 4\n")
+++        exiting_server.chmod(0o755)
+++        for server in (self.root / "missing-redis", exiting_server):
+++            with self.subTest(server=server.name):
+++                result = subprocess.run(self.command("0", str(server)), capture_output=True,
+++                                        text=True, timeout=10)
+++                self.assertNotEqual(result.returncode, 0)
+++                self.assertIn("DHCPv6 test fixture:", result.stderr)
+++                self.assertFalse(self.receipt.exists())
+++
+++
+++if __name__ == "__main__":
+++    unittest.main()
++diff --git a/dhcp6relay/test/sender_test.cpp b/dhcp6relay/test/sender_test.cpp
++new file mode 100644
++index 0000000000000000000000000000000000000000..c478f08c1ed3d34d7dd01b3a63f0cdc406bde465
++--- /dev/null
+++++ b/dhcp6relay/test/sender_test.cpp
++@@ -0,0 +1,62 @@
+++#include "dhcp6relay/src/sender.h"
+++#include <gtest/gtest.h>
+++#include <arpa/inet.h>
+++#include <cerrno>
+++#include <cstring>
+++#include <vector>
+++
+++namespace {
+++int calls, socket_seen, flags_seen;
+++socklen_t address_size;
+++sockaddr_in6 address_seen;
+++std::vector<uint8_t> bytes_seen;
+++ssize_t send_result;
+++class SenderTest : public ::testing::Test {
+++protected:
+++    sockaddr_in6 destination{};
+++    void SetUp() override {
+++        calls = 0;
+++        bytes_seen.clear();
+++        destination.sin6_family = AF_INET6;
+++        destination.sin6_port = htons(547);
+++        destination.sin6_scope_id = 17;
+++        ASSERT_EQ(1, inet_pton(AF_INET6, "2001:db8::1", &destination.sin6_addr));
+++    }
+++};
+++}
+++extern "C" ssize_t __wrap_sendto(int sock, const void *buf, size_t size, int flags,
+++                                  const sockaddr *address, socklen_t address_len) {
+++    ++calls;
+++    socket_seen = sock;
+++    flags_seen = flags;
+++    address_size = address_len;
+++    std::memcpy(&address_seen, address, sizeof(address_seen));
+++    const auto *data = static_cast<const uint8_t *>(buf);
+++    bytes_seen.assign(data, data + size);
+++    if (send_result == -1) errno = ENETUNREACH;
+++    return send_result;
+++}
+++TEST_F(SenderTest, PreservesPacketAndScopedDestination) {
+++    uint8_t packet[] = {12, 0, 0xff, 0, 1, 0x80};
+++    send_result = sizeof(packet);
+++    EXPECT_TRUE(send_udp(42, packet, destination, sizeof(packet)));
+++    EXPECT_EQ(1, calls);
+++    EXPECT_EQ(42, socket_seen);
+++    EXPECT_EQ(0, flags_seen);
+++    EXPECT_EQ(sizeof(destination), address_size);
+++    EXPECT_EQ(0, std::memcmp(&destination, &address_seen, sizeof(destination)));
+++    EXPECT_EQ(std::vector<uint8_t>(packet, packet + sizeof(packet)), bytes_seen);
+++}
+++TEST_F(SenderTest, ReturnsFailureOnUnreachableNetwork) {
+++    uint8_t packet[] = {1, 0, 0, 1};
+++    send_result = -1;
+++    EXPECT_FALSE(send_udp(42, packet, destination, sizeof(packet)));
+++    EXPECT_EQ(1, calls);
+++}
+++TEST_F(SenderTest, PreservesEmptyDatagramBehavior) {
+++    uint8_t packet[] = {0};
+++    send_result = 0;
+++    EXPECT_TRUE(send_udp(42, packet, destination, 0));
+++    EXPECT_TRUE(bytes_seen.empty());
+++    EXPECT_EQ(1, calls);
+++}
++diff --git a/dhcp6relay/test/socket_seam.cpp b/dhcp6relay/test/socket_seam.cpp
++new file mode 100644
++index 0000000000000000000000000000000000000000..060ee8c33bd320df626ad472bb333da867786664
++--- /dev/null
+++++ b/dhcp6relay/test/socket_seam.cpp
++@@ -0,0 +1,97 @@
+++// Test-only link seam: use real unprivileged datagram sockets for packet setup.
+++// Production binaries never link this file. Kernel filter validation, receive
+++// buffer configuration and nonblocking/reuse setup remain real syscalls.
+++#include <cerrno>
+++#include <sys/socket.h>
+++#include <linux/if_packet.h>
+++#include <linux/if_ether.h>
+++#include <arpa/inet.h>
+++#include <set>
+++#include <unistd.h>
+++#include "gtest/gtest.h"
+++#include <event2/event.h>
+++#include <stdexcept>
+++
+++namespace {
+++std::set<int> packet_fds;
+++std::set<int> udp_fds;
+++std::set<event *> allocated_events;
+++}
+++extern "C" event *__real_event_new(event_base *, evutil_socket_t, short, event_callback_fn, void *);
+++extern "C" void __real_event_free(event *);
+++extern "C" event *__wrap_event_new(event_base *base, evutil_socket_t fd, short flags,
+++                                    event_callback_fn callback, void *arg) {
+++    event *value = __real_event_new(base, fd, flags, callback, arg);
+++    if (value) allocated_events.insert(value);
+++    return value;
+++}
+++extern "C" void __wrap_event_free(event *value) {
+++    allocated_events.erase(value);
+++    __real_event_free(value);
+++}
+++extern "C" int __real_socket(int, int, int);
+++extern "C" int __real_bind(int, const struct sockaddr *, socklen_t);
+++extern "C" int __real_close(int);
+++extern "C" int __wrap_socket(int domain, int type, int protocol) {
+++    if (domain != AF_PACKET) {
+++        const int fd = __real_socket(domain, type, protocol);
+++        if (fd >= 0 && domain == AF_INET6 && type == SOCK_DGRAM && protocol == 0)
+++            udp_fds.insert(fd);
+++        return fd;
+++    }
+++    EXPECT_EQ(type, SOCK_RAW);
+++    EXPECT_EQ(protocol, htons(ETH_P_ALL));
+++    const int fd = __real_socket(AF_UNIX, SOCK_DGRAM, 0);
+++    if (fd >= 0) packet_fds.insert(fd);
+++    return fd;
+++}
+++extern "C" int __wrap_bind(int fd, const struct sockaddr *addr, socklen_t len) {
+++    if (udp_fds.count(fd)) {
+++        // Check the production DHCP endpoint, then ask the real kernel to bind
+++        // an ephemeral port. Unit tests need neither CAP_NET_BIND_SERVICE nor
+++        // exclusive ownership of the host's DHCP port; address errors stay real.
+++        EXPECT_NE(addr, nullptr);
+++        EXPECT_EQ(len, sizeof(sockaddr_in6));
+++        if (!addr || len != sizeof(sockaddr_in6)) return -1;
+++        auto endpoint = *reinterpret_cast<const sockaddr_in6 *>(addr);
+++        EXPECT_EQ(endpoint.sin6_family, AF_INET6);
+++        EXPECT_EQ(endpoint.sin6_port, htons(547));
+++        endpoint.sin6_port = 0;
+++        return __real_bind(fd, reinterpret_cast<const sockaddr *>(&endpoint), len);
+++    }
+++    if (!packet_fds.count(fd)) return __real_bind(fd, addr, len);
+++    EXPECT_EQ(len, sizeof(sockaddr_ll));
+++    const auto *packet = reinterpret_cast<const sockaddr_ll *>(addr);
+++    EXPECT_EQ(packet->sll_family, AF_PACKET);
+++    EXPECT_EQ(packet->sll_protocol, htons(ETH_P_ALL));
+++    EXPECT_EQ(packet->sll_ifindex, 0);
+++    // There is no physical interface in this unit fixture. The packet bind
+++    // arguments are asserted above, not silently redirected to a host device.
+++    return 0;
+++}
+++extern "C" int __wrap_close(int fd) {
+++    packet_fds.erase(fd);
+++    udp_fds.erase(fd);
+++    return __real_close(fd);
+++}
+++// sock_open's legacy test does not close its successful fd; loop_relay throws
+++// intentionally at its unconfigured event_add mock. Clean fixture descriptors.
+++class PacketSocketCleanup : public testing::EmptyTestEventListener {
+++    void OnTestEnd(const testing::TestInfo &) override {
+++        for (int fd : packet_fds) __real_close(fd);
+++        packet_fds.clear();
+++    }
+++    void OnTestProgramEnd(const testing::UnitTest &) override {
+++        for (int fd : udp_fds) __real_close(fd);
+++        udp_fds.clear();
+++        // Legacy signal tests share globals across cases; do not free these at
+++        // each case boundary. Release only events not freed by shutdown_relay,
+++        // including the event abandoned by loop_relay's expected exception.
+++        for (event *value : allocated_events) __real_event_free(value);
+++        allocated_events.clear();
+++    }
+++};
+++static const bool registered = [] {
+++    testing::UnitTest::GetInstance()->listeners().Append(new PacketSocketCleanup);
+++    return true;
+++}();
++diff --git a/tests/runtime/BUILD.bazel b/tests/runtime/BUILD.bazel
++new file mode 100644
++index 0000000000000000000000000000000000000000..8f055df9078e801536dad06d5aa1782e28f23574
++--- /dev/null
+++++ b/tests/runtime/BUILD.bazel
++@@ -0,0 +1,123 @@
+++load("@rules_python//python:py_binary.bzl", "py_binary")
+++load("@rules_shell//shell:sh_test.bzl", "sh_test")
+++load("@sonic_build_infra//cc:runtime_test.bzl", "native_runtime_binary")
+++load("@sonic_build_infra//tools/build_tools:defs.bzl", "build_tool", "build_tools_runtime")
+++
+++# Both executables use the same declared target loader and source-built Common
+++# dependency closure. No Docker daemon or host-installed target libraries.
+++_RUNTIME = [
+++    "@sonic_swss_common//dist:libswsscommon_pkg",
+++    "@sonic_swss_common//tools/bazel/runtime:test_runtime",
+++    "@dhcpmon_debian//libevent-dev",
+++    "@dhcpmon_debian//libboost-thread1.83-dev",
+++    "@dhcpmon_debian//libboost-system1.83-dev",
+++    "@dhcpmon_debian//libpcap0.8-dev",
+++    "@dhcp_relay_test_debian//libasan8",
+++    "@libyang//:sys_libpcre2-8-0_data",
+++    "@libyang//:sys_libxxhash0_data",
+++]
+++
+++[
+++    native_runtime_binary(
+++        name = name + "_runner",
+++        testonly = True,
+++        binary = binary,
+++        runtime_payloads = _RUNTIME,
+++        tags = ["manual"] if "negative" in name else [],
+++    )
+++    for name, binary in [
+++        ("v4", "//dhcp4relay:relay_test"),
+++        ("v6", "//dhcp6relay:relay_test"),
+++        ("sender", "//dhcp6relay:sender_test"),
+++        ("pcap_patch", "//dhcp4relay:pcap_patch_test"),
+++        ("v4_negative", "//dhcp4relay:relay_test_negative"),
+++    ]
+++]
+++
+++# Redis is a declared fixture executable. The shared ELF preparation rule
+++# supplies its complete locked runtime, without a system service or TCP port.
+++build_tools_runtime(
+++    name = "redis_runtime",
+++    testonly = True,
+++    architecture = "amd64",
+++    elf_tools = {"redis-server": "usr/bin/redis-server"},
+++    packages = ["@trixie//redis-server"],
+++    profile = "elf",
+++    target_compatible_with = ["@platforms//cpu:x86_64"],
+++)
+++
+++build_tool(
+++    name = "redis_server",
+++    testonly = True,
+++    runtime = ":redis_runtime",
+++    tool = "redis-server",
+++)
+++
+++py_binary(
+++    name = "v6_fixture",
+++    testonly = True,
+++    srcs = ["//dhcp6relay:test/run_tests.py"],
+++    data = ["//dhcp6relay:test/database_config.json"],
+++    main = "//dhcp6relay:test/run_tests.py",
+++)
+++
+++sh_test(
+++    name = "v6_full_suite_test",
+++    size = "medium",
+++    srcs = ["full_suite_test.sh"],
+++    args = [
+++        "$(rootpath :v6_fixture)",
+++        "$(rootpath :redis_server)",
+++        "$(rootpath :v6_runner)",
+++    ],
+++    data = [
+++        ":redis_server",
+++        ":v6_fixture",
+++        ":v6_runner",
+++    ],
+++)
+++
+++sh_test(
+++    name = "v4_full_suite_test",
+++    size = "medium",
+++    srcs = ["v4_full_suite_test.sh"],
+++    args = [
+++        "$(rootpath :v4_runner)",
+++        "*",
+++        "$(rootpath //dhcp4relay:test/database_config.json)",
+++    ],
+++    data = [
+++        ":v4_runner",
+++        "//dhcp4relay:test/database_config.json",
+++    ],
+++)
+++
+++sh_test(
+++    name = "v4_negative_control_test",
+++    size = "medium",
+++    srcs = ["v4_full_suite_test.sh"],
+++    args = [
+++        "$(rootpath :v4_negative_runner)",
+++        "DHCPRelayTest.bootp_pad_extends_short_packet",
+++        "$(rootpath //dhcp4relay:test/database_config.json)",
+++    ],
+++    data = [
+++        ":v4_negative_runner",
+++        "//dhcp4relay:test/database_config.json",
+++    ],
+++    tags = ["manual"],
+++)
+++
+++[
+++    sh_test(
+++        name = name,
+++        size = "small",
+++        srcs = ["focused_test.sh"],
+++        args = ["$(rootpath :" + runner + ")"],
+++        data = [":" + runner],
+++    )
+++    for name, runner in [
+++        ("sender_test", "sender_runner"),
+++        ("pcap_patch_test", "pcap_patch_runner"),
+++    ]
+++]
++diff --git a/tests/runtime/focused_test.sh b/tests/runtime/focused_test.sh
++new file mode 100755
++index 0000000000000000000000000000000000000000..2f16e0fb2c11b4f18e24176be70d2448dc6e85b7
++--- /dev/null
+++++ b/tests/runtime/focused_test.sh
++@@ -0,0 +1,4 @@
+++#!/usr/bin/env bash
+++set -euo pipefail
+++cd "${TEST_SRCDIR}/${TEST_WORKSPACE}"
+++exec "$1" --gtest_output="xml:${XML_OUTPUT_FILE}"
++diff --git a/tests/runtime/full_suite_test.sh b/tests/runtime/full_suite_test.sh
++new file mode 100755
++index 0000000000000000000000000000000000000000..13c0ab56c0936284d59c9e0de9d8594fbd028131
++--- /dev/null
+++++ b/tests/runtime/full_suite_test.sh
++@@ -0,0 +1,5 @@
+++#!/usr/bin/env bash
+++# Run the original v6 fixture and all gtests through declared runtime launchers.
+++set -euo pipefail
+++cd "${TEST_SRCDIR}/${TEST_WORKSPACE}"
+++exec "$1" --redis-server "$(realpath "$2")" -- "$(realpath "$3")" --gtest_output="xml:${XML_OUTPUT_FILE}"
++diff --git a/tests/runtime/v4_full_suite_test.sh b/tests/runtime/v4_full_suite_test.sh
++new file mode 100755
++index 0000000000000000000000000000000000000000..f3e992187eaaa0cf501d6692a59f06584ec61192
++--- /dev/null
+++++ b/tests/runtime/v4_full_suite_test.sh
++@@ -0,0 +1,9 @@
+++#!/usr/bin/env bash
+++# The original v4 database mock reads ./test/database_config.json.
+++set -euo pipefail
+++cd "${TEST_SRCDIR}/${TEST_WORKSPACE}"
+++runner=$(realpath "$1")
+++fixture=$(realpath "$3")
+++export GTEST_FILTER="${2:-*}"
+++cd "$(dirname "$(dirname "$fixture")")"
+++exec "$runner" --gtest_output="xml:${XML_OUTPUT_FILE}"
++diff --git a/third_party/BUILD.bazel b/third_party/BUILD.bazel
++new file mode 100644
++index 0000000000000000000000000000000000000000..c29b477e9a4d0101ad52c8c868a1b0a04208a21e
++--- /dev/null
+++++ b/third_party/BUILD.bazel
++@@ -0,0 +1 @@
+++exports_files(["gmock-global.BUILD.bazel"])
++diff --git a/third_party/gmock-global.BUILD.bazel b/third_party/gmock-global.BUILD.bazel
++new file mode 100644
++index 0000000000000000000000000000000000000000..94620cc3e7d18fb290209a29d07aefeddba19b02
++--- /dev/null
+++++ b/third_party/gmock-global.BUILD.bazel
++@@ -0,0 +1,7 @@
+++load("@rules_cc//cc:cc_library.bzl", "cc_library")
+++cc_library(
+++    name = "headers",
+++    hdrs = ["include/gmock-global/gmock-global.h"],
+++    includes = ["include"],
+++    visibility = ["//visibility:public"],
+++)
++diff --git a/tools/bazel/ci.sh b/tools/bazel/ci.sh
++new file mode 100644
++index 0000000000000000000000000000000000000000..116bc27af18896f478a9e0913a53dedde8c725ab
++--- /dev/null
+++++ b/tools/bazel/ci.sh
++@@ -0,0 +1,88 @@
+++#!/usr/bin/env bash
+++# Source-only AMD64 gate. Requires Linux AMD64 and verified Bazel 8.5.1.
+++set -euo pipefail
+++cd "$(dirname "$0")/../.."
+++: "${BAZEL:?set BAZEL to the verified Bazel 8.5.1 executable}"
+++: "${CI_SOURCE_SHA:?set CI_SOURCE_SHA to the checked-out commit}"
+++: "${CI_STATE:?set CI_STATE to a new private absolute directory}"
+++: "${CI_EVIDENCE:?set CI_EVIDENCE to a new absolute receipt directory}"
+++[[ "$CI_STATE" = /* && "$CI_EVIDENCE" = /* ]]
+++case "$(realpath -m "$CI_STATE")/" in
+++  "$(realpath -m "$CI_EVIDENCE")/"*) echo 'CI_STATE must be outside uploaded evidence'; exit 1 ;;
+++esac
+++mkdir -p "$CI_EVIDENCE"
+++exec > >(tee "$CI_EVIDENCE/driver.log") 2>&1
+++finish() {
+++  rc=$?
+++  trap - EXIT
+++  printf '%s\n' "$rc" > "$CI_EVIDENCE/exit-code.txt"
+++  if [[ -f MODULE.bazel.lock ]]; then cp MODULE.bazel.lock "$CI_EVIDENCE/"; fi
+++  # Copy only known outputs, never a cache, environment dump or credential file.
+++  if [[ -d bazel-testlogs/tests/runtime ]]; then
+++    find -L bazel-testlogs/tests/runtime -type f \( -name test.xml -o -name test.log \) -exec cp --parents '{}' "$CI_EVIDENCE/" \;
+++  fi
+++  (cd "$CI_EVIDENCE" && find . -type f ! -name SHA256SUMS ! -name driver.log -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+++  exit "$rc"
+++}
+++trap finish EXIT
+++[[ $(git rev-parse HEAD) == "$CI_SOURCE_SHA" ]] || { echo 'Wrong source checkout'; exit 1; }
+++[[ $(uname -sm) == 'Linux x86_64' ]]
+++[[ $(cat .bazelversion) == 8.5.1 ]]
+++[[ $("$BAZEL" --version) == 'bazel 8.5.1' ]]
+++# A dirty checkout could conceal which sources the receipt actually covers.
+++[[ -z $(git status --porcelain --untracked-files=no) ]]
+++[[ ! -e "$CI_STATE" ]] || { echo 'CI_STATE must be new (no reused outputs)'; exit 1; }
+++mkdir -p "$CI_STATE"/{tmp,repos,output,sandbox}
+++export TMPDIR="$CI_STATE/tmp" MAKEFLAGS=-j1 CMAKE_BUILD_PARALLEL_LEVEL=1 NINJAFLAGS=-j1
+++{
+++  git rev-parse HEAD HEAD^{tree}
+++  sha256sum "$BAZEL" .bazelrc MODULE.bazel
+++  python3 --version
+++  uname -sm
+++} > "$CI_EVIDENCE/provenance.txt"
+++cat > "$CI_STATE/ci.bazelrc" <<EOF
+++common --repository_cache=$CI_STATE/repos
+++common --host_platform=@sonic_build_infra//platforms:x86_64_trixie
+++common --platforms=@sonic_build_infra//platforms:x86_64_trixie
+++build --jobs=2
+++build --local_resources=cpu=2
+++build --local_resources=memory=8192
+++build --sandbox_base=$CI_STATE/sandbox
+++build --action_env=TMPDIR=$CI_STATE/tmp
+++build --action_env=MAKEFLAGS=-j1
+++build --action_env=CMAKE_BUILD_PARALLEL_LEVEL=1
+++build --action_env=NINJAFLAGS=-j1
+++EOF
+++cat > "$CI_STATE/bazel" <<EOF
+++#!/usr/bin/env bash
+++exec "$BAZEL" --batch --host_jvm_args=-Xmx2048m --output_user_root="$CI_STATE/output" --nosystem_rc --nohome_rc --bazelrc="$CI_STATE/ci.bazelrc" "\$@"
+++EOF
+++chmod 755 "$CI_STATE/bazel"
+++bazel="$CI_STATE/bazel"
+++cp "$CI_STATE/ci.bazelrc" "$CI_EVIDENCE/"
+++python3 -m unittest discover -s tools/bazel -p '*_test.py' -v
+++"$bazel" mod graph --lockfile_mode=update > "$CI_EVIDENCE/module-graph.txt"
+++artifacts=(//dhcp4relay:runtime //dhcp4relay:runtime.debug_symbols //dhcp6relay:runtime //dhcp6relay:runtime.debug_symbols //:dhcp4_metadata //:dhcp6_metadata)
+++tests=(//tests/runtime:sender_test //tests/runtime:pcap_patch_test //tests/runtime:v4_full_suite_test //tests/runtime:v6_full_suite_test)
+++selection="set(${artifacts[*]} ${tests[*]})"
+++"$bazel" cquery "$selection" --output=files > "$CI_EVIDENCE/configured-files.txt"
+++# Raw action graphs and BEPs may record command lines and process environment.
+++# Keep them in private job state; upload the gates' typed receipts instead.
+++"$bazel" aquery "deps($selection)" --output=jsonproto > "$CI_STATE/configured-actions.json"
+++python3 tools/bazel/ci_checks.py actions "$CI_STATE/configured-actions.json" --receipt "$CI_EVIDENCE/action-audit.json"
+++"$bazel" build "${artifacts[@]}" --build_event_json_file="$CI_STATE/build.bep.json"
+++mkdir -p "$CI_EVIDENCE/artifacts"
+++for target in "${artifacts[@]}"; do
+++  name="${target//\//_}"; name="${name//:/_}"
+++  mkdir -p "$CI_EVIDENCE/artifacts/$name"
+++  "$bazel" cquery "$target" --output=files > "$CI_EVIDENCE/artifacts/$name/outputs.txt"
+++  test -s "$CI_EVIDENCE/artifacts/$name/outputs.txt"
+++  while IFS= read -r output; do
+++    test -f "$output"
+++    cp "$output" "$CI_EVIDENCE/artifacts/$name/"
+++  done < "$CI_EVIDENCE/artifacts/$name/outputs.txt"
+++done
+++"$bazel" test "${tests[@]}" --nocache_test_results --test_output=all --build_event_json_file="$CI_STATE/test.bep.json"
+++python3 tools/bazel/ci_checks.py tests bazel-testlogs --receipt "$CI_EVIDENCE/test-audit.json"
+++# Production dependency inputs are immutable; generated resolution is evidence.
+++git diff --exit-code
++diff --git a/tools/bazel/ci_checks.py b/tools/bazel/ci_checks.py
++new file mode 100644
++index 0000000000000000000000000000000000000000..0cac80c3e60b2d2d34e01516b82a3a8ba3b92600
++--- /dev/null
+++++ b/tools/bazel/ci_checks.py
++@@ -0,0 +1,79 @@
+++#!/usr/bin/env python3
+++"""Fail closed on package-producing actions or missing/skipped test coverage."""
+++import argparse
+++import json
+++from pathlib import Path
+++from defusedxml import ElementTree as ET
+++
+++
+++MINIMUM_CASES = {
+++    'sender_test': 3,
+++    'pcap_patch_test': 2,
+++    'v4_full_suite_test': 62,
+++    'v6_full_suite_test': 47,
+++}
+++
+++
+++def audit_actions(data):
+++    actions = data.get('actions', [])
+++    if not actions:
+++        raise ValueError('Empty configured action graph')
+++    fragments = {item['id']: item for item in data['pathFragments']}
+++
+++    def path(key):
+++        item = fragments[key]
+++        prefix = path(item['parentId']) + '/' if item.get('parentId') else ''
+++        return prefix + item['label']
+++
+++    artifacts = {item['id']: path(item['pathFragmentId']) for item in data['artifacts']}
+++    for action in actions:
+++        mnemonic = action.get('mnemonic', '')
+++        outputs = [artifacts[key] for key in action.get('outputIds', [])]
+++        if (any(name.endswith(('.deb', '.udeb')) for name in outputs)
+++                or ('deb' in mnemonic.lower()
+++                    and mnemonic not in ('ExtractDeb', 'DebExtract', 'DebianRuntimeMetadata', 'DebugSymbolsManifest'))):
+++            raise ValueError(f'Forbidden DEB-producing action: {mnemonic}: {outputs}')
+++    return len(actions)
+++
+++
+++def audit_tests(root):
+++    counts = {}
+++    for name, minimum in MINIMUM_CASES.items():
+++        tree = ET.parse(root / 'tests/runtime' / name / 'test.xml')
+++        cases = tree.findall('.//testcase')
+++        if len(cases) < minimum:
+++            raise ValueError(f'{name}: expected at least {minimum} cases, found {len(cases)}')
+++        for case in cases:
+++            if (case.find('failure') is not None or case.find('error') is not None
+++                    or case.find('skipped') is not None or case.get('status') != 'run'
+++                    or case.get('result') != 'completed'):
+++                raise ValueError(f'{name}: incomplete/failed case {case.attrib}')
+++        for suite in tree.iter('testsuite'):
+++            if any(int(suite.get(key, '0')) for key in ('failures', 'errors', 'disabled', 'skipped')):
+++                raise ValueError(f'{name}: nonzero suite failures/skips')
+++        counts[name] = len(cases)
+++    return counts
+++
+++
+++def main(argv=None):
+++    parser = argparse.ArgumentParser(description=__doc__)
+++    parser.add_argument('kind', choices=('actions', 'tests'))
+++    parser.add_argument('input', type=Path)
+++    parser.add_argument('--receipt', type=Path)
+++    args = parser.parse_args(argv)
+++    if args.kind == 'actions':
+++        count = audit_actions(json.loads(args.input.read_text()))
+++        print('Non-DEB configured actions:', count)
+++        receipt = {'schema': 1, 'status': 'passed', 'configured_actions': count, 'deb_outputs': 0}
+++    else:
+++        counts = audit_tests(args.input)
+++        print('Fresh complete gtest coverage:', counts)
+++        receipt = {'schema': 1, 'status': 'passed', 'cases': counts,
+++                   'total': sum(counts.values()), 'skipped': 0}
+++    # Publish only values computed by the gates, never captured command/env data.
+++    if args.receipt:
+++        args.receipt.write_text(json.dumps(receipt, indent=2) + '\n')
+++
+++
+++if __name__ == '__main__':
+++    main()
++diff --git a/tools/bazel/ci_checks_test.py b/tools/bazel/ci_checks_test.py
++new file mode 100644
++index 0000000000000000000000000000000000000000..36f3e2059344621ab6bce856a046c90b09bbeced
++--- /dev/null
+++++ b/tools/bazel/ci_checks_test.py
++@@ -0,0 +1,135 @@
+++import copy
+++import contextlib
+++import io
+++import json
+++from pathlib import Path
+++import re
+++import subprocess
+++import tempfile
+++import unittest
+++import xml.etree.ElementTree as ET
+++
+++from defusedxml.ElementTree import parse
+++
+++from ci_checks import MINIMUM_CASES, audit_actions, audit_tests, main
+++
+++
+++class CIGatesTest(unittest.TestCase):
+++    def test_action_graph(self):
+++        graph = {'actions': [{'mnemonic': 'CppLink', 'outputIds': [1]}],
+++                 'artifacts': [{'id': 1, 'pathFragmentId': 1}],
+++                 'pathFragments': [{'id': 1, 'label': 'relay'}]}
+++        self.assertEqual(audit_actions(graph), 1)
+++        forbidden = copy.deepcopy(graph)
+++        forbidden['pathFragments'][0]['label'] = 'fixture.deb'
+++        with self.assertRaises(ValueError):
+++            audit_actions(forbidden)
+++        # Shared Infra's debug manifest is a TAR input, never a DEB producer.
+++        debug = copy.deepcopy(graph)
+++        debug['actions'][0]['mnemonic'] = 'DebugSymbolsManifest'
+++        self.assertEqual(audit_actions(debug), 1)
+++        debug['pathFragments'][0]['label'] = 'unexpected.deb'
+++        with self.assertRaises(ValueError):
+++            audit_actions(debug)
+++        with self.assertRaises(ValueError):
+++            audit_actions({'actions': []})
+++
+++    def test_complete_and_empty_or_skipped_coverage(self):
+++        with tempfile.TemporaryDirectory() as tmp:
+++            root = Path(tmp)
+++            for name, count in MINIMUM_CASES.items():
+++                path = root / 'tests/runtime' / name / 'test.xml'
+++                path.parent.mkdir(parents=True)
+++                suite = ET.Element('testsuite')
+++                for i in range(count):
+++                    ET.SubElement(suite, 'testcase', name=str(i), status='run', result='completed')
+++                ET.ElementTree(suite).write(path)
+++            self.assertEqual(audit_tests(root), MINIMUM_CASES)
+++            receipt = root / 'test-audit.json'
+++            with contextlib.redirect_stdout(io.StringIO()):
+++                main(['tests', str(root), '--receipt', str(receipt)])
+++            self.assertEqual(json.loads(receipt.read_text()), {
+++                'schema': 1, 'status': 'passed', 'cases': MINIMUM_CASES,
+++                'total': 114, 'skipped': 0,
+++            })
+++            path = root / 'tests/runtime/sender_test/test.xml'
+++            tree = parse(path)
+++            ET.SubElement(tree.getroot()[0], 'skipped')
+++            tree.write(path)
+++            with self.assertRaises(ValueError):
+++                audit_tests(root)
+++            path.write_text('<testsuite/>')
+++            with self.assertRaises(ValueError):
+++                audit_tests(root)
+++
+++    def test_public_artifacts_exclude_raw_diagnostics_and_project_audited_counts(self):
+++        # Read the actual workflow selection; do not duplicate it in this test.
+++        repo = Path(__file__).resolve().parents[2]
+++        workflow = (repo / '.github/workflows/bazel.yml').read_text()
+++        block = re.search(r'^          path: \|\n((?:            .+\n)+)', workflow, re.MULTILINE)
+++        self.assertIsNotNone(block)
+++        patterns = [line.strip() for line in block[1].splitlines()]
+++        sentinel = 'SYNTHETIC_PRIVATE_ENV_NEVER_UPLOAD'
+++        raw_events = json.dumps({
+++            'id': {'unstructuredCommandLine': {}},
+++            'unstructuredCommandLine': {'args': ['--client_env=FIXTURE_TOKEN=' + sentinel]},
+++        }) + '\n'
+++        graph = {
+++            'actions': [{'mnemonic': 'CppLink', 'outputIds': [1],
+++                         'arguments': [sentinel], 'environmentVariables': [{'name': 'FIXTURE', 'value': sentinel}]}],
+++            'artifacts': [{'id': 1, 'pathFragmentId': 1}],
+++            'pathFragments': [{'id': 1, 'label': 'relay'}],
+++        }
+++        with tempfile.TemporaryDirectory() as tmp:
+++            root = Path(tmp)
+++            private, public = root / 'ci-state', root / 'ci-evidence'
+++            private.mkdir()
+++            public.mkdir()
+++            for directory in (private, public):
+++                # Even an accidentally misplaced raw file must not be selected.
+++                (directory / 'build.bep.json').write_text(raw_events)
+++                (directory / 'test.bep.json').write_text(raw_events)
+++                (directory / 'configured-actions.json').write_text(json.dumps(graph))
+++                (directory / 'unexpected.json').write_text(raw_events)
+++            receipt = public / 'action-audit.json'
+++            with contextlib.redirect_stdout(io.StringIO()):
+++                main(['actions', str(private / 'configured-actions.json'), '--receipt', str(receipt)])
+++            self.assertEqual(json.loads(receipt.read_text()), {
+++                'schema': 1, 'status': 'passed', 'configured_actions': 1, 'deb_outputs': 0,
+++            })
+++            selected = {path for pattern in patterns for path in root.glob(pattern) if path.is_file()}
+++            self.assertEqual(selected, {receipt})
+++            self.assertNotIn(sentinel, b''.join(path.read_bytes() for path in selected).decode())
+++            # Preserve all six production output paths in the same allowlist.
+++            artifact_patterns = [pattern for pattern in patterns
+++                                 if pattern.startswith('ci-evidence/artifacts/') and '*' not in pattern]
+++            self.assertEqual(len(artifact_patterns), 6)
+++            for name in artifact_patterns:
+++                path = root / name
+++                path.parent.mkdir(parents=True, exist_ok=True)
+++                path.write_bytes(b'synthetic output')
+++            selected = {path for pattern in patterns for path in root.glob(pattern) if path.is_file()}
+++            self.assertEqual(selected, {receipt, *(root / name for name in artifact_patterns)})
+++            # A rejected configured action cannot produce a success receipt.
+++            receipt.unlink()
+++            graph['pathFragments'][0]['label'] = 'forbidden.deb'
+++            (private / 'configured-actions.json').write_text(json.dumps(graph))
+++            with self.assertRaises(ValueError):
+++                main(['actions', str(private / 'configured-actions.json'), '--receipt', str(receipt)])
+++            self.assertFalse(receipt.exists())
+++
+++    def test_private_state_cannot_be_inside_uploaded_evidence(self):
+++        repo = Path(__file__).resolve().parents[2]
+++        with tempfile.TemporaryDirectory() as tmp:
+++            evidence = Path(tmp) / 'public'
+++            result = subprocess.run(['/bin/bash', str(repo / 'tools/bazel/ci.sh')], env={
+++                'PATH': '/usr/bin:/bin', 'BAZEL': '/unused', 'CI_SOURCE_SHA': 'unused',
+++                'CI_STATE': str(evidence / 'private'), 'CI_EVIDENCE': str(evidence),
+++            }, capture_output=True, text=True)
+++            self.assertNotEqual(result.returncode, 0)
+++            self.assertIn('CI_STATE must be outside uploaded evidence', result.stdout)
+++            self.assertFalse(evidence.exists())
+++
+++
+++if __name__ == '__main__':
+++    unittest.main()
++diff --git a/tools/bazel/install-ci-bazel.sh b/tools/bazel/install-ci-bazel.sh
++new file mode 100644
++index 0000000000000000000000000000000000000000..707473674cbff285644cd59018f93d306a31b3fb
++--- /dev/null
+++++ b/tools/bazel/install-ci-bazel.sh
++@@ -0,0 +1,9 @@
+++#!/usr/bin/env bash
+++set -euo pipefail
+++
+++tool_dir="${RUNNER_TEMP:?}/relay-tools"
+++mkdir -p "$tool_dir"
+++curl --fail --location --retry 3 https://releases.bazel.build/8.5.1/release/bazel-8.5.1-linux-x86_64 -o "$tool_dir/bazel"
+++echo "61d89402f0368e64b6c827be5de79d8e65382e8124c3cbb97325611a1851392e  $tool_dir/bazel" | sha256sum --check
+++chmod 755 "$tool_dir/bazel"
+++echo "$tool_dir" >> "${GITHUB_PATH:?}"
++diff --git a/tools/bazel/requirements-ci.txt b/tools/bazel/requirements-ci.txt
++new file mode 100644
++index 0000000000000000000000000000000000000000..080cfefd393713747847c325747dba858799052f
++--- /dev/null
+++++ b/tools/bazel/requirements-ci.txt
++@@ -0,0 +1 @@
+++defusedxml==0.7.1 --hash=sha256:a352e7e428770286cc899e2542b6cdaedb2b4953ff269a210103ec58f6198a61
+diff --git a/modules/sonic-dhcp-relay/0.1.1-bb94f3d743c908cab3ff99f9cfb694d5a0d4e06e/source.json b/modules/sonic-dhcp-relay/0.1.1-bb94f3d743c908cab3ff99f9cfb694d5a0d4e06e/source.json
+index 2d153b60a28a0c8a7b6ada95ba6ca5047a827d67..00f24337ea3f746b073b58fc9fc7a3d49010093a 100644
+--- a/modules/sonic-dhcp-relay/0.1.1-bb94f3d743c908cab3ff99f9cfb694d5a0d4e06e/source.json
++++ b/modules/sonic-dhcp-relay/0.1.1-bb94f3d743c908cab3ff99f9cfb694d5a0d4e06e/source.json
+@@ -1,8 +1,12 @@
+ {
+-  "url": "https://github.com/securely1g/sonic-dhcp-relay/archive/1bbc612265bfc8e7582cb699dc44326f62595739.tar.gz",
+-  "strip_prefix": "sonic-dhcp-relay-1bbc612265bfc8e7582cb699dc44326f62595739",
+-  "integrity": "sha256-6/XX+rR0m1pIN82NcrHwwv7woowyVadF4+zWL12lPM4=",
++  "url": "https://github.com/sonic-net/sonic-dhcp-relay/archive/bb94f3d743c908cab3ff99f9cfb694d5a0d4e06e.tar.gz",
++  "strip_prefix": "sonic-dhcp-relay-bb94f3d743c908cab3ff99f9cfb694d5a0d4e06e",
++  "integrity": "sha256-v2QsB85ZKLV2dRzB26RKg+y9yZ0cDuubiDwUyqcvWcM=",
++  "patch_strip": 1,
++  "patches": {
++    "0001-bazel-producer.patch": "sha256-oKAEmfOVuj4ZHcDm54zBXfpHAa3xhE5wc0/A/c/MUsk="
++  },
+   "overlay": {
+-    "MODULE.bazel": "sha256-2OZJfoQnX+Q5hlrec29StyphjqWDUv9wjZ+JDK1nTEU="
++    "MODULE.bazel": "sha256-xzooQ7NgcYSvByEF8Cwyf+nMLDc5zQG9K29n6GmDWMc="
+   }
+ }
+diff --git a/modules/sonic-dhcp-relay/0.1.1-bb94f3d743c908cab3ff99f9cfb694d5a0d4e06e/tests/consumer/MODULE.bazel b/modules/sonic-dhcp-relay/0.1.1-bb94f3d743c908cab3ff99f9cfb694d5a0d4e06e/tests/consumer/MODULE.bazel
+index dd40eade6a6600386f468191f5ccc07c448eddbd..1f83e4ee5b378a7f511014b102a205b4b70036cb 100644
+--- a/modules/sonic-dhcp-relay/0.1.1-bb94f3d743c908cab3ff99f9cfb694d5a0d4e06e/tests/consumer/MODULE.bazel
++++ b/modules/sonic-dhcp-relay/0.1.1-bb94f3d743c908cab3ff99f9cfb694d5a0d4e06e/tests/consumer/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(name = "dhcp_relay_registry_consumer")
+ 
+-bazel_dep(name = "sonic-dhcp-relay", version = "0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739")
++bazel_dep(name = "sonic-dhcp-relay", version = "0.1.1-bb94f3d743c908cab3ff99f9cfb694d5a0d4e06e")
+ bazel_dep(name = "sonic-build-infra", version = "0.0.45-77ef625a4ddafc8cdc15f3cc6aee31eabac8a5de", repo_name = "sonic_build_infra")
+ bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.26")
+ bazel_dep(name = "rules_python", version = "1.9.0.sonic.2")
+diff --git a/modules/sonic-dhcp-relay/metadata.json b/modules/sonic-dhcp-relay/metadata.json
+index fcaef2314592d5a886a72c299e72db32df08b777..82ff52919e970fa7c5ee999ec7666dedaeba9190 100644
+--- a/modules/sonic-dhcp-relay/metadata.json
++++ b/modules/sonic-dhcp-relay/metadata.json
+@@ -1,5 +1,6 @@
+ {
+   "versions": [
+-    "0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739"
++    "0.1.0-1bbc612265bfc8e7582cb699dc44326f62595739",
++    "0.1.1-bb94f3d743c908cab3ff99f9cfb694d5a0d4e06e"
+   ]
+ }
