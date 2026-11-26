@@ -493,10 +493,10 @@ index 0000000000000000000000000000000000000000..2b8dfcc21a4cd34acfe07b5307bc74be
 +    unittest.main()
 diff --git a/CLI/bazel/installed_probe.py b/CLI/bazel/installed_probe.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..e8aa5d9601f11dc7fc61548b88403717e0712e7d
+index 0000000000000000000000000000000000000000..a9c70127c1b311a1708ee6fa1d82d68b15bdcc80
 --- /dev/null
 +++ b/CLI/bazel/installed_probe.py
-@@ -0,0 +1,72 @@
+@@ -0,0 +1,71 @@
 +"""Execute installed clish with its declared loader, libraries and command tree."""
 +
 +import argparse
@@ -505,7 +505,7 @@ index 0000000000000000000000000000000000000000..e8aa5d9601f11dc7fc61548b88403717
 +import os
 +from pathlib import Path
 +import subprocess
-+import tarfile
++import shutil
 +import tempfile
 +
 +
@@ -513,8 +513,7 @@ index 0000000000000000000000000000000000000000..e8aa5d9601f11dc7fc61548b88403717
 +    runtime, libraries = Path(runtime).resolve(), Path(libraries).resolve()
 +    with tempfile.TemporaryDirectory(prefix="framework-cli-installed-") as directory:
 +        root = Path(directory)
-+        with tarfile.open(runtime) as archive:
-+            archive.extractall(root, filter="data")
++        shutil.unpack_archive(runtime, root, format="tar", filter="data")
 +        cli = root / "usr/sbin/cli"
 +        native = libraries / "usr/lib/x86_64-linux-gnu"
 +        loader = native / "ld-linux-x86-64.so.2"
@@ -1325,10 +1324,10 @@ index 0000000000000000000000000000000000000000..72a1cd1ac6b866de099a50cc14052ba7
 +    main()
 diff --git a/CLI/bazel/verify_gdb.py b/CLI/bazel/verify_gdb.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..39f277186f2fec129fd9b6442a2af3d8e33d6e93
+index 0000000000000000000000000000000000000000..fc6e6be507fc2fd55ca2a6109b6c84d327fe9153
 --- /dev/null
 +++ b/CLI/bazel/verify_gdb.py
-@@ -0,0 +1,106 @@
+@@ -0,0 +1,107 @@
 +"""Prove each installed ELF discovers its separate symbols, with a negative control.
 +
 +GDB is an explicit CI inspection tool, not a build input. Runtime and symbol
@@ -1342,6 +1341,7 @@ index 0000000000000000000000000000000000000000..39f277186f2fec129fd9b6442a2af3d8
 +from pathlib import Path
 +import re
 +import subprocess
++import shutil
 +import tarfile
 +import tempfile
 +
@@ -1366,9 +1366,9 @@ index 0000000000000000000000000000000000000000..39f277186f2fec129fd9b6442a2af3d8
 +    with tempfile.TemporaryDirectory(prefix="framework-debug-lookup-") as directory:
 +        root = Path(directory)
 +        for archive_path, destination in ((runtime, root / "runtime"), (debug, root / "symbols")):
-+            with tarfile.open(archive_path) as archive:
-+                archive.extractall(destination, filter="data")
-+                if archive_path == debug:
++            shutil.unpack_archive(archive_path, destination, format="tar", filter="data")
++            if archive_path == debug:
++                with tarfile.open(archive_path) as archive:
 +                    for member in archive.getmembers():
 +                        if member.isfile():
 +                            if member.mode != 0o644:
@@ -10166,19 +10166,32 @@ index 0000000000000000000000000000000000000000..bd1cbfb6ef54b3322e879a79afb97d20
 +)
 diff --git a/tools/bazel/BUILD.bazel b/tools/bazel/BUILD.bazel
 new file mode 100644
-index 0000000000000000000000000000000000000000..dcb704875c8c27bc1d19cd061308803b0459a8ba
+index 0000000000000000000000000000000000000000..f93e329cf16ab9b11f2be021150b32f0bc01ec26
 --- /dev/null
 +++ b/tools/bazel/BUILD.bazel
-@@ -0,0 +1,63 @@
+@@ -0,0 +1,74 @@
 +load("@rules_python//python:py_binary.bzl", "py_binary")
 +load("@rules_python//python:py_test.bzl", "py_test")
 +
 +package(default_visibility = ["//visibility:private"])
 +
 +py_binary(
++    name = "extract_pyang",
++    srcs = ["extract_pyang.py"],
++)
++
++genrule(
++    name = "pyang_script",
++    srcs = ["@framework_pip//pyang:whl"],
++    outs = ["pyang_cli.py"],
++    cmd = "$(execpath :extract_pyang) $(execpath @framework_pip//pyang:whl) $@",
++    tools = [":extract_pyang"],
++)
++
++py_binary(
 +    name = "pyang",
-+    srcs = ["pyang_main.py"],
-+    main = "pyang_main.py",
++    srcs = [":pyang_script"],
++    main = "pyang_cli.py",
 +    visibility = ["//visibility:public"],
 +    deps = [
 +        "@framework_pip//jinja2",
@@ -10207,7 +10220,6 @@ index 0000000000000000000000000000000000000000..dcb704875c8c27bc1d19cd061308803b
 +    args = [
 +        "$(location :generate_rest_models)",
 +        "$(location :pyang)",
-+        "$(location @framework_pip//pyang:whl)",
 +        "$(location @sonic_mgmt_common//models/yang:prepared_models)",
 +        "$(location //tools:pyang/pyang_plugins/openapi.py)",
 +        "$(location //models:codegen.config)",
@@ -10219,7 +10231,6 @@ index 0000000000000000000000000000000000000000..dcb704875c8c27bc1d19cd061308803b
 +        "//models:codegen.config",
 +        "//tools:pyang/pyang_plugins/openapi.py",
 +        "//tools:rest_codegen_assets",
-+        "@framework_pip//pyang:whl",
 +        "@sonic_mgmt_common//models/yang:prepared_models",
 +    ],
 +)
@@ -10381,7 +10392,7 @@ index 0000000000000000000000000000000000000000..298fb3685aed6692d6f8b500fb0427c3
 +output.write_text(text.replace("//go:build ignore\n", "", 1))
 diff --git a/tools/bazel/check_consumer.py b/tools/bazel/check_consumer.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..1fa566746193f6951cddc2b9d90a2d9a308a7beb
+index 0000000000000000000000000000000000000000..e4a6817244cf153bc8d4a0226767c8b0bb98f0a8
 --- /dev/null
 +++ b/tools/bazel/check_consumer.py
 @@ -0,0 +1,99 @@
@@ -10395,7 +10406,7 @@ index 0000000000000000000000000000000000000000..1fa566746193f6951cddc2b9d90a2d9a
 +import shutil
 +import subprocess
 +import sys
-+import xml.etree.ElementTree as ET
++from defusedxml import ElementTree as ET
 +
 +# Support workers that exclude the script directory with PYTHONSAFEPATH.
 +sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -10588,7 +10599,7 @@ index 0000000000000000000000000000000000000000..aa553048c57e9a44a79fbc11c6b4f5e4
 +    unittest.main()
 diff --git a/tools/bazel/collect_evidence.py b/tools/bazel/collect_evidence.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..8eced4aaed2c25b7fa8881c5285a846cdeebb9c3
+index 0000000000000000000000000000000000000000..67f1565642cf6f418a18f84fd5dd883940d981e1
 --- /dev/null
 +++ b/tools/bazel/collect_evidence.py
 @@ -0,0 +1,146 @@
@@ -10603,7 +10614,7 @@ index 0000000000000000000000000000000000000000..8eced4aaed2c25b7fa8881c5285a846c
 +import shutil
 +import subprocess
 +import sys
-+import xml.etree.ElementTree as ET
++from defusedxml import ElementTree as ET
 +
 +sys.path.insert(0, str(Path(__file__).resolve().parent))
 +from go_versions import verify as verify_go_versions
@@ -10816,9 +10827,31 @@ index 0000000000000000000000000000000000000000..784f803960b21937bcbcf82c5594047c
 +# Select the shared SDK lock for Framework and Management Common.
 +apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
 +apt.import_lock(lock = "@sonic_build_infra//apt:apt.lock.json")
+diff --git a/tools/bazel/extract_pyang.py b/tools/bazel/extract_pyang.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..c3a167c4e7dad5aa200bea40fe8a8292646d745a
+--- /dev/null
++++ b/tools/bazel/extract_pyang.py
+@@ -0,0 +1,16 @@
++"""Extract the packaged pyang 2.4 CLI as a declared Python source."""
++
++from pathlib import Path
++import sys
++import zipfile
++
++
++def main():
++    wheel, output = map(Path, sys.argv[1:])
++    with zipfile.ZipFile(wheel) as archive:
++        [entry] = [name for name in archive.namelist() if name.endswith(".data/scripts/pyang")]
++        output.write_bytes(archive.read(entry))
++
++
++if __name__ == "__main__":
++    main()
 diff --git a/tools/bazel/generate_rest_models.py b/tools/bazel/generate_rest_models.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..ef655958129bf92955fd18d526abe6625d1c49bd
+index 0000000000000000000000000000000000000000..a732c0ba873dda52e2a988b8300efd2dc4b6cd38
 --- /dev/null
 +++ b/tools/bazel/generate_rest_models.py
 @@ -0,0 +1,89 @@
@@ -10853,7 +10886,7 @@ index 0000000000000000000000000000000000000000..ef655958129bf92955fd18d526abe662
 +
 +def main():
 +    parser = argparse.ArgumentParser()
-+    for name in ("models", "pyang", "pyang-wheel", "plugin", "go", "ui", "docs", "config"):
++    for name in ("models", "pyang", "plugin", "go", "ui", "docs", "config"):
 +        parser.add_argument("--" + name, required=True, type=Path)
 +    parser.add_argument("--asset", action="append", default=[], type=Path)
 +    parser.add_argument("--openapi-spec", action="append", default=[], type=Path)
@@ -10892,7 +10925,7 @@ index 0000000000000000000000000000000000000000..ef655958129bf92955fd18d526abe662
 +            if not sources:
 +                raise ValueError("The management-common model set is incomplete")
 +            subprocess.run([
-+                str(pyang), str(args.pyang_wheel.absolute()), "-f", "swaggerapi", "--outdir", str(staged_ui),
++                str(pyang), "-f", "swaggerapi", "--outdir", str(staged_ui),
 +                "--plugindir", str(plugin.parent), "--with-md-doc", "--md-outdir", str(docs),
 +                "--with-serverstub", "--stub-outdir", str(go),
 +                "--template-dir", str(work / "tools/codegen/go-server/templates-yang"),
@@ -10942,7 +10975,7 @@ index 0000000000000000000000000000000000000000..266db5899ebdd1105c57050b2622df4d
 +    return selected
 diff --git a/tools/bazel/models_repro_test.py b/tools/bazel/models_repro_test.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..eaf95582ed9162996b7a31574add51979354d969
+index 0000000000000000000000000000000000000000..f65b13eff57f596cf5eba23df1ce01e4a4f5d32f
 --- /dev/null
 +++ b/tools/bazel/models_repro_test.py
 @@ -0,0 +1,44 @@
@@ -10957,8 +10990,8 @@ index 0000000000000000000000000000000000000000..eaf95582ed9162996b7a31574add5197
 +import tempfile
 +import unittest
 +
-+DRIVER, PYANG, WHEEL, MODELS, PLUGIN, CONFIG = [Path(p).absolute() for p in sys.argv[1:7]]
-+ASSETS = [Path(p).absolute() for p in sys.argv[7:]]
++DRIVER, PYANG, MODELS, PLUGIN, CONFIG = [Path(p).absolute() for p in sys.argv[1:6]]
++ASSETS = [Path(p).absolute() for p in sys.argv[6:]]
 +sys.argv[1:] = []
 +
 +
@@ -10977,7 +11010,7 @@ index 0000000000000000000000000000000000000000..eaf95582ed9162996b7a31574add5197
 +                for key in ("RUNFILES_DIR", "RUNFILES_MANIFEST_FILE", "PYTHON_RUNFILES"):
 +                    environment.pop(key, None)
 +                subprocess.run([str(DRIVER), "--models", str(MODELS), "--pyang", str(PYANG),
-+                    "--pyang-wheel", str(WHEEL), "--plugin", str(PLUGIN), "--config", str(CONFIG),
++                     "--plugin", str(PLUGIN), "--config", str(CONFIG),
 +                    "--go", str(output / "go"), "--ui", str(output / "ui"), "--docs", str(output / "docs"),
 +                    *[arg for asset in ASSETS for arg in ("--asset", str(asset))]],
 +                    check=True, env=environment)
@@ -10990,27 +11023,6 @@ index 0000000000000000000000000000000000000000..eaf95582ed9162996b7a31574add5197
 +
 +if __name__ == "__main__":
 +    unittest.main()
-diff --git a/tools/bazel/pyang_main.py b/tools/bazel/pyang_main.py
-new file mode 100644
-index 0000000000000000000000000000000000000000..ffdf8df11468709789b32f81183ffbafca76dc2e
---- /dev/null
-+++ b/tools/bazel/pyang_main.py
-@@ -0,0 +1,15 @@
-+"""Entry point for the pinned upstream pyang implementation."""
-+
-+import sys
-+import zipfile
-+
-+if __name__ == "__main__":
-+    # pyang 2.4 ships a wheel script rather than a Python module entry point.
-+    # Execute those exact pinned bytes with the declared Python dependencies.
-+    wheel = sys.argv.pop(1)
-+    with zipfile.ZipFile(wheel) as archive:
-+        scripts = [name for name in archive.namelist() if name.endswith(".data/scripts/pyang")]
-+        if len(scripts) != 1:
-+            raise ValueError("Expected one upstream pyang wheel script")
-+        source = archive.read(scripts[0])
-+    exec(compile(source, scripts[0], "exec"), {"__name__": "__main__", "__file__": scripts[0]})
 diff --git a/tools/bazel/rest_binary.bzl b/tools/bazel/rest_binary.bzl
 new file mode 100644
 index 0000000000000000000000000000000000000000..56c5a366b6bcf6a69f02db90ba68abc6a65bf2ca
@@ -11048,10 +11060,10 @@ index 0000000000000000000000000000000000000000..56c5a366b6bcf6a69f02db90ba68abc6
 +)
 diff --git a/tools/bazel/rest_models.bzl b/tools/bazel/rest_models.bzl
 new file mode 100644
-index 0000000000000000000000000000000000000000..8a713289c898e45857e2523aac0354587eaf89e9
+index 0000000000000000000000000000000000000000..10c4a580e13581acdee5d759b86dabd149364623
 --- /dev/null
 +++ b/tools/bazel/rest_models.bzl
-@@ -0,0 +1,45 @@
+@@ -0,0 +1,43 @@
 +"""Run the existing YANG/OpenAPI generators with declared owner inputs."""
 +
 +def _rest_models_impl(ctx):
@@ -11062,7 +11074,6 @@ index 0000000000000000000000000000000000000000..8a713289c898e45857e2523aac035458
 +    args.add("--models", ctx.file.models.path)
 +    args.add("--config", ctx.file.config)
 +    args.add("--pyang", ctx.executable._pyang)
-+    args.add("--pyang-wheel", ctx.file._pyang_wheel)
 +    args.add("--plugin", ctx.file.plugin)
 +    args.add("--go", generated_go.path)
 +    args.add("--ui", ui.path)
@@ -11072,7 +11083,7 @@ index 0000000000000000000000000000000000000000..8a713289c898e45857e2523aac035458
 +    ctx.actions.run(
 +        executable = ctx.executable._driver,
 +        arguments = [args],
-+        inputs = [ctx.file.models, ctx.file.plugin, ctx.file._pyang_wheel, ctx.file.config] + ctx.files.assets + ctx.files.openapi_specs,
++        inputs = [ctx.file.models, ctx.file.plugin, ctx.file.config] + ctx.files.assets + ctx.files.openapi_specs,
 +        tools = [ctx.attr._driver[DefaultInfo].files_to_run, ctx.attr._pyang[DefaultInfo].files_to_run],
 +        outputs = [generated_go, ui, docs],
 +        env = {"PYTHONHASHSEED": "0", "PYTHONNOUSERSITE": "1"},
@@ -11094,7 +11105,6 @@ index 0000000000000000000000000000000000000000..8a713289c898e45857e2523aac035458
 +        "openapi_specs": attr.label_list(allow_files = [".yaml"]),
 +        "_driver": attr.label(default = "//tools/bazel:generate_rest_models", executable = True, cfg = "exec"),
 +        "_pyang": attr.label(default = "//tools/bazel:pyang", executable = True, cfg = "exec"),
-+        "_pyang_wheel": attr.label(default = "@framework_pip//pyang:whl", allow_single_file = True, cfg = "exec"),
 +    },
 +)
 diff --git a/tools/openapi_tests/BUILD.bazel b/tools/openapi_tests/BUILD.bazel
