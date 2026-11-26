@@ -1,13 +1,5 @@
-# SONiC DHCP monitor
+# sonic-dhcpmon at the upstream buildimage submodule revision
 
-This entry registers [the landed DHCP monitor source](https://github.com/securely1g/sonic-dhcpmon/commit/b824589b2ba49a8ba59142289bfb04bb3ca68875).
-The source repository owns the build, runtime packaging, Debian metadata, and behavior tests.
-The only registry patch sets the module version to `0.1.1-3e7160d9b89ad7c701a0827af80367ab1b206ccf`.
+This entry builds `0.1.1-3e7160d9b89ad7c701a0827af80367ab1b206ccf` from the `src/dhcpmon` gitlink at sonic-net/sonic-buildimage commit `9dfc6c15719f`. The registry verifies the canonical source archive by SHA-256 before applying the producer's Bazel integration. [Buildimage tree](https://github.com/sonic-net/sonic-buildimage/tree/9dfc6c15719f9266120407e384f9ee885970f833/src) · [Source commit](https://github.com/sonic-net/sonic-dhcpmon/commit/3e7160d9b89ad7c701a0827af80367ab1b206ccf)
 
-Both native Debian Trixie presubmits build the runtime and detached debug symbols
-(`//:runtime` and `//:runtime.debug_symbols`), generate Debian metadata
-(`//:monitor_metadata`), and run the production utility test (`//:util_behavior_test`).
-The module imports the `dhcpmon_debian` package set from sonic-build-infra's shared
-APT lock. The consumer selects the same build infrastructure, toolchains, and packaging
-rules as the source build. Each native runner obtains the test launcher from the existing
-checksum-verified Cosmos manifest.
+The package and architecture checks are declared in [presubmit.json](presubmit.json). The [previous registration](../0.1.0-b824589b2ba49a8ba59142289bfb04bb3ca68875/) records the earlier release and its validation history.
