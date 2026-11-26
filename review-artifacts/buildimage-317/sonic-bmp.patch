@@ -1,0 +1,385 @@
+Registry entry comparison for sonic-bmp
+Baseline 2d5a28673ab6af079d28524c22de93f29ea517e5 (0.1.0-5548176381e6ea889276859b6dbf8a535e4c5182)
+Candidate ea3f75d4bb48c67248d72b385d490d0e55529c5a (0.1.1-1350ac4627fa5eecd8e7dc3ebe14065f452f5de5)
+
+In a clean baseline checkout where the destination does not yet exist:
+  cp -a modules/sonic-bmp/0.1.0-5548176381e6ea889276859b6dbf8a535e4c5182 modules/sonic-bmp/0.1.1-1350ac4627fa5eecd8e7dc3ebe14065f452f5de5
+  git apply <path-to-downloaded-patch>
+
+diff --git a/modules/sonic-bmp/0.1.1-1350ac4627fa5eecd8e7dc3ebe14065f452f5de5/MODULE.bazel b/modules/sonic-bmp/0.1.1-1350ac4627fa5eecd8e7dc3ebe14065f452f5de5/MODULE.bazel
+index 7d04890dd8dbc8fdc96790beb828aefff6f6c4bf..1223d1f8de7f1f5d5d5188ecad680d87dad8280f 100644
+--- a/modules/sonic-bmp/0.1.1-1350ac4627fa5eecd8e7dc3ebe14065f452f5de5/MODULE.bazel
++++ b/modules/sonic-bmp/0.1.1-1350ac4627fa5eecd8e7dc3ebe14065f452f5de5/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-bmp",
+-    version = "0.1.0-5548176381e6ea889276859b6dbf8a535e4c5182",
++    version = "0.1.1-1350ac4627fa5eecd8e7dc3ebe14065f452f5de5",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
+@@ -16,7 +16,7 @@ bazel_dep(name = "platforms", version = "1.1.0")
+ bazel_dep(name = "tar.bzl", version = "0.10.5.sonic.2")
+ bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.26")
+ bazel_dep(name = "sonic-build-infra", version = "0.0.45-77ef625a4ddafc8cdc15f3cc6aee31eabac8a5de", repo_name = "sonic_build_infra")
+-bazel_dep(name = "sonic-swss-common", version = "0.0.8-2a4ddd070edb719f2e969a880a5cfff711e64e72", repo_name = "sonic_swss_common")
++bazel_dep(name = "sonic-swss-common", version = "0.0.9-e06d5157d0a6a7228c8ba7357bdfd5e03623e586", repo_name = "sonic_swss_common")
+ 
+ # Keep the owner's patched interfaces selected over older transitive requests.
+ single_version_override(
+@@ -48,7 +48,7 @@ single_version_override(
+ 
+ single_version_override(
+     module_name = "libyang",
+-    version = "3.12.2.sonic.9",
++    version = "3.12.2.sonic.10",
+ )
+ 
+ single_version_override(
+diff --git a/modules/sonic-bmp/0.1.1-1350ac4627fa5eecd8e7dc3ebe14065f452f5de5/overlay/MODULE.bazel b/modules/sonic-bmp/0.1.1-1350ac4627fa5eecd8e7dc3ebe14065f452f5de5/overlay/MODULE.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..0ce67ff06c8a980c32e27c0ebdc3b2ab679ef170
+--- /dev/null
++++ b/modules/sonic-bmp/0.1.1-1350ac4627fa5eecd8e7dc3ebe14065f452f5de5/overlay/MODULE.bazel
+@@ -0,0 +1,106 @@
++# AUTO-GENERATED. DO NOT EDIT MANUALLY.
++# Source: ../MODULE.bazel
++# Generator: python3 ci/registry_ci.py sync-module --module sonic-bmp --version 0.1.1-1350ac4627fa5eecd8e7dc3ebe14065f452f5de5
++
++module(
++    name = "sonic-bmp",
++    version = "0.1.1-1350ac4627fa5eecd8e7dc3ebe14065f452f5de5",
++    bazel_compatibility = [
++        ">=8.5.1",
++        "<=8.5.1",
++    ],
++)
++
++
++bazel_dep(name = "bazel_skylib", version = "1.9.2")
++bazel_dep(name = "rules_cc", version = "0.2.20")
++bazel_dep(name = "rules_python", version = "1.9.0.sonic.2")
++bazel_dep(name = "rules_rs", version = "0.1.0")
++bazel_dep(name = "platforms", version = "1.1.0")
++bazel_dep(name = "tar.bzl", version = "0.10.5.sonic.2")
++bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.26")
++bazel_dep(name = "sonic-build-infra", version = "0.0.45-77ef625a4ddafc8cdc15f3cc6aee31eabac8a5de", repo_name = "sonic_build_infra")
++bazel_dep(name = "sonic-swss-common", version = "0.0.9-e06d5157d0a6a7228c8ba7357bdfd5e03623e586", repo_name = "sonic_swss_common")
++
++# Keep the owner's patched interfaces selected over older transitive requests.
++single_version_override(
++    module_name = "sonic-build-infra",
++    version = "0.0.45-77ef625a4ddafc8cdc15f3cc6aee31eabac8a5de",
++)
++
++single_version_override(
++    module_name = "tar.bzl",
++    version = "0.10.5.sonic.2",
++)
++
++single_version_override(
++    module_name = "rules_cc",
++    version = "0.2.20",
++)
++
++single_version_override(
++    module_name = "rules_go",
++    version = "0.65.0.sonic.2",
++)
++
++# Match the image's published ABI, Python, Rust and model dependencies when
++# SWSS Common and YANG management are resolved from this standalone root.
++single_version_override(
++    module_name = "libnl3",
++    version = "3.7.0.sonic.10",
++)
++
++single_version_override(
++    module_name = "libyang",
++    version = "3.12.2.sonic.10",
++)
++
++single_version_override(
++    module_name = "libyang-python",
++    version = "3.1.0.sonic.7",
++)
++
++single_version_override(
++    module_name = "sonic-rust-deps",
++    version = "0.0.5-4064a814e8530300a7acbad4a9aff0621e2fb98e",
++)
++
++single_version_override(
++    module_name = "sonic-yang-models",
++    version = "1.0.1-dd732f9512a84966487951250adae8e3e5c9943e",
++)
++
++gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
++use_repo(gcc, "gcc_toolchains")
++
++register_toolchains("@gcc_toolchains//:all")
++
++python = use_extension("@rules_python//python/extensions:python.bzl", "python")
++python.toolchain(
++    is_default = True,
++    python_version = "3.13",
++)
++python.toolchain(python_version = "3.11")
++
++# Common owns its Rust libraries. Its module extension still requires the
++# consuming root to select the shared toolchain even for C++-only targets.
++rules_rust = use_extension("@rules_rs//rs:rules_rust.bzl", "rules_rust")
++use_repo(rules_rust, "rules_rust")
++
++rust = use_extension("@rules_rs//rs:rules_rust_reexported_extensions.bzl", "rust")
++rust.toolchain(
++    edition = "2021",
++    versions = ["1.90.0"],
++)
++use_repo(rust, "rust_toolchains")
++
++register_toolchains("@rust_toolchains//:all")
++
++bindgen = use_extension("@rules_rs//rs:rules_rust_bindgen.bzl", "rules_rust_bindgen")
++use_repo(bindgen, "rules_rust_bindgen")
++
++register_toolchains("@rules_rust_bindgen//:all")
++
++apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
++apt.import_lock(lock = "@sonic_build_infra//apt:apt.lock.json")
++use_repo(apt, "bmp_build_debian", "bmp_runtime_debian")
+diff --git a/modules/sonic-bmp/0.1.1-1350ac4627fa5eecd8e7dc3ebe14065f452f5de5/patches/0001-bazel-producer.patch b/modules/sonic-bmp/0.1.1-1350ac4627fa5eecd8e7dc3ebe14065f452f5de5/patches/0001-bazel-producer.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..1bf4d6778d4b54f1d4729e1600c83be48a7eaf0f
+--- /dev/null
++++ b/modules/sonic-bmp/0.1.1-1350ac4627fa5eecd8e7dc3ebe14065f452f5de5/patches/0001-bazel-producer.patch
+@@ -0,0 +1,158 @@
++diff --git a/.bazelrc b/.bazelrc
++new file mode 100644
++index 0000000000000000000000000000000000000000..0a8c62475901df55051092cb756f543b1bb14880
++--- /dev/null
+++++ b/.bazelrc
++@@ -0,0 +1,7 @@
+++common --registry=https://raw.githubusercontent.com/sonic-net/sonic-bazel-registry/main
+++common --registry=https://bcr.bazel.build
+++build --platforms=@sonic_build_infra//platforms:x86_64_trixie
+++build --host_platform=@sonic_build_infra//platforms:x86_64_trixie
+++build --incompatible_strict_action_env
+++build --@sonic_swss_common//tools/bazel:yang_modules=True
+++test --test_output=errors
++diff --git a/.bazelversion b/.bazelversion
++new file mode 100644
++index 0000000000000000000000000000000000000000..f9c71a52e2fd865dbf40db779b5bf8157d5c5a6a
++--- /dev/null
+++++ b/.bazelversion
++@@ -0,0 +1 @@
+++8.5.1
++diff --git a/BUILD.bazel b/BUILD.bazel
++new file mode 100644
++index 0000000000000000000000000000000000000000..cb3b9c8ee50d0c7f4d003a6c3791fa84ea82b74f
++--- /dev/null
+++++ b/BUILD.bazel
++@@ -0,0 +1,92 @@
+++"""SONiC's Redis-backed OpenBMP receiver and its installation payload."""
+++
+++load("@bazel_skylib//rules:expand_template.bzl", "expand_template")
+++load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+++load("@rules_cc//cc:cc_test.bzl", "cc_test")
+++load("@rules_python//python:py_test.bzl", "py_test")
+++load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
+++load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
+++
+++package(default_visibility = ["//visibility:public"])
+++
+++expand_template(
+++    name = "version_header",
+++    out = "openbmpd_version.h",
+++    template = "openbmpd_version.h.in",
+++    substitutions = {"@OPENBMPD_VERSION@": "0.14.0-0"},
+++)
+++
+++# Match Make's ENABLE_REDIS selection. The Kafka backend has separate sources
+++# and requires libraries which are absent from the SONiC runtime.
+++cc_binary(
+++    name = "openbmpd",
+++    srcs = glob(
+++        ["Server/src/**/*.cpp", "Server/src/**/*.h", "Server/src/**/*.hpp"],
+++        exclude = ["Server/src/kafka/**"],
+++    ) + [":version_header"],
+++    copts = ["-std=c++14", "-Wno-unused-result", "-pthread"],
+++    includes = ["Server/src", "Server/src/bgp", "Server/src/bgp/linkstate", "Server/src/bmp", "Server/src/redis"],
+++    local_defines = ["REDIS_ENABLED"],
+++    linkopts = ["-pthread"],
+++    deps = [
+++        "@bmp_build_debian//libboost-dev:libboost",
+++        "@bmp_build_debian//libyaml-cpp-dev:libyaml-cpp_cc",
+++        "@sonic_swss_common//:libswsscommon_shared",
+++    ],
+++    target_compatible_with = ["@platforms//cpu:x86_64", "@sonic_build_infra//platforms:trixie"],
+++)
+++
+++sonic_deploy_tar(
+++    name = "runtime",
+++    binaries = {"./usr/bin/openbmpd uid=0 gid=0 mode=0755 time=0 type=file": ":openbmpd"},
+++    force_debug_build = True,
+++    srcs = ["Server/openbmpd.conf"],
+++    mtree = ["./etc/bmp/openbmpd.conf uid=0 gid=0 mode=0644 time=0 type=file content=$(location Server/openbmpd.conf)"],
+++)
+++
+++runtime_packages(
+++    name = "runtime_packages.json",
+++    module_name = "sonic-bmp",
+++    control = "debian/control",
+++    changelog = "debian/changelog",
+++    debian_files = {"compat": "debian/compat"},
+++    packages = {"sonic-bmp": ":runtime"},
+++    required_paths = {"sonic-bmp": ["usr/bin/openbmpd", "etc/bmp/openbmpd.conf"]},
+++    dependencies = ["@sonic_swss_common//:runtime_packages.json"],
+++    apt_packages = {
+++        "@bmp_runtime_debian//libyaml-cpp0.8:data": "@bmp_runtime_debian//libyaml-cpp0.8:control",
+++    },
+++)
+++
+++# Exercise the same backend-independent parser and reader sources as CTest.
+++cc_test(
+++    name = "bmp_parser_test",
+++    srcs = [
+++        "Server/src/Config.cpp",
+++        "Server/src/Logger.cpp",
+++        "Server/src/bmp/BMPReader.cpp",
+++        "Server/src/bmp/parseBMP.cpp",
+++        "Server/src/md5.cpp",
+++        "Server/tests/parseBMP_test.cpp",
+++    ] + glob([
+++        "Server/src/*.h",
+++        "Server/src/*.hpp",
+++        "Server/src/bgp/**/*.cpp",
+++        "Server/src/bgp/**/*.h",
+++        "Server/src/bmp/*.h",
+++    ]),
+++    copts = ["-std=c++14", "-pthread"],
+++    includes = ["Server/src", "Server/src/bgp", "Server/src/bgp/linkstate", "Server/src/bmp"],
+++    linkopts = ["-pthread"],
+++    deps = [
+++        "@bmp_build_debian//libboost-dev:libboost",
+++        "@bmp_build_debian//libyaml-cpp-dev:libyaml-cpp_cc",
+++    ],
+++)
+++
+++py_test(
+++    name = "install_test",
+++    srcs = ["install_test.py"],
+++    args = ["$(rootpath :runtime)", "$(rootpath :runtime.debug_symbols)", "$(rootpath Server/openbmpd.conf)"],
+++    data = [":runtime", ":runtime.debug_symbols", "Server/openbmpd.conf"],
+++)
++diff --git a/install_test.py b/install_test.py
++new file mode 100644
++index 0000000000000000000000000000000000000000..d0fbc3026a1f1a40b9e28a44512c0cae4cb27564
++--- /dev/null
+++++ b/install_test.py
++@@ -0,0 +1,34 @@
+++"""Check the installed Redis collector, its default configuration and symbols."""
+++
+++import struct
+++import sys
+++import tarfile
+++from pathlib import Path
+++
+++
+++def build_id(elf):
+++    # GNU NT_GNU_BUILD_ID uses a four-byte name and a SHA-1 descriptor.
+++    note = struct.pack("<III", 4, 20, 3) + b"GNU\0"
+++    start = elf.index(note) + len(note)
+++    return elf[start:start + 20].hex()
+++
+++
+++def main(runtime, symbols, configuration):
+++    with tarfile.open(runtime) as archive:
+++        files = {entry.name.removeprefix("./"): entry for entry in archive if entry.isfile()}
+++        assert set(files) == {"usr/bin/openbmpd", "etc/bmp/openbmpd.conf"}, set(files)
+++        daemon = files["usr/bin/openbmpd"]
+++        assert daemon.mode == 0o755 and daemon.uid == daemon.gid == 0
+++        config = files["etc/bmp/openbmpd.conf"]
+++        assert config.mode == 0o644 and archive.extractfile(config).read() == Path(configuration).read_bytes()
+++        elf = archive.extractfile(daemon).read()
+++        assert elf.startswith(b"\x7fELF\x02\x01")
+++        assert struct.unpack_from("<H", elf, 18)[0] == 62  # EM_X86_64
+++        ident = build_id(elf)
+++    with tarfile.open(symbols) as archive:
+++        symbol = next(entry for entry in archive if entry.name.endswith("/.build-id/" + ident[:2] + "/" + ident[2:] + ".debug"))
+++        assert build_id(archive.extractfile(symbol).read()) == ident
+++
+++
+++if __name__ == "__main__":
+++    main(*sys.argv[1:])
+diff --git a/modules/sonic-bmp/0.1.1-1350ac4627fa5eecd8e7dc3ebe14065f452f5de5/patches/0001-module-version.patch b/modules/sonic-bmp/0.1.1-1350ac4627fa5eecd8e7dc3ebe14065f452f5de5/patches/0001-module-version.patch
+deleted file mode 100644
+index ace11c61c8e4a742c3429ee17e6cd09dbe68ad7f..0000000000000000000000000000000000000000
+--- a/modules/sonic-bmp/0.1.1-1350ac4627fa5eecd8e7dc3ebe14065f452f5de5/patches/0001-module-version.patch
++++ /dev/null
+@@ -1,10 +0,0 @@
+---- a/MODULE.bazel
+-+++ b/MODULE.bazel
+-@@ -1,6 +1,6 @@
+- module(
+-     name = "sonic-bmp",
+--    version = "0.1.0",
+-+    version = "0.1.0-5548176381e6ea889276859b6dbf8a535e4c5182",
+-     bazel_compatibility = [
+-         ">=8.5.1",
+-         "<=8.5.1",
+diff --git a/modules/sonic-bmp/0.1.1-1350ac4627fa5eecd8e7dc3ebe14065f452f5de5/presubmit.json b/modules/sonic-bmp/0.1.1-1350ac4627fa5eecd8e7dc3ebe14065f452f5de5/presubmit.json
+index 1e940ef44972a4221745eafd794a9a88b57f2d8e..31f5986a6644a9ea6484a04cad772825bb7349b0 100644
+--- a/modules/sonic-bmp/0.1.1-1350ac4627fa5eecd8e7dc3ebe14065f452f5de5/presubmit.json
++++ b/modules/sonic-bmp/0.1.1-1350ac4627fa5eecd8e7dc3ebe14065f452f5de5/presubmit.json
+@@ -26,7 +26,7 @@
+     },
+     {
+       "name": "libyang",
+-      "version": "3.12.2.sonic.9"
++      "version": "3.12.2.sonic.10"
+     },
+     {
+       "name": "libyang-python",
+@@ -62,5 +62,6 @@
+   "rust_toolchain": {
+     "version": "1.90.0",
+     "bindgen": true
+-  }
++  },
++  "generated_module_overlay": true
+ }
+diff --git a/modules/sonic-bmp/0.1.1-1350ac4627fa5eecd8e7dc3ebe14065f452f5de5/source.json b/modules/sonic-bmp/0.1.1-1350ac4627fa5eecd8e7dc3ebe14065f452f5de5/source.json
+index c1a7220402286a0a8ce95ab9b56ca2e7af12f36f..2aaed848e88fb2c45c5c2e4df47a05f35d523fd7 100644
+--- a/modules/sonic-bmp/0.1.1-1350ac4627fa5eecd8e7dc3ebe14065f452f5de5/source.json
++++ b/modules/sonic-bmp/0.1.1-1350ac4627fa5eecd8e7dc3ebe14065f452f5de5/source.json
+@@ -1,9 +1,12 @@
+ {
+-  "url": "https://github.com/securely1g/sonic-bmp/archive/5548176381e6ea889276859b6dbf8a535e4c5182.tar.gz",
+-  "strip_prefix": "sonic-bmp-5548176381e6ea889276859b6dbf8a535e4c5182",
+-  "integrity": "sha256-Q8bHDYXewWMncj2LNbZWQgfS3oRlNAvxs5jDsESKioY=",
++  "url": "https://github.com/sonic-net/sonic-bmp/archive/1350ac4627fa5eecd8e7dc3ebe14065f452f5de5.tar.gz",
++  "strip_prefix": "sonic-bmp-1350ac4627fa5eecd8e7dc3ebe14065f452f5de5",
++  "integrity": "sha256-1ISXvjFoOwB9d6XjjwfXilpLz/aJYBgGNOonCIihDzc=",
++  "patch_strip": 1,
+   "patches": {
+-    "0001-module-version.patch": "sha256-vsVoJrDoydZSwCJn+6Dfen02Gang+VoihNjSEgRp9Oc="
++    "0001-bazel-producer.patch": "sha256-Bvojf7WOgPH6y4TYn7GkC3woplDBeJjppTA5C21qgmw="
+   },
+-  "patch_strip": 1
++  "overlay": {
++    "MODULE.bazel": "sha256-GX7GmEPJ/AVNzGZw9WOZahkgxZILJBV755WqQkz4sfE="
++  }
+ }
+diff --git a/modules/sonic-bmp/metadata.json b/modules/sonic-bmp/metadata.json
+index aaeef7238636ec7b076681baf430f067b13a26d4..f0877ac9870abeb27ee74ececdab7936c22b121f 100644
+--- a/modules/sonic-bmp/metadata.json
++++ b/modules/sonic-bmp/metadata.json
+@@ -1,5 +1,6 @@
+ {
+   "versions": [
+-    "0.1.0-5548176381e6ea889276859b6dbf8a535e4c5182"
++    "0.1.0-5548176381e6ea889276859b6dbf8a535e4c5182",
++    "0.1.1-1350ac4627fa5eecd8e7dc3ebe14065f452f5de5"
+   ]
+ }
