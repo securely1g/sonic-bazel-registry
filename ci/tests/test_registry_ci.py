@@ -2275,10 +2275,12 @@ class Arm64RoutingTests(FixtureTestCase):
                 self.assertEqual(registry_ci.module_runner("otelcol-contrib", "arm64", profile),
                                  registry_ci.RUNNERS["arm64"])
 
-    def test_bmv2_cross_package_inspection_gets_a_longer_moderate_timeout(self):
+    def test_cross_package_and_tool_tests_get_a_longer_moderate_timeout(self):
         for module, cross, flags, expected in (
             ("p4lang-bmv2", True, [], ["--test_timeout=180,2700,2700,7200"]),
             ("p4lang-bmv2", True, ["--test_timeout=42"], []),
+            ("sonic-build-infra", True, [], ["--test_timeout=180,2700,2700,7200"]),
+            ("sonic-build-infra", False, [], []),
             ("p4lang-bmv2", False, [], []),
             ("p4c", True, [], ["--test_timeout=180,900,2700,7200"]),
         ):
