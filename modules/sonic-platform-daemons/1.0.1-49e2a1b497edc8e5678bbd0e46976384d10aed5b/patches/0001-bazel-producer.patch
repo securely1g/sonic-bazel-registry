@@ -397,13 +397,15 @@ index 0000000000000000000000000000000000000000..f9c71a52e2fd865dbf40db779b5bf815
 +8.5.1
 diff --git a/tests/bazel/BUILD.bazel b/tests/bazel/BUILD.bazel
 new file mode 100644
-index 0000000000000000000000000000000000000000..51c00e512ed725328f3d0bc9984248a9f88e1a31
+index 0000000000000000000000000000000000000000..b4c2ddf7660dfa7334262e34d96f55055cf97822
 --- /dev/null
 +++ b/tests/bazel/BUILD.bazel
-@@ -0,0 +1,169 @@
+@@ -0,0 +1,171 @@
 +load("@daemon_tests_pip//:requirements.bzl", "requirement")
 +load("@rules_python//python:py_binary.bzl", "py_binary")
 +load("@rules_shell//shell:sh_test.bzl", "sh_test")
++
++exports_files(["buildimage.MODULE.bazel", "wheel_helpers.BUILD.bazel"])
 +
 +_OWNER_WHEELS = ["@sonic_platform_daemons//:sonic-" + name + ".wheel" for name in [
 +    "bmcctld", "chassisd", "ledd", "pcied", "psud", "sensormond",
@@ -572,10 +574,10 @@ index 0000000000000000000000000000000000000000..51c00e512ed725328f3d0bc9984248a9
 +)
 diff --git a/tests/bazel/MODULE.bazel b/tests/bazel/MODULE.bazel
 new file mode 100644
-index 0000000000000000000000000000000000000000..bba3ce76ad432cc7b077e33d08eef63acb628ce2
+index 0000000000000000000000000000000000000000..c0d380cfc825b1636d5d93f6713a2eb4405c0e4a
 --- /dev/null
 +++ b/tests/bazel/MODULE.bazel
-@@ -0,0 +1,101 @@
+@@ -0,0 +1,68 @@
 +# Test-only application root. Production images consume the platform-common
 +# module directly; they do not acquire a dependency back on sonic-buildimage.
 +module(name = "sonic_platform_daemons_tests")
@@ -584,54 +586,21 @@ index 0000000000000000000000000000000000000000..bba3ce76ad432cc7b077e33d08eef63a
 +local_path_override(module_name = "sonic-platform-daemons", path = "../..")
 +
 +# The isolated test application consumes the published platform API owner.
-+bazel_dep(name = "sonic-platform-common", version = "1.0.1-ccb4645c60863d9949549bb233134150764e98a0", repo_name = "sonic_platform_common")
++bazel_dep(name = "sonic-platform-common", version = "1.0.1-74d0685cf303b1a08099b378d2428f4a8e6d85e0", repo_name = "sonic_platform_common")
 +
 +bazel_dep(name = "sonic-buildimage", version = "0.0.0", repo_name = "sonic_buildimage")
-+git_override(
++# Exercise the installed image wheels without resolving the installer's P4,
++# kernel and container dependencies. Both helpers and wheel rules come from
++# the same immutable archive as the original daemon test application.
++archive_override(
 +    module_name = "sonic-buildimage",
-+    commit = "c743d7521e80fc1733e5cc0ffc24889b08f78444",
-+    remote = "https://github.com/securely1g/sonic-buildimage.git",
-+)
-+
-+# Preserve the tested image root's explicit overrides, which are not inherited.
-+single_version_override(
-+    module_name = "sonic-swss",
-+    version = "0.0.3-9c3797990d4b5a79100a40fe7689927c18212361",
-+)
-+
-+single_version_override(
-+    module_name = "rules_go",
-+    version = "0.65.0.sonic.2",
-+)
-+
-+single_version_override(
-+    module_name = "rules_cc",
-+    version = "0.2.20",
-+)
-+
-+single_version_override(
-+    module_name = "tar.bzl",
-+    version = "0.10.5.sonic.2",
-+)
-+
-+single_version_override(
-+    module_name = "libnl3",
-+    version = "3.7.0.sonic.10",
-+)
-+
-+single_version_override(
-+    module_name = "re2",
-+    version = "2024-07-02.bcr.1",
-+)
-+
-+single_version_override(
-+    module_name = "sonic-build-infra",
-+    version = "0.0.45-77ef625a4ddafc8cdc15f3cc6aee31eabac8a5de",
-+)
-+
-+single_version_override(
-+    module_name = "sonic-rust-deps",
-+    version = "0.0.5-5bf69bc0a7d9ea9f4a5606264be592867cd29d1e",
++    urls = ["https://github.com/securely1g/sonic-buildimage/archive/c743d7521e80fc1733e5cc0ffc24889b08f78444.tar.gz"],
++    integrity = "sha256-oOKTQ3eYGtQ147/NWxok3CX5NzeUkGp2KsIbQJbVhFs=",
++    strip_prefix = "sonic-buildimage-c743d7521e80fc1733e5cc0ffc24889b08f78444",
++    files = {
++        "MODULE.bazel": "//:buildimage.MODULE.bazel",
++        "tools/bazel/tests/BUILD.bazel": "//:wheel_helpers.BUILD.bazel",
++    },
 +)
 +
 +bazel_dep(name = "rules_python", version = "1.9.0.sonic.2")
@@ -639,7 +608,7 @@ index 0000000000000000000000000000000000000000..bba3ce76ad432cc7b077e33d08eef63a
 +bazel_dep(name = "patchelf", version = "0.18.0.bcr.1")
 +bazel_dep(name = "platforms", version = "1.1.0")
 +bazel_dep(name = "sonic-build-infra", version = "0.0.45-77ef625a4ddafc8cdc15f3cc6aee31eabac8a5de", repo_name = "sonic_build_infra")
-+bazel_dep(name = "sonic-swss-common", version = "0.0.9-334389eae54afd1f4f5ee69f89c3a7ad2062ee61", repo_name = "sonic_swss_common")
++bazel_dep(name = "sonic-swss-common", version = "0.0.8-2a4ddd070edb719f2e969a880a5cfff711e64e72", repo_name = "sonic_swss_common")
 +
 +python = use_extension("@rules_python//python/extensions:python.bzl", "python")
 +python.toolchain(
@@ -677,6 +646,27 @@ index 0000000000000000000000000000000000000000..bba3ce76ad432cc7b077e33d08eef63a
 +
 +# The original Azure suites explicitly install the legacy SWSS SDK wheel.
 +bazel_dep(name = "sonic-py-swsssdk", version = "2.0.1-5878f93779df1bfdfe58ea00c8d34fe8261d362e", repo_name = "sonic_py_swsssdk")
+diff --git a/tests/bazel/buildimage.MODULE.bazel b/tests/bazel/buildimage.MODULE.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..aea9d2f5a7283cae8908c0304ce45bedefd5a94e
+--- /dev/null
++++ b/tests/bazel/buildimage.MODULE.bazel
+@@ -0,0 +1,15 @@
++module(name = "sonic-buildimage", version = "0.0.0")
++
++bazel_dep(name = "bazel_skylib", version = "1.9.2")
++bazel_dep(name = "libyang-python", version = "3.1.0.sonic.7", repo_name = "libyang_python")
++bazel_dep(name = "rules_python", version = "1.9.0.sonic.2")
++bazel_dep(name = "sonic-swss-common", version = "0.0.8-2a4ddd070edb719f2e969a880a5cfff711e64e72", repo_name = "sonic_swss_common")
++
++pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
++pip.parse(
++    environment = {"CC": "gcc", "CXX": "g++"},
++    hub_name = "config_engine_pip",
++    python_version = "3.13",
++    requirements_lock = "//src/sonic-config-engine:requirements_lock.txt",
++)
++use_repo(pip, "config_engine_pip")
 diff --git a/tests/bazel/collect_evidence.py b/tests/bazel/collect_evidence.py
 new file mode 100644
 index 0000000000000000000000000000000000000000..086b5f29c13f28a7beccb21b4d9977531d15879c
@@ -1277,3 +1267,26 @@ index 0000000000000000000000000000000000000000..031b0c1c31813138439a92fb73281ff8
 +
 +if __name__ == "__main__":
 +    raise SystemExit(main())
+diff --git a/tests/bazel/wheel_helpers.BUILD.bazel b/tests/bazel/wheel_helpers.BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..9c2472bfc1dd7a0bced1287834abdbc296eb941d
+--- /dev/null
++++ b/tests/bazel/wheel_helpers.BUILD.bazel
+@@ -0,0 +1,17 @@
++load("@config_engine_pip//:requirements.bzl", "requirement")
++load("@rules_python//python:py_library.bzl", "py_library")
++
++py_library(
++    name = "wheel_test_helpers",
++    testonly = True,
++    srcs = [
++        "integration/installed_wheel_fixture.py",
++        "integration/wheel_contract.py",
++    ],
++    deps = [
++        requirement("installer"),
++        requirement("packaging"),
++        requirement("setuptools"),
++    ],
++    visibility = ["//visibility:public"],
++)

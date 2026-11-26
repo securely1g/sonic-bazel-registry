@@ -4,7 +4,7 @@
   "integrity": "sha256-aexMvJTYZSN2hWJUn+99lEZ8BwKL5t+oLlweF9Pnnfo=",
   "patch_strip": 1,
   "patches": {
-    "0001-bazel-producer.patch": "sha256-zhgW1n3haelsPqGw/RNp18JE42E4W3/hTgPbzYiaPuQ="
+    "0001-bazel-producer.patch": "sha256-/D7i6rSKREmWpy3sJl4sw1u20Y5PiXAx161c1nqRA2Y="
   },
   "overlay": {
     "MODULE.bazel": "sha256-bQB1C4Xq3JH3pzqn6AcJHFRC1BcBNBZjDW2eROAfsRQ="
