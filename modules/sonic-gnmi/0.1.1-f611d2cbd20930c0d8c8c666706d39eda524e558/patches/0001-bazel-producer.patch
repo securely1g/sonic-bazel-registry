@@ -5270,7 +5270,7 @@ index 0000000000000000000000000000000000000000..3883b4fa0a16e158b2e992f65e1684af
 +
 +source_files()
 diff --git a/test_utils/test_utils.go b/test_utils/test_utils.go
-index 8a98af256c5dcb77eb5fd6bb4ff386a10758c9ba..d2ba7fae96772967d74559b08421f4e6b4c5a477 100644
+index 8a98af256c5dcb77eb5fd6bb4ff386a10758c9ba..db6471e190c5bafa086220f7fc42ed1419dc0d49 100644
 --- a/test_utils/test_utils.go
 +++ b/test_utils/test_utils.go
 @@ -3,15 +3,34 @@ package test_utils
@@ -5339,7 +5339,7 @@ index 8a98af256c5dcb77eb5fd6bb4ff386a10758c9ba..d2ba7fae96772967d74559b08421f4e6
  	for i := 0; i < len(srcFileName); i++ {
  		sourceFileStat, err := os.Stat(srcFileName[i])
  		if err != nil {
-@@ -93,13 +112,32 @@ func SetupMultiInstance() error {
+@@ -93,13 +112,28 @@ func SetupMultiInstance() error {
  }
  
  func CleanUpMultiInstance() error {
@@ -5359,11 +5359,7 @@ index 8a98af256c5dcb77eb5fd6bb4ff386a10758c9ba..d2ba7fae96772967d74559b08421f4e6
 +// PytestCommand uses the declared runner when Bazel manages the test runtime.
 +// Make keeps its ordinary pytest executable and environment.
 +func PytestCommand(directory, marker string) *exec.Cmd {
-+	executable := os.Getenv("SONIC_TEST_PYTEST")
-+	if executable == "" {
-+		executable = "pytest"
-+	}
-+	command := exec.Command(executable, "-m", marker)
++	command := exec.Command("pytest", "-m", marker)
 +	command.Dir = directory
 +	if os.Getenv("SONIC_TEST_REDIS_MANAGED") == "1" {
 +		for _, variable := range os.Environ() {
@@ -14409,10 +14405,10 @@ index 0000000000000000000000000000000000000000..1b3590c464c83733b71ec98923b3b271
 +source_files()
 diff --git a/tools/bazel/check_debug.py b/tools/bazel/check_debug.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..8c5a97dc5a1f347feb267194caeae030ec51e86d
+index 0000000000000000000000000000000000000000..87b6cb9aec135aa6fed26d68533b43d74fc7be5e
 --- /dev/null
 +++ b/tools/bazel/check_debug.py
-@@ -0,0 +1,69 @@
+@@ -0,0 +1,67 @@
 +"""Prove each installed ELF finds source lines only with its matching debug TAR."""
 +import argparse
 +import hashlib
@@ -14422,7 +14418,6 @@ index 0000000000000000000000000000000000000000..8c5a97dc5a1f347feb267194caeae030
 +import re
 +import shutil
 +import subprocess
-+import tarfile
 +import tempfile
 +
 +
@@ -14442,8 +14437,7 @@ index 0000000000000000000000000000000000000000..8c5a97dc5a1f347feb267194caeae030
 +        root = Path(directory)
 +        runtime_root, debug_root = root / 'runtime', root / 'symbols'
 +        for archive, destination in [(runtime, runtime_root), (debug, debug_root)]:
-+            with tarfile.open(archive) as tar:
-+                tar.extractall(destination, filter='data')
++            shutil.unpack_archive(archive, destination, format='tar', filter='data')
 +        empty = root / 'without-symbols'
 +        empty.mkdir()
 +        environment = dict(os.environ, DEBUGINFOD_URLS='', HOME=str(root))
@@ -15177,10 +15171,10 @@ index 0000000000000000000000000000000000000000..9532475a9c8c2dc4bd3ca457b67ca6c4
 +    raise SystemExit(pytest.main(sys.argv[1:]))
 diff --git a/tools/bazel/run_go_tests.py b/tools/bazel/run_go_tests.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..5cef073f997d03863058ceb0c7a72013859d69a8
+index 0000000000000000000000000000000000000000..948682ed368b209c56afe4da10aa66ba01f48a08
 --- /dev/null
 +++ b/tools/bazel/run_go_tests.py
-@@ -0,0 +1,193 @@
+@@ -0,0 +1,190 @@
 +"""Run Go assertions using private Redis/paths and the declared Trixie runtime."""
 +import argparse
 +import ctypes
@@ -15194,7 +15188,6 @@ index 0000000000000000000000000000000000000000..5cef073f997d03863058ceb0c7a72013
 +import shlex
 +import socket
 +import subprocess
-+import tarfile
 +import tempfile
 +import time
 +
@@ -15234,8 +15227,7 @@ index 0000000000000000000000000000000000000000..5cef073f997d03863058ceb0c7a72013
 +        runtime, work = root / 'runtime', root / 'work'
 +        runtime.mkdir(); work.mkdir()
 +        for archive in (args.runtime, args.models):
-+            with tarfile.open(archive) as tar:
-+                tar.extractall(runtime, filter=helper.runtime_member_filter)
++            shutil.unpack_archive(archive, runtime, format='tar', filter=helper.runtime_member_filter)
 +        source_root = args.anchor.parent.parent
 +        for fixture in fixtures:
 +            output = work / fixture.relative_to(source_root)
@@ -15313,14 +15305,13 @@ index 0000000000000000000000000000000000000000..5cef073f997d03863058ceb0c7a72013
 +        if args.clients:
 +            clients = work / 'build/bin'
 +            clients.mkdir(parents=True)
-+            with tarfile.open(args.clients) as tar:
-+                tar.extractall(root / 'clients', filter=helper.runtime_member_filter)
++            shutil.unpack_archive(args.clients, root / 'clients', format='tar', filter=helper.runtime_member_filter)
 +            for binary in (root / 'clients/usr/sbin').iterdir():
 +                output = clients / binary.name
 +                launcher(output, binary)
 +            environment['SONIC_TEST_NATIVE_BIN'] = str(root / 'clients/usr/sbin')
-+            environment['SONIC_TEST_PYTEST'] = str(args.pytest)
 +            private_bin = root / 'bin'; private_bin.mkdir()
++            (private_bin / 'pytest').symlink_to(args.pytest)
 +            redis_cli = private_bin / 'redis-cli'
 +            redis_cli.write_text('#!/bin/sh\nexec ' + shlex.join([
 +                str(loader), '--library-path', libpath, str(runtime / 'usr/bin/redis-cli'),
@@ -15516,7 +15507,7 @@ index 0000000000000000000000000000000000000000..9cda39c7b7380a719d4d8120cdc83cb8
 +    main()
 diff --git a/tools/ci/native_subscription.py b/tools/ci/native_subscription.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..39aab1483da92bb1e2cbd7235769e28149f8dc6e
+index 0000000000000000000000000000000000000000..26c8b6525842203ade5f2823aba4722d4b26e526
 --- /dev/null
 +++ b/tools/ci/native_subscription.py
 @@ -0,0 +1,291 @@
@@ -15524,7 +15515,6 @@ index 0000000000000000000000000000000000000000..39aab1483da92bb1e2cbd7235769e281
 +"""Run the real subscription regression with independently built owner inputs."""
 +import argparse
 +import hashlib
-+import io
 +import json
 +import os
 +from pathlib import Path
@@ -15535,7 +15525,6 @@ index 0000000000000000000000000000000000000000..39aab1483da92bb1e2cbd7235769e281
 +import tarfile
 +import tempfile
 +import time
-+import urllib.request
 +
 +
 +CASE = "TestClientRunConcurrentClose"
@@ -15564,9 +15553,9 @@ index 0000000000000000000000000000000000000000..39aab1483da92bb1e2cbd7235769e281
 +    archive = work / (name + "-" + pin["revision"] + ".tar.gz")
 +    if not archive.exists():
 +        temporary = archive.with_suffix(".download")
-+        with urllib.request.urlopen(f"https://github.com/securely1g/{name}/archive/{pin['revision']}.tar.gz") as source:
-+            with temporary.open("wb") as output:
-+                shutil.copyfileobj(source, output)
++        url = f"https://github.com/securely1g/{name}/archive/{pin['revision']}.tar.gz"
++        subprocess.run(["curl", "--fail", "--location", "--proto", "=https", "--proto-redir", "=https",
++                        "--silent", "--show-error", "--output", str(temporary), url], check=True)
 +        if digest(temporary) != pin["sha256"]:
 +            raise AssertionError(f"Unexpected {name} source archive")
 +        temporary.replace(archive)
@@ -15579,7 +15568,7 @@ index 0000000000000000000000000000000000000000..39aab1483da92bb1e2cbd7235769e281
 +    with tarfile.open(archive) as source:
 +        prefix = name + "-" + pin["revision"]
 +        assert all(m.name == prefix or m.name.startswith(prefix + "/") for m in source)
-+        source.extractall(work, filter="data")
++    shutil.unpack_archive(archive, work, format="tar", filter="data")
 +    (work / prefix).rename(destination)
 +    marker.write_text(json.dumps(pin, sort_keys=True) + "\n")
 +    return destination
@@ -15587,8 +15576,7 @@ index 0000000000000000000000000000000000000000..39aab1483da92bb1e2cbd7235769e281
 +
 +def unpack(archive, destination):
 +    destination.mkdir(parents=True, exist_ok=True)
-+    with tarfile.open(archive) as package:
-+        package.extractall(destination, filter="data")
++    shutil.unpack_archive(archive, destination, format="tar", filter="data")
 +
 +
 +def main():
@@ -15673,8 +15661,9 @@ index 0000000000000000000000000000000000000000..39aab1483da92bb1e2cbd7235769e281
 +    if not tested.exists():
 +        tested.mkdir()
 +        archive = subprocess.check_output(["git", "archive", "HEAD"], cwd=source)
-+        with tarfile.open(fileobj=io.BytesIO(archive)) as tree:
-+            tree.extractall(tested, filter="data")
++        exact_archive = test_root / "gnmi-source.tar"
++        exact_archive.write_bytes(archive)
++        shutil.unpack_archive(exact_archive, tested, format="tar", filter="data")
 +    sdk, runtime = test_root / "sdk", test_root / "runtime"
 +    staged = test_root / "owner-artifacts.json"
 +    if staged.exists():
@@ -15757,9 +15746,11 @@ index 0000000000000000000000000000000000000000..39aab1483da92bb1e2cbd7235769e281
 +    exact = production.read_bytes()
 +    baseline_file = work / ("client_subscribe-" + pins["baseline"]["revision"] + ".go")
 +    if not baseline_file.exists():
-+        with urllib.request.urlopen("https://raw.githubusercontent.com/securely1g/sonic-gnmi/" +
-+                pins["baseline"]["revision"] + "/gnmi_server/client_subscribe.go") as response:
-+            baseline = response.read()
++        # Download from the canonical fixed origin over HTTPS and verify the pinned bytes below.
++        url = ("https://raw.githubusercontent.com/sonic-net/sonic-gnmi/" +
++               pins["baseline"]["revision"] + "/gnmi_server/client_subscribe.go")
++        baseline = subprocess.check_output(["curl", "--fail", "--location", "--proto", "=https",
++                                            "--proto-redir", "=https", "--silent", "--show-error", url])
 +        assert hashlib.sha256(baseline).hexdigest() == pins["baseline"]["sha256"]
 +        baseline_file.write_bytes(baseline)
 +    baseline = baseline_file.read_bytes()
