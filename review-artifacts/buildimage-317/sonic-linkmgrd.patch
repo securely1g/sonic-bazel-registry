@@ -1,0 +1,1613 @@
+Registry entry comparison for sonic-linkmgrd
+Baseline 2d5a28673ab6af079d28524c22de93f29ea517e5 (1.0.1-4942334e9878b473099d7e07fc82bff9fc8c54f2)
+Candidate d8d9cd60dcdd5f2a4e8680cb87ec6292a3910da5 (1.0.2-926040f8a26c1affca07831a1b613be7291372bb)
+
+In a clean baseline checkout where the destination does not yet exist:
+  cp -a modules/sonic-linkmgrd/1.0.1-4942334e9878b473099d7e07fc82bff9fc8c54f2 modules/sonic-linkmgrd/1.0.2-926040f8a26c1affca07831a1b613be7291372bb
+  git apply <path-to-downloaded-patch>
+
+diff --git a/modules/sonic-linkmgrd/1.0.2-926040f8a26c1affca07831a1b613be7291372bb/MODULE.bazel b/modules/sonic-linkmgrd/1.0.2-926040f8a26c1affca07831a1b613be7291372bb/MODULE.bazel
+index e924c5ebcf82b26cca31211fd0d92e740c359741..a413a7e296b6f4fb7aa755463dc1edb693acb56b 100644
+--- a/modules/sonic-linkmgrd/1.0.2-926040f8a26c1affca07831a1b613be7291372bb/MODULE.bazel
++++ b/modules/sonic-linkmgrd/1.0.2-926040f8a26c1affca07831a1b613be7291372bb/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-linkmgrd",
+-    version = "1.0.1-4942334e9878b473099d7e07fc82bff9fc8c54f2",
++    version = "1.0.2-926040f8a26c1affca07831a1b613be7291372bb",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
+@@ -22,7 +22,7 @@ bazel_dep(
+ )
+ bazel_dep(
+     name = "sonic-swss-common",
+-    version = "0.0.8-2a4ddd070edb719f2e969a880a5cfff711e64e72",
++    version = "0.0.9-e06d5157d0a6a7228c8ba7357bdfd5e03623e586",
+     repo_name = "sonic_swss_common",
+ )
+ 
+diff --git a/modules/sonic-linkmgrd/1.0.2-926040f8a26c1affca07831a1b613be7291372bb/overlay/MODULE.bazel b/modules/sonic-linkmgrd/1.0.2-926040f8a26c1affca07831a1b613be7291372bb/overlay/MODULE.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..004d21a6f4c8ffc6b42e545b0e22e93cd3b9a271
+--- /dev/null
++++ b/modules/sonic-linkmgrd/1.0.2-926040f8a26c1affca07831a1b613be7291372bb/overlay/MODULE.bazel
+@@ -0,0 +1,75 @@
++# AUTO-GENERATED. DO NOT EDIT MANUALLY.
++# Source: ../MODULE.bazel
++# Generator: python3 ci/registry_ci.py sync-module --module sonic-linkmgrd --version 1.0.2-926040f8a26c1affca07831a1b613be7291372bb
++
++module(
++    name = "sonic-linkmgrd",
++    version = "1.0.2-926040f8a26c1affca07831a1b613be7291372bb",
++    bazel_compatibility = [
++        ">=8.5.1",
++        "<=8.5.1",
++    ],
++)
++
++bazel_dep(name = "rules_cc", version = "0.2.22")
++bazel_dep(name = "rules_python", version = "1.9.0.sonic.2")
++bazel_dep(name = "rules_gzip", version = "1.0.0")
++bazel_dep(name = "platforms", version = "1.1.0")
++bazel_dep(name = "googletest", version = "1.17.0")
++bazel_dep(name = "tar.bzl", version = "0.10.5.sonic.2")
++bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.26")
++bazel_dep(name = "libnl3", version = "3.7.0.sonic.10")
++bazel_dep(
++    name = "sonic-build-infra",
++    version = "0.0.45-77ef625a4ddafc8cdc15f3cc6aee31eabac8a5de",
++    repo_name = "sonic_build_infra",
++)
++bazel_dep(
++    name = "sonic-swss-common",
++    version = "0.0.9-e06d5157d0a6a7228c8ba7357bdfd5e03623e586",
++    repo_name = "sonic_swss_common",
++)
++
++# Reuse the shared, snapshot-pinned target APT set for Boost's native ABI.
++apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
++apt.import_lock(lock = "@sonic_build_infra//apt:apt.lock.json")
++apt.install(
++    dependency_set = "trixie",
++    packages = [
++        "libboost-date-time1.83.0:amd64",
++        "libboost-date-time1.83-dev:amd64",
++        "libboost-filesystem1.83.0:amd64",
++        "libboost-filesystem1.83-dev:amd64",
++        "libboost-log1.83.0:amd64",
++        "libboost-log1.83-dev:amd64",
++        "libboost-program-options1.83.0:amd64",
++        "libboost-program-options1.83-dev:amd64",
++        "libboost-thread1.83.0:amd64",
++        "libboost-thread1.83-dev:amd64",
++    ],
++    suites = [
++        "trixie",
++        "trixie-updates",
++        "trixie-security",
++    ],
++)
++use_repo(apt, "trixie")
++
++gcc = use_extension("@sonic_build_infra//toolchains/gcc:extensions.bzl", "gcc")
++use_repo(gcc, "gcc_toolchains")
++
++register_toolchains("@gcc_toolchains//:all")
++
++register_toolchains("@sonic_build_infra//tools/gzip:toolchain")
++
++python = use_extension("@rules_python//python/extensions:python.bzl", "python")
++python.toolchain(
++    is_default = True,
++    python_version = "3.13",
++)
++
++# Common declares this extension; this C++ producer needs no Rust toolchain.
++bazel_dep(name = "rules_rs", version = "0.1.0")
++
++rust = use_extension("@rules_rs//rs:rules_rust_reexported_extensions.bzl", "rust")
++rust.toolchain(versions = [])
+diff --git a/modules/sonic-linkmgrd/1.0.2-926040f8a26c1affca07831a1b613be7291372bb/patches/0001-bazel-producer.patch b/modules/sonic-linkmgrd/1.0.2-926040f8a26c1affca07831a1b613be7291372bb/patches/0001-bazel-producer.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..649ba4c804275d4841815461efe74fd4b2ecdcbe
+--- /dev/null
++++ b/modules/sonic-linkmgrd/1.0.2-926040f8a26c1affca07831a1b613be7291372bb/patches/0001-bazel-producer.patch
+@@ -0,0 +1,1413 @@
++diff --git a/.bazelrc b/.bazelrc
++new file mode 100644
++index 0000000000000000000000000000000000000000..5661c0ac5a484dcd19f2df86ae2f15121092974c
++--- /dev/null
+++++ b/.bazelrc
++@@ -0,0 +1,12 @@
+++common --registry=https://raw.githubusercontent.com/sonic-net/sonic-bazel-registry/main
+++common --registry=https://bcr.bazel.build
+++common --lockfile_mode=update
+++common --platforms=@sonic_build_infra//platforms:x86_64_trixie
+++common --host_platform=@sonic_build_infra//platforms:x86_64_trixie
+++build --compilation_mode=opt
+++build --@sonic_swss_common//tools/bazel:yang_modules=true
+++test --test_output=errors
+++try-import %workspace%/.bazelrc.user
+++
+++# Materialize cached kernel tools through their directory aliases.
+++build --remote_download_regex=(^|.*/)tools/build_tools/kernel_runtime_(amd64|arm64)(/.*)?$
++diff --git a/.bazelversion b/.bazelversion
++new file mode 100644
++index 0000000000000000000000000000000000000000..f9c71a52e2fd865dbf40db779b5bf8157d5c5a6a
++--- /dev/null
+++++ b/.bazelversion
++@@ -0,0 +1 @@
+++8.5.1
++diff --git a/BUILD.bazel b/BUILD.bazel
++new file mode 100644
++index 0000000000000000000000000000000000000000..6c901bacf37f16e6eed6e85e9f8a947964fd0af8
++--- /dev/null
+++++ b/BUILD.bazel
++@@ -0,0 +1,292 @@
+++load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+++load("@rules_cc//cc:cc_library.bzl", "cc_library")
+++load("@rules_distroless//distroless:defs.bzl", "flatten")
+++load("@rules_gzip//gzip/compress:defs.bzl", "gzip_compress")
+++load("@rules_python//python:py_test.bzl", "py_test")
+++load("@sonic_build_infra//binary:drop_build_rpath.bzl", "drop_build_rpath")
+++load("@sonic_build_infra//cc:runtime_test.bzl", "native_runtime_test")
+++load("@sonic_build_infra//cc:shared_library.bzl", "shared_library_cc_info")
+++load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
+++load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
+++load("//:tools/bazel/swsscommon.bzl", "linkmgrd_swsscommon")
+++
+++package(default_visibility = ["//visibility:public"])
+++
+++_PLATFORM = [
+++    "@platforms//os:linux",
+++    "@platforms//cpu:x86_64",
+++    "@sonic_build_infra//platforms:trixie",
+++]
+++
+++_COPTS = [
+++    "-std=c++17",
+++    "-Wall",
+++    "-fmessage-length=0",
+++    "-fPIC",
+++]
+++
+++# Forward Common's native library and its libnl DSOs with only the search
+++# paths and declared files needed to resolve their Debian dependencies.
+++shared_library_cc_info(
+++    name = "swsscommon_dso",
+++    runtime_deps = ["@sonic_swss_common//:common_deps"],
+++    shared_library = "@sonic_swss_common//:libswsscommon_consolidated.so",
+++    visibility = ["//visibility:private"],
+++)
+++
+++linkmgrd_swsscommon(
+++    name = "swsscommon",
+++    headers = "@sonic_swss_common//:libswsscommon_shared",
+++    library = ":swsscommon_dso",
+++    visibility = ["//visibility:private"],
+++)
+++
+++_DEPS = [
+++    ":headers",
+++    ":swsscommon",
+++    "@libnl3//:headers",
+++    "@trixie//libboost-date-time1.83-dev:libboost_date_time_cc",
+++    "@trixie//libboost-thread1.83-dev:libboost_thread_cc",
+++    "@trixie//libboost-log1.83-dev:libboost_log_cc",
+++    "@trixie//libboost-log1.83-dev:libboost_log_setup_cc",
+++    "@trixie//libboost-program-options1.83-dev:libboost_program_options_cc",
+++    "@trixie//libboost-filesystem1.83-dev:libboost_filesystem_cc",
+++]
+++
+++cc_library(
+++    name = "headers",
+++    hdrs = glob(["src/**/*.h"]),
+++    includes = ["src"],
+++    target_compatible_with = _PLATFORM,
+++)
+++
+++# Keep each Make __FILENAME__ value and every original object, without repeating
+++# the common dependency/flag lists for each translation unit.
+++_SOURCES = glob(
+++    ["src/**/*.cpp"],
+++    exclude = ["src/LinkMgrdMain.cpp"],
+++)
+++
+++[
+++    cc_library(
+++        name = variant + "_" + source.replace("/", "_").removesuffix(".cpp"),
+++        testonly = variant == "test",
+++        srcs = [source],
+++        copts = _COPTS + optimization,
+++        linkstatic = True,
+++        local_defines = [
+++            "__FILENAME__=" + source.removeprefix("src/"),
+++            "BOOST_LOG_USE_NATIVE_SYSLOG",
+++            "BOOST_LOG_DYN_LINK",
+++        ],
+++        target_compatible_with = _PLATFORM,
+++        visibility = ["//visibility:private"],
+++        deps = _DEPS,
+++        alwayslink = True,
+++    )
+++    for variant, optimization in {
+++        "release": [
+++            "-O3",
+++            "-flto",
+++        ],
+++        "test": ["-O0"],
+++    }.items()
+++    for source in _SOURCES
+++]
+++
+++cc_library(
+++    name = "linkmgrd_core",
+++    linkstatic = True,
+++    target_compatible_with = _PLATFORM,
+++    deps = [":release_" + source.replace("/", "_").removesuffix(".cpp") for source in _SOURCES],
+++)
+++
+++cc_library(
+++    name = "linkmgrd_test_core",
+++    testonly = True,
+++    linkstatic = True,
+++    target_compatible_with = _PLATFORM,
+++    visibility = ["//visibility:private"],
+++    deps = [":test_" + source.replace("/", "_").removesuffix(".cpp") for source in _SOURCES],
+++)
+++
+++cc_binary(
+++    name = "linkmgrd",
+++    srcs = ["src/LinkMgrdMain.cpp"],
+++    copts = _COPTS + [
+++        "-O3",
+++        "-flto",
+++    ],
+++    linkopts = ["-pthread"],
+++    linkstatic = False,
+++    local_defines = [
+++        "__FILENAME__=LinkMgrdMain.cpp",
+++        "BOOST_LOG_USE_NATIVE_SYSLOG",
+++        "BOOST_LOG_DYN_LINK",
+++    ],
+++    target_compatible_with = _PLATFORM,
+++    deps = [":linkmgrd_core"] + _DEPS,
+++)
+++
+++drop_build_rpath(
+++    name = "installed_linkmgrd",
+++    src = ":linkmgrd",
+++    target_compatible_with = _PLATFORM,
+++    visibility = ["//visibility:private"],
+++)
+++
+++gzip_compress(
+++    name = "changelog_gz",
+++    src = "debian/changelog",
+++    level = 9,
+++)
+++
+++sonic_deploy_tar(
+++    name = "sonic_linkmgrd_runtime",
+++    srcs = [":changelog_gz"],
+++    binaries = {"./usr/sbin/linkmgrd uid=0 gid=0 mode=0755 type=file": ":installed_linkmgrd"},
+++    force_debug_build = True,
+++    mtree = ["./usr/share/doc/sonic-linkmgrd/changelog.Debian.gz uid=0 gid=0 mode=0644 type=file content=$(location :changelog_gz)"],
+++    target_compatible_with = _PLATFORM,
+++    visibility = ["//visibility:public"],
+++)
+++
+++alias(
+++    name = "sonic_linkmgrd_debug",
+++    actual = ":sonic_linkmgrd_runtime.debug_symbols",
+++)
+++
+++cc_library(
+++    name = "test_headers",
+++    testonly = True,
+++    hdrs = glob(["test/*.h"]),
+++    includes = ["test"],
+++    visibility = ["//visibility:private"],
+++)
+++
+++_TEST_SOURCES = glob(
+++    ["test/*.cpp"],
+++    exclude = ["test/LinkMgrdTestMain.cpp"],
+++)
+++
+++[
+++    cc_library(
+++        name = source.replace("/", "_").removesuffix(".cpp"),
+++        testonly = True,
+++        srcs = [source],
+++        copts = _COPTS + ["-O0"],
+++        linkstatic = True,
+++        local_defines = [
+++            "__FILENAME__=" + source,
+++            "BOOST_LOG_DYN_LINK",
+++        ],
+++        target_compatible_with = _PLATFORM,
+++        visibility = ["//visibility:private"],
+++        deps = [
+++            ":linkmgrd_test_core",
+++            ":test_headers",
+++            "@googletest//:gtest",
+++        ] + _DEPS,
+++        alwayslink = True,
+++    )
+++    for source in _TEST_SOURCES
+++]
+++
+++cc_binary(
+++    name = "linkmgrd_test_binary",
+++    testonly = True,
+++    srcs = ["test/LinkMgrdTestMain.cpp"],
+++    copts = _COPTS + ["-O0"],
+++    linkopts = ["-pthread"],
+++    linkstatic = False,
+++    local_defines = [
+++        "__FILENAME__=test/LinkMgrdTestMain.cpp",
+++        "BOOST_LOG_DYN_LINK",
+++    ],
+++    target_compatible_with = _PLATFORM,
+++    deps = [":" + source.replace("/", "_").removesuffix(".cpp") for source in _TEST_SOURCES] + [
+++        ":linkmgrd_test_core",
+++        ":test_headers",
+++        "@googletest//:gtest",
+++    ] + _DEPS,
+++)
+++
+++py_test(
+++    name = "source_contract_test",
+++    srcs = ["tools/bazel/source_contract_test.py"],
+++    data = glob([
+++        "src/**/*.cpp",
+++        "src/**/subdir.mk",
+++        "test/*.cpp",
+++    ]) + ["test/subdir.mk"],
+++    main = "tools/bazel/source_contract_test.py",
+++    python_version = "3.13",
+++    target_compatible_with = _PLATFORM,
+++)
+++
+++_RUNTIME_PAYLOADS = [
+++    "@sonic_swss_common//tools/bazel/runtime:test_runtime",
+++    "@sonic_swss_common//:libswsscommon_pkg",
+++    "@libnl3//:libnl-3_pkg",
+++    "@libnl3//:libnl-route-3_pkg",
+++    "@trixie//libboost-date-time1.83-dev",
+++    "@trixie//libboost-thread1.83-dev",
+++    "@trixie//libboost-log1.83-dev",
+++    "@trixie//libboost-program-options1.83-dev",
+++    "@trixie//libboost-filesystem1.83-dev",
+++]
+++
+++# Execute every original C++ test with declared Trixie runtime inputs.
+++native_runtime_test(
+++    name = "linkmgrd_test",
+++    size = "large",
+++    binary = ":linkmgrd_test_binary",
+++    runtime_payloads = _RUNTIME_PAYLOADS,
+++    target_compatible_with = _PLATFORM,
+++)
+++
+++runtime_packages(
+++    name = "runtime_packages.json",
+++    apt_packages = {"@trixie//libboost-" + component + "1.83.0:data": "@trixie//libboost-" + component + "1.83.0:control" for component in [
+++        "date-time",
+++        "filesystem",
+++        "log",
+++        "program-options",
+++        "thread",
+++    ]},
+++    changelog = "debian/changelog",
+++    control = "debian/control",
+++    dependencies = [
+++        "@sonic_swss_common//:runtime_packages.json",
+++        "@libnl3//:runtime_packages.json",
+++    ],
+++    packages = {"sonic-linkmgrd": ":sonic_linkmgrd_runtime"},
+++    required_paths = {"sonic-linkmgrd": ["usr/sbin/linkmgrd"]},
+++    target_compatible_with = _PLATFORM,
+++)
+++
+++flatten(
+++    name = "test_runtime",
+++    testonly = True,
+++    deduplicate = True,
+++    tars = _RUNTIME_PAYLOADS,
+++)
+++
+++_PACKAGE_INPUTS = [
+++    ":sonic_linkmgrd_runtime",
+++    ":sonic_linkmgrd_debug",
+++    "debian/changelog",
+++    "@sonic_build_infra//cc:runtime_test.py",
+++] + [":test_runtime"]
+++
+++py_test(
+++    name = "package_test",
+++    size = "medium",
+++    srcs = ["tools/bazel/package_test.py"],
+++    args = ["$(location " + label + ")" for label in _PACKAGE_INPUTS],
+++    data = _PACKAGE_INPUTS,
+++    main = "tools/bazel/package_test.py",
+++    python_version = "3.13",
+++    target_compatible_with = _PLATFORM,
+++    deps = ["@sonic_build_infra//deb:elf_metadata"],
+++)
++diff --git a/src/common/SwssLogBackend.cpp b/src/common/SwssLogBackend.cpp
++index 62baed61a6ac69e104661825645dea8eb8a89bfb..d6d6b98d15d7d31518edfa44c2f2633c35b3507c 100644
++--- a/src/common/SwssLogBackend.cpp
+++++ b/src/common/SwssLogBackend.cpp
++@@ -59,7 +59,7 @@ void SwssSyslogBackend::consume(const boost::log::record_view& record, const str
++ //
++ void SwssSyslogBackend::send(boost_syslog_level level, const string_type& formatted_message)
++ {
++-    mSwssLogger.write(static_cast<swss::Logger::Priority>(level), formatted_message.c_str());
+++    mSwssLogger.write(static_cast<swss::Logger::Priority>(level), "%s", formatted_message.c_str());
++ }
++ 
++ } /* namespace common */
++diff --git a/test/LinkManagerStateMachineActiveActiveTest.cpp b/test/LinkManagerStateMachineActiveActiveTest.cpp
++index d4bec295790718b2e142d9ea55e53234ed8d5268..5f667a41a6ae23e92bd3661cd90ea0bfb89b819d 100644
++--- a/test/LinkManagerStateMachineActiveActiveTest.cpp
+++++ b/test/LinkManagerStateMachineActiveActiveTest.cpp
++@@ -14,6 +14,8 @@
++  *  limitations under the License.
++  */
++ 
+++#include <chrono>
+++
++ #include "LinkManagerStateMachineActiveActiveTest.h"
++ #include "link_prober/LinkProberStateMachineBase.h"
++ 
++@@ -1317,6 +1319,37 @@ TEST_F(LinkManagerStateMachineActiveActiveTest, MuxActivDefaultRouteFlap)
++     VALIDATE_STATE(Active, Active, Up);
++ }
++ 
+++void LinkManagerStateMachineActiveActiveTest::reportDriftOnPeriodicProbe(const std::string &hardwareState)
+++{
+++    using namespace std::chrono;
+++    const auto waitForChange = [this](const uint32_t &counter, uint32_t before, seconds timeout) {
+++        const auto deadline = steady_clock::now() + timeout;
+++        if (mIoService.stopped()) {
+++            mIoService.restart();
+++        }
+++        while (counter == before && steady_clock::now() < deadline) {
+++            if (mIoService.run_one_until(deadline) == 0) {
+++                break;
+++            }
+++        }
+++        return counter != before;
+++    };
+++
+++    // FakeMuxPort skips production timer setup when it activates the state machine.
+++    const auto probesBefore = mDbInterfacePtr->mProbeForwardingStateInvokeCount;
+++    mFakeMuxPort.getActiveActiveStateMachinePtr()->startAdminForwardingStateSyncUpTimer();
+++    ASSERT_TRUE(waitForChange(mDbInterfacePtr->mProbeForwardingStateInvokeCount, probesBefore, seconds(15)))
+++        << "The periodic forwarding-state probe was not sent";
+++    EXPECT_EQ(mDbInterfacePtr->mProbeForwardingStateInvokeCount, probesBefore + 1);
+++
+++    const auto writesBefore = mDbInterfacePtr->mSetMuxStateInvokeCount;
+++    for (uint8_t i = 0; i < mPositiveUpdateCount; ++i) {
+++        mFakeMuxPort.handleProbeMuxState(hardwareState);
+++    }
+++    ASSERT_TRUE(waitForChange(mDbInterfacePtr->mSetMuxStateInvokeCount, writesBefore, seconds(2)))
+++        << "The hardware probe did not trigger a corrective mux write";
+++}
+++
++ TEST_F(LinkManagerStateMachineActiveActiveTest, MuxConfigStandbyPeriodicalCheckActive)
++ {
++     // Test: Config mode is Standby, toggle succeeds, then hardware drifts to Active.
++@@ -1334,12 +1367,7 @@ TEST_F(LinkManagerStateMachineActiveActiveTest, MuxConfigStandbyPeriodicalCheckA
++ 
++     uint32_t setForwardingStateBefore = mDbInterfacePtr->mSetMuxStateInvokeCount;
++ 
++-    // Periodic sync fires and detects hardware as Active (simulating hardware drift)
++-    mFakeMuxPort.getActiveActiveStateMachinePtr()->startAdminForwardingStateSyncUpTimer();
++-    sleep(10);
++-    runIoService(3);
++-
++-    handleProbeMuxState("active", 4);
+++    ASSERT_NO_FATAL_FAILURE(reportDriftOnPeriodicProbe("active"));
++ 
++     // Resync should be triggered
++     EXPECT_EQ(mDbInterfacePtr->mSetMuxStateInvokeCount, setForwardingStateBefore + 1);
++@@ -1366,12 +1394,7 @@ TEST_F(LinkManagerStateMachineActiveActiveTest, MuxConfigActivePeriodicalCheckSt
++ 
++     uint32_t setForwardingStateBefore = mDbInterfacePtr->mSetMuxStateInvokeCount;
++ 
++-    // Periodic sync fires and detects hardware as Standby (simulating hardware drift)
++-    mFakeMuxPort.getActiveActiveStateMachinePtr()->startAdminForwardingStateSyncUpTimer();
++-    sleep(10);
++-    runIoService(3);
++-
++-    handleProbeMuxState("standby", 4);
+++    ASSERT_NO_FATAL_FAILURE(reportDriftOnPeriodicProbe("standby"));
++ 
++     // Resync should be triggered
++     EXPECT_EQ(mDbInterfacePtr->mSetMuxStateInvokeCount, setForwardingStateBefore + 1);
++diff --git a/test/LinkManagerStateMachineActiveActiveTest.h b/test/LinkManagerStateMachineActiveActiveTest.h
++index 2a7f170c240c5163c08299726eed861bd9b25d69..7735dc74d2345cca4705a62d880bdef5ee2b317c 100644
++--- a/test/LinkManagerStateMachineActiveActiveTest.h
+++++ b/test/LinkManagerStateMachineActiveActiveTest.h
++@@ -41,6 +41,7 @@ public:
++     void handleMuxState(std::string, uint32_t count = 0, bool poll = false);
++     void handlePeerMuxState(std::string, uint32_t count = 0);
++     void handleProbeMuxState(std::string, uint32_t count = 0);
+++    void reportDriftOnPeriodicProbe(const std::string &hardwareState);
++     void handleLinkState(std::string linkState, uint32_t count = 0);
++     void handleMuxConfig(std::string config, uint32_t count = 0, bool poll = false);
++     void handleResetSuspendTimer(uint32_t count = 0);
++diff --git a/test/LinkManagerStateMachineTest.cpp b/test/LinkManagerStateMachineTest.cpp
++index 5fb22195110e361a5508ce5c0419940b30211bd3..d2ad48a620a5e301b48403678e74fda55cb2b92e 100644
++--- a/test/LinkManagerStateMachineTest.cpp
+++++ b/test/LinkManagerStateMachineTest.cpp
++@@ -21,6 +21,8 @@
++  *      Author: Tamer Ahmed
++  */
++ 
+++#include <chrono>
+++
++ #include <boost/date_time/posix_time/posix_time.hpp>
++ #include <boost/thread/thread.hpp>
++ 
++@@ -607,35 +609,62 @@ TEST_F(LinkManagerStateMachineTest, MuxStandbyLinkDown)
++ 
++ TEST_F(LinkManagerStateMachineTest, MuxStandbyLinkDownMuxStandbyCliActiveCliAuto)
++ {
+++    // The fixture posts each input and runs one handler. Deliver the remaining
+++    // callbacks until the composite state differs from the last VALIDATE_STATE.
+++    const auto dispatchStateChange = [this](bool waitForProbeTimer = false) {
+++        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+++        if (mIoService.stopped()) {
+++            mIoService.restart();
+++        }
+++        while (mFakeMuxPort.getCompositeState() == mTestCompositeState && std::chrono::steady_clock::now() < deadline) {
+++            const auto count = waitForProbeTimer ? mIoService.run_one_until(deadline) : mIoService.poll_one();
+++            if (count == 0) {
+++                break;
+++            }
+++        }
+++    };
+++
++     setMuxStandby();
++     EXPECT_EQ(mDbInterfacePtr->mSetMuxStateInvokeCount, 0);
++ 
++-    handleLinkState("down", 3);
+++    handleLinkState("down", 1);
+++    dispatchStateChange();
++     VALIDATE_STATE(Standby, Standby, Down);
++     EXPECT_EQ(mDbInterfacePtr->mSetMuxStateInvokeCount, 0);
++ 
++-    postLinkProberEvent(link_prober::LinkProberState::Unknown, 2);
+++    postLinkProberEvent(link_prober::LinkProberState::Unknown, 1);
+++    dispatchStateChange();
++     VALIDATE_STATE(Unknown, Standby, Down);
++ 
++-    runIoService(1);
+++    const auto probesBefore = mDbInterfacePtr->mProbeMuxStateInvokeCount;
+++    dispatchStateChange(true);
++     VALIDATE_STATE(Unknown, Wait, Down);
+++    EXPECT_EQ(mDbInterfacePtr->mProbeMuxStateInvokeCount, probesBefore + 1);
++ 
++-    handleProbeMuxState("standby", 3);
+++    handleProbeMuxState("standby", 1);
+++    dispatchStateChange();
++     VALIDATE_STATE(Unknown, Standby, Down);
++ 
++-    handleMuxConfig("active", 2);
+++    handleMuxConfig("active", 1);
+++    dispatchStateChange();
++     VALIDATE_STATE(Wait, Wait, Down);
++     EXPECT_EQ(mDbInterfacePtr->mSetMuxStateInvokeCount, 1);
+++    EXPECT_EQ(mDbInterfacePtr->mLastSetMuxState, mux_state::MuxState::Active);
++ 
++-    handleMuxState("active", 3);
+++    handleMuxState("active", 1);
+++    dispatchStateChange();
++     VALIDATE_STATE(Wait, Active, Down);
++ 
++-    handleMuxConfig("auto", 2);
+++    handleMuxConfig("auto", 1);
+++    dispatchStateChange();
++     VALIDATE_STATE(Wait, Wait, Down);
++     EXPECT_EQ(mDbInterfacePtr->mSetMuxStateInvokeCount, 2);
+++    EXPECT_EQ(mDbInterfacePtr->mLastSetMuxState, mux_state::MuxState::Standby);
++ 
++-    handleMuxState("standby", 3);
+++    handleMuxState("standby", 1);
+++    dispatchStateChange();
++     VALIDATE_STATE(Wait, Standby, Down);
+++    EXPECT_EQ(mDbInterfacePtr->mSetMuxStateInvokeCount, 2);
++ }
++ 
++ TEST_F(LinkManagerStateMachineTest, MuxActiveLinkProberUnknownPeerOvertakeLink)
++diff --git a/test/LinkProberTest.cpp b/test/LinkProberTest.cpp
++index 37ed6ef5ed3e683819eab643ad12e52bc83b4458..61e0de67214112400d2430ced41bc39a3f3f08d6 100644
++--- a/test/LinkProberTest.cpp
+++++ b/test/LinkProberTest.cpp
++@@ -21,6 +21,9 @@
++  *      Author: taahme
++  */
++ 
+++#include <cstdlib>
+++#include <sys/resource.h>
+++
++ #include <boost/lexical_cast.hpp>
++ #include <boost/uuid/uuid_io.hpp>
++ 
++@@ -71,6 +74,9 @@ size_t LinkProberTest::findNextTlv(size_t readOffset, size_t bytesTransferred)
++ 
++ TEST_F(LinkProberTest, InitializeSendBuffer)
++ {
+++    // The expected packet checksum uses the first glibc rand() value. Other
+++    // suites also create probe packets, so establish that fixture explicitly.
+++    std::srand(1);
++     initializeSendBuffer();
++     std::array<uint8_t, MUX_MAX_ICMP_BUFFER_SIZE> txBuffer = getTxBuffer();
++ 
++@@ -334,6 +340,17 @@ TEST_F(LinkProberTest, ReadWriteVariableSizedTlv)
++ 
++ TEST_F(LinkProberTest, InitializeException)
++ {
+++    // Force the real socket call to fail even when the test container has
+++    // CAP_NET_RAW. Restore the process limit on every test exit.
+++    struct rlimit original;
+++    ASSERT_EQ(getrlimit(RLIMIT_NOFILE, &original), 0);
+++    struct RestoreLimit {
+++        struct rlimit saved;
+++        ~RestoreLimit() { EXPECT_EQ(setrlimit(RLIMIT_NOFILE, &saved), 0); }
+++    } restore{original};
+++    struct rlimit exhausted = original;
+++    exhausted.rlim_cur = 0;
+++    ASSERT_EQ(setrlimit(RLIMIT_NOFILE, &exhausted), 0);
++     EXPECT_THROW(initialize(), common::SocketErrorException);
++ }
++ 
++diff --git a/tools/bazel/README.md b/tools/bazel/README.md
++new file mode 100644
++index 0000000000000000000000000000000000000000..9469b87414bcf46b001840196df0e39337407126
++--- /dev/null
+++++ b/tools/bazel/README.md
++@@ -0,0 +1,69 @@
+++# Native AMD64 Linkmgrd
+++
+++The Bazel build compiles this repository's 39 production C++ translation units
+++and 14 original test translation units with the declared GCC 14.2/Trixie
+++toolchain. Source globs are checked against the existing Make manifests.
+++Production keeps C++17, `-O3`, LTO, pthreads and the existing Boost logging
+++defines; tests use `-O0`. Per-file `__FILENAME__` values retain the Make layout.
+++
+++SWSS Common and the patched libnl libraries come from their source owners.
+++Boost 1.83 comes from the shared snapshot-pinned APT set through its native
+++shared-library interfaces. The source correction in `SwssLogBackend.cpp` passes
+++the already formatted message through a literal `%s`, as required by the
+++compiler's format-security check.
+++
+++| Public target | Contract |
+++| --- | --- |
+++| `//:linkmgrd_core` | Native C++ library and owned headers |
+++| `//:linkmgrd` | Unstripped build executable |
+++| `//:sonic_linkmgrd_runtime` | `/usr/sbin/linkmgrd` and the compressed Debian changelog in a deterministic TAR |
+++| `//:sonic_linkmgrd_debug` | Matching Build-ID debug files, separate from runtime |
+++| `//:runtime_packages.json` | Package identity and actual runtime dependencies derived from the existing recipe and source outputs |
+++
+++No target generates a Debian package. Existing Debian/Make packaging remains
+++available separately. The root `.bazelrc` uses the maintained registry and BCR.
+++`MODULE.bazel.lock` is generated and retained as CI evidence, not committed.
+++
+++Native CI and local builds use the maintained registry. Run the following
+++on a native Trixie checkout with Bazelisk/Bazel 8.5.1 and the execution
+++tools listed in CI.
+++
+++Install the `python3-defusedxml` package to read the Bazel JUnit reports.
+++
+++```sh
+++python3 tools/bazel/validate.py audit
+++python3 tools/bazel/validate.py build
+++python3 tools/bazel/validate.py incremental
+++python3 tools/bazel/validate.py collect
+++```
+++
+++The validation commands require a clean committed source checkout. They retain
+++the repository and action caches, and do not run `bazel clean`. Incremental
+++validation changes the CLI help text, verifies that the runtime/debug outputs
+++change, restores the source, and requires the original output hashes to return.
+++Its timing describes a retained-cache build, not a cache-free benchmark.
+++
+++The original mux/link-state-machine tests keep their existing fake database and
+++packet fixtures. They execute with a declared matching Trixie loader/library
+++closure. The packet checksum test seeds its random packet ID explicitly; the
+++socket-error test temporarily exhausts the process file-descriptor limit and
+++restores it on exit. These fixtures preserve the original assertions across
+++test orderings and containers with different raw-socket capabilities.
+++Installed-package tests run the actual CLI, including its existing
+++exit-code-1 help behavior, and check file layout, ownership, modes, changelog
+++content, stripped ELF, debug Build-ID/CRC and GDB source/type lookup. GDB's
+++negative control disables symbols, automatic scripts and debuginfod.
+++
+++CI collects tests from the current Bazel build-event report and binds them to
+++the source revision, generated module lock and exact runtime/debug hashes.
+++Collection requires successful original and restored outputs. The separate
+++informational CodeQL job prepares dependency tools before tracing, compiles all
+++owned C++ sources under tracing, and checks the extracted definitions and source
+++bytes. It does not generate DEBs or turn a failed scan into success.
+++
+++This producer is scoped to native AMD64/Trixie. Docker-mux composition and
+++process acceptance belong to buildimage issue #123; physical dual-ToR/cable
+++acceptance remains outside VS testing. The legacy Makefile filters most
+++`DEB_CXXFLAGS_MAINT_APPEND` flags; this migration retains the effective component
+++flags and uses the shared native toolchain's hardening defaults, rather than
+++claiming that every declared Debian hardening option was previously effective.
++diff --git a/tools/bazel/audit_actions.py b/tools/bazel/audit_actions.py
++new file mode 100644
++index 0000000000000000000000000000000000000000..6d63ab34c2a0ef7e8baa7b43a237299373f7b70b
++--- /dev/null
+++++ b/tools/bazel/audit_actions.py
++@@ -0,0 +1,27 @@
+++"""Reject DEB outputs in a declared build or test action graph before execution."""
+++
+++import json
+++from pathlib import Path
+++import sys
+++
+++
+++graph = json.loads(Path(sys.argv[1]).read_text())
+++fragments = {item["id"]: item for item in graph.get("pathFragments", [])}
+++
+++
+++def artifact_path(fragment_id):
+++    parts = []
+++    while fragment_id:
+++        fragment = fragments[fragment_id]
+++        parts.append(fragment["label"])
+++        fragment_id = fragment.get("parentId", 0)
+++    return "/".join(reversed(parts))
+++
+++
+++artifacts = {item["id"]: artifact_path(item["pathFragmentId"]) for item in graph.get("artifacts", [])}
+++outputs = {artifacts[output] for action in graph.get("actions", []) for output in action.get("outputIds", [])}
+++assert outputs, "Empty action output inventory"
+++for output in outputs:
+++    assert not output.endswith((".deb", ".udeb", ".ddeb")), output
+++print(json.dumps({"status": "passed", "actions": len(graph.get("actions", [])),
+++                  "outputs": len(outputs), "deb_outputs": 0}))
++diff --git a/tools/bazel/codeql_build.sh b/tools/bazel/codeql_build.sh
++new file mode 100644
++index 0000000000000000000000000000000000000000..e25b5fa9b28f465c3183394b10b9fd089db2ae05
++--- /dev/null
+++++ b/tools/bazel/codeql_build.sh
++@@ -0,0 +1,34 @@
+++#!/usr/bin/env bash
+++set -euo pipefail
+++mode="${1:?expected prepare or trace}"
+++base="${LINKMGRD_CODEQL_OUTPUT_BASE:?missing dedicated output base}"
+++flags=(--jobs=2 --compilation_mode=opt --spawn_strategy=local
+++       --action_env=PATH=/usr/bin:/bin
+++       --noremote_accept_cached --noremote_upload_local_results
+++       --disk_cache= --remote_cache= --remote_executor=)
+++
+++case "$mode" in
+++  prepare)
+++    "$BAZEL_BINARY" --batch --output_base="$base" aquery 'deps(//:linkmgrd)' \
+++      "${flags[@]}" --output=jsonproto > bazel-evidence/codeql-actions.json
+++    python3 tools/bazel/audit_actions.py bazel-evidence/codeql-actions.json \
+++      > bazel-evidence/codeql-action-audit.json
+++    # These public owner targets prepare the compiler/runtime tools and source
+++    # dependencies. None compiles this repository's C++ translation units.
+++    "$BAZEL_BINARY" --batch --output_base="$base" build "${flags[@]}" \
+++      @sonic_swss_common//:libswsscommon_consolidated.so \
+++      @libnl3//:libnl_3_shared @libnl3//:libnl_route_3_shared \
+++      @trixie//libboost-date-time1.83-dev:libboost_date_time_shared \
+++      @trixie//libboost-thread1.83-dev:libboost_thread_shared \
+++      @trixie//libboost-log1.83-dev:libboost_log_shared \
+++      @trixie//libboost-log1.83-dev:libboost_log_setup_shared \
+++      @trixie//libboost-program-options1.83-dev:libboost_program_options_shared \
+++      @trixie//libboost-filesystem1.83-dev:libboost_filesystem_shared
+++    ;;
+++  trace)
+++    # This owner's compile actions have never run in the dedicated base. Keep
+++    # prepared tool actions cached so the tracer cannot enter their private ABI.
+++    "$BAZEL_BINARY" --batch --output_base="$base" build "${flags[@]}" //:linkmgrd
+++    ;;
+++  *) printf 'Unknown stage: %s\n' "$mode" >&2; exit 2 ;;
+++esac
++diff --git a/tools/bazel/codeql_coverage.py b/tools/bazel/codeql_coverage.py
++new file mode 100644
++index 0000000000000000000000000000000000000000..5711f3dfcbc06c58edb3fa36048dc4456cccd559
++--- /dev/null
+++++ b/tools/bazel/codeql_coverage.py
++@@ -0,0 +1,92 @@
+++#!/usr/bin/env python3
+++"""Prove the finalized C++ database contains Linkmgrd's actual compiled definitions."""
+++import argparse
+++import hashlib
+++import json
+++import os
+++from pathlib import Path
+++import re
+++import subprocess
+++import tempfile
+++import zipfile
+++
+++
+++QUERY = """import cpp
+++from Function f, File source
+++where source = f.getDefinition().getFile() and
+++  source.getAbsolutePath().matches("%/src/%.cpp")
+++select f.getName(), source.getAbsolutePath()
+++"""
+++
+++
+++def checkout_identity(workspace, head, base):
+++    git = ["git", "-c", "safe.directory=" + str(workspace)]
+++    def call(*args):
+++        return subprocess.check_output(git + list(args), cwd=workspace, text=True).strip()
+++    assert not call("status", "--porcelain"), "Source checkout is not clean"
+++    revision = call("rev-parse", "HEAD")
+++    parents = [line.removeprefix("parent ") for line in call("cat-file", "-p", "HEAD").split("\n\n", 1)[0].splitlines() if line.startswith("parent ")]
+++    if head and head != revision:
+++        assert head in parents and base and base in parents
+++    return {"revision": revision, "parents": parents, "requested_head": head, "requested_base": base}
+++
+++
+++def verify_owner(rows, source_zip, workspace):
+++    expected = {str(path.relative_to(workspace)): path for path in (workspace / "src").rglob("*.cpp")}
+++    checked = {}
+++    with zipfile.ZipFile(source_zip) as archive:
+++        names = set(archive.namelist())
+++        for relative, original in expected.items():
+++            definitions = {(name, path) for name, path in rows if path.endswith("/" + relative)}
+++            if not definitions:
+++                raise AssertionError("No extracted owner definition in " + relative)
+++            source = original.read_bytes()
+++            for _, path in definitions:
+++                member = path.lstrip("/")
+++                if member not in names or archive.read(member) != source:
+++                    raise AssertionError("Extracted source bytes differ from checkout: " + relative)
+++            checked[relative] = {"sha256": hashlib.sha256(source).hexdigest(), "functions": sorted({name for name, _ in definitions})}
+++    assert expected and "main" in checked["src/LinkMgrdMain.cpp"]["functions"]
+++    return checked
+++
+++
+++def main():
+++    parser = argparse.ArgumentParser(description=__doc__)
+++    parser.add_argument("--codeql", required=True, type=Path)
+++    parser.add_argument("--database", required=True, type=Path)
+++    parser.add_argument("--output", required=True, type=Path)
+++    args = parser.parse_args()
+++    workspace = Path(__file__).resolve().parents[2]
+++    identity = checkout_identity(workspace, os.environ.get("CI_HEAD_SHA", ""), os.environ.get("CI_BASE_SHA", ""))
+++    cli = args.codeql.resolve()
+++    if not cli.is_file():
+++        raise AssertionError("The initialized CodeQL CLI does not exist")
+++    version = json.loads(subprocess.check_output([str(cli), "version", "--format=json"], text=True))
+++    if version.get("version") != "2.27.0":
+++        raise AssertionError("CodeQL differs from the workflow's pinned bundle")
+++    bundle = cli.parent
+++    packs = json.loads(subprocess.check_output([str(cli), "resolve", "qlpacks", "--format=json"], text=True))
+++    candidates = [Path(path).resolve() for path in packs.get("codeql/cpp-all", [])]
+++    candidates = [path for path in candidates if path.is_relative_to(bundle)]
+++    versions = {re.search(r"^version: (\S+)$", (path / "qlpack.yml").read_text(), re.M).group(1)
+++                for path in candidates}
+++    if versions != {"12.1.0"}:
+++        raise AssertionError("Expected cpp-all 12.1.0 from the immutable CodeQL 2.27.0 bundle")
+++    with tempfile.TemporaryDirectory(prefix="linkmgrd-codeql-query-") as temporary:
+++        root = Path(temporary)
+++        (root / "qlpack.yml").write_text("name: sonic/linkmgrd-coverage\nversion: 0.0.0\ndependencies:\n  codeql/cpp-all: 12.1.0\n")
+++        query = root / "owner.ql"
+++        query.write_text(QUERY)
+++        result = root / "owner.bqrs"
+++        subprocess.run([str(cli), "query", "run", "--database=" + str(args.database),
+++                        "--search-path=" + str(bundle), "--threads=2", "--ram=2048",
+++                        "--output=" + str(result), str(query)], check=True)
+++        decoded = json.loads(subprocess.check_output([str(cli), "bqrs", "decode", "--format=json", str(result)], text=True))
+++        checked = verify_owner(decoded["#select"]["tuples"], args.database / "src.zip", workspace)
+++    args.output.parent.mkdir(parents=True, exist_ok=True)
+++    args.output.write_text(json.dumps({"status": "passed", "codeql": version["version"],
+++                                      "cpp_all": "12.1.0", "source_identity": identity, "owner_sources": checked}, indent=2) + "\n")
+++
+++
+++if __name__ == "__main__":
+++    main()
++diff --git a/tools/bazel/evidence_test.py b/tools/bazel/evidence_test.py
++new file mode 100644
++index 0000000000000000000000000000000000000000..9c10991225fb9a24f398d0ebeeb30b187bfae3b9
++--- /dev/null
+++++ b/tools/bazel/evidence_test.py
++@@ -0,0 +1,108 @@
+++"""Exercise source identity checks against a real shallow Git merge checkout."""
+++import importlib.util
+++import json
+++import zipfile
+++from pathlib import Path
+++import subprocess
+++import tempfile
+++import unittest
+++
+++spec = importlib.util.spec_from_file_location("linkmgrd_coverage", Path(__file__).with_name("codeql_coverage.py"))
+++validate = importlib.util.module_from_spec(spec)
+++spec.loader.exec_module(validate)
+++
+++class SourceIdentityTest(unittest.TestCase):
+++    def setUp(self):
+++        self.temporary = tempfile.TemporaryDirectory(prefix="wpa-identity-")
+++        self.addCleanup(self.temporary.cleanup)
+++        root = Path(self.temporary.name)
+++        origin = root / "origin"
+++        origin.mkdir()
+++        def git(where, *args, input=None):
+++            return subprocess.check_output(["git", "-c", "user.name=Guohan Lu", "-c", "user.email=securely1g@gmail.com", "-c", "commit.gpgSign=false", "-c", "core.hooksPath=/dev/null", "-C", str(where), *args], input=input, text=True, stderr=subprocess.PIPE).strip()
+++        git(origin, "init", "--initial-branch=main")
+++        (origin / "source.c").write_text("int baseline;\n")
+++        git(origin, "add", "source.c")
+++        git(origin, "commit", "-m", "baseline")
+++        self.base = git(origin, "rev-parse", "HEAD")
+++        git(origin, "switch", "-c", "feature")
+++        (origin / "source.c").write_text("int feature;\n")
+++        git(origin, "commit", "-am", "feature")
+++        self.head = git(origin, "rev-parse", "HEAD")
+++        self.merge = git(origin, "commit-tree", "HEAD^{tree}", "-p", self.base, "-p", self.head, input="tested merge\n")
+++        git(origin, "update-ref", "refs/heads/ci", self.merge)
+++        self.checkout = root / "checkout"
+++        git(root, "clone", "--depth=1", "--single-branch", "--branch=ci", origin.as_uri(), str(self.checkout))
+++        self.assertEqual(git(self.checkout, "show", "-s", "--format=%P", "HEAD"), "")
+++
+++    def test_shallow_merge_preserves_both_actual_parent_identities(self):
+++        identity = validate.checkout_identity(self.checkout, self.head, self.base)
+++        self.assertEqual(identity["revision"], self.merge)
+++        self.assertEqual(identity["parents"], [self.base, self.head])
+++
+++    def test_unrelated_head_and_base_are_rejected(self):
+++        for head, base in [("0" * 40, self.base), (self.head, "0" * 40)]:
+++            with self.subTest(head=head, base=base), self.assertRaises(AssertionError):
+++                validate.checkout_identity(self.checkout, head, base)
+++
+++    def test_dirty_source_cannot_be_attributed_to_the_merge(self):
+++        (self.checkout / "unexpected.c").write_text("untracked source\n")
+++        with self.assertRaises(AssertionError):
+++            validate.checkout_identity(self.checkout, self.head, self.base)
+++
+++class ExtractedSourceTest(unittest.TestCase):
+++    def test_missing_or_changed_source_is_rejected(self):
+++        with tempfile.TemporaryDirectory(prefix="linkmgrd-extracted-") as temporary:
+++            root = Path(temporary)
+++            (root / "src").mkdir()
+++            source = b"int main() { return 0; }\n"
+++            (root / "src/LinkMgrdMain.cpp").write_bytes(source)
+++            archive = root / "src.zip"
+++            member = "checkout/src/LinkMgrdMain.cpp"
+++            with zipfile.ZipFile(archive, "w") as output:
+++                output.writestr(member, source)
+++            rows = [["main", "/" + member]]
+++            self.assertEqual(set(validate.verify_owner(rows, archive, root)), {"src/LinkMgrdMain.cpp"})
+++            with self.assertRaises(AssertionError):
+++                validate.verify_owner([], archive, root)
+++            (root / "src/LinkMgrdMain.cpp").write_bytes(b"int different;\n")
+++            with self.assertRaises(AssertionError):
+++                validate.verify_owner(rows, archive, root)
+++
+++
+++
+++class BuildEventsTest(unittest.TestCase):
+++    def test_only_current_passing_events_supply_reports(self):
+++        spec = importlib.util.spec_from_file_location("linkmgrd_validate", Path(__file__).with_name("validate.py"))
+++        build = importlib.util.module_from_spec(spec)
+++        spec.loader.exec_module(build)
+++        with tempfile.TemporaryDirectory(prefix="linkmgrd-events-") as temporary:
+++            root = Path(temporary)
+++            build.OUT = root
+++            rows = []
+++            for index, label in enumerate(build.TESTS):
+++                report = root / (str(index) + ".xml")
+++                report.write_text("<testsuite/>")
+++                rows.append({"id": {"testResult": {"label": label}}, "testResult": {
+++                    "status": "PASSED", "testActionOutput": [{"name": "test.xml", "uri": report.as_uri()}]}})
+++                rows.append({"id": {"testSummary": {"label": label}}, "testSummary": {"overallStatus": "PASSED"}})
+++            events = root / "test-events.jsonl"
+++            def write(items):
+++                events.write_text("\n".join(json.dumps(item) for item in items) + "\n")
+++            write(rows)
+++            self.assertEqual(set(build.test_reports()), set(build.TESTS))
+++            # Existing XML files cannot compensate for missing current results.
+++            write(rows[1:])
+++            with self.assertRaises(AssertionError):
+++                build.test_reports()
+++            write(rows + rows[:1])
+++            with self.assertRaises(AssertionError):
+++                build.test_reports()
+++            rows[0]["testResult"]["status"] = "FAILED"
+++            write(rows)
+++            with self.assertRaises(AssertionError):
+++                build.test_reports()
+++
+++
+++if __name__ == "__main__":
+++    unittest.main()
++diff --git a/tools/bazel/package_test.py b/tools/bazel/package_test.py
++new file mode 100644
++index 0000000000000000000000000000000000000000..05c004be78a2001f694c8139928e334b5e749f18
++--- /dev/null
+++++ b/tools/bazel/package_test.py
++@@ -0,0 +1,138 @@
+++"""Exercise the installed Linkmgrd ELF with declared native runtime inputs."""
+++
+++import gzip
+++import hashlib
+++import json
+++import os
+++from pathlib import Path
+++import subprocess
+++import sys
+++import tarfile
+++import tempfile
+++import unittest
+++import zlib
+++
+++import elf_metadata
+++from elf_metadata import Elf
+++
+++
+++RUNTIME, DEBUG, CHANGELOG, RUNNER, *PAYLOADS = [Path(p).resolve() for p in sys.argv[1:]]
+++sys.argv[1:] = []
+++
+++
+++def unpack(path, destination):
+++    with tarfile.open(path) as archive:
+++        members = archive.getmembers()
+++        names = [m.name.removeprefix('./') for m in members]
+++        if len(names) != len(set(names)):
+++            raise AssertionError('Duplicate installed path')
+++        for member in members:
+++            if member.isdir():
+++                continue
+++            if not member.isfile():
+++                raise AssertionError(f'Unexpected package member type: {member.name}')
+++            assert member.uid == member.gid == 0, member.name
+++            assert member.mtime == 1672560000, (member.name, member.mtime)
+++            archive.extract(member, destination, filter='data')
+++        return {m.name.removeprefix('./'): m for m in members if m.isfile()}
+++
+++
+++class PackageTest(unittest.TestCase):
+++    @classmethod
+++    def setUpClass(cls):
+++        cls.temporary = tempfile.TemporaryDirectory(prefix='linkmgrd-installed-')
+++        cls.root = Path(cls.temporary.name)
+++        cls.runtime = unpack(RUNTIME, cls.root)
+++        cls.debug = unpack(DEBUG, cls.root)
+++        cls.binary = cls.root / 'usr/sbin/linkmgrd'
+++        cls.elf = Elf(cls.binary.read_bytes())
+++        cls.receipt = {
+++            'runtime_sha256': hashlib.sha256(RUNTIME.read_bytes()).hexdigest(),
+++            'debug_sha256': hashlib.sha256(DEBUG.read_bytes()).hexdigest(),
+++        }
+++
+++    @classmethod
+++    def tearDownClass(cls):
+++        cls.temporary.cleanup()
+++
+++    def test_installed_contract_and_symbols(self):
+++        self.assertEqual(set(self.runtime), {
+++            'usr/sbin/linkmgrd',
+++            'usr/share/doc/sonic-linkmgrd/changelog.Debian.gz',
+++        })
+++        self.assertEqual(self.runtime['usr/sbin/linkmgrd'].mode, 0o755)
+++        doc = 'usr/share/doc/sonic-linkmgrd/changelog.Debian.gz'
+++        self.assertEqual(self.runtime[doc].mode, 0o644)
+++        self.assertEqual(gzip.decompress((self.root / doc).read_bytes()), CHANGELOG.read_bytes())
+++        self.assertEqual(self.elf.machine, 62)
+++        self.assertEqual(self.elf.bits, 64)
+++        for soname in ('libswsscommon.so.0', 'libnl-3.so.200', 'libnl-route-3.so.200'):
+++            with self.subTest(required_shared_library=soname):
+++                self.assertIn(soname, self.elf.needed)
+++        self.assertNotIn('.debug_info', self.elf.by_name)
+++        self.assertIsNotNone(self.elf.build_id)
+++        expected = 'usr/lib/debug/.build-id/' + self.elf.build_id[:2] + '/' + self.elf.build_id[2:] + '.debug'
+++        self.assertEqual(set(self.debug), {expected})
+++        self.assertEqual(self.debug[expected].mode, 0o644)
+++        symbols = (self.root / expected).read_bytes()
+++        self.assertEqual(Elf(symbols).build_id, self.elf.build_id)
+++        self.assertIn('.debug_info', Elf(symbols).by_name)
+++        self.assertEqual(zlib.crc32(symbols), self.elf.debuglink_crc)
+++        for section in self.elf.sections:
+++            if section[1] == 6:
+++                for offset in range(section[4], section[4] + section[5], section[9]):
+++                    tag, _ = self.elf.unpack('qQ', offset)
+++                    self.assertNotIn(tag, (15, 29), 'Installed ELF retained RPATH/RUNPATH')
+++        self.receipt.update(build_id=self.elf.build_id, needed=self.elf.needed)
+++        environment = dict(os.environ, DEBUGINFOD_URLS='')
+++        def inspect(symbol_directory):
+++            return subprocess.run([
+++                'gdb', '-nx', '-batch', '-ex', 'set debuginfod enabled off',
+++                '-ex', 'set auto-load safe-path /nonexistent',
+++                '-ex', 'set debug-file-directory ' + str(symbol_directory),
+++                '-ex', 'file ' + str(self.binary), '-ex', 'info line main',
+++                '-ex', 'ptype mux::MuxManager',
+++            ], env=environment, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+++        negative = inspect(self.root / 'no-symbols')
+++        self.assertNotRegex(negative.stdout, r'Line \d+ of .*LinkMgrdMain.cpp')
+++        self.assertNotIn('type = class mux::MuxManager', negative.stdout)
+++        positive = inspect(self.root / 'usr/lib/debug')
+++        self.assertEqual(positive.returncode, 0, positive.stdout)
+++        self.assertRegex(positive.stdout, r'Line \d+ of .*LinkMgrdMain.cpp')
+++        self.assertIn('type = class mux::MuxManager', positive.stdout)
+++        self.receipt['gdb'] = {'with_symbols': positive.stdout, 'without_symbols': negative.stdout}
+++
+++    def run_cli(self, *arguments):
+++        environment = dict(os.environ)
+++        environment['PYTHONPATH'] = str(Path(elf_metadata.__file__).parent)
+++        command = [sys.executable, str(RUNNER), '--binary', str(self.binary)]
+++        for payload in PAYLOADS:
+++            command += ['--payload', str(payload)]
+++        return subprocess.run(command + ['--', *arguments], cwd=self.root,
+++                              env=environment, text=True, capture_output=True, timeout=60)
+++
+++    def test_real_installed_help(self):
+++        result = self.run_cli('--help')
+++        # Preserve the original CLI: help intentionally returns EXIT_FAILURE.
+++        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+++        for option in ('linkmgrd options', '--verbosity', '--default_route', '--link_to_swss_logger'):
+++            self.assertIn(option, result.stdout)
+++        self.receipt['help'] = {'exit_code': result.returncode, 'stdout': result.stdout}
+++
+++    def test_real_installed_invalid_option(self):
+++        result = self.run_cli('--sonic-invalid-option')
+++        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+++        self.assertIn('Command Line Syntax Error', result.stderr)
+++        self.assertIn('sonic-invalid-option', result.stderr)
+++        self.receipt['invalid_option'] = {'exit_code': result.returncode, 'stderr': result.stderr}
+++
+++
+++if __name__ == '__main__':
+++    result = unittest.main(exit=False).result
+++    output = Path(os.environ.get('TEST_UNDECLARED_OUTPUTS_DIR', '.'))
+++    output.mkdir(parents=True, exist_ok=True)
+++    (output / 'installed.json').write_text(json.dumps({
+++        'status': 'passed' if result.wasSuccessful() else 'failed',
+++        'tests': result.testsRun, **PackageTest.receipt,
+++    }, indent=2) + '\n')
+++    raise SystemExit(not result.wasSuccessful())
++diff --git a/tools/bazel/prepare_ci.py b/tools/bazel/prepare_ci.py
++new file mode 100644
++index 0000000000000000000000000000000000000000..68f495f9b1ed7b94bbd3dd6c88d953148ec0d2c4
++--- /dev/null
+++++ b/tools/bazel/prepare_ci.py
++@@ -0,0 +1,32 @@
+++"""Use the checked-in registries and preserve setup-bazel caches in CI."""
+++
+++import os
+++from pathlib import Path
+++import shlex
+++import shutil
+++import tempfile
+++
+++
+++configuration = Path('.bazelrc').read_text()
+++home = Path.home() / '.bazelrc'
+++if home.is_file():
+++    caches = [line for line in home.read_text().splitlines()
+++              if line.startswith(('build --disk_cache=', 'common --repository_cache='))]
+++    configuration += '\n' + '\n'.join(caches) + '\n'
+++directory = Path(tempfile.mkdtemp(prefix='linkmgrd-bazel-'))
+++rc = directory / 'ci.bazelrc'
+++rc.write_text(configuration)
+++binary = shutil.which('bazel')
+++assert binary
+++wrapper = directory / 'bazel'
+++wrapper.write_text('#!/bin/sh\nexec ' + shlex.quote(binary) +
+++                   ' --host_jvm_args=-Xmx3g --nosystem_rc --nohome_rc --noworkspace_rc --bazelrc=' +
+++                   shlex.quote(str(rc)) + ' "$@"\n')
+++wrapper.chmod(0o755)
+++evidence = Path('bazel-evidence')
+++evidence.mkdir(exist_ok=True)
+++shutil.copyfile('.bazelrc', evidence / 'registry.bazelrc')
+++if os.environ.get('GITHUB_ENV'):
+++    with open(os.environ['GITHUB_ENV'], 'a') as environment:
+++        environment.write('BAZEL_BINARY=' + str(wrapper) + '\n')
+++print(wrapper)
++diff --git a/tools/bazel/source_contract_test.py b/tools/bazel/source_contract_test.py
++new file mode 100644
++index 0000000000000000000000000000000000000000..fb97577e0d040a9a0c51d3d6d111eb0352078c67
++--- /dev/null
+++++ b/tools/bazel/source_contract_test.py
++@@ -0,0 +1,25 @@
+++"""Keep the maintained source globs aligned with the original Make inputs."""
+++
+++from pathlib import Path
+++import re
+++import unittest
+++
+++
+++class SourceContractTest(unittest.TestCase):
+++    def test_original_translation_units_are_preserved(self):
+++        root = Path(__file__).parents[2]
+++        declared = set()
+++        makefiles = [root / "src/subdir.mk", *sorted((root / "src").glob("*/subdir.mk")),
+++                     root / "test/subdir.mk"]
+++        for path in makefiles:
+++            section = path.read_text().split("CPP_SRCS +=", 1)[1].split("\n\n", 1)[0]
+++            declared.update(re.findall(r"\./((?:src|test)/[^\s\\]+\.cpp)", section))
+++        actual = {str(path.relative_to(root)) for directory in ("src", "test")
+++                  for path in (root / directory).rglob("*.cpp")}
+++        self.assertEqual(actual, declared)
+++        self.assertIn("src/LinkMgrdMain.cpp", declared)
+++        self.assertIn("test/LinkMgrdTestMain.cpp", declared)
+++
+++
+++if __name__ == "__main__":
+++    unittest.main()
++diff --git a/tools/bazel/swsscommon.bzl b/tools/bazel/swsscommon.bzl
++new file mode 100644
++index 0000000000000000000000000000000000000000..53c7894188f062bc9bed242776cff16a13abbb95
++--- /dev/null
+++++ b/tools/bazel/swsscommon.bzl
++@@ -0,0 +1,19 @@
+++"""Expose the installed Common and libnl interfaces for the Linkmgrd daemon."""
+++
+++load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
+++
+++def _linkmgrd_swsscommon_impl(ctx):
+++    # Use SWSS Common's public headers for compilation and its shared library
+++    # for linking to keep static libnl archives out of Linkmgrd.
+++    return [CcInfo(
+++        compilation_context = ctx.attr.headers[CcInfo].compilation_context,
+++        linking_context = ctx.attr.library[CcInfo].linking_context,
+++    )]
+++
+++linkmgrd_swsscommon = rule(
+++    implementation = _linkmgrd_swsscommon_impl,
+++    attrs = {
+++        "headers": attr.label(mandatory = True, providers = [CcInfo]),
+++        "library": attr.label(mandatory = True, providers = [CcInfo]),
+++    },
+++)
++diff --git a/tools/bazel/validate.py b/tools/bazel/validate.py
++new file mode 100644
++index 0000000000000000000000000000000000000000..0462c488db9d1a3b19d411ceca30a67c465eb125
++--- /dev/null
+++++ b/tools/bazel/validate.py
++@@ -0,0 +1,256 @@
+++"""Retain native source, installed-package and incremental build evidence."""
+++
+++import argparse
+++import hashlib
+++import json
+++import os
+++from pathlib import Path
+++import platform
+++import re
+++import shutil
+++import subprocess
+++import time
+++from urllib.parse import unquote, urlparse
+++import zipfile
+++
+++from defusedxml import ElementTree as ET
+++
+++
+++ROOT = Path(__file__).resolve().parents[2]
+++OUT = ROOT / 'bazel-evidence'
+++BAZEL = os.environ.get('BAZEL_BINARY', 'bazel')
+++BUILDS = ['//:sonic_linkmgrd_runtime', '//:sonic_linkmgrd_debug', '//:runtime_packages.json']
+++TESTS = ['//:linkmgrd_test', '//:source_contract_test', '//:package_test']
+++
+++
+++def checkout_identity():
+++    git = ['git', '-c', 'safe.directory=' + str(ROOT)]
+++    def call(*args):
+++        return subprocess.check_output(git + list(args), cwd=ROOT, text=True).strip()
+++    assert not call('status', '--porcelain'), 'Acceptance requires committed, clean source inputs'
+++    revision = call('rev-parse', 'HEAD')
+++    parents = [line.removeprefix('parent ') for line in call('cat-file', '-p', 'HEAD').split('\n\n', 1)[0].splitlines()
+++               if line.startswith('parent ')]
+++    head, base = os.environ.get('CI_HEAD_SHA', ''), os.environ.get('CI_BASE_SHA', '')
+++    if head and head != revision:
+++        assert head in parents and base and base in parents, (revision, parents, head, base)
+++    return {'revision': revision, 'parents': parents, 'requested_head': head, 'requested_base': base}
+++
+++
+++def test_reports():
+++    reports, summaries, seen = {}, set(), set()
+++    for line in (OUT / 'test-events.jsonl').read_text().splitlines():
+++        event = json.loads(line)
+++        label = event.get('id', {}).get('testResult', {}).get('label')
+++        if label in TESTS:
+++            assert label not in seen, 'Unexpected repeated test attempt: ' + label
+++            seen.add(label)
+++            result = event['testResult']
+++            assert result['status'] == 'PASSED', (label, result)
+++            for file in result.get('testActionOutput', []):
+++                if file['name'] == 'test.xml':
+++                    uri = urlparse(file['uri'])
+++                    assert uri.scheme == 'file' and not uri.netloc, uri
+++                    path = Path(unquote(uri.path))
+++                    assert path.is_file(), path
+++                    reports[label] = path
+++        label = event.get('id', {}).get('testSummary', {}).get('label')
+++        if label in TESTS:
+++            assert event['testSummary']['overallStatus'] == 'PASSED', event
+++            summaries.add(label)
+++    assert set(reports) == summaries == set(TESTS), (reports, summaries)
+++    return reports
+++
+++
+++def run(*args, output=None):
+++    command = [BAZEL, *args]
+++    if output:
+++        with output.open('w') as stream:
+++            subprocess.run(command, cwd=ROOT, stdout=stream, stderr=subprocess.STDOUT, check=True)
+++    else:
+++        subprocess.run(command, cwd=ROOT, check=True)
+++
+++
+++def capture(*args):
+++    return subprocess.check_output([BAZEL, *args], cwd=ROOT, text=True)
+++
+++
+++def paths():
+++    result = {}
+++    for target in BUILDS:
+++        files = capture('cquery', target, '--output=files').splitlines()
+++        assert len(files) == 1, (target, files)
+++        result[target] = ROOT / files[0]
+++    return result
+++
+++
+++def hashes(files):
+++    return {target: hashlib.sha256(path.read_bytes()).hexdigest() for target, path in files.items()}
+++
+++
+++def audit():
+++    (OUT / 'action-audit.json').write_text('{"status":"running"}\n')
+++    query = 'deps(set(' + ' '.join(BUILDS + TESTS) + '))'
+++    with (OUT / 'actions.json').open('w') as stream:
+++        subprocess.run([BAZEL, 'aquery', query, '--output=jsonproto'], cwd=ROOT, stdout=stream, check=True)
+++    graph = json.loads((OUT / 'actions.json').read_text())
+++    fragments = {x['id']: x for x in graph['pathFragments']}
+++    def path(identifier):
+++        parts = []
+++        while identifier:
+++            part = fragments[identifier]
+++            parts.append(part['label'])
+++            identifier = part.get('parentId', 0)
+++        return '/'.join(reversed(parts))
+++    artifacts = {x['id']: path(x['pathFragmentId']) for x in graph['artifacts']}
+++    outputs = {artifacts[i] for a in graph['actions'] for i in a.get('outputIds', [])}
+++    assert outputs
+++    assert not any(p.endswith(('.deb', '.udeb', '.ddeb')) for p in outputs)
+++    for action in graph['actions']:
+++        command = action.get('arguments', [])
+++        if any(Path(arg).name == 'dpkg-deb' for arg in command):
+++            assert '--build' not in command and '-b' not in command, command
+++    (OUT / 'action-audit.json').write_text(json.dumps({
+++        'status': 'passed', 'actions': len(graph['actions']),
+++        'outputs': len(outputs), 'deb_outputs': 0, 'targets': BUILDS + TESTS,
+++    }, indent=2) + '\n')
+++
+++
+++def build():
+++    (OUT / 'build.json').write_text('{"status":"running"}\n')
+++    run('build', '--jobs=2', '--local_resources=cpu=2', *BUILDS)
+++    run('test', '--jobs=2', '--local_resources=cpu=2', '--local_test_jobs=1',
+++        '--build_event_json_file=' + str(OUT / 'test-events.jsonl'), *TESTS)
+++    test_reports()
+++    (OUT / 'build.json').write_text(json.dumps({
+++        'status': 'passed', 'identity': checkout_identity(), 'outputs': hashes(paths()),
+++        'events_sha256': hashlib.sha256((OUT / 'test-events.jsonl').read_bytes()).hexdigest(),
+++    }, indent=2) + '\n')
+++
+++
+++def incremental():
+++    (OUT / 'incremental.json').write_text('{"status":"running"}\n')
+++    source = ROOT / 'src/LinkMgrdMain.cpp'
+++    original = source.read_bytes()
+++    marker = b'"linkmgrd options"'
+++    assert original.count(marker) == 1
+++    edited = original.replace(marker, b'"linkmgrd incremental probe options"')
+++    results, files = {}, None
+++    def step(name):
+++        nonlocal files
+++        begin = time.monotonic()
+++        run('build', '--jobs=2', '--local_resources=cpu=2', *BUILDS,
+++            output=OUT / ('incremental-' + name + '.log'))
+++        elapsed = time.monotonic() - begin
+++        files = files or paths()
+++        results[name] = {'seconds': elapsed, 'sha256': hashes(files)}
+++        return results[name]['sha256']
+++    try:
+++        baseline = step('baseline')
+++        assert step('noop') == baseline
+++        assert source.read_bytes() == original, 'Concurrent source change'
+++        source.write_bytes(edited)
+++        changed = step('edit')
+++        assert all(changed[target] != baseline[target] for target in BUILDS[:2]), results
+++    finally:
+++        assert source.read_bytes() in (original, edited), 'Concurrent source change; refusing overwrite'
+++        source.write_bytes(original)
+++    assert step('restore') == baseline
+++    (OUT / 'incremental.json').write_text(json.dumps({
+++        'status': 'passed', 'source': str(source.relative_to(ROOT)), 'builds': results,
+++        'identity': checkout_identity(),
+++        'scope': 'Retained-cache baseline/no-op/source-edit/restore; not a cache-free build',
+++    }, indent=2) + '\n')
+++
+++
+++def collect():
+++    files = paths()
+++    identity = checkout_identity()
+++    build_receipt = json.loads((OUT / 'build.json').read_text())
+++    incremental_receipt = json.loads((OUT / 'incremental.json').read_text())
+++    assert build_receipt['status'] == incremental_receipt['status'] == 'passed'
+++    assert identity == build_receipt['identity'] == incremental_receipt['identity']
+++    assert hashes(files) == build_receipt['outputs'] == incremental_receipt['builds']['baseline']['sha256'] == incremental_receipt['builds']['restore']['sha256']
+++    assert hashlib.sha256((OUT / 'test-events.jsonl').read_bytes()).hexdigest() == build_receipt['events_sha256']
+++    reports = test_reports()
+++    outputs = {target: {'file': path.name, 'sha256': hashes({target: path})[target]}
+++               for target, path in files.items()}
+++    for path in files.values():
+++        shutil.copy2(path, OUT / path.name)
+++    summaries = {}
+++    for target in TESTS:
+++        name = target.removeprefix('//:')
+++        logs = reports[target].parent
+++        xml = ET.parse(reports[target]).getroot()
+++        cases = list(xml.iter('testcase'))
+++        assert cases and not list(xml.iter('failure')) and not list(xml.iter('error')), name
+++        skipped = len(list(xml.iter('skipped')))
+++        assert not skipped, (name, skipped)
+++        summaries[target] = {'tests': len(cases), 'skipped': skipped}
+++        shutil.copytree(logs, OUT / 'tests' / name, dirs_exist_ok=True)
+++    original_tests = {
+++        suite + '.' + name
+++        for source in (ROOT / 'test').glob('*.cpp')
+++        for suite, name in re.findall(r'\bTEST(?:_F)?\s*\(\s*(\w+)\s*,\s*(\w+)\s*\)', source.read_text())
+++    }
+++    owner_xml = ET.parse(reports['//:linkmgrd_test'])
+++    executed = {case.attrib['classname'] + '.' + case.attrib['name']
+++                for case in owner_xml.iter('testcase')}
+++    assert original_tests and original_tests <= executed, sorted(original_tests - executed)
+++    summaries['//:linkmgrd_test']['original_registered_tests'] = len(original_tests)
+++    parameterized = {
+++        (suite, name)
+++        for source in (ROOT / 'test').glob('*.cpp')
+++        for suite, name in re.findall(r'\bTEST_P\s*\(\s*(\w+)\s*,\s*(\w+)\s*\)', source.read_text())
+++    }
+++    for suite, name in parameterized:
+++        assert any(case.attrib['classname'].split('/')[-1] == suite and case.attrib['name'].split('/')[0] == name
+++                   for case in owner_xml.iter('testcase')), (suite, name)
+++    summaries['//:linkmgrd_test']['parameterized_definitions'] = len(parameterized)
+++    outputs_dir = reports['//:package_test'].parent / 'test.outputs'
+++    if (outputs_dir / 'installed.json').exists():
+++        installed = json.loads((outputs_dir / 'installed.json').read_text())
+++    else:
+++        with zipfile.ZipFile(outputs_dir / 'outputs.zip') as archive:
+++            installed = json.loads(archive.read('installed.json'))
+++    assert installed['status'] == 'passed' and installed['tests'] == 3
+++    assert installed['runtime_sha256'] == outputs[BUILDS[0]]['sha256']
+++    assert installed['debug_sha256'] == outputs[BUILDS[1]]['sha256']
+++    (OUT / 'installed.json').write_text(json.dumps(installed, indent=2) + '\n')
+++    git = ['git', '-c', 'safe.directory=' + str(ROOT)]
+++    def git_output(*args):
+++        return subprocess.check_output(git + list(args), cwd=ROOT, text=True).strip()
+++    assert not git_output('status', '--porcelain', '--untracked-files=normal'), 'Commit producer inputs before evidence collection'
+++    revision = git_output('rev-parse', 'HEAD')
+++    headers = git_output('cat-file', '-p', 'HEAD').split('\n\n', 1)[0]
+++    parents = [line.removeprefix('parent ') for line in headers.splitlines() if line.startswith('parent ')]
+++    head, base = os.environ.get('CI_HEAD_SHA', ''), os.environ.get('CI_BASE_SHA', '')
+++    if head:
+++        assert head == revision or head in parents, (revision, parents, head)
+++        if base and head != revision:
+++            assert base in parents, (base, parents)
+++    (OUT / 'resolved-modules.txt').write_text(capture('mod', 'graph'))
+++    shutil.copy2(ROOT / 'MODULE.bazel.lock', OUT / 'MODULE.bazel.lock')
+++    (OUT / 'provenance.json').write_text(json.dumps({
+++        'tested_revision': revision, 'parents': parents, 'pull_request_head': head,
+++        'pull_request_base': base, 'architecture': platform.machine(),
+++        'os_release': Path('/etc/os-release').read_text(),
+++        'outputs': outputs, 'tests': summaries,
+++        'scope': 'Native AMD64/Trixie, source-owned runtime/debug TARs and metadata; no DEB generation',
+++    }, indent=2) + '\n')
+++
+++
+++if __name__ == '__main__':
+++    commands = {'audit': audit, 'build': build, 'incremental': incremental, 'collect': collect}
+++    parser = argparse.ArgumentParser()
+++    parser.add_argument('command', choices=commands)
+++    args = parser.parse_args()
+++    OUT.mkdir(exist_ok=True)
+++    identity = checkout_identity()
+++    identity_file = OUT / 'source-identity.json'
+++    if args.command == 'audit':
+++        identity_file.write_text(json.dumps(identity, indent=2) + '\n')
+++    else:
+++        assert identity == json.loads(identity_file.read_text()), 'Source identity changed since action audit'
+++        assert json.loads((OUT / 'action-audit.json').read_text())['status'] == 'passed'
+++    commands[args.command]()
+diff --git a/modules/sonic-linkmgrd/1.0.2-926040f8a26c1affca07831a1b613be7291372bb/patches/0001-module-version.patch b/modules/sonic-linkmgrd/1.0.2-926040f8a26c1affca07831a1b613be7291372bb/patches/0001-module-version.patch
+deleted file mode 100644
+index 5eca7607af91e50493fbc0bc9858bd5ca3eb7427..0000000000000000000000000000000000000000
+--- a/modules/sonic-linkmgrd/1.0.2-926040f8a26c1affca07831a1b613be7291372bb/patches/0001-module-version.patch
++++ /dev/null
+@@ -1,19 +0,0 @@
+-From: Guohan Lu <securely1g@gmail.com>
+-Subject: [PATCH] Register the merged sonic-linkmgrd source commit
+-
+-Qualify the exact merged source module identity. Preserve all dependency
+-declarations from the source owner; unmerged refresh changes are deferred.
+-
+-Source commit: 4942334e9878b473099d7e07fc82bff9fc8c54f2
+-Scope: downstream registry integration; not an upstream bug fix.
+-
+---- a/MODULE.bazel
+-+++ b/MODULE.bazel
+-@@ -1,6 +1,6 @@
+- module(
+-     name = "sonic-linkmgrd",
+--    version = "1.0.1",
+-+    version = "1.0.1-4942334e9878b473099d7e07fc82bff9fc8c54f2",
+-     bazel_compatibility = [
+-         ">=8.5.1",
+-         "<=8.5.1",
+diff --git a/modules/sonic-linkmgrd/1.0.2-926040f8a26c1affca07831a1b613be7291372bb/presubmit.json b/modules/sonic-linkmgrd/1.0.2-926040f8a26c1affca07831a1b613be7291372bb/presubmit.json
+index 25a941617c4f71782f4671fc7bee1b6cc9c46043..650d87d1cc5a93a0fc6270d9491d5e3aabbc7de6 100644
+--- a/modules/sonic-linkmgrd/1.0.2-926040f8a26c1affca07831a1b613be7291372bb/presubmit.json
++++ b/modules/sonic-linkmgrd/1.0.2-926040f8a26c1affca07831a1b613be7291372bb/presubmit.json
+@@ -20,5 +20,6 @@
+     "@sonic-linkmgrd//:source_contract_test",
+     "@sonic-linkmgrd//:package_test"
+   ],
+-  "integration_test_module": "tests/consumer"
++  "integration_test_module": "tests/consumer",
++  "generated_module_overlay": true
+ }
+diff --git a/modules/sonic-linkmgrd/1.0.2-926040f8a26c1affca07831a1b613be7291372bb/source.json b/modules/sonic-linkmgrd/1.0.2-926040f8a26c1affca07831a1b613be7291372bb/source.json
+index 10933516221b2c1da15d39af4dfbd6cfde0c4e1b..40f4b525c2c438d51e7ef120df470cf858f5ffe5 100644
+--- a/modules/sonic-linkmgrd/1.0.2-926040f8a26c1affca07831a1b613be7291372bb/source.json
++++ b/modules/sonic-linkmgrd/1.0.2-926040f8a26c1affca07831a1b613be7291372bb/source.json
+@@ -1,9 +1,12 @@
+ {
+-  "url": "https://github.com/securely1g/sonic-linkmgrd/archive/4942334e9878b473099d7e07fc82bff9fc8c54f2.tar.gz",
+-  "integrity": "sha256-CS93wZNWHlb4RwQ8Xlkcxl4bIgKs6e3gI2dBmd6iAsQ=",
+-  "strip_prefix": "sonic-linkmgrd-4942334e9878b473099d7e07fc82bff9fc8c54f2",
++  "url": "https://github.com/sonic-net/sonic-linkmgrd/archive/926040f8a26c1affca07831a1b613be7291372bb.tar.gz",
++  "strip_prefix": "sonic-linkmgrd-926040f8a26c1affca07831a1b613be7291372bb",
++  "integrity": "sha256-xfeoeX8pWe0mLr+Q/b3aq48NLf6MtA7IBuLmDCxcvtg=",
+   "patch_strip": 1,
+   "patches": {
+-    "0001-module-version.patch": "sha256-hd3GW8OP1tzZm3vnsqS8I2u2MV0McTsMa2t+R3AcXHk="
++    "0001-bazel-producer.patch": "sha256-g09XfWofvgxJOvG/Ew81hcroniIyXjQJ1vjQ9o+iX4Q="
++  },
++  "overlay": {
++    "MODULE.bazel": "sha256-rA39n7hgHMWq9gQLo5EYSS5sLiaDgKUGDur1QEWVUcY="
+   }
+ }
+diff --git a/modules/sonic-linkmgrd/1.0.2-926040f8a26c1affca07831a1b613be7291372bb/tests/consumer/MODULE.bazel b/modules/sonic-linkmgrd/1.0.2-926040f8a26c1affca07831a1b613be7291372bb/tests/consumer/MODULE.bazel
+index cc8a15d296d1c828bb2af886c130959f8d1746bf..b1505decbc01ba6c558e42fc511671d4fb11af1a 100644
+--- a/modules/sonic-linkmgrd/1.0.2-926040f8a26c1affca07831a1b613be7291372bb/tests/consumer/MODULE.bazel
++++ b/modules/sonic-linkmgrd/1.0.2-926040f8a26c1affca07831a1b613be7291372bb/tests/consumer/MODULE.bazel
+@@ -3,7 +3,7 @@ module(
+     version = "1.0.0",
+ )
+ 
+-bazel_dep(name = "sonic-linkmgrd", version = "1.0.1-4942334e9878b473099d7e07fc82bff9fc8c54f2")
++bazel_dep(name = "sonic-linkmgrd", version = "1.0.2-926040f8a26c1affca07831a1b613be7291372bb")
+ bazel_dep(name = "sonic-build-infra", version = "0.0.45-77ef625a4ddafc8cdc15f3cc6aee31eabac8a5de", repo_name = "sonic_build_infra")
+ bazel_dep(name = "rules_python", version = "1.9.0.sonic.2")
+ bazel_dep(name = "rules_rs", version = "0.1.0")
+diff --git a/modules/sonic-linkmgrd/metadata.json b/modules/sonic-linkmgrd/metadata.json
+index fda8edbf3ca75785b21bfcb48868ab45d64633eb..fd34b059639be4a109c8e5d35e2806e422b1bbd6 100644
+--- a/modules/sonic-linkmgrd/metadata.json
++++ b/modules/sonic-linkmgrd/metadata.json
+@@ -1,6 +1,7 @@
+ {
+   "homepage": "https://github.com/sonic-net/sonic-linkmgrd",
+   "versions": [
+-    "1.0.1-4942334e9878b473099d7e07fc82bff9fc8c54f2"
++    "1.0.1-4942334e9878b473099d7e07fc82bff9fc8c54f2",
++    "1.0.2-926040f8a26c1affca07831a1b613be7291372bb"
+   ]
+ }
