@@ -7,8 +7,6 @@
     "0001-bazel-producer.patch": "sha256-NUvqUAMlEsm2zSZ6UR8IFualy8wAP22H9mLT3CkMIbI="
   },
   "overlay": {
-    "CLI/bazel/klish.BUILD.bazel": "sha256-ONgvP5n5i5mxz/gyWgebrG7lG3dp4riKGjHKiyv5tqg=",
-    "CLI/bazel/klish_config.h.in": "sha256-q8ZHvIDXvnKVRbLKxtEp2c2EF4UoYHDDP5RJJpe2j0M=",
     "MODULE.bazel": "sha256-B0bGvBY9G0a8wi8R8BVy69njbZn2WW8HmKqMdL82kus="
   }
 }
