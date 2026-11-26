@@ -1,0 +1,54 @@
+name: VS registry candidate validation
+on:
+  push:
+    branches: [ci/317-candidate-runtime-fixes]
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    runs-on: [self-hosted, Linux, X64, debian-trixie-container]
+    outputs:
+      matrix: ${{ steps.select.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          # The combined module-only tree preserves the existing release policy.
+          ref: 88b3ea0cb8589bdae4ed1afaadf90fbc87a575c8
+          fetch-depth: 0
+          persist-credentials: false
+      - id: select
+        run: |
+          python3 ci/registry_ci.py plan \
+            --published 2d5a28673ab6af079d28524c22de93f29ea517e5 \
+            --base 2d5a28673ab6af079d28524c22de93f29ea517e5 \
+            --head 88b3ea0cb8589bdae4ed1afaadf90fbc87a575c8 \
+            --output "$RUNNER_TEMP/candidates.json"
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          affected = {"sonic-bmp", "sonic-dash-ha", "sonic-dbsyncd", "sonic-dhcpmon",
+                      "sonic-sairedis", "sonic-swss", "sonic-swss-common"}
+          source = Path(os.environ["RUNNER_TEMP"]) / "candidates.json"
+          selected = [job for job in json.loads(source.read_text())["include"] if job["module"] in affected]
+          if len(selected) != 11 or {job["module"] for job in selected} != affected:
+              raise SystemExit("Unexpected module and architecture matrix")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              print("matrix=" + json.dumps({"include": selected}, separators=(",", ":")), file=output)
+          PY
+  validate:
+    needs: plan
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    name: ${{ matrix.module }} (${{ matrix.architecture }})
+    uses: ./.github/workflows/registry-module.yml
+    with:
+      module: ${{ matrix.module }}
+      version: ${{ matrix.version }}
+      architecture: ${{ matrix.architecture }}
+      execution_architecture: ${{ matrix.execution_architecture }}
+      cross_compile: ${{ matrix.cross_compile }}
+      runner: ${{ toJSON(matrix.runner) }}

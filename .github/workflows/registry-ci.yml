@@ -48,14 +48,14 @@ jobs:
       # A pull request can run this workflow against a head with the older mirror helper.
       - name: Identify the checked-out mirror configuration
         id: mirror_config
-        if: ${{ runner.environment == 'self-hosted' && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && hashFiles('ci/private_mirrors.py') != '' }}
+        if: ${{ runner.environment == 'self-hosted' && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && hashFiles('ci/private_mirrors.py') != '' }}
         run: echo "kind=${{ hashFiles('ci/debian_snapshots.json') != '' && 'roots' || 'dated' }}" >> "$GITHUB_OUTPUT"
       # The existing Trixie JDK includes jdk.compiler even without a javac CLI.
       # Optional compile/transfer failures cannot invalidate ordinary planning;
       # the mirror wrapper reports missing telemetry instead of claiming coverage.
       - name: Compile the maintained audit source once
         id: http_audit_build
-        if: ${{ github.actor != 'dependabot[bot]' && (github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) }}
+        if: ${{ github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) }}
         continue-on-error: true
         timeout-minutes: 2
         run: |
@@ -86,13 +86,6 @@ jobs:
         run: |
           set -euo pipefail
           POLICY_FLAGS=()
-          # Test the candidate entries together against their canonical base.
-          if [[ "$EVENT_NAME" == workflow_dispatch ]]; then
-            BASE_SHA=2d5a28673ab6af079d28524c22de93f29ea517e5
-            HEAD_SHA=88b3ea0cb8589bdae4ed1afaadf90fbc87a575c8
-            git switch --detach "$HEAD_SHA"
-            PUBLISHED_SHA="$BASE_SHA"
-          else
           if [[ "$EVENT_NAME" == push ]]; then
             # main already contains this push. Comparing with current main
             # would silently bless edits/deletions of published entries.
@@ -112,10 +105,9 @@ jobs:
               +refs/heads/main:refs/registry-ci/published-main
             PUBLISHED_SHA="$(git rev-parse refs/registry-ci/published-main)"
           fi
-          fi
           printf 'Event: %s\nPublished baseline: %s\nPR base: %s\nHead: %s\n' \
             "$EVENT_NAME" "$PUBLISHED_SHA" "$BASE_SHA" "$HEAD_SHA" | tee plan.log
-          if [[ "$EVENT_NAME" == pull_request || "$EVENT_NAME" == workflow_dispatch ]]; then
+          if [[ "$EVENT_NAME" == pull_request ]]; then
             python3 ci/registry_ci.py plan --p4-runner-profile="$P4_RUNNER_PROFILE" --published "$PUBLISHED_SHA" \
               --base "$BASE_SHA" --head "$HEAD_SHA" --output plan.json 2>&1 | tee -a plan.log
           elif [[ "$EVENT_NAME" == workflow_dispatch && "$ALL_VERSIONS" == true ]]; then
@@ -148,12 +140,6 @@ jobs:
               identities.add(identity)
           # GitHub Actions allows up to 256 rows in one matrix.
           jobs = matrix["include"]
-          if os.environ["EVENT_NAME"] == "workflow_dispatch":
-              affected = {"sonic-bmp", "sonic-dash-ha", "sonic-dbsyncd", "sonic-dhcpmon",
-                          "sonic-sairedis", "sonic-swss", "sonic-swss-common"}
-              jobs = [job for job in jobs if job["module"] in affected]
-              if len(jobs) != 11:
-                  raise SystemExit("Expected eleven affected module/architecture jobs")
           if len(jobs) > 512:
               raise SystemExit("More than 512 validation jobs: add a module matrix before running this plan")
           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
@@ -212,7 +198,7 @@ jobs:
           bash ci/prepare_repository_tools.sh
       - name: Identify the checked-out mirror configuration
         id: mirror_config
-        if: ${{ contains(matrix.runner, 'self-hosted') && contains(matrix.runner, 'debian-trixie-container') && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && hashFiles('ci/private_mirrors.py') != '' }}
+        if: ${{ contains(matrix.runner, 'self-hosted') && contains(matrix.runner, 'debian-trixie-container') && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && hashFiles('ci/private_mirrors.py') != '' }}
         run: echo "kind=${{ hashFiles('ci/debian_snapshots.json') != '' && 'roots' || 'dated' }}" >> "$GITHUB_OUTPUT"
       - name: Download the optional same-run HTTP audit agent
         id: http_audit_download
@@ -329,7 +315,7 @@ jobs:
           bash ci/prepare_repository_tools.sh
       - name: Identify the checked-out mirror configuration
         id: mirror_config
-        if: ${{ runner.environment == 'self-hosted' && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && hashFiles('ci/private_mirrors.py') != '' }}
+        if: ${{ runner.environment == 'self-hosted' && github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && hashFiles('ci/private_mirrors.py') != '' }}
         run: echo "kind=${{ hashFiles('ci/debian_snapshots.json') != '' && 'roots' || 'dated' }}" >> "$GITHUB_OUTPUT"
       - name: Download the optional same-run HTTP audit agent
         id: http_audit_download
