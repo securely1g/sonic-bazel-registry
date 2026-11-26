@@ -29,10 +29,10 @@ jobs:
           import json
           import os
           from pathlib import Path
-          affected = {"sonic-sairedis"}
+          affected = {"sonic-dbsyncd"}
           source = Path(os.environ["RUNNER_TEMP"]) / "candidates.json"
           selected = [job for job in json.loads(source.read_text())["include"] if job["module"] in affected]
-          if len(selected) != 2 or {job["module"] for job in selected} != affected:
+          if len(selected) != 1 or {job["module"] for job in selected} != affected:
               raise SystemExit("Unexpected module and architecture matrix")
           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
               print("matrix=" + json.dumps({"include": selected}, separators=(",", ":")), file=output)
