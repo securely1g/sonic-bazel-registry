@@ -1760,9 +1760,6 @@ index 0000000000000000000000000000000000000000..f9c71a52e2fd865dbf40db779b5bf815
 +++ b/tests/bazel/refresh/.bazelversion
 @@ -0,0 +1 @@
 +8.5.1
-diff --git a/tests/bazel/refresh/BUILD.bazel b/tests/bazel/refresh/BUILD.bazel
-new file mode 100644
-index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
 diff --git a/tests/bazel/refresh/MODULE.bazel b/tests/bazel/refresh/MODULE.bazel
 new file mode 100644
 index 0000000000000000000000000000000000000000..ace7bde901904c48baae0bb2483053918e321a78
