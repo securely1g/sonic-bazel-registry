@@ -1,0 +1,42 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.45-77ef625a4ddafc8cdc15f3cc6aee31eabac8a5de",
+      "repo_name": "sonic_build_infra"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
+  },
+  "build_targets": [
+    "@sonic-linux-kernel//tools/bazel:kernel_action_test",
+    "@sonic-linux-kernel//tools/bazel:verify_cache_test",
+    "@sonic-linux-kernel//tools/bazel:build_test",
+    "@sonic-linux-kernel//tools/bazel:collect_ci_artifacts_test",
+    "@sonic-linux-kernel//tools/bazel:stage_kernel_test",
+    "@sonic-linux-kernel//:kernel_packages",
+    "@sonic-linux-kernel//:kernel_build_outputs",
+    "@sonic-linux-kernel//:linux-image.runtime",
+    "@sonic-linux-kernel//:linux-image.runtime_metadata",
+    "@sonic-linux-kernel//:linux-image.control",
+    "@sonic-linux-kernel//:boot",
+    "@sonic-linux-kernel//:kernel_metadata.json",
+    "@sonic-linux-kernel//tools/bazel:native_install_test",
+    "@sonic-linux-kernel//tools/bazel:kbuild_generate_test"
+  ],
+  "test_targets": [
+    "@sonic-linux-kernel//tools/bazel:kernel_action_test",
+    "@sonic-linux-kernel//tools/bazel:verify_cache_test",
+    "@sonic-linux-kernel//tools/bazel:build_test",
+    "@sonic-linux-kernel//tools/bazel:collect_ci_artifacts_test",
+    "@sonic-linux-kernel//tools/bazel:stage_kernel_test",
+    "@sonic-linux-kernel//tools/bazel:native_install_test",
+    "@sonic-linux-kernel//tools/bazel:kbuild_generate_test"
+  ]
+}
