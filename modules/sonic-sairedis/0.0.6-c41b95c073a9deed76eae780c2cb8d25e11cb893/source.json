@@ -1,0 +1,12 @@
+{
+  "url": "https://github.com/sonic-net/sonic-sairedis/archive/c41b95c073a9deed76eae780c2cb8d25e11cb893.tar.gz",
+  "strip_prefix": "sonic-sairedis-c41b95c073a9deed76eae780c2cb8d25e11cb893",
+  "integrity": "sha256-q7LBVMJ5PK9ORBmfCmQMLJV9ApRNs6qg8EsVUv0XsNU=",
+  "patch_strip": 1,
+  "patches": {
+    "0001-bazel-producer.patch": "sha256-x2UnNojQW4miHP2ZY3XvYk3XiD0w56H9op4XQCWqI94="
+  },
+  "overlay": {
+    "MODULE.bazel": "sha256-q9RTUVMRbw8aElwa+GLUdXMoSJbORqYEVCwRWWt4c7Q="
+  }
+}

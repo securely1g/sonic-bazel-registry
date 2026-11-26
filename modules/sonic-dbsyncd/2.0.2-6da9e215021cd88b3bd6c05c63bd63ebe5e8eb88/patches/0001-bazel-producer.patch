@@ -1,0 +1,950 @@
+diff --git a/.bazelignore b/.bazelignore
+new file mode 100644
+index 0000000000000000000000000000000000000000..9a18778673eb4f2aed2be81fc198cee830b798d7
+--- /dev/null
++++ b/.bazelignore
+@@ -0,0 +1 @@
++tests/bazel
+diff --git a/.bazelrc b/.bazelrc
+new file mode 100644
+index 0000000000000000000000000000000000000000..bdb9b7c47b8ea78f3ea202a1edb4ba8381eb24a5
+--- /dev/null
++++ b/.bazelrc
+@@ -0,0 +1,7 @@
++common --registry=https://raw.githubusercontent.com/sonic-net/sonic-bazel-registry/main
++common --registry=https://bcr.bazel.build
++common --lockfile_mode=update
++common --platforms=@sonic_build_infra//platforms:x86_64_trixie
++common --host_platform=@sonic_build_infra//platforms:x86_64_trixie
++test --test_output=errors
++try-import %workspace%/.bazelrc.user
+diff --git a/.bazelversion b/.bazelversion
+new file mode 100644
+index 0000000000000000000000000000000000000000..f9c71a52e2fd865dbf40db779b5bf8157d5c5a6a
+--- /dev/null
++++ b/.bazelversion
+@@ -0,0 +1 @@
++8.5.1
+diff --git a/BUILD.bazel b/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..96694f32702887ce2914cd77390c4f9065643098
+--- /dev/null
++++ b/BUILD.bazel
+@@ -0,0 +1,119 @@
++load("@aspect_bazel_lib//lib:run_binary.bzl", "run_binary")
++load("@rules_pkg//pkg:mappings.bzl", "REMOVE_BASE_DIRECTORY", "pkg_attributes", "pkg_files")
++load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
++load("@rules_python//python:packaging.bzl", "py_wheel")
++load("@sonic_build_infra//python:wheel_layer.bzl", "wheel_layer")
++
++package(default_visibility = ["//visibility:public"])
++
++alias(
++    name = "sonic_syncd",
++    actual = "//src/sonic_syncd",
++)
++
++alias(
++    name = "lldp_syncd",
++    actual = "//src/lldp_syncd",
++)
++
++# Match find_packages('src') without including another owner's runtime files.
++filegroup(
++    name = "wheel_payload",
++    srcs = [
++        "//src/lldp_syncd:wheel_sources",
++        "//src/sonic_syncd:wheel_sources",
++    ],
++)
++
++py_wheel(
++    name = "sonic_dbsyncd_wheel",
++    author = "SONiC Team",
++    author_email = "linuxnetdev@microsoft.com",
++    classifiers = [
++        "Intended Audience :: Developers",
++        "Operating System :: Linux",
++        "Programming Language :: Python :: 3.7",
++    ],
++    distribution = "sonic-d",
++    extra_distinfo_files = {"LICENSE": "licenses/LICENSE"},
++    extra_requires = {"high_perf": []},
++    license = "Apache 2.0",
++    python_tag = "py3",
++    strip_path_prefixes = ["src"],
++    version = "2.0.0",
++    deps = [":wheel_payload"],
++)
++
++# Install only this owner's wheel. The consuming application supplies the
++# source Common binding and sonic-py-common, as the legacy Docker image does.
++wheel_layer(
++    name = "installed_wheel",
++    site_packages = "/usr/local/lib/python3.13/dist-packages",
++    target_compatible_with = [
++        "@platforms//os:linux",
++        "@platforms//cpu:x86_64",
++        "@sonic_build_infra//platforms:trixie",
++    ],
++    visibility = ["//visibility:private"],
++    wheels = [":sonic_dbsyncd_wheel"],
++)
++
++# rules_python marks every ZIP entry executable. Preserve the legacy source
++# file modes in the installed image with upstream extraction/packaging rules.
++run_binary(
++    name = "installed_tree",
++    srcs = [":installed_wheel"],
++    args = [
++        "-xf",
++        "$(location :installed_wheel)",
++        "-C",
++        "$(RULEDIR)/installed_tree",
++    ],
++    env = {"LANG": "C.UTF-8"},
++    out_dirs = ["installed_tree"],
++    tool = "@bsd_tar_toolchains_linux_amd64//:tar",
++    visibility = ["//visibility:private"],
++)
++
++pkg_files(
++    name = "installed_files",
++    srcs = [":installed_tree"],
++    attributes = pkg_attributes(mode = "0644"),
++    renames = {":installed_tree": REMOVE_BASE_DIRECTORY},
++    visibility = ["//visibility:private"],
++)
++
++pkg_tar(
++    name = "sonic_dbsyncd_runtime",
++    srcs = [":installed_files"],
++    mode = "0644",
++    mtime = 0,
++    owner = "0.0",
++    portable_mtime = False,
++    target_compatible_with = [
++        "@platforms//os:linux",
++        "@platforms//cpu:x86_64",
++        "@sonic_build_infra//platforms:trixie",
++    ],
++)
++
++exports_files(["setup.py"])
++
++filegroup(
++    name = "test_sources",
++    testonly = True,
++    srcs = [
++        "LICENSE",
++        "pytest.ini",
++        "setup.cfg",
++        "setup.py",
++        ":wheel_payload",
++    ] + glob(
++        ["tests/**"],
++        exclude = [
++            "tests/bazel/**",
++            "**/__pycache__/**",
++            "**/*.pyc",
++        ],
++    ),
++)
+diff --git a/src/lldp_syncd/BUILD.bazel b/src/lldp_syncd/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..c2983b42ecc785947e0a9f0daa9284f0dde46645
+--- /dev/null
++++ b/src/lldp_syncd/BUILD.bazel
+@@ -0,0 +1,24 @@
++load("@rules_python//python:py_library.bzl", "py_library")
++
++package(default_visibility = ["//visibility:public"])
++
++# The library imports the reusable Common binding from its owner. The module
++# CLI is installed in the wheel; its sonic-py-common options helper is supplied
++# by the SONiC application, not rebuilt or copied into this source package.
++py_library(
++    name = "lldp_syncd",
++    srcs = glob(
++        ["*.py"],
++        exclude = ["__main__.py"],
++    ),
++    imports = [".."],
++    deps = [
++        "//src/sonic_syncd",
++        "@sonic_swss_common//pyext:swsscommon",
++    ],
++)
++
++filegroup(
++    name = "wheel_sources",
++    srcs = glob(["*.py"]),
++)
+diff --git a/src/sonic_syncd/BUILD.bazel b/src/sonic_syncd/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..5189a69dc8dc429082d84a10d5d5356e7f73755d
+--- /dev/null
++++ b/src/sonic_syncd/BUILD.bazel
+@@ -0,0 +1,14 @@
++load("@rules_python//python:py_library.bzl", "py_library")
++
++package(default_visibility = ["//visibility:public"])
++
++py_library(
++    name = "sonic_syncd",
++    srcs = glob(["*.py"]),
++    imports = [".."],
++)
++
++filegroup(
++    name = "wheel_sources",
++    srcs = glob(["*.py"]),
++)
+diff --git a/tests/bazel/.bazelrc b/tests/bazel/.bazelrc
+new file mode 100644
+index 0000000000000000000000000000000000000000..86b3a1aec06a3bd2e95d486082f57b6509b55b1e
+--- /dev/null
++++ b/tests/bazel/.bazelrc
+@@ -0,0 +1,9 @@
++common --registry=https://raw.githubusercontent.com/sonic-net/sonic-bazel-registry/main
++common --registry=https://bcr.bazel.build
++common --lockfile_mode=update
++common --platforms=@sonic_build_infra//platforms:x86_64_trixie
++common --host_platform=@sonic_build_infra//platforms:x86_64_trixie
++common --@sonic_swss_common//tools/bazel:yang_modules=True
++common --noincompatible_disallow_empty_glob
++test --test_output=errors
++try-import %workspace%/.bazelrc.user
+diff --git a/tests/bazel/.bazelversion b/tests/bazel/.bazelversion
+new file mode 100644
+index 0000000000000000000000000000000000000000..f9c71a52e2fd865dbf40db779b5bf8157d5c5a6a
+--- /dev/null
++++ b/tests/bazel/.bazelversion
+@@ -0,0 +1 @@
++8.5.1
+diff --git a/tests/bazel/BUILD.bazel b/tests/bazel/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..acbecd24cae8f620e1968f5e6df72190802ebff5
+--- /dev/null
++++ b/tests/bazel/BUILD.bazel
+@@ -0,0 +1,102 @@
++load("@dbsyncd_tests_pip//:requirements.bzl", "requirement")
++load("@rules_python//python:py_binary.bzl", "py_binary")
++load("@rules_shell//shell:sh_test.bzl", "sh_test")
++
++# The test application, not the reusable package, supplies its SONiC runtime.
++_RUNTIME_DEPS = [
++    "@sonic_dbsyncd//:lldp_syncd",
++    "@sonic_buildimage//src/sonic-py-common:sonic_py_common",
++]
++
++py_binary(
++    name = "unit_runner",
++    testonly = True,
++    srcs = ["unit_runner.py"],
++    data = ["@sonic_dbsyncd//:test_sources"],
++    legacy_create_init = False,
++    python_version = "3.13",
++    deps = _RUNTIME_DEPS + [
++        requirement("mock"),
++        requirement("pytest"),
++        requirement("mockredispy"),
++        requirement("swsssdk"),
++        requirement("redis"),
++    ],
++)
++
++sh_test(
++    name = "unit_tests",
++    size = "large",
++    timeout = "long",
++    srcs = ["@sonic_swss_common//tools/bazel/runtime:run_with_runtime.py"],
++    args = [
++        "$(rootpath @patchelf//:patchelf)",
++        "$(rootpath @sonic_swss_common//tools/bazel/runtime:test_runtime)",
++        "-",
++        "enabled",
++        "$(rootpath :unit_runner)",
++        "$(rootpath @sonic_dbsyncd//:setup.py)",
++    ],
++    data = [
++        ":unit_runner",
++        "@patchelf//:patchelf",
++        "@sonic_dbsyncd//:setup.py",
++        "@sonic_dbsyncd//:test_sources",
++        "@sonic_swss_common//tools/bazel/runtime:test_runtime",
++    ],
++    target_compatible_with = [
++        "@platforms//cpu:x86_64",
++        "@platforms//os:linux",
++    ],
++)
++
++py_binary(
++    name = "installed_wheel_runner",
++    testonly = True,
++    srcs = ["installed_wheel_probe.py"],
++    data = [
++        "native_redis_probe.py",
++        "@sonic_buildimage//src/sonic-py-common:sonic_py_common_wheel",
++        "@sonic_dbsyncd//:sonic_dbsyncd_runtime",
++        "@sonic_dbsyncd//:sonic_dbsyncd_wheel",
++        "@sonic_dbsyncd//:test_sources",
++    ],
++    legacy_create_init = False,
++    main = "installed_wheel_probe.py",
++    python_version = "3.13",
++    deps = _RUNTIME_DEPS + ["@sonic_buildimage//tools/bazel/tests:wheel_test_helpers"],
++)
++
++sh_test(
++    name = "installed_wheel_test",
++    size = "medium",
++    srcs = ["@sonic_swss_common//tools/bazel/runtime:run_with_runtime.py"],
++    args = [
++        "$(rootpath @patchelf//:patchelf)",
++        "$(rootpath @sonic_buildimage//src/sonic-eventd:test_runtime)",
++        "-",
++        "enabled",
++        "$(rootpath :installed_wheel_runner)",
++        "--wheel=$(rootpath @sonic_dbsyncd//:sonic_dbsyncd_wheel)",
++        "--runtime-tar=$(rootpath @sonic_dbsyncd//:sonic_dbsyncd_runtime)",
++        "--setup=$(rootpath @sonic_dbsyncd//:setup.py)",
++        "--common-wheel=$(rootpath @sonic_buildimage//src/sonic-py-common:sonic_py_common_wheel)",
++        "--redis-probe=$(rootpath native_redis_probe.py)",
++    ],
++    data = [
++        "native_redis_probe.py",
++        ":installed_wheel_runner",
++        "@patchelf//:patchelf",
++        "@sonic_buildimage//src/sonic-eventd:test_runtime",
++        "@sonic_buildimage//src/sonic-py-common:sonic_py_common_wheel",
++        "@sonic_dbsyncd//:setup.py",
++        "@sonic_dbsyncd//:sonic_dbsyncd_runtime",
++        "@sonic_dbsyncd//:sonic_dbsyncd_wheel",
++        "@sonic_dbsyncd//:test_sources",
++        "@sonic_swss_common//tools/bazel/runtime:test_runtime",
++    ],
++    target_compatible_with = [
++        "@platforms//cpu:x86_64",
++        "@platforms//os:linux",
++    ],
++)
+diff --git a/tests/bazel/MODULE.bazel b/tests/bazel/MODULE.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..95f0aee706cd03ae332ad2c606ab7823090913de
+--- /dev/null
++++ b/tests/bazel/MODULE.bazel
+@@ -0,0 +1,100 @@
++# Test-only application root. Production images consume the dbsyncd
++# module directly; they do not acquire a dependency back on sonic-buildimage.
++module(name = "sonic_dbsyncd_tests")
++
++bazel_dep(name = "sonic-dbsyncd", version = "2.0.0", repo_name = "sonic_dbsyncd")
++local_path_override(
++    module_name = "sonic-dbsyncd",
++    path = "../..",
++)
++
++bazel_dep(name = "sonic-buildimage", version = "0.0.0", repo_name = "sonic_buildimage")
++git_override(
++    module_name = "sonic-buildimage",
++    commit = "c743d7521e80fc1733e5cc0ffc24889b08f78444",
++    remote = "https://github.com/sonic-net/sonic-buildimage.git",
++)
++
++# Resolve the pinned buildimage fixture against the versions published by sonic-net.
++single_version_override(module_name = "iproute2", version = "6.15.0.sonic.9")
++single_version_override(module_name = "libyang", version = "3.12.2.sonic.9")
++single_version_override(module_name = "libyang-python", version = "3.1.0.sonic.7")
++single_version_override(module_name = "p4c", version = "1.2.4.2.sonic.7")
++single_version_override(module_name = "p4lang-bmv2", version = "1.15.0.sonic.6")
++single_version_override(module_name = "p4lang-pi", version = "0.1.3.sonic.7")
++single_version_override(module_name = "rules_distroless", version = "0.9.4.sonic.26")
++single_version_override(module_name = "rules_foreign_cc", version = "0.16.0.sonic.2")
++single_version_override(module_name = "rules_cc", version = "0.2.20")
++single_version_override(module_name = "socat", version = "1.8.0.2.sonic.8")
++single_version_override(module_name = "sonic-dash", version = "0.0.1-d5c003dd7774c2b43f275c0233acc73a0ea28d2f")
++single_version_override(module_name = "sonic-dash-api", version = "0.0.6-55310bf7437d67411418c974587adcdc1b194d6b")
++single_version_override(module_name = "sonic-fips", version = "1.11.0-2ed0920f2fea7940f4b2b7f5c37e51e225eb1ea6")
++single_version_override(module_name = "sonic-sairedis", version = "0.0.5-6b9b254c0d083f3c75e20c61e88e083a7acf0a67")
++single_version_override(module_name = "sonic-swss-common", version = "0.0.8-2a4ddd070edb719f2e969a880a5cfff711e64e72")
++single_version_override(module_name = "sonic-yang-models", version = "1.0.1-dd732f9512a84966487951250adae8e3e5c9943e")
++single_version_override(module_name = "tar.bzl", version = "0.10.5.sonic.2")
++
++# The pinned image requests SWSS at 0.0.0 and its overrides are not inherited.
++single_version_override(
++    module_name = "sonic-swss",
++    version = "0.0.3-9c3797990d4b5a79100a40fe7689927c18212361",
++)
++
++single_version_override(
++    module_name = "rules_go",
++    version = "0.65.0.sonic.2",
++)
++
++single_version_override(
++    module_name = "libnl3",
++    version = "3.7.0.sonic.10",
++)
++
++single_version_override(
++    module_name = "re2",
++    version = "2024-07-02.bcr.1",
++)
++
++single_version_override(
++    module_name = "sonic-build-infra",
++    version = "0.0.45-77ef625a4ddafc8cdc15f3cc6aee31eabac8a5de",
++)
++
++single_version_override(
++    module_name = "sonic-rust-deps",
++    version = "0.0.5-4064a814e8530300a7acbad4a9aff0621e2fb98e",
++)
++
++bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.26")
++bazel_dep(name = "rules_python", version = "1.9.0.sonic.2")
++bazel_dep(name = "rules_shell", version = "0.8.0")
++bazel_dep(name = "patchelf", version = "0.18.0.bcr.1")
++bazel_dep(name = "platforms", version = "1.1.0")
++bazel_dep(name = "sonic-build-infra", version = "0.0.45-77ef625a4ddafc8cdc15f3cc6aee31eabac8a5de", repo_name = "sonic_build_infra")
++bazel_dep(name = "sonic-swss-common", version = "0.0.8-2a4ddd070edb719f2e969a880a5cfff711e64e72", repo_name = "sonic_swss_common")
++
++# The test image and the shared toolchains must use the same APT package graph.
++apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
++apt.import_lock(lock = "@sonic_build_infra//apt:apt.lock.json")
++
++python = use_extension("@rules_python//python/extensions:python.bzl", "python")
++python.toolchain(
++    is_default = True,
++    python_version = "3.13",
++)
++python.toolchain(python_version = "3.11")
++
++pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
++pip.parse(
++    hub_name = "dbsyncd_tests_pip",
++    python_version = "3.13",
++    requirements_lock = "@sonic_buildimage//src/sonic-config-engine:requirements_lock.txt",
++)
++use_repo(pip, "dbsyncd_tests_pip")
++
++# The image's Rust extension requires a root tag even for Python-only tests.
++# No Rust target participates in this test application.
++bazel_dep(name = "rules_rs", version = "0.1.0")
++
++rust = use_extension("@rules_rs//rs:rules_rust_reexported_extensions.bzl", "rust")
++rust.toolchain(versions = [])
+diff --git a/tests/bazel/audit_actions.py b/tests/bazel/audit_actions.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..6d63ab34c2a0ef7e8baa7b43a237299373f7b70b
+--- /dev/null
++++ b/tests/bazel/audit_actions.py
+@@ -0,0 +1,27 @@
++"""Reject DEB outputs in a declared build or test action graph before execution."""
++
++import json
++from pathlib import Path
++import sys
++
++
++graph = json.loads(Path(sys.argv[1]).read_text())
++fragments = {item["id"]: item for item in graph.get("pathFragments", [])}
++
++
++def artifact_path(fragment_id):
++    parts = []
++    while fragment_id:
++        fragment = fragments[fragment_id]
++        parts.append(fragment["label"])
++        fragment_id = fragment.get("parentId", 0)
++    return "/".join(reversed(parts))
++
++
++artifacts = {item["id"]: artifact_path(item["pathFragmentId"]) for item in graph.get("artifacts", [])}
++outputs = {artifacts[output] for action in graph.get("actions", []) for output in action.get("outputIds", [])}
++assert outputs, "Empty action output inventory"
++for output in outputs:
++    assert not output.endswith((".deb", ".udeb", ".ddeb")), output
++print(json.dumps({"status": "passed", "actions": len(graph.get("actions", [])),
++                  "outputs": len(outputs), "deb_outputs": 0}))
+diff --git a/tests/bazel/check_incremental.py b/tests/bazel/check_incremental.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..291e102a89d58951bd18ba1c81a27477460acbd8
+--- /dev/null
++++ b/tests/bazel/check_incremental.py
+@@ -0,0 +1,64 @@
++"""Verify cached builds and reversible owner-source invalidation."""
++
++import argparse
++import hashlib
++import json
++from pathlib import Path
++import subprocess
++import time
++
++
++def main():
++    parser = argparse.ArgumentParser()
++    parser.add_argument("--bazel", default="bazel")
++    parser.add_argument("--output", type=Path, required=True)
++    args = parser.parse_args()
++    root = Path.cwd()
++    source = root / "src/lldp_syncd/conventions.py"
++    original = source.read_bytes()
++    edited = original + b"\n# Bazel incremental owner-source probe.\n"
++    targets = ["//:sonic_dbsyncd_wheel", "//:sonic_dbsyncd_runtime"]
++    output = args.output.resolve()
++    output.parent.mkdir(parents=True, exist_ok=True)
++    results = {}
++    paths = None
++
++    def build(name):
++        nonlocal paths
++        begin = time.monotonic()
++        with output.with_name("incremental-" + name + ".log").open("w") as log:
++            subprocess.run([args.bazel, "build", "--jobs=2", "--local_resources=cpu=2", *targets],
++                           check=True, stdout=log, stderr=subprocess.STDOUT)
++        elapsed = time.monotonic() - begin
++        if paths is None:
++            paths = {}
++            for target in targets:
++                files = subprocess.check_output([args.bazel, "cquery", target, "--output=files"],
++                                                text=True).splitlines()
++                assert len(files) == 1, (target, files)
++                paths[target] = root / files[0]
++        result = {"seconds": elapsed, "sha256": {
++            target: hashlib.sha256(path.read_bytes()).hexdigest() for target, path in paths.items()}}
++        results[name] = result
++        return result["sha256"]
++
++    try:
++        baseline = build("baseline")
++        assert build("noop") == baseline, "Unchanged source changed output bytes"
++        assert source.read_bytes() == original, "Owner source changed concurrently"
++        source.write_bytes(edited)
++        changed = build("edit")
++        assert all(changed[target] != baseline[target] for target in targets), results
++    finally:
++        current = source.read_bytes()
++        assert current in (original, edited), "Refusing to overwrite a concurrent source edit"
++        source.write_bytes(original)
++    assert build("restore") == baseline, "Restoring owner source did not restore output bytes"
++    output.write_text(json.dumps({
++        "status": "passed", "source": str(source.relative_to(root)), "builds": results,
++        "scope": "Warm baseline/no-op/source-edit/restore; not a cache-free rebuild",
++    }, indent=2) + "\n")
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/tests/bazel/collect_evidence.py b/tests/bazel/collect_evidence.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..33aba6a325e0a9da79d7cca673f360505bff6237
+--- /dev/null
++++ b/tests/bazel/collect_evidence.py
+@@ -0,0 +1,95 @@
++"""Retain successful source and installation evidence bound to the exact wheel."""
++
++import hashlib
++import json
++import os
++from pathlib import Path
++import platform
++import shutil
++import subprocess
++import zipfile
++
++def main():
++    root = Path(__file__).resolve().parents[2]
++    bazel = os.environ.get("BAZEL_BINARY", "bazel")
++    out = root / "bazel-evidence"
++    out.mkdir(exist_ok=True)
++    wheel = root / "bazel-bin/sonic_d-2.0.0-py3-none-any.whl"
++    assert wheel.is_file(), wheel
++    layer_files = subprocess.check_output([bazel, "cquery", "//:sonic_dbsyncd_runtime", "--output=files"], cwd=root, text=True).splitlines()
++    assert len(layer_files) == 1, layer_files
++    layer = root / layer_files[0]
++    assert layer.is_file(), layer
++    shutil.copy2(layer, out / layer.name)
++    layer_sha = hashlib.sha256(layer.read_bytes()).hexdigest()
++    sha = hashlib.sha256(wheel.read_bytes()).hexdigest()
++    shutil.copy2(wheel, out / wheel.name)
++    for name, expected in (("unit_tests", "source-tests.json"), ("installed_wheel_test", "wheels.json")):
++        logs = root / "tests/bazel/bazel-testlogs" / name
++        assert (logs / "test.xml").is_file(), logs
++        shutil.copytree(logs, out / name, dirs_exist_ok=True)
++        outputs = logs / "test.outputs"
++        if (outputs / expected).is_file():
++            receipt = json.loads((outputs / expected).read_text())
++        else:
++            with zipfile.ZipFile(outputs / "outputs.zip") as archive:
++                receipt = json.loads(archive.read(expected))
++        assert receipt["status"] == "passed", (name, receipt)
++        assert receipt["architecture"] == "x86_64", receipt
++        assert receipt["python"].startswith("3.13."), receipt
++        if name == "unit_tests":
++            assert receipt["tests"] > receipt["skipped"] and receipt["failures"] == receipt["errors"] == 0, receipt
++        else:
++            tested = next(w for w in receipt["wheels"] if w["filename"] == wheel.name)
++            assert tested["sha256"] == sha, (tested, sha)
++            assert receipt["runtime_tar_sha256"] == layer_sha, (receipt, layer_sha)
++        (out / expected).write_text(json.dumps(receipt, indent=2) + "\n")
++    for directory, name in ((root, "wheel-module-graph.txt"), (root / "tests/bazel", "tests-module-graph.txt")):
++        command = [bazel]
++        if directory != root and os.environ.get("BAZEL_TEST_OUTPUT_BASE"):
++            command.append("--output_base=" + os.environ["BAZEL_TEST_OUTPUT_BASE"])
++        graph = subprocess.check_output(command + ["mod", "graph"], cwd=directory, text=True)
++        (out / name).write_text(graph)
++    for relative, destination in (("MODULE.bazel.lock", "wheel-MODULE.bazel.lock"),
++                                  ("tests/bazel/MODULE.bazel.lock", "tests-MODULE.bazel.lock")):
++        source = root / relative
++        assert source.is_file(), source
++        shutil.copy2(source, out / destination)
++    revision = subprocess.check_output(["git", "-c", "safe.directory=" + str(root), "rev-parse", "HEAD"], cwd=root, text=True).strip()
++    # Read raw headers: `git show %P` hides parents in a shallow CI checkout.
++    commit = subprocess.check_output(["git", "-c", "safe.directory=" + str(root), "cat-file", "-p", "HEAD"], cwd=root, text=True)
++    parents = [line.removeprefix("parent ") for line in commit.split("\n\n", 1)[0].splitlines()
++               if line.startswith("parent ")]
++    head = os.environ.get("CI_HEAD_SHA", "")
++    base = os.environ.get("CI_BASE_SHA", "")
++    if head:
++        assert head == revision or head in parents, (head, revision, parents)
++        if base and head != revision:
++            assert base in parents, (base, revision, parents)
++    (out / "provenance.json").write_text(json.dumps({
++        "tested_revision": revision,
++        "tested_revision_parents": parents,
++        "pull_request_head": os.environ.get("CI_HEAD_SHA", ""),
++        "pull_request_base": base,
++        "registry_url": "https://raw.githubusercontent.com/sonic-net/sonic-bazel-registry/main",
++        "architecture": platform.machine(),
++        "os_release": Path("/etc/os-release").read_text(),
++        "wheel": wheel.name,
++        "sha256": sha,
++        "runtime_tar": {"filename": layer.name, "sha256": layer_sha},
++        "buildimage_test_dependency": "c743d7521e80fc1733e5cc0ffc24889b08f78444",
++        "outputs": "Python wheel and installed runtime TAR; no Debian package generation",
++        "scope": "Native AMD64/Trixie with Python 3.13; existing owner mocks retained",
++    }, indent=2) + "\n")
++
++
++if __name__ == "__main__":
++    try:
++        main()
++    except Exception as error:
++        output = Path(__file__).resolve().parents[2] / "bazel-evidence"
++        output.mkdir(exist_ok=True)
++        (output / "collection-failure.json").write_text(json.dumps({
++            "status": "failed", "error": str(error),
++        }, indent=2) + "\n")
++        raise
+diff --git a/tests/bazel/installed_wheel_probe.py b/tests/bazel/installed_wheel_probe.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..8da92509244ad0afe49c39d2899140710b43fb82
+--- /dev/null
++++ b/tests/bazel/installed_wheel_probe.py
+@@ -0,0 +1,135 @@
++"""Validate the owner wheel away from its checkout and original test mocks."""
++
++import argparse
++from email.parser import BytesParser
++import hashlib
++import json
++from pathlib import Path
++import subprocess
++import tarfile
++import unittest
++import zipfile
++
++from tools.bazel.tests.integration.installed_wheel_fixture import installed_wheels, write_wheel_receipt
++from tools.bazel.tests.integration.wheel_contract import setup_contract
++
++
++parser = argparse.ArgumentParser()
++for name in ("wheel", "runtime-tar", "setup", "common-wheel", "redis-probe"):
++    parser.add_argument("--" + name, type=Path, required=True)
++INPUTS, REST = parser.parse_known_args()
++DETAILS = {}
++
++
++class InstalledWheelTest(unittest.TestCase):
++    @classmethod
++    def setUpClass(cls):
++        cls.wheels = [INPUTS.common_wheel.absolute(), INPUTS.wheel.absolute()]
++        cls.setup = INPUTS.setup.absolute()
++        import sonic_py_common
++        cls.installed = cls.enterClassContext(installed_wheels(
++            cls.wheels, exclude_source_roots=[cls.setup.parent,
++                Path(sonic_py_common.__file__).absolute().parent.parent]))
++        cls.contract = setup_contract(cls.setup)
++
++    def test_complete_owner_payload_and_metadata(self):
++        root = self.setup.parent / "src"
++        expected = {str(path.relative_to(root)): path
++                    for name in self.contract["packages"]
++                    for path in (root / name.replace(".", "/")).glob("*.py")}
++        self.assertEqual(set(self.contract["packages"]), {"lldp_syncd", "sonic_syncd"})
++        with zipfile.ZipFile(INPUTS.wheel) as archive:
++            actual = {name for name in archive.namelist() if name.endswith(".py")}
++            self.assertEqual(actual, set(expected))
++            for name, path in expected.items():
++                self.assertEqual(archive.read(name), path.read_bytes(), name)
++                self.assertEqual((self.installed.site / name).read_bytes(), path.read_bytes(), name)
++            metadata_names = [name for name in archive.namelist() if name.endswith(".dist-info/METADATA")]
++            self.assertEqual(len(metadata_names), 1)
++            metadata = BytesParser().parsebytes(archive.read(metadata_names[0]))
++            for key, setup_key in (("Name", "name"), ("Version", "version"), ("License", "license"),
++                                   ("Author", "author"), ("Author-email", "author_email")):
++                self.assertEqual(metadata[key], self.contract[setup_key], key)
++            self.assertEqual(metadata.get_all("Requires-Dist", []), self.contract["install_requires"])
++            self.assertEqual(set(metadata.get_all("Classifier", [])), set(self.contract["classifiers"]))
++            self.assertEqual(set(metadata.get_all("Provides-Extra", [])), set(self.contract["extras_require"]))
++            license_names = [name for name in archive.namelist() if name.endswith("/licenses/LICENSE")]
++            self.assertEqual(len(license_names), 1)
++            self.assertEqual(archive.read(license_names[0]), (self.setup.parent / "LICENSE").read_bytes())
++            # rules_python's public py_wheel has no Maintainer attributes.
++            # Keep the legacy setup.py intact and report this metadata gap.
++            for key in ("Maintainer", "Maintainer-email"):
++                self.assertIsNone(metadata[key])
++        DETAILS["owner_python_files"] = len(expected)
++        DETAILS["metadata_difference"] = {
++            "Maintainer": self.contract["maintainer"],
++            "Maintainer-email": self.contract["maintainer_email"],
++            "reason": "Not supported by rules_python py_wheel; legacy setup.py retains these fields",
++        }
++        DETAILS["dependency_boundary"] = "Exact owner and sonic-py-common wheels installed; declared external/native dependencies borrowed from runfiles"
++
++    def test_runtime_tar_installs_the_same_owner_wheel(self):
++        prefix = "usr/local/lib/python3.13/dist-packages/"
++        with zipfile.ZipFile(INPUTS.wheel) as wheel, tarfile.open(INPUTS.runtime_tar) as layer:
++            members = {str(Path(member.name)): member for member in layer.getmembers() if member.isfile()}
++            own_modules = {name for name in members if name.endswith(".py")}
++            expected_modules = {prefix + name for name in wheel.namelist() if name.endswith(".py")}
++            self.assertEqual(own_modules, expected_modules)
++            for name in wheel.namelist():
++                if name.endswith("/") or name.endswith(".dist-info/RECORD"):
++                    continue
++                member = members[prefix + name]
++                self.assertEqual((member.uid, member.gid, member.mode, member.mtime),
++                                 (0, 0, 0o644, 0), name)
++                self.assertEqual(layer.extractfile(member).read(), wheel.read(name), name)
++            for member in layer.getmembers():
++                if member.isdir():
++                    self.assertEqual((member.uid, member.gid, member.mode, member.mtime),
++                                     (0, 0, 0o755, 0), member.name)
++        DETAILS["runtime_tar_wheel_bytes_match"] = True
++        DETAILS["runtime_tar_file_mode"] = "0644 (legacy source mode; upstream wheel ZIP entries use 0777)"
++        DETAILS["runtime_tar_sha256"] = hashlib.sha256(INPUTS.runtime_tar.read_bytes()).hexdigest()
++
++    def test_installed_imports_and_module_entry_dispatch(self):
++        # This is an entrypoint dispatch check. The separate native Redis probe
++        # covers writes; Docker LLDP integration covers the real lldpctl process.
++        probe = r'''
++import importlib, importlib.metadata, json, pathlib, runpy, sys
++from unittest.mock import patch
++site = pathlib.Path(sys.argv[1]).resolve()
++modules = ('lldp_syncd', 'lldp_syncd.daemon', 'lldp_syncd.main', 'lldp_syncd.conventions',
++           'sonic_syncd', 'sonic_syncd.interface', 'sonic_py_common.util')
++for name in modules:
++    module = importlib.import_module(name)
++    assert pathlib.Path(module.__file__).resolve().is_relative_to(site), (name, module.__file__)
++distribution = importlib.metadata.distribution('sonic-d')
++assert distribution.version == '2.0.0'
++assert pathlib.Path(distribution.locate_file('')).resolve() == site
++sys.argv = ['lldp_syncd', '-d', '10']
++with patch('lldp_syncd.main.main') as main:
++    runpy.run_module('lldp_syncd', run_name='__main__')
++    main.assert_called_once_with(update_frequency=None)
++print(json.dumps({'installed_modules': list(modules), 'module_entry_dispatch': True,
++                  'daemon_loop_mocked_only_for_entry_dispatch': True}))
++'''
++        result = subprocess.run([str(self.installed.python), "-I", "-c", probe, str(self.installed.site)],
++                                cwd=self.installed.root, env=self.installed.env,
++                                capture_output=True, text=True, timeout=60)
++        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
++        DETAILS.update(json.loads(result.stdout))
++
++    def test_native_redis_sync_without_owner_source_or_original_mocks(self):
++        result = subprocess.run([
++            str(self.installed.python), "-I", str(INPUTS.redis_probe.absolute()),
++            str(self.installed.site), str(self.setup.parent / "tests/subproc_outputs/lldpctl.json"),
++        ], cwd=self.installed.root, env=self.installed.env, capture_output=True, text=True, timeout=60)
++        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
++        DETAILS.update(json.loads(result.stdout))
++
++
++if __name__ == "__main__":
++    result = unittest.main(argv=[__file__, *REST], exit=False).result
++    write_wheel_receipt(getattr(InstalledWheelTest, "wheels", None), required=True,
++                        status="passed" if result.wasSuccessful() else "failed",
++                        details=dict(DETAILS, tests_run=result.testsRun))
++    raise SystemExit(not result.wasSuccessful())
+diff --git a/tests/bazel/native_redis_probe.py b/tests/bazel/native_redis_probe.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..30e2ebb9bda2e37bd735c41fa3a5ddd009f8c643
+--- /dev/null
++++ b/tests/bazel/native_redis_probe.py
+@@ -0,0 +1,96 @@
++"""Exercise installed DBSyncd with its native Common binding and private Redis."""
++
++import copy
++import hashlib
++import json
++import os
++from pathlib import Path
++import re
++import subprocess
++import sys
++import tempfile
++import time
++
++import redis
++from swsscommon import swsscommon
++import lldp_syncd
++from lldp_syncd.daemon import LldpSyncDaemon, SONIC_ETHERNET_RE_PATTERN
++
++
++def main():
++    site, fixture = map(Path, sys.argv[1:3])
++    assert Path(lldp_syncd.__file__).resolve().is_relative_to(site.resolve())
++    runtime = Path(os.environ["SWSS_RUNTIME_ROOT"]).resolve()
++    executable = runtime / "usr/bin/redis-server"
++    assert executable.is_file() and executable.resolve().is_relative_to(runtime)
++    # Keep the socket path within Linux's sockaddr_un limit even under long Bazel paths.
++    with tempfile.TemporaryDirectory(prefix="dbsyncd-", dir="/tmp") as temporary:
++        work = Path(temporary)
++        redis_socket = str(work / "redis.sock")
++        config = work / "database_config.json"
++        config.write_text(json.dumps({
++            "INSTANCES": {"redis": {"hostname": "127.0.0.1", "port": 0,
++                                    "unix_socket_path": redis_socket}},
++            "DATABASES": {"APPL_DB": {"id": 0, "separator": ":", "instance": "redis"}},
++            "VERSION": "1.0",
++        }))
++        with (work / "redis.log").open("w+") as log:
++            process = subprocess.Popen([str(executable), "--port", "0", "--unixsocket", redis_socket,
++                                        "--save", "", "--appendonly", "no", "--dir", str(work)],
++                                       stdout=log, stderr=subprocess.STDOUT)
++            try:
++                client = redis.Redis(unix_socket_path=redis_socket, db=0, decode_responses=True,
++                                     socket_timeout=1, socket_connect_timeout=1)
++                deadline = time.monotonic() + 15
++                while True:
++                    assert process.poll() is None, "private Redis exited"
++                    try:
++                        if client.ping():
++                            break
++                    except redis.ConnectionError:
++                        # A new private Redis process may not listen yet; retry
++                        # until it answers or the bounded startup deadline expires.
++                        pass
++                    assert time.monotonic() < deadline, "private Redis did not become ready"
++                    time.sleep(0.05)
++                assert client.dbsize() == 0
++                assert client.info("server")["process_id"] == process.pid, "Redis endpoint belongs to another process"
++                swsscommon.SonicDBConfig.load_sonic_db_config(str(config))
++                daemon = LldpSyncDaemon()
++                assert isinstance(daemon.db_connector, swsscommon.SonicV2Connector)
++                parsed = daemon.parse_update(json.loads(fixture.read_text()))
++                expected = copy.deepcopy(parsed)
++                chassis = expected.pop("local-chassis")
++                expected = {key: value for key, value in expected.items()
++                            if re.match(SONIC_ETHERNET_RE_PATTERN, key)}
++                assert expected and chassis
++                daemon.sync(parsed)
++                for name, fields in expected.items():
++                    assert client.hgetall("LLDP_ENTRY_TABLE:" + name) == {k: str(v) for k, v in fields.items()}
++                assert client.hgetall("LLDP_LOC_CHASSIS") == {k: str(v) for k, v in chassis.items()}
++                name = next(iter(expected))
++                changed = copy.deepcopy(expected)
++                changed[name]["lldp_rem_port_desc"] = "installed native binding update"
++                changed["local-chassis"] = chassis
++                daemon.sync(changed)
++                assert client.hget("LLDP_ENTRY_TABLE:" + name, "lldp_rem_port_desc") == "installed native binding update"
++                daemon.sync({"local-chassis": chassis})
++                assert client.keys("LLDP_ENTRY_TABLE:*") == []
++                assert client.hgetall("LLDP_LOC_CHASSIS") == {k: str(v) for k, v in chassis.items()}
++                print(json.dumps({"native_binding": True, "private_redis": True,
++                                  "redis_sha256": hashlib.sha256(executable.read_bytes()).hexdigest(),
++                                  "initial_neighbors": len(expected), "neighbor_update": True,
++                                  "neighbor_delete": True, "local_chassis_preserved": True,
++                                  "lldpctl_input": "declared original JSON fixture; daemon process is tested by Docker integration"}))
++            finally:
++                if process.poll() is None:
++                    process.terminate()
++                    try:
++                        process.wait(timeout=5)
++                    except subprocess.TimeoutExpired:
++                        process.kill()
++                        process.wait()
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/tests/bazel/unit_runner.py b/tests/bazel/unit_runner.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..70d6fe9ff7423b035c457a106fb003e5c72d786e
+--- /dev/null
++++ b/tests/bazel/unit_runner.py
+@@ -0,0 +1,59 @@
++"""Run the complete owner suite with its original mocks and declared inputs."""
++
++import json
++import os
++from pathlib import Path
++import platform
++import shutil
++import sys
++import tempfile
++import xml.etree.ElementTree as ET
++
++import pytest
++
++
++def main():
++    source = Path(sys.argv[1]).absolute().parent
++    output = Path(os.environ["TEST_UNDECLARED_OUTPUTS_DIR"])
++    output.mkdir(parents=True, exist_ok=True)
++    # The original tests create files next to fixtures. Copy only declared owner
++    # inputs so neither a writable checkout nor generated host files are needed.
++    with tempfile.TemporaryDirectory(dir=os.environ["TEST_TMPDIR"]) as temporary:
++        work = Path(temporary)
++        for child in source.iterdir():
++            if child.name in ("src", "tests"):
++                shutil.copytree(child, work / child.name)
++        for name in ("pytest.ini", "setup.cfg"):
++            shutil.copyfile(source / name, work / name)
++        os.chdir(work)
++        sys.path.insert(0, str(work))
++        report = output / "pytest.xml"
++        status = pytest.main([
++            "-o", "addopts=", "-v", "--junitxml=" + str(report), "tests",
++        ])
++        summary = {}
++        if report.exists():
++            root = ET.parse(report).getroot()
++            cases = root.findall(".//testcase")
++            summary = {
++                "tests": len(cases),
++                "failures": len(root.findall(".//failure")),
++                "errors": len(root.findall(".//error")),
++                "skipped": len(root.findall(".//skipped")),
++                "inventory": [case.attrib for case in cases],
++            }
++        (output / "source-tests.json").write_text(json.dumps({
++            "status": "passed" if status == 0 else "failed",
++            "architecture": platform.machine(),
++            "python": platform.python_version(),
++            "source": str(source),
++            "selection": ["tests"],
++            **summary,
++        }, indent=2) + "\n")
++        if not summary.get("tests"):
++            raise RuntimeError("The original suite produced no test inventory")
++        return int(status)
++
++
++if __name__ == "__main__":
++    raise SystemExit(main())

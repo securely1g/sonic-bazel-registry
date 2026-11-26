@@ -1,0 +1,48 @@
+{
+  "architectures": [
+    "amd64"
+  ],
+  "consumer_deps": [
+    {
+      "name": "sonic-build-infra",
+      "version": "0.0.45-77ef625a4ddafc8cdc15f3cc6aee31eabac8a5de",
+      "repo_name": "sonic_build_infra"
+    },
+    {
+      "name": "rules_rs",
+      "version": "0.1.0"
+    },
+    {
+      "name": "libnl3",
+      "version": "3.7.0.sonic.10"
+    },
+    {
+      "name": "libyang",
+      "version": "3.12.2.sonic.10"
+    }
+  ],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
+  },
+  "host_platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
+  },
+  "rust_toolchain": {
+    "version": "1.95.0",
+    "bindgen": true
+  },
+  "build_targets": [
+    "@sonic-host-services//:sonic-host-services.runtime",
+    "@sonic-host-services//:sonic-host-services.runtime_metadata",
+    "@sonic-host-services//:sonic-host-services-data.runtime",
+    "@sonic-host-services//:sonic-host-services-data.runtime_metadata",
+    "@sonic-host-services//:sonic-host-services-rs.runtime",
+    "@sonic-host-services//:sonic-host-services-rs.runtime.debug_symbols",
+    "@sonic-host-services//:sonic-host-services-rs.runtime_metadata"
+  ],
+  "test_targets": [
+    "@sonic-host-services//:installation_test",
+    "@sonic-host-services//crates/procdockerstatsd-rs:locked_ffi_test"
+  ],
+  "generated_module_overlay": true
+}
