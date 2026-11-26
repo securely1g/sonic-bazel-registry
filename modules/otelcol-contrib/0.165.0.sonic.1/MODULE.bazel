@@ -18,6 +18,7 @@ go_sdk.download(version = "1.27.3")
 # Separate standard Gazelle extension usages keep the release's runtime locks
 # independent of OCB and Gazelle's own tool dependencies.
 collector_deps = use_extension("//bazel:collector_deps.bzl", "go_deps")
+collector_deps.zip_lock(file = "//bazel:collector-go-zip-lock.json")
 collector_deps.from_file(go_mod = "//distributions/otelcol-contrib:go.mod")
 
 # Consumers set the public extension's Gazelle policy at the root, as required
@@ -291,10 +292,12 @@ use_repo(
 )
 
 ocb_deps = use_extension("//bazel:ocb_deps.bzl", "go_deps")
+ocb_deps.zip_lock(file = "//bazel:ocb-go-zip-lock.json")
 ocb_deps.from_file(go_mod = "//bazel/tools:go.mod")
 use_repo(ocb_deps, "io_opentelemetry_go_collector_cmd_builder")
 
 # Original upstream golden-test tooling uses its own canonical dependency lock.
 golden_deps = use_extension("//bazel:golden_deps.bzl", "go_deps")
+golden_deps.zip_lock(file = "//bazel:golden-go-zip-lock.json")
 golden_deps.from_file(go_mod = "//bazel/golden:go.mod")
 use_repo(golden_deps, "com_github_open_telemetry_opentelemetry_collector_contrib_cmd_golden")
