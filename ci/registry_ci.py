@@ -683,9 +683,12 @@ def check_version_policy(root: Path, published: str, head: str,
     return published_entries, aligned_entries
 
 
-def module_runner(module: str, execution_architecture: str, p4_runner_profile: str) -> list[str]:
+def module_runner(module: str, execution_architecture: str, p4_runner_profile: str,
+                  target_architecture: str | None = None) -> list[str]:
     """Choose capacity after the target's native/cross route has been determined."""
-    if p4_runner_profile == "large" and execution_architecture == "amd64" and module in P4_MODULES:
+    large_p4 = p4_runner_profile == "large" and module in P4_MODULES
+    sairedis_cross = module == "sonic-sairedis" and target_architecture == "arm64"
+    if execution_architecture == "amd64" and (large_p4 or sairedis_cross):
         return ["self-hosted", "Linux", "X64", "debian-trixie-container-large"]
     return RUNNERS[execution_architecture]
 
@@ -824,7 +827,7 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
         for architecture in config["architectures"]:
             include.append({"module": module, "version": version, "architecture": architecture,
                             "execution_architecture": "amd64", "cross_compile": architecture == "arm64",
-                            "runner": module_runner(module, "amd64", p4_runner_profile)})
+                            "runner": module_runner(module, "amd64", p4_runner_profile, architecture)})
     return {"include": include}
 
 

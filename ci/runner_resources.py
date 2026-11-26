@@ -118,10 +118,12 @@ def run(output: Path, command: list[str], module: str | None = None,
     arguments = [f"--bazel-build-arg=--local_resources=memory={budget}"]
     receipt = {**limits, "action_memory_mb": budget, "jvm_heap_mb": 2048,
                "memory_before": memory_usage(cgroup)}
-    # The largest P4C and orchagent compilations exceed Bazel's memory estimates.
+    # The largest P4C, orchagent and cross-compiled SAI Redis sources exceed Bazel's memory estimates.
     jobs = {"p4c": 3, "sonic-dash": 3}.get(module)
     if module == "sonic-swss":
         jobs = 1 if architecture == "arm64" else 2
+    if module == "sonic-sairedis" and architecture == "arm64":
+        jobs = 1
     if jobs is not None:
         arguments.append(f"--bazel-build-arg=--jobs={jobs}")
         receipt["bazel_jobs"] = jobs
