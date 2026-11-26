@@ -1,0 +1,2211 @@
+diff --git a/.bazelignore b/.bazelignore
+new file mode 100644
+index 0000000000000000000000000000000000000000..9a18778673eb4f2aed2be81fc198cee830b798d7
+--- /dev/null
++++ b/.bazelignore
+@@ -0,0 +1 @@
++tests/bazel
+diff --git a/.bazelrc b/.bazelrc
+new file mode 100644
+index 0000000000000000000000000000000000000000..597384a076324d586671fc05052fac11c3d0c20e
+--- /dev/null
++++ b/.bazelrc
+@@ -0,0 +1,5 @@
++common --registry=https://raw.githubusercontent.com/sonic-net/sonic-bazel-registry/main
++common --registry=https://bcr.bazel.build
++common --lockfile_mode=update
++test --test_output=errors
++try-import %workspace%/.bazelrc.user
+diff --git a/.bazelversion b/.bazelversion
+new file mode 100644
+index 0000000000000000000000000000000000000000..f9c71a52e2fd865dbf40db779b5bf8157d5c5a6a
+--- /dev/null
++++ b/.bazelversion
+@@ -0,0 +1 @@
++8.5.1
+diff --git a/BUILD.bazel b/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..b1adc7c6c6f2e00ac714f00af14e5bcc6e6975d4
+--- /dev/null
++++ b/BUILD.bazel
+@@ -0,0 +1,88 @@
++load("@rules_python//python:packaging.bzl", "py_wheel")
++load("@rules_python//python:py_library.bzl", "py_library")
++load("@snmpagent_pip//:requirements.bzl", "requirement")
++load("@tar.bzl//tar:tar.bzl", "tar")
++
++package(default_visibility = ["//visibility:public"])
++
++_SOURCES = glob(["src/**/*.py"])
++
++_PACKAGE_DATA = glob(
++    [
++        "src/sonic_ax_impl/config/*.json",
++        "src/sonic_ax_impl/bin/*",
++        "src/sonic_ax_impl/systemd/*.service",
++    ],
++    # Preserve setup.py's optional package-data patterns; this revision has
++    # only the bin payload, without fabricating absent config/service files.
++    allow_empty = True,
++)
++
++_PAYLOAD = _SOURCES + [path for path in _PACKAGE_DATA if path not in _SOURCES]
++
++# Applications supply the existing Common binding and sonic-py-common owner
++# interfaces. The separate test application declares their real native runtime.
++py_library(
++    name = "sonic_snmpagent",
++    srcs = _SOURCES,
++    data = _PACKAGE_DATA,
++    imports = ["src"],
++    deps = [
++        requirement("natsort"),
++        requirement("psutil"),
++        requirement("python-arptable"),
++    ],
++)
++
++filegroup(
++    name = "wheel_payload",
++    srcs = _PAYLOAD,
++)
++
++py_wheel(
++    name = "sonic_snmpagent_wheel",
++    author = "SONiC Team",
++    author_email = "linuxnetdev@microsoft.com",
++    distribution = "asyncsnmp",
++    extra_distinfo_files = {"LICENSE": "licenses/LICENSE"},
++    extra_requires = {"high_perf": []},
++    license = "Apache 2.0",
++    python_tag = "py3",
++    requires = [
++        "psutil>=4.0",
++        "python_arptable>=0.0.1",
++    ],
++    strip_path_prefixes = ["src"],
++    version = "2.1.0",
++    deps = [":wheel_payload"],
++)
++
++# The complete effect of `python3 -m sonic_ax_impl install`, expressed directly
++# as an upstream TAR rule instead of running an installer against a host root.
++tar(
++    name = "snmp_install",
++    srcs = ["src/sonic_ax_impl/bin/sysDescr_pass.py"],
++    mtree = [
++        "usr/share/snmp/sysDescr_pass.py uid=0 gid=0 mode=0755 time=0 type=file content=$(location src/sonic_ax_impl/bin/sysDescr_pass.py)",
++    ],
++)
++
++exports_files(["setup.py"])
++
++filegroup(
++    name = "test_sources",
++    testonly = True,
++    srcs = _PAYLOAD + glob(
++        ["tests/**"],
++        exclude = [
++            "tests/bazel/**",
++            "**/__pycache__/**",
++            "**/*.pyc",
++        ],
++    ) + [
++        "LICENSE",
++        "pytest.ini",
++        "setup.cfg",
++        "setup.py",
++    ],
++)
+diff --git a/pytest.ini b/pytest.ini
+index 08220d0799e33f2cca13502414044e541cf75a63..3cc9b80bfee156619c9275cceda075134839932a 100644
+--- a/pytest.ini
++++ b/pytest.ini
+@@ -1,2 +1,2 @@
+ [pytest]
+-addopts = --cov=src --cov-report html --cov-report term --cov-report xml --junitxml=test-results.xml -vv
++addopts = --cov=src --cov-report html --cov-report term --cov-report xml --junitxml=test-results.xml -vv --ignore=tests/bazel
+diff --git a/requirements.in b/requirements.in
+new file mode 100644
+index 0000000000000000000000000000000000000000..f2c96c21613ffe5981e158407c4b03b23f4c1541
+--- /dev/null
++++ b/requirements.in
+@@ -0,0 +1,4 @@
++# External Python runtime; SONiC owner interfaces are supplied by applications.
++psutil==7.0.0
++python-arptable==0.0.2
++natsort==8.4.0
+diff --git a/requirements_lock.txt b/requirements_lock.txt
+new file mode 100644
+index 0000000000000000000000000000000000000000..c7ee3c3867b18ab4b71486ae2e1ae04931da89b9
+--- /dev/null
++++ b/requirements_lock.txt
+@@ -0,0 +1,16 @@
++natsort==8.4.0 \
++    --hash=sha256:45312c4a0e5507593da193dedd04abb1469253b601ecaf63445ad80f0a1ea581 \
++    --hash=sha256:4732914fb471f56b5cce04d7bae6f164a592c7712e1c85f9ef585e197299521c
++psutil==7.0.0 \
++    --hash=sha256:101d71dc322e3cffd7cea0650b09b3d08b8e7c4109dd6809fe452dfd00e58b25 \
++    --hash=sha256:1e744154a6580bc968a0195fd25e80432d3afec619daf145b9e5ba16cc1d688e \
++    --hash=sha256:1fcee592b4c6f146991ca55919ea3d1f8926497a713ed7faaf8225e174581e91 \
++    --hash=sha256:39db632f6bb862eeccf56660871433e111b6ea58f2caea825571951d4b6aa3da \
++    --hash=sha256:4b1388a4f6875d7e2aff5c4ca1cc16c545ed41dd8bb596cefea80111db353a34 \
++    --hash=sha256:4cf3d4eb1aa9b348dec30105c55cd9b7d4629285735a102beb4441e38db90553 \
++    --hash=sha256:7be9c3eba38beccb6495ea33afd982a44074b78f28c434a1f51cc07fd315c456 \
++    --hash=sha256:84df4eb63e16849689f76b1ffcb36db7b8de703d1bc1fe41773db487621b6c17 \
++    --hash=sha256:a5f098451abc2828f7dc6b58d44b532b22f2088f4999a937557b603ce72b1993 \
++    --hash=sha256:ba3fcef7523064a6c9da440fc4d6bd07da93ac726b5733c29027d7dc95b39d99
++python-arptable==0.0.2 \
++    --hash=sha256:5304cb119e8cce031229f3fc195ad5d9dd669c356891b5598b0e8d27bbce5bfe
+diff --git a/tests/bazel/.bazelrc b/tests/bazel/.bazelrc
+new file mode 100644
+index 0000000000000000000000000000000000000000..86b3a1aec06a3bd2e95d486082f57b6509b55b1e
+--- /dev/null
++++ b/tests/bazel/.bazelrc
+@@ -0,0 +1,9 @@
++common --registry=https://raw.githubusercontent.com/sonic-net/sonic-bazel-registry/main
++common --registry=https://bcr.bazel.build
++common --lockfile_mode=update
++common --platforms=@sonic_build_infra//platforms:x86_64_trixie
++common --host_platform=@sonic_build_infra//platforms:x86_64_trixie
++common --@sonic_swss_common//tools/bazel:yang_modules=True
++common --noincompatible_disallow_empty_glob
++test --test_output=errors
++try-import %workspace%/.bazelrc.user
+diff --git a/tests/bazel/.bazelversion b/tests/bazel/.bazelversion
+new file mode 100644
+index 0000000000000000000000000000000000000000..f9c71a52e2fd865dbf40db779b5bf8157d5c5a6a
+--- /dev/null
++++ b/tests/bazel/.bazelversion
+@@ -0,0 +1 @@
++8.5.1
+diff --git a/tests/bazel/BUILD.bazel b/tests/bazel/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..61b007a62f4f23d81ab088d5af5b549582c0d0ef
+--- /dev/null
++++ b/tests/bazel/BUILD.bazel
+@@ -0,0 +1,115 @@
++load("@rules_distroless//distroless:defs.bzl", "flatten")
++load("@rules_python//python:py_binary.bzl", "py_binary")
++load("@rules_shell//shell:sh_test.bzl", "sh_test")
++load("@snmpagent_tests_pip//:requirements.bzl", "requirement")
++
++_RUNTIME_DEPS = [
++    "@sonic_snmpagent//:sonic_snmpagent",
++    "@sonic_buildimage//src/sonic-py-common:sonic_py_common",
++    "@sonic_swss_common//pyext:swsscommon",
++]
++
++py_binary(
++    name = "unit_runner",
++    testonly = True,
++    srcs = ["unit_runner.py"],
++    data = ["@sonic_snmpagent//:test_sources"],
++    legacy_create_init = False,
++    python_version = "3.13",
++    deps = _RUNTIME_DEPS + [
++        requirement("mock"),
++        requirement("mockredispy"),
++        requirement("pytest"),
++        requirement("pytest-cov"),
++        requirement("swsssdk"),
++    ],
++)
++
++sh_test(
++    name = "unit_tests",
++    size = "large",
++    timeout = "long",
++    srcs = ["@sonic_swss_common//tools/bazel/runtime:run_with_runtime.py"],
++    args = [
++        "$(rootpath @patchelf//:patchelf)",
++        "$(rootpath @sonic_swss_common//tools/bazel/runtime:test_runtime)",
++        "-",
++        "enabled",
++        "$(rootpath :unit_runner)",
++        "$(rootpath @sonic_snmpagent//:setup.py)",
++    ],
++    data = [
++        ":unit_runner",
++        "@patchelf//:patchelf",
++        "@sonic_snmpagent//:setup.py",
++        "@sonic_snmpagent//:test_sources",
++        "@sonic_swss_common//tools/bazel/runtime:test_runtime",
++    ],
++    target_compatible_with = [
++        "@platforms//cpu:x86_64",
++        "@platforms//os:linux",
++    ],
++)
++
++py_binary(
++    name = "installed_wheel_runner",
++    testonly = True,
++    srcs = [
++        "installed_wheel_probe.py",
++        "service_fixture.py",
++    ],
++    data = [
++        "@sonic_buildimage//src/sonic-py-common:sonic_py_common_wheel",
++        "@sonic_snmpagent//:setup.py",
++        "@sonic_snmpagent//:snmp_install",
++        "@sonic_snmpagent//:sonic_snmpagent_wheel",
++        "@sonic_snmpagent//:test_sources",
++    ],
++    legacy_create_init = False,
++    main = "installed_wheel_probe.py",
++    python_version = "3.13",
++    deps = _RUNTIME_DEPS + ["@sonic_buildimage//tools/bazel/tests:wheel_test_helpers"],
++)
++
++sh_test(
++    name = "installed_wheel_test",
++    size = "medium",
++    srcs = ["@sonic_swss_common//tools/bazel/runtime:run_with_runtime.py"],
++    args = [
++        "$(rootpath @patchelf//:patchelf)",
++        "$(rootpath :service_runtime)",
++        "-",
++        "enabled",
++        "$(rootpath :installed_wheel_runner)",
++        "--wheel=$(rootpath @sonic_snmpagent//:sonic_snmpagent_wheel)",
++        "--setup=$(rootpath @sonic_snmpagent//:setup.py)",
++        "--common-wheel=$(rootpath @sonic_buildimage//src/sonic-py-common:sonic_py_common_wheel)",
++        "--install-tar=$(rootpath @sonic_snmpagent//:snmp_install)",
++    ],
++    data = [
++        ":installed_wheel_runner",
++        ":service_runtime",
++        "@patchelf//:patchelf",
++        "@sonic_buildimage//src/sonic-py-common:sonic_py_common_wheel",
++        "@sonic_snmpagent//:setup.py",
++        "@sonic_snmpagent//:snmp_install",
++        "@sonic_snmpagent//:sonic_snmpagent_wheel",
++        "@sonic_snmpagent//:test_sources",
++    ],
++    target_compatible_with = [
++        "@platforms//cpu:x86_64",
++        "@platforms//os:linux",
++    ],
++)
++
++flatten(
++    name = "service_runtime",
++    testonly = True,
++    deduplicate = True,
++    tars = [
++        "@sonic_swss_common//tools/bazel/runtime:test_runtime",
++        "@snmp_test_services//redis-server",
++        "@snmp_test_services//snmp",
++        "@snmp_test_services//snmpd",
++    ],
++)
+diff --git a/tests/bazel/MODULE.bazel b/tests/bazel/MODULE.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..1a375d9c9ba9ce075df07fb88a71149656da2b5f
+--- /dev/null
++++ b/tests/bazel/MODULE.bazel
+@@ -0,0 +1,121 @@
++# Test-only application root. Production images consume the snmpagent
++# module directly; they do not acquire a dependency back on sonic-buildimage.
++module(name = "sonic_snmpagent_tests")
++
++bazel_dep(name = "sonic-snmpagent", version = "2.1.0", repo_name = "sonic_snmpagent")
++local_path_override(
++    module_name = "sonic-snmpagent",
++    path = "../..",
++)
++
++bazel_dep(name = "sonic-buildimage", version = "0.0.0", repo_name = "sonic_buildimage")
++git_override(
++    module_name = "sonic-buildimage",
++    commit = "c743d7521e80fc1733e5cc0ffc24889b08f78444",
++    remote = "https://github.com/sonic-net/sonic-buildimage.git",
++)
++
++# Resolve the pinned buildimage fixture against the versions published by sonic-net.
++single_version_override(module_name = "iproute2", version = "6.15.0.sonic.9")
++single_version_override(module_name = "libyang", version = "3.12.2.sonic.9")
++single_version_override(module_name = "libyang-python", version = "3.1.0.sonic.7")
++single_version_override(module_name = "p4c", version = "1.2.4.2.sonic.7")
++single_version_override(module_name = "p4lang-bmv2", version = "1.15.0.sonic.6")
++single_version_override(module_name = "p4lang-pi", version = "0.1.3.sonic.7")
++single_version_override(module_name = "rules_distroless", version = "0.9.4.sonic.26")
++single_version_override(module_name = "rules_foreign_cc", version = "0.16.0.sonic.2")
++single_version_override(module_name = "socat", version = "1.8.0.2.sonic.8")
++single_version_override(module_name = "sonic-dash", version = "0.0.1-d5c003dd7774c2b43f275c0233acc73a0ea28d2f")
++single_version_override(module_name = "sonic-dash-api", version = "0.0.6-55310bf7437d67411418c974587adcdc1b194d6b")
++single_version_override(module_name = "sonic-fips", version = "1.11.0-2ed0920f2fea7940f4b2b7f5c37e51e225eb1ea6")
++single_version_override(module_name = "sonic-sairedis", version = "0.0.5-6b9b254c0d083f3c75e20c61e88e083a7acf0a67")
++single_version_override(module_name = "sonic-swss-common", version = "0.0.8-2a4ddd070edb719f2e969a880a5cfff711e64e72")
++single_version_override(module_name = "sonic-yang-models", version = "1.0.1-dd732f9512a84966487951250adae8e3e5c9943e")
++
++
++# The pinned image requests SWSS at 0.0.0 and its overrides are not inherited.
++single_version_override(
++    module_name = "sonic-swss",
++    version = "0.0.3-9c3797990d4b5a79100a40fe7689927c18212361",
++)
++
++single_version_override(
++    module_name = "rules_go",
++    version = "0.65.0.sonic.2",
++)
++
++single_version_override(
++    module_name = "rules_cc",
++    version = "0.2.20",
++)
++
++single_version_override(
++    module_name = "tar.bzl",
++    version = "0.10.5.sonic.2",
++)
++
++single_version_override(
++    module_name = "libnl3",
++    version = "3.7.0.sonic.10",
++)
++
++single_version_override(
++    module_name = "re2",
++    version = "2024-07-02.bcr.1",
++)
++
++single_version_override(
++    module_name = "sonic-build-infra",
++    version = "0.0.45-77ef625a4ddafc8cdc15f3cc6aee31eabac8a5de",
++)
++
++single_version_override(
++    module_name = "sonic-rust-deps",
++    version = "0.0.5-4064a814e8530300a7acbad4a9aff0621e2fb98e",
++)
++
++bazel_dep(name = "rules_python", version = "1.9.0.sonic.2")
++bazel_dep(name = "rules_shell", version = "0.8.0")
++bazel_dep(name = "patchelf", version = "0.18.0.bcr.1")
++bazel_dep(name = "platforms", version = "1.1.0")
++bazel_dep(name = "sonic-build-infra", version = "0.0.45-77ef625a4ddafc8cdc15f3cc6aee31eabac8a5de", repo_name = "sonic_build_infra")
++bazel_dep(name = "sonic-swss-common", version = "0.0.8-2a4ddd070edb719f2e969a880a5cfff711e64e72", repo_name = "sonic_swss_common")
++
++python = use_extension("@rules_python//python/extensions:python.bzl", "python")
++python.toolchain(
++    is_default = True,
++    python_version = "3.13",
++)
++python.toolchain(python_version = "3.11")
++
++pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
++pip.parse(
++    hub_name = "snmpagent_tests_pip",
++    python_version = "3.13",
++    requirements_lock = "//:requirements_lock.txt",
++)
++use_repo(pip, "snmpagent_tests_pip")
++
++# The image's Rust extension requires a root tag even for Python-only tests.
++# No Rust target participates in this test application.
++bazel_dep(name = "rules_rs", version = "0.1.0")
++
++rust = use_extension("@rules_rs//rs:rules_rust_reexported_extensions.bzl", "rust")
++rust.toolchain(versions = [])
++
++# Private service fixtures, separate from source compilation and target libraries.
++# Package BUILD files generated by the local APT extension use these mappings.
++bazel_dep(name = "bazel_lib", version = "3.2.2")
++bazel_dep(name = "bazel_skylib", version = "1.9.2")
++bazel_dep(name = "rules_cc", version = "0.2.20")
++bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.26")
++
++apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
++apt.import_lock(lock = "@sonic_build_infra//apt:apt.lock.json", fallback = True)
++service_apt = use_extension("//:apt.bzl", "apt")
++service_apt.import_lock(lock = "//:apt.lock.json")
++use_repo(service_apt, "snmp_test_services")
++
++# Debian package rules in the test repository use zstd to normalize service archives.
++package_tools = use_extension("@bazel_lib//lib:extensions.bzl", "toolchains")
++use_repo(package_tools, "zstd_toolchains")
+diff --git a/tests/bazel/apt.bzl b/tests/bazel/apt.bzl
+new file mode 100644
+index 0000000000000000000000000000000000000000..5c1c17e09545d0ba351124b2bb0e12b333216868
+--- /dev/null
++++ b/tests/bazel/apt.bzl
+@@ -0,0 +1,5 @@
++"""Keep the local fixture package lock separate from the shared toolchain lock."""
++
++load("@rules_distroless//apt:extensions.bzl", _apt = "apt")
++
++apt = _apt
+diff --git a/tests/bazel/apt.lock.json b/tests/bazel/apt.lock.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..08ffe1a6c65bfec1c4a71bc9abcdc8fa118351cb
+--- /dev/null
++++ b/tests/bazel/apt.lock.json
+@@ -0,0 +1,1105 @@
++{
++  "_generated": {
++    "architecture": "amd64",
++    "generator": "rules_distroless apt.install; export from refresh/MODULE.bazel.lock",
++    "scope": "Private snmpd/snmpget and Redis test services only"
++  },
++  "dependency_sets": {
++    "snmp_test_services": {
++      "sets": {
++        "amd64": {
++          "/trixie-security/redis-server:amd64": "5:8.0.2-3+deb13u2",
++          "/trixie-security/snmp:amd64": "5.9.4+dfsg-2+deb13u1",
++          "/trixie-security/snmpd:amd64": "5.9.4+dfsg-2+deb13u1"
++        }
++      }
++    }
++  },
++  "packages": {
++    "/trixie-security/libsnmp-base:amd64=5.9.4+dfsg-2+deb13u1": {
++      "architecture": "all",
++      "depends_on": [],
++      "filename": "pool/updates/main/n/net-snmp/libsnmp-base_5.9.4+dfsg-2+deb13u1_all.deb",
++      "name": "libsnmp-base",
++      "section": "libs",
++      "sha256": "a6221118a34ef418a77e923617ba009efae93b592abc4d7c373d46cb5daac69f",
++      "size": 1769852,
++      "suite": "trixie-security",
++      "version": "5.9.4+dfsg-2+deb13u1"
++    },
++    "/trixie-security/libsnmp40t64:amd64=5.9.4+dfsg-2+deb13u1": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie-security/libsnmp-base:amd64=5.9.4+dfsg-2+deb13u1",
++        "/trixie/libwrap0:amd64=7.6.q-36",
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19",
++        "/trixie-security/libssl3t64:amd64=3.5.6-1~deb13u2",
++        "/trixie-security/openssl-provider-legacy:amd64=3.5.6-1~deb13u2",
++        "/trixie/zlib1g:amd64=1:1.3.dfsg+really1.3.1-1+b1",
++        "/trixie/libzstd1:amd64=1.5.7+dfsg-1",
++        "/trixie/libsensors5:amd64=1:3.6.2-2",
++        "/trixie/libsensors-config:amd64=1:3.6.2-2",
++        "/trixie/libperl5.40:amd64=5.40.1-6",
++        "/trixie/perl-modules-5.40:amd64=5.40.1-6",
++        "/trixie/perl-base:amd64=5.40.1-6",
++        "/trixie/libcrypt1:amd64=1:4.4.38-1",
++        "/trixie/libgdbm6t64:amd64=1.24-2",
++        "/trixie/libgdbm-compat4t64:amd64=1.24-2",
++        "/trixie/libdb5.3t64:amd64=5.3.28+dfsg2-9",
++        "/trixie/libbz2-1.0:amd64=1.0.8-6",
++        "/trixie/libpci3:amd64=1:3.13.0-2",
++        "/trixie/pci.ids:amd64=0.0~2025.06.09-1",
++        "/trixie/libudev1:amd64=257.13-1~deb13u1",
++        "/trixie/libcap2:amd64=1:2.75-10+deb13u1+b1"
++      ],
++      "filename": "pool/updates/main/n/net-snmp/libsnmp40t64_5.9.4+dfsg-2+deb13u1_amd64.deb",
++      "name": "libsnmp40t64",
++      "section": "libs",
++      "sha256": "4e454a4c7ca0e5a4acbd433c4d5ddf246335a508df99faf8c996842c09688fcd",
++      "size": 2579228,
++      "suite": "trixie-security",
++      "version": "5.9.4+dfsg-2+deb13u1"
++    },
++    "/trixie-security/libssl3t64:amd64=3.5.6-1~deb13u2": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie-security/openssl-provider-legacy:amd64=3.5.6-1~deb13u2",
++        "/trixie/zlib1g:amd64=1:1.3.dfsg+really1.3.1-1+b1",
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19",
++        "/trixie/libzstd1:amd64=1.5.7+dfsg-1"
++      ],
++      "filename": "pool/updates/main/o/openssl/libssl3t64_3.5.6-1~deb13u2_amd64.deb",
++      "name": "libssl3t64",
++      "section": "libs",
++      "sha256": "b2dab3fe29c1fcb82ef58c2db0ff4bd830a442cf37b9a8b730b7b6ce87181349",
++      "size": 2447924,
++      "suite": "trixie-security",
++      "version": "3.5.6-1~deb13u2"
++    },
++    "/trixie-security/openssl-provider-legacy:amd64=3.5.6-1~deb13u2": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie-security/libssl3t64:amd64=3.5.6-1~deb13u2",
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19",
++        "/trixie/zlib1g:amd64=1:1.3.dfsg+really1.3.1-1+b1",
++        "/trixie/libzstd1:amd64=1.5.7+dfsg-1"
++      ],
++      "filename": "pool/updates/main/o/openssl/openssl-provider-legacy_3.5.6-1~deb13u2_amd64.deb",
++      "name": "openssl-provider-legacy",
++      "section": "utils",
++      "sha256": "feac35e2e79f70ca54abe3ffe3d7eeb51af5e56789d3b668df1ea4e6644db0a4",
++      "size": 312688,
++      "suite": "trixie-security",
++      "version": "3.5.6-1~deb13u2"
++    },
++    "/trixie-security/redis-server:amd64=5:8.0.2-3+deb13u2": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie-security/redis-tools:amd64=5:8.0.2-3+deb13u2",
++        "/trixie/libsystemd0:amd64=257.13-1~deb13u1",
++        "/trixie/libcap2:amd64=1:2.75-10+deb13u1+b1",
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19",
++        "/trixie/libstdc++6:amd64=14.2.0-19",
++        "/trixie-security/libssl3t64:amd64=3.5.6-1~deb13u2",
++        "/trixie-security/openssl-provider-legacy:amd64=3.5.6-1~deb13u2",
++        "/trixie/zlib1g:amd64=1:1.3.dfsg+really1.3.1-1+b1",
++        "/trixie/libzstd1:amd64=1.5.7+dfsg-1",
++        "/trixie/liblzf1:amd64=3.6-4+b3",
++        "/trixie/libjemalloc2:amd64=5.3.0-3",
++        "/trixie/libatomic1:amd64=14.2.0-19",
++        "/trixie/adduser:amd64=3.152",
++        "/trixie/passwd:amd64=1:4.17.4-2",
++        "/trixie/libsemanage2:amd64=3.8.1-1",
++        "/trixie/libsepol2:amd64=3.8.1-1",
++        "/trixie/libselinux1:amd64=3.8.1-1",
++        "/trixie/libpcre2-8-0:amd64=10.46-1~deb13u1",
++        "/trixie/libbz2-1.0:amd64=1.0.8-6",
++        "/trixie/libaudit1:amd64=1:4.0.2-2+b2",
++        "/trixie/libcap-ng0:amd64=0.8.5-4+b1",
++        "/trixie/libaudit-common:amd64=1:4.0.2-2",
++        "/trixie/libsemanage-common:amd64=3.8.1-1",
++        "/trixie/libpam0g:amd64=1.7.0-5",
++        "/trixie/debconf:amd64=1.5.91",
++        "/trixie/libcrypt1:amd64=1:4.4.38-1",
++        "/trixie/libbsd0:amd64=0.12.2-2",
++        "/trixie/libmd0:amd64=1.1.0-2+b1",
++        "/trixie/libattr1:amd64=1:2.5.2-3",
++        "/trixie/libacl1:amd64=2.3.2-2+b1",
++        "/trixie/login.defs:amd64=1:4.17.4-2",
++        "/trixie/libpam-modules:amd64=1.7.0-5",
++        "/trixie/libpam-modules-bin:amd64=1.7.0-5",
++        "/trixie/libdb5.3t64:amd64=5.3.28+dfsg2-9",
++        "/trixie/base-passwd:amd64=3.6.7",
++        "/trixie/libdebconfclient0:amd64=0.280",
++        "/trixie/init-system-helpers:amd64=1.69~deb13u1"
++      ],
++      "filename": "pool/updates/main/r/redis/redis-server_8.0.2-3+deb13u2_amd64.deb",
++      "name": "redis-server",
++      "section": "database",
++      "sha256": "0edc72458f66c68f2d4ccd0c9959a85a81f4ec7de410a28861cde4a2059f245c",
++      "size": 66576,
++      "suite": "trixie-security",
++      "version": "5:8.0.2-3+deb13u2"
++    },
++    "/trixie-security/redis-tools:amd64=5:8.0.2-3+deb13u2": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie/libsystemd0:amd64=257.13-1~deb13u1",
++        "/trixie/libcap2:amd64=1:2.75-10+deb13u1+b1",
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19",
++        "/trixie/libstdc++6:amd64=14.2.0-19",
++        "/trixie-security/libssl3t64:amd64=3.5.6-1~deb13u2",
++        "/trixie-security/openssl-provider-legacy:amd64=3.5.6-1~deb13u2",
++        "/trixie/zlib1g:amd64=1:1.3.dfsg+really1.3.1-1+b1",
++        "/trixie/libzstd1:amd64=1.5.7+dfsg-1",
++        "/trixie/liblzf1:amd64=3.6-4+b3",
++        "/trixie/libjemalloc2:amd64=5.3.0-3",
++        "/trixie/libatomic1:amd64=14.2.0-19",
++        "/trixie/adduser:amd64=3.152",
++        "/trixie/passwd:amd64=1:4.17.4-2",
++        "/trixie/libsemanage2:amd64=3.8.1-1",
++        "/trixie/libsepol2:amd64=3.8.1-1",
++        "/trixie/libselinux1:amd64=3.8.1-1",
++        "/trixie/libpcre2-8-0:amd64=10.46-1~deb13u1",
++        "/trixie/libbz2-1.0:amd64=1.0.8-6",
++        "/trixie/libaudit1:amd64=1:4.0.2-2+b2",
++        "/trixie/libcap-ng0:amd64=0.8.5-4+b1",
++        "/trixie/libaudit-common:amd64=1:4.0.2-2",
++        "/trixie/libsemanage-common:amd64=3.8.1-1",
++        "/trixie/libpam0g:amd64=1.7.0-5",
++        "/trixie/debconf:amd64=1.5.91",
++        "/trixie/libcrypt1:amd64=1:4.4.38-1",
++        "/trixie/libbsd0:amd64=0.12.2-2",
++        "/trixie/libmd0:amd64=1.1.0-2+b1",
++        "/trixie/libattr1:amd64=1:2.5.2-3",
++        "/trixie/libacl1:amd64=2.3.2-2+b1",
++        "/trixie/login.defs:amd64=1:4.17.4-2",
++        "/trixie/libpam-modules:amd64=1.7.0-5",
++        "/trixie/libpam-modules-bin:amd64=1.7.0-5",
++        "/trixie/libdb5.3t64:amd64=5.3.28+dfsg2-9",
++        "/trixie/base-passwd:amd64=3.6.7",
++        "/trixie/libdebconfclient0:amd64=0.280"
++      ],
++      "filename": "pool/updates/main/r/redis/redis-tools_8.0.2-3+deb13u2_amd64.deb",
++      "name": "redis-tools",
++      "section": "database",
++      "sha256": "9d7cbe20963c8bfc00af3e8a3a33451bb815f7501b12e55583f9e942a767859b",
++      "size": 1245324,
++      "suite": "trixie-security",
++      "version": "5:8.0.2-3+deb13u2"
++    },
++    "/trixie-security/snmp:amd64=5.9.4+dfsg-2+deb13u1": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie-security/libsnmp-base:amd64=5.9.4+dfsg-2+deb13u1",
++        "/trixie-security/libssl3t64:amd64=3.5.6-1~deb13u2",
++        "/trixie-security/openssl-provider-legacy:amd64=3.5.6-1~deb13u2",
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19",
++        "/trixie/zlib1g:amd64=1:1.3.dfsg+really1.3.1-1+b1",
++        "/trixie/libzstd1:amd64=1.5.7+dfsg-1",
++        "/trixie-security/libsnmp40t64:amd64=5.9.4+dfsg-2+deb13u1",
++        "/trixie/libwrap0:amd64=7.6.q-36",
++        "/trixie/libsensors5:amd64=1:3.6.2-2",
++        "/trixie/libsensors-config:amd64=1:3.6.2-2",
++        "/trixie/libperl5.40:amd64=5.40.1-6",
++        "/trixie/perl-modules-5.40:amd64=5.40.1-6",
++        "/trixie/perl-base:amd64=5.40.1-6",
++        "/trixie/libcrypt1:amd64=1:4.4.38-1",
++        "/trixie/libgdbm6t64:amd64=1.24-2",
++        "/trixie/libgdbm-compat4t64:amd64=1.24-2",
++        "/trixie/libdb5.3t64:amd64=5.3.28+dfsg2-9",
++        "/trixie/libbz2-1.0:amd64=1.0.8-6",
++        "/trixie/libpci3:amd64=1:3.13.0-2",
++        "/trixie/pci.ids:amd64=0.0~2025.06.09-1",
++        "/trixie/libudev1:amd64=257.13-1~deb13u1",
++        "/trixie/libcap2:amd64=1:2.75-10+deb13u1+b1"
++      ],
++      "filename": "pool/updates/main/n/net-snmp/snmp_5.9.4+dfsg-2+deb13u1_amd64.deb",
++      "name": "snmp",
++      "section": "net",
++      "sha256": "74ef3198171dfaf78582e62a06114c06780554eea9c524c350a1758c7be585b8",
++      "size": 177568,
++      "suite": "trixie-security",
++      "version": "5.9.4+dfsg-2+deb13u1"
++    },
++    "/trixie-security/snmpd:amd64=5.9.4+dfsg-2+deb13u1": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie-security/libsnmp-base:amd64=5.9.4+dfsg-2+deb13u1",
++        "/trixie/debconf:amd64=1.5.91",
++        "/trixie/adduser:amd64=3.152",
++        "/trixie/passwd:amd64=1:4.17.4-2",
++        "/trixie/libsemanage2:amd64=3.8.1-1",
++        "/trixie/libsepol2:amd64=3.8.1-1",
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19",
++        "/trixie/libselinux1:amd64=3.8.1-1",
++        "/trixie/libpcre2-8-0:amd64=10.46-1~deb13u1",
++        "/trixie/libbz2-1.0:amd64=1.0.8-6",
++        "/trixie/libaudit1:amd64=1:4.0.2-2+b2",
++        "/trixie/libcap-ng0:amd64=0.8.5-4+b1",
++        "/trixie/libaudit-common:amd64=1:4.0.2-2",
++        "/trixie/libsemanage-common:amd64=3.8.1-1",
++        "/trixie/libpam0g:amd64=1.7.0-5",
++        "/trixie/libcrypt1:amd64=1:4.4.38-1",
++        "/trixie/libbsd0:amd64=0.12.2-2",
++        "/trixie/libmd0:amd64=1.1.0-2+b1",
++        "/trixie/libattr1:amd64=1:2.5.2-3",
++        "/trixie/libacl1:amd64=2.3.2-2+b1",
++        "/trixie/login.defs:amd64=1:4.17.4-2",
++        "/trixie/libpam-modules:amd64=1.7.0-5",
++        "/trixie/libpam-modules-bin:amd64=1.7.0-5",
++        "/trixie/libsystemd0:amd64=257.13-1~deb13u1",
++        "/trixie/libcap2:amd64=1:2.75-10+deb13u1+b1",
++        "/trixie/libdb5.3t64:amd64=5.3.28+dfsg2-9",
++        "/trixie/base-passwd:amd64=3.6.7",
++        "/trixie/libdebconfclient0:amd64=0.280",
++        "/trixie-security/libsnmp40t64:amd64=5.9.4+dfsg-2+deb13u1",
++        "/trixie/libwrap0:amd64=7.6.q-36",
++        "/trixie-security/libssl3t64:amd64=3.5.6-1~deb13u2",
++        "/trixie-security/openssl-provider-legacy:amd64=3.5.6-1~deb13u2",
++        "/trixie/zlib1g:amd64=1:1.3.dfsg+really1.3.1-1+b1",
++        "/trixie/libzstd1:amd64=1.5.7+dfsg-1",
++        "/trixie/libsensors5:amd64=1:3.6.2-2",
++        "/trixie/libsensors-config:amd64=1:3.6.2-2",
++        "/trixie/libperl5.40:amd64=5.40.1-6",
++        "/trixie/perl-modules-5.40:amd64=5.40.1-6",
++        "/trixie/perl-base:amd64=5.40.1-6",
++        "/trixie/libgdbm6t64:amd64=1.24-2",
++        "/trixie/libgdbm-compat4t64:amd64=1.24-2",
++        "/trixie/libpci3:amd64=1:3.13.0-2",
++        "/trixie/pci.ids:amd64=0.0~2025.06.09-1",
++        "/trixie/libudev1:amd64=257.13-1~deb13u1",
++        "/trixie/init-system-helpers:amd64=1.69~deb13u1"
++      ],
++      "filename": "pool/updates/main/n/net-snmp/snmpd_5.9.4+dfsg-2+deb13u1_amd64.deb",
++      "name": "snmpd",
++      "section": "net",
++      "sha256": "0b4a6088524946e91425912235e7b02c8043d0eaa0e2939d64011e3e705d2d66",
++      "size": 57740,
++      "suite": "trixie-security",
++      "version": "5.9.4+dfsg-2+deb13u1"
++    },
++    "/trixie/adduser:amd64=3.152": {
++      "architecture": "all",
++      "depends_on": [
++        "/trixie/passwd:amd64=1:4.17.4-2",
++        "/trixie/libsemanage2:amd64=3.8.1-1",
++        "/trixie/libsepol2:amd64=3.8.1-1",
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19",
++        "/trixie/libselinux1:amd64=3.8.1-1",
++        "/trixie/libpcre2-8-0:amd64=10.46-1~deb13u1",
++        "/trixie/libbz2-1.0:amd64=1.0.8-6",
++        "/trixie/libaudit1:amd64=1:4.0.2-2+b2",
++        "/trixie/libcap-ng0:amd64=0.8.5-4+b1",
++        "/trixie/libaudit-common:amd64=1:4.0.2-2",
++        "/trixie/libsemanage-common:amd64=3.8.1-1",
++        "/trixie/libpam0g:amd64=1.7.0-5",
++        "/trixie/debconf:amd64=1.5.91",
++        "/trixie/libcrypt1:amd64=1:4.4.38-1",
++        "/trixie/libbsd0:amd64=0.12.2-2",
++        "/trixie/libmd0:amd64=1.1.0-2+b1",
++        "/trixie/libattr1:amd64=1:2.5.2-3",
++        "/trixie/libacl1:amd64=2.3.2-2+b1",
++        "/trixie/login.defs:amd64=1:4.17.4-2",
++        "/trixie/libpam-modules:amd64=1.7.0-5",
++        "/trixie/libpam-modules-bin:amd64=1.7.0-5",
++        "/trixie/libsystemd0:amd64=257.13-1~deb13u1",
++        "/trixie/libcap2:amd64=1:2.75-10+deb13u1+b1",
++        "/trixie/libdb5.3t64:amd64=5.3.28+dfsg2-9",
++        "/trixie/base-passwd:amd64=3.6.7",
++        "/trixie/libdebconfclient0:amd64=0.280"
++      ],
++      "filename": "pool/main/a/adduser/adduser_3.152_all.deb",
++      "name": "adduser",
++      "section": "admin",
++      "sha256": "e50984d2e1ef6300e3fd51303839842189a077b10cb5cadff1923df10c61c493",
++      "size": 190932,
++      "suite": "trixie",
++      "version": "3.152"
++    },
++    "/trixie/base-passwd:amd64=3.6.7": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie/libselinux1:amd64=3.8.1-1",
++        "/trixie/libpcre2-8-0:amd64=10.46-1~deb13u1",
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19",
++        "/trixie/libdebconfclient0:amd64=0.280"
++      ],
++      "filename": "pool/main/b/base-passwd/base-passwd_3.6.7_amd64.deb",
++      "name": "base-passwd",
++      "section": "admin",
++      "sha256": "cf31c6956ab5f65815d9d9ea1615c4f78ecd2893c31119658248a4756cee83e7",
++      "size": 53712,
++      "suite": "trixie",
++      "version": "3.6.7"
++    },
++    "/trixie/debconf:amd64=1.5.91": {
++      "architecture": "all",
++      "depends_on": [],
++      "filename": "pool/main/d/debconf/debconf_1.5.91_all.deb",
++      "name": "debconf",
++      "section": "admin",
++      "sha256": "1ddc7e6c5925f748eefb7ca811d98e049f18c158bb21fbc7e122262ce6011e49",
++      "size": 121088,
++      "suite": "trixie",
++      "version": "1.5.91"
++    },
++    "/trixie/gcc-14-base:amd64=14.2.0-19": {
++      "architecture": "amd64",
++      "depends_on": [],
++      "filename": "pool/main/g/gcc-14/gcc-14-base_14.2.0-19_amd64.deb",
++      "name": "gcc-14-base",
++      "section": "libs",
++      "sha256": "5b6825de4263824b78c4c51f6476414f3b4e89c2ab63e81dc8b9b5501e867cf6",
++      "size": 49432,
++      "suite": "trixie",
++      "version": "14.2.0-19"
++    },
++    "/trixie/init-system-helpers:amd64=1.69~deb13u1": {
++      "architecture": "all",
++      "depends_on": [],
++      "filename": "pool/main/i/init-system-helpers/init-system-helpers_1.69~deb13u1_all.deb",
++      "name": "init-system-helpers",
++      "section": "admin",
++      "sha256": "addf78073e1cbc5a5508937e11d2571055e29835e00ee8fab52a66775649378f",
++      "size": 39360,
++      "suite": "trixie",
++      "version": "1.69~deb13u1"
++    },
++    "/trixie/libacl1:amd64=2.3.2-2+b1": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19"
++      ],
++      "filename": "pool/main/a/acl/libacl1_2.3.2-2+b1_amd64.deb",
++      "name": "libacl1",
++      "section": "libs",
++      "sha256": "08074f01e384bc07c0c2d79a58cf4a6523f71cf75d1808101c79617656c9a39d",
++      "size": 32860,
++      "suite": "trixie",
++      "version": "2.3.2-2+b1"
++    },
++    "/trixie/libatomic1:amd64=14.2.0-19": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19"
++      ],
++      "filename": "pool/main/g/gcc-14/libatomic1_14.2.0-19_amd64.deb",
++      "name": "libatomic1",
++      "section": "libs",
++      "sha256": "212b399aae2f7299203d261a57e49372e09565a9a5ea971905f94a3960366c05",
++      "size": 9308,
++      "suite": "trixie",
++      "version": "14.2.0-19"
++    },
++    "/trixie/libattr1:amd64=1:2.5.2-3": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19"
++      ],
++      "filename": "pool/main/a/attr/libattr1_2.5.2-3_amd64.deb",
++      "name": "libattr1",
++      "section": "libs",
++      "sha256": "606b5ee12ea2786be607a17f40c1fb5e65c76ceaff66665bdf8f8c6c1b71d1fb",
++      "size": 22876,
++      "suite": "trixie",
++      "version": "1:2.5.2-3"
++    },
++    "/trixie/libaudit-common:amd64=1:4.0.2-2": {
++      "architecture": "all",
++      "depends_on": [],
++      "filename": "pool/main/a/audit/libaudit-common_4.0.2-2_all.deb",
++      "name": "libaudit-common",
++      "section": "libs",
++      "sha256": "b6edcd7aa36a2a5a1abd2c52966d69a99eebdb69c8f5cb33cbf415b0875775e3",
++      "size": 12692,
++      "suite": "trixie",
++      "version": "1:4.0.2-2"
++    },
++    "/trixie/libaudit1:amd64=1:4.0.2-2+b2": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie/libcap-ng0:amd64=0.8.5-4+b1",
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19",
++        "/trixie/libaudit-common:amd64=1:4.0.2-2"
++      ],
++      "filename": "pool/main/a/audit/libaudit1_4.0.2-2+b2_amd64.deb",
++      "name": "libaudit1",
++      "section": "libs",
++      "sha256": "e5c200c6f9db0d0e5766c5cad66a686f46c7649868435fba966cdb0be59b42f2",
++      "size": 55080,
++      "suite": "trixie",
++      "version": "1:4.0.2-2+b2"
++    },
++    "/trixie/libbsd0:amd64=0.12.2-2": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie/libmd0:amd64=1.1.0-2+b1",
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19"
++      ],
++      "filename": "pool/main/libb/libbsd/libbsd0_0.12.2-2_amd64.deb",
++      "name": "libbsd0",
++      "section": "libs",
++      "sha256": "e5a85986fa6bec3307ab1bc860736b478b331882bc45e17675a7bdf88eecb43a",
++      "size": 130968,
++      "suite": "trixie",
++      "version": "0.12.2-2"
++    },
++    "/trixie/libbz2-1.0:amd64=1.0.8-6": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19"
++      ],
++      "filename": "pool/main/b/bzip2/libbz2-1.0_1.0.8-6_amd64.deb",
++      "name": "libbz2-1.0",
++      "section": "libs",
++      "sha256": "cba4cda04244b5e481bb15524bc3c983a7d1b6f330013b9b381706a2fcb65310",
++      "size": 37912,
++      "suite": "trixie",
++      "version": "1.0.8-6"
++    },
++    "/trixie/libc6:amd64=2.41-12+deb13u3": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19"
++      ],
++      "filename": "pool/main/g/glibc/libc6_2.41-12+deb13u3_amd64.deb",
++      "name": "libc6",
++      "section": "libs",
++      "sha256": "8ffd13165b9ee3f067e2ee670df718e48c1bdaa18676ac93d1de761dbbb3913c",
++      "size": 2849576,
++      "suite": "trixie",
++      "version": "2.41-12+deb13u3"
++    },
++    "/trixie/libcap-ng0:amd64=0.8.5-4+b1": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19"
++      ],
++      "filename": "pool/main/libc/libcap-ng/libcap-ng0_0.8.5-4+b1_amd64.deb",
++      "name": "libcap-ng0",
++      "section": "libs",
++      "sha256": "20a9e4b0619a3eb2566338223bed135dde5a601eaa2f8fdd5f20b94506addcac",
++      "size": 17584,
++      "suite": "trixie",
++      "version": "0.8.5-4+b1"
++    },
++    "/trixie/libcap2:amd64=1:2.75-10+deb13u1+b1": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19"
++      ],
++      "filename": "pool/main/libc/libcap2/libcap2_2.75-10+deb13u1+b1_amd64.deb",
++      "name": "libcap2",
++      "section": "libs",
++      "sha256": "860db6f80d400239744eee2b454f1d8e66b064e18dd0527535824887691e9cb7",
++      "size": 28988,
++      "suite": "trixie",
++      "version": "1:2.75-10+deb13u1+b1"
++    },
++    "/trixie/libcrypt1:amd64=1:4.4.38-1": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19"
++      ],
++      "filename": "pool/main/libx/libxcrypt/libcrypt1_4.4.38-1_amd64.deb",
++      "name": "libcrypt1",
++      "section": "libs",
++      "sha256": "0ebc144d662e3197982d1bf3a7b8b35ca845e54c68811de0328b1f0d7c67585c",
++      "size": 90072,
++      "suite": "trixie",
++      "version": "1:4.4.38-1"
++    },
++    "/trixie/libdb5.3t64:amd64=5.3.28+dfsg2-9": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19"
++      ],
++      "filename": "pool/main/d/db5.3/libdb5.3t64_5.3.28+dfsg2-9_amd64.deb",
++      "name": "libdb5.3t64",
++      "section": "libs",
++      "sha256": "18d02510ee78b67e4504ba050176797a200ff24214a7cd318082ab60ad7bf3fc",
++      "size": 703676,
++      "suite": "trixie",
++      "version": "5.3.28+dfsg2-9"
++    },
++    "/trixie/libdebconfclient0:amd64=0.280": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19"
++      ],
++      "filename": "pool/main/c/cdebconf/libdebconfclient0_0.280_amd64.deb",
++      "name": "libdebconfclient0",
++      "section": "libs",
++      "sha256": "25acadc8b394bc86d05df16e70975e523f8f839a7d8d6d5e22c1cafdcef741aa",
++      "size": 10632,
++      "suite": "trixie",
++      "version": "0.280"
++    },
++    "/trixie/libgcc-s1:amd64=14.2.0-19": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/gcc-14-base:amd64=14.2.0-19"
++      ],
++      "filename": "pool/main/g/gcc-14/libgcc-s1_14.2.0-19_amd64.deb",
++      "name": "libgcc-s1",
++      "section": "libs",
++      "sha256": "3c71917b490d1a17aed43196a2787a256ecf060526cdb20216a74bedc061b150",
++      "size": 72772,
++      "suite": "trixie",
++      "version": "14.2.0-19"
++    },
++    "/trixie/libgdbm-compat4t64:amd64=1.24-2": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie/libgdbm6t64:amd64=1.24-2",
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19"
++      ],
++      "filename": "pool/main/g/gdbm/libgdbm-compat4t64_1.24-2_amd64.deb",
++      "name": "libgdbm-compat4t64",
++      "section": "libs",
++      "sha256": "2cbd43cf2dfbf57ff48188b5d79d29cf7ea8f0dedaa61ab0bcc02eceff50ea01",
++      "size": 50280,
++      "suite": "trixie",
++      "version": "1.24-2"
++    },
++    "/trixie/libgdbm6t64:amd64=1.24-2": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19"
++      ],
++      "filename": "pool/main/g/gdbm/libgdbm6t64_1.24-2_amd64.deb",
++      "name": "libgdbm6t64",
++      "section": "libs",
++      "sha256": "e7b42c68c391e278733adb3c1efdacd24d660862bd7bac0efbc10a91e5696dfc",
++      "size": 75176,
++      "suite": "trixie",
++      "version": "1.24-2"
++    },
++    "/trixie/libjemalloc2:amd64=5.3.0-3": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie/libstdc++6:amd64=14.2.0-19",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/gcc-14-base:amd64=14.2.0-19"
++      ],
++      "filename": "pool/main/j/jemalloc/libjemalloc2_5.3.0-3_amd64.deb",
++      "name": "libjemalloc2",
++      "section": "libs",
++      "sha256": "e7d64919e620e8ea46960104efe1e9c977d751e5b610a5d89b0b51aeae9530d7",
++      "size": 274324,
++      "suite": "trixie",
++      "version": "5.3.0-3"
++    },
++    "/trixie/liblzf1:amd64=3.6-4+b3": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19"
++      ],
++      "filename": "pool/main/libl/liblzf/liblzf1_3.6-4+b3_amd64.deb",
++      "name": "liblzf1",
++      "section": "libs",
++      "sha256": "1f7677f1098f9f643806d64a2ed54d14bcd5954e71b63c2aa1e9bb7bcd84d783",
++      "size": 10112,
++      "suite": "trixie",
++      "version": "3.6-4+b3"
++    },
++    "/trixie/libmd0:amd64=1.1.0-2+b1": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19"
++      ],
++      "filename": "pool/main/libm/libmd/libmd0_1.1.0-2+b1_amd64.deb",
++      "name": "libmd0",
++      "section": "libs",
++      "sha256": "7244ec3839b61fac0c1884fe08aaa040f26e8f1f35f1f5d3482eacefd30d1b44",
++      "size": 36272,
++      "suite": "trixie",
++      "version": "1.1.0-2+b1"
++    },
++    "/trixie/libpam-modules-bin:amd64=1.7.0-5": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie/libsystemd0:amd64=257.13-1~deb13u1",
++        "/trixie/libcap2:amd64=1:2.75-10+deb13u1+b1",
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19",
++        "/trixie/libselinux1:amd64=3.8.1-1",
++        "/trixie/libpcre2-8-0:amd64=10.46-1~deb13u1",
++        "/trixie/libpam0g:amd64=1.7.0-5",
++        "/trixie/debconf:amd64=1.5.91",
++        "/trixie/libaudit1:amd64=1:4.0.2-2+b2",
++        "/trixie/libcap-ng0:amd64=0.8.5-4+b1",
++        "/trixie/libaudit-common:amd64=1:4.0.2-2",
++        "/trixie/libcrypt1:amd64=1:4.4.38-1"
++      ],
++      "filename": "pool/main/p/pam/libpam-modules-bin_1.7.0-5_amd64.deb",
++      "name": "libpam-modules-bin",
++      "section": "admin",
++      "sha256": "cc72066d008444317738e8e931d6131b301466b4e2dd5ef5baa75fb1a45d61a7",
++      "size": 49116,
++      "suite": "trixie",
++      "version": "1.7.0-5"
++    },
++    "/trixie/libpam-modules:amd64=1.7.0-5": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie/libpam-modules-bin:amd64=1.7.0-5",
++        "/trixie/libsystemd0:amd64=257.13-1~deb13u1",
++        "/trixie/libcap2:amd64=1:2.75-10+deb13u1+b1",
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19",
++        "/trixie/libselinux1:amd64=3.8.1-1",
++        "/trixie/libpcre2-8-0:amd64=10.46-1~deb13u1",
++        "/trixie/libpam0g:amd64=1.7.0-5",
++        "/trixie/debconf:amd64=1.5.91",
++        "/trixie/libaudit1:amd64=1:4.0.2-2+b2",
++        "/trixie/libcap-ng0:amd64=0.8.5-4+b1",
++        "/trixie/libaudit-common:amd64=1:4.0.2-2",
++        "/trixie/libcrypt1:amd64=1:4.4.38-1",
++        "/trixie/libdb5.3t64:amd64=5.3.28+dfsg2-9"
++      ],
++      "filename": "pool/main/p/pam/libpam-modules_1.7.0-5_amd64.deb",
++      "name": "libpam-modules",
++      "section": "admin",
++      "sha256": "9679ade117f8775ac0471f48a92652ab8e8dcda4e2ff06de75158cded9cfd83c",
++      "size": 178696,
++      "suite": "trixie",
++      "version": "1.7.0-5"
++    },
++    "/trixie/libpam0g:amd64=1.7.0-5": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie/debconf:amd64=1.5.91",
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19",
++        "/trixie/libaudit1:amd64=1:4.0.2-2+b2",
++        "/trixie/libcap-ng0:amd64=0.8.5-4+b1",
++        "/trixie/libaudit-common:amd64=1:4.0.2-2"
++      ],
++      "filename": "pool/main/p/pam/libpam0g_1.7.0-5_amd64.deb",
++      "name": "libpam0g",
++      "section": "libs",
++      "sha256": "4f5bde27d8df2de6ea8990319b42d9974f56a3ba9907ce7296fd0f8964fc9fb1",
++      "size": 69880,
++      "suite": "trixie",
++      "version": "1.7.0-5"
++    },
++    "/trixie/libpci3:amd64=1:3.13.0-2": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie/pci.ids:amd64=0.0~2025.06.09-1",
++        "/trixie/zlib1g:amd64=1:1.3.dfsg+really1.3.1-1+b1",
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19",
++        "/trixie/libudev1:amd64=257.13-1~deb13u1",
++        "/trixie/libcap2:amd64=1:2.75-10+deb13u1+b1"
++      ],
++      "filename": "pool/main/p/pciutils/libpci3_3.13.0-2_amd64.deb",
++      "name": "libpci3",
++      "section": "libs",
++      "sha256": "f8f01883368fe86417b3845aa08ea3508ca59f5e1bb0983673629e227f5ac868",
++      "size": 75572,
++      "suite": "trixie",
++      "version": "1:3.13.0-2"
++    },
++    "/trixie/libpcre2-8-0:amd64=10.46-1~deb13u1": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19"
++      ],
++      "filename": "pool/main/p/pcre2/libpcre2-8-0_10.46-1~deb13u1_amd64.deb",
++      "name": "libpcre2-8-0",
++      "section": "libs",
++      "sha256": "6aa452af6a07e34498bf8e734e8789c9dd602fb34f12572e62dc1bba4889a60e",
++      "size": 298536,
++      "suite": "trixie",
++      "version": "10.46-1~deb13u1"
++    },
++    "/trixie/libperl5.40:amd64=5.40.1-6": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie/perl-modules-5.40:amd64=5.40.1-6",
++        "/trixie/perl-base:amd64=5.40.1-6",
++        "/trixie/libcrypt1:amd64=1:4.4.38-1",
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19",
++        "/trixie/zlib1g:amd64=1:1.3.dfsg+really1.3.1-1+b1",
++        "/trixie/libgdbm6t64:amd64=1.24-2",
++        "/trixie/libgdbm-compat4t64:amd64=1.24-2",
++        "/trixie/libdb5.3t64:amd64=5.3.28+dfsg2-9",
++        "/trixie/libbz2-1.0:amd64=1.0.8-6"
++      ],
++      "filename": "pool/main/p/perl/libperl5.40_5.40.1-6_amd64.deb",
++      "name": "libperl5.40",
++      "section": "libs",
++      "sha256": "f20aa427c3f56f430b7b58b73222edcb8cda40fa9c3b25365b20cd53eddd51a9",
++      "size": 4341332,
++      "suite": "trixie",
++      "version": "5.40.1-6"
++    },
++    "/trixie/libselinux1:amd64=3.8.1-1": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie/libpcre2-8-0:amd64=10.46-1~deb13u1",
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19"
++      ],
++      "filename": "pool/main/libs/libselinux/libselinux1_3.8.1-1_amd64.deb",
++      "name": "libselinux1",
++      "section": "libs",
++      "sha256": "68bb8d32bd8d6d7d2f5952a169db03d1484b46ae1e52abccdec42a19dccea5d5",
++      "size": 84680,
++      "suite": "trixie",
++      "version": "3.8.1-1"
++    },
++    "/trixie/libsemanage-common:amd64=3.8.1-1": {
++      "architecture": "all",
++      "depends_on": [],
++      "filename": "pool/main/libs/libsemanage/libsemanage-common_3.8.1-1_all.deb",
++      "name": "libsemanage-common",
++      "section": "libs",
++      "sha256": "65375d886749c236bd1da4d9990b7c2469d2fe66019a28e5614f6814376d3dcb",
++      "size": 7812,
++      "suite": "trixie",
++      "version": "3.8.1-1"
++    },
++    "/trixie/libsemanage2:amd64=3.8.1-1": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie/libsepol2:amd64=3.8.1-1",
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19",
++        "/trixie/libselinux1:amd64=3.8.1-1",
++        "/trixie/libpcre2-8-0:amd64=10.46-1~deb13u1",
++        "/trixie/libbz2-1.0:amd64=1.0.8-6",
++        "/trixie/libaudit1:amd64=1:4.0.2-2+b2",
++        "/trixie/libcap-ng0:amd64=0.8.5-4+b1",
++        "/trixie/libaudit-common:amd64=1:4.0.2-2",
++        "/trixie/libsemanage-common:amd64=3.8.1-1"
++      ],
++      "filename": "pool/main/libs/libsemanage/libsemanage2_3.8.1-1_amd64.deb",
++      "name": "libsemanage2",
++      "section": "libs",
++      "sha256": "f97da7505d17ad3bdd8fc56302256df7e158e5e0d8b02cb766654199cbc406a9",
++      "size": 95284,
++      "suite": "trixie",
++      "version": "3.8.1-1"
++    },
++    "/trixie/libsensors-config:amd64=1:3.6.2-2": {
++      "architecture": "all",
++      "depends_on": [],
++      "filename": "pool/main/l/lm-sensors/libsensors-config_3.6.2-2_all.deb",
++      "name": "libsensors-config",
++      "section": "utils",
++      "sha256": "3056da80c7d963af795dab480ab6f6f4b154ad4ac39f522dc52d17c834fea253",
++      "size": 16236,
++      "suite": "trixie",
++      "version": "1:3.6.2-2"
++    },
++    "/trixie/libsensors5:amd64=1:3.6.2-2": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19",
++        "/trixie/libsensors-config:amd64=1:3.6.2-2"
++      ],
++      "filename": "pool/main/l/lm-sensors/libsensors5_3.6.2-2_amd64.deb",
++      "name": "libsensors5",
++      "section": "libs",
++      "sha256": "f0a994a6d7cfa695dea5343d0d1ba7eed796c0ad920c7282998b95f60049c4f6",
++      "size": 37492,
++      "suite": "trixie",
++      "version": "1:3.6.2-2"
++    },
++    "/trixie/libsepol2:amd64=3.8.1-1": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19"
++      ],
++      "filename": "pool/main/libs/libsepol/libsepol2_3.8.1-1_amd64.deb",
++      "name": "libsepol2",
++      "section": "libs",
++      "sha256": "3595d2d3a6d24695e7953f4f00cdfe6974c9242d9a8dfee8998e77fbf7b2ba09",
++      "size": 295588,
++      "suite": "trixie",
++      "version": "3.8.1-1"
++    },
++    "/trixie/libstdc++6:amd64=14.2.0-19": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/gcc-14-base:amd64=14.2.0-19"
++      ],
++      "filename": "pool/main/g/gcc-14/libstdc++6_14.2.0-19_amd64.deb",
++      "name": "libstdc++6",
++      "section": "libs",
++      "sha256": "ab1fa05837aa7a92aae748fd07a18a35f7d18bb4a71c4724fe2bbf0e32089de0",
++      "size": 713628,
++      "suite": "trixie",
++      "version": "14.2.0-19"
++    },
++    "/trixie/libsystemd0:amd64=257.13-1~deb13u1": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie/libcap2:amd64=1:2.75-10+deb13u1+b1",
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19"
++      ],
++      "filename": "pool/main/s/systemd/libsystemd0_257.13-1~deb13u1_amd64.deb",
++      "name": "libsystemd0",
++      "section": "libs",
++      "sha256": "ab0d4127b5e46e6f8c015a1db15a62ba9ae274cdefa150083adf90ada0600ea1",
++      "size": 454648,
++      "suite": "trixie",
++      "version": "257.13-1~deb13u1"
++    },
++    "/trixie/libudev1:amd64=257.13-1~deb13u1": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie/libcap2:amd64=1:2.75-10+deb13u1+b1",
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19"
++      ],
++      "filename": "pool/main/s/systemd/libudev1_257.13-1~deb13u1_amd64.deb",
++      "name": "libudev1",
++      "section": "libs",
++      "sha256": "5d41c284f5a93b05bc7d648b61a02dd2bb9ff05b2261ad1a8b7d96044a0cfa88",
++      "size": 152300,
++      "suite": "trixie",
++      "version": "257.13-1~deb13u1"
++    },
++    "/trixie/libwrap0:amd64=7.6.q-36": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19"
++      ],
++      "filename": "pool/main/t/tcp-wrappers/libwrap0_7.6.q-36_amd64.deb",
++      "name": "libwrap0",
++      "section": "libs",
++      "sha256": "cde12afa15d6b1556c5e0564d22edf3b99e6b8fa94c59ccd8b8eebbb62dc19ec",
++      "size": 55256,
++      "suite": "trixie",
++      "version": "7.6.q-36"
++    },
++    "/trixie/libzstd1:amd64=1.5.7+dfsg-1": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19"
++      ],
++      "filename": "pool/main/libz/libzstd/libzstd1_1.5.7+dfsg-1_amd64.deb",
++      "name": "libzstd1",
++      "section": "libs",
++      "sha256": "2f6a2aeacfc925eba8b00ac9139bc4bfccf8cacb09eb93de067074b26948eef9",
++      "size": 303836,
++      "suite": "trixie",
++      "version": "1.5.7+dfsg-1"
++    },
++    "/trixie/login.defs:amd64=1:4.17.4-2": {
++      "architecture": "all",
++      "depends_on": [],
++      "filename": "pool/main/s/shadow/login.defs_4.17.4-2_all.deb",
++      "name": "login.defs",
++      "section": "admin",
++      "sha256": "b4bbb8242cbf5588de7aafeb9d578a3dee1db2891f444ab454fd30bd80ccf2b4",
++      "size": 186124,
++      "suite": "trixie",
++      "version": "1:4.17.4-2"
++    },
++    "/trixie/passwd:amd64=1:4.17.4-2": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie/libsemanage2:amd64=3.8.1-1",
++        "/trixie/libsepol2:amd64=3.8.1-1",
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19",
++        "/trixie/libselinux1:amd64=3.8.1-1",
++        "/trixie/libpcre2-8-0:amd64=10.46-1~deb13u1",
++        "/trixie/libbz2-1.0:amd64=1.0.8-6",
++        "/trixie/libaudit1:amd64=1:4.0.2-2+b2",
++        "/trixie/libcap-ng0:amd64=0.8.5-4+b1",
++        "/trixie/libaudit-common:amd64=1:4.0.2-2",
++        "/trixie/libsemanage-common:amd64=3.8.1-1",
++        "/trixie/libpam0g:amd64=1.7.0-5",
++        "/trixie/debconf:amd64=1.5.91",
++        "/trixie/libcrypt1:amd64=1:4.4.38-1",
++        "/trixie/libbsd0:amd64=0.12.2-2",
++        "/trixie/libmd0:amd64=1.1.0-2+b1",
++        "/trixie/libattr1:amd64=1:2.5.2-3",
++        "/trixie/libacl1:amd64=2.3.2-2+b1",
++        "/trixie/login.defs:amd64=1:4.17.4-2",
++        "/trixie/libpam-modules:amd64=1.7.0-5",
++        "/trixie/libpam-modules-bin:amd64=1.7.0-5",
++        "/trixie/libsystemd0:amd64=257.13-1~deb13u1",
++        "/trixie/libcap2:amd64=1:2.75-10+deb13u1+b1",
++        "/trixie/libdb5.3t64:amd64=5.3.28+dfsg2-9",
++        "/trixie/base-passwd:amd64=3.6.7",
++        "/trixie/libdebconfclient0:amd64=0.280"
++      ],
++      "filename": "pool/main/s/shadow/passwd_4.17.4-2_amd64.deb",
++      "name": "passwd",
++      "section": "admin",
++      "sha256": "c5eaef41c6947d2888fa3462f787a7e02158b997bd0119154283f425ba57b8b8",
++      "size": 1228860,
++      "suite": "trixie",
++      "version": "1:4.17.4-2"
++    },
++    "/trixie/pci.ids:amd64=0.0~2025.06.09-1": {
++      "architecture": "all",
++      "depends_on": [],
++      "filename": "pool/main/p/pci.ids/pci.ids_0.0~2025.06.09-1_all.deb",
++      "name": "pci.ids",
++      "section": "admin",
++      "sha256": "132bc7520473e53939e277cbf4512261b8d73ae244d77c277f674ecaf174598c",
++      "size": 269172,
++      "suite": "trixie",
++      "version": "0.0~2025.06.09-1"
++    },
++    "/trixie/perl-base:amd64=5.40.1-6": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie/libcrypt1:amd64=1:4.4.38-1",
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19"
++      ],
++      "filename": "pool/main/p/perl/perl-base_5.40.1-6_amd64.deb",
++      "name": "perl-base",
++      "section": "perl",
++      "sha256": "94f1060613a666dc569026a8344bee202ba3b29ec124dc6ef30bfc72e735c78b",
++      "size": 1665744,
++      "suite": "trixie",
++      "version": "5.40.1-6"
++    },
++    "/trixie/perl-modules-5.40:amd64=5.40.1-6": {
++      "architecture": "all",
++      "depends_on": [
++        "/trixie/perl-base:amd64=5.40.1-6",
++        "/trixie/libcrypt1:amd64=1:4.4.38-1",
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19"
++      ],
++      "filename": "pool/main/p/perl/perl-modules-5.40_5.40.1-6_all.deb",
++      "name": "perl-modules-5.40",
++      "section": "libs",
++      "sha256": "dfd42c1bf0c45858488ad666b90de17f81b55e6f9c0d8ca530c27b4a66c08b0b",
++      "size": 3019100,
++      "suite": "trixie",
++      "version": "5.40.1-6"
++    },
++    "/trixie/zlib1g:amd64=1:1.3.dfsg+really1.3.1-1+b1": {
++      "architecture": "amd64",
++      "depends_on": [
++        "/trixie/libc6:amd64=2.41-12+deb13u3",
++        "/trixie/libgcc-s1:amd64=14.2.0-19",
++        "/trixie/gcc-14-base:amd64=14.2.0-19"
++      ],
++      "filename": "pool/main/z/zlib/zlib1g_1.3.dfsg+really1.3.1-1+b1_amd64.deb",
++      "name": "zlib1g",
++      "section": "libs",
++      "sha256": "015be740d6236ad114582dea500c1d907f29e16d6db00566ca32fb68d71ac90d",
++      "size": 88892,
++      "suite": "trixie",
++      "version": "1:1.3.dfsg+really1.3.1-1+b1"
++    }
++  },
++  "sources": {
++    "trixie": {
++      "architectures": [
++        "amd64"
++      ],
++      "components": [
++        "main"
++      ],
++      "types": [],
++      "uris": [
++        "https://snapshot.debian.org/archive/debian/20260727T143429Z"
++      ]
++    },
++    "trixie-security": {
++      "architectures": [
++        "amd64"
++      ],
++      "components": [
++        "main"
++      ],
++      "types": [],
++      "uris": [
++        "https://snapshot.debian.org/archive/debian-security/20260726T121236Z"
++      ]
++    }
++  },
++  "version": 2
++}
+diff --git a/tests/bazel/collect_evidence.py b/tests/bazel/collect_evidence.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..f8bb75838645c8ec3ebefe17543e2f010e8bf272
+--- /dev/null
++++ b/tests/bazel/collect_evidence.py
+@@ -0,0 +1,84 @@
++"""Retain successful source and installation evidence bound to the exact wheel."""
++
++import hashlib
++import json
++import os
++from pathlib import Path
++import platform
++import shutil
++import subprocess
++import zipfile
++
++def main():
++    root = Path(__file__).resolve().parents[2]
++    out = root / "bazel-evidence"
++    out.mkdir(exist_ok=True)
++    wheel = root / "bazel-bin/asyncsnmp-2.1.0-py3-none-any.whl"
++    assert wheel.is_file(), wheel
++    sha = hashlib.sha256(wheel.read_bytes()).hexdigest()
++    shutil.copy2(wheel, out / wheel.name)
++    install_tar = root / "bazel-bin/snmp_install.tar"
++    assert install_tar.is_file(), install_tar
++    install_sha = hashlib.sha256(install_tar.read_bytes()).hexdigest()
++    shutil.copy2(install_tar, out / install_tar.name)
++    for name, expected in (("unit_tests", "source-tests.json"), ("installed_wheel_test", "wheels.json")):
++        logs = root / "tests/bazel/bazel-testlogs" / name
++        assert (logs / "test.xml").is_file(), logs
++        shutil.copytree(logs, out / name, dirs_exist_ok=True)
++        outputs = logs / "test.outputs"
++        if (outputs / expected).is_file():
++            receipt = json.loads((outputs / expected).read_text())
++        else:
++            with zipfile.ZipFile(outputs / "outputs.zip") as archive:
++                receipt = json.loads(archive.read(expected))
++        assert receipt["status"] == "passed", (name, receipt)
++        assert receipt["architecture"] == "x86_64", receipt
++        assert receipt["python"].startswith("3.13."), receipt
++        if name == "unit_tests":
++            assert receipt["tests"] > receipt["skipped"] and receipt["failures"] == receipt["errors"] == 0, receipt
++        else:
++            tested = next(w for w in receipt["wheels"] if w["filename"] == wheel.name)
++            assert tested["sha256"] == sha, (tested, sha)
++            assert receipt["install_tar_sha256"] == install_sha
++            assert len(receipt["agentx"]["queries"]) == 2
++        (out / expected).write_text(json.dumps(receipt, indent=2) + "\n")
++    for relative, destination in (("MODULE.bazel.lock", "wheel-MODULE.bazel.lock"),
++                                  ("tests/bazel/MODULE.bazel.lock", "tests-MODULE.bazel.lock")):
++        source = root / relative
++        assert source.is_file(), source
++        shutil.copy2(source, out / destination)
++    for directory, name in ((root, "wheel-module-graph.txt"), (root / "tests/bazel", "tests-module-graph.txt")):
++        command = ["bazel"]
++        if directory != root and os.environ.get("BAZEL_TEST_OUTPUT_BASE"):
++            command.append("--output_base=" + os.environ["BAZEL_TEST_OUTPUT_BASE"])
++        graph = subprocess.check_output(command + ["mod", "graph"], cwd=directory, text=True)
++        (out / name).write_text(graph)
++    revision = subprocess.check_output(["git", "-c", "safe.directory=" + str(root), "rev-parse", "HEAD"], cwd=root, text=True).strip()
++    # Read raw headers: `git show %P` hides parents in a shallow CI checkout.
++    commit = subprocess.check_output(["git", "-c", "safe.directory=" + str(root), "cat-file", "-p", "HEAD"], cwd=root, text=True)
++    parents = [line.removeprefix("parent ") for line in commit.split("\n\n", 1)[0].splitlines()
++               if line.startswith("parent ")]
++    (out / "provenance.json").write_text(json.dumps({
++        "tested_revision": revision,
++        "tested_revision_parents": parents,
++        "pull_request_head": os.environ.get("CI_HEAD_SHA", ""),
++        "architecture": platform.machine(),
++        "os_release": Path("/etc/os-release").read_text(),
++        "wheel": wheel.name,
++        "sha256": sha,
++        "buildimage_test_dependency": "c743d7521e80fc1733e5cc0ffc24889b08f78444",
++        "outputs": "Python wheel and SNMP install TAR; no Debian package generation",
++        "scope": "Native AMD64/Trixie with Python 3.13; existing owner mocks retained",
++    }, indent=2) + "\n")
++
++
++if __name__ == "__main__":
++    try:
++        main()
++    except Exception as error:
++        output = Path(__file__).resolve().parents[2] / "bazel-evidence"
++        output.mkdir(exist_ok=True)
++        (output / "collection-failure.json").write_text(json.dumps({
++            "status": "failed", "error": str(error),
++        }, indent=2) + "\n")
++        raise
+diff --git a/tests/bazel/installed_wheel_probe.py b/tests/bazel/installed_wheel_probe.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..5e0cb6b1e688162951196c1e8b0409bc98aee4f0
+--- /dev/null
++++ b/tests/bazel/installed_wheel_probe.py
+@@ -0,0 +1,107 @@
++"""Compare the installed SNMP wheel and install TAR with the owner contract."""
++
++import argparse
++from email.parser import BytesParser
++import hashlib
++import json
++from pathlib import Path
++import subprocess
++import tarfile
++import unittest
++import zipfile
++
++from service_fixture import query_installed_agent
++
++from tools.bazel.tests.integration.installed_wheel_fixture import installed_wheels, write_wheel_receipt
++from tools.bazel.tests.integration.wheel_contract import normalized_requirement, setup_contract
++
++parser = argparse.ArgumentParser()
++for name in ("wheel", "setup", "common-wheel", "install-tar"):
++    parser.add_argument("--" + name, type=Path, required=True)
++INPUTS, REST = parser.parse_known_args()
++DETAILS = {}
++
++
++class InstalledWheelTest(unittest.TestCase):
++    @classmethod
++    def setUpClass(cls):
++        cls.wheels = [INPUTS.common_wheel.absolute(), INPUTS.wheel.absolute()]
++        cls.setup = INPUTS.setup.absolute()
++        import sonic_py_common
++        roots = [cls.setup.parent, Path(sonic_py_common.__file__).absolute().parent.parent]
++        cls.installed = cls.enterClassContext(installed_wheels(cls.wheels, exclude_source_roots=roots))
++        cls.contract = setup_contract(cls.setup)
++
++    def test_complete_payload_and_metadata(self):
++        source = self.setup.parent / "src"
++        expected = {}
++        for package in self.contract["packages"]:
++            for path in (source / package.replace(".", "/")).glob("*.py"):
++                expected[str(path.relative_to(source))] = path
++        for package, patterns in self.contract.get("package_data", {}).items():
++            for pattern in patterns:
++                for path in (source / package.replace(".", "/")).glob(pattern):
++                    if path.is_file():
++                        expected[str(path.relative_to(source))] = path
++        with zipfile.ZipFile(INPUTS.wheel) as wheel:
++            actual = {name for name in wheel.namelist() if ".dist-info/" not in name}
++            self.assertEqual(actual, set(expected))
++            for member, path in expected.items():
++                self.assertEqual(wheel.read(member), path.read_bytes(), member)
++                self.assertEqual((self.installed.site / member).read_bytes(), path.read_bytes(), member)
++            metadata = BytesParser().parsebytes(wheel.read(next(name for name in wheel.namelist() if name.endswith(".dist-info/METADATA"))))
++            self.assertEqual(metadata["Name"], self.contract["name"])
++            self.assertEqual(metadata["Version"], self.contract["version"])
++            self.assertEqual({normalized_requirement(value) for value in metadata.get_all("Requires-Dist", [])},
++                             {normalized_requirement(value) for value in self.contract["install_requires"]})
++            self.assertEqual({value.replace("_", "-") for value in metadata.get_all("Provides-Extra", [])}, {"high-perf"})
++            license_name = next(name for name in wheel.namelist() if name.endswith("/licenses/LICENSE"))
++            self.assertEqual(wheel.read(license_name), (self.setup.parent / "LICENSE").read_bytes())
++        DETAILS.update(packages=len(self.contract["packages"]), payload_files=len(expected))
++
++    def test_installed_interfaces_and_entrypoint(self):
++        probe = r'''import importlib,importlib.metadata,json,pathlib,sys
++site=pathlib.Path(sys.argv[1]).resolve()
++modules=['ax_interface','ax_interface.encodings','ax_interface.protocol',
++         'sonic_ax_impl','sonic_ax_impl.utils.arg_parser','sonic_py_common']
++for name in modules:
++    module=importlib.import_module(name)
++    assert pathlib.Path(module.__file__).resolve().is_relative_to(site), (name,module.__file__)
++from ax_interface.encodings import ObjectIdentifier
++value=ObjectIdentifier.from_iterable((1,3,6,1,2,1,1,1,0))
++assert str(ObjectIdentifier.from_bytes(value.to_bytes('!'),'!'))=='.1.3.6.1.2.1.1.1.0'
++assert importlib.metadata.version('asyncsnmp')=='2.1.0'
++print(json.dumps({'installed_modules':modules}))
++'''
++        result = subprocess.run([str(self.installed.python), "-I", "-c", probe, str(self.installed.site)],
++                                cwd=self.installed.root, env=self.installed.env,
++                                capture_output=True, text=True, timeout=30)
++        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
++        DETAILS.update(json.loads(result.stdout))
++        help_result = subprocess.run([str(self.installed.python), "-I", "-m", "sonic_ax_impl", "--help"],
++                                     cwd=self.installed.root, env=self.installed.env,
++                                     capture_output=True, text=True, timeout=30)
++        self.assertEqual(help_result.returncode, 0, help_result.stdout + help_result.stderr)
++        self.assertIn("Usage:", help_result.stdout)
++
++    def test_real_installed_agentx_queries(self):
++        DETAILS["agentx"] = query_installed_agent(self.installed,
++            self.setup.parent / "tests/mock_tables/database_config.json")
++
++    def test_exact_install_fragment(self):
++        with tarfile.open(INPUTS.install_tar) as archive:
++            members = archive.getmembers()
++            self.assertEqual([member.name for member in members], ["usr/share/snmp/sysDescr_pass.py"])
++            member = members[0]
++            self.assertEqual((member.uid, member.gid, member.mode, member.mtime), (0, 0, 0o755, 0))
++            self.assertEqual(archive.extractfile(member).read(),
++                             (self.setup.parent / "src/sonic_ax_impl/bin/sysDescr_pass.py").read_bytes())
++        DETAILS["install_tar_sha256"] = hashlib.sha256(INPUTS.install_tar.read_bytes()).hexdigest()
++
++
++if __name__ == "__main__":
++    result = unittest.main(argv=[__file__, *REST], exit=False).result
++    write_wheel_receipt(getattr(InstalledWheelTest, "wheels", None), required=True,
++                        status="passed" if result.wasSuccessful() else "failed",
++                        details=dict(DETAILS, tests_run=result.testsRun))
++    raise SystemExit(not result.wasSuccessful())
+diff --git a/tests/bazel/refresh/.bazelrc b/tests/bazel/refresh/.bazelrc
+new file mode 100644
+index 0000000000000000000000000000000000000000..6e7e2be8711f642504c13b4ba53791a69a85fb69
+--- /dev/null
++++ b/tests/bazel/refresh/.bazelrc
+@@ -0,0 +1,3 @@
++common --registry=https://raw.githubusercontent.com/sonic-net/sonic-bazel-registry/main
++common --registry=https://bcr.bazel.build
++common --lockfile_mode=update
+diff --git a/tests/bazel/refresh/.bazelversion b/tests/bazel/refresh/.bazelversion
+new file mode 100644
+index 0000000000000000000000000000000000000000..f9c71a52e2fd865dbf40db779b5bf8157d5c5a6a
+--- /dev/null
++++ b/tests/bazel/refresh/.bazelversion
+@@ -0,0 +1 @@
++8.5.1
+diff --git a/tests/bazel/refresh/MODULE.bazel b/tests/bazel/refresh/MODULE.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..ace7bde901904c48baae0bb2483053918e321a78
+--- /dev/null
++++ b/tests/bazel/refresh/MODULE.bazel
+@@ -0,0 +1,30 @@
++module(name = "snmp_test_service_lock")
++
++bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.26")
++
++apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
++apt.sources_list(
++    architectures = ["amd64"],
++    components = ["main"],
++    suites = ["trixie"],
++    uris = ["https://snapshot.debian.org/archive/debian/20260727T143429Z"],
++)
++apt.sources_list(
++    architectures = ["amd64"],
++    components = ["main"],
++    suites = ["trixie-security"],
++    uris = ["https://snapshot.debian.org/archive/debian-security/20260726T121236Z"],
++)
++apt.install(
++    dependency_set = "snmp_test_services",
++    packages = [
++        "redis-server:amd64",
++        "snmp:amd64",
++        "snmpd:amd64",
++    ],
++    suites = [
++        "trixie",
++        "trixie-security",
++    ],
++)
++use_repo(apt, "snmp_test_services")
+diff --git a/tests/bazel/refresh/export_lock.py b/tests/bazel/refresh/export_lock.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..5187cce1ebd00b6d9d8a5ffdcf1492bf552233a7
+--- /dev/null
++++ b/tests/bazel/refresh/export_lock.py
+@@ -0,0 +1,24 @@
++"""Export upstream resolution state as the reviewed test-service input lock."""
++import json
++from pathlib import Path
++root = Path(__file__).resolve().parent
++matches = []
++def visit(value):
++    if isinstance(value, dict):
++        if "lock_content" in value:
++            lock = json.loads(value["lock_content"])
++            if "snmp_test_services" in lock.get("dependency_sets", {}):
++                matches.append(lock)
++        for child in value.values():
++            visit(child)
++    elif isinstance(value, list):
++        for child in value:
++            visit(child)
++visit(json.loads((root / "MODULE.bazel.lock").read_text()))
++assert len(matches) == 1, "Resolve the dedicated refresh module first"
++lock = matches[0]
++assert set(lock["dependency_sets"]) == {"snmp_test_services"}
++assert set(lock["dependency_sets"]["snmp_test_services"]["sets"]) == {"amd64"}
++lock.pop("facts", None)
++lock["_generated"] = {"architecture": "amd64", "generator": "rules_distroless apt.install; export from refresh/MODULE.bazel.lock", "scope": "Private snmpd/snmpget and Redis test services only"}
++(root.parent / "apt.lock.json").write_text(json.dumps(lock, indent=2, sort_keys=True) + "\n")
+diff --git a/tests/bazel/requirements.in b/tests/bazel/requirements.in
+new file mode 100644
+index 0000000000000000000000000000000000000000..6ac2ae7946f06f5923d786de32fdbef51dce3e7e
+--- /dev/null
++++ b/tests/bazel/requirements.in
+@@ -0,0 +1,7 @@
++pytest==8.4.2
++pytest-cov==6.2.1
++mock==3.0.5
++mockredispy==2.9.3
++# Legacy unit-test fixtures use this compatibility SDK, not production runtime.
++swsssdk @ https://github.com/sonic-net/sonic-py-swsssdk/archive/5878f93779df1bfdfe58ea00c8d34fe8261d362e.tar.gz
++redis==4.5.4
+diff --git a/tests/bazel/requirements_lock.txt b/tests/bazel/requirements_lock.txt
+new file mode 100644
+index 0000000000000000000000000000000000000000..ac2bac9d6b9affff02558b8f4c2c65279e702c81
+--- /dev/null
++++ b/tests/bazel/requirements_lock.txt
+@@ -0,0 +1,153 @@
++coverage==7.17.0 \
++    --hash=sha256:032d4c2db4c677eb71d43f2f8b80bf64e9346f7a3f7b6ebb13f1782f3cc6c274 \
++    --hash=sha256:03baf0688e14a5a44ffd1eefa8928dfc92b14565e521174e072b31b971aa1657 \
++    --hash=sha256:045c1eeb19fb4eae949850a761102fffb3a5f638b97f977912f95843e54f6669 \
++    --hash=sha256:09e563b49c81cd0a33734e926d7a4a6ef1778d74304cde2dcc3aff8b30ea1036 \
++    --hash=sha256:0a9cb9a0fb58e6fff5442969af36094ecd6976f4907f179e33b27e15355d8f74 \
++    --hash=sha256:0b8bb651a4406fb6a983a905309fec1783443c65e1771b41e92740a0f4a1176b \
++    --hash=sha256:0cfdc938ca3319d873d1f1252e60620a39aee4ebf9dbd7cc58238109ebda9c51 \
++    --hash=sha256:0d0fac604a962ff546beb038cba9a5a09d88e6e3f01612fb46f7bd4fe5dc8dca \
++    --hash=sha256:0edeb6594f080c8de1263cccb239cb316ef77aeb959e2e0f38f2953fcc72a49e \
++    --hash=sha256:11f5f7fb2d97a0fe865f5e7bad4eb0619b957637f676bc088d13844adf26ba95 \
++    --hash=sha256:12961f738d717a046d4bf3f8d1727eb3ebe2ed5478ff96cd6233d4dfc39323d3 \
++    --hash=sha256:12cb8a20ad904a5811e6660d829a586b216e5254b9b34b76dde8a4d65d827dc6 \
++    --hash=sha256:194562ab1eff0d85aee8a17ce4c5c0bc1ebf70a629a7145257123156ad100fd6 \
++    --hash=sha256:1cabb31531002fef5197de5df3c84730aef01e750e25154b9813a2583435aba2 \
++    --hash=sha256:1ee0a982b0e1230b3edf768a7dd022bd2377303763895327ac62deb5efacee03 \
++    --hash=sha256:2bf3ee38a40c0570c316b9e7507c472469586906a20f289705898528c31aaea8 \
++    --hash=sha256:2c680e838ff9e68d491158625ca2c1ddb17d78d791bba96a31f8b839b4990438 \
++    --hash=sha256:2dc9233f39149b5a4f4aba17a4b6bc5cca22e52cfc4b06fdb07d014439b8b2ea \
++    --hash=sha256:2ed3097c6817bc1a7fc8ae0a6131db74aa1150d863cccc308237ff362d3226b2 \
++    --hash=sha256:3067608b4429629f640c1b23d2f69b05d2fd45e00ebb6ee9e8fad220a6c11722 \
++    --hash=sha256:30f5477aac9c9e4a0a641c55f8f8fddd7f3bd91176c912c50f40ffced96b4034 \
++    --hash=sha256:337f87e62e1c5f43c8198d879f677c342d152f84d3f157add12558853cbb8eaf \
++    --hash=sha256:3393209f6894713161ee82a9b0e673e58237e0f9733c6638e7a6c0c620ef0b33 \
++    --hash=sha256:34d65c9e8e257f48a654908005046fbf1bc48d9540ae3776ad08c0acd010e10c \
++    --hash=sha256:38c86e5d74bbfd88a393fa3f91257c1225c63aa6db6d5918de3e49ab04f91c6e \
++    --hash=sha256:3a4459b0f389dd1e51aac3dbfc4ca35b30cae7dc99caa3c0a086d1997a985709 \
++    --hash=sha256:42e6f170d1ac04b7eb3363310a6c41cdfd82c1fe6bf9ffbc4a86f380bdf091c7 \
++    --hash=sha256:4343a9378b964eb3cb80fa90406385de91c7e982a769ca9314d848f93bc0d3f2 \
++    --hash=sha256:460679f53893081edb94eeed011d26be37228ba649b853fd2aed7e4394fb1f35 \
++    --hash=sha256:4e153f0bd6509dbf837fd585f489b3328bfd98f2a718a0b15ae63032148b285c \
++    --hash=sha256:50678474e714c684b82c108e63fbb8f1bcf1266d8293a49980f1d08526f093b5 \
++    --hash=sha256:55939ea4c097fda2edabf80fac5e49bef15597b950a9f29fc56292a895245feb \
++    --hash=sha256:559f748446ee799803686b5784e3deb54c70d655ac386a860e06b11672504ba7 \
++    --hash=sha256:58a304efdf2253fb2ea03d45d0a04cc174a92a0cd5279c28c5bb893ce7410968 \
++    --hash=sha256:5900055351ec89fdffb34b27898815106529ded29a9496464c1ebd6313fd40fa \
++    --hash=sha256:5b7fa0997b8eba7378ac66f31ec7f70164490353ab79b9667d37c0d365e50177 \
++    --hash=sha256:5cc15faaf318ee5040d835a62c75bc6f122d837274f3b5efd47bf9fbd4ac5b85 \
++    --hash=sha256:5ebfbc87836529a31d25c2dec1262c38eea852ec1c46c0f690a515a7339d9c5b \
++    --hash=sha256:5ee9c8bd13a59e301dc2aefe7aa8384633406808de051b1982775667094eb673 \
++    --hash=sha256:600e121e412cd6bdb52ec105b95c6a04da0c9710d1534f6e64a42db667907802 \
++    --hash=sha256:6052e878b628abcd38fa5f2b64abebc686eed4e2267da42434017a9c6d24f241 \
++    --hash=sha256:61cde5222f1933d476647c5a25ed1a8678b7703098cb5a15f4a0aa39967d8c28 \
++    --hash=sha256:62bb77987d3f72a0aaa77c567ee7f9806bc2e748c8f46fafbe1fdb90dd148398 \
++    --hash=sha256:66efc0fb99cee34626fc17d3adac9c3cd816bfdad563bb1e983c3ef432f566d4 \
++    --hash=sha256:6a80a11b90c4a03df1502304cf24ff953255b6b5d076ef79066ecf88baaff31f \
++    --hash=sha256:6abfb6a4cf1cb1b67bc8fccdde177e2d2b781d0d34449e7078156547025140e5 \
++    --hash=sha256:6ae0453a3390e67f7bfbe34417bbdf5b4ebfc21db23fb446a0a41115eeeca6ca \
++    --hash=sha256:6b4593d2871c4c801656dd5861e759f8f5156febd6b6061b02f6a72d64618b7b \
++    --hash=sha256:6cc31f27240d4e080437e3b8229d92f1d809c9a4f233607385373b73974e183e \
++    --hash=sha256:6e09612b1b82c9df1d2b6c85dee88d5aad3e73d77a8ec0b16ac6a7322cbdf5d9 \
++    --hash=sha256:72edd4f9483ae30cd1ba4f230687840ef7b58a16afb1c9e81131fd6d64655f36 \
++    --hash=sha256:791f9ee09814dd30d9562b4f4eb037a371485ec1c830b53999d2320d20c4e764 \
++    --hash=sha256:79cf71e5f9a48877ccfed5baa2c72f45af4feeaa596249e23eb15b473134830e \
++    --hash=sha256:7b5abcae74750302ac4bc77351eaee87c450e4abd3b6225eacde3858e260f8b2 \
++    --hash=sha256:7c570293f001ea91598b90e90cb9b98fddee833e90bbede432cbd218331ccd8e \
++    --hash=sha256:7d6d9d396c8b7bcaf76d774a10140b218111484e54c73a5f2a1b75655381748e \
++    --hash=sha256:7fef12cec4b96f59e09761cbd4fc9bdf4788062d1ae435b920241fc16c8a9549 \
++    --hash=sha256:804fbaf81d09b34e2f8b1159d01e211a50713d743d32fd9b2ca6cf0ae507a66f \
++    --hash=sha256:84538c040f4e6214f663459d89372ce4e6b2bbdd9d397ef0dca7b3ecd56b8eb2 \
++    --hash=sha256:85682ca89bc4601125dcdff23fa70e6274e13c9ad502fba845e6c274ab2c6569 \
++    --hash=sha256:85932227e9dd38e62cd29c17fefdfecfb919eead6af1e3259522d03cf85de983 \
++    --hash=sha256:88a1a9fb0075b83389dd9b403bb3fce976031b3c2aa0e05e3e57143cf639de69 \
++    --hash=sha256:8d823d66afd59566030539c49c7a6acaf3083996682be2dda760c63555842094 \
++    --hash=sha256:8e8113d3852e9377421a61de1917df27b3abb25404a4ecf69f9e64612c4345b5 \
++    --hash=sha256:912a29f338798541d795e2e25903c6fe7a99dee70a40fe4706a9a124649b523e \
++    --hash=sha256:91e487ad07c511da77b574820141a7c2da09bc2a4b4090b5be2424295d100697 \
++    --hash=sha256:96151262832f3c230ebae23b2d6911ad549e1738465946c97004913ff06112ba \
++    --hash=sha256:968c5fb6e0c83cab752d79a70209648ce4d90cae815c60fa229b59e264601062 \
++    --hash=sha256:99a7b390cbccc6bf029ca4da3f0f607c218bb4085e9cd6b58a90d14ca12993c3 \
++    --hash=sha256:9a66074231799d8884d267234d49f60c90b43a945dfe069646b72f3058cd4e67 \
++    --hash=sha256:9c083e253e96fdeeaf48133fe836cac86ace2db215d235700e7f7532420a200c \
++    --hash=sha256:9d1fdf82c6fea57b5e9dada509f9ce9638c8334664e2c98c7f6f1ccf3d143ad2 \
++    --hash=sha256:a01ef92caeedfa4f2ad171a3a8e6fece4565de871d8bca428151bf9929f41048 \
++    --hash=sha256:a14e8d69464da9cbe1dc29e7116dbd37296d1d51a695327c478e250349085089 \
++    --hash=sha256:a1762e85cbbe3b5ff9c6dcbcc1b89d5c72320094292b7b9572bf882c85e428b7 \
++    --hash=sha256:a25cc5e8c23a590815c6a7aa43624234d25cb23b21b484adb8a0daed59860db5 \
++    --hash=sha256:a32ee5831b15ba239bef5d272ae586ca8acea4a661b5f2941f5a0d380e518b23 \
++    --hash=sha256:a3914e2c98c34b94c26d2add3d2a61ccfd3534fc4eaa879ee290bdbb5184ba6c \
++    --hash=sha256:a59c3b470ac3b2432af3598a996affbeb10236cd899a005c1c4e517fcff8b592 \
++    --hash=sha256:a5e2e0625dfc789af0b2e10acfc106b352f314fffbd19e6392a7961c8cbe5d9a \
++    --hash=sha256:acdb5f3c96046efff9dc6c572a6acb2b8d0da09372d7b9a9ed7249cf7d17434f \
++    --hash=sha256:adabc1079ba844b096799ba8638d8df434aca1613f95bb7d5791af320cf05559 \
++    --hash=sha256:adbf3450c0f3f2b2854e282a8758f2b3eddf787eeff24ec9c9bc2cbc38328cc1 \
++    --hash=sha256:aed06129a9f530a948928260d7d2d81c47261355b0127e3c782251b38958463c \
++    --hash=sha256:b2afebb96da9a1bbca142f8cc12320c14e5c215e0a49cded4f191f5a31506a28 \
++    --hash=sha256:b609df3d6d900464207532c5170a65c6ede8d2e0b91f151f90008a866395cd76 \
++    --hash=sha256:b88fb4d4d7608cbcebdc7ff7dbffc2115e3b81d6c33a79147cd79d54fcb080f4 \
++    --hash=sha256:bac487dce0d2aff28ddf1a533a916f771416eee0e493960f611e49037b878e9d \
++    --hash=sha256:bb5ca66937c55bc85d1a5e9c5900a3e4693a8edf2280a9b3672b7b2661a84b95 \
++    --hash=sha256:bd04fd23206be9ad3de13b0b39313094fafa66a1f6baf70f5471c004a9fac47d \
++    --hash=sha256:bd3e9eb493631ff1ca34bf5efac25b5c66724f837bf6182c4fc771c55946423d \
++    --hash=sha256:bfb6f868af552c0ceb2d19220b8cbcc2be096ca26163ac30e682a13041433429 \
++    --hash=sha256:c2c48a36bb970b7265b196032bfd4237c0b373f2b25ef7012d7e905b5b35c19c \
++    --hash=sha256:c3e11b81faafb1f063248735c3e2c5c4183fc1db2c7f46782170dd7760dffcbc \
++    --hash=sha256:c7c5672ecf1b497de7a0b37743bef40e3b58e3207e9fe2ed6682cb0420836a88 \
++    --hash=sha256:c86a39539d10d666bb819c16c94d7edfc1aa2e0531b937f7c549b83d15177c6e \
++    --hash=sha256:c8a58baa8eb6154c6645eadcc19b6c089deab78c24a612a83206f2a8a5992a7c \
++    --hash=sha256:c9ac886242bbd50fb35a2242ba79555a99891e657da33f98b7ca968e3488a350 \
++    --hash=sha256:cbf0b83ce927de6053279ba61342d9f8892afde1385fcba9144cd05d4023d109 \
++    --hash=sha256:cc010a0a7fbdd9bb8bdfd0d3f04a5151275860213cbd7e2b876b29778489c712 \
++    --hash=sha256:cd7397de6cc782f00fe5ac1d75e9b306bcfa49c8b6b8dd6ed1f7709393ad40b3 \
++    --hash=sha256:d45cdc495671fc99268ff3653e0da4244972e9fc0e1fc3ea9de18781ad28963a \
++    --hash=sha256:d472ee1c64868a917a47f02ffb4ac8c22b477f7589d57a3eb0c58b1ad4f0137c \
++    --hash=sha256:d523da3c2e4bca49417768bcdb1a443c5b359dc44b8b93a3102e118fce912c40 \
++    --hash=sha256:da94ec0484e84fce5c7bf8d0f54b97767a90d992653a129b35634699d516e0a5 \
++    --hash=sha256:db645c81cf4d6bcb392ea1894aad65d55d1588a8472c834b25ca575da3029a56 \
++    --hash=sha256:dc5936491e306f2f6f095bd5fba593de11eb0375cee787ca1f245c3a333a523a \
++    --hash=sha256:dfb12891a773cbc2132349c77c690a045a882fe3f98b4bda50dfabb01893f9bd \
++    --hash=sha256:e42a835271922fe7bf98c7a05c78d4032f4e52bf5b07fafa1eadfdfc2f0ad22f \
++    --hash=sha256:e4eaf11d6b0f2147f46cfbf06fe7edcca6f095d0120da00ddc2458995ee869fc \
++    --hash=sha256:e65a1e61a68493fbfbe44d8bec71b3231d81b9917f62d3dafe0e105072147e83 \
++    --hash=sha256:e8a72b26dc5c9a9422e45472b1d67ba5caf273c524c8668cc04b23062663755e \
++    --hash=sha256:e9494d9e99389d39e6a96227749af898d8924ff591cb63944f8a98e68582bf0e \
++    --hash=sha256:ef65e96f0fc1a7c8b7644c7011d47a8228555e7888ac4d6246f715a7f3d7c398 \
++    --hash=sha256:f1fc9a7cea899c51d8a53e66c2f082a3d9e461ece32418d3ef0a0b90c32bfd3d \
++    --hash=sha256:f6cdb47a9be2d3313829bed1d296086287682a3ee901ff987b3432b45705b771 \
++    --hash=sha256:f72640e02a470b57b15cd655820133f6892760209283a363a60e2df932d5f0fe \
++    --hash=sha256:f8bc2cd4c6aa58be1ca243fb8cddb6c3c42031fe4403991ad9cf2b3baed03d9f \
++    --hash=sha256:fb5745048ee20f796b0e3ab61831049e749acff188563e2af32f58ede957ac1b
++iniconfig==2.3.1 \
++    --hash=sha256:67f4b9c50da0dedf52af349e7749a80a9057a5031199791b906c3bb3ae878960 \
++    --hash=sha256:9121e2c1fdb355232495be3194c8dfe87ccc2d5dee45947b78e68f499790d7a7
++mock==3.0.5 \
++    --hash=sha256:83657d894c90d5681d62155c82bda9c1187827525880eda8ff5df4ec813437c3 \
++    --hash=sha256:d157e52d4e5b938c550f39eb2fd15610db062441a9c2747d3dbfa9298211d0f8
++mockredispy==2.9.3 \
++    --hash=sha256:8caefadab8f32bd41bbccbcc9615347dd4f840cfedc253f43a4675f07036a446
++packaging==26.3 \
++    --hash=sha256:94edc256424af38762eb31306eed28beb9f0efc50a8837492c9d6fd6004aed79 \
++    --hash=sha256:d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c
++pluggy==1.7.0 \
++    --hash=sha256:7dd7b0d8832ba3cb632c306926ded123429211b83641b35dc5c41ad2d34f9bec \
++    --hash=sha256:d1eaa46ebb595891b860ab086b4d09c8588af65ebd4361b8e8f4bb8920b90ba8
++pygments==2.21.0 \
++    --hash=sha256:2363c69b61c4a97c838da3b130dcd6468f4848992b21a82f2a63ec34377137d9 \
++    --hash=sha256:610ca751c9bc2492b38eb9a38a7fbc93edbbb2d7182edaf34e66ae493dee5c8c
++pytest==8.4.2 \
++    --hash=sha256:86c0d0b93306b961d58d62a4db4879f27fe25513d4b969df351abdddb3c30e01 \
++    --hash=sha256:872f880de3fc3a5bdc88a11b39c9710c3497a547cfa9320bc3c5e62fbf272e79
++pytest-cov==6.2.1 \
++    --hash=sha256:25cc6cc0a5358204b8108ecedc51a9b57b34cc6b8c967cc2c01a4e00d8a67da2 \
++    --hash=sha256:f5bc4c23f42f1cdd23c70b1dab1bbaef4fc505ba950d53e0081d0730dd7e86d5
++redis==4.5.4 \
++    --hash=sha256:2c19e6767c474f2e85167909061d525ed65bea9301c0770bb151e041b7ac89a2 \
++    --hash=sha256:73ec35da4da267d6847e47f68730fdd5f62e2ca69e3ef5885c6a78a9374c3893
++redis-dump-load==1.1 \
++    --hash=sha256:af4832c4db849fe060abb2053d1652b6cd91ea115058a98c8348af906fe5b6c9
++six==1.17.0 \
++    --hash=sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274 \
++    --hash=sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81
++swsssdk @ https://github.com/sonic-net/sonic-py-swsssdk/archive/5878f93779df1bfdfe58ea00c8d34fe8261d362e.tar.gz \
++    --hash=sha256:86bed327deb6b33b7e1e9577568e9796db7dcafa9a285fdeb753cc19b3281ca3
+diff --git a/tests/bazel/service_fixture.py b/tests/bazel/service_fixture.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..530009f851bd9639eaa842e446b854b747e6d434
+--- /dev/null
++++ b/tests/bazel/service_fixture.py
+@@ -0,0 +1,128 @@
++"""Query an installed SONiC AgentX subagent through private Redis and snmpd."""
++
++import json
++import os
++from pathlib import Path
++import socket
++import subprocess
++import tempfile
++import time
++
++import redis
++
++
++def query_installed_agent(installed, database_template):
++    runtime = Path(os.environ['SWSS_RUNTIME_ROOT'])
++    programs = {name: runtime / path for name, path in {
++        'redis': 'usr/bin/redis-server', 'snmpd': 'usr/sbin/snmpd',
++        'get': 'usr/bin/snmpget', 'next': 'usr/bin/snmpgetnext',
++    }.items()}
++    for path in programs.values():
++        assert path.is_file(), path
++    processes, logs = [], []
++    # Keep Unix paths below sockaddr_un's limit even in deep Bazel sandboxes.
++    with tempfile.TemporaryDirectory(prefix='sonic-snmp-', dir='/tmp') as temporary:
++        work = Path(temporary)
++        env = dict(installed.env, SNMP_PERSISTENT_DIR=str(work / 'persist'), MIBS='')
++        (work / 'persist').mkdir()
++
++        def start(name, command):
++            log = (work / (name + '.log')).open('w+')
++            logs.append(log)
++            process = subprocess.Popen(command, cwd=work, env=env, stdout=log, stderr=subprocess.STDOUT)
++            processes.append(process)
++            return process
++
++        def details():
++            return '\n'.join(path.name + ':\n' + path.read_text() for path in work.glob('*.log'))
++
++        try:
++            redis_socket = work / 'redis.sock'
++            # Existing MIBs use both Common's default TCP connector and its
++            # explicit Unix connector. Supply both private endpoints.
++            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as reservation:
++                reservation.bind(('127.0.0.1', 0))
++                redis_port = reservation.getsockname()[1]
++            start('redis', [str(programs['redis']), '--bind', '127.0.0.1',
++                            '--port', str(redis_port), '--unixsocket', str(redis_socket),
++                            '--save', '', '--appendonly', 'no'])
++            client = redis.Redis(unix_socket_path=str(redis_socket), db=4, socket_timeout=1)
++            deadline = time.monotonic() + 15
++            while True:
++                try:
++                    if client.ping():
++                        break
++                except redis.RedisError:
++                    if time.monotonic() >= deadline:
++                        raise AssertionError(details())
++                    time.sleep(.1)
++            client.hset('DEVICE_METADATA|localhost', mapping={'hostname': 'bazel-snmp-fixture'})
++            database = json.loads(database_template.read_text())
++            database['INSTANCES']['redis'].update(port=redis_port, unix_socket_path=str(redis_socket))
++            database_file = work / 'database_config.json'
++            database_file.write_text(json.dumps(database))
++            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as reservation:
++                reservation.bind(('127.0.0.1', 0))
++                port = reservation.getsockname()[1]
++            agent_socket = work / 'agentx.sock'
++            config = work / 'snmpd.conf'
++            config.write_text('master agentx\nagentxsocket ' + str(agent_socket) +
++                              '\nrocommunity bazel-test 127.0.0.1\n')
++            start('snmpd', [str(programs['snmpd']), '-f', '-Lo', '-C', '-c', str(config),
++                            '-p', str(work / 'snmpd.pid'), '-I', '-system_mib',
++                            'udp:127.0.0.1:' + str(port)])
++            launcher = r'''import asyncio,logging,pathlib,sys
++logging.basicConfig(level=logging.INFO)
++from swsscommon import swsscommon
++swsscommon.SonicDBConfig.load_sonic_db_config(sys.argv[1])
++from sonic_ax_impl import mibs
++mibs.Namespace.db_config_loaded=True
++mibs.config(unix_socket_path=sys.argv[2])
++from ax_interface import constants
++constants.AGENTX_SOCKET_PATH=sys.argv[3]
++constants.SNMPD_CONFIG_FILE=sys.argv[4]
++from sonic_ax_impl.mibs.ietf.rfc1213 import SysNameMIB
++from ax_interface import Agent
++import sonic_ax_impl,ax_interface
++site=pathlib.Path(sys.argv[5]).resolve()
++for module in (sonic_ax_impl,ax_interface):
++    assert pathlib.Path(module.__file__).resolve().is_relative_to(site)
++loop=asyncio.new_event_loop()
++asyncio.set_event_loop(loop)
++agent=Agent(SysNameMIB,False,5,loop)
++loop.run_until_complete(agent.run_in_event_loop())
++'''
++            agent = start('agent', [str(installed.python), '-I', '-c', launcher,
++                                    str(database_file), str(redis_socket), str(agent_socket),
++                                    str(config), str(installed.site)])
++            queries = [('get', '.1.3.6.1.2.1.1.5.0'), ('next', '.1.3.6.1.2.1.1.5')]
++            results = []
++            for operation, oid in queries:
++                deadline = time.monotonic() + 30
++                while True:
++                    result = subprocess.run([str(programs[operation]), '-v2c', '-c', 'bazel-test',
++                                             '-On', '-t', '1', '-r', '0',
++                                             '127.0.0.1:' + str(port), oid],
++                                            cwd=work, env=env, capture_output=True, text=True, timeout=5)
++                    if result.returncode == 0 and 'bazel-snmp-fixture' in result.stdout:
++                        assert '.1.3.6.1.2.1.1.5.0' in result.stdout, result.stdout
++                        results.append({'operation': operation, 'oid': oid, 'response': result.stdout.strip()})
++                        break
++                    if time.monotonic() >= deadline or agent.poll() is not None:
++                        raise AssertionError(result.stdout + result.stderr + details())
++                    time.sleep(.25)
++            return {'queries': results, 'services': {key: str(path) for key, path in programs.items()},
++                    'scope': 'Installed SysNameMIB via real Common/Redis, AgentX, snmpd, SNMP GET and GETNEXT'}
++        finally:
++            for process in reversed(processes):
++                if process.poll() is None:
++                    process.terminate()
++                try:
++                    process.wait(timeout=5)
++                except subprocess.TimeoutExpired:
++                    process.kill()
++                    process.wait(timeout=5)
++            for log in logs:
++                log.close()
++            if 'client' in locals():
++                client.close()
+diff --git a/tests/bazel/unit_runner.py b/tests/bazel/unit_runner.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..98f6a8d051de9168321ba5c6893e776cb9a02cbb
+--- /dev/null
++++ b/tests/bazel/unit_runner.py
+@@ -0,0 +1,63 @@
++"""Run the complete owner suite with its original mocks and declared inputs."""
++
++import json
++import os
++from pathlib import Path
++import platform
++import shutil
++import sys
++import tempfile
++import xml.etree.ElementTree as ET
++
++import pytest
++
++
++def main():
++    source = Path(sys.argv[1]).absolute().parent
++    output = Path(os.environ["TEST_UNDECLARED_OUTPUTS_DIR"])
++    output.mkdir(parents=True, exist_ok=True)
++    # The original tests create files next to fixtures. Copy only declared owner
++    # inputs so neither a writable checkout nor generated host files are needed.
++    with tempfile.TemporaryDirectory(dir=os.environ["TEST_TMPDIR"]) as temporary:
++        work = Path(temporary)
++        for child in source.iterdir():
++            if child.name in ("src", "tests"):
++                shutil.copytree(child, work / child.name)
++        for name in ("pytest.ini", "setup.cfg"):
++            shutil.copyfile(source / name, work / name)
++        os.chdir(work)
++        sys.path.insert(0, str(work / "src"))
++        sys.path.insert(0, str(work))
++        report = output / "pytest.xml"
++        status = pytest.main([
++            "-o", "addopts=", "-v", "--cov=src",
++            "--cov-report=xml:" + str(output / "coverage.xml"),
++            "--cov-report=term", "--junitxml=" + str(report),
++            "tests",
++        ])
++        summary = {}
++        if report.exists():
++            root = ET.parse(report).getroot()
++            cases = root.findall(".//testcase")
++            summary = {
++                "tests": len(cases),
++                "failures": len(root.findall(".//failure")),
++                "errors": len(root.findall(".//error")),
++                "skipped": len(root.findall(".//skipped")),
++                "inventory": [case.attrib for case in cases],
++            }
++        (output / "source-tests.json").write_text(json.dumps({
++            "status": "passed" if status == 0 else "failed",
++            "architecture": platform.machine(),
++            "python": platform.python_version(),
++            "source": str(source),
++            "selection": ["tests"],
++            **summary,
++        }, indent=2) + "\n")
++        if not summary.get("tests"):
++            raise RuntimeError("The original suite produced no test inventory")
++        return int(status)
++
++
++if __name__ == "__main__":
++    raise SystemExit(main())
