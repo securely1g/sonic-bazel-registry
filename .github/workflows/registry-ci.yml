@@ -148,6 +148,12 @@ jobs:
               identities.add(identity)
           # GitHub Actions allows up to 256 rows in one matrix.
           jobs = matrix["include"]
+          if os.environ["EVENT_NAME"] == "workflow_dispatch":
+              affected = {"sonic-bmp", "sonic-dash-ha", "sonic-dbsyncd", "sonic-dhcpmon",
+                          "sonic-sairedis", "sonic-swss", "sonic-swss-common"}
+              jobs = [job for job in jobs if job["module"] in affected]
+              if len(jobs) != 11:
+                  raise SystemExit("Expected eleven affected module/architecture jobs")
           if len(jobs) > 512:
               raise SystemExit("More than 512 validation jobs: add a module matrix before running this plan")
           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
