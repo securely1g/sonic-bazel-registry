@@ -1,0 +1,12 @@
+{
+  "url": "https://github.com/sonic-net/sonic-gnmi/archive/f611d2cbd20930c0d8c8c666706d39eda524e558.tar.gz",
+  "strip_prefix": "sonic-gnmi-f611d2cbd20930c0d8c8c666706d39eda524e558",
+  "integrity": "sha256-vU8tvn4NYxIwxUq/P7GSNKbB/DKk1Vv3eP6lUtShXd8=",
+  "patch_strip": 1,
+  "patches": {
+    "0001-bazel-producer.patch": "sha256-Q5xS3AqjJeGqmqMj6cUixEGe2fqKJGYFsBO8jo37ixU="
+  },
+  "overlay": {
+    "MODULE.bazel": "sha256-q2ERWbZqwnX24S5Qf7og8ncUtIxbUS4rXj71btknuzU="
+  }
+}
