@@ -321,10 +321,10 @@ index 38b1a5471a5788c1fb4f6d3e770278351489c457..c46a9d9143da64fe810c2c5c0f58fa35
 +)
 diff --git a/common/BUILD.bazel b/common/BUILD.bazel
 new file mode 100644
-index 0000000000000000000000000000000000000000..7339452cfa03e66d7ff11dfffed432ef4825541f
+index 0000000000000000000000000000000000000000..4112d8c1eb2df7bcda92f624bda4fcab80d75bea
 --- /dev/null
 +++ b/common/BUILD.bazel
-@@ -0,0 +1,145 @@
+@@ -0,0 +1,144 @@
 +load("@tar.bzl", "tar")
 +load("//tools/bazel:bzlmod.bzl", "IS_BZLMOD")
 +load("//tools/bazel/yang:cfg_schema.bzl", "cfg_schema")
@@ -403,7 +403,6 @@ index 0000000000000000000000000000000000000000..7339452cfa03e66d7ff11dfffed432ef
 +        [
 +            "*.cpp",
 +            "c-api/*.cpp",
-+            "c-api/internal/*.h",
 +        ],
 +        exclude = [
 +            "loglevel.cpp",
