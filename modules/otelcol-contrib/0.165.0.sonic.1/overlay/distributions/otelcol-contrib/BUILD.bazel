@@ -20,7 +20,6 @@ genrule(
     srcs = ["manifest.yaml"],
     outs = [
         "generated/components.go",
-        "generated/go.mod",
         "generated/main.go",
         "generated/main_others.go",
         "generated/main_windows.go",

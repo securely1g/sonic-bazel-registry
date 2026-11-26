@@ -30,7 +30,7 @@
     "bazel/tools/BUILD.bazel": "sha256-PxZ54M/51SzPs1b2AcFbY62iIldPfG39NAf/2fD1VKE=",
     "bazel/tools/go.mod": "sha256-4LaTsSzyWHoyPAbly5p/RQN+FPR3yNwE44A8gJbf8fg=",
     "bazel/tools/go.sum": "sha256-gbzP91aSC7+yTk/QQ+O+ivZtemCOoIYDvrCNeHXdv5Q=",
-    "distributions/otelcol-contrib/BUILD.bazel": "sha256-B7sOQLEaB8P8qJ6ZbQ2ntJ1RH9f4oHuVAxPdCFtQiPc=",
+    "distributions/otelcol-contrib/BUILD.bazel": "sha256-IYNvKn0BvOvMuavELD+oIsNHI8WXho+fZYUdAL5lqfc=",
     "distributions/otelcol-contrib/components.bzl": "sha256-E1imz80O+6EI7DpsKKmBMCvaP3+Mbqjzy87895sgYPo=",
     "distributions/otelcol-contrib/go.mod": "sha256-hmX22BBrn8r6s8heFEq1EM0lFwAvV2HMmaHm2oNTcLQ=",
     "distributions/otelcol-contrib/go.sum": "sha256-3dEMyEuU63rsnLvZl9nhmJoul3ufPrs5iCeZbsZsg6s="
