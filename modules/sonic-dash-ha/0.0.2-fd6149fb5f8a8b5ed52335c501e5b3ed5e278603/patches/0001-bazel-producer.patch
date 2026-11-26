@@ -152,10 +152,10 @@ index 0000000000000000000000000000000000000000..4a5c90ccbfe1428a1e9c0f3753a654b2
 +)
 diff --git a/bazel/README.md b/bazel/README.md
 new file mode 100644
-index 0000000000000000000000000000000000000000..00c2a68da9c8ba8dc35311e1f918e0dc75abac14
+index 0000000000000000000000000000000000000000..e253f76f78a61a33a2671c3ac035f8a062181de7
 --- /dev/null
 +++ b/bazel/README.md
-@@ -0,0 +1,94 @@
+@@ -0,0 +1,96 @@
 +# Native AMD64 source builds with Bazel
 +
 +The Bazel path builds all 14 Cargo workspace crates on Debian Trixie. The
@@ -179,6 +179,8 @@ index 0000000000000000000000000000000000000000..00c2a68da9c8ba8dc35311e1f918e0dc
 +
 +The normal registry configuration is maintained SONiC `main` plus BCR.
 +Run the same dev and release checks as CI:
++
++Install the Debian `python3-defusedxml` package to read the test result XML.
 +
 +```sh
 +python3 bazel/ci.py
@@ -269,7 +271,7 @@ index 0000000000000000000000000000000000000000..b014bc7e6ea66f9a0819841c266cb6ec
 +)
 diff --git a/bazel/ci.py b/bazel/ci.py
 new file mode 100755
-index 0000000000000000000000000000000000000000..a9de6b3d4a680e7b9ca659097f5b14a8abba6b77
+index 0000000000000000000000000000000000000000..b3bdc2379640b3ff46418cfeec22549309b89f36
 --- /dev/null
 +++ b/bazel/ci.py
 @@ -0,0 +1,226 @@
@@ -285,7 +287,7 @@ index 0000000000000000000000000000000000000000..a9de6b3d4a680e7b9ca659097f5b14a8
 +import sys
 +import tomllib
 +from urllib.parse import unquote, urlparse
-+import xml.etree.ElementTree as ET
++from defusedxml import ElementTree as ET
 +
 +ROOT = Path(__file__).resolve().parents[1]
 +PACKAGES = ["//:dash_ha_pkg", "//:dash_ha_pkg.debug_symbols", "//:runtime_packages.json"]
@@ -468,7 +470,7 @@ index 0000000000000000000000000000000000000000..a9de6b3d4a680e7b9ca659097f5b14a8
 +                "source": str(source.relative_to(execution)), "size": source.stat().st_size,
 +                "sha256": hashlib.sha256(source.read_bytes()).hexdigest()})
 +            if artifact["name"] == "test.xml":
-+                tree = ET.parse(source)
++                tree = ET.parse(source, forbid_dtd=True)
 +                if any(list(tree.iter(kind)) for kind in ("failure", "error", "skipped")) or not list(tree.iter("testcase")):
 +                    failures.append({"identity": identity, "xml": "Failed, skipped or empty test XML"})
 +                xmls.append(str(destination.relative_to(output)))
@@ -548,10 +550,10 @@ index 0000000000000000000000000000000000000000..5cf70ccac73385ad0c9fa71a40ca5447
 +    main()
 diff --git a/bazel/package_test.py b/bazel/package_test.py
 new file mode 100755
-index 0000000000000000000000000000000000000000..ad766c98a047e3e7c5e5ac6d277a12aa771235fc
+index 0000000000000000000000000000000000000000..a37497772ea3a64c60c9a7c382cccf3ea3912307
 --- /dev/null
 +++ b/bazel/package_test.py
-@@ -0,0 +1,161 @@
+@@ -0,0 +1,173 @@
 +#!/usr/bin/python3
 +"""Check the deployed HA payload, symbols and real private-loopback consumers."""
 +import argparse
@@ -560,6 +562,7 @@ index 0000000000000000000000000000000000000000..ad766c98a047e3e7c5e5ac6d277a12aa
 +import os
 +from pathlib import Path
 +import re
++import shutil
 +import socket
 +import struct
 +import subprocess
@@ -588,7 +591,18 @@ index 0000000000000000000000000000000000000000..ad766c98a047e3e7c5e5ac6d277a12aa
 +                assert member.mode == 0o755 and (name == "." or any(x.startswith(name + "/") for x in expected)), member.name
 +            else:
 +                assert member.isfile() and member.mode == mode, member.name
-+        archive.extractall(destination, filter="data")
++        # Materialize only the declared regular files; archive paths and links
++        # never choose a destination on the host.
++        by_name = dict(zip(names, members))
++        for name in sorted(expected):
++            member = by_name[name]
++            if not member.isfile():
++                raise ValueError(f"Expected a regular package file: {name}")
++            target = destination / name
++            target.parent.mkdir(parents=True, exist_ok=True)
++            with archive.extractfile(member) as source, target.open("xb") as output:
++                shutil.copyfileobj(source, output)
++            target.chmod(mode)
 +
 +
 +def main():
