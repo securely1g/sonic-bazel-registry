@@ -1,7 +1,5 @@
-# Register merged sonic-dbsyncd sources
+# sonic-dbsyncd at the upstream buildimage submodule revision
 
-Source: [securely1g/sonic-dbsyncd@273c3e8b](https://github.com/securely1g/sonic-dbsyncd/commit/273c3e8bda3e11f9dc49cb6fede53e1e12daa313).
+This entry builds `2.0.2-6da9e215021cd88b3bd6c05c63bd63ebe5e8eb88` from the `src/sonic-dbsyncd` gitlink at sonic-net/sonic-buildimage commit `9dfc6c15719f`. The registry verifies the canonical source archive by SHA-256 before applying the producer's Bazel integration. [Buildimage tree](https://github.com/sonic-net/sonic-buildimage/tree/9dfc6c15719f9266120407e384f9ee885970f833/src) · [Source commit](https://github.com/sonic-net/sonic-dbsyncd/commit/6da9e215021cd88b3bd6c05c63bd63ebe5e8eb88)
 
-This entry uses the latest maintained-branch commit captured on 2026-11-18. It preserves the owner module base `2.0.1` and its dependency declarations. The registry qualifies the version with the full source commit and retains existing compatible consumer tests and registry adaptations.
-
-Archive integrity, complete patch application, overlay checksums and module identity were checked locally. This preparation does not claim a completed Bazel build or passing CI.
+The package and architecture checks are declared in [presubmit.json](presubmit.json). The [previous registration](../2.0.1-273c3e8bda3e11f9dc49cb6fede53e1e12daa313/) records the earlier release and its validation history.
