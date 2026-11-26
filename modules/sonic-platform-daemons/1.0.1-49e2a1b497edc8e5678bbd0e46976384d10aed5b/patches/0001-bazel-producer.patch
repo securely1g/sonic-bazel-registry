@@ -1,0 +1,1280 @@
+diff --git a/.bazelrc b/.bazelrc
+new file mode 100644
+index 0000000000000000000000000000000000000000..597384a076324d586671fc05052fac11c3d0c20e
+--- /dev/null
++++ b/.bazelrc
+@@ -0,0 +1,5 @@
++common --registry=https://raw.githubusercontent.com/sonic-net/sonic-bazel-registry/main
++common --registry=https://bcr.bazel.build
++common --lockfile_mode=update
++test --test_output=errors
++try-import %workspace%/.bazelrc.user
+diff --git a/.bazelversion b/.bazelversion
+new file mode 100644
+index 0000000000000000000000000000000000000000..f9c71a52e2fd865dbf40db779b5bf8157d5c5a6a
+--- /dev/null
++++ b/.bazelversion
+@@ -0,0 +1 @@
++8.5.1
+diff --git a/BUILD.bazel b/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..2746f507ef7fd4046f15a0dc0b24adad12bdb025
+--- /dev/null
++++ b/BUILD.bazel
+@@ -0,0 +1,66 @@
++"""Platform daemon wheels, their installed runtime layers and provenance."""
++
++load("@rules_python//python:py_binary.bzl", "py_binary")
++load("@sonic_build_infra//python:source_package.bzl", "python_runtime_packages")
++load(":bazel/daemons.bzl", "DAEMONS", "daemon_distribution")
++
++py_binary(
++    name = "wheel_builder",
++    srcs = ["bazel/build_wheel.py"],
++    main = "bazel/build_wheel.py",
++    python_version = "3.13",
++    deps = [
++        "@platform_daemons_build_pip//pytest_runner",
++        "@platform_daemons_build_pip//setuptools",
++        "@platform_daemons_build_pip//wheel",
++    ],
++)
++
++py_binary(
++    name = "ycable_protoc",
++    main_module = "grpc_tools.protoc",
++    python_version = "3.13",
++    deps = ["@platform_daemons_build_pip//grpcio_tools"],
++)
++
++genrule(
++    name = "ycabled_proto",
++    srcs = ["sonic-ycabled/proto/proto_out/linkmgr_grpc_driver.proto"],
++    outs = ["proto_out/linkmgr_grpc_driver_pb2.py", "proto_out/linkmgr_grpc_driver_pb2_grpc.py"],
++    tools = [":ycable_protoc"],
++    cmd = """
++        source=$(location sonic-ycabled/proto/proto_out/linkmgr_grpc_driver.proto)
++        include=$${source%/proto_out/*}
++        $(execpath :ycable_protoc) -I"$$include" --python_out=$(RULEDIR) --grpc_python_out=$(RULEDIR) "$$source"
++    """,
++    visibility = ["//visibility:public"],
++)
++
++[daemon_distribution(name) for name in DAEMONS]
++
++filegroup(
++    name = "daemons.wheels",
++    srcs = [name + ".wheel" for name in DAEMONS],
++    visibility = ["//visibility:public"],
++)
++
++python_runtime_packages(
++    name = "daemons.runtime",
++    deps = [name + ".runtime" for name in DAEMONS],
++    visibility = ["//visibility:public"],
++)
++
++filegroup(
++    name = "daemons.runtime_metadata",
++    srcs = [":daemons.runtime"],
++    output_group = "metadata",
++    visibility = ["//visibility:public"],
++)
++
++filegroup(
++    name = "test_sources",
++    srcs = glob(["sonic-*/**/*.py", "sonic-*/scripts/*", "sonic-*/tests/**", "sonic-*/pytest.ini", "sonic-*/setup.cfg"], exclude = ["**/*.pyc", "**/__pycache__/**"]),
++    visibility = ["//visibility:public"],
++)
++
++exports_files(glob(["sonic-*/setup.py"]) + ["bazel/requirements-codegen-lock.txt"])
+diff --git a/bazel/build_wheel.py b/bazel/build_wheel.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..909099c9c11977b5e5caef5431bf7908993e349c
+--- /dev/null
++++ b/bazel/build_wheel.py
+@@ -0,0 +1,38 @@
++"""Run the daemon's setuptools backend in a private, writable source tree."""
++
++import argparse
++import os
++from pathlib import Path
++import shutil
++import tempfile
++
++from setuptools.build_meta import build_wheel
++
++
++def main():
++    parser = argparse.ArgumentParser()
++    parser.add_argument("--setup", type=Path, required=True)
++    parser.add_argument("--output", type=Path, required=True)
++    parser.add_argument("--sources", nargs="+", type=Path, required=True)
++    parser.add_argument("--generated", nargs="+", type=Path, default=[])
++    args = parser.parse_args()
++    output = args.output.absolute()
++    os.environ["SOURCE_DATE_EPOCH"] = "315532800"
++    with tempfile.TemporaryDirectory() as directory:
++        source_root = Path(directory)
++        for source in args.sources:
++            relative = source.relative_to(args.setup.parent)
++            staged = source_root / relative
++            staged.parent.mkdir(parents=True, exist_ok=True)
++            shutil.copyfile(source, staged)
++            staged.chmod(0o755 if relative.parts[0] == "scripts" else 0o644)
++        for source in args.generated:
++            shutil.copyfile(source, source_root / "proto_out" / source.name)
++        os.chdir(source_root)
++        filename = build_wheel(str(output.parent))
++        if filename != output.name:
++            raise ValueError(f"setup.py produced {filename}, expected {output.name}")
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/bazel/daemons.bzl b/bazel/daemons.bzl
+new file mode 100644
+index 0000000000000000000000000000000000000000..682b8a84a71df25840d3d47fc0693b82c383c77b
+--- /dev/null
++++ b/bazel/daemons.bzl
+@@ -0,0 +1,52 @@
++"""Build each daemon's setuptools wheel and install it through the shared rule."""
++
++load("@sonic_build_infra//python:wheel_layer.bzl", "wheel_layer")
++
++DAEMONS = [
++    "sonic-bmcctld",
++    "sonic-chassisd",
++    "sonic-ledd",
++    "sonic-pcied",
++    "sonic-psud",
++    "sonic-sensormond",
++    "sonic-stormond",
++    "sonic-syseepromd",
++    "sonic-thermalctld",
++    "sonic-xcvrd",
++    "sonic-ycabled",
++]
++
++def daemon_distribution(name):
++    """Expose a pure wheel and its installed image payload from the owner's setup.py."""
++    version = "1.1" if name == "sonic-ledd" else "1.0"
++    stem = name.replace("-", "_") + "-" + version
++    setup = name + "/setup.py"
++    generated = [":ycabled_proto"] if name == "sonic-ycabled" else []
++    native.filegroup(
++        name = name + ".sources",
++        srcs = native.glob([name + "/**/*.py", name + "/setup.cfg"]) +
++               native.glob([name + "/scripts/*"], allow_empty = True),
++    )
++    native.genrule(
++        name = name + ".wheel",
++        srcs = [setup, ":" + name + ".sources"] + generated,
++        outs = [stem + "-py3-none-any.whl"],
++        tools = [":wheel_builder"],
++        cmd = "PYTHONHASHSEED=0 $(execpath :wheel_builder) --output $@ --setup $(location " + setup +
++              ") --sources $(locations :" + name + ".sources)" +
++              (" --generated $(locations :ycabled_proto)" if generated else ""),
++        visibility = ["//visibility:public"],
++    )
++    wheel_layer(
++        name = name + ".runtime",
++        wheels = [":" + name + ".wheel"],
++        site_packages = "/usr/local/lib/python3.13/dist-packages",
++        headers = "/usr/local/include/python3.13",
++        visibility = ["//visibility:public"],
++    )
++    native.filegroup(
++        name = name + ".runtime_metadata",
++        srcs = [":" + name + ".runtime"],
++        output_group = "metadata",
++        visibility = ["//visibility:public"],
++    )
+diff --git a/bazel/requirements-codegen-constraints.txt b/bazel/requirements-codegen-constraints.txt
+new file mode 100644
+index 0000000000000000000000000000000000000000..fef5b2aac317a7128b15177758ffe8b013e83e6e
+--- /dev/null
++++ b/bazel/requirements-codegen-constraints.txt
+@@ -0,0 +1,3 @@
++grpcio==1.71.0
++protobuf==5.29.6
++setuptools==80.9.0
+diff --git a/bazel/requirements-codegen-lock.txt b/bazel/requirements-codegen-lock.txt
+new file mode 100644
+index 0000000000000000000000000000000000000000..41f5cffa4637abf9a4f2d4c90eb9bc6d4b13ad49
+--- /dev/null
++++ b/bazel/requirements-codegen-lock.txt
+@@ -0,0 +1,125 @@
++grpcio==1.71.0 \
++    --hash=sha256:0ab8b2864396663a5b0b0d6d79495657ae85fa37dcb6498a2669d067c65c11ea \
++    --hash=sha256:0fa05ee31a20456b13ae49ad2e5d585265f71dd19fbd9ef983c28f926d45d0a7 \
++    --hash=sha256:0ff35c8d807c1c7531d3002be03221ff9ae15712b53ab46e2a0b4bb271f38537 \
++    --hash=sha256:1be857615e26a86d7363e8a163fade914595c81fec962b3d514a4b1e8760467b \
++    --hash=sha256:20e8f653abd5ec606be69540f57289274c9ca503ed38388481e98fa396ed0b41 \
++    --hash=sha256:22c3bc8d488c039a199f7a003a38cb7635db6656fa96437a8accde8322ce2366 \
++    --hash=sha256:24e867651fc67717b6f896d5f0cac0ec863a8b5fb7d6441c2ab428f52c651c6b \
++    --hash=sha256:2b85f7820475ad3edec209d3d89a7909ada16caab05d3f2e08a7e8ae3200a55c \
++    --hash=sha256:39983a9245d37394fd59de71e88c4b295eb510a3555e0a847d9965088cdbd033 \
++    --hash=sha256:3d081e859fb1ebe176de33fc3adb26c7d46b8812f906042705346b314bde32c3 \
++    --hash=sha256:469f42a0b410883185eab4689060a20488a1a0a00f8bbb3cbc1061197b4c5a79 \
++    --hash=sha256:47be9584729534660416f6d2a3108aaeac1122f6b5bdbf9fd823e11fe6fbaa29 \
++    --hash=sha256:4be74ddeeb92cc87190e0e376dbc8fc7736dbb6d3d454f2fa1f5be1dee26b9d7 \
++    --hash=sha256:4dd0dfbe4d5eb1fcfec9490ca13f82b089a309dc3678e2edabc144051270a66e \
++    --hash=sha256:5b08d03ace7aca7b2fadd4baf291139b4a5f058805a8327bfe9aece7253b6d67 \
++    --hash=sha256:63e41b91032f298b3e973b3fa4093cbbc620c875e2da7b93e249d4728b54559a \
++    --hash=sha256:652350609332de6dac4ece254e5d7e1ff834e203d6afb769601f286886f6f3a8 \
++    --hash=sha256:693bc706c031aeb848849b9d1c6b63ae6bcc64057984bb91a542332b75aa4c3d \
++    --hash=sha256:74258dce215cb1995083daa17b379a1a5a87d275387b7ffe137f1d5131e2cfbb \
++    --hash=sha256:789d5e2a3a15419374b7b45cd680b1e83bbc1e52b9086e49308e2c0b5bbae6e3 \
++    --hash=sha256:7c9c80ac6091c916db81131d50926a93ab162a7e97e4428ffc186b6e80d6dda4 \
++    --hash=sha256:7d6ac9481d9d0d129224f6d5934d5832c4b1cddb96b59e7eba8416868909786a \
++    --hash=sha256:85da336e3649a3d2171e82f696b5cad2c6231fdd5bad52616476235681bee5b3 \
++    --hash=sha256:8700a2a57771cc43ea295296330daaddc0d93c088f0a35cc969292b6db959bf3 \
++    --hash=sha256:8997d6785e93308f277884ee6899ba63baafa0dfb4729748200fcc537858a509 \
++    --hash=sha256:9182e0063112e55e74ee7584769ec5a0b4f18252c35787f48738627e23a62b97 \
++    --hash=sha256:9b91879d6da1605811ebc60d21ab6a7e4bae6c35f6b63a061d61eb818c8168f6 \
++    --hash=sha256:a2242d6950dc892afdf9e951ed7ff89473aaf744b7d5727ad56bdaace363722b \
++    --hash=sha256:a371e6b6a5379d3692cc4ea1cb92754d2a47bdddeee755d3203d1f84ae08e03e \
++    --hash=sha256:a76d39b5fafd79ed604c4be0a869ec3581a172a707e2a8d7a4858cb05a5a7637 \
++    --hash=sha256:ad9f30838550695b5eb302add33f21f7301b882937460dd24f24b3cc5a95067a \
++    --hash=sha256:b2266862c5ad664a380fbbcdbdb8289d71464c42a8c29053820ee78ba0119e5d \
++    --hash=sha256:b78a99cd1ece4be92ab7c07765a0b038194ded2e0a26fd654591ee136088d8d7 \
++    --hash=sha256:c200cb6f2393468142eb50ab19613229dcc7829b5ccee8b658a36005f6669fdd \
++    --hash=sha256:c30f393f9d5ff00a71bb56de4aa75b8fe91b161aeb61d39528db6b768d7eac69 \
++    --hash=sha256:c6a0a28450c16809f94e0b5bfe52cabff63e7e4b97b44123ebf77f448534d07d \
++    --hash=sha256:cebc1b34ba40a312ab480ccdb396ff3c529377a2fce72c45a741f7215bfe8379 \
++    --hash=sha256:d2c170247315f2d7e5798a22358e982ad6eeb68fa20cf7a820bb74c11f0736e7 \
++    --hash=sha256:d35a95f05a8a2cbe8e02be137740138b3b2ea5f80bd004444e4f9a1ffc511e32 \
++    --hash=sha256:d5170929109450a2c031cfe87d6716f2fae39695ad5335d9106ae88cc32dc84c \
++    --hash=sha256:d6aa986318c36508dc1d5001a3ff169a15b99b9f96ef5e98e13522c506b37eef \
++    --hash=sha256:d6de81c9c00c8a23047136b11794b3584cdc1460ed7cbc10eada50614baa1444 \
++    --hash=sha256:dc1a1231ed23caac1de9f943d031f1bc38d0f69d2a3b243ea0d664fc1fbd7fec \
++    --hash=sha256:e6beeea5566092c5e3c4896c6d1d307fb46b1d4bdf3e70c8340b190a69198594 \
++    --hash=sha256:e6d8de076528f7c43a2f576bc311799f89d795aa6c9b637377cc2b1616473804 \
++    --hash=sha256:e6f83a583ed0a5b08c5bc7a3fe860bb3c2eac1f03f1f63e0bc2091325605d2b7 \
++    --hash=sha256:f250ff44843d9a0615e350c77f890082102a0318d66a99540f54769c8766ab73 \
++    --hash=sha256:f71574afdf944e6652203cd1badcda195b2a27d9c83e6d88dc1ce3cfb73b31a5 \
++    --hash=sha256:f903017db76bf9cc2b2d8bdd37bf04b505bbccad6be8a81e1542206875d0e9db \
++    --hash=sha256:f9a412f55bb6e8f3bb000e020dbc1e709627dcb3a56f6431fa7076b4c1aab0db \
++    --hash=sha256:f9c30c464cb2ddfbc2ddf9400287701270fdc0f14be5f08a1e3939f1e749b455
++grpcio-tools==1.71.0 \
++    --hash=sha256:072b2a5805ac97e4623b3aa8f7818275f3fb087f4aa131b0fce00471065f6eaa \
++    --hash=sha256:0ccfb837152b7b858b9f26bb110b3ae8c46675d56130f6c2f03605c4f129be13 \
++    --hash=sha256:0e647794bd7138b8c215e86277a9711a95cf6a03ff6f9e555d54fdf7378b9f9d \
++    --hash=sha256:1291a6136c07a86c3bb09f6c33f5cf227cc14956edd1b85cb572327a36e0aef8 \
++    --hash=sha256:1331e726e08b7bdcbf2075fcf4b47dff07842b04845e6e220a08a4663e232d7f \
++    --hash=sha256:145985c0bf12131f0a1503e65763e0f060473f7f3928ed1ff3fb0e8aad5bc8ac \
++    --hash=sha256:192808cf553cedca73f0479cc61d5684ad61f24db7a5f3c4dfe1500342425866 \
++    --hash=sha256:1f19b16b49afa5d21473f49c0966dd430c88d089cd52ac02404d8cef67134efb \
++    --hash=sha256:28784f39921d061d2164a9dcda5164a69d07bf29f91f0ea50b505958292312c9 \
++    --hash=sha256:2a1712f12102b60c8d92779b89d0504e0d6f3a59f2b933e5622b8583f5c02992 \
++    --hash=sha256:3059c14035e5dc03d462f261e5900b9a077fd1a36976c3865b8507474520bad4 \
++    --hash=sha256:38dba8e0d5e0fb23a034e09644fdc6ed862be2371887eee54901999e8f6792a8 \
++    --hash=sha256:41878cb7a75477e62fdd45e7e9155b3af1b7a5332844021e2511deaf99ac9e6c \
++    --hash=sha256:459c8f5e00e390aecd5b89de67deb3ec7188a274bc6cb50e43cef35ab3a3f45d \
++    --hash=sha256:48debc879570972d28bfe98e4970eff25bb26da3f383e0e49829b2d2cd35ad87 \
++    --hash=sha256:541a756276c8a55dec991f6c0106ae20c8c8f5ce8d0bdbfcb01e2338d1a8192b \
++    --hash=sha256:56ecd6cc89b5e5eed1de5eb9cafce86c9c9043ee3840888cc464d16200290b53 \
++    --hash=sha256:57e3e2544c306b60ef2d76570bac4e977be1ad548641c9eec130c3bc47e80141 \
++    --hash=sha256:580ac88141c9815557e63c9c04f5b1cdb19b4db8d0cb792b573354bde1ee8b12 \
++    --hash=sha256:61c0409d5bdac57a7bd0ce0ab01c1c916728fe4c8a03d77a25135ad481eb505c \
++    --hash=sha256:64bdb291df61cf570b5256777ad5fe2b1db6d67bc46e55dc56a0a862722ae329 \
++    --hash=sha256:65aa082f4435571d65d5ce07fc444f23c3eff4f3e34abef599ef8c9e1f6f360f \
++    --hash=sha256:6693a7d3ba138b0e693b3d1f687cdd9db9e68976c3fa2b951c17a072fea8b583 \
++    --hash=sha256:682e958b476049ccc14c71bedf3f979bced01f6e0c04852efc5887841a32ad6b \
++    --hash=sha256:6ae5f2efa9e644c10bf1021600bfc099dfbd8e02b184d2d25dc31fcd6c2bc59e \
++    --hash=sha256:6d11ed3ff7b6023b5c72a8654975324bb98c1092426ba5b481af406ff559df00 \
++    --hash=sha256:753270e2d06d37e6d7af8967d1d059ec635ad215882041a36294f4e2fd502b2e \
++    --hash=sha256:77fe6db1334e0ce318b2cb4e70afa94e0c173ed1a533d37aea69ad9f61ae8ea9 \
++    --hash=sha256:82c430edd939bb863550ee0fecf067d78feff828908a1b529bbe33cc57f2419c \
++    --hash=sha256:834959b6eceb85de5217a411aba1643b5f782798680c122202d6a06177226644 \
++    --hash=sha256:83e90724e3f02415c628e4ead1d6ffe063820aaaa078d9a39176793df958cd5a \
++    --hash=sha256:870c0097700d13c403e5517cb7750ab5b4a791ce3e71791c411a38c5468b64bd \
++    --hash=sha256:8b93b9f6adc7491d4c10144c0643409db298e5e63c997106a804f6f0248dbaf4 \
++    --hash=sha256:8dd9795e982d77a4b496f7278b943c2563d9afde2069cdee78c111a40cc4d675 \
++    --hash=sha256:8e6cdbba4dae7b37b0d25d074614be9936fb720144420f03d9f142a80be69ba2 \
++    --hash=sha256:8f987d0053351217954543b174b0bddbf51d45b3cfcf8d6de97b0a43d264d753 \
++    --hash=sha256:989ee9da61098230d3d4c8f8f8e27c2de796f1ff21b1c90110e636d9acd9432b \
++    --hash=sha256:9a78d07d6c301a25ef5ede962920a522556a1dfee1ccc05795994ceb867f766c \
++    --hash=sha256:abd57f615e88bf93c3c6fd31f923106e3beb12f8cd2df95b0d256fa07a7a0a57 \
++    --hash=sha256:af39e245fa56f7f5c2fe86b7d6c1b78f395c07e54d5613cbdbb3c24769a92b6e \
++    --hash=sha256:bfe3888c3bbe16a5aa39409bc38744a31c0c3d2daa2b0095978c56e106c85b42 \
++    --hash=sha256:c1b5860c41a36b26fec4f52998f1a451d0525a5c9a4fb06b6ea3e9211abdb925 \
++    --hash=sha256:d3adc8b229e60c77bab5a5d62b415667133bd5ced7d59b5f71d6317c9143631e \
++    --hash=sha256:e3ae9556e2a1cd70e7d7b0e0459c35af71d51a7dae4cf36075068011a69f13ec \
++    --hash=sha256:e52a041afc20ab2431d756b6295d727bd7adee813b21b06a3483f4a7a15ea15f \
++    --hash=sha256:edab7e6518de01196be37f96cb1e138c3819986bf5e2a6c9e1519b4d716b2f5a \
++    --hash=sha256:f360981b215b1d5aff9235b37e7e1826246e35bbac32a53e41d4e990a37b8f4c \
++    --hash=sha256:f4ad7f0d756546902597053d70b3af2606fbd70d7972876cd75c1e241d22ae00 \
++    --hash=sha256:f68334d28a267fabec6e70cb5986e9999cfbfd14db654094ddf9aedd804a293a \
++    --hash=sha256:f7c678e68ece0ae908ecae1c4314a0c2c7f83e26e281738b9609860cc2c82d96 \
++    --hash=sha256:ffff9bc5eacb34dd26b487194f7d44a3e64e752fc2cf049d798021bf25053b87
++protobuf==5.29.6 \
++    --hash=sha256:36ade6ff88212e91aef4e687a971a11d7d24d6948a66751abc1b3238648f5d05 \
++    --hash=sha256:62e8a3114992c7c647bce37dcc93647575fc52d50e48de30c6fcb28a6a291eb1 \
++    --hash=sha256:6b9edb641441b2da9fa8f428760fc136a49cf97a52076010cf22a2ff73438a86 \
++    --hash=sha256:76e07e6567f8baf827137e8d5b8204b6c7b6488bbbff1bf0a72b383f77999c18 \
++    --hash=sha256:7e6ad413275be172f67fdee0f43484b6de5a904cc1c3ea9804cb6fe2ff366eda \
++    --hash=sha256:831e2da16b6cc9d8f1654c041dd594eda43391affd3c03a91bea7f7f6da106d6 \
++    --hash=sha256:a8866b2cff111f0f863c1b3b9e7572dc7eaea23a7fae27f6fc613304046483e6 \
++    --hash=sha256:b5a169e664b4057183a34bdc424540e86eea47560f3c123a0d64de4e137f9269 \
++    --hash=sha256:cb4c86de9cd8a7f3a256b9744220d87b847371c6b2f10bde87768918ef33ba49 \
++    --hash=sha256:da9ee6a5424b6b30fd5e45c5ea663aef540ca95f9ad99d1e887e819cdf9b8723 \
++    --hash=sha256:e3387f44798ac1106af0233c04fb8abf543772ff241169946f698b3a9a3d3ab9
++pytest-runner==6.0.1 \
++    --hash=sha256:70d4739585a7008f37bf4933c013fdb327b8878a5a69fcbb3316c88882f0f49b \
++    --hash=sha256:ea326ed6f6613992746062362efab70212089a4209c08d67177b3df1c52cd9f2
++setuptools==80.9.0 \
++    --hash=sha256:062d34222ad13e0cc312a4c02d73f059e86a4acbfbdea8f8f76b28c99f306922 \
++    --hash=sha256:f36b47402ecde768dbfafc46e8e4207b4360c654f1f3bb84475f0a28628fb19c
++wheel==0.45.1 \
++    --hash=sha256:661e1abd9198507b1409a20c02106d9670b2576e916d58f520316666abca6729 \
++    --hash=sha256:708e7481cc80179af0e556bbf0cc00b8444c7321e2700b8d8580231d13017248
+diff --git a/bazel/requirements-codegen.in b/bazel/requirements-codegen.in
+new file mode 100644
+index 0000000000000000000000000000000000000000..12ad2cdb7b2fb83af3b37a2dc340200a010e1440
+--- /dev/null
++++ b/bazel/requirements-codegen.in
+@@ -0,0 +1,3 @@
++grpcio-tools==1.71.0
++pytest-runner==6.0.1
++wheel==0.45.1
+diff --git a/sonic-ycabled/tests/test_y_cable_helper.py b/sonic-ycabled/tests/test_y_cable_helper.py
+index 9807bd45f9a61e4fa175face55756077231c98aa..7d9bf90df5bc7f05a6e8da5a14a044b2dd2c6645 100644
+--- a/sonic-ycabled/tests/test_y_cable_helper.py
++++ b/sonic-ycabled/tests/test_y_cable_helper.py
+@@ -6863,8 +6863,12 @@ class TestYCableScript(object):
+             patched_util.get_asic_id_for_logical_port.return_value = 0
+             (channel, stub) = setup_grpc_channel_for_port("Ethernet0", "192.168.0.1", asic_index, grpc_client, False)
+ 
+-        assert(stub == True)
+-        assert(channel != None)
++        try:
++            assert(stub == True)
++            assert(channel != None)
++        finally:
++            if channel is not None:
++                channel.close()
+ 
+     @patch('proto_out.linkmgr_grpc_driver_pb2_grpc.DualToRActiveStub', MagicMock(return_value=True))
+     def test_setup_grpc_channel_for_port_get_false(self):
+@@ -6888,8 +6892,12 @@ class TestYCableScript(object):
+             patched_util.get_asic_id_for_logical_port.return_value = 0
+             (channel, stub) = setup_grpc_channel_for_port("Ethernet0", "192.168.0.1", asic_index, grpc_client, False)
+ 
+-        assert(stub == True)
+-        assert(channel != None)
++        try:
++            assert(stub == True)
++            assert(channel != None)
++        finally:
++            if channel is not None:
++                channel.close()
+ 
+ 
+ 
+diff --git a/tests/bazel/.bazelrc b/tests/bazel/.bazelrc
+new file mode 100644
+index 0000000000000000000000000000000000000000..86b3a1aec06a3bd2e95d486082f57b6509b55b1e
+--- /dev/null
++++ b/tests/bazel/.bazelrc
+@@ -0,0 +1,9 @@
++common --registry=https://raw.githubusercontent.com/sonic-net/sonic-bazel-registry/main
++common --registry=https://bcr.bazel.build
++common --lockfile_mode=update
++common --platforms=@sonic_build_infra//platforms:x86_64_trixie
++common --host_platform=@sonic_build_infra//platforms:x86_64_trixie
++common --@sonic_swss_common//tools/bazel:yang_modules=True
++common --noincompatible_disallow_empty_glob
++test --test_output=errors
++try-import %workspace%/.bazelrc.user
+diff --git a/tests/bazel/.bazelversion b/tests/bazel/.bazelversion
+new file mode 120000
+index 0000000000000000000000000000000000000000..96cf94962b42d2f253d5dc303a45b5ec1db9a3f9
+--- /dev/null
++++ b/tests/bazel/.bazelversion
+@@ -0,0 +1 @@
++../../.bazelversion
+\ No newline at end of file
+diff --git a/tests/bazel/BUILD.bazel b/tests/bazel/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..51c00e512ed725328f3d0bc9984248a9f88e1a31
+--- /dev/null
++++ b/tests/bazel/BUILD.bazel
+@@ -0,0 +1,169 @@
++load("@daemon_tests_pip//:requirements.bzl", "requirement")
++load("@rules_python//python:py_binary.bzl", "py_binary")
++load("@rules_shell//shell:sh_test.bzl", "sh_test")
++
++_OWNER_WHEELS = ["@sonic_platform_daemons//:sonic-" + name + ".wheel" for name in [
++    "bmcctld", "chassisd", "ledd", "pcied", "psud", "sensormond",
++    "stormond", "syseepromd", "thermalctld", "xcvrd", "ycabled",
++]]
++
++_TEST_RUNTIME_FILES = [
++    "@patchelf//:patchelf",
++    "@sonic_swss_common//tools/bazel/runtime:test_runtime",
++]
++_TEST_RUNTIME_ARGS = [
++    "$(rootpath @patchelf//:patchelf)",
++    "$(rootpath @sonic_swss_common//tools/bazel/runtime:test_runtime)",
++    "-",
++    "enabled",
++]
++
++_RUNTIME_DEPS = [
++    "@sonic_py_swsssdk//:swsssdk",
++    "@sonic_platform_common//:sonic_platform_common",
++    "@sonic_buildimage//src/sonic-config-engine:sonic_config_engine",
++    "@sonic_buildimage//src/sonic-py-common:sonic_py_common",
++    "@daemon_codegen_pip//grpcio",
++    "@daemon_codegen_pip//protobuf",
++]
++
++py_binary(
++    name = "unit_runner",
++    testonly = True,
++    srcs = ["unit_runner.py"],
++    data = ["@sonic_platform_daemons//:test_sources", "@sonic_platform_daemons//:ycabled_proto"],
++    legacy_create_init = False,
++    python_version = "3.13",
++    deps = _RUNTIME_DEPS + [requirement("mock"), requirement("pytest"), requirement("pytest-cov")],
++)
++
++sh_test(
++    name = "chassisd_test",
++    size = "large",
++    timeout = "long",
++    srcs = ["@sonic_swss_common//tools/bazel/runtime:run_with_runtime.py"],
++    args = _TEST_RUNTIME_ARGS + ['$(rootpath :unit_runner)', '$(rootpath @sonic_platform_daemons//:sonic-chassisd/setup.py)'],
++    data = _TEST_RUNTIME_FILES + ['@sonic_platform_daemons//:sonic-chassisd/setup.py', ":unit_runner", "@sonic_platform_daemons//:test_sources", "@sonic_platform_daemons//:ycabled_proto"],
++    target_compatible_with = ["@platforms//cpu:x86_64", "@platforms//os:linux"],
++)
++
++sh_test(
++    name = "ledd_test",
++    size = "large",
++    timeout = "long",
++    srcs = ["@sonic_swss_common//tools/bazel/runtime:run_with_runtime.py"],
++    args = _TEST_RUNTIME_ARGS + ['$(rootpath :unit_runner)', '$(rootpath @sonic_platform_daemons//:sonic-ledd/setup.py)'],
++    data = _TEST_RUNTIME_FILES + ['@sonic_platform_daemons//:sonic-ledd/setup.py', ":unit_runner", "@sonic_platform_daemons//:test_sources", "@sonic_platform_daemons//:ycabled_proto"],
++    target_compatible_with = ["@platforms//cpu:x86_64", "@platforms//os:linux"],
++)
++
++sh_test(
++    name = "pcied_test",
++    size = "large",
++    timeout = "long",
++    srcs = ["@sonic_swss_common//tools/bazel/runtime:run_with_runtime.py"],
++    args = _TEST_RUNTIME_ARGS + ['$(rootpath :unit_runner)', '$(rootpath @sonic_platform_daemons//:sonic-pcied/setup.py)'],
++    data = _TEST_RUNTIME_FILES + ['@sonic_platform_daemons//:sonic-pcied/setup.py', ":unit_runner", "@sonic_platform_daemons//:test_sources", "@sonic_platform_daemons//:ycabled_proto"],
++    target_compatible_with = ["@platforms//cpu:x86_64", "@platforms//os:linux"],
++)
++
++sh_test(
++    name = "psud_test",
++    size = "large",
++    timeout = "long",
++    srcs = ["@sonic_swss_common//tools/bazel/runtime:run_with_runtime.py"],
++    args = _TEST_RUNTIME_ARGS + ['$(rootpath :unit_runner)', '$(rootpath @sonic_platform_daemons//:sonic-psud/setup.py)'],
++    data = _TEST_RUNTIME_FILES + ['@sonic_platform_daemons//:sonic-psud/setup.py', ":unit_runner", "@sonic_platform_daemons//:test_sources", "@sonic_platform_daemons//:ycabled_proto"],
++    target_compatible_with = ["@platforms//cpu:x86_64", "@platforms//os:linux"],
++)
++
++sh_test(
++    name = "syseepromd_test",
++    size = "large",
++    timeout = "long",
++    srcs = ["@sonic_swss_common//tools/bazel/runtime:run_with_runtime.py"],
++    args = _TEST_RUNTIME_ARGS + ['$(rootpath :unit_runner)', '$(rootpath @sonic_platform_daemons//:sonic-syseepromd/setup.py)'],
++    data = _TEST_RUNTIME_FILES + ['@sonic_platform_daemons//:sonic-syseepromd/setup.py', ":unit_runner", "@sonic_platform_daemons//:test_sources", "@sonic_platform_daemons//:ycabled_proto"],
++    target_compatible_with = ["@platforms//cpu:x86_64", "@platforms//os:linux"],
++)
++
++sh_test(
++    name = "thermalctld_test",
++    size = "large",
++    timeout = "long",
++    srcs = ["@sonic_swss_common//tools/bazel/runtime:run_with_runtime.py"],
++    args = _TEST_RUNTIME_ARGS + ['$(rootpath :unit_runner)', '$(rootpath @sonic_platform_daemons//:sonic-thermalctld/setup.py)'],
++    data = _TEST_RUNTIME_FILES + ['@sonic_platform_daemons//:sonic-thermalctld/setup.py', ":unit_runner", "@sonic_platform_daemons//:test_sources", "@sonic_platform_daemons//:ycabled_proto"],
++    target_compatible_with = ["@platforms//cpu:x86_64", "@platforms//os:linux"],
++)
++
++sh_test(
++    name = "xcvrd_test",
++    size = "large",
++    timeout = "long",
++    srcs = ["@sonic_swss_common//tools/bazel/runtime:run_with_runtime.py"],
++    args = _TEST_RUNTIME_ARGS + ['$(rootpath :unit_runner)', '$(rootpath @sonic_platform_daemons//:sonic-xcvrd/setup.py)'],
++    data = _TEST_RUNTIME_FILES + ['@sonic_platform_daemons//:sonic-xcvrd/setup.py', ":unit_runner", "@sonic_platform_daemons//:test_sources", "@sonic_platform_daemons//:ycabled_proto"],
++    target_compatible_with = ["@platforms//cpu:x86_64", "@platforms//os:linux"],
++)
++
++sh_test(
++    name = "ycabled_test",
++    size = "large",
++    timeout = "long",
++    srcs = ["@sonic_swss_common//tools/bazel/runtime:run_with_runtime.py"],
++    args = _TEST_RUNTIME_ARGS + ['$(rootpath :unit_runner)', '$(rootpath @sonic_platform_daemons//:sonic-ycabled/setup.py)', '$(rootpath @sonic_platform_daemons//:proto_out/linkmgr_grpc_driver_pb2.py)', '$(rootpath @sonic_platform_daemons//:proto_out/linkmgr_grpc_driver_pb2_grpc.py)'],
++    data = _TEST_RUNTIME_FILES + ['@sonic_platform_daemons//:sonic-ycabled/setup.py', '@sonic_platform_daemons//:proto_out/linkmgr_grpc_driver_pb2.py', '@sonic_platform_daemons//:proto_out/linkmgr_grpc_driver_pb2_grpc.py', ":unit_runner", "@sonic_platform_daemons//:test_sources", "@sonic_platform_daemons//:ycabled_proto"],
++    target_compatible_with = ["@platforms//cpu:x86_64", "@platforms//os:linux"],
++)
++
++sh_test(
++    name = "sensormond_test",
++    size = "large",
++    timeout = "long",
++    srcs = ["@sonic_swss_common//tools/bazel/runtime:run_with_runtime.py"],
++    args = _TEST_RUNTIME_ARGS + ['$(rootpath :unit_runner)', '$(rootpath @sonic_platform_daemons//:sonic-sensormond/setup.py)'],
++    data = _TEST_RUNTIME_FILES + ['@sonic_platform_daemons//:sonic-sensormond/setup.py', ":unit_runner", "@sonic_platform_daemons//:test_sources", "@sonic_platform_daemons//:ycabled_proto"],
++    target_compatible_with = ["@platforms//cpu:x86_64", "@platforms//os:linux"],
++)
++
++sh_test(
++    name = "stormond_test",
++    size = "large",
++    timeout = "long",
++    srcs = ["@sonic_swss_common//tools/bazel/runtime:run_with_runtime.py"],
++    args = _TEST_RUNTIME_ARGS + ['$(rootpath :unit_runner)', '$(rootpath @sonic_platform_daemons//:sonic-stormond/setup.py)'],
++    data = _TEST_RUNTIME_FILES + ['@sonic_platform_daemons//:sonic-stormond/setup.py', ":unit_runner", "@sonic_platform_daemons//:test_sources", "@sonic_platform_daemons//:ycabled_proto"],
++    target_compatible_with = ["@platforms//cpu:x86_64", "@platforms//os:linux"],
++)
++
++sh_test(
++    name = "bmcctld_test",
++    size = "large",
++    timeout = "long",
++    srcs = ["@sonic_swss_common//tools/bazel/runtime:run_with_runtime.py"],
++    args = _TEST_RUNTIME_ARGS + ['$(rootpath :unit_runner)', '$(rootpath @sonic_platform_daemons//:sonic-bmcctld/setup.py)'],
++    data = _TEST_RUNTIME_FILES + ['@sonic_platform_daemons//:sonic-bmcctld/setup.py', ":unit_runner", "@sonic_platform_daemons//:test_sources", "@sonic_platform_daemons//:ycabled_proto"],
++    target_compatible_with = ["@platforms//cpu:x86_64", "@platforms//os:linux"],
++)
++
++py_binary(
++    name = "installed_runtime_runner",
++    testonly = True,
++    srcs = ["installed_runtime_test.py"],
++    main = "installed_runtime_test.py",
++    legacy_create_init = False,
++    python_version = "3.13",
++    deps = _RUNTIME_DEPS + [requirement("blkinfo"), "@sonic_buildimage//tools/bazel/tests:wheel_test_helpers"],
++    data = ['@sonic_buildimage//src/sonic-py-common:sonic_py_common_wheel', '@sonic_buildimage//src/sonic-config-engine:sonic_config_engine_wheel', '@sonic_buildimage//src/sonic-yang-mgmt:sonic_yang_mgmt_wheel', '@sonic_platform_common//:sonic_platform_common_wheel', '@sonic_platform_daemons//:sonic-chassisd.runtime', '@sonic_platform_daemons//:sonic-chassisd.runtime_metadata', '@sonic_platform_daemons//:sonic-ledd.runtime', '@sonic_platform_daemons//:sonic-ledd.runtime_metadata', '@sonic_platform_daemons//:sonic-pcied.runtime', '@sonic_platform_daemons//:sonic-pcied.runtime_metadata', '@sonic_platform_daemons//:sonic-psud.runtime', '@sonic_platform_daemons//:sonic-psud.runtime_metadata', '@sonic_platform_daemons//:sonic-syseepromd.runtime', '@sonic_platform_daemons//:sonic-syseepromd.runtime_metadata', '@sonic_platform_daemons//:sonic-thermalctld.runtime', '@sonic_platform_daemons//:sonic-thermalctld.runtime_metadata', '@sonic_platform_daemons//:sonic-xcvrd.runtime', '@sonic_platform_daemons//:sonic-xcvrd.runtime_metadata', '@sonic_platform_daemons//:sonic-ycabled.runtime', '@sonic_platform_daemons//:sonic-ycabled.runtime_metadata', '@sonic_platform_daemons//:sonic-sensormond.runtime', '@sonic_platform_daemons//:sonic-sensormond.runtime_metadata', '@sonic_platform_daemons//:sonic-stormond.runtime', '@sonic_platform_daemons//:sonic-stormond.runtime_metadata', '@sonic_platform_daemons//:sonic-bmcctld.runtime', '@sonic_platform_daemons//:sonic-bmcctld.runtime_metadata', '@sonic_platform_daemons//:test_sources'],
++)
++
++sh_test(
++    name = "installed_runtime_test",
++    size = "large",
++    timeout = "long",
++    srcs = ["@sonic_swss_common//tools/bazel/runtime:run_with_runtime.py"],
++    args = _TEST_RUNTIME_ARGS + ['$(rootpath :installed_runtime_runner)', '--source=$(rootpath @sonic_platform_daemons//:sonic-ledd/setup.py)', '--dependency-wheel=$(rootpath @sonic_buildimage//src/sonic-py-common:sonic_py_common_wheel)', '--dependency-wheel=$(rootpath @sonic_buildimage//src/sonic-config-engine:sonic_config_engine_wheel)', '--dependency-wheel=$(rootpath @sonic_buildimage//src/sonic-yang-mgmt:sonic_yang_mgmt_wheel)', '--dependency-wheel=$(rootpath @sonic_platform_common//:sonic_platform_common_wheel)', '--runtime=$(rootpath @sonic_platform_daemons//:sonic-chassisd.runtime)', '--metadata=$(rootpath @sonic_platform_daemons//:sonic-chassisd.runtime_metadata)', '--runtime=$(rootpath @sonic_platform_daemons//:sonic-ledd.runtime)', '--metadata=$(rootpath @sonic_platform_daemons//:sonic-ledd.runtime_metadata)', '--runtime=$(rootpath @sonic_platform_daemons//:sonic-pcied.runtime)', '--metadata=$(rootpath @sonic_platform_daemons//:sonic-pcied.runtime_metadata)', '--runtime=$(rootpath @sonic_platform_daemons//:sonic-psud.runtime)', '--metadata=$(rootpath @sonic_platform_daemons//:sonic-psud.runtime_metadata)', '--runtime=$(rootpath @sonic_platform_daemons//:sonic-syseepromd.runtime)', '--metadata=$(rootpath @sonic_platform_daemons//:sonic-syseepromd.runtime_metadata)', '--runtime=$(rootpath @sonic_platform_daemons//:sonic-thermalctld.runtime)', '--metadata=$(rootpath @sonic_platform_daemons//:sonic-thermalctld.runtime_metadata)', '--runtime=$(rootpath @sonic_platform_daemons//:sonic-xcvrd.runtime)', '--metadata=$(rootpath @sonic_platform_daemons//:sonic-xcvrd.runtime_metadata)', '--runtime=$(rootpath @sonic_platform_daemons//:sonic-ycabled.runtime)', '--metadata=$(rootpath @sonic_platform_daemons//:sonic-ycabled.runtime_metadata)', '--runtime=$(rootpath @sonic_platform_daemons//:sonic-sensormond.runtime)', '--metadata=$(rootpath @sonic_platform_daemons//:sonic-sensormond.runtime_metadata)', '--runtime=$(rootpath @sonic_platform_daemons//:sonic-stormond.runtime)', '--metadata=$(rootpath @sonic_platform_daemons//:sonic-stormond.runtime_metadata)', '--runtime=$(rootpath @sonic_platform_daemons//:sonic-bmcctld.runtime)', '--metadata=$(rootpath @sonic_platform_daemons//:sonic-bmcctld.runtime_metadata)'] + ["--owner-wheel=$(rootpath " + wheel + ")" for wheel in _OWNER_WHEELS],
++    data = _TEST_RUNTIME_FILES + _OWNER_WHEELS + ["@sonic_platform_daemons//:sonic-ledd/setup.py", '@sonic_buildimage//src/sonic-py-common:sonic_py_common_wheel', '@sonic_buildimage//src/sonic-config-engine:sonic_config_engine_wheel', '@sonic_buildimage//src/sonic-yang-mgmt:sonic_yang_mgmt_wheel', '@sonic_platform_common//:sonic_platform_common_wheel', '@sonic_platform_daemons//:sonic-chassisd.runtime', '@sonic_platform_daemons//:sonic-chassisd.runtime_metadata', '@sonic_platform_daemons//:sonic-ledd.runtime', '@sonic_platform_daemons//:sonic-ledd.runtime_metadata', '@sonic_platform_daemons//:sonic-pcied.runtime', '@sonic_platform_daemons//:sonic-pcied.runtime_metadata', '@sonic_platform_daemons//:sonic-psud.runtime', '@sonic_platform_daemons//:sonic-psud.runtime_metadata', '@sonic_platform_daemons//:sonic-syseepromd.runtime', '@sonic_platform_daemons//:sonic-syseepromd.runtime_metadata', '@sonic_platform_daemons//:sonic-thermalctld.runtime', '@sonic_platform_daemons//:sonic-thermalctld.runtime_metadata', '@sonic_platform_daemons//:sonic-xcvrd.runtime', '@sonic_platform_daemons//:sonic-xcvrd.runtime_metadata', '@sonic_platform_daemons//:sonic-ycabled.runtime', '@sonic_platform_daemons//:sonic-ycabled.runtime_metadata', '@sonic_platform_daemons//:sonic-sensormond.runtime', '@sonic_platform_daemons//:sonic-sensormond.runtime_metadata', '@sonic_platform_daemons//:sonic-stormond.runtime', '@sonic_platform_daemons//:sonic-stormond.runtime_metadata', '@sonic_platform_daemons//:sonic-bmcctld.runtime', '@sonic_platform_daemons//:sonic-bmcctld.runtime_metadata', ':installed_runtime_runner', '@sonic_platform_daemons//:test_sources'],
++    target_compatible_with = ["@platforms//cpu:x86_64", "@platforms//os:linux"],
++)
+diff --git a/tests/bazel/MODULE.bazel b/tests/bazel/MODULE.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..bba3ce76ad432cc7b077e33d08eef63acb628ce2
+--- /dev/null
++++ b/tests/bazel/MODULE.bazel
+@@ -0,0 +1,101 @@
++# Test-only application root. Production images consume the platform-common
++# module directly; they do not acquire a dependency back on sonic-buildimage.
++module(name = "sonic_platform_daemons_tests")
++
++bazel_dep(name = "sonic-platform-daemons", version = "1.0.1-49e2a1b497edc8e5678bbd0e46976384d10aed5b", repo_name = "sonic_platform_daemons")
++local_path_override(module_name = "sonic-platform-daemons", path = "../..")
++
++# The isolated test application consumes the published platform API owner.
++bazel_dep(name = "sonic-platform-common", version = "1.0.1-ccb4645c60863d9949549bb233134150764e98a0", repo_name = "sonic_platform_common")
++
++bazel_dep(name = "sonic-buildimage", version = "0.0.0", repo_name = "sonic_buildimage")
++git_override(
++    module_name = "sonic-buildimage",
++    commit = "c743d7521e80fc1733e5cc0ffc24889b08f78444",
++    remote = "https://github.com/securely1g/sonic-buildimage.git",
++)
++
++# Preserve the tested image root's explicit overrides, which are not inherited.
++single_version_override(
++    module_name = "sonic-swss",
++    version = "0.0.3-9c3797990d4b5a79100a40fe7689927c18212361",
++)
++
++single_version_override(
++    module_name = "rules_go",
++    version = "0.65.0.sonic.2",
++)
++
++single_version_override(
++    module_name = "rules_cc",
++    version = "0.2.20",
++)
++
++single_version_override(
++    module_name = "tar.bzl",
++    version = "0.10.5.sonic.2",
++)
++
++single_version_override(
++    module_name = "libnl3",
++    version = "3.7.0.sonic.10",
++)
++
++single_version_override(
++    module_name = "re2",
++    version = "2024-07-02.bcr.1",
++)
++
++single_version_override(
++    module_name = "sonic-build-infra",
++    version = "0.0.45-77ef625a4ddafc8cdc15f3cc6aee31eabac8a5de",
++)
++
++single_version_override(
++    module_name = "sonic-rust-deps",
++    version = "0.0.5-5bf69bc0a7d9ea9f4a5606264be592867cd29d1e",
++)
++
++bazel_dep(name = "rules_python", version = "1.9.0.sonic.2")
++bazel_dep(name = "rules_shell", version = "0.8.0")
++bazel_dep(name = "patchelf", version = "0.18.0.bcr.1")
++bazel_dep(name = "platforms", version = "1.1.0")
++bazel_dep(name = "sonic-build-infra", version = "0.0.45-77ef625a4ddafc8cdc15f3cc6aee31eabac8a5de", repo_name = "sonic_build_infra")
++bazel_dep(name = "sonic-swss-common", version = "0.0.9-334389eae54afd1f4f5ee69f89c3a7ad2062ee61", repo_name = "sonic_swss_common")
++
++python = use_extension("@rules_python//python/extensions:python.bzl", "python")
++python.toolchain(
++    is_default = True,
++    python_version = "3.13",
++)
++python.toolchain(python_version = "3.11")
++
++pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
++pip.parse(
++    hub_name = "daemon_tests_pip",
++    python_version = "3.13",
++    requirements_lock = "//:requirements_lock.txt",
++)
++use_repo(pip, "daemon_tests_pip")
++
++# The image's Rust extension requires a root tag even for Python-only tests.
++# No Rust target participates in this test application.
++bazel_dep(name = "rules_rs", version = "0.1.0")
++
++rust = use_extension("@rules_rs//rs:rules_rust_reexported_extensions.bzl", "rust")
++rust.toolchain(versions = [])
++
++# All test application owners use the selected producer's reviewed APT graph.
++bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.26")
++apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
++apt.import_lock(
++    lock = "@sonic_build_infra//apt:apt.lock.json",
++    requests = "@sonic_build_infra//apt:requests.json",
++    sources = "@sonic_build_infra//apt:sources.json",
++)
++
++pip.parse(hub_name = "daemon_codegen_pip", python_version = "3.13", requirements_lock = "@sonic_platform_daemons//:bazel/requirements-codegen-lock.txt")
++use_repo(pip, "daemon_codegen_pip")
++
++# The original Azure suites explicitly install the legacy SWSS SDK wheel.
++bazel_dep(name = "sonic-py-swsssdk", version = "2.0.1-5878f93779df1bfdfe58ea00c8d34fe8261d362e", repo_name = "sonic_py_swsssdk")
+diff --git a/tests/bazel/collect_evidence.py b/tests/bazel/collect_evidence.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..086b5f29c13f28a7beccb21b4d9977531d15879c
+--- /dev/null
++++ b/tests/bazel/collect_evidence.py
+@@ -0,0 +1,99 @@
++"""Collect the exact public installations and original project test receipts."""
++
++import hashlib
++import json
++import os
++from pathlib import Path
++import shutil
++import subprocess
++import zipfile
++
++
++PROJECTS = ("chassisd", "ledd", "pcied", "psud", "syseepromd", "thermalctld", "xcvrd",
++            "ycabled", "sensormond", "stormond", "bmcctld")
++
++
++def bazel(directory, root):
++    command = ["bazel"]
++    if directory != root and os.environ.get("BAZEL_TEST_OUTPUT_BASE"):
++        command.append("--output_base=" + os.environ["BAZEL_TEST_OUTPUT_BASE"])
++    return command
++
++
++def info(command, directory, root, key):
++    # Filesystem locations do not depend on the application's target platform.
++    # Bazel's fast info path does not resolve its Trixie repository alias;
++    # use the declared platforms module's host only for these info queries.
++    flags = [] if directory == root else ["--platforms=@platforms//host", "--host_platform=@platforms//host"]
++    return subprocess.check_output(command + ["info", *flags, key], cwd=directory, text=True).strip()
++
++
++def retain(source, destination):
++    # Bazel outputs may be read-only; snapshots keep their bytes rather than
++    # propagating the output-cache mode to a file a later collection replaces.
++    destination = Path(destination)
++    destination.unlink(missing_ok=True)
++    return shutil.copyfile(source, destination)
++
++
++def main():
++    root = Path(__file__).resolve().parents[2]
++    test_root = root / "tests/bazel"
++    output = root / "bazel-evidence"
++    output.mkdir(exist_ok=True)
++    # Previous snapshots can inherit read-only Bazel output directory modes.
++    for directory in output.rglob("*"):
++        if directory.is_dir():
++            directory.chmod(directory.stat().st_mode | 0o200)
++    artifacts = []
++    errors = []
++    for scope, directory in (("owner", root), ("tested", test_root)):
++        command = bazel(directory, root)
++        execution_root = Path(info(command, directory, root, "execution_root"))
++        for role in ("wheels", "runtime", "runtime_metadata"):
++            label = ("@sonic_platform_daemons" if scope == "tested" else "") + "//:daemons." + role
++            paths = subprocess.check_output(command + ["cquery", label, "--output=files"], cwd=directory, text=True).splitlines()
++            for name in paths:
++                source = execution_root / name
++                target = output / (scope + "-" + source.name)
++                if role == "runtime_metadata":
++                    retain(source, target)
++                artifacts.append({"scope": scope, "label": label, "file": name,
++                                  "sha256": hashlib.sha256(source.read_bytes()).hexdigest()})
++        lock = directory / "MODULE.bazel.lock"
++        if lock.exists():
++            retain(lock, output / (scope + "-MODULE.bazel.lock"))
++    command = bazel(test_root, root)
++    testlogs = Path(info(command, test_root, root, "bazel-testlogs"))
++    receipts = {}
++    for name in [project + "_test" for project in PROJECTS] + ["installed_runtime_test"]:
++        logs = testlogs / name
++        if not (logs / "test.xml").is_file():
++            errors.append(name + ": missing Bazel XML")
++            continue
++        shutil.copytree(logs, output / name, dirs_exist_ok=True, copy_function=retain)
++        receipt_name = "wheels.json" if name == "installed_runtime_test" else "source-tests.json"
++        outputs = logs / "test.outputs"
++        if (outputs / receipt_name).is_file():
++            receipt = json.loads((outputs / receipt_name).read_text())
++        else:
++            with zipfile.ZipFile(outputs / "outputs.zip") as archive:
++                receipt = json.loads(archive.read(receipt_name))
++        receipts[name] = receipt
++        if receipt["status"] != "passed":
++            errors.append(name + ": " + receipt["status"])
++    provenance = {
++        "revision": subprocess.check_output(["git", "-c", "safe.directory=" + str(root), "rev-parse", "HEAD"], cwd=root, text=True).strip(),
++        "ci_head_sha": os.environ.get("CI_HEAD_SHA", ""),
++        "artifacts": artifacts,
++        "test_receipts": receipts,
++        "errors": errors,
++        "scope": "AMD64, declared Trixie userland and Python 3.13; original owner suites and installed interfaces",
++    }
++    (output / "provenance.json").write_text(json.dumps(provenance, indent=2) + "\n")
++    if errors:
++        raise RuntimeError("; ".join(errors))
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/tests/bazel/installed_runtime_test.py b/tests/bazel/installed_runtime_test.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..7b60ba8b2639f61c0ae4d03c311d9da3debea4f3
+--- /dev/null
++++ b/tests/bazel/installed_runtime_test.py
+@@ -0,0 +1,210 @@
++"""Validate installed owner wheels against the original per-daemon setup contracts."""
++
++import argparse
++import base64
++import configparser
++import csv
++from email.parser import BytesParser
++import hashlib
++import io
++import json
++import os
++from pathlib import Path
++import posixpath
++import subprocess
++import shutil
++import tarfile
++import unittest
++import zipfile
++
++from tools.bazel.tests.integration.installed_wheel_fixture import installed_wheels, write_wheel_receipt
++from tools.bazel.tests.integration.wheel_contract import setup_contract, expected_sources, normalized_requirement
++
++parser = argparse.ArgumentParser()
++parser.add_argument("--source", type=Path, required=True)
++parser.add_argument("--owner-wheel", type=Path, action="append", required=True)
++parser.add_argument("--runtime", type=Path, action="append", required=True)
++parser.add_argument("--metadata", type=Path, action="append", required=True)
++parser.add_argument("--dependency-wheel", type=Path, action="append", required=True)
++ARGS, REST = parser.parse_known_args()
++DETAILS = {}
++
++
++class InstalledRuntimeTest(unittest.TestCase):
++    @classmethod
++    def setUpClass(cls):
++        cls.source = ARGS.source.absolute().parent.parent
++        cls.wheels = [p.absolute() for p in ARGS.dependency_wheel]
++        import sonic_py_common
++        import sonic_platform_base
++        import portconfig
++        import sonic_yang
++        roots = [cls.source,
++                 Path(sonic_py_common.__file__).absolute().parent.parent,
++                 Path(sonic_platform_base.__file__).absolute().parent.parent,
++                 Path(portconfig.__file__).absolute().parent,
++                 Path(sonic_yang.__file__).absolute().parent]
++        cls.installed = cls.enterClassContext(installed_wheels(cls.wheels, exclude_source_roots=roots))
++        # psud's import-time hardware provider is the same explicit fixture
++        # used by its original suite. Borrow only sonic_platform, retaining
++        # the real declared Common binding rather than mocked_libs/swsscommon.
++        cls.hardware_fixture = cls.installed.root / "hardware-fixture"
++        shutil.copytree(cls.source / "sonic-psud/tests/mocked_libs/sonic_platform",
++                        cls.hardware_fixture / "sonic_platform")
++        cls.payloads = []
++        for archive in ARGS.runtime:
++            files = {}
++            with tarfile.open(archive, "r:") as stream:
++                for member in stream:
++                    path = Path(member.name)
++                    assert not path.is_absolute() and ".." not in path.parts
++                    assert member.uid == member.gid == 0
++                    if member.isdir():
++                        assert member.mode == 0o755
++                        continue
++                    assert member.isfile()
++                    assert member.mode == (0o755 if path.is_relative_to("usr/local/bin") else 0o644)
++                    data = stream.extractfile(member).read()
++                    files[str(path)] = data
++                    if path.is_relative_to("usr/local/bin"):
++                        target = cls.installed.scripts / path.name
++                    else:
++                        target = cls.installed.site / path.relative_to("usr/local/lib/python3.13/dist-packages")
++                    target.parent.mkdir(parents=True, exist_ok=True)
++                    target.write_bytes(data)
++                    target.chmod(member.mode)
++            cls.payloads.append(files)
++
++    def test_original_payload_metadata_and_record(self):
++        metadata = {json.loads(p.read_text())["distribution"]: (p, json.loads(p.read_text())) for p in ARGS.metadata}
++        wheels = {path.name: path for path in ARGS.owner_wheel}
++        observed = []
++        site = "usr/local/lib/python3.13/dist-packages"
++        for files in self.payloads:
++            headers = [p for p in files if p.endswith(".dist-info/METADATA")]
++            self.assertEqual(len(headers), 1)
++            header = headers[0]
++            message = BytesParser().parsebytes(files[header])
++            name = message["Name"]
++            setup = self.source / name / "setup.py"
++            contract = setup_contract(setup)
++            prefix = header.rsplit("/", 1)[0]
++            expected = {site + "/" + p: source.read_bytes() for p, source in expected_sources(contract, setup.parent).items()}
++            # These two files are generated by the original setup GrpcTool,
++            # not present in the source checkout's find_packages enumeration.
++            if name == "sonic-ycabled":
++                generated = {site + "/proto_out/" + p for p in ("linkmgr_grpc_driver_pb2.py", "linkmgr_grpc_driver_pb2_grpc.py")}
++                self.assertTrue(generated <= files.keys())
++            else:
++                generated = set()
++            for script in contract.get("scripts", []):
++                path = "usr/local/bin/" + Path(script).name
++                self.assertEqual(files[path].split(b"\n", 1)[1], (setup.parent / script).read_bytes().split(b"\n", 1)[1])
++                self.assertEqual(files[path].split(b"\n", 1)[0], b"#!/usr/bin/python3")
++                expected[path] = files[path]
++            entries = contract.get("entry_points", {}).get("console_scripts", [])
++            if entries:
++                config = configparser.ConfigParser()
++                config.read_string(files[prefix + "/entry_points.txt"].decode())
++                expected_entries = dict(tuple(v.strip() for v in entry.split("=", 1)) for entry in entries)
++                self.assertEqual(dict(config["console_scripts"]), expected_entries)
++                for command in expected_entries:
++                    path = "usr/local/bin/" + command
++                    self.assertEqual(files[path].split(b"\n", 1)[0], b"#!/usr/bin/python3")
++                    expected[path] = files[path]
++            self.assertEqual({p for p in files if not p.startswith(prefix + "/")}, set(expected) | generated)
++            for path, data in expected.items():
++                self.assertEqual(files[path], data, path)
++            for header_name, field in {
++                "Name": "name", "Version": "version", "Summary": "description", "License": "license",
++                "Author": "author", "Author-email": "author_email", "Home-page": "url",
++                "Maintainer": "maintainer", "Maintainer-email": "maintainer_email", "Keywords": "keywords",
++            }.items():
++                self.assertEqual(message[header_name], contract.get(field), (name, field))
++            self.assertEqual(set(message.get_all("Classifier", [])), set(contract.get("classifiers", [])))
++            requires = set(map(normalized_requirement, contract.get("install_requires", [])))
++            for extra, values in contract.get("extras_require", {}).items():
++                for value in values:
++                    requires.add(normalized_requirement(value + '; extra == "' + extra + '"'))
++            self.assertEqual(set(map(normalized_requirement, message.get_all("Requires-Dist", []))), requires)
++            path, info = metadata[name]
++            self.assertEqual(info["version"], contract["version"])
++            self.assertEqual(set(map(normalized_requirement, info["requires_dist"])), requires)
++            self.assertEqual(info["requires_python"], contract.get("python_requires", ""))
++            wheel = wheels.pop(info["wheel"]["filename"])
++            self.assertEqual(info["wheel"]["sha256"], hashlib.sha256(wheel.read_bytes()).hexdigest())
++            with zipfile.ZipFile(wheel) as archive:
++                wheel_metadata = archive.read(Path(prefix).name + "/METADATA")
++            self.assertEqual(files[header], wheel_metadata)
++            self.assertEqual(info["wheel"]["metadata_sha256"], hashlib.sha256(wheel_metadata).hexdigest())
++            self.assertEqual(info["wheel"]["tags"], ["py3-none-any"])
++            record = prefix + "/RECORD"
++            rows = list(csv.reader(io.StringIO(files[record].decode())))
++            recorded = set()
++            for relative, digest, size in rows:
++                filename = posixpath.normpath(site + "/" + relative)
++                recorded.add(filename)
++                if filename == record:
++                    self.assertEqual((digest, size), ("", ""))
++                else:
++                    data = files[filename]
++                    algorithm = digest.split("=", 1)[0]
++                    expected_digest = algorithm + "=" + base64.urlsafe_b64encode(hashlib.new(algorithm, data).digest()).decode().rstrip("=")
++                    self.assertEqual((digest, size), (expected_digest, str(len(data))))
++            self.assertEqual(recorded, set(files))
++            observed.append({"distribution": name, "files": len(files), "runtime_metadata_sha256": hashlib.sha256(path.read_bytes()).hexdigest()})
++        self.assertEqual(set(metadata), {v["distribution"] for v in observed})
++        self.assertFalse(wheels)
++        DETAILS["distributions"] = observed
++
++    def test_installed_interfaces_and_generated_grpc(self):
++        probe = r'''import concurrent.futures,importlib,importlib.metadata,json,pathlib,runpy,sys
++site=pathlib.Path(sys.argv[1]).resolve()
++scripts=pathlib.Path(sys.argv[2]).resolve()
++fixture=pathlib.Path(sys.argv[3]).resolve()
++sys.path.insert(0,str(fixture))
++import sonic_platform.psu
++assert pathlib.Path(sonic_platform.psu.__file__).resolve().is_relative_to(fixture)
++for name in sys.argv[4:]:
++    dist=importlib.metadata.distribution(name)
++    assert pathlib.Path(dist.locate_file('')).resolve()==site,(name,dist.locate_file(''))
++    for ep in dist.entry_points:
++        if ep.group=='console_scripts':
++            function=ep.load()
++            assert callable(function)
++            assert pathlib.Path(sys.modules[function.__module__].__file__).resolve().is_relative_to(site)
++for script in scripts.iterdir():
++    if script.name in ['ledd','pcied','psud','syseepromd','thermalctld','sensormond','chassisd','chassis_db_init','stormond','bmcctld']:
++        runpy.run_path(str(script),run_name='installed_'+script.name)
++from proto_out import linkmgr_grpc_driver_pb2 as pb,linkmgr_grpc_driver_pb2_grpc as rpc
++import grpc
++assert pathlib.Path(pb.__file__).resolve().is_relative_to(site)
++class Service(rpc.DualToRActiveServicer):
++    def QueryAdminForwardingPortState(self, request, context):
++        return pb.AdminReply(portid=request.portid,state=request.state)
++server=grpc.server(concurrent.futures.ThreadPoolExecutor(max_workers=1))
++rpc.add_DualToRActiveServicer_to_server(Service(),server)
++port=server.add_insecure_port('127.0.0.1:0')
++assert port
++server.start()
++try:
++    with grpc.insecure_channel('127.0.0.1:'+str(port)) as channel:
++        result=rpc.DualToRActiveStub(channel).QueryAdminForwardingPortState(pb.AdminRequest(portid=[3,27],state=[True,False]),timeout=10)
++        assert list(result.portid)==[3,27] and list(result.state)==[True,False]
++finally:
++    server.stop(0).wait()
++print(json.dumps({'installed_interfaces':'all daemon scripts and entry points','grpc':'original generated API localhost request/reply'}))
++'''
++        names = [BytesParser().parsebytes(files[next(p for p in files if p.endswith(".dist-info/METADATA"))])["Name"] for files in self.payloads]
++        result = subprocess.run([str(self.installed.python), "-I", "-c", probe, str(self.installed.site), str(self.installed.scripts), str(self.hardware_fixture), *names],
++                                cwd=self.installed.root, env=self.installed.env, text=True, capture_output=True, timeout=60)
++        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
++        DETAILS.update(json.loads(result.stdout))
++        DETAILS["hardware_provider"] = "Original psud tests/mocked_libs/sonic_platform fixture only; all daemon and native Common interfaces remain real"
++
++
++if __name__ == "__main__":
++    result = unittest.main(argv=[__file__, *REST], exit=False).result
++    write_wheel_receipt(getattr(InstalledRuntimeTest, "wheels", None), required=True,
++                        status="passed" if result.wasSuccessful() else "failed", details=DETAILS)
++    raise SystemExit(not result.wasSuccessful())
+diff --git a/tests/bazel/requirements.in b/tests/bazel/requirements.in
+new file mode 100644
+index 0000000000000000000000000000000000000000..5051b76e4b4dcc83ed222ad095b30c37031ded04
+--- /dev/null
++++ b/tests/bazel/requirements.in
+@@ -0,0 +1,8 @@
++# Keep pytest/mock aligned with the selected config-engine test lock.
++pytest==8.4.2
++mock==3.0.5
++pytest-cov==6.2.1
++
++# Match the original PMON platform-common storage runtime for installed stormond.
++blkinfo==0.2.0
++PyYAML==6.0.2
+diff --git a/tests/bazel/requirements_lock.txt b/tests/bazel/requirements_lock.txt
+new file mode 100644
+index 0000000000000000000000000000000000000000..dddebed31629b4e884bbe7c105734969ade8c947
+--- /dev/null
++++ b/tests/bazel/requirements_lock.txt
+@@ -0,0 +1,200 @@
++blkinfo==0.2.0 \
++    --hash=sha256:322a906595f78832d6725ac74a0b9fd2794df3388584d9f05c1a2f8e19324851
++coverage==7.17.0 \
++    --hash=sha256:032d4c2db4c677eb71d43f2f8b80bf64e9346f7a3f7b6ebb13f1782f3cc6c274 \
++    --hash=sha256:03baf0688e14a5a44ffd1eefa8928dfc92b14565e521174e072b31b971aa1657 \
++    --hash=sha256:045c1eeb19fb4eae949850a761102fffb3a5f638b97f977912f95843e54f6669 \
++    --hash=sha256:09e563b49c81cd0a33734e926d7a4a6ef1778d74304cde2dcc3aff8b30ea1036 \
++    --hash=sha256:0a9cb9a0fb58e6fff5442969af36094ecd6976f4907f179e33b27e15355d8f74 \
++    --hash=sha256:0b8bb651a4406fb6a983a905309fec1783443c65e1771b41e92740a0f4a1176b \
++    --hash=sha256:0cfdc938ca3319d873d1f1252e60620a39aee4ebf9dbd7cc58238109ebda9c51 \
++    --hash=sha256:0d0fac604a962ff546beb038cba9a5a09d88e6e3f01612fb46f7bd4fe5dc8dca \
++    --hash=sha256:0edeb6594f080c8de1263cccb239cb316ef77aeb959e2e0f38f2953fcc72a49e \
++    --hash=sha256:11f5f7fb2d97a0fe865f5e7bad4eb0619b957637f676bc088d13844adf26ba95 \
++    --hash=sha256:12961f738d717a046d4bf3f8d1727eb3ebe2ed5478ff96cd6233d4dfc39323d3 \
++    --hash=sha256:12cb8a20ad904a5811e6660d829a586b216e5254b9b34b76dde8a4d65d827dc6 \
++    --hash=sha256:194562ab1eff0d85aee8a17ce4c5c0bc1ebf70a629a7145257123156ad100fd6 \
++    --hash=sha256:1cabb31531002fef5197de5df3c84730aef01e750e25154b9813a2583435aba2 \
++    --hash=sha256:1ee0a982b0e1230b3edf768a7dd022bd2377303763895327ac62deb5efacee03 \
++    --hash=sha256:2bf3ee38a40c0570c316b9e7507c472469586906a20f289705898528c31aaea8 \
++    --hash=sha256:2c680e838ff9e68d491158625ca2c1ddb17d78d791bba96a31f8b839b4990438 \
++    --hash=sha256:2dc9233f39149b5a4f4aba17a4b6bc5cca22e52cfc4b06fdb07d014439b8b2ea \
++    --hash=sha256:2ed3097c6817bc1a7fc8ae0a6131db74aa1150d863cccc308237ff362d3226b2 \
++    --hash=sha256:3067608b4429629f640c1b23d2f69b05d2fd45e00ebb6ee9e8fad220a6c11722 \
++    --hash=sha256:30f5477aac9c9e4a0a641c55f8f8fddd7f3bd91176c912c50f40ffced96b4034 \
++    --hash=sha256:337f87e62e1c5f43c8198d879f677c342d152f84d3f157add12558853cbb8eaf \
++    --hash=sha256:3393209f6894713161ee82a9b0e673e58237e0f9733c6638e7a6c0c620ef0b33 \
++    --hash=sha256:34d65c9e8e257f48a654908005046fbf1bc48d9540ae3776ad08c0acd010e10c \
++    --hash=sha256:38c86e5d74bbfd88a393fa3f91257c1225c63aa6db6d5918de3e49ab04f91c6e \
++    --hash=sha256:3a4459b0f389dd1e51aac3dbfc4ca35b30cae7dc99caa3c0a086d1997a985709 \
++    --hash=sha256:42e6f170d1ac04b7eb3363310a6c41cdfd82c1fe6bf9ffbc4a86f380bdf091c7 \
++    --hash=sha256:4343a9378b964eb3cb80fa90406385de91c7e982a769ca9314d848f93bc0d3f2 \
++    --hash=sha256:460679f53893081edb94eeed011d26be37228ba649b853fd2aed7e4394fb1f35 \
++    --hash=sha256:4e153f0bd6509dbf837fd585f489b3328bfd98f2a718a0b15ae63032148b285c \
++    --hash=sha256:50678474e714c684b82c108e63fbb8f1bcf1266d8293a49980f1d08526f093b5 \
++    --hash=sha256:55939ea4c097fda2edabf80fac5e49bef15597b950a9f29fc56292a895245feb \
++    --hash=sha256:559f748446ee799803686b5784e3deb54c70d655ac386a860e06b11672504ba7 \
++    --hash=sha256:58a304efdf2253fb2ea03d45d0a04cc174a92a0cd5279c28c5bb893ce7410968 \
++    --hash=sha256:5900055351ec89fdffb34b27898815106529ded29a9496464c1ebd6313fd40fa \
++    --hash=sha256:5b7fa0997b8eba7378ac66f31ec7f70164490353ab79b9667d37c0d365e50177 \
++    --hash=sha256:5cc15faaf318ee5040d835a62c75bc6f122d837274f3b5efd47bf9fbd4ac5b85 \
++    --hash=sha256:5ebfbc87836529a31d25c2dec1262c38eea852ec1c46c0f690a515a7339d9c5b \
++    --hash=sha256:5ee9c8bd13a59e301dc2aefe7aa8384633406808de051b1982775667094eb673 \
++    --hash=sha256:600e121e412cd6bdb52ec105b95c6a04da0c9710d1534f6e64a42db667907802 \
++    --hash=sha256:6052e878b628abcd38fa5f2b64abebc686eed4e2267da42434017a9c6d24f241 \
++    --hash=sha256:61cde5222f1933d476647c5a25ed1a8678b7703098cb5a15f4a0aa39967d8c28 \
++    --hash=sha256:62bb77987d3f72a0aaa77c567ee7f9806bc2e748c8f46fafbe1fdb90dd148398 \
++    --hash=sha256:66efc0fb99cee34626fc17d3adac9c3cd816bfdad563bb1e983c3ef432f566d4 \
++    --hash=sha256:6a80a11b90c4a03df1502304cf24ff953255b6b5d076ef79066ecf88baaff31f \
++    --hash=sha256:6abfb6a4cf1cb1b67bc8fccdde177e2d2b781d0d34449e7078156547025140e5 \
++    --hash=sha256:6ae0453a3390e67f7bfbe34417bbdf5b4ebfc21db23fb446a0a41115eeeca6ca \
++    --hash=sha256:6b4593d2871c4c801656dd5861e759f8f5156febd6b6061b02f6a72d64618b7b \
++    --hash=sha256:6cc31f27240d4e080437e3b8229d92f1d809c9a4f233607385373b73974e183e \
++    --hash=sha256:6e09612b1b82c9df1d2b6c85dee88d5aad3e73d77a8ec0b16ac6a7322cbdf5d9 \
++    --hash=sha256:72edd4f9483ae30cd1ba4f230687840ef7b58a16afb1c9e81131fd6d64655f36 \
++    --hash=sha256:791f9ee09814dd30d9562b4f4eb037a371485ec1c830b53999d2320d20c4e764 \
++    --hash=sha256:79cf71e5f9a48877ccfed5baa2c72f45af4feeaa596249e23eb15b473134830e \
++    --hash=sha256:7b5abcae74750302ac4bc77351eaee87c450e4abd3b6225eacde3858e260f8b2 \
++    --hash=sha256:7c570293f001ea91598b90e90cb9b98fddee833e90bbede432cbd218331ccd8e \
++    --hash=sha256:7d6d9d396c8b7bcaf76d774a10140b218111484e54c73a5f2a1b75655381748e \
++    --hash=sha256:7fef12cec4b96f59e09761cbd4fc9bdf4788062d1ae435b920241fc16c8a9549 \
++    --hash=sha256:804fbaf81d09b34e2f8b1159d01e211a50713d743d32fd9b2ca6cf0ae507a66f \
++    --hash=sha256:84538c040f4e6214f663459d89372ce4e6b2bbdd9d397ef0dca7b3ecd56b8eb2 \
++    --hash=sha256:85682ca89bc4601125dcdff23fa70e6274e13c9ad502fba845e6c274ab2c6569 \
++    --hash=sha256:85932227e9dd38e62cd29c17fefdfecfb919eead6af1e3259522d03cf85de983 \
++    --hash=sha256:88a1a9fb0075b83389dd9b403bb3fce976031b3c2aa0e05e3e57143cf639de69 \
++    --hash=sha256:8d823d66afd59566030539c49c7a6acaf3083996682be2dda760c63555842094 \
++    --hash=sha256:8e8113d3852e9377421a61de1917df27b3abb25404a4ecf69f9e64612c4345b5 \
++    --hash=sha256:912a29f338798541d795e2e25903c6fe7a99dee70a40fe4706a9a124649b523e \
++    --hash=sha256:91e487ad07c511da77b574820141a7c2da09bc2a4b4090b5be2424295d100697 \
++    --hash=sha256:96151262832f3c230ebae23b2d6911ad549e1738465946c97004913ff06112ba \
++    --hash=sha256:968c5fb6e0c83cab752d79a70209648ce4d90cae815c60fa229b59e264601062 \
++    --hash=sha256:99a7b390cbccc6bf029ca4da3f0f607c218bb4085e9cd6b58a90d14ca12993c3 \
++    --hash=sha256:9a66074231799d8884d267234d49f60c90b43a945dfe069646b72f3058cd4e67 \
++    --hash=sha256:9c083e253e96fdeeaf48133fe836cac86ace2db215d235700e7f7532420a200c \
++    --hash=sha256:9d1fdf82c6fea57b5e9dada509f9ce9638c8334664e2c98c7f6f1ccf3d143ad2 \
++    --hash=sha256:a01ef92caeedfa4f2ad171a3a8e6fece4565de871d8bca428151bf9929f41048 \
++    --hash=sha256:a14e8d69464da9cbe1dc29e7116dbd37296d1d51a695327c478e250349085089 \
++    --hash=sha256:a1762e85cbbe3b5ff9c6dcbcc1b89d5c72320094292b7b9572bf882c85e428b7 \
++    --hash=sha256:a25cc5e8c23a590815c6a7aa43624234d25cb23b21b484adb8a0daed59860db5 \
++    --hash=sha256:a32ee5831b15ba239bef5d272ae586ca8acea4a661b5f2941f5a0d380e518b23 \
++    --hash=sha256:a3914e2c98c34b94c26d2add3d2a61ccfd3534fc4eaa879ee290bdbb5184ba6c \
++    --hash=sha256:a59c3b470ac3b2432af3598a996affbeb10236cd899a005c1c4e517fcff8b592 \
++    --hash=sha256:a5e2e0625dfc789af0b2e10acfc106b352f314fffbd19e6392a7961c8cbe5d9a \
++    --hash=sha256:acdb5f3c96046efff9dc6c572a6acb2b8d0da09372d7b9a9ed7249cf7d17434f \
++    --hash=sha256:adabc1079ba844b096799ba8638d8df434aca1613f95bb7d5791af320cf05559 \
++    --hash=sha256:adbf3450c0f3f2b2854e282a8758f2b3eddf787eeff24ec9c9bc2cbc38328cc1 \
++    --hash=sha256:aed06129a9f530a948928260d7d2d81c47261355b0127e3c782251b38958463c \
++    --hash=sha256:b2afebb96da9a1bbca142f8cc12320c14e5c215e0a49cded4f191f5a31506a28 \
++    --hash=sha256:b609df3d6d900464207532c5170a65c6ede8d2e0b91f151f90008a866395cd76 \
++    --hash=sha256:b88fb4d4d7608cbcebdc7ff7dbffc2115e3b81d6c33a79147cd79d54fcb080f4 \
++    --hash=sha256:bac487dce0d2aff28ddf1a533a916f771416eee0e493960f611e49037b878e9d \
++    --hash=sha256:bb5ca66937c55bc85d1a5e9c5900a3e4693a8edf2280a9b3672b7b2661a84b95 \
++    --hash=sha256:bd04fd23206be9ad3de13b0b39313094fafa66a1f6baf70f5471c004a9fac47d \
++    --hash=sha256:bd3e9eb493631ff1ca34bf5efac25b5c66724f837bf6182c4fc771c55946423d \
++    --hash=sha256:bfb6f868af552c0ceb2d19220b8cbcc2be096ca26163ac30e682a13041433429 \
++    --hash=sha256:c2c48a36bb970b7265b196032bfd4237c0b373f2b25ef7012d7e905b5b35c19c \
++    --hash=sha256:c3e11b81faafb1f063248735c3e2c5c4183fc1db2c7f46782170dd7760dffcbc \
++    --hash=sha256:c7c5672ecf1b497de7a0b37743bef40e3b58e3207e9fe2ed6682cb0420836a88 \
++    --hash=sha256:c86a39539d10d666bb819c16c94d7edfc1aa2e0531b937f7c549b83d15177c6e \
++    --hash=sha256:c8a58baa8eb6154c6645eadcc19b6c089deab78c24a612a83206f2a8a5992a7c \
++    --hash=sha256:c9ac886242bbd50fb35a2242ba79555a99891e657da33f98b7ca968e3488a350 \
++    --hash=sha256:cbf0b83ce927de6053279ba61342d9f8892afde1385fcba9144cd05d4023d109 \
++    --hash=sha256:cc010a0a7fbdd9bb8bdfd0d3f04a5151275860213cbd7e2b876b29778489c712 \
++    --hash=sha256:cd7397de6cc782f00fe5ac1d75e9b306bcfa49c8b6b8dd6ed1f7709393ad40b3 \
++    --hash=sha256:d45cdc495671fc99268ff3653e0da4244972e9fc0e1fc3ea9de18781ad28963a \
++    --hash=sha256:d472ee1c64868a917a47f02ffb4ac8c22b477f7589d57a3eb0c58b1ad4f0137c \
++    --hash=sha256:d523da3c2e4bca49417768bcdb1a443c5b359dc44b8b93a3102e118fce912c40 \
++    --hash=sha256:da94ec0484e84fce5c7bf8d0f54b97767a90d992653a129b35634699d516e0a5 \
++    --hash=sha256:db645c81cf4d6bcb392ea1894aad65d55d1588a8472c834b25ca575da3029a56 \
++    --hash=sha256:dc5936491e306f2f6f095bd5fba593de11eb0375cee787ca1f245c3a333a523a \
++    --hash=sha256:dfb12891a773cbc2132349c77c690a045a882fe3f98b4bda50dfabb01893f9bd \
++    --hash=sha256:e42a835271922fe7bf98c7a05c78d4032f4e52bf5b07fafa1eadfdfc2f0ad22f \
++    --hash=sha256:e4eaf11d6b0f2147f46cfbf06fe7edcca6f095d0120da00ddc2458995ee869fc \
++    --hash=sha256:e65a1e61a68493fbfbe44d8bec71b3231d81b9917f62d3dafe0e105072147e83 \
++    --hash=sha256:e8a72b26dc5c9a9422e45472b1d67ba5caf273c524c8668cc04b23062663755e \
++    --hash=sha256:e9494d9e99389d39e6a96227749af898d8924ff591cb63944f8a98e68582bf0e \
++    --hash=sha256:ef65e96f0fc1a7c8b7644c7011d47a8228555e7888ac4d6246f715a7f3d7c398 \
++    --hash=sha256:f1fc9a7cea899c51d8a53e66c2f082a3d9e461ece32418d3ef0a0b90c32bfd3d \
++    --hash=sha256:f6cdb47a9be2d3313829bed1d296086287682a3ee901ff987b3432b45705b771 \
++    --hash=sha256:f72640e02a470b57b15cd655820133f6892760209283a363a60e2df932d5f0fe \
++    --hash=sha256:f8bc2cd4c6aa58be1ca243fb8cddb6c3c42031fe4403991ad9cf2b3baed03d9f \
++    --hash=sha256:fb5745048ee20f796b0e3ab61831049e749acff188563e2af32f58ede957ac1b
++iniconfig==2.3.1 \
++    --hash=sha256:67f4b9c50da0dedf52af349e7749a80a9057a5031199791b906c3bb3ae878960 \
++    --hash=sha256:9121e2c1fdb355232495be3194c8dfe87ccc2d5dee45947b78e68f499790d7a7
++mock==3.0.5 \
++    --hash=sha256:83657d894c90d5681d62155c82bda9c1187827525880eda8ff5df4ec813437c3 \
++    --hash=sha256:d157e52d4e5b938c550f39eb2fd15610db062441a9c2747d3dbfa9298211d0f8
++packaging==26.3 \
++    --hash=sha256:94edc256424af38762eb31306eed28beb9f0efc50a8837492c9d6fd6004aed79 \
++    --hash=sha256:d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c
++pluggy==1.7.0 \
++    --hash=sha256:7dd7b0d8832ba3cb632c306926ded123429211b83641b35dc5c41ad2d34f9bec \
++    --hash=sha256:d1eaa46ebb595891b860ab086b4d09c8588af65ebd4361b8e8f4bb8920b90ba8
++pygments==2.21.0 \
++    --hash=sha256:2363c69b61c4a97c838da3b130dcd6468f4848992b21a82f2a63ec34377137d9 \
++    --hash=sha256:610ca751c9bc2492b38eb9a38a7fbc93edbbb2d7182edaf34e66ae493dee5c8c
++pytest==8.4.2 \
++    --hash=sha256:86c0d0b93306b961d58d62a4db4879f27fe25513d4b969df351abdddb3c30e01 \
++    --hash=sha256:872f880de3fc3a5bdc88a11b39c9710c3497a547cfa9320bc3c5e62fbf272e79
++pytest-cov==6.2.1 \
++    --hash=sha256:25cc6cc0a5358204b8108ecedc51a9b57b34cc6b8c967cc2c01a4e00d8a67da2 \
++    --hash=sha256:f5bc4c23f42f1cdd23c70b1dab1bbaef4fc505ba950d53e0081d0730dd7e86d5
++pyyaml==6.0.2 \
++    --hash=sha256:01179a4a8559ab5de078078f37e5c1a30d76bb88519906844fd7bdea1b7729ff \
++    --hash=sha256:0833f8694549e586547b576dcfaba4a6b55b9e96098b36cdc7ebefe667dfed48 \
++    --hash=sha256:0a9a2848a5b7feac301353437eb7d5957887edbf81d56e903999a75a3d743086 \
++    --hash=sha256:0b69e4ce7a131fe56b7e4d770c67429700908fc0752af059838b1cfb41960e4e \
++    --hash=sha256:0ffe8360bab4910ef1b9e87fb812d8bc0a308b0d0eef8c8f44e0254ab3b07133 \
++    --hash=sha256:11d8f3dd2b9c1207dcaf2ee0bbbfd5991f571186ec9cc78427ba5bd32afae4b5 \
++    --hash=sha256:17e311b6c678207928d649faa7cb0d7b4c26a0ba73d41e99c4fff6b6c3276484 \
++    --hash=sha256:1e2120ef853f59c7419231f3bf4e7021f1b936f6ebd222406c3b60212205d2ee \
++    --hash=sha256:1f71ea527786de97d1a0cc0eacd1defc0985dcf6b3f17bb77dcfc8c34bec4dc5 \
++    --hash=sha256:23502f431948090f597378482b4812b0caae32c22213aecf3b55325e049a6c68 \
++    --hash=sha256:24471b829b3bf607e04e88d79542a9d48bb037c2267d7927a874e6c205ca7e9a \
++    --hash=sha256:29717114e51c84ddfba879543fb232a6ed60086602313ca38cce623c1d62cfbf \
++    --hash=sha256:2e99c6826ffa974fe6e27cdb5ed0021786b03fc98e5ee3c5bfe1fd5015f42b99 \
++    --hash=sha256:39693e1f8320ae4f43943590b49779ffb98acb81f788220ea932a6b6c51004d8 \
++    --hash=sha256:3ad2a3decf9aaba3d29c8f537ac4b243e36bef957511b4766cb0057d32b0be85 \
++    --hash=sha256:3b1fdb9dc17f5a7677423d508ab4f243a726dea51fa5e70992e59a7411c89d19 \
++    --hash=sha256:41e4e3953a79407c794916fa277a82531dd93aad34e29c2a514c2c0c5fe971cc \
++    --hash=sha256:43fa96a3ca0d6b1812e01ced1044a003533c47f6ee8aca31724f78e93ccc089a \
++    --hash=sha256:50187695423ffe49e2deacb8cd10510bc361faac997de9efef88badc3bb9e2d1 \
++    --hash=sha256:5ac9328ec4831237bec75defaf839f7d4564be1e6b25ac710bd1a96321cc8317 \
++    --hash=sha256:5d225db5a45f21e78dd9358e58a98702a0302f2659a3c6cd320564b75b86f47c \
++    --hash=sha256:6395c297d42274772abc367baaa79683958044e5d3835486c16da75d2a694631 \
++    --hash=sha256:688ba32a1cffef67fd2e9398a2efebaea461578b0923624778664cc1c914db5d \
++    --hash=sha256:68ccc6023a3400877818152ad9a1033e3db8625d899c72eacb5a668902e4d652 \
++    --hash=sha256:70b189594dbe54f75ab3a1acec5f1e3faa7e8cf2f1e08d9b561cb41b845f69d5 \
++    --hash=sha256:797b4f722ffa07cc8d62053e4cff1486fa6dc094105d13fea7b1de7d8bf71c9e \
++    --hash=sha256:7c36280e6fb8385e520936c3cb3b8042851904eba0e58d277dca80a5cfed590b \
++    --hash=sha256:7e7401d0de89a9a855c839bc697c079a4af81cf878373abd7dc625847d25cbd8 \
++    --hash=sha256:80bab7bfc629882493af4aa31a4cfa43a4c57c83813253626916b8c7ada83476 \
++    --hash=sha256:82d09873e40955485746739bcb8b4586983670466c23382c19cffecbf1fd8706 \
++    --hash=sha256:8388ee1976c416731879ac16da0aff3f63b286ffdd57cdeb95f3f2e085687563 \
++    --hash=sha256:8824b5a04a04a047e72eea5cec3bc266db09e35de6bdfe34c9436ac5ee27d237 \
++    --hash=sha256:8b9c7197f7cb2738065c481a0461e50ad02f18c78cd75775628afb4d7137fb3b \
++    --hash=sha256:9056c1ecd25795207ad294bcf39f2db3d845767be0ea6e6a34d856f006006083 \
++    --hash=sha256:936d68689298c36b53b29f23c6dbb74de12b4ac12ca6cfe0e047bedceea56180 \
++    --hash=sha256:9b22676e8097e9e22e36d6b7bda33190d0d400f345f23d4065d48f4ca7ae0425 \
++    --hash=sha256:a4d3091415f010369ae4ed1fc6b79def9416358877534caf6a0fdd2146c87a3e \
++    --hash=sha256:a8786accb172bd8afb8be14490a16625cbc387036876ab6ba70912730faf8e1f \
++    --hash=sha256:a9f8c2e67970f13b16084e04f134610fd1d374bf477b17ec1599185cf611d725 \
++    --hash=sha256:bc2fa7c6b47d6bc618dd7fb02ef6fdedb1090ec036abab80d4681424b84c1183 \
++    --hash=sha256:c70c95198c015b85feafc136515252a261a84561b7b1d51e3384e0655ddf25ab \
++    --hash=sha256:cc1c1159b3d456576af7a3e4d1ba7e6924cb39de8f67111c735f6fc832082774 \
++    --hash=sha256:ce826d6ef20b1bc864f0a68340c8b3287705cae2f8b4b1d932177dcc76721725 \
++    --hash=sha256:d584d9ec91ad65861cc08d42e834324ef890a082e591037abe114850ff7bbc3e \
++    --hash=sha256:d7fded462629cfa4b685c5416b949ebad6cec74af5e2d42905d41e257e0869f5 \
++    --hash=sha256:d84a1718ee396f54f3a086ea0a66d8e552b2ab2017ef8b420e92edbc841c352d \
++    --hash=sha256:d8e03406cac8513435335dbab54c0d385e4a49e4945d2909a581c83647ca0290 \
++    --hash=sha256:e10ce637b18caea04431ce14fabcf5c64a1c61ec9c56b071a4b7ca131ca52d44 \
++    --hash=sha256:ec031d5d2feb36d1d1a24380e4db6d43695f3748343d99434e6f5f9156aaa2ed \
++    --hash=sha256:ef6107725bd54b262d6dedcc2af448a266975032bc85ef0172c5f059da6325b4 \
++    --hash=sha256:efdca5630322a10774e8e98e1af481aad470dd62c3170801852d752aa7a783ba \
++    --hash=sha256:f753120cb8181e736c57ef7636e83f31b9c0d1722c516f7e86cf15b7aa57ff12 \
++    --hash=sha256:ff3824dc5261f50c9b0dfb3be22b4567a6f938ccce4587b38952d85fd9e9afe4
++six==1.17.0 \
++    --hash=sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274 \
++    --hash=sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81
+diff --git a/tests/bazel/unit_runner.py b/tests/bazel/unit_runner.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..031b0c1c31813138439a92fb73281ff8366574a3
+--- /dev/null
++++ b/tests/bazel/unit_runner.py
+@@ -0,0 +1,53 @@
++"""Run one original Azure project in a private writable fixture directory."""
++
++import json
++import os
++from pathlib import Path
++import platform
++import shutil
++import sys
++import tempfile
++import xml.etree.ElementTree as ET
++
++import pytest
++
++
++def main():
++    source = Path(sys.argv[1]).absolute().parent
++    output = Path(os.environ["TEST_UNDECLARED_OUTPUTS_DIR"])
++    output.mkdir(parents=True, exist_ok=True)
++    with tempfile.TemporaryDirectory(dir=os.environ["TEST_TMPDIR"]) as temporary:
++        work = Path(temporary) / source.name
++        # Original suites create fixture-adjacent files and compiled script
++        # caches. Only this project's declared test inputs are made writable.
++        shutil.copytree(source, work)
++        if source.name == "sonic-ycabled":
++            for generated in sys.argv[2:]:
++                shutil.copyfile(generated, work / "proto_out" / Path(generated).name)
++        os.chdir(work)
++        sys.path[:0] = [str(work), str(work / "scripts")]
++        report = output / "pytest.xml"
++        status = pytest.main(["--junitxml=" + str(report),
++                              "--cov-report=xml:" + str(output / "coverage.xml")])
++        root = ET.parse(report).getroot()
++        cases = root.findall(".//testcase")
++        receipt = {
++            "status": "passed" if status == 0 else "failed",
++            "project": source.name,
++            "selection": "pytest (original project pytest.ini and automatic discovery)",
++            "architecture": platform.machine(),
++            "python": platform.python_version(),
++            "tests": len(cases),
++            "failures": len(root.findall(".//failure")),
++            "errors": len(root.findall(".//error")),
++            "skipped": len(root.findall(".//skipped")),
++            "inventory": [case.attrib for case in cases],
++        }
++        (output / "source-tests.json").write_text(json.dumps(receipt, indent=2) + "\n")
++        if not cases:
++            raise RuntimeError("Original project suite produced no test inventory")
++        return int(status)
++
++
++if __name__ == "__main__":
++    raise SystemExit(main())
