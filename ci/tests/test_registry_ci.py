@@ -2267,6 +2267,14 @@ class Arm64RoutingTests(FixtureTestCase):
         with self.assertRaisesRegex(registry_ci.RegistryError, "P4 runner profile"):
             registry_ci.plan(self.root, None, head, all_versions=True, published=head, p4_runner_profile="other")
 
+    def test_collector_uses_large_amd64_capacity_independently_of_p4(self):
+        for profile in ("large", "standard"):
+            with self.subTest(profile=profile):
+                self.assertEqual(registry_ci.module_runner("otelcol-contrib", "amd64", profile),
+                                 ["self-hosted", "Linux", "X64", "debian-trixie-container-large"])
+                self.assertEqual(registry_ci.module_runner("otelcol-contrib", "arm64", profile),
+                                 registry_ci.RUNNERS["arm64"])
+
     def test_bmv2_cross_package_inspection_gets_a_longer_moderate_timeout(self):
         for module, cross, flags, expected in (
             ("p4lang-bmv2", True, [], ["--test_timeout=180,2700,2700,7200"]),

@@ -685,7 +685,9 @@ def check_version_policy(root: Path, published: str, head: str,
 
 def module_runner(module: str, execution_architecture: str, p4_runner_profile: str) -> list[str]:
     """Choose capacity after the target's native/cross route has been determined."""
-    if p4_runner_profile == "large" and execution_architecture == "amd64" and module in P4_MODULES:
+    # Compiling the collector's DataDog API client exceeds the standard 6 GiB slot.
+    large = module == "otelcol-contrib" or (module in P4_MODULES and p4_runner_profile == "large")
+    if large and execution_architecture == "amd64":
         return ["self-hosted", "Linux", "X64", "debian-trixie-container-large"]
     return RUNNERS[execution_architecture]
 
