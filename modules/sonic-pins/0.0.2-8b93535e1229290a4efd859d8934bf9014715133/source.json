@@ -1,0 +1,9 @@
+{
+  "url": "https://github.com/securely1g/sonic-pins/archive/8b93535e1229290a4efd859d8934bf9014715133.tar.gz",
+  "strip_prefix": "sonic-pins-8b93535e1229290a4efd859d8934bf9014715133",
+  "integrity": "sha256-E5vmOZA58YVxM6l5k5caAUeVGfBBFq9E4ULwbWh3BCE=",
+  "patches": {
+    "0001-module-version.patch": "sha256-1nbucZOt8qitsaA21HY9MyCoUpkUeH9yAlWVMPx2wGU="
+  },
+  "patch_strip": 1
+}
