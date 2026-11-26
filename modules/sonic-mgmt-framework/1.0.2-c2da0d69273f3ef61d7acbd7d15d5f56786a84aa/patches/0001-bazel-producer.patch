@@ -10228,7 +10228,7 @@ index 0000000000000000000000000000000000000000..dcb704875c8c27bc1d19cd061308803b
 +)
 diff --git a/tools/bazel/README.md b/tools/bazel/README.md
 new file mode 100644
-index 0000000000000000000000000000000000000000..f7073af29185f7381c6c3698d3e0c69b4a92ec85
+index 0000000000000000000000000000000000000000..040ce6a532371866c7d88985537fba218ccb478f
 --- /dev/null
 +++ b/tools/bazel/README.md
 @@ -0,0 +1,88 @@
@@ -10250,7 +10250,7 @@ index 0000000000000000000000000000000000000000..f7073af29185f7381c6c3698d3e0c69b
 +| `//dist:runtime.debug_symbols` | Symbols split from the same eight deployed ELF files |
 +
 +The selected configuration is native AMD64 Debian Trixie with Bazel 8.5.1,
-+Go 1.25.9, Python 3.13 and the shared GCC toolchain. REST compilation preserves
++Go 1.26.7, Python 3.13 and the shared GCC toolchain. REST compilation preserves
 +Make's `-gcflags="all=-N -l"` on the target itself, including when another
 +Bazel root consumes it; the certificate tool keeps normal Go optimization. External native libraries and execution tools use
 +reviewed package locks. CLI source preparation and compilation use the shared
@@ -10322,7 +10322,7 @@ index 0000000000000000000000000000000000000000..f7073af29185f7381c6c3698d3e0c69b
 +fail clearly until their corresponding generator targets are declared.
 diff --git a/tools/bazel/cert_source.bzl b/tools/bazel/cert_source.bzl
 new file mode 100644
-index 0000000000000000000000000000000000000000..2eeb719785e6f4e727860448605eec036feb2bac
+index 0000000000000000000000000000000000000000..c9ab987ce443268b5e7a7ede733824d3ceae9f15
 --- /dev/null
 +++ b/tools/bazel/cert_source.bzl
 @@ -0,0 +1,33 @@
@@ -10332,8 +10332,8 @@ index 0000000000000000000000000000000000000000..2eeb719785e6f4e727860448605eec03
 +
 +def _cert_source_impl(ctx):
 +    sdk = ctx.toolchains[_GO_TOOLCHAIN].sdk
-+    if sdk.version != "1.25.9":
-+        fail("The certificate source contract requires Go 1.25.9, got " + sdk.version)
++    if sdk.version != "1.26.7":
++        fail("The certificate source contract requires Go 1.26.7, got " + sdk.version)
 +    source_path = sdk.root_file.dirname + "/src/crypto/tls/generate_cert.go"
 +    sources = [source for source in sdk.srcs.to_list() if source.path == source_path]
 +    if len(sources) != 1:
@@ -10749,14 +10749,14 @@ index 0000000000000000000000000000000000000000..606dc135186ca20980c4c4491c8cf7bd
 +)
 diff --git a/tools/bazel/consumer/MODULE.bazel b/tools/bazel/consumer/MODULE.bazel
 new file mode 100644
-index 0000000000000000000000000000000000000000..d44667d53dad6d1dae69e934cc54898b26603481
+index 0000000000000000000000000000000000000000..784f803960b21937bcbcf82c5594047c1d2a3baa
 --- /dev/null
 +++ b/tools/bazel/consumer/MODULE.bazel
-@@ -0,0 +1,61 @@
+@@ -0,0 +1,56 @@
 +module(name = "management_framework_consumer")
 +
 +bazel_dep(name = "sonic-mgmt-framework", version = "1.0.2-c2da0d69273f3ef61d7acbd7d15d5f56786a84aa")
-+bazel_dep(name = "sonic-mgmt-common", version = "1.0.2-c83630943c1e869107463be4f885fdfcc8321759")
++bazel_dep(name = "sonic-mgmt-common", version = "1.0.2-68bfd75e9034ac0981c0f431b54cf8a9a868a2ca")
 +bazel_dep(name = "gazelle", version = "0.54.0.sonic.2")
 +bazel_dep(name = "openconfig_goyang", version = "0.0.0.sonic.2-20200309174518-a00bece872fc", repo_name = "com_github_openconfig_goyang")
 +bazel_dep(name = "openconfig_ygot", version = "0.7.1.sonic.2", repo_name = "com_github_openconfig_ygot")
@@ -10790,11 +10790,6 @@ index 0000000000000000000000000000000000000000..d44667d53dad6d1dae69e934cc54898b
 +    patch_strip = 1,
 +    patches = ["@sonic-mgmt-common//patches:xpath.patch"],
 +    path = "github.com/antchfx/xpath",
-+)
-+go_deps.module_override(
-+    patch_strip = 1,
-+    patches = ["@sonic-mgmt-common//patches:glog.patch"],
-+    path = "github.com/golang/glog",
 +)
 +
 +# Match the owner generators and source toolchain in this consuming root.
