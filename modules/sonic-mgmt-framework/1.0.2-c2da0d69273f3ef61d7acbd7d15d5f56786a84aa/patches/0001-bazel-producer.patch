@@ -11109,10 +11109,10 @@ index 0000000000000000000000000000000000000000..10c4a580e13581acdee5d759b86dabd1
 +)
 diff --git a/tools/openapi_tests/BUILD.bazel b/tools/openapi_tests/BUILD.bazel
 new file mode 100644
-index 0000000000000000000000000000000000000000..1d1e72da878917c301beab9b177bb01d633cb882
+index 0000000000000000000000000000000000000000..0b103364a9677b874cee50433775405782017799
 --- /dev/null
 +++ b/tools/openapi_tests/BUILD.bazel
-@@ -0,0 +1,20 @@
+@@ -0,0 +1,18 @@
 +load("@rules_python//python:py_test.bzl", "py_test")
 +
 +py_test(
@@ -11120,7 +11120,6 @@ index 0000000000000000000000000000000000000000..1d1e72da878917c301beab9b177bb01d
 +    srcs = ["generator_test.py"],
 +    args = [
 +        "$(location //tools/bazel:pyang)",
-+        "$(location @framework_pip//pyang:whl)",
 +        "$(location //tools:pyang/pyang_plugins/openapi.py)",
 +        "$(location test-rpc.yang)",
 +    ],
@@ -11130,12 +11129,11 @@ index 0000000000000000000000000000000000000000..1d1e72da878917c301beab9b177bb01d
 +    ]) + [
 +        "//tools:pyang/pyang_plugins/openapi.py",
 +        "//tools/bazel:pyang",
-+        "@framework_pip//pyang:whl",
 +    ],
 +)
 diff --git a/tools/openapi_tests/generator_test.py b/tools/openapi_tests/generator_test.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..e7fef257e40516611f17ed5b3885619e16040291
+index 0000000000000000000000000000000000000000..d8de6f11e89daf556616585da2c0fc250985d118
 --- /dev/null
 +++ b/tools/openapi_tests/generator_test.py
 @@ -0,0 +1,42 @@
@@ -11148,8 +11146,8 @@ index 0000000000000000000000000000000000000000..e7fef257e40516611f17ed5b3885619e
 +import sys
 +import unittest
 +
-+PYANG, WHEEL, PLUGIN, MARKER = [Path(p).absolute() for p in sys.argv[1:5]]
-+del sys.argv[1:5]
++PYANG, PLUGIN, MARKER = [Path(p).absolute() for p in sys.argv[1:4]]
++del sys.argv[1:4]
 +
 +
 +class GeneratorTest(unittest.TestCase):
@@ -11158,7 +11156,7 @@ index 0000000000000000000000000000000000000000..e7fef257e40516611f17ed5b3885619e
 +        for key in ("RUNFILES_DIR", "RUNFILES_MANIFEST_FILE", "PYTHON_RUNFILES"):
 +            environment.pop(key, None)
 +        result = subprocess.run(
-+            [str(PYANG), str(WHEEL), "-f", "swaggerapi", "--plugindir", str(PLUGIN.parent),
++            [str(PYANG), "-f", "swaggerapi", "--plugindir", str(PLUGIN.parent),
 +             *options, *sources],
 +            cwd=MARKER.parent, env=environment, check=True, stdout=subprocess.PIPE,
 +        ).stdout.decode()
