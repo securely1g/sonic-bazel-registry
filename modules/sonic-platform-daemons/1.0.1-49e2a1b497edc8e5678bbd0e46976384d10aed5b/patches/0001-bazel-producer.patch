@@ -389,13 +389,12 @@ index 0000000000000000000000000000000000000000..86b3a1aec06a3bd2e95d486082f57b65
 +test --test_output=errors
 +try-import %workspace%/.bazelrc.user
 diff --git a/tests/bazel/.bazelversion b/tests/bazel/.bazelversion
-new file mode 120000
-index 0000000000000000000000000000000000000000..96cf94962b42d2f253d5dc303a45b5ec1db9a3f9
+new file mode 100644
+index 0000000000000000000000000000000000000000..f9c71a52e2fd865dbf40db779b5bf8157d5c5a6a
 --- /dev/null
 +++ b/tests/bazel/.bazelversion
 @@ -0,0 +1 @@
-+../../.bazelversion
-\ No newline at end of file
++8.5.1
 diff --git a/tests/bazel/BUILD.bazel b/tests/bazel/BUILD.bazel
 new file mode 100644
 index 0000000000000000000000000000000000000000..51c00e512ed725328f3d0bc9984248a9f88e1a31
