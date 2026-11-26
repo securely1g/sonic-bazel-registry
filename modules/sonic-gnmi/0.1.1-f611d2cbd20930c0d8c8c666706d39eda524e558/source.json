@@ -4,10 +4,10 @@
   "integrity": "sha256-vU8tvn4NYxIwxUq/P7GSNKbB/DKk1Vv3eP6lUtShXd8=",
   "patch_strip": 1,
   "patches": {
-    "0001-bazel-producer.patch": "sha256-qqS0SQs9/FexnzV3rb2q1+W4J4NlGsLJFVTBfXlbNlo="
+    "0001-bazel-producer.patch": "sha256-JEtSu70FSK4GVeXd0Rgo1QTWZXR9233eTyjZvx3KQYs="
   },
   "overlay": {
-    "MODULE.bazel": "sha256-q2ERWbZqwnX24S5Qf7og8ncUtIxbUS4rXj71btknuzU=",
+    "MODULE.bazel": "sha256-RXqapaMOUZzMpVkkNAYxPdwMpk1wQHwEaULo+f7XbUA=",
     "testdata/COUNTERS_Ethernet1.txt": "sha256-fVzmuPxuN9Uf36tb2/L6KrJ0p8WnYGF0+Q0k71nsg7A=",
     "testdata/COUNTERS_Ethernet68_Pfcwd.txt": "sha256-2q4QOX8cCXfmLxBMFB4AF0Kr096EpYvZX5U2Z/nCy4E=",
     "testdata/COUNTERS_Ethernet68_Pfcwd_alias.txt": "sha256-JklslI5OPhTkqXzoi50XHHp7v/UYDSOeh+5lhW31KRo=",

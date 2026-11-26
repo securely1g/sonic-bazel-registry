@@ -14144,7 +14144,7 @@ index 0000000000000000000000000000000000000000..a6594304cf8420d82a5874116e968173
 +)
 diff --git a/tests/consumer/MODULE.bazel b/tests/consumer/MODULE.bazel
 new file mode 100644
-index 0000000000000000000000000000000000000000..bb02cadda49310438ca70bc865f8fe007315201c
+index 0000000000000000000000000000000000000000..7a73c4f4f549dcfa3e543b9e70b713511a581797
 --- /dev/null
 +++ b/tests/consumer/MODULE.bazel
 @@ -0,0 +1,111 @@
@@ -14187,7 +14187,7 @@ index 0000000000000000000000000000000000000000..bb02cadda49310438ca70bc865f8fe00
 +
 +go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
 +go_deps.from_file(go_work = "@sonic_gnmi//:go.bazel.work")
-+use_repo(go_deps, "cc_mvdan_sh_v3", "com_github_agiledragon_gomonkey_v2", "com_github_alicebob_miniredis_v2", "com_github_azure_sonic_mgmt_common", "com_github_c9s_goprocinfo", "com_github_dgrijalva_jwt_go", "com_github_fsnotify_fsnotify", "com_github_go_redis_redismock_v9", "com_github_godbus_dbus_v5", "com_github_gogo_protobuf", "com_github_golang_glog", "com_github_golang_mock", "com_github_golang_protobuf", "com_github_google_gnxi", "com_github_google_go_cmp", "com_github_google_shlex", "com_github_kylelemons_godebug", "com_github_maruel_natural", "com_github_msteinert_pam", "com_github_openconfig_gnmi", "com_github_openconfig_gnoi", "com_github_openconfig_gnsi", "com_github_opencontainers_go_digest", "com_github_opencontainers_image_spec", "com_github_pkg_sftp", "com_github_redis_go_redis_v9", "com_github_stretchr_testify", "com_github_workiva_go_datastructures", "in_gopkg_yaml_v2", "in_gopkg_yaml_v3", "land_oras_oras_go_v2", "org_golang_google_grpc", "org_golang_google_grpc_security_advancedtls", "org_golang_google_protobuf", "org_golang_x_crypto", "org_golang_x_mod", "org_golang_x_net", "org_golang_x_sync", "org_golang_x_term", "org_golang_x_text", "org_golang_x_time", "org_golang_x_tools")
++use_repo(go_deps, "com_github_agiledragon_gomonkey_v2", "com_github_alicebob_miniredis_v2", "com_github_c9s_goprocinfo", "com_github_dgrijalva_jwt_go", "com_github_fsnotify_fsnotify", "com_github_go_redis_redismock_v9", "com_github_godbus_dbus_v5", "com_github_gogo_protobuf", "com_github_golang_glog", "com_github_golang_mock", "com_github_golang_protobuf", "com_github_google_gnxi", "com_github_google_go_cmp", "com_github_google_shlex", "com_github_kylelemons_godebug", "com_github_maruel_natural", "com_github_msteinert_pam", "com_github_openconfig_gnmi", "com_github_openconfig_gnoi", "com_github_openconfig_gnsi", "com_github_opencontainers_go_digest", "com_github_opencontainers_image_spec", "com_github_pkg_sftp", "com_github_redis_go_redis_v9", "com_github_stretchr_testify", "com_github_workiva_go_datastructures", "in_gopkg_yaml_v2", "in_gopkg_yaml_v3", "land_oras_oras_go_v2", "org_golang_google_grpc", "org_golang_google_grpc_security_advancedtls", "org_golang_google_protobuf", "org_golang_x_crypto", "org_golang_x_net", "org_golang_x_sys", "org_golang_x_time")
 +
 +go_patches = use_extension("@gazelle//:extensions.bzl", "go_deps", dev_dependency = True)
 +
@@ -14757,7 +14757,7 @@ index 0000000000000000000000000000000000000000..d756ec73fe0bf022cafef471c82988e2
 +    main()
 diff --git a/tools/bazel/collect_evidence.py b/tools/bazel/collect_evidence.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..651ca1bd7df867f7ff400bc15952d829970f2970
+index 0000000000000000000000000000000000000000..96c309ef1ae1cda12b6738552eec5c179c04f32c
 --- /dev/null
 +++ b/tools/bazel/collect_evidence.py
 @@ -0,0 +1,95 @@
@@ -14804,7 +14804,7 @@ index 0000000000000000000000000000000000000000..651ca1bd7df867f7ff400bc15952d829
 +    complete = all(value == 'success' for value in results.values())
 +    if results['source_test'] == 'success':
 +        required = ['sonic_db_config', 'sonic_service_client', 'sonic_data_client',
-+                    'gnmi_server', 'telemetry', 'dialout/dialout_client']
++                    'gnmi_server', 'cmd/telemetry', 'dialout/dialout_client']
 +        for package in required:
 +            logs = list((evidence / 'tests' / package).glob('*/test.log'))
 +            if not logs or not any('--- PASS:' in p.read_text(errors='replace') for p in logs):
