@@ -28,7 +28,7 @@
     "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
   },
   "rust_toolchain": {
-    "version": "1.90.0",
+    "version": "1.95.0",
     "bindgen": true
   },
   "build_targets": [
