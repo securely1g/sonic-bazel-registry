@@ -15022,10 +15022,10 @@ index 0000000000000000000000000000000000000000..fb364555645efd802b83d8a75c2358bc
 +                service.kill(); service.wait()
 diff --git a/tools/bazel/native_test.bzl b/tools/bazel/native_test.bzl
 new file mode 100644
-index 0000000000000000000000000000000000000000..cf51c9e3a43e35bb4cb5598d368bd5c241eaa8cf
+index 0000000000000000000000000000000000000000..21f3a1bf66844c0de0ff65cf61bb2288f3474d53
 --- /dev/null
 +++ b/tools/bazel/native_test.bzl
-@@ -0,0 +1,107 @@
+@@ -0,0 +1,108 @@
 +"""Run original Go suites with private declared SONiC services and fixtures."""
 +
 +load("@io_bazel_rules_go//go:def.bzl", "go_test")
@@ -15116,7 +15116,8 @@ index 0000000000000000000000000000000000000000..cf51c9e3a43e35bb4cb5598d368bd5c2
 +        tags = ["exclusive"] if native.package_name() in ["gnmi_server", "dialout/dialout_client", "cmd/telemetry", "sonic_data_client"] else [],
 +        args = ["--suite=" + native.package_name()] +
 +               ["--" + key + "=$(location " + value + ")" for key, value in inputs.items()] +
-+               ["--fixtures", "$(rootpaths //:test_data)"],
++               ["--fixtures", "$(rootpaths //:test_data)"] +
++               ["$(rootpaths %s)" % fixture for fixture in fixtures],
 +        data = inputs.values() + fixtures + ["//:test_data"],
 +    )
 +
@@ -15171,10 +15172,10 @@ index 0000000000000000000000000000000000000000..9532475a9c8c2dc4bd3ca457b67ca6c4
 +    raise SystemExit(pytest.main(sys.argv[1:]))
 diff --git a/tools/bazel/run_go_tests.py b/tools/bazel/run_go_tests.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..948682ed368b209c56afe4da10aa66ba01f48a08
+index 0000000000000000000000000000000000000000..a3c4d9d0057c9e592c44f90482243acdd78f8113
 --- /dev/null
 +++ b/tools/bazel/run_go_tests.py
-@@ -0,0 +1,190 @@
+@@ -0,0 +1,191 @@
 +"""Run Go assertions using private Redis/paths and the declared Trixie runtime."""
 +import argparse
 +import ctypes
@@ -15311,7 +15312,8 @@ index 0000000000000000000000000000000000000000..948682ed368b209c56afe4da10aa66ba
 +                launcher(output, binary)
 +            environment['SONIC_TEST_NATIVE_BIN'] = str(root / 'clients/usr/sbin')
 +            private_bin = root / 'bin'; private_bin.mkdir()
-+            (private_bin / 'pytest').symlink_to(args.pytest)
++            if args.pytest:
++                (private_bin / 'pytest').symlink_to(args.pytest)
 +            redis_cli = private_bin / 'redis-cli'
 +            redis_cli.write_text('#!/bin/sh\nexec ' + shlex.join([
 +                str(loader), '--library-path', libpath, str(runtime / 'usr/bin/redis-cli'),
