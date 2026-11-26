@@ -1,0 +1,722 @@
+Registry entry comparison for sonic-host-services
+Baseline 2d5a28673ab6af079d28524c22de93f29ea517e5 (1.0.0-0e4c6a355c80396345a31232e30d20168060ae10)
+Candidate 74f0636c5206ce907e38ef0924d192a882251089 (1.0.1-e8069d29a720b7675dc569a7470f89135a96d07c)
+
+In a clean baseline checkout where the destination does not yet exist:
+  cp -a modules/sonic-host-services/1.0.0-0e4c6a355c80396345a31232e30d20168060ae10 modules/sonic-host-services/1.0.1-e8069d29a720b7675dc569a7470f89135a96d07c
+  git apply <path-to-downloaded-patch>
+
+diff --git a/modules/sonic-host-services/1.0.1-e8069d29a720b7675dc569a7470f89135a96d07c/MODULE.bazel b/modules/sonic-host-services/1.0.1-e8069d29a720b7675dc569a7470f89135a96d07c/MODULE.bazel
+index 4fcd61b3c1aeebe21b377a677bb3266eb1222001..6bda4abe8f20b0c674519367f656259dd1f4a669 100644
+--- a/modules/sonic-host-services/1.0.1-e8069d29a720b7675dc569a7470f89135a96d07c/MODULE.bazel
++++ b/modules/sonic-host-services/1.0.1-e8069d29a720b7675dc569a7470f89135a96d07c/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-host-services",
+-    version = "1.0.0-0e4c6a355c80396345a31232e30d20168060ae10",
++    version = "1.0.1-e8069d29a720b7675dc569a7470f89135a96d07c",
+ )
+ 
+ bazel_dep(name = "rules_python", version = "1.9.0.sonic.2")
+@@ -8,12 +8,12 @@ bazel_dep(name = "rules_rs", version = "0.1.0")
+ bazel_dep(name = "tar.bzl", version = "0.10.5.sonic.2")
+ bazel_dep(name = "sonic-build-infra", version = "0.0.45-77ef625a4ddafc8cdc15f3cc6aee31eabac8a5de", repo_name = "sonic_build_infra")
+ bazel_dep(name = "sonic-rust-deps", version = "0.0.5-4064a814e8530300a7acbad4a9aff0621e2fb98e", repo_name = "sonic_rust_deps")
+-bazel_dep(name = "sonic-swss-common", version = "0.0.8-2a4ddd070edb719f2e969a880a5cfff711e64e72", repo_name = "sonic_swss_common")
++bazel_dep(name = "sonic-swss-common", version = "0.0.9-e06d5157d0a6a7228c8ba7357bdfd5e03623e586", repo_name = "sonic_swss_common")
+ bazel_dep(name = "bazel_skylib", version = "1.9.0")
+ bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.26")
+ 
+ bazel_dep(name = "libnl3", version = "3.7.0.sonic.10", dev_dependency = True)
+-bazel_dep(name = "libyang", version = "3.12.2.sonic.9", dev_dependency = True)
++bazel_dep(name = "libyang", version = "3.12.2.sonic.10", dev_dependency = True)
+ 
+ register_toolchains(
+     "@sonic_build_infra//tools/build_tools:apt_bsdtar_amd64_toolchain",
+diff --git a/modules/sonic-host-services/1.0.1-e8069d29a720b7675dc569a7470f89135a96d07c/README.md b/modules/sonic-host-services/1.0.1-e8069d29a720b7675dc569a7470f89135a96d07c/README.md
+index b584f8cfa92da19cc5cbae8226a825a68bf298ec..73c6305b5c740dc17ead82bc9d24fff07d3204a5 100644
+--- a/modules/sonic-host-services/1.0.1-e8069d29a720b7675dc569a7470f89135a96d07c/README.md
++++ b/modules/sonic-host-services/1.0.1-e8069d29a720b7675dc569a7470f89135a96d07c/README.md
+@@ -1,5 +1,5 @@
+-# Native Host Services installation inputs
++# sonic-host-services at the upstream buildimage submodule revision
+ 
+-Registers the merged source from [Host Services #3](https://github.com/securely1g/sonic-host-services/pull/3). Only the module version is patched.
++This entry builds `1.0.1-e8069d29a720b7675dc569a7470f89135a96d07c` from the `src/sonic-host-services` gitlink at sonic-net/sonic-buildimage commit `9dfc6c15719f`. The registry verifies the canonical source archive by SHA-256 before applying the producer's Bazel integration. [Buildimage tree](https://github.com/sonic-net/sonic-buildimage/tree/9dfc6c15719f9266120407e384f9ee885970f833/src) · [Source commit](https://github.com/sonic-net/sonic-host-services/commit/e8069d29a720b7675dc569a7470f89135a96d07c)
+ 
+-The sonic-buildimage target `//tools/bazel/image/vs:sonic-vs.bin` consumes the Python, data and Rust runtime archives, matching Rust debug symbols, and Debian package metadata directly. The consumer configuration selects the registered Infra, libnl3 and libyang versions used by buildimage, plus the declared Rust and bindgen toolchains. AMD64 tests exercise the original installation declarations and public Common C ABI/Serde contract.
++The package and architecture checks are declared in [presubmit.json](presubmit.json). The [previous registration](../1.0.0-0e4c6a355c80396345a31232e30d20168060ae10/) records the earlier release and its validation history.
+diff --git a/modules/sonic-host-services/1.0.1-e8069d29a720b7675dc569a7470f89135a96d07c/overlay/MODULE.bazel b/modules/sonic-host-services/1.0.1-e8069d29a720b7675dc569a7470f89135a96d07c/overlay/MODULE.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..10310f0635fcdef5b187aed141e01c24c1241ab4
+--- /dev/null
++++ b/modules/sonic-host-services/1.0.1-e8069d29a720b7675dc569a7470f89135a96d07c/overlay/MODULE.bazel
+@@ -0,0 +1,53 @@
++# AUTO-GENERATED. DO NOT EDIT MANUALLY.
++# Source: ../MODULE.bazel
++# Generator: python3 ci/registry_ci.py sync-module --module sonic-host-services --version 1.0.1-e8069d29a720b7675dc569a7470f89135a96d07c
++
++module(
++    name = "sonic-host-services",
++    version = "1.0.1-e8069d29a720b7675dc569a7470f89135a96d07c",
++)
++
++bazel_dep(name = "rules_python", version = "1.9.0.sonic.2")
++bazel_dep(name = "rules_rs", version = "0.1.0")
++bazel_dep(name = "tar.bzl", version = "0.10.5.sonic.2")
++bazel_dep(name = "sonic-build-infra", version = "0.0.45-77ef625a4ddafc8cdc15f3cc6aee31eabac8a5de", repo_name = "sonic_build_infra")
++bazel_dep(name = "sonic-rust-deps", version = "0.0.5-4064a814e8530300a7acbad4a9aff0621e2fb98e", repo_name = "sonic_rust_deps")
++bazel_dep(name = "sonic-swss-common", version = "0.0.9-e06d5157d0a6a7228c8ba7357bdfd5e03623e586", repo_name = "sonic_swss_common")
++bazel_dep(name = "bazel_skylib", version = "1.9.0")
++bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.26")
++
++bazel_dep(name = "libnl3", version = "3.7.0.sonic.10", dev_dependency = True)
++bazel_dep(name = "libyang", version = "3.12.2.sonic.10", dev_dependency = True)
++
++register_toolchains(
++    "@sonic_build_infra//tools/build_tools:apt_bsdtar_amd64_toolchain",
++    "@sonic_build_infra//tools/build_tools:apt_bsdtar_arm64_toolchain",
++)
++
++rust = use_extension("@rules_rs//rs:rules_rust_reexported_extensions.bzl", "rust", dev_dependency = True)
++rust.toolchain(
++    edition = "2021",
++    extra_target_triples = [
++        "x86_64-unknown-linux-gnu",
++        "aarch64-unknown-linux-gnu",
++    ],
++    versions = ["1.90.0"],
++)
++use_repo(rust, "rust_toolchains")
++
++register_toolchains(
++    "@rust_toolchains//:all",
++    dev_dependency = True,
++)
++
++# Rust dependencies and their generated lock are owned by sonic-rust-deps.
++# Common follows the buildimage Make gitlink, not the application Cargo.lock.
++
++# Common's public bindings producer requires the existing standalone bindgen toolchain.
++bindgen = use_extension("@rules_rs//rs:rules_rust_bindgen.bzl", "rules_rust_bindgen", dev_dependency = True)
++use_repo(bindgen, "rules_rust_bindgen")
++
++register_toolchains(
++    "@rules_rust_bindgen//:all",
++    dev_dependency = True,
++)
+diff --git a/modules/sonic-host-services/1.0.1-e8069d29a720b7675dc569a7470f89135a96d07c/patches/0001-bazel-producer.patch b/modules/sonic-host-services/1.0.1-e8069d29a720b7675dc569a7470f89135a96d07c/patches/0001-bazel-producer.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..c086172261c6c2b1728e95beb861ba3f42a211cd
+--- /dev/null
++++ b/modules/sonic-host-services/1.0.1-e8069d29a720b7675dc569a7470f89135a96d07c/patches/0001-bazel-producer.patch
+@@ -0,0 +1,538 @@
++diff --git a/.bazelrc b/.bazelrc
++new file mode 100644
++index 0000000000000000000000000000000000000000..3d26f7528d9bc20cf2816b0609b9a29c9c4840af
++--- /dev/null
+++++ b/.bazelrc
++@@ -0,0 +1,6 @@
+++common --registry=https://raw.githubusercontent.com/sonic-net/sonic-bazel-registry/main
+++common --registry=https://bcr.bazel.build/
+++common --platforms=@sonic_build_infra//platforms:x86_64_trixie
+++common --host_platform=@sonic_build_infra//platforms:x86_64_trixie
+++try-import %workspace%/.bazelrc.user
+++test --test_output=errors
++diff --git a/.bazelversion b/.bazelversion
++new file mode 100644
++index 0000000000000000000000000000000000000000..f9c71a52e2fd865dbf40db779b5bf8157d5c5a6a
++--- /dev/null
+++++ b/.bazelversion
++@@ -0,0 +1 @@
+++8.5.1
++diff --git a/BUILD.bazel b/BUILD.bazel
++new file mode 100644
++index 0000000000000000000000000000000000000000..a50c34bb12a930aceee3b7ce8532620e61198b0e
++--- /dev/null
+++++ b/BUILD.bazel
++@@ -0,0 +1,238 @@
+++"""Direct installation of the current Make Python distribution."""
+++
+++load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
+++load("@rules_python//python:defs.bzl", "py_test")
+++load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages", "runtime_packages_group")
+++load("@sonic_build_infra//python:site_packages.bzl", "site_packages")
+++load("@sonic_build_infra//tar:sonic_deploy_tar.bzl", "sonic_deploy_tar")
+++load("@tar.bzl", "tar")
+++
+++package(default_visibility = ["//visibility:public"])
+++
+++site_packages(
+++    name = "sonic-host-services.runtime",
+++    author = "SONiC Team",
+++    author_email = "linuxnetdev@microsoft.com",
+++    classifiers = [
+++        "Development Status :: 3 - Alpha",
+++        "Environment :: Console",
+++        "Intended Audience :: Developers",
+++        "Intended Audience :: Information Technology",
+++        "Intended Audience :: System Administrators",
+++        "License :: OSI Approved :: Apache Software License",
+++        "Natural Language :: English",
+++        "Operating System :: POSIX :: Linux",
+++        "Programming Language :: Python :: 3.7",
+++        "Topic :: System",
+++    ],
+++    data_prefix = "/usr/local",
+++    distribution = "sonic-host-services",
+++    executable_files = ["sonic_host_services-1.0.data/scripts/" + script for script in [
+++        "caclmgrd",
+++        "hostcfgd",
+++        "featured",
+++        "aaastatsd",
+++        "procdockerstatsd",
+++        "determine-reboot-cause",
+++        "process-reboot-cause",
+++        "gnoi_shutdown_daemon.py",
+++        "switch_platform_init.py",
+++        "sonic-host-server",
+++        "ldap.py",
+++        "console-monitor",
+++    ]],
+++    extra_requires = {"testing": [
+++        "parameterized",
+++        "pytest",
+++        "pyfakefs",
+++        "sonic-py-common",
+++        "deepdiff>=6.2.2",
+++    ]},
+++    files = {p: p for p in glob([
+++        "host_modules/*.py",
+++        "utils/*.py",
+++    ])} | {
+++        "scripts/caclmgrd": "sonic_host_services-1.0.data/scripts/caclmgrd",
+++        "scripts/hostcfgd": "sonic_host_services-1.0.data/scripts/hostcfgd",
+++        "scripts/featured": "sonic_host_services-1.0.data/scripts/featured",
+++        "scripts/aaastatsd": "sonic_host_services-1.0.data/scripts/aaastatsd",
+++        "scripts/procdockerstatsd": "sonic_host_services-1.0.data/scripts/procdockerstatsd",
+++        "scripts/determine-reboot-cause": "sonic_host_services-1.0.data/scripts/determine-reboot-cause",
+++        "scripts/process-reboot-cause": "sonic_host_services-1.0.data/scripts/process-reboot-cause",
+++        "scripts/gnoi_shutdown_daemon.py": "sonic_host_services-1.0.data/scripts/gnoi_shutdown_daemon.py",
+++        "scripts/switch_platform_init.py": "sonic_host_services-1.0.data/scripts/switch_platform_init.py",
+++        "scripts/sonic-host-server": "sonic_host_services-1.0.data/scripts/sonic-host-server",
+++        "scripts/ldap.py": "sonic_host_services-1.0.data/scripts/ldap.py",
+++        "scripts/console-monitor": "sonic_host_services-1.0.data/scripts/console-monitor",
+++    },
+++    headers = "/usr/local/include",
+++    homepage = "https://github.com/Azure/sonic-buildimage",
+++    interpreter = "/usr/bin/python3",
+++    keywords = "sonic SONiC host services",
+++    license = "Apache 2.0",
+++    maintainer = "Joe LeVeque",
+++    maintainer_email = "jolevequ@microsoft.com",
+++    normalize_scripts = True,
+++    python_tag = "py3",
+++    regular_file_mode = "0644",
+++    requires = [
+++        "dbus-python",
+++        "systemd-python",
+++        "Jinja2>=2.10",
+++        "PyGObject",
+++        "pycairo==1.26.1",
+++        "psutil",
+++        "sonic-py-common",
+++        "sonic-utilities",
+++    ],
+++    scripts = "/usr/local/bin",
+++    site_packages = "/usr/local/lib/python3.13/dist-packages",
+++    summary = "Python services which run in the SONiC host OS",
+++    version = "1.0",
+++)
+++
+++filegroup(
+++    name = "sonic-host-services.runtime_metadata",
+++    srcs = [":sonic-host-services.runtime"],
+++    output_group = "metadata",
+++)
+++
+++# Original data/debian/rules names; default rules/config enables host service.
+++_DATA_SYSTEMD_NAMES = [
+++    "caclmgrd",
+++    "hostcfgd",
+++    "featured",
+++    "aaastatsd",
+++    "procdockerstatsd",
+++    "determine-reboot-cause",
+++    "process-reboot-cause",
+++    "gnoi-shutdown",
+++    "console-monitor-dce",
+++    "console-monitor-dte",
+++    "console-monitor-proxy@",
+++    "console-monitor-pty-bridge@",
+++    "switch-platform-init",
+++    "sonic-hostservice",
+++]
+++
+++_DATA_UNIT_FILES = glob(
+++    ["data/debian/sonic-host-services-data." + name + "." + kind for name in _DATA_SYSTEMD_NAMES for kind in [
+++        "service",
+++        "timer",
+++    ]],
+++    allow_empty = True,
+++)
+++
+++tar(
+++    name = "sonic-host-services-data.runtime",
+++    srcs = glob(["data/templates/*.j2"]) + ["data/org.sonic.hostservice.conf", "scripts/switch_platform_init.py"] + _DATA_UNIT_FILES,
+++    mtree = ["./usr/share/sonic/templates/" + p.split("/")[-1] + " uid=0 gid=0 mode=0644 time=0 type=file content=$(location " + p + ")" for p in glob(["data/templates/*.j2"])] + ["./usr/bin/switch_platform_init.py uid=0 gid=0 mode=0755 time=0 type=file content=$(location scripts/switch_platform_init.py)"] + ["./etc/dbus-1/system.d/org.sonic.hostservice.conf uid=0 gid=0 mode=0644 time=0 type=file content=$(location data/org.sonic.hostservice.conf)"] + ["./usr/lib/systemd/system/" + p.split("/")[-1][len("sonic-host-services-data."):] + " uid=0 gid=0 mode=0644 time=0 type=file content=$(location " + p + ")" for p in _DATA_UNIT_FILES],
+++)
+++
+++# Only sonic-hostservice's automatic enablement is conditional in data/debian/rules.
+++bool_flag(
+++    name = "enable_host_service_on_start",
+++    build_setting_default = True,
+++)
+++
+++config_setting(
+++    name = "host_service_disabled",
+++    flag_values = {":enable_host_service_on_start": "false"},
+++)
+++
+++runtime_packages(
+++    name = "data_enabled_metadata",
+++    changelog = "data/debian/changelog",
+++    control = "data/debian/control",
+++    control_file_helpers = [[
+++        "dh_installsystemd",
+++        "--no-start",
+++        "--name=" + name,
+++    ] for name in _DATA_SYSTEMD_NAMES] + [["dh_installdeb"]],
+++    debian_files = {"compat": "data/debian/compat"} | {p.split("/")[-1]: p for p in _DATA_UNIT_FILES},
+++    packages = {"sonic-host-services-data": ":sonic-host-services-data.runtime"},
+++)
+++
+++runtime_packages(
+++    name = "data_disabled_metadata",
+++    changelog = "data/debian/changelog",
+++    control = "data/debian/control",
+++    control_file_helpers = [[
+++        "dh_installsystemd",
+++        "--no-start",
+++        "--name=" + name,
+++    ] for name in _DATA_SYSTEMD_NAMES[:-1]] + [
+++        [
+++            "dh_installsystemd",
+++            "--no-start",
+++            "--no-enable",
+++            "--name=sonic-hostservice",
+++        ],
+++        ["dh_installdeb"],
+++    ],
+++    debian_files = {"compat": "data/debian/compat"} | {p.split("/")[-1]: p for p in _DATA_UNIT_FILES},
+++    packages = {"sonic-host-services-data": ":sonic-host-services-data.runtime"},
+++)
+++
+++runtime_packages_group(
+++    name = "sonic-host-services-data.runtime_metadata",
+++    packages = select({
+++        ":host_service_disabled": [":data_disabled_metadata"],
+++        "//conditions:default": [":data_enabled_metadata"],
+++    }),
+++)
+++
+++exports_files([
+++    "Cargo.toml",
+++    "Cargo.lock",
+++])
+++
+++sonic_deploy_tar(
+++    name = "sonic-host-services-rs.runtime",
+++    binaries = {"usr/bin/procdockerstatsd-rs uid=0 gid=0 mode=0755 type=file": "//crates/procdockerstatsd-rs:procdockerstatsd-rs"},
+++    force_debug_build = True,
+++)
+++
+++runtime_packages(
+++    name = "sonic-host-services-rs.runtime_metadata",
+++    changelog = "debian/changelog",
+++    control = "debian/control",
+++    control_file_helpers = [["dh_installdeb"]],
+++    debian_files = {"compat": "debian/compat"},
+++    dependencies = ["@sonic_swss_common//:runtime_packages.json"],
+++    packages = {"sonic-host-services-rs": ":sonic-host-services-rs.runtime"},
+++)
+++
+++filegroup(
+++    name = "packaging_source_inputs",
+++    srcs = ["setup.py"] + glob([
+++        "host_modules/*.py",
+++        "utils/*.py",
+++        "scripts/*",
+++        "data/templates/*.j2",
+++        "data/debian/*",
+++        "data/org.sonic.hostservice.conf",
+++    ]),
+++)
+++
+++py_test(
+++    name = "installation_test",
+++    srcs = ["tests/bazel_installation_contract.py"],
+++    args = [
+++        "$(location :sonic-host-services.runtime)",
+++        "$(location :sonic-host-services-data.runtime)",
+++        "$(location :sonic-host-services-rs.runtime)",
+++        "$(location :sonic-host-services-rs.runtime.debug_symbols)",
+++        "$(location setup.py)",
+++    ],
+++    data = [
+++        "setup.py",
+++        ":packaging_source_inputs",
+++        ":sonic-host-services.runtime",
+++        ":sonic-host-services-data.runtime",
+++        ":sonic-host-services-rs.runtime",
+++        ":sonic-host-services-rs.runtime.debug_symbols",
+++    ],
+++    legacy_create_init = False,
+++    main = "tests/bazel_installation_contract.py",
+++)
++diff --git a/crates/procdockerstatsd-rs/BUILD.bazel b/crates/procdockerstatsd-rs/BUILD.bazel
++new file mode 100644
++index 0000000000000000000000000000000000000000..93d0947fdc10fe42feb4ba3583bb2fa46e303649
++--- /dev/null
+++++ b/crates/procdockerstatsd-rs/BUILD.bazel
++@@ -0,0 +1,70 @@
+++load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
+++load("@sonic_build_infra//cc:runtime_test.bzl", "native_runtime_test")
+++load("@sonic_build_infra//rust:release.bzl", "cargo_release_binary")
+++
+++package(default_visibility = ["//visibility:public"])
+++
+++exports_files(["Cargo.toml"])
+++
+++rust_binary(
+++    name = "daemon_binary",
+++    srcs = ["src/main.rs"],
+++    crate_name = "procdockerstatsd_rs",
+++    crate_root = "src/main.rs",
+++    edition = "2021",
+++    experimental_use_cc_common_link = 0,
+++    rustc_flags = [
+++        "-Cdebuginfo=2",
+++        "-Cstrip=none",
+++    ],
+++    version = "1.0.0",
+++    deps = ["@sonic_swss_common//crates/swss-common:swss_common"] + ["@sonic_rust_deps//:" + name for name in [
+++        "sysinfo",
+++        "regex",
+++        "daemonize",
+++        "chrono",
+++        "libc",
+++        "psutil",
+++        "procfs",
+++        "tracing",
+++        "tracing-subscriber",
+++        "syslog-tracing",
+++        "serde",
+++        "serde_json",
+++    ]],
+++)
+++
+++cargo_release_binary(
+++    name = "procdockerstatsd-rs",
+++    src = ":daemon_binary",
+++)
+++
+++# Check the public Common C ABI and the shared Serde crate identity.
+++rust_binary(
+++    name = "locked_ffi_binary",
+++    testonly = True,
+++    srcs = ["tests/locked_ffi.rs"],
+++    crate_root = "tests/locked_ffi.rs",
+++    edition = "2021",
+++    experimental_use_cc_common_link = 0,
+++    deps = [
+++        "@sonic_swss_common//crates/swss-common:swss_common",
+++        "@sonic_rust_deps//:serde",
+++        "@sonic_rust_deps//:serde_json",
+++    ],
+++)
+++
+++cargo_release_binary(
+++    name = "locked_ffi_release",
+++    testonly = True,
+++    src = ":locked_ffi_binary",
+++)
+++
+++native_runtime_test(
+++    name = "locked_ffi_test",
+++    binary = ":locked_ffi_release",
+++    runtime_payloads = [
+++        "@sonic_swss_common//dist:libswsscommon_pkg",
+++        "@sonic_swss_common//tools/bazel/runtime:test_runtime",
+++    ],
+++)
++diff --git a/crates/procdockerstatsd-rs/tests/locked_ffi.rs b/crates/procdockerstatsd-rs/tests/locked_ffi.rs
++new file mode 100644
++index 0000000000000000000000000000000000000000..81cd28a863d96a9bdac6a1d7ff6769a8c1d1b250
++--- /dev/null
+++++ b/crates/procdockerstatsd-rs/tests/locked_ffi.rs
++@@ -0,0 +1,14 @@
+++fn main() {
+++    // This foreign type's implementation must use the caller's shared Serde.
+++    let encoded = serde_json::to_string(&swss_common::KeyOperation::Set).unwrap();
+++    assert_eq!(encoded, "\"Set\"");
+++    let decoded: swss_common::KeyOperation = serde_json::from_str("\"Del\"").unwrap();
+++    assert_eq!(decoded, swss_common::KeyOperation::Del);
+++
+++    // Exercise the real C ABI without a Redis daemon or host configuration.
+++    let missing = std::path::PathBuf::from(std::env::var_os("TEST_TMPDIR").unwrap())
+++        .join("missing-common-config.json");
+++    assert!(!missing.exists());
+++    assert!(swss_common::sonic_db_config_initialize(missing.to_str().unwrap()).is_err());
+++    println!("Make-selected Common C ABI and shared Serde round trip passed");
+++}
++diff --git a/tests/bazel_installation_contract.py b/tests/bazel_installation_contract.py
++new file mode 100644
++index 0000000000000000000000000000000000000000..39ba11547287ca14c8091775218d2d2b92a4656c
++--- /dev/null
+++++ b/tests/bazel_installation_contract.py
++@@ -0,0 +1,98 @@
+++"""Check installation interfaces against the original source packaging inputs."""
+++import base64
+++import csv
+++import hashlib
+++import io
+++import json
+++from pathlib import Path
+++import struct
+++import sys
+++import tarfile
+++import unittest
+++import zlib
+++
+++PYTHON, DATA, RUNTIME, DEBUG, SOURCE = sys.argv[1:]
+++sys.argv = sys.argv[:1]
+++
+++
+++def archive(path):
+++    with tarfile.open(path, 'r:') as stream:
+++        return {m.name.removeprefix('./'): (m, stream.extractfile(m).read())
+++                for m in stream if m.isfile()}
+++
+++
+++def sections(data):
+++    assert data[:6] == b'\x7fELF\x02\x01'
+++    offset = struct.unpack_from('<Q', data, 40)[0]
+++    size, count, names_index = struct.unpack_from('<HHH', data, 58)
+++    entries = [struct.unpack_from('<IIQQQQIIQQ', data, offset + size*i) for i in range(count)]
+++    strings = entries[names_index]
+++    names = data[strings[4]:strings[4]+strings[5]]
+++    return {names[e[0]:].split(b'\0', 1)[0].decode(): data[e[4]:e[4]+e[5]] for e in entries}
+++
+++
+++class InstallationTest(unittest.TestCase):
+++    def test_python_installation_and_record(self):
+++        payload = archive(PYTHON)
+++        source = Path(SOURCE).parent
+++        site = 'usr/local/lib/python3.13/dist-packages/'
+++        for package in ('host_modules', 'utils'):
+++            for path in (source/package).glob('*.py'):
+++                self.assertEqual(payload[site+package+'/'+path.name][1], path.read_bytes())
+++        setup = (source/'setup.py').read_text()
+++        import ast
+++        calls = [n for n in ast.walk(ast.parse(setup)) if isinstance(n, ast.Call)]
+++        setup_call = next(n for n in calls if getattr(n.func, 'id', '') == 'setup')
+++        scripts = ast.literal_eval(next(k.value for k in setup_call.keywords if k.arg == 'scripts'))
+++        for name in scripts:
+++            raw = (source/name).read_bytes()
+++            expected = b'#!/usr/bin/python3\n'+raw.split(b'\n', 1)[1] if raw.startswith(b'#!') else raw
+++            member, installed = payload['usr/local/bin/'+Path(name).name]
+++            self.assertEqual(installed, expected)
+++            self.assertEqual(member.mode, 0o755)
+++        record = next(v[1] for k,v in payload.items() if k.endswith('.dist-info/RECORD'))
+++        for path, digest, size in csv.reader(io.StringIO(record.decode())):
+++            if not digest:
+++                continue
+++            import posixpath
+++            name = posixpath.normpath(site+path)
+++            raw = payload[name][1]
+++            self.assertEqual(int(size), len(raw))
+++            self.assertEqual(digest, 'sha256='+base64.urlsafe_b64encode(hashlib.sha256(raw).digest()).rstrip(b'=').decode())
+++
+++    def test_original_data_payload(self):
+++        source = Path(SOURCE).parent
+++        payload = archive(DATA)
+++        expected = {}
+++        for path in (source/'data/templates').glob('*.j2'):
+++            expected['usr/share/sonic/templates/'+path.name] = path
+++        expected['etc/dbus-1/system.d/org.sonic.hostservice.conf'] = source/'data/org.sonic.hostservice.conf'
+++        expected['usr/bin/switch_platform_init.py'] = source/'scripts/switch_platform_init.py'
+++        for path in (source/'data/debian').glob('sonic-host-services-data.*'):
+++            if path.suffix in ('.service', '.timer'):
+++                expected['usr/lib/systemd/system/'+path.name.removeprefix('sonic-host-services-data.')] = path
+++        self.assertEqual(set(payload), set(expected))
+++        for name, path in expected.items():
+++            member, raw = payload[name]
+++            self.assertEqual(raw, path.read_bytes())
+++            self.assertEqual((member.mode, member.uid, member.gid), (0o755 if name == "usr/bin/switch_platform_init.py" else 0o644, 0, 0))
+++
+++    def test_native_runtime_and_split_debug(self):
+++        runtime = archive(RUNTIME)
+++        self.assertEqual(set(runtime), {'usr/bin/procdockerstatsd-rs'})
+++        member, raw = runtime['usr/bin/procdockerstatsd-rs']
+++        self.assertEqual(member.mode, 0o755)
+++        self.assertEqual(struct.unpack_from('<H', raw, 18)[0], 62)
+++        elf = sections(raw)
+++        self.assertNotIn('.debug_info', elf)
+++        debug = archive(DEBUG)
+++        self.assertEqual(len(debug), 1)
+++        debug_name, (_, debug_raw) = next(iter(debug.items()))
+++        self.assertIn('.debug_info', sections(debug_raw))
+++        link = elf['.gnu_debuglink']
+++        self.assertEqual(link.split(b'\0', 1)[0].decode(), Path(debug_name).name)
+++        self.assertEqual(struct.unpack_from('<I', link, len(link)-4)[0], zlib.crc32(debug_raw))
+++
+++
+++if __name__ == '__main__':
+++    unittest.main()
++diff --git a/tests/hostcfgd/conftest.py b/tests/hostcfgd/conftest.py
++index 4e41ca07c16d760890873bc974311d8529744bc0..464ea9784f46ffaf823edc8fe0b548b5ca10b170 100644
++--- a/tests/hostcfgd/conftest.py
+++++ b/tests/hostcfgd/conftest.py
++@@ -1,7 +1,23 @@
+++import io
++ import pytest
++ from sonic_py_common import device_info
++ from unittest import mock
++ 
+++
+++@pytest.fixture(autouse=True)
+++def mock_proc_cmdline(monkeypatch):
+++    """Keep the runner's crashkernel setting out of hostcfgd unit tests."""
+++    original_open = open
+++
+++    def open_with_test_cmdline(file, *args, **kwargs):
+++        if file == '/proc/cmdline':
+++            return io.StringIO('console=ttyS0\n')
+++        return original_open(file, *args, **kwargs)
+++
+++    # The KDUMP cmdline test still reads its explicit tests/proc/cmdline file.
+++    monkeypatch.setattr('builtins.open', open_with_test_cmdline)
+++
+++
++ @pytest.fixture(autouse=True, scope='session')
++ def mock_get_device_runtime_metadata():
++     device_info.get_device_runtime_metadata = mock.MagicMock(return_value={})
++diff --git a/tests/hostcfgd/hostcfgd_test.py b/tests/hostcfgd/hostcfgd_test.py
++index ec4b0d125da48418be0b49ddae326aa2f4ee09d1..4432d15c505dc02019a6ca46d8165b69dd71ebc0 100644
++--- a/tests/hostcfgd/hostcfgd_test.py
+++++ b/tests/hostcfgd/hostcfgd_test.py
++@@ -722,9 +722,11 @@ class TestMemoryStatisticsCfgd(TestCase):
++             mock_apply.assert_not_called()
++ 
++     # Group 3: Daemon Management Tests
+++    @mock.patch('hostcfgd.time.sleep')
+++    @mock.patch('hostcfgd.psutil.Process')
++     @mock.patch('hostcfgd.subprocess.Popen')
++     @mock.patch('hostcfgd.os.kill')
++-    def test_restart_memory_statistics_success(self, mock_kill, mock_popen):
+++    def test_restart_memory_statistics_success(self, mock_kill, mock_popen, mock_process, mock_sleep):
++         """
++         Test successful restart of the memory statistics daemon.
++         Verifies proper shutdown of existing process and startup of new process.
++@@ -732,18 +734,25 @@ class TestMemoryStatisticsCfgd(TestCase):
++         with mock.patch('hostcfgd.syslog.syslog'):
++             with mock.patch.object(self.mem_stat_cfg, 'get_memory_statistics_pid', return_value=123):
++                 self.mem_stat_cfg.restart_memory_statistics()
++-                mock_kill.assert_called_with(123, signal.SIGTERM)
++-                mock_popen.assert_called_once()
+++                mock_kill.assert_called_once_with(123, signal.SIGTERM)
+++                mock_process.assert_called_once_with(123)
+++                mock_process.return_value.wait.assert_called_once_with(timeout=10)
+++                mock_sleep.assert_called_once_with(1)
+++                mock_popen.assert_called_once_with([self.mem_stat_cfg.DAEMON_EXEC_PATH])
++ 
+++    @mock.patch('hostcfgd.time.sleep')
++     @mock.patch('hostcfgd.subprocess.Popen')
++-    def test_restart_memory_statistics_failure(self, mock_popen):
+++    def test_restart_memory_statistics_failure(self, mock_popen, mock_sleep):
++         """
++         Test failed restart of memory statistics daemon.
++         Ensures proper error handling when daemon fails to start.
++         """
++         mock_popen.side_effect = Exception("Failed to start")
++-        with mock.patch('hostcfgd.syslog.syslog') as mock_syslog:
+++        with mock.patch('hostcfgd.syslog.syslog') as mock_syslog, \
+++             mock.patch.object(self.mem_stat_cfg, 'get_memory_statistics_pid', return_value=None):
++             self.mem_stat_cfg.restart_memory_statistics()
+++            mock_sleep.assert_called_once_with(1)
+++            mock_popen.assert_called_once_with([self.mem_stat_cfg.DAEMON_EXEC_PATH])
++             mock_syslog.assert_any_call(mock.ANY, "MemoryStatisticsCfg: Failed to start MemoryStatisticsDaemon: Failed to start")
++ 
++     # Group 4: PID Management Tests
+diff --git a/modules/sonic-host-services/1.0.1-e8069d29a720b7675dc569a7470f89135a96d07c/patches/0001-module-version.patch b/modules/sonic-host-services/1.0.1-e8069d29a720b7675dc569a7470f89135a96d07c/patches/0001-module-version.patch
+deleted file mode 100644
+index da46e4254811511e2f030eb3097856361d7dbd61..0000000000000000000000000000000000000000
+--- a/modules/sonic-host-services/1.0.1-e8069d29a720b7675dc569a7470f89135a96d07c/patches/0001-module-version.patch
++++ /dev/null
+@@ -1,10 +0,0 @@
+---- a/MODULE.bazel
+-+++ b/MODULE.bazel
+-@@ -1,6 +1,6 @@
+- module(
+-     name = "sonic-host-services",
+--    version = "1.0.0",
+-+    version = "1.0.0-0e4c6a355c80396345a31232e30d20168060ae10",
+- )
+- 
+- bazel_dep(name = "rules_python", version = "1.9.0.sonic.1")
+diff --git a/modules/sonic-host-services/1.0.1-e8069d29a720b7675dc569a7470f89135a96d07c/presubmit.json b/modules/sonic-host-services/1.0.1-e8069d29a720b7675dc569a7470f89135a96d07c/presubmit.json
+index 7de677117dd30dc0c0749f297baec2cbdd2429ca..b2ba30e557e57044e8b658d17a8d3298b51cfa53 100644
+--- a/modules/sonic-host-services/1.0.1-e8069d29a720b7675dc569a7470f89135a96d07c/presubmit.json
++++ b/modules/sonic-host-services/1.0.1-e8069d29a720b7675dc569a7470f89135a96d07c/presubmit.json
+@@ -18,7 +18,7 @@
+     },
+     {
+       "name": "libyang",
+-      "version": "3.12.2.sonic.9"
++      "version": "3.12.2.sonic.10"
+     }
+   ],
+   "platforms": {
+@@ -43,5 +43,6 @@
+   "test_targets": [
+     "@sonic-host-services//:installation_test",
+     "@sonic-host-services//crates/procdockerstatsd-rs:locked_ffi_test"
+-  ]
++  ],
++  "generated_module_overlay": true
+ }
+diff --git a/modules/sonic-host-services/1.0.1-e8069d29a720b7675dc569a7470f89135a96d07c/source.json b/modules/sonic-host-services/1.0.1-e8069d29a720b7675dc569a7470f89135a96d07c/source.json
+index ce8d180d7f58e9970a65939bb1e3c22c8f8749d1..518666fac11a35c262d98f3e0dd779767c3f027a 100644
+--- a/modules/sonic-host-services/1.0.1-e8069d29a720b7675dc569a7470f89135a96d07c/source.json
++++ b/modules/sonic-host-services/1.0.1-e8069d29a720b7675dc569a7470f89135a96d07c/source.json
+@@ -1,9 +1,12 @@
+ {
+-  "url": "https://github.com/securely1g/sonic-host-services/archive/0e4c6a355c80396345a31232e30d20168060ae10.tar.gz",
+-  "strip_prefix": "sonic-host-services-0e4c6a355c80396345a31232e30d20168060ae10",
+-  "integrity": "sha256-ic/0WimjGDAwIr8tfNV0k8H7JJNDIWPdpc6tCyDAjwI=",
++  "url": "https://github.com/sonic-net/sonic-host-services/archive/e8069d29a720b7675dc569a7470f89135a96d07c.tar.gz",
++  "strip_prefix": "sonic-host-services-e8069d29a720b7675dc569a7470f89135a96d07c",
++  "integrity": "sha256-OQcX+HoiK5Vk8LfmomwCjc3J/eRqYBX3mirARmzFbwc=",
++  "patch_strip": 1,
+   "patches": {
+-    "0001-module-version.patch": "sha256-d81obEAdq6sMFjOKsAg9fiORw3xACsHW0OnjF4OjEYU="
++    "0001-bazel-producer.patch": "sha256-egL2gfQgUz+JQDh733pwypYwt3zgyselJkOlZ4dx40o="
+   },
+-  "patch_strip": 1
++  "overlay": {
++    "MODULE.bazel": "sha256-ohvUB40ZPmlL+BC9xU0f+cx6ZTmzs8bsDBvdQYOaN5c="
++  }
+ }
+diff --git a/modules/sonic-host-services/metadata.json b/modules/sonic-host-services/metadata.json
+index 3631cf4c595a881bc716b9154b732605e64a0488..7db2792b35cb9cd5c0193668306e77a8d13a092d 100644
+--- a/modules/sonic-host-services/metadata.json
++++ b/modules/sonic-host-services/metadata.json
+@@ -1,5 +1,6 @@
+ {
+   "versions": [
+-    "1.0.0-0e4c6a355c80396345a31232e30d20168060ae10"
++    "1.0.0-0e4c6a355c80396345a31232e30d20168060ae10",
++    "1.0.1-e8069d29a720b7675dc569a7470f89135a96d07c"
+   ]
+ }
