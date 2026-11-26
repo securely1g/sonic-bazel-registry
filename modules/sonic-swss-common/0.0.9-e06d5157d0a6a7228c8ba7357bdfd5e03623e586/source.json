@@ -1,0 +1,12 @@
+{
+  "url": "https://github.com/sonic-net/sonic-swss-common/archive/e06d5157d0a6a7228c8ba7357bdfd5e03623e586.tar.gz",
+  "strip_prefix": "sonic-swss-common-e06d5157d0a6a7228c8ba7357bdfd5e03623e586",
+  "integrity": "sha256-R7Ts7EKlcuF/YuuSJwcuV5ODzuJYPRGd6y3/KIlfCZU=",
+  "patch_strip": 1,
+  "patches": {
+    "0001-bazel-producer.patch": "sha256-JHktLv+HUixfRNrZ9A2qNESL+fdSF7lA1BEcEeNAPPQ="
+  },
+  "overlay": {
+    "MODULE.bazel": "sha256-J+SvHEQIqnRQgfH9+4QaTfdz9x+Ri8a03YJ9b8hQtgk="
+  }
+}
