@@ -4,9 +4,9 @@
   "integrity": "sha256-OQcX+HoiK5Vk8LfmomwCjc3J/eRqYBX3mirARmzFbwc=",
   "patch_strip": 1,
   "patches": {
-    "0001-bazel-producer.patch": "sha256-egL2gfQgUz+JQDh733pwypYwt3zgyselJkOlZ4dx40o="
+    "0001-bazel-producer.patch": "sha256-ftRmpqKOwZcsrkKr5+cwU3HpKkCgAJDxVwrYnOOngp0="
   },
   "overlay": {
-    "MODULE.bazel": "sha256-ohvUB40ZPmlL+BC9xU0f+cx6ZTmzs8bsDBvdQYOaN5c="
+    "MODULE.bazel": "sha256-RYJulPuAYJvUAxuaTc5pbVvY36MBCRemQTb3N51/S7I="
   }
 }

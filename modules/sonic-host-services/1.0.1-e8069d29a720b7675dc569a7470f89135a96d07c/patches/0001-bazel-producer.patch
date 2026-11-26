@@ -263,10 +263,10 @@ index 0000000000000000000000000000000000000000..a50c34bb12a930aceee3b7ce8532620e
 +)
 diff --git a/crates/procdockerstatsd-rs/BUILD.bazel b/crates/procdockerstatsd-rs/BUILD.bazel
 new file mode 100644
-index 0000000000000000000000000000000000000000..93d0947fdc10fe42feb4ba3583bb2fa46e303649
+index 0000000000000000000000000000000000000000..bb10dceaa0b4e1b02810495bd2983428dc006d4a
 --- /dev/null
 +++ b/crates/procdockerstatsd-rs/BUILD.bazel
-@@ -0,0 +1,70 @@
+@@ -0,0 +1,69 @@
 +load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
 +load("@sonic_build_infra//cc:runtime_test.bzl", "native_runtime_test")
 +load("@sonic_build_infra//rust:release.bzl", "cargo_release_binary")
@@ -288,13 +288,12 @@ index 0000000000000000000000000000000000000000..93d0947fdc10fe42feb4ba3583bb2fa4
 +    ],
 +    version = "1.0.0",
 +    deps = ["@sonic_swss_common//crates/swss-common:swss_common"] + ["@sonic_rust_deps//:" + name for name in [
-+        "sysinfo",
++        "sysinfo_0_40",
 +        "regex",
 +        "daemonize",
 +        "chrono",
 +        "libc",
-+        "psutil",
-+        "procfs",
++        "procfs_0_18",
 +        "tracing",
 +        "tracing-subscriber",
 +        "syslog-tracing",
