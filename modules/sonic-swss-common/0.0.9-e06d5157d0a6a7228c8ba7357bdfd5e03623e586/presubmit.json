@@ -102,7 +102,7 @@
   },
   "test_runtime_preparation": {
     "script": "tools/bazel/runtime/prepare.py",
-    "sha256": "719e798469389a8a9d879e5057b6a1f83b302521f5142954ba2cd80ca0c10f66",
+    "sha256": "52789825303b6c592cf7d1d1e0571dd6db367979a2d4c892d9e3079b1755259f",
     "apt_mirror_protocol": "locked-runtime-v1",
     "apt_lock": {
       "label": "@sonic_build_infra//apt:apt.lock.json",

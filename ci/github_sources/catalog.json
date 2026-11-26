@@ -120,6 +120,78 @@
       "manifests": [
         "cosmos-4.0.2.json"
       ]
+    },
+    {
+      "module": "sonic-bmp",
+      "version": "0.1.1-1350ac4627fa5eecd8e7dc3ebe14065f452f5de5",
+      "execution_architecture": "amd64",
+      "manifests": [
+        "cosmos-4.0.2.json"
+      ]
+    },
+    {
+      "module": "sonic-dash-ha",
+      "version": "0.0.2-fd6149fb5f8a8b5ed52335c501e5b3ed5e278603",
+      "execution_architecture": "amd64",
+      "manifests": [
+        "cosmos-4.0.2.json"
+      ]
+    },
+    {
+      "module": "sonic-dbsyncd",
+      "version": "2.0.2-6da9e215021cd88b3bd6c05c63bd63ebe5e8eb88",
+      "execution_architecture": "amd64",
+      "manifests": [
+        "cosmos-4.0.2.json"
+      ]
+    },
+    {
+      "module": "sonic-dhcpmon",
+      "version": "0.1.1-3e7160d9b89ad7c701a0827af80367ab1b206ccf",
+      "execution_architecture": "amd64",
+      "manifests": [
+        "cosmos-4.0.2.json"
+      ]
+    },
+    {
+      "module": "sonic-dhcpmon",
+      "version": "0.1.1-3e7160d9b89ad7c701a0827af80367ab1b206ccf",
+      "execution_architecture": "arm64",
+      "manifests": [
+        "cosmos-4.0.2.json"
+      ]
+    },
+    {
+      "module": "sonic-sairedis",
+      "version": "0.0.6-c41b95c073a9deed76eae780c2cb8d25e11cb893",
+      "execution_architecture": "amd64",
+      "manifests": [
+        "cosmos-4.0.2.json"
+      ]
+    },
+    {
+      "module": "sonic-sairedis",
+      "version": "0.0.6-c41b95c073a9deed76eae780c2cb8d25e11cb893",
+      "execution_architecture": "arm64",
+      "manifests": [
+        "cosmos-4.0.2.json"
+      ]
+    },
+    {
+      "module": "sonic-swss",
+      "version": "0.0.4-20c9de14f185fa502ad6ee7f8f8dc5c1f008a6a5",
+      "execution_architecture": "amd64",
+      "manifests": [
+        "cosmos-4.0.2.json"
+      ]
+    },
+    {
+      "module": "sonic-swss",
+      "version": "0.0.4-20c9de14f185fa502ad6ee7f8f8dc5c1f008a6a5",
+      "execution_architecture": "arm64",
+      "manifests": [
+        "cosmos-4.0.2.json"
+      ]
     }
   ]
 }

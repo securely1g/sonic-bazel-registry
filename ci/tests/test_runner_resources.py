@@ -104,6 +104,22 @@ class ResourceTests(unittest.TestCase):
                     self.assertEqual(job_flags, [f"--bazel-build-arg=--jobs={jobs}"] if jobs else [])
                     self.assertEqual(json.loads(receipt.read_text()).get("bazel_jobs"), jobs)
 
+    def test_sairedis_cap_applies_to_only_the_affected_version_and_small_runners(self):
+        current = "0.0.6-c41b95c073a9deed76eae780c2cb8d25e11cb893"
+        previous = "0.0.5-6b9b254c0d083f3c75e20c61e88e083a7acf0a67"
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(resources, "capacity") as capacity, \
+                mock.patch.object(resources, "unified_cgroup", return_value="/runner"), \
+                mock.patch.object(resources.subprocess, "run", return_value=mock.Mock(returncode=0)) as child:
+            receipt = Path(tmp) / "receipt.json"
+            for version, arch, gib, jobs in ((current, "amd64", 6, 2), (current, "arm64", 6, 1),
+                                             (current, "amd64", 16, None), (previous, "amd64", 6, None)):
+                with self.subTest(version=version, arch=arch, gib=gib):
+                    capacity.return_value = {"cpu_quota_cores": 6, "memory_limit_bytes": gib * 1024**3}
+                    resources.run(receipt, ["validate"], "sonic-sairedis", arch, version)
+                    flags = [arg for arg in child.call_args.args[0] if arg.startswith("--bazel-build-arg=--jobs=")]
+                    self.assertEqual(flags, [f"--bazel-build-arg=--jobs={jobs}"] if jobs else [])
+                    self.assertEqual(json.loads(receipt.read_text()).get("bazel_jobs"), jobs)
+
     def test_monitor_adds_memory_budget_and_preserves_child_failure(self):
         limits = {"cpu_quota_cores": 3, "cpu_affinity_count": 16, "memory_limit_bytes": 8 * 1024**3}
         with tempfile.TemporaryDirectory() as tmp, mock.patch.object(resources, "unified_cgroup", return_value="/runner"):

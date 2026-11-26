@@ -109,7 +109,7 @@ def action_memory_mb(limits: dict, heap_mb: int = 2048) -> int:
 
 
 def run(output: Path, command: list[str], module: str | None = None,
-        architecture: str | None = None) -> int:
+        architecture: str | None = None, version: str | None = None) -> int:
     group = unified_cgroup(Path("/proc/self/cgroup"))
     cgroup_root = Path("/sys/fs/cgroup")
     limits = capacity(group, cgroup_root)
@@ -122,6 +122,10 @@ def run(output: Path, command: list[str], module: str | None = None,
     jobs = {"p4c": 3, "sonic-dash": 3}.get(module)
     if module == "sonic-swss":
         jobs = 1 if architecture == "arm64" else 2
+    # The .6 SAI Redis build exceeded its 6 GiB cgroup with uncapped C++ actions.
+    if (module == "sonic-sairedis" and version == "0.0.6-c41b95c073a9deed76eae780c2cb8d25e11cb893" and
+            limits["memory_limit_bytes"] is not None and limits["memory_limit_bytes"] <= 6 * 1024**3):
+        jobs = {"amd64": 2, "arm64": 1}.get(architecture)
     if jobs is not None:
         arguments.append(f"--bazel-build-arg=--jobs={jobs}")
         receipt["bazel_jobs"] = jobs
@@ -145,6 +149,7 @@ if __name__ == "__main__":
     if not args.command:
         parser.error("a command to monitor is required")
     try:
-        sys.exit(run(args.output, args.command, os.environ.get("CI_MODULE"), os.environ.get("CI_ARCHITECTURE")))
+        sys.exit(run(args.output, args.command, os.environ.get("CI_MODULE"), os.environ.get("CI_ARCHITECTURE"),
+                     os.environ.get("CI_VERSION")))
     except (OSError, ValueError) as error:
         parser.exit(1, f"Runner resource check failed: {error}\n")
