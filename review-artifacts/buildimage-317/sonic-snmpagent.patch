@@ -1,6 +1,6 @@
 Registry entry comparison for sonic-snmpagent
-Baseline 2d5a28673ab6af079d28524c22de93f29ea517e5 (2.1.0-a27e093fac394f7871ec1b19bb12ca6739c29fa9)
-Candidate 1f0f5b07fc421628cf28d708c1473c48cfb0bc84 (2.1.1-e2e369d3e5420af0c259508f6817a385124cc623)
+Baseline 872ed827b70638f667f5ef6e0bab64c4f3e177b4 (2.1.0-a27e093fac394f7871ec1b19bb12ca6739c29fa9)
+Candidate 95c36e70107945816fb1ed068062d7b923d67a2c (2.1.1-e2e369d3e5420af0c259508f6817a385124cc623)
 
 In a clean baseline checkout where the destination does not yet exist:
   cp -a modules/sonic-snmpagent/2.1.0-a27e093fac394f7871ec1b19bb12ca6739c29fa9 modules/sonic-snmpagent/2.1.1-e2e369d3e5420af0c259508f6817a385124cc623
@@ -40,10 +40,10 @@ new file mode 100644
 index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
 diff --git a/modules/sonic-snmpagent/2.1.1-e2e369d3e5420af0c259508f6817a385124cc623/patches/0001-bazel-producer.patch b/modules/sonic-snmpagent/2.1.1-e2e369d3e5420af0c259508f6817a385124cc623/patches/0001-bazel-producer.patch
 new file mode 100644
-index 0000000000000000000000000000000000000000..5c875503e9660fb6ab1d81b6ef0e08ddd0f1d9b8
+index 0000000000000000000000000000000000000000..f735e303ac350347e48bb9b2f01a3d81f8005d38
 --- /dev/null
 +++ b/modules/sonic-snmpagent/2.1.1-e2e369d3e5420af0c259508f6817a385124cc623/patches/0001-bazel-producer.patch
-@@ -0,0 +1,2203 @@
+@@ -0,0 +1,2211 @@
 +diff --git a/.bazelignore b/.bazelignore
 +new file mode 100644
 +index 0000000000000000000000000000000000000000..9a18778673eb4f2aed2be81fc198cee830b798d7
@@ -163,6 +163,14 @@ index 0000000000000000000000000000000000000000..5c875503e9660fb6ab1d81b6ef0e08dd
 ++        "setup.py",
 ++    ],
 ++)
++diff --git a/pytest.ini b/pytest.ini
++index 08220d0799e33f2cca13502414044e541cf75a63..3cc9b80bfee156619c9275cceda075134839932a 100644
++--- a/pytest.ini
+++++ b/pytest.ini
++@@ -1,2 +1,2 @@
++ [pytest]
++-addopts = --cov=src --cov-report html --cov-report term --cov-report xml --junitxml=test-results.xml -vv
+++addopts = --cov=src --cov-report html --cov-report term --cov-report xml --junitxml=test-results.xml -vv --ignore=tests/bazel
 +diff --git a/requirements.in b/requirements.in
 +new file mode 100644
 +index 0000000000000000000000000000000000000000..f2c96c21613ffe5981e158407c4b03b23f4c1541
@@ -2248,7 +2256,7 @@ index 0000000000000000000000000000000000000000..5c875503e9660fb6ab1d81b6ef0e08dd
 ++if __name__ == "__main__":
 ++    raise SystemExit(main())
 diff --git a/modules/sonic-snmpagent/2.1.1-e2e369d3e5420af0c259508f6817a385124cc623/source.json b/modules/sonic-snmpagent/2.1.1-e2e369d3e5420af0c259508f6817a385124cc623/source.json
-index 39e0c73fdf3ca35e3cffa1a0ba1b3a85e317e3f9..38971ae7386e92676ec04ca6734ac9480aa42eef 100644
+index 39e0c73fdf3ca35e3cffa1a0ba1b3a85e317e3f9..ae4d8650ce0465db2135dde3eb86efd345c18fae 100644
 --- a/modules/sonic-snmpagent/2.1.1-e2e369d3e5420af0c259508f6817a385124cc623/source.json
 +++ b/modules/sonic-snmpagent/2.1.1-e2e369d3e5420af0c259508f6817a385124cc623/source.json
 @@ -1,8 +1,13 @@
@@ -2261,7 +2269,7 @@ index 39e0c73fdf3ca35e3cffa1a0ba1b3a85e317e3f9..38971ae7386e92676ec04ca6734ac948
 +  "integrity": "sha256-ttFe2fm35Eld6BPtWvIZw4bsPLMbXFND9j6/LEClVvk=",
 +  "patch_strip": 1,
 +  "patches": {
-+    "0001-bazel-producer.patch": "sha256-KMqT8CUIB0gUxSuV1b2CZVRJt4Ccl94fisQrd4ySNUc="
++    "0001-bazel-producer.patch": "sha256-bfra8IdnZJBNiugt/ckh72px/kVF9ryf2x38bT2cnCY="
 +  },
    "overlay": {
 -    "MODULE.bazel": "sha256-km/OSzYz7uo/yGlVsSiWq5nhNUTY/a+TzvlzCMR3WNk="
