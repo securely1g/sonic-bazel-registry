@@ -2,9 +2,7 @@ module(name = "dbsyncd_registry_consumer")
 
 bazel_dep(name = "sonic-dbsyncd", version = "2.0.2-6da9e215021cd88b3bd6c05c63bd63ebe5e8eb88")
 bazel_dep(name = "rules_python", version = "1.9.0.sonic.2")
-bazel_dep(name = "rules_shell", version = "0.8.0")
 bazel_dep(name = "platforms", version = "1.1.0")
-bazel_dep(name = "patchelf", version = "0.18.0.bcr.1")
 bazel_dep(name = "sonic-build-infra", version = "0.0.45-77ef625a4ddafc8cdc15f3cc6aee31eabac8a5de", repo_name = "sonic_build_infra")
 bazel_dep(name = "sonic-swss-common", version = "0.0.9-e06d5157d0a6a7228c8ba7357bdfd5e03623e586", repo_name = "sonic_swss_common")
 
