@@ -1,0 +1,33 @@
+load("@rules_python//python:py_test.bzl", "py_test")
+
+py_test(
+    name = "archive_contract_test",
+    srcs = ["archive_contract_test.py"],
+    args = [
+        "$(rootpath @sonic-dbsyncd//:sonic_dbsyncd_wheel)",
+        "$(rootpath @sonic-dbsyncd//:sonic_dbsyncd_runtime)",
+        "$(rootpath @sonic-dbsyncd//:setup.py)",
+    ],
+    data = [
+        "@sonic-dbsyncd//:setup.py",
+        "@sonic-dbsyncd//:sonic_dbsyncd_runtime",
+        "@sonic-dbsyncd//:sonic_dbsyncd_wheel",
+        "@sonic-dbsyncd//:test_sources",
+    ],
+    legacy_create_init = False,
+    python_version = "3.13",
+)
+
+# The public Common Python binding supplies its own native library runfiles.
+# Staging a second libnl-route alongside them crashes during interpreter exit.
+py_test(
+    name = "library_test",
+    srcs = ["library_probe.py"],
+    legacy_create_init = False,
+    main = "library_probe.py",
+    python_version = "3.13",
+    deps = [
+        "@sonic-dbsyncd//:lldp_syncd",
+        "@sonic-dbsyncd//:sonic_syncd",
+    ],
+)

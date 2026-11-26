@@ -1,0 +1,12 @@
+{
+  "url": "https://github.com/sonic-net/sonic-dhcp-relay/archive/bb94f3d743c908cab3ff99f9cfb694d5a0d4e06e.tar.gz",
+  "strip_prefix": "sonic-dhcp-relay-bb94f3d743c908cab3ff99f9cfb694d5a0d4e06e",
+  "integrity": "sha256-v2QsB85ZKLV2dRzB26RKg+y9yZ0cDuubiDwUyqcvWcM=",
+  "patch_strip": 1,
+  "patches": {
+    "0001-bazel-producer.patch": "sha256-oKAEmfOVuj4ZHcDm54zBXfpHAa3xhE5wc0/A/c/MUsk="
+  },
+  "overlay": {
+    "MODULE.bazel": "sha256-xzooQ7NgcYSvByEF8Cwyf+nMLDc5zQG9K29n6GmDWMc="
+  }
+}

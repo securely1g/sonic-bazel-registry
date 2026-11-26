@@ -1,0 +1,12 @@
+{
+  "url": "https://github.com/sonic-net/sonic-utilities/archive/7f28a11da6cb7816a0520fb34d5ebe1ac65a1f1c.tar.gz",
+  "strip_prefix": "sonic-utilities-7f28a11da6cb7816a0520fb34d5ebe1ac65a1f1c",
+  "integrity": "sha256-crMnJUKdT4jhTwLRzmWtFPYQ5AcbiX8pCZg/ilAFYdk=",
+  "patch_strip": 1,
+  "patches": {
+    "0001-bazel-producer.patch": "sha256-icFpj4LFIFqgPVh7l1ZQmjpmzxCp+Bt4loV0ngTOD/Q="
+  },
+  "overlay": {
+    "MODULE.bazel": "sha256-X6S87d9dQ14WEc4t8VcMmBNEmHxtEndYXaRPRhSIQzU="
+  }
+}

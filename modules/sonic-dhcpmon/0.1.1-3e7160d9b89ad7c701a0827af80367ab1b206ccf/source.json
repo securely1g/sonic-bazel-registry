@@ -1,0 +1,12 @@
+{
+  "url": "https://github.com/sonic-net/sonic-dhcpmon/archive/3e7160d9b89ad7c701a0827af80367ab1b206ccf.tar.gz",
+  "strip_prefix": "sonic-dhcpmon-3e7160d9b89ad7c701a0827af80367ab1b206ccf",
+  "integrity": "sha256-KUJ1f10OyLSIg8Kp/ZMumSIg6AFrlJt6jAyjZWCdvts=",
+  "patch_strip": 1,
+  "patches": {
+    "0001-bazel-producer.patch": "sha256-mv5Cw66nKFZjfgyDQI6in9ZLBh+78NgbG5U3orkHZ30="
+  },
+  "overlay": {
+    "MODULE.bazel": "sha256-XhtwMstpJeqdFGxpGqQQj8pKg4PR6PcJ39SRrE2xn14="
+  }
+}
