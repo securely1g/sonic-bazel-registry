@@ -1,0 +1,2257 @@
+Registry entry comparison for sonic-utilities
+Baseline 2d5a28673ab6af079d28524c22de93f29ea517e5 (1.2.0-6f1a8a16a947817d76b55dead8cce68e5a4536e4)
+Candidate e42106c801551fe4a1a9cf601261ee1ee55736ff (1.2.1-7f28a11da6cb7816a0520fb34d5ebe1ac65a1f1c)
+
+In a clean baseline checkout where the destination does not yet exist:
+  cp -a modules/sonic-utilities/1.2.0-6f1a8a16a947817d76b55dead8cce68e5a4536e4 modules/sonic-utilities/1.2.1-7f28a11da6cb7816a0520fb34d5ebe1ac65a1f1c
+  git apply <path-to-downloaded-patch>
+
+diff --git a/modules/sonic-utilities/1.2.1-7f28a11da6cb7816a0520fb34d5ebe1ac65a1f1c/MODULE.bazel b/modules/sonic-utilities/1.2.1-7f28a11da6cb7816a0520fb34d5ebe1ac65a1f1c/MODULE.bazel
+index d80e3439ec29ac9eeb70d3792d088d31eeb177c4..5332ac376f3df606e335391e747e1ea3d14b78bb 100644
+--- a/modules/sonic-utilities/1.2.1-7f28a11da6cb7816a0520fb34d5ebe1ac65a1f1c/MODULE.bazel
++++ b/modules/sonic-utilities/1.2.1-7f28a11da6cb7816a0520fb34d5ebe1ac65a1f1c/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-utilities",
+-    version = "1.2.0-6f1a8a16a947817d76b55dead8cce68e5a4536e4",
++    version = "1.2.1-7f28a11da6cb7816a0520fb34d5ebe1ac65a1f1c",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
+diff --git a/modules/sonic-utilities/1.2.1-7f28a11da6cb7816a0520fb34d5ebe1ac65a1f1c/overlay/MODULE.bazel b/modules/sonic-utilities/1.2.1-7f28a11da6cb7816a0520fb34d5ebe1ac65a1f1c/overlay/MODULE.bazel
+index 4e8bc93c81d8dc6f528482c61444d545eb65ff4a..8aaf3007b4f0015eab32c8b941b58b36510abc60 100644
+--- a/modules/sonic-utilities/1.2.1-7f28a11da6cb7816a0520fb34d5ebe1ac65a1f1c/overlay/MODULE.bazel
++++ b/modules/sonic-utilities/1.2.1-7f28a11da6cb7816a0520fb34d5ebe1ac65a1f1c/overlay/MODULE.bazel
+@@ -1,10 +1,10 @@
+ # AUTO-GENERATED. DO NOT EDIT MANUALLY.
+ # Source: ../MODULE.bazel
+-# Generator: python3 ci/registry_ci.py sync-module --module sonic-utilities --version 1.2.0-6f1a8a16a947817d76b55dead8cce68e5a4536e4
++# Generator: python3 ci/registry_ci.py sync-module --module sonic-utilities --version 1.2.1-7f28a11da6cb7816a0520fb34d5ebe1ac65a1f1c
+ 
+ module(
+     name = "sonic-utilities",
+-    version = "1.2.0-6f1a8a16a947817d76b55dead8cce68e5a4536e4",
++    version = "1.2.1-7f28a11da6cb7816a0520fb34d5ebe1ac65a1f1c",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
+diff --git a/modules/sonic-utilities/1.2.1-7f28a11da6cb7816a0520fb34d5ebe1ac65a1f1c/patches/0001-bazel-producer.patch b/modules/sonic-utilities/1.2.1-7f28a11da6cb7816a0520fb34d5ebe1ac65a1f1c/patches/0001-bazel-producer.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..5593f3dca0c0ec0e613a58142be96b2645950a40
+--- /dev/null
++++ b/modules/sonic-utilities/1.2.1-7f28a11da6cb7816a0520fb34d5ebe1ac65a1f1c/patches/0001-bazel-producer.patch
+@@ -0,0 +1,2170 @@
++diff --git a/.bazelrc b/.bazelrc
++new file mode 100644
++index 0000000000000000000000000000000000000000..7805dacf71633a70a20eab06c0e3effcc21500c5
++--- /dev/null
+++++ b/.bazelrc
++@@ -0,0 +1,4 @@
+++common --registry=https://raw.githubusercontent.com/sonic-net/sonic-bazel-registry/main
+++common --registry=https://bcr.bazel.build
+++
+++try-import %workspace%/.bazelrc.user
++diff --git a/.bazelversion b/.bazelversion
++new file mode 100644
++index 0000000000000000000000000000000000000000..f9c71a52e2fd865dbf40db779b5bf8157d5c5a6a
++--- /dev/null
+++++ b/.bazelversion
++@@ -0,0 +1 @@
+++8.5.1
++diff --git a/BUILD.bazel b/BUILD.bazel
++new file mode 100644
++index 0000000000000000000000000000000000000000..6ea933444271e75ef2939b5a8039be6500dc893d
++--- /dev/null
+++++ b/BUILD.bazel
++@@ -0,0 +1,211 @@
+++load("@rules_python//python:py_test.bzl", "py_test")
+++load("@sonic_build_infra//python:site_packages.bzl", "site_packages")
+++load("@utilities_test_pip//:requirements.bzl", "requirement")
+++load("//bazel:packaging.bzl", "CLASSIFIERS", "ENTRY_POINTS", "EXTRA_REQUIRES", "PACKAGES", "PACKAGE_DATA", "REQUIRES", "SCRIPTS")
+++load("//bazel:wheel_install_contract.bzl", "utilities_wheel")
+++
+++package(default_visibility = ["//visibility:public"])
+++
+++filegroup(
+++    name = "wheel_payload",
+++    srcs = glob([p.replace(".", "/") + "/*.py" for p in PACKAGES] + [p.replace(".", "/") + "/" + pattern for p, patterns in PACKAGE_DATA.items() for pattern in patterns]),
+++)
+++
+++# No setup.py execution: its host-installed SONiC dependency check is replaced
+++# by wheel Requires-Dist metadata, not ignored or replaced with mock packages.
+++utilities_wheel(
+++    name = "sonic_utilities_wheel",
+++    author = "SONiC Team",
+++    author_email = "linuxnetdev@microsoft.com",
+++    classifiers = CLASSIFIERS,
+++    data_files = {s: "scripts/" + s.split("/")[-1] for s in SCRIPTS} | {"ssd-dump/vtFA_RTK_5766_v2": "data/bin/vtFA_RTK_5766_v2"},
+++    distribution = "sonic-utilities",
+++    entry_points = ENTRY_POINTS,
+++    extra_distinfo_files = {"LICENSE": "licenses/LICENSE"},
+++    extra_requires = EXTRA_REQUIRES,
+++    homepage = "https://github.com/Azure/sonic-utilities",
+++    keywords = "sonic SONiC utilities command line cli CLI",
+++    license = "Apache 2.0",
+++    license_files = ["LICENSE"],
+++    maintainer = "Joe LeVeque",
+++    maintainer_email = "jolevequ@microsoft.com",
+++    # setup.py ships an existing AMD64 SSD diagnostic ELF. This is not a
+++    # source-built native tool and makes an 'any' platform tag dishonest.
+++    platform = "linux_x86_64",
+++    python_tag = "py3",
+++    requires = REQUIRES,
+++    summary = "Command-line utilities for SONiC",
+++    version = "1.2",
+++    deps = [":wheel_payload"],
+++)
+++
+++py_test(
+++    name = "wheel_contract_test",
+++    size = "small",
+++    srcs = ["//bazel:wheel_contract_test.py"],
+++    args = [
+++        "$(location :sonic_utilities_wheel)",
+++        "$(location setup.py)",
+++        "$(location //bazel:packaging.json)",
+++    ],
+++    data = [
+++        "setup.py",
+++        "ssd-dump/vtFA_RTK_5766_v2",
+++        ":repository_inventory",
+++        ":sonic_utilities_wheel",
+++        "//bazel:packaging.json",
+++    ] + SCRIPTS,
+++    main = "//bazel:wheel_contract_test.py",
+++)
+++
+++py_test(
+++    name = "wheel_installed_test",
+++    size = "small",
+++    srcs = ["//bazel:wheel_installed_test.py"],
+++    args = [
+++        "$(location :sonic_utilities_wheel)",
+++        "$(location @utilities_test_pip//click:whl)",
+++    ],
+++    data = [
+++        ":sonic_utilities_wheel",
+++        "@utilities_test_pip//click:whl",
+++    ],
+++    main = "//bazel:wheel_installed_test.py",
+++    deps = [requirement("installer")],
+++)
+++
+++# Separate legacy sonic-utilities-data package, not part of setup.py wheel.
+++filegroup(
+++    name = "utilities_templates",
+++    srcs = glob(["sonic-utilities-data/templates/**/*.j2"]),
+++)
+++
+++# Keep the exact legacy wheel above for development/tests. Runtime deployment
+++# excludes only the top-level tests namespace, which collides with inherited
+++# SONiC wheels. Both variants apply the same documented install transforms.
+++filegroup(
+++    name = "runtime_wheel_payload",
+++    srcs = glob(
+++        [p.replace(".", "/") + "/*.py" for p in PACKAGES] + [p.replace(".", "/") + "/" + pattern for p, patterns in PACKAGE_DATA.items() for pattern in patterns],
+++        exclude = ["tests/**"],
+++    ),
+++)
+++
+++py_test(
+++    name = "runtime_wheel_contract_test",
+++    srcs = ["//bazel/runtime:contract_test.py"],
+++    args = [
+++        "$(location :sonic_utilities_wheel)",
+++        "$(location //bazel/runtime:sonic_utilities_wheel)",
+++    ],
+++    data = [
+++        ":sonic_utilities_wheel",
+++        "//bazel/runtime:sonic_utilities_wheel",
+++    ],
+++    main = "//bazel/runtime:contract_test.py",
+++)
+++
+++# Independent of PACKAGES/PACKAGE_DATA and wheel_payload selection. Enumerate
+++# repository files so an accidentally omitted producer glob cannot hide itself.
+++filegroup(
+++    name = "repository_inventory",
+++    srcs = glob(
+++        ["**"],
+++        exclude = [
+++            "bazel/**",
+++            "bazel-*/**",
+++            "**/__pycache__/**",
+++            "BUILD.bazel",
+++            "MODULE.bazel*",
+++            "README.bazel.md",
+++        ],
+++    ),
+++)
+++
+++# Direct source installation follows the original Make package selection,
+++# including the tests package. The existing separate runtime wheel is unchanged.
+++site_packages(
+++    name = "sonic-utilities.runtime",
+++    author = "SONiC Team",
+++    author_email = "linuxnetdev@microsoft.com",
+++    classifiers = CLASSIFIERS,
+++    data_prefix = "/usr/local",
+++    distribution = "sonic-utilities",
+++    entry_points = ENTRY_POINTS,
+++    executable_files = ["sonic_utilities-1.2.data/scripts/" + p.split("/")[-1] for p in SCRIPTS] + ["sonic_utilities-1.2.data/data/bin/vtFA_RTK_5766_v2"],
+++    extra_distinfo_files = {"LICENSE": "licenses/LICENSE"},
+++    extra_requires = EXTRA_REQUIRES,
+++    files = {p: p for p in glob([p.replace(".", "/") + "/*.py" for p in PACKAGES] + [p.replace(".", "/") + "/" + pattern for p, patterns in PACKAGE_DATA.items() for pattern in patterns])} |
+++            {p: "sonic_utilities-1.2.data/scripts/" + p.split("/")[-1] for p in SCRIPTS} |
+++            {"ssd-dump/vtFA_RTK_5766_v2": "sonic_utilities-1.2.data/data/bin/vtFA_RTK_5766_v2"},
+++    headers = "/usr/local/include",
+++    homepage = "https://github.com/Azure/sonic-utilities",
+++    interpreter = "/usr/bin/python3",
+++    keywords = "sonic SONiC utilities command line cli CLI",
+++    license = "Apache 2.0",
+++    license_files = ["LICENSE"],
+++    maintainer = "Joe LeVeque",
+++    maintainer_email = "jolevequ@microsoft.com",
+++    normalize_scripts = True,
+++    platform = "linux_x86_64",
+++    python_tag = "py3",
+++    regular_file_mode = "0644",
+++    requires = REQUIRES,
+++    scripts = "/usr/local/bin",
+++    site_packages = "/usr/local/lib/python3.13/dist-packages",
+++    summary = "Command-line utilities for SONiC",
+++    version = "1.2",
+++)
+++
+++filegroup(
+++    name = "sonic-utilities.runtime_metadata",
+++    srcs = [":sonic-utilities.runtime"],
+++    output_group = "metadata",
+++)
+++
+++# Completion generation and installation packaging are owned by Utilities.
+++# The image registers the declared CLI execution environment as a toolchain.
+++exports_files([
+++    "sonic-utilities-data/generate_completions.py",
+++    "sonic-utilities-data/debian/control",
+++    "sonic-utilities-data/debian/changelog",
+++    "sonic-utilities-data/debian/copyright",
+++    "sonic-utilities-data/debian/install",
+++    "sonic-utilities-data/debian/rules",
+++    "sonic-utilities-data/templates/sonic.service.j2",
+++    "sonic-utilities-data/templates/service_mgmt.sh.j2",
+++    "sonic-utilities-data/templates/dump.sh.j2",
+++])
+++
+++py_test(
+++    name = "source_install_test",
+++    srcs = ["//bazel:source_install_contract.py"],
+++    args = [
+++        "$(location :sonic-utilities.runtime)",
+++        "$(location setup.py)",
+++        "$(location @utilities_test_pip//click:whl)",
+++        "$(location :sonic-utilities.runtime_metadata)",
+++    ],
+++    data = [
+++        "setup.py",
+++        ":repository_inventory",
+++        ":sonic-utilities.runtime",
+++        ":sonic-utilities.runtime_metadata",
+++        "@utilities_test_pip//click:whl",
+++    ],
+++    legacy_create_init = False,
+++    main = "//bazel:source_install_contract.py",
+++    deps = [requirement("installer")],
+++)
+++
+++# Follow sonic-utilities-data/debian/install, including sonic-cli-gen templates.
+++filegroup(
+++    name = "utilities_data_templates",
+++    srcs = glob([
+++        "sonic-utilities-data/templates/*.j2",
+++        "sonic-utilities-data/templates/sonic-cli-gen/*.j2",
+++    ]),
+++)
+++
+++alias(name = "sonic-utilities-data.runtime", actual = "//bazel/data:runtime")
+++alias(name = "sonic-utilities-data.runtime_metadata", actual = "//bazel/data:runtime_packages.json")
++diff --git a/bazel/BUILD.bazel b/bazel/BUILD.bazel
++new file mode 100644
++index 0000000000000000000000000000000000000000..6f40bfdc3eba367c27f3674cca5f18fed5e9ad6d
++--- /dev/null
+++++ b/bazel/BUILD.bazel
++@@ -0,0 +1,19 @@
+++load("@rules_python//python:py_binary.bzl", "py_binary")
+++
+++exports_files([
+++    "requirements_test_lock.txt",
+++    "packaging.json",
+++])
+++
+++exports_files([
+++    "wheel_contract_test.py",
+++    "wheel_installed_test.py",
+++])
+++
+++py_binary(
+++    name = "wheel_install_contract",
+++    srcs = ["wheel_install_contract.py"],
+++    visibility = ["//visibility:public"],
+++)
+++
+++exports_files(["source_install_contract.py"])
++diff --git a/bazel/data/BUILD.bazel b/bazel/data/BUILD.bazel
++new file mode 100644
++index 0000000000000000000000000000000000000000..4045d2e24048a04d4d304c8668ab99cc62db9e1f
++--- /dev/null
+++++ b/bazel/data/BUILD.bazel
++@@ -0,0 +1,101 @@
+++load("@utilities_test_pip//:requirements.bzl", "requirement")
+++load(":defs.bzl", "completion_ci_generator", "completion_toolchain", "utilities_data")
+++load("@rules_python//python:defs.bzl", "py_binary", "py_test")
+++load("@sonic_build_infra//oci:runtime_packages.bzl", "runtime_packages")
+++load("@tar.bzl", "tar")
+++
+++package(default_visibility = ["//visibility:public"])
+++
+++exports_files(["generate.py"])
+++
+++toolchain_type(name = "toolchain_type")
+++
+++py_binary(
+++    name = "mtree_tool",
+++    srcs = ["mtree.py"],
+++    main = "mtree.py",
+++    python_version = "3.13",
+++)
+++
+++genrule(
+++    name = "changelog.gzip",
+++    srcs = ["//:sonic-utilities-data/debian/changelog"],
+++    outs = ["changelog.Debian.gz"],
+++    tools = ["@sonic_build_infra//tools/build_tools:pigz"],
+++    cmd = "$(execpath @sonic_build_infra//tools/build_tools:pigz) -n -9 -c $< > $@",
+++)
+++
+++utilities_data(
+++    name = "generated",
+++    source_generator = "//:sonic-utilities-data/generate_completions.py",
+++    templates = ["//:utilities_data_templates"],
+++    docs = {
+++        "copyright": "//:sonic-utilities-data/debian/copyright",
+++        "changelog.Debian.gz": ":changelog.gzip",
+++    },
+++)
+++
+++filegroup(name = "mtree", srcs = [":generated"], output_group = "mtree")
+++
+++tar(
+++    name = "runtime",
+++    srcs = [
+++        ":generated",
+++        "//:utilities_data_templates",
+++        "//:sonic-utilities-data/debian/copyright",
+++        ":changelog.gzip",
+++    ],
+++    mtree = ":mtree",
+++)
+++
+++runtime_packages(
+++    name = "runtime_packages.json",
+++    control_file_helpers = [["dh_installdeb"]],
+++    packages = {"sonic-utilities-data": ":runtime"},
+++    control = "//:sonic-utilities-data/debian/control",
+++    changelog = "//:sonic-utilities-data/debian/changelog",
+++    required_paths = {"sonic-utilities-data": [
+++        "etc/bash_completion.d/config",
+++        "etc/bash_completion.d/show",
+++        "usr/share/sonic/templates/sonic.service.j2",
+++    ]},
+++)
+++
+++# Explicit CI-only toolchain: real Utilities installation and Click, without
+++# pretending to provide the image's native SONiC import closure.
+++completion_ci_generator(
+++    name = "ci_generator",
+++    src = "ci_generator.py",
+++    deps = [requirement("click")],
+++)
+++
+++completion_toolchain(
+++    name = "ci_environment",
+++    generator = ":ci_generator",
+++    args = [
+++        "--archive=$(location //:sonic-utilities.runtime)",
+++        "--generator=$(location //:sonic-utilities-data/generate_completions.py)",
+++    ],
+++    data = ["//:sonic-utilities.runtime", "//:sonic-utilities-data/generate_completions.py"],
+++)
+++toolchain(
+++    name = "ci_toolchain",
+++    toolchain = ":ci_environment",
+++    toolchain_type = ":toolchain_type",
+++)
+++
+++py_test(
+++    name = "contract_test",
+++    srcs = ["contract_test.py"],
+++    main = "contract_test.py",
+++    args = ["$(rootpath :runtime)", "$(rootpath //:sonic-utilities-data/debian/install)"],
+++    data = [
+++        ":runtime",
+++        "//:repository_inventory",
+++        "//:sonic-utilities-data/debian/install",
+++        "//:sonic-utilities-data/debian/copyright",
+++        "//:sonic-utilities-data/debian/changelog",
+++    ],
+++    deps = [requirement("click")],
+++    python_version = "3.13",
+++)
++diff --git a/bazel/data/ci_generator.py b/bazel/data/ci_generator.py
++new file mode 100644
++index 0000000000000000000000000000000000000000..c4c6b007a030816f4286265c486ee7fbaa15939b
++--- /dev/null
+++++ b/bazel/data/ci_generator.py
++@@ -0,0 +1,38 @@
+++"""Exercise the upstream generator with real Utilities and Click installations.
+++
+++This bounded CI environment covers commands needing only Click. Image owners
+++supply the complete SONiC execution toolchain for config/show and native imports.
+++"""
+++import argparse
+++import os
+++from pathlib import Path
+++import subprocess
+++import sys
+++import tarfile
+++import tempfile
+++
+++import click
+++
+++parser = argparse.ArgumentParser()
+++parser.add_argument("--archive", required=True)
+++parser.add_argument("--generator", required=True)
+++parser.add_argument("output")
+++args = parser.parse_args()
+++output = Path(args.output).absolute()
+++output.mkdir(parents=True, exist_ok=True)
+++with tempfile.TemporaryDirectory() as directory:
+++    with tarfile.open(args.archive) as archive:
+++        # Match the existing source_install_contract.py extraction: apply the
+++        # Python data filter to each member, rejecting paths outside the prefix.
+++        for member in archive:
+++            archive.extract(member, directory, filter="data")
+++    site = Path(directory) / "usr/local/lib/python3.13/dist-packages"
+++    program = (
+++        "import sys,runpy; sys.path[:0]=sys.argv[1:3]; "
+++        "sys.argv=sys.argv[3:]; runpy.run_path(sys.argv[0],run_name='__main__')"
+++    )
+++    subprocess.run([
+++        sys.executable, "-I", "-B", "-c", program,
+++        str(site), str(Path(click.__file__).resolve().parent.parent),
+++        str(Path(args.generator).absolute()), "-o", str(output),
+++    ], check=True, env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"})
++diff --git a/bazel/data/contract_test.py b/bazel/data/contract_test.py
++new file mode 100644
++index 0000000000000000000000000000000000000000..c52702c83e3188dc76f5e88efb78711ef8748ab0
++--- /dev/null
+++++ b/bazel/data/contract_test.py
++@@ -0,0 +1,37 @@
+++"""Validate data installation against the original Debian install manifest."""
+++
+++import gzip
+++from pathlib import Path
+++import sys
+++import tarfile
+++
+++from click.shell_completion import BashComplete
+++
+++archive, recipe = map(Path, sys.argv[1:])
+++source = recipe.parent.parent
+++with tarfile.open(archive) as tar:
+++    members = {m.name.lstrip("./"): m for m in tar.getmembers() if m.isfile()}
+++    expected_templates = {}
+++    for line in recipe.read_text().splitlines():
+++        pattern, destination = line.split()
+++        if pattern.startswith("templates/"):
+++            for file in source.glob(pattern):
+++                expected_templates[destination.strip("/") + "/" + file.name] = file
+++    actual_templates = {n for n in members if n.startswith("usr/share/sonic/templates/")}
+++    assert actual_templates == expected_templates.keys()
+++    for name, file in expected_templates.items():
+++        assert tar.extractfile(members[name]).read() == file.read_bytes(), name
+++    # connect is an actual upstream Click CLI whose dependencies fit this
+++    # bounded toolchain. Full SONiC imports are checked by the image consumer.
+++    expected = BashComplete(None, {}, "connect", "_CONNECT_COMPLETE").source()
+++    assert tar.extractfile(members["etc/bash_completion.d/connect"]).read().decode() == expected
+++    doc = "usr/share/doc/sonic-utilities-data/"
+++    assert tar.extractfile(members[doc + "copyright"]).read() == (source / "debian/copyright").read_bytes()
+++    assert (
+++        gzip.decompress(tar.extractfile(members[doc + "changelog.Debian.gz"]).read())
+++        == (source / "debian/changelog").read_bytes()
+++    )
+++    for name, member in members.items():
+++        # Debian dh_fixperms installs ordinary package data as root-owned 0644.
+++        assert (member.uid, member.gid, member.mode) == (0, 0, 0o644), name
+++print("Debian template inventory, real Click completion, documentation and installation modes: PASS")
++diff --git a/bazel/data/defs.bzl b/bazel/data/defs.bzl
++new file mode 100644
++index 0000000000000000000000000000000000000000..2284dcd8d7a678722b65be25f2d1e8db7410505d
++--- /dev/null
+++++ b/bazel/data/defs.bzl
++@@ -0,0 +1,133 @@
+++"""Original CLI completion generation with declared Python runfiles and APT."""
+++load("@rules_python//python:py_info.bzl", "PyInfo")
+++
+++def _runfile(ctx, file):
+++    return file.short_path[3:] if file.short_path.startswith("../") else ctx.workspace_name + "/" + file.short_path
+++
+++def _generator_impl(ctx):
+++    for tree in ctx.files.source_trees:
+++        if not tree.is_directory:
+++            fail("source_trees requires installation directories: " + tree.path)
+++    executable = ctx.actions.declare_file(ctx.label.name)
+++    filesystem = ctx.actions.declare_file(ctx.label.name + ".filesystem.json")
+++    imports = depset(transitive = [target[PyInfo].imports for target in ctx.attr.python_deps]).to_list()
+++    arguments = ['"$runfiles/' + _runfile(ctx, ctx.file._runner) + '"', '--generator="$runfiles/' + _runfile(ctx, ctx.file.generator) + '"', '--apt-runtime="$runfiles/' + _runfile(ctx, ctx.file.apt_runtime) + '"', '--filesystem="$runfiles/' + _runfile(ctx, filesystem) + '"', '--bwrap="$runfiles/' + _runfile(ctx, ctx.executable.bwrap) + '"', '--hosts="$runfiles/' + _runfile(ctx, ctx.file.hosts) + '"', '--hostname="$runfiles/' + _runfile(ctx, ctx.file.hostname) + '"', '--ca-bundle="$runfiles/' + _runfile(ctx, ctx.file.ca_bundle) + '"', '--cfggen="$runfiles/' + _runfile(ctx, ctx.file.cfggen) + '"', '--database-config="$runfiles/' + _runfile(ctx, ctx.file.database_config) + '"']
+++    arguments += ['--source-tree="$runfiles/' + _runfile(ctx, file) + '"' for file in ctx.files.source_trees]
+++    arguments += ['--python-import="$runfiles/' + path + '"' for path in sorted(imports)]
+++    ctx.actions.write(executable, '''#!/bin/sh
+++set -eu
+++self=$0
+++case "$self" in /*) ;; *) self="$PWD/$self" ;; esac
+++runfiles=${RUNFILES_DIR:-$self.runfiles}
+++RUNFILES_DIR="$runfiles"
+++PYTHONHOME="$runfiles/%s/usr"
+++PYTHONDONTWRITEBYTECODE=1
+++export RUNFILES_DIR PYTHONHOME PYTHONDONTWRITEBYTECODE
+++exec "$runfiles/%s" %s --output "$@"
+++''' % (_runfile(ctx, ctx.file.apt_runtime), _runfile(ctx, ctx.executable.python), " ".join(arguments)), is_executable = True)
+++    runfiles = ctx.runfiles(files = [ctx.file._runner, ctx.file.generator, ctx.file.apt_runtime, ctx.executable.python, ctx.executable.bwrap, ctx.file.cfggen, ctx.file.database_config, ctx.file.ca_bundle, ctx.file.hosts, ctx.file.hostname] + ctx.files.source_trees)
+++    for target in ctx.attr.python_deps + [ctx.attr.python, ctx.attr.bwrap]:
+++        runfiles = runfiles.merge(target[DefaultInfo].default_runfiles).merge(target[DefaultInfo].data_runfiles)
+++    namespace = ctx.runfiles(files = [ctx.file._runner, ctx.file.generator, ctx.file.apt_runtime, ctx.file.cfggen, ctx.file.database_config, ctx.file.ca_bundle, ctx.file.hosts, ctx.file.hostname] + ctx.files.source_trees)
+++    for target in ctx.attr.python_deps:
+++        namespace = namespace.merge(target[DefaultInfo].default_runfiles).merge(target[DefaultInfo].data_runfiles)
+++    names = {_runfile(ctx, file): file.is_directory for file in namespace.files.to_list()}
+++    for entry in namespace.symlinks.to_list():
+++        names[ctx.workspace_name + "/" + entry.path] = entry.target_file.is_directory
+++    for entry in namespace.root_symlinks.to_list():
+++        names[entry.path] = entry.target_file.is_directory
+++    names[_runfile(ctx, filesystem)] = False
+++    ctx.actions.write(filesystem, json.encode(names))
+++    runfiles = runfiles.merge(ctx.runfiles(files = [filesystem]))
+++    return [DefaultInfo(executable = executable, runfiles = runfiles)]
+++
+++utilities_generator = rule(implementation = _generator_impl, executable = True, attrs = {
+++    "generator": attr.label(allow_single_file = True, mandatory = True),
+++    "source_trees": attr.label_list(allow_files = True),
+++    "apt_runtime": attr.label(allow_single_file = True, mandatory = True, cfg = "exec"),
+++    "python": attr.label(executable = True, mandatory = True, cfg = "exec"),
+++    "python_deps": attr.label_list(providers = [PyInfo]),
+++    "bwrap": attr.label(executable = True, mandatory = True, cfg = "exec"),
+++    "cfggen": attr.label(allow_single_file = True, mandatory = True),
+++    "hosts": attr.label(allow_single_file = True, mandatory = True),
+++    "hostname": attr.label(allow_single_file = True, mandatory = True),
+++    "ca_bundle": attr.label(allow_single_file = True, mandatory = True),
+++    "database_config": attr.label(allow_single_file = True, mandatory = True),
+++    "_runner": attr.label(default = Label(":generate.py"), allow_single_file = True),
+++})
+++
+++def _toolchain_impl(ctx):
+++    return [platform_common.ToolchainInfo(
+++        generator = ctx.attr.generator[DefaultInfo].files_to_run,
+++        arguments = [ctx.expand_location(arg, targets = ctx.attr.data) for arg in ctx.attr.args],
+++        validation = depset(ctx.files.validation + ctx.files.data),
+++    )]
+++
+++completion_toolchain = rule(implementation = _toolchain_impl, attrs = {
+++    "args": attr.string_list(),
+++    "data": attr.label_list(allow_files = True),
+++    "generator": attr.label(executable = True, cfg = "exec", mandatory = True),
+++    "validation": attr.label_list(allow_files = True),
+++})
+++
+++def _impl(ctx):
+++    toolchain = ctx.toolchains["//bazel/data:toolchain_type"]
+++    completions = ctx.actions.declare_directory(ctx.label.name + ".completions")
+++    mtree = ctx.actions.declare_file(ctx.label.name + ".mtree")
+++    ctx.actions.run(
+++        executable = toolchain.generator,
+++        tools = [toolchain.generator],
+++        arguments = toolchain.arguments + [completions.path],
+++        inputs = toolchain.validation,
+++        outputs = [completions],
+++        env = {"LANG": "C", "LC_ALL": "C", "PATH": ""},
+++        mnemonic = "SonicUtilityCompletions",
+++    )
+++    docs = [file for target in ctx.attr.docs.values() for file in target[DefaultInfo].files.to_list()]
+++    ctx.actions.run(
+++        executable = ctx.executable._mtree_tool,
+++        arguments = ["--completions", completions.path, "--output", mtree.path, "--template-root", ctx.file.source_generator.dirname + "/templates"] + ["--doc=" + name + "=" + target[DefaultInfo].files.to_list()[0].path for name, target in ctx.attr.docs.items()] + [file.path for file in ctx.files.templates],
+++        inputs = [completions] + ctx.files.templates + docs,
+++        outputs = [mtree],
+++        mnemonic = "SonicUtilityDataMtree",
+++    )
+++    return [DefaultInfo(files = depset([completions])), OutputGroupInfo(mtree = depset([mtree]))]
+++
+++utilities_data = rule(implementation = _impl, toolchains = ["//bazel/data:toolchain_type"], attrs = {
+++    "source_generator": attr.label(allow_single_file = True, mandatory = True),
+++    "templates": attr.label_list(allow_files = True),
+++    "docs": attr.string_keyed_label_dict(allow_files = True),
+++    "_mtree_tool": attr.label(default = Label(":mtree_tool"), executable = True, cfg = "exec"),
+++})
+++
+++# Unlike a normal py_binary bootstrap, an action with PATH="" must launch
+++# the declared Python interpreter directly.
+++def _ci_generator_impl(ctx):
+++    runtime = ctx.toolchains["@rules_python//python:toolchain_type"].py3_runtime
+++    interpreter = runtime.interpreter
+++    executable = ctx.actions.declare_file(ctx.label.name)
+++    imports = depset(transitive = [dep[PyInfo].imports for dep in ctx.attr.deps]).to_list()
+++    ctx.actions.write(executable, '''#!/bin/sh
+++set -eu
+++self=$0
+++case "$self" in /*) ;; *) self="$PWD/$self" ;; esac
+++runfiles=${RUNFILES_DIR:-$self.runfiles}
+++PYTHONPATH=%s
+++PYTHONDONTWRITEBYTECODE=1
+++export PYTHONPATH PYTHONDONTWRITEBYTECODE
+++exec "$runfiles/%s" -B "$runfiles/%s" "$@"
+++''' % (":".join(['"$runfiles/' + path + '"' for path in sorted(imports)]), _runfile(ctx, interpreter), _runfile(ctx, ctx.file.src)), is_executable = True)
+++    runfiles = ctx.runfiles(files = [ctx.file.src, interpreter], transitive_files = runtime.files)
+++    for dep in ctx.attr.deps:
+++        runfiles = runfiles.merge(dep[DefaultInfo].default_runfiles)
+++    return [DefaultInfo(executable = executable, runfiles = runfiles)]
+++
+++completion_ci_generator = rule(
+++    implementation = _ci_generator_impl,
+++    executable = True,
+++    toolchains = ["@rules_python//python:toolchain_type"],
+++    attrs = {
+++        "src": attr.label(allow_single_file = True, mandatory = True),
+++        "deps": attr.label_list(providers = [PyInfo]),
+++    },
+++)
++diff --git a/bazel/data/generate.py b/bazel/data/generate.py
++new file mode 100644
++index 0000000000000000000000000000000000000000..f95360d5a557f482d70f8826b5bc9f0a762d0f54
++--- /dev/null
+++++ b/bazel/data/generate.py
++@@ -0,0 +1,286 @@
+++"""Run the unchanged installed-path CLI generator in a declared read-only view."""
+++
+++import argparse
+++import json
+++import os
+++from pathlib import Path, PurePosixPath
+++import runpy
+++import subprocess
+++import sys
+++import tempfile
+++
+++parser = argparse.ArgumentParser()
+++for name in [
+++    'generator',
+++    'output',
+++    'apt-runtime',
+++    'filesystem',
+++    'cfggen',
+++    'database-config',
+++    'ca-bundle',
+++    'hosts',
+++    'hostname',
+++]:
+++    parser.add_argument('--' + name, required=True)
+++parser.add_argument('--bwrap')
+++parser.add_argument('--source-tree', action='append', default=[])
+++parser.add_argument('--python-import', action='append', default=[])
+++parser.add_argument('--inside', action='store_true')
+++args = parser.parse_args()
+++
+++
+++def declared_tree(path):
+++    """Find the same TreeArtifact behind Bazel's per-file sandbox symlinks."""
+++    path = Path(path).resolve(strict=True)
+++    files = {str(file.relative_to(path)): file for file in path.rglob('*') if file.is_file()}
+++    checked = set()
+++    for name, file in sorted(files.items(), key=lambda item: (len(PurePosixPath(item[0]).parts), item[0])):
+++        physical = file.resolve(strict=True)
+++        if physical.name != file.name:
+++            continue
+++        root = physical.parents[len(PurePosixPath(name).parts) - 1]
+++        if root in checked:
+++            continue
+++        checked.add(root)
+++        try:
+++            same_files = all(
+++                file.resolve(strict=True) == (root / name).resolve(strict=True) for name, file in files.items()
+++            )
+++        except FileNotFoundError:
+++            continue
+++        if not same_files:
+++            continue
+++        # Bazel expands directory aliases such as lib -> usr/lib into files.
+++        # Compare canonical payloads after checking every declared name's map.
+++        actual = {file.resolve(strict=True) for file in root.rglob('*') if file.is_file()}
+++        if actual == {file.resolve(strict=True) for file in files.values()}:
+++            return root
+++    raise ValueError('Cannot resolve the exact declared TreeArtifact: ' + str(path))
+++
+++
+++def enter_namespace():
+++    runfiles = Path(os.environ['RUNFILES_DIR']).absolute()
+++    runtime = declared_tree(args.apt_runtime)
+++    output = Path(args.output).absolute()
+++    output.mkdir(parents=True, exist_ok=True)
+++
+++    def guest(path):
+++        return '/runfiles/' + str(Path(path).absolute().relative_to(runfiles))
+++
+++    options = [
+++        '--unshare-user',
+++        '--unshare-pid',
+++        '--unshare-ipc',
+++        '--unshare-uts',
+++        '--die-with-parent',
+++        '--new-session',
+++        '--uid',
+++        '0',
+++        '--gid',
+++        '0',
+++        '--cap-drop',
+++        'ALL',
+++        '--clearenv',
+++        '--dir',
+++        '/usr',
+++        '--dir',
+++        '/usr/local',
+++        '--dir',
+++        '/usr/local/bin',
+++    ]
+++    for path in sorted((runtime / 'usr').iterdir()):
+++        if path.name == 'bin':
+++            options += ['--dir', '/usr/bin']
+++            for program in sorted(path.iterdir()):
+++                options += ['--ro-bind', str(program), '/usr/bin/' + program.name]
+++            # Debian dash's postinst supplies the normal POSIX shell link.
+++            if not (path / 'sh').exists():
+++                if not (path / 'dash').is_file():
+++                    raise ValueError('The declared APT runtime requires dash for /bin/sh')
+++                options += ['--symlink', 'dash', '/usr/bin/sh']
+++        elif path.name != 'local':
+++            options += ['--ro-bind', str(path), '/usr/' + path.name]
+++    # The checked host Python TAR includes the main wheel installations here.
+++    options += ['--ro-bind', str(runtime / 'usr/local/lib'), '/usr/local/lib']
+++    options += ['--dir', '/etc']
+++    for path in sorted((runtime / 'etc').rglob('*')):
+++        destination = '/' + str(path.relative_to(runtime))
+++        if path.is_symlink():
+++            options += ['--symlink', os.readlink(path), destination]
+++        elif path.is_dir():
+++            options += ['--dir', destination]
+++        else:
+++            options += ['--ro-bind', str(path), destination]
+++    options += [
+++        '--dir',
+++        '/etc/ssl',
+++        '--dir',
+++        '/etc/ssl/certs',
+++        '--ro-bind',
+++        str(Path(args.ca_bundle).resolve()),
+++        '/etc/ssl/certs/ca-certificates.crt',
+++    ]
+++    for name in ['hosts', 'hostname']:
+++        options += ['--ro-bind', str(Path(getattr(args, name)).resolve()), '/etc/' + name]
+++    for destination, target in [
+++        ('bin', 'usr/bin'),
+++        ('sbin', 'usr/sbin'),
+++        ('lib', 'usr/lib'),
+++        ('lib64', 'usr/lib64'),
+++    ]:
+++        options += ['--symlink', target, '/' + destination]
+++    options += [
+++        '--dir',
+++        '/var',
+++        '--dir',
+++        '/var/run',
+++        '--dir',
+++        '/var/run/redis',
+++        '--dir',
+++        '/var/run/redis/sonic-db',
+++        '--ro-bind',
+++        str(Path(args.database_config).resolve()),
+++        '/var/run/redis/sonic-db/database_config.json',
+++        '--ro-bind',
+++        str(Path(args.cfggen).resolve()),
+++        '/usr/local/bin/sonic-cfggen',
+++        '--dev',
+++        '/dev',
+++        '--proc',
+++        '/proc',
+++        '--tmpfs',
+++        '/tmp',
+++        '--dir',
+++        '/runfiles',
+++    ]
+++    filesystem = json.loads(Path(args.filesystem).read_text())
+++    bindings = {
+++        name: declared_tree(runfiles / name) if directory else (runfiles / name).resolve(strict=True)
+++        for name, directory in filesystem.items()
+++    }
+++    # Collapse only complete declared subtrees with identical relative layout.
+++    # Comparing names (not reading extra payload) prevents exposing undeclared
+++    # package files or empty directories while staying below bwrap's arg limit.
+++    candidates = set()
+++    for import_path in args.python_import:
+++        prefix = str(Path(import_path).absolute().relative_to(runfiles))
+++        for name in filesystem:
+++            if name.startswith(prefix + '/'):
+++                candidates.update(
+++                    str(parent) for parent in PurePosixPath(name).parents if str(parent).startswith(prefix)
+++                )
+++    for prefix in sorted(candidates, key=lambda value: (len(PurePosixPath(value).parts), value)):
+++        members = [name for name in bindings if name.startswith(prefix + '/')]
+++        if not members or any(filesystem[name] for name in members):
+++            continue
+++        first = members[0]
+++        relative = PurePosixPath(first).relative_to(prefix)
+++        source_root = bindings[first].parents[len(relative.parts) - 1]
+++        if not all(bindings[name] == source_root / PurePosixPath(name).relative_to(prefix) for name in members):
+++            continue
+++        selected = {str(PurePosixPath(name).relative_to(prefix)) for name in members}
+++        selected_dirs = {
+++            str(parent) for name in selected for parent in PurePosixPath(name).parents if str(parent) != '.'
+++        }
+++        actual = list(source_root.rglob('*'))
+++        if any(path.is_symlink() for path in actual):
+++            continue
+++        if {str(path.relative_to(source_root)) for path in actual if path.is_file()} != selected or {
+++            str(path.relative_to(source_root)) for path in actual if path.is_dir()
+++        } != selected_dirs:
+++            continue
+++        for name in members:
+++            del bindings[name]
+++            del filesystem[name]
+++        bindings[prefix] = source_root
+++        filesystem[prefix] = True
+++    print(
+++        'Read-only view: %d file/tree mounts after exact declared-subtree grouping' % len(bindings), flush=True
+++    )
+++    directories = set()
+++    for name, directory in filesystem.items():
+++        path = PurePosixPath(name)
+++        if path.is_absolute() or '..' in path.parts:
+++            raise ValueError('Invalid runfiles member: ' + name)
+++        directories.update(str(parent) for parent in path.parents if str(parent) != '.')
+++        if directory:
+++            directories.add(name)
+++    for name in sorted(directories, key=lambda value: (len(PurePosixPath(value).parts), value)):
+++        options += ['--dir', '/runfiles/' + name]
+++    for name in sorted(filesystem, key=lambda value: (len(PurePosixPath(value).parts), value)):
+++        options += ['--ro-bind', str(bindings[name]), '/runfiles/' + name]
+++    options += [
+++        '--bind',
+++        str(output),
+++        '/output',
+++        '--setenv',
+++        'RUNFILES_DIR',
+++        '/runfiles',
+++        '--setenv',
+++        'PYTHONHOME',
+++        '/usr',
+++        '--setenv',
+++        'PYTHONDONTWRITEBYTECODE',
+++        '1',
+++        '--setenv',
+++        'LANG',
+++        'C',
+++        '--setenv',
+++        'LC_ALL',
+++        'C',
+++        '--setenv',
+++        'PATH',
+++        '/usr/bin:/bin',
+++        '--chdir',
+++        '/output',
+++        '--remount-ro',
+++        '/',
+++    ]
+++    inner = [
+++        '/usr/bin/python3.13',
+++        '-B',
+++        guest(__file__),
+++        '--inside',
+++        '--generator',
+++        guest(args.generator),
+++        '--output',
+++        '/output',
+++        '--apt-runtime',
+++        guest(args.apt_runtime),
+++        '--filesystem',
+++        guest(args.filesystem),
+++        '--cfggen',
+++        '/usr/local/bin/sonic-cfggen',
+++        '--database-config',
+++        '/var/run/redis/sonic-db/database_config.json',
+++        '--ca-bundle',
+++        '/etc/ssl/certs/ca-certificates.crt',
+++        '--hosts',
+++        '/etc/hosts',
+++        '--hostname',
+++        '/etc/hostname',
+++    ]
+++    for path in args.source_tree:
+++        inner += ['--source-tree', guest(path)]
+++    for path in args.python_import:
+++        inner += ['--python-import', guest(path)]
+++    # Large runfiles closures exceed argv limits; bwrap accepts NUL-separated
+++    # options through a declared inherited descriptor without copying payloads.
+++    with tempfile.TemporaryFile() as descriptor:
+++        descriptor.write(b'\0'.join(os.fsencode(value) for value in options) + b'\0')
+++        descriptor.flush()
+++        descriptor.seek(0)
+++        result = subprocess.run(
+++            [args.bwrap, '--args', str(descriptor.fileno()), '--'] + inner, pass_fds=(descriptor.fileno(),)
+++        )
+++    return result.returncode
+++
+++
+++if not args.inside:
+++    raise SystemExit(enter_namespace())
+++paths = [str(Path(tree) / 'usr/local/lib/python3.13/dist-packages') for tree in args.source_tree]
+++paths += args.python_import
+++# Debian's normal site startup has already processed the real setuptools .pth.
+++sys.path[:0] = paths
+++sys.argv = [args.generator, '-o', args.output]
+++runpy.run_path(args.generator, run_name='__main__')
++diff --git a/bazel/data/mtree.py b/bazel/data/mtree.py
++new file mode 100644
++index 0000000000000000000000000000000000000000..d4d92ef1dcb7707c91d0fbb2fcc3001a367a16a1
++--- /dev/null
+++++ b/bazel/data/mtree.py
++@@ -0,0 +1,34 @@
+++"""Map the original Debian install recipe without copying its templates."""
+++
+++import argparse
+++from pathlib import Path
+++
+++parser = argparse.ArgumentParser()
+++parser.add_argument('--completions', type=Path, required=True)
+++parser.add_argument('--template-root', type=Path, required=True)
+++parser.add_argument('--output', type=Path, required=True)
+++parser.add_argument('--doc', action='append', default=[])
+++parser.add_argument('templates', nargs='*', type=Path)
+++args = parser.parse_args()
+++
+++
+++def escape(path):
+++    return str(path).replace('\\', '\\134').replace(' ', '\\040').replace('\t', '\\011').replace('\n', '\\012')
+++
+++
+++mapping = {'etc/bash_completion.d/' + file.name: file for file in sorted(args.completions.iterdir())}
+++mapping.update(
+++    {'usr/share/sonic/templates/' + str(file.relative_to(args.template_root)): file for file in args.templates}
+++)
+++mapping.update(
+++    {
+++        'usr/share/doc/sonic-utilities-data/' + value.split('=', 1)[0]: Path(value.split('=', 1)[1])
+++        for value in args.doc
+++    }
+++)
+++args.output.write_text(
+++    ''.join(
+++        escape(name) + ' type=file uid=0 gid=0 mode=0644 time=0 content=' + escape(file) + '\n'
+++        for name, file in sorted(mapping.items())
+++    )
+++)
++diff --git a/bazel/packaging.bzl b/bazel/packaging.bzl
++new file mode 100644
++index 0000000000000000000000000000000000000000..6b32927f6b69586e0e1ed599dd1e2c0a6394e932
++--- /dev/null
+++++ b/bazel/packaging.bzl
++@@ -0,0 +1,255 @@
+++# Mirrors setup.py; //:wheel_contract_test rejects drift.
+++
+++PACKAGES = ['acl_loader',
+++ 'clear',
+++ 'clear.plugins',
+++ 'clear.plugins.auto',
+++ 'config',
+++ 'config.plugins',
+++ 'config.plugins.auto',
+++ 'connect',
+++ 'consutil',
+++ 'counterpoll',
+++ 'cpoutil',
+++ 'crm',
+++ 'debug',
+++ 'generic_config_updater',
+++ 'dump',
+++ 'dump.plugins',
+++ 'pfcwd',
+++ 'sfputil',
+++ 'ssd_erase',
+++ 'ssdutil',
+++ 'pfc',
+++ 'psuutil',
+++ 'flow_counter_util',
+++ 'fdbutil',
+++ 'fwutil',
+++ 'pcieutil',
+++ 'pddf_fanutil',
+++ 'pddf_psuutil',
+++ 'pddf_thermalutil',
+++ 'pddf_ledutil',
+++ 'syslog_util',
+++ 'rcli',
+++ 'show',
+++ 'show.interfaces',
+++ 'show.plugins',
+++ 'show.plugins.auto',
+++ 'sonic_installer',
+++ 'sonic_installer.bootloader',
+++ 'sonic_package_manager',
+++ 'sonic_package_manager.service_creator',
+++ 'tests',
+++ 'undebug',
+++ 'utilities_common',
+++ 'watchdogutil',
+++ 'sonic_cli_gen']
+++
+++PACKAGE_DATA = {'generic_config_updater': ['gcu_services_validator.conf.json',
+++                            'gcu_field_operation_validators.conf.json'],
+++ 'show': ['aliases.ini'],
+++ 'sonic_installer': ['aliases.ini'],
+++ 'tests': ['acl_input/*',
+++           'db_migrator_input/*.json',
+++           'db_migrator_input/config_db/*.json',
+++           'db_migrator_input/appl_db/*.json',
+++           'counterpoll_input/*',
+++           'mock_tables/*.py',
+++           'mock_tables/*.json',
+++           'mock_tables/asic0/*.json',
+++           'mock_tables/asic1/*.json',
+++           'mock_tables/asic2/*.json',
+++           'filter_fdb_input/*',
+++           'pfcwd_input/*',
+++           'wm_input/*',
+++           'ecn_input/*',
+++           'dump_input/*']}
+++
+++SCRIPTS = ['scripts/aclshow',
+++ 'scripts/arista_7060_prefdl_gen.py',
+++ 'scripts/asic_config_check',
+++ 'scripts/boot_part',
+++ 'scripts/buffershow',
+++ 'scripts/coredump-compress',
+++ 'scripts/coppstat',
+++ 'scripts/configlet',
+++ 'scripts/db_migrator.py',
+++ 'scripts/decode-syseeprom',
+++ 'scripts/dropcheck',
+++ 'scripts/disk_check.py',
+++ 'scripts/dpu-tty.py',
+++ 'scripts/dropconfig',
+++ 'scripts/dropstat',
+++ 'scripts/dualtor_neighbor_check.py',
+++ 'scripts/dump_nat_entries.py',
+++ 'scripts/debug_voq_chassis_packet_drops.sh',
+++ 'scripts/ecnconfig',
+++ 'scripts/express-reboot',
+++ 'scripts/fabricstat',
+++ 'scripts/fanshow',
+++ 'scripts/fast-reboot',
+++ 'scripts/fast-reboot-dump.py',
+++ 'scripts/fast-reboot-filter-routes.py',
+++ 'scripts/fdbclear',
+++ 'scripts/fdbshow',
+++ 'scripts/fibshow',
+++ 'scripts/flow_counters_stat',
+++ 'scripts/gearboxutil',
+++ 'scripts/generate_dump',
+++ 'scripts/generate_ssd_dump',
+++ 'scripts/generate_shutdown_order.py',
+++ 'scripts/intfutil',
+++ 'scripts/intfstat',
+++ 'scripts/ipintutil',
+++ 'scripts/lag_keepalive.py',
+++ 'scripts/leakageshow',
+++ 'scripts/llrstat',
+++ 'scripts/lldpshow',
+++ 'scripts/log_ssd_health',
+++ 'scripts/mellanox_buffer_migrator.py',
+++ 'scripts/mmuconfig',
+++ 'scripts/natclear',
+++ 'scripts/natconfig',
+++ 'scripts/natshow',
+++ 'scripts/nbrshow',
+++ 'scripts/neighbor_advertiser',
+++ 'scripts/pcmping',
+++ 'scripts/pg-drop',
+++ 'scripts/port2alias',
+++ 'scripts/portconfig',
+++ 'scripts/portstat',
+++ 'scripts/pfcstat',
+++ 'scripts/psushow',
+++ 'scripts/queuestat',
+++ 'scripts/reboot',
+++ 'scripts/reboot_smartswitch_helper',
+++ 'scripts/route_check.py',
+++ 'scripts/route_check_test.sh',
+++ 'scripts/vnet_route_check.py',
+++ 'scripts/sfpshow',
+++ 'scripts/soft-reboot',
+++ 'scripts/storyteller',
+++ 'scripts/syseeprom-to-json',
+++ 'scripts/srv6stat',
+++ 'scripts/switchstat',
+++ 'scripts/teamd_increase_retry_count.py',
+++ 'scripts/tempershow',
+++ 'scripts/tunnelstat',
+++ 'scripts/update_json.py',
+++ 'scripts/sensorshow',
+++ 'scripts/voqutil',
+++ 'scripts/warm-reboot',
+++ 'scripts/watermarkstat',
+++ 'scripts/watermarkcfg',
+++ 'scripts/sonic-kdump-config',
+++ 'scripts/sonic-bootchart',
+++ 'scripts/centralize_database',
+++ 'scripts/null_route_helper',
+++ 'scripts/coredump_gen_handler.py',
+++ 'scripts/memory_threshold_check.py',
+++ 'scripts/memory_threshold_check_handler.py',
+++ 'scripts/techsupport_cleanup.py',
+++ 'scripts/bmc_techsupport.py',
+++ 'scripts/storm_control.py',
+++ 'scripts/verify_image_sign.sh',
+++ 'scripts/verify_image_sign_common.sh',
+++ 'scripts/secure_boot_enroll_db.sh',
+++ 'scripts/check_db_integrity.py',
+++ 'scripts/sysreadyshow',
+++ 'scripts/wredstat',
+++ 'scripts/sonic-error-report',
+++ 'scripts/chassis_db_consistency_checker.py',
+++ 'scripts/sonic-dpu-flow-dump.py']
+++
+++ENTRY_POINTS = {'console_scripts': ['acl-loader = acl_loader.main:cli',
+++                     'config = config.main:config',
+++                     'connect = connect.main:connect',
+++                     'consutil = consutil.main:consutil',
+++                     'counterpoll = counterpoll.main:cli',
+++                     'cpoutil = cpoutil.main:cli',
+++                     'crm = crm.main:cli',
+++                     'debug = debug.main:cli',
+++                     'dump = dump.main:dump',
+++                     'filter_fdb_entries = fdbutil.filter_fdb_entries:main',
+++                     'pfcwd = pfcwd.main:cli',
+++                     'sfputil = sfputil.main:cli',
+++                     'ssd-erase = ssd_erase.main:ssd_erase',
+++                     'ssdutil = ssdutil.main:ssdutil',
+++                     'pfc = pfc.main:cli',
+++                     'psuutil = psuutil.main:cli',
+++                     'fwutil = fwutil.main:cli',
+++                     'pcieutil = pcieutil.main:cli',
+++                     'pddf_fanutil = pddf_fanutil.main:cli',
+++                     'pddf_psuutil = pddf_psuutil.main:cli',
+++                     'pddf_thermalutil = pddf_thermalutil.main:cli',
+++                     'pddf_ledutil = pddf_ledutil.main:cli',
+++                     'rexec = rcli.rexec:cli',
+++                     'rshell = rcli.rshell:cli',
+++                     'show = show.main:cli',
+++                     'sonic-clear = clear.main:cli',
+++                     'sonic-installer = sonic_installer.main:sonic_installer',
+++                     'remove_stale_db_certs.py = sonic_installer.secure_boot_db:main',
+++                     'sonic_installer = sonic_installer.main:sonic_installer',
+++                     'sonic-package-manager = sonic_package_manager.main:cli',
+++                     'spm = sonic_package_manager.main:cli',
+++                     'undebug = undebug.main:cli',
+++                     'watchdogutil = watchdogutil.main:watchdogutil',
+++                     'sonic-cli-gen = sonic_cli_gen.main:cli']}
+++
+++REQUIRES = ['bcrypt>=3.2.2',
+++ 'click>=8.0, <8.2',
+++ 'cryptography>=3.3.2',
+++ 'urllib3>=2',
+++ 'click-log>=0.3.2',
+++ 'docker>=4.4.4',
+++ 'docker-image-py>=0.1.10',
+++ 'filelock>=3.0.12',
+++ 'enlighten>=1.8.0',
+++ 'ijson>=3.2.3',
+++ 'ipaddress>=1.0.23',
+++ 'protobuf',
+++ 'jinja2>=2.11.3',
+++ 'jsondiff>=1.2.0',
+++ 'jsonpatch>=1.32.0',
+++ 'jsonpointer>=1.9',
+++ 'm2crypto>=0.31.0',
+++ 'natsort>=8.0',
+++ 'netaddr>=0.8.0',
+++ 'netifaces>=0.10.7',
+++ 'paramiko>=3.0',
+++ 'pexpect>=4.8.0',
+++ 'semantic-version>=2.8.5',
+++ 'prettyprinter>=0.18.0',
+++ 'pyroute2>=0.7.7',
+++ 'requests>=2.25.0',
+++ 'tabulate==0.9.0',
+++ 'toposort==1.6',
+++ 'www-authenticate==0.9.2',
+++ 'xmltodict==0.12.0',
+++ 'lazy-object-proxy',
+++ 'six>=1.16.0',
+++ 'scp==0.14.5',
+++ 'sonic-config-engine',
+++ 'sonic-platform-common',
+++ 'sonic-py-common',
+++ 'sonic-yang-mgmt']
+++
+++EXTRA_REQUIRES = {'testing': ['scapy',
+++             'pyfakefs',
+++             'responses',
+++             'pytest',
+++             'pytest-xdist',
+++             'mockredispy>=2.9.3',
+++             'deepdiff>=6.2.2']}
+++
+++CLASSIFIERS = ['Development Status :: 3 - Alpha',
+++ 'Environment :: Console',
+++ 'Intended Audience :: Developers',
+++ 'Intended Audience :: Information Technology',
+++ 'Intended Audience :: System Administrators',
+++ 'License :: OSI Approved :: Apache Software License',
+++ 'Natural Language :: English',
+++ 'Operating System :: POSIX :: Linux',
+++ 'Programming Language :: Python :: 3.7',
+++ 'Topic :: Utilities']
++diff --git a/bazel/packaging.json b/bazel/packaging.json
++new file mode 100644
++index 0000000000000000000000000000000000000000..45bcb5ee696184acf683bbfe8dccc446700e613f
++--- /dev/null
+++++ b/bazel/packaging.json
++@@ -0,0 +1,271 @@
+++{
+++  "packages": [
+++    "acl_loader",
+++    "clear",
+++    "clear.plugins",
+++    "clear.plugins.auto",
+++    "config",
+++    "config.plugins",
+++    "config.plugins.auto",
+++    "connect",
+++    "consutil",
+++    "counterpoll",
+++    "cpoutil",
+++    "crm",
+++    "debug",
+++    "generic_config_updater",
+++    "dump",
+++    "dump.plugins",
+++    "pfcwd",
+++    "sfputil",
+++    "ssd_erase",
+++    "ssdutil",
+++    "pfc",
+++    "psuutil",
+++    "flow_counter_util",
+++    "fdbutil",
+++    "fwutil",
+++    "pcieutil",
+++    "pddf_fanutil",
+++    "pddf_psuutil",
+++    "pddf_thermalutil",
+++    "pddf_ledutil",
+++    "syslog_util",
+++    "rcli",
+++    "show",
+++    "show.interfaces",
+++    "show.plugins",
+++    "show.plugins.auto",
+++    "sonic_installer",
+++    "sonic_installer.bootloader",
+++    "sonic_package_manager",
+++    "sonic_package_manager.service_creator",
+++    "tests",
+++    "undebug",
+++    "utilities_common",
+++    "watchdogutil",
+++    "sonic_cli_gen"
+++  ],
+++  "package_data": {
+++    "generic_config_updater": [
+++      "gcu_services_validator.conf.json",
+++      "gcu_field_operation_validators.conf.json"
+++    ],
+++    "show": [
+++      "aliases.ini"
+++    ],
+++    "sonic_installer": [
+++      "aliases.ini"
+++    ],
+++    "tests": [
+++      "acl_input/*",
+++      "db_migrator_input/*.json",
+++      "db_migrator_input/config_db/*.json",
+++      "db_migrator_input/appl_db/*.json",
+++      "counterpoll_input/*",
+++      "mock_tables/*.py",
+++      "mock_tables/*.json",
+++      "mock_tables/asic0/*.json",
+++      "mock_tables/asic1/*.json",
+++      "mock_tables/asic2/*.json",
+++      "filter_fdb_input/*",
+++      "pfcwd_input/*",
+++      "wm_input/*",
+++      "ecn_input/*",
+++      "dump_input/*"
+++    ]
+++  },
+++  "scripts": [
+++    "scripts/aclshow",
+++    "scripts/arista_7060_prefdl_gen.py",
+++    "scripts/asic_config_check",
+++    "scripts/boot_part",
+++    "scripts/buffershow",
+++    "scripts/coredump-compress",
+++    "scripts/coppstat",
+++    "scripts/configlet",
+++    "scripts/db_migrator.py",
+++    "scripts/decode-syseeprom",
+++    "scripts/dropcheck",
+++    "scripts/disk_check.py",
+++    "scripts/dpu-tty.py",
+++    "scripts/dropconfig",
+++    "scripts/dropstat",
+++    "scripts/dualtor_neighbor_check.py",
+++    "scripts/dump_nat_entries.py",
+++    "scripts/debug_voq_chassis_packet_drops.sh",
+++    "scripts/ecnconfig",
+++    "scripts/express-reboot",
+++    "scripts/fabricstat",
+++    "scripts/fanshow",
+++    "scripts/fast-reboot",
+++    "scripts/fast-reboot-dump.py",
+++    "scripts/fast-reboot-filter-routes.py",
+++    "scripts/fdbclear",
+++    "scripts/fdbshow",
+++    "scripts/fibshow",
+++    "scripts/flow_counters_stat",
+++    "scripts/gearboxutil",
+++    "scripts/generate_dump",
+++    "scripts/generate_ssd_dump",
+++    "scripts/generate_shutdown_order.py",
+++    "scripts/intfutil",
+++    "scripts/intfstat",
+++    "scripts/ipintutil",
+++    "scripts/lag_keepalive.py",
+++    "scripts/leakageshow",
+++    "scripts/llrstat",
+++    "scripts/lldpshow",
+++    "scripts/log_ssd_health",
+++    "scripts/mellanox_buffer_migrator.py",
+++    "scripts/mmuconfig",
+++    "scripts/natclear",
+++    "scripts/natconfig",
+++    "scripts/natshow",
+++    "scripts/nbrshow",
+++    "scripts/neighbor_advertiser",
+++    "scripts/pcmping",
+++    "scripts/pg-drop",
+++    "scripts/port2alias",
+++    "scripts/portconfig",
+++    "scripts/portstat",
+++    "scripts/pfcstat",
+++    "scripts/psushow",
+++    "scripts/queuestat",
+++    "scripts/reboot",
+++    "scripts/reboot_smartswitch_helper",
+++    "scripts/route_check.py",
+++    "scripts/route_check_test.sh",
+++    "scripts/vnet_route_check.py",
+++    "scripts/sfpshow",
+++    "scripts/soft-reboot",
+++    "scripts/storyteller",
+++    "scripts/syseeprom-to-json",
+++    "scripts/srv6stat",
+++    "scripts/switchstat",
+++    "scripts/teamd_increase_retry_count.py",
+++    "scripts/tempershow",
+++    "scripts/tunnelstat",
+++    "scripts/update_json.py",
+++    "scripts/sensorshow",
+++    "scripts/voqutil",
+++    "scripts/warm-reboot",
+++    "scripts/watermarkstat",
+++    "scripts/watermarkcfg",
+++    "scripts/sonic-kdump-config",
+++    "scripts/sonic-bootchart",
+++    "scripts/centralize_database",
+++    "scripts/null_route_helper",
+++    "scripts/coredump_gen_handler.py",
+++    "scripts/memory_threshold_check.py",
+++    "scripts/memory_threshold_check_handler.py",
+++    "scripts/techsupport_cleanup.py",
+++    "scripts/bmc_techsupport.py",
+++    "scripts/storm_control.py",
+++    "scripts/verify_image_sign.sh",
+++    "scripts/verify_image_sign_common.sh",
+++    "scripts/secure_boot_enroll_db.sh",
+++    "scripts/check_db_integrity.py",
+++    "scripts/sysreadyshow",
+++    "scripts/wredstat",
+++    "scripts/sonic-error-report",
+++    "scripts/chassis_db_consistency_checker.py",
+++    "scripts/sonic-dpu-flow-dump.py"
+++  ],
+++  "data_files": [
+++    [
+++      "bin",
+++      [
+++        "ssd-dump/vtFA_RTK_5766_v2"
+++      ]
+++    ]
+++  ],
+++  "entry_points": {
+++    "console_scripts": [
+++      "acl-loader = acl_loader.main:cli",
+++      "config = config.main:config",
+++      "connect = connect.main:connect",
+++      "consutil = consutil.main:consutil",
+++      "counterpoll = counterpoll.main:cli",
+++      "cpoutil = cpoutil.main:cli",
+++      "crm = crm.main:cli",
+++      "debug = debug.main:cli",
+++      "dump = dump.main:dump",
+++      "filter_fdb_entries = fdbutil.filter_fdb_entries:main",
+++      "pfcwd = pfcwd.main:cli",
+++      "sfputil = sfputil.main:cli",
+++      "ssd-erase = ssd_erase.main:ssd_erase",
+++      "ssdutil = ssdutil.main:ssdutil",
+++      "pfc = pfc.main:cli",
+++      "psuutil = psuutil.main:cli",
+++      "fwutil = fwutil.main:cli",
+++      "pcieutil = pcieutil.main:cli",
+++      "pddf_fanutil = pddf_fanutil.main:cli",
+++      "pddf_psuutil = pddf_psuutil.main:cli",
+++      "pddf_thermalutil = pddf_thermalutil.main:cli",
+++      "pddf_ledutil = pddf_ledutil.main:cli",
+++      "rexec = rcli.rexec:cli",
+++      "rshell = rcli.rshell:cli",
+++      "show = show.main:cli",
+++      "sonic-clear = clear.main:cli",
+++      "sonic-installer = sonic_installer.main:sonic_installer",
+++      "remove_stale_db_certs.py = sonic_installer.secure_boot_db:main",
+++      "sonic_installer = sonic_installer.main:sonic_installer",
+++      "sonic-package-manager = sonic_package_manager.main:cli",
+++      "spm = sonic_package_manager.main:cli",
+++      "undebug = undebug.main:cli",
+++      "watchdogutil = watchdogutil.main:watchdogutil",
+++      "sonic-cli-gen = sonic_cli_gen.main:cli"
+++    ]
+++  },
+++  "requires": [
+++    "bcrypt>=3.2.2",
+++    "click>=8.0, <8.2",
+++    "cryptography>=3.3.2",
+++    "urllib3>=2",
+++    "click-log>=0.3.2",
+++    "docker>=4.4.4",
+++    "docker-image-py>=0.1.10",
+++    "filelock>=3.0.12",
+++    "enlighten>=1.8.0",
+++    "ijson>=3.2.3",
+++    "ipaddress>=1.0.23",
+++    "protobuf",
+++    "jinja2>=2.11.3",
+++    "jsondiff>=1.2.0",
+++    "jsonpatch>=1.32.0",
+++    "jsonpointer>=1.9",
+++    "m2crypto>=0.31.0",
+++    "natsort>=8.0",
+++    "netaddr>=0.8.0",
+++    "netifaces>=0.10.7",
+++    "paramiko>=3.0",
+++    "pexpect>=4.8.0",
+++    "semantic-version>=2.8.5",
+++    "prettyprinter>=0.18.0",
+++    "pyroute2>=0.7.7",
+++    "requests>=2.25.0",
+++    "tabulate==0.9.0",
+++    "toposort==1.6",
+++    "www-authenticate==0.9.2",
+++    "xmltodict==0.12.0",
+++    "lazy-object-proxy",
+++    "six>=1.16.0",
+++    "scp==0.14.5",
+++    "sonic-config-engine",
+++    "sonic-platform-common",
+++    "sonic-py-common",
+++    "sonic-yang-mgmt"
+++  ],
+++  "extra_requires": {
+++    "testing": [
+++      "scapy",
+++      "pyfakefs",
+++      "responses",
+++      "pytest",
+++      "pytest-xdist",
+++      "mockredispy>=2.9.3",
+++      "deepdiff>=6.2.2"
+++    ]
+++  }
+++}
++diff --git a/bazel/requirements_test_lock.txt b/bazel/requirements_test_lock.txt
++new file mode 100644
++index 0000000000000000000000000000000000000000..159e5ce6fdd47a00dc76cb20dd855718a0cc92dc
++--- /dev/null
+++++ b/bazel/requirements_test_lock.txt
++@@ -0,0 +1,6 @@
+++# Bounded installed-runtime tests, not the full image dependency closure.
+++installer==0.7.0 \
+++    --hash=sha256:05d1933f0a5ba7d8d6296bb6d5018e7c94fa473ceb10cf198a92ccea19c27b53
+++
+++click==8.1.8 \
+++    --hash=sha256:63c132bbbed01578a06712a2d1f497bb62d9c1c0d329b7903a866228027263b2
++diff --git a/bazel/runtime/BUILD.bazel b/bazel/runtime/BUILD.bazel
++new file mode 100644
++index 0000000000000000000000000000000000000000..b9ae8946c90493e7019eafecb0813dc5d43b0422
++--- /dev/null
+++++ b/bazel/runtime/BUILD.bazel
++@@ -0,0 +1,30 @@
+++load("//bazel:wheel_install_contract.bzl", "utilities_wheel")
+++load("//bazel:packaging.bzl", "SCRIPTS", "ENTRY_POINTS", "REQUIRES", "EXTRA_REQUIRES", "CLASSIFIERS")
+++package(default_visibility = ["//visibility:public"])
+++utilities_wheel(
+++    name = "sonic_utilities_wheel",
+++    distribution = "sonic-utilities",
+++    version = "1.2",
+++    python_tag = "py3",
+++    # setup.py ships an existing AMD64 SSD diagnostic ELF. This is not a
+++    # source-built native tool and makes an 'any' platform tag dishonest.
+++    platform = "linux_x86_64",
+++    deps = ["//:runtime_wheel_payload"],
+++    data_files = {"//:" + s: "scripts/" + s.split("/")[-1] for s in SCRIPTS} | {"//:ssd-dump/vtFA_RTK_5766_v2": "data/bin/vtFA_RTK_5766_v2"},
+++    entry_points = ENTRY_POINTS,
+++    requires = REQUIRES,
+++    extra_requires = EXTRA_REQUIRES,
+++    summary = "Command-line utilities for SONiC",
+++    author = "SONiC Team",
+++    author_email = "linuxnetdev@microsoft.com",
+++    maintainer = "Joe LeVeque",
+++    maintainer_email = "jolevequ@microsoft.com",
+++    keywords = "sonic SONiC utilities command line cli CLI",
+++    license_files = ["LICENSE"],
+++    homepage = "https://github.com/Azure/sonic-utilities",
+++    license = "Apache 2.0",
+++    classifiers = CLASSIFIERS,
+++    extra_distinfo_files = {"//:LICENSE": "licenses/LICENSE"},
+++)
+++
+++exports_files(["contract_test.py"])
++diff --git a/bazel/runtime/contract_test.py b/bazel/runtime/contract_test.py
++new file mode 100644
++index 0000000000000000000000000000000000000000..daa0b97a761af99241d87a6420a3d9d2af706e49
++--- /dev/null
+++++ b/bazel/runtime/contract_test.py
++@@ -0,0 +1,20 @@
+++import sys
+++import zipfile
+++
+++with zipfile.ZipFile(sys.argv[1]) as full, zipfile.ZipFile(sys.argv[2]) as runtime:
+++    original = set(full.namelist())
+++    actual = set(runtime.namelist())
+++    removed = {p for p in original if p.startswith("tests/")}
+++    assert removed, "negative control: original wheel must really contain tests"
+++    assert original - removed == actual, (sorted(original - removed - actual), sorted(actual - original))
+++    for name in actual:
+++        if not name.endswith(".dist-info/RECORD"):
+++            assert full.read(name) == runtime.read(name), name
+++        assert full.getinfo(name).external_attr == runtime.getinfo(name).external_attr, name
+++    print(
+++        "Runtime-wheel-contract-PASS",
+++        len(actual),
+++        "files; excluded",
+++        len(removed),
+++        "developer-test files; all other bytes identical",
+++    )
++diff --git a/bazel/source_install_contract.py b/bazel/source_install_contract.py
++new file mode 100644
++index 0000000000000000000000000000000000000000..4056cff8caa9902cdf6f280b87f34a11fe963933
++--- /dev/null
+++++ b/bazel/source_install_contract.py
++@@ -0,0 +1,195 @@
+++"""Direct installation contract derived from the unchanged setup.py."""
+++
+++import ast
+++import base64
+++import configparser
+++import csv
+++import email
+++import hashlib
+++import io
+++import json
+++from pathlib import Path
+++import posixpath
+++import re
+++import subprocess
+++import sys
+++import tarfile
+++import tempfile
+++import unittest
+++from installer import install
+++from installer.destinations import SchemeDictionaryDestination
+++from installer.sources import WheelFile
+++
+++RUNTIME, SETUP, CLICK, METADATA = map(Path, sys.argv[1:])
+++sys.argv = sys.argv[:1]
+++ROOT = SETUP.parent
+++SOURCE = ast.parse(SETUP.read_text())
+++CALL = next(n for n in ast.walk(SOURCE) if isinstance(n, ast.Call) and getattr(n.func, 'id', '') == 'setup')
+++KW = {k.arg: k.value for k in CALL.keywords}
+++SITE = 'usr/local/lib/python3.13/dist-packages/'
+++
+++
+++class SourceInstallation(unittest.TestCase):
+++    def test_payload_metadata_and_record(self):
+++        with tarfile.open(RUNTIME, 'r:') as archive:
+++            actual = {
+++                m.name.removeprefix('./'): (m, archive.extractfile(m).read()) for m in archive if m.isfile()
+++            }
+++        expected = {}
+++        for package in ast.literal_eval(KW['packages']):
+++            for path in (ROOT / package.replace('.', '/')).glob('*.py'):
+++                expected[SITE + str(path.relative_to(ROOT))] = (path, False)
+++        for package, patterns in ast.literal_eval(KW['package_data']).items():
+++            for pattern in patterns:
+++                for path in (ROOT / package.replace('.', '/')).glob(pattern):
+++                    if path.is_file():
+++                        expected[SITE + str(path.relative_to(ROOT))] = (path, False)
+++        for name in ast.literal_eval(KW['scripts']):
+++            expected['usr/local/bin/' + Path(name).name] = (ROOT / name, True)
+++        for target, names in ast.literal_eval(KW['data_files']):
+++            for name in names:
+++                expected['usr/local/' + target + '/' + Path(name).name] = (ROOT / name, True)
+++        console_names = {
+++            'usr/local/bin/' + value.split(' = ', 1)[0]
+++            for value in ast.literal_eval(KW['entry_points'])['console_scripts']
+++        }
+++        for name in console_names:
+++            self.assertEqual(actual[name][0].mode, 0o755)
+++            self.assertEqual(actual[name][1].splitlines()[0], b'#!/usr/bin/python3')
+++        payload = {name for name in actual if '.dist-info/' not in name and name not in console_names}
+++        self.assertEqual(set(expected), payload)
+++        # The source runtime preserves Make's tests selection; the independent
+++        # existing runtime wheel intentionally has a different selection.
+++        self.assertTrue(any(name.startswith(SITE + 'tests/') for name in payload))
+++        for name, (path, executable) in expected.items():
+++            raw = path.read_bytes()
+++            if name.startswith('usr/local/bin/'):
+++                header, separator, body = raw.partition(b'\n')
+++                if re.fullmatch(br'#!.*python[0-9.]*([ \t].*)?', header):
+++                    raw = b'#!/usr/bin/python3' + separator + body
+++            member, installed = actual[name]
+++            self.assertEqual(installed, raw, name)
+++            self.assertEqual(
+++                (member.mode, member.uid, member.gid), (0o755 if executable else 0o644, 0, 0), name
+++            )
+++        dist = SITE + 'sonic_utilities-1.2.dist-info/'
+++        metadata = email.message_from_bytes(actual[dist + 'METADATA'][1])
+++        for field, key in [
+++            ('Name', 'name'),
+++            ('Version', 'version'),
+++            ('Summary', 'description'),
+++            ('Author', 'author'),
+++            ('Author-email', 'author_email'),
+++            ('Maintainer', 'maintainer'),
+++            ('Maintainer-email', 'maintainer_email'),
+++            ('Home-page', 'url'),
+++            ('License', 'license'),
+++            ('Keywords', 'keywords'),
+++        ]:
+++            self.assertEqual(metadata[field], ast.literal_eval(KW[key]), field)
+++        sonic = next(
+++            ast.literal_eval(n.value)
+++            for n in SOURCE.body
+++            if isinstance(n, ast.Assign)
+++            and any(getattr(t, 'id', '') == 'sonic_dependencies' for t in n.targets)
+++        )
+++        requirements = ast.literal_eval(KW['install_requires'].left) + sonic
+++        self.assertCountEqual(
+++            [v for v in metadata.get_all('Requires-Dist') if 'extra ==' not in v], requirements
+++        )
+++        for extra, requirements in ast.literal_eval(KW['extras_require']).items():
+++            for requirement in requirements:
+++                self.assertIn(f"{requirement}; extra == '{extra}'", metadata.get_all('Requires-Dist'))
+++        self.assertCountEqual(metadata.get_all('Classifier'), ast.literal_eval(KW['classifiers']))
+++        entries = configparser.ConfigParser()
+++        entries.read_string(actual[dist + 'entry_points.txt'][1].decode())
+++        self.assertEqual(
+++            dict(entries['console_scripts']),
+++            dict(v.split(' = ') for v in ast.literal_eval(KW['entry_points'])['console_scripts']),
+++        )
+++        self.assertEqual(actual[dist + 'licenses/LICENSE'][1], (ROOT / 'LICENSE').read_bytes())
+++        runtime_metadata = json.loads(METADATA.read_text())
+++        self.assertEqual(runtime_metadata['distribution'], ast.literal_eval(KW['name']))
+++        self.assertEqual(runtime_metadata['version'], ast.literal_eval(KW['version']))
+++        self.assertCountEqual(runtime_metadata['requires_dist'], metadata.get_all('Requires-Dist'))
+++        self.assertEqual(
+++            runtime_metadata['requires_python'],
+++            ast.literal_eval(KW['python_requires']) if 'python_requires' in KW else '',
+++        )
+++        self.assertEqual(runtime_metadata['entry_points'], ast.literal_eval(KW['entry_points']))
+++        self.assertCountEqual(runtime_metadata['extras'], ast.literal_eval(KW['extras_require']))
+++        record_path = dist + 'RECORD'
+++        records = list(csv.reader(io.StringIO(actual[record_path][1].decode())))
+++        self.assertEqual(len(records), len(actual))
+++        seen = set()
+++        for name, digest, size in records:
+++            self.assertTrue(name)
+++            self.assertFalse(posixpath.isabs(name))
+++            path = posixpath.normpath(SITE + name)
+++            self.assertNotIn(path, seen)
+++            self.assertIn(path, actual)
+++            seen.add(path)
+++            if path == record_path:
+++                self.assertEqual((digest, size), ('', ''))
+++            else:
+++                self.assertTrue(digest, path)
+++                self.assertTrue(size, path)
+++                raw = actual[path][1]
+++                algorithm, encoded = digest.split('=', 1)
+++                self.assertEqual(
+++                    encoded,
+++                    base64.urlsafe_b64encode(hashlib.new(algorithm, raw).digest()).rstrip(b'=').decode(),
+++                )
+++                self.assertEqual(int(size), len(raw))
+++        self.assertEqual(seen, set(actual))
+++
+++    def test_installed_cli_and_resource(self):
+++        with tempfile.TemporaryDirectory() as tmp:
+++            prefix = Path(tmp)
+++            with tarfile.open(RUNTIME, 'r:') as archive:
+++                for member in archive:
+++                    archive.extract(member, prefix, filter='data')
+++            site = prefix / SITE
+++            scheme = {
+++                name: str(site if name in ('purelib', 'platlib') else prefix / name)
+++                for name in ('purelib', 'platlib', 'headers', 'scripts', 'data')
+++            }
+++            with WheelFile.open(CLICK) as wheel:
+++                install(
+++                    wheel,
+++                    SchemeDictionaryDestination(
+++                        scheme, interpreter=sys.executable, script_kind='posix', bytecode_optimization_levels=()
+++                    ),
+++                    {},
+++                )
+++            code = '''import importlib,importlib.metadata,pathlib,sys
+++site=pathlib.Path(sys.argv[1]);sys.path.insert(0,str(site))
+++from click.testing import CliRunner
+++from connect.main import connect
+++from utilities_common.intf_filter import parse_interface_in_filter
+++assert pathlib.Path(importlib.import_module('connect.main').__file__).is_relative_to(site)
+++assert importlib.metadata.version('sonic-utilities')=='1.2'
+++for args in [['--help'],['line','--help'],['device','--help'],['li','--help']]:
+++ result=CliRunner().invoke(connect,args);assert result.exit_code==0,result.output;assert 'Usage:' in result.output
+++result=CliRunner().invoke(connect,['not-a-command']);assert result.exit_code==2
+++assert parse_interface_in_filter('Ethernet0-2')==['Ethernet0','Ethernet1','Ethernet2']
+++assert (site/'show/aliases.ini').is_file()
+++for group in ['config','show','clear']:
+++ assert (site/group/'plugins/auto/__init__.py').is_file()
+++print('source-installed CLI/resource PASS')
+++'''
+++            script = prefix / 'check.py'
+++            script.write_text(code)
+++            result = subprocess.run(
+++                [sys.executable, '-I', str(script), str(site)],
+++                cwd=tmp,
+++                env={'PATH': '/usr/bin:/bin', 'HOME': tmp, 'PYTHONDONTWRITEBYTECODE': '1'},
+++                capture_output=True,
+++                text=True,
+++            )
+++            print(result.stdout)
+++            self.assertEqual(result.returncode, 0, result.stderr)
+++
+++
+++if __name__ == '__main__':
+++    unittest.main()
++diff --git a/bazel/wheel_contract_test.py b/bazel/wheel_contract_test.py
++new file mode 100644
++index 0000000000000000000000000000000000000000..d1be99707d1117db8b90e467dd31ee3edd037192
++--- /dev/null
+++++ b/bazel/wheel_contract_test.py
++@@ -0,0 +1,135 @@
+++"""Independent setup.py -> wheel contract test (does not execute setup.py)."""
+++
+++import ast
+++import base64
+++import configparser
+++import csv
+++import email
+++import hashlib
+++import io
+++import json
+++import re
+++import stat
+++from pathlib import Path
+++import sys
+++import unittest
+++import zipfile
+++
+++wheel, setup, declaration = map(Path, sys.argv[1:4])
+++del sys.argv[1:4]
+++root = setup.parent
+++source = ast.parse(setup.read_text())
+++call = next(
+++    n
+++    for n in ast.walk(source)
+++    if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == 'setup'
+++)
+++kw = {k.arg: k.value for k in call.keywords}
+++sonic = next(
+++    ast.literal_eval(n.value)
+++    for n in source.body
+++    if isinstance(n, ast.Assign)
+++    and any(isinstance(x, ast.Name) and x.id == 'sonic_dependencies' for x in n.targets)
+++)
+++contract = {
+++    k: ast.literal_eval(kw[k]) for k in ['packages', 'package_data', 'scripts', 'data_files', 'entry_points']
+++}
+++contract['requires'] = ast.literal_eval(kw['install_requires'].left) + sonic
+++contract['extra_requires'] = ast.literal_eval(kw['extras_require'])
+++
+++
+++class WheelContract(unittest.TestCase):
+++    def test_setup_declaration_matches(self):
+++        self.assertEqual(json.loads(json.dumps(contract)), json.loads(declaration.read_text()))
+++
+++    def test_payload_and_metadata(self):
+++        with zipfile.ZipFile(wheel) as z:
+++            names = set(z.namelist())
+++            di = 'sonic_utilities-1.2.dist-info/'
+++            data = 'sonic_utilities-1.2.data/'
+++            expected = {}
+++            for package in contract['packages']:
+++                for p in (root / package.replace('.', '/')).glob('*.py'):
+++                    expected[str(p.relative_to(root))] = p
+++            for package, patterns in contract['package_data'].items():
+++                for pattern in patterns:
+++                    for p in (root / package.replace('.', '/')).glob(pattern):
+++                        if p.is_file():
+++                            expected[str(p.relative_to(root))] = p
+++            for script in contract['scripts']:
+++                expected[data + 'scripts/' + Path(script).name] = root / script
+++            for target, paths in contract['data_files']:
+++                for p in paths:
+++                    expected[data + 'data/' + target + '/' + Path(p).name] = root / p
+++            self.assertEqual(set(expected), {n for n in names if not n.startswith(di)})
+++            for name, path in expected.items():
+++                payload = path.read_bytes()
+++                if name.startswith(data + 'scripts/'):
+++                    first, separator, rest = payload.partition(b'\n')
+++                    # Independent expectation for the setuptools-style transform.
+++                    if re.fullmatch(br'#!.*python[0-9.]*([ \t].*)?', first):
+++                        suffix = re.search(br'python[0-9.]*([ \t].*)?$', first).group(1) or b''
+++                        payload = b'#!python' + suffix + separator + rest
+++                self.assertEqual(z.read(name), payload, name)
+++            self.assertEqual(len(expected), 1125)
+++            self.assertEqual(len([n for n in expected if n.startswith('tests/')]), 743)
+++            self.assertEqual(len(names - set(expected)), 5)
+++            for info in z.infolist():
+++                executable = (
+++                    info.filename.startswith(data + 'scripts/')
+++                    or info.filename == data + 'data/bin/vtFA_RTK_5766_v2'
+++                )
+++                self.assertEqual(
+++                    stat.S_IMODE(info.external_attr >> 16), 0o755 if executable else 0o644, info.filename
+++                )
+++            metadata = email.message_from_bytes(z.read(di + 'METADATA'))
+++            self.assertEqual(metadata['Version'], '1.2')
+++            for field, setup_field in [
+++                ('Maintainer', 'maintainer'),
+++                ('Maintainer-email', 'maintainer_email'),
+++                ('Keywords', 'keywords'),
+++                ('License', 'license'),
+++                ('Summary', 'description'),
+++                ('Author', 'author'),
+++                ('Author-email', 'author_email'),
+++                ('Home-page', 'url'),
+++            ]:
+++                self.assertEqual(metadata[field], ast.literal_eval(kw[setup_field]), field)
+++            self.assertEqual(metadata['Metadata-Version'], '2.4')
+++            self.assertEqual(metadata.get_all('License-File'), ['LICENSE'])
+++            self.assertEqual(z.read(di + 'licenses/LICENSE'), (root / 'LICENSE').read_bytes())
+++            actual = metadata.get_all('Requires-Dist')
+++            ordinary = [x for x in actual if 'extra ==' not in x]
+++            self.assertCountEqual(contract['requires'], ordinary)
+++            for extra, reqs in contract['extra_requires'].items():
+++                for req in reqs:
+++                    self.assertIn(f"{req}; extra == '{extra}'", actual)
+++            parser = configparser.ConfigParser()
+++            parser.read_string(z.read(di + 'entry_points.txt').decode())
+++            self.assertEqual(
+++                dict(parser['console_scripts']),
+++                dict(x.split(' = ') for x in contract['entry_points']['console_scripts']),
+++            )
+++            self.assertIn('Tag: py3-none-linux_x86_64', z.read(di + 'WHEEL').decode())
+++            self.assertEqual(z.read(data + 'data/bin/vtFA_RTK_5766_v2')[:4], b'\x7fELF')
+++            for group in ('config', 'show', 'clear'):
+++                self.assertIn(group + '/plugins/auto/__init__.py', names)
+++            records = list(csv.reader(io.StringIO(z.read(di + 'RECORD').decode())))
+++            self.assertEqual({row[0] for row in records}, names)
+++            for name, digest, size in records:
+++                if digest:
+++                    payload = z.read(name)
+++                    self.assertEqual(
+++                        digest,
+++                        'sha256='
+++                        + base64.urlsafe_b64encode(hashlib.sha256(payload).digest()).rstrip(b'=').decode(),
+++                    )
+++                    self.assertEqual(int(size), len(payload))
+++            print(
+++                f'Exact payload verified: {len(expected)} files, {len(contract["packages"])} packages, '
+++                f'{len(contract["scripts"])} scripts, {len(parser["console_scripts"])} console entries'
+++            )
+++
+++
+++if __name__ == '__main__':
+++    unittest.main()
++diff --git a/bazel/wheel_install_contract.bzl b/bazel/wheel_install_contract.bzl
++new file mode 100644
++index 0000000000000000000000000000000000000000..98729bc84989cf183d3d71e0bb39d739fdedf5a4
++--- /dev/null
+++++ b/bazel/wheel_install_contract.bzl
++@@ -0,0 +1,35 @@
+++"""Small install-contract adapter around the maintained py_wheel producer.
+++
+++rules_python's regular_file_mode is uniform, so it cannot express the legacy
+++scripts/SSD executable exceptions. Metadata and wheel production stay upstream.
+++"""
+++
+++load("@rules_python//python:packaging.bzl", "PyWheelInfo", "py_wheel")
+++
+++def _install_contract_impl(ctx):
+++    original = ctx.attr.wheel[PyWheelInfo]
+++    output = ctx.actions.declare_file(ctx.label.name + "/" + original.wheel.basename)
+++    ctx.actions.run(
+++        executable = ctx.executable._tool,
+++        inputs = [original.wheel],
+++        outputs = [output],
+++        arguments = [original.wheel.path, output.path],
+++        mnemonic = "UtilitiesWheelInstallContract",
+++    )
+++    return [
+++        DefaultInfo(files = depset([output]), runfiles = ctx.runfiles(files = [output])),
+++        PyWheelInfo(wheel = output, name_file = original.name_file),
+++    ]
+++
+++_install_contract = rule(
+++    implementation = _install_contract_impl,
+++    attrs = {
+++        "wheel": attr.label(mandatory = True, providers = [PyWheelInfo]),
+++        "_tool": attr.label(default = "//bazel:wheel_install_contract", executable = True, cfg = "exec"),
+++    },
+++)
+++
+++def utilities_wheel(name, **kwargs):
+++    """Use native metadata/mode support, then preserve executable exceptions."""
+++    py_wheel(name = name + "_unadjusted", regular_file_mode = "0644", visibility = ["//visibility:private"], **kwargs)
+++    _install_contract(name = name, wheel = ":" + name + "_unadjusted")
++diff --git a/bazel/wheel_install_contract.py b/bazel/wheel_install_contract.py
++new file mode 100644
++index 0000000000000000000000000000000000000000..137a77af5381c66aa16d263d9380eb274eb65a2d
++--- /dev/null
+++++ b/bazel/wheel_install_contract.py
++@@ -0,0 +1,49 @@
+++"""Preserve legacy executable install modes and setuptools Python shebangs.
+++
+++This is not a wheel producer: native py_wheel owns payload selection and all
+++metadata. Only script first lines, executable ZIP bits and RECORD are adjusted.
+++"""
+++import base64
+++import csv
+++import hashlib
+++import io
+++import re
+++import stat
+++import sys
+++import zipfile
+++
+++# Match setuptools build_scripts' Python shebang recognition, not shell scripts.
+++PYTHON_SHEBANG = re.compile(br'^#!.*python[0-9.]*([ \t].*)?$')
+++
+++
+++def adjust(source, destination):
+++    with zipfile.ZipFile(source) as original, zipfile.ZipFile(destination, 'w') as result:
+++        records = []
+++        record_info = None
+++        for info in original.infolist():
+++            if info.filename.endswith('.dist-info/RECORD'):
+++                record_info = info
+++                continue
+++            payload = original.read(info)
+++            script = '.data/scripts/' in info.filename
+++            executable = script or info.filename.endswith('.data/data/bin/vtFA_RTK_5766_v2')
+++            if script:
+++                first, separator, rest = payload.partition(b'\n')
+++                match = PYTHON_SHEBANG.fullmatch(first)
+++                if match:
+++                    payload = b'#!python' + (match.group(1) or b'') + separator + rest
+++            info.external_attr = (stat.S_IFREG | (0o755 if executable else 0o644)) << 16
+++            result.writestr(info, payload)
+++            digest = base64.urlsafe_b64encode(hashlib.sha256(payload).digest()).rstrip(b'=').decode()
+++            records.append((info.filename, 'sha256=' + digest, str(len(payload))))
+++        if record_info is None:
+++            raise ValueError('native wheel is missing RECORD')
+++        records.append((record_info.filename, '', ''))
+++        record = io.StringIO(newline='')
+++        csv.writer(record, lineterminator='\n').writerows(records)
+++        record_info.external_attr = (stat.S_IFREG | 0o644) << 16
+++        result.writestr(record_info, record.getvalue().encode())
+++
+++
+++if __name__ == '__main__':
+++    adjust(*sys.argv[1:])
++diff --git a/bazel/wheel_installed_test.py b/bazel/wheel_installed_test.py
++new file mode 100644
++index 0000000000000000000000000000000000000000..eb2901d4fc3adc31903030092e7545c59970e815
++--- /dev/null
+++++ b/bazel/wheel_installed_test.py
++@@ -0,0 +1,173 @@
+++"""Install real wheels in scratch prefix and execute isolated installed Python.
+++
+++No checkout/runfiles on child sys.path. No SONiC stubs, DB/service execution,
+++network, or host installs. This is intentionally a bounded dependency subset.
+++"""
+++
+++import os
+++import stat
+++import zipfile
+++from pathlib import Path
+++import subprocess
+++import sys
+++import tempfile
+++import unittest
+++from installer import install
+++from installer.destinations import SchemeDictionaryDestination
+++from installer.sources import WheelFile
+++
+++WHEELS = [Path(p).resolve() for p in sys.argv[1:]]
+++del sys.argv[1:]
+++
+++CHILD = r'''
+++import importlib, importlib.metadata, importlib.util, os, pathlib, sys, unittest
+++site = pathlib.Path(sys.argv[1]).resolve()
+++sys.path.insert(0, str(site))
+++from click.testing import CliRunner
+++import click
+++from connect.main import connect
+++from utilities_common.intf_filter import parse_interface_in_filter, interface_in_filter
+++
+++class InstalledRuntime(unittest.TestCase):
+++    def test_imports_are_installed(self):
+++        for name in [
+++            'connect.main', 'utilities_common.intf_filter', 'utilities_common.constants',
+++            'config.plugins', 'show.plugins', 'clear.plugins.auto',
+++        ]:
+++            module = importlib.import_module(name)
+++            self.assertTrue(pathlib.Path(module.__file__).resolve().is_relative_to(site), module.__file__)
+++        self.assertEqual(importlib.metadata.version('click'), '8.1.8')
+++        self.assertEqual(importlib.metadata.version('sonic-utilities'), '1.2')
+++
+++    def test_console_entry_point(self):
+++        dist = importlib.metadata.distribution('sonic-utilities')
+++        ep = next(ep for ep in dist.entry_points if ep.name == 'connect')
+++        self.assertIs(ep.load(), connect)
+++        for args in [['--help'], ['line', '--help'], ['device', '--help'], ['li', '--help']]:
+++            result = CliRunner().invoke(connect, args)
+++            self.assertEqual(result.exit_code, 0, result.output)
+++            self.assertIn('Usage:', result.output)
+++        result = CliRunner().invoke(connect, ['not-a-command'])
+++        self.assertEqual(result.exit_code, 2)
+++        self.assertIn('No such command', result.output)
+++
+++    def test_installed_plugin_discovery(self):
+++        import pkgutil
+++        for command in ['config', 'show', 'clear']:
+++            auto = importlib.util.find_spec(command + '.plugins.auto')
+++            self.assertTrue(pathlib.Path(auto.origin).resolve().is_relative_to(site))
+++        for command in ['config', 'show']:
+++            plugins = importlib.import_module(command + '.plugins')
+++            names = {m.name for m in pkgutil.iter_modules(plugins.__path__)}
+++            self.assertTrue({'pbh', 'sonic-hash', 'sonic-trimming'} <= names, names)
+++        self.assertTrue((site / 'show/aliases.ini').is_file())
+++
+++    def test_real_interface_filter(self):
+++        self.assertEqual(
+++            parse_interface_in_filter('Ethernet0-2,PortChannel4,Ethernet-BP0-1'),
+++            ['Ethernet0', 'Ethernet1', 'Ethernet2', 'PortChannel4', 'Ethernet-BP0', 'Ethernet-BP1'],
+++        )
+++        self.assertEqual(parse_interface_in_filter('Ethernet-Rec0'), [])
+++        self.assertTrue(interface_in_filter('Ethernet1', 'Ethernet0-2'))
+++        self.assertFalse(interface_in_filter('Ethernet3', 'Ethernet0-2'))
+++        for value in ['Ethernet3-0', 'Ethernet0-ff', 'foo0-1']:
+++            with self.assertRaises(ValueError):
+++                parse_interface_in_filter(value)
+++
+++unittest.main(argv=[sys.argv[0]], verbosity=2)
+++'''
+++
+++
+++class WheelInstallation(unittest.TestCase):
+++    def test_installed_runtime(self):
+++        with tempfile.TemporaryDirectory() as tmp:
+++            prefix = Path(tmp)
+++            scheme = {
+++                name: str(prefix / path)
+++                for name, path in {
+++                    'purelib': 'site',
+++                    'platlib': 'site',
+++                    'headers': 'include',
+++                    'scripts': 'bin',
+++                    'data': '.',
+++                }.items()
+++            }
+++            # Short stable path avoids Linux's shebang-length limit in deep Bazel sandboxes.
+++            interpreter = prefix / 'python-selected'
+++            interpreter.symlink_to(sys.executable)
+++            destination = SchemeDictionaryDestination(
+++                scheme, interpreter=str(interpreter), script_kind='posix', bytecode_optimization_levels=()
+++            )
+++            for path in WHEELS:
+++                with WheelFile.open(path) as source:
+++                    install(source, destination, additional_metadata={})
+++            # Inspect every installed utility member, not only selected CLI files.
+++            with zipfile.ZipFile(WHEELS[0]) as wheel:
+++                for name in wheel.namelist():
+++                    if '.data/scripts/' in name:
+++                        installed = prefix / 'bin' / name.split('.data/scripts/', 1)[1]
+++                        expected_mode = 0o755
+++                        header = wheel.read(name).split(b'\n', 1)[0]
+++                        actual = installed.read_bytes().split(b'\n', 1)[0]
+++                        if header.startswith(b'#!python'):
+++                            self.assertEqual(actual, b'#!' + os.fsencode(interpreter), name)
+++                        else:
+++                            self.assertEqual(actual, header, name)  # shell/awk unchanged
+++                    elif '.data/data/' in name:
+++                        installed = prefix / name.split('.data/data/', 1)[1]
+++                        expected_mode = 0o755
+++                    else:
+++                        installed = prefix / 'site' / name
+++                        expected_mode = 0o644
+++                    self.assertEqual(stat.S_IMODE(installed.stat().st_mode), expected_mode, name)
+++            # Inert probes use actual installed shebangs; no service/script body runs.
+++            # A hostile PATH cannot select python/python3 for normalized scripts.
+++            path = prefix / 'hostile-path'
+++            path.mkdir()
+++            for command in ('python', 'python3'):
+++                trap = path / command
+++                trap.write_text('#!/bin/sh\nexit 97\n')
+++                trap.chmod(0o755)
+++            for name in ('centralize_database', 'update_json.py', 'vnet_route_check.py', 'aclshow'):
+++                probe = prefix / ('probe-' + name)
+++                header = (prefix / 'bin' / name).read_bytes().split(b'\n', 1)[0]
+++                probe.write_bytes(header + b'\nimport sys; print(sys.executable)\n')
+++                probe.chmod(0o755)
+++                result = subprocess.run([str(probe)], env={'PATH': str(path)}, text=True, capture_output=True)
+++                self.assertEqual(result.returncode, 0, result.stderr)
+++                self.assertEqual(Path(result.stdout.strip()).resolve(), Path(sys.executable).resolve())
+++            (prefix / 'check.py').write_text(CHILD)
+++            env = {'PATH': '/usr/bin:/bin', 'HOME': tmp, 'PYTHONDONTWRITEBYTECODE': '1', 'LC_ALL': 'C.UTF-8'}
+++            result = subprocess.run(
+++                [sys.executable, '-I', str(prefix / 'check.py'), str(prefix / 'site')],
+++                cwd=tmp,
+++                env=env,
+++                text=True,
+++                stdout=subprocess.PIPE,
+++                stderr=subprocess.STDOUT,
+++            )
+++            print(result.stdout)
+++            self.assertEqual(result.returncode, 0)
+++            # Execute the actual installer-generated console script, not only
+++            # an entrypoint object; installed-only PYTHONPATH, never runfiles.
+++            env['PYTHONPATH'] = str(prefix / 'site')
+++            result = subprocess.run(
+++                [str(prefix / 'bin/connect'), '--help'],
+++                cwd=tmp,
+++                env=env,
+++                text=True,
+++                stdout=subprocess.PIPE,
+++                stderr=subprocess.STDOUT,
+++            )
+++            print(result.stdout)
+++            self.assertEqual(result.returncode, 0)
+++            self.assertIn("SONiC command line", result.stdout)
+++            for name in ['config', 'show', 'sonic-clear', 'aclshow', 'sonic-cli-gen']:
+++                path = prefix / 'bin' / name
+++                self.assertTrue(path.is_file(), str(path))
+++                self.assertTrue(os.access(path, os.X_OK), str(path))
+++            self.assertTrue((prefix / 'bin/vtFA_RTK_5766_v2').is_file())
+++
+++
+++if __name__ == '__main__':
+++    unittest.main()
++diff --git a/conftest.py b/conftest.py
++index cc0c873df787e1584c344d4bfa27327d48367600..c800b271d55915717c38ba7ad8a3d3cf6b785abf 100644
++--- a/conftest.py
+++++ b/conftest.py
++@@ -2,3 +2,12 @@
++ 
++ All test files run in parallel using loadfile distribution.
++ """
+++
+++# These are standalone Bazel command-line programs with positional artifact
+++# arguments. Product pytest discovery remains unchanged.
+++collect_ignore = [
+++    "bazel/data/contract_test.py",
+++    "bazel/runtime/contract_test.py",
+++    "bazel/wheel_contract_test.py",
+++    "bazel/wheel_installed_test.py",
+++]
+diff --git a/modules/sonic-utilities/1.2.1-7f28a11da6cb7816a0520fb34d5ebe1ac65a1f1c/source.json b/modules/sonic-utilities/1.2.1-7f28a11da6cb7816a0520fb34d5ebe1ac65a1f1c/source.json
+index 4c3de8fcb395cc889dfa6cacb86f663546c7b1b8..debc2ee916b4e6bc79ad04cbdc9e44832d19e669 100644
+--- a/modules/sonic-utilities/1.2.1-7f28a11da6cb7816a0520fb34d5ebe1ac65a1f1c/source.json
++++ b/modules/sonic-utilities/1.2.1-7f28a11da6cb7816a0520fb34d5ebe1ac65a1f1c/source.json
+@@ -1,8 +1,12 @@
+ {
+-  "url": "https://github.com/securely1g/sonic-utilities/archive/6f1a8a16a947817d76b55dead8cce68e5a4536e4.tar.gz",
+-  "strip_prefix": "sonic-utilities-6f1a8a16a947817d76b55dead8cce68e5a4536e4",
+-  "integrity": "sha256-vHkfrawiy0dSo80dZvhkZEpxxwoDrC3nr45V7n1nYYE=",
++  "url": "https://github.com/sonic-net/sonic-utilities/archive/7f28a11da6cb7816a0520fb34d5ebe1ac65a1f1c.tar.gz",
++  "strip_prefix": "sonic-utilities-7f28a11da6cb7816a0520fb34d5ebe1ac65a1f1c",
++  "integrity": "sha256-crMnJUKdT4jhTwLRzmWtFPYQ5AcbiX8pCZg/ilAFYdk=",
++  "patch_strip": 1,
++  "patches": {
++    "0001-bazel-producer.patch": "sha256-icFpj4LFIFqgPVh7l1ZQmjpmzxCp+Bt4loV0ngTOD/Q="
++  },
+   "overlay": {
+-    "MODULE.bazel": "sha256-J/Eut0/Mvz2JQqR9PmcUJq4hVVt5xICsPU2nqxhuFEM="
++    "MODULE.bazel": "sha256-X6S87d9dQ14WEc4t8VcMmBNEmHxtEndYXaRPRhSIQzU="
+   }
+ }
+diff --git a/modules/sonic-utilities/1.2.1-7f28a11da6cb7816a0520fb34d5ebe1ac65a1f1c/tests/integration/MODULE.bazel b/modules/sonic-utilities/1.2.1-7f28a11da6cb7816a0520fb34d5ebe1ac65a1f1c/tests/integration/MODULE.bazel
+index 4372bf69f4f90237d69d5affb9781e22dbec996c..6e117a54895ef1fd8e75ab1796c401ad3787cd3a 100644
+--- a/modules/sonic-utilities/1.2.1-7f28a11da6cb7816a0520fb34d5ebe1ac65a1f1c/tests/integration/MODULE.bazel
++++ b/modules/sonic-utilities/1.2.1-7f28a11da6cb7816a0520fb34d5ebe1ac65a1f1c/tests/integration/MODULE.bazel
+@@ -1,5 +1,5 @@
+ module(name = "utilities_registry_consumer")
+-bazel_dep(name = "sonic-utilities", version = "1.2.0-6f1a8a16a947817d76b55dead8cce68e5a4536e4")
++bazel_dep(name = "sonic-utilities", version = "1.2.1-7f28a11da6cb7816a0520fb34d5ebe1ac65a1f1c")
+ bazel_dep(name = "rules_python", version = "1.9.0.sonic.2")
+ bazel_dep(name = "platforms", version = "1.0.0")
+ python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+diff --git a/modules/sonic-utilities/metadata.json b/modules/sonic-utilities/metadata.json
+index 0f10616dc6d46aa57c830ea553d60cc0c126bd23..b4d8af43112cf0befaeea47d3b2df9b6756d6eaa 100644
+--- a/modules/sonic-utilities/metadata.json
++++ b/modules/sonic-utilities/metadata.json
+@@ -1,5 +1,6 @@
+ {
+   "versions": [
+-    "1.2.0-6f1a8a16a947817d76b55dead8cce68e5a4536e4"
++    "1.2.0-6f1a8a16a947817d76b55dead8cce68e5a4536e4",
++    "1.2.1-7f28a11da6cb7816a0520fb34d5ebe1ac65a1f1c"
+   ]
+ }
