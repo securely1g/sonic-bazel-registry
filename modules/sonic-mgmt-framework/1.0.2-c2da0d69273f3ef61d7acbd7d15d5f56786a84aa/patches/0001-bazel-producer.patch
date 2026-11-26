@@ -10063,6 +10063,13 @@ index 0000000000000000000000000000000000000000..5250ce54af34281f37f25424f2428b6f
 +    name = "rest_server",
 +    binary = ":rest_server_binary",
 +)
+diff --git a/rest/openapi/BUILD.bazel b/rest/openapi/BUILD.bazel
+new file mode 100644
+index 0000000000000000000000000000000000000000..bfc132b0d120d801d5057d041a0d1b582607acb5
+--- /dev/null
++++ b/rest/openapi/BUILD.bazel
+@@ -0,0 +1 @@
++exports_files(["routes.go"], visibility = ["//models:__pkg__"])
 diff --git a/rest/server/BUILD.bazel b/rest/server/BUILD.bazel
 new file mode 100644
 index 0000000000000000000000000000000000000000..e0081df6539769ebe56c49e3a6808c3b6d99d350
