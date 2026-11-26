@@ -63,43 +63,6 @@ index 0000000000000000000000000000000000000000..5962851834cb75c6bed1be7037266be9
 +        "usr/bin/wait_for_loopback.py",
 +    ]},
 +)
-diff --git a/Cargo.lock b/Cargo.lock
-index bf13aa974a99c822a403913f2fd81a3254b1fa65..41e7d3680c4b796ce44acec9136ce470929adb8c 100644
---- a/Cargo.lock
-+++ b/Cargo.lock
-@@ -2284,7 +2284,7 @@ dependencies = [
- [[package]]
- name = "swss-common"
- version = "0.1.0"
--source = "git+https://github.com/sonic-net/sonic-swss-common.git?branch=master#e67092c38fea4d487f856202a4e8e7521e1207fc"
-+source = "git+https://github.com/securely1g/sonic-swss-common.git?rev=334389eae54afd1f4f5ee69f89c3a7ad2062ee61#334389eae54afd1f4f5ee69f89c3a7ad2062ee61"
- dependencies = [
-  "bindgen",
-  "getset",
-@@ -2319,7 +2319,7 @@ dependencies = [
- [[package]]
- name = "swss-common-testing"
- version = "0.1.0"
--source = "git+https://github.com/sonic-net/sonic-swss-common.git?branch=master#e67092c38fea4d487f856202a4e8e7521e1207fc"
-+source = "git+https://github.com/securely1g/sonic-swss-common.git?rev=334389eae54afd1f4f5ee69f89c3a7ad2062ee61#334389eae54afd1f4f5ee69f89c3a7ad2062ee61"
- dependencies = [
-  "lazy_static",
-  "rand",
-diff --git a/Cargo.toml b/Cargo.toml
-index 0d681d91ed52c11ae042a6e1532818371540e053..e6796b1e5b2ac94e8214c4f187a0412bd989cd16 100644
---- a/Cargo.toml
-+++ b/Cargo.toml
-@@ -100,8 +100,8 @@ swss-serde = { version = "0.1.0", path = "crates/swss-serde" }
- swbus-actor = { version = "0.1.0", path = "crates/swbus-actor" }
- sonicdb-derive = { version = "0.1.0", path = "crates/sonicdb-derive" }
- sonic-dash-api-proto = { version = "0.1.0", path = "crates/sonic-dash-api-proto" }
--swss-common = { git = "https://github.com/sonic-net/sonic-swss-common.git", branch = "master" }
--swss-common-testing = { git = "https://github.com/sonic-net/sonic-swss-common.git", branch = "master" }
-+swss-common = { git = "https://github.com/securely1g/sonic-swss-common.git", rev = "334389eae54afd1f4f5ee69f89c3a7ad2062ee61" }
-+swss-common-testing = { git = "https://github.com/securely1g/sonic-swss-common.git", rev = "334389eae54afd1f4f5ee69f89c3a7ad2062ee61" }
- 
- # Dev dependencies
- criterion = "0.5"
 diff --git a/bazel/BUILD.bazel b/bazel/BUILD.bazel
 new file mode 100644
 index 0000000000000000000000000000000000000000..4a5c90ccbfe1428a1e9c0f3753a654b29336abf1
