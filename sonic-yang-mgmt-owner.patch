@@ -2,7 +2,7 @@ Complete registry entry comparison for sonic-yang-mgmt.
 The archived registration remains immutable.
 
 Published 78f8757b1cb9be33ffe9ce804f5ef104f3a0a47c / 1.0.0-9ab452d22773c41783092ae3bd6c206d6c257c8d
-Candidate 4004b4f8d1f1d4131bd7eb453edc00592997ae54 / 1.0.1-9eb076efcaaea765cd8c72deca6f741528b68e68
+Candidate c22e93de9797364ea82dd1e7f7aa3bf3dae037a4 / 1.0.1-9eb076efcaaea765cd8c72deca6f741528b68e68
 Source https://github.com/securely1g/sonic-buildimage/compare/9ab452d22773c41783092ae3bd6c206d6c257c8d...9eb076efcaaea765cd8c72deca6f741528b68e68
 
 From a clean clone of https://github.com/securely1g/sonic-bazel-registry, save this patch separately and run:
@@ -15,7 +15,7 @@ git apply --check --index /path/to/sonic-yang-mgmt-owner.patch
 git apply --index /path/to/sonic-yang-mgmt-owner.patch
 git write-tree
 
-The expected tree is ae79ed24efd57fcfffd35e5f1e0adf2ab8cc0e2d.
+The expected tree is 8c069bce8c05ad25bff55804ded46ec5e5bb3cda.
 
 diff --git a/modules/sonic-yang-mgmt/1.0.1-9eb076efcaaea765cd8c72deca6f741528b68e68/MODULE.bazel b/modules/sonic-yang-mgmt/1.0.1-9eb076efcaaea765cd8c72deca6f741528b68e68/MODULE.bazel
 index fbc3c093b6beed0fa6a72391fb9bca1dd1de6745..e495ee02c5e445e3a458dc9aa00b11a71e0d8eb2 100644
@@ -345,10 +345,10 @@ index 0000000000000000000000000000000000000000..a78089a00447d0f98fa714e5b2929c01
 ++    version = "1.0.1-9eb076efcaaea765cd8c72deca6f741528b68e68",
 + )
 diff --git a/modules/sonic-yang-mgmt/1.0.1-9eb076efcaaea765cd8c72deca6f741528b68e68/presubmit.json b/modules/sonic-yang-mgmt/1.0.1-9eb076efcaaea765cd8c72deca6f741528b68e68/presubmit.json
-index 6ed5c95e78186671e03dad00bbf3085c67ca4830..28ffb14cb93835487dedfb304a7fcd52856b312d 100644
+index 6ed5c95e78186671e03dad00bbf3085c67ca4830..66483ff66eb58ee84af9f7b2ae368a6a8cb471b5 100644
 --- a/modules/sonic-yang-mgmt/1.0.1-9eb076efcaaea765cd8c72deca6f741528b68e68/presubmit.json
 +++ b/modules/sonic-yang-mgmt/1.0.1-9eb076efcaaea765cd8c72deca6f741528b68e68/presubmit.json
-@@ -3,22 +3,21 @@
+@@ -3,22 +3,25 @@
      "amd64",
      "arm64"
    ],
@@ -377,6 +377,10 @@ index 6ed5c95e78186671e03dad00bbf3085c67ca4830..28ffb14cb93835487dedfb304a7fcd52
      "@sonic-yang-mgmt//:sonic_yang_mgmt_runtime_test"
 -  ]
 +  ],
++  "host_platforms": {
++    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
++    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
++  },
 +  "integration_test_module": "integration"
  }
 diff --git a/modules/sonic-yang-mgmt/1.0.1-9eb076efcaaea765cd8c72deca6f741528b68e68/source.json b/modules/sonic-yang-mgmt/1.0.1-9eb076efcaaea765cd8c72deca6f741528b68e68/source.json
