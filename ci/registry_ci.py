@@ -47,6 +47,16 @@ assert _GITHUB_SPEC is not None and _GITHUB_SPEC.loader is not None
 github_sources = importlib.util.module_from_spec(_GITHUB_SPEC)
 _GITHUB_SPEC.loader.exec_module(github_sources)
 P4_MODULES = {"p4c", "p4lang-bmv2", "sonic-dash", "sonic-pins"}
+# Module and target pairs that exhaust memory on the standard 6 GiB runner.
+LARGE_RUNNER_TARGETS = {
+    ("sonic-build-infra", "arm64"),
+    ("sonic-dash-ha", "amd64"),
+    ("sonic-linux-kernel", "arm64"),
+    ("sonic-sairedis", "arm64"),
+    ("sonic-swss", "amd64"),
+    ("sonic-swss", "arm64"),
+    ("sonic-swss-common", "arm64"),
+}
 RUNNERS = {
     "amd64": ["self-hosted", "Linux", "X64", "debian-trixie-container"],
     "arm64": ["ubuntu-24.04-arm"],
@@ -683,10 +693,12 @@ def check_version_policy(root: Path, published: str, head: str,
     return published_entries, aligned_entries
 
 
-def module_runner(module: str, execution_architecture: str, p4_runner_profile: str) -> list[str]:
+def module_runner(module: str, execution_architecture: str, p4_runner_profile: str, *,
+                  target_architecture: str | None = None) -> list[str]:
     """Choose capacity after the target's native/cross route has been determined."""
     # Compiling the collector's DataDog API client exceeds the standard 6 GiB slot.
-    large = module == "otelcol-contrib" or (module in P4_MODULES and p4_runner_profile == "large")
+    large = (module == "otelcol-contrib" or (module, target_architecture) in LARGE_RUNNER_TARGETS
+             or (module in P4_MODULES and p4_runner_profile == "large"))
     if large and execution_architecture == "amd64":
         return ["self-hosted", "Linux", "X64", "debian-trixie-container-large"]
     return RUNNERS[execution_architecture]
@@ -826,7 +838,7 @@ def plan(root: Path, base: str | None, head: str | None, all_versions: bool = Fa
         for architecture in config["architectures"]:
             include.append({"module": module, "version": version, "architecture": architecture,
                             "execution_architecture": "amd64", "cross_compile": architecture == "arm64",
-                            "runner": module_runner(module, "amd64", p4_runner_profile)})
+                            "runner": module_runner(module, "amd64", p4_runner_profile, target_architecture=architecture)})
     return {"include": include}
 
 
@@ -1875,9 +1887,10 @@ def cross_test_timeout_flags(module: str, version: str, cross_compile: bool, fla
     """Supply emulation budgets for short, moderate, long and eternal tests."""
     if not cross_compile or any(flag == "--test_timeout" or flag.startswith("--test_timeout=") for flag in flags):
         return []
-    # BMv2 inspects runtime/debug archives and Sairedis runs two sequential
-    # saiasiccmp comparisons under QEMU; both exceed the 900-second budget.
-    moderate_seconds = 2700 if module in {"p4lang-bmv2", "sonic-sairedis"} else 900
+    # Runtime tools, package checks and comparisons in these suites can take
+    # more than 900 seconds when executed through QEMU.
+    longer_moderate = {"p4lang-bmv2", "sonic-build-infra", "sonic-sairedis", "sonic-swss-common"}
+    moderate_seconds = 2700 if module in longer_moderate else 900
     # The FIPS package test runs the complete SymCrypt unittest under QEMU.
     long_seconds = 5400 if (module == "sonic-fips" and version in FIPS_CROSS_VERSIONS) else 2700
     return [f"--test_timeout=180,{moderate_seconds},{long_seconds},7200"]

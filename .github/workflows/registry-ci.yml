@@ -118,6 +118,7 @@ jobs:
               "${POLICY_FLAGS[@]}" --head "$HEAD_SHA" --latest --output plan.json 2>&1 | tee -a plan.log
           fi
           python3 - <<'PY'
+          import inspect
           import json
           import os
           from pathlib import Path
@@ -129,10 +130,13 @@ jobs:
           matrix = json.loads(Path("plan.json").read_text())
           routes = {("amd64", "amd64", False), ("arm64", "amd64", True)}
           identities = set()
+          # A PR head may still use the planner that selected capacity by host only.
+          target_aware = "target_architecture" in inspect.signature(module_runner).parameters
           for job in matrix["include"]:
               route = (job.get("architecture"), job.get("execution_architecture"), job.get("cross_compile"))
+              target = {"target_architecture": route[0]} if target_aware else {}
               if (type(job.get("cross_compile")) is not bool or route not in routes
-                      or job.get("runner") != module_runner(job["module"], route[1], os.environ["P4_RUNNER_PROFILE"])):
+                      or job.get("runner") != module_runner(job["module"], route[1], os.environ["P4_RUNNER_PROFILE"], **target)):
                   raise SystemExit("Unsupported execution route in validation plan")
               identity = (job["module"], job["version"], job["architecture"])
               if identity in identities:
