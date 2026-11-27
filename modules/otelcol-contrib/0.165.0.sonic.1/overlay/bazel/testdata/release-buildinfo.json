@@ -1,0 +1,5502 @@
+{
+  "Deps": [
+    {
+      "Path": "cel.dev/expr",
+      "Sum": "h1:A2jO8jwOugrrovveCWfj0KEZOfqiLgAcwjpHPhzIGw0=",
+      "Version": "v0.25.3"
+    },
+    {
+      "Path": "cloud.google.com/go",
+      "Sum": "h1:2NAUJwPR47q+E35uaJeYoNhuNEM9kM8SjgRgdeOJUSE=",
+      "Version": "v0.123.0"
+    },
+    {
+      "Path": "cloud.google.com/go/auth",
+      "Sum": "h1:NTmd2iJb4DsGIav0KiqFMYI88nMshA2wnFMBatRmoCs=",
+      "Version": "v0.24.1"
+    },
+    {
+      "Path": "cloud.google.com/go/auth/oauth2adapt",
+      "Sum": "h1:BKLDdbWS7pafd820dsyFDF6fPEzIGqr7ny6hbTzCCgE=",
+      "Version": "v0.3.1"
+    },
+    {
+      "Path": "cloud.google.com/go/compute",
+      "Sum": "h1:YBkIwOkln5tNhGaxw7ZVyn3jOPnJ+RZsdfRa6cFGq+k=",
+      "Version": "v1.74.1"
+    },
+    {
+      "Path": "cloud.google.com/go/compute/metadata",
+      "Sum": "h1:pyKMUQSwchgkIBBJGdILqQbs/BNJXqwSA7Ej6LAvvtY=",
+      "Version": "v0.10.0"
+    },
+    {
+      "Path": "cloud.google.com/go/iam",
+      "Sum": "h1:YRIB1/4xxwJ+NfI6RQr1WaOoHHeV0MizJEj940nBXJA=",
+      "Version": "v1.14.0"
+    },
+    {
+      "Path": "cloud.google.com/go/logging",
+      "Sum": "h1:l7yzCB8/JSY5PHT9RsaqdT1jaBGbM6KlSJDX210HlXM=",
+      "Version": "v1.20.0"
+    },
+    {
+      "Path": "cloud.google.com/go/longrunning",
+      "Sum": "h1:lZ6c8SJJBmILp/Wnr3vGnBLa0q+cYfSHRCcUfVI2hpI=",
+      "Version": "v1.3.0"
+    },
+    {
+      "Path": "cloud.google.com/go/monitoring",
+      "Sum": "h1:DzNqsbCCyMJ+Oq+McBHaR5qqqxCvdNCIgfJug/YM0Ys=",
+      "Version": "v1.32.1"
+    },
+    {
+      "Path": "cloud.google.com/go/pubsub/v2",
+      "Sum": "h1:mDGFPDisDUcv0fEkiYQX+BRbenlzdnV6BdH2eb9YQ/M=",
+      "Version": "v2.8.0"
+    },
+    {
+      "Path": "cloud.google.com/go/secretmanager",
+      "Sum": "h1:i7GMED6jHSJS72VQbwyBsEw+vsHKbI18MJFEZ33t9N0=",
+      "Version": "v1.23.1"
+    },
+    {
+      "Path": "cloud.google.com/go/spanner",
+      "Sum": "h1:pLmq5/Fj+Yu6YGRBz9oMPm3ZRQIeG14FYBWFwhZZaIA=",
+      "Version": "v1.96.1"
+    },
+    {
+      "Path": "cloud.google.com/go/storage",
+      "Sum": "h1:LQNHn0rRF94jVFfF3e416IzdQqIufa5GfF6HilQxb80=",
+      "Version": "v1.70.0"
+    },
+    {
+      "Path": "cloud.google.com/go/trace",
+      "Sum": "h1:GmQovzFc5F0CNfl0VLgL64aoTtu7xsM0YajW2GlG9+E=",
+      "Version": "v1.16.0"
+    },
+    {
+      "Path": "code.cloudfoundry.org/clock",
+      "Sum": "h1:5eeuG0BHx1+DHeT3AP+ISKZ2ht1UjGhm581ljqYpVeQ=",
+      "Version": "v0.0.0-20180518195852-02e53af36e6c"
+    },
+    {
+      "Path": "code.cloudfoundry.org/go-diodes",
+      "Sum": "h1:4Lj5tSZsoT1Fn98SdQHt4pjaUeopFH7/7pFHpuMJCyM=",
+      "Version": "v0.0.0-20241007161556-ec30366c7912"
+    },
+    {
+      "Path": "code.cloudfoundry.org/go-loggregator",
+      "Sum": "h1:KqZYloMQWM5Zg/BQKunOIA4OODh7djZbk48qqbowNFI=",
+      "Version": "v7.4.0+incompatible"
+    },
+    {
+      "Path": "code.cloudfoundry.org/rfc5424",
+      "Sum": "h1:mrZQaZmuDIPhSp6b96b+CRKC2uH44ifa5cjDV2epKis=",
+      "Version": "v0.0.0-20201103192249-000122071b78"
+    },
+    {
+      "Path": "filippo.io/edwards25519",
+      "Sum": "h1:crnVqOiS4jqYleHd9vaKZ+HKtHfllngJIiOpNpoJsjo=",
+      "Version": "v1.2.0"
+    },
+    {
+      "Path": "github.com/AlessandroPomponio/go-gibberish",
+      "Sum": "h1:cKIHT8I2mrmw/VgdyNeACP/AvetK8AgGsiRfOC3ZjmQ=",
+      "Version": "v0.0.0-20191004143433-a2d4156f0396"
+    },
+    {
+      "Path": "github.com/Arize-ai/openinference/go/openinference-semantic-conventions",
+      "Sum": "h1:j1jQ+k8tx32cvSVk5W7W9KdDIePyC72ah3DhPKiKaGk=",
+      "Version": "v0.1.12"
+    },
+    {
+      "Path": "github.com/AthenZ/athenz",
+      "Sum": "h1:h/QD55Iz4kV5GWvWF9HQQzib0XPrECPLEl/FTV0mAP0=",
+      "Version": "v1.12.27"
+    },
+    {
+      "Path": "github.com/Azure/azure-kusto-go/azkustodata",
+      "Sum": "h1:N0wIf3Yg5hy2ZFoJbQG2oSsZ9SaUkC28UuqdgOMiNEg=",
+      "Version": "v1.2.2"
+    },
+    {
+      "Path": "github.com/Azure/azure-kusto-go/azkustoingest",
+      "Sum": "h1:+wnhIqoQbEgyyGTWAGbQRkwuNwJFhiCE07CEg/p889s=",
+      "Version": "v1.2.2"
+    },
+    {
+      "Path": "github.com/Azure/azure-sdk-for-go/sdk/azcore",
+      "Sum": "h1:qgnWTiWs1G7AqcKZegFvkJD1bmXJcaDU3uC0ELSgZ5U=",
+      "Version": "v1.23.3"
+    },
+    {
+      "Path": "github.com/Azure/azure-sdk-for-go/sdk/azidentity",
+      "Sum": "h1:w3gDUJlJ0BfBsHH02DCBDwbkmMSXJqBj6nBOCo9iocY=",
+      "Version": "v1.15.0"
+    },
+    {
+      "Path": "github.com/Azure/azure-sdk-for-go/sdk/data/aztables",
+      "Sum": "h1:j0hhYS006eJ54vusoap0f2NVZ1YY3QnaAEnLM68f0SQ=",
+      "Version": "v1.4.1"
+    },
+    {
+      "Path": "github.com/Azure/azure-sdk-for-go/sdk/internal",
+      "Sum": "h1:Terj1CMW4+NY5CpWjSRkqLoxh2DkYDdv/FH2z0897Uc=",
+      "Version": "v1.13.0"
+    },
+    {
+      "Path": "github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs/v2",
+      "Sum": "h1:EBiOwZYJUMsjLGJ9x0oNY6ADf+5915P/jhhVcn42KXc=",
+      "Version": "v2.0.2"
+    },
+    {
+      "Path": "github.com/Azure/azure-sdk-for-go/sdk/monitor/query/azmetrics",
+      "Sum": "h1:blbWEpcsg2EFqXe64sRPdWPKnLWm0fPY4iHyo4MoHVM=",
+      "Version": "v1.3.0"
+    },
+    {
+      "Path": "github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v8",
+      "Sum": "h1:9fxsQhv25YpYDqNV4EIuEOJWInhrJX0I2DS5kOaHLlo=",
+      "Version": "v8.3.0"
+    },
+    {
+      "Path": "github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/monitor/armmonitor",
+      "Sum": "h1:c7r8eBbYWf2JbQFinuEbHsqq+ukY1tVIgAxt0uND2Fo=",
+      "Version": "v0.13.0"
+    },
+    {
+      "Path": "github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v8",
+      "Sum": "h1:7QO7GhGat25QEYL4h607O9zNNTUlAv8PbSesW6Ol5Gg=",
+      "Version": "v8.0.0"
+    },
+    {
+      "Path": "github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources/v4",
+      "Sum": "h1:LXGvNeGX6VLx1S+wk3bbWrYWZuVow84Mny4T1I0CgBw=",
+      "Version": "v4.0.0"
+    },
+    {
+      "Path": "github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armsubscriptions/v2",
+      "Sum": "h1:TPaLKUUZw3XUaQy5aU+ApHXFKB2VnTWUA0xufkvFDE8=",
+      "Version": "v2.0.0"
+    },
+    {
+      "Path": "github.com/Azure/azure-sdk-for-go/sdk/storage/azblob",
+      "Sum": "h1:tQJdgQjbKKffEiMOKJmcQPkY01eFHRqWIZVefqP44nI=",
+      "Version": "v1.8.2"
+    },
+    {
+      "Path": "github.com/Azure/azure-sdk-for-go/sdk/storage/azqueue",
+      "Sum": "h1:qvrrnQ2mIjwY7IVlQuNB0ma43Nr74+9ZTZJ60KlmlV4=",
+      "Version": "v1.0.1"
+    },
+    {
+      "Path": "github.com/Azure/azure-sdk-for-go/sdk/storage/internal",
+      "Sum": "h1:X/bTwe0qpvmvPPutc+LWo7T4cKMqDP9JHP4k+Co9ZB4=",
+      "Version": "v0.1.0"
+    },
+    {
+      "Path": "github.com/Azure/go-amqp",
+      "Sum": "h1:9VlH/LEWr386XWWJRNON0eslFqSClYBXP4HewvIqkDQ=",
+      "Version": "v1.7.0"
+    },
+    {
+      "Path": "github.com/AzureAD/microsoft-authentication-library-for-go",
+      "Sum": "h1:0O6j18nQDoIff6/mtosT5LNU2WehEwp+LqfX6699oqY=",
+      "Version": "v1.10.1"
+    },
+    {
+      "Path": "github.com/BurntSushi/toml",
+      "Sum": "h1:dRaEfpa2VI55EwlIW72hMRHdWouJeRF7TPYhI+AUQjk=",
+      "Version": "v1.6.0"
+    },
+    {
+      "Path": "github.com/ClickHouse/ch-go",
+      "Sum": "h1:jsHiGRbQ3sz+gekvDFJF29LWDo5dzbJm5s1h8TWVP2M=",
+      "Version": "v0.73.0"
+    },
+    {
+      "Path": "github.com/ClickHouse/clickhouse-go/v2",
+      "Sum": "h1:ZDAzrnKSOPTIsm4tdUNfrii2yc8dk4SVRLC77BR7Z5Q=",
+      "Version": "v2.47.0"
+    },
+    {
+      "Path": "github.com/Code-Hex/go-generics-cache",
+      "Sum": "h1:6vhZGc5M7Y/YD8cIUcY8kcuQLB4cHR7U+0KMqAA0KcU=",
+      "Version": "v1.5.1"
+    },
+    {
+      "Path": "github.com/DataDog/agent-payload/v5",
+      "Sum": "h1:PVci8YOjgLL+AH+XXXvq5OXgshpaq8BhWxqNXr1pWp8=",
+      "Version": "v5.0.215"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/comp/api/api/def",
+      "Sum": "h1:D2JGsE5P7bqtP0zodaHnvDED3EnB7Q7ioRJbVEJep2w=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/comp/core/config",
+      "Sum": "h1:e8Ep2JhNr14frENAbG5/ZlGst4FxM1OyBYCHTkKeht4=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/comp/core/configstreamconsumer/def",
+      "Sum": "h1:zK5VTlCZteGpZYL60T/A3vlyS4OqXQnegyECduTKMj4=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/comp/core/delegatedauth",
+      "Sum": "h1:NiOSyJ5A/nqiCFU5YzNzHiZXHsZGKBagWaoI0LwtFkk=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/comp/core/flare/builder",
+      "Sum": "h1:jxhRL5SdajrNwoEIRXqDY6RjLJaB1VcRf2TZa6W3x7Q=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/comp/core/flare/types",
+      "Sum": "h1:BOHLmHErL6dkVDxgnGZSguQYZ0GN6IC9tkh5cM/Q82Q=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/comp/core/hostname/hostnameinterface/def",
+      "Sum": "h1:2pJWTStZLhTYw1A989favtlmwXsum561ZQGYmrNftyI=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/comp/core/log/def",
+      "Sum": "h1:QJZJEL3lR+/wwjLbNrLkp21VpZW2R64IpLzNHIxqxUg=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/comp/core/secrets/def",
+      "Sum": "h1:jfIh7rR0qPpg+ztjrkLr0Sjx5fOVrpr5vOKvWDtWqCs=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/comp/core/secrets/noop-impl",
+      "Sum": "h1:j4GwDMc5yfszQy3x+IaI/SNXP5zcgoMFvjkuHImhyAA=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/comp/core/status",
+      "Sum": "h1:fZlyFkCBklJ4kNSWDfqdgWakXfXUPlk4u81eOMCt4T0=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/comp/core/tagger/def",
+      "Sum": "h1:ms0WEDHqxQ8oCmPFdHrDxHBvw+tz/YVIIownxSyZfRU=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/comp/core/tagger/origindetection",
+      "Sum": "h1:kXsdMrkiP5uOGpIYhDZq7ab/DeyRDVN5Q0N68HMlSZg=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/comp/core/tagger/tags",
+      "Sum": "h1:Q5vbbZFNhvy7B1amTsTxU11BFKq0Kq/NmZgctdGftiA=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/comp/core/tagger/types",
+      "Sum": "h1:7QtjIj1C1WeOnGYV81Tbqg/WLMkLknvQzN3JYdaXM4A=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/comp/core/tagger/utils",
+      "Sum": "h1:+xCGP4Nh9IUpBjztL/wbcI31DYWHEhyYPiTQ3G8F1Ts=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/comp/core/telemetry",
+      "Sum": "h1:Yl50ii0vYLOFTSe56mnf2Us8mrJh/dEmQZo1SXBMvzk=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/comp/def",
+      "Sum": "h1:mEKrpWeoECXhhWYtqXvobxwqiw8HfH/XSxHt5cicwuw=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/comp/forwarder/defaultforwarder",
+      "Sum": "h1:kzgk3Wj9/VrvHUTuzXKob9Moq50IhwqRydj9AwemiZY=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/comp/forwarder/orchestrator/orchestratorinterface",
+      "Sum": "h1:U+AXWSPlaA7HWle2owykVzap+uOPwuFmmDx3z1LtrdE=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/comp/logs-library",
+      "Sum": "h1:YuN934lmmC7ie5tQp8438Bekv97+bcJ/WccYskpWSXI=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/comp/logs/agent/config",
+      "Sum": "h1:ykox5P4j0/wuURUPG5T+vi2TbakB2R6GukFmGX0yNmE=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/comp/otelcol/logsagentpipeline",
+      "Sum": "h1:25RxPtziR7asFUt96L5b4mqxiIiuAffV8F57JXVT2SI=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/comp/otelcol/logsagentpipeline/logsagentpipelineimpl",
+      "Sum": "h1:k3VZH6gU552i5uN68otJpSeb4GMBu99Wd2sVNxaV+Tk=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/comp/otelcol/otlp/components/datadogconfig",
+      "Sum": "h1:zHXUU5nzMG/RM3+fayRDM7z2ruE3rAaqYSf8oz+QjrA=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/comp/otelcol/otlp/components/exporter/logsagentexporter",
+      "Sum": "h1:BTpG8RRb5HgW5NrvGFmYMIpf9mEQtcPMKX21QsW1OQY=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/comp/otelcol/otlp/components/exporter/serializerexporter",
+      "Sum": "h1:Md4NKlkfqP6VZtii55G+lntFYL8IiD0caVGCOacdpug=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/comp/otelcol/otlp/components/metricsclient",
+      "Sum": "h1:HK8RRXlAtfzD1prg2N9eXJQ00xrr/T1Qy2JUZsfZUYI=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/comp/serializer/logscompression",
+      "Sum": "h1:BPt9Ek4FAxB/Ly5C0/AUwv5SzyADOnGGt0hZOpQDGMs=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/comp/serializer/metricscompression",
+      "Sum": "h1:iHxcx/UF7UUCu8cILV1LEIGiyGQ2k3iGKYdFQrBFiMg=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/comp/trace/compression/def",
+      "Sum": "h1:/EaIaUYRqVeVIJ2G3474wef6AcIkHXb0BxYBAwevHnA=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/comp/trace/compression/impl-gzip",
+      "Sum": "h1:2isXRLDRAoX1FXhtIfIvyyyCwrGvhIVUTB2XeuuDZZ4=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/aggregator/ckey",
+      "Sum": "h1:naqCoRaCwOTIWIbl2OdyJHu+kJQUo3ne0/na8G74lhI=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/api",
+      "Sum": "h1:Z9IU3VrzdBQum1Wjj2H7+0pyUZ3IT/zYmZv9xljnYVA=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/config/basic",
+      "Sum": "h1:b4WAqlyIgXFR/dOBml6KVeqcHW7a+W0uMVycfxwP8UQ=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/config/create",
+      "Sum": "h1:i2gJfcFGqdXT94l16qL+p7oH1bZ7MvdjFWs0INZfGjY=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/config/env",
+      "Sum": "h1:R5ZNErHCYpQzfPwfzJFNgXes8ERufq3k84SoJqrK5mE=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/config/helper",
+      "Sum": "h1:rXcLYAo/y9Ubpb+r/KJCrKiHQsc+p/dzWd4zWLpqQ8Q=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/config/model",
+      "Sum": "h1:8xjfwcobOTcwke1RvqmMI5iPeUSm/n8WJmstdg8TpYg=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/config/nodetreemodel",
+      "Sum": "h1:2Cax0NJb4uErt/gKq3Vm/CkIlCGg5JhH+0eXPPQCyeI=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/config/setup",
+      "Sum": "h1:qCxuDYniEiopLps4NnEKF/bHUFp0NwFixR9SiatD3Mc=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/config/setup/constants",
+      "Sum": "h1:TEO1nhiO5YiZySjnNTPWvpR3Qwbz8dmhZFe0iMmXmho=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/config/setup/generatedsettings",
+      "Sum": "h1:CJzDTYwPmFEqaDDiVkAK/eX6vqWbocDJGckrqhl7q0A=",
+      "Version": "v0.0.0-20261028224924-1c255663adbd"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/config/structure",
+      "Sum": "h1:O624uas31mJ9IRHSw0wDK+TaUSgYslf7bYuQ/wU5ZAg=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/config/utils",
+      "Sum": "h1:MEW21p+5zcZfprlm9loSmqxUqR8UvCEXMHpSjclEMR4=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/fips",
+      "Sum": "h1:HEhvwEIFAYIfsBB3Bi9tDLnS+5cSYUULVgVtHmevS2U=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/logs/message",
+      "Sum": "h1:VpbqT7kudPhnsT/Uit6M9recsHab1MtnzQJI1KSY8o0=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/logs/sources",
+      "Sum": "h1:PXbdWBrQ1iJxXun72vJubDSz1ZBb+jDEJkLggQfcQ8g=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/logs/status/statusinterface",
+      "Sum": "h1:9KRsfssYmfSICC1akgbG6Oqf1l+eeh5hMRit6dkXHzA=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/logs/status/utils",
+      "Sum": "h1:+eq6tZT7S3HZPfGMKxzXMZlI79R/1S9/xITC/gfflE8=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/logs/types",
+      "Sum": "h1:Rr/x45cieaTjDRc7Zvhx0N3FAQEXm+VP70mQFDJ3FJ4=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/metrics",
+      "Sum": "h1:RlrkC/+WxpYe2W2NMExO6CQEecLPy/lMCHibOxwzHwE=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/obfuscate",
+      "Sum": "h1:Ypj4dgXeKrxev81MpgtoauyDjXknp39dkKxvDlPn/ug=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/opentelemetry-mapping-go/inframetadata",
+      "Sum": "h1:U6VqO3CbFpX4kWwIUm5koJyDxmnaeESis+AItyNT/i4=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/opentelemetry-mapping-go/otlp/attributes",
+      "Sum": "h1:t32yN2kETIos7n/p5+lQLqVPOMyL+0xrh6nsd2yFeF8=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/opentelemetry-mapping-go/otlp/logs",
+      "Sum": "h1:YbfLddm1eRVv0OOp1JwmcaZvZn7kCbC9cNZAWjC/aT0=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/opentelemetry-mapping-go/otlp/metrics",
+      "Sum": "h1:BUVyNvg7Up7cd4dpDBXYpfEOijkXxBIhnoi1dnekPqk=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/opentelemetry-mapping-go/otlp/rum",
+      "Sum": "h1:ki4DUIrrLuNtLmrI9SVVvST++iEP9e9uhvCt/84HROE=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/orchestrator/model",
+      "Sum": "h1:IDEs5rArDv86TIQRxX6M8vqg5asLofclrFtPZnblIZA=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/orchestrator/util",
+      "Sum": "h1:igs9cngWNtgoQ0HdFo8pOPxkiaSU9QwRDJekNxaj4mY=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/process/util/api",
+      "Sum": "h1:DKvjHTwqbbNtbJd/LJKTwPya0ujLLrzpfui9rp6vc+4=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/proto",
+      "Sum": "h1:TYcbV2JHMaL8fULzMYx/7XmKy3mkzNmWghadjMKdh4s=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/remoteconfig/state",
+      "Sum": "h1:XJMjevvIxrF4f6ekCVhKcyNf4c2Pxd5yjwS5DlylU/Q=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/serializer",
+      "Sum": "h1:HREBvQ4rBMsk7WrewFvlZ8uOlojVsVOBleFSM1/XUp4=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/status/health",
+      "Sum": "h1:JPtQhdklcSZeZhkVtKgwiPR1Og8Q8S5jboJapmGGS9w=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/tagger/types",
+      "Sum": "h1:xGr+MXo501j+XRZNJvZRUdJvZmbb+PTGo6EuzmY3kBw=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/tagset",
+      "Sum": "h1:T/QH97u4kydKH2cshA9HfmUbM9n5GvqI4uSVFCIBzQk=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/template",
+      "Sum": "h1:OPgsKtpA5alVIIHNI9oyvtZN93+dzE7rXOiEptbTvkM=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/trace",
+      "Sum": "h1:KO2+kdnz6Yp8sDGzKJElPJtZtKHIu4qm7B1tEwIcxrA=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/trace/log",
+      "Sum": "h1:N5MqZgwy5xuoVgwygio9mLnlLtGvojuxeMqwb337V7M=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/trace/otel",
+      "Sum": "h1:VMLp98H4KU6ch45idrvj2IpGfK4lqmCgHuTN/lxlNQY=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/trace/stats",
+      "Sum": "h1:g+amwNwG68x6qK8AT+tamFiJgKX4uMHn7DIog7vDgUY=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/trace/traceutil",
+      "Sum": "h1:f0qHBTF+QQRURvR6gmI34/yBbsawGWoze6Qxk8ZLBYk=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/util/backoff",
+      "Sum": "h1:O5haAuUVs29YsaYWcqtISF81qfpzQRItOpC5cdhyNUU=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/util/buf",
+      "Sum": "h1:B8pZchmQPAM6WoihmbpbvuZJtKhgoBrP+ZhQXJld4jk=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/util/cgroups",
+      "Sum": "h1:hs4Pgaw3jnoSqRySuCo4Y1rF8B4wDcGVkzFdhQ/eK5I=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/util/compression",
+      "Sum": "h1:IKm4cAldveXIGqnSZKvTR+oxaP65PCcTwBS21t6dNXA=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/util/defaultpaths",
+      "Sum": "h1:LoYydqNSajx6oK0gcrf504Su6sio19D2FHsJzQy86eU=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/util/executable",
+      "Sum": "h1:RdAav7rW1E0PHyJ5lpw+eVvZmbzf1iGysoTJnepw9lo=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/util/filesystem",
+      "Sum": "h1:x6OTA1hMhZ3//Yw+68IsA0xE1GRKjDlzma57E4wVBjI=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/util/fxutil",
+      "Sum": "h1:DnFvJmjjHfNHBaQ05C8IFlrODoAIx1HTvz/g60+kjoQ=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/util/hostname/validate",
+      "Sum": "h1:55t+SzYnqFv2Z2XfGR8xCtYMLMWJc3xLZgwHw1Gdlew=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/util/hostport",
+      "Sum": "h1:iKN1dWSMFohH4OZUalD37W4Y8iO9ZpWv3ZneP6XnaNA=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/util/http",
+      "Sum": "h1:0iIRrK620qbo7tV5fWdc1z3wGqHr44c+jbxIO56nkhQ=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/util/json",
+      "Sum": "h1:+UHMnIra1mD+BYsA/AMcisNqrZQbg4l1s77YGqquKJU=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/util/log",
+      "Sum": "h1:XWjtmsl0VlVkErgf8/sbM45i2lnqFkurSdOEOgFi8SE=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/util/option",
+      "Sum": "h1:f2rG7ICV12sObtRk9xtcpU15/ZxV24Ztwa04RfEre7A=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/util/otel",
+      "Sum": "h1:uFqijKBuRD5CGEPqeN30VZS4T5HCbnpvNSrldScJmMk=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/util/pointer",
+      "Sum": "h1:rk62eiNgKqAFyTow0gkazAmLLbBOsgPmsJM6VLfpP/M=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/util/quantile",
+      "Sum": "h1:Gmc34DQ7ifZr+0rmK5vrSv0WqyxgNyVqvhQTB05sPcY=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/util/scrubber",
+      "Sum": "h1:qCBC/9XAzk1gRD+toK7VjReZh11hPDJLGX5v0v3/2kQ=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/util/sort",
+      "Sum": "h1:tTLcMPppEUJzGhasfG/PachsLyLz7t3Phu5VLAzvKwc=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/util/startstop",
+      "Sum": "h1:SFazILb3jmDw0t0Ynexqsa7bfhZhGjQgkf2C4NkYOCc=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/util/statstracker",
+      "Sum": "h1:moGudRecsd6tne+Gi/sUT723nVBdIr8yOcMiZH0q5x0=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/util/system",
+      "Sum": "h1:huG3t13/ycPOh/Bwki1+l3aLjWqs4oGF+89WI7QmI00=",
+      "Version": "v0.84.0-devel.0.20261030015547-4fcf7d423463"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-agent/pkg/version",
+      "Sum": "h1:U4h48fJHaZkuZiXk7/58NYsH2fbuQL4JjRul9j/pCHI=",
+      "Version": "v0.85.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-api-client-go/v2",
+      "Sum": "h1:fNIlvUjfCEL/wFrtXioCT+ah/o04M7475klcF97bZj0=",
+      "Version": "v2.67.0"
+    },
+    {
+      "Path": "github.com/DataDog/datadog-go/v5",
+      "Sum": "h1:jOxw/TaxGWok8RIxbpqn2p3RzSnQr/m3Q6TgaHqqOU0=",
+      "Version": "v5.9.1"
+    },
+    {
+      "Path": "github.com/DataDog/go-sqllexer",
+      "Sum": "h1:ZRwIYWbM3V2zPNlicUAumXabcitpC6JvWs9jUQS90Tk=",
+      "Version": "v0.2.6"
+    },
+    {
+      "Path": "github.com/DataDog/go-tuf",
+      "Sum": "h1:YWvghV4ZvrQsPcUw8IOUMSDpqc3W5ruOIC+KJxPknv0=",
+      "Version": "v1.1.1-0.5.2"
+    },
+    {
+      "Path": "github.com/DataDog/gohai",
+      "Sum": "h1:tXibLZk3G6HncIFJKaNItsdzcrk4YqILNDZlXPTNt4k=",
+      "Version": "v0.0.0-20230524154621-4316413895ee"
+    },
+    {
+      "Path": "github.com/DataDog/mmh3",
+      "Sum": "h1:EbzDX8HPk5uE2FsJYxD74QmMw0/3CqSKhEr6teh0ncQ=",
+      "Version": "v0.0.0-20210722141835-012dc69a9e49"
+    },
+    {
+      "Path": "github.com/DataDog/sketches-go",
+      "Sum": "h1:pFk9BNn+Rzv8IMIoPUttoOpOr3bJOqU3P6EP5wK+Lv8=",
+      "Version": "v1.4.8"
+    },
+    {
+      "Path": "github.com/DeRuina/timberjack",
+      "Sum": "h1:9RjDMSkUDQRYzwVNB/FLonXNurcZVEh9sK43m2jw3A4=",
+      "Version": "v1.4.9"
+    },
+    {
+      "Path": "github.com/GehirnInc/crypt",
+      "Sum": "h1:IEjq88XO4PuBDcvmjQJcQGg+w+UaafSy8G5Kcb5tBhI=",
+      "Version": "v0.0.0-20230320061759-8cc1b52080c5"
+    },
+    {
+      "Path": "github.com/GoogleCloudPlatform/grpc-gcp-go/grpcgcp",
+      "Sum": "h1:BzsL0qE7LvtTEtXG7Dt5NS1EP0CQwI21HZfj9aGghhw=",
+      "Version": "v1.6.0"
+    },
+    {
+      "Path": "github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp",
+      "Sum": "h1:rmzbFS2CkHq0y2L5LkMVWm+QXjjNEXxjmhrJqga/QGk=",
+      "Version": "v1.38.0"
+    },
+    {
+      "Path": "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/collector",
+      "Sum": "h1:CkqvLwtoqZB2BwLrrgpWz4MY/WHgZx60USw88L2HzNE=",
+      "Version": "v0.62.0"
+    },
+    {
+      "Path": "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/collector/googlemanagedprometheus",
+      "Sum": "h1:SsLZvQzLUJZpqCH3HA1JKTHg1fg1kcs4Y7ntlFHhavg=",
+      "Version": "v0.62.0"
+    },
+    {
+      "Path": "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric",
+      "Sum": "h1:jLdiS1vO+XJFyDSWRHBx56r4s/NNtcl5J6KyCcWUX/w=",
+      "Version": "v0.57.0"
+    },
+    {
+      "Path": "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace",
+      "Sum": "h1:Smjr+Zjtrz0GEI2AxvHxew0V1vkDlvcm+0hyArVNkKY=",
+      "Version": "v1.38.0"
+    },
+    {
+      "Path": "github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping",
+      "Sum": "h1:aPMa5qZU9dp4fU34o+jQgVIPFIOi20oxYg8TLigmZLg=",
+      "Version": "v0.62.0"
+    },
+    {
+      "Path": "github.com/HdrHistogram/hdrhistogram-go",
+      "Sum": "h1:XMJkDWuz6bM9Fzy7zORuVFKH7ZJY41G2q8KWhVGkNiY=",
+      "Version": "v1.2.0"
+    },
+    {
+      "Path": "github.com/Khan/genqlient",
+      "Sum": "h1:wtOCc8N9rNynRLXN3k3CnfzheCUNKBcvXmVv5zt6WCs=",
+      "Version": "v0.8.1"
+    },
+    {
+      "Path": "github.com/KimMachineGun/automemlimit",
+      "Sum": "h1:87PowSIJFht5TmyyZKJNR4y2v7Cm9OdCzsSMR8jXJHM=",
+      "Version": "v1.0.1"
+    },
+    {
+      "Path": "github.com/Masterminds/semver/v3",
+      "Sum": "h1:kQceYJfbupGfZOKZQg0kou0DgAKhzDg2NZPAwZ/2OOE=",
+      "Version": "v3.5.0"
+    },
+    {
+      "Path": "github.com/RaduBerinde/axisds",
+      "Sum": "h1:YItk/RmU5nvlsv/awo2Fjx97Mfpt4JfgtEVAGPrLdz8=",
+      "Version": "v0.1.0"
+    },
+    {
+      "Path": "github.com/RaduBerinde/btreemap",
+      "Sum": "h1:bsU8Tzxr/PNz75ayvCnxKZWEYdLMPDkUgticP4a4Bvk=",
+      "Version": "v0.0.0-20250419174037-3d62b7205d54"
+    },
+    {
+      "Path": "github.com/RoaringBitmap/roaring/v2",
+      "Sum": "h1:y1rdtixfXvaITKzkfiKvScI0hlBJHe9sfzJp8cgeM7w=",
+      "Version": "v2.8.0"
+    },
+    {
+      "Path": "github.com/SAP/go-hdb",
+      "Sum": "h1:T7z3WDjmWcRcwTmkaiTah4EmVKxsTdis7CVJ+vWFwn8=",
+      "Version": "v1.20.2"
+    },
+    {
+      "Path": "github.com/Showmax/go-fqdn",
+      "Sum": "h1:0rG5IbmVliNT5O19Mfuvna9LL7zlHyRfsSvBPZmF9tM=",
+      "Version": "v1.0.0"
+    },
+    {
+      "Path": "github.com/aerospike/aerospike-client-go/v8",
+      "Sum": "h1:SKcGzskEaq1ewOB8dX233hDVp/n7UXnfGG1353iez70=",
+      "Version": "v8.9.0"
+    },
+    {
+      "Path": "github.com/alecthomas/participle/v2",
+      "Sum": "h1:W/H79S8Sat/krZ3el6sQMvMaahJ+XcM9WSI2naI7w2U=",
+      "Version": "v2.1.4"
+    },
+    {
+      "Path": "github.com/alecthomas/units",
+      "Sum": "h1:mimo19zliBX/vSQ6PWWSL9lK8qwHozUj03+zLoEB8O0=",
+      "Version": "v0.0.0-20240927000941-0f3dac36c52b"
+    },
+    {
+      "Path": "github.com/aliyun/aliyun-log-go-sdk",
+      "Sum": "h1:kzrFa/BFWtsVLPj+8sneOjF9GO2NthG7Rk67SrnWLjQ=",
+      "Version": "v0.1.131"
+    },
+    {
+      "Path": "github.com/andybalholm/brotli",
+      "Sum": "h1:UgafRPGMam5ySHfRkhthMqOFA6IFoeF3D7mWIDLjG5A=",
+      "Version": "v1.2.7"
+    },
+    {
+      "Path": "github.com/antchfx/xmlquery",
+      "Sum": "h1:RRKPmhm4gZOSSqDkbNVBHC+NwbE2grfPFssBI+/zkrg=",
+      "Version": "v1.5.2"
+    },
+    {
+      "Path": "github.com/antchfx/xpath",
+      "Sum": "h1:muXJSod6jRzhsiUjvduNSxsRSptFZ2GOJ1oMD1QkPSA=",
+      "Version": "v1.3.9"
+    },
+    {
+      "Path": "github.com/apache/arrow-go/v18",
+      "Sum": "h1:Vw/i+cJyebUofT7JlqFpe65LrmwxULn166jjwStM4HY=",
+      "Version": "v18.7.0"
+    },
+    {
+      "Path": "github.com/apache/cassandra-gocql-driver/v2",
+      "Sum": "h1:lu/p0Db2av18enHJvWJQoChLssI0P+AR06STq4VdvCc=",
+      "Version": "v2.1.2"
+    },
+    {
+      "Path": "github.com/apache/pulsar-client-go",
+      "Sum": "h1:cLIsrhXCfQ12tG/wCk0SZs3/xJluH++yMZmxBVvTnhk=",
+      "Version": "v0.21.0"
+    },
+    {
+      "Path": "github.com/apache/thrift",
+      "Sum": "h1:6LLlvoPjy8Cc/0b5TYRcTR3RZa2W0at3WQRcOkDwVGs=",
+      "Version": "v0.25.0"
+    },
+    {
+      "Path": "github.com/apapsch/go-jsonmerge/v2",
+      "Sum": "h1:axGnT1gRIfimI7gJifB699GoE/oq+F2MU7Dml6nw9rQ=",
+      "Version": "v2.0.0"
+    },
+    {
+      "Path": "github.com/ardielle/ardielle-go",
+      "Sum": "h1:TilHTpHIQJ27R1Tl/iITBzMwiUGSlVfiVhwDNGM3Zj4=",
+      "Version": "v1.5.2"
+    },
+    {
+      "Path": "github.com/armon/go-metrics",
+      "Sum": "h1:hR91U9KYmb6bLBYLQjyM+3j+rcd/UhE+G78SFnF8gJA=",
+      "Version": "v0.4.1"
+    },
+    {
+      "Path": "github.com/aws/aws-lambda-go",
+      "Sum": "h1:We2cCp4BwqqH/JW+bEEo1FhgG71rslvjfi4y7KmlrR0=",
+      "Version": "v1.55.1"
+    },
+    {
+      "Path": "github.com/aws/aws-msk-iam-sasl-signer-go",
+      "Sum": "h1:2jAwFwA0Xgcx94dUId+K24yFabsKYDtAhCgyMit6OqE=",
+      "Version": "v1.0.4"
+    },
+    {
+      "Path": "github.com/aws/aws-sdk-go",
+      "Sum": "h1:JRmEUbU52aJQZ2AjX4q4Wu7t4uZjOu71uyNmaWlUkJQ=",
+      "Version": "v1.55.8"
+    },
+    {
+      "Path": "github.com/aws/aws-sdk-go-v2",
+      "Sum": "h1:5yA+A+BiXbDq1ZLbYwPViwhEGDMdR0MEhL8Jh2LnLS4=",
+      "Version": "v1.47.5"
+    },
+    {
+      "Path": "github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream",
+      "Sum": "h1:MW0Iql1SOTgQPj8mCxrU/eH/K/AIDWi08ItOsXaWRLU=",
+      "Version": "v1.7.25"
+    },
+    {
+      "Path": "github.com/aws/aws-sdk-go-v2/config",
+      "Sum": "h1:u52x6ISQOx172tpwM0VRxhJzEsTJYpMcEYUGM2A1wrw=",
+      "Version": "v1.33.13"
+    },
+    {
+      "Path": "github.com/aws/aws-sdk-go-v2/credentials",
+      "Sum": "h1:j4z41OtspmQ3ftQycaDunJ26b69a9SHfaSVUPqgRv8k=",
+      "Version": "v1.20.13"
+    },
+    {
+      "Path": "github.com/aws/aws-sdk-go-v2/feature/ec2/imds",
+      "Sum": "h1:iXjy2SFhGYNB1jWZBhQqq8HbhsbPF23w+/zbMvPXsTg=",
+      "Version": "v1.20.5"
+    },
+    {
+      "Path": "github.com/aws/aws-sdk-go-v2/feature/rds/auth",
+      "Sum": "h1:n7Qkl2ONew3DYTJM27dbYl2Q8B/jC8tw1MZbgDEa6H4=",
+      "Version": "v1.7.8"
+    },
+    {
+      "Path": "github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager",
+      "Sum": "h1:m6yX9Jn79iVBY5mMLx4Vy/9DbpIrLkPsmWD9Lq/m4HI=",
+      "Version": "v0.5.2"
+    },
+    {
+      "Path": "github.com/aws/aws-sdk-go-v2/internal/configsources",
+      "Sum": "h1:gzIWc3DTPfPbWKrQnmL6BV6WD7NPD1htxzgdk/bQ/Z4=",
+      "Version": "v1.5.8"
+    },
+    {
+      "Path": "github.com/aws/aws-sdk-go-v2/internal/endpoints/v2",
+      "Sum": "h1:PWv+vG8aCLS8qd+HPdYhK7Vees90aKHWFFQ1AGYD/8E=",
+      "Version": "v2.8.8"
+    },
+    {
+      "Path": "github.com/aws/aws-sdk-go-v2/internal/v4a",
+      "Sum": "h1:WOp5De9iWdEHDPh2Kb0tBP3vGBm/dVAuRGh4a4tqduo=",
+      "Version": "v1.5.8"
+    },
+    {
+      "Path": "github.com/aws/aws-sdk-go-v2/service/cloudwatch",
+      "Sum": "h1:FMopEEJsMFEIMALg3+H4+ezFj13KjWWW63e+eCujr5U=",
+      "Version": "v1.75.3"
+    },
+    {
+      "Path": "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs",
+      "Sum": "h1:JmTf3Lb/o16zZLId9rSlwzJsa8jIuGczvvVTGr1/j2U=",
+      "Version": "v1.91.0"
+    },
+    {
+      "Path": "github.com/aws/aws-sdk-go-v2/service/ec2",
+      "Sum": "h1:pOxNUJbUOy779gx205gEpySpT5fu3B0ifPD8jBxujZI=",
+      "Version": "v1.343.0"
+    },
+    {
+      "Path": "github.com/aws/aws-sdk-go-v2/service/ecs",
+      "Sum": "h1:DRTV+EGfif88RSqkyHvuyrHGHT9pCdT6yL0ivfALa4U=",
+      "Version": "v1.103.1"
+    },
+    {
+      "Path": "github.com/aws/aws-sdk-go-v2/service/elasticache",
+      "Sum": "h1:CrluVCmQeznDoFlxpqz13J8Ym4QsmxbMocoWc4TcC1Y=",
+      "Version": "v1.60.0"
+    },
+    {
+      "Path": "github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding",
+      "Sum": "h1:MCIR6iZaCKO4UE0hUvoWWLI6JVjppopV64JfAJaMjng=",
+      "Version": "v1.13.23"
+    },
+    {
+      "Path": "github.com/aws/aws-sdk-go-v2/service/internal/checksum",
+      "Sum": "h1:GACgECI422Xt5n4Pojr3O0aocPv8lfH4PJe2Aon5Wv8=",
+      "Version": "v1.11.9"
+    },
+    {
+      "Path": "github.com/aws/aws-sdk-go-v2/service/internal/presigned-url",
+      "Sum": "h1:+PMpWlJYOn2tm7sm6OZ/ZLd4jStl17T7wjNapd1Rczs=",
+      "Version": "v1.14.8"
+    },
+    {
+      "Path": "github.com/aws/aws-sdk-go-v2/service/internal/s3shared",
+      "Sum": "h1:RS1Wt+K0r4X0ci9Vf4JYTUfHzsQihYA2LgGJeEneKpk=",
+      "Version": "v1.20.8"
+    },
+    {
+      "Path": "github.com/aws/aws-sdk-go-v2/service/kafka",
+      "Sum": "h1:WHsnt+uDX5Oml7DiEoZGH3zJZLWoO95C3vvfUYpY7vI=",
+      "Version": "v1.63.0"
+    },
+    {
+      "Path": "github.com/aws/aws-sdk-go-v2/service/kinesis",
+      "Sum": "h1:LLGKcX/LB4S5KdVQGnMg0dmVp0l1sxn0k3qLMo3mXYs=",
+      "Version": "v1.56.9"
+    },
+    {
+      "Path": "github.com/aws/aws-sdk-go-v2/service/lightsail",
+      "Sum": "h1:b9XJhCPBgr39pobi+nYLprIfN/0Z75dRbuMGuCnvUs4=",
+      "Version": "v1.64.0"
+    },
+    {
+      "Path": "github.com/aws/aws-sdk-go-v2/service/rds",
+      "Sum": "h1:keaCViwAriS0OADwo19JlyYj69E89dVdBHUovcVYmXk=",
+      "Version": "v1.128.0"
+    },
+    {
+      "Path": "github.com/aws/aws-sdk-go-v2/service/route53",
+      "Sum": "h1:nTaA+LXUZpXp2NN1pnnxPp/jk4IiF4Uam1/d/qBvdPQ=",
+      "Version": "v1.70.4"
+    },
+    {
+      "Path": "github.com/aws/aws-sdk-go-v2/service/s3",
+      "Sum": "h1:to7+Vr3rLkpYRwVKJ5QRriI0eE306vrVN/6TnVHgxvY=",
+      "Version": "v1.114.6"
+    },
+    {
+      "Path": "github.com/aws/aws-sdk-go-v2/service/secretsmanager",
+      "Sum": "h1:9ptf/qDxYHsn1VSeW8GuvB8Ddbdg5xzadMdeLO3OM2I=",
+      "Version": "v1.50.8"
+    },
+    {
+      "Path": "github.com/aws/aws-sdk-go-v2/service/servicediscovery",
+      "Sum": "h1:UOmB5Vlx8Cndtpf70C+EvuaPJQaztTxA1NSQ6L6VTUs=",
+      "Version": "v1.49.8"
+    },
+    {
+      "Path": "github.com/aws/aws-sdk-go-v2/service/signin",
+      "Sum": "h1:WZLC+k/CZx11kZGQDqu9mpA8yhiXGX2I//jhuJE1FDo=",
+      "Version": "v1.12.1"
+    },
+    {
+      "Path": "github.com/aws/aws-sdk-go-v2/service/sqs",
+      "Sum": "h1:1bpW8xRTrPyN2qoOpcQyJi+5JnoKdGfS9GJwYj3cNls=",
+      "Version": "v1.52.8"
+    },
+    {
+      "Path": "github.com/aws/aws-sdk-go-v2/service/sso",
+      "Sum": "h1:4VB/dnDo7pmXSLQMszSoBzWndENuc7mzwTpD6lQn77A=",
+      "Version": "v1.39.1"
+    },
+    {
+      "Path": "github.com/aws/aws-sdk-go-v2/service/ssooidc",
+      "Sum": "h1:w8yui2ZqdHmGwVBDGvazoIvKw/DnLENBLkYnN8q8iqo=",
+      "Version": "v1.44.1"
+    },
+    {
+      "Path": "github.com/aws/aws-sdk-go-v2/service/sts",
+      "Sum": "h1:BVjKrtRUtSYKztBCCfE1oAB+d3ViKcW2cKZfserOqMQ=",
+      "Version": "v1.51.6"
+    },
+    {
+      "Path": "github.com/aws/aws-sdk-go-v2/service/xray",
+      "Sum": "h1:A+CxTGPKayiTnbyQpxU3NNHRGUiO9fu+J7bKmkEDU8I=",
+      "Version": "v1.46.3"
+    },
+    {
+      "Path": "github.com/aws/smithy-go",
+      "Sum": "h1:h/n1SHrwVtaDYLz8mR1/Kq4Xh4RaFbFW7bOYckg9mfE=",
+      "Version": "v1.28.7"
+    },
+    {
+      "Path": "github.com/axiomhq/hyperloglog",
+      "Sum": "h1:IQzzb1zjZiODMwCgBRHKak4oIp2Oj7K0Q0rVoAoFVuM=",
+      "Version": "v0.3.0"
+    },
+    {
+      "Path": "github.com/bahlo/generic-list-go",
+      "Sum": "h1:5sz/EEAK+ls5wF+NeqDpk5+iNdMDXrh3z3nPnH1Wvgk=",
+      "Version": "v0.2.0"
+    },
+    {
+      "Path": "github.com/bboreham/go-loser",
+      "Sum": "h1:6df1vn4bBlDDo4tARvBm7l6KA9iVMnE3NWizDeWSrps=",
+      "Version": "v0.0.0-20230920113527-fcc2c21820a3"
+    },
+    {
+      "Path": "github.com/beevik/ntp",
+      "Sum": "h1:bW359Vvw6bicGhKsVi+ZDLMsMYzb2ohUpLaF/Juv0k8=",
+      "Version": "v1.6.0"
+    },
+    {
+      "Path": "github.com/benbjohnson/clock",
+      "Sum": "h1:VvXlSJBzZpA/zum6Sj74hxwYI2DIxRWuNIoXAzHZz5o=",
+      "Version": "v1.3.5"
+    },
+    {
+      "Path": "github.com/beorn7/perks",
+      "Sum": "h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=",
+      "Version": "v1.0.1"
+    },
+    {
+      "Path": "github.com/bits-and-blooms/bitset",
+      "Sum": "h1:U/q1fAF7xXRhFCrhROzIfffYnu+dlS38vCZtmFVPHmA=",
+      "Version": "v1.12.0"
+    },
+    {
+      "Path": "github.com/blang/semver/v4",
+      "Sum": "h1:1PFHFE6yCCTv8C1TeyNNarDzntLi7wMI5i/pzqYIsAM=",
+      "Version": "v4.0.0"
+    },
+    {
+      "Path": "github.com/bmatcuk/doublestar/v4",
+      "Sum": "h1:oTKkRmRuOsKMqFe1AQazd9gGBFNEpOmgKp/xzB97dnA=",
+      "Version": "v4.10.4"
+    },
+    {
+      "Path": "github.com/brunoscheufler/aws-ecs-metadata-go",
+      "Sum": "h1:C0dfBzAdNMqxokqWUysk2KTJSMmqvh9cNW1opdy5+0Q=",
+      "Version": "v0.0.0-20221221133751-67e37ae746cd"
+    },
+    {
+      "Path": "github.com/buger/jsonparser",
+      "Sum": "h1:I0phFv0PlbLHnM7TZAVjZ2MJ2/eWRTDyuO7GLR98IEs=",
+      "Version": "v1.6.1"
+    },
+    {
+      "Path": "github.com/caarlos0/env/v11",
+      "Sum": "h1:fYwH0sWEsBSMPG7t4e/PEfTFzrWrpjyygXyUnWiSwEw=",
+      "Version": "v11.4.1"
+    },
+    {
+      "Path": "github.com/cenkalti/backoff",
+      "Sum": "h1:tNowT99t7UNflLxfYYSlKYsBpXdEet03Pg2g16Swow4=",
+      "Version": "v2.2.1+incompatible"
+    },
+    {
+      "Path": "github.com/cenkalti/backoff/v4",
+      "Sum": "h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK343L8=",
+      "Version": "v4.3.0"
+    },
+    {
+      "Path": "github.com/cenkalti/backoff/v5",
+      "Sum": "h1:ZN+IMa753KfX5hd8vVaMixjnqRZ3y8CuJKRKj1xcsSM=",
+      "Version": "v5.0.3"
+    },
+    {
+      "Path": "github.com/cenkalti/backoff/v7",
+      "Sum": "h1:oJlXCmDgfNcGYViwioz1cZ1kHebejP4OLfJ/gqMQVWA=",
+      "Version": "v7.0.3"
+    },
+    {
+      "Path": "github.com/cespare/xxhash/v2",
+      "Sum": "h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=",
+      "Version": "v2.3.0"
+    },
+    {
+      "Path": "github.com/cihub/seelog",
+      "Sum": "h1:kHaBemcxl8o/pQ5VM1c8PVE1PubbNx3mjUr09OqWGCs=",
+      "Version": "v0.0.0-20170130134532-f561c5e57575"
+    },
+    {
+      "Path": "github.com/cilium/ebpf",
+      "Sum": "h1:v2ktp0roffpMOj2MMf3idtCQZOsAoC4BJbAJN+ke2bY=",
+      "Version": "v0.22.0"
+    },
+    {
+      "Path": "github.com/cloudfoundry-incubator/uaago",
+      "Sum": "h1:DFYA2+zpeaTPEOizAJuaee2O7YX3UP5tOMjkeXL8iLo=",
+      "Version": "v0.0.0-20190307164349-8136b7bbe76e"
+    },
+    {
+      "Path": "github.com/cncf/xds/go",
+      "Sum": "h1:aBangftG7EVZoUb69Os8IaYg++6uMOdKK83QtkkvJik=",
+      "Version": "v0.0.0-20260202195803-dba9d589def2"
+    },
+    {
+      "Path": "github.com/cockroachdb/crlib",
+      "Sum": "h1:SHlYZ/bMx7frnmeqCu+xm0TCxXLzX3jQIVuFbnFGtFU=",
+      "Version": "v0.0.0-20241112164430-1264a2edc35b"
+    },
+    {
+      "Path": "github.com/cockroachdb/errors",
+      "Sum": "h1:BoCcJeiP9hpBJDETkX19qi8Tb8So37srSsp3stTaDMQ=",
+      "Version": "v1.13.0"
+    },
+    {
+      "Path": "github.com/cockroachdb/logtags",
+      "Sum": "h1:r6VH0faHjZeQy818SGhaone5OnYfxFR/+AzdY3sf5aE=",
+      "Version": "v0.0.0-20230118201751-21c54148d20b"
+    },
+    {
+      "Path": "github.com/cockroachdb/pebble/v2",
+      "Sum": "h1:hFQnbsniSWg9BVcNKMuaUufYPiVXY6uJvaY9grbQ9+U=",
+      "Version": "v2.1.7"
+    },
+    {
+      "Path": "github.com/cockroachdb/redact",
+      "Sum": "h1:u1PMllDkdFfPWaNGMyLD1+so+aq3uUItthCFqzwPJ30=",
+      "Version": "v1.1.5"
+    },
+    {
+      "Path": "github.com/cockroachdb/swiss",
+      "Sum": "h1:IJ+uNItEm0qx9FE2AgIc1PMsCUtk8nbSIzhQE1t5GWw=",
+      "Version": "v0.0.0-20260820225851-333444432258"
+    },
+    {
+      "Path": "github.com/cockroachdb/tokenbucket",
+      "Sum": "h1:zuQyyAKVxetITBuuhv3BI9cMrmStnpT18zmgmTxunpo=",
+      "Version": "v0.0.0-20230807174530-cc333fc44b06"
+    },
+    {
+      "Path": "github.com/containerd/cgroups/v3",
+      "Sum": "h1:eUNflyMddm18+yrDmZPn3jI7C5hJ9ahABE5q6dyLYXQ=",
+      "Version": "v3.1.3"
+    },
+    {
+      "Path": "github.com/containerd/containerd/api",
+      "Sum": "h1:5n0oHYVBwN4VhoX9fFykCV9dF1/BvAXeg2F8W6UYq1o=",
+      "Version": "v1.10.0"
+    },
+    {
+      "Path": "github.com/containerd/errdefs",
+      "Sum": "h1:tg5yIfIlQIrxYtu9ajqY42W3lpS19XqdxRQeEwYG8PI=",
+      "Version": "v1.0.0"
+    },
+    {
+      "Path": "github.com/containerd/errdefs/pkg",
+      "Sum": "h1:9IKJ06FvyNlexW690DXuQNx2KA2cUJXx151Xdx3ZPPE=",
+      "Version": "v0.3.0"
+    },
+    {
+      "Path": "github.com/containerd/log",
+      "Sum": "h1:TCJt7ioM2cr/tfR8GPbGf9/VRAX8D2B4PjzCpfX540I=",
+      "Version": "v0.1.0"
+    },
+    {
+      "Path": "github.com/containerd/ttrpc",
+      "Sum": "h1:xbVu6D4qF2jihdh9rDVOKqUMiFBQk6YctTdo1zk087Y=",
+      "Version": "v1.2.8"
+    },
+    {
+      "Path": "github.com/containerd/typeurl/v2",
+      "Sum": "h1:yNA/94zxWdvYACdYO8zofhrTVuQY73fFU1y++dYSw40=",
+      "Version": "v2.2.3"
+    },
+    {
+      "Path": "github.com/containers/common",
+      "Sum": "h1:1xepE7QwQggUXxmyQ1Dbh6Cn0yd7ktk14sN3McSWf5I=",
+      "Version": "v0.64.2"
+    },
+    {
+      "Path": "github.com/coreos/go-oidc/v3",
+      "Sum": "h1:wZo4Q9Pum8dYEj0eMUPrqR+kvuGkeUplbLpNCkBqoWM=",
+      "Version": "v3.21.0"
+    },
+    {
+      "Path": "github.com/coreos/go-systemd",
+      "Sum": "h1:iW4rZ826su+pqaw19uhpSCzhj44qo35pNgKFGqzDKkU=",
+      "Version": "v0.0.0-20191104093116-d3cd4ed1dbcf"
+    },
+    {
+      "Path": "github.com/coreos/go-systemd/v22",
+      "Sum": "h1:LAEzFkke61DFROc7zNLX/WA2i5J8gYqe0rSj9KI28KA=",
+      "Version": "v22.7.0"
+    },
+    {
+      "Path": "github.com/cyphar/filepath-securejoin",
+      "Sum": "h1:5CeZ1jPXEiYt3+Z6zqprSAgSWiggmpVyciv8syjIpVE=",
+      "Version": "v0.6.1"
+    },
+    {
+      "Path": "github.com/davecgh/go-spew",
+      "Sum": "h1:U9qPSI2PIWSS1VwoXQT9A3Wy9MM3WgvqSxFWenqJduM=",
+      "Version": "v1.1.2-0.20180830191138-d8f796af33cc"
+    },
+    {
+      "Path": "github.com/dennwc/varint",
+      "Sum": "h1:kGNFFSSw8ToIy3obO/kKr8U9GZYUAxQEVuix4zfDWzE=",
+      "Version": "v1.0.0"
+    },
+    {
+      "Path": "github.com/dgryski/go-metro",
+      "Sum": "h1:ucRHb6/lvW/+mTEIGbvhcYU3S8+uSNkuMjx/qZFfhtM=",
+      "Version": "v0.0.0-20250106013310-edb8663e5e33"
+    },
+    {
+      "Path": "github.com/digitalocean/go-metadata",
+      "Sum": "h1:2EkxDInMJ3ii8mk8kZs0Qq75JpsvNOOoa5etBJluzbI=",
+      "Version": "v0.0.0-20250129100319-e3650a3df44b"
+    },
+    {
+      "Path": "github.com/digitalocean/godo",
+      "Sum": "h1:/GPyFPaT6Rk9wmT8RWlg1S5Kuq9ahuBZNEu/LvY8yB0=",
+      "Version": "v1.206.0"
+    },
+    {
+      "Path": "github.com/distribution/reference",
+      "Sum": "h1:0IXCQ5g4/QMHHkarYzh5l+u8T3t73zM5QvfrDyIgxBk=",
+      "Version": "v0.6.0"
+    },
+    {
+      "Path": "github.com/docker/go-connections",
+      "Sum": "h1:9d9DEokx5W7qlr0shkFXIxEA7+TTD+llwzcykSlxMNc=",
+      "Version": "v0.8.2"
+    },
+    {
+      "Path": "github.com/docker/go-units",
+      "Sum": "h1:69rxXcBk27SvSaaxTtLh/8llcHD8vYHT7WSdRZ/jvr4=",
+      "Version": "v0.5.0"
+    },
+    {
+      "Path": "github.com/dustin/go-humanize",
+      "Sum": "h1:dbKTrvD0klcbBV/h4AWJdMuZogJACoMlvWIWZ5b2xWg=",
+      "Version": "v1.1.0"
+    },
+    {
+      "Path": "github.com/edsrzf/mmap-go",
+      "Sum": "h1:I4PrRZuNMeDP3VbFrak4QsqwO5tWkQf0tqrrr1L2DsU=",
+      "Version": "v1.2.1-0.20241212181136-fad1cd13edbd"
+    },
+    {
+      "Path": "github.com/elastic/elastic-transport-go/v8",
+      "Sum": "h1:7k1Ua+qluFr6p1jfJjGDl97ssJS/P7cHNInzfxgBQAo=",
+      "Version": "v8.8.0"
+    },
+    {
+      "Path": "github.com/elastic/go-docappender/v2",
+      "Sum": "h1:6b7H4Ct+dfENJ8b9w1AhZ7bWLi0iU/aM250xNiCgI2E=",
+      "Version": "v2.15.0"
+    },
+    {
+      "Path": "github.com/elastic/go-freelru",
+      "Sum": "h1:gG2HJ1WXN2tNl5/p40JS/l59HjvjRhjyAa+oFTRArYs=",
+      "Version": "v0.16.0"
+    },
+    {
+      "Path": "github.com/elastic/go-grok",
+      "Sum": "h1:WEhUxe2KrwycMnlvMimJXvzRa7DoByJB4PVUIE1ZD/U=",
+      "Version": "v0.3.1"
+    },
+    {
+      "Path": "github.com/elastic/go-structform",
+      "Sum": "h1:HXpzlAKyej8T7LobqKDThUw7BMhwV6Db24VwxNtgxCs=",
+      "Version": "v0.0.12"
+    },
+    {
+      "Path": "github.com/elastic/lunes",
+      "Sum": "h1:dZFEaebNg9l+mzvOQN6Nd/c9y6y8rUe3tBWsTgvM08U=",
+      "Version": "v0.2.2"
+    },
+    {
+      "Path": "github.com/elastic/proxy-connect-dialer-go",
+      "Sum": "h1:kmSFbqC+j6yVlxwPixI/7aTpdp+FH16Oaau1bcClpjI=",
+      "Version": "v0.1.1"
+    },
+    {
+      "Path": "github.com/emicklei/go-restful/v3",
+      "Sum": "h1:C4Bl2xDndpU6nJ4bc1jXd+uTmYPVUwkD6bFY/oTyCes=",
+      "Version": "v3.13.0"
+    },
+    {
+      "Path": "github.com/emirpasic/gods",
+      "Sum": "h1:FXtiHYKDGKCW2KzwZKx0iC0PQmdlorYgdFG9jPXJ1Bc=",
+      "Version": "v1.18.1"
+    },
+    {
+      "Path": "github.com/envoyproxy/go-control-plane/envoy",
+      "Sum": "h1:G4dcl8KE/HVPnZ25BBdvGZWi8JjyeBfQSvm95U5P1Qc=",
+      "Version": "v1.40.0"
+    },
+    {
+      "Path": "github.com/envoyproxy/protoc-gen-validate",
+      "Sum": "h1:MVQghNeW+LZcmXe7SY1V36Z+WFMDjpqGAGacLe2T0ds=",
+      "Version": "v1.3.3"
+    },
+    {
+      "Path": "github.com/euank/go-kmsg-parser",
+      "Sum": "h1:cHD53+PLQuuQyLZeriD1V/esuG4MuU0Pjs5y6iknohY=",
+      "Version": "v2.0.0+incompatible"
+    },
+    {
+      "Path": "github.com/expr-lang/expr",
+      "Sum": "h1:W1loDTT+0PQf5YteHSTpju2qfUfNoBt4yw9+wOEU9VM=",
+      "Version": "v1.17.8"
+    },
+    {
+      "Path": "github.com/facebook/time",
+      "Sum": "h1:x6T9k2Jw0IPzSdM2i4tVWmnJ3KJ1fEKwWJ++IzDvPDU=",
+      "Version": "v0.0.0-20240510113249-fa89cc575891"
+    },
+    {
+      "Path": "github.com/facette/natsort",
+      "Sum": "h1:IT4JYU7k4ikYg1SCxNI1/Tieq/NFvh6dzLdgi7eu0tM=",
+      "Version": "v0.0.0-20181210072756-2cd4dd1e2dcb"
+    },
+    {
+      "Path": "github.com/fatih/color",
+      "Sum": "h1:Zp3PiM21/9Ld6FzSKyL5c/BULoe/ONr9KlbYVOfG8+w=",
+      "Version": "v1.19.0"
+    },
+    {
+      "Path": "github.com/felixge/fgprof",
+      "Sum": "h1:8+vR6yu2vvSKn08urWyEuxx75NWPEvybbkBirEpsbVY=",
+      "Version": "v0.9.5"
+    },
+    {
+      "Path": "github.com/felixge/httpsnoop",
+      "Sum": "h1:3YtUj32ZZkqZtt3sZZsClsymw/QDuVfpNhoA31zeORc=",
+      "Version": "v1.1.0"
+    },
+    {
+      "Path": "github.com/foxboron/go-tpm-keyfiles",
+      "Sum": "h1:zqtQvVnFZ71RsyDMNVAaWf4g2OVEDH5LDs26MZFHy7s=",
+      "Version": "v0.0.0-20260902202739-8c9c2d1005f4"
+    },
+    {
+      "Path": "github.com/fsnotify/fsnotify",
+      "Sum": "h1:b0/UzAf9yR5rhf3RPm9gf3ehBPpf0oZKIjtpKrx59Ho=",
+      "Version": "v1.10.1"
+    },
+    {
+      "Path": "github.com/fxamacker/cbor/v2",
+      "Sum": "h1:NHZPxuUjJXQjX9itA785y/5NKSlI4HQ+S7noZsmI7hs=",
+      "Version": "v2.9.6"
+    },
+    {
+      "Path": "github.com/gabriel-vasile/mimetype",
+      "Sum": "h1:05iP/CYtZ/w455R/KZM6rZ5ieAdh99UPtd+d3YzLmaI=",
+      "Version": "v1.4.15"
+    },
+    {
+      "Path": "github.com/getsentry/sentry-go",
+      "Sum": "h1:gkO59rn/i0RCAXUUTflC5QVbTQGPXbaFabs2olVzc9g=",
+      "Version": "v0.50.0"
+    },
+    {
+      "Path": "github.com/go-faster/city",
+      "Sum": "h1:4WAxSZ3V2Ws4QRDrscLEDcibJY8uf41H6AhXDrNDcGw=",
+      "Version": "v1.0.1"
+    },
+    {
+      "Path": "github.com/go-faster/errors",
+      "Sum": "h1:MkJTnDoEdi9pDabt1dpWf7AA8/BaSYZqibYyhZ20AYg=",
+      "Version": "v0.7.1"
+    },
+    {
+      "Path": "github.com/go-jose/go-jose/v4",
+      "Sum": "h1:sNRkftxFJxwsILiQukqp5z83QBSmntVwmgRY7AqBDO4=",
+      "Version": "v4.1.6"
+    },
+    {
+      "Path": "github.com/go-kit/kit",
+      "Sum": "h1:e4o3o3IsBfAKQh5Qbbiqyfu97Ku7jrO/JbohvztANh4=",
+      "Version": "v0.12.0"
+    },
+    {
+      "Path": "github.com/go-kit/log",
+      "Sum": "h1:MRVx0/zhvdseW+Gza6N9rVzU/IVzaeE1SFI4raAhmBU=",
+      "Version": "v0.2.1"
+    },
+    {
+      "Path": "github.com/go-logfmt/logfmt",
+      "Sum": "h1:4hvbpePJKnIzH1B+8OR/JPbTx37NktoI9LE2QZBBkvE=",
+      "Version": "v0.6.1"
+    },
+    {
+      "Path": "github.com/go-logr/logr",
+      "Sum": "h1:tG4xh9yMsRCAiodLVTxyrkzSZ9+o0L1Kg/+cPVcbP/8=",
+      "Version": "v1.4.4"
+    },
+    {
+      "Path": "github.com/go-logr/stdr",
+      "Sum": "h1:hSWxHoqTgW2S2qGc0LTAI563KZ5YKYRhT3MFKZMbjag=",
+      "Version": "v1.2.2"
+    },
+    {
+      "Path": "github.com/go-openapi/analysis",
+      "Sum": "h1:sNvbAGCJqUTqIAodr9IVqJMmuZas3YS9ms1dGK9yiJ4=",
+      "Version": "v1.0.0"
+    },
+    {
+      "Path": "github.com/go-openapi/errors",
+      "Sum": "h1:HI9+SyVYiRzyeBQGv0CbWbQa+u2S0nny7G7AhY+UMiM=",
+      "Version": "v0.22.9"
+    },
+    {
+      "Path": "github.com/go-openapi/jsonpointer",
+      "Sum": "h1:NbW7xT2b+l7x+JefiPGDsZWsrLk1ogrz4AHK1TTzMt8=",
+      "Version": "v1.0.2"
+    },
+    {
+      "Path": "github.com/go-openapi/jsonreference",
+      "Sum": "h1:5rDbq+JsjCv6/nUDDJt83nLZoADI4w03uvHXer+4aYQ=",
+      "Version": "v1.0.3"
+    },
+    {
+      "Path": "github.com/go-openapi/loads",
+      "Sum": "h1:+uNsDlRQfYtZTrh+3pdwampcAqZVPuBJW0IA82aZHII=",
+      "Version": "v0.25.2"
+    },
+    {
+      "Path": "github.com/go-openapi/spec",
+      "Sum": "h1:JtB/GHOj+eetjse6YvxqLze88oEekl/4uPBethvzRrA=",
+      "Version": "v1.0.0"
+    },
+    {
+      "Path": "github.com/go-openapi/strfmt",
+      "Sum": "h1:SG32SlbwNy92s0KJiVxt2joJeFdqIYHvwrA0OU6HqzQ=",
+      "Version": "v0.27.2"
+    },
+    {
+      "Path": "github.com/go-openapi/swag",
+      "Sum": "h1:9n8frkcsuQRA0INU31VbxNxt1zBaHxrHYGEf5BUjFi4=",
+      "Version": "v0.29.2"
+    },
+    {
+      "Path": "github.com/go-openapi/swag/cmdutils",
+      "Sum": "h1:cXEzX/nWCODon251f+1HgL75/R4XXML5IZxgLCWMoro=",
+      "Version": "v0.29.2"
+    },
+    {
+      "Path": "github.com/go-openapi/swag/conv",
+      "Sum": "h1:8c9shoB8l0QRSR6ymq1llHdBWDqpIgJfjTGHx3Vuhm0=",
+      "Version": "v0.29.2"
+    },
+    {
+      "Path": "github.com/go-openapi/swag/fileutils",
+      "Sum": "h1:mdUL+Vw5ah1fO1AvFCoHeIyv7YZsCz2MN3KNqd/lLVI=",
+      "Version": "v0.29.2"
+    },
+    {
+      "Path": "github.com/go-openapi/swag/jsonutils",
+      "Sum": "h1:uZNSD2/rJDYAfvsLYkykTzXuyxM3QpDKV9jhRHrMu6k=",
+      "Version": "v0.29.2"
+    },
+    {
+      "Path": "github.com/go-openapi/swag/loading",
+      "Sum": "h1:QU1ry24e6r6Shoxe380Nx0X5iKkpRO+hJffsyJ2dVlY=",
+      "Version": "v0.29.2"
+    },
+    {
+      "Path": "github.com/go-openapi/swag/mangling",
+      "Sum": "h1:ltdo3K0tTP4P6zWhVVWDU9D37/YYBuMJRdZxiS2Dtog=",
+      "Version": "v0.29.2"
+    },
+    {
+      "Path": "github.com/go-openapi/swag/netutils",
+      "Sum": "h1:dBli6jyUa93sDS/XYWShJzf4+nnVfFKfvY9SLUaUzB8=",
+      "Version": "v0.29.2"
+    },
+    {
+      "Path": "github.com/go-openapi/swag/pools",
+      "Sum": "h1:PlGoDRF8WtSyXkedZZkpW3f9wDhFf3u8KtaBcmgmh8c=",
+      "Version": "v0.29.2"
+    },
+    {
+      "Path": "github.com/go-openapi/swag/stringutils",
+      "Sum": "h1:lcnBxwAaysT3bMUVBfn9V/PkfVqkurpqufKU6rTUMGk=",
+      "Version": "v0.29.2"
+    },
+    {
+      "Path": "github.com/go-openapi/swag/typeutils",
+      "Sum": "h1:O7aVvkTs3pXwikgtrPLenigEMdQFgONKRooQA9pgf2I=",
+      "Version": "v0.29.2"
+    },
+    {
+      "Path": "github.com/go-openapi/swag/yamlutils",
+      "Sum": "h1:IFKFFeDnuIwzfsuWRQU+rI8iL3g4XyAYjV/RlnlxPLM=",
+      "Version": "v0.29.2"
+    },
+    {
+      "Path": "github.com/go-openapi/validate",
+      "Sum": "h1:dFsYCLVUQUL6Vi2lQSexgwmCXDuHe7eWRDhQxkE+xYA=",
+      "Version": "v1.0.0"
+    },
+    {
+      "Path": "github.com/go-playground/locales",
+      "Sum": "h1:EWaQ/wswjilfKLTECiXz7Rh+3BjFhfDFKv/oXslEjJA=",
+      "Version": "v0.14.1"
+    },
+    {
+      "Path": "github.com/go-playground/universal-translator",
+      "Sum": "h1:Bcnm0ZwsGyWbCzImXv+pAJnYK9S473LQFuzCbDbfSFY=",
+      "Version": "v0.18.1"
+    },
+    {
+      "Path": "github.com/go-playground/validator/v10",
+      "Sum": "h1:YyCXvVShZbs2Sm3Mb53eNOlhRXctSOzW5QJAouCTZL4=",
+      "Version": "v10.30.5"
+    },
+    {
+      "Path": "github.com/go-resty/resty/v2",
+      "Sum": "h1:FQW5oHYcIlkCNrMD2lloGScxcHJ0gkjshV3qcQAyHQk=",
+      "Version": "v2.17.2"
+    },
+    {
+      "Path": "github.com/go-sql-driver/mysql",
+      "Sum": "h1:arlSnNLq6a5yxGxV7qg9lF4j0C+KwD6NbQyKr9QL6ME=",
+      "Version": "v1.10.1"
+    },
+    {
+      "Path": "github.com/go-viper/mapstructure/v2",
+      "Sum": "h1:vM5IJoUAy3d7zRSVtIwQgBj7BiWtMPfmPEgAXnvj1Ro=",
+      "Version": "v2.5.0"
+    },
+    {
+      "Path": "github.com/go-zookeeper/zk",
+      "Sum": "h1:DPzxraQx7OrPyXq2phlGlNSIyWEsAox0RJmjTseMV6I=",
+      "Version": "v1.0.4"
+    },
+    {
+      "Path": "github.com/gobwas/glob",
+      "Sum": "h1:A4xDbljILXROh+kObIiy5kIaPYD8e96x1tgBhUI5J+Y=",
+      "Version": "v0.2.3"
+    },
+    {
+      "Path": "github.com/goccy/go-json",
+      "Sum": "h1:p8HrPJzOakx/mn/bQtjgNjdTcN+/S6FcG2CTtQOrHVU=",
+      "Version": "v0.10.6"
+    },
+    {
+      "Path": "github.com/goccy/go-yaml",
+      "Sum": "h1:PmFC1S6h8ljIz6gMRBopkjP1TVT7xuwrButHID66PoM=",
+      "Version": "v1.19.2"
+    },
+    {
+      "Path": "github.com/godbus/dbus/v5",
+      "Sum": "h1:F2gUCy++NMIxGmo9J+z5le/+ZC8W1OgeR51P4i9ZB/U=",
+      "Version": "v5.2.4"
+    },
+    {
+      "Path": "github.com/gofrs/flock",
+      "Sum": "h1:jjREztyBeSKBZYAC+mgc1laB+xsgy4kYMf3FbKF2UBo=",
+      "Version": "v0.13.1"
+    },
+    {
+      "Path": "github.com/gofrs/uuid",
+      "Sum": "h1:3qXRTX8/NbyulANqlc0lchS1gqAVxRgsuW1YrTJupqA=",
+      "Version": "v4.4.0+incompatible"
+    },
+    {
+      "Path": "github.com/gogo/googleapis",
+      "Sum": "h1:1Yx4Myt7BxzvUr5ldGSbwYiZG6t9wGBZ+8/fX3Wvtq0=",
+      "Version": "v1.4.1"
+    },
+    {
+      "Path": "github.com/gogo/protobuf",
+      "Sum": "h1:Ov1cvc58UF3b5XjBnZv7+opcTcQFZebYjWzi34vdm4Q=",
+      "Version": "v1.3.2"
+    },
+    {
+      "Path": "github.com/golang-jwt/jwt/v5",
+      "Sum": "h1:kYf81DTWFe7t+1VvL7eS+jKFVWaUnK9cB1qbwn63YCY=",
+      "Version": "v5.3.1"
+    },
+    {
+      "Path": "github.com/golang-sql/civil",
+      "Sum": "h1:au07oEsX2xN0ktxqI+Sida1w446QrXBRJ0nee3SNZlA=",
+      "Version": "v0.0.0-20220223132316-b832511892a9"
+    },
+    {
+      "Path": "github.com/golang-sql/sqlexp",
+      "Sum": "h1:ZCD6MBpcuOVfGVqsEmY5/4FtYiKz6tSyUv9LPEDei6A=",
+      "Version": "v0.1.0"
+    },
+    {
+      "Path": "github.com/golang/groupcache",
+      "Sum": "h1:f+oWsMOmNPc8JmEHVZIycC7hBoQxHH9pNKQORJNozsQ=",
+      "Version": "v0.0.0-20241129210726-2c02b8208cf8"
+    },
+    {
+      "Path": "github.com/golang/protobuf",
+      "Sum": "h1:i7eJL8qZTpSEXOPTxNKhASYpMn+8e5Q6AdndVa1dWek=",
+      "Version": "v1.5.4"
+    },
+    {
+      "Path": "github.com/golang/snappy",
+      "Sum": "h1:Oy607GVXHs7RtbggtPBnr2RmDArIsAefDwvrdWvRhGs=",
+      "Version": "v1.0.0"
+    },
+    {
+      "Path": "github.com/google/cadvisor",
+      "Sum": "h1:2LoXUZIJPR3VQJC1bZmqAGdh09yPfpS7MEeC4fJy80k=",
+      "Version": "v0.57.0"
+    },
+    {
+      "Path": "github.com/google/flatbuffers",
+      "Sum": "h1:haMV2JRRJCe1998HeW/p0X9UaMTK6SDo0ffLn2+DbLs=",
+      "Version": "v25.12.19+incompatible"
+    },
+    {
+      "Path": "github.com/google/gnostic-models",
+      "Sum": "h1:SisTfuFKJSKM5CPZkffwi6coztzzeYUhc3v4yxLWH8c=",
+      "Version": "v0.7.1"
+    },
+    {
+      "Path": "github.com/google/go-cmp",
+      "Sum": "h1:wk8382ETsv4JYUZwIsn6YpYiWiBsYLSJiTsyBybVuN8=",
+      "Version": "v0.7.0"
+    },
+    {
+      "Path": "github.com/google/go-github/v93",
+      "Sum": "h1:qElXPLv+XbSz1qrLdWyb0t3gSYGsWBTzr9T4/PZTCfk=",
+      "Version": "v93.0.0"
+    },
+    {
+      "Path": "github.com/google/go-querystring",
+      "Sum": "h1:yhqkPbu2/OH+V9BfpCVPZkNmUXhb2gBxJArfhIxNtP0=",
+      "Version": "v1.2.0"
+    },
+    {
+      "Path": "github.com/google/go-tpm",
+      "Sum": "h1:U6GxkpXnFhR76KyzdJCa3/YopeqiMgKWEGPp5u2mCSQ=",
+      "Version": "v0.9.9-0.20260124013517-8f8f42cba0de"
+    },
+    {
+      "Path": "github.com/google/pprof",
+      "Sum": "h1:PlNWJRxu5APSV0pWqfIsZ0qt9OOGHSWfZQ4zvx+WgWs=",
+      "Version": "v0.0.0-20261016150608-1facf8f91b50"
+    },
+    {
+      "Path": "github.com/google/s2a-go",
+      "Sum": "h1:7v1V1TraNGP63WptsAkNqr2w8jgm4vM6A6qx6Lsw9iM=",
+      "Version": "v0.1.11"
+    },
+    {
+      "Path": "github.com/google/shlex",
+      "Sum": "h1:El6M4kTTCOh6aBiKaUGG7oYTSPP8MxqL4YI3kZKwcP4=",
+      "Version": "v0.0.0-20191202100458-e7afc7fbc510"
+    },
+    {
+      "Path": "github.com/google/uuid",
+      "Sum": "h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=",
+      "Version": "v1.6.0"
+    },
+    {
+      "Path": "github.com/googleapis/enterprise-certificate-proxy",
+      "Sum": "h1:G9iCJIY+AYVmUskKdjX8FVy7sG+nbzjOQ41cvlmhcvg=",
+      "Version": "v0.3.24"
+    },
+    {
+      "Path": "github.com/googleapis/gax-go/v2",
+      "Sum": "h1:qe2iQOUzxb3fd6x6ewpIEixPQhJ+0Ihc/RRZhKA/2g0=",
+      "Version": "v2.27.0"
+    },
+    {
+      "Path": "github.com/gophercloud/gophercloud/v2",
+      "Sum": "h1:xGxKCvyaOxJDc5FqrnKDNqtdYn43ocQPuJ2Cm4KX/cs=",
+      "Version": "v2.14.0"
+    },
+    {
+      "Path": "github.com/gorilla/mux",
+      "Sum": "h1:TuBL49tXwgrFYWhqrNgrUNEY92u81SPhu7sTdzQEiWY=",
+      "Version": "v1.8.1"
+    },
+    {
+      "Path": "github.com/gorilla/websocket",
+      "Sum": "h1:JeSE6pjso5THxAzdVpqr6/geYxZytqFMBCOtn/ujyeo=",
+      "Version": "v1.5.4-0.20250319132907-e064f32e3674"
+    },
+    {
+      "Path": "github.com/gosnmp/gosnmp",
+      "Sum": "h1:nQ0H9erruu03QP0lviAJ6vB6iiIGE0R5u73MKFr6QPs=",
+      "Version": "v1.47.0"
+    },
+    {
+      "Path": "github.com/grafana/clusterurl",
+      "Sum": "h1:fUryzdeUfIsC5th1fNLpt8KnZhtnN8OTEM3F/BXAelI=",
+      "Version": "v0.3.0"
+    },
+    {
+      "Path": "github.com/grafana/faro/pkg/go",
+      "Sum": "h1:HmoYoUN2RHs4QAna5nDz2O21ZV1zg/o9mtTDxvV7XoM=",
+      "Version": "v0.0.0-20261103171555-9657d2ceff41"
+    },
+    {
+      "Path": "github.com/grafana/go-offsets-tracker",
+      "Sum": "h1:2zBQ7iiGzvyXY7LA8kaaSiEqH/Yx82UcfRabbY5aOG4=",
+      "Version": "v0.1.7"
+    },
+    {
+      "Path": "github.com/grafana/loki/pkg/push",
+      "Sum": "h1:dN3eF1S5fvVu2l9WoqYSvmNmPK8Uh2vjE4yUsBq80l4=",
+      "Version": "v0.0.0-20240514112848-a1b1eeb09583"
+    },
+    {
+      "Path": "github.com/grafana/regexp",
+      "Sum": "h1:cLN4IBkmkYZNnk7EAJ0BHIethd+J6LqxFNw5mSiI2bM=",
+      "Version": "v0.0.0-20250905093917-f7b3be9d1853"
+    },
+    {
+      "Path": "github.com/grobie/gomemcache",
+      "Sum": "h1:FlKQKUYPZ5yDCN248M3R7x8yu2E3yEZ0H7aLomE4EoE=",
+      "Version": "v0.0.0-20230213081705-239240bbc445"
+    },
+    {
+      "Path": "github.com/grpc-ecosystem/grpc-gateway/v2",
+      "Sum": "h1:Bd7KaOxzULLxtZ/K5s1aLbWhR0+5RToO65TXHsf3bqQ=",
+      "Version": "v2.31.0"
+    },
+    {
+      "Path": "github.com/hamba/avro/v2",
+      "Replace": {
+        "Path": "github.com/iskorotkov/avro/v2",
+        "Sum": "h1:fbscLHxRFT4QBPQp6MuYEL2Ao9o89KPAWYCHQ//5K18=",
+        "Version": "v2.33.0"
+      },
+      "Version": "v2.31.0"
+    },
+    {
+      "Path": "github.com/hashicorp/consul/api",
+      "Sum": "h1:0U4YZ1Yp7K9WK9ex0gTJraFim26l02wCvsmf2ukalVE=",
+      "Version": "v1.34.4"
+    },
+    {
+      "Path": "github.com/hashicorp/consul/api/v2",
+      "Sum": "h1:FBzxiwnP8kJoHL2ByDUSvaItbc7jF7LxZLTnHtO75wA=",
+      "Version": "v2.0.0"
+    },
+    {
+      "Path": "github.com/hashicorp/cronexpr",
+      "Sum": "h1:rl5IkxXN2m681EfivTlccqIryzYJSXRGRNa0xeG7NA4=",
+      "Version": "v1.1.3"
+    },
+    {
+      "Path": "github.com/hashicorp/errwrap",
+      "Sum": "h1:OxrOeh75EUXMY8TBjag2fzXGZ40LB6IKw45YeGUDY2I=",
+      "Version": "v1.1.0"
+    },
+    {
+      "Path": "github.com/hashicorp/go-cleanhttp",
+      "Sum": "h1:035FKYIWjmULyFRBKPs8TBQoi0x6d9G4xc9neXJWAZQ=",
+      "Version": "v0.5.2"
+    },
+    {
+      "Path": "github.com/hashicorp/go-hclog",
+      "Sum": "h1:Qr2kF+eVWjTiYmU7Y31tYlP1h0q/X3Nl3tPGdaB11/k=",
+      "Version": "v1.6.3"
+    },
+    {
+      "Path": "github.com/hashicorp/go-immutable-radix",
+      "Sum": "h1:DKHmCUm2hRBK510BaiZlwvpD40f8bJFeZnpfm2KLowc=",
+      "Version": "v1.3.1"
+    },
+    {
+      "Path": "github.com/hashicorp/go-metrics",
+      "Sum": "h1:+kjWqHRH2HxAocneVfB/BI6EeWUUHyPhyQZozMT8Ed4=",
+      "Version": "v0.6.0"
+    },
+    {
+      "Path": "github.com/hashicorp/go-multierror",
+      "Sum": "h1:H5DkEtf6CXdFp0N0Em5UCwQpXMWke8IA0+lD48awMYo=",
+      "Version": "v1.1.1"
+    },
+    {
+      "Path": "github.com/hashicorp/go-retryablehttp",
+      "Sum": "h1:ylXZWnqa7Lhqpk0L1P1LzDtGcCR0rPVUrx/c8Unxc48=",
+      "Version": "v0.7.8"
+    },
+    {
+      "Path": "github.com/hashicorp/go-rootcerts",
+      "Sum": "h1:jzhAVGtqPKbwpyCPELlgNWhE1znq+qwJtW5Oi2viEzc=",
+      "Version": "v1.0.2"
+    },
+    {
+      "Path": "github.com/hashicorp/go-uuid",
+      "Sum": "h1:2gKiV6YVmrJ1i2CKKa9obLvRieoRGviZFL26PcT/Co8=",
+      "Version": "v1.0.3"
+    },
+    {
+      "Path": "github.com/hashicorp/go-version",
+      "Sum": "h1:CeOIz6k+LoN3qX9Z0tyQrPtiB1DFYRPfCIBtaXPSCnA=",
+      "Version": "v1.9.0"
+    },
+    {
+      "Path": "github.com/hashicorp/golang-lru",
+      "Sum": "h1:dV3g9Z/unq5DpblPpw+Oqcv4dU/1omnb4Ok8iPY6p1c=",
+      "Version": "v1.0.2"
+    },
+    {
+      "Path": "github.com/hashicorp/golang-lru/v2",
+      "Sum": "h1:a+bsQ5rvGLjzHuww6tVxozPZFVghXaHOwFs4luLUK2k=",
+      "Version": "v2.0.7"
+    },
+    {
+      "Path": "github.com/hashicorp/nomad/api",
+      "Sum": "h1:5EVD5vuGBqAKSrcR1+hD8XTIHcDgu0jLfwjNqnI4ExU=",
+      "Version": "v0.0.0-20260907080526-08ef8f3d26da"
+    },
+    {
+      "Path": "github.com/hashicorp/serf",
+      "Sum": "h1:TCQOrJXHZ1Xf80c4WBhMM9OwUFgDaIP0R+YvoQUKadI=",
+      "Version": "v0.10.4"
+    },
+    {
+      "Path": "github.com/hetznercloud/hcloud-go/v2",
+      "Sum": "h1:QXONxfgXIF99PFJknkVw+LrQQB4PB5IbEjEDh4Hfmig=",
+      "Version": "v2.49.0"
+    },
+    {
+      "Path": "github.com/honeycombio/dynsampler-go",
+      "Sum": "h1:EM3FXN2Lfmso41MRMmSvRynMrz+AHiRffaWHPf4ZHDs=",
+      "Version": "v0.6.4"
+    },
+    {
+      "Path": "github.com/huandu/go-clone",
+      "Sum": "h1:rtQODA+ABThEn6J5LBTppJfKmZy/FwfpMUWa8d01TTQ=",
+      "Version": "v1.7.3"
+    },
+    {
+      "Path": "github.com/iancoleman/strcase",
+      "Sum": "h1:nTXanmYxhfFAMjZL34Ov6gkzEsSJZ5DbhxWjvSASxEI=",
+      "Version": "v0.3.0"
+    },
+    {
+      "Path": "github.com/influxdata/influxdb-observability/common",
+      "Sum": "h1:4YwZ+vsodz6VfoiX+ZqVotmnyCa9vCCPksSBK/WLjBs=",
+      "Version": "v0.5.12"
+    },
+    {
+      "Path": "github.com/influxdata/influxdb-observability/influx2otel",
+      "Sum": "h1:u0lNE3+63rILk4mtmCYsNyczH/1wEXnM+1aBzBe5akk=",
+      "Version": "v0.5.12"
+    },
+    {
+      "Path": "github.com/influxdata/influxdb-observability/otel2influx",
+      "Sum": "h1:t9gmVOOHbZyEAvIYSoO97Tde1KArVtiYdM0/0Dhmuio=",
+      "Version": "v0.5.12"
+    },
+    {
+      "Path": "github.com/influxdata/line-protocol/v2",
+      "Sum": "h1:EAPkqJ9Km4uAxtMRgUubJyqAr6zgWM0dznKMLRauQRE=",
+      "Version": "v2.2.1"
+    },
+    {
+      "Path": "github.com/invopop/jsonschema",
+      "Sum": "h1:KvpoAJWEjR3uD9Kbm2HWJmqsEaHt8lBUpd0qHcIi21E=",
+      "Version": "v0.13.0"
+    },
+    {
+      "Path": "github.com/ionos-cloud/sdk-go/v6",
+      "Sum": "h1:m4mX03vflm631znIPutojJxLZvxD5Mt3xv/soy0kLIc=",
+      "Version": "v6.3.11"
+    },
+    {
+      "Path": "github.com/iskorotkov/avro/v2",
+      "Sum": "h1:/tyfa5IFPNDkeB59kuyu9fyPZ3aiwv9YsMZwd39CNg0=",
+      "Version": "v2.33.1"
+    },
+    {
+      "Path": "github.com/itchyny/timefmt-go",
+      "Sum": "h1:J4j1qMqZbg5jycwT6zIKfRgZ9aqqMxqanaI6Rr9Ezs8=",
+      "Version": "v0.1.9"
+    },
+    {
+      "Path": "github.com/jackc/pgpassfile",
+      "Sum": "h1:/6Hmqy13Ss2zCq62VdNG8tM1wchn8zjSGOBJ6icpsIM=",
+      "Version": "v1.0.0"
+    },
+    {
+      "Path": "github.com/jackc/pgservicefile",
+      "Sum": "h1:iCEnooe7UlwOQYpKFhBabPMi4aNAfoODPEFNiAnClxo=",
+      "Version": "v0.0.0-20240606120523-5a60cdf6a761"
+    },
+    {
+      "Path": "github.com/jackc/pgx/v5",
+      "Sum": "h1:hWwax8YiGT0YiN50U1oIDn5kgR7KC2tG3rmavwpPkxY=",
+      "Version": "v5.12.0"
+    },
+    {
+      "Path": "github.com/jackc/puddle/v2",
+      "Sum": "h1:f8HoREISb3l5eO9coPgK7U3hKLhWGokOFVcThl5jrao=",
+      "Version": "v2.2.3"
+    },
+    {
+      "Path": "github.com/jaegertracing/jaeger-idl",
+      "Sum": "h1:qfeFswJMftWq2CJKvpws5Zlcpfnnmf9+LmDwTYOUMPo=",
+      "Version": "v0.14.0"
+    },
+    {
+      "Path": "github.com/jaeyo/go-drain3",
+      "Sum": "h1:fY21wgbwhzzaoRNSQ+6HVbpYw4KkAYjCFCoERYozIJ8=",
+      "Version": "v0.1.2"
+    },
+    {
+      "Path": "github.com/jcmturner/aescts/v2",
+      "Sum": "h1:9YKLH6ey7H4eDBXW8khjYslgyqG2xZikXP0EQFKrle8=",
+      "Version": "v2.0.0"
+    },
+    {
+      "Path": "github.com/jcmturner/dnsutils/v2",
+      "Sum": "h1:lltnkeZGL0wILNvrNiVCR6Ro5PGU/SeBvVO/8c/iPbo=",
+      "Version": "v2.0.0"
+    },
+    {
+      "Path": "github.com/jcmturner/gofork",
+      "Sum": "h1:QH0l3hzAU1tfT3rZCnW5zXl+orbkNMMRGJfdJjHVETg=",
+      "Version": "v1.7.6"
+    },
+    {
+      "Path": "github.com/jcmturner/goidentity/v6",
+      "Sum": "h1:VKnZd2oEIMorCTsFBnJWbExfNN7yZr3EhJAxwOkZg6o=",
+      "Version": "v6.0.1"
+    },
+    {
+      "Path": "github.com/jcmturner/gokrb5/v8",
+      "Sum": "h1:x1Sv4HaTpepFkXbt2IkL29DXRf8sOfZXo8eRKh687T8=",
+      "Version": "v8.4.4"
+    },
+    {
+      "Path": "github.com/jcmturner/rpc/v2",
+      "Sum": "h1:7FXXj8Ti1IaVFpSAziCZWNzbNuZmnvw/i6CqLNdWfZY=",
+      "Version": "v2.0.3"
+    },
+    {
+      "Path": "github.com/jellydator/ttlcache/v3",
+      "Sum": "h1:bOdXmXiycyK6E6Qjyuj5vl+/vU3SCOoDs8a86NbHjAQ=",
+      "Version": "v3.4.1"
+    },
+    {
+      "Path": "github.com/jmespath/go-jmespath",
+      "Sum": "h1:BEgLn5cpjn8UN1mAw4NjwDrS35OdebyEtFe+9YPoQUg=",
+      "Version": "v0.4.0"
+    },
+    {
+      "Path": "github.com/jonboulle/clockwork",
+      "Sum": "h1:Hyh9A8u51kptdkR+cqRpT1EebBwTn1oK9YfGYbdFz6I=",
+      "Version": "v0.5.0"
+    },
+    {
+      "Path": "github.com/jpillora/backoff",
+      "Sum": "h1:9LWA6DCcU2qxTLK7iOxvuIQvuIe/twLJHryAcA3JFAs=",
+      "Version": "v1.1.0"
+    },
+    {
+      "Path": "github.com/json-iterator/go",
+      "Sum": "h1:PV8peI4a0ysnczrg+LtxykD8LfKY9ML6u2jnxaEnrnM=",
+      "Version": "v1.1.12"
+    },
+    {
+      "Path": "github.com/julienschmidt/httprouter",
+      "Sum": "h1:U0609e9tgbseu3rBINet9P48AI/D3oJs4dN7jwJOQ1U=",
+      "Version": "v1.3.0"
+    },
+    {
+      "Path": "github.com/kamstrup/intmap",
+      "Sum": "h1:qnwBm1mh4XAnW9W9Ue9tZtTff8pS6+s6iKF6JRIV2Dk=",
+      "Version": "v0.5.2"
+    },
+    {
+      "Path": "github.com/klauspost/compress",
+      "Sum": "h1:zWNoFqq/lSuYQRim3dUXlXeA0IqwuZGicdG5ZTfY5j4=",
+      "Version": "v1.20.3"
+    },
+    {
+      "Path": "github.com/klauspost/cpuid/v2",
+      "Sum": "h1:S6Hrbc7+ywsr0r+RLapfGBHfyefhCTwEh3A0tV913Dw=",
+      "Version": "v2.4.0"
+    },
+    {
+      "Path": "github.com/knadh/koanf/maps",
+      "Sum": "h1:P1z7EvTqdFBrPYbzSvorvrpib+sjkUMxf0FVvA5NKK4=",
+      "Version": "v0.1.3"
+    },
+    {
+      "Path": "github.com/knadh/koanf/providers/confmap",
+      "Sum": "h1:L15hbvMqlvhwUuCtL9BkL+rqiMAjk6cZc8O9XoDtE3A=",
+      "Version": "v1.0.1"
+    },
+    {
+      "Path": "github.com/knadh/koanf/v2",
+      "Sum": "h1:MK2JDkLy4UGzEUkW1CCCKQftd9+M+NX8hAZ2axbf/jo=",
+      "Version": "v2.4.1"
+    },
+    {
+      "Path": "github.com/kolo/xmlrpc",
+      "Sum": "h1:udzkj9S/zlT5X367kqJis0QP7YMxobob6zhzq6Yre00=",
+      "Version": "v0.0.0-20220921171641-a4b6fa1dd06b"
+    },
+    {
+      "Path": "github.com/kr/fs",
+      "Sum": "h1:Jskdu9ieNAYnjxsi0LbQp1ulIKZV1LAFgK1tWhpZgl8=",
+      "Version": "v0.1.0"
+    },
+    {
+      "Path": "github.com/kr/pretty",
+      "Sum": "h1:flRD4NNwYAUpkphVc1HcthR4KEIFJ65n8Mw5qdRn3LE=",
+      "Version": "v0.3.1"
+    },
+    {
+      "Path": "github.com/kr/text",
+      "Sum": "h1:5Nx0Ya0ZqY2ygV366QzturHI13Jq95ApcVaJBhpS+AY=",
+      "Version": "v0.2.0"
+    },
+    {
+      "Path": "github.com/kylelemons/godebug",
+      "Sum": "h1:RPNrshWIDI6G2gRW9EHilWtl7Z6Sb1BR0xunSBf0SNc=",
+      "Version": "v1.1.0"
+    },
+    {
+      "Path": "github.com/leodido/go-syslog/v4",
+      "Sum": "h1:3o9H6K0cj9ITrNt7MG6CJ/Ae+vXmZcEPhI/N30/20Ig=",
+      "Version": "v4.6.0"
+    },
+    {
+      "Path": "github.com/leodido/go-urn",
+      "Sum": "h1:pLqT2kq1zpHW/1D18QMjMpdtX7cekxqtJJjg5ANyWw0=",
+      "Version": "v1.5.0"
+    },
+    {
+      "Path": "github.com/leodido/ragel-machinery",
+      "Sum": "h1:11UHH39z1RhZ5dc4y4r/4koJo6IYFgTRMe/LlwRTEw0=",
+      "Version": "v0.0.0-20190525184631-5f46317e436b"
+    },
+    {
+      "Path": "github.com/lestrrat-go/strftime",
+      "Sum": "h1:LltxP/0ho+7sPY1qiwHQcKK/ksVllY9/8DY3EGFrOaI=",
+      "Version": "v1.2.1"
+    },
+    {
+      "Path": "github.com/lib/pq",
+      "Sum": "h1:tTWxr2YLKwIvK90ZXEw8GP7UFHtcbTtty8zsI+YjrfQ=",
+      "Version": "v1.12.3"
+    },
+    {
+      "Path": "github.com/libp2p/go-reuseport",
+      "Sum": "h1:nR5KU7hD0WxXCJbmw7r2rhRYruNRl2koHw8fQscQm2s=",
+      "Version": "v0.4.0"
+    },
+    {
+      "Path": "github.com/lightstep/go-expohisto",
+      "Sum": "h1:UPtTS1rGdtehbbAF7o/dhkWLTDI73UifG8LbfQI7cA4=",
+      "Version": "v1.0.0"
+    },
+    {
+      "Path": "github.com/linode/go-metadata",
+      "Sum": "h1:F34TL9aF2qNDEViTOxFf9cXOMrdhckczVg3T80h1XZY=",
+      "Version": "v0.3.1"
+    },
+    {
+      "Path": "github.com/linode/linodego",
+      "Sum": "h1:f45N2MHR/oece2/ktTTCYmrlfse4//k3NgwcF5zbGZ0=",
+      "Version": "v1.69.1"
+    },
+    {
+      "Path": "github.com/logicmonitor/lm-data-sdk-go",
+      "Sum": "h1:3cMRdI3jGfdAyRB+weqNqbzSbUmN0ya/tQ6i85pa4Jc=",
+      "Version": "v1.4.1"
+    },
+    {
+      "Path": "github.com/mailru/easyjson",
+      "Sum": "h1:PrnmzHw7262yW8sTBwxi1PdJA3Iw/EKBa8psRf7d9a4=",
+      "Version": "v0.9.0"
+    },
+    {
+      "Path": "github.com/mattn/go-colorable",
+      "Sum": "h1:+2YjeAe7xP1OQbZW1jERPWWCDLlNqFNCvjiqGiAt84A=",
+      "Version": "v0.1.16"
+    },
+    {
+      "Path": "github.com/mattn/go-isatty",
+      "Sum": "h1:tGZZoVgT/KiqK1c8ocVLeDS8BSWMRd47J3Lbz7vsReI=",
+      "Version": "v0.0.24"
+    },
+    {
+      "Path": "github.com/mdlayher/socket",
+      "Sum": "h1:1lIVvHAs3sT623kPkPDa+I0nLVusskwnpWzp6ZUcNyc=",
+      "Version": "v0.8.0"
+    },
+    {
+      "Path": "github.com/mdlayher/vsock",
+      "Sum": "h1:bqQfZ1OznI03y6YiXp2sze05RVdzLn/zsfjnjd4+ivI=",
+      "Version": "v1.3.0"
+    },
+    {
+      "Path": "github.com/microsoft/ApplicationInsights-Go",
+      "Sum": "h1:G4+H9WNs6ygSCe6sUyxRc2U81TI5Es90b2t/MwX5KqY=",
+      "Version": "v0.4.4"
+    },
+    {
+      "Path": "github.com/microsoft/go-mssqldb",
+      "Sum": "h1:FCgeBIK8um2+X4tbun6Q71N1KsfyCDPKY41e1yGVjSE=",
+      "Version": "v1.11.2"
+    },
+    {
+      "Path": "github.com/microsoft/go-winmd",
+      "Sum": "h1:EOTIxVah+qIaqWoGw/6upnkD5k9rp+J6BvehN/5E1PA=",
+      "Version": "v0.0.0-20260929074142-364b6859d0c4"
+    },
+    {
+      "Path": "github.com/miekg/dns",
+      "Sum": "h1:uhT8nJxmTrPJYClxVxTCX+CVn6qnzSiybRk72Z6DgrE=",
+      "Version": "v1.1.73"
+    },
+    {
+      "Path": "github.com/minio/minlz",
+      "Sum": "h1:0lgqHvJWHLGW5TuObJrfyEi6+ASTKDBWikGvPqy9Yiw=",
+      "Version": "v1.0.1-0.20250507153514-87eb42fe8882"
+    },
+    {
+      "Path": "github.com/minio/sha256-simd",
+      "Sum": "h1:6kaan5IFmwTNynnKKpDHe6FWHohJOHhCPchzK49dzMM=",
+      "Version": "v1.0.1"
+    },
+    {
+      "Path": "github.com/mistifyio/go-zfs",
+      "Sum": "h1:aKW/4cBs+yK6gpqU3K/oIwk9Q/XICqd3zOX/UFuvqmk=",
+      "Version": "v2.1.2-0.20190413222219-f784269be439+incompatible"
+    },
+    {
+      "Path": "github.com/mitchellh/copystructure",
+      "Sum": "h1:vpKXTN4ewci03Vljg/q9QvCGUDttBOGBIa15WveJJGw=",
+      "Version": "v1.2.0"
+    },
+    {
+      "Path": "github.com/mitchellh/hashstructure/v2",
+      "Sum": "h1:vGKWl0YJqUNxE8d+h8f6NJLcCJrgbhC4NcD46KavDd4=",
+      "Version": "v2.0.2"
+    },
+    {
+      "Path": "github.com/mitchellh/reflectwalk",
+      "Sum": "h1:G2LzWKi524PWgd3mLHV8Y5k7s6XUvT0Gef6zxSIeXaQ=",
+      "Version": "v1.0.2"
+    },
+    {
+      "Path": "github.com/moby/docker-image-spec",
+      "Sum": "h1:jMKff3w6PgbfSa69GfNg+zN/XLhfXJGnEx3Nl2EsFP0=",
+      "Version": "v1.3.1"
+    },
+    {
+      "Path": "github.com/moby/moby/api",
+      "Sum": "h1:PpWkvVPB7Fr/No8w+TfyJ/I6rWZ2YPZhT3JorIg+06c=",
+      "Version": "v1.56.1"
+    },
+    {
+      "Path": "github.com/moby/moby/client",
+      "Sum": "h1:ekSPlMccrZGcw6Scb8T9D39qE0mB+XupU/yS0zNw9N4=",
+      "Version": "v0.6.2"
+    },
+    {
+      "Path": "github.com/moby/sys/mountinfo",
+      "Sum": "h1:1shs6aH5s4o5H2zQLn796ADW1wMrIwHsyJ2v9KouLrg=",
+      "Version": "v0.7.2"
+    },
+    {
+      "Path": "github.com/moby/sys/userns",
+      "Sum": "h1:4OvdM7BcPkASbuouHsbW3aeMJSFlYDldBRnXVZhaRk8=",
+      "Version": "v0.2.1"
+    },
+    {
+      "Path": "github.com/modern-go/concurrent",
+      "Sum": "h1:TRLaZ9cD/w8PVh93nsPXa1VrQ6jlwL5oN8l14QlcNfg=",
+      "Version": "v0.0.0-20180306012644-bacd9c7ef1dd"
+    },
+    {
+      "Path": "github.com/modern-go/reflect2",
+      "Sum": "h1:W5t00kpgFdJifH4BDsTlE89Zl93FEloxaWZfGcifgq8=",
+      "Version": "v1.0.3-0.20250322232337-35a7c28c31ee"
+    },
+    {
+      "Path": "github.com/mohae/deepcopy",
+      "Sum": "h1:RWengNIwukTxcDr9M+97sNutRR1RKhG96O6jWumTTnw=",
+      "Version": "v0.0.0-20170929034955-c48cc78d4826"
+    },
+    {
+      "Path": "github.com/mongodb-forks/digest",
+      "Sum": "h1:7eUdsR1BtqLv0mdNm4OXs6ddWvR4X2/OsLwdKksrOoc=",
+      "Version": "v1.1.0"
+    },
+    {
+      "Path": "github.com/munnerz/goautoneg",
+      "Sum": "h1:C3w9PqII01/Oq1c1nUAm88MOHcQC9l5mIlSMApZMrHA=",
+      "Version": "v0.0.0-20191010083416-a7dc8b61c822"
+    },
+    {
+      "Path": "github.com/mwitkow/go-conntrack",
+      "Sum": "h1:KUppIJq7/+SVif2QVs3tOP0zanoHgBEVAwHxUSIzRqU=",
+      "Version": "v0.0.0-20190716064945-2f068394615f"
+    },
+    {
+      "Path": "github.com/netsampler/goflow2/v2",
+      "Sum": "h1:4TYOgwHsdSCOCrS1GeoXCv4HA7naAhpSouyUeHe64aM=",
+      "Version": "v2.2.7"
+    },
+    {
+      "Path": "github.com/nginx/nginx-prometheus-exporter",
+      "Sum": "h1:jyVHCkDlbu2fZyChXPyebGcMRupxu5YKj7+PTEMppEI=",
+      "Version": "v1.5.3"
+    },
+    {
+      "Path": "github.com/oapi-codegen/runtime",
+      "Sum": "h1:t7358VYPvNbWJ9gdAkIK/smVeHpBf6yp8VTsaZsb/7k=",
+      "Version": "v1.7.0"
+    },
+    {
+      "Path": "github.com/ohler55/ojg",
+      "Sum": "h1:ZfEYbtiPas8fHzBf+e9bDv+RDKEczfNsXa9Qg38ynio=",
+      "Version": "v1.28.7"
+    },
+    {
+      "Path": "github.com/oklog/ulid/v2",
+      "Sum": "h1:IEclFb9JNvzYA6MW2SCxbLzcHTVsfqm3PrqGQJH5zec=",
+      "Version": "v2.1.2"
+    },
+    {
+      "Path": "github.com/open-telemetry/opamp-go",
+      "Sum": "h1:UXXSQBtXWxa1ClY85caMrsdiry9dnCZn+LG441eWk5A=",
+      "Version": "v0.25.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/config/configdbauth",
+      "Sum": "h1:tGAZBQ/8qQ0mqKmvEmY+bbO5Ar+Bzmth6/EV6o1Dp/k=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/confmap/provider/aesprovider",
+      "Sum": "h1:b9Fcy5PXxlF+SskXbppBKM7IMUeJniBcDLOr93WfiOY=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/confmap/provider/googlesecretmanagerprovider",
+      "Sum": "h1:wBmlPUxQ+Dt3KJkqmsMkS0OWuDNF685LNag7G7D7yu4=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/confmap/provider/s3provider",
+      "Sum": "h1:F4xE8/hpWTFLHpD55K8YjYUDyd+0wPB/5Ng2SGTjw30=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/confmap/provider/secretsmanagerprovider",
+      "Sum": "h1:ntH44CDyQbUwv3I0s3MVclFJMjqNJO1HxYcVGD9Xx80=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/connector/countconnector",
+      "Sum": "h1:QDBYUL4V+0GL2wVq0cwcTQHOck7bsDY1wGEIdd7uyT8=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/connector/datadogconnector",
+      "Sum": "h1:Gb7vSVHRPB+SHOILPC0XHmPweRWoUL3ZPS/HIU/k30s=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/connector/exceptionsconnector",
+      "Sum": "h1:5UhT2AyvjvjWWKFumTx24shGQJ7yLQ5WKZwSf1YG7ps=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/connector/failoverconnector",
+      "Sum": "h1:QS+W2+nubrLpZli+qNHzW6Qq9XosS/GhvLssx723zyQ=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/connector/grafanacloudconnector",
+      "Sum": "h1:x6lDyMmi6JkX79U3wHoBJAFmzbK5tfA/mZ1CE1peZkU=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/connector/otlpjsonconnector",
+      "Sum": "h1:3eAYYezI/0DHjMnVZdV0aDPxl79VzseldXGzhOXhVFU=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/connector/roundrobinconnector",
+      "Sum": "h1:L0bY6fBzHdkcWqHfxsGe75fDi5r0ob5JOd+obvNQuLM=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/connector/routingconnector",
+      "Sum": "h1:KVSHIhDbfPtnB2Kw0bTIHP7URmUKU1pIa16ipSYxR0U=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/connector/servicegraphconnector",
+      "Sum": "h1:tUYTCivlgff/SoA9ViZgVj6DwLAPMfHgCXRMAPIufsY=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/connector/signaltometricsconnector",
+      "Sum": "h1:4LXQ+OU/Z3zoefu1yaAMOgUWDYWs3CRshE4uVBgPwOg=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/connector/spanmetricsconnector",
+      "Sum": "h1:gvsrOL0EOlIRjxFUmK4US4Kb6xLOWNYL8IHet5L8TJs=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/connector/sumconnector",
+      "Sum": "h1:pQqb+gSwMAGTZAXVLhEczhTPUzKp/YzAcsKRuA67kKY=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/alibabacloudlogserviceexporter",
+      "Sum": "h1:ECaOU0LSg/X/C5q2OP1sJlZwiM9CWFs5zPkkYamiHAo=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awscloudwatchlogsexporter",
+      "Sum": "h1:vzhsKa8/HmeI9B3/wwf+bRRmhSGL3/tZ/VRXUQTPUs4=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awsemfexporter",
+      "Sum": "h1:TSSfX1KSA0rvmO4K8gtYr4IAqgtzvMh9Pkeruadx+FU=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awskinesisexporter",
+      "Sum": "h1:vJqLO0ACkTrX8u69JnW2kBBxsEPDPwfrH5k+R/VUANo=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awss3exporter",
+      "Sum": "h1:K3WK/lJVOBtQE1lQxxVXppdQ2hceWjGQROpx+kdI9WU=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awsxrayexporter",
+      "Sum": "h1:bnpYju6VjRmorhunQqq4fRCuNXd5Gkkd6VOEBONnTZg=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/azureblobexporter",
+      "Sum": "h1:+bQppW53fkmZpXszfzClN9G35+VdVSJ8Xl/5ZXwaSVU=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/azuredataexplorerexporter",
+      "Sum": "h1:ZTCNhUsNDrfAgmIymautTQYxJkfMwoPPogmBJVC2R4Y=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/azuremonitorexporter",
+      "Sum": "h1:CBGCJ2cx3/RyE7OW1NWOQmAoajL+qAVm3Eu5oPvV6lI=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/bmchelixexporter",
+      "Sum": "h1:7Eb52UyL0RVc4qE8iKpRuZTv5SUDVDByayZrOiDaqyA=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/cassandraexporter",
+      "Sum": "h1:CVc2ko2P6UufJYPaukESzM5s1BrsG0LfCjVsjZ+F1gY=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/clickhouseexporter",
+      "Sum": "h1:opl+zbcrx6TAbJQVKB3J9BtRVRN+PXA4vifQB33ecPI=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/coralogixexporter",
+      "Sum": "h1:ls5EYIOHa8811t8IpC0/GQyvQrH31YPP7jgT08yiuY0=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/datadogexporter",
+      "Sum": "h1:TV9WMCieM+gFxgs68CQcWzAymK/P5nkXloGu3Ar7Kdo=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/datasetexporter",
+      "Sum": "h1:AZDGUbg1Jcws2G726iZrTLY1/YjyEJ3EHOvyOgRaGAY=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/dorisexporter",
+      "Sum": "h1:zUSNxcpklOUQl2tOn39s+lvLXFplFOPeQeqErZbt5Fo=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/elasticsearchexporter",
+      "Sum": "h1:Bs23VQA/X+WPD1HdvGR55lkQ6/MrVI+72L9InhuGEIo=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/faroexporter",
+      "Sum": "h1:QfESbe16EQ6nKnY7ejYAxHkaVnrcb0cn1YwT5aTqj2s=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/fileexporter",
+      "Sum": "h1:c5oLJ8Gck5jJPunPWh4KQMiZJBdA/pewXwO8fAdzDKY=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/googlecloudexporter",
+      "Sum": "h1:PSMS4t6M/yVGl6itqVM4u873c6qghfmpFOhq/pTfax0=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/googlecloudpubsubexporter",
+      "Sum": "h1:rg4EaSAxqJbrJE13+XcFTuw1OhiGJjiYV3YVW8pvDQM=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/googlecloudstorageexporter",
+      "Sum": "h1:3ozs1icNJQ02Jlby6vOWjt/5soDJwg1/9keR+Uea/No=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/googlemanagedprometheusexporter",
+      "Sum": "h1:DK1QCG651gKTTdKMGT5/MqBAm6gOovKxvO0OTymFq+Y=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/honeycombmarkerexporter",
+      "Sum": "h1:nCqyhDiKumS4urTdaqGqKg1e37eIOE0y3zjGNgogQYs=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/influxdbexporter",
+      "Sum": "h1:iauT+S86reGFOstT5saUP5Ty/7hK6xcG8eVPQKJRvy4=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/kafkaexporter",
+      "Sum": "h1:Y8iljIDe8ibX1kbALWeXN6PGf/stNY0XiBxI0Oc30y0=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/loadbalancingexporter",
+      "Sum": "h1:U6AO8ykQhCw7QYg7j5bu43wVN2gCc/rYp3iCzwQyoX4=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/logicmonitorexporter",
+      "Sum": "h1:6TMAsQlPS9uAlYkCxXfOS3Yq5YJWjYIYOlTy7EvbR3w=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/logzioexporter",
+      "Sum": "h1:g/6zMJhG8inKRqSMPjLNUZ3W+dmzaXRV97Ot04wOwIA=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/opensearchexporter",
+      "Sum": "h1:Bdr1FKsaRH+wbfLG2XLEK4XmCOscGIrn4qVCzNkUevk=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/otelarrowexporter",
+      "Sum": "h1:Qnp6KpBxlxQy9jB9+dQbBKU6Kcpe2mafH0aj7y7I/QA=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/prometheusexporter",
+      "Sum": "h1:FSJw0W4dhvZth/eO4PH9y4cdKpcna0ikW5NRu3FeR40=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/prometheusremotewriteexporter",
+      "Sum": "h1:JSKKZYJ5Ty+mup6ul3l95ZI6Nydy+l3ivmHpcBKPIfA=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/pulsarexporter",
+      "Sum": "h1:cuBdqFkG6IzBHhbqVVl2J0xVRkyutAJWv4lUCV6EFPM=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/rabbitmqexporter",
+      "Sum": "h1:AMtNWJVzov2Kh0lhcUXK7W2R5TsUYVk0Q8HJrXTBk2s=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/sentryexporter",
+      "Sum": "h1:cyFK/ELSp196OOFe3Zuj553ZHdwskSgkTt6WjpWJI2w=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/signalfxexporter",
+      "Sum": "h1:0Xo5HizP8HsNGDxCcHRj9Pih3+Pg+Bnty/5PIivV2Ys=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/splunkhecexporter",
+      "Sum": "h1:f85r6JgrXzRfd6z43e0MxJTCeLGyv8ESJGWk4PzQZgc=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/stefexporter",
+      "Sum": "h1:Qm6h4UKTinxSUUWdqgQcchydh6b6OMkt7xv8JHUYtQ8=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/sumologicexporter",
+      "Sum": "h1:eQWNf3yjHsotLbc1xImD9Jat31XZL64RKT0QOBArqbE=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/syslogexporter",
+      "Sum": "h1:UxgWE2C9/68SSY3WbYkZLnbA58KY8yMKrGZj1r9l8eQ=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/tencentcloudlogserviceexporter",
+      "Sum": "h1:37aiCEfwsMnUrQVAYraSftpmcr/3bn/yxYTpYIu/94Y=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/tinybirdexporter",
+      "Sum": "h1:S9ajlcB6P9+JWt1C01GUDr8Jx0WLIuv+6Pts2/xY5So=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/zipkinexporter",
+      "Sum": "h1:ZDJ0/H+G+ik+PMTA6aZpgyTLxtn9FT9LS7pegMfTPEQ=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/ackextension",
+      "Sum": "h1:gpVMb/iWmwSTZR9NL+feUB/N6QYaRCSAJ/V6+csUDLA=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/awsproxy",
+      "Sum": "h1:+dXeR8IFNHtwVzClWRsMY53X0jHsuTUPDNFRRVL2x2o=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/azureauthextension",
+      "Sum": "h1:CrPXntyftHcfD3cwyJE+0QiaJ6Q1ZtyGTrodMhFdaaU=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/basicauthextension",
+      "Sum": "h1:GxtoUcTSzejlMVsjeBTaCRP8dVH5U+FtVIrEsj43KTA=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/bearertokenauthextension",
+      "Sum": "h1:8mpWYgqTUKmbX2t3Jsi2mRKfO5QW3XBbCFzyIOapnTE=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/cgroupruntimeextension",
+      "Sum": "h1:BCKsCMdxDnKfIhhKUzDXDu5My/Vphwdbvde6P6i2l6c=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/datadogextension",
+      "Sum": "h1:AG4ixCocBTLDQavEkgogcBngNkJLoqAyUUkO3fvqM5A=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/dbauth",
+      "Sum": "h1:Dliv/pmAGL3YoOqluzwQIZiRNn7NKET2H+9BHcpba+8=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/dbauth/awsiamdbauthextension",
+      "Sum": "h1:R0zk1Z8ovh8fr1Gw12WxOryAqz1+5PAuUKD8SM3KQLU=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/encoding",
+      "Sum": "h1:y8UP5PBSRPDK5cF9QPApLvuGfqnJU8PKuTaXYIm353U=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/encoding/awscloudwatchmetricstreamsencodingextension",
+      "Sum": "h1:0mHBJaB5XxQ2Wj+Qs+tWQVeCPO8feNU8YFHpeOyyBIs=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/encoding/awslogsencodingextension",
+      "Sum": "h1:nd6WryutiD2v/26WArxm1GZvr8XAT64aJfRGZhY8yg4=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/encoding/azureencodingextension",
+      "Sum": "h1:rAwz6aeKXf3QrlLiDRc3nNwa7hv7G51hSqnO0gODcBc=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/encoding/googlecloudlogentryencodingextension",
+      "Sum": "h1:WpeMWOb0k1jw/Ncdn8LkMZFPYj/MOa7Svf2/BJV8SHg=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/encoding/jaegerencodingextension",
+      "Sum": "h1:MN/7pe+NnkPKhgNhjSXKluRvJneoFf/pceSdvbrx6NA=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/encoding/jsonlogencodingextension",
+      "Sum": "h1:/Ac2jXCHz2gC2+P6co0jm+QyGSMEBfJlCb1jyjLdyxs=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/encoding/otlpencodingextension",
+      "Sum": "h1:dk/MC2wkqTY8rCwc6zEMzQ8WELctkrtpRZ9gRJmQEVI=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/encoding/skywalkingencodingextension",
+      "Sum": "h1:f0Cfsm4HyfE5u57igVGtCKTDGX8dCSZrySMAEeDg3GU=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/encoding/textencodingextension",
+      "Sum": "h1:U5sF4T5jzZSwTLKVWQXZZJEwzFE4b/dRL7By9dKKkOM=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/encoding/zipkinencodingextension",
+      "Sum": "h1:ffWMmSYbFwjWbp3kREH6t5QkDWVJFLGMJXtrf38WOsk=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/googleclientauthextension",
+      "Sum": "h1:cZ29Ox9+FTZDQmuLAseg4LCLYZVW2twGYiQNECltMsc=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/headerssetterextension",
+      "Sum": "h1:4O4PD5DTrdHzPMSXpbf5hVBqU5OPlDe6fdMc8zqfIfo=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/healthcheckextension",
+      "Sum": "h1:BgLKxmAQH9NM3RpWk3gQDU500koRvGiNZRzqiQ0EnGw=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/httpforwarderextension",
+      "Sum": "h1:wkjbh0Hwd89ZK72y1856SkNglZylo5R2Kmb5rXb04Fc=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/internal/basicauth",
+      "Sum": "h1:hO7lCM0XqJsb41hbwrfV4PMt6LuhVeBcWwiqyzbzNCY=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/internal/credentialsfile",
+      "Sum": "h1:HenrdbGtMitiGNM5UxnirCzRQ0YLZhpori9bLzDOCSc=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/internal/secretprovider",
+      "Sum": "h1:eHSGOVfgeK7sLAsA3baD6pNs69fg67e1DcCByVPnu8o=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/jaegerremotesampling",
+      "Sum": "h1:qPAh0zlFAYK4xp3WqEOtB+ys9H8lTpqc2572pZwLZq4=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/k8sleaderelector",
+      "Sum": "h1:egRjBKF7tF/a6LtqkBzNAObW3QEGLgbgZiOe69ejWj0=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/oauth2clientauthextension",
+      "Sum": "h1:eTrk2kyjQ/lCktpSePVUrXN7ujIXBlhEYPYpg54P0HM=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/observer",
+      "Sum": "h1:MU7iWPwIImhXipF8d/HacQTxGVEL8H0ZgUjP/SjwSNI=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/observer/dockerobserver",
+      "Sum": "h1:clvloKcuQVwLpoAjme74m5Qe9JrzsgCVVRrjhs8pkts=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/observer/ecsobserver",
+      "Sum": "h1:iEo6afY9COPTan29XWsvV0+/bXJHqF+aiuuqGK/aLcw=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/observer/hostobserver",
+      "Sum": "h1:UXuvT1djeCVV5qLjovJY6jk4i0bhsgbwYJ+sSf5Ryig=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/observer/k8sobserver",
+      "Sum": "h1:A4K+x9/T40C3jiCu0tbw2ko5L8vxGWAmhlNvhuNbEgk=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/oidcauthextension",
+      "Sum": "h1:8EdCuTilgVxwOOsxc05c9ZA9BEGFBcAIqAhXOgmZfRA=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/opampcustommessages",
+      "Sum": "h1:qUeJfM4Vlp0OrjH2biGJ6ax4an6llMG/2CvujoiYygI=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/opampextension",
+      "Sum": "h1:w0i7CsusjsEaukygHzkDG7escd/lvKTsnZXdBJg25+c=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/pprofextension",
+      "Sum": "h1:wUph0FHlV6M056tARIU9QvXbO0Al+ZsgLgD3YTQK4zc=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/sdnotifyextension",
+      "Sum": "h1:2az0QB218s56QkCGGCyuetDeZPmcqxt1bcsTdUOwwuE=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/sigv4authextension",
+      "Sum": "h1:QY3rzjNCRfwvQ+f3DQL5o2lyj2vWNCucUXB0R+BxKJA=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/storage/dbstorage",
+      "Sum": "h1:+q6EvQPdJSwaIA24HFKjw7uvg92cx14lnMl3ocS2Vso=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/storage/filestorage",
+      "Sum": "h1:P6L4n5cYobacKVBrohe7Fkhsl5Od41edR1lasGmcqek=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/storage/redisstorageextension",
+      "Sum": "h1:f+0xX9vX5iAgW+LA376kdzUJuuuyMqEexREiONh84dA=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/sumologicextension",
+      "Sum": "h1:ltK5QJ+wNcmfc77hyBfltIjVvdq2tjCWAhnZTR3PcGQ=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/tailstorage/pebbletailstorageextension",
+      "Sum": "h1:+dS50Gs3Cish0aHnTLJ1qQEAuUnzBenpE4p+cYp1Ymo=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/internal/aws/awsutil",
+      "Sum": "h1:l+CKLHEaBRnI1s3Mbe/3zCwM+SjT60iCi82KCCFOaII=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/internal/aws/containerinsight",
+      "Sum": "h1:Uu+3qioKcufR7axIZxjCOl9W03gJ8jjkbjGwdulQnjI=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/internal/aws/cwlogs",
+      "Sum": "h1:MGmcHYVzV612Ff3BNjPuq3RdjgNGqAYQipEUujz4Nvk=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/internal/aws/ecsutil",
+      "Sum": "h1:W/DbVSj8mj/1qvUyCrMZnN+J36OlL+saYXz+GPMKMls=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/internal/aws/k8s",
+      "Sum": "h1:JO4KdbknSCHwUzuM8YBwiXEIFTNi4vRkX9zW1MCdhME=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/internal/aws/metrics",
+      "Sum": "h1:++ueOW5dkfM8uWV2Sx1zja8iruXmbMO7/AhKzqw/p5Y=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/internal/aws/proxy",
+      "Sum": "h1:oeM44+GUFIrC+Yg4dHZw7E+2atg7PKe0mNKbU7Y1dbY=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/internal/aws/xray",
+      "Sum": "h1:WSZ8w2z0vBDSWSPmVpAxYal612tRAgmAPbiPvHBno38=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/internal/collectd",
+      "Sum": "h1:va2m2CjQinR+VOsPQuVbjdr8aRz532P4B5ou9ArNN2s=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/internal/common",
+      "Sum": "h1:P+yddf5o9W4d7/LtUbyDbhvP023nijL5vr65eXYDt9E=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/internal/coreinternal",
+      "Sum": "h1:Ae6RbYZNwCFD0qaclhyApQPzXOaKR7Nqq4jP/EVQTOk=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/internal/datadog",
+      "Sum": "h1:n8yuLf09v/KmDEfsKFzVCAtConn8FXnminDNajNkl/E=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/internal/docker",
+      "Sum": "h1:61qBp8gqA4eatWAoljEpN1IdCmfxytEUR3dXcMt/lZ4=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/internal/exp/metrics",
+      "Sum": "h1:KsVuF8VAUAYe/T2NFvdGCxq49LUISNR98yIoWZ1yYlY=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/internal/filter",
+      "Sum": "h1:orn+xYQ28J4ZA3OIo9d7LfynMvl9N1QKV+dBfJQdm4M=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/internal/gopsutilenv",
+      "Sum": "h1:bNLAVlVrwIOKBHkObAnZ7tq+rsWwiA/RcPc455ZGneg=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/internal/grpcutil",
+      "Sum": "h1:TDnVLfmnjeTsl7//Cxjm5mEyEspstz7bVcNUdHmQNPI=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/internal/healthcheck",
+      "Sum": "h1:nMg6a1Z6f8jH86chJEl4b8CVPm9OgZeIT1kMj83s1jY=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/internal/k8sconfig",
+      "Sum": "h1:4zZhHIiLW1UxVKDuLsVbAKdzHAVmkXkVyQZVPbHwZbQ=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/internal/k8sinventory",
+      "Sum": "h1:zo8SFPNGDROKx4IlBAR+cK8cZJchtsEWwRIpY0/KIIo=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/internal/kafka",
+      "Sum": "h1:EXHvZQj3Y21gMzV4Rjl50OyC5gtmyXyjMIVgs5hHI5g=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/internal/kubelet",
+      "Sum": "h1:2t2/x3CoG9mRap39XM9J0TVPn04MHLILNkFLbHTTY4U=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/internal/metadataproviders",
+      "Sum": "h1:Sl4ggG2Mavoa99gdXHLxIPRdfRt09m8KE2jU9kcI1DQ=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/internal/otelarrow",
+      "Sum": "h1:Q49JkJVIMRvDec72nnbxtQpXcmpfa3oc8RinQFU037Y=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/internal/pdatautil",
+      "Sum": "h1:Jj0+8L90QipWdOmD8MbMceh3hM1/UoykqF9dJECEIek=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/internal/rabbitmq",
+      "Sum": "h1:3AHm7OlvlqTyhhM93xHODSsCoTVTv+Zp+ZqrzeWhqb4=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/internal/sharedcomponent",
+      "Sum": "h1:m8fhF8fqTnHztO9G4744Or3dYt/LAIjB8+qCLzCrUm4=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/internal/splunk",
+      "Sum": "h1:lNXvwix6DQvj5pV4LZ/nHEVY8/2oL/xNaDGRpXoOPsw=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/internal/sqlquery",
+      "Sum": "h1:dDdchqZTxMlOGTXWBK/D474RmOOoX91LwKOXBZlxeVo=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/pkg/batchperresourceattr",
+      "Sum": "h1:FmHZ9kMXJqRoDFd0ZD9zpYj354pfxDoTpMeP4DWSAdY=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/pkg/batchpersignal",
+      "Sum": "h1:lZvaiZo6uehMGwTjZbc0L0ZuOwHKAsbMqIFZmHiN+pg=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/pkg/core/xidutils",
+      "Sum": "h1:D6U7XDRboerQKYh0AhXUOZABoy7nA2qkVyDaZ67ETl0=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/pkg/datadog",
+      "Sum": "h1:vP6AK9SiUBM3bTCPGAoHGPGaI+KESroH53cmGtiCgG4=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/pkg/experimentalmetricmetadata",
+      "Sum": "h1:sudc/kauYVDYd3q8Ktt0gGCruupBIeakcW3hfsZimsM=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/pkg/expohisto",
+      "Sum": "h1:be6WznQmRUKsc+hylmFW1Ex3LtEDPsJ/PYWjthhZ9MY=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/pkg/kafka/configkafka",
+      "Sum": "h1:ZWvwhDefhoEx1pZUbguJ9Qpw5r67IIxwhE7gTcy1Pk0=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/pkg/kafka/topic",
+      "Sum": "h1:+J0TIR5i27xvr/0P/az1JiL1w4lYZEtyEtZv9rCh9F8=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl",
+      "Sum": "h1:WJn1cKaUsxGl0NaLBIIQT9Vj4MWYDEuK9IbrKeBtp70=",
+      "Version": "v1.4.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/xprofile",
+      "Sum": "h1:dXQjp19It74cT7A7V6Co297VJ/yacCeGKAjAdOWOZnI=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/xottl",
+      "Sum": "h1:SRl2h27yX1NnA0J1ubjmhwGMzgCtUUTTKC2LBnam77w=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/pkg/pdatautil",
+      "Sum": "h1:KuAMWLY47aSlhUR45cty6V3vmqPfGtuEWUMWoXLihL8=",
+      "Version": "v0.160.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/pkg/resourcetotelemetry",
+      "Sum": "h1:IOZBy/eaSNGUH30ven0cC7m7XsxW8K53vShtyEuyQm8=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/pkg/sampling",
+      "Sum": "h1:bOFp2Q0YYcb16/4qIbtAvHA38Ii5KPZRRe4ggTMv9pY=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/pkg/stanza",
+      "Sum": "h1:Pn9YgPouGCRGaMlrNIVcJhLOaa2sA9oJkKQl4kfI1PE=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/pkg/status",
+      "Sum": "h1:+ix3PPr8nCasJ/DEhrtrDL1pttGgu7bYRvaBb4IqX1I=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/pkg/translator/azure",
+      "Sum": "h1:QiNMsGt+qXIn2CayC8w52PQw5GBLDuB6eEQQKsFeg9s=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/pkg/translator/azurelogs",
+      "Sum": "h1:6kiQAaIu9IJyuE9O/CHfLCxqPRlVQnqKszA0+PdophY=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/pkg/translator/faro",
+      "Sum": "h1:/q3FR+B4nMd/05YGDPCPyu6weIM3+t57W0y0CJyoDc4=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/pkg/translator/jaeger",
+      "Sum": "h1:3vSac6YqAXeqJ5df3MPgAMKOQzNlpD/6qtXvF10yRvM=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/pkg/translator/loki",
+      "Sum": "h1:ZkqN+YvwXst897GEDTPi7nAX+1d7lZVQEi80T3jtTP4=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/pkg/translator/pprof",
+      "Sum": "h1:n/JARoHgktK6hnc8/gDG/Eh2qYC7g4F7jlJkEASsQiU=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/pkg/translator/prometheus",
+      "Sum": "h1:ryc6C79a54IS/xvKNzJzsQMzmzNcdQ6Y/KPCMrO2POQ=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/pkg/translator/prometheusremotewrite",
+      "Sum": "h1:ltPSp1jtV1UHZ515pPCYIqRo4sGbp2WPfEiIzqgaets=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/pkg/translator/signalfx",
+      "Sum": "h1:Impp7k4VStDD/v92xa0Rb3aN1jjuyhfKkRXlbRoCspQ=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/pkg/translator/skywalking",
+      "Sum": "h1:MNJtl8yh3OE+b8DGmb7rjeesaGMNdqYeFzUtLJQ2pWo=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/pkg/translator/splunk",
+      "Sum": "h1:na2D5XCP92e1WqmvdAUviJWsVrXjygo44DmG8QJEaEk=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/pkg/translator/zipkin",
+      "Sum": "h1:sijQI6J1hGhxlNbx5CPsIoeACJDz2pNOsyssWfm5/oE=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/pkg/xstreamencoding",
+      "Sum": "h1:PZQfk+YEbsNR81ImdDc972lb4mP+S5nw914DJF7HvIw=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/processor/adaptivetailsamplingprocessor",
+      "Sum": "h1:x5qvD8L8LJNgbyGX+ATEu0Xry55TiD7nBwa9bAkCsUs=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/processor/attributesprocessor",
+      "Sum": "h1:ouwmKs+cgLN9FN+f9s3dN+zp5klcw0cDp/9+Df6/sWU=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/processor/cardinalityguardianprocessor",
+      "Sum": "h1:r+T077ihVb/hE3z71vWzRaqkAhtswyWh4Mcf3iKmWUc=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/processor/coralogixprocessor",
+      "Sum": "h1:lAa0vd/K2ypmQAnG2ojtcrWQZg20nhpmO1JEJNFfDTo=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/processor/cumulativetodeltaprocessor",
+      "Sum": "h1:XliRsr1o+fgrGcn6SXMvp/EZjS7Ie4RG541y6nvObFo=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/processor/deltatocumulativeprocessor",
+      "Sum": "h1:W52ZYSqC+QNcunxOjencKwWL/xDJ5f95ehFSH91Npss=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/processor/deltatorateprocessor",
+      "Sum": "h1:ZOmqg3yC0sm26Qeet3RvipD7IlMeYc0iT157hXaaYaU=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/processor/drainprocessor",
+      "Sum": "h1:udHhRz3BnFYRNdIxpCwc02rgOzAqXEHwNziK3hxactE=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/processor/filterprocessor",
+      "Sum": "h1:xt/hYaSETwrU7TWkhdZez04cogM2B2jCxHCgLAdvldc=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/processor/genainormalizerprocessor",
+      "Sum": "h1:mYAvZYkRrN/UCM/UCLhMVQuBrUAqbB9bjYhxUgGbsMA=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/processor/geoipprocessor",
+      "Sum": "h1:xbku3bBj7TBcl4GyTFz3gtneF5xRg7S9D7Or+Hcz02g=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/processor/groupbyattrsprocessor",
+      "Sum": "h1:m6iKEOtU7sR2Taj99TMav/+WbaISz4uSVdb2CoVzTo0=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/processor/groupbytraceprocessor",
+      "Sum": "h1:DhwnnFuw160qYLNaYA/GGdk69InZVlc/pqNLuqP5QeI=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/processor/intervalprocessor",
+      "Sum": "h1:uyXgK58Tgy0TE0kTlUEv5OYuHzDG86ZdquD/ymxymF4=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/processor/isolationforestprocessor",
+      "Sum": "h1:SVVTofarJ1A9TM4sCb+zNcbEFZ031F+fSvhgJTzl9VM=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/processor/k8sattributesprocessor",
+      "Sum": "h1:0sVO1bVtG0ViG43m3XKvW3kwHhAWDKImrWw63XsbE+Y=",
+      "Version": "v1.4.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/processor/logdedupprocessor",
+      "Sum": "h1:13v20bDFdWuvQJQ0mwe7rcNqaFUuARrEw9IXX+cvgoc=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/processor/metricsgenerationprocessor",
+      "Sum": "h1:xu086slsGgBhpKX5lTPJMOfl668rVIQpwcNYzS7STys=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/processor/metricstarttimeprocessor",
+      "Sum": "h1:TDBmAyOMSbUzIVunVBIRBRkNp0ZibPMfYwqO1chp41M=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/processor/metricstransformprocessor",
+      "Sum": "h1:dFigdO1PDXiCM/C1i3/H8iQCfpjjHVIiCHwbA/WiXRQ=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/processor/partitioningprocessor",
+      "Sum": "h1:QgySQO45aCVz3lB1a/itvrjQLwV4coci1TtAhfdjSDY=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/processor/probabilisticsamplerprocessor",
+      "Sum": "h1:dzLdiepv3palCexvFQN1bJwms5cKFBz3BtNKiQSoHBc=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/processor/redactionprocessor",
+      "Sum": "h1:+gy1p97TFX8jCt14YWSGs7bL/QX6J7VlkPmrRNW+IYo=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/processor/remotetapprocessor",
+      "Sum": "h1:My3iZ+8FtzImWq6fdIf85eFf48CllsVsfCcmJRR0MCI=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/processor/resourcedetectionprocessor",
+      "Sum": "h1:QR5j1CmhY6DGOjpA0C0BoIK7hxYOuexO4yevNp4HCes=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/processor/resourceprocessor",
+      "Sum": "h1:NUNfyeyDmQceAHRNdG/m039awCgWJxw5QVuusutfkaY=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/processor/rollingspanlatencyprocessor",
+      "Sum": "h1:4qwjdg4YbkQKXodP7W7dd7noPeNdvXpJ8Fxkp79Qm38=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/processor/schemaprocessor",
+      "Sum": "h1:i1aYs7T8OVmPrXIb0b83nfxbsnShoyek1TgDrZjN8uA=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/processor/spanprocessor",
+      "Sum": "h1:zRuOc/nKPXHbTIPlEHysycIB1D1tot/1kdwF35MRS7k=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/processor/spanpruningprocessor",
+      "Sum": "h1:+6psk5hH8tkMlyo7Yms1/B1+KKN44wvoQPqfPJR7U30=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/processor/sumologicprocessor",
+      "Sum": "h1:1HXy1kANcUZj7VaZOWrg0zGO+lVaOI8CRXx467aCvMw=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/processor/tailsamplingprocessor",
+      "Sum": "h1:3fY8e9NavR0n4X0CS88rkS9uh2XN/crz0irsFjtjQq4=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/processor/transformprocessor",
+      "Sum": "h1:O/JtVuB7HglzgR8AKZJA6rYODiJqMx1HO+/nBtA4v+U=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/processor/unrollprocessor",
+      "Sum": "h1:isOqGVXtRpnSOw32upe2xkagCZ/FPs695rSZltYiuBA=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/activedirectorydsreceiver",
+      "Sum": "h1:3dw63wPeEevVSCBpNrlaejd5hxJB4XEpHsL8agM6Yhg=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/aerospikereceiver",
+      "Sum": "h1:wUqRixApavdDjGBAAQH0+U91eiBnpAV3AHO6AmuUJBg=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/apachereceiver",
+      "Sum": "h1:8ViUv6B0YXmq/x+hQU0ugYaNR7E6lqnFdD+EHUXu3MQ=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/apachesparkreceiver",
+      "Sum": "h1:xCeJr7mx9GjVjHGy2QQVkwjUM1uAPnLhISONkoetob0=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/awscloudwatchreceiver",
+      "Sum": "h1:8ab9e/NTCBV+7jDGmZ/wqjD1FhuS6FSnwYE+2t/vH5E=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/awscontainerinsightreceiver",
+      "Sum": "h1:NV39XxXEUkzTAbaiU+ZT486lgvgRhpF+B8/HyxmAWqw=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/awsecscontainermetricsreceiver",
+      "Sum": "h1:4+m6ibxADpaXHnYhol+Yz4Izsq455a+3MFa9sfjoljQ=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/awsfirehosereceiver",
+      "Sum": "h1:P3ynTYhPEE3axLi7T1EyKXn1lepk9fPEPkxd//DClek=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/awslambdareceiver",
+      "Sum": "h1:loPQBCMdBIbUo3cUJ+YbvYO1KPRd63L4SaCKDqldxyw=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/awss3receiver",
+      "Sum": "h1:NSQeORfcgqLOkvwYCvpUiD7o/vgYZQ3wdO/F1EiL0Ho=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/awsxrayreceiver",
+      "Sum": "h1:7mz8C111fD6HTQPW29WgNXtizOTV/jf9GOw89TGtAhQ=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/azureblobreceiver",
+      "Sum": "h1:7EOxmjcWtrIddY+c0A3feiEYDOlfqwB2OsSbV4c3l8I=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/azureeventhubreceiver",
+      "Sum": "h1:0WlZW/uDdsFQ5U5KSss/KIWGlNcq9vZtqXmyl8NCnHQ=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/azuremonitorreceiver",
+      "Sum": "h1:Q8+jV7HVbx3RERzSg7diR7WoYvNGBNMScJA1gtnI/ek=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/carbonreceiver",
+      "Sum": "h1:umqcFk/Y4YTLoeKvu1GZl0XmldFFaq0rKo/rWL5XwzQ=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/chronyreceiver",
+      "Sum": "h1:+WRlbmbV8xEhR//AIjjqI0jW4FZ4jMrUWlw6bum7Aow=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/ciscoosreceiver",
+      "Sum": "h1:qVQcdqtE++qp+pKWX+VWJ5/ul+4QANVBZsdbEj4OCPg=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/cloudflarereceiver",
+      "Sum": "h1:D3Cmv3BsQlaVgDmk1Zv9IEoFdN/BzRHHIofILhbDM3Y=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/cloudfoundryreceiver",
+      "Sum": "h1:ebrgzg+uvj7jH+Rcltiuj3frd+2r+YcoWk7y36Om244=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/collectdreceiver",
+      "Sum": "h1:agQZEZpqer0AypesfvaTC8v3QClts0m5Ig2qK8GX5rs=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/couchdbreceiver",
+      "Sum": "h1:YP3VeyiJHVauCWfqkozs+FKmKgLoqU/ydHUAFT7764Y=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/datadogreceiver",
+      "Sum": "h1:1b15LNwJ1NZfjjIUc3v4Ay0qD26hmEXdr22PpwNfnUU=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/dockerstatsreceiver",
+      "Sum": "h1:m8EgCBxAW3gj27t3Vj0OpRubBr5sU6ZwIdZBNM+twYg=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/elasticsearchreceiver",
+      "Sum": "h1:Y2k7J/Qr/0vd/wLIwiPLud/cLbIfX7Knw0alL1X8d+Q=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/envoyalsreceiver",
+      "Sum": "h1:oX2L1oJlKdQZ0VEuu8J5l+NXDAy6wIZkYZPx6jI0su4=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/expvarreceiver",
+      "Sum": "h1:I6ScMerYueJCc3AMV6+Ofm76YPJeRNbCB1jeuEZwzK8=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/faroreceiver",
+      "Sum": "h1:dOdcKQahd3ZnCJ7xBmshwnslVH5sS23yCUzsAobFb6c=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "Sum": "h1:m/8N43Icx3sE0cs8tuOo0lOZ5Dhs4rHOAjlIQs7HAek=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filestatsreceiver",
+      "Sum": "h1:+GN5pYNOdE/xvf27QJzfz5jxZqhPJxHFFYDPR5tGd/w=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/flinkmetricsreceiver",
+      "Sum": "h1:aE2RQGQyFBny8c61HBJTTuO5NBy9KrDLR4WN0bnmLYk=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/fluentforwardreceiver",
+      "Sum": "h1:H5tJwz2SEZiAqPk8ZQ77yB6iPlFZi0qjyo5sTXGJcFY=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/githubreceiver",
+      "Sum": "h1:ROUNYbHKI+V6BUetiA+k7/Db5SBomI56qnGfAvjpU50=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/gitlabreceiver",
+      "Sum": "h1:SR+2sz0WEccBM7MtcZqEiuFeDADk0WCNO5FgDe1KAIg=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/googlecloudmonitoringreceiver",
+      "Sum": "h1:MCDlGCZr0ljf/K/ypLvTEjUmOjdSLimp95jt7RJT8lk=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/googlecloudpubsubpushreceiver",
+      "Sum": "h1:lddeCQ1jDqNR/KzrZtPWvKw6nTTdvnFtn7uYwWJlTe8=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/googlecloudpubsubreceiver",
+      "Sum": "h1:wFHBSgJP6k0R3bMDXEpk7ptI0fC09Bmkgo8MRHBShYM=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/googlecloudspannerreceiver",
+      "Sum": "h1:ecORrqilE00njJM9no/AnERlK2XVv/j7UY0UCv3XxrE=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/haproxyreceiver",
+      "Sum": "h1:UkzSffKM8NriE5rEjE6sb7ui1zUfUPt5YsfpKcxkCms=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/hostmetricsreceiver",
+      "Sum": "h1:R4Doh3KbwYlJZfP/V+6cZSc3sWa6XUv3pgajTmjXC4U=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/httpcheckreceiver",
+      "Sum": "h1:lpuvwNaQuCbB48kiri5CUrEDrP5NKNYVS6Gf/UYabvc=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/icmpcheckreceiver",
+      "Sum": "h1:Yi25GoWGUvvY9lNzjrVfizynm/gxcrv+qeSICCltAJI=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/iisreceiver",
+      "Sum": "h1:4kcx4mrXmIH22lY+fYyy2II9LbmvNfkgRQD1n59ys5Y=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/influxdbreceiver",
+      "Sum": "h1:un9cFzo3BoxNgmoUmQI39BHAzpsbP7qbc7FrT0cXBCY=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/jaegerreceiver",
+      "Sum": "h1:D5NqjEsVjzXk2ZtZFBQHDt9qqUWcaZgUcI+boHcy6DM=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/journaldreceiver",
+      "Sum": "h1:5/UMyBRNB2ZlaJr/LzZt3NOsbWLQEN/tqhbwkERLylc=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/k8sclusterreceiver",
+      "Sum": "h1:fdvl2MpFzTHKlKQxm2WTx8+Ld0oz2FTf30wvtI3Qlp4=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/k8seventsreceiver",
+      "Sum": "h1:oFcuiYi0HYa3/E6JNgbgGjKs/JGitADdowsxXMg2tig=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/k8sobjectsreceiver",
+      "Sum": "h1:r5DwdjTYIETrWnCHYPaya2UoR4j3X6l/gltmE/qlmGU=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/kafkametricsreceiver",
+      "Sum": "h1:IT+lPdL9EJwIDZXC0Rxz+62VJm2J3Os/j3iDqJa67rw=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/kafkareceiver",
+      "Sum": "h1:cKLoRowLo/Bz/JuavQNHqP2+QQCL0DaIwFAOEWPJ53A=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/kubeletstatsreceiver",
+      "Sum": "h1:s2bHMg4oukD+pqU7GKi8Hi3KSDivaBdQc+PhpwwUMV0=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/libhoneyreceiver",
+      "Sum": "h1:sF4+fKtOKRPRFLkzDeZID06BzAlJ7z/LnGRhBz0o6hI=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/lokireceiver",
+      "Sum": "h1:LdJcIJQn1FPnP9WCOmd9M+wE4EqO8D8kPQaO7byxTFQ=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/macosunifiedloggingreceiver",
+      "Sum": "h1:OukrUSnckygaeqpdLxUpDSaOAMHJ8iEdqYAcGVLwfWQ=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/memcachedreceiver",
+      "Sum": "h1:Wrx8DbcN3T2C5gvY9rZyDXrJmBFu4P1Cm3e6rWTZF20=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/mongodbatlasreceiver",
+      "Sum": "h1:DWwPwFLW1k1LmrLpDlresXp0p7eHqK2ta8Ytig8T0YM=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/mongodbreceiver",
+      "Sum": "h1:xp8Ytf2JrflLn5zoR/iT7yzVHuuHKJFnCACEnAuCSo0=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/mysqlreceiver",
+      "Sum": "h1:60FcH8/Mk/EUeNIzwMRPdHVqdaq3MaDI+ri23qBRRiM=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/namedpipereceiver",
+      "Sum": "h1:a8XwuyCRF0ilWli/OERcc4CfItZYHE4b+7jz2u+2hVo=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/netflowreceiver",
+      "Sum": "h1:l7x3+SWG5A715Dc9HnZURWUAzL0vrDbMcqg4kJ9/Crk=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/nginxreceiver",
+      "Sum": "h1:TQsEA3Funs8N/m/krw3f6Y3IGJE3pDK39JVAnkRQPxM=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/nsxtreceiver",
+      "Sum": "h1:W9bKzJrLAWtzQot3dOyhRsfd8+j4m/Jpo+nhxl7wgW8=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/ntpreceiver",
+      "Sum": "h1:3knMvmQ3joWh3NjZjl8w+00ankJgREVsxME6CTVhPlk=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/oracledbreceiver",
+      "Sum": "h1:nhkk298nkXhoJGdazT5otDr6uH75WNmtymR5mQWqH1Y=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/otelarrowreceiver",
+      "Sum": "h1:BXzEowI4n7rkqHsor5WcVK8PYmKRyeM93QU4pgFhm2k=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/otlpjsonfilereceiver",
+      "Sum": "h1:3D18oaogoJksFfznp5ZtpCUHpIgKOzUJE8WyMhMUJgI=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/podmanreceiver",
+      "Sum": "h1:Uzj1r4xjyutGgp+iWo1r+eLk+yrTBSPEQy0HUuZffL8=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/postgresqlreceiver",
+      "Sum": "h1:8Ses7lzUep0d5ZgV3IjKw13XMTm4a41eqzIH4jERBh0=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/pprofreceiver",
+      "Sum": "h1:JiZYbN1cYZAxqhy5ztd/AV5m2qIORXDYa9l9QYfwBps=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/prometheusreceiver",
+      "Sum": "h1:tW5I/zqJFLtXtgWUJrGNvNtZ4q1Bio2FrhyHcDtIMlk=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/prometheusremotewritereceiver",
+      "Sum": "h1:vDssp/KV/RivmtI6KPCDP7DqLINJyG3B/DawglSzOow=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/pulsarreceiver",
+      "Sum": "h1:IxsoyFEJaWbn/o22gOoFPB3jYumVfzw/+dbaazL3gv8=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/purefareceiver",
+      "Sum": "h1:datFl7EBxX77IsUW4OPT70iGHLfaPnOszSHKDni49l0=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/purefbreceiver",
+      "Sum": "h1:TtBU5GPhIwrRv/SUEDak1eXGowjUhntdYv/tjNg23yo=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/rabbitmqreceiver",
+      "Sum": "h1:ltYr0O2tu8ag29hVq1UbErUL08lpbFvL+PyNj4G5/cM=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/receivercreator",
+      "Sum": "h1:kcQE6UbzUNXduYsi5HNmhhm0W+gGGS6o+WsbRwMv1Gw=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/redisreceiver",
+      "Sum": "h1:uX0jt46l0rMZ7oIAKCr0uHP+IZ22nlwoUjMsicG1wDI=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/riakreceiver",
+      "Sum": "h1:2/IFWpNbKmilwRFo+0f6tsOOs+CqBM63yiTMYJsMKW8=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/saphanareceiver",
+      "Sum": "h1:kT9AW7N/ld8JGwrk36DhHaPhHWFMKwBCChnLMpmD+gs=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/simpleprometheusreceiver",
+      "Sum": "h1:ostu6cRQySD2I84AygW7mwECJnvQcpkMAAF3N+dxC88=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/skywalkingreceiver",
+      "Sum": "h1:1MyO3djSqX/ODwaCpeHjOvB9YyQYWN0j0C20V9ocaZs=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/snmpreceiver",
+      "Sum": "h1:2RtkmZ/otq2KZtpK8QvViKvooyw6eIeRMu7RVs49/7I=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/snowflakereceiver",
+      "Sum": "h1:EEwxmMo8aW5cFPSsN/EEAzPMTy1OZnytSDswe2YjMwo=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/solacereceiver",
+      "Sum": "h1:GUkZzbxhRWTnrgS6z5lgXjDDqH3lRSCsysvnsiJiDDc=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/splunkenterprisereceiver",
+      "Sum": "h1:NAE8JvIudqyneMrVV6DZ49QxeMDoe9vDBVo+aPeO2r0=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/splunkhecreceiver",
+      "Sum": "h1:i1ds1BDSaHBg7mca455oh6t0JixArs3b2cZ/Ob+ulwM=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/sqlqueryreceiver",
+      "Sum": "h1:uw5H01joglBdfxsYOJfzxNOuRSFIl06jxzF9mUaRVNE=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/sqlserverreceiver",
+      "Sum": "h1:cg2Ck0RYEIqDQfGe4O/Nup5r6cy0L8His6+C5dlNRWo=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/sshcheckreceiver",
+      "Sum": "h1:QKNKOcGntozP4+SPDLMcfUSZu1kQYWFP/0J/qmt1sto=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/statsdreceiver",
+      "Sum": "h1:zHI0GTZVNV1uCBFphbuhdxr3YThEu67gS90YBJjyZg0=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/stefreceiver",
+      "Sum": "h1:jBl2IImkwZeB9un7d16guxwbP1VnHfXfCfBA5olNqG4=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/syslogreceiver",
+      "Sum": "h1:JyROg93lluXOmQEghEX7BVno94QSU6bdVByIQv6Nwrw=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/systemdreceiver",
+      "Sum": "h1:UO06xdJpBUB0OmjtKzFS6KW63woaYYdFYLm08htpAdA=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/tcpcheckreceiver",
+      "Sum": "h1:GH+P1Bug/xQX8B1xUhGv3ZXQVIeOD4XL7mLm8TKTnlA=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/tcplogreceiver",
+      "Sum": "h1:UeI26HFDlRaFpIjUJbbxdwRDmGsW5nEaC/JxTRSGf0k=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/tlscheckreceiver",
+      "Sum": "h1:mcR+ugJl7vNaIE/VLRRT4Yvq25mFx1ND+uAKdK0ALA8=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/udplogreceiver",
+      "Sum": "h1:Z1R/KapD8Oe4s65HQfUvC892y5ZBYRKlBkyTM2ShcWQ=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/vcenterreceiver",
+      "Sum": "h1:M99oJ/3XNR9E2XcMrauMc2s36pTqm4OF8qCTQ+sDBB0=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/webhookeventreceiver",
+      "Sum": "h1:+lO14jcFdPL0TVjsIRxNfogB4mfGbkDeba0gAplEU6c=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/windowseventlogreceiver",
+      "Sum": "h1:EQCCA8B4ZTHQZLlV1v+jqF2K+pgIvYTaAubU5j/45zM=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/windowsperfcountersreceiver",
+      "Sum": "h1:FtiKbVuBYFnwdq/iCunlBFlHsummYuC5Q0TE1rfGwoA=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/windowsservicereceiver",
+      "Sum": "h1:52Bq0ieDnj+iQ5GBPum4Ft5kJCPDogdaWwzCvpQg7no=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/yanggrpcreceiver",
+      "Sum": "h1:T8SYDyRByXs/90uA1dBkqpOT8ZY2eqHF/Knmo3F0fMU=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/zipkinreceiver",
+      "Sum": "h1:BpNVlNb7JbtgAIq+prB5o2+JgnF7lx7f70lBUkMnjFA=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/zookeeperreceiver",
+      "Sum": "h1:LyOcMiLCy/k6GIgmGtGXVix/+LthSoOQ27ivWKXEmoc=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/opentelemetry-collector-contrib/scraper/zookeeperscraper",
+      "Sum": "h1:LDq6kagQW4WLEHamHZVYmRyXW/LsEVB4jQ1YYU0nPeQ=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "github.com/open-telemetry/otel-arrow/go",
+      "Sum": "h1:m2Yke4E315uBwpWgFVnZATa/j8G3XoVBFcrLnV38wJc=",
+      "Version": "v0.60.1"
+    },
+    {
+      "Path": "github.com/opencontainers/cgroups",
+      "Sum": "h1:tfZFWTIIGaUUFImTyuTg+Mr5x8XRiSdZESgEBW7UxuI=",
+      "Version": "v0.0.6"
+    },
+    {
+      "Path": "github.com/opencontainers/go-digest",
+      "Sum": "h1:apOUWs51W5PlhuyGyz9FCeeBIOUDA/6nW8Oi/yOhh5U=",
+      "Version": "v1.0.0"
+    },
+    {
+      "Path": "github.com/opencontainers/image-spec",
+      "Sum": "h1:y0fUlFfIZhPF1W537XOLg0/fcx6zcHCJwooC2xJA040=",
+      "Version": "v1.1.1"
+    },
+    {
+      "Path": "github.com/opencontainers/runtime-spec",
+      "Sum": "h1:YZupQUdctfhpZy3TM39nN9Ika5CBWT5diQ8ibYCRkxg=",
+      "Version": "v1.3.0"
+    },
+    {
+      "Path": "github.com/opensearch-project/opensearch-go/v4",
+      "Sum": "h1:Ac8aLtDSmLEyOmv0r1qhQLw3b4vcUhE42NE9k+Z4cRc=",
+      "Version": "v4.6.0"
+    },
+    {
+      "Path": "github.com/openshift/api",
+      "Sum": "h1:Ot2fbEEPmF3WlPQkyEW/bUCV38GMugH/UmZvxpWceNc=",
+      "Version": "v0.0.0-20251015095338-264e80a2b6e7"
+    },
+    {
+      "Path": "github.com/openshift/client-go",
+      "Sum": "h1:9JBeIXmnHlpXTQPi7LPmu1jdxznBhAE7bb1K+3D8gxY=",
+      "Version": "v0.0.0-20251015124057-db0dee36e235"
+    },
+    {
+      "Path": "github.com/openzipkin/zipkin-go",
+      "Sum": "h1:9EGwpqkgnwdEIJ+Od7QVSEIH+ocmm5nPat0G7sjsSdg=",
+      "Version": "v0.4.3"
+    },
+    {
+      "Path": "github.com/oracle/oci-go-sdk/v65",
+      "Sum": "h1:Wuos4/Ru9PRI83ObOfAmaEu+m+LcmjG7f17c0p6YzwM=",
+      "Version": "v65.124.1"
+    },
+    {
+      "Path": "github.com/orcaman/concurrent-map/v2",
+      "Sum": "h1:jOJ5Pg2w1oeB6PeDurIYf6k9PQ+aTITr/6lP/L/zp6c=",
+      "Version": "v2.0.1"
+    },
+    {
+      "Path": "github.com/oschwald/geoip2-golang/v2",
+      "Sum": "h1:/t4eBuRbaaRXnZH4iQzuU+IevgJEH6XhBKhduWfjqiY=",
+      "Version": "v2.5.0"
+    },
+    {
+      "Path": "github.com/oschwald/maxminddb-golang/v2",
+      "Sum": "h1:enP6KMn9sCV4bRAg3LfHMaU2qjOP2xqY8LjatJMwufU=",
+      "Version": "v2.8.0"
+    },
+    {
+      "Path": "github.com/outcaste-io/ristretto",
+      "Sum": "h1:AK4zt/fJ76kjlYObOeNwh4T3asEuaCmp26pOvUOL9w0=",
+      "Version": "v0.2.3"
+    },
+    {
+      "Path": "github.com/outscale/osc-sdk-go/v2",
+      "Sum": "h1:bKR94p9KCc8ybu36k4RS5RDkC9p/7W//78CXPtOyXPo=",
+      "Version": "v2.35.0"
+    },
+    {
+      "Path": "github.com/ovh/go-ovh",
+      "Sum": "h1:6K8VoL3BYjVV3In9tPJUdT7qMx9h0GExN9EXx1r2kKE=",
+      "Version": "v1.9.0"
+    },
+    {
+      "Path": "github.com/parquet-go/bitpack",
+      "Sum": "h1:AUqzlKzPPXf2bCdjfj4sTeacrUwsT7NlcYDMUQxPcQA=",
+      "Version": "v1.0.0"
+    },
+    {
+      "Path": "github.com/parquet-go/jsonlite",
+      "Sum": "h1:87QNdi56wOfsE5bdgas0vRzHPxfJgzrXGml1zZdd7VU=",
+      "Version": "v1.0.0"
+    },
+    {
+      "Path": "github.com/parquet-go/parquet-go",
+      "Sum": "h1:NWDqTUHfrCS4cJP/Fj2HlxvqsrVedWG3sayMkf+znzM=",
+      "Version": "v0.32.0"
+    },
+    {
+      "Path": "github.com/patrickmn/go-cache",
+      "Sum": "h1:HRMgzkcYKYpi3C8ajMPV8OFXaaRUnok+kx1WdO15EQc=",
+      "Version": "v2.1.0+incompatible"
+    },
+    {
+      "Path": "github.com/paulmach/orb",
+      "Sum": "h1:r7n7mQGGF+cj/CbcivEj9J3HGK+XR+yXnvzRdq9saIw=",
+      "Version": "v0.13.0"
+    },
+    {
+      "Path": "github.com/pavlo-v-chernykh/keystore-go/v4",
+      "Sum": "h1:2nosf3P75OZv2/ZO/9Px5ZgZ5gbKrzA3joN1QMfOGMQ=",
+      "Version": "v4.5.0"
+    },
+    {
+      "Path": "github.com/pb33f/jsonpath",
+      "Sum": "h1:Ou4C7zjYClBm97dfZjDCjdZGusJoynv/vrtiEKNfj2Y=",
+      "Version": "v0.8.2"
+    },
+    {
+      "Path": "github.com/pb33f/libopenapi",
+      "Sum": "h1:Q2jfgRPdnU38WW8wQvrX2HEPGiqsxj01PX1BHmAEihc=",
+      "Version": "v0.38.7"
+    },
+    {
+      "Path": "github.com/pb33f/ordered-map/v2",
+      "Sum": "h1:5319HDO0aw4DA4gzi+zv4FXU9UlSs3xGZ40wcP1nBjY=",
+      "Version": "v2.3.1"
+    },
+    {
+      "Path": "github.com/pbnjay/memory",
+      "Sum": "h1:onHthvaw9LFnH4t2DcNVpwGmV9E1BkGknEliJkfwQj0=",
+      "Version": "v0.0.0-20210728143218-7b4eea64cf58"
+    },
+    {
+      "Path": "github.com/pelletier/go-toml/v2",
+      "Sum": "h1:mye9XuhQ6gvn5h28+VilKrrPoQVanw5PMw/TB0t5Ec4=",
+      "Version": "v2.2.4"
+    },
+    {
+      "Path": "github.com/philhofer/fwd",
+      "Sum": "h1:e6DnBTl7vGY+Gz322/ASL4Gyp1FspeMvx1RNDoToZuM=",
+      "Version": "v1.2.0"
+    },
+    {
+      "Path": "github.com/pierrec/lz4",
+      "Sum": "h1:9UY3+iC23yxF0UfGaYrGplQ+79Rg+h/q9FV9ix19jjM=",
+      "Version": "v2.6.1+incompatible"
+    },
+    {
+      "Path": "github.com/pierrec/lz4/v4",
+      "Sum": "h1:GjG1TJ1V4IzKP8L96muuuDNpTwd7D+l2ccXrjAbe014=",
+      "Version": "v4.1.33"
+    },
+    {
+      "Path": "github.com/pkg/browser",
+      "Sum": "h1:+mdjkGKdHQG3305AYmdv1U2eRNDiU2ErMBj1gwrq8eQ=",
+      "Version": "v0.0.0-20240102092130-5ac0b6a4141c"
+    },
+    {
+      "Path": "github.com/pkg/errors",
+      "Sum": "h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=",
+      "Version": "v0.9.1"
+    },
+    {
+      "Path": "github.com/pkg/sftp",
+      "Sum": "h1:Myhzy/ZzLPnCtE2F2WtDHsgs8RfgMnH2gfbHuCJhkMU=",
+      "Version": "v1.13.12"
+    },
+    {
+      "Path": "github.com/planetscale/vtprotobuf",
+      "Sum": "h1:GFCKgmp0tecUJ0sJuv4pzYCqS9+RGSn52M3FUwPs+uo=",
+      "Version": "v0.6.1-0.20240319094008-0393e58bdf10"
+    },
+    {
+      "Path": "github.com/pmezard/go-difflib",
+      "Sum": "h1:Jamvg5psRIccs7FGNTlIRMkT8wgtp5eCXdBlqhYGL6U=",
+      "Version": "v1.0.1-0.20181226105442-5d4384ee4fb2"
+    },
+    {
+      "Path": "github.com/prometheus-community/pro-bing",
+      "Sum": "h1:kpuAr6AU2oRtzGihJSUcetHtjc7ku7h6PxeuW9RVrQw=",
+      "Version": "v0.9.1"
+    },
+    {
+      "Path": "github.com/prometheus/alertmanager",
+      "Sum": "h1:z75n0NoypggESmt3HD4JlTXOaOZj1EBz1ACHO4Z6EUk=",
+      "Version": "v0.34.0"
+    },
+    {
+      "Path": "github.com/prometheus/client_golang",
+      "Sum": "h1:cDtW1TcFsMi1RJc8khwCKB4VhzwV04aKqbYtNOXuiK0=",
+      "Version": "v1.25.0"
+    },
+    {
+      "Path": "github.com/prometheus/client_golang/exp",
+      "Sum": "h1:4qeIiKMiaj1CH85S6mShB3nHtz1Ti1zg8lg3IQLsAhk=",
+      "Version": "v0.0.0-20260907100614-57bb367da472"
+    },
+    {
+      "Path": "github.com/prometheus/client_model",
+      "Sum": "h1:O0jaTVAYNxTHYInEPFJt5I3+sN8zqBtVMPTB1qyxiEo=",
+      "Version": "v0.6.3"
+    },
+    {
+      "Path": "github.com/prometheus/common",
+      "Sum": "h1:ZAiQed/nk8IIcsdzb2TlJu23NEUDyDLQ9TXTN2WRK6Y=",
+      "Version": "v0.72.1"
+    },
+    {
+      "Path": "github.com/prometheus/exporter-toolkit",
+      "Sum": "h1:hz3g2aPcq3mXlQSt1MGjj2rwVk1wtRalF+/FjYxFRkI=",
+      "Version": "v0.20.0"
+    },
+    {
+      "Path": "github.com/prometheus/otlptranslator",
+      "Sum": "h1:s0LJW/iN9dkIH+EnhiD3BlkkP5QVIUVEoIwkU+A6qos=",
+      "Version": "v1.0.0"
+    },
+    {
+      "Path": "github.com/prometheus/procfs",
+      "Sum": "h1:ad+S6FTkzwaMgacKLM5h6bNKExS+DMH0YiUwXItH/o4=",
+      "Version": "v0.23.0"
+    },
+    {
+      "Path": "github.com/prometheus/prometheus",
+      "Sum": "h1:ZXaNKyUO5szJhhw7gKiP6b2jpx1QkS0S3CI1R1bPqIA=",
+      "Version": "v0.315.1"
+    },
+    {
+      "Path": "github.com/prometheus/sigv4",
+      "Sum": "h1:WWZDeiCPFTBJIniIa+pv3edYtPHtZxDAa5w5Tmp+UuQ=",
+      "Version": "v0.5.0"
+    },
+    {
+      "Path": "github.com/puzpuzpuz/xsync/v4",
+      "Sum": "h1:vOSWu6b57/emh+L/Cw0BeQfvxa/cogFywXHeGUxQxAg=",
+      "Version": "v4.5.0"
+    },
+    {
+      "Path": "github.com/rabbitmq/amqp091-go",
+      "Sum": "h1:1O8oQqnj9hLACoo6CVMgn57z2pLWXvgemhh4GsquV+Y=",
+      "Version": "v1.16.0"
+    },
+    {
+      "Path": "github.com/rdforte/gomaxecs",
+      "Sum": "h1:jrz0NWv6QNaC+sIDAORsSjTrkCvi+VLifm4U1SzGEwY=",
+      "Version": "v1.1.2"
+    },
+    {
+      "Path": "github.com/redis/go-redis/v9",
+      "Sum": "h1:/TTVdJa8BRNsybwwGGnmiYktHNlUXtbOQxlWpHBPL3s=",
+      "Version": "v9.23.0"
+    },
+    {
+      "Path": "github.com/relvacode/iso8601",
+      "Sum": "h1:8h2uX8q1kG/nioHh7WpG2ywfnM4OW6MhRGK4M5O0Odk=",
+      "Version": "v1.8.3"
+    },
+    {
+      "Path": "github.com/remyoudompheng/bigfft",
+      "Sum": "h1:W09IVJc94icq4NjY3clb7Lk8O1qJ8BdBEF8z0ibU0rE=",
+      "Version": "v0.0.0-20230129092748-24d4a6f8daec"
+    },
+    {
+      "Path": "github.com/richardartoul/molecule",
+      "Sum": "h1:4+LEVOB87y175cLJC/mbsgKmoDOjrBldtXvioEy96WY=",
+      "Version": "v1.0.1-0.20240531184615-7ca0df43c0b3"
+    },
+    {
+      "Path": "github.com/rogpeppe/go-internal",
+      "Sum": "h1:O9DK+vNMDVGLr2BeZqmpLeMjiMNkuXfcqntWbZV6S5g=",
+      "Version": "v1.16.0"
+    },
+    {
+      "Path": "github.com/rs/cors",
+      "Sum": "h1:eU3gRzXLRK57F5rKMGMZURNdIG4EoAmX8k94r9wXWHA=",
+      "Version": "v1.11.1"
+    },
+    {
+      "Path": "github.com/samber/lo",
+      "Sum": "h1:Rvi+3BFHES3A8meP33VPAxiBZX/Aws5RxrschYGjomw=",
+      "Version": "v1.52.0"
+    },
+    {
+      "Path": "github.com/scaleway/scaleway-sdk-go",
+      "Sum": "h1:HCoThqjNYqx+tFcI+JadoqdRN5UBHmC4Ee9lgqEqglw=",
+      "Version": "v1.39.0"
+    },
+    {
+      "Path": "github.com/scalyr/dataset-go",
+      "Sum": "h1:795jmJjsz1DSZOhumBvtXvX9IFrczQ1ULzQ3GkvNL1Q=",
+      "Version": "v0.21.0"
+    },
+    {
+      "Path": "github.com/secure-systems-lab/go-securesystemslib",
+      "Sum": "h1:ayahDPjfSIqKegyt5YVGEvQ7SAi72GHXTy+b2YjUd5w=",
+      "Version": "v0.11.1"
+    },
+    {
+      "Path": "github.com/segmentio/asm",
+      "Sum": "h1:DTNbBqs57ioxAD4PrArqftgypG4/qNpXoJx8TVXxPR0=",
+      "Version": "v1.2.1"
+    },
+    {
+      "Path": "github.com/shirou/gopsutil/v3",
+      "Sum": "h1:i0t8kL+kQTvpAYToeuiVk3TgDeKOFioZO3Ztz/iZ9pI=",
+      "Version": "v3.24.5"
+    },
+    {
+      "Path": "github.com/shirou/gopsutil/v4",
+      "Sum": "h1:MJN6euesJx53MVEjscYeyRSRcrdIcy3sz5k9nosjldg=",
+      "Version": "v4.26.10"
+    },
+    {
+      "Path": "github.com/shopspring/decimal",
+      "Sum": "h1:bxl37RwXBklmTi0C79JfXCEBD1cqqHt0bbgBAGFp81k=",
+      "Version": "v1.4.0"
+    },
+    {
+      "Path": "github.com/shurcooL/httpfs",
+      "Sum": "h1:aqg5Vm5dwtvL+YgDpBcK1ITf3o96N/K7/wsRXQnUTEs=",
+      "Version": "v0.0.0-20230704072500-f1e31cf0ba5c"
+    },
+    {
+      "Path": "github.com/signalfx/com_signalfx_metrics_protobuf",
+      "Sum": "h1:32k2QLgsKhcEs55q4REPKyIadvid5FPy2+VMgvbmKJ0=",
+      "Version": "v0.0.3"
+    },
+    {
+      "Path": "github.com/sijms/go-ora/v2",
+      "Sum": "h1:+iQbUeTeCOFMb5BsOMgUhV8KWyrv9yjKpcK4x7+MFrg=",
+      "Version": "v2.9.0"
+    },
+    {
+      "Path": "github.com/sirupsen/logrus",
+      "Sum": "h1:G2SED73/qrAu6YwbdxOD6peLkCBI3z7L+ykJFTXJBBo=",
+      "Version": "v1.10.2"
+    },
+    {
+      "Path": "github.com/snowflakedb/gosnowflake/v2",
+      "Sum": "h1:uYELDDyjm2A/hrv+Lfc/ZPbohgcN5k8o72V1qtlCoVc=",
+      "Version": "v2.3.0"
+    },
+    {
+      "Path": "github.com/sony/gobreaker/v2",
+      "Sum": "h1:g2KJRW1Ubty3+ZOcSEUN7K+REQJdN6yo6XvaML+jptg=",
+      "Version": "v2.4.0"
+    },
+    {
+      "Path": "github.com/spaolacci/murmur3",
+      "Sum": "h1:7c1g84S4BPRrfL5Xrdp6fOJ206sU9y293DDHaoy0bLI=",
+      "Version": "v1.1.0"
+    },
+    {
+      "Path": "github.com/spf13/cast",
+      "Sum": "h1:h2x0u2shc1QuLHfxi+cTJvs30+ZAHOGRic8uyGTDWxY=",
+      "Version": "v1.10.0"
+    },
+    {
+      "Path": "github.com/spf13/cobra",
+      "Sum": "h1:DMTTonx5m65Ic0GOoRY2c16WCbHxOOw6xxezuLaBpcU=",
+      "Version": "v1.10.2"
+    },
+    {
+      "Path": "github.com/spf13/pflag",
+      "Sum": "h1:4EBh2KAYBwaONj6b2Ye1GiHfwjqyROoF4RwYO+vPwFk=",
+      "Version": "v1.0.10"
+    },
+    {
+      "Path": "github.com/spiffe/go-spiffe/v2",
+      "Sum": "h1:eXZMLsu+3MLEPJyGJkolqtVrteZfQdUpOWj6LTiDl/E=",
+      "Version": "v2.8.1"
+    },
+    {
+      "Path": "github.com/splunk/stef/go/grpc",
+      "Sum": "h1:jrqJpwquboEBczw7OJ52iDNe1Hq/0U4YKZLn3KUtG+Y=",
+      "Version": "v0.1.2"
+    },
+    {
+      "Path": "github.com/splunk/stef/go/otel",
+      "Sum": "h1:Ks1vRoHeQMfGUbWQt5DYnFdc078bfV9JzRRbjFGc++w=",
+      "Version": "v0.1.2"
+    },
+    {
+      "Path": "github.com/splunk/stef/go/pdata",
+      "Sum": "h1:JqB1CyUhkhtAu0/6Zl5pRxhhhzS6HzaQJfXan7xWbG8=",
+      "Version": "v0.1.2"
+    },
+    {
+      "Path": "github.com/splunk/stef/go/pkg",
+      "Sum": "h1:yvD6XBmr14K1B3x2XacIbMR8RRJnz2CyHUDjqyGaeX0=",
+      "Version": "v0.1.2"
+    },
+    {
+      "Path": "github.com/stackitcloud/stackit-sdk-go/core",
+      "Sum": "h1:7lc6qStcFDFf8zHP4ORPa9joybw+Sa2LtB6BVjKQ+ek=",
+      "Version": "v0.27.0"
+    },
+    {
+      "Path": "github.com/stretchr/objx",
+      "Sum": "h1:jmXUvGomnU1o3W/V5h2VEradbpJDwGrzugQQvL0POH4=",
+      "Version": "v0.5.3"
+    },
+    {
+      "Path": "github.com/stretchr/testify",
+      "Sum": "h1:EuwCh5fleGS7H32xRwO3wRGT7DxrDhLAT6FF8MpWDWE=",
+      "Version": "v1.12.1"
+    },
+    {
+      "Path": "github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common",
+      "Sum": "h1:4g+mOYqrFZYmxOfzjb97Xq68/QZCp75t6OMW5irJ1qs=",
+      "Version": "v1.3.205"
+    },
+    {
+      "Path": "github.com/tg123/go-htpasswd",
+      "Sum": "h1:h+QdWCAp/FebK6fqjsqg9RGYcgEMcaiKNDV+Mg6uk3E=",
+      "Version": "v1.2.5"
+    },
+    {
+      "Path": "github.com/thda/tds",
+      "Sum": "h1:s29kbnJK0agL3ps85A/sb9XS2uxgKF5UJ6AZjbyqXX4=",
+      "Version": "v0.1.7"
+    },
+    {
+      "Path": "github.com/theparanoids/crypki",
+      "Sum": "h1:t2ePWWNWAf0lhql4g//AIodZBgZTwjelvaq6wXzAVzU=",
+      "Version": "v1.20.9"
+    },
+    {
+      "Path": "github.com/tidwall/gjson",
+      "Sum": "h1:+agJ3rEzKcCXKDKo0ml26UROcpcAlnZyjq+TjbY5Fto=",
+      "Version": "v1.20.0"
+    },
+    {
+      "Path": "github.com/tidwall/jsonc",
+      "Sum": "h1:RVQqL3xFfDkKKXIDsrBiVQiEpBtxoKbmMXONb2H/y2w=",
+      "Version": "v0.3.3"
+    },
+    {
+      "Path": "github.com/tidwall/match",
+      "Sum": "h1:0pt8FlkOwjN2fPt4bIl4BoNxb98gGHN2ObFEDkrfZnM=",
+      "Version": "v1.2.0"
+    },
+    {
+      "Path": "github.com/tidwall/pretty",
+      "Sum": "h1:qjsOFOWWQl+N3RsoF5/ssm1pHmJJwhjlSbZ51I6wMl4=",
+      "Version": "v1.2.1"
+    },
+    {
+      "Path": "github.com/tidwall/tinylru",
+      "Sum": "h1:VgBr72c2IEr+V+pCdkPZUwiQ0KJknnWIYbhxAVkYfQk=",
+      "Version": "v1.2.1"
+    },
+    {
+      "Path": "github.com/tidwall/wal",
+      "Sum": "h1:xQvwnRF3e+xBC4NvFvl1mPGJHU0aH5zNzlUKnKGIImA=",
+      "Version": "v1.2.1"
+    },
+    {
+      "Path": "github.com/tilinna/clock",
+      "Sum": "h1:6IQQQCo6KoBxVudv6gwtY8o4eDfhHo8ojA5dP0MfhSs=",
+      "Version": "v1.1.0"
+    },
+    {
+      "Path": "github.com/tinylib/msgp",
+      "Sum": "h1:iAH6XTP7BpzErjBZlujJQXxA+GmRi2YWs6M4KdLtNbE=",
+      "Version": "v1.6.5"
+    },
+    {
+      "Path": "github.com/tklauser/go-sysconf",
+      "Sum": "h1:7H0uAN+7RkwWRaxhYXDLqa5V3LPrJeV8wmD9dRUgPQU=",
+      "Version": "v0.4.0"
+    },
+    {
+      "Path": "github.com/tklauser/numcpus",
+      "Sum": "h1:NR85qdvHA9pFse3x3weVZ0r0ST8R6l5RHbZrlRaqob4=",
+      "Version": "v0.12.0"
+    },
+    {
+      "Path": "github.com/traceloop/go-openllmetry/semconv-ai",
+      "Sum": "h1:0yGaSsGbDuZ4Sen/wK9+s2paKtknsTYbV/vjTb2Av9g=",
+      "Version": "v0.0.0-20260117121325-ee5a5c89c1f5"
+    },
+    {
+      "Path": "github.com/twmb/franz-go",
+      "Sum": "h1:EdwIHGzD/4mgCpl/sNS0C74JYn6cL/r2KYS+8UC96Ww=",
+      "Version": "v1.22.2"
+    },
+    {
+      "Path": "github.com/twmb/franz-go/pkg/kadm",
+      "Sum": "h1:5Nx/WWFkpNUi8Z55Skxvn9x5HOCjw+BUntSNB1kLglk=",
+      "Version": "v1.19.0"
+    },
+    {
+      "Path": "github.com/twmb/franz-go/pkg/kmsg",
+      "Sum": "h1:mILdOQm4JkWojbSYVQ7KJNJ1qMdYNsLrdNOBUVKM6IA=",
+      "Version": "v1.15.0"
+    },
+    {
+      "Path": "github.com/twmb/franz-go/pkg/sasl/kerberos",
+      "Sum": "h1:alKdbddkPw3rDh+AwmUEwh6HNYgTvDSFIe/GWYRR9RM=",
+      "Version": "v1.1.0"
+    },
+    {
+      "Path": "github.com/twmb/franz-go/plugin/kzap",
+      "Sum": "h1:0arX5xJ0soUPX1LlDay6ZZoxuWkWk1lggQ5M/IgRXAE=",
+      "Version": "v1.1.2"
+    },
+    {
+      "Path": "github.com/twmb/murmur3",
+      "Sum": "h1:XUKzAiw6XPwHy5prnd/jEEV1C7IYinixLa8xOBB/g4k=",
+      "Version": "v1.2.2"
+    },
+    {
+      "Path": "github.com/twpayne/go-geom",
+      "Sum": "h1:iLE+Opv0Ihm/ABIcvQFGIiFBXd76oBIar9drAwHFhR4=",
+      "Version": "v1.6.1"
+    },
+    {
+      "Path": "github.com/ua-parser/uap-go",
+      "Sum": "h1:yS0rzVnj7Z/ZeHzvv5erQbO2b8gyTL4CeMNodl9SJMQ=",
+      "Version": "v0.0.0-20251207011819-db9adb27a0b8"
+    },
+    {
+      "Path": "github.com/valyala/fastjson",
+      "Sum": "h1:/yjJg8jaVQdYR3arGxPE2X5z89xrlhS0eGXdv+ADTh4=",
+      "Version": "v1.6.10"
+    },
+    {
+      "Path": "github.com/vektah/gqlparser/v2",
+      "Sum": "h1:GJP/emj1wIWKs0U3SHcAgzknWgylTqQ1qH2gNL+wSWc=",
+      "Version": "v2.5.62"
+    },
+    {
+      "Path": "github.com/vishvananda/netlink",
+      "Sum": "h1:3AEMt62VKqz90r0tmNhog0r/PpWKmrEShJU0wJW6bV0=",
+      "Version": "v1.3.1"
+    },
+    {
+      "Path": "github.com/vishvananda/netns",
+      "Sum": "h1:DfiHV+j8bA32MFM7bfEunvT8IAqQ/NzSJHtcmW5zdEY=",
+      "Version": "v0.0.5"
+    },
+    {
+      "Path": "github.com/vmihailenco/msgpack/v5",
+      "Sum": "h1:cQriyiUvjTwOHg8QZaPihLWeRAAVoCpE00IUPn0Bjt8=",
+      "Version": "v5.4.1"
+    },
+    {
+      "Path": "github.com/vmihailenco/tagparser/v2",
+      "Sum": "h1:y09buUbR+b5aycVFQs/g70pqKVZNBmxwAhO7/IwNM9g=",
+      "Version": "v2.0.0"
+    },
+    {
+      "Path": "github.com/vmware/go-vmware-nsxt",
+      "Sum": "h1:Vu41Q0Pv3yMdd+tcDW6QeEUIK2L+9ZrPrq8NAMrKSLc=",
+      "Version": "v0.0.0-20230223012718-d31b8a1ca05e"
+    },
+    {
+      "Path": "github.com/vmware/govmomi",
+      "Sum": "h1:cCgoNrsi35Yka91004gmDYHTbsDtxs8RC4IkV+Wg81I=",
+      "Version": "v0.56.2"
+    },
+    {
+      "Path": "github.com/vultr/govultr/v3",
+      "Sum": "h1:SD8y4tmoSXbpX137JT5k7jLxJ5j0WcnRtDbq/+P26IA=",
+      "Version": "v3.33.0"
+    },
+    {
+      "Path": "github.com/wk8/go-ordered-map/v2",
+      "Sum": "h1:5h/BUHu93oj4gIdvHHHGsScSTMijfx5PeYkE/fJgbpc=",
+      "Version": "v2.1.8"
+    },
+    {
+      "Path": "github.com/x448/float16",
+      "Sum": "h1:qLwI1I70+NjRFUR3zs1JPUCgaCXSh3SW62uAKT1mSBM=",
+      "Version": "v0.8.4"
+    },
+    {
+      "Path": "github.com/xdg-go/scram",
+      "Sum": "h1:bYKF2AEwG5rqd1BumT4gAnvwU/M9nBp2pTSxeZw7Wvs=",
+      "Version": "v1.2.0"
+    },
+    {
+      "Path": "github.com/xdg-go/stringprep",
+      "Sum": "h1:XLI/Ng3O1Atzq0oBs3TWm+5ZVgkq2aqdlvP9JtoZ6c8=",
+      "Version": "v1.0.4"
+    },
+    {
+      "Path": "github.com/xwb1989/sqlparser",
+      "Sum": "h1:zzrxE1FKn5ryBNl9eKOeqQ58Y/Qpo3Q9QNxKHX5uzzQ=",
+      "Version": "v0.0.0-20180606152119-120387863bf2"
+    },
+    {
+      "Path": "github.com/yl2chen/cidranger",
+      "Sum": "h1:lbOWZVCG1tCRX4u24kuM1Tb4nHqWkDxwLdoS+SevawU=",
+      "Version": "v1.0.2"
+    },
+    {
+      "Path": "github.com/youmark/pkcs8",
+      "Sum": "h1:ilQV1hzziu+LLM3zUTJ0trRztfwgjqKnBWNtSRkbmwM=",
+      "Version": "v0.0.0-20240726163527-a2c0da244d78"
+    },
+    {
+      "Path": "github.com/yuin/gopher-lua",
+      "Sum": "h1:yF/FjE3hD65tBbt0VXLE13HWS9h34fdzJmrWRXwobGA=",
+      "Version": "v1.1.2"
+    },
+    {
+      "Path": "github.com/zeebo/xxh3",
+      "Sum": "h1:s7DLGDK45Dyfg7++yxI0khrfwq9661w9EN78eP/UZVs=",
+      "Version": "v1.1.0"
+    },
+    {
+      "Path": "gitlab.com/gitlab-org/api/client-go/v3",
+      "Sum": "h1:aWkVhgglUeNPqFVMiYDYv5tmfd8xPqDm7mCwwrsrBKE=",
+      "Version": "v3.40.0"
+    },
+    {
+      "Path": "go.elastic.co/fastjson",
+      "Sum": "h1:zeh1xHrFH79aQ6Xsw7YxixvnOdAl3OSv0xch/jRDzko=",
+      "Version": "v1.5.1"
+    },
+    {
+      "Path": "go.etcd.io/bbolt",
+      "Sum": "h1:S7GAl7Fxv12yohbwFfIbQCGDWbQbtDGPET4P/bD4lxU=",
+      "Version": "v1.5.0"
+    },
+    {
+      "Path": "go.mongodb.org/atlas",
+      "Sum": "h1:zfwymq20GqivGwxPZfypfUDry+WwMGVui97z1d8V4bU=",
+      "Version": "v0.38.0"
+    },
+    {
+      "Path": "go.mongodb.org/mongo-driver/v2",
+      "Sum": "h1:OCAdjI37pC/SVxucz/9CM8zD4jCdegtsY5QcKzYFCgE=",
+      "Version": "v2.9.2"
+    },
+    {
+      "Path": "go.opencensus.io",
+      "Sum": "h1:y73uSU6J157QMP2kn2r30vwW1A2W2WFwSCGnAVxeaD0=",
+      "Version": "v0.24.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/auto/sdk",
+      "Sum": "h1:jXsnJ4Lmnqd11kwkBV2LgLoFMZKizbCi5fNZ/ipaZ64=",
+      "Version": "v1.2.1"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/client",
+      "Sum": "h1:6Jt+Uyj044/62IN97/CtBTVSR37Bsc7WEPWLGiXJbUw=",
+      "Version": "v1.71.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/component",
+      "Sum": "h1:d9FtlEdQlR6PBJqV2hggsSjANx+kjBetqK91Nsfiv3Q=",
+      "Version": "v1.71.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/component/componentstatus",
+      "Sum": "h1:rn0Y+fys2P8TjrwDpVcOMvZs09OiZqkjY6a3PUaIewQ=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/component/componenttest",
+      "Sum": "h1:QiEJxLAVPeCiOW0ivMF8SDVCE75bBo1N87FwFdzrjTM=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/config/configauth",
+      "Sum": "h1:Dq96E3kSagxJwf2SGx5gV+o488jehKgBGdau74nZxDw=",
+      "Version": "v1.71.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/config/configcompression",
+      "Sum": "h1:diLhMHMb1nxALAJH1vMJVMWbOhcfOFZ2Wc23G+WHw8U=",
+      "Version": "v1.71.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/config/configgrpc",
+      "Sum": "h1:SfQGMhnoBzRRqnFmFNpQg9PF5BE+qz6SyAgT/CyheI8=",
+      "Version": "v1.71.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/config/confighttp",
+      "Sum": "h1:9vXS86t/lrFE6FveqL4IesmmZihMH9VIJ7om6Iekgow=",
+      "Version": "v1.71.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/config/configmiddleware",
+      "Sum": "h1:oEWYR1yDovd3fM38+teWg5AyH1dTVkW3CxfQzY+hqPs=",
+      "Version": "v1.71.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/config/confignet",
+      "Sum": "h1:71DLfMueQsmP7OKwb+G5wW6VdK1WBefN5d6No4BwSlI=",
+      "Version": "v1.71.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/config/configopaque",
+      "Sum": "h1:ozA4xUdXV5qSSn4omAI67+iA/mV2HfE4aKjmY7wmZzY=",
+      "Version": "v1.71.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/config/configoptional",
+      "Sum": "h1:YTVIi0uAsHIrKcYfHfQkV4rLmOTGFmg2z42j4oUsGO8=",
+      "Version": "v1.71.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/config/configretry",
+      "Sum": "h1:xzuolwIcwu/mbFgjapFC0CjQioY8aED+DTMXW9L0plE=",
+      "Version": "v1.71.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/config/configtelemetry",
+      "Sum": "h1:USLFYoEmxjBalyYB76HrpiVM1YjXHVYHVyV5eKp28Jc=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/config/configtls",
+      "Sum": "h1:E/6x3LWmDa2TwM3Ilm463FKzo0fS9K5Wn/92fsd0Tic=",
+      "Version": "v1.71.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/confmap",
+      "Sum": "h1:KwWPen93kjjzqK8zCAwDBu770epDcpru4x3Ffgosjrg=",
+      "Version": "v1.71.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/confmap/provider/envprovider",
+      "Sum": "h1:L8l4FrK2tXtqa52Q+69xKOPN+jB+I6gSGGRfs6b/c5c=",
+      "Version": "v1.71.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/confmap/provider/fileprovider",
+      "Sum": "h1:Ux4b0HwWbCKueqNpzheCalnKr/Wa93rlRFQjEWQ1yJ4=",
+      "Version": "v1.71.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/confmap/provider/httpprovider",
+      "Sum": "h1:h395pRu1sW9AwRSranNr20IkmgvSzwwMYrIXDzsyEuY=",
+      "Version": "v1.71.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/confmap/provider/httpsprovider",
+      "Sum": "h1:eMYWRp/WEKqIi3c2BmaPdTkIIi1AjHC/ygG4+zKajxc=",
+      "Version": "v1.71.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/confmap/provider/yamlprovider",
+      "Sum": "h1:MBJsGfU40y20KbSjLWEkE6J8EAn13DtSh/XwuZtETOY=",
+      "Version": "v1.71.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/confmap/xconfmap",
+      "Sum": "h1:ssuhZFJBw9pBUcQRUtgaddkMGJ3zdKzGeNpGO22LfGI=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/connector",
+      "Sum": "h1:6unT6poLzXkVOrofmnhu4XhPTLOjpBvTYu/S2rSERN4=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/connector/connectortest",
+      "Sum": "h1:e/h+vuw4KaVW+NJV3MH4MwmAvz5AxxU4PnMHqCWuyJ0=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/connector/forwardconnector",
+      "Sum": "h1:7giEH3LsfJ1SPkY/odvyOA2N+XFt61bge5T0VkHZKAI=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/connector/xconnector",
+      "Sum": "h1:nnBMlaUe8h/E245G1c86Vog/D39SXFZG12mBncCXRzo=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/consumer",
+      "Sum": "h1:egnXLH6m256ttDvvL0NTviwlMEQhrHNR0I8s1GY6XOU=",
+      "Version": "v1.71.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/consumer/consumererror",
+      "Sum": "h1:mtgzNRuS3/MHirMpsG/19M7MFGidoaieFDY6ZPgWE4c=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/consumer/consumererror/xconsumererror",
+      "Sum": "h1:Ku4EZVuKM5tM7041MZ97n03G8zp9mkqebC3nm0ZCxAE=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/consumer/consumertest",
+      "Sum": "h1:cTARsTiioRMMdeaHuJxGbzoJQULOSLe+qEWO+jMeYnQ=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/consumer/xconsumer",
+      "Sum": "h1:ym0CBlY20cZUPYMCmG/APQdTdwwrGjpIR5ymFDBbXEI=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/exporter",
+      "Sum": "h1:pDZTHU7HDxR627EeHG980kgKLR9pLGnWi3sG+vaoHow=",
+      "Version": "v1.71.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/exporter/debugexporter",
+      "Sum": "h1:29QzZHrtygKSya5ETopDihLXm3022UTKEO0RCTJMxgg=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/exporter/exporterhelper",
+      "Sum": "h1:MDULG3NJ0geYpqRKPjy/kYyEGv55MzOOWoI4Mo7HW+w=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/exporter/exporterhelper/xexporterhelper",
+      "Sum": "h1:c7jXef3BKe9ywKXLO+RHruj37+5G3nDGvoH2X50Y7Xs=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/exporter/exportertest",
+      "Sum": "h1:bTdP3gjQK1Z5ab0WoYdjOQjFEqebELrSCqM4uWxfXiI=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/exporter/nopexporter",
+      "Sum": "h1:JUuD9M34Cn/44sIYj4oIg6CRvs/0jI2hGD0c3SE5xP8=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/exporter/otlpexporter",
+      "Sum": "h1:5T8tZD3WWUsgUR/5GwJ63DVshH2EVVSK4jarQQJ5R8M=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/exporter/otlphttpexporter",
+      "Sum": "h1:KBviv0CUJMHRJ9/CDGqbahXVwCgEkl2ZvEV5m97LZeE=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/exporter/xexporter",
+      "Sum": "h1:LpArvQh8tSQyCibguXRzZPZJQeWXpGOsMdTQRhgDudU=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/extension",
+      "Sum": "h1:+HbaA2PyBawGAhWLOrVJkdAEwSr+jehz6fBhJdxX9Bo=",
+      "Version": "v1.71.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/extension/extensionauth",
+      "Sum": "h1:pfB33tTSnphxQ+pmKihTNTDodP7y9jxlcDuPyQSHXmA=",
+      "Version": "v1.71.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/extension/extensioncapabilities",
+      "Sum": "h1:1mXJoJdMeEbE57TimExWmttyCDU9yFZ96NrvuqT6yk8=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/extension/extensionmiddleware",
+      "Sum": "h1:ebyukhPNRyGvfFAeHf4WbeORzHkG4SBdXDSFYZ4Xz4Q=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/extension/extensiontest",
+      "Sum": "h1:rtyi7uO5ORtZxHjgRVoc3VuH5Q+ULyuvTIok00SJvJQ=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/extension/xextension",
+      "Sum": "h1:iyVDTZQfsTxwBJLsCKOLKHNUM0yAN9fN23fv3if3F3o=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/extension/zpagesextension",
+      "Sum": "h1:TiA+EyIpl6Nh7umtKfFX0MJHG3VJ0T75cSrl6VivSto=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/featuregate",
+      "Sum": "h1:6s5QhoU11lK5QxaikFhPzsANjRwz1Yh/28ULqAIWX4w=",
+      "Version": "v1.71.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/filter",
+      "Sum": "h1:XMeTYapdD9QaFKD1AjbrLsqh16FfoeZlV38OR+4Ht7M=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/internal/componentalias",
+      "Sum": "h1:Mzq1DpllMj+zUwJKC4M66wQQXObRojkigYT1fgoY2cs=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/internal/fanoutconsumer",
+      "Sum": "h1:LkZ8ZapDv9o3jGXhUD+k2n3l18TZ8nNXybg4KbyMbJg=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/internal/memorylimiter",
+      "Sum": "h1:g/4JqD8xbvVQVPzW2OqjCq1KL1hfJjG1XT70xmgel2k=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/internal/sharedcomponent",
+      "Sum": "h1:03gIaAkL+vhQxgXelPupTR4EP/pMqxSQQCaDoH/oBLg=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/internal/statusutil",
+      "Sum": "h1:VR6xE6piNiiTX2UR/pppovA5KgNlm5QO9VTBIOP541g=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/internal/telemetry",
+      "Sum": "h1:Zgl1BnHp5KLKgc025iA1cs/yJzK6FbLAsaaIChHFgvc=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/otelcol",
+      "Sum": "h1:h04o7Eb98gf7/9pUU3JBSqaS5qDTEXnRzhj8fHq6Cm4=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/pdata",
+      "Sum": "h1:b2Ob4A/wPppiqLz7ut5gjGeWsqovIy7CNaoWADHc4GQ=",
+      "Version": "v1.71.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/pdata/pprofile",
+      "Sum": "h1:f3ck50XbrrzuYFbQedzVGaSm4cgunc6yDsvIO17u2jY=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/pdata/testdata",
+      "Sum": "h1:lz/Qz9P/Jpx/wLGBDjyq4VSQDVU2/vouafF2RcWKUds=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/pdata/xpdata",
+      "Sum": "h1:H3ELfAaxWNHo75YccGqAM3pJ7Mh4wBnFRNqmdmdg0go=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/pipeline",
+      "Sum": "h1:wDBBwg4oxnpZgb+RtpDPgCXfIdVzKBuT16idMk/XLS4=",
+      "Version": "v1.71.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/pipeline/xpipeline",
+      "Sum": "h1:XkW35yYLiKh2NcitoXZxh4+D9NYhfmEpDqsAm/4NinY=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/processor",
+      "Sum": "h1:8MLOi/iaEmzX5kwBkotW3GjF+cmIMcKSKekXLHwUF7w=",
+      "Version": "v1.71.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/processor/batchprocessor",
+      "Sum": "h1:6IJZ9K0yt/YkgFgdzB6svPV1OEoKwgQtWw79qnEJMio=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/processor/memorylimiterprocessor",
+      "Sum": "h1:gmqXJqx4RErmnOo38e8OHNXrD88kxp96ak0JCGU7z4Q=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/processor/processorhelper",
+      "Sum": "h1:CaWNIRGVrcV0aoyBAzvVVyVkIr/vDgNIOj5yFAj0nAY=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/processor/processorhelper/xprocessorhelper",
+      "Sum": "h1:aiXiC/bVZyAZ64rjnjsVljl9E/ZSOrzvEdeth+e9AYY=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/processor/processortest",
+      "Sum": "h1:2WookzWB1NyW3Y7lgzFZS8BRZh+6gCEpLfIet6kOn/c=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/processor/queuebatchprocessor",
+      "Sum": "h1:zz1ommPyRYVMO4DKiQOPyvbKWK0Ps3C4fB0Ym9Sv7PE=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/processor/xprocessor",
+      "Sum": "h1:WFSTUowJmG+KZ/YU58BSIG3nNS/B7oXb7jC/co9UQ2k=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/receiver",
+      "Sum": "h1:9oX/PmkW6A0WyBR+o88kDCfYvKx4AwmHzeQxDAypK+c=",
+      "Version": "v1.71.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/receiver/nopreceiver",
+      "Sum": "h1:5uttFn3jWl+o8E0sgRXsevhjJ9f3KEaTgUqxc3HJm9s=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/receiver/otlpreceiver",
+      "Sum": "h1:fxtj/GR8ZdFaKz6oj4/1bpsS2R4dBdQ3hOINLiAYnmc=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/receiver/receiverhelper",
+      "Sum": "h1:rKMCeRtG0hquHOVf5Oz4NyjD+iZUrRFiovSHDb5bQ5c=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/receiver/receiverhelper/xreceiverhelper",
+      "Sum": "h1:8mue2vpPkMa8WvFm+LWel/OZJ/Zsg+LnNRpDYhJwvQc=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/receiver/receivertest",
+      "Sum": "h1:yeLM914awLZ5kQXNiFv7h7fI7KI9UMDo3iWQFjxs3a8=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/receiver/xreceiver",
+      "Sum": "h1:QPlJ40SdhrE3nqlq7hN5SMBCbtQCw4svxRe0ZphnAtk=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/scraper",
+      "Sum": "h1:TO/RFNj9FmYLPOpylNTaF29iJSY55d3r2zviNzI4UdM=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/scraper/scraperhelper",
+      "Sum": "h1:rQPTKLttezgUktVmxHYilu7X4IkwfBubfixNTc/EpSY=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/scraper/scraperhelper/xscraperhelper",
+      "Sum": "h1:iPE0w4LiTo1S8tPQ+Gu1MWTBA9eRvcNsMVVcmGq0h+c=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/scraper/xscraper",
+      "Sum": "h1:QKhihcFIpc3OHnmt2JIb4zXwpgBZohtE9yUGAg/te0w=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/semconv",
+      "Sum": "h1:XCN7qkZRNzRYfn6chsMZkbFZxoFcW6fZIsZs2aCzcbc=",
+      "Version": "v0.128.1-0.20250610090210-188191247685"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/service",
+      "Sum": "h1:jSUhKIsow5kGQSYkgT3F7b8UKXiYeb/FQBu+tB6TShY=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/collector/service/hostcapabilities",
+      "Sum": "h1:mDFJuZV+OaonZhy9H+90tH2PsdZARR6Jybv0jfcPN/w=",
+      "Version": "v0.165.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/contrib/bridges/otelzap",
+      "Sum": "h1:p23nklcy3VVRcfZ2ce5AXQa6RHQPQvIMM+fW3GzXCU0=",
+      "Version": "v0.21.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/contrib/detectors/aws/ec2/v2",
+      "Sum": "h1:DercSDxi3/a76k9pY+RM2xK2c0fpRHNoXnoFrgcJbOA=",
+      "Version": "v2.6.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/contrib/detectors/aws/ecs",
+      "Sum": "h1:oNVuvzYQVO0K/ewiWQ0QvJHZmBsI+INJP9Jjf5IR3Ek=",
+      "Version": "v1.47.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/contrib/detectors/aws/eks",
+      "Sum": "h1:V5cCzW9EXrnAirFbdZtorEMjdNCb2fM9uhqzDbOJgic=",
+      "Version": "v1.47.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/contrib/detectors/aws/elasticbeanstalk",
+      "Sum": "h1:U5lXYh/n93SXxBOvBp9B1e1AeC+Nc5j/VYna6cBP5qI=",
+      "Version": "v0.19.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/contrib/detectors/azure/azureappservice",
+      "Sum": "h1:VKQWNR6IxVq9DyZxsGEciogNo8wQST3IeFw7Dp0jtV0=",
+      "Version": "v0.19.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/contrib/detectors/azure/azurecontainerapps",
+      "Sum": "h1:jod9iGbB4p8smBQ0IRILOXq444KGnvBMHDJF6jqVDTo=",
+      "Version": "v0.19.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/contrib/detectors/azure/azurefunctions",
+      "Sum": "h1:Dn5+LcOW0qvxP/2eNDZr3HA+RoJe3L/UhjwWAEFzPz0=",
+      "Version": "v0.19.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/contrib/detectors/azure/azurevm",
+      "Sum": "h1:f2thLm4GhP0XGXJloUzanLhNTurVA4FJNImPmlSphTQ=",
+      "Version": "v0.19.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/contrib/detectors/gcp",
+      "Sum": "h1:Ct6+aaiSO6Nk5SOb6PYcR7iWp+83YF/pL1OJcGqOmbg=",
+      "Version": "v1.47.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/contrib/detectors/hetzner",
+      "Sum": "h1:bt2D4vPOIxDjgvZiBQ69UhMmWR7+K7TbXwv9c25+lQ4=",
+      "Version": "v0.19.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/contrib/detectors/ibmcloud/vpc",
+      "Sum": "h1:jxs+/EjbVFUyPmqWWF/4FZ8mzdKrjcjTE9FLAuK8g/c=",
+      "Version": "v0.19.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/contrib/detectors/kubeadm",
+      "Sum": "h1:rDvASawsxGFjokcb1ztkpMGq/A3+Hk60hOhemPLeWT4=",
+      "Version": "v0.19.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/contrib/detectors/openshift",
+      "Sum": "h1:aB79K0O6F9w275yLeHYYk5g+pmRp62A9r8FpNQfr8us=",
+      "Version": "v0.19.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/contrib/detectors/vultr",
+      "Sum": "h1:xFmRazM+v0Kbk7YbkgeX5JajCL5HC+U6cGN3gbpow6k=",
+      "Version": "v0.19.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc",
+      "Sum": "h1:Tq+E65HaNbZTeqcLw6QUhsV+/EIWdkfUH2CQzcrlE5M=",
+      "Version": "v0.72.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace",
+      "Sum": "h1:oFNJW32h2SXnET7XXstgT7pVh4vN+jW+GfiIaBguIZE=",
+      "Version": "v0.71.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp",
+      "Sum": "h1:LxwW/9ctSCv+QkE/cLR7M91ZIkXNMqJtEMi1vCw9U8s=",
+      "Version": "v0.72.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/contrib/otelconf",
+      "Sum": "h1:Xqr0TevsjDCw/oPt3eF831cz3imXxkczd6aV2hlHOrw=",
+      "Version": "v0.27.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/contrib/propagators/autoprop",
+      "Sum": "h1:/Kv8DucXan87cGRpa3NeZtlk26kFahF2YrL6Sz3GFsI=",
+      "Version": "v0.72.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/contrib/propagators/aws",
+      "Sum": "h1:n/2x/vQki1ojD7R2jYHdnNdI74Yx/OFdY4YXFFesm8M=",
+      "Version": "v1.47.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/contrib/propagators/b3",
+      "Sum": "h1:vlKDmtjhe1R0d7kdov/+KVTKWOKeGLyohB+iXoDPRMQ=",
+      "Version": "v1.47.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/contrib/propagators/jaeger",
+      "Sum": "h1:2lDw6AKPV33/7Qw9oN5YdxuSJIlUz7q3tkfSlJX5rh0=",
+      "Version": "v1.47.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/contrib/propagators/ot",
+      "Sum": "h1:nZUqh0/8CMRh7fQMfJl3HWFW92vqJ4FcTRQ7lrubOO4=",
+      "Version": "v1.47.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/contrib/zpages",
+      "Sum": "h1:aXBUaFvbF7xy77q6vXBvaw7dcZK0zUqJSF5UhtbbuZ4=",
+      "Version": "v0.72.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/ebpf-profiler",
+      "Sum": "h1:JIKjqug6G/8Y0He3f5yLB4DxRQ+99b6x0gA1uORk7aU=",
+      "Version": "v0.0.202640"
+    },
+    {
+      "Path": "go.opentelemetry.io/obi",
+      "Replace": {
+        "Path": "../../../internal/obi-src",
+        "Version": "(devel)"
+      },
+      "Version": "v0.15.2"
+    },
+    {
+      "Path": "go.opentelemetry.io/obi/collector",
+      "Sum": "h1:dpYcR4Ktn0YqQjBHmTFn8GrZ6C0kZyRFWAn6mA7wq+0=",
+      "Version": "v0.15.2"
+    },
+    {
+      "Path": "go.opentelemetry.io/otel",
+      "Sum": "h1:NgYRQGfUzhZVChV5PjoxGREmTqVSh4joOsS10GJ/eq8=",
+      "Version": "v1.47.1-0.20261102082644-9c507082cd98"
+    },
+    {
+      "Path": "go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc",
+      "Sum": "h1:5Ek4qQ5XX0PSQfY7lMW3CvcR36yy8YFDfGnYnaku8zE=",
+      "Version": "v0.23.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp",
+      "Sum": "h1:5WVp40k2fJHuc5BtNTgKk+EugKFT8Eg3lywFfCPI/nE=",
+      "Version": "v0.23.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc",
+      "Sum": "h1:LaLVGJtIzHcvHjVs2OftmKcc+M9mdOqS8vZ1fBD1Yes=",
+      "Version": "v1.47.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp",
+      "Sum": "h1:7kszRN4Ze5GeAkUnBjBSUIunVBMA+mZIG04auueqguM=",
+      "Version": "v1.47.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/otel/exporters/otlp/otlptrace",
+      "Sum": "h1:julhjPeUH/q/7hinbSdDdqt5h7Zw9YWmRlWRhI0jd54=",
+      "Version": "v1.47.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc",
+      "Sum": "h1:UFpxOpYPmMNUtOWhdb+nC1WELIgVf8z9higURrbzYU4=",
+      "Version": "v1.47.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp",
+      "Sum": "h1:aXZXsZ012wOgVkqaiQv+Z/d8V0xKjmg70F6m4CE94lc=",
+      "Version": "v1.47.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/otel/exporters/prometheus",
+      "Sum": "h1:LQVBTGnHvzrfGJpDoCSVTY7eaLZArvaTSq5l84Skxew=",
+      "Version": "v0.69.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/otel/exporters/stdout/stdoutlog",
+      "Sum": "h1:PW/E9Tw6ZykC88pey0MZY8hKOUeEw+hX6PU+oXA4A9o=",
+      "Version": "v0.23.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/otel/exporters/stdout/stdoutmetric",
+      "Sum": "h1:ww5DYBpMKcqLdxjWrhGUIh6O+ZfvZUaMk4niVyNQPEQ=",
+      "Version": "v1.47.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/otel/exporters/stdout/stdouttrace",
+      "Sum": "h1:N3YQCxjxQ/bMjyc3heladfRm9t9RTksGQH8z4w6yU/0=",
+      "Version": "v1.47.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/otel/log",
+      "Sum": "h1:cOTS1CcLbSQeZKanGJ+0JpF/+t4PELi3O3bbl2lqCcI=",
+      "Version": "v1.47.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/otel/metric",
+      "Sum": "h1:cCgDKRPrngu2BydJ5SK+6qZHyvlP/TZJSBElb9KgzOk=",
+      "Version": "v1.47.1-0.20261102082644-9c507082cd98"
+    },
+    {
+      "Path": "go.opentelemetry.io/otel/schema",
+      "Sum": "h1:rCaTaIoxWfN77FT9ninkUyC9uvns0DinoRaKTXuGaVE=",
+      "Version": "v0.0.19"
+    },
+    {
+      "Path": "go.opentelemetry.io/otel/sdk",
+      "Sum": "h1:X1Bx0jKYT7jZLUTP1M6y9eNQbT/BK0OGNbf4mY4T/50=",
+      "Version": "v1.47.1-0.20261102082644-9c507082cd98"
+    },
+    {
+      "Path": "go.opentelemetry.io/otel/sdk/log",
+      "Sum": "h1:W4N/ZfgpkRRnmARnqYoQ6BrWA0mrj8IzVDNLlpmUJZY=",
+      "Version": "v1.47.0"
+    },
+    {
+      "Path": "go.opentelemetry.io/otel/sdk/metric",
+      "Sum": "h1:DUTtUyR6qyNuscUA4rhvAXzeCdzqOnI/OcmlzmMNQFU=",
+      "Version": "v1.47.1-0.20261102082644-9c507082cd98"
+    },
+    {
+      "Path": "go.opentelemetry.io/otel/trace",
+      "Sum": "h1:ExsQlPTIy7QDXyxCPr3ByP2dmpS0WufjIvB3yZqtIqc=",
+      "Version": "v1.47.1-0.20261102082644-9c507082cd98"
+    },
+    {
+      "Path": "go.opentelemetry.io/proto/otlp",
+      "Sum": "h1:SCrPqH9NE5CmBrOqpjNCiT0X5mGwMyGERXdogfR7Yjw=",
+      "Version": "v1.11.1"
+    },
+    {
+      "Path": "go.opentelemetry.io/proto/otlp/processcontext/v1development",
+      "Sum": "h1:MJ63JFmlR7zSEF7ClTp7POvx95xXQE9XnVSUye4znRA=",
+      "Version": "v0.4.0"
+    },
+    {
+      "Path": "go.uber.org/atomic",
+      "Sum": "h1:BvcXdFKuviU4fTL/f+SxdQ5qJX/Jix8pAkgdUcb3XOE=",
+      "Version": "v1.12.0"
+    },
+    {
+      "Path": "go.uber.org/automaxprocs",
+      "Sum": "h1:O3y2/QNTOdbF+e/dpXNNW7Rx2hZ4sTIPyybbxyNqTUs=",
+      "Version": "v1.6.0"
+    },
+    {
+      "Path": "go.uber.org/dig",
+      "Sum": "h1:BACLhebsYdpQ7IROQ1AGPjrXcP5dF80U3gKoFzbaq/4=",
+      "Version": "v1.19.0"
+    },
+    {
+      "Path": "go.uber.org/fx",
+      "Sum": "h1:wE8mruvpg2kiiL1Vqd0CC+tr0/24XIB10Iwp2lLWzkg=",
+      "Version": "v1.24.0"
+    },
+    {
+      "Path": "go.uber.org/goleak",
+      "Sum": "h1:2K3zAYmnTNqV73imy9J1T3WC+gmCePx2hEGkimedGto=",
+      "Version": "v1.3.0"
+    },
+    {
+      "Path": "go.uber.org/mock",
+      "Sum": "h1:hyF9dfmbgIX5EfOdasqLsWD6xqpNZlXblLB/Dbnwv3Y=",
+      "Version": "v0.6.0"
+    },
+    {
+      "Path": "go.uber.org/multierr",
+      "Sum": "h1:blXXJkSxSSfBVBlC76pxqeO+LN3aDfLQo+309xJstO0=",
+      "Version": "v1.11.0"
+    },
+    {
+      "Path": "go.uber.org/zap",
+      "Sum": "h1:IZzaP1Fv73/T/pBMLk4VutPl36uNC+OSUh3JLG3FIjo=",
+      "Version": "v1.28.0"
+    },
+    {
+      "Path": "go.uber.org/zap/exp",
+      "Sum": "h1:6JYzdifzYkGmTdRR59oYH+Ng7k49H9qVpWwNSsGJj3U=",
+      "Version": "v0.3.0"
+    },
+    {
+      "Path": "go.yaml.in/yaml/v2",
+      "Sum": "h1:tuyd0P+2Ont/d6e2rl3be67goVK4R6deVxCUX5vyPaQ=",
+      "Version": "v2.4.4"
+    },
+    {
+      "Path": "go.yaml.in/yaml/v3",
+      "Sum": "h1:zcDfvjXEqTQmpjniUBLc91xYJMB2c4QOFxEF/LCEckM=",
+      "Version": "v3.0.6"
+    },
+    {
+      "Path": "go.yaml.in/yaml/v4",
+      "Sum": "h1:1h7H1ohdUh93/FyE4YaDa1Zh64K6VVbjF4K6WUxMtH4=",
+      "Version": "v4.0.0-rc.6"
+    },
+    {
+      "Path": "golang.org/x/arch",
+      "Sum": "h1:22MlEb14/O/EPCYHFxsDdv5TuLD5dMjT5e2QeJw4ULk=",
+      "Version": "v0.31.0"
+    },
+    {
+      "Path": "golang.org/x/crypto",
+      "Sum": "h1:COkYLr4k7nDI4r6QtMML2AfzeIswWHAJthLS6K/M/54=",
+      "Version": "v0.58.0"
+    },
+    {
+      "Path": "golang.org/x/exp",
+      "Sum": "h1:pQo5TwmxKJvI8k39uYS2Gqkk8OXWxX/TMSis2Twp1AQ=",
+      "Version": "v0.0.0-20261011100332-faecfb24eb49"
+    },
+    {
+      "Path": "golang.org/x/mod",
+      "Sum": "h1:ICeL3t2L30ljSPHHxDnR4fqVcBt/zR2zJAb9juavmQg=",
+      "Version": "v0.42.0"
+    },
+    {
+      "Path": "golang.org/x/net",
+      "Sum": "h1:18ELalfM5+XNRwzM2nYqXsZQ9ByS1uhj2O/U7+5jqRY=",
+      "Version": "v0.62.0"
+    },
+    {
+      "Path": "golang.org/x/oauth2",
+      "Sum": "h1:JUlcxA8oAtauLfiH8FX2/FkAWHAdi0QtGCGc+hofE98=",
+      "Version": "v0.37.0"
+    },
+    {
+      "Path": "golang.org/x/sync",
+      "Sum": "h1:iqiDrGoDgyuvAKrhLQthUEzU/R378N78gXbBjxed7oA=",
+      "Version": "v0.24.0"
+    },
+    {
+      "Path": "golang.org/x/sys",
+      "Sum": "h1:XbzkgYJHdqh/8m2Uu0W/dQv8nktxx4BFHp1M0gROTXA=",
+      "Version": "v0.49.0"
+    },
+    {
+      "Path": "golang.org/x/term",
+      "Sum": "h1:cpyOwQkr2Nzxe2p6KnrTG7Ei2wtzjsuSjhpXXepZ/BM=",
+      "Version": "v0.47.0"
+    },
+    {
+      "Path": "golang.org/x/text",
+      "Sum": "h1:1QivrlhwAsnMOcqgOdl9my7s9OyZl8O5/UGUTJVXoWc=",
+      "Version": "v0.43.0"
+    },
+    {
+      "Path": "golang.org/x/time",
+      "Sum": "h1:vMb6ptszcQMkcwiRTAuNNU50gom6++Q/6gY2hDM6VDE=",
+      "Version": "v0.16.0"
+    },
+    {
+      "Path": "gonum.org/v1/gonum",
+      "Sum": "h1:VbpOemQlsSMrYmn7T2OUvQ4dqxQXU+ouZFQsZOx50z4=",
+      "Version": "v0.17.0"
+    },
+    {
+      "Path": "google.golang.org/api",
+      "Sum": "h1:537ccDDmbwuwX1iof3Vtdz9vow6uJCgrSZJWedAWM0I=",
+      "Version": "v0.310.0"
+    },
+    {
+      "Path": "google.golang.org/genproto",
+      "Sum": "h1:CXq2XEi5aEyLjjPZIwqrmQH8ZY4ctUwK7uyAx3mjX/U=",
+      "Version": "v0.0.0-20261012220534-4341edf3f941"
+    },
+    {
+      "Path": "google.golang.org/genproto/googleapis/api",
+      "Sum": "h1:DS/w3N8rsfrwxwgGSj6WhMsPo7aNQGmDx74J81zd0NQ=",
+      "Version": "v0.0.0-20261012220534-4341edf3f941"
+    },
+    {
+      "Path": "google.golang.org/genproto/googleapis/rpc",
+      "Sum": "h1:6WNWHZk91dp4gZ25642OALkuG1UVNZbwENJD19DnB8k=",
+      "Version": "v0.0.0-20261019180522-ce908d29299b"
+    },
+    {
+      "Path": "google.golang.org/grpc",
+      "Sum": "h1:BPBCfuVRQ1qvBhKDOq9uvQllMvO59rKsYhXpp7Dd8vw=",
+      "Version": "v1.85.0"
+    },
+    {
+      "Path": "google.golang.org/protobuf",
+      "Sum": "h1:pJOKDDOyeXErUroCihFAd5LQuwXBSpVnKGrj5o/fwxc=",
+      "Version": "v1.36.12"
+    },
+    {
+      "Path": "gopkg.in/evanphx/json-patch.v4",
+      "Sum": "h1:czT3CmqEaQ1aanPc5SdlgQrrEIb8w/wwCvWWnfEbYzo=",
+      "Version": "v4.13.0"
+    },
+    {
+      "Path": "gopkg.in/inf.v0",
+      "Sum": "h1:73M5CoZyi3ZLMOyDlQh031Cx6N9NDJ2Vvfl76EDAgDc=",
+      "Version": "v0.9.1"
+    },
+    {
+      "Path": "gopkg.in/ini.v1",
+      "Sum": "h1:JtOSMb9OuaCZKr7h5D/h6iii14sK0hLbplTc6frx4Ss=",
+      "Version": "v1.67.2"
+    },
+    {
+      "Path": "gopkg.in/natefinch/lumberjack.v2",
+      "Sum": "h1:bBRl1b0OH9s/DuPhuXpNl+VtCaJXFZ5/uEFST95x9zc=",
+      "Version": "v2.2.1"
+    },
+    {
+      "Path": "gopkg.in/yaml.v2",
+      "Sum": "h1:D8xgwECY7CYvx+Y2n4sBz93Jn9JRvxdiyyo8CTfuKaY=",
+      "Version": "v2.4.0"
+    },
+    {
+      "Path": "gopkg.in/yaml.v3",
+      "Sum": "h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=",
+      "Version": "v3.0.1"
+    },
+    {
+      "Path": "k8s.io/api",
+      "Sum": "h1:PnxqnUFy93jr2GcpWDkKOm8wfy25kT9wa572MuQS8oc=",
+      "Version": "v0.37.2"
+    },
+    {
+      "Path": "k8s.io/apimachinery",
+      "Sum": "h1:G4t9RGoPDbQML38hz/kQQiltttgd3egg2ODCR8aIc2o=",
+      "Version": "v0.37.2"
+    },
+    {
+      "Path": "k8s.io/client-go",
+      "Sum": "h1:sgFtyRZukGkOrsu+QgS7LYnbFFJ5ut3MchdBNduD//E=",
+      "Version": "v0.37.2"
+    },
+    {
+      "Path": "k8s.io/klog/v2",
+      "Sum": "h1:Tf+J3AH7xnUzZyVVXhTgGhEKnFqye14aadWv7bzXdzc=",
+      "Version": "v2.140.0"
+    },
+    {
+      "Path": "k8s.io/kube-openapi",
+      "Sum": "h1:z5+pcu1jTyKK5mNTe2/+x+U6Uuv9jRVOJQLaBJJMpeI=",
+      "Version": "v0.0.0-20260821135717-be32def86098"
+    },
+    {
+      "Path": "k8s.io/kubelet",
+      "Sum": "h1:AaRApKAcqmMD4pxmsxdghJHbTNfOxYOIlPCARw8+01A=",
+      "Version": "v0.37.2"
+    },
+    {
+      "Path": "k8s.io/utils",
+      "Sum": "h1:jVkFFVfXdXP74B/zbO3hM3hpSFD0xvhQ5U686DPurkE=",
+      "Version": "v0.0.0-20260707023825-cf1189d6abe3"
+    },
+    {
+      "Path": "modernc.org/b/v2",
+      "Sum": "h1:eLUChaDprVvWRIDtwdFEzQQows4RE6ymJoWBeGhCJS0=",
+      "Version": "v2.1.11"
+    },
+    {
+      "Path": "modernc.org/libc",
+      "Sum": "h1:9Dvvv++bAMSkSuBzuOFAatbTV5OIoq6Y6FohmD3e7q8=",
+      "Version": "v1.79.0"
+    },
+    {
+      "Path": "modernc.org/mathutil",
+      "Sum": "h1:GCZVGXdaN8gTqB1Mf/usp1Y/hSqgI2vAGGP4jZMCxOU=",
+      "Version": "v1.7.1"
+    },
+    {
+      "Path": "modernc.org/memory",
+      "Sum": "h1:nFMiWrpStgZczNl6XI9GnIk/rWhYIyHGUaR04pGbp9g=",
+      "Version": "v1.12.1"
+    },
+    {
+      "Path": "modernc.org/sqlite",
+      "Sum": "h1:TBEE49wz7VlxS+qXRXMQiPUZYOXHJ4ku83daYv1fe04=",
+      "Version": "v1.61.1"
+    },
+    {
+      "Path": "sigs.k8s.io/controller-runtime",
+      "Sum": "h1:bEkK3PVOIVK9X8QWLGVhJgmFc++47vfT6wakSzAOLsQ=",
+      "Version": "v0.25.2"
+    },
+    {
+      "Path": "sigs.k8s.io/json",
+      "Sum": "h1:k9jo7ED/fsfOcz3L1P20P5tjTNtsdQNwMOG2aKzHrl8=",
+      "Version": "v0.0.0-20260909141634-11ed52e25bc5"
+    },
+    {
+      "Path": "sigs.k8s.io/randfill",
+      "Sum": "h1:JfjMILfT8A6RbawdsK2JXGBR5AQVfd+9TbzrlneTyrU=",
+      "Version": "v1.0.0"
+    },
+    {
+      "Path": "sigs.k8s.io/structured-merge-diff/v6",
+      "Sum": "h1:qdOxHwrl2Kaag1aQEarlYcOA9vSyGCp3CIki3aW8c4Q=",
+      "Version": "v6.4.2"
+    },
+    {
+      "Path": "sigs.k8s.io/yaml",
+      "Sum": "h1:G8fkbMSAFqgEFgh4b1wmtzDnioxFCUgTZhlbj5P9QYs=",
+      "Version": "v1.6.0"
+    },
+    {
+      "Path": "skywalking.apache.org/repo/goapi",
+      "Sum": "h1:3YIFmsshgsU6FzHgnkG9Z24CkXkgoexBN5O0aSzK79g=",
+      "Version": "v0.0.0-20240104145220-ba7202308dd4"
+    },
+    {
+      "Path": "software.sslmate.com/src/go-pkcs12",
+      "Sum": "h1:OvJ7g/OB9RuVAOzahlFLns6HeIcP+SJotsDqmLfhd8w=",
+      "Version": "v0.7.4"
+    }
+  ],
+  "GoVersion": "go1.27.3",
+  "Main": {
+    "Path": "github.com/open-telemetry/opentelemetry-collector-releases/contrib",
+    "Version": "(devel)"
+  },
+  "Path": "github.com/open-telemetry/opentelemetry-collector-releases/contrib",
+  "Settings": [
+    {
+      "Key": "-buildmode",
+      "Value": "exe"
+    },
+    {
+      "Key": "-compiler",
+      "Value": "gc"
+    },
+    {
+      "Key": "-trimpath",
+      "Value": "true"
+    },
+    {
+      "Key": "DefaultGODEBUG",
+      "Value": "tracebacklabels=0,x509sslcertoverrideplatform=0"
+    },
+    {
+      "Key": "CGO_ENABLED",
+      "Value": "0"
+    },
+    {
+      "Key": "GOARCH",
+      "Value": "amd64"
+    },
+    {
+      "Key": "GOOS",
+      "Value": "linux"
+    },
+    {
+      "Key": "GOAMD64",
+      "Value": "v1"
+    },
+    {
+      "Key": "vcs",
+      "Value": "git"
+    },
+    {
+      "Key": "vcs.revision",
+      "Value": "b9425f263115f328bc3bd4e65b825101b499f144"
+    },
+    {
+      "Key": "vcs.time",
+      "Value": "2026-11-07T04:32:39Z"
+    },
+    {
+      "Key": "vcs.modified",
+      "Value": "false"
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "github.com/fsnotify/fsnotify@v1.9.0": "94e64824b23591b7aa504e3321d5ec3f57de88f4d49882eaefbbf6820dab746e",
+  "github.com/go-viper/mapstructure/v2@v2.4.0": "33e0398e34eca4b1b8c9d91318dd3be871811aee6e2ababc82c02280dcca296a",
+  "github.com/inconshreveable/mousetrap@v1.1.0": "526674de624d7db108cfe7653ef110ccdfd97bc85026254224815567928ed243",
+  "github.com/knadh/koanf/maps@v0.1.2": "2d612625f7e38fbe9b95bc16eb9c78a2cc40d043db2ab5f29afcaf7be62f88ea",
+  "github.com/knadh/koanf/parsers/yaml@v1.1.1": "f2a0bc7bab11ee6760949591704b5b60b67f63030ee5b50098b0131f74a2303a",
+  "github.com/knadh/koanf/providers/env/v2@v2.0.2": "95e5804369bcd370e428d89ff29539e1a5a37124a18d0288a998f840ef7f87b2",
+  "github.com/knadh/koanf/providers/file@v1.2.1": "5326c44d0d72262a20edc4e1a6785b898438868bc4a94905888ffa3bb0cb0a92",
+  "github.com/knadh/koanf/providers/fs@v1.0.1": "7f83066f810d13c9e771b15f9577e1fb5afad125a754448570a016799f4827ef",
+  "github.com/knadh/koanf/v2@v2.4.1": "dcf4962af152449eab2867f560eeb1c26719686734ee3fb34c3e15b2cdace8d1",
+  "github.com/mitchellh/copystructure@v1.2.0": "4a1ce1f3c66bf99883e55da50fe1b3122299b79ad1d11c5407abbd74ace12550",
+  "github.com/mitchellh/reflectwalk@v1.0.2": "c96eed6b50f00b1acdc79224e8e55f66ef3e98e3f7c6373afa3e3b8c6ef440d1",
+  "github.com/spf13/cobra@v1.10.2": "a00aae6fcd631e0fde52c98604452ff70e1b73c3b8a560d68db15aff5e26872d",
+  "github.com/spf13/pflag@v1.0.10": "a246b8c9d3daa87d6c634cdfee1bdf7fa53d5817eeef4fa0c6da43edd12de4ca",
+  "go.opentelemetry.io/collector/cmd/builder@v0.165.0": "9a0f3ace501df5163df66c77709c48fbc1382e2b6bf6060e2205563da236f2db",
+  "go.uber.org/multierr@v1.11.0": "2249b5d2fdce61f6ee661a679d8552599af084a761cbbc871da77641bddce0c3",
+  "go.uber.org/zap@v1.28.0": "49d6287497537480c2e9330e3dee9c38ac793fbf9fd2257dbc4fa5697818919c",
+  "go.yaml.in/yaml/v3@v3.0.6": "5ec6b154ced05b5fe8b15aef1287d647a70c9a53f43aa14e42d2bb5aee6cffac",
+  "golang.org/x/mod@v0.42.0": "2770e372e42c30dd498d63bb094fe257edfad6882c611f8e0d82925feac159f3",
+  "golang.org/x/sys@v0.41.0": "c48084c62177045c1091e3cab99aa03ebb003027435ca8bd36bb851340480a40"
+}

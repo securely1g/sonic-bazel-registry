@@ -1,0 +1,30 @@
+diff --git a/REPO.bazel b/REPO.bazel
+new file mode 100644
+--- /dev/null
++++ b/REPO.bazel
+@@ -0,0 +1,1 @@
++repo(default_package_metadata = ["//_otel_release:package_metadata", "//_otel_release:package_info"])
+diff --git a/_otel_release/BUILD.bazel b/_otel_release/BUILD.bazel
+new file mode 100644
+--- /dev/null
++++ b/_otel_release/BUILD.bazel
+@@ -0,0 +1,19 @@
++load("@package_metadata//rules:package_metadata.bzl", "package_metadata")
++load("@rules_license//rules:package_info.bzl", "package_info")
++
++package(default_visibility = ["//visibility:public"])
++
++_PURL = "pkg:golang/go.opentelemetry.io/obi@v0.15.2?go_replace=..%2F..%2F..%2Finternal%2Fobi-src&go_replace_version=%28devel%29"
++
++package_metadata(
++    name = "package_metadata",
++    purl = _PURL,
++)
++
++package_info(
++    name = "package_info",
++    package_name = "go.opentelemetry.io/obi",
++    package_url = "https://go.opentelemetry.io/obi",
++    package_version = "0.15.2",
++    purl = _PURL,
++)

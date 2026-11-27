@@ -1,0 +1,30 @@
+diff --git a/REPO.bazel b/REPO.bazel
+new file mode 100644
+--- /dev/null
++++ b/REPO.bazel
+@@ -0,0 +1,1 @@
++repo(default_package_metadata = ["//_otel_release:package_metadata", "//_otel_release:package_info"])
+diff --git a/_otel_release/BUILD.bazel b/_otel_release/BUILD.bazel
+new file mode 100644
+--- /dev/null
++++ b/_otel_release/BUILD.bazel
+@@ -0,0 +1,19 @@
++load("@package_metadata//rules:package_metadata.bzl", "package_metadata")
++load("@rules_license//rules:package_info.bzl", "package_info")
++
++package(default_visibility = ["//visibility:public"])
++
++_PURL = "pkg:golang/github.com/hamba/avro/v2@v2.31.0?go_replace=github.com%2Fiskorotkov%2Favro%2Fv2&go_replace_version=v2.33.0&go_replace_sum=h1%3AfbscLHxRFT4QBPQp6MuYEL2Ao9o89KPAWYCHQ%2F%2F5K18%3D"
++
++package_metadata(
++    name = "package_metadata",
++    purl = _PURL,
++)
++
++package_info(
++    name = "package_info",
++    package_name = "github.com/hamba/avro/v2",
++    package_url = "https://github.com/hamba/avro/v2",
++    package_version = "2.31.0",
++    purl = _PURL,
++)

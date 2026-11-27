@@ -1,0 +1,8 @@
+Package: otelcol-contrib
+Version: 0.165.0
+Section: 
+Priority: optional
+Architecture: amd64
+Maintainer: The OpenTelemetry Collector maintainers <cncf-opentelemetry-maintainers@lists.cncf.io>
+Installed-Size: 400594
+Description: OpenTelemetry Collector - otelcol-contrib
