@@ -909,6 +909,14 @@ Every module validation, including native ARM64, runs through
 CPU quota and memory limit, plus process CPU affinity, in
 `runner-resources.json`.
 
+If the runner's default remote action-cache credential helper times out during
+a Bazel build or test, CI saves the first diagnostic in
+`build-cache-timeout.log` or `test-cache-timeout.log` and retries that phase
+once with the remote action cache disabled. Subsequent tests use that setting
+if the build needed the retry. Explicit cache, remote execution and downloader
+checks keep their selected endpoint. Ordinary build and test failures still
+fail validation.
+
 The resource wrapper sets the action memory budget to 80% of the effective memory
 remaining after the 2 GiB JVM heap reserve. Effective memory is the smaller
 of host RAM and the tightest enclosing cgroup limit. A 6 GiB runner receives

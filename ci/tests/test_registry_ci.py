@@ -39,6 +39,60 @@ def digest(data: bytes) -> str:
     return "sha256-" + base64.b64encode(hashlib.sha256(data).digest()).decode()
 
 
+class RemoteCacheTimeoutTests(unittest.TestCase):
+    timeout = ("Failed to get credentials for 'https://cache.example.invalid' from helper "
+               "'/opt/sonic-runner/cache_credentials.py': process timed out")
+
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+
+    def phase(self, results, flags=(), phase="build"):
+        responses = iter(results)
+        self.commands = []
+
+        def execute(command, *, cwd, stdout, stderr):
+            self.commands.append(command)
+            status, message = next(responses)
+            stdout.write(message + "\n")
+            return subprocess.CompletedProcess(command, status)
+
+        with mock.patch.object(registry_ci.subprocess, "run", side_effect=execute):
+            return registry_ci.run_bazel_phase(["bazel"], phase, list(flags), ["//:consumer"],
+                                               self.root, self.root)
+
+    def test_retry_same_target_without_remote_action_cache_and_keep_diagnostics(self):
+        for phase, status, prefix in (("build", 36, "ERROR: action failed: Exec failed due to CredentialHelperException: "),
+                                      ("test", 2, "ERROR: ")):
+            with self.subTest(phase=phase):
+                diagnostic = prefix + self.timeout
+                flags = self.phase([(status, diagnostic), (0, "passed")], ["--jobs=2"], phase)
+                self.assertEqual(flags, ["--jobs=2", "--remote_cache="])
+                self.assertEqual(self.commands, [["bazel", phase, "--jobs=2", "//:consumer"],
+                                                 ["bazel", phase, *flags, "//:consumer"]])
+                self.assertEqual((self.root / (phase + "-cache-timeout.log")).read_text(), diagnostic + "\n")
+                self.assertEqual((self.root / (phase + ".log")).read_text(), "passed\n")
+
+    def test_other_failures_and_explicit_remote_checks_still_fail(self):
+        cases = [(3, "ERROR: " + self.timeout, []), (36, "ERROR: compiler failed", []),
+                 (36, "ERROR: " + self.timeout.replace("cache_credentials", "source_credentials"), [])]
+        for option in ("--remote_cache=", "--remote_cache=https://cache.example.invalid",
+                       "--remote_executor=grpc://executor", "--experimental_remote_downloader=grpc://probe"):
+            cases.append((2, "ERROR: " + self.timeout, [option]))
+        for status, message, flags in cases:
+            with self.subTest(status=status, message=message, flags=flags):
+                with self.assertRaises(registry_ci.CommandFailure):
+                    self.phase([(status, message)], flags)
+                self.assertEqual(len(self.commands), 1)
+
+    def test_retry_failure_propagates(self):
+        with self.assertRaises(registry_ci.CommandFailure) as result:
+            self.phase([(2, "ERROR: " + self.timeout), (1, "ERROR: target failed")])
+        self.assertEqual(result.exception.returncode, 1)
+        self.assertEqual(len(self.commands), 2)
+
+
 class FixtureTestCase(unittest.TestCase):
     def setUp(self) -> None:
         temporary = tempfile.TemporaryDirectory()

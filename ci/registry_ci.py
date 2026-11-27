@@ -96,6 +96,12 @@ class RegistryError(ValueError):
     """A registry entry or required validation result is invalid."""
 
 
+class CommandFailure(RegistryError):
+    def __init__(self, returncode: int, log: Path):
+        super().__init__(f"Command failed with status {returncode}; see {log}")
+        self.returncode = returncode
+
+
 def require(condition: bool, message: str) -> None:
     if not condition:
         raise RegistryError(message)
@@ -1265,7 +1271,35 @@ def run_logged(command: list[str], cwd: Path, log: Path) -> None:
         result = subprocess.run(command, cwd=cwd, stdout=output, stderr=subprocess.STDOUT)
     if result.returncode:
         print(read_log_tail(log, 16000), file=sys.stderr)
-        raise RegistryError(f"Command failed with status {result.returncode}; see {log}")
+        raise CommandFailure(result.returncode, log)
+
+
+def run_bazel_phase(prefix: list[str], phase: str, flags: list[str], args: list[str],
+                    consumer: Path, artifacts: Path) -> list[str]:
+    """Keep the shared cache optional for ordinary runner builds and tests."""
+    log = artifacts / (phase + ".log")
+    try:
+        run_logged([*prefix, phase, *flags, *args], consumer, log)
+        return flags
+    except CommandFailure as error:
+        # Bazel 8.5.1 exits 2 during cache initialization or 36 during an
+        # action when this helper times out, even with remote_local_fallback.
+        explicit_remote = {"--remote_cache", "--remote_executor", "--experimental_remote_downloader"}
+        if error.returncode not in (2, 36) or any(
+                option.partition("=")[0] in explicit_remote for option in [*flags, *args]):
+            raise
+        timeout = re.compile(r"^ERROR: (?:.*Exec failed due to CredentialHelperException: )?"
+                             r"Failed to get credentials for '[^']+' from helper "
+                             r"'/opt/sonic-runner/cache_credentials\.py': process timed out\s*$")
+        with log.open(errors="replace") as diagnostics:
+            if not any(timeout.match(line) for line in diagnostics):
+                raise
+    log.rename(artifacts / (phase + "-cache-timeout.log"))
+    print(f"Runner cache credentials timed out. Retrying Bazel {phase} with the remote action cache disabled.",
+          flush=True)
+    local_flags = [*flags, "--remote_cache="]
+    run_logged([*prefix, phase, *local_flags, *args], consumer, log)
+    return local_flags
 
 
 
@@ -2085,9 +2119,9 @@ def run(root: Path, module: str, version: str, architecture: str,
                                     list(dict.fromkeys(build_targets + test_targets)), consumer, artifacts)
             with build_cache_audit(config.get("cache_audit_targets", []), work_dir, artifacts) as audit_flags:
                 profile_flags = analysis_profile_flags(artifacts, "build") if profile_analysis else []
-                run_logged([*prefix, "build", *flags, *audit_flags, *profile_flags,
-                            f"--build_event_json_file={artifacts / 'build-events.jsonl'}", *build_targets],
-                           consumer, artifacts / "build.log")
+                flags = run_bazel_phase(prefix, "build", flags, [
+                    *audit_flags, *profile_flags, f"--build_event_json_file={artifacts / 'build-events.jsonl'}",
+                    *build_targets], consumer, artifacts)
             declared_trees = query_output_trees(prefix, flags, build_targets, consumer, artifacts)
             # Path queries need dependency resolution, but not target/host platform
             # flags whose apparent labels may be unresolved in a fresh info command.
@@ -2184,11 +2218,11 @@ def run(root: Path, module: str, version: str, architecture: str,
             # separate bind mounts reject those links even on one filesystem.
             # Keep input staging within the disposable container, and leave
             # build action strategies unchanged.
-            run_logged([*prefix, "test", *flags, *test_flags, *(analysis_profile_flags(artifacts, "test") if profile_analysis else []), "--test_env=HOME=",
-                        f"--strategy=TestRunner={TEST_SANDBOX_STRATEGY}",
-                        "--nocache_test_results", "--test_output=errors",
-                        f"--build_event_json_file={artifacts / 'test-events.jsonl'}", *test_targets],
-                       consumer, artifacts / "test.log")
+            run_bazel_phase(prefix, "test", flags, [
+                *test_flags, *(analysis_profile_flags(artifacts, "test") if profile_analysis else []),
+                "--test_env=HOME=", f"--strategy=TestRunner={TEST_SANDBOX_STRATEGY}",
+                "--nocache_test_results", "--test_output=errors",
+                f"--build_event_json_file={artifacts / 'test-events.jsonl'}", *test_targets], consumer, artifacts)
             verify_tests(artifacts / "test-events.jsonl", test_targets)
             for dependency in config["consumer_deps"]:
                 name, selected_version = dependency["name"], dependency["version"]

@@ -196,14 +196,15 @@ class ConfiguredGateTests(FixtureTestCase):
                        consumer=Path('/inert/consumer'), artifacts=Path('/inert/artifacts'),
                        work_dir=Path('/inert/work'), profile_analysis=profile,
                        configured_non_deb_gate=gate, build_cache_audit=cache,
-                       analysis_profile_flags=profiles, run_logged=logged)
+                       analysis_profile_flags=profiles, run_bazel_phase=registry_ci.run_bazel_phase)
         if blocked:
             with self.assertRaisesRegex(registry_ci.RegistryError, 'blocked graph'):
                 exec(self.build_fragment(), context)
             self.assertEqual(events, ['guard'])
             self.assertEqual(commands, [])
         else:
-            exec(self.build_fragment(), context)
+            with mock.patch.object(registry_ci, 'run_logged', side_effect=logged):
+                exec(self.build_fragment(), context)
         return events, commands
 
     def test_actual_runner_stops_before_build_on_gate_failure(self):
