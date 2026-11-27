@@ -1,0 +1,111 @@
+Compare sonic-rust-deps 0.0.5-4064a814e8530300a7acbad4a9aff0621e2fb98e to 0.0.6-d48d0ed89b439339c42fd6ff4c86087bba399f89
+Published registry baseline: 856bfa19e6731ca0432a84351dd4fda3f89497b4
+Candidate registry revision: c78e3c2fbaf4934b7487bcb7e9c82af643237f46
+Apply in a fresh checkout at the published baseline:
+  test ! -e modules/sonic-rust-deps/0.0.6-d48d0ed89b439339c42fd6ff4c86087bba399f89
+  cp -a modules/sonic-rust-deps/0.0.5-4064a814e8530300a7acbad4a9aff0621e2fb98e modules/sonic-rust-deps/0.0.6-d48d0ed89b439339c42fd6ff4c86087bba399f89
+  git apply --check /path/to/0.0.5-to-0.0.6.patch
+  git apply /path/to/0.0.5-to-0.0.6.patch
+
+diff --git a/modules/sonic-rust-deps/0.0.6-d48d0ed89b439339c42fd6ff4c86087bba399f89/MODULE.bazel b/modules/sonic-rust-deps/0.0.6-d48d0ed89b439339c42fd6ff4c86087bba399f89/MODULE.bazel
+index 4a0ee225f5f4dcc2d39be3ad8f6f301da91b619f..6d2b8576eef7ca6112ea373d292be2e0073598fd 100644
+--- a/modules/sonic-rust-deps/0.0.6-d48d0ed89b439339c42fd6ff4c86087bba399f89/MODULE.bazel
++++ b/modules/sonic-rust-deps/0.0.6-d48d0ed89b439339c42fd6ff4c86087bba399f89/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-rust-deps",
+-    version = "0.0.5-4064a814e8530300a7acbad4a9aff0621e2fb98e",
++    version = "0.0.6-d48d0ed89b439339c42fd6ff4c86087bba399f89",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
+diff --git a/modules/sonic-rust-deps/0.0.6-d48d0ed89b439339c42fd6ff4c86087bba399f89/README.md b/modules/sonic-rust-deps/0.0.6-d48d0ed89b439339c42fd6ff4c86087bba399f89/README.md
+index 7d2f76661bc23875bce38bcda755e91bf3b7e3c8..7077e1f62f5fb2ee6d849b680e938008f09758a0 100644
+--- a/modules/sonic-rust-deps/0.0.6-d48d0ed89b439339c42fd6ff4c86087bba399f89/README.md
++++ b/modules/sonic-rust-deps/0.0.6-d48d0ed89b439339c42fd6ff4c86087bba399f89/README.md
+@@ -1,3 +1,5 @@
+ # Shared Rust dependencies for DASH HA
+ 
+ DASH HA uses syn 3.0.10 and thiserror 2.0.21 for derive macros, and serde_serializer_quick_unsupported 1.0.1 for its SWSS serializer. The versioned Bazel targets preserve the earlier crate APIs for existing consumers. Registry CI builds both sets of targets with Rust 1.95 on AMD64 and ARM64 and exercises the derive, serializer and Host Services process APIs. [Build Infra #139](https://github.com/securely1g/sonic-build-infra/pull/139)
++
++The container configuration daemon consumes epoll 4.4.0 and rustix 1.1.6 (fs and linux_5_11) from this graph. Its target and lock live with the shared module. The registry adds the source-qualified version and exercises its event and filesystem APIs on AMD64 and ARM64. [Upstream producer](https://github.com/sonic-net/sonic-build-infra/pull/10) · [Buildimage #31141](https://github.com/sonic-net/sonic-buildimage/pull/31141)
+diff --git a/modules/sonic-rust-deps/0.0.6-d48d0ed89b439339c42fd6ff4c86087bba399f89/patches/0001-bump-version.patch b/modules/sonic-rust-deps/0.0.6-d48d0ed89b439339c42fd6ff4c86087bba399f89/patches/0001-bump-version.patch
+index 5222b070b51ee2dc804e47d41fbb32baf00efd44..d81c94f27e113ac3fee8f44d91f2d26814402bfd 100644
+--- a/modules/sonic-rust-deps/0.0.6-d48d0ed89b439339c42fd6ff4c86087bba399f89/patches/0001-bump-version.patch
++++ b/modules/sonic-rust-deps/0.0.6-d48d0ed89b439339c42fd6ff4c86087bba399f89/patches/0001-bump-version.patch
+@@ -1,15 +1,13 @@
+-From: Guohan Lu <lguohan@gmail.com>
+-Subject: [PATCH] Identify the registered Rust dependency source by its commit
+-
+-Pin the shared Cargo graph that exposes the DASH HA derive and serializer APIs.
++From: securely1g <securely1g@gmail.com>
++Subject: [PATCH] Qualify the shared Rust dependency version with its source commit
+ 
+ --- a/MODULE.bazel
+ +++ b/MODULE.bazel
+ @@ -1,6 +1,6 @@
+  module(
+      name = "sonic-rust-deps",
+--    version = "0.0.5",
+-+    version = "0.0.5-4064a814e8530300a7acbad4a9aff0621e2fb98e",
++-    version = "0.0.6",
+++    version = "0.0.6-d48d0ed89b439339c42fd6ff4c86087bba399f89",
+      bazel_compatibility = [
+          ">=8.5.1",
+          "<=8.5.1",
+diff --git a/modules/sonic-rust-deps/0.0.6-d48d0ed89b439339c42fd6ff4c86087bba399f89/presubmit.json b/modules/sonic-rust-deps/0.0.6-d48d0ed89b439339c42fd6ff4c86087bba399f89/presubmit.json
+index de1f930a3c23f8d63f2ffaa024f98ecfbc8838ff..15f0cbcc47b2d2913bd9f147bab19af2ef5b4853 100644
+--- a/modules/sonic-rust-deps/0.0.6-d48d0ed89b439339c42fd6ff4c86087bba399f89/presubmit.json
++++ b/modules/sonic-rust-deps/0.0.6-d48d0ed89b439339c42fd6ff4c86087bba399f89/presubmit.json
+@@ -63,7 +63,10 @@
+     "@sonic-rust-deps//tests:host_process_api_test",
+     "@sonic-rust-deps//:serde_serializer_quick_unsupported1",
+     "@sonic-rust-deps//:syn3",
+-    "@sonic-rust-deps//:thiserror2"
++    "@sonic-rust-deps//:thiserror2",
++    "@sonic-rust-deps//:epoll",
++    "@sonic-rust-deps//:rustix",
++    "@sonic-rust-deps//tests:containercfgd_io_test"
+   ],
+   "test_targets": [
+     "@sonic-rust-deps//tests:serde_roundtrip_test",
+@@ -71,7 +74,8 @@
+     "@sonic-rust-deps//tests:supervisor_io_test",
+     "@sonic-rust-deps//tests:panic_runtime_test",
+     "@sonic-rust-deps//tests:dash_ha_contract_test",
+-    "@sonic-rust-deps//tests:host_process_api_test"
++    "@sonic-rust-deps//tests:host_process_api_test",
++    "@sonic-rust-deps//tests:containercfgd_io_test"
+   ],
+   "rust_toolchain": {
+     "version": "1.95.0"
+diff --git a/modules/sonic-rust-deps/0.0.6-d48d0ed89b439339c42fd6ff4c86087bba399f89/source.json b/modules/sonic-rust-deps/0.0.6-d48d0ed89b439339c42fd6ff4c86087bba399f89/source.json
+index 33b1a836e2d856e5c33aa0485bd800f582b6f93a..a6b01db22856fb505862af79be072f2ad9856464 100644
+--- a/modules/sonic-rust-deps/0.0.6-d48d0ed89b439339c42fd6ff4c86087bba399f89/source.json
++++ b/modules/sonic-rust-deps/0.0.6-d48d0ed89b439339c42fd6ff4c86087bba399f89/source.json
+@@ -1,9 +1,9 @@
+ {
+-  "url": "https://github.com/securely1g/sonic-build-infra/archive/4064a814e8530300a7acbad4a9aff0621e2fb98e.tar.gz",
+-  "strip_prefix": "sonic-build-infra-4064a814e8530300a7acbad4a9aff0621e2fb98e/rust/deps",
+-  "integrity": "sha256-PQEZoz5sS707ZX3JuSS7rXD6SEpEmP4IZZGFvT2Kpl0=",
++  "url": "https://github.com/sonic-net/sonic-build-infra/archive/d48d0ed89b439339c42fd6ff4c86087bba399f89.tar.gz",
++  "strip_prefix": "sonic-build-infra-d48d0ed89b439339c42fd6ff4c86087bba399f89/rust/deps",
++  "integrity": "sha256-bmMwkJ1QsNIxwkEK26et5a1vB7TUByA91e5oBQOBvNk=",
+   "patch_strip": 1,
+   "patches": {
+-    "0001-bump-version.patch": "sha256-Baqu92m+XNyHoM7Wc1pusTUUqvAhPTGpjyDo/Sxc8i0="
++    "0001-bump-version.patch": "sha256-wG3aHRSawD3idMQViO42IduQ2HrYxU2t29GDDqIpFP8="
+   }
+ }
+diff --git a/modules/sonic-rust-deps/metadata.json b/modules/sonic-rust-deps/metadata.json
+index e1a92a9f31d633698fd2813d0d6e518b7f24dd21..2eac9b9933ad5aabeed874f5e4cd4ab161f87d6e 100644
+--- a/modules/sonic-rust-deps/metadata.json
++++ b/modules/sonic-rust-deps/metadata.json
+@@ -1,5 +1,6 @@
+ {
+   "versions": [
+-    "0.0.5-4064a814e8530300a7acbad4a9aff0621e2fb98e"
++    "0.0.5-4064a814e8530300a7acbad4a9aff0621e2fb98e",
++    "0.0.6-d48d0ed89b439339c42fd6ff4c86087bba399f89"
+   ]
+ }
