@@ -19,5 +19,9 @@
   "test_targets": [
     "@sonic-yang-mgmt//:sonic_yang_mgmt_runtime_test"
   ],
+  "host_platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
+  },
   "integration_test_module": "integration"
 }
