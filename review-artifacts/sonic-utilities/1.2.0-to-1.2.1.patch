@@ -1,0 +1,189 @@
+Compare sonic-utilities 1.2.0-6f1a8a16a947817d76b55dead8cce68e5a4536e4 to 1.2.1-b7b35f0f2893412e9e4f4751339dc4e93aaaacaa
+Published registry baseline: 54c01a5262ad4910f1fb6683152ea4123596df14
+Candidate registry revision: 5111c4c61e3c1722fd9a9ce5a0d1017c629f9302
+Apply in a fresh checkout at the published baseline:
+  test ! -e modules/sonic-utilities/1.2.1-b7b35f0f2893412e9e4f4751339dc4e93aaaacaa
+  cp -a modules/sonic-utilities/1.2.0-6f1a8a16a947817d76b55dead8cce68e5a4536e4 modules/sonic-utilities/1.2.1-b7b35f0f2893412e9e4f4751339dc4e93aaaacaa
+  git apply --check /path/to/1.2.0-to-1.2.1.patch
+  git apply /path/to/1.2.0-to-1.2.1.patch
+
+diff --git a/modules/sonic-utilities/1.2.1-b7b35f0f2893412e9e4f4751339dc4e93aaaacaa/MODULE.bazel b/modules/sonic-utilities/1.2.1-b7b35f0f2893412e9e4f4751339dc4e93aaaacaa/MODULE.bazel
+index d80e3439ec29ac9eeb70d3792d088d31eeb177c4..7b7b02eb6b308f3726bce8b7d8ac91e36591e462 100644
+--- a/modules/sonic-utilities/1.2.1-b7b35f0f2893412e9e4f4751339dc4e93aaaacaa/MODULE.bazel
++++ b/modules/sonic-utilities/1.2.1-b7b35f0f2893412e9e4f4751339dc4e93aaaacaa/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-utilities",
+-    version = "1.2.0-6f1a8a16a947817d76b55dead8cce68e5a4536e4",
++    version = "1.2.1-b7b35f0f2893412e9e4f4751339dc4e93aaaacaa",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
+diff --git a/modules/sonic-utilities/1.2.1-b7b35f0f2893412e9e4f4751339dc4e93aaaacaa/overlay/MODULE.bazel b/modules/sonic-utilities/1.2.1-b7b35f0f2893412e9e4f4751339dc4e93aaaacaa/overlay/MODULE.bazel
+deleted file mode 100644
+index 4e8bc93c81d8dc6f528482c61444d545eb65ff4a..0000000000000000000000000000000000000000
+--- a/modules/sonic-utilities/1.2.1-b7b35f0f2893412e9e4f4751339dc4e93aaaacaa/overlay/MODULE.bazel
++++ /dev/null
+@@ -1,34 +0,0 @@
+-# AUTO-GENERATED. DO NOT EDIT MANUALLY.
+-# Source: ../MODULE.bazel
+-# Generator: python3 ci/registry_ci.py sync-module --module sonic-utilities --version 1.2.0-6f1a8a16a947817d76b55dead8cce68e5a4536e4
+-
+-module(
+-    name = "sonic-utilities",
+-    version = "1.2.0-6f1a8a16a947817d76b55dead8cce68e5a4536e4",
+-    bazel_compatibility = [
+-        ">=8.5.1",
+-        "<=8.5.1",
+-    ],
+-)
+-
+-bazel_dep(name = "rules_python", version = "1.9.0.sonic.2")
+-
+-python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+-python.toolchain(
+-    is_default = True,
+-    python_version = "3.13",
+-)
+-
+-pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+-pip.parse(
+-    hub_name = "utilities_test_pip",
+-    python_version = "3.13",
+-    requirements_lock = "//bazel:requirements_test_lock.txt",
+-)
+-use_repo(pip, "utilities_test_pip")
+-
+-# Published source installation API, including executable modes and script normalization.
+-bazel_dep(name = "sonic-build-infra", version = "0.0.45-77ef625a4ddafc8cdc15f3cc6aee31eabac8a5de", repo_name = "sonic_build_infra")
+-
+-# Uncompressed installation TAR for the Debian data package.
+-bazel_dep(name = "tar.bzl", version = "0.10.5.sonic.2")
+diff --git a/modules/sonic-utilities/1.2.1-b7b35f0f2893412e9e4f4751339dc4e93aaaacaa/patches/module-version.patch b/modules/sonic-utilities/1.2.1-b7b35f0f2893412e9e4f4751339dc4e93aaaacaa/patches/module-version.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..f237a204b1e0b843732893239f1bdd80067bb783
+--- /dev/null
++++ b/modules/sonic-utilities/1.2.1-b7b35f0f2893412e9e4f4751339dc4e93aaaacaa/patches/module-version.patch
+@@ -0,0 +1,10 @@
++--- a/MODULE.bazel
+++++ b/MODULE.bazel
++@@ -1,6 +1,6 @@
++ module(
++     name = "sonic-utilities",
++-    version = "1.2",
+++    version = "1.2.1-b7b35f0f2893412e9e4f4751339dc4e93aaaacaa",
++     bazel_compatibility = [
++         ">=8.5.1",
++         "<=8.5.1",
+diff --git a/modules/sonic-utilities/1.2.1-b7b35f0f2893412e9e4f4751339dc4e93aaaacaa/presubmit.json b/modules/sonic-utilities/1.2.1-b7b35f0f2893412e9e4f4751339dc4e93aaaacaa/presubmit.json
+index 504818e8100045ddb3945c9a411d6b43b99c55da..12198cf938995927582b60e9224090310b7b27ca 100644
+--- a/modules/sonic-utilities/1.2.1-b7b35f0f2893412e9e4f4751339dc4e93aaaacaa/presubmit.json
++++ b/modules/sonic-utilities/1.2.1-b7b35f0f2893412e9e4f4751339dc4e93aaaacaa/presubmit.json
+@@ -6,7 +6,6 @@
+   "platforms": {
+     "amd64": "@platforms//host:host"
+   },
+-  "generated_module_overlay": true,
+   "build_targets": [
+     "@sonic-utilities//:sonic_utilities_wheel",
+     "@sonic-utilities//bazel/runtime:sonic_utilities_wheel",
+@@ -16,7 +15,9 @@
+     "@sonic-utilities//:wheel_contract_test",
+     "@sonic-utilities//:wheel_installed_test",
+     "@sonic-utilities//:runtime_wheel_contract_test",
+-    "@sonic-utilities//bazel/data:contract_test"
++    "@sonic-utilities//bazel/data:contract_test",
++    "@sonic-utilities//:source_install_test",
++    "//:hft_runtime_wheel_test"
+   ],
+   "integration_test_module": "tests/integration"
+ }
+diff --git a/modules/sonic-utilities/1.2.1-b7b35f0f2893412e9e4f4751339dc4e93aaaacaa/source.json b/modules/sonic-utilities/1.2.1-b7b35f0f2893412e9e4f4751339dc4e93aaaacaa/source.json
+index 4c3de8fcb395cc889dfa6cacb86f663546c7b1b8..477cd99c7141d174b5d9b0dc19a1f0d4fd31c5ee 100644
+--- a/modules/sonic-utilities/1.2.1-b7b35f0f2893412e9e4f4751339dc4e93aaaacaa/source.json
++++ b/modules/sonic-utilities/1.2.1-b7b35f0f2893412e9e4f4751339dc4e93aaaacaa/source.json
+@@ -1,8 +1,9 @@
+ {
+-  "url": "https://github.com/securely1g/sonic-utilities/archive/6f1a8a16a947817d76b55dead8cce68e5a4536e4.tar.gz",
+-  "strip_prefix": "sonic-utilities-6f1a8a16a947817d76b55dead8cce68e5a4536e4",
+-  "integrity": "sha256-vHkfrawiy0dSo80dZvhkZEpxxwoDrC3nr45V7n1nYYE=",
+-  "overlay": {
+-    "MODULE.bazel": "sha256-J/Eut0/Mvz2JQqR9PmcUJq4hVVt5xICsPU2nqxhuFEM="
+-  }
++  "url": "https://github.com/sonic-net/sonic-utilities/archive/b7b35f0f2893412e9e4f4751339dc4e93aaaacaa.tar.gz",
++  "integrity": "sha256-s8vhE/KSJyw0opK3KXQ2y+i4cnX3kSxL2ge+ldC9oG0=",
++  "strip_prefix": "sonic-utilities-b7b35f0f2893412e9e4f4751339dc4e93aaaacaa",
++  "patches": {
++    "module-version.patch": "sha256-mX2emJqip/Bj7ub1b5+pQIiLBK69lXfVU8cb+nGPO/U="
++  },
++  "patch_strip": 1
+ }
+diff --git a/modules/sonic-utilities/1.2.1-b7b35f0f2893412e9e4f4751339dc4e93aaaacaa/tests/integration/BUILD.bazel b/modules/sonic-utilities/1.2.1-b7b35f0f2893412e9e4f4751339dc4e93aaaacaa/tests/integration/BUILD.bazel
+index 942e91471fa27deba9b40d71c3ad2675cfc804c5..c91c625ef40dffef6f67ee198c1dcfcce9220c82 100644
+--- a/modules/sonic-utilities/1.2.1-b7b35f0f2893412e9e4f4751339dc4e93aaaacaa/tests/integration/BUILD.bazel
++++ b/modules/sonic-utilities/1.2.1-b7b35f0f2893412e9e4f4751339dc4e93aaaacaa/tests/integration/BUILD.bazel
+@@ -1 +1,8 @@
+-# Exercise explicit source-owner targets as an external consumer.
++load("@rules_python//python:defs.bzl", "py_test")
++
++py_test(
++    name = "hft_runtime_wheel_test",
++    srcs = ["hft_runtime_wheel_test.py"],
++    args = ["$(location @sonic-utilities//bazel/runtime:sonic_utilities_wheel)"],
++    data = ["@sonic-utilities//bazel/runtime:sonic_utilities_wheel"],
++)
+diff --git a/modules/sonic-utilities/1.2.1-b7b35f0f2893412e9e4f4751339dc4e93aaaacaa/tests/integration/MODULE.bazel b/modules/sonic-utilities/1.2.1-b7b35f0f2893412e9e4f4751339dc4e93aaaacaa/tests/integration/MODULE.bazel
+index 4372bf69f4f90237d69d5affb9781e22dbec996c..520a6413d2818cd664b387c53b531b20b58f536f 100644
+--- a/modules/sonic-utilities/1.2.1-b7b35f0f2893412e9e4f4751339dc4e93aaaacaa/tests/integration/MODULE.bazel
++++ b/modules/sonic-utilities/1.2.1-b7b35f0f2893412e9e4f4751339dc4e93aaaacaa/tests/integration/MODULE.bazel
+@@ -1,5 +1,5 @@
+ module(name = "utilities_registry_consumer")
+-bazel_dep(name = "sonic-utilities", version = "1.2.0-6f1a8a16a947817d76b55dead8cce68e5a4536e4")
++bazel_dep(name = "sonic-utilities", version = "1.2.1-b7b35f0f2893412e9e4f4751339dc4e93aaaacaa")
+ bazel_dep(name = "rules_python", version = "1.9.0.sonic.2")
+ bazel_dep(name = "platforms", version = "1.0.0")
+ python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+diff --git a/modules/sonic-utilities/1.2.1-b7b35f0f2893412e9e4f4751339dc4e93aaaacaa/tests/integration/hft_runtime_wheel_test.py b/modules/sonic-utilities/1.2.1-b7b35f0f2893412e9e4f4751339dc4e93aaaacaa/tests/integration/hft_runtime_wheel_test.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..3d69af77ef403fe2842409546d5e367efeb817c3
+--- /dev/null
++++ b/modules/sonic-utilities/1.2.1-b7b35f0f2893412e9e4f4751339dc4e93aaaacaa/tests/integration/hft_runtime_wheel_test.py
+@@ -0,0 +1,26 @@
++"""Check the HFT host CLI installed by the VS Make reference image."""
++
++import hashlib
++import sys
++import zipfile
++
++
++# Files from src/sonic-utilities at buildimage gitlink 7f28a11d, also
++# verified in the filesystem of the VS Make installer.
++HFT_FILES = {
++    "config/hft.py": "bd380588726c808079001a3a7114580525e48402585c0a43ea0bcbbb06aadcae",
++    "show/hft.py": "f1aee3b97d93ace34b2f8a9f14cc86b519ff32fc220e6a0f1b47c8dff5cfa3c2",
++    "utilities_common/hft.py": "c769bbaf7660b81d86319cf00c758a7fc4ffb68ee4f73cb2c788c0cd51381dd9",
++}
++
++
++def check_wheel(path):
++    with zipfile.ZipFile(path) as wheel:
++        for filename, expected in HFT_FILES.items():
++            actual = hashlib.sha256(wheel.read(filename)).hexdigest()
++            if actual != expected:
++                raise ValueError(f"{filename}: expected {expected}, got {actual}")
++
++
++if __name__ == "__main__":
++    check_wheel(sys.argv[1])
+diff --git a/modules/sonic-utilities/metadata.json b/modules/sonic-utilities/metadata.json
+index 0f10616dc6d46aa57c830ea553d60cc0c126bd23..d7aab067489f3d7a2092c766ab0cb16ac1395aa8 100644
+--- a/modules/sonic-utilities/metadata.json
++++ b/modules/sonic-utilities/metadata.json
+@@ -1,5 +1,6 @@
+ {
+   "versions": [
+-    "1.2.0-6f1a8a16a947817d76b55dead8cce68e5a4536e4"
++    "1.2.0-6f1a8a16a947817d76b55dead8cce68e5a4536e4",
++    "1.2.1-b7b35f0f2893412e9e4f4751339dc4e93aaaacaa"
+   ]
+ }
