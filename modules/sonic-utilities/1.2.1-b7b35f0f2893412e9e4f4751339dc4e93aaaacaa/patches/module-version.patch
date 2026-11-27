@@ -1,0 +1,10 @@
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-utilities",
+-    version = "1.2",
++    version = "1.2.1-b7b35f0f2893412e9e4f4751339dc4e93aaaacaa",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",

@@ -1,0 +1,30 @@
+module(
+    name = "sonic-utilities",
+    version = "1.2.1-b7b35f0f2893412e9e4f4751339dc4e93aaaacaa",
+    bazel_compatibility = [
+        ">=8.5.1",
+        "<=8.5.1",
+    ],
+)
+
+bazel_dep(name = "rules_python", version = "1.9.0.sonic.2")
+
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(
+    is_default = True,
+    python_version = "3.13",
+)
+
+pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+pip.parse(
+    hub_name = "utilities_test_pip",
+    python_version = "3.13",
+    requirements_lock = "//bazel:requirements_test_lock.txt",
+)
+use_repo(pip, "utilities_test_pip")
+
+# Published source installation API, including executable modes and script normalization.
+bazel_dep(name = "sonic-build-infra", version = "0.0.45-77ef625a4ddafc8cdc15f3cc6aee31eabac8a5de", repo_name = "sonic_build_infra")
+
+# Uncompressed installation TAR for the Debian data package.
+bazel_dep(name = "tar.bzl", version = "0.10.5.sonic.2")

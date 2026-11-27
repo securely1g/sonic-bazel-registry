@@ -1,0 +1,9 @@
+{
+  "url": "https://github.com/sonic-net/sonic-utilities/archive/b7b35f0f2893412e9e4f4751339dc4e93aaaacaa.tar.gz",
+  "integrity": "sha256-s8vhE/KSJyw0opK3KXQ2y+i4cnX3kSxL2ge+ldC9oG0=",
+  "strip_prefix": "sonic-utilities-b7b35f0f2893412e9e4f4751339dc4e93aaaacaa",
+  "patches": {
+    "module-version.patch": "sha256-mX2emJqip/Bj7ub1b5+pQIiLBK69lXfVU8cb+nGPO/U="
+  },
+  "patch_strip": 1
+}

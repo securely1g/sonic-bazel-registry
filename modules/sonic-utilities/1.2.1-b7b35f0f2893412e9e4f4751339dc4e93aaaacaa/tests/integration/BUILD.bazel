@@ -1,0 +1,8 @@
+load("@rules_python//python:defs.bzl", "py_test")
+
+py_test(
+    name = "hft_runtime_wheel_test",
+    srcs = ["hft_runtime_wheel_test.py"],
+    args = ["$(location @sonic-utilities//bazel/runtime:sonic_utilities_wheel)"],
+    data = ["@sonic-utilities//bazel/runtime:sonic_utilities_wheel"],
+)
