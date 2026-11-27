@@ -1,0 +1,13 @@
+From: securely1g <securely1g@gmail.com>
+Subject: [PATCH] Qualify the shared Rust dependency version with its source commit
+
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "sonic-rust-deps",
+-    version = "0.0.6",
++    version = "0.0.6-d48d0ed89b439339c42fd6ff4c86087bba399f89",
+     bazel_compatibility = [
+         ">=8.5.1",
+         "<=8.5.1",
