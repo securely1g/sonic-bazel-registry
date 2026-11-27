@@ -124,7 +124,7 @@ jobs:
           for job in matrix["include"]:
               route = (job.get("architecture"), job.get("execution_architecture"), job.get("cross_compile"))
               if (type(job.get("cross_compile")) is not bool or route not in routes
-                      or job.get("runner") != module_runner(job["module"], route[1], os.environ["P4_RUNNER_PROFILE"])):
+                      or job.get("runner") != module_runner(job["module"], route[1], os.environ["P4_RUNNER_PROFILE"], route[0])):
                   raise SystemExit("Unsupported execution route in validation plan")
               identity = (job["module"], job["version"], job["architecture"])
               if identity in identities:

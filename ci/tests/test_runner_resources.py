@@ -96,6 +96,7 @@ class ResourceTests(unittest.TestCase):
             receipt = Path(tmp) / "receipt.json"
             for module, arch, jobs in (("p4c", "arm64", 3), ("sonic-dash", "amd64", 3),
                                        ("sonic-swss", "amd64", 2), ("sonic-swss", "arm64", 1),
+                                       ("sonic-sairedis", "arm64", 1), ("sonic-sairedis", "amd64", None),
                                        ("libnl3", "arm64", None)):
                 with self.subTest(module=module, architecture=arch):
                     self.assertEqual(resources.run(receipt, ["registry-ci"], module, arch), 0)

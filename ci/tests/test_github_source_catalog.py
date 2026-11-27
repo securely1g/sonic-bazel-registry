@@ -113,6 +113,24 @@ class SourceCatalogTests(unittest.TestCase):
                             expected if execution in supported else [],
                         )
 
+    def test_refreshed_image_packages_use_the_verified_cosmos_manifest(self):
+        expected = [ROOT / "ci/github_sources/cosmos-4.0.2.json"]
+        packages = (
+            ("sonic-bmp", "0.1.1-1350ac4627fa5eecd8e7dc3ebe14065f452f5de5", ("amd64",)),
+            ("sonic-dash-ha", "0.0.2-fd6149fb5f8a8b5ed52335c501e5b3ed5e278603", ("amd64",)),
+            ("sonic-dbsyncd", "2.0.2-6da9e215021cd88b3bd6c05c63bd63ebe5e8eb88", ("amd64",)),
+            ("sonic-dhcpmon", "0.1.1-3e7160d9b89ad7c701a0827af80367ab1b206ccf", ("amd64", "arm64")),
+            ("sonic-sairedis", "0.0.6-c41b95c073a9deed76eae780c2cb8d25e11cb893", ("amd64", "arm64")),
+            ("sonic-swss", "0.0.4-20c9de14f185fa502ad6ee7f8f8dc5c1f008a6a5", ("amd64", "arm64")),
+        )
+        for module, version, supported in packages:
+            for architecture in ("amd64", "arm64"):
+                with self.subTest(module=module, architecture=architecture):
+                    self.assertEqual(
+                        registry.github_source_manifests(ROOT, module, version, architecture),
+                        expected if architecture in supported else [],
+                    )
+
     def test_landed_dbsyncd_has_only_its_supported_native_route(self):
         version = "2.0.1-273c3e8bda3e11f9dc49cb6fede53e1e12daa313"
         self.assertEqual(

@@ -2215,18 +2215,20 @@ class Arm64RoutingTests(FixtureTestCase):
                     self.assertEqual(row["cross_compile"], row["architecture"] == "arm64", row)
         self.assertEqual(self.git("status", "--porcelain"), "")
 
-    def test_p4_profile_applies_to_native_and_cross_jobs(self):
+    def test_large_capacity_for_p4_profiles_and_sairedis_cross_builds(self):
         p4_modules = ("p4c", "p4lang-bmv2", "sonic-dash", "sonic-pins")
-        for module in (*p4_modules, "alpha"):
+        for module in (*p4_modules, "sonic-sairedis", "alpha"):
             self.arm_entry(module, "1.0.0")
         head = self.commit("register native and cross jobs")
         large = ["self-hosted", "Linux", "X64", "debian-trixie-container-large"]
         for profile in ("large", "standard"):
             rows = registry_ci.plan(self.root, None, head, all_versions=True, published=head,
                                     p4_runner_profile=profile)["include"]
-            self.assertEqual(len(rows), 10)
+            self.assertEqual(len(rows), 12)
             for row in rows:
-                expected = large if profile == "large" and row["module"] in p4_modules else registry_ci.RUNNERS["amd64"]
+                needs_large = (row["module"] == "sonic-sairedis" and row["architecture"] == "arm64"
+                               or profile == "large" and row["module"] in p4_modules)
+                expected = large if needs_large else registry_ci.RUNNERS["amd64"]
                 self.assertEqual(row["runner"], expected, row)
                 self.assertEqual(row["cross_compile"], row["architecture"] == "arm64", row)
                 self.assertEqual(row["execution_architecture"], "amd64", row)
@@ -2289,6 +2291,10 @@ class WorkflowMatrixTests(unittest.TestCase):
                                ([{**cross, "cross_compile": "true"}], False),
                                ([{**cross, "runner": registry_ci.RUNNERS["arm64"]}], False),
                                ([{**amd, "cross_compile": True}], False), ([cross, cross], False)]
+        sairedis_cross = {**cross, "module": "sonic-sairedis", "runner": large["runner"]}
+        cases.extend([([sairedis_cross], True),
+                      ([{**cross, "module": "sonic-sairedis"}], False),
+                      ([{**amd, "module": "sonic-sairedis", "runner": large["runner"]}], False)])
         for size in (256, 257, 379, 512, 513):
             cases.append(([{**amd, "version": str(i)} for i in range(size)], size <= 512))
         for jobs, succeeds in cases:
