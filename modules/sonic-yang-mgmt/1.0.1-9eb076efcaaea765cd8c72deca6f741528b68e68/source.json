@@ -1,0 +1,9 @@
+{
+  "url": "https://github.com/securely1g/sonic-buildimage/archive/9eb076efcaaea765cd8c72deca6f741528b68e68.tar.gz",
+  "strip_prefix": "sonic-buildimage-9eb076efcaaea765cd8c72deca6f741528b68e68/src/sonic-yang-mgmt",
+  "integrity": "sha256-LnaoZPVv46p01K0afm4ObKlioYdf/wpOzWY+YiVFOU4=",
+  "patches": {
+    "module-version.patch": "sha256-MPTsFZI0ZftjRtvXaUNWMoy8skEmAZsRmnsc/E16ZbE="
+  },
+  "patch_strip": 1
+}

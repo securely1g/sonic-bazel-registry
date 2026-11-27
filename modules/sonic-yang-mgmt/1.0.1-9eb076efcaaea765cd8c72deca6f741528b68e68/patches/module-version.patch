@@ -1,0 +1,7 @@
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -2,3 +2,3 @@
+     name = "sonic-yang-mgmt",
+-    version = "1.0.1",
++    version = "1.0.1-9eb076efcaaea765cd8c72deca6f741528b68e68",
+ )
