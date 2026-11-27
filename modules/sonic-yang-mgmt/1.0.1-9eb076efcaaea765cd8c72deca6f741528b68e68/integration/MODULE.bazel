@@ -11,3 +11,14 @@ bazel_dep(
     version = "0.0.45-77ef625a4ddafc8cdc15f3cc6aee31eabac8a5de",
     repo_name = "sonic_build_infra",
 )
+
+# SWSS Common registers the legacy Rust toolchain during module resolution.
+bazel_dep(name = "rules_rs", version = "0.1.0")
+rust = use_extension("@rules_rs//rs:rules_rust_reexported_extensions.bzl", "rust")
+rust.toolchain(
+    edition = "2021",
+    extra_target_triples = ["aarch64-unknown-linux-gnu", "x86_64-unknown-linux-gnu"],
+    versions = ["1.90.0"],
+)
+use_repo(rust, "rust_toolchains")
+register_toolchains("@rust_toolchains//:all")
