@@ -1,0 +1,205 @@
+Compare pam-tacplus 1.4.1.sonic.2 to 1.4.1.sonic.3
+Published registry baseline: 9b1e35aa5981c0d7b9830c061ae54efa601d77da
+Candidate registry revision: 049923c992503b5006659ef678d7328b227ae6fc
+Apply in a fresh checkout at the published baseline:
+  test ! -e modules/pam-tacplus/1.4.1.sonic.3
+  cp -a modules/pam-tacplus/1.4.1.sonic.2 modules/pam-tacplus/1.4.1.sonic.3
+  git apply --check /path/to/1.4.1.sonic.2-to-1.4.1.sonic.3.patch
+  git apply /path/to/1.4.1.sonic.2-to-1.4.1.sonic.3.patch
+
+diff --git a/modules/pam-tacplus/1.4.1.sonic.3/MODULE.bazel b/modules/pam-tacplus/1.4.1.sonic.3/MODULE.bazel
+index 1186879e403aebea3f360ee3cc397193d97d6958..5ddded95b29f3168bf874529a462601a4983497e 100644
+--- a/modules/pam-tacplus/1.4.1.sonic.3/MODULE.bazel
++++ b/modules/pam-tacplus/1.4.1.sonic.3/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "pam-tacplus",
+-    version = "1.4.1.sonic.2",
++    version = "1.4.1.sonic.3",
+ )
+ 
+ bazel_dep(name = "bazel_skylib", version = "1.9.2")
+@@ -39,6 +39,7 @@ prepared_source(
+         "0008-Extract-tacacs-support-functions-into-library.patch": "//:0008-Extract-tacacs-support-functions-into-library.patch",
+         "0009-Add-setting-flag-for-authorization-and-accounting.patch": "//:0009-Add-setting-flag-for-authorization-and-accounting.patch",
+         "0010-handle-bad-password-set-by-sshd.patch": "//:0010-handle-bad-password-set-by-sshd.patch",
++        "0011-Add-traceid-authorization-config-flag.patch": "//:0011-Add-traceid-authorization-config-flag.patch",
+     },
+     steps = [
+         '{"op": "archive", "urls": ["https://github.com/jeroennijhof/pam_tacplus/archive/refs/tags/v1.4.1.tar.gz"], "sha256": "2e5db9bb9c4b3accd737352e788e620f629dc36e3d22093502d05d1938a67cb9", "strip_prefix": "pam_tacplus-1.4.1"}',
+@@ -52,5 +53,6 @@ prepared_source(
+         '{"op": "patch", "input": "0008-Extract-tacacs-support-functions-into-library.patch", "strip": 1, "format": "gnu", "fuzz": 0}',
+         '{"op": "patch", "input": "0009-Add-setting-flag-for-authorization-and-accounting.patch", "strip": 1, "format": "gnu", "fuzz": 0}',
+         '{"op": "patch", "input": "0010-handle-bad-password-set-by-sshd.patch", "strip": 1, "format": "gnu", "fuzz": 0}',
++        '{"op": "patch", "input": "0011-Add-traceid-authorization-config-flag.patch", "strip": 1, "format": "gnu", "fuzz": 0}',
+     ],
+ )
+diff --git a/modules/pam-tacplus/1.4.1.sonic.3/README.md b/modules/pam-tacplus/1.4.1.sonic.3/README.md
+index f0af7ab313571716b80ee85afe8e5ec958208b49..55b8f1dad0a861307c5bf0159fc4cdec7c19d032 100644
+--- a/modules/pam-tacplus/1.4.1.sonic.3/README.md
++++ b/modules/pam-tacplus/1.4.1.sonic.3/README.md
+@@ -1,4 +1,3 @@
+-## Dependency refresh for `1.4.1.sonic.2`
+-
+-This candidate retains the `1.4.1.sonic.1` source and existing patches. Its module dependencies select the newest non-yanked versions published at `3d1cc5e8dfd553d2acbe4198e504a245e6bdbddf`. Versions introduced by this refresh are not dependency targets of the same refresh.
++Bash command authorization can send a validated SSH trace ID as an optional TACACS+ attribute. The SONiC PAM configuration parser sets the enabling bit when it reads `traceid_authorization`. Build the unchanged pam_tacplus v1.4.1 source with the same eleven ordered patches as the Make recipe at [the synced buildimage revision](https://github.com/sonic-net/sonic-buildimage/tree/9dfc6c15719f9266120407e384f9ee885970f833/src/tacacs/pam). [Buildimage #27667](https://github.com/sonic-net/sonic-buildimage/pull/27667)
+ 
++Registry CI runs the source's parser tests and links an installed-header consumer against the packaged shared libraries. The consumer checks the optional `traceid*` encoding at the TACACS+ attribute length boundary and the existing mandatory `service=shell` attribute.
+diff --git a/modules/pam-tacplus/1.4.1.sonic.3/overlay/MODULE.bazel b/modules/pam-tacplus/1.4.1.sonic.3/overlay/MODULE.bazel
+index cea50dce450fb4c5be684600be8d8b663bb79a3e..36bf887552c9f6bd1fbc46bf73f981b3d5b2b5a6 100644
+--- a/modules/pam-tacplus/1.4.1.sonic.3/overlay/MODULE.bazel
++++ b/modules/pam-tacplus/1.4.1.sonic.3/overlay/MODULE.bazel
+@@ -1,10 +1,10 @@
+ # AUTO-GENERATED. DO NOT EDIT MANUALLY.
+ # Source: ../MODULE.bazel
+-# Generator: python3 ci/registry_ci.py sync-module --module pam-tacplus --version 1.4.1.sonic.2
++# Generator: python3 ci/registry_ci.py sync-module --module pam-tacplus --version 1.4.1.sonic.3
+ 
+ module(
+     name = "pam-tacplus",
+-    version = "1.4.1.sonic.2",
++    version = "1.4.1.sonic.3",
+ )
+ 
+ bazel_dep(name = "bazel_skylib", version = "1.9.2")
+@@ -43,6 +43,7 @@ prepared_source(
+         "0008-Extract-tacacs-support-functions-into-library.patch": "//:0008-Extract-tacacs-support-functions-into-library.patch",
+         "0009-Add-setting-flag-for-authorization-and-accounting.patch": "//:0009-Add-setting-flag-for-authorization-and-accounting.patch",
+         "0010-handle-bad-password-set-by-sshd.patch": "//:0010-handle-bad-password-set-by-sshd.patch",
++        "0011-Add-traceid-authorization-config-flag.patch": "//:0011-Add-traceid-authorization-config-flag.patch",
+     },
+     steps = [
+         '{"op": "archive", "urls": ["https://github.com/jeroennijhof/pam_tacplus/archive/refs/tags/v1.4.1.tar.gz"], "sha256": "2e5db9bb9c4b3accd737352e788e620f629dc36e3d22093502d05d1938a67cb9", "strip_prefix": "pam_tacplus-1.4.1"}',
+@@ -56,5 +57,6 @@ prepared_source(
+         '{"op": "patch", "input": "0008-Extract-tacacs-support-functions-into-library.patch", "strip": 1, "format": "gnu", "fuzz": 0}',
+         '{"op": "patch", "input": "0009-Add-setting-flag-for-authorization-and-accounting.patch", "strip": 1, "format": "gnu", "fuzz": 0}',
+         '{"op": "patch", "input": "0010-handle-bad-password-set-by-sshd.patch", "strip": 1, "format": "gnu", "fuzz": 0}',
++        '{"op": "patch", "input": "0011-Add-traceid-authorization-config-flag.patch", "strip": 1, "format": "gnu", "fuzz": 0}',
+     ],
+ )
+diff --git a/modules/pam-tacplus/1.4.1.sonic.3/overlay/source.BUILD.bazel b/modules/pam-tacplus/1.4.1.sonic.3/overlay/source.BUILD.bazel
+index d7f5db388017a6a57730eabcafeeff9be9dad39c..dcd1201eabc74565bb5700864f4fae0af08b6aa1 100644
+--- a/modules/pam-tacplus/1.4.1.sonic.3/overlay/source.BUILD.bazel
++++ b/modules/pam-tacplus/1.4.1.sonic.3/overlay/source.BUILD.bazel
+@@ -219,6 +219,22 @@ cc_shared_library(
+     ],
+ )
+ 
++# The trace-ID patch adds this original Automake check program.
++cc_binary(
++    name = "support_test",
++    testonly = True,
++    srcs = ["support_test.c"],
++    copts = COPTS + private_includes([
++        ".",
++        "libtac/include",
++    ]),
++    deps = [
++        ":libtac",
++        ":libtacsupport",
++        ":private_headers",
++    ],
++)
++
+ # Original tacc AM_CFLAGS/AM_LDFLAGS preserve the executable PIE mode.
+ cc_binary(
+     name = "tacc",
+diff --git a/modules/pam-tacplus/1.4.1.sonic.3/overlay/tests/BUILD.bazel b/modules/pam-tacplus/1.4.1.sonic.3/overlay/tests/BUILD.bazel
+index dcff5712b9c24f39e4687ccf5865e26c73f5d30e..e732b8601c0429f6a130b574b8e18e493f084f84 100644
+--- a/modules/pam-tacplus/1.4.1.sonic.3/overlay/tests/BUILD.bazel
++++ b/modules/pam-tacplus/1.4.1.sonic.3/overlay/tests/BUILD.bazel
+@@ -25,3 +25,13 @@ native_runtime_test(
+         "@tacacs_build_debian//libpam0g:raw_packages",
+     ],
+ )
++
++native_runtime_test(
++    name = "support_test",
++    binary = "@pam_tacplus_src//:support_test",
++    runtime_payloads = [
++        "//:libtac2.runtime",
++        "@tacacs_build_debian//libssl3t64:raw_packages",
++        "@tacacs_build_debian//libpam0g:raw_packages",
++    ],
++)
+diff --git a/modules/pam-tacplus/1.4.1.sonic.3/overlay/tests/consumer.c b/modules/pam-tacplus/1.4.1.sonic.3/overlay/tests/consumer.c
+index 43d844a93fe921be8d3652e909a843e32df08813..b9032ae2bdc6101776a55d52f91282c3692e8b78 100644
+--- a/modules/pam-tacplus/1.4.1.sonic.3/overlay/tests/consumer.c
++++ b/modules/pam-tacplus/1.4.1.sonic.3/overlay/tests/consumer.c
+@@ -10,6 +10,20 @@ int main(void) {
+     int (*volatile parser)(const char *) = parse_config_file;
+     tac_add_attrib(&attributes, "service", "shell");
+     if (!attributes || strcmp(attributes->attr, "service=shell") || !parser) return 1;
++    char trace_id[248];
++    memset(trace_id, 'x', sizeof(trace_id) - 1);
++    trace_id[sizeof(trace_id) - 1] = '\0';
++    tac_add_attrib_pair(&attributes, "traceid", '*', trace_id);
++    const struct tac_attrib *trace = attributes->next;
++    if (!trace || trace->attr_len != 255 || trace->next ||
++        memcmp(trace->attr, "traceid*", 8) || strcmp(trace->attr + 8, trace_id)) {
++        return 1;
++    }
++    char secret[256] = {0};
++    if (!(_pam_parse_arg("traceid_authorization", secret, sizeof(secret)) &
++          TRACE_ID_AUTHORIZATION_FLAG)) {
++        return 1;
++    }
+     tac_free_attrib(&attributes);
+     return attributes != 0;
+ }
+diff --git a/modules/pam-tacplus/1.4.1.sonic.3/presubmit.json b/modules/pam-tacplus/1.4.1.sonic.3/presubmit.json
+index daf8d1de34621d55ece61ee36c4cec79f35aade1..c37bc65aad34abe8e2d2ff7f0250259e9bcc994c 100644
+--- a/modules/pam-tacplus/1.4.1.sonic.3/presubmit.json
++++ b/modules/pam-tacplus/1.4.1.sonic.3/presubmit.json
+@@ -27,6 +27,7 @@
+   ],
+   "test_targets": [
+     "@pam-tacplus//:installation_test",
+-    "@pam-tacplus//tests:public_api_test"
++    "@pam-tacplus//tests:public_api_test",
++    "@pam-tacplus//tests:support_test"
+   ]
+ }
+diff --git a/modules/pam-tacplus/1.4.1.sonic.3/source.json b/modules/pam-tacplus/1.4.1.sonic.3/source.json
+index 172c22af9c20b678dc1dee19b91930cf1f5a40ff..930a5edaff4d82583d81f460e67537ef1e278c35 100644
+--- a/modules/pam-tacplus/1.4.1.sonic.3/source.json
++++ b/modules/pam-tacplus/1.4.1.sonic.3/source.json
+@@ -1,17 +1,17 @@
+ {
+-  "url": "https://codeload.github.com/securely1g/sonic-buildimage/tar.gz/40ab930912c5586e245b8c34e770be9729b2e4b0",
+-  "integrity": "sha256-RJqwpq5XC4hpJUH7nWzJJt+iEnZVOczLbPtJlMbXFEg=",
+-  "strip_prefix": "sonic-buildimage-40ab930912c5586e245b8c34e770be9729b2e4b0/src/tacacs/pam",
++  "url": "https://codeload.github.com/sonic-net/sonic-buildimage/tar.gz/9dfc6c15719f9266120407e384f9ee885970f833",
++  "integrity": "sha256-+ZckP7FfMsmTAz3j3tWgjtoKqLsWPzpuvnsOWcoTMaw=",
++  "strip_prefix": "sonic-buildimage-9dfc6c15719f9266120407e384f9ee885970f833/src/tacacs/pam",
+   "archive_type": "tar.gz",
+   "overlay": {
+     "BUILD.bazel": "sha256-+URKNXue3He7sHMQZw417fG7op9el3BEplk49thbkUQ=",
+-    "MODULE.bazel": "sha256-QOr3Rr3c6VvtGRouw2w0eTTB+It3nV81dPJZFuRGorc=",
++    "MODULE.bazel": "sha256-c+hY1njQPoUfvKyXZMDluBxuINEVv/77IRSUTMgF/f8=",
+     "config.h.tpl": "sha256-281E/+oKXlITIkihKuDjOAFFGB5jsqHi8TV0zrz2VCQ=",
+     "header_aliases.bzl": "sha256-oJmJfJQKQbzGMNGg9cOzSApu2lbxR8wyM5GzYKyRlYM=",
+     "installation_test.py": "sha256-GP3ua1CDKsyvzZFBGMcAFzwI7GQOUhtGu83RmEB8rAE=",
+-    "source.BUILD.bazel": "sha256-fmHBpqfEE6A3T6Qy5kRMdS3mhzwW2Xx/xvcbSY6Ilso=",
++    "source.BUILD.bazel": "sha256-Uy0j6yTyvmQoYCc3p8+Yx2vA7zs0m6mK+BzzUz1d+gw=",
+     "source_includes.bzl": "sha256-CMCq5bUaY7af3TNyWs9hhrGT7oWO0XaBLlYWwoM3XM4=",
+-    "tests/BUILD.bazel": "sha256-WHYeLMbC8HKkVyErtOEaQH/1H3NO0mn1afjG1G8nujA=",
+-    "tests/consumer.c": "sha256-zqng6Av4LcUYTFsUDPNGTFm5Or3Q+7fdqrNPGPqsL7s="
++    "tests/BUILD.bazel": "sha256-q5GOHFw6VoDWrkyX0R7LporMhnxFDORNfh9gX4DerYs=",
++    "tests/consumer.c": "sha256-gIAXZ+Jp5oSYWnpQXm1xAYfHnD62FHjZ6+X2hZ28zGU="
+   }
+ }
+diff --git a/modules/pam-tacplus/metadata.json b/modules/pam-tacplus/metadata.json
+index 104c571ba36b8a93bb3dbdfe87a5ae578d391f2f..a1e47e2bdd3473717ca224382a67dca91a2a8a1f 100644
+--- a/modules/pam-tacplus/metadata.json
++++ b/modules/pam-tacplus/metadata.json
+@@ -1,7 +1,8 @@
+ {
+   "homepage": "https://github.com/sonic-net/sonic-buildimage/tree/master/src/tacacs/pam",
+   "versions": [
+-    "1.4.1.sonic.2"
++    "1.4.1.sonic.2",
++    "1.4.1.sonic.3"
+   ],
+   "yanked_versions": {}
+ }
