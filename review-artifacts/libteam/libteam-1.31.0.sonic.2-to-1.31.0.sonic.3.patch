@@ -1,0 +1,367 @@
+libteam registry entry: 1.31.0.sonic.2 to 1.31.0.sonic.3
+Baseline: fc0d6d892f0fd667bc1d7e7d11dd5982c5692f05
+Candidate: b9548d0e462138d94ccc3b4a6e11e6af43f52327
+
+Apply in a clean checkout of the baseline registry commit:
+  cp -a modules/libteam/1.31.0.sonic.2 modules/libteam/1.31.0.sonic.3
+  git apply --check /path/to/libteam-1.31.0.sonic.2-to-1.31.0.sonic.3.patch
+  git apply /path/to/libteam-1.31.0.sonic.2-to-1.31.0.sonic.3.patch
+
+diff --git a/modules/libteam/1.31.0.sonic.3/MODULE.bazel b/modules/libteam/1.31.0.sonic.3/MODULE.bazel
+index afc2cb1c219b3d55a72cc626bce17c15d90e77ae..1b715e5dbbc16cba395d34cfa85f3e18ee885548 100644
+--- a/modules/libteam/1.31.0.sonic.3/MODULE.bazel
++++ b/modules/libteam/1.31.0.sonic.3/MODULE.bazel
+@@ -1,7 +1,7 @@
+ module(
+     name = "libteam",
+     # Upstream spells this release 1.31; the registry normalizes it to 1.31.0.
+-    version = "1.31.0.sonic.2",
++    version = "1.31.0.sonic.3",
+     bazel_compatibility = [">=8.5.1", "<=8.5.1"],
+ )
+ 
+diff --git a/modules/libteam/1.31.0.sonic.3/PATCHES.md b/modules/libteam/1.31.0.sonic.3/PATCHES.md
+index 0fc3d426c101b302807f8e256adb6d0df9d22ae6..3638cf47f05969f0518c0e463b2196665b10af1f 100644
+--- a/modules/libteam/1.31.0.sonic.3/PATCHES.md
++++ b/modules/libteam/1.31.0.sonic.3/PATCHES.md
+@@ -1,11 +1,6 @@
+ # SONiC libteam patch series
+ 
+-The 16 active entries below are copied from the exact Make series in
+-[buildimage233bde22](https://github.com/securely1g/sonic-buildimage/blob/233bde227dc62712bb3324ab4249cfbf145de893/src/libteam/patch/series).
+-The gaps are intentional: commented-out legacy patches stay inactive. Original
+-filenames, application order, authorship, messages and complete diff bodies are
+-preserved. Added notes explain purpose and provenance; prepared source equality
+-is checked separately. These are SONiC integration patches, not Debian-owned copies.
++The 17 active patches follow the [SONiC Make series](https://github.com/sonic-net/sonic-buildimage/blob/6b8ba512342d655c113d93aee37a1c1d445ee828/src/libteam/patch/series). The gaps are legacy patches that Make comments out. Patch 0021 is byte-identical to the file merged in [buildimage #28759](https://github.com/sonic-net/sonic-buildimage/pull/28759).
+ 
+ | Order | Existing patch | Purpose |
+ |---|---|---|
+@@ -25,6 +20,7 @@ is checked separately. These are SONiC integration patches, not Debian-owned cop
+ | 14 | [0018-Replace-FD_SET-select-with-poll-to-avoid-FD_SETSIZE-abort.patch](patches/0018-Replace-FD_SET-select-with-poll-to-avoid-FD_SETSIZE-abort.patch) | Use poll instead of FD_SET/select so control and event handling accepts descriptors above 1023. |
+ | 15 | [0019-fix-event-fd-init-and-free.patch](patches/0019-fix-event-fd-init-and-free.patch) | Initialize event_fd to -1 and close it only when valid, avoiding accidental closure of stdin or another handle. |
+ | 16 | [0020-Extend-LACP-fallback-support-to-multiple-ports.patch](patches/0020-Extend-LACP-fallback-support-to-multiple-ports.patch) | Extend the earlier single-port LACP fallback to multiple configured ports, retaining the existing teamd state selection and teamdctl reporting changes for that SONiC mode. |
++| 17 | [0021-teamd-lacp-guard-missing-port-on-removal.patch](patches/0021-teamd-lacp-guard-missing-port-on-removal.patch) | Skip the LACP state transition if port removal runs before LACP private data has been allocated. |
+ 
+ The upstream archive is libteam 1.31. The separate Debian 1.31-1 archive supplies
+ control/changelog/symbols/copyright data and contains no Debian patch series.
+diff --git a/modules/libteam/1.31.0.sonic.3/README.md b/modules/libteam/1.31.0.sonic.3/README.md
+index c478f4413962773a901c2de4c27dabc1f70c4123..f52c40859e0b8b9be5d6100bea016bedba0e4201 100644
+--- a/modules/libteam/1.31.0.sonic.3/README.md
++++ b/modules/libteam/1.31.0.sonic.3/README.md
+@@ -1,16 +1,14 @@
+-## Dependency refresh for `1.31.0.sonic.2`
+-
+-This candidate retains the `1.31.0.sonic.1` source and existing patches. Its module dependencies select the newest non-yanked versions published at `3d1cc5e8dfd553d2acbe4198e504a245e6bdbddf`. Versions introduced by this refresh are not dependency targets of the same refresh.
+-
+ # Native libteam source and runtime interfaces
+ 
++Revision `1.31.0.sonic.3` adds SONiC Make patch 0021 to the registry build of `teamd`. When a failed LAG member addition rolls back before LACP private data exists, `teamd` logs a warning and skips the state transition. [Original fix](https://github.com/sonic-net/sonic-buildimage/pull/28759)
++
+ Register SONiC's existing native libteam build as a reusable dependency. SWSS
+ `teamsyncd` links both libraries and `tlm_teamd` links libteamdctl; the Teamd
+ image also consumes the daemon and utilities. These consumers should select
+ one owner rather than rebuilding libteam inside sonic-buildimage.
+ 
+-Upstream calls the release **1.31**. The registry's three-component format is
+-`1.31.0.sonic.1`; it does not change pkg-config version `1.31`, Debian source
++Upstream calls the release **1.31**. The module version here is
++`1.31.0.sonic.3`; it does not change pkg-config version `1.31`, Debian source
+ version `1.31-1`, or the `libteam.so.5`/`libteamdctl.so.0` ABI.
+ 
+ | Consumer input | Before | This registration |
+@@ -25,7 +23,7 @@ version `1.31-1`, or the `libteam.so.5`/`libteamdctl.so.0` ABI.
+ 
+ The source is the verified original `libteam_1.31.orig.tar.xz`. The separate
+ `libteam_1.31-1.debian.tar.xz` supplies control fields, changelog, copyright
+-and symbol metadata; it contains no Debian patch series. The sixteen active
++and symbol metadata; it contains no Debian patch series. The seventeen active
+ SONiC patches come from the existing Make series, in the same order and with
+ their original filenames and authorship. [PATCHES.md](PATCHES.md) records each
+ purpose and immutable source. Added explanations leave every diff body intact.
+@@ -59,17 +57,13 @@ Keep library metadata paired with the two library payloads. Do not claim
+ 
+ ## Validation scope
+ 
+-The ordinary `tests/consumer` module requests this entry without a source or
+-version override and requests the production module's existing landed minimum,
+-`sonic-build-infra@0.0.25-3ee15ec9b4d99d7f8eae3e324cead79b203b451e`.
+-This removes only the standalone test root's explicit `.26-51c838da` request;
+-the separate SWSS/Common9 consumers retain their own dependency requests.
+-The actual resolved graph must confirm the `.25` selection before acceptance.
+-Presubmit still requests native AMD64/Trixie, the nine public
+-TAR/metadata outputs, and four tests:
++The standalone `tests/consumer` requests this registry version directly. Presubmit
++builds the nine public TAR and metadata outputs for AMD64 and ARM64 and runs the following checks.
+ 
+ - `consumer_test` compiles and runs the existing public C consumer with the
+   declared runtime closure.
++- `lacp_port_removal_test` calls the patched removal handler with and without
++  LACP port data. Only an initialized port disables its receive callback.
+ - `package_test` checks the installed SDK, pkg-config/header compilation,
+   native architecture and SONAMEs, all five runtime/debug build IDs and CRCs,
+   isolated missing-symbol rejection, positive GDB source lookup, and the exact
+@@ -86,7 +80,7 @@ The six compression actions use the existing public
+ `@rules_gzip//gzip/toolchain/gzip:resolved` executable through native genrules,
+ with the same inputs, output names and compression level. `-n` suppresses the
+ input filename and mtime; no replacement compressor or module is introduced.
+-The local header tests use synthetic bytes only. Actual AMD64 CI must confirm
++The local header tests use synthetic bytes only. The installed package test checks that
+ the selected upstream tool accepts this option and that all delivered headers
+ pass. This does not yet establish equality across independent clean builds.
+ 
+@@ -123,9 +117,6 @@ at source 233bde22: installed SDK, five symbol pairs, native consumer and
+ no-op/config-edit/restoration acceptance. The registry owner at `4ed05183`
+ also passed its nine outputs, four tests and exported incremental probe in
+ [worker CI](https://github.com/securely1g/sonic-buildimage/actions/runs/42036039738/job/127274358819).
+-Those results retain their original dependency graphs. The changed `.25`
+-standalone consumer still needs actual resolution, the same native outputs/tests
+-and incremental acceptance; static API comparisons do not transfer that proof.
+-Downstream SWSS validation remains separate. ARM rule branches are
+-preserved, but this proposal requests AMD64 acceptance only. Daemon networking,
+-LACP/kernel behavior, OCI images and the VS installer are separate checks.
++Those results cover their original dependency graphs. The module presubmit exercises
++the current entry. Full switch networking, OCI images and the VS installer are
++validated separately in buildimage.
+diff --git a/modules/libteam/1.31.0.sonic.3/overlay/BUILD.bazel b/modules/libteam/1.31.0.sonic.3/overlay/BUILD.bazel
+index 5e73988b84682471df93f116d7548636324bfc73..8338787460207726b361aa20f57d68fb9512ec6c 100644
+--- a/modules/libteam/1.31.0.sonic.3/overlay/BUILD.bazel
++++ b/modules/libteam/1.31.0.sonic.3/overlay/BUILD.bazel
+@@ -194,6 +194,34 @@ sonic_deploy_tar(
+ ]
+ alias(name = "libteam_dev", actual = select({"@platforms//cpu:x86_64": ":libteam_dev_amd64", "@platforms//cpu:aarch64": ":libteam_dev_arm64"}))
+ 
++# Include the private callback in the test translation unit without rebuilding
++# or exporting the daemon. Section GC drops the unused runner functions.
++cc_library(
++    name = "lacp_runner_test_source",
++    testonly = True,
++    textual_hdrs = ["teamd/teamd_runner_lacp.c"],
++)
++
++cc_binary(
++    name = "lacp_port_removal_test_binary",
++    testonly = True,
++    srcs = ["bazel/lacp_port_removal_test.c"],
++    copts = COPTS + ["-fvisibility=hidden", "-ffunction-sections", "-fdata-sections"],
++    linkopts = ["-Wl,--gc-sections"],
++    deps = [
++        ":lacp_runner_test_source",
++        ":private_headers",
++        "@libteam_deps//libdaemon-dev:libdaemon_cc",
++        "@libteam_deps//libjansson-dev:libjansson_headers",
++    ] + IPC,
++)
++
++native_runtime_test(
++    name = "lacp_port_removal_test",
++    binary = ":lacp_port_removal_test_binary",
++    runtime_payloads = ["@sysroot//libc6:data", "@libteam_deps//:packages"],
++)
++
+ cc_binary(
+     name = "consumer_binary",
+     srcs = ["bazel/consumer_test.c"],
+diff --git a/modules/libteam/1.31.0.sonic.3/overlay/MODULE.bazel b/modules/libteam/1.31.0.sonic.3/overlay/MODULE.bazel
+index da98732ee47f0e64bd932025e5be1dc60692af31..ef0692f43ae6931bf4f03f208fe0ff752fefbf18 100644
+--- a/modules/libteam/1.31.0.sonic.3/overlay/MODULE.bazel
++++ b/modules/libteam/1.31.0.sonic.3/overlay/MODULE.bazel
+@@ -1,11 +1,11 @@
+ # AUTO-GENERATED. DO NOT EDIT MANUALLY.
+ # Source: ../MODULE.bazel
+-# Generator: python3 ci/registry_ci.py sync-module --module libteam --version 1.31.0.sonic.2
++# Generator: python3 ci/registry_ci.py sync-module --module libteam --version 1.31.0.sonic.3
+ 
+ module(
+     name = "libteam",
+     # Upstream spells this release 1.31; the registry normalizes it to 1.31.0.
+-    version = "1.31.0.sonic.2",
++    version = "1.31.0.sonic.3",
+     bazel_compatibility = [">=8.5.1", "<=8.5.1"],
+ )
+ 
+diff --git a/modules/libteam/1.31.0.sonic.3/overlay/bazel/lacp_port_removal_test.c b/modules/libteam/1.31.0.sonic.3/overlay/bazel/lacp_port_removal_test.c
+new file mode 100644
+index 0000000000000000000000000000000000000000..849488fb462b6c77dd3270cd5d6e28d81d6f4857
+--- /dev/null
++++ b/modules/libteam/1.31.0.sonic.3/overlay/bazel/lacp_port_removal_test.c
+@@ -0,0 +1,44 @@
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++
++#include "teamd/teamd_runner_lacp.c"
++
++/* Observe the handler's first side effect without running a daemon or sending
++ * packets. Only an initialized LACP port may disable its receive callback. */
++static struct lacp_port existing_port;
++static struct lacp_port *lookup_result;
++
++void *teamd_get_first_port_priv_by_creator(struct teamd_port *port, void *creator)
++{
++	(void)port;
++	(void)creator;
++	return lookup_result;
++}
++
++int teamd_loop_callback_disable(struct teamd_context *ctx, const char *name,
++				void *priv)
++{
++	(void)ctx;
++	if (!priv || priv != lookup_result || strcmp(name, LACP_SOCKET_CB_NAME)) {
++		fputs("unexpected LACP callback disable\n", stderr);
++		exit(EXIT_FAILURE);
++	}
++	exit(EXIT_SUCCESS);
++}
++
++int main(void)
++{
++	struct teamd_context context = {};
++	struct lacp lacp = {};
++	struct teamd_port port = { .ifname = "fixture" };
++
++	/* Missing private data must return without disabling a callback. */
++	lacp_event_watch_port_removing(&context, &port, &lacp);
++
++	/* The disable hook exits successfully only for the existing port. */
++	lookup_result = &existing_port;
++	lacp_event_watch_port_removing(&context, &port, &lacp);
++	fputs("initialized LACP port did not disable its callback\n", stderr);
++	return EXIT_FAILURE;
++}
+diff --git a/modules/libteam/1.31.0.sonic.3/patches/0021-teamd-lacp-guard-missing-port-on-removal.patch b/modules/libteam/1.31.0.sonic.3/patches/0021-teamd-lacp-guard-missing-port-on-removal.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..9e7c8253b1a670a5a3a8c4abe406d846bb8c3bfa
+--- /dev/null
++++ b/modules/libteam/1.31.0.sonic.3/patches/0021-teamd-lacp-guard-missing-port-on-removal.patch
+@@ -0,0 +1,50 @@
++From b27701a001eac3142c8b6303b337d861a1f1380b Mon Sep 17 00:00:00 2001
++From: Nazarii Hnydyn <nazariig@nvidia.com>
++Date: Thu, 9 Jul 2026 15:30:00 +0300
++Subject: [PATCH] teamd: lacp: guard against missing lacp_port during removal
++
++The "port_removing" op introduced by the "set port to disabled state
++during removal" patch calls lacp_port_get() and then unconditionally
++dereferences the returned lacp_port via teamd_loop_callback_disable()
++and lacp_port_set_state() (which reads lacp_port->ctx->ifinfo).
++
++During warm-reboot, a LAG member netdev can be transiently (re)created
++and enslaved before its ifinfo is fully populated. In that window the
++member add fails ("Failed to init port priv"), and teamd_port_remove()
++is invoked from the port_obj_create() rollback path. At this point the
++LACP per-port private data was never created (or was already cleaned
++up), so lacp_port_get() returns NULL and lacp_event_watch_port_removing()
++crashes with a NULL pointer dereference, taking teamd down and leaving
++the LAG in a diverged state (teammgrd teamdctl/ZMQ abort loop).
++
++A NULL lacp_port here is an expected, safely-mitigatable condition:
++there is no LACP state machine or socket callback to transition, so the
++LACP-specific pre-removal action can simply be skipped while the generic
++port removal / failed-add rollback continues. Log it at WARN level (not
++ERR) since no divergence is introduced and reconciliation can retry.
++
++Signed-off-by: Nazarii Hnydyn <nazariig@nvidia.com>
++---
++ teamd/teamd_runner_lacp.c | 6 ++++++
++ 1 file changed, 6 insertions(+)
++
++diff --git a/teamd/teamd_runner_lacp.c b/teamd/teamd_runner_lacp.c
++index 89f462a..a1b2c3d 100644
++--- a/teamd/teamd_runner_lacp.c
+++++ b/teamd/teamd_runner_lacp.c
++@@ -1957,6 +1957,12 @@ static void lacp_event_watch_port_removing(struct teamd_context *ctx,
++ 	struct lacp *lacp = priv;
++ 	struct lacp_port *lacp_port = lacp_port_get(lacp, tdport);
++ 
+++	if (!lacp_port) {
+++		teamd_log_warn("%s: LACP port private data missing during removal; "
+++			       "skipping LACP state transition.", tdport->ifname);
+++		return;
+++	}
+++
++ 	/* Ensure that no incoming LACPDU is going to be processed. */
++ 	teamd_loop_callback_disable(ctx, LACP_SOCKET_CB_NAME, lacp_port);
++ 	lacp_port_set_state(lacp_port, PORT_STATE_DISABLED);
++-- 
++2.30.2
++
+diff --git a/modules/libteam/1.31.0.sonic.3/presubmit.json b/modules/libteam/1.31.0.sonic.3/presubmit.json
+index d849204d597cdee8fbd8440b77b72a66e93a016f..c239be2070d32dfa5f548e4f0ce42c83e248c87e 100644
+--- a/modules/libteam/1.31.0.sonic.3/presubmit.json
++++ b/modules/libteam/1.31.0.sonic.3/presubmit.json
+@@ -1,9 +1,11 @@
+ {
+   "architectures": [
+-    "amd64"
++    "amd64",
++    "arm64"
+   ],
+   "platforms": {
+-    "amd64": "@sonic_build_infra//platforms:x86_64_trixie"
++    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
++    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
+   },
+   "build_targets": [
+     "@libteam//:libteam_runtime",
+@@ -18,6 +20,7 @@
+   ],
+   "test_targets": [
+     "@libteam//:consumer_test",
++    "@libteam//:lacp_port_removal_test",
+     "@libteam//:package_test",
+     "@libteam//:sdk_timestamp_test",
+     "@libteam//:verify_rebuild_test"
+diff --git a/modules/libteam/1.31.0.sonic.3/source.json b/modules/libteam/1.31.0.sonic.3/source.json
+index 9f52b4f36841bc8bfb1c07ba3cbf5e25c5da0980..d83a05f45875196a6d2a9de994503eb3956bc1b1 100644
+--- a/modules/libteam/1.31.0.sonic.3/source.json
++++ b/modules/libteam/1.31.0.sonic.3/source.json
+@@ -3,10 +3,11 @@
+   "integrity": "sha256-o5xjanHDDGManc8fF1WX2rsZWU5PtKMSnrWljRcB1IY=",
+   "strip_prefix": "libteam-1.31",
+   "overlay": {
+-    "BUILD.bazel": "sha256-/PJRvBoIO+I+t0e6ZJSlqavgiCjJMX87uo0SqOa4Kqs=",
+-    "MODULE.bazel": "sha256-3b1RM0YcDSIHOSviW6AT589ZWn5BAfDcI/1xXXxfStg=",
++    "BUILD.bazel": "sha256-H0qJ3UGd2/kmvmIdllaAz58YgxaH5zKdIwPUkqcDu0k=",
++    "MODULE.bazel": "sha256-YbH8VGG6Hp5Cd8/ECLBYpYCbGCiJ0HhRhCIbVaYauMI=",
+     "bazel/config.h.in": "sha256-6KKxJ1wSXmVs6StcX7vBmZfA2V5N9lzx+p94c0xWB5o=",
+     "bazel/consumer_test.c": "sha256-o5VfXTZHGW5LYHIzF9A78/cJSRRHZEZoM3AtBmffCTw=",
++    "bazel/lacp_port_removal_test.c": "sha256-Ii4jCd0daBRBt4PaY9JfQnxUtzDvHfIcS/TLBSbiv1E=",
+     "bazel/package_test.py": "sha256-BCOzQcMFKaDqdcJLpgyiXYUPmAFLF9kLE+h18PJXV1A=",
+     "bazel/sdk_timestamp_test.py": "sha256-H57qRgfFSyhcWcybmoyAzIliSR7xQyCRyuH4Ho7/eyc=",
+     "bazel/verify_rebuild.py": "sha256-8BC/mP30TK3mChgTdurKmYV/4eaDCsjsS7e5e/4o/pc=",
+@@ -29,6 +30,7 @@
+     "0017-Specify-netlink-recv-buffer-size-to-avoid-a-syscall.patch": "sha256-UWxVOvYgjydsLCgA5tQ4JvZCanjx5/8uokE+12Y3B4I=",
+     "0018-Replace-FD_SET-select-with-poll-to-avoid-FD_SETSIZE-abort.patch": "sha256-oiDKEbHx9SkcAkOFuJsqoLb1xtMAa4yCp0rT+6TT+8s=",
+     "0019-fix-event-fd-init-and-free.patch": "sha256-PbcKc5U8hEubUpAN8J52T3CNV0C8qM0VkUfltOMedUI=",
+-    "0020-Extend-LACP-fallback-support-to-multiple-ports.patch": "sha256-4RTqF7lxBxGbUMj5x9c8sMhf7l3Gq/3KbbNCUpfe4EM="
++    "0020-Extend-LACP-fallback-support-to-multiple-ports.patch": "sha256-4RTqF7lxBxGbUMj5x9c8sMhf7l3Gq/3KbbNCUpfe4EM=",
++    "0021-teamd-lacp-guard-missing-port-on-removal.patch": "sha256-Mi513U3xYxWo/ADv0zrUYqnEEqpHyAfNP1XiLOtaubs="
+   }
+ }
+diff --git a/modules/libteam/1.31.0.sonic.3/tests/consumer/MODULE.bazel b/modules/libteam/1.31.0.sonic.3/tests/consumer/MODULE.bazel
+index c2f8d3d0f4bd0cb048e35850212cd09b2962867a..83d1b57d8d96e0886516d3614da82957e2252851 100644
+--- a/modules/libteam/1.31.0.sonic.3/tests/consumer/MODULE.bazel
++++ b/modules/libteam/1.31.0.sonic.3/tests/consumer/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(name = "libteam_native_consumer")
+ 
+-bazel_dep(name = "libteam", version = "1.31.0.sonic.2")
++bazel_dep(name = "libteam", version = "1.31.0.sonic.3")
+ bazel_dep(name = "sonic-build-infra", version = "0.0.45-77ef625a4ddafc8cdc15f3cc6aee31eabac8a5de", repo_name = "sonic_build_infra")
+ bazel_dep(name = "tar.bzl", version = "0.10.5.sonic.2")
+ 
+diff --git a/modules/libteam/metadata.json b/modules/libteam/metadata.json
+index 737cd232956f2749ad8a42b508a3df15b37cf7af..76723b41542eaa84e1719b4015a5f54eedc4fd43 100644
+--- a/modules/libteam/metadata.json
++++ b/modules/libteam/metadata.json
+@@ -11,7 +11,8 @@
+     "github:jpirko/libteam"
+   ],
+   "versions": [
+-    "1.31.0.sonic.2"
++    "1.31.0.sonic.2",
++    "1.31.0.sonic.3"
+   ],
+   "yanked_versions": {}
+ }
