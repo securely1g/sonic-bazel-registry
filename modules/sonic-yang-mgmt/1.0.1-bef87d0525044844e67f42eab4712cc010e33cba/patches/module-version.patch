@@ -3,5 +3,5 @@
 @@ -2,3 +2,3 @@
      name = "sonic-yang-mgmt",
 -    version = "1.0.1",
-+    version = "1.0.1-504212f781b598dbb530cce8b5c1aedf7a5b493e",
++    version = "1.0.1-bef87d0525044844e67f42eab4712cc010e33cba",
  )
