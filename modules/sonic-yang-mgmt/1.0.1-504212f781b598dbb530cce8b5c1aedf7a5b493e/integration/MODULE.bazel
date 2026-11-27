@@ -1,6 +1,6 @@
 module(name = "sonic_yang_mgmt_registry_consumer")
 
-bazel_dep(name = "sonic-yang-mgmt", version = "1.0.1-9eb076efcaaea765cd8c72deca6f741528b68e68")
+bazel_dep(name = "sonic-yang-mgmt", version = "1.0.1-504212f781b598dbb530cce8b5c1aedf7a5b493e")
 bazel_dep(
     name = "sonic-swss-common",
     version = "0.0.8-2a4ddd070edb719f2e969a880a5cfff711e64e72",
