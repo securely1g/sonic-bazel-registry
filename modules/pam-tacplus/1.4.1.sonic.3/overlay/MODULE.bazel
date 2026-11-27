@@ -1,0 +1,62 @@
+# AUTO-GENERATED. DO NOT EDIT MANUALLY.
+# Source: ../MODULE.bazel
+# Generator: python3 ci/registry_ci.py sync-module --module pam-tacplus --version 1.4.1.sonic.3
+
+module(
+    name = "pam-tacplus",
+    version = "1.4.1.sonic.3",
+)
+
+bazel_dep(name = "bazel_skylib", version = "1.9.2")
+bazel_dep(name = "rules_cc", version = "0.2.20")
+bazel_dep(name = "rules_python", version = "1.9.0.sonic.2")
+bazel_dep(name = "platforms", version = "1.0.0")
+bazel_dep(name = "tar.bzl", version = "0.10.5.sonic.2")
+bazel_dep(name = "rules_distroless", version = "0.9.4.sonic.26")
+bazel_dep(name = "sonic-build-infra", version = "0.0.45-77ef625a4ddafc8cdc15f3cc6aee31eabac8a5de", repo_name = "sonic_build_infra")
+
+apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
+apt.import_lock(lock = "@sonic_build_infra//apt:apt.lock.json")
+use_repo(apt, "tacacs_build_debian")
+
+patch_tools_repository = use_repo_rule("@sonic_build_infra//source:patch_tools.bzl", "patch_tools_repository")
+
+patch_tools_repository(
+    name = "pam_patch_tools",
+    lock = "@sonic_build_infra//apt:apt.lock.json",
+)
+
+prepared_source = use_repo_rule("@sonic_build_infra//source:prepared_source.bzl", "prepared_source")
+
+prepared_source(
+    name = "pam_tacplus_src",
+    build_file = "//:source.BUILD.bazel",
+    gnu_tools = "@pam_patch_tools//:ROOT",
+    inputs = {
+        "0001-Don-t-init-declarations-in-a-for-loop.patch": "//:0001-Don-t-init-declarations-in-a-for-loop.patch",
+        "0002-Fix-libtac2-bin-install-directory-error.patch": "//:0002-Fix-libtac2-bin-install-directory-error.patch",
+        "0003-Obfuscate-key-before-printing-to-syslog.patch": "//:0003-Obfuscate-key-before-printing-to-syslog.patch",
+        "0004-management-vrf-support.patch": "//:0004-management-vrf-support.patch",
+        "0005-pam-Modify-parsing-of-IP-address-and-port-number-to-.patch": "//:0005-pam-Modify-parsing-of-IP-address-and-port-number-to-.patch",
+        "0006-Add-support-for-source-ip-address.patch": "//:0006-Add-support-for-source-ip-address.patch",
+        "0007-Fix-memory-leak-when-parse-configuration.patch": "//:0007-Fix-memory-leak-when-parse-configuration.patch",
+        "0008-Extract-tacacs-support-functions-into-library.patch": "//:0008-Extract-tacacs-support-functions-into-library.patch",
+        "0009-Add-setting-flag-for-authorization-and-accounting.patch": "//:0009-Add-setting-flag-for-authorization-and-accounting.patch",
+        "0010-handle-bad-password-set-by-sshd.patch": "//:0010-handle-bad-password-set-by-sshd.patch",
+        "0011-Add-traceid-authorization-config-flag.patch": "//:0011-Add-traceid-authorization-config-flag.patch",
+    },
+    steps = [
+        '{"op": "archive", "urls": ["https://github.com/jeroennijhof/pam_tacplus/archive/refs/tags/v1.4.1.tar.gz"], "sha256": "2e5db9bb9c4b3accd737352e788e620f629dc36e3d22093502d05d1938a67cb9", "strip_prefix": "pam_tacplus-1.4.1"}',
+        '{"op": "patch", "input": "0001-Don-t-init-declarations-in-a-for-loop.patch", "strip": 1, "format": "gnu", "fuzz": 0}',
+        '{"op": "patch", "input": "0002-Fix-libtac2-bin-install-directory-error.patch", "strip": 1, "format": "gnu", "fuzz": 0}',
+        '{"op": "patch", "input": "0003-Obfuscate-key-before-printing-to-syslog.patch", "strip": 1, "format": "gnu", "fuzz": 0}',
+        '{"op": "patch", "input": "0004-management-vrf-support.patch", "strip": 1, "format": "gnu", "fuzz": 0}',
+        '{"op": "patch", "input": "0005-pam-Modify-parsing-of-IP-address-and-port-number-to-.patch", "strip": 1, "format": "gnu", "fuzz": 0}',
+        '{"op": "patch", "input": "0006-Add-support-for-source-ip-address.patch", "strip": 1, "format": "gnu", "fuzz": 0}',
+        '{"op": "patch", "input": "0007-Fix-memory-leak-when-parse-configuration.patch", "strip": 1, "format": "gnu", "fuzz": 0}',
+        '{"op": "patch", "input": "0008-Extract-tacacs-support-functions-into-library.patch", "strip": 1, "format": "gnu", "fuzz": 0}',
+        '{"op": "patch", "input": "0009-Add-setting-flag-for-authorization-and-accounting.patch", "strip": 1, "format": "gnu", "fuzz": 0}',
+        '{"op": "patch", "input": "0010-handle-bad-password-set-by-sshd.patch", "strip": 1, "format": "gnu", "fuzz": 0}',
+        '{"op": "patch", "input": "0011-Add-traceid-authorization-config-flag.patch", "strip": 1, "format": "gnu", "fuzz": 0}',
+    ],
+)
