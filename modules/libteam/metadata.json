@@ -11,7 +11,8 @@
     "github:jpirko/libteam"
   ],
   "versions": [
-    "1.31.0.sonic.2"
+    "1.31.0.sonic.2",
+    "1.31.0.sonic.3"
   ],
   "yanked_versions": {}
 }

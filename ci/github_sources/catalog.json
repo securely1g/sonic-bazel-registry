@@ -98,6 +98,22 @@
       ]
     },
     {
+      "module": "libteam",
+      "version": "1.31.0.sonic.3",
+      "execution_architecture": "amd64",
+      "manifests": [
+        "cosmos-4.0.2.json"
+      ]
+    },
+    {
+      "module": "libteam",
+      "version": "1.31.0.sonic.3",
+      "execution_architecture": "arm64",
+      "manifests": [
+        "cosmos-4.0.2.json"
+      ]
+    },
+    {
       "module": "sonic-sairedis",
       "version": "0.0.5-6b9b254c0d083f3c75e20c61e88e083a7acf0a67",
       "execution_architecture": "amd64",

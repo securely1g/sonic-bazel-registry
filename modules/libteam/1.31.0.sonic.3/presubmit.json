@@ -1,0 +1,31 @@
+{
+  "architectures": [
+    "amd64",
+    "arm64"
+  ],
+  "platforms": {
+    "amd64": "@sonic_build_infra//platforms:x86_64_trixie",
+    "arm64": "@sonic_build_infra//platforms:aarch64_trixie"
+  },
+  "build_targets": [
+    "@libteam//:libteam_runtime",
+    "@libteam//:libteam_runtime.debug_symbols",
+    "@libteam//:libteamdctl_runtime",
+    "@libteam//:libteamdctl_runtime.debug_symbols",
+    "@libteam//:libteam_utils_runtime",
+    "@libteam//:libteam_utils_runtime.debug_symbols",
+    "@libteam//:libteam_dev",
+    "@libteam//:runtime_packages.json",
+    "@libteam//:library_runtime_packages.json"
+  ],
+  "test_targets": [
+    "@libteam//:consumer_test",
+    "@libteam//:lacp_port_removal_test",
+    "@libteam//:package_test",
+    "@libteam//:sdk_timestamp_test",
+    "@libteam//:verify_rebuild_test"
+  ],
+  "generated_module_overlay": true,
+  "integration_test_module": "tests/consumer",
+  "consumer_deps": []
+}

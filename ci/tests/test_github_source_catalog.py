@@ -99,8 +99,8 @@ class SourceCatalogTests(unittest.TestCase):
     def test_refreshed_consumers_keep_the_approved_cosmos_routes(self):
         expected = [ROOT / "ci/github_sources/cosmos-4.0.2.json"]
         cases = [
-            ('libteam', '1.31.0.sonic.1',
-             '1.31.0.sonic.2', ('amd64', 'arm64')),
+            ('libteam', '1.31.0.sonic.2',
+             '1.31.0.sonic.3', ('amd64', 'arm64')),
             ('sonic-sairedis', '0.0.5-33443ea1666a23812365d03fb959066ee84c9aa0',
              '0.0.5-6b9b254c0d083f3c75e20c61e88e083a7acf0a67', ('amd64', 'arm64')),
         ]
