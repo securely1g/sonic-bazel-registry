@@ -1,0 +1,8 @@
+{
+  "url": "https://github.com/sonic-net/sonic-swss-common/archive/d8d59ad0ccf9e802ec574354e73315877d29dcc2.tar.gz",
+  "strip_prefix": "sonic-swss-common-d8d59ad0ccf9e802ec574354e73315877d29dcc2",
+  "integrity": "sha256-RcBHEu9mADzwE4ffjGr4u9foYqwxBZjSI7LBWv9m4C8=",
+  "overlay": {
+    "MODULE.bazel": "sha256-WL1zCHf/8M8McZko4U3YrZZxb0e/oepWKg/ammDRg/k="
+  }
+}
