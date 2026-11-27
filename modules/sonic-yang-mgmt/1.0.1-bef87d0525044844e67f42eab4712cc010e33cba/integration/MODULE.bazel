@@ -1,0 +1,24 @@
+module(name = "sonic_yang_mgmt_registry_consumer")
+
+bazel_dep(name = "sonic-yang-mgmt", version = "1.0.1-bef87d0525044844e67f42eab4712cc010e33cba")
+bazel_dep(
+    name = "sonic-swss-common",
+    version = "0.0.8-2a4ddd070edb719f2e969a880a5cfff711e64e72",
+    repo_name = "sonic_swss_common",
+)
+bazel_dep(
+    name = "sonic-build-infra",
+    version = "0.0.45-77ef625a4ddafc8cdc15f3cc6aee31eabac8a5de",
+    repo_name = "sonic_build_infra",
+)
+
+# SWSS Common registers the legacy Rust toolchain during module resolution.
+bazel_dep(name = "rules_rs", version = "0.1.0")
+rust = use_extension("@rules_rs//rs:rules_rust_reexported_extensions.bzl", "rust")
+rust.toolchain(
+    edition = "2021",
+    extra_target_triples = ["aarch64-unknown-linux-gnu", "x86_64-unknown-linux-gnu"],
+    versions = ["1.90.0"],
+)
+use_repo(rust, "rust_toolchains")
+register_toolchains("@rust_toolchains//:all")

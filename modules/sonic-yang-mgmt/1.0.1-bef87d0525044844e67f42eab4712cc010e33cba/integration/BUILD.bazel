@@ -1,0 +1,4 @@
+alias(
+    name = "swss_common_schema",
+    actual = "@sonic_swss_common//common:cfg_schema_generated",
+)
