@@ -1,0 +1,295 @@
+socat registry entry: 1.8.0.2.sonic.8 to 1.8.0.3.sonic.1
+Baseline: 54c01a5262ad4910f1fb6683152ea4123596df14
+Candidate: ebba432eb5833de1c2cbc549fdde23e8bb93b98b
+
+Apply in a clean checkout of the baseline commit. The destination directory must not already exist.
+  cp -a modules/socat/1.8.0.2.sonic.8 modules/socat/1.8.0.3.sonic.1
+  git apply --check /path/to/socat-1.8.0.2.sonic.8-to-1.8.0.3.sonic.1.patch
+  git apply /path/to/socat-1.8.0.2.sonic.8-to-1.8.0.3.sonic.1.patch
+
+diff --git a/modules/socat/1.8.0.3.sonic.1/MODULE.bazel b/modules/socat/1.8.0.3.sonic.1/MODULE.bazel
+index 2d5514e3fb1ef516c585188d922fb656fe59c760..16b3b4c307cb64bc39963f1c5e584b81b615baeb 100644
+--- a/modules/socat/1.8.0.3.sonic.1/MODULE.bazel
++++ b/modules/socat/1.8.0.3.sonic.1/MODULE.bazel
+@@ -1,6 +1,6 @@
+ module(
+     name = "socat",
+-    version = "1.8.0.2.sonic.8",
++    version = "1.8.0.3.sonic.1",
+ )
+ 
+ bazel_dep(name = "platforms", version = "1.1.0")
+@@ -24,19 +24,26 @@ use_repo(apt, "socat_deps")
+ 
+ # The registry root is the immutable upstream archive. The prepared tree owns
+ # the Debian archive merge and ordered Debian/SONiC patch stages exactly once.
++patch_tools_repository = use_repo_rule("@sonic_build_infra//source:patch_tools.bzl", "patch_tools_repository")
++patch_tools_repository(
++    name = "socat_patch_tools",
++    lock = "@sonic_build_infra//apt:apt.lock.json",
++)
++
+ prepared_source = use_repo_rule("@sonic_build_infra//source:prepared_source.bzl", "prepared_source")
+ 
+ prepared_source(
+     name = "socat_source",
+     build_file = "//:bazel/socat.BUILD.bazel",
++    gnu_tools = "@socat_patch_tools//:ROOT",
+     inputs = {
+         "sonic/enable_readline.patch": "//:bazel/enable_readline.patch",
+         "sonic/namespace.patch": "//:bazel/0003-procan-namespace-nul.patch",
+     },
+     steps = [
+-        '{"op":"archive","urls":["https://snapshot.debian.org/archive/debian/20241222T205329Z/pool/main/s/socat/socat_1.8.0.2.orig.tar.bz2"],"sha256":"adc07a9c2723527cf6568d2fb96559794cf9c254a4bc2edd36f7f3789e9f7625","strip_prefix":"socat-1.8.0.2"}',
+-        '{"op":"archive","urls":["https://snapshot.debian.org/archive/debian/20241222T205329Z/pool/main/s/socat/socat_1.8.0.2-1.debian.tar.xz"],"sha256":"04b361cd91884eda6ca9fe2890ca83a6abe73dd8ce75fe9927b2d8443af36123"}',
+-        '{"op":"patch_series","series":"debian/patches/series","strip":1}',
++        '{"op":"archive","urls":["https://snapshot.debian.org/archive/debian/20260905T205002Z/pool/main/s/socat/socat_1.8.0.3.orig.tar.bz2"],"sha256":"01eb017361d95bb3a6941e840b59e4463a3fabf92df4154ed02b16a2ed6a0095","strip_prefix":"socat-1.8.0.3"}',
++        '{"op":"archive","urls":["https://snapshot.debian.org/archive/debian/20260905T205002Z/pool/main/s/socat/socat_1.8.0.3-1+deb13u1.debian.tar.xz"],"sha256":"2c19480da54317ad12d7e9b176bc23bde368b38756ed87aca3712b753ef83e86"}',
++        '{"op":"patch_series","series":"debian/patches/series","strip":1,"format":"gnu","fuzz":0}',
+         '{"op":"patch","input":"sonic/enable_readline.patch","strip":0,"format":"unified"}',
+         '{"op":"patch","input":"sonic/namespace.patch","strip":1}',
+     ],
+diff --git a/modules/socat/1.8.0.3.sonic.1/PATCHES.md b/modules/socat/1.8.0.3.sonic.1/PATCHES.md
+index 9fa6b81efac9a1898af1969fdb8f1b4bc15fc6c6..a1a12bc01dd29e31b3b63dd35ed6791b7c5b298d 100644
+--- a/modules/socat/1.8.0.3.sonic.1/PATCHES.md
++++ b/modules/socat/1.8.0.3.sonic.1/PATCHES.md
+@@ -1,10 +1,11 @@
+ # Source preparation
+ 
+ The original archive and Debian archive retain the SHA256 values listed by
+-`socat_1.8.0.2-1.dsc`. Debian's `debian/patches/series` supplies the ordered patches:
++`socat_1.8.0.3-1+deb13u1.dsc`. Debian's `debian/patches/series` supplies the ordered patches:
+ `00-Manpage`, `01-Index`, `03-Truncate`, `06-socat.1.patch`,
+-`07-compat-define-PATH_MAX.patch`, `08-test.sh-fixes.patch` and
+-`09-xioinitialize.c.patch`.
++`07-compat-define-PATH_MAX.patch`, `08-test.sh-fixes.patch`, `09-xioinitialize.c.patch` and
++`CVE-2026-56123.patch`. The shared GNU patch tool applies the series with zero
++fuzz, including the final patch’s adjacent file sections.
+ 
+ After that series, `bazel/enable_readline.patch` applies the unchanged SONiC
+ `src/socat/patch/enable_readline.patch`: it removes Debian's fixed
+diff --git a/modules/socat/1.8.0.3.sonic.1/README.md b/modules/socat/1.8.0.3.sonic.1/README.md
+index 5853476748604c855ed846c512e9df163bbc18dd..6586024bce6156292ae93f804cb612976f106e9d 100644
+--- a/modules/socat/1.8.0.3.sonic.1/README.md
++++ b/modules/socat/1.8.0.3.sonic.1/README.md
+@@ -1,4 +1,6 @@
+-## Dependency refresh for `1.8.0.2.sonic.8`
+-
+-This candidate retains the `1.8.0.2.sonic.7` source and existing patches. Its module dependencies select the newest non-yanked versions published at `3d1cc5e8dfd553d2acbe4198e504a245e6bdbddf`. Versions introduced by this refresh are not dependency targets of the same refresh.
++# socat 1.8.0.3.sonic.1
+ 
++This release builds socat, filan and procan from Debian Trixie source
++`1.8.0.3-1+deb13u1`, the version used by SONiC Make. It applies the Debian
++patch series and retains SONiC’s readline and procan patches, installation
++layout, package metadata and detached debug symbols. See [PATCHES.md](PATCHES.md).
+diff --git a/modules/socat/1.8.0.3.sonic.1/overlay/BUILD.bazel b/modules/socat/1.8.0.3.sonic.1/overlay/BUILD.bazel
+index 3c91b7cd88684948a73adeb82b28be0c24ede91b..b17e531ab66d71eb695bbe871793c7be7635f838 100644
+--- a/modules/socat/1.8.0.3.sonic.1/overlay/BUILD.bazel
++++ b/modules/socat/1.8.0.3.sonic.1/overlay/BUILD.bazel
+@@ -68,6 +68,8 @@ _CONFIG_COMMON = {
+     "#undef HAVE_FTRUNCATE64\n": "#define HAVE_FTRUNCATE64 1\n",
+     "#undef HAVE_PROTOTYPE_LIB_gettimeofday\n": "/* #undef HAVE_PROTOTYPE_LIB_gettimeofday */\n",
+     "#undef HAVE_CLOCK_GETTIME\n": "#define HAVE_CLOCK_GETTIME 1\n",
++    "#undef HAVE_GETRESUID\n": "#define HAVE_GETRESUID 1\n",
++    "#undef HAVE_GETRESGID\n": "#define HAVE_GETRESGID 1\n",
+     "#undef HAVE_STRTOLL\n": "#define HAVE_STRTOLL 1\n",
+     "#undef HAVE_HSTRERROR\n": "#define HAVE_HSTRERROR 1\n",
+     "#undef HAVE_INET_NTOP\n": "#define HAVE_INET_NTOP 1\n",
+@@ -108,6 +110,7 @@ _CONFIG_COMMON = {
+     "#undef HAVE_LINUX_TYPES_H\n": "#define HAVE_LINUX_TYPES_H 1\n",
+     "#undef HAVE_LINUX_ERRQUEUE_H\n": "#define HAVE_LINUX_ERRQUEUE_H 1\n",
+     "#undef HAVE_LINUX_IF_TUN_H\n": "#define HAVE_LINUX_IF_TUN_H 1\n",
++    "#undef HAVE_NETINET_DCCP_H\n": "/* #undef HAVE_NETINET_DCCP_H */\n",
+     "#undef HAVE_LINUX_DCCP_H\n": "#define HAVE_LINUX_DCCP_H 1\n",
+     "#undef HAVE_LINUX_VM_SOCKETS_H\n": "#define HAVE_LINUX_VM_SOCKETS_H 1\n",
+     "#undef HAVE_SCHED_H\n": "#define HAVE_SCHED_H 1\n",
+@@ -125,6 +128,7 @@ _CONFIG_COMMON = {
+     "#undef HAVE_LINUX_EXT2_FS_H\n": "/* #undef HAVE_LINUX_EXT2_FS_H */\n",
+     "#undef HAVE_READLINE_READLINE_H\n": "#define HAVE_READLINE_READLINE_H 1\n",
+     "#undef HAVE_READLINE_HISTORY_H\n": "#define HAVE_READLINE_HISTORY_H 1\n",
++    "#undef HAVE_MQUEUE_H\n": "#define HAVE_MQUEUE_H 1\n",
+     "#undef HAVE_LIBREADLINE\n": "#define HAVE_LIBREADLINE 1\n",
+     "#undef HAVE_LIBM\n": "/* #undef HAVE_LIBM */\n",
+     "#undef HAVE_FLOOR\n": "/* #undef HAVE_FLOOR */\n",
+@@ -322,7 +326,7 @@ _CONFIG_COMMON = {
+     "#undef WITH_DEVTESTS\n": "/* #undef WITH_DEVTESTS */\n",
+     "#undef WITH_MSGLEVEL\n": "#define WITH_MSGLEVEL 0\n",
+     "#undef WITH_DEFAULT_IPV \t/* default IP version: \"0\", \"4\", \"6\" */\n": "#define WITH_DEFAULT_IPV '4'\n",
+-    "#define BUILD_DATE __DATE__ \" \" __TIME__\n": "#define BUILD_DATE \"Dec 22 2024 15:21:12\"\n",
++    "#define BUILD_DATE __DATE__ \" \" __TIME__\n": "#define BUILD_DATE \"03 Sep 2026 20:58:48\"\n",
+ }
+ 
+ expand_template(
+@@ -677,7 +681,7 @@ sonic_deploy_tar(
+         "usr/bin/socat-broker.sh uid=0 gid=0 type=file mode=0755 content=$(location @socat_source//:socat-broker.sh)",
+         "usr/bin/socat-chain.sh uid=0 gid=0 type=file mode=0755 content=$(location @socat_source//:socat-chain.sh)",
+         "usr/bin/socat-mux.sh uid=0 gid=0 type=file mode=0755 content=$(location @socat_source//:socat-mux.sh)",
+-        "usr/share/doc-base/socat uid=0 gid=0 type=file mode=0644 content=$(location @socat_source//:debian/socat.doc-base)",
++        "usr/share/doc-base/socat.socat uid=0 gid=0 type=file mode=0644 content=$(location @socat_source//:debian/socat.doc-base)",
+         "usr/share/doc/socat/BUGREPORTS uid=0 gid=0 type=file mode=0644 content=$(location @socat_source//:BUGREPORTS)",
+         "usr/share/doc/socat/DEVELOPMENT.gz uid=0 gid=0 type=file mode=0644 content=$(location :compress_development)",
+         "usr/share/doc/socat/EXAMPLES.gz uid=0 gid=0 type=file mode=0644 content=$(location :compress_examples)",
+@@ -709,10 +713,10 @@ sonic_deploy_tar(
+         "usr/share/doc/socat/socat.html uid=0 gid=0 type=file mode=0644 content=$(location @socat_source//:doc/socat.html)",
+         "usr/share/lintian/overrides/socat uid=0 gid=0 type=file mode=0644 content=$(location @socat_source//:debian/socat.lintian-overrides)",
+         "usr/share/man/man1/socat1.1.gz uid=0 gid=0 type=file mode=0644 content=$(location :compress_socat_manpage)",
+-        "usr/bin/socat uid=0 gid=0 type=link link=socat1",
+-        "usr/share/man/man1/filan.1.gz uid=0 gid=0 type=link link=socat.1.gz",
+-        "usr/share/man/man1/procan.1.gz uid=0 gid=0 type=link link=socat.1.gz",
+-        "usr/share/man/man1/socat.1.gz uid=0 gid=0 type=link link=socat1.1.gz",
++        "usr/bin/socat uid=0 gid=0 mode=0777 type=link link=socat1",
++        "usr/share/man/man1/filan.1.gz uid=0 gid=0 mode=0777 type=link link=socat.1.gz",
++        "usr/share/man/man1/procan.1.gz uid=0 gid=0 mode=0777 type=link link=socat.1.gz",
++        "usr/share/man/man1/socat.1.gz uid=0 gid=0 mode=0777 type=link link=socat1.1.gz",
+     ],
+ )
+ 
+diff --git a/modules/socat/1.8.0.3.sonic.1/overlay/MODULE.bazel b/modules/socat/1.8.0.3.sonic.1/overlay/MODULE.bazel
+index c34bb8a5d30bcab2c1b60e3e65d1d53911902891..defe607ef98bb6888b83c585bf7468c7183e8476 100644
+--- a/modules/socat/1.8.0.3.sonic.1/overlay/MODULE.bazel
++++ b/modules/socat/1.8.0.3.sonic.1/overlay/MODULE.bazel
+@@ -1,10 +1,10 @@
+ # AUTO-GENERATED. DO NOT EDIT MANUALLY.
+ # Source: ../MODULE.bazel
+-# Generator: python3 ci/registry_ci.py sync-module --module socat --version 1.8.0.2.sonic.8
++# Generator: python3 ci/registry_ci.py sync-module --module socat --version 1.8.0.3.sonic.1
+ 
+ module(
+     name = "socat",
+-    version = "1.8.0.2.sonic.8",
++    version = "1.8.0.3.sonic.1",
+ )
+ 
+ bazel_dep(name = "platforms", version = "1.1.0")
+@@ -28,19 +28,26 @@ use_repo(apt, "socat_deps")
+ 
+ # The registry root is the immutable upstream archive. The prepared tree owns
+ # the Debian archive merge and ordered Debian/SONiC patch stages exactly once.
++patch_tools_repository = use_repo_rule("@sonic_build_infra//source:patch_tools.bzl", "patch_tools_repository")
++patch_tools_repository(
++    name = "socat_patch_tools",
++    lock = "@sonic_build_infra//apt:apt.lock.json",
++)
++
+ prepared_source = use_repo_rule("@sonic_build_infra//source:prepared_source.bzl", "prepared_source")
+ 
+ prepared_source(
+     name = "socat_source",
+     build_file = "//:bazel/socat.BUILD.bazel",
++    gnu_tools = "@socat_patch_tools//:ROOT",
+     inputs = {
+         "sonic/enable_readline.patch": "//:bazel/enable_readline.patch",
+         "sonic/namespace.patch": "//:bazel/0003-procan-namespace-nul.patch",
+     },
+     steps = [
+-        '{"op":"archive","urls":["https://snapshot.debian.org/archive/debian/20241222T205329Z/pool/main/s/socat/socat_1.8.0.2.orig.tar.bz2"],"sha256":"adc07a9c2723527cf6568d2fb96559794cf9c254a4bc2edd36f7f3789e9f7625","strip_prefix":"socat-1.8.0.2"}',
+-        '{"op":"archive","urls":["https://snapshot.debian.org/archive/debian/20241222T205329Z/pool/main/s/socat/socat_1.8.0.2-1.debian.tar.xz"],"sha256":"04b361cd91884eda6ca9fe2890ca83a6abe73dd8ce75fe9927b2d8443af36123"}',
+-        '{"op":"patch_series","series":"debian/patches/series","strip":1}',
++        '{"op":"archive","urls":["https://snapshot.debian.org/archive/debian/20260905T205002Z/pool/main/s/socat/socat_1.8.0.3.orig.tar.bz2"],"sha256":"01eb017361d95bb3a6941e840b59e4463a3fabf92df4154ed02b16a2ed6a0095","strip_prefix":"socat-1.8.0.3"}',
++        '{"op":"archive","urls":["https://snapshot.debian.org/archive/debian/20260905T205002Z/pool/main/s/socat/socat_1.8.0.3-1+deb13u1.debian.tar.xz"],"sha256":"2c19480da54317ad12d7e9b176bc23bde368b38756ed87aca3712b753ef83e86"}',
++        '{"op":"patch_series","series":"debian/patches/series","strip":1,"format":"gnu","fuzz":0}',
+         '{"op":"patch","input":"sonic/enable_readline.patch","strip":0,"format":"unified"}',
+         '{"op":"patch","input":"sonic/namespace.patch","strip":1}',
+     ],
+diff --git a/modules/socat/1.8.0.3.sonic.1/overlay/README.bazel.md b/modules/socat/1.8.0.3.sonic.1/overlay/README.bazel.md
+index 31e893a513dd8d8abb7e63e2a53eec431d58a270..c6dee3ad146f137c9e9f63641dd549cd0708113f 100644
+--- a/modules/socat/1.8.0.3.sonic.1/overlay/README.bazel.md
++++ b/modules/socat/1.8.0.3.sonic.1/overlay/README.bazel.md
+@@ -1,7 +1,7 @@
+-# SOCAT 1.8.0.2 for SONiC
++# SOCAT 1.8.0.3 for SONiC
+ 
+ This module builds SOCAT, filan and procan with native Bazel C rules. It retains
+-Debian source version `1.8.0.2-1`, the Debian patch series and SONiC's readline
++Debian source version `1.8.0.3-1+deb13u1`, the Debian patch series and SONiC's readline
+ patch, plus the network namespace termination fix from `1.8.0.2.sonic.6`.
+ The ordered source preparation uses the shared `prepared_source` rule.
+ No configure or Make invocation participates in the production action graph.
+diff --git a/modules/socat/1.8.0.3.sonic.1/overlay/socat_package_test.py b/modules/socat/1.8.0.3.sonic.1/overlay/socat_package_test.py
+index c13f72d653b88ebb499f8c8cec5c52da4fa5f95f..f1102f4d00be38f8e67c20cf3b7eb675bb269658 100644
+--- a/modules/socat/1.8.0.3.sonic.1/overlay/socat_package_test.py
++++ b/modules/socat/1.8.0.3.sonic.1/overlay/socat_package_test.py
+@@ -37,7 +37,7 @@ def main():
+     expected.update({"usr/share/doc/socat/" + name: 0o644 for name in [
+         "copyright", "README.Debian", "changelog.gz", "changelog.Debian.gz"]})
+     expected.update({"usr/share/man/man1/socat1.1.gz": 0o644,
+-                     "usr/share/doc-base/socat": 0o644,
++                     "usr/share/doc-base/socat.socat": 0o644,
+                      "usr/share/lintian/overrides/socat": 0o644})
+     original_files = {}
+     for pattern in (source / "debian/docs").read_text().splitlines():
+@@ -61,13 +61,13 @@ def main():
+         for name, member in members.items():
+             assert (member.uid, member.gid) == (0, 0), name
+             if name in links:
+-                assert member.issym() and member.linkname == links[name], name
++                assert member.issym() and member.mode == 0o777 and member.linkname == links[name], name
+             else:
+                 assert member.isfile() and member.mode == expected[name], name
+     info = json.loads(metadata.read_text())
+     assert info["schema"] == 1 and info["module"] == "socat", info
+     fields = info["packages"]["socat"]
+-    assert fields["control_fields"]["Version"] == "1.8.0.2-1", fields
++    assert fields["control_fields"]["Version"] == "1.8.0.3-1+deb13u1", fields
+     with tempfile.TemporaryDirectory(dir=os.environ["TEST_TMPDIR"]) as temporary:
+         root = Path(temporary)
+         for payload in [*dependencies, runtime]:
+@@ -114,7 +114,7 @@ def main():
+             return subprocess.check_output([*prefix, str(root / "usr/bin" / name), *args], env=environment, text=True, stderr=subprocess.STDOUT, timeout=20, **kwargs)
+         # First startup check uses only -V before the behavioral assertions.
+         version = installed_command("socat1", "-V")
+-        assert "socat version 1.8.0.2" in version, version
++        assert "socat version 1.8.0.3 on 03 Sep 2026 20:58:48" in version, version
+         for feature in ("WITH_OPENSSL", "WITH_READLINE", "WITH_LIBWRAP"):
+             assert re.search(r"#define " + feature + r" 1\b", version), version
+         for payload in ("short relay\n", "second input\n" * 257):
+@@ -125,6 +125,8 @@ def main():
+         for name in ("filan", "procan"):
+             assert installed_command(name, "-h")
+         process_metadata = installed_command("procan")
++        assert f"saved set-user id  = {os.getresuid()[2]}" in process_metadata.splitlines()
++        assert f"saved set-group id = {os.getresgid()[2]}" in process_metadata.splitlines()
+         namespace = re.search(r"^Network namespace: (.*)$", process_metadata, re.M)
+         assert namespace and namespace[1] == os.readlink("/proc/self/ns/net"), process_metadata
+         compiler = re.search(r"^// CC:\s+(.+)$", process_metadata, re.M)
+diff --git a/modules/socat/1.8.0.3.sonic.1/source.json b/modules/socat/1.8.0.3.sonic.1/source.json
+index 8fabe77597d87856e4c231f71f4966b345ef2fe3..a851153371cf320fab3ee2f75f67e09036d5812b 100644
+--- a/modules/socat/1.8.0.3.sonic.1/source.json
++++ b/modules/socat/1.8.0.3.sonic.1/source.json
+@@ -1,15 +1,15 @@
+ {
+-  "url": "https://snapshot.debian.org/archive/debian/20241222T205329Z/pool/main/s/socat/socat_1.8.0.2.orig.tar.bz2",
+-  "integrity": "sha256-rcB6nCcjUnz2Vo0vuWVZeUz5wlSkvC7dNvfzeJ6fdiU=",
+-  "strip_prefix": "socat-1.8.0.2",
++  "url": "https://snapshot.debian.org/archive/debian/20260905T205002Z/pool/main/s/socat/socat_1.8.0.3.orig.tar.bz2",
++  "integrity": "sha256-AesBc2HZW7OmlB6EC1nkRjo/q/kt9BVO0CsWou1qAJU=",
++  "strip_prefix": "socat-1.8.0.3",
+   "overlay": {
+     ".bazelrc": "sha256-fy+ML8+uyjYUjvhrxiGRoqwJiejqNeSCa5LDTSDPoF4=",
+-    "BUILD.bazel": "sha256-4kfFHwh3qQDTebqVhIBYAchPxlc8eWUq90BPy4xQy7g=",
+-    "MODULE.bazel": "sha256-NJ/AJBCNHG2qkEvvrTxoI+NvfsxU14NHzz9FqCKxhdE=",
+-    "README.bazel.md": "sha256-BxOkzshdM7QXPEuGXh+2zrFHjwxZT7TkOLu+ocODD5Q=",
++    "BUILD.bazel": "sha256-3E5irSHoUf4Z46GAfzUql8EdaQru4eHcDuqci4bqtO0=",
++    "MODULE.bazel": "sha256-pr6sLbNlWzC1siX/4E2vOxjnw1X78oAzBsjXwXGembE=",
++    "README.bazel.md": "sha256-cnHs8tzGIXaZYqjIBcZ/YQduRyn/ESQ5ZmT/684VwKM=",
+     "bazel/0003-procan-namespace-nul.patch": "sha256-N3LNqgqQSI0+ygpR0HqN3E59DcICFZtgLHh1Vbf7Tcg=",
+     "bazel/enable_readline.patch": "sha256-AuLt7bFWMDMdKiTRYPBSo0uZ2CjQae/86mCK7OMF9mg=",
+     "bazel/socat.BUILD.bazel": "sha256-vmtxEDFvzXTH2wAfGZpZqSXpgmlTxIGaRP+NMXucFjM=",
+-    "socat_package_test.py": "sha256-vCv54Gajr7L0WxlgzW7wT8NbVdLs+Jkn9Ie3TA9yb3o="
++    "socat_package_test.py": "sha256-Nkj3GVEHxIhAjaTHfOC1RFLCBp3uxLF8UfbOcWhr3oo="
+   }
+ }
+diff --git a/modules/socat/metadata.json b/modules/socat/metadata.json
+index c0687ae6a7bf63310e97f88c521ee93fdb63d2a4..b412e6959913851c2d6d61ac5d2a2a89e0320780 100644
+--- a/modules/socat/metadata.json
++++ b/modules/socat/metadata.json
+@@ -11,7 +11,8 @@
+     "https://www.dest-unreach.org/socat/"
+   ],
+   "versions": [
+-    "1.8.0.2.sonic.8"
++    "1.8.0.2.sonic.8",
++    "1.8.0.3.sonic.1"
+   ],
+   "yanked_versions": {}
+ }
