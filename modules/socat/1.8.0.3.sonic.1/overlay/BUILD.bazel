@@ -681,7 +681,7 @@ sonic_deploy_tar(
         "usr/bin/socat-broker.sh uid=0 gid=0 type=file mode=0755 content=$(location @socat_source//:socat-broker.sh)",
         "usr/bin/socat-chain.sh uid=0 gid=0 type=file mode=0755 content=$(location @socat_source//:socat-chain.sh)",
         "usr/bin/socat-mux.sh uid=0 gid=0 type=file mode=0755 content=$(location @socat_source//:socat-mux.sh)",
-        "usr/share/doc-base/socat uid=0 gid=0 type=file mode=0644 content=$(location @socat_source//:debian/socat.doc-base)",
+        "usr/share/doc-base/socat.socat uid=0 gid=0 type=file mode=0644 content=$(location @socat_source//:debian/socat.doc-base)",
         "usr/share/doc/socat/BUGREPORTS uid=0 gid=0 type=file mode=0644 content=$(location @socat_source//:BUGREPORTS)",
         "usr/share/doc/socat/DEVELOPMENT.gz uid=0 gid=0 type=file mode=0644 content=$(location :compress_development)",
         "usr/share/doc/socat/EXAMPLES.gz uid=0 gid=0 type=file mode=0644 content=$(location :compress_examples)",
@@ -713,10 +713,10 @@ sonic_deploy_tar(
         "usr/share/doc/socat/socat.html uid=0 gid=0 type=file mode=0644 content=$(location @socat_source//:doc/socat.html)",
         "usr/share/lintian/overrides/socat uid=0 gid=0 type=file mode=0644 content=$(location @socat_source//:debian/socat.lintian-overrides)",
         "usr/share/man/man1/socat1.1.gz uid=0 gid=0 type=file mode=0644 content=$(location :compress_socat_manpage)",
-        "usr/bin/socat uid=0 gid=0 type=link link=socat1",
-        "usr/share/man/man1/filan.1.gz uid=0 gid=0 type=link link=socat.1.gz",
-        "usr/share/man/man1/procan.1.gz uid=0 gid=0 type=link link=socat.1.gz",
-        "usr/share/man/man1/socat.1.gz uid=0 gid=0 type=link link=socat1.1.gz",
+        "usr/bin/socat uid=0 gid=0 mode=0777 type=link link=socat1",
+        "usr/share/man/man1/filan.1.gz uid=0 gid=0 mode=0777 type=link link=socat.1.gz",
+        "usr/share/man/man1/procan.1.gz uid=0 gid=0 mode=0777 type=link link=socat.1.gz",
+        "usr/share/man/man1/socat.1.gz uid=0 gid=0 mode=0777 type=link link=socat1.1.gz",
     ],
 )
 

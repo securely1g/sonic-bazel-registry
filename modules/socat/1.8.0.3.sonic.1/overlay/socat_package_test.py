@@ -37,7 +37,7 @@ def main():
     expected.update({"usr/share/doc/socat/" + name: 0o644 for name in [
         "copyright", "README.Debian", "changelog.gz", "changelog.Debian.gz"]})
     expected.update({"usr/share/man/man1/socat1.1.gz": 0o644,
-                     "usr/share/doc-base/socat": 0o644,
+                     "usr/share/doc-base/socat.socat": 0o644,
                      "usr/share/lintian/overrides/socat": 0o644})
     original_files = {}
     for pattern in (source / "debian/docs").read_text().splitlines():
@@ -61,7 +61,7 @@ def main():
         for name, member in members.items():
             assert (member.uid, member.gid) == (0, 0), name
             if name in links:
-                assert member.issym() and member.linkname == links[name], name
+                assert member.issym() and member.mode == 0o777 and member.linkname == links[name], name
             else:
                 assert member.isfile() and member.mode == expected[name], name
     info = json.loads(metadata.read_text())
