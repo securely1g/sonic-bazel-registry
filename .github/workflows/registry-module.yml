@@ -58,7 +58,7 @@ on:
       architecture:
         description: Target architecture
         type: choice
-        options: [amd64]
+        options: [amd64, arm64]
         default: amd64
       runner:
         description: Native diagnostic runner route
